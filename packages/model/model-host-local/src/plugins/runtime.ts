@@ -34,7 +34,11 @@ import {
   type ModelSavedReceipt,
   type ResultPart,
 } from '@omne-harness/model-contract'
-import type { ModelCommands, ModelHostAuthority } from '@omne-harness/model-contract/provider'
+import type {
+  ExecutionRef,
+  ModelCommands,
+  ModelHostAuthority,
+} from '@omne-harness/model-contract/provider'
 import {
   ModelRuntimeService,
   createModelResultReceiverTable,
@@ -657,37 +661,53 @@ function createResultPush(
   /** Moves the cleanup of an acknowledged call on. A failure keeps the ACK and tries again later. */
   async function clean(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     if (record.acknowledgement !== 'acknowledged' || record.cleanup === 'released') return record
+    const execution = await cleanupExecution(record, access)
+    if (execution === null) return record
+    if (execution === 'released' || (await advanceCleanup(execution)))
+      return save(dropBody({ ...record, cleanup: 'released' }))
+    return record
+  }
+
+  /**
+   * The execution whose cleanup is still to do, `released` when it is done, or null when the
+   * cleanup cannot go on now (reported).
+   */
+  async function cleanupExecution(
+    record: ResultPushRecord,
+    access: Access,
+  ): Promise<ExecutionRef | 'released' | null> {
     const recovery = await commands.loadRecovery({ ...access, call: record.call })
     if ('failure' in recovery) {
-      const released =
-        recovery.failure.kind === 'invalid' &&
-        recovery.failure.reason === 'recovery-material-released'
-      if (released) return save(dropBody({ ...record, cleanup: 'released' }))
-      report({ kind: 'cleanup-pending', reason: recovery.failure.kind })
-      return record
+      const { failure } = recovery
+      if (failure.kind === 'invalid' && failure.reason === 'recovery-material-released')
+        return 'released'
+      report({ kind: 'cleanup-pending', reason: failure.kind })
+      return null
     }
     const { execution, state } = recovery.ok
     if (state.custody.kind === 'acknowledged' && state.custody.cleanup === 'released')
-      return save(dropBody({ ...record, cleanup: 'released' }))
-    if (execution === null) {
-      report({ kind: 'cleanup-pending', reason: 'no-execution' })
-      return record
-    }
+      return 'released'
+    if (execution === null) report({ kind: 'cleanup-pending', reason: 'no-execution' })
+    return execution
+  }
+
+  /** At most `maxCleanupSteps` cleanup steps; true once the cleanup is released. */
+  async function advanceCleanup(execution: ExecutionRef): Promise<boolean> {
     for (let step = 0; step < limits.maxCleanupSteps; step += 1) {
       const advanced = await commands.advanceCleanup({ ...execution, operation: newOperation() })
       if ('failure' in advanced) {
         report({ kind: 'cleanup-pending', reason: advanced.failure.kind })
-        return record
+        return false
       }
-      if (advanced.ok.kind === 'acknowledged' && advanced.ok.cleanup === 'released')
-        return save(dropBody({ ...record, cleanup: 'released' }))
-      if (advanced.ok.kind === 'acknowledged' && advanced.ok.cleanup === 'blocked') {
+      if (advanced.ok.kind !== 'acknowledged') continue
+      if (advanced.ok.cleanup === 'released') return true
+      if (advanced.ok.cleanup === 'blocked') {
         report({ kind: 'cleanup-pending', reason: 'blocked' })
-        return record
+        return false
       }
     }
     report({ kind: 'cleanup-pending', reason: 'steps' })
-    return record
+    return false
   }
 
   /** After the ACK the receiver holds the result: the producer keeps its key and standing only. */

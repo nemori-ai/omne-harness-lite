@@ -925,7 +925,7 @@ it('waits on unload for a late account that is being accepted and hands it to th
     resume = resolve
   })
   w.hooks.dispatches = () => {
-    w.hooks.dispatches = undefined
+    delete w.hooks.dispatches
     reached = true
     return gate
   }

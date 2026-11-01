@@ -159,10 +159,10 @@
 - **推送与回执。** 接收方按冻结的 `consumer.owner` 从本插件的登记表解析，不重新选择 owner。没有登记时交付保持等待，诊断 `no-receiver`，该 owner 登记时重推。回执的键必须与原键相同，证据的 owner 必须是冻结的 consumer owner，否则不算 saved，交付记为失败并报告 `receipt-mismatch`。`outcome-unknown` 与抛出都算结果未知：用原键与原载荷立即重投，最多 `maxRedeliveries` 次，之后保持未知，下一次唤醒再重投。`unavailable`、`backpressured` 与 `cancelled-before-accept` 使交付等待下一次唤醒。`denied`、`invalid` 与 `conflict` 使交付失败，不自动重推。已经 saved 的交付不被后来的回答改写；未知只被 saved 取代。
 - **ACK。** ACK 只接受推送接受过的 saved 回执，这是唯一能到达交接的路径：以固定的 ACK 操作和回执证据调用 `ModelCommands.handoff`，证据种类为 retained。`commit-unknown` 时用同一操作与同一输入重发，最多 `maxRedeliveries` 次，之后记为未知，下一次唤醒继续认回，不换操作，不清理。
 - **清理。** ACK 成立后推送推进清理，每轮最多 `maxCleanupSteps` 步。清理失败或受阻时保持已确认，报告 `cleanup-pending`，下一次唤醒或后继插件继续，不撤回确认，不再 ACK。清理释放后推送只留结果键与回执，丢掉正文。
-- **晚到账目。** 晚到账目经插件交给提供者的同一个命令端口进入。账目被接受之前先占一个名额：租户待交付账目达到 `maxPendingAccountsPerTenant`，或全部租户达到 `maxPendingAccounts` 时，`recordLateFact` 不提交，返回 `unavailable`（dependency `model-result-push`，诊断 `late-account-capacity`），并报告一条警告。来源仍持有它的报告，有名额后用同一操作重交。同一操作重交不另占名额。接受后推送立即读回这次提交的修订并冻结一个账目交付：键是调用引用、发出与修订，载荷是冻结的 consumer 与账目。同一调用的晚到账目一个接一个接受，每个修订一个交付，不合并。结果冻结时已在快照里的修订不另推。账目交付只在结果 saved 之后推送，正文释放后照常推送，名额在交付 saved 后归还。账目的未知项保持未知，不写零。
+- **晚到账目。** 晚到账目经插件交给提供者的同一个命令端口进入。账目被接受之前先占一个名额：租户待交付账目达到 `maxPendingAccountsPerTenant`，或全部租户达到 `maxPendingAccounts` 时，`recordLateFact` 不提交，返回 `unavailable`（dependency `model-result-push`，诊断 `late-account-capacity`），并报告一条警告。来源仍持有它的报告，有名额后用同一操作重交。同一操作重交不另占名额。接受的结果是 `commit-unknown` 或 `unavailable` 时，账目可能已经提交，名额不归还。接受后推送立即读回这次提交的修订并冻结一个账目交付：键是调用引用、发出与修订，载荷是冻结的 consumer 与账目。同一调用的晚到账目一个接一个接受，每个修订一个交付，不合并。结果冻结时已在快照里的修订不另推。账目交付只在结果 saved 之后推送，正文释放后照常推送，名额在交付 saved 后归还。账目的未知项保持未知，不写零。
 - **登记。** 登记规则由契约包的登记表实现：两个存活 fiber 争同一 owner 时后来者 `FAILED`；旧登记属于已卸载或正在卸载的 fiber 时被直接取代，所以插件因别的依赖重跑后重新登记不失败。本插件在每次登记成功后唤醒该 owner 的未完成交付。
 - **推送状态的存放。** 推送记录放在装配给出的 `ResultPushLedger` 里，记录里有冻结交付、回执、ACK 与清理状态和待交付账目。账本同一时刻只有一个写者：`claim` 拒绝第二个。`createMemoryResultPushLedger` 是进程内的实现。耐久账本从这个端口接入，本包尚未提供。
-- **生命周期。** 撤除时的次序是：quiesce，停派发并等待 drive 交还，停推送（中止在途推送并等待它们结束，未接收的账目写入账本，释放账本），最后撤发布服务的子插件。未完成的推送、ACK、清理与晚到账目留在账本里。拿同一账本装载的后继插件用原键与原载荷继续。启动窗口里插件被卸载时，已绑定的宿主关闭，服务不发布。
+- **生命周期。** 撤除时的次序是：quiesce，停派发并等待 drive 交还，停推送（此后 `recordLateFact` 对账目返回 `unavailable`，dependency `model-result-push`，诊断 `result-push-stopped`，来源向后继重交；中止在途推送并等待它们结束；等正在接纳的晚到账目冻结完；未接收的账目写入账本；释放账本），最后撤发布服务的子插件。未完成的推送、ACK、清理与晚到账目留在账本里。拿同一账本装载的后继插件用原键与原载荷继续。启动窗口里插件被卸载时，已绑定的宿主关闭，服务不发布。
 
 已知限制：
 
@@ -172,6 +172,10 @@
 - 推送不发出 `model-cordis-contract/call-changed` 事件。
 - model 运行时的 `quiesce` 尚未实现，撤除时它返回的不可用只写进诊断。
 - 模型发送没有重试策略（M2 范围）。
+- 进程内没有再驱动等待（`waiting`）或未知（`unknown`）的交付。只有四个唤醒来源：`settle` 提交、晚到账目接受、owner 登记、后继插件启动。没有计时器，也不扫描。波 C 的恢复扫描接续这些交付。
+- 被接收方以 `denied`、`invalid` 或 `conflict` 拒绝的晚到账目一直占着名额，不自动重推。租户份额因此可能被耗尽。波 C 的恢复扫描收场这些账目。
+- 停推送等正在接纳的晚到账目，不设超时。命令端口一直不答时，卸载不返回。这与宿主关闭时的排空相同。
+- `runtime.ts` 里有四个函数的圈复杂度高于 warn 线 10，不超 alert 线 12，保留不拆：`freeze`（12）按契约顺序读受理事实、引用、发出记录与结果页，每一步失败各自报告并返回；`push`（12）的分支逐个对应「推送与回执」的回答分类与重投上界；`hold`（12）是读回修订前后的顺序检查，每一项提前返回；`reportRuntimeEvent`（11）为 `RuntimeEvent` 的每个种类写一个分支，种类增加时它随之增加。拆开会把一个按顺序的决定分到几个函数里，读者要跨函数核对次序。
 
 #### 宿主插件的已知限制
 
@@ -275,7 +279,7 @@
 - [assembly.spec.ts](tests/assembly.spec.ts)：装配对路由、网络、尝试容量与准备配置的拒绝。`preparation` 的租约经配置的家族取得绑定，并调用配置的 `supplierOf`。`close` 开始后的取得返回具名为 `model-host-local`、`assembly-closed` 的不可用，且不调用 `supplierOf`。关闭前取得的租约在关闭后计量结果不变并能释放。`close` 幂等。
 - [plugins-instances.spec.ts](tests/plugins-instances.spec.ts)：真实 Cordis 4.0.4 下两个目录插件的等待、发布、登记与释放、非解析器租户、授权方拒绝、后继目录、失去权威与转换目录的独立。
 - [plugins-host.spec.ts](tests/plugins-host.spec.ts)：真实 Cordis 4.0.4 下宿主部分的绑定后发布、四项配置的拒绝、并发上限、唤醒容量满、重复唤醒、调用方 fiber 退出、无可信输入时不驱动、有序关闭的次序与未派发唤醒、后继宿主不接管旧引用、失去依赖、启动窗口卸载时宿主关闭、观察资格与换代路由。
-- [runtime-push.spec.ts](tests/runtime-push.spec.ts)：真实 Cordis 4.0.4、真实 model 运行时与内存 `ModelCommands`、脚本传输与脚本接收方（代 agent-host-local 的接收方）。核对：冻结的结果交付与 retained ACK；saved 的四项事实各缺一项时不 ACK；键或证据 owner 不符的回执不算 saved；未知时用原键原载荷重投；ACK 未知时以原操作认回；清理失败保持确认、后继完成清理；没有接收方时等待、登记后推送；正文释放后每个晚到修订一个账目交付；账目在结果 saved 之后；晚到账目超界被拒并可观察、有名额后接受；两个存活 fiber 争同一 owner；因别的依赖重跑后重新登记；撤除时未完成推送交给后继。
+- [runtime-push.spec.ts](tests/runtime-push.spec.ts)：真实 Cordis 4.0.4、真实 model 运行时与内存 `ModelCommands`、脚本传输与脚本接收方（代 agent-host-local 的接收方）。核对：冻结的结果交付与 retained ACK；saved 的四项事实各缺一项时不 ACK；键或证据 owner 不符的回执不算 saved；未知时用原键原载荷重投；ACK 未知时以原操作认回；清理失败保持确认、后继完成清理；没有接收方时等待、登记后推送；正文释放后每个晚到修订一个账目交付；账目在结果 saved 之后；晚到账目超界被拒并可观察、有名额后接受；未知后被拒的重投保持未知；晚到账目接受未知时不归还名额、同一操作重交不另占；卸载等正在接纳的晚到账目并交给后继、停后拒收；两个存活 fiber 争同一 owner；因别的依赖重跑后重新登记；撤除时未完成推送交给后继。
 - [runtime-cancel.spec.ts](tests/runtime-cancel.spec.ts)（慢层）：本地 HTTPS 流进行中的 `calls.cancel`。核对：终止在传输报告物理停止之后，已交付内容保留，费用不写零；同租户另一调用照常完成；取消与自然完成同时到达时只有一个终止。
 - [plugins-preparation.spec.ts](tests/plugins-preparation.spec.ts)：真实 Cordis 4.0.4 下无运行面与网络时的 `prepare`、档案拒绝、租约交还、卸载后查询仍可用、同一命令上的第 2 轮锚点与另一份命令的读不到、卸载后的租约、命令换代。`modelPreparationResources`：经键取得的租约读到注入命令里的调用，键随插件撤除，旧引用拒绝新租约，重装后键恢复；真实插件跑契约成员的两条符合性用例。
 - [local-model.spec.ts](tests/local-model.spec.ts)（慢层）：本地 HTTPS 服务回放 OpenAI 与 Anthropic 两个家族录制的 SSE 正文，两家各有一条回复含推理续接状态部件。调用经本地保管库、装配的发送边界、真实 pi 传输、两个家族与 model 运行时。测试核对：请求带保管库解析出的 `Bearer` 占位值；事实以唯一的 `ended` 结束；调用收场，发出记录的终局与之相同；物化回执带该家族记录产出的 `replayFormat`；账目带本次调用的 `subject` 与 `receipt: 'received'` 到达内存 `ModelCommands`，并经 `dispatches` 读回；`payableAmount` 得到已知的 `openrouter-credit` 金额；占位值不出现在事实与发出记录中。
