@@ -128,3 +128,15 @@ export type {
   ModelRuntimeLocalPluginClass,
   ModelRuntimeLocalPluginInstance,
 } from './plugins/host.ts'
+export { createMemoryResultPushLedger } from './plugins/runtime.ts'
+export type {
+  DeliveryFailure,
+  DeliveryStanding,
+  HeldAccount,
+  HeldDelivery,
+  ResultPushLedger,
+  ResultPushLimits,
+  ResultPushOptions,
+  ResultPushRecord,
+  RuntimeEvent,
+} from './plugins/runtime.ts'

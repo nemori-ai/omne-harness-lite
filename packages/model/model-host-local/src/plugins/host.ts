@@ -1,7 +1,7 @@
 // MD-04: the host part of `ModelRuntimeLocalPlugin`. It builds the local driver host, binds the
-// driver of the runtime provider, and only then publishes `modelInstanceHost`. The runtime service
-// is not here: the runtime provider comes in through `options.provider`, and the plugin that
-// publishes `modelRuntime` extends `ModelRuntimeLocalPlugin.start` (see the marked place there).
+// driver of the runtime provider, and only then publishes `modelInstanceHost`. The runtime provider
+// comes in through `options.provider`; the runtime stage of `./runtime.ts` gives it its commands
+// and publishes `modelRuntime` next to the host, at the marked place in `ModelRuntimeLocalPlugin.start`.
 //
 // Three structural facts hold this file together:
 // - The host object is built unbound, and the contribution that publishes it is created in the
@@ -21,6 +21,7 @@ import type {
   ModelCallId,
   ModelFailure,
   ModelHandle,
+  ModelRuntime,
   Reply,
 } from '@omne-harness/model-contract'
 import type {
@@ -41,6 +42,7 @@ import {
   modelHostAuthorityKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { modelHostConfigSchema, type ModelHostSettings } from './config.ts'
+import { createRuntimeStage, reportRuntimeEvent, type ResultPushOptions } from './runtime.ts'
 
 const DEPENDENCY = 'model-instance-host'
 const GENERATION = /^(0|[1-9][0-9]*)$/u
@@ -276,9 +278,11 @@ class HostContribution extends ModelInstanceHostService<unknown> {
  */
 export type ModelHostPluginOptions = Readonly<{
   /**
-   * Builds the runtime provider over the unbound host and the injected commands and clock. The
-   * plugin binds its `driver` and calls its `quiesce` first when it shuts down. The provider that
-   * serves `modelRuntime` is the place to extend: see `ModelRuntimeLocalPlugin.start`.
+   * Builds the runtime provider over the unbound host, the commands of the plugin and the injected
+   * clock. The plugin binds its `driver` and calls its `quiesce` first when it shuts down. A
+   * provider with a `runtime` gets `modelRuntime` published from it, and then `results` is needed.
+   * Every write of the provider goes through the `commands` it is given: the result push learns of
+   * committed settles and late accounts there.
    */
   provider(
     input: Readonly<{
@@ -286,7 +290,10 @@ export type ModelHostPluginOptions = Readonly<{
       commands: ModelCommands<unknown>
       clock: ModelClock
     }>,
-  ): Pick<ModelRuntimeProvider<unknown>, 'driver' | 'quiesce'>
+  ): Pick<ModelRuntimeProvider<unknown>, 'driver' | 'quiesce'> &
+    Readonly<{ runtime?: ModelRuntime<unknown> }>
+  /** The ledger and bounds of the result push. Required with a runtime, refused without one. */
+  results?: ResultPushOptions
   /**
    * The observer's current right to observe the call. The design gives the host no injected source
    * for it, so the assembly supplies one. The directory returns a route only after it answers ok.
@@ -318,9 +325,17 @@ export function createModelRuntimeLocalPlugin(
       qualifyObservation: access => options.qualifyObservation(access),
       report: event => reportOf(ctx, event),
     })
+    const stage = createRuntimeStage(
+      {
+        commands: ctx.modelCommands,
+        authority: ctx.modelHostAuthority,
+        report: event => reportRuntimeEvent(ctx, event),
+      },
+      options.results,
+    )
     const provider = options.provider({
       host,
-      commands: ctx.modelCommands,
+      commands: stage.commands,
       clock: ctx.modelClock,
     })
     // The order is the guarantee: the host was built unbound, it binds here, and only after the
@@ -329,14 +344,21 @@ export function createModelRuntimeLocalPlugin(
     if ('failure' in bound) throw new Error(`the model host could not bind: ${bound.failure.kind}`)
 
     try {
-      // EXTENSION POINT (the plugin of the runtime facade): create the provider's `modelRuntime`
-      // service here, in the same contribution as the host, after the bind above and from
-      // `provider`. The contribution is created inside this `try`: a fiber that unloads in the
-      // start window makes it throw, and the bound host must then close.
-      const contribution = ctx.plugin(HostContribution, host)
-      // One outer effect owns the contribution and the shutdown. They are disposed in reverse order
-      // of this list, one after the other: the shutdown first, the contribution last.
-      ctx.effect(() => [contribution.dispose, orderedShutdown(ctx, provider, bound.ok)])
+      // The extension point of the runtime facade: `modelRuntime` is published in the same
+      // contribution as the host, after the bind above and from `provider`. The contribution is
+      // created inside this `try`: a fiber that unloads in the start window makes it throw, and the
+      // bound host must then close.
+      const contribution = ctx.plugin({
+        name: 'model-runtime-local-contribution',
+        apply: (child: Context) => {
+          new HostContribution(child, host)
+          stage.contribute(child, provider.runtime)
+        },
+      })
+      // One outer effect owns the contribution, the push and the shutdown. They are disposed in
+      // reverse order of this list, one after the other: the shutdown first, then the push, which
+      // keeps its unfinished deliveries in its ledger for a successor, and the contribution last.
+      ctx.effect(() => [contribution.dispose, stage.stop, orderedShutdown(ctx, provider, bound.ok)])
       await contribution
     } catch (error) {
       await bound.ok.close()

@@ -4,20 +4,22 @@
 
 ## 职责与状态
 
-本成员是 Model 的单机宿主提供者，承载本地凭据保管与本地发送路径。本地凭据保管是文件保管库（磁盘记录、文件锁、原子发布、关闭）和装载它的 Cordis 插件。本地发送路径是生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`：它把凭据保管、model 的发送边界、pi 传输与两个家族、调用方注入的 `ModelCommands` 连成一条真实请求路径，并在同一组家族与 `ModelCommands` 上给出 model 的计量准备资源。`./cordis` 入口装载本地实例目录、转换目录、带有序关闭的宿主驱动，以及带计量租约的请求准备插件。运行门面（`modelRuntime`）、恢复扫描、发送与重试阶段插件、档案读取尚未实现，它们的设计已接受，暂存于 [model/docs/cordis.md](../model/docs/cordis.md)。凭据的公共值与端口归 [model-contract](../model-contract/README_ZH.md)，`modelCredential` 服务定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)，存在性与解析的判定和发送边界归 [model](../model/README_ZH.md)，传输与家族归 [pi-ai-transport](../pi-ai-transport/README.md)。设计、实现与运行验证分别判断。
+本成员是 Model 的单机宿主提供者，承载本地凭据保管与本地发送路径。本地凭据保管是文件保管库（磁盘记录、文件锁、原子发布、关闭）和装载它的 Cordis 插件。本地发送路径是生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`：它把凭据保管、model 的发送边界、pi 传输与两个家族、调用方注入的 `ModelCommands` 连成一条真实请求路径，并在同一组家族与 `ModelCommands` 上给出 model 的计量准备资源。`./cordis` 入口装载本地实例目录、转换目录、带有序关闭的宿主驱动、运行门面（`modelRuntime`）与结果推送，以及带计量租约的请求准备插件。恢复扫描、发送与重试阶段插件、档案读取尚未实现，它们的设计已接受，暂存于 [model/docs/cordis.md](../model/docs/cordis.md)。凭据的公共值与端口归 [model-contract](../model-contract/README_ZH.md)，`modelCredential` 服务定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)，存在性与解析的判定和发送边界归 [model](../model/README_ZH.md)，传输与家族归 [pi-ai-transport](../pi-ai-transport/README.md)。设计、实现与运行验证分别判断。
 
-| 能力 | 状态 | 证据范围 |
-| --- | --- | --- |
-| 文件保管库与 Cordis 插件 | 已实现 | 真实文件系统、子进程与真实 Cordis 4.0.4 |
-| 生产发送资源 `createPiSendResources` | 已实现 | 观察凭据槽的传输工厂与真实 pi 传输（不发送） |
-| 本地 Model 装配 `assembleLocalModel` | 已实现 | 本地 HTTPS 服务回放两个家族录制的 SSE，经 model 运行时与内存 `ModelCommands`；两家回复含推理状态的调用都收场 |
-| 经真实厂商或代理的请求 | 只经手动录制器验证 | [`pi-ai-transport/tests/fixtures/recordings/`](../pi-ai-transport/tests/fixtures/README.md) 的四份回放件。门禁回放走同一装配路径 |
-| 经 `assembleLocalModel` 的计量准备资源 | 已实现 | model 的真实租约，经家族与内存 `ModelCommands`；慢层让两家各一次调用收场并清理，再计量延续它的请求，数据来自本地 HTTPS 回放，不来自真实厂商 |
-| `ModelInstancesLocalPlugin` 与 `ModelConvertersLocalPlugin` | 已实现 | 真实 Cordis 4.0.4，权威用测试对象：唯一服务、登记的释放、等待权威、后继目录 |
-| `ModelRuntimeLocalPlugin` 的宿主部分（`modelInstanceHost`） | 已实现 | 真实 Cordis 4.0.4，测试驱动与时钟、内存 `ModelCommands`：绑定后发布、四项上限、唤醒集合、有序关闭、后继宿主、观察者资格 |
-| `ModelRequestPreparationService` 插件与它的计量租约 | 已实现 | 真实 Cordis 4.0.4、内存 `ModelCommands`、带记录计量器的桩家族：无运行面与网络时的 prepare、第 2 轮租约的锚点、命令换代 |
-| 耐久 `ModelCommands` | 不在本包 | 无 |
-| `modelRuntime` 门面、恢复扫描、发送与重试阶段插件、档案读取 | 未实现 | 无 |
+| 能力                                                        | 状态               | 证据范围                                                                                                                                                                                                    |
+| ----------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 文件保管库与 Cordis 插件                                    | 已实现             | 真实文件系统、子进程与真实 Cordis 4.0.4                                                                                                                                                                     |
+| 生产发送资源 `createPiSendResources`                        | 已实现             | 观察凭据槽的传输工厂与真实 pi 传输（不发送）                                                                                                                                                                |
+| 本地 Model 装配 `assembleLocalModel`                        | 已实现             | 本地 HTTPS 服务回放两个家族录制的 SSE，经 model 运行时与内存 `ModelCommands`；两家回复含推理状态的调用都收场                                                                                                |
+| 经真实厂商或代理的请求                                      | 只经手动录制器验证 | [`pi-ai-transport/tests/fixtures/recordings/`](../pi-ai-transport/tests/fixtures/README.md) 的四份回放件。门禁回放走同一装配路径                                                                            |
+| 经 `assembleLocalModel` 的计量准备资源                      | 已实现             | model 的真实租约，经家族与内存 `ModelCommands`；慢层让两家各一次调用收场并清理，再计量延续它的请求，数据来自本地 HTTPS 回放，不来自真实厂商                                                                 |
+| `ModelInstancesLocalPlugin` 与 `ModelConvertersLocalPlugin` | 已实现             | 真实 Cordis 4.0.4，权威用测试对象：唯一服务、登记的释放、等待权威、后继目录                                                                                                                                 |
+| `ModelRuntimeLocalPlugin` 的宿主部分（`modelInstanceHost`） | 已实现             | 真实 Cordis 4.0.4，测试驱动与时钟、内存 `ModelCommands`：绑定后发布、四项上限、唤醒集合、有序关闭、后继宿主、观察者资格                                                                                     |
+| `ModelRequestPreparationService` 插件与它的计量租约         | 已实现             | 真实 Cordis 4.0.4、内存 `ModelCommands`、带记录计量器的桩家族：无运行面与网络时的 prepare、第 2 轮租约的锚点、命令换代                                                                                      |
+| 耐久 `ModelCommands`                                        | 不在本包           | 无                                                                                                                                                                                                          |
+| `modelRuntime` 门面与结果推送                               | 已实现             | 真实 Cordis 4.0.4、真实 model 运行时、内存 `ModelCommands`、脚本传输与脚本接收方：冻结的结果、saved 之后才取 retained ACK、重投、ACK 未知时认回、清理、晚到账目及其上界、接收方登记、交给后继。账本只在内存 |
+| 流进行中的 `calls.cancel`                                   | 已实现             | 本地 HTTPS 服务保持流打开，经装配的发送路径与真实 pi 传输                                                                                                                                                   |
+| 耐久推送账本、恢复扫描、发送与重试阶段插件、档案读取        | 未实现             | 无                                                                                                                                                                                                          |
 
 ## 使用
 

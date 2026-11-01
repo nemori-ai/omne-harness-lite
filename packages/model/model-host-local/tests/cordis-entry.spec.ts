@@ -27,6 +27,7 @@ it('the cordis entry exports the plugin and the injected delivery, not the servi
     'LocalCredentialPlugin',
     'ModelConvertersLocalPlugin',
     'ModelInstancesLocalPlugin',
+    'createMemoryResultPushLedger',
     'createModelRequestPreparationPlugin',
     'createModelRuntimeLocalPlugin',
     'deliverInjected',
