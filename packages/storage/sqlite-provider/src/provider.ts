@@ -6,13 +6,12 @@ import type {
   CloseLeasePort,
   SqlMaterialCatalog,
   SqlStorage,
-  StorageCloseResult,
   StorageControl,
-  StorageResidual,
 } from '@omne-harness/sql-contract'
+import { ReportLatch, createControl, noReadPool, type ReadPoolPort } from './close.ts'
 import { createCommit } from './commit.ts'
 import { validateConfig } from './config.ts'
-import { createCore, type Core } from './core.ts'
+import { createCore } from './core.ts'
 import { Domains } from './domains.ts'
 import { checkMaterials } from './materials.ts'
 import { createQuery } from './query.ts'
@@ -34,48 +33,12 @@ export type CreateSqliteStorageResult =
       problems: readonly string[]
     }>
 
-const sleep = (ms: number, signal: AbortSignal): Promise<'deadline'> =>
-  new Promise(resolve => {
-    const timer = setTimeout(() => resolve('deadline'), ms)
-    signal.addEventListener('abort', () => clearTimeout(timer), { once: true })
-  })
-
-/**
- * The minimal close of this closure: stop admission, let the Worker queues drain, close every
- * connection and wait for the Workers to exit, up to `closeDeadlineMs`. The reporting latch of
- * SPEC 13.4 and the withdrawal of queued work (13.3) belong to a later closure.
- */
-function createControl(core: Core): StorageControl {
-  let closing: Promise<StorageCloseResult> | null = null
-  const close = (): Promise<StorageCloseResult> => {
-    closing ??= (async () => {
-      core.lifecycle.closing = true
-      const stop = new AbortController()
-      const finished = core.domains.closeAll().then(() => 'closed' as const)
-      const winner = await Promise.race([finished, sleep(core.config.closeDeadlineMs, stop.signal)])
-      stop.abort()
-      if (winner === 'closed') return { kind: 'closed' }
-      const residuals: StorageResidual[] = core.domains.liveWorkers().map(entry => ({
-        domain: { scope: entry.scope, transactionDomain: entry.domain },
-        workerRole: 'writer',
-        workerGeneration: entry.leaseName.split('/').pop() ?? '',
-        leaseName: entry.leaseName,
-        inFlight: [],
-      }))
-      return { kind: 'incomplete', residuals }
-    })()
-    return closing
-  }
-  return {
-    close: () => close(),
-    assemblyReportSettled() {
-      // The reporting latch of SPEC 13.4 is not part of this closure.
-    },
-  }
-}
+/** Wiring that the application does not give: the read pool that SPEC 9.5 describes. */
+export type SqliteStorageInternals = Readonly<{ readPool?: ReadPoolPort }>
 
 export async function createSqliteStorage(
   input: SqliteStorageInput,
+  internals: SqliteStorageInternals = {},
 ): Promise<CreateSqliteStorageResult> {
   const judged = validateConfig(input.config)
   if (judged.kind === 'invalid')
@@ -93,10 +56,16 @@ export async function createSqliteStorage(
       reason: 'declared_combination_invalid',
       problems: checked.declaredProblems,
     }
+  const latch = new ReportLatch()
+  const readPool = internals.readPool ?? noReadPool
   const core = createCore(
     judged.config,
     input.materials,
-    lifecycle => new Domains(judged.config, input.materials, input.closeLeases, lifecycle),
+    lifecycle =>
+      new Domains(judged.config, input.materials, input.closeLeases, lifecycle, {
+        latch,
+        readPool,
+      }),
   )
   const storage: SqlStorage = {
     registerCombination: createRegister(core),
@@ -104,5 +73,16 @@ export async function createSqliteStorage(
     query: createQuery(core),
     read: createRead(core),
   }
-  return { kind: 'created', storage, control: createControl(core) }
+  return {
+    kind: 'created',
+    storage,
+    control: createControl({
+      config: core.config,
+      lifecycle: core.lifecycle,
+      domains: core.domains,
+      inFlight: core.inFlight,
+      readPool,
+      latch,
+    }),
+  }
 }

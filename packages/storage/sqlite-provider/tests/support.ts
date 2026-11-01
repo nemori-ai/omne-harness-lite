@@ -99,6 +99,7 @@ export default {
       case 'random': port.execute('select random()', []); break
       case 'receipts': port.execute('select * from _sql_receipt', []); break
       case 'schema': port.execute('select * from sqlite_master', []); break
+      case 'spin': { const end = Date.now() + Number(facts.ms); while (Date.now() < end) {} break }
       case 'big': return { kind: 'participated', response: 'x'.repeat(70000) }
       case 'invalid': return { kind: 'participated' }
       case 'no-provide': port.execute('insert into t_ledger(note) values (?)', [note]); return { kind: 'participated', response: {} }
@@ -296,7 +297,10 @@ export async function buildMaterials(
     declaredCombinations: {
       tenant:
         journal === null
-          ? { combinationVersion: options.declaredVersion ?? 'v1', participants: ['auditor', 'ledger'] }
+          ? {
+              combinationVersion: options.declaredVersion ?? 'v1',
+              participants: ['auditor', 'ledger'],
+            }
           : { combinationVersion: 'v2', participants: ['auditor', 'journal', 'ledger'] },
       system: null,
     },
@@ -368,15 +372,37 @@ export const leases: CloseLeasePort & { admitted: string[]; released: number } =
 
 export type Provider = Readonly<{ storage: SqlStorage; control: StorageControl }>
 
+/** A lease port that records the order of admit and release, so a test can see when a lease ends. */
+export type RecordingLeases = CloseLeasePort & { admitted: string[]; released: string[] }
+
+export function recordingLeases(): RecordingLeases {
+  const names = new Map<object, string>()
+  const port: RecordingLeases = {
+    admitted: [],
+    released: [],
+    admit(name) {
+      const handle = {}
+      names.set(handle, name)
+      port.admitted.push(name)
+      return handle
+    },
+    release(handle) {
+      port.released.push(names.get(handle) ?? '?')
+    },
+  }
+  return port
+}
+
 export async function createProvider(
   workspace: Workspace,
   built: Built,
   config: Partial<SqliteStorageConfig> = {},
+  closeLeases: CloseLeasePort = leases,
 ): Promise<Provider> {
   const result = await createSqliteStorage({
     config: { ...defaultConfig(workspace.storageRoot), ...config },
     materials: built.catalog,
-    closeLeases: leases,
+    closeLeases,
   })
   if (result.kind !== 'created') throw new Error(`rejected: ${result.problems.join('; ')}`)
   return result

@@ -25,7 +25,8 @@ function judge(core: Core, input: CombinationRegistrationV2): Judged {
   const scope = decodeScope((input as Partial<CombinationRegistrationV2> | null)?.scope)
   const names: unknown = input?.participants
   const namesOk =
-    Array.isArray(names) && names.every(name => typeof name === 'string' && (name === '' || isName(name)))
+    Array.isArray(names) &&
+    names.every(name => typeof name === 'string' && (name === '' || isName(name)))
   if (
     scope === null ||
     !isName(input.transactionDomain, DOMAIN_BYTES) ||
@@ -80,34 +81,51 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
       key: { scope: spec.scope, transactionDomain, combinationVersion: spec.combinationVersion },
       diagnostic: core.diagnostic(text),
     })
-    try {
-      const outcome = await core.domains.ensure(transactionDomain, spec)
-      if (outcome.kind === 'closing') return unknown('withdrawn_before_start')
-      if (outcome.kind === 'unknown') return unknown(outcome.diagnostic)
-      if (outcome.kind !== 'ready') return rejection('domain_unavailable')
-      if (outcome.created === spec) return registered(spec.scope)
-      const { entry } = outcome
-      if (!sameScope(entry.scope, spec.scope)) return rejection('domain_occupied')
-      let reply: RegisterReply
+    // At the close deadline the caller gets `unknown`. The reservation stays until the work ends.
+    let expire: () => void = () => undefined
+    const expired = new Promise<RegisterResultV2>(resolve => {
+      expire = () => resolve(unknown('close_deadline'))
+    })
+    const leave = core.inFlight.add({ domain: transactionDomain, identity: null, expire })
+    const work = async (): Promise<RegisterResultV2> => {
       try {
-        reply = await entry.client.request<RegisterReply>({ kind: 'register', registration: spec })
-      } catch (error) {
-        return unknown(error instanceof WorkerExited ? 'worker_exited' : 'provider_error')
+        const outcome = await core.domains.ensure(transactionDomain, spec)
+        if (outcome.kind === 'closing') return unknown('withdrawn_before_start')
+        if (outcome.kind === 'unknown') return unknown(outcome.diagnostic)
+        if (outcome.kind !== 'ready') return rejection('domain_unavailable')
+        if (outcome.created === spec) return registered(spec.scope)
+        const { entry } = outcome
+        if (!sameScope(entry.scope, spec.scope)) return rejection('domain_occupied')
+      // Not sent yet, so it can be withdrawn without a trace (SPEC 13.3 step 2).
+      if (core.lifecycle.closing) return unknown('withdrawn_before_start')
+        let reply: RegisterReply
+        try {
+          reply = await entry.client.request<RegisterReply>({
+            kind: 'register',
+            registration: spec,
+          })
+        } catch (error) {
+          return unknown(error instanceof WorkerExited ? 'worker_exited' : 'provider_error')
+        }
+        switch (reply.kind) {
+          case 'registered':
+            return registered(spec.scope)
+          case 'conflict':
+            return rejection('registration_conflict')
+          case 'unavailable':
+            return rejection('domain_unavailable')
+          case 'withdrawn':
+            return unknown('withdrawn_before_start')
+          default:
+            return unknown(reply.diagnostic)
+        }
+      } catch {
+        return unknown('provider_error')
+      } finally {
+        leave()
+        grant.release()
       }
-      switch (reply.kind) {
-        case 'registered':
-          return registered(spec.scope)
-        case 'conflict':
-          return rejection('registration_conflict')
-        case 'unavailable':
-          return rejection('domain_unavailable')
-        default:
-          return unknown(reply.diagnostic)
-      }
-    } catch {
-      return unknown('provider_error')
-    } finally {
-      grant.release()
     }
+    return Promise.race([work(), expired])
   }
 }

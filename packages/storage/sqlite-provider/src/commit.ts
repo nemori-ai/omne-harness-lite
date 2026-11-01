@@ -66,7 +66,8 @@ function judge(core: Core, input: CommitRequestV2, signal: AbortSignal | undefin
   if (members > config.maxJsonMembers || commands.length > config.maxCommandsPerCommit)
     return rejected('command_limit')
   for (const command of commands)
-    if (utf8Length(canonicalJson(command)) > config.maxCommandBytes) return rejected('command_limit')
+    if (utf8Length(canonicalJson(command)) > config.maxCommandBytes)
+      return rejected('command_limit')
   const requestBytes = utf8Length(canonicalJson(input))
   if (requestBytes > config.maxRequestBytes) return rejected('command_limit')
   return {
@@ -119,6 +120,12 @@ export function createCommit(core: Core): SqlStorage['commit'] {
         settle(unknown('observer_detached'))
       }
       signal?.addEventListener('abort', onAbort, { once: true })
+      // At the close deadline the caller gets `unknown`. The reservation stays until the Worker ends.
+      const leave = core.inFlight.add({
+        domain: identity.transactionDomain,
+        identity,
+        expire: () => settle(unknown('close_deadline')),
+      })
 
       const dispatch = async (): Promise<CommitResultV2> => {
         let ready = core.domains.peekReady(identity.transactionDomain)
@@ -137,7 +144,11 @@ export function createCommit(core: Core): SqlStorage['commit'] {
         if (!sameScope(ready.scope, identity.scope)) return reject('combination_unregistered')
         let reply: CommitReply
         try {
-          reply = await ready.client.request<CommitReply>({ kind: 'commit', request: input, inputDigest })
+          reply = await ready.client.request<CommitReply>({
+            kind: 'commit',
+            request: input,
+            inputDigest,
+          })
         } catch (error) {
           return unknown(error instanceof WorkerExited ? 'worker_exited' : 'provider_error')
         }
@@ -153,12 +164,15 @@ export function createCommit(core: Core): SqlStorage['commit'] {
           case 'quarantine':
             core.domains.quarantine(ready, reply.diagnostic)
             return reject('domain_unavailable')
+          case 'withdrawn':
+            return unknown('withdrawn_before_start')
           default:
             return unknown('provider_error')
         }
       }
 
       const finish = (): void => {
+        leave()
         grant.release()
         core.pending.remove(key)
       }

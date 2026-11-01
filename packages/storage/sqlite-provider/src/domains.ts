@@ -9,11 +9,23 @@
 import { mkdir, rm, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { CloseLeasePort, SqlMaterialCatalog, StorageScope } from '@omne-harness/sql-contract'
+import { claimWriter, releaseWriter } from './claims.ts'
+import type { ReadPoolPort, ReportLatch } from './close.ts'
 import type { SqliteStorageConfig } from './config.ts'
 import type { OpenReply, RegistrationSpec } from './worker/protocol.ts'
 import { WriterClient } from './writer-client.ts'
 
 export type Lifecycle = { closing: boolean }
+
+/** What the domain table needs from the close protocol (SPEC 13.4) and the read pool. */
+export type CloseHooks = Readonly<{ latch: ReportLatch; readPool: ReadPoolPort }>
+
+type LiveWorker = {
+  readonly domain: string
+  readonly leaseName: string
+  /** Known when the registration names it, or after the open reply. */
+  scope: StorageScope | null
+}
 
 export type ReadyDomain = {
   readonly state: 'ready'
@@ -61,7 +73,10 @@ export class Domains {
   private readonly catalog: SqlMaterialCatalog
   private readonly leases: CloseLeasePort
   private readonly lifecycle: Lifecycle
+  private readonly hooks: CloseHooks
   private readonly providerGeneration: number
+  /** Write Workers whose exit was not observed yet, by lease name. */
+  private readonly workers = new Map<string, LiveWorker>()
   private workerGeneration = 0
 
   constructor(
@@ -69,7 +84,9 @@ export class Domains {
     catalog: SqlMaterialCatalog,
     leases: CloseLeasePort,
     lifecycle: Lifecycle,
+    hooks: CloseHooks,
   ) {
+    this.hooks = hooks
     this.config = config
     this.catalog = catalog
     this.leases = leases
@@ -98,7 +115,8 @@ export class Domains {
       let entry = this.entries.get(domain)
       if (entry === undefined) entry = this.startOpening(domain, create)
       if (entry.state === 'ready') return { kind: 'ready', entry, created: null }
-      if (entry.state === 'quarantined') return { kind: 'quarantined', diagnostic: entry.diagnostic }
+      if (entry.state === 'quarantined')
+        return { kind: 'quarantined', diagnostic: entry.diagnostic }
       const outcome = await entry.opening
       if (outcome.kind === 'absent' && create !== null) continue
       return outcome
@@ -131,6 +149,12 @@ export class Domains {
       forget()
       return { kind: 'closing' }
     }
+    const claim = claimWriter(file, this.providerGeneration)
+    if (claim === null) {
+      // Another generation still has a write Worker on this file (SPEC 13.5): a transient fault.
+      forget()
+      return { kind: 'failed', diagnostic: 'writer_claim_held' }
+    }
     this.workerGeneration += 1
     const leaseName = `storage/${String(this.providerGeneration)}/writer/${hex(domain)}.sqlite/${String(this.workerGeneration)}`
     let lease: object
@@ -138,6 +162,7 @@ export class Domains {
       lease = this.leases.admit(leaseName)
     } catch {
       this.lifecycle.closing = true
+      releaseWriter(file, claim)
       forget()
       return { kind: 'closing' }
     }
@@ -156,6 +181,10 @@ export class Domains {
           maxResponseBytes: this.config.maxResponseBytes,
           maxOperationResponseBytes: this.config.maxOperationResponseBytes,
           maxDiagnosticBytes: this.config.maxDiagnosticBytes,
+          checkpointIntervalMs: this.config.checkpointIntervalMs,
+          checkpointWalBytes: this.config.checkpointWalBytes,
+          walReadPauseBytes: this.config.walReadPauseBytes,
+          walWriteStopBytes: this.config.walWriteStopBytes,
         },
         () => {
           // Unexpected exit: the next touch opens the domain again (SPEC 5.2, recovering).
@@ -164,12 +193,22 @@ export class Domains {
         },
       )
       client = started
-      void started.exited.then(() => this.leases.release(lease))
+      claim.client = started
+      const live: LiveWorker = { domain, leaseName, scope: create?.scope ?? null }
+      this.workers.set(leaseName, live)
+      void started.exited.then(() => {
+        this.workers.delete(leaseName)
+        releaseWriter(file, claim)
+        this.hooks.latch.release(() => this.leases.release(lease))
+      })
       reply = await started.request<OpenReply>({ kind: 'open', create })
     } catch {
       forget()
       if (client !== null) await client.close()
-      else this.leases.release(lease)
+      else {
+        releaseWriter(file, claim)
+        this.leases.release(lease)
+      }
       if (!existed) await this.removeFiles(file)
       return { kind: 'failed', diagnostic: 'worker_unavailable' }
     }
@@ -182,6 +221,8 @@ export class Domains {
         singletons: reply.singletons,
         leaseName,
       }
+      const live = this.workers.get(leaseName)
+      if (live !== undefined) live.scope = reply.scope
       this.entries.set(domain, entry)
       return { kind: 'ready', entry, created: create }
     }
@@ -219,10 +260,13 @@ export class Domains {
     await Promise.all(closing)
   }
 
-  /** Workers that have not exited, for the residuals of an incomplete close. */
-  liveWorkers(): readonly ReadyDomain[] {
-    return [...this.entries.values()].filter(
-      (entry): entry is ReadyDomain => entry.state === 'ready' && !entry.client.hasExited,
+  /**
+   * Write Workers that have not exited, for the residuals of an incomplete close. A Worker that is
+   * still opening an existing file has no scope yet, and is not listed.
+   */
+  residualWorkers(): readonly (LiveWorker & { scope: StorageScope })[] {
+    return [...this.workers.values()].filter(
+      (worker): worker is LiveWorker & { scope: StorageScope } => worker.scope !== null,
     )
   }
 }

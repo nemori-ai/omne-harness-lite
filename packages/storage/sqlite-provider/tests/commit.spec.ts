@@ -301,7 +301,9 @@ describe('rejection order (SPEC 7.2, adjacent steps)', () => {
       }),
     )
     expect(kindOf(tooMany)).toBe('rejected_before_accept/command_limit')
-    const full = await storage.commit(commitRequest(built, { identity: identity({ operationKey: 'k3' }) }))
+    const full = await storage.commit(
+      commitRequest(built, { identity: identity({ operationKey: 'k3' }) }),
+    )
     expect(kindOf(full)).toBe('rejected_before_accept/queue_full')
     expect((await holding).kind).toBe('committed')
   })
@@ -315,8 +317,13 @@ describe('rejection order (SPEC 7.2, adjacent steps)', () => {
   })
 
   it('step 12 manifest_mismatch before step 13 material_unavailable', async () => {
-    await ready()
-    const changed = await buildMaterials(workspace, { suffix: '-x', ledgerExtra: '// v2\n', declaredVersion: 'v9' })
+    // One write Worker per file in the process (SPEC 13.5): the first generation ends first.
+    await (await ready()).control.close({ initiator: 'disposal' })
+    const changed = await buildMaterials(workspace, {
+      suffix: '-x',
+      ledgerExtra: '// v2\n',
+      declaredVersion: 'v9',
+    })
     const second = await createProvider(workspace, changed)
     providers.push(second)
     const result = await second.storage.commit(
@@ -326,8 +333,13 @@ describe('rejection order (SPEC 7.2, adjacent steps)', () => {
   })
 
   it('step 13 material_unavailable before step 14 participant_not_in_combination', async () => {
-    await ready()
-    const changed = await buildMaterials(workspace, { suffix: '-x', ledgerExtra: '// v2\n', declaredVersion: 'v9' })
+    // One write Worker per file in the process (SPEC 13.5): the first generation ends first.
+    await (await ready()).control.close({ initiator: 'disposal' })
+    const changed = await buildMaterials(workspace, {
+      suffix: '-x',
+      ledgerExtra: '// v2\n',
+      declaredVersion: 'v9',
+    })
     const second = await createProvider(workspace, changed)
     providers.push(second)
     const result = await second.storage.commit(

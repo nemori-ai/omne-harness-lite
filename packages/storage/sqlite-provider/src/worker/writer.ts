@@ -6,12 +6,15 @@ import { parentPort, workerData } from 'node:worker_threads'
 import { openDomain, registerInDomain, type WorkerState } from './domain.ts'
 import { ModuleCache } from './modules.ts'
 import { runCommit, runQuery } from './execute.ts'
-import type { InternalErrorReply, WorkerEnv, WorkerRequest } from './protocol.ts'
+import type { InternalErrorReply, WithdrawnReply, WorkerEnv, WorkerRequest } from './protocol.ts'
 
 const port = parentPort
 if (port === null) throw new Error('writer.ts must run in a Worker')
 const env = workerData as WorkerEnv
 const state: WorkerState = { db: null, modules: new ModuleCache() }
+const closingFlag = new Int32Array(env.closingFlag)
+/** Requests that the Worker does not start once the provider closes (SPEC 13.3 step 2). */
+const WITHDRAWABLE: ReadonlySet<WorkerRequest['kind']> = new Set(['register', 'commit', 'query'])
 
 async function handle(request: WorkerRequest): Promise<unknown> {
   switch (request.kind) {
@@ -40,7 +43,10 @@ port.on('message', (message: { id: number; request: WorkerRequest }) => {
   queue = queue.then(async () => {
     let reply: unknown
     try {
-      reply = await handle(message.request)
+      reply =
+        Atomics.load(closingFlag, 0) === 1 && WITHDRAWABLE.has(message.request.kind)
+          ? ({ kind: 'withdrawn' } satisfies WithdrawnReply)
+          : await handle(message.request)
     } catch (error) {
       const failure: InternalErrorReply = {
         kind: 'internal_error',

@@ -3,6 +3,7 @@
 // SqlStorage interface. Nothing here holds a Cordis object.
 import type { SqlIdentity, SqlMaterialCatalog, StorageScope } from '@omne-harness/sql-contract'
 import { Admission, PendingIndex } from './admission.ts'
+import { InFlight } from './close.ts'
 import type { SqliteStorageConfig } from './config.ts'
 import { Domains, type Lifecycle } from './domains.ts'
 import { clipDiagnostic, scopeKey } from './fields.ts'
@@ -14,6 +15,8 @@ export type Core = Readonly<{
   domains: Domains
   admission: Admission
   pending: PendingIndex
+  /** Operations that wait for a Worker. The close protocol answers them at the deadline. */
+  inFlight: InFlight
   /** A diagnostic of at most maxDiagnosticBytes. Callers branch on kind and reason only. */
   diagnostic(text: string): string
 }>
@@ -31,6 +34,7 @@ export function createCore(
     domains: domains(lifecycle),
     admission: new Admission(config),
     pending: new PendingIndex(),
+    inFlight: new InFlight(),
     diagnostic: text => clipDiagnostic(text, config.maxDiagnosticBytes),
   }
 }

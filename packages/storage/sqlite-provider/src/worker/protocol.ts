@@ -20,7 +20,22 @@ export type WorkerEnv = Readonly<{
   maxResponseBytes: number
   maxOperationResponseBytes: number
   maxDiagnosticBytes: number
+  checkpointIntervalMs: number
+  checkpointWalBytes: number
+  walReadPauseBytes: number
+  walWriteStopBytes: number
+  /**
+   * One Int32 shared with the control side. The control side stores 1 when the provider closes. The
+   * Worker reads it before it starts a request, and confirms by reply what it did not start
+   * (SPEC 13.3 step 2). The flag does not depend on when a message reaches the Worker.
+   */
+  closingFlag: SharedArrayBuffer
 }>
+
+/** What the Worker confirms for a request that it did not start because the provider is closing. */
+export type WithdrawnReply = Readonly<{ kind: 'withdrawn' }>
+
+export type WalState = 'normal' | 'read-paused' | 'write-stopped'
 
 export type RegistrationSpec = Readonly<{
   scope: StorageScope
@@ -50,6 +65,7 @@ export type RegisterReply =
   | Readonly<{ kind: 'conflict' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
   | Readonly<{ kind: 'unknown'; diagnostic: string }>
+  | WithdrawnReply
 
 export type CommitWorkerRejection =
   | 'combination_unregistered'
@@ -65,11 +81,16 @@ export type CommitReply =
   /** fatal: the connection state is unclear, so the Worker exits after this reply. */
   | Readonly<{ kind: 'unknown'; diagnostic: string; fatal?: boolean }>
   | Readonly<{ kind: 'quarantine'; diagnostic: string }>
+  | WithdrawnReply
 
 export type QueryReply =
   | Readonly<{ kind: 'receipt'; receipt: ReceiptV2 }>
   | Readonly<{ kind: 'none' }>
+  | WithdrawnReply
 
 export type InternalErrorReply = Readonly<{ kind: 'internal_error'; diagnostic: string }>
 
 export type WorkerEnvelope = Readonly<{ id: number; reply: unknown }>
+
+/** A message that the Worker sends on its own, not as a reply (SPEC 12.3). */
+export type WorkerEvent = Readonly<{ event: 'wal'; state: WalState }>

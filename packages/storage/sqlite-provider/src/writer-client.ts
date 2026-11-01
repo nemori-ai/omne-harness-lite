@@ -2,7 +2,13 @@
 // Requests settle with the reply, or reject with WorkerExited when the Worker ends first. Nothing
 // here judges a result. The domain state and the operations decide what a reply or an exit means.
 import { Worker } from 'node:worker_threads'
-import type { WorkerEnv, WorkerEnvelope, WorkerRequest } from './worker/protocol.ts'
+import type {
+  WalState,
+  WorkerEnv,
+  WorkerEnvelope,
+  WorkerEvent,
+  WorkerRequest,
+} from './worker/protocol.ts'
 
 export class WorkerExited extends Error {}
 
@@ -16,13 +22,26 @@ export class WriterClient {
   readonly exited: Promise<void>
   private readonly worker: Worker
   private readonly waiting = new Map<number, Waiter>()
+  private readonly closingFlag = new Int32Array(new SharedArrayBuffer(4))
   private nextId = 1
   private ended = false
   private closeRequested = false
 
-  constructor(env: WorkerEnv, onUnexpectedExit: () => void) {
-    this.worker = new Worker(WRITER_URL, { workerData: env })
-    this.worker.on('message', (envelope: WorkerEnvelope) => {
+  constructor(
+    env: Omit<WorkerEnv, 'closingFlag'>,
+    onUnexpectedExit: () => void,
+    onWalState: (state: WalState) => void = () => undefined,
+  ) {
+    const workerData: WorkerEnv = {
+      ...env,
+      closingFlag: this.closingFlag.buffer as SharedArrayBuffer,
+    }
+    this.worker = new Worker(WRITER_URL, { workerData })
+    this.worker.on('message', (envelope: WorkerEnvelope | WorkerEvent) => {
+      if ('event' in envelope) {
+        onWalState(envelope.state)
+        return
+      }
       const waiter = this.waiting.get(envelope.id)
       this.waiting.delete(envelope.id)
       waiter?.resolve(envelope.reply)
@@ -52,9 +71,18 @@ export class WriterClient {
     })
   }
 
+  /**
+   * Tells the Worker that the provider closes. A request that the Worker has not started is
+   * answered `withdrawn`. A request that runs now finishes (SPEC 13.3 steps 2 and 3).
+   */
+  markClosing(): void {
+    Atomics.store(this.closingFlag, 0, 1)
+  }
+
   /** Asks the Worker to close its connection and end, then waits for the exit. */
   async close(): Promise<void> {
     this.closeRequested = true
+    this.markClosing()
     if (!this.ended) await this.request({ kind: 'close' }).catch(() => undefined)
     await this.exited
   }
