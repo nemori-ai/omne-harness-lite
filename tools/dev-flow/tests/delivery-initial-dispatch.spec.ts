@@ -100,6 +100,7 @@ describe('initial dispatch materialization without implicit authority', () => {
       'line_work_kind',
       'role_policy_ref',
       'binding_refs',
+      'wave_boundary_ref',
       'prepare_commands',
       'handoff_post_command',
       'wait_command',
@@ -112,6 +113,7 @@ describe('initial dispatch materialization without implicit authority', () => {
       'receiver_config_ref_no_secrets',
       'current_reduce_and_watch_recipe',
       'ready_and_failed_submit_recipes',
+      'wave_queue_ref',
     ])
       expect(names).not.toContain(name)
     const body = renderInitialDispatch(template, fixture().input)
@@ -121,6 +123,12 @@ describe('initial dispatch materialization without implicit authority', () => {
     expect(body).toContain('「进度更新」')
     expect(body).toContain('「本波进度」')
     expect(body).toContain('事件接收器的健康状态和自检结果不阻止开工')
+    expect(body).toContain('线父分支')
+    expect(body).toContain('「线负责人的思维模型」')
+    expect(body).toContain('「执行中前台并行关注的事」')
+    expect(body).toContain('「Reduce 与你的分工」')
+    expect(body).toContain('本波有几张卡')
+    expect(body).toContain('scripts/with-test-slot.mjs')
   })
   it('places every command field inside a shell code block and has no other code block', () => {
     const f = fixture()
