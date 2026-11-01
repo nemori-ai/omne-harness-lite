@@ -14,6 +14,7 @@
 | `service-definitions.spec.ts` | 十四个抽象 Service 的键与类只写一次，由提供者发布为 `ctx.<键>`，随提供者 fiber 撤除 |
 | `converters-harness.ts`、`converters.spec.ts`、`converters-keys.spec.ts`、`converters-conversion.spec.ts`、`converters-release.spec.ts`、`converters-bounded.spec.ts` | 转换目录在真实 Cordis Context 上的行为：查找、键与查询输入的格式、登记与撤除、租约、出借的包装转换件与在途转换、提供者的释放钩子、有界贡献量测量。资格权威由明确标注的替代实现代替，见[验证说明](../verification/README.md#转换目录测试) |
 | `identities.ts`、`instances-harness.ts`、`instances.spec.ts`、`instances-bounded.spec.ts` | 实例目录在真实 Cordis Context 上的行为与有界登记量测量。资格权威由明确标注的替代实现代替，见[验证说明](../verification/README.md#实例目录测试) |
+| `receivers.spec.ts`、`receivers.spec-d.ts`、`receivers-conformance.spec.ts`、`receivers-reference.ts` | 结果接收登记在真实 Cordis Context 上的行为、类型，以及符合性用例与带缺陷的参考表（负控），见[验证说明](../verification/README.md#结果接收登记测试) |
 | `garbage.ts` | 两个有界测试共用的垃圾回收入口 |
 
 清单里没有 `pending` 的名字。目录测试不证明授权核验，也不证明登记失败到根 `ModelFailure` 的映射，见 [SPEC](../SPEC.md#实例目录的未决项)。

@@ -135,6 +135,7 @@
 - `SessionCallTerminal` · 包 `@omne-harness/session-contract`
 - `SessionCallWait` · 包 `@omne-harness/session-contract`
 - `SessionCallerClass` · 包 `@omne-harness/session-contract`
+- `SessionCheckedAccess` · 包 `@omne-harness/session-contract`
 - `SessionClock` · 包 `@omne-harness/session-contract`
 - `SessionCommand` · 包 `@omne-harness/session-contract`
 - `SessionContextInput` · 包 `@omne-harness/session-contract`
@@ -147,6 +148,7 @@
 - `SessionCursorSigning` · `cursor-signing.d.ts`
 - `SessionCursorVerifyResult` · `cursor-signing.d.ts`
 - `SessionCustodySource` · 包 `@omne-harness/session-contract`
+- `SessionDelegatedTransactions` · 包 `@omne-harness/session-contract`
 - `SessionEntriesBoundary` · 包 `@omne-harness/session-contract`
 - `SessionEntriesChannel` · 包 `@omne-harness/session-contract`
 - `SessionEntriesInterpretation` · 包 `@omne-harness/session-contract`
@@ -180,6 +182,7 @@
 - `SessionOperationElements` · 包 `@omne-harness/session-contract`
 - `SessionOperationId` · 包 `@omne-harness/session-contract`
 - `SessionPrefixFact` · 包 `@omne-harness/session-contract`
+- `SessionPrincipalBindingSource` · 包 `@omne-harness/session-contract`
 - `SessionProductionSource` · 包 `@omne-harness/session-contract`
 - `SessionReadAccessOperation` · 包 `@omne-harness/session-contract`
 - `SessionReconciliation` · 包 `@omne-harness/session-contract`
@@ -189,6 +192,7 @@
 - `SessionTransactionPort` · 包 `@omne-harness/session-contract`
 - `SessionWork` · 包 `@omne-harness/session-contract`
 - `SessionWorkEntryIndex` · 包 `@omne-harness/session-contract`
+- `SessionWorkPrincipals` · 包 `@omne-harness/session-contract`
 - `StartedRun` · 包 `@omne-harness/session-contract`
 - `Waiting` · 包 `@omne-harness/session-contract`
 - `WorkSnapshot` · 包 `@omne-harness/session-contract`
@@ -224,15 +228,18 @@
 - `SessionContextInputService` · `cordis.d.ts`
 - `SessionCursorSigningService` · `cordis.d.ts`
 - `SessionCustodySourceService` · `cordis.d.ts`
+- `SessionDelegatedTransactionsService` · `cordis.d.ts`
 - `SessionEvidenceBridgeService` · `cordis.d.ts`
 - `SessionIdentityBridgeService` · `cordis.d.ts`
 - `SessionIdleInputService` · `cordis.d.ts`
 - `SessionIntercept` · `cordis.d.ts`
 - `SessionInternalPrincipalsService` · `cordis.d.ts`
 - `SessionNotifierService` · `cordis.d.ts`
+- `SessionPrincipalBindingsService` · `cordis.d.ts`
 - `SessionProductionSourceService` · `cordis.d.ts`
 - `SessionService` · `cordis.d.ts`
 - `SessionTransactionPortService` · `cordis.d.ts`
+- `SessionWorkPrincipalsService` · `cordis.d.ts`
 - `sessionAccessCheckKey` · `cordis.d.ts`
 - `sessionAdoptionSourceKey` · `cordis.d.ts`
 - `sessionAgentDriveKey` · `cordis.d.ts`
@@ -240,30 +247,42 @@
 - `sessionContextInputKey` · `cordis.d.ts`
 - `sessionCursorSigningKey` · `cordis.d.ts`
 - `sessionCustodySourceKey` · `cordis.d.ts`
+- `sessionDelegatedTransactionsKey` · `cordis.d.ts`
 - `sessionEvidenceKey` · `cordis.d.ts`
 - `sessionIdentityKey` · `cordis.d.ts`
 - `sessionIdleInputKey` · `cordis.d.ts`
 - `sessionKey` · `cordis.d.ts`
 - `sessionNotifierKey` · `cordis.d.ts`
+- `sessionPrincipalBindingsKey` · `cordis.d.ts`
 - `sessionPrincipalsKey` · `cordis.d.ts`
 - `sessionProductionSourceKey` · `cordis.d.ts`
 - `sessionScopeReleaseKey` · `cordis.d.ts`
 - `sessionTransactionsKey` · `cordis.d.ts`
+- `sessionWorkPrincipalsKey` · `cordis.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
 
 - `FixedSessionCursorSigning` · `testing.d.ts`
 - `FixedSessionCursorSigningControls` · `testing.d.ts`
+- `MemorySessionPrincipalBindings` · `testing.d.ts`
+- `MemorySessionWorkPrincipals` · `testing.d.ts`
 - `SessionCursorSigningFixture` · `testing.d.ts`
+- `SessionPrincipalBindingsFixture` · `testing.d.ts`
+- `SessionPrincipalBindingsScript` · `testing.d.ts`
+- `SessionWorkPrincipalsFixture` · `testing.d.ts`
 - `createFixedSessionCursorSigning` · `testing.d.ts`
+- `createMemorySessionPrincipalBindings` · `testing.d.ts`
+- `createMemorySessionWorkPrincipals` · `testing.d.ts`
 - `sessionCursorSigningConformance` · `testing.d.ts`
+- `sessionPrincipalBindingsConformance` · `testing.d.ts`
+- `sessionWorkPrincipalsConformance` · `testing.d.ts`
 
 ## 声明文件 `cordis.d.ts`
 
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallerClass, SessionClock, SessionContextInput, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
+import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallerClass, SessionClock, SessionContextInput, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
 import type { SessionCursorSigning } from './cursor-signing.ts';
 export type SessionIntercept = Readonly<{
     caller: SessionCallerClass;
@@ -306,6 +325,24 @@ export declare abstract class SessionInternalPrincipalsService<P = unknown> exte
     abstract readonly maintainer: SessionInternalPrincipals<P>['maintainer'];
 }
 export declare const sessionPrincipalsKey = "sessionPrincipals";
+export declare abstract class SessionDelegatedTransactionsService<P = unknown> extends Service implements SessionDelegatedTransactions<P> {
+    static readonly provide = "sessionDelegatedTransactions";
+    constructor(ctx: Context);
+    abstract readonly bind: SessionDelegatedTransactions<P>['bind'];
+}
+export declare const sessionDelegatedTransactionsKey = "sessionDelegatedTransactions";
+export declare abstract class SessionWorkPrincipalsService<P = unknown> extends Service implements SessionWorkPrincipals<P> {
+    static readonly provide = "sessionWorkPrincipals";
+    constructor(ctx: Context);
+    abstract readonly forSession: SessionWorkPrincipals<P>['forSession'];
+}
+export declare const sessionWorkPrincipalsKey = "sessionWorkPrincipals";
+export declare abstract class SessionPrincipalBindingsService extends Service implements SessionPrincipalBindingSource {
+    static readonly provide = "sessionPrincipalBindings";
+    constructor(ctx: Context);
+    abstract readonly read: SessionPrincipalBindingSource['read'];
+}
+export declare const sessionPrincipalBindingsKey = "sessionPrincipalBindings";
 export declare abstract class SessionIdentityBridgeService<P = unknown> extends Service implements SessionIdentityBridge<P> {
     static readonly provide = "sessionIdentity";
     constructor(ctx: Context);
@@ -395,6 +432,9 @@ declare module '@deepseek-ai/cordis' {
         sessionAccessCheck: SessionAccessCheckService<unknown>;
         sessionTransactions: SessionTransactionPortService<unknown>;
         sessionPrincipals: SessionInternalPrincipalsService<unknown>;
+        sessionDelegatedTransactions: SessionDelegatedTransactionsService<unknown>;
+        sessionWorkPrincipals: SessionWorkPrincipalsService<unknown>;
+        sessionPrincipalBindings: SessionPrincipalBindingsService;
         sessionIdentity: SessionIdentityBridgeService<unknown>;
         sessionEvidence: SessionEvidenceBridgeService;
         sessionClock: SessionClockService;
@@ -453,6 +493,8 @@ export type * from './cursor-signing.ts';
 ## 声明文件 `testing.d.ts`
 
 ```ts
+import { type TenantId } from '@omne-harness/legal-identity';
+import type { SessionId, SessionPrincipalBindingSource, SessionWorkPrincipals } from '@omne-harness/session-contract';
 import { type ConformanceCase } from '@omne-harness/session-contract/testing';
 import type { SessionCursorSigning } from './cursor-signing.ts';
 export interface FixedSessionCursorSigningControls {
@@ -470,4 +512,49 @@ export interface SessionCursorSigningFixture {
     readonly controls: FixedSessionCursorSigningControls;
 }
 export declare function sessionCursorSigningConformance(): readonly ConformanceCase<SessionCursorSigningFixture>[];
+type BindingRead = Awaited<ReturnType<SessionPrincipalBindingSource['read']>>;
+type WorkRequest = Parameters<SessionWorkPrincipals<unknown>['forSession']>[0];
+type SessionRef = Readonly<{
+    tenant: TenantId;
+    session: SessionId;
+}>;
+export type SessionPrincipalBindingsScript = BindingRead | Readonly<{
+    kind: 'throw';
+    error: unknown;
+}>;
+export interface MemorySessionPrincipalBindings extends SessionPrincipalBindingSource {
+    readonly durability: 'none';
+    readonly controls: Readonly<{
+        bind(tenant: TenantId, session: SessionId): void;
+        answerNext(script: SessionPrincipalBindingsScript): void;
+        asked(): readonly SessionRef[];
+    }>;
+}
+export declare function createMemorySessionPrincipalBindings(bound?: readonly SessionRef[]): MemorySessionPrincipalBindings;
+export interface MemorySessionWorkPrincipals<P> extends SessionWorkPrincipals<P> {
+    readonly durability: 'none';
+    readonly controls: Readonly<{
+        failNextIssue(): void;
+        asked(): readonly WorkRequest[];
+    }>;
+}
+export declare function createMemorySessionWorkPrincipals<P>(input: Readonly<{
+    bindings: SessionPrincipalBindingSource;
+    issue(request: WorkRequest): P;
+}>): MemorySessionWorkPrincipals<P>;
+export interface SessionPrincipalBindingsFixture {
+    readonly source: SessionPrincipalBindingSource;
+    readonly bound: SessionRef;
+    readonly otherTenant: TenantId;
+}
+export declare function sessionPrincipalBindingsConformance(): readonly ConformanceCase<SessionPrincipalBindingsFixture>[];
+export interface SessionWorkPrincipalsFixture<P> {
+    readonly principals: SessionWorkPrincipals<P>;
+    readonly bound: SessionRef;
+    readonly otherTenant: TenantId;
+    answerNextRead?(script: SessionPrincipalBindingsScript): void;
+    failNextIssue?(): void;
+}
+export declare function sessionWorkPrincipalsConformance<P>(): readonly ConformanceCase<SessionWorkPrincipalsFixture<P>>[];
+export {};
 ```

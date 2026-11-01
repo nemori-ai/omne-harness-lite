@@ -4,7 +4,7 @@
 
 ## 集成入口
 
-`./cordis` 导出三个抽象 Service 与键：`StorageService`（`storage`）、`StorageHostService`（`storageHost`）、`TenantDomainsService`（`tenantDomains`）。每个类的 `provide` 是静态只读字符串，构造函数调用 `super(ctx, <类>.provide)`，类上的 `@owner` 写 `packages/storage/sql-contract`。提供者继承 `StorageService` 而不再 provide 同一个键；消费者注入 `storageKey`，不导入提供者。`StorageHostService` 只由装配入口提供，装配只把它交给 `storage` 行，这是装配范围，不是访问控制。`StorageControl` 不是服务属性，也不进入 `Context`。根入口与 `./worker` 不导入 Cordis。
+`./cordis` 导出四个抽象 Service 与键：`StorageService`（`storage`）、`StorageHostService`（`storageHost`）、`TenantDomainsService`（`tenantDomains`）、`TenantDomainLookupService`（`tenantDomainLookup`）。每个类的 `provide` 是静态只读字符串，构造函数调用 `super(ctx, <类>.provide)`，类上的 `@owner` 写 `packages/storage/sql-contract`。提供者继承 `StorageService` 而不再 provide 同一个键；消费者注入 `storageKey`，不导入提供者。`StorageHostService` 只由装配入口提供，装配只把它交给 `storage` 行，这是装配范围，不是访问控制。`StorageControl` 不是服务属性，也不进入 `Context`。`TenantDomainLookupService` 由会话存储组合在受信存储子树内提供，只有该子树内的行（如 `agent-journal`）能注入它，这同样是装配范围，不是访问控制。根入口与 `./worker` 不导入 Cordis。
 
 ## 生命周期与清理
 

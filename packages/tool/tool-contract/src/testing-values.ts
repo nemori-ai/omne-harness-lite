@@ -7,6 +7,7 @@ import {
   accountCodec,
   organizationCodec,
   tenant as composeTenant,
+  tenantCodec,
   workspaceCodec,
   type TenantId,
   type WorkspaceId,
@@ -81,6 +82,16 @@ export function testingTenant(organization: string, account: string): TenantId {
   const acc = accountCodec.parse(account)
   if (!org.ok || !acc.ok) throw new Error(`illegal test tenant text: ${organization} / ${account}`)
   return composeTenant(org.value, acc.value)
+}
+
+/**
+ * The tenant text of a value that legal-identity minted, or null for anything else (an object of
+ * the same shape, a copy through JSON or `structuredClone`, or a non-object). A double in a Tool
+ * member without a legal-identity dependency uses it to answer a forged tenant as denied.
+ */
+export function testingTenantText(tenant: unknown): string | null {
+  const encoded = tenantCodec.encode(tenant as TenantId)
+  return encoded.ok ? encoded.value : null
 }
 
 /** Mints a real legal-identity workspace for a test: `wsp_` plus the 26-character body. */

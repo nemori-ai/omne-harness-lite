@@ -2,7 +2,7 @@
 
 本页是 Session 这一接缝的 Cordis 定义正文：服务键、抽象 `Service`、intercept 配置、端口服务键、事件、依赖分类，以及它们怎样符合 IC 约定。性质编号指本成员 [SPEC](../SPEC.md#唯一性) 的性质 1 至 7。四个面的领域行为归 [session-contract SPEC](../../session-contract/SPEC.md)，机制归 [session](../../session/README.md)，Service 实现、注入与扫描者绑定归 [session-cordis](../../session-cordis/docs/cordis.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，四个运行成员之间的共同生命周期归[运行契约集成](../../../../docs/architecture/runtime/runtime-contract-integration.md)，本页不复制。
 
-现状：`src/cordis.ts` 已导出十一个依赖键，包含 `SessionAccessCheckService` 与 `sessionAccessCheckKey`。根入口只重导出契约类型。访问检查定义与独立测试子类已验证。session-contract 的 `commit` 显式携带 access，内存事务工厂必需 `accessCheck`（见[访问检查](../../session-contract/docs/access-check.md)）。生产 Session 服务的必需注入尚未交付。机制事实按 Cordis 4.0.4 核对。
+现状：`src/cordis.ts` 已导出十一个依赖键，包含 `SessionAccessCheckService` 与 `sessionAccessCheckKey`，另导出三个[受信服务键](#受信服务键)。根入口只重导出契约类型。访问检查定义与独立测试子类已验证。session-contract 的 `commit` 显式携带 access，内存事务工厂必需 `accessCheck`（见[访问检查](../../session-contract/docs/access-check.md)）。生产 Session 服务的必需注入尚未交付。机制事实按 Cordis 4.0.4 核对。
 
 ## 服务定义
 
@@ -60,6 +60,23 @@ export const inject = {
 出站端口的接口在契约成员（本域只说自己要什么），键在本成员，实现在 session-adapters，由 session-cordis 注入。session-cordis 与 session-adapters 之间没有编译期依赖，靠这两个键在装配时接上。
 
 Tool 常驻引用桥由应用装配提供，以显式 tenant 消费 Session 的 `references`。Session 组不提供驻留动作端口，冻结判定经候选采用路径交回，见[常驻工具与会话冻结](../../session-contract/SPEC.md#常驻工具与会话冻结)。
+
+## 受信服务键
+
+下列三个键只在装配的受信子树内可见（[应用装配的受信子树](../../../../docs/architecture/runtime/application-assembly.md#受信子树)）。根上的插件按名取得时得到 `undefined`。接口归 `session-contract`，键与抽象类归本成员，行为见 session-contract 的[委派入口](../../session-contract/docs/access-check.md#委派入口)与[会话归属读口与会话工作主体](../../session-contract/docs/access-check.md#会话归属读口与会话工作主体)。
+
+| 键 | 接口 | 谁提供 | 谁取得 |
+| --- | --- | --- | --- |
+| `sessionDelegatedTransactions` | `SessionDelegatedTransactions` | 会话存储组合（`session-storage` 行） | `session-provider` 行，进 `inject` |
+| `sessionWorkPrincipals` | `SessionWorkPrincipals` | 装配入口 | `session-provider` 行，进 `inject` |
+| `sessionPrincipalBindings` | `SessionPrincipalBindingSource` | 会话存储组合（`session-storage` 行） | 只由装配入口按调用读取，没有行 `inject` |
+
+`./testing` 提供两个非耐久替身与各自的符合性套件：
+
+- `createMemorySessionPrincipalBindings` 按显式的已成立会话表答复，记录请求，可按调用排定下一次答复（失败或抛错）。套件是 `sessionPrincipalBindingsConformance`。
+- `createMemorySessionWorkPrincipals` 读取一个归属读口，按[失败映射](../../session-contract/docs/access-check.md#会话归属读口与会话工作主体)答复，记录请求，可令下一次签发失败。套件是 `sessionWorkPrincipalsConformance`。
+
+委派视图的替身与套件在 session-contract 的 `./testing`。三个生产提供者都尚未交付。
 
 ## 事件
 

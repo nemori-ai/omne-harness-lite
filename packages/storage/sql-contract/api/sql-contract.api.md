@@ -67,6 +67,8 @@
 - `TenantDomain` · `types.d.ts`
 - `TenantDomainAccess` · `types.d.ts`
 - `TenantDomainListing` · `types.d.ts`
+- `TenantDomainLookup` · `types.d.ts`
+- `TenantDomainLookupResult` · `types.d.ts`
 - `TenantDomainResolution` · `types.d.ts`
 - `TenantDomainSnapshot` · `types.d.ts`
 - `TenantDomainSnapshotResult` · `types.d.ts`
@@ -80,19 +82,26 @@
 
 - `StorageHostService` · `cordis.d.ts`
 - `StorageService` · `cordis.d.ts`
+- `TenantDomainLookupService` · `cordis.d.ts`
 - `TenantDomainsService` · `cordis.d.ts`
 - `storageHostKey` · `cordis.d.ts`
 - `storageKey` · `cordis.d.ts`
+- `tenantDomainLookupKey` · `cordis.d.ts`
 - `tenantDomainsKey` · `cordis.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
 
 - `MemorySqlStorageInput` · `testing/memory.d.ts`
 - `MemorySqlStorageLimits` · `testing/memory.d.ts`
+- `MemoryTenantDomainLookup` · `testing/tenant-domain-lookup.d.ts`
 - `SqlConformanceFailure` · `testing/conformance.d.ts`
 - `SqlConformanceSubject` · `testing/conformance.d.ts`
+- `TenantDomainLookupFixture` · `testing/tenant-domain-lookup.d.ts`
+- `TenantDomainLookupVerdicts` · `testing/tenant-domain-lookup.d.ts`
 - `createMemorySqlStorage` · `testing/memory.d.ts`
+- `createMemoryTenantDomainLookup` · `testing/tenant-domain-lookup.d.ts`
 - `runSqlStorageConformance` · `testing/conformance.d.ts`
+- `runTenantDomainLookupConformance` · `testing/tenant-domain-lookup.d.ts`
 
 ## 入口 `./worker` · `worker.d.ts`
 
@@ -127,7 +136,7 @@ export declare function jsonShape(value: JsonValue): Readonly<{
 
 ```ts
 import { Service, type Context } from '@deepseek-ai/cordis';
-import type { SqlStorage, StorageHost, TenantDomains } from './types.ts';
+import type { SqlStorage, StorageHost, TenantDomainLookup, TenantDomains } from './types.ts';
 export declare abstract class StorageService extends Service implements SqlStorage {
     static readonly provide = "storage";
     constructor(ctx: Context);
@@ -151,11 +160,18 @@ export declare abstract class TenantDomainsService<P> extends Service implements
     abstract readonly enumerate: TenantDomains<P>['enumerate'];
 }
 export declare const tenantDomainsKey = "tenantDomains";
+export declare abstract class TenantDomainLookupService extends Service implements TenantDomainLookup {
+    static readonly provide = "tenantDomainLookup";
+    constructor(ctx: Context);
+    abstract readonly lookup: TenantDomainLookup['lookup'];
+}
+export declare const tenantDomainLookupKey = "tenantDomainLookup";
 declare module '@deepseek-ai/cordis' {
     interface Context {
         storage: StorageService;
         storageHost: StorageHostService;
         tenantDomains: TenantDomainsService<unknown>;
+        tenantDomainLookup: TenantDomainLookupService;
     }
 }
 ```
@@ -282,6 +298,8 @@ export { createMemorySqlStorage } from './memory.ts';
 export type { MemorySqlStorageInput, MemorySqlStorageLimits } from './memory.ts';
 export { runSqlStorageConformance } from './conformance.ts';
 export type { SqlConformanceFailure, SqlConformanceSubject } from './conformance.ts';
+export { createMemoryTenantDomainLookup, runTenantDomainLookupConformance, } from './tenant-domain-lookup.ts';
+export type { MemoryTenantDomainLookup, TenantDomainLookupFixture, TenantDomainLookupVerdicts, } from './tenant-domain-lookup.ts';
 ```
 
 ## 声明文件 `testing/manifest-vector.d.ts`
@@ -319,6 +337,38 @@ export declare function createMemorySqlStorage(input: MemorySqlStorageInput): Pr
     storage: SqlStorage;
     control: StorageControl;
 }>>;
+```
+
+## 声明文件 `testing/tenant-domain-lookup.d.ts`
+
+```ts
+import type { TenantDomain, TenantDomainLookup } from '../types.ts';
+export interface MemoryTenantDomainLookup extends TenantDomainLookup {
+    readonly durability: 'none';
+    readonly controls: Readonly<{
+        publish(entry: TenantDomain): void;
+        setUnavailable(diagnostic: string | null): void;
+        asked(): readonly Readonly<{
+            tenant: string;
+        }>[];
+    }>;
+}
+export declare function createMemoryTenantDomainLookup(published?: readonly TenantDomain[]): MemoryTenantDomainLookup;
+export type TenantDomainLookupFixture = Readonly<{
+    lookup: TenantDomainLookup;
+    registered: TenantDomain;
+    unregistered: string;
+    setUnavailable?: (diagnostic: string | null) => void;
+}>;
+export type TenantDomainLookupVerdicts = Readonly<{
+    passed: readonly string[];
+    failed: readonly Readonly<{
+        id: string;
+        message: string;
+    }>[];
+    notApplicable: readonly string[];
+}>;
+export declare function runTenantDomainLookupConformance(fixture: () => TenantDomainLookupFixture | Promise<TenantDomainLookupFixture>): Promise<TenantDomainLookupVerdicts>;
 ```
 
 ## 声明文件 `types.d.ts`
@@ -675,6 +725,20 @@ export interface TenantDomains<P> {
     enumerate(input: Readonly<{
         principal: P;
     }>): Promise<TenantDomainListing>;
+}
+export type TenantDomainLookupResult = Readonly<{
+    kind: 'ready';
+    domain: DomainRef;
+}> | Readonly<{
+    kind: 'unregistered';
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export interface TenantDomainLookup {
+    lookup(input: Readonly<{
+        tenant: string;
+    }>): Promise<TenantDomainLookupResult>;
 }
 export type OperationIdentityV1 = Readonly<{
     tenant: string;

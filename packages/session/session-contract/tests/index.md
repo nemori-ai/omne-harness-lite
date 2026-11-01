@@ -8,6 +8,7 @@
 - [public-entry.spec.ts](public-entry.spec.ts)：两个入口的导出集合
 - [decide-reduce.spec.ts](decide-reduce.spec.ts)：首条路径的判定与归约
 - [transactions-conformance.spec.ts](transactions-conformance.spec.ts)：事务端口套件的自证与违例变体
+- [delegated-conformance.spec.ts](delegated-conformance.spec.ts)：委派视图套件的自证与违例变体
 - [dependency-direction.spec.ts](dependency-direction.spec.ts)：构建产物的依赖方向
 - [conformance-harness.ts](conformance-harness.ts)：套件自证的运行器
 - [module-graph.ts](module-graph.ts)：构建产物的导入图遍历

@@ -140,7 +140,9 @@ export type {
   SessionIdleInput,
   SessionInternalPrincipals,
   SessionNotifier,
+  SessionPrincipalBindingSource,
   SessionTransactionPort,
+  SessionWorkPrincipals,
 } from './ports.ts'
 export { sessionModesBlock } from './block.ts'
 export {
@@ -225,5 +227,7 @@ export {
   type SessionAccessOperation,
   type SessionAccessRequest,
   type SessionAccessTarget,
+  type SessionCheckedAccess,
+  type SessionDelegatedTransactions,
   type SessionReadAccessOperation,
 } from './access.ts'
