@@ -9,7 +9,9 @@ async function digestOfFile(moduleUrl: string): Promise<string | null> {
   try {
     const url = new URL(moduleUrl)
     if (url.protocol !== 'file:') return null
-    return createHash('sha256').update(await readFile(fileURLToPath(url))).digest('hex')
+    return createHash('sha256')
+      .update(await readFile(fileURLToPath(url)))
+      .digest('hex')
   } catch {
     return null
   }

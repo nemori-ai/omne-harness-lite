@@ -70,7 +70,10 @@ type Plan = Readonly<{
 }>
 
 /** The union of participants and migrations of several combinations, migrations in order. */
-function buildPlan(catalog: SqlMaterialCatalog, combinations: readonly (readonly string[])[]): Plan {
+function buildPlan(
+  catalog: SqlMaterialCatalog,
+  combinations: readonly (readonly string[])[],
+): Plan {
   const participants = new Map<string, ParticipantDescriptor>()
   const entries = new Map<string, ManifestMigration>()
   for (const names of combinations) {
@@ -174,7 +177,8 @@ function isStatic(error: unknown): boolean {
 }
 
 function failure(step: string, error: unknown, creating: boolean): OpenReply {
-  const diagnostic = error instanceof Error && isStatic(error) ? error.message : describeError(step, error)
+  const diagnostic =
+    error instanceof Error && isStatic(error) ? error.message : describeError(step, error)
   if (error instanceof CommitUncertain)
     return creating ? { kind: 'unknown', diagnostic } : { kind: 'transient', diagnostic }
   if (creating) return { kind: 'create_failed', diagnostic }
@@ -195,10 +199,9 @@ async function createDomain(
     db.exec(PROVIDER_SCHEMA)
     db.exec('insert into _sql_generation(singleton, generation) values (1, 1)')
     runMigrations(db, env.catalog, plan.migrations, loaded)
-    db.prepare('insert into _sql_domain(singleton, transaction_domain, scope) values (1, ?, ?)').run(
-      env.domain,
-      canonicalJson(create.scope),
-    )
+    db.prepare(
+      'insert into _sql_domain(singleton, transaction_domain, scope) values (1, ?, ?)',
+    ).run(env.domain, canonicalJson(create.scope))
     insertRegistration(db, create)
   })
   return { kind: 'ready', scope: create.scope, singletons: findSingletons(db, plan.participants) }
@@ -284,7 +287,10 @@ export async function registerInDomain(
       return { kind: 'unknown', diagnostic: 'registration_commit_uncertain' }
     return {
       kind: 'unavailable',
-      diagnostic: error instanceof Error && isStatic(error) ? error.message : describeError('register', error),
+      diagnostic:
+        error instanceof Error && isStatic(error)
+          ? error.message
+          : describeError('register', error),
     }
   }
 }

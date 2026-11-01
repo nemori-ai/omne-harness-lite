@@ -167,15 +167,17 @@ describe('registration creates the domain (path B)', () => {
       const first = await provide(failing)
       const result = await first.storage.registerCombination(registration(failing))
       expect(kindOf(result)).toBe('rejected_before_accept/domain_unavailable')
-      expect(
-        kindOf(await first.storage.commit(commitRequest(failing))),
-      ).toBe('rejected_before_accept/combination_unregistered')
+      expect(kindOf(await first.storage.commit(commitRequest(failing)))).toBe(
+        'rejected_before_accept/combination_unregistered',
+      )
       expect((await first.storage.query(identity())).kind).toBe('unknown')
       await first.control.close({ initiator: 'disposal' })
       const files = await readdir(join(workspace.storageRoot, 'domains')).catch(() => [])
       for (const name of files.filter(entry => entry.endsWith('.sqlite'))) {
         const file = join(workspace.storageRoot, 'domains', name)
-        expect(rows(file, "select name from sqlite_schema where name like '\\_sql\\_%' escape '\\'")).toEqual([])
+        expect(
+          rows(file, "select name from sqlite_schema where name like '\\_sql\\_%' escape '\\'"),
+        ).toEqual([])
       }
       const good = await buildMaterials(workspace, { suffix: '-good' })
       const second = await provide(good)
@@ -205,7 +207,9 @@ describe('opening an existing domain (path A)', () => {
     const again = await second.storage.commit(commitRequest(built))
     expect(again).toEqual(committed)
     await second.control.close({ initiator: 'disposal' })
-    expect(rows(domainFile(), 'select generation from _sql_generation')).toEqual([{ generation: 2 }])
+    expect(rows(domainFile(), 'select generation from _sql_generation')).toEqual([
+      { generation: 2 },
+    ])
   })
 
   it('takes a migration of the declared combination and saves the registration only after it succeeded', async () => {
@@ -222,7 +226,9 @@ describe('opening an existing domain (path A)', () => {
     expect(rows(domainFile(), 'select combination_version from _sql_registration')).toEqual([
       { combination_version: 'v1' },
     ])
-    expect(rows(domainFile(), "select name from sqlite_schema where name = 't_journal'")).toEqual([])
+    expect(rows(domainFile(), "select name from sqlite_schema where name = 't_journal'")).toEqual(
+      [],
+    )
 
     const working = await buildMaterials(workspace, { suffix: '-k', journal: 'ok' })
     const third = await provide(working)
@@ -296,7 +302,9 @@ describe('opening an existing domain (path A)', () => {
       commitRequest(built, { identity: identity({ scope: TENANT_B }) }),
     )
     const absent = await second.storage.commit(
-      commitRequest(built, { identity: identity({ scope: TENANT_B, transactionDomain: 'nowhere' }) }),
+      commitRequest(built, {
+        identity: identity({ scope: TENANT_B, transactionDomain: 'nowhere' }),
+      }),
     )
     expect(other).toEqual({
       ...absent,

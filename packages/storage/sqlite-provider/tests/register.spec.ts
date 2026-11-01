@@ -70,11 +70,13 @@ describe('registration results', () => {
     })
     expect((await storage.registerCombination(second)).kind).toBe('registered')
     await control.close({ initiator: 'disposal' })
-    const file = join(workspace.storageRoot, 'domains', `${Buffer.from(DOMAIN).toString('hex')}.sqlite`)
+    const file = join(
+      workspace.storageRoot,
+      'domains',
+      `${Buffer.from(DOMAIN).toString('hex')}.sqlite`,
+    )
     const db = new DatabaseSync(file, { readOnly: true })
-    const list = db
-      .prepare('select combination_version v from _sql_registration order by 1')
-      .all()
+    const list = db.prepare('select combination_version v from _sql_registration order by 1').all()
     db.close()
     expect(list).toEqual([{ v: 'v1' }, { v: 'v2' }])
   })
@@ -98,7 +100,9 @@ describe('rejection order (SPEC 6.2, adjacent steps)', () => {
 
   it('step 3 participant_empty before step 4 participant_repeated', async () => {
     const { storage } = await provide()
-    const result = await storage.registerCombination(registration(built, { participants: ['', ''] }))
+    const result = await storage.registerCombination(
+      registration(built, { participants: ['', ''] }),
+    )
     expect(kindOf(result)).toBe('rejected_before_accept/participant_empty')
   })
 
@@ -133,7 +137,9 @@ describe('rejection order (SPEC 6.2, adjacent steps)', () => {
       registration(built, { manifestDigest: 'f'.repeat(64) }),
     )
     expect(kindOf(mismatch)).toBe('rejected_before_accept/manifest_mismatch')
-    const full = await storage.registerCombination(registration(built, { combinationVersion: 'v9' }))
+    const full = await storage.registerCombination(
+      registration(built, { combinationVersion: 'v9' }),
+    )
     expect(kindOf(full)).toBe('rejected_before_accept/queue_full')
     expect((await holding).kind).toBe('registered')
   })

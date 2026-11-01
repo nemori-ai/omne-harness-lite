@@ -61,24 +61,88 @@ describe('config validation', () => {
   })
 
   const relations: readonly [string, Partial<SqliteStorageConfig>, string][] = [
-    ['rule 1: command bytes above request bytes', { maxCommandBytes: 5_000_000 }, 'maxCommandBytes'],
-    ['rule 1: request bytes above group input bytes', { groupMaxInputBytes: 1_000_000 }, 'maxRequestBytes'],
-    ['rule 1: request bytes above global in flight bytes', { globalInFlightWriteBytes: 1_000_000 }, 'maxRequestBytes'],
-    ['rule 2: diagnostic above response bytes', { maxDiagnosticBytes: 70_000 }, 'maxDiagnosticBytes'],
-    ['rule 2: response above operation response', { maxResponseBytes: 2_000_000 }, 'maxResponseBytes'],
-    ['rule 2: operation response above group reservation', { groupMaxResponseReservationBytes: 100_000 }, 'maxOperationResponseBytes'],
-    ['rule 2: group reservation above global response', { globalWriteResponseBytes: 1_000_000 }, 'groupMaxResponseReservationBytes'],
-    ['rule 3: group operations above admission queue', { groupMaxOperations: 100 }, 'groupMaxOperations'],
-    ['rule 3: admission queue above global limit', { globalAdmissionLimit: 32 }, 'admissionQueueLimit'],
+    [
+      'rule 1: command bytes above request bytes',
+      { maxCommandBytes: 5_000_000 },
+      'maxCommandBytes',
+    ],
+    [
+      'rule 1: request bytes above group input bytes',
+      { groupMaxInputBytes: 1_000_000 },
+      'maxRequestBytes',
+    ],
+    [
+      'rule 1: request bytes above global in flight bytes',
+      { globalInFlightWriteBytes: 1_000_000 },
+      'maxRequestBytes',
+    ],
+    [
+      'rule 2: diagnostic above response bytes',
+      { maxDiagnosticBytes: 70_000 },
+      'maxDiagnosticBytes',
+    ],
+    [
+      'rule 2: response above operation response',
+      { maxResponseBytes: 2_000_000 },
+      'maxResponseBytes',
+    ],
+    [
+      'rule 2: operation response above group reservation',
+      { groupMaxResponseReservationBytes: 100_000 },
+      'maxOperationResponseBytes',
+    ],
+    [
+      'rule 2: group reservation above global response',
+      { globalWriteResponseBytes: 1_000_000 },
+      'groupMaxResponseReservationBytes',
+    ],
+    [
+      'rule 3: group operations above admission queue',
+      { groupMaxOperations: 100 },
+      'groupMaxOperations',
+    ],
+    [
+      'rule 3: admission queue above global limit',
+      { globalAdmissionLimit: 32 },
+      'admissionQueueLimit',
+    ],
     ['rule 4: read queue per domain above global', { readQueueGlobal: 8 }, 'readQueuePerDomain'],
     ['rule 4: query queue per domain above global', { queryQueueGlobal: 8 }, 'queryQueuePerDomain'],
-    ['rule 4: control queue per domain above global', { controlQueueGlobal: 4 }, 'controlQueuePerDomain'],
-    ['rule 5: reserved writer slots not below max workers', { reservedWriterSlots: 16 }, 'reservedWriterSlots'],
-    ['rule 5: read workers per domain above the read share', { maxReadWorkersPerDomain: 13 }, 'maxReadWorkersPerDomain'],
-    ['rule 6: read result above global read result', { globalReadResultBytes: 1_000_000 }, 'maxReadResultBytes'],
-    ['rule 7: journal size limit above read pause', { journalSizeLimitBytes: 80_000_000 }, 'journalSizeLimitBytes'],
-    ['rule 7: checkpoint bytes above read pause', { checkpointWalBytes: 70_000_000 }, 'checkpointWalBytes'],
-    ['rule 7: read pause not below write stop', { walReadPauseBytes: 134_217_728 }, 'walReadPauseBytes'],
+    [
+      'rule 4: control queue per domain above global',
+      { controlQueueGlobal: 4 },
+      'controlQueuePerDomain',
+    ],
+    [
+      'rule 5: reserved writer slots not below max workers',
+      { reservedWriterSlots: 16 },
+      'reservedWriterSlots',
+    ],
+    [
+      'rule 5: read workers per domain above the read share',
+      { maxReadWorkersPerDomain: 13 },
+      'maxReadWorkersPerDomain',
+    ],
+    [
+      'rule 6: read result above global read result',
+      { globalReadResultBytes: 1_000_000 },
+      'maxReadResultBytes',
+    ],
+    [
+      'rule 7: journal size limit above read pause',
+      { journalSizeLimitBytes: 80_000_000 },
+      'journalSizeLimitBytes',
+    ],
+    [
+      'rule 7: checkpoint bytes above read pause',
+      { checkpointWalBytes: 70_000_000 },
+      'checkpointWalBytes',
+    ],
+    [
+      'rule 7: read pause not below write stop',
+      { walReadPauseBytes: 134_217_728 },
+      'walReadPauseBytes',
+    ],
   ]
   for (const [title, change, field] of relations) {
     it(title, () => {

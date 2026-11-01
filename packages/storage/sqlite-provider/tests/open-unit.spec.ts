@@ -4,11 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterAll, describe, expect, it } from 'vitest'
-import {
-  MIN_SQLITE_VERSION,
-  applyPragmas,
-  isSupportedSqliteVersion,
-} from '../src/worker/open.ts'
+import { MIN_SQLITE_VERSION, applyPragmas, isSupportedSqliteVersion } from '../src/worker/open.ts'
 
 const settings = { walAutocheckpointPages: 1000, journalSizeLimitBytes: 67108864 }
 
@@ -40,7 +36,9 @@ describe('sqlite version floor', () => {
 })
 
 describe('pragma read-back', () => {
-  const dir = Promise.resolve().then(async () => realpath(await mkdtemp(join(tmpdir(), 'sqlite-pragma-'))))
+  const dir = Promise.resolve().then(async () =>
+    realpath(await mkdtemp(join(tmpdir(), 'sqlite-pragma-'))),
+  )
   afterAll(async () => rm(await dir, { recursive: true, force: true }))
 
   it('accepts a file database that takes WAL, FULL and foreign keys', async () => {

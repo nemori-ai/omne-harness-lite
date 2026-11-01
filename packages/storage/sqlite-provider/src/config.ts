@@ -106,9 +106,19 @@ type Relation = readonly [left: NumericField, right: NumericField, strict: boole
 const RELATIONS: readonly Relation[] = [
   ['maxCommandBytes', 'maxRequestBytes', false, 'maxCommandBytes <= maxRequestBytes'],
   ['maxRequestBytes', 'groupMaxInputBytes', false, 'maxRequestBytes <= groupMaxInputBytes'],
-  ['maxRequestBytes', 'globalInFlightWriteBytes', false, 'maxRequestBytes <= globalInFlightWriteBytes'],
+  [
+    'maxRequestBytes',
+    'globalInFlightWriteBytes',
+    false,
+    'maxRequestBytes <= globalInFlightWriteBytes',
+  ],
   ['maxDiagnosticBytes', 'maxResponseBytes', false, 'maxDiagnosticBytes <= maxResponseBytes'],
-  ['maxResponseBytes', 'maxOperationResponseBytes', false, 'maxResponseBytes <= maxOperationResponseBytes'],
+  [
+    'maxResponseBytes',
+    'maxOperationResponseBytes',
+    false,
+    'maxResponseBytes <= maxOperationResponseBytes',
+  ],
   [
     'maxOperationResponseBytes',
     'groupMaxResponseReservationBytes',
@@ -122,13 +132,33 @@ const RELATIONS: readonly Relation[] = [
     'groupMaxResponseReservationBytes <= globalWriteResponseBytes',
   ],
   ['groupMaxOperations', 'admissionQueueLimit', false, 'groupMaxOperations <= admissionQueueLimit'],
-  ['admissionQueueLimit', 'globalAdmissionLimit', false, 'admissionQueueLimit <= globalAdmissionLimit'],
+  [
+    'admissionQueueLimit',
+    'globalAdmissionLimit',
+    false,
+    'admissionQueueLimit <= globalAdmissionLimit',
+  ],
   ['readQueuePerDomain', 'readQueueGlobal', false, 'readQueuePerDomain <= readQueueGlobal'],
   ['queryQueuePerDomain', 'queryQueueGlobal', false, 'queryQueuePerDomain <= queryQueueGlobal'],
-  ['controlQueuePerDomain', 'controlQueueGlobal', false, 'controlQueuePerDomain <= controlQueueGlobal'],
+  [
+    'controlQueuePerDomain',
+    'controlQueueGlobal',
+    false,
+    'controlQueuePerDomain <= controlQueueGlobal',
+  ],
   ['reservedWriterSlots', 'maxWorkers', true, 'reservedWriterSlots < maxWorkers'],
-  ['maxReadResultBytes', 'globalReadResultBytes', false, 'maxReadResultBytes <= globalReadResultBytes'],
-  ['journalSizeLimitBytes', 'walReadPauseBytes', false, 'journalSizeLimitBytes <= walReadPauseBytes'],
+  [
+    'maxReadResultBytes',
+    'globalReadResultBytes',
+    false,
+    'maxReadResultBytes <= globalReadResultBytes',
+  ],
+  [
+    'journalSizeLimitBytes',
+    'walReadPauseBytes',
+    false,
+    'journalSizeLimitBytes <= walReadPauseBytes',
+  ],
   ['checkpointWalBytes', 'walReadPauseBytes', false, 'checkpointWalBytes <= walReadPauseBytes'],
   ['walReadPauseBytes', 'walWriteStopBytes', true, 'walReadPauseBytes < walWriteStopBytes'],
 ]
@@ -143,7 +173,8 @@ function integerOk(value: unknown, field: NumericField): value is number {
 }
 
 export function validateConfig(input: unknown): ConfigJudgement {
-  if (!isRecord(input)) return { kind: 'invalid', problems: [{ field: 'config', rule: 'must be an object' }] }
+  if (!isRecord(input))
+    return { kind: 'invalid', problems: [{ field: 'config', rule: 'must be an object' }] }
   const problems: ConfigProblem[] = []
   const root = input['storageRoot']
   if (typeof root !== 'string' || root === '' || !isAbsolute(root))
@@ -154,7 +185,10 @@ export function validateConfig(input: unknown): ConfigJudgement {
     bad.add(field)
     problems.push({
       field,
-      rule: field === 'groupCollectMs' ? 'must be a finite integer, 0 or more' : 'must be a finite positive integer',
+      rule:
+        field === 'groupCollectMs'
+          ? 'must be a finite integer, 0 or more'
+          : 'must be a finite positive integer',
     })
   }
   for (const [left, right, strict, rule] of RELATIONS) {
@@ -166,7 +200,11 @@ export function validateConfig(input: unknown): ConfigJudgement {
   const workers = input['maxWorkers']
   const reserved = input['reservedWriterSlots']
   const perDomain = input['maxReadWorkersPerDomain']
-  if (!bad.has('maxWorkers') && !bad.has('reservedWriterSlots') && !bad.has('maxReadWorkersPerDomain')) {
+  if (
+    !bad.has('maxWorkers') &&
+    !bad.has('reservedWriterSlots') &&
+    !bad.has('maxReadWorkersPerDomain')
+  ) {
     if ((perDomain as number) > (workers as number) - (reserved as number))
       problems.push({
         field: 'maxReadWorkersPerDomain',

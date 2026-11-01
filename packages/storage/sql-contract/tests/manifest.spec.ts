@@ -223,8 +223,12 @@ describe('combinationManifest', () => {
   })
 
   describe('the digest does not depend on the order of a list that the descriptor holds', () => {
-    const digestOfOrder = (build: (order: <T>(list: T[]) => T[]) => SqlMaterialCatalog, names: string[], reverse: boolean): string => {
-      const order = <T,>(list: T[]): T[] => (reverse ? [...list].reverse() : list)
+    const digestOfOrder = (
+      build: (order: <T>(list: T[]) => T[]) => SqlMaterialCatalog,
+      names: string[],
+      reverse: boolean,
+    ): string => {
+      const order = <T>(list: T[]): T[] => (reverse ? [...list].reverse() : list)
       const result = combinationManifest({ catalog: build(order), participants: names })
       if (result.kind !== 'manifest') throw new Error(result.kind)
       return manifestDigest(result.manifest)
@@ -263,7 +267,14 @@ describe('combinationManifest', () => {
           catalog(
             [participant('A')],
             [
-              migration('A', '1', order([{ owner: 'L', id: '1' }, { owner: 'L', id: '2' }])),
+              migration(
+                'A',
+                '1',
+                order([
+                  { owner: 'L', id: '1' },
+                  { owner: 'L', id: '2' },
+                ]),
+              ),
               migration('L', '1'),
               migration('L', '2'),
             ],

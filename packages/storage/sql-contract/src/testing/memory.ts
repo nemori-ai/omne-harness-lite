@@ -289,9 +289,7 @@ class MemorySqlStorage implements SqlStorage {
     if (this.closing) return reject('closing')
     const scope = decodeScope((input as Partial<CombinationRegistrationV2> | null)?.scope)
     const names: unknown = input?.participants
-    const namesOk =
-      Array.isArray(names) &&
-      names.every(name => isName(name))
+    const namesOk = Array.isArray(names) && names.every(name => isName(name))
     if (
       scope === null ||
       !isName(input.transactionDomain, DOMAIN_BYTES) ||

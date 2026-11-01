@@ -23,9 +23,7 @@ import {
   defaultConfig,
   identity,
   kindOf,
-  leases,
   makeWorkspace,
-  registration,
   type Built,
   type Workspace,
 } from './support.ts'
