@@ -11,6 +11,7 @@
 | 服务键 | `runtimeContext`，只由 `RuntimeContextService` 的 `static readonly provide` 给出。`./cordis` 导出的键常量取自它，常量名随实现确定 | 性质 1，[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[IC-7](../../../../docs/architecture/cordis-integration-conventions.md#ic-7) |
 | 抽象类 | `RuntimeContextService extends Service`，构造函数以 `RuntimeContextService.provide` 调 `super`。它 `implements` 契约根入口的三面操作类型，同一组签名不写两份 | 性质 2，[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) |
 | 类的 JSDoc | `@owner packages/context/runtime-context-contract`。三面操作出自协议形状，没有契约 ID，所以写 `@owner`，不写 `@contract` | 性质 2，[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) |
+| 信任输入服务 | `RuntimeContextTrustService extends Service`，`static readonly provide = 'runtimeContextTrust'` 只写一次，`super` 与常量 `runtimeContextTrustKey` 都取自它；逐属性投影 `authority` 与 `bindings`。装配入口在受信子树 provide，消费插件 `inject` 该键，键缺席时停在 PENDING。它不是 Runtime Context 能力，不进插件树 JSON 与插件配置。子树可见性是装配位置，不是封装保证 | 类 `RuntimeContextTrustService`，[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3)；[trust-service.spec.ts](../tests/trust-service.spec.ts) |
 | intercept 配置类型 | `{ consumer: ConsumerClass }`，`ConsumerClass` 取自契约根入口 | 性质 3 |
 | 事件 | `runtime-context-cordis-contract/changed`，模式 `emit`，载荷是作用域引用与视图修订 | 性质 5，[IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) |
 
@@ -137,6 +138,8 @@ Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做过滤�
 - 根入口没有运行导出，也不导入 `@deepseek-ai/cordis`。
 - `./cordis` 的源码、生成声明和产物不导入 `@omne-harness/runtime-context` 或 `@omne-harness/runtime-context-cordis`（性质 8）。
 - 导出的键常量等于 `RuntimeContextService.provide`。
+- `runtimeContextTrustKey` 等于 `RuntimeContextTrustService.provide`，字符串只在 `src/cordis.ts` 出现一次，且不同于 `runtimeContext`。
+- 真实 Cordis 装载：子类提供、消费者按键取得原两个端口、键缺席时消费者不运行、提供信任键不提供 `runtimeContext`。
 
 继承这些定义的提供者验证四条机制性质：生产者卸载后登记已撤除，插件体重跑时旧一代的撤除不删掉新一代的登记，两个消费者类的插件各取到自己的配置，按作用域过滤的唤醒只到达该作用域的监听者。这些义务归 [runtime-context-cordis](../../runtime-context-cordis/docs/cordis.md#验证义务)。
 

@@ -1,6 +1,5 @@
 # @omne-harness/runtime-context-cordis
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 The Service implementation member of Runtime Context. Variant: `service-provider`.
@@ -11,7 +10,7 @@ This package puts the mechanism of [runtime-context](../runtime-context/README.m
 
 Status: Service implementation member, `draft`. The adoption basis is the [member and Cordis placement section](../../../docs/architecture/runtime/runtime-context.md#成员与-cordis-落位) of the system page and the [SPEC](SPEC.md).
 
-- Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
+- Implemented: `createRuntimeContextPlugin` in `./cordis`. The plugin injects the construction input key `runtimeContextTrust`, stays pending while the key is absent, and hands `authority` and `bindings` to the caller-supplied constructor. The production factory and the synchronous revocation source are not implemented (gap kept in #677). `src/index.ts` still exports nothing.
 - Not implemented: the concrete subclass, the plugin, and the configuration schema. The root entry stays empty.
 - Not verified: the definition member tests the mechanisms for SPEC properties 2 and 4 on Cordis 4.0.4. The readings are not registered in the shared basis yet. None of the verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
 
@@ -24,9 +23,9 @@ The two Runtime Context contract members publish their types, checks, and Cordis
 The package has two entries:
 
 - `@omne-harness/runtime-context-cordis/cordis` holds the plugin. An application assembler adds one row for this plugin to the plugin tree and supplies the configuration.
-- `@omne-harness/runtime-context-cordis` exports nothing. A caller without Cordis takes the mechanism factory from [runtime-context](../runtime-context/README.md).
+- `@omne-harness/runtime-context-cordis` exports nothing; `./cordis` exports `createRuntimeContextPlugin`. A caller without Cordis takes the mechanism factory from [runtime-context](../runtime-context/README.md).
 
-Producers, scope holders, and readers do not import this package. They use the service through the service definition. The [usage page](docs/context.md#使用方式) shows the assembly row and the independent use. The plugin is not implemented, so no runnable example exists now.
+Producers, scope holders, and readers do not import this package. They use the service through the service definition. The [usage page](docs/context.md#使用方式) shows the assembly row and the independent use. Only the trust-input plugin exists now, so no runnable end-to-end example exists.
 
 ## Contracts
 
@@ -55,7 +54,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/runtime-context-cordis
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The two current tests check only that both entries export nothing. See [tests/](tests/README.md). The six verification obligations of the SPEC arrive with the implementation. Three of them must run on real Cordis. See the [verification obligations](docs/cordis.md#验证义务). Persistence, cross-process consistency, and end-to-end composition are outside this package. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The current tests check that the root exports nothing, that `./cordis` exports only the plugin factory, and the plugin trust injection (pending while the key is absent). See [tests/](tests/README.md). The six verification obligations of the SPEC arrive with the implementation. Three of them must run on real Cordis. See the [verification obligations](docs/cordis.md#验证义务). Persistence, cross-process consistency, and end-to-end composition are outside this package. A passing structure check does not prove behavior.
 
 ## Maintenance
 

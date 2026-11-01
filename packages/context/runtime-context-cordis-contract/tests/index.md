@@ -7,6 +7,7 @@
 - [README.md](README.md)：测试范围、运行方式与当前缺口
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口没有运行值且只有显式类型重导出
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：真实 Cordis 装载、效应、配置与事件机制
+- [trust-service.spec.ts](trust-service.spec.ts)：信任输入键的唯一来源、真实装载、消费者取得与缺席
 - [fixtures/](fixtures/index.md)：测试固定输入与导出清单
 
 - [exports.spec.ts](exports.spec.ts)：清单、类型符号身份与模块增补
