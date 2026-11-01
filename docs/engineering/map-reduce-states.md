@@ -104,7 +104,7 @@ PREPARE：
 
 SERVE 一次接管一个提升 PR：
 
-1. 核对线已停写，以及父分支进入线轨道的那次准入与 gate 证据，见[线父分支](integration.md#线父分支)。保留来源原始 head、候选 head、目标 head、targetBase 和 merge 链。
+1. 核对线已停写，以及父分支进入线轨道的那次准入与 gate 证据，见[线父分支](integration.md#线父分支)。RI 合并结果的树与那次准入时的树相同（期间 mainline 没有前进）时，复用那次准入，第 3 步不再跑准入；树不同时，在 RI 合并结果上跑一次。保留来源原始 head、候选 head、目标 head、targetBase 和 merge 链。
 2. 在 reduce 隔离候选上处理同步、冲突、迁移和修复，同时继续收件。
 3. 同步后先用 `node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>` 生成宿主投影，它最后运行 `pnpm run check:agents`；再运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）。同一台机器上的准入一次只跑一个。
 4. 候选或基线变动后，重做受影响的验证与独立评审。

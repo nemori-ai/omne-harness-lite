@@ -46,7 +46,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 
 一次接管一个提升 PR。先核对线父分支进线轨道的那次准入与 gate 合入证据，以及冻结 head。线内的卡不逐张准入，规则见 `docs/engineering/integration.md`「线父分支」。保存来源原 head、候选 head、目标 head、targetBase 和 merge 链。
 
-1. 核对 Line 已停写。在具有真实工作卡 binding 的 reduce 隔离候选上处理同步和冲突；需要修正来源轨道时，由 Reduce 按获准路线经 gate 写回，再读回提升源头。线父卡不承担该修复的 Git binding。
+1. 核对 Line 已停写。线父分支进线轨道时，已在合并结果上跑过一次准入。RI 合并结果的树与那次准入时的树相同（期间 mainline 没有前进）时，复用那次准入，下面第 3 步不再跑准入，比对方法见 `docs/engineering/integration.md`「树相同时复用准入」。树不同时，在 RI 合并结果上跑一次准入。在具有真实工作卡 binding 的 reduce 隔离候选上处理同步和冲突；需要修正来源轨道时，由 Reduce 按获准路线经 gate 写回，再读回提升源头。线父卡不承担该修复的 Git binding。
 2. 完成跨域修改与消费者迁移。Reduce 负责交回后的全部集成冲突、跨域修改、消费者迁移和改后验证，不把集成缺陷退回线会话。自己派写者时按 `delegate`。
 3. 验证：用 `node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>` 生成宿主投影，它最后运行 `pnpm run check:agents`；再运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）。同一台机器上的准入一次只跑一个。准入只有一步失败时，修复后用 `pnpm run admission --resume-from <H1>` 补跑，H1 是失败的那个头，不整次重跑。规则见 `docs/engineering/integration.md`「增量准入」。候选或基线变动后，重做受影响的验证与评审。准入是一条全机串行的队列：
    - 入队前在该树离线装依赖、刷新索引、修好 CRLF 工作副本，再跑轻量预检（`acceptance:lock`、`check:docs`、`lint:oxlint`、`format:check`）。工具链的 `pnpm run preflight` 合入之后用它。
