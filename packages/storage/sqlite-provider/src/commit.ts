@@ -136,10 +136,14 @@ export function createCommit(core: Core): SqlStorage['commit'] {
         // A domain of another scope looks like an absent one (SPEC 5.5).
         if (!sameScope(ready.scope, identity.scope)) return reject('combination_unregistered')
         let reply: CommitReply
+        // A domain-serial read holds the barrier: this write enters after it (SPEC 9.3).
+        const leave = await core.barrier.enterWrite(identity.transactionDomain)
         try {
           reply = await ready.client.request<CommitReply>({ kind: 'commit', request: input, inputDigest })
         } catch (error) {
           return unknown(error instanceof WorkerExited ? 'worker_exited' : 'provider_error')
+        } finally {
+          leave()
         }
         switch (reply.kind) {
           case 'receipt':

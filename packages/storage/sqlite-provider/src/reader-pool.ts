@@ -15,6 +15,7 @@ import type { SqliteStorageConfig } from './config.ts'
 import type { Domains, Lifecycle, ReadyDomain } from './domains.ts'
 import { decodeScope, scopeKey } from './fields.ts'
 import { ReaderClient } from './reader-client.ts'
+import type { WriteBarrier } from './write-barrier.ts'
 import type { HandlerSpec, ReaderReply } from './worker/reader-protocol.ts'
 import { WorkerExited } from './writer-client.ts'
 
@@ -127,12 +128,15 @@ type DomainReaders = {
   readonly readers: PoolReader[]
   /** Counts the migrations that changed the schema of the domain (SPEC 9.5, last item). */
   schema: number
+  /** While above zero a migration runs or waits: no new read is dispatched. */
+  pauses: number
 }
 
 export class ReaderPool {
   private readonly config: SqliteStorageConfig
   private readonly domains: Domains
   private readonly lifecycle: Lifecycle
+  private readonly barrier: WriteBarrier
   private readonly byDomain = new Map<string, DomainReaders>()
   private readonly perDomainReserved = new Map<string, number>()
   private reserved = 0
@@ -142,7 +146,13 @@ export class ReaderPool {
   private tokenCounter = 0
   private closing = false
 
-  constructor(config: SqliteStorageConfig, domains: Domains, lifecycle: Lifecycle) {
+  constructor(
+    config: SqliteStorageConfig,
+    domains: Domains,
+    lifecycle: Lifecycle,
+    barrier: WriteBarrier,
+  ) {
+    this.barrier = barrier
     this.config = config
     this.domains = domains
     this.lifecycle = lifecycle
@@ -186,6 +196,25 @@ export class ReaderPool {
     return live
   }
 
+  /**
+   * A migration of the domain is about to run (SPEC 9.5, last item): stop dispatch, let the reads
+   * in flight end, close every connection and wait for the exits. The schema generation moves on,
+   * so no old connection or result serves a new read. The returned function ends the pause.
+   */
+  async pauseForMigration(domain: string): Promise<() => void> {
+    const d = this.domainState(domain)
+    d.pauses += 1
+    await Promise.all(d.readers.map(reader => this.retire(reader)))
+    d.schema += 1
+    let resumed = false
+    return () => {
+      if (resumed) return
+      resumed = true
+      d.pauses -= 1
+      this.pump(domain)
+    }
+  }
+
   // --- reservations (SPEC 9.2 step 6) -------------------------------------------------------
 
   private reserve(domain: string, bytes: number): (() => void) | null {
@@ -213,7 +242,7 @@ export class ReaderPool {
   private domainState(domain: string): DomainReaders {
     let d = this.byDomain.get(domain)
     if (d === undefined) {
-      d = { queue: [], readers: [], schema: 0 }
+      d = { queue: [], readers: [], schema: 0, pauses: 0 }
       this.byDomain.set(domain, d)
     }
     return d
@@ -233,13 +262,18 @@ export class ReaderPool {
     if (outcome.kind === 'closing') return this.endQueued(task, unavailable('closing'))
     if (outcome.kind !== 'ready' || scopeKey(outcome.entry.scope) !== scopeKey(job.scope))
       return this.endQueued(task, unavailable('domain_unavailable'))
-    const d = this.domainState(job.domain)
-    d.queue.push(task)
+    this.park(this.domainState(job.domain), task, false)
+    this.pump(job.domain)
+  }
+
+  private park(d: DomainReaders, task: Task, front: boolean): void {
+    task.phase = 'queued'
+    if (front) d.queue.unshift(task)
+    else d.queue.push(task)
     task.leaveQueue = () => {
       const at = d.queue.indexOf(task)
       if (at >= 0) d.queue.splice(at, 1)
     }
-    this.pump(job.domain)
   }
 
   /** Ends a task that no Worker has seen. */
@@ -274,7 +308,7 @@ export class ReaderPool {
     const d = this.domainState(domain)
     for (;;) {
       const task = d.queue[0]
-      if (task === undefined) return
+      if (task === undefined || d.pauses > 0) return
       if (this.closing || this.lifecycle.closing) return this.drain(d, unavailable('closing'))
       const entry = this.domains.peekReady(domain)
       if (entry === null || scopeKey(entry.scope) !== scopeKey(task.job.scope)) {
@@ -388,10 +422,24 @@ export class ReaderPool {
       task.finish()
       return
     }
-    if (task.settled) {
-      // Withdrawn before anything was sent: the connection is clean and goes back.
-      this.release(reader)
-      task.finish()
+    if (reader.state === 'closing' && !task.settled) {
+      // A migration closed the connection while the request waited for it. It waits again.
+      this.park(d, task, true)
+      this.pump(job.domain)
+      return
+    }
+    // domain-serial: the connection first, then the barrier (SPEC 9.3).
+    const leave = job.handler.ordering === 'domain-serial' ? await this.barrier.acquire(job.domain) : null
+    if (task.settled || reader.state === 'closing') {
+      leave?.()
+      if (task.settled) {
+        // Withdrawn before anything was sent: the connection is clean and goes back.
+        this.release(reader)
+        task.finish()
+      } else {
+        this.park(d, task, true)
+        this.pump(job.domain)
+      }
       return
     }
     task.phase = 'dispatched'
@@ -416,6 +464,8 @@ export class ReaderPool {
       reusable = false
       outcome = unavailable(error instanceof WorkerExited ? 'worker_exited' : 'read_failed')
     }
+    // The transaction has ended, or the exit of the Worker is observed: the barrier goes.
+    leave?.()
     if (reusable) this.release(reader)
     else void this.retire(reader)
     task.settle(outcome)
@@ -458,7 +508,7 @@ export class ReaderPool {
     }
     if (bound === null || scopeKey(bound) !== scopeKey(reader.entry.scope)) return false
     reader.boundScope = scopeKey(bound)
-    reader.state = 'busy'
+    if (reader.state !== 'closing') reader.state = 'busy'
     return true
   }
 

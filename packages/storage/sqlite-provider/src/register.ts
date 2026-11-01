@@ -89,10 +89,14 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
       const { entry } = outcome
       if (!sameScope(entry.scope, spec.scope)) return rejection('domain_occupied')
       let reply: RegisterReply
+      // The registration may migrate: the read connections give way first (SPEC 9.5).
+      const resume = await core.readers.pauseForMigration(transactionDomain)
       try {
         reply = await entry.client.request<RegisterReply>({ kind: 'register', registration: spec })
       } catch (error) {
         return unknown(error instanceof WorkerExited ? 'worker_exited' : 'provider_error')
+      } finally {
+        resume()
       }
       switch (reply.kind) {
         case 'registered':

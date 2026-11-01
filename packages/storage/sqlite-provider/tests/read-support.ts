@@ -19,6 +19,7 @@ import {
   identity,
   registration,
   type Built,
+  type MaterialsOptions,
   type Provider,
   type Workspace,
 } from './support.ts'
@@ -103,8 +104,9 @@ export type ReadFixture = Readonly<{ built: Built; handlers: readonly ReadHandle
 export async function buildReadMaterials(
   workspace: Workspace,
   overrides: Readonly<Record<string, Partial<ReadHandlerDescriptor>>> = {},
+  materials: MaterialsOptions = {},
 ): Promise<Built> {
-  const base = await buildMaterials(workspace)
+  const base = await buildMaterials(workspace, materials)
   const handlers: ReadHandlerDescriptor[] = []
   for (const [name, source] of Object.entries(HANDLERS)) {
     const file = join(workspace.materialsDir, `handler-${name}.mjs`)
