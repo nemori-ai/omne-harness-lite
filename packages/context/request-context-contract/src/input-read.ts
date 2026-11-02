@@ -2,7 +2,8 @@
 import type { ContextTarget, GroupToken, PrincipalKey } from './refs.js'
 import { decodeGroupToken } from './refs.js'
 import { digest } from './internal.js'
-import { readHistory } from './history-read.js'
+import { readHistory, type HistoryReadMode } from './history-read.js'
+import { materialBelongs, type CachedAssemblyMaterial } from './reuse.js'
 import type { HistoryRow } from './ports.js'
 import type { CompactionContext } from '@omne-harness/message'
 import type {
@@ -99,6 +100,12 @@ export type StableInputs<P> = Readonly<{
   rows: readonly HistoryRow[]
   /** The incremental judgment window under the same evidence, when it was asked for. */
   window: CompactionContext | null
+  /** How the rows were obtained, and the cached material of this position they continue. */
+  historyRead: Readonly<{
+    mode: HistoryReadMode | 'carried'
+    added: readonly HistoryRow[]
+    cached: CachedAssemblyMaterial | null
+  }>
 }>
 export type InputReadOptions = Readonly<{
   /** Also read the CM-02 judgment window inside the history group (planCompaction). */
@@ -107,6 +114,11 @@ export type InputReadOptions = Readonly<{
   principal?: PrincipalKey
   /** The source set generation; carried rows are reused only within one generation. */
   generation?: PreparedInputKey['generation']
+  /**
+   * Material derived earlier for the same principal, generation, target and position. It only
+   * shortens the history read; every group is still read and checked in this call.
+   */
+  cached?: CachedAssemblyMaterial | null
 }>
 
 /** Reads the six source groups of one call; the identity group is the call itself. */
@@ -128,6 +140,21 @@ export async function readInputs<P>(
   const carried = control.value.previous?.carried
   let rows: readonly HistoryRow[] = []
   let window: CompactionContext | null = null
+  const cached =
+    options.cached !== undefined &&
+    options.cached !== null &&
+    !options.window &&
+    materialBelongs(options.cached, {
+      principal: options.principal,
+      generation: options.generation,
+      purpose: call.purpose,
+      position: call.position,
+      target,
+    })
+      ? options.cached
+      : null
+  // The read of the final attempt of the group; a retried attempt never publishes an earlier one.
+  let historyRead: StableInputs<P>['historyRead'] = { mode: 'full', added: [], cached }
   const history = await stableGroup(
     'history',
     [() => g.history.readCount(call)],
@@ -150,12 +177,21 @@ export async function readInputs<P>(
         carried.preparation.key.tokens.history === token
       ) {
         rows = carried.preparation.rows
+        historyRead = { mode: 'carried', added: [], cached }
         return got(value)
       }
-      const read = await readHistory(call.access, value.evidence, sources.history)
+      const read = await readHistory(
+        call.access,
+        value.evidence,
+        sources.history,
+        cached === null
+          ? undefined
+          : { evidence: cached.history.evidence, rows: cached.history.rows },
+      )
       if (read.kind === 'epoch-changed') return { kind: 'retry' }
       if (read.kind !== 'history') return read
       rows = read.rows
+      historyRead = { mode: read.mode, added: read.added, cached }
       if (options.window) {
         const last = rows.at(-1)
         if (last === undefined)
@@ -191,6 +227,7 @@ export async function readInputs<P>(
     kind: 'inputs',
     rows,
     window,
+    historyRead,
     tokens: {
       history: history.token,
       context: context.token,

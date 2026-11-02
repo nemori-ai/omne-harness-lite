@@ -55,6 +55,18 @@ export function sourced(message: Message, call: TenantModelCall | undefined): So
   if (message.role !== 'assistant') return { message }
   return call === undefined ? { message } : { message, sourceCall: call }
 }
+function projectRow(row: HistoryRow): ProjectedMessage | null {
+  const filtered = filterMessage(row.message, 'toModel')
+  return filtered === null
+    ? null
+    : {
+        seq: row.seq,
+        entry: row.entry,
+        prefixDigest: row.prefixDigest,
+        dropped: filtered.dropped,
+        ...sourced(filtered.message, row.sourceCall),
+      }
+}
 export function project(rows: readonly HistoryRow[], epoch: EpochId): ProjectedHistory {
   const latest = [...rows].reverse().find(r => r.message.role === 'compaction')
   const compact = latest?.message.role === 'compaction' ? latest.message : null
@@ -64,21 +76,34 @@ export function project(rows: readonly HistoryRow[], epoch: EpochId): ProjectedH
   for (const [i, row] of rows.entries()) {
     if (compact !== null && i <= coveredEnd && !retained.has(row.entry)) continue
     if (row.message.role === 'compaction' && row !== latest && !retained.has(row.entry)) continue
-    const filtered = filterMessage(row.message, 'toModel')
-    if (filtered !== null)
-      messages.push({
-        seq: row.seq,
-        entry: row.entry,
-        prefixDigest: row.prefixDigest,
-        dropped: filtered.dropped,
-        ...sourced(filtered.message, row.sourceCall),
-      })
+    const projected = projectRow(row)
+    if (projected !== null) messages.push(projected)
   }
   return {
     epoch,
     messages,
     compaction: latest === undefined ? null : { seq: latest.seq, entry: latest.entry },
   }
+}
+/**
+ * Appends the projection of rows that continue the rows of `previous` in the same epoch. It gives
+ * the same view as `project` over all rows, and only reads the added rows. A compaction record among
+ * the added rows, or another epoch, cannot be appended: it answers null and the caller projects
+ * every row again.
+ */
+export function appendProjection(
+  previous: ProjectedHistory,
+  addedRows: readonly HistoryRow[],
+  epoch: EpochId,
+): ProjectedHistory | null {
+  if (previous.epoch !== epoch) return null
+  const messages: ProjectedMessage[] = [...previous.messages]
+  for (const row of addedRows) {
+    if (row.message.role === 'compaction') return null
+    const projected = projectRow(row)
+    if (projected !== null) messages.push(projected)
+  }
+  return { epoch, messages, compaction: previous.compaction }
 }
 export function projectForHuman(rows: readonly HistoryRow[]): HumanProjection {
   const compact = [...rows].reverse().find(r => r.message.role === 'compaction')?.message
