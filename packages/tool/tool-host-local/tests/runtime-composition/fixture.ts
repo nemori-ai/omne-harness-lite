@@ -40,6 +40,7 @@ import { createLocalToolClock } from '../../src/clock.ts'
 import { createLocalGrantVerifiers } from '../../src/grant-verifiers.ts'
 import { createLocalInvocationSource } from '../../src/invocation-source.ts'
 import type { ToolEnvironmentValue } from '../../src/author-environment.ts'
+import type { LocalToolControlSubject } from '../../src/control-subject-adapter.ts'
 import { adoption, evidence, request, tenantA, tenantB } from '../coordinator-values.ts'
 import { authorityFor } from '../binding-values.ts'
 
@@ -89,6 +90,15 @@ export async function fixture(
   let allowed = true
   const principal = (tenant: typeof tenantA) =>
     canonicalDigest(tenant) === canonicalDigest(tenantA) ? 'alice' : 'bob'
+  const subject = (value: unknown): LocalToolControlSubject => {
+    if (value !== 'alice' && value !== 'bob') throw new TypeError('Unknown frozen principal.')
+    return {
+      kind: 'acting-for-tenant',
+      tenant: value === 'alice' ? tenantA : tenantB,
+      actor: { component: 'sessionWorkPrincipals' },
+      work: { owner: 'session', work: `session-${value}` },
+    }
+  }
   const qualify = async (input: { principal: unknown; tenant: typeof tenantA }) =>
     allowed &&
     (canonicalDigest(input.tenant) === canonicalDigest(tenantA) ||
@@ -109,13 +119,32 @@ export async function fixture(
     },
     principalCodec: {
       encode(value: unknown) {
-        if (typeof value !== 'string') throw new TypeError('not a fixture principal')
-        return value
+        const identity = subject(value)
+        return {
+          kind: identity.kind,
+          actor: { component: identity.actor.component },
+          work: { owner: identity.work.owner, work: identity.work.work },
+          tenant: {
+            name: 'TenantId',
+            organization: { name: 'OrganizationId', text: identity.tenant.organization.text },
+            account: { name: 'AccountId', text: identity.tenant.account.text },
+          },
+        }
       },
       decode(value) {
-        return typeof value === 'string'
-          ? succeed(value)
-          : fail({ reason: 'not a fixture principal' })
+        const stored: unknown = value
+        if (
+          typeof stored === 'object' &&
+          stored !== null &&
+          'work' in stored &&
+          typeof stored.work === 'object' &&
+          stored.work !== null &&
+          'work' in stored.work
+        ) {
+          if (stored.work.work === 'session-alice') return succeed('alice')
+          if (stored.work.work === 'session-bob') return succeed('bob')
+        }
+        return fail({ reason: 'not a fixture principal' })
       },
     },
   })
@@ -266,17 +295,26 @@ export async function fixture(
     grants: createLocalGrantVerifiers(fixed.scope),
     bindings: () => bindings,
     catalog: () => catalog,
-    resolveAccess: async value => succeed({ ...value, principal: principal(value.tenant) }),
-    controlSubjects: {
-      capture: async value => succeed(evidence(canonicalDigest([value.tenant, value.principal]))),
-      matches: async value =>
-        value.subject.record === canonicalDigest([value.tenant, value.principal])
-          ? qualify(value)
-          : { kind: 'denied', reason: 'wrong-controller' },
-      qualify: async value =>
-        value.subject.record === canonicalDigest([value.tenant, principal(value.tenant)])
-          ? qualify({ ...value, principal: principal(value.tenant) })
-          : { kind: 'denied', reason: 'wrong-controller' },
+    subjects: {
+      async project(value) {
+        try {
+          return succeed(subject(value))
+        } catch {
+          return fail({ kind: 'denied', action: 'project' })
+        }
+      },
+      async resolveSessionWork(value) {
+        const name =
+          value.session === 'session-alice'
+            ? 'alice'
+            : value.session === 'session-bob'
+              ? 'bob'
+              : null
+        return name !== null &&
+          canonicalDigest(subject(name).tenant) === canonicalDigest(value.tenant)
+          ? succeed(name)
+          : fail({ kind: 'denied', action: 'resolve-session-work' })
+      },
     },
     capacity,
     observersPerCall: 4,
@@ -476,6 +514,8 @@ export async function fixture(
       return {
         api: nextRoot.toolRuntime,
         plugins: next,
+        schedule: (wake: Parameters<typeof nextRoot.toolInstanceHost.schedule>[0]) =>
+          nextRoot.toolInstanceHost.schedule(wake),
         close: async () => {
           await next.close()
           await nextRoot.fiber.dispose()

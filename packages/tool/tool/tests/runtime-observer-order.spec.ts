@@ -172,6 +172,32 @@ it('return detaches during routing and never contacts a handle that arrives late
   expect(w.source.observed).toEqual([])
 })
 
+it('return resolves pending next even while final permission is still unanswered', async () => {
+  const w = await world()
+  const iterator = w.observe(new AbortController().signal)
+  await iterator.next()
+  const permission = Promise.withResolvers<Route>()
+  w.route(() => permission.promise)
+  w.source.confirm({ state: w.snapshot.value.state, blocks: [] }, w.snapshot.value)
+  const pending = iterator.next()
+  await tick()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    expect(await iterator.return?.()).toEqual({ done: true, value: undefined })
+    const result = await Promise.race([
+      pending,
+      new Promise<'still-pending'>(resolve => {
+        timer = setTimeout(() => resolve('still-pending'), 1000)
+      }),
+    ])
+    expect(result).toEqual({ done: true, value: undefined })
+    expect(w.source.subscribers()).toBe(0)
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+    permission.resolve(w.live)
+  }
+})
+
 it('current refuses a publication that retires while its authoritative state is being read', async () => {
   const entered = Promise.withResolvers<void>()
   const released = Promise.withResolvers<void>()

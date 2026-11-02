@@ -9,7 +9,7 @@ import type {
 } from '@omne-harness/tool-contract/provider'
 import { createLocalToolResultDelivery } from './result-delivery.ts'
 import { createRuntimePublication } from './runtime-publication.ts'
-import type { LocalToolRuntimeInput } from './runtime-composition.ts'
+import type { RuntimeCompositionInput } from './runtime-composition.ts'
 import type { ToolEnvironmentValue } from './author-environment.ts'
 
 type Wake = Parameters<ToolInstanceHost<unknown>['schedule']>[0]
@@ -26,7 +26,7 @@ type Entry = {
 export function createRuntimeExecutor(
   input: Readonly<{
     ctx: Context
-    settings: LocalToolRuntimeInput
+    settings: RuntimeCompositionInput
     dependencies: ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue>
     receiver: Parameters<
       typeof createLocalToolResultDelivery<unknown, ToolMessageContentBlock>
@@ -37,6 +37,7 @@ export function createRuntimeExecutor(
   const abort = new AbortController()
   const calls = new Map<string, Entry>()
   let foreignExecutionRuns = 0
+  let unownedRuns = 0
   const delivery = createLocalToolResultDelivery({
     store: settings.store,
     commands: dependencies.commands,
@@ -126,9 +127,12 @@ export function createRuntimeExecutor(
   }
   const installed = dependencies.instances.install({
     async run(step) {
-      if (!remember(step)) return
       const entry = calls.get(keyOf(step))
-      if (entry === undefined) return
+      if (entry === undefined) {
+        unownedRuns += 1
+        return
+      }
+      if (abort.signal.aborted) return
       if (entry.retiring) return
       entry.running = true
       try {
@@ -198,6 +202,7 @@ export function createRuntimeExecutor(
   let closing: Promise<void> | null = null
   return {
     remember,
+    knows: (wake: Wake) => calls.has(keyOf(wake)),
     rejectAdmission(wake: Wake) {
       const entry = calls.get(keyOf(wake))
       if (entry !== undefined && !entry.started) calls.delete(keyOf(wake))
@@ -207,6 +212,7 @@ export function createRuntimeExecutor(
       knownCalls: calls.size,
       completed,
       foreignExecutionRuns,
+      unownedRuns,
       retired: abort.signal.aborted,
     }),
     close(): Promise<void> {

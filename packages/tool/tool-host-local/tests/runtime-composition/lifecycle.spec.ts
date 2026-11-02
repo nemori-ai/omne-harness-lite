@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest'
 import { createLocalToolRuntimePlugins } from '../../src/runtime-cordis.ts'
+import { createRuntimeSourceAccess } from '../../src/runtime-composition.ts'
+import { INVOCATION_SOURCE_DOMAIN_KEY } from '../../src/invocation-source.ts'
+import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
+import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
+import { succeed } from '@omne-harness/operation-result'
 import { accepted, fixture, unbox } from './fixture.ts'
 
 it('C05 requires a declared durable store and refuses foreign tenant reads', async () => {
@@ -115,8 +120,10 @@ it('a new executor reads the original call but never attaches or restarts its ol
     reopened = await world.newExecutor()
     expect(accepted(await reopened.api.invoke(request))).toBe(reference)
     const next = reopened
+    const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
+    await next.schedule({ tenant: world.tenantA, call: parts.call })
     await expect
-      .poll(() => next.plugins.diagnostics().executor?.foreignExecutionRuns ?? 0)
+      .poll(() => next.plugins.diagnostics().executor?.unownedRuns ?? 0)
       .toBeGreaterThan(0)
     expect(world.launches()).toBe(1)
     expect(unbox(await next.api.instances.current(world.query(reference))).current).toBeNull()
@@ -124,6 +131,125 @@ it('a new executor reads the original call but never attaches or restarts its ol
   } finally {
     complete('cleanup')
     await reopened?.close()
+    await world.close()
+  }
+})
+
+it('recovers the original initiator from the complete persisted source instead of the latest caller', async () => {
+  const world = await fixture()
+  try {
+    const first = accepted(await world.api.invoke(world.invocation('original-source')))
+    await world.settled(first)
+    const second = accepted(await world.api.invoke(world.invocation('later-source', world.tenantB)))
+    await world.settled(second, world.tenantB)
+    const parts = unbox(resolveToolInvocationRef(first, world.tenantA))
+    const resolve = createRuntimeSourceAccess({
+      store: world.store,
+      sources: world.input.sources,
+      access: world.input.access,
+      recovery: world.input.subjects,
+    })
+    expect(unbox(await resolve({ tenant: world.tenantA, call: parts.call })).principal).toBe(
+      'alice',
+    )
+    const wrongResolver = createRuntimeSourceAccess({
+      store: world.store,
+      sources: world.input.sources,
+      access: world.input.access,
+      recovery: { ...world.input.subjects, resolveSessionWork: async () => succeed('bob') },
+    })
+    expect(await wrongResolver({ tenant: world.tenantA, call: parts.call })).toMatchObject({
+      failure: { kind: 'denied' },
+    })
+  } finally {
+    await world.close()
+  }
+})
+
+it('does not claim an old admitted call that never acquired an execution', async () => {
+  const world = await fixture()
+  let reopened: Awaited<ReturnType<typeof world.newExecutor>> | null = null
+  try {
+    await world.environments.dispose()
+    const request = world.invocation('old-preparation')
+    const reference = accepted(await world.api.invoke(request))
+    await expect
+      .poll(async () => {
+        const read = unbox(await world.api.queries.lookup(world.query(reference)))
+        return read.kind === 'found' ? read.state.phase : null
+      })
+      .toBe('preparing')
+    await world.plugins.close()
+    reopened = await world.newExecutor()
+    const next = reopened
+    expect(accepted(await next.api.invoke(request))).toBe(reference)
+    await expect
+      .poll(() => next.plugins.diagnostics().executor?.unownedRuns ?? 0)
+      .toBeGreaterThan(0)
+    expect(world.launches()).toBe(0)
+    expect(unbox(await next.api.queries.lookup(world.query(reference)))).toMatchObject({
+      state: { phase: 'preparing' },
+    })
+  } finally {
+    await reopened?.close()
+    await world.close()
+  }
+})
+
+it('does not re-sign a principal when the stored original invocation binding is inconsistent', async () => {
+  const world = await fixture()
+  try {
+    const reference = accepted(await world.api.invoke(world.invocation('corrupt-source')))
+    await world.settled(reference)
+    const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
+    const domain = {
+      kind: 'host' as const,
+      tenant: world.tenantA,
+      key: INVOCATION_SOURCE_DOMAIN_KEY,
+    }
+    const read = await world.store.read(domain)
+    if (read.kind !== 'complete') throw new Error('Missing source domain')
+    const source = read.records.find(row => row.kind === 'host')
+    if (
+      source?.kind !== 'host' ||
+      typeof source.host.value !== 'object' ||
+      source.host.value === null
+    )
+      throw new Error('Missing source binding')
+    expect(
+      await world.store.commit({
+        domain,
+        expected: read.revision,
+        revision: unbox(decodeToolRevision(String(BigInt(read.revision) + 1n))),
+        writes: [
+          {
+            kind: 'put',
+            record: {
+              kind: 'host',
+              host: { ...source.host, value: { ...source.host.value, fixedDigest: 'corrupted' } },
+            },
+          },
+        ],
+      }),
+    ).toEqual({ kind: 'committed' })
+    let restored = 0
+    const resolve = createRuntimeSourceAccess({
+      store: world.store,
+      sources: world.input.sources,
+      access: world.input.access,
+      recovery: {
+        ...world.input.subjects,
+        resolveSessionWork: async input => {
+          restored += 1
+          return world.input.subjects.resolveSessionWork(input)
+        },
+      },
+    })
+    expect(await resolve({ tenant: world.tenantA, call: parts.call })).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+    expect(restored).toBe(0)
+  } finally {
     await world.close()
   }
 })

@@ -9,7 +9,7 @@ import {
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { createLocalToolLedgerGuards } from './ledger-guards.ts'
 import { createLocalStartCoordinator } from './start-coordinator.ts'
-import type { LocalToolRuntimeInput, RuntimeStages } from './runtime-composition.ts'
+import type { RuntimeCompositionInput, RuntimeStages } from './runtime-composition.ts'
 
 export type RuntimeRecords = Readonly<{
   ledger: ToolLedger<unknown, ToolMessageContentBlock>
@@ -17,7 +17,7 @@ export type RuntimeRecords = Readonly<{
 }>
 
 export function createRuntimeRecords(
-  input: LocalToolRuntimeInput,
+  input: RuntimeCompositionInput,
   stages: RuntimeStages,
 ): RuntimeRecords {
   const authority = createLocalStartCoordinator({

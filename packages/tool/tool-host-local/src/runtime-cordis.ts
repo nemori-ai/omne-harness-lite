@@ -9,7 +9,9 @@ import { createRuntimeAuthorExecution } from './runtime-author.ts'
 import {
   createRuntimeDependencies,
   createRuntimeStages,
+  createRuntimeSourceAccess,
   type LocalToolRuntimeInput,
+  type RuntimeCompositionInput,
   type RuntimeEnvironment,
 } from './runtime-composition.ts'
 import { createRuntimeExecutor } from './runtime-executor.ts'
@@ -23,12 +25,28 @@ import {
 } from './runtime-records.ts'
 import { createLocalToolInstanceHost, createLocalToolInstanceIdentities } from './instance-host.ts'
 import type { DeliveryPosition } from './result-delivery.ts'
+import { createLocalToolControlSubjects } from './control-subject-adapter.ts'
 
 export type { LocalToolRuntimeInput } from './runtime-composition.ts'
 export type { RuntimeAuthorExecution } from './runtime-author.ts'
 
 /** Each returned plugin belongs to its own fiber. All share one durable Tool ordering domain. */
-export function createLocalToolRuntimePlugins(input: LocalToolRuntimeInput) {
+export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
+  const input: RuntimeCompositionInput = {
+    ...given,
+    controlSubjects: createLocalToolControlSubjects({
+      ...given.subjects,
+      store: given.store,
+      qualify: request => given.access.guard.qualify(request),
+      commitAttempts: given.configuration.ledgerCommitAttempts,
+    }),
+    resolveAccess: createRuntimeSourceAccess({
+      store: given.store,
+      sources: given.sources,
+      access: given.access,
+      recovery: given.subjects,
+    }),
+  }
   if (input.store.durability !== 'durable')
     throw new TypeError('The production Tool runtime requires a durable store.')
   for (const [key, value] of Object.entries({
@@ -67,6 +85,7 @@ export function createLocalToolRuntimePlugins(input: LocalToolRuntimeInput) {
         executor !== null &&
         (wake === null ? executor.live() : executor.remember(wake)),
       wake => executor?.rejectAdmission(wake),
+      wake => executor?.knows(wake) ?? false,
     )
   }
   const close = async () => {

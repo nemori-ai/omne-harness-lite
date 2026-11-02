@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest'
+import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { accepted, fixture, unbox } from './fixture.ts'
 
 it('C02 publishes a real handle and iterator return releases a pending observation', async () => {
@@ -127,6 +128,84 @@ it('publishes process blocks only after the original fact reaches the ledger', a
     }
     expect(observed).toBe(true)
     await iterator.return?.()
+  } finally {
+    finish('cleanup')
+    await world.close()
+  }
+})
+
+it('the published source rejects a foreign tenant even without the ordinary facade', async () => {
+  let finish: (value: string) => void = () => {}
+  const world = await fixture(
+    () =>
+      new Promise(resolve => {
+        finish = resolve
+      }),
+  )
+  try {
+    const reference = accepted(await world.api.invoke(world.invocation('source-tenant')))
+    await expect
+      .poll(async () => unbox(await world.api.instances.current(world.query(reference))).current)
+      .not.toBeNull()
+    const current = unbox(await world.api.instances.current(world.query(reference))).current
+    const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
+    const route = unbox(
+      await world.root.toolInstanceHost.directory.connect({
+        principal: 'alice',
+        tenant: world.tenantA,
+        call: parts.call,
+      }),
+    )
+    if (route.kind !== 'live' || current === null) throw new Error('Missing real publication')
+    const iterator = route.handle.observation
+      .observe({
+        ref: current.ref,
+        access: { principal: 'bob', tenant: world.tenantB },
+        signal: new AbortController().signal,
+      })
+      [Symbol.asyncIterator]()
+    expect((await iterator.next()).value).toEqual({ kind: 'ended', reason: 'denied' })
+  } finally {
+    finish('cleanup')
+    await world.close()
+  }
+})
+
+it('an old registration release cannot remove the route of a later token', async () => {
+  let finish: (value: string) => void = () => {}
+  const world = await fixture(
+    () =>
+      new Promise(resolve => {
+        finish = resolve
+      }),
+  )
+  try {
+    const reference = accepted(await world.api.invoke(world.invocation('publication-token')))
+    await expect
+      .poll(async () => unbox(await world.api.instances.current(world.query(reference))).current)
+      .not.toBeNull()
+    const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
+    const access = { principal: 'alice', tenant: world.tenantA, call: parts.call }
+    const recovery = unbox(await world.root.toolCommands.loadRecovery(access))
+    const route = unbox(await world.root.toolInstanceHost.directory.connect(access))
+    if (route.kind !== 'live' || recovery.execution === null)
+      throw new Error('Missing original execution')
+    const first = unbox(
+      await world.root.toolInstances.register({
+        publication: [recovery.execution, route.handle],
+        authority: recovery.state.source,
+      }),
+    )
+    expect(await first.release()).toEqual({ removed: true })
+    const second = unbox(
+      await world.root.toolInstances.register({
+        publication: [recovery.execution, route.handle],
+        authority: recovery.state.source,
+      }),
+    )
+    expect(second.receipt.registration).not.toBe(first.receipt.registration)
+    expect(await first.release()).toEqual({ removed: false })
+    expect(unbox(await world.root.toolInstances.connect(access)).kind).toBe('live')
   } finally {
     finish('cleanup')
     await world.close()
