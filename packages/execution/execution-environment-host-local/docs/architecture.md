@@ -7,25 +7,43 @@
 | 入口 | 源文件 | 承载 |
 | --- | --- | --- |
 | `@omne-harness/execution-environment-host-local` | `src/index.ts` | 重导出下面三个模块的四个函数与类型，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） |
-| 同上 | `src/host-files.ts` | 宿主文件设施 `createHostFiles`、对象身份读取 `hostObjectToken` 与共用文件引擎（不从根入口导出） |
+| 同上 | `src/host-files.ts` | 宿主文件设施 `createHostFiles`、对象身份读取 `hostObjectToken` 与共用文件引擎（不从根入口导出）；已接受的四项在这里，其余八项转调下面三个模块 |
+| 同上 | `src/host-paths.ts` | 路径检查、逐段走、目录描述符路径、平台前提 P2 的探测、宿主文件根的绑定，以及各模块共用的结果与错误映射（不从根入口导出） |
+| 同上 | `src/host-file-tree.ts` | `list`、`search`、`mkdir`、`remove`、`move`、`copy`（不从根入口导出） |
+| 同上 | `src/host-file-batch.ts` | `commitBatch`、`recoverBatch` 与批次清单（不从根入口导出） |
 | 同上 | `src/host-domain.ts` | 宿主文件责任域 `createHostFilesDomain`：获取记录、门面、配额与排空 |
 | 同上 | `src/host-provider.ts` | 宿主文件提供者 `createHostFilesProvider` |
+| 同上 | `src/host-command.ts`、`src/host-scope.ts`、`src/host-probe.ts` | 宿主命令设施、systemd 用户 scope 与平台前提探测，见[宿主命令机制](#宿主命令机制) |
+| 门进程脚本，不是入口 | `src/command-gate.ts` | 命令的门进程，由宿主命令设施按文件路径起 |
 | `@omne-harness/execution-environment-host-local/cordis` | `src/cordis.ts` | Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin`、插件工厂 `createHostFilesPlugin`、空配置 Schema |
 
 | 模块 | 持有的状态 | 承担的 SPEC 行为 |
 | --- | --- | --- |
-| 共用文件引擎与宿主文件设施 | 已发出的句柄代际表（带所有者）、关闭失败待重试的描述符（带所有者）、引擎内唯一的下一个代次 | [宿主文件使用](#宿主文件使用)与[其余现行行为](../SPEC.md#宿主文件设施的其余现行行为) |
+| 共用文件引擎与宿主文件设施 | 已发出的句柄代际表（带所有者）、关闭失败待重试的描述符（带所有者）、引擎内唯一的下一个代次；宿主文件根的绑定与平台前提 P2 的结果、引擎的进程实例身份、正在运行的批次、已封闭的所有者 | [宿主文件使用](#宿主文件使用)与[其余现行行为](../SPEC.md#宿主文件设施的其余现行行为) |
 | 宿主文件责任域 | 共用文件引擎、签发过的提供者代、获取记录（原描述、指纹、状态、门面、租约）、配额策略 | [宿主文件责任域](../SPEC.md#宿主文件责任域) |
 | 宿主文件提供者（一代） | 是否已退役、上界与诊断出口；记录都在责任域 | [宿主提供者的事实](../SPEC.md#宿主提供者的事实) |
+| 宿主命令设施（每份获取） | 准入开关、在途的启动、停止未确认的进程；每个进程的帧读取、输出缓冲与结局 | [宿主命令与终端](../SPEC.md#宿主命令与终端) |
+| 平台前提探测（一代） | 探测结果、解析出的两个工具路径与上次探测的时刻 | [宿主命令与终端](../SPEC.md#宿主命令与终端) |
 | Service 与插件 | 一个登记表实例 | [Service 实现](../SPEC.md#service-实现)与[撤除顺序](../SPEC.md#撤除顺序) |
 
 ```mermaid
 flowchart LR
   Root[根入口] --> Files[host-files.ts]
+  Files --> Paths[host-paths.ts]
+  Files --> Tree[host-file-tree.ts]
+  Files --> Batch[host-file-batch.ts]
+  Tree --> Paths
+  Batch --> Paths
   Root --> Domain[host-domain.ts]
   Root --> Provider[host-provider.ts]
   Domain --> Files
   Provider --> Domain
+  Root --> Command[host-command.ts]
+  Domain --> Command
+  Provider --> Probe[host-probe.ts]
+  Command --> Scope[host-scope.ts]
+  Probe --> Scope
+  Command -. 起门进程 .-> Gate[command-gate.ts]
   Cordis[./cordis] --> Provider
   Cordis --> EE[execution-environment]
   Cordis --> EECC[execution-environment-cordis-contract]
@@ -43,10 +61,10 @@ flowchart LR
 - `@omne-harness/execution-environment`：`createEnvironmentRegistry` 与 `RetirementPending`，只由 `./cordis` 使用。
 - `@omne-harness/execution-environment-cordis-contract`：抽象类与键常量，只由 `./cordis` 使用。
 - `@deepseek-ai/cordis`：只由 `./cordis` 使用。
-- `@omne-harness/legal-identity`：责任域用 `tenantCodec` 把租户编成记录键。
+- `@omne-harness/legal-identity`：责任域用 `tenantCodec` 把租户编成记录键；批次清单用它把租户编成目录名的摘要。
 - `@omne-harness/runtime-context-contract`：只用类型（作用域引用与可信绑定来源）。
 
-宿主文件设施只用 Node 的 `node:fs`、`node:fs/promises` 与 `node:path`。提供者另用 `node:crypto` 生成代，用 `node:os` 读操作系统版本，用 `node:fs` 读本包 `package.json` 的版本。没有包应依赖本成员的 `./cordis` 来调用环境操作。调用方依赖服务定义，Service 实现的选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
+宿主文件设施只用 Node 的 `node:fs`、`node:fs/promises` 与 `node:path`；八项另用 `node:crypto` 生成批次与临时文件的名字、算摘要，用 `node:os` 取系统临时目录。提供者另用 `node:crypto` 生成代，用 `node:os` 读操作系统版本，用 `node:fs` 读本包 `package.json` 的版本。没有包应依赖本成员的 `./cordis` 来调用环境操作。调用方依赖服务定义，Service 实现的选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 
 ## 关键机制与理由
 
@@ -67,6 +85,22 @@ flowchart LR
 ### 排空有上界，名额只在什么都不剩时返还
 
 释放、结清与退役都排空获取：封门面，标为释放中，最多等 `drainBoundMs` 让在途操作结束，然后重试这份获取的失败关闭。在途操作已结束且没有打开的描述符时，记录结清，名额恰好返还一次；否则答待处置，资源清单为空，名额仍占用，诊断写明在途操作数与打开的描述符数。理由：契约的排空要求已接纳的操作都已结束、关闭责任都已结清（[INV-EE18](../../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）；替换写入截断文件之后、写完之前被卸载时，立即报已排空会让原请求的未知结果无人承接；空的受管资源列表不证明没有描述符。上界归提供者，登记表不设计时器；上界是配置，`10000` 毫秒只是初值。代价：一个卡住的文件操作会让释放或卸载等满上界；超界之后它仍在运行，结果仍交回原请求。
+
+### 八项操作经目录描述符落点
+
+列表、搜索、建目录、删除、移动、复制与批次先打开所需的目录，之后的建、删、改名都经 `/proc/self/fd/<描述符>/<名>`。理由：Node 没有 `openat`，而这条路径由内核按已打开的目录对象解析，目录在核对之后被改名或被换成符号链接，操作仍落在原目录里。按路径字符串再解析一次的做法没有这个性质。在 WSL（Ubuntu 24.04，内核 6.18）上做过原型：目录改名、原名换成指向外部的链接之后，独占新建、`rename`、`mkdir` 都落在改名后的原目录；`link` 到已有名得 `EEXIST`；`O_NOFOLLOW` 打开文件链接得 `ELOOP`；硬链接文件的 `fstat` 链接数为 2，而 `readlink /proc/self/fd/<fd>` 给出根内的路径，所以必须核链接数，不能只看路径。包测试 [host-file-root.spec.ts](../tests/host-file-root.spec.ts) 用 `vi.mock` 在调用之前停住，把目录换成链接，再放行。
+
+八项只在 Linux 宿主上实现，依赖平台前提 P2；其他宿主上答 `unavailable`，不另做降级路径。理由：降级路径是另一套没有这条性质的实现，M2 的验收在 Linux（D1 决定记录第 2 条）。代价：Windows 与 macOS 宿主上这八项不可用。
+
+`move` 与 `copy` 都靠预先核对加一次系统调用，核对与调用之间名可以被换掉。`remove` 与不覆盖的目录 `move` 的窗口关不上，但效果不出该目录。`commitBatch` 没有多路径原子性，用清单加回执留下可核对的事实：先写清单，再暂存，逐项发布，每发布一项追加回执；`recoverBatch` 只读清单与目标，把「有回执」「字节相同但没有回执」「冲突」分开，因为相同的字节不能证明是这个批次发布的。
+
+### 宿主文件根不是授予根
+
+配置了 `root` 的引擎把全部 `files` 请求限制在它之下，但宿主提供者仍不声称 `filesystem-root` 隔离断言。理由：同一个提供者还提供 `command`，命令碰到的文件不受这个根限制，声称它就是假断言（契约把授予根定义为声称该断言的落点的属性）。所以这个限制取另一个名字，要求 `filesystem-root` 的工具仍得到 `isolationUnconfirmed`。
+
+根的判定分三层：路径检查不触碰文件系统（按段比较、任何 `..` 都拒绝）；逐段走只打开目录，每段 `O_NOFOLLOW`，设备号必须与根相同；内容操作打开之后在描述符上核链接数。把第三层放在打开之后，是因为外部文件被硬链接进根内、再换掉根内原来的名，都发生在打开之前；打开之后核的是实际打开的对象。第一层与第二层的拒绝不改动文件系统：走路径只读，创建只在已核对的目录描述符下发生，替换写入的截断在身份与链接数核对之后。
+
+代价：有根时，已接受四项里「祖先符号链接本身不构成拒绝」不再适用，中间段是链接一律拒绝。这是对已接受行为的收紧，只在配置了根时生效，须经原接受入口重新接受。第一次使用时才绑定根（`realpath`、设备号与 inode），所以引擎创建时不触碰文件系统；绑定失败的请求答 `unavailable`，下一次再试。
 
 ### 配额接纳是一个同步段
 
@@ -141,28 +175,43 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 - 经宿主文件责任域使用时，上文的「本设施实例」是责任域的共用引擎：pending-close 集合里的每个描述符带所属获取的标记，排空该获取时也重试它们；提供者代退役后它们仍留在责任域里，由之后的结清或 `maintain()` 再试。句柄代次在共用引擎内唯一，不按每份获取从 `1` 起。直接调用 `createHostFiles` 的设施仍按上文。
 - 本成员的包测试的运行记录见 [SPEC 的组合与验证](../SPEC.md#组合与验证)。其中包括读取、查看与写入时关闭失败后关闭返回未知的三个测试。这些运行没有重做 2026-10-16 的两次 `close` 观察。
 
-## 宿主命令与终端机制（设计，未实现）
+## 宿主命令机制
 
-本节是宿主提供者承担 `command` 与 `terminal` 的机制设计。它不是实现：本成员现在没有 `command` 与 `terminal` 的提供者，SPEC 把这部分列为[未实现](../SPEC.md#宿主命令与终端未实现)。设施的协议规则归契约的[设施协议](../../execution-environment-contract/SPEC.md#设施协议)，逐设施的展开见契约内部架构的 [`command`](../../execution-environment-contract/docs/architecture.md#command命令) 与 [`terminal`](../../execution-environment-contract/docs/architecture.md#terminal终端)，协议级流程见契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局) 与 [F-EEC08](../../execution-environment-contract/docs/flows.md#f-eec08-终端腿)。
+<a id="宿主命令与终端机制设计未实现"></a>
 
-`command` 与 `terminal` 加在已有的宿主提供者上，与 `files` 由同一个提供者声明，不另立宿主提供者。理由：登记表在一层里只选一个提供者。按设施拆成几个宿主提供者时，需要 `files` 加 `command` 的工具在宿主层得不到落点（`missingFacility`）；再加一个合并的提供者，又会有两个提供者同时合格（`ambiguousEnvironment`）。保持「一层一个提供者提供全部所需设施」，就不会出现这两种结果。
+本节说明宿主提供者怎样承担 `command`。行为以 SPEC 的[宿主命令与终端](../SPEC.md#宿主命令与终端)为准。设施的协议规则归契约的[设施协议](../../execution-environment-contract/SPEC.md#设施协议)，逐设施的展开见契约内部架构的 [`command`](../../execution-environment-contract/docs/architecture.md#command命令)，协议级流程见契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。`command` 只在 Linux 上实现。`terminal` 未实现，不在 M2：本成员没有 PTY、终端腿与 node-pty。
+
+`command` 加在已有的宿主提供者上，与 `files` 由同一个提供者声明，不另立宿主提供者。理由：登记表在一层里只选一个提供者。按设施拆成几个宿主提供者时，需要 `files` 加 `command` 的工具在宿主层得不到落点（`missingFacility`）。再加一个合并的提供者，又会有两个提供者同时合格（`ambiguousEnvironment`）。
+
+| 模块 | 承担 |
+| --- | --- |
+| `src/host-probe.ts` | 平台前提 P1、P3～P6 的探测与这一代的探测结果 |
+| `src/host-scope.ts` | systemd 用户 scope：起单元、强制停止与确认、按描述列举、引用的读写 |
+| `src/command-gate.ts` | 门进程脚本。它在命令的单元里运行，只用 Node 的内置模块，不被任何模块导入 |
+| `src/host-command.ts` | 每份获取的命令门面：前置检查、启动、帧的读取、有界缓冲、进程句柄与停止 |
 
 | 机制 | 设计 |
 | --- | --- |
-| 执行域 | 每个受管资源一个 systemd 用户 scope：`systemd-run --user --scope --unit=omne-host-<uuid>.scope --property=KillMode=control-group` 启动一个门进程。坐标 `{ unit, boot_id }` 是进程身份的耐久引用，也是 `ManagedResource.reference`。隔离断言只能确认 `process`，不能确认 `filesystem-root` 或 `network-none` |
-| 门与许可 | 门进程先核对 `/proc/self/cgroup` 含有自己的 unit，再报就绪。GO 信号只能由唯一的写端发一次，GO 之前不启动用户命令。GO 对应资源账本的 `permit` 已确认；账本 `closed` 时关闭 GO 的写端 |
-| PTY | 门内用 node-pty 以显式的列数与行数启动命令。环境变量显式给出，另补 `PWD` 为工作目录、`TERM` 为显式值或 `xterm`，不继承宿主的变量。尺寸来自请求，缺省值归提供者的配置 |
-| 增量转发 | PTY 的原始字节按单块上限切块，经 base64 编进分隔的 JSON 帧，经私有的标准输出管道送到管理端。管道写端返回 false 时暂停 PTY，`drain` 后恢复。管理端按行解析并限制帧大小，非法帧使资源失效 |
-| 有界缓冲 | 管理端的缓冲不超过缓冲上限，超出的字节丢弃并计数。只有一个读者；读者放弃之后，后续字节全部计入丢弃。`observedOffset` 由管理端给出 |
-| 完成回执 | 一次性命令由门内的启动器包一层，退出码写入身份目录下的回执文件（独占新建，权限 0600）。PTY 退出且传输没有暂停时，门用 `O_NOFOLLOW` 读回执，发出带退出码或信号的完成帧。缺回执或传输不完整时发出 `failed`。`CommandOutcome` 的 `completed` 只在收到回执时给出，否则为 `failed`（`effectUnknown`） |
-| 终端腿 | 持久 Bash 在 PTY 里。每条腿写一个脚本文件，用 `builtin source` 执行。腿带显式工作目录或环境变量时，整段包进子 shell 并 `builtin wait`。完成信号是私有转义序列 `ESC ] 777 ; omne ; <腿 id> ; <退出码> BEL`，由管理端从字节流里剥出，普通 ANSI 原样透传。收到回执之后，核对 `cgroup.procs` 没有非僵尸的残留进程，用 `readlink /proc/<shell>/cwd` 读新的工作目录，再给出带退出码与工作目录的完成 |
-| 失效 | 重复的就绪、未发送就收到已创建、帧 id 不匹配、完成后仍有数据、帧过大、管理进程关闭，都使资源失效。在途的腿以 `failed`（`effectUnknown`）结算，并强制停止 |
-| 停止与确认 | 先 `systemctl --user kill --kill-who=all --signal=SIGKILL`，再 `stop`，之后用 `systemctl --user show -p LoadState -p ActiveState` 核对 scope 为 `inactive` 或 `not-found`，才报 `confirmed`。`boot_id` 变了直接视为不活动。原启动尚未隔离或尚未排空时不确认缺席。冷恢复按坐标核对 scope 的状态 |
-| 超时 | 等待有上界。超时不取消原生操作，也不丢弃原控制。准备超时返回 `unknown`，保留控制对象，关闭 GO 的写端 |
-| 身份目录 | 每个资源一个以坐标命名的目录，放请求、输入、脚本与回执。命令处置或终端清理时删除。冷清理覆盖这两类目录。清理经账本的 `stopped` 确认 |
-| 平台前提 | Linux 的用户 systemd、可用的用户管理器、真实的 Bash、GNU `env`、`stty`、node-pty。缺任一项时提供者报 `unavailable`，不用猜测的进程号或假后端顶替。`execution.host-facts` 报告前提是否满足 |
+| 执行域 | 每个进程一个 systemd 用户 scope：`systemd-run --user --scope --collect --unit=omne-host-<资源键>.scope -p KillMode=control-group`。坐标 `{ unit, bootId }` 是 `ManagedResource.reference`。单元描述记下请求方作用域的摘要与资源键，供冷恢复列举 |
+| 门与许可 | `systemd-run` 在单元里执行门进程。门先核对 `/proc/self/cgroup` 含有自己的单元，再报就绪。管理端在账本 `permit` 确认之后才发 GO，GO 只发一次。没有 GO 时门不起命令，控制管道关闭就退出 |
+| 两条私有通道 | 控制通道是描述符 3，管理端写给门：先写请求（可执行文件、参数、目录、环境变量、标准输入），再写 GO 与平和停止。请求不进命令行参数，因为环境变量可能带秘密。帧通道是门的标准输出，一行一个 JSON 帧。门起命令时用第四条管道占住命令的描述符 3，控制通道不会漏进命令 |
+| 门一侧的暂停与恢复 | 门把命令的字节按单块上限切块并编码成帧。帧管道的写端返回 false 时，门暂停读命令的两条管道，`drain` 之后恢复。所以管理端读得慢时，命令被阻塞在自己的输出管道上，门的内存不随输出增长，字节也不丢 |
+| 帧的读取 | 管理端按行读帧，每行有上界（单块上限的 base64 长度加固定余量）。帧的次序固定：就绪，然后起来或映像失败，然后数据，最后一个退出。超长、非 JSON、未知帧、次序不对、超过单块上限，都使资源失效并强制停止 |
+| 有界缓冲 | 管理端立刻读帧，两条流共用一个缓冲。放不下的块整块丢弃并计数，下一块的 `observedOffset` 写出缺口。只有一个读者，读者放弃后全部计入丢弃 |
+| 结局 | 门在主进程退出后等两条管道关闭，或者等输出安静 100 毫秒，再发退出帧。命令留在后台的进程可能占着管道，所以不能只等管道关闭。只有收到退出帧才是 `completed`，其余是 `failed`（`effectUnknown`）。不写回执文件，也没有身份目录 |
+| 停止与确认 | 强制停止：`systemctl --user kill --kill-whom=all --signal=SIGKILL`，再 `stop`（退出码 5 按已不在），等门进程退出，最后用 `systemctl --user show -p LoadState -p ActiveState` 读到 `inactive` 或 `not-found` 才报 `confirmed`，上界内会再读。平和停止只把 `SIGTERM` 发给主进程，超时报 `unconfirmed`，不升级 |
+| 超时 | 启动、平和停止与强制停止都有上界。启动超时答 `unknown`，资源留在这份获取，由释放、结清或退役停止 |
+| 平台前提 | P1 Linux、P3 `systemd-run` 与 `systemctl`、P4 用户管理器、P5 cgroup v2、P6 探测单元往返。提供者创建时在后台探测。不满足时启动答 `unavailable`，`files` 照常可用。不用猜测的进程号或假后端顶替 |
+| 冷恢复 | 列举读 `omne-host-*.scope` 单元的描述，选出这个作用域的单元。恢复只接受本提供者写下的单元名。启动身份变了直接视为已停止，否则按强制停止序列停止并核对。它不重启命令，也不接回输出 |
 
-下图是一次一次性命令的时序：管理端在宿主提供者里，门进程在执行域里。
+理由：
+
+- 停止的确认只来自域外的监督者 `systemctl --user show`。门与命令都在被停止的单元里，它们的自报不能证明自己已经停止。
+- 每个进程一个单元，所以停止只作用于这一次调用。同一份获取的另一个进程照常运行。
+- 门一侧的暂停与管理端的丢弃分开处理两种压力：前者限制门的内存，后者限制管理端的内存，命令不会因为没有读者而被永远阻塞。
+- 退役强制停止这一代仍在运行的命令。把它们列为待处置资源再交给后继的一代需要更多机制，M2 没有这个需求（D1 结论第 3 条）。代价：配置重载以 `effectUnknown` 结束这些命令。
+
+下图是一次命令的时序：管理端在宿主提供者里，门进程与命令在执行域里。
 
 ```mermaid
 sequenceDiagram
@@ -170,30 +219,29 @@ sequenceDiagram
   participant R as 资源账本
   participant S as systemd 用户 scope
   participant G as 门进程
-  participant T as PTY 与命令
+  participant T as 命令
   M->>R: plan(坐标)
-  M->>S: systemd-run 启动门进程
-  G->>G: 核对 /proc/self/cgroup 含自己的 unit
+  M->>S: systemd-run 在单元里执行门进程
+  M->>G: 请求（描述符 3）
+  G->>G: 核对 /proc/self/cgroup 含自己的单元
   G-->>M: ready
   M->>R: permit
   R-->>M: confirmed
-  M->>G: GO（唯一写端，只发一次）
-  G->>T: node-pty 启动命令（显式尺寸与环境变量）
+  M->>G: GO（只发一次）
+  G->>T: 起命令（显式环境变量）
+  G-->>M: started
   loop 增量转发
     T-->>G: 原始字节
-    G-->>M: 分隔的 JSON 帧（私有管道，写满时暂停 PTY）
-    M->>M: 有界缓冲，超出丢弃并计数
+    G-->>M: JSON 帧（帧管道写满时暂停命令的管道）
+    M->>M: 有界缓冲，放不下的块丢弃并计数
   end
-  T-->>G: 退出，启动器写回执文件
-  G->>G: O_NOFOLLOW 读回执
-  G-->>M: completed 帧，或缺回执时 failed
+  T-->>G: 主进程退出
+  G-->>M: exit 帧
   M->>S: kill（SIGKILL）与 stop
   M->>S: systemctl --user show
   S-->>M: inactive 或 not-found
   M->>R: stopped(坐标, confirmed)
 ```
-
-终端腿沿用同一个执行域、门与转发；差别是一个 PTY 承载多条腿，每条腿以私有转义序列与残留检查确认完成，见上表的「终端腿」一行。
 
 ## SOLID 与扩展边界
 
@@ -210,14 +258,17 @@ sequenceDiagram
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |
 | 宿主文件使用（已接受） | [host-file-results.spec.ts](../tests/host-file-results.spec.ts)、[host-files.spec.ts](../tests/host-files.spec.ts)，真实文件系统 | 授予根限制没有实现与测试 |
-| 八项未实现操作 | [host-files-unsupported.spec.ts](../tests/host-files-unsupported.spec.ts) | 实现时改为真实行为并复用对象绑定 |
+| 非 Linux 宿主与有根而前提不满足时答 `unavailable` | [host-files-unsupported.spec.ts](../tests/host-files-unsupported.spec.ts)，在 Linux 上把 `process.platform` 换成 `win32`，在 Windows 上是真实平台 | 没有在 macOS 上运行 |
+| 六项树操作 | [host-file-tree.spec.ts](../tests/host-file-tree.spec.ts)，真实文件系统；未知的答复用 `vi.mock` 注入故障 | 跨设备目录（需要挂载权限）没有构造 |
+| 宿主文件根的四类逃逸、竞态、根的身份 | [host-file-root.spec.ts](../tests/host-file-root.spec.ts)，只在 Linux，真实文件系统，前后快照比较；竞态用 `vi.mock` 在调用之前停住 | 根内挂载点没有构造 |
+| 批次与恢复 | [host-file-batch.spec.ts](../tests/host-file-batch.spec.ts)，真实文件系统与一个被 `SIGKILL` 杀掉的真实子进程（慢层） | 无 |
 | Service 装载、撤除、恢复缺省 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts)，真实 Cordis | 重复装载失败、配置校验失败、调用方类核对 |
 | 退役等在途操作、超界待处置与诊断 | [host-provider-drain.spec.ts](../tests/host-provider-drain.spec.ts)，用 `vi.mock` 让一次 `open` 停住，其余是真实文件系统与真实 Cordis | 无 |
 | 责任域：每份获取的排空、关闭失败的归属、跨代共用配额与原记录、查询与结清、冷恢复的保守答复 | [host-domain.spec.ts](../tests/host-domain.spec.ts)，用 `vi.mock` 让 `open` 停住、让活描述符上的 `close` 失败，其余是真实文件系统与真实描述符 | 真实进程退出之后的冷恢复结清（[#323](https://github.com/nemori-ai/omne-harness-lite/issues/323)）；行为模型；独立验收场景 |
 | 登记表与提供者经契约套件 | [contract-conformance.spec.ts](../tests/contract-conformance.spec.ts) | 无 |
 | 根入口不导入 Cordis | [public-entry.spec.ts](../tests/public-entry.spec.ts) | 新增根入口模块时加入文件清单 |
 | 两条块的发布 | 没有 | 随 Runtime Context 生产者插件进入 |
-| `command` 与 `terminal` 的宿主机制 | 没有，只有[设计](#宿主命令与终端机制设计未实现) | 实现时按机制表补测试，在满足平台前提的真实 Linux 上运行 |
+| `command` 的宿主机制 | [host-command.spec.ts](../tests/host-command.spec.ts)（真实 `systemd-run`、门进程与 `systemctl`，只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行）、[host-command-frames.spec.ts](../tests/host-command-frames.spec.ts)（帧读取、缓冲与确认判断，两个平台）、[host-probe.spec.ts](../tests/host-probe.spec.ts)（改变真实环境后的前提探测） | 真实的 `failed` 单元状态未验证；Windows 上的 `unavailable` 由派发者在 Windows 复跑；`terminal` 不在 M2 |
 
 维护规则：
 
@@ -225,3 +276,4 @@ sequenceDiagram
 2. 服务定义改变时，同步 Service 子类、[Cordis 说明](cordis.md)与测试。
 3. 登记表工厂的签名改变时，同步 Service 子类。
 4. 新的宿主设施进入时，同步[公开接口页](public-api.md)、SPEC 的宿主提供者事实与 [Cordis 说明](cordis.md)。
+5. 改八项或宿主文件根的行为时，同步 SPEC 的[八项操作](../SPEC.md#八项操作未接受)与[宿主文件根](../SPEC.md#宿主文件根未接受)，以及上表对应的三份测试。

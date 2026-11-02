@@ -4,10 +4,11 @@
 
 下列决定已接受，由本包承担。它们在契约 SPEC 的 [G1–G9 总表](../tool-contract/SPEC.md#342-契约缺口决定)中有完整记录：
 
-- G4：宿主时钟适配器，同进程单调时钟加进程 epoch，跨进程比较返回 unknown。尚未实现。
+- G4：宿主时钟适配器，同进程单调时钟加进程 epoch，跨进程比较返回 unknown。已实现，见[宿主时钟](#宿主时钟g4)。
 - G5：第一版采用同机的启动协调器和耐久受理台账，实现 [P04](../tool-contract/SPEC.md#p04-实际发起围栏) 要求的启动排序域。本地启动协调器已实现，见下文；现有测试使用非耐久记录仓。耐久记录仓提供者尚未交付，耐久受理台账仍依赖该提供者。
-- G7：`ToolBindingRegistry` 与换代协调者 `toolGenerations` 由本包实现。尚未实现，见[绑定登记表与换代协调者](#绑定登记表与换代协调者g7)。
+- G7：`ToolBindingRegistry` 与换代协调者 `toolGenerations` 由本包实现。登记表与 Catalog 已实现；换代协调者尚未实现。见[绑定登记表与换代协调者](#绑定登记表与换代协调者g7)。
 - G9：本包命名为 `packages/tool/tool-host-local`。
+- TL-11：账本守卫的生产件、来源签发器与操作身份。已实现为纯工厂，见[账本守卫](#账本守卫tl-11)。装配接线在 `./cordis` 插件，尚未交付。
 
 ## 本地启动协调器（G5）
 
@@ -64,11 +65,9 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 调度器消费 ToolEnvironment 的 allocated 事实时，先核其原准备绑定。inspectPreparation 只转达事实，不因策略为 recognize 就执行采用。对调用方已经请求的原 prepare，重试策略允许 recognize 且原条目仍有效时，调度器才可在查询后沿完全相同输入再次 prepare；它不新增获取成本或操作身份。wait 或 inspect 只保留或刷新原事实。allocated、pending、unknown 及尚有清理责任的 rejected 都不返额。已确认释放的条目不因迟到分配事实、重试答复或重新获权而恢复排队；每次等待后及转发前仍核原采用和条目未退休。冷恢复的原描述 allocated 不能映射成这条首次采用路径。
 
-
 宿主把调用原适配器 prepare 前的本地预占与已经发出的原请求分开保存。首次派发的当前资格或原采用核验失败，且原 prepare 尚未被调用时，只撤回这次本地预占；不调用适配器释放、不报告资源 released，也不生成零分配证据。资格抛错时亦先撤本地预占，再进入下述资源诊断边界。返还本地预占不等待诊断接收完成。原身份与固定输入的绑定仍保留。
 
 调用者以后显式请求同一原 prepare 时，仍核完整绑定和当前资格，才能重新尝试首次发送；inspect 不代发。原 prepare 一经调用，即使抛错、丢答或结果未知，也不能沿“未发送”路径返额，继续保留原查询与清理责任。已有可靠 excluded 允许同键重新排队时，新一轮预占重新记录是否已发送；该轮派发前失败也先返还本地预占。unknown、allocated 与仍需清理的 rejected 不适用。已确认释放的退休项不因该区分恢复资格。
-
 
 公平性以前提为界：有限参与者、正权重、持续调度、有界 provider 答复与反复有容量。它不保证执行完成或强制回收长期 lease。验证必须通过实际 prepare 路径证明替换策略被消费，并观察 A 租户慢或满时 B 能推进。孤立策略对象的单测不能证明宿主隔离。真实耐久与跨进程提供者另验。
 
@@ -80,15 +79,15 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 公开错误映射如下，均沿现有 Reply/PreparationProgress/ReleaseProgress 形状，不增加通用结果框架。
 
-| 触发 | 返回 | 对资源与诊断的含义 |
-| --- | --- | --- |
-| 资格正常返回失败 | 保留原闭合失败 | 不调用 prepare；若为派发前预占，立即撤预占。没有捕获异常就不伪造诊断事件 |
-| 原采用核验不成立 | 既有 unavailable，dependency 为 tool-environment-scheduler | 不调用 prepare；若为派发前预占，立即撤预占 |
-| 环境资格检查抛出异常 | failure.kind=unavailable，dependency=tool-environment-scheduler | 原请求未发送时不占额；已发出原请求的责任不因资格未知而消失 |
-| 原 prepare 或原键认回抛异常 | ok.kind=unknown | 保留原获取与清理责任，不能据此返额或另开获取 |
-| 原 inspectPreparation 抛异常 | ok.kind=unknown | 不签发租约，不改变原责任 |
-| 原 release 或 inspectRelease 抛异常 | ok.kind=unknown | 不报告 released，保留清理责任及名额 |
-| 策略 retry/release 在资源操作协调中抛异常 | ok.kind=unknown | 不调用后续效果、不替换原操作；已在途的责任和名额保持 |
+| 触发                                      | 返回                                                            | 对资源与诊断的含义                                                       |
+| ----------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 资格正常返回失败                          | 保留原闭合失败                                                  | 不调用 prepare；若为派发前预占，立即撤预占。没有捕获异常就不伪造诊断事件 |
+| 原采用核验不成立                          | 既有 unavailable，dependency 为 tool-environment-scheduler      | 不调用 prepare；若为派发前预占，立即撤预占                               |
+| 环境资格检查抛出异常                      | failure.kind=unavailable，dependency=tool-environment-scheduler | 原请求未发送时不占额；已发出原请求的责任不因资格未知而消失               |
+| 原 prepare 或原键认回抛异常               | ok.kind=unknown                                                 | 保留原获取与清理责任，不能据此返额或另开获取                             |
+| 原 inspectPreparation 抛异常              | ok.kind=unknown                                                 | 不签发租约，不改变原责任                                                 |
+| 原 release 或 inspectRelease 抛异常       | ok.kind=unknown                                                 | 不报告 released，保留清理责任及名额                                      |
+| 策略 retry/release 在资源操作协调中抛异常 | ok.kind=unknown                                                 | 不调用后续效果、不替换原操作；已在途的责任和名额保持                     |
 
 捕获异常的上述返回都使用已有 diagnostic 字符串给出固定安全标记。recorded 时为 `environment operation failed; stage=<stage>; diagnostic=recorded`；接收者返回 unavailable 或抛错时为 `environment operation failed; stage=<stage>; diagnostic=unavailable`。stage 必须来自封闭的 `qualify | prepare | retry | inspect-preparation | release-policy | release | inspect-release`，不来自错误消息或调用者文本。diagnostic=recorded 只表示接收，不代表持久化或资源成功。所有原错误消息、堆栈和对象属性均不进入此字符串。
 
@@ -104,7 +103,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 ## 绑定登记表与换代协调者（G7）
 
-本节规则由 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 于 2026-10-21 采用，两者都尚未实现。公共的登记键、同键规则与保留义务归契约的 [G7](../tool-contract/SPEC.md#342-契约缺口决定)，协调者的动词与返回归 [Tool 的 Cordis 定义](../tool-cordis-contract/docs/cordis.md#换代协调者契约)。本节只写本包承担的部分。
+本节规则由 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 于 2026-10-21 采用。登记表（`createLocalToolBindingRegistry`）与 Catalog（`createLocalToolCatalog`）已在根入口实现；换代协调者尚未实现。公共的登记键、同键规则与保留义务归契约的 [G7](../tool-contract/SPEC.md#342-契约缺口决定)，协调者的动词与返回归 [Tool 的 Cordis 定义](../tool-cordis-contract/docs/cordis.md#换代协调者契约)。本节只写本包承担的部分。
 
 - 本包的绑定登记表在单机、单进程内成立，登记不耐久。跨进程、远端目录与耐久存储不在本包覆盖之内。
 - 两个 fiber 同时首次登记同一个键时，本地排序域决定哪一方成功，另一方得到 `conflict`。
@@ -112,6 +111,75 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 - 进程恢复后，`sweep` 重装持有者采用依据记下的键。包字节保留，同一 digest 可以重新 import。
 - 按键排空与交接依赖契约 [P09](../tool-contract/SPEC.md#p09-账目恢复与退出) 的 `inspectDrain({ executor })` 范围。该范围交付之前，有在途调用时 `unload` 停在 `draining`。
 
+### 登记表与 Catalog 的实现范围
+
+- 来源核验经构造参数 `verifier` 注入，形状与 Cordis 服务 `toolContributionAuthority` 相同（`verify`、`admits`）。本包不提供核验实现，也不提供默认放行：未注入时 `register` 回复 `unavailable`。核验失败的回复（`denied`、`invalid`、`unavailable`）原样返回，不留部分登记。
+- `register` 在一个同步步骤里完成来源核验、登记资格核验、键与形状核对、同键判定与写入，所以这一步就是本地排序域。调用方 fiber 由构造参数 `fiber()` 给出；它返回 null 时回复 `unavailable`。`retire(fiber)` 撤除该 fiber 的全部贡献，之后该 fiber 的登记回复 `unavailable`。
+- 登记键冲突按 G7：同一 fiber、同一装载 digest（`loaded.executor.digest`）认回原贡献，其他情形回复 `conflict`。`release` 只按自己的 token 撤除。登记序号单调递增，token 不重复。
+- `snapshot` 与 Catalog 按来源层判定可见：`official` 对任何合法租户可见，`organization` 要同组织，`tenant` 要同租户，`workspace` 对任何租户范围都不可见（本包不读取工作区授权）。无法证明合法的租户得到 `unavailable`，不得到空列表。
+- `pins` 与 `drain` 数 `pin(key, call)` 登记、尚未释放的持有。`pin` 是本包内部的接口，由后续的 `resolve` 在固定请求解析到该键时调用，收场时释放；本包尚未实现 `ToolBindings.resolve` 与 `recover`，所以生产路径上目前没有调用者。
+- Catalog 只列出 `live` 的贡献。同名的多份贡献取登记序号最小的一份。`inspect` 对不存在的名字与只有他租户登记的名字给出同一个回复（`invalid`，`unknown-tool`），不泄露存在性。`search` 按名字排序、每个名字一项，游标是上一页最后一项的名字，所以翻页期间新登记的工具不会让已发出的游标重复或漏项。可用性由注入的 `availability` 端口给出已核验的事实（资格、依赖、输入输出与附件兼容），Catalog 不从调用方取事实；端口不可答时回复 `unavailable`，不当作可用。
+- 执行者命令的用法文本与协议不在定义里，`usage` 对它回复 `unavailable`，不编造。
+
+已知限制：登记不耐久，只在单进程内成立；没有核验器的生产提供者（归应用装配）；工作区层不可见；没有 `ToolBindings.resolve` 与 `recover`，也没有换代协调者与 `./cordis` 入口。
+
+## 宿主时钟（G4）
+
+`createLocalToolClock` 实现 `ToolClock`。`now` 读墙钟，只用于时刻与 `waitUntil`。`begin` 只产生标记，不提交、不计时：标记里写进程 epoch 与单调读数起点，并用本次运行的密钥给整条记录加摘要。`elapsed` 用单调读数减去标记起点，所以墙钟回拨不减少已用时间，只有已提交时段的标记会被调用方拿来问 `elapsed`，未提交的时段没有影响。
+
+另一个 epoch 的标记（另一进程、重启之后）回复 `unavailable`，不回复数字：恢复不重新计满，也不补预算，已累计的时间由调用方的记录保管。被改动或不是本时钟铸造的证据回复 `unavailable`。`waitUntil` 按墙钟时刻等待，每次睡眠结束后重读墙钟再判断，所以回拨的墙钟不会让它提前回答；信号已中止或随后中止回答 `cancelled`。
+
+已知限制：标记只在铸造它的进程运行内可比，不耐久；`waitUntil` 的精度是计时器的精度；单调源由构造参数给出，调用方保证它不回退。
+
+## 缺席端口（D-07）
+
+`createAbsentToolPorts` 返回 `toolDecisions`、`toolResourceResponses`、`toolChildren`。每个方法回复 `unavailable`，`dependency` 是端口名，`diagnostic` 写明被问的操作（`<端口>.<方法>`）。不抛出，不回复空成功。这三个端口在 M2 之后由各自的提供者取代。`toolOutputCustody` 不属于缺席端口，本包也不提供它。
+
+## 账本守卫（TL-11）
+
+账本在构造时固定一份守卫快照 `ToolLedgerGuards`。本包给出它的八项生产件和一个组装函数。全部是纯工厂：不建记录仓，不持有跨调用的状态，不导入 Cordis 与任何 `testing` 入口。资格裁定、主体比较与主体编码归其他拥有者，以函数参数进入；测试用替身，装配用真件。
+
+| 键                     | 工厂                                                | 行为                                                                                                                                                                      |
+| ---------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `access`               | 无。由装配给出 `ToolHostAccess<P>`                  | 一个适配对象，两个视图：`guard` 交账本，`start` 交启动协调器与启动守卫。组装函数原样放入 `guards.access`，不加默认放行                                                    |
+| `sources`              | `createLocalInvocationSource`                       | 见下文「来源签发」                                                                                                                                                        |
+| `factAcknowledgements` | `createToolFactAcknowledgementGuard`（`tool` 已有） | 装配给出的窄代理 `bindings.recover` 认回原绑定。取不到时答 `unavailable`                                                                                                  |
+| `grants`               | `createLocalGrantVerifiers`                         | 见下文「授予」                                                                                                                                                            |
+| `starts`               | `createLocalStartGuard`                             | 见下文「启动守卫」                                                                                                                                                        |
+| `results`              | `createLocalTextResults`                            | 一个文本块：`id` 为 `logical`，对人与对模型可见，没有数据、原始输出与附件。块先经 `defaultResultPolicy.judge`，被拒时答失败，账本随之答 `unavailable`（`result-factory`） |
+| `policy`               | `defaultResultPolicy`（`tool-contract` 已有）       | 组装函数放入的就是这个对象。装配把同一个对象交给 runtime 的 `resultPolicy`                                                                                                |
+| `budgets`              | `localArgumentLimits`                               | 参数解析的六项 json-text 预算的初值。每项必须是正安全整数                                                                                                                 |
+
+`createLocalToolLedgerGuards({ access, sources, bindings, grants, budgets? })` 只拼对象和核必填项。缺必填项抛 `TypeError`（`access: missing`、`sources.guard.verify: missing`、`grants: not a Map` 一类）。预算缺省用 `localArgumentLimits`；给出的预算缺项或某项不是正安全整数时抛 `TypeError`（`budgets.arguments.<项>: range`）。
+
+### 来源签发
+
+`createLocalInvocationSource({ store, authority, principalCodec, commitAttempts })` 返回 `{ issuer, guard }`。`issuer` 交 runtime 作 `sourceIssuer`，`guard` 交账本作 `guards.sources`。
+
+- 绑定放在记录仓的 `host` 域，域键 `invocation-source`，每个租户一个域，每个消费者位置一条记录。同一消费者在另一个租户落在另一个域，读不到原绑定。
+- `resolve` 的顺序：请求形状，租户形状，`authority.qualify`（`denied` 与 `unavailable` 在读记录仓之前返回），主体编码，读域。已有绑定时先问 `authority.samePrincipal({ current, original })`，不同主体答 `denied`；请求与原请求不同答 `conflict`（`operation` 为原受理操作）；否则答 `bound` 且 `recovered` 为真。没有绑定时条件提交一条记录，答 `bound`。
+- call 与 admission 的身份由租户与消费者的摘要得出，所以同一输入永远得同一身份。提交结果未知时答 `issuance-unknown`，带的就是重试会用的身份：记录已写入则重试认回，未写入则重试写入。
+- 存下的主体解不开（记录形状不对，或 `principalCodec.decode` 拒绝）答 `association-unknown`，不签发新身份。
+- 修订冲突时重读重判，最多 `commitAttempts` 次，用尽答 `unavailable`。没有进程内串行区：先后由记录仓的条件提交裁定。
+- `guard.verify` 读同一条记录，核 call、admission 与整个固定请求（含 `invocation`、`scope`、`consumer`）的摘要，再核主体。没有记录或不一致答 `forged`；读不到记录或解不开主体答 `unavailable`，不答 `forged`。
+- `createLocalOperationIdentities` 的 `newOperation` 返回 `op-<uuid>`。它不读记录仓，也不区分租户：命令由账本按 operation 认回。
+
+### 授予
+
+`createLocalGrantVerifiers({ owner, key, grant })` 返回只含这一个 owner 的 `Map`。请求的 `scope` 与传入值的 owner、key 相等，且 `grant` 的 owner、record、revision、digest 四项都相同时答 `granted`，否则答 `refused`。没有声明的 owner 由账本答 `denied`。值由装配给出，装配把同一个范围值也交给 Agent 组装请求（D1 结论第 1 条），所以两边没有各自复制的配方。
+
+已知限制：M2 每个装配只有一个范围，所有调用共用同一个 FIFO 键前缀（键由 owner、key 与工具名组成）。核验器不按租户或主体区分；`limits.concurrency` 随请求进入，它的可信来源不在本件。
+
+### 启动守卫
+
+`createLocalStartGuard({ access })` 的 `qualifyStart`：调用方式不是 `direct` 时答 `refused`，原因 `programmatic-not-in-m2`，不问资格；否则对 `access.qualify({ principal, tenant, call, action: 'start' })` 取当前答案，`allowed` 答 `allowed`，`denied` 答 `refused`，`unavailable` 或抛出答 `unavailable`。每次都重问，不缓存。
+
+已知限制（评审 N7）：定义侧的事实，即受理之后绑定被关闭或排空，不在本守卫，由守卫资源的拥有者经启动围栏的失效表达。
+
+### 本节的验证范围
+
+`tests/ledger-guards.spec.ts` 用 `tool` 的真账本、本节的来源与守卫，资格用 `createTableToolAccess`，记录仓是内存仓。它证明单进程内的行为，不证明耐久、不证明资格真件的映射。主体编码与资格真件的通道还没有定（候选 U-2、U-4），交 Reduce 在 `./cordis` 插件之前裁定。
+
 ## 实例宿主与普通调用的边界
 
-本包尚未提供生产 ToolInstanceHost、来源签发器或 ToolInstanceIdentities。宿主实现须在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不再接受全局 instance。当前测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger 和本地启动协调器组合，driver 的 instance 由测试 host 提供。这只证明单进程非耐久组合，不证明 claim、换实例接管或恢复。
+本包尚未提供生产 ToolInstanceHost 或 ToolInstanceIdentities。来源签发器与操作身份已提供，见[账本守卫](#账本守卫tl-11)。宿主实现须在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不再接受全局 instance。当前测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger 和本地启动协调器组合，driver 的 instance 由测试 host 提供。这只证明单进程非耐久组合，不证明 claim、换实例接管或恢复。
