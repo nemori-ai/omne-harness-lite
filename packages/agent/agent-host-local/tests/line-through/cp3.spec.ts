@@ -99,7 +99,12 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
     expect(String(execution)).toBe(work.run.execution.execution)
 
     // invoke: the Journal open was one storage commit of the Agent records and the Session check.
-    const opening = w.commits.filter(seen => seen.participants.includes('execution-record'))[0]
+    // The handoff provider saves the admission intent before the open, as one commit of the
+    // execution-record participant alone (M-GENERATION SaveIntent), so the open is the first commit
+    // with both participants.
+    const opening = w.commits.find(
+      seen => seen.participants.includes('execution-record') && seen.participants.includes('session'),
+    )
     expect([...(opening?.participants ?? [])].sort()).toEqual(['execution-record', 'session'])
     expect(opening?.result.kind).toBe('committed')
 
