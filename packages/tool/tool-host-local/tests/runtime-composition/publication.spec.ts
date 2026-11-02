@@ -79,3 +79,56 @@ it('directory replacement changes the stream without restarting the original aut
     await world.close()
   }
 })
+
+it('publishes process blocks only after the original fact reaches the ledger', async () => {
+  let finish: (value: string) => void = () => {}
+  let emit: () => Promise<void> = async () => {}
+  const world = await fixture(
+    (_value, _environment, context) =>
+      new Promise(resolve => {
+        finish = resolve
+        emit = async () => {
+          unbox(
+            await context.emit({
+              kind: 'append-text',
+              index: 'output',
+              text: 'confirmed output',
+              close: true,
+            }),
+          )
+        }
+      }),
+  )
+  try {
+    const reference = accepted(await world.api.invoke(world.invocation('process')))
+    await expect
+      .poll(async () => unbox(await world.api.instances.current(world.query(reference))).current)
+      .not.toBeNull()
+    const current = unbox(await world.api.instances.current(world.query(reference))).current
+    if (current === null) throw new Error('Missing stream')
+    const iterator = world.api.observation
+      .observe({
+        access: world.query(reference).access,
+        ref: current.ref,
+        signal: AbortSignal.timeout(1500),
+      })
+      [Symbol.asyncIterator]()
+    expect((await iterator.next()).value).toMatchObject({ kind: 'snapshot' })
+    await emit()
+    let observed = false
+    for (let attempt = 0; attempt < 8 && !observed; attempt += 1) {
+      const next = await iterator.next()
+      if (next.done || next.value.kind === 'ended' || next.value.kind === 'gap') break
+      const blocks =
+        next.value.kind === 'snapshot' ? next.value.value.process : next.value.value.blocks
+      observed = blocks.some(
+        block => block.content.kind === 'text' && block.content.text === 'confirmed output',
+      )
+    }
+    expect(observed).toBe(true)
+    await iterator.return?.()
+  } finally {
+    finish('cleanup')
+    await world.close()
+  }
+})

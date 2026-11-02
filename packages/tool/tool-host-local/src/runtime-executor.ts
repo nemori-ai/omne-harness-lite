@@ -99,7 +99,7 @@ export function createRuntimeExecutor(
         const publication = createRuntimePublication({
           execution,
           access: settings.access.guard,
-          reads: dependencies.reads,
+          store: settings.store,
           capacity: settings.observersPerCall,
           bufferBytes: settings.configuration.observerBufferBytes,
           bufferFrames: settings.observerQueueFrames,
@@ -138,6 +138,7 @@ export function createRuntimeExecutor(
         // A new executor cannot attach an old execution by resolving the latest providers.
         if (before.ok.execution !== null && before.ok.execution.instance !== step.instance) {
           foreignExecutionRuns += 1
+          if (calls.get(keyOf(step)) === entry) calls.delete(keyOf(step))
           return
         }
         await driver.run(step)

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
-import { canonicalDigest, type ToolAccessGuard } from '@omne-harness/tool'
+import { canonicalDigest, type ToolAccessGuard, type ToolLedgerStore } from '@omne-harness/tool'
 import {
   encodeToolInvocationRef,
   type ToolExecutionRef,
@@ -12,7 +12,6 @@ import {
   toolStreamCallCodec,
   type CallAccess,
   type ToolHandle,
-  type ToolReads,
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import {
@@ -55,7 +54,7 @@ export function createRuntimePublication(
   input: Readonly<{
     execution: ToolExecutionRef
     access: ToolAccessGuard<unknown>
-    reads: ToolReads<unknown, ToolMessageContentBlock>
+    store: ToolLedgerStore<ToolMessageContentBlock>
     capacity: number
     bufferBytes: number
     bufferFrames: number
@@ -69,6 +68,7 @@ export function createRuntimePublication(
   let digest = ''
   let position = 0n
   let closed = false
+  let closeReason: ToolStreamEnd['reason'] = 'closed'
   let currentRef: StreamRef | null = null
   let oversized = false
   let sourceUnavailable = false
@@ -205,8 +205,18 @@ export function createRuntimePublication(
             if (verdict.kind !== 'allowed') {
               return emit({ kind: 'ended', reason: 'unavailable' })
             }
-            if (closed || (currentRef !== null && request.ref !== currentRef))
+            if (currentRef !== null && request.ref !== currentRef)
               return emit({ kind: 'ended', reason: 'stale-stream' })
+            if (closed)
+              return emit(
+                admitted
+                  ? (subscriber.end ?? {
+                      kind: 'ended',
+                      reason: 'producer-ended',
+                      value: { reason: closeReason },
+                    })
+                  : { kind: 'ended', reason: 'stale-stream' },
+              )
             if (sourceUnavailable) return emit({ kind: 'ended', reason: 'unavailable' })
             if (request.signal.aborted) abort()
             if (!admitted) admit()
@@ -254,18 +264,55 @@ export function createRuntimePublication(
     ): Promise<void> {
       const refresh = async () => {
         if (closed) return
-        const read = await input.reads.process({ ...access, at: null })
+        const read = await input.store.read({
+          kind: 'call',
+          tenant: input.execution.tenant,
+          call: input.execution.call,
+        })
         if (closed) return
-        sourceUnavailable = 'failure' in read
-        if ('failure' in read) {
+        sourceUnavailable = read.kind !== 'complete'
+        if (read.kind !== 'complete') {
           for (const subscriber of subscriptions)
             terminate(subscriber, { kind: 'ended', reason: 'unavailable' })
           return
         }
+        const record = read.records.find(row => row.kind === 'call')
+        if (
+          record?.kind !== 'call' ||
+          record.call.call !== access.call ||
+          record.call.admission !== admission ||
+          canonicalDigest(record.call.tenant) !== canonicalDigest(access.tenant)
+        ) {
+          sourceUnavailable = true
+          for (const subscriber of subscriptions)
+            terminate(subscriber, { kind: 'ended', reason: 'unavailable' })
+          return
+        }
+        if (canonicalDigest(record.call.execution) !== canonicalDigest(input.execution)) {
+          closed = true
+          closeReason = 'stale-instance'
+          for (const subscriber of subscriptions)
+            terminate(subscriber, {
+              kind: 'ended',
+              reason: 'producer-ended',
+              value: { reason: closeReason },
+            })
+          return
+        }
+        const process = read.records
+          .flatMap(row =>
+            row.kind === 'process' &&
+            row.process.call === access.call &&
+            canonicalDigest(row.process.tenant) === canonicalDigest(access.tenant) &&
+            canonicalDigest(row.process.start.execution) === canonicalDigest(input.execution)
+              ? [row.process.block]
+              : [],
+          )
+          .sort((a, b) => (a.index < b.index ? -1 : a.index > b.index ? 1 : 0))
         const value: ToolStreamSnapshot = {
-          state: read.ok.state,
-          process: read.ok.blocks,
-          foreground: read.ok.state.foreground,
+          state: record.call.state,
+          process,
+          foreground: record.call.state.foreground,
         }
         const nextDigest = canonicalDigest(value)
         if (nextDigest === digest) return
@@ -324,7 +371,11 @@ export function createRuntimePublication(
     close() {
       closed = true
       for (const subscriber of subscriptions)
-        terminate(subscriber, { kind: 'ended', reason: 'stale-stream' })
+        terminate(subscriber, {
+          kind: 'ended',
+          reason: 'producer-ended',
+          value: { reason: closeReason },
+        })
     },
   }
 }
