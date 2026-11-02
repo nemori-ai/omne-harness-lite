@@ -198,13 +198,14 @@ it('isolates acquisition references and rejects a second running leg while anoth
   expect((await run(second, other, 'printf still-alive')).bytes.toString()).toBe('still-alive')
 }, 30_000)
 
-it.each([
+it.for([
   { script: 'return 0', code: 0 },
   { script: 'return 7', code: 7 },
   { script: 'return 125', code: 125 },
   { script: 'false', code: 1 },
 ])(
   'completes $script and restores temporary cwd and env before the next leg',
+  { timeout: 30_000 },
   async ({ script, code }, context) => {
     if (!(await prerequisites()))
       return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')
@@ -225,7 +226,6 @@ it.each([
       `base ${f.cwd}\r\n`,
     )
   },
-  30_000,
 )
 
 it('keeps cwd and exported state changed before an early return without overrides', async context => {
@@ -249,8 +249,9 @@ it('keeps cwd and exported state changed before an early return without override
   )
 }, 30_000)
 
-it.each([0, 7])(
+it.for([0, 7])(
   'invalidates the terminal when its shell exits with code %i',
+  { timeout: 30_000 },
   async (code, context) => {
     if (!(await prerequisites()))
       return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')
@@ -274,7 +275,6 @@ it.each([0, 7])(
       reason: 'closed',
     })
   },
-  30_000,
 )
 
 it('invalidates the terminal when the original cwd cannot be restored after return', async context => {
