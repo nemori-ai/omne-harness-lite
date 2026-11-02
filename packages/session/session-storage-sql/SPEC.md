@@ -102,7 +102,7 @@
     - 结果阶段（`phase` 为 `outcome`）：`kind` 为 `prepared` 或 `rejected`。没有意图记录时答「冲突」，依据为 `invalid`。已有结果时摘要相同则认回，不同答「冲突」。否则写入一次。
     - 读取：按 `tenant` 加 H 或 `tenant` 加 Ki 读回一条或 `null`。每条语句带租户条件。
     - 词汇：子路径导出 `preadmissionFacts`、`decodePreadmissionReply`、`decodePreadmissionRecord` 与类型 `PreadmissionIntentWrite`、`PreadmissionOutcomeWrite`、`PreadmissionRead`、`PreadmissionRecord`，handler 名为 `EXECUTION_RECORD_HANDLERS.preadmission`。
-    - 清单摘要：新迁移、新 handler、`session.work` 的读表与参加者模块摘要都改变组合的 `manifestDigest`。只含本成员材料的 `execution-record` 加 `session` 组合，基线 `4195911b0` 为 `c80a46ac1d585df3e5e38728a3ef8bc268f84e3a0292586cfa7e43317a7cacd7`，本次为 `e0731f7e2df53b399a990e486947e41668315023aed017cea8cf118e670afc89`（`combinationManifest` 加 `manifestDigest` 计算）。应用的材料目录与 `combinationVersion` 归 L-MODEL 与 Reduce，本成员不改。
+    - 清单摘要：新迁移、新 handler、`session.work` 的读表与参加者模块摘要都改变组合的 `manifestDigest`。只含本成员材料的 `execution-record` 加 `session` 组合，基线 `4195911b0` 为 `c80a46ac1d585df3e5e38728a3ef8bc268f84e3a0292586cfa7e43317a7cacd7`，本次为 `25410bc25d737a689a828052285890c230fb94656337bd4d0e61ddd90db5907d`（`combinationManifest` 加 `manifestDigest` 计算）。应用的材料目录与 `combinationVersion` 归 L-MODEL 与 Reduce，本成员不改。
     - 验证：`tests/preadmission.spec.ts` 核对意图的全部成员与摘要、同 Ki 答原记录与原 H、同 H 异内容冲突、表对同租户同 Ki 的第二行拒绝写入、结果只固定一次、无意图答 `invalid`、另一租户按同 H 或同 Ki 读不到，以及真实提供者上写入后杀子进程、新提供者按原 H 读回完整记录。
 
 ### 两个「事务端口」

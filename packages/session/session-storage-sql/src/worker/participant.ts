@@ -596,18 +596,26 @@ function commandStart(
   )
   if (journal === undefined && command.kind !== 'create')
     return stopped({ kind: 'denied', action: command.kind })
-  let previous: WorkSnapshot | null = null
-  if (journal !== undefined) {
-    const state = oneRow(
-      port,
-      'SELECT snapshot, covered FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
-      [tenant, session],
-    )
-    if (state === undefined || big(state['covered']) !== big(journal['tail']))
-      return { kind: 'failed', diagnostic: 'sl_state does not cover the tail' }
-    previous = decodeValue(JSON.parse(text(state['snapshot'])) as JsonValue) as WorkSnapshot
-  }
+  const previous = journal === undefined ? null : coveringSnapshot(port, tenant, session, journal)
+  if (previous === 'behind')
+    return { kind: 'failed', diagnostic: 'sl_state does not cover the tail' }
   return { tenant, session, operation, held, journal, previous }
+}
+
+/** The snapshot row of the session, only when it covers the tail of `journal`. */
+function coveringSnapshot(
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  journal: Row,
+): WorkSnapshot | 'behind' {
+  const state = oneRow(
+    port,
+    'SELECT snapshot, covered FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
+    [tenant, session],
+  )
+  if (state === undefined || big(state['covered']) !== big(journal['tail'])) return 'behind'
+  return decodeValue(JSON.parse(text(state['snapshot'])) as JsonValue) as WorkSnapshot
 }
 
 const isStart = (value: CommandStart | ParticipantReply): value is CommandStart =>
@@ -749,20 +757,7 @@ function publishCommand(
 ): ParticipantReply {
   const { command, evidence } = received
   const { tenant, session, operation, journal, previous } = start
-  const tail = journal === undefined ? 0n : big(journal['tail'])
-  const seq = journal === undefined ? 1n : big(journal['commit_seq']) + 1n
-  const revision = String(tail + 1n)
-  const last = oneRow(
-    port,
-    'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ?',
-    [tenant, session],
-  )
-  const first = big(last?.['p'] ?? 0n) + 1n
-  const entries: HistoryEntry[] = batch.entries.map((entry, index) => ({
-    ...entry,
-    id: String(first + BigInt(index)),
-    revision,
-  })) as HistoryEntry[]
+  const { tail, seq, revision, entries } = positioned(port, start, batch)
   const reduced = reduce(
     batch.prepared,
     { revision, entries } as never,
@@ -819,16 +814,87 @@ function publishCommand(
     ],
   )
   storeEvidence(port, { tenant, session, operation }, evidence)
-  if (journal === undefined)
-    port.execute(
-      'INSERT INTO sl_journal (tenant, session, tail, commit_seq, epoch) VALUES (?, ?, ?, ?, ?)',
-      [tenant, session, BigInt(revision), seq, epoch],
-    )
-  else {
-    const moved = advanceTail(port, { tenant, session, tail, revision, seq, epoch })
-    if (moved !== null) return moved
-  }
-  return participated(result, false)
+  const moved = moveJournal(port, start, { tail, revision, seq, epoch })
+  return moved ?? participated(result, false)
+}
+
+/** The revision, commit sequence and entry positions of the batch, after the journal of `start`. */
+function positioned(port: ParticipantPort, start: CommandStart, batch: CommandBatch) {
+  const { tenant, session, journal } = start
+  const tail = journal === undefined ? 0n : big(journal['tail'])
+  const seq = journal === undefined ? 1n : big(journal['commit_seq']) + 1n
+  const revision = String(tail + 1n)
+  const last = oneRow(
+    port,
+    'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ?',
+    [tenant, session],
+  )
+  const first = big(last?.['p'] ?? 0n) + 1n
+  const entries: HistoryEntry[] = batch.entries.map((entry, index) => ({
+    ...entry,
+    id: String(first + BigInt(index)),
+    revision,
+  })) as HistoryEntry[]
+  return { tail, seq, revision, entries }
+}
+
+/** The journal row of a new session, or the conditional tail update of an existing one. */
+function moveJournal(
+  port: ParticipantPort,
+  start: CommandStart,
+  move: Readonly<{ tail: bigint; revision: string; seq: bigint; epoch: string }>,
+): ParticipantReply | null {
+  const { tenant, session, journal } = start
+  const { tail, revision, seq, epoch } = move
+  if (journal !== undefined)
+    return advanceTail(port, { tenant, session, tail, revision, seq, epoch })
+  port.execute(
+    'INSERT INTO sl_journal (tenant, session, tail, commit_seq, epoch) VALUES (?, ?, ?, ?, ?)',
+    [tenant, session, BigInt(revision), seq, epoch],
+  )
+  return null
+}
+
+/** The record of the command's identity that `decide` compares, or null for a new identity. */
+function recordOf(command: SessionCommand, start: CommandStart): OperationRecord | null {
+  const { held } = start
+  return held === undefined
+    ? null
+    : {
+        operation: command.input.operation,
+        digest: text(held['input_digest']),
+        receipt: JSON.parse(text(held['receipt'])) as CommitReceipt,
+      }
+}
+
+/** The history index is read in the same transaction as the snapshot, for the input range of this command. */
+function commandHistory(
+  port: ParticipantPort,
+  command: SessionCommand,
+  start: CommandStart,
+): SessionHistory | 'too-many' | null {
+  const { tenant, session, previous } = start
+  return previous === null
+    ? null
+    : readHistory(port, tenant, session, previous, commandScope(command, previous))
+}
+
+/** The answer to a command's decision: a refusal, a control answer, a recall or a published batch. */
+function settleDecision(
+  port: ParticipantPort,
+  received: Received,
+  start: CommandStart,
+  decision: Decision,
+  judged: Omit<CommandBatch, 'entries'>,
+): ParticipantReply {
+  const { command } = received
+  const { previous } = start
+  if (decision.kind === 'rejected') return stopped(decision.failure)
+  if (decision.kind === 'control-answer') return saveControlAnswer(port, received, start, decision)
+  if (decision.kind === 'recovered') return recallOriginal(port, received, start, decision)
+  if (decision.entries.length === 0 && command.kind === 'considerAutoArchive' && previous !== null)
+    return participated({ result: autoArchiveResult(previous), receipt: null }, false)
+  return publishCommand(port, received, start, { ...judged, entries: decision.entries })
 }
 
 function runCommand(
@@ -839,38 +905,19 @@ function runCommand(
 ): ParticipantReply {
   const start = commandStart(command, port)
   if (!isStart(start)) return start
-  const { tenant, session, held, previous } = start
-  const record: OperationRecord | null =
-    held === undefined
-      ? null
-      : {
-          operation: command.input.operation,
-          digest: text(held['input_digest']),
-          receipt: JSON.parse(text(held['receipt'])) as CommitReceipt,
-        }
   const reads = commandReads(port, command, start)
   if ('kind' in reads) return reads
-  // The history index is read in the same transaction as the snapshot, for the input range of this command.
-  const history =
-    previous === null
-      ? null
-      : readHistory(port, tenant, session, previous, commandScope(command, previous))
+  const history = commandHistory(port, command, start)
   if (history === 'too-many')
     return { kind: 'failed', diagnostic: 'the history index of the session exceeds the read bound' }
+  const { previous } = start
   const prepared =
     history === null || previous === null ? previous : { ...previous, historyIndex: history.index }
-  const decision: Decision = decide(prepared, command, guards, record, {
+  const decision: Decision = decide(prepared, command, guards, recordOf(command, start), {
     ...reads,
     ...(history === null ? {} : { history: history.reads }),
   })
-
-  const received: Received = { command, guards, evidence }
-  if (decision.kind === 'rejected') return stopped(decision.failure)
-  if (decision.kind === 'control-answer') return saveControlAnswer(port, received, start, decision)
-  if (decision.kind === 'recovered') return recallOriginal(port, received, start, decision)
-  if (decision.entries.length === 0 && command.kind === 'considerAutoArchive' && previous !== null)
-    return participated({ result: autoArchiveResult(previous), receipt: null }, false)
-  return publishCommand(port, received, start, { prepared, history, entries: decision.entries })
+  return settleDecision(port, { command, guards, evidence }, start, decision, { prepared, history })
 }
 
 /** What a same-log batch publishes: its rows, its snapshot and the record of its operation. */
