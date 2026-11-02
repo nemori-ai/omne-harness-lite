@@ -91,8 +91,11 @@ export interface AgentProvider<P> {
 export declare function createAgentRuntime<P, B extends ContentBlock>(
   dependencies: AgentDependencies<P, B>,
   options: AgentRuntimeOptions,
+  extras?: AgentRuntimeExtras,
 ): Reply<AgentProvider<P>>
 ```
+
+`extras` 是可选的第三个参数，目前只有 `measure`：测量事件的观察者，行为见 SPEC 的[测量事件](../SPEC.md#测量事件)。它不是配置，不进入配置校验，缺省不发任何事件。
 
 创建先校验配置、安全作用域、精确采用和提供者能力，成功得到 idle 实例。提供者能力包括三项：Journal 绑定声明的 `capabilities.coordination` 与配置 `coordination` 严格相等；Journal 提供者对配置 `jointCommits` 中每一种共同提交声明了参加者；Journal 绑定已固定消息准入的历史组合登记。三项核对都在创建 runtime、登记或写状态之前完成。
 

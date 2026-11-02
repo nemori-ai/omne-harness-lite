@@ -23,6 +23,7 @@ import type {
 } from '@omne-harness/runtime-context-contract'
 import type { ContextMaterials, LatestRead, Place } from './materials.ts'
 import { digest, tenantText } from './records.ts'
+import { createContextMeasurer, type ContextMeasure } from './measure.ts'
 import { failureOfRead, recipientText, unavailable } from './translate.ts'
 
 export type AgentModelContextOptions<P> = Readonly<{
@@ -33,6 +34,8 @@ export type AgentModelContextOptions<P> = Readonly<{
   eligibility: ReaderEligibilityHandoff<P>
   /** The Runtime Context reader face, bound to the model consumer class. */
   runtimeContext: ReaderOperations
+  /** The observer of the measurement events (SPEC「测量事件」). Absent means no event is built. */
+  measure?: ContextMeasure
 }>
 
 type ReadInput<P> = Parameters<ModelContextReader<P>['read']>[0]
@@ -78,6 +81,7 @@ export function createAgentModelContext<P>(
   options: AgentModelContextOptions<P>,
 ): ModelContextReader<P> {
   const { materials, parts, eligibility, runtimeContext } = options
+  const measurer = createContextMeasurer(options.measure)
 
   async function current(access: Access<P>, target: ContextTarget): Promise<Answer<EligibilityId>> {
     const handed = await eligibility.current({
@@ -307,5 +311,13 @@ export function createAgentModelContext<P>(
     }
   }
 
-  return { read }
+  return {
+    read: input =>
+      measurer.segment(
+        'read',
+        input.advance.execution,
+        () => read(input),
+        answer => 'failure' in answer,
+      ),
+  }
 }

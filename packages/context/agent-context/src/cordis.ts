@@ -25,6 +25,7 @@ import {
 } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { absentAccountTarget, createAgentAccountOutlet } from './account-outlet.ts'
 import { createContextMaterials } from './materials.ts'
+import type { ContextMeasure } from './measure.ts'
 import { createAgentModelContext } from './model-context.ts'
 import { createAgentRequests, type AgentRequests } from './requests.ts'
 import { absentStepResults, firstWaveTools, unavailable } from './translate.ts'
@@ -166,7 +167,8 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
   readonly derive: RequestPreparationService<unknown>['derive']
   readonly resume: RequestPreparationService<unknown>['resume']
 
-  constructor(ctx: Context, config: AgentContextConfig) {
+  /** `measure` is the observer of the measurement events; only the plugin factory hands it in. */
+  constructor(ctx: Context, config: AgentContextConfig, measure?: ContextMeasure) {
     super(ctx)
     const materials = createContextMaterials<unknown>({
       owner: config.owner,
@@ -196,12 +198,14 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
         resultCapacity: config.resultCapacity,
         tools: firstWaveTools,
         stepResults: absentStepResults,
+        ...(measure === undefined ? {} : { measure }),
       })
       read = createAgentModelContext({
         materials,
         parts,
         eligibility: ctx.runtimeContextReaderEligibility,
         runtimeContext: { bind: eligibility => ctx.runtimeContext.bind(eligibility) },
+        ...(measure === undefined ? {} : { measure }),
       }).read
     }
     // After the lease ends `requests` refuses by itself; the reader needs the flag below.
@@ -218,5 +222,32 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
       },
       'agentContext.close',
     )
+  }
+}
+
+/** What the assembly entry hands to `createAgentContextPlugin`. */
+export type AgentContextPluginInput = Readonly<{
+  /**
+   * The observer of the measurement events, handed to the request preparation and the readable
+   * context of the plugin (SPEC「测量事件」). It is a function, so it is not a configuration member.
+   * Absent: no event is built, as with `AgentContextProvider` itself.
+   */
+  measure?: ContextMeasure
+}>
+
+/**
+ * The plugin of `AgentContextProvider` with the measurement observer that the assembly entry hands
+ * in. The `inject`, the configuration and the provided keys are those of `AgentContextProvider`;
+ * the observer is not a Cordis service and not a configuration member. Use the returned class as
+ * `ctx.plugin(Plugin, config)` does with the provider class.
+ */
+export function createAgentContextPlugin(
+  input: AgentContextPluginInput = {},
+): typeof AgentContextProvider {
+  const { measure } = input
+  return class AgentContextMeasuredPlugin extends AgentContextProvider {
+    constructor(ctx: Context, config: AgentContextConfig) {
+      super(ctx, config, measure)
+    }
   }
 }

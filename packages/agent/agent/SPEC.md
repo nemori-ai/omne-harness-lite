@@ -10,11 +10,28 @@ F4 从非空终态台账认回已登记观察，并把未登记项保留给长�
 
 实现须完整兑现公共操作与失败语义，不在此复制公共状态机或结果形状。配置与注入能力聚合由 [构造入口](docs/public-api.md) 拥有，机制及尚缺设计见 [内部架构](docs/architecture/README.md)。
 
+## 测量事件
+
+<a id="测量事件"></a>依据 R2-D17（DP1 取 C）与 R2-D49：Agent 把 E9 要用的边界作为结构化事件交给调用工厂的人。参数是 `createAgentRuntime(依赖, 选项, { measure })` 的可选第三个参数，不是服务键，不是配置，不进入 `judgeOptions`，缺省不建任何事件。事件形状不是冻结的产品 API，字段名是 L-RUN 与联调 B 的约定。
+
+| 事件 | 何时发出 | 字段 |
+| --- | --- | --- |
+| `segment`，`phase: 'start'`，`segment: 'agent'` | 一次工作通过开始：`accept`（`invoke` 等待的可靠受理，U0 到 E0，含 `coordinator.accept()`）或 `run`（一次 `runExecution` 驱动，从 E1 或 R0 起，到它结束、停在已保存的等待或终结为止） | `span`（进程内唯一，起止成对）、`pass`、`execution` |
+| `segment`，`phase: 'end'` | 同一通过交回时，含抛出 | 上列字段加 `outcome`：带 `failure` 的答复与抛出为 `failure`，其余为 `ok` |
+
+- **时间**：事件不带时间。观察者在被同步调用的那一刻读自己的单调时钟，那一刻就是边界时刻。本成员不读 `Date.now`、`performance.now`，也不用注入的 `AgentClock`：它读 UTC 时刻、异步作答、测试会给它计次，不是单调时钟。
+- **段是包含式的**：一次 `run` 通过包含它等待 Journal、Model、Tool 与其他端口的时间。两次通过之间的等待（`waitForWake`）不在任何段内。采集者按已知的外部等待区间扣除，段之间不能相加。
+- **没有 Agent 的轮完成事件**：一轮的完成事实归 Session 的 `run.terminal` 提交（Session SPEC「测量事件」）。Agent 的执行终结能从 `run` 通过的最后一次 `end` 与 Journal 的 `ended` 事件读出，本成员不另发，免得出现两个相互可以不一致的“轮完成”。
+- **观察者抛出**不改变任何答复，也不留痕。观察者不得回调本 runtime。
+- **不覆盖**：`./testing` 的内存装配与独立接收入口（Model 与 Tool 接收工厂）不发事件；`resume` 与恢复面本阶段未实现，也不发。`invoke` 认回一次较早的受理时（`findAccepted`）重新受理的那一次，同样算一次 `accept` 通过。
+
 ## 资源与替换
 
 通过显式依赖取得外部能力，不导入 Cordis 或固定本地提供者。业务身份作为操作输入，不以 Context 或插件配置替代。替换和退出保留未完成责任，不能把依赖丢失或 disposer 完成报告成业务成功。
 
 ## 验证
+
+测量事件的测试在 `tests/measure.spec.ts`：受理与驱动两类通过的起止成对、观察者缺省与抛出时执行的结果不变。
 
 当前测试核对构造、访问守卫、正常路径、输入承接、请求准备、主调用接缝、回复准入、空动作批、I8 三种去向、原操作认回、等待保存、失通知后的计时重读与等待资源清理，以及终结的候选投影、清单发行与失效、五类 blocked 次序、取消路线的建立、判断与迁移和三个保管变体（内存 Journal 通过 agent-contract 的 Journal 核心一致性套件）。另有一条先等待再收到回复的完整模型请求，核对各节点提交次数、等待内的读取次数、自身 waiting 事件不唤醒与等待期间的重复 invoke。测试使用脚本化 Model 与非耐久内存 Journal，不证明真实提供者或完整恢复。needs-compaction 按 #513 revision 2 保存原结果并返回 unsupported，压缩路径与相应 F1 结果留给 4.5。内部窄接续从同一内存 Journal 的已存 ready/step 或 PendingCall 重建固定帧，并从 received 条目读取完整材料，覆盖意图提交前后与 producer 已提交而尚未完成 I3 的切点，要求原 runtime、Access/Authority 与旧驱动已停；I2 尚须无未决 Journal 操作。它不是公开恢复或进程耐久。缺原产出 scope/format 的 reasoning_state、完整或未封 thinking 返回 unsupported，已接收材料保持可读。
 

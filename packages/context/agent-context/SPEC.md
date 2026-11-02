@@ -255,6 +255,20 @@ IC-19 分类（「协议给」不论部署都由契约协议兑现，「装配�
 | 增量读取不消费过期材料            | 装配给 | 材料库在实例内存里，键含执行挂接                |
 | `source`、`coverage` 可解析到材料 | 装配给 | 同一 agent-context 实例。跨重启只保证记录键可读 |
 
+### 测量事件
+
+<a id="测量事件"></a>依据 R2-D17（DP1 取 C）与 R2-D49：Context 段由本包发出。参数是两个工厂各自的可选 `measure`（`createAgentRequests` 与 `createAgentModelContext` 的选项），不是服务键，不是插件配置，缺省不建任何事件。两个工厂可以共用同一个观察者，`span` 在进程内唯一，所以起止不会错配。事件形状不是冻结的产品 API，字段名是 L-RUN 与联调 B 的约定。
+
+| 事件 | 何时发出 | 字段 |
+| --- | --- | --- |
+| `segment`，`phase: 'start'`，`segment: 'context'` | Agent 调进本包的一次调用开始：`read`（可读上下文读取）、`prepare`、`derive`、`resume`（请求准备） | `span`、`operation`、`execution`（取自调用的 `advance.execution`） |
+| `segment`，`phase: 'end'` | 同一调用交回答复时，含抛出 | 上列字段加 `outcome`：带 `failure` 的答复与抛出为 `failure`，其余为 `ok` |
+
+- **时间**：事件不带时间。观察者在被同步调用的那一刻读自己的单调时钟，那一刻就是边界时刻。本包不保存时钟，也不读。
+- **段是包含式的**：一次调用包含它等待 Request Context、Runtime Context 与 Model 请求准备的时间。`close` 之后的调用在拒绝之前也算一次调用，会发出起止。
+- **观察者抛出**不改变任何答复，也不留痕。观察者不得回调本包。
+- **插件入口（原缺件 CTX-MEASURE-PLUGIN，已解决）**：`AgentContextProvider` 的配置是可序列化数据，不能携带函数，所以观察者由装配者在构造插件之前交给 `./cordis` 的 `createAgentContextPlugin({ measure })`，仿 Session 日志 Journal 提供者的 `createSessionAgentJournalPlugin({ cancellation })`（R2-D35）。它返回继承 `AgentContextProvider` 的插件类，`inject`、配置与提供的键都不变，不加服务键，不改两个工厂的参数；该类把 `measure` 同时交给 `createAgentRequests` 与 `createAgentModelContext`，两处共用一个观察者，`span` 照旧唯一。不传 `measure` 时与 `AgentContextProvider` 一致。原插件类照旧可用。
+
 ### 已知限制
 
 | 名称                  | 内容                                                                                                                                                                                               | 触发条件（到时重新设计）                                                                                                                                                              |
@@ -282,7 +296,9 @@ IC-19 分类（「协议给」不论部署都由契约协议兑现，「装配�
 | 结果映射                                                                                    | 八种收件结果各映射到上表；收件口抛出答 `unknown`；解析器抛出答 `scope-resolver-failed`；不缓存、不重试                                                                                                                                   | 同上                           |
 | 组合                                                                                        | 收账之后 `usage` 为 `actual`；目标未重建时答 `uninitialized`                                                                                                                                                                             | 同上                           |
 | 真实 Cordis 4.0.4                                                                           | 缺依赖停在 `PENDING`，提供者换代或撤除后回到 `PENDING`，停止后键消失、旧引用答 `outlet-closed`，不合的配置加载失败；真实装配上 `deliver` 答 `scope-unresolved`，不得是 `received`                                                        | `tests/cordis-entry.spec.ts`   |
-| 入口                                                                                        | 根入口只导出四个工厂与三个缺席读口，不含 Cordis 值；`./cordis` 导出两个插件类、X-3 键名与材料容量初值                                                                                                                                    | `tests/public-entry.spec.ts`   |
+| 测量事件                                                                                    | 读取、准备、派生、续接各发一对起止，`span` 成对且互异，带 execution；被拒绝的调用以 `failure` 结束；无观察者与观察者抛出时答复不变                                                                                                      | `tests/measure.spec.ts`        |
+| 测量事件的插件入口（真实 Cordis 4.0.4）                                                     | `createAgentContextPlugin({ measure })` 装载后，真实装配上的一次读取与准备让观察者收到成对的起止；`inject` 与配置同 `AgentContextProvider`；不传 `measure` 时服务不变                                                                      | `tests/context-plugin.spec.ts` |
+| 入口                                                                                        | 根入口只导出四个工厂与三个缺席读口，不含 Cordis 值；`./cordis` 导出两个插件类、测量观察者的插件工厂、X-3 键名与材料容量初值                                                                                                                                    | `tests/public-entry.spec.ts`   |
 | 读取：完整与增量                                                                            | 首次完整；同一挂接、同一收件模型、已采用覆盖与固定事实一致时增量；收件模型变、挂接变、覆盖不一致、材料被淘汰时完整；旧挂接的完整读取不改新挂接的材料                                                                                     | `tests/model-context.spec.ts`  |
 | 读取：证据                                                                                  | 记录丢失时 `prepare` 答 `context-material-lost`；新实例读得出 execution，另一 execution 的覆盖答 `invalid`，本 execution 的覆盖做完整读取；别的拥有者的证据答 `invalid`                                                                  | 同上                           |
 | 读取：拒绝                                                                                  | K-RC 缺席答 `eligibility-absent` 且不 `bind`；`unauthorized` 再取一次后答 `denied`；资格换了就绑新资格；别的租户答 `denied` 且 K-RC 与 Runtime Context 零调用                                                                            | 同上                           |

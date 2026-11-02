@@ -5,7 +5,7 @@
 // of any of them unloads the body and runs it again, and the registrations of the old instances end
 // with their contribution fibers.
 import type { Context } from '@deepseek-ai/cordis'
-import { createAgentRuntime } from '@omne-harness/agent'
+import { createAgentRuntime, type AgentMeasure } from '@omne-harness/agent'
 import type { AgentInstanceId } from '@omne-harness/agent-contract'
 import {
   AgentExecutionControlService,
@@ -148,3 +148,26 @@ export function createAgentHostPlugin(factory: RuntimeFactory) {
 export const agentHostPlugin = createAgentHostPlugin((dependencies, options) =>
   createAgentRuntime(dependencies, options),
 )
+
+/** What the assembly entry hands to `createAgentHostLocalPlugin`. */
+export type AgentHostLocalPluginInput = Readonly<{
+  /**
+   * The observer of the Agent measurement events, handed to `createAgentRuntime` for every runtime
+   * this host builds (Agent SPEC「测量事件」). It is a function, so it is not a configuration
+   * member. Absent: no event is built, as with `agentHostPlugin`.
+   */
+  measure?: AgentMeasure
+}>
+
+/**
+ * The `agent-host` plugin with the measurement observer that the assembly entry hands in. The
+ * name, `inject`, configuration and provided keys are those of `agentHostPlugin`; the observer is
+ * not a Cordis service and not a configuration member. Use the returned plugin as
+ * `ctx.plugin(plugin, config)` does with `agentHostPlugin`.
+ */
+export function createAgentHostLocalPlugin(input: AgentHostLocalPluginInput = {}) {
+  const { measure } = input
+  return createAgentHostPlugin((dependencies, options) =>
+    createAgentRuntime(dependencies, options, measure === undefined ? {} : { measure }),
+  )
+}

@@ -25,6 +25,7 @@ import {
   createAgentRequests,
   createContextMaterials,
   firstWaveTools,
+  type ContextMeasure,
   type StepResultSource,
   type ToolsSource,
 } from '@omne-harness/agent-context'
@@ -169,6 +170,8 @@ export type WorldOptions = Readonly<{
   tools?: ToolsSource<string>
   stepResults?: StepResultSource<string>
   capacity?: number
+  /** The observer of the measurement events; absent leaves both factories without one. */
+  measure?: ContextMeasure
   /** Wraps the operation group the adapter gets, to script or observe one outcome. */
   operations?: (real: AssemblyOperations<string>) => AssemblyOperations<string>
 }>
@@ -463,6 +466,7 @@ export async function createWorld(options: WorldOptions = {}) {
     resultCapacity: RESULT_CAPACITY,
     tools: options.tools ?? firstWaveTools,
     stepResults: options.stepResults ?? (async () => ({ kind: 'unavailable', diagnostic: 'none' })),
+    ...(options.measure === undefined ? {} : { measure: options.measure }),
   })
   const reader = createAgentModelContext<string>({
     materials,
@@ -476,6 +480,7 @@ export async function createWorld(options: WorldOptions = {}) {
       },
     },
     runtimeContext,
+    ...(options.measure === undefined ? {} : { measure: options.measure }),
   })
 
   const selection: SelectedModel = {
