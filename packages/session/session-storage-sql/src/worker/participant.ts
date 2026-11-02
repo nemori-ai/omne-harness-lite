@@ -31,6 +31,7 @@ import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../cod
 import { runChecks } from './check.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
 import { readHistory } from './history-index.ts'
+import { judgeLog, type LogBatch } from './log.ts'
 import { PROTOCOL } from './schema.ts'
 import { big, oneRow, rowsOf, text } from './support.ts'
 
@@ -529,6 +530,22 @@ function runQuery(
   }
 }
 
+/**
+ * The snapshot a result carries, with the history index of its pending inputs read from the rows
+ * this commit wrote, as `readWork` reads it (the memory pair gives its results the same index).
+ * Only the result of `create` carries the snapshot; over the read bound it carries none.
+ */
+function withIndex(port: ParticipantPort, command: SessionCommand, snapshot: WorkSnapshot) {
+  if (command.kind !== 'create') return snapshot
+  const tenant = tenantCodec.encode(snapshot.tenant)
+  if (!tenant.ok) return snapshot
+  const history = readHistory(port, tenant.value, snapshot.session, snapshot, {
+    kind: 'pending',
+    inputs: snapshot.pending,
+  })
+  return history === 'too-many' ? snapshot : { ...snapshot, historyIndex: history.index }
+}
+
 function runCommand(
   command: SessionCommand,
   guards: readonly GuardCommand[],
@@ -736,7 +753,7 @@ function runCommand(
     [tenant, session, JSON.stringify(encodeValue(snapshot)), BigInt(revision)],
   )
   maintainDerived(port, tenant, session, previous, snapshot)
-  const result = resultOf(command, snapshot, receipt)
+  const result = resultOf(command, withIndex(port, command, snapshot), receipt)
   if (result === null)
     return {
       kind: 'failed',
@@ -768,12 +785,20 @@ function runCommand(
   return participated(result, false)
 }
 
+/** What a same-log batch publishes: its rows, its snapshot and the record of its operation. */
+type SameLogBatch = EntriesBatch | LogBatch
+type SameLogRecord = Readonly<{ form: 'entries' | 'log'; receipt: unknown; result: unknown }>
+
 /**
- * The entries interpretation commit: the consequence rows, the progress row, the model view, the
- * snapshot with its saved progress, the derived rows, the `entries` operation record and the tail,
- * in this one transaction. A failure at any step rolls all of them back.
+ * One same-log interpretation commit (entries or log channel): the consequence rows, the progress
+ * row, the model view, the snapshot, the derived rows, the operation record and the tail, in this
+ * one transaction. A failure at any step rolls all of them back.
  */
-function publishEntries(port: ParticipantPort, batch: EntriesBatch): ParticipantReply {
+function publishSameLog(
+  port: ParticipantPort,
+  batch: SameLogBatch,
+  record: (receipt: CommitReceipt) => SameLogRecord,
+): ParticipantReply {
   const { tenant, session, operation, journal, previous, snapshot, entries } = batch
   const revision = String(journal.tail + 1n)
   const receipt = batchReceipt({ tenant, session, operation, seq: journal.seq, revision, entries })
@@ -790,6 +815,7 @@ function publishEntries(port: ParticipantPort, batch: EntriesBatch): Participant
     [tenant, session, JSON.stringify(encodeValue(snapshot)), BigInt(revision)],
   )
   maintainDerived(port, tenant, session, previous, snapshot)
+  const saved = record(receipt)
   port.execute(
     'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [
@@ -797,10 +823,10 @@ function publishEntries(port: ParticipantPort, batch: EntriesBatch): Participant
       session,
       operation,
       batch.digest,
-      'entries',
+      saved.form,
       BigInt(revision),
-      JSON.stringify(encodeValue(receipt)),
-      JSON.stringify(encodeValue(batch.answer)),
+      JSON.stringify(encodeValue(saved.receipt)),
+      JSON.stringify(encodeValue(saved.result)),
     ],
   )
   const moved = advanceTail(port, {
@@ -814,13 +840,16 @@ function publishEntries(port: ParticipantPort, batch: EntriesBatch): Participant
   return moved ?? participated(batch.answer, false)
 }
 
-/** The entries interpretation commit. Its answer carries the digest of the observation (SL07). */
+/** The answer of a same-log commit carries the digest of its observation (SL07). */
+function withDigest(reply: ParticipantReply, digest: string, extra: object = {}): ParticipantReply {
+  return reply.kind === 'participated'
+    ? { kind: 'participated', response: { ...(reply.response as object), ...extra, digest } }
+    : reply
+}
+
+/** The entries interpretation commit. Its record keeps the batch receipt and the entries receipt. */
 function runEntries(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPort) {
   const judged = judgeEntries(facts, port)
-  const withDigest = (reply: ParticipantReply, digest: string): ParticipantReply =>
-    reply.kind === 'participated'
-      ? { kind: 'participated', response: { ...(reply.response as object), digest } }
-      : reply
   switch (judged.kind) {
     case 'unsupported':
       return { kind: 'unsupported', basis: { reason: judged.reason } } as const
@@ -831,7 +860,51 @@ function runEntries(facts: Readonly<Record<string, JsonValue>>, port: Participan
     case 'recovered':
       return withDigest(participated(judged.result, true), judged.digest)
     case 'publish':
-      return withDigest(publishEntries(port, judged.batch), judged.batch.digest)
+      return withDigest(
+        publishSameLog(port, judged.batch, receipt => ({
+          form: 'entries',
+          receipt,
+          result: judged.batch.answer,
+        })),
+        judged.batch.digest,
+      )
+  }
+}
+
+/**
+ * The event channel interpretation commit. Its record keeps the log receipt in both columns: it is
+ * neither a batch nor a control record. A recall of another operation's interpretation and a
+ * refusal save no record of this identity, and say so (`recorded`), so the lookup reads this
+ * identity as unknown.
+ */
+function runLog(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPort) {
+  const judged = judgeLog(facts, port)
+  switch (judged.kind) {
+    case 'unsupported':
+      return { kind: 'unsupported', basis: { reason: judged.reason } } as const
+    case 'stopped':
+      return {
+        kind: 'conflict',
+        basis: { failure: encodeValue(judged.failure), recorded: false },
+      } as const
+    case 'failed':
+      return { kind: 'failed', diagnostic: judged.diagnostic } as const
+    case 'recovered':
+      return withDigest(participated(judged.result, true), judged.digest, {
+        recorded: judged.recorded,
+      })
+    case 'publish': {
+      const { answer } = judged.batch
+      return withDigest(
+        publishSameLog(port, judged.batch, () => ({
+          form: 'log',
+          receipt: answer,
+          result: answer,
+        })),
+        judged.batch.digest,
+        { recorded: true },
+      )
+    }
   }
 }
 
@@ -875,6 +948,7 @@ const participant: ParticipantModule = {
         : { kind: 'unsupported', basis: { reason: 'query facts are incomplete' } }
     }
     if (intent === 'entries') return runEntries(facts, port)
+    if (intent === 'log') return runLog(facts, port)
     if (intent === 'check') return runChecks(facts, port)
     if (
       intent !== 'command' ||
@@ -884,7 +958,7 @@ const participant: ParticipantModule = {
       return {
         kind: 'unsupported',
         basis: {
-          reason: 'the facts are neither a command, a check, an entries commit nor a query',
+          reason: 'the facts are neither a command, a check, a same-log commit nor a query',
         },
       }
     let command: SessionCommand

@@ -50,6 +50,8 @@ export const EXECUTION_RECORD_HANDLERS = {
   state: 'execution-record.state',
   /** The original answer of one operation. */
   operation: 'execution-record.operation',
+  /** One preadmission record, by tenant and handoff or by tenant and entry (`PreadmissionRead`). */
+  preadmission: 'execution-record.preadmission',
 } as const
 
 // ---------------------------------------------------------------------------------------------
@@ -348,6 +350,161 @@ export function decodeExecutionRecordOperation(
     ? 'malformed'
     : { digest, answer: value['answer'] ?? null }
 }
+
+// ---------------------------------------------------------------------------------------------
+// The preadmission records of the `execution-record` participant
+
+/**
+ * The intent of one handoff, as the provider saves it before it answers: the complete request, its
+ * origin, the stable identity of the original principal (never a credential), the qualification
+ * basis, the adopted implementation and the materials. Every member is opaque JSON here.
+ */
+export type PreadmissionIntent = Readonly<{
+  request: JsonValue
+  origin: JsonValue
+  principal: JsonValue
+  qualification: JsonValue
+  adoption: JsonValue
+  materials: JsonValue
+}>
+
+/**
+ * Phase one: save the intent of handoff `handoff` (H) under entry `entry` (Ki). A record of the same
+ * Ki is the answer as it is, whatever its H; a record of the same H answers when its intent is the
+ * same and conflicts otherwise. `session` and `execution` are null when there is no Run yet.
+ */
+export type PreadmissionIntentWrite = Readonly<{
+  phase: 'intent'
+  tenant: TenantId
+  handoff: string
+  entry: string | null
+  session: SessionId | null
+  execution: string | null
+  intent: PreadmissionIntent
+}>
+
+/** The fixed result of one handoff: `prepared` or `rejected`, with opaque members. */
+export type PreadmissionOutcome = Readonly<{ kind: 'prepared' | 'rejected' }> &
+  Readonly<{ [key: string]: JsonValue }>
+
+/** Phase two: fix the outcome of the saved intent of `handoff` once. */
+export type PreadmissionOutcomeWrite = Readonly<{
+  phase: 'outcome'
+  tenant: TenantId
+  handoff: string
+  outcome: PreadmissionOutcome
+}>
+
+/** The opaque intent and outcome travel as they are; the tenant is encoded. */
+export function preadmissionFacts(
+  write: PreadmissionIntentWrite | PreadmissionOutcomeWrite,
+): FactCommandV2 {
+  const { phase, tenant, ...rest } = write
+  return {
+    participant: EXECUTION_RECORD_PARTICIPANT,
+    facts: {
+      intent: 'preadmission',
+      phase,
+      write: { ...(rest as Readonly<Record<string, JsonValue>>), tenant: encodeValue(tenant) },
+    },
+  }
+}
+
+/** One saved preadmission record. The digests are the participant's digests of the canonical JSON. */
+export type PreadmissionRecord = Readonly<{
+  tenant: string
+  handoff: string
+  entry: string | null
+  session: string | null
+  execution: string | null
+  intent: JsonValue
+  intentDigest: string
+  outcome: JsonValue | null
+  outcomeDigest: string | null
+}>
+
+const textOrNull = (value: JsonValue | undefined): value is string | null =>
+  value === null || typeof value === 'string'
+
+export function decodePreadmissionRecord(
+  output: JsonValue,
+): PreadmissionRecord | null | 'malformed' {
+  if (output === null) return null
+  const value = recordOf(output)
+  if (value === null) return 'malformed'
+  const { tenant, handoff, entry, session, execution, intentDigest, outcomeDigest } = value
+  return typeof tenant === 'string' &&
+    typeof handoff === 'string' &&
+    typeof intentDigest === 'string' &&
+    textOrNull(entry) &&
+    textOrNull(session) &&
+    textOrNull(execution) &&
+    textOrNull(outcomeDigest) &&
+    value['intent'] !== undefined
+    ? {
+        tenant,
+        handoff,
+        entry,
+        session,
+        execution,
+        intent: value['intent'],
+        intentDigest,
+        outcome: value['outcome'] ?? null,
+        outcomeDigest,
+      }
+    : 'malformed'
+}
+
+/**
+ * The reply of a preadmission write, decoded.
+ *
+ * - `saved`: the record after the write. `created` is true when this write saved the intent or
+ *   fixed the outcome, false when the record already held it (a recall).
+ * - `conflict`: the same H holds another intent, or another fixed outcome; `record` is the held one.
+ * - `invalid`: an outcome without a saved intent.
+ */
+export type PreadmissionParticipation =
+  | Readonly<{ kind: 'saved'; created: boolean; record: PreadmissionRecord }>
+  | Readonly<{ kind: 'conflict'; record: PreadmissionRecord }>
+  | Readonly<{ kind: 'invalid'; reason: string }>
+  | Readonly<{ kind: 'failed'; diagnostic: string }>
+  | Readonly<{ kind: 'unsupported'; reason: string }>
+
+export function decodePreadmissionReply(reply: RecordedReply): PreadmissionParticipation {
+  switch (reply.kind) {
+    case 'participated': {
+      const response = recordOf(reply.response)
+      const record = decodePreadmissionRecord(response?.['record'] ?? null)
+      return response?.['kind'] === 'saved' &&
+        typeof response['created'] === 'boolean' &&
+        record !== null &&
+        record !== 'malformed'
+        ? { kind: 'saved', created: response['created'], record }
+        : { kind: 'failed', diagnostic: 'a preadmission reply without its record' }
+    }
+    case 'conflict': {
+      const basis = recordOf(reply.basis)
+      const reason = basis?.['reason']
+      if (basis?.['kind'] === 'invalid' && typeof reason === 'string')
+        return { kind: 'invalid', reason }
+      const record = decodePreadmissionRecord(basis?.['record'] ?? null)
+      return basis?.['kind'] === 'preadmission' && record !== null && record !== 'malformed'
+        ? { kind: 'conflict', record }
+        : { kind: 'failed', diagnostic: 'a preadmission conflict without a basis' }
+    }
+    case 'unsupported': {
+      const reason = recordOf(reply.basis)?.['reason']
+      return { kind: 'unsupported', reason: typeof reason === 'string' ? reason : 'unsupported' }
+    }
+    case 'failed':
+      return { kind: 'failed', diagnostic: `${reply.category}: ${reply.diagnostic}` }
+  }
+}
+
+/** The input of `execution-record.preadmission`: the tenant text and exactly one of H or Ki. */
+export type PreadmissionRead =
+  | Readonly<{ tenant: string; handoff: string }>
+  | Readonly<{ tenant: string; entry: string }>
 
 // ---------------------------------------------------------------------------------------------
 // The execution index

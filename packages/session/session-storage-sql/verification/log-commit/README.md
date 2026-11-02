@@ -133,14 +133,18 @@
 
 ## 源码映射与实现义务
 
-| 模型位置 | 基线来源与目标 | 尚需真实实现核验 |
-| --- | --- | --- |
-| observation 与 `Judge` | [公开 observation](../../../session-contract/src/projection.ts)、[validateObservation](../../../session-contract/src/observation-validation.ts)、[事务端口](../../../session-contract/src/ports.ts) | R1 新 `commitLog` 在事务内调用纯层。错 head、跨租户、委派视图与重复 sequence 的回执符合性。 |
-| `PublishAgent`、K-5 分量 | [execution-record.ts](../../src/worker/execution-record.ts) 的 `publish`、`writeIndex` | 原事实与四张 `er_` 索引表同事务。R3 的 `kinds` 归一与占位回执拒绝。 |
-| `Root` 与 `Refresh` | [log-root.ts](../../src/worker/log-root.ts)、[history-index.ts](../../src/worker/history-index.ts) | 基线仅组共同根，K-5 的 execution、batch、admission 仍空。目标须在同一写事务填充。 |
-| `Judge`、`PublishSession`、`Abort` | [entries 判定](../../src/worker/entries.ts)、[参加者](../../src/worker/participant.ts)作为已存在的同事务参照 | 新 log 意图，四处写失败注入，后果、快照、索引、操作行和尾部全部回滚。参照不是目标已经实现。 |
-| `LoseContact`、`Query`、`Deliver` | [SL07/08](../../../session-contract/SPEC.md#日志提交与查询结果)、[存储验证义务](../../docs/verification-obligations.md) 的 VS-W12、VS-F02、VS-F05 | 真实 provider 的提交未知、杀进程后认回、在途排除与尝试代次。 |
-| execution 路由 | [执行索引](../../SPEC.md#执行索引) | 本模型只消费固定关系。建立和唯一关联归 generation-handoff 模型与产品符合性。 |
+C-STORAGE（#502 r3 attempt `502-r3-a2`）兑现了下表「已兑现」一列的切点。
+兑现指源码有对应实现并有 SQL 用例，不指模型与实现的符合性已经证明。
+用例的范围见[存储成员 SPEC](../../SPEC.md#已知限制)第 12、16 条。
+
+| 模型位置 | 来源 | 已兑现 | 尚需核验 |
+| --- | --- | --- | --- |
+| observation 与 `Judge` | [公开 observation](../../../session-contract/src/projection.ts)、[validateObservation](../../../session-contract/src/observation-validation.ts)、[事务端口](../../../session-contract/src/ports.ts)、[log 判定](../../src/worker/log.ts) | `commitLog` 在写事务内先按 operation 认回，再读 K-5 并调用纯层。错 head 答 `invalid(revision)`，跨租户与不存在的会话答相同的 `denied`，委派视图答 `denied`，`sequence ≤ readThrough` 认回覆盖它的原回执。LC-01 至 LC-10 在 `node:sqlite` 夹具与真实 sqlite-provider 上运行 | 模型的 `Refresh` 与 `changed`：SQL 写事务串行，交错的第二个提交在同一事务里读到新进度，按零条目认回，没有实际产生 `changed` 的用例 |
+| `PublishAgent`、K-5 分量 | [execution-record.ts](../../src/worker/execution-record.ts) 的 `publish`、`writeIndex`；[history-index.ts](../../src/worker/history-index.ts) | 原事实与四张 `er_` 索引表同事务写入（既有）。读侧在 Session 的同一写事务里按键点查四张表，占位回执、未知 kinds 与解析不出的行不进入索引 | AD-02 生产发布点的 `kinds` 归一与非当前执行的占位回执归 C-ADAPTERS；`taken` 与已解释批次不进入索引 |
+| `Root` 与 `Refresh` | [log-root.ts](../../src/worker/log-root.ts)、[history-index.ts](../../src/worker/history-index.ts) | 共同根与 K-5 分量在同一写事务里读出，根与索引同源 | 用旧根准备、在新根上重判的路径仍只由纯层的 `changed` 规则覆盖 |
+| `Judge`、`PublishSession`、`Abort` | [log 判定](../../src/worker/log.ts)、[参加者](../../src/worker/participant.ts) 的 `publishSameLog` | 后果行、进度行、模型视图、快照、派生行、`log` 操作行与尾部同一事务发布。条目行、快照、操作行、尾部四处写失败注入后全部 `sl_` 表不变（`tests/log.spec.ts`） | 真实提供者上的写失败注入未运行，回滚只在 `node:sqlite` 夹具上观察 |
+| `LoseContact`、`Query`、`Deliver` | [log.ts](../../src/log.ts)、[commit.ts](../../src/commit.ts) 的尝试代次结算；[SL07/08](../../../session-contract/SPEC.md#日志提交与查询结果) | 应答丢失答 `commit-unknown`，同 operation 重试认回原回执。`log` 记录对 `queryOperation` 与 `queryControlOperation` 都答 `conflict`，认回只走重试。认回别的 operation 不保存本身份的记录，查询答 `unknown` | 真实提供者上的杀进程后认回只对 `create` 运行（`tests/real-provider.spec.ts`），没有对 `commitLog` 运行 |
+| execution 路由 | [执行索引](../../SPEC.md#执行索引) | 不变 | 建立和唯一关联归 generation-handoff 模型与产品符合性 |
 
 既有 Session frontier 模型覆盖前缀、冻结与后继治理。
 本目录增加事务发布和未知认回的具体保护，不修改旧模型。

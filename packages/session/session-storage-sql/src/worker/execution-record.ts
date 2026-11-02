@@ -4,11 +4,14 @@
 // and the publication count with the expected ones, inserts the original answer under its unique
 // operation, replaces the opaque state, writes the index rows the provider prepared, and adds one
 // to the publication count. The state and the answers are opaque: it stores them as they came.
+// Its second intent keeps the preadmission records (`preadmission`): the intent of one handoff is
+// saved before the provider answers, and its outcome is fixed once.
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantModule, ParticipantReply } from '@omne-harness/sql-contract/worker'
-import { decodeValue } from '../codec.ts'
-import { big, oneRow, text, type Executor } from './support.ts'
+import { canonicalText, decodeValue, sha256 } from '../codec.ts'
+import { findPreadmission, preadmissionRecord } from './read-preadmission.ts'
+import { big, oneRow, text, type Executor, type Row } from './support.ts'
 
 const PROTOCOL = '1'
 
@@ -280,11 +283,143 @@ function publish(port: Executor, write: Write): ParticipantReply {
   return { kind: 'participated', response: { published: String(next), digest: write.digest } }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Preadmission records
+
+const optionalText = (value: JsonValue | undefined): value is string | null =>
+  value === null || isText(value)
+
+const digestOf = (value: JsonValue): string => `sha256:${sha256(canonicalText(value))}`
+
+/** The members a saved intent carries; their content is opaque to this participant. */
+const INTENT_MEMBERS = [
+  'request',
+  'origin',
+  'principal',
+  'qualification',
+  'adoption',
+  'materials',
+] as const
+
+type IntentWrite = Readonly<{
+  tenant: string
+  handoff: string
+  entry: string | null
+  session: string | null
+  execution: string | null
+  intent: Json
+}>
+type OutcomeWrite = Readonly<{ tenant: string; handoff: string; outcome: Json }>
+
+function parseIntent(raw: Json, tenant: string): IntentWrite | null {
+  const { handoff, entry, session, execution, intent } = raw
+  return isText(handoff) &&
+    optionalText(entry) &&
+    optionalText(session) &&
+    optionalText(execution) &&
+    isJson(intent) &&
+    INTENT_MEMBERS.every(member => member in intent)
+    ? { tenant, handoff, entry, session, execution, intent }
+    : null
+}
+
+function parseOutcome(raw: Json, tenant: string): OutcomeWrite | null {
+  const { handoff, outcome } = raw
+  return isText(handoff) &&
+    isJson(outcome) &&
+    (outcome['kind'] === 'prepared' || outcome['kind'] === 'rejected')
+    ? { tenant, handoff, outcome }
+    : null
+}
+
+const saved = (created: boolean, row: Row): ParticipantReply => ({
+  kind: 'participated',
+  response: { kind: 'saved', created, record: preadmissionRecord(row) },
+})
+const preadmissionConflict = (row: Row): ParticipantReply => ({
+  kind: 'conflict',
+  basis: { kind: 'preadmission', record: preadmissionRecord(row) },
+})
+
+/**
+ * SaveIntent: the record of the same Ki is the answer as it is, whatever its H; then the record of
+ * the same H recalls when its intent is the same and conflicts otherwise; else one new record.
+ */
+function saveIntent(port: Executor, write: IntentWrite): ParticipantReply {
+  const { tenant, handoff, entry } = write
+  const sameEntry = entry === null ? undefined : findPreadmission(port, tenant, { entry })
+  if (sameEntry !== undefined) return saved(false, sameEntry)
+  const digest = digestOf(write.intent)
+  const sameHandoff = findPreadmission(port, tenant, { handoff })
+  if (sameHandoff !== undefined)
+    return text(sameHandoff['intent_digest']) === digest
+      ? saved(false, sameHandoff)
+      : preadmissionConflict(sameHandoff)
+  port.execute(
+    'INSERT INTO er_preadmission (tenant, handoff, entry, session, execution, intent, intent_digest, outcome, outcome_digest) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL)',
+    [tenant, handoff, entry, write.session, write.execution, canonicalText(write.intent), digest],
+  )
+  const row = findPreadmission(port, tenant, { handoff })
+  return row === undefined
+    ? { kind: 'failed', diagnostic: 'the saved preadmission record does not read back' }
+    : saved(true, row)
+}
+
+/** Commit: the outcome of a saved intent is fixed once; the same outcome recalls, another conflicts. */
+function fixOutcome(port: Executor, write: OutcomeWrite): ParticipantReply {
+  const { tenant, handoff } = write
+  const held = findPreadmission(port, tenant, { handoff })
+  if (held === undefined)
+    return {
+      kind: 'conflict',
+      basis: { kind: 'invalid', reason: 'no saved intent for the handoff' },
+    }
+  const digest = digestOf(write.outcome)
+  const fixed = held['outcome_digest']
+  if (fixed !== null && fixed !== undefined)
+    return text(fixed) === digest ? saved(false, held) : preadmissionConflict(held)
+  port.execute(
+    'UPDATE er_preadmission SET outcome = ?, outcome_digest = ? WHERE tenant = ? AND handoff = ? AND outcome IS NULL',
+    [canonicalText(write.outcome), digest, tenant, handoff],
+  )
+  const row = findPreadmission(port, tenant, { handoff })
+  return row === undefined
+    ? { kind: 'failed', diagnostic: 'the fixed preadmission outcome does not read back' }
+    : saved(true, row)
+}
+
+function preadmission(
+  port: Executor,
+  facts: Readonly<Record<string, JsonValue>>,
+): ParticipantReply {
+  const raw = facts['write']
+  const tenant = isJson(raw) ? tenantOf(raw['tenant']) : null
+  if (!isJson(raw) || tenant === null) return unsupported('the preadmission write is malformed')
+  switch (facts['phase']) {
+    case 'intent': {
+      const write = parseIntent(raw, tenant)
+      return write === null
+        ? unsupported('the preadmission intent is malformed')
+        : saveIntent(port, write)
+    }
+    case 'outcome': {
+      const write = parseOutcome(raw, tenant)
+      return write === null
+        ? unsupported('the preadmission outcome is malformed')
+        : fixOutcome(port, write)
+    }
+    default:
+      return unsupported('the preadmission phase is neither intent nor outcome')
+  }
+}
+
 const participant: ParticipantModule = {
   participant: 'execution-record',
   protocol: PROTOCOL,
   execute(facts, port) {
-    if (facts['intent'] !== 'publish') return unsupported('the facts are not a publication')
+    if (facts['intent'] === 'preadmission') return preadmission(port, facts)
+    if (facts['intent'] !== 'publish')
+      return unsupported('the facts are neither a publication nor a preadmission')
     const write = parseWrite(facts['write'])
     if (write === null) return unsupported('the publication is malformed')
     return publish(port, write)

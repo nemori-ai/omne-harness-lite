@@ -62,3 +62,23 @@ export const EXECUTION_RECORD_MIGRATION = Object.freeze({
   owner: 'execution-record',
   id: '001-execution-record',
 })
+
+// The preadmission records of the execution record provider (M-GENERATION SaveIntent, Commit and
+// Lookup): one record per handoff H, saved before the provider answers. `entry` (Ki) is unique per
+// tenant when present; SQLite and PostgreSQL both keep NULLs distinct in a unique index, so a record
+// without Ki takes no Ki slot. `session` and `execution` may be absent: a first invoke may have no
+// Run yet, and the table infers none. `intent` and `outcome` are opaque canonical JSON.
+export const PREADMISSION_SCHEMA: readonly string[] = [
+  `CREATE TABLE er_preadmission (
+    tenant TEXT NOT NULL, handoff TEXT NOT NULL, entry TEXT, session TEXT, execution TEXT,
+    intent TEXT NOT NULL, intent_digest TEXT NOT NULL, outcome TEXT, outcome_digest TEXT,
+    PRIMARY KEY (tenant, handoff)) STRICT`,
+  `CREATE UNIQUE INDEX er_preadmission_entry_idx ON er_preadmission (tenant, entry)`,
+]
+
+export const PREADMISSION_TABLES: readonly string[] = ['er_preadmission']
+
+export const PREADMISSION_MIGRATION = Object.freeze({
+  owner: 'execution-record',
+  id: '002-preadmission',
+})
