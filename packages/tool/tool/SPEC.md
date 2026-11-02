@@ -487,14 +487,16 @@ readReply 核固定版本及各页必要元数据。重复 cursor、非结束空
 
 ## 29 原调用停止与释放待办
 
-采用契约 [P06](../tool-contract/SPEC.md#p06-内部等待与答复) 的在途 stop 和 [P03](../tool-contract/SPEC.md#p03-环境准备和释放) 的释放推进。`control` 在同一调用事务中保存 `ToolState.controls`、原操作收据和完整 `ControlDispatch` 待办。相同 operation 和输入认回原收据，不同输入返回 conflict。`loadRecovery.controls` 投影已保存的控制，不从任务名称推断意图。
+采用契约 [P06](../tool-contract/SPEC.md#p06-内部等待与答复) 的在途 stop 和 [P03](../tool-contract/SPEC.md#p03-环境准备和释放) 的释放推进。`control` 在同一调用事务中保存 `ToolState.controls`、原操作收据、控制主体引用和完整 `ControlDispatch` 待办。原操作收据的 control 分支以 `subject` 保存该引用，`ControlRecord.source` 的摘要绑定主体引用、intent 和原 start。认回先经受信提供者比较稳定主体，再比较输入；同主体刷新凭据可以认回，异主体返回 denied，同主体不同输入返回 conflict。CAS 竞争后的重试重新核对赢家主体。`loadRecovery.controls` 投影已保存的控制，不从任务名称推断意图。
 
-driver 传播前重核控制资格，再以原 `ToolStartRecord` 取得 recovery binding。每次先查询 `inspectControl`；尚为 pending 的原控制才向该 binding 发送同操作 stop。accepted 和 unknown 只继续查询。当前控制资格收窄时保存 rejected，保留原意图。晚到确认须匹配原 source 和原启动，包括执行代次。
+driver 以推进者的恢复资格和原 `ToolStartRecord` 取得 recovery binding，再查询 `inspectControl`。仅当本地控制和 binding 观察都为 pending 时，driver 调用同一 ledger 的 `controls.prepareDispatch`。该入口核原收据、source 与 start，并按原 `subject` 重核控制主体的当前资格。确证 denied 时，同一 call CAS 保存 rejected 并删除 stop 待办；提交结果未知时不发送 stop。accepted 和 unknown 只继续查询，不再次核权或发送。`recordControl` 只检查推进者的 write 资格，保存原 binding 的观察；它不用推进者的 control 资格替换原主体判断。晚到确认须匹配原 source 和原启动，包括执行代次。
 
-当前资格检查使用 driver 的调度主体。ControlRecord 没有原控制主体，ToolAccessGuard 也不能按控制来源认回该主体。因此不同主体代为推进时，尚未兑现原控制方撤权后的拒绝传播；同主体测试不能证明这一保证。控制来源的持久关联与核权映射仍需拥有者确定，本实现不把当前检查等同于完整的 P06 控制资格保证。
+构造者通过 `ToolLedgerPorts.controlSubjects` 提供 [ToolControlSubjects](src/construction.ts)，并把 ledger.controls 传给 runtime 的可选 controls 依赖。旧构造形状仍可使用。缺主体提供者时，新 control 返回 unavailable；旧收据没有 subject、引用无效或解析不可读时，pending 控制不传播且保留待办。缺 runtime controls 同样不传播 pending stop。其他功能和已发送控制的观察仍可推进。
+
+主体引用的签发、稳定主体比较、租户绑定、重建解析和当前资格由可信身份拥有者提供。Tool 不保存原 P，不把 JSON 解码对象当作 WeakSet 签发主体，也不从 admission 或当前推进者推导 controller。主体提供者故障保留 unavailable，只有明确 denied 才形成拒绝。该边界不承诺外部授权源与 stop 副作用之间的原子撤权。生产装配必须提供真实解析器；[主体测试](tests/control-subjects.spec.ts) 使用可重建测试目录，不能证明生产身份恢复已集成。
 
 accepted 不关闭 stop 待办。stopped、already-ended 或 rejected 关闭传播待办，但不直接修改执行状态、结果、队列或环境。原 final 事实继续沿第 26 条收场。公开 control 成功提交后请求宿主调度原调用；调度提示丢失不撤销已保存的任务。
 
 release 待办先查询原 `ReleaseRecord`，pending 时向环境提供者发送同记录。unknown 只查询。ledger 继续核验实际 released 回执；pending、unknown、rejected 或不可用均保留任务。释放不删除尚未完成的 deliver 任务。
 
-`scanPending` 仍返回 unsupported。现有 `ToolLedgerStore.read/commit` 只处理具名域，无法枚举租户内有待办的调用。进程内调度与已知调用的 loadRecovery 不构成耐久扫描；完整恢复须由扫描端口及其提供者补齐。上述组合验证使用真实 ledger/driver 和可控 binding、内存记录仓，不证明生产后端的耐久性。
+`scanPending` 仍返回 unsupported。现有 `ToolLedgerStore.read/commit` 只处理具名域，无法枚举租户内有待办的调用。进程内调度与已知调用的 loadRecovery 不构成耐久扫描；完整恢复须由扫描端口及其提供者补齐。控制纵切使用真实 ledger/driver、可控 binding 和内存记录仓。[SQL reopen 用例](../tool-storage-sql/tests/control-subjects.spec.ts) 验证实际 ledger 提交的主体引用经过 SQLite 关闭与重开后仍可用于原主体核验；其身份目录与 SQL 宿主是测试提供者，不证明断电耐久或完整生产组合。

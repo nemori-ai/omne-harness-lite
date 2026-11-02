@@ -303,6 +303,12 @@ runtime.invoke 在第一次 await 前用契约判定器固定 payload，再通�
 
 [driver-facts.ts](../src/driver-facts.ts) 拥有每原 start 的受管 reader 和 ACK 编排。[driver-binding.ts](../src/driver-binding.ts) 按 tenant/call/start 保留原 live 与恢复路由。[driver.ts](../src/driver.ts) 保持每 call 串行、step budget 和统一 retryDelay。读取回调不写 ledger，业务事实及待办仍由 call 域 CAS 决定。信号竞争与退出前提见 [SPEC 第 25 条](../SPEC.md#25-原事实受管推进)。
 
+### 控制主体与传播
+
+[ledger-control-subjects.ts](../src/ledger-control-subjects.ts) 调用受信主体提供者，认回原操作时先比较稳定主体，CAS 重试重新比较赢家。`prepareDispatch` 从原 control receipt 恢复主体引用，核对 source 对主体、intent 和 start 的绑定，再检查原主体当前资格。[ledger-control.ts](../src/ledger-control.ts) 生成控制意图和拒绝的原子写集。拒绝只关闭 stop 传播待办，不生成物理停止或环境释放事实。
+
+[driver-control.ts](../src/driver-control.ts) 先恢复原 binding 并查询，只有双方 pending 才调用 prepareDispatch。推进者负责恢复与观察写入，控制主体负责停止资格，两者不互相替代。主体引用不包含可重新签发的 principal 数据；真实身份恢复属于装配提供者。完整行为及验证前提见 [SPEC 第 29 条](../SPEC.md#29-原调用停止与释放待办)。
+
 ### 原结果与环境清理模块
 
 [ledger.ts](../src/ledger.ts) 拥有边界、当前资格、外部端口调用和多 operation 排除围栏。[ledger-settlement.ts](../src/ledger-settlement.ts) 核原 final、单赢家并生成终局及全部后继任务的同提交写集。[ledger-environment-release.ts](../src/ledger-environment-release.ts) 拥有全过程保管闭包、按 preparation 唯一的 canonical 计划和观察确认。外部 retain 在 CAS 之外只按原身份调用，CAS 重判不能沿用过期闭包。

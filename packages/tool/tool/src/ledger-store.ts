@@ -85,7 +85,7 @@ export type CallRecord = Readonly<{
 /** The complete named result of one committed operation (P01 `committed.receipt`). */
 export type OperationReceipt =
   | Readonly<{ kind: 'admit'; state: ToolState }>
-  | Readonly<{ kind: 'control'; control: ControlReceipt }>
+  | Readonly<{ kind: 'control'; control: ControlReceipt; subject?: DurableEvidence }>
   | Readonly<{ kind: 'record-control'; control: ControlRecord }>
   | Readonly<{ kind: 'release-delivery'; delivery: ReleasedDelivery }>
   | Readonly<{ kind: 'plan-preparation'; preparation: PreparationRecord }>

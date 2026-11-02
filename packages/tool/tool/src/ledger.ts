@@ -1,7 +1,8 @@
 import { matchEnvironmentAdoption } from './environment-adoption.ts'
 import { controlIntent } from './control-intent.ts'
 import { controlProgress } from './control-progress.ts'
-import { controlFinished, decideControl, decideRecordControl } from './ledger-control.ts'
+import { decideControl, decideRecordControl } from './ledger-control.ts'
+import { controlSubject, createLedgerControls } from './ledger-control-subjects.ts'
 // The ledger factory (G1): `createToolLedger(store, guards, clock, configuration, settlement)` gives the
 // ToolCommands and ToolReads of this implementation, and the admission entry that the runtime
 // uses. Each entry checks its boundary input, asks the guards, reads the domain, lets a pure
@@ -71,6 +72,7 @@ import type {
   ToolLedgerQueues,
   ToolLedgerFacts,
   ToolLedgerPorts,
+  ToolLedgerControls,
 } from './construction.ts'
 import {
   fixFactAcknowledgement,
@@ -141,6 +143,7 @@ import {
 } from './ledger-store.ts'
 
 export type ToolLedger<P, B extends ContentBlock> = Readonly<{
+  controls: ToolLedgerControls<P>
   commands: ToolCommands<P, B>
   reads: ToolReads<P, B>
   /** The admission with the recall flag; `commands.admit` answers its state only. */
@@ -177,7 +180,10 @@ function unavailable(dependency: string, diagnostic: string): Outcome<never, Too
   return fail({ kind: 'unavailable', dependency, diagnostic })
 }
 
-type Decide<T, B extends ContentBlock> = (snapshot: Snapshot<B>, mint: Mint) => Decision<T, B>
+type Decide<T, B extends ContentBlock> = (
+  snapshot: Snapshot<B>,
+  mint: Mint,
+) => Decision<T, B> | Promise<Decision<T, B>>
 type DecideQueue<T, B extends ContentBlock> = (snapshot: QueueSnapshot) => Decision<T, B>
 
 /**
@@ -306,7 +312,7 @@ export function createToolLedger<P, B extends ContentBlock>(
       if (operation !== null && excludedSince(snapshot.ok, operation, firstRead))
         return excluded(operation)
       const revision = nextRevision(snapshot.ok.revision)
-      const decision = decide(snapshot.ok, { revision })
+      const decision = await decide(snapshot.ok, { revision })
       if (decision.kind === 'reply') return decision.outcome
       const operations = new Set(operation === null ? [] : [operation])
       for (const write of decision.writes) {
@@ -1071,8 +1077,19 @@ export function createToolLedger<P, B extends ContentBlock>(
       const intent = controlIntent(input)
       if ('failure' in intent) return intent
       return mutate(input, 'control', context => {
-        const command = { ...context, intent: intent.ok, inputDigest: digestOf(intent.ok) }
-        return Promise.resolve(succeed((snapshot, mint) => decideControl(snapshot, command, mint)))
+        return Promise.resolve(
+          succeed(async (snapshot, mint) => {
+            const subject = await controlSubject(snapshot, context, settlement.controlSubjects)
+            if ('failure' in subject) return { kind: 'reply', outcome: subject }
+            const command = {
+              ...context,
+              intent: intent.ok,
+              subject: subject.ok,
+              inputDigest: digestOf(intent.ok),
+            }
+            return decideControl(snapshot, command, mint)
+          }),
+        )
       })
     },
     acceptDecision: input =>
@@ -1110,15 +1127,11 @@ export function createToolLedger<P, B extends ContentBlock>(
       const progress = controlProgress(fixed.ok.progress)
       if ('failure' in progress) return progress
       return mutate(input, 'write', async context => {
-        const qualification = await access(context, 'control')
-        if ('failure' in qualification && qualification.failure.kind !== 'denied')
-          return qualification
         const command = {
           ...context,
           control: control.ok,
           source: source.ok,
           progress: progress.ok,
-          qualificationDenied: 'failure' in qualification && !controlFinished(progress.ok),
           inputDigest: digestOf(fixed.ok),
         }
         return Promise.resolve(
@@ -1321,6 +1334,9 @@ export function createToolLedger<P, B extends ContentBlock>(
   })
 
   return Object.freeze({
+    controls: Object.freeze(
+      createLedgerControls<P, B>({ subjects: settlement.controlSubjects, entry, transact }),
+    ),
     commands: Object.freeze(commands),
     reads: Object.freeze(reads),
     admissions: Object.freeze(admissions),

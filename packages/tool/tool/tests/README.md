@@ -1,5 +1,7 @@
 # tool 成员测试
 
+[control-subjects.spec.ts](control-subjects.spec.ts) 运行实际 ledger/runtime，检查 B 提交后撤权、A 推进、主体提供者重建、CAS 赢家、凭据刷新、坏引用和丢答。其 [主体目录](control-subject-values.ts) 是测试提供者，不恢复生产身份。真实 SQLite 引用保存在 [SQL reopen 用例](../../tool-storage-sql/tests/control-subjects.spec.ts) 中验证。
+
 测试经包名导入本包。行为测试的名字以 [SPEC](../SPEC.md) 所属规则的编号开头，`pnpm exec vitest run -t "<名字前缀>"` 可单独运行。给了 `--mode fast` 或 `--mode slow` 时，vitest 先静态解析用例名再过滤，`it.each` 展开后的完整名字匹配不到，用名字前缀即可。
 
 Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` 和 `./testing` 精确映射到源码，避免并行契约构建删除 `dist` 时影响业务测试。配置复制到测试沙箱后仍经该沙箱的 `node_modules` 解析依赖。[受控复现](https://github.com/nemori-ai/omne-harness-lite/issues/424#issuecomment-6271941775)在该缺失窗口运行 managed-start 和 queue-release 测试。此配置不验证安装后契约包的 JavaScript exports。Tool 自身构建仍执行，`public-entry.spec.ts` 继续检查 Tool 的源码、JavaScript 产物和声明导入图、清单依赖与生产安装闭包。

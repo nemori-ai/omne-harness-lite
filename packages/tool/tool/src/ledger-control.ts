@@ -24,13 +24,12 @@ import { sameFactValue } from './ledger-facts.ts'
 import { taskKey, type CallRecord } from './ledger-store.ts'
 
 type Command = MutationInput<unknown> & Readonly<{ inputDigest: string }>
-type ControlCommand = Command & Readonly<{ intent: ToolControl }>
+type ControlCommand = Command & Readonly<{ intent: ToolControl; subject: DurableEvidence }>
 type ProgressCommand = Command &
   Readonly<{
     control: ToolOperationId
     source: DurableEvidence
     progress: ControlProgress
-    qualificationDenied: boolean
   }>
 
 function withControls(
@@ -75,7 +74,7 @@ export function decideControl<B extends ContentBlock>(
     'operation',
     { tenant: call.tenant, call: call.call, operation: command.operation },
     mint.revision,
-    { intent: command.intent, start: call.start },
+    { intent: command.intent, start: call.start, subject: command.subject },
   )
   const ended = call.state.execution.kind === 'ended'
   const control: ControlRecord = {
@@ -107,7 +106,13 @@ export function decideControl<B extends ContentBlock>(
     value: receipt,
     writes: [
       put({ kind: 'call', call: revised }),
-      put(operationRecord(command, { kind: 'control', control: receipt }, mint)),
+      put(
+        operationRecord(
+          command,
+          { kind: 'control', control: receipt, subject: command.subject },
+          mint,
+        ),
+      ),
       ...(ended
         ? []
         : [
@@ -160,18 +165,7 @@ export function decideRecordControl<B extends ContentBlock>(
     return reply(invalid('control', 'not-original-execution'))
   if (command.progress.kind === 'relation-changed')
     return reply(invalid('progress', 'stop-cannot-change-relation'))
-  const progress: ControlProgress = command.qualificationDenied
-    ? {
-        kind: 'rejected',
-        reason: 'control-qualification-denied',
-        evidence: mintEvidence(
-          'operation',
-          { tenant: call.tenant, call: call.call, operation: command.operation },
-          mint.revision,
-          { control: command.control, reason: 'control-qualification-denied' },
-        ),
-      }
-    : command.progress
+  const progress = command.progress
   const control: ControlRecord = { ...original, progress }
   const revised = withControls(
     call,
@@ -193,6 +187,46 @@ export function decideRecordControl<B extends ContentBlock>(
               diagnostic: 'diagnostic' in control.progress ? control.progress.diagnostic : null,
             },
           }),
+    ],
+  }
+}
+
+/** A confirmed denial closes only propagation; execution and all other duties remain intact. */
+export function rejectControl<B extends ContentBlock>(
+  call: CallRecord,
+  original: ControlRecord,
+  mint: Mint,
+): Decision<ControlRecord, B> {
+  const control: ControlRecord = {
+    ...original,
+    progress: {
+      kind: 'rejected',
+      reason: 'control-qualification-denied',
+      evidence: mintEvidence(
+        'operation',
+        {
+          tenant: call.tenant,
+          call: call.call,
+          operation: original.operation,
+        },
+        mint.revision,
+        { control: original.source, reason: 'control-qualification-denied' },
+      ),
+    },
+  }
+  return {
+    kind: 'commit',
+    value: control,
+    writes: [
+      put({
+        kind: 'call',
+        call: withControls(
+          call,
+          call.state.controls.map(item => (item.operation === original.operation ? control : item)),
+          mint,
+        ),
+      }),
+      { kind: 'delete', key: taskKey({ kind: 'stop', operation: original.operation }) },
     ],
   }
 }
