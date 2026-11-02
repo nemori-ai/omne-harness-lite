@@ -134,8 +134,11 @@ async function run(
   return { handle, result, bytes: Buffer.concat(chunks) }
 }
 
-async function retainedFixture(retentionLedger = recorder()) {
-  const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
+async function retainedFixture(retentionLedger = recorder(), retainedCapacity?: number) {
+  const provider = createHostFilesProvider({
+    domain: createHostFilesDomain(),
+    ...(retainedCapacity === undefined ? {} : { terminal: { retainedCapacity } }),
+  })
   providers.push(provider)
   if (provider.listRecoveryResources === undefined || provider.recover === undefined)
     throw new Error('retention recovery missing')
@@ -289,6 +292,48 @@ it('prevents real retained creation when its scope closes during durable permiss
   grant('confirmed')
   expect(await creating).toMatchObject({ reason: 'closed' })
   expect(owner.stops).toContain('confirmed')
+  expect(await f.provider.retire()).toMatchObject({ kind: 'drained' })
+}, 30_000)
+
+it('retains unknown planned shell ownership until the original ledger confirms settlement', async context => {
+  if (!(await prerequisites()))
+    return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')
+  const owner = recorder()
+  let canRecord = false
+  const settled: string[] = []
+  const f = await retainedFixture(
+    {
+      ...owner,
+      ledger: {
+        ...owner.ledger,
+        async plan(resource) {
+          owner.resources.push(resource)
+          throw new Error('plan persisted but reply lost')
+        },
+        async stopped(key, status) {
+          expect(status).toBe('confirmed')
+          if (!canRecord) return 'unavailable'
+          settled.push(key)
+          return 'recorded'
+        },
+      },
+    },
+    1,
+  )
+  const a = await f.acquire('a')
+  const create = () => a.terminal.create({ ...a.request, cwd: f.cwd, env, retain: 'session' })
+  expect(await create()).toMatchObject({ kind: 'unknown' })
+  expect(await f.listResources(f.retentionScope)).toEqual({
+    kind: 'listed',
+    resources: owner.resources,
+  })
+  expect(await create()).toMatchObject({ reason: 'busy' })
+  expect(await f.provider.retire()).toMatchObject({ kind: 'pending', resources: owner.resources })
+  expect(settled).toEqual([])
+  canRecord = true
+  for (const resource of owner.resources)
+    expect(await f.recover(resource)).toMatchObject({ status: 'confirmedStopped' })
+  expect(settled).toEqual(owner.resources.map(resource => resource.key))
   expect(await f.provider.retire()).toMatchObject({ kind: 'drained' })
 }, 30_000)
 

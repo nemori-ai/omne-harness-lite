@@ -204,8 +204,7 @@ export function createHostTerminals(input: Input): HostTerminals {
   const inFlight = new Set<Promise<unknown>>()
   let sealed = false
   const closed = () => sealed || ledger.closed.aborted || input.closed?.() === true
-  let reservationPlanned = false
-  let reservationRecorded = false
+  let reservationPlan: 'unrequested' | 'pending' | 'unconfirmed' | 'settled' = 'unrequested'
 
   const forceStop = (entry: Entry): Promise<StopStatus> => {
     if (entry.confirmed) return Promise.resolve('confirmed')
@@ -377,13 +376,22 @@ export function createHostTerminals(input: Input): HostTerminals {
       reference: scopeReference(coordinate),
     }
     let planned: Awaited<ReturnType<ResourceLedger['plan']>>
+    if (input.reservation !== undefined) reservationPlan = 'pending'
     try {
       planned = await ledger.plan(resource)
     } catch {
+      if (input.reservation !== undefined) {
+        reservationPlan = 'unconfirmed'
+        return { kind: 'unknown', requestId }
+      }
       return rejected(requestId, 'unavailable')
     }
+    if (input.reservation !== undefined) {
+      reservationPlan =
+        planned === 'recorded' || planned === 'unavailable' ? 'unconfirmed' : 'unrequested'
+      if (planned === 'unavailable') return { kind: 'unknown', requestId }
+    }
     if (planned !== 'recorded') return rejected(requestId, planned)
-    reservationPlanned = true
     if (closed()) return rejected(requestId, 'closed')
     // Retained creation obtains permission before even launching its private gate.
     if (input.reservation !== undefined) {
@@ -519,8 +527,14 @@ export function createHostTerminals(input: Input): HostTerminals {
       inFlight.delete(running)
     })
   }
-  const unconfirmed = () =>
-    [...entries.values()].filter(entry => !entry.confirmed).map(entry => entry.resource)
+  const unconfirmed = () => [
+    ...[...entries.values()].filter(entry => !entry.confirmed).map(entry => entry.resource),
+    ...(input.reservation !== undefined &&
+    entries.size === 0 &&
+    (reservationPlan === 'pending' || reservationPlan === 'unconfirmed')
+      ? [input.reservation.resource]
+      : []),
+  ]
   const facility: TerminalFacility<unknown> = {
     create: request =>
       track(
@@ -575,16 +589,14 @@ export function createHostTerminals(input: Input): HostTerminals {
       if (
         input.reservation !== undefined &&
         entries.size === 0 &&
-        reservationPlanned &&
-        !reservationRecorded
+        reservationPlan === 'unconfirmed'
       ) {
         try {
-          reservationRecorded =
-            (await ledger.stopped(input.reservation.resource.key, 'confirmed')) === 'recorded'
+          if ((await ledger.stopped(input.reservation.resource.key, 'confirmed')) === 'recorded')
+            reservationPlan = 'settled'
         } catch {
-          reservationRecorded = false
+          // No process started; only the original key's durable settlement remains unknown.
         }
-        if (!reservationRecorded) return [input.reservation.resource]
       }
       return unconfirmed()
     },

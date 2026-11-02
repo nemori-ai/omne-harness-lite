@@ -43,7 +43,7 @@ type Leg = {
   readonly owner: object
   readonly resource: ManagedResource
   readonly ledger: ResourceLedger
-  handle: ProcessHandle | undefined
+  execution: { kind: 'notSent' } | { kind: 'sent'; handle: ProcessHandle | undefined }
   starting: boolean
   stopped: boolean
   recorded: boolean
@@ -98,11 +98,11 @@ async function recordStop(leg: Leg, status: StopStatus): Promise<StopStatus> {
 async function stopLeg(entry: Entry, leg: Leg): Promise<StopStatus> {
   leg.cancelled = true
   if (leg.starting) return 'unconfirmed'
-  if (leg.stopped) return recordStop(leg, 'confirmed')
+  if (leg.stopped || leg.execution.kind === 'notSent') return recordStop(leg, 'confirmed')
   try {
-    const status = await (leg.handle === undefined
+    const status = await (leg.execution.handle === undefined
       ? entry.backend.stop()
-      : leg.handle.stop('forced'))
+      : leg.execution.handle.stop('forced'))
     const recorded = await recordStop(leg, status)
     if (status === 'confirmed' && entry.running === leg) entry.running = undefined
     return recorded
@@ -308,7 +308,7 @@ export function createRetainedTerminalIndex() {
           owner,
           resource,
           ledger: acquisition.ledger,
-          handle: undefined,
+          execution: { kind: 'notSent' },
           starting: true,
           stopped: false,
           recorded: false,
@@ -341,12 +341,13 @@ export function createRetainedTerminalIndex() {
               cancelled() ? 'closed' : permit === 'confirmed' ? 'unavailable' : permit,
             )
           }
+          leg.execution = { kind: 'sent', handle: undefined }
           const answer = await entry.backend.execute(request)
           if (answer.kind !== 'done') {
             if (answer.kind !== 'unknown') await recordStop(leg, 'confirmed')
             return answer
           }
-          leg.handle = answer.value
+          leg.execution = { kind: 'sent', handle: answer.value }
           leg.starting = false
           const result = answer.value.result.then(async outcome => {
             if (outcome.kind === 'completed') await recordStop(leg, 'confirmed')
@@ -372,6 +373,7 @@ export function createRetainedTerminalIndex() {
             }),
           }
         } catch {
+          if (leg.execution.kind === 'notSent') await recordStop(leg, 'confirmed')
           return { kind: 'unknown', requestId: request.requestId }
         } finally {
           leg.starting = false

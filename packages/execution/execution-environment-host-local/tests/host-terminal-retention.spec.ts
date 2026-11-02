@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import {
@@ -17,7 +17,9 @@ import {
   createRetainedTerminalIndex,
   type RetainedTerminalFactory,
 } from '../src/host-retained-terminals.ts'
-import type { HostTerminals } from '../src/host-terminal.ts'
+import { createHostTerminals, terminalSettings, type HostTerminals } from '../src/host-terminal.ts'
+import * as hostProbe from '../src/host-probe.ts'
+import * as hostScope from '../src/host-scope.ts'
 
 function scope(ref: string) {
   const result = decodeScopeRef({ ref })
@@ -352,7 +354,122 @@ it('rejects an execution before sending its script when the acquisition permit i
   })
   expect(f.executed).toEqual([])
   expect(await a.stopAll()).toEqual([])
+  expect(f.stopped).toEqual([])
 })
+
+it.each(['plan', 'permit'] as const)(
+  'keeps the retained shell when the acquisition %s reply is lost before execution',
+  async phase => {
+    const f = fixture()
+    const normal = input()
+    let canRecord = false
+    const keys: string[] = []
+    const failed = async () => {
+      throw new Error('ledger reply lost')
+    }
+    const ledger: ResourceLedger = {
+      ...normal.ledger,
+      ...(phase === 'plan' ? { plan: failed } : { permit: failed }),
+      async stopped(key) {
+        keys.push(key)
+        return canRecord ? 'recorded' : 'unavailable'
+      },
+    }
+    const a = f.facade({ ...normal, ledger })
+    const terminal = await f.create(a)
+    expect(await a.facility.execute({ ...request, terminal, script: 'never sent' })).toMatchObject({
+      kind: 'unknown',
+    })
+    expect(f.executed).toEqual([])
+    a.seal()
+    expect(await a.stopAll()).toHaveLength(1)
+    expect(f.stopped).toEqual([])
+    const b = f.facade()
+    expect(await b.facility.attach?.({ ...request, terminal })).toMatchObject({ kind: 'done' })
+    const leg = value(await b.facility.execute({ ...request, terminal, script: 'survives' }))
+    canRecord = true
+    expect(await a.stopAll()).toEqual([])
+    expect(f.stopped).toEqual([])
+    expect(new Set(keys).size).toBe(1)
+    f.finish(terminal.id)
+    expect(await leg.result).toMatchObject({ kind: 'completed' })
+    expect(f.started).toHaveLength(1)
+  },
+)
+
+it.each(['throw', 'unavailable'] as const)(
+  'keeps a Linux reservation after a durable plan returns %s until the original key is settled',
+  async answer => {
+    const prerequisite = vi.spyOn(hostProbe, 'probeTerminalPrerequisites').mockResolvedValue([])
+    const launch = vi.spyOn(hostScope, 'launchScope').mockImplementation(() => {
+      throw new Error('unexpected process start')
+    })
+    const memory = createMemoryResourceLedger()
+    const key = randomUUID()
+    const coordinate = { unit: `omne-host-${key}.scope`, bootId: 'test-boot' }
+    const resource: ManagedResource = {
+      key,
+      provider: 'host',
+      reference: hostScope.scopeReference(coordinate),
+    }
+    let canRecord = false
+    const durable = new Map<string, ManagedResource>()
+    const stoppedKeys: string[] = []
+    const permit = vi.fn(async () => 'confirmed' as const)
+    const ledger: ResourceLedger = {
+      ...memory.ledger,
+      async plan(planned) {
+        durable.set(planned.key, planned)
+        if (answer === 'throw') throw new Error('durable plan reply lost')
+        return 'unavailable'
+      },
+      permit,
+      async stopped(stoppedKey, status) {
+        stoppedKeys.push(stoppedKey)
+        expect(status).toBe('confirmed')
+        if (!canRecord) return 'unavailable'
+        durable.delete(stoppedKey)
+        return 'recorded'
+      },
+    }
+    const terminals = createHostTerminals({
+      provider: 'host',
+      ledger,
+      scope: scope('session'),
+      settings: terminalSettings(),
+      reservation: { resource, coordinate, terminal: { id: key, generation: 'test' } },
+      prerequisites: {
+        facts: () => 'satisfied',
+        ready: async () => ({
+          kind: 'satisfied',
+          tools: { systemctl: 'unused', systemdRun: 'unused', killWhom: '--kill-whom' },
+        }),
+      },
+      unavailable() {
+        throw new Error('unexpected prerequisite rejection')
+      },
+    })
+    try {
+      expect(
+        await terminals.facility.create({ ...request, cwd: '/tmp', env: {}, retain: 'session' }),
+      ).toMatchObject({ kind: 'unknown' })
+      expect([...durable.values()]).toEqual([resource])
+      terminals.seal()
+      expect(await terminals.stopAll()).toEqual([resource])
+      expect(terminals.unconfirmed()).toEqual([resource])
+      expect(stoppedKeys).toEqual([key])
+      expect(permit).not.toHaveBeenCalled()
+      expect(launch).not.toHaveBeenCalled()
+      canRecord = true
+      expect(await terminals.stopAll()).toEqual([])
+      expect([...durable.values()]).toEqual([])
+      expect(stoppedKeys).toEqual([key, key])
+    } finally {
+      prerequisite.mockRestore()
+      launch.mockRestore()
+    }
+  },
+)
 
 it('closes the whole terminal independently of attachment and reports a confirmed closed state', async () => {
   const f = fixture()
