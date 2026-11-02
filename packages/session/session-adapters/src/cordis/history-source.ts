@@ -206,6 +206,11 @@ function sessionSeqOf(seq: HistorySequence): string {
   return String(BigInt(seq) + 1n)
 }
 
+/** The Session cursor of a history cursor: after the same row of the Session numbering. */
+function sessionAfterOf(cursor: HistoryCursor | null): string | null {
+  return cursor === null ? null : sessionSeqOf(cursor.after)
+}
+
 /** `"0"` is the empty history; any other canonical decimal is the entry of its last row. */
 function upperOf(text: string): HistoryUpper | undefined {
   if (text === '0') return { kind: 'empty' }
@@ -528,7 +533,7 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       this.scope[sessionKey].history.readModelView({
         ...located.session,
         basis,
-        after: cursor === null ? null : sessionSeqOf(cursor.after),
+        after: sessionAfterOf(cursor),
         pageBytes: input.budgetBytes,
       }),
     )
