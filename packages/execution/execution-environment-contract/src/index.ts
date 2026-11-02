@@ -29,6 +29,7 @@ export type {
   FileSystemFacility,
   FileTarget,
   FileVersion,
+  FileWriteResult,
   HandleGeneration,
   ObjectToken,
 } from './facilities/files.ts'
@@ -54,6 +55,8 @@ export type {
   RecoveryAccess,
   RecoveryAuthority,
   ResourceLedger,
+  RetainedTerminalLedger,
+  SessionTerminalRetention,
 } from './ports.ts'
 
 export type {

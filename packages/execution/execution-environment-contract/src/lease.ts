@@ -196,6 +196,7 @@ export type OriginalAcquisition = Readonly<{
   origin: OriginRef
   scope: ScopeRef
   placement: Placement
+  retentionScope?: ScopeRef
 }>
 
 export type AcquisitionQuery =
