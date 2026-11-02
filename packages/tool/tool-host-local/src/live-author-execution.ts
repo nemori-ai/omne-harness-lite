@@ -128,7 +128,12 @@ export function createLiveAuthorExecution<B extends ContentBlock>(
       const old = controls.get(control.operation)
       if (old !== undefined && old.digest !== canonicalDigest(control))
         return fail({ kind: 'conflict', operation: control.operation })
-      return succeed(old?.value ?? { kind: 'unknown', diagnostic: 'control has not been received' })
+      if (old !== undefined) return succeed(old.value)
+      return succeed(
+        lookup.kind === 'lost'
+          ? { kind: 'unknown', diagnostic: 'the original execution continuity is lost' }
+          : { kind: 'pending', diagnostic: 'control has not been received' },
+      )
     },
     async answer() {
       return fail({
