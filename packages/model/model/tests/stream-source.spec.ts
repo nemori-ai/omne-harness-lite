@@ -1,18 +1,21 @@
 import { expect, it, vi } from 'vitest'
+import * as modelContract from '@omne-harness/model-contract'
 import {
   decodeDispatchId,
   decodeOutputCursor,
   decodeRevision,
+  encodeModelInvocationRef,
   type CallState,
 } from '@omne-harness/model-contract'
 import type { Publication } from '@omne-harness/model-contract/provider'
 import { createModelObservationSource } from '../src/stream-source.ts'
+import { measureStreamValue } from '../src/stream-bounds.ts'
 import type {
   ModelObservationLimits,
   ModelObservationTiming,
   ObservationFacts,
 } from '../src/stream-types.ts'
-import { fixture, instance, unbox } from './memory-fixture.ts'
+import { callId, fixture, instance, unbox } from './memory-fixture.ts'
 
 export function streamFixture(overrides: Partial<ModelObservationLimits> = {}) {
   const f = fixture()
@@ -133,11 +136,13 @@ it('copies only changed content and preserves the frozen blocks across state-onl
     [Symbol.asyncIterator]()
   const first = (await iterator.next()).value
   const clone = vi.spyOn(globalThis, 'structuredClone')
+  const diff = vi.spyOn(modelContract, 'diffModelStream')
   f.confirm({
     ...large,
     material: { ...large.material, snapshot: { ...large.material.snapshot, blocks } },
   })
   expect(clone).not.toHaveBeenCalled()
+  expect(diff).not.toHaveBeenCalled()
   const next = f.facts('2')
   if (next.material.kind !== 'retained') throw new Error('fixture material')
   f.confirm({
@@ -146,10 +151,12 @@ it('copies only changed content and preserves the frozen blocks across state-onl
   })
   const delta = (await iterator.next()).value
   expect(delta.value.blocks).toEqual([])
+  expect(diff).toHaveBeenCalledTimes(1)
   expect(
     clone.mock.calls.every(([value]) => !JSON.stringify(value).includes('a'.repeat(30000))),
   ).toBe(true)
   clone.mockRestore()
+  diff.mockRestore()
   const later = f.host.observation
     .observe({ ref: current.ref, access: f.access, signal: new AbortController().signal })
     [Symbol.asyncIterator]()
@@ -322,5 +329,80 @@ it('rechecks authorization and host lifetime after a held refresh', async () => 
   f.denied.clear()
   f.host.close()
   expect(await f.current()).toHaveProperty('failure.kind', 'unavailable')
+  f.source.close()
+})
+
+it.each(['host', 'source'] as const)(
+  'discards a held current result after %s closes',
+  async owner => {
+    const f = streamFixture()
+    const barrier = Promise.withResolvers<void>()
+    f.setRefresh(async () => {
+      await barrier.promise
+      f.confirm(f.facts())
+      return { ok: undefined }
+    })
+    const pending = f.current()
+    if (owner === 'host') f.host.close()
+    else f.source.close()
+    barrier.resolve()
+    expect(await pending).toHaveProperty('failure.kind', 'unavailable')
+    f.source.close()
+  },
+)
+
+it('accepts exact retained and total scratch byte budgets and rejects the next byte', async () => {
+  const sample = streamFixture()
+  const facts = sample.facts()
+  if (facts.material.kind !== 'retained') throw new Error('material')
+  const measured = measureStreamValue(
+    {
+      reference: facts.reference,
+      admission: facts.admission,
+      serial: '1',
+      publication: null,
+      execution: facts.execution,
+      value: facts.material.snapshot,
+    },
+    1000000,
+  )
+  if (!measured) throw new Error('measurement')
+  sample.source.close()
+  for (const limit of ['maxRetainedBytes', 'maxTotalBytes'] as const) {
+    const bound = measured.bytes * (limit === 'maxTotalBytes' ? 2 : 1)
+    const exact = streamFixture({ [limit]: bound })
+    exact.confirm(exact.facts())
+    expect(await exact.current()).toHaveProperty('ok.state.revision', '1')
+    exact.source.close()
+    const over = streamFixture({ [limit]: bound - 1 })
+    over.confirm(over.facts())
+    expect(await over.current()).toHaveProperty('failure.kind', 'unavailable')
+    over.source.close()
+  }
+})
+
+it('evicts an unwatched least recently read call without retaining its old target', async () => {
+  const f = streamFixture({ maxRetainedCalls: 1 })
+  f.confirm(f.facts())
+  expect(await f.current()).toHaveProperty('ok.state')
+  const first = f.facts()
+  if (first.material.kind !== 'retained') throw new Error('material')
+  const call = callId('two')
+  const reference = unbox(
+    encodeModelInvocationRef({ tenant: f.tenant, call, admission: first.admission }),
+  )
+  const state = { ...first.state, call }
+  f.confirm({
+    ...first,
+    reference,
+    state,
+    execution: first.execution && { ...first.execution, call },
+    material: { ...first.material, snapshot: { ...first.material.snapshot, call, state } },
+  })
+  expect(await f.current()).toHaveProperty('failure.kind', 'unavailable')
+  expect(await f.host.references.current({ access: f.access, reference })).toHaveProperty(
+    'ok.state.call',
+    call,
+  )
   f.source.close()
 })

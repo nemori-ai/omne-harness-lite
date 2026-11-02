@@ -32,6 +32,7 @@ type Ports<P> = Readonly<{
   refresh(request: Request<P>): Promise<StreamEndReason | null>
   reserve(bytes: number): (() => void) | null
   admit(request: Request<P>): (() => void) | null
+  track(watcher: StreamWatcher): () => void
 }>
 type Queued = Readonly<{ frame: Body; bytes: number; at: number; release(): void }>
 const done = (): IteratorResult<ModelObservationFrame> => ({ done: true, value: undefined })
@@ -56,6 +57,7 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
           let pending: ((result: IteratorResult<ModelObservationFrame>) => void) | null = null
           let releaseAdmission: (() => void) | null = null
           let releaseMetadata: (() => void) | null = null
+          let releaseTracking: (() => void) | null = null
           let timer: AbortController | null = null
           let timerDeadline = Infinity
           let opening = 0
@@ -72,6 +74,8 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
             request.signal.removeEventListener('abort', abort)
             releaseAdmission?.()
             releaseAdmission = null
+            releaseTracking?.()
+            releaseTracking = null
           }
           function close(): void {
             phase = 'closed'
@@ -262,7 +266,10 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
               }
               return new Promise(resolve => {
                 pending = resolve
-                if (phase === 'new') start()
+                if (phase === 'new') {
+                  releaseTracking = ports.track(watcher)
+                  start()
+                }
                 flush()
               })
             },

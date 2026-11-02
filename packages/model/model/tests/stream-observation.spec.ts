@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { unbox } from './memory-fixture.ts'
 import { streamFixture } from './stream-source.spec.ts'
 import { measureStreamValue } from '../src/stream-bounds.ts'
@@ -148,6 +148,135 @@ it('accepts exact snapshot and queue byte bounds and turns a delta byte overflow
     after: first.cursor,
     reason: 'buffer',
   })
+  expect(f.waits.size).toBe(0)
+  f.source.close()
+})
+
+it.each(['host', 'source'] as const)(
+  'closing %s detaches an opening observer before its cold read completes',
+  async owner => {
+    const f = streamFixture()
+    f.confirm(f.facts())
+    f.host.attach(f.publication)
+    const target = unbox(await f.current()).current
+    if (!target) throw new Error('target')
+    f.unavailable(f.publication.execution)
+    const barrier = Promise.withResolvers<void>()
+    const entered = Promise.withResolvers<void>()
+    f.setRefresh(async () => {
+      entered.resolve()
+      await barrier.promise
+      f.confirm(f.facts('2'))
+      return { ok: undefined }
+    })
+    const signal = new AbortController().signal
+    const remove = vi.spyOn(signal, 'removeEventListener')
+    const iterator = f.host.observation
+      .observe({ ref: target.ref, access: f.access, signal })
+      [Symbol.asyncIterator]()
+    const resolved = vi.fn()
+    const pending = iterator.next().then(value => {
+      resolved(value)
+      return value
+    })
+    await entered.promise
+    if (owner === 'host') f.host.close()
+    else f.source.close()
+    await Promise.resolve()
+    expect(resolved).toHaveBeenCalledWith({
+      done: false,
+      value: { kind: 'ended', reason: owner === 'host' ? 'stale-stream' : 'source-closed' },
+    })
+    expect(remove).toHaveBeenCalledWith('abort', expect.any(Function))
+    barrier.resolve()
+    await pending
+    expect(await iterator.next()).toEqual({ done: true, value: undefined })
+    expect(f.waits.size).toBe(0)
+    remove.mockRestore()
+    f.source.close()
+  },
+)
+
+it('reserves global observer capacity only on first next and returns it after return', async () => {
+  const { f, iterator } = await observing({ maxObservers: 1 })
+  const target = unbox(await f.current()).current
+  if (!target) throw new Error('target')
+  const create = () =>
+    f.host.observation
+      .observe({ ref: target.ref, access: f.access, signal: new AbortController().signal })
+      [Symbol.asyncIterator]()
+  const unused = create()
+  expect((await iterator.next()).value.kind).toBe('snapshot')
+  const rejected = create()
+  expect((await rejected.next()).value).toEqual({ kind: 'ended', reason: 'capacity' })
+  await iterator.return?.()
+  expect((await unused.next()).value.kind).toBe('snapshot')
+  const pending = unused.next()
+  await unused.return?.()
+  expect(await pending).toEqual({ done: true, value: undefined })
+  expect(await unused.next()).toEqual({ done: true, value: undefined })
+  expect(f.waits.size).toBe(0)
+  f.source.close()
+})
+
+it('rejects an oversized first snapshot and returns its metadata and admission reservations', async () => {
+  const { f, iterator } = await observing({ maxSnapshotBytes: 1, maxObservers: 1 })
+  expect((await iterator.next()).value).toEqual({ kind: 'ended', reason: 'capacity' })
+  expect(await iterator.next()).toEqual({ done: true, value: undefined })
+  expect(f.waits.size).toBe(0)
+  expect(await f.current()).toHaveProperty('ok.state')
+  f.source.close()
+})
+
+it('accepts exact delta byte capacity before rejecting one byte less', async () => {
+  const sample = await observing()
+  await sample.iterator.next()
+  sample.f.confirm(sample.f.facts('2'))
+  const frame = (await sample.iterator.next()).value
+  const measured = measureStreamValue(frame, 1000000)
+  if (!measured) throw new Error('measurement')
+  await sample.iterator.return?.()
+  sample.f.source.close()
+  for (const offset of [0, -1]) {
+    const { f, iterator } = await observing({ maxDeltaBytes: measured.bytes + offset })
+    await iterator.next()
+    f.confirm(f.facts('2'))
+    expect((await iterator.next()).value.kind).toBe(offset === 0 ? 'delta' : 'gap')
+    await iterator.return?.()
+    f.source.close()
+  }
+})
+
+it.each(['denied', 'unavailable', 'stale-stream'] as const)(
+  'prefers %s to a held observer-closed terminal',
+  async reason => {
+    const { f, iterator, abort } = await observing()
+    await iterator.next()
+    abort.abort()
+    if (reason === 'denied') f.denied.add('observe')
+    else if (reason === 'unavailable') f.unavailable(f.publication.execution)
+    else f.host.retire(f.publication)
+    expect((await iterator.next()).value).toEqual({ kind: 'ended', reason })
+    expect((await iterator.next()).done).toBe(true)
+    expect(f.waits.size).toBe(0)
+    f.source.close()
+  },
+)
+
+it('runs authorization checks at the configured timer boundary and cancels the timer on return', async () => {
+  const { f, iterator } = await observing({ checkIntervalMs: 7 })
+  await iterator.next()
+  const resolved = vi.fn()
+  const pending = iterator.next().then(result => {
+    resolved(result)
+    return result
+  })
+  f.denied.add('observe')
+  f.advance(6)
+  await Promise.resolve()
+  expect(resolved).not.toHaveBeenCalled()
+  f.advance(7)
+  expect((await pending).value).toEqual({ kind: 'ended', reason: 'denied' })
   expect(f.waits.size).toBe(0)
   f.source.close()
 })

@@ -40,6 +40,7 @@ import {
   createStreamObservation,
   type StreamEndReason,
   type StreamTarget,
+  type StreamWatcher,
 } from './stream-observation.ts'
 import type {
   ConfirmedObservationRecord,
@@ -416,6 +417,7 @@ export function createModelObservationSource<P>(
       if (closed || activeHost)
         return { failure: unavailable(closed ? 'source-closed' : 'host-already-open') }
       let hostClosed = false
+      const hostWatchers = new Set<StreamWatcher>()
       function check(
         request: Parameters<ModelObservationHost<P>['observation']['observe']>[0],
       ): Outcome<StreamTarget, StreamEndReason> {
@@ -466,6 +468,12 @@ export function createModelObservationSource<P>(
         timing: input.timing,
         check,
         reserve: bytes => budget.reserve(bytes),
+        track(watcher) {
+          hostWatchers.add(watcher)
+          return () => {
+            hostWatchers.delete(watcher)
+          }
+        },
         async refresh(request) {
           const parts = resolveModelInvocationRef(
             readStreamRef(request.ref).call,
@@ -593,6 +601,7 @@ export function createModelObservationSource<P>(
         close() {
           if (hostClosed) return
           hostClosed = true
+          for (const watcher of hostWatchers) watcher.end(closed ? 'source-closed' : 'stale-stream')
           for (const entry of records.values()) retireTarget(entry)
           publications.clear()
           for (const release of publicationReleases.values()) release()
