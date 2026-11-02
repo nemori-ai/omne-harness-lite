@@ -412,8 +412,9 @@ class SessionLogMaterials extends AgentMaterialsService<unknown, ContentBlock> {
  * unloads the plugin and runs it again with an empty route cache. Stopping makes every call, also
  * through a reference held from before, answer `unavailable`. After each successful write call it
  * dispatches `session-adapters/agent-published` (tenant, session, execution), a wake-up only.
- * It holds no cancellation installation: the assembly entry supplies one at the factory level
- * (R2-D35), and the plugin configuration does not carry it.
+ * Loaded by itself it holds no cancellation installation, so a cancelled settlement answers
+ * `unavailable`; the assembly entry supplies the installation through
+ * `createSessionAgentJournalPlugin` (R2-D35), and the plugin configuration does not carry it.
  */
 export class SessionLogAgentJournalProvider extends AgentJournalService<unknown> {
   static readonly inject = [storageKey, tenantDomainLookupKey, sessionAccessCheckKey]
@@ -440,7 +441,12 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
   readonly query: AgentJournal<unknown>['query']
   readonly output: AgentJournal<unknown>['output']
 
-  constructor(ctx: Context, config: AgentJournalProviderConfig) {
+  /** `cancellation` is the trusted installation of R2-D35; only the plugin factory hands it in. */
+  constructor(
+    ctx: Context,
+    config: AgentJournalProviderConfig,
+    cancellation?: SessionLogJournalOptions<unknown>['cancellation'],
+  ) {
     super(ctx)
     const logger = ctx.logger(LOGGER)
     const routed = createExecutionRoutedJournal<unknown>({
@@ -464,6 +470,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
       ...(config.routeCacheEntries === undefined
         ? {}
         : { routeCacheEntries: config.routeCacheEntries }),
+      ...(cancellation === undefined ? {} : { cancellation }),
     })
     const journal = routed.journal
     this.capabilities = journal.capabilities
@@ -489,5 +496,33 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     new SessionLogJournalEntries(ctx, routed.entries)
     new SessionLogMaterials(ctx, routed.materials)
     ctx.effect(() => () => routed.close())
+  }
+}
+
+/** What the assembly entry hands to `createSessionAgentJournalPlugin`. */
+export type SessionAgentJournalPluginInput = Readonly<{
+  /**
+   * The trusted cancellation installation of the Journal of every session: the record and the
+   * judging implementation (R2-D35). It is a function holder, so it is not a configuration member.
+   * Absent: the cancellation variants answer `unavailable`, as with the plain provider.
+   */
+  cancellation?: SessionLogJournalOptions<unknown>['cancellation']
+}>
+
+/**
+ * The plugin of `SessionLogAgentJournalProvider` with the trusted cancellation installation that
+ * the assembly entry hands in (R2-D35, R2-D16). The `inject`, the configuration and the provided
+ * keys are those of `SessionLogAgentJournalProvider`; the installation is not a Cordis service and
+ * not a configuration member. The Journal of every session this plugin routes to holds it as it
+ * is. Use the returned class as `ctx.plugin(Plugin, config)` does with the provider class.
+ */
+export function createSessionAgentJournalPlugin(
+  input: SessionAgentJournalPluginInput = {},
+): typeof SessionLogAgentJournalProvider {
+  const { cancellation } = input
+  return class SessionLogAgentJournalPlugin extends SessionLogAgentJournalProvider {
+    constructor(ctx: Context, config: AgentJournalProviderConfig) {
+      super(ctx, config, cancellation)
+    }
   }
 }
