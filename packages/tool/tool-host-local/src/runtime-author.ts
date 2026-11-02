@@ -32,6 +32,41 @@ const failureCodec = describedAdoption({
   revision: '1',
 })
 
+function interruption(call: Parameters<RuntimeAuthorExecution['settle']>[0]): ToolTerminal | null {
+  if (call.outcome.kind !== 'failed' || !call.execution.signal.aborted) return null
+  const control: unknown = call.execution.signal.reason
+  if (
+    typeof control !== 'object' ||
+    control === null ||
+    !('operation' in control) ||
+    !('start' in control) ||
+    !('tenant' in control) ||
+    !('call' in control) ||
+    !('intent' in control)
+  )
+    return null
+  const operation = decodeToolOperationId(control.operation)
+  if (
+    'failure' in operation ||
+    control.call !== call.call ||
+    canonicalDigest(control.tenant) !== canonicalDigest(call.tenant) ||
+    canonicalDigest(control.start) !== canonicalDigest(call.start)
+  )
+    return null
+  const intent = control.intent
+  if (
+    typeof intent !== 'object' ||
+    intent === null ||
+    !('kind' in intent) ||
+    (intent.kind !== 'stop' && intent.kind !== 'withdraw')
+  )
+    return null
+  return {
+    kind: 'interrupted',
+    cause: { kind: 'control', operation: operation.ok, withdrawn: intent.kind === 'withdraw' },
+  }
+}
+
 /** Local emit receipts remain local. The fact driver owns durable process acceptance. */
 export function createRuntimeAuthorExecution(
   input: Readonly<{
@@ -139,6 +174,7 @@ export function createRuntimeAuthorExecution(
       return scope.ok
     },
     async settle(call) {
+      const interrupted = interruption(call)
       const author = call.operation.author
       const operation = decodeToolOperationId(`${call.start.operation}/raw`)
       if ('failure' in operation)
@@ -236,7 +272,7 @@ export function createRuntimeAuthorExecution(
         kind: 'final',
         raw: raw.ok,
         result: projected.result.ok,
-        terminal: projected.terminal,
+        terminal: interrupted ?? projected.terminal,
         effect: {
           kind: 'unknown',
           diagnostic: 'Author completion does not prove the disposition of external effects.',

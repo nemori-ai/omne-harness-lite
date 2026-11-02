@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest'
-import { accepted, fixture } from './fixture.ts'
+import { accepted, fixture, unbox } from './fixture.ts'
+import { resolveToolOperationRef } from '@omne-harness/tool-contract'
 
 it('C03 stops only the selected live call while the other author continues', async () => {
   const completions = new Map<string, (value: string) => void>()
@@ -14,14 +15,24 @@ it('C03 stops only the selected live call while the other author continues', asy
     const a = accepted(await world.api.invoke(world.invocation('a')))
     const b = accepted(await world.api.invoke(world.invocation('b')))
     await expect.poll(() => world.launches()).toBe(2)
-    expect(
-      await world.api.commands.control({ ...world.query(a), intent: { kind: 'stop' } }),
-    ).toMatchObject({ kind: 'committed' })
+    const stopped = await world.api.commands.control({
+      ...world.query(a),
+      intent: { kind: 'stop' },
+    })
+    expect(stopped).toMatchObject({ kind: 'committed' })
+    if (stopped.kind !== 'committed') throw new Error('The stop was not committed.')
     await expect.poll(() => world.signals.get('{"value":"a"}')?.aborted).toBe(true)
     expect(world.signals.get('{"value":"b"}')?.aborted).toBe(false)
     completions.get('{"value":"b"}')?.('continued-b')
     expect((await world.settled(b)).value.content).toMatchObject([{ text: 'continued-b' }])
-    await world.settled(a)
+    expect((await world.settled(a)).terminal).toEqual({
+      kind: 'interrupted',
+      cause: {
+        kind: 'control',
+        operation: unbox(resolveToolOperationRef(stopped.operation, world.tenantA)).operation,
+        withdrawn: false,
+      },
+    })
   } finally {
     for (const complete of completions.values()) complete('cleanup')
     await world.close()
