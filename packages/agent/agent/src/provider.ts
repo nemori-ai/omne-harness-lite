@@ -2,8 +2,9 @@
 // `invoke` admits the input and opens the execution (U0 to E0, #502 1.3): it reserves the one
 // execution slot, resolves the evaluator of the bound definition, returns the handle at E1, and
 // leaves the Loop to run on until the runtime is idle again. `observe` shows the state of the
-// instance as it changes. Execution control saves its command, advances Model interruption and
-// establishes cancellation stages. The remaining bodies answer a named stage-temporary
+// instance as it changes. Execution control saves its command, advances a Model or Tool
+// interruption and establishes cancellation stages. A failed step goes back to the caller, who
+// retries with the same control operation. The remaining bodies answer a named stage-temporary
 // `unavailable` after `allowed`.
 //
 // The slot and the observed state never disagree: `observe` shows the state that `stateOf` derives
@@ -37,12 +38,7 @@ import type {
 } from './construction.ts'
 import { canonical } from './canonical.ts'
 import { createExecutionCoordinator } from './loop/coordinator.ts'
-import {
-  advanceModelControl,
-  advanceToolControl,
-  establishCancellation,
-  toolControlOf,
-} from './control.ts'
+import { advanceControl } from './control.ts'
 
 const OWNER = '@omne-harness/agent'
 
@@ -247,21 +243,8 @@ export function createProvider<P, B extends ContentBlock>(
           const accepted = await dependencies.journal.control(input)
           if ('failure' in accepted) return accepted
           const access = { principal: input.principal, tenant: input.tenant }
-          const loaded = await dependencies.journal.load({ ...access, execution })
-          if ('failure' in loaded) return accepted
-          const control = loaded.ok.controls.find(record => record.operation === input.operation)
-          if (control?.command.kind === 'interrupt-model') {
-            await advanceModelControl(dependencies, access, execution, {
-              ...control,
-              command: control.command,
-            })
-          }
-          // A Tool control acts on its own original call only; the execution goes on.
-          const tool = control === undefined ? undefined : toolControlOf(control)
-          if (tool !== undefined) await advanceToolControl(dependencies, access, execution, tool)
-          if (control?.command.kind === 'cancel')
-            await establishCancellation(dependencies.journal, access, execution, control)
-          return accepted
+          const advanced = await advanceControl(dependencies, access, execution, input.operation)
+          return 'failure' in advanced ? advanced : accepted
         },
       },
       output: {

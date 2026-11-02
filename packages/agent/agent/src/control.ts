@@ -39,6 +39,13 @@ const observationSchema = {
   digest: 'agent:model-control-observation/1',
 } as const
 
+const toolObservationSchema = {
+  owner: '@omne-harness/agent',
+  name: 'tool-control-observation',
+  revision: '1',
+  digest: 'agent:tool-control-observation/1',
+} as const
+
 export function cancellationOf(snapshot: ExecutionSnapshot): ControlRecord | undefined {
   return snapshot.controls.find(
     record =>
@@ -82,8 +89,80 @@ export async function establishCancellation<P>(
   return succeed(undefined)
 }
 
+type ObservedStage = Exclude<ControlStage, 'accepted' | 'qualification-revoked' | 'duty-released'>
+type StagePorts<P> = Pick<AgentDependencies<P, ContentBlock>, 'journal' | 'materials'>
+
+/** What one producer control saves with each observed stage, and where. */
+type StageRecording = Readonly<{
+  /** The recording operation, which is also the identity of the observation material. */
+  identity: string
+  purpose: 'model-control' | 'tool-control'
+  schema: typeof observationSchema | typeof toolObservationSchema
+  record: Pick<ControlRecord, 'operation' | 'command'>
+  /** The original call reference the control acts on. */
+  reference: ModelInvocationRef | ToolInvocationRef
+  /** The producer control operation; for a Tool control it is also attached to the record. */
+  operation: ModelOperationId | ToolOperationRef | null
+  toolOperation?: ToolOperationRef
+}>
+
+/**
+ * Saves one observed stage of a Model or Tool control: the observation material first, then the
+ * stage fact on the control's own record, both under the derived identity.
+ */
+async function saveControlStage<P>(
+  ports: StagePorts<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  recording: StageRecording,
+  stage: ObservedStage,
+  state: 'reached' | 'unresolved',
+  observation: unknown,
+): Promise<Outcome<void, Failure>> {
+  const { identity, record, toolOperation } = recording
+  const stored = await ports.materials.preserve({
+    ...access,
+    execution,
+    identity,
+    consumer: {
+      owner: '@omne-harness/agent',
+      work: execution,
+      position: record.operation,
+      purpose: recording.purpose,
+    },
+    value: {
+      kind: 'facts' as const,
+      schema: recording.schema,
+      value: json({
+        execution,
+        control: record.operation,
+        command: record.command,
+        reference: recording.reference,
+        operation: recording.operation,
+        observation,
+      }),
+    },
+  })
+  if ('failure' in stored) return stored
+  const operation = decodeAgentOperationId(identity)
+  if ('failure' in operation) throw new Error('invalid derived control recording operation')
+  const saved = await ports.journal.recordControl({
+    ...access,
+    execution,
+    operation: operation.ok,
+    target: record.operation,
+    stage,
+    state,
+    source: stored.ok,
+    ...(toolOperation === undefined ? {} : { toolOperation }),
+  })
+  return 'failure' in saved ? saved : succeed(undefined)
+}
+
+/** The Model failures of a control request that do not say whether the request was taken. */
+const UNKNOWN_MODEL_ANSWERS: ReadonlySet<string> = new Set(['unavailable', 'commit-unknown'])
+
 type ModelPending = Extract<PendingCall, { kind: 'model' }>
-type ModelStage = Exclude<ControlStage, 'accepted' | 'qualification-revoked' | 'duty-released'>
 type ModelControlScope<P> = Readonly<{
   ports: Ports<P>
   access: Access<P>
@@ -120,51 +199,34 @@ async function modelControlTarget<P>(
   return succeed(pending)
 }
 
-/** Saves one observed stage of a Model control with its observation material. */
+/**
+ * Saves one observed stage of a Model control. `variant` keeps a second observation of the same
+ * stage and state apart, such as the producer's explicit refusal after the request was prepared.
+ */
 async function saveModelStage<P>(
   scope: ModelControlScope<P>,
-  stage: ModelStage,
+  stage: ObservedStage,
   state: 'reached' | 'unresolved',
   observation: unknown,
+  variant = '',
 ): Promise<Outcome<void, Failure>> {
   const { ports, access, execution, record, prefix } = scope
-  const identity = `control/${prefix}/${stage}/${state}`
-  const stored = await ports.materials.preserve({
-    ...access,
+  return saveControlStage(
+    ports,
+    access,
     execution,
-    identity,
-    consumer: {
-      owner: '@omne-harness/agent',
-      work: execution,
-      position: record.operation,
+    {
+      identity: `control/${prefix}/${stage}/${state}${variant}`,
       purpose: 'model-control',
-    },
-    value: {
-      kind: 'facts' as const,
       schema: observationSchema,
-      value: json({
-        execution,
-        control: record.operation,
-        command: record.command,
-        reference: scope.reference,
-        operation: scope.operation,
-        observation,
-      }),
+      record,
+      reference: scope.reference,
+      operation: scope.operation,
     },
-  })
-  if ('failure' in stored) return stored
-  const recording = decodeAgentOperationId(identity)
-  if ('failure' in recording) throw new Error('invalid derived control recording operation')
-  const saved = await ports.journal.recordControl({
-    ...access,
-    execution,
-    operation: recording.ok,
-    target: record.operation,
     stage,
     state,
-    source: stored.ok,
-  })
-  return 'failure' in saved ? saved : succeed(undefined)
+    observation,
+  )
 }
 
 /**
@@ -230,8 +292,20 @@ export async function advanceModelControl<P>(
     call: record.command.call,
     operation: operation.ok,
   })
-  if ('failure' in requested || requested.ok.kind !== 'requested') return succeed(undefined)
-  return saveModelStage(scope, 'producer-confirmed', 'reached', requested.ok)
+  if ('ok' in requested)
+    return requested.ok.kind === 'requested'
+      ? saveModelStage(scope, 'producer-confirmed', 'reached', requested.ok)
+      : succeed(undefined)
+  // An unavailable or unknown answer proves nothing more. An explicit refusal is kept with the
+  // unresolved confirmation, so it is not read as an answer that never came.
+  if (UNKNOWN_MODEL_ANSWERS.has(requested.failure.kind)) return succeed(undefined)
+  return saveModelStage(
+    scope,
+    'producer-confirmed',
+    'unresolved',
+    { kind: 'refused', failure: requested.failure },
+    '/refused',
+  )
 }
 
 type ToolControlRecord = Pick<ControlRecord, 'operation' | 'stages'> &
@@ -248,13 +322,6 @@ export function toolControlOf(record: ControlRecord): ToolControlRecord | undefi
     ? (record as ToolControlRecord)
     : undefined
 }
-
-const toolObservationSchema = {
-  owner: '@omne-harness/agent',
-  name: 'tool-control-observation',
-  revision: '1',
-  digest: 'agent:tool-control-observation/1',
-} as const
 
 /**
  * Advances one accepted Tool control by its own record: the original call snapshot `toolInvocation`
@@ -274,50 +341,30 @@ export async function advanceToolControl<P>(
     .digest('hex')
 
   async function save(
-    stage: Exclude<ControlStage, 'accepted' | 'qualification-revoked' | 'duty-released'>,
+    stage: ObservedStage,
     state: 'reached' | 'unresolved',
     observation: unknown,
     toolOperation: ToolOperationRef | null,
+    variant = '',
   ): Promise<Outcome<void, Failure>> {
     const attachment = toolOperation === null ? '' : '/reference'
-    const identity = `control/${prefix}/${stage}/${state}${attachment}`
-    const stored = await ports.materials.preserve({
-      ...access,
+    return saveControlStage(
+      ports,
+      access,
       execution,
-      identity,
-      consumer: {
-        owner: '@omne-harness/agent',
-        work: execution,
-        position: record.operation,
+      {
+        identity: `control/${prefix}/${stage}/${state}${attachment}${variant}`,
         purpose: 'tool-control',
-      },
-      value: {
-        kind: 'facts' as const,
         schema: toolObservationSchema,
-        value: json({
-          execution,
-          control: record.operation,
-          command: record.command,
-          reference: record.toolInvocation,
-          operation: toolOperation,
-          observation,
-        }),
+        record,
+        reference: record.toolInvocation,
+        operation: toolOperation,
+        ...(toolOperation === null ? {} : { toolOperation }),
       },
-    })
-    if ('failure' in stored) return stored
-    const recording = decodeAgentOperationId(identity)
-    if ('failure' in recording) throw new Error('invalid derived control recording operation')
-    const saved = await ports.journal.recordControl({
-      ...access,
-      execution,
-      operation: recording.ok,
-      target: record.operation,
       stage,
       state,
-      source: stored.ok,
-      ...(toolOperation === null ? {} : { toolOperation }),
-    })
-    return 'failure' in saved ? saved : succeed(undefined)
+      observation,
+    )
   }
 
   /** What a committed control receipt proves: acceptance, or also the actual stop of the call. */
@@ -368,8 +415,45 @@ export async function advanceToolControl<P>(
     reference: record.toolInvocation,
     intent: record.command.kind === 'background-tool' ? { kind: 'background' } : { kind: 'stop' },
   })
-  if (sent.kind === 'rejected') return succeed(undefined)
+  // An explicit refusal is kept with the unresolved confirmation, apart from an unknown answer.
+  if (sent.kind === 'rejected')
+    return save(
+      'producer-confirmed',
+      'unresolved',
+      { kind: 'refused', failure: sent.failure },
+      null,
+      '/refused',
+    )
   if (sent.kind === 'commit-unknown')
     return save('producer-confirmed', 'unresolved', { kind: 'commit-unknown' }, sent.operation)
   return receipt(sent.operation, sent.receipt.progress, sent.receipt)
+}
+
+type ControlPorts<P> = Pick<
+  AgentDependencies<P, ContentBlock>,
+  'journal' | 'models' | 'tools' | 'materials'
+>
+
+/**
+ * Advances one accepted control by its saved record: a Model or Tool interrupt acts on its own
+ * original call only, a cancellation establishes its intent and revokes the advance. Every step is
+ * saved under an operation derived from the control, so a retry of the same control operation
+ * recognizes what is already saved and repeats nothing. A failure is returned unchanged; the
+ * caller retries with the same control operation.
+ */
+export async function advanceControl<P>(
+  ports: ControlPorts<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  operation: AgentOperationId,
+): Promise<Outcome<void, Failure>> {
+  const loaded = await ports.journal.load({ ...access, execution })
+  if ('failure' in loaded) return loaded
+  const control = loaded.ok.controls.find(record => record.operation === operation)
+  if (control === undefined) return succeed(undefined)
+  if (control.command.kind === 'interrupt-model')
+    return advanceModelControl(ports, access, execution, { ...control, command: control.command })
+  const tool = toolControlOf(control)
+  if (tool !== undefined) return advanceToolControl(ports, access, execution, tool)
+  return establishCancellation(ports.journal, access, execution, control)
 }

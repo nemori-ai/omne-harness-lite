@@ -42,6 +42,7 @@ import type {
   AgentOperationId,
   Authority,
   ControlRecord,
+  ExecutionControl,
   ConsumerRef,
   ConsumptionId,
   ActionId,
@@ -108,12 +109,10 @@ import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
 import { consumeModelResult, type ModelOutcome } from './model-result.ts'
 import { readModelDeliveryMaterial } from '../receiving-material.ts'
 import {
-  advanceModelControl,
-  advanceToolControl,
+  advanceControl,
   cancellationOf,
   controlOperation,
   establishCancellation,
-  toolControlOf,
 } from '../control.ts'
 import {
   actionOf,
@@ -218,6 +217,12 @@ type Write = Readonly<{
   handoff?: HandoffChange
   /** The operation of the commit, when it is not the node's own; a Ja is derived from its H. */
   operation?: AgentOperationId
+  /**
+   * The commit records a fact that already happened, such as the reference a Tool returned for a
+   * call it accepted. It is no new advance, so an effective cancellation does not drop it: F0 needs
+   * the saved reference to interrupt the call, and the late result is received under it.
+   */
+  recordsFact?: true
 }>
 
 /** The outcome of one node and the commit it writes; `commit: null` writes no commit. */
@@ -556,7 +561,8 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         const latest = await load()
         if ('failure' in latest) return latest
         if (advancementOf(latest.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
-        if (cancellationOf(latest.ok) !== undefined) return fail({ kind: 'stale-advance' })
+        if (cancellationOf(latest.ok) !== undefined && write.recordsFact !== true)
+          return fail({ kind: 'stale-advance' })
         if (canonical(latest.ok.checkpoint) === canonical(base)) {
           revision = latest.ok.revision
           return commit(node, to, write)
@@ -1253,20 +1259,14 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         return loaded.failure.kind === 'unavailable'
           ? waitFor('E2', loaded.failure, async latest => succeed(latest))
           : loaded
-      checkpoint = loaded.ok.checkpoint
-      revision = loaded.ok.revision
-      if (loaded.ok.state.kind !== 'ended' && loaded.ok.state.kind !== 'waiting')
-        state = loaded.ok.state
+      takeLatestPosition(loaded.ok)
       // Do not read business facts under an attachment the latest snapshot has already revoked.
       if (advancementOf(loaded.ok).kind !== 'current') return step('reconciled', null)
-      const unresolved = loaded.ok.unresolved
-      snapshot =
-        pendingCommit === null || unresolved.includes(pendingCommit.operation)
-          ? loaded.ok
-          : { ...loaded.ok, unresolved: [...unresolved, pendingCommit.operation] }
-      // Reconcile every original slot before loading business facts or saving another revision.
-      if (snapshot.unresolved.length > 0) return step('reconciled', null)
-      if (cancellationOf(snapshot) !== undefined) return step('reconciled', null)
+      snapshot = withPendingCommit(loaded.ok)
+      // Reconcile every original slot before loading business facts or saving another revision;
+      // an effective cancellation reads no business facts either.
+      if (snapshot.unresolved.length > 0 || cancellationOf(snapshot) !== undefined)
+        return step('reconciled', null)
       const read = await readFacts(snapshot)
       if ('failure' in read)
         return read.failure.kind === 'unavailable' ? waitFor('E2', read.failure, readFacts) : read
@@ -1682,7 +1682,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return associate(next, action, pending, result.reference)
   }
 
-  /** A2: the call reference Tool returned is saved with the action and its dispatched slot. */
+  /**
+   * A2: the call reference Tool returned is saved with the action and its dispatched slot. The
+   * call exists once Tool accepted it, so the reference is saved under an effective cancellation
+   * too; F0 then interrupts the call by it and the late result is received under it.
+   */
   async function associate(
     batch: ActionBatch,
     action: Action,
@@ -1710,6 +1714,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           call.action === action.id ? associated : call,
         ),
       },
+      recordsFact: true,
     })
     return 'failure' in saved ? saved : succeed({ batch: next, progressed: true })
   }
@@ -1827,6 +1832,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return succeed('rejected')
   }
 
+  /** T5: the H record of the handoff the slot saved, in the latest snapshot. */
+  function slotHandoff(slot: ActionSlot): ExecutionSnapshot['handoffs'][number] | undefined {
+    const handoff = slot.handoff
+    if (handoff === null) return undefined
+    return required(snapshot, 'snapshot').handoffs.find(
+      record => canonical(record.handoff) === canonical(handoff),
+    )
+  }
+
   /** T5 for one slot: recognize its Ja, or fix, prepare and apply its message. */
   async function admitSlot(action: Action): Promise<Outcome<SlotAdmission, Failure>> {
     const batch = currentBatch()
@@ -1835,29 +1849,30 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     if (slot.kind === 'background' || slot.kind === 'dispatched')
       return fail(notYet('T5', 'a background placeholder message', '#502 stage 5'))
     const source = slotSource(action, slot)
-    const handoff = slot.handoff
-    const existing =
-      handoff === null
-        ? undefined
-        : required(snapshot, 'snapshot').handoffs.find(
-            record => canonical(record.handoff) === canonical(handoff),
-          )
+    const existing = slotHandoff(slot)
     if (existing !== undefined && existing.history.kind !== 'pending')
       return disposedSlot(existing, source)
-    let request: PendingHandoff
-    if (existing?.request.kind === 'execution') request = existing.request
-    else {
-      const prepared = await prepareSlotMessage(batch, action, slot, source)
-      if ('failure' in prepared) return prepared
-      request = prepared.ok
-    }
+    const prepared =
+      existing?.request.kind === 'execution'
+        ? succeed(existing.request)
+        : await prepareSlotMessage(batch, action, slot, source)
+    if ('failure' in prepared) return prepared
+    const request = prepared.ok
     const fixed = await slotOutcome(request, existing)
     if ('failure' in fixed) return fixed
-    if (fixed.ok === 'wait') return succeed('wait')
-    const applied = await applySlotMessage(request, fixed.ok)
+    return fixed.ok === 'wait' ? succeed('wait') : admitFixed(request, fixed.ok, source)
+  }
+
+  /** T5: the Ja of a slot's fixed outcome; a rejected outcome is the rejected tool message. */
+  async function admitFixed(
+    request: PendingHandoff,
+    fixed: HandoffOutcome,
+    source: InternalSource,
+  ): Promise<Outcome<SlotAdmission, Failure>> {
+    const applied = await applySlotMessage(request, fixed)
     if ('failure' in applied) return applied
-    if (fixed.ok.decision.kind === 'prepared') return succeed('admitted')
-    rejectedMessage = { source, evidence: fixed.ok.decision.evidence }
+    if (fixed.decision.kind === 'prepared') return succeed('admitted')
+    rejectedMessage = { source, evidence: fixed.decision.evidence }
     return succeed('rejected')
   }
 
@@ -2468,6 +2483,21 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       : fail(converted)
   }
 
+  /** E2: the frame takes the position of the latest snapshot; an open state also its kind. */
+  function takeLatestPosition(read: ExecutionSnapshot): void {
+    checkpoint = read.checkpoint
+    revision = read.revision
+    if (read.state.kind !== 'ended' && read.state.kind !== 'waiting') state = read.state
+  }
+
+  /** The snapshot with the commit this frame left unknown among its unresolved operations. */
+  function withPendingCommit(read: ExecutionSnapshot): ExecutionSnapshot {
+    const unresolved = read.unresolved
+    return pendingCommit === null || unresolved.includes(pendingCommit.operation)
+      ? read
+      : { ...read, unresolved: [...unresolved, pendingCommit.operation] }
+  }
+
   async function currentAttachment(): Promise<Outcome<void, Failure>> {
     const read = await load()
     if ('failure' in read) return read
@@ -2482,52 +2512,44 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // settle: F1, F2, F3, F4 (F0 is stage 5; extension evaluation is stage 3)
 
   /**
-   * F0 for one foreground Tool call: a per-call interrupt control derived from the cancellation,
-   * accepted by the Journal on the call's own reference and advanced like any Tool control. An
-   * intent without a reference cannot be interrupted; it stays unresolved and nothing is sent.
+   * The per-call interrupt command F0 derives from the cancellation for one foreground call, with
+   * the stage its control operation is derived under. A Tool intent without a reference names no
+   * call: it cannot be interrupted, stays unresolved and nothing is sent.
    */
-  async function interruptToolForCancel(
+  function cancelInterrupt(
     control: ControlRecord,
-    pending: Extract<PendingCall, { kind: 'tool' }>,
-  ): Promise<Outcome<void, Failure>> {
-    if (pending.association !== 'associated') return succeed(undefined)
+    pending: PendingCall,
+  ): Readonly<{ stage: string; command: ExecutionControl }> | null {
+    const reason = control.stages.accepted.source
+    if (pending.kind === 'model') {
+      const call = invocationParts(pending.reference, access.tenant).call
+      return { stage: `interrupt/${call}`, command: { kind: 'interrupt-model', call, reason } }
+    }
+    if (pending.association !== 'associated') return null
     const call = toolCallOf(access, pending)
-    const operation = controlOperation(execution, control.operation, `interrupt-tool/${call}`)
-    const accepted = await ports.journal.control({
-      ...access,
-      execution,
-      operation,
-      command: { kind: 'interrupt-tool', call, reason: control.stages.accepted.source },
-    })
-    if ('failure' in accepted) return accepted
-    const latest = await load()
-    if ('failure' in latest) return latest
-    const child = latest.ok.controls.find(item => item.operation === operation)
-    const tool = child === undefined ? undefined : toolControlOf(child)
-    return tool === undefined
-      ? succeed(undefined)
-      : advanceToolControl(ports, access, execution, tool)
+    return { stage: `interrupt-tool/${call}`, command: { kind: 'interrupt-tool', call, reason } }
   }
 
-  /** F0 for one Model call: a per-call interrupt control, advanced like any Model control. */
-  async function interruptModelForCancel(
+  /**
+   * F0 for one foreground Model or Tool call: a per-call interrupt control derived from the
+   * cancellation, accepted by the Journal on the call's own reference and advanced like any
+   * control of its kind.
+   */
+  async function interruptForCancel(
     control: ControlRecord,
-    pending: ModelPendingCall,
+    pending: PendingCall,
   ): Promise<Outcome<void, Failure>> {
-    const call = invocationParts(pending.reference, access.tenant).call
-    const operation = controlOperation(execution, control.operation, `interrupt/${call}`)
+    const interrupt = cancelInterrupt(control, pending)
+    if (interrupt === null) return succeed(undefined)
+    const operation = controlOperation(execution, control.operation, interrupt.stage)
     const accepted = await ports.journal.control({
       ...access,
       execution,
       operation,
-      command: { kind: 'interrupt-model', call, reason: control.stages.accepted.source },
+      command: interrupt.command,
     })
     if ('failure' in accepted) return accepted
-    const latest = await load()
-    if ('failure' in latest) return latest
-    const child = latest.ok.controls.find(item => item.operation === operation)
-    if (child?.command.kind !== 'interrupt-model') return succeed(undefined)
-    return advanceModelControl(ports, access, execution, { ...child, command: child.command })
+    return advanceControl(ports, access, execution, operation)
   }
 
   /** A refused settlement commit: a changed or unknown answer is reconciled at R0. */
@@ -2666,10 +2688,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const revoked = await establishCancellation(ports.journal, access, execution, control)
       if ('failure' in revoked) return revoked
       for (const pending of read.ok.checkpoint.calls) {
-        const interrupted =
-          pending.kind === 'tool'
-            ? await interruptToolForCancel(control, pending)
-            : await interruptModelForCancel(control, pending)
+        const interrupted = await interruptForCancel(control, pending)
         if ('failure' in interrupted) return interrupted
       }
       return step('cancelled', null)

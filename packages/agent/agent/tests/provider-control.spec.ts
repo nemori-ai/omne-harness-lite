@@ -97,6 +97,84 @@ describe('execution control acceptance', () => {
     expect(snapshot.settlement.judgments.at(-1)?.decision.kind).toBe('allowed')
   })
 
+  it('returns a failed cancellation step and establishes the cancellation on a retry of the same operation', async () => {
+    const assembly = await controlAssembly()
+    const handle = ok(await invoke(assembly))
+    const input = {
+      ...alice,
+      execution: handle.execution,
+      operation: operation('cancel-retried'),
+      command: { kind: 'cancel' as const, reason: evidence('cancel-retried') },
+    }
+    const journal = assembly.dependencies.journal
+    // Only this control can save a stage before the cancellation is effective, so the fault lands
+    // on its first step: the intent.
+    assembly.controls.journal.failNext('recordControl', { kind: 'unavailable' })
+    expect(await handle.control.control(input)).toMatchObject({ failure: { kind: 'unavailable' } })
+    const failed = ok(await journal.load(input)).controls.filter(
+      control => control.operation === input.operation,
+    )
+    expect(failed).toHaveLength(1)
+    expect(failed[0]?.stages['intent-established']).toBeUndefined()
+
+    const retried = await handle.control.control(input)
+    expect(retried).toHaveProperty('ok')
+    expect(await handle.control.control(input)).toEqual(retried)
+    const established = ok(await journal.load(input)).controls.filter(
+      control => control.operation === input.operation,
+    )
+    expect(established).toHaveLength(1)
+    expect(established[0]?.stages).toMatchObject({
+      accepted: { state: 'reached' },
+      'intent-established': { state: 'reached' },
+      'qualification-revoked': { state: 'reached' },
+    })
+    await eventually(async () => ok(await journal.load(input)).settlement.candidate !== null)
+    expect(ok(await journal.load(input)).settlement.candidate?.conclusion.kind).toBe('cancelled')
+  })
+
+  it('admits no Model call once a cancellation lands after its intent is saved', async () => {
+    let fired = false
+    let ready: (handle: Awaited<ReturnType<typeof invoke>>) => void = () => {}
+    const handed = new Promise<Awaited<ReturnType<typeof invoke>>>(resolve => (ready = resolve))
+    const assembly = await controlAssembly()
+    const journal = assembly.dependencies.journal
+    const commit = journal.commit.bind(journal)
+    journal.commit = async input => {
+      const committed = await commit(input)
+      if (!fired && 'ok' in committed && input.effects.some(e => e.pending.kind === 'model')) {
+        fired = true
+        // M0 saved the Model intent. The cancellation lands before M6 asks the Model to admit it.
+        const handle = ok(await handed)
+        ok(
+          await handle.control.control({
+            ...alice,
+            execution: handle.execution,
+            operation: operation('cancel-at-model-intent'),
+            command: { kind: 'cancel', reason: evidence('cancel-at-model-intent') },
+          }),
+        )
+      }
+      return committed
+    }
+    const handle = await invoke(assembly)
+    ready(handle)
+    const input = { ...alice, execution: ok(handle).execution }
+    await eventually(async () => ok(await journal.load(input)).settlement.candidate !== null)
+    expect(fired).toBe(true)
+    const read = ok(await journal.load(input))
+    const pending = read.effects.find(effect => effect.pending.kind === 'model')?.pending
+    if (pending?.kind !== 'model') throw new Error('the Model intent was not saved')
+    expect(
+      ok(
+        await assembly.dependencies.models.calls.inspect({
+          ...alice,
+          reference: pending.reference,
+        }),
+      ),
+    ).toMatchObject({ kind: 'not-accepted' })
+  })
+
   it('reads the configured cancellation installation under the original execution read qualification', async () => {
     let readable = true
     const assembly = await controlAssembly({ reader: () => readable })
@@ -280,7 +358,7 @@ describe('tool call control', () => {
     })
   }
 
-  function toolOperation(pending: AssociatedTool, name: string) {
+  function toolOperation(pending: Pick<AssociatedTool, 'reference'>, name: string) {
     const parts = ok(resolveToolInvocationRef(pending.reference, alice.tenant))
     return ok(
       encodeToolOperationRef({ ...parts, operation: ok(decodeToolOperationId(`top_${name}`)) }),
@@ -452,7 +530,10 @@ describe('tool call control', () => {
       operation: operation('interrupt-lost'),
       command: { kind: 'interrupt-tool' as const, call, reason: evidence('interrupt-lost') },
     }
-    ok(await handle.control.control(input))
+    // The lost save goes back to the caller, and a retry of the same control sends nothing again.
+    expect(await handle.control.control(input)).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'lost' },
+    })
     ok(await handle.control.control(input))
     const record = ok(await journal.load(input)).controls.find(
       item => item.operation === input.operation,
@@ -517,6 +598,139 @@ describe('tool call control', () => {
     expect(accounts).toHaveLength(2)
     for (const account of accounts)
       expect(account).toMatchObject({ usage: [{ state: 'known', lexeme: '3' }] })
+  })
+
+  it('saves the reference of an accepted Tool call when a cancellation lands before the association', async () => {
+    let cancel: (() => Promise<unknown>) | null = null
+    const assembly = await toolAssembly()
+    const journal = assembly.dependencies.journal
+    const commit = journal.commit.bind(journal)
+    journal.commit = async input => {
+      const fire = cancel
+      // Tool returned the call reference. The cancellation lands before Agent saves it.
+      if (
+        fire !== null &&
+        input.checkpoint.calls.some(
+          call => call.kind === 'tool' && call.association === 'associated',
+        )
+      ) {
+        cancel = null
+        await fire()
+      }
+      return commit(input)
+    }
+    acceptEach(assembly)
+    assembly.controls.tools.commands.control.always(input =>
+      acceptedStop(toolOperation(input, 'stop-late'), 'stop-late'),
+    )
+    const handle = ok(await invoke(assembly))
+    const input = { ...alice, execution: handle.execution }
+    cancel = () =>
+      handle.control.control({
+        ...input,
+        operation: operation('cancel-at-association'),
+        command: { kind: 'cancel', reason: evidence('cancel-at-association') },
+      })
+    await deliverToolSuggestion(assembly)
+    const [held] = await associatedTools(assembly, 1)
+    if (held === undefined) throw new Error('the accepted call was not associated')
+    expect(cancel).toBeNull()
+    // F0 interrupts the call by the saved reference.
+    await eventually(async () => assembly.controls.tools.commands.control.calls.length === 1)
+    expect(assembly.controls.tools.commands.control.calls).toEqual([
+      expect.objectContaining({ reference: held.reference, intent: { kind: 'stop' } }),
+    ])
+    ok(
+      await pushToolResult(
+        toolReceiver(assembly),
+        toolDelivery(held, {
+          name: 'late',
+          terminal: interrupted('stop-late'),
+          content: [textBlock('late content', 'blk_late')],
+          account: toolAccount(held, '11'),
+        }),
+      ),
+    )
+    await eventually(async () => ok(await journal.load(input)).state.kind === 'ended')
+    const ended = ok(await journal.load(input))
+    expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'cancelled' } })
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
+    const kept = ended.entries?.find(
+      entry =>
+        entry.kind === 'received' &&
+        entry.delivery.producer === 'tool' &&
+        entry.delivery.key.reference === held.reference,
+    )
+    if (kept?.kind !== 'received') throw new Error('the late result was not received')
+    expect(kept.delivery).toMatchObject({ account: { usage: [{ lexeme: '11' }] } })
+    const material = ok(
+      await assembly.dependencies.materials.read({ ...alice, source: kept.material }),
+    )
+    expect(JSON.stringify(material)).toContain('late content')
+  })
+
+  it('saves no Tool intent once a cancellation lands before the intent commit', async () => {
+    let cancel: (() => Promise<unknown>) | null = null
+    const assembly = await toolAssembly()
+    const journal = assembly.dependencies.journal
+    const commit = journal.commit.bind(journal)
+    journal.commit = async input => {
+      const fire = cancel
+      // The cancellation lands while A2 commits the intent, so the commit meets a changed revision.
+      if (fire !== null && input.effects.some(effect => effect.pending.kind === 'tool')) {
+        cancel = null
+        await fire()
+      }
+      return commit(input)
+    }
+    acceptEach(assembly)
+    const handle = ok(await invoke(assembly))
+    const input = { ...alice, execution: handle.execution }
+    cancel = () =>
+      handle.control.control({
+        ...input,
+        operation: operation('cancel-before-intent'),
+        command: { kind: 'cancel', reason: evidence('cancel-before-intent') },
+      })
+    await deliverToolSuggestion(assembly)
+    await eventually(async () => ok(await journal.load(input)).settlement.candidate !== null)
+    expect(cancel).toBeNull()
+    const read = ok(await journal.load(input))
+    expect(read.effects.some(effect => effect.pending.kind === 'tool')).toBe(false)
+    expect(read.checkpoint.calls.some(call => call.kind === 'tool')).toBe(false)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+  })
+
+  it('keeps an explicit refusal of a Tool control with its unresolved confirmation', async () => {
+    const assembly = await toolAssembly({ toolConcurrency: 2 })
+    const { handle, first } = await twoCalls(assembly)
+    assembly.controls.tools.commands.control.always(() => ({
+      kind: 'rejected',
+      failure: { kind: 'denied', action: 'control' },
+    }))
+    const { call } = ok(resolveToolInvocationRef(first.reference, alice.tenant))
+    const input = {
+      ...alice,
+      execution: handle.execution,
+      operation: operation('interrupt-refused'),
+      command: { kind: 'interrupt-tool' as const, call, reason: evidence('interrupt-refused') },
+    }
+    ok(await handle.control.control(input))
+    const record = ok(await assembly.dependencies.journal.load(input)).controls.find(
+      item => item.operation === input.operation,
+    )
+    const confirmation = record?.stages['producer-confirmed']
+    expect(record?.toolOperation).toBeNull()
+    expect(confirmation?.state).toBe('unresolved')
+    if (confirmation === undefined) throw new Error('no producer confirmation saved')
+    const observation = JSON.stringify(
+      ok(await assembly.dependencies.materials.read({ ...alice, source: confirmation.source })),
+    )
+    expect(observation).toContain('refused')
+    expect(observation).toContain('denied')
+    // The refused control is not sent again.
+    ok(await handle.control.control(input))
+    expect(assembly.controls.tools.commands.control.calls).toHaveLength(1)
   })
 
   it('sends no Tool invoke once a cancellation lands after the intent is saved', async () => {
