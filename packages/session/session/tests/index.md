@@ -13,4 +13,5 @@
 - [construction.spec.ts](construction.spec.ts)：启动条件与配置核对
 - [advance.spec.ts](advance.spec.ts)：S1、C2 开 Run、会话槽引用、S4、S3
 - [complexity.spec.ts](complexity.spec.ts)：SS-02 确定性计数
+- [measure.spec.ts](measure.spec.ts)：测量事件
 - [fixtures/](fixtures/index.md)：替身装配与真实 SQL 装配

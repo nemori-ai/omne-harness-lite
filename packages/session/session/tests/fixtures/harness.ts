@@ -47,6 +47,7 @@ import {
   type BeforeAdmitSlot,
   type SchedulingPolicy,
   type SessionDependencies,
+  type SessionMeasure,
   type SessionInstance,
 } from '../../src/index.ts'
 import type { Backend, BackendFactory, InitializationCommand } from './backends.ts'
@@ -94,6 +95,8 @@ export type HarnessOptions = Readonly<{
   admission?: readonly BeforeAdmitSlot[] | null
   notifier?: boolean
   drive?: boolean
+  /** The observer of the measurement events; absent leaves the instance without one. */
+  measure?: SessionMeasure
 }>
 
 export async function harness(options: HarnessOptions) {
@@ -240,9 +243,11 @@ export async function harness(options: HarnessOptions) {
     principals: { coordinator: 'system:coordinator', maintainer: 'system:maintainer' },
     admission: { current: () => admission },
   }
-  const instance: SessionInstance<string> = createSessionInstance(dependencies, {
-    policy: { ...defaultSchedulingPolicy, ...options.policy },
-  })
+  const instance: SessionInstance<string> = createSessionInstance(
+    dependencies,
+    { policy: { ...defaultSchedulingPolicy, ...options.policy } },
+    options.measure === undefined ? undefined : { measure: options.measure },
+  )
 
   const faces = (caller: SessionCallerClass): SessionFaces<string> => instance.facesFor(caller)
   const access = (session = 'session-1'): SessionAccess<string> => memoryAccess('a:tester', session)

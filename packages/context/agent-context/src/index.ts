@@ -10,6 +10,7 @@ export {
   type ContextMaterials,
   type ContextMaterialsOptions,
 } from './materials.ts'
+export type { ContextMeasure, ContextMeasureEvent, ContextSegmentEvent } from './measure.ts'
 export { createAgentModelContext, type AgentModelContextOptions } from './model-context.ts'
 export { createAgentRequests, type AgentRequests, type AgentRequestsOptions } from './requests.ts'
 export {

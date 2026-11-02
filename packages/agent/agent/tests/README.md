@@ -28,6 +28,7 @@
 
 - `loop-reply-close.spec.ts` 核对 NA-I3-1/2、NA-I4-1 与 NA-I8-1/2/3：准入与接续同 revision、原交接回执未知后同候选认回、message 事件、真实空批、最终失败 no-reply、完成候选与终态区分、在途 Journal.submit 到 step-2、终态释放后新 invoke，以及未处理结果等待。ordinary limit 保留真实 trim，部分与中断不准入消息或工具动作。测试仅用脚本化 Model、内存 Journal 与材料，不证明公开 submit、控制请求、耐久性或完整恢复。
 
+- `measure.spec.ts` 核对 SPEC「测量事件」：一次 invoke 发出受理通过与至少一次驱动通过，起止成对并带 execution；传入与不传观察者时同一执行到同一终结；观察者抛出不改变结果。驱动通过的 `end` 在 ended 事件可读之后才出现，所以用例等待它而不是读完事件就断言。
 - `public-entry.spec.ts` 核对两个入口的导出名、源码与构建产物的导入图、清单依赖，以及生产安装闭包不到达 Cordis。它读 `package.json` 与 `dist`，所以先构建再运行。
 - `memory-journal.spec.ts` 用内存 Journal 核对[同形清单](../docs/architecture/mechanisms.md#两种实现必须同形的事实)。替身只有一个进程，不覆盖耐久性、崩溃与跨进程接管。
 - `fixtures.spec.ts` 与 `assembly.spec.ts` 核对替身按编排回答，以及测试装配交给工厂得到 idle 的 provider。时钟用例核对 now 返回受控当前时刻、不登记等待，advanceTo 后读取同步变化。替身不证明真实提供者符合契约。

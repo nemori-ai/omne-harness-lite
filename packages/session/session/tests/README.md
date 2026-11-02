@@ -26,6 +26,7 @@
 | [construction.spec.ts](construction.spec.ts) | 快 | 启动条件与 `SchedulingPolicy` 的逐字段核对 |
 | [advance.spec.ts](advance.spec.ts) | 快 | S1、C2 的开 Run 顺序、会话槽引用的两组样例、S4、S3 |
 | [complexity.spec.ts](complexity.spec.ts) | 快 | SS-02：两个历史规模下各面操作的确定性计数相同，并有一个负控 |
+| [measure.spec.ts](measure.spec.ts) | 快 | SPEC「测量事件」：面操作段的起止、`span` 成对、失败结局、轮完成事件，以及无观察者与观察者抛出时答复不变 |
 
 没有 `*.spec-d.ts` 类型测试。
 

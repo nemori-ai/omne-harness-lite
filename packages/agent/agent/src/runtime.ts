@@ -13,6 +13,7 @@ import type {
   AgentProvider,
   AgentRuntimeOptions,
 } from './construction.ts'
+import { createAgentMeasurer, type AgentRuntimeExtras } from './measure.ts'
 import { createProvider } from './provider.ts'
 
 /**
@@ -95,6 +96,7 @@ function undeclaredCapability<P, B extends ContentBlock>(
 export async function createAgentRuntime<P, B extends ContentBlock>(
   dependencies: AgentDependencies<P, B>,
   options: AgentRuntimeOptions,
+  extras: AgentRuntimeExtras = {},
 ): Reply<AgentProvider<P>> {
   const refusal =
     judgeOptions(options) ??
@@ -109,6 +111,7 @@ export async function createAgentRuntime<P, B extends ContentBlock>(
       configuration: options.configuration,
       guard: accessGuard(binding.tenant, dependencies.access),
       dependencies,
+      measurer: createAgentMeasurer(extras.measure),
     }),
   )
 }

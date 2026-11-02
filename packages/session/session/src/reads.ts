@@ -15,6 +15,7 @@ import { admits, type FaceOperation } from './callers.ts'
 import type { SessionDependencies } from './dependencies.ts'
 import { denied, guarded, messageOf, OWNERS, unavailable } from './failures.ts'
 import type { Lifecycle } from './lifecycle.ts'
+import type { SessionMeasurer } from './measure.ts'
 import { qualify } from './qualify.ts'
 
 export type Reads<P> = Readonly<{
@@ -36,6 +37,7 @@ export type Reads<P> = Readonly<{
 export function createReads<P>(
   dependencies: SessionDependencies<P>,
   lifecycle: Lifecycle,
+  measurer: SessionMeasurer,
 ): Reads<P> {
   const closed = (): Outcome<never, SessionFailure> =>
     fail(unavailable(OWNERS.session, 'the session instance is closed'))
@@ -48,11 +50,16 @@ export function createReads<P>(
         return fail({ kind: 'invalid', field: 'tenant', reason: 'the access names no tenant' })
       const request = readAccessRequest(access, operation)
       return lifecycle.track(
-        (async () => {
-          const view = await qualify(dependencies, request)
-          if ('failure' in view) return view
-          return guarded(OWNERS.delegated, operation, () => read(view.ok))
-        })(),
+        measurer.segment(
+          operation,
+          access.session,
+          async () => {
+            const view = await qualify(dependencies, request)
+            if ('failure' in view) return view
+            return guarded(OWNERS.delegated, operation, () => read(view.ok))
+          },
+          answer => 'failure' in answer,
+        ),
       )
     },
     directory: async (caller, operation, read) => {
@@ -67,7 +74,14 @@ export function createReads<P>(
       if (port === null)
         return fail(unavailable(OWNERS.directory, 'the public transaction port is absent'))
       const target = port
-      return lifecycle.track(guarded(OWNERS.directory, operation, () => read(target)))
+      return lifecycle.track(
+        measurer.segment(
+          operation,
+          null,
+          () => guarded(OWNERS.directory, operation, () => read(target)),
+          answer => 'failure' in answer,
+        ),
+      )
     },
   }
 }
