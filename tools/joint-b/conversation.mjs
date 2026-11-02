@@ -43,7 +43,8 @@ holdTestSlot(import.meta.url)
 
 const args = parseArgs(process.argv.slice(2))
 const ROUND_TEXTS = ['joint-b round one', 'joint-b round two', 'joint-b round three']
-const MODEL_SIDE = /^(agent-|model-|session-ad|session-provider|session-handoff|request-context|runtime-context)/
+const MODEL_SIDE =
+  /^(agent-|model-|session-ad|session-provider|session-handoff|request-context|runtime-context)/
 
 const BUILD_AWAIT =
   '两个应用成员的构建产物：pnpm --filter @omne-harness/harness-server... run build' +
@@ -97,7 +98,12 @@ async function run(scratch) {
     const doubles = relevantDoubles(tree.records, MODEL_SIDE)
     evidence = { modelSource: args.modelSource ?? null, doubleRows: doubles }
     if (doubles.length === 0 && args.modelSource === undefined) {
-      blockAll(rec, STEPS, '树上模型侧已是真件，发消息会触到真实模型，但没有给模型来源', MODEL_SOURCE_AWAIT)
+      blockAll(
+        rec,
+        STEPS,
+        '树上模型侧已是真件，发消息会触到真实模型，但没有给模型来源',
+        MODEL_SOURCE_AWAIT,
+      )
       return
     }
     const opened = openSession(tree)
@@ -182,11 +188,15 @@ function round1(tree, scratch, session, round, doubles) {
     doubles,
   )
 
-  const revisions = log === undefined ? undefined : [...new Set(log.map(entry => Number(entry.revision)))].sort((a, b) => a - b)
+  const revisions =
+    log === undefined
+      ? undefined
+      : [...new Set(log.map(entry => Number(entry.revision)))].sort((a, b) => a - b)
   const contiguous =
     revisions === undefined
       ? undefined
-      : revisions.length > 1 && revisions.every((value, i) => i === 0 || value === revisions[i - 1] + 1)
+      : revisions.length > 1 &&
+        revisions.every((value, i) => i === 0 || value === revisions[i - 1] + 1)
   rec.settle(
     'S2',
     STEPS[4][1],
@@ -217,7 +227,10 @@ function rounds23(scratch, rounds, doubles) {
 
   const calls = modelCalls(scratch.storageRoot)
   const counts = calls?.map(call => inputMessageCount(call.request))
-  const observed = counts !== undefined && counts.length === ROUND_TEXTS.length && counts.every(n => n !== undefined)
+  const observed =
+    counts !== undefined &&
+    counts.length === ROUND_TEXTS.length &&
+    counts.every(n => n !== undefined)
   rec.settle(
     'S3',
     STEPS[6][1],
@@ -260,7 +273,10 @@ function rounds23(scratch, rounds, doubles) {
     '模型返回加密推理块并保留请求原文（真实模型或带推理块的获准回放，D-09 的范围）',
     doubles,
   )
-  evidence.rounds = rounds.map(round => ({ text: round.text, replied: round.history !== undefined }))
+  evidence.rounds = rounds.map(round => ({
+    text: round.text,
+    replied: round.history !== undefined,
+  }))
   evidence.inputCounts = counts
 }
 

@@ -143,9 +143,19 @@ async function run(scratch) {
   const tree = await startTree(scratch)
   try {
     const doubles = relevantDoubles(tree.records, TOOL_SIDE)
-    evidence = { platform: PLATFORM, hostPlatform: HOST_PLATFORM, modelSource: args.modelSource ?? null, doubleRows: doubles }
+    evidence = {
+      platform: PLATFORM,
+      hostPlatform: HOST_PLATFORM,
+      modelSource: args.modelSource ?? null,
+      doubleRows: doubles,
+    }
     if (doubles.length === 0 && args.modelSource === undefined) {
-      blockAll(rec, STEPS, '树上相关行已是真件，发消息会触到真实模型，但没有给模型来源', MODEL_SOURCE_AWAIT)
+      blockAll(
+        rec,
+        STEPS,
+        '树上相关行已是真件，发消息会触到真实模型，但没有给模型来源',
+        MODEL_SOURCE_AWAIT,
+      )
       return
     }
     const opened = openSession(tree)
@@ -159,7 +169,8 @@ async function run(scratch) {
     writeFileSync(join(workdir, 'read-me.txt'), `${READ_TOKEN}\n`)
     writeFileSync(join(workdir, 'edit-me.txt'), EDIT_BEFORE)
     const awaiting = doubles.length > 0 ? REAL_ROWS_AWAIT : 'S4 的真件环节'
-    const settle = (name, ok, detail, wait) => rec.settle(name.slice(0, 4), name, ok, detail, wait ?? awaiting, doubles)
+    const settle = (name, ok, detail, wait) =>
+      rec.settle(name.slice(0, 4), name, ok, detail, wait ?? awaiting, doubles)
 
     // ---- Shell
     await driveRound(
@@ -170,11 +181,17 @@ async function run(scratch) {
       waitMs,
     )
     const second = findFile(scratch.base, SECOND_FILE)
-    settle(STEPS[0][1], second !== undefined, second === undefined ? `宿主上找不到 ${SECOND_FILE}` : `产物在 ${second}`)
+    settle(
+      STEPS[0][1],
+      second !== undefined,
+      second === undefined ? `宿主上找不到 ${SECOND_FILE}` : `产物在 ${second}`,
+    )
     settle(
       STEPS[1][1],
       second === undefined ? undefined : existsSync(join(workdir, SECOND_FILE)),
-      second === undefined ? '第二条命令没有产物，看不出工作目录' : `${SECOND_FILE} ${existsSync(join(workdir, SECOND_FILE)) ? '在' : '不在'} ${workdir}`,
+      second === undefined
+        ? '第二条命令没有产物，看不出工作目录'
+        : `${SECOND_FILE} ${existsSync(join(workdir, SECOND_FILE)) ? '在' : '不在'} ${workdir}`,
     )
     const records = rowsOf(scratch.storageRoot, 'tl_record')
     settle(
@@ -187,42 +204,72 @@ async function run(scratch) {
     const shellSeen =
       afterShell.length === 0 || afterShell.at(-1) == null
         ? undefined
-        : afterShell.some(r => r != null && String(r).includes(SECOND_FILE) && TOOL_RESULT.test(String(r)))
+        : afterShell.some(
+            r => r != null && String(r).includes(SECOND_FILE) && TOOL_RESULT.test(String(r)),
+          )
     settle(
       STEPS[3][1],
       shellSeen,
-      afterShell.length === 0 ? '没有 md_call 行或表' : `${String(afterShell.length)} 次请求；认结果块的方式是请求文本里同时有命令文本与 tool result 标记`,
+      afterShell.length === 0
+        ? '没有 md_call 行或表'
+        : `${String(afterShell.length)} 次请求；认结果块的方式是请求文本里同时有命令文本与 tool result 标记`,
       REQUEST_AWAIT,
     )
 
     // ---- Files
-    await driveRound(tree, opened.session, `Use the Files() tool command read on ${join(workdir, 'read-me.txt')} and tell me the content.`, waitMs)
+    await driveRound(
+      tree,
+      opened.session,
+      `Use the Files() tool command read on ${join(workdir, 'read-me.txt')} and tell me the content.`,
+      waitMs,
+    )
     const readRequests = requestsOf(scratch.storageRoot)
     settle(
       STEPS[4][1],
       readRequests.length === 0 || readRequests.every(r => r == null)
         ? undefined
         : readRequests.some(r => r != null && String(r).includes(READ_TOKEN)),
-      readRequests.length === 0 ? '没有 md_call 行或表' : `读出内容 ${READ_TOKEN} ${readRequests.some(r => r != null && String(r).includes(READ_TOKEN)) ? '出现在' : '没有出现在'}后续请求里`,
+      readRequests.length === 0
+        ? '没有 md_call 行或表'
+        : `读出内容 ${READ_TOKEN} ${readRequests.some(r => r != null && String(r).includes(READ_TOKEN)) ? '出现在' : '没有出现在'}后续请求里`,
       REQUEST_AWAIT,
     )
-    await driveRound(tree, opened.session, `Use the Files() tool command write to create ${join(workdir, 'written.txt')} with exactly this content: ${WRITTEN_TEXT}`, waitMs)
+    await driveRound(
+      tree,
+      opened.session,
+      `Use the Files() tool command write to create ${join(workdir, 'written.txt')} with exactly this content: ${WRITTEN_TEXT}`,
+      waitMs,
+    )
     const writtenPath = join(workdir, 'written.txt')
     const written = existsSync(writtenPath) ? readFileSync(writtenPath, 'utf8') : undefined
     settle(
       STEPS[5][1],
       written?.trim() === WRITTEN_TEXT,
-      written === undefined ? '宿主上没有 written.txt' : `内容 ${JSON.stringify(written.slice(0, 120))}`,
+      written === undefined
+        ? '宿主上没有 written.txt'
+        : `内容 ${JSON.stringify(written.slice(0, 120))}`,
     )
-    await driveRound(tree, opened.session, `Use the Files() tool command edit on ${join(workdir, 'edit-me.txt')} to replace the text "alpha" with "beta" and change nothing else.`, waitMs)
+    await driveRound(
+      tree,
+      opened.session,
+      `Use the Files() tool command edit on ${join(workdir, 'edit-me.txt')} to replace the text "alpha" with "beta" and change nothing else.`,
+      waitMs,
+    )
     const edited = readFileSync(join(workdir, 'edit-me.txt'), 'utf8').replaceAll('\r\n', '\n')
     settle(STEPS[6][1], edited === EDIT_AFTER, `内容 ${JSON.stringify(edited.slice(0, 120))}`)
     const filesRequests = requestsOf(scratch.storageRoot)
     const filesSeen =
       filesRequests.length === 0 || filesRequests.every(r => r == null)
         ? undefined
-        : filesRequests.some(r => r != null && /edit-me\.txt/.test(String(r)) && TOOL_RESULT.test(String(r)))
-    settle(STEPS[7][1], filesSeen, filesRequests.length === 0 ? '没有 md_call 行或表' : `${String(filesRequests.length)} 次请求`, REQUEST_AWAIT)
+        : filesRequests.some(
+            r => r != null && /edit-me\.txt/.test(String(r)) && TOOL_RESULT.test(String(r)),
+          )
+    settle(
+      STEPS[7][1],
+      filesSeen,
+      filesRequests.length === 0 ? '没有 md_call 行或表' : `${String(filesRequests.length)} 次请求`,
+      REQUEST_AWAIT,
+    )
 
     // ---- 取消
     await cancelLongCommand(tree, scratch, opened.session, settle, doubles, waitMs)
@@ -231,9 +278,17 @@ async function run(scratch) {
     const stepChecks = checks.filter(entry => entry.step !== 'S4-9')
     const mismatch = PLATFORM !== HOST_PLATFORM
     if (mismatch)
-      rec.fail('S4-9', STEPS[10][1], `--platform ${PLATFORM} 与本机 ${HOST_PLATFORM} 不一致，证据会标错平台`)
+      rec.fail(
+        'S4-9',
+        STEPS[10][1],
+        `--platform ${PLATFORM} 与本机 ${HOST_PLATFORM} 不一致，证据会标错平台`,
+      )
     else if (stepChecks.every(entry => entry.state === 'pass'))
-      rec.pass('S4-9', STEPS[10][1], `${PLATFORM} 上 S4-1～S4-7 全部通过；另一侧要在独立检出上另跑并分别报告`)
+      rec.pass(
+        'S4-9',
+        STEPS[10][1],
+        `${PLATFORM} 上 S4-1～S4-7 全部通过；另一侧要在独立检出上另跑并分别报告`,
+      )
     else
       rec.blocked(
         'S4-9',
@@ -258,25 +313,43 @@ async function cancelLongCommand(tree, scratch, session, settle, doubles, waitMs
   )
   const started = Date.now()
   const history = succeeded(sent)
-    ? await waitFor(async () => {
-        const read = await readHistory(tree, session)
-        return /"run(Id)?":"[^"]+"/.test(JSON.stringify(read.entries)) ? read : undefined
-      }, Math.min(waitMs, 30_000))
+    ? await waitFor(
+        async () => {
+          const read = await readHistory(tree, session)
+          return /"run(Id)?":"[^"]+"/.test(JSON.stringify(read.entries)) ? read : undefined
+        },
+        Math.min(waitMs, 30_000),
+      )
     : undefined
-  const runId = history === undefined ? undefined : /"run(?:Id)?":"([^"]+)"/.exec(JSON.stringify(history.entries))?.[1]
+  const runId =
+    history === undefined
+      ? undefined
+      : /"run(?:Id)?":"([^"]+)"/.exec(JSON.stringify(history.entries))?.[1]
   if (runId === undefined) {
     const why = '会话历史里读不到 Run 标识，无从取消；Run 标识的公开读取面由 L-RUN 给出'
     for (const name of [STEPS[8][1], STEPS[9][1]])
-      rec.blocked('S4-7', name, why, doubles.length > 0 ? REAL_ROWS_AWAIT : 'Run 标识出现在 read-history 或 send-input 的公开输出里（L-RUN，SS-22）')
+      rec.blocked(
+        'S4-7',
+        name,
+        why,
+        doubles.length > 0
+          ? REAL_ROWS_AWAIT
+          : 'Run 标识出现在 read-history 或 send-input 的公开输出里（L-RUN，SS-22）',
+      )
     return
   }
-  const startedRecords = await waitFor(async () => (recordsBefore() > 0 ? recordsBefore() : undefined), 10_000)
+  const startedRecords = await waitFor(
+    async () => (recordsBefore() > 0 ? recordsBefore() : undefined),
+    10_000,
+  )
   const cancelled = tree.cli(['cancel-run', '--session', session, '--run', runId])
   const body = cancelled.result?.body
   const ended = body?.kind === 'ended' ? body.terminal?.outcome : undefined
   settle(
     STEPS[8][1],
-    succeeded(cancelled) ? ended === 'cancelled' || (body?.kind === 'requested' ? undefined : false) : false,
+    succeeded(cancelled)
+      ? ended === 'cancelled' || (body?.kind === 'requested' ? undefined : false)
+      : false,
     `cancel-run 退出 ${String(cancelled.status)}，outcome ${String(cancelled.result?.outcome)}，body ${JSON.stringify(body ?? null).slice(0, 200)}，` +
       `命令启动到取消 ${String(Date.now() - started)} ms`,
     'cancel-run 返回 ended 的终态，或终态进入会话日志后可读（L-RUN，SS-22、AG-22）',
