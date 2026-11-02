@@ -29,7 +29,10 @@ function summaryFor(metadata, rounds, threshold, observations) {
     schemaVersion: 1,
     metadata,
     threshold,
-    thresholdSource: THRESHOLD_SOURCE,
+    thresholdSource:
+      threshold === 1.5
+        ? THRESHOLD_SOURCE
+        : `CLI --threshold; default reference: ${THRESHOLD_SOURCE}`,
     roundCount: rounds.length,
     median,
     state:
