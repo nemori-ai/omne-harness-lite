@@ -4,6 +4,53 @@ import { pathToFileURL } from 'node:url'
 import { createServer } from 'node:net'
 import { launchProcess, runProcess } from './driver.mjs'
 
+const object = value => value !== null && typeof value === 'object' && !Array.isArray(value)
+const nonempty = value => typeof value === 'string' && value.trim() !== ''
+
+function tenantText(value) {
+  if (!nonempty(value)) return false
+  try {
+    const tenant = JSON.parse(value)
+    return (
+      object(tenant) &&
+      Object.keys(tenant).length === 2 &&
+      nonempty(tenant.organization) &&
+      nonempty(tenant.account)
+    )
+  } catch {
+    return false
+  }
+}
+
+function successfulReply(operation, response) {
+  if (
+    response?.result !== 'response' ||
+    response.outcome !== 'succeeded' ||
+    !object(response.body) ||
+    !object(response.request) ||
+    !nonempty(response.request.messageId)
+  )
+    return false
+  const { body, request } = response
+  if (Object.hasOwn(body, 'loginProof') || Object.hasOwn(body, 'credential')) return false
+  switch (operation) {
+    case 'register':
+      return nonempty(body.accountId) && nonempty(body.organizationId) && tenantText(body.tenantId)
+    case 'login':
+      return nonempty(body.loginIdentifier) && nonempty(body.issuedAt) && tenantText(body.tenantId)
+    case 'create-session':
+      return (
+        typeof body.session === 'string' &&
+        /^[0-9a-f]{64}$/.test(body.session) &&
+        typeof body.recovered === 'boolean' &&
+        nonempty(request.createCallId) &&
+        tenantText(request.tenant)
+      )
+    default:
+      return false
+  }
+}
+
 export function cliObservation(operation, result) {
   let response
   try {
@@ -14,7 +61,8 @@ export function cliObservation(operation, result) {
   if (
     result.exitCode === 4 &&
     response?.result === 'response' &&
-    response.outcome === 'basis-unavailable'
+    response.outcome === 'basis-unavailable' &&
+    object(response.body)
   )
     return {
       state: 'blocked',
@@ -23,7 +71,13 @@ export function cliObservation(operation, result) {
       outcome: response.outcome,
       reason: 'adopted basis is unavailable; dependent product measurement remains pending',
     }
-  return { state: result.exitCode === 0 ? 'pass' : 'fail', operation, exitCode: result.exitCode }
+  const succeeded = result.exitCode === 0 && successfulReply(operation, response)
+  return {
+    state: succeeded ? 'pass' : 'fail',
+    operation,
+    exitCode: result.exitCode,
+    ...(!succeeded ? { reason: 'CLI did not return a recognized successful response' } : {}),
+  }
 }
 
 function freePort() {
@@ -126,14 +180,15 @@ export async function probeProduct(root, output) {
         { cwd: root, input },
       )
       raw.push(result)
-      observations.push(cliObservation(args[0], result))
-      return result
+      const observation = cliObservation(args[0], result)
+      observations.push(observation)
+      return observation
     }
     const account = `e9-${process.pid}`
     const credential = 'e9-local-probe-credential\n'
-    if ((await cli(['register', '--login-identifier', account], credential)).exitCode !== 0)
+    if ((await cli(['register', '--login-identifier', account], credential)).state !== 'pass')
       return { observations, raw, rounds: [] }
-    if ((await cli(['login', '--login-identifier', account], credential)).exitCode !== 0)
+    if ((await cli(['login', '--login-identifier', account], credential)).state !== 'pass')
       return { observations, raw, rounds: [] }
     await cli(['create-session', '--definition', 'assistant'])
     const release = JSON.parse(
