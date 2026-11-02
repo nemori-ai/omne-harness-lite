@@ -3,8 +3,8 @@
 // pulled settlement, reads that stay open until every settlement has ended); the history reads
 // call Session as `reader` and `readWork` as `coordinator`, both with the access of the call;
 // another tenant is denied before any Session call; the model view translates to the Request
-// Context history (escaped epoch, canonical sequences, a cursor bound to its evidence, a fixed
-// upper bound, epoch changes, no empty page for a failure); the compaction window is cut at the
+// Context history (escaped epoch, canonical sequences from 0 while the Session rows count from 1, a
+// cursor bound to its evidence, a fixed upper bound, epoch changes, no empty page for a failure); the compaction window is cut at the
 // fixed upper bound and needs the lower bound sub-plugin; the eligibility bridge and the narrow
 // adoption source check the access of every call; a tail page costs the same at N = 10 and N = 100
 // rows (SS-21); both sub-plugins stay absent without `session`, and the lent reads answer
@@ -24,6 +24,7 @@ import type {
   HistoryEvidence,
   HistoryReadResult,
 } from '@omne-harness/request-context-cordis-contract'
+import type { HistoryCursor } from '@omne-harness/request-context-contract'
 import {
   ContextHolderSourcesService,
   contextHolderSourcesKey,
@@ -404,7 +405,8 @@ describe('the history read translates the Session model view', () => {
     const ev = await resolved(w, parts)
     const scopes = ok(await w.s.backend.transactions.readWork(w.s.access)).contextScopes ?? []
     expect(ev.target.scope.ref).toBe(scopes.at(-1)?.scope)
-    expect(ev.upper).toEqual({ kind: 'entry', seq: '3' })
+    // Three Session rows, 1 to 3: the history rows are 0 to 2.
+    expect(ev.upper).toEqual({ kind: 'entry', seq: '2' })
     // The Session epoch holds a control character; the EpochId writes it as %00.
     expect(ev.epoch).toContain('%00')
     expect(ev.epoch).not.toContain('\u0000')
@@ -416,7 +418,7 @@ describe('the history read translates the Session model view', () => {
     await w.remind(3)
     const ev = await resolved(w, parts)
     await w.remind(2, 'late')
-    expect(await readAll(parts, w.access, ev)).toEqual(['1', '2', '3', '4'])
+    expect(await readAll(parts, w.access, ev)).toEqual(['0', '1', '2', '3'])
     const first = await parts.history.read({
       access: w.access,
       evidence: ev,
@@ -425,10 +427,10 @@ describe('the history read translates the Session model view', () => {
     })
     if (first.kind !== 'page') throw new Error('not a page')
     const [row] = first.page.rows
-    expect(row).toMatchObject({ seq: '1', entry: '3', message: { role: 'user' } })
+    expect(row).toMatchObject({ seq: '0', entry: '3', message: { role: 'user' } })
     expect(typeof row?.bytes).toBe('string')
     expect(row).not.toHaveProperty('sourceCall')
-    expect(first.page.next).toEqual({ evidence: ev, after: '1' })
+    expect(first.page.next).toEqual({ evidence: ev, after: '0' })
   })
 
   it('refuses a cursor of another evidence and a malformed upper bound without a Session call', async () => {
@@ -437,7 +439,7 @@ describe('the history read translates the Session model view', () => {
     await w.remind(2)
     const ev = await resolved(w, parts)
     const before = w.sessionCalls()
-    const other: HistoryEvidence = { ...ev, upper: { kind: 'entry', seq: '2' as never } }
+    const other: HistoryEvidence = { ...ev, upper: { kind: 'entry', seq: '1' as never } }
     expect(
       await parts.history.read({
         access: w.access,
@@ -485,7 +487,7 @@ describe('the history read translates the Session model view', () => {
     })
     expect(changed).toEqual({
       kind: 'epoch-changed',
-      current: { target: ev.target, epoch: `${ev.epoch}+1`, upper: { kind: 'entry', seq: '1' } },
+      current: { target: ev.target, epoch: `${ev.epoch}+1`, upper: { kind: 'entry', seq: '0' } },
     })
     w.qualification.session = 'unavailable'
     const down = await parts.history.read({
@@ -495,6 +497,39 @@ describe('the history read translates the Session model view', () => {
       budgetBytes: 9,
     })
     expect(down.kind).toBe('unavailable')
+  })
+
+  // request-context-contract SPEC, "历史源读口与 epoch 视图": the rows of an epoch are numbered from 0
+  // without a gap, the upper bound is the last row, and each cursor names the last row returned. A
+  // page that starts at the Session row number 1 is refused by the Request Context reader.
+  it('numbers the rows of an epoch from 0 to the upper bound, as the Request Context reads them', async () => {
+    const w = await world()
+    const { parts } = await w.borrow()
+    await w.remind(4)
+    const ev = await resolved(w, parts)
+    if (ev.upper.kind !== 'entry') throw new Error('an entry upper bound is expected')
+    let cursor: HistoryCursor | null = null
+    let expected = 0n
+    for (let pages = 0; ; pages++) {
+      if (pages > 20) throw new Error('the read did not end')
+      const answer: HistoryReadResult = await parts.history.read({
+        access: w.access,
+        evidence: ev,
+        cursor,
+        budgetBytes: 1,
+      })
+      if (answer.kind !== 'page') throw new Error(`not a page: ${JSON.stringify(answer)}`)
+      for (const row of answer.page.rows) {
+        expect(row.seq).toBe(String(expected))
+        expected += 1n
+      }
+      if (answer.page.next === null) break
+      expect(answer.page.next.after).toBe(answer.page.rows.at(-1)?.seq)
+      cursor = answer.page.next
+    }
+    // The last row is the upper bound: five rows, 0 to 4.
+    expect(String(expected - 1n)).toBe(ev.upper.seq)
+    expect(ev.upper.seq).toBe('4')
   })
 })
 
@@ -645,7 +680,8 @@ describe('SS-21: a page after the cursor costs the same at N = 10 and N = 100 ro
     const ev = await resolved(w, parts)
     const calls = w.sessionCalls()
     const served = w.modelViewRows.length
-    const after = String(rows - 2) as never
+    // The history rows are 0 to rows - 1: the cursor is before the last two.
+    const after = String(rows - 3) as never
     const answer = await parts.history.read({
       access: w.access,
       evidence: ev,
@@ -666,8 +702,8 @@ describe('SS-21: a page after the cursor costs the same at N = 10 and N = 100 ro
     expect(small.calls).toBe(1)
     expect(large.calls).toBe(1)
     expect(small.rows).toBe(large.rows)
-    expect(small.returned).toEqual(['9', '10'])
-    expect(large.returned).toEqual(['99', '100'])
+    expect(small.returned).toEqual(['8', '9'])
+    expect(large.returned).toEqual(['98', '99'])
   })
 
   it('negative control: reading the history from the start grows with N', async () => {

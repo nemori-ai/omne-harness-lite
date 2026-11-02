@@ -4,7 +4,8 @@
 // through `commitLog`. What is checked: one Agent write is interpreted without a call from the
 // test, the progress reaches the head and the Session command that reads the history passes (it
 // answers unavailable without the plugin); a lost reply is sent again under the same operation and
-// recalls; the same event twice commits once; a stopped plugin and a plugin without
+// recalls; the same event twice commits once; a head that another writer moved after the read
+// answers changed and the call reads again once, then commits; a stopped plugin and a plugin without
 // `sessionTransactions` commit nothing; another tenant's event and a refusing view commit nothing;
 // the R2-D28 counterexample passes once the plugin committed the non-observed tail; the commits of
 // one round do not grow with the rounds before it. The storage is the node:sqlite double of the
@@ -129,8 +130,11 @@ async function submitted(s: SqlScene, journal: AgentJournal<string>, label: stri
 }
 
 /** One Agent commit of the scene's execution with `events`, at its current head. */
+/** Where an Agent write goes: the scene's access and execution, of the SQL scene or the memory one. */
+type Where = Pick<SqlScene, 'access' | 'execution'>
+
 async function committed(
-  s: SqlScene,
+  s: Where,
   journal: AgentJournal<string>,
   label: string,
   events: Parameters<AgentJournal<string>['commit']>[0]['events'],
@@ -159,7 +163,7 @@ async function committed(
 }
 
 /** The Agent takes the pending inputs, as the coordinator's first step does: event input-taken. */
-async function take(s: SqlScene, journal: AgentJournal<string>) {
+async function take(s: Where, journal: AgentJournal<string>) {
   const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
   const authority = loaded.executionAttachment
   if (authority === null) throw new Error('an active attachment is expected')
@@ -287,6 +291,144 @@ describe('AD-02: an Agent publication is interpreted after its event', () => {
     })
     expect(f.sent).toHaveLength(1)
     expect(logOperations(f.s)).toHaveLength(1)
+  })
+})
+
+// session-contract SPEC: an expired same-root basis answers `changed` and the provider prepares
+// again. Another writer of the session (the receivers write through their own Journal copy, which
+// sends no `agent-published`) can move the execution head after the plugin read it; the plugin then
+// reads again once in the same call, and no later event is needed for the interpretation to go on.
+describe('AD-02: the execution head moves between the read and the commit', () => {
+  /** A write of the scene's execution through a Journal copy that sends no event. */
+  const moveHead = (f: Awaited<ReturnType<typeof interpreted>>, label: string) =>
+    committed(f.s, f.s.view.journal, label, [
+      { kind: 'message', message: assistantMessage(label), source: evidence(label) },
+    ])
+
+  it('Session answers changed; the call reads the new head and commits there', async () => {
+    const f = await interpreted('ad02-moved', { plugin: 'later' })
+    await started(f.s, f.c.journal())
+    await f.mountPlugin()
+    const answers: Awaited<ReturnType<CommitLog>>[] = []
+    f.script.push(async (inner, input) => {
+      await moveHead(f, 'moved-1')
+      const answer = await inner(input)
+      answers.push(answer)
+      return answer
+    })
+    expect(ok(await f.interpretation.interpret(f.target))).toEqual({
+      readThrough: '1',
+      committed: 1,
+      waiting: 0,
+    })
+    expect(answers).toMatchObject([{ failure: { kind: 'changed' } }])
+    const [first, second] = f.sent.map(item => BigInt(item.observation.revision))
+    expect(second).toBe((first ?? 0n) + 1n)
+    expect(logOperations(f.s)).toEqual([f.sent[1]?.observation.operation])
+  })
+
+  it('a head that keeps moving: the call stops after its second read with changed', async () => {
+    const f = await interpreted('ad02-moving', { plugin: 'later' })
+    await started(f.s, f.c.journal())
+    await f.mountPlugin()
+    for (const label of ['moving-1', 'moving-2'])
+      f.script.push(async (inner, input) => {
+        await moveHead(f, label)
+        return inner(input)
+      })
+    expect(await f.interpretation.interpret(f.target)).toMatchObject({
+      failure: { kind: 'changed' },
+    })
+    expect(f.sent).toHaveLength(2)
+    expect(await readThrough(f.s)).toBe('0')
+    // The head stays still now: the next call commits.
+    expect(ok(await f.interpretation.interpret(f.target))).toMatchObject({ readThrough: '1' })
+  })
+})
+
+/**
+ * A step that takes no input, as the step after a Tool result does: the Agent writes input-taken
+ * with an empty batch.
+ */
+async function takeNothing(s: Where, journal: AgentJournal<string>, label: string) {
+  const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
+  const authority = loaded.executionAttachment
+  if (authority === null) throw new Error('an active attachment is expected')
+  const page = ok(
+    await journal.inputs({ ...s.access, execution: s.execution, watermark: loaded.inputWatermark }),
+  )
+  if (page.batch.ordered.length !== 0) throw new Error('an empty batch is expected')
+  return ok(
+    await journal.commit({
+      ...s.access,
+      execution: s.execution,
+      operation: operation(label),
+      authority,
+      expected: loaded.revision,
+      checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+      state: { kind: 'advancing' },
+      events: [{ kind: 'input-taken', batch: page.batch }],
+      effects: [],
+      caller: { kind: 'none' },
+      replyAdmission: null,
+      handoff: null,
+      finish: null,
+    }),
+  )
+}
+
+// An empty batch has no Session acceptance (SE14 refuses it): the shared normalization gives the
+// event only `observed`, so the next committed event covers it, in the production AD-02 and in the
+// memory double alike.
+describe('AD-02: a step that took no input', () => {
+  const waits = [dependency('after-empty-take')]
+
+  it('the empty input-taken is not committed; the next committed event covers it', async () => {
+    const f = await interpreted('ad02-empty-take')
+    const journal = f.c.journal()
+    await started(f.s, journal)
+    await reaches(f.s, '1')
+    await takeNothing(f.s, journal, 'take-nothing')
+    await committed(f.s, journal, 'wait-after-empty', [{ kind: 'waiting', waits }], waits)
+    await reaches(f.s, '3')
+    expect(f.sent.map(item => item.observation.sequence)).toEqual(['1', '3'])
+  })
+
+  // The in-process index of a Journal copy rebuilt from the durable records (another writer of the
+  // session changed its publication count) must still know the range of the empty batch that the
+  // checkpoint names, or every later load fails (#502 D4, defect E).
+  it('a Journal copy rebuilt from the durable records loads after the empty take and goes on', async () => {
+    const f = await interpreted('ad02-empty-rebuilt')
+    const journal = f.c.journal()
+    await started(f.s, journal)
+    await takeNothing(f.s, journal, 'take-nothing')
+    // Another writer (a receiver's own Journal copy) moves the publication count, so the plugin's
+    // copy is rebuilt from the durable records at its next call.
+    await committed(f.s, f.s.view.journal, 'other-writer', [
+      { kind: 'message', message: assistantMessage('other'), source: evidence('other-writer') },
+    ])
+    ok(await f.s.fresh().journal.load({ ...f.s.access, execution: f.s.execution }))
+    await committed(f.s, journal, 'wait-after-rebuild', [{ kind: 'waiting', waits }], waits)
+    await reaches(f.s, '4')
+  })
+
+  it('the memory double interprets the same sequence to the same progress', async () => {
+    const m = await scene('memory-empty-take')
+    const interpret = (sequence: string) =>
+      m.backend.controls.interpret({
+        ...m.access,
+        execution: m.execution,
+        sequence,
+        operation: operationId(`interpret-empty-${sequence}`),
+      })
+    await take(m, m.view.journal)
+    ok(await interpret('1'))
+    await takeNothing(m, m.view.journal, 'take-nothing')
+    await committed(m, m.view.journal, 'wait-after-empty', [{ kind: 'waiting', waits }], waits)
+    ok(await interpret('3'))
+    const snapshot = ok(await m.backend.transactions.readWork(m.access))
+    const own = snapshot.run.kind === 'active' ? snapshot.run.execution : undefined
+    expect(own?.readThrough).toBe('3')
   })
 })
 

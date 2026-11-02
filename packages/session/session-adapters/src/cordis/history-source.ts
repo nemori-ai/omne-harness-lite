@@ -41,6 +41,7 @@ import {
   type HistoryEvidenceResolver,
   type HistoryReadResult,
   type HistoryRow,
+  type HistorySequence,
   type HistorySource,
   type HistoryUpper,
   type InvalidReason,
@@ -187,17 +188,40 @@ function sessionEpochOf(epoch: EpochId): string {
   )
 }
 
-/** `"0"` is the empty history; any other canonical decimal is an entry. */
+// The two sequences of one epoch view. The Session model view numbers its rows from 1 and names
+// the empty view by the upper bound "0"; a Request Context history numbers the rows of an epoch
+// from 0 (request-context-contract SPEC, "历史源读口与 epoch 视图"). Row n of Session is row n - 1
+// of the history; a Session cursor after row n is a history cursor after row n - 1.
+
+/** The history sequence of the Session row `seq`; undefined for "0" or a non-canonical text. */
+function historySeqOf(seq: string): HistorySequence | undefined {
+  const decoded = decodeHistorySequence(seq)
+  if (!('ok' in decoded) || decoded.ok === '0') return undefined
+  const shifted = decodeHistorySequence(String(BigInt(decoded.ok) - 1n))
+  return 'ok' in shifted ? shifted.ok : undefined
+}
+
+/** The Session row of the history sequence `seq`, a canonical decimal checked before. */
+function sessionSeqOf(seq: HistorySequence): string {
+  return String(BigInt(seq) + 1n)
+}
+
+/** The Session cursor of a history cursor: after the same row of the Session numbering. */
+function sessionAfterOf(cursor: HistoryCursor | null): string | null {
+  return cursor === null ? null : sessionSeqOf(cursor.after)
+}
+
+/** `"0"` is the empty history; any other canonical decimal is the entry of its last row. */
 function upperOf(text: string): HistoryUpper | undefined {
   if (text === '0') return { kind: 'empty' }
-  const decoded = decodeHistorySequence(text)
-  return 'ok' in decoded ? { kind: 'entry', seq: decoded.ok } : undefined
+  const seq = historySeqOf(text)
+  return seq === undefined ? undefined : { kind: 'entry', seq }
 }
 
 function basisOf(evidence: HistoryEvidence): ModelViewBasis {
   return {
     epoch: sessionEpochOf(evidence.epoch),
-    upper: evidence.upper.kind === 'empty' ? '0' : evidence.upper.seq,
+    upper: evidence.upper.kind === 'empty' ? '0' : sessionSeqOf(evidence.upper.seq),
   }
 }
 
@@ -208,13 +232,13 @@ function evidenceOf(target: ContextTarget, basis: ModelViewBasis): HistoryEviden
 }
 
 function rowOf(row: ModelViewRow): HistoryRow | undefined {
-  const seq = decodeHistorySequence(row.seq)
+  const seq = historySeqOf(row.seq)
   const entry = parseRecordEntryRef(row.entry)
-  if (!('ok' in seq) || entry === null || !Number.isSafeInteger(row.bytes) || row.bytes < 0)
+  if (seq === undefined || entry === null || !Number.isSafeInteger(row.bytes) || row.bytes < 0)
     return undefined
   // No model view row carries its original Model call, so no row has `sourceCall` (SPEC AD-04 3).
   return {
-    seq: seq.ok,
+    seq,
     entry,
     bytes: String(row.bytes),
     prefixDigest: row.prefixDigest,
@@ -509,7 +533,7 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       this.scope[sessionKey].history.readModelView({
         ...located.session,
         basis,
-        after: cursor?.after ?? null,
+        after: sessionAfterOf(cursor),
         pageBytes: input.budgetBytes,
       }),
     )
@@ -531,9 +555,9 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       rows.push(translated)
     }
     if (view.next === null) return { kind: 'page', page: { rows, next: null } }
-    const after = decodeHistorySequence(view.next)
-    if (!('ok' in after)) return this.defect('the model view cursor is not a history sequence')
-    return { kind: 'page', page: { rows, next: { evidence, after: after.ok } } }
+    const after = historySeqOf(view.next)
+    if (after === undefined) return this.defect('the model view cursor is not a history sequence')
+    return { kind: 'page', page: { rows, next: { evidence, after } } }
   }
 
   private async resolve(

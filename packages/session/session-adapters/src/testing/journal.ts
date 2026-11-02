@@ -349,6 +349,31 @@ type Attachment = {
 
 type Range = Readonly<{ from: number; to: number }>
 
+/**
+ * The input range of a batch that an execution took, when the in-process index is rebuilt from the
+ * events: from the position of its first input, or, for an empty batch (a step that took no input),
+ * the range its identity names, which `inputs` issued as `batchIdOf(execution, from, to)`.
+ */
+function takenRange(
+  execution: Readonly<{ id: AgentExecutionId; inputs: readonly Readonly<{ id: InputId }>[] }>,
+  batch: Readonly<{ id: InputBatchId; ordered: readonly InputId[] }>,
+): Range | undefined {
+  const [first] = batch.ordered
+  if (first !== undefined) {
+    const from = execution.inputs.findIndex(input => input.id === first)
+    return from < 0 ? undefined : { from, to: from + batch.ordered.length }
+  }
+  const named = /\/batch\/(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/u.exec(String(batch.id))
+  if (named === null) return undefined
+  const from = Number(named[1])
+  const to = Number(named[2])
+  return from === to &&
+    to <= execution.inputs.length &&
+    batchIdOf(execution.id, from, to) === batch.id
+    ? { from, to }
+    : undefined
+}
+
 export type MemoryExecution = {
   id: AgentExecutionId
   tenant: TenantId
@@ -1417,9 +1442,8 @@ export function createJournal<P>(
       value = { batches: new Map(), watermarks: new Map() }
       for (const event of execution.events)
         if (event.body.kind === 'input-taken') {
-          const ordered = event.body.batch.ordered
-          const from = execution.inputs.findIndex(input => input.id === ordered[0])
-          if (from >= 0) value.batches.set(event.body.batch.id, { from, to: from + ordered.length })
+          const range = takenRange(execution, event.body.batch)
+          if (range !== undefined) value.batches.set(event.body.batch.id, range)
         }
       caches.set(execution, value)
     }
