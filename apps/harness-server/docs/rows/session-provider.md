@@ -1,24 +1,31 @@
-# `session-provider` 行（契约替身）
+# `session-provider` 行
 
-本页是 `session-provider` 行的行规格。行的代码在 `src/rows/session-provider/`。行用 `defineRow` 声明，实现种类是 `contract-double`，没有关闭阶段。两种模式共同的规则归 [real-mode.md](../real-mode.md)。Session 面的行为归 [`@omne-harness/session-contract` 的 SPEC](../../../../packages/session/session-contract/SPEC.md)。
+本页是 `session-provider` 行的行规格。行的代码在 `src/rows/session-provider/`。两种模式共同的规则归 [real-mode.md](../real-mode.md)。Session 面的行为归 [`@omne-harness/session-contract` 的 SPEC](../../../../packages/session/session-contract/SPEC.md)。
 
-**这一行是契约替身，没有业务持久性。** 会话只存在进程内存里。进程重启或行重载之后，会话与游标全部消失。联调时由 L-SES 的真实 Session 提供者替换本行。
+行目录里有两份实现，发行配置指向真件：
 
-## 这一行做什么
+| 项               | 真件（`real.ts`）                                                                                  | 契约替身（`index.ts` 的 `createSessionProviderRow`） |
+| ---------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| 导出名           | `sessionProviderRow`（`src/rows/session-provider/index.ts`，发行配置的 `plugin`）                  | 只经工厂取得，不在 `./cordis` 里                     |
+| 实现种类         | `real`：`@omne-harness/session-cordis` 的 `SessionProvider`                                        | `contract-double`                                    |
+| 提供             | `session`                                                                                          | `session`                                            |
+| 必需（`inject`） | `sessionAccessCheck`、`sessionDelegatedTransactions`、`sessionPrincipals`、`sessionWorkPrincipals` | 同左                                                 |
+| 阶段             | `business`，行体承载：行体在隔离的 `s0.assemblyLifecycle` 下装插件，取插件登记的句柄作为行句柄     | 无                                                   |
+| 配置             | `SessionProvider.Config`；发行给 `admission: 'none'`                                               | 无                                                   |
 
-行在服务键 `session` 下提供 Session 的四个面，让 `server-entry` 行与线内贯通测试在真实 Session 提供者就绪前运行。行不运行 Agent，不写存储，不推进 Run。
+真件的清单与 `src/s0/stubs.ts` 的同一行相同，含阶段；替身的清单除阶段外相同。`tests/rows/session-provider/manifest.spec.ts` 与 `real.spec.ts` 比较两者。
 
-| 项               | 内容                                                                                               |
-| ---------------- | -------------------------------------------------------------------------------------------------- |
-| 行 id 与实现     | `session-provider`，`contract-double`                                                              |
-| 导出名           | `sessionProviderRow`（`src/rows/session-provider/index.ts`）                                       |
-| 提供             | `session`                                                                                          |
-| 必需（`inject`） | `sessionAccessCheck`、`sessionDelegatedTransactions`、`sessionPrincipals`、`sessionWorkPrincipals` |
-| 阶段             | 无                                                                                                 |
+真件按调用现取 `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionIdleInput`、`sessionAgentDrive`、`sessionScopeRelease`、`sessionClock`、`sessionNotifier` 与 `sessionTransactions`（session-cordis 的端口接线）。某个端口缺席或是 S0 替身时，需要它的操作答 `unavailable`，`owner` 是该端口的服务键。发行树里 `create` 经过的端口都是真件：`session-ad09`、`session-ad10`（采用来源是 `adoption-sources` 行，它对 `create` 出具 Session 的初始化守卫，内容来自部署映射条目）、`session-ad12`（接在真件 `runtime-context` 与入口对象 `runtimeContextTrust` 上）。新租户经发行树的首个 `create` 成功，见 `tests/r9/` 与 `create-release.spec.ts`；`create.spec.ts` 的替身用例保留 S0 替身换回 `session-ad12` 时点名 `sessionContextInput` 的答法。
 
-清单与 `src/s0/stubs.ts` 的同一行相同。`tests/rows/session-provider/manifest.spec.ts` 直接比较两者。
+新租户的第一次 `create`：Session 核心先经委派视图 `queryOperation` 再提交，`session-storage` 行对放行的 `create` 所绑定的视图在第一次解析租户域时登记该租户（`tests/rows/session-provider/create-storage.spec.ts`）。
 
-替身只读 `sessionAccessCheck`。另外三个名字替身不读，因为它不接存储也不签发主体。它们留在清单里，让行的可见范围与启动次序和真实提供者一致，也让真实提供者替换本行时装配不变。
+## 契约替身
+
+**替身没有业务持久性。** 会话只存在进程内存里。进程重启或行重载之后，会话与游标全部消失。它留给观察到达主体的用例与 R9 进程内一层（`tests/r9/arrival.spec.ts`）。
+
+替身在服务键 `session` 下提供 Session 的四个面。它不运行 Agent，不写存储，不推进 Run。
+
+替身只读 `sessionAccessCheck`。另外三个名字替身不读，因为它不接存储也不签发主体。它们留在清单里，让行的可见范围与启动次序和真实提供者一致。
 
 ## 实现的操作
 
@@ -82,12 +89,16 @@ const row = createSessionProviderRow({ observe: arrival => arrivals.push(arrival
 
 ## 测试
 
-用例在 `tests/rows/session-provider/`。`support.ts` 用 `startTree` 装本行、访问检查替身、委派入口替身与真实的主体入口对象，按调用方类取出 Session 面。`serve.spec.ts` 用 `serveOnce` 装本行与真实 `server-entry` 行。
+用例在 `tests/rows/session-provider/`。`support.ts` 用 `startTree` 装替身、访问检查替身、委派入口替身与真实的主体入口对象，按调用方类取出 Session 面。`serve.spec.ts` 用 `serveOnce` 装替身与真实 `server-entry` 行。
 
-| 文件                   | 覆盖                                                                                                        |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `manifest.spec.ts`     | 清单与 `stubs.ts` 的同一行相同，无关闭阶段                                                                  |
-| `faces.spec.ts`        | 七个方法经 `session` 服务键调用：重放幂等、冲突、历史给出已接受的输入、分页、游标、控制答案、其余方法不可用 |
-| `tenancy.spec.ts`      | 另一租户的会话、未登记的会话与外租户主体，对六个会话方法答同一个 `denied`                                   |
-| `access-check.spec.ts` | 每个方法先问检查、`denied` 与 `unavailable` 原样转出且状态不变、检查抛出、到达报告                          |
-| `serve.spec.ts`        | 行 ACTIVE、经回环 HTTP 建会话并发输入、输入到达替身、历史读回、输出不含登录证明与凭据                       |
+| 文件                     | 覆盖                                                                                                                                         |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `manifest.spec.ts`       | `./cordis` 的导出是真件；替身的清单与 `stubs.ts` 的同一行相同，无关闭阶段                                                                    |
+| `real.spec.ts`           | 真件在真实存储行上 ACTIVE、经真实面作答、登记一个 `business` 句柄且先于存储行停止、缺 `sessionWorkPrincipals` 时 PENDING                     |
+| `create.spec.ts`         | 真件加真实 `session-ad12` 在契约替身（内存事务、身份桥、证据桥、`runtimeContext`）上 `create` 成功；换回 S0 替身则点名 `sessionContextInput` |
+| `create-storage.spec.ts` | 真件在真实存储行上：新租户第一次 `create` 得到回执并登记进目录；同一存储上重开的树读回会话                                                   |
+| `create-release.spec.ts` | 发行路径的真实行（真实存储、发行映射的 `agent-adoptions`、`adoption-sources`、`session-ad10`、`runtime-context`、`session-ad12`、真件）加真实入口对象：按 `server-entry` 的方式构造的首个 `create` 成功，重开的树读回会话；映射没有的定义或别的候选答 `invalid`，不创建 |
+| `faces.spec.ts`          | 七个方法经 `session` 服务键调用：重放幂等、冲突、历史给出已接受的输入、分页、游标、控制答案、其余方法不可用                                  |
+| `tenancy.spec.ts`        | 另一租户的会话、未登记的会话与外租户主体，对六个会话方法答同一个 `denied`                                                                    |
+| `access-check.spec.ts`   | 每个方法先问检查、`denied` 与 `unavailable` 原样转出且状态不变、检查抛出、到达报告                                                           |
+| `serve.spec.ts`          | 行 ACTIVE、经回环 HTTP 建会话并发输入、输入到达替身、历史读回、输出不含登录证明与凭据                                                        |

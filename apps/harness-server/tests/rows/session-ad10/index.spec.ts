@@ -109,7 +109,12 @@ async function start(options: { sources: boolean }): Promise<{
       declared(sessionAd10Row),
       ...(options.sources
         ? [
-            sourceRow('session-production', sessionProductionSourceKey, productionSource, 'production'),
+            sourceRow(
+              'session-production',
+              sessionProductionSourceKey,
+              productionSource,
+              'production',
+            ),
             sourceRow('session-custody', sessionCustodySourceKey, custodySource, 'custody'),
           ]
         : []),

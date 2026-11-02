@@ -47,3 +47,12 @@ export type {
   SessionHistorySourceInput,
 } from './cordis/history-source.ts'
 export { SessionIdentityBridgeProvider } from './cordis/identity-bridge.ts'
+export {
+  createSessionToolLogConsumptionPlugin,
+  type SessionToolLogConsumptionConfig,
+  type SessionToolLogConsumptionInput,
+  type ToolDeliveryEnvelope,
+  type ToolDeliveryReader,
+  type ToolLogConsumed,
+  type ToolLogTarget,
+} from './cordis/tool-log-consumption.ts'
