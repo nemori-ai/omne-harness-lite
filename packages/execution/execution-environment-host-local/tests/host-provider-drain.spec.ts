@@ -246,6 +246,7 @@ it('logs the diagnostic and RetirementPending when the host files plugin unloads
   expect(errors).toMatchObject([
     { kind: 'drainBoundExceeded', provider: 'host-files', inFlight: 1, boundMs: 20 },
     { name: 'RetirementPending', resources: [] },
+    { name: 'RetirementPending', resources: [] },
   ])
   hold.release()
   expect(await inFlight).toMatchObject({ kind: 'done' })

@@ -306,7 +306,7 @@ export function createHostFilesPlugin(domain: HostFilesDomain) {
         ...(config.filesRoot === undefined ? {} : { filesRoot: config.filesRoot }),
         ...(config.stateDirectory === undefined ? {} : { stateDirectory: config.stateDirectory }),
       }
-      ctx.executionEnvironment.registerProvider(createHostFilesProvider(options))
+      return ctx.executionEnvironment.registerProvider(createHostFilesProvider(options))
     },
   }
 }
