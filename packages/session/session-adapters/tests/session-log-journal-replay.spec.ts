@@ -1,8 +1,10 @@
 // AG-23 on the production Journal: the traces of the finishing model replayed step by step onto
 // the session-log Journal provider over SQL (the node:sqlite double of the Session log
 // combination). Each trace opens its own Session scene; the Session side records the handover of
-// every input the Agent accepted, as the memory scene does.
-import { describe, it } from 'vitest'
+// every input the Agent accepted, as the memory scene does, after AD-02 interpreted the events
+// before it (a control event is a deferred fact that Session decides).
+import { afterEach, describe, it } from 'vitest'
+import { succeed } from '@omne-harness/operation-result'
 import {
   agentJournalReplayConformance,
   testCancellationPolicyInstallation,
@@ -15,7 +17,8 @@ import {
 } from '@omne-harness/agent-contract'
 import { guard, operationId, ordinaryInput } from '@omne-harness/session-contract/testing'
 import { evidence, instance, ok, operation } from './fixtures/common-journal.ts'
-import { handed, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
+import { cordisScene, handed, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
+import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 
 async function accept(s: SqlScene, label: string) {
@@ -44,6 +47,26 @@ async function accept(s: SqlScene, label: string) {
   }
 }
 
+const disposers: (() => Promise<unknown>)[] = []
+afterEach(async () => {
+  for (const dispose of disposers.splice(0).reverse()) await dispose()
+})
+
+/**
+ * AD-02 over the scene's storage, called before each Session decision that reads the execution's
+ * tail (the replay's Journal is not the Cordis plugin, so no publication event wakes it).
+ */
+async function interpretation(s: SqlScene) {
+  const c = await cordisScene(s)
+  disposers.push(() => c.dispose())
+  const ad02 = createSessionJournalInterpretationPlugin<string>({
+    coordinator: async () => succeed(s.access.principal),
+  })
+  await c.mount(ad02.plugin)
+  const target = { tenant: s.access.tenant, session: s.access.session, execution: s.execution }
+  return async () => ok(await ad02.interpret(target))
+}
+
 /**
  * `durable`: every Journal call of the replay goes to a new provider, which has no in-process copy
  * and rebuilds the records of the session from storage first.
@@ -51,6 +74,7 @@ async function accept(s: SqlScene, label: string) {
 const fixtureOf = (mode: 'kept' | 'durable'): AgentJournalCoreFixture<string> => ({
   async open(name) {
     const s = await sqlScene(`replay-${mode}-${name}`.slice(0, 48), { cancellation: 'installed' })
+    const interpret = await interpretation(s)
     const opened = ok(await s.view.journal.open(s.openInput))
     ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
     const handedOver = new Set<string>()
@@ -65,6 +89,7 @@ const fixtureOf = (mode: 'kept' | 'durable'): AgentJournalCoreFixture<string> =>
           !handedOver.has(input.value.id)
         ) {
           handedOver.add(input.value.id)
+          await interpret()
           ok(await handed(s, input.value.id, answered.ok.evidence as DurableEvidence))
         }
         return answered

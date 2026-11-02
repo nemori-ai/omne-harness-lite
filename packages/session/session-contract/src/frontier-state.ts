@@ -2,7 +2,7 @@ import type { SessionEntry } from './entries.ts'
 import type { RunId } from './identity.ts'
 import { associated, validateBinding, validateRegistration } from './call-state.ts'
 import type { HistoryEntry } from './faces.ts'
-import type { SessionHistoryReads } from './history-values.ts'
+import { isDeferredFact, type SessionHistoryReads } from './history-values.ts'
 import type { WorkSnapshot } from './values.ts'
 import {
   executionBoundary,
@@ -151,7 +151,15 @@ function interpretationRuns(
           ))
       )
     })
-    if (!hasConsequence) inconsistent('interpretation progress has no same-batch consequences')
+    // A deferred control fact that Session decided as observed saves its progress alone.
+    const deferredProgress = boundary.facts.some(
+      fact =>
+        fact.sequence === entry.execution.readThrough &&
+        BigInt(fact.sequence) > BigInt(boundary.readThrough) &&
+        isDeferredFact(fact.kinds),
+    )
+    if (!hasConsequence && !deferredProgress)
+      inconsistent('interpretation progress has no same-batch consequences')
   }
   return runs
 }
@@ -243,6 +251,12 @@ export function validateReplayHistory(
           ? [kind]
           : []
       })
+      // Session decided a deferred control fact in this batch: only `control` rows, any number.
+      if (isDeferredFact(fact.kinds)) {
+        if (actual.some(kind => kind !== 'control'))
+          inconsistent('interpretation of a deferred control fact writes other consequences')
+        continue
+      }
       const required = fact.kinds.filter(kind => kind !== 'observed')
       // The legacy forms normalize to their registration-backed equivalents.
       const normalize = (kind: string) =>

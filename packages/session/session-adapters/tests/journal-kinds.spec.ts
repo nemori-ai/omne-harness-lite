@@ -2,8 +2,9 @@
 // Agent side): each event's kinds are the kinds of the consequences that the shared normalization
 // of the memory reference gives, and the Session pure layer accepts those consequences against the
 // rows in the same commit (`commitLog` checks that the observation names the complete original
-// consequence order). An event whose original fragments do not decide it (a control event) has
-// empty kinds, and a Session decision that needs it answers `unavailable`. The storage is the
+// consequence order). A control event, whose consequences Session decides when it interprets
+// it, has the deferred marker and its Agent evidence; until it is interpreted, a Session decision
+// that needs it answers `unavailable`. The storage is the
 // node:sqlite double of the Session log combination; the Journal is the session-log provider.
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -226,8 +227,8 @@ describe('the reverse input directory row of an open names the original attempt'
   })
 })
 
-describe('an event whose original fragments do not decide it', () => {
-  it('a control event has empty kinds and no consequences; a Session decision that needs it answers unavailable', async () => {
+describe('an event whose consequences the publication does not decide', () => {
+  it('a control event has the deferred marker and its evidence; until it is interpreted, a Session decision that needs it answers unavailable', async () => {
     const s = await scene('kinds-control')
     await started(s)
     await commitEvents(s)
@@ -241,7 +242,8 @@ describe('an event whose original fragments do not decide it', () => {
     )
     const view = await interpretation(s, '1')
     expect(view.events.map(event => [event.sequence, event.consequences])).toEqual([['2', null]])
-    expect(factKinds(s)['2']).toEqual([])
+    expect(view.events[0]?.control?.records.map(record => record.command)).toEqual(['cancel'])
+    expect(factKinds(s)['2']).toEqual(['deferred'])
     // Session accepts input-2 and the Agent submits it; its handover needs the unread event 2.
     const value = ordinaryInput('input-2')
     const accepted = ok(

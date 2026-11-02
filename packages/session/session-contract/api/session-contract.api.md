@@ -143,8 +143,14 @@
 - `SessionCommand` · `ports.d.ts`
 - `SessionContextInput` · `ports.d.ts`
 - `SessionControlAnswer` · `control-values.d.ts`
+- `SessionControlDecisionInput` · `control-normalization.d.ts`
 - `SessionControlEntryReferences` · `work-entry-values.d.ts`
+- `SessionControlEvidence` · `control-normalization.d.ts`
+- `SessionControlOrigin` · `control-normalization.d.ts`
 - `SessionControlReceipt` · `control-values.d.ts`
+- `SessionControlRecordEvidence` · `control-normalization.d.ts`
+- `SessionControlSettlement` · `control-normalization.d.ts`
+- `SessionControlStage` · `control-normalization.d.ts`
 - `SessionCreation` · `values.d.ts`
 - `SessionCustodySource` · `ports.d.ts`
 - `SessionDelegatedTransactions` · `access.d.ts`
@@ -160,6 +166,7 @@
 - `SessionExecutionPrefix` · `history-values.d.ts`
 - `SessionFaces` · `faces.d.ts`
 - `SessionFactBoundary` · `history-values.d.ts`
+- `SessionFactKind` · `history-values.d.ts`
 - `SessionFailure` · `faces.d.ts`
 - `SessionFrozen` · `values.d.ts`
 - `SessionHistory` · `faces.d.ts`
@@ -201,6 +208,7 @@
 - `WorkspaceAttachment` · `values.d.ts`
 - `commandDigest` · `decide.d.ts`
 - `decide` · `decide.d.ts`
+- `decideControlConsequences` · `control-normalization.d.ts`
 - `deriveDriveOperation` · `operations.d.ts`
 - `deriveIngressOperation` · `operations.d.ts`
 - `deriveSessionOperation` · `operations.d.ts`
@@ -208,6 +216,7 @@
 - `digestSessionLog` · `log-interpretation.d.ts`
 - `executionReadThrough` · `log-interpretation.d.ts`
 - `initializationRegistrationCommit` · `initialization-plan.d.ts`
+- `isDeferredFact` · `history-values.d.ts`
 - `judgeAdvance` · `judgments.d.ts`
 - `judgeCompletion` · `judgments.d.ts`
 - `judgeIdle` · `judgments.d.ts`
@@ -457,6 +466,55 @@ export type SessionCallWait = Readonly<{
     consumption: ConsumptionId;
     position: string;
 }>;
+```
+
+## 声明文件 `control-normalization.d.ts`
+
+```ts
+import { type Outcome } from '@omne-harness/operation-result';
+import type { Message } from '@omne-harness/message';
+import type { SessionFailure } from './faces.ts';
+import type { SessionAttemptRecord } from './history-values.ts';
+import type { DurableEvidence, InputId, RunId, SessionOperationId } from './identity.ts';
+import type { SessionLogConsequence } from './projection.ts';
+import type { CallBinding, WorkSnapshot } from './values.ts';
+export type SessionControlStage = 'intent-established' | 'qualification-revoked' | 'producer-confirmed' | 'physically-stopped' | 'duty-released';
+export type SessionControlRecordEvidence = Readonly<{
+    operation: string;
+    command: 'cancel' | 'interrupt-model' | 'interrupt-tool' | 'background-tool';
+    references: readonly string[];
+    invocation: string | null;
+    reached: readonly SessionControlStage[];
+    accepted: string;
+}>;
+export type SessionControlSettlement = Readonly<{
+    kind: 'background' | 'result' | 'model';
+    binding: CallBinding;
+    revision: string;
+}>;
+export type SessionControlEvidence = Readonly<{
+    through: string;
+    records: readonly SessionControlRecordEvidence[];
+    settled: readonly SessionControlSettlement[];
+    urgent: readonly Readonly<{
+        input: InputId;
+        message: Message;
+        origin: DurableEvidence | null;
+    }>[];
+}>;
+export type SessionControlOrigin = Readonly<{
+    operation: SessionOperationId;
+    execution: string | null;
+}>;
+export type SessionControlDecisionInput = Readonly<{
+    snapshot: WorkSnapshot;
+    execution: string;
+    run: RunId;
+    attempts: readonly SessionAttemptRecord[];
+    origins: readonly SessionControlOrigin[];
+    evidence: SessionControlEvidence;
+}>;
+export declare function decideControlConsequences(input: SessionControlDecisionInput): Outcome<readonly SessionLogConsequence[], SessionFailure>;
 ```
 
 ## 声明文件 `control-state.d.ts`
@@ -1347,7 +1405,7 @@ export type SessionFaces<P> = Readonly<{
 import type { SessionEntry } from './entries.ts';
 import type { RunId } from './identity.ts';
 import type { HistoryEntry } from './faces.ts';
-import type { SessionHistoryReads } from './history-values.ts';
+import { type SessionHistoryReads } from './history-values.ts';
 import type { WorkSnapshot } from './values.ts';
 export declare function validateFrontierBatch(snapshot: WorkSnapshot, entries: readonly SessionEntry[], reads?: SessionHistoryReads): void;
 export declare function validateInterpretationEntry(snapshot: WorkSnapshot, entry: SessionEntry, run: RunId | undefined): void;
@@ -1381,6 +1439,7 @@ import type { TenantId } from '@omne-harness/legal-identity';
 import type { AttemptId, DurableEvidence, InputId, RunId, SessionId } from './identity.ts';
 import type { InputBatch } from './values.ts';
 import type { SessionLogConsequence } from './projection.ts';
+import type { SessionControlOrigin } from './control-normalization.ts';
 export type SessionLogRoot = Readonly<{
     tenant: TenantId;
     session: SessionId;
@@ -1403,11 +1462,13 @@ export type InputAdmissionBoundary = Readonly<{
     members: readonly InputAdmissionMember[];
     source: DurableEvidence;
 }>;
+export type SessionFactKind = SessionLogConsequence['kind'] | 'deferred';
 export type SessionFactBoundary = Readonly<{
     sequence: string;
     source: DurableEvidence;
-    kinds: readonly SessionLogConsequence['kind'][];
+    kinds: readonly SessionFactKind[];
 }>;
+export declare const isDeferredFact: (kinds: readonly SessionFactKind[]) => boolean;
 export type ExecutionHistoryBoundary = Readonly<{
     run: RunId;
     execution: string;
@@ -1485,6 +1546,7 @@ export type SessionHistoryReads = Readonly<{
     prefixes: readonly SessionExecutionPrefix[];
     attempts: readonly SessionAttemptRecord[];
     taken: readonly SessionTakenRecord[];
+    controls?: readonly SessionControlOrigin[];
 }>;
 ```
 
@@ -1542,6 +1604,8 @@ export { reduce } from './reduce.ts';
 export { projectSessionLog, type SessionLogObservation, type SessionLogConsequence, } from './projection.ts';
 export { projectSessionEntries, digestSessionEntries } from './entries-interpretation.ts';
 export { digestSessionLog, executionReadThrough } from './log-interpretation.ts';
+export { decideControlConsequences, type SessionControlDecisionInput, type SessionControlEvidence, type SessionControlOrigin, type SessionControlRecordEvidence, type SessionControlSettlement, type SessionControlStage, } from './control-normalization.ts';
+export { isDeferredFact, type SessionFactKind } from './history-values.ts';
 export type { ResidentAdoption, RunExecution, ContextScopeBinding } from './values.ts';
 export { INITIALIZATION_PROTOCOL } from './initialization-schema.ts';
 export type { InitialAdoption, InitializationAdoption, InitializationGuardFacts, InitializationGuardResult, InitializationConsequence, InitializationState, InitializationFactReference, } from './initialization-schema.ts';
@@ -1948,7 +2012,7 @@ export declare function compactionReads(entries: readonly HistoryEntry[], snapsh
 ```ts
 import type { WorkSnapshot } from './values.ts';
 import type { SessionLogObservation } from './projection.ts';
-import type { SessionHistoryReads } from './history-values.ts';
+import { type SessionHistoryReads } from './history-values.ts';
 export declare function validateObservation(snapshot: WorkSnapshot, observation: SessionLogObservation, reads?: SessionHistoryReads): {
     context: Readonly<{
         snapshot: WorkSnapshot;
@@ -1976,6 +2040,7 @@ export declare function validateObservation(snapshot: WorkSnapshot, observation:
         revision: string;
         digest: string;
     }>;
+    deferred: boolean;
     repeated: boolean;
 };
 ```
@@ -2376,6 +2441,7 @@ export interface SessionNotifier {
 ```ts
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts';
 import type { SessionHistoryReads } from './history-values.ts';
+import { type SessionControlEvidence } from './control-normalization.ts';
 import type { DurableEvidence, RunId, SessionAccess, ConsumptionId, SessionOperationId } from './identity.ts';
 import type { CallBinding, ControlProgress, InputBatch, RunTerminal, Waiting, WorkSnapshot, ProducedResult } from './values.ts';
 import type { Decision } from './judgments.ts';
@@ -2429,6 +2495,7 @@ export type SessionLogObservation = Omit<SessionAccess<never>, 'principal'> & Re
     operation?: SessionOperationId;
     source: DurableEvidence;
     consequences: readonly SessionLogConsequence[];
+    control?: SessionControlEvidence;
 }>;
 export declare function projectSessionLog(snapshot: WorkSnapshot, observation: SessionLogObservation, reads?: SessionHistoryReads): Decision;
 ```
@@ -2494,8 +2561,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:faa8823ad942e173ed6e98554632698f61ac08b9fd2d331286039ee413fd70e9";
-export declare const SESSION_RELEASE_DIGEST = "sha256:faa8823ad942e173ed6e98554632698f61ac08b9fd2d331286039ee413fd70e9";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:854d623d685fcf8df511e70698eca35ca9ab93133425ff2ae53e5d2c9e95ce80";
+export declare const SESSION_RELEASE_DIGEST = "sha256:854d623d685fcf8df511e70698eca35ca9ab93133425ff2ae53e5d2c9e95ce80";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

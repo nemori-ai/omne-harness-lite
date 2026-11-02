@@ -4,7 +4,8 @@
 // through `commitLog`. What is checked: one Agent write is interpreted without a call from the
 // test, the progress reaches the head and the Session command that reads the history passes (it
 // answers unavailable without the plugin); a lost reply is sent again under the same operation and
-// recalls; the same event twice commits once; a stopped plugin and a plugin without
+// recalls; the same event twice commits once; a head that another writer moved after the read
+// answers changed and the call reads again once, then commits; a stopped plugin and a plugin without
 // `sessionTransactions` commit nothing; another tenant's event and a refusing view commit nothing;
 // the R2-D28 counterexample passes once the plugin committed the non-observed tail; the commits of
 // one round do not grow with the rounds before it. The storage is the node:sqlite double of the
@@ -17,6 +18,7 @@ import {
   type Waiting,
 } from '@omne-harness/agent-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
+import { deriveDriveOperation } from '@omne-harness/session-contract'
 import type {
   SessionFailure,
   SessionLogCommitObservation,
@@ -33,7 +35,7 @@ import {
   ordinaryInput,
 } from '@omne-harness/session-contract/testing'
 import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
-import { ok, operation, submitInput } from './fixtures/common-journal.ts'
+import { ok, operation, scene, submitInput } from './fixtures/common-journal.ts'
 import { cordisScene, handed, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 type CommitLog = NonNullable<SessionTransactionPort<string>['commitLog']>
@@ -128,8 +130,11 @@ async function submitted(s: SqlScene, journal: AgentJournal<string>, label: stri
 }
 
 /** One Agent commit of the scene's execution with `events`, at its current head. */
+/** Where an Agent write goes: the scene's access and execution, of the SQL scene or the memory one. */
+type Where = Pick<SqlScene, 'access' | 'execution'>
+
 async function committed(
-  s: SqlScene,
+  s: Where,
   journal: AgentJournal<string>,
   label: string,
   events: Parameters<AgentJournal<string>['commit']>[0]['events'],
@@ -158,7 +163,7 @@ async function committed(
 }
 
 /** The Agent takes the pending inputs, as the coordinator's first step does: event input-taken. */
-async function take(s: SqlScene, journal: AgentJournal<string>) {
+async function take(s: Where, journal: AgentJournal<string>) {
   const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
   const authority = loaded.executionAttachment
   if (authority === null) throw new Error('an active attachment is expected')
@@ -286,6 +291,144 @@ describe('AD-02: an Agent publication is interpreted after its event', () => {
     })
     expect(f.sent).toHaveLength(1)
     expect(logOperations(f.s)).toHaveLength(1)
+  })
+})
+
+// session-contract SPEC: an expired same-root basis answers `changed` and the provider prepares
+// again. Another writer of the session (the receivers write through their own Journal copy, which
+// sends no `agent-published`) can move the execution head after the plugin read it; the plugin then
+// reads again once in the same call, and no later event is needed for the interpretation to go on.
+describe('AD-02: the execution head moves between the read and the commit', () => {
+  /** A write of the scene's execution through a Journal copy that sends no event. */
+  const moveHead = (f: Awaited<ReturnType<typeof interpreted>>, label: string) =>
+    committed(f.s, f.s.view.journal, label, [
+      { kind: 'message', message: assistantMessage(label), source: evidence(label) },
+    ])
+
+  it('Session answers changed; the call reads the new head and commits there', async () => {
+    const f = await interpreted('ad02-moved', { plugin: 'later' })
+    await started(f.s, f.c.journal())
+    await f.mountPlugin()
+    const answers: Awaited<ReturnType<CommitLog>>[] = []
+    f.script.push(async (inner, input) => {
+      await moveHead(f, 'moved-1')
+      const answer = await inner(input)
+      answers.push(answer)
+      return answer
+    })
+    expect(ok(await f.interpretation.interpret(f.target))).toEqual({
+      readThrough: '1',
+      committed: 1,
+      waiting: 0,
+    })
+    expect(answers).toMatchObject([{ failure: { kind: 'changed' } }])
+    const [first, second] = f.sent.map(item => BigInt(item.observation.revision))
+    expect(second).toBe((first ?? 0n) + 1n)
+    expect(logOperations(f.s)).toEqual([f.sent[1]?.observation.operation])
+  })
+
+  it('a head that keeps moving: the call stops after its second read with changed', async () => {
+    const f = await interpreted('ad02-moving', { plugin: 'later' })
+    await started(f.s, f.c.journal())
+    await f.mountPlugin()
+    for (const label of ['moving-1', 'moving-2'])
+      f.script.push(async (inner, input) => {
+        await moveHead(f, label)
+        return inner(input)
+      })
+    expect(await f.interpretation.interpret(f.target)).toMatchObject({
+      failure: { kind: 'changed' },
+    })
+    expect(f.sent).toHaveLength(2)
+    expect(await readThrough(f.s)).toBe('0')
+    // The head stays still now: the next call commits.
+    expect(ok(await f.interpretation.interpret(f.target))).toMatchObject({ readThrough: '1' })
+  })
+})
+
+/**
+ * A step that takes no input, as the step after a Tool result does: the Agent writes input-taken
+ * with an empty batch.
+ */
+async function takeNothing(s: Where, journal: AgentJournal<string>, label: string) {
+  const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
+  const authority = loaded.executionAttachment
+  if (authority === null) throw new Error('an active attachment is expected')
+  const page = ok(
+    await journal.inputs({ ...s.access, execution: s.execution, watermark: loaded.inputWatermark }),
+  )
+  if (page.batch.ordered.length !== 0) throw new Error('an empty batch is expected')
+  return ok(
+    await journal.commit({
+      ...s.access,
+      execution: s.execution,
+      operation: operation(label),
+      authority,
+      expected: loaded.revision,
+      checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+      state: { kind: 'advancing' },
+      events: [{ kind: 'input-taken', batch: page.batch }],
+      effects: [],
+      caller: { kind: 'none' },
+      replyAdmission: null,
+      handoff: null,
+      finish: null,
+    }),
+  )
+}
+
+// An empty batch has no Session acceptance (SE14 refuses it): the shared normalization gives the
+// event only `observed`, so the next committed event covers it, in the production AD-02 and in the
+// memory double alike.
+describe('AD-02: a step that took no input', () => {
+  const waits = [dependency('after-empty-take')]
+
+  it('the empty input-taken is not committed; the next committed event covers it', async () => {
+    const f = await interpreted('ad02-empty-take')
+    const journal = f.c.journal()
+    await started(f.s, journal)
+    await reaches(f.s, '1')
+    await takeNothing(f.s, journal, 'take-nothing')
+    await committed(f.s, journal, 'wait-after-empty', [{ kind: 'waiting', waits }], waits)
+    await reaches(f.s, '3')
+    expect(f.sent.map(item => item.observation.sequence)).toEqual(['1', '3'])
+  })
+
+  // The in-process index of a Journal copy rebuilt from the durable records (another writer of the
+  // session changed its publication count) must still know the range of the empty batch that the
+  // checkpoint names, or every later load fails (#502 D4, defect E).
+  it('a Journal copy rebuilt from the durable records loads after the empty take and goes on', async () => {
+    const f = await interpreted('ad02-empty-rebuilt')
+    const journal = f.c.journal()
+    await started(f.s, journal)
+    await takeNothing(f.s, journal, 'take-nothing')
+    // Another writer (a receiver's own Journal copy) moves the publication count, so the plugin's
+    // copy is rebuilt from the durable records at its next call.
+    await committed(f.s, f.s.view.journal, 'other-writer', [
+      { kind: 'message', message: assistantMessage('other'), source: evidence('other-writer') },
+    ])
+    ok(await f.s.fresh().journal.load({ ...f.s.access, execution: f.s.execution }))
+    await committed(f.s, journal, 'wait-after-rebuild', [{ kind: 'waiting', waits }], waits)
+    await reaches(f.s, '4')
+  })
+
+  it('the memory double interprets the same sequence to the same progress', async () => {
+    const m = await scene('memory-empty-take')
+    const interpret = (sequence: string) =>
+      m.backend.controls.interpret({
+        ...m.access,
+        execution: m.execution,
+        sequence,
+        operation: operationId(`interpret-empty-${sequence}`),
+      })
+    await take(m, m.view.journal)
+    ok(await interpret('1'))
+    await takeNothing(m, m.view.journal, 'take-nothing')
+    await committed(m, m.view.journal, 'wait-after-empty', [{ kind: 'waiting', waits }], waits)
+    ok(await interpret('3'))
+    const snapshot = ok(await m.backend.transactions.readWork(m.access))
+    const own = snapshot.run.kind === 'active' ? snapshot.run.execution : undefined
+    expect(own?.readThrough).toBe('3')
   })
 })
 
@@ -421,3 +564,204 @@ describe('AD-02 commits per round do not grow with the rounds before it', () => 
     expect(new Set(perRound)).toEqual(new Set([1]))
   })
 })
+
+/**
+ * K-12 direction D: an Agent control event has the deferred marker instead of kinds, and Session
+ * decides its consequences in the interpretation commit with `decideControlConsequences`. The
+ * sequence is a Session cancel of the Run (K), the Agent cancel under the drive of K (accepted),
+ * then its intent and its qualification.
+ */
+describe('AD-02 interprets the control events of a Session cancel (deferred control facts)', () => {
+  type Progress = Readonly<{ state: string; pending: number }> | null
+  const stages = ['intent-established', 'qualification-revoked'] as const
+
+  /** The Session cancel of the active Run: SE24 of K. */
+  async function cancelRun(
+    port: SessionTransactionPort<string>,
+    access: SqlScene['sessionAccess'],
+  ) {
+    const snapshot = ok(await port.readWork(access))
+    if (snapshot.run.kind !== 'active') throw new Error('an active Run is expected')
+    const control = operationId('cancel-k')
+    ok(
+      await port.commit({
+        access,
+        command: {
+          kind: 'control',
+          input: {
+            tenant: access.tenant,
+            session: access.session,
+            operation: control,
+            intent: { kind: 'cancel-run', run: snapshot.run.run, urgency: 'force' },
+          },
+        },
+        guards: [],
+      }),
+    )
+    return control
+  }
+
+  /** The Agent side of K: the cancel under the drive of K, then each stage. */
+  function agentSteps(
+    journal: AgentJournal<string>,
+    access: SqlScene['access'],
+    execution: SqlScene['execution'],
+    control: ReturnType<typeof operationId>,
+  ): (() => Promise<unknown>)[] {
+    const target = operation(deriveDriveOperation({ kind: 'control', execution, control }))
+    return [
+      async () =>
+        ok(
+          await journal.control({
+            ...access,
+            execution,
+            operation: target,
+            command: { kind: 'cancel', reason: evidence('cancel') },
+          }),
+        ),
+      ...stages.map(
+        stage => async () =>
+          ok(
+            await journal.recordControl({
+              ...access,
+              execution,
+              operation: operation(stage),
+              target,
+              stage,
+              state: 'reached',
+              source: evidence(stage),
+            }),
+          ),
+      ),
+    ]
+  }
+
+  const progressOf = (snapshot: WorkSnapshot, control: string): Progress => {
+    const found = snapshot.controls.find(item => item.operation === control)
+    return found === undefined ? null : { state: found.state, pending: found.pending.length }
+  }
+
+  /** The production Journal with AD-02: the progress of K after each Agent step is interpreted. */
+  async function production(name: string) {
+    const f = await interpreted(name)
+    const journal = f.c.journal()
+    await started(f.s, journal)
+    await reaches(f.s, '1')
+    // A handed input that the cancelled Run did not take: the successor starts with it.
+    const { input, receipt } = await submitted(f.s, journal, 'two')
+    ok(await handed(f.s, String(input.id), receipt.evidence))
+    await round(f.s, journal, 1)
+    await reaches(f.s, '3')
+    const control = await cancelRun(f.s.port, f.s.sessionAccess)
+    const progress: Progress[] = []
+    let sequence = 3
+    for (const step of agentSteps(journal, f.s.access, f.s.execution, control)) {
+      await step()
+      sequence += 1
+      await reaches(f.s, String(sequence))
+      progress.push(progressOf(await work(f.s), control))
+    }
+    return { f, control, progress }
+  }
+
+  /** The memory double on the same sequence: each event interpreted by an explicit call. */
+  async function memory(name: string) {
+    const m = await scene(name)
+    const loaded = ok(await m.view.journal.load({ ...m.access, execution: m.execution }))
+    const page = ok(
+      await m.view.journal.inputs({
+        ...m.access,
+        execution: m.execution,
+        watermark: loaded.inputWatermark,
+      }),
+    )
+    ok(
+      await m.view.journal.commit({
+        ...m.access,
+        execution: m.execution,
+        operation: operation('take'),
+        authority: m.opened.authority,
+        expected: loaded.revision,
+        checkpoint: { ...m.checkpoint, inputBatch: page.batch.id },
+        state: { kind: 'advancing' },
+        events: [{ kind: 'input-taken', batch: page.batch }],
+        effects: [],
+        caller: { kind: 'none' },
+        replyAdmission: null,
+        handoff: null,
+        finish: null,
+      }),
+    )
+    const interpret = (sequence: string) =>
+      m.backend.controls.interpret({
+        ...m.access,
+        execution: m.execution,
+        sequence,
+        operation: operationId(`interpret-${sequence}`),
+      })
+    ok(await interpret('1'))
+    const control = await cancelRun(m.backend.transactions, m.access)
+    const progress: Progress[] = []
+    let sequence = 1
+    for (const step of agentSteps(m.view.journal, m.access, m.execution, control)) {
+      await step()
+      sequence += 1
+      ok(await interpret(String(sequence)))
+      progress.push(progressOf(ok(await m.backend.transactions.readWork(m.access)), control))
+    }
+    return progress
+  }
+
+  it('the control events after a Session cancel are interpreted: K reconciles, the Run reads cancelled, its content stays and a successor starts', async () => {
+    const { f, control, progress } = await production('ad02-cancel')
+    expect(progress.at(-1)).toEqual({ state: 'reconciled', pending: 0 })
+    const snapshot = await work(f.s)
+    expect(readThroughOf(snapshot, f.s.execution)).toBe('6')
+    if (snapshot.run.kind !== 'terminal') throw new Error('a terminal Run is expected')
+    expect(snapshot.run.terminal.outcome).toBe('cancelled')
+    expect(snapshot.controls.find(item => item.operation === control)?.state).toBe('reconciled')
+    // The content written before the cancel stays readable: the cancel withdraws nothing.
+    const output = ok(
+      await f.c
+        .journal()
+        .output.read({ ...f.s.access, execution: f.s.execution, after: null, limit: 10 }),
+    )
+    expect(JSON.stringify(output)).toContain('round 1')
+    ok(await startRun(f.s, 'start-after-cancel'))
+  })
+
+  it('the memory double and the production AD-02 give the same progress of K, the one Session decides', async () => {
+    const produced = await production('ad02-cancel-pair')
+    const reference = await memory('memory-cancel-pair')
+    expect(produced.progress).toEqual(reference)
+    expect(reference).toEqual([
+      { state: 'propagating', pending: 0 },
+      { state: 'propagating', pending: 0 },
+      { state: 'reconciled', pending: 0 },
+    ])
+  })
+})
+
+function readThroughOf(snapshot: WorkSnapshot, execution: string): string | undefined {
+  return snapshot.executions?.find(item => item.execution.execution === execution)?.execution
+    .readThrough
+}
+
+/** A successor Run with a new first input: the decision that reads the cancelled execution's tail. */
+function startRun(s: SqlScene, name: string) {
+  return s.port.commit({
+    access: s.sessionAccess,
+    command: {
+      kind: 'startRun',
+      input: {
+        tenant: s.access.tenant,
+        session: s.access.session,
+        operation: operationId(name),
+        entry: 'interactive',
+        candidate: creation({ initial: ordinaryInput('input-1') }).definition.candidate,
+        instance: { owner: 'agent', id: 'instance-1' },
+      },
+    },
+    guards: [guard('evidence-bridge', 'login-entry', { session: name, operation: name })],
+  })
+}

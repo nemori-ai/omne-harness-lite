@@ -46,7 +46,7 @@
 | 编号 | 插件 | 方向 | 提供的键 | 调用 `session` 的调用方类 | 邻域操作 | 当前状态 |
 | --- | --- | --- | --- | --- | --- | --- |
 | [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | Session 自有日志提交内的 CallerCommit 与只读核对 | `./testing` 内存提供者已实现四种 CallerCommit 与 open、submit、attach、tryFinish 的只读核对。attach 按 [PA-01](../session-contract/SPEC.md#pa-01) 第 3 条核对普通推进与取消收束，取消收束含 SE16 条件。tryFinish 含 [PA-02](../session-contract/SPEC.md#pa-02) 的取消分支。judge-cancellation 的判断输入带 Session 的参加者事实。生产提供者经 `session` 参加者在同一次存储提交里核对与参加（[生产提供者的实现现状](#生产提供者的实现现状)）；按 Cordis 插件登记未交付 |
-| [AD-02](#ad-02) | Agent 同日志解释 | 入站 | 无 | `coordinator` | AgentJournal.load；同提供者 output.read/events | `./testing` 内存提供者已实现。生产插件 `createSessionJournalInterpretationPlugin` 已实现（`src/cordis/journal-interpretation.ts`，[实现现状](#ad-02-生产插件)），订阅 `session-adapters/agent-published`，经 `commitLog` 提交；在真实 Cordis 与 node:sqlite 替身上验证。控制事件在生产侧不归一（[已知限制](#已知限制)第 9 条） |
+| [AD-02](#ad-02) | Agent 同日志解释 | 入站 | 无 | `coordinator` | AgentJournal.load；同提供者 output.read/events | `./testing` 内存提供者已实现。生产插件 `createSessionJournalInterpretationPlugin` 已实现（`src/cordis/journal-interpretation.ts`，[实现现状](#ad-02-生产插件)），订阅 `session-adapters/agent-published`，经 `commitLog` 提交；在真实 Cordis 与 node:sqlite 替身上验证。控制事件是延后事实，后果由 Session 在解释提交时定（[控制归一](#控制归一)） |
 | [AD-03](#ad-03) | Runtime Context 持有者与 `session.modes` 生产者 | 入站 | `runtimeContextReaderEligibility`（K-RC），由持有者插件提供 | `coordinator`；回放子插件为 `reader` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`registerProducer`、`bind`、`changes`、`diffForReminder` | 回放子插件 `session-ad03-replay`、持有者插件 `session-ad03` 与事实插件 `session-ad03-facts` 已实现（`src/cordis/context-holder.ts`），在真实 Cordis 上对 Runtime Context 内存替身验证。`replayFacts` 由事实插件回答，交给 `createSessionRuntimeContextTrust`；事实插件另以 `sessionScopeLookup` 回答作用域的归属（R2-D14）。条目到提交输入的翻译协议待 AD-12 交付。`session.modes` 生产者与变化提醒子插件未交付。`./cordis` 导出由集成方合入。见 [AD-03 的实现现状](#ad-03-的实现现状) |
 | [AD-04](#ad-04) | Request Context 历史来源 | 入站 | `contextHolderSources`（K-RQ），由历史源子插件提供 | 历史源子插件为 `reader`；下界子插件为 `coordinator` | HistorySource.read/compactionContext；会话侧四个部件经 K-RQ 租借给 agent-context，AD-04 自己不调用 `register`/`replace` | 两个子插件已实现（`src/cordis/history-source.ts`），在真实 Cordis 上对本成员的内存会话验证，K-RQ 套件通过。历史依据解码与固定请求事实由装配交入，真实提供者未交付。`./cordis` 导出由集成方合入。见 [AD-04 的实现现状](#ad-04-的实现现状) |
 | [AD-05](#ad-05) | Model 日志消费适配 | 入站 | 无 | `coordinator` | Agent Journal 的结果与账目读取；`sessionTransactions.commitEntries` | `./testing` 内存提供者已实现。生产插件 `createSessionModelLogConsumptionPlugin` 已实现（`src/cordis/model-log-consumption.ts`，[实现现状](#ad-05-生产插件)），订阅 `session-adapters/agent-published` 自动消费，在真实 Cordis 上装载与停止已验证；`./cordis` 导出由集成方合入。缺 `agentMaterials` 提供者时停在 `PENDING`（生产提供者插件已兑现该键，见 Journal 提供者一行）。Model ACK 到达未决 |
@@ -173,6 +173,8 @@ Session后续解释从该原事件片段重建等待，不要求Agent公开load�
 
 同一Agent事实可涉及多个原K。分别从各K原目标、意图与原选择推导进度，不能只更新第一个匹配项。全部后果及该次解释进度/答案同批发布。
 
+控制事件的后果读解释时的 Session 状态，Agent 提交时定不下来，所以它的事实边界是延后事实（kinds 为 `['deferred']`，session-contract [FR-01](../session-contract/SPEC.md#fr-01)）。规则只有一份：Session 纯层的 `decideControlConsequences`（session-contract `src/control-normalization.ts`）。本成员只把 Agent 一侧翻成它的中性证据 `SessionControlEvidence`（`src/testing/control.ts` 的 `controlEvidence`）：该事件时的控制记录（Agent 操作、命令种类、所指调用的调用引用、Tool 调用、已到达阶段、原命令修订）、该事件修订之前的调用收场片段，以及按驱动操作受理的紧急输入。内存替身在读取时用同一证据和同一函数归一；生产 Journal 在发布点算出证据，AD-02 随观察交给 `commitLog`，由 Session 在本次提交的快照上判定。
+
 ###### 原责任与解除判据
 
 每个K的待办必须回到原SE24责任。当前pending去重只是投影；原来源不同的责任仍逐项核对。各来源均满足后，才能删去合并后的ProducerRef。关联转换不改变原解除判据，也不恢复业务等待。
@@ -250,7 +252,8 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 - 读取：插件以 `coordinator` 经 `session.work.readWork` 找出拥有该 execution 的 Run 与已存的事件进度 `readThrough`，找不到时答 `unavailable`（`owner` 为 `session-history`）。然后插件经 `readExecutionInterpretation` 读同一会话的 Agent 记录（`execution-record.state` 一次读取）：执行头的修订、边界行所记的头回执，以及 `readThrough` 之后的每个事件和发布点为它归一的后果。
 - 提交：每个事件组一个观察 `SessionLogCommitObservation`，经 `sessionTransactions.commitLog` 提交，一次一个事件，按序号顺序。后果只是 `observed` 的事件没有 Session 行，不单独提交，由下一个提交的事件在间隔里覆盖（session-contract FR-03）。操作身份由观察确定地派生，形如 `ad02_` 加摘要：同一读取的同一事件是同一操作。
 - 失败与认回：`commitLog` 答 `commit-unknown` 或抛错时，插件以同一操作、同一观察再发，最多发三次。session-storage-sql 对 log 形式的 `queryOperation` 答 `conflict`，所以插件不查询，只靠同一操作认回（这是线内实现取舍，偏离 DP2-1 第 3 节「unknown 走 queryOperation」的字样）。答 `changed` 时插件重读一次。其他拒绝原样返回并写日志，不重试。插件停止后不再发送。
-- 停下：后果没有归一的事件（控制事件，或原片段缺失的事件）停止本次解释。插件不把它当作 `observed`，也不提交别的东西；答复的 `waiting` 记从它起尚未提交的事件数。头回执是占位回执（另一 execution 的调用改动了该执行）时答 `unavailable`。
+- 控制事件：事实为延后事实的事件，插件发后果为空、带 `control` 证据的观察，后果由 Session 在提交里判定（[控制归一](#控制归一)）。判定只有 `observed` 时，这次提交只推进解释进度。
+- 停下：后果没有归一、也不是延后事实的事件（原片段缺失的事件）停止本次解释。插件不把它当作 `observed`，也不提交别的东西；答复的 `waiting` 记从它起尚未提交的事件数。头回执是占位回执（另一 execution 的调用改动了该执行）时答 `unavailable`。
 - 验证：`tests/journal-interpretation.spec.ts` 在真实 Cordis 4.0.4 与 node:sqlite 替身上运行生产 Journal 插件与本插件：一次 Agent 写入之后不经测试调用就解释，进度到达后需要历史的 Session 命令通过（没有插件时答 `unavailable`）；`observed` 事件不提交；丢答复以同一操作认回，日志只有一次提交；同一事件触发两次只提交一次；插件停止、缺 `sessionTransactions`、另一租户的事件与拒绝 `commitLog` 的视图都不提交；R2-D28 反例（取消之后后继 `startRun` 读旧执行的非 `observed` 尾部）在插件提交尾部之后通过；3 轮与 200 轮里每轮的 `commitLog` 次数都是 1。
 
 ##### 发布点的后果归一
@@ -258,7 +261,7 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 生产 Journal 在同根索引行的组装处（`src/cordis/agent-journal.ts` 的 `indexOf`）对每个新事件调用内存参照的同一个归一函数 `normalizeAgentEvent`（`src/testing/history.ts`），参数是写入之后的公共根与该执行。事实行的 `kinds` 就是归一结果的种类列表，同一份后果随 Agent 记录状态保存在 `notes.consequences`，边界行所记的头回执保存在 `notes.heads`，所以以后的解释读到的后果与索引一致。
 
 - 归一读的原片段（事件回执、事件的 Pending 与每个消费的首个调用事件、人侧材料）由提交钩子在写入时按内存替身的同一函数 `captureEventOriginal` 捕获，随 Agent 记录状态经 `journal-state` 编码保存。
-- 控制事件的后果读解释时的 Session 状态（原控制行、调用登记与 attempt 关系），生产 Journal 的副本里没有这些，所以控制事件的 `kinds` 为空、后果为空，存储读侧对它答 `unavailable`。原片段缺失的事件同样写空 `kinds`，不补造。
+- 控制事件的后果读解释时的 Session 状态，发布点不判定。发布点用内存替身的同一函数 `controlEventEvidence` 算出该事件的 Agent 证据，事实行写延后标记 `kinds: ['deferred']`，证据随 Agent 记录状态保存在 `notes.controls`。证据算不出（原片段缺失）时写空 `kinds`，不补造。原片段缺失的其他事件同样写空 `kinds`。
 - 受理行（`er_admission_idx`）带原挂接的 attempt：取 open 或 attach 的提交钩子已记的 Authority 到 attempt 关系；取不到就不写，不按当前推进猜。
 
 #### AD-03 Runtime Context 持有者与 `session.modes` 生产者
@@ -364,7 +367,7 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 
 - 本项适配拆成两个子插件，各用一个调用方类（[AD-00](#ad-00) 第 1 条）：历史源子插件以 `reader` 调用 Session 的历史读取；下界子插件以 `coordinator` 调用 `readWork`。身份来自本次 `Access`，目标来自 `HistoryEvidence.target` 的显式 tenant/scope。scope 必须与可信 Session 绑定一致，不从 scope 文本猜租户。
 - `read({ access, evidence, cursor, budgetBytes })` 读取固定 evidence 的模型历史。`compactionContext({ access, evidence, coverTo })` 读取同一依据的 CM-02 判断窗口，成功返回完整 evidence。两个入口每次都重新核验当前访问资格。
-- `HistoryEvidence` 含 target、epoch 和 upper。upper 是 empty 或 entry(seq)，seq 是规范非负十进制文本，不用 number 或 -1。Session 模型视图使用从 1 开始的 seq，`ModelViewBasis.upper` 为 `"0"` 时转成 empty，正值转成 entry(seq)；after 保留同一序列的位置，不以浮点数往返转换。行 bytes 从已校验的安全字节计数转为规范十进制文本。非规范值、超范围数或缺失目标返回 invalid，不静默截断。
+- `HistoryEvidence` 含 target、epoch 和 upper。upper 是 empty 或 entry(seq)，seq 是规范非负十进制文本，不用 number 或 -1。Session 模型视图的 seq 从 1 开始，Request Context 历史的 seq 从 0 开始（[历史源读口与 epoch 视图](../../context/request-context-contract/SPEC.md#历史源读口与-epoch-视图)）。Session 第 n 行是历史第 n−1 行：`ModelViewBasis.upper` 为 `"0"` 时转成 empty，正值 n 转成 entry(n−1)；历史游标 after h 交给 Session 时是 h+1，Session 的 next n 转成历史游标 n−1。换算按任意精度十进制，不以浮点数往返转换；Session 行号 `"0"` 不是合法行，按翻译缺陷答 unavailable。行 bytes 从已校验的安全字节计数转为规范十进制文本。非规范值、超范围数或缺失目标返回 invalid，不静默截断。
 - cursor 绑定完整 tenant/scope/epoch/upper 与 after。每页保持原依据，epoch-changed 带当前完整 evidence，不能拼接两个 epoch。Session 的 unavailable 保持 unavailable，不返回空页；unknown 不改为空历史或未发生。缺访问身份或可信目标时不调用历史读。
 - 本插件不等 AD-03 补拉：提醒是否落在固定 upper 内，取决于 AD-03 [1c](#ad-03-1c) 的补拉时点，两者之间没有通道（1c 的已知限制）。history 组 `readCount/readSource` 的 token 覆盖新输入的可靠保存、固定全部页、压缩窗口和 open 下界。前后 token 相同意味着这些相关事实未变。重启、来源替换或计数回绕换代；RQ 最多两次稳定读取，不把 execution revision 或到达顺序当作跨 execution 的 Session 顺序。
 
@@ -405,7 +408,7 @@ CM-02 的来源完整性由本插件及其 Session 历史提供者负责：
 | 部件 | 怎样兑现 |
 | --- | --- |
 | `resolveHistory` | 装配交入的解码端口 `heads` 把历史依据（Agent 执行快照的 `history`）译为租户与会话。不认识的依据答 `invalid`；租户不等于 Access 的租户时答 `denied`。然后以 `readWork` 取会话的作用域绑定：最新绑定是当前作用域，它已结束时答 `unavailable`。会话的全部作用域进入作用域到会话的索引。再以 `readModelView`（依据为 null）取当前 epoch 与上界 |
-| `history.read` | 由索引找到目标作用域的会话。索引里没有时答 `unavailable`，不调用 Session。依据译为 `ModelViewBasis`，游标的 `after` 原样交给 `readModelView`。游标必须绑定同一依据，否则答 `invalid`。行的 `bytes` 转为十进制文本；没有行带 `sourceCall`，因为模型视图不带原 Model 调用。`epoch-changed` 带当前完整依据。Session 的失败不成为空页 |
+| `history.read` | 由索引找到目标作用域的会话。索引里没有时答 `unavailable`，不调用 Session。依据译为 `ModelViewBasis`，游标的 `after` 按上面的行号换算交给 `readModelView`，返回行的 seq 同样换算。游标必须绑定同一依据，否则答 `invalid`。行的 `bytes` 转为十进制文本；没有行带 `sourceCall`，因为模型视图不带原 Model 调用。`epoch-changed` 带当前完整依据。Session 的失败不成为空页 |
 | `history.compactionContext` | 先读上界所在的行，再以 `reader` 前向读完整个会话日志，以 `coordinator` 读 `readWork`。窗口与未结工作下界用本成员 `./testing` 会话的同一个窗口函数（`compactionReads`，含 `openWork`）求得，然后截到上界所在的条目。`coverTo` 不在上界之内时答 `invalid`。最后再读一次上界所在的行，epoch 已变时答 `epoch-changed` |
 | `eligibility.check` | 由索引找到会话，以本次 Access 做一次 `readModelView` 读取。Session 允许时答 `allowed`，`denied` 原样交出，其余失败答 `unavailable`。`revision` 只随历史源子插件的代次变化 |
 | `adopted` | 先做与 `eligibility.check` 相同的核验。装配交入固定请求事实时转交给它；没有交入时答 `unavailable`（诊断 `adopted-facts-absent`），不答 `null` |
@@ -649,6 +652,16 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 Session 没有 suspend 意图，本插件不发 control(suspend)（#730 不被采用，见 [AD-02 控制归一](#状态与解释)）。交还挂接不是控制意图：它是端口操作 `detach`，见上表 `detach` 一行；针对仍存活的其他 runtime 另需 takeover。
 
 控制受理不证明六阶段全部完成，也不授予推进资格。active 挂接如何获知长期控制仍归 Agent #502，不由本插件补造通知协议。
+
+##### 具名调用的解析
+
+Session 用调用引用指明 Model 与 Tool 调用：`producer.call` 是 `ModelInvocationRef` 或 `ToolInvocationRef` 文本（session-contract [稳定调用引用的读取](../session-contract/SPEC.md#稳定调用引用的读取)），即 AD-05 与 AD-06 从 `key.reference` 取的值。Agent 的 `interrupt-model`、`interrupt-tool` 与 `background-tool` 指明调用身份（`ModelCallId`、`ToolCallId`）。
+
+- 本插件用生产领域的公开解析器取调用身份：Model 用 `resolveModelInvocationRef`，Tool 用 `resolveToolInvocationRef`，租户为 `DriveTarget.tenant`。不切割字符串，也不拆 JSON 字段。
+- 回程不由本插件做。Agent 控制记录指明的调用，由 AD-02 的控制归一按该 execution 的原效果找回调用引用（`src/testing/control.ts` 的 `referencesOf`），再与 `producer.call` 比较。
+- 引用不能解析（格式错误、种类不对，或给的是调用身份而不是引用）：答 `unavailable`，诊断以 `translation defect` 开头，以 error 级写入日志，不调用 Agent。不答 `unsupported`，因为 Session 收到 `unsupported` 后停止重放，控制会被静默丢掉。Session 收到 `unavailable` 后保留任务并重放，控制不进入已传播。
+- 引用属于另一租户：答 `denied`，不调用 Agent。
+- 验证见 `tests/agent-drive.spec.ts` 的「control goes to the long-term control entry」一组。
 
 结果的对应：
 
@@ -966,9 +979,9 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 6. K-9 `materials.preserve` 的路由：`SessionLogAgentJournalProvider` 在同一插件体内提供 `agentJournal`、`agentJournalEntries` 与 `agentMaterials`（[生产提供者的实现现状](#生产提供者的实现现状)），装配页的 `agent-journal` 行已指向它。`agentJournal` 与 `agentJournalEntries` 经 session-storage-sql 的执行索引按 `(tenant, execution)` 找到会话，`materials.read` 按材料来源所记的会话路由；`materials.preserve` 带 execution 时按 Journal 调用相同的路由找到所属会话，在该会话的 Journal 上保存，输入原样交给会话 Journal（会话 Journal 不把 material 的 execution 当作对该执行记录的写）；租户不是该执行的所有者或没有 Run 开始过该 execution 时答 `denied`（action `preserve`），执行索引不可读答 `unavailable`。不带 execution 时，存储里没有从 consumer 到会话的索引，所以答 `unavailable` 且不写入（兼容期行为）。插件不传 `hostRecords`：它是运行时对象，装配怎样给出还没有决定。取消政策安装经插件工厂 `createSessionAgentJournalPlugin({ cancellation })` 交入；不经工厂装载的插件没有取消政策安装。触发条件：不带 execution 的调用方迁移完毕后删除兼容期的 `unavailable` 分支；或生产组合需要 `hostRecords`。
 7. K-10 Journal 核心在 `src/testing/`：生产提供者导入 `src/testing/journal.ts` 与 `src/testing/root.ts` 的 Journal 核心，与内存替身共用一份 Agent 规则。核心的输入水位线在进程内索引缺项时，从水位线的记录文本还原范围，条件是起点为 0 或一个已知批次的终点、终点不超过已受理的输入数。触发条件：替身与生产提供者的规则需要分开时，把核心移出 `src/testing/`。
 8. K-11 推进资格的快照读：`commit` 等写入的推进资格核对（`advances`）读写入前的 `session.work` 快照，不在存储事务里复核。只有 `open`、`attach`、`submit`、`tryFinish` 与四种 CallerCommit 的 Session 参加在同一次提交里核对。取消判断（judge-cancellation）的参加者事实同样读快照，待交输入的依据记为 `unknown`。触发条件：Session 在快照读与提交之间撤回推进资格的竞争进入用例。
-9. K-12 生产侧的事件解释有三处缺口。AD-02 与 AD-05 的生产插件已交付（[AD-02 生产插件](#ad-02-生产插件)、[AD-05 生产插件](#ad-05-生产插件)）。
-   - 控制事件不归一：控制事件的后果读解释时的 Session 状态，生产 Journal 的副本里没有，所以它的 `kinds` 与后果都为空，AD-02 停在它前面，存储读侧对需要它的决定答 `unavailable`。取消路径（Agent `control` 写 accepted、intent-established 等控制事件）之后，同一执行后面的事件与需要该尾部的 Session 决定都答 `unavailable`。触发条件：生产取消接续进入验收。届时控制事件改在解释时归一（AD-02 读 Session 历史），或由发布点取得所需的 Session 片段，交负责人定。
-   - 同一提交的多个事件共用来源：Journal 一次提交追加的事件共用同一 `cause`。纯层的游标核对（session-contract `frontier-state`）按来源匹配行，`observed` 事件与同一来源的非 `observed` 事件分不开，答 `quarantined`（"interpretation cursor omits or replaces original consequences"）。内存替身同样如此。触发条件：生产 Agent 在一次提交里写 `message` 与 `waiting` 等混合事件。这是 session-contract 的缺口，交 C-CONTRACT 拥有者。
+9. K-12 生产侧的事件解释有三处缺口。AD-02 与 AD-05 的生产插件已交付（[AD-02 生产插件](#ad-02-生产插件)、[AD-05 生产插件](#ad-05-生产插件)）。控制事件已改为延后事实，由 Session 在解释提交时判定（[控制归一](#控制归一)）。
+   - 生产证据缺调用收场片段：后台槽位、结果槽位与模型收场片段只由内存替身的提交钩子捕获，生产 Journal 的状态里没有，所以生产证据的 `settled` 为空。依赖这些片段确认的控制（后台 Tool 的直接后台控制、控制命令之前已经收场的调用）在生产侧保持 `propagating`，不会被提前 `reconciled`。触发条件：生产 stop-call 或 background-tool 控制进入验收。届时把这些片段随 Agent 记录状态保存（本成员内可加，不碰 Agent 包）。
+   - 同一提交的多个事件共用来源：Journal 一次写入追加的事件共用同一 `cause`（`src/testing/journal.ts` 的 `appendEvents`）。纯层的游标核对（session-contract `frontier-state` 的 `validateReplayHistory`）按来源匹配行。一次提交里先有 `observed` 事件、后有同一来源的非 `observed` 事件时，后者的解释提交覆盖前者，`observed` 事件被算上后者的行，答 `quarantined`（"interpretation cursor omits or replaces original consequences"）。内存替身同样如此。生产 Agent 现在不写这种提交（2026-11-03 核对 `a76521392`）：协调器（`packages/agent/agent/src/loop/coordinator.ts`）每次 `commit` 只写一种事件，`message` 只在 Ja 与 T5 的提交里单独写，`waiting`、`input-taken` 各自单独写，T1 一次写几个 `producer`，全是非 `observed`；`CommitEvent` 排除 `ended` 与 `entry`。Journal 自己追加的事件也是每次写入一种：`control` 与 `recordControl` 写一个 `control`，`tryFinish` 写 `ended`，结果接收写 `entry`。AD-02 每次只提交一个事件，所以 T1 的几个 `producer` 各自在自己的批次里，不受影响。触发条件：Agent 在一次提交里先写 `observed` 事件、再写非 `observed` 事件。届时由 session-contract 在游标核对里以事件序号区分同一来源的行。
    - 启动不扫描：AD-02、AD-05 只由发布事件唤醒，插件启动或换代时不扫描存储；漏掉的事件由同一 execution 的下一个事件补上，没有下一个事件的尾部留在未结工作里。
 10. K-13 真实组合与杀进程认回：生产提供者在真实 sqlite-provider 上运行了首次共同发布与解释提交；Journal 层的杀进程认回没有用例，存储层的杀进程认回由 session-storage-sql 的 `tests/real-joint.spec.ts` 覆盖。生产组合（应用的目录与登记）等 L-APP 的组合声明合入后复跑。
 11. K-14 嵌套深度：本成员的真实 sqlite-provider 用例把 `maxJsonDepth` 设为 80，而 session-storage-sql 的真实夹具用 64。原因已查清：存储对每条命令的事实限制嵌套深度，`create` 的初始化守卫事实（`initializationFixtureFacts`）内嵌了命令输入的带类型形式，输入每多一层，其中约多 7 层 JSON（由下面两个测量值得出）。本成员的场景用 `creation({ initial: ordinaryInput(…) })` 创建会话，输入嵌套到 `input.creation.initial.message.blocks[].visibility` 共 8 层，提交的命令因此嵌套 69 层；不带首条输入的 `creation()` 只有 5 层输入，命令嵌套 48 层。`create-depth.spec.ts` 固定这两个数。限制为 68 时 `create` 得 `command_limit`，69 时通过（慢层用例 `agent-journal-provider.spec.ts` 的真实 provider 路由用例复现），所以降回 64 不可能，除非场景放弃首条输入——而 Run 的首条输入是 `open` 的核对依据。80 在 69 之上留了余量。含义：真实的带首条输入的 `create` 需要 `maxJsonDepth` 至少 69；装配给出的上限需要用真实组合核对，输入消息的嵌套更深时更高。AG-23 回放中 Journal 写入的最大嵌套是 23。

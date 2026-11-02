@@ -32,6 +32,6 @@
 
 宿主插件的测试在真实 Cordis 4.0.4 上装载 `agent-host` 与目录插件 `agentInstancesPlugin`。Journal、Model、授权、采用、条件、请求准备、模型选择、消息准入与时钟用 `@omne-harness/agent/testing` 的非耐久替身，服务类取自 agent-cordis-contract 的定义入口。`host-support.ts` 的 `withRuntimeDuties` 包装 Agent 工厂，补上工厂尚未兑现的两条 runtime 停用义务（quiesce 先进入 draining 并经登记句柄撤登记；invoke 取槽时同步报告 occupied）。用这个包装的用例只证明宿主一侧；名为 plain factory 的用例显示生产工厂现在的答复。这些测试不证明生产 Journal、真实授权、跨进程行为或接收方登记。
 
-`openWorld({ stages: true })` 另以同一组替身提供六项局部依赖，并记录每次 Model admit 的答复，使 `createAgentRuntime` 真件的 Loop 能跑到 Model 请求。`control-entry.spec.ts` 用它验证控制入口推进取消；它不证明真实 Model、生产 Journal 或跨进程推进。
+`openWorld({ stages: true })` 另以同一组替身提供六项局部依赖，并记录每次 Model admit 的答复，使 `createAgentRuntime` 真件的 Loop 能跑到 Model 请求。`control-entry.spec.ts` 用它验证控制入口推进取消；它不证明真实 Model、生产 Journal 或跨进程推进。`tool-requests-plugin.spec.ts` 也用它，并让 Tool 运行时替身受理 invoke，只证明来源经插件工厂进入 runtime 依赖，不证明真实 Tool 运行时或生产来源。
 
 `line-through/` 是一条真实 Cordis 4.0.4 根上的组合用例：真实 sqlite-provider、session-storage-sql、session-cordis、session-adapters 的生产插件（AD-14、`agentJournal` 插件）、Agent 宿主与 agent-context，加 Model 与 Tool 的替身。`world.ts` 是 CP3 的组合世界，`openLineWorld(options)` 的参数都可选，不传时装配与 CP3 一致。`w2-world.ts` 在其上加波 2 的件：带取消安装的 Journal 插件、Tool 接收方与 Tool 替身、Tool 请求准备替身（R2-D36）、可选的 AD-04 前文来源、产品的 `measure` 观察者；`w2-measure.ts` 放每轮计数与测量事件记录器。Model、Tool、Runtime Context 交接、已采用请求事实与 Agent 的授权等是替身，各在构造处标注。AD-02、handoff 插件、AD-05 与取消意图路径属于别的闭包，对应场景在它们合入父分支前是具名占位，世界不替它们造替身。这些用例只证明本组合、替身与固定轮形下的行为，不证明真实 Model 与 Tool、跨线装配、`apps/harness-server` 的行接线或 E9 计时。
