@@ -25,7 +25,9 @@
 // (JC-RELEASE-TOOL-PATH).
 //
 // The plugin keeps nothing but the current generation of its dependencies. A call made while it is
-// pending or stopped, or one that was waiting when it stopped, answers `unavailable`.
+// pending or stopped, or one that was waiting when it stopped, answers `unavailable`; one that
+// stopped after a commit answered `commit-unknown` stays `commit-unknown`, since that commit may
+// have landed.
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
@@ -458,7 +460,9 @@ function createToolLogConsumption(
   ): Promise<Answer<ToolLogConsumed>> {
     const unknown = fail({ kind: 'commit-unknown', operation: observation.operation } as const)
     for (let attempt = 0; ; attempt += 1) {
-      if (ports.stopped()) return unavailable('the tool log consumption has stopped')
+      // After a commit-unknown the earlier attempt may have landed: stopping keeps it unknown.
+      if (ports.stopped())
+        return attempt === 0 ? unavailable('the tool log consumption has stopped') : unknown
       let answer
       try {
         answer = await within(settings.timeoutMs, () => ports.commitEntries({ observation, start }))

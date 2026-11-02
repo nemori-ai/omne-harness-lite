@@ -10,7 +10,8 @@
 // The same plugin body also provides `agentJournalEntries` and `agentMaterials`: the three keys
 // belong to the plugin's own fiber and go together; a received delivery is one fact to the three;
 // a record whose reply was lost is decided by the Journal of the same provider; a material read goes
-// to the session its source names, and `preserve`, which names no session, is unavailable.
+// to the session its source names and waits for a write of that session in flight, and `preserve`,
+// which names no session, is unavailable.
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import {
@@ -101,6 +102,8 @@ type Wiring = {
   reads: number
   /** The fault of the next storage commit, if any; the commit takes it. */
   fault: Fault | null
+  /** When set, the next storage commit takes it, calls `reached` and waits for `released`. */
+  hold: Readonly<{ reached: () => void; released: Promise<void> }> | null
 }
 
 /**
@@ -109,13 +112,19 @@ type Wiring = {
  * check that allows everything.
  */
 function servicesOf(s: SqlScene, otherDomain: DomainRef) {
-  const wiring: Wiring = { failIndex: false, indexReads: [], reads: 0, fault: null }
+  const wiring: Wiring = { failIndex: false, indexReads: [], reads: 0, fault: null, hold: null }
   const storage: SqlStorage = s.storage
   // The operations whose commit never ran and whose outcome stays undecided (`pending`).
   const undecided = new Set<string>()
   const wrapped: SqlStorage = {
     registerCombination: input => storage.registerCombination(input),
     commit: async (input, options) => {
+      const hold = wiring.hold
+      wiring.hold = null
+      if (hold !== null) {
+        hold.reached()
+        await hold.released
+      }
       const fault = wiring.fault
       wiring.fault = null
       if (fault === null) return storage.commit(input, options)
@@ -623,10 +632,16 @@ async function waitingOnModel(
 describe('agentJournalEntries and agentMaterials: the same provider as agentJournal', () => {
   it('serves the three keys from its own fiber, removes the three together when it stops, and a held reference then answers unavailable', async () => {
     const s = await scene('faces-fiber')
-    const { ctx, plugin, entries, materials } = await assembled(s)
+    const { ctx, plugin, journal, entries, materials } = await assembled(s)
     // Compared by identity: printing a Cordis fiber reads services it does not inject.
     for (const key of FACES) expect(plugin.store?.[key]?.fiber === plugin, key).toBe(true)
+    ok(await journal().open(s.openInput))
+    const value = factsMaterial('kept')
+    const source = ok(
+      await s.view.materials.preserve({ ...s.access, identity: 'kept', consumer: CONSUMER, value }),
+    )
     const held = { entries: entries(), materials: materials() }
+    expect(ok(await held.materials.read({ ...s.access, source }))).toEqual(value)
     await plugin.dispose()
     for (const key of FACES) expect(ctx.get(key), key).toBeUndefined()
     const commits = s.commits.length
@@ -640,9 +655,8 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
         entry,
       }),
     ).toMatchObject(unavailableHere)
-    expect(await held.materials.read({ ...s.access, source: entry.material })).toMatchObject(
-      unavailableHere,
-    )
+    // A source of this session that read before the stop: only the stop refuses it now.
+    expect(await held.materials.read({ ...s.access, source })).toMatchObject(unavailableHere)
     expect(
       await held.materials.preserve({
         ...s.access,
@@ -753,6 +767,49 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
       await materials().preserve({ ...s.access, identity: 'new', consumer: CONSUMER, value }),
     ).toMatchObject(unavailableHere)
     expect(s.commits.length).toBe(commits)
+  })
+
+  it('a material read is ordered with the writes of the same session: it waits for the write in flight', async () => {
+    const s = await scene('faces-ordering')
+    const { journal, entries, materials, wiring } = await assembled(s)
+    ok(await journal().open(s.openInput))
+    const value = factsMaterial('ordered')
+    const source = ok(
+      await s.view.materials.preserve({
+        ...s.access,
+        identity: 'ordered',
+        consumer: CONSUMER,
+        value,
+      }),
+    )
+    let reached!: () => void
+    const writing = new Promise<void>(resolve => {
+      reached = resolve
+    })
+    let release!: () => void
+    const released = new Promise<void>(resolve => {
+      release = resolve
+    })
+    wiring.hold = { reached, released }
+    const write = entries().record({
+      ...s.access,
+      execution: s.execution,
+      operation: operation('ordering-record'),
+      authority: null,
+      entry: sampleReceivedModelResult(s.access.tenant, 'faces-ordering'),
+    })
+    await writing
+
+    const read = materials().read({ ...s.access, source })
+    const first = await Promise.race([
+      read.then(() => 'read'),
+      new Promise(resolve => setTimeout(() => resolve('waiting'), 200)),
+    ])
+    release()
+
+    expect(first).toBe('waiting')
+    expect(await write).toHaveProperty('ok')
+    expect(ok(await read)).toEqual(value)
   })
 })
 

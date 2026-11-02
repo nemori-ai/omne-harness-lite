@@ -5,11 +5,14 @@
 // `account.linked` when an account was reported, and the progress row), read as `coordinator`; a
 // second read commits nothing and a lost reply is recognized under the original operation; without
 // an adopted reading of the Tool delivery material (TOOL-SETTLEMENT-SCHEMA) every Tool entry answers
-// unavailable and nothing is committed; an unknown schema, a missing material, entries absent and a
-// binding that disagrees with Session fail without a commit; an unbound call waits; another tenant
-// is denied; Model entries are not this channel; a dependency that does not answer in the configured
-// time is unavailable; the plugin is pending while a dependency is absent and answers unavailable
-// after it stops.
+// unavailable and nothing is committed; an unknown schema, a missing material, entries absent, a
+// binding that disagrees with Session, a material of another kind or key, a result material without
+// its complete settlement and a delivery that fails Tool's own check fail without a commit; two
+// independent reads derive the same operation; a late result after a terminal Run is committed under
+// the original binding and left to Session; an unbound call waits; another tenant is denied; Model
+// entries are not this channel; a dependency that does not answer in the configured time is
+// unavailable; the plugin is pending while a dependency is absent and answers unavailable after it
+// stops, except after a commit-unknown, which stays commit-unknown.
 //
 // The reader of the Tool delivery material is a stand-in of this test: no Agent owner has adopted
 // the facts schema of a received Tool delivery yet (AGENT-M06). It decodes the envelope that the
@@ -43,6 +46,7 @@ import {
   type ToolDeliveryReader,
 } from '../src/cordis/tool-log-consumption.ts'
 import { evidence, ok, operation, operationId, scene } from './fixtures/common-journal.ts'
+import { cancel } from './fixtures/progression.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 
 // --- the Tool delivery material ------------------------------------------------------------------
@@ -535,7 +539,16 @@ describe('failures stay failures and commit nothing', () => {
   })
 
   it.each([
-    ['key', (value: Record<string, unknown>) => withDelivery(value, { key: { other: true } })],
+    // A well-formed key of another result version of the same call: only the key check tells it.
+    [
+      'key',
+      (value: Record<string, unknown>) => {
+        const { key } = value.delivery as { key: Record<string, unknown> }
+        return withDelivery(value, {
+          key: { ...key, result: ok(decodeToolResultVersion('tres_2')) },
+        })
+      },
+    ],
     [
       'consumer',
       (value: Record<string, unknown>) =>
@@ -647,6 +660,197 @@ describe('failures stay failures and commit nothing', () => {
 function withDelivery(value: Record<string, unknown>, change: Record<string, unknown>) {
   return { ...value, delivery: { ...(value.delivery as Record<string, unknown>), ...change } }
 }
+
+/**
+ * Wraps that show the plugin `entry` changed by `change`, both in the Journal load and in the
+ * material it reads, so that only the plugin's own checks of the entry can refuse it.
+ */
+function changedEntry(
+  s: ToolScene,
+  entry: ReceivedEntry,
+  change: (entry: ReceivedEntry) => ReceivedEntry,
+): Wraps {
+  const { material: _material, ...draft } = change(entry)
+  return {
+    load: async input => {
+      const loaded = await s.view.journal.load(input)
+      if ('failure' in loaded || loaded.ok.entries === undefined) return loaded
+      return succeed({
+        ...loaded.ok,
+        entries: loaded.ok.entries.map(item =>
+          item.kind === 'received' ? { ...change(item), material: item.material } : item,
+        ),
+      })
+    },
+    read: async () => succeed(materialOf(s.access.tenant, draft)),
+  }
+}
+
+describe('the material check: what the entry does not name is never an execution fact', () => {
+  it.each(['terminal', 'actualTerminal', 'effect'])(
+    'a result material without %s holds no complete settlement: unavailable, nothing committed',
+    async field => {
+      const s = await toolScene(`unsettled-${field}`)
+      const { material: _material, ...draft } = s.result
+      await receive(
+        s,
+        s.result,
+        'result',
+        materialOf(s.access.tenant, draft, value => {
+          const { [field]: _dropped, ...delivery } = value.delivery as Record<string, unknown>
+          return { ...value, delivery }
+        }),
+      )
+      const f = await assembled(s)
+
+      expect(await f.consume()).toMatchObject({
+        failure: { kind: 'unavailable', diagnostic: expect.stringContaining('settlement') },
+      })
+      expect(f.commits).toHaveLength(0)
+      expect(entriesKinds(s)).toEqual([])
+    },
+  )
+
+  it('an account entry whose material holds a settled result delivery is invalid', async () => {
+    const s = await toolScene('other-kind')
+    const { material: _material, ...draft } = s.account
+    const { material: _result, ...resultDraft } = s.result
+    const {
+      key: _key,
+      consumer: _consumer,
+      account: _account,
+      ...settled
+    } = deliveryOf(resultDraft)
+    await receive(
+      s,
+      s.account,
+      'account',
+      materialOf(s.access.tenant, draft, value => withDelivery(value, settled)),
+    )
+    const f = await assembled(s)
+
+    expect(await f.consume()).toMatchObject({
+      failure: { kind: 'invalid', reason: 'the material holds another delivery kind' },
+    })
+    expect(f.commits).toHaveLength(0)
+  })
+
+  it('an entry whose consumer is not the one Session bound to the call is invalid, though its consumption is', async () => {
+    const s = await toolScene('binding-consumer')
+    await receive(s, s.result, 'result')
+    const f = await assembled(s, {
+      wraps: changedEntry(s, s.result, entry => ({
+        ...entry,
+        consumer: { ...entry.consumer, position: 'pos-other' },
+      })),
+    })
+
+    expect(await f.consume()).toEqual({
+      failure: {
+        kind: 'invalid',
+        field: 'entries[0].consumer',
+        reason: 'not the consumer Session bound to the call',
+      },
+    })
+    expect(f.commits).toHaveLength(0)
+  })
+
+  it.each([
+    [
+      'an account of another call',
+      'call-mismatch',
+      (s: ToolScene) => s.result,
+      (entry: ReceivedEntry): ReceivedEntry => {
+        const { delivery } = entry
+        if (delivery.producer !== 'tool' || delivery.account === null)
+          throw new Error('fixture: a Tool delivery with an account')
+        const subject = { ...delivery.account.subject, id: 'tcall_other' }
+        return { ...entry, delivery: { ...delivery, account: { ...delivery.account, subject } } }
+      },
+    ],
+    [
+      'an account delivery whose key names another revision than its account',
+      'revision-mismatch',
+      (s: ToolScene) => s.account,
+      (entry: ReceivedEntry): ReceivedEntry => {
+        const { delivery } = entry
+        if (delivery.producer !== 'tool' || delivery.key.kind !== 'account' || !delivery.account)
+          throw new Error('fixture: a Tool account delivery')
+        const key = { ...delivery.key, revision: '1' }
+        return { ...entry, delivery: { producer: 'tool', key, account: delivery.account } }
+      },
+    ],
+  ])('%s fails the Tool delivery check and is invalid', async (_case, reason, pick, change) => {
+    const s = await toolScene(`judged-${reason}`)
+    const entry = pick(s)
+    await receive(s, entry, 'delivery')
+    const f = await assembled(s, { wraps: changedEntry(s, entry, change) })
+
+    expect(await f.consume()).toMatchObject({
+      failure: { kind: 'invalid', reason: expect.stringContaining(reason) },
+    })
+    expect(f.commits).toHaveLength(0)
+  })
+})
+
+describe('the operation identity', () => {
+  it('two independent reads of the same entries derive the same operation', async () => {
+    const s = await toolScene('same-operation')
+    await receive(s, s.result, 'result')
+    const lost = await assembled(s, {
+      wraps: {
+        commitEntries: async () => {
+          throw new Error('store went away')
+        },
+      },
+    })
+    expect(await lost.consume()).toMatchObject({ failure: { kind: 'commit-unknown' } })
+
+    const next = await assembled(s)
+    expect(ok(await next.consume())).toMatchObject({ committed: true })
+
+    expect(next.commits[0]?.observation).not.toBe(lost.commits[0]?.observation)
+    expect(next.commits[0]?.observation.operation).toBe(lost.commits[0]?.observation.operation)
+  })
+})
+
+describe('a result that arrives after its Run is terminal (EC-08)', () => {
+  it('is committed under the original consumption binding; what it means for the ended Run is Session’s', async () => {
+    const s = await toolScene('late')
+    const before = ok(await s.backend.transactions.readWork(s.access))
+    if (before.run.kind !== 'active') throw new Error('fixture: an active Run')
+    const run = before.run.run
+    ok(await cancel(s))
+    const { material: _material, ...draft } = s.result
+    await receive(
+      s,
+      s.result,
+      'late',
+      materialOf(s.access.tenant, draft, value => withDelivery(value, { relation: 'late' })),
+    )
+    const f = await assembled(s)
+
+    expect(ok(await f.consume())).toMatchObject({ committed: true, progress: { through: '1' } })
+
+    const observation = f.commits[0]!.observation
+    expect(observation.run).toBe(run)
+    const call = { kind: 'tool', call: s.account.delivery.key.reference }
+    expect(observation.items[0]?.interpretation).toMatchObject([
+      { kind: 'execution', producer: call },
+      { kind: 'account', producer: call },
+    ])
+    const after = ok(await s.backend.transactions.readWork(s.access))
+    expect(after.run).toMatchObject({ kind: 'terminal', terminal: { run } })
+    expect(after.consumptions.map(item => item.binding)).toEqual(
+      before.consumptions.map(item => item.binding),
+    )
+    expect(entriesKinds(s)).toEqual([
+      'call.execution-fact',
+      'account.linked',
+      'entries.interpreted',
+    ])
+  })
+})
 
 describe('an entry whose call Session has not bound', () => {
   it('waits: nothing is committed, and once Session binds the call the next read commits it', async () => {
@@ -793,5 +997,30 @@ describe('loading and stopping on real Cordis 4.0.4', () => {
     expect(await answer).toMatchObject({ failure: { kind: 'unavailable' } })
     expect(f.commits).toHaveLength(0)
     expect(await progressOf(s)).toBeUndefined()
+  })
+
+  it('stopping in the backoff after a commit-unknown answers commit-unknown: the commit may have landed', async () => {
+    const s = await toolScene('stop-after-unknown')
+    await receive(s, s.result, 'result')
+    let stop!: () => Promise<unknown>
+    const f = await assembled(s, {
+      wraps: {
+        // The commit lands, its reply is lost, and the plugin stops before it sends again.
+        commitEntries: async input => {
+          ok(await s.backend.transactions.commitEntries(input))
+          await stop()
+          return fail({ kind: 'commit-unknown', operation: input.observation.operation })
+        },
+      },
+    })
+    stop = () => f.plugin.dispose()
+
+    const answer = await f.consume()
+
+    expect(answer).toEqual({
+      failure: { kind: 'commit-unknown', operation: f.commits[0]?.observation.operation },
+    })
+    expect(f.commits).toHaveLength(1)
+    expect(await progressOf(s)).toMatchObject({ through: '1' })
   })
 })
