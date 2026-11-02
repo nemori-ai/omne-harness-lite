@@ -10,6 +10,8 @@ import {
   createRuntimeDependencies,
   createRuntimeStages,
   createRuntimeSourceAccess,
+  waitRuntime,
+  runtimeUnavailable,
   type LocalToolRuntimeInput,
   type RuntimeCompositionInput,
   type RuntimeEnvironment,
@@ -32,6 +34,13 @@ export type { RuntimeAuthorExecution } from './runtime-author.ts'
 
 /** Each returned plugin belongs to its own fiber. All share one durable Tool ordering domain. */
 export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
+  const lifetime = new AbortController()
+  const resolveSource = createRuntimeSourceAccess({
+    store: given.store,
+    sources: given.sources,
+    access: given.access,
+    recovery: given.subjects,
+  })
   const input: RuntimeCompositionInput = {
     ...given,
     controlSubjects: createLocalToolControlSubjects({
@@ -40,12 +49,9 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
       qualify: request => given.access.guard.qualify(request),
       commitAttempts: given.configuration.ledgerCommitAttempts,
     }),
-    resolveAccess: createRuntimeSourceAccess({
-      store: given.store,
-      sources: given.sources,
-      access: given.access,
-      recovery: given.subjects,
-    }),
+    resolveAccess: async wake =>
+      (await waitRuntime(() => resolveSource(wake), lifetime.signal)) ??
+      runtimeUnavailable('invocation-source'),
   }
   if (input.store.durability !== 'durable')
     throw new TypeError('The production Tool runtime requires a durable store.')
@@ -90,6 +96,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   }
   const close = async () => {
     retired = true
+    lifetime.abort()
     authorExecution.close()
     await executor?.close()
   }

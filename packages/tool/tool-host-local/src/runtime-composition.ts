@@ -84,6 +84,35 @@ export const runtimeUnavailable = (dependency: string) =>
     }),
   )
 
+/** Cancels only this wait; the original operation may still finish after retirement. */
+export function waitRuntime<T>(work: () => Promise<T>, signal: AbortSignal): Promise<T | null> {
+  if (signal.aborted) return Promise.resolve(null)
+  return new Promise((resolve, reject) => {
+    const stop = () => resolve(null)
+    const finish = () => signal.removeEventListener('abort', stop)
+    signal.addEventListener('abort', stop, { once: true })
+    let pending: Promise<T>
+    try {
+      pending = work()
+    } catch (error) {
+      finish()
+      reject(error)
+      return
+    }
+    void pending.then(
+      value => {
+        finish()
+        resolve(value)
+      },
+      error => {
+        finish()
+        reject(error)
+      },
+    )
+    if (signal.aborted) stop()
+  })
+}
+
 export type RuntimeStages = Readonly<{
   bindings: Bindings
   environments: RuntimeEnvironment

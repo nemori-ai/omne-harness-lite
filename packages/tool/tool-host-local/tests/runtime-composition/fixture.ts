@@ -88,6 +88,10 @@ export async function fixture(
   const signals = new Map<string, AbortSignal>()
   let launches = 0
   let allowed = true
+  let subjectRecoveryGate: Readonly<{
+    entered: PromiseWithResolvers<void>
+    released: PromiseWithResolvers<void>
+  }> | null = null
   const principal = (tenant: typeof tenantA) =>
     canonicalDigest(tenant) === canonicalDigest(tenantA) ? 'alice' : 'bob'
   const subject = (value: unknown): LocalToolControlSubject => {
@@ -304,6 +308,10 @@ export async function fixture(
         }
       },
       async resolveSessionWork(value) {
+        if (subjectRecoveryGate !== null) {
+          subjectRecoveryGate.entered.resolve()
+          await subjectRecoveryGate.released.promise
+        }
         const name =
           value.session === 'session-alice'
             ? 'alice'
@@ -485,6 +493,16 @@ export async function fixture(
     tenantB,
     revoke: () => {
       allowed = false
+    },
+    holdSubjectRecovery() {
+      subjectRecoveryGate = {
+        entered: Promise.withResolvers<void>(),
+        released: Promise.withResolvers<void>(),
+      }
+      return {
+        entered: subjectRecoveryGate.entered.promise,
+        release: subjectRecoveryGate.released.resolve,
+      }
     },
     removeReceiver: () => consumer.dispose(),
     restoreReceiver: async () => {

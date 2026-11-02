@@ -253,3 +253,29 @@ it('does not re-sign a principal when the stored original invocation binding is 
     await world.close()
   }
 })
+
+it('retirement cancels a pending identity wait without inventing a stop or deleting the admission', async () => {
+  const world = await fixture()
+  const blocked = world.holdSubjectRecovery()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const reference = accepted(await world.api.invoke(world.invocation('identity-outage')))
+    await blocked.entered
+    const closed = await Promise.race([
+      world.plugins.close().then(() => 'closed'),
+      new Promise<'still-waiting'>(resolve => {
+        timer = setTimeout(() => resolve('still-waiting'), 1000)
+      }),
+    ])
+    expect(closed).toBe('closed')
+    expect(world.launches()).toBe(0)
+    expect(unbox(await world.api.queries.lookup(world.query(reference)))).toMatchObject({
+      kind: 'found',
+      state: { phase: 'accepted' },
+    })
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+    blocked.release()
+    await world.close()
+  }
+})

@@ -9,7 +9,7 @@ import type {
 } from '@omne-harness/tool-contract/provider'
 import { createLocalToolResultDelivery } from './result-delivery.ts'
 import { createRuntimePublication } from './runtime-publication.ts'
-import type { RuntimeCompositionInput } from './runtime-composition.ts'
+import { waitRuntime, type RuntimeCompositionInput } from './runtime-composition.ts'
 import type { ToolEnvironmentValue } from './author-environment.ts'
 
 type Wake = Parameters<ToolInstanceHost<unknown>['schedule']>[0]
@@ -96,7 +96,9 @@ export function createRuntimeExecutor(
     entry.fiber = input.ctx.plugin({
       name: `tool-instance-${canonicalDigest(execution)}`,
       inject: ['toolInstances', 'toolPublicationAuthority'],
-      async apply(ctx: Context) {
+      apply(ctx: Context) {
+        const lifetime = new AbortController()
+        const signal = AbortSignal.any([abort.signal, lifetime.signal])
         const publication = createRuntimePublication({
           execution,
           access: settings.access.guard,
@@ -107,25 +109,58 @@ export function createRuntimeExecutor(
           residenceMs: settings.observerResidenceMs,
         })
         entry.publication = publication
-        await publication.refresh(step, original.admission)
-        const hostReceipt = await dependencies.instances.publish(execution, publication.handle)
-        if ('failure' in hostReceipt)
-          throw new Error(`Tool instance publication: ${hostReceipt.failure.kind}`)
+        let receipt:
+          | Extract<
+              Awaited<ReturnType<typeof dependencies.instances.publish>>,
+              { ok: unknown }
+            >['ok']
+          | null = null
         ctx.effect(() => async () => {
+          lifetime.abort()
           publication.close()
           if (entry.publication === publication) entry.publication = null
-          await dependencies.instances.withdraw(hostReceipt.ok)
+          if (receipt !== null) await dependencies.instances.withdraw(receipt)
         })
-        const registered = await ctx.toolInstances.register({
-          publication: [execution, publication.handle],
-          authority,
-        })
-        if ('failure' in registered)
-          throw new Error(`Tool directory publication: ${registered.failure.kind}`)
+        const connect = async () => {
+          if (
+            (await waitRuntime(() => publication.refresh(step, original.admission), signal)) ===
+              null ||
+            signal.aborted
+          )
+            return
+          const published = await dependencies.instances.publish(execution, publication.handle)
+          if ('failure' in published) throw new Error('The instance publication is unavailable.')
+          receipt = published.ok
+          if (signal.aborted) {
+            await dependencies.instances.withdraw(receipt)
+            return
+          }
+          const registered = await ctx.toolInstances.register({
+            publication: [execution, publication.handle],
+            authority,
+          })
+          if ('failure' in registered) throw new Error('The directory publication is unavailable.')
+        }
+        void connect()
+          .catch(async () => {
+            publication.close()
+            if (receipt !== null) await dependencies.instances.withdraw(receipt)
+            if (lifetime.signal.aborted) return
+            ctx
+              .logger('tool-executor')
+              .warn('Instance publication failed; the original call remains scheduled.')
+            if (entry.fiber === ctx.fiber) entry.fiber = null
+            await ctx.fiber.dispose()
+          })
+          .catch(() =>
+            ctx
+              .logger('tool-executor')
+              .warn('Publication cleanup remains unconfirmed; error text is withheld.'),
+          )
       },
     })
   }
-  const installed = dependencies.instances.install({
+  const advancing: ToolDriver<unknown> = {
     async run(step) {
       const entry = calls.get(keyOf(step))
       if (entry === undefined) {
@@ -188,6 +223,11 @@ export function createRuntimeExecutor(
       } finally {
         entry.running = false
       }
+    },
+  }
+  const installed = dependencies.instances.install({
+    run: async step => {
+      await waitRuntime(() => advancing.run(step), abort.signal)
     },
   })
   let completed = 0
