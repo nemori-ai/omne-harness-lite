@@ -7,6 +7,8 @@ import type {
   ModelPreparationResources,
   ModelResultReceiver,
   ModelRuntime,
+  ModelStreamReferences,
+  ModelStreamObservation,
   Revision,
 } from '@omne-harness/model-contract'
 import type {
@@ -49,17 +51,52 @@ export type {
  * of the instance is reachable by any plugin that can read `ctx.modelCredential`.
  * @owner packages/model/model-cordis-contract
  */
-export abstract class ModelCredentialService extends Service implements CredentialPort {
+export abstract class ModelCredentialService<P = unknown>
+  extends Service
+  implements CredentialPort<P>
+{
   static readonly provide = 'modelCredential'
 
   constructor(ctx: CordisContext) {
     super(ctx, ModelCredentialService.provide)
   }
 
-  abstract readonly present: CredentialPort['present']
-  abstract readonly resolve: CredentialPort['resolve']
+  abstract readonly present: CredentialPort<P>['present']
+  abstract readonly resolve: CredentialPort<P>['resolve']
+  declare readonly presentFor?: NonNullable<CredentialPort<P>['presentFor']>
+  declare readonly resolveFor?: NonNullable<CredentialPort<P>['resolveFor']>
 }
 export const modelCredentialKey = ModelCredentialService.provide
+
+/** @owner packages/model/model-cordis-contract */
+export abstract class ModelStreamReferencesService<P>
+  extends Service
+  implements ModelStreamReferences<P>
+{
+  static readonly provide = 'modelStreamReferences'
+
+  constructor(ctx: CordisContext) {
+    super(ctx, ModelStreamReferencesService.provide)
+  }
+
+  abstract readonly current: ModelStreamReferences<P>['current']
+}
+export const modelStreamReferencesKey = ModelStreamReferencesService.provide
+
+/** @owner packages/model/model-cordis-contract */
+export abstract class ModelStreamObservationService<P>
+  extends Service
+  implements ModelStreamObservation<P>
+{
+  static readonly provide = 'modelStreamObservation'
+
+  constructor(ctx: CordisContext) {
+    super(ctx, ModelStreamObservationService.provide)
+  }
+
+  abstract readonly observe: ModelStreamObservation<P>['observe']
+}
+export const modelStreamObservationKey = ModelStreamObservationService.provide
 
 /**
  * The runtime service. Besides the three abstract members of the root interface it carries one
@@ -350,6 +387,8 @@ declare module '@deepseek-ai/cordis' {
     modelConverterAuthority: ModelConverterAuthorityService<unknown>
     modelConverters: ModelConvertersService<unknown>
     modelInstances: ModelInstancesService<unknown>
+    modelStreamReferences?: ModelStreamReferencesService<unknown>
+    modelStreamObservation?: ModelStreamObservationService<unknown>
     modelCredential?: ModelCredentialService
   }
   interface Events {

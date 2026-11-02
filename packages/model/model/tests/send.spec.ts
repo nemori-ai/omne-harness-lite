@@ -18,6 +18,89 @@ import {
 } from './send-fixture.ts'
 import { instance, op, proof, unbox } from './memory-fixture.ts'
 
+it('refuses a missing qualified path without consulting the legacy resolver', async () => {
+  let legacy = 0
+  const f = await sendFixture({
+    credentials: {
+      present: () => ({ kind: 'unavailable' }),
+      resolve() {
+        legacy += 1
+        return { kind: 'value', scope: 'factory', value: synthetic }
+      },
+    },
+  })
+  expect(await f.makeSender().send(f.demand, signal())).toEqual({
+    kind: 'not-started',
+    failure: {
+      kind: 'unavailable',
+      dependency: 'model-credential',
+      diagnostic: 'qualified-path-missing',
+    },
+  })
+  expect(legacy).toBe(0)
+  expect(f.counts().starts).toBe(0)
+  expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
+})
+
+it('refuses a selection without the registered official fact before resolving or starting', async () => {
+  const f = await sendFixture()
+  let resolved = 0
+  const coordinator = f.controls.send.coordinator
+  const sender = f.makeSender({
+    coordinator: {
+      ...coordinator,
+      withinCurrent(input, receipt, window, start) {
+        return coordinator.withinCurrent(input, receipt, window, selection =>
+          start({ id: selection.id, scope: selection.scope }),
+        )
+      },
+    },
+    credentials: {
+      ...f.credentials,
+      resolve: () => ({ kind: 'value', scope: 'factory', value: synthetic }),
+      resolveFor() {
+        resolved += 1
+        return { kind: 'value', scope: 'factory', value: synthetic }
+      },
+    },
+  })
+  expect(await sender.send(f.demand, signal())).toMatchObject({
+    kind: 'not-started',
+    failure: { kind: 'unavailable', dependency: 'model-credential' },
+  })
+  expect(resolved).toBe(0)
+  expect(f.counts().starts).toBe(0)
+})
+
+it('keeps the official profile fact when its registered factory source selects a tenant credential', async () => {
+  const observed: unknown[] = []
+  const f = await sendFixture({
+    tenant: true,
+    configureSource(source) {
+      Reflect.set(source, 'credential', { kind: 'factory', official: true, queryId: factoryId })
+    },
+    credentials: {
+      ...credentialPort({ kind: 'value', scope: 'tenant', value: synthetic }),
+      resolveFor(input) {
+        observed.push(input)
+        return { kind: 'value', scope: 'tenant', value: synthetic }
+      },
+    },
+  })
+  const result = await f.makeSender().send(f.demand, signal())
+  expect(observed).toEqual([
+    {
+      id: tenantId,
+      purpose: 'model-send',
+      official: true,
+      access: { principal: f.principal, tenant: f.tenant },
+    },
+  ])
+  expect(f.counts().starts).toBe(1)
+  if (result.kind !== 'started') throw new Error('send fixture')
+  await collect(result.facts)
+})
+
 for (const [stage, acquired, released] of [
   ['acquire', 0, []],
   ['prepare', 1, ['resource']],
@@ -270,7 +353,7 @@ for (const method of ['recordMaterialization', 'openReceiveWindow', 'recordSend'
     expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
   })
 
-for (const boundary of ['resolve', 'start'] as const)
+for (const boundary of ['resolveFor', 'start'] as const)
   it(`a synchronously reentered product closure at ${boundary} resolves and starts once and preserves its original stream`, async () => {
     const f = await sendFixture()
     const coordinator = f.controls.send.coordinator
@@ -289,9 +372,12 @@ for (const boundary of ['resolve', 'start'] as const)
       },
       credentials: {
         present: () => ({ kind: 'unavailable' }),
-        resolve() {
+        resolve: () => {
+          throw new Error('legacy-resolution-called')
+        },
+        resolveFor() {
           resolutions += 1
-          if (boundary === 'resolve' && resolutions === 1) nested = reenter?.()
+          if (boundary === 'resolveFor' && resolutions === 1) nested = reenter?.()
           return { kind: 'value', scope: 'factory', value: synthetic }
         },
       },
@@ -348,17 +434,20 @@ for (const kind of ['value', 'absent', 'unreadable', 'denied', 'unavailable'] as
       kind === 'value' ? { kind, scope: 'tenant', value: synthetic } : { kind }
     const observed: unknown[] = []
     const credentials = credentialPort(resolution)
-    const resolve = credentials.resolve
-    credentials.resolve = (reference, face) => {
-      observed.push({ reference, face })
-      return resolve(reference, face)
+    const resolveFor = credentials.resolveFor
+    if (!resolveFor) throw new Error('qualified fixture')
+    credentials.resolveFor = input => {
+      observed.push(input)
+      return resolveFor(input)
     }
     const f = await sendFixture({ tenant: true, credentials })
     const result = await f.makeSender().send(f.demand, signal())
     expect(observed).toEqual([
       {
-        reference: { id: tenantId, tenant: f.tenant, purpose: 'model-send' },
-        face: { authorized: true, official: false },
+        id: tenantId,
+        purpose: 'model-send',
+        official: false,
+        access: { principal: f.principal, tenant: f.tenant },
       },
     ])
     expect(f.counts().starts).toBe(kind === 'value' ? 1 : 0)
@@ -393,6 +482,9 @@ for (const tenant of [false, true])
       credentials: {
         present: () => ({ kind: 'unavailable' }),
         resolve: () => {
+          throw new Error('legacy-resolution-called')
+        },
+        resolveFor: () => {
           resolves += 1
           return { kind: 'value', scope: tenant ? 'factory' : 'tenant', value: synthetic }
         },
@@ -411,8 +503,11 @@ it('requires explicit factory source, current no-binding evidence and a human-na
   const f = await sendFixture({
     credentials: {
       present: () => ({ kind: 'unavailable' }),
-      resolve: (ref, face) => {
-        references.push({ ref, face })
+      resolve: () => {
+        throw new Error('legacy-resolution-called')
+      },
+      resolveFor: input => {
+        references.push(input)
         return { kind: 'value', scope: 'factory', value: synthetic }
       },
     },
@@ -420,8 +515,10 @@ it('requires explicit factory source, current no-binding evidence and a human-na
   const result = await f.makeSender().send(f.demand, signal())
   expect(references).toEqual([
     {
-      ref: { id: factoryId, tenant: f.tenant, purpose: 'model-send' },
-      face: { authorized: true, official: true },
+      id: factoryId,
+      purpose: 'model-send',
+      official: true,
+      access: { principal: f.principal, tenant: f.tenant },
     },
   ])
   if (result.kind !== 'started') throw new Error('send fixture')
@@ -438,6 +535,9 @@ it('normalizes credential exceptions without storing their secret text', async (
     credentials: {
       present: () => ({ kind: 'unavailable' }),
       resolve: () => {
+        throw new Error('legacy-resolution-called')
+      },
+      resolveFor: () => {
         throw new Error(synthetic)
       },
     },
@@ -617,7 +717,10 @@ for (const mismatch of ['receipt', 'window', 'supplier', 'model'] as const)
       },
       credentials: {
         present: () => ({ kind: 'unavailable' }),
-        resolve() {
+        resolve: () => {
+          throw new Error('legacy-resolution-called')
+        },
+        resolveFor() {
           resolutions += 1
           return { kind: 'value', scope: 'factory', value: synthetic }
         },
@@ -860,6 +963,9 @@ for (const defect of ['query', 'official', 'adoption', 'recipient', 'binding'] a
       credentials: {
         present: () => ({ kind: 'unavailable' }),
         resolve: () => {
+          throw new Error('legacy-resolution-called')
+        },
+        resolveFor: () => {
           resolves += 1
           return { kind: 'value', scope: 'factory', value: synthetic }
         },
@@ -911,6 +1017,9 @@ it('the synchronous fence rejects reentry without allowing a credential or start
     credentials: {
       present: () => ({ kind: 'unavailable' }),
       resolve: () => {
+        throw new Error('legacy-resolution-called')
+      },
+      resolveFor: () => {
         try {
           f.controls.commands.replaceOwners([])
         } catch {
@@ -1057,6 +1166,9 @@ it('recognizes an unknown not-sent record without resolving credentials a second
     credentials: {
       present: () => ({ kind: 'unavailable' }),
       resolve: () => {
+        throw new Error('legacy-resolution-called')
+      },
+      resolveFor: () => {
         resolutions += 1
         return resolutions === 1
           ? { kind: 'absent' }

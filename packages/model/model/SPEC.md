@@ -47,14 +47,14 @@ createModelRuntime 的构造形状以 [runtime.ts](src/runtime.ts) 为唯一声�
 
 构造所需 Commands、send、retry、instances 和 clock 必须显式取得；缺失时不得装成可用实例。工厂返回 ModelRuntimeProvider，普通消费者只取得其 runtime；恢复和 quiesce 的权限及原身份协议沿共同规格。
 
-| 构造依赖 | 取得与义务 | 缺席、换代和释放 |
-| --- | --- | --- |
-| commands | 必需构造注入。提供者拥有本域存储、当前资格及提交组合 | 不可用时不能认成功；替换先排除旧写者并接续原操作，不靠清空缓存恢复 |
-| send | 必需构造注入。内部组合当前授权、[#279](https://github.com/nemori-ai/omne-harness-lite/issues/279) 凭据、真实传输和发送围栏 | 缺席不发；在途连接的资源与未知归旧传输负责，新边界不得复制旧 dispatch |
-| retry | 必需策略实现；原 request 的采用和允许范围约束每次决定 | 不可用则不再试并以 policy-unavailable 收场；替换不能重做已持久的决定 |
-| instances | 必需实例宿主。登记能力只供 Model 提供者，目录供消费者 | 宿主退出撤路由；事实/保管不消失。后继先接管原责任再发布新实例 |
-| clock | 必需时钟/等待能力；时间值为 UTC instant | 时钟不可用不虚构超时或许可；取消等待不取消原调用 |
-| configuration | 构造时校验的纯数据，原实例固定采用 | 数值为有限整数，观察复查间隔还须安全；容量/页/空闲期限/观察复查间隔须正；延迟/退避可为零。替换只影响新实例，恢复读取已固定的在途期限 |
+| 构造依赖      | 取得与义务                                                                                                                 | 缺席、换代和释放                                                                                                                     |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| commands      | 必需构造注入。提供者拥有本域存储、当前资格及提交组合                                                                       | 不可用时不能认成功；替换先排除旧写者并接续原操作，不靠清空缓存恢复                                                                   |
+| send          | 必需构造注入。内部组合当前授权、[#279](https://github.com/nemori-ai/omne-harness-lite/issues/279) 凭据、真实传输和发送围栏 | 缺席不发；在途连接的资源与未知归旧传输负责，新边界不得复制旧 dispatch                                                                |
+| retry         | 必需策略实现；原 request 的采用和允许范围约束每次决定                                                                      | 不可用则不再试并以 policy-unavailable 收场；替换不能重做已持久的决定                                                                 |
+| instances     | 必需实例宿主。登记能力只供 Model 提供者，目录供消费者                                                                      | 宿主退出撤路由；事实/保管不消失。后继先接管原责任再发布新实例                                                                        |
+| clock         | 必需时钟/等待能力；时间值为 UTC instant                                                                                    | 时钟不可用不虚构超时或许可；取消等待不取消原调用                                                                                     |
+| configuration | 构造时校验的纯数据，原实例固定采用                                                                                         | 数值为有限整数，观察复查间隔还须安全；容量/页/空闲期限/观察复查间隔须正；延迟/退避可为零。替换只影响新实例，恢复读取已固定的在途期限 |
 
 retryBackoffMs 是本实现的默认退避；次数、接收方及首内容边界沿共同重试协议。
 
@@ -66,7 +66,7 @@ outputBatchBytes 按事实 JSON 的 UTF-8 逻辑字节数触发持久输出批�
 
 ## 实现与验证
 
-[内部架构](docs/architecture.md)、[流程](docs/flows.md)和[构造对象](docs/object-model.md)描述具体协调。框架目录定义归 model-cordis-contract；宿主装配设计暂在[本成员装配页](docs/cordis.md)，model-host-local 目前只承载本地凭据保管。判定测试覆盖五种解析结果、租户隔离与关闭；持久化、轮换、文件故障与 Cordis 关闭由 [model-host-local](../model-host-local/SPEC.md) 的测试覆盖。它们不证明托管调用、结果保管、恢复或取消已经实现。
+[内部架构](docs/architecture.md)、[流程](docs/flows.md)和[构造对象](docs/object-model.md)描述具体协调。框架目录定义归 model-cordis-contract；[本成员装配页](docs/cordis.md)说明领域装配，实际本地宿主、发送阶段与凭据保管归 [model-host-local](../model-host-local/SPEC.md)。判定测试覆盖五种解析结果、租户隔离与关闭；持久化、轮换、文件故障与 Cordis 关闭由 model-host-local 的测试覆盖。这些凭据测试不证明托管调用、结果保管、恢复或取消已经实现。
 
 ## 构造与关闭的可观察行为
 
@@ -102,13 +102,13 @@ quiesce 返回十进制字符串 `{ pending, running }`。`running` 是本 provi
 
 `resolve` 在获准发送时按当前资格返回五种结果之一。只有 `value` 携带秘密，并且只用于这一次发送。
 
-| 结果 | 含义 | 发送端行为 |
-| --- | --- | --- |
-| `value` | 当前资格允许 | 发出，并记下本次采用的值。`scope` 为 `tenant` 或 `factory`。 |
-| `absent` | 没有这份凭据 | 不发送。 |
-| `unreadable` | 引用在，值暂时读不出 | 不发送。 |
-| `denied` | 跨租户、用途不符、无发送资格、已撤销或保管已关闭 | 不发送。 |
-| `unavailable` | 保管或存储暂时不能判断 | 不发送，也不得报成 `absent`。 |
+| 结果          | 含义                                             | 发送端行为                                                   |
+| ------------- | ------------------------------------------------ | ------------------------------------------------------------ |
+| `value`       | 当前资格允许                                     | 发出，并记下本次采用的值。`scope` 为 `tenant` 或 `factory`。 |
+| `absent`      | 没有这份凭据                                     | 不发送。                                                     |
+| `unreadable`  | 引用在，值暂时读不出                             | 不发送。                                                     |
+| `denied`      | 跨租户、用途不符、无发送资格、已撤销或保管已关闭 | 不发送。                                                     |
+| `unavailable` | 保管或存储暂时不能判断                           | 不发送，也不得报成 `absent`。                                |
 
 ### 解析取舍顺序
 
@@ -128,6 +128,10 @@ quiesce 返回十进制字符串 `{ pending, running }`。`running` 是本 provi
 已撤销或暂时读不出的行仍然存在，因此 `present` 为 true；只有 `resolve` 才按寿命分别返回 `denied` 或 `unreadable`。租户绑定仍在但值不可读时，不使用部署默认凭据，也不使用其他租户的值。未获准的官方发送拿不到工厂秘密。
 
 ### 判定与保管的分工
+
+兼容期新路径由 `judgeQualifiedPresence` 与 `judgeQualifiedResolution` 实现，分别消费不含 `official` 的资格查询与完整 `QualifiedCredentialQuery<P>`。租户只取 `access.tenant`，不读取 `SendFace`，不接受自由租户或 `authorized`。提供者复用合法租户、用途、绑定寿命与工厂选择的判定；同一凭据身份仅由其他租户持有时，两个新判定都返回 `denied`。旧 `judgePresence` 在此情形仍返回 `known` 且 `present: false`，旧 `judgeResolution` 的行为也不变。
+
+受信发送边界负责在受理点 C 核验 `access`，并从档案提供 `official`。这些纯判定不核主体铸造来源，也不核档案事实来源。调用方不能把成功解析当作主体来源已获核验。新路径保留五种解析结果，只有官方档案且租户没有绑定时可选工厂值。验证见 [qualified-credential.spec.ts](tests/qualified-credential.spec.ts)，真实文件与 Cordis 转发验证归 [model-host-local](../model-host-local/SPEC.md#兼容期资格凭据路径)。
 
 本包拥有存在性与解析的判定：`judgeGate`（不依赖绑定的拒绝：租户未铸造、保管已关闭、用途不符、发送无资格；保管实现在读存储之前先问它，所以存储不可读时仍拒绝本来就不会服务的请求）、`judgePresence` 与 `judgeResolution` 只读调用者传入的一份状态快照（`CustodianState`：关闭标志、工厂秘密、绑定列表，绑定寿命为 `active`、`revoked` 或 `unreadable`），不读文件，不持有状态，也不依赖任何保管实现。上文五种结果与存在性规则就是它们的行为。
 
@@ -169,15 +173,15 @@ observerBufferBytes 是每实例观察登记与每观察者未读通知的逻辑
 
 calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断)拒绝附加字段。本包不形成固定请求：`FixedModelRequest.declarations` 由请求准备方写入，受理只按共同判断核验它与 `suppliers` 一一对应。其余入口只投影其声明字段，外层附加值不进入快照。入参在首个 await 前固定普通业务值。已铸造 TenantId 与不透明 principal 保留原引用。调用者随后改写外层对象不改变当前操作或 schedule 的身份。停止 signal 只停止本地 drive，不能撤受理、取消业务或删除未知写。当前暂存仅存在于本 provider 实例，不提供跨进程丢失原 prepare 输入后的恢复保证。
 
-| 操作 | 当前支持及剩余阶段 |
-| --- | --- |
-| calls.admit、calls.inspect、calls.dispatches、calls.cancel | 已实现受理、事实查询与取消意图 |
-| driver.drive | 已接原 sender、唯一事实流、确认保存与本节支持范围的收场；生产调度归 5.3 |
-| consumption.beginRead、consumption.readNext、consumption.closeRead | 已接真实 Commands 的读准入、分页与关闭 |
-| consumption.acknowledge | processed 已接 handoff；retained 静态 unavailable，阶段 6.1；保留 operation 返回 invalid |
-| instances.connect | 委托实际 directory，提供最小实例观察；完整生产宿主归 3.5 |
-| recover | unavailable，5.4 |
-| quiesce | 已实现停新受理与本进程 pending/running 报告，见[受理闸门与计数](#quiesce-的受理闸门与计数) |
+| 操作                                                               | 当前支持及剩余阶段                                                                         |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| calls.admit、calls.inspect、calls.dispatches、calls.cancel         | 已实现受理、事实查询与取消意图                                                             |
+| driver.drive                                                       | 已接原 sender、唯一事实流、确认保存与本节支持范围的收场；生产调度归 5.3                    |
+| consumption.beginRead、consumption.readNext、consumption.closeRead | 已接真实 Commands 的读准入、分页与关闭                                                     |
+| consumption.acknowledge                                            | processed 已接 handoff；retained 静态 unavailable，阶段 6.1；保留 operation 返回 invalid   |
+| instances.connect                                                  | 委托实际 directory，提供最小实例观察；完整生产宿主归 3.5                                   |
+| recover                                                            | unavailable，5.4                                                                           |
+| quiesce                                                            | 已实现停新受理与本进程 pending/running 报告，见[受理闸门与计数](#quiesce-的受理闸门与计数) |
 
 未实现操作的 diagnostic 为 `managed-runtime-not-implemented operation=<操作> stage=<阶段>`，dependency 为 model-runtime。操作和阶段取固定字面量，不含请求、身份或秘密。诊断供人阅读，不是解析协议。每次未实现操作返回独立的回复与 failure 对象。
 
@@ -220,22 +224,21 @@ operation 长期只保存 SHA-256 输入指纹、方法、调用、原提交修�
 
 该入口只证明内存装配。它不提供生产耐久、跨重启恢复、真实旧发送者排除、资格共同事务、厂商网络或可靠消费保证。
 
-
 ## 已实现的调用收场
 
 共同终局、限额和不可反转规则仍由 [model-contract](../model-contract/SPEC.md#故障交接)拥有。本节说明当前 driver 的具体支持与接续条件，不增加共同公开类型。
 
 receiver 在终止 preserve 的确认回执下固定原 ended、Snapshot 和独立的接收失败，先推进内部阶段再通知观察投影。终止确认后不再读取原流。completed 和 failed 保留原 ended。真实 interrupted 仅关联同次确认 Snapshot 的 ControlState.operation，不读取可变 dispatch.terminal 推断原终局。
 
-| 路径 | 当前实现状态 |
-| --- | --- |
-| 原 completed、completed/limit、input-over-limit | 已实现收场。limit 保留正常完成及真实 trim，reported 未报告字段保持 null |
-| 无需新策略的 failed、首内容后失联 | 已实现原失败收场，保留已确认部分输出；接收失联仍沿 drive 返回失败 |
-| 原有效控制及真实 interrupted；无 dispatch 的已保存控制 | 已实现关联原控制收场；无 dispatch 时不发送 |
-| 首内容前可重试失败等待策略 | 策略循环尚未实现，保留 retry-not-decided 等真实拒绝，不制造默认 stop |
-| 无控制 interrupted、sender.not-started、已有 dispatch 但本实例没有确认终止证据 | 尚未支持精确收场。保留原事实和责任，不复制测试后端私有终局映射或恢复猜测 |
-| runtime 读取与 processed ACK | 已实现，见[结果消费支持](#结果消费支持) |
-| retained ACK、生产调度、跨进程恢复 | 尚未实现，继续各自后续阶段。quiesce 已实现，见[受理闸门与计数](#quiesce-的受理闸门与计数) |
+| 路径                                                                           | 当前实现状态                                                                              |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| 原 completed、completed/limit、input-over-limit                                | 已实现收场。limit 保留正常完成及真实 trim，reported 未报告字段保持 null                   |
+| 无需新策略的 failed、首内容后失联                                              | 已实现原失败收场，保留已确认部分输出；接收失联仍沿 drive 返回失败                         |
+| 原有效控制及真实 interrupted；无 dispatch 的已保存控制                         | 已实现关联原控制收场；无 dispatch 时不发送                                                |
+| 首内容前可重试失败等待策略                                                     | 策略循环尚未实现，保留 retry-not-decided 等真实拒绝，不制造默认 stop                      |
+| 无控制 interrupted、sender.not-started、已有 dispatch 但本实例没有确认终止证据 | 尚未支持精确收场。保留原事实和责任，不复制测试后端私有终局映射或恢复猜测                  |
+| runtime 读取与 processed ACK                                                   | 已实现，见[结果消费支持](#结果消费支持)                                                   |
+| retained ACK、生产调度、跨进程恢复                                             | 尚未实现，继续各自后续阶段。quiesce 已实现，见[受理闸门与计数](#quiesce-的受理闸门与计数) |
 
 Activity 持有唯一的固定 settle 输入。首次写前读取当前资格、代次和 revision。query unknown、失败、调用异常或已知 committed 但原回执暂不可得时，保留原 operation、expected 和完整终局。后续 drive 先核当前资格，查询原操作，并以原参数取得回执，不重新发送或读取原流。
 
@@ -272,6 +275,7 @@ retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的�
    - 不同调用数超过 `maxCitedCalls`：`lineage`，`too-many-calls`。
 
    租约在边界逐项检查形状。畸形输入返回 `invalid`，不抛出。没有 lineage，或两项都为空，视为没有 lineage。
+
 2. 按档案供应商的次序逐个取得绑定。以下情形返回失败，并释放已取得的绑定，不形成更窄的档案：
    - `supplierOf` 失败：原样返回。
    - 返回的供应商改变了采用、接收方或型号：`invalid`（`supplier`，`route-mismatch`）。
@@ -296,6 +300,7 @@ retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的�
   全部不成立时，锚点为 X 的三项之和与它的消息序列。锚点只依赖这三项已知，账目其他项的矛盾不影响锚点。`continuation-shrank` 由家族计量器给出。
 
   延续锚点还以被延续那次发出的 `resent` 为空为前提。今天的[发送边界](#产品发送边界)总以空的 `resent` 调用 prepare，没有 `replay-rejected` 后的再发，所以这个前提总成立，租约不核对它。以后实现再发时，发出记录须保存 `resent`。`resent` 非空时，锚点不命中。
+
 - 来源按消息判决。lineage 没有为带推理续接状态部件的 assistant 消息给出来源时，结果为 `source-missing`。有声明来源的消息按下列顺序核对，第一个成立的原因决定结果，全部不成立时得到 O：
   1. `source-unreadable`
   2. `source-unavailable`
@@ -306,10 +311,65 @@ retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的�
   7. `reasoning-exceeds-output`
 
   为请求之外的消息声明的来源被丢弃。本包不核对来源确实产生了该消息，这是请求组装方的事实。
+
 - 判决写进 `RequestBudget.calibration`：锚点不命中时写本包的原因；命中时沿用家族报告的 `hit` 或 `continuation-shrank`。校准值只含数字与原因，不含访问依据、租户或调用身份。
 - 租约交出锚点、而家族计量器的成功结果没有报告锚点判决时，家族违反了 `CalibratedInputMeter` 契约。租约抛出 `TypeError`，消息写明供应商采用，不把缺失的判决当作命中。
 
 `release` 释放每个绑定一次，重复调用返回同一结果；某个绑定的释放拒绝时结果为 `unavailable`，`dependency` 为该供应商采用的 `owner`，诊断为 `release-failed`。释放后，租约交出的每个计量器的 `measure` 都返回 `unavailable`（`dependency` 为 `model-preparation`，诊断为 `preparation-lease-released`），有无 lineage 相同。`release` 同时清空事实视图。事实视图不跨租约保留。
+
+## 首次执行记录与私有通道
+
+`./commands` 的 `createModelInitialRun` 创建运行级首次记录，`createModelInitialExecution` 把它与同一个命令核心组合。形状归 [initial.ts](src/commands/initial.ts)。核心与确认桥必须采用同一个工厂原值；结构克隆、反射取得的构造器或同形对象不能建立可用记录。登记、确认和 gate 校验由运行时私有端口保护，不以 TypeScript 不导出充当权限边界。
+
+首次记录只来自本运行内真实的新 `admit`。核心在既有核验通过后、提交前同步预留 `admission-pending`，保存原 tenant/call/admission 和输入指纹。确认桥在底层 `run` 最终成功后，核对最后一轮真实 admit 绑定，才转为 `admitted`，并且先于公共观察发布。旧调用的重放或查询只能认回已有 pending，不能新建首次资格。`commit-unknown` 保留原 pending，后续以原 operation 和指纹认回；异常或确认处理故障使受影响侧口不可用，不把未确认写当作成功。
+
+`maxRecords`、`maxBindings`、`maxCallsPerBinding` 都须显式给出正安全整数。pending、admitted 和 bound 都占记录名额，记录保留至运行结束。关闭 channel 只归还活绑定名额，不删除首次来源，也不把已绑定调用交给后继。同一活 instance 再次 `openHost` 返回 `invalid(instance, already-bound)`。记录、绑定或每绑定调用额度满时，分别返回 `record-capacity`、`binding-capacity` 或 `call-capacity` 的 `model-initial-execution` 不可用。
+
+`readAcceptance` 在读前与同核心的 scoped read 内各核一次 `checkOriginRead`，只返回 tenant、call、initiator、consumer 四字段的窄投影。settled 或请求正文已释放不妨碍读取。未知保留 `commit-unknown`，缺调用与跨租户仍沿既有不可区分规则。它不签发 ActorRef，也不授予 claim；真实主体须由入口的现有签发结果取得，来源缺席继续不可用。
+
+每个 `openHost` 返回独立的 channel，包含绑定后的 commands、可选 coordinator、`prepare`、`qualifyExecution` 与 `close`。`prepare` 每次核当前 recovery 资格，读取后再次核验：
+
+- 本地 admitted 尚未 bound 时，必须仍是原 admission、没有 execution，且请求正文仍在。同步绑定本 channel、instance、一次随机 operation 和 continuity 后才返回。
+- 同一活绑定重复准备时，认回原 operation、continuity 和 instance。正文可以已释放，已确认 execution 必须仍是原代次。claim 未知时也返回原输入，不换 operation，不先授执行资格。
+- 无本运行记录、另一绑定、后继或重启均不可用。不能从 SQL 的 execution 为空推断首次资格。关闭后的 channel 默认拒绝。
+
+continuity 绑定原调用、admission、instance、operation 和证据采用，只证明本进程的首次连续性。它不构成耐久接管证明。随机失败或碰撞返回 `identity-unavailable`。claim 真正确认后才保存其 ExecutionRef。
+
+启用 initialRun 的核心对 claim 和携 ExecutionRef 的执行写要求真实的绑定 gate。公共 `modelCommands(core)` 不授此权，复制 ExecutionRef 不能绕过。通道内仍核原 authority 的当前执行主体与持久代次，每次 CAS 重试重新核验；发送协调器也消费同一 gate，并保留最终同步围栏。`recordLateFact` 沿原协议，不借通道扩权。未启用 initialRun 的旧路径保留原权威规则。
+
+正文释放后，原绑定的 `prepare` 仍可解析结果推送和晚到账目的主体。随后 `loadRecovery` 因材料已释放而失败，不得据此重新 claim 或再次 start。正文释放不关闭 channel。正常释放次序由入口组合者承担，具体接线见 [model-host-local](../model-host-local/SPEC.md#首次执行与公共观察接线)。本机制不提供重启恢复、后继接管、完整撤权或跨进程排除。
+
+## 确认源与公共观察
+
+`createModelObservationStorage` 装饰同一存储，确认接缝归 [observation.ts](src/commands/observation.ts)，观察端口与十二项配置归 [stream-types.ts](src/stream-types.ts)。只有 initialRun 而没有 observation 配置时，仍安装首次确认接缝，但不创建公共观察源。两项都缺席时保留旧路径。
+
+每次底层调用 work 都重建本轮 pass，只捕获 scope 的调用与 operation，不复制整个租户材料。`commit` 和 `publish` 暂存不发布。底层 `run` 最终返回后，先同步完成 initial 确认，再处理公共确认源，最后返回原 Outcome；CAS 前轮的暂存不生效。未知写不发布 staged 投影，并使该调用的观察源不可用。授权失败不污染别的观察者。initial 或 observation 回调失败只封闭对应侧口并报告安全种类，诊断不含正文或原异常，report 自身抛错也不覆盖原结果。底层抛错则不发布，并原样重新抛出。
+
+`current` 与 `observe` 消费同一确认记录，其 state 与 snapshot 内的 state 共用冻结值。冷读使用同一个装饰后存储，核观察者自己的 facts 或 observe 资格、原 consumer 与 admission，不依赖 `loadRecovery` 或宿主拼接状态。异步读返回后重新核当前资格和来源。无公共投影时可以返回已确认 state 与 `current: null`；真实来源不可用必须返回失败，不能伪装成功空值。
+
+记录忽略较旧 revision，同版本已识别的元数据冲突使本调用不可用。同一 admission/execution/dispatch/revision/OutputCursor 的重复确认不重新 diff、冻结或复制 blocks，也不分配公共 cursor。同流只有 state 前进时复用冻结 blocks，产生 `blocks: []` 的 state-only delta，同时推进公共 cursor。内容更新只复制确认后的窄投影，工作量允许随保留块 B 与差分 D 增长，不承诺整条 SQL 查询为常数成本。公共流位置使用独立的规范十进制位置，不复用 OutputCursor。
+
+正文释放后只可复用 execution、dispatch 和内容 cursor 匹配的已有 blocks，不能把清理后的空正文发布为新快照。冷源没有可复用材料时保留 state 与空 current。Publication 或 dispatch 换代先退役旧流，新代分配新 StreamRef；旧引用永不指向后继。完整 Publication 比较 tenant/call、registration、instance 和 generation。同一 source 同时只允许一个活 host 租约，host 关闭退役本代流，source 关闭则永久结束该源。
+
+首次 `next` 才开始观察。在一个无 await 的同步段内核资格与完整引用、预留名额、固定 snapshot/cursor 并登记 watcher，所以确认更新只会落在首快照或后续队列之一。每个 iterator 有独立 FIFO 与 lastDelivered，delta 的 from 衔接真正已交付帧，队列不主动合并。每次真正交付内容或终止帧前同步重核资格、来源、Publication 与期限。当前 denied、unavailable、stale-stream 优先于 observer-closed 及已持有的普通终止。
+
+同一 iterator 同时只允许一个 pending next。第二个 next 使第一个取得经重核的 `ended(capacity)`，之后为 done。`return` 立即清除 pending 与后续读取；abort 只结束本观察，不取消调用、ACK 或释放业务结果。host/source 关闭也终止尚在冷读的观察，迟到读不披露内容。底层 SQL I/O 仍由存储收尾，读预算保留至该 Promise 完成，不声明已取消 I/O。
+
+十二项上限全部为显式正安全整数，不设生产默认值。`timing` 提供同一进程单调时间域与可取消等待。
+
+| 配置                                     | 约束                                       |
+| ---------------------------------------- | ------------------------------------------ |
+| `maxSnapshotBytes`、`maxDeltaBytes`      | 完整首帧与差分帧的规范 UTF-8 JSON 字节上限 |
+| `maxQueuedFrames`、`maxQueuedBytes`      | 每个 iterator 的 FIFO 帧数与逻辑字节       |
+| `maxObserversPerTenant`、`maxObservers`  | 租户与全局活观察者名额                     |
+| `maxPendingSourceOperations`             | 创建冷读 Promise 前取得的源读取名额        |
+| `maxRetainedCalls`、`maxRetainedBytes`   | 源确认记录的数量与逻辑字节                 |
+| `maxTotalBytes`                          | 源、订阅与差分 scratch 的总逻辑预算        |
+| `maxQueueResidenceMs`、`checkIntervalMs` | 队列驻留期限与等待观察者的资格复查间隔     |
+
+字节与数量等于上限允许，驻留时间等于期限即过期。计量先于分配，可提前停止，逻辑字节不等于进程 RSS。snapshot 超界或订阅准入失败交 `ended(capacity)`；delta、FIFO 或驻留超界清内容并脱订阅，只留 `gap(buffer, after=lastDelivered)`。新订阅不驱逐旧订阅。冷读满额时 current 返回 unavailable，observe 交 capacity。源无法保留真实新状态时使本调用 unavailable，不沿用旧状态冒充 current。无 watcher 的记录可按 LRU 退役，不释放业务保管材料。终止与 return 解除计时器、监听器和各自预留。
+
+持续验证入口为 [首次执行](tests/initial-execution.spec.ts)、[确认顺序](tests/confirmation-order.spec.ts)、[确认源](tests/stream-source.spec.ts)、[观察 FIFO](tests/stream-observation.spec.ts)与[预算](tests/stream-bounds.spec.ts)。这些资源不证明应用发行接线、生产参数、真实主体签发或跨进程恢复已经闭合。
 
 ## 产品发送边界
 
@@ -317,7 +377,11 @@ retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的�
 
 边界只固定 SendDemand 的声明字段，已铸造 tenant 与不透明 principal 保留身份引用。当前访问与固定业务绑定先于本地尝试查询。原尝试已可能发送时，后续取消或代次变化不把它降级为未发；权威已有发送记录同样先被识别。首次发送的执行/控制资格另在取得资源前核验，最终同步围栏仍重核。产品持有物化资源、原写输入和一次事实交接；Commands 持有调用事实；具体同步协调者持有全部 sender 共用的当前资格与 dispatch 认领。物化回执、开窗确认后才进入最终同步围栏。协调者在同一排他次序核原主体、发起者、工作资格、代次、控制、固定请求、接收方及来源，先占用一次尝试，再调用产品闭包解析凭据和立即 start。重入拒绝，重复闭包调用复用首次结果。来源不可用、资格撤销、scope 错配和无 value 均不发送。
 
-factory 的精确采用、官方身份、当前无 tenant 绑定及查询 ID 来自受信登记；Model 不生成凭据 ID。tenant 只解析原 ID，official=false，不回退 factory。absent、unreadable、unavailable 保留不同的 model-credential 安全诊断；denied 保持拒绝。解析、start、事实读取及释放的异常正文不进入业务诊断。秘密只交给原资源的同步私有槽。资源提供者须核物化对象归属，清除临时秘密，并发送回执对应内容。
+factory 的精确采用、官方身份、当前无 tenant 绑定及查询 ID 来自受信登记；Model 不生成凭据 ID。产品发送边界在同步围栏内只调用 `resolveFor`，传入原 `access`、凭据 ID、用途及档案事实。缺少该方法或已登记的 `ModelSendSource.credential` 事实时，返回 `unavailable`，依赖为 `model-credential`，诊断为 `qualified-path-missing`，不回退旧 `resolve`。
+
+`official` 取自已登记的 `ModelSendSource.credential`。登记来源的 `kind` 为 `factory` 时，显式选择 tenant 凭据也保留该来源的 `official`；登记来源的 `kind` 为 `tenant` 时才取 false。tenant 选择只解析原 ID，且要求返回 tenant 范围的值，不接受 factory 范围的结果。旧 `resolve` 与 `SendFace` 路径的行为保留，不参与产品发送边界。
+
+absent、unreadable、unavailable 保留不同的 model-credential 安全诊断；denied 保持拒绝。解析、start、事实读取及释放的异常正文不进入业务诊断。秘密只交给原资源的同步私有槽。资源提供者须核物化对象归属，清除临时秘密，并发送回执对应内容。
 
 每个原写在首次提交前固定完整参数，operation 使用具有128位熵的随机值生成。未确认写先 query 原 operation，确定后重放原方法和参数，不改 expected、dispatch 或 payload。查询拒绝、异常或仍未知不证明原写未提交，原尝试、资源和容量继续保留。已确认 committed 但原方法暂不能返回回执时，同样保留原责任；只有权威未提交且原写明确拒绝才可按未提交结束。物化或窗口未知保留资源但零 start。已明确未发的资格拒绝不会因原 not-sent 写的已知冲突改称未知发送；未确认记录仍保留原责任。已经可能 start 的异常或记录冲突始终 unknown，不改报未发。
 
