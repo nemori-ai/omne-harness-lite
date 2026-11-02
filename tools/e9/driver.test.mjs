@@ -37,6 +37,7 @@ test('timeout removes the spawned descendant process', async () => {
   const timed = await runProcess(process.execPath, ['-e', script], { timeoutMs: 500 })
   const pid = Number(timed.stdout)
   assert.ok(Number.isSafeInteger(pid) && pid > 0, timed.stderr)
+  let cleanupError
   try {
     assert.equal(timed.timedOut, true)
     assert.throws(() => process.kill(pid, 0), /ESRCH/)
@@ -44,7 +45,8 @@ test('timeout removes the spawned descendant process', async () => {
     try {
       process.kill(pid, 'SIGKILL')
     } catch (error) {
-      if (error.code !== 'ESRCH') throw error
+      if (error.code !== 'ESRCH') cleanupError = error
     }
   }
+  assert.equal(cleanupError, undefined)
 })
