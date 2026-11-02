@@ -34,6 +34,7 @@ CASES = {
     "bad-h-rebind": ("Handoff", "UniqueHandoff"),
     "bad-execution-rebind": ("Handoff", "UniqueExecutionRoute"),
     "bad-repeat-admission": ("Handoff", "AtMostOneAdmission"),
+    "bad-original-result": ("Handoff", "OriginalResult"),
     "witness-recovery": ("Handoff", "NoRecoveredResult"),
 }
 

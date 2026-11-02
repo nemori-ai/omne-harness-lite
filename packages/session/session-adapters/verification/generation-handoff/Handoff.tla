@@ -95,7 +95,8 @@ Compute(c, d) ==
 Commit(c) ==
     LET r == original[c]
         prior == {o \in outcomes : H(o.original) = H(r)}
-        value == IF prior = {} THEN pending[c] ELSE CHOOSE o \in prior : TRUE
+        value == IF prior = {} \/ Fault = "replace-result"
+                 THEN pending[c] ELSE CHOOSE o \in prior : TRUE
         fresh == prior = {} \/ Fault = "repeat-admission"
     IN
     /\ running /\ phase[c] = "computed"

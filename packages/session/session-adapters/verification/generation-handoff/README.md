@@ -75,7 +75,7 @@
 | P2   | `ReplyIsDurable`、`RestartRetainsReplies` | 已返回的结果在返回时与重启后都仍可读                          | `bad-early-reply` 在 Compute 后返回，随后崩溃丢失 outcome。该配置只检查重启性质，以保留重启反例 |
 | P3   | `UniqueHandoff`                           | 同 Ki 或 H 只能认回同一完整原记录                             | `bad-ki-rebind` 与 `bad-h-rebind` 允许不同输入占据原索引                                        |
 | P3   | `UniqueExecutionRoute`                    | 同租户同 execution 只对应一个 Session                         | `bad-execution-rebind` 允许写入第二个 Session                                                   |
-| P4   | `OriginalResult`、`AtMostOneAdmission`    | 同 H 永远返回原 outcome，固定新结果至多一次                   | `bad-repeat-admission` 在已有结果时再次计入准入固定                                             |
+| P4   | `OriginalResult`、`AtMostOneAdmission`    | 同 H 永远返回原 outcome，固定新结果至多一次                   | `bad-repeat-admission` 再次计入准入固定；`bad-original-result` 绕过原结果选择，暴露同 H 的不同结果 |
 
 所有正常配置也检查 `TypeOK`。负控只删除表中指定控制，不改变输入范围。它们必须得到 TLC 退出码 12、指定不变量与完整反例。语法失败、超时、其他退出码或错误性质均不算命中。
 
@@ -130,7 +130,7 @@ node scripts/with-test-slot.mjs python packages/session/session-adapters/verific
 
 ## 当前核验结果
 
-2026-11-02 在 Windows Git Bash 经 WSL Ubuntu-24.04 运行完整配置集。实际命令使用上述入口，`--output` 为 `tmp/line-session-run/w2/M-GENERATION/tlc-corrected`。运行器退出 0。8 个正控退出 0，8 个负控和 2 个可达性见证各自退出 12，均命中指定不变量。
+2026-11-02 在 Windows Git Bash 经 WSL Ubuntu-24.04 运行完整配置集。首轮完整结果在 `tmp/line-session-run/w2/M-GENERATION/tlc-corrected`。独立评审后增加原结果认回负控，并在 `tmp/line-session-run/w2/M-GENERATION/parent-tlc` 重跑全部配置，运行器退出 0。8 个正控退出 0，9 个负控和 2 个可达性见证各自退出 12，均命中指定不变量。
 
 工具为 TLC2 2.19，2024-08-08，revision `5a47802`。Java 为 Temurin `21.0.12.1+1-LTS`。jar 的 SHA-256 为 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`。参数为 1 worker、1024 MiB heap、每例 180 秒，未发生超时。
 
@@ -152,6 +152,7 @@ node scripts/with-test-slot.mjs python packages/session/session-adapters/verific
 | `bad-h-rebind`             |      107 |       62 |         12 | UniqueHandoff              |
 | `bad-execution-rebind`     |       10 |        8 |         12 | UniqueExecutionRoute       |
 | `bad-repeat-admission`     |     1118 |      549 |         12 | AtMostOneAdmission         |
+| `bad-original-result`      |     1124 |      550 |         12 | OriginalResult             |
 | `witness-late-answer`      |       25 |       19 |         12 | NoLateAnswer               |
 | `witness-recovery`         |      747 |      362 |         12 | NoRecoveredResult          |
 
