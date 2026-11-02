@@ -1,0 +1,352 @@
+/* 面板共用样式。线进度页与 Reduce 总控页各自内嵌一份，不引外部资源。
+   改这里要同步复制到 line/canonical/scripts/progress/panel.css（两边比对见
+   references/cockpit.md「样式副本」）。 */
+
+/* 版面：顶部结论条 → 分区；窄屏单列，表格换卡片。 */
+:root {
+  --bg: #f4f5f4;
+  --surface: #ffffff;
+  --surface-2: #eceeec;
+  --fg: #1b1d1c;
+  --fg-muted: #5f6663;
+  --rule: #d6dad7;
+  --accent: #1f6f6b;
+  --accent-soft: #dcebe9;
+
+  --ok: #256d3f;
+  --run: #1f5b9c;
+  --warn: #96600b;
+  --bad: #a52a2a;
+  --idle: #63696b;
+
+  --ok-bg: #e2f0e6;
+  --run-bg: #e3ecf8;
+  --warn-bg: #faeed5;
+  --bad-bg: #f9e0e0;
+  --idle-bg: #eceeed;
+
+  --shadow: 0 1px 2px rgba(20, 30, 26, .07);
+  --radius: 8px;
+  --font-ui: "Segoe UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131615;
+    --surface: #1b1f1e;
+    --surface-2: #232827;
+    --fg: #e4e7e5;
+    --fg-muted: #9ba3a0;
+    --rule: #323a37;
+    --accent: #6fc3bb;
+    --accent-soft: #1d3230;
+    --ok: #74c193;
+    --run: #8ab6ef;
+    --warn: #e0b264;
+    --bad: #ef8f8f;
+    --idle: #a0a7a5;
+    --ok-bg: #1c2f24;
+    --run-bg: #1b2738;
+    --warn-bg: #32281a;
+    --bad-bg: #35201f;
+    --idle-bg: #232827;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #131615;
+  --surface: #1b1f1e;
+  --surface-2: #232827;
+  --fg: #e4e7e5;
+  --fg-muted: #9ba3a0;
+  --rule: #323a37;
+  --accent: #6fc3bb;
+  --accent-soft: #1d3230;
+  --ok: #74c193;
+  --run: #8ab6ef;
+  --warn: #e0b264;
+  --bad: #ef8f8f;
+  --idle: #a0a7a5;
+  --ok-bg: #1c2f24;
+  --run-bg: #1b2738;
+  --warn-bg: #32281a;
+  --bad-bg: #35201f;
+  --idle-bg: #232827;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.6 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+a { color: var(--accent); text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+a:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+code, .mono { font-family: var(--font-mono); font-size: 12.5px; }
+.muted { color: var(--fg-muted); }
+.small { font-size: 12px; }
+.num { font-variant-numeric: tabular-nums; }
+.nowrap { white-space: nowrap; }
+.break { overflow-wrap: anywhere; }
+
+.shell { max-width: 1120px; margin: 0 auto; display: grid; gap: 22px; }
+
+/* 页头：名字就是标题，不加冒号副题。 */
+.masthead { display: grid; gap: 6px; }
+.masthead h1 { margin: 0; font-size: 22px; line-height: 1.3; text-wrap: balance; }
+.masthead .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--fg-muted); }
+
+section > h2 {
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 15px;
+  line-height: 1.4;
+}
+section > h2 .count { color: var(--fg-muted); font-weight: 400; margin-left: 6px; font-size: 13px; }
+
+/* 状态：颜色 + 文字 + 符号，三路编码。符号用 CSS 生成，不依赖字体。 */
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 1px 8px 1px 7px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.chip::before { font-size: 11px; line-height: 1; }
+.chip.ok   { color: var(--ok);   background: var(--ok-bg); }
+.chip.run  { color: var(--run);  background: var(--run-bg); }
+.chip.warn { color: var(--warn); background: var(--warn-bg); }
+.chip.bad  { color: var(--bad);  background: var(--bad-bg); }
+.chip.idle { color: var(--idle); background: var(--idle-bg); }
+.chip.ok::before   { content: "\2713"; }  /* ✓ */
+.chip.run::before  { content: "\25D4"; }  /* ◔ */
+.chip.warn::before { content: "\25D1"; }  /* ◑ */
+.chip.bad::before  { content: "\2715"; }  /* ✕ */
+.chip.idle::before { content: "\25CB"; }  /* ○ */
+
+/* 结论条：一眼看到该不该动手。 */
+.banner {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-left: 5px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.banner .lead { font-size: 15px; font-weight: 600; text-wrap: balance; }
+.banner.needs  { border-left-color: var(--warn); }
+.banner.urgent { border-left-color: var(--bad); }
+.banner .detail { color: var(--fg-muted); font-size: 13px; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tile {
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.tile .label { font-size: 12px; color: var(--fg-muted); }
+.tile .value { font-size: 22px; font-weight: 600; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.tile .value small { font-size: 13px; font-weight: 400; color: var(--fg-muted); }
+
+.card {
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.stack { display: grid; gap: 10px; }
+
+/* 表格：宽屏表格，窄屏每行一张卡片，字段名在值上方。 */
+.table-wrap { overflow-x: auto; }
+table.grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.grid-table th, .grid-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.grid-table thead th {
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-muted);
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.grid-table tbody tr:last-child td { border-bottom: 0; }
+.grid-table td.is-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* 领先/落后：偏离量用条长表达，左右方向和数字同时表达正负。 */
+.divergence { display: grid; grid-template-columns: 5.5em minmax(60px, 1fr) 4.5em; align-items: center; gap: 6px; }
+.divergence .track {
+  position: relative;
+  height: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+.divergence .track::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--fg-muted);
+  opacity: .55;
+}
+.divergence .fill { position: absolute; top: 0; bottom: 0; }
+.divergence .fill.ahead  { left: 50%; background: var(--ok); }
+.divergence .fill.behind { right: 50%; background: var(--bad); }
+.divergence .fill.zero   { left: 50%; width: 2px; background: var(--fg-muted); }
+
+/* 关键路径：按分钟宽度分段，已完成淡化并标符号。 */
+.path { display: grid; gap: 8px; }
+.path-bar { display: flex; gap: 3px; align-items: stretch; }
+.path-bar .seg {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 100%;
+  padding: 5px 7px;
+  border: 1px solid var(--run);
+  border-radius: 5px;
+  background: var(--surface);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow: hidden;
+}
+.path-bar .seg .name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  min-height: 2.7em;
+}
+.path-bar .seg .min { color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+.path-bar .seg.done { border-color: var(--ok); background: var(--ok-bg); color: var(--ok); }
+.path-bar .seg.done .min { color: inherit; }
+.path-list { display: none; }
+
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.timeline li {
+  display: grid;
+  grid-template-columns: 8.5em 1fr;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--rule);
+}
+.timeline li:last-child { border-bottom: 0; padding-bottom: 0; }
+.timeline .at { color: var(--fg-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+.empty { color: var(--fg-muted); font-style: italic; }
+
+footer.notes { margin-top: 8px; color: var(--fg-muted); font-size: 12px; }
+footer.notes ul { padding-left: 18px; margin: 4px 0; }
+
+@media (max-width: 640px) {
+  body { padding-block: 12px 36px; }
+  .masthead h1 { font-size: 19px; }
+
+  /* 表格换卡片：表头隐藏，每行一块，字段名来自 data-label。 */
+  .table-wrap { overflow-x: visible; }
+  .grid-table { border: 0; background: transparent; border-radius: 0; }
+  .grid-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .grid-table tbody { display: grid; gap: 10px; }
+  .grid-table tr {
+    display: grid;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .grid-table td {
+    display: grid;
+    grid-template-columns: 6.5em 1fr;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    font-size: 13px;
+  }
+  .grid-table td::before {
+    content: attr(data-label);
+    color: var(--fg-muted);
+    font-size: 11.5px;
+    line-height: 1.85;
+  }
+  .grid-table td.is-num, .grid-table td:not([data-label]) { white-space: normal; }
+  .grid-table td.stack-cell { grid-template-columns: 1fr; }
+  .grid-table td.stack-cell::before { margin-bottom: -4px; }
+
+  .divergence { grid-template-columns: 4.5em 1fr 4em; }
+
+  .path-bar { display: none; }
+  .path-list { display: grid; gap: 6px; margin: 0; padding-left: 20px; }
+  .path-list li { padding-left: 2px; }
+  .path-list li.done { color: var(--ok); }
+
+  .timeline li { grid-template-columns: 1fr; gap: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* 待裁定与风险列表：每条纹一条分隔线，不动用卡片。 */
+.request-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.request-list > li {
+  display: grid;
+  gap: 3px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.request-list > li:first-child { padding-top: 0; }
+.request-list > li:last-child { border-bottom: 0; padding-bottom: 0; }
+
+details > summary { cursor: pointer; color: var(--accent); }
+details[open] > summary { margin-bottom: 6px; }
+
+/* 单元格内多行内容：与 td 的「字段名 + 值」两列对齐，不让第二行掉到标签列下面。 */
+.cell-inline { display: grid; gap: 2px; min-width: 0; }
+@media (max-width: 640px) {
+  .cell-inline .small.muted { display: none; }
+}
