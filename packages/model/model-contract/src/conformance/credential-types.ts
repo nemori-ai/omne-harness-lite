@@ -11,7 +11,10 @@ export type CredentialConformanceControls = Readonly<{
   close(): void | Promise<void>
 }>
 
-/** Fresh, empty tenant bindings and a configured synthetic factory value. */
+/**
+ * Fresh, empty tenant bindings and a configured synthetic factory value.
+ * A late factory result is still disposed after timeout; cleanup errors cannot change its report.
+ */
 export type CredentialConformanceSubject<P> = Readonly<{
   port: CredentialPort<P>
   access: Access<P>
@@ -32,6 +35,7 @@ export const CREDENTIAL_CONFORMANCE_OBLIGATIONS = [
   'legacy-purpose-denied',
   'legacy-factory-rules',
   'qualified-presence-and-resolution',
+  // Probes reads of caller face/authorized/tenant fields, not internal method reuse.
   'qualified-independent-of-legacy',
   'qualified-foreign-holder-denied',
   'qualified-factory-official-only',
