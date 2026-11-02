@@ -88,6 +88,8 @@ import {
 import {
   decodeDispatchId,
   decodeModelInstanceId,
+  type ModelCallId,
+  type ModelOperationId,
   decodeResultVersion,
   type ModelProfile,
   type ModelRuntime,
@@ -109,6 +111,7 @@ import {
 } from '@omne-harness/request-context'
 import {
   decodeHistorySequence,
+  type AdoptedRequestSource,
   type HistoryEvidence,
   type HistoryRow,
   type SourceRead,
@@ -123,7 +126,7 @@ import { RequestContextProvider } from '@omne-harness/request-context-cordis/cor
 import type { ContextHolderParts } from '@omne-harness/request-context-cordis-contract'
 import { RequestContextTrustService } from '@omne-harness/request-context-cordis-contract/cordis'
 import { createMemoryContextHolder } from '@omne-harness/request-context-cordis-contract/testing'
-import type { EligibilityId } from '@omne-harness/runtime-context-contract'
+import type { EligibilityId, ScopeRef } from '@omne-harness/runtime-context-contract'
 import { createTestAuthorityPorts } from '@omne-harness/runtime-context-contract/testing'
 import { RuntimeContextProvider } from '@omne-harness/runtime-context-cordis/cordis'
 import {
@@ -139,6 +142,7 @@ import {
 } from '@omne-harness/session-adapters/cordis'
 import type {
   GuardCommand,
+  SessionTransactionPort,
   SessionAccess,
   SessionAccessRequest,
   SessionEvidenceBridge,
@@ -207,7 +211,11 @@ import {
 } from '@omne-harness/sql-contract'
 import { StorageService, TenantDomainLookupService } from '@omne-harness/sql-contract/cordis'
 import { createSqliteStorage, type SqliteStorageConfig } from '@omne-harness/sqlite-provider'
-import { createLocalModelReceiver, createModelReceiverState } from '../../src/index.ts'
+import {
+  createLocalModelReceiver,
+  createModelReceiverState,
+  type AgentModelReceiver,
+} from '../../src/index.ts'
 import { agentHostPlugin, type AgentHostConfig } from '../../src/cordis.ts'
 
 const COMBINATION = 'c1'
@@ -378,6 +386,114 @@ function historyRow(index: number, text: string): HistoryRow {
   return { seq: seq.ok, entry, bytes: String(text.length), prefixDigest: `chain:${index}`, message }
 }
 
+// --- the options of a joint world (C-JOINT) --------------------------------------------------------
+
+type Pusher = ReturnType<typeof createScriptedResultPusher<unknown>>
+type Scripted = ReturnType<typeof createScriptedModelProvider<unknown>>
+
+/** One admitted Model call, with the controls of the scripted provider that answers it. */
+export type ModelAdmission = Readonly<{
+  tenant: TenantId
+  call: ModelCallId
+  /** The operation of the admission: the intent of the dispatches of the call. */
+  operation: ModelOperationId
+  /** The number of calls admitted before this one. */
+  index: number
+  scripted: Scripted
+  pusher: Pusher
+}>
+
+/** What the world hands to a function of `plugins`: parts that a plugin of another closure needs. */
+export type PluginWorld = Readonly<{
+  /** The fixed request facts of the adopted-request double, for AD-04's narrow adoption source. */
+  adopted: AdoptedRequestSource<unknown>
+  /** The Session log combination the plugins' records commit under. */
+  combination: Readonly<{ combinationVersion: string; manifestDigest: string }>
+  /** The principal the work principals issue to the coordinator of one session. */
+  coordinator: (input: {
+    tenant: TenantId
+    session: SessionId
+  }) => ReturnType<WorkPrincipals['forSession']>
+}>
+type WorkPrincipals = ReturnType<typeof createMemorySessionWorkPrincipals<string>>
+
+/** The Plugin and its configuration, as `ctx.plugin` takes them. */
+export type PluginMount = readonly [plugin: unknown, config?: unknown]
+
+/**
+ * Everything a joint world may change. With no option the world is the one of CP3. Each option
+ * names a seam where the world used a double and a later checkpoint puts the product part (or a
+ * different double) in its place.
+ */
+export type LineWorldOptions = Readonly<{
+  /** Wraps the shared storage, for example to count; it sees the storage after the commit log. */
+  wrapStorage?: (storage: SqlStorage) => SqlStorage
+  /** The `agentJournal` plugin and its configuration; default `SessionLogAgentJournalProvider`. */
+  journalPlugin?: (combination: {
+    combinationVersion: string
+    manifestDigest: string
+  }) => PluginMount
+  /** `external`: the world does not mount `agentMessageHandoff`; a plugin of `plugins` does. */
+  handoff?: 'scripted' | 'external'
+  /**
+   * `external`: the world does not mount the K-RQ holder double; a plugin of `plugins` provides
+   * `contextHolderSources` (AD-04 does, with the earlier context read from the Session log).
+   */
+  holder?: 'double' | 'external'
+  /** The agent-context plugin; default `AgentContextProvider`. */
+  contextPlugin?: typeof AgentContextProvider
+  /** The Session provider class; default `SessionProvider`. A subclass may observe the faces. */
+  sessionProvider?: typeof SessionProvider
+  /** What happens when a Model call is admitted; default one text reply (CP3). */
+  model?: (admission: ModelAdmission) => Promise<unknown>
+  /** Members of the agent-host configuration to change. */
+  hostConfig?: Partial<AgentHostConfig>
+  /** The agent-host plugin; default the production plugin over `createAgentRuntime`. */
+  hostPlugin?: unknown
+  /** The most records the receivers keep; default 10000 (CP3). */
+  receiverRecords?: number
+  /**
+   * Plugins mounted after the Agent host and before the Session provider. A function receives the
+   * fixed request facts of the world's adopted-request double, for AD-04's narrow adoption source.
+   */
+  plugins?: readonly PluginMount[] | ((world: PluginWorld) => readonly PluginMount[])
+  /** Wraps the Session transaction port the plugins reach, for example to count `commitLog`. */
+  wrapTransactions?: (port: SessionTransactionPort<string>) => SessionTransactionPort<string>
+  /** Wraps the Model receiver the pusher resolves, for example to count what it saves. */
+  wrapModelReceiver?: (receiver: AgentModelReceiver<unknown>) => AgentModelReceiver<unknown>
+}>
+
+/** The CP3 behaviour: the call starts and settles with one text. */
+async function replyWithText(admission: ModelAdmission): Promise<unknown> {
+  const { pusher, tenant, call } = admission
+  const target = { tenant, call }
+  const dispatch = decodeDispatchId('mdisp_cp3')
+  const version = decodeResultVersion('mrver_cp3')
+  if ('failure' in dispatch || 'failure' in version) throw new Error('model identities')
+  pusher.controller.start({ ...target, dispatch: dispatch.ok, firstContent: 'observed' })
+  pusher.controller.settle({
+    ...target,
+    version: version.ok,
+    termination: { kind: 'completed', reason: 'stop' },
+    parts: [
+      {
+        kind: 'sealed',
+        trims: [],
+        block: {
+          kind: 'text',
+          id: 'blk_cp3_reply' as never,
+          visibility: { toHuman: true, toModel: true },
+          text: REPLY_TEXT,
+        },
+      },
+    ],
+    source: evidence(`settled/${call}`),
+    pageSize: 10,
+    pageTargetBytes: 65536,
+  })
+  return pusher.settled(target)
+}
+
 // --- the world ----------------------------------------------------------------------------------
 
 const AGENT_HOST_CONFIG: AgentHostConfig = {
@@ -393,7 +509,7 @@ const AGENT_HOST_CONFIG: AgentHostConfig = {
 }
 
 /** Builds the world: every plugin mounted and active, no session created yet. */
-export async function openLineWorld() {
+export async function openLineWorld(options: LineWorldOptions = {}) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'line-through-cp3-')))
   const ctx = new Context()
   const mounted: Fiber[] = []
@@ -442,16 +558,18 @@ export async function openLineWorld() {
     if (registered.kind !== 'registered') throw new Error(`registration ${registered.kind}`)
   }
   const commits: SeenCommit[] = []
-  const storage: SqlStorage = {
+  const seeing: SqlStorage = {
     registerCombination: input => real.registerCombination(input),
-    commit: async (request, options) => {
-      const result = await real.commit(request, options)
+    commit: async (request, commitOptions) => {
+      const result = await real.commit(request, commitOptions)
       commits.push({ participants: request.commands.map(item => item.participant), result })
       return result
     },
     query: identity => real.query(identity),
-    read: (request, options) => real.read(request, options),
+    read: (request, readOptions) => real.read(request, readOptions),
   }
+  // W2: a joint world may count what goes through the shared storage; by default there is no wrapper.
+  const storage: SqlStorage = options.wrapStorage?.(seeing) ?? seeing
   const lookup: TenantDomainLookup = {
     lookup: input => {
       const domain = domains[input.tenant]
@@ -531,7 +649,11 @@ export async function openLineWorld() {
       'InternalPrincipals',
     ],
     [SessionWorkPrincipalsService, workPrincipals, 'WorkPrincipals'],
-    [SessionTransactionPortService, pair.transactions, 'TransactionPort'],
+    [
+      SessionTransactionPortService,
+      options.wrapTransactions?.(pair.transactions as never) ?? pair.transactions,
+      'TransactionPort',
+    ],
     [
       SessionIdentityBridgeService,
       createScriptedSessionIdentityBridge<string>('allow'),
@@ -548,7 +670,12 @@ export async function openLineWorld() {
   await mount(Lifecycle)
 
   // The Journal plugin.
-  await mount(SessionLogAgentJournalProvider, combination)
+  // Real. W2 may mount `createSessionAgentJournalPlugin({ cancellation })` here instead.
+  const [journalPlugin, journalConfig] = options.journalPlugin?.(combination) ?? [
+    SessionLogAgentJournalProvider,
+    combination,
+  ]
+  await mount(journalPlugin, journalConfig)
   const journal = (): AgentJournal<unknown> => {
     const found = ctx.get(agentJournalKey)
     if (found === undefined) throw new Error('agentJournal is not provided')
@@ -575,11 +702,14 @@ export async function openLineWorld() {
   const handoff = createScriptedMessageHandoff<unknown>()
   const conditions = createTableConditions<unknown>()
   const selection = createScriptedModelSelection<unknown>()
+  // W2 `handoff: 'external'` leaves `agentMessageHandoff` to a plugin of `options.plugins`.
+  const scriptedHandoff: readonly (readonly [unknown, object, string])[] =
+    options.handoff === 'external' ? [] : [[MessageHandoffService, handoff.port, 'MessageHandoff']]
   for (const [Base, port, name] of [
     [AgentAccessCheckService, access.port, 'AgentAccess'],
     [AgentAdoptionsService, adoptions.port, 'AgentAdoptions'],
     [AgentClockService, clock.port, 'AgentClock'],
-    [MessageHandoffService, handoff.port, 'MessageHandoff'],
+    ...scriptedHandoff,
     [CurrentConditionsService, conditions.port, 'Conditions'],
     [ModelSelectionService, selection.port, 'ModelSelection'],
     [ExtensionImplementationsService, createScriptedExtensions<unknown>().port, 'Extensions'],
@@ -587,7 +717,7 @@ export async function openLineWorld() {
     [ActionAdmissionService, createScriptedActionAdmission<unknown>().port, 'ActionAdmission'],
     [RegisteredReadsService, createScriptedReads<unknown>().port, 'Reads'],
   ] as const)
-    await mount(serviceOf(Base as unknown as AbstractService, port, name))
+    await mount(serviceOf(Base as unknown as AbstractService, port as object, name))
   const tools = createScriptedToolRuntime<unknown>()
   await mount({
     name: 'tool-runtime-double',
@@ -644,9 +774,9 @@ export async function openLineWorld() {
       limits: { maxTargets: 4, maxFactsPerTarget: 4, maxRevisionsPerDispatch: 4 },
     },
   })
-  await mount(holder.plugin)
+  // W2: with `holder: 'external'` a plugin of `options.plugins` provides `contextHolderSources`.
+  if (options.holder !== 'external') await mount(holder.plugin)
   const ports = createTestAuthorityPorts<unknown>()
-  ports.bind(fixture.target.scope, TENANT)
   class RuntimeTrust extends RuntimeContextTrustService<unknown> {
     readonly authority = ports.authority
     readonly bindings = ports.bindings
@@ -655,43 +785,45 @@ export async function openLineWorld() {
   await mount(RuntimeContextProvider)
   const rc = ctx.get(runtimeContextKey)
   if (rc === undefined) throw new Error('no runtime context')
-  const begun = await rc.beginReplay('holder', {
-    scope: fixture.target.scope,
-    tenant: TENANT,
-    through: null,
-    supersedes: null,
-  })
-  if (begun.kind !== 'replaying') throw new Error(begun.kind)
-  await rc.finishReplay('holder', {
-    replay: begun.replay,
-    material: { registrations: [], checkpoints: [], end: null },
-  })
-  const issued = await rc.issueEligibility('holder', {
-    supersedes: null,
-    scope: fixture.target.scope,
-    consumer: 'model',
-    principal: COORDINATOR,
-    tenant: TENANT,
-    keys: [],
-    bindings: [],
-    registrationRevision: 0,
-  })
-  if (issued.kind !== 'issued') throw new Error(issued.kind)
-  const held: EligibilityId = issued.eligibility.id
-  const eligibility = createScriptedReaderEligibility<unknown>({
-    scopes: [{ scope: fixture.target.scope, tenant: TENANT }],
-    answers: [
-      {
-        request: {
-          principal: COORDINATOR,
-          tenant: TENANT,
-          scope: fixture.target.scope,
-          consumer: 'model',
-        },
-        result: { kind: 'current', eligibility: held },
-      },
-    ],
-  })
+  // The Runtime Context handoff double lists the scopes it knows; a scope is added by `holdScope`.
+  type EligibilityScript = Parameters<typeof createScriptedReaderEligibility<unknown>>[0]
+  const script = {
+    scopes: [] as EligibilityScript['scopes'][number][],
+    answers: [] as EligibilityScript['answers'][number][],
+  }
+  /** Registers a scope with the Runtime Context and lets the model consumer read it (double: K-RC). */
+  const holdScope = async (scope: ScopeRef): Promise<void> => {
+    ports.bind(scope, TENANT)
+    const begun = await rc.beginReplay('holder', {
+      scope,
+      tenant: TENANT,
+      through: null,
+      supersedes: null,
+    })
+    if (begun.kind !== 'replaying') throw new Error(begun.kind)
+    await rc.finishReplay('holder', {
+      replay: begun.replay,
+      material: { registrations: [], checkpoints: [], end: null },
+    })
+    const issued = await rc.issueEligibility('holder', {
+      supersedes: null,
+      scope,
+      consumer: 'model',
+      principal: COORDINATOR,
+      tenant: TENANT,
+      keys: [],
+      bindings: [],
+      registrationRevision: 0,
+    })
+    if (issued.kind !== 'issued') throw new Error(issued.kind)
+    script.scopes.push({ scope, tenant: TENANT })
+    script.answers.push({
+      request: { principal: COORDINATOR, tenant: TENANT, scope, consumer: 'model' },
+      result: { kind: 'current', eligibility: issued.eligibility.id as EligibilityId },
+    })
+  }
+  await holdScope(fixture.target.scope)
+  const eligibility = createScriptedReaderEligibility<unknown>(script)
   class Handoff extends RuntimeContextReaderEligibilityService<unknown> {
     current(request: Parameters<RuntimeContextReaderEligibilityService<unknown>['current']>[0]) {
       return eligibility.current(request)
@@ -768,7 +900,7 @@ export async function openLineWorld() {
       inner.provide(MODEL_PREPARATION_RESOURCES, fixture.preparation)
     },
   })
-  await mount(AgentContextProvider, {
+  await mount(options.contextPlugin ?? AgentContextProvider, {
     owner: { owner: 'agent-context', name: 'cp3', revision: '1', digest: 'd' },
     resultCapacity: { bytes: '1048576', blocks: '1024', attachmentBytes: '0' },
   })
@@ -862,7 +994,7 @@ export async function openLineWorld() {
       outlet,
       models: scripted.provider.runtime.calls,
       capacity: () => ({
-        records: 10000,
+        records: options.receiverRecords ?? 10000,
         bytes: 64 * 1024 * 1024,
         attachments: 10000,
         inFlight: 64,
@@ -871,13 +1003,14 @@ export async function openLineWorld() {
     receiverState,
   )
   if ('failure' in reception) throw new Error(`receiver: ${JSON.stringify(reception.failure)}`)
-  const receiver = reception.ok
+  const receiver = options.wrapModelReceiver?.(reception.ok) ?? reception.ok
   const pusher = createScriptedResultPusher<unknown>({
     scripted,
     principal: COORDINATOR,
     resolveReceiver: () => receiver,
   })
   const base = pusher.provider.runtime
+  const behaviour = options.model ?? replyWithText
   const models: ModelRuntime<unknown> = {
     ...base,
     calls: {
@@ -886,35 +1019,16 @@ export async function openLineWorld() {
         const admitted = await base.calls.admit(input)
         admits.push(admitted)
         if ('ok' in admitted) {
-          const call = { tenant: input.tenant, call: input.call }
-          const dispatch = decodeDispatchId('mdisp_cp3')
-          const version = decodeResultVersion('mrver_cp3')
-          if ('failure' in dispatch || 'failure' in version) throw new Error('model identities')
+          const index = admits.length - 1
           pushes.push(
-            (async () => {
-              pusher.controller.start({ ...call, dispatch: dispatch.ok, firstContent: 'observed' })
-              pusher.controller.settle({
-                ...call,
-                version: version.ok,
-                termination: { kind: 'completed', reason: 'stop' },
-                parts: [
-                  {
-                    kind: 'sealed',
-                    trims: [],
-                    block: {
-                      kind: 'text',
-                      id: 'blk_cp3_reply' as never,
-                      visibility: { toHuman: true, toModel: true },
-                      text: REPLY_TEXT,
-                    },
-                  },
-                ],
-                source: evidence(`settled/${input.call}`),
-                pageSize: 10,
-                pageTargetBytes: 65536,
-              })
-              return pusher.settled(call)
-            })(),
+            behaviour({
+              tenant: input.tenant,
+              call: input.call,
+              operation: input.operation,
+              index,
+              scripted,
+              pusher,
+            }),
           )
         }
         return admitted
@@ -925,16 +1039,28 @@ export async function openLineWorld() {
 
   // The host: the agent-host plugin, the directory plugin and AD-14 over them.
   ctx.provide('agentHostPrincipal', 'agent-host-maintainer')
-  await mount(agentHostPlugin, AGENT_HOST_CONFIG)
+  await mount(options.hostPlugin ?? agentHostPlugin, {
+    ...AGENT_HOST_CONFIG,
+    ...options.hostConfig,
+  })
   await mount(agentInstancesPlugin)
   await mount(
     createSessionAgentDrivePlugin<string>({
       coordinator: input => workPrincipals.forSession({ actor: 'coordinator', ...input }),
     }),
   )
+  const extra =
+    typeof options.plugins === 'function'
+      ? options.plugins({
+          adopted: fixture.sources.adopted as never,
+          combination,
+          coordinator: input => workPrincipals.forSession({ actor: 'coordinator', ...input }),
+        })
+      : (options.plugins ?? [])
+  for (const [plugin, config] of extra) await mount(plugin, config)
 
   // The session provider last: from now on an accepted input wakes S1.
-  await mount(SessionProvider, { admission: 'none' })
+  await mount(options.sessionProvider ?? SessionProvider, { admission: 'none' })
 
   const intake = await (async () => {
     let seen: Context | undefined
@@ -976,6 +1102,18 @@ export async function openLineWorld() {
   return {
     errors,
     commits,
+    holdScope,
+    ctx,
+    mount,
+    storage,
+    sessionLog,
+    access,
+    tools,
+    outlet,
+    scripted,
+    pusher,
+    receiverState,
+    workPrincipals,
     transactions: pair.transactions,
     intake,
     bindings,
