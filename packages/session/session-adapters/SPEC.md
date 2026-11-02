@@ -391,6 +391,7 @@ epoch 的翻译：Session 的 epoch 文本可能含控制字符（本成员内�
 - 作用域到会话的索引只由 `resolveHistory` 建立，在进程内保存，有上界。进程重启之后，同一作用域在下一次解析之前答 `unavailable`。
 - 压缩窗口每次前向读完整个会话日志，不按游标增量读取。它用的窗口函数在 `src/testing/`，与 K-10 同理。上一次合法压缩之后的窗口（`base` 为 `previous`）没有用例，因为内存会话的压缩提交要经 Agent 参加。
 - 前缀摘要缓存没有实现，每页都读 Session。
+- 历史源子插件以 `reader` 调用 Session，主体是本次 Access 转交来的会话协调者主体（[#978 答复](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6562982342) Q-3）。`forSession` 的 actor 只有 `coordinator` 与 `maintainer`，所以主体的 actor 不等于调用方类 `reader`。Session 的调用方类核对只比插件配置，不比 actor，所以放行不受影响。
 
 验证：[tests/history-source.spec.ts](tests/history-source.spec.ts) 在真实 Cordis 4.0.4 上运行。Session 是本成员 `./testing` 的内存会话，经脚本 Session 服务接入；历史依据解码是脚本替身。`contextHolderSourcesConformance` 的十一个用例通过。SS-21 用例对 N = 10 与 N = 100 行，比较游标之后一页的 Session 调用数与读到的行数。没有对 session-storage-sql、真实 agent-context 或真实 Request Context 运行。
 
