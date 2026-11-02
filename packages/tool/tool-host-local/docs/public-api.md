@@ -19,3 +19,7 @@
 调用者是应用装配：它构造协调器并交给 `createToolRuntime`。`consume` 只能由受信执行边界（执行绑定）调用。`invalidate` 由守卫资源的拥有者调用。当前没有 `./cordis` 入口，导入它会得到 `ERR_PACKAGE_PATH_NOT_EXPORTED`。后续插件设计见 [Cordis 装配](cordis.md)，该插件尚未实现。公共行为归契约包的 [SPEC](../../tool-contract/SPEC.md)。目录职责见 [README](README.md)。
 
 `ToolEnvironmentDiagnostics.record` 接收原错误、封闭阶段与原 tenant/call/operation。接收者只在受信内存中处理原错误，持久化前须去除秘密、能力和解析器。公开返回仅含固定安全标记。接收失败显示 `diagnostic=unavailable`，不解除资源责任。未发送准备的资格失败先归还本地预占，不等待诊断接收。详见 [资源诊断边界](../SPEC.md#环境资源诊断边界)。
+
+作者链路的根入口工厂是 `createLocalToolLoader` 和 `createLocalToolBindings`，输入形状分别由 [author-loader.ts](../src/author-loader.ts) 和 [executor-binding.ts](../src/executor-binding.ts) 拥有。登记表另提供 `selectAndPin`，在选择句柄的同步步骤内取得 pin。
+
+`./author` 是作者 Cordis 入口，导出 `contributeTool`、`createToolAuthorPlugin`、`createLocalToolGenerations`。配置只含 authority、construction、settings。模块和实际服务是构造依赖。协调者的 `recordRejection` 必须保存可供采用点读取的拒绝依据。工厂不创建 Settings SDK，不自行实现 schema 提供者或持久结果保管。

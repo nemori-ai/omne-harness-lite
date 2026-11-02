@@ -7,7 +7,13 @@ import { randomUUID } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { Access, SourceLayer, ToolCallId, ToolDefinition } from '@omne-harness/tool-contract'
+import type {
+  Access,
+  FixedToolRequest,
+  SourceLayer,
+  ToolCallId,
+  ToolDefinition,
+} from '@omne-harness/tool-contract'
 import {
   sameBindingKey,
   sameShape,
@@ -81,6 +87,14 @@ export interface LocalToolBindingRegistry<P, E, B extends ContentBlock>
   extends ToolBindingRegistry<P, E, B>, ToolListingSource<P> {
   /** Holds `key` for `call` until the pin is released: `pins` and `drain` count it. */
   pin(key: ToolBindingKey, call: ToolCallId): Outcome<ToolBindingPin, ToolBindingKeyFailure>
+  selectAndPin(
+    access: Access<P>,
+    request: FixedToolRequest,
+    call: ToolCallId,
+  ): Outcome<
+    Readonly<{ loaded: ToolLoadedRegistration<E, B>; pin: ToolBindingPin }>,
+    Readonly<{ kind: 'unavailable'; diagnostic: string }>
+  >
   /** The fiber ended: withdraws its contributions and refuses its later registrations. */
   retire(fiber: string): void
 }
@@ -258,6 +272,37 @@ export function createLocalToolBindingRegistry<
       const hold = Symbol('pin')
       row.pinned.set(hold, call)
       return succeed(Object.freeze({ release: () => void row.pinned.delete(hold) }))
+    },
+    selectAndPin: (access, request, call) => {
+      const visible = visibleRows(access)
+      if (visible === null) return tenantUnreadable
+      const availability = request.availability
+      if (availability.kind !== 'available')
+        return fail({ kind: 'unavailable', diagnostic: 'the fixed tool is unavailable' })
+      const key = {
+        layer: availability.layer,
+        asset: {
+          name: availability.definition.name,
+          adoption: availability.definition.adoption,
+        },
+      }
+      const shape = shapeOf(availability.definition)
+      const same = visible.filter(row => sameShape(row.loaded.shape, shape))
+      const row =
+        same.find(candidate => sameBindingKey(candidate.key, key)) ??
+        same.find(candidate => candidate.state === 'live')
+      if (row === undefined)
+        return fail({ kind: 'unavailable', diagnostic: 'no accessible same-shape author' })
+      const hold = Symbol('execution-pin')
+      row.pinned.set(hold, call)
+      return succeed({
+        loaded: row.loaded,
+        pin: {
+          release: () => {
+            row.pinned.delete(hold)
+          },
+        },
+      })
     },
     retire: fiber => {
       retired.add(fiber)
