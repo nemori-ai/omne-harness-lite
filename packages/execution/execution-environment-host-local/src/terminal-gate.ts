@@ -276,11 +276,14 @@ __omne_oldcwd=\${__omne_oldcwd%?}
 __omne_oldcwd=\${__omne_oldcwd%?}
 builtin cd -- ${quote(leg.cwd)} || return 125`
   const restore = leg.cwd === undefined ? '' : 'builtin cd -- "$__omne_oldcwd" || return 125'
-  return `__omne_leg() {
+  return `__omne_script() {
+builtin eval ${quote(leg.script)}
+}
+__omne_leg() {
 ${environment}
 ${cwd}
 __omne_report ${quote(leg.id)} started 0 || return 125
-builtin eval ${quote(leg.script)}
+__omne_script
 local __omne_code=$?
 ${restore}
 __omne_report ${quote(leg.id)} finished "$__omne_code" || return 125

@@ -198,6 +198,112 @@ it('isolates acquisition references and rejects a second running leg while anoth
   expect((await run(second, other, 'printf still-alive')).bytes.toString()).toBe('still-alive')
 }, 30_000)
 
+it.each([
+  { script: 'return 0', code: 0 },
+  { script: 'return 7', code: 7 },
+  { script: 'return 125', code: 125 },
+  { script: 'false', code: 1 },
+])(
+  'completes $script and restores temporary cwd and env before the next leg',
+  async ({ script, code }, context) => {
+    if (!(await prerequisites()))
+      return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')
+    const f = await fixture()
+    const temporary = join(f.cwd, 'temporary')
+    await mkdir(temporary)
+    const ref = value(await f.terminal.create({ ...base, cwd: f.cwd, env })).terminal
+    const leg = await run(f.terminal, ref, `printf '%s ' "$STATE"; pwd; ${script}`, {
+      cwd: temporary,
+      env: { STATE: 'temporary' },
+    })
+    expect(leg.result).toMatchObject({ kind: 'completed', exit: { code } })
+    expect(leg.bytes.toString()).toBe(`temporary ${temporary}\r\n`)
+    expect(value(await f.terminal.list(base))).toEqual([
+      { terminal: ref, state: 'idle', observedCwd: f.cwd },
+    ])
+    expect((await run(f.terminal, ref, 'printf "%s " "$STATE"; pwd')).bytes.toString()).toBe(
+      `base ${f.cwd}\r\n`,
+    )
+  },
+  30_000,
+)
+
+it('keeps cwd and exported state changed before an early return without overrides', async context => {
+  if (!(await prerequisites()))
+    return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')
+  const f = await fixture()
+  const child = join(f.cwd, 'child')
+  await mkdir(child)
+  const ref = value(await f.terminal.create({ ...base, cwd: f.cwd, env })).terminal
+  expect(
+    (await run(f.terminal, ref, 'cd child; export STATE=changed; return 0')).result,
+  ).toMatchObject({
+    kind: 'completed',
+    exit: { code: 0 },
+  })
+  expect(value(await f.terminal.list(base))).toEqual([
+    { terminal: ref, state: 'idle', observedCwd: child },
+  ])
+  expect((await run(f.terminal, ref, 'printf "%s " "$STATE"; pwd')).bytes.toString()).toBe(
+    `changed ${child}\r\n`,
+  )
+}, 30_000)
+
+it.each([0, 7])(
+  'invalidates the terminal when its shell exits with code %i',
+  async (code, context) => {
+    if (!(await prerequisites()))
+      return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')
+    const f = await fixture()
+    const ref = value(await f.terminal.create({ ...base, cwd: f.cwd, env })).terminal
+    const proceed = join(f.cwd, 'proceed')
+    const handle = value(
+      await f.terminal.execute({
+        ...base,
+        terminal: ref,
+        script: `while [ ! -e '${proceed}' ]; do sleep 0.01; done; exit ${code}`,
+      }),
+    )
+    await writeFile(proceed, '')
+    expect(await handle.result).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
+    expect(value(await f.terminal.list(base))).toEqual([
+      { terminal: ref, state: 'invalid', observedCwd: f.cwd },
+    ])
+    expect(await f.terminal.execute({ ...base, terminal: ref, script: 'true' })).toMatchObject({
+      kind: 'rejected',
+      reason: 'closed',
+    })
+  },
+  30_000,
+)
+
+it('invalidates the terminal when the original cwd cannot be restored after return', async context => {
+  if (!(await prerequisites()))
+    return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')
+  const f = await fixture()
+  const original = join(f.cwd, 'original')
+  const proceed = join(f.cwd, 'proceed')
+  await mkdir(original)
+  const ref = value(await f.terminal.create({ ...base, cwd: original, env })).terminal
+  const handle = value(
+    await f.terminal.execute({
+      ...base,
+      terminal: ref,
+      cwd: f.cwd,
+      script: `while [ ! -e '${proceed}' ]; do sleep 0.01; done; rmdir '${original}'; return 0`,
+    }),
+  )
+  await writeFile(proceed, '')
+  expect(await handle.result).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
+  expect(value(await f.terminal.list(base))).toEqual([
+    { terminal: ref, state: 'invalid', observedCwd: original },
+  ])
+  expect(await f.terminal.execute({ ...base, terminal: ref, script: 'true' })).toMatchObject({
+    kind: 'rejected',
+    reason: 'closed',
+  })
+}, 30_000)
+
 it('does not treat user output or late background writers as successful completion', async context => {
   if (!(await prerequisites()))
     return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')

@@ -48,4 +48,6 @@ SPEC 的行为变化时，同步对应测试与本目录 `index.md`。宿主文�
 
 [host-terminal-recovery.spec.ts](host-terminal-recovery.spec.ts)使用真实 Bash、node-pty 与 systemd，覆盖持久 cwd、临时覆盖、非 UTF-8 字节、获取归属、并发、单终端强停、伪输出、后台写者、释放及新进程恢复。仅在 Linux 且 `OMNE_HOST_TERMINAL_LINUX=1` 时运行；缺前提会 runtime skip，不能记通过。先 build，再在成员目录运行 `OMNE_HOST_TERMINAL_LINUX=1 OMNE_HOST_COMMAND_LINUX=1 pnpm exec vitest run --mode slow tests/host-terminal-recovery.spec.ts`。
 
+分段回归还核对 `return 0/7/125`、命令失败、提前返回后的状态保留与覆盖恢复，以及 shell 退出和 cwd 恢复失败后的失效。
+
 Windows 运行 `pnpm exec vitest run --mode fast`。单独过滤全 skip 的 Linux 文件按仓库规则退出非零，表示没有实跑用例。
