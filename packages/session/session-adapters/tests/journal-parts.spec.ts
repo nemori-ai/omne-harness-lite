@@ -14,6 +14,7 @@ import {
   type PartLayout,
 } from '../src/cordis/journal-parts.ts'
 import { encodeState, type DurableJournalState } from '../src/cordis/journal-state.ts'
+import { semanticKey } from '../src/testing/journal-values.ts'
 
 type Mutable = {
   -readonly [K in keyof DurableJournalState]: DurableJournalState[K]
@@ -214,5 +215,21 @@ describe('a part this provider did not write', () => {
     expect(() => rebuildParts([{ part: 'x:e', state: { executions: [['k', 'v']] } }])).toThrow(
       'malformed',
     )
+  })
+})
+
+describe('the semantic key an operation record keeps', () => {
+  it('has the same length whatever the input, and tells inputs apart as their text does', () => {
+    const small = { operation: 'op', checkpoint: { position: 'E1' } }
+    const large = { operation: 'op', checkpoint: { position: 'E1', history: 'h'.repeat(10_000) } }
+    expect(semanticKey('commit', large)).toHaveLength(semanticKey('commit', small).length)
+    expect(semanticKey('commit', small)).toBe(semanticKey('commit', { ...small }))
+    expect(semanticKey('commit', small)).not.toBe(semanticKey('commit', large))
+    expect(semanticKey('commit', small)).not.toBe(semanticKey('submit', small))
+    // The Access members are not part of the key; the method stays readable before the colon.
+    expect(semanticKey('commit', { ...small, principal: 'p', tenant: 't' })).toBe(
+      semanticKey('commit', small),
+    )
+    expect(semanticKey('received', small).split(':')[0]).toBe('received')
   })
 })
