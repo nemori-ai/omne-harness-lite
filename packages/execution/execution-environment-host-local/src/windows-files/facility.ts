@@ -131,7 +131,7 @@ try {
   $request=[Console]::In.ReadToEnd() | ConvertFrom-Json
   Add-Type -TypeDefinition $request.source
   if($request.operation -eq 'write') {
-    $result=[OmneFiles]::Write($request.root,$request.expectedRoot,[string[]]$request.segments,$request.named,$request.version,($null -ne $request.version),[bool]$request.create,$request.bytes)
+    $result=[OmneFiles]::Write($request.root,$request.expectedRoot,[string[]]$request.segments,$request.named,$request.version,($null -ne $request.version),[bool]$request.trailingSlash,[bool]$request.create,$request.bytes)
   } elseif($request.operation -in @('mkdir','remove','move')) {
     $result=[OmneFiles]::Change($request.root,$request.expectedRoot,[string[]]$request.segments,$request.named,$request.operation,[bool]$request.recursive,$request.version,($null -ne $request.version),$request.targetRoot,$request.expectedTargetRoot,[string[]]$request.targetSegments,$request.targetNamed,[bool]$request.replace)
   } else {
@@ -181,6 +181,7 @@ type WriteInput = Pick<NativeInput, 'root' | 'expectedRoot' | 'segments' | 'name
   Readonly<{
     operation: 'write'
     version: string | null
+    trailingSlash: boolean
     create: boolean
     bytes: string
   }>
@@ -445,7 +446,8 @@ export function createWindowsFiles(
       if (
         !win32.isAbsolute(request.path) ||
         request.path.includes('\0') ||
-        (request.mode === 'create' && request.expectedVersion !== undefined)
+        (request.mode === 'create' &&
+          (request.expectedVersion !== undefined || /[\\/]$/u.test(request.path)))
       )
         return reject(request.requestId, 'invalidInput')
       if (!request.named?.token) return reject(request.requestId, 'notAuthorized')
@@ -457,6 +459,7 @@ export function createWindowsFiles(
         named: request.named.token,
         operation: 'write',
         version: request.expectedVersion ?? null,
+        trailingSlash: /[\\/]$/u.test(request.path),
         create: request.mode === 'create',
         bytes: Buffer.from(request.bytes).toString('base64'),
       })

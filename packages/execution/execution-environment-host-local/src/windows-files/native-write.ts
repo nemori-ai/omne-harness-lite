@@ -39,7 +39,7 @@ public static partial class OmneFiles {
       }
     } finally { if(target!=IntPtr.Zero && !CloseHandle(target)) throw new IOException("unknown"); }
   }
-  public static object Write(string root,string expectedRoot,string[] segments,string named,string version,bool hasVersion,bool create,string encoded) {
+  public static object Write(string root,string expectedRoot,string[] segments,string named,string version,bool hasVersion,bool trailingSlash,bool create,string encoded) {
     version=hasVersion?version:null;
     List<IntPtr> held=new List<IntPtr>(); IntPtr staged=IntPtr.Zero; bool published=false,created=false;
     try {
@@ -47,6 +47,7 @@ public static partial class OmneFiles {
       IntPtr rootHandle=Root(root,expectedRoot,held), parent=Parent(rootHandle,segments,held);
       string name=segments[segments.Length-1];
       CheckTarget(parent,name,named,version,create);
+      if(trailingSlash) throw new IOException("unresolved");
       staged=CreateNew(parent,create?name:".omne-write-"+Guid.NewGuid().ToString("N")); created=create;
       WriteBytes(staged,Convert.FromBase64String(encoded));
       if(!create) {

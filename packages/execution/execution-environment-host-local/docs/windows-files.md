@@ -33,6 +33,8 @@ Windows 不提供原位写。新建以 `NtCreateFile` 的 `FILE_CREATE` 实现�
 
 桥将未提供的版本传为 JSON null，并另传版本是否存在给原生入口，避免 PowerShell 把 null 转为空字符串后丢失条件。显式空字符串仍参与版本比较。新建、复制和批次预检遇到所需对象缺失时返回 `rejected/notFound`。读取、查看、列表和替换写入仍可返回 `unresolved`。
 
+写入保留路径末尾分隔符的含义。新建路径以 `/` 或 `\` 结束时返回 `invalidInput`。替换普通文件时，末尾分隔符使结果为 `unresolved`，原文件保持不变。
+
 复制读取已点名源，再通过相同写入路径发布新对象。批次先检查全部目标，再记录清单、刷盘全部暂存文件，随后逐项发布并刷盘回执。回执写入失败返回带原批次引用的 unknown。恢复只读原清单及当前目标，不重新发布。当前字节匹配暂存摘要时只列入 `matchingPrepared`，不补造发布回执。后续外部写入列为冲突。批次间没有多路径原子性，也未验证断电耐久性。效果未知时保留尚存暂存文件，供后续调查。
 
 每项发布的异步目标复核结束后，批次再次检查所有者是否封闭。封闭时返回原批次的 `unknown/closed`，保留已确认发布范围，并清理未发布暂存文件。此检查阻止尚未启动的发布，不撤销已经开始的原生操作。
@@ -40,3 +42,5 @@ Windows 不提供原位写。新建以 `NtCreateFile` 的 `FILE_CREATE` 实现�
 真实 Windows 测试见[读取与围栏](../tests/windows-files/read.spec.ts)、[名字操作](../tests/windows-files/tree.spec.ts)、[新建与替换](../tests/windows-files/write.spec.ts)及[复制与批次恢复](../tests/windows-files/batch.spec.ts)。回执故障用例使用真实文件系统，只注入清单写入失败。这些测试不证明 Linux 行为、完整提供者组合或断电恢复。
 
 [边界回归](../tests/windows-files/review-regressions.spec.ts)覆盖空版本、缺失对象映射，以及发布前复核期间封闭的交错。交错测试只暂停真实 stat 的返回，不替换文件系统结果。
+
+排空测试在 Windows 上暂停真实原生进程的输入流，放行后执行实际写入。回执故障测试让 PowerShell 完成原生写入和清理后，在输出答复前以非零码退出。原请求保持 unknown，已写字节仍存在；后续另次 stat 和 close 不改写原请求的结果。此注入不证明系统 CloseHandle 真正失败或进程崩溃的全部行为。

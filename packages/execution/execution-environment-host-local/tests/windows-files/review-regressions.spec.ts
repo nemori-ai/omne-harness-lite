@@ -8,6 +8,33 @@ import { request, withFiles } from './fixture.ts'
 beforeEach(context => context.skip(process.platform !== 'win32'))
 afterEach(() => vi.restoreAllMocks())
 
+it.each(['/', '\\'])(
+  'refuses trailing separator %s without creating or replacing a file',
+  async separator => {
+    await withFiles(async ({ files, root, input, path, bytes }) => {
+      const created = request(join(root, 'new.txt') + separator, await hostObjectToken(root))
+      expect(await files.write({ ...created, bytes, mode: 'create' })).toMatchObject({
+        kind: 'rejected',
+        reason: 'invalidInput',
+      })
+      expect(
+        await files.write({
+          ...input,
+          path: path + separator,
+          bytes: Buffer.from('changed'),
+          mode: 'replace',
+        }),
+      ).toMatchObject({
+        kind: 'unresolved',
+      })
+      expect(await readFile(path)).toEqual(bytes)
+      expect(await hostObjectToken(path)).toEqual(input.named)
+      expect(await readdir(root)).toEqual(['中文.txt'])
+    })
+  },
+  30_000,
+)
+
 it.each(['write', 'remove', 'move'] as const)(
   'rejects an explicitly empty version for %s without changing either name',
   async operation => {

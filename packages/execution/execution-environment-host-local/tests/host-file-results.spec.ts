@@ -26,6 +26,7 @@ import {
 } from '../src/host-files.ts'
 
 let injectCloseFailure = false
+let injectBridgeReplyFailure = false
 vi.mock('node:fs/promises', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
   return {
@@ -40,6 +41,25 @@ vi.mock('node:fs/promises', async importOriginal => {
         return originalClose()
       }
       return handle
+    },
+  }
+})
+
+vi.mock('node:child_process', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:child_process')>()
+  return {
+    ...actual,
+    spawn(...args: Parameters<typeof actual.spawn>) {
+      if (!injectBridgeReplyFailure) return actual.spawn(...args)
+      const argv = args[1]?.map((value, index) => {
+        if (args[1]?.[index - 1] !== '-EncodedCommand') return value
+        const source = Buffer.from(value, 'base64').toString('utf16le')
+        const response = '[Console]::WriteLine(($result | ConvertTo-Json -Depth 8 -Compress))'
+        if (!source.includes(response)) throw new Error('native reply injection point missing')
+        // The real write and native cleanup finish, then the process exits without its receipt.
+        return Buffer.from(source.replace(response, 'exit 23'), 'utf16le').toString('base64')
+      })
+      return actual.spawn(args[0], argv, args[2])
     },
   }
 })
@@ -233,12 +253,21 @@ it('confirms identity on write and a later read returns the written bytes', asyn
     bytes: written,
     mode: 'replace',
   })
-  expect(result).toEqual({ kind: 'done', requestId: 'write', value: writeValue(named, '1') })
-  const again = await files.read(request(path, named, 'reread'))
+  const current = process.platform === 'win32' ? await hostObjectToken(path) : named
+  if (process.platform === 'win32') expect(current).not.toEqual(named)
+  expect(result).toEqual({
+    kind: 'done',
+    requestId: 'write',
+    value: {
+      ...writeValue(current, '1'),
+      ...(process.platform === 'win32' ? { writeEffect: 'replaced' } : {}),
+    },
+  })
+  const again = await files.read(request(path, current, 'reread'))
   expect(again).toEqual({
     kind: 'done',
     requestId: 'reread',
-    value: readValue(named, '2', written),
+    value: readValue(current, '2', written),
   })
 })
 
@@ -479,12 +508,41 @@ it('returns unknown on close when the stat-time close failed', async () => {
   })
 })
 
-it('returns unknown on close when the write-time close failed, but the bytes were written', async () => {
+it('keeps a write or close unconfirmed when completion cannot be confirmed, but preserves written bytes', async () => {
   const root = await tree()
   const path = join(root, 'notes.txt')
   await writeFile(path, 'old')
   const named = await hostObjectToken(path)
   const files = createHostFiles()
+
+  if (process.platform === 'win32') {
+    injectBridgeReplyFailure = true
+    let result: Awaited<ReturnType<typeof files.write>>
+    try {
+      result = await files.write({
+        ...request(path, named, 'write-reply-lost'),
+        bytes: text('new'),
+        mode: 'replace',
+      })
+      expect(result).toEqual({ kind: 'unknown', requestId: 'write-reply-lost' })
+    } finally {
+      injectBridgeReplyFailure = false
+    }
+    expect(await readFile(path, 'utf8')).toBe('new')
+    const current = await hostObjectToken(path)
+    expect(current).not.toEqual(named)
+    const observed = await files.stat(request(path, current, 'observe-after-reply-loss'))
+    expect(observed.kind).toBe('done')
+    if (observed.kind !== 'done') throw new Error('expected a later observation')
+    expect(
+      await files.close({
+        ...request(path, current, 'close-after-observation'),
+        handle: observed.value.handle,
+      }),
+    ).toMatchObject({ kind: 'done' })
+    expect(result).toEqual({ kind: 'unknown', requestId: 'write-reply-lost' })
+    return
+  }
 
   await withCloseFailure(async () => {
     const written = new TextEncoder().encode('new')
