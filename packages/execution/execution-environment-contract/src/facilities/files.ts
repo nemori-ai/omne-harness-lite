@@ -37,7 +37,7 @@ export type FileInformation = FileIdentity & {
 
 export type FileEntry = FileInformation & {
   /** One actual entry name relative to the listed directory, never an object-token projection. */
-  readonly name: string
+  readonly name?: string
 }
 
 export type FileTarget = { readonly path: string; readonly named: ObjectToken | null }
