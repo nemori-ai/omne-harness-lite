@@ -1,5 +1,6 @@
 import {
   createMemorySessionHistorySource,
+  entryEvidence,
   type MemorySessionHistorySource,
 } from './testing-history-source.ts'
 import type { SessionInputScope } from './history-values.ts'
@@ -78,10 +79,13 @@ import { materializeModelView, compactionReads, type MaterializedModelView } fro
 import { decodeEntry } from './entries.ts'
 import { reduce } from './reduce.ts'
 import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
+import { digestSessionLog, executionReadThrough } from './log-interpretation.ts'
 import type {
   SessionEntriesObservation,
   SessionEntriesReceipt,
   SessionEntriesStart,
+  SessionLogCommitObservation,
+  SessionLogReceipt,
 } from './interpretation-values.ts'
 import {
   createMemoryInitializationSource,
@@ -133,6 +137,8 @@ type Store = {
       decision: DurableEvidence | null
       /** `control` marks a cancelRun/stopCall that has a business batch; it recalls a control receipt. */
       form?: 'control'
+      /** The event channel commit that this record saved: its execution and the progress it reached. */
+      log?: Readonly<{ execution: string; readThrough: string }>
     }>
   >
   /** The answer-only control operations (ended, not-found): one row, no batch, no revision. */
@@ -159,6 +165,8 @@ type Cursor = Readonly<{
 
 export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> {
   readonly durability: 'none'
+  /** The double always offers the event channel commit, so a suite calls it without a check. */
+  readonly commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>
   readonly controls: Readonly<{
     /** The entries of one session as committed, for a reader that checks the log itself. */
     entriesOf(tenant: TenantId, session: SessionId): readonly HistoryEntry[]
@@ -461,10 +469,37 @@ export function createMemorySessionTransactionPair<P>(
       : { kind: 'absent', producer, covered: snapshot.revision }
 
   /**
+   * The pure projection of one observation over the store: the history material, the snapshot
+   * that carries its index, and the decision of `projectSessionLog`. The controls `project` and
+   * `commitLog` share it, so the two paths cannot read the history differently.
+   */
+  const projectFor = (store: Store, observation: SessionLogObservation) => {
+    const selected = observation.consequences.find(item => item.kind === 'input-taken')
+    const material = options.history?.read(
+      store.snapshot,
+      store.entries,
+      selected?.kind === 'input-taken'
+        ? { kind: 'selected', inputs: selected.batch.ordered }
+        : { kind: 'pending', inputs: store.snapshot.pending },
+    )
+    const prepared = {
+      ...store.snapshot,
+      ...(material === undefined ? {} : { historyIndex: material.index }),
+    }
+    return {
+      material,
+      prepared,
+      decision: projectSessionLog(prepared, observation, material?.reads),
+    }
+  }
+
+  /**
    * The port surface over the shared stores. `accessCheck` answers every public call of this
    * surface: the public port gets the configured check, a delegated view gets its binding.
    */
-  const surface = (accessCheck: SessionAccessCheck<P>): SessionTransactionPort<P> => {
+  const surface = (
+    accessCheck: SessionAccessCheck<P>,
+  ): SessionTransactionPort<P> & Pick<MemorySessionTransactions<P>, 'commitLog'> => {
     /** One current decision for one public call. A throwing or unavailable source does not continue. */
     const qualify = async (
       request: SessionAccessRequest<P>,
@@ -817,6 +852,124 @@ export function createMemorySessionTransactionPair<P>(
       return succeed(answer)
     }
 
+    /**
+     * The event channel interpretation commit (docs/same-log-pure.md「事件通道的解释提交」): no
+     * access check, the recall by operation, the pure projection and reduction, then one replacement
+     * of the store that holds the consequence rows, the progress row and the operation record. The
+     * double yields once between its read and its publication, as a provider that awaits its store
+     * does, and re-reads the head before it publishes: a store that moved meanwhile answers
+     * `changed`, and nothing was written.
+     */
+    const commitLog = async (
+      input: Readonly<{ observation: SessionLogCommitObservation }>,
+    ): Promise<Outcome<SessionLogReceipt, SessionFailure>> => {
+      const { observation } = input
+      const key = keyOf(observation.tenant, observation.session)
+      if ('failure' in key) return key
+      const store = stores.get(key.ok)
+      if (store === undefined) return fail(denied('commitLog'))
+      const { operation } = observation
+      if (store.answers.has(operation)) return fail({ kind: 'conflict', operation })
+      const digest = digestSessionLog(observation)
+      const held = store.operations.get(operation)
+      if (held !== undefined)
+        return held.log !== undefined && held.record.digest === digest
+          ? succeed({ ...(held.recall(held.record.receipt) as SessionLogReceipt), recovered: true })
+          : fail({ kind: 'conflict', operation })
+      const { material, prepared, decision } = projectFor(store, observation)
+      if (decision.kind === 'rejected') return fail(decision.failure)
+      if (decision.kind !== 'entries')
+        return fail(unavailable('a log projection that is not a batch of entries'))
+      if (decision.entries.length === 0) {
+        // Nothing to write: either the event is already interpreted, or it has no consequence.
+        const reached = executionReadThrough(prepared, observation.run, observation.execution)
+        if (
+          observation.sequence !== null &&
+          reached !== null &&
+          BigInt(observation.sequence) <= BigInt(reached)
+        ) {
+          const sequence = BigInt(observation.sequence)
+          const original = [...store.operations.values()]
+            .filter(
+              item =>
+                item.log?.execution === observation.execution &&
+                BigInt(item.log.readThrough) >= sequence,
+            )
+            .sort((left, right) =>
+              Number(BigInt(left.log?.readThrough ?? '0') - BigInt(right.log?.readThrough ?? '0')),
+            )[0]
+          if (original === undefined)
+            return fail(unavailable('the interpretation commit of that sequence is not held'))
+          return succeed({
+            ...(original.recall(original.record.receipt) as SessionLogReceipt),
+            recovered: true,
+          })
+        }
+        return fail({
+          kind: 'invalid',
+          field: 'consequences',
+          reason: 'an observation without a Session consequence is not committed',
+        })
+      }
+      const revision = String(BigInt(store.snapshot.revision) + 1n) as SessionRevision
+      const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
+        ...entry,
+        id: String(store.entries.length + index + 1) as EntryId,
+        revision,
+      }))
+      const reduced = reduce(prepared, { revision, entries }, material?.reads)
+      if (reduced.kind === 'quarantined')
+        return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
+      const progress = entries.findLast(row => {
+        const decoded = decodeEntry(row)
+        return (
+          'ok' in decoded &&
+          decoded.ok.kind === 'history.annotated' &&
+          'execution' in decoded.ok &&
+          decoded.ok.run === observation.run
+        )
+      })
+      const readThrough = executionReadThrough(
+        reduced.snapshot,
+        observation.run,
+        observation.execution,
+      )
+      if (progress === undefined || readThrough === null)
+        return fail(unavailable('a log commit without its execution progress'))
+      await Promise.resolve()
+      // The head check before publication: another writer that replaced the store meanwhile wins.
+      const current = stores.get(key.ok)
+      if (current !== store)
+        return fail({ kind: 'changed', revision: (current ?? store).snapshot.revision })
+      const answer: SessionLogReceipt = {
+        operation,
+        execution: observation.execution,
+        readThrough,
+        interpreted: entryEvidence(progress),
+        recovered: false,
+      }
+      const operations = new Map(store.operations)
+      operations.set(operation, {
+        record: {
+          operation,
+          digest,
+          receipt: receiptOf(observation.session, operation, revision, entries),
+        },
+        recall: () => answer,
+        decision: null,
+        log: { execution: observation.execution, readThrough },
+      })
+      const committedEntries = [...store.entries, ...entries]
+      stores.set(key.ok, {
+        ...store,
+        snapshot: reduced.snapshot,
+        entries: committedEntries,
+        operations,
+        modelView: materializeModelView(store.modelView, entries, committedEntries),
+      })
+      return succeed(answer)
+    }
+
     const page = (store: Store, cursor: Cursor): HistoryPage => {
       const upper = Math.min(cursor.upper, store.entries.length)
       const forward = cursor.direction === 'forward'
@@ -967,7 +1120,7 @@ export function createMemorySessionTransactionPair<P>(
       },
     }
 
-    const port: SessionTransactionPort<P> = {
+    const port: SessionTransactionPort<P> & Pick<MemorySessionTransactions<P>, 'commitLog'> = {
       commit: (input => commit(input)) as SessionTransactionPort<P>['commit'],
       readWork: async input => {
         const store = await storeOf(input, 'readWork')
@@ -1060,6 +1213,7 @@ export function createMemorySessionTransactionPair<P>(
         })
       },
       commitEntries: async input => commitEntries(input),
+      commitLog,
       history,
       pending: async input => {
         const qualification = await qualify({
@@ -1182,6 +1336,7 @@ export function createMemorySessionTransactionPair<P>(
       return Object.freeze({
         ...view,
         commitEntries: async () => fail(denied('commitEntries')),
+        commitLog: async () => fail(denied('commitLog')),
         pending: async () => fail(denied('pending')),
         references: async () => fail(denied('references')),
         releasedScopes: async () => fail(denied('releasedScopes')),
@@ -1207,19 +1362,7 @@ export function createMemorySessionTransactionPair<P>(
           return held.record.digest === digest
             ? succeed({ ...held.record.receipt, recovered: true })
             : fail({ kind: 'conflict', operation })
-        const selected = observation.consequences.find(item => item.kind === 'input-taken')
-        const material = options.history?.read(
-          store.snapshot,
-          store.entries,
-          selected?.kind === 'input-taken'
-            ? { kind: 'selected', inputs: selected.batch.ordered }
-            : { kind: 'pending', inputs: store.snapshot.pending },
-        )
-        const prepared = {
-          ...store.snapshot,
-          ...(material === undefined ? {} : { historyIndex: material.index }),
-        }
-        const decision = projectSessionLog(prepared, { ...observation, operation }, material?.reads)
+        const { material, prepared, decision } = projectFor(store, { ...observation, operation })
         if (decision.kind === 'rejected') return fail(decision.failure)
         if (decision.kind !== 'entries' || decision.entries.length === 0)
           return fail({
@@ -2336,8 +2479,25 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
   ]
 }
 
+type MemoryTransactionsFixture = SessionTransactionsFixture<string> &
+  Readonly<{ port: MemoryInitializationTransactions<string> }>
+
 /** A fresh fixture over a fresh in-memory port, with the second tenant for the cross-tenant case. */
 export function memorySessionTransactionsFixture(): SessionTransactionsFixture<string> {
+  return memoryFixtureParts().fixture
+}
+
+/**
+ * The fixture of {@link memorySessionTransactionsFixture} with the two handles that other suites
+ * build on: the history source that the fixture's Agent side writes to, and the delegated entry
+ * over the same stores.
+ */
+export function memoryFixtureParts(): Readonly<{
+  fixture: SessionTransactionsFixture<string> &
+    Readonly<{ port: MemoryInitializationTransactions<string> }>
+  history: MemorySessionHistorySource
+  delegated: SessionDelegatedTransactions<string>
+}> {
   const initialization = createMemoryInitializationSource()
   const history = createMemorySessionHistorySource()
   const access = memoryAccess('tester')
@@ -2352,8 +2512,12 @@ export function memorySessionTransactionsFixture(): SessionTransactionsFixture<s
       ? { kind: 'denied' }
       : { kind: 'allowed', evidence: evidence(`access/${request.operation}`) },
   )
-  const port = createMemorySessionTransactions<string>({ history, initialization, accessCheck })
-  return {
+  const { transactions: port, delegated } = createMemorySessionTransactionPair<string>({
+    history,
+    initialization,
+    accessCheck,
+  })
+  const fixture: MemoryTransactionsFixture = {
     port,
     prepareInputAdmission: async input => {
       const snapshot = succeeded(await port.readWork(access), 'original admission fixture')
@@ -2412,6 +2576,7 @@ export function memorySessionTransactionsFixture(): SessionTransactionsFixture<s
     initializationGuards: memoryInitializationGuards(initialization),
     askedAccessChecks: () => accessCheck.controls.asked().length,
   }
+  return { fixture, history, delegated }
 }
 
 /** The initialization guards of a memory fixture: registers the adopted fixture, then prepares. */

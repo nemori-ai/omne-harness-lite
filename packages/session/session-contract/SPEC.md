@@ -887,7 +887,7 @@ SE07 保存原键、CommitRef、完整原材料、basedOn、revision、scope 与
 | JC-27 | 无 Session 命令：待交输入核对     | 执行记录提供者（条件终结）                                                                    | Session 参加者，只读                                           | 终结意图                                                                                                                                                                                        | 不写 Session 条目。有待交输入或取消已成立时按 [PA-02](#pa-02) 响应「冲突」                                                                                                                                                                              |
 | JC-28 | `freeze`                          | Session                                                                                       | 存储参加者；证据桥                                             | Tool 的冻结判定与耐久证据                                                                                                                                                                       | SE37；`frozen` 非空；没有未终结 Run 时，`pending` 的全部输入以 SE38 解除待处理资格                                                                                                                                                                      |
 
-Agent 原事实先由同一 Journal 提交保存。Session 后续按 [EC-01](#ec-01) 读取原事实，以 `projectSessionLog` 决定另一次解释提交。该次提交共同保存 SE14/18/19/22/25/26 等后果、适用 SE16/SE38、解释进度与 Session 原操作答案，不经 JC-24 的 `receive`。快照对账不推进事件 `readThrough`。
+Agent 原事实先由同一 Journal 提交保存。Session 后续按 [EC-01](#ec-01) 读取原事实，以 `projectSessionLog` 决定另一次解释提交，经端口的可选方法 `commitLog` 发布（[事件通道的解释提交](docs/same-log-pure.md#事件通道的解释提交)；不加访问裁定，不新增 `sl_operation_evidence`）。该次提交共同保存 SE14/18/19/22/25/26 等后果、适用 SE16/SE38、解释进度与 Session 原操作答案，不经 JC-24 的 `receive`。快照对账不推进事件 `readThrough`。
 
 Session 参加执行的命令（JC-06、09、11、12）走同一条流水线：按 OP-00 认回、权威读、领域服务裁定、写事实。差别只在提交由执行记录提供者发起，回执经调用方交接回到 Agent。参加者只接收版本化材料，核对来源与 schema，在已登记的组合内经授权的事务端口工作。先读工作状态、再异步受理的两次成功不能声称资格与受理共同成立。执行记录提供者对未声明的共同提交种类返回 `unsupported` 时，Session 不保存任何一半。
 
@@ -1897,6 +1897,20 @@ Session 服务实例的必需依赖是 `SessionAccessCheck`、`SessionDelegatedT
 拒绝原因的来源见执行环境契约的[拒绝原因](../../execution/execution-environment-contract/SPEC.md#拒绝原因)与[恢复](../../execution/execution-environment-contract/SPEC.md#恢复)。释放不发起新的获取。逻辑归档在归档提交时已经成立，不等待物理全停。对人的时间线只记录「已发起释放」与读回结果。系统层说明见[作用域释放](../../../docs/architecture/runtime/control-and-recovery.md#作用域释放)。
 
 
+
+### 可加契约与过渡支持范围
+
+下列形状以可加方式进入契约，旧形状继续可用。破坏性收口（删旧形状、收紧必填）与跨线迁移由集成方在收口时完成，不在本节。
+
+| 形状 | 内容 | 旧形状 |
+| --- | --- | --- |
+| `SessionTransactionPort.commitLog` | 可选方法，事件通道的解释提交，回执是 `SessionLogReceipt`（[规则](docs/same-log-pure.md#事件通道的解释提交)）。`SessionLogCommitObservation` 要求 `operation` 与 `executionEvidence`，旧 `SessionLogObservation` 保留 | 旧提供者可以省略它；`./testing` 的 `controls.project` 保留旧回执形状 |
+| `SessionEvidenceBridge<P = unknown>.prepare(command, access?)` | Session 总是传本次调用的实际 `SessionAccess<P>`，桥原样交给采用来源。缺 `access` 不授权任何东西，现有失败保持不变 | 只收 `command` 的旧桥仍可赋值 |
+| `SessionAdoptionSource<P = unknown>.prepare(command, access?)` | 同上 | 旧来源仍可赋值。生产来源与保管来源的签名不变 |
+| `SessionAdoptionSource.plan?` | 可选采用点，Session 在 `startRun` 前调用：`(access, { recorded, capabilities })`，答 `{ material, verdict }`，失败是简单的 `{ kind: 'unavailable' }`，不包成 `SessionFailure`。形状与 Tool 侧冻结的采用点替身双向可赋值，Session 只用自有投影类型 | 缺席时 Session 不调用采用点 |
+| `startRun`、`reload` 的 `residentAdoption.verdict?` | 带 `verdict` 时判定 `frozen{verdict}`，不提交。`ResidentAdoption` 本体与 `create` 不带这个槽 | 不带 `verdict` 的调用照旧 |
+
+本节只声明形状与纯判断。`plan` 的 C2 调用流程由 Session 成员实现，不在本成员。
 
 ### 具名前提与明确缺项
 

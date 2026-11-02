@@ -3,7 +3,7 @@
 // `system:` for the internal principals. The access policy allows a principal on its own tenant
 // only, and a test may script the next decisions ahead of the policy.
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
-import { succeed, type Outcome } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   CommitReceipt,
   GuardCommand,
@@ -166,9 +166,23 @@ export async function harness(options: HarnessOptions) {
   const relayed = new Map<string, readonly GuardCommand[]>()
   const baseEvidence = createMemorySessionEvidenceBridge()
   let evidenceCalls = 0
-  const evidenceBridge: SessionEvidenceBridge & { calls(): number } = {
-    prepare: async command => {
+  const evidenceAccesses: SessionAccess<string>[] = []
+  const evidenceBridge: SessionEvidenceBridge<string> & {
+    calls(): number
+    /** The access of every call that reached the bridge, in order. */
+    accesses(): readonly SessionAccess<string>[]
+  } = {
+    prepare: async (command, access) => {
       evidenceCalls += 1
+      // Session always passes the access of the original call. A bridge that gets none, or the
+      // access of another session, is a Session defect, so it answers unavailable and the case fails.
+      if (access === undefined || access.session !== command.input.session)
+        return fail({
+          kind: 'unavailable',
+          owner: 'evidence',
+          diagnostic: 'the evidence bridge was not given the access of the original call',
+        })
+      evidenceAccesses.push(access)
       const relay = relayed.get(command.input.operation)
       if (relay !== undefined) return succeed(relay)
       if (command.kind === 'create' || command.kind === 'completeInitialization')
@@ -176,6 +190,7 @@ export async function harness(options: HarnessOptions) {
       return baseEvidence.prepare(command)
     },
     calls: () => evidenceCalls,
+    accesses: () => [...evidenceAccesses],
   }
 
   const bindings = createMemorySessionPrincipalBindings()
