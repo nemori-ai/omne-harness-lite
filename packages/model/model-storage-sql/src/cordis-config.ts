@@ -1,5 +1,6 @@
 import type { Adoption, ResultCapacity } from '@omne-harness/model-contract'
 import type { ModelConsumerOwnerDeclaration } from '@omne-harness/model-contract/provider'
+import type { ModelObservationLimits } from '@omne-harness/model/commands'
 import type { SqlModelCommandsOptions } from './commands.ts'
 
 /** Data for one records plugin life. Every bound is explicit. */
@@ -8,6 +9,7 @@ export type SqlModelRecordsConfig = Readonly<
     SqlModelCommandsOptions<unknown>,
     'owners' | 'limits' | 'maxCallBytes' | 'maxCommandBytes'
   > & {
+    observation?: ModelObservationLimits
     combinationVersion: string
     send: Readonly<{ mirrorBytes: number; maxClaims: number }>
   }
@@ -71,6 +73,30 @@ function capacity(value: unknown): ResultCapacity {
   }
 }
 
+function observation(value: unknown): ModelObservationLimits {
+  const input = record(value, 'observation')
+  return {
+    maxSnapshotBytes: count(input['maxSnapshotBytes'], 'observation.maxSnapshotBytes'),
+    maxDeltaBytes: count(input['maxDeltaBytes'], 'observation.maxDeltaBytes'),
+    maxQueuedFrames: count(input['maxQueuedFrames'], 'observation.maxQueuedFrames'),
+    maxQueuedBytes: count(input['maxQueuedBytes'], 'observation.maxQueuedBytes'),
+    maxObserversPerTenant: count(
+      input['maxObserversPerTenant'],
+      'observation.maxObserversPerTenant',
+    ),
+    maxObservers: count(input['maxObservers'], 'observation.maxObservers'),
+    maxPendingSourceOperations: count(
+      input['maxPendingSourceOperations'],
+      'observation.maxPendingSourceOperations',
+    ),
+    maxRetainedCalls: count(input['maxRetainedCalls'], 'observation.maxRetainedCalls'),
+    maxRetainedBytes: count(input['maxRetainedBytes'], 'observation.maxRetainedBytes'),
+    maxTotalBytes: count(input['maxTotalBytes'], 'observation.maxTotalBytes'),
+    maxQueueResidenceMs: count(input['maxQueueResidenceMs'], 'observation.maxQueueResidenceMs'),
+    checkIntervalMs: count(input['checkIntervalMs'], 'observation.checkIntervalMs'),
+  }
+}
+
 function parse(value: unknown): SqlModelRecordsConfig {
   const input = record(value, 'records config')
   const owners: unknown = input['owners']
@@ -78,6 +104,9 @@ function parse(value: unknown): SqlModelRecordsConfig {
   const limits = record(input['limits'], 'limits')
   const send = record(input['send'], 'send')
   return {
+    ...(input['observation'] === undefined
+      ? {}
+      : { observation: observation(input['observation']) }),
     owners: owners.map(owner),
     limits: {
       scanPageCalls: count(limits['scanPageCalls'], 'limits.scanPageCalls'),

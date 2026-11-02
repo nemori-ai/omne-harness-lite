@@ -13,6 +13,8 @@
 
 ## 定义索引
 
+- `LocalCustodian` 与 `LocalCredentialPlugin` 的同步 `presentFor`、`resolveFor`，以及发送阶段端口的转发与撤除：[SPEC 兼容期资格凭据路径](../SPEC.md#兼容期资格凭据路径)。它们消费 model-contract 的 `QualifiedCredentialQuery<P>`。`LocalModelConfig<P>` 与发送阶段工厂的凭据端口沿用同一 `P`。
+
 - 保管库句柄、新建与重开、管理操作、关闭与保存确认未知：[SPEC 保管库文件](../SPEC.md#保管库文件)至[关闭](../SPEC.md#关闭)。
 - 插件的配置、文件缺失与损坏、撤除：[SPEC 插件](../SPEC.md#插件)。
 - 注入发送：[SPEC 注入发送](../SPEC.md#注入发送)。
