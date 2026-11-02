@@ -9,6 +9,8 @@
 // 已知限制：换 `combinationVersion` 不会为已登记的租户补登记（登记表不记版本），换版本需要另有拥有者定补登记的时机。
 // 游标签名按调用现取 `sessionCursorSigning`（IC-9），不在 inject 里；入口对象缺席时五种读答 `unavailable`。
 import type { Context } from '@deepseek-ai/cordis'
+import { referenceSystemActionAuthorization } from '@omne-harness/authorization'
+import { principalVerifierKey } from '@omne-harness/identity/cordis'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -49,10 +51,12 @@ import {
 } from '@omne-harness/sql-contract/cordis'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { storageCatalog } from '../storage/catalog.ts'
+import { releaseMaintenanceGrants } from '../authorization/grants.ts'
 import { boundAccessCheck } from './bound.ts'
 import { SESSION_COMPOSITE_PARTICIPANTS, compositeManifestDigest } from './composite.ts'
 import { sessionStorageRowConfigSchema, type SessionStorageRowConfig } from './config.ts'
 import { openTenantDirectory, type RegisterOutcome, type TenantDirectory } from './directory.ts'
+import { createTenantEnumeration } from './enumeration.ts'
 
 /** `SessionFailure.unavailable` 的拥有者。 */
 export const OWNER = 'apps/harness-server/session-storage'
@@ -224,16 +228,21 @@ class DelegatedTransactionsImpl extends SessionDelegatedTransactionsService<unkn
   }
 }
 
-/**
- * 部署枚举。授权端口尚未定名（装配页必需栏「随 D-AUTH 与 XC-IDCORDIS 定名」），波 1 没有主体持有
- * `enumerate-tenants` 授予（DP-5 表 3-4）。没有裁定来源时答 `unavailable`，不答 `ready` 也不改写成 `denied`。
- */
 class TenantDomainsImpl extends TenantDomainsService<unknown> {
-  readonly enumerate: TenantDomains<unknown>['enumerate'] = () =>
-    Promise.resolve({
-      kind: 'unavailable',
-      diagnostic: 'deployment enumeration has no authorization port in this assembly',
+  readonly enumerate: TenantDomains<unknown>['enumerate']
+  constructor(ctx: Context, directory: TenantDomainAccess) {
+    super(ctx)
+    const authorization = referenceSystemActionAuthorization({
+      verifier: {
+        verify: principal =>
+          ctx.get(principalVerifierKey)?.verify(principal) ??
+          Promise.resolve({ kind: 'unavailable', diagnostic: 'principal verifier is unavailable' }),
+      },
+      grants: releaseMaintenanceGrants(),
+      clock: null,
     })
+    this.enumerate = createTenantEnumeration(authorization, directory).enumerate
+  }
 }
 
 class TenantDomainLookupImpl extends TenantDomainLookupService {
@@ -287,7 +296,7 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   )
   new SessionTransactionsImpl(ctx, port)
   new DelegatedTransactionsImpl(ctx, checked => delegatedView(base, directory, checked))
-  new TenantDomainsImpl(ctx)
+  new TenantDomainsImpl(ctx, directory.access)
   new TenantDomainLookupImpl(ctx, directory.lookup)
   new PrincipalBindingsImpl(ctx)
   return { stop: deadline => directory.close(deadline) }
@@ -304,7 +313,7 @@ export const sessionStorageRow = defineRow({
       tenantDomainLookupKey,
       sessionPrincipalBindingsKey,
     ],
-    injects: [storageKey, sessionAccessCheckKey],
+    injects: [storageKey, sessionAccessCheckKey, principalVerifierKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'composition' },
