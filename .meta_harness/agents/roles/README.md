@@ -250,6 +250,10 @@ uv run --locked python .meta_harness/agents/skills/design-subagents/canonical/sc
 Cursor 一端暂不跟随：`cursor.yaml` 仍钉 `claude-fable-5-1-xhigh` 与 `claude-fable-5-1-high`，以保留现有资格。这是已知偏离。
 Cursor 派发者按上面的规则选已核对的模型 ID；Cursor 实际使用前，补 `-medium` 的支持证据并重新取得资格。
 
+**两种宿主并存时按会话实际所在的宿主取值。** Codex 与 Claude Code 共用同一套角色职责，但各有一份钉值，同一个角色在两端可能落到不同的模型与档位。取值只看承接本次派发的会话跑在哪一端：Claude Code 会话查 `claude.yaml`，Codex 会话查 `codex.toml`，不按另一端的历史读数为本次派发定档。线会话换宿主时新开会话，理由与做法归 `line` 技能的首次派发与 delta 模板。
+
+代码里的传值机制分两端。解析 `render_pair.py --resolve --policy-version <版本>` 按宿主、角色、work 与可选 `--risk` 输出 requested 的 `model` 与 `effort`。Claude Code 用 Agent 工具的 `model` 与 `effort` 参数带上这两个值，覆盖角色文件里的钉值。Codex 用派发消息或调用面的模型参数显式给出：developer 与 qa 的 `codex.toml` 不钉模型、也不钉档位，不给就继承父会话。两端的 requested 与 observed 都分别记录。
+
 原生文件存在不说明当前会话已加载。具名角色不可用时，可在已有授权内交接完整生成提示作普通
 agent 试用，并说明未经应用的原生沙箱与权限不能算生效；无可用独立评审能力时保留具体缺口。
 角色正文、内联提示、判据或模型配置变化后，按[交付质量](../../../docs/engineering/quality.md)选择受影响验证。
