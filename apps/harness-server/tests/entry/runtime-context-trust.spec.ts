@@ -1,8 +1,3 @@
-// `runtimeContextTrust`（R2-D5、R2-D7、DP2-2 §5）：受信名，只有 `runtime-context` 行看得见。内容是
-// `createSessionRuntimeContextTrust` 组合的四个端口。`authority` 照 `request-context-trust` 的次序：核验器先答，
-// 只放行代租户行事主体，主体的租户必须等于动作里的租户，再按动作类别放行，其余一律拒绝。`bindings` 答
-// `unavailable`：作用域文本是 Session 的单向摘要，入口不解码。`replayFacts` 答 `unavailable` 并点名 AD-03。
-// `current` 是进程代次桥：读取方的 fiber 撤除后此前的答案都不当前。经服务键与导出的工厂调用，真实 Cordis。
 import type { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import {
@@ -12,11 +7,13 @@ import {
 } from '@omne-harness/identity'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
+import type { SessionId } from '@omne-harness/session-contract'
 import {
   decodeScopeRef,
   type AuthorityDecision,
   type Eligibility,
   type HolderAction,
+  type HolderDecision,
   type ProducerAction,
   type RegistrationChange,
   type RuntimeContextAuthority,
@@ -30,9 +27,11 @@ import { principalIssuer } from '../../src/entry/principals.ts'
 import {
   absentReplayFacts,
   createRuntimeContextAuthority,
+  createRuntimeContextTrustModule,
   runtimeContextTrust,
   unavailableScopeBindings,
 } from '../../src/entry/runtime-context-trust.ts'
+import { createSessionScopeSource } from '../../src/entry/session-scope-source.ts'
 import { fixtureEnv, fixtureTenant, got, okOf } from './support.ts'
 
 const tenantA = fixtureTenant('a')
@@ -57,7 +56,7 @@ function eligibility(principal: unknown, tenant: TenantId): Eligibility<unknown>
     id: { eligibility: 'e-1' },
     state: { kind: 'valid' },
     supersedes: null,
-    scope,
+    scope: { ...scope },
     consumer: 'model',
     principal,
     tenant,
@@ -121,14 +120,19 @@ function producerActions(tenant: TenantId): readonly ProducerAction[] {
 }
 
 /** An authority with one verified acting principal of `component` for `tenant`. */
-function authorityWithActing(component: string, tenant: TenantId) {
+function authorityWithActing(
+  component: string,
+  tenant: TenantId,
+  owner = 'session',
+  work = 'ses_1',
+) {
   const authority = inProcessPrincipalAuthority()
   const actor = okOf(authority.issuer.issueSystem({ component }), 'actor')
   const acting = okOf(
     authority.issuer.issueActingForTenant({
       actor,
       tenant,
-      work: { owner: 'session', work: 'ses_1' },
+      work: { owner, work },
     }),
     'acting principal',
   )
@@ -151,11 +155,89 @@ async function kinds(
 }
 
 describe('createRuntimeContextAuthority (the request-context-trust order)', () => {
-  it('authorizes a verified acting principal for its own tenant on every face, and hands the same principal back', async () => {
+  it('allows only the verified work principal of the scope session', async () => {
+    const scopes = createSessionScopeSource({
+      readOwnership: () => ({
+        lookup: async () => ({
+          kind: 'bound',
+          tenant: tenantA,
+          session: 'ses_1' as SessionId,
+          generation: 'g1',
+        }),
+      }),
+      readPrincipalBindings: () => ({
+        read: async input => ({
+          ok: {
+            kind: 'bound',
+            ...input,
+            source: { owner: 'test', record: 'r', revision: '1', digest: 'd' },
+          },
+        }),
+      }),
+    })
+    for (const [component, owner, work, expected] of [
+      ['sessionWorkPrincipals', 'session', 'ses_1', 'authorized'],
+      ['login', 'session', 'ses_1', 'refused'],
+      ['sessionWorkPrincipals', 'other', 'ses_1', 'refused'],
+      ['sessionWorkPrincipals', 'session', 'ses_2', 'refused'],
+    ]) {
+      const { authority, acting } = authorityWithActing(component!, tenantA, owner, work)
+      const subject = createRuntimeContextAuthority({
+        verifier: authority.verifier,
+        scopeOwners: scopes.scopeOwners,
+      })
+      expect((await subject.reader(acting, eligibility(acting, tenantA))).kind).toBe(expected)
+    }
+  })
+
+  it('keeps missing and throwing ownership unavailable and captures the target before verification waits', async () => {
+    const { authority, acting } = authorityWithActing('sessionWorkPrincipals', tenantA)
+    const input = eligibility(acting, tenantA)
+    expect(
+      await createRuntimeContextAuthority({ verifier: authority.verifier }).reader(acting, input),
+    ).toEqual({ kind: 'unavailable' })
+    expect(
+      await createRuntimeContextAuthority({
+        verifier: authority.verifier,
+        scopeOwners: {
+          lookup: async () => {
+            throw new Error('secret')
+          },
+        },
+      }).reader(acting, input),
+    ).toEqual({ kind: 'unavailable' })
+    const pending = Promise.withResolvers<void>()
+    const asked: string[] = []
+    const subject = createRuntimeContextAuthority({
+      verifier: {
+        verify: async value => {
+          await pending.promise
+          return authority.verifier.verify(value)
+        },
+      },
+      scopeOwners: {
+        lookup: async target => {
+          asked.push(target.ref)
+          return { kind: 'unbound' }
+        },
+      },
+    })
+    const decision = subject.reader(acting, input)
+    Reflect.set(input.scope, 'ref', 'changed')
+    Reflect.set(input, 'tenant', tenantB)
+    pending.resolve()
+    expect(await decision).toEqual({ kind: 'refused' })
+    expect(asked).toEqual([`session-scope:${'a'.repeat(64)}`])
+  })
+  it('preserves holder authorization but refuses producers and non-session readers', async () => {
     const { authority, acting } = authorityWithActing('session-ad03', tenantA)
     const subject = createRuntimeContextAuthority({ verifier: authority.verifier })
-    expect(await kinds(subject, acting, tenantA)).toEqual(new Set(['authorized']))
-    const decision = await subject.producer(acting, producerActions(tenantA)[0]!)
+    for (const action of producerActions(tenantA))
+      expect(await subject.producer(acting, action)).toEqual({ kind: 'refused' })
+    for (const action of holderActions(acting, tenantA))
+      expect((await subject.holder(acting, action)).kind).toBe('authorized')
+    expect(await subject.reader(acting, eligibility(acting, tenantA))).toEqual({ kind: 'refused' })
+    const decision = await subject.holder(acting, holderActions(acting, tenantA)[0]!)
     expect(decision.kind).toBe('authorized')
     if (decision.kind !== 'authorized') throw new Error('unreachable')
     expect(decision.principal).toBe(acting)
@@ -232,8 +314,8 @@ describe('the two absent ports', () => {
 type Installed = Readonly<{
   trust: Context
   acting: Principal
-  /** Loads a reader fiber on the trusted scope that asks one producer decision through the service. */
-  reader(): Promise<Readonly<{ decision: AuthorityDecision<unknown>; dispose(): Promise<void> }>>
+  /** Loads a reader fiber on the trusted scope that asks one holder decision through the service. */
+  reader(): Promise<Readonly<{ decision: HolderDecision<unknown>; dispose(): Promise<void> }>>
 }>
 
 async function installed(): Promise<Installed> {
@@ -256,14 +338,14 @@ async function installed(): Promise<Installed> {
     trust,
     acting,
     async reader() {
-      let asked: Promise<AuthorityDecision<unknown>> | undefined
+      let asked: Promise<HolderDecision<unknown>> | undefined
       const fiber = trust.plugin({
         name: 'probe-reader',
         inject: [runtimeContextTrustKey],
         apply(ctx: Context) {
           const service = got(ctx.get(runtimeContextTrustKey), 'runtimeContextTrust')
           expect(service).toBeInstanceOf(RuntimeContextTrustService)
-          asked = service.authority.producer(acting, producerActions(tenantA)[0]!)
+          asked = service.authority.holder(acting, holderActions(acting, tenantA)[0]!)
         },
       })
       await fiber
@@ -274,6 +356,58 @@ async function installed(): Promise<Installed> {
 }
 
 describe('the installed `runtimeContextTrust`', () => {
+  it('keeps an authorization stale when its reader retires during the ownership await', async () => {
+    const fixture = fixtureEnv([runtimeContextTrustKey, principalIssuerKey])
+    await fixture.install(principalIssuer)
+    const issuer = got(fixture.scopeOf(principalIssuerKey).get(principalIssuerKey), 'issuer')
+    const actor = okOf(issuer.issueSystem({ component: 'sessionWorkPrincipals' }), 'actor')
+    const acting = okOf(
+      issuer.issueActingForTenant({
+        actor,
+        tenant: tenantA,
+        work: { owner: 'session', work: 'ses_1' },
+      }),
+      'acting',
+    )
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    const scopes = createSessionScopeSource({
+      readOwnership: () => ({
+        lookup: async () => {
+          entered.resolve()
+          await release.promise
+          return { kind: 'bound', tenant: tenantA, session: 'ses_1' as SessionId, generation: 'g1' }
+        },
+      }),
+      readPrincipalBindings: () => ({
+        read: async input => ({
+          ok: {
+            kind: 'bound',
+            ...input,
+            source: { owner: 'test', record: 'r', revision: '1', digest: 'd' },
+          },
+        }),
+      }),
+    })
+    await fixture.install(createRuntimeContextTrustModule(scopes))
+    let asked: Promise<AuthorityDecision<unknown>> | undefined
+    const fiber = fixture.scopeOf(runtimeContextTrustKey).plugin({
+      name: 'pending-reader',
+      inject: [runtimeContextTrustKey],
+      apply(ctx: Context) {
+        asked = ctx
+          .get(runtimeContextTrustKey)!
+          .authority.reader(acting, eligibility(acting, tenantA))
+      },
+    })
+    await fiber
+    await entered.promise
+    await fiber.dispose()
+    release.resolve()
+    const decision = await asked
+    if (decision?.kind !== 'authorized') throw new Error('expected authorized')
+    expect(decision.current()).toBe(false)
+  })
   it('is a subclass of the definition on the trusted scope only, and authorizes through the service', async () => {
     const { reader } = await installed()
     const { decision, dispose } = await reader()
