@@ -112,3 +112,38 @@ export class LocalCredentialPlugin extends ModelCredentialService {
     })
   }
 }
+
+export { ModelInstancesLocalPlugin } from './plugins/instances.ts'
+export { ModelConvertersLocalPlugin } from './plugins/converters.ts'
+export { createModelRequestPreparationPlugin } from './plugins/preparation.ts'
+export type {
+  ModelPreparationPlugin,
+  ModelPreparationPluginOptions,
+  ModelRequestPreparationPluginClass,
+} from './plugins/preparation.ts'
+export { createModelRuntimeLocalPlugin } from './plugins/host.ts'
+export type {
+  HostEvent,
+  ModelHostPluginOptions,
+  ModelRuntimeLocalPluginClass,
+  ModelRuntimeLocalPluginInstance,
+} from './plugins/host.ts'
+export { createMemoryResultPushLedger } from './plugins/runtime.ts'
+export type {
+  DeliveryFailure,
+  DeliveryStanding,
+  HeldAccount,
+  HeldDelivery,
+  ResultPushLedger,
+  ResultPushLimits,
+  ResultPushOptions,
+  ResultPushRecord,
+  RuntimeEvent,
+} from './plugins/runtime.ts'
+export { ModelProfilesLocalPlugin } from './plugins/profiles.ts'
+export { createModelSendStagePlugin } from './plugins/send-stage.ts'
+export type {
+  ModelSendStagePluginClass,
+  ModelSendStagePluginOptions,
+  ModelSendStageSettings,
+} from './plugins/send-stage.ts'

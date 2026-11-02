@@ -137,6 +137,7 @@ function createMaterialized(
         body: held.body,
         reservation: held.reservation,
         connectTimeoutMs: config.limits.connectTimeoutMs,
+        streamStallTimeoutMs: config.limits.streamStallTimeoutMs,
         maxErrorBodyBytes: config.limits.maxErrorBodyBytes,
       },
       signal,

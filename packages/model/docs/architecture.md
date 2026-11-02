@@ -71,6 +71,7 @@ flowchart TD
   Host --> Core[model]
   Host --> CC
   Host --> Local[本地文件与锁设施]
+  Host -.具名偏离.-> Family
   Core --> Contract
   Assembly --> Family[选中的 pi-ai 厂商家族包]
   Assembly --> Pi[pi-ai-transport]
@@ -84,9 +85,9 @@ flowchart TD
   Pi --> Common[共享消息、内容、JSON及流契约]
 ```
 
-箭头是导入/消费方向。Family 只依赖实际需要的引擎，图不要求每家同时依赖两套。家族通过 pi-ai-transport 拥有的适配贡献 interface 提供模型差异；共享传输从装配参数取得贡献，不反向 import 家族，不内置官方型号总表。公共协议工厂不凭模型名前缀扫描或猜测家族。家族的请求规则只消费无秘密的 Model 请求值及 ToolDeclaration，输出当前 json-text 契约的值；不读取 ToolDefinition、注册表或调用方私有历史。
+箭头是导入/消费方向。虚线是具名偏离：model-host-local 的 `ModelProfilesLocalPlugin` 在 [plugins/profiles.ts](../model-host-local/src/plugins/profiles.ts) 一个文件里导入 `pi-ai-openai` 取官方档案，依据 R1-D4 与线包 C-PROFILE，退出条件是发行装配改由调用方注入定义列表，此后只改这一个文件，见 [model-host-local SPEC](../model-host-local/SPEC.md#官方档案读取)。Family 只依赖实际需要的引擎，图不要求每家同时依赖两套。家族通过 pi-ai-transport 拥有的适配贡献 interface 提供模型差异；共享传输从装配参数取得贡献，不反向 import 家族，不内置官方型号总表。公共协议工厂不凭模型名前缀扫描或猜测家族。家族的请求规则只消费无秘密的 Model 请求值及 ToolDeclaration，输出当前 json-text 契约的值；不读取 ToolDefinition、注册表或调用方私有历史。
 
-model-contract 不导入任何 Model implementation。model 通过注入消费传输、计量、媒体和持久化端口，不反向导入全部家族。发行装配显式选择家族，并组合各厂商包提供与发布的官方档案；Model 契约不定义发布或导入清单的接口；独立程序仅装配所需家族。全量发行可以安装所有目标家族，但这不能迫使单家消费者安装其他家的资源。官方清单只保存定义、采用和可用工厂的对应关系，读取清单不创建 tokenizer、网络连接或模型实例。
+model-contract 不导入任何 Model implementation。model 通过注入消费传输、计量、媒体和持久化端口，不反向导入全部家族。发行装配显式选择家族，并组合各厂商包提供与发布的官方档案（偏离：M2 的单机插件自己固定 OpenAI 家族，见上）；Model 契约不定义发布或导入清单的接口；独立程序仅装配所需家族。全量发行可以安装所有目标家族，但这不能迫使单家消费者安装其他家的资源。官方清单只保存定义、采用和可用工厂的对应关系，读取清单不创建 tokenizer、网络连接或模型实例。
 
 只读定义和取得执行资源分开。读取定义无初始化副作用；取得精确绑定时核全部采用并初始化所需资源，返回匹配的请求/响应规则、meter 和本次释放责任。任一资源或采用不匹配则整体失败并释放已取得项，不用同名最新件补齐。家族工厂不能以几份无关联的公开对象要求普通调用者自行保证相容。
 

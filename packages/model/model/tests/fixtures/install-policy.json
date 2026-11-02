@@ -14,6 +14,10 @@
       "names": ["@earendil-works/pi-*", "@mariozechner/pi-*"]
     },
     {
+      "category": "model-family",
+      "names": ["@omne-harness/pi-ai-*"]
+    },
+    {
       "category": "vendor-sdk",
       "names": [
         "openai",
@@ -48,15 +52,7 @@
     },
     {
       "category": "storage-engine",
-      "names": [
-        "kysely",
-        "pg",
-        "better-sqlite3",
-        "sqlite3",
-        "redis",
-        "ioredis",
-        "proper-lockfile"
-      ]
+      "names": ["kysely", "pg", "better-sqlite3", "sqlite3", "redis", "ioredis", "proper-lockfile"]
     }
   ]
 }

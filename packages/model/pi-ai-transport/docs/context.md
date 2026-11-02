@@ -46,6 +46,7 @@ const { transport, close } = createPiTransport({
   credential: { read: () => slot.value },
   limits: {
     connectTimeoutMs: 10_000,
+    streamStallTimeoutMs: 60_000, // optional: the longest gap between two response bytes
     maxErrorBodyBytes: 65_536,
     maxEventBytes: 1_048_576,
     json: {
@@ -118,7 +119,7 @@ const network = createNetworkResources({
 })
 ```
 
-代理的行为、失败映射与 Node 版本要求见 [SPEC“代理”](../SPEC.md#代理)。
+代理的行为、失败映射与 Node 版本要求见 [SPEC“代理”](../SPEC.md#代理)。`streamStallTimeoutMs` 可选，缺省表示不设。示例里的 60 秒只是示意，本包不给默认值，初值由装配给。它的计时、到期映射与竞态规则见 [SPEC“流停顿上界”](../SPEC.md#流停顿上界)。
 
 初始化与释放责任见 [SPEC“调用方责任”](../SPEC.md#调用方责任)。
 

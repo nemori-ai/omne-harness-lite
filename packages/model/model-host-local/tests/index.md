@@ -3,6 +3,8 @@
 - [README.md](README.md)：测试范围、真实依赖与替身
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口导出清单
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：插件发布、空路径建库、撤除、配置校验与损坏文件上的不可用服务
+- [profile-source.spec.ts](profile-source.spec.ts)：官方档案来源构造的身份、adoption、revision、快照证据与独立算出的摘要夹具
+- [profiles-plugin.spec.ts](profiles-plugin.spec.ts)：真实 Cordis 下档案插件的发布、与官方档案逐字段相同、撤除后旧句柄不可用、非法配置与档案替身对拍
 - [credential.spec.ts](credential.spec.ts)：保管库与注入发送的行为，含发布路径关闭文件描述符
 - [custodian-options.spec.ts](custodian-options.spec.ts)：建库采用、诊断容量、锁等待与 `ELOCKED`、不可用原因、快照字段类型与选项取值
 - [deliver-injected.spec.ts](deliver-injected.spec.ts)：注入发送的模块边界，以及提供者缺席、恢复、重装后结果不变、更替与非服务对象
@@ -11,11 +13,16 @@
 - [assembly.spec.ts](assembly.spec.ts)：本地装配的配置拒绝、准备租约的绑定来源、被拒装配的网络关闭与两个关闭的失败汇总
 - [local-model.spec.ts](local-model.spec.ts)：慢层，经本地 HTTPS 服务驱动两个家族的调用（含推理状态），核对凭据、终止、收场与账目
 - [continuation.spec.ts](continuation.spec.ts)：慢层，调用 X 收场并清理后，经装配的准备租约计量延续它的请求：锚点、余量、方法名与跨租户
-- [recording-replay.spec.ts](recording-replay.spec.ts)：慢层，回放门禁：四份真实回放件经装配路径回放，核对收场、终止、推理状态、回执格式、请求摘要、账目与费用来源
+- [send-stage.spec.ts](send-stage.spec.ts)：发送阶段插件在真实 Cordis 4.0.4 下的装载、卸载、凭据槽与退出时的发送；慢层用例把四份回放件经插件回放并与装配路径对比
+- [runtime-push.spec.ts](runtime-push.spec.ts)：运行门面的结果推送、saved 之后才 ACK、重投与认回、清理、晚到账目及其上界、接收方登记与交给后继
+- [line-e2e.spec.ts](line-e2e.spec.ts)：慢层，线内贯通：一个进程、一个真实 Cordis 4.0.4 根 Context 装出保管库、官方档案、请求准备、发送阶段、运行门面与推送，耐久 ModelCommands 用 model-storage-sql 的 `createSqlModelCommands`（共核的命令与发送协调器）；走完 准备 → 发送（回放）→ 持久（关掉并重开 SQLite 文件）→ 推送给替身接收方（saved 之后才 ACK）→ 取消另一个在途调用；设 `OMNE_EVIDENCE_OUT` 时写脱敏 `line-e2e.json`
+- [runtime-cancel.spec.ts](runtime-cancel.spec.ts)：慢层，`calls.cancel` 在本地 HTTPS 流进行中中断供应商流：终止在传输的物理停止之后，已交付内容保留、费用不写零；同租户另一调用照常完成；取消与自然完成同时到达时终止唯一
+- [runtime-host.spec.ts](runtime-host.spec.ts)：慢层，真实 Cordis 4.0.4 上的整装配（运行时插件、发送阶段插件、真实 model 运行时、model-storage-sql 的耐久 `ModelCommands`）跑 model-contract 的 53 项提供者义务，带显式的已知失败表（quiesce 两项，等 C-QUIESCE）与允许的 not-applicable 表（空）；设 `OMNE_EVIDENCE_OUT` 时写 `conformance.json`、`assembly.json` 与 `hooks.json`
+- [recording-replay.spec.ts](recording-replay.spec.ts)：慢层，回放门禁：四份真实回放件经装配路径回放，核对收场、终止、推理状态、回执格式、请求摘要、账目与费用来源；另回放两个工具调用用例的合成回放件，并核对录制器在其上的写出与拒绝
 - [recording-c9.spec.ts](recording-c9.spec.ts)：慢层，计量对照证据：延续轮的计量与真实输入合计之差、两轮应付金额的精确累计；设 `OMNE_EVIDENCE_OUT` 时写 JSON
 - [recording-c1.spec.ts](recording-c1.spec.ts)：慢层，传输义务证据：四份回放件经装配路径的事实序列、终止与账目，以及真实传输上的六条传输义务；设 `OMNE_EVIDENCE_OUT` 时写脱敏 JSON
 - [recorder.spec.ts](recorder.spec.ts)：慢层，录制器经本地 HTTPS 服务与本地 CONNECT 代理写出原样正文与旁注，各种不写文件的情形，以及第二轮的输入形状
 - [secret-scan.spec.ts](secret-scan.spec.ts)：录制器的密钥模式检查
 - [live/record.spec.ts](live/record.spec.ts)：录制器的真实入口，只在 `OMNE_LIVE_TESTS=1` 并给出 `OMNE_RECORD_CASE` 时运行（`record:live`）
-- [support/](support/)：测试支撑，读取家族录制夹具、起本地 HTTPS 服务与 CONNECT 代理、形成官方档案、装配一次调用的本地宿主，回放回放件，用真实租约计量请求，以及录制器、正文截取、密钥检查与录制用例
-- [fixtures/](fixtures/index.md)：测试固定输入
+- [support/](support/)：测试支撑，读取家族录制夹具、起本地 HTTPS 服务与 CONNECT 代理、形成官方档案、装配一次调用的本地宿主，回放回放件，用真实租约计量请求，以及录制器、正文截取、密钥检查与录制用例；`durable-assembly.ts` 装出 53 项义务的整装配（node:sqlite 测试提供者上的耐久命令、脚本传输、存储端口与实例目录上的故障注入）；`line-assembly.ts` 装出线内贯通的整装配（一个根 Context 上的五成员与 node:sqlite 文件库替身）
+- [fixtures/](fixtures/index.md)：测试固定输入。`fixtures/recordings/<用例>/synthetic.jsonl` 是两个工具调用用例的合成回放件

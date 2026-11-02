@@ -18,7 +18,7 @@
 
 ## 安装闭包
 
-`pnpm --filter @omne-harness/model run install-closure` 调用 model-contract 的安装闭包设施，策略为 [fixtures/install-policy.json](fixtures/install-policy.json)，场景为 [install/scenario.mjs](install/scenario.mjs)。场景还用已安装 sender 的公共 started.window 与 facts 调用真实 Commands.preserve，并核原调用快照、一次 start 与资源关闭。场景导入 `@omne-harness/model`、`@omne-harness/model-contract`、契约 testing 入口、`@omne-harness/content-block` 与 `@omne-harness/legal-identity`：以注入的端口调用 `deliver`，覆盖已发送、拒绝、缺席三条路径，并对一个快照做铸造租户的判定。另用已安装根入口的 executeModel 连接公开脚本传输，验证一次发送与两级关闭。给出 `--scenario` 时设施把闭包里的每个工作区成员声明为消费工程的直接依赖，所以场景导入得到 model-contract 与 legal-identity。运行带 `--out <报告.json>` 写出报告，退出码 0 表示 `forbidden` 为空且全部检查（含 `scenario-run`）通过。报告写在任务的 `tmp/`，不入库；它只证明 model 自己的安装闭包与场景，不证明 model-host-local 的闭包，另覆盖已安装 testing 入口、未支持 quiesce 的诊断，以及真实 runtime 受理、认回、跨租户拒绝、唯一首次 prepared 分派及真实 connect/observe 初始快照。无外部发送计划时 drive 明确返回 unavailable，实例仍可观察。该场景覆盖最小实例观察连接，不证明完整托管业务执行或生产宿主。
+`pnpm --filter @omne-harness/model run install-closure` 调用 model-contract 的安装闭包设施，策略为 [fixtures/install-policy.json](fixtures/install-policy.json)，场景为 [install/scenario.mjs](install/scenario.mjs)。场景还用已安装 sender 的公共 started.window 与 facts 调用真实 Commands.preserve，并核原调用快照、一次 start 与资源关闭。场景导入 `@omne-harness/model`、`@omne-harness/model-contract`、契约 testing 入口、`@omne-harness/content-block` 与 `@omne-harness/legal-identity`：以注入的端口调用 `deliver`，覆盖已发送、拒绝、缺席三条路径，并对一个快照做铸造租户的判定。另用已安装根入口的 executeModel 连接公开脚本传输，验证一次发送与两级关闭。给出 `--scenario` 时设施把闭包里的每个工作区成员声明为消费工程的直接依赖，所以场景导入得到 model-contract 与 legal-identity。运行带 `--out <报告.json>` 写出报告，退出码 0 表示 `forbidden` 为空且全部检查（含 `scenario-run`）通过。报告写在任务的 `tmp/`，不入库；它只证明 model 自己的安装闭包与场景，不证明 model-host-local 的闭包，另覆盖已安装 testing 入口、空 provider 的 quiesce 报告，以及真实 runtime 受理、认回、跨租户拒绝、唯一首次 prepared 分派及真实 connect/observe 初始快照。无外部发送计划时 drive 明确返回 unavailable，实例仍可观察。该场景覆盖最小实例观察连接，不证明完整托管业务执行或生产宿主。
 
 ## 内存行为资源
 
@@ -41,7 +41,9 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 
 带类型的输入回归验证 admit 拒绝额外 onProgress 字段，其他入口保持原身份行为。它使用带函数的不透明 principal 和原已铸造租户，通过真实受理、查询、首次分派与取消，检查身份引用保持有效。
 
-共同符合性使用[runtime-conformance-fixture.ts](runtime-conformance-fixture.ts)唯一装配，完整保存53项实际结果。15项 settlement、未知 ACK 原操作认回和三项消费 route 逐名要求 pass。startRun/settleCall 使用真实 driver、receiver、preserve 和 settle；证据来自[承接方完成记录](completion-records.ts)，adapter 核全部字段及 tenant/call/result/consumer。unknown 包装真实 handoff，撤权映射 content/handoff，清理 hook 使用有效 execution 调实际 advanceCleanup。quiesce 等未支持项仍按真实结果报告。
+共同符合性使用[runtime-conformance-fixture.ts](runtime-conformance-fixture.ts)唯一装配，完整保存53项实际结果。15项 settlement、未知 ACK 原操作认回和三项消费 route 逐名要求 pass。startRun/settleCall 使用真实 driver、receiver、preserve 和 settle；证据来自[承接方完成记录](completion-records.ts)，adapter 核全部字段及 tenant/call/result/consumer。unknown 包装真实 handoff，撤权映射 content/handoff，清理 hook 使用有效 execution 调实际 advanceCleanup。未支持项仍按真实结果报告。
+
+[runtime-quiesce.spec.ts](runtime-quiesce.spec.ts) 使用真实 createModelRuntime 和 driver。它核对 quiesce 后的新受理返回 unavailable（quiesced）且不留下调用，同一 operation 认回原受理，控制与查询照常可用。计数用例分别核对：没有 drive 的已受理调用计入 pending；drive 中的调用计入 running、不计入 pending；收场后两者都不计入；已过闸门的受理在 quiesce 计数之前返回并被计入。
 
 
 ## 准备资源与校准租约
@@ -64,7 +66,7 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 
 [runtime-transitions.spec.ts](runtime-transitions.spec.ts) 注入附带刷新异常、挂起和乱序回包，检查原流保留、确认后不重放、明确拒绝后一次释放与状态不回退。按调用驱动锁分别在 next、preserve 和正常资源释放等待时接受重入探针，要求明确 busy 且原调用正常完成。
 
-观察边界测试另核登记不足、落后超额、共享大快照、并发 next 无队列和健康观察者继续。完整53项报告保留 quiesce 等未支持项的真实 fail/不适用状态，不据局部通过宣称完整 Model 符合。全部组合仍限受控内存与脚本，不证明真实后端或生产宿主。
+观察边界测试另核登记不足、落后超额、共享大快照、并发 next 无队列和健康观察者继续。完整53项报告保留未支持项的真实 fail/不适用状态，不据局部通过宣称完整 Model 符合。全部组合仍限受控内存与脚本，不证明真实后端或生产宿主。
 
 ## 原调用收场与教学脚本
 

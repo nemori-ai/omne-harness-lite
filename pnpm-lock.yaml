@@ -1378,9 +1378,15 @@ importers:
       '@omne-harness/model-cordis-contract':
         specifier: workspace:*
         version: link:../model-cordis-contract
+      '@omne-harness/pi-ai-openai':
+        specifier: workspace:*
+        version: link:../pi-ai-openai
       '@omne-harness/pi-ai-transport':
         specifier: workspace:*
         version: link:../pi-ai-transport
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
       proper-lockfile:
         specifier: ^4.1.2
         version: 4.1.2
@@ -1388,18 +1394,49 @@ importers:
       '@omne-harness/call-account':
         specifier: workspace:*
         version: link:../../common/call-account
+      '@omne-harness/model-storage-sql':
+        specifier: workspace:*
+        version: link:../model-storage-sql
       '@omne-harness/pi-ai-anthropic':
         specifier: workspace:*
         version: link:../pi-ai-anthropic
-      '@omne-harness/pi-ai-openai':
-        specifier: workspace:*
-        version: link:../pi-ai-openai
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
       '@types/proper-lockfile':
         specifier: ^4.1.4
         version: 4.1.4
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/model/model-storage-sql:
+    dependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/model':
+        specifier: workspace:*
+        version: link:../model
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+    devDependencies:
+      '@omne-harness/session-storage-sql':
+        specifier: workspace:*
+        version: link:../../session/session-storage-sql
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
