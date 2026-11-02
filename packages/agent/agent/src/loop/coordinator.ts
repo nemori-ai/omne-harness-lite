@@ -217,6 +217,12 @@ type Write = Readonly<{
   handoff?: HandoffChange
   /** The operation of the commit, when it is not the node's own; a Ja is derived from its H. */
   operation?: AgentOperationId
+  /**
+   * The commit records a fact that already happened, such as the reference a Tool returned for a
+   * call it accepted. It is no new advance, so an effective cancellation does not drop it: F0 needs
+   * the saved reference to interrupt the call, and the late result is received under it.
+   */
+  recordsFact?: true
 }>
 
 /** The outcome of one node and the commit it writes; `commit: null` writes no commit. */
@@ -555,7 +561,8 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         const latest = await load()
         if ('failure' in latest) return latest
         if (advancementOf(latest.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
-        if (cancellationOf(latest.ok) !== undefined) return fail({ kind: 'stale-advance' })
+        if (cancellationOf(latest.ok) !== undefined && write.recordsFact !== true)
+          return fail({ kind: 'stale-advance' })
         if (canonical(latest.ok.checkpoint) === canonical(base)) {
           revision = latest.ok.revision
           return commit(node, to, write)
@@ -1675,7 +1682,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return associate(next, action, pending, result.reference)
   }
 
-  /** A2: the call reference Tool returned is saved with the action and its dispatched slot. */
+  /**
+   * A2: the call reference Tool returned is saved with the action and its dispatched slot. The
+   * call exists once Tool accepted it, so the reference is saved under an effective cancellation
+   * too; F0 then interrupts the call by it and the late result is received under it.
+   */
   async function associate(
     batch: ActionBatch,
     action: Action,
@@ -1703,6 +1714,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           call.action === action.id ? associated : call,
         ),
       },
+      recordsFact: true,
     })
     return 'failure' in saved ? saved : succeed({ batch: next, progressed: true })
   }

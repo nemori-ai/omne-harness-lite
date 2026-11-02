@@ -159,6 +159,9 @@ async function saveControlStage<P>(
   return 'failure' in saved ? saved : succeed(undefined)
 }
 
+/** The Model failures of a control request that do not say whether the request was taken. */
+const UNKNOWN_MODEL_ANSWERS: ReadonlySet<string> = new Set(['unavailable', 'commit-unknown'])
+
 type ModelPending = Extract<PendingCall, { kind: 'model' }>
 type ModelControlScope<P> = Readonly<{
   ports: Ports<P>
@@ -196,12 +199,16 @@ async function modelControlTarget<P>(
   return succeed(pending)
 }
 
-/** Saves one observed stage of a Model control with its observation material. */
+/**
+ * Saves one observed stage of a Model control. `variant` keeps a second observation of the same
+ * stage and state apart, such as the producer's explicit refusal after the request was prepared.
+ */
 async function saveModelStage<P>(
   scope: ModelControlScope<P>,
   stage: ObservedStage,
   state: 'reached' | 'unresolved',
   observation: unknown,
+  variant = '',
 ): Promise<Outcome<void, Failure>> {
   const { ports, access, execution, record, prefix } = scope
   return saveControlStage(
@@ -209,7 +216,7 @@ async function saveModelStage<P>(
     access,
     execution,
     {
-      identity: `control/${prefix}/${stage}/${state}`,
+      identity: `control/${prefix}/${stage}/${state}${variant}`,
       purpose: 'model-control',
       schema: observationSchema,
       record,
@@ -285,8 +292,20 @@ export async function advanceModelControl<P>(
     call: record.command.call,
     operation: operation.ok,
   })
-  if ('failure' in requested || requested.ok.kind !== 'requested') return succeed(undefined)
-  return saveModelStage(scope, 'producer-confirmed', 'reached', requested.ok)
+  if ('ok' in requested)
+    return requested.ok.kind === 'requested'
+      ? saveModelStage(scope, 'producer-confirmed', 'reached', requested.ok)
+      : succeed(undefined)
+  // An unavailable or unknown answer proves nothing more. An explicit refusal is kept with the
+  // unresolved confirmation, so it is not read as an answer that never came.
+  if (UNKNOWN_MODEL_ANSWERS.has(requested.failure.kind)) return succeed(undefined)
+  return saveModelStage(
+    scope,
+    'producer-confirmed',
+    'unresolved',
+    { kind: 'refused', failure: requested.failure },
+    '/refused',
+  )
 }
 
 type ToolControlRecord = Pick<ControlRecord, 'operation' | 'stages'> &
@@ -326,6 +345,7 @@ export async function advanceToolControl<P>(
     state: 'reached' | 'unresolved',
     observation: unknown,
     toolOperation: ToolOperationRef | null,
+    variant = '',
   ): Promise<Outcome<void, Failure>> {
     const attachment = toolOperation === null ? '' : '/reference'
     return saveControlStage(
@@ -333,7 +353,7 @@ export async function advanceToolControl<P>(
       access,
       execution,
       {
-        identity: `control/${prefix}/${stage}/${state}${attachment}`,
+        identity: `control/${prefix}/${stage}/${state}${attachment}${variant}`,
         purpose: 'tool-control',
         schema: toolObservationSchema,
         record,
@@ -395,7 +415,15 @@ export async function advanceToolControl<P>(
     reference: record.toolInvocation,
     intent: record.command.kind === 'background-tool' ? { kind: 'background' } : { kind: 'stop' },
   })
-  if (sent.kind === 'rejected') return succeed(undefined)
+  // An explicit refusal is kept with the unresolved confirmation, apart from an unknown answer.
+  if (sent.kind === 'rejected')
+    return save(
+      'producer-confirmed',
+      'unresolved',
+      { kind: 'refused', failure: sent.failure },
+      null,
+      '/refused',
+    )
   if (sent.kind === 'commit-unknown')
     return save('producer-confirmed', 'unresolved', { kind: 'commit-unknown' }, sent.operation)
   return receipt(sent.operation, sent.receipt.progress, sent.receipt)
