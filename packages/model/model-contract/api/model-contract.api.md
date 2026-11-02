@@ -74,6 +74,10 @@
 - `ModelLimit` · `profile.d.ts`
 - `ModelModality` · `profile.d.ts`
 - `ModelOperationId` · `root.d.ts`
+- `ModelOutputV1` · `model-output-v1.d.ts`
+- `ModelOutputV1Delta` · `model-output-v1.d.ts`
+- `ModelOutputV1Failure` · `model-output-v1.d.ts`
+- `ModelOutputV1Snapshot` · `model-output-v1.d.ts`
 - `ModelPreparationLease` · `profile-source.d.ts`
 - `ModelPreparationResources` · `profile-source.d.ts`
 - `ModelProfile` · `profile.d.ts`
@@ -139,18 +143,21 @@
 - `decodeModelInstanceId` · `identity-values.d.ts`
 - `decodeModelInvocationRef` · `reference.d.ts`
 - `decodeModelOperationId` · `identity-values.d.ts`
+- `decodeModelOutputV1` · `model-output-v1.d.ts`
 - `decodeOutputCursor` · `identity-values.d.ts`
 - `decodeResultVersion` · `identity-values.d.ts`
 - `decodeRevision` · `identity-values.d.ts`
 - `deriveGuardControlOperation` · `guard-control.d.ts`
 - `diffModelStream` · `model-stream-values.d.ts`
 - `encodeModelInvocationRef` · `reference.d.ts`
+- `encodeModelOutputV1` · `model-output-v1.d.ts`
 - `judgeModelDelivery` · `result-delivery-judge.d.ts`
 - `resolveModelInvocationRef` · `reference.d.ts`
 
 ## 入口 `./conformance` · `conformance/index.d.ts`
 
 - `CONFORMANCE_OBLIGATIONS` · `conformance/conformance-types.d.ts`
+- `CREDENTIAL_CONFORMANCE_OBLIGATIONS` · `conformance/credential-types.d.ts`
 - `ConformanceAction` · `conformance/conformance-types.d.ts`
 - `ConformanceCall` · `conformance/conformance-types.d.ts`
 - `ConformanceHooks` · `conformance/conformance-types.d.ts`
@@ -159,8 +166,21 @@
 - `ConformanceReport` · `conformance/conformance-types.d.ts`
 - `ConformanceSubject` · `conformance/conformance-types.d.ts`
 - `ConformanceTransport` · `conformance/conformance-types.d.ts`
+- `CredentialConformanceControls` · `conformance/credential-types.d.ts`
+- `CredentialConformanceObligation` · `conformance/credential-types.d.ts`
+- `CredentialConformanceOptions` · `conformance/credential-types.d.ts`
+- `CredentialConformanceReport` · `conformance/credential-types.d.ts`
+- `CredentialConformanceResult` · `conformance/credential-types.d.ts`
+- `CredentialConformanceSubject` · `conformance/credential-types.d.ts`
+- `ModelStreamConformanceControls` · `conformance/conformance-stream-types.d.ts`
+- `ModelStreamConformanceInput` · `conformance/conformance-stream-types.d.ts`
+- `ModelStreamConformanceReport` · `conformance/conformance-stream-types.d.ts`
+- `ModelStreamConformanceResult` · `conformance/conformance-stream-types.d.ts`
+- `ModelStreamConformanceSubject` · `conformance/conformance-stream-types.d.ts`
 - `ObligationResult` · `conformance/conformance-types.d.ts`
+- `checkCredentialPortConformance` · `conformance/credential.d.ts`
 - `checkModelProviderConformance` · `conformance/conformance.d.ts`
+- `checkModelStreamConformance` · `conformance/conformance-stream.d.ts`
 
 ## 入口 `./provider` · `provider/index.d.ts`
 
@@ -261,6 +281,8 @@
 - `ScriptedAccessDecision` · `testing/access.d.ts`
 - `ScriptedAction` · `testing/core.d.ts`
 - `ScriptedCall` · `testing/controller.d.ts`
+- `ScriptedCredentialPort` · `testing/credential.d.ts`
+- `ScriptedCredentialPortOptions` · `testing/credential.d.ts`
 - `ScriptedEvent` · `testing/stream-references.d.ts`
 - `ScriptedModelError` · `testing/error.d.ts`
 - `ScriptedModelErrorReason` · `testing/error.d.ts`
@@ -285,6 +307,7 @@
 - `ScriptedTransportScript` · `testing/transport.d.ts`
 - `ScriptedWriteAction` = `WriteAction` · `testing/writes.d.ts`
 - `createScriptedConformanceSubject` · `testing/conformance-scripted.d.ts`
+- `createScriptedCredentialPort` · `testing/credential.d.ts`
 - `createScriptedModelProfiles` · `testing/profiles.d.ts`
 - `createScriptedModelProvider` · `testing/provider.d.ts`
 - `createScriptedModelRequestPreparation` · `testing/preparation.d.ts`
@@ -599,6 +622,73 @@ import { type Check } from './conformance-types.ts';
 export declare function settlementChecks<P>(): readonly Check<P>[];
 ```
 
+## 声明文件 `conformance/conformance-stream-types.d.ts`
+
+```ts
+import type { Access } from '@omne-harness/legal-identity';
+import type { StreamRef } from '@omne-harness/stream-arrival';
+import type { ModelStreamObservation, ModelStreamReferences, ModelStreamSelection } from '../model-stream.ts';
+import type { ModelStreamSnapshot } from '../model-stream-values.ts';
+import type { ModelInvocationRef } from '../reference.ts';
+export type ModelStreamConformanceControls<P> = Readonly<{
+    confirm(selection: ModelStreamSelection): void | Promise<void>;
+    withdrawTarget(): void | Promise<void>;
+    publish(snapshot: ModelStreamSnapshot): void | Promise<void>;
+    advance(snapshot: ModelStreamSnapshot): void | Promise<void>;
+    retire(ref: StreamRef): void | Promise<void>;
+    closeSource(ref: StreamRef): void | Promise<void>;
+    setAccess(access: Access<P>, decision: 'allow' | 'deny' | 'unavailable'): void | Promise<void>;
+    setSource(state: 'available' | 'unavailable'): void | Promise<void>;
+    holdCurrent(): Readonly<{
+        reached: Promise<void>;
+        release(): void;
+    }>;
+    overflow(): void | Promise<void>;
+    commitOnObserve(snapshot: ModelStreamSnapshot): void | Promise<void>;
+}>;
+export type ModelStreamConformanceSubject<P> = Readonly<{
+    references: ModelStreamReferences<P>;
+    observation: ModelStreamObservation<P>;
+    access: Access<P>;
+    otherAccess: Access<P>;
+    reference: ModelInvocationRef;
+    wrongAdmission: ModelInvocationRef;
+    unknownReference: ModelInvocationRef;
+    wrongProducer: StreamRef;
+    snapshots: Readonly<{
+        initial: ModelStreamSnapshot;
+        next: ModelStreamSnapshot;
+        stateOnly: ModelStreamSnapshot;
+        settled: ModelStreamSnapshot;
+        successor: ModelStreamSnapshot;
+        sealed: ModelStreamSnapshot;
+        changedSealed: ModelStreamSnapshot;
+    }>;
+    controls: ModelStreamConformanceControls<P>;
+    dispose(): void | Promise<void>;
+}>;
+export type ModelStreamConformanceInput<P> = Readonly<{
+    subject(): ModelStreamConformanceSubject<P> | Promise<ModelStreamConformanceSubject<P>>;
+    waitMs: number;
+}>;
+export type ModelStreamConformanceResult = Readonly<{
+    obligation: string;
+    status: 'pass' | 'fail';
+    detail: string;
+}>;
+export type ModelStreamConformanceReport = Readonly<{
+    ok: boolean;
+    results: readonly ModelStreamConformanceResult[];
+}>;
+```
+
+## 声明文件 `conformance/conformance-stream.d.ts`
+
+```ts
+import type { ModelStreamConformanceInput, ModelStreamConformanceReport } from './conformance-stream-types.ts';
+export declare function checkModelStreamConformance<P>(input: ModelStreamConformanceInput<P>): Promise<ModelStreamConformanceReport>;
+```
+
 ## 声明文件 `conformance/conformance-transport.d.ts`
 
 ```ts
@@ -768,12 +858,83 @@ import { type ConformanceOptions, type ConformanceReport } from './conformance-t
 export declare function checkModelProviderConformance<P>(options: ConformanceOptions<P>): Promise<ConformanceReport>;
 ```
 
+## 声明文件 `conformance/credential-types.d.ts`
+
+```ts
+import type { Access } from '@omne-harness/legal-identity';
+import type { CredentialId, CredentialPort, CredentialReference } from '../credential.ts';
+export type CredentialConformanceControls = Readonly<{
+    bind(reference: CredentialReference, secret: string): void | Promise<void>;
+    rotate(reference: CredentialReference, secret: string): void | Promise<void>;
+    revoke(reference: CredentialReference): void | Promise<void>;
+    markUnreadable(reference: CredentialReference): void | Promise<void>;
+    setUnavailable(unavailable: boolean): void | Promise<void>;
+    close(): void | Promise<void>;
+}>;
+export type CredentialConformanceSubject<P> = Readonly<{
+    port: CredentialPort<P>;
+    access: Access<P>;
+    otherAccess: Access<P>;
+    id: CredentialId;
+    otherId: CredentialId;
+    factorySecret: string;
+    secret: string;
+    rotatedSecret: string;
+    controls: CredentialConformanceControls;
+    dispose?(): void | Promise<void>;
+}>;
+export declare const CREDENTIAL_CONFORMANCE_OBLIGATIONS: readonly [
+    'qualified-methods-required',
+    'legacy-presence-and-resolution',
+    'legacy-unauthorized-denied',
+    'legacy-purpose-denied',
+    'legacy-factory-rules',
+    'qualified-presence-and-resolution',
+    'qualified-independent-of-legacy',
+    'qualified-foreign-holder-denied',
+    'qualified-factory-official-only',
+    'qualified-other-binding-blocks-factory',
+    'qualified-purpose-denied',
+    'rotation-visible',
+    'revoked-binding-denied',
+    'unreadable-binding-preserved',
+    'unavailable-source-preserved',
+    'closed-port-denied'
+];
+export type CredentialConformanceObligation = (typeof CREDENTIAL_CONFORMANCE_OBLIGATIONS)[number];
+export type CredentialConformanceResult = Readonly<{
+    obligation: CredentialConformanceObligation;
+    status: 'pass' | 'fail';
+    detail: string;
+}>;
+export type CredentialConformanceReport = Readonly<{
+    ok: boolean;
+    results: readonly CredentialConformanceResult[];
+}>;
+export type CredentialConformanceOptions<P> = Readonly<{
+    subject(): CredentialConformanceSubject<P> | Promise<CredentialConformanceSubject<P>>;
+    waitMs?: number;
+}>;
+```
+
+## 声明文件 `conformance/credential.d.ts`
+
+```ts
+import { type CredentialConformanceOptions, type CredentialConformanceReport } from './credential-types.ts';
+export declare function checkCredentialPortConformance<P>(options: CredentialConformanceOptions<P>): Promise<CredentialConformanceReport>;
+```
+
 ## 声明文件 `conformance/index.d.ts`
 
 ```ts
 export { checkModelProviderConformance } from './conformance.ts';
 export { CONFORMANCE_OBLIGATIONS } from './conformance-types.ts';
 export type { ConformanceAction, ConformanceCall, ConformanceHooks, ConformanceObligation, ConformanceOptions, ConformanceReport, ConformanceSubject, ConformanceTransport, ObligationResult, } from './conformance-types.ts';
+export { checkCredentialPortConformance } from './credential.ts';
+export { CREDENTIAL_CONFORMANCE_OBLIGATIONS } from './credential-types.ts';
+export type { CredentialConformanceControls, CredentialConformanceSubject, CredentialConformanceObligation, CredentialConformanceResult, CredentialConformanceReport, CredentialConformanceOptions, } from './credential-types.ts';
+export { checkModelStreamConformance } from './conformance-stream.ts';
+export type { ModelStreamConformanceInput, ModelStreamConformanceSubject, ModelStreamConformanceControls, ModelStreamConformanceResult, ModelStreamConformanceReport, } from './conformance-stream-types.ts';
 ```
 
 ## 声明文件 `consumer-owner.d.ts`
@@ -1073,6 +1234,8 @@ export { judgeModelDelivery } from './result-delivery-judge.ts';
 export type * from './model-stream-values.ts';
 export type * from './model-stream.ts';
 export { diffModelStream, applyModelStreamDelta } from './model-stream-values.ts';
+export { encodeModelOutputV1, decodeModelOutputV1 } from './model-output-v1.ts';
+export type { ModelOutputV1, ModelOutputV1Snapshot, ModelOutputV1Delta, ModelOutputV1Failure, } from './model-output-v1.ts';
 export type * from './call-surface.ts';
 export type { MaterializationReceipt, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
 export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, ParameterAdoption, ProfileIdentity, ProfileReplay, ProfileResolution, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
@@ -1150,6 +1313,47 @@ import type { ModelInvocationRef, ModelOperationRef } from './reference.ts';
 export declare function mintIdentity<K extends ModelIdentityKey>(text: string): Identity<K>;
 export declare function mintInvocationReference(text: string): ModelInvocationRef;
 export declare function mintOperationReference(text: string): ModelOperationRef;
+```
+
+## 声明文件 `model-output-v1-blocks.d.ts`
+
+```ts
+import type { VisibleBlock } from './call-surface.ts';
+export declare function outputRecord(value: unknown): value is Record<string, unknown>;
+export declare function outputFields(value: Record<string, unknown>, keys: readonly string[]): boolean;
+export declare function outputBlocks(value: unknown, encoding: boolean): readonly VisibleBlock[] | null;
+```
+
+## 声明文件 `model-output-v1.d.ts`
+
+```ts
+import type { Outcome } from '@omne-harness/operation-result';
+import type { VisibleBlock } from './call-surface.ts';
+import type { CallState } from './result.ts';
+import type { OutputCursor, Revision } from './root.ts';
+import type { ModelStreamDelta, ModelStreamSnapshot } from './model-stream-values.ts';
+export type ModelOutputV1Snapshot = Readonly<{
+    projection: 'model-output-v1';
+    phase: CallState['phase'];
+    cursor: OutputCursor;
+    revision: Revision;
+    blocks: readonly VisibleBlock[];
+}>;
+export type ModelOutputV1Delta = Omit<ModelOutputV1Snapshot, 'phase'> & Readonly<{
+    base: Readonly<{
+        cursor: OutputCursor;
+        revision: Revision;
+    }>;
+    phase?: CallState['phase'];
+}>;
+export type ModelOutputV1 = ModelOutputV1Snapshot | ModelOutputV1Delta;
+export type ModelOutputV1Failure = Readonly<{
+    kind: 'invalid-model-output';
+    reason: string;
+}>;
+export declare function encodeModelOutputV1(input: ModelOutputV1 | ModelStreamSnapshot): Outcome<string, ModelOutputV1Failure>;
+export declare function encodeModelOutputV1(input: ModelStreamDelta, basePhase: CallState['phase']): Outcome<string, ModelOutputV1Failure>;
+export declare function decodeModelOutputV1(text: unknown): Outcome<ModelOutputV1, ModelOutputV1Failure>;
 ```
 
 ## 声明文件 `model-stream-values-blocks.d.ts`
@@ -2744,6 +2948,21 @@ export declare function snapshotOf<P>(record: CallRecord<P>): Snapshot;
 export {};
 ```
 
+## 声明文件 `testing/credential.d.ts`
+
+```ts
+import { type CredentialPort } from '../credential.ts';
+import type { CredentialConformanceControls } from '../conformance/credential-types.ts';
+export type ScriptedCredentialPortOptions = Readonly<{
+    factorySecret: string;
+}>;
+export type ScriptedCredentialPort<P = unknown> = Readonly<{
+    port: CredentialPort<P>;
+    controls: CredentialConformanceControls;
+}>;
+export declare function createScriptedCredentialPort<P = unknown>(options: ScriptedCredentialPortOptions): ScriptedCredentialPort<P>;
+```
+
 ## 声明文件 `testing/directory.d.ts`
 
 ```ts
@@ -2788,6 +3007,8 @@ export type { ScriptedModelProfileCall, ScriptedModelProfiles } from './profiles
 export { createScriptedModelRequestPreparation } from './preparation.ts';
 export type { ScriptedModelPreparationCall, ScriptedModelPreparationMatch, ScriptedModelPreparationPlan, ScriptedModelRequestPreparation, ScriptedModelRequestPreparationOptions, } from './preparation.ts';
 export type { ScriptedAccessDecision } from './access.ts';
+export { createScriptedCredentialPort } from './credential.ts';
+export type { ScriptedCredentialPort, ScriptedCredentialPortOptions } from './credential.ts';
 ```
 
 ## 声明文件 `testing/mint.d.ts`

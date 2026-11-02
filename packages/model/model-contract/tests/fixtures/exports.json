@@ -250,6 +250,36 @@
               "name": "applyModelStreamDelta",
               "kind": "value",
               "pending": false
+            },
+            {
+              "name": "ModelOutputV1",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelOutputV1Snapshot",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelOutputV1Delta",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelOutputV1Failure",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "encodeModelOutputV1",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeModelOutputV1",
+              "kind": "value",
+              "pending": false
             }
           ]
         },
@@ -1331,6 +1361,86 @@
               "pending": false
             }
           ]
+        },
+        {
+          "title": "凭据符合性断言",
+          "names": [
+            {
+              "name": "checkCredentialPortConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "CREDENTIAL_CONFORMANCE_OBLIGATIONS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "CredentialConformanceControls",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CredentialConformanceSubject",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CredentialConformanceObligation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CredentialConformanceResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CredentialConformanceReport",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CredentialConformanceOptions",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "公共流符合性断言",
+          "names": [
+            {
+              "name": "checkModelStreamConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ModelStreamConformanceInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelStreamConformanceSubject",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelStreamConformanceControls",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelStreamConformanceResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelStreamConformanceReport",
+              "kind": "type",
+              "pending": false
+            }
+          ]
         }
       ]
     },
@@ -1531,6 +1641,26 @@
             },
             {
               "name": "ScriptedPrincipal",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "凭据公开替身",
+          "names": [
+            {
+              "name": "createScriptedCredentialPort",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ScriptedCredentialPort",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedCredentialPortOptions",
               "kind": "type",
               "pending": false
             }

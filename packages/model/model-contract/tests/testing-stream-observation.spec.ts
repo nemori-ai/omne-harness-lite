@@ -433,6 +433,22 @@ describe('an observation of a published Model stream', () => {
 })
 
 describe('what an observation request is refused with', () => {
+  it.each(['gap', 'abort'] as const)(
+    'rechecks retirement before disclosing a held %s',
+    async held => {
+      const { source } = opened({ capacity: 1 })
+      const reader = watch(source)
+      await reader.next()
+      if (held === 'gap') {
+        source.advance({ tenant: tenant(), snapshot: second() })
+        source.advance({ tenant: tenant(), snapshot: third() })
+      } else reader.abort()
+      source.end({ ref: stream(), reason: 'stale-stream' })
+      expect(await reader.next()).toEqual({ kind: 'ended', reason: 'stale-stream' })
+      expect(await reader.next()).toBe('finished')
+    },
+  )
+
   it('denies by default, and an unavailable control plane ends as unavailable', async () => {
     const source = createScriptedStreamObservation<Principal>()
     source.publish({ tenant: tenant(), snapshot: first() })

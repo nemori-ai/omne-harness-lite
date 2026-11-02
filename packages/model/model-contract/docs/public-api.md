@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-公开名字分根入口与 `./provider` 两个入口，规则见[提供者协议入口](#提供者协议入口)。根入口导出 121 个类型和 20 个运行值：身份解码函数与常量、`compareOutputCursors`、调用引用的 codec、`deriveGuardControlOperation`、`judgeModelDelivery`，以及投影纯值 `diffModelStream` 与 `applyModelStreamDelta`。`./provider` 入口导出 73 个类型和 14 个运行值：操作引用的 codec、`decodeReadId`、`compareRevisions`、共享输入 judge 与限额常量，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)一章的 36 个名字（替代提供者、替代传输、三个公开替身，以及档案与请求准备的两个替身），以及[符合性断言](#符合性断言)一章里把替代提供者接成被测方的 `createScriptedConformanceSubject` 与 `ScriptedPrincipal`，共 38 个名字。`./conformance` 入口导出[符合性断言](#符合性断言)一章的义务套件，共 11 个名字，不导出任何替身。[导出清单](../tests/fixtures/exports.json)逐名列出四个入口的名字，没有 `pending` 名字。
+公开名字分四个入口，规则见[提供者协议入口](#提供者协议入口)。根入口导出消费者所需的类型、身份与引用函数、交付判断、投影差分及 `model-output-v1` 编解码。`./provider` 导出提供者协议及凭据查询，`QualifiedCredentialQuery` 只在该入口。`./testing` 导出受控替身及其脚本控制类型。`./conformance` 导出独立的提供者、凭据及公共流符合性套件和适配类型，不导出替身。[导出清单](../tests/fixtures/exports.json)逐名列出四个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -13,7 +13,7 @@
 
 - 根入口 = 有 Model 组外导入者的名字 ∪ 这些名字的声明直接或间接引用到的名字 ∪ 按规则 3 判为消费侧的名字：[结果推送与保存](#结果失败和状态)、[显示投影](#model-显示投影纯值)与[当前目标与公共观察](#model-当前目标与公共观察)的名字，身份与调用引用，`ModelRuntime` 的闭包，以及[供应商尝试诊断](#供应商尝试诊断)的读面。Model 组外是 `packages/model` 之外的包与应用，含它们的测试与示例。根入口的每个声明在根入口内自足，不需要从 `./provider` 取类型。
 - `./provider` = 只被 Model 组实现成员（`model`、`model-host-local`、`pi-ai-*`、`tokenizer-tiktoken`、`model-cordis-contract`，含本包自己的测试）使用的提供者协议：传输、提交命令、发送边界、重试策略、实例宿主与 `ModelProvider`，受信宿主驱动，档案维护、请求准备与计量校准，转换件与转换目录，分词接口，档案来源与内容权威，凭据解析端口与 `MODEL_SEND`，消费者 owner 的装配声明，以及只有提供者调用的契约函数：共享输入 judge 与限额常量、操作引用的 codec、`decodeReadId`、`compareRevisions`、回放的声明与投影函数。
-- 一个名字只从一个入口导出，两个入口共享同一份源码定义，不复制类型。导入 `./provider` 的成员仍然可以导入根入口。`./provider` 不导入 Cordis 或其他 Model 成员，不导出 `./testing` 与 `./conformance` 的名字。
+- 一个名字只从四个入口中的一个导出，入口共享同一份源码定义，不复制类型。导入 `./provider` 的成员仍然可以导入根入口。`./provider` 不导入 Cordis 或其他 Model 成员。根入口与 `./provider` 均不导出 `./testing` 与 `./conformance` 的名字或控制面。
 - 根入口不能为空；组外消费者需要的名字不能只在 `./provider`。两种情形都是分组错误，交契约拥有者裁定，不以把该消费者改成导入 `./provider` 来通过。`./provider` 的名字后来有了组外消费者时移回根入口：根入口增加名字是新增，`./provider` 删除名字是破坏性变化，两者都走契约变更协议。导入扫描与闭包计算表列在改变分组的交付 PR 说明中，不进入本页。
 
 下文各章用「入口」一行注明哪些名字在 `./provider`；没有这一行的章全部在根入口。精确归属以 [`src/index.ts`](../src/index.ts) 与 [`src/provider/index.ts`](../src/provider/index.ts) 为准。[`tests/public-entry.spec.ts`](../tests/public-entry.spec.ts) 核对两个入口的运行时键与「一名一入口」，[导出清单](../tests/fixtures/exports.json)按入口逐名列出。
@@ -86,10 +86,12 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 
 ## Model 显示投影纯值
 
-- 声明和运行函数：[`src/model-stream-values.ts`](../src/model-stream-values.ts)。
-- 公共入口行为与类型探针：[`tests/model-stream-values.spec.ts`](../tests/model-stream-values.spec.ts)、[`tests/model-stream-values.spec-d.ts`](../tests/model-stream-values.spec-d.ts)。
+- 声明和运行函数：[`src/model-stream-values.ts`](../src/model-stream-values.ts)、[`src/model-output-v1.ts`](../src/model-output-v1.ts)。
+- 公共入口行为与类型探针：[`tests/model-stream-values.spec.ts`](../tests/model-stream-values.spec.ts)、[`tests/model-stream-values.spec-d.ts`](../tests/model-stream-values.spec-d.ts)、[`tests/model-output-v1.spec.ts`](../tests/model-output-v1.spec.ts)、[`tests/model-output-v1.spec-d.ts`](../tests/model-output-v1.spec-d.ts)、[`tests/public-entry.spec.ts`](../tests/public-entry.spec.ts)。
 
 `ModelStreamSnapshot`、`ModelStreamBase`、`ModelStreamDelta` 和 `ModelStreamProjectionFailure` 定义纯值输入与结果。`diffModelStream` 产生累计块变化，`applyModelStreamDelta` 核对原基线并生成新快照；完整规则与失败顺序归 [SPEC](../SPEC.md#model-投影及差分)。两函数同步核验引用、身份和投影关系，成功结果复制并冻结，不改变输入；它们不证明授权、真实发布或持久保存。观察端口与发布目标查询见[当前目标与公共观察](#model-当前目标与公共观察)。
+
+`encodeModelOutputV1` 与 `decodeModelOutputV1` 在根入口提供 JSON 投影编解码。投影类型为 `ModelOutputV1`、`ModelOutputV1Snapshot`、`ModelOutputV1Delta`，失败类型为 `ModelOutputV1Failure`。解码得到投影值，不恢复完整 `ModelStreamDelta`。编码内部 delta 时必须显式提供 `basePhase`。键集、Model 游标和基线核对规则归 [JSON 投影](../SPEC.md#model-output-v1-的-json-投影)。
 
 ## Model 当前目标与公共观察
 
@@ -356,6 +358,41 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 请求准备替身 `createScriptedModelRequestPreparation` 只接收 `transport`。测试用 `setPlan` 按档案、模态依据与显式参数登记计划。计划只给出绑定后的供应商（含凭据）与参数采用。每次调用从本次组装输入形成请求，准备 transport，等待 close 完成后才返回。替身不计量，不读媒体，不取秘密，不运行参数规则，不物化也不启动传输。
 
 两个替身的测试控制面与[三个公开替身](#三个公开替身)相同：按真实租户与主体身份（`Object.is`）设 `ScriptedAccessDecision`，没有设过的访问一律 `deny`。它不是生产 AccessCheck。没有登记的答案或计划时，调用以 `ScriptedModelError` 拒绝。
+
+## 凭据公开替身
+
+本章给凭据消费方的测试作者。入口为 `./testing`。
+
+- 声明：[`src/testing/credential.ts`](../src/testing/credential.ts)。
+- 行为测试：[`tests/conformance-credential.spec.ts`](../tests/conformance-credential.spec.ts)。精确入口测试：[`tests/testing-entry.spec.ts`](../tests/testing-entry.spec.ts)。
+
+`createScriptedCredentialPort` 接收显式的合成 factory 值，返回业务 `port` 与独立的测试 `controls`。`ScriptedCredentialPortOptions` 和 `ScriptedCredentialPort` 定义其形状。控制面可以设置绑定、轮换、撤销、不可读、来源不可用和关闭。它不进入生产端口或根入口。替身只提供内存中的同步脚本行为，不证明真实秘密保管、主体来源或跨进程资格一致性。
+
+## 凭据符合性断言
+
+本章给凭据提供者的测试适配作者。入口为 `./conformance`。
+
+- 声明：[`src/conformance/credential.ts`](../src/conformance/credential.ts)、[`src/conformance/credential-types.ts`](../src/conformance/credential-types.ts)。
+- 行为及负控测试：[`tests/conformance-credential.spec.ts`](../tests/conformance-credential.spec.ts)。精确入口测试：[`tests/conformance-exports.spec.ts`](../tests/conformance-exports.spec.ts)。
+
+`checkCredentialPortConformance` 独立检查 `CredentialPort`，不并入 `checkModelProviderConformance`。`CREDENTIAL_CONFORMANCE_OBLIGATIONS` 列出义务。`CredentialConformanceOptions` 提供每项 fresh subject 工厂与等待上限，`CredentialConformanceSubject` 提供业务端口、合成测试值与 `CredentialConformanceControls`。`CredentialConformanceObligation`、`CredentialConformanceResult` 和 `CredentialConformanceReport` 表示结果。
+
+套件检查新旧路径、外租户绑定拒绝、factory 适用条件，以及轮换、撤销、不可读、来源不可用和关闭。`qualified-independent-of-legacy` 只检查 qualified 输入没有读取调用方旧 face、authorized、自由 tenant 字段，不能证明提供者内部没有复用旧方法。缺少新方法或控制产生失败。报告只有 pass/fail，异常文本与秘密不进入报告。
+
+每项独立创建 subject 并尝试释放。异步工厂、控制及释放受 waitMs 限制。工厂超时后的迟到 subject 仍进入有界 dispose，已返回的失败报告不反转。调用 dispose 不证明真实资源已经停止，挂起或拒绝时释放仍未确认。
+
+套件只检查提供者可同步核验的事实。它不证明 access 的主体来源、`official` 自报、绑定与资格同修订、真实发送围栏或跨进程一致性。受信发送边界前提与已知限制归[凭据契约](../SPEC.md#342-凭据引用与解析端口)。
+
+## 公共流符合性断言
+
+本章给 Model 当前目标与观察服务的测试适配作者。入口为 `./conformance`。
+
+- 声明：[`src/conformance/conformance-stream.ts`](../src/conformance/conformance-stream.ts)、[`src/conformance/conformance-stream-types.ts`](../src/conformance/conformance-stream-types.ts)。
+- 行为及负控测试：[`tests/conformance-stream.spec.ts`](../tests/conformance-stream.spec.ts)。精确入口测试：[`tests/conformance-exports.spec.ts`](../tests/conformance-exports.spec.ts)。
+
+`checkModelStreamConformance` 独立检查 current 与公共观察。`ModelStreamConformanceInput` 提供 subject 工厂及显式 waitMs，`ModelStreamConformanceSubject` 提供两个业务端口、测试身份和快照，`ModelStreamConformanceControls` 提供可观察效果已生效的测试操作。`ModelStreamConformanceResult` 与 `ModelStreamConformanceReport` 表示结果。
+
+套件检查同次确认、两类 null、终局投影、身份与租户拒绝、state-only、sealed、快照登记边界、披露前撤权、慢读、退役和无终止 EOF。每项 fresh subject，结果只有 pass/fail，安全 detail 不包含异常或载荷。工厂、操作、迭代及清理均受 waitMs 限制，subject 的 dispose 仍负责释放超时后存活的操作。脚本替身组合通过只证明该组合，不证明真实提供者、持久保存或生产服务已安装。生产义务归[持续验证义务](../SPEC.md#持续验证义务)。
 
 ## 符合性断言
 
