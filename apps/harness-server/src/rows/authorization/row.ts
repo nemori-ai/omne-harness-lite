@@ -31,6 +31,7 @@ import {
   type AccessPorts,
 } from './adapters.ts'
 import { releaseMaintenanceGrants } from './grants.ts'
+import { authorizationConfig } from './action-rules.ts'
 
 // The services keep closures only: no `#` private field, because a method reached through a caller
 // proxy has a `this` that is not the instance (docs/real-mode.md).
@@ -78,11 +79,26 @@ function portsOf(ctx: Context): AccessPorts {
 const authorizationPlugin: Plugin.Object = {
   name: 'authorization',
   inject: [principalVerifierKey, tenantStandingKey],
-  apply(ctx: Context) {
+  Config: authorizationConfig,
+  apply(ctx: Context, config: unknown) {
+    const { actionRules } = authorizationConfig.parse(config)
+    let active = true
+    ctx.effect(
+      () => () => {
+        active = false
+      },
+      'authorization.active',
+    )
     const ports = portsOf(ctx)
     new SessionAccessCheckImpl(ctx, createSessionAccessCheck(ports))
     new AgentAccessCheckImpl(ctx, createAgentAccessCheck(ports))
-    new ActionAdmissionImpl(ctx, createActionAdmission())
+    new ActionAdmissionImpl(
+      ctx,
+      createActionAdmission({
+        actionRules,
+        readAdmission: () => (active ? ports.admission : undefined),
+      }),
+    )
   },
 }
 

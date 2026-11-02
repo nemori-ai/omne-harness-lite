@@ -143,7 +143,7 @@ const REQUEST = readRecordFixture('pi-ai-openai', OPENAI_RECORDS[0]).request
 
 type Principal = Readonly<{ subject: string }>
 
-/** A send demand; these resources do not read it, every acquire builds a fresh transport. */
+/** The fixed binding captured by each acquired resource. */
 const DEMAND: SendDemand<Principal> = demandOf(REQUEST)
 
 function demandOf(request: FixedModelRequest): SendDemand<Principal> {
@@ -185,8 +185,8 @@ async function materializedOf(
   return materialized.ok
 }
 
-async function acquired(resources: SendResources<Principal>) {
-  const result = await resources.acquire(DEMAND)
+async function acquired(resources: SendResources<Principal>, demand = DEMAND) {
+  const result = await resources.acquire(demand)
   if (!('ok' in result)) throw new Error(`acquire: ${JSON.stringify(result.failure)}`)
   return result.ok
 }
@@ -202,7 +202,13 @@ function observed(faults: readonly (readonly [number, Faults])[] = []) {
   const factory = observingFactory()
   for (const [position, fault] of faults) factory.fail(position, fault)
   const resources = sendResourcesOver<Principal>({
-    config: { network, families: composeFamilies([]), routes: ROUTES, limits: LIMITS },
+    config: {
+      network,
+      families: composeFamilies([]),
+      routes: ROUTES,
+      limits: LIMITS,
+      materialization: { maxRecords: 8, execution: () => ({ ok: DEMAND.initiator }) },
+    },
     createTransport: factory.createTransport,
   })
   return { factory, resources }
@@ -241,7 +247,9 @@ describe('the credential slot', () => {
   it('of one resource is never seen by another resource', async () => {
     const { factory, resources } = observed()
     const first = await acquired(resources)
-    const second = await acquired(resources)
+    const dispatch = decodeDispatchId('mdisp_other')
+    if (!('ok' in dispatch)) throw new Error('fixture dispatch')
+    const second = await acquired(resources, { ...DEMAND, dispatch: dispatch.ok })
     const firstMaterialized = await materializedOf(first)
     const secondMaterialized = await materializedOf(second)
     const seenByOthers: (string | undefined)[][] = []
@@ -315,6 +323,7 @@ describe('the ownership of a materialized transport', () => {
       families: composeFamilies([family]),
       routes: { openrouter: { ...ROUTES.openrouter, endMarker: GATEWAY_END_MARKER } },
       limits: LIMITS,
+      materialization: { maxRecords: 8, execution: () => ({ ok: DEMAND.initiator }) },
     })
     const first = await acquired(resources)
     const second = await acquired(resources)
@@ -364,6 +373,7 @@ describe('release and close', () => {
         families: composeFamilies([]),
         routes: { openrouter: { url: 'http://gateway.invalid/', endMarker: null } },
         limits: LIMITS,
+        materialization: { maxRecords: 8, execution: () => ({ ok: DEMAND.initiator }) },
       }),
     ).toThrow(RangeError)
   })
@@ -410,6 +420,72 @@ describe('the transport of a resource', () => {
 })
 
 describe('close failures', () => {
+  it('proves twice-cloned receipts only after a real materialization and revokes before failed close', async () => {
+    const reason = new Error('close failed')
+    const { resources } = observed([[1, { close: { reason } }]])
+    const resource = await acquired(resources)
+    const materialized = await materializedOf(resource)
+    const proof = { ...DEMAND, receipt: structuredClone(structuredClone(materialized.receipt)) }
+    expect(resources.materialization.prove(proof)).toHaveProperty('ok.owner', 'model')
+    expect(() =>
+      resource.startWithCredential(
+        { ...materialized },
+        'placeholder',
+        new AbortController().signal,
+      ),
+    ).toThrow(expect.objectContaining({ reason: 'foreign-materialization' }))
+    expect(
+      resources.materialization.prove({
+        ...proof,
+        receipt: { ...proof.receipt, payloadDigest: 'b'.repeat(64) },
+      }),
+    ).toEqual({ failure: { kind: 'invalid', field: 'receipt', reason: 'binding' } })
+    const releasing = resource.release()
+    expect(resources.materialization.prove(proof)).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'model-materialization',
+        diagnostic: 'source-unavailable',
+      },
+    })
+    await expect(releasing).rejects.toBe(reason)
+    await resources.close()
+  })
+
+  it('shares materialize promises and results without creating a second product', async () => {
+    const { resources } = observed()
+    const resource = await acquired(resources)
+    const prepared = await resource.transport.prepare(REQUEST, REQUEST.suppliers[0], { resent: [] })
+    if (!('ok' in prepared)) throw new Error('prepare')
+    const first = prepared.ok.materialize(new AbortController().signal)
+    const second = prepared.ok.materialize(new AbortController().signal)
+    expect(second).toBe(first)
+    expect(await first).toHaveProperty('ok.receipt')
+    expect(await second).toBe(await first)
+    expect(await prepared.ok.materialize(new AbortController().signal)).toBe(await first)
+    await resources.close()
+  })
+
+  it('rejects a same-shaped external receipt without its own real source', async () => {
+    const { resources } = observed()
+    const proof = {
+      ...DEMAND,
+      receipt: {
+        supplier: DEMAND.supplier.adoption,
+        representation: REQUEST.representation,
+        payloadDigest: 'a'.repeat(64),
+      },
+    }
+    expect(resources.materialization.prove(proof)).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'model-materialization',
+        diagnostic: 'source-unavailable',
+      },
+    })
+    await resources.close()
+  })
+
   it('rejects close with the failure of a resource that close released', async () => {
     const reason = new Error('transport close failed')
     const { factory, resources } = observed([[1, { close: { reason } }]])

@@ -60,7 +60,11 @@ describe('the release grant table', () => {
   it('is a frozen constant with a record for the agent host and the tool residency principal', () => {
     expect(Object.isFrozen(MAINTENANCE_GRANTS)).toBe(true)
     expect(AGENT_HOST_COMPONENT).toBe('agent-host')
-    expect(Object.keys(MAINTENANCE_GRANTS).sort()).toEqual(['agent-host', 'toolResidencyPrincipal'])
+    expect(Object.keys(MAINTENANCE_GRANTS).sort()).toEqual([
+      'agent-host',
+      'tenant-domain-scanner',
+      'toolResidencyPrincipal',
+    ])
   })
 
   it('gives the agent host the three agent instance purposes and nothing else', () => {

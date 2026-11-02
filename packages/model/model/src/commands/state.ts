@@ -1,4 +1,5 @@
 import { admitRevision, judgeCallAccount } from '@omne-harness/call-account'
+import { initialRunPort, type BoundCommandAccess } from './initial.ts'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
@@ -384,6 +385,7 @@ export class ModelCommandCore<P> {
   private owners: readonly ModelConsumerOwnerDeclaration[]
 
   constructor(options: ModelCommandsCoreOptions<P>, storage: ModelCommandStorage) {
+    if (options.initialRun !== undefined) initialRunPort(options.initialRun)
     this.storage = storage
     this.options = Object.freeze({
       ...options,
@@ -467,10 +469,19 @@ export class ModelCommandCore<P> {
       }),
     )
   }
-  execution(input: ExecutionRef, call: CallDocument | undefined): ModelFailure | null {
+  execution(
+    input: ExecutionRef,
+    call: CallDocument | undefined,
+    bound?: BoundCommandAccess<P>,
+  ): ModelFailure | null {
     if ('failure' in decodeModelInstanceId(input.instance) || !decimal(input.generation, true))
       return invalid('execution', 'identity')
-    const auth = checkedActor(this.options.authority.execution(input))
+    const auth =
+      this.options.initialRun === undefined
+        ? checkedActor(this.options.authority.execution(input))
+        : (initialRunPort(this.options.initialRun).boundAccess(bound)?.execution(input) ?? {
+            failure: { kind: 'denied' as const, action: 'execution-channel' },
+          })
     if ('failure' in auth) return auth.failure
     if (
       !call?.execution ||
@@ -608,6 +619,19 @@ export class ModelCommandCore<P> {
     const call = draft.call
     if (call && call.request !== null && materialBytes(call) > BigInt(call.capacity.bytes))
       return { failure: { kind: 'capacity', required: call.capacity } }
+    if (
+      this.options.initialRun !== undefined &&
+      args.method === 'admit' &&
+      original === undefined
+    ) {
+      const begun = initialRunPort(this.options.initialRun).beginAdmission({
+        tenant: key,
+        call: input.call,
+        admission: input.operation,
+        admissionFingerprint: fingerprint,
+      })
+      if ('failure' in begun) return begun
+    }
     const status = this.storage.commit(key, {
       operation: input.operation,
       expected: original,
@@ -631,6 +655,7 @@ export class ModelCommandCore<P> {
     input: SendDemand<P>,
     call: CallDocument | undefined,
     stage: 'access' | 'prepare' = 'prepare',
+    bound?: BoundCommandAccess<P>,
   ): ModelFailure | null {
     if (
       input.execution.call !== input.call ||
@@ -639,7 +664,7 @@ export class ModelCommandCore<P> {
       return invalid('execution', 'send-binding')
     if (!call) return invalid('call', 'not-found')
     if (stage === 'prepare') {
-      const failure = this.execution(input.execution, call)
+      const failure = this.execution(input.execution, call, bound)
       if (failure) return failure
       if (call.state.control.kind !== 'none' || call.state.phase === 'settled')
         return invalid('call', 'send-no-longer-valid')
@@ -666,8 +691,9 @@ export class ModelCommandCore<P> {
     receipt: MaterializationReceipt,
     window: string,
     registered: readonly ModelSendSource<P>[],
+    bound?: BoundCommandAccess<P>,
   ): Outcome<CredentialSelection, ModelFailure> {
-    const failure = this.sendBinding(input, call)
+    const failure = this.sendBinding(input, call, 'prepare', bound)
     if (failure) return { failure }
     const dispatch = call.dispatches.find(d => d.record.dispatch === input.dispatch)
     if (
@@ -695,7 +721,14 @@ export class ModelCommandCore<P> {
     if ('failure' in current) return current
     if (!current.ok.authorized) return { failure: { kind: 'denied', action: 'send-source' } }
     const credential = input.supplier.credential
-    if (credential.kind === 'tenant') return { ok: { id: credential.id, scope: 'tenant' as const } }
+    if (credential.kind === 'tenant')
+      return {
+        ok: {
+          id: credential.id,
+          scope: 'tenant' as const,
+          official: source.credential.kind === 'factory' ? source.credential.official : false,
+        },
+      }
     if (
       source.credential.kind !== 'factory' ||
       source.credential.official !== true ||
@@ -703,7 +736,13 @@ export class ModelCommandCore<P> {
       'failure' in decodeCredentialId(source.credential.queryId)
     )
       return { failure: unavailable('model-send-source', 'factory-source-unavailable') }
-    return { ok: { id: source.credential.queryId, scope: 'factory' as const } }
+    return {
+      ok: {
+        id: source.credential.queryId,
+        scope: 'factory' as const,
+        official: source.credential.official,
+      },
+    }
   }
 
   // --- Read relations and result pages.
