@@ -58,6 +58,18 @@ export async function verifyCheckout(root, sha, options) {
   }
 }
 
+function unobservedProbes(reason) {
+  return {
+    status: 'not-run',
+    reason,
+    node: process.version,
+    pnpm: { version: null, reason },
+    wsl: { distro: process.env.WSL_DISTRO_NAME ?? null, kernel: os.release(), reason },
+    systemdUser: { required: process.platform === 'linux', available: null, reason },
+    satisfied: false,
+  }
+}
+
 async function probe(options) {
   const pnpm = await execute(pnpmCommand(['--version']), options)
   const linux = process.platform === 'linux'
@@ -161,6 +173,7 @@ export async function run(config, signal) {
     checkout: root,
     startedAt: new Date().toISOString(),
     slotHeld: Boolean(process.env.OMNE_TEST_SLOT_HELD),
+    probes: unobservedProbes('Checkout verification has not completed; probes have not run'),
     platform: {
       name: process.platform,
       release: os.release(),
@@ -221,6 +234,12 @@ export async function interruptedReport(config, result) {
       sha: head.code === 0 ? head.stdout.trim() : null,
       checkout: config.root,
       startedAt: result.startedAt,
+      slotHeld: result.code === 75 ? false : null,
+      slotHeldReason:
+        result.code === 75
+          ? 'Slot wait expired before the command started'
+          : 'No child report survived; historical slot ownership was not observed',
+      probes: unobservedProbes('No child report survived; platform probes were not observed'),
       members: [],
       issues: [],
       platform: {
