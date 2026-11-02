@@ -11,6 +11,7 @@
 - [provider-access.spec.ts](provider-access.spec.ts)：四个面每个公开操作的租户核对与 `access.check`（C2）
 - [loop-transitions.spec.ts](loop-transitions.spec.ts)：转移表逐行对节点表（C1）
 - [loop-evaluator.spec.ts](loop-evaluator.spec.ts)：评估器的决定、种子属性测试与导入图纯性（C1）
+- [measure.spec.ts](measure.spec.ts)：测量事件的受理与驱动通过、观察者缺省与抛出
 - [loop-invoke.spec.ts](loop-invoke.spec.ts)：一条输入到 ended 的正常路径与骨架的临时简化（C2）
 - [loop-terminal.spec.ts](loop-terminal.spec.ts)：完成竞争、原终结查询、非空观察台账、O0 原责任认回与 idle 复用
 - [loop-reply-close.spec.ts](loop-reply-close.spec.ts)：I3 同 revision 准入、I4 空批、I8 三种去向与 ordinary limit/partial 边界

@@ -8,12 +8,14 @@ import {
   mutationAccessRequest,
   type CommitReceipt,
   type GuardCommand,
+  type HistoryEntry,
   type MutationName,
   type SessionAccess,
   type SessionAccessRequest,
   type SessionCallerClass,
   type SessionCommand,
   type SessionFailure,
+  type SessionNotifier,
   type SessionTransactionPort,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -21,6 +23,7 @@ import { admitsCommand } from './callers.ts'
 import type { SessionDependencies } from './dependencies.ts'
 import { denied, guarded, messageOf, OWNERS, unavailable } from './failures.ts'
 import type { Lifecycle } from './lifecycle.ts'
+import { terminalOf, type SessionMeasurer } from './measure.ts'
 import type { SchedulingPolicy } from './policy.ts'
 import { qualify, readSnapshot } from './qualify.ts'
 
@@ -87,6 +90,7 @@ export type CommandHandlerInput<P> = Readonly<{
   dependencies: SessionDependencies<P>
   policy: SchedulingPolicy
   lifecycle: Lifecycle
+  measurer: SessionMeasurer
   /** Called after a commit of this instance that is not a recall, before the answer returns. */
   committed(command: SessionCommand): void
 }>
@@ -129,7 +133,7 @@ export function receiptOf(value: unknown): CommitReceipt | null {
 }
 
 export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandHandler<P> {
-  const { dependencies, policy, lifecycle } = input
+  const { dependencies, policy, lifecycle, measurer } = input
 
   /** Step 1, the recall part: one point lookup through the view. */
   const lookUp = async (
@@ -279,19 +283,12 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     }
   }
 
-  /** Step 6: the notice after a durable commit. Its absence or failure changes no answer. */
-  const notify = async (
+  /** The entries that one commit wrote, read back through the view. Empty when the read fails. */
+  const entriesOf = async (
     view: SessionTransactionPort<P>,
     access: SessionAccess<P>,
     receipt: CommitReceipt,
-  ): Promise<void> => {
-    let notifier
-    try {
-      notifier = dependencies.notifier.current()
-    } catch {
-      return
-    }
-    if (notifier === null) return
+  ): Promise<readonly HistoryEntry[]> => {
     const page = await guarded(OWNERS.delegated, 'history.begin', () =>
       view.history.begin({
         ...access,
@@ -301,16 +298,38 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
         pageBytes: NOTICE_PAGE_BYTES,
       }),
     )
-    const kinds =
-      'ok' in page
-        ? [
-            ...new Set(
-              page.ok.entries
-                .filter(entry => entry.revision === receipt.revision)
-                .map(entry => entry.kind),
-            ),
-          ]
-        : []
+    return 'ok' in page ? page.ok.entries.filter(entry => entry.revision === receipt.revision) : []
+  }
+
+  /**
+   * Step 6: the notice after a durable commit. Its absence or failure changes no answer. The same
+   * read of the committed entries serves the round-complete event, so an instance with an observer
+   * and no notifier reads them for that event alone.
+   */
+  const afterCommit = async (
+    view: SessionTransactionPort<P>,
+    access: SessionAccess<P>,
+    command: SessionCommand,
+    receipt: CommitReceipt,
+  ): Promise<void> => {
+    let notifier: SessionNotifier | null = null
+    try {
+      notifier = dependencies.notifier.current()
+    } catch {
+      // A failing notifier gives no notice.
+    }
+    if (notifier === null && !measurer.active) return
+    const entries = await entriesOf(view, access, receipt)
+    for (const entry of entries.filter(candidate => candidate.kind === 'run.terminal'))
+      measurer.roundComplete({
+        session: access.session,
+        ...terminalOf(entry.payload),
+        revision: receipt.revision,
+        entry: entry.id,
+        operation: command.input.operation,
+      })
+    if (notifier === null) return
+    const kinds = [...new Set(entries.map(entry => entry.kind))]
     const target = notifier
     lifecycle.spawn(() =>
       target.committed({
@@ -360,7 +379,7 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     }
     const receipt = receiptOf(answer.ok)
     if (receipt?.recovered === true) return answer
-    if (receipt !== null) await notify(view, access, receipt)
+    if (receipt !== null) await afterCommit(view, access, command, receipt)
     input.committed(command)
     return answer
   }
@@ -379,11 +398,16 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     // Fixed before the first await: the decision covers exactly this command (contract 当前操作的访问裁定).
     const request: SessionAccessRequest<P> = mutationAccessRequest(access, command)
     return lifecycle.track(
-      (async () => {
-        const view = await qualify(dependencies, request)
-        if ('failure' in view) return view
-        return run(view.ok, access, command, 0)
-      })(),
+      measurer.segment(
+        command.kind,
+        access.session,
+        async () => {
+          const view = await qualify(dependencies, request)
+          if ('failure' in view) return view
+          return run(view.ok, access, command, 0)
+        },
+        answer => 'failure' in answer,
+      ),
     )
   }
 }

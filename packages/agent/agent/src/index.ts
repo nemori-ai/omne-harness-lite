@@ -8,6 +8,13 @@ export type {
   AgentRuntimeOptions,
 } from './construction.ts'
 
+export type {
+  AgentMeasure,
+  AgentMeasureEvent,
+  AgentRuntimeExtras,
+  AgentSegmentEvent,
+} from './measure.ts'
+
 export { agentModelDeliverySchema, readModelDeliveryMaterial } from './receiving-material.ts'
 
 export { createAgentModelReceiver, createModelReceiverState } from './receiving.ts'

@@ -33,7 +33,7 @@ PACKAGE_TEMPLATE_DRAFT
 本成员只有根入口 `@omne-harness/session`。宿主按下面的顺序使用：
 
 1. 构造 `SessionDependencies` 与 `SessionConfiguration`。启动条件有四项：访问检查、委派事务入口、内部主体与会话工作主体。
-2. 调用 `createSessionInstance(dependencies, configuration)`。
+2. 调用 `createSessionInstance(dependencies, configuration, { measure })`。第三个参数可省略；`measure` 接收 SPEC 的[测量事件](SPEC.md#测量事件)，缺省不发。
 3. 用 `facesFor(caller)` 给每个调用方类各自的面。
 4. 对宿主要服务的每个租户调用 `maintain(tenant)`，保存返回的句柄。
 5. 把提交通知交给 `committed`，把变化通知交给 `changed`。

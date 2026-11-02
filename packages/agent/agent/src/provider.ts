@@ -39,6 +39,7 @@ import type {
 import { canonical } from './canonical.ts'
 import { createExecutionCoordinator } from './loop/coordinator.ts'
 import { advanceControl } from './control.ts'
+import type { AgentMeasurer } from './measure.ts'
 
 const OWNER = '@omne-harness/agent'
 
@@ -128,12 +129,13 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   configuration: Pick<AgentConfiguration, 'reconciliationDelayMs' | 'toolConcurrency'>
   guard: AccessGuard<P>
   dependencies: AgentDependencies<P, B>
+  measurer: AgentMeasurer
 }>
 
 export function createProvider<P, B extends ContentBlock>(
   entry: ProviderEntry<P, B>,
 ): AgentProvider<P> {
-  const { binding, guard, dependencies } = entry
+  const { binding, guard, dependencies, measurer } = entry
   const instance: AgentInstanceId = binding.instance
   const onInstance: AgentAccessTarget = { kind: 'instance', instance }
   // SPEC "主体资格核验": the execution target is the logical execution alone, without the instance.
@@ -312,7 +314,12 @@ export function createProvider<P, B extends ContentBlock>(
       idle: release,
       toolConcurrency: entry.configuration.toolConcurrency,
     })
-    const opened = await coordinator.accept()
+    const opened = await measurer.segment(
+      'accept',
+      execution,
+      () => coordinator.accept(),
+      answer => 'failure' in answer,
+    )
     if ('failure' in opened) {
       const { node, failure } = opened.failure
       // SPEC "受理与单执行槽": only an `open` whose outcome is unknown keeps the reservation, as the
@@ -334,7 +341,12 @@ export function createProvider<P, B extends ContentBlock>(
       const controller = new AbortController()
       try {
         for (;;) {
-          await coordinator.runExecution()
+          await measurer.segment(
+            'run',
+            execution,
+            () => coordinator.runExecution(),
+            answer => 'failure' in answer,
+          )
           const wake = await coordinator.waitForWake({
             reconciliationDelayMs: entry.configuration.reconciliationDelayMs,
             signal: controller.signal,
@@ -434,7 +446,12 @@ export function createProvider<P, B extends ContentBlock>(
       grant: input.grant,
       idle: () => {},
     })
-    const opened = await coordinator.accept()
+    const opened = await measurer.segment(
+      'accept',
+      input.execution,
+      () => coordinator.accept(),
+      answer => 'failure' in answer,
+    )
     if ('failure' in opened) {
       const { failure } = opened.failure
       return fail(

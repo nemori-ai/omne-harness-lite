@@ -16,6 +16,7 @@ import { createControlPropagation, type ControlPropagation } from './control.ts'
 import { checkStartConditions, type SessionDependencies } from './dependencies.ts'
 import { createFaces } from './faces.ts'
 import { Lifecycle } from './lifecycle.ts'
+import { createSessionMeasurer, type SessionMeasure } from './measure.ts'
 import { checkSessionConfiguration, type SessionConfiguration } from './policy.ts'
 import { createReads } from './reads.ts'
 import { createResolution } from './resolution.ts'
@@ -23,6 +24,12 @@ import { createScan, type MaintenanceHandle } from './scan.ts'
 import { createScheduling, type TenantId } from './scheduling.ts'
 
 export type { MaintenanceHandle } from './scan.ts'
+
+/** Optional parameters of the factory. They are not configuration: they carry no policy. */
+export type SessionInstanceOptions = Readonly<{
+  /** The observer of the measurement events (SPEC「测量事件」). Absent means no event is built. */
+  measure?: SessionMeasure
+}>
 
 export type SessionInstance<P> = Readonly<{
   /** The four faces as one caller class sees them. */
@@ -66,11 +73,13 @@ const CALLERS: readonly SessionCallerClass[] = ['intake', 'coordinator', 'mainta
 export function createSessionInstance<P>(
   dependencies: SessionDependencies<P>,
   configuration: SessionConfiguration,
+  options: SessionInstanceOptions = {},
 ): SessionInstance<P> {
   checkStartConditions(dependencies)
   const { policy } = checkSessionConfiguration(configuration)
   const lifecycle = new Lifecycle()
-  const reads = createReads(dependencies, lifecycle)
+  const measurer = createSessionMeasurer(options.measure)
+  const reads = createReads(dependencies, lifecycle, measurer)
   // Bound below; the handler only calls it after a commit, never during construction.
   let advance: Advance | null = null
   let controls: ControlPropagation | null = null
@@ -78,6 +87,7 @@ export function createSessionInstance<P>(
     dependencies,
     policy,
     lifecycle,
+    measurer,
     committed: command => {
       if (['cancelRun', 'stopCall', 'control', 'interrupt'].includes(command.kind))
         controls?.trigger({ tenant: command.input.tenant, session: command.input.session })
