@@ -92,7 +92,8 @@
 | `HandleGeneration` | 类型 | 句柄代际：对象身份加代 | [INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认) |
 | `FileVersion` | 类型 | 元数据版本。它是观察条件，不是权限，也不是外部的比较并交换 | [设施协议](../SPEC.md#设施协议) |
 | `FileIdentity` | 类型 | 对象身份、句柄代际与版本 | 同上 |
-| `FileInformation` | 类型 | 查看与列表的条目：身份加类型、大小与修改时间 | 同上 |
+| `FileInformation` | 类型 | 查看结果：身份加类型、大小与修改时间 | 同上 |
+| `FileEntry` | 类型 | 列表条目：文件信息加相对所列目录的实际名称 | 同上 |
 | `FileTarget` | 类型 | 移动与复制的目标：路径与点名对象 | 同上 |
 | `FileBatchRef` | 类型 | 文件批次的身份：编号加代 | [INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致) |
 | `FileBatchOutcome` | 类型 | 批次提交的结果：`committed`，或 `unknown` 带原因，以及已发布的路径 | 同上 |

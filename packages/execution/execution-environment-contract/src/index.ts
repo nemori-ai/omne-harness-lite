@@ -22,6 +22,7 @@ export type {
   FileBatchOutcome,
   FileBatchRecognition,
   FileBatchRef,
+  FileEntry,
   FileIdentity,
   FileInformation,
   FileRequest,

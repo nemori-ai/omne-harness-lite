@@ -124,6 +124,8 @@
 
 ### 设施协议
 
+`files.list` 的条目是 `FileEntry`，在 `FileInformation` 上增加必需的 `name`。它是相对所列目录的单个实际路径段，不含该设施路径语法的分隔符，也不是 `.` 或 `..`。提供者从目录项取得名称，不从不透明对象 token 解析。`stat` 的形状不变。采用依据为 [R2-D20](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6576803965)。
+
 设施是按名登记的开放协议。每种设施有一份设施声明，由这种设施的拥有者发布：键、操作名单、其中哪些操作须逐操作授权。全系统一个键只有一份声明；同一个键的第二份声明被拒绝登记，原声明不变。撤除声明后新的获取取不到这个键，已有租约上对这个键的后续操作以 `unsupported` 拒绝。拥有者用 `declare module` 增补 `EnvironmentFacilities` 给出类型，`describeFacility` 要求操作名单完整。声明只提供词汇，不安装设施，也不授权操作。依据：产品第 2 版「设施的声明、请求与守卫」。
 
 设施键进入获取路径要同时满足：声明已登记；提供者声明该键；提供者为须授权的操作接受设施守卫。缺任一项，`acquire` 对该键返回 `unsupportedFacility`，不交原始对象。环境面、恢复面与登记面的 schema 由 `operationSchemas` 索引；登记面的返回值是撤除函数，不另设结果 schema。设施自身逐操作 schema 留 Q-EE05。`./testing` 提供独立用例列表，缺少控制钩子时明确记为不适用，不算通过。登记面没有拒绝通道：同键第二份设施声明被拒绝、提供者撤除待处置等情况以抛出报告；错误类型归实现成员。
@@ -476,7 +478,6 @@
 - 技术后续设计与来源缺项 Q-EE02 至 Q-EE06 归 [docs/architecture.md](docs/architecture.md)。Q-EE04 的托管数据写者、数据键、备份与迁移和数据寿命保持排除，不进入任何配额清理方案。
 - 沙箱提供者与受限执行域不在本成员；隔离断言集合为它们留位。
 - 宿主机落点按什么确定授予根，以及授予根限制的实现，现在没有拥有者。host-local 现在不声明 `filesystem-root`。上层的相对路径起点缺省是工作目录，而 `FileRequest` 不带工作目录，声称 `filesystem-root` 的落点上相对路径从授予根起算。工具怎样把相对工作目录的路径换成相对授予根的路径，也没有拥有者。
-- `list` 的条目是 `FileInformation`，不带名字，所以列表工具读不出条目名。以后给条目加名字字段时，字段须是可选的，才是可加改动。拥有者是本成员的拥有者。
 - 真实的命令与终端提供者归 [#323](https://github.com/nemori-ai/omne-harness-lite/issues/323)：以获取与对象代际为索引，阻止同租户、同作用域的其他获取列出、执行、关闭或停止原对象；停止需要真实进程或伪终端以及平台证据。文件设施的真实证据不证明命令与终端的隔离。
 - 当前没有成员发布这两条块。host-local 的 Service 实现现在不登记 Runtime Context 的生产者。
 - 块生产者的读取面没有定义：生产者读什么、按哪个租户维度读、由什么事件使当前值失效。它在生产者插件接受之前定义，拥有者是登记表成员 [execution-environment](../execution-environment/SPEC.md) 与 [execution-environment-host-local](../execution-environment-host-local/SPEC.md)；回调的形状由 [Runtime Context 契约](../../context/runtime-context-contract/SPEC.md)给出。

@@ -157,13 +157,16 @@ it('lists a directory in name order and pages it', async () => {
 
   const first = await facility.list({ ...request(dir, named, 'p1'), offset: 0, limit: 5 })
   expect(sizes(first)).toEqual([1, 2, 3, 4, 5])
+  expect(done(first).entries.map(entry => entry.name)).toEqual(['n00', 'n01', 'n02', 'n03', 'n04'])
   expect(done(first).nextOffset).toBe(5)
   expect(done(first).directory.object).toEqual(named)
   const second = await facility.list({ ...request(dir, named, 'p2'), offset: 5, limit: 5 })
   expect(sizes(second)).toEqual([6, 7, 8, 9, 10])
+  expect(done(second).entries.map(entry => entry.name)).toEqual(['n05', 'n06', 'n07', 'n08', 'n09'])
   expect(done(second).nextOffset).toBe(10)
   const third = await facility.list({ ...request(dir, named, 'p3'), offset: 10, limit: 5 })
   expect(sizes(third)).toEqual([11, 12])
+  expect(done(third).entries.map(entry => entry.name)).toEqual(['n10', 'n11'])
   expect(done(third).nextOffset).toBeUndefined()
   expect(done(second).directory.version).toBe(done(first).directory.version)
 

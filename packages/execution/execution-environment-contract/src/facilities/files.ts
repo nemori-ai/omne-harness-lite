@@ -31,6 +31,11 @@ export type FileInformation = FileIdentity & {
   readonly modifiedMs: number
 }
 
+export type FileEntry = FileInformation & {
+  /** One actual entry name relative to the listed directory, never an object-token projection. */
+  readonly name: string
+}
+
 export type FileTarget = { readonly path: string; readonly named: ObjectToken | null }
 
 export type FileBatchRef = { readonly id: string; readonly generation: string }
@@ -83,7 +88,7 @@ export interface FileSystemFacility<P> {
   list(request: FileRequest<P> & { readonly offset?: number; readonly limit?: number }): Promise<
     FacilityResult<{
       readonly directory: FileIdentity
-      readonly entries: readonly FileInformation[]
+      readonly entries: readonly FileEntry[]
       readonly nextOffset?: number
     }>
   >

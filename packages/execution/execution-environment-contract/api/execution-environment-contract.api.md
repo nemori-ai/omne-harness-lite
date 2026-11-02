@@ -47,6 +47,7 @@
 - `FileBatchOutcome` · `facilities/files.d.ts`
 - `FileBatchRecognition` · `facilities/files.d.ts`
 - `FileBatchRef` · `facilities/files.d.ts`
+- `FileEntry` · `facilities/files.d.ts`
 - `FileIdentity` · `facilities/files.d.ts`
 - `FileInformation` · `facilities/files.d.ts`
 - `FileRequest` · `facilities/files.d.ts`
@@ -615,6 +616,9 @@ export type FileInformation = FileIdentity & {
     readonly sizeBytes: number;
     readonly modifiedMs: number;
 };
+export type FileEntry = FileInformation & {
+    readonly name: string;
+};
 export type FileTarget = {
     readonly path: string;
     readonly named: ObjectToken | null;
@@ -664,7 +668,7 @@ export interface FileSystemFacility<P> {
         readonly limit?: number;
     }): Promise<FacilityResult<{
         readonly directory: FileIdentity;
-        readonly entries: readonly FileInformation[];
+        readonly entries: readonly FileEntry[];
         readonly nextOffset?: number;
     }>>;
     search(request: FileRequest<P> & {
@@ -841,7 +845,7 @@ export type { EnvironmentRequirement, IsolationClaim, IsolationClaims } from './
 export { describeFacility } from './facility.ts';
 export type { EnvironmentFacilities, FacilityDescriptor, FacilityKey, FacilityOperation, FacilityReason, FacilityRequest, FacilityResult, } from './facility.ts';
 export { filesFacility } from './facilities/files.ts';
-export type { FileBatchOutcome, FileBatchRecognition, FileBatchRef, FileIdentity, FileInformation, FileRequest, FileSystemFacility, FileTarget, FileVersion, HandleGeneration, ObjectToken, } from './facilities/files.ts';
+export type { FileBatchOutcome, FileBatchRecognition, FileBatchRef, FileEntry, FileIdentity, FileInformation, FileRequest, FileSystemFacility, FileTarget, FileVersion, HandleGeneration, ObjectToken, } from './facilities/files.ts';
 export { commandFacility } from './facilities/command.ts';
 export type { CommandFacility, CommandOutcome, OutputChunk, OutputCount, OutputPolicy, OutputSummary, ProcessHandle, } from './facilities/command.ts';
 export { terminalFacility } from './facilities/terminal.ts';

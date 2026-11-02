@@ -185,6 +185,11 @@
               "pending": false
             },
             {
+              "name": "FileEntry",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "FileIdentity",
               "kind": "type",
               "pending": false
