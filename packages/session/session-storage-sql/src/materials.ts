@@ -1,6 +1,7 @@
 // The static materials of the Session storage: two participants (`session` and `execution-record`),
-// their five migrations (three of `session`: the log, the execution index and the operation
-// evidence table; two of `execution-record`: its records and the preadmission records) and their
+// their six migrations (three of `session`: the log, the execution index and the operation
+// evidence table; three of `execution-record`: its records, the preadmission records and the
+// original attempt of an admission) and their
 // read handlers, as the SQL storage contract describes them
 // (sql-contract SPEC 4). The `session` participant reads the same-root index tables of
 // `execution-record` (sql-contract SPEC 4.1: a read table of another participant of the same
@@ -21,6 +22,8 @@ import {
   SESSION_PARTICIPANT,
 } from './participants.ts'
 import {
+  ADMISSION_ATTEMPT_MIGRATION,
+  ADMISSION_ATTEMPT_TABLES,
   EXECUTION_RECORD_INDEX_TABLES,
   EXECUTION_RECORD_MIGRATION,
   EXECUTION_RECORD_TABLES,
@@ -64,6 +67,10 @@ const preadmissionMigrationRef = Object.freeze({
   owner: PREADMISSION_MIGRATION.owner,
   id: PREADMISSION_MIGRATION.id,
 })
+const admissionAttemptMigrationRef = Object.freeze({
+  owner: ADMISSION_ATTEMPT_MIGRATION.owner,
+  id: ADMISSION_ATTEMPT_MIGRATION.id,
+})
 
 type Handler = Readonly<{
   handler: string
@@ -81,7 +88,8 @@ export const HANDLERS: readonly Handler[] = [
     file: 'read-work',
     // The snapshot with the history index of its pending inputs (history-index.ts).
     tables: ['sl_journal', 'sl_state', 'sl_entry', ...EXECUTION_RECORD_INDEX_TABLES],
-    migrations: [migrationRef, recordMigrationRef],
+    // It reads `er_admission_attempt_idx`, which the third migration of `execution-record` creates.
+    migrations: [migrationRef, recordMigrationRef, admissionAttemptMigrationRef],
   },
   { handler: 'session.input', file: 'read-input', tables: ['sl_journal', 'sl_input'] },
   {
@@ -156,6 +164,7 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
   const indexMigration = module('execution-index-migration')
   const evidenceMigration = module('operation-evidence-migration')
   const preadmissionMigration = module('preadmission-migration')
+  const admissionAttemptMigration = module('admission-attempt-migration')
   return {
     participants: [
       {
@@ -163,7 +172,11 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
         protocol: EXECUTION_RECORD_PROTOCOL,
         moduleUrl: record.moduleUrl,
         codeDigest: record.digest,
-        ownedTables: [...EXECUTION_RECORD_TABLES, ...PREADMISSION_TABLES],
+        ownedTables: [
+          ...EXECUTION_RECORD_TABLES,
+          ...PREADMISSION_TABLES,
+          ...ADMISSION_ATTEMPT_TABLES,
+        ],
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
@@ -212,6 +225,12 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
         ...preadmissionMigrationRef,
         moduleUrl: preadmissionMigration.moduleUrl,
         checksum: preadmissionMigration.digest,
+        requires: [recordMigrationRef],
+      },
+      {
+        ...admissionAttemptMigrationRef,
+        moduleUrl: admissionAttemptMigration.moduleUrl,
+        checksum: admissionAttemptMigration.digest,
         requires: [recordMigrationRef],
       },
     ],

@@ -425,6 +425,8 @@ export type AgentAdmission = Readonly<{
   accepted: DurableEvidence
   grant: DurableEvidence
   attachment: string
+  /** The SE15 attempt the acceptance was granted under; absent for a legacy row. */
+  attempt?: string
 }>
 
 export function agentPublisher(input: {
@@ -550,6 +552,7 @@ export function agentPublisher(input: {
             accepted: admission.accepted,
             grant: admission.grant,
             attachment: admission.attachment,
+            ...(admission.attempt === undefined ? {} : { attempt: admission.attempt }),
           },
         ],
       })

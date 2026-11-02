@@ -56,6 +56,8 @@ export const EXECUTION_RECORD_INDEX_TABLES: readonly string[] = [
   'er_fact_idx',
   'er_batch_idx',
   'er_admission_idx',
+  // Created by `execution-record/003-admission-attempt`, which the readers of these tables require.
+  'er_admission_attempt_idx',
 ]
 
 export const EXECUTION_RECORD_MIGRATION = Object.freeze({
@@ -81,4 +83,25 @@ export const PREADMISSION_TABLES: readonly string[] = ['er_preadmission']
 export const PREADMISSION_MIGRATION = Object.freeze({
   owner: 'execution-record',
   id: '002-preadmission',
+})
+
+// The original attempt of one admission (the SE15 whose advance the acceptance was granted under),
+// in a table beside `er_admission_idx` with the same key. `grant_ref` keeps the Agent's own receipt
+// of the acceptance and does not name an attempt, so a Run with more than one SE15 cannot prove the
+// original one from the admission row. The sqlite-provider migration port does not let `ALTER TABLE
+// ADD COLUMN` through on a STRICT table (the check SQLite runs after it uses `pragma_quick_check`),
+// so the attempt is a table, as the operation evidence is. A legacy row, or one by a writer that
+// names no attempt, has no row here and the reader answers `unavailable` for it instead of guessing.
+export const ADMISSION_ATTEMPT_SCHEMA: readonly string[] = [
+  `CREATE TABLE IF NOT EXISTS er_admission_attempt_idx (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, input TEXT NOT NULL, ordinal INTEGER NOT NULL,
+    attempt TEXT NOT NULL,
+    PRIMARY KEY (tenant, session, input, ordinal)) STRICT`,
+]
+
+export const ADMISSION_ATTEMPT_TABLES: readonly string[] = ['er_admission_attempt_idx']
+
+export const ADMISSION_ATTEMPT_MIGRATION = Object.freeze({
+  owner: 'execution-record',
+  id: '003-admission-attempt',
 })
