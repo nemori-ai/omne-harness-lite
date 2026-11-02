@@ -187,6 +187,16 @@ export {
 } from './projection.ts'
 export { projectSessionEntries, digestSessionEntries } from './entries-interpretation.ts'
 export { digestSessionLog, executionReadThrough } from './log-interpretation.ts'
+export {
+  decideControlConsequences,
+  type SessionControlDecisionInput,
+  type SessionControlEvidence,
+  type SessionControlOrigin,
+  type SessionControlRecordEvidence,
+  type SessionControlSettlement,
+  type SessionControlStage,
+} from './control-normalization.ts'
+export { isDeferredFact, type SessionFactKind } from './history-values.ts'
 export type { ResidentAdoption, RunExecution, ContextScopeBinding } from './values.ts'
 export { INITIALIZATION_PROTOCOL } from './initialization-schema.ts'
 export type {

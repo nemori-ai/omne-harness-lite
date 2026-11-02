@@ -17,6 +17,7 @@ import {
   type Waiting,
 } from '@omne-harness/agent-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
+import { deriveDriveOperation } from '@omne-harness/session-contract'
 import type {
   SessionFailure,
   SessionLogCommitObservation,
@@ -33,7 +34,7 @@ import {
   ordinaryInput,
 } from '@omne-harness/session-contract/testing'
 import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
-import { ok, operation, submitInput } from './fixtures/common-journal.ts'
+import { ok, operation, scene, submitInput } from './fixtures/common-journal.ts'
 import { cordisScene, handed, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 type CommitLog = NonNullable<SessionTransactionPort<string>['commitLog']>
@@ -421,3 +422,204 @@ describe('AD-02 commits per round do not grow with the rounds before it', () => 
     expect(new Set(perRound)).toEqual(new Set([1]))
   })
 })
+
+/**
+ * K-12 direction D: an Agent control event has the deferred marker instead of kinds, and Session
+ * decides its consequences in the interpretation commit with `decideControlConsequences`. The
+ * sequence is a Session cancel of the Run (K), the Agent cancel under the drive of K (accepted),
+ * then its intent and its qualification.
+ */
+describe('AD-02 interprets the control events of a Session cancel (deferred control facts)', () => {
+  type Progress = Readonly<{ state: string; pending: number }> | null
+  const stages = ['intent-established', 'qualification-revoked'] as const
+
+  /** The Session cancel of the active Run: SE24 of K. */
+  async function cancelRun(
+    port: SessionTransactionPort<string>,
+    access: SqlScene['sessionAccess'],
+  ) {
+    const snapshot = ok(await port.readWork(access))
+    if (snapshot.run.kind !== 'active') throw new Error('an active Run is expected')
+    const control = operationId('cancel-k')
+    ok(
+      await port.commit({
+        access,
+        command: {
+          kind: 'control',
+          input: {
+            tenant: access.tenant,
+            session: access.session,
+            operation: control,
+            intent: { kind: 'cancel-run', run: snapshot.run.run, urgency: 'force' },
+          },
+        },
+        guards: [],
+      }),
+    )
+    return control
+  }
+
+  /** The Agent side of K: the cancel under the drive of K, then each stage. */
+  function agentSteps(
+    journal: AgentJournal<string>,
+    access: SqlScene['access'],
+    execution: SqlScene['execution'],
+    control: ReturnType<typeof operationId>,
+  ): (() => Promise<unknown>)[] {
+    const target = operation(deriveDriveOperation({ kind: 'control', execution, control }))
+    return [
+      async () =>
+        ok(
+          await journal.control({
+            ...access,
+            execution,
+            operation: target,
+            command: { kind: 'cancel', reason: evidence('cancel') },
+          }),
+        ),
+      ...stages.map(
+        stage => async () =>
+          ok(
+            await journal.recordControl({
+              ...access,
+              execution,
+              operation: operation(stage),
+              target,
+              stage,
+              state: 'reached',
+              source: evidence(stage),
+            }),
+          ),
+      ),
+    ]
+  }
+
+  const progressOf = (snapshot: WorkSnapshot, control: string): Progress => {
+    const found = snapshot.controls.find(item => item.operation === control)
+    return found === undefined ? null : { state: found.state, pending: found.pending.length }
+  }
+
+  /** The production Journal with AD-02: the progress of K after each Agent step is interpreted. */
+  async function production(name: string) {
+    const f = await interpreted(name)
+    const journal = f.c.journal()
+    await started(f.s, journal)
+    await reaches(f.s, '1')
+    // A handed input that the cancelled Run did not take: the successor starts with it.
+    const { input, receipt } = await submitted(f.s, journal, 'two')
+    ok(await handed(f.s, String(input.id), receipt.evidence))
+    await round(f.s, journal, 1)
+    await reaches(f.s, '3')
+    const control = await cancelRun(f.s.port, f.s.sessionAccess)
+    const progress: Progress[] = []
+    let sequence = 3
+    for (const step of agentSteps(journal, f.s.access, f.s.execution, control)) {
+      await step()
+      sequence += 1
+      await reaches(f.s, String(sequence))
+      progress.push(progressOf(await work(f.s), control))
+    }
+    return { f, control, progress }
+  }
+
+  /** The memory double on the same sequence: each event interpreted by an explicit call. */
+  async function memory(name: string) {
+    const m = await scene(name)
+    const loaded = ok(await m.view.journal.load({ ...m.access, execution: m.execution }))
+    const page = ok(
+      await m.view.journal.inputs({
+        ...m.access,
+        execution: m.execution,
+        watermark: loaded.inputWatermark,
+      }),
+    )
+    ok(
+      await m.view.journal.commit({
+        ...m.access,
+        execution: m.execution,
+        operation: operation('take'),
+        authority: m.opened.authority,
+        expected: loaded.revision,
+        checkpoint: { ...m.checkpoint, inputBatch: page.batch.id },
+        state: { kind: 'advancing' },
+        events: [{ kind: 'input-taken', batch: page.batch }],
+        effects: [],
+        caller: { kind: 'none' },
+        replyAdmission: null,
+        handoff: null,
+        finish: null,
+      }),
+    )
+    const interpret = (sequence: string) =>
+      m.backend.controls.interpret({
+        ...m.access,
+        execution: m.execution,
+        sequence,
+        operation: operationId(`interpret-${sequence}`),
+      })
+    ok(await interpret('1'))
+    const control = await cancelRun(m.backend.transactions, m.access)
+    const progress: Progress[] = []
+    let sequence = 1
+    for (const step of agentSteps(m.view.journal, m.access, m.execution, control)) {
+      await step()
+      sequence += 1
+      ok(await interpret(String(sequence)))
+      progress.push(progressOf(ok(await m.backend.transactions.readWork(m.access)), control))
+    }
+    return progress
+  }
+
+  it('the control events after a Session cancel are interpreted: K reconciles, the Run reads cancelled, its content stays and a successor starts', async () => {
+    const { f, control, progress } = await production('ad02-cancel')
+    expect(progress.at(-1)).toEqual({ state: 'reconciled', pending: 0 })
+    const snapshot = await work(f.s)
+    expect(readThroughOf(snapshot, f.s.execution)).toBe('6')
+    if (snapshot.run.kind !== 'terminal') throw new Error('a terminal Run is expected')
+    expect(snapshot.run.terminal.outcome).toBe('cancelled')
+    expect(snapshot.controls.find(item => item.operation === control)?.state).toBe('reconciled')
+    // The content written before the cancel stays readable: the cancel withdraws nothing.
+    const output = ok(
+      await f.c
+        .journal()
+        .output.read({ ...f.s.access, execution: f.s.execution, after: null, limit: 10 }),
+    )
+    expect(JSON.stringify(output)).toContain('round 1')
+    ok(await startRun(f.s, 'start-after-cancel'))
+  })
+
+  it('the memory double and the production AD-02 give the same progress of K, the one Session decides', async () => {
+    const produced = await production('ad02-cancel-pair')
+    const reference = await memory('memory-cancel-pair')
+    expect(produced.progress).toEqual(reference)
+    expect(reference).toEqual([
+      { state: 'propagating', pending: 0 },
+      { state: 'propagating', pending: 0 },
+      { state: 'reconciled', pending: 0 },
+    ])
+  })
+})
+
+function readThroughOf(snapshot: WorkSnapshot, execution: string): string | undefined {
+  return snapshot.executions?.find(item => item.execution.execution === execution)?.execution
+    .readThrough
+}
+
+/** A successor Run with a new first input: the decision that reads the cancelled execution's tail. */
+function startRun(s: SqlScene, name: string) {
+  return s.port.commit({
+    access: s.sessionAccess,
+    command: {
+      kind: 'startRun',
+      input: {
+        tenant: s.access.tenant,
+        session: s.access.session,
+        operation: operationId(name),
+        entry: 'interactive',
+        candidate: creation({ initial: ordinaryInput('input-1') }).definition.candidate,
+        instance: { owner: 'agent', id: 'instance-1' },
+      },
+    },
+    guards: [guard('evidence-bridge', 'login-entry', { session: name, operation: name })],
+  })
+}
