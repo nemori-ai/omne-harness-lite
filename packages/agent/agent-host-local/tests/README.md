@@ -32,4 +32,4 @@
 
 宿主插件的测试在真实 Cordis 4.0.4 上装载 `agent-host` 与目录插件 `agentInstancesPlugin`。Journal、Model、授权、采用、条件、请求准备、模型选择、消息准入与时钟用 `@omne-harness/agent/testing` 的非耐久替身，服务类取自 agent-cordis-contract 的定义入口。`host-support.ts` 的 `withRuntimeDuties` 包装 Agent 工厂，补上工厂尚未兑现的两条 runtime 停用义务（quiesce 先进入 draining 并经登记句柄撤登记；invoke 取槽时同步报告 occupied）。用这个包装的用例只证明宿主一侧；名为 plain factory 的用例显示生产工厂现在的答复。这些测试不证明生产 Journal、真实授权、跨进程行为或接收方登记。
 
-`openWorld({ stages: true })` 另以同一组替身提供六项局部依赖，并记录每次 Model admit 的答复，使 `createAgentRuntime` 真件的 Loop 能跑到 Model 请求。`control-entry.spec.ts` 用它验证控制入口推进取消；它不证明真实 Model、生产 Journal 或跨进程推进。
+`openWorld({ stages: true })` 另以同一组替身提供六项局部依赖，并记录每次 Model admit 的答复，使 `createAgentRuntime` 真件的 Loop 能跑到 Model 请求。`control-entry.spec.ts` 用它验证控制入口推进取消；它不证明真实 Model、生产 Journal 或跨进程推进。`tool-requests-plugin.spec.ts` 也用它，并让 Tool 运行时替身受理 invoke，只证明来源经插件工厂进入 runtime 依赖，不证明真实 Tool 运行时或生产来源。
