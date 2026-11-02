@@ -7,9 +7,10 @@
 // keeps the core over an in-process root that is a disposable copy of the durable records: before
 // each call it compares the publication count of the session with the one its copy reflects and
 // rebuilds the copy from storage when they differ. A write prepares the next state in the copy;
-// the provider then commits that state, the index rows and the derived Session participation in
-// one storage commit. Only a committed receipt makes the answer of the call; any other result
-// discards the copy, so the next call starts from the durable records.
+// the provider then commits the parts of that state the write changed (`journal-parts.ts`), the
+// index rows and the derived Session participation in one storage commit. Only a committed receipt
+// makes the answer of the call; any other result discards the copy, so the next call starts from
+// the durable records.
 import { createHash, randomUUID } from 'node:crypto'
 import type {
   AgentExecutionId,
@@ -47,8 +48,8 @@ import {
   SESSION_HISTORY_ROOT_HANDLER,
   SESSION_PROTOCOL,
   SESSION_WORK_HANDLER,
+  decodeExecutionRecordParts,
   decodeExecutionRecordReply,
-  decodeExecutionRecordState,
   decodeSessionHistoryRoot,
   decodeSessionReply,
   decodeSessionWork,
@@ -100,11 +101,17 @@ import {
   type JournalCell,
 } from '../testing/root.ts'
 import {
-  emptyNotes,
+  planParts,
+  rebuildParts,
+  recordsPart,
+  type PartLayout,
+  type PartPlan,
+  type RebuiltParts,
+} from './journal-parts.ts'
+import {
   encodeState,
   eventKey,
   recordsOf,
-  stateOf,
   type DurableAgentRecords,
   type DurableJournalState,
   type InterpretationNotes,
@@ -146,6 +153,10 @@ type Copy<P> = Readonly<{
   core: ReturnType<typeof createJournal<P>>
   /** The interpretation notes of the durable state the copy reflects. */
   notes: InterpretationNotes
+  /** The durable state the copy reflects, as stored: what a publication compares its state with. */
+  stored: DurableJournalState
+  /** Where each stored record is among the parts; it changes when a publication commits. */
+  layout: PartLayout
 }>
 
 type CustodyAttempt =
@@ -484,40 +495,101 @@ export type JournalStateSource = Readonly<{
   tenantDomainLookup: TenantDomainLookup
 }>
 
+/** The pages of `execution-record.parts` a reader follows before it gives up on a moving count. */
+const PART_READ_ATTEMPTS = 3
+
+type PartsRead =
+  | Readonly<{
+      kind: 'read'
+      published: string
+      parts: readonly Readonly<{ part: string; state: JsonValue }>[]
+    }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+/**
+ * Reads the parts of one session's Agent records page by page; `only` reads that one part. Every
+ * page must read the same publication count, else the read starts again. Records stored whole (by a
+ * writer that does not split them) are not read here: they answer `unavailable`.
+ */
+async function readParts(
+  read: (input: JsonValue) => Promise<JsonValue | null>,
+  scope: Readonly<{ tenant: string; session: string }>,
+  only: string | null,
+): Promise<PartsRead> {
+  const unread = (diagnostic: string): PartsRead => ({ kind: 'unavailable', diagnostic })
+  for (let attempt = 0; attempt < PART_READ_ATTEMPTS; attempt += 1) {
+    let after: string | null = null
+    let published: string | null = null
+    const parts: Readonly<{ part: string; state: JsonValue }>[] = []
+    for (;;) {
+      const output = await read({
+        tenant: scope.tenant,
+        session: scope.session,
+        after,
+        ...(only === null ? {} : { parts: [only] }),
+      })
+      if (output === null) return unread('the Agent records of the session are not readable')
+      const page = decodeExecutionRecordParts(output)
+      if (page === null) return unread('the Agent records of the session do not decode')
+      if (page.state !== null)
+        return unread('the Agent records of the session are stored whole, not in parts')
+      if (published !== null && page.published !== published) break
+      published = page.published
+      parts.push(...page.parts)
+      if (page.next === null) return { kind: 'read', published, parts }
+      after = page.next
+    }
+  }
+  return unread('the Agent records of the session kept changing while they were read')
+}
+
 /**
  * Reads the durable Agent records of one session as the provider wrote them: the records, the
- * original fragments and the interpretation notes of one publication. It reads only.
+ * original fragments and the interpretation notes of one publication. `only` reads one part (the
+ * records of one execution: `recordsPart`); the state then holds that part's records only. It
+ * reads only.
  */
 export async function readJournalState(
   options: JournalStateSource,
   target: Readonly<{ tenant: TenantId; session: SessionId }>,
+  only: string | null = null,
 ): Promise<JournalStateRead> {
   const unread = (diagnostic: string): JournalStateRead => ({ kind: 'unavailable', diagnostic })
   const text = tenantCodec.encode(target.tenant)
   if (!text.ok) return unread('the tenant was not minted by legal-identity')
-  let result
+  let found
   try {
-    const found = await options.tenantDomainLookup.lookup({ tenant: text.value })
-    if (found.kind !== 'ready')
-      return unread(
-        found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
-      )
-    result = await options.storage.read({
-      domain: found.domain,
-      handler: EXECUTION_RECORD_HANDLERS.state,
-      protocol: EXECUTION_RECORD_PROTOCOL,
-      requestKey: randomUUID(),
-      input: { tenant: text.value, session: target.session },
-    })
+    found = await options.tenantDomainLookup.lookup({ tenant: text.value })
   } catch (error) {
     return unread(`the read of the Agent records threw: ${String(error)}`)
   }
-  if (result.kind !== 'read') return unread('the Agent records of the session are not readable')
-  const state = decodeExecutionRecordState(result.output)
-  if (state === null) return unread('the Agent records of the session do not decode')
-  if (state.state === null) return { kind: 'read', state: null }
+  if (found.kind !== 'ready')
+    return unread(
+      found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
+    )
+  const domain = found.domain
+  const parts = await readParts(
+    async input => {
+      try {
+        const result = await options.storage.read({
+          domain,
+          handler: EXECUTION_RECORD_HANDLERS.parts,
+          protocol: EXECUTION_RECORD_PROTOCOL,
+          requestKey: randomUUID(),
+          input,
+        })
+        return result.kind === 'read' ? result.output : null
+      } catch {
+        return null
+      }
+    },
+    { tenant: text.value, session: target.session },
+    only,
+  )
+  if (parts.kind === 'unavailable') return parts
   try {
-    return { kind: 'read', state: stateOf(state.state) }
+    const rebuilt = rebuildParts(parts.parts)
+    return { kind: 'read', state: rebuilt.empty ? null : rebuilt.state }
   } catch (error) {
     return unread(`the Agent records do not decode: ${String(error)}`)
   }
@@ -532,7 +604,7 @@ export async function readExecutionInterpretation(
   options: JournalStateSource,
   target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
 ): Promise<InterpretationRead> {
-  const read = await readJournalState(options, target)
+  const read = await readJournalState(options, target, recordsPart(target.execution))
   if (read.kind === 'unavailable') return read
   const records = read.state
   const execution =
@@ -924,7 +996,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     })
   }
 
-  function build(book: Book<P>, state: JsonValue | null): Copy<P> {
+  function build(book: Book<P>, stored: RebuiltParts): Copy<P> {
     const cell: JournalCell<P> = createCell<P>(book.tenant, book.session, {
       authorize: () => undefined,
       advances(execution, authority): boolean {
@@ -943,12 +1015,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         return undefined
       },
     })
-    let notes = emptyNotes()
-    if (state !== null) {
-      const records = stateOf(state)
-      restore(cell, records)
-      notes = records.notes
-    }
+    if (!stored.empty) restore(cell, stored.state)
     putBack(book, cell)
     const core = createJournal<P>(cell, {
       participants: PARTICIPANTS,
@@ -958,7 +1025,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
       ...(options.hostRecords === undefined ? {} : { hostRecords: options.hostRecords }),
     })
-    return { cell, core, notes }
+    return { cell, core, notes: stored.state.notes, stored: stored.state, layout: stored.layout }
   }
 
   /** Puts the held writes back into a rebuilt copy, unless the durable records already decided them. */
@@ -970,11 +1037,16 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         if (root.agent.operations.has(at)) continue
         // The reference core keeps the custody attempt of a write while it is pending and after it
         // is excluded, so the custody chain of the H goes on from it in both cases.
+        // The execution is replaced, not changed in place: the stored one is what a publication
+        // compares with (journal-parts.ts).
         if (held.custody !== null) {
-          const execution = [...root.agent.executions.values()].find(
-            item => item.id === held.execution,
-          )
-          execution?.custodyAttempts.set(held.operation, held.custody)
+          const found = [...root.agent.executions].find(([, item]) => item.id === held.execution)
+          if (found !== undefined) {
+            const [key, execution] = found
+            const custodyAttempts = new Map(execution.custodyAttempts)
+            custodyAttempts.set(held.operation, held.custody)
+            root.agent.executions.set(key, { ...execution, custodyAttempts })
+          }
         }
         if (held.standing === 'unknown') {
           root.agent.operations.set(at, {
@@ -1045,25 +1117,19 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const excluded = await settleHeld(book, domain)
     if (!excluded && book.copy !== null && book.published === root.published)
       return succeed(book.copy)
-    const stateOutput = await read(
-      domain,
-      EXECUTION_RECORD_HANDLERS.state,
-      EXECUTION_RECORD_PROTOCOL,
-      {
-        tenant: book.tenantText,
-        session: book.session,
-      },
+    const parts = await readParts(
+      input => read(domain, EXECUTION_RECORD_HANDLERS.parts, EXECUTION_RECORD_PROTOCOL, input),
+      { tenant: book.tenantText, session: book.session },
+      null,
     )
-    const state = stateOutput === null ? null : decodeExecutionRecordState(stateOutput)
-    if (state === null)
-      return fail(unavailable('the Agent records of the session are not readable'))
+    if (parts.kind === 'unavailable') return fail(unavailable(parts.diagnostic))
     try {
-      book.copy = build(book, state.state)
+      book.copy = build(book, rebuildParts(parts.parts))
     } catch (error) {
       book.copy = null
       return fail(unavailable(`the Agent records do not decode: ${String(error)}`))
     }
-    book.published = state.published
+    book.published = parts.published
     return succeed(book.copy)
   }
 
@@ -1180,8 +1246,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       execution,
       `${written.method}\0${written.operation ?? randomUUID()}`,
     )
+    const next: DurableJournalState = { ...durableRecords(after), notes }
     let facts: FactCommandV2[]
+    let plan: PartPlan
     try {
+      // The parts of this write: what changed since the stored state, and the writer's own parts.
+      plan = planParts(copy.layout, copy.stored, next, written.execution ?? own?.id ?? null)
       facts = [
         executionRecordFacts({
           tenant: book.tenant,
@@ -1193,7 +1263,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           operation,
           digest: written.digest,
           answer: encodeState(answer),
-          state: encodeState({ ...durableRecords(after), notes }),
+          parts: plan.parts,
+          replace: false,
           ...index,
           admissions,
         }),
@@ -1218,22 +1289,31 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       operation,
       commands: facts,
     })
-    return settle(book, copy, notes, after, written, scratch, answer, operation, outcome)
+    return settle(
+      { book, copy, notes, after, next, plan, written, scratch, answer },
+      operation,
+      outcome,
+    )
   }
 
   /** What one publication needs to turn a storage outcome into the call's answer. */
-  type Settling<T> = Readonly<{
+  type Published<T> = Readonly<{
     book: Book<P>
     copy: Copy<P>
     notes: InterpretationNotes
     after: CommonRoot
+    /** The durable state the write publishes, and the parts it writes of it. */
+    next: DurableJournalState
+    plan: PartPlan
     written: Written
     scratch: Scratch
     answer: Outcome<T, Failure>
-    /** The Agent operation of the write; null for a write without one (the material port). */
-    agentOperation: AgentOperationId | null
   }>
-
+  type Settling<T> = Published<T> &
+    Readonly<{
+      /** The Agent operation of the write; null for a write without one (the material port). */
+      agentOperation: AgentOperationId | null
+    }>
   /**
    * A write without an Agent operation (the material port) has no identity to name or to recall
    * by: wherever an answer would name one, it is `unavailable`, never an invented identity.
@@ -1267,7 +1347,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       }
     // An earlier generation committed this operation: the durable records answer it.
     if (receipt.recalled) return conflicting(job, reply.digest)
-    job.book.copy = { ...job.copy, notes: job.notes }
+    job.plan.commit()
+    job.book.copy = { ...job.copy, notes: job.notes, stored: job.next }
     job.book.published = reply.published
     // What the copy holds is now durable: an excluded write, and one the Journal core fenced.
     for (const at of job.book.held.keys()) {
@@ -1333,27 +1414,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
    * the outcome means otherwise. An unknown outcome keeps the write as held.
    */
   function settle<T>(
-    book: Book<P>,
-    copy: Copy<P>,
-    notes: InterpretationNotes,
-    after: CommonRoot,
-    written: Written,
-    scratch: Scratch,
-    answer: Outcome<T, Failure>,
+    published: Published<T>,
     operation: string,
     outcome: Awaited<ReturnType<typeof commitJournal>>,
   ): Settled<T> {
+    const { book, after, written } = published
     const agentOperation = written.operation as AgentOperationId | null
-    const job: Settling<T> = {
-      book,
-      copy,
-      notes,
-      after,
-      written,
-      scratch,
-      answer,
-      agentOperation,
-    }
+    const job: Settling<T> = { ...published, agentOperation }
     switch (outcome.kind) {
       case 'committed':
         return settleCommitted(job, outcome)
