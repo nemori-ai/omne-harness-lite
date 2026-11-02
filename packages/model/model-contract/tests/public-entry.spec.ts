@@ -38,12 +38,14 @@ it('the root entry exports exactly the runtime values of the consumer face', asy
       'decodeModelInstanceId',
       'decodeModelInvocationRef',
       'decodeModelOperationId',
+      'decodeModelOutputV1',
       'decodeOutputCursor',
       'decodeResultVersion',
       'decodeRevision',
       'deriveGuardControlOperation',
       'diffModelStream',
       'encodeModelInvocationRef',
+      'encodeModelOutputV1',
       'judgeModelDelivery',
       'resolveModelInvocationRef',
     ].sort(),
@@ -99,4 +101,56 @@ it('keeps the testing and conformance names off the provider entry', async () =>
   const runtime = await import('@omne-harness/model-contract/provider')
   expect(Object.keys(runtime)).not.toContain('createScriptedModelProvider')
   expect(Object.keys(runtime)).not.toContain('checkModelProviderConformance')
+})
+
+it('publishes the new projection, credential and stream names only from their designated entry', () => {
+  const entries = {
+    root: exportedNames('index.d.ts'),
+    provider: exportedNames('provider/index.d.ts'),
+    testing: exportedNames('testing/index.d.ts'),
+    conformance: exportedNames('conformance/index.d.ts'),
+  }
+  const expected = {
+    root: [
+      'encodeModelOutputV1',
+      'decodeModelOutputV1',
+      'ModelOutputV1',
+      'ModelOutputV1Snapshot',
+      'ModelOutputV1Delta',
+      'ModelOutputV1Failure',
+    ],
+    provider: ['QualifiedCredentialQuery'],
+    testing: [
+      'createScriptedCredentialPort',
+      'ScriptedCredentialPort',
+      'ScriptedCredentialPortOptions',
+    ],
+    conformance: [
+      'checkCredentialPortConformance',
+      'CREDENTIAL_CONFORMANCE_OBLIGATIONS',
+      'CredentialConformanceControls',
+      'CredentialConformanceSubject',
+      'CredentialConformanceObligation',
+      'CredentialConformanceResult',
+      'CredentialConformanceReport',
+      'CredentialConformanceOptions',
+      'checkModelStreamConformance',
+      'ModelStreamConformanceInput',
+      'ModelStreamConformanceSubject',
+      'ModelStreamConformanceControls',
+      'ModelStreamConformanceResult',
+      'ModelStreamConformanceReport',
+    ],
+  }
+  for (const [entry, names] of Object.entries(expected)) {
+    for (const name of names)
+      expect(
+        Object.entries(entries)
+          .filter(([, exports]) => exports.includes(name))
+          .map(([owner]) => owner),
+        name,
+      ).toEqual([entry])
+  }
+  const names = Object.values(entries).flat()
+  expect(new Set(names).size).toBe(names.length)
 })

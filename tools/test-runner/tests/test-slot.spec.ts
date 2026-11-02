@@ -28,6 +28,7 @@ const SCRIPT = resolve(
   fileURLToPath(new URL('../../../scripts/with-test-slot.sh', import.meta.url)),
 )
 const REPOSITORY_ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
+const PUBLICATION_HOOK = fileURLToPath(new URL('./fixtures/slot-publication.cjs', import.meta.url))
 
 const WINDOWS = process.platform === 'win32'
 
@@ -89,7 +90,7 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-function slotEnv(env: Record<string, string>): NodeJS.ProcessEnv {
+function slotEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const cleared: NodeJS.ProcessEnv = { ...process.env }
   // 这份测试自己可能就跑在名额里；清掉标记才测得到排队。
   delete cleared['OMNE_TEST_SLOT_HELD']
@@ -101,6 +102,164 @@ function slotEnv(env: Record<string, string>): NodeJS.ProcessEnv {
     ...env,
   }
 }
+
+function publicationEnv(actor: string, scenario = 'publication'): Record<string, string> {
+  return {
+    NODE_OPTIONS: `--require "${PUBLICATION_HOOK.replaceAll('\\', '/')}"`,
+    SLOT_PUBLICATION_CONTROL: dir,
+    SLOT_PUBLICATION_ACTOR: actor,
+    SLOT_PUBLICATION_CASE: scenario,
+    OMNE_TEST_SLOTS: '1',
+  }
+}
+
+const PUBLICATION_COMMAND = `const fs = require('node:fs'), path = require('node:path');
+const control = process.argv[1], actor = process.argv[2], sentinel = path.join(control, 'sentinel');
+let owned = false;
+try { fs.closeSync(fs.openSync(sentinel, 'wx')); owned = true }
+catch (error) { fs.writeFileSync(path.join(control, actor + '.collision'), error.code) }
+fs.writeFileSync(path.join(control, actor + '.started'), '');
+if (actor === 'C') {
+  const deadline = performance.now() + 10000;
+  while (!fs.existsSync(path.join(control, 'C.release'))) {
+    if (performance.now() > deadline) throw new Error('command release timed out');
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+  }
+}
+if (owned) fs.rmSync(sentinel);
+fs.writeFileSync(path.join(control, actor + '.ended'), '');`
+
+describe('登记发布与队列所有权', { timeout: 20_000 }, () => {
+  it('owner 与 slot 尚未写完时不回收：等待者只在持有者结束后运行', async () => {
+    const release = (name: string) => writeFileSync(join(dir, `${name}.continue`), '')
+    const seen = (name: string) => existsSync(join(dir, name))
+    const holder = queue(
+      [process.execPath, '-e', PUBLICATION_COMMAND, dir, 'C'],
+      publicationEnv('C'),
+    )
+    await waitFor(() => seen('C-owner-open.ready'), '持有者打开尚未写入的 owner')
+    const waiter = queue(
+      [process.execPath, '-e', PUBLICATION_COMMAND, dir, 'B'],
+      publicationEnv('B'),
+    )
+    try {
+      await waitFor(() => seen('B-owner-read.ready'), '等待者实际读取未发布的 owner')
+      await waitFor(
+        () => seen('B-queue-created.ready') || seen('B-owner-read-twice.ready'),
+        '等待者完成对空 owner 的判定',
+      )
+      release('C-owner-open')
+      await waitFor(() => seen('C-slot-open.ready'), '持有者打开尚未写入的 slot')
+      // 错误实现已抢走 queue；让它在 slot 仍为空时完成真实回收。
+      // 正确实现仍在等 queue。后续真实排队、两个命令的完成和哨兵断言共同判绿。
+      release('B-queue-created')
+      await waitFor(
+        () => seen('B-slot-removed.ready') || seen('B-owner-after-slot.ready'),
+        '等待者回收空 slot 或继续等待队列',
+      )
+      release('C-slot-open')
+      await waitFor(() => seen('C.started'), '持有者的真实命令开始')
+      release('B-slot-removed')
+      await waiter.until('排队中')
+      await waitFor(
+        () => seen('B.started') || seen('B-held-slot-read.ready'),
+        '持有者运行期间等待者实际尝试领取名额',
+      )
+      expect(seen('C.ended')).toBe(false)
+      expect(
+        seen('B.collision') ? readFileSync(join(dir, 'B.collision'), 'utf8') : undefined,
+        '私有哨兵不得冲突',
+      ).toBeUndefined()
+      expect(seen('B.started'), '持有者未释放，等待者不得开始').toBe(false)
+      expect(seen('B.collision')).toBe(false)
+      writeFileSync(join(dir, 'C.release'), '')
+      expect(await holder.exited, holder.stderr()).toBe(0)
+      expect(await waiter.exited, waiter.stderr()).toBe(0)
+      expect(seen('C.ended')).toBe(true)
+      expect(seen('B.ended')).toBe(true)
+      expect(seen('B.collision')).toBe(false)
+      expect(ledger()).toHaveLength(2)
+    } finally {
+      for (const name of ['C-owner-open', 'C-slot-open', 'B-queue-created', 'B-slot-removed'])
+        release(name)
+      writeFileSync(join(dir, 'C.release'), '')
+      await Promise.all([holder.exited, waiter.exited])
+    }
+  })
+
+  it.each(['empty', 'invalid-pid', 'partial'])('不完整 slot %s 不代表进程已死', state => {
+    const raw =
+      state === 'empty' ? '' : state === 'invalid-pid' ? 'pid=' : `pid=${deadPid()}\nside=${SIDE}\n`
+    const path = join(dir, 'locks', 'slot-1.lock')
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(path, raw)
+    const result = slot([process.execPath, '-e', 'console.log("ran")'], {
+      OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0',
+    })
+    expect(result.status, result.stderr).toBe(75)
+    expect(result.stdout).toBe('')
+    expect(readFileSync(path, 'utf8')).toBe(raw)
+  })
+
+  it.each(['empty', 'partial'])('不完整 owner %s 不授予队列所有权', async state => {
+    const raw = state === 'empty' ? '' : `version=2\npid=${deadPid()}\nside=${SIDE}\n`
+    const lock = placeQueueLock(raw)
+    const waiter = queue(
+      [process.execPath, '-e', 'console.log("ran")'],
+      publicationEnv('B', 'owner-observation'),
+    )
+    await waitFor(() => existsSync(join(dir, 'B-owner-read.ready')), '等待者读取 owner')
+    await new Promise(tick => setTimeout(tick, 250))
+    const stolen = existsSync(join(dir, 'B-queue-acquisitions'))
+    const before = existsSync(join(lock, 'owner'))
+      ? readFileSync(join(lock, 'owner'), 'utf8')
+      : undefined
+    rmSync(lock, { recursive: true, force: true })
+    expect(await waiter.exited, waiter.stderr()).toBe(0)
+    expect(stolen).toBe(false)
+    expect(before).toBe(raw)
+    expect(waiter.stdout()).toBe('ran\n')
+  })
+
+  it.each(['owner-exists', 'owner-replaced'])(
+    'owner 发布失败或丢锁 %s 时不进入队列工作，障碍释放后重新取得队列',
+    async scenario => {
+      const started = join(dir, 'started')
+      const waiter = queue(
+        [process.execPath, '-e', 'require("node:fs").writeFileSync(process.argv[1], "")', started],
+        publicationEnv('B', scenario),
+      )
+      await waitFor(() => existsSync(join(dir, 'owner-conflict.ready')), '注入真实 owner 冲突')
+      await new Promise(tick => setTimeout(tick, 250))
+      const ranBeforeRelease = existsSync(started)
+      const createdTicket = tickets().length > 0
+      rmSync(join(dir, 'locks', 'queue.lock'), { recursive: true, force: true })
+      expect(await waiter.exited, waiter.stderr()).toBe(0)
+      expect(ranBeforeRelease).toBe(false)
+      expect(createdTicket).toBe(false)
+      expect(existsSync(started)).toBe(true)
+      expect(
+        Number(readFileSync(join(dir, 'B-queue-acquisitions'), 'utf8')),
+      ).toBeGreaterThanOrEqual(2)
+    },
+  )
+
+  it('owner 发布前目录丢失时必须重新独占取得队列', async () => {
+    const result = slot(
+      [
+        process.execPath,
+        '-e',
+        'console.log(require("node:fs").readFileSync(process.argv[1], "utf8"))',
+        join(dir, 'B-queue-acquisitions'),
+      ],
+      publicationEnv('B', 'owner-missing'),
+    )
+    expect(result.status, result.stderr).toBe(0)
+    expect(existsSync(join(dir, 'owner-missing.ready'))).toBe(true)
+    expect(Number(result.stdout)).toBeGreaterThanOrEqual(2)
+    expect(ledger()).toHaveLength(1)
+  })
+})
 
 interface LedgerLine {
   readonly event: 'ran' | 'gave-up'
@@ -377,7 +536,7 @@ function legacyLaunch(): readonly [string, ...string[]] {
 /** 在后台经名额执行命令，边跑边收集输出；默认每秒看一次队列。`launcher` 可换成别的版本的脚本。 */
 function queue(
   args: readonly string[],
-  env: Record<string, string> = {},
+  env: NodeJS.ProcessEnv = {},
   launcher: readonly [string, ...string[]] = LAUNCH,
 ): Queued {
   const [file, ...rest] = launcher
@@ -472,6 +631,88 @@ function tickets(): string[] {
 }
 
 describe('with-test-slot.sh', { timeout: 30_000 }, () => {
+  it.runIf(WINDOWS)(
+    'Windows 没有 USERNAME 时仍按 OS 用户名共用旧 TEMP 名额：哨兵不重叠，账本恰好两条 ran',
+    async () => {
+      const temp = join(dir, 'windows-temp')
+      mkdirSync(temp)
+      // Windows 的 spawn 可能补回宿主环境值，入口预载后再核对实际缺失。
+      const strict = preload(
+        'strict-environment',
+        'for (const key of Object.keys(process.env)) if (key.toUpperCase() === "USERNAME") delete process.env[key]\n',
+      )
+      const sentinel = `const fs = require('node:fs');
+if (process.env.USERNAME !== undefined) throw new Error('USERNAME must be absent');
+const started = Date.now();
+fs.writeFileSync(process.argv[1], process.env.OMNE_TEST_SLOT_HELD);
+const timer = setInterval(() => {
+  if (fs.existsSync(process.argv[2])) {
+    clearInterval(timer);
+    fs.writeFileSync(process.argv[3], started + ' ' + Date.now());
+  } else if (Date.now() - started > 10_000) process.exit(90);
+}, 20);`
+      const start = (name: string) => {
+        return queue(
+          [
+            process.execPath,
+            '-e',
+            sentinel,
+            join(dir, `${name}.started`),
+            join(dir, 'release'),
+            join(dir, `${name}.interval`),
+          ],
+          {
+            ...strict,
+            USERNAME: undefined,
+            TEMP: temp,
+            TMP: temp,
+            OMNE_TEST_SLOT_DIR: '',
+            WSL_DISTRO_NAME: '',
+            OMNE_TEST_SLOTS: '1',
+            OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '15',
+          },
+          [process.execPath, SCRIPT.replace(/\.sh$/u, '.mjs')],
+        )
+      }
+      const first = start('first')
+      await waitFor(
+        () => existsSync(join(dir, 'first.started')) || first.child.exitCode !== null,
+        '第一个哨兵开始',
+      )
+      expect(first.child.exitCode, first.stderr()).toBeNull()
+      const second = start('second')
+      try {
+        await waitFor(
+          () => second.stderr().includes('排队中') || existsSync(join(dir, 'second.started')),
+          '第二个哨兵排队或错误地开始',
+        )
+        expect(existsSync(join(dir, 'second.started')), '第一个哨兵仍在运行，第二个不能开始').toBe(
+          false,
+        )
+        expect(second.stderr()).toContain('排队中')
+      } finally {
+        writeFileSync(join(dir, 'release'), '')
+        expect(await Promise.all([first.exited, second.exited])).toEqual([0, 0])
+      }
+      expect(readFileSync(join(dir, 'second.started'), 'utf8')).toBe(
+        readFileSync(join(dir, 'first.started'), 'utf8'),
+      )
+      expect(readFileSync(join(dir, 'first.started'), 'utf8')).toBe(
+        join(temp, `omne-test-slots-${userInfo().username}`, 'slot-1.lock'),
+      )
+      const [, firstEnd] = readFileSync(join(dir, 'first.interval'), 'utf8').split(' ').map(Number)
+      const [secondStart] = readFileSync(join(dir, 'second.interval'), 'utf8')
+        .split(' ')
+        .map(Number)
+      expect(secondStart).toBeGreaterThanOrEqual(firstEnd ?? Number.NaN)
+      expect(ledger()).toHaveLength(2)
+      expect(ledger()).toMatchObject([
+        { event: 'ran', exitCode: 0 },
+        { event: 'ran', exitCode: 0 },
+      ])
+    },
+  )
+
   it('有空名额：执行命令并透传退出码与输出', () => {
     const result = slot(['bash', '-c', 'echo 跑了; exit 7'])
     expect(result.stdout).toBe('跑了\n')
@@ -887,7 +1128,13 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
 
   it('旧版脚本的登记没有 side 行，按同侧处理：与新版混跑仍互斥', async () => {
     const legacy = legacyLaunch()
-    const legacyHolder = blocker('legacy', {}, legacy)
+    // 历史脚本直接由 Node 启动，Windows 上显式提供 Git Bash 的 env.exe 与 bash.exe。
+    const legacyEnv = WINDOWS
+      ? {
+          PATH: `${resolve(dirname(SYSTEM_BASH), '..', 'usr', 'bin')};${process.env['PATH'] ?? ''}`,
+        }
+      : {}
+    const legacyHolder = blocker('legacy', legacyEnv, legacy)
     await legacyHolder.started()
     expect(readFileSync(join(dir, 'locks', 'slot-1.lock'), 'utf8')).not.toContain('side=')
     const waiter = appendOrder('new')
@@ -896,7 +1143,11 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
     await legacyHolder.release()
     expect(await waiter.exited).toBe(0)
     const holder = await hold()
-    const legacyWaiter = queue(['bash', '-c', `echo legacy >> "${join(dir, 'order')}"`], {}, legacy)
+    const legacyWaiter = queue(
+      ['bash', '-c', `echo legacy >> "${join(dir, 'order')}"`],
+      legacyEnv,
+      legacy,
+    )
     await legacyWaiter.until('排队中')
     expect(order()).toEqual(['new'])
     await holder.release()
@@ -905,7 +1156,7 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
   })
 
   describe('WSL 里的默认目录', () => {
-    /** 不设 OMNE_TEST_SLOT_DIR，让脚本自己解析；Windows 上 TEMP 指到临时目录，回退也落在私有目录里。 */
+    /** 不设 OMNE_TEST_SLOT_DIR，让脚本自己解析；Windows 上 TEMP 把回退隔离在私有目录里。 */
     function resolveDefault(mode: 'ok' | 'unshared' | 'broken') {
       const root = join(dir, 'windows')
       const env = slotEnv({
@@ -917,6 +1168,7 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
         TMP: dir,
       })
       delete env['OMNE_TEST_SLOT_DIR']
+      delete env['USERNAME']
       const result = spawnSync(
         ...launch([
           process.execPath,
@@ -927,13 +1179,13 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
       )
       return { ...result, root }
     }
-    /** 回退目录：Windows 上是 TEMP（已指到临时目录）下的；POSIX 上是真实的 /tmp 下的，用例只在里面短暂领一次。 */
+    /** 回退目录：Windows 上是私有 TEMP；POSIX 上是真实的 /tmp，用例只在里面短暂领一次。 */
     const fallback = () =>
       WINDOWS
         ? join(dir, `omne-test-slots-${userInfo().username}`)
         : `/tmp/omne-test-slots-${process.getuid?.() ?? ''}`
 
-    it('有 interop：解析到 Windows 侧临时目录下的同一个目录，探针用完即删，不提示', () => {
+    it('有 interop：解析到 Windows 临时目录下的同一个目录，探针用完即删，不提示', () => {
       const result = resolveDefault('ok')
       const shared = join(result.root, 'Temp', 'omne-test-slots-tester')
       expect(result.status, result.stderr).toBe(0)

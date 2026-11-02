@@ -15,6 +15,8 @@ it('the public entry exports standalone execution, runtime construction and cred
       'deliver',
       'judgeGate',
       'judgePresence',
+      'judgeQualifiedPresence',
+      'judgeQualifiedResolution',
       'judgeResolution',
     ].sort(),
   )

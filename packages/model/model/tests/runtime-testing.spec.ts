@@ -60,6 +60,7 @@ function assembled(
       credentials: {
         present: () => ({ kind: 'unavailable' }),
         resolve: () => ({ kind: 'value', scope: 'factory', value: 'synthetic' }),
+        resolveFor: () => ({ kind: 'value', scope: 'factory', value: 'synthetic' }),
       },
       sources: [
         {

@@ -6,6 +6,9 @@ import { sessionAdoptionSourceKey } from '@omne-harness/session-cordis-contract/
 import { defineRow } from '../../row.ts'
 import { AdoptionSourcesImpl } from './sources.ts'
 
+export { createAdoptionPlanner } from './planner.ts'
+export type { AdoptionDefinition, AdoptionPlannerInput, AdoptionPlannerOptions } from './planner.ts'
+
 const plugin: Plugin.Object = {
   name: 'adoption-sources',
   inject: [definitionMappingsKey],

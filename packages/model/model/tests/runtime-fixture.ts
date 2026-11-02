@@ -57,7 +57,8 @@ export function runtimeFixture(
       maxRetainedAttempts: 100,
       credentials: {
         present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind: 'value', scope: 'factory', value: 'synthetic' }),
+        resolve: () => ({ kind: 'unavailable' }),
+        resolveFor: () => ({ kind: 'value', scope: 'factory', value: 'synthetic' }),
       },
       sources: [
         {

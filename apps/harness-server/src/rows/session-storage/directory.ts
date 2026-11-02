@@ -6,10 +6,10 @@
 import {
   closeSync,
   fsyncSync,
-  mkdirSync,
   openSync,
   readFileSync,
   renameSync,
+  statSync,
   writeSync,
 } from 'node:fs'
 import { dirname } from 'node:path'
@@ -54,20 +54,13 @@ function entryOf(tenantText: string): TenantDomain {
   }
 }
 
-function errorCode(error: unknown): string | undefined {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String(error.code)
-    : undefined
-}
-
-/** 读登记表。没有文件是首次启动，得到空表。内容不合形状、规则不同或含非租户文本时抛出。 */
-function readDirectoryFile(file: string): string[] {
+/** 只读现有登记表。缺失、内容不合形状、规则不同或含非租户文本时抛出。 */
+export function readDirectoryFile(file: string): string[] {
   let text: string
   try {
     text = readFileSync(file, 'utf8')
-  } catch (error) {
-    if (errorCode(error) === 'ENOENT') return []
-    throw error
+  } catch {
+    throw new Error('tenant domain directory file could not be read')
   }
   let json: unknown
   try {
@@ -76,18 +69,20 @@ function readDirectoryFile(file: string): string[] {
     throw new Error('tenant domain directory file is corrupt: not JSON')
   }
   const parsed = fileSchema.safeParse(json)
-  if (!parsed.success)
-    throw new Error(
-      `tenant domain directory file is corrupt: ${parsed.error.issues.map(issue => issue.message).join('; ')}`,
-    )
+  if (!parsed.success) throw new Error('tenant domain directory file is corrupt: invalid shape')
   if (parsed.data.domainRule !== DOMAIN_RULE)
-    throw new Error(
-      `tenant domain directory file was written under rule "${parsed.data.domainRule}", this assembly uses "${DOMAIN_RULE}"`,
-    )
+    throw new Error('tenant domain directory file was written under a different rule')
+  for (const tenant of parsed.data.tenants) {
+    try {
+      deriveTransactionDomain(tenant)
+    } catch {
+      throw new Error('tenant domain directory file is corrupt: an entry is not a tenant text')
+    }
+  }
   return parsed.data.tenants
 }
 
-function fsyncDirectory(directory: string): void {
+export function fsyncDirectory(directory: string): void {
   // Windows 没有目录刷盘：改名在 NTFS 上是原子的，目录项的断电耐久在这里不作承诺（已知限制）。
   if (process.platform === 'win32') return
   const fd = openSync(directory, 'r')
@@ -100,7 +95,7 @@ function fsyncDirectory(directory: string): void {
 
 /** 整体替换：临时文件、刷盘、改名、刷盘目录。 */
 function writeDirectoryFile(file: string, tenants: readonly string[]): void {
-  mkdirSync(dirname(file), { recursive: true })
+  if (!statSync(file).isFile()) throw new Error('tenant domain directory file is missing')
   const content = JSON.stringify(
     { format: DIRECTORY_FILE_FORMAT, domainRule: DOMAIN_RULE, tenants },
     null,
@@ -147,13 +142,8 @@ const unavailable = (diagnostic: string): TenantDomainResolution => ({
 
 export function openTenantDirectory(options: DirectoryOptions): TenantDirectory {
   const entries = new Map<string, TenantDomain>()
-  for (const tenantText of readDirectoryFile(options.file)) {
-    try {
-      entries.set(tenantText, entryOf(tenantText))
-    } catch {
-      throw new Error('tenant domain directory file is corrupt: an entry is not a tenant text')
-    }
-  }
+  for (const tenantText of readDirectoryFile(options.file))
+    entries.set(tenantText, entryOf(tenantText))
   const inFlight = new Map<string, Promise<TenantDomainResolution>>()
   let closing = false
 
