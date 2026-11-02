@@ -366,7 +366,7 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
   /** Waits for every settlement it pulled, then closes the lent reads (RQ-12). */
   private async close(): Promise<void> {
     this.state.closing = true
-    await Promise.allSettled([...this.pending])
+    await Promise.allSettled(this.pending)
     this.state.closed = true
   }
 
