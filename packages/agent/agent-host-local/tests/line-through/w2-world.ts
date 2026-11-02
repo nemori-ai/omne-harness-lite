@@ -40,9 +40,12 @@ import {
   type DispatchId,
   type ResultPart,
 } from '@omne-harness/model-contract'
+import { historySessionOf } from '@omne-harness/session-adapters'
 import {
   createSessionAgentJournalPlugin,
   createSessionHistorySource,
+  createSessionJournalInterpretationPlugin,
+  createSessionMessageHandoffPlugin,
 } from '@omne-harness/session-adapters/cordis'
 import { createSessionProviderPlugin } from '@omne-harness/session-cordis/cordis'
 import { createAgentContextPlugin } from '@omne-harness/agent-context/cordis'
@@ -79,7 +82,6 @@ import {
   executionOf,
   ok,
   openLineWorld,
-  type LineWorldOptions,
   type ModelAdmission,
   type PluginMount,
 } from './world.ts'
@@ -241,7 +243,6 @@ export type W2Options = Readonly<{
   earlier?: 'double' | 'session'
   /** Parts of other closures: `plugins` mount after the Agent host, `handoff: 'external'` keeps the scripted one out. */
   plugins?: readonly PluginMount[]
-  handoff?: LineWorldOptions['handoff']
 }>
 
 /** The delay the doubles use when nothing else is said: it also keeps the Agent's own commits ahead of the reply. */
@@ -257,11 +258,6 @@ export async function openW2World(options: W2Options) {
   /** The Model call identities in the order they were admitted. */
   const modelCalls: string[] = []
   const toolPushes: Promise<unknown>[] = []
-  let world: Awaited<ReturnType<typeof openLineWorld>> | undefined
-  const here = () => {
-    if (world === undefined) throw new Error('the world is not open yet')
-    return world
-  }
   let recorder: StageRecorder | null = null
 
   // --- the Session provider: the real one, its history face observed ---
@@ -275,7 +271,7 @@ export async function openW2World(options: W2Options) {
     }
   }
 
-  world = await openLineWorld({
+  const w = await openLineWorld({
     wrapStorage: storage => countingStorage(storage, counters),
     journalPlugin: combination => [
       createSessionAgentJournalPlugin({
@@ -287,7 +283,9 @@ export async function openW2World(options: W2Options) {
       }),
       combination,
     ],
-    ...(options.handoff === undefined ? {} : { handoff: options.handoff }),
+    handoff: 'external',
+    // The manual clock is moved by `until`, far faster than real time: no instance idles out.
+    hostConfig: { instanceIdleMs: 2_000_000_000 },
     ...(options.receiverRecords === undefined ? {} : { receiverRecords: options.receiverRecords }),
     hostPlugin: createAgentHostPlugin((dependencies: Dependencies, runtimeOptions) =>
       createAgentRuntime(
@@ -322,11 +320,33 @@ export async function openW2World(options: W2Options) {
     ...(earlier === 'session' ? { holder: 'external' as const } : {}),
     sessionProvider: ObservedSession,
     contextPlugin: createAgentContextPlugin({ measure: observe }),
-    plugins: ({ adopted }) => {
-      if (earlier !== 'session') return options.plugins ?? []
-      const ad04 = createSessionHistorySource({ heads: { sessionOf: headOf }, adopted })
-      return [[ad04.lowerBound], [ad04.source], ...(options.plugins ?? [])]
+    plugins: ({ adopted, combination, coordinator }) => {
+      // Real (AD-02): the Agent's publication is interpreted into the session log, woken by the
+      // Journal plugin's `agent-published` event. Real: the handoff provider and its records.
+      const ad02 = createSessionJournalInterpretationPlugin<string>({ coordinator })
+      const handoff = createSessionMessageHandoffPlugin<string>({
+        coordinator,
+        principalIdentity: principal => `principal:${principal}`,
+        provider: testAdoption('w2-handoff'),
+      })
+      const history =
+        earlier === 'session'
+          ? (() => {
+              const ad04 = createSessionHistorySource({ heads: { sessionOf: headOf }, adopted })
+              return [[ad04.lowerBound], [ad04.source]] as const
+            })()
+          : []
+      return [...history, [ad02.plugin], [handoff, combination], ...(options.plugins ?? [])]
     },
+    wrapTransactions: port => ({
+      ...port,
+      commitLog: async value => {
+        counters.ad02Commit()
+        const commit = port.commitLog
+        if (commit === undefined) throw new Error('the Session transactions offer no commitLog')
+        return commit.call(port, value)
+      },
+    }),
     wrapModelReceiver: receiver => ({
       ...receiver,
       push: async input => {
@@ -385,7 +405,6 @@ export async function openW2World(options: W2Options) {
       return pushed
     },
   })
-  const w = world
 
   // --- the Tool receiver and the Tool double ---
   const execution = async (): Promise<AgentExecutionId> => {
@@ -481,7 +500,12 @@ export async function openW2World(options: W2Options) {
       actualTerminal: null,
       effect: { kind: 'not-occurred', evidence: evidenceOf(`w2/tool/effect/${index}`) },
       source: evidenceOf(`w2/tool/result/${index}`),
-      value: { content: step.content, data: { kind: 'none' }, original: { kind: 'none' }, attachments: [] },
+      value: {
+        content: step.content,
+        data: { kind: 'none' },
+        original: { kind: 'none' },
+        attachments: [],
+      },
       account: null,
     }
     // The association is saved after the Tool answers accepted; a push before it finds no target.
@@ -509,11 +533,7 @@ export async function openW2World(options: W2Options) {
   }
 
   /** A dispatch record that reports a cost, so the account of the call can be read back. */
-  function recordCost(
-    admission: ModelAdmission,
-    dispatch: DispatchId,
-    step: ModelStep,
-  ): void {
+  function recordCost(admission: ModelAdmission, dispatch: DispatchId, step: ModelStep): void {
     const { tenant, call, operation, pusher } = admission
     pusher.controller.recordDispatch({
       tenant,
@@ -586,14 +606,44 @@ export async function openW2World(options: W2Options) {
     const end = Date.now() + ms
     while (!(await probe())) {
       if (Date.now() > end) throw new Error('the condition never held')
-      w.clock.advanceTo(new Date(Date.parse(w.clock.now()) + 2000).toISOString())
-      await sleep(20)
+      w.clock.advanceTo(new Date(Date.parse(w.clock.now()) + 1100).toISOString())
+      await sleep(100)
     }
+  }
+
+  /** The Run that Session last ended, null before the first end. */
+  async function lastTerminal(): Promise<string | null> {
+    const { run } = ok(await w.transactions.readWork(intakeAccess))
+    return run.kind === 'terminal' ? String(run.terminal.run) : null
+  }
+
+  /**
+   * One round: the input goes in through the intake face and the Run goes to its terminal, with the
+   * counters and the recorder of the scenario open around it. Returns the counts of the round.
+   */
+  async function runRound(round: number, body: string, ms = 60_000) {
+    counters.begin(round)
+    recorder?.beginRound(round, `round-${round}`)
+    try {
+      const before = await lastTerminal()
+      await accept(`in-${round}`, body)
+      // The terminal of the earlier Run stays in the snapshot until the next Run starts.
+      await until(async () => {
+        const ended = await lastTerminal()
+        return ended !== null && ended !== before
+      }, ms)
+    } finally {
+      // A round that did not end still closes its counters, so the failure names the counts.
+      counters.end()
+    }
+    return counters.rounds.at(-1)!
   }
 
   return {
     ...w,
     until,
+    lastTerminal,
+    runRound,
     createSession,
     accept,
     counters,
@@ -616,14 +666,10 @@ export async function openW2World(options: W2Options) {
   }
 }
 
-/** The session that a head evidence of the Journal names. The decoder checks nothing else. */
+/** The session that a head evidence of the Journal names (R2-D14, `historySessionOf`). */
 function headOf(evidence: DurableEvidence) {
-  // The record names the tenant and the session of the history it heads: `["<tenant>","<session>"]/...`.
-  const end = evidence.record.indexOf(']/')
-  if (end < 0) return null
-  const named: unknown = JSON.parse(evidence.record.slice(0, end + 1))
-  const [tenant, session] = Array.isArray(named) ? named : []
-  return tenant === textOf(TENANT) && session === SESSION
+  const named = historySessionOf(evidence)
+  return named !== null && named.tenant === textOf(TENANT) && named.session === SESSION
     ? { tenant: TENANT, session: sessionId(SESSION) }
     : null
 }

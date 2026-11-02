@@ -16,7 +16,9 @@ describe('J5: the admission record is read back under its original identity afte
   const awaiting = 'awaits C-ADAPTERS: createSessionMessageHandoffPlugin (handoff plugin)'
   it.todo(`J5 reads the whole record back by the original H, after SIGKILL (${awaiting})`)
   it.todo(`J5 reads the same record back by the original Ki (${awaiting})`)
-  it.todo(`J5 prepares again with the same Ki: the original H and result, no new record (${awaiting})`)
+  it.todo(
+    `J5 prepares again with the same Ki: the original H and result, no new record (${awaiting})`,
+  )
   it.todo(`J5 starts no effect through lookup: Model and Tool doubles count 0 (${awaiting})`)
   it.todo(`J5 does not read the record for another tenant, by H or by Ki (${awaiting})`)
 })

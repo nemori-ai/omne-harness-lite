@@ -16,7 +16,9 @@ describe('J6: fixed round counts', () => {
   const measure = 'awaits C-MEASURE: measure? events of Session, Context and Agent'
   it.todo(`J6 counts rounds 11-30 and 181-200 equal, round by round, on every item (${adapters})`)
   it.todo(`J6 receives two Model results and one Tool result per round (${adapters})`)
-  it.todo(`J6 keeps the receivers' records within the configured limit after 200 rounds (${adapters})`)
+  it.todo(
+    `J6 keeps the receivers' records within the configured limit after 200 rounds (${adapters})`,
+  )
   it.todo(`J6 writes counts.json for 200 rounds (${adapters})`)
   it.todo(`J6 writes round-complete and segment events to e9-events.jsonl (${measure})`)
 })

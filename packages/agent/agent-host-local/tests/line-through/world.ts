@@ -142,6 +142,7 @@ import {
 } from '@omne-harness/session-adapters/cordis'
 import type {
   GuardCommand,
+  SessionTransactionPort,
   SessionAccess,
   SessionAccessRequest,
   SessionEvidenceBridge,
@@ -402,6 +403,20 @@ export type ModelAdmission = Readonly<{
   pusher: Pusher
 }>
 
+/** What the world hands to a function of `plugins`: parts that a plugin of another closure needs. */
+export type PluginWorld = Readonly<{
+  /** The fixed request facts of the adopted-request double, for AD-04's narrow adoption source. */
+  adopted: AdoptedRequestSource<unknown>
+  /** The Session log combination the plugins' records commit under. */
+  combination: Readonly<{ combinationVersion: string; manifestDigest: string }>
+  /** The principal the work principals issue to the coordinator of one session. */
+  coordinator: (input: {
+    tenant: TenantId
+    session: SessionId
+  }) => ReturnType<WorkPrincipals['forSession']>
+}>
+type WorkPrincipals = ReturnType<typeof createMemorySessionWorkPrincipals<string>>
+
 /** The Plugin and its configuration, as `ctx.plugin` takes them. */
 export type PluginMount = readonly [plugin: unknown, config?: unknown]
 
@@ -414,7 +429,10 @@ export type LineWorldOptions = Readonly<{
   /** Wraps the shared storage, for example to count; it sees the storage after the commit log. */
   wrapStorage?: (storage: SqlStorage) => SqlStorage
   /** The `agentJournal` plugin and its configuration; default `SessionLogAgentJournalProvider`. */
-  journalPlugin?: (combination: { combinationVersion: string; manifestDigest: string }) => PluginMount
+  journalPlugin?: (combination: {
+    combinationVersion: string
+    manifestDigest: string
+  }) => PluginMount
   /** `external`: the world does not mount `agentMessageHandoff`; a plugin of `plugins` does. */
   handoff?: 'scripted' | 'external'
   /**
@@ -428,6 +446,8 @@ export type LineWorldOptions = Readonly<{
   sessionProvider?: typeof SessionProvider
   /** What happens when a Model call is admitted; default one text reply (CP3). */
   model?: (admission: ModelAdmission) => Promise<unknown>
+  /** Members of the agent-host configuration to change. */
+  hostConfig?: Partial<AgentHostConfig>
   /** The agent-host plugin; default the production plugin over `createAgentRuntime`. */
   hostPlugin?: unknown
   /** The most records the receivers keep; default 10000 (CP3). */
@@ -436,9 +456,9 @@ export type LineWorldOptions = Readonly<{
    * Plugins mounted after the Agent host and before the Session provider. A function receives the
    * fixed request facts of the world's adopted-request double, for AD-04's narrow adoption source.
    */
-  plugins?:
-    | readonly PluginMount[]
-    | ((world: Readonly<{ adopted: AdoptedRequestSource<unknown> }>) => readonly PluginMount[])
+  plugins?: readonly PluginMount[] | ((world: PluginWorld) => readonly PluginMount[])
+  /** Wraps the Session transaction port the plugins reach, for example to count `commitLog`. */
+  wrapTransactions?: (port: SessionTransactionPort<string>) => SessionTransactionPort<string>
   /** Wraps the Model receiver the pusher resolves, for example to count what it saves. */
   wrapModelReceiver?: (receiver: AgentModelReceiver<unknown>) => AgentModelReceiver<unknown>
 }>
@@ -629,7 +649,11 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       'InternalPrincipals',
     ],
     [SessionWorkPrincipalsService, workPrincipals, 'WorkPrincipals'],
-    [SessionTransactionPortService, pair.transactions, 'TransactionPort'],
+    [
+      SessionTransactionPortService,
+      options.wrapTransactions?.(pair.transactions as never) ?? pair.transactions,
+      'TransactionPort',
+    ],
     [
       SessionIdentityBridgeService,
       createScriptedSessionIdentityBridge<string>('allow'),
@@ -1015,7 +1039,10 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
 
   // The host: the agent-host plugin, the directory plugin and AD-14 over them.
   ctx.provide('agentHostPrincipal', 'agent-host-maintainer')
-  await mount(options.hostPlugin ?? agentHostPlugin, AGENT_HOST_CONFIG)
+  await mount(options.hostPlugin ?? agentHostPlugin, {
+    ...AGENT_HOST_CONFIG,
+    ...options.hostConfig,
+  })
   await mount(agentInstancesPlugin)
   await mount(
     createSessionAgentDrivePlugin<string>({
@@ -1024,7 +1051,11 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   )
   const extra =
     typeof options.plugins === 'function'
-      ? options.plugins({ adopted: fixture.sources.adopted as never })
+      ? options.plugins({
+          adopted: fixture.sources.adopted as never,
+          combination,
+          coordinator: input => workPrincipals.forSession({ actor: 'coordinator', ...input }),
+        })
       : (options.plugins ?? [])
   for (const [plugin, config] of extra) await mount(plugin, config)
 
