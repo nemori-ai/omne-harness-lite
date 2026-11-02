@@ -1,6 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
+import type { ToolAuthority } from '@omne-harness/tool-contract/provider'
 import type {
   ToolGenerations,
   ToolResidencyReader,
@@ -15,7 +16,7 @@ import { createLocalToolBindings } from '@omne-harness/tool-host-local'
 import { createIndependentToolScope } from '@omne-harness/tool'
 import { completedFinal, createMemoryToolStartAuthority } from '@omne-harness/tool-contract/testing'
 import { callId, evidence, instanceId, operationId, request } from './coordinator-values.ts'
-import { fiberedRegistry, scriptedVerifier } from './binding-values.ts'
+import { authorityFor, fiberedRegistry, scriptedVerifier } from './binding-values.ts'
 import {
   authorAccess,
   authorAuthority,
@@ -26,9 +27,16 @@ import {
   unbox,
 } from './author-values.ts'
 
-async function assembled(reader: ToolResidencyReader, badConstruction = false) {
+async function assembled(
+  reader: ToolResidencyReader,
+  badConstruction = false,
+  options: {
+    beforeResolve?: () => Promise<void>
+    authorities?: readonly ToolAuthority[]
+  } = {},
+) {
   const root = new Context()
-  const verifier = scriptedVerifier([authorAuthority])
+  const verifier = scriptedVerifier(options.authorities ?? [authorAuthority])
   class Bindings extends ToolBindingsService<string, ContentBlock, unknown> {
     readonly source = fiberedRegistry(verifier)
     readonly registry = this.source.registry
@@ -61,8 +69,9 @@ async function assembled(reader: ToolResidencyReader, badConstruction = false) {
     loaderFor: authorLoader,
     recordRejection: async () => evidence('load-rejected'),
     source: {
-      resolve: async authority =>
-        succeed({
+      resolve: async authority => {
+        await options.beforeResolve?.()
+        return succeed({
           module,
           config: {
             authority,
@@ -74,7 +83,8 @@ async function assembled(reader: ToolResidencyReader, badConstruction = false) {
             asset: { asset: authority.asset, requiredCapabilities: [] },
             services: {},
           },
-        }),
+        })
+      },
     },
   })
   class Generations extends ToolGenerationsService<string, unknown, ContentBlock> {
@@ -94,6 +104,167 @@ const ensure = (generations: ToolGenerations<string, unknown, ContentBlock>) =>
   generations.ensureLoaded({ authority: authorAuthority, access: authorAccess })
 
 describe('Cordis author generations', () => {
+  it('settles shared unloads when the host retires before a late reader rejection', async () => {
+    const entered = Promise.withResolvers<void>()
+    const page = Promise.withResolvers<Awaited<ReturnType<ToolResidencyReader['referencing']>>>()
+    let scans = 0
+    const { root, generations } = await assembled({
+      referencing: async () => {
+        scans += 1
+        entered.resolve()
+        return page.promise
+      },
+    })
+    try {
+      const { key } = unbox(await ensure(generations))
+      const first = generations.unload({ key })
+      await entered.promise
+      const second = generations.unload({ key })
+      await root.fiber.dispose()
+      expect(await first).toHaveProperty('failure.kind', 'unavailable')
+      expect(await second).toHaveProperty('failure.kind', 'unavailable')
+      page.reject(new Error('late reader failure'))
+      expect(await generations.unload({ key })).toHaveProperty('failure.kind', 'unavailable')
+      expect(scans).toBe(1)
+    } finally {
+      page.resolve(succeed({ items: [], next: null }))
+      await root.fiber.dispose()
+    }
+  })
+  it('shares an unload scan even when the reader reenters unload', async () => {
+    const entered = Promise.withResolvers<void>()
+    const page = Promise.withResolvers<Awaited<ReturnType<ToolResidencyReader['referencing']>>>()
+    let scans = 0
+    let reenter: () => void = () => {}
+    const { root, registry, generations } = await assembled({
+      referencing: async () => {
+        scans += 1
+        if (scans > 1) return fail({ kind: 'unavailable', diagnostic: 'second scan failed' })
+        reenter()
+        entered.resolve()
+        return page.promise
+      },
+    })
+    try {
+      const { key } = unbox(await ensure(generations))
+      let second: ReturnType<typeof generations.unload> | undefined
+      reenter = () => {
+        second = generations.unload({ key })
+      }
+      const first = generations.unload({ key })
+      await entered.promise
+      expect(scans).toBe(1)
+      expect(unbox(registry.snapshot({ scope: 'system' }))[0]?.state).toBe('draining')
+      page.resolve(succeed({ items: [], next: null }))
+      expect(await first).toEqual(succeed({ state: 'released' }))
+      expect(await second).toEqual(succeed({ state: 'released' }))
+      expect(scans).toBe(1)
+      expect(unbox(registry.snapshot({ scope: 'system' }))).toHaveLength(0)
+    } finally {
+      page.resolve(succeed({ items: [], next: null }))
+      await root.fiber.dispose()
+    }
+  })
+  it.each(['draining', 'released'] as const)(
+    'rechecks the registry after source resolution when unload has %s',
+    async state => {
+      const entered = Promise.withResolvers<void>()
+      const resume = Promise.withResolvers<void>()
+      let delayed = false
+      const { root, registry, generations } = await assembled(emptyReader, false, {
+        beforeResolve: async () => {
+          if (!delayed) return
+          entered.resolve()
+          await resume.promise
+        },
+      })
+      try {
+        const { key } = unbox(await ensure(generations))
+        const pin =
+          state === 'draining' ? unbox(registry.pin(key, callId('delayed-source'))) : undefined
+        delayed = true
+        const loading = ensure(generations)
+        await entered.promise
+        expect(await generations.unload({ key })).toEqual(succeed({ state }))
+        resume.resolve()
+        expect(await loading).toEqual(
+          state === 'draining' ? fail({ kind: 'draining' }) : succeed({ key, state: 'loaded' }),
+        )
+        expect(unbox(registry.snapshot({ scope: 'system' }))).toHaveLength(1)
+        expect(unbox(registry.snapshot({ scope: 'system' }))[0]?.state).toBe(
+          state === 'draining' ? 'draining' : 'live',
+        )
+        pin?.release()
+      } finally {
+        resume.resolve()
+        await root.fiber.dispose()
+      }
+    },
+  )
+  it.each(['failure', 'throw'] as const)('retries after a shared residency %s', async failure => {
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    let scans = 0
+    const { root, registry, generations } = await assembled({
+      referencing: async () => {
+        scans += 1
+        if (scans > 1) return succeed({ items: [], next: null })
+        entered.resolve()
+        await resume.promise
+        if (failure === 'throw') throw new Error('residency failed')
+        return fail({ kind: 'unavailable', diagnostic: 'residency failed' })
+      },
+    })
+    try {
+      const { key } = unbox(await ensure(generations))
+      const first = generations.unload({ key })
+      await entered.promise
+      const second = generations.unload({ key })
+      resume.resolve()
+      expect(await first).toEqual(succeed({ state: 'retained' }))
+      expect(await second).toEqual(succeed({ state: 'retained' }))
+      expect(scans).toBe(1)
+      expect(unbox(registry.snapshot({ scope: 'system' }))[0]?.state).toBe('live')
+      expect(await generations.unload({ key })).toEqual(succeed({ state: 'released' }))
+      expect(scans).toBe(2)
+    } finally {
+      resume.resolve()
+      await root.fiber.dispose()
+    }
+  })
+  it('loads and unloads another key while the first scan is suspended', async () => {
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const other = authorityFor({ kind: 'official' }, 'read_file', 'holding-other', '2')
+    const { root, generations } = await assembled(
+      {
+        referencing: async ({ key }) => {
+          if (key.asset.adoption.revision === authorAuthority.asset.adoption.revision) {
+            entered.resolve()
+            await resume.promise
+          }
+          return succeed({ items: [], next: null })
+        },
+      },
+      false,
+      { authorities: [authorAuthority, other] },
+    )
+    try {
+      const first = unbox(await ensure(generations))
+      const pending = generations.unload({ key: first.key })
+      await entered.promise
+      const second = unbox(
+        await generations.ensureLoaded({ authority: other, access: authorAccess }),
+      )
+      expect(second.state).toBe('loaded')
+      expect(await generations.unload({ key: second.key })).toEqual(succeed({ state: 'released' }))
+      resume.resolve()
+      expect(await pending).toEqual(succeed({ state: 'released' }))
+    } finally {
+      resume.resolve()
+      await root.fiber.dispose()
+    }
+  })
   it('does not treat an unreadable registry as an empty registry', async () => {
     const { root, registry } = await assembled(emptyReader)
     let resolutions = 0

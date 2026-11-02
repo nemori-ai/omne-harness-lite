@@ -68,6 +68,7 @@ export function createLocalToolGenerations<P, E, B extends ContentBlock>(
   })
   const handles = new Map<string, Awaited<ReturnType<Context['plugin']>>>()
   const flights = new Map<string, ReturnType<ToolGenerations<P, E, B>['ensureLoaded']>>()
+  const unloadFlights = new Map<string, ReturnType<ToolGenerations<P, E, B>['unload']>>()
   const keyOf = (key: ToolBindingKey) => canonicalDigest(key)
   const registryFailure = () =>
     fail({ kind: 'unavailable' as const, diagnostic: 'binding registry is unreadable' })
@@ -77,6 +78,73 @@ export function createLocalToolGenerations<P, E, B extends ContentBlock>(
     if ('scope' in access) return verified
     const admission = input.verifier.admits(access, verified.ok.layer)
     return 'failure' in admission ? admission : verified
+  }
+  const unloadKey: ToolGenerations<P, E, B>['unload'] = async ({ key }) => {
+    if (!live()) return unavailable()
+    const before = input.registry.snapshot({ scope: 'system' })
+    if ('failure' in before) return registryFailure()
+    if (!before.ok.some(row => sameBindingKey(row.key, key))) return fail({ kind: 'unknown-key' })
+    const handle =
+      handles.get(keyOf(key)) ??
+      [...input.host.registry.values()]
+        .flatMap(runtime => [...runtime.fibers])
+        .find(
+          fiber =>
+            String(fiber.uid) === before.ok.find(row => sameBindingKey(row.key, key))?.fiber &&
+            fiber.parent === input.host,
+        )
+    if (handle === undefined)
+      return fail({ kind: 'unavailable', diagnostic: 'author belongs to another host' })
+    input.registry.reopen(key)
+    const closed = input.registry.close(key)
+    if ('failure' in closed) return closed
+    const retain = () => {
+      input.registry.reopen(key)
+      return succeed({ state: 'retained' as const })
+    }
+    const cursors = new Set<string>()
+    let after: string | null = null
+    do {
+      let page
+      try {
+        page = await input.residency.referencing({ scope: 'system', key, after })
+      } catch {
+        return live() ? retain() : unavailable()
+      }
+      if (!live()) return unavailable()
+      if ('failure' in page) return retain()
+      const snapshot = input.registry.snapshot({ scope: 'system' })
+      if ('failure' in snapshot) return retain()
+      for (const holder of page.ok.items) {
+        if (!tenantCodec.encode(holder.tenant).ok) return retain()
+        const serving = snapshot.ok.some(
+          row =>
+            !sameBindingKey(row.key, key) &&
+            row.state === 'live' &&
+            sameShape(row.shape, holder.shape) &&
+            (row.key.layer.kind === 'official' ||
+              (row.key.layer.kind === 'organization' &&
+                row.key.layer.organization.text === holder.tenant.organization.text) ||
+              sameSourceLayer(row.key.layer, { kind: 'tenant', tenant: holder.tenant })),
+        )
+        if (!serving) return retain()
+      }
+      after = page.ok.next
+      if (after !== null) {
+        if (cursors.has(after)) return retain()
+        cursors.add(after)
+      }
+    } while (after !== null)
+    const drain = input.registry.drain(key)
+    if ('failure' in drain) return drain
+    if (drain.ok.pins !== '0') return succeed({ state: 'draining' })
+    try {
+      await handle.dispose()
+    } catch {
+      return fail({ kind: 'unavailable', diagnostic: 'author disposal is incomplete' })
+    }
+    handles.delete(keyOf(key))
+    return succeed({ state: 'released' })
   }
   const service: ToolGenerations<P, E, B> = {
     loaderFor: authority => ({
@@ -106,6 +174,16 @@ export function createLocalToolGenerations<P, E, B extends ContentBlock>(
           if ('failure' in resolved) return resolved
           if (!sameBindingKey(resolved.ok.config.authority, key))
             return fail({ kind: 'invalid', reason: 'module source changed the authority' })
+          const rechecked = check(request.authority, request.access)
+          if ('failure' in rechecked) return rechecked
+          if (!sameBindingKey(rechecked.ok, key))
+            return fail({ kind: 'invalid', reason: 'authority changed during source resolution' })
+          const refreshed = input.registry.snapshot({ scope: 'system' })
+          if ('failure' in refreshed) return registryFailure()
+          const current = refreshed.ok.find(row => sameBindingKey(row.key, key))
+          if (current?.state === 'draining') return fail({ kind: 'draining' })
+          if (unloadFlights.has(id))
+            return fail({ kind: 'unavailable', diagnostic: 'author unload is in progress' })
           if (current !== undefined)
             return current.digest === resolved.ok.module.executor.digest
               ? succeed({ key, state: 'recognized' })
@@ -163,72 +241,21 @@ export function createLocalToolGenerations<P, E, B extends ContentBlock>(
         flights.delete(id)
       }
     },
-    async unload({ key }) {
+    async unload(request) {
       if (!live()) return unavailable()
-      const before = input.registry.snapshot({ scope: 'system' })
-      if ('failure' in before) return registryFailure()
-      if (!before.ok.some(row => sameBindingKey(row.key, key))) return fail({ kind: 'unknown-key' })
-      const handle =
-        handles.get(keyOf(key)) ??
-        [...input.host.registry.values()]
-          .flatMap(runtime => [...runtime.fibers])
-          .find(
-            fiber =>
-              String(fiber.uid) === before.ok.find(row => sameBindingKey(row.key, key))?.fiber &&
-              fiber.parent === input.host,
-          )
-      if (handle === undefined)
-        return fail({ kind: 'unavailable', diagnostic: 'author belongs to another host' })
-      input.registry.reopen(key)
-      const closed = input.registry.close(key)
-      if ('failure' in closed) return closed
-      const retain = () => {
-        input.registry.reopen(key)
-        return succeed({ state: 'retained' as const })
-      }
-      const cursors = new Set<string>()
-      let after: string | null = null
-      do {
-        let page
-        try {
-          page = await input.residency.referencing({ scope: 'system', key, after })
-        } catch {
-          return live() ? retain() : unavailable()
-        }
-        if (!live()) return unavailable()
-        if ('failure' in page) return retain()
-        const snapshot = input.registry.snapshot({ scope: 'system' })
-        if ('failure' in snapshot) return retain()
-        for (const holder of page.ok.items) {
-          if (!tenantCodec.encode(holder.tenant).ok) return retain()
-          const serving = snapshot.ok.some(
-            row =>
-              !sameBindingKey(row.key, key) &&
-              row.state === 'live' &&
-              sameShape(row.shape, holder.shape) &&
-              (row.key.layer.kind === 'official' ||
-                (row.key.layer.kind === 'organization' &&
-                  row.key.layer.organization.text === holder.tenant.organization.text) ||
-                sameSourceLayer(row.key.layer, { kind: 'tenant', tenant: holder.tenant })),
-          )
-          if (!serving) return retain()
-        }
-        after = page.ok.next
-        if (after !== null) {
-          if (cursors.has(after)) return retain()
-          cursors.add(after)
-        }
-      } while (after !== null)
-      const drain = input.registry.drain(key)
-      if ('failure' in drain) return drain
-      if (drain.ok.pins !== '0') return succeed({ state: 'draining' })
+      const id = keyOf(request.key)
+      const existing = unloadFlights.get(id)
+      if (existing !== undefined) return existing
+      const flight: ReturnType<typeof service.unload> = Promise.race([
+        Promise.resolve().then(() => unloadKey(request)),
+        stopped,
+      ])
+      unloadFlights.set(id, flight)
       try {
-        await handle.dispose()
-      } catch {
-        return fail({ kind: 'unavailable', diagnostic: 'author disposal is incomplete' })
+        return await flight
+      } finally {
+        if (unloadFlights.get(id) === flight) unloadFlights.delete(id)
       }
-      handles.delete(keyOf(key))
-      return succeed({ state: 'released' })
     },
     async sweep() {
       return fail({
