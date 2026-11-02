@@ -77,6 +77,7 @@ import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { createLocalToolReceiver, createToolReceiverState } from '../../src/index.ts'
 import { createAgentHostLocalPlugin, createAgentHostPlugin } from '../../src/host-plugin.ts'
 import {
+  type LineWorldOptions,
   COORDINATOR,
   SESSION,
   intakeAccess,
@@ -241,6 +242,8 @@ export type W2Options = Readonly<{
   receiverRecords?: number
   /** A storage directory to use and leave in place, for a scenario that reopens it. */
   root?: string
+  /** Members of the storage configuration to change. */
+  storageLimits?: LineWorldOptions['storageLimits']
   /** What the Agent does after a reply; default finish when it evaluates complete. */
   progression?: 'evaluate-completion' | 'continue'
   /** Called with each `agentMessageHandoff.prepare` input of the Agent and its answer. */
@@ -253,6 +256,26 @@ export type W2Options = Readonly<{
   /** Parts of other closures: `plugins` mount after the Agent host, `handoff: 'external'` keeps the scripted one out. */
   plugins?: readonly PluginMount[]
 }>
+
+/**
+ * The storage limits of a run of many rounds. The Agent records of a session are published whole on
+ * each write (session-adapters SPEC K-8), so one commit and one read grow with every round; the limits
+ * of CP3 are sized for one round and are reached at the fourth (`command_limit`, `maxJsonMembers`).
+ * The growth is measured (`maxCommitBytes`), not hidden.
+ */
+const LONG_RUN_LIMITS = {
+  maxJsonMembers: 200_000_000,
+  maxCommandBytes: 1 << 30,
+  maxRequestBytes: 1 << 30,
+  globalInFlightWriteBytes: 2 ** 31,
+  maxResponseBytes: 1 << 28,
+  maxOperationResponseBytes: 1 << 28,
+  globalWriteResponseBytes: 2 ** 31,
+  maxReadResultBytes: 1 << 28,
+  globalReadResultBytes: 2 ** 31,
+  groupMaxInputBytes: 1 << 30,
+  groupMaxResponseReservationBytes: 1 << 30,
+} as const
 
 /** The delay the doubles use when nothing else is said: it also keeps the Agent's own commits ahead of the reply. */
 const DEFAULT_DELAY_MS = 300
@@ -276,6 +299,8 @@ export async function openW2World(options: W2Options) {
   }
   /** The Model call identities in the order they were admitted. */
   const modelCalls: string[] = []
+  /** The failures the received-entry commit of the receivers answered, for a scenario to name. */
+  const receivedFailures: unknown[] = []
   const toolPushes: Promise<unknown>[] = []
   let recorder: StageRecorder | null = null
 
@@ -319,6 +344,7 @@ export async function openW2World(options: W2Options) {
     ...(options.receiverRecords === undefined ? {} : { receiverRecords: options.receiverRecords }),
     ...(options.root === undefined ? {} : { root: options.root }),
     ...(options.progression === undefined ? {} : { progression: options.progression }),
+    storageLimits: { ...LONG_RUN_LIMITS, ...options.storageLimits },
     // Real: the production factory, with the products' `measure` observer and the Tool request
     // source of R2-D36 (a double: a fixed full request of a fixed schema).
     hostPlugin:
@@ -369,6 +395,23 @@ export async function openW2World(options: W2Options) {
         return answer
       },
     }),
+    wrapProvider: provider => {
+      const received = (provider as { received?: { commit: (input: never) => Promise<unknown> } })
+        .received
+      if (received === undefined) return provider
+      return {
+        ...provider,
+        received: {
+          ...received,
+          commit: async (input: never) => {
+            const answer = await received.commit(input)
+            if (typeof answer === 'object' && answer !== null && 'failure' in answer)
+              receivedFailures.push(answer)
+            return answer
+          },
+        },
+      }
+    },
     wrapModelReceiver: receiver => ({
       ...receiver,
       push: async input => {
@@ -748,6 +791,7 @@ export async function openW2World(options: W2Options) {
     replies,
     toolRequests,
     modelCalls,
+    receivedFailures,
     toolPushes,
     toolReceiver,
     toolState,

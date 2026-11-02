@@ -137,15 +137,26 @@ describe('J4: stopCall interrupts one call and leaves the rest alone', () => {
     const [call] = await w.modelReferences()
     if (call === undefined) throw new Error('no Model call')
     const execution = await w.execution()
-    const stop = () =>
+    const stop = (name = 'j4a-stop') =>
       w.intake.work.stopCall({
         ...intakeAccess,
-        operation: operationId('j4a-stop'),
+        operation: operationId(name),
         producer: { kind: 'model', call },
       })
 
-    const receipt = ok(await stop())
-    // Session found the call and requested the interrupt; `not-found` would mean it does not know it.
+    // Session binds the call as a producer when AD-02 has interpreted the Agent's event; a stop sent
+    // before that answers `not-found` under its own operation. The scenario sends the stop again,
+    // under a new operation, until Session knows the call (at most 5 seconds).
+    let attempt = 0
+    let first = ok(await stop(`j4a-stop-${attempt}`))
+    const end = Date.now() + 5000
+    while (first.answer.kind === 'not-found' && Date.now() < end) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+      attempt += 1
+      first = ok(await stop(`j4a-stop-${attempt}`))
+    }
+    const receipt = first
+    // Session found the call and requested the interrupt.
     expect(receipt.answer).toMatchObject({ kind: 'requested' })
     // 1. The call is interrupted: the Agent holds the control and the producer confirmed it.
     const interrupt = async () =>
@@ -164,7 +175,7 @@ describe('J4: stopCall interrupts one call and leaves the rest alone', () => {
     await w.until(() => w.modelCalls.length >= 2, 10_000)
     expect(ok(await w.transactions.readWork(intakeAccess)).run.kind).toBe('active')
     // 3. The same operation again is recognised: the original receipt.
-    expect(await stop()).toEqual({ ok: receipt })
+    expect(await stop(`j4a-stop-${attempt}`)).toEqual({ ok: receipt })
   })
 
   it('J4 answers unsupported for a Tool target and leaves the Run alone', async () => {

@@ -23,6 +23,10 @@ export type RoundCount = Readonly<{
   storageCommitTotal: number
   /** Commits the storage answered with anything but `committed`: retries of a conflict. */
   storageRollbacks: number
+  /** The most commands one storage commit of the round carried. */
+  maxCommandsPerCommit: number
+  /** The size in bytes of the largest commit request of the round, as JSON text. */
+  maxCommitBytes: number
   storageReads: Readonly<Record<string, number>>
   storageReadRows: Readonly<Record<string, number>>
   /** `commitLog` calls of AD-02 that Session accepted. */
@@ -42,6 +46,8 @@ type Open = {
   storageCommits: Record<string, number>
   storageCommitTotal: number
   storageRollbacks: number
+  maxCommandsPerCommit: number
+  maxCommitBytes: number
   storageReads: Record<string, number>
   storageReadRows: Record<string, number>
   ad02Commits: number | null
@@ -72,6 +78,8 @@ export type RoundCounters = ReturnType<typeof createRoundCounters>
 /** The per-round counters. `begin` opens a round, `end` closes it and keeps its counts. */
 export function createRoundCounters() {
   const rounds: RoundCount[] = []
+  /** The reads the storage refused, with the handler and the answer: a long run names its limit here. */
+  const refusedReads: { handler: string; answer: unknown }[] = []
   let open: Open | null = null
   // The rows the history face has handed out in all earlier rounds, the rows of the projection of
   // this round, and the rows of this round that were handed out before.
@@ -86,6 +94,8 @@ export function createRoundCounters() {
     storageCommits: {},
     storageCommitTotal: 0,
     storageRollbacks: 0,
+    maxCommandsPerCommit: 0,
+    maxCommitBytes: 0,
     storageReads: {},
     storageReadRows: {},
     ad02Commits: null,
@@ -101,6 +111,7 @@ export function createRoundCounters() {
 
   const counters = {
     rounds,
+    refusedReads,
     begin(round: number): void {
       if (open !== null) throw new Error(`round ${open.round} is still open`)
       open = fresh(round)
@@ -116,8 +127,15 @@ export function createRoundCounters() {
       return count
     },
     /** One storage commit: counted once for each participant that has a command in it. */
-    commit(participants: readonly string[], committed: boolean): void {
+    commit(
+      participants: readonly string[],
+      committed: boolean,
+      commands = participants.length,
+      bytes = 0,
+    ): void {
       inRound(current => {
+        current.maxCommandsPerCommit = Math.max(current.maxCommandsPerCommit, commands)
+        current.maxCommitBytes = Math.max(current.maxCommitBytes, bytes)
         if (!committed) {
           current.storageRollbacks += 1
           return
@@ -201,11 +219,15 @@ export function countingStorage(storage: SqlStorage, counters: RoundCounters): S
       counters.commit(
         request.commands.map(command => command.participant),
         result.kind === 'committed',
+        request.commands.length,
+        JSON.stringify(request).length,
       )
       return result
     },
     read: async (request, options) => {
       const result = await storage.read(request, options)
+      if (result.kind !== 'read')
+        counters.refusedReads.push({ handler: request.handler, answer: result })
       counters.read(request.handler, rowsOf(result))
       return result
     },

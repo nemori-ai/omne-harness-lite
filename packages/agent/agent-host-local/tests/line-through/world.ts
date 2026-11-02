@@ -469,6 +469,8 @@ export type LineWorldOptions = Readonly<{
   sessionProvider?: typeof SessionProvider
   /** What happens when a Model call is admitted; default one text reply (CP3). */
   model?: (admission: ModelAdmission) => Promise<unknown>
+  /** Members of the storage configuration to change, for example the limits a long run reaches. */
+  storageLimits?: Partial<SqliteStorageConfig>
   /** What the Agent does after a reply: finish when it evaluates complete (default), or ask again. */
   progression?: 'evaluate-completion' | 'continue'
   /** A storage directory to use and to leave in place, for a scenario that reopens it. */
@@ -486,6 +488,8 @@ export type LineWorldOptions = Readonly<{
   plugins?: readonly PluginMount[] | ((world: PluginWorld) => readonly PluginMount[])
   /** Wraps the Session transaction port the plugins reach, for example to count `commitLog`. */
   wrapTransactions?: (port: SessionTransactionPort<string>) => SessionTransactionPort<string>
+  /** Wraps the received-entry provider of the session-log Journal the Model receiver commits through. */
+  wrapProvider?: <T extends object>(provider: T) => T
   /** Wraps the Model receiver the pusher resolves, for example to count what it saves. */
   wrapModelReceiver?: (receiver: AgentModelReceiver<unknown>) => AgentModelReceiver<unknown>
 }>
@@ -559,7 +563,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   // The real storage, one transaction domain per tenant, the Session log combination registered.
   const { catalog, digest } = catalogOf()
   const created = await createSqliteStorage({
-    config: storageConfig(join(root, 'storage')),
+    config: { ...storageConfig(join(root, 'storage')), ...options.storageLimits },
     materials: catalog,
     closeLeases: { admit: name => ({ name }), release: () => undefined },
   })
@@ -1002,7 +1006,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   }
   const reception = createLocalModelReceiver<unknown>(
     {
-      provider: sessionLog,
+      provider: options.wrapProvider?.(sessionLog) ?? sessionLog,
       access: access.port,
       // The query of the original consumption binding has no product provider yet: the double
       // reads the Journal's public `load` of the execution the Run started.

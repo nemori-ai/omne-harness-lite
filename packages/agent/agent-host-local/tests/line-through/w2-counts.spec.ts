@@ -47,7 +47,8 @@ async function run(shape: Shape, rounds: number, w: W2World) {
   const events = w.startRecording()
   await w.createSession(`j6-${shape}`)
   try {
-    for (let round = 1; round <= rounds; round += 1) await w.runRound(round, 'one fixed question')
+    for (let round = 1; round <= rounds; round += 1)
+      await w.runRound(round, 'one fixed question', 20_000)
   } finally {
     writeFileSync(new URL(`counts-${shape}.json`, OUT), JSON.stringify(w.counters.rounds, null, 1))
     writeFileSync(new URL(`e9-events-${shape}.jsonl`, OUT), events.lines())
