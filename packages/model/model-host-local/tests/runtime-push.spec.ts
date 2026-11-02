@@ -13,6 +13,7 @@ import {
   accountCodec,
   organizationCodec,
   tenant,
+  tenantEquals,
   type TenantId,
 } from '@omne-harness/legal-identity'
 import {
@@ -35,6 +36,7 @@ import {
   type ModelSavedReceipt,
 } from '@omne-harness/model-contract'
 import {
+  MODEL_SEND,
   decodeCredentialId,
   type CallAccountReport,
   type ModelCommands,
@@ -301,6 +303,14 @@ function world(input: Readonly<{ limits?: ResultPushLimits; ledger?: ResultPushL
       credentials: {
         present: () => ({ kind: 'unavailable' }),
         resolve: () => ({ kind: 'value', scope: 'factory', value: 'synthetic-credential' }),
+        resolveFor: input => {
+          expect(input.id).toBe(unbox(decodeCredentialId('push-test-query')))
+          expect(input.purpose).toBe(MODEL_SEND)
+          expect(input.official).toBe(true)
+          expect(input.access.principal).toBe(PRINCIPAL)
+          expect(tenantEquals(input.access.tenant, TENANT)).toBe(true)
+          return { kind: 'value', scope: 'factory', value: 'synthetic-credential' }
+        },
       },
       sources: [
         {

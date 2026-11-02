@@ -29,10 +29,14 @@ export {
   MAINTENANCE_GRANTS,
   MAINTENANCE_GRANT_REVISION,
   TOOL_RESIDENCY_COMPONENT,
+  TENANT_DOMAIN_SCANNER_COMPONENT,
   releaseMaintenanceGrants,
   type GrantHolder,
   type ReleaseGrant,
 } from './grants.ts'
+export { createToolAccessGuard } from './tool-access.ts'
+export { createActionAdmission, type AdmissionReader } from './action-admission.ts'
+export { authorizationConfig, type ActionRules } from './action-rules.ts'
 export {
   COLUMNS,
   auditPolicy,

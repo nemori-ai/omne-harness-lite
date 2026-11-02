@@ -9,7 +9,8 @@ import {
   type ModelFailure,
   type Revision,
 } from '@omne-harness/model-contract'
-import { decodeReadId, type ActorRef } from '@omne-harness/model-contract/provider'
+import { decodeReadId, type ActorRef, type SendDemand } from '@omne-harness/model-contract/provider'
+import type { MaterializationReceipt } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 
 export function take<T, F>(result: Outcome<T, F>): T {
@@ -49,6 +50,43 @@ function canonicalObject(value: object): string {
 }
 export function digest(value: unknown): string {
   return createHash('sha256').update(canonical(value)).digest('hex')
+}
+export type MaterializationDescriptionInput = Pick<
+  SendDemand<unknown>,
+  'tenant' | 'call' | 'execution' | 'dispatch' | 'supplier' | 'request' | 'consumer' | 'initiator'
+> &
+  Readonly<{ receipt: MaterializationReceipt }>
+export function describeModelMaterialization(
+  input: MaterializationDescriptionInput,
+): Readonly<{ requestDigest: string; receiptDigest: string; source: DurableEvidence }> {
+  const tenant = tenantKey(input.tenant)
+  if (typeof tenant !== 'string') throw new TypeError('invalid materialization tenant')
+  const executionTenant = tenantKey(input.execution.tenant)
+  if (typeof executionTenant !== 'string') throw new TypeError('invalid execution tenant')
+  const source = {
+    owner: 'model',
+    record: JSON.stringify([tenant, input.call, input.dispatch]),
+    revision: '1',
+    digest: digest({
+      tenant,
+      call: input.call,
+      execution: { ...input.execution, tenant: executionTenant },
+      dispatch: input.dispatch,
+      supplier: input.supplier,
+      request: input.request,
+      consumer: input.consumer,
+      initiator: input.initiator,
+      receipt: input.receipt,
+    }),
+  }
+  const checked = checkedEvidence({ ok: source })
+  if ('failure' in checked)
+    throw new RangeError('materialization evidence exceeds encoded byte limit')
+  return {
+    requestDigest: digest(input.request),
+    receiptDigest: digest(input.receipt),
+    source: checked.ok,
+  }
 }
 export function revision(text = '0') {
   if (BigInt(text) > BigInt(Number.MAX_SAFE_INTEGER))

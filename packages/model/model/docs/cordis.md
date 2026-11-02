@@ -61,7 +61,7 @@ ModelProfiles、ModelProfileMaintenance 与 ModelMessageConversion 可以独立�
 | ModelInstancesLocalPlugin | `[modelPublicationAuthorityKey]` | 构造唯一 ModelInstancesService；失去目录只影响路由取得 |
 | ModelConvertersLocalPlugin | `[modelConverterAuthorityKey]` | 构造唯一 ModelConvertersService；独立于运行时/结果查询 |
 | ModelRuntimeLocalPlugin | `[modelCommandsKey, modelClockKey, modelHostAuthorityKey]` | 构造本地host、runtime、显式bind；提供ModelInstanceHostService和ModelRuntimeService的子类 |
-| ModelSendStagePlugin | `[modelSendBoundaryKey]` | 单个发送阶段取得能力；退出后旧dispatch按原协议处理 |
+| ModelSendStagePlugin | `[modelCredentialKey, modelCommandsKey]` | 提供 `modelSendBoundary`；协调器由装配经闭包交入，退出后旧 dispatch 按原协议处理 |
 | ModelRetryStagePlugin | `[modelRetryPolicyKey]` | 单个重试位置取得策略；失去时按policy-unavailable收场，不卸载普通查询 |
 | ModelDirectoryStagePlugin | `[modelInstancesKey]` | connect与受信发布阶段取得原目录；其缺席不抹除持久调用 |
 | ModelProfilesLocalPlugin | 无静态 inject | 构造唯一 ModelProfilesService（键 `modelProfiles`），不读 settings 与 `modelCredential`；插件撤除则服务消失，仍被持有的旧句柄返回 `unavailable`；已实现 |

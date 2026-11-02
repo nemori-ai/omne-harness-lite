@@ -12,6 +12,14 @@
 
 ## 结果与不变量
 
+### 兼容期资格凭据路径
+
+`LocalCustodian` 与 `LocalCredentialPlugin` 实现同步 `presentFor`、`resolveFor`。旧 `present`、`resolve` 保留原行为。新方法只从 `access.tenant` 取租户，复用合法租户、用途、绑定寿命与工厂选择的判定。同一凭据身份由其他租户持有且本租户没有对应绑定时，两个新方法都返回 `denied`；只有官方档案且该租户没有任何绑定时，解析才可返回工厂值。撤销或不可读的绑定不回退工厂。文件不可用返回 `unavailable`，句柄关闭后返回 `denied`。
+
+只有受信发送边界注入凭据服务，`access` 已在受理点 C 核验。提供者不核主体铸造来源，也不核 `official` 的来源，不读取 `SendFace`。新方法不增加管理能力，保管库与诊断仍只在插件闭包中。
+
+发送阶段的私有端口转发服务已有的资格方法。服务缺少某个新方法时，端口保留该方法缺席，由发送边界报告 `qualified-path-missing`，不调用旧 `resolve`。撤除先切断凭据端口，再等待发送路径关闭；已捕获的新方法在关闭等待期间及之后返回 `unavailable`。这不撤回已发出的外部请求。
+
 ### 保管库文件
 
 保管库文件包含工厂秘密和绑定列表。绑定寿命是 `active`、`revoked` 或 `unreadable`。
@@ -113,23 +121,29 @@
 
 ### 发送资源
 
-`createPiSendResources({ network, families, routes, limits })` 返回生产 `SendResources`。
+`createPiSendResources({ network, families, routes, limits, materialization })` 返回生产 `SendResources` 与只读的 `materialization` 证据端口。精确形状归 [send-resources.ts](src/send-resources.ts) 与 [materialization-proof.ts](src/materialization-proof.ts)。
 
-- 构造时，发送资源用一个空凭据槽建一个探针传输，检查配置。传输拒绝的配置（路由不是纯 `https:` 地址、限额越界、家族贡献或网络资源不合格）让构造抛出 `RangeError`。探针不发送，在 `close` 中关闭。
+- 构造时，发送资源用一个空凭据槽建一个探针传输，检查配置。传输拒绝的配置（路由不是纯 `https:` 地址、限额越界、家族贡献或网络资源不合格）让构造抛出 `RangeError`。探针不发送，构造时即开始关闭，发送资源的 `close` 等待其结果。
 - 每次 `acquire` 建一个新的 pi 传输。这个传输的凭据槽是本资源的私有闭包，其他资源读不到它。网络资源与家族贡献由所有资源共享。
-- 资源的 `transport.prepare` 委托给本资源的 pi 传输，并记下它交出的每个物化传输。
+- `acquire` 先核当前 execution，再按显式的 `materialization.maxRecords` 预留名额，之后才创建真实传输。每资源捕获原 demand，`prepare` 核原 request、supplier 与空 resent，重复准备复用原 Promise。
+- 同一 prepared 的并发 `materialize` 共享一个 Promise。底层真实成功产出处才登记完整非秘密绑定与回执；重复成功返回原对象，重复失败认回原失败，不再次物化。释放期间迟到的成功产物不登记，并关闭该产物。
 - `startWithCredential(materialized, value, signal)` 先核对 `materialized` 出自本资源。不是本资源交出的物化传输让调用抛出 `SendResourceDefect`，`reason` 为 `foreign-materialization`；资源释放后调用抛出 `SendResourceDefect`，`reason` 为 `resource-released`。这两种情形都不填槽，也不发送。
 - 核对通过后，资源填入凭据，同步调用 `materialized.start(signal)`，在 `finally` 中清空凭据槽。`start` 正常返回或抛出时，槽都在 `startWithCredential` 返回前清空。pi 传输在 `start` 的同步调用内读槽一次，所以凭据只在这次调用期间存在。
 - `SendResourceDefect` 的消息只含原因。凭据值不得出现在事实、诊断、失败、异常消息或日志中。
-- `release()` 关闭本资源的 pi 传输，并等待关闭完成。重复调用返回同一结果，传输只关闭一次。
+- `release()` 开始时先撤销该资源的 reader 可读性并归还预留，再关闭 pi 传输并等待完成。重复调用返回同一结果，传输只关闭一次。底层关闭失败也不能继续证明已撤销的来源。
 - `close()` 拒绝之后的 `acquire`，后者返回 `{ kind: 'unavailable', dependency: 'pi-send-resources', diagnostic: 'send-resources-closed' }`。`close()` 释放仍打开的资源，关闭探针，等待它们完成；第一个失败在全部完成后抛出。重复调用返回同一结果。`close()` 不关闭网络资源。
+
+reader 只有 `prove`，没有任意 register 或 sign 操作。它每次先核当前 execution，再查真实产出记录，调用 model 的 `describeModelMaterialization` 比较原 tenant/call/execution/dispatch、请求、供应商、consumer、initiator 与完整 receipt 的描述摘要。真实回执经过两次值克隆仍可验证，只有相同形状而没有真实记录不能验证。真实记录缺失或撤除为 `model-materialization/source-unavailable`，记录存在但绑定改变为 `invalid(receipt, binding)`。同一键的其他活资源不能覆盖来源。reader 不授 start 权，start 仍要求本资源原物化对象。
+
+记录没有 TTL，不因提交未知而遗忘。sender 的物化或开窗提交未知时保留原资源和记录，不重新物化或 start。这里的先撤 reader 顺序属于 `resource.release`；上层 sender 仍沿原协议先关闭 materialized、prepared，再释放 resource，不把它改称全局资源排空顺序。
 
 ### 本地 Model 装配
 
-`assembleLocalModel(config)` 组合本地发送路径与计量准备资源，返回 `{ send, preparation, close }`。
+`assembleLocalModel(config)` 组合本地发送路径与计量准备资源，返回 `{ send, preparation, materialization, close }`。返回的 reader 就是所建发送资源的 reader。
 
-- 配置项是 `credentials`（`CredentialPort`，如本地保管库）、`commands`（`ModelCommands`）、`coordinator`（`SendCoordinator`）、`families`（组合后的 `PiFamilyContributions`）、`network`（`NetworkConfig`，含代理与 TLS）、`routes`、`transportLimits`、`maxRetainedAttempts` 与 `preparation`。`preparation` 有两项：`maxCitedCalls`（一个 lineage 最多引用的不同调用数）与 `supplierOf`（model 的 `SupplierPort`，为档案供应商补上凭据引用）。
+- 配置项是 `credentials`（`CredentialPort`，如本地保管库）、`commands`（`ModelCommands`）、`coordinator`（`SendCoordinator`）、`families`（组合后的 `PiFamilyContributions`）、`network`（`NetworkConfig`，含代理与 TLS）、`routes`、`transportLimits`、`maxRetainedAttempts`、`materialization` 与 `preparation`。`preparation` 有两项：`maxCitedCalls`（一个 lineage 最多引用的不同调用数）与 `supplierOf`（model 的 `SupplierPort`，为档案供应商补上凭据引用）。
 - 本包不写任何路由地址、代理、限额或余量的默认值。OpenRouter 的地址必须由配置的 `routes` 给出。计量余量是家族配置的一部分，由调用方组合家族时给出。
+- `materialization` 必须显式提供当前 execution 核验函数与正安全整数 `maxRecords`，且 `maxRecords >= maxRetainedAttempts`。不满足时在创建网络前抛出 `RangeError`，不使用夹具数值作为生产默认值。
 - 装配从 `network` 创建网络资源，用它们与 `families`、`routes`、`transportLimits` 建发送资源，再用 `commands`、`coordinator`、`credentials`、发送资源与 `maxRetainedAttempts` 建 model 的发送边界 `send`。
 - 装配用 model 的 `createModelPreparationResources` 建 `preparation`：绑定来源是 `families`，调用事实经同一个 `commands` 的 `dispatches` 读取，`supplierOf` 与 `maxCitedCalls` 取自 `preparation` 配置。租约的取得、读取、判决与释放归 [model 的 SPEC](../model/SPEC.md)。
 - 网络、传输、发送边界或准备资源拒绝配置时（`preparation` 不是对象也算），装配抛出 `RangeError`，并关闭它已创建的网络资源。
@@ -138,7 +152,7 @@
 
 ### 宿主插件
 
-四个插件从 `./cordis` 导出。名称、注入键与责任以 [model 的装配设计](../model/docs/cordis.md#单机提供者的插件划分)为准，本包实现它。
+宿主与目录插件从 `./cordis` 导出。名称、注入键与责任以 [model 的装配设计](../model/docs/cordis.md#单机提供者的插件划分)为准，本包实现它。
 
 - `ModelInstancesLocalPlugin` 与 `ModelConvertersLocalPlugin` 分别继承契约包的目录服务，静态注入 `modelPublicationAuthority` 与 `modelConverterAuthority`。权威缺席时 fiber 停在等待，不发布服务。权威换代或撤除时 Cordis 连同目录一起卸载再装载，后继目录从空开始，旧目录登记的 handle 不由它服务。非解析器租户的 `connect` 返回 `invalid`，字段为 `tenant`。
 - 宿主部分由 `createModelRuntimeLocalPlugin(options)` 造出的类装载，静态注入 `modelCommands`、`modelClock`、`modelHostAuthority`，发布 `modelInstanceHost`；提供者带 `runtime` 时同时发布 `modelRuntime`，见[运行门面与结果推送](#运行门面与结果推送)。配置是 `concurrencyLimit`、`wakeCapacity`、`scanBatchSize` 与 `scanIntervalMs`，四项必需，正整数（`scanIntervalMs` 为非负整数），其余取值让加载失败，不取默认值。`scanBatchSize` 与 `scanIntervalMs` 由恢复扫描消费，宿主本身不用。
@@ -148,6 +162,24 @@
 - `publish` 只接受当前绑定的代次：同一发布认回原回执，旧代次返回 `stale-instance` 且不夺回路由，较晚代次取代旧路由。`withdraw` 只撤除登记匹配的发布。`directory.connect` 先经装配给的 `qualifyObservation` 核当前观察资格，失败（含 `denied`）原样返回，命中路由不当作授权。
 - 有序关闭是一个流程：先 quiesce（`provider.quiesce`，拒绝或抛出只报告），再停派发、发停止信号并等待每个 drive 交还，最后撤发布服务的贡献（Cordis 撤除子插件）。未派发的唤醒明确留给后继，计数写进诊断，不报告为完成。shutdown 不抛出：它之后的撤除若被跳过，服务就撤不掉。
 - 发布服务的子插件在 bind 之后、同一个 `try` 里创建。启动窗口里 fiber 被卸载、子插件创建失败时，已绑定的宿主关闭，此后 `schedule` 返回 `unavailable`、诊断 `host-closed`，服务不发布。
+
+### 首次执行与公共观察接线
+
+采用 [model 首次记录与确认源](../model/SPEC.md#首次执行记录与私有通道)时，入口运行级组合者持有真实 initialRun，并从同一次 records 激活取得 initial 与 observation 配对。入口只开一个 channel，宿主和发送阶段的 `executionChannel` getter 须返回这同一个对象。两边每激活期各捕获一次，getter 后来变化不迁移旧闭包。宿主的 provider、runtime 命令包装和发送阶段分别使用该 channel 的 commands；发送阶段也使用该 channel 的 coordinator 和 qualifyExecution。声明 channel 而取得失败时装载失败，不回落公共命令。未配置 getter 的旧路径保留。
+
+宿主的 `observation: { commands, source }` 必须来自同次 records 激活。装载时在包装运行命令之前，将 commands 与 `Reflect.get(ctx.modelCommands, symbols.original)` 比较。这里采用官方 Cordis 4.0.4 的公开原体标记，不能直接比较每次产生的代理。错 pair 在取得观察租约之前失败，不发布观察服务；配对对象、channel 和 source 留在闭包里。
+
+source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 attach 真实 Publication，再更新路由。withdraw 只有 tenant/call、registration、instance、generation 全匹配才 retire 和删除，旧 withdraw 不影响后继。尚无 snapshot 时旧 handle 路由可以存在，而公共 current 仍为空。
+
+`createModelStreamLocalPlugin({ source })` 以两个薄 Service 子类转发该租约的 current 与 observe。宿主把它们和 runtime 放进同一个 `model-runtime-local-contribution` 子 fiber，在 bind 成功后发布现有 `modelStreamReferences` 与 `modelStreamObservation` 键，不新增键。宿主关闭开始即同步关闭本代观察租约，退役引用并阻止挂起读取披露内容，再等 drive 与推送收尾。关闭宿主租约不永久关闭 records 所有的 source。
+
+发送阶段成功装配后通过 `installMaterialization(reader)` 把真实 reader 交给入口证据适配器，返回的撤除函数由发送阶段持有。安装失败撤回凭据端口并关闭已建路径。退出先撤凭据和 reader，再等待 local.close；reader 撤除失败只报告安全诊断，仍继续关闭发送路径。
+
+配置 `executionChannel` 时必须同时给宿主 `releaseExecution: () => Promise<void>`，缺失则装载失败。正常退出先关闭观察、quiesce、停止派发并等待 drive 交还、停止结果推送，然后 await 此回调。入口回调须先 dispose 自己捕获的真实发送子 fiber，等发送资源关闭，再关闭 channel，期间保持 commands 父 fiber 存活。HOST 在 finally 幂等关闭捕获的 channel，回调失败只输出安全诊断，不宣称资源已成功释放。该回调的等待不设隐式超时。
+
+这是入口运行级组合保证，单个宿主 fiber 或 Cordis 的多个独立 effect 不自动保证跨 fiber 次序。异常依赖撤除与入口失效时的立即撤权仍由入口绑定拥有者承担。正文释放不撤 channel，以便原绑定继续处理晚账。`createConfiguredModelRuntimeLocalPlugin` 原样转发 channel、releaseExecution 和 observation 对象选项。
+
+本成员没有新增生产 ActorRef 映射、SQL 接管表或重启恢复。完整撤权、E7 与跨进程保证仍未闭合。真实签发来源缺失时保持 unavailable，AD-05 之前不 ACK。发行接线与跨装配行的相等约束归应用拥有者，成员支持不表示发行已经安装。验证入口为 [plugins-host.spec.ts](tests/plugins-host.spec.ts)、[send-stage.spec.ts](tests/send-stage.spec.ts)与[materialization-proof.spec.ts](tests/materialization-proof.spec.ts)。
 
 ### 运行门面与结果推送
 
@@ -162,7 +194,7 @@
 - **晚到账目。** 晚到账目经插件交给提供者的同一个命令端口进入。账目被接受之前先占一个名额：租户待交付账目达到 `maxPendingAccountsPerTenant`，或全部租户达到 `maxPendingAccounts` 时，`recordLateFact` 不提交，返回 `unavailable`（dependency `model-result-push`，诊断 `late-account-capacity`），并报告一条警告。来源仍持有它的报告，有名额后用同一操作重交。同一操作重交不另占名额。接受的结果是 `commit-unknown` 或 `unavailable` 时，账目可能已经提交，名额不归还。接受后推送立即读回这次提交的修订并冻结一个账目交付：键是调用引用、发出与修订，载荷是冻结的 consumer 与账目。同一调用的晚到账目一个接一个接受，每个修订一个交付，不合并。结果冻结时已在快照里的修订不另推。账目交付只在结果 saved 之后推送，正文释放后照常推送，名额在交付 saved 后归还。账目的未知项保持未知，不写零。
 - **登记。** 登记规则由契约包的登记表实现：两个存活 fiber 争同一 owner 时后来者 `FAILED`；旧登记属于已卸载或正在卸载的 fiber 时被直接取代，所以插件因别的依赖重跑后重新登记不失败。本插件在每次登记成功后唤醒该 owner 的未完成交付。
 - **推送状态的存放。** 推送记录放在装配给出的 `ResultPushLedger` 里，记录里有冻结交付、回执、ACK 与清理状态和待交付账目。账本同一时刻只有一个写者：`claim` 拒绝第二个。`createMemoryResultPushLedger` 是进程内的实现。耐久账本从这个端口接入，本包尚未提供。
-- **生命周期。** 撤除时的次序是：quiesce，停派发并等待 drive 交还，停推送（此后 `recordLateFact` 对账目返回 `unavailable`，dependency `model-result-push`，诊断 `result-push-stopped`，来源向后继重交；中止在途推送并等待它们结束；等正在接纳的晚到账目冻结完；未接收的账目写入账本；释放账本），最后撤发布服务的子插件。未完成的推送、ACK、清理与晚到账目留在账本里。拿同一账本装载的后继插件用原键与原载荷继续。启动窗口里插件被卸载时，已绑定的宿主关闭，服务不发布。
+- **生命周期。** 撤除时先关闭本代公共观察，再 quiesce、停派发并等待 drive 交还、停推送（此后 `recordLateFact` 对账目返回 `unavailable`，dependency `model-result-push`，诊断 `result-push-stopped`，来源向后继重交；中止在途推送并等待它们结束；等正在接纳的晚到账目冻结完；未接收的账目写入账本；释放账本）。采用首次通道时随后等待入口 releaseExecution，最后撤发布服务的子插件。未完成的推送、ACK、清理与晚到账目留在账本里。拿同一账本装载的后继插件用原键与原载荷继续。启动窗口里插件被卸载时，已绑定的宿主关闭，服务不发布。
 
 已知限制：
 
@@ -227,8 +259,8 @@
 
 - 构造时，插件用 `assembleLocalModel` 建发送路径。`credentials` 是插件自己的端口，`commands` 是注入的 `modelCommands`。装配拒绝配置时构造抛出 `RangeError`，什么都没有打开，服务不发布。
 - 服务面只有 `send`，委托给发送路径的发送边界。发送规则全归 model 与[发送资源](#发送资源)：围栏、尝试保留、凭据解析与凭据槽。本插件不另写发送规则。凭据槽仍只在 `start` 期间有值，经插件发送时也一样。
-- 凭据端口只转发 `present` 与 `resolve` 给注入的服务，不缓存任何值。
-- 退出是一个流程：先撤回凭据端口，此后端口返回 `unavailable`，插件不再持有服务。再关闭发送路径：释放发送资源，关闭网络并等待在途交换停止。流程不抛出，关闭失败只记一条不含原因的警告。卸载等它结束。
+- 凭据端口转发 `present`、`resolve` 及注入服务已有的可选 `presentFor`、`resolveFor`，不缓存任何值。新方法缺席时保持缺席，不回退旧方法。
+- 退出是一个流程：先撤回凭据端口，此后端口返回 `unavailable`，插件不再持有服务。再撤已安装的物化 reader，然后关闭发送路径：释放发送资源，关闭网络并等待在途交换停止。reader 撤除失败仍继续关闭。流程不抛出，失败只记不含原因的安全警告。卸载等它结束。
 - 退出时在两步之间的发送不启动传输，也不解析凭据：它以 `not-started` 收场，失败是 `unavailable`，`dependency` 为 `model-credential`，诊断为 `credential-unavailable`。
 - 退出后，仍持有旧服务引用的调用方继续得到原发送边界的答复。没有开始过的 dispatch 得到 `not-started`，`dependency` 为 `pi-send-resources`，诊断为 `send-resources-closed`，此时不取得资源，不解析凭据。
 - 卸载不收回已经发出的请求。网络关闭让在途交换停止，该交换的终止仍由传输按自己的映射给出。接替的插件建一个新的发送边界，它对已发出的 dispatch 的答复归 model 的发送边界。本包没有测试这两种情形。
