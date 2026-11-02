@@ -164,11 +164,7 @@ describe('E4 recovery routing', () => {
     'C2',
     'C3',
     'C4',
-    'A0',
-    'A1',
-    'A2',
     'A3',
-    'T0',
     'T1',
     'T2',
     'T3',
@@ -187,6 +183,15 @@ describe('E4 recovery routing', () => {
       card: expect.stringContaining('#502'),
     })
   })
+
+  it.each(['A0', 'A1', 'A2', 'T0'])(
+    'resumes the implemented tool node %s without resetting its checkpoint',
+    position => {
+      const at = checkpoint(position)
+      expect(ok(route(at))).toBe(position)
+      expect(at.position).toBe(position)
+    },
+  )
 
   it('NA-E4-2: a saved extension passage takes precedence over the E3 position', () => {
     expect(failure(route(checkpoint('E3', [afterTerminalPassage('extension')])))).toMatchObject({

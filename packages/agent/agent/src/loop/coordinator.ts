@@ -30,6 +30,8 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   AcceptedInput,
+  Action,
+  ActionBatch,
   Access,
   AgentCheckpoint,
   AgentEvaluator,
@@ -48,6 +50,7 @@ import type {
   ExecutionState,
   JournalCommitState,
   Failure,
+  FinishAuthorization,
   FailureCandidate,
   FinishCandidateContent,
   HandoffChange,
@@ -102,6 +105,13 @@ import {
 import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
 import { consumeModelResult, type ModelOutcome } from './model-result.ts'
 import { readModelDeliveryMaterial } from '../receiving-material.ts'
+import {
+  advanceModelControl,
+  cancellationOf,
+  controlOperation,
+  establishCancellation,
+} from '../control.ts'
+import { actionOf, admitToolAction, preserveToolIntent } from './tools.ts'
 
 /** The ports the coordinator uses. None of them depends on the content block type. */
 export type LoopPorts<P> = Pick<
@@ -115,6 +125,9 @@ export type LoopPorts<P> = Pick<
   | 'handoff'
   | 'clock'
   | 'materials'
+  | 'tools'
+  | 'toolRequests'
+  | 'admission'
 >
 
 export type ExecutionEntry<P> = Readonly<{
@@ -130,6 +143,7 @@ export type ExecutionEntry<P> = Readonly<{
   grant: DurableEvidence | null
   /** E9, or E1 finding an advanced execution: give the slot back and return to idle. */
   idle(): void
+  toolConcurrency?: number
   /**
    * Receives the report of a cold read of the reply admission facts (D5 5.1, 治疗). Optional; the
    * runtime assembly gives none yet, so the report then goes nowhere.
@@ -335,7 +349,8 @@ export function recoveryRoute(
           ? '#502 stage 2'
           : '#502 stage 5'
     if (
-      /^[ACTX]/u.test(node) ||
+      /^[CX]/u.test(node) ||
+      (/^[AT]/u.test(node) && !['A0', 'A1', 'A2', 'T0'].includes(node)) ||
       !LOOP_NODES.includes(node as LoopNode) ||
       ['E0', 'E1', 'E2', 'U0', 'Q1', 'R0', 'W0', 'F0', 'H0', 'M2', 'Q5'].includes(node)
     )
@@ -422,6 +437,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   let finishWait = false
   // Whether the next F3 issues the obligations again, after a tryFinish answered `changed`.
   let reissueObligations = false
+  let cancellationChanged = false
   let waits: readonly Waiting[] = []
   let waitingAt: LoopNode = 'E1'
   let yieldedWait = false
@@ -436,6 +452,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // to this execution and this coordinator, is lost with the process and is saved only by the
   // ordinary commits that carry it.
   let readPrefix: ReplyAdmissionPrefix | null = null
+  const uncertainToolActions = new Set<ActionId>()
   // The read position the last operation was sent with: a retry of the same operation sends the
   // same semantic input (SPEC:261, 102), never a newer prefix.
   let lastSent: Readonly<{ operation: AgentOperationId; read: ReplyAdmissionRead }> | null = null
@@ -491,6 +508,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         const latest = await load()
         if ('failure' in latest) return latest
         if (advancementOf(latest.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
+        if (cancellationOf(latest.ok) !== undefined) return fail({ kind: 'stale-advance' })
         if (canonical(latest.ok.checkpoint) === canonical(base)) {
           revision = latest.ok.revision
           return commit(node, to, write)
@@ -523,7 +541,22 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if (handler === undefined) return fail({ node: at, failure: defect(`${at} has no handler`) })
       try {
         const ran = await handler()
-        if ('failure' in ran) return fail({ node: at, failure: ran.failure })
+        if ('failure' in ran) {
+          if (ran.failure.kind === 'stale-advance') {
+            const latest = await load()
+            if (
+              'ok' in latest &&
+              latest.ok.state.kind !== 'ended' &&
+              cancellationOf(latest.ok) !== undefined
+            ) {
+              checkpoint = latest.ok.checkpoint
+              revision = latest.ok.revision
+              node = 'F0'
+              continue
+            }
+          }
+          return fail({ node: at, failure: ran.failure })
+        }
         const to = successor(at, ran.ok.on)
         if (to === undefined)
           return fail({ node: at, failure: defect(`${at} has no transition on ${ran.ok.on}`) })
@@ -553,6 +586,19 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
               if ('failure' in refreshed) return fail({ node: at, failure: refreshed.failure })
               node = at
               continue
+            }
+            if (committed.failure.kind === 'stale-advance') {
+              const latest = await load()
+              if (
+                'ok' in latest &&
+                latest.ok.state.kind !== 'ended' &&
+                cancellationOf(latest.ok) !== undefined
+              ) {
+                checkpoint = latest.ok.checkpoint
+                revision = latest.ok.revision
+                node = 'F0'
+                continue
+              }
             }
             return fail({ node: at, failure: committed.failure })
           }
@@ -1004,6 +1050,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if (read.ok.state.kind !== 'ended')
         state = waking && read.ok.state.kind === 'waiting' ? resumeState : read.ok.state
       waking = false
+      if (cancellationOf(read.ok) !== undefined) return step('cancel', null)
       return step('allowed', null)
     },
     /** E2: the facts of the decision, read only. */
@@ -1026,6 +1073,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           : { ...loaded.ok, unresolved: [...unresolved, pendingCommit.operation] }
       // Reconcile every original slot before loading business facts or saving another revision.
       if (snapshot.unresolved.length > 0) return step('reconciled', null)
+      if (cancellationOf(snapshot) !== undefined) return step('reconciled', null)
       const read = await readFacts(snapshot)
       if ('failure' in read)
         return read.failure.kind === 'unavailable' ? waitFor('E2', read.failure, readFacts) : read
@@ -1039,6 +1087,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const advancement = advancementOf(latest)
       if (advancement.kind === 'ended') return step('resume-F4', null)
       if (advancement.kind === 'superseded') return step('resume-E9', null)
+      if (cancellationOf(latest) !== undefined) return step('cancel', null)
       const route =
         excludedNode === null
           ? recoveryRoute({ ...latest, checkpoint: current })
@@ -1163,6 +1212,28 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       revision = snapshot.revision
       if (snapshot.state.kind !== 'ended') state = committedState(snapshot.state)
       if (advancementOf(snapshot).kind !== 'current') return step('reconciled', null)
+      if (cancellationOf(snapshot) !== undefined) {
+        if (cancellationChanged) {
+          cancellationChanged = false
+          finishWait = true
+          waitingAt = 'F1'
+          waits = [{ kind: 'dependency', owner: 'agentJournal', position: 'F1' }]
+          recheckDependency = null
+          return step('wait', null)
+        }
+        if (reissueObligations) {
+          finishRefused = false
+          return step('reconciled', null)
+        }
+        if (finishRefused) {
+          finishWait = true
+          waitingAt = 'F3'
+          waits = [{ kind: 'dependency', owner: 'agentJournal', position: 'F3' }]
+          recheckDependency = null
+          return step('wait', null)
+        }
+        return step('reconciled', null)
+      }
       const read = await readFacts(snapshot)
       if ('failure' in read) {
         if (read.failure.kind !== 'unavailable') return read
@@ -1314,15 +1385,16 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const result = required(required(iteration, 'iteration').result, 'model result')
       if (result.kind !== 'reply') return fail(defect('I4 without a complete reply'))
       const reply = result.reply
-      if (reply.blocks.some(block => block.kind === 'tool_call'))
-        return fail(notYet('I4', 'a reply with tool calls', '#502 stage 2'))
-      return step('empty', {
+      const actions = reply.blocks
+        .filter(block => block.kind === 'tool_call')
+        .map((block, index) => actionOf(required(iteration, 'iteration').step, block, index))
+      return step(actions.length === 0 ? 'empty' : 'tools', {
         checkpoint: {
           batch: {
             id: mainBatch(required(iteration, 'iteration').step),
             source: result.produced,
-            actions: [],
-            barrier: { kind: 'closed', judging: [], asked: [] },
+            actions,
+            barrier: { kind: 'closed', judging: actions.map(action => action.id), asked: [] },
             slots: [],
             batchPass: null,
           },
@@ -1354,6 +1426,172 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       return evaluated.ok.on === 'wait'
         ? step('wait', null)
         : step(evaluated.ok.on, { checkpoint: { batch: null }, state: { kind: 'advancing' } })
+    },
+  } satisfies Partial<Record<LoopNode, Handler>>
+
+  function replaceAction(batch: ActionBatch, action: Action): ActionBatch {
+    return { ...batch, actions: batch.actions.map(item => (item.id === action.id ? action : item)) }
+  }
+
+  const runTools = {
+    async A3() {
+      return fail(notYet('A3', 'denied action slots', '#502 stage 2'))
+    },
+    async A0() {
+      const batch = required(required(checkpoint, 'checkpoint').batch, 'action batch')
+      const actions: Action[] = []
+      for (const action of batch.actions) {
+        const admitted = await admitToolAction(
+          ports,
+          access,
+          execution,
+          required(authority, 'authority'),
+          action,
+        )
+        if ('failure' in admitted) return admitted
+        actions.push(admitted.ok)
+      }
+      return step('judged', { checkpoint: { batch: { ...batch, actions } } })
+    },
+    async A1() {
+      const batch = required(required(checkpoint, 'checkpoint').batch, 'action batch')
+      if (batch.actions.some(action => action.judgment.kind === 'pending'))
+        return step('judge', null)
+      const approved = batch.actions
+        .filter(action => action.judgment.kind === 'allowed')
+        .map(action => action.id)
+      const [first, ...rest] = approved
+      const evidence = agentEvidence(`${execution}/${batch.id}/barrier`, batch.actions)
+      if (first === undefined)
+        return step('denied', {
+          checkpoint: { batch: { ...batch, barrier: { kind: 'all-denied', evidence } } },
+        })
+      const actions = batch.actions.map(action =>
+        action.judgment.kind === 'allowed'
+          ? {
+              ...action,
+              judgment: {
+                ...action.judgment,
+                request: { ...action.judgment.request, batchDecision: evidence },
+              },
+            }
+          : action,
+      )
+      return step('open', {
+        checkpoint: {
+          batch: {
+            ...batch,
+            actions,
+            barrier: { kind: 'open', evidence, approved: [first, ...rest] },
+          },
+        },
+      })
+    },
+    async A2() {
+      if (entry.toolConcurrency === undefined)
+        return fail({
+          kind: 'unavailable' as const,
+          owner: '@omne-harness/agent',
+          diagnostic: 'toolConcurrency is unavailable',
+        })
+      let batch = required(required(checkpoint, 'checkpoint').batch, 'action batch')
+      let progressed = false
+      for (const original of batch.actions) {
+        if (original.judgment.kind !== 'allowed') continue
+        const existing = batch.slots.find(slot => slot.action === original.id)
+        if (existing !== undefined) continue
+        const inFlight = batch.actions.filter(
+          action =>
+            action.call !== null &&
+            !batch.slots.some(slot => slot.action === action.id && slot.kind !== 'dispatched'),
+        ).length
+        if (original.call === null && inFlight >= entry.toolConcurrency) break
+        let action = original
+        let pending = action.call
+        const fresh = pending === null
+        if (pending === null) {
+          const stored = await preserveToolIntent(ports, access, execution, action)
+          if ('failure' in stored) return stored
+          pending = stored.ok
+          action = { ...action, call: pending }
+          batch = replaceAction(batch, action)
+          const saved = await commit('A2', 'A2', {
+            checkpoint: { batch, calls: [...required(checkpoint, 'checkpoint').calls, pending] },
+            effects: [{ action: action.id, pending, authority: required(authority, 'authority') }],
+          })
+          if ('failure' in saved) return saved
+        }
+        const eligible = await currentAttachment()
+        if ('failure' in eligible) return eligible
+        const result = await ports.tools.invoke({ ...access, request: original.judgment.request })
+        if (result.kind === 'association-unknown') {
+          uncertainToolActions.add(action.id)
+          continue
+        }
+        if (result.kind === 'rejected') {
+          if (!fresh || uncertainToolActions.has(action.id)) continue
+          batch = {
+            ...batch,
+            slots: [
+              ...batch.slots,
+              {
+                kind: 'denied',
+                action: action.id,
+                evidence: agentEvidence(`${execution}/${action.id}/rejected`, result.failure),
+                each: null,
+                candidate: null,
+                handoff: null,
+              },
+            ],
+          }
+        } else {
+          if (result.kind === 'commit-unknown') uncertainToolActions.add(action.id)
+          const associated: PendingCall = {
+            ...pending,
+            kind: 'tool',
+            purpose: 'action',
+            association: 'associated',
+            reference: result.reference,
+          }
+          action = { ...action, call: associated }
+          batch = replaceAction(batch, action)
+          batch = {
+            ...batch,
+            slots: [
+              ...batch.slots,
+              { kind: 'dispatched', action: action.id, each: null, candidate: null, handoff: null },
+            ],
+          }
+          const saved = await commit('A2', 'A2', {
+            checkpoint: {
+              batch,
+              calls: required(checkpoint, 'checkpoint').calls.map(call =>
+                call.action === action.id ? associated : call,
+              ),
+            },
+          })
+          if ('failure' in saved) return saved
+          progressed = true
+          continue
+        }
+        const saved = await commit('A2', 'A2', { checkpoint: { batch } })
+        if ('failure' in saved) return saved
+        progressed = true
+      }
+      if (progressed) return step('dispatched')
+      waitingAt = 'A2'
+      waits = batch.actions.flatMap(action =>
+        action.call === null ? [] : [{ kind: 'producer' as const, pending: action.call }],
+      )
+      return step('wait', null)
+    },
+    async T0() {
+      const batch = required(required(checkpoint, 'checkpoint').batch, 'action batch')
+      waitingAt = 'T0'
+      waits = batch.actions.flatMap(action =>
+        action.call === null ? [] : [{ kind: 'producer' as const, pending: action.call }],
+      )
+      return step('wait', null)
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
@@ -1722,6 +1960,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     const read = await load()
     if ('failure' in read) return read
     if (advancementOf(read.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
+    if (cancellationOf(read.ok) !== undefined) return fail({ kind: 'stale-advance' })
     revision = read.ok.revision
     checkpoint = read.ok.checkpoint
     return succeed(undefined)
@@ -1731,8 +1970,97 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // settle: F1, F2, F3, F4 (F0 is stage 5; extension evaluation is stage 3)
 
   const settle = {
+    async F0() {
+      const read = await load()
+      if ('failure' in read) return read
+      if (read.ok.state.kind === 'ended') return step('terminal', null)
+      const control = cancellationOf(read.ok)
+      if (control === undefined) return fail(defect('F0 without effective cancellation'))
+      const revoked = await establishCancellation(ports.journal, access, execution, control)
+      if ('failure' in revoked) return revoked
+      for (const pending of read.ok.checkpoint.calls) {
+        if (pending.kind !== 'model') continue
+        const call = invocationParts(pending.reference, access.tenant).call
+        const operation = controlOperation(execution, control.operation, `interrupt/${call}`)
+        const accepted = await ports.journal.control({
+          ...access,
+          execution,
+          operation,
+          command: { kind: 'interrupt-model', call, reason: control.stages.accepted.source },
+        })
+        if ('failure' in accepted) return accepted
+        const latest = await load()
+        if ('failure' in latest) return latest
+        const child = latest.ok.controls.find(item => item.operation === operation)
+        if (child?.command.kind === 'interrupt-model') {
+          const advanced = await advanceModelControl(ports, access, execution, {
+            ...child,
+            command: child.command,
+          })
+          if ('failure' in advanced) return advanced
+        }
+      }
+      return step('cancelled', null)
+    },
     /** F1: the candidate of the evaluator is fixed with the current input boundary. */
     async F1() {
+      const latest = await load()
+      if ('failure' in latest) return latest
+      const cancel = cancellationOf(latest.ok)
+      if (cancel !== undefined) {
+        const readInstallation = ports.journal.readCancellationInstallation
+        if (readInstallation === undefined)
+          return fail({
+            kind: 'unavailable',
+            owner: 'agentJournal',
+            diagnostic: 'cancellation installation read is unavailable',
+          })
+        const installation = await readInstallation({ ...access, execution })
+        if ('failure' in installation) return installation
+        const current = latest.ok.settlement.candidate
+        const route = latest.ok.settlement.route
+        if (current?.conclusion.kind === 'cancelled' && route?.kind === 'cancellation')
+          return step('fixed', null)
+        const authorization = {
+          kind: 'cancel' as const,
+          control: cancel.operation,
+          source: cancel.stages.accepted.source,
+        }
+        const settled = await ports.journal.commitSettlement(
+          current?.conclusion.kind === 'cancelled' && route?.kind === 'author'
+            ? {
+                ...access,
+                execution,
+                operation: journalOperation('F1', 'cancel-migrate', latest.ok.revision),
+                kind: 'migrate-cancellation',
+                authorization,
+                expected: latest.ok.revision,
+                installation: installation.ok,
+                candidate: current.candidate,
+                originalRoute: route.record,
+                priorExcluded: null,
+              }
+            : {
+                ...access,
+                execution,
+                operation: journalOperation('F1', 'cancel-establish', latest.ok.revision),
+                kind: 'establish-cancellation',
+                authorization,
+                expected: latest.ok.revision,
+                installation: installation.ok,
+                predecessor: current?.candidate ?? null,
+              },
+        )
+        if ('failure' in settled) {
+          if (settled.failure.kind === 'changed') cancellationChanged = true
+          if (settled.failure.kind === 'commit-unknown')
+            pendingCommit = { operation: settled.failure.operation, node: 'F1' }
+          return settled.failure.kind === 'changed' || settled.failure.kind === 'commit-unknown'
+            ? step('reconcile', null)
+            : settled
+        }
+        return step('fixed', null)
+      }
       const at = required(checkpoint, 'checkpoint')
       const preparation = at.requestPreparation
       // Derive only from the committed preparation. An unknown I1 commit therefore follows the
@@ -1748,8 +2076,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       // Keep the same candidate, including its timestamp, if an F1 commit is excluded.
       const next = required(decided, 'decision')
       if (next.kind !== 'try-finish') throw new Error(`coordinator defect: F1 after ${next.kind}`)
-      const read = await load()
-      if ('failure' in read) return read
+      const read = latest
       // A newer input cannot be folded into a candidate made before it was accepted.
       if (read.ok.revision !== revision) {
         finishRefused = true
@@ -1776,6 +2103,37 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
      * settling commit; the Journal sets the proof of the author route from it (SPEC "条件终结" 3).
      */
     async F2() {
+      const read = await load()
+      if ('failure' in read) return read
+      const control = cancellationOf(read.ok)
+      const candidate = read.ok.settlement.candidate
+      const route = read.ok.settlement.route
+      if (control !== undefined && candidate !== null && route?.kind === 'cancellation') {
+        const judged = await ports.journal.commitSettlement({
+          ...access,
+          execution,
+          operation: journalOperation('F2', 'cancel-judge', read.ok.revision),
+          kind: 'judge-cancellation',
+          authorization: {
+            kind: 'cancel',
+            control: control.operation,
+            source: control.stages.accepted.source,
+          },
+          expected: read.ok.revision,
+          installation: route.installation,
+          candidate: candidate.candidate,
+          route: route.record,
+        })
+        if ('failure' in judged) {
+          if (judged.failure.kind === 'changed') cancellationChanged = true
+          if (judged.failure.kind === 'commit-unknown')
+            pendingCommit = { operation: judged.failure.operation, node: 'F2' }
+          return judged.failure.kind === 'changed' || judged.failure.kind === 'commit-unknown'
+            ? step('reconcile', null)
+            : judged
+        }
+        return step('proceed', null)
+      }
       return step('proceed', { state: { kind: 'settling' } })
     },
     /**
@@ -1791,10 +2149,14 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         finishRefused = true
         return step('reconcile', null)
       }
-      const authorization = {
-        kind: 'advancement',
-        authority: required(authority, 'authority'),
-      } as const
+      const cancel = cancellationOf(before.ok)
+      const authorization: FinishAuthorization =
+        cancel === undefined
+          ? {
+              kind: 'advancement',
+              authority: required(authority, 'authority'),
+            }
+          : { kind: 'cancel', control: cancel.operation, source: cancel.stages.accepted.source }
       if (before.ok.state.intent.obligations === null || reissueObligations) {
         const prepared = await ports.journal.prepareFinish({
           ...access,
@@ -1882,6 +2244,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     ...admitMessage,
     ...runExecutionNodes,
     ...runIter,
+    ...runTools,
     ...prepareRequest,
     ...callModel,
     ...settle,

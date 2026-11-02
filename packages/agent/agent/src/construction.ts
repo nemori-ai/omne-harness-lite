@@ -7,6 +7,10 @@ import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
 import type {
   ActionAdmission,
+  Access,
+  Action,
+  ActionId,
+  AgentExecutionId,
   Adoption,
   AgentAccessCheck,
   AgentAdoptions,
@@ -29,6 +33,7 @@ import type {
   ModelContextReader,
   ModelSelection,
   RegisteredReads,
+  Reply,
   RequestPreparation,
 } from '@omne-harness/agent-contract'
 
@@ -64,6 +69,12 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   access: AgentAccessCheck<P>
   models: M.ModelRuntime<P>
   tools: T.ToolRuntime<P, B>
+  toolRequests?: Readonly<{
+    describe(input: ToolRequestInput<P>): Reply<Adoption>
+    prepare(
+      input: ToolRequestInput<P> & Readonly<{ definition: Adoption; admission: DurableEvidence }>,
+    ): Reply<T.ToolInvokeRequest>
+  }>
   adoptions: AgentAdoptions<P>
   conditions: CurrentConditions<P>
   requests: RequestPreparation<P>
@@ -78,6 +89,15 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   registration: AgentRegistrationHandle<P> | null
   clock: AgentClock
 }>
+
+type ToolRequestInput<P> = Access<P> &
+  Readonly<{
+    execution: AgentExecutionId
+    action: ActionId
+    original: Action['original']
+    effectiveArguments: string
+    consumer: T.ToolInvokeRequest['consumer']
+  }>
 
 /** What a successful creation returns. `control` goes to the host only. */
 export interface AgentProvider<P> {
