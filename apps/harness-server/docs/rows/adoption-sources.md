@@ -18,11 +18,11 @@
 
 已有能力的 shape 经 `projectResidentReferences` 读取。已记录键必须匹配快照中的实际 key，或匹配受信映射 authority 的公开编码。规划器将事实交给 `planAdoption`，将可用键编码为 Session 材料。已有能力不再输出首次定义，避免覆盖 version、shape 和 admitted。
 
-登记口缺席、快照失败、已有能力登记事实缺失、键或 shape 不可解释、必要定义缺失，以及任意一项失败，均返回整份 `unavailable`。加载前产生的外部效果不因规划失败撤销，调用者不能把失败解释为未曾加载。
+登记口缺席、快照失败、已记录键或首次 shape 不可解释、首次采用的必要定义缺失，以及任意一项失败，均返回整份 `unavailable`。可读空表仍是登记事实，受信映射能准确恢复已记录键时，可继续采用点判定。加载前产生的外部效果不因规划失败撤销，调用者不能把失败解释为未曾加载。
 
 ## 波 2 边界与接线
 
-本模块采用 R2-D13 及修订、R2-D26 的波 2 范围。需要 reload 时返回 `unavailable`，不调用协调者重装。没有耐久失败依据时不生成 freeze，成功结果的 verdict 为 null。它不提交 Session，也不直接发布 Tool 贡献。
+本模块采用 R2-D13 及修订、R2-D26 的波 2 范围。登记事实可读、已记录键与首次 shape 可恢复时，若 `planAdoption` 请求 reload，规划器以本波已批准的 reload 暂不可用策略再次调用该纯函数，取得 R3 replacement，不调用协调者重装。返回材料保留原键，residents 为空，不覆盖首次定义。Tool 运行时沿原键提供 unavailable 替换件。没有耐久失败依据时不生成 freeze，成功结果的 verdict 为 null。它不提交 Session，也不直接发布 Tool 贡献。
 
 当前生产 `SessionAdoptionSource` 只有 `prepare`，本模块尚未由它调用。接线需要该契约的 plan 入口，并由 `sources.ts` 委派给本工厂。服务来源应在每次调用时读取 `toolBindings`、`toolGenerations`。定义映射还需提供真实 authority、首次 version 和 admitted。没有这些输入时保持 `unavailable`，不能新增第二份定义配置或以 testing 替身装配生产。
 
