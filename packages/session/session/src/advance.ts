@@ -7,6 +7,7 @@ import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
   deriveDriveOperation,
   deriveSessionOperation,
+  judgeAdvance,
   judgeRunStart,
   type AgentDrivePort,
   type DriveFailure,
@@ -174,6 +175,18 @@ export function createAdvance<P>(
     for (let attempt = 0; ; attempt += 1) {
       const port = drive()
       if (lifecycle.closed || port === null) return
+      const snapshot = await as('coordinator', ref, principal =>
+        coordinator.readWork({ principal, ...ref }),
+      )
+      if (lifecycle.closed || 'failure' in snapshot) return
+      if (
+        judgeAdvance(snapshot.ok, {
+          kind: 'attempt',
+          advance: started.advance,
+          expected: snapshot.ok.revision,
+        }).kind !== 'ok'
+      )
+        return
       const answer = await invokeOnce(port, {
         ...target,
         first: started.first,
