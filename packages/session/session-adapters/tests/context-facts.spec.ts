@@ -23,7 +23,13 @@ import type {
   WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { evidence, operationId } from '@omne-harness/session-contract/testing'
-import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
+import {
+  SessionReplayFactsService,
+  SessionScopeLookupService,
+  SessionService,
+  sessionReplayFactsKey,
+  sessionScopeLookupKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import {
   createSessionContextHolder,
   type SessionContextTranslation,
@@ -165,14 +171,18 @@ async function world(options: Readonly<{ mount?: readonly 'session'[] }> = {}) {
       kinds,
     )
 
-  return { s, ctx, holder, facts, faults, calls, entryScopes, ownScope, own, committed }
+  /** The lookup as a consumer takes it: per call, a missing service reads as `unavailable`. */
+  const lookup = (scope: ScopeRef) =>
+    ctx[sessionScopeLookupKey]?.lookup(scope) ?? Promise.resolve({ kind: 'unavailable' } as const)
+
+  return { s, ctx, holder, facts, faults, calls, entryScopes, ownScope, own, committed, lookup }
 }
 
 describe('R2-D14 the scope lookup of the facts plugin', () => {
   it('R2-D14 a scope that the notice showed and the snapshot lists is known with the generation of the snapshot', async () => {
     const f = await world()
     await f.committed()
-    expect(await f.holder.scopeLookup.lookup(f.ownScope)).toEqual({
+    expect(await f.lookup(f.ownScope)).toEqual({
       kind: 'known',
       tenant: f.s.access.tenant,
       session: f.s.access.session,
@@ -183,7 +193,7 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
   it('R2-D29 a known answer names an owner and nothing else, and its reads come from the coordinator class with the principal of the session', async () => {
     const f = await world()
     await f.committed()
-    const answer = await f.holder.scopeLookup.lookup(f.ownScope)
+    const answer = await f.lookup(f.ownScope)
     expect(Object.keys(answer).sort()).toEqual(['generation', 'kind', 'session', 'tenant'])
     expect(f.calls.length).toBeGreaterThan(0)
     expect(
@@ -199,7 +209,7 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
   it('R2-D14 a forged scope text is unknown', async () => {
     const f = await world()
     await f.committed()
-    expect(await f.holder.scopeLookup.lookup(scopeRef('session-scope:forged'))).toEqual({
+    expect(await f.lookup(scopeRef('session-scope:forged'))).toEqual({
       kind: 'unknown',
     })
   })
@@ -216,28 +226,28 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     f.entryScopes[ADOPTION] = foreignScope
     await f.committed()
 
-    expect(await f.holder.scopeLookup.lookup(foreignScope)).toEqual({ kind: 'unknown' })
+    expect(await f.lookup(foreignScope)).toEqual({ kind: 'unknown' })
     // The scope the snapshot does list is still answered for its own session.
-    expect((await f.holder.scopeLookup.lookup(f.ownScope)).kind).toBe('known')
+    expect((await f.lookup(f.ownScope)).kind).toBe('known')
   })
 
   it('R2-D14 a scope that the snapshot no longer lists is unknown', async () => {
     const f = await world()
     await f.committed()
     f.faults.scopes = []
-    expect(await f.holder.scopeLookup.lookup(f.ownScope)).toEqual({ kind: 'unknown' })
+    expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unknown' })
   })
 
   it('R2-D14 a scope not seen since the plugin started is unknown, not absent from the store', async () => {
     const f = await world()
-    expect(await f.holder.scopeLookup.lookup(f.ownScope)).toEqual({ kind: 'unknown' })
+    expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unknown' })
     expect(f.calls).toEqual([])
   })
 
   it('R2-D14 a notice still in flight is waited for before a scope is called unknown', async () => {
     const f = await world()
     const dispatched = f.committed()
-    const answer = await f.holder.scopeLookup.lookup(f.ownScope)
+    const answer = await f.lookup(f.ownScope)
     await dispatched
     expect(answer.kind).toBe('known')
   })
@@ -245,7 +255,7 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
   it('R2-D14 a notice whose kinds hold no context record indexes nothing', async () => {
     const f = await world()
     await f.committed(['run.terminal'])
-    expect(await f.holder.scopeLookup.lookup(f.ownScope)).toEqual({ kind: 'unknown' })
+    expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unknown' })
     expect(f.calls).toEqual([])
   })
 
@@ -259,10 +269,10 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     ]
     await f.committed()
 
-    const old = await f.holder.scopeLookup.lookup(f.ownScope)
+    const old = await f.lookup(f.ownScope)
     expect(old).toMatchObject({ kind: 'known', generation: f.own.generation })
     // An ended scope still names its owner; the answer does not say it is live.
-    expect(await f.holder.scopeLookup.lookup(next)).toMatchObject({
+    expect(await f.lookup(next)).toMatchObject({
       kind: 'known',
       generation: '2',
     })
@@ -274,36 +284,59 @@ describe('R2-D14 unknown and unavailable stay apart', () => {
     const f = await world()
     await f.committed()
     f.faults.work = true
-    expect(await f.holder.scopeLookup.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
+    expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
     f.faults.work = false
-    expect((await f.holder.scopeLookup.lookup(f.ownScope)).kind).toBe('known')
+    expect((await f.lookup(f.ownScope)).kind).toBe('known')
   })
 
   it('R2-D14 a coordinator principal that cannot be had is unavailable', async () => {
     const f = await world()
     await f.committed()
     f.faults.principal = true
-    expect(await f.holder.scopeLookup.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
+    expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
   })
 
   it('R2-D14 a snapshot that answers another session than the one asked is unavailable, not known', async () => {
     const f = await world()
     await f.committed()
     f.faults.answers = 'another-session'
-    expect(await f.holder.scopeLookup.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
+    expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
   })
 
-  it('R2-D14 a stopped facts plugin answers unavailable to a caller that holds the old reference', async () => {
+  it('R2-D14 a missing session service keeps the plugin pending: no service, and the lookup is unavailable', async () => {
+    const f = await world({ mount: [] })
+    expect(f.ctx[sessionScopeLookupKey]).toBeUndefined()
+    expect(f.ctx[sessionReplayFactsKey]).toBeUndefined()
+    expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
+  })
+})
+
+describe('R2-D29 the two facts services on real Cordis', () => {
+  it('R2-D29 sessionScopeLookup and sessionReplayFacts are provided under their keys while the facts plugin runs', async () => {
     const f = await world()
     await f.committed()
-    const held = f.holder.scopeLookup
-    await f.facts.dispose()
-    expect(await held.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
+    expect(f.ctx[sessionScopeLookupKey]).toBeInstanceOf(SessionScopeLookupService)
+    expect(f.ctx[sessionReplayFactsKey]).toBeInstanceOf(SessionReplayFactsService)
+    expect((await f.ctx[sessionScopeLookupKey].lookup(f.ownScope)).kind).toBe('known')
+    expect(await f.ctx[sessionReplayFactsKey].stepCommittedBlocks(f.ownScope, null)).toEqual({
+      kind: 'known',
+      keys: [],
+    })
   })
 
-  it('R2-D14 a missing session service keeps the plugin pending and the lookup unavailable', async () => {
-    const f = await world({ mount: [] })
-    expect(await f.holder.scopeLookup.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
+  it('R2-D29 a stopped facts plugin withdraws both services, and a caller that holds the old reference gets unavailable', async () => {
+    const f = await world()
+    await f.committed()
+    const heldLookup = f.ctx[sessionScopeLookupKey]
+    const heldFacts = f.ctx[sessionReplayFactsKey]
+    expect((await heldLookup.lookup(f.ownScope)).kind).toBe('known')
+
+    await f.facts.dispose()
+
+    expect(f.ctx[sessionScopeLookupKey]).toBeUndefined()
+    expect(f.ctx[sessionReplayFactsKey]).toBeUndefined()
+    expect(await heldLookup.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
+    expect(await heldFacts.stepCommittedBlocks(f.ownScope, null)).toEqual({ kind: 'unavailable' })
   })
 })
 

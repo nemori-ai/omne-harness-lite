@@ -61,8 +61,12 @@ import type {
   SessionId,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
-import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
-import type { SessionReplayFacts, StepCommittedBlocks } from '../runtime-context-trust.ts'
+import type { SessionReplayFacts, SessionScopeLookup } from '@omne-harness/session-cordis-contract'
+import {
+  SessionReplayFactsService,
+  SessionScopeLookupService,
+  sessionKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
 
 const LOGGER = 'session-adapters/context-holder'
@@ -148,27 +152,8 @@ interface ReplayFiber {
   ensure(scope: ScopeRef, tenant: TenantId): Promise<ScopeView>
 }
 
-/**
- * The session that a scope belongs to (R2-D14). The scope text is a one-way digest, so the facts
- * plugin, which sees the records that name it, keeps the index. `unknown` is a scope that the
- * plugin has not seen; `unavailable` is a lookup that could not be answered. Neither is a `known`
- * answer, and no caller reads a missing lookup as a grant. The generation is the one that the
- * session's own snapshot records for the scope.
- */
-export type SessionScopeLookupAnswer =
-  | Readonly<{ kind: 'known'; tenant: TenantId; session: SessionId; generation: string }>
-  | Readonly<{ kind: 'unknown' }>
-  | Readonly<{ kind: 'unavailable' }>
-
-export interface SessionScopeLookup {
-  lookup(scope: ScopeRef): Promise<SessionScopeLookupAnswer>
-}
-
-/** The facts fiber as `replayFacts` and the scope lookup see it. */
-interface FactsFiber {
-  lookup(scope: ScopeRef): Promise<SessionScopeLookupAnswer>
-  stepCommittedBlocks(scope: ScopeRef, through: CommitRef | null): Promise<StepCommittedBlocks>
-}
+/** The facts fiber as the two facts services and `replayFacts` see it. It never throws. */
+interface FactsFiber extends SessionScopeLookup, SessionReplayFacts {}
 
 type Shared<P> = Readonly<{
   input: SessionContextHolderInput<P>
@@ -677,6 +662,24 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
 const UNAVAILABLE = { kind: 'unavailable' } as const
 const UNKNOWN = { kind: 'unknown' } as const
 
+/** `sessionReplayFacts`: the trusted entry of Runtime Context reads it per call (R2-D29). */
+class SessionReplayFactsProvider extends SessionReplayFactsService {
+  readonly stepCommittedBlocks: SessionReplayFacts['stepCommittedBlocks']
+  constructor(scope: Context, fiber: FactsFiber) {
+    super(scope)
+    this.stepCommittedBlocks = (target, through) => fiber.stepCommittedBlocks(target, through)
+  }
+}
+
+/** `sessionScopeLookup`: answers the owner of a scope and grants nothing (R2-D14, R2-D29). */
+class SessionScopeLookupProvider extends SessionScopeLookupService {
+  readonly lookup: SessionScopeLookup['lookup']
+  constructor(scope: Context, fiber: FactsFiber) {
+    super(scope)
+    this.lookup = target => fiber.lookup(target)
+  }
+}
+
 /**
  * `session-ad03-facts` depends on `session` alone, so it runs without Runtime Context and without
  * the replay sub-plugin. It keeps the scope-to-session index from the committed notices and answers
@@ -730,7 +733,7 @@ function startFacts<P>(ctx: Context, shared: Shared<P>): void {
     }
   }
 
-  const fiber: FactsFiber = {
+  const answers: FactsFiber = {
     async lookup(scope) {
       if (closed) return UNAVAILABLE
       let bound = index.get(scope.ref)
@@ -766,6 +769,26 @@ function startFacts<P>(ctx: Context, shared: Shared<P>): void {
       return { kind: 'known', keys: fold(records).stepCommitted }
     },
   }
+  // A read that throws is not an answer: both facts say `unavailable`.
+  const fiber: FactsFiber = {
+    lookup: async scope => {
+      try {
+        return await answers.lookup(scope)
+      } catch {
+        return UNAVAILABLE
+      }
+    },
+    stepCommittedBlocks: async (scope, through) => {
+      try {
+        return await answers.stepCommittedBlocks(scope, through)
+      } catch {
+        return UNAVAILABLE
+      }
+    },
+  }
+
+  new SessionReplayFactsProvider(ctx, fiber)
+  new SessionScopeLookupProvider(ctx, fiber)
 
   ctx.on('session-cordis-contract/committed', (tenant, session, _revision, _source, kinds) => {
     if (closed || !kinds.some(kind => input.translation.kinds.includes(kind))) return
@@ -979,10 +1002,10 @@ class SessionReaderEligibilityProvider<P> extends RuntimeContextReaderEligibilit
 }
 
 /**
- * The AD-03 plugins, the `replayFacts` port for `createSessionRuntimeContextTrust` and the scope
- * lookup. Mount the three plugins. `holder` and `replay` stay `PENDING` while `runtimeContext` or
- * `session` is absent; `facts` needs `session` alone. `replayFacts` and `scopeLookup` answer
- * `unavailable` while the facts plugin is not running.
+ * The AD-03 plugins and the `replayFacts` port for `createSessionRuntimeContextTrust`. Mount the
+ * three plugins. `holder` and `replay` stay `PENDING` while `runtimeContext` or `session` is
+ * absent; `facts` needs `session` alone and provides `sessionReplayFacts` and `sessionScopeLookup`.
+ * `replayFacts` answers `unavailable` while the facts plugin is not running.
  */
 export function createSessionContextHolder<P>(input: SessionContextHolderInput<P>) {
   const shared: Shared<P> = {
@@ -991,27 +1014,10 @@ export function createSessionContextHolder<P>(input: SessionContextHolderInput<P
     link: { replay: undefined, facts: undefined },
     recoveries: { next: 0 },
   }
+  // The same facts as the `sessionReplayFacts` service, for a caller that holds this value.
   const replayFacts: SessionReplayFacts = {
-    async stepCommittedBlocks(scope, through) {
-      const fiber = shared.link.facts
-      if (fiber === undefined) return UNAVAILABLE
-      try {
-        return await fiber.stepCommittedBlocks(scope, through)
-      } catch {
-        return UNAVAILABLE
-      }
-    },
-  }
-  const scopeLookup: SessionScopeLookup = {
-    async lookup(scope) {
-      const fiber = shared.link.facts
-      if (fiber === undefined) return UNAVAILABLE
-      try {
-        return await fiber.lookup(scope)
-      } catch {
-        return UNAVAILABLE
-      }
-    },
+    stepCommittedBlocks: (scope, through) =>
+      shared.link.facts?.stepCommittedBlocks(scope, through) ?? Promise.resolve(UNAVAILABLE),
   }
   return {
     /** `session-ad03`: the holder that provides `runtimeContextReaderEligibility`. */
@@ -1036,7 +1042,7 @@ export function createSessionContextHolder<P>(input: SessionContextHolderInput<P
         startReplay(ctx, shared)
       },
     },
-    /** `session-ad03-facts`: the scope lookup and the replay facts; it needs `session` alone. */
+    /** `session-ad03-facts`: provides `sessionReplayFacts` and `sessionScopeLookup`; it needs `session` alone. */
     facts: {
       name: 'session-ad03-facts',
       inject: {
@@ -1047,6 +1053,5 @@ export function createSessionContextHolder<P>(input: SessionContextHolderInput<P
       },
     },
     replayFacts,
-    scopeLookup,
   }
 }
