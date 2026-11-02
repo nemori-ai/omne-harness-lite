@@ -34,6 +34,8 @@ import {
   operationId,
   ordinaryInput,
 } from '@omne-harness/session-contract/testing'
+import type { JsonValue } from '@omne-harness/sql-contract'
+import { EXECUTION_RECORD_HANDLERS } from '@omne-harness/session-storage-sql/participants'
 import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
 import { ok, operation, scene, submitInput } from './fixtures/common-journal.ts'
 import { cordisScene, handed, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
@@ -58,6 +60,19 @@ async function interpreted(
 ) {
   const s = await sqlScene(name)
   scenes.push(s)
+  // `heads.unwritten` makes the Agent records read as if another execution's call had changed the
+  // execution (SPEC K-5): the head receipt the boundary row names is then not the execution's own.
+  const heads = { unwritten: false }
+  const base = s.storage
+  s.storage = {
+    ...base,
+    read: async (request, readOptions) => {
+      const result = await base.read(request, readOptions)
+      return heads.unwritten && result.kind === 'read' && request.handler === STATE_HANDLER
+        ? { ...result, output: withoutHeads(result.output) }
+        : result
+    },
+  }
   const sent: Sent[] = []
   const script: ((inner: CommitLog, input: Sent) => ReturnType<CommitLog>)[] = []
   const c = await cordisScene(s, {
@@ -75,8 +90,21 @@ async function interpreted(
   const mountPlugin = () => c.mount(interpretation.plugin)
   const fiber = options.plugin === 'later' ? null : await mountPlugin()
   const target = { tenant: s.access.tenant, session: s.access.session, execution: s.execution }
-  return { s, c, sent, script, interpretation, fiber, mountPlugin, target }
+  return { s, c, sent, script, interpretation, fiber, mountPlugin, target, heads }
 }
+
+const STATE_HANDLER = EXECUTION_RECORD_HANDLERS.state
+
+/** The state read of the Agent records with every head receipt of the notes set to null. */
+function withoutHeads(output: JsonValue): JsonValue {
+  const copy = structuredClone(output) as { state?: { notes?: { heads?: { $map: unknown[][] } } } }
+  for (const entry of copy.state?.notes?.heads?.$map ?? []) entry[1] = null
+  return copy as JsonValue
+}
+
+/** How many times the Agent records of a session were read from the storage. */
+const stateReads = (s: SqlScene) =>
+  s.controls?.reads.filter(handler => handler === STATE_HANDLER).length ?? 0
 
 const work = async (s: SqlScene): Promise<WorkSnapshot> =>
   ok(await s.port.readWork(s.sessionAccess))
@@ -443,6 +471,49 @@ describe('AD-02: what commits nothing', () => {
     expect(await f.interpretation.interpret(f.target)).toMatchObject({
       failure: { kind: 'unavailable' },
     })
+  })
+
+  it('an event that reaches the listener after the plugin stopped starts no interpretation', async () => {
+    const f = await interpreted('ad02-late-event', { plugin: 'later' })
+    // This listener comes before the plugin's and holds a serial dispatch open, so the dispatch has
+    // already collected the plugin's listener when the plugin stops.
+    let release: () => void = () => undefined
+    const held = new Promise<void>(resolve => {
+      release = resolve
+    })
+    f.c.ctx.on('session-adapters/agent-published', () => held)
+    const fiber = await f.mountPlugin()
+    await started(f.s, f.c.journal())
+    await settle()
+    const reads = stateReads(f.s)
+    f.sent.length = 0
+    const dispatched = f.c.ctx.serial(
+      'session-adapters/agent-published',
+      f.target.tenant,
+      f.target.session,
+      f.target.execution,
+    )
+    await fiber.dispose()
+    release()
+    await dispatched
+    await settle()
+    expect(stateReads(f.s)).toBe(reads)
+    expect(f.sent).toHaveLength(0)
+  })
+
+  it('a head that another execution wrote is unavailable, and nothing is committed', async () => {
+    const f = await interpreted('ad02-placeholder-head', { plugin: 'later' })
+    await started(f.s, f.c.journal())
+    await f.mountPlugin()
+    f.heads.unwritten = true
+    expect(await f.interpretation.interpret(f.target)).toMatchObject({
+      failure: {
+        kind: 'unavailable',
+        diagnostic: 'the head of the execution was written by another execution',
+      },
+    })
+    expect(f.sent).toHaveLength(0)
+    expect(await readThrough(f.s)).toBe('0')
   })
 
   it('without sessionTransactions the plugin stays pending and commits nothing', async () => {
