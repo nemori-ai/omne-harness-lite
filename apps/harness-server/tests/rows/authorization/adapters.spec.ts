@@ -901,8 +901,9 @@ describe('Tool access qualification', () => {
     expect(await guard.qualify({ ...input, action: 'start', call: null })).toMatchObject({
       kind: 'denied',
     })
-    const pending = guard.qualify({ ...input, action: 'admit' })
-    Object.assign(input, { call: toolCallId('tc_changed'), tenant: B })
+    const request = { ...input, action: 'admit' as const }
+    const pending = guard.qualify(request)
+    Object.assign(request, { call: toolCallId('tc_changed'), tenant: B })
     expect(await pending).toEqual({ kind: 'allowed' })
     expect(w.seen.admissions.at(-1)?.target.key).toBe('tc_auth')
     live = false
