@@ -53,6 +53,17 @@ const coordinator = (store: ToolLedgerStore<ContentBlock>) =>
   createLocalStartCoordinator<Principal>({
     store,
     access,
+    permitRequirements: {
+      check: async () => ({
+        kind: 'not-required',
+        source: {
+          owner: 'test-only',
+          record: 'no-permit-required',
+          revision: '1',
+          digest: 'sha256:test-only',
+        },
+      }),
+    },
     guardsOf: () => [GUARD],
     commitAttempts: 4,
   })

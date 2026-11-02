@@ -4,6 +4,7 @@
 - [根入口与导入方向测试](public-entry.spec.ts)。
 - [未交付入口与依赖方向测试](entry-boundary.spec.ts)。
 - [本地启动协调器测试](start-coordinator.spec.ts)。
+- [R2-D60 无需许可与失败关闭](start-permit-requirements.spec.ts)。
 - [租户串行与慢存储交错](start-tenant-isolation.spec.ts)。
 - [实际环境入口的调度测试](environment-scheduling.spec.ts)。
 - [凭据绑定与分层选择测试](credentials.spec.ts)。
