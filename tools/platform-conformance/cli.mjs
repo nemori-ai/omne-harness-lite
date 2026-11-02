@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, isAbsolute, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execute } from './process.mjs'
@@ -84,6 +84,10 @@ export function parse(args) {
 async function main() {
   const config = parse(process.argv.slice(2))
   if (config.command === 'prepare-wsl') assertWslPath(config.root)
+  if (config.command === 'run' && existsSync(config.out) && readdirSync(config.out).length)
+    throw new Error(
+      'Output directory must be empty; choose a new directory to prevent stale evidence',
+    )
   const controller = new AbortController()
   const cancel = () => controller.abort()
   process.on('SIGINT', cancel)
@@ -112,8 +116,21 @@ async function main() {
           stderr: chunk => process.stderr.write(chunk),
         },
       )
-      if ((result.interrupted || result.spawnError) && config.command === 'run')
-        return interruptedReport(config, result)
+      if (config.command === 'run' && result.code !== 2) {
+        let report
+        try {
+          report = JSON.parse(readFileSync(resolve(config.out, 'report.json'), 'utf8'))
+        } catch {
+          /* The wrapper can stop before the runner writes its report. */
+        }
+        if (
+          result.interrupted ||
+          result.spawnError ||
+          ![0, 1, 3].includes(result.code) ||
+          report?.exitCode !== result.code
+        )
+          return interruptedReport(config, result)
+      }
       return result.interrupted ? 3 : (result.code ?? 3)
     }
     return config.command === 'run'

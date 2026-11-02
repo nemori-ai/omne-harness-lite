@@ -240,3 +240,29 @@ test('manifest runs multiple arbitrary members including a path with spaces', t 
   assert.equal(report.members.length, 2)
   assert.equal(report.members[1].files[0].pass, 1)
 })
+
+test('slot wrapper success without a report is incomplete', t => {
+  const f = fixture(t)
+  writeFileSync(join(f.root, 'scripts/with-test-slot.mjs'), 'process.exit(0)')
+  const out = join(f.base, 'missing-wrapper-report')
+  const result = command(
+    process.execPath,
+    [
+      cli,
+      'run',
+      '--root',
+      f.root,
+      '--sha',
+      f.sha,
+      '--member',
+      'members/new-provider',
+      '--test',
+      'one.spec.ts',
+      '--out',
+      out,
+    ],
+    work,
+  )
+  assert.equal(result.status, 3)
+  assert.equal(JSON.parse(readFileSync(join(out, 'report.json'), 'utf8')).conclusion, 'incomplete')
+})
