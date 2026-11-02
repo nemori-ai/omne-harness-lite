@@ -12,9 +12,11 @@
 // covered by the next committed event; the operation identity is derived from the observation, so
 // the same read of the same event is the same operation. A lost reply is sent again under the same operation and
 // recalls the original receipt (C-STORAGE answers `conflict` to `queryOperation` for this form, so
-// it is not asked). A `changed` answer reads again once. Any refusal is logged and not retried. An
-// event whose consequences were not decided (a control event, or an original the Journal did not
-// keep) stops the call there: it is not committed as anything else.
+// it is not asked). A `changed` answer reads again once. Any refusal is logged and not retried. A
+// control event is a deferred fact: it is sent with the Agent evidence the Journal kept and no
+// consequences, and Session decides them in the commit. An event whose consequences were not
+// decided otherwise (an original the Journal did not keep) stops the call there: it is not
+// committed as anything else.
 //
 // The plugin keeps nothing but the current generation of its dependencies and one queue per
 // session, so the events of one session are interpreted one after the other. A call made while the
@@ -169,11 +171,13 @@ function createJournalInterpretation<P>(
     let committed = 0
     for (const [at, event] of view.events.entries()) {
       const waiting = view.events.length - at
-      if (event.consequences === null) return succeed({ readThrough, committed, waiting })
+      // A deferred control fact carries no consequences: Session decides them in the commit.
+      if (event.consequences === null && event.control === null)
+        return succeed({ readThrough, committed, waiting })
       // An event that is only observed has no Session row: it is not committed, and the next
       // committed event names it in its gap (session-contract FR-03; the observed tail is the
       // prefix that a later startRun reads, R2-D28).
-      if (event.consequences.every(item => item.kind === 'observed')) continue
+      if (event.consequences?.every(item => item.kind === 'observed') === true) continue
       if (view.head === null)
         return unavailable('the head of the execution was written by another execution')
       const value = {
@@ -184,7 +188,8 @@ function createJournalInterpretation<P>(
         revision: view.revision,
         executionEvidence: view.head,
         source: event.source,
-        consequences: event.consequences,
+        consequences: event.consequences ?? [],
+        ...(event.control === null ? {} : { control: event.control }),
       } satisfies Omit<SessionLogCommitObservation, 'operation' | 'tenant'>
       const answer = await send({
         ...value,

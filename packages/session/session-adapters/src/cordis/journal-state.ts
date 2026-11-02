@@ -6,7 +6,11 @@
 // in-process root from it. Maps, sets, minted identities and bigints have
 // marked forms, so a decoded value equals the encoded one. A function is not data: it is refused.
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
-import type { DurableEvidence, SessionLogConsequence } from '@omne-harness/session-contract'
+import type {
+  DurableEvidence,
+  SessionControlEvidence,
+  SessionLogConsequence,
+} from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { CommonRoot } from '../testing/root.ts'
 
@@ -141,14 +145,21 @@ export function recordsOf(root: CommonRoot): DurableAgentRecords {
  *   the row holds the placeholder of a write that another execution's call made.
  * - `consequences`: the normalized Session consequences of each event, by `[execution, sequence]`
  *   JSON text; null when the original fragments do not decide them (the fact row then has empty
- *   kinds).
+ *   kinds, or the deferred marker for a control event).
+ * - `controls`: the Agent evidence of each control event whose fact row has the deferred marker,
+ *   by the same key; Session decides its consequences when it interprets it.
  */
 export type InterpretationNotes = Readonly<{
   heads: Map<string, DurableEvidence | null>
   consequences: Map<string, readonly SessionLogConsequence[] | null>
+  controls: Map<string, SessionControlEvidence>
 }>
 
-export const emptyNotes = (): InterpretationNotes => ({ heads: new Map(), consequences: new Map() })
+export const emptyNotes = (): InterpretationNotes => ({
+  heads: new Map(),
+  consequences: new Map(),
+  controls: new Map(),
+})
 
 /** The key of one event in `InterpretationNotes.consequences`. */
 export const eventKey = (execution: string, sequence: string): string =>
@@ -179,6 +190,10 @@ export function stateOf(value: JsonValue): DurableJournalState {
     callOrigins: map(decoded.callOrigins),
     human: map(decoded.human),
     indexedEvents: map(decoded.indexedEvents),
-    notes: { heads: map(notes?.heads), consequences: map(notes?.consequences) },
+    notes: {
+      heads: map(notes?.heads),
+      consequences: map(notes?.consequences),
+      controls: map(notes?.controls),
+    },
   }
 }

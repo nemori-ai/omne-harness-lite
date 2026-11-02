@@ -29,8 +29,10 @@ import {
   type SessionHistoryReads,
   type SessionInputAdmission,
   type SessionInputScope,
-  type SessionLogConsequence,
+  type SessionControlOrigin,
+  type SessionFactKind,
   type SessionLogRoot,
+  type SessionOperationId,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
@@ -44,8 +46,12 @@ const MAX_ROWS = 100_000
 /** The page of the backward scan for the latest interpretation row of one Run. */
 const PROGRESS_PAGE = 16
 
-/** The consequence kinds a fact boundary may carry. A row with another kind is not a boundary. */
-const CONSEQUENCE_KINDS: Readonly<Record<SessionLogConsequence['kind'], true>> = {
+/**
+ * The kinds a fact boundary may carry: the consequence kinds, and `deferred` for a control event
+ * whose consequences Session decides when it interprets it. A row with another kind is not a
+ * boundary.
+ */
+const CONSEQUENCE_KINDS: Readonly<Record<SessionFactKind, true>> = {
   'call-registration': true,
   'call-association': true,
   'registered-waiting': true,
@@ -56,8 +62,9 @@ const CONSEQUENCE_KINDS: Readonly<Record<SessionLogConsequence['kind'], true>> =
   control: true,
   ended: true,
   observed: true,
+  deferred: true,
 }
-const isConsequenceKind = (kind: unknown): kind is SessionLogConsequence['kind'] =>
+const isConsequenceKind = (kind: unknown): kind is SessionFactKind =>
   typeof kind === 'string' && Object.hasOwn(CONSEQUENCE_KINDS, kind)
 
 /**
@@ -160,11 +167,33 @@ function plant(row: Row): Planted {
   }
 }
 
-/** The Session rows of the index: the routed inputs, the SE13 of each execution and the SE15 rows. */
+/**
+ * The original execution of each Session control (SE24): the execution of the Run that was active
+ * when it was requested, null when none was. The rows come in log order.
+ */
+function controlOrigins(rows: readonly Planted[]): SessionControlOrigin[] {
+  const origins: SessionControlOrigin[] = []
+  let active: string | null = null
+  for (const row of rows) {
+    if (row.entry.kind === 'run.started') active = String(row.data['execution'])
+    if (row.entry.kind === 'run.terminal') active = null
+    if (row.entry.kind !== 'control.requested') continue
+    const progress = row.data['progress'] as { operation?: unknown } | undefined
+    if (typeof progress?.operation === 'string')
+      origins.push({ operation: progress.operation as SessionOperationId, execution: active })
+  }
+  return origins
+}
+
+/**
+ * The Session rows of the index: the routed inputs, the SE13 of each execution, the SE15 rows, and
+ * the original execution of each Session control.
+ */
 function sessionRows(read: Reader, scope: Scope) {
   const rows = read(
     `SELECT position, revision, entry FROM sl_entry
-      WHERE tenant = ? AND session = ? AND kind IN ('intake.routed', 'run.started', 'run.attempt-started')
+      WHERE tenant = ? AND session = ?
+        AND kind IN ('intake.routed', 'run.started', 'run.attempt-started', 'run.terminal', 'control.requested')
       ORDER BY position LIMIT ?`,
     [scope.tenant, scope.session],
   ).map(plant)
@@ -195,7 +224,7 @@ function sessionRows(read: Reader, scope: Scope) {
           },
         ]
   })
-  return { routed, starts, attempts }
+  return { routed, starts, attempts, controls: controlOrigins(rows) }
 }
 
 /**
@@ -557,7 +586,7 @@ export function readHistory(
   const where: Scope = { tenant, session }
   const read = boundedReader(port, limit)
   try {
-    const { routed, starts, attempts } = sessionRows(read, where)
+    const { routed, starts, attempts, controls } = sessionRows(read, where)
     const common = logRoot(port, tenant, session, snapshot.revision)
     const root: SessionLogRoot = {
       tenant: snapshot.tenant,
@@ -587,7 +616,7 @@ export function readHistory(
     })
     return {
       index: { root, inputs, executions, attempts, batches: closure.batches, taken: [] },
-      reads: { root, scope, admissions, prefixes, attempts, taken: [] },
+      reads: { root, scope, admissions, prefixes, attempts, taken: [], controls },
     }
   } catch (error) {
     if (error instanceof TooMany) return 'too-many'
