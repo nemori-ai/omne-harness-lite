@@ -1,5 +1,6 @@
 import type { ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import type { Writable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
@@ -11,6 +12,7 @@ import type {
   ManagedResource,
   ProcessHandle,
   ResourceLedger,
+  RetainedTerminalLedger,
   TerminalFacility,
   TerminalInformation,
   TerminalRef,
@@ -36,6 +38,7 @@ import {
 } from './host-scope.ts'
 import { createTerminalReader, type TerminalFrame } from './terminal-control.ts'
 import { createTerminalOutput, type TerminalOutput } from './terminal-output.ts'
+import type { RetainedTerminalBackend, RetainedTerminalFactory } from './host-retained-terminals.ts'
 
 export type HostTerminalOptions = HostCommandOptions &
   Readonly<{
@@ -44,9 +47,11 @@ export type HostTerminalOptions = HostCommandOptions &
     /** Geometry when create omits it. Initial 80 columns and 24 rows. */
     columns?: number
     rows?: number
+    /** Domain-wide retained shell capacity. Initial 64; unresolved reservations consume capacity. */
+    retainedCapacity?: number
   }>
 export type TerminalSettings = CommandSettings &
-  Readonly<{ maxControlBytes: number; columns: number; rows: number }>
+  Readonly<{ maxControlBytes: number; columns: number; rows: number; retainedCapacity: number }>
 
 export function terminalSettings(options: HostTerminalOptions = {}): TerminalSettings {
   const settings = {
@@ -54,8 +59,9 @@ export function terminalSettings(options: HostTerminalOptions = {}): TerminalSet
     maxControlBytes: options.maxControlBytes ?? 1024 * 1024,
     columns: options.columns ?? 80,
     rows: options.rows ?? 24,
+    retainedCapacity: options.retainedCapacity ?? 64,
   }
-  for (const name of ['maxControlBytes', 'columns', 'rows'] as const)
+  for (const name of ['maxControlBytes', 'columns', 'rows', 'retainedCapacity'] as const)
     if (!Number.isSafeInteger(settings[name]) || settings[name] < 1)
       throw new RangeError(`${name} must be a positive safe integer`)
   if (settings.columns > 65535 || settings.rows > 65535)
@@ -72,15 +78,22 @@ export type HostTerminals = Readonly<{
   settled(): Promise<void>
   stopAll(): Promise<readonly ManagedResource[]>
   unconfirmed(): readonly ManagedResource[]
+  information?(ref: TerminalRef): TerminalInformation | undefined
 }>
 
 type Input = Readonly<{
-  ledger: ResourceLedger
+  ledger: RetainedTerminalLedger
   provider: string
   scope: ScopeRef
   settings: TerminalSettings
   prerequisites: PrerequisiteProbe
   unavailable(missing: readonly (HostTerminalPrerequisite | HostCommandPrerequisite)[]): void
+  closed?(): boolean
+  reservation?: Readonly<{
+    resource: ManagedResource
+    coordinate: ScopeCoordinate
+    terminal: TerminalRef
+  }>
 }>
 type CreateRequest = Parameters<TerminalFacility<unknown>['create']>[0]
 type ExecuteRequest = Parameters<TerminalFacility<unknown>['execute']>[0]
@@ -190,6 +203,8 @@ export function createHostTerminals(input: Input): HostTerminals {
   const entries = new Map<string, Entry>()
   const inFlight = new Set<Promise<unknown>>()
   let sealed = false
+  const closed = () => sealed || ledger.closed.aborted || input.closed?.() === true
+  let reservationPlan: 'unrequested' | 'pending' | 'unconfirmed' | 'settled' = 'unrequested'
 
   const forceStop = (entry: Entry): Promise<StopStatus> => {
     if (entry.confirmed) return Promise.resolve('confirmed')
@@ -213,7 +228,7 @@ export function createHostTerminals(input: Input): HostTerminals {
         await cleanupTerminalScope(entry.coordinate.unit)
         if (recorded === 'recorded') entry.confirmed = true
       }
-      return reading.status
+      return entry.confirmed ? 'confirmed' : 'unconfirmed'
     })().finally(() => {
       entry.stopping = undefined
     })
@@ -275,7 +290,8 @@ export function createHostTerminals(input: Input): HostTerminals {
       launcher.once('error', () => resolve())
     })
     const control = controlOf(launcher)
-    const ref = Object.freeze({ id: resource.key, generation: randomUUID() })
+    const ref =
+      input.reservation?.terminal ?? Object.freeze({ id: resource.key, generation: randomUUID() })
     const entry: Entry = {
       ref,
       resource,
@@ -328,22 +344,31 @@ export function createHostTerminals(input: Input): HostTerminals {
         (!positive(request.geometry.columns) || !positive(request.geometry.rows)))
     )
       return rejected(requestId, 'invalidInput')
-    if (sealed || ledger.closed.aborted) return rejected(requestId, 'closed')
+    if (closed()) return rejected(requestId, 'closed')
     if (
       Buffer.byteLength(JSON.stringify(request.env)) + Buffer.byteLength(request.cwd) + 512 >
       Math.min(settings.maxControlBytes, 1024 * 1024)
     )
       return rejected(requestId, 'invalidInput')
     const reading = await input.prerequisites.ready()
+    if (closed()) return rejected(requestId, 'closed')
     const missing = await probeTerminalPrerequisites()
+    if (closed()) return rejected(requestId, 'closed')
     if (reading.kind !== 'satisfied' || missing.length > 0) {
       input.unavailable([...missing, ...(reading.kind === 'unsatisfied' ? reading.missing : [])])
       return rejected(requestId, 'unavailable')
     }
-    if (sealed || ledger.closed.aborted) return rejected(requestId, 'closed')
-    const bootId = await readBootId()
+    if (closed()) return rejected(requestId, 'closed')
+    const bootId = input.reservation?.coordinate.bootId ?? (await readBootId())
+    if (closed()) return rejected(requestId, 'closed')
     if (bootId === undefined) return rejected(requestId, 'unavailable')
-    const { key, unit } = newScopeUnit()
+    const { key, unit } =
+      input.reservation === undefined
+        ? newScopeUnit()
+        : {
+            key: input.reservation.resource.key,
+            unit: input.reservation.coordinate.unit,
+          }
     const coordinate = { unit, bootId }
     const resource: ManagedResource = {
       key,
@@ -351,33 +376,58 @@ export function createHostTerminals(input: Input): HostTerminals {
       reference: scopeReference(coordinate),
     }
     let planned: Awaited<ReturnType<ResourceLedger['plan']>>
+    if (input.reservation !== undefined) reservationPlan = 'pending'
     try {
       planned = await ledger.plan(resource)
     } catch {
+      if (input.reservation !== undefined) {
+        reservationPlan = 'unconfirmed'
+        return { kind: 'unknown', requestId }
+      }
       return rejected(requestId, 'unavailable')
     }
+    if (input.reservation !== undefined) {
+      reservationPlan =
+        planned === 'recorded' || planned === 'unavailable' ? 'unconfirmed' : 'unrequested'
+      if (planned === 'unavailable') return { kind: 'unknown', requestId }
+    }
     if (planned !== 'recorded') return rejected(requestId, planned)
+    if (closed()) return rejected(requestId, 'closed')
+    // Retained creation obtains permission before even launching its private gate.
+    if (input.reservation !== undefined) {
+      let permission: Awaited<ReturnType<RetainedTerminalLedger['permit']>>
+      try {
+        permission = await ledger.permit(key)
+      } catch {
+        permission = 'unavailable'
+      }
+      if (permission !== 'confirmed' || closed())
+        return rejected(
+          requestId,
+          closed() ? 'closed' : permission === 'confirmed' ? 'unavailable' : permission,
+        )
+    }
     const entry = launch(request, coordinate, resource, reading.tools)
     const deadline = monotonicMs() + settings.startBoundMs
     if (!(await within(entry.ready.promise, Math.max(0, deadline - monotonicMs())))) {
       await forceStop(entry)
       return { kind: 'unknown', requestId }
     }
+    if (closed()) {
+      await forceStop(entry)
+      return rejected(requestId, 'closed')
+    }
     let permit: Awaited<ReturnType<ResourceLedger['permit']>>
     try {
-      permit = await ledger.permit(key)
+      permit = input.reservation === undefined ? await ledger.permit(key) : 'confirmed'
     } catch {
       permit = 'unavailable'
     }
-    if (permit !== 'confirmed' || sealed || ledger.closed.aborted) {
+    if (permit !== 'confirmed' || closed()) {
       await forceStop(entry)
       return rejected(
         requestId,
-        sealed || ledger.closed.aborted
-          ? 'closed'
-          : permit === 'confirmed'
-            ? 'unavailable'
-            : permit,
+        closed() ? 'closed' : permit === 'confirmed' ? 'unavailable' : permit,
       )
     }
     if (
@@ -387,7 +437,7 @@ export function createHostTerminals(input: Input): HostTerminals {
       await forceStop(entry)
       return { kind: 'unknown', requestId }
     }
-    if (sealed || ledger.closed.aborted) {
+    if (closed()) {
       await forceStop(entry)
       return rejected(requestId, 'closed')
     }
@@ -415,7 +465,7 @@ export function createHostTerminals(input: Input): HostTerminals {
   }
   const execute = async (request: ExecuteRequest): Promise<FacilityResult<ProcessHandle>> => {
     const { requestId } = request
-    if (sealed || ledger.closed.aborted) return rejected(requestId, 'closed')
+    if (closed()) return rejected(requestId, 'closed')
     const entry = lookup(request.terminal)
     if (entry === undefined) return rejected(requestId, 'notFound')
     if (entry.state === 'closed' || entry.state === 'invalid') return rejected(requestId, 'closed')
@@ -453,6 +503,10 @@ export function createHostTerminals(input: Input): HostTerminals {
       invalidate(entry)
       return { kind: 'unknown', requestId }
     }
+    if (closed()) {
+      await forceStop(entry)
+      return rejected(requestId, 'closed')
+    }
     const handle: ProcessHandle = Object.freeze({
       process: Object.freeze({ id, generation: entry.ref.generation }),
       outputMode: 'terminal',
@@ -473,8 +527,14 @@ export function createHostTerminals(input: Input): HostTerminals {
       inFlight.delete(running)
     })
   }
-  const unconfirmed = () =>
-    [...entries.values()].filter(entry => !entry.confirmed).map(entry => entry.resource)
+  const unconfirmed = () => [
+    ...[...entries.values()].filter(entry => !entry.confirmed).map(entry => entry.resource),
+    ...(input.reservation !== undefined &&
+    entries.size === 0 &&
+    (reservationPlan === 'pending' || reservationPlan === 'unconfirmed')
+      ? [input.reservation.resource]
+      : []),
+  ]
   const facility: TerminalFacility<unknown> = {
     create: request =>
       track(
@@ -494,8 +554,7 @@ export function createHostTerminals(input: Input): HostTerminals {
         }),
       ),
     close(request) {
-      if (sealed || ledger.closed.aborted)
-        return Promise.resolve(rejected(request.requestId, 'closed'))
+      if (closed()) return Promise.resolve(rejected(request.requestId, 'closed'))
       const entry = lookup(request.terminal)
       if (entry === undefined) return Promise.resolve(rejected(request.requestId, 'notFound'))
       return track(
@@ -506,7 +565,7 @@ export function createHostTerminals(input: Input): HostTerminals {
       )
     },
     async list(request) {
-      if (sealed || ledger.closed.aborted) return rejected(request.requestId, 'closed')
+      if (closed()) return rejected(request.requestId, 'closed')
       return {
         kind: 'done',
         requestId: request.requestId,
@@ -527,8 +586,89 @@ export function createHostTerminals(input: Input): HostTerminals {
     settled: () => Promise.allSettled(inFlight).then(() => undefined),
     async stopAll() {
       await Promise.all([...entries.values()].filter(entry => !entry.confirmed).map(forceStop))
+      if (
+        input.reservation !== undefined &&
+        entries.size === 0 &&
+        reservationPlan === 'unconfirmed'
+      ) {
+        try {
+          if ((await ledger.stopped(input.reservation.resource.key, 'confirmed')) === 'recorded')
+            reservationPlan = 'settled'
+        } catch {
+          // No process started; only the original key's durable settlement remains unknown.
+        }
+      }
       return unconfirmed()
     },
     unconfirmed,
+    information(ref) {
+      const entry = lookup(ref)
+      return entry === undefined
+        ? undefined
+        : {
+            terminal: entry.ref,
+            state: entry.state,
+            observedCwd: entry.cwd,
+          }
+    },
   })
+}
+
+export function retainedHostTerminalFactory(
+  input: Omit<Input, 'ledger' | 'scope' | 'closed' | 'reservation'>,
+): RetainedTerminalFactory {
+  return reservation => {
+    let bootId: string
+    try {
+      bootId = readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim()
+    } catch {
+      return undefined
+    }
+    if (bootId === '') return undefined
+    const { key, unit } = newScopeUnit()
+    const coordinate = { unit, bootId }
+    const terminal = Object.freeze({ id: key, generation: randomUUID() })
+    const resource: ManagedResource = {
+      key,
+      provider: input.provider,
+      reference: scopeReference(coordinate),
+    }
+    const terminals = createHostTerminals({
+      ...input,
+      ledger: reservation.ledger,
+      scope: reservation.scope,
+      closed: reservation.closed,
+      reservation: { terminal, resource, coordinate },
+    })
+    let started = false
+    let finished = false
+    const backend: RetainedTerminalBackend = {
+      terminal,
+      resource,
+      async start() {
+        if (started) return rejected(reservation.request.requestId, 'closed')
+        started = true
+        try {
+          return await terminals.facility.create(reservation.request)
+        } finally {
+          finished = true
+        }
+      },
+      execute: request => terminals.facility.execute(request),
+      information: () =>
+        terminals.information?.(terminal) ?? {
+          terminal,
+          state: finished ? 'invalid' : 'idle',
+          observedCwd: reservation.request.cwd,
+        },
+      async stop() {
+        terminals.seal()
+        const pending = await terminals.stopAll()
+        return (!started || finished) && pending.length === 0 && terminals.inFlight() === 0
+          ? 'confirmed'
+          : 'unconfirmed'
+      },
+    }
+    return backend
+  }
 }

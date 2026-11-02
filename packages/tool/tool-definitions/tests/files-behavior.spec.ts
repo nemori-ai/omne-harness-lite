@@ -3,6 +3,32 @@ import { createFilesAuthor, type FilesAuthorEnvironment } from '@omne-harness/to
 import { filesFixture } from './fixtures/files.ts'
 import { run, value } from './run-author.ts'
 
+it.each(['write', 'edit'] as const)(
+  'reports the actual replacement effect for %s',
+  async command => {
+    const fixture = filesFixture({ '/a': 'before' })
+    const originalWrite = fixture.environment.files.write
+    const environment: FilesAuthorEnvironment = {
+      files: {
+        ...fixture.environment.files,
+        write: async input => {
+          const result = await originalWrite(input)
+          return result.kind === 'done'
+            ? { ...result, value: { ...result.value, writeEffect: 'replaced' } }
+            : result
+        },
+      },
+    }
+    const args =
+      command === 'write'
+        ? { path: '/a', text: 'after', mode: 'replace' }
+        : { path: '/a', old_text: 'before', new_text: 'after' }
+    const text = await run(value(createFilesAuthor(fixture.config)), command, args, environment)
+    expect(text).toContain('write_effect=replaced')
+    expect(fixture.text('/a')).toBe('after')
+  },
+)
+
 it.each(['move', 'copy'] as const)(
   'forwards replacement and version conditions for %s',
   async command => {

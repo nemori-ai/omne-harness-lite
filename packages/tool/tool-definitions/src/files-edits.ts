@@ -120,7 +120,7 @@ export async function editFiles(
     mode: 'replace',
     expectedVersion: item.identity.version,
   })
-  return `${confirmation(result, value => `path=${JSON.stringify(item.path)} ${identityText(value)}`)}\n${result.kind === 'done' ? 'applied diff' : 'planned diff (not confirmed)'}\n${plannedDiff}`
+  return `${confirmation(result, value => `path=${JSON.stringify(item.path)} ${identityText(value)} write_effect=${value.writeEffect ?? 'unreported'}`)}\n${result.kind === 'done' ? 'applied diff' : 'planned diff (not confirmed)'}\n${plannedDiff}`
 }
 function batchConfirmation(result: FacilityResult<FileBatchOutcome>): string {
   if (result.kind !== 'done') return confirmation(result, () => '')

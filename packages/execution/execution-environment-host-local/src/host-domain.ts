@@ -12,6 +12,10 @@ import type {
 } from '@omne-harness/execution-environment-contract'
 import type { HostCommands } from './host-command.ts'
 import type { HostTerminals } from './host-terminal.ts'
+import {
+  createRetainedTerminalIndex,
+  type RetainedTerminalIndex,
+} from './host-retained-terminals.ts'
 import { hostFilesLimits } from './host-file-tree.ts'
 import {
   createHostFilesEngine,
@@ -116,6 +120,7 @@ export type EngineMembership = Readonly<{
 
 /** The domain's internal surface for its providers. It is not part of the package's public entry. */
 export type DomainInternals = Readonly<{
+  retainedTerminals: RetainedTerminalIndex
   /**
    * The engine for `settings`: the first request makes it, every later request with the same
    * settings shares it, so their acquisitions keep handle generations unique across providers.
@@ -272,6 +277,7 @@ export function fingerprintOf(original: OriginalAcquisition): string {
     p.quotaDomain,
     original.origin,
     scopeChain(original.scope),
+    scopeChain(original.retentionScope),
     binding(p.binding),
     [p.provider.name, p.provider.generation, p.provider.version],
     p.continuity,
@@ -342,6 +348,7 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
     options.quota ?? (() => ({ perTenant: defaultPerTenant, global: null }))
   const generations = new Set<string>()
   const records = new Map<string, DomainRecord>()
+  const retainedTerminals = createRetainedTerminalIndex()
   let nextOwner = 1
 
   const unsettled = (tenant?: string) => {
@@ -399,7 +406,7 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
     instance: randomUUID(),
     durability: 'process',
     async maintain() {
-      let pending = 0
+      let pending = await retainedTerminals.maintain()
       for (const record of records.values())
         if (record.state === 'releasing' && (await drain(record, 0)).kind === 'pending') pending++
       return { pending }
@@ -407,6 +414,7 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
   }
 
   internals.set(domain, {
+    retainedTerminals,
     joinEngine: createEngineRegistry(),
     quota,
     registerGeneration: generation => {

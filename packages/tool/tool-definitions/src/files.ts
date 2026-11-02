@@ -102,7 +102,8 @@ async function executeFiles(
           mode: args.text('mode') === 'create' ? 'create' : 'replace',
           ...expected(args),
         }),
-        value => `${header} ${identityText(value)}`,
+        value =>
+          `${header} ${identityText(value)} write_effect=${value.writeEffect ?? 'unreported'}`,
       ),
     edit: () =>
       editFiles(

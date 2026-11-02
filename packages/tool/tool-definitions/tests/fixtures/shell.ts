@@ -9,6 +9,8 @@ import { tree } from '../../src/protocol.ts'
 export function shellFixture(output = 'one-shot output') {
   const starts: Parameters<ShellAuthorEnvironment['command']['start']>[0][] = []
   const executions: Parameters<ShellAuthorEnvironment['terminal']['execute']>[0][] = []
+  const creates: Parameters<ShellAuthorEnvironment['terminal']['create']>[0][] = []
+  const attachments: { id: string; generation: string }[] = []
   const sessions = new Map<string, { cwd: string; closed: boolean }>()
   let drained = false
   const stops: string[] = []
@@ -66,10 +68,20 @@ export function shellFixture(output = 'one-shot output') {
       },
     },
     terminal: {
-      create: async ({ cwd }) => {
+      create: async request => {
+        creates.push(request)
+        const { cwd } = request
         sessions.set('session', { cwd, closed: false })
         return done({ terminal: { id: 'session', generation: '1' } })
       },
+      attach: async ({ terminal }) => {
+        attachments.push(terminal)
+        const session = sessions.get(terminal.id)
+        if (!session || terminal.generation !== '1') return rejected('notFound')
+        if (session.closed) return rejected('closed')
+        return done({ terminal })
+      },
+      detach: async () => done({ status: 'confirmed' }),
       execute: async request => {
         executions.push(request)
         const session = sessions.get(request.terminal.id)
@@ -110,6 +122,8 @@ export function shellFixture(output = 'one-shot output') {
     smallConfig: tree({ ...construction, resultMaxBytes: 512 }),
     starts,
     executions,
+    creates,
+    attachments,
     stops,
     drained: () => drained,
     process,
