@@ -2,6 +2,9 @@
 // `sessionAccessCheck` 的契约替身行（包装 `session-contract/testing` 的政策替身）。能看到根、受信名下的服务与在册句柄。
 // 不导入 vitest：慢层的子进程脚本也用它。
 import { Context, type Plugin } from '@deepseek-ai/cordis'
+import { existsSync } from 'node:fs'
+import { inProcessPrincipalAuthority } from '@omne-harness/identity'
+import { PrincipalVerifierService, principalVerifierKey } from '@omne-harness/identity/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { SessionAccessCheck, SessionCommand } from '@omne-harness/session-contract'
 import {
@@ -34,6 +37,7 @@ import {
 import { serveProfile } from '../../../../src/profile.ts'
 import { defineRow, rowDeclarationOf } from '../../../../src/row.ts'
 import { sessionStorageRow } from '../../../../src/rows/session-storage/index.ts'
+import { prepareTenantDirectory } from '../../../../src/rows/session-storage/initialize.ts'
 import { storageRow } from '../../../../src/rows/storage/index.ts'
 import { monotonicClock, runShutdown, type ShutdownReport } from '../../../../src/shutdown.ts'
 import { createTrust } from '../../../../src/trust.ts'
@@ -131,18 +135,27 @@ export function accessPolicyRow(policy: AccessPolicy): Readonly<{
   check: ScriptedSessionAccessCheck<string>
 }> {
   const check = createPolicySessionAccessCheck<string>(policy)
+  const authority = inProcessPrincipalAuthority()
+  class Verifier extends PrincipalVerifierService {
+    readonly verify = authority.verifier.verify
+  }
   class PolicyAccessCheck extends SessionAccessCheckService<string> {
     readonly check: SessionAccessCheck<string>['check'] = request => check.check(request)
   }
   const plugin = defineRow({
     row: 'authorization',
     implementation: 'contract-double',
-    manifest: { provides: [sessionAccessCheckKey], injects: [], sameProviderGroup: null },
+    manifest: {
+      provides: [sessionAccessCheckKey, principalVerifierKey],
+      injects: [],
+      sameProviderGroup: null,
+    },
     lifecycle: { kind: 'none' },
     plugin: {
       name: 'policy-access-check',
       apply(ctx: Context) {
         new PolicyAccessCheck(ctx)
+        new Verifier(ctx)
       },
     },
   })
@@ -203,6 +216,8 @@ export type LoadedTree = Readonly<{
 }>
 
 export async function loadStorageTree(options: TreeOptions): Promise<LoadedTree> {
+  if (!options.withoutSessionStorage && !existsSync(options.storageRoot))
+    prepareTenantDirectory(options)
   const profile = serveProfile()
   const policyRow = accessPolicyRow(options.policy ?? allowAll)
   const sessionStorageConfig: SessionStorageRowConfigInput = {
