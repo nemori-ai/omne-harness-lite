@@ -1,6 +1,6 @@
 # identity：长期行为规格
 
-状态：[具名采用](https://github.com/nemori-ai/omne-harness-lite/issues/266#issuecomment-6190010029)覆盖 ID-01 至 ID-09、ID-12 至 ID-14 及本阶段范围的业务规则。ID-10、ID-15 是后续验证义务。ID-11 继续登记公开形状与机制的承接责任。ID-16 定义首批公开形状，类型在本成员 `src/index.ts`。ID-17 按 [#745 派发](https://github.com/nemori-ai/omne-harness-lite/issues/745#issuecomment-6398214808)定义注册激活、签发登录与识别登录的公开形状及 `./testing` 参考替身。账号、组织、登录和成员关系的持久提供者机制尚需设计，本文不作为那些部分已实现或已验证的证明。
+状态：[具名采用](https://github.com/nemori-ai/omne-harness-lite/issues/266#issuecomment-6190010029)覆盖 ID-01 至 ID-09、ID-12 至 ID-14 及本阶段范围的业务规则。ID-10、ID-15 是后续验证义务。ID-11 继续登记公开形状与机制的承接责任。ID-16 定义首批公开形状，类型在本成员 `src/index.ts`。ID-17 按 [#745 派发](https://github.com/nemori-ai/omne-harness-lite/issues/745#issuecomment-6398214808)定义注册激活、签发登录与识别登录的公开形状及 `./testing` 参考替身。账号、组织、登录和成员关系的持久提供者是 `@omne-harness/identity-sql`（ID-11）。该提供者的条款与验证归它自己的 SPEC，本文不作为它已验证的证明。
 
 产品规则归[身份与授权产品](../../../.meta_harness/design/product/identity-and-authorization/design.md)，协作与依赖归[领域架构](../../../docs/domains/identity-and-authorization/architecture.md)。本文拥有主体、组织关系、成员、认证、登录及可信资格事实。资源权限配值、人工交互和实际业务执行由其他拥有者负责。
 
@@ -178,6 +178,8 @@
 
 存储、可信时间、提交与并发、凭据派生、缓存及跨进程协议由提供者设计。回收及替换须说明调用如何认回、谁保管已提交事实和通知如何收口，不从 Cordis 装配或同机存储推断这些保证。
 
+持久提供者是 [`@omne-harness/identity-sql`](../identity-sql/SPEC.md)。账号、组织、租户、成员关系与登录的记录落在系统作用域事务域 `system.identity`。记录位置、注册的单事务、秘密的派生保存与停止语义由该成员的 SPEC 拥有。
+
 ## ID-12 治理模型与认证接入
 
 组织治理模型可通过配置或扩展定义成员准入、角色及操作资格。公共查询引用明确的模型依据及适用组织，消费者获取可解释的资格事实，不需要调用模型的私有实现。多个不同模型不能共用含义不明的角色字符串后推断等价。
@@ -268,7 +270,7 @@
 
 ## ID-16 首批公开形状：主体与资格事实
 
-本节的类型在 `src/index.ts` 定义。本节只写类型表达不了的条款。登录、账号、成员关系的存储与流程不在本节，三项操作的形状见 ID-17。本节的当前资格读口由后续提供者实现。成功业务访问报告的形状及采用待后续定义。
+本节的类型在 `src/index.ts` 定义。本节只写类型表达不了的条款。登录、账号、成员关系的存储与流程不在本节，三项操作的形状见 ID-17。本节的当前资格读口由 [`@omne-harness/identity-sql`](../identity-sql/SPEC.md) 实现。成功业务访问报告的形状及采用待后续定义。
 
 首批原主体语义与提供者前提按 [#659 的有限采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/659#issuecomment-6370208573)采用。本节不引入一般递归委派链或登录实例主体。
 
@@ -320,6 +322,8 @@
 
 按 [#991 的局部采用](https://github.com/nemori-ai/omne-harness-lite/issues/991#issuecomment-6552957257)，`src/cordis.ts` 从独立 `./cordis` 入口提供四个原接口的抽象服务定义、键与 Context 类型增补。形状、服务键和消费方法见 [Cordis 说明](docs/cordis.md)。原身份、资格、签发与核验条款不变，根入口不加载 Cordis。
 
+第五个定义是 `IdentityClockService`，键 `identityClock`。它是 ID-17 注入时钟 `IdentityClock` 的服务定义：装配入口提供它的子类，持久提供者的插件 inject 这个键，不在插件体内自建时钟。这是一次可加改动（R1-D27），既有四个定义与键不变。
+
 真实 Context 测试覆盖注册、委托与撤除，Operations 具体测试子类复用 ID-17 的原契约套件。类型测试和打包制品测试覆盖公开类型及入口隔离。这些证据不证明生产签发者持有边界、当前资格真实存储、系统恢复或跨进程来源。完整签发者只在受控测试根实例化，不自动安装进生产根。
 
 ## ID-17 注册激活、签发登录与识别登录
@@ -337,7 +341,7 @@
 
 本节用「时长」称配置的两个 `Duration`，用「截止时刻」称由它们算出的 `maxDeadline` 与 `idleDeadline` 两个 `Instant`。
 
-提供者不读墙钟，也不带默认时钟。时长的具体数值不进入本规格。部署或提供者说明自己的配置初值。初值只是配置的第一个值，提供者不在代码里写死一个时长代替注入的配置。
+提供者不读墙钟，也不带默认时钟。经 Cordis 装载时，时钟经 `./cordis` 的 `identityClock` 服务键进入（见「Cordis 定义的有限采用」）。时长的具体数值不进入本规格。部署或提供者说明自己的配置初值。初值只是配置的第一个值，提供者不在代码里写死一个时长代替注入的配置。
 
 提供者记住它此前采用过的最晚时钟读数。较早的读数不被采用，相应操作答 `basis-unavailable`。这个最晚读数只在一个提供者实例内保持。重启后怎样建立下界，沿上文「已采用的纯值边界」与[共同纯表示](../../common/README.md)。
 

@@ -4,11 +4,11 @@
 
 本成员拥有主体、组织成员、租户、登录与当前租户选择的事实，以及治理模型给出的可解释资格。业务规则的采用范围见 [SPEC](SPEC.md)。首批公开形状由 [#659](https://github.com/nemori-ai/omne-harness-lite/issues/659) 交付，依据是 [#638 的 2026-10-23 决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6357861225)：两种主体与复合主体、具名资格「组织成本账目读取」。
 
-已实现的部分：两种主体的类型、签发与核验接口、进程内权威；具名资格与角色映射；当前资格读口的类型。注册并激活、签发登录与识别登录三项操作的契约类型，条款见 SPEC ID-17。测试入口 `./testing` 提供这三项操作的进程内参考替身与契约测试套件。尚未实现的部分：账号、组织、成员关系、登录的持久存储与其他流程，切换租户、查询、退出与撤销登录，成功业务访问报告的形状，以及实现读口和三项操作的真实提供者。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/identity-and-authorization/design.md)判断。
+已实现的部分：两种主体的类型、签发与核验接口、进程内权威；具名资格与角色映射；当前资格读口的类型。注册并激活、签发登录与识别登录三项操作的契约类型，条款见 SPEC ID-17。测试入口 `./testing` 提供这三项操作的进程内参考替身与契约测试套件。持久提供者：账号、组织、成员关系与登录的持久存储，以及读口和三项操作的真实实现，由 [`@omne-harness/identity-sql`](../identity-sql/README.md) 提供（SPEC ID-11）。尚未实现的部分：切换租户、查询、退出与撤销登录，以及成功业务访问报告的形状。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/identity-and-authorization/design.md)判断。
 
 ## 使用
 
-用包名导入公开入口。纯值依赖是 `@omne-harness/legal-identity`、`@omne-harness/operation-result` 与 `@omne-harness/utc-instant`。独立的 `./cordis` 入口使用 `@deepseek-ai/cordis` 4.0.4，提供四个原接口的抽象服务定义与键，见 [Cordis 消费说明](docs/cordis.md)。根入口不加载 Cordis。
+用包名导入公开入口。纯值依赖是 `@omne-harness/legal-identity`、`@omne-harness/operation-result` 与 `@omne-harness/utc-instant`。独立的 `./cordis` 入口使用 `@deepseek-ai/cordis` 4.0.4，提供四个原接口的抽象服务定义、注入时钟的定义 `IdentityClockService`（键 `identityClock`）与键，见 [Cordis 消费说明](docs/cordis.md)。根入口不加载 Cordis。
 
 ```ts
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -98,19 +98,20 @@ if (login.kind === 'succeeded') await identity.recognizeLogin({ loginProof: logi
 
 单元与契约测试从包名导入公开入口，所以同时检查 `dist` 能被独立消费。Cordis 测试使用真实 Context 和测试子类，另用打包制品验证消费隔离。本包没有存储、应用服务或用户旅程，未进行完整服务端端到端验证。`TenantStandingSource` 没有生产实现，测试仅检查读数委托，真实提供者须自测。
 
-| 文件                                             | 覆盖                                                                                     |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| `tests/principal.spec.ts`                        | 签发两种主体、拒绝的输入、畸形输入不抛出、核验、手写副本与 JSON 往返                     |
-| `tests/principal.spec-d.ts`                      | 不带租户的代租户行事主体、带租户的系统主体是类型错误                                     |
-| `tests/qualification.spec.ts`                    | 具名资格清单、默认团队映射、别的模型与未列出的角色                                       |
-| `tests/public-entry.spec.ts`                     | 公开导出清单                                                                             |
-| `tests/testing-entry.spec.ts`                    | `./testing` 的导出清单                                                                   |
-| `tests/operations-contract.spec.ts`              | 契约测试套件在两组配置下对参考替身全部通过，套件对逐条故意违反的提供者报告失败           |
-| `tests/operations-double.spec.ts`                | 替身的截止时刻来自注入的时长、闰秒限制、失效登录不恢复、端口抛出与诊断不含秘密、可控时钟 |
-| `tests/operations-scenario.spec.ts`              | 只经包入口完成注册、登录与识别                                                           |
-| `tests/operations.spec-d.ts`                     | 三项操作结果种类的类型正反例                                                             |
-| `tests/cordis.spec.ts`、`tests/cordis.spec-d.ts` | 四个服务定义的真实注册、委托、撤除及原接口类型，复用 Operations 契约套件                 |
-| `tests/cordis-package.spec.ts`                   | 打包制品的根入口隔离、`./cordis` 实际消费及类型正反例                                    |
+| 文件                                                             | 覆盖                                                                                           |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `tests/principal.spec.ts`                                        | 签发两种主体、拒绝的输入、畸形输入不抛出、核验、手写副本与 JSON 往返                           |
+| `tests/principal.spec-d.ts`                                      | 不带租户的代租户行事主体、带租户的系统主体是类型错误                                           |
+| `tests/qualification.spec.ts`                                    | 具名资格清单、默认团队映射、别的模型与未列出的角色                                             |
+| `tests/public-entry.spec.ts`                                     | 公开导出清单                                                                                   |
+| `tests/testing-entry.spec.ts`                                    | `./testing` 的导出清单                                                                         |
+| `tests/operations-contract.spec.ts`                              | 契约测试套件在两组配置下对参考替身全部通过，套件对逐条故意违反的提供者报告失败                 |
+| `tests/operations-double.spec.ts`                                | 替身的截止时刻来自注入的时长、闰秒限制、失效登录不恢复、端口抛出与诊断不含秘密、可控时钟       |
+| `tests/operations-scenario.spec.ts`                              | 只经包入口完成注册、登录与识别                                                                 |
+| `tests/operations.spec-d.ts`                                     | 三项操作结果种类的类型正反例                                                                   |
+| `tests/cordis.spec.ts`、`tests/cordis.spec-d.ts`                 | 五个定义的导出清单，四个原接口定义的真实注册、委托、撤除及原接口类型，复用 Operations 契约套件 |
+| `tests/identity-clock.spec.ts`、`tests/identity-clock.spec-d.ts` | `identityClock` 定义的注册、委托、撤除、消费者的 inject 等待及原接口类型                       |
+| `tests/cordis-package.spec.ts`                                   | 打包制品的根入口隔离、`./cordis` 实际消费及类型正反例                                          |
 
 在仓库根运行 `pnpm turbo run test --filter=@omne-harness/identity`。turbo 先构建依赖与 `dist`，再运行测试。本目录里的 `pnpm test` 不构建。
 

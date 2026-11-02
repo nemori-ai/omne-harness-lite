@@ -50,7 +50,7 @@ const decision = await check.check({
 | `operationEquals`、`targetEquals` | 操作与目标的相等 |
 | `SystemActionRequest`、`SystemActionTarget`、`SystemActionDecision`、`SystemActionDenial`、`SystemActionBasis`、`SystemActionFacts`、`SystemActionAuthorization` | 系统动作授权端口及其请求、结论与依据 |
 | `decideSystemAction(request, facts)`、`referenceSystemActionAuthorization` | 系统动作的纯裁定与进程内参考检查 |
-| `SYSTEM_ACTION_MATRIX`、`SystemActionRow` | 七行系统用途矩阵 |
+| `SYSTEM_ACTION_MATRIX`、`SystemActionRow` | 十行系统用途矩阵 |
 | `MaintenanceGrant`、`MaintenanceGrantReading`、`MaintenanceGrantSource`、`SystemActionClock`、`ExpiryReading`、`SystemActionDependencies` | 维护授权读口与可信时钟 |
 | `scriptedMaintenanceGrants`、`manualSystemClock`（`./testing`） | 读口与时钟的替身，不是生产来源 |
 

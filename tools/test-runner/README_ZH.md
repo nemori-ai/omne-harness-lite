@@ -377,7 +377,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
   **sandbox 预检**（#481）：`src/mutation/sandbox-build.ts` 构建完成员后，用这份配置在 sandbox 里跑一遍快层。
   有测试文件只在 sandbox 里加载失败时（比如相对路径越出成员，在副本里指到不存在的目录），Stryker 的 vitest runner
   仍判初跑成功：它只看用例结果与 vitest 的全局错误，不看文件级结果。只由这份文件守着的变异体就全被记为存活。
-  vitest 自己的退出码计入文件级失败，所以预检没跑通时 Stryker 不开始变异，入口报「sandbox 预检没通过」并退出 1。
+  vitest 自己的退出码计入文件级失败，所以预检没跑通时 Stryker 不开始变异，入口报「sandbox 预检没通过」并退出 1；这个成员照样写进读数，`valid` 为 false、原因 `preflight-failed`、不给分数（见下文「没有真正执行」）。
   预检按 Stryker 初跑的选项运行：`threads` 池、一个工作线程、不并发、不采覆盖。同一份文件可能在默认的 `forks` 池里
   能加载、在 worker_threads 里不能（比如顶层 `process.chdir`）。预检的时限是 Stryker 初跑的缺省时限 5 分钟，超时按没跑通算。
   vitest 起不来或被信号打断时，不算预检的结论，入口报 Stryker 出错。快层没有用例时，`passWithNoTests` 让预检通过；
@@ -389,6 +389,20 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
   报成存活、有用例覆盖、却一条用例都没跑完的记「没跑测试」，这是运行器没跑测试，不是测试没测出来；
   只因时限到了而超时、又没有得到单独复核的判定的记「超时未复核」，规则见下文「超时的计分」。
   有不能计分的变异体，或原始报告有 RuntimeError 时，成员的测量无效：成员照样写进读数（`valid` 为 false），不给分数。
+  **没有真正执行**：变异没有测完这个成员时，读数里不能出现「存活 0」或分数，免得读成「没有存活变异体」。这时成员照样写进读数，
+  `valid` 为 false，`score` 为 null，`executionFailure` 给 `reason` 与 `message`；`counts` 全是 0，只是占位，不表示没有存活。
+  `summary.md` 的标题行写「测量无效（原因）」，不列各状态的数。`executionFailure` 在测完的成员上为 null。原因取值：
+
+  | `reason` | 什么时候 |
+  | --- | --- |
+  | `preflight-failed` | sandbox 预检没通过，Stryker 没有开始变异 |
+  | `stryker-failed` | Stryker 退出码非 0，不论报告读不读得出 |
+  | `report-missing` | Stryker 退出 0，却没有写出原始报告 |
+  | `report-unreadable` | 原始报告写出了，读不出或形状不对 |
+  | `nothing-executed` | 报告读得出，范围内生成了变异体，却一个都没有得出判定（状态全是「未跑」），也没有别的不计分原因 |
+
+  同一次运行里几个原因并存时，按表中的先后取第一个。每种都让命令退出 1。范围内一个变异体都没生成（Stryker 不为类型位置生成变异体）不在其内：
+  那是上面的「未覆盖的改动段」，测量有效，不给分数。变异体只被无覆盖、编译错误或忽略碰到，也不算没有执行：无覆盖是真实读数，新文件没有测试时读成 0%。
   **未覆盖的改动段**：要变异的一段改动行上，没有一个可计分状态（被杀、超时、存活、无覆盖）的变异体时，这一段记为未覆盖。
   常见原因是 Stryker 不为类型位置生成变异体，`x as T`（含 `as const`）里的字面量也在内；只有编译错误、忽略等不计分状态的变异体碰到的段同样算。
   分数量不到这些段：它们既不算测出来，也不算没测出来。粒度是改动段（diff 的 hunk），不是逐行。
@@ -463,6 +477,8 @@ Stryker 的其余输出只进成员日志。变异阶段不到 10 秒的成员�
 - **谁判定能不能复用**：Stryker 10.0.0 的 `IncrementalDiffer`。它用 diff-match-patch 比较快照里的源码与现在的源码。
   变异体所在的那段代码变了，就重跑。这段代码没变时，还要核对上次杀死它的测试：这个测试的名字、所在文件与位置都与上次相同，才复用。
   vitest runner 不报告用例在文件里的位置，Stryker 就把每个用例当作占满整个测试文件。所以测试文件里任何一处改动，都让被它里面的用例杀死的变异体重跑。
+- **测试文件变了的失效**：只改杀死某些变异体的测试文件、被变异的代码不变时，被那个文件里的用例杀死的变异体重跑，别的测试文件杀死的照样复用；
+  读数与全部重跑时相同。这是 Stryker 的判定，本入口不另做；`tests/mutation-stryker-incremental.spec.ts` 在夹具上直接核对（两份测试文件各杀不同的变异体，只改其中一份）。
 - **与 mutator 的不同**：mutator 以函数为单位，函数文本没变就不重跑。Stryker 以变异体为单位，只看变异体自己那段代码，
   另外核对杀死它的测试。所以同一个函数里，只有改过的那几处重跑。两者都不看被变异代码调用的其他代码：一个函数调用的别处代码改了，
   这个函数里上次被杀的变异体照样复用。依赖变了要量准时，用 `--force`。
@@ -496,7 +512,8 @@ Stryker 的其余输出只进成员日志。变异阶段不到 10 秒的成员�
 复用省下的是变异体的运行时间。构建、预检与初跑是固定开销，每次都要跑。所以只有几个变异体的小成员，复用几乎不省时间；变异体多的成员，第二次运行的墙钟明显下降。
 
 **只报告**（负责人 2026-10-02 定）：变异体存活不影响退出码，不进 `pnpm run check`；Stryker 起不来、sandbox 预检没通过、
-初跑失败、没写出报告、有 RuntimeError、有「没跑测试」或「超时未复核」的变异体、复核的 Stryker 出错时退出 1；参数错退出 2。
+初跑失败、没写出报告、报告读不出、范围内的变异体一个都没执行、有 RuntimeError、有「没跑测试」或「超时未复核」的变异体、复核的 Stryker 出错时退出 1；参数错退出 2。
+这些执行失败的成员都有读数（`valid` 为 false、不给分数），见上文「没有真正执行」。
 
 变异期间的 reporter 检查文件收集错误与深层 suite 自身错误，不读取普通断言错误。发现错误时抛出包含原文件、suite 与错误栈的诊断。
 `omne-vitest` 委托公开的 Vitest runner factory，保留 init、dryRun 与 dispose。底层 mutantRun 拒绝时，包装器直接返回 Error，避免恢复重试掩盖这次失败。
@@ -599,9 +616,10 @@ Vitest 4.1.11 的类型测试池只在一个实例第一次运行时报告类型
 - static 变异体的运行可能没有类型测试（见上文「类型测试缺席」）。读数写明次数，判定不受影响。
 
 自测：`tests/mutation*.spec.ts`。`--since` 的取值核对与改动行的交见 `tests/mutation-since.spec.ts`，入口对它的接线见 `tests/mutation-cli.spec.ts`。进度行的转发与进程数告警见 `tests/mutation-progress.spec.ts`。成员并行的分法与调度见 `tests/mutation-schedule.spec.ts`，增量的快照、范围与开关见 `tests/mutation-incremental.spec.ts`，
-夹具上的复用、改一处只重跑那里、范围缩小、关掉增量、`--force` 与两个成员并行见 `tests/mutation-stryker-incremental.spec.ts`。在夹具项目上真起 Stryker 的用例归慢层，按场景分在 `tests/mutation-stryker-*.spec.ts`：没断言的测试留下存活变异体，
+夹具上的复用、改一处只重跑那里、只改杀死变异体的测试文件时那些变异体重跑、范围缩小、关掉增量、`--force` 与两个成员并行见 `tests/mutation-stryker-incremental.spec.ts`。
+执行失败（预检没通过、Stryker 退出非零、报告缺失或读不出、变异体一个都没执行）的成员读数用 Stryker 替身验证，见 `tests/mutation-execution.spec.ts`；整条命令的退出码与 `summary.md` 见 `tests/mutation-stryker-preflight.spec.ts`。在夹具项目上真起 Stryker 的用例归慢层，按场景分在 `tests/mutation-stryker-*.spec.ts`：没断言的测试留下存活变异体，
 在只按包名导入自己的测试文件里补上断言后被杀；只变异改动行；跑完不留 sandbox；有测试文件只在 sandbox 里加载失败时，
-预检报错、不出读数，类型断言照常通过也一样；只在 `threads` 池里加载失败的文件同样被拦下；
+预检报错、成员读数测量无效而不给分数，类型断言照常通过也一样；只在 `threads` 池里加载失败的文件同样被拦下；
 `--out` 目录里留着上一次的预检标记时，这一次照常出读数；快层没有用例时预检通过、由 Stryker 报错；
 一个工作进程时 static 变异体的运行没有类型测试，读数写明缺席；可控的耗时注入使 static 运行超过时限时，
 复核把它判回存活，入口退出 0，非 static 变异体照常计分；复核上限为 0 时同一超时记「超时未复核」，入口退出 1；

@@ -25,6 +25,12 @@ const unifiedSections = [
   '决定与剩余责任',
 ]
 const unifiedMarkers = ['目标与范围', '依据与实施输入', '验收与测试']
+/**
+ * The marker of a line decision record: a comment that logs the line session's own decision.
+ * Such a comment is never read as a card-level acceptance decision. The record's shape is owned
+ * by `.meta_harness/agents/skills/line/canonical/references/work-paradigm.md`.
+ */
+export const LINE_DECISION_RECORD = '<!-- line-decision-record -->'
 const legacySections = {
   delivery: [
     '问题、结果与范围',
@@ -389,6 +395,8 @@ export function observeDelivery(
     }
     const declaredDecisions: CardObservation['declaredDecisions'] = []
     for (const comment of issue.comments) {
+      // A line decision record is the line session's own log. Its `决定：` is not a card decision.
+      if (comment.body.includes(LINE_DECISION_RECORD)) continue
       const d = fields(comment.body),
         kind = d.get('决定')?.[0]
       if (kind === undefined) continue

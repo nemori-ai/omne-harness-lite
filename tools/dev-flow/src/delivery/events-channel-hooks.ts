@@ -131,11 +131,12 @@ export function prepareChannelHook(config: ChannelConfig, path: string, gh: GhTe
     case 'owned':
       readExactHook(config, gh)
       return config
-    case 'deleted':
-      throw new ReceiverError('hook-already-deleted')
     case 'creating':
       return recoverChannelHook(config, path, gh)
     case 'uncreated':
+    case 'deleted':
+      // A deleted hook is proven gone on GitHub and the saved channel keeps its instance marker,
+      // so a restart rebuilds the exact hook through the same creating path as a first start.
       break
   }
   const pending: ChannelConfig = {
