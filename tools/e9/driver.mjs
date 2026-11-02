@@ -39,8 +39,6 @@ export function launchProcess(command, args, options = {}) {
     detached: process.platform !== 'win32',
     stdio: ['pipe', 'pipe', 'pipe'],
   })
-  const tree =
-    process.platform !== 'win32' && child.pid !== undefined ? observeTree(child.pid) : undefined
   const done = new Promise(resolve => {
     let stdout = ''
     let stderr = ''
@@ -51,7 +49,7 @@ export function launchProcess(command, args, options = {}) {
     let closingTimer
     let settled = false
     const stop = () => {
-      cleaning ??= killTree(child, tree).then(result => {
+      cleaning ??= killTree(child).then(result => {
         cleanup = result
       })
       closingTimer ??= setTimeout(() => {
@@ -103,7 +101,6 @@ export function launchProcess(command, args, options = {}) {
       process.removeListener('SIGINT', cancel)
       process.removeListener('SIGTERM', cancel)
       await cleaning
-      tree?.dispose()
       resolve({
         command,
         args,
@@ -118,9 +115,6 @@ export function launchProcess(command, args, options = {}) {
         elapsedMs: performance.now() - started,
       })
     }
-    child.once('exit', () => {
-      if (tree) void stop()
-    })
     child.on('close', (code, signal) => {
       void finish(code, signal)
     })

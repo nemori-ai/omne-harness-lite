@@ -1,6 +1,55 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { observeTree } from './posix-tree.mjs'
+import { setTimeout as sleep } from 'node:timers/promises'
+
+test('normal measurement performs no process scans or periodic tracking', async () => {
+  let scans = 0
+  const tree = observeTree(101, {
+    snapshot: () => {
+      scans++
+      return [{ pid: 101, parent: 1, identity: 'root-start', state: 'Z' }]
+    },
+  })
+  assert.equal(scans, 0)
+  await sleep(150)
+  assert.equal(scans, 0)
+  assert.equal((await tree.cleanup()).state, 'observed-stopped')
+})
+
+test('a vanished root leaves descendant ownership unknown', async () => {
+  const tree = observeTree(101, {
+    snapshot: () => [{ pid: 102, parent: 1, identity: 'orphan', state: 'S' }],
+    signal: () => assert.fail('unowned process signalled'),
+  })
+  const result = await tree.cleanup()
+  assert.equal(result.state, 'incomplete')
+  assert.match(JSON.stringify(result.errors), /root.*unavailable/)
+})
+
+test('cleanup caps discovered identities and error records', async () => {
+  const rows = Array.from({ length: 10 }, (_, index) => ({
+    pid: 101 + index,
+    parent: index === 0 ? 1 : 101,
+    identity: String(index),
+    state: 'S',
+  }))
+  const tree = observeTree(101, {
+    snapshot: () => rows,
+    signal: () => {
+      throw new Error('refused')
+    },
+    pause: async () => {},
+    deadlineMs: 1,
+    maxProcesses: 3,
+    maxErrors: 2,
+  })
+  const result = await tree.cleanup()
+  assert.equal(result.state, 'incomplete')
+  assert.ok(result.processes.length <= 3)
+  assert.ok(result.errors.length <= 2)
+  assert.ok(result.omittedErrors > 0)
+})
 
 function fixture({ reused = false, failSignal = false, failSnapshot = false } = {}) {
   const rows = new Map([
@@ -12,7 +61,7 @@ function fixture({ reused = false, failSignal = false, failSnapshot = false } = 
   const signals = []
   let samples = 0
   const tree = observeTree(101, {
-    deadlineMs: 1,
+    deadlineMs: 100,
     pause: async () => {},
     snapshot: () => {
       if (failSnapshot) throw new Error('snapshot unavailable')

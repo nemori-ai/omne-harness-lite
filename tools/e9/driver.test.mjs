@@ -26,6 +26,7 @@ test('subprocess failure and timeout preserve their distinct facts', async () =>
   ])
   assert.equal(failed.exitCode, 7)
   assert.equal(failed.stderr, 'bad')
+  assert.equal(failed.cleanup, undefined)
   const timed = await runProcess(process.execPath, ['-e', 'setInterval(()=>{},1000)'], {
     timeoutMs: 100,
   })

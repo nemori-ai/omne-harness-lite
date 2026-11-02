@@ -3,10 +3,11 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { performance } from 'node:perf_hooks'
 
-export function processSnapshot() {
+export function processSnapshot(deadline) {
   if (process.platform === 'linux') {
     const rows = []
     for (const name of readdirSync('/proc')) {
+      if (performance.now() >= deadline) throw new Error('process discovery deadline exceeded')
       if (!/^\d+$/.test(name)) continue
       try {
         const stat = readFileSync(`/proc/${name}/stat`, 'utf8')
@@ -25,7 +26,7 @@ export function processSnapshot() {
   }
   const result = spawnSync('ps', ['-axo', 'pid=,ppid=,stat=,lstart='], {
     encoding: 'utf8',
-    timeout: 1000,
+    timeout: Math.max(1, Math.ceil(Math.min(1000, deadline - performance.now()))),
     env: { ...process.env, LC_ALL: 'C' },
   })
   if (result.error || result.status !== 0)
@@ -50,17 +51,33 @@ const stopped = row => !row || /^[ZX]/.test(row.state)
 
 export function observeTree(
   pid,
-  { snapshot = processSnapshot, signal = process.kill, pause = sleep, deadlineMs = 2000 } = {},
+  {
+    snapshot = processSnapshot,
+    signal = process.kill,
+    pause = sleep,
+    deadlineMs = 2000,
+    maxProcesses = 256,
+    maxErrors = 32,
+  } = {},
 ) {
   const known = new Map()
   const errors = []
+  let omittedErrors = 0
   let initialized = false
+  let deadline
+  function failure(error) {
+    if (errors.length < maxErrors) errors.push(error)
+    else omittedErrors++
+  }
   function collect() {
-    const rows = snapshot()
+    if (performance.now() >= deadline) throw new Error('process cleanup deadline exceeded')
+    const rows = snapshot(deadline)
     const live = new Map(rows.map(row => [row.pid, row]))
     if (!initialized) {
       const root = live.get(pid)
       if (root) known.set(pid, root)
+      else
+        failure({ operation: 'discover', error: 'root unavailable; descendant ownership unknown' })
       initialized = true
     }
     let added
@@ -69,6 +86,10 @@ export function observeTree(
       for (const row of rows) {
         const parent = known.get(row.parent)
         if (!known.has(row.pid) && parent && live.get(parent.pid)?.identity === parent.identity) {
+          if (known.size >= maxProcesses) {
+            failure({ operation: 'discover', error: 'process discovery limit exceeded' })
+            continue
+          }
           known.set(row.pid, row)
           added = true
         }
@@ -76,28 +97,17 @@ export function observeTree(
     } while (added)
     return live
   }
-  function sample() {
-    try {
-      collect()
-    } catch (error) {
-      errors.push({ operation: 'discover', error: error.message })
-    }
-  }
-  sample()
-  const timer = setInterval(sample, 100)
-  timer.unref()
   function send(row, name, live) {
     if (live.get(row.pid)?.identity !== row.identity || stopped(live.get(row.pid))) return
     try {
       signal(row.pid, name)
     } catch (error) {
-      if (error.code !== 'ESRCH')
-        errors.push({ operation: name, pid: row.pid, error: error.message })
+      if (error.code !== 'ESRCH') failure({ operation: name, pid: row.pid, error: error.message })
     }
   }
   async function cleanup() {
-    clearInterval(timer)
     const started = performance.now()
+    deadline = started + deadlineMs
     let live
     try {
       // Freeze discovered parents before the final traversal so they cannot add more children.
@@ -105,7 +115,7 @@ export function observeTree(
       do {
         live = collect()
         count = known.size
-        for (const row of known.values()) send(row, 'SIGSTOP', live)
+        for (const row of known.values()) send(row, 'SIGSTOP', collect())
         live = collect()
       } while (known.size !== count && performance.now() - started < deadlineMs)
       for (const row of [...known.values()].reverse()) send(row, 'SIGKILL', collect())
@@ -120,7 +130,7 @@ export function observeTree(
         await pause(20)
       } while (performance.now() - started < deadlineMs)
     } catch (error) {
-      errors.push({ operation: 'cleanup', error: error.message })
+      failure({ operation: 'cleanup', error: error.message })
     }
     const processes = [...known.values()].map(row => {
       const current = live?.get(row.pid)
@@ -142,9 +152,12 @@ export function observeTree(
       exitCode: complete ? 0 : 1,
       state: complete ? 'observed-stopped' : 'incomplete',
       scope: 'observed-descendants',
+      unobservedDescendants: 'unknown',
       processes,
       errors,
+      omittedErrors,
+      limits: { deadlineMs, maxProcesses, maxErrors },
     }
   }
-  return { cleanup, dispose: () => clearInterval(timer) }
+  return { cleanup }
 }
