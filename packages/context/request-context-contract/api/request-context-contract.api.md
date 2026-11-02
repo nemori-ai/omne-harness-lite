@@ -715,6 +715,7 @@ import { type TextContentBlock } from '@omne-harness/content-block';
 import { type MessageId, type SystemReminderMessage } from '@omne-harness/message';
 export declare function canonical(value: unknown): string;
 export declare function digest(value: unknown): string;
+export declare function adoptionDigest(value: unknown): string;
 export declare function messageId(value: unknown): MessageId;
 export declare function textBlock(text: string, identity: unknown): TextContentBlock;
 export declare function reminder(text: string, identity: unknown): SystemReminderMessage;
