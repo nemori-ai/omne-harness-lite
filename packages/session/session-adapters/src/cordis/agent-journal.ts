@@ -420,16 +420,26 @@ export type InterpretationRead =
   | Readonly<{ kind: 'read'; execution: ExecutionInterpretation | null }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
+/** What one read of the durable Agent records of a session gives: null state when none was written. */
+export type JournalStateRead =
+  | Readonly<{ kind: 'read'; state: DurableJournalState | null }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+/** The storage and the trusted domain lookup that a reader of the Agent records needs. */
+export type JournalStateSource = Readonly<{
+  storage: SqlStorage
+  tenantDomainLookup: TenantDomainLookup
+}>
+
 /**
- * Reads the events of one execution after `after` from the durable Agent records of its session,
- * with the consequences and the head the same publication wrote beside its index rows. `null`
- * execution: the session's records hold no such execution. It reads only; it never writes.
+ * Reads the durable Agent records of one session as the provider wrote them: the records, the
+ * original fragments and the interpretation notes of one publication. It reads only.
  */
-export async function readExecutionInterpretation(
-  options: Readonly<{ storage: SqlStorage; tenantDomainLookup: TenantDomainLookup }>,
-  target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
-): Promise<InterpretationRead> {
-  const unread = (diagnostic: string): InterpretationRead => ({ kind: 'unavailable', diagnostic })
+export async function readJournalState(
+  options: JournalStateSource,
+  target: Readonly<{ tenant: TenantId; session: SessionId }>,
+): Promise<JournalStateRead> {
+  const unread = (diagnostic: string): JournalStateRead => ({ kind: 'unavailable', diagnostic })
   const text = tenantCodec.encode(target.tenant)
   if (!text.ok) return unread('the tenant was not minted by legal-identity')
   let result
@@ -452,15 +462,31 @@ export async function readExecutionInterpretation(
   if (result.kind !== 'read') return unread('the Agent records of the session are not readable')
   const state = decodeExecutionRecordState(result.output)
   if (state === null) return unread('the Agent records of the session do not decode')
-  if (state.state === null) return { kind: 'read', execution: null }
-  let records: DurableJournalState
+  if (state.state === null) return { kind: 'read', state: null }
   try {
-    records = stateOf(state.state)
+    return { kind: 'read', state: stateOf(state.state) }
   } catch (error) {
     return unread(`the Agent records do not decode: ${String(error)}`)
   }
-  const execution = [...records.executions.values()].find(item => item.id === target.execution)
-  if (execution === undefined) return { kind: 'read', execution: null }
+}
+
+/**
+ * Reads the events of one execution after `after` from the durable Agent records of its session,
+ * with the consequences and the head the same publication wrote beside its index rows. `null`
+ * execution: the session's records hold no such execution. It reads only; it never writes.
+ */
+export async function readExecutionInterpretation(
+  options: JournalStateSource,
+  target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
+): Promise<InterpretationRead> {
+  const read = await readJournalState(options, target)
+  if (read.kind === 'unavailable') return read
+  const records = read.state
+  const execution =
+    records === null
+      ? undefined
+      : [...records.executions.values()].find(item => item.id === target.execution)
+  if (records === null || execution === undefined) return { kind: 'read', execution: null }
   const events = execution.events.slice(Number(target.after)).map(event => ({
     sequence: event.sequence,
     source: event.cause,
