@@ -82,6 +82,18 @@ type InitialRecord = LocalAdmission &
 const failure = (diagnostic: string) => unavailable('model-initial-execution', diagnostic)
 const denied = (): ModelFailure => ({ kind: 'denied', action: 'execution-channel' })
 const keyOf = (tenant: string, call: InitialTarget['call']) => JSON.stringify([tenant, call])
+const initialRunAccess = Object.freeze({})
+
+type InitialRunPort<P> = Readonly<{
+  beginAdmission(input: LocalAdmission): Outcome<void, ModelFailure>
+  finishConfirmation(pass: ModelConfirmationPass | null, completion: ModelRunCompletion): void
+  failConfirmation(pass: ModelConfirmationPass | null): void
+  boundAccess(bound: BoundCommandAccess<P> | undefined): BoundCommandAccess<P> | null
+  createExecution(
+    core: ModelCommandCore<P>,
+    coordinator?: (bound: BoundCommandAccess<P>) => SendCoordinator<P>,
+  ): ModelInitialExecution<P>
+}>
 
 class InitialRun<P> implements ModelInitialRun<P> {
   declare readonly [initialRunBrand]: (principal: P) => P
@@ -91,20 +103,35 @@ class InitialRun<P> implements ModelInitialRun<P> {
   readonly #gates = new WeakSet<BoundCommandAccess<P>>()
   readonly #limits: ModelInitialRunLimits
   readonly #origin: (target: InitialTarget) => Outcome<void, ModelFailure>
+  readonly #port: InitialRunPort<P>
   #closed = false
 
   constructor(
+    access: object,
     options: Readonly<{
       limits: ModelInitialRunLimits
       checkOriginRead(target: InitialTarget): Outcome<void, ModelFailure>
     }>,
   ) {
+    if (access !== initialRunAccess) throw new TypeError('initialRun must come from its factory')
     for (const name of ['maxRecords', 'maxBindings', 'maxCallsPerBinding'] as const)
       positiveLimit(options.limits[name], name)
     this.#limits = Object.freeze({ ...options.limits })
     this.#origin = options.checkOriginRead
+    this.#port = Object.freeze({
+      beginAdmission: input => this.#beginAdmission(input),
+      finishConfirmation: (pass, completion) => this.#finishConfirmation(pass, completion),
+      failConfirmation: pass => this.#disable(pass),
+      boundAccess: bound => this.#boundAccess(bound),
+      createExecution: (core, coordinator) => this.#createExecution(core, coordinator),
+    })
   }
-  beginAdmission(input: LocalAdmission): Outcome<void, ModelFailure> {
+  static access<P>(access: object, run: ModelInitialRun<P>): InitialRunPort<P> {
+    if (access !== initialRunAccess || !(run instanceof InitialRun) || !(#port in run))
+      throw new TypeError('initialRun must be the original factory object')
+    return run.#port
+  }
+  #beginAdmission(input: LocalAdmission): Outcome<void, ModelFailure> {
     if (this.#closed) return { failure: failure('confirmation-unavailable') }
     const key = keyOf(input.tenant, input.call)
     const previous = this.#records.get(key)
@@ -118,10 +145,10 @@ class InitialRun<P> implements ModelInitialRun<P> {
     this.#records.set(key, { ...input, kind: 'admission-pending' })
     return { ok: undefined }
   }
-  finishConfirmation(pass: ModelConfirmationPass | null, completion: ModelRunCompletion): void {
+  #finishConfirmation(pass: ModelConfirmationPass | null, completion: ModelRunCompletion): void {
     try {
       if (completion.kind === 'threw') {
-        this.disable(pass)
+        this.#disable(pass)
         return
       }
       if (completion.kind !== 'confirmed' || pass?.scope?.call === undefined) return
@@ -160,24 +187,18 @@ class InitialRun<P> implements ModelInitialRun<P> {
       )
         this.#records.set(key, { ...record, execution: { ...call.execution } })
     } catch (error) {
-      this.disable(pass)
+      this.#disable(pass)
       throw error
     }
   }
-  private disable(pass: ModelConfirmationPass | null): void {
+  #disable(pass: ModelConfirmationPass | null): void {
     if (pass?.scope?.call === undefined) this.#closed = true
     else this.#unavailable.add(keyOf(pass.scope.tenant, pass.scope.call))
   }
-  failConfirmation(pass: ModelConfirmationPass | null): void {
-    this.disable(pass)
-  }
-  authenticate(): void {
-    void this.#records.size
-  }
-  boundAccess(bound: BoundCommandAccess<P> | undefined): BoundCommandAccess<P> | null {
+  #boundAccess(bound: BoundCommandAccess<P> | undefined): BoundCommandAccess<P> | null {
     return bound !== undefined && this.#gates.has(bound) ? bound : null
   }
-  createExecution(
+  #createExecution(
     core: ModelCommandCore<P>,
     coordinator?: (bound: BoundCommandAccess<P>) => SendCoordinator<P>,
   ): ModelInitialExecution<P> {
@@ -400,12 +421,11 @@ class InitialRun<P> implements ModelInitialRun<P> {
     })
   }
 }
+Object.freeze(InitialRun.prototype)
+Object.freeze(InitialRun)
 
-export function initialRunPort<P>(run: ModelInitialRun<P>): InitialRun<P> {
-  if (!(run instanceof InitialRun))
-    throw new TypeError('initialRun must be the original factory object')
-  run.authenticate()
-  return run
+export function initialRunPort<P>(run: ModelInitialRun<P>): InitialRunPort<P> {
+  return InitialRun.access(initialRunAccess, run)
 }
 export function createModelInitialRun<P>(
   options: Readonly<{
@@ -413,7 +433,7 @@ export function createModelInitialRun<P>(
     checkOriginRead(target: InitialTarget): Outcome<void, ModelFailure>
   }>,
 ): ModelInitialRun<P> {
-  return new InitialRun<P>(options)
+  return Object.freeze(new InitialRun<P>(initialRunAccess, options))
 }
 export function createModelInitialExecution<P>(
   input: Readonly<{

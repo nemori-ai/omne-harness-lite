@@ -10,7 +10,7 @@ import {
   type ModelInitialHostChannel,
 } from '../src/commands/index.ts'
 import * as observationModule from '../src/stream-source.ts'
-import { initialRunPort } from '../src/commands/initial.ts'
+import * as initialModule from '../src/commands/initial.ts'
 import { MemoryState } from '../src/testing/state.ts'
 import { fixture, instance, unbox } from './memory-fixture.ts'
 
@@ -23,8 +23,17 @@ it('initial confirmation and a throwing diagnostic cannot replace the committed 
     checkOriginRead: () => ({ ok: undefined }),
   })
   const original = new Error('private detail must not escape')
-  vi.spyOn(initialRunPort(run), 'finishConfirmation').mockImplementation(() => {
-    throw original
+  const port = initialModule.initialRunPort
+  vi.spyOn(initialModule, 'initialRunPort').mockImplementation(target => {
+    const originalPort = port(target)
+    return target !== run
+      ? originalPort
+      : {
+          ...originalPort,
+          finishConfirmation: () => {
+            throw original
+          },
+        }
   })
   const diagnostics: unknown[] = []
   const memory = new MemoryState(f.options)

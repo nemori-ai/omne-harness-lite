@@ -155,3 +155,90 @@ it('only the original run object and explicit positive limits are accepted', () 
       }),
     ).toThrow(RangeError)
 })
+
+it('cannot turn a stored old call into a first admission through run or constructor reflection', async () => {
+  const f = fixture()
+  const memory = new MemoryState(f.options)
+  unbox(await modelCommands(memory.core).admit(f.admit))
+  const options = {
+    limits: { maxRecords: 2, maxBindings: 1, maxCallsPerBinding: 1 },
+    checkOriginRead: () => ({ ok: undefined }),
+  }
+  const run = createModelInitialRun<typeof f.principal>(options)
+  const bridge = createModelObservationStorage({
+    storage: memory,
+    authority: f.options.authority,
+    initialRun: run,
+    report: () => {},
+  })
+  const core = createModelCommandsCore({ ...f.options, initialRun: run }, bridge.storage)
+  const initial = createModelInitialExecution({ run, core })
+  const channel = unbox(initial.openHost({ instance: instance() }))
+  const tenant = core.identity(f.admit)
+  if (typeof tenant !== 'string') throw new Error('tenant')
+  const call = memory.documents(tenant).calls.get(f.admit.call)
+  if (!call) throw new Error('stored call')
+  const fingerprint = 'chosen-by-reflection'
+  const begin = Reflect.get(run, 'beginAdmission')
+  const finish = Reflect.get(run, 'finishConfirmation')
+  if (typeof begin === 'function' && typeof finish === 'function') {
+    Reflect.apply(begin, run, [
+      {
+        tenant,
+        call: f.admit.call,
+        admission: f.admit.operation,
+        admissionFingerprint: fingerprint,
+      },
+    ])
+    Reflect.apply(finish, run, [
+      {
+        scope: { tenant, call: f.admit.call, operation: f.admit.operation },
+        seen: null,
+        staged: {
+          kind: 'write',
+          tenant,
+          write: {
+            operation: f.admit.operation,
+            call,
+            binding: { call: f.admit.call, method: 'admit', fingerprint },
+          },
+        },
+      },
+      { kind: 'confirmed' },
+    ])
+  }
+  expect(await channel.prepare(f.admit)).toMatchObject({
+    failure: { diagnostic: 'initial-record-missing' },
+  })
+  const prototype = Object.getPrototypeOf(run)
+  expect(Reflect.ownKeys(run)).toEqual([])
+  expect(Reflect.ownKeys(prototype)).toEqual(['constructor'])
+  const constructor = Reflect.get(prototype, 'constructor')
+  if (typeof constructor !== 'function') throw new Error('run constructor')
+  const access = Reflect.get(constructor, 'access')
+  let stolen: unknown
+  if (typeof access === 'function') {
+    const replaced = Reflect.set(constructor, 'access', (...args: unknown[]) => {
+      stolen = args[0]
+      return Reflect.apply(access, constructor, args)
+    })
+    try {
+      createModelCommandsCore({ ...f.options, initialRun: run }, bridge.storage)
+    } finally {
+      if (replaced) Reflect.set(constructor, 'access', access)
+    }
+    expect(stolen).toBeUndefined()
+  }
+  for (const guessed of [undefined, null, {}, run, prototype, constructor, Symbol()]) {
+    expect(() => Reflect.construct(constructor, [guessed, options])).toThrow(TypeError)
+    for (const property of Reflect.ownKeys(constructor)) {
+      const member = Reflect.get(constructor, property)
+      if (typeof member === 'function')
+        expect(() => Reflect.apply(member, constructor, [guessed, run])).toThrow(TypeError)
+    }
+  }
+  expect(() =>
+    createModelCommandsCore({ ...f.options, initialRun: Object.create(prototype) }, memory),
+  ).toThrow(TypeError)
+  channel.close()
+})
