@@ -1,5 +1,11 @@
 import { access, accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type {
+  CredentialPort,
+  CredentialQuery,
+  QualifiedCredentialQuery,
+  SendFace,
+} from '../src/credential.ts'
 import { decodeCredentialId } from '../src/credential-values.ts'
 import { checkCredentialPortConformance } from '../src/conformance/credential.ts'
 import {
@@ -36,6 +42,30 @@ function subject(): CredentialConformanceSubject<string> {
 }
 
 type Subject = CredentialConformanceSubject<string>
+
+class PrivateCredentialPort {
+  #port: CredentialPort<string>
+
+  constructor(port: CredentialPort<string>) {
+    this.#port = port
+  }
+
+  present(query: CredentialQuery) {
+    return this.#port.present(query)
+  }
+
+  resolve(query: CredentialQuery, face: SendFace) {
+    return this.#port.resolve(query, face)
+  }
+
+  presentFor(query: Omit<QualifiedCredentialQuery<string>, 'official'>) {
+    return this.#port.presentFor?.(query) ?? { kind: 'unavailable' as const }
+  }
+
+  resolveFor(query: QualifiedCredentialQuery<string>) {
+    return this.#port.resolveFor?.(query) ?? { kind: 'unavailable' as const }
+  }
+}
 
 async function failures(change: (input: Subject) => Subject) {
   const report = await checkCredentialPortConformance({ subject: () => change(subject()) })
@@ -105,21 +135,100 @@ describe('credential port conformance', () => {
     ).toContain('qualified-other-binding-blocks-factory')
   })
 
-  it('detects a qualified path that delegates to legacy resolve', async () => {
-    expect(
-      await failures(input => ({
-        ...input,
-        port: {
-          ...input.port,
-          resolveFor(query) {
-            return this.resolve(
-              { id: query.id, tenant: query.access.tenant, purpose: query.purpose },
-              { authorized: true, official: query.official },
-            )
+  it('preserves the original receiver for private-field class methods', async () => {
+    const report = await checkCredentialPortConformance({
+      subject() {
+        const input = subject()
+        return { ...input, port: new PrivateCredentialPort(input.port) }
+      },
+    })
+    expect(report.ok).toBe(true)
+    expect(report.results.filter(result => result.status === 'pass')).toHaveLength(16)
+  })
+
+  it.each(['face', 'authorized', 'tenant'])(
+    'detects qualified methods that read the legacy input field %s',
+    async field => {
+      for (const method of ['presentFor', 'resolveFor'] as const) {
+        expect(
+          await failures(input => ({
+            ...input,
+            port: {
+              ...input.port,
+              [method](query: QualifiedCredentialQuery<string>) {
+                try {
+                  Reflect.get(query, field)
+                } catch {}
+                return input.port[method]?.(query) ?? { kind: 'unavailable' }
+              },
+            },
+          })),
+        ).toContain('qualified-independent-of-legacy')
+      }
+    },
+  )
+
+  it.each(['resolve', 'throw', 'reject', 'pending'] as const)(
+    'disposes all late subjects after factory timeout when disposal will %s',
+    async disposal => {
+      vi.useFakeTimers()
+      try {
+        const factories: ReturnType<typeof Promise.withResolvers<Subject>>[] = []
+        let disposed = 0
+        const pending = checkCredentialPortConformance({
+          subject() {
+            const factory = Promise.withResolvers<Subject>()
+            factories.push(factory)
+            return factory.promise
           },
+          waitMs: 1,
+        })
+        await vi.runAllTimersAsync()
+        const report = await pending
+        expect(report.results.every(result => result.status === 'fail')).toBe(true)
+        expect(factories).toHaveLength(16)
+        for (const factory of factories) {
+          factory.resolve({
+            ...subject(),
+            dispose() {
+              disposed += 1
+              if (disposal === 'throw') throw new Error('synthetic-disposal-error')
+              if (disposal === 'reject') return Promise.reject(new Error('synthetic-disposal-error'))
+              if (disposal === 'pending') return new Promise<void>(() => {})
+            },
+          })
+        }
+        await vi.runAllTimersAsync()
+        expect(disposed).toBe(16)
+        expect(report.ok).toBe(false)
+        expect(report.results.every(result => result.status === 'fail')).toBe(true)
+      } finally {
+        vi.useRealTimers()
+      }
+    },
+  )
+
+  it('handles factory rejection after the timed-out suite has returned', async () => {
+    vi.useFakeTimers()
+    try {
+      const factories: ReturnType<typeof Promise.withResolvers<Subject>>[] = []
+      const pending = checkCredentialPortConformance({
+        subject() {
+          const factory = Promise.withResolvers<Subject>()
+          factories.push(factory)
+          return factory.promise
         },
-      })),
-    ).toContain('qualified-independent-of-legacy')
+        waitMs: 1,
+      })
+      await vi.runAllTimersAsync()
+      const report = await pending
+      expect(factories).toHaveLength(16)
+      for (const factory of factories) factory.reject(new Error('synthetic-factory-error'))
+      await vi.runAllTimersAsync()
+      expect(report.ok).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('detects a provider that hides source unavailability as absence', async () => {

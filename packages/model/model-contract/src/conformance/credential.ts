@@ -56,12 +56,12 @@ function scene<P>(subject: CredentialConformanceSubject<P>, waitMs: number) {
   const query: QualifiedCredentialQuery<P> = { id, purpose: MODEL_SEND, official: true, access }
   const face = { authorized: true, official: true }
   const control = (operation: () => void | Promise<void>) => within(operation, waitMs)
-  function qualified(qualifiedPort = port) {
-    const { presentFor, resolveFor } = qualifiedPort
+  function qualified() {
+    const { presentFor, resolveFor } = port
     requireCondition(typeof presentFor === 'function' && typeof resolveFor === 'function')
     return {
-      present: () => presentFor.call(qualifiedPort, query),
-      resolve: (input = query) => resolveFor.call(qualifiedPort, input),
+      present: (input = query) => presentFor.call(port, input),
+      resolve: (input = query) => resolveFor.call(port, input),
     }
   }
   function known(result: CredentialPresence, present: boolean) {
@@ -143,15 +143,20 @@ function checks<P>(): Record<
     },
     async 'qualified-independent-of-legacy'(input) {
       await input.bind()
-      const port = new Proxy(input.port, {
-        get(target, name, receiver) {
-          if (name === 'present' || name === 'resolve') throw new Error('legacy path read')
-          return Reflect.get(target, name, receiver)
-        },
-      })
-      const qualified = input.qualified(port)
-      input.known(qualified.present(), true)
-      input.value(qualified.resolve(), 'tenant', input.subject.secret)
+      const query = { ...input.query }
+      let legacyRead = false
+      for (const name of ['face', 'authorized', 'tenant']) {
+        Object.defineProperty(query, name, {
+          get() {
+            legacyRead = true
+            throw new Error('legacy input read')
+          },
+        })
+      }
+      const qualified = input.qualified()
+      input.known(qualified.present(query), true)
+      input.value(qualified.resolve(query), 'tenant', input.subject.secret)
+      requireCondition(!legacyRead)
     },
     async 'qualified-foreign-holder-denied'(input) {
       await input.bind()
@@ -242,16 +247,23 @@ async function run<P>(
   waitMs: number,
 ): Promise<CredentialConformanceResult> {
   let subject: CredentialConformanceSubject<P> | undefined
+  let finished = false
   let status: CredentialConformanceResult['status'] = 'pass'
   let detail = ''
   try {
-    subject = await within(() => options.subject(), waitMs)
+    await within(async () => {
+      const created = await options.subject()
+      if (finished) await within(() => created.dispose?.(), waitMs)
+      else subject = created
+    }, waitMs)
+    requireCondition(subject !== undefined)
     const prepared = scene(subject, waitMs)
     await within(() => check(prepared), waitMs)
   } catch {
     status = 'fail'
     detail = 'Credential obligation, subject construction or test control failed.'
   } finally {
+    finished = true
     if (subject !== undefined) {
       try {
         await within(() => subject?.dispose?.(), waitMs)
