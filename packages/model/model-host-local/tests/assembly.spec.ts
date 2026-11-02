@@ -109,6 +109,10 @@ function config(overrides: Partial<LocalModelConfig<Principal>> = {}): LocalMode
       },
     },
     maxRetainedAttempts: 1,
+    materialization: {
+      maxRecords: 1,
+      execution: () => ({ failure: { kind: 'denied', action: 'execution-channel' } }),
+    },
     preparation: { maxCitedCalls: 4, supplierOf: factorySupplier() },
     ...overrides,
   }
@@ -238,6 +242,11 @@ function observedFactories(
       events.push('resources')
       if (failures.build !== undefined) throw failures.build
       return {
+        materialization: {
+          prove: () => ({
+            failure: { kind: 'unavailable', dependency: 'tests', diagnostic: 'not-used' },
+          }),
+        },
         acquire: async () => ({
           failure: { kind: 'unavailable', dependency: 'tests', diagnostic: 'not-used' },
         }),
@@ -266,6 +275,32 @@ async function unhandledDuring(body: () => void): Promise<readonly unknown[]> {
 }
 
 describe('the resources of the assembly', () => {
+  it('rejects materialization capacity below retained attempts before opening the network', () => {
+    const { events, factories } = observedFactories()
+    expect(() => assembleOver({ config: config({ maxRetainedAttempts: 2 }), factories })).toThrow(
+      /materialization/u,
+    )
+    expect(events).toEqual([])
+  })
+
+  it('exposes the evidence reader of the exact resources it assembled', async () => {
+    const observed = observedFactories()
+    let reader: PiSendResources<Principal>['materialization'] | undefined
+    const local = assembleOver({
+      config: config(),
+      factories: {
+        ...observed.factories,
+        createSendResources(input) {
+          const resources = observed.factories.createSendResources(input)
+          reader = resources.materialization
+          return resources
+        },
+      },
+    })
+    expect(local.materialization).toBe(reader)
+    await local.close()
+  })
+
   it('creates no network when the preparation configuration is refused', () => {
     const { events, factories } = observedFactories()
     expect(() =>

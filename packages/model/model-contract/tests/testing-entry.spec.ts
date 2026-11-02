@@ -5,6 +5,7 @@ it('the testing entry exports the scripted provider and transport, the misuse er
   expect(Object.keys(testing).sort()).toEqual([
     'ScriptedModelError',
     'createScriptedConformanceSubject',
+    'createScriptedCredentialPort',
     'createScriptedModelProfiles',
     'createScriptedModelProvider',
     'createScriptedModelRequestPreparation',

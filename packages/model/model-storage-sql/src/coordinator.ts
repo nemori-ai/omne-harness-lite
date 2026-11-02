@@ -20,6 +20,7 @@ import type {
   CallDocument,
   CommandWrite,
   ModelCommandCore,
+  modelCommands,
   ModelCommandStorage,
   ModelSendSource,
   RunScope,
@@ -46,6 +47,7 @@ export type SendMirror = Readonly<{
   coordinator<P>(
     core: ModelCommandCore<P>,
     sources: readonly ModelSendSource<P>[],
+    bound?: NonNullable<Parameters<typeof modelCommands<P>>[1]>,
   ): SendCoordinator<P>
 }>
 
@@ -294,6 +296,7 @@ export function createSendMirror(
     coordinator<P>(
       core: ModelCommandCore<P>,
       sources: readonly ModelSendSource<P>[],
+      bound?: NonNullable<Parameters<typeof modelCommands<P>>[1]>,
     ): SendCoordinator<P> {
       if (core.storage !== storage)
         throw new TypeError('the commands core does not run on the storage of this mirror')
@@ -335,7 +338,7 @@ export function createSendMirror(
         check: (input, stage) =>
           exclusive(() =>
             qualified(input, call => {
-              const failure = core.sendBinding(input, call, stage)
+              const failure = core.sendBinding(input, call, stage, bound)
               return failure ? { failure } : { ok: undefined }
             }),
           ),
@@ -347,7 +350,7 @@ export function createSendMirror(
         ) =>
           exclusive(() => {
             const checked = qualified<CredentialSelection>(input, call =>
-              core.currentCredential(input, call, receipt, window, registered),
+              core.currentCredential(input, call, receipt, window, registered, bound),
             )
             if ('failure' in checked) return refused(checked.failure)
             const tenant = core.identity(input)

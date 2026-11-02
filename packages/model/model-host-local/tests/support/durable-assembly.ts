@@ -1,4 +1,4 @@
-// The full assembly of the Model host on real Cordis 4.0.4, for the 53 provider obligations of
+// The legacy and configured Model host assemblies on real Cordis 4.0.4, for the 53 obligations of
 // `@omne-harness/model-contract/conformance`: the runtime plugin of this member (host, runtime
 // facade and result push), the send stage plugin of this member, the real Model runtime of
 // `@omne-harness/model`, and the durable ModelCommands of `@omne-harness/model-storage-sql`
@@ -15,6 +15,7 @@
 // - The network of the send stage is a closable object that opens nothing.
 // - Fault injection sits on the SQL storage port (`failNextWrite`, `blockCleanup`) and on the
 //   instance directory the runtime reads (`disconnectObservers`, `failDirectory`).
+import { vi } from 'vitest'
 import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
@@ -92,16 +93,40 @@ import {
 // The participant module of the model records. It is the default export of that member's
 // `src/commit.ts` and not yet exported from its root; see the file comment.
 import participant from '../../../model-storage-sql/src/commit.ts'
+import { createSqlModelRecordsPlugin } from '@omne-harness/model-storage-sql/cordis'
 import { assembleOver, type AssemblyFactories } from '../../src/assembly.ts'
 import {
   createMemoryResultPushLedger,
   createModelRuntimeLocalPlugin,
+  createConfiguredModelRuntimeLocalPlugin,
   type ResultPushLimits,
 } from '../../src/cordis.ts'
 import { sendStagePluginOver } from '../../src/plugins/send-stage.ts'
 import type { PiSendResources } from '../../src/send-resources.ts'
 import { FAMILIES, TRANSPORT_LIMITS } from './local-host.ts'
 import { factorySupplier } from './profiles.ts'
+
+type RuntimeFactory = typeof createModelRuntime<unknown>
+type RuntimeArguments = Parameters<RuntimeFactory>
+type RuntimeCapture = (
+  actual: RuntimeFactory,
+  ...args: RuntimeArguments
+) => ReturnType<RuntimeFactory>
+
+// Every capture belongs to one send object. Concurrent subjects never share a current subject.
+const captures = vi.hoisted(() => new Map<ModelSendBoundary<unknown>, RuntimeCapture>())
+vi.mock('@omne-harness/model', async importOriginal => {
+  const actual = await importOriginal<typeof import('@omne-harness/model')>()
+  return {
+    ...actual,
+    createModelRuntime(dependencies: RuntimeArguments[0], configuration: RuntimeArguments[1]) {
+      const capture = captures.get(dependencies.send)
+      return capture === undefined
+        ? actual.createModelRuntime(dependencies, configuration)
+        : capture(actual.createModelRuntime, dependencies, configuration)
+    },
+  }
+})
 
 // --- Values ------------------------------------------------------------------------------------
 
@@ -575,15 +600,16 @@ type Backend = Readonly<{
   commands: ModelCommands<unknown>
   coordinator: SendCoordinator<unknown>
   faults: ReturnType<typeof faultyStorage> | null
+  records?: ReturnType<typeof durableOptions>['options']
 }>
 
-function durableBackend(
+function durableOptions(
   denied: Set<CommandAction>,
   completions: ReturnType<typeof completionRecords>,
-): Backend {
+) {
   const { core, source } = coreOptions(denied, completions)
   const faults = faultyStorage(sqliteStorage())
-  const { commands, coordinator } = createSqlModelCommands<unknown>({
+  const options = {
     ...core,
     storage: faults.storage,
     domains: lookup([textOf(TENANT), textOf(OTHER_TENANT)], DOMAIN),
@@ -591,7 +617,16 @@ function durableBackend(
     maxCallBytes: MAX_CALL_BYTES,
     maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
     send: { mirrorBytes: 1 << 24, sources: [source] },
-  })
+  } satisfies SqlModelCommandsOptions<unknown>
+  return { faults, options }
+}
+
+function durableBackend(
+  denied: Set<CommandAction>,
+  completions: ReturnType<typeof completionRecords>,
+): Backend {
+  const { faults, options } = durableOptions(denied, completions)
+  const { commands, coordinator } = createSqlModelCommands<unknown>(options)
   if (coordinator === null)
     throw new Error('durable assembly: the SQL commands gave no coordinator')
   return {
@@ -602,6 +637,7 @@ function durableBackend(
     commands,
     coordinator,
     faults,
+    records: options,
   }
 }
 
@@ -629,6 +665,8 @@ function memoryBackend(
       credentials: {
         present: () => ({ kind: 'unavailable' }),
         resolve: () => ({ kind: 'unavailable' }),
+        presentFor: () => ({ kind: 'unavailable' }),
+        resolveFor: () => ({ kind: 'unavailable' }),
       },
       sources: [source],
     },
@@ -690,6 +728,14 @@ class Clock extends ModelClockService {
 /** The factory credential: a synthetic value, never a real key. */
 class Credential extends ModelCredentialService {
   readonly present: CredentialPort['present'] = () => ({ kind: 'unavailable' })
+  override readonly presentFor: NonNullable<CredentialPort['presentFor']> = () => ({
+    kind: 'unavailable',
+  })
+  override readonly resolveFor: NonNullable<CredentialPort['resolveFor']> = () => ({
+    kind: 'value',
+    scope: 'factory',
+    value: 'synthetic-credential',
+  })
   readonly resolve: CredentialPort['resolve'] = () => ({
     kind: 'value',
     scope: 'factory',
@@ -801,6 +847,7 @@ function channels() {
 /** The send resources of the stage: a scripted transport whose facts come from the channel. */
 function channelSendResources(channel: (call: ModelCallId) => Channel): PiSendResources<unknown> {
   return {
+    materialization: { prove: () => unavailable('model-materialization', 'scripted-transport') },
     async acquire(demand) {
       const stream = channel(demand.call)
       stream.acquired.resolve()
@@ -983,6 +1030,10 @@ export type AssemblyFacts = Readonly<{
   plugins: readonly string[]
   transport: string
   network: string
+  runtimeFactory: 'legacy' | 'configured'
+  runtimeConstructions: number
+  instrumentation: string
+  materializationReader: string
 }>
 
 function cordisVersion(): string {
@@ -1006,13 +1057,34 @@ const PLUGIN_NAMES = [
 ]
 
 /** What the evidence says about one built subject. Every field comes from what was built. */
-function assemblyFacts(backend: Backend): AssemblyFacts {
+function assemblyFacts(
+  backend: Backend,
+  configured: boolean,
+  constructions: number,
+): AssemblyFacts {
   return {
     modelCommands: backend.description,
     commandsKind: backend.kind,
     sqlProvider: backend.sqlProvider,
     cordis: cordisVersion(),
-    plugins: PLUGIN_NAMES,
+    plugins: configured
+      ? [
+          'ConfiguredModelRuntimeLocalPlugin (createConfiguredModelRuntimeLocalPlugin)',
+          'SqlModelRecordsPlugin (createSqlModelRecordsPlugin)',
+          ...PLUGIN_NAMES.filter(
+            name =>
+              !name.startsWith('ModelRuntimeLocalPlugin') &&
+              !name.startsWith('ModelCommandsService'),
+          ),
+        ]
+      : PLUGIN_NAMES,
+    runtimeFactory: configured ? 'configured' : 'legacy',
+    runtimeConstructions: constructions,
+    instrumentation: configured
+      ? 'Vitest module wrapper calls actual createModelRuntime; decorates instances, driver and preserve; captures the real send child Fiber'
+      : 'provider callback decorates instances and driver; preserves are counted at the commands port',
+    materializationReader:
+      'unavailable stand-in; the scripted transport does not materialize pi request bytes',
     transport:
       '@omne-harness/model-contract/testing createScriptedTransport behind a per-call channel',
     network: 'closable stand-in that opens nothing',
@@ -1027,16 +1099,19 @@ export type DurableSubject = ConformanceSubject<unknown> &
  */
 export async function durableSubject(
   record: (event: unknown) => void = () => {},
+  options: Readonly<{ configured?: boolean; beforeRuntime?(): Promise<void> }> = {},
 ): Promise<DurableSubject> {
   const denied = new Set<CommandAction>()
   const completions = completionRecords()
-  const backend = backendOf(BACKEND, denied, completions)
+  let backend = backendOf(BACKEND, denied, completions)
+  const configured = options.configured === true
+  let constructions = 0
   const upstream = channels()
   const drives = driveLog()
   const preserved = new Map<ModelCallId, number>()
 
   // The commands the services serve: the backend's, with the preserves counted per call.
-  const commands: ModelCommands<unknown> = {
+  let commands: ModelCommands<unknown> = {
     ...backend.commands,
     preserve: async input => {
       const result = await backend.commands.preserve(input)
@@ -1053,26 +1128,31 @@ export async function durableSubject(
     createNetwork: () => network,
     createSendResources: () => channelSendResources(upstream.channel),
   }
-  const Stage = sendStagePluginOver({
-    options: {
-      coordinator: backend.coordinator,
-      families: FAMILIES,
-      network: { maxConnections: 2, idleConnectionTimeoutMs: 1_000 },
-      routes: {
-        'test.invalid': { url: 'https://test.invalid/v1/chat/completions', endMarker: '[DONE]' },
+  const stageOver = (coordinator: SendCoordinator<unknown>) =>
+    sendStagePluginOver({
+      options: {
+        coordinator,
+        materialization: {
+          maxRecords: STAGE_SETTINGS.maxRetainedAttempts,
+          execution: () => ({ ok: { owner: 'host', subject: 'channel', revision: '1' } }),
+        },
+        families: FAMILIES,
+        network: { maxConnections: 2, idleConnectionTimeoutMs: 1_000 },
+        routes: {
+          'test.invalid': { url: 'https://test.invalid/v1/chat/completions', endMarker: '[DONE]' },
+        },
+        transportLimits: TRANSPORT_LIMITS,
+        preparation: { maxCitedCalls: 8, supplierOf: factorySupplier<unknown>() },
       },
-      transportLimits: TRANSPORT_LIMITS,
-      preparation: { maxCitedCalls: 8, supplierOf: factorySupplier<unknown>() },
-    },
-    assemble: config => assembleOver({ config, factories }),
-  })
+      assemble: config => assembleOver({ config, factories }),
+    })
   const send: ModelSendBoundary<unknown> = {
     send: (demand, signal) => root.modelSendBoundary.send(demand, signal),
   }
   let hostControl: ReturnType<typeof instrumentedHost> | undefined
   let provider: ModelRuntimeProvider<unknown> | undefined
   let dependencies: Parameters<typeof createModelRuntime<unknown>>[0] | undefined
-  const Plugin = createModelRuntimeLocalPlugin({
+  const LegacyPlugin = createModelRuntimeLocalPlugin({
     provider: given => {
       hostControl = instrumentedHost(
         given.host,
@@ -1086,6 +1166,7 @@ export async function durableSubject(
         instances: hostControl.instances,
         clock: given.clock,
       }
+      constructions += 1
       provider = createModelRuntime(dependencies, CONFIGURATION)
       return {
         driver: drives.wrap(provider.driver),
@@ -1099,14 +1180,112 @@ export async function durableSubject(
 
   const fibers: Fiber[] = []
   fibers.push(root.plugin(Authority), root.plugin(Clock), root.plugin(Credential))
-  fibers.push(root.plugin(commandsServiceOver(commands)))
   for (const fiber of fibers) await fiber
-  const stage = root.plugin(Stage, STAGE_SETTINGS)
-  await stage
-  const host = root.plugin(Plugin, HOST_SETTINGS)
-  await host
-  if (hostControl === undefined || provider === undefined || dependencies === undefined)
+  let stage: Fiber | undefined
+  const stageReady = deferred<Fiber>()
+  if (configured) {
+    const records = backend.records
+    if (records === undefined) throw new Error('configured assembly requires SQL records')
+    const Records = createSqlModelRecordsPlugin({
+      inject: [],
+      resolve: () => ({
+        storage: records.storage,
+        domains: records.domains,
+        authority: records.authority,
+        evidence: records.evidence,
+        clock: records.clock,
+        manifestDigest: DIGEST,
+        sources: records.send.sources,
+      }),
+      sendStage(coordinator) {
+        return {
+          plugin: {
+            name: 'fixture-capture-send-child',
+            apply(child: Context) {
+              stage = child.plugin(stageOver(coordinator), STAGE_SETTINGS)
+              stageReady.resolve(stage)
+            },
+          },
+          config: {},
+        }
+      },
+    })
+    const recordsFiber = root.plugin(Records, {
+      owners: records.owners,
+      limits: records.limits,
+      maxCallBytes: records.maxCallBytes,
+      maxCommandBytes: records.maxCommandBytes,
+      combinationVersion: records.combination.combinationVersion,
+      send: { mirrorBytes: records.send.mirrorBytes, maxClaims: 64 },
+    })
+    fibers.push(recordsFiber)
+    await recordsFiber
+    stage = await stageReady.promise
+    await stage
+    commands = root.modelCommands
+    backend = {
+      ...backend,
+      commands,
+      description:
+        '@omne-harness/model-storage-sql createSqlModelRecordsPlugin (real records factory)',
+    }
+    captures.set(send, (actual, given, configuration) => {
+      constructions += 1
+      hostControl = instrumentedHost(
+        given.instances,
+        drives,
+        call => upstream.channel(call).acquired.promise,
+      )
+      dependencies = {
+        ...given,
+        instances: hostControl.instances,
+        commands: {
+          ...given.commands,
+          preserve: async input => {
+            const result = await given.commands.preserve(input)
+            if ('ok' in result)
+              preserved.set(input.call, (preserved.get(input.call) ?? 0) + input.facts.length)
+            return result
+          },
+        },
+      }
+      provider = actual(dependencies, configuration)
+      return { ...provider, driver: drives.wrap(provider.driver) }
+    })
+  } else {
+    const commandsFiber = root.plugin(commandsServiceOver(commands))
+    fibers.push(commandsFiber)
+    await commandsFiber
+    stage = root.plugin(stageOver(backend.coordinator), STAGE_SETTINGS)
+  }
+  if (stage === undefined) throw new Error('durable assembly: no send child')
+  const sendChild = stage
+  await sendChild
+  await options.beforeRuntime?.()
+  const host = configured
+    ? root.plugin(
+        createConfiguredModelRuntimeLocalPlugin({
+          send,
+          qualifyObservation: async access => coreAuthorize(denied, access),
+          ledger: createMemoryResultPushLedger(),
+          releaseExecution: async () => {
+            await sendChild.dispose()
+          },
+        }),
+        { host: HOST_SETTINGS, runtime: CONFIGURATION, results: PUSH_LIMITS },
+      )
+    : root.plugin(LegacyPlugin, HOST_SETTINGS)
+  try {
+    await host
+  } finally {
+    captures.delete(send)
+  }
+  if (hostControl === undefined || provider === undefined || dependencies === undefined) {
+    await host.dispose()
+    await sendChild.dispose()
+    for (const fiber of fibers.reverse()) await fiber.dispose()
     throw new Error('durable assembly: the plugin did not build the provider')
+  }
   const control = hostControl
   const built = provider
   const deps = dependencies
@@ -1326,13 +1505,13 @@ export async function durableSubject(
       supplier: SUPPLIER,
     },
     hooks,
-    facts: assemblyFacts(backend),
+    facts: assemblyFacts(backend, configured, constructions),
     injected: backend.faults?.injected ?? [],
     async dispose() {
       upstream.dispose()
       await Promise.race([drives.settle(), sleep(WAIT_MS)])
       await host.dispose()
-      await stage.dispose()
+      await sendChild.dispose()
       for (const fiber of fibers.reverse()) await fiber.dispose()
     },
   }

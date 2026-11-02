@@ -15,6 +15,8 @@ import {
   ModelRetryPolicyService,
   ModelRuntimeService,
   ModelSendBoundaryService,
+  ModelStreamReferencesService,
+  ModelStreamObservationService,
   modelClockKey,
   modelCommandsKey,
   modelConverterAuthorityKey,
@@ -29,6 +31,8 @@ import {
   modelRetryPolicyKey,
   modelRuntimeKey,
   modelSendBoundaryKey,
+  modelStreamReferencesKey,
+  modelStreamObservationKey,
 } from '../src/cordis.ts'
 
 // The definitions are abstract, so each provider below only fills the members with stubs that
@@ -121,10 +125,31 @@ class PublicationAuthority extends ModelPublicationAuthorityService<unknown> {
   readonly check = () => ({ ok: undefined })
 }
 
+class StreamReferences extends ModelStreamReferencesService<unknown> {
+  readonly current = unused
+}
+class StreamObservation extends ModelStreamObservationService<unknown> {
+  readonly observe = (): AsyncIterable<never> => {
+    throw new Error('not called')
+  }
+}
+
 type Provider = new (ctx: Context) => Service
 type Definition = { readonly provide: string } & (abstract new (ctx: Context) => Service)
 
 const definitions: readonly (readonly [string, string, Definition, Provider])[] = [
+  [
+    'modelStreamReferences',
+    modelStreamReferencesKey,
+    ModelStreamReferencesService,
+    StreamReferences,
+  ],
+  [
+    'modelStreamObservation',
+    modelStreamObservationKey,
+    ModelStreamObservationService,
+    StreamObservation,
+  ],
   ['modelClock', modelClockKey, ModelClockService, Clock],
   ['modelProfiles', modelProfilesKey, ModelProfilesService, Profiles],
   [

@@ -2,7 +2,8 @@
 // provider or Model. It exports the names that members outside the Model group import, the
 // declaration closure of those names, and the consumer-side names (result push and public
 // observation). The provider protocol is on the `./provider` entry (`src/provider/index.ts`); a
-// name is exported from exactly one of the two entries. The grouping rules are the ones of
+// name is exported from exactly one entry. Testing controls and conformance suites remain on
+// their own subpaths. The grouping rules are the ones of
 // tool-contract SPEC「公开入口的分组」; the chapter「提供者协议入口」of docs/public-api.md
 // records the grouping of this package.
 export type {
@@ -38,6 +39,13 @@ export { judgeModelDelivery } from './result-delivery-judge.ts'
 export type * from './model-stream-values.ts'
 export type * from './model-stream.ts'
 export { diffModelStream, applyModelStreamDelta } from './model-stream-values.ts'
+export { encodeModelOutputV1, decodeModelOutputV1 } from './model-output-v1.ts'
+export type {
+  ModelOutputV1,
+  ModelOutputV1Snapshot,
+  ModelOutputV1Delta,
+  ModelOutputV1Failure,
+} from './model-output-v1.ts'
 export type * from './call-surface.ts'
 export type {
   MaterializationReceipt,

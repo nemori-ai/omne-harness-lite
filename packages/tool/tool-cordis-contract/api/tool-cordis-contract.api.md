@@ -74,6 +74,11 @@
 
 ## 入口 `./testing` · `testing.d.ts`
 
+- `AdoptionPointAnswer` · `testing-adoption-scripts.d.ts`
+- `AdoptionPointCall` · `testing-adoption-scripts.d.ts`
+- `AdoptionPointInput` · `testing-adoption-scripts.d.ts`
+- `AdoptionPointRecorded` · `testing-adoption-scripts.d.ts`
+- `AdoptionPointScript` · `testing-adoption-scripts.d.ts`
 - `AnswerModel` · 包 `@omne-harness/tool-contract`
 - `AnswerRow` · 包 `@omne-harness/tool-contract`
 - `CaseVerdict` · 包 `@omne-harness/tool-contract`
@@ -84,6 +89,9 @@
 - `NotApplicable` · 包 `@omne-harness/tool-contract`
 - `ResidentKeyRoundTripFixture` · `testing-resident-key.d.ts`
 - `ResidentReferencesRead` · `testing-residency-memory.d.ts`
+- `ScriptedAdoptionPoint` · `testing-adoption-scripts.d.ts`
+- `ScriptedGenerationsCall` · `testing-adoption-scripts.d.ts`
+- `ScriptedToolGenerations` · `testing-adoption-scripts.d.ts`
 - `TOOL_DYNAMICS_CRITERIA` · `testing.d.ts`
 - `ToolBindingGrant` · `testing.d.ts`
 - `ToolBindingRegistryFixture` · `testing.d.ts`
@@ -97,6 +105,8 @@
 - `createMemoryToolBindingRegistry` · `testing.d.ts`
 - `createMemoryToolRegistrations` · `testing.d.ts`
 - `createMemoryToolResidencyReader` · `testing-residency-memory.d.ts`
+- `createScriptedAdoptionPoint` · `testing-adoption-scripts.d.ts`
+- `createScriptedToolGenerations` · `testing.d.ts`
 - `isNotApplicable` · 包 `@omne-harness/tool-contract`
 - `memoryToolBindingRegistryFixture` · `testing.d.ts`
 - `memoryToolRegistrationFixture` · `testing.d.ts`
@@ -502,6 +512,63 @@ export {};
 export {};
 ```
 
+## 声明文件 `testing-adoption-scripts.d.ts`
+
+```ts
+import type { ContentBlock } from '@omne-harness/content-block';
+import { type Outcome } from '@omne-harness/operation-result';
+import type { Access, residentToolFacts } from '@omne-harness/tool-contract';
+import { type AdoptionPlan, type FreezeVerdict, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolLoadedRegistration } from '@omne-harness/tool-contract/provider';
+import type { ToolGenerations, ToolLoadFailure, ToolLoadState } from './cordis.ts';
+export type ScriptedGenerationsCall<P> = Readonly<{
+    verb: 'ensureLoaded' | 'unload' | 'sweep';
+    key: ToolBindingKey | null;
+    authority: ToolAuthority | null;
+    access: ToolBindingScope<P>;
+}>;
+export type ScriptedToolGenerations<P, E, B extends ContentBlock> = Readonly<{
+    durability: 'none';
+    generations: ToolGenerations<P, E, B>;
+    answer(key: ToolBindingKey, result: Outcome<ToolLoadState, ToolLoadFailure>, write?: ToolLoadedRegistration<E, B>): void;
+    readonly calls: readonly ScriptedGenerationsCall<P>[];
+}>;
+export declare function scriptedToolGenerations<P, E, B extends ContentBlock>(input: Readonly<{
+    registry?: ToolBindingRegistry<P, E, B>;
+}>, missing: (handle: string) => never): ScriptedToolGenerations<P, E, B>;
+export type AdoptionPointRecorded = Extract<ReturnType<typeof residentToolFacts>, Readonly<{
+    ok: unknown;
+}>>['ok'];
+export type AdoptionPointInput = Readonly<{
+    recorded: readonly AdoptionPointRecorded[];
+    capabilities: readonly string[];
+}>;
+export type AdoptionPointAnswer<R, K> = Readonly<{
+    material: Readonly<{
+        residents: readonly R[];
+        keys: readonly K[];
+    }>;
+    verdict: FreezeVerdict | null;
+}>;
+export type AdoptionPointScript<R, K> = Readonly<{
+    plan: AdoptionPlan;
+    key?: K;
+    residents?: readonly R[];
+}>;
+export type AdoptionPointCall<P> = Readonly<{
+    access: Access<P>;
+    input: AdoptionPointInput;
+}>;
+export type ScriptedAdoptionPoint<P, R, K> = Readonly<{
+    durability: 'none';
+    plan(access: Access<P>, input: AdoptionPointInput): Promise<Outcome<AdoptionPointAnswer<R, K>, Readonly<{
+        kind: 'unavailable';
+    }>>>;
+    script(capability: string, answer: AdoptionPointScript<R, K> | 'unavailable'): void;
+    readonly calls: readonly AdoptionPointCall<P>[];
+}>;
+export declare function createScriptedAdoptionPoint<P, R = unknown, K = unknown>(): ScriptedAdoptionPoint<P, R, K>;
+```
+
 ## 声明文件 `testing-residency-memory.d.ts`
 
 ```ts
@@ -579,6 +646,7 @@ import { type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type
 import { type ConformanceCase } from '@omne-harness/tool-contract/testing';
 import type { ToolAuthorityFailure, ToolGenerations, ToolResidencyReader, ToolResidencyReference, ToolRegistration, ToolRegistrationFailure, ToolRegistrationInput, VerifiedAuthority } from './cordis.ts';
 import { type ResidentKeyRoundTripFixture } from './testing-resident-key.ts';
+import { type ScriptedToolGenerations } from './testing-adoption-scripts.ts';
 export interface ToolLoaderSourceFixture<P, E, B extends ContentBlock> {
     readonly generations?: Pick<ToolGenerations<P, E, B>, 'loaderFor'>;
     readonly authority: ToolAuthority;
@@ -684,5 +752,9 @@ export interface ToolResidencyReaderFixture {
 export declare function toolResidencyReaderConformance(): readonly ConformanceCase<ToolResidencyReaderFixture>[];
 export { createMemoryToolResidencyReader, type MemoryToolResidencyReader, type ResidentReferencesRead, } from './testing-residency-memory.ts';
 export type { ResidentKeyRoundTripFixture } from './testing-resident-key.ts';
+export { createScriptedAdoptionPoint, type AdoptionPointAnswer, type AdoptionPointCall, type AdoptionPointInput, type AdoptionPointRecorded, type AdoptionPointScript, type ScriptedAdoptionPoint, type ScriptedGenerationsCall, type ScriptedToolGenerations, } from './testing-adoption-scripts.ts';
+export declare function createScriptedToolGenerations<P, E, B extends ContentBlock>(input?: Readonly<{
+    registry?: ToolBindingRegistry<P, E, B>;
+}>): ScriptedToolGenerations<P, E, B>;
 export declare function residentKeyRoundTripConformance(): readonly ConformanceCase<ResidentKeyRoundTripFixture>[];
 ```
