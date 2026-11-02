@@ -2,11 +2,14 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   STAGES,
+  METHOD,
   THRESHOLD_SOURCE,
+  evaluateGrowth,
   evaluateMedian,
   thresholdValue,
   validateRounds,
 } from './metrics.mjs'
+import { normalizeEvents } from './events.mjs'
 
 function validateMetadata(metadata) {
   if (!/^[a-f0-9]{40}$/.test(metadata?.sha)) throw new Error('metadata requires full SHA')
@@ -25,23 +28,34 @@ function validateMetadata(metadata) {
 function summaryFor(metadata, rounds, threshold, observations) {
   validateMetadata(metadata)
   const median = evaluateMedian(rounds, threshold)
+  const growth = evaluateGrowth(rounds)
+  const gates = [median, ...Object.values(growth), ...observations]
+  const missingFsync = rounds.length === 0 || rounds.some(row => row.fsync.state !== 'measured')
+  const missingTimes = rounds.some(row =>
+    [row.endToEnd, row.ownOverhead, ...Object.values(row.stages)].some(
+      value => value.state !== 'measured',
+    ),
+  )
   return {
     schemaVersion: 1,
+    method: METHOD,
     metadata,
     threshold,
     thresholdSource:
-      threshold === 1.5
+      threshold === 1.5 && metadata.thresholdInput !== 'cli'
         ? THRESHOLD_SOURCE
         : `CLI --threshold; default reference: ${THRESHOLD_SOURCE}`,
     roundCount: rounds.length,
     median,
-    state:
-      median.state === 'fail' || observations.some(item => item.state === 'fail')
-        ? 'fail'
-        : 'blocked',
+    growth,
+    state: gates.some(item => item.state === 'fail')
+      ? 'fail'
+      : gates.some(item => item.state !== 'pass') || missingFsync || missingTimes
+        ? 'blocked'
+        : 'pass',
     pending: [
-      'DP1 stage/fsync observation method is not approved',
-      'DP2 stage growth rule is not approved',
+      ...(missingFsync ? ['fsync is unmeasured'] : []),
+      ...(missingTimes ? ['round or stage time is unmeasured'] : []),
     ],
     observations,
   }
@@ -83,6 +97,23 @@ export function readArchive(directory) {
   )
   if (JSON.stringify(expected) !== JSON.stringify(summary))
     throw new Error('summary does not match raw rounds')
+  if (summary.metadata.adapter && !summary.observations.some(item => item.state === 'fail')) {
+    const lines = readFileSync(join(directory, 'events.jsonl'), 'utf8').trim()
+    const events = lines ? lines.split(/\r?\n/).map(line => JSON.parse(line)) : []
+    const replayed = rounds.map(row =>
+      normalizeEvents(
+        events.filter(event => event.round === row.round),
+        row.round,
+        summary.metadata.workload,
+        rounds[0]?.runId,
+      ),
+    )
+    if (
+      events.some(event => !rounds.some(row => row.round === event.round)) ||
+      JSON.stringify(replayed) !== JSON.stringify(rounds)
+    )
+      throw new Error('raw events do not match archived rounds')
+  }
   return { summary, rounds }
 }
 
@@ -91,8 +122,30 @@ export function compareArchives(before, after) {
   for (const archive of [before, after]) {
     validateMetadata(archive.summary.metadata)
     validateRounds(archive.rounds)
-    if (evaluateMedian(archive.rounds).state === 'blocked')
-      reasons.push('both full measured median windows are required')
+    if (
+      archive.summary.method === undefined ||
+      archive.summary.threshold === undefined ||
+      archive.summary.observations === undefined
+    )
+      reasons.push('incomplete archive summary')
+    else {
+      const expected = summaryFor(
+        archive.summary.metadata,
+        archive.rounds,
+        archive.summary.threshold,
+        archive.summary.observations,
+      )
+      if (JSON.stringify(expected) !== JSON.stringify(archive.summary))
+        reasons.push('summary does not match records/method')
+      if (
+        [expected.median, ...Object.values(expected.growth)].some(
+          gate => gate.state === 'blocked',
+        ) ||
+        expected.pending.length ||
+        expected.observations.some(item => item.state !== 'pass')
+      )
+        reasons.push('complete measured rounds/stages/fsync are required')
+    }
   }
   for (const key of ['platform', 'osVersion', 'node', 'cores', 'workload']) {
     if (
@@ -102,14 +155,33 @@ export function compareArchives(before, after) {
   }
   if (before.summary.metadata.slot.state !== after.summary.metadata.slot.state)
     reasons.push('different slot holding state')
+  for (const key of ['method', 'threshold', 'thresholdSource']) {
+    if (JSON.stringify(before.summary[key]) !== JSON.stringify(after.summary[key]))
+      reasons.push(`different ${key}`)
+  }
+  const delayProfile = archive =>
+    archive.rounds.map(row =>
+      row.externalWaits?.map(wait => [wait.provider, wait.definedDelayMs]).sort(),
+    )
+  if (
+    before.rounds.some(row => !row.externalWaits?.length) ||
+    after.rounds.some(row => !row.externalWaits?.length)
+  )
+    reasons.push('missing observed external-wait profile')
+  if (JSON.stringify(delayProfile(before)) !== JSON.stringify(delayProfile(after)))
+    reasons.push('different observed external-wait profile')
   if (reasons.length) return { state: 'incomparable', reasons }
-  const first = evaluateMedian(before.rounds)
-  const second = evaluateMedian(after.rounds)
+  const first = evaluateMedian(before.rounds, before.summary.threshold)
+  const second = evaluateMedian(after.rounds, after.summary.threshold)
   return {
     state: 'comparable',
-    scope: 'ownOverhead median windows only; stage/fsync comparison awaits DP1/DP2',
+    scope: 'wall-clock residue median and four fixed-sample stage gates; R2-D17',
     before: first,
     after: second,
+    stagesBefore: before.summary.growth,
+    stagesAfter: after.summary.growth,
+    stateBefore: before.summary.state,
+    stateAfter: after.summary.state,
     shaBefore: before.summary.metadata.sha,
     shaAfter: after.summary.metadata.sha,
   }

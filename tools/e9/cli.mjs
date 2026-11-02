@@ -1,19 +1,21 @@
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { writeArchive, readArchive, compareArchives } from './archive.mjs'
 import { runProcess } from './driver.mjs'
-import { syntheticRounds, thresholdValue, unmeasured } from './metrics.mjs'
+import { thresholdValue, unmeasured } from './metrics.mjs'
 import { probeProduct } from './product.mjs'
+import { normalizeEvents } from './events.mjs'
+import { syntheticEvents, workload as syntheticWorkload } from './synthetic.mjs'
 
 const ownRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
 function parse(args) {
   const [command, ...rest] = args
   const permitted = {
-    run: ['root', 'out', 'threshold'],
+    run: ['root', 'out', 'threshold', 'adapter', 'timeout-ms'],
     compare: ['before', 'after'],
     selftest: ['out'],
   }[command]
@@ -30,12 +32,27 @@ function parse(args) {
       throw new Error(`invalid option ${rest[index]}`)
     options[name] = rest[index + 1]
   }
-  for (const name of permitted.filter(name => name !== 'threshold'))
+  for (const name of permitted.filter(
+    name => !['threshold', 'adapter', 'timeout-ms'].includes(name),
+  ))
     if (!options[name]) throw new Error(`missing --${name}`)
   if (command === 'run')
     options.threshold = thresholdValue(
       options.threshold === undefined ? 1.5 : Number(options.threshold),
     )
+  if (command === 'run') {
+    options.thresholdExplicit = rest.includes('--threshold')
+    options.timeoutMs =
+      options['timeout-ms'] === undefined ? 1800000 : Number(options['timeout-ms'])
+    if (
+      !Number.isSafeInteger(options.timeoutMs) ||
+      options.timeoutMs <= 0 ||
+      options.timeoutMs > 2147480000
+    )
+      throw new Error('timeout-ms must be a positive safe timer duration')
+    if (options.adapter && !isAbsolute(options.adapter))
+      throw new Error('adapter requires an absolute local module path')
+  }
   return { command, options }
 }
 
@@ -90,19 +107,34 @@ async function main() {
   const out = resolve(options.out)
   if (command === 'selftest') {
     const meta = await metadata(ownRoot, 'synthetic')
+    meta.workload = syntheticWorkload
     for (const [kind, expected] of [
       ['steady', 'pass'],
       ['growth', 'fail'],
       ['missing', 'blocked'],
       ['short', 'blocked'],
     ]) {
-      const rounds = syntheticRounds(kind === 'growth' ? 'growth' : 'steady')
+      const rounds = Array.from({ length: 200 }, (_, index) =>
+        normalizeEvents(
+          syntheticEvents(index + 1, kind === 'growth' ? 'growth' : 'steady'),
+          index + 1,
+          { kind: 'synthetic' },
+        ),
+      )
       if (kind === 'missing')
         rounds[190].ownOverhead = unmeasured('synthetic missing negative control')
       if (kind === 'short') rounds.splice(180)
       const summary = writeArchive(join(out, kind), meta, rounds)
       assert.equal(summary.median.state, expected, `synthetic ${kind} control`)
+      assert.equal(summary.state, expected, `synthetic ${kind} aggregate`)
     }
+    const single = Array.from({ length: 200 }, (_, index) =>
+      normalizeEvents(syntheticEvents(index + 1, 'singleGrowth'), index + 1, { kind: 'synthetic' }),
+    )
+    const negative = writeArchive(join(out, 'single-growth'), meta, single)
+    assert.equal(negative.median.state, 'pass')
+    assert.equal(negative.growth.sessionIO.state, 'fail')
+    assert.equal(negative.state, 'fail')
     process.stdout.write('synthetic selftest controls passed; this is not a product E9 result\n')
     return 0
   }
@@ -122,12 +154,14 @@ async function main() {
         root,
         '--out',
         out,
-        '--threshold',
-        String(options.threshold),
+        ...(options.thresholdExplicit ? ['--threshold', String(options.threshold)] : []),
+        '--timeout-ms',
+        String(options.timeoutMs),
+        ...(options.adapter ? ['--adapter', options.adapter] : []),
       ],
       {
         cwd: root,
-        timeoutMs: 120000,
+        timeoutMs: options.timeoutMs + 30000,
         onOutput: text => {
           process.stdout.write(text.slice(forwarded))
           forwarded = text.length
@@ -139,13 +173,48 @@ async function main() {
   }
   if (existsSync(out)) throw new Error('run output directory already exists; use a fresh path')
   const meta = await metadata(root, 'product')
+  meta.thresholdInput = options.thresholdExplicit ? 'cli' : 'default'
   mkdirSync(out, { recursive: true })
-  const result = await probeProduct(root, out)
+  let result
+  if (options.adapter) {
+    const execution = await runProcess(
+      process.execPath,
+      [
+        fileURLToPath(new URL('./adapter-worker.mjs', import.meta.url)),
+        options.adapter,
+        root,
+        out,
+        String(options.timeoutMs),
+      ],
+      { cwd: root, timeoutMs: options.timeoutMs + 2000 },
+    )
+    const adapterResultPath = join(out, 'adapter-result.json')
+    const adapterResult = existsSync(adapterResultPath)
+      ? JSON.parse(readFileSync(adapterResultPath, 'utf8'))
+      : { observations: [{ state: 'fail', reason: 'adapter exited without result' }] }
+    if (adapterResult.workload) meta.workload = adapterResult.workload
+    meta.adapter = options.adapter
+    const progress = join(out, 'progress.jsonl')
+    const rows = existsSync(progress) ? readFileSync(progress, 'utf8').trim() : ''
+    result = {
+      rounds: rows ? rows.split('\n').map(line => JSON.parse(line)) : [],
+      observations: adapterResult.observations,
+      raw: [execution],
+    }
+    if (execution.timedOut || execution.cancelled || execution.exitCode !== 0)
+      result.observations.push({
+        state: 'fail',
+        reason: 'adapter subprocess did not complete successfully',
+        exitCode: execution.exitCode,
+        timedOut: execution.timedOut,
+        cancelled: execution.cancelled,
+      })
+  } else result = await probeProduct(root, out)
   meta.endedAt = new Date().toISOString()
   writeFileSync(join(out, 'processes.json'), JSON.stringify(result.raw, null, 2) + '\n')
   const summary = writeArchive(out, meta, result.rounds, options.threshold, result.observations)
   process.stdout.write(JSON.stringify(summary, null, 2) + '\n')
-  return summary.state === 'fail' ? 1 : 3
+  return summary.state === 'pass' ? 0 : summary.state === 'fail' ? 1 : 3
 }
 
 try {
