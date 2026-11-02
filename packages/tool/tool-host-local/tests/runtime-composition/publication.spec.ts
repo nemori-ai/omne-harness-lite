@@ -200,16 +200,22 @@ it('an old registration release cannot remove the route of a later token', async
     const route = unbox(await world.root.toolInstanceHost.directory.connect(access))
     if (route.kind !== 'live' || recovery.execution === null)
       throw new Error('Missing original execution')
+    const publication = unbox(
+      await world.root.toolInstanceHost.publish(
+        { ...recovery.execution, tenant: access.tenant },
+        route.handle,
+      ),
+    )
     const first = unbox(
       await world.root.toolInstances.register({
-        publication: [recovery.execution, route.handle],
+        publication: [publication.execution, route.handle],
         authority: recovery.state.source,
       }),
     )
     expect(await first.release()).toEqual({ removed: true })
     const second = unbox(
       await world.root.toolInstances.register({
-        publication: [recovery.execution, route.handle],
+        publication: [publication.execution, route.handle],
         authority: recovery.state.source,
       }),
     )

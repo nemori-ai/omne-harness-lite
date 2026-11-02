@@ -8,7 +8,7 @@ it('C01 executes once through production services and releases the saved origina
     const first = accepted(await world.api.invoke(invocation))
     expect(accepted(await world.api.invoke(invocation))).toBe(first)
     const result = await world.settled(first)
-    expect(result.terminal.kind).toBe('completed')
+    expect(result.terminal).toEqual({ kind: 'completed' })
     expect(result.value.content).toMatchObject([{ kind: 'text', text: 'frozen:{"value":"first"}' }])
     await expect.poll(() => world.deliveries.length).toBe(1)
     await expect
@@ -29,7 +29,7 @@ it('retains and recognizes an unknown original raw output without re-executing t
   try {
     world.custody.controls.dropNextAnswer()
     const reference = accepted(await world.api.invoke(world.invocation('unknown-raw')))
-    expect((await world.settled(reference)).terminal.kind).toBe('completed')
+    expect((await world.settled(reference)).terminal).toEqual({ kind: 'completed' })
     expect(world.launches()).toBe(1)
     expect(world.plugins.diagnostics().pendingOutputCustody).toBe(0)
   } finally {

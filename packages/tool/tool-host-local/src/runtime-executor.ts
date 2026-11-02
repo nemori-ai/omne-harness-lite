@@ -89,11 +89,13 @@ export function createRuntimeExecutor(
     if (
       original.execution === null ||
       original.execution.instance !== step.instance ||
+      original.execution.call !== step.call ||
+      canonicalDigest(original.execution.tenant) !== canonicalDigest(step.tenant) ||
       entry.fiber !== null ||
       !['live', 'ended'].includes(original.state.execution.kind)
     )
       return
-    const execution = original.execution
+    const execution = { ...original.execution, tenant: step.tenant }
     const authority: DurableEvidence = original.state.source
     entry.fiber = input.ctx.plugin({
       name: `tool-instance-${canonicalDigest(execution)}`,
@@ -205,7 +207,9 @@ export function createRuntimeExecutor(
             const current = await dependencies.commands.loadRecovery(step)
             if (
               'ok' in current &&
-              current.ok.tasks.length === 0 &&
+              !current.ok.tasks.some(task => task.state === 'pending') &&
+              (current.ok.state.execution.kind === 'ended' ||
+                current.ok.state.execution.kind === 'not-started') &&
               calls.get(keyOf(step)) === entry &&
               !entry.running &&
               !entry.retiring

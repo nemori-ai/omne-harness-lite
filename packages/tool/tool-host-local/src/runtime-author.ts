@@ -99,7 +99,12 @@ export function createRuntimeAuthorExecution(
       const blocks = new Map<string, ProcessBlock>()
       const scope = createIndependentToolScope({
         signal: execution.signal,
-        limits: input.configuration,
+        limits: {
+          authorBufferBytes: input.configuration.authorBufferBytes,
+          authorBufferItems: input.configuration.authorBufferItems,
+          authorWaitHistoryBytes: input.configuration.authorWaitHistoryBytes,
+          authorWaitHistoryItems: input.configuration.authorWaitHistoryItems,
+        },
         waits: absentWaits,
         process: {
           async receive({ sequence, update }) {

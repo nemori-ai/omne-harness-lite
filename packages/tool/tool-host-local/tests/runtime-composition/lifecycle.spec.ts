@@ -95,6 +95,17 @@ it('completed and definitely rejected calls release the bounded scheduling capac
     const first = accepted(await world.api.invoke(world.invocation('first-slot')))
     await world.settled(first)
     await expect.poll(() => world.plugins.diagnostics().executor?.knownCalls).toBe(0)
+    const firstParts = unbox(resolveToolInvocationRef(first, world.tenantA))
+    const retained = unbox(
+      await world.root.toolCommands.loadRecovery({
+        tenant: world.tenantA,
+        principal: 'alice',
+        call: firstParts.call,
+      }),
+    )
+    expect(retained.tasks).toContainEqual(
+      expect.objectContaining({ kind: 'clock', state: 'blocked' }),
+    )
     const second = accepted(await world.api.invoke(world.invocation('second-slot')))
     await world.settled(second)
     expect(world.launches()).toBe(2)
