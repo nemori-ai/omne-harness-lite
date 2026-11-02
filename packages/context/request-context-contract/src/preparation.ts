@@ -98,6 +98,43 @@ export function contradictoryPreparation<P>(
   )
 }
 
+/** The view of the rows: the carried one, the cached one, the cached one plus the new rows, or all rows. */
+function viewOf<P>(
+  input: AssemblyInput<P>,
+  rows: readonly HistoryRow[],
+  reusable: RequestCandidate | null,
+  read: ReuseBasis['historyRead'] | undefined,
+): Readonly<{ view: ProjectedHistory; viewFrom: StablePreparation['viewFrom'] }> {
+  if (reusable !== null) return { view: reusable.preparation.view, viewFrom: null }
+  const cached = read?.cached ?? null
+  if (cached !== null && read?.mode === 'same')
+    return { view: cached.history.view, viewFrom: 'same' }
+  if (cached !== null && read?.mode === 'tail') {
+    const appended = appendProjection(cached.history.view, read.added, input.history.epoch)
+    if (appended !== null) return { view: appended, viewFrom: 'appended' }
+  }
+  return { view: project(rows, input.history.epoch), viewFrom: null }
+}
+/** The system prompt: the carried one, the cached one under the same prompt token, or a new render. */
+function promptOf<P>(
+  input: AssemblyInput<P>,
+  key: PreparedInputKey,
+  reusable: RequestCandidate | null,
+  layers: CachedAssemblyMaterial | null,
+): SystemPromptResult {
+  if (reusable !== null)
+    return {
+      kind: 'rendered',
+      blocks: reusable.layers.systemPrompt,
+      sections: reusable.coverage.prompt.sections,
+      digest: reusable.coverage.prompt.digest,
+    }
+  if (layers !== null && layers.prompt.token === key.tokens.prompt) return layers.prompt.rendered
+  return assembleSystemPrompt(
+    input.promptContributions ?? { contributions: [], digest: '', generation: null },
+    input.assembleContext,
+  )
+}
 export function prepareStable<P>(
   input: AssemblyInput<P>,
   key: PreparedInputKey,
@@ -108,34 +145,13 @@ export function prepareStable<P>(
   if (contradictoryPreparation(input, reusable))
     return { kind: 'invalid', field: 'previous.carried', reason: 'contradictory-retry' }
   const read = basis?.historyRead
-  const cached = reusable === null && read !== undefined ? read.cached : null
-  const layers = layerBasis(input, key, cached)
-  let view = reusable?.preparation.view
-  let viewFrom: StablePreparation['viewFrom'] = null
-  if (view === undefined && cached !== null && read !== undefined) {
-    if (read.mode === 'same') {
-      view = cached.history.view
-      viewFrom = 'same'
-    } else if (read.mode === 'tail') {
-      view = appendProjection(cached.history.view, read.added, input.history.epoch) ?? undefined
-      if (view !== undefined) viewFrom = 'appended'
-    }
-  }
-  view ??= project(rows, input.history.epoch)
-  const prompt =
-    reusable !== null
-      ? {
-          kind: 'rendered' as const,
-          blocks: reusable.layers.systemPrompt,
-          sections: reusable.coverage.prompt.sections,
-          digest: reusable.coverage.prompt.digest,
-        }
-      : layers !== null && layers.prompt.token === key.tokens.prompt
-        ? layers.prompt.rendered
-        : assembleSystemPrompt(
-            input.promptContributions ?? { contributions: [], digest: '', generation: null },
-            input.assembleContext,
-          )
+  const layers = layerBasis(
+    input,
+    key,
+    reusable === null && read !== undefined ? read.cached : null,
+  )
+  const { view, viewFrom } = viewOf(input, rows, reusable, read)
+  const prompt = promptOf(input, key, reusable, layers)
   if (prompt.kind === 'invalid')
     return {
       kind: 'invalid',

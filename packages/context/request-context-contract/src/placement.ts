@@ -51,35 +51,60 @@ function lastBeforeInputs(
   }
   return undefined
 }
+type Material = NonNullable<ContextReadGroup['snapshot']>
+/** An incremental read needs the adopted request to carry the same snapshot and epoch. */
+function adoptedLacksSnapshot(
+  adopted: Coverage | null,
+  material: Material,
+  view: ProjectedHistory,
+): boolean {
+  return (
+    adopted === null ||
+    adopted.snapshot.revision !== material.revision ||
+    adopted.snapshot.scope.ref !== material.scope.ref ||
+    adopted.snapshot.eligibility.eligibility !== material.eligibility.eligibility ||
+    adopted.snapshot.anchor.epoch !== view.epoch
+  )
+}
+/** The adopted anchor of an incremental read; the visible history tail of a full read. */
+function anchorOf(input: PlacementInput, full: boolean): SnapshotAnchor {
+  const { adopted, view, transition, newInputs } = input
+  if (!full && adopted !== null) return adopted.snapshot.anchor
+  const last = lastBeforeInputs(view.messages, transition, newInputs)
+  return {
+    epoch: view.epoch,
+    position:
+      last === undefined ? { kind: 'empty' as const } : { kind: 'entry' as const, seq: last.seq },
+    prefixDigest: last?.prefixDigest ?? null,
+  }
+}
+function tailOf(input: PlacementInput, material: Material): TailFacts {
+  const blocks = input.contextRead.perRequest
+    .filter(b => b.volatility === 'per-request')
+    .sort((a, b) => a.key.localeCompare(b.key, 'en'))
+  return {
+    blocks,
+    message: blocks.length
+      ? reminder(canonical(blocks.map(({ key, revision, value }) => ({ key, revision, value }))), {
+          layer: 'tail',
+          scope: material.scope.ref,
+          eligibility: material.eligibility,
+          candidate: input.candidate,
+        })
+      : null,
+  }
+}
 export function placeContext(
   input: PlacementInput,
 ): Placement | Extract<AssemblyFailure, { kind: 'invalid' }> {
-  const { contextRead, adopted, transition, view, newInputs } = input
+  const { contextRead, adopted, transition, view } = input
   const material = contextRead.snapshot
   if (material === null)
     return { kind: 'invalid', field: 'contextRead.snapshot', reason: 'missing-snapshot-material' }
   const full = contextRead.read.kind === 'success' && 'viewRevision' in contextRead.read.value
-  if (
-    !full &&
-    (adopted === null ||
-      adopted.snapshot.revision !== material.revision ||
-      adopted.snapshot.scope.ref !== material.scope.ref ||
-      adopted.snapshot.eligibility.eligibility !== material.eligibility.eligibility ||
-      adopted.snapshot.anchor.epoch !== view.epoch)
-  )
+  if (!full && adoptedLacksSnapshot(adopted, material, view))
     return { kind: 'invalid', field: 'contextRead.snapshot', reason: 'missing-snapshot-material' }
-  const last = lastBeforeInputs(view.messages, transition, newInputs)
-  const anchor =
-    !full && adopted !== null
-      ? adopted.snapshot.anchor
-      : {
-          epoch: view.epoch,
-          position:
-            last === undefined
-              ? { kind: 'empty' as const }
-              : { kind: 'entry' as const, seq: last.seq },
-          prefixDigest: last?.prefixDigest ?? null,
-        }
+  const anchor = anchorOf(input, full)
   const identity = {
     scope: material.scope.ref,
     eligibility: material.eligibility,
@@ -87,33 +112,18 @@ export function placeContext(
     anchor,
   }
   const kept = input.cachedSnapshot
-  const stable =
+  const keepsReminder =
     kept !== null && kept !== undefined && canonical(kept.identity) === canonical(identity)
-      ? kept.reminder
-      : snapshotOf(material, anchor, identity)
-  const tail = contextRead.perRequest
-    .filter(b => b.volatility === 'per-request')
-    .sort((a, b) => a.key.localeCompare(b.key, 'en'))
   return {
-    snapshot: stable,
+    snapshot: keepsReminder ? kept.reminder : snapshotOf(material, anchor, identity),
     identity,
-    tail: {
-      blocks: tail,
-      message: tail.length
-        ? reminder(canonical(tail.map(({ key, revision, value }) => ({ key, revision, value }))), {
-            layer: 'tail',
-            scope: material.scope.ref,
-            eligibility: material.eligibility,
-            candidate: input.candidate,
-          })
-        : null,
-    },
+    tail: tailOf(input, material),
     anchorSource: transition !== null ? 'after-compaction' : full ? 'new-full-read' : 'adopted',
   }
 }
 
 function snapshotOf(
-  material: NonNullable<ContextReadGroup['snapshot']>,
+  material: Material,
   anchor: SnapshotAnchor,
   identity: SnapshotIdentity,
 ): SnapshotReminder {
