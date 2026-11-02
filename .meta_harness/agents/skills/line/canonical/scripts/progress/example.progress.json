@@ -215,7 +215,13 @@
         "effort": "medium"
       },
       "rounds": 1,
-      "additions": 1
+      "additions": 1,
+      "branch": "PanQiWei/tool-exec-w1",
+      "report": {
+        "label": "C-START 验收报告",
+        "url": "https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561138965"
+      },
+      "verdict": "判据全过，N/A 一项已写理由"
     },
     {
       "id": "C-GUARD",
@@ -234,7 +240,13 @@
         "effort": "high"
       },
       "rounds": 2,
-      "additions": 0
+      "additions": 0,
+      "branch": "PanQiWei/tool-exec-w1",
+      "report": {
+        "label": "C-GUARD 验收报告",
+        "url": "https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561218000"
+      },
+      "verdict": "两轮后闭合"
     },
     {
       "id": "C-FILES",
@@ -254,7 +266,13 @@
         "effort": "high"
       },
       "rounds": 2,
-      "additions": 0
+      "additions": 0,
+      "branch": "PanQiWei/tool-exec-w1",
+      "report": {
+        "label": "C-FILES 验收报告",
+        "url": "https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561322330"
+      },
+      "verdict": "十二项 files 全过"
     },
     {
       "id": "C-COMMAND",
@@ -280,7 +298,9 @@
         "changed": 0,
         "lastWriteMin": 6,
         "head": "a1b2c3d feat(execution): command 停止两态"
-      }
+      },
+      "branch": "PanQiWei/tool-exec-w1",
+      "acceptance": "pending"
     },
     {
       "id": "C-LEDGER",
@@ -304,7 +324,9 @@
         "changed": 3,
         "lastWriteMin": 2,
         "head": "d4e5f6a fix(tool-storage-sql): 压低复杂度"
-      }
+      },
+      "branch": "PanQiWei/tool-exec-w1",
+      "acceptance": "pending"
     },
     {
       "id": "C-CONV",
@@ -322,7 +344,9 @@
         "role": "developer",
         "model": "opus",
         "effort": "high"
-      }
+      },
+      "branch": "PanQiWei/tool-exec-w1",
+      "acceptance": "pending"
     },
     {
       "id": "C-E2E",
@@ -341,7 +365,9 @@
         "role": "main",
         "model": "opus",
         "effort": "high"
-      }
+      },
+      "branch": "PanQiWei/tool-exec-w1",
+      "acceptance": "pending"
     }
   ],
   "deviations": [

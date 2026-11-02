@@ -225,6 +225,11 @@ ub-mode 与本项目的差异列在下一节的差异表中，来源列为 ub-mo
 
 普通工程、文档归属与交付由三层方法和现有工程拥有者承担，不加载 harness-design-handbook。
 
+两个页面模板随技能提供，数据格式与命令归各自的参考页，生成的 HTML 不进仓库：
+
+- Reduce 总控页：`integrate` 技能的 [总控页](../../.meta_harness/agents/skills/integrate/canonical/references/cockpit.md)，读 `reduce.json`，回答「谁在等 Reduce、下一步做什么」。
+- 线进度呈现页：`line` 技能的[两页分工](../../.meta_harness/agents/skills/line/canonical/references/wave-progress.md#两页分工在跑用-buildpy交回用-viewpy)，`view.py` 读同一份 `progress.json` 给交回与复盘留一份静态页；在跑时仍用 `build.py`。
+
 加载顺序按会话类型区分：
 
 - 线会话：见 `line` 技能 `references/work-paradigm.md` 的「会话级」第 2 步。
