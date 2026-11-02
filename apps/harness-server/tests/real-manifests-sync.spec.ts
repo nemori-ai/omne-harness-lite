@@ -10,7 +10,12 @@ import { AA_FIXTURE_ROWS } from './fixtures/serve/index.ts'
 /** 具名差额清单：行 → 补丁编号与该补丁落地后 `stubs.ts` 这一行会变成的样子（只写变化的字段）。 */
 const KNOWN_GAPS: Readonly<
   Record<string, Readonly<{ patch: string; manifest: Partial<RowManifest> }>>
-> = {}
+> = {
+  'session-storage': {
+    patch: 'R2-D41（Reduce 收件时改装配页、aa-rows、stubs）',
+    manifest: { injects: ['storage', 'sessionAccessCheck', 'principalVerifier'] },
+  },
+}
 
 const profile = serveProfile()
 
@@ -64,7 +69,7 @@ describe('real-manifests-sync', () => {
   test('the known gaps name rows of the table and a patch each', () => {
     for (const [row, gap] of Object.entries(KNOWN_GAPS)) {
       expect(profile.stubManifests.has(row as RowId), row).toBe(true)
-      expect(gap.patch).toMatch(/^AAP-\d+$/)
+      expect(gap.patch).toMatch(/^(?:AAP-\d+|R2-D41（Reduce 收件时改装配页、aa-rows、stubs）)$/)
     }
   })
 

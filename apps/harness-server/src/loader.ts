@@ -1,7 +1,29 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
+import { ConfigError, distributionSchema, operatorSchema, parseBoundary } from './config-schema.ts'
 import { awaitReadiness, type LoadedRow, type ReadinessReport } from './readiness.ts'
 import type { Trust } from './trust.ts'
 import type { Implementation, RowId, RowManifest, ServiceName, TreeRow } from './types.ts'
+
+/** Factory ownership follows the release binding, not a replaced row's config source. */
+export function validateFactoryRows(options: {
+  distribution: unknown
+  operator: unknown
+  allowlist: readonly string[]
+  bindings: Readonly<Record<string, string>>
+}): void {
+  const distribution = parseBoundary(distributionSchema(options.allowlist), options.distribution)
+  for (const row of distribution.rows) {
+    const required = options.bindings[row.plugin]
+    if (required !== undefined && required !== row.id)
+      throw new ConfigError('invalid-config', `factory export requires row ${required}`)
+  }
+  if (options.operator === undefined) return
+  const operator = parseBoundary(operatorSchema(options.allowlist), options.operator)
+  for (const op of operator.ops) {
+    if (op.kind === 'insert' && options.bindings[op.row.plugin] !== undefined)
+      throw new ConfigError('invalid-config', 'factory row cannot be inserted')
+  }
+}
 
 export type RowSpec = Readonly<{
   row: TreeRow
@@ -137,6 +159,7 @@ export function preflight(
 
 export type StartResult =
   | Readonly<{ kind: 'rejected'; exitCode: 2; diagnostics: readonly PreflightDiagnostic[] }>
+  | Readonly<{ kind: 'preparation-failed'; exitCode: 3; error: unknown }>
   | Readonly<{ kind: 'entry-failed'; exitCode: 3; name: ServiceName; error: unknown }>
   | Readonly<{ kind: 'started'; rows: readonly LoadedRow[]; report: ReadinessReport }>
 
@@ -153,6 +176,7 @@ export async function startTree(options: {
   rows: readonly RowSpec[]
   entryObjects: readonly EntryObject[]
   omitEntryObjects?: readonly ServiceName[] | undefined
+  prepare?: () => void | Promise<void>
   readinessTimeoutMs: number
   barrier: () => void | Promise<void>
 }): Promise<StartResult> {
@@ -169,6 +193,12 @@ export async function startTree(options: {
     options.entryObjects,
   )
   if (diagnostics.length > 0) return { kind: 'rejected', exitCode: 2, diagnostics }
+
+  try {
+    await options.prepare?.()
+  } catch (error) {
+    return { kind: 'preparation-failed', exitCode: 3, error }
+  }
 
   const omitted = new Set(options.omitEntryObjects ?? [])
   for (const name of omitted) {
@@ -236,12 +266,21 @@ export async function startTree(options: {
   return { kind: 'started', rows: loaded, report }
 }
 
+/** Explicit unload waits for the fiber before the entry runs its maintenance callback. */
+export async function disposeRow(
+  row: LoadedRow,
+  afterDispose?: () => Promise<unknown>,
+): Promise<void> {
+  await row.fiber.dispose()
+  await afterDispose?.()
+}
+
 /** Dispose rows in reverse load order, then the root. Reports every failure together. */
 export async function disposeTree(root: Context, rows: readonly LoadedRow[]): Promise<void> {
   const errors: unknown[] = []
   for (const row of [...rows].reverse()) {
     try {
-      await row.fiber.dispose()
+      await disposeRow(row)
     } catch (error) {
       errors.push(error)
     }

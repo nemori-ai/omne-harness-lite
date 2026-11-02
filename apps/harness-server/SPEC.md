@@ -6,7 +6,9 @@
 
 本页依据 S0 私有应用实施规格 r2（#1001 的输入，见 #991 的采用记录）与 L-APP 波 1 的 DP-1 决定（#978 评论 6561644061，候选 DP1-C1～C19）。S0 模式的规格状态是候选实施输入，不是已接受的产品承诺。S0 只用私有服务键 `s0.<名>`。真实模式用正式服务键。
 
-装载器、就绪、行快照差分、关闭协调器和进程入口 `dist/bin.js` 已经实现。启动次序、停止状态后不再调用 `start`、启动期 `start` 抛出的处置三项也已实现，见「有序关闭」节的「启动与停止状态」。真实模式的子命令 `serve`、行声明 `defineRow`、入口对象注册表与三条新的装载前检查已经实现，`./cordis` 现在只导出 S0 替身插件，真实行的导出由各行闭包加入。真实模式的正文在 [docs/real-mode.md](docs/real-mode.md)，本页只写两种模式共同的行为与它们的差别。
+装载器、就绪、行快照差分、关闭协调器和进程入口 `dist/bin.js` 已经实现。启动次序、停止状态后不再调用 `start`、启动期 `start` 抛出的处置三项也已实现，见「有序关闭」节的「启动与停止状态」。真实模式的子命令 `serve`、行声明 `defineRow`、入口对象注册表与装载前检查已经实现。`./cordis` 已导出 S0 替身插件和多条真实行；`executionHost` 由每次运行的入口闭包另行绑定。真实模式的正文在 [docs/real-mode.md](docs/real-mode.md)，本页只写两种模式共同的行为与它们的差别。
+
+驻留桥、宿主文件工厂、租户目录、动作规则、Runtime/Execution 信任入口及采用规划器已有实现。精确行为与生产接线差额见真实模式的行说明。
 
 ## 范围
 
@@ -62,6 +64,8 @@ node apps/harness-server/dist/bin.js serve --distribution <绝对 JSON 路径> [
 - 只在 `serve` 模式：入口对象承载的行写了 `via`，而注册表里没有一个同名模块把该行列进 `registersFor`（`via-unregistered`，DP1-C15）。
 - 只在 `serve` 模式：注册表里同一个名字有两个模块（`duplicate-entry-object`，DP1-C11）。
 - 只在 `serve` 模式：发行层引用一个没有行声明的导出，按 `unknown-plugin` 拒绝（DP1-C8）。
+
+真实模式在最终层叠配置与受信预检成功后、入口对象安装和任何业务行装载前，自动准备启用的真实 `session-storage` 租户目录。准备使用最终 `storage` 与 `session-storage` 行配置，调用 `prepareTenantDirectory`，不增加人工首启步骤。全新存储根独占创建并写合法空表；已有根必须有合法登记表，缺表、损坏或半初始化均失败，不补空表。失败结果是独立的 `preparation-failed`，退出 3，stderr 仅写 `serve: tenant directory preparation failed`，不安装入口对象、不运行行体，也不写 `startup-result`。禁用或替身行不触发准备。目录规则归 [session-storage 行说明](docs/rows/session-storage.md)。
 
 之后按最终树顺序，对每行从根依次 `isolate(名, 标签)` 得到该行上下文，再 `plugin(...)`。`await ctx.plugin(...)` 完成不等于 ACTIVE：入口读取每行实际 `fiber.state`，并对 Cordis 4.0.4 的 `FiberState` 枚举做穷尽映射。
 
@@ -156,7 +160,7 @@ S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前�
 | 0      | 启动全部 ACTIVE 且关闭 settled。`serve` 还要求停止来自请求                                                |
 | 1      | 未预期的内部错误，stderr 写 `<子命令>: internal error: ...`                                               |
 | 2      | 配置、解析或装载前检查失败，也含用法错误：参数缺失、路径不是绝对路径、JSON 读不出、状态根不是已存在的目录 |
-| 3      | 至少一行 FAILED，或启动期 `start` 抛出，或（`serve`）一个入口对象的 `install` 抛出                        |
+| 3      | 至少一行 FAILED，或启动期 `start` 抛出，或（`serve`）目录准备失败、一个入口对象的 `install` 抛出           |
 | 4      | 仍有 PENDING 或未完成 LOADING                                                                             |
 | 5      | 启动码为 0 但关闭 incomplete                                                                              |
 
@@ -185,6 +189,8 @@ S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前�
 9. 撤除 Cordis 根。disposer 的结果只进诊断。
 
 **阶段规则。**一个阶段的全部句柄结束或到达 D 之后，才开始下一阶段。到达 D 时未结束的句柄记为 `incomplete`，协调者继续下一阶段，不等它。句柄抛出时记为 `failed`，继续下一阶段。报告确定后才结束的句柄只写诊断，不改变报告。协调者不关闭任何业务连接，不回滚提交；SQL 连接与 Worker 只由 SQL 提供者在第 6 步关闭。
+
+**宿主文件结算。**启用 `executionHost` 时，入口在停止开始后取消周期。在 `business` 阶段之后、`composition` 阶段之前，入口等待已排队维护。随后经 loader 的 `disposeRow` 显式卸载宿主行，等待卸载完成后补维护，再做最终维护。关闭报告附 `hostFiles`：无残留为 `settled`，有残留为 `host-files-unsettled` 并附计数；维护或退役失败为 `unavailable`，不填未知计数。附录不参与原 `overall` 或退出码计算。超过 D 时附录固定为 `unavailable` 与 `deadline`，迟到结果只进诊断。storage 仍在报告确定后收到确认，根撤除继续等待同一个结算任务。R2-D32 只承诺显式 loader 卸载后的补维护，自动依赖卸载后的特定补维护留波 3。D 约束 stop 与报告窗口，不保证整个进程在 D 内退出。责任域和维护周期归 [execution-host 行说明](docs/rows/execution-host.md)。
 
 **启动与停止状态。**
 
@@ -239,6 +245,8 @@ sequenceDiagram
 - `storage` 句柄的结果受提供者自己的 `closeDeadlineMs` 约束。它大于 D 时，句柄在 D 答 `incomplete`，提供者仍在关闭。
 - 行清单的四跳同步靠人工：装配页到 `aa-rows.json` 由脚本再生，装配页到 `stubs.ts` 由线负责人手工同步，`stubs.ts` 到真实行声明由 `real-manifests-sync` 检查，等待装配页补丁的差额写在该测试的具名清单里。
 - `defineRow` 声明的清单与插件实际取用的服务可能不一致。装载器只核声明，真实行的成员测试负责核对。
+- R2-D25 的 Runtime/Execution `current()` 只桥接读取方 fiber 的进程代次。撤权、工作失效和 Request Context 换代尚未同步，不闭合 #677。R2-D29 的 reader 只接受 scope 所属 Session 的工作主体，producer 拒绝；缺 AD-03 归属或 AD-15 恢复授权生产来源时默认 `unavailable`。
+- R2-D26 的采用规划器已有纯模块实现，但生产 `SessionAdoptionSource` 尚未接入 `plan`，真实 authority、首次 version 与 admitted 的定义投影仍缺。登记事实缺失时整份 `unavailable`，不能把局部规划测试写成 AS-06 完整生产就绪。
 
 ## 偏离登记
 
