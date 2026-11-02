@@ -4,7 +4,7 @@
 
 服务键、抽象类、intercept 配置、事件、登记协议与策略选择的配置形状归 [request-context-cordis-contract 的 Cordis 说明](../../request-context-cordis-contract/docs/cordis.md)，本插件继承这些定义，不重复提供键。缓存、派生物与默认策略归 [request-context](../../request-context/docs/architecture.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)。
 
-现状：`./cordis` 导出 `RequestContextProvider`：必需 `inject` 信任键，提供 `requestContext` 与 `contextAccountingInbox` 两个键，来源登记表与账目收件口由 request-context 的工厂建立。贡献登记、变化事件与 `assembly` 已实现；配置 Schema 校验与按配置选择策略实现尚未实现，策略与账目选项暂由装配入口以插件选项交入。`src/index.ts` 仍只有模板标记。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
+现状：`./cordis` 导出 `RequestContextProvider`：必需 `inject` 信任键，提供 `requestContext` 与 `contextAccountingInbox` 两个键，来源登记表与账目收件口由 request-context 的工厂建立。贡献登记、变化事件与 `assembly` 已实现；配置 Schema 校验与按配置选择策略已实现（`src/config.ts`）。插件选项有三种互斥的给法：什么都不给策略时用两个默认策略的初值，给 `selection` 时按名选择并校验，给 `policies` 时由受信任的装配代码交入现成的策略对象；`accounting` 必给。`selection` 为 `null` 或不是对象时配置不合，不回退默认。`src/index.ts` 仍只有模板标记。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
 
 ## 插件与服务
 
@@ -31,10 +31,10 @@
 | --- | --- | --- |
 | 压缩策略的选择与参数 | 选哪一个压缩策略实现，以及它的触发界线、保留预算、保留偏好、修剪优先与步数上界 | 选定的实现传给 request-context 的工厂 |
 | 表示策略的选择与偏好顺序 | 选哪一个表示策略实现，以及按模态的偏好顺序 | 同上 |
-| 修剪阈值 | 修剪器缩短工具结果与媒体占位的界线 | 工厂的配置 |
-| 缓存容量 | 每个消费位置保留多少个候选 | 工厂的配置 |
+| 修剪阈值 | 修剪器缩短工具结果与媒体占位的界线 | 现在没有字段：契约的选择形状不含它，取默认构造件的初值 |
+| 缓存容量 | 每个消费位置保留多少个候选 | 现在没有字段：候选缓存还没有实现 |
 
-默认值只是初值，数值归 [request-context SPEC](../../request-context/SPEC.md#默认策略与修剪器)。字段名随实现确定。
+默认值只是初值，数值归 [request-context SPEC](../../request-context/SPEC.md#默认策略与修剪器)。当前只有一个策略名 `default`。
 
 策略实现在插件加载时按配置选择（性质 4）：
 

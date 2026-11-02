@@ -16,7 +16,7 @@
 sequenceDiagram
   participant A as 装配者
   participant F as 插件 fiber
-  participant T as 访问检查、事务端口与内部主体的提供者
+  participant T as inject 五项的提供者
   participant I as 实例
   participant L as 调用方插件
   A->>F: 在一个 isolate 标签下装载插件与配置
@@ -25,10 +25,10 @@ sequenceDiagram
     F-->>A: fiber FAILED，不提供服务
   else 同一标签下已有提供者
     F-->>A: provide 失败，不覆盖
-  else 访问检查、事务端口或内部主体不在场
+  else inject 五项任一不在场
     F-->>A: fiber PENDING，服务不在场
   else 正常
-    T-->>F: inject 取得访问检查、事务端口与内部主体
+    T-->>F: inject 取得五项
     F->>F: 捕获本插件 Context，构造端口代理与组合通知者
     F->>I: createSessionInstance(依赖, 配置)
     F->>F: ctx.on 监听 committed
@@ -43,8 +43,8 @@ sequenceDiagram
 | --- | --- | --- |
 | 配置校验 | 配置合法才继续 | 配置错误时 fiber `FAILED`，装配者修正配置 |
 | 登记服务 | 一个标签下一份 | 重复装载失败。装配者不在两个标签下各装一份，因为那样每租户会有两个扫描者 |
-| 等访问检查、事务端口与内部主体 | 三者都在场才运行插件体 | 任一不在场时 `PENDING`，与 `FAILED` 分别诊断。`inject` 了 `session` 的调用方插件也等待 |
-| 构造实例 | 工厂得到完整依赖 | 访问检查、事务端口与内部主体均已注入。工厂的配置校验失败时插件加载失败 |
+| 等 inject 的五项 | 五项都在场才运行插件体 | 任一不在场时 `PENDING`，与 `FAILED` 分别诊断。`inject` 了 `session` 的调用方插件也等待 |
+| 构造实例 | 工厂得到完整依赖 | inject 的五项均已注入。工厂的配置校验失败时插件加载失败 |
 | 共享事务域不成立 | 面上的读写与 `maintain` 返回 `unavailable` | 本插件原样报告，`owner` 为存储参加者。存储与 Agent 的拥有者修正装配 |
 | 调用方类核对 | 取到合法调用方类才转给实例 | 取不到配置或调用方类不合法时返回 `denied`。调用方插件改用对象形式 `inject` |
 
@@ -64,11 +64,11 @@ sequenceDiagram
     I->>F: 下一次调用现取端口
     F-->>I: 新提供者，或缺席时返回 unavailable
     Note over I: 已发出的调用以旧实现的结果结束
-  else 访问检查、事务端口或内部主体换代
+  else inject 的任一项换代
     P->>F: 必需依赖换代，插件体先卸载
     F->>I: 按 FC-03 撤除
     F->>F: 插件体重跑
-    F->>N: 用新事务端口构造新实例
+    F->>N: 用新注入的依赖构造新实例
     L->>L: inject 了 session 的插件重跑
     L->>N: 取得新服务
     Note over I,N: 重跑前是否等待旧撤除完成，basis 没有条目；按可能并存设计
@@ -79,7 +79,7 @@ sequenceDiagram
 | --- | --- | --- |
 | 现取端口换代 | 插件体不重跑。下一次调用取到新提供者 | 端口缺席期间，只有需要它的操作返回 `unavailable`；出站端口缺席时任务保留，由调度器重放 |
 | 换代途中的端口调用 | 不改投新提供者，以旧实现的结果结束 | 结果未知时，session 的协调器按原操作身份查询 |
-| 访问检查、事务端口或内部主体换代 | 旧实例撤除，新实例重新构造 | 旧实例的在途命令按 FC-03 收场 |
+| inject 的任一项换代 | 旧实例撤除，新实例重新构造 | 旧实例的在途命令按 FC-03 收场 |
 | 新旧实例并存 | 同一命令按操作身份认回，不产生第二次效果 | 第二道保护是操作幂等、`expected` 核对与条件提交围栏，不是先后顺序 |
 | 调用方插件重跑 | 在途操作按原操作身份认回，不因重跑换身份 | 调用方以同一身份重试或 `queryOperation` |
 
@@ -94,8 +94,8 @@ sequenceDiagram
   participant S as 服务实例
   participant I as 实例
   participant C as 调用方
-  A->>F: 卸载插件
-  F->>S: 运行撤除 effect
+  A->>F: 有序关闭时调用停止句柄；卸载或换代时运行 effect
+  F->>S: 调用同一个撤除函数
   S->>S: 1. 标记撤除中
   C->>S: 新的面调用
   S-->>C: unavailable，owner 为 session
@@ -114,7 +114,7 @@ sequenceDiagram
 
 | 环节 | 结果 | 失败与责任交接 |
 | --- | --- | --- |
-| 四步顺序 | 写在一个 effect 里按顺序 `await` | 某一步抛出时本插件捕获、记录诊断，并继续后续步骤 |
+| 四步顺序 | 写在同一个函数里按顺序 `await`；停止句柄与 effect 两条路径调用它，后到的一次只等先到的一次结束，不重复执行；后到的是 effect 时仍退登记两个句柄 | 某一步抛出时本插件捕获、记录诊断，并继续后续步骤 |
 | 撤除开始后的面调用 | `unavailable`，`owner` 为 `session` | 调用方插件随本插件卸载或重跑后，在新的提供者上重试 |
 | 撤除期间确认的提交 | 调用方得到回执，不发通知 | 下一个实例的扫描按待办找回后续工作 |
 | 未确认的提交 | `commit-unknown` 或 `unavailable` | 调用方以同一操作身份重试或 `queryOperation` |
@@ -164,7 +164,7 @@ sequenceDiagram
 | 情形 | 结果 | 责任方 | 依据 |
 | --- | --- | --- | --- |
 | 配置错误 | fiber `FAILED` | 装配者 | [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14) |
-| 访问检查、事务端口或内部主体缺席 | fiber `PENDING` | 装配者装载存储提供者，或经 `sessionPrincipals` 提供内部主体 | 性质 2、性质 8 |
+| inject 的五项任一缺席 | fiber `PENDING` | 装配者装载会话存储组合，或提供内部主体、会话工作主体与装配生命周期 | 性质 2、性质 8 |
 | 重复装载 | 第二份失败 | 装配者 | [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) |
 | 现取端口缺席或抛出 | 只有需要它的操作返回 `unavailable` | 端口的提供者 | [SPEC 的端口接线](../SPEC.md#端口接线) |
 | 调用方类缺失或不合法 | `denied` | 调用方插件 | 性质 6 |

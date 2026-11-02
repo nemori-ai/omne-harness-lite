@@ -4,7 +4,7 @@
 
 ## 使用方式
 
-本成员导出 `createContextSourceRegistry` 与 `createContextAccounting`。候选缓存与默认策略尚未实现，下文只写已实现的用法。
+本成员导出 `createContextSourceRegistry` 与 `createContextAccounting`。候选缓存尚未实现，下文只写已实现的用法。默认压缩策略、默认表示策略与缺席的转换件结果读口已实现，调用方可以把它们作为构造依赖传入，见[公开接口](public-api.md)。
 
 ### 经 Cordis 使用
 

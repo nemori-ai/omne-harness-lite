@@ -40,4 +40,4 @@
 
 ## 共同日志内存提供者
 
-`./testing` 导出 `createMemorySessionJournal` 与 `MemorySessionJournalOptions`。它的 `transactions` 实现 `SessionTransactionPort` 的全部操作，含 `queryControlOperation`、`readModelSelection` 与 `commitEntries`（后者恒返回 `unavailable`，见 [SPEC 已知限制](../SPEC.md#已知限制)）。公开签名归 [testing.ts](../src/testing.ts)，使用顺序、资格依赖、受信夹具及非耐久边界见 [testing.md](testing.md)。根入口和 Cordis 入口的状态不因该测试提供者改变。
+`./testing` 导出 `createMemorySessionJournal` 与 `MemorySessionJournalOptions`。它的 `transactions` 实现 `SessionTransactionPort` 的全部操作，含 `queryControlOperation`、`readModelSelection` 与 `commitEntries`（后者按 session-contract 的纯范围检查提交，见 [SPEC 会话事务端口的契约面](../SPEC.md#会话事务端口的契约面)）。公开签名归 [testing.ts](../src/testing.ts)，使用顺序、资格依赖、受信夹具及非耐久边界见 [testing.md](testing.md)。根入口和 Cordis 入口的状态不因该测试提供者改变。

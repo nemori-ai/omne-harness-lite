@@ -3,53 +3,73 @@
 PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
-Context 一侧的 Agent 适配集成成员，`service-provider` 变体。本成员现在只有骨架。
+Context 一侧的 Agent 适配集成成员，`service-provider` 变体。
 
 ## 职责与状态
 
-本成员将承载应用装配页的两行：`agent-context` 行提供 `agentRequests` 与 `agentModelContext`，`agent-account-outlet` 行提供 `agentAccountOutlet`。服务定义归 [agent-cordis-contract](../../agent/agent-cordis-contract/README_ZH.md)，Context 一侧的端口归 [request-context-contract](../request-context-contract/README_ZH.md)。行与依赖见[应用装配](../../../docs/architecture/runtime/application-assembly.md#插件树)，适配方案见 [Context 的适配方案](../request-context-contract/docs/context.md#适配方案)。
+本成员承载应用装配页的两行：`agent-account-outlet` 行提供 `agentAccountOutlet`，`agent-context` 行提供 `agentRequests` 与 `agentModelContext`。服务定义归 [agent-cordis-contract](../../agent/agent-cordis-contract/README_ZH.md)，Context 一侧的端口归 [request-context-contract](../request-context-contract/README_ZH.md)。行与依赖见[应用装配](../../../docs/architecture/runtime/application-assembly.md#插件树)，适配方案见 [Context 的适配方案](../request-context-contract/docs/context.md#适配方案)。
 
-状态：骨架。职责与采用范围等 Context 与 Agent 集成缺口契约（[#859](https://github.com/nemori-ai/omne-harness-lite/issues/859)）的采用。成员名与位置是暂名，待该采用确认；改名时同批改包组织页与锁文件的登记。
+状态：第二步，实现中。本包是 Agent 与 Request Context、Runtime Context 之间的适配器，是 Context 组里唯一导入 Agent 契约的成员。它不导入 session-adapters：会话侧部件经键 `contextHolderSources`（K-RQ）到达，读取资格经 `runtimeContextReaderEligibility`（K-RC）到达。
 
-- 已实现：无。`src/index.ts` 与 `src/cordis.ts` 都没有导出。
-- 未实现：请求准备、Runtime Context 读取、账目出站与来源集合登记。
-- 未验证：全部。现在没有应用装配本成员，也没有包依赖本成员。
+- 已实现：账目出站。`createAgentAccountOutlet` 把一份 Agent 账目交接译成一条账目事实交给收件口，收件结果按名映射。`absentAccountTarget` 是没有目标的解析器。`AgentAccountOutletProvider` 是提供 `agentAccountOutlet` 的 Cordis 插件。
+- 已知限制（见 [SPEC](SPEC.md#已知限制)）：本波没有成员初始化账目投影（ACCT-INIT），也没有成员解析账目目标（ACCT-TARGET）。真实装配里 `deliver` 总是答 `unavailable`，诊断 `scope-unresolved`，不会答 `received`。
+- 已实现：请求准备与可读上下文读取。`createAgentRequests` 把 `prepare`、`derive`、`resume` 译成 Request Context 的调用，把每次调用的组值放进暂存表，并在目标的第一次调用时登记来源集合。`createAgentModelContext` 读取模型可读的 Runtime Context，完整或增量，块材料只在进程内。`createContextMaterials` 是两者共用的材料库。`AgentContextProvider` 是在同一 fiber 里提供两个服务的 Cordis 插件。
+- 第二步的已知限制：组四的定义采用与工作区选择交 `null`（ASSEMBLE-CONTEXT-NULL）。压缩路径只在同一实例内走得通，本波 `derive` 读不到步骤结果（COMPACTION-PATH）。model-cordis-contract 交付键之前，插件按键名 `modelPreparationResources` 注入 Model 准备资源（X3-KEY）。`ready` 的结果容量取插件配置（RESULT-CAPACITY）。
+- 已验证：出站在真实账目投影上通过 `AgentAccountOutlet` 的符合性套件。请求准备在真实的 Request Context 登记表与默认策略上运行，固定请求通过 Model 请求准备替身，第二轮带 `lineage.continues`。读取在真实的 Runtime Context 机制上运行。两个插件在真实 Cordis 4.0.4 上装载与停止，K-RQ 的持有者替身在结算之后才关读口。见 [tests/](tests/README.md)。
+- 未验证：真实装配里的账目投影、真实 Model 一侧的结果接收方、真实的 K-RQ、K-RC 与 X-3 提供者、带块的 Runtime Context 读取、任何跨进程行为。
 
 ## 使用
 
-<!-- documentation:placeholder -->
+独立使用需要一个 `ContextAccountingInbox`、发送方的采用身份与目标解析器：
 
-给出最小有效示例、依赖及初始化和释放责任。分别说明独立使用入口与 Cordis 集成入口。逐项核对公开 exports、源码值依赖、生成声明、运行启动和安装闭包。存在 ./cordis 不证明独立安装成立。
+```ts
+import { absentAccountTarget, createAgentAccountOutlet } from '@omne-harness/agent-context'
+
+const outlet = createAgentAccountOutlet({ inbox, sender, resolveTarget: absentAccountTarget })
+const outcome = await outlet.deliver({ access, handoff })
+```
+
+返回的出站不持有资源，无需释放。接入 Cordis 时，从 `@omne-harness/agent-context/cordis` 加载 `AgentAccountOutletProvider`，配置 `{ sender }`，它需要 `requestContext` 与 `contextAccountingInbox`。`./cordis` 入口不证明可独立安装。
+
+请求准备与可读上下文读取共用一个材料库：
+
+```ts
+const materials = createContextMaterials({ owner, capacity: 256 })
+const reader = createAgentModelContext({ materials, parts, eligibility, runtimeContext })
+const requests = createAgentRequests({
+  materials,
+  parts,
+  requestContext,
+  preparation,
+  conversions,
+  model,
+  resultCapacity,
+  tools: firstWaveTools,
+  stepResults: absentStepResults,
+})
+```
+
+停止时调用 `requests.close()`，把它的结算交给部件的持有者，再调用 `materials.close()`。接入 Cordis 时加载 `AgentContextProvider`，配置 `{ owner, resultCapacity }`。它需要六个键：`requestContext`、`contextHolderSources`、`runtimeContextReaderEligibility`、`runtimeContext`、`modelRequestPreparation` 与 `modelPreparationResources`。见 [docs/context.md](docs/context.md) 与 [docs/cordis.md](docs/cordis.md)。
 
 ## 契约
 
-<!-- documentation:placeholder -->
-
-链接公开类型、必要校验及唯一行为正文。类型外行为由 SPEC.md 拥有，公开定义的导航在 docs/public-api.md。说明错误、生命周期与资源责任的拥有者，不复制签名或状态机。
+三个出口的行为见 [SPEC.md](SPEC.md)，公开定义的索引见 [docs/public-api.md](docs/public-api.md)。端口及其答复归 agent-contract。收件口、事实、来源集合与操作组归 request-context-contract。K-RQ 与 K-RC 归 Context 组的两个 Cordis 契约成员。字段对应归 [Context 的适配方案](../request-context-contract/docs/context.md#适配方案)。
 
 ## 设计
 
-<!-- documentation:placeholder -->
-
-概述内部模块和关键不变量的拥有者。完整设计写在 docs/architecture.md、docs/flows.md 与 docs/object-model.md。
+出站先核调用的租户，再问目标解析器，再把一条事实交给收件口一次，调用之间不保存任何东西。请求准备先核本包证据的租户，经持有者解析历史依据，把本次的组值放进暂存表，再问 Request Context。读取按执行挂接保存最近一次完整读取的材料，只在进程内。见 [docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md)、[docs/object-model.md](docs/object-model.md)。
 
 ## 配置与运行
 
-<!-- documentation:placeholder -->
-
-填写配置拥有者、默认行为、环境前提和显式依赖。说明调用者与包各自的运行责任。
+出站插件的配置只有一个字段 `sender`，是出站给每条事实的采用身份。上下文插件的配置有 `owner`、`resultCapacity` 与可选的 `materials` 容量（初值 256）。不合的配置使加载失败。第一波传缺席解析器、第一波的工具规则与缺席的步骤结果读口。
 
 ## 验证
 
-<!-- documentation:placeholder -->
-
-填写可复跑命令、性质、前提和未覆盖。提供有实际断言的测试。结构通过不表示业务行为已验证。
+在本目录运行 `pnpm exec vitest run` 与 `pnpm run typecheck`。测试经构建产物导入所用成员，先构建依赖。覆盖：出站的各项用例，`prepare` 的四种结局，第二轮的 lineage，组与令牌，暂存表，登记，失败类别，压缩的核对，完整与增量读取，证据的可解析范围，拒绝，两个插件的真实 Cordis 生命周期。不覆盖真实装配里账目投影的初始化与真实的会话侧提供者。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-说明公开契约、资源或依赖变化时必须同步的消费者和验证入口。信息不适用时写明理由，未知时登记具名缺口。
+端口、字段对应或服务键变化时，同步插件的 `inject`、SPEC 的映射表与测试。model-cordis-contract 交付 X-3 的键之后，用它的常量代替 `MODEL_PREPARATION_RESOURCES`。消费者是 Agent（经三个键）与应用装配页。目标解析器有了真实提供者时，更新 SPEC 的已知限制。
 
 ## 目录结构与文档职责
 

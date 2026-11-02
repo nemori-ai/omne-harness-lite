@@ -1903,6 +1903,28 @@ export function createJournal<P>(
     return { from, to: execution.inputs.length }
   }
 
+  /**
+   * The range a watermark names: the one this Journal issued, or, when the in-process index was
+   * rebuilt from durable records, the range its record names if this execution could have issued
+   * it: the start is 0 or the end of a known batch, and the end is within the accepted inputs.
+   */
+  function watermarkRange(execution: Execution, record: string): Range | undefined {
+    const issued = cache(execution).watermarks.get(record)
+    if (issued !== undefined) return issued
+    const prefix = `${cell.namespace}/${execution.id}/inputs/`
+    if (!record.startsWith(prefix)) return undefined
+    const match = /^(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/.exec(record.slice(prefix.length))
+    if (match === null) return undefined
+    const from = Number(match[1])
+    const to = Number(match[2])
+    if (to < from || to > execution.inputs.length) return undefined
+    if (from !== 0 && ![...cache(execution).batches.values()].some(range => range.to === from))
+      return undefined
+    const range = { from, to }
+    cache(execution).watermarks.set(record, range)
+    return range
+  }
+
   function watermarkOf(execution: Execution): DurableEvidence {
     const range = inputBoundary(execution)
     const evidence = journalEvidence(
@@ -2046,6 +2068,7 @@ export function createJournal<P>(
         },
         controls: execution.controls,
         results: execution.results,
+        entries: execution.entries,
         effects: execution.effects,
         interruptionsOf: effect => interruptionsOf(effect, execution.controls, execution.tenant),
         modelCallOf: effect => {
@@ -4028,7 +4051,7 @@ export function createJournal<P>(
           // the responsibility projection is unchanged.
           const closure = obligationsOf(execution, candidate, input.operation).items
           if (projectionOf(closure) !== projectionOf(list.items)) return changed
-          const boundary = cache(execution).watermarks.get(candidate.inputWatermark.record)
+          const boundary = watermarkRange(execution, candidate.inputWatermark.record)
           if (boundary === undefined || boundary.to < execution.inputs.length) return changed
           const check = blockedReason(execution, candidate, closure, list.items)
           if (check.kind === 'changed') return changed
@@ -4179,7 +4202,7 @@ export function createJournal<P>(
       const found = owned(input, 'inputs')
       if ('failure' in found) return found
       const execution = found.ok
-      const range = cache(execution).watermarks.get(input.watermark.record)
+      const range = watermarkRange(execution, input.watermark.record)
       if (
         range === undefined ||
         !sameEvidence(

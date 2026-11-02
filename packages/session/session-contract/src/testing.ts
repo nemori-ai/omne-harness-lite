@@ -26,6 +26,7 @@ export {
   type MemoryInitializationTransactions,
   type SessionTransactionsFixture,
 } from './testing-transactions.ts'
+export { sessionEntriesConformance } from './testing-entries.ts'
 export {
   memorySessionDelegatedTransactionsFixture,
   sessionDelegatedTransactionsConformance,

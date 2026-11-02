@@ -2,9 +2,7 @@ import { Service, type Context } from '@deepseek-ai/cordis'
 import { createContextAccounting, createContextSourceRegistry } from '@omne-harness/request-context'
 import {
   decodeGroupToken,
-  type AccountingOptions,
   type AssemblyOperations,
-  type AssemblyPolicies,
   type ContextAccountingInbox,
   type ContextSourceRegistry,
   type ContextSources,
@@ -23,15 +21,13 @@ import {
   requestContextTrustKey,
   type RequestContextIntercept,
 } from '@omne-harness/request-context-cordis-contract/cordis'
+import {
+  requestContextProviderConfig,
+  selectPolicies,
+  type RequestContextProviderOptions,
+} from './config.ts'
 
-/**
- * Runtime objects of the provider. The assembly entry builds them in trusted code; they are
- * passed as plugin options and never enter plugin tree JSON.
- */
-export type RequestContextProviderOptions = Readonly<{
-  policies: AssemblyPolicies
-  accounting: AccountingOptions<unknown>
-}>
+export type { RequestContextProviderOptions } from './config.ts'
 
 /** The accounting inbox, provided by the same plugin fiber as `requestContext`. */
 class AccountingInboxProvider extends ContextAccountingInboxService<unknown> {
@@ -55,6 +51,8 @@ class AccountingInboxProvider extends ContextAccountingInboxService<unknown> {
  */
 export class RequestContextProvider extends RequestContextService<unknown> {
   static readonly inject = [requestContextTrustKey]
+  /** Checked before the constructor runs; a configuration that does not fit fails the load. */
+  static readonly Config = requestContextProviderConfig
   readonly generation: string
   private static generations = 0
   private closed = false
@@ -73,7 +71,7 @@ export class RequestContextProvider extends RequestContextService<unknown> {
     this.registry = createContextSourceRegistry<unknown>({
       principalBinding: trust.principalBinding,
       registrationAuthority: trust.registrationAuthority,
-      policies: options.policies,
+      policies: selectPolicies(options),
     })
     // Same ctx, hence the same fiber: both keys live and end together.
     new AccountingInboxProvider(ctx, createContextAccounting(options.accounting).inbox)

@@ -18,9 +18,10 @@
 | 定义 | 入口 | 种类 | 依据 |
 | --- | --- | --- | --- |
 | `RequestContextProvider` | `./cordis` | 类，`RequestContextService` 的具体子类，也是装配用的插件，不写服务键 | [SPEC 范围与依据](../SPEC.md#范围与依据)、[插件与服务](cordis.md#插件与服务) |
-| `RequestContextProviderOptions` | `./cordis` | 类型，策略与账目选项，由装配入口在受信代码里构造，不进插件树 JSON | 同上 |
+| `RequestContextProviderOptions` | `./cordis` | 类型，账目选项与策略选项（`policies` 与 `selection` 互斥），由装配入口在受信代码里构造，不进插件树 JSON | 同上 |
+| 静态 `Config`（`RequestContextProvider.Config`） | `./cordis` | Standard Schema，校验插件选项并在校验时试建两个策略；不合即加载失败，不回退默认 | [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14)、[配置与策略选择](cordis.md#配置与策略选择) |
 
-根入口 `src/index.ts` 只有模板标记，没有导出。[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出，[cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言 `./cordis` 的运行时导出只有 `RequestContextProvider`。
+根入口 `src/index.ts` 只有模板标记，没有导出；`src/config.ts` 是 `./cordis` 的内部文件。[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出，[cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言 `./cordis` 的运行时导出只有 `RequestContextProvider`。
 
 ### 随实现进入的导出
 
@@ -28,6 +29,6 @@
 
 | 定义 | 入口 | 种类 | 依据 |
 | --- | --- | --- | --- |
-| 配置 Schema | `./cordis` | 静态 `Config`，Standard Schema。策略选择与参数、修剪阈值、缓存容量 | [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14)、[配置与策略选择](cordis.md#配置与策略选择) |
+| 修剪阈值与缓存容量的配置字段 | `./cordis` | 并入静态 `Config`。契约的选择形状先要有这两个字段 | [配置与策略选择](cordis.md#配置与策略选择) |
 
 本成员不导出服务键常量。键常量只由服务定义成员导出（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。本成员不增补新事件。根入口不导出任何东西（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。机制工厂只由 [request-context](../../request-context/docs/public-api.md) 导出，独立调用方从那里取。

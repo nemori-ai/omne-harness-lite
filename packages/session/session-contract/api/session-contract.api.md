@@ -198,6 +198,7 @@
 - `deriveDriveOperation` · `operations.d.ts`
 - `deriveIngressOperation` · `operations.d.ts`
 - `deriveSessionOperation` · `operations.d.ts`
+- `digestSessionEntries` · `entries-interpretation.d.ts`
 - `initializationRegistrationCommit` · `initialization-plan.d.ts`
 - `judgeAdvance` · `judgments.d.ts`
 - `judgeCompletion` · `judgments.d.ts`
@@ -205,6 +206,7 @@
 - `judgeRunStart` · `judgments.d.ts`
 - `mutationAccessRequest` · `access.d.ts`
 - `openWork` · `judgments.d.ts`
+- `projectSessionEntries` · `entries-interpretation.d.ts`
 - `projectSessionLog` · `projection.d.ts`
 - `readAccessRequest` · `access.d.ts`
 - `reduce` · `reduce.d.ts`
@@ -283,6 +285,7 @@
 - `sessionClockConformance` · `testing-provider-conformance.d.ts`
 - `sessionContextInputConformance` · `testing-provider-conformance.d.ts`
 - `sessionDelegatedTransactionsConformance` · `testing-delegated.d.ts`
+- `sessionEntriesConformance` · `testing-entries.d.ts`
 - `sessionEvidenceBridgeConformance` · `testing-provider-conformance.d.ts`
 - `sessionId` · `testing-values.d.ts`
 - `sessionIdentityBridgeConformance` · `testing-provider-conformance.d.ts`
@@ -642,6 +645,26 @@ export declare function terminalEntries(snapshot: WorkSnapshot, terminal: RunTer
 }>): EncodedEntry[];
 ```
 
+## 声明文件 `entries-interpretation.d.ts`
+
+```ts
+import type { Decision, OperationRecord } from './judgments.ts';
+import type { SessionEntriesObservation, SessionEntriesProgress, SessionEntriesStart } from './interpretation-values.ts';
+import type { WorkSnapshot } from './values.ts';
+export declare const SAME_LOG_ENTRIES_VIA = "same-log-entries";
+type EntriesDecision = Exclude<Decision, {
+    kind: 'control-answer';
+}>;
+export declare function digestSessionEntries(observation: SessionEntriesObservation): string;
+export declare function projectSessionEntries(snapshot: WorkSnapshot, input: Readonly<{
+    observation: SessionEntriesObservation;
+    start: SessionEntriesStart;
+    saved: readonly SessionEntriesProgress[];
+    record: OperationRecord | null;
+}>): EntriesDecision;
+export {};
+```
+
 ## 声明文件 `entries.d.ts`
 
 ```ts
@@ -654,6 +677,7 @@ import type { EntryClass, HistoryEntry } from './faces.ts';
 import type { EncodedEntry } from './judgments.ts';
 import type { InitialAdoption, InitializationAdoption, InitializationGuardResult, InitializationFactReference, InitializationPlanItem, InitializationRequirement, InitializationRegistration } from './values.ts';
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts';
+import type { SessionEntriesChannel } from './interpretation-values.ts';
 export declare const SESSION_INTERPRETER: Adoption;
 export type InitializationItem = Omit<Extract<RecoveryTask, {
     kind: 'initialization';
@@ -859,6 +883,22 @@ export type SessionEntry = Readonly<{
     kind: 'history.annotated';
     run: RunId;
     terminal: RunTerminal;
+}> | Readonly<{
+    kind: 'entries.interpreted';
+    run: RunId;
+    execution: string;
+    channel: SessionEntriesChannel;
+    after: string;
+    through: string;
+    boundary: Readonly<{
+        revision: string;
+        executionEvidence: DurableEvidence;
+        count: string;
+    }>;
+    interpreted: readonly Readonly<{
+        ordinal: string;
+        key: string;
+    }>[];
 }>;
 export type SessionEntryKind = SessionEntry['kind'];
 export declare function toJsonValue(plain: unknown): JsonValue;
@@ -1486,6 +1526,7 @@ export { judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, openWork, reso
 export { decide, commandDigest } from './decide.ts';
 export { reduce } from './reduce.ts';
 export { projectSessionLog, type SessionLogObservation, type SessionLogConsequence, } from './projection.ts';
+export { projectSessionEntries, digestSessionEntries } from './entries-interpretation.ts';
 export type { ResidentAdoption, RunExecution, ContextScopeBinding } from './values.ts';
 export { INITIALIZATION_PROTOCOL } from './initialization-schema.ts';
 export type { InitialAdoption, InitializationAdoption, InitializationGuardFacts, InitializationGuardResult, InitializationConsequence, InitializationState, InitializationFactReference, } from './initialization-schema.ts';
@@ -2342,10 +2383,15 @@ export declare function projectSessionLog(snapshot: WorkSnapshot, observation: S
 import type { SessionEntry } from './entries.ts';
 import type { WorkSnapshot } from './values.ts';
 import type { DurableEvidence } from './identity.ts';
+import type { SessionEntriesProgress } from './interpretation-values.ts';
 type Draft = {
     -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K];
 };
 export declare function applyExtended(draft: Draft, entry: SessionEntry, source: DurableEvidence): string | null;
+type ProgressRow = Extract<SessionEntry, {
+    kind: 'entries.interpreted';
+}>;
+export declare function advanceEntriesProgress(saved: readonly SessionEntriesProgress[], rows: readonly ProgressRow[], evidence: DurableEvidence): readonly SessionEntriesProgress[] | string;
 export {};
 ```
 
@@ -2392,8 +2438,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:f26618d96c13db2198cf2f10d27c90fe1b9d439c726887e6e7a0cda0235aa558";
-export declare const SESSION_RELEASE_DIGEST = "sha256:f26618d96c13db2198cf2f10d27c90fe1b9d439c726887e6e7a0cda0235aa558";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:62b8bb55bb063240cc56f2cfb1428c75aa34bd0d2407d8bf793171075419985c";
+export declare const SESSION_RELEASE_DIGEST = "sha256:62b8bb55bb063240cc56f2cfb1428c75aa34bd0d2407d8bf793171075419985c";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -2516,6 +2562,14 @@ export interface SessionDelegatedTransactionsFixture<P> {
 }
 export declare function sessionDelegatedTransactionsConformance<P>(): readonly ConformanceCase<SessionDelegatedTransactionsFixture<P>>[];
 export declare function memorySessionDelegatedTransactionsFixture(): SessionDelegatedTransactionsFixture<string>;
+```
+
+## 声明文件 `testing-entries.d.ts`
+
+```ts
+import { type ConformanceCase } from './testing-case.ts';
+import { type SessionTransactionsFixture } from './testing-transactions.ts';
+export declare function sessionEntriesConformance<P>(): readonly ConformanceCase<SessionTransactionsFixture<P>>[];
 ```
 
 ## 声明文件 `testing-history-source.d.ts`
@@ -2738,6 +2792,7 @@ export interface SessionTransactionsFixture<P> {
     initializationGuards?(command: Extract<SessionCommand, {
         kind: 'create';
     }>): Promise<readonly GuardCommand[]>;
+    readonly askedAccessChecks?: () => number;
 }
 type Commit<K extends MutationName> = Awaited<ReturnType<Mutations[K]>>;
 export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
@@ -2871,6 +2926,7 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         historyIndex?: import("./history-values.ts").SessionHistoryIndex;
         callRegistrations?: readonly import("./call-values.ts").SessionCallRecord[];
         callWaits?: readonly import("./call-values.ts").SessionCallWait[];
+        entriesProgress?: readonly import("./interpretation-values.ts").SessionEntriesProgress[];
     }>>;
     openRun: () => Promise<string>;
 };
@@ -2915,6 +2971,7 @@ export declare function guard(participant: string, owner: string, facts: unknown
 ```ts
 export { NotApplicable, assertIndistinguishable, conformanceCase, expectKind, handle, isNotApplicable, refused, runConformanceCase, shapeOf, succeeded, type CaseVerdict, type ConformanceCase, } from './testing-case.ts';
 export { createMemorySessionTransactionPair, createMemorySessionTransactions, memorySessionTransactionsFixture, pendingReasonsOf, sessionTransactionsConformance, type MemorySessionTransactionPair, type MemorySessionTransactions, type MemorySessionLogTransactions, type MemoryInitializationTransactions, type SessionTransactionsFixture, } from './testing-transactions.ts';
+export { sessionEntriesConformance } from './testing-entries.ts';
 export { memorySessionDelegatedTransactionsFixture, sessionDelegatedTransactionsConformance, type SessionDelegatedTransactionsFixture, } from './testing-delegated.ts';
 export { createMemorySessionClock, createMemorySessionContextInput, createMemorySessionEvidenceBridge, createScriptedSessionIdentityBridge, type IdentityScript, type MemorySessionClock, type MemorySessionContextInput, type MemorySessionEvidenceBridge, type ScriptedSessionIdentityBridge, } from './testing-ports.ts';
 export { TESTING_OWNER, adoption, assistantMessage, creation, evidence, guard, inputId, memoryAccess, memoryOtherAccess, mintEvidence, operationId, ordinaryInput, sessionId, testingTenant, testingWorkspace, userMessage, } from './testing-values.ts';
@@ -2936,6 +2993,7 @@ import type { CompactionMessage, Message } from '@omne-harness/message';
 import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity';
 import type { SessionHistoryIndex } from './history-values.ts';
 import type { SessionCallRecord, SessionCallWait } from './call-values.ts';
+import type { SessionEntriesProgress } from './interpretation-values.ts';
 import type { Adoption, AdvanceRef, AttemptId, ConsumerRef, ConsumptionId, DurableEvidence, InputId, ResidentKey, BatchId, RunId, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 export type ResidentTool = Readonly<{
     capability: string;
@@ -3385,6 +3443,7 @@ export type WorkSnapshot = Readonly<{
     historyIndex?: SessionHistoryIndex;
     callRegistrations?: readonly SessionCallRecord[];
     callWaits?: readonly SessionCallWait[];
+    entriesProgress?: readonly SessionEntriesProgress[];
 }>;
 export type ResidentAdoption = Readonly<{
     residents: readonly ResidentTool[];

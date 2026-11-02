@@ -16,6 +16,6 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 ## 本包事实
 
-`index.ts` 仍是空导出。`cordis.ts` 导出 `createRuntimeContextPlugin`：插件 `inject` 键 `runtimeContextTrust`，键缺席时停在 PENDING，取出 `authority` 与 `bindings` 交给调用方给的构造函数。生产工厂与同步失效来源尚未实现（缺口保留在 #677）。
+`index.ts` 是空导出。`cordis.ts` 导出具体子类 `RuntimeContextProvider` 与插件入口 `createRuntimeContextPlugin`，并含配置的 Standard Schema。机制实例只在子类构造函数的闭包里。独立调用方从 `runtime-context` 取机制工厂。
 
-当前缺口：具体子类、生产工厂与配置 Schema 还没有进入。根入口不导出任何东西，独立调用方从 `runtime-context` 取机制工厂。清单见[公开接口页](../docs/public-api.md#随实现进入的导出)。具名维护者由负责人指定。
+当前缺口：同步失效来源不在本成员（缺口保留在 #677）。具名维护者由负责人指定。

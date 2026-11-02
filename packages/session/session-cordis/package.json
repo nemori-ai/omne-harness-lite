@@ -31,11 +31,16 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/session": "workspace:*",
     "@omne-harness/session-contract": "workspace:*",
-    "@omne-harness/session-cordis-contract": "workspace:*",
-    "@omne-harness/session": "workspace:*"
+    "@omne-harness/session-cordis-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/session-storage-sql": "workspace:*",
+    "@omne-harness/sql-contract": "workspace:*",
+    "@omne-harness/sqlite-provider": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

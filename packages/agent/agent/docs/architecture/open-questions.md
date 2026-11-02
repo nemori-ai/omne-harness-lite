@@ -126,7 +126,7 @@ SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收)第 11 条�
 
 ### 宿主怎样创建并持有实例的 AgentProvider
 
-在 Cordis 装配中，宿主插件调用工厂，并持有返回的 `AgentProvider`，见本地宿主装配的“[装载](../../../agent-host-local/docs/cordis.md#装载)”。宿主的服务面 `AgentInstanceHost` 只有 reserve、publish、withdraw 和 directory。装配者请求宿主以某次预约创建实例的入口，以及装配者请求宿主停用实例的入口，都没有定义形状。关闭条件是本地宿主装配页给出这两个入口的形状和逐操作要素，Cordis 页再核对它们是否需要新的服务面。
+已关闭。在 Cordis 装配中，宿主插件调用工厂，并持有返回的 `AgentProvider`，见本地宿主装配的“[装载](../../../agent-host-local/docs/cordis.md#装载)”。创建实例的入口是 `agentInstanceProvision` 的 `acquire`，宿主按实例槽自己 reserve、调用工厂、发布。停用没有公开入口，只由宿主发起：空闲回收与有序关闭。规则、授权操作清单和回收竞态的保护点见 [Cordis 页的实例的取得与回收](../../../agent-cordis-contract/docs/cordis.md#实例的取得与回收)。关闭不表示宿主插件已经实现，宿主插件的实现与验证归 AG-01。
 
 ### Cordis 装配中工厂的依赖从哪里来
 

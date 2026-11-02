@@ -20,9 +20,10 @@
 
 同一个装配还要装：
 
-1. 一个事务端口的提供者，例如 [session-storage-sql](../../session-storage-sql/README.md)。没有它，本插件停在 `PENDING`。
+1. 委派事务入口的提供者，即应用的会话存储组合（基于 [session-storage-sql](../../session-storage-sql/README.md)）。没有它，本插件停在 `PENDING`。公开事务端口由同一组合提供，缺席时只有目录读取返回 `unavailable`。
 2. [session-adapters](../../session-adapters/README.md) 的端口提供者与入站插件。缺哪个端口，只有需要它的操作返回 `unavailable`。
-3. 装配入口经服务键 `sessionPrincipals` 提供的内部主体，由维护拥有者签发（[端口服务键](../../session-cordis-contract/docs/cordis.md#端口服务键)）。没有它，本插件停在 `PENDING`。
+3. 装配入口经服务键 `sessionPrincipals` 提供的内部主体与经受信键 `sessionWorkPrincipals` 提供的会话工作主体，由维护拥有者签发（[端口服务键](../../session-cordis-contract/docs/cordis.md#端口服务键)、[受信服务键](../../session-cordis-contract/docs/cordis.md#受信服务键)）。缺任一项，本插件停在 `PENDING`。
+4. 装配生命周期 `assemblyLifecycle`。没有它，本插件停在 `PENDING`。它没有正式定义，本插件读装配入口的私有键 `s0.assemblyLifecycle`，登记行 `session-provider`、阶段 `business`（[SPEC 的实现现状](../SPEC.md#实现现状)）。
 
 装载后，其他插件经服务定义使用服务：调用方插件用对象形式 `inject: { session: { caller } }` 声明调用方类，只监听唤醒的一方用 `ctx.on`。这些用法归 [session-cordis-contract 的使用与定位](../../session-cordis-contract/docs/context.md)。
 
@@ -65,7 +66,7 @@ flowchart LR
 
 ### 现在的真实消费者
 
-现在没有应用装配本插件，也没有包依赖本成员。本成员的 `package.json` 依赖 session、session-contract 与 session-cordis-contract，但它们与本成员的入口都还没有导出，所以没有运行中的调用。
+现在没有应用装配本插件，也没有包依赖本成员。本成员的 `package.json` 依赖 session、session-contract、session-cordis-contract、legal-identity 与 operation-result。插件只在本成员的测试里装载运行，测试的装配写法在 [assembly.ts](../tests/fixtures/assembly.ts)。
 
 ### 上层页面
 

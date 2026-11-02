@@ -12,6 +12,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./participants": {
+      "source": "./src/participants.ts",
+      "types": "./dist/participants.d.ts",
+      "import": "./dist/participants.js"
     }
   },
   "files": [
@@ -32,6 +37,7 @@
     "@omne-harness/sql-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/sqlite-provider": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

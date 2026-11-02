@@ -1,5 +1,7 @@
-// The transaction conformance suite of session-contract, run on the real participant and read
-// handlers over the SQLite test provider. Every case runs and none is pinned as a known failure.
+// The transaction and commitEntries conformance suites of session-contract, run on the real
+// participant and read handlers over the SQLite test provider. Every case runs and none is pinned
+// as a known failure. The same commitEntries suite runs on the real sqlite-provider in
+// real-provider.spec.ts.
 import { describe, it } from 'vitest'
 import {
   adoptedInitializationFixture,
@@ -7,6 +9,7 @@ import {
   initializationFixtureFacts,
   initializationFixtureGuard,
   operationId,
+  sessionEntriesConformance,
   sessionTransactionsConformance,
   type SessionTransactionsFixture,
 } from '@omne-harness/session-contract/testing'
@@ -26,6 +29,7 @@ async function fixture(): Promise<SessionTransactionsFixture<string>> {
           initializationFixtureFacts(command, null, adoptedInitializationFixture(command)),
         ),
       ]),
+    askedAccessChecks: () => a.accessCheck.controls.asked().length,
   }
 }
 
@@ -35,6 +39,13 @@ describe('session-contract transaction conformance on the SQL storage', () => {
 
   for (const test of cases)
     it(label(test), async () => {
+      await test.run(await fixture())
+    })
+})
+
+describe('session-contract commitEntries conformance on the SQL storage', () => {
+  for (const test of sessionEntriesConformance<string>())
+    it(`${test.clause}: ${test.name}`, async () => {
       await test.run(await fixture())
     })
 })

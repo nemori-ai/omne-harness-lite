@@ -19,17 +19,19 @@ function sources(dir: string): string[] {
 }
 
 describe('public entries', () => {
-  it('exports the port factory and the materials, and nothing else at the root', async () => {
+  it('exports the port factories, the binding source and the materials, and nothing else at the root', async () => {
     const root = (await import('@omne-harness/session-storage-sql')) as Record<string, unknown>
     expect(Object.keys(root).sort()).toEqual([
       'SESSION_PARTICIPANT',
+      'createSessionPrincipalBindings',
       'createSessionStorage',
+      'createSessionStoragePair',
       'sessionStorageMaterials',
     ])
   })
 
   it('has no ./cordis subpath: not declared and not importable', async () => {
-    expect(Object.keys(packageJson.exports)).toEqual(['.'])
+    expect(Object.keys(packageJson.exports)).toEqual(['.', './participants'])
     const removed = '@omne-harness/session-storage-sql/cordis'
     await expect(import(/* @vite-ignore */ removed)).rejects.toThrow()
   })

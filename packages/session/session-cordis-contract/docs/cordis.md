@@ -1,6 +1,6 @@
 # Session 的 Cordis 定义
 
-本页是 Session 这一接缝的 Cordis 定义正文：服务键、抽象 `Service`、intercept 配置、端口服务键、事件、依赖分类，以及它们怎样符合 IC 约定。性质编号指本成员 [SPEC](../SPEC.md#唯一性) 的性质 1 至 7。四个面的领域行为归 [session-contract SPEC](../../session-contract/SPEC.md)，机制归 [session](../../session/README.md)，Service 实现、注入与扫描者绑定归 [session-cordis](../../session-cordis/docs/cordis.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，四个运行成员之间的共同生命周期归[运行契约集成](../../../../docs/architecture/runtime/runtime-contract-integration.md)，本页不复制。
+本页是 Session 这一接缝的 Cordis 定义正文：服务键、抽象 `Service`、intercept 配置、端口服务键、事件、依赖分类，以及它们怎样符合 IC 约定。性质编号指本成员 [SPEC](../SPEC.md#唯一性) 的性质 1 至 8。四个面的领域行为归 [session-contract SPEC](../../session-contract/SPEC.md)，机制归 [session](../../session/README.md)，Service 实现、注入与扫描者绑定归 [session-cordis](../../session-cordis/docs/cordis.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，四个运行成员之间的共同生命周期归[运行契约集成](../../../../docs/architecture/runtime/runtime-contract-integration.md)，本页不复制。
 
 现状：`src/cordis.ts` 已导出十一个依赖键，包含 `SessionAccessCheckService` 与 `sessionAccessCheckKey`，另导出三个[受信服务键](#受信服务键)。根入口只重导出契约类型。访问检查定义与独立测试子类已验证。session-contract 的 `commit` 显式携带 access，内存事务工厂必需 `accessCheck`（见[访问检查](../../session-contract/docs/access-check.md)）。生产 Session 服务的必需注入尚未交付。机制事实按 Cordis 4.0.4 核对。
 
@@ -44,8 +44,8 @@ export const inject = {
 | 键 | 端口 | 谁提供 | 怎样取得；缺席时 |
 | --- | --- | --- | --- |
 | `sessionAccessCheck` | `SessionAccessCheck` | 授权适配器 | 抽象类与键已导出。生产提供者仍须将其列为必需 `inject`，缺席时 `PENDING`；该接线未交付 |
-| `sessionTransactions` | `SessionTransactionPort` | [session-storage-sql](../../session-storage-sql/README.md) 或其他存储提供者 | 进 `inject`，与内部主体同为必需依赖。缺席时 Session 服务停在 `PENDING` |
-| `sessionPrincipals` | `SessionInternalPrincipals`：本组协调器与调度器提交命令时用的内部主体 | 应用装配（维护拥有者签发） | 进 `inject`。缺席时 Session 服务停在 `PENDING`，不启动任何协调器 |
+| `sessionTransactions` | `SessionTransactionPort` | [session-storage-sql](../../session-storage-sql/README.md) 或其他存储提供者 | 供直接调用者与符合性套件。Session 服务提供者不 `inject` 它，只为 `pending`、`references` 与 `releasedScopes` 按调用现取；缺席时这三项返回 `unavailable`。单会话读写经受信键 `sessionDelegatedTransactions` |
+| `sessionPrincipals` | `SessionInternalPrincipals`：本组系统维护用的内部主体，适用的操作见 [session CP-01](../../session/SPEC.md#cp-access)。已成立会话上的协调与恢复用受信键 `sessionWorkPrincipals` | 应用装配（维护拥有者签发） | 进 `inject`。缺席时 Session 服务停在 `PENDING`，不启动任何协调器 |
 | `sessionIdentity` | `SessionIdentityBridge` | [session-adapters](../../session-adapters/README.md) | 按调用现取。缺席时变更操作返回 `unavailable`，读取照常 |
 | `sessionEvidence` | `SessionEvidenceBridge` | session-adapters | 按调用现取。缺席时只有需要该材料的命令返回 `unavailable` |
 | `sessionClock` | `SessionClock` | 应用装配 | 按调用现取。缺席时空闲取证与等待返回 `unavailable` |
@@ -55,7 +55,7 @@ export const inject = {
 | `sessionAgentDrive` | 驱动 Agent 的出站端口 | session-adapters | 按调用现取。缺席时推进、续入、恢复、控制传播与迟到结果记录的出站调用不发出，任务保留，由调度器重放；预热在 Agent 入口定义前不调用 |
 | `sessionScopeRelease` | 作用域释放的出站端口 | session-adapters | 按调用现取。缺席时释放任务保留，按策略重试 |
 
-访问检查、事务端口与内部主体进 `inject`。访问检查按每次实际操作核当前主体、操作与目标，不缓存 allowed，unavailable 不放行。访问检查类型与 Service 定义已交付，实际执行处检查和系统授权生产提供者尚未交付。内部主体由装配维护者签发，经 `sessionPrincipals` 交入，不放配置。其他端口按调用现取，缺席表现以[契约端口表](../../session-contract/SPEC.md#构造依赖端口与出站端口)为准。
+访问检查、内部主体与两个受信键 `sessionDelegatedTransactions`、`sessionWorkPrincipals` 进 Session 服务提供者的 `inject`。访问检查按每次实际操作核当前主体、操作与目标，不缓存 allowed，unavailable 不放行。访问检查类型与 Service 定义已交付，实际执行处检查和系统授权生产提供者尚未交付。内部主体由装配维护者签发，经 `sessionPrincipals` 交入，不放配置。其他端口按调用现取，缺席表现以[契约端口表](../../session-contract/SPEC.md#构造依赖端口与出站端口)为准。
 
 出站端口的接口在契约成员（本域只说自己要什么），键在本成员，实现在 session-adapters，由 session-cordis 注入。session-cordis 与 session-adapters 之间没有编译期依赖，靠这两个键在装配时接上。
 
@@ -70,6 +70,8 @@ Tool 常驻引用桥由应用装配提供，以显式 tenant 消费 Session 的 
 | `sessionDelegatedTransactions` | `SessionDelegatedTransactions` | 会话存储组合（`session-storage` 行） | `session-provider` 行，进 `inject` |
 | `sessionWorkPrincipals` | `SessionWorkPrincipals` | 装配入口 | `session-provider` 行，进 `inject` |
 | `sessionPrincipalBindings` | `SessionPrincipalBindingSource` | 会话存储组合（`session-storage` 行） | 只由装配入口按调用读取，没有行 `inject` |
+
+`sessionDelegatedTransactions` 与 `sessionTransactions` 必须由同一存储核心提供，读写同一份会话事实与待办索引。应用装配的 `session-storage` 行兑现这一点（[契约端口表](../../session-contract/SPEC.md#构造依赖端口与出站端口)）。
 
 `./testing` 提供两个非耐久替身与各自的符合性套件：
 
@@ -95,7 +97,7 @@ Tool 常驻引用桥由应用装配提供，以显式 tenant 消费 Session 的 
 | 依赖方 | 怎样依赖 | 换代或缺席时 |
 | --- | --- | --- |
 | 调用方插件 | 对象形式 `inject: { session: { caller } }`，用定义包导出的键常量或字符串字面量（[IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8)） | 提供者换代时插件体先卸载再重跑（[plugin-body-reruns-on-provider-change](../../../../.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md)）。在途操作按原操作身份认回，不因重跑换身份 |
-| 端口提供插件 | `extends` 对应的端口抽象类，不另写键 | 访问检查、事务端口或内部主体卸载时 Session 服务停在 `PENDING`；其他端口卸载时只有需要它的操作返回 `unavailable`。已提交的业务事实不变 |
+| 端口提供插件 | `extends` 对应的端口抽象类，不另写键 | 访问检查、委派事务入口、内部主体或会话工作主体卸载时 Session 服务停在 `PENDING`；其他端口卸载时只有需要它的操作返回 `unavailable`。已提交的业务事实不变 |
 | 只监听唤醒的一方 | 不 `inject`。用 `ctx.on` 监听事件，类型增补用 `import type {} from '@omne-harness/session-cordis-contract/cordis'` 取得（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)） | 提供者不在场时没有唤醒。正确性不依赖唤醒 |
 | 提供者 [session-cordis](../../session-cordis/docs/cordis.md) | `extends SessionService`，不另写键，不自己 `ctx.provide` 这个键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)） | 不适用 |
 | 只需要契约类型的包 | 从 [session-contract](../../session-contract/README.md) 根入口 `import type`。不需要本成员 | 不适用 |
@@ -135,4 +137,4 @@ Tool 常驻引用桥由应用装配提供，以显式 tenant 消费 Session 的 
 
 本成员自己验证：根入口没有运行导出，也不导入 `@deepseek-ai/cordis`；`./cordis` 不导入任何提供者（性质 7）；每个导出的键常量等于对应抽象类的 `provide`。
 
-继承这些定义的提供者验证：两个调用方类的插件各取到自己的配置，调用方类不在操作允许的范围内时被拒绝；访问检查、事务端口或内部主体缺席时服务停在 `PENDING`，其他端口缺席只影响需要它的操作，通知能力缺席不阻止提交；事件载荷不含正文。这些义务归 [session-cordis](../../session-cordis/docs/cordis.md)。
+继承这些定义的提供者验证：两个调用方类的插件各取到自己的配置，调用方类不在操作允许的范围内时被拒绝；访问检查、委派事务入口、内部主体或会话工作主体缺席时服务停在 `PENDING`，其他端口缺席只影响需要它的操作，通知能力缺席不阻止提交；事件载荷不含正文。这些义务归 [session-cordis](../../session-cordis/docs/cordis.md)。

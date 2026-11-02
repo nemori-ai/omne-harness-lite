@@ -6,6 +6,7 @@ import type { CompactionMessage, Message } from '@omne-harness/message'
 import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity'
 import type { SessionHistoryIndex } from './history-values.ts'
 import type { SessionCallRecord, SessionCallWait } from './call-values.ts'
+import type { SessionEntriesProgress } from './interpretation-values.ts'
 import type {
   Adoption,
   AdvanceRef,
@@ -389,6 +390,11 @@ export type WorkSnapshot = Readonly<{
   historyIndex?: SessionHistoryIndex
   callRegistrations?: readonly SessionCallRecord[]
   callWaits?: readonly SessionCallWait[]
+  /**
+   * The saved progress of the same-log entries interpretation, one item per (run, execution,
+   * channel). `reduce` derives it from the `entries.interpreted` rows; the log stays the authority.
+   */
+  entriesProgress?: readonly SessionEntriesProgress[]
 }>
 
 /** Optional adoption material: omission preserves the existing resident keys and adds no definitions. */

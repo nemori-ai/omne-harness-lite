@@ -5,8 +5,10 @@ import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-id
 import {
   decide,
   commandDigest,
+  digestSessionEntries,
   judgeIdle,
   mutationAccessRequest,
+  projectSessionEntries,
   projectSessionLog,
   readAccessRequest,
   reduce,
@@ -46,6 +48,9 @@ import type {
   SessionCallTerminal,
   SessionControlReceipt,
   SessionModelSelection,
+  SessionEntriesObservation,
+  SessionEntriesReceipt,
+  SessionEntriesStart,
 } from '@omne-harness/session-contract'
 import type { InitializationSource, HistorySource } from './ports.ts'
 import {
@@ -622,6 +627,84 @@ export function createSessionTransactions<P>(
     return succeed(recall(receipt))
   }
 
+  /**
+   * The entries interpretation commit (session-contract docs/same-log-pure.md「entries 通道的解释提交」):
+   * no access check, the shared pure check, then the consequence rows, the progress row, the
+   * operation record and the snapshot with its saved progress in one synchronous step. Nothing between the read of
+   * the session and its replacement awaits, and nothing is written before every check passes.
+   */
+  const commitEntries = (
+    input: Readonly<{ observation: SessionEntriesObservation; start: SessionEntriesStart }>,
+  ): Outcome<SessionEntriesReceipt, SessionFailure> => {
+    const { observation, start } = input
+    const key = keyOf(observation.tenant, observation.session)
+    if ('failure' in key) return key
+    const blocked = stores.gate(key.ok)
+    if (blocked !== null) return fail({ kind: 'quarantined', diagnostic: blocked })
+    const store = stores.get(key.ok)
+    if (store === undefined) return fail(denied('commitEntries'))
+    if (store.answers.has(observation.operation))
+      return fail({ kind: 'conflict', operation: observation.operation })
+    const held = store.operations.get(observation.operation)
+    const decision = projectSessionEntries(store.snapshot, {
+      observation,
+      start,
+      saved: store.snapshot.entriesProgress ?? [],
+      record: held?.record ?? null,
+    })
+    if (decision.kind === 'rejected') return fail(decision.failure)
+    if (decision.kind === 'recovered') {
+      if (held === undefined) return fail(unavailable('a recalled operation without a record'))
+      return succeed(held.recall(decision.receipt) as SessionEntriesReceipt)
+    }
+    const progress = decision.progress
+    if (progress === undefined) return fail(unavailable('an entries decision without its progress'))
+    const revision = String(BigInt(store.snapshot.revision) + 1n) as SessionRevision
+    const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
+      ...entry,
+      id: String(store.entries.length + index + 1) as EntryId,
+      revision,
+    }))
+    if (
+      options.capacityBytes !== undefined &&
+      Buffer.byteLength(canonicalText(entries)) > options.capacityBytes
+    )
+      return fail(unavailable('required entries batch exceeds capacity'))
+    const reduced = reduce(store.snapshot, { revision, entries })
+    if (reduced.kind === 'quarantined')
+      return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
+    const answer: SessionEntriesReceipt = {
+      operation: observation.operation,
+      through: progress.through,
+      interpreted: reduced.snapshot.source,
+    }
+    const receipt = receiptOf(
+      observation.tenant,
+      observation.session,
+      observation.operation,
+      revision,
+      entries,
+    )
+    const operations = new Map(store.operations)
+    operations.set(observation.operation, {
+      record: {
+        operation: observation.operation,
+        digest: digestSessionEntries(observation),
+        receipt,
+      },
+      recall: () => answer,
+    })
+    stores.set(key.ok, {
+      ...store,
+      snapshot: reduced.snapshot,
+      lastCommit: receipt,
+      entries: [...store.entries, ...entries],
+      operations,
+      modelView: materializeModelView(store.modelView, entries, [...store.entries, ...entries]),
+    })
+    return succeed(answer)
+  }
+
   const page = (store: Store, cursor: Cursor): HistoryPage => {
     const upper = Math.min(cursor.upper, store.entries.length)
     const forward = cursor.direction === 'forward'
@@ -868,10 +951,7 @@ export function createSessionTransactions<P>(
         source: origin.record.receipt.source,
       })
     },
-    // The pure range check of the entries interpretation is not in session-contract yet, so the
-    // double cannot judge a range: it refuses, and never answers success for an unchecked range.
-    commitEntries: async () =>
-      fail(unavailable('entries interpretation has no pure range check in session-contract')),
+    commitEntries: async input => commitEntries(input),
     history,
     pending: async input => {
       const qualification = await qualifyAccess(options.accessCheck, {
