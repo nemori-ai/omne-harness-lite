@@ -8,7 +8,8 @@ EXTENDS Naturals, Sequences, FiniteSets
 
 CONSTANTS MaxReplays, Kind, Bugs
 BugNames == {"outbound-in-serial", "close-waits-outbound", "no-replay-bound",
-             "skip-query", "no-propagating-filter", "no-unique-association"}
+             "skip-query", "no-propagating-filter", "no-unique-association",
+             "ignore-stopped"}
 ASSUME /\ MaxReplays \in Nat /\ MaxReplays >= 1
        /\ Kind \in {"cancel-run", "stop-call"}
        /\ Bugs \subseteq BugNames
@@ -77,7 +78,8 @@ Init ==
 -----------------------------------------------------------------------------
 (* C3 task: trigger, discovery and launch collapse into one action. *)
 Launch ==
-  /\ ~closed /\ ctl = "idle" /\ phase # "stopped" /\ Budget /\ Propagating
+  /\ ~closed /\ ctl = "idle" /\ Budget /\ Propagating
+  /\ (phase # "stopped" \/ "ignore-stopped" \in Bugs)
   /\ ctl' = "queued"
   /\ lane' = Append(lane, "control")
   /\ UNCHANGED <<cstate, run1, run2, replaced, phase, attempts, sends, outbound,
@@ -283,7 +285,11 @@ NoSendAfterCommitted == committed => (phase = "stopped" /\ ctl = "idle" /\ outbo
 ReplayBounded == attempts <= MaxReplays /\ sends <= MaxReplays
 (* P3 *)
 ReplayOnlyWhilePropagating == replaySafe
-NoInternalDeadlock == closeDone \/ ENABLED Next
+(* Only internal actions count: the environment can always request close, so before close ENABLED
+   Next would always hold. The literal form closeDone \/ ENABLED Internal fails
+   in resting states that wait for an Agent answer or for the environment. After close
+   was requested there is nothing left to wait for, so the form below is the one that holds. *)
+NoInternalDeadlock == closed => (closeDone \/ ENABLED Internal)
 
 (* P2 liveness, checked without any fairness on the Agent's answers *)
 SuccessorProgress == (run1 = "terminal" /\ ~closed) ~> (run2 = "started" \/ closed)
