@@ -184,6 +184,7 @@ expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
 | `tests/r9/flow.spec.ts`             | slow | R9 进程级贯通：`serve` 进程加 `omne` CLI，注册、登录、建会话、发输入、跨租户拒绝、重启、秘密搜索                                                                  |
 | `tests/r9/arrival.spec.ts`          | slow | R9 进程内一层：`session-provider` 带观察者，核对到达会话替身的主体与跨租户路径                                                                                    |
 | `tests/rows/<行>/`                  | 两层 | 各真实行与契约替身行的行规格用例，见各行规格页                                                                                                                    |
+| `tests/rows/adoptions/`             | fast | `agent-adoptions` 与 `adoption-sources`：一张表一个内容身份、未知定义不写业务、映射入口检查；`initialization-guard.spec.ts` 核 `create` 的材料是 Session 的初始化守卫（绑定、初始采用、计划与要求来自映射条目），`decide` 接受它、拒绝缺失、改 owner、改初始采用与换命令的守卫 |
 
 发行配置里含绝对路径的字段（`storage` 的 `storageRoot`、`session-storage` 的 `directoryFile`）与 `server-entry` 的 `listenPort` 不写进发行文件，由运维者层 `replace` 给出（L-APP 波 1 决定 L1-12）。
 

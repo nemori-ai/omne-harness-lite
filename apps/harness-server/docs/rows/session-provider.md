@@ -15,7 +15,7 @@
 
 真件的清单与 `src/s0/stubs.ts` 的同一行相同，含阶段；替身的清单除阶段外相同。`tests/rows/session-provider/manifest.spec.ts` 与 `real.spec.ts` 比较两者。
 
-真件按调用现取 `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionIdleInput`、`sessionAgentDrive`、`sessionScopeRelease`、`sessionClock`、`sessionNotifier` 与 `sessionTransactions`（session-cordis 的端口接线）。某个端口缺席或是 S0 替身时，需要它的操作答 `unavailable`，`owner` 是该端口的服务键。发行树里 `session-ad12`（`sessionContextInput`）仍是 S0 替身（它注入的 `runtimeContext` 出自替身行 `runtime-context`，装载前检查 DP1-C10 不让真件接在替身上），所以经发行树的 `create` 现在停在 `sessionContextInput`，见 `tests/r9/` 与 `create.spec.ts` 的替身用例。
+真件按调用现取 `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionIdleInput`、`sessionAgentDrive`、`sessionScopeRelease`、`sessionClock`、`sessionNotifier` 与 `sessionTransactions`（session-cordis 的端口接线）。某个端口缺席或是 S0 替身时，需要它的操作答 `unavailable`，`owner` 是该端口的服务键。发行树里 `create` 经过的端口都是真件：`session-ad09`、`session-ad10`（采用来源是 `adoption-sources` 行，它对 `create` 出具 Session 的初始化守卫，内容来自部署映射条目）、`session-ad12`（接在真件 `runtime-context` 与入口对象 `runtimeContextTrust` 上）。新租户经发行树的首个 `create` 成功，见 `tests/r9/` 与 `create-release.spec.ts`；`create.spec.ts` 的替身用例保留 S0 替身换回 `session-ad12` 时点名 `sessionContextInput` 的答法。
 
 新租户的第一次 `create`：Session 核心先经委派视图 `queryOperation` 再提交，`session-storage` 行对放行的 `create` 所绑定的视图在第一次解析租户域时登记该租户（`tests/rows/session-provider/create-storage.spec.ts`）。
 
@@ -97,6 +97,7 @@ const row = createSessionProviderRow({ observe: arrival => arrivals.push(arrival
 | `real.spec.ts`           | 真件在真实存储行上 ACTIVE、经真实面作答、登记一个 `business` 句柄且先于存储行停止、缺 `sessionWorkPrincipals` 时 PENDING                     |
 | `create.spec.ts`         | 真件加真实 `session-ad12` 在契约替身（内存事务、身份桥、证据桥、`runtimeContext`）上 `create` 成功；换回 S0 替身则点名 `sessionContextInput` |
 | `create-storage.spec.ts` | 真件在真实存储行上：新租户第一次 `create` 得到回执并登记进目录；同一存储上重开的树读回会话                                                   |
+| `create-release.spec.ts` | 发行路径的真实行（真实存储、发行映射的 `agent-adoptions`、`adoption-sources`、`session-ad10`、`runtime-context`、`session-ad12`、真件）加真实入口对象：按 `server-entry` 的方式构造的首个 `create` 成功，重开的树读回会话；映射没有的定义或别的候选答 `invalid`，不创建 |
 | `faces.spec.ts`          | 七个方法经 `session` 服务键调用：重放幂等、冲突、历史给出已接受的输入、分页、游标、控制答案、其余方法不可用                                  |
 | `tenancy.spec.ts`        | 另一租户的会话、未登记的会话与外租户主体，对六个会话方法答同一个 `denied`                                                                    |
 | `access-check.spec.ts`   | 每个方法先问检查、`denied` 与 `unavailable` 原样转出且状态不变、检查抛出、到达报告                                                           |

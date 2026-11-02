@@ -70,11 +70,18 @@ describe('one table, one content identity', () => {
       const reloaded = await source.prepare(reloadCommand(candidateOf('beta')))
       return { identity: mappings.identity, created, started, reloaded }
     })
-    for (const prepared of [value.created, value.started, value.reloaded]) {
+    for (const prepared of [value.started, value.reloaded]) {
       if (!('ok' in prepared)) throw new Error('expected material')
       expect(prepared.ok).toHaveLength(1)
       expect(factsOf(prepared.ok[0]!)).toMatchObject({ version: 1, table: value.identity })
     }
+    // The create material is the initialization guard: the table is the boundary of the adoption.
+    if (!('ok' in value.created)) throw new Error('expected material')
+    expect(value.created.ok).toHaveLength(1)
+    expect(factsOf(value.created.ok[0]!)).toMatchObject({
+      version: 1,
+      initialAdoption: { boundary: { digest: value.identity } },
+    })
   })
 
   test('the identity follows the content of the table and not the order of its keys', async () => {
@@ -114,7 +121,11 @@ describe('one table, one content identity', () => {
               }),
             )
             if (!('ok' in prepared)) throw new Error('expected material')
-            return factsOf(prepared.ok[0]!)['entry']
+            // The entry digest is the source of the initial adoption that the create guard states.
+            const initial = factsOf(prepared.ok[0]!)['initialAdoption'] as {
+              source: { digest: string }
+            }
+            return initial.source.digest
           }
           return { alpha: await prepare('alpha'), beta: await prepare('beta') }
         })
