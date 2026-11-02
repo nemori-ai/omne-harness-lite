@@ -7,7 +7,13 @@ import {
   type ToolReceptionTarget,
 } from '@omne-harness/agent'
 import { createMemoryAgentJournal } from '@omne-harness/agent/testing'
-import { decodeActionId, type Access, type ConsumerRef } from '@omne-harness/agent-contract'
+import {
+  decodeActionId,
+  decodeAgentExecutionId,
+  type Access,
+  type ConsumerRef,
+  type Material,
+} from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
   decodeToolCallId,
@@ -535,5 +541,219 @@ it.each(['terminal', 'actualTerminal', 'effect', 'value', 'tenant'] as const)(
     expect(
       readToolDeliveryMaterial(access, { ...material, value: json(original) }, expected),
     ).toBeNull()
+  },
+)
+
+it('treats a second push of a key that is still being written as unknown without a second commit', async () => {
+  const s = await setup(),
+    entered = Promise.withResolvers<void>(),
+    released = Promise.withResolvers<void>()
+  const received = s.dependencies.provider.received
+  if (!received) throw new Error('joint provider expected')
+  let commits = 0
+  const receiver = ok(
+    createAgentToolReceiver(
+      {
+        ...s.dependencies,
+        provider: {
+          ...s.dependencies.provider,
+          received: {
+            ...received,
+            async commit(input) {
+              commits++
+              entered.resolve()
+              await released.promise
+              return received.commit(input)
+            },
+          },
+        },
+      },
+      s.state,
+    ),
+  )
+  const first = receiver.push({ access, delivery: s.delivery, signal: signal() })
+  await entered.promise
+  const second = receiver.push({ access, delivery: s.delivery, signal: signal() })
+  const settled = await Promise.race([
+    second,
+    new Promise<'still-waiting'>(resolve => setTimeout(resolve, 100, 'still-waiting')),
+  ])
+  expect(settled).toEqual({ failure: { kind: 'outcome-unknown' } })
+  released.resolve()
+  const saved = ok(await first)
+  expect(commits).toBe(1)
+  expect(await receiver.push({ access, delivery: s.delivery, signal: signal() })).toEqual({
+    ok: saved,
+  })
+  expect(commits).toBe(1)
+})
+
+it('does not report saved when the provider receipt names another execution', async () => {
+  const s = await setup()
+  const received = s.dependencies.provider.received
+  if (!received) throw new Error('joint provider expected')
+  const elsewhere = ok(decodeAgentExecutionId('another-execution'))
+  const receiver = ok(
+    createAgentToolReceiver(
+      {
+        ...s.dependencies,
+        provider: {
+          ...s.dependencies.provider,
+          received: {
+            ...received,
+            async commit(input) {
+              const reply = await received.commit(input)
+              if ('failure' in reply || reply.ok.kind !== 'committed') return reply
+              const { value } = reply.ok
+              return {
+                ok: {
+                  ...reply.ok,
+                  value: { ...value, receipt: { ...value.receipt, execution: elsewhere } },
+                },
+              }
+            },
+          },
+        },
+      },
+      s.state,
+    ),
+  )
+  expect(await receiver.push({ access, delivery: s.delivery, signal: signal() })).toEqual({
+    failure: { kind: 'outcome-unknown' },
+  })
+  expect([...s.state.receptions.values()].map(item => item.commit.kind)).toEqual(['unknown'])
+})
+
+it('recovers only the entries of the bound targets and reads no other material', async () => {
+  const s = await setup()
+  ok(await s.push())
+  const reads: unknown[] = []
+  const first = [...s.targets.values()].find(
+    target => target.pending.reference === reference(access, 'call-0'),
+  )
+  if (!first) throw new Error('bound target expected')
+  const state = createToolReceiverState<string>()
+  const rebuilt = ok(
+    createAgentToolReceiver(
+      {
+        ...s.dependencies,
+        provider: {
+          ...s.dependencies.provider,
+          materials: {
+            ...s.dependencies.provider.materials,
+            async read(input) {
+              reads.push(input.source)
+              return s.dependencies.provider.materials.read(input)
+            },
+          },
+        },
+        targets: {
+          ...s.dependencies.targets,
+          async forExecution() {
+            return { ok: [first] }
+          },
+        },
+      },
+      state,
+    ),
+  )
+  expect(await rebuilt.recover({ access, execution: execution(), signal: signal() })).toEqual({
+    ok: { pending: 0, diagnostics: [] },
+  })
+  expect(reads).toEqual([])
+  expect(state.receptions.size).toBe(0)
+})
+
+it('keeps the execution of retained material when an unqualified principal repeats it in the legacy shape', async () => {
+  const s = await setup()
+  const unbound: ConsumerRef = { ...consumer, work: 'unbound-work' }
+  const value: Material<ContentBlock> = {
+    kind: 'facts',
+    schema: { owner: 'suite', name: 'payload', revision: '1', digest: 'fixture' },
+    value: { kind: 'string', value: 'retained' },
+  }
+  const stranger = s.strangerAccess
+  const materials = s.journal.provider.materials
+  s.journal.receiving.qualify(stranger, execution(), 'denied')
+  expect(
+    await materials.preserve({
+      ...stranger,
+      execution: execution(),
+      identity: 'retained',
+      consumer: unbound,
+      value,
+    }),
+  ).toHaveProperty('failure.kind', 'denied')
+  const source = ok(
+    await materials.preserve({
+      ...access,
+      execution: execution(),
+      identity: 'retained',
+      consumer: unbound,
+      value,
+    }),
+  )
+  for (const who of [stranger, access])
+    expect(
+      await materials.preserve({ ...who, identity: 'retained', consumer: unbound, value }),
+    ).toHaveProperty('failure.kind', 'invalid')
+  expect(await materials.read({ ...stranger, source })).toHaveProperty('failure.kind', 'denied')
+  expect(ok(await materials.read({ ...access, source }))).toEqual(value)
+})
+
+it.each(['retry', 'recover'] as const)(
+  'does not touch unknown receptions outside the bound targets on %s',
+  async method => {
+    const s = await setup()
+    s.journal.failNext('received', { kind: 'commit-unknown', outcome: 'pending' })
+    expect(await s.push()).toEqual({ failure: { kind: 'outcome-unknown' } })
+    const outside = [...s.state.receptions.values()]
+    expect(outside.map(item => item.commit.kind)).toEqual(['unknown'])
+    const received = s.dependencies.provider.received
+    if (!received) throw new Error('joint provider expected')
+    const touched: string[] = []
+    const first = [...s.targets.values()].find(
+      target => target.pending.reference === reference(access, 'call-0'),
+    )
+    if (!first) throw new Error('bound target expected')
+    const rebuilt = ok(
+      createAgentToolReceiver(
+        {
+          ...s.dependencies,
+          provider: {
+            ...s.dependencies.provider,
+            received: {
+              async commit(input) {
+                touched.push('commit')
+                return received.commit(input)
+              },
+              async query(input) {
+                touched.push('query')
+                return received.query(input)
+              },
+            },
+            materials: {
+              ...s.dependencies.provider.materials,
+              async read(input) {
+                touched.push('read')
+                return s.dependencies.provider.materials.read(input)
+              },
+            },
+          },
+          targets: {
+            ...s.dependencies.targets,
+            async forExecution() {
+              return { ok: [first] }
+            },
+          },
+        },
+        s.state,
+      ),
+    )
+    expect(await rebuilt[method]({ access, execution: execution(), signal: signal() })).toEqual({
+      ok: { pending: 0, diagnostics: [] },
+    })
+    expect(touched).toEqual([])
+    expect(outside.map(item => item.commit.kind)).toEqual(['unknown'])
   },
 )

@@ -433,6 +433,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       if (
         old &&
         ((input.execution !== undefined && old.execution !== execution) ||
+          (old.execution !== null && old.execution !== execution) ||
           canonical(old.value) !== canonical(input.value))
       )
         return fail(invalid('identity'))
