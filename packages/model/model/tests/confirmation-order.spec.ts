@@ -90,12 +90,16 @@ it.each([false, true])(
     const original = observationModule.createModelObservationSource
     let channel: ModelInitialHostChannel<typeof f.principal>
     let prepared: ReturnType<typeof channel.prepare> | undefined
+    let captured = false
     vi.spyOn(observationModule, 'createModelObservationSource').mockImplementation(input => {
       const source = original(input)
       return {
         ...source,
         confirm: facts => {
-          if (facts.state.phase === 'accepted') prepared = channel.prepare(f.admit)
+          if (facts.state.phase === 'accepted' && !captured) {
+            captured = true
+            prepared = channel.prepare(f.admit)
+          }
           source.confirm(facts)
           if (throwObservation) throw new Error('private observation detail')
         },
@@ -141,7 +145,12 @@ it.each([false, true])(
       expect(prepared).toBeDefined()
       expect(await prepared).toHaveProperty('ok')
       expect(diagnostics).toEqual(
-        throwObservation ? [{ kind: 'observation-confirmation-failed' }] : [],
+        throwObservation
+          ? [
+              { kind: 'observation-confirmation-failed' },
+              { kind: 'observation-confirmation-failed' },
+            ]
+          : [],
       )
       if (throwObservation) {
         const host = bridge.observations && unbox(bridge.observations.openHost())
