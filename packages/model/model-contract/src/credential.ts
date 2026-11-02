@@ -1,5 +1,5 @@
 // Declarations of the public-api chapter "凭据引用与解析端口".
-import type { TenantId } from '@omne-harness/legal-identity'
+import type { Access, TenantId } from '@omne-harness/legal-identity'
 import type { Identity } from './root.ts'
 
 export const MODEL_SEND = 'model-send'
@@ -15,6 +15,12 @@ export type CredentialQuery = Readonly<{
   id: CredentialId
   tenant: TenantId
   purpose: string
+}>
+export type QualifiedCredentialQuery<P> = Readonly<{
+  id: CredentialId
+  purpose: CredentialPurpose
+  official: boolean
+  access: Access<P>
 }>
 export type SendFace = Readonly<{
   authorized: boolean
@@ -36,7 +42,9 @@ export type CredentialResolution =
   | Readonly<{ kind: 'unreadable' }>
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable' }>
-export type CredentialPort = {
+export type CredentialPort<P = unknown> = {
   present(reference: CredentialQuery): CredentialPresence
   resolve(reference: CredentialQuery, face: SendFace): CredentialResolution
+  presentFor?(input: Omit<QualifiedCredentialQuery<P>, 'official'>): CredentialPresence
+  resolveFor?(input: QualifiedCredentialQuery<P>): CredentialResolution
 }

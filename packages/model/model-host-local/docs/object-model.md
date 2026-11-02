@@ -10,6 +10,8 @@ classDiagram
     path
     present()
     resolve()
+    presentFor()
+    resolveFor()
     put()
     rotate()
     revoke()
@@ -32,6 +34,8 @@ classDiagram
     <<Plugin>>
     present()
     resolve()
+    presentFor()
+    resolveFor()
   }
   LocalCustodian ..> CustodianState : 持有当前快照
   CustodianState ..> StoredCustodian : 编码为
@@ -87,7 +91,7 @@ classDiagram
 - 保管库句柄：同步操作的对象，身份是 `path`。它持有最近一次刷新的快照和一份诊断列表。
 - 保管状态快照：model 公开的形状。本包只构造它，不扩展它的字段。
 - 磁盘记录：JSON 文本，租户以组织与账户文本存放。解码拒绝格式不符、未知寿命、非 `model-send` 用途或同一持有者重复的行，整份文件按不可用处理。编码总是写 `closed: false`，进程内的关闭不落盘。
-- 插件：继承 `ModelCredentialService`，只对外暴露 `present` 与 `resolve`。
+- 插件：继承 `ModelCredentialService`，对外提供 `present`、`resolve`、`presentFor` 与 `resolveFor`。后两项是共同服务定义的可选资格方法，本地插件实现它们，不公开保管管理操作。
 - 发送资源集合（`PiSendResources`）：持有共享的网络资源与家族贡献的引用、配置探针和仍打开的资源。
 - 发送资源（`SendResource`）：持有一个 pi 传输、它的私有凭据槽和它交出的物化传输集合。槽只在 `startWithCredential` 的同步调用内有值。
 - 本地装配（`LocalModel`）：持有它创建的网络资源、发送资源集合、model 的发送边界与计量准备资源。`ModelCommands`、`SendCoordinator`、家族与保管库归调用方。准备租约归取得它的调用方。

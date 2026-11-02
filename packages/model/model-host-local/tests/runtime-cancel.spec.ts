@@ -214,6 +214,8 @@ function assembleHost(label: string) {
       credentials: {
         present: () => ({ kind: 'unavailable' }),
         resolve: () => ({ kind: 'unavailable' }),
+        presentFor: () => ({ kind: 'unavailable' }),
+        resolveFor: () => ({ kind: 'unavailable' }),
       },
       sources: request.suppliers.map(supplier => ({
         profile: request.profile,
@@ -243,6 +245,13 @@ function assembleHost(label: string) {
   })
   const host = assembleLocalModel({
     credentials: custodian,
+    materialization: {
+      maxRecords: 4,
+      execution: reference =>
+        tenantEquals(reference.tenant, scope)
+          ? { ok: { owner: 'runtime-cancel-host', subject: 'local-channel', revision: '1' } }
+          : { failure: { kind: 'denied', action: 'execution-channel' } },
+    },
     commands,
     coordinator: memory.controls.send.coordinator,
     families: FAMILIES,
