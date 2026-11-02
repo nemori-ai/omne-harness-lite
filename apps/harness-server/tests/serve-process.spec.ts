@@ -144,10 +144,16 @@ describe('serve process', () => {
       exited,
       new Promise(resolve => setTimeout(() => resolve('alive'), 1500)),
     ])
-    child.kill()
-    await exited
-    expect(early).toBe('alive')
-    expect(stdout).not.toContain('"kind":"shutdown-result"')
+    // Snapshot before the cleanup kill: on Linux SIGTERM is a graceful stop and rightly writes
+    // a shutdown-result, which is not part of the "stdin closed does not stop it" window.
+    const beforeKill = stdout
+    try {
+      expect(early).toBe('alive')
+      expect(beforeKill).not.toContain('"kind":"shutdown-result"')
+    } finally {
+      child.kill()
+      await exited
+    }
   })
 
   it.each([
