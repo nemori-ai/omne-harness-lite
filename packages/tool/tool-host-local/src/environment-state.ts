@@ -85,6 +85,8 @@ type StateChange<T> = (
   receipt: (value: unknown) => DurableEvidence,
 ) => Outcome<T, ToolFailure>
 type CurrentResourceAuthorization = () => Promise<'authorized' | 'notAuthorized' | 'unavailable'>
+type CommitResult = LedgerCommit | Readonly<{ kind: 'call-changed' }>
+type MutationRead<T> = Outcome<{ state: T | null; mutation: string | null }, ToolFailure>
 const localClosures = new WeakMap<ToolLedgerStore<ContentBlock>, Map<string, Set<() => void>>>()
 
 export const environmentFailure = (diagnostic: string): Outcome<never, ToolFailure> =>
@@ -200,21 +202,9 @@ async function decodeState(value: unknown): Promise<EnvironmentState | null> {
     return null
   const resources: ResourceFact[] = []
   for (const item of value.resources) {
-    if (
-      !object(item) ||
-      typeof item.permitted !== 'boolean' ||
-      typeof item.adopted !== 'boolean' ||
-      (item.stop !== 'active' && item.stop !== 'unconfirmed' && item.stop !== 'confirmed')
-    )
-      return null
-    const resource = await managedResourceSchema['~standard'].validate(item.resource)
-    if (resource.issues) return null
-    resources.push({
-      resource: resource.value,
-      permitted: item.permitted,
-      adopted: item.adopted,
-      stop: item.stop,
-    })
+    const resource = await decodeResourceFact(item)
+    if (!resource) return null
+    resources.push(resource)
   }
   return {
     preparation: prepared,
@@ -226,6 +216,25 @@ async function decodeState(value: unknown): Promise<EnvironmentState | null> {
     release: released,
     resources,
   }
+}
+
+async function decodeResourceFact(item: unknown): Promise<ResourceFact | null> {
+  if (
+    !object(item) ||
+    typeof item.permitted !== 'boolean' ||
+    typeof item.adopted !== 'boolean' ||
+    (item.stop !== 'active' && item.stop !== 'unconfirmed' && item.stop !== 'confirmed')
+  )
+    return null
+  const resource = await managedResourceSchema['~standard'].validate(item.resource)
+  return resource.issues
+    ? null
+    : {
+        resource: resource.value,
+        permitted: item.permitted,
+        adopted: item.adopted,
+        stop: item.stop,
+      }
 }
 
 async function decodeOriginal(value: unknown): Promise<EnvironmentOriginal | null> {
@@ -282,25 +291,12 @@ async function decodeRetention(value: unknown): Promise<RetentionState | null> {
   if ('failure' in scope) return null
   const resources: RetainedResourceFact[] = []
   for (const entry of value.resources) {
-    if (
-      !object(entry) ||
-      typeof entry.permitted !== 'boolean' ||
-      typeof entry.adopted !== 'boolean' ||
-      (entry.stop !== 'active' && entry.stop !== 'unconfirmed' && entry.stop !== 'confirmed')
-    )
-      return null
+    if (!object(entry)) return null
     const creator = preparation(entry.creator)
     const original = await decodeOriginal(entry.original)
-    const resource = await managedResourceSchema['~standard'].validate(entry.resource)
-    if (!creator || !original || resource.issues) return null
-    resources.push({
-      creator,
-      original,
-      resource: resource.value,
-      permitted: entry.permitted,
-      adopted: entry.adopted,
-      stop: entry.stop,
-    })
+    const resource = await decodeResourceFact(entry)
+    if (!creator || !original || !resource) return null
+    resources.push({ creator, original, ...resource })
   }
   return { scope: scope.ok, closed: value.closed, resources }
 }
@@ -430,6 +426,48 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
     return succeed(read.revision)
   }
 
+  async function commitHost(
+    address: EnvironmentAddress,
+    preparation: PreparationRecord,
+    hostCommit: LedgerCommitInput<ContentBlock>,
+    authorize: CurrentResourceAuthorization | undefined,
+    diagnostic: string,
+  ): Promise<Outcome<CommitResult, ToolFailure>> {
+    if (!authorize) return succeed(await options.store.commit(hostCommit))
+    if (!options.guarded) return environmentFailure('atomic call and host commit unavailable')
+    const current = await callRevision(address, preparation)
+    if ('failure' in current) return current
+    if ((await authorize()) !== 'authorized') return environmentFailure(diagnostic)
+    return succeed(
+      await options.guarded.commit({
+        call: { kind: 'call', tenant: address.tenant, call: address.call },
+        callExpected: current.ok,
+        hostCommit,
+      }),
+    )
+  }
+
+  async function commitResult<T extends Readonly<{ closed: boolean }>>(
+    address: EnvironmentAddress,
+    result: CommitResult,
+    next: T,
+    mutation: string,
+    reread: () => Promise<MutationRead<T>>,
+    diagnostic: string,
+    key?: string,
+  ): Promise<Outcome<T, ToolFailure> | null> {
+    if (result.kind === 'committed') {
+      observe(address, next, key)
+      return succeed(next)
+    }
+    if (result.kind === 'conflict' || result.kind === 'call-changed') return null
+    if (result.kind === 'unavailable') return environmentFailure(diagnostic)
+    const recognized = await reread()
+    if ('ok' in recognized && recognized.ok.mutation === mutation && recognized.ok.state)
+      return succeed(recognized.ok.state)
+    return fail({ kind: 'commit-unknown', operation: address.operation })
+  }
+
   async function update(
     address: EnvironmentAddress,
     change: StateChange<EnvironmentState>,
@@ -467,30 +505,24 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
           },
         ],
       }
-      let result: LedgerCommit | Readonly<{ kind: 'call-changed' }>
-      if (authorize) {
-        if (!options.guarded) return environmentFailure('atomic call and host commit unavailable')
-        const current = await callRevision(address, next.ok.preparation)
-        if ('failure' in current) return current
-        if ((await authorize()) !== 'authorized')
-          return environmentFailure('current resource authorization unavailable')
-        result = await options.guarded.commit({
-          call: { kind: 'call', tenant: address.tenant, call: address.call },
-          callExpected: current.ok,
-          hostCommit,
-        })
-      } else result = await options.store.commit(hostCommit)
-      if (result.kind === 'committed') {
-        observe(address, next.ok)
-        return next
-      }
-      if (result.kind === 'conflict' || result.kind === 'call-changed') continue
-      if (result.kind === 'unavailable')
-        return environmentFailure('environment ledger commit unavailable')
-      const recognized = await snapshot(address)
-      if ('ok' in recognized && recognized.ok.mutation === mutation && recognized.ok.state)
-        return succeed(recognized.ok.state)
-      return fail({ kind: 'commit-unknown', operation: address.operation })
+      const committed = await commitHost(
+        address,
+        next.ok.preparation,
+        hostCommit,
+        authorize,
+        'current resource authorization unavailable',
+      )
+      if ('failure' in committed) return committed
+      const result = await commitResult(
+        address,
+        committed.ok,
+        next.ok,
+        mutation,
+        () => snapshot(address),
+        'environment ledger commit unavailable',
+      )
+      if (result === null) continue
+      return result
     }
     return environmentFailure('environment ledger revision contention')
   }
@@ -565,30 +597,25 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
           },
         ],
       }
-      let result: LedgerCommit | Readonly<{ kind: 'call-changed' }>
-      if (authorize) {
-        if (!options.guarded) return environmentFailure('atomic call and host commit unavailable')
-        const current = await callRevision(address, original.ok.state.preparation)
-        if ('failure' in current) return current
-        if ((await authorize()) !== 'authorized')
-          return environmentFailure('current retained resource authorization unavailable')
-        result = await options.guarded.commit({
-          call: { kind: 'call', tenant: address.tenant, call: address.call },
-          callExpected: current.ok,
-          hostCommit,
-        })
-      } else result = await options.store.commit(hostCommit)
-      if (result.kind === 'committed') {
-        observe(address, next.ok, retentionKey(scope))
-        return next
-      }
-      if (result.kind === 'conflict' || result.kind === 'call-changed') continue
-      if (result.kind === 'unavailable')
-        return environmentFailure('retention ledger commit unavailable')
-      const recognized = await retentionSnapshot(address, scope)
-      if ('ok' in recognized && recognized.ok.mutation === mutation && recognized.ok.state)
-        return succeed(recognized.ok.state)
-      return fail({ kind: 'commit-unknown', operation: address.operation })
+      const committed = await commitHost(
+        address,
+        original.ok.state.preparation,
+        hostCommit,
+        authorize,
+        'current retained resource authorization unavailable',
+      )
+      if ('failure' in committed) return committed
+      const result = await commitResult(
+        address,
+        committed.ok,
+        next.ok,
+        mutation,
+        () => retentionSnapshot(address, scope),
+        'retention ledger commit unavailable',
+        retentionKey(scope),
+      )
+      if (result === null) continue
+      return result
     }
     return environmentFailure('retention ledger revision contention')
   }
