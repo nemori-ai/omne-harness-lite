@@ -68,6 +68,7 @@ import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/part
 import { createSessionLogJournal, materialSessionOf } from '../src/cordis/agent-journal.ts'
 import {
   createExecutionRoutedJournal,
+  createSessionAgentJournalPlugin,
   SessionLogAgentJournalProvider,
   type ExecutionRoutedJournalOptions,
 } from '../src/cordis/agent-journal-provider.ts'
@@ -204,13 +205,17 @@ async function mount(ctx: Context, plugin: Parameters<Context['plugin']>[0], con
 }
 
 /** A real Cordis root with the three dependencies and the plugin, over the scene's storage. */
-async function assembled(s: SqlScene, config: Readonly<{ routeCacheEntries?: number }> = {}) {
+async function assembled(
+  s: SqlScene,
+  config: Readonly<{ routeCacheEntries?: number }> = {},
+  provider: Parameters<Context['plugin']>[0] = SessionLogAgentJournalProvider,
+) {
   const services = servicesOf(s, await otherDomainOf(s))
   const ctx = new Context()
   await mount(ctx, services.Storage)
   await mount(ctx, services.Lookup)
   await mount(ctx, services.Access)
-  const plugin = await mount(ctx, SessionLogAgentJournalProvider, { ...s.combination, ...config })
+  const plugin = await mount(ctx, provider, { ...s.combination, ...config })
   const face = <T>(key: string) => {
     const found: unknown = ctx.get(key)
     if (found === undefined) throw new Error(`${key} is not provided`)
@@ -1183,6 +1188,49 @@ describe('R2-D35: the cancellation installation handed to the session-log Journa
       failure: { kind: 'unavailable' },
     })
   })
+})
+
+describe('R2-D35: the plugin factory carries the installation the entry hands in', () => {
+  it('R2-D35 a plugin made with an installation loads on real Cordis, hands it to the session Journal: the policy judges once, and stops with the three keys', async () => {
+    const s = await scene('d35-plugin')
+    let judged = 0
+    const policy = createTestCancellationPolicy()
+    const Plugin = createSessionAgentJournalPlugin({
+      cancellation: {
+        installation: testCancellationPolicyInstallation,
+        policy: {
+          ...policy,
+          judge: input => {
+            judged += 1
+            return policy.judge(input)
+          },
+        },
+      },
+    })
+    const { ctx, plugin, journal } = await assembled(s, {}, Plugin)
+    expect(plugin.state).toBe(ACTIVE)
+    const opened = ok(await journal().open(s.openInput))
+    ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
+    expect(ok(await cancelThrough(journal(), s))).toMatchObject({
+      judgment: { decision: { kind: 'allowed' } },
+    })
+    expect(judged).toBe(1)
+    await plugin.dispose()
+    for (const key of FACES) expect(ctx.get(key), key).toBeUndefined()
+  })
+
+  for (const [label, input] of [
+    ['without an input', undefined],
+    ['with an input that holds no installation', {}],
+  ] as const)
+    it(`R2-D35 a plugin made ${label} answers unavailable for the cancellation variants`, async () => {
+      const s = await scene(`d35-plugin-none-${input === undefined ? 'a' : 'b'}`)
+      const { journal } = await assembled(s, {}, createSessionAgentJournalPlugin(input))
+      ok(await journal().open(s.openInput))
+      expect(await cancelThrough(journal(), s)).toMatchObject({
+        failure: { kind: 'unavailable' },
+      })
+    })
 })
 
 describe('K-9: a material to preserve names an execution, and goes to its session', () => {
