@@ -65,7 +65,14 @@ it('guards every operation of the three core facilities', () => {
     ].sort(),
   )
   expect(commandFacility.operations).toEqual(['start'])
-  expect([...terminalFacility.operations].sort()).toEqual(['close', 'create', 'execute', 'list'])
+  expect([...terminalFacility.operations].sort()).toEqual([
+    'attach',
+    'close',
+    'create',
+    'detach',
+    'execute',
+    'list',
+  ])
   for (const descriptor of [filesFacility, commandFacility, terminalFacility])
     expect([...descriptor.guarded].sort()).toEqual([...descriptor.operations].sort())
 })

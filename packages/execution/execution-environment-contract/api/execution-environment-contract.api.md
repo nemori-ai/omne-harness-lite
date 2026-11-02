@@ -54,6 +54,7 @@
 - `FileSystemFacility` · `facilities/files.d.ts`
 - `FileTarget` · `facilities/files.d.ts`
 - `FileVersion` · `facilities/files.d.ts`
+- `FileWriteResult` · `facilities/files.d.ts`
 - `HandleGeneration` · `facilities/files.d.ts`
 - `HostDate` · `blocks.d.ts`
 - `InstanceIdentity` · `lease.d.ts`
@@ -99,7 +100,9 @@
 - `RequirementRefusal` · `judge.d.ts`
 - `ResourceLedger` · `ports.d.ts`
 - `ResourceRecovery` · `environment.d.ts`
+- `RetainedTerminalLedger` · `ports.d.ts`
 - `Retirement` · `environment.d.ts`
+- `SessionTerminalRetention` · `ports.d.ts`
 - `TerminalFacility` · `facilities/terminal.d.ts`
 - `TerminalInformation` · `facilities/terminal.d.ts`
 - `TerminalRef` · `facilities/terminal.d.ts`
@@ -316,7 +319,7 @@ import type { BindingKind, EnvironmentBinding, EnvironmentContinuity } from './b
 import type { FacilityDescriptor, FacilityKey } from './facility.ts';
 import type { Access, AcquisitionRef, OriginRef } from './identity.ts';
 import type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationFailed, EnvironmentLease, InstanceIdentity, LookupUnknown, OriginalAcquisition, Pending, Placement, ProviderIdentity, RecoveryInspection, Rejected, UnknownAcquisition } from './lease.ts';
-import type { FacilityGuard, ManagedResource, RecoveryAccess, ResourceLedger } from './ports.ts';
+import type { FacilityGuard, ManagedResource, RecoveryAccess, ResourceLedger, SessionTerminalRetention } from './ports.ts';
 import type { EnvironmentRequirement, IsolationClaim } from './requirement.ts';
 export type PlatformFacts = Readonly<{
     os: string;
@@ -338,6 +341,9 @@ export type ProviderAcquireInput = Readonly<{
     placement: Placement;
     tenant: TenantId;
     ledger: ResourceLedger;
+    retention?: SessionTerminalRetention & {
+        readonly released: AbortSignal;
+    };
 }>;
 export type ProviderAcquisition = Readonly<{
     kind: 'acquired';
@@ -484,6 +490,7 @@ export type AcquireInput<P> = Readonly<{
     placement: Placement;
     ledger: ResourceLedger;
     guard: FacilityGuard<P>;
+    retention?: SessionTerminalRetention;
 }>;
 export type EnvironmentAction = Readonly<{
     kind: 'resolve';
@@ -619,6 +626,9 @@ export type FileIdentity = {
     readonly handle: HandleGeneration;
     readonly version: FileVersion;
 };
+export type FileWriteResult = FileIdentity & {
+    readonly writeEffect?: 'created' | 'in-place' | 'replaced';
+};
 export type FileInformation = FileIdentity & {
     readonly type: 'file' | 'directory' | 'symlink';
     readonly sizeBytes: number;
@@ -665,7 +675,7 @@ export interface FileSystemFacility<P> {
         readonly bytes: Uint8Array;
         readonly mode: 'create' | 'replace';
         readonly expectedVersion?: FileVersion;
-    }): Promise<FacilityResult<FileIdentity>>;
+    }): Promise<FacilityResult<FileWriteResult>>;
     close(request: FileRequest<P> & {
         readonly handle: HandleGeneration;
     }): Promise<FacilityResult<{
@@ -762,8 +772,19 @@ export interface TerminalFacility<P> {
             readonly columns: number;
             readonly rows: number;
         };
+        readonly retain?: 'session';
     }): Promise<FacilityResult<{
         readonly terminal: TerminalRef;
+    }>>;
+    attach?(request: FacilityRequest<P> & {
+        readonly terminal: TerminalRef;
+    }): Promise<FacilityResult<{
+        readonly terminal: TerminalRef;
+    }>>;
+    detach?(request: FacilityRequest<P> & {
+        readonly terminal: TerminalRef;
+    }): Promise<FacilityResult<{
+        readonly status: 'confirmed' | 'unconfirmed';
     }>>;
     execute(request: FacilityRequest<P> & {
         readonly terminal: TerminalRef;
@@ -853,13 +874,13 @@ export type { EnvironmentRequirement, IsolationClaim, IsolationClaims } from './
 export { describeFacility } from './facility.ts';
 export type { EnvironmentFacilities, FacilityDescriptor, FacilityKey, FacilityOperation, FacilityReason, FacilityRequest, FacilityResult, } from './facility.ts';
 export { filesFacility } from './facilities/files.ts';
-export type { FileBatchOutcome, FileBatchRecognition, FileBatchRef, FileEntry, FileIdentity, FileInformation, FileRequest, FileSystemFacility, FileTarget, FileVersion, HandleGeneration, ObjectToken, } from './facilities/files.ts';
+export type { FileBatchOutcome, FileBatchRecognition, FileBatchRef, FileEntry, FileIdentity, FileInformation, FileRequest, FileSystemFacility, FileTarget, FileVersion, FileWriteResult, HandleGeneration, ObjectToken, } from './facilities/files.ts';
 export { commandFacility } from './facilities/command.ts';
 export type { CommandFacility, CommandOutcome, OutputChunk, OutputCount, OutputPolicy, OutputSummary, ProcessHandle, } from './facilities/command.ts';
 export { terminalFacility } from './facilities/terminal.ts';
 export type { TerminalFacility, TerminalInformation, TerminalRef } from './facilities/terminal.ts';
 export { createRecoveryAccess } from './ports.ts';
-export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, } from './ports.ts';
+export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, RetainedTerminalLedger, SessionTerminalRetention, } from './ports.ts';
 export type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationCleanup, AllocationFailed, LookupUnknown, OriginalAcquisition, OriginalInspection, RecoveryInspection, UnknownAcquisition, EnvironmentAdoption, EnvironmentLease, FacilitySet, InstanceIdentity, LeaseInvalidation, LeaseRelease, Pending, Placement, ProviderIdentity, RegistryInvalidationReason, RejectReason, Rejected, } from './lease.ts';
 export type { AcquireInput, AcquisitionListing, AcquisitionSettlement, EnvironmentAction, EnvironmentAuthority, EnvironmentDescription, EnvironmentProvider, ProviderAcquisitionStatus, ProviderQuota, QuotaAnswer, ExecutionEnvironment, OwnedRecovery, PlacementInput, PlatformFacts, ProviderAcquireInput, ProviderAcquisition, ProviderFacts, ProviderRegistrations, RecoveryListing, ResourceRecovery, Retirement, UnsupportedRecovery, } from './environment.ts';
 export { environmentNeedAdoption, environmentNeedSchema } from './need-declaration.ts';
@@ -1035,6 +1056,7 @@ export type OriginalAcquisition = Readonly<{
     origin: OriginRef;
     scope: ScopeRef;
     placement: Placement;
+    retentionScope?: ScopeRef;
 }>;
 export type AcquisitionQuery = Readonly<{
     kind: 'local';
@@ -1210,6 +1232,11 @@ export interface ResourceLedger {
     adopt(key: string): Promise<'confirmed' | 'closed' | 'unavailable'>;
     stopped(key: string, status: 'confirmed' | 'unconfirmed'): Promise<'recorded' | 'unavailable'>;
 }
+export type RetainedTerminalLedger = Pick<ResourceLedger, 'closed' | 'plan' | 'permit' | 'stopped'>;
+export type SessionTerminalRetention = Readonly<{
+    scope: ScopeRef;
+    ledger: RetainedTerminalLedger;
+}>;
 declare const recoveryAccessMark: unique symbol;
 export interface RecoveryAccess {
     readonly [recoveryAccessMark]: true;

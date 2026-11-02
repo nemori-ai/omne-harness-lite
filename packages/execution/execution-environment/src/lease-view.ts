@@ -27,6 +27,7 @@ export type LeaseViewHooks = Readonly<{
   placement: Placement
   /** The acquisition ledger's `closed` signal. The gate is the one entry of every facility operation. */
   ledgerClosed: AbortSignal
+  retentionEnabled: boolean
   /** Read on every operation, so a removed declaration refuses operations on objects already handed out. */
   descriptor: (key: FacilityKey) => StoredDescriptor | undefined
   invalidated: (invalidation: LeaseInvalidation) => void
@@ -67,6 +68,20 @@ function isFacilityRequest<P>(value: unknown): value is FacilityRequest<P> {
 
 function refused(requestId: string, reason: FacilityReason): FacilityResult<never> {
   return { kind: 'rejected', requestId, reason }
+}
+
+function requiresRetention(key: FacilityKey, operation: string, request: unknown): boolean {
+  if (key !== 'terminal') return false
+  if (operation === 'attach' || operation === 'detach') return true
+  return operation === 'create' && isRecord(request) && request['retain'] === 'session'
+}
+
+function supportsRetention(facility: object, enabled: boolean): boolean {
+  return (
+    enabled &&
+    typeof Reflect.get(facility, 'attach') === 'function' &&
+    typeof Reflect.get(facility, 'detach') === 'function'
+  )
 }
 
 /**
@@ -140,15 +155,16 @@ export function createLeaseView<P>(
     return new Proxy(original, {
       get(target, property, receiver) {
         const value: unknown = Reflect.get(target, property, receiver)
-        if (
-          typeof property !== 'string' ||
-          typeof value !== 'function' ||
-          !operations.includes(property)
-        )
-          return value
+        if (typeof property !== 'string' || !operations.includes(property)) return value
         return async (request: unknown) => {
           const decision = await gate(key, property, request)
           if (decision !== 'pass') return decision
+          if (
+            typeof value !== 'function' ||
+            (requiresRetention(key, property, request) &&
+              !supportsRetention(target, hooks.retentionEnabled))
+          )
+            return refused(requestIdOf(request), 'unsupported')
           const result: unknown = await Reflect.apply(value, target, [request])
           return result
         }

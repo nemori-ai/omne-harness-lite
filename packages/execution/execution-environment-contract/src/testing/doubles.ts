@@ -90,6 +90,7 @@ function fingerprint(original: OriginalAcquisition): string {
   return JSON.stringify([
     original.origin,
     scopeChain(original.scope),
+    scopeChain(original.retentionScope),
     p.quotaDomain,
     p.binding.kind,
     'scope' in p.binding ? scopeChain(p.binding.scope) : null,
@@ -128,6 +129,7 @@ export function createScriptedEnvironmentProvider(script: ProviderScript = {}) {
       origin: input.origin,
       scope: input.scope,
       placement: input.placement,
+      ...(input.retention === undefined ? {} : { retentionScope: input.retention.scope }),
     }
     const key = recordKey(original)
     if (key === undefined) return
@@ -150,8 +152,20 @@ export function createScriptedEnvironmentProvider(script: ProviderScript = {}) {
     retired
       ? { kind: 'rejected' as const, requestId: request.requestId, reason: 'closed' as const }
       : { kind: 'unknown' as const, requestId: request.requestId }
+  const unsupported = async (request: { readonly requestId: string }) => ({
+    kind: 'rejected' as const,
+    requestId: request.requestId,
+    reason: retired ? ('closed' as const) : ('unsupported' as const),
+  })
   const facilities: Partial<EnvironmentFacilities> = script.lease ?? {
-    terminal: { create: unknown, execute: unknown, close: unknown, list: unknown },
+    terminal: {
+      create: request => (request.retain === undefined ? unknown(request) : unsupported(request)),
+      attach: unsupported,
+      detach: unsupported,
+      execute: unknown,
+      close: unknown,
+      list: unknown,
+    },
     command: {
       async start(request) {
         if (retired) return { kind: 'rejected', requestId: request.requestId, reason: 'closed' }
@@ -245,7 +259,11 @@ export function createScriptedEnvironmentProvider(script: ProviderScript = {}) {
       calls.listAcquisitions++
       if (script.list) return script.list(scope)
       const acquisitions = [...records.values()]
-        .filter(r => r.state === 'acquired' && r.original.scope.ref === scope.ref)
+        .filter(
+          r =>
+            r.state === 'acquired' &&
+            (r.original.scope.ref === scope.ref || r.original.retentionScope?.ref === scope.ref),
+        )
         .map(r => r.original)
       return { kind: 'listed', acquisitions }
     },

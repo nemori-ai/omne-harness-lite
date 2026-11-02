@@ -18,6 +18,13 @@ import {
   type ShellEnvironment as ExampleShellEnvironment,
 } from '../examples/shell-needs.ts'
 
+it('accepts legacy four-operation terminals without attachment methods', () => {
+  type Legacy = Pick<TerminalFacility<unknown>, 'create' | 'execute' | 'close' | 'list'>
+  expectTypeOf<Legacy>().toExtend<TerminalFacility<unknown>>()
+  expectTypeOf<undefined>().toExtend<TerminalFacility<unknown>['attach']>()
+  expectTypeOf<undefined>().toExtend<TerminalFacility<unknown>['detach']>()
+})
+
 it('compiles the Shell example in examples/ against the public entry', () => {
   expectTypeOf<ExampleShellEnvironment>().toEqualTypeOf<{
     command: CommandFacility<unknown>

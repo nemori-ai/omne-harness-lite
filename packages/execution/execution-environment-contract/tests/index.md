@@ -14,6 +14,8 @@
 - [fixtures/](fixtures/index.md)：测试固定输入与机读导出清单
 
 - [operation-schemas.spec.ts](operation-schemas.spec.ts)：三面九操作、七个数据结果与拒绝原因。
+- [retention.spec.ts](retention.spec.ts)：保留范围的严格解码、端口身份和不支持保留时的拒绝。
+- [file-write-result.spec-d.ts](file-write-result.spec-d.ts)：写入效果只进入写结果，查看形状保持不变。
 - [exports-inventory.spec.ts](exports-inventory.spec.ts)：共享库存工具核对。
 
 - [provider-conformance.spec.ts](provider-conformance.spec.ts)：公开提供者套件十六项义务的直接消费、逐项坏提供者否定与惰性组装。
