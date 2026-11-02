@@ -39,7 +39,7 @@
 
 本消息开一条新会话。一条线固定由一种宿主承载：宿主或主代理模型变了，就为这条线新开会话，不把旧会话改挂到新宿主上。旧宿主的读数不能直接套用到新宿主：派发台账里已积累的档位经验只覆盖出读数的那一个宿主，换宿主后要从头积累。线要续波且宿主未变时，继续用同一会话读 delta，不重发本消息。
 
-Codex 宿主上，本线主代理模型用 `gpt-6-astra` @ high。档位心智映射：`gpt-6.1-sol` 对标 Claude Sonnet，`gpt-5.6-terra` 对标 Claude Haiku（经济档），`gpt-6-astra` 是顶档。顶档模型上的档位上限与 hardest 判法归 `roles/README.md`「模型配置与本次派发」，本消息不复述。
+Codex 宿主上，本线主代理模型用 `gpt-6-astra` @ high。档位心智映射：`gpt-6.1-sol` 对标 Claude Sonnet，`gpt-6.1-terra` 对标 Claude Haiku（经济档），`gpt-6-astra` 是顶档。顶档模型上的档位上限与 hardest 判法归 `roles/README.md`「模型配置与本次派发」，本消息不复述。
 
 派发子代理时的模型与档位仍按 {{role_policy_ref}} 的解析结果取值。本波是本线在新宿主上的第一波，没有该宿主的历史读数，起点档位按解析结果给，不按旧宿主的读数下调。
 

@@ -27,6 +27,19 @@
         "account_execution": "ok: codex exec probe on 0.159.0 with ChatGPT sign-in, 2026-10-01; a made-up name (gpt-6.1-doesnotexist) was refused with HTTP 400 in the same session, so acceptance is not blanket"
       },
       {
+        "id": "gpt-6.1-terra",
+        "host_catalog_visible": true,
+        "effort_values": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+          "ultra"
+        ],
+        "account_execution": "not_tested: project owner confirmed on 2026-11-02 that the Codex host offers it, as the economical tier next to gpt-6.1-sol. A codex exec probe on 0.166.0 on 2026-11-02 could not run because this machine had no Codex sign-in; a made-up name failed the same way, so the probe proves nothing about the model."
+      },
+      {
         "id": "gpt-6-astra",
         "host_catalog_visible": true,
         "effort_values": [
