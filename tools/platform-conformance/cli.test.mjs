@@ -25,7 +25,8 @@ function command(file, args, cwd, env = {}) {
     cwd,
     encoding: 'utf8',
     timeout: 30_000,
-    env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0', ...env },
+    // 故障包装器属于私有检出，不能继承外层公共票的重入标记。
+    env: { ...process.env, OMNE_TEST_SLOT_HELD: '', NO_COLOR: '1', FORCE_COLOR: '0', ...env },
   })
   assert.equal(result.error, undefined, result.error?.message)
   return result
