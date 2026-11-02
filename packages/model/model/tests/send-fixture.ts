@@ -21,7 +21,7 @@ export const signal = () => new AbortController().signal
 export async function sendFixture(
   options: {
     tenant?: boolean
-    credentials?: CredentialPort
+    credentials?: CredentialPort<Principal>
     registered?: boolean
     max?: number
     facts?: Parameters<typeof createScriptedTransport>[0]['facts']
@@ -55,9 +55,12 @@ export async function sendFixture(
     current: () => ({ ok: { authorized: sourceAuthorized, noTenantBinding } }),
   }
   options.configureSource?.(source)
-  const credentials: CredentialPort = options.credentials ?? {
+  const credentials: CredentialPort<Principal> = options.credentials ?? {
     present: () => ({ kind: 'unavailable' }),
-    resolve: () => ({
+    resolve: () => {
+      throw new Error('legacy-resolution-called')
+    },
+    resolveFor: () => ({
       kind: 'value',
       scope: options.tenant ? 'tenant' : 'factory',
       value: synthetic,
@@ -246,8 +249,14 @@ export async function sendFixture(
     },
   }
 }
-export function credentialPort(result: CredentialResolution): CredentialPort {
-  return { present: () => ({ kind: 'unavailable' }), resolve: () => result }
+export function credentialPort(result: CredentialResolution): CredentialPort<Principal> {
+  return {
+    present: () => ({ kind: 'unavailable' }),
+    resolve: () => {
+      throw new Error('legacy-resolution-called')
+    },
+    resolveFor: () => result,
+  }
 }
 export async function collect(facts: AsyncIterable<TransportFact>) {
   const all = []

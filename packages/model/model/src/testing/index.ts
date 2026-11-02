@@ -35,7 +35,7 @@ export type TestModelDependenciesOptions<P> = Omit<MemoryModelCommandsOptions<P>
     maxQueued: number
     sends: readonly TestModelSendPlan[]
     sending?: Readonly<{
-      credentials: CredentialPort
+      credentials: CredentialPort<P>
       sources: readonly MemorySendSource<P>[]
       maxRetainedAttempts: number
     }>

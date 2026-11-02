@@ -695,7 +695,14 @@ export class ModelCommandCore<P> {
     if ('failure' in current) return current
     if (!current.ok.authorized) return { failure: { kind: 'denied', action: 'send-source' } }
     const credential = input.supplier.credential
-    if (credential.kind === 'tenant') return { ok: { id: credential.id, scope: 'tenant' as const } }
+    if (credential.kind === 'tenant')
+      return {
+        ok: {
+          id: credential.id,
+          scope: 'tenant' as const,
+          official: source.credential.kind === 'factory' ? source.credential.official : false,
+        },
+      }
     if (
       source.credential.kind !== 'factory' ||
       source.credential.official !== true ||
@@ -703,7 +710,13 @@ export class ModelCommandCore<P> {
       'failure' in decodeCredentialId(source.credential.queryId)
     )
       return { failure: unavailable('model-send-source', 'factory-source-unavailable') }
-    return { ok: { id: source.credential.queryId, scope: 'factory' as const } }
+    return {
+      ok: {
+        id: source.credential.queryId,
+        scope: 'factory' as const,
+        official: source.credential.official,
+      },
+    }
   }
 
   // --- Read relations and result pages.
