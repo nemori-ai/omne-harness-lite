@@ -19,6 +19,7 @@ import type {
   Retirement,
 } from '@omne-harness/execution-environment-contract'
 import { commandSettings, createHostCommands, type HostCommandOptions } from './host-command.ts'
+import { createHostTerminals, terminalSettings, type HostTerminalOptions } from './host-terminal.ts'
 import {
   domainInternals,
   fingerprintOf,
@@ -37,6 +38,7 @@ import {
 } from './host-probe.ts'
 import {
   forceStopScope,
+  cleanupTerminalScope,
   listScopes,
   readBootId,
   readScopeReference,
@@ -74,7 +76,7 @@ export type HostFilesDiagnostic =
     }>
   | Readonly<{
       /** A command start was refused because these platform prerequisites are missing. */
-      kind: 'commandUnavailable'
+      kind: 'commandUnavailable' | 'terminalUnavailable'
       provider: string
       generation: string
       missing: readonly HostCommandPrerequisite[]
@@ -111,6 +113,8 @@ export type HostFilesProviderOptions = Readonly<{
   diagnose?: (diagnostic: HostFilesDiagnostic) => void
   /** Bounds of the `command` facility. */
   command?: HostCommandOptions
+  /** Bounds of the persistent Linux terminal facility. */
+  terminal?: HostTerminalOptions
   /**
    * The host files root, an absolute path. Every path of every `files` request of this provider
    * must lie below it. Without it, the provider only checks the named object.
@@ -203,6 +207,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
   if (!isDrainBound(drainBoundMs))
     throw new RangeError('drainBoundMs must be a finite number of milliseconds, zero or more')
   const settings = commandSettings(options.command)
+  const terminal = terminalSettings(options.terminal)
   const name = 'host-files'
   const generation = randomUUID()
   const report = (diagnostic: HostFilesDiagnostic) => {
@@ -219,7 +224,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     fact => report(temporaryFileRemains(name, generation, fact)),
   )
   internals.registerGeneration(generation)
-  const facilities: readonly FacilityKey[] = Object.freeze(['files', 'command'])
+  const facilities: readonly FacilityKey[] = Object.freeze(['files', 'command', 'terminal'])
   let retired = false
   // The probe of the command prerequisites starts now; `describe` reports `unknown` until it answers.
   const probe = createPrerequisiteProbe({
@@ -251,7 +256,8 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     acquisition?: string,
   ) => {
     const inFlight = records.reduce(
-      (sum, record) => sum + record.facade.inFlight() + record.commands.inFlight(),
+      (sum, record) =>
+        sum + record.facade.inFlight() + record.commands.inFlight() + record.terminals.inFlight(),
       0,
     )
     const openDescriptors = records.reduce(
@@ -294,6 +300,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     const available: Partial<EnvironmentFacilities> = {
       files: record.facade.facility,
       command: record.commands.facility,
+      terminal: record.terminals.facility,
     }
     record.invalidate = value => {
       settle(value)
@@ -414,6 +421,22 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
                 acquisition: input.acquisition,
               }),
           }),
+        () =>
+          createHostTerminals({
+            ledger: input.ledger,
+            provider: name,
+            scope: input.scope,
+            settings: terminal,
+            prerequisites: probe,
+            unavailable: () =>
+              report({
+                kind: 'terminalUnavailable',
+                provider: name,
+                generation,
+                missing: [],
+                acquisition: input.acquisition,
+              }),
+          }),
       )
       return answerAdmission(admitted, input.acquisition)
     },
@@ -427,7 +450,11 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
             ? { kind: 'acquired', lease: record.lease, evidence }
             : { kind: 'unknown' }
         case 'releasing':
-          return { kind: 'pending', phase: 'releasing', resources: record.commands.unconfirmed() }
+          return {
+            kind: 'pending',
+            phase: 'releasing',
+            resources: [...record.commands.unconfirmed(), ...record.terminals.unconfirmed()],
+          }
         case 'settled':
           return { kind: 'settled' }
         default: {
@@ -474,6 +501,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       const tools = await supervisor()
       if (tools === undefined) return { status: 'pending', evidence: null }
       const reading = await forceStopScope({ tools, coordinate, boundMs: settings.stopBoundMs })
+      if (reading.status === 'confirmed') await cleanupTerminalScope(coordinate.unit)
       const show = reading.show
       const states =
         show === undefined
@@ -494,6 +522,8 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       )
       for (const record of own) {
         record.facade.seal()
+        record.commands.seal()
+        record.terminals.seal()
         record.invalidate({ source: 'provider', reason: 'providerRetired' })
       }
       // Draining force-stops what this generation still runs: those outcomes end as effectUnknown.

@@ -9,6 +9,7 @@ import {
 import {
   commandFacility,
   filesFacility,
+  terminalFacility,
   type EnvironmentAuthority,
   type EnvironmentProvider,
   type ExecutionEnvironment,
@@ -26,6 +27,7 @@ import {
   executionScopeBindingKey,
 } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import { commandOptionsIssue, type HostCommandOptions } from './host-command.ts'
+import { terminalSettings, type HostTerminalOptions } from './host-terminal.ts'
 import type { HostFilesDomain } from './host-domain.ts'
 import { createHostFilesProvider, type HostFilesProviderOptions } from './host-provider.ts'
 
@@ -61,6 +63,7 @@ export type HostFilesConfig = Readonly<
     filesRoot?: string
     /** Absolute path of the provider's state directory; kept by the provider for the files side. */
     stateDirectory?: string
+    terminal?: HostTerminalOptions
   } & HostCommandOptions
 >
 
@@ -90,7 +93,33 @@ const commandFields = [
 ] as const
 const pathFields = ['filesRoot', 'stateDirectory'] as const
 const numberFields = ['drainBoundMs', ...commandFields] as const
-const hostFields: readonly string[] = [...numberFields, ...pathFields]
+const hostFields: readonly string[] = [...numberFields, ...pathFields, 'terminal']
+const terminalFields = [...commandFields, 'maxControlBytes', 'columns', 'rows'] as const
+
+function terminalConfig(value: unknown): ConfigResult<HostTerminalOptions> {
+  if (!isPlainRecord(value))
+    return { issues: [{ message: 'terminal configuration must be an object' }] }
+  if (Object.keys(value).some(key => !terminalFields.some(field => field === key)))
+    return { issues: [{ message: 'terminal configuration has an unknown field' }] }
+  const options: { -readonly [K in keyof HostTerminalOptions]: HostTerminalOptions[K] } = {}
+  for (const name of terminalFields) {
+    const field = value[name]
+    if (field === undefined) continue
+    if (typeof field !== 'number')
+      return { issues: [{ message: `terminal ${name} must be a number` }] }
+    options[name] = field
+  }
+  try {
+    terminalSettings(options)
+  } catch (error) {
+    return {
+      issues: [
+        { message: error instanceof Error ? error.message : 'invalid terminal configuration' },
+      ],
+    }
+  }
+  return { value: options }
+}
 
 /** The issue of one host files configuration, or undefined when it is valid. */
 function hostConfigIssue(value: Readonly<Record<string, unknown>>): string | undefined {
@@ -128,6 +157,11 @@ const hostFilesConfig: HostFilesConfigSchema = {
       for (const name of pathFields) {
         const field = value[name]
         if (typeof field === 'string') config[name] = field
+      }
+      if (value['terminal'] !== undefined) {
+        const terminal = terminalConfig(value['terminal'])
+        if ('issues' in terminal) return terminal
+        config.terminal = terminal.value
       }
       return { value: config }
     },
@@ -281,6 +315,16 @@ export const commandFacilityPlugin = {
   },
 }
 
+/** Registers the persistent terminal declaration on the loading fiber. */
+export const terminalFacilityPlugin = {
+  name: 'terminalFacility',
+  Config: emptyConfig,
+  inject: { [executionEnvironmentKey]: { caller: 'provider' } },
+  apply(ctx: Context) {
+    ctx.executionEnvironment.registerFacility(terminalFacility)
+  },
+}
+
 /**
  * Makes the plugin that registers one host files provider of `domain` on the loading fiber. The
  * process host creates the domain once and keeps it; unloading the plugin retires the provider
@@ -302,6 +346,7 @@ export function createHostFilesPlugin(domain: HostFilesDomain) {
         domain,
         diagnose: diagnostic => logger.error(diagnostic),
         command: commandOptionsOf(config),
+        ...(config.terminal === undefined ? {} : { terminal: config.terminal }),
         ...(config.drainBoundMs === undefined ? {} : { drainBoundMs: config.drainBoundMs }),
         ...(config.filesRoot === undefined ? {} : { filesRoot: config.filesRoot }),
         ...(config.stateDirectory === undefined ? {} : { stateDirectory: config.stateDirectory }),

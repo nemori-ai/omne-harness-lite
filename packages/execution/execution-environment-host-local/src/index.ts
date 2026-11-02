@@ -10,4 +10,5 @@ export type {
 export type { HostFilesDiagnostic, HostFilesProviderOptions } from './host-provider.ts'
 export type { HostFilesLimits } from './host-files.ts'
 export type { HostCommandOptions } from './host-command.ts'
+export type { HostTerminalOptions } from './host-terminal.ts'
 export type { HostCommandPrerequisite } from './host-probe.ts'
