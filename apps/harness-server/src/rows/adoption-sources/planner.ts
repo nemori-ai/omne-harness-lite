@@ -53,7 +53,6 @@ function recordedKey(
   entries: readonly ToolBindingEntry[],
   definition: AdoptionDefinition | undefined,
 ): ToolBindingKey | undefined {
-  if (entries.length === 0) return undefined
   const entry = entries.find(item => keyMatches(item.key, recorded))
   if (entry !== undefined) return entry.key
   if (definition === undefined || definition.authority.asset.name !== recorded.capability)
@@ -80,14 +79,16 @@ function planRecorded<P>(
   const shape = projected.ok.items[0]?.shape
   if (shape === undefined || shape.name !== recorded.capability) return undefined
   const winner = live[0]
-  const plan = planAdoption({
+  const facts = {
     recorded: { key, shape, usable: live.some(entry => sameBindingKey(entry.key, key)) },
     sameShape: live.filter(entry => sameShape(entry.shape, shape)).map(entry => entry.key),
     winner: winner === undefined ? null : { key: winner.key, shape: winner.shape },
     reload: null,
-  })
-  if (plan.kind !== 'advance' && plan.kind !== 'keep' && plan.kind !== 'fallback') return undefined
-  const encoded = encodeResidentKey(plan.key)
+  }
+  let plan = planAdoption(facts)
+  if (plan.kind === 'reload') plan = planAdoption({ ...facts, reload: { kind: 'unavailable' } })
+  if (plan.kind === 'freeze' || plan.kind === 'reload') return undefined
+  const encoded = encodeResidentKey(plan.kind === 'replacement' ? key : plan.key)
   if ('failure' in encoded) return undefined
   return {
     residents: [],
