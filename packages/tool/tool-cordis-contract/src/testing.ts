@@ -58,7 +58,10 @@ import type {
   VerifiedAuthority,
 } from './cordis.ts'
 import { residentKeyCases, type ResidentKeyRoundTripFixture } from './testing-resident-key.ts'
-import { scriptedToolGenerations, type ScriptedToolGenerations } from './testing-adoption-scripts.ts'
+import {
+  scriptedToolGenerations,
+  type ScriptedToolGenerations,
+} from './testing-adoption-scripts.ts'
 
 /** Observe the settings reader behind the public loaderFor/load seam, not a copied config value. */
 export interface ToolLoaderSourceFixture<P, E, B extends ContentBlock> {
