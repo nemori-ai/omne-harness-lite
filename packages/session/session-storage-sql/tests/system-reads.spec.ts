@@ -4,6 +4,8 @@
 // scopes cursor is not, and a directory entry whose domain belongs to another tenant.
 import { describe, expect, it } from 'vitest'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import type { TenantDomainAccess } from '@omne-harness/sql-contract'
+import { createSessionStorage } from '../src/index.ts'
 import { app, TENANT_A, TENANT_B, TENANT_C, textOf, type App } from './fixtures/app.ts'
 import { kindOf } from './fixtures/entries.ts'
 
@@ -51,11 +53,16 @@ const released = (a: App, domain: string, tenant: TenantId, session: string, sco
     ],
   )
 
-async function references(a: App, after: string | null, limit: number): Promise<unknown> {
+async function references(
+  a: App,
+  after: string | null,
+  limit: number,
+  key = 'k',
+): Promise<unknown> {
   const out = await a.port.references({
     principal: 'tester',
     scope: 'system',
-    key: 'k' as never,
+    key: key as never,
     after,
     limit,
   })
@@ -145,6 +152,59 @@ describe('references over two tenants', () => {
     // A walk from the first page reads the new tenant too.
     const again = await walk<Reference>(after => references(a, after, 2))
     expect(again.flat().map(tenantOf)).toEqual(['A', 'B', 'B', 'C', 'C'])
+  })
+})
+
+describe('a references cursor and its key', () => {
+  it('a references cursor of one key is invalid for another key', async () => {
+    const a = await twoTenants()
+    const first = ok<Page<Reference>>(await references(a, null, 1))
+    if (first.next === null) throw new Error('fixture: more than one page')
+    expect(failureOf(await references(a, first.next, 1, 'other-key'))).toMatchObject({
+      kind: 'invalid',
+      field: 'cursor',
+    })
+    // The key that issued the cursor goes on from it.
+    const rest = ok<Page<Reference>>(await references(a, first.next, 1))
+    expect(rest.rows.map(row => label(row, row.capability))).toEqual(['B/s2/cap'])
+  })
+})
+
+describe('a tenant domain directory that cannot be read', () => {
+  /** The same storage and access with a directory that answers `unavailable` to a snapshot. */
+  const unreadable = (a: App) => {
+    const domains: TenantDomainAccess = {
+      resolve: () => Promise.resolve({ kind: 'unavailable', diagnostic: 'directory down' }),
+      snapshot: () => Promise.resolve({ kind: 'unavailable', diagnostic: 'directory down' }),
+    }
+    return createSessionStorage<string>({
+      storage: a.provider.storage,
+      domains,
+      accessCheck: a.accessCheck,
+      cursorSigning: a.signing,
+      combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
+    })
+  }
+  it('an unreadable tenant domain directory is unavailable, not an empty page', async () => {
+    const a = await twoTenants()
+    const port = unreadable(a)
+    const mark = a.provider.calls.length
+    const refs = await port.references({
+      principal: 'tester',
+      scope: 'system',
+      key: 'k' as never,
+      after: null,
+      limit: 10,
+    })
+    const scopesOut = await port.releasedScopes({
+      principal: 'tester',
+      scope: 'system',
+      after: null,
+      limit: 10,
+    })
+    expect(kindOf(refs)).toBe('unavailable')
+    expect(kindOf(scopesOut)).toBe('unavailable')
+    expect(a.provider.calls.length).toBe(mark)
   })
 })
 
