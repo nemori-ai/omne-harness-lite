@@ -4,7 +4,7 @@
 // provider (here a driver and a quiesce that record what the host does to them) and the observer
 // qualification. The real runtime provider joins when the runtime facade plugin does; until then
 // nothing here proves a real driver.
-import { Context } from '@deepseek-ai/cordis'
+import { Context, symbols } from '@deepseek-ai/cordis'
 import {
   accountCodec,
   organizationCodec,
@@ -32,8 +32,10 @@ import {
   ModelHostAuthorityService,
   modelInstanceHostKey,
 } from '@omne-harness/model-cordis-contract/cordis'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createModelRuntimeLocalPlugin } from '../src/cordis.ts'
+import type { ModelHostPluginOptions } from '../src/plugins/host.ts'
+import type { ModelObservationHost } from '@omne-harness/model/commands'
 
 function unbox<T>(decoded: { ok: T } | { failure: unknown }): T {
   if ('ok' in decoded) return decoded.ok
@@ -156,7 +158,10 @@ type Gate = { started: boolean; open: () => void; signalAborted: boolean; signal
 
 // One fixture per test: the services the plugin injects, a driver that waits on a gate per call,
 // and a log of what the host did.
-function fixture(settings: Partial<typeof SETTINGS> = {}) {
+function fixture(
+  settings: Partial<typeof SETTINGS> = {},
+  options: Partial<ModelHostPluginOptions> = {},
+) {
   const log: string[] = []
   const gates = new Map<string, Gate & { release: PromiseWithResolvers<void> }>()
   const gateOf = (call: ModelCallId) => {
@@ -220,6 +225,7 @@ function fixture(settings: Partial<typeof SETTINGS> = {}) {
       qualification === 'ok'
         ? { ok: undefined }
         : { failure: { kind: 'denied', action: 'observe' } },
+    ...options,
   })
   const ctx = new Context()
   const errors: unknown[][] = []
@@ -260,6 +266,227 @@ function fixture(settings: Partial<typeof SETTINGS> = {}) {
     },
   }
 }
+
+it('rejects an observation pair from a different commands service before opening a lease', async () => {
+  const openHost = vi.fn()
+  const f = fixture(
+    {},
+    {
+      observation: { commands: memoryCommands(), source: { openHost, close: vi.fn() } },
+    },
+  )
+  expect(await loadError(f.load())).toBeInstanceOf(Error)
+  expect(openHost).not.toHaveBeenCalled()
+  expect(f.ctx.modelInstanceHost).toBeUndefined()
+  expect(f.ctx.modelStreamReferences).toBeUndefined()
+  expect(f.ctx.modelStreamObservation).toBeUndefined()
+})
+
+it('captures the private execution channel once and gives its commands to the provider', async () => {
+  const commands = memoryCommands()
+  const nextCommands = memoryCommands()
+  let current = commands
+  const executionChannel = vi.fn(() => ({
+    ok: {
+      commands: current,
+      coordinator: null,
+      prepare: vi.fn(),
+      qualifyExecution: vi.fn(),
+      close: vi.fn(),
+    },
+  }))
+  let supplied: ModelCommands<unknown> | undefined
+  const f = fixture(
+    {},
+    {
+      executionChannel,
+      releaseExecution: async () => {},
+      provider: input => {
+        supplied = input.commands
+        return {
+          driver: { drive: async () => ({ ok: undefined }) },
+          quiesce: async () => ({ ok: { pending: '0', running: '0' } }),
+        }
+      },
+    },
+  )
+  const fiber = await f.load()
+  current = nextCommands
+  expect(executionChannel).toHaveBeenCalledTimes(1)
+  expect(supplied).toBe(commands)
+  await fiber.dispose()
+})
+
+it('keeps both real observation services on one lease and closes it before an in-flight drive drains', async () => {
+  const events: string[] = []
+  const publications: unknown[] = []
+  const retired: unknown[] = []
+  const observation: ModelObservationHost<unknown> = {
+    references: {
+      current: vi.fn(
+        async (): ReturnType<ModelObservationHost<unknown>['references']['current']> => ({
+          failure: {
+            kind: 'unavailable',
+            dependency: 'test-source',
+            diagnostic: 'no-confirmation',
+          },
+        }),
+      ),
+    },
+    observation: { observe: vi.fn(() => (async function* () {})()) },
+    attach: publication => {
+      publications.push(publication)
+    },
+    retire: publication => {
+      retired.push(publication)
+    },
+    close: () => {
+      events.push('observation-close')
+    },
+  }
+  const sourceClose = vi.fn()
+  const openHost = vi.fn(() => ({ ok: observation }))
+  let commands = memoryCommands()
+  const f = fixture(
+    {},
+    {
+      observation: {
+        get commands() {
+          return commands
+        },
+        source: { openHost, close: sourceClose },
+      },
+    },
+  )
+  await f.ctx.plugin(f.Authority)
+  await f.ctx.plugin(f.Clock)
+  await f.ctx.plugin(f.Commands)
+  commands = Reflect.get(f.ctx.modelCommands, symbols.original)
+  const fiber = await f.ctx.plugin(f.Plugin, SETTINGS)
+  const host = f.ctx.modelInstanceHost
+  expect(f.ctx.modelStreamReferences).toBeDefined()
+  expect(f.ctx.modelStreamObservation).toBeDefined()
+  const handle: ModelHandle<unknown> = {
+    instance: instanceOf('lease'),
+    observe: () => (async function* () {})(),
+  }
+  const execution = { ...wake('lease'), instance: handle.instance, generation: '1' }
+  const first = unbox(await host.publish(execution, handle))
+  const second = unbox(await host.publish({ ...execution, generation: '2' }, handle))
+  expect(publications).toEqual([first, second])
+  expect(await host.withdraw(first)).toEqual({ ok: { removed: false } })
+  expect(retired).toEqual([])
+  expect(await host.withdraw(second)).toEqual({ ok: { removed: true } })
+  expect(retired).toEqual([second])
+  await host.schedule(wake('drain'))
+  await until(() => f.driven.length === 1, 'the in-flight drive')
+  f.hooks.quiesce = async () => {
+    events.push('quiesce')
+    return { ok: { pending: '0', running: '1' } }
+  }
+  const unloading = fiber.dispose()
+  await until(() => f.gateOf(callOf('drain')).signalAborted, 'the shutdown barrier')
+  expect(events[0]).toBe('observation-close')
+  expect(events[1]).toBe('quiesce')
+  expect(openHost).toHaveBeenCalledTimes(1)
+  expect(sourceClose).not.toHaveBeenCalled()
+  f.gateOf(callOf('drain')).open()
+  await unloading
+  expect(f.ctx.modelStreamReferences).toBeUndefined()
+  expect(f.ctx.modelStreamObservation).toBeUndefined()
+})
+
+it('requires the entry release owner before capturing a private execution channel', async () => {
+  const executionChannel = vi.fn()
+  const f = fixture({}, { executionChannel })
+  expect(await loadError(f.load())).toBeInstanceOf(Error)
+  expect(executionChannel).not.toHaveBeenCalled()
+  expect(f.ctx.modelInstanceHost).toBeUndefined()
+})
+
+it('awaits the entry send child release after drive drain and before closing the channel', async () => {
+  const events: string[] = []
+  const closing = Promise.withResolvers<void>()
+  const closeStarted = Promise.withResolvers<void>()
+  const channel = {
+    commands: memoryCommands(),
+    coordinator: null,
+    prepare: vi.fn(),
+    qualifyExecution: vi.fn(),
+    close: vi.fn(() => {
+      events.push('channel-close')
+    }),
+  }
+  let send: Awaited<ReturnType<Context['plugin']>> | undefined
+  const releaseExecution = vi.fn(async () => {
+    events.push('release-execution')
+    await send?.dispose()
+    channel.close()
+  })
+  const f = fixture({}, { executionChannel: () => ({ ok: channel }), releaseExecution })
+  await f.ctx.plugin(f.Authority)
+  await f.ctx.plugin(f.Clock)
+  const parent = await f.ctx.plugin(f.Commands)
+  send = await parent.ctx.plugin(child => {
+    child.effect(() => async () => {
+      events.push('send-close')
+      closeStarted.resolve()
+      await closing.promise
+      events.push('send-closed')
+    })
+  })
+  const host = await f.ctx.plugin(f.Plugin, SETTINGS)
+  await f.ctx.modelInstanceHost.schedule(wake('release'))
+  await until(() => f.driven.length === 1, 'the drive barrier')
+  const unloading = host.dispose()
+  await until(() => f.gateOf(callOf('release')).signalAborted, 'the drive abort')
+  expect(releaseExecution).not.toHaveBeenCalled()
+  expect(channel.close).not.toHaveBeenCalled()
+  f.gateOf(callOf('release')).open()
+  await closeStarted.promise
+  expect(events).toEqual(['release-execution', 'send-close'])
+  expect(f.ctx.modelCommands).toBeDefined()
+  expect(channel.close).not.toHaveBeenCalled()
+  closing.resolve()
+  await unloading
+  expect(events.slice(0, 4)).toEqual([
+    'release-execution',
+    'send-close',
+    'send-closed',
+    'channel-close',
+  ])
+  expect(releaseExecution).toHaveBeenCalledTimes(1)
+  expect(channel.close).toHaveBeenCalled()
+  await parent.dispose()
+})
+
+it('closes the channel and reports a safe diagnostic when the entry release fails', async () => {
+  const close = vi.fn()
+  const releaseExecution = vi.fn(async () => {
+    throw new Error('secret-route-should-not-leak')
+  })
+  const f = fixture(
+    {},
+    {
+      executionChannel: () => ({
+        ok: {
+          commands: memoryCommands(),
+          coordinator: null,
+          prepare: vi.fn(),
+          qualifyExecution: vi.fn(),
+          close,
+        },
+      }),
+      releaseExecution,
+    },
+  )
+  const host = await f.load()
+  await host.dispose()
+  expect(releaseExecution).toHaveBeenCalledTimes(1)
+  expect(close).toHaveBeenCalledTimes(1)
+  expect(f.messages.join('\n')).toContain('execution release failed')
+  expect(f.messages.join('\n')).not.toContain('secret-route-should-not-leak')
+})
 
 const wake = (call: string) => ({ tenant: TENANT, call: callOf(call) })
 

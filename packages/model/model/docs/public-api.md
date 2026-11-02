@@ -1,4 +1,5 @@
 <a id="model-实现公开入口候选"></a>
+
 # Model 实现公开入口
 
 本包已实现 executeModel、凭据判定、createModelProfiles、createModelSendBoundary 与 createModelRuntime 的受理、查询、取消意图、原流保存与最小实例观察。已确认调用的收场支持范围见[实现规格](../SPEC.md#已实现的调用收场)，结果读取及 processed ACK 已实现，retained ACK、恢复与生产宿主仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。独立执行签名以 [execute.ts](../src/execute.ts) 为唯一声明，runtime 构造类型以 [runtime.ts](../src/runtime.ts) 为唯一声明，sender 构造类型以 [send/types.ts](../src/send/types.ts) 为唯一声明；下方独立能力工厂中 `createModelProfiles` 已实现，其余两个仍是未实现设计。
@@ -7,19 +8,34 @@
 
 ```ts
 import type {
-  Access, FixedModelRequest, ModelPreparationResources,
+  Access,
+  FixedModelRequest,
+  ModelPreparationResources,
 } from '@omne-harness/model-contract'
 import type {
-  ModelTransport, IndependentModelFact,
-  ModelCommands, ModelSendBoundary, ModelRetryPolicy, ModelInstanceHost,
-  ModelClock, ModelProvider, ModelDriver, ModelProfileSource, ModelProfiles,
-  ModelRequestPreparation, ModelConverterCatalog,
-  ModelContentAuthority, ModelMessageConversion,
+  ModelTransport,
+  IndependentModelFact,
+  ModelCommands,
+  ModelSendBoundary,
+  ModelRetryPolicy,
+  ModelInstanceHost,
+  ModelClock,
+  ModelProvider,
+  ModelDriver,
+  ModelProfileSource,
+  ModelProfiles,
+  ModelRequestPreparation,
+  ModelConverterCatalog,
+  ModelContentAuthority,
+  ModelMessageConversion,
 } from '@omne-harness/model-contract/provider'
 
 import { executeModel, createModelRuntime } from '@omne-harness/model'
-import type { ModelConfiguration, ModelDependencies, ModelRuntimeProvider } from '@omne-harness/model'
-
+import type {
+  ModelConfiguration,
+  ModelDependencies,
+  ModelRuntimeProvider,
+} from '@omne-harness/model'
 ```
 
 ModelDependencies 和 ModelConfiguration 只约束本实现的构造器。其他提供者须实现共同操作与行为，不必复刻该配置。操作参数包含主体、租户、原调用和业务请求；实例宿主、时钟、发送及持久化是显式依赖，不从全局 Cordis Context 取得。
@@ -35,9 +51,12 @@ export declare function createModelProfiles<P>(source: ModelProfileSource<P>): M
 export declare function createModelRequestPreparation<P>(
   resources: ModelPreparationResources<P>,
 ): ModelRequestPreparation<P>
-export declare function createModelMessageConversion<P>(dependencies: Readonly<{
-  catalog: ModelConverterCatalog<P>; authority: ModelContentAuthority<P>
-}>): ModelMessageConversion<P>
+export declare function createModelMessageConversion<P>(
+  dependencies: Readonly<{
+    catalog: ModelConverterCatalog<P>
+    authority: ModelContentAuthority<P>
+  }>,
+): ModelMessageConversion<P>
 ```
 
 这些构造函数不启动网络、读取词表或登记框架服务。`createModelProfiles` 已实现，声明在 [profiles/profiles.ts](../src/profiles/profiles.ts)，根入口只导出它；求值的纯函数 `judgeProfileResolution`、`judgeProfileChoices` 在 [profiles/judge.ts](../src/profiles/judge.ts)，不进根入口，也不与凭据判定 `judgeResolution` 同名。行为归 [SPEC](../SPEC.md#档案读取与同名求值)。profiles 隐藏同名胜出、撤回遮蔽、模态相容和选择解释；preparation 隐藏逐供应商参数与 schema 相容检查，不计量；conversion 隐藏选择、校验和租约收尾。删除这些 module 会把同一算法散布到调用者。档案维护由实际权威提供者实现共同写协议，不另造一个无行为的转发工厂。`ModelPreparationResources` 的生产实现已由下文的 `createModelPreparationResources` 提供。
@@ -48,15 +67,26 @@ createModelRuntime 只构造对象，返回 runtime 管理面及受信 driver。
 
 此节导航真实源码，不重复声明。凭据的纯契约（`CredentialId`、引用、查询、`CredentialPresence`、`CredentialResolution`、`CredentialPort`、`SendFace`、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`）归 [model-contract](../../model-contract/docs/public-api.md#凭据引用与解析端口)，本包不导出它们，也不转导。服务定义归 model-cordis-contract，本地保管、插件与注入发送归 [model-host-local](../../model-host-local/docs/public-api.md)。目标归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
 
-| 消费入口 | 实际源码与能力 |
-| --- | --- |
-| `@omne-harness/model` | [index.ts](../src/index.ts) 导出 `deliver`、调用记录与发送回执类型，以及存在性与解析的判定函数 `judgeGate`、`judgePresence`、`judgeResolution` 和它们读取的状态快照类型 `CustodianState`、`Binding`、`BindingLife` |
+| 消费入口              | 实际源码与能力                                                                                                                                                                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@omne-harness/model` | [index.ts](../src/index.ts) 导出 `deliver`、调用记录与发送回执类型，以及存在性与解析的判定函数 `judgeGate`、`judgePresence`、`judgeResolution`、`judgeQualifiedPresence`、`judgeQualifiedResolution` 和它们读取的状态快照类型 `CustodianState`、`Binding`、`BindingLife` |
 
 包导出根入口、`./commands` 子路径和独立 `./testing`，`@omne-harness/model/cordis` 与 `@omne-harness/model/execute` 不再解析。判定只读调用者传入的状态快照，不读文件，也不依赖保管实现。查询租户未经 legal-identity 铸造时，两个判定都返回 `denied`，先于其他判定；快照里有绑定的租户未经铸造时，本应给出工厂秘密的解析同样返回 `denied`。快照类型是判定对保管状态的显式依赖形状，从 model 根入口导出，不进任何契约包；`Binding.secret` 与 `CustodianState.factorySecret` 带秘密字段，只作为类型公开，不携带值。[credential.ts](../src/credential.ts) 拥有判定与快照形状。调用记录与发送回执归 [deliver.ts](../src/deliver.ts)。行为承诺归 [SPEC](../SPEC.md#凭据引用与解析)。根入口还导出 createModelRuntime；它支持受理、原流保存、实例观察及[有限的原终局收场](../SPEC.md#已实现的调用收场)，不证明完整托管调用与消费已交付。
 
 ## 共享归约核心子路径
 
 `@omne-harness/model/commands` 从 [commands/index.ts](../src/commands/index.ts) 导出 `createModelCommandsCore`、`modelCommands`、`MODEL_WRITE_METHODS`、恢复工作判定 `hasRecoveryWork` 和存储端口类型 `ModelCommandStorage`、`CommandWrite`、`RunScope`。它给耐久存储提供者装配 22 个方法的共享核心，不是消费者入口，根入口不导出这些名字。子路径的导入图不经 `testing`。端口与 `scope` 参数的规则归 [SPEC](../SPEC.md#共享归约核心)。
+
+同一子路径还导出以下实现装配入口，根入口不重复导出：
+
+| 入口                                                                                                                                                                                                | 形状与行为                                                                                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `createModelInitialRun`、`createModelInitialExecution`，以及 `InitialTarget`、`ModelAcceptedOrigin`、`ModelInitialRunLimits`、`ModelInitialRun`、`ModelInitialExecution`、`ModelInitialHostChannel` | [initial.ts](../src/commands/initial.ts) 声明运行级不透明值与私有通道。把同一个 run 交给核心和确认桥，再以同核心创建 initial。行为见 [首次执行记录与私有通道](../SPEC.md#首次执行记录与私有通道) |
+| `createModelObservationStorage`，以及 `ModelBeforePublish`、`ModelConfirmationPass`、`ModelRunCompletion`、`ModelConfirmationDiagnostic`、`ConfirmationSeen`、`ConfirmationStage`                   | [observation.ts](../src/commands/observation.ts) 与 [types.ts](../src/commands/types.ts) 声明确认接缝。装在实际存储与发送镜像之间，不由应用传任意首次登记回调                                    |
+| `ModelObservationLimits`、`ModelObservationTiming`、`ModelObservationSource`、`ModelObservationHost`、`ObservationFacts`、`ConfirmedObservationRecord`                                              | [stream-types.ts](../src/stream-types.ts) 声明确认源的装配形状。公共 current/observe 的类型仍归 model-contract，行为见 [确认源与公共观察](../SPEC.md#确认源与公共观察)                           |
+| `describeModelMaterialization`、`MaterializationDescriptionInput`                                                                                                                                   | [value.ts](../src/commands/value.ts) 声明非秘密物化绑定的纯描述函数。描述不登记或证明真实来源，reader 归 [model-host-local](../../model-host-local/docs/public-api.md)                           |
+
+这些实现入口不新增公共服务键。`modelCommands(core)` 的公共门面不会因启用 initialRun 而取得执行通道权限。
 
 ## 内存测试入口
 
@@ -70,18 +100,27 @@ createModelRuntime 只构造对象，返回 runtime 管理面及受信 driver。
 
 ```ts
 import { createModelRuntime } from '@omne-harness/model'
-import { createTestModelDependencies, type TestModelDependenciesOptions } from '@omne-harness/model/testing'
+import {
+  createTestModelDependencies,
+  type TestModelDependenciesOptions,
+} from '@omne-harness/model/testing'
 
 declare const options: TestModelDependenciesOptions<unknown>
 const { dependencies, controls } = createTestModelDependencies(options)
 const provider = createModelRuntime(dependencies, {
-  outputBatchBytes: 1024, outputBatchDelayMs: 0, observerBufferBytes: 1024,
+  outputBatchBytes: 1024,
+  outputBatchDelayMs: 0,
+  observerBufferBytes: 1024,
   observerCheckIntervalMs: 25,
-  resultPageTargetBytes: 128, readIdleMs: 1000, retryBackoffMs: 0, cleanupRetryMs: 0,
+  resultPageTargetBytes: 128,
+  readIdleMs: 1000,
+  retryBackoffMs: 0,
+  cleanupRetryMs: 0,
 })
 ```
 
 上述数值只用于构造示例，不是生产默认。构造不调用依赖。runtime 提供 calls.admit、inspect、dispatches、cancel 与真实目录 connect。admit 在解构与排队前复用[共同 judge](../../model-contract/SPEC.md#封闭输入判断)，保持 principal/tenant 同一性，畸形重放先 invalid。受信 driver 先发布初始实例，再接原发送流、保存和观察。beginRead、readNext、closeRead 与 processed acknowledge 已接真实 Commands。retained acknowledge 静态 unavailable，阶段 6.1；recover 尚未实现（阶段 5.4）；quiesce 停止新受理并报告本进程的 pending 与 running（阶段 5.5）。完整生产宿主仍归 3.5。普通 runtime 不暴露 driver。完整原参认回、正数批延迟的沉默读取限制、观察逻辑额度及并发 next 行为见 [当前构造支持](../SPEC.md#当前构造支持与本地模拟)。observerCheckIntervalMs 是必填正安全整数，专用于等待观察者的当前权限及实例复查，不复用 readIdleMs。
+
 ```ts
 declare const input: Parameters<typeof provider.runtime.calls.admit>[0]
 declare const driveInput: Parameters<typeof provider.driver.drive>[0]
@@ -94,7 +133,6 @@ await provider.runtime.calls.dispatches(input)
 宿主负责提供可信稳定的 driveInput，不从普通请求推导执行资格。取消 operation 必须不同于原 admission。停止 drive 不取消原调用。当前实现不提供生产池或跨进程恢复。
 
 测试 limits.resultPageParts 限定每页结果项数，limits.resultPageTargetBytes 是规范 parts 数组 JSON 的 UTF-8 目标。完整 sealed/partial 项不拆分，超目标项独页；整个页不得超过原 capacity.bytes。消费者需容纳接近原容量的页。预算和本地有限上限见 [SPEC](../SPEC.md#当前构造支持与本地模拟)。controls.commands.configureResultPaging({tenant, call, resultPageParts, resultPageTargetBytes}) 只准备尚未收场且没有 read 的调用。两个数值须为正安全整数，结果冻结后拒绝修改。完整配置及最大表示预留进入原容量预算；失败原子不变。runtime 分页由注入的 Commands 拥有，内存测试不证明生产后端。unknown 控制按完整 tenant/call/operation/method 注入 applied 或 not-applied，揭示不能反转真实效果。适配器是受信、同步且不可重入的本地测试模型，不证明外部资格事务、耐久证据、跨进程排除或可靠消费。
-
 
 ## 产品发送构造
 

@@ -19,6 +19,8 @@
 
 ## 使用
 
+受信装配从 `./commands` 取得进程内首次执行与已确认公共观察入口。装配保留一个真实工厂创建的 `ModelInitialRun`，让同一命令核心和确认桥采用它，并将同一个捕获的 host channel 交给宿主与发送方。入口见[公开接口](docs/public-api.md#共享归约核心子路径)，行为见[首次执行记录与私有通道](SPEC.md#首次执行记录与私有通道)。公共命令引用不授执行权，首次记录不支持重启恢复或后继接管。观察须给出十二项显式上限和单调时钟端口；这些成员支持不证明生产主体映射、应用接线或完整撤权已闭合。
+
 受理在排队前同步复用 judgeAdmit，畸形输入不会建立调用或预留容量。[输入契约](../model-contract/SPEC.md#封闭输入判断)规定冻结副本、资格对象同一性和解析限制。第一课教受理判断；第四课先通过纯请求判断，再真实驱动供应商 input-over-limit。
 
 选择本实现的独立程序与宿主从[消费与构造](docs/context.md)进入。executeModel、createModelRuntime 及构造参数的设计已接受，精确形状见[公开接口设计](docs/public-api.md)，executeModel、createModelRuntime 与 createModelSendBoundary 已从根入口导出；独立能力工厂仍未实现。

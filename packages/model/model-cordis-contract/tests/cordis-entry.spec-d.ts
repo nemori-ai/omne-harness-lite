@@ -4,6 +4,7 @@ import type { Context, Events } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ModelCallId, ModelOperationId, Revision } from '@omne-harness/model-contract'
 import type {
+  CredentialPort,
   ModelConverterCatalog,
   ModelInstanceDirectory,
   ModelSendBoundary,
@@ -13,6 +14,11 @@ import type {
 import type { Outcome } from '@omne-harness/operation-result'
 import { expectTypeOf, it } from 'vitest'
 import {
+  modelStreamReferencesKey,
+  modelStreamObservationKey,
+  ModelCredentialService,
+  type ModelStreamReferencesService,
+  type ModelStreamObservationService,
   modelClockKey,
   modelCommandsKey,
   modelConverterAuthorityKey,
@@ -134,4 +140,31 @@ it('carries only tenant, call and revision on model-cordis-contract/call-changed
   void ctx.parallel('model-cordis-contract/call-changed', tenant, call, revision)
   // @ts-expect-error TS2769: No overload matches, because 'ModelOperationId' is not assignable to parameter 'call' of type 'ModelCallId'.
   void ctx.parallel('model-cordis-contract/call-changed', tenant, operation, revision)
+})
+
+it('keeps observation services optional and their keys literal', () => {
+  expectTypeOf(ctx.modelStreamReferences).toEqualTypeOf<
+    ModelStreamReferencesService<unknown> | undefined
+  >()
+  expectTypeOf(ctx.modelStreamObservation).toEqualTypeOf<
+    ModelStreamObservationService<unknown> | undefined
+  >()
+  expectTypeOf<typeof modelStreamReferencesKey>().toEqualTypeOf<'modelStreamReferences'>()
+  expectTypeOf<typeof modelStreamObservationKey>().toEqualTypeOf<'modelStreamObservation'>()
+})
+
+it('keeps a legacy credential subclass concrete without qualified operations', () => {
+  class Legacy extends ModelCredentialService {
+    readonly present = (): { kind: 'unavailable' } => ({ kind: 'unavailable' })
+    readonly resolve = (): { kind: 'unavailable' } => ({ kind: 'unavailable' })
+  }
+  const service: ModelCredentialService = new Legacy(ctx)
+  expectTypeOf(service).toEqualTypeOf<ModelCredentialService<unknown>>()
+  expectTypeOf<ModelCredentialService<string>['presentFor']>().toEqualTypeOf<
+    CredentialPort<string>['presentFor']
+  >()
+  expectTypeOf<ModelCredentialService<string>['resolveFor']>().toEqualTypeOf<
+    CredentialPort<string>['resolveFor']
+  >()
+  expectTypeOf(ctx.modelCredential).toEqualTypeOf<ModelCredentialService<unknown> | undefined>()
 })

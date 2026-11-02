@@ -145,12 +145,17 @@ export function createScriptedStreamObservation<P>(
   }
 
   /**
-   * The disclosure check of a terminal frame the observer holds: denied and unavailable take its
-   * place, any other end keeps it, so a later end of the stream cannot replace a held gap.
+   * Failed pre-output checks replace a held terminal. An ordinary source end does not
+   * replace it, so source-closed preserves an earlier held gap.
    */
   function disclose(observer: Observer<P>, terminal: Terminal): Terminal {
     const failure = qualify(observer)
-    if (failure !== null && (failure.reason === 'denied' || failure.reason === 'unavailable'))
+    if (
+      failure !== null &&
+      (failure.reason === 'denied' ||
+        failure.reason === 'unavailable' ||
+        failure.reason === 'stale-stream')
+    )
       return failure
     return terminal
   }
