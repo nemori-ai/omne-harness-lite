@@ -31,6 +31,25 @@ export function interceptReads(h: Harness, hook: SessionTransactionPort<string>[
   }
 }
 
+/** Hides the sessions a reason would list, so the recovery scan can only find them by another reason. */
+export function hideReasons(h: Harness, hidden: readonly string[]): void {
+  const directory = h.dependencies.directory as {
+    current: () => SessionTransactionPort<string> | null
+  }
+  const current = directory.current.bind(directory)
+  directory.current = () => {
+    const port = current()
+    if (port === null) return null
+    return {
+      ...port,
+      pending: async input =>
+        input.reason !== undefined && hidden.includes(input.reason)
+          ? succeed({ sessions: [], next: null })
+          : port.pending(input),
+    }
+  }
+}
+
 export async function controlFixture(options: Partial<HarnessOptions> = {}) {
   const history = createMemorySessionHistorySource()
   const initialization = createMemoryInitializationSource()

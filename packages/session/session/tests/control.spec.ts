@@ -12,6 +12,7 @@ import {
 } from '@omne-harness/session-contract/testing'
 import {
   controlFixture,
+  hideReasons,
   interceptReads,
   readControlWork,
   turn,
@@ -399,6 +400,8 @@ it('SC-07 周期找回遗漏通知的控制', async () => {
     },
   })
   open.push(f.h)
+  // Without this, the pending input of the Run would name the session by the inputs reason.
+  hideReasons(f.h, ['inputs', 'unresolved'])
   succeeded(await f.h.instance.maintain(TENANT_A), 'maintain')
   await turn()
   await f.cancel(false)
