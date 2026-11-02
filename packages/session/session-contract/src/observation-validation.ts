@@ -17,6 +17,22 @@ import {
   inconsistent,
 } from './session-validation.ts'
 
+/**
+ * The revision of the observation is the same-root execution head. One below the head is a read
+ * that another write of the execution overtook: an expired same-root basis answers `changed`, and
+ * the caller reads the head again. One above it was never a head of this root.
+ */
+function sameRootHead(
+  snapshot: WorkSnapshot,
+  observation: SessionLogObservation,
+  boundary: Readonly<{ revision: string }>,
+): void {
+  if (decimal(observation.revision, 'revision') < BigInt(boundary.revision))
+    throw new SessionValidationFailure({ kind: 'changed', revision: snapshot.revision })
+  if (observation.revision !== boundary.revision)
+    invalidAt('revision', 'not the same-root execution head')
+}
+
 export function validateObservation(
   snapshot: WorkSnapshot,
   observation: SessionLogObservation,
@@ -36,9 +52,7 @@ export function validateObservation(
   const context = historyContext(snapshot, reads)
   const boundary = executionBoundary(context, observation.execution, observation.run)
   evidenceFields(observation.source, 'source')
-  decimal(observation.revision, 'revision')
-  if (observation.revision !== boundary.revision)
-    invalidAt('revision', 'not the same-root execution head')
+  sameRootHead(snapshot, observation, boundary)
   const head =
     observation.executionEvidence ??
     (equalValue(observation.source, boundary.executionEvidence) ? observation.source : undefined)

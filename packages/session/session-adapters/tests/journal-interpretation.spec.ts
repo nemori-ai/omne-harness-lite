@@ -4,7 +4,8 @@
 // through `commitLog`. What is checked: one Agent write is interpreted without a call from the
 // test, the progress reaches the head and the Session command that reads the history passes (it
 // answers unavailable without the plugin); a lost reply is sent again under the same operation and
-// recalls; the same event twice commits once; a stopped plugin and a plugin without
+// recalls; the same event twice commits once; a head that another writer moved after the read
+// answers changed and the call reads again once, then commits; a stopped plugin and a plugin without
 // `sessionTransactions` commit nothing; another tenant's event and a refusing view commit nothing;
 // the R2-D28 counterexample passes once the plugin committed the non-observed tail; the commits of
 // one round do not grow with the rounds before it. The storage is the node:sqlite double of the
@@ -286,6 +287,58 @@ describe('AD-02: an Agent publication is interpreted after its event', () => {
     })
     expect(f.sent).toHaveLength(1)
     expect(logOperations(f.s)).toHaveLength(1)
+  })
+})
+
+// session-contract SPEC: an expired same-root basis answers `changed` and the provider prepares
+// again. Another writer of the session (the receivers write through their own Journal copy, which
+// sends no `agent-published`) can move the execution head after the plugin read it; the plugin then
+// reads again once in the same call, and no later event is needed for the interpretation to go on.
+describe('AD-02: the execution head moves between the read and the commit', () => {
+  /** A write of the scene's execution through a Journal copy that sends no event. */
+  const moveHead = (f: Awaited<ReturnType<typeof interpreted>>, label: string) =>
+    committed(f.s, f.s.view.journal, label, [
+      { kind: 'message', message: assistantMessage(label), source: evidence(label) },
+    ])
+
+  it('Session answers changed; the call reads the new head and commits there', async () => {
+    const f = await interpreted('ad02-moved', { plugin: 'later' })
+    await started(f.s, f.c.journal())
+    await f.mountPlugin()
+    const answers: Awaited<ReturnType<CommitLog>>[] = []
+    f.script.push(async (inner, input) => {
+      await moveHead(f, 'moved-1')
+      const answer = await inner(input)
+      answers.push(answer)
+      return answer
+    })
+    expect(ok(await f.interpretation.interpret(f.target))).toEqual({
+      readThrough: '1',
+      committed: 1,
+      waiting: 0,
+    })
+    expect(answers).toMatchObject([{ failure: { kind: 'changed' } }])
+    const [first, second] = f.sent.map(item => BigInt(item.observation.revision))
+    expect(second).toBe((first ?? 0n) + 1n)
+    expect(logOperations(f.s)).toEqual([f.sent[1]?.observation.operation])
+  })
+
+  it('a head that keeps moving: the call stops after its second read with changed', async () => {
+    const f = await interpreted('ad02-moving', { plugin: 'later' })
+    await started(f.s, f.c.journal())
+    await f.mountPlugin()
+    for (const label of ['moving-1', 'moving-2'])
+      f.script.push(async (inner, input) => {
+        await moveHead(f, label)
+        return inner(input)
+      })
+    expect(await f.interpretation.interpret(f.target)).toMatchObject({
+      failure: { kind: 'changed' },
+    })
+    expect(f.sent).toHaveLength(2)
+    expect(await readThrough(f.s)).toBe('0')
+    // The head stays still now: the next call commits.
+    expect(ok(await f.interpretation.interpret(f.target))).toMatchObject({ readThrough: '1' })
   })
 })
 
