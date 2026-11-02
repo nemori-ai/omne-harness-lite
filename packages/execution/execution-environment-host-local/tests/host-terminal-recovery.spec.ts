@@ -1,5 +1,5 @@
 /** @module-tag slow */
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -261,13 +261,24 @@ it('keeps an unconfirmed stop pending until the original supervisor can be reach
   const ref = value(await f.terminal.create({ ...base, cwd: f.cwd, env })).terminal
   const handle = value(await f.terminal.execute({ ...base, terminal: ref, script: 'sleep 30' }))
   const address = process.env['DBUS_SESSION_BUS_ADDRESS']
-  process.env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=/nonexistent-omne-terminal-bus'
+  const runtimeDirectory = process.env['XDG_RUNTIME_DIR']
+  const unreachableDirectory = join(f.cwd, 'unreachable-runtime')
+  process.env['XDG_RUNTIME_DIR'] = unreachableDirectory
+  process.env['DBUS_SESSION_BUS_ADDRESS'] = `unix:path=${unreachableDirectory}/bus`
   try {
+    const supervisor = spawnSync('systemctl', ['--user', 'is-system-running'], {
+      encoding: 'utf8',
+      timeout: 10_000,
+    })
+    expect(supervisor.error).toBeUndefined()
+    expect(supervisor.status).toBeGreaterThan(0)
     expect(await handle.stop('forced')).toBe('unconfirmed')
     expect(record.stops).toContain('unconfirmed')
   } finally {
     if (address === undefined) delete process.env['DBUS_SESSION_BUS_ADDRESS']
     else process.env['DBUS_SESSION_BUS_ADDRESS'] = address
+    if (runtimeDirectory === undefined) delete process.env['XDG_RUNTIME_DIR']
+    else process.env['XDG_RUNTIME_DIR'] = runtimeDirectory
   }
   expect(await handle.stop('forced')).toBe('confirmed')
   expect(record.stops.at(-1)).toBe('confirmed')
