@@ -72,6 +72,16 @@ async function decide(
   const admission = read()
   if (admission === undefined) return unavailable('the action admission dependency is unavailable')
   const identity = await admission.check(request)
+  return actionDecision(identity, rule, rules, target, argumentsDigest)
+}
+
+function actionDecision(
+  identity: Awaited<ReturnType<AdmissionCheck['check']>>,
+  rule: ReturnType<typeof ruleFor>,
+  rules: ActionRules,
+  target: AdmissionInput['target'],
+  argumentsDigest: AdmissionInput['arguments'],
+): AdmissionDecision {
   if (identity.kind === 'unavailable')
     return unavailable('the action identity check is unavailable')
   if (identity.kind === 'denied')
