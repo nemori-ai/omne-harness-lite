@@ -13,6 +13,7 @@
 // 判断只看响应体里的 `outcome`，不看状态码（公开契约的承载页第 211 行同款规则）。
 import { join } from 'node:path'
 import {
+  holdTestSlot,
   SESSION_PATH,
   blockedCount,
   doubleRows,
@@ -35,6 +36,8 @@ import {
   verdict,
   writeJson,
 } from './support.mjs'
+
+holdTestSlot(import.meta.url)
 
 const CREDENTIALS = { alice: 'alice-pw-REFUSE-4b19', bob: 'bob-pw-REFUSE-8d02' }
 /** 真实的会话标识形状，但没有人创建过。 */

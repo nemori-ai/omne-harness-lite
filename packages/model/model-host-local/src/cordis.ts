@@ -122,6 +122,12 @@ export type {
   ModelRequestPreparationPluginClass,
 } from './plugins/preparation.ts'
 export { createModelRuntimeLocalPlugin } from './plugins/host.ts'
+export { createConfiguredModelRuntimeLocalPlugin } from './plugins/configured-host.ts'
+export type { ConfiguredModelHostSettings } from './plugins/configured-host-config.ts'
+export type {
+  ConfiguredModelHostOptions,
+  ConfiguredModelRuntimeLocalPluginClass,
+} from './plugins/configured-host.ts'
 export type {
   HostEvent,
   ModelHostPluginOptions,
