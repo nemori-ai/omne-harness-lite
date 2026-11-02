@@ -134,6 +134,151 @@ async function run(
   return { handle, result, bytes: Buffer.concat(chunks) }
 }
 
+async function retainedFixture(retentionLedger = recorder()) {
+  const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
+  providers.push(provider)
+  const retentionScope = scope()
+  const released = new AbortController()
+  const acquire = async (origin: string, own = recorder()) => {
+    const result = await provider.acquire({
+      tenant: access.tenant,
+      acquisition: acquisitionRef(randomUUID()),
+      origin: originRef(origin),
+      scope: scope(),
+      ledger: own.ledger,
+      retention: {
+        scope: retentionScope,
+        ledger: retentionLedger.ledger,
+        released: released.signal,
+      },
+      placement: {
+        kind: 'placement',
+        binding,
+        quotaDomain: provider.quotaDomain,
+        continuity: provider.continuity,
+        provider: {
+          name: provider.name,
+          generation: provider.generation,
+          version: provider.version,
+        },
+        requirement: { allowedBindings: [binding], facilities: ['terminal'], isolation: [] },
+      },
+    })
+    if (result.kind !== 'acquired') throw new Error('retained acquisition')
+    const terminal = result.lease.facility('terminal')
+    if (terminal === undefined || terminal.attach === undefined || terminal.detach === undefined)
+      throw new Error('retention facility missing')
+    return { lease: result.lease, terminal, own, request: { ...base, origin: originRef(origin) } }
+  }
+  const cwd = await realpath(await mkdtemp(join(tmpdir(), 'omne-retained-terminal-')))
+  roots.push(cwd)
+  return { provider, acquire, cwd, retentionScope, retentionLedger, released }
+}
+
+it('retains one real shell across acquisition release and recovers its zero-attachment scope', async context => {
+  if (!(await prerequisites()))
+    return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')
+  const f = await retainedFixture()
+  const a = await f.acquire('a')
+  await mkdir(join(f.cwd, 'child'))
+  const terminal = value(
+    await a.terminal.create({ ...a.request, cwd: f.cwd, env, retain: 'session' }),
+  ).terminal
+  expect(f.retentionLedger.resources).toHaveLength(1)
+  expect(a.own.resources).toHaveLength(0)
+  expect((await run(a.terminal, terminal, 'cd child', a.request)).result).toMatchObject({
+    kind: 'completed',
+  })
+  expect(a.own.resources).toHaveLength(1)
+  expect(await a.lease.release()).toMatchObject({ kind: 'released' })
+  a.own.closed.abort()
+  expect(f.retentionLedger.stops).toEqual([])
+  expect(await a.terminal.execute({ ...a.request, terminal, script: 'true' })).toMatchObject({
+    reason: 'closed',
+  })
+  const b = await f.acquire('b')
+  expect(await b.terminal.attach?.({ ...b.request, terminal })).toMatchObject({ kind: 'done' })
+  expect((await run(b.terminal, terminal, 'pwd', b.request)).bytes.toString()).toBe(
+    `${f.cwd}/child\r\n`,
+  )
+  expect(b.own.resources).toHaveLength(1)
+  expect(await b.lease.release()).toMatchObject({ kind: 'released' })
+  const listed = await f.provider.listRecoveryResources(f.retentionScope)
+  expect(listed.kind).toBe('listed')
+  if (listed.kind !== 'listed') throw new Error('retained scope listing')
+  expect(listed.resources).toHaveLength(1)
+  f.released.abort()
+  for (const resource of listed.resources)
+    expect(await f.provider.recover(resource)).toMatchObject({ status: 'confirmedStopped' })
+  expect(f.retentionLedger.stops).toContain('confirmed')
+  expect(await f.provider.retire()).toMatchObject({ kind: 'drained' })
+}, 30_000)
+
+it('keeps a real retained terminal busy and detaching another acquisition leaves its leg running', async context => {
+  if (!(await prerequisites()))
+    return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')
+  const f = await retainedFixture()
+  const a = await f.acquire('a')
+  const b = await f.acquire('b')
+  const terminal = value(
+    await a.terminal.create({ ...a.request, cwd: f.cwd, env, retain: 'session' }),
+  ).terminal
+  await b.terminal.attach?.({ ...b.request, terminal })
+  const handle = value(
+    await a.terminal.execute({ ...a.request, terminal, script: 'sleep 1; printf survived' }),
+  )
+  expect(await b.terminal.execute({ ...b.request, terminal, script: 'true' })).toMatchObject({
+    reason: 'busy',
+  })
+  expect(await b.terminal.detach?.({ ...b.request, terminal })).toMatchObject({
+    value: { status: 'confirmed' },
+  })
+  expect(await b.terminal.attach?.({ ...b.request, terminal })).toMatchObject({ reason: 'closed' })
+  const chunks: Uint8Array[] = []
+  for await (const chunk of handle.output) chunks.push(chunk.data)
+  expect(await handle.result).toMatchObject({ kind: 'completed', exit: { code: 0 } })
+  expect(Buffer.concat(chunks).toString()).toBe('survived')
+  expect(value(await a.terminal.close({ ...a.request, terminal }))).toEqual({ status: 'confirmed' })
+}, 30_000)
+
+it('prevents real retained creation when its scope closes during durable permission', async context => {
+  if (!(await prerequisites()))
+    return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')
+  const owner = recorder()
+  let grant: (value: 'confirmed') => void = () => undefined
+  let entered: () => void = () => undefined
+  const permission = new Promise<'confirmed'>(resolve => {
+    grant = resolve
+  })
+  const waiting = new Promise<void>(resolve => {
+    entered = resolve
+  })
+  const f = await retainedFixture({
+    ...owner,
+    ledger: {
+      ...owner.ledger,
+      permit: () => {
+        entered()
+        return permission
+      },
+    },
+  })
+  const a = await f.acquire('a')
+  const creating = a.terminal.create({ ...a.request, cwd: f.cwd, env, retain: 'session' })
+  await waiting
+  expect(await f.provider.listRecoveryResources(f.retentionScope)).toMatchObject({
+    kind: 'listed',
+    resources: owner.resources,
+  })
+  f.released.abort()
+  for (const resource of owner.resources)
+    expect(await f.provider.recover(resource)).toMatchObject({ status: 'pending' })
+  grant('confirmed')
+  expect(await creating).toMatchObject({ reason: 'closed' })
+  expect(owner.stops).toContain('confirmed')
+  expect(await f.provider.retire()).toMatchObject({ kind: 'drained' })
+}, 30_000)
+
 it('runs a real PTY, keeps cwd, restores temporary overrides, and preserves non-UTF8 bytes', async context => {
   if (!(await prerequisites()))
     return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')

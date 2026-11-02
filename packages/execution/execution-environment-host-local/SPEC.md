@@ -284,7 +284,7 @@
 
 ### 持久终端
 
-采用范围是 #421 修订 6 的普通每获取 TerminalFacility。`retain` 与跨获取附着不在本增量。终端只在 Linux、systemd 用户管理器与 cgroup v2 可用时启动，另需 `/bin/bash`、`/usr/bin/mkfifo` 和可加载的 node-pty 1.1.0。前提缺少时 `create` 返回 `unavailable`，`terminalUnavailable` 诊断给出具体项。`describe` 合并这些前提与原文件、命令前提。
+采用范围是 #421 修订 6 的 TerminalFacility，包括普通每获取终端，以及 [R2-D37](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6579990443) 批准的 Session 保留终端。终端只在 Linux、systemd 用户管理器与 cgroup v2 可用时启动，另需 `/bin/bash`、`/usr/bin/mkfifo` 和可加载的 node-pty 1.1.0。前提缺少时 `create` 返回 `unavailable`，`terminalUnavailable` 诊断给出具体项。`describe` 合并这些前提与原文件、命令前提。
 
 每次获取有独立的终端表。`create` 在账本 `plan` 记录后准备 scope 与 gate，在 `permit` 确认后才发送 GO 创建 shell。创建结果丢失或超时保持 `unknown`，原 scope 仍由原获取承担。引用包含随机身份与代。其他获取的引用或错误代返回 `notFound`。
 
@@ -303,6 +303,20 @@ node-pty 只提供 PTY fork 和原始描述符。门采用 1.1.0 的原生接口
 提供者选项 `terminal` 与插件配置 `terminal` 同形。命令已有的六个界值也适用于终端，初值相同。另有 `maxControlBytes`，初值 1 MiB，约束控制帧大小；`columns` 与 `rows` 的初值为 80 和 24。请求的 `geometry` 覆盖尺寸初值。控制上界必须容纳一块 base64 输出及 256 字节帧头。所有数值为可覆盖的实现配置，不是工具结果的产品上限。
 
 本实现是有权限的 `host_machine`，不承诺同 UID 恶意程序隔离。Bash 驱动与 scope 观察的真实覆盖见[终端测试](tests/host-terminal-recovery.spec.ts)。Windows 的协议测试通过不能证明此 Linux 路径。
+
+#### Session 保留终端
+
+`create({ retain: 'session' })` 要求获取时已经给出真实的 retention scope、独立 retention ledger 与封闭信号。缺绑定时答 `unsupported`，不使用普通获取账本替代。可信 Session 绑定与耐久账本由装配方供给，本成员不合成这些事实。
+
+责任域保存保留索引。索引区分租户、完整保留范围、配额域、提供者名称/代/版本与宿主进程实例。创建在首个异步之前保留恢复坐标和容量。Linux 在 retention ledger 的 plan/permit 确认后才启动 scope gate，启动准备、GO 及完成后都复核封闭状态。零附着、启动未知和停止未确认的资源继续可枚举。`terminal.retainedCapacity` 显式配置该责任域的保留容量，初值 64，必须是正安全整数。未确认的预留仍占容量，满额答 `busy`。
+
+创建获取自动附着。另一次获取通过 `attach` 使用同一 shell，逐次操作仍经登记表当前授权与原 origin 门。附着不授予后续许可。普通终端继续只归原获取。跨范围、跨环境代和错误终端代统一答 `notFound`。`detach` 永久封闭当前获取与该终端的关系，重复 attach 答 `closed`。列表只包含当前获取创建或仍附着的终端。
+
+同一保留终端一次只接纳一段执行。占位发生在首个 await 前，竞争答 `busy`。每段用当前获取账本 plan/permit，在许可前不发送脚本。段完成后的 stopped 记账失败仍是当前获取的清理责任。detach 与获取释放只收尾自己的段，不能停止别的获取的段。强停需要结束 shell 时保留其 invalid 状态，不重建 shell。
+
+获取释放永久封住原门面，并解除本获取附着。空闲保留 shell 继续由 retention ledger 持有。scope 回收与提供者退役封住整个终端并停止所有所属资源。监督停止与 stopped 记账均确认后才移除待处置责任；否则资源继续枚举，返回 pending。跨进程恢复只停止原资源，不恢复附着、输出或执行权。
+
+共享索引与交错验证见 [host-terminal-retention.spec.ts](tests/host-terminal-retention.spec.ts)。Linux 真件验证见 [host-terminal-recovery.spec.ts](tests/host-terminal-recovery.spec.ts)。两种证据分别报告，Windows 平台接口接线不代表真实 ConPTY 已验证。
 
 ### 撤除顺序
 
