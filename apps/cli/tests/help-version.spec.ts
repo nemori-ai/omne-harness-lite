@@ -9,10 +9,12 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  symlinkSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { builtDist, createSandbox, runCli, type Sandbox } from './support/cli-process.ts'
 import { expectedHelp, expectedVersion, identityFailure } from './support/expected.ts'
@@ -30,9 +32,14 @@ afterEach(() => {
   sandbox.remove()
 })
 
+const packageModules = fileURLToPath(new URL('../node_modules', import.meta.url))
+
+// The copy sits outside the repository. The build imports the SDK, so the sandbox gets a link to the
+// package's `node_modules`: Node finds the SDK there, as it does beside the real build.
 function copyDist(): string {
   const copy = join(sandbox.root, 'copied-dist')
   cpSync(builtDist, copy, { recursive: true })
+  symlinkSync(packageModules, join(sandbox.root, 'node_modules'), 'junction')
   return copy
 }
 

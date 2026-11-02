@@ -6,12 +6,14 @@ This package holds the unique Cordis service definitions of the Agent capability
 
 The `./cordis` entry exports these items:
 
-- 20 abstract Services and the concrete `AgentInstancesService`, with 21 key constants.
-- The `Context` augmentation for the 21 keys, and the `agent-cordis-contract/instance-retired` event in `Events`.
+- 21 abstract Services and the concrete `AgentInstancesService`, with 22 key constants.
+- The `Context` augmentation for the 22 keys, and the `agent-cordis-contract/instance-retired` event in `Events`.
 - The interface `AgentPublicationAuthority`.
 - The directory plugin `agentInstancesPlugin`.
 
-The root entry exports no value. It exports three types: `AgentLocalRoute`, `AgentRegistrationInput`, and `AgentWithdrawalInput`. The root entry has no edge to Cordis.
+The root entry exports no value. It exports five types: `AgentLocalRoute`, `AgentRegistrationInput`, `AgentWithdrawalInput`, `AgentInstanceSlotInput`, and `AgentInstanceProvision`. The root entry has no edge to Cordis.
+
+The `./testing` entry exports a non-durable in-memory double of `AgentInstanceProvision` and its conformance suite. The double does not import Cordis.
 
 The directory plugin `agentInstancesPlugin` provides the `agentInstances` key. The package does not implement the Agent progression Loop, the evaluator, a provider for any other service key, or the host plugin. The host plugin belongs to [agent-host-local](../agent-host-local/README.md). No run-time verification with a real provider exists.
 

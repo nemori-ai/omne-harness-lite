@@ -1,4 +1,12 @@
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -28,6 +36,13 @@ it.each(['local', 'runner'])(
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-python-legacy-')))
     roots.push(root)
     put(root, 'package.json', readFileSync(join(repository, 'package.json'), 'utf8'))
+    // 根脚本 test:python 经运行名额。这里放一个只打已持有标记再执行命令的替身，用例不去占真实的机器级名额。
+    put(
+      root,
+      'scripts/with-test-slot.sh',
+      '#!/usr/bin/env bash\nOMNE_TEST_SLOT_HELD=stub exec "$@"\n',
+    )
+    chmodSync(join(root, 'scripts/with-test-slot.sh'), 0o755)
     put(root, 'pytest.ini', '[pytest]\ntestpaths = tools/spec-tools/tests\n')
     for (const path of [
       'tools/spec-tools/tests',

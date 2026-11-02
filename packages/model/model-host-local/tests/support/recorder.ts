@@ -28,6 +28,8 @@ export type RecordRefusal =
   | Readonly<{ kind: 'no-receipt' }>
   | Readonly<{ kind: 'terminations'; count: number }>
   | Readonly<{ kind: 'reasoning-state-missing' }>
+  /** The case asked for a tool call, and the reply holds none. */
+  | Readonly<{ kind: 'tool-call-missing' }>
   | Readonly<{ kind: 'secret'; patterns: readonly SecretPattern[] }>
 
 export type RecordOutcome =
@@ -47,6 +49,8 @@ export type RecordInput = Readonly<{
   name: string
   request: FixedModelRequest
   requiresReasoningState: boolean
+  /** The reply must hold a tool call, or the recorder writes nothing. Default: not required. */
+  requiresToolCall?: boolean
   gateway: Gateway
   /** The root of the recordings. The recorder never replaces a recording that exists. */
   output: string
@@ -104,6 +108,10 @@ export async function recordRound(input: RecordInput): Promise<RecordOutcome> {
   )
   if (input.requiresReasoningState && !reasoningState)
     return refused({ kind: 'reasoning-state-missing' })
+  const toolCall = local.facts.some(
+    fact => fact.kind === 'block-seal' && fact.block.kind === 'tool_call',
+  )
+  if (input.requiresToolCall === true && !toolCall) return refused({ kind: 'tool-call-missing' })
 
   const note: RecordingNote = {
     model: input.request.suppliers[0].model,

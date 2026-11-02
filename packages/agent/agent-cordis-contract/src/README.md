@@ -1,10 +1,10 @@
 # src
 
-本目录承载本包的公开定义和目录服务。[index.ts](index.ts) 是根入口，[cordis.ts](cordis.ts) 是 `./cordis` 入口。本文件与 [index.md](index.md) 是文档导航，不替代行为规格。
+本目录承载本包的公开定义和目录服务。[index.ts](index.ts) 是根入口，[cordis.ts](cordis.ts) 是 `./cordis` 入口，[testing.ts](testing.ts) 是 `./testing` 入口。本文件与 [index.md](index.md) 是文档导航，不替代行为规格。
 
 ## 允许的内容
 
-TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入口 `.` 只导出类型，`./cordis` 导出 Cordis 定义。
+TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入口 `.` 只导出类型，`./cordis` 导出 Cordis 定义，`./testing` 导出实例取得的替身与符合性套件。
 
 ## 边界
 
@@ -16,14 +16,19 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 ## 本包事实
 
-[index.ts](index.ts) 导出三个类型：`AgentLocalRoute`、`AgentRegistrationInput`、`AgentWithdrawalInput`。
+[index.ts](index.ts) 导出五个类型：`AgentLocalRoute`、`AgentRegistrationInput`、`AgentWithdrawalInput`、`AgentInstanceSlotInput`、`AgentInstanceProvision`。
 
 [cordis.ts](cordis.ts) 导出：
 
-- 接口 `AgentPublicationAuthority`（宿主的同步核验，`check` 收调用方的 Cordis `Context`）和上面三个类型的再导出。
-- 20 个抽象 Service 和对应的 20 个键常量。每个类在 `static readonly provide` 写键一次，键常量取自它。`AgentInstanceHostService` 另有进程内的 `route`。
+- 接口 `AgentPublicationAuthority`（宿主的同步核验，`check` 收调用方的 Cordis `Context`）和前三个类型的再导出。
+- 21 个抽象 Service 和对应的 21 个键常量。`AgentInstanceProvisionService` 实现本包根入口的 `AgentInstanceProvision`，其余实现根契约的端口。每个类在 `static readonly provide` 写键一次，键常量取自它。`AgentInstanceHostService` 另有进程内的 `route`。
 - 具体的 `AgentInstancesService` 和键常量 `agentInstancesKey`。它是实例目录：`register`、`withdraw`、`resolve`、`connect`。状态放在构造函数的闭包里，不挂在实例属性上，因为任何能读 `ctx.agentInstances` 的插件都能读到实例属性。`register` 与 `withdraw` 是普通函数，使 Cordis 把 `this.ctx` 绑到调用方，登记随调用方 fiber 撤除。
 - 目录插件 `agentInstancesPlugin`：静态 `inject` 为 `agentPublicationAuthority` 与 `agentAccessCheck`，`Config` 是拒绝未知键的空对象。
-- `Context` 增补 21 个键，`Events` 增补 `agent-cordis-contract/instance-retired`。
+- `Context` 增补 22 个键，`Events` 增补 `agent-cordis-contract/instance-retired`。
+
+[testing.ts](testing.ts) 导出 `./testing` 入口。它不导入 Cordis、`agent` 与 `agent-host-local`：
+
+- [testing-provision.ts](testing-provision.ts)：`AgentInstanceProvision` 的非耐久内存替身 `createMemoryInstanceProvision`，含 `resolve` 与 `connect` 的目录、`setIdle` 和按保护点回收的 `reclaimIdle`。
+- [testing-provision-conformance.ts](testing-provision-conformance.ts)：符合性套件 `agentInstanceProvisionConformance` 与夹具类型。套件每个用例开一个新夹具。
 
 已知的取舍：目录保留已结束的登记记录，使迟到的旧撤除和重复的旧操作仍有答案。记录的保留期限没有规格，本版不清理。

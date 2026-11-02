@@ -204,7 +204,7 @@ describe('a directory entry whose domain is not the domain of its tenant', () =>
         ...domain,
         combinationVersion: 'c1',
         manifestDigest: 'a'.repeat(64),
-        participants: ['session'],
+        participants: ['execution-record', 'session'],
       })
       resident(a, 'dom_unminted', TENANT_B, 's9', 'k', 'cap')
       a.provider.seed('dom_unminted', 'UPDATE sl_resident_idx SET tenant = ? WHERE session = ?', [

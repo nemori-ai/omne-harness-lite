@@ -49,8 +49,10 @@ it('exports only the abstract Services, their unique keys and scope metadata key
     [
       'RuntimeContextService',
       'RuntimeContextTrustService',
+      'RuntimeContextReaderEligibilityService',
       'runtimeContextKey',
       'runtimeContextTrustKey',
+      'runtimeContextReaderEligibilityKey',
       'runtimeContextScopeKey',
     ].sort(),
   )

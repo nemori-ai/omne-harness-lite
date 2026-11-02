@@ -96,6 +96,8 @@ export function migrationDecision(
   const write = new Set(ownedTables)
   const read = new Set([...ownedTables, ...requiredTables])
   const functions = functionSet([])
+  // Index names that SQLITE_CREATE_INDEX allowed in this migration; only those may be reindexed.
+  const createdIndexes = new Set<string>()
   return (action, arg1, arg2) => {
     switch (action) {
       case C.SQLITE_SELECT:
@@ -109,12 +111,21 @@ export function migrationDecision(
       case C.SQLITE_UPDATE:
       case C.SQLITE_DELETE:
         return arg1 !== null && (write.has(arg1) || INTERNAL_TABLES.has(arg1))
-      case C.SQLITE_CREATE_INDEX:
+      case C.SQLITE_CREATE_INDEX: {
+        const allowed = arg2 !== null && write.has(arg2)
+        if (allowed && arg1 !== null) createdIndexes.add(arg1)
+        return allowed
+      }
       case C.SQLITE_DROP_INDEX:
       case C.SQLITE_CREATE_TRIGGER:
       case C.SQLITE_DROP_TRIGGER:
       case C.SQLITE_ALTER_TABLE:
         return arg2 !== null && write.has(arg2)
+      // CREATE INDEX also raises SQLITE_REINDEX with the index name after the CREATE_INDEX action
+      // judged the owner table. Allow only names that action allowed, so a REINDEX statement on
+      // another owner's index or table stays denied.
+      case C.SQLITE_REINDEX:
+        return arg1 !== null && createdIndexes.has(arg1)
       case C.SQLITE_FUNCTION:
         return arg2 !== null && functions.has(arg2.toLowerCase())
       default:

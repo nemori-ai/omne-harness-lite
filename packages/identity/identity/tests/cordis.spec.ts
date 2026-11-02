@@ -25,13 +25,15 @@ afterEach(async () => {
   await Promise.all(disposers.splice(0).map(dispose => dispose()))
 })
 
-it('exports four service definitions and their keys from ./cordis', () => {
+it('exports five service definitions and their keys from ./cordis', () => {
   expect(Object.keys(entry).sort()).toEqual(
     [
+      'IdentityClockService',
       'IdentityOperationsService',
       'PrincipalIssuerService',
       'PrincipalVerifierService',
       'TenantStandingSourceService',
+      'identityClockKey',
       'identityOperationsKey',
       'principalIssuerKey',
       'principalVerifierKey',

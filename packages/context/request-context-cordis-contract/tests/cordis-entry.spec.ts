@@ -1,7 +1,9 @@
 import { Context } from '@deepseek-ai/cordis'
 import { expect, it } from 'vitest'
 import {
+  ContextHolderSourcesService,
   RequestContextService,
+  contextHolderSourcesKey,
   requestContextKey,
 } from '@omne-harness/request-context-cordis-contract/cordis'
 import { createAssemblyFixture } from '@omne-harness/request-context-contract/testing'
@@ -22,13 +24,17 @@ function current(ctx: Context, scope: ScopeRef | null) {
 }
 it('exports only the Service definitions and their derived keys', async () => {
   expect(requestContextKey).toBe(RequestContextService.provide)
+  expect(contextHolderSourcesKey).toBe(ContextHolderSourcesService.provide)
+  expect(contextHolderSourcesKey).toBe('contextHolderSources')
   expect(
     Object.keys(await import('@omne-harness/request-context-cordis-contract/cordis')).sort(),
   ).toEqual([
     'ContextAccountingInboxService',
+    'ContextHolderSourcesService',
     'RequestContextService',
     'RequestContextTrustService',
     'contextAccountingInboxKey',
+    'contextHolderSourcesKey',
     'requestContextKey',
     'requestContextTrustKey',
   ])

@@ -6,7 +6,8 @@
 
 - [README.md](README.md)：源码目录的职责与现状
 - [index.ts](index.ts)：根入口，现在只有模板标记，没有导出
-- [cordis.ts](cordis.ts)：`./cordis` 入口，导出 `RequestContextProvider`，配置 Schema 尚未进入
+- [cordis.ts](cordis.ts)：`./cordis` 入口，导出 `RequestContextProvider`
+- [config.ts](config.ts)：插件配置的 Standard Schema 与两个策略的选择，只被 `cordis.ts` 引用，不是公开入口
 
 ## 阅读路径
 

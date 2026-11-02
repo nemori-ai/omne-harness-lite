@@ -145,7 +145,7 @@ sequenceDiagram
 
 主体、租户、Session、Run、attempt、原操作与当前动作的参数都显式传入。固定定义归装配，固定请求归生产者与 Agent 的执行记录。Session 只保存指向它们的耐久证据。Session 不保存接续值，只保存指向 Agent 权威记录的 `ExecutionRef`（[值与结果项的约束](../SPEC.md#值与结果项的约束)）。当前权限由参加者在提交时或实际发起点核对。
 
-本成员声明八个构造依赖端口与两个出站端口（`AgentDrivePort`、`ScopeReleasePort`）。`SessionAccessCheck`、`SessionTransactionPort` 与内部主体是必需依赖；访问检查类型与独立测试替身已导出，实际执行处检查及必需工厂接入尚未完成。其余端口按调用现取，缺席只使需要它的操作不可用，见[端口表](../SPEC.md#构造依赖端口与出站端口)。Context 与 Fiber 不进入业务数据契约。
+本成员声明八个构造依赖端口与两个出站端口（`AgentDrivePort`、`ScopeReleasePort`）。Session 服务实例的必需依赖是 `SessionAccessCheck`、委派入口 `SessionDelegatedTransactions`、内部主体与会话工作主体 `SessionWorkPrincipals`；`SessionTransactionPort` 只为 `pending`、`references` 与 `releasedScopes` 按调用现取；访问检查类型与独立测试替身已导出，实际执行处检查及必需工厂接入尚未完成。其余端口按调用现取，缺席只使需要它的操作不可用，见[端口表](../SPEC.md#构造依赖端口与出站端口)。Context 与 Fiber 不进入业务数据契约。
 
 本成员没有公开的 `append(events)`，也没有直接修改推进布尔值的方法。同日志中由 EC-01 解释的 Agent 事实须经精确 schema、执行身份与序号核对。未知 JSON 不能得到可信结论。生产者事实同样核对原来源，任意调用方不能自报工具完成或 Model ACK。
 

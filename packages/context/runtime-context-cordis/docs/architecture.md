@@ -2,23 +2,23 @@
 
 本页说明本成员怎样组织两个入口与依赖，来兑现 [SPEC](../SPEC.md)。插件、配置、isolate、撤除与唤醒的正文归 [Cordis 说明](cordis.md)。机制归 [runtime-context](../../runtime-context/docs/architecture.md)。组内八个成员的分解与依赖方向归[组架构](../../docs/architecture.md)。本页不另立公共规则。
 
-本成员只实现了信任输入插件 `createRuntimeContextPlugin`（`src/cordis.ts`）；`src/index.ts` 为空。下文是 SPEC 固定的结构，文件名由实现确定。
+`src/cordis.ts` 实现具体子类 `RuntimeContextProvider` 与插件入口 `createRuntimeContextPlugin`；`src/index.ts` 为空。
 
 ## 模块与依赖
 
 | 入口 | 源文件 | 承载 | 现状 |
 | --- | --- | --- | --- |
-| `@omne-harness/runtime-context-cordis` | `src/index.ts` | 不导出任何东西（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。独立路径从 runtime-context 取机制工厂 | 模板标记 |
-| `@omne-harness/runtime-context-cordis/cordis` | `src/cordis.ts` | `RuntimeContextService` 的具体子类、插件与配置 Schema | 模板标记 |
+| `@omne-harness/runtime-context-cordis` | `src/index.ts` | 不导出任何东西（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。独立路径从 runtime-context 取机制工厂 | 空导出 |
+| `@omne-harness/runtime-context-cordis/cordis` | `src/cordis.ts` | `RuntimeContextService` 的具体子类、插件入口与配置 Schema | 已实现 |
 
 `./cordis` 内部按 Cordis 责任分成四块：
 
 | 模块 | 职责 | 依据 |
 | --- | --- | --- |
-| 配置 | 静态 `Config` 的 Standard Schema，观察链保留上限、来源调用与回调的超时、诊断级别 | [Cordis 说明的配置](cordis.md#配置) |
-| 服务子类 | 持有机制实例，三面操作转给它；`bind` 取 intercept 配置做一致性核对；`registerProducer` 登记效应，撤除只移除本代 | 性质 2、3 |
-| 唤醒派发 | 机制经变化出口回调本模块，带 filter 派发载荷为作用域引用与视图修订的事件，捕获监听者失败 | 性质 4 |
-| 撤除 | 一个 effect 内完成拒绝新请求、结束读者、取消在途调用、限时等在途读取、关闭机制实例 | 性质 6 |
+| 配置 | 静态 `Config` 的 Standard Schema：七个上限与诊断级别；上限由 runtime-context 的解析函数判定 | [Cordis 说明的配置](cordis.md#配置) |
+| 服务子类 | 在构造函数闭包里持有机制实例，八个操作转给它；`bind` 取 intercept 配置交机制比较；`registerProducer` 在调用方 fiber 登记效应，调用方已卸载时撤除并答 `closed` | 性质 2、3、9 |
+| 唤醒派发 | 机制经变化出口回调本模块，带 filter 派发载荷为作用域引用与视图修订的事件；监听者失败回到机制的出口保护 | 性质 4 |
+| 撤除 | 一个 effect 调用机制的 `close()`，五步在机制里按顺序完成 | 性质 6 |
 
 ```mermaid
 flowchart LR
@@ -33,11 +33,12 @@ flowchart LR
 包外依赖：
 
 - `@omne-harness/runtime-context-contract`：类型，只由 `./cordis` 使用。
+- `@omne-harness/legal-identity`：只在测试里用于构造租户，是开发依赖。
 - `@omne-harness/runtime-context-cordis-contract`：抽象类、键与事件增补，只由 `./cordis` 使用。
 - `@omne-harness/runtime-context`：机制工厂，只由 `./cordis` 使用。
 - `@deepseek-ai/cordis`：只由 `./cordis` 使用。
 
-现在 `package.json` 只列出 `@deepseek-ai/cordis`，其余三项随实现进入。本成员不导入任何上层领域的契约（性质 7）。没有包应依赖本成员的 `./cordis` 来调用三面操作。消费者依赖服务定义，提供者选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
+本成员不导入任何上层领域的契约（性质 7）。没有包应依赖本成员的 `./cordis` 来调用三面操作。消费者依赖服务定义，提供者选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 
 根入口不导出任何东西，Cordis 绑定只在 `./cordis` 加上。同一份机制工厂只有一个公开名字，就是 runtime-context 的根入口；不装配 Cordis 的独立调用方从那里取工厂，那时没有 intercept 配置，`bind` 的消费者类取自读取资格（[SPEC 范围与依据](../SPEC.md#范围与依据)）。
 
@@ -45,9 +46,17 @@ flowchart LR
 
 ### 撤除放在一个 effect 里
 
-撤除有严格次序：先拒绝新请求，再结束读者、等在途读取，最后关闭机制实例。Cordis 卸载 fiber 时，不同 effect 的撤除函数并发运行（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。所以四步必须写在一个 effect 里按顺序 `await`，不能各注册一个 effect。
+撤除有严格次序：先拒绝新请求，再结束读者、取消在途等待、限时等在途操作，最后释放表。Cordis 卸载 fiber 时，不同 effect 的撤除函数并发运行（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。所以本插件只登记一个 effect，它调用机制的 `close()`，五步在机制的一个函数里按顺序完成。
 
-代价：撤除函数里的一步抛出时，Cordis 只记日志，不上抛。撤除函数要自己捕获每一步，并保证后续步骤仍然执行。
+理由：关闭顺序是机制的行为，独立调用方也需要它。放在机制里，Cordis 提供者与独立路径共用一份。
+
+### 机制实例只在闭包里
+
+Cordis 交给调用方的是扩展后的服务实例。`#private` 字段经它会失败，普通字段会让任何调用方绕过 `bind` 的比较直接拿到机制。所以机制实例只存在于构造函数的闭包里。需要调用方上下文的两个操作（`registerProducer` 与 `bind`）写成以 `this` 为调用方实例的函数属性，其余六个操作直接转发。
+
+### 调用方在登记中卸载
+
+`registerProducer` 在第一次 `await` 之前取调用方上下文。机制答已登记之后才登记效应。等待期间调用方 fiber 可能已经卸载，这时 `effect` 抛出。本插件捕获它，立即撤除这次登记并答拒收（`closed`）。理由：没有效应能拥有这次登记，留下它会占住该租户加块键的槽，直到本插件关闭，别的生产者身份都被拒绝（评审 N1）。
 
 ### 消费者类每次调用时读取
 
@@ -75,9 +84,9 @@ flowchart LR
 
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |
-| 根入口为空 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出 | 实现进入后仍断言根入口没有导出 |
-| `./cordis` 只有本成员的插件 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言入口只导出 `createRuntimeContextPlugin` | 实现进入后，核对导出集合 |
-| SPEC 的六项验证义务 | 没有 | 见 [Cordis 说明的验证义务](cordis.md#验证义务) |
+| 根入口为空 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出 | 保持 |
+| `./cordis` 只有本成员的子类与插件入口 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 核对导出集合与继承关系 | 新增导出时同步测试 |
+| SPEC 的验证义务 | [conformance.spec.ts](../tests/conformance.spec.ts)、[lifecycle.spec.ts](../tests/lifecycle.spec.ts)、[trust-inject.spec.ts](../tests/trust-inject.spec.ts) | 见 [Cordis 说明的验证义务](cordis.md#验证义务) |
 
 维护规则：
 

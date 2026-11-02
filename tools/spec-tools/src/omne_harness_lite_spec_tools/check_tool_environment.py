@@ -9,6 +9,14 @@ import zipfile
 
 from .doc_support import digest
 
+# The release asset digest pins the exact JAR; the manifest version alone does not identify the build.
+PINNED_JARS = {
+    "TLA2TOOLS_JAR": (
+        "tla2tools v1.7.4 (https://github.com/tlaplus/tlaplus/releases/tag/v1.7.4)",
+        "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88",
+    ),
+}
+
 
 def main():
     missing = False
@@ -28,8 +36,13 @@ def main():
         if not os.environ.get(variable) or not path.is_file() or not zipfile.is_zipfile(path):
             print(f"MISSING: {variable} must point to an installed tool JAR.")
             missing = True
-        else:
-            print(f"FOUND: {variable}={path.resolve()} sha256={digest(path)}")
+            continue
+        found = digest(path)
+        print(f"FOUND: {variable}={path.resolve()} sha256={found}")
+        pinned = PINNED_JARS.get(variable)
+        if pinned and found != pinned[1]:
+            print(f"MISMATCH: {variable} must be {pinned[0]} with sha256={pinned[1]}.")
+            missing = True
     print("NOTE: environment readiness does not execute TLC/Alloy or establish model coverage.")
     return 1 if missing else 0
 

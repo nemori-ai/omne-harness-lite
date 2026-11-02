@@ -103,7 +103,7 @@ pnpm run check:formal-tools
 
 Java、TLC、Alloy的查找路径、JAR及环境变量归[环境与实际执行](verification.md#环境与实际执行)。本地已有安装不代表新工作树、cloud镜像或CI具备同一环境；非登录shell须显式传入所需变量。
 
-`pnpm run check:formal-tools`只检查环境，`pnpm run check:design`只检查设计材料结构和登记，二者都不执行模型。实际模型命令从所属规格及验证资源读取，记录工具、输入和范围；环境缺失、模型未覆盖与执行失败分别报告。
+`pnpm run check:formal-tools`只检查环境，`pnpm run check:design`只检查设计材料结构和登记，二者都不执行模型。环境检查还比对`TLA2TOOLS_JAR`的sha256。它只接受钉住的tla2tools v1.7.4发布文件，钉值在`tools/spec-tools`的`check_tool_environment.py`的`PINNED_JARS`，Alloy的JAR只报告摘要、不钉版本。文件不同时，检查报`MISMATCH`并退出1。实际模型命令从所属规格及验证资源读取，记录工具、输入和范围；环境缺失、模型未覆盖与执行失败分别报告。
 
 ### 格式化
 
@@ -271,7 +271,7 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 | 文档文字、链接与锚点 | `pnpm run check:docs`；变动涉及应有文件、必要章节或占位时，加`pnpm run docs:inventory`并阅读缺项和unknown |
 | skills、roles、生成输入或宿主适配 | `pnpm run check:agents`；改变工具行为时运行受影响工具测试。源与生成一致不证明宿主发现、加载或模型遵循 |
 | 产品topic、统一语言、领域对象或设计登记 | `pnpm run check:design`；本地待复核队列可用`pnpm run check:design --stale report`。需要模型证据时另行执行实际模型 |
-| 检查器、生成器或自动化行为 | 对受影响工具运行测试；`pnpm run test:python`是Python工具与生成链的组合入口，TS工具沿所属成员测试。`test:python`用pytest-xdist分进程运行，进程数由`.meta_harness/tooling/tests/conftest.py`决定；设`OMNE_PYTEST_WORKERS=0`时退回单进程，设正整数时用该进程数 |
+| 检查器、生成器或自动化行为 | 对受影响工具运行测试；`pnpm run test:python`是Python工具与生成链的组合入口，TS工具沿所属成员测试。`test:python`经运行名额运行（名额被占时排队，等待超时退出75），用pytest-xdist分进程运行，进程数由`.meta_harness/tooling/tests/conftest.py`决定；设`OMNE_PYTEST_WORKERS=0`时退回单进程，设正整数时用该进程数 |
 | TS或JS源码、测试、配置 | `pnpm format:check`及受影响构建、类型检查和测试；读取或修改TS时加载[pstack TypeScript方法](engineering/skills.md#pstack-方法入口) |
 | 产品行为或公开入口 | 运行受影响快慢层及适用公开消费、组合或验收；构建和类型检查按计划选择，公开入口变化不自动等于全仓检查 |
 | 租户、权限、并发、恢复或资源生命周期 | 从[架构质量场景](architecture/assurance.md#系统级代表场景)和实际契约选行为、故障或交错验证。单组件通过不能代替跨边界责任闭合 |
@@ -478,7 +478,7 @@ gh pr create --base main --head <自己的工作分支> \
 | `cannot locate repository` | 切到受检仓库内，或给 CLI 传明确的 `--root`；安装位置不代表受检位置 |
 | 链接、技能镜像或 agent 产物检查失败 | 修正源及其引用，按编译工具更新产物；**不要手改镜像或移出检查范围掩盖错误** |
 | `UNCOVERED` | 尚无相应模型任务——那是覆盖缺口，不是失败 |
-| 形式工具检查失败 | `pnpm run check:formal-tools` 看 Java/JAR 是否就位；缺环境、覆盖缺口与执行失败是三件事 |
+| 形式工具检查失败 | `pnpm run check:formal-tools` 看 Java/JAR 是否就位；输出`MISMATCH`表示`TLA2TOOLS_JAR`不是钉住的v1.7.4发布文件；缺环境、覆盖缺口与执行失败是三件事 |
 | `No projects matched the filters` | 核对 `pnpm-workspace.yaml` 和成员 `package.json` 的实际包名；应用包括 `@omne-harness/cli`、`@omne-harness/tenancy-host` |
 | `storage conformance · postgres` 显示 skipped | 未设 `OMNE_TEST_PG_URL`；跳过不是通过（[验证与证据](verification.md)） |
 | 不知道如何启动产品 | 先构建，再按 [CLI](../apps.0.0.1.legacy/cli/README.md) 或 [治理中心](../apps.0.0.1.legacy/tenancy-host/README.md) 的命令启动；制品打包不自动安装或发布服务 |

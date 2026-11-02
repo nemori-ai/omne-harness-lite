@@ -27,10 +27,10 @@
 
 ### 两条组装入口
 
-| 入口 | 适用场景 | 来源与策略怎样到达 |
-| --- | --- | --- |
+| 入口                                                                                                                                           | 适用场景                                                       | 来源与策略怎样到达                                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | 托管入口：[request-context-cordis-contract](../../request-context-cordis-contract/docs/cordis.md#服务定义) 的 `register` 与 `assembly(target)` | 装配了 Cordis 的系统。贡献从登记面现取，策略按提供者的配置选定 | 来源适配者以 `register` 按目标登记来源集合，登记挂在它的 fiber 上。调用方每次只交 `AssemblyCall` |
-| 独立入口：本成员的 `createAssemblyOperations`，或 [request-context](../../request-context/SPEC.md) 的 `createContextSourceRegistry` | 不装配 Cordis 的调用方 | 来源集合与两个策略在构造或登记时给出，贡献集合由第四组读口给出 |
+| 独立入口：本成员的 `createAssemblyOperations`，或 [request-context](../../request-context/SPEC.md) 的 `createContextSourceRegistry`            | 不装配 Cordis 的调用方                                         | 来源集合与两个策略在构造或登记时给出，贡献集合由第四组读口给出                                   |
 
 窗口占用的账目投影由 [request-context](../../request-context/SPEC.md) 的 `createContextAccounting` 提供，结果接收方经 `receive` 交已提交的原账目，供块方经 `usage` 读取（[RQ-14](../SPEC.md#rq-14-窗口占用与账目收到)）。
 
@@ -60,15 +60,15 @@ flowchart LR
 
 ### 邻域交接
 
-| 邻域 | 它对本成员是什么 | 怎样交接 | 本成员给什么、要什么 |
-| --- | --- | --- | --- |
-| 协调者 | 发起方。固定最终请求，执行压缩步，保存计划进度与采用事实 | 经适配器以 `AssemblyCall` 调用 `assemble`、`planCompaction`、`deriveStep`、`resume`；适配器为其余六组实现组读口并登记来源集合（[RQ-13](../SPEC.md#rq-13-七组的稳定读取)） | 给四种结局、覆盖证据、计划与步请求、压缩转换。要调用身份、各组读口与步结果 |
-| 历史持有者 | 历史、压缩记录与未结工作的拥有者 | 实现 `HistorySource`。与协调者一起提交压缩转换。调用 `projectForHuman` | 给人侧投影与压缩转换的材料。要 epoch 视图、前缀摘要与未结工作集合 |
-| Runtime Context | 模型侧读取结果的来源 | 协调者一侧以模型类资格读取，经第三组读口交给操作组，读计数、读来源、再读计数。本成员不直接读 Runtime Context | 要读取结果、块材料与块的 `volatility`，见 [runtime-context-contract](../../runtime-context-contract/docs/context.md) |
-| Model | 档案、限制、计量与转换件结果的提供方，请求准备与发出的拥有者 | 选定模型由协调者传入。Model 准备资源与转换件结果读口随来源集合登记或绑定（[RQ-12](../SPEC.md#rq-12-来源集合与登记面)），每份候选经租约按供应商计量（[RQ-05](../SPEC.md#rq-05-完整预算与候选完成)） | 给 Model 的工具声明与历史模态约束。候选交 Model 准备成固定请求的一步归协调者 |
-| Tool | 工具定义、绑定与可编程许可的拥有者 | 协调者一侧经装配求值，经第六组读口交给操作组 | 给直接集合与脚本可调用集合。声明投影不是执行授权 |
-| 贡献者 | 提示词贡献的拥有者 | 在 [request-context-cordis-contract](../../request-context-cordis-contract/README.md) 的登记面登记 | 要有序段与变量两类贡献 |
-| 扩展位置 | 调模型之前位置的经过与改写 | 协调者一侧把改写依据与经过经第七组读口交给操作组 | 重组装并复核，前缀变化原因可见 |
+| 邻域            | 它对本成员是什么                                             | 怎样交接                                                                                                                                                                                           | 本成员给什么、要什么                                                                                                 |
+| --------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 协调者          | 发起方。固定最终请求，执行压缩步，保存计划进度与采用事实     | 经适配器以 `AssemblyCall` 调用 `assemble`、`planCompaction`、`deriveStep`、`resume`；适配器为其余六组实现组读口并登记来源集合（[RQ-13](../SPEC.md#rq-13-七组的稳定读取)）                          | 给四种结局、覆盖证据、计划与步请求、压缩转换。要调用身份、各组读口与步结果                                           |
+| 历史持有者      | 历史、压缩记录与未结工作的拥有者                             | 实现 `HistorySource`。与协调者一起提交压缩转换。调用 `projectForHuman`                                                                                                                             | 给人侧投影与压缩转换的材料。要 epoch 视图、前缀摘要与未结工作集合                                                    |
+| Runtime Context | 模型侧读取结果的来源                                         | 协调者一侧以模型类资格读取，经第三组读口交给操作组，读计数、读来源、再读计数。本成员不直接读 Runtime Context                                                                                       | 要读取结果、块材料与块的 `volatility`，见 [runtime-context-contract](../../runtime-context-contract/docs/context.md) |
+| Model           | 档案、限制、计量与转换件结果的提供方，请求准备与发出的拥有者 | 选定模型由协调者传入。Model 准备资源与转换件结果读口随来源集合登记或绑定（[RQ-12](../SPEC.md#rq-12-来源集合与登记面)），每份候选经租约按供应商计量（[RQ-05](../SPEC.md#rq-05-完整预算与候选完成)） | 给 Model 的工具声明与历史模态约束。候选交 Model 准备成固定请求的一步归协调者                                         |
+| Tool            | 工具定义、绑定与可编程许可的拥有者                           | 协调者一侧经装配求值，经第六组读口交给操作组                                                                                                                                                       | 给直接集合与脚本可调用集合。声明投影不是执行授权                                                                     |
+| 贡献者          | 提示词贡献的拥有者                                           | 在 [request-context-cordis-contract](../../request-context-cordis-contract/README.md) 的登记面登记                                                                                                 | 要有序段与变量两类贡献                                                                                               |
+| 扩展位置        | 调模型之前位置的经过与改写                                   | 协调者一侧把改写依据与经过经第七组读口交给操作组                                                                                                                                                   | 重组装并复核，前缀变化原因可见                                                                                       |
 
 ### 字段对应
 
@@ -78,74 +78,74 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 
 #### `RequestPreparation.prepare` 的输入
 
-| Agent 字段 | 进入的组或 `AssemblyCall` 的位置 | 适配器做什么 |
-| --- | --- | --- |
-| `principal`、`tenant` | 组一：访问身份。托管读取带租户 | 原样传入 |
-| `advance` | 不进入 | 适配器核对执行挂接仍有效。已被取代时直接返回 `stale-advance`，不调用本成员 |
-| `action` | 组一：候选身份 | 用作候选身份。同一候选身份至多进入一个计划，见下文[对不上的字段](#对不上的字段) |
-| `purpose` | 组一：用途 | `main` 译为主请求，`extension` 译为扩展用途。类型已排除 `compaction`：步请求不经组装 |
-| `position` | 组一：消费位置 | 作为不透明引用传入 |
-| `history` | 组二：历史依据 | 经历史持有者的可信读取适配器解析为 `HistoryEvidence`，即 epoch 与上界 |
-| `inputs` | 组二：新输入批 | 批身份、水位线与有序输入引用。本成员要求这批输入已可靠保存 |
-| `context` | 组三：读取结果 | `content` 译为完整或增量，`source` 与 `coverage` 译为来源与覆盖证据。`recipient` 必须等于 `selection.recipient` |
-| （无） | 组三：上一次已采用的覆盖、压缩转换依据 | 取自适配器服务的那次 `ModelContextReader.read` 的 `adopted` 与 `transition` |
-| （无） | 组四：提示词贡献与组装上下文 | 贡献从登记面取得。组装上下文没有对应字段 |
-| `selection` | 组五：模型侧 | `recipient` 译为实际收件模型，`resolution` 译为已解析档案（含输入模态、窗口与限制），`parameters` 译为参数，`tools` 与 `evidence` 译为工具证据与来源证据 |
-| （无） | 组六：工具侧 | 没有直接字段 |
-| `conditions` | 组七：条件证据的投影 | 整体作为证据传入。其中的 `context` 只是条件依据的引用，不含块内容 |
-| `previous` | 组七：上一次准备 | 不参与「同输入」比较 |
-| `alterations` | 组七：扩展改写依据 | 原样传入 |
-| `beforeModelCall` | 组七：调模型之前位置的经过 | `null` 表示尚未经过，数组表示已经经过 |
+| Agent 字段            | 进入的组或 `AssemblyCall` 的位置       | 适配器做什么                                                                                                                                                                                     |
+| --------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `principal`、`tenant` | 组一：访问身份。托管读取带租户         | 原样传入                                                                                                                                                                                         |
+| `advance`             | 不进入                                 | 适配器不核对执行挂接。保护点在 Agent 的 Journal 写入：已被取代的挂接准备出的请求记录不下来。代价与触发条件见 agent-context 的已知限制 [STALE-ADVANCE-PORT](../../agent-context/SPEC.md#已知限制) |
+| `action`              | 组一：候选身份                         | 用作候选身份。同一候选身份至多进入一个计划，见下文[对不上的字段](#对不上的字段)                                                                                                                  |
+| `purpose`             | 组一：用途                             | `main` 译为主请求，`extension` 译为扩展用途。类型已排除 `compaction`：步请求不经组装                                                                                                             |
+| `position`            | 组一：消费位置                         | 作为不透明引用传入                                                                                                                                                                               |
+| `history`             | 组二：历史依据                         | 经历史持有者实现的历史依据解析端口 `HistoryEvidenceResolver` 解析为 `HistoryEvidence`，即目标、epoch 与上界。端口每次调用都核本次访问身份的当前资格                                              |
+| `inputs`              | 组二：新输入批                         | 批身份、水位线与有序输入引用。本成员要求这批输入已可靠保存                                                                                                                                       |
+| `context`             | 组三：读取结果                         | `content` 译为完整或增量，`source` 与 `coverage` 译为来源与覆盖证据。`recipient` 必须等于 `selection.recipient`                                                                                  |
+| （无）                | 组三：上一次已采用的覆盖、压缩转换依据 | 取自适配器服务的那次 `ModelContextReader.read` 的 `adopted` 与 `transition`                                                                                                                      |
+| （无）                | 组四：提示词贡献与组装上下文           | 贡献从登记面取得。组装上下文没有对应字段                                                                                                                                                         |
+| `selection`           | 组五：模型侧                           | `recipient` 译为实际收件模型，`resolution` 译为已解析档案（含输入模态、窗口与限制），`parameters` 译为参数，`tools` 与 `evidence` 译为工具证据与来源证据                                         |
+| （无）                | 组六：工具侧                           | 没有直接字段                                                                                                                                                                                     |
+| `conditions`          | 组七：条件证据的投影                   | 整体作为证据传入。其中的 `context` 只是条件依据的引用，不含块内容                                                                                                                                |
+| `previous`            | 组七：上一次准备                       | 不参与「同输入」比较                                                                                                                                                                             |
+| `alterations`         | 组七：扩展改写依据                     | 原样传入                                                                                                                                                                                         |
+| `beforeModelCall`     | 组七：调模型之前位置的经过             | `null` 表示尚未经过，数组表示已经经过                                                                                                                                                            |
 
 #### `RequestPreparation.derive` 的输入
 
-| Agent 字段 | 对应 | 适配器做什么 |
-| --- | --- | --- |
-| `principal`、`tenant`、`advance` | 同 `prepare` | 同 `prepare` |
-| `original` | 计划的来源 | 由 `original.input` 重新得到触发压缩的那次调用身份。完整的计划依据随计划的压缩依据保存，`deriveStep` 不重新读取一份未绑定计划的历史 |
-| `progress` | `PlanProgress` | `plan` 译为计划身份，`bound` 译为步数上界，`completed` 译为已完成步数 |
-| `action` | 不进入本成员 | 这一步模型调用的身份归协调者 |
-| `selection` | 不进入 `deriveStep` | 适配器用它把摘要步请求交 Model 准备成固定请求 |
-| `result` | 步结果 | `null` 表示取第一步。否则 `produced` 与 `consumed` 译为摘要结果与保管依据 |
+| Agent 字段                       | 对应                | 适配器做什么                                                                                                                        |
+| -------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `principal`、`tenant`、`advance` | 同 `prepare`        | 同 `prepare`                                                                                                                        |
+| `original`                       | 计划的来源          | 由 `original.input` 重新得到触发压缩的那次调用身份。完整的计划依据随计划的压缩依据保存，`deriveStep` 不重新读取一份未绑定计划的历史 |
+| `progress`                       | `PlanProgress`      | `plan` 译为计划身份，`bound` 译为步数上界，`completed` 译为已完成步数                                                               |
+| `action`                         | 不进入本成员        | 这一步模型调用的身份归协调者                                                                                                        |
+| `selection`                      | 不进入 `deriveStep` | 适配器用它把摘要步请求交 Model 准备成固定请求                                                                                       |
+| `result`                         | 步结果              | `null` 表示取第一步。否则 `produced` 与 `consumed` 译为摘要结果与保管依据                                                           |
 
 #### `RequestPreparation.resume` 的输入
 
-| Agent 字段 | 对应 | 适配器做什么 |
-| --- | --- | --- |
-| `principal`、`tenant`、`advance` | 同 `prepare` | 同 `prepare` |
-| `original` | 原调用身份 | 由 `original.input` 重新得到原调用身份。改写依据与调模型之前位置的经过沿用 `original` 里的记录 |
-| `transition` | 组三：压缩转换依据 | 核对提交来源与原准备一致。不一致时返回 `changed`，不调用本成员 |
-| `selection` | 组五：模型侧 | 同 `prepare` |
-| `context` | 组三：读取结果 | 压缩提交之后的读取结果，同 `prepare` |
+| Agent 字段                       | 对应               | 适配器做什么                                                                                   |
+| -------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------- |
+| `principal`、`tenant`、`advance` | 同 `prepare`       | 同 `prepare`                                                                                   |
+| `original`                       | 原调用身份         | 由 `original.input` 重新得到原调用身份。改写依据与调模型之前位置的经过沿用 `original` 里的记录 |
+| `transition`                     | 组三：压缩转换依据 | 核对提交来源与原准备一致。不一致时返回 `changed`，不调用本成员                                 |
+| `selection`                      | 组五：模型侧       | 同 `prepare`                                                                                   |
+| `context`                        | 组三：读取结果     | 压缩提交之后的读取结果，同 `prepare`                                                           |
 
 #### `ModelContextReader.read` 的输入与输出
 
 这个端口读的是 Runtime Context，不调用本成员。本成员不读 Runtime Context（[RQ-02](../SPEC.md#rq-02-组装的前置输入)）。适配器经 Runtime Context 的读者面按模型类资格读取，再把结果留给紧接着的 `prepare` 或 `resume`。
 
-| Agent 字段 | 进入的组或 `AssemblyCall` 的位置 | 说明 |
-| --- | --- | --- |
-| `principal`、`tenant` | 不进入本成员 | 用于 Runtime Context 的读取资格 |
-| `advance` | 不进入 | 同 `prepare` |
-| `position` | 不进入本成员 | 这次读取服务的消费位置 |
-| `recipient` | 组五：实际收件模型 | 读取按实际收件模型过滤。收件模型变化时要重新读取 |
-| `history` | 组二：历史依据 | 与同一次准备交给 `prepare` 的历史依据相同 |
-| `adopted` | 组三：上一次已采用的覆盖 | 带快照锚点与各层锚点，见 [R4](../SPEC.md#装载布局与前缀) 与 [H3](../SPEC.md#历史源读口与-epoch-视图) |
-| `transition` | 组三：压缩转换依据 | 只在压缩提交之后的读取中给出 |
-| 输出 `ModelContextRead` | 组三：读取结果 | `content`、`source`、`coverage`、`recipient` 四项。块材料不在其中 |
+| Agent 字段              | 进入的组或 `AssemblyCall` 的位置 | 说明                                                                                                 |
+| ----------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `principal`、`tenant`   | 不进入本成员                     | 用于 Runtime Context 的读取资格                                                                      |
+| `advance`               | 不进入                           | 同 `prepare`                                                                                         |
+| `position`              | 不进入本成员                     | 这次读取服务的消费位置                                                                               |
+| `recipient`             | 组五：实际收件模型               | 读取按实际收件模型过滤。收件模型变化时要重新读取                                                     |
+| `history`               | 组二：历史依据                   | 与同一次准备交给 `prepare` 的历史依据相同                                                            |
+| `adopted`               | 组三：上一次已采用的覆盖         | 带快照锚点与各层锚点，见 [R4](../SPEC.md#装载布局与前缀) 与 [H3](../SPEC.md#历史源读口与-epoch-视图) |
+| `transition`            | 组三：压缩转换依据               | 只在压缩提交之后的读取中给出                                                                         |
+| 输出 `ModelContextRead` | 组三：读取结果                   | `content`、`source`、`coverage`、`recipient` 四项。块材料不在其中                                    |
 
 #### 结果对应
 
-| 本成员的结局 | Agent 的结果 | 适配器做什么 |
-| --- | --- | --- |
-| 候选成立（还要过扩展位置） | `assembled` | `input` 由候选的层内容按 Model `AssembledModelInput` 的形状给出：系统提示词进 `system`，工具声明进 `tools`，其余各层按顺序进 `messages`。`budget` 取预算报告摘要，`coverage` 取覆盖证据 |
-| 候选成立（可固定） | `ready` | 把候选交 Model 的请求准备：档案取 `selection.resolution`，模态依据取本成员给出的历史模态约束。`request` 与 `capacity` 取 Model 的返回 |
-| 需要压缩 | `needs-compaction` | 在同一次调用里调用 `planCompaction`。`progress` 取计划身份、步数上界与已完成零步。`original` 记录这次 `prepare` 的完整输入、改写依据与经过 |
-| 装不下，固定部分超限 | `cannot-fit`，`reason` 为 `fixed` | `diagnostic` 取原因与诊断 |
-| 装不下，压缩后仍装不下 | `cannot-fit`，`reason` 为 `after-compaction` | 同上 |
-| `deriveStep` 给出下一个摘要步 | `continue` | `progress` 取新进度。`stepRequest` 是把步请求交 Model 准备后得到的 `ready`，用途为 `compaction` |
-| `deriveStep` 给出压缩转换 | `transition` | `value.message` 取压缩记录，`derivation` 取一致性证明，`commitment` 取承诺，`preparation` 取 `original.id` |
-| `deriveStep` 给出装不下 | `cannot-fit`，`reason` 为 `after-compaction` | 同上 |
-| `resume` 的结局 | 与 `prepare` 相同 | 装得下时的种类由 `original.beforeModelCall` 决定：`null` 得 `assembled`，数组得 `ready` |
+| 本成员的结局                  | Agent 的结果                                 | 适配器做什么                                                                                                                                                                            |
+| ----------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 候选成立（还要过扩展位置）    | `assembled`                                  | `input` 由候选的层内容按 Model `AssembledModelInput` 的形状给出：系统提示词进 `system`，工具声明进 `tools`，其余各层按顺序进 `messages`。`budget` 取预算报告摘要，`coverage` 取覆盖证据 |
+| 候选成立（可固定）            | `ready`                                      | 把候选交 Model 的请求准备：档案取 `selection.resolution`，模态依据取本成员给出的历史模态约束。`request` 与 `capacity` 取 Model 的返回                                                   |
+| 需要压缩                      | `needs-compaction`                           | 在同一次调用里调用 `planCompaction`。`progress` 取计划身份、步数上界与已完成零步。`original` 记录这次 `prepare` 的完整输入、改写依据与经过                                              |
+| 装不下，固定部分超限          | `cannot-fit`，`reason` 为 `fixed`            | `diagnostic` 取原因与诊断                                                                                                                                                               |
+| 装不下，压缩后仍装不下        | `cannot-fit`，`reason` 为 `after-compaction` | 同上                                                                                                                                                                                    |
+| `deriveStep` 给出下一个摘要步 | `continue`                                   | `progress` 取新进度。`stepRequest` 是把步请求交 Model 准备后得到的 `ready`，用途为 `compaction`                                                                                         |
+| `deriveStep` 给出压缩转换     | `transition`                                 | `value.message` 取压缩记录，`derivation` 取一致性证明，`commitment` 取承诺，`preparation` 取 `original.id`                                                                              |
+| `deriveStep` 给出装不下       | `cannot-fit`，`reason` 为 `after-compaction` | 同上                                                                                                                                                                                    |
+| `resume` 的结局               | 与 `prepare` 相同                            | 装得下时的种类由 `original.beforeModelCall` 决定：`null` 得 `assembled`，数组得 `ready`                                                                                                 |
 
 限额未知不是失败。候选照常成为 `assembled` 或 `ready`，覆盖证据标明哪项限制未知（[RQ-05](../SPEC.md#rq-05-完整预算与候选完成)）。
 
@@ -153,11 +153,11 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 
 本成员的失败只有三类（[组装的结果](../SPEC.md#组装的结果)）。适配器按下表映射到 Agent 的 `Failure`，不新增类别，也不把一类改成另一类。
 
-| 本成员的失败 | Agent 的 `Failure` | 说明 |
-| --- | --- | --- |
-| 无权：身份或资格不足，含历史源读口按访问身份核对后返回无资格 | `denied` | `action` 写被拒绝的操作 |
-| 无效：缺必要输入，或输入不合形状、越出范围。含[组装的结果](../SPEC.md#组装的结果)表「无效」行列出的全部情形，以及计划身份或已完成步数核对失败 | `invalid` | `field` 指出越界的输入，`reason` 写原因 |
-| 不可用：没有可用表示；来源不可用，含组读口、历史源、Model 准备资源、转换件结果读口不可读或缺席；某组两次读取仍不稳定；登记代际已撤除或替换，以及 runtime context 读取结果为缺项；实例已关闭或服务已卸载 | `unavailable` | `owner` 写不可读的来源拥有者，`diagnostic` 写原因。表示不可用属于这一类，带原结果转交 |
+| 本成员的失败                                                                                                                                                                                            | Agent 的 `Failure` | 说明                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------- |
+| 无权：身份或资格不足，含历史源读口按访问身份核对后返回无资格                                                                                                                                            | `denied`           | `action` 写被拒绝的操作                                                               |
+| 无效：缺必要输入，或输入不合形状、越出范围。含[组装的结果](../SPEC.md#组装的结果)表「无效」行列出的全部情形，以及计划身份或已完成步数核对失败                                                           | `invalid`          | `field` 指出越界的输入，`reason` 写原因                                               |
+| 不可用：没有可用表示；来源不可用，含组读口、历史源、Model 准备资源、转换件结果读口不可读或缺席；某组两次读取仍不稳定；登记代际已撤除或替换，以及 runtime context 读取结果为缺项；实例已关闭或服务已卸载 | `unavailable`      | `owner` 写不可读的来源拥有者，`diagnostic` 写原因。表示不可用属于这一类，带原结果转交 |
 
 下列结果由适配器自己产生，不来自本成员：
 
@@ -171,29 +171,31 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 
 下列字段在两边没有一一对应。适配器按本节处理。没有写明处理方式的，由契约拥有者裁定，适配器不替它们决定。
 
-| 字段 | 情况 | 现在的处理 |
-| --- | --- | --- |
-| 组三的块材料 | `ModelContextRead` 只带证据，不带块的值。本成员每次组装都需要 ④ 的块材料来渲染快照提醒，增量读取时要的是最近一次完整读取的材料（[RQ-02](../SPEC.md#rq-02-组装的前置输入)），本成员不保存它 | 适配器跨请求保存最近一次完整读取的块材料（按资格过滤后的值）。完整读取时用本次的材料替换它；增量读取时把保存的材料随第三组交入。`prepare` 或 `resume` 按 `source` 与 `coverage` 取回 |
-| 组三的「已采用」与转换依据 | `prepare` 与 `resume` 没有 `adopted` 字段。`prepare` 也没有 `transition` 字段 | 适配器沿用它服务的那次 `read` 的输入 |
-| 组四 | Agent 端口没有提示词贡献与组装上下文的字段 | 贡献从登记面取得。组装上下文的作用域引用、定义采用与工作区选择从哪里取得，现在没有契约规定。其中 `workspace` 键的文本形式见 [SPEC 组四](../SPEC.md#rq-02-组装的前置输入)：legal-identity 第六族 `WorkspaceId` 的线上文本，本成员不解析它。实例与版本不在组装上下文中，归 Execution 域的放置 |
-| 组六 | Agent 端口没有工具定义、绑定采用与可编程许可的字段，只有 `selection.tools` 这一份证据 | 适配器按证据经装配求值取得完整工具定义。解析途径现在没有契约规定 |
-| `action` 与候选身份 | Agent 把同一主请求一步内的多次调用算作同一次准备。本成员以候选身份界定「至多一个计划」 | 同一步内多次 `prepare` 的 `action` 是否相同，Agent 契约没有写。Agent 自己按 checkpoint 拒绝第二个计划，所以至多一个计划的规则在 Agent 一侧总能成立 |
-| `Preparation` 的 `source`、`state`、`schema` | Agent 契约没有说明三项的含义 | 本成员没有对应项。由适配器给出 |
-| `PreparedContextTransition.source` | 本成员的压缩转换没有这一项 | 由适配器给出 |
-| `AssembledModelInput` 的 `toolChoice`、`representation`、`source` | 本成员的候选没有点名这三项 | 由适配器给出 |
+| 字段                                                              | 情况                                                                                                                                                                                       | 现在的处理                                                                                                                                                                                                                                                                                                                                                                         |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 组三的块材料                                                      | `ModelContextRead` 只带证据，不带块的值。本成员每次组装都需要 ④ 的块材料来渲染快照提醒，增量读取时要的是最近一次完整读取的材料（[RQ-02](../SPEC.md#rq-02-组装的前置输入)），本成员不保存它 | 适配器跨请求保存最近一次完整读取的块材料（按资格过滤后的值）。完整读取时用本次的材料替换它；增量读取时把保存的材料随第三组交入。`prepare` 或 `resume` 按 `source` 与 `coverage` 取回                                                                                                                                                                                               |
+| 组三的「已采用」与转换依据                                        | `prepare` 与 `resume` 没有 `adopted` 字段。`prepare` 也没有 `transition` 字段                                                                                                              | 适配器沿用它服务的那次 `read` 的输入                                                                                                                                                                                                                                                                                                                                               |
+| 组四                                                              | Agent 端口没有提示词贡献与组装上下文的字段                                                                                                                                                 | 贡献从登记面取得。组装上下文的作用域引用取历史依据解析出的目标作用域。定义采用与工作区选择从哪里取得，现在没有契约规定，第一波交 `null`（agent-context 的 ASSEMBLE-CONTEXT-NULL）。其中 `workspace` 键的文本形式见 [SPEC 组四](../SPEC.md#rq-02-组装的前置输入)：legal-identity 第六族 `WorkspaceId` 的线上文本，本成员不解析它。实例与版本不在组装上下文中，归 Execution 域的放置 |
+| 组六                                                              | Agent 端口没有工具定义、绑定采用与可编程许可的字段，只有 `selection.tools` 这一份证据                                                                                                      | 适配器按证据经装配求值取得完整工具定义。解析途径现在没有契约规定。第一波：条件的 `bindings` 为空时组六为空，否则不可用（`tools-source-absent`）。`derive`、`resume` 没有条件，组六不可用                                                                                                                                                                                           |
+| `action` 与候选身份                                               | Agent 把同一主请求一步内的多次调用算作同一次准备。本成员以候选身份界定「至多一个计划」                                                                                                     | 同一步内多次 `prepare` 的 `action` 是否相同，Agent 契约没有写。Agent 自己按 checkpoint 拒绝第二个计划，所以至多一个计划的规则在 Agent 一侧总能成立                                                                                                                                                                                                                                 |
+| `Preparation` 的 `source`、`state`、`schema`                      | Agent 契约没有说明三项的含义                                                                                                                                                               | 本成员没有对应项。由适配器给出                                                                                                                                                                                                                                                                                                                                                     |
+| `PreparedContextTransition.source`                                | 本成员的压缩转换没有这一项                                                                                                                                                                 | 由适配器给出                                                                                                                                                                                                                                                                                                                                                                       |
+| `AssembledModelInput` 的 `toolChoice`、`representation`、`source` | 本成员的候选没有点名这三项                                                                                                                                                                 | 由适配器给出                                                                                                                                                                                                                                                                                                                                                                       |
 
 ### 适配方案
 
 协调者一侧有两个端口要由 Context 一侧实现：可读上下文读取与请求准备。Agent 的 Cordis 服务定义把它们登记为服务键 `agentModelContext` 与 `agentRequests`，提供者归属写为「外域适配器：Context」，见 [Agent 的服务键与提供者](../../../agent/agent-cordis-contract/docs/cordis.md#服务键与提供者)。
 
-**在哪一侧实现。**适配器不在本成员里，也不在本组任何成员里，因为本组成员都不导入协调者的契约（[组架构](../../docs/architecture.md#安装与源码依赖)）。它是一个单独的集成包，属于 Context 一侧，依赖下列入口：
+**在哪一侧实现。**适配器不在本成员里，也不在本组其他契约或机制成员里，因为它们都不导入协调者的契约（[组架构](../../docs/architecture.md#安装与源码依赖)）。它是 Context 组里的单独集成包 [agent-context](../../agent-context/README_ZH.md)，依赖下列入口：
 
 - 协调者的服务定义，用来提供 `agentModelContext` 与 `agentRequests`。
-- [request-context-cordis-contract](../../request-context-cordis-contract/README.md) 的服务定义，用 `register` 按目标登记来源集合，用 `assembly(target)` 取得已配置的操作组。
-- Runtime Context 读者面的服务定义 [runtime-context-cordis-contract](../../runtime-context-cordis-contract/README.md)。
-- Model 的请求准备资源（随来源集合登记）。
+- [request-context-cordis-contract](../../request-context-cordis-contract/README.md) 的服务定义：用 `register` 按目标登记来源集合，用 `assembly(target)` 取得已配置的操作组，经 `contextHolderSources`（K-RQ）租借会话侧的四个部件（历史源读口、窄采用来源、读取资格桥、历史依据解析）。
+- Runtime Context 读者面的服务定义 [runtime-context-cordis-contract](../../runtime-context-cordis-contract/README.md)：`runtimeContext` 以模型消费者类绑定读者，`runtimeContextReaderEligibility`（K-RC）交出作用域持有者签发的读取资格。
+- Model 的请求准备资源（X-3，随来源集合登记）与请求准备 `modelRequestPreparation`。
 
-这个包现在没有建立，由哪张卡建立、谁维护尚未指定，已登记在 Context 运行时实现卡 [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542)。跨请求保存 ④ 层块材料（见[对不上的字段](#对不上的字段)）由这个包承担。
+来源集合由适配器登记（GATE-859 的 R-1 选 (ii)）：某个目标的第一次端口调用在组装之前登记，句柄归适配器。适配器的插件 fiber 卸载时撤除全部登记，把各代的 `settled` 合成一个，经 K-RQ 租借的结算交回持有者。持有者在结算结束之后才关闭借出的读口（[RQ-12](../SPEC.md#rq-12-来源集合与登记面)）。
+
+跨请求保存 ④ 层块材料（见[对不上的字段](#对不上的字段)）由这个包承担。块材料只在适配器的进程内存里，容量有上限，按最久未用淘汰。材料丢失（重启、淘汰、插件重跑）后，下一次读取做完整读取。紧接着的 `prepare` 或 `resume` 带着指向丢失材料的证据时，适配器答不可用（`context-material-lost`），协调者按拉取时点重读即可恢复，不用旧值冒充。
 
 **翻译什么。**适配器按[字段对应](#字段对应)翻译输入与结果，并承担下列职责：
 
@@ -202,7 +204,7 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 3. 候选可固定时与每个摘要步，把内容交 Model 的请求准备，交回固定请求。
 4. 核对计划身份与步数上界不变、已完成步数恰好加一。
 5. 核对 `resume` 的提交来源与原准备一致。
-6. 在 `read` 与随后的 `prepare` 或 `resume` 之间保存「已采用」与转换依据；跨请求保存最近一次完整读取的块材料，增量读取时随第三组交入。
+6. 在 `read` 与随后的 `prepare` 或 `resume` 之间保存「已采用」与转换依据；跨请求保存最近一次完整读取的块材料，增量读取时随第三组交入。材料的键含执行挂接，旧挂接的读取不覆盖新挂接的材料。
 
 **不翻译什么。**适配器不做以下事情：
 
@@ -214,7 +216,7 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 
 ### 现在的真实消费者
 
-已实现的 request-context-cordis-contract 依赖本成员的公开类型。协调者一侧已有契约定义了需要本成员行为的端口，见[字段对应](#字段对应)，但适配器包还没有建立，见上一节。request-context 与 request-context-cordis 的生产实现仍待完成，不能据契约依赖声称托管路径已运行。
+已实现的 request-context-cordis-contract 依赖本成员的公开类型。协调者一侧的端口由 [agent-context](../../agent-context/SPEC.md) 实现，它以本成员的类型翻译输入与结果，经 request-context-cordis 的托管入口组装。会话侧部件（K-RQ）与读取资格（K-RC）的生产提供者、Model 准备资源（X-3）的键还没有交付，所以托管路径只在替身上运行过，不能据此声称真实装配已运行。
 
 ### 上层页面
 

@@ -57,7 +57,10 @@ function main() {
   }
   const method = args[2]
   const path = args.find(a => a === 'user' || a.startsWith('repos/')) || ''
-  const body = (args.find(a => a.startsWith('body=')) || '').slice(5)
+  const input = args.indexOf('--input')
+  const body = input >= 0
+    ? JSON.parse(readFileSync(args[input + 1], 'utf8')).body
+    : (args.find(a => a.startsWith('body=')) || '').slice(5)
   const issue = () => ({
     number: 7, node_id: 'I_7', html_url: URL, state: 'open', updated_at: '2026-10-26T00:00:00Z',
     body: state.body, labels: state.labels.map(name => ({ name })), milestone: { title: state.milestone },

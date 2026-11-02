@@ -55,7 +55,8 @@
     {
       "row": "storage",
       "names": [
-        "storage"
+        "storage",
+        "storageHost"
       ]
     },
     {

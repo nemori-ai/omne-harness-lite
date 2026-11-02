@@ -36,7 +36,7 @@ entries 夹具为每个 `(tenant, execution)` 分配明确的 Session，材料�
 
 ## 会话事务端口的契约面
 
-同一个内存提供者的 `transactions` 实现 `SessionTransactionPort` 的 `queryControlOperation`、`readModelSelection` 与 `commitEntries`。前两者读同一会话根并经访问裁定。`commitEntries` 恒返回 `unavailable`，因为 session-contract 还没有 entries 解释的纯范围检查。行为见 [SPEC](../SPEC.md#会话事务端口的契约面) 与[已知限制](../SPEC.md#已知限制)。这些新行为没有先红后绿记录，用负控用例代替。
+同一个内存提供者的 `transactions` 实现 `SessionTransactionPort` 的 `queryControlOperation`、`readModelSelection` 与 `commitEntries`。前两者读同一会话根并经访问裁定。`commitEntries` 不经访问裁定，按 session-contract 的纯范围检查提交，已存进度随快照经 `readWork` 读回。`tests/session-conformance.spec.ts` 对它跑共用用例 `sessionEntriesConformance`。行为见 [SPEC](../SPEC.md#会话事务端口的契约面) 与[已知限制](../SPEC.md#已知限制)。这些新行为没有先红后绿记录，用负控用例代替。
 
 ## 验证范围与资源成本
 

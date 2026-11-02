@@ -49,6 +49,21 @@
           "anchor": "后续设计与维护"
         }
       ]
+    },
+    {
+      "id": "placed-docs#domains#assembly-and-handoff#adoption-coordination",
+      "path": "docs/domains/assembly-and-handoff/adoption-coordination.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/domains/boundaries.md",
+        "anchor": "文档内容与登记"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
     }
   ]
 }
