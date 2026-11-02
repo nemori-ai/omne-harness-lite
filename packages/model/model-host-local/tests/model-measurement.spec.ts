@@ -1,3 +1,4 @@
+import { appendFileSync } from 'node:fs'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import type { PreparationBinding } from '@omne-harness/model'
@@ -503,4 +504,3 @@ it(
     if (evidence !== undefined) appendFileSync(evidence, raw, 'utf8')
   },
 )
-import { appendFileSync } from 'node:fs'
