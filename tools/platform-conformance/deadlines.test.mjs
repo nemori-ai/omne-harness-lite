@@ -52,3 +52,30 @@ test('unreadable deadline evidence stops the owned process and retains its error
     deadline.close()
   }
 })
+
+test('complete JSON with invalid stage fields cannot disable the deadline', async t => {
+  for (const record of [
+    {},
+    { phase: 'unknown', startedAt: 1, timeoutMs: 1 },
+    { phase: 'runner', startedAt: -1, timeoutMs: 1 },
+    { phase: 'runner', startedAt: 1, timeoutMs: -1 },
+    { phase: 'runner', startedAt: '1', timeoutMs: 1 },
+  ]) {
+    const dir = directory(t)
+    const deadline = slotDeadline({ out: join(dir, 'out') }, 100)
+    writeFileSync(deadline.env.OMNE_PLATFORM_DEADLINE_FILE, JSON.stringify(record) + '\n')
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 1500)
+    try {
+      const result = await execute([process.execPath, '-e', 'setInterval(()=>{},1000)'], {
+        deadline: deadline.read,
+        signal: controller.signal,
+      })
+      assert.equal(result.interrupted, 'deadline-unavailable')
+      assert.match(result.deadlineError, /stage/i)
+    } finally {
+      clearTimeout(timer)
+      deadline.close()
+    }
+  }
+})
