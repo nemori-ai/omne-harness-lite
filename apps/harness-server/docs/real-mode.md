@@ -7,7 +7,7 @@
 | 项        | `s0`                            | `serve`                                                                                           |
 | --------- | ------------------------------- | ------------------------------------------------------------------------------------------------- |
 | 名字      | `s0.<键>`                       | 不带前缀。真实行用正式键，`s0-double` 行用装配页的名字。唯一带前缀的名字是 `s0.assemblyLifecycle` |
-| allowlist | 只含 `stubPlugin`               | `stubPlugin` 加 `./cordis` 里每个经 `defineRow` 声明的导出                                        |
+| allowlist | 只含 `stubPlugin`               | `stubPlugin`、`./cordis` 的行声明导出，加入口闭包绑定的 `executionHost`                             |
 | 清单      | `src/s0/stubs.ts` 的表          | `stubPlugin` 行用同一张表去掉前缀，真实导出用自带声明                                             |
 | 受信表    | `src/s0/aa-rows.json`，加前缀   | 同一份，不加前缀                                                                                  |
 | 入口对象  | 入口自己的替身                  | 注册表 `src/entry/index.ts`，加占位规则                                                           |
@@ -103,6 +103,29 @@ export const storageHost: EntryObjectModule = {
 
 `EntryEnv` 不进插件，也不交给任何行。主体权威的符号与工厂只在 `src/entry/principals.ts`（APP-5）。
 
+## 波 2 的行与入口接线
+
+本节说明已有本地实现及其生产差额。候选汇集、测试组合、生产接线和交付接受是不同事实；下表不表示 M2 已闭合。ActorRef 已按 R2-D33 撤回，不进入本波交付。
+
+| 行或入口 | 已有实现与接线限制 | 精确说明 |
+| --- | --- | --- |
+| `tool-residency` | `toolResidencyRow` 用原入口主体从 Session maintainer 面读取完整引用页，失败不返回部分页。入口 `toolResidencyPrincipal` 已有模块；公共导出与发行仍需和 `tool-host` 成对选择，内存组合不证明真实宿主配对。 | [驻留桥](rows/tool-residency.md) |
+| `execution-host` | `runServe` 每次创建一份 `HostFilesDomain`，以 `createExecutionHostBinding` 绑定 `executionHost`。域保留在入口闭包，重载共享，不进配置、入口对象表或服务。 | [宿主文件工厂](rows/execution-host.md) |
+| `session-storage` | 持久目录只增不删；枚举先核 AU-12，允许后读一次完整快照。核验时现取 `principalVerifier`，使用共享维护授予表。 | [租户目录与枚举](rows/session-storage.md) |
+| Runtime Context 信任 | `createSessionScopeSource` 组合 Scope 归属与 Session 绑定，交给 `createRuntimeContextTrustModule(scopes)`。R2-D29 的 reader 仅限所属 Session 工作主体，producer 拒绝，holder 动作表保持。默认模块没有 AD-03 生产来源，绑定为 `unavailable`。 | [Runtime 信任入口](rows/runtime-context-trust.md) |
+| Execution 授权 | `createExecutionAuthorityModules({ readBindings, readRecovery })` 返回三个定义类子类的入口模块。`readBindings` 逐次读取同一份 `scopes.bindings`，`readRecovery` 逐次取得受信恢复来源，回调必须捕获入口受信来源。默认注册表尚未接这些模块，AD-03/AD-15 生产来源仍缺，默认 `unavailable`。 | [Execution 授权入口](rows/execution-authorities.md) |
+| `adoption-sources` | 保留 `prepare` 和 create 初始化守卫。`createAdoptionPlanner` 已实现首装与唯一 live 事实采集，但生产 Session 的 `plan` 委派和真实定义投影尚未接入。 | [采用来源与采用点](rows/adoption-sources.md) |
+
+Runtime 与 Execution 的 `current()` 按 R2-D25 只保护调用方 fiber 的进程代次，退役后的旧答案不再当前。撤权、工作失效与 Request Context 换代没有同步来源到该桥，不闭合 #677。测试显式注入的 Scope、恢复或定义来源不能替代生产来源。
+
+采用规划器每次读取 `toolBindings` 与 `toolGenerations`，不能缓存服务实例。`definitionFor` 必须来自真实定义映射的 authority、首次 version 与 admitted，缺失时整份 `unavailable`。R2-D26 不允许用空登记事实继续规划；需要 reload 时仍为 `unavailable`，不生成没有耐久依据的 freeze。局部规划器测试不证明 AS-06 或 Session C2 已接线。
+
+`executionHost` 是运行入口的固定工厂绑定，不在 `./cordis` 另建责任域。预检拒绝错行绑定和运维 `insert`，允许 `replace`。`filesRoot` 与 `stateDirectory` 必须显式给宿主绝对路径，`maintainIntervalMs` 默认 60000。维护串行执行，重载不新增周期。R2-D32 的显式卸载、报告附录与 D 的限制见 [SPEC 的有序关闭](../SPEC.md#有序关闭)。Windows 当前文件根读取返回 `unavailable`，Linux 限定文件测试未执行不能计为通过。
+
+动作规则按 R2-D34 配置在授权行的 `actionRules`，精确匹配、deny 优先和证据规则归 [授权政策](rows/authorization-policy.md#动作准入)。无规则、无匹配、来源故障、非空 permissions 或非 null decision 均为 `unavailable`。`createToolAccessGuard(readAdmission)` 每次读取当前准入服务，同一个 qualify 对象可交给 ToolAccessGuard 与 StartCoordinatorAccess；`invalidate`、`read-raw`、`read-raw-content` 缺资格来源，均答 `unavailable`。`issueTenantDomainScanner(env)` 只能在受信签发器安装后调用，交消费者的只有枚举主体。公共 Tool 消费者与扫描者仍需集成接线。
+
+自动首启接线的依据是独立提交 `f258266e56975328eb5b7d3323110f1cd2cee652`，未进入此次文档同步基线。它在最终配置与受信预检成功后、入口对象及任何业务行安装前，从最终 real storage/session-storage 行配置调用 `prepareTenantDirectory`。全新根自动初始化，已有根缺表或坏表失败；不得增加人工准备步骤。独立 `preparation-failed` 退出 3，固定诊断及其余输出规则见 [SPEC](../SPEC.md#装载与可见性)。该独立提交的测试不表示本树启动实测通过。目录的单写前提与 Windows 目录项耐久限制继续适用。
+
 ## 占位规则
 
 一个名字满足下面全部条件时，入口提供一个 `s0-double` 占位对象，`entry-object` 记录标 `s0-double`：
@@ -177,7 +200,7 @@ expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
 | ----------------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tests/row.spec.ts`                 | fast | `defineRow` 的形状、IC-8 与前缀检查、三种插件形状在同一 fiber、行体承载的登记                                                                                     |
 | `tests/serve-types.spec-d.ts`       | 类型 | 声明类型的负例：成员插件不能直接做带阶段的行                                                                                                                      |
-| `tests/serve.spec.ts`               | fast | 混合发行树（真实 19、S0 替身 30，运维者层给绝对路径）、`agent-journal` 的组合配置、名字前缀、占位规则、夹具行走通、PENDING 诊断、四条装载前拒绝、`once`、四个阶段 |
+| `tests/serve.spec.ts`               | fast | 混合发行树（运维者层给绝对路径）、`agent-journal` 的组合配置、名字前缀、占位规则、夹具行走通、PENDING 诊断、装载前拒绝、`once`、四个阶段 |
 | `tests/serve-lifecycle.spec.ts`     | fast | `serve` 版可见性、入口对象承载的登记落在行 fiber、`not-registered`                                                                                                |
 | `tests/real-manifests-sync.spec.ts` | fast | 真实清单与 `stubs.ts` 逐行比较、具名差额清单、无 `s0.` 名字、AAP-7                                                                                                |
 | `tests/serve-process.spec.ts`       | slow | `dist/bin.js serve`：混合发行树加运维者文件、`--stop-on-stdin-close`、用法错误、`s0` 的解析路径不变                                                               |

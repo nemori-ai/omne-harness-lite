@@ -159,6 +159,7 @@ export function preflight(
 
 export type StartResult =
   | Readonly<{ kind: 'rejected'; exitCode: 2; diagnostics: readonly PreflightDiagnostic[] }>
+  | Readonly<{ kind: 'preparation-failed'; exitCode: 3; error: unknown }>
   | Readonly<{ kind: 'entry-failed'; exitCode: 3; name: ServiceName; error: unknown }>
   | Readonly<{ kind: 'started'; rows: readonly LoadedRow[]; report: ReadinessReport }>
 
@@ -175,6 +176,7 @@ export async function startTree(options: {
   rows: readonly RowSpec[]
   entryObjects: readonly EntryObject[]
   omitEntryObjects?: readonly ServiceName[] | undefined
+  prepare?: () => void | Promise<void>
   readinessTimeoutMs: number
   barrier: () => void | Promise<void>
 }): Promise<StartResult> {
@@ -191,6 +193,12 @@ export async function startTree(options: {
     options.entryObjects,
   )
   if (diagnostics.length > 0) return { kind: 'rejected', exitCode: 2, diagnostics }
+
+  try {
+    await options.prepare?.()
+  } catch (error) {
+    return { kind: 'preparation-failed', exitCode: 3, error }
+  }
 
   const omitted = new Set(options.omitEntryObjects ?? [])
   for (const name of omitted) {
