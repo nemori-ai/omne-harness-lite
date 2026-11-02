@@ -189,13 +189,17 @@ test('failed discovery or signals remain incomplete even when the root is gone',
   }
 })
 
-test('sending signals without observing termination does not report cleanup success', async () => {
+test('sending signals without observing termination does not report cleanup success', async t => {
+  let elapsed = 0
+  t.mock.method(performance, 'now', () => elapsed)
   const rows = [{ pid: 101, parent: 1, identity: 'root-start', state: 'S' }]
   const tree = observeTree(101, {
     root: rows[0],
     snapshot: () => rows,
     signal: () => {},
-    pause: async () => {},
+    pause: async () => {
+      elapsed = 2
+    },
     deadlineMs: 1,
   })
   const result = await tree.cleanup()
