@@ -211,6 +211,21 @@ describe('the kinds of a fact row are the kinds of its normalized consequences',
   })
 })
 
+describe('the reverse input directory row of an open names the original attempt', () => {
+  it('the attempt of the open is the advance of the Run that started the execution', async () => {
+    const s = await scene('kinds-attempt')
+    const before = await work(s)
+    if (before.run.kind !== 'active' || before.run.advance === null)
+      throw new Error('an active Run with an advance is expected')
+    ok(await s.view.journal.open(s.openInput))
+    if (s.controls === null) throw new Error('the double storage is expected')
+    const rows = s.controls.select('SELECT input, attempt FROM er_admission_attempt_idx').rows
+    expect(rows.map(row => row.map(String))).toEqual([
+      [String(s.initial.id), String(before.run.advance.attempt)],
+    ])
+  })
+})
+
 describe('an event whose original fragments do not decide it', () => {
   it('a control event has empty kinds and no consequences; a Session decision that needs it answers unavailable', async () => {
     const s = await scene('kinds-control')

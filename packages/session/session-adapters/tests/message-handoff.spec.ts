@@ -31,7 +31,7 @@ import {
 } from '@omne-harness/session-storage-sql/participants'
 import { sessionScopeEvidence } from '../src/cordis/agent-drive.ts'
 import { createSessionMessageHandoffPlugin } from '../src/cordis/message-handoff.ts'
-import { evidence, ok, operation, submitAcceptance } from './fixtures/common-journal.ts'
+import { evidence, instance, ok, operation, submitAcceptance } from './fixtures/common-journal.ts'
 import { cordisScene, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 const PROVIDER = {
@@ -161,6 +161,15 @@ describe('the invoke and submit branches', () => {
     const before = writes(f.s)
     expect(ok(await f.handoff().prepare(invoke(f.s)))).toEqual(first)
     expect(writes(f.s)).toBe(before)
+  })
+
+  it('a later call through another instance recalls the original origin; it does not rewrite it', async () => {
+    const f = await provided('handoff-origin')
+    const first = ok(await f.handoff().prepare(invoke(f.s)))
+    const later = invoke(f.s)
+    const moved = { ...later, runtime: { ...later.runtime, instance: instance('instance-2') } }
+    expect(ok(await f.handoff().prepare(moved))).toEqual(first)
+    expect(first.origin).toMatchObject({ kind: 'invoke', instance: later.runtime.instance })
   })
 
   it('a forged scope and the scope of another tenant are denied, and nothing is written', async () => {

@@ -14,6 +14,17 @@ export {
   type SessionAgentJournalPluginInput,
 } from './cordis/agent-journal-provider.ts'
 export { createSessionContextHolder } from './cordis/context-holder.ts'
+export {
+  createSessionJournalInterpretationPlugin,
+  type JournalInterpretationTarget,
+  type JournalInterpreted,
+  type SessionJournalInterpretationInput,
+} from './cordis/journal-interpretation.ts'
+export {
+  createSessionMessageHandoffPlugin,
+  type MessageHandoffConfig,
+  type SessionMessageHandoffInput,
+} from './cordis/message-handoff.ts'
 export type {
   SessionContextHolderInput,
   SessionContextTranslation,
