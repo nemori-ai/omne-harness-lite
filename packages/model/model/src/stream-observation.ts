@@ -15,6 +15,7 @@ export type StreamEndReason = Exclude<
   Extract<Terminal, { kind: 'ended' }>['reason'],
   'producer-ended'
 >
+export type StreamCheckFailure = StreamEndReason | 'cold'
 export type StreamWatcher = Readonly<{
   push(frame: Body): void
   end(reason: StreamEndReason): void
@@ -28,7 +29,7 @@ type Request<P> = Parameters<ModelStreamObservation<P>['observe']>[0]
 type Ports<P> = Readonly<{
   limits: ModelObservationLimits
   timing: ModelObservationTiming
-  check(request: Request<P>): Outcome<StreamTarget, StreamEndReason>
+  check(request: Request<P>): Outcome<StreamTarget, StreamCheckFailure>
   refresh(request: Request<P>): Promise<StreamEndReason | null>
   reserve(bytes: number): (() => void) | null
   admit(request: Request<P>): (() => void) | null
@@ -36,6 +37,8 @@ type Ports<P> = Readonly<{
 }>
 type Queued = Readonly<{ frame: Body; bytes: number; at: number; release(): void }>
 const done = (): IteratorResult<ModelObservationFrame> => ({ done: true, value: undefined })
+const publicReason = (failure: StreamCheckFailure): StreamEndReason =>
+  failure === 'cold' ? 'unavailable' : failure
 
 /** One FIFO owns its own logical bytes, deadline, listener and last delivered cursor. */
 export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservation<P> {
@@ -112,7 +115,9 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
             const checked = ports.check(request)
             if (
               'failure' in checked &&
-              ['denied', 'unavailable', 'stale-stream'].includes(checked.failure)
+              (checked.failure === 'denied' ||
+                checked.failure === 'unavailable' ||
+                checked.failure === 'stale-stream')
             )
               return { kind: 'ended', reason: checked.failure }
             if (request.signal.aborted) return { kind: 'ended', reason: 'observer-closed' }
@@ -123,7 +128,7 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
             if (phase === 'open') {
               const checked = ports.check(request)
               if ('failure' in checked) {
-                hold({ kind: 'ended', reason: checked.failure })
+                hold({ kind: 'ended', reason: publicReason(checked.failure) })
                 return
               }
               if (request.signal.aborted) {
@@ -199,7 +204,8 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
                 timer = null
                 timerDeadline = Infinity
                 const checked = ports.check(request)
-                if ('failure' in checked) hold({ kind: 'ended', reason: checked.failure })
+                if ('failure' in checked)
+                  hold({ kind: 'ended', reason: publicReason(checked.failure) })
                 else if (expired()) gap()
                 flush()
                 schedule()
@@ -213,7 +219,7 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
           function begin(): void {
             const checked = ports.check(request)
             if ('failure' in checked) {
-              hold({ kind: 'ended', reason: checked.failure })
+              hold({ kind: 'ended', reason: publicReason(checked.failure) })
               return
             }
             releaseMetadata = ports.reserve(STREAM_OBSERVER_BYTES)
@@ -236,7 +242,10 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
           }
           function start(): void {
             const checked = ports.check(request)
-            if ('ok' in checked || checked.failure !== 'unavailable') {
+            if (
+              'ok' in checked ||
+              (checked.failure !== 'unavailable' && checked.failure !== 'cold')
+            ) {
               begin()
               return
             }

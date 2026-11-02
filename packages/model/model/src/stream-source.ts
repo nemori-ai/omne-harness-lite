@@ -41,6 +41,7 @@ import {
   type StreamEndReason,
   type StreamTarget,
   type StreamWatcher,
+  type StreamCheckFailure,
 } from './stream-observation.ts'
 import type {
   ConfirmedObservationRecord,
@@ -420,7 +421,7 @@ export function createModelObservationSource<P>(
       const hostWatchers = new Set<StreamWatcher>()
       function check(
         request: Parameters<ModelObservationHost<P>['observation']['observe']>[0],
-      ): Outcome<StreamTarget, StreamEndReason> {
+      ): Outcome<StreamTarget, StreamCheckFailure> {
         const judged = judgeStreamRef(
           { value: request.ref, tenant: request.access.tenant },
           streamCodec,
@@ -451,7 +452,8 @@ export function createModelObservationSource<P>(
         if (closed) return { failure: 'source-closed' }
         if (hostClosed) return { failure: 'stale-stream' }
         const entry = records.get(identity(request.access.tenant, parts.ok.call))
-        if (!entry || entry.unavailable) return { failure: 'unavailable' }
+        if (!entry) return { failure: 'cold' }
+        if (entry.unavailable) return { failure: 'unavailable' }
         const target = entry.record.target
         const published = publications.get(identity(request.access.tenant, parts.ok.call))
         if (

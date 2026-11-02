@@ -291,3 +291,25 @@ it('runs authorization checks at the configured timer boundary and cancels the t
   expect(f.waits.size).toBe(0)
   f.source.close()
 })
+
+it('reports capacity when a cold observer cannot acquire a source read slot', async () => {
+  const warm = await observing()
+  const target = unbox(await warm.f.current()).current
+  if (!target) throw new Error('target')
+  const f = streamFixture({ maxPendingSourceOperations: 1 })
+  const barrier = Promise.withResolvers<void>()
+  f.setRefresh(async () => {
+    await barrier.promise
+    return { ok: undefined }
+  })
+  const busy = f.current()
+  const iterator = f.host.observation
+    .observe({ ref: target.ref, access: f.access, signal: new AbortController().signal })
+    [Symbol.asyncIterator]()
+  expect((await iterator.next()).value).toEqual({ kind: 'ended', reason: 'capacity' })
+  expect((await iterator.next()).done).toBe(true)
+  barrier.resolve()
+  await busy
+  f.source.close()
+  warm.f.source.close()
+})
