@@ -79,3 +79,19 @@ test('complete JSON with invalid stage fields cannot disable the deadline', asyn
     }
   }
 })
+
+test('an empty completed stage record is not an unstarted queue', t => {
+  const dir = directory(t)
+  const deadline = slotDeadline({ out: join(dir, 'out') }, 100)
+  try {
+    writeFileSync(deadline.env.OMNE_PLATFORM_DEADLINE_FILE, '\n')
+    assert.throws(() => deadline.read())
+    writeFileSync(
+      deadline.env.OMNE_PLATFORM_DEADLINE_FILE,
+      '{"phase":"subprocess","startedAt":1,"timeoutMs":1e309}\n',
+    )
+    assert.throws(() => deadline.read(), /stage/i)
+  } finally {
+    deadline.close()
+  }
+})
