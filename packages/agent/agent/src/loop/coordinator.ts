@@ -1376,7 +1376,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         step: next,
         batch: at.batch,
         action: mainAction(next),
-        consumption: mainConsumption(next),
+        consumption: mainConsumption(execution, next),
         position: mainPosition(next),
         conditions: null,
         selected: null,
@@ -2268,7 +2268,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return {
       kind: 'model',
       action: mainAction(step),
-      consumption: mainConsumption(step),
+      consumption: mainConsumption(execution, step),
       position: mainPosition(step),
       fixed: ready.source,
       reference: mainInvocation(access.tenant, execution, step),

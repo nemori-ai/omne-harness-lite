@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import {
   decodeActionId,
-  decodeConsumptionId,
   decodePassageId,
   type Access,
   type Action,
@@ -30,7 +29,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AgentDependencies } from '../construction.ts'
 import { canonical } from '../canonical.ts'
 import { json } from '../receiving-values.ts'
-import type { Message } from './identities.ts'
+import { toolConsumption, type Message } from './identities.ts'
 
 type Ports<P> = Pick<AgentDependencies<P, ContentBlock>, 'admission' | 'toolRequests' | 'materials'>
 
@@ -201,7 +200,7 @@ export async function preserveToolIntent<P>(
     purpose: 'action',
     association: 'intent',
     action: action.id,
-    consumption: minted(decodeConsumptionId(`${action.id}/result`)),
+    consumption: toolConsumption(execution, action.id),
     position: input.consumer,
     fixed: stored.ok,
   })
