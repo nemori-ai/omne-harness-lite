@@ -6,7 +6,6 @@
     "authorization",
     "session-storage",
     "session-provider",
-    "session-ad01",
     "session-ad02",
     "session-ad03",
     "session-ad04",
@@ -82,7 +81,44 @@
       ]
     },
     {
+      "row": "session-ad03",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "session-ad04",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "session-ad05",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "session-ad12",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "session-ad14",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
       "row": "agent-journal",
+      "names": [
+        "storage",
+        "tenantDomainLookup"
+      ]
+    },
+    {
+      "row": "session-handoff",
       "names": [
         "storage",
         "tenantDomainLookup"
