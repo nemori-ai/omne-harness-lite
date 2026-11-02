@@ -280,4 +280,16 @@ describe('the control entry on an execution that a runtime of this host runs (K-
     expect(snapshot.controls).toEqual([])
     expect(snapshot.state.kind).toBe('waiting')
   })
+
+  it('advances nothing for a request the principal check refused: the Journal is not asked at all', async () => {
+    const { host, load } = await running()
+    const intruder = { ...caller('a'), principal: 'intruder' }
+    host.refuseNext('control', intruder.principal)
+    expect(await host.control.control({ ...cancel('a', 'cancel-intruder'), ...intruder })).toEqual({
+      failure: { kind: 'denied', action: 'control' },
+    })
+    // The advance reads the execution with the caller's principal; a refused caller reaches none.
+    expect(host.journalCalls.filter(call => call.principal === intruder.principal)).toEqual([])
+    expect((await load()).controls).toEqual([])
+  })
 })
