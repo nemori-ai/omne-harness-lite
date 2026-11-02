@@ -694,8 +694,13 @@ describe('original admission directory pages', () => {
       expect(projectSessionLog(snapshot, observation, { ...reads, admissions }).kind).toBe(
         'rejected',
       )
+    // The head revision is compared as an integer, not a float: one below it is an expired
+    // same-root basis (changed, read again), one above it was never a head (invalid).
     expect(
       projectSessionLog(snapshot, { ...observation, revision: '9007199254740992' }, reads),
+    ).toMatchObject({ kind: 'rejected', failure: { kind: 'changed' } })
+    expect(
+      projectSessionLog(snapshot, { ...observation, revision: '9007199254740994' }, reads),
     ).toMatchObject({ kind: 'rejected', failure: { kind: 'invalid', field: 'revision' } })
     expect(
       projectSessionLog(snapshot, observation, {
