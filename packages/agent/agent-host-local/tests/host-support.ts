@@ -221,6 +221,8 @@ export type World = Readonly<{
   errors: string[]
   /** Every answer of the Model's admit, in order: one per Model request that the Loop sent. */
   admits: Outcome<Admission, unknown>[]
+  /** Every `load` and `recordControl` the Journal served, with the principal that asked. */
+  journalCalls: JournalCall[]
   /** The registration handles the factory got, by instance. Filled by `withRuntimeDuties` only. */
   handles: Map<AgentInstanceId, AgentRegistrationHandle<unknown>>
   /** The quiesce calls that reached a runtime under `withRuntimeDuties`. */
@@ -233,6 +235,8 @@ export type World = Readonly<{
   advance(ms: number): void
   dispose(): Promise<void>
 }>
+
+export type JournalCall = Readonly<{ method: 'load' | 'recordControl'; principal: unknown }>
 
 export type WorldOptions = Readonly<{
   factory?: 'plain' | 'duties'
@@ -330,6 +334,19 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
       },
     },
   }
+  const journalCalls: JournalCall[] = []
+  const base = controls.journal.port
+  const journal: typeof base = {
+    ...base,
+    load(input) {
+      journalCalls.push({ method: 'load', principal: input.principal })
+      return base.load(input)
+    },
+    recordControl(input) {
+      journalCalls.push({ method: 'recordControl', principal: input.principal })
+      return base.recordControl(input)
+    },
+  }
   const refusals: { operation: string; principal: Principal | undefined }[] = []
   controls.access.check.always(input => {
     const at = refusals.findIndex(
@@ -354,7 +371,7 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
   })
   const ports: Readonly<Record<keyof typeof services, object>> = {
     agentAccessCheck: controls.access.port,
-    agentJournal: controls.journal.port,
+    agentJournal: journal,
     agentAdoptions: controls.adoptions.port,
     agentConditions: controls.conditions.port,
     agentRequests: controls.requests.port,
@@ -416,6 +433,7 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     retired,
     errors,
     admits,
+    journalCalls,
     handles,
     quiesced,
     quiesceAnswers,

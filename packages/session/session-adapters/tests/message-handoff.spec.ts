@@ -31,7 +31,14 @@ import {
 } from '@omne-harness/session-storage-sql/participants'
 import { sessionScopeEvidence } from '../src/cordis/agent-drive.ts'
 import { createSessionMessageHandoffPlugin } from '../src/cordis/message-handoff.ts'
-import { evidence, instance, ok, operation, submitAcceptance } from './fixtures/common-journal.ts'
+import {
+  evidence,
+  instance,
+  ok,
+  operation,
+  operationId,
+  submitAcceptance,
+} from './fixtures/common-journal.ts'
 import { cordisScene, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 const PROVIDER = {
@@ -199,6 +206,37 @@ describe('the invoke and submit branches', () => {
     })
     expect(writes(f.s)).toBe(before)
   })
+
+  for (const branch of ['invoke', 'submit'] as const)
+    it(`${branch}: an execution the index holds but no active Run holds is denied, and nothing is written`, async () => {
+      const f = await provided(`handoff-ended-${branch}`)
+      const snapshot = ok(await f.s.port.readWork(f.s.sessionAccess))
+      if (snapshot.run.kind !== 'active') throw new Error('fixture: an active Run is expected')
+      // Session ends the Run; the execution index still names the execution and the session.
+      ok(
+        await f.s.port.commit({
+          access: f.s.sessionAccess,
+          command: {
+            kind: 'control',
+            input: {
+              tenant: f.s.access.tenant,
+              session: f.s.access.session,
+              operation: operationId('cancel-run'),
+              intent: { kind: 'cancel-run', run: snapshot.run.run, urgency: 'force' },
+            },
+          },
+          guards: [],
+        }),
+      )
+      expect(ok(await f.s.port.readWork(f.s.sessionAccess)).run.kind).toBe('terminal')
+      const before = writes(f.s)
+      expect(await f.handoff().prepare(branch === 'invoke' ? invoke(f.s) : submit(f.s))).toEqual({
+        failure: { kind: 'denied', action: branch },
+      })
+      // The qualification is the Session snapshot, so the access check is never asked.
+      expect(f.checked).toEqual([])
+      expect(writes(f.s)).toBe(before)
+    })
 
   it('a qualification that is denied answers denied and writes nothing', async () => {
     const f = await provided('handoff-denied', 'denied')

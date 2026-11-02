@@ -37,3 +37,5 @@
 - [access-check.spec.ts](access-check.spec.ts)：关联请求类型、显式逐次裁定、来源异常与脚本耗尽。
 - [transactions-access.spec.ts](transactions-access.spec.ts)：事务工厂必需 `accessCheck`、commit 显式 access、每次公开读写各问一次、`readInput` 与 `queryOperation` 的 denied/unavailable 不披露答案、denied/unavailable/抛错无副作用、跨租户拒绝与裁定证据进同次提交。
 - [cancelled-projection.spec.ts](cancelled-projection.spec.ts)：当前及历史 Run 取消依据、拒绝后的无部分投影与迟到认回。
+- [deferred-facts.spec.ts](deferred-facts.spec.ts)：延后事实带后果、非延后事实带控制证据，两种观测都判 invalid。
+- [control-normalization.spec.ts](control-normalization.spec.ts)：取消事件的控制归一：只在原执行上覆盖责任，advance 释放后才算资格撤销。

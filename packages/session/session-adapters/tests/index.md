@@ -21,6 +21,8 @@
 - [journal-ports.spec.ts](journal-ports.spec.ts)：detach 与 attach 围住旧 Authority 并保留原操作答案；答复准入按原决定分页，输出确认不确认 Model；commit 拒绝由 Journal 分配的 `entry` 与 `ended` 事件正文；context 转换与原 Agent 答案共同发布、共同恢复；终态后观察者沿原 passage
 - [call-normalization.spec.ts](call-normalization.spec.ts)：多个生产者按原用途登记，事件序号不随后来的 head 变化；producer 事件沿原效果并绑定发起的 attempt；未关联的 Tool intent 在后来的事件给出实际调用时保留原身份
 - [control-normalization.spec.ts](control-normalization.spec.ts)：控制的同日志解释：accepted 单独不能对账取消；无关的 Agent 控制只观察；生产者确认与物理停止不能解除选定的未关联责任；同一调用的每个 K 意图分别对账；紧急中断经原 submit 传播
+- [fragment-reads.spec.ts](fragment-reads.spec.ts)：事件原片段的读取：缺失的原片段安静地不作决定，`TypeError` 同样不作决定但经 fault 通道报告，其他错误不被吞
+- [taken-range.spec.ts](taken-range.spec.ts)：重建副本里空批次的输入范围只认本执行签发过的身份：另一执行的身份、from 与 to 不同、超出已接受输入的范围，load 仍抛「original input batch range is unavailable」
 - [model-settlement.spec.ts](model-settlement.spec.ts)：具名停止点之前采用原答复准入，准入证据与收场证据分开；同一调用的其他控制不能满足 K 的生产者确认
 - [human-waiting.spec.ts](human-waiting.spec.ts)：checkpoint 删除后保留原无动作人工等待；remark 答复与 chosen、declined 一样登记为卡片的决定；跨轮次保留选定的卡片；执行动作之前的 ask 使用 extension-batch；原材料缺失时不伪造等待解释
 - [background.spec.ts](background.spec.ts)：真实后台槽位经后来的快照对账，checkpoint 替换后保留原槽位；后台形状的 checkpoint 在原发布点被拒
