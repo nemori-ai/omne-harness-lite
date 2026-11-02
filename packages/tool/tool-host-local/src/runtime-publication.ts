@@ -34,6 +34,7 @@ type Subscriber = {
   end: End | null
   cursor: StreamCursor | null
   wake: () => void
+  timer: ReturnType<typeof setTimeout> | null
 }
 
 function bytes(value: unknown): number {
@@ -78,8 +79,26 @@ export function createRuntimePublication(
     subscriber.queue = []
     subscriber.bytes = 0
     subscriber.end = end
+    if (subscriber.timer !== null) clearTimeout(subscriber.timer)
+    subscriber.timer = null
     subscriptions.delete(subscriber)
     subscriber.wake()
+  }
+
+  function expire(subscriber: Subscriber): void {
+    subscriber.timer = null
+    const first = subscriber.queue[0]
+    if (first === undefined || subscriber.end !== null) return
+    const remaining = input.residenceMs - (performance.now() - first.at)
+    if (remaining <= 0) {
+      terminate(subscriber, { kind: 'gap', after: subscriber.cursor, reason: 'buffer' })
+      return
+    }
+    subscriber.timer = setTimeout(
+      () => expire(subscriber),
+      Math.min(Math.ceil(remaining), 2147483647),
+    )
+    subscriber.timer.unref()
   }
 
   function enqueue(subscriber: Subscriber, frame: Frame): void {
@@ -94,6 +113,7 @@ export function createRuntimePublication(
     }
     subscriber.queue.push({ frame, bytes: size, at: performance.now() })
     subscriber.bytes += size
+    if (subscriber.timer === null) expire(subscriber)
     subscriber.wake()
   }
 
@@ -103,7 +123,14 @@ export function createRuntimePublication(
     stream: stream.ok,
     observation: {
       observe(request) {
-        const subscriber: Subscriber = { queue: [], bytes: 0, end: null, cursor: null, wake() {} }
+        const subscriber: Subscriber = {
+          queue: [],
+          bytes: 0,
+          end: null,
+          cursor: null,
+          timer: null,
+          wake() {},
+        }
         let admitted = false
         const admit = () => {
           admitted = true
@@ -125,6 +152,8 @@ export function createRuntimePublication(
           subscriptions.delete(subscriber)
           subscriber.queue = []
           subscriber.bytes = 0
+          if (subscriber.timer !== null) clearTimeout(subscriber.timer)
+          subscriber.timer = null
           subscriber.wake()
         }
         const abort = () => {
