@@ -284,7 +284,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 - `decodeCredentialId` 按 `type`、`empty`、`length`、`character` 的顺序返回第一个失败。`length` 是超过 `MODEL_IDENTITY_MAX_LENGTH`（256）个 UTF-16 码元，与其他品牌同一上限。`character` 是含任一 Unicode 空白、控制字符、格式字符或孤立代理码元，包括制表符、零宽字符和双向控制字符，使身份文本可以安全显示与记录。成对的代理码元是一个合法字符，被接受。非 ASCII 的字母和文字被接受。函数不裁剪、不折叠大小写。解码只核格式，不证明凭据存在或属于某租户。
 - 从文本或存储复原 `Supplier` 的位置（档案来源、dispatch 记录、重试决定、恢复读取）必须经 `decodeCredentialId` 取得 `Supplier.credential.id`，不得用类型断言。
 - `CredentialPort<P = unknown>` 保留 `present` 与 `resolve`，增加可选的同步 `presentFor` 与 `resolveFor`。`QualifiedCredentialQuery<P>` 只从 `./provider` 导出，`presentFor` 的输入去掉 `official`。保管方自己的诊断不属于端口，Cordis 服务也不转发它。
-- 新路径的受信发送前提、W 与 M 的来源、可同步核验的绑定条件及主体来源限制见 [SPEC](../SPEC.md#342-凭据引用与解析端口)。没有 `resolveFor` 时不退回旧路径。类型探针见 [`qualified-credential-types.spec-d.ts`](../tests/qualified-credential-types.spec-d.ts)。
+- 新路径的受信发送前提、受理点已核验主体与入口按原受理记录窄签发主体的来源、可同步核验的绑定条件及主体来源限制见 [SPEC](../SPEC.md#342-凭据引用与解析端口)。没有 `resolveFor` 时不退回旧路径。类型探针见 [`qualified-credential-types.spec-d.ts`](../tests/qualified-credential-types.spec-d.ts)。
 - `sameCredentialHolder(left, right)` 是持有者语义的比较：`id` 精确相等，且 `tenantEquals` 为真。未经 legal-identity 铸造的租户值返回 `false`。判定方、保管方与替代提供者共用这一个函数。它不是品牌相等，品牌相等仍是 `===`。
 - `MODEL_SEND` 是唯一的用途取值。`CredentialQuery.purpose` 是普通字符串，用途不符的查询由端口返回 `denied`。
 

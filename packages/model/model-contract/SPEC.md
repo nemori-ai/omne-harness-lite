@@ -454,7 +454,12 @@ R 先于 S 则不发；S 先于 R 则是已经启动的在途请求，撤权触�
 
 兼容期新路径：`CredentialPort<P = unknown>` 保留旧操作，增加可选的同步 `presentFor` 与 `resolveFor`。`QualifiedCredentialQuery<P>` 只从 `./provider` 导出，资格取自 `SendDemand.access`，不带自由 `tenant` 或 `authorized`。`presentFor` 不接收 `official`，只查询存在性。发送阶段只调用 `resolveFor`；提供者没有该成员时返回 `unavailable`，诊断为 `qualified-path-missing`，不得退回旧 `resolve`。
 
-新路径的契约前提是：只有受信发送边界注入该服务。发送 `access` 是受理点 C 核验过的 W，或者是入口窄签发器依据同一调用的原受理记录签出的 M。该签发器只由入口运行级组合持有，M 只绑定这一次调用。`official` 是调用方依据 `ModelSendSource.credential` 构造的档案事实。
+新路径的契约前提是：只有受信发送边界注入该服务。发送 `access` 中的主体来自以下两种来源之一：
+
+- 在[受理点 C](#342-资格共同提交与实际发送)已核验的主体。
+- 入口窄签发器依据同一调用的原受理记录签发的主体。签发器只由入口运行级组合持有，签发的主体只绑定这一次调用。
+
+`official` 是调用方依据 `ModelSendSource.credential` 构造的档案事实。
 
 提供者只同步核对 `access.tenant` 与秘密绑定持有者，以及仅在没有租户绑定且 `official` 为真时允许 `factory`。已绑定但缺失、不可读、拒绝或不可用时不回退。新路径不读取 `SendFace`，解析与同步 start 之间不得 await。提供者不能同步核验主体来源或 `official` 的来源；受信边界之外伪造另一租户主体或错报档案事实的限制仍存在，不因增加类型而关闭。
 

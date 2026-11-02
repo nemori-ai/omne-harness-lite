@@ -71,7 +71,7 @@ Context 以 unknown 表达边界输入，可信身份适配器在进入领域操
 
 `modelCredential` 是可选成员：服务撤除后 `ctx.modelCredential` 缺席，消费者按依赖注入等待或失败，不假定存在。
 
-`presentFor` 与 `resolveFor` 不要求旧子类实现，也不改变旧构造函数。新路径的 W/M 来源前提和同步核验范围见 [SPEC](../SPEC.md#凭据服务)，主体伪造与 `official` 来源限制仍未关闭。
+`presentFor` 与 `resolveFor` 不要求旧子类实现，也不改变旧构造函数。新路径的两种主体来源前提见 [Model 凭据契约](../../model-contract/SPEC.md#342-凭据引用与解析端口)，同步核验范围见 [SPEC](../SPEC.md#凭据服务)。主体伪造与 `official` 来源限制仍未关闭。
 
 ## 公共观察服务
 

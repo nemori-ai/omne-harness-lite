@@ -74,4 +74,4 @@ Model 的全部能力不集中到一个必需依赖集合。下表补足独立�
 
 `ModelStreamReferencesService<P>` 与 `ModelStreamObservationService<P>` 分别提供 `modelStreamReferences` 与 `modelStreamObservation`。键常量取自定义类，方法签名取自 model-contract，Context 成员可选且以 `unknown` 表达主体。两服务的消费者为 server-entry 的 AC-07，提供与安装在联调 D 完成。这是当前消费者安装规则的具名例外，抽象定义不证明安装或观察资格。定义的发布、fiber 撤除及独立键由 [`service-definitions.spec.ts`](../tests/service-definitions.spec.ts) 验证。
 
-`ModelCredentialService<P = unknown>` 的旧构造与子类保持兼容。新路径只交给受信发送边界，发送 `access` 是 C 核验过的 W，或入口窄签发器依据同一调用的原受理记录签出的 M。提供者只同步核验租户绑定及 `official` 工厂条件，不核主体来源或 `official` 来源。缺新路径不回退旧路径，具体条款与未决限制见 [SPEC](../SPEC.md#凭据服务)。
+`ModelCredentialService<P = unknown>` 的旧构造与子类保持兼容。新路径只交给受信发送边界，发送 `access` 中主体的两种来源及同一调用绑定限制见 [Model 凭据契约](../../model-contract/SPEC.md#342-凭据引用与解析端口)。提供者只同步核验租户绑定及 `official` 工厂条件，不核主体来源或 `official` 来源。缺新路径不回退旧路径，具体条款与未决限制见 [SPEC](../SPEC.md#凭据服务)。
