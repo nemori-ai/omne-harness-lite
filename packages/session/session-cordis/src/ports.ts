@@ -59,7 +59,9 @@ export function createPorts(ctx: Context, diagnose: Diagnose): CurrentPorts {
     identity: {
       prepare: (access, command) => through('sessionIdentity', s => s.prepare(access, command)),
     },
-    evidence: { prepare: command => through('sessionEvidence', s => s.prepare(command)) },
+    evidence: {
+      prepare: (command, access) => through('sessionEvidence', s => s.prepare(command, access)),
+    },
     idle: {
       inspect: input => through('sessionIdleInput', s => s.inspect(input)),
       prepare: (access, command) => through('sessionIdleInput', s => s.prepare(access, command)),

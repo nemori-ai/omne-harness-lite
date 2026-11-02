@@ -12,6 +12,7 @@ import type {
 } from '@omne-harness/session-contract'
 import { createAdvance, type Advance } from './advance.ts'
 import { ADVANCE_KINDS, createCommandHandler } from './command.ts'
+import { createControlPropagation, type ControlPropagation } from './control.ts'
 import { checkStartConditions, type SessionDependencies } from './dependencies.ts'
 import { createFaces } from './faces.ts'
 import { Lifecycle } from './lifecycle.ts'
@@ -72,11 +73,14 @@ export function createSessionInstance<P>(
   const reads = createReads(dependencies, lifecycle)
   // Bound below; the handler only calls it after a commit, never during construction.
   let advance: Advance | null = null
+  let controls: ControlPropagation | null = null
   const handle = createCommandHandler({
     dependencies,
     policy,
     lifecycle,
     committed: command => {
+      if (['cancelRun', 'stopCall', 'control', 'interrupt'].includes(command.kind))
+        controls?.trigger({ tenant: command.input.tenant, session: command.input.session })
       if (WAKES_ADVANCE.has(command.kind))
         advance?.trigger({ tenant: command.input.tenant, session: command.input.session })
     },
@@ -96,6 +100,14 @@ export function createSessionInstance<P>(
   })
   const wired = createAdvance({ dependencies, lifecycle, policy, scheduling, resolution, faces })
   advance = wired
+  controls = createControlPropagation({
+    dependencies,
+    lifecycle,
+    policy,
+    scheduling,
+    coordinator: faces.coordinator,
+  })
+  const controlPropagation = controls
   const scan = createScan({
     lifecycle,
     policy,
@@ -104,12 +116,15 @@ export function createSessionInstance<P>(
     maintainer: faces.maintainer,
     advance: wired,
     resolution,
+    controls: controlPropagation,
   })
 
   return Object.freeze({
     facesFor,
     committed: notice => {
       if (lifecycle.closed) return
+      if (notice.kinds.some(kind => kind === 'control.requested' || kind === 'control.progress'))
+        controlPropagation.trigger({ tenant: notice.tenant, session: notice.session })
       if (notice.kinds.some(kind => ADVANCE_KINDS.has(kind)))
         wired.trigger({ tenant: notice.tenant, session: notice.session })
     },

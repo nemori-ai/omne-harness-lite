@@ -8,7 +8,11 @@ export {
   type SessionLogJournalOptions,
   type SessionLogJournalProvider,
 } from './cordis/agent-journal.ts'
-export { SessionLogAgentJournalProvider } from './cordis/agent-journal-provider.ts'
+export {
+  SessionLogAgentJournalProvider,
+  createSessionAgentJournalPlugin,
+  type SessionAgentJournalPluginInput,
+} from './cordis/agent-journal-provider.ts'
 export { createSessionContextHolder } from './cordis/context-holder.ts'
 export type {
   SessionContextHolderInput,

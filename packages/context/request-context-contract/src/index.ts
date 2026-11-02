@@ -72,6 +72,12 @@ export type { PreparedInputKey } from './values.js'
 export type { AssemblyOperationsInput } from './operations.js'
 export { createAssemblyOperations } from './operations.js'
 export type {
+  AssemblyReuse,
+  CachedAssemblyMaterial,
+  ContentControl,
+  SnapshotIdentity,
+} from './reuse.js'
+export type {
   SourceRead,
   SourceGroupValue,
   GroupSource,

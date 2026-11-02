@@ -861,7 +861,8 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 - 查不到：没有 Run 开过的 execution 与另一租户的 execution 得到同一个答复 `denied`，`action` 是操作名（`output.read` 为 `read`，`output.events` 为 `events`），与核心对不持有的执行的答复相同（Agent SPEC「判定次序与失败映射」第 1 条）。两种情形都不写存储。
 - 读不到：租户没有事务域或查找失败、索引读取失败、输出损坏，都答 `unavailable`，`owner` 为 `session-log-journal`。读取失败不当作不存在。
 - 三个键：同一插件体在同一个会话日志 Journal 上再构造 `agentJournalEntries` 与 `agentMaterials` 两个服务实例，三者在同一权威排序域。entries 与 Journal 一样按 `(tenant, execution)` 路由；`materials.read` 按材料来源所记的会话路由；`materials.preserve` 恒答 `unavailable`（见[已知限制](#已知限制)第 6 条）。
-- 不在插件里：`cancellation` 与 `hostRecords` 两个运行时选项（见[已知限制](#已知限制)第 6 条）。
+- 治理安装（R2-D35、R2-D16）：插件工厂 `createSessionAgentJournalPlugin({ cancellation })`（`./cordis`，同 `createSessionAgentDrivePlugin` 的先例）返回继承 `SessionLogAgentJournalProvider` 的插件类，`inject`、配置与提供的三个键不变。`cancellation` 是装配入口交入的不可变安装（记录加判断实现），不进配置，也不是插件树上的键；插件创建每个会话 Journal 时原样转交，judge 每次判断调用一次。不传 `cancellation`（或不用工厂、直接装载 `SessionLogAgentJournalProvider`）时，取消终结答 `unavailable`。
+- 不在插件里：`hostRecords` 运行时选项（见[已知限制](#已知限制)第 6 条）；`cancellation` 只经上一条的工厂交入。
 
 两个发布点的区别：
 
@@ -919,7 +920,7 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 3. 替身是非耐久的内存实现，不证明耐久、进程重启或跨进程同提交；它不覆盖 sqlite-provider 或任何真实后端。
 4. K-6 提交协议有两份：切分 X 下，Journal 提供者的存储提交协议（`src/journal-commit.ts`：身份构造、代次循环、存储结果映射）与 session-storage-sql 的 `commit.ts` 是同一套规则的两份。触发条件：Session 组出现第三个提交方，或两份规则出现差异。届时把切分 Y 或「sql-contract 提供通用代次助手」交负责人重开。
 5. K-8 每次发布写整个会话的状态：生产提供者把一个会话的全部 Agent 记录作为一份不透明状态保存，每次 Agent 发布整行替换。写入代价随会话的 Agent 记录线性增长，K-1 的 `maxCommandBytes` 上限因此先到。AG-23 回放里一次写入最大约 0.58 MB。重建副本时整份读一次，读口 `execution-record.state` 有自己的输出上限：它不小于 `maxCommandBytes` 时，写得进的状态读得回（session-storage-sql 已知限制 K-1 写明差额与验证）。触发条件：真实会话的状态接近 `maxCommandBytes`，或写入延迟超过 `perf-baseline.md` 的阈值。届时把状态按执行或按记录拆成多行。
-6. K-9 `materials.preserve` 没有到会话的路由：`SessionLogAgentJournalProvider` 在同一插件体内提供 `agentJournal`、`agentJournalEntries` 与 `agentMaterials`（[生产提供者的实现现状](#生产提供者的实现现状)），装配页的 `agent-journal` 行已指向它。`agentJournal` 与 `agentJournalEntries` 经 session-storage-sql 的执行索引按 `(tenant, execution)` 找到会话，`materials.read` 按材料来源所记的会话路由；`materials.preserve` 不带 execution 也不带会话，存储里没有从 consumer 到会话的索引，所以恒答 `unavailable` 且不写入。这是已知限制：生产侧现在没有它的调用方，consumer 到会话的路由归波 2（DP2-2）。插件也不传 `cancellation` 与 `hostRecords`：这两项是运行时对象，装配怎样给出还没有决定，所以经插件的 Journal 没有取消政策安装。触发条件：生产侧出现 `materials.preserve` 的调用方，或生产组合需要取消政策。
+6. K-9 `materials.preserve` 没有到会话的路由：`SessionLogAgentJournalProvider` 在同一插件体内提供 `agentJournal`、`agentJournalEntries` 与 `agentMaterials`（[生产提供者的实现现状](#生产提供者的实现现状)），装配页的 `agent-journal` 行已指向它。`agentJournal` 与 `agentJournalEntries` 经 session-storage-sql 的执行索引按 `(tenant, execution)` 找到会话，`materials.read` 按材料来源所记的会话路由；`materials.preserve` 不带 execution 也不带会话，存储里没有从 consumer 到会话的索引，所以恒答 `unavailable` 且不写入。这是已知限制：生产侧现在没有它的调用方，consumer 到会话的路由归波 2（DP2-2）。插件不传 `hostRecords`：它是运行时对象，装配怎样给出还没有决定。取消政策安装经插件工厂 `createSessionAgentJournalPlugin({ cancellation })` 交入；不经工厂装载的插件没有取消政策安装。触发条件：生产侧出现 `materials.preserve` 的调用方，或生产组合需要 `hostRecords`。
 7. K-10 Journal 核心在 `src/testing/`：生产提供者导入 `src/testing/journal.ts` 与 `src/testing/root.ts` 的 Journal 核心，与内存替身共用一份 Agent 规则。核心的输入水位线在进程内索引缺项时，从水位线的记录文本还原范围，条件是起点为 0 或一个已知批次的终点、终点不超过已受理的输入数。触发条件：替身与生产提供者的规则需要分开时，把核心移出 `src/testing/`。
 8. K-11 推进资格的快照读：`commit` 等写入的推进资格核对（`advances`）读写入前的 `session.work` 快照，不在存储事务里复核。只有 `open`、`attach`、`submit`、`tryFinish` 与四种 CallerCommit 的 Session 参加在同一次提交里核对。取消判断（judge-cancellation）的参加者事实同样读快照，待交输入的依据记为 `unknown`。触发条件：Session 在快照读与提交之间撤回推进资格的竞争进入用例。
 9. K-12 AD-02 的生产插件未交付（AD-05 已由 `src/cordis/model-log-consumption.ts` 交付）：同日志解释（EC-01 后果、解释进度经 `commitEntries`）与 Model 日志消费只在 `./testing` 替身里实现。生产提供者的读口（`load`、`output.read`、`output.events`）已可供它们使用。同根索引的 Session 后果种类为空（session-storage-sql 已知限制 K-5）。

@@ -29,7 +29,9 @@ import {
 } from '@omne-harness/agent-contract'
 import {
   agentJournalCoreConformance,
+  createTestCancellationPolicy,
   sampleReceivedModelResult,
+  testCancellationPolicyInstallation,
   type AgentJournalCoreFixture,
   type AgentJournalCoreOpened,
 } from '@omne-harness/agent-contract/testing'
@@ -63,8 +65,13 @@ import { SessionAccessCheckService } from '@omne-harness/session-cordis-contract
 import type { DomainRef, SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { StorageService, TenantDomainLookupService } from '@omne-harness/sql-contract/cordis'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
-import { createSessionLogJournal } from '../src/cordis/agent-journal.ts'
-import { SessionLogAgentJournalProvider } from '../src/cordis/agent-journal-provider.ts'
+import { createSessionLogJournal, materialSessionOf } from '../src/cordis/agent-journal.ts'
+import {
+  createExecutionRoutedJournal,
+  createSessionAgentJournalPlugin,
+  SessionLogAgentJournalProvider,
+  type ExecutionRoutedJournalOptions,
+} from '../src/cordis/agent-journal-provider.ts'
 import { checkpoint, instance, ok, openInput, operation } from './fixtures/common-journal.ts'
 import { handed, sqlScene, type SqlScene, type SqlSceneOptions } from './fixtures/sql-scene.ts'
 import { toolCall } from './fixtures/tool-call.ts'
@@ -198,13 +205,17 @@ async function mount(ctx: Context, plugin: Parameters<Context['plugin']>[0], con
 }
 
 /** A real Cordis root with the three dependencies and the plugin, over the scene's storage. */
-async function assembled(s: SqlScene, config: Readonly<{ routeCacheEntries?: number }> = {}) {
+async function assembled(
+  s: SqlScene,
+  config: Readonly<{ routeCacheEntries?: number }> = {},
+  provider: Parameters<Context['plugin']>[0] = SessionLogAgentJournalProvider,
+) {
   const services = servicesOf(s, await otherDomainOf(s))
   const ctx = new Context()
   await mount(ctx, services.Storage)
   await mount(ctx, services.Lookup)
   await mount(ctx, services.Access)
-  const plugin = await mount(ctx, SessionLogAgentJournalProvider, { ...s.combination, ...config })
+  const plugin = await mount(ctx, provider, { ...s.combination, ...config })
   const face = <T>(key: string) => {
     const found: unknown = ctx.get(key)
     if (found === undefined) throw new Error(`${key} is not provided`)
@@ -1062,4 +1073,400 @@ describe('routing on the real sqlite-provider', () => {
       ).toBe('1')
     },
   )
+})
+
+/** The routed Journal made directly, over the scene's storage, so an option can be handed to it. */
+async function routedDirect(
+  s: SqlScene,
+  extra: Partial<ExecutionRoutedJournalOptions<string>> = {},
+) {
+  const services = servicesOf(s, await otherDomainOf(s))
+  const routed = createExecutionRoutedJournal<string>({
+    storage: services.storage,
+    tenantDomainLookup: services.lookup,
+    sessionAccessCheck: { check: services.check },
+    combination: s.combination,
+    ...extra,
+  })
+  disposers.push(() => Promise.resolve(routed.close()))
+  return { routed, wiring: services.wiring }
+}
+
+/**
+ * The cancellation route up to the judgment, through `journal`: the cancel control and its intent,
+ * the established candidate, then the judgment. Answers the first failure, or the judgment.
+ */
+async function cancelThrough(journal: AgentJournal<string>, s: SqlScene) {
+  const control = operation('cancel-control')
+  ok(
+    await journal.control({
+      ...s.access,
+      execution: s.execution,
+      operation: control,
+      command: { kind: 'cancel', reason: evidence('cancel') },
+    }),
+  )
+  ok(
+    await journal.recordControl({
+      ...s.access,
+      execution: s.execution,
+      operation: operation('cancel-intent'),
+      target: control,
+      stage: 'intent-established',
+      state: 'reached',
+      source: evidence('intent'),
+    }),
+  )
+  const common = async (name: string) => {
+    const snapshot = ok(await journal.load({ ...s.access, execution: s.execution }))
+    const record = snapshot.controls.find(item => item.operation === control)
+    if (record === undefined) throw new Error('the control should be saved')
+    return {
+      snapshot,
+      common: {
+        ...s.access,
+        execution: s.execution,
+        operation: operation(name),
+        authorization: {
+          kind: 'cancel' as const,
+          control,
+          source: record.stages.accepted.source,
+        },
+        expected: snapshot.revision,
+        installation: testCancellationPolicyInstallation.record,
+      },
+    }
+  }
+  const first = await common('cancel-establish')
+  const established = await journal.commitSettlement({
+    ...first.common,
+    kind: 'establish-cancellation',
+    predecessor: null,
+  })
+  if ('failure' in established) return established
+  const second = await common('cancel-judge')
+  const route = second.snapshot.settlement.route
+  if (route === null) throw new Error('a route is expected')
+  return journal.commitSettlement({
+    ...second.common,
+    kind: 'judge-cancellation',
+    candidate: route.candidate,
+    route: route.record,
+  })
+}
+
+describe('R2-D35: the cancellation installation handed to the session-log Journal', () => {
+  it('R2-D35 hands the installation of its options to the Journal of the session: the policy judges once', async () => {
+    const s = await scene('d35-hand')
+    let judged = 0
+    const policy = createTestCancellationPolicy()
+    const { routed } = await routedDirect(s, {
+      cancellation: {
+        installation: testCancellationPolicyInstallation,
+        policy: {
+          ...policy,
+          judge: input => {
+            judged += 1
+            return policy.judge(input)
+          },
+        },
+      },
+    })
+    const opened = ok(await routed.journal.open(s.openInput))
+    ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
+    expect(ok(await cancelThrough(routed.journal, s))).toMatchObject({
+      judgment: { decision: { kind: 'allowed' } },
+    })
+    expect(judged).toBe(1)
+  })
+
+  it('R2-D35 without an installation in its options the cancellation variants answer unavailable, as before', async () => {
+    const s = await scene('d35-none')
+    const { routed } = await routedDirect(s)
+    ok(await routed.journal.open(s.openInput))
+    expect(await cancelThrough(routed.journal, s)).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+  })
+})
+
+describe('R2-D35: the plugin factory carries the installation the entry hands in', () => {
+  it('R2-D35 a plugin made with an installation loads on real Cordis, hands it to the session Journal: the policy judges once, and stops with the three keys', async () => {
+    const s = await scene('d35-plugin')
+    let judged = 0
+    const policy = createTestCancellationPolicy()
+    const Plugin = createSessionAgentJournalPlugin({
+      cancellation: {
+        installation: testCancellationPolicyInstallation,
+        policy: {
+          ...policy,
+          judge: input => {
+            judged += 1
+            return policy.judge(input)
+          },
+        },
+      },
+    })
+    const { ctx, plugin, journal } = await assembled(s, {}, Plugin)
+    expect(plugin.state).toBe(ACTIVE)
+    const opened = ok(await journal().open(s.openInput))
+    ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
+    expect(ok(await cancelThrough(journal(), s))).toMatchObject({
+      judgment: { decision: { kind: 'allowed' } },
+    })
+    expect(judged).toBe(1)
+    await plugin.dispose()
+    for (const key of FACES) expect(ctx.get(key), key).toBeUndefined()
+  })
+
+  for (const [label, input] of [
+    ['without an input', undefined],
+    ['with an input that holds no installation', {}],
+  ] as const)
+    it(`R2-D35 a plugin made ${label} answers unavailable for the cancellation variants`, async () => {
+      const s = await scene(`d35-plugin-none-${input === undefined ? 'a' : 'b'}`)
+      const { journal } = await assembled(s, {}, createSessionAgentJournalPlugin(input))
+      ok(await journal().open(s.openInput))
+      expect(await cancelThrough(journal(), s)).toMatchObject({
+        failure: { kind: 'unavailable' },
+      })
+    })
+})
+
+describe('K-9: a material to preserve names an execution, and goes to its session', () => {
+  it('K-9 preserve with an execution is saved in the session of that execution and read back from its source', async () => {
+    const s = await scene('k9-save')
+    const b = await secondSession(s, 'k9-save-b')
+    const { journal, materials } = await assembled(s)
+    ok(await journal().open(s.openInput))
+    ok(await journal().open(b.openInput))
+    const value = factsMaterial('kept-by-execution')
+    const source = ok(
+      await materials().preserve({
+        ...b.access,
+        execution: b.execution,
+        identity: 'kept',
+        consumer: CONSUMER,
+        value,
+      }),
+    )
+    // The source names the session of the execution, not the scene's other session.
+    expect(materialSessionOf(source)).toEqual({
+      tenant: textOf(b.access.tenant),
+      session: b.access.session,
+    })
+    expect(ok(await materials().read({ ...b.access, source }))).toEqual(value)
+  })
+
+  it('K-9 an execution of another tenant and one no Run started are denied and nothing is written', async () => {
+    const s = await scene('k9-denied')
+    const { journal, materials } = await assembled(s)
+    ok(await journal().open(s.openInput))
+    const commits = s.commits.length
+    const value = factsMaterial('refused')
+    const unknown = ok(decodeAgentExecutionId('run_never/execution'))
+    const foreign = await materials().preserve({
+      ...other,
+      execution: s.execution,
+      identity: 'foreign',
+      consumer: CONSUMER,
+      value,
+    })
+    const never = await materials().preserve({
+      ...s.access,
+      execution: unknown,
+      identity: 'never',
+      consumer: CONSUMER,
+      value,
+    })
+    expect(foreign).toEqual({ failure: { kind: 'denied', action: 'preserve' } })
+    expect(never).toEqual(foreign)
+    expect(s.commits.length).toBe(commits)
+  })
+
+  it('K-9 an execution index that cannot be read is unavailable, not denied, and nothing is written', async () => {
+    const s = await scene('k9-index')
+    const { journal, materials, wiring } = await assembled(s)
+    ok(await journal().open(s.openInput))
+    const commits = s.commits.length
+    wiring.failIndex = true
+    // A route the plugin has not cached yet: another tenant's, which the lookup knows.
+    const answer = await materials().preserve({
+      ...other,
+      execution: s.execution,
+      identity: 'index',
+      consumer: CONSUMER,
+      value: factsMaterial('index'),
+    })
+    expect(answer).toMatchObject(unavailableHere)
+    expect(s.commits.length).toBe(commits)
+  })
+
+  it('K-9 preserve without an execution stays unavailable and writes nothing, also after the execution was routed', async () => {
+    const s = await scene('k9-legacy')
+    const { journal, materials } = await assembled(s)
+    ok(await journal().open(s.openInput))
+    const commits = s.commits.length
+    expect(
+      await materials().preserve({
+        ...s.access,
+        identity: 'legacy',
+        consumer: CONSUMER,
+        value: factsMaterial('legacy'),
+      }),
+    ).toMatchObject(unavailableHere)
+    expect(s.commits.length).toBe(commits)
+  })
+
+  it('K-9 preserve with an execution after the plugin stopped is unavailable and writes nothing', async () => {
+    const s = await scene('k9-stopped')
+    const { journal, materials, plugin } = await assembled(s)
+    ok(await journal().open(s.openInput))
+    const held = materials()
+    await plugin.dispose()
+    const commits = s.commits.length
+    expect(
+      await held.preserve({
+        ...s.access,
+        execution: s.execution,
+        identity: 'stopped',
+        consumer: CONSUMER,
+        value: factsMaterial('stopped'),
+      }),
+    ).toMatchObject(unavailableHere)
+    expect(s.commits.length).toBe(commits)
+  })
+})
+
+describe('AD-02 trigger: the plugin names each successful write of the Journal', () => {
+  const PUBLISHED = 'session-adapters/agent-published'
+  type Published = [tenant: unknown, session: unknown, execution: unknown]
+
+  /** Lets the not-awaited dispatch of an event reach its listeners. */
+  const flush = () => new Promise<void>(resolve => setTimeout(resolve, 10))
+
+  async function listening(name: string) {
+    const s = await scene(name)
+    const assembly = await assembled(s)
+    const seen: Published[] = []
+    assembly.ctx.on(PUBLISHED, (...args: Published) => {
+      seen.push(args)
+    })
+    return { s, seen, ...assembly }
+  }
+
+  it('AD-02 trigger: one successful write is followed by exactly one event naming tenant, session and execution', async () => {
+    const { s, seen, journal } = await listening('ad02-one')
+    ok(await journal().open(s.openInput))
+    await flush()
+    expect(seen).toEqual([[s.access.tenant, s.access.session, s.execution]])
+  })
+
+  it('AD-02 trigger: an entries write is one event too, and a read is none', async () => {
+    const { s, seen, journal, entries } = await listening('ad02-entries')
+    ok(await journal().open(s.openInput))
+    await flush()
+    seen.length = 0
+    const loaded = ok(await journal().load({ ...s.access, execution: s.execution }))
+    ok(
+      await journal().inputs({
+        ...s.access,
+        execution: s.execution,
+        watermark: loaded.inputWatermark,
+      }),
+    )
+    ok(await journal().output.read({ ...s.access, execution: s.execution, after: null, limit: 10 }))
+    await flush()
+    expect(seen).toEqual([])
+    ok(
+      await entries().record({
+        ...s.access,
+        execution: s.execution,
+        operation: operation('ad02-record'),
+        authority: null,
+        entry: sampleReceivedModelResult(s.access.tenant, 'ad02-entries'),
+      }),
+    )
+    await flush()
+    expect(seen).toEqual([[s.access.tenant, s.access.session, s.execution]])
+  })
+
+  it('AD-02 trigger: a write that fails and a call that was never routed send no event', async () => {
+    const { s, seen, journal } = await listening('ad02-fail')
+    const opened = ok(await journal().open(s.openInput))
+    await flush()
+    seen.length = 0
+    const stale = await journal().commit({
+      ...s.access,
+      execution: s.execution,
+      operation: operation('ad02-stale'),
+      authority: opened.authority,
+      expected: '99' as typeof opened.receipt.revision,
+      checkpoint: s.checkpoint,
+      state: { kind: 'advancing' },
+      events: [],
+      effects: [],
+      caller: { kind: 'none' },
+      replyAdmission: null,
+      handoff: null,
+      finish: null,
+    })
+    expect(stale).toHaveProperty('failure')
+    const never = await journal().open({
+      ...s.openInput,
+      execution: ok(decodeAgentExecutionId('run_never/execution')),
+    })
+    expect(never).toEqual({ failure: { kind: 'denied', action: 'open' } })
+    await flush()
+    expect(seen).toEqual([])
+  })
+
+  it('AD-02 trigger: a write through a reference held after the plugin stopped sends no event', async () => {
+    const { s, seen, journal, plugin } = await listening('ad02-stopped')
+    const held = journal()
+    await plugin.dispose()
+    expect(await held.open(s.openInput)).toMatchObject(unavailableHere)
+    await flush()
+    expect(seen).toEqual([])
+  })
+
+  it('AD-02 trigger: a write in flight when the plugin stops sends no event', async () => {
+    const { s, seen, journal, plugin, wiring } = await listening('ad02-inflight')
+    let reached!: () => void
+    const writing = new Promise<void>(resolve => {
+      reached = resolve
+    })
+    let release!: () => void
+    const released = new Promise<void>(resolve => {
+      release = resolve
+    })
+    wiring.hold = { reached, released }
+    const write = journal().open(s.openInput)
+    await writing
+    await plugin.dispose()
+    release()
+    await write
+    await flush()
+    expect(seen).toEqual([])
+  })
+
+  it('AD-02 trigger: a listener that throws does not change the answer of the write', async () => {
+    const s = await scene('ad02-throws')
+    const { ctx, journal } = await assembled(s)
+    ctx.on(PUBLISHED, () => {
+      throw new Error('listener fault')
+    })
+    expect(ok(await journal().open(s.openInput)).receipt.execution).toBe(s.execution)
+    await flush()
+  })
+
+  it('AD-02 trigger: a callback of the options that throws does not change the answer either', async () => {
+    const s = await scene('ad02-callback')
+    const { routed } = await routedDirect(s, {
+      published: () => {
+        throw new Error('callback fault')
+      },
+    })
+    expect(ok(await routed.journal.open(s.openInput)).receipt.execution).toBe(s.execution)
+  })
 })
