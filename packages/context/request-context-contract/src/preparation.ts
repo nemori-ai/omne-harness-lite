@@ -38,7 +38,7 @@ export function preparationKey<P>(
   }
 }
 
-/** What a call may build on: the history read of this call and the material of this position. */
+/** What a call may build on: the history read of this call and the material it continues. */
 export type ReuseBasis = Readonly<{ historyRead: StableInputs<unknown>['historyRead'] }>
 
 export type StablePreparation = Readonly<{

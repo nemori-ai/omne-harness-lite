@@ -21,7 +21,11 @@ import type { EligibilityId, ScopeRef, ViewRevision } from '@omne-harness/runtim
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { canonical } from './internal.js'
 
-/** The stable content of one consumption position, derived from inputs the source owners fixed. */
+/**
+ * The stable content of one principal and purpose, derived from inputs the source owners fixed. It
+ * keeps the key of the call that derived it; a later call at another consumption position may build
+ * on it, because the position enters no derived content.
+ */
 export type CachedAssemblyMaterial = Readonly<{
   /** The tenant and scope this material was derived for. */
   target: ContextTarget
@@ -67,7 +71,7 @@ export type ContentControl = Readonly<{
 /**
  * The two actions a registry lends to the operations of one call. `load` checks no access: it is
  * called only after the call has been admitted. `stage` writes the transaction of this call, never
- * the shared state.
+ * the shared state. `position` is the position of this call; a registry need not partition by it.
  */
 export interface AssemblyReuse {
   load(
@@ -92,14 +96,17 @@ export function sameContentControl(left: ContentControl, right: ContentControl):
   return canonical(left) === canonical(right)
 }
 
-/** Whether the material belongs to exactly this principal, generation and target. */
+/**
+ * Whether the material belongs to exactly this principal, generation, purpose and target. The
+ * consumption position is not compared: it enters no derived content, and each layer checks its
+ * own inputs (history evidence and epoch, group tokens, snapshot identity) before it reuses one.
+ */
 export function materialBelongs(
   material: CachedAssemblyMaterial,
   expected: Readonly<{
     principal: PrincipalKey | undefined
     generation: PreparedInputKey['generation'] | undefined
     purpose: RequestPurpose
-    position: PositionRef
     target: ContextTarget
   }>,
 ): boolean {
@@ -109,7 +116,6 @@ export function materialBelongs(
     key.principal === expected.principal &&
     key.generation === (expected.generation ?? null) &&
     key.identity.purpose === expected.purpose &&
-    key.identity.position === expected.position &&
     material.target.scope.ref === expected.target.scope.ref &&
     tenantEquals(material.target.tenant, expected.target.tenant)
   )
