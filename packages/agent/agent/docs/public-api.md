@@ -193,6 +193,20 @@ facts 材料保存原租户编码与完整 ModelDelivery。精确采用为 owner
 
 测试装配可显式传 receivingPrincipal 启用公开 Model testing pusher。controls.pusher 暴露 deliveries、settled 与 acknowledgements，controls.receiver 是独立接收方。controls.journal.provider 为同源四视图，targets 在原 PendingCall 提交时保留原绑定。该提供者无磁盘耐久。`createModelReceiverFixture()` 提供真实 memory Journal、原 PendingCall 及显式 Model/Access/outlet 替身，供宿主工厂的公共入口测试使用；它不运行真实 Model host。
 
+## 独立 Tool 接收入口
+
+`createAgentToolReceiver(dependencies, state)` 提供 `ToolResultReceiver` 的 push，以及 retry、recover 和 inspect。`createToolReceiverState()` 的返回值由宿主持有，与 Agent runtime 的生命期分开。组件重建继续传同一状态，不清除未知操作或真实在途任务。received 为 null 时返回 unsupported。
+
+依赖包括同一 `AgentReceivedProvider`、`AgentAccessCheck`、`ToolReceptionTargets` 和租户容量函数。targets.resolve 按原调用引用与完整 consumer 查询持久保留的 Tool PendingCall、consumption、execution 和原 instance。目标提供者须先核当前访问资格，再返回原绑定或 null。null 表示不存在原消费关联，push 按 Tool 协议返回 invalid/key.reference/not-accepted；来源不可读返回 unavailable/association。绑定存在后，接收方核 receive-result、原 reference 与 consumer。targets.forExecution 返回该 execution 的完整原绑定集合，不从当前挂接或 consumer.work 推断身份。
+
+新交付取得租户独立的 records、bytes、attachments 与 inFlight 额度后，经原共同提交端口一次保存材料和 received。unknown 继续查询原 operation，不能再次 preserve 或新建提交身份。重复 key 不占新逻辑额度，实际在途调用仍占 inFlight。signal 只结束等待，不撤销已受理的写入；真实写入结束才释放在途额度。
+
+Tool 完整材料采用 [公共 SPEC 的结果接收](../../agent-contract/SPEC.md#结果接收) 中 R2-D36 的 facts schema。`readToolDeliveryMaterial(access, material, expected)` 验证材料并返回完整 ToolDelivery，不合法时返回 null。该函数不核当前资格，也不证明耐久。Tool 的结果和迟到账目各自按原 key 保存，尚无账目保持 null。接收方只返回 saved，生产者自行完成 release。Model 专用的 AgentAccountOutlet 不用于 Tool 账目。
+
+retry 只认回本次授权绑定集合中的未知操作。recover 从同一 Journal 的 received 与完整材料认回已保存结果，不重写材料。两者返回 `Reply<ToolReceiverReport>`，返回前重核当前资格。inspect 是宿主管理的全局视图，不作为租户查询。内存状态和测试 Journal 只支持同进程接续，不能据此宣称 SQLite 耐久、Tool release 日志或跨进程恢复已完成。
+
+`@omne-harness/agent/testing` 的 `createToolReceiverFixture()` 在真实内存 Journal 中提交原 Tool PendingCall，提供显式访问与目标查询替身，用于宿主入口验证。它不运行真实 Tool host。
+
 ## 测试 Journal 的保留引用故障
 
 `@omne-harness/agent/testing` 的 `createMemoryAgentJournal` 提供单进程、非耐久的测试 Journal。`MemoryAgentJournalOptions.retainedToolInvocationFaults` 仅在构造时严格为 `true` 才开启故障控制，默认关闭。以后修改 options 不改变开关。`createTestAgentDependencies({ journal: options })` 将同一选项传入，控制句柄为 `controls.journal`。

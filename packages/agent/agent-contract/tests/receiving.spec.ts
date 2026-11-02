@@ -743,6 +743,7 @@ describe('reference material custody', () => {
     const value = committed.ok.value
     const legacy = await fixture.joint.materials.preserve({
       ...access,
+      execution: execution.ok,
       identity: 'legacy-custody',
       consumer: entry.consumer,
       value: input.material,

@@ -1,6 +1,6 @@
 # Agent 具体装配的行为边界
 
-本包承担 Agent 的本地宿主装配。根入口提供独立 Model 接收组件。`./cordis` 导出宿主插件 `agentHostPlugin`，实现范围与缺口见“[宿主插件](#宿主插件)”。插件尚未接入接收组件，不能据此声称生产 Model 接收方已经登记。领域行为消费 [agent-contract](../agent-contract/SPEC.md)，框架公共保证消费 [agent-cordis-contract](../agent-cordis-contract/SPEC.md)。
+本包承担 Agent 的本地宿主装配。根入口提供独立 Model 与 Tool 接收组件。`./cordis` 导出宿主插件 `agentHostPlugin`，实现范围与缺口见“[宿主插件](#宿主插件)”。插件尚未接入接收组件，不能据此声称生产 Model 接收方已经登记。领域行为消费 [agent-contract](../agent-contract/SPEC.md)，框架公共保证消费 [agent-cordis-contract](../agent-cordis-contract/SPEC.md)。
 
 ## 提供者责任
 
@@ -41,6 +41,8 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 接收句柄须提供 push、recover、retry 和只读待办及诊断查询。宿主显式创建并持有接收状态；Agent 实例重建不清空它，接收组件重装配继续传入同一状态。recover 按 execution 从 received 及材料恢复账目待办。unknown 与 unavailable 保留原 handoff，宿主在可重试待办存在时驱动 retry。denied、conflict 与 invalid 保留为 blocked 待办和具名诊断，不自动重试，重装配也不重新发送。恢复和重试返回 Agent Reply。它们先按原绑定工作集核 receive-result，返回前重核；不存在或无权统一 denied，依赖不可读返回 unavailable。报告只含该集合，await 期间新增的绑定留到下一次维护。inspect 是宿主管理的全局视图，不作为租户查询。
 
 共同提交、材料核对和入队后即返回 saved，不等待 outlet。宿主状态持有实际出站任务与当前驱动代；旧代只结算已发出的交接，不能驱动后继。每次实际出站前重核原绑定资格。停止只停止本次等待与后续驱动，不取消已受理的共同提交，不撤回 saved，不删除材料或待办。取消时目标或最终资格检查尚未完成，返回无内容 unavailable（owner=agent-model-receiver，diagnostic=maintenance-cancelled）；已判定 denied 不改成成功。接收状态的内存实现仅支持同进程接续，不证明断电或跨进程恢复；要求耐久的宿主须保存接收与出站的业务事实。Promise 和驱动代只表示本进程的实际执行，不作为耐久记录。容量、材料、接收与出站的精确行为分别沿 [J02](../agent-contract/SPEC.md#结果接收)、[共同提交](../agent-contract/SPEC.md#接收共同提交)和 [J28](../agent-contract/SPEC.md#账目出站)。
+
+Tool 工厂沿 [Tool 接收入口](../agent/docs/public-api.md#独立-tool-接收入口)消费独立算法，以同一提供者共同保存 Tool 完整材料和 received。其依赖为 provider、access、targets 与容量，不使用 Model 专用的账目手交。状态归宿主所有，运行实例停止不撤销接收责任。此入口不新增 Cordis 服务或 Tool 生产路由。
 
 ## 验证
 

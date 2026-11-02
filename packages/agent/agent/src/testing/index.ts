@@ -21,7 +21,7 @@ import {
   createMemoryAgentAccountOutlet,
   sampleReceivedModelAccount,
 } from '@omne-harness/agent-contract/testing'
-import type { AgentInstant } from '@omne-harness/agent-contract'
+import type { AgentInstant, Access, AgentExecutionId } from '@omne-harness/agent-contract'
 import type { AgentDependencies } from '../construction.ts'
 import { createManualAgentClock, type ManualAgentClock } from './clock.ts'
 import {
@@ -56,6 +56,21 @@ import {
   type MemoryAgentJournalOptions,
 } from './journal.ts'
 import { createScriptedToolRuntime, type ScriptedToolRuntime } from './tools.ts'
+import {
+  decodeActionId,
+  decodeAgentOperationId,
+  decodeConsumptionId,
+} from '@omne-harness/agent-contract'
+import {
+  decodeToolCallId,
+  decodeToolOperationId,
+  encodeToolInvocationRef,
+  type ToolDelivery,
+} from '@omne-harness/tool-contract'
+import { decodeToolDeliveryId, decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
+import type { ToolReceiverDependencies, ToolReceptionTarget } from '../tool-receiving-types.ts'
+import { canonical } from '../canonical.ts'
+import { testEvidence } from './fixtures.ts'
 
 export { createManualAgentClock } from './clock.ts'
 export type { ManualAgentClock } from './clock.ts'
@@ -267,4 +282,121 @@ export function createModelReceiverFixture(): Promise<ModelReceiverFixture> {
     tenant,
     sampleReceivedModelAccount(tenant, 'receiver-fixture'),
   )
+}
+
+export type ToolReceiverFixture = Readonly<{
+  durability: 'none'
+  access: Access<string>
+  execution: AgentExecutionId
+  delivery: ToolDelivery<ContentBlock>
+  dependencies: ToolReceiverDependencies<string>
+  journal: MemoryAgentJournal<string>
+}>
+
+/** An associated Tool call committed through the same non-durable Journal used by the host. */
+export async function createToolReceiverFixture(): Promise<ToolReceiverFixture> {
+  const base = await createModelReceiverFixture()
+  function value<T>(result: { ok: T } | { failure: unknown }): T {
+    if ('failure' in result) throw new Error('invalid Tool receiver fixture')
+    return result.ok
+  }
+  const snapshot = value(
+    await base.journal.port.load({ ...base.access, execution: base.execution }),
+  )
+  if (!snapshot.executionAttachment) throw new Error('fixture attachment required')
+  const reference = value(
+    encodeToolInvocationRef({
+      tenant: base.access.tenant,
+      call: value(decodeToolCallId('receiver-tool')),
+      admission: value(decodeToolOperationId('receiver-tool-admission')),
+    }),
+  )
+  const pending: ToolReceptionTarget['pending'] = {
+    kind: 'tool',
+    association: 'associated',
+    purpose: 'action',
+    reference,
+    action: value(decodeActionId('receiver-tool-action')),
+    consumption: value(decodeConsumptionId('receiver-tool-consumption')),
+    position: { owner: 'agent', work: 'opaque-tool-work', position: 'tool', purpose: 'result' },
+    fixed: testEvidence('fixed-tool'),
+  }
+  value(
+    await base.journal.port.commit({
+      ...base.access,
+      execution: base.execution,
+      operation: value(decodeAgentOperationId('associate-tool')),
+      authority: snapshot.executionAttachment,
+      expected: snapshot.revision,
+      checkpoint: { ...snapshot.checkpoint, calls: [pending] },
+      state: { kind: 'advancing' },
+      finish: null,
+      handoff: null,
+      events: [],
+      effects: [],
+      caller: { kind: 'none' },
+      replyAdmission: null,
+    }),
+  )
+  const target: ToolReceptionTarget = {
+    execution: base.execution,
+    instance: snapshot.executionAttachment.instance,
+    pending,
+  }
+  const dependencies: ToolReceiverDependencies<string> = {
+    provider: base.journal.provider,
+    access: base.dependencies.access,
+    capacity: () => ({ records: 10, bytes: 1000000, attachments: 10, inFlight: 2 }),
+    targets: {
+      async resolve(input) {
+        if (
+          input.access.principal !== base.access.principal ||
+          input.access.tenant !== base.access.tenant
+        )
+          return { failure: { kind: 'denied', action: 'receive-result' } }
+        return {
+          ok:
+            input.reference === reference &&
+            canonical(input.consumer) === canonical(pending.position)
+              ? target
+              : null,
+        }
+      },
+      async forExecution(input) {
+        if (
+          input.access.principal !== base.access.principal ||
+          input.access.tenant !== base.access.tenant ||
+          input.execution !== base.execution
+        )
+          return { failure: { kind: 'denied', action: 'receive-result' } }
+        return { ok: [target] }
+      },
+    },
+  }
+  const delivery: ToolDelivery<ContentBlock> = {
+    kind: 'result',
+    key: {
+      kind: 'result',
+      producer: 'tool',
+      reference,
+      result: value(decodeToolResultVersion('result-1')),
+    },
+    consumer: pending.position,
+    delivery: value(decodeToolDeliveryId('delivery-1')),
+    relation: 'original',
+    terminal: { kind: 'completed' },
+    actualTerminal: null,
+    effect: { kind: 'not-occurred', evidence: testEvidence('effect') },
+    source: testEvidence('tool-result'),
+    value: { content: [], data: { kind: 'none' }, original: { kind: 'none' }, attachments: [] },
+    account: null,
+  }
+  return {
+    durability: 'none' as const,
+    access: base.access,
+    execution: base.execution,
+    journal: base.journal,
+    dependencies,
+    delivery,
+  }
 }
