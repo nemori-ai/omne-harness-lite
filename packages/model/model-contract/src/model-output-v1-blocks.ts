@@ -1,6 +1,7 @@
 import { judgePart } from '@omne-harness/message'
 import type { VisibleBlock } from './call-surface.ts'
 import { checkStreamBlocks } from './model-stream-values-blocks.ts'
+import type { ModelBlock } from './result.ts'
 
 export function outputRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -16,30 +17,26 @@ function select(value: Record<string, unknown>, keys: readonly string[]): Record
   return result
 }
 
+const BLOCK_FIELDS: Readonly<Record<ModelBlock['kind'], readonly string[]>> = {
+  text: ['text'],
+  thinking: ['text'],
+  voice: ['mediaType', 'inline'],
+  image: ['mediaType', 'inline'],
+  file: ['storage', 'key', 'mediaType'],
+  tool_call: ['callId', 'name', 'arguments'],
+  reasoning_state: ['payload', 'pairs'],
+}
+
+function isModelBlockKind(kind: unknown): kind is ModelBlock['kind'] {
+  return typeof kind === 'string' && Object.hasOwn(BLOCK_FIELDS, kind)
+}
+
 function publicBlock(value: Record<string, unknown>): Record<string, unknown> | null {
-  const identity = ['kind', 'id', 'visibility']
-  switch (value.kind) {
-    case 'text':
-    case 'thinking':
-      return select(value, [...identity, 'text'])
-    case 'voice':
-    case 'image':
-      return select(value, [
-        ...identity,
-        ...('ref' in value ? ['ref', 'transcript'] : ['mediaType', 'inline']),
-      ])
-    case 'file':
-      return select(value, [
-        ...identity,
-        ...('ref' in value ? ['ref', 'transcript'] : ['storage', 'key', 'mediaType']),
-      ])
-    case 'tool_call':
-      return select(value, [...identity, 'callId', 'name', 'arguments'])
-    case 'reasoning_state':
-      return select(value, [...identity, 'payload', 'pairs'])
-    default:
-      return null
-  }
+  const kind = value.kind
+  if (!isModelBlockKind(kind)) return null
+  const referenced = 'ref' in value && (kind === 'voice' || kind === 'image' || kind === 'file')
+  const fields = referenced ? ['ref', 'transcript'] : BLOCK_FIELDS[kind]
+  return select(value, ['kind', 'id', 'visibility', ...fields])
 }
 
 function growing(value: Record<string, unknown>): VisibleBlock | null {
@@ -62,16 +59,10 @@ function growing(value: Record<string, unknown>): VisibleBlock | null {
   }
 }
 
-function visible(
+function sealed(
   value: Record<string, unknown>,
   encoding: boolean,
 ): VisibleBlock | null | 'unknown' {
-  if (value.kind === 'growing') {
-    if (!encoding && !outputFields(value, ['kind', 'index', 'mode', 'content', 'value']))
-      return null
-    return growing(value)
-  }
-  if (value.kind !== 'sealed') return typeof value.kind === 'string' ? 'unknown' : null
   if (!encoding && !outputFields(value, ['kind', 'index', 'block'])) return null
   if (typeof value.index !== 'string' || !outputRecord(value.block)) return null
   const selected = publicBlock(value.block)
@@ -86,6 +77,16 @@ function visible(
     default:
       return { kind: 'sealed', index: value.index, block: block.ok }
   }
+}
+
+function visible(
+  value: Record<string, unknown>,
+  encoding: boolean,
+): VisibleBlock | null | 'unknown' {
+  if (value.kind === 'sealed') return sealed(value, encoding)
+  if (value.kind !== 'growing') return typeof value.kind === 'string' ? 'unknown' : null
+  if (!encoding && !outputFields(value, ['kind', 'index', 'mode', 'content', 'value'])) return null
+  return growing(value)
 }
 
 /** Unknown kinds are omitted only at the producer boundary; wire input rejects them. */

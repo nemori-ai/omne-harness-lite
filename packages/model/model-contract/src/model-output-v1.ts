@@ -40,6 +40,22 @@ function baseOf(value: unknown): ModelOutputV1Delta['base'] | null {
     : { cursor: cursor.ok, revision: revision.ok }
 }
 
+function completeProjection(
+  value: Record<string, unknown>,
+  target: Pick<ModelOutputV1Snapshot, 'cursor' | 'revision' | 'blocks'>,
+): Outcome<ModelOutputV1, ModelOutputV1Failure> {
+  if (!Object.hasOwn(value, 'base')) {
+    if (!isPhase(value.phase)) return reject('phase')
+    return { ok: { projection: 'model-output-v1', phase: value.phase, ...target } }
+  }
+  const base = baseOf(value.base)
+  if (base === null) return reject('base')
+  const delta = { projection: 'model-output-v1', base, ...target } as const
+  if (!Object.hasOwn(value, 'phase')) return { ok: delta }
+  if (!isPhase(value.phase)) return reject('phase')
+  return { ok: { ...delta, phase: value.phase } }
+}
+
 function projection(
   value: unknown,
   encoding: boolean,
@@ -61,30 +77,7 @@ function projection(
   if ('failure' in cursor || 'failure' in revision) return reject('identity')
   const blocks = outputBlocks(value.blocks, encoding)
   if (blocks === null) return reject('blocks')
-  if (!delta) {
-    if (!isPhase(value.phase)) return reject('phase')
-    return {
-      ok: {
-        projection: 'model-output-v1',
-        phase: value.phase,
-        cursor: cursor.ok,
-        revision: revision.ok,
-        blocks,
-      },
-    }
-  }
-  const base = baseOf(value.base)
-  if (base === null) return reject('base')
-  const target = {
-    projection: 'model-output-v1',
-    base,
-    cursor: cursor.ok,
-    revision: revision.ok,
-    blocks,
-  } as const
-  if (!Object.hasOwn(value, 'phase')) return { ok: target }
-  if (!isPhase(value.phase)) return reject('phase')
-  return { ok: { ...target, phase: value.phase } }
+  return completeProjection(value, { cursor: cursor.ok, revision: revision.ok, blocks })
 }
 
 function fromInternal(
