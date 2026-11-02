@@ -1267,7 +1267,12 @@ describe('the discriminants of the Journal chapter', () => {
       keyof AgentJournalObservation<string>
     >().toEqualTypeOf<'recordTerminalObservation'>()
     expectTypeOf<keyof AgentJournalReading<string>>().toEqualTypeOf<
-      'load' | 'inputs' | 'readReplyAdmissions' | 'query' | 'output'
+      | 'load'
+      | 'inputs'
+      | 'readReplyAdmissions'
+      | 'readCancellationInstallation'
+      | 'query'
+      | 'output'
     >()
     expectTypeOf<keyof AgentJournalAttachment<string>>().toEqualTypeOf<
       'open' | 'attach' | 'detach'
