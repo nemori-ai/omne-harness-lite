@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { execute } from './process.mjs'
 import { run, assertWslPath, interruptedReport } from './run.mjs'
 import { prepare } from './prepare.mjs'
+import { enterStage, slotDeadline } from './deadlines.mjs'
 
 function relativePath(value) {
   if (
@@ -81,8 +82,8 @@ export function parse(args) {
   return { ...config, out: resolve(values.out), members }
 }
 
-async function main() {
-  const config = parse(process.argv.slice(2))
+export async function main(args = process.argv.slice(2), { settleMs = 30_000 } = {}) {
+  const config = parse(args)
   if (config.command === 'prepare-wsl') assertWslPath(config.root)
   if (config.command === 'run' && existsSync(config.out) && readdirSync(config.out).length)
     throw new Error(
@@ -100,22 +101,23 @@ async function main() {
           : resolve(dirname(fileURLToPath(import.meta.url)), '../..')
       const slot = resolve(slotRoot, 'scripts/with-test-slot.mjs')
       if (!existsSync(slot)) throw new Error(`Missing current checkout slot entry: ${slot}`)
-      const result = await execute(
-        [
-          process.execPath,
-          slot,
-          process.execPath,
-          fileURLToPath(import.meta.url),
-          ...process.argv.slice(2),
-        ],
-        {
-          cwd: slotRoot,
-          timeoutMs: config.timeoutMs + 30_000,
-          signal: controller.signal,
-          stdout: chunk => process.stdout.write(chunk),
-          stderr: chunk => process.stderr.write(chunk),
-        },
-      )
+      const deadline = slotDeadline(config, settleMs)
+      let result
+      try {
+        result = await execute(
+          [process.execPath, slot, process.execPath, fileURLToPath(import.meta.url), ...args],
+          {
+            cwd: slotRoot,
+            deadline: deadline.read,
+            env: deadline.env,
+            signal: controller.signal,
+            stdout: chunk => process.stdout.write(chunk),
+            stderr: chunk => process.stderr.write(chunk),
+          },
+        )
+      } finally {
+        deadline.close()
+      }
       if (config.command === 'run' && result.code !== 2) {
         let report
         try {
@@ -133,6 +135,7 @@ async function main() {
       }
       return result.interrupted ? 3 : (result.code ?? 3)
     }
+    enterStage('runner')
     return config.command === 'run'
       ? await run(config, controller.signal)
       : await prepare(config, controller.signal)

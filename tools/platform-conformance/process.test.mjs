@@ -6,7 +6,9 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { execute } from './process.mjs'
 
 test('timeout and cancellation kill the owned descendant before it can write', async t => {
-  const base = resolve('tmp/line-m2-toolchain/w2/platform')
+  const base = resolve(
+    process.env.PLATFORM_CONFORMANCE_TEST_TMP ?? 'tmp/line-m2-toolchain/w2/platform',
+  )
   mkdirSync(base, { recursive: true })
   const dir = mkdtempSync(join(base, 'tree-'))
   t.after(() => rmSync(dir, { recursive: true, force: true }))

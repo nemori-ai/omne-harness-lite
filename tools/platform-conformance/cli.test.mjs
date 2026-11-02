@@ -15,15 +15,17 @@ import { createRequire } from 'node:module'
 import { test } from 'node:test'
 
 const cli = fileURLToPath(new URL('./cli.mjs', import.meta.url))
-const work = resolve('tmp/line-m2-toolchain/w2/platform')
+const work = resolve(
+  process.env.PLATFORM_CONFORMANCE_TEST_TMP ?? 'tmp/line-m2-toolchain/w2/platform',
+)
 mkdirSync(work, { recursive: true })
 
-function command(file, args, cwd) {
+function command(file, args, cwd, env = {}) {
   const result = spawnSync(file, args, {
     cwd,
     encoding: 'utf8',
     timeout: 30_000,
-    env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
+    env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0', ...env },
   })
   assert.equal(result.error, undefined, result.error?.message)
   return result
@@ -105,6 +107,15 @@ function run(f, extra = []) {
   )
   const report = JSON.parse(readFileSync(join(out, 'report.json'), 'utf8'))
   return { ...result, report, out }
+}
+
+function shortSettleEntry(f) {
+  const entry = join(f.base, 'short-settle.mjs')
+  writeFileSync(
+    entry,
+    `import {main} from ${JSON.stringify(new URL('./cli.mjs', import.meta.url).href)}; process.exitCode=await main(process.argv.slice(2),{settleMs:1000});`,
+  )
+  return entry
 }
 
 test('positive control runs arbitrary member and preserves SHA, counts, logs and slot ownership', t => {
@@ -302,4 +313,110 @@ test('slot wait expiry records that no slot was held and why prerequisites were 
   assert.equal(report.probes.pnpm.version, null)
   assert.ok(report.probes.pnpm.reason)
   assert.equal(report.probes.status, 'not-run')
+})
+
+for (const scenario of ['queue', 'members']) {
+  test(`stage budgets preserve successful ${scenario} work beyond one child deadline`, t => {
+    const f = fixture(t)
+    const entry = shortSettleEntry(f)
+    if (scenario === 'queue') {
+      const slot = join(f.root, 'scripts/with-test-slot.mjs')
+      writeFileSync(
+        slot,
+        `await new Promise(r=>setTimeout(r,4000));\n${readFileSync(slot, 'utf8')}`,
+      )
+    } else {
+      const member = join(f.root, 'members/new-provider')
+      const runner = join(member, 'node_modules/vitest/vitest.mjs')
+      writeFileSync(
+        runner,
+        `await new Promise(r=>setTimeout(r,1800));\n${readFileSync(runner, 'utf8')}`,
+      )
+      cpSync(member, join(f.root, 'members/second-provider'), { recursive: true })
+    }
+    const out = join(f.base, 'staged-evidence')
+    const result = command(
+      process.execPath,
+      [
+        entry,
+        'run',
+        '--root',
+        f.root,
+        '--sha',
+        f.sha,
+        '--out',
+        out,
+        '--timeout-ms',
+        '2500',
+        '--member',
+        'members/new-provider',
+        '--test',
+        'one.spec.ts',
+        ...(scenario === 'members'
+          ? ['--member', 'members/second-provider', '--test', 'two.spec.ts']
+          : []),
+      ],
+      work,
+      { OMNE_TEST_SLOT_HELD: '', OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '10' },
+    )
+    const report = JSON.parse(readFileSync(join(out, 'report.json'), 'utf8'))
+    assert.equal(result.status, 0, JSON.stringify(report))
+    assert.equal(report.conclusion, 'passed')
+    assert.equal(report.members.length, scenario === 'members' ? 2 : 1)
+    assert.ok(report.members.every(member => member.process.interrupted === null))
+  })
+}
+
+test('child timeout preserves observed probes and the original child exit result', t => {
+  const f = fixture(t)
+  const runner = join(f.root, 'members/new-provider/node_modules/vitest/vitest.mjs')
+  writeFileSync(runner, 'setInterval(()=>{},1000)')
+  const result = run(f, ['--timeout-ms', '2500'])
+  assert.equal(result.status, 3)
+  assert.equal(result.report.probes.satisfied, true)
+  assert.ok(result.report.probes.pnpm.version)
+  assert.equal(result.report.slotHeld, true)
+  assert.equal(result.report.members[0].process.interrupted, 'timeout')
+  assert.ok('code' in result.report.members[0].process)
+  assert.notEqual(result.report.members[0].process.code, 0)
+  assert.equal(result.report.members[0].process.deadline.phase, 'subprocess')
+})
+
+test('stalled runner stage produces an incomplete report with deadline and unknown probe metadata', t => {
+  const f = fixture(t)
+  writeFileSync(
+    join(f.root, 'scripts/with-test-slot.mjs'),
+    `import {enterStage} from ${JSON.stringify(new URL('./deadlines.mjs', import.meta.url).href)}; enterStage('runner'); setInterval(()=>{},1000);`,
+  )
+  const out = join(f.base, 'stalled-evidence')
+  const result = command(
+    process.execPath,
+    [
+      shortSettleEntry(f),
+      'run',
+      '--root',
+      f.root,
+      '--sha',
+      f.sha,
+      '--member',
+      'members/new-provider',
+      '--test',
+      'one.spec.ts',
+      '--out',
+      out,
+    ],
+    work,
+    { OMNE_TEST_SLOT_HELD: '' },
+  )
+  const report = JSON.parse(readFileSync(join(out, 'report.json'), 'utf8'))
+  assert.equal(result.status, 3)
+  assert.equal(report.wrapperProcess.interrupted, 'timeout')
+  assert.equal(report.wrapperProcess.deadline.phase, 'runner')
+  assert.equal(report.wrapperProcess.deadline.settleMs, 1000)
+  assert.ok('code' in report.wrapperProcess)
+  assert.equal(report.probes.status, 'not-run')
+  assert.equal(report.probes.pnpm.version, null)
+  assert.ok(report.probes.pnpm.reason)
+  assert.equal(report.slotHeld, null)
+  assert.ok(report.slotHeldReason)
 })
