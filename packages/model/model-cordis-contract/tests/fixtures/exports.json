@@ -80,6 +80,15 @@
           ]
         },
         {
+          "title": "公共观察服务",
+          "names": [
+            { "name": "ModelStreamReferencesService", "kind": "class", "pending": false },
+            { "name": "modelStreamReferencesKey", "kind": "value", "pending": false },
+            { "name": "ModelStreamObservationService", "kind": "class", "pending": false },
+            { "name": "modelStreamObservationKey", "kind": "value", "pending": false }
+          ]
+        },
+        {
           "title": "凭据服务定义",
           "names": [
             { "name": "ModelCredentialService", "kind": "class", "pending": false },
@@ -147,6 +156,8 @@
         "modelInstances",
         "modelConverterAuthority",
         "modelCredential",
+        "modelStreamReferences",
+        "modelStreamObservation",
         "modelPreparationResources"
       ],
       "pending": false

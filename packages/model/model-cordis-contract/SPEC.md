@@ -1,12 +1,14 @@
 # Model Cordis 契约规格
 
-服务定义与登记协议已接受并已全部落地：根入口的八个登记类型，`./cordis` 的十七个 Service 定义（含凭据服务；转换目录 `ModelConvertersService` 与实例目录 `ModelInstancesService` 是具体服务）、对应的 Context 增补和事件 `model-cordis-contract/call-changed`。共同 Model 业务行为归[纯领域契约](../model-contract/SPEC.md)，共同内核保证归[IC 约定](../../../docs/architecture/cordis-integration-conventions.md)。定义自有登记状态不授予业务执行权限。
+服务定义与登记协议已接受并已全部落地：根入口的八个登记类型，`./cordis` 的二十个 Service 定义（含凭据服务；转换目录 `ModelConvertersService` 与实例目录 `ModelInstancesService` 是具体服务）、对应的 Context 增补和事件 `model-cordis-contract/call-changed`。共同 Model 业务行为归[纯领域契约](../model-contract/SPEC.md)，共同内核保证归[IC 约定](../../../docs/architecture/cordis-integration-conventions.md)。定义自有登记状态不授予业务执行权限。
 
 ## 结果推送与公共观察的装配边界
 
 [#682 r2 采用](https://github.com/nemori-ai/omne-harness-lite/issues/682#issuecomment-6370514518)的新增[结果推送、保存](../model-contract/SPEC.md#结果推送与保存)及[公共观察](../model-contract/SPEC.md#公共内容观察与当前目标)行为归纯领域与公共协议拥有者。新增协议已采用，不表示本包已有对应 Service、登记、提供者或安装保证。上述已有服务数量只描述现有公开定义。
 
 M-2 保持旧插件、现有 Runtime、凭据服务及观察消费的必需形状。只有已采用独立端口存在真实安装消费者时，才增加相应可选装配面；没有消费需求时不造空服务。含公共 Access 的声明与导入仍须满足[身份消费门槛](../model-contract/SPEC.md#推送与公共观察的交付边界)，不能在本包复制候选身份、用 Context 产生业务资格或提前要求宿主安装候选服务。
+
+具名例外：`ModelStreamReferencesService<P>` 与 `ModelStreamObservationService<P>` 现在提供抽象定义、唯一键和可选 Context 成员，只从 `./cordis` 导出。它们分别引用纯契约的 `current` 与 `observe`，不复制业务签名。消费者已具名为 server-entry 的 AC-07，实际提供与安装在联调 D 完成。在此之前，这两个定义是上述消费者安装规则的例外，不保证提供者或安装。每次调用须带观察者自己的 `Access`，提供者逐次核验观察资格，沿纯契约的公共观察规则执行。
 
 真实装配安装唯一选定的接收、证据或观察提供者，并显式传递主体、租户和冻结关联。目录命中、Service 注入及解析成功都不授予保存、观察、交接或发送权限。依赖撤除只能撤登记和停止相应新取得，原保存、未知提交、结果保管、晚账及清理责任继续由其拥有者接续，不能用 disposer 声称完成业务交接。
 
@@ -72,9 +74,11 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 
 ## 凭据服务
 
-`ModelCredentialService` 是抽象定义，键是 `modelCredential`，只有 `present` 与 `resolve` 两个抽象成员，形状取自 model-contract 的 `CredentialPort`。定义不持有端口，不保存秘密，不选择保管实现。诊断读取与保管管理不在服务上。实现不得把自己的端口或保管者放在服务实例上：Cordis 把实例的全部属性交给任何能读 `ctx.modelCredential` 的插件，TypeScript 的 `private` 不是运行时边界，`#private` 字段经 Cordis 代理读取会失败。实现把端口放进构造时创建的闭包。model-host-local 的 `./cordis` 中的 `LocalCredentialPlugin` 这样封住保管者，由真实 Cordis 测试核对。
+`ModelCredentialService<P = unknown>` 是抽象定义，键是 `modelCredential`。`present` 与 `resolve` 保留为两个抽象成员，新增的 `presentFor` 与 `resolveFor` 是非抽象可选成员，签名取自 model-contract 的 `CredentialPort<P>`。旧子类无需实现新成员，构造函数不变。定义不持有端口，不保存秘密，不选择保管实现。诊断读取与保管管理不在服务上。实现不得把自己的端口或保管者放在服务实例上：Cordis 把实例的全部属性交给任何能读 `ctx.modelCredential` 的插件，TypeScript 的 `private` 不是运行时边界，`#private` 字段经 Cordis 代理读取会失败。实现把端口放进构造时创建的闭包。model-host-local 的 `./cordis` 中的 `LocalCredentialPlugin` 这样封住保管者，由真实 Cordis 测试核对。
 
 未决：服务不核验调用方资格。`SendFace` 的 `authorized` 与 `official`，以及引用里的 `tenant`，都由调用方自报。反例：同一 isolate 的任意插件调用 `resolve({ id, tenant: 租户 B, purpose: MODEL_SEND }, { authorized: true, official: false })`，就能取得租户 B 的凭据值。依赖装配须只把该服务交给受信的发送边界，目前没有拥有者强制这一点。本规格不解决这一项，也不把转发当作授权证明。
+
+兼容期新路径采用[纯契约的凭据条款](../model-contract/SPEC.md#342-凭据引用与解析端口)。只有受信发送边界注入服务，发送 `access` 为 C 核验过的 W，或入口窄签发器依据同一调用的原受理记录签出的 M。提供者只同步核验租户绑定与 `official` 的工厂条件，不核主体来源或 `official` 来源。缺少 `resolveFor` 时不回退旧 `resolve`。前述未决段保留：跨租户伪造主体的限制未关闭。
 
 演化目标继续使用同一个 CredentialPort 与凭据服务，不增加平行 Qualified 服务。强制 access、旧 SendFace 删除、Supplier/失败联合及真实消费者迁移归 M2 里程碑（[#784](https://github.com/nemori-ai/omne-harness-lite/issues/784)）。`CredentialPort` 调用方自报资格的缺口登记在该卡。真实 provider/assembly 负责资格变化、原工作失效、换代和 S 的共同排序，在最后核权、相符秘密解析及同步 start 之间不插入 await。Settings 保管实际秘密与绑定事实，Model 核本次发送匹配；服务转发、异步预核或受信声明本身都不证明该保证。现有自报资格缺口仍存在，M-2 增量（[#682](https://github.com/nemori-ai/omne-harness-lite/issues/682)）不声称已经修复，组织来源的新授权政策也未在此采用。
 

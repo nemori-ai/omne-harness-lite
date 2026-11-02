@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-公开名字分根入口与 `./provider` 两个入口，规则见[提供者协议入口](#提供者协议入口)。根入口导出 121 个类型和 20 个运行值：身份解码函数与常量、`compareOutputCursors`、调用引用的 codec、`deriveGuardControlOperation`、`judgeModelDelivery`，以及投影纯值 `diffModelStream` 与 `applyModelStreamDelta`。`./provider` 入口导出 72 个类型和 14 个运行值：操作引用的 codec、`decodeReadId`、`compareRevisions`、共享输入 judge 与限额常量，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)一章的 36 个名字（替代提供者、替代传输、三个公开替身，以及档案与请求准备的两个替身），以及[符合性断言](#符合性断言)一章里把替代提供者接成被测方的 `createScriptedConformanceSubject` 与 `ScriptedPrincipal`，共 38 个名字。`./conformance` 入口导出[符合性断言](#符合性断言)一章的义务套件，共 11 个名字，不导出任何替身。[导出清单](../tests/fixtures/exports.json)逐名列出四个入口的名字，没有 `pending` 名字。
+公开名字分根入口与 `./provider` 两个入口，规则见[提供者协议入口](#提供者协议入口)。根入口导出 121 个类型和 20 个运行值：身份解码函数与常量、`compareOutputCursors`、调用引用的 codec、`deriveGuardControlOperation`、`judgeModelDelivery`，以及投影纯值 `diffModelStream` 与 `applyModelStreamDelta`。`./provider` 入口导出 73 个类型和 14 个运行值：操作引用的 codec、`decodeReadId`、`compareRevisions`、共享输入 judge 与限额常量，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)一章的 36 个名字（替代提供者、替代传输、三个公开替身，以及档案与请求准备的两个替身），以及[符合性断言](#符合性断言)一章里把替代提供者接成被测方的 `createScriptedConformanceSubject` 与 `ScriptedPrincipal`，共 38 个名字。`./conformance` 入口导出[符合性断言](#符合性断言)一章的义务套件，共 11 个名字，不导出任何替身。[导出清单](../tests/fixtures/exports.json)逐名列出四个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -281,7 +281,8 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 - `CredentialId` 是由人命名的不透明身份。它在凭据保管的配置路径上命名（本地保管的管理操作，或外部密钥管理的引用名），不由 Model 运行时铸造。所以它没有前缀：误混由类型阻止，运行时的误用走 `absent`、`denied` 这类失败分支。
 - `decodeCredentialId` 按 `type`、`empty`、`length`、`character` 的顺序返回第一个失败。`length` 是超过 `MODEL_IDENTITY_MAX_LENGTH`（256）个 UTF-16 码元，与其他品牌同一上限。`character` 是含任一 Unicode 空白、控制字符、格式字符或孤立代理码元，包括制表符、零宽字符和双向控制字符，使身份文本可以安全显示与记录。成对的代理码元是一个合法字符，被接受。非 ASCII 的字母和文字被接受。函数不裁剪、不折叠大小写。解码只核格式，不证明凭据存在或属于某租户。
 - 从文本或存储复原 `Supplier` 的位置（档案来源、dispatch 记录、重试决定、恢复读取）必须经 `decodeCredentialId` 取得 `Supplier.credential.id`，不得用类型断言。
-- `CredentialPort` 只有 `present` 与 `resolve`。保管方自己的诊断不属于端口，Cordis 服务也不转发它。
+- `CredentialPort<P = unknown>` 保留 `present` 与 `resolve`，增加可选的同步 `presentFor` 与 `resolveFor`。`QualifiedCredentialQuery<P>` 只从 `./provider` 导出，`presentFor` 的输入去掉 `official`。保管方自己的诊断不属于端口，Cordis 服务也不转发它。
+- 新路径的受信发送前提、W 与 M 的来源、可同步核验的绑定条件及主体来源限制见 [SPEC](../SPEC.md#342-凭据引用与解析端口)。没有 `resolveFor` 时不退回旧路径。类型探针见 [`qualified-credential-types.spec-d.ts`](../tests/qualified-credential-types.spec-d.ts)。
 - `sameCredentialHolder(left, right)` 是持有者语义的比较：`id` 精确相等，且 `tenantEquals` 为真。未经 legal-identity 铸造的租户值返回 `false`。判定方、保管方与替代提供者共用这一个函数。它不是品牌相等，品牌相等仍是 `===`。
 - `MODEL_SEND` 是唯一的用途取值。`CredentialQuery.purpose` 是普通字符串，用途不符的查询由端口返回 `denied`。
 

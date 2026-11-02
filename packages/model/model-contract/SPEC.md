@@ -452,6 +452,12 @@ R 先于 S 则不发；S 先于 R 则是已经启动的在途请求，撤权触�
 
 本节保留现有 CredentialPort 与 SendFace 消费形状。强制 access、真实秘密绑定及最终发送围栏的[迁移义务](#推送与公共观察的交付边界)另行适用；现有类型不证明调用方已受可靠核验，[Cordis 凭据服务](../model-cordis-contract/SPEC.md#凭据服务)所述自报资格缺口尚未解决。
 
+兼容期新路径：`CredentialPort<P = unknown>` 保留旧操作，增加可选的同步 `presentFor` 与 `resolveFor`。`QualifiedCredentialQuery<P>` 只从 `./provider` 导出，资格取自 `SendDemand.access`，不带自由 `tenant` 或 `authorized`。`presentFor` 不接收 `official`，只查询存在性。发送阶段只调用 `resolveFor`；提供者没有该成员时返回 `unavailable`，诊断为 `qualified-path-missing`，不得退回旧 `resolve`。
+
+新路径的契约前提是：只有受信发送边界注入该服务。发送 `access` 是受理点 C 核验过的 W，或者是入口窄签发器依据同一调用的原受理记录签出的 M。该签发器只由入口运行级组合持有，M 只绑定这一次调用。`official` 是调用方依据 `ModelSendSource.credential` 构造的档案事实。
+
+提供者只同步核对 `access.tenant` 与秘密绑定持有者，以及仅在没有租户绑定且 `official` 为真时允许 `factory`。已绑定但缺失、不可读、拒绝或不可用时不回退。新路径不读取 `SendFace`，解析与同步 start 之间不得 await。提供者不能同步核验主体来源或 `official` 的来源；受信边界之外伪造另一租户主体或错报档案事实的限制仍存在，不因增加类型而关闭。
+
 `CredentialId` 是由人命名的不透明身份，在凭据保管的配置路径上命名，Model 不铸造它。它无前缀，误混由类型阻止。`decodeCredentialId` 返回 `Outcome`，不抛异常，按 `type`、`empty`、`length`（超过 `MODEL_IDENTITY_MAX_LENGTH`，即 256 个 UTF-16 码元）、`character`（含任一 Unicode 空白、控制字符、格式字符或孤立代理码元）的顺序返回第一个失败，不裁剪、不折叠大小写。成功只证明格式，不证明存在或归属。
 
 引用由 `CredentialId`、租户 `TenantId` 和用途组成。用途只有 `MODEL_SEND`。持有引用不授予读取或发送资格。`CredentialQuery` 的用途是普通字符串，用途不符的查询，`present` 与 `resolve` 都返回 `denied`。
