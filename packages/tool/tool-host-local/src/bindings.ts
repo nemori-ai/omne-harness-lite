@@ -79,6 +79,16 @@ export interface ToolListingSource<P> {
 /** A hold of one call on one key. `release` is idempotent. */
 export type ToolBindingPin = Readonly<{ release(): void }>
 
+/** A selection keeps the registration identity when another call needs a pin. */
+export type ToolBindingSelection<P, E, B extends ContentBlock> = Readonly<{
+  loaded: ToolLoadedRegistration<E, B>
+  pin: ToolBindingPin
+  repin(
+    access: Access<P>,
+    call: ToolCallId,
+  ): Outcome<ToolBindingPin, Readonly<{ kind: 'unavailable'; diagnostic: string }>>
+}>
+
 /**
  * The registry plus the three things that only this host's other parts use: `listings` for the
  * Catalog, `pin` for the resolution of a fixed request, and `retire` for the end of a fiber.
@@ -91,10 +101,7 @@ export interface LocalToolBindingRegistry<P, E, B extends ContentBlock>
     access: Access<P>,
     request: FixedToolRequest,
     call: ToolCallId,
-  ): Outcome<
-    Readonly<{ loaded: ToolLoadedRegistration<E, B>; pin: ToolBindingPin }>,
-    Readonly<{ kind: 'unavailable'; diagnostic: string }>
-  >
+  ): Outcome<ToolBindingSelection<P, E, B>, Readonly<{ kind: 'unavailable'; diagnostic: string }>>
   /** The fiber ended: withdraws its contributions and refuses its later registrations. */
   retire(fiber: string): void
 }
@@ -240,6 +247,12 @@ export function createLocalToolBindingRegistry<
       return succeed(undefined)
     }
 
+  const pinRow = (row: Row<E, B>, call: ToolCallId): ToolBindingPin => {
+    const hold = Symbol('pin')
+    row.pinned.set(hold, call)
+    return Object.freeze({ release: () => void row.pinned.delete(hold) })
+  }
+
   return Object.freeze({
     register,
     snapshot,
@@ -269,9 +282,7 @@ export function createLocalToolBindingRegistry<
     pin: (key, call) => {
       const row = find(key)
       if (row === undefined) return fail({ kind: 'unknown-key' })
-      const hold = Symbol('pin')
-      row.pinned.set(hold, call)
-      return succeed(Object.freeze({ release: () => void row.pinned.delete(hold) }))
+      return succeed(pinRow(row, call))
     },
     selectAndPin: (access, request, call) => {
       const visible = visibleRows(access)
@@ -293,14 +304,18 @@ export function createLocalToolBindingRegistry<
         same.find(candidate => candidate.state === 'live')
       if (row === undefined)
         return fail({ kind: 'unavailable', diagnostic: 'no accessible same-shape author' })
-      const hold = Symbol('execution-pin')
-      row.pinned.set(hold, call)
       return succeed({
         loaded: row.loaded,
-        pin: {
-          release: () => {
-            row.pinned.delete(hold)
-          },
+        pin: pinRow(row, call),
+        repin: (access, call) => {
+          const current = visibleRows(access)
+          if (current === null) return tenantUnreadable
+          if (!current.includes(row))
+            return fail({
+              kind: 'unavailable',
+              diagnostic: 'original author registration is absent',
+            })
+          return succeed(pinRow(row, call))
         },
       })
     },

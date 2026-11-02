@@ -13,12 +13,10 @@ import type {
   ToolExecutionFact,
   ToolExecutionScope,
   ToolExecutorBinding,
-  ToolLoadedRegistration,
   ToolStartAuthority,
 } from '@omne-harness/tool-contract/provider'
-import { sameBindingKey } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration, type ToolOperationSlot } from '@omne-harness/tool-contract/binding'
-import type { LocalToolBindingRegistry, ToolBindingPin } from './bindings.ts'
+import type { LocalToolBindingRegistry, ToolBindingSelection } from './bindings.ts'
 import {
   createLiveAuthorExecution,
   localAuthorEvidence,
@@ -54,9 +52,7 @@ export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
 export function createLocalToolBindings<P, E, B extends ContentBlock>(
   dependencies: LocalToolBindingsInput<P, E, B>,
 ): ToolBindings<P, B, E> {
-  type Bound = {
-    loaded: ToolLoadedRegistration<E, B>
-    pin: ToolBindingPin
+  type Bound = ToolBindingSelection<P, E, B> & {
     requestDigest: string
     accessKey: string
     binding: Extract<ToolExecutorBinding<P, B, E>, { kind: 'live-only' }>
@@ -78,15 +74,9 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
   const launch = async (
     input: StartInput<P, B, E>,
     environment: E,
-    bound: Omit<Bound, 'binding'>,
+    operation: ToolOperationSlot,
     execution: LocalAuthorExecution<B>,
   ): Promise<void> => {
-    const registration = readToolRegistration(bound.loaded.implementation)
-    const operation =
-      registration?.kind === 'function'
-        ? registration.operation
-        : registration?.operations.find(([name]) => name === input.request.command)?.[1]
-    if (operation === undefined) return
     let parsed: unknown
     let outcome: Parameters<typeof dependencies.settle>[0]['outcome']
     let scope: ToolExecutionScope | undefined
@@ -118,14 +108,17 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     return {
       kind: 'live-only',
       start(input, environment) {
+        const invalid = (field: string, reason: string) => {
+          if (!assigned && callKey(input) === bound.accessKey) {
+            bound.pin.release()
+            assigned = true
+          }
+          return Promise.resolve(fail({ kind: 'invalid' as const, field, reason }))
+        }
         if (canonicalDigest(input.request) !== bound.requestDigest)
-          return Promise.resolve(
-            fail({ kind: 'invalid', field: 'request', reason: 'resolved request mismatch' }),
-          )
+          return invalid('request', 'resolved request mismatch')
         if (canonicalDigest(input.start.executor) !== canonicalDigest(bound.loaded.executor))
-          return Promise.resolve(
-            fail({ kind: 'invalid', field: 'executor', reason: 'original executor mismatch' }),
-          )
+          return invalid('executor', 'original executor mismatch')
         if (
           canonicalDigest(input.tenant) !== canonicalDigest(input.start.execution.tenant) ||
           input.call !== input.start.execution.call ||
@@ -133,9 +126,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
           canonicalDigest(input.permit.tenant) !== canonicalDigest(input.tenant) ||
           canonicalDigest(input.permit.start) !== canonicalDigest(input.start)
         )
-          return Promise.resolve(
-            fail({ kind: 'invalid', field: 'permit', reason: 'start identity mismatch' }),
-          )
+          return invalid('permit', 'start identity mismatch')
         const key = startKey(input, input.start)
         const digest = canonicalDigest([input.start, input.request])
         const old = attempts.get(key)
@@ -150,21 +141,12 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
               ? registration.operation
               : undefined
             : registration?.operations.find(([name]) => name === input.request.command)?.[1]
-        if (operation === undefined)
-          return Promise.resolve(
-            fail({ kind: 'invalid', field: 'command', reason: 'original author has no operation' }),
-          )
+        if (operation === undefined) return invalid('command', 'original author has no operation')
         let pin = bound.pin
         if (assigned || callKey(input) !== bound.accessKey) {
-          const visible = dependencies.registry.snapshot(input)
-          if (
-            'failure' in visible ||
-            !visible.ok.some(row => sameBindingKey(row.key, bound.loaded.key))
-          )
-            return Promise.resolve(fail({ kind: 'denied', action: 'start-author' }))
-          const retained = dependencies.registry.pin(bound.loaded.key, input.call)
+          const retained = bound.repin(input, input.call)
           if ('failure' in retained)
-            return Promise.resolve(unavailable('original author disappeared'))
+            return Promise.resolve(unavailable(retained.failure.diagnostic))
           pin = retained.ok
         } else assigned = true
         const execution = createLiveAuthorExecution<B>({
@@ -188,7 +170,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
                 ? fail({ kind: 'commit-unknown' as const, operation: input.start.operation })
                 : fail({ kind: 'denied' as const, action: 'start-author' })
             }
-            void launch(input, environment, bound, execution).catch(() => {
+            void launch(input, environment, operation, execution).catch(() => {
               execution.observationAvailable(false)
             })
             return succeed(execution.live)

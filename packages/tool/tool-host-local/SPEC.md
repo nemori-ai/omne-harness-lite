@@ -190,6 +190,10 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 `createLocalToolBindings` 在登记表内原子选择并 pin 装载句柄。首选请求记下的键，包括 draining；回退只选同形、可访问的 live 贡献，并取最早登记的一份。绑定按 tenant/call 固定请求，按 tenant/call/start 认回执行。它核原 executor 与 permit 身份，先完成 `authority.consume`，再调用作者。未知消费不进入作者，不重放消费或执行。
 
+同一绑定为其他调用取得 pin 时，登记表在同步步骤中核对原注册仍在且该租户可访问。原注册撤除后，同键后继不能替它提供 pin；即使后继复用了同一个装载句柄，也属于另一注册。已保留的原 start 仍认回原结果。参数解析、执行和结果转换使用同一次选定的命令操作，未知命令在消费许可前拒绝。
+
+启动输入确定无效时，绑定释放本调用尚未使用的解析 pin。合法重试须重新取得原注册的 pin。已经发起或结果未知的执行不受该清理影响。同形回退的 executor 与固定 start.executor 不同时，本实现仍拒绝启动并释放未使用的 pin。该回退如何衔接固定请求与实际执行来源，仍须 Tool 账本、Driver 和绑定的组合承担者闭合；当前作者工厂不声明这条路径可执行。
+
 每个作者执行有独立 signal、事实流和控制记录。停止先返回 accepted，作者实际结束后才变为 stopped。事实按 cursor 重读，确认按 batch 认回；作者已结束且全部事实已有保管回执时解除 pin。未知返回、失去观察或保管失败继续保留责任。Scope 与最终结果转换是显式构造依赖。该执行绑定只支持 live-only，不承诺跨进程恢复。
 
 `./author` 导出 `contributeTool`、`createToolAuthorPlugin` 与 `createLocalToolGenerations`。作者插件静态依赖 toolBindings/toolGenerations，不提供服务键。贡献登记与撤除配对到作者 fiber 的 effect。服务适配器必须在普通函数中读取调用时的 `this.ctx`，用同步调用作用域把 fiber uid 传给登记表；箭头函数捕获提供者 Context 会产生错误归属。
@@ -197,3 +201,5 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 换代工厂接受长期宿主 Context、受信模块来源、装载器与持有者读取。来源适配器负责在 import 前核实现引用和包 digest；工厂先核权限，才调用它。相同键和 digest 认回，draining 不认回。确定性装载拒绝通过 `recordRejection` 保存依据后返回 rejected。引用读取失败保留并 reopen；有 pin 时保持 draining。没有完整的持有者采用依据目录时，sweep 返回 unavailable。该返回保留契约已有的目录缺口。
 
 [作者装载测试](tests/author-loading.spec.ts)验证装载及拒绝；[执行绑定测试](tests/author-binding.spec.ts)运行全部 23 条 N7 判据；[真实 Cordis 测试](tests/author-generations.spec.ts)验证 fiber 归属、失败撤除、排空与读取失败保留。外部来源、设置、schema 检查、启动 authority 和结果保管在这些测试中是测试提供者；不据此声明完整 runtime 装配已完成。
+
+[绑定回归测试](tests/author-binding-regressions.spec.ts)验证注册化身隔离、多命令的参数与操作选择，以及拒绝启动后的 pin 清理。跨 executor 同形回退的用例只证明安全拒绝与清理。

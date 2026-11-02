@@ -1,0 +1,286 @@
+import { describe, expect, it } from 'vitest'
+import type { ContentBlock } from '@omne-harness/content-block'
+import { fail, succeed } from '@omne-harness/operation-result'
+import { createIndependentToolScope } from '@omne-harness/tool'
+import type { FixedToolRequest, ToolStartRecord } from '@omne-harness/tool-contract'
+import {
+  defineCommandTool,
+  defineToolOperation,
+  type ToolImplementationModule,
+} from '@omne-harness/tool-contract/provider'
+import { completedFinal, createMemoryToolStartAuthority } from '@omne-harness/tool-contract/testing'
+import { createLocalToolBindings, type LocalToolBindingsInput } from '@omne-harness/tool-host-local'
+import {
+  authorAccess,
+  authorAuthority,
+  authorModule,
+  loadAuthor,
+  settings,
+  unbox,
+} from './author-values.ts'
+import { fiberedRegistry, scriptedVerifier } from './binding-values.ts'
+import { adoption, callId, instanceId, operationId, request } from './coordinator-values.ts'
+
+type Start = Extract<ToolStartRecord, { kind: 'start' }>
+type Settlement = Parameters<LocalToolBindingsInput<string, unknown, ContentBlock>['settle']>[0]
+
+async function harness(module: ToolImplementationModule<unknown, ContentBlock>) {
+  const loaded = unbox(await loadAuthor(module))
+  const { registry, asFiber } = fiberedRegistry(scriptedVerifier([authorAuthority]))
+  const register = (value = loaded) =>
+    unbox(
+      asFiber('author', () =>
+        registry.register({ ...authorAccess, authority: authorAuthority, loaded: value }),
+      ),
+    )
+  const contribution = register()
+  const fixed = request({
+    availability: {
+      kind: 'available',
+      definition: loaded.definition,
+      executor: loaded.executor,
+      layer: loaded.key.layer,
+    },
+    settings,
+  })
+  let consumed = 0
+  const authority = createMemoryToolStartAuthority<string>()
+  const settlements: Settlement[] = []
+  const bindings = createLocalToolBindings({
+    registry,
+    catalog: { inspect: async () => succeed(fixed.availability) },
+    authority: {
+      ...authority,
+      consume: input => {
+        consumed += 1
+        return authority.consume(input)
+      },
+    },
+    scope: input =>
+      unbox(
+        createIndependentToolScope({
+          signal: input.execution.signal,
+          limits: {
+            authorBufferBytes: 10000,
+            authorBufferItems: 100,
+            authorWaitHistoryBytes: 10000,
+            authorWaitHistoryItems: 100,
+          },
+          process: null,
+          waits: null,
+        }),
+      ),
+    settle: async input => {
+      settlements.push(input)
+      return succeed(completedFinal())
+    },
+  })
+  const resolve = async (fixedRequest = fixed, call = 'first') =>
+    unbox(await bindings.resolve({ ...authorAccess, call: callId(call), request: fixedRequest }))
+  const input = async (fixedRequest = fixed, call = 'first', executor = loaded.executor) => {
+    const start: Start = {
+      kind: 'start',
+      executor,
+      operation: operationId(`start-${call}`),
+      execution: {
+        tenant: authorAccess.tenant,
+        call: callId(call),
+        instance: instanceId,
+        generation: '1',
+      },
+    }
+    const value = { ...authorAccess, call: callId(call), start, request: fixedRequest }
+    return { ...value, permit: unbox(await authority.prepare(value)) }
+  }
+  return {
+    loaded,
+    registry,
+    contribution,
+    register,
+    fixed,
+    resolve,
+    input,
+    settlements,
+    consumed: () => consumed,
+  }
+}
+
+describe('author binding registration ownership', () => {
+  it.each(['different load', 'same loaded handle'])(
+    'cannot pin a successor through an old binding: %s',
+    async successorKind => {
+      let launched = 0
+      const module = authorModule(async () => {
+        launched += 1
+        return 'A'
+      })
+      const fixture = await harness(module)
+      const binding = await fixture.resolve()
+      const first = await fixture.input()
+      const live = unbox(await binding.start(first, {}))
+      expect(fixture.contribution.release()).toEqual({ removed: true })
+      const successor =
+        successorKind === 'same loaded handle'
+          ? fixture.loaded
+          : unbox(await loadAuthor({ ...module, executor: adoption('successor') }))
+      fixture.register(successor)
+      const rejected = await binding.start(await fixture.input(fixture.fixed, 'second'), {})
+      expect(rejected).toHaveProperty('failure')
+      expect(fixture.consumed()).toBe(1)
+      expect(launched).toBe(1)
+      expect(unbox(fixture.registry.drain(successor.key))).toEqual({ pins: '0', inflight: [] })
+      expect(unbox(await binding.start(first, {}))).toBe(live)
+      expect(fixture.consumed()).toBe(1)
+    },
+  )
+
+  it('rejects a different executor fallback without retaining its resolution pin', async () => {
+    let launched = 0
+    const module = authorModule(async () => {
+      launched += 1
+      return 'B'
+    })
+    const fixture = await harness(module)
+    fixture.contribution.release()
+    const successor = unbox(await loadAuthor({ ...module, executor: adoption('fallback') }))
+    fixture.register(successor)
+    const binding = await fixture.resolve()
+    expect(unbox(fixture.registry.pins(successor.key))).toBe('1')
+    expect(await binding.start(await fixture.input(), {})).toHaveProperty(
+      'failure.field',
+      'executor',
+    )
+    expect(unbox(fixture.registry.drain(successor.key))).toEqual({ pins: '0', inflight: [] })
+    expect(fixture.consumed()).toBe(0)
+    expect(launched).toBe(0)
+  })
+
+  it('reacquires its own registration pin after a rejected executor input', async () => {
+    const fixture = await harness(authorModule(async () => 'A'))
+    const binding = await fixture.resolve()
+    expect(
+      await binding.start(await fixture.input(fixture.fixed, 'first', adoption('wrong')), {}),
+    ).toHaveProperty('failure.field', 'executor')
+    expect(unbox(fixture.registry.pins(fixture.loaded.key))).toBe('0')
+    unbox(await binding.start(await fixture.input(), {}))
+    expect(unbox(fixture.registry.drain(fixture.loaded.key))).toEqual({
+      pins: '1',
+      inflight: [callId('first')],
+    })
+    expect(fixture.consumed()).toBe(1)
+  })
+})
+
+function commandModule(events: string[]): ToolImplementationModule<unknown, ContentBlock> {
+  const operation = (name: string) =>
+    unbox(
+      defineToolOperation({
+        parameters: {
+          kind: 'executor-owned',
+          usage: `Pass ${name}`,
+          protocol: adoption(`protocol-${name}`),
+        },
+        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        author: {
+          kind: 'ordinary',
+          parameters: {
+            adoption: adoption(`parameters-${name}`),
+            parse: value => {
+              events.push(`parse-${name}`)
+              return value.effective === name
+                ? succeed(`${name}-parsed`)
+                : fail({ kind: 'invalid', reason: `expected ${name}` })
+            },
+          },
+          waits: [],
+          executor: {
+            execute: async value => {
+              events.push(`execute-${name}:${value}`)
+              return `${name}-result`
+            },
+          },
+          codec: {
+            adoption: adoption(`codec-${name}`),
+            encode: () => succeed(new Uint8Array()),
+            decode: () => succeed(''),
+          },
+          output: { adoption: adoption(`output-${name}`), check: ({ value }) => succeed(value) },
+          renderer: { render: () => succeed(name) },
+          program: { kind: 'none' },
+        },
+      }),
+    )
+  return {
+    executor: adoption('commands'),
+    createAuthor: () =>
+      defineCommandTool({
+        implementation: {
+          description: 'Two distinct commands',
+          backgroundAllowed: false,
+          declarations: request().availability.definition.declarations,
+        },
+        commands: {
+          first: { summary: 'First command', operation: operation('first') },
+          second: { summary: 'Second command', operation: operation('second') },
+        },
+      }),
+  }
+}
+
+describe('author binding command selection', () => {
+  it('dispatches the second command with its parser and settlement operation', async () => {
+    const events: string[] = []
+    const fixture = await harness(commandModule(events))
+    const fixed: FixedToolRequest = {
+      ...fixture.fixed,
+      command: 'second',
+      arguments: { original: 'second', effective: 'second', complete: true },
+    }
+    const binding = await fixture.resolve(fixed)
+    unbox(await binding.start(await fixture.input(fixed), {}))
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(events).toEqual(['parse-second', 'execute-second:second-parsed'])
+    expect(fixture.settlements).toHaveLength(1)
+    expect(fixture.settlements[0]?.operation.author.parameters.adoption.name).toBe(
+      'parameters-second',
+    )
+    expect(fixture.settlements[0]?.arguments).toBe('second-parsed')
+    expect(fixture.settlements[0]?.outcome).toEqual({ kind: 'returned', value: 'second-result' })
+  })
+
+  it('rejects an unknown command before consume or author execution', async () => {
+    const events: string[] = []
+    const fixture = await harness(commandModule(events))
+    const fixed: FixedToolRequest = {
+      ...fixture.fixed,
+      command: 'missing',
+      arguments: { original: 'first', effective: 'first', complete: true },
+    }
+    const binding = await fixture.resolve(fixed)
+    expect(await binding.start(await fixture.input(fixed), {})).toHaveProperty(
+      'failure.field',
+      'command',
+    )
+    expect(fixture.consumed()).toBe(0)
+    expect(events).toEqual([])
+    expect(unbox(fixture.registry.pins(fixture.loaded.key))).toBe('0')
+  })
+
+  it('does not accept the first command arguments for the second command', async () => {
+    const events: string[] = []
+    const fixture = await harness(commandModule(events))
+    const fixed: FixedToolRequest = {
+      ...fixture.fixed,
+      command: 'second',
+      arguments: { original: 'first', effective: 'first', complete: true },
+    }
+    const binding = await fixture.resolve(fixed)
+    unbox(await binding.start(await fixture.input(fixed), {}))
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(events).toEqual(['parse-second'])
+    expect(fixture.settlements[0]?.outcome).toEqual({ kind: 'failed', reason: 'expected second' })
+    expect(fixture.settlements[0]?.operation.author.parameters.adoption.name).toBe(
+      'parameters-second',
+    )
+  })
+})

@@ -42,6 +42,7 @@ export {
   type LocalToolBindingRegistryInput,
   type LocalToolContributionVerifier,
   type ToolBindingPin,
+  type ToolBindingSelection,
   type ToolListing,
   type ToolListingSource,
 } from './bindings.ts'
