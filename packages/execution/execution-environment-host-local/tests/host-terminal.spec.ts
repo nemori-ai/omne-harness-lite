@@ -103,6 +103,8 @@ describe('terminal private frames', () => {
     expect(reader.push(bytes({ t: 'ready', generation: 'other' }))).toMatchObject({ kind: 'fault' })
     expect(reader.push(bytes({ t: 'ready', generation: 'g' }))).toMatchObject({ kind: 'fault' })
     const late = createTerminalReader({ generation: 'g', maxChunkBytes: 8, maxControlBytes: 256 })
+    late.push(bytes({ t: 'ready', generation: 'g' }))
+    late.push(bytes({ t: 'opened', generation: 'g', cwd: '/tmp' }))
     late.expectLeg('leg')
     expect(late.push(bytes({ t: 'started', generation: 'g', leg: 'old' }))).toMatchObject({
       kind: 'fault',

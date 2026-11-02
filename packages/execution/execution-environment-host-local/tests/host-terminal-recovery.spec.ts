@@ -253,6 +253,26 @@ it('keeps the permit gate closed and drains a live terminal on release', async c
   expect(await handle.result).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
 }, 30_000)
 
+it('keeps an unconfirmed stop pending until the original supervisor can be reached again', async context => {
+  if (!(await prerequisites()))
+    return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')
+  const record = recorder()
+  const f = await fixture(record.ledger)
+  const ref = value(await f.terminal.create({ ...base, cwd: f.cwd, env })).terminal
+  const handle = value(await f.terminal.execute({ ...base, terminal: ref, script: 'sleep 30' }))
+  const address = process.env['DBUS_SESSION_BUS_ADDRESS']
+  process.env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=/nonexistent-omne-terminal-bus'
+  try {
+    expect(await handle.stop('forced')).toBe('unconfirmed')
+    expect(record.stops).toContain('unconfirmed')
+  } finally {
+    if (address === undefined) delete process.env['DBUS_SESSION_BUS_ADDRESS']
+    else process.env['DBUS_SESSION_BUS_ADDRESS'] = address
+  }
+  expect(await handle.stop('forced')).toBe('confirmed')
+  expect(record.stops.at(-1)).toBe('confirmed')
+}, 30_000)
+
 function recoverInNewProcess(scopeRef: string): Promise<unknown> {
   const entry = pathToFileURL(join(import.meta.dirname, '../dist/index.js')).href
   const source = `import {createHostFilesProvider,createHostFilesDomain} from ${JSON.stringify(entry)};
@@ -265,25 +285,6 @@ await provider.retire(); process.stdout.write(JSON.stringify({listed,results}));
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
-    it('keeps an unconfirmed stop pending until the original supervisor can be reached again', async context => {
-      if (!(await prerequisites()))
-        return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')
-      const record = recorder()
-      const f = await fixture(record.ledger)
-      const ref = value(await f.terminal.create({ ...base, cwd: f.cwd, env })).terminal
-      const handle = value(await f.terminal.execute({ ...base, terminal: ref, script: 'sleep 30' }))
-      const address = process.env['DBUS_SESSION_BUS_ADDRESS']
-      process.env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=/nonexistent-omne-terminal-bus'
-      try {
-        expect(await handle.stop('forced')).toBe('unconfirmed')
-        expect(record.stops).toContain('unconfirmed')
-      } finally {
-        if (address === undefined) delete process.env['DBUS_SESSION_BUS_ADDRESS']
-        else process.env['DBUS_SESSION_BUS_ADDRESS'] = address
-      }
-      expect(await handle.stop('forced')).toBe('confirmed')
-      expect(record.stops.at(-1)).toBe('confirmed')
-    }, 30_000)
     let output = ''
     let errors = ''
     child.stdout.setEncoding('utf8').on('data', (text: string) => {
