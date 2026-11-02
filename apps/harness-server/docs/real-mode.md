@@ -177,7 +177,7 @@ expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
 | ----------------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tests/row.spec.ts`                 | fast | `defineRow` 的形状、IC-8 与前缀检查、三种插件形状在同一 fiber、行体承载的登记                                                                                     |
 | `tests/serve-types.spec-d.ts`       | 类型 | 声明类型的负例：成员插件不能直接做带阶段的行                                                                                                                      |
-| `tests/serve.spec.ts`               | fast | 混合发行树（真实 16、S0 替身 33，运维者层给绝对路径）、`agent-journal` 的组合配置、名字前缀、占位规则、夹具行走通、PENDING 诊断、四条装载前拒绝、`once`、四个阶段 |
+| `tests/serve.spec.ts`               | fast | 混合发行树（真实 17、S0 替身 32，运维者层给绝对路径）、`agent-journal` 的组合配置、名字前缀、占位规则、夹具行走通、PENDING 诊断、四条装载前拒绝、`once`、四个阶段 |
 | `tests/serve-lifecycle.spec.ts`     | fast | `serve` 版可见性、入口对象承载的登记落在行 fiber、`not-registered`                                                                                                |
 | `tests/real-manifests-sync.spec.ts` | fast | 真实清单与 `stubs.ts` 逐行比较、具名差额清单、无 `s0.` 名字、AAP-7                                                                                                |
 | `tests/serve-process.spec.ts`       | slow | `dist/bin.js serve`：混合发行树加运维者文件、`--stop-on-stdin-close`、用法错误、`s0` 的解析路径不变                                                               |

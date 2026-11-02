@@ -15,7 +15,7 @@
 
 真件的清单与 `src/s0/stubs.ts` 的同一行相同，含阶段；替身的清单除阶段外相同。`tests/rows/session-provider/manifest.spec.ts` 与 `real.spec.ts` 比较两者。
 
-真件按调用现取 `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionIdleInput`、`sessionAgentDrive`、`sessionScopeRelease`、`sessionClock`、`sessionNotifier` 与 `sessionTransactions`（session-cordis 的端口接线）。某个端口缺席或是 S0 替身时，需要它的操作答 `unavailable`，`owner` 是该端口的服务键。发行树里 `session-ad10`（`sessionEvidence`）与 `session-ad12`（`sessionContextInput`）仍是 S0 替身，所以经发行树的 `create` 现在停在 `sessionEvidence`，见 `tests/r9/`。
+真件按调用现取 `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionIdleInput`、`sessionAgentDrive`、`sessionScopeRelease`、`sessionClock`、`sessionNotifier` 与 `sessionTransactions`（session-cordis 的端口接线）。某个端口缺席或是 S0 替身时，需要它的操作答 `unavailable`，`owner` 是该端口的服务键。发行树里 `session-ad12`（`sessionContextInput`）仍是 S0 替身（它注入的 `runtimeContext` 出自替身行 `runtime-context`，装载前检查 DP1-C10 不让真件接在替身上），所以经发行树的 `create` 现在停在 `sessionContextInput`，见 `tests/r9/` 与 `create.spec.ts` 的替身用例。
 
 新租户的第一次 `create`：Session 核心先经委派视图 `queryOperation` 再提交，`session-storage` 行对放行的 `create` 所绑定的视图在第一次解析租户域时登记该租户（`tests/rows/session-provider/create-storage.spec.ts`）。
 

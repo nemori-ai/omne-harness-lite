@@ -65,7 +65,7 @@
     },
     {
       "id": "session-ad10",
-      "plugin": "stubPlugin",
+      "plugin": "sessionAd10Row",
       "config": {}
     },
     {

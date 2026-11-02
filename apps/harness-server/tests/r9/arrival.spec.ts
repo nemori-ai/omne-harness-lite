@@ -161,8 +161,8 @@ describe('R9 release tree, in process: the principal that reaches the Session fa
     expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
     expect(run.of('startup-result')[0]).toMatchObject({
       accepting: true,
-      // The release has 16 real rows; this layer puts the observing double in the place of `session-provider`.
-      implementations: { real: 15, 'contract-double': 1, 's0-double': 33 },
+      // The release has 17 real rows; this layer puts the observing double in the place of `session-provider`.
+      implementations: { real: 16, 'contract-double': 1, 's0-double': 32 },
     })
     // The face saw the create and the input, each as the principal that the entry's own system
     // component acts with for the tenant. `access: allowed` is the access check, which asks the

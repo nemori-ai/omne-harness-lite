@@ -3,8 +3,8 @@ import type { LifecyclePhase, RowId, RowManifest } from '../types.ts'
 /**
  * Human projection of the provide and inject columns of the AA plugin-tree table.
  * Names are the formal AA keys; the S0 private service name is `s0.<key>`.
- * Keys that the table gives only in prose (the evidence sources of `session-ad10`) are left out,
- * except where a real row of `./cordis` injects them (`session-ad06`: the Journal views and
+ * Keys that the table gives only in prose are written out where a real row of `./cordis` injects
+ * them (`session-ad10`: the three evidence sources; `session-ad06`: the Journal views and
  * `sessionTransactions`), so that `real-manifests-sync` compares the real row with this table.
  * When AA changes the rows, regenerate aa-rows.json, then update this table by hand.
  */
@@ -57,7 +57,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['session', 'agentJournal', 'agentMaterials', 'sessionTransactions'],
   },
   'session-ad09': { provides: ['sessionIdentity'], injects: ['principalVerifier'] },
-  'session-ad10': { provides: ['sessionEvidence'] },
+  'session-ad10': {
+    provides: ['sessionEvidence'],
+    injects: ['sessionAdoptionSource', 'sessionProductionSource', 'sessionCustodySource'],
+  },
   'session-ad11': {
     provides: ['sessionIdleInput'],
     injects: ['modelRuntime', 'toolRuntime', 'session'],
