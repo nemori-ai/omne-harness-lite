@@ -34,6 +34,31 @@ function setup() {
 }
 
 describe('adoption planner over the RD-COORD memory registry', () => {
+  it.each(['readBindings', 'definitionFor', 'readGenerations', 'ensureLoaded'] as const)(
+    'returns unavailable when %s throws or rejects',
+    async source => {
+      const f = setup()
+      const throwing = () => {
+        throw new Error('dependency unavailable')
+      }
+      const options: AdoptionPlannerOptions<string> = {
+        ...f.options,
+        ...(source === 'readBindings' ? { readBindings: throwing } : {}),
+        ...(source === 'definitionFor' ? { definitionFor: throwing } : {}),
+        ...(source === 'readGenerations' ? { readGenerations: throwing } : {}),
+        ...(source === 'ensureLoaded'
+          ? { readGenerations: () => ({ ensureLoaded: async () => throwing() }) }
+          : {}),
+      }
+      await expect(
+        createAdoptionPlanner(options).plan(f.access, {
+          recorded: [],
+          capabilities: [f.recorded.capability],
+        }),
+      ).resolves.toEqual(fail({ kind: 'unavailable' }))
+    },
+  )
+
   it('loads a new capability and reads its registration again with the original access', async () => {
     const f = setup()
     const snapshot = f.snapshot

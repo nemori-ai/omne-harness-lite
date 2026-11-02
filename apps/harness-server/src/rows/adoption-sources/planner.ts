@@ -3,7 +3,6 @@ import type {
   DurableEvidence,
   ResidentAdoption,
   ResidentKey,
-  ResidentTool,
   SessionAccess,
 } from '@omne-harness/session-contract'
 import {
@@ -54,6 +53,7 @@ function recordedKey(
   entries: readonly ToolBindingEntry[],
   definition: AdoptionDefinition | undefined,
 ): ToolBindingKey | undefined {
+  if (entries.length === 0) return undefined
   const entry = entries.find(item => keyMatches(item.key, recorded))
   if (entry !== undefined) return entry.key
   if (definition === undefined || definition.authority.asset.name !== recorded.capability)
@@ -69,7 +69,7 @@ function planRecorded<P>(
   entries: readonly ToolBindingEntry[],
   live: readonly ToolBindingEntry[],
   definition: AdoptionDefinition | undefined,
-): ToolBindingKey | undefined {
+): ResidentAdoption | undefined {
   const key = recordedKey(recorded, entries, definition)
   if (key === undefined) return undefined
   const projected = projectResidentReferences({
@@ -86,15 +86,36 @@ function planRecorded<P>(
     winner: winner === undefined ? null : { key: winner.key, shape: winner.shape },
     reload: null,
   })
-  switch (plan.kind) {
-    case 'advance':
-    case 'keep':
-    case 'fallback':
-      return plan.key
-    case 'reload':
-    case 'replacement':
-    case 'freeze':
-      return undefined
+  if (plan.kind !== 'advance' && plan.kind !== 'keep' && plan.kind !== 'fallback') return undefined
+  const encoded = encodeResidentKey(plan.key)
+  if ('failure' in encoded) return undefined
+  return {
+    residents: [],
+    keys: [{ capability: recorded.capability, key: encoded.ok as ResidentKey }],
+  }
+}
+
+function planInitial(
+  capability: string,
+  live: readonly ToolBindingEntry[],
+  definition: AdoptionDefinition | undefined,
+): ResidentAdoption | undefined {
+  if (definition === undefined || definition.authority.asset.name !== capability) return undefined
+  const winner = live[0]
+  if (live.length !== 1 || winner === undefined) return undefined
+  const facts = residentToolFacts(winner.key, winner.shape)
+  if ('failure' in facts || winner.shape.name !== capability) return undefined
+  return {
+    residents: [
+      {
+        capability,
+        version: definition.version,
+        admitted: definition.admitted,
+        shape: facts.ok.shape,
+      },
+    ],
+    // Tool validated this encoding; Session's brand adds no second wire format.
+    keys: [{ capability, key: facts.ok.key as ResidentKey }],
   }
 }
 
@@ -102,55 +123,55 @@ function planRecorded<P>(
 export function createAdoptionPlanner<P>(options: AdoptionPlannerOptions<P>) {
   const snapshot = (access: SessionAccess<P>) => options.readBindings()?.snapshot(access)
 
-  async function plan(access: SessionAccess<P>, input: AdoptionPlannerInput): Promise<Answer> {
+  async function loadInitial(
+    access: SessionAccess<P>,
+    capability: string,
+    definition: AdoptionDefinition | undefined,
+  ): Promise<readonly ToolBindingEntry[] | undefined> {
+    if (definition === undefined || definition.authority.asset.name !== capability) return undefined
+    const generations = options.readGenerations()
+    if (generations === undefined) return undefined
+    const loaded = await generations.ensureLoaded({ authority: definition.authority, access })
+    if ('failure' in loaded) return undefined
+    const table = snapshot(access)
+    if (table === undefined || 'failure' in table) return undefined
+    return table.ok
+  }
+
+  async function collect(access: SessionAccess<P>, input: AdoptionPlannerInput): Promise<Answer> {
     const recorded = structuredClone(input.recorded)
     const wanted = [...new Set([...recorded.map(item => item.capability), ...input.capabilities])]
-    const residents: ResidentTool[] = []
+    const residents: ResidentAdoption['residents'][number][] = []
     const keys: ResidentAdoption['keys'][number][] = []
-    let table = snapshot(access)
-    if (table === undefined || 'failure' in table) return unavailable()
+    const initial = snapshot(access)
+    if (initial === undefined || 'failure' in initial) return unavailable()
+    let table = initial.ok
 
     for (const capability of wanted) {
       const previous = recorded.find(item => item.capability === capability)
       const definition = options.definitionFor(capability)
-      let entries = table.ok.filter(entry => entry.key.asset.name === capability)
+      let entries = table.filter(entry => entry.key.asset.name === capability)
       let live = entries.filter(entry => entry.state === 'live')
       if (live.length > 1) return unavailable()
-      if (previous === undefined) {
-        if (definition === undefined || definition.authority.asset.name !== capability)
-          return unavailable()
-        if (live.length === 0) {
-          const generations = options.readGenerations()
-          if (generations === undefined) return unavailable()
-          const loaded = await generations.ensureLoaded({ authority: definition.authority, access })
-          if ('failure' in loaded) return unavailable()
-          table = snapshot(access)
-          if (table === undefined || 'failure' in table) return unavailable()
-          entries = table.ok.filter(entry => entry.key.asset.name === capability)
-          live = entries.filter(entry => entry.state === 'live')
-        }
-        const winner = live[0]
-        if (live.length !== 1 || winner === undefined) return unavailable()
-        const facts = residentToolFacts(winner.key, winner.shape)
-        if ('failure' in facts || winner.shape.name !== capability) return unavailable()
-        residents.push({
-          capability,
-          version: definition.version,
-          admitted: definition.admitted,
-          shape: facts.ok.shape,
-        })
-        // Tool validated this encoding; Session's brand adds no second wire format.
-        keys.push({ capability, key: facts.ok.key as ResidentKey })
-      } else {
-        if (entries.length === 0) return unavailable()
-        const key = planRecorded(access, previous, entries, live, definition)
-        if (key === undefined) return unavailable()
-        const encoded = encodeResidentKey(key)
-        if ('failure' in encoded) return unavailable()
-        keys.push({ capability, key: encoded.ok as ResidentKey })
+      if (previous === undefined && live.length === 0) {
+        const loaded = await loadInitial(access, capability, definition)
+        if (loaded === undefined) return unavailable()
+        table = loaded
+        entries = table.filter(entry => entry.key.asset.name === capability)
+        live = entries.filter(entry => entry.state === 'live')
       }
+      const material =
+        previous === undefined
+          ? planInitial(capability, live, definition)
+          : planRecorded(access, previous, entries, live, definition)
+      if (material === undefined) return unavailable()
+      residents.push(...material.residents)
+      keys.push(...material.keys)
     }
     return succeed({ material: { residents, keys }, verdict: null })
   }
-  return { plan }
+  return {
+    plan: (access: SessionAccess<P>, input: AdoptionPlannerInput): Promise<Answer> =>
+      collect(access, input).catch(unavailable),
+  }
 }
