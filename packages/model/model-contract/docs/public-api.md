@@ -87,7 +87,7 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 ## Model 显示投影纯值
 
 - 声明和运行函数：[`src/model-stream-values.ts`](../src/model-stream-values.ts)、[`src/model-output-v1.ts`](../src/model-output-v1.ts)。
-- 公共入口行为与类型探针：[`tests/model-stream-values.spec.ts`](../tests/model-stream-values.spec.ts)、[`tests/model-stream-values.spec-d.ts`](../tests/model-stream-values.spec-d.ts)、[`tests/model-output-v1.spec.ts`](../tests/model-output-v1.spec.ts)、[`tests/public-entry.spec.ts`](../tests/public-entry.spec.ts)。
+- 公共入口行为与类型探针：[`tests/model-stream-values.spec.ts`](../tests/model-stream-values.spec.ts)、[`tests/model-stream-values.spec-d.ts`](../tests/model-stream-values.spec-d.ts)、[`tests/model-output-v1.spec.ts`](../tests/model-output-v1.spec.ts)、[`tests/model-output-v1.spec-d.ts`](../tests/model-output-v1.spec-d.ts)、[`tests/public-entry.spec.ts`](../tests/public-entry.spec.ts)。
 
 `ModelStreamSnapshot`、`ModelStreamBase`、`ModelStreamDelta` 和 `ModelStreamProjectionFailure` 定义纯值输入与结果。`diffModelStream` 产生累计块变化，`applyModelStreamDelta` 核对原基线并生成新快照；完整规则与失败顺序归 [SPEC](../SPEC.md#model-投影及差分)。两函数同步核验引用、身份和投影关系，成功结果复制并冻结，不改变输入；它们不证明授权、真实发布或持久保存。观察端口与发布目标查询见[当前目标与公共观察](#model-当前目标与公共观察)。
 
@@ -377,7 +377,9 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 
 `checkCredentialPortConformance` 独立检查 `CredentialPort`，不并入 `checkModelProviderConformance`。`CREDENTIAL_CONFORMANCE_OBLIGATIONS` 列出义务。`CredentialConformanceOptions` 提供每项 fresh subject 工厂与等待上限，`CredentialConformanceSubject` 提供业务端口、合成测试值与 `CredentialConformanceControls`。`CredentialConformanceObligation`、`CredentialConformanceResult` 和 `CredentialConformanceReport` 表示结果。
 
-套件检查新旧路径、外租户绑定拒绝、factory 适用条件、新路径不读旧 face，以及轮换、撤销、不可读、来源不可用和关闭。缺少新方法或控制产生失败。报告只有 pass/fail，异常文本与秘密不进入报告。每项独立创建 subject 并尝试释放。异步工厂、控制及释放受 waitMs 限制。
+套件检查新旧路径、外租户绑定拒绝、factory 适用条件，以及轮换、撤销、不可读、来源不可用和关闭。`qualified-independent-of-legacy` 只检查 qualified 输入没有读取调用方旧 face、authorized、自由 tenant 字段，不能证明提供者内部没有复用旧方法。缺少新方法或控制产生失败。报告只有 pass/fail，异常文本与秘密不进入报告。
+
+每项独立创建 subject 并尝试释放。异步工厂、控制及释放受 waitMs 限制。工厂超时后的迟到 subject 仍进入有界 dispose，已返回的失败报告不反转。调用 dispose 不证明真实资源已经停止，挂起或拒绝时释放仍未确认。
 
 套件只检查提供者可同步核验的事实。它不证明 access 的主体来源、`official` 自报、绑定与资格同修订、真实发送围栏或跨进程一致性。受信发送边界前提与已知限制归[凭据契约](../SPEC.md#342-凭据引用与解析端口)。
 

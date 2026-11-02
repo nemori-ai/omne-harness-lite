@@ -753,7 +753,7 @@ Model 在原保存确认后发布投影。取得已确认快照 C 与登记 C �
 `encodeModelOutputV1` 与 `decodeModelOutputV1` 是根入口的纯编解码函数。投影只包含可见块、Model 输出游标、修订和阶段，不包含 `ref`、`dispatch`、调用身份或消费者。它不提供生产观察服务或安装保证。
 
 - snapshot 的键集是 `{projection: 'model-output-v1', phase, cursor, revision, blocks}`。`cursor` 与 `revision` 分别来自 `ModelStreamSnapshot.value.cursor` 和 `value.state.revision`。
-- delta 的键集是 `{projection: 'model-output-v1', base: {cursor, revision}, cursor, revision, phase?, blocks}`。`base` 来自内部 `ModelStreamDelta.from`，表示消费者当前已应用视图，不限于最近一份 snapshot。顶层 `cursor` 与 `revision` 分别来自目标 `outputCursor` 和 `state.revision`。
+- delta 的键集是 `{projection: 'model-output-v1', base: {cursor, revision}, cursor, revision, phase?, blocks}`。`base.cursor` 与 `base.revision` 分别来自内部 `ModelStreamDelta.from.outputCursor` 和 `from.revision`，表示消费者当前已应用视图，不限于最近一份 snapshot。顶层 `cursor` 与 `revision` 分别来自目标 `outputCursor` 和 `state.revision`。
 - `cursor` 是 Model 的 `OutputCursor`，`revision` 是 Model 的 `Revision`。JSON 中两者使用现有身份 codec 的规范十进制文本，不转为 number。它们与公共帧的 `StreamCursor` 独立，不互相推导。
 - 消费者应用 delta 前必须逐文本比较 `base` 与当前视图的 cursor、revision。任何一项不相同，消费者丢弃视图并重新取得 snapshot，不猜测或重排。
 - state-only delta 仍然输出：revision 前进，cursor 可以等于 `base.cursor`，未变的块不重复，`blocks` 可以为空。不能跳过这类 delta，否则下一份 delta 的 `base.revision` 无法匹配。
