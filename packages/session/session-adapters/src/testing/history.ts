@@ -223,6 +223,27 @@ function callConsequences(
   return result
 }
 /**
+ * The consequences of an input-taken event. A step that took no input (the step after a Tool
+ * result) has no Session acceptance: an empty batch is only observed, and Session's refusal of an
+ * empty SE14 batch stays as it is.
+ */
+function takenConsequences(
+  batch: Extract<AgentEvent['body'], { kind: 'input-taken' }>['batch'],
+): readonly SessionLogConsequence[] {
+  if (batch.ordered.length === 0) return [{ kind: 'observed' }]
+  return [
+    {
+      kind: 'input-taken',
+      batch: {
+        id: String(batch.id) as BatchId,
+        watermark: batch.watermark,
+        ordered: batch.ordered.map(input => String(input) as InputId),
+      },
+    },
+  ]
+}
+
+/**
  * The consequences of one event that the original Agent fragments of the same root decide alone:
  * every event body but `control`, whose consequences read the Session state of the interpretation
  * and are refused here as unavailable. The production Journal, which holds no Session state in its
@@ -240,19 +261,7 @@ export function normalizeAgentEvent(
   const body = event.body
   switch (body.kind) {
     case 'input-taken':
-      // A step that took no input (the step after a Tool result) has no Session acceptance: an
-      // empty batch is only observed, and Session's refusal of an empty SE14 batch stays as it is.
-      if (body.batch.ordered.length === 0) return [{ kind: 'observed' }]
-      return [
-        {
-          kind: 'input-taken',
-          batch: {
-            id: String(body.batch.id) as BatchId,
-            watermark: body.batch.watermark,
-            ordered: body.batch.ordered.map(input => String(input) as InputId),
-          },
-        },
-      ]
+      return takenConsequences(body.batch)
     // `message` is already saved by AD-01; `entry` tells of a condition the same Journal saved in
     // the same commit. Neither has a Session consequence (session-contract EC-01).
     case 'message':
