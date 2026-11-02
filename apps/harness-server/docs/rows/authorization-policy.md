@@ -11,13 +11,13 @@
 | 行 id | `authorization`，`implementation` 为 `real`，没有关闭阶段                                                          |
 | 提供  | `sessionAccessCheck`、`agentAccessCheck`、`agentActionAdmission`                                                   |
 | 注入  | `principalVerifier`（入口对象）、`tenantStanding`（`identity` 行）。两项都是必需依赖，缺任一项时本行停在 `PENDING` |
-| 配置  | 无。政策表和授予表是源码常量，不进配置，运维者不能经配置给任何系统主体授予用途                                     |
+| 配置  | 可选的 `actionRules` 动作规则快照。政策表和系统授予表仍是源码常量，运维者不能经配置给系统主体授予用途              |
 
 三个服务共用同一组依赖，所以放在同一个插件上，一起装载，一起撤除。服务对象只持有闭包。依赖在每次调用时重新读取。每次检查都读当前事实，不缓存任何 `allowed`。
 
 - `sessionAccessCheck` 实现 `SessionAccessCheck`。每次 Session 面的公开读写在实际执行处调用它一次。
 - `agentAccessCheck` 实现 `AgentAccessCheck`。每次 Agent 公开操作调用它一次。
-- `agentActionAdmission` 实现 `ActionAdmission`。M2 没有动作规则来源，见[动作准入](#动作准入)。
+- `agentActionAdmission` 实现 `ActionAdmission`，见[动作准入](#动作准入)。
 
 ## 一次访问检查怎样得出答复
 
@@ -70,8 +70,9 @@
 
 | 持有者组件名             | 记录                                               | 用途                                                                          |
 | ------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `toolResidencyPrincipal` | `maintenance-grant/toolResidencyPrincipal`，修订 1 | `resident-references`                                                         |
-| `agent-host`             | `maintenance-grant/agent-host`，修订 1             | `agent-instance-publish`、`agent-instance-quiesce`、`agent-instance-withdraw` |
+| `toolResidencyPrincipal` | `maintenance-grant/toolResidencyPrincipal`，修订 2 | `resident-references`                                                         |
+| `agent-host`             | `maintenance-grant/agent-host`，修订 2             | `agent-instance-publish`、`agent-instance-quiesce`、`agent-instance-withdraw` |
+| `tenant-domain-scanner`  | `maintenance-grant/tenant-domain-scanner`，修订 2  | `enumerate-tenants`                                                           |
 
 <!-- /policy:grants -->
 
@@ -83,6 +84,7 @@
 | ------------------------ | -------------------------------------------------- |
 | `toolResidencyPrincipal` | Session `references`                               |
 | `agent-host`             | Agent `publish`、Agent `withdraw`、Agent `quiesce` |
+| `tenant-domain-scanner`  | 无 Session 或 Agent 格；只经部署枚举端口使用       |
 | 其他系统主体             | 无                                                 |
 
 <!-- /policy:projection -->
@@ -480,11 +482,37 @@
 - K-9：`takeover` 对 W 恒放行。取代存活推进者的限制靠 attach 的条件提交。前提是 M2 单进程，每个会话只有一个驱动者。
 - K-10：维护授予是部署级的。一个持有者覆盖本部署的全部租户分区。跨分区限制交给 Session SQL 的目录查找。
 - K-11：授予表按组件名定位。前提是原始签发者只交给受信持有者。装配把签发者交给普通插件时，该插件能签发任何组件名的主体。
-- 波 1 的授予表只给 `toolResidencyPrincipal` 和 `agent-host` 写了记录。部署重启扫描主体和作用域恢复维护主体的组件名未定，没有记录。`pending`、`receive` 和 `releasedScopes` 的系统格因此在发行配置里答 `denied grant-missing`。
+- `tenant-domain-scanner` 只有枚举租户用途，没有 `pending-sessions`。作用域恢复维护主体没有记录。`pending`、`receive` 和 `releasedScopes` 的系统格仍答 `denied grant-missing`。
 
 ## 动作准入
 
-`agentActionAdmission` 没有默认放行。M2 没有动作规则来源，没有许可解释器，也没有决定卡解释器。所以 `admit` 对任何输入都答 `unavailable`，不论 `permissions` 是否为空，也不论 `decision` 是否存在。动作准入的规则来源属于波 B。
+动作规则采用 R2-D34（[#978 批复](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6577830437)）。`actionRules` 缺席或没有匹配规则时答 `unavailable`。`permissions` 非空或 `decision` 非 null 时也答 `unavailable`，本行不实现权限与人工决定解释器。
+
+行构造时严格解析配置，拒绝未知字段、空 revision、重复规则 id 和非法 effect。每条规则按 `tool` 精确匹配 `original.name`。`definition` 可省略或为 null；指定时逐项匹配 Adoption 的 owner、name、revision、digest。匹配的 deny 优先于所有 allow，与数组顺序无关。规则不可变，运维者用既有行配置 replace 后重载更新它。
+
+```json
+{
+  "actionRules": {
+    "revision": "deployment-2",
+    "rules": [
+      { "id": "files", "effect": "allow", "tool": "Files" },
+      { "id": "shell", "effect": "deny", "tool": "Shell" }
+    ]
+  }
+}
+```
+
+只有 Session 工作主体进入 AU-11 的成员资格核验。主体必须由原身份权威核验，并代请求租户行事。登录主体、未知角色和系统主体不放行。身份来源失败答 `unavailable`。请求的动作位置、生效参数摘要和规则选择在首次 await 前固定；每次动作重新核验身份。允许和规则禁止的 `decisionEvidence` 绑定规则 id、revision、execution/passage/action、生效参数摘要与身份依据。禁止结果携带 `rule/<id>`，不生成决定卡。输出不携带主体或参数正文。
+
+行撤除后，旧动作准入引用答 `unavailable`。已开始的检查固定本次输入，不承诺跨代同步撤权。
+
+## Tool 访问与扫描主体
+
+`createToolAccessGuard(readAdmission)` 是纯工厂。它返回的同一个 qualify 对象满足 `ToolAccessGuard` 与 `StartCoordinatorAccess`。消费行每次提供当前 AU-11 读口，撤除后返回 undefined；缺依赖答 `unavailable`。工厂不增加服务键，也不缓存允许结果。
+
+普通台账动作和 `start` 要求非空 call、可信 Session 工作主体和本租户成员资格，映射到 `tool/<action>` 与 `tool/call`。`invalidate`、`read-raw`、`read-raw-content` 缺本波资格来源，一律答 `unavailable`；后者不以两次异步检查拼出双权限一致读取。
+
+入口 `issueTenantDomainScanner(env)` 经本运行受信签发器签出 `tenant-domain-scanner`，只把主体交给扫描者，不交签发器、不 provide 新键。部署枚举消费者用同一 `releaseMaintenanceGrants()` 与原 `principalVerifier`，不能用组件名文本或复制的主体代替真实签发身份。
 
 ## 验证
 
@@ -493,8 +521,10 @@
 - `adapters.spec.ts`：两个访问检查对真实的 `SessionAccessCheck` 与 `AgentAccessCheck` 契约运行，依赖是核验器和 `tenantStanding` 的测试替身，授权判定用的是 `@omne-harness/authorization` 的参考件。含依赖抛错时的 `unavailable`、原型链键、固定绑定、前置裁定、矩阵请求的形状、本页与源码的逐格核对，以及 `serveOnce` 下的活树用例。
 - `policy-golden.spec.ts`、`policy.spec.ts`、`policy.spec-d.ts`：表本身的逐格黄金表、审计和行完整性。
 - `grants.spec.ts`：授予表和读口。
+- `tool-access.spec-d.ts`：同一个 qualify 对象满足两个 Tool 端口。`adapters.spec.ts` 还运行 Tool 五项符合性套件，包含失败依赖，以及动作规则、严格配置和撤除旧引用用例。
+- `../entry/tenant-domain-scanner.spec.ts`：真实入口签发与核验、精确枚举用途、伪造主体拒绝。
 
-这些用例用测试替身代替 `identity` 行的 `tenantStanding` 和入口对象的 `principalVerifier`。真实的持久提供者和真实入口对象的组合属于联调。
+适配测试用真实进程内主体权威；成员资格读口使用可切换测试替身。扫描主体测试使用真实入口签发器。真实持久身份提供者和跨服务端到端组合仍属于联调。
 
 ## 维护
 
