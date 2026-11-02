@@ -70,9 +70,18 @@ export type HandleOutcome =
       result: Readonly<{ kind: 'disposed-before-stop'; detail: string }>
     }>
 
+export type HostFilesReport =
+  | Readonly<{ kind: 'settled'; count: 0 }>
+  | Readonly<{ kind: 'host-files-unsettled'; count: number }>
+  | Readonly<{
+      kind: 'unavailable'
+      diagnostic: 'maintenance-failed' | 'retirement-failed' | 'deadline'
+    }>
+
 export type ShutdownReport = Readonly<{
   overall: 'settled' | 'incomplete'
   outcomes: readonly HandleOutcome[]
+  hostFiles?: HostFilesReport
 }>
 
 /** 装配入口交给每个入口对象 `install` 的环境（DP1-C11、DP1-C17）。它不进插件，也不交给任何行。 */
