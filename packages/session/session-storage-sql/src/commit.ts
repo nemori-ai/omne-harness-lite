@@ -1,6 +1,6 @@
-// The write path (SQL r2 section 17): `commit` and the original-receipt lookup go through the
-// storage commit, the `session` participant. The response evidence of a rollback keeps the
-// original failure basis, so no failure is recomputed outside the transaction.
+// The write path (SQL r2 section 17): `commit`, `commitEntries` and the original-receipt lookup go
+// through the storage commit, the `session` participant. The response evidence of a rollback keeps
+// the original failure basis, so no failure is recomputed outside the transaction.
 import { createHash, randomUUID } from 'node:crypto'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
@@ -22,12 +22,14 @@ import {
 import type {
   CommitRequestV2,
   CommitResultV2,
+  FactCommandV2,
   JsonValue,
   ReceiptV2,
   SqlIdentity,
 } from '@omne-harness/sql-contract'
 import { canonicalText, decodeValue, encodeValue } from './codec.ts'
 import { OWNER } from './cursor.ts'
+import { SESSION_PARTICIPANT, decodeSessionReply, sessionCommandFacts } from './participants.ts'
 import {
   domainOf,
   failure,
@@ -37,10 +39,19 @@ import {
   type TenantDomainRef,
 } from './context.ts'
 
-const PARTICIPANT = 'session'
-
-type Answer = Readonly<{ result: JsonValue; recovered: boolean; digest: string }>
-type Found = Readonly<{ kind: 'operation'; form: string; receipt: JsonValue; result: JsonValue }>
+/**
+ * What a committed answer must match: the operation identity and the digest of its input. Another
+ * digest under the same identity is another operation (SL07).
+ */
+export type Expected = Readonly<{ operation: SessionOperationId; digest: string }>
+type Found = Readonly<{
+  kind: 'operation'
+  form: string
+  receipt: JsonValue
+  result: JsonValue
+  /** The access evidence stored with the record; null when its commit carried none. */
+  evidence: JsonValue
+}>
 type Rest = Awaited<ReturnType<typeof exclusion>>
 
 const identityOf = (domain: TenantDomainRef, operation: string, key: string): SqlIdentity => ({
@@ -54,11 +65,16 @@ const identityOf = (domain: TenantDomainRef, operation: string, key: string): Sq
 const requestOf = <P>(
   context: Context<P>,
   identity: SqlIdentity,
-  facts: Readonly<Record<string, JsonValue>>,
+  command: FactCommandV2,
 ): CommitRequestV2 => ({
   identity,
   ...context.options.combination,
-  commands: [{ participant: PARTICIPANT, facts }],
+  commands: [command],
+})
+
+const sessionFacts = (facts: Readonly<Record<string, JsonValue>>): FactCommandV2 => ({
+  participant: SESSION_PARTICIPANT,
+  facts,
 })
 
 /** A recalled result says so: the receipt inside it, or the receipt it is, carries `recovered`. */
@@ -75,61 +91,95 @@ function markRecovered(value: unknown): unknown {
 
 function fromCommitted(
   receipt: ReceiptV2,
-  command: SessionCommand,
+  expected: Expected,
   recall: boolean,
 ): Outcome<unknown, SessionFailure> {
-  const reply = receipt.responses[0]?.reply
-  if (reply?.kind !== 'participated')
+  const entry = receipt.responses.find(item => item.participant === SESSION_PARTICIPANT)
+  if (entry?.reply.kind !== 'participated')
     return failure(unavailable('a committed receipt without a response'))
-  const answer = reply.response as Answer
-  if (answer.digest !== commandDigest(command))
-    return failure({ kind: 'conflict', operation: command.input.operation })
-  const value = decodeValue(answer.result)
-  return succeed(recall || answer.recovered ? markRecovered(value) : value)
+  const answer = decodeSessionReply(entry.reply)
+  if (answer.kind !== 'participated') return failure(unavailable('an undecodable session reply'))
+  if (answer.digest !== expected.digest)
+    return failure({ kind: 'conflict', operation: expected.operation })
+  return succeed(recall || answer.recovered ? markRecovered(answer.result) : answer.result)
 }
 
 function fromRolledBack(receipt: ReceiptV2): Outcome<never, SessionFailure> {
   const stop = receipt.responses[receipt.responses.length - 1]?.reply
-  if (stop?.kind === 'conflict')
-    return failure(decodeValue((stop.basis as { failure: JsonValue }).failure) as SessionFailure)
-  if (stop?.kind === 'unsupported')
-    return failure({
-      kind: 'invalid',
-      field: 'command',
-      reason: 'the participant does not support the facts',
-    })
-  if (stop?.kind === 'failed')
-    return failure(unavailable(`participant failed (${stop.category}): ${stop.diagnostic}`))
-  return failure(unavailable('a rolled back receipt without a stopping response'))
+  if (stop === undefined || stop.kind === 'participated')
+    return failure(unavailable('a rolled back receipt without a stopping response'))
+  const decoded = decodeSessionReply(stop)
+  switch (decoded.kind) {
+    case 'stopped':
+      return failure(decoded.failure)
+    case 'unsupported':
+      return failure({
+        kind: 'invalid',
+        field: 'command',
+        reason: 'the participant does not support the facts',
+      })
+    case 'failed':
+      return failure(unavailable(`participant failed (${decoded.diagnostic})`))
+    case 'participated':
+      return failure(unavailable('a rolled back receipt without a stopping response'))
+  }
 }
 
 function fromResult(
   result: CommitResultV2,
-  command: SessionCommand,
+  expected: Expected,
 ): Outcome<unknown, SessionFailure> | 'next-attempt' {
   switch (result.kind) {
     case 'committed':
-      return fromCommitted(result, command, false)
+      return fromCommitted(result, expected, false)
     case 'rolled_back':
       return fromRolledBack(result)
     case 'unknown':
-      return failure({ kind: 'commit-unknown', operation: command.input.operation })
+      return failure({ kind: 'commit-unknown', operation: expected.operation })
     case 'identity_conflict':
       return result.existing.kind === 'rolled_back'
         ? 'next-attempt'
-        : fromCommitted(result.existing, command, true)
+        : fromCommitted(result.existing, expected, true)
     case 'rejected_before_accept':
       return result.reason === 'writer_not_current'
-        ? failure({ kind: 'commit-unknown', operation: command.input.operation })
+        ? failure({ kind: 'commit-unknown', operation: expected.operation })
         : failure(unavailable(`storage rejected the commit: ${result.reason}`))
   }
 }
 
 /**
- * Commits one command under the explicit access of this call. The attempt generation is chosen
- * by the storage receipts: a generation is used only when every earlier one is a rolled back
- * receipt, so an older attempt can never take effect beside a newer one (SPEC W1).
+ * Commits the participant facts of one operation in the tenant domain. The attempt generation is
+ * chosen by the storage receipts: a generation is used only when every earlier one is a rolled
+ * back receipt, so an older attempt can never take effect beside a newer one (SPEC W1).
  */
+export async function commitFacts<P>(
+  context: Context<P>,
+  domain: TenantDomainRef,
+  expected: Expected,
+  command: FactCommandV2,
+): Promise<Outcome<unknown, SessionFailure>> {
+  // Known limitation: the storage identity is `<SessionOperationId>#<generation>` in the tenant
+  // domain, so one identity is one operation per tenant, not per session. An identity reused in
+  // another session answers `conflict` and writes nothing (the safe side); the SL07 domain
+  // (tenant, session, identity) relies on OP-00 never reusing an identity across sessions.
+  const { operation } = expected
+  const { storage } = context.options
+  for (let attempt = 1; attempt <= context.attemptLimit; attempt += 1) {
+    const identity = identityOf(domain, operation, `${operation}#${attempt}`)
+    const found = await storage.query(identity)
+    if (found.kind === 'rolled_back') continue
+    if (found.kind === 'committed') return fromCommitted(found, expected, true)
+    if (found.kind === 'unknown') return failure({ kind: 'commit-unknown', operation })
+    const settled = fromResult(
+      await storage.commit(requestOf(context, identity, command)),
+      expected,
+    )
+    if (settled !== 'next-attempt') return settled
+  }
+  return failure(unavailable('every attempt generation of the operation was rolled back'))
+}
+
+/** Commits one command under the explicit access of this call. */
 export async function commit<P, K extends MutationName>(
   context: Context<P>,
   input: Readonly<{
@@ -153,13 +203,12 @@ export async function commit<P, K extends MutationName>(
     return failure({ kind: 'unsupported' })
   const domain = await domainOf(context, command.input.tenant)
   if ('failure' in domain) return domain
-  let facts: Record<string, JsonValue>
+  let facts: FactCommandV2
   try {
-    facts = {
-      intent: 'command',
-      command: encodeValue(command),
-      guards: encodeValue(input.guards),
-    }
+    // The allowed decision goes into the facts, so the participant writes it with the operation
+    // record in the same transaction (session-contract SPEC「当前操作的访问裁定」).
+    const base = sessionCommandFacts(command, input.guards)
+    facts = { ...base, facts: { ...base.facts, evidence: encodeValue(decided.ok) } }
   } catch (error) {
     return failure({
       kind: 'invalid',
@@ -167,22 +216,12 @@ export async function commit<P, K extends MutationName>(
       reason: error instanceof Error ? error.message : 'not JSON data',
     })
   }
-  // Known limitation: the storage identity is `<SessionOperationId>#<generation>` in the tenant
-  // domain, so one identity is one operation per tenant, not per session. An identity reused in
-  // another session answers `conflict` and writes nothing (the safe side); the SL07 domain
-  // (tenant, session, identity) relies on OP-00 never reusing an identity across sessions.
-  const operation = command.input.operation
-  const { storage } = context.options
-  for (let attempt = 1; attempt <= context.attemptLimit; attempt += 1) {
-    const identity = identityOf(domain.ok, operation, `${operation}#${attempt}`)
-    const found = await storage.query(identity)
-    if (found.kind === 'rolled_back') continue
-    if (found.kind === 'committed') return fromCommitted(found, command, true)
-    if (found.kind === 'unknown') return failure({ kind: 'commit-unknown', operation })
-    const settled = fromResult(await storage.commit(requestOf(context, identity, facts)), command)
-    if (settled !== 'next-attempt') return settled
-  }
-  return failure(unavailable('every attempt generation of the operation was rolled back'))
+  return commitFacts(
+    context,
+    domain.ok,
+    { operation: command.input.operation, digest: commandDigest(command) },
+    facts,
+  )
 }
 
 /** The write-path lookup of the original receipt, in the transaction domain that owns it. */
@@ -195,7 +234,11 @@ async function lookup<P>(
 ): Promise<Outcome<Found | null, SessionFailure>> {
   const identity = identityOf(domain, 'session.lookup', `lookup#${operation}#${randomUUID()}`)
   const result = await context.options.storage.commit(
-    requestOf(context, identity, { intent: 'query', tenant: domain.text, session, operation }),
+    requestOf(
+      context,
+      identity,
+      sessionFacts({ intent: 'query', tenant: domain.text, session, operation }),
+    ),
   )
   if (result.kind !== 'committed')
     return failure(unavailable(`the receipt lookup did not commit: ${result.kind}`))
@@ -290,8 +333,9 @@ export async function queryOperation<P>(
   if ('failure' in looked) return looked
   const { found, rest } = looked.ok
   if (found === null) return unfound(rest as Rest, false)
-  // A control identity is not a batch identity (SL07).
-  if (found.form !== 'batch') return failure({ kind: 'conflict', operation: input.operation })
+  // A control identity is not a batch identity (SL07). An entries record has a batch receipt.
+  if (found.form === 'control' || found.form === 'answer')
+    return failure({ kind: 'conflict', operation: input.operation })
   return succeed({ kind: 'committed', receipt: decodeValue(found.receipt) as CommitReceipt })
 }
 
@@ -303,6 +347,7 @@ export async function queryControlOperation<P>(
   if ('failure' in looked) return looked
   const { found, rest } = looked.ok
   if (found === null) return unfound(rest as Rest, true)
-  if (found.form === 'batch') return failure({ kind: 'conflict', operation: input.operation })
+  if (found.form === 'batch' || found.form === 'entries')
+    return failure({ kind: 'conflict', operation: input.operation })
   return succeed({ kind: 'committed', receipt: decodeValue(found.result) as never })
 }

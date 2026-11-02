@@ -16,7 +16,7 @@ import type { Adoption, DurableEvidence, InputId } from './identity.ts'
 import type { RecoveryTask, WorkSnapshot } from './values.ts'
 import { SESSION_INTERPRETER, decodeEntry, type SessionEntry } from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
-import { applyExtended } from './reduce-extended.ts'
+import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
 import { scopeBinding } from './decide-management.ts'
 import { digestOf } from './operations.ts'
 import { applyParticipation } from './result-state.ts'
@@ -354,6 +354,20 @@ function reduceBatch(
   draft.revision = batch.revision
   draft.source = batchEvidence(batch, draft.session)
   draft.lifecycle = lifecycleOf(draft)
+  const progressRows = decodedEntries.filter(
+    (entry): entry is Extract<SessionEntry, { kind: 'entries.interpreted' }> =>
+      entry.kind === 'entries.interpreted',
+  )
+  if (progressRows.length > 0) {
+    // RD-1: the progress rows of the batch continue the saved progress of their channel.
+    const progress = advanceEntriesProgress(
+      previous?.entriesProgress ?? [],
+      progressRows,
+      draft.source,
+    )
+    if (typeof progress === 'string') return quarantined(progress)
+    draft.entriesProgress = progress
+  }
   return { kind: 'reduced', snapshot: draft }
 }
 

@@ -927,6 +927,16 @@
               "name": "DeriveInput",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "HistoryResolution",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistoryEvidenceResolver",
+              "kind": "type",
+              "pending": false
             }
           ]
         }
@@ -1211,10 +1221,7 @@
     {
       "module": "@omne-harness/runtime-context-contract",
       "interface": "ContextBlocks",
-      "members": [
-        "context.compaction-settings",
-        "context.window-usage"
-      ],
+      "members": ["context.compaction-settings", "context.window-usage"],
       "pending": false
     }
   ]

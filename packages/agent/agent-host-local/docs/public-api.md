@@ -4,7 +4,7 @@
 
 接收句柄提供 push、recover、retry、inspect。依赖必须显式传入，不创建默认放行资格、独立材料存储或吞账目出口。非耐久状态只支持同进程接续；完整行为由[本包 SPEC](../SPEC.md#独立结果接收组件)约束。
 
-`@omne-harness/agent-host-local/cordis` 仍为空。完整插件名、配置和 reserve 设计见 [Cordis 装配页](cordis.md#插件与入口)，不能据根入口推断它已实现。
+`@omne-harness/agent-host-local/cordis` 导出宿主插件 `agentHostPlugin` 与配置类型 `AgentHostConfig`。插件的装载、配置与服务面见 [Cordis 装配页](cordis.md#插件与入口)，实现范围与缺口见 [SPEC](../SPEC.md#宿主插件)。
 
 接收工厂返回 `Outcome`：联合接收能力存在时为 `ok` 句柄；`received=null` 时为 `failure: { kind: 'unsupported' }`，不创建接收能力。
 

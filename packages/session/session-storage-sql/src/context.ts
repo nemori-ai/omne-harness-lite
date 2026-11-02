@@ -1,5 +1,6 @@
 // What the port needs from the application: the SQL storage, the tenant domain directory, the
 // current access decision and the cursor signing. Shared by the commit path and the read path.
+// `qualify` is the one place where a call gets its access; the context says which step answers it.
 import { randomUUID } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -35,10 +36,24 @@ export type SessionStorageOptions<P> = Readonly<{
   now?: () => number
 }>
 
+/**
+ * The step that answers the access of one call. The public port asks the access check; a delegated
+ * view answers from its binding and does not ask (session-contract SPEC「当前操作的访问裁定」).
+ */
+export type AccessStep<P> = (
+  request: SessionAccessRequest<P>,
+) => Promise<Outcome<DurableEvidence, SessionFailure>>
+
 export type Context<P> = Readonly<{
   options: SessionStorageOptions<P>
   cursor: CursorOptions
   attemptLimit: number
+  access: AccessStep<P>
+}>
+
+/** The part of the options that reaches the storage. The binding read needs nothing else. */
+export type StorageReach = Readonly<{
+  options: Pick<SessionStorageOptions<unknown>, 'storage' | 'domains'>
 }>
 
 export const unavailable = (diagnostic: string): SessionFailure => ({
@@ -53,6 +68,7 @@ export function contextOf<P>(options: SessionStorageOptions<P>): Context<P> {
   return {
     options,
     attemptLimit: options.attemptLimit ?? 8,
+    access: request => checkAccess(options.accessCheck, request),
     cursor: {
       signing: options.cursorSigning,
       now: options.now ?? Date.now,
@@ -61,14 +77,22 @@ export function contextOf<P>(options: SessionStorageOptions<P>): Context<P> {
   }
 }
 
-/** One current decision for one public call. A throwing or unavailable source does not continue. */
-export async function qualify<P>(
+/** The access of one call, from the step of its context. Only an allowed answer continues. */
+export function qualify<P>(
   context: Context<P>,
+  request: SessionAccessRequest<P>,
+): Promise<Outcome<DurableEvidence, SessionFailure>> {
+  return context.access(request)
+}
+
+/** One current decision for one public call. A throwing or unavailable source does not continue. */
+async function checkAccess<P>(
+  accessCheck: SessionAccessCheck<P>,
   request: SessionAccessRequest<P>,
 ): Promise<Outcome<DurableEvidence, SessionFailure>> {
   let decision
   try {
-    decision = await context.options.accessCheck.check(request)
+    decision = await accessCheck.check(request)
   } catch (error) {
     return failure(
       unavailable(
@@ -91,8 +115,8 @@ export async function qualify<P>(
 export type TenantDomainRef = Readonly<{ text: string; domain: DomainRef }>
 
 /** The domain of one tenant. A directory entry that names another tenant is refused, never used. */
-export async function domainOf<P>(
-  context: Context<P>,
+export async function domainOf(
+  context: StorageReach,
   tenant: TenantId,
 ): Promise<Outcome<TenantDomainRef, SessionFailure>> {
   const text = tenantCodec.encode(tenant)
@@ -118,8 +142,8 @@ export async function domainOf<P>(
 export type HandlerOutput = Readonly<Record<string, JsonValue>>
 
 /** One `snapshot` read. A read that did not return is `unavailable`, never an empty answer. */
-export async function readHandler<P>(
-  context: Context<P>,
+export async function readHandler(
+  context: StorageReach,
   domain: DomainRef,
   handler: string,
   input: Readonly<Record<string, JsonValue>>,

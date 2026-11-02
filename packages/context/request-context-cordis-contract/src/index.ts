@@ -115,5 +115,14 @@ export type {
   RegistrationResult,
   ContextSourceRegistry,
   ContextRegistryOptions,
+  HistoryResolution,
+  HistoryEvidenceResolver,
 } from '@omne-harness/request-context-contract'
 export type { RequestContextTrust } from './trust.js'
+export type {
+  ContextHolderParts,
+  LeaseSettlement,
+  ContextHolderLease,
+  ContextHolderLeaseResult,
+  ContextHolderSources,
+} from './holder-sources.js'

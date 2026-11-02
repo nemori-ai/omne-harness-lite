@@ -11,6 +11,11 @@
 
 两个入口的导出集合由 [public-entry.spec.ts](../tests/public-entry.spec.ts) 与 [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言。`sessionAccessCheckKey` 已从 `SessionAccessCheckService.provide` 导出。其真实 Context 装卸与检查委派由 [access-check.spec.ts](../tests/access-check.spec.ts) 覆盖，生产必需注入仍未交付，见 [SPEC 当前访问检查装配](../SPEC.md#当前访问检查的装配)。
 
+## 受信服务键
+
+- `./cordis` 导出 `SessionDelegatedTransactionsService`、`SessionWorkPrincipalsService`、`SessionPrincipalBindingsService` 与各自的键常量 `sessionDelegatedTransactionsKey`、`sessionWorkPrincipalsKey`、`sessionPrincipalBindingsKey`。三个键只在装配的受信子树内可见，见 [Cordis 说明的受信服务键](cordis.md#受信服务键)。
+- `./testing` 导出 `createMemorySessionPrincipalBindings` 与 `sessionPrincipalBindingsConformance`、`createMemorySessionWorkPrincipals` 与 `sessionWorkPrincipalsConformance`。
+
 ## 消费者怎样导入
 
 消费者只从 `@omne-harness/session-cordis-contract/cordis` 导入绑定。领域类型从 `@omne-harness/session-contract` 导入。不从实现包导入 Service。

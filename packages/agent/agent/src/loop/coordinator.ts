@@ -91,7 +91,7 @@ import {
   type Message,
 } from './identities.ts'
 import { canonical } from '../canonical.ts'
-import { waitForExecutionChange } from './wait.ts'
+import { waitForExecutionChange, type HeldPosition } from './wait.ts'
 import { diagnosticOf } from './diagnostic.ts'
 import {
   lowerBound,
@@ -237,6 +237,24 @@ export const DEFECT_OWNER = `${AGENT_OWNER}#defect`
 
 function defect(diagnostic: string): Failure {
   return { kind: 'unavailable', owner: DEFECT_OWNER, diagnostic }
+}
+
+/**
+ * The position after an own commit that the Journal accepted at `expected`: the commit appended
+ * exactly its `events`. Unknown when the position before it was not the one at `expected`.
+ */
+function heldAfter(
+  before: HeldPosition | null,
+  expected: ExecutionRevision,
+  revision: ExecutionRevision,
+  events: number,
+): HeldPosition | null {
+  if (before?.revision !== expected) return null
+  const through = before.emittedThrough ?? '0'
+  // A sequence that is not decimal text leaves the position unknown; the wait then reads its own.
+  if (!/^(?:0|[1-9]\d*)$/u.test(through)) return null
+  const emitted = BigInt(through) + BigInt(events)
+  return { revision, emittedThrough: emitted === 0n ? null : String(emitted) }
 }
 
 /** The failure of an outcome that a later #502 card handles, named so that nobody reads it as done. */
@@ -421,6 +439,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // The read position the last operation was sent with: a retry of the same operation sends the
   // same semantic input (SPEC:261, 102), never a newer prefix.
   let lastSent: Readonly<{ operation: AgentOperationId; read: ReplyAdmissionRead }> | null = null
+  // The event cursor at a revision, known exactly: set by each load, moved by each own commit that
+  // landed on that revision. Event sequences are consecutive decimal numbers (SPEC "事件身份与序号")
+  // and a commit appends exactly its own events, so the cursor after it needs no read. W0 hands it
+  // to the wait as the start of the observation (perf baseline 2.3).
+  let held: HeldPosition | null = null
 
   async function exclusive<T>(
     node: LoopNode,
@@ -477,6 +500,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         pendingCommit = { operation: committed.failure.operation, node }
       return committed
     }
+    held = heldAfter(held, after, committed.ok.revision, write.events?.length ?? 0)
     revision = committed.ok.revision
     checkpoint = next
     state = nextState
@@ -550,6 +574,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     const loaded = await ports.journal.load({ ...access, execution })
     if ('failure' in loaded) return loaded
     snapshot = loaded.ok
+    held = { revision: loaded.ok.revision, emittedThrough: loaded.ok.output.emittedThrough }
     return loaded
   }
 
@@ -1941,6 +1966,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           operations,
           waits: operations.length > 0 ? [] : waits,
           recheck: operations.length > 0 ? null : recheckDependency,
+          // The position in hand starts the observation, so the wait reads the execution once. A
+          // position at another revision than `revision` wakes at once, as a baseline read would.
+          held,
           position: waitingAt,
           ...input,
         })

@@ -16,8 +16,13 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明，本成
 
 ## 本包事实
 
-- `index.ts`：根入口，只导出两个工厂。
+- `index.ts`：根入口，导出两个有状态工厂、三个无状态构造件与它们的配置初值。
 - `registry.ts`：`createContextSourceRegistry`。登记项、代际、借用、发布核对、撤除与关闭；操作组由契约的 `createAssemblyOperations` 按借用的来源集合构造。
 - `accounting.ts`：`createContextAccounting`。收件口的核验顺序、按 `(call, dispatch)` 的修订指纹索引、窗口占用四种状态、系统恢复的暂存重建。
 
-当前缺口：候选缓存、派生物、两个默认策略与修剪器还没有进入。清单见[公开接口页](../docs/public-api.md#随实现进入的导出)。具名维护者由负责人指定。
+- `compaction-strategy.ts`、`trimmer.ts`：`createDefaultCompactionPolicy`。保留名单按单元选取，调用与结果不拆开；修剪器只缩短交给摘要步的工具结果文本。
+- `representation-strategy.ts`：`createDefaultRepresentationPolicy`，按模态的偏好顺序选表示。
+- `conversion-results.ts`：`createAbsentConversionResults`，没有媒体输入的部署用。
+- `digest.ts`、`policy-input.ts`：参数摘要，以及构造时按契约 Schema 校验参数。
+
+当前缺口：候选缓存与派生物还没有进入。清单见[公开接口页](../docs/public-api.md#随实现进入的导出)。具名维护者由负责人指定。

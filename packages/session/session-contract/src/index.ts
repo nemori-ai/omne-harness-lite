@@ -179,6 +179,7 @@ export {
   type SessionLogObservation,
   type SessionLogConsequence,
 } from './projection.ts'
+export { projectSessionEntries, digestSessionEntries } from './entries-interpretation.ts'
 export type { ResidentAdoption, RunExecution, ContextScopeBinding } from './values.ts'
 export { INITIALIZATION_PROTOCOL } from './initialization-schema.ts'
 export type {

@@ -74,8 +74,10 @@
 - `GroupToken` · `refs.d.ts`
 - `HistoryCursor` · `values.d.ts`
 - `HistoryEvidence` · `values.d.ts`
+- `HistoryEvidenceResolver` · `history-resolution.d.ts`
 - `HistoryPage` · `ports.d.ts`
 - `HistoryReadResult` · `ports.d.ts`
+- `HistoryResolution` · `history-resolution.d.ts`
 - `HistoryRow` · `values.d.ts`
 - `HistorySequence` · `refs.d.ts`
 - `HistorySource` · `ports.d.ts`
@@ -591,6 +593,19 @@ export declare function withinUpper(seq: HistorySequence, evidence: HistoryEvide
 export declare function readHistory<P>(access: Access<P>, evidence: HistoryEvidence, source: HistorySource<P>): Promise<HistoryRead>;
 ```
 
+## 声明文件 `history-resolution.d.ts`
+
+```ts
+import type { Access, DurableEvidence } from './refs.js';
+import type { SourceRead } from './sources.js';
+import type { HistoryEvidence } from './values.js';
+export type HistoryResolution<P> = Readonly<{
+    access: Access<P>;
+    evidence: DurableEvidence;
+}>;
+export type HistoryEvidenceResolver<P> = (input: HistoryResolution<P>) => Promise<SourceRead<HistoryEvidence>>;
+```
+
 ## 声明文件 `index.d.ts`
 
 ```ts
@@ -616,6 +631,7 @@ export type { PreparedInputKey } from './values.js';
 export type { AssemblyOperationsInput } from './operations.js';
 export { createAssemblyOperations } from './operations.js';
 export type { SourceRead, SourceGroupValue, GroupSource, ContextGroupSources, AdoptedRead, AdoptedRequestSource, SourceDecision, ContextReadEligibility, PrincipalBinding, ContextSources, SourceRegistrationAuthority, SourceSettlement, ContextRegistration, RegistrationResult, ContextSourceRegistry, ContextRegistryOptions, } from './sources.js';
+export type { HistoryResolution, HistoryEvidenceResolver } from './history-resolution.js';
 export type { AccountingOrigin, ReceivedAccountFact, ContextAccountingInput, AccountReceipt, ContextAccountingInbox, SystemRecoveryAccess, AccountReplay, RecoveryResult, ContextRecovery, AccountingSourceAuthority, RecoveryAuthority, AccountingLimits, AccountingOptions, } from './accounting.js';
 export type { HistoryRow, HistoryPage, HistoryReadResult, CompactionContextResult, HistorySource, ConversionIndexResult, ConversionResultSource, RetainBudget, CompactionPolicy, CompactionPlanDraft, CompactionPolicyPort, RepresentationPolicyConfig, RepresentationPolicyPort, RetentionMeasurement, } from './ports.js';
 export type { BudgetInput } from './budget.js';
@@ -699,6 +715,7 @@ import { type TextContentBlock } from '@omne-harness/content-block';
 import { type MessageId, type SystemReminderMessage } from '@omne-harness/message';
 export declare function canonical(value: unknown): string;
 export declare function digest(value: unknown): string;
+export declare function adoptionDigest(value: unknown): string;
 export declare function messageId(value: unknown): MessageId;
 export declare function textBlock(text: string, identity: unknown): TextContentBlock;
 export declare function reminder(text: string, identity: unknown): SystemReminderMessage;

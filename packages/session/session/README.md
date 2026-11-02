@@ -22,17 +22,17 @@ Allow and deny decisions come only from the pure functions of session-contract. 
 
 Status: mechanism member, candidate technical design. Technical acceptance has not happened.
 
-- Implemented: nothing. `src/index.ts` holds only a template marker. The root entry exports nothing.
-- Not implemented: the factory, the command handler, the coordinators, the schedulers, the caches, and `close`. The [API page](docs/public-api.md#随实现进入的导出) lists them.
-- Not verified: no clause of the [SPEC](SPEC.md) has a test. The crash matrix and the fault scenarios have no runner.
+- Implemented: the factory `createSessionInstance`, the command handler pipeline (CP-01), the reads and writes of the four faces (CP-03), `close`, and the SS-01 subset of the schedulers and coordinators: S1, the open-Run sequence of C2, S4, and two reasons of S3. The SPEC section [实现现状](SPEC.md#实现现状) lists them and the implementation choices.
+- Not implemented: the CP-02 participant branch, a non-empty before-admit slot list, the other C2 sequences, C1 as a separate coordinator, C3 to C5, S2, S5 to S7, and the three caches. The SPEC section [未实现与触发条件](SPEC.md#未实现与触发条件) gives the trigger of each item.
+- Verified scope: the member tests run the session-contract transaction suite on the in-memory pair and on the SQL pair over the real sqlite-provider. They also check the decision count, the refusal of another tenant and the SS-02 counts. See [已有测试](SPEC.md#已有测试). The crash matrix and the fault scenarios have no runner.
 
-[session-cordis](../session-cordis/README.md) lists this package as a dependency. Both root entries export nothing, so no call runs now. No other package depends on this package.
+[session-cordis](../session-cordis/README.md) lists this package as a dependency. The root entry of session-cordis exports nothing yet, so no call runs now. No other package depends on this package.
 
 ## Usage
 
-The package has one entry: `@omne-harness/session`. The entry exports nothing now. After the implementation arrives, a host uses the package in this order:
+The package has one entry: `@omne-harness/session`. A host uses the package in this order:
 
-1. Build `SessionDependencies` and a `SessionConfiguration`. Only the transaction port and the internal principals are required to start.
+1. Build `SessionDependencies` and a `SessionConfiguration`. Four dependencies are required to start: the access check, the delegated transaction entry, the internal principals and the work principals.
 2. Call `createSessionInstance(dependencies, configuration)`.
 3. Give each caller class its own faces from `facesFor(caller)`.
 4. Call `maintain(tenant)` for each tenant that the host serves. Keep the handle that the call returns.
@@ -41,17 +41,17 @@ The package has one entry: `@omne-harness/session`. The entry exports nothing no
 
 A caller that only needs the domain interfaces does not install this package. It installs session-contract. A Cordis plugin installs session-cordis-contract. An application that assembles Cordis does not import this package. session-cordis calls the factory for it. The [usage page](docs/context.md) gives the independent path and the hosted path.
 
-The factory signature is a candidate. No example can run now.
+The factory signature is a candidate. The member test fixture [tests/fixtures/harness.ts](tests/fixtures/harness.ts) is a complete assembly that runs.
 
 ## Contracts
 
-- `src/index.ts` owns the public shapes. It is empty now.
+- The root entry in `src/` owns the public shapes. The [API page](docs/public-api.md#现有导出) lists them.
 - The [SPEC](SPEC.md) owns the mechanisms that the contract does not state: the pipeline (CP), the extension slots (EX), the coordinators (C1 to C5), the schedulers (S1 to S7 and SR), the event reads (RD), the caches (CA), the crash matrix (CR) and the verification duties (VM).
 - The [API page](docs/public-api.md) owns the factory, its two parameters and the instance members.
 - The [object model](docs/object-model.md) owns the construction objects and the owners of in-memory state.
 - Operations, failures, events and state machines belong to the [contract SPEC](../session-contract/SPEC.md). This package links to them and does not repeat them.
 
-The factory returns an instance that the caller owns. After `close`, the four faces return `unavailable`. `close` does not roll back a committed fact. It does not cancel an Agent, Tool or Model execution. A missing outbound port stops only the operations that need it. A missing transaction port stops the whole instance.
+The factory returns an instance that the caller owns. After `close`, the four faces return `unavailable`. `close` does not roll back a committed fact. It does not cancel an Agent, Tool or Model execution. A missing outbound port stops only the operations that need it. A missing access check, delegated transaction entry, internal principals or work principals stops the whole instance. Each face operation calls the access check once, at its start.
 
 ## Design
 
@@ -83,7 +83,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/session
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The current test only checks that the root entry has no exports. It does not show any behavior. The duties in the [SPEC](SPEC.md#vm-机制的持续验证义务) and the [fault scenarios](docs/fault-scenarios.md) are results that the implementation must pass later. They are not test runs. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The SPEC section [已有测试](SPEC.md#已有测试) lists the duties that the tests cover. The other [duties](SPEC.md#vm-机制的持续验证义务) and the [fault scenarios](docs/fault-scenarios.md) have no test yet. A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -108,8 +108,8 @@ docs/                     Internal design, public use, and integration
 ├── context.md            Independent use, hosted use, and position
 ├── cordis.md             Why this member loads no Cordis
 └── fault-scenarios.md    Fault scenarios
-src/                      Public definitions, only an empty index.ts now
-tests/                    Entry test only, fixtures/ is empty
+src/                      Root entry and mechanism modules
+tests/                    Member tests, fixtures/ has the double and real SQL assemblies
 schema/                   Empty, the package publishes no schema
 verification/             Index of verification resources, models/ and proofs/ are empty
 adr/                      Empty now

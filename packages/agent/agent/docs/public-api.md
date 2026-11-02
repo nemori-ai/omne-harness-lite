@@ -170,6 +170,15 @@ Journal 必须支持本 execution 的输入与条件终结、原操作查询、�
 
 quiesce 的形状与行为都不在本页：形状见契约包的 AgentRuntimeControl，同一操作的重试、已 unresolved 之后的重试、以及对停用中 runtime 的新 quiesce，行为见 SPEC 的“[托管协调与运行实例](../../agent-contract/SPEC.md#托管协调与运行实例)”。本实现只负责资源释放：工厂取得的依赖为借用对象，只释放自己创建的订阅和资源。Model 与 Tool 的原执行、共享连接和存储由各自拥有者管理。业务保管不依赖本 provider 持续在线。
 
+### quiesce 与执行槽的同步义务
+
+宿主在空闲回收时依赖 runtime 的两条同步义务，使到期后到达的 invoke 不会被受理后又被 detach 交接出去。规则和宿主、会话适配器的另两条义务见 [Cordis 页的实例的取得与回收](../../agent-cordis-contract/docs/cordis.md#实例的取得与回收)。
+
+1. quiesce 在第一个 `await` 之前把 runtime 置为 draining。此后新的 invoke 与 resume 返回 unavailable，runtime 不受理它们。
+2. invoke 与 resume 取本地执行槽的同一个同步动作里，经登记句柄 `report` 为 `occupied`。没有登记句柄的实例（`registration` 为 null）不报告，也不由宿主回收。
+
+JavaScript 单线程下，任一 invoke 要么先于宿主的到期回调取得执行槽，宿主读到 `occupied` 而放弃回收，要么晚于回调到达，此时 runtime 已 draining。两条义务是工厂的行为，由 AG-01 对工厂真件验证。
+
 ## 独立 Model 接收入口
 
 根入口导出 `createAgentModelReceiver`、`createModelReceiverState`、`agentModelDeliverySchema` 和 `readModelDeliveryMaterial`。类型由 [receiving-types.ts](../src/receiving-types.ts) 与 [receiving.ts](../src/receiving.ts) 拥有。

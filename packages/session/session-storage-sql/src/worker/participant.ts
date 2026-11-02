@@ -28,6 +28,8 @@ import type {
   ParticipantReply,
 } from '@omne-harness/sql-contract/worker'
 import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
+import { runChecks } from './check.ts'
+import { judgeEntries, type EntriesBatch } from './entries.ts'
 import { readHistory } from './history-index.ts'
 import { PROTOCOL } from './schema.ts'
 import { big, oneRow, rowsOf, text } from './support.ts'
@@ -365,12 +367,48 @@ export function initializationReceipts(
   return rows.map(row => JSON.parse(text(row['receipt'])) as CommitReceipt)
 }
 
+/**
+ * The execution index row of each SE13 (`run.started`) of the batch, in the batch's transaction.
+ * An execution is unique within its tenant: a row that already exists, for another session or for
+ * the same one, fails the commit and stays as it is.
+ */
+function indexExecutions(
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  entries: readonly HistoryEntry[],
+): ParticipantReply | null {
+  for (const entry of entries) {
+    if (entry.kind !== 'run.started') continue
+    const { run, execution } = (plainOf(entry.payload) ?? {}) as Record<string, unknown>
+    if (typeof run !== 'string' || typeof execution !== 'string')
+      return { kind: 'failed', diagnostic: 'an SE13 entry without its Run and execution' }
+    const held = oneRow(
+      port,
+      'SELECT session FROM sl_execution_idx WHERE tenant = ? AND execution = ? LIMIT 1',
+      [tenant, execution],
+    )
+    if (held !== undefined)
+      return {
+        kind: 'failed',
+        diagnostic: `the execution ${execution} is already indexed to ${
+          text(held['session']) === session ? 'this session' : 'another session'
+        }`,
+      }
+    port.execute(
+      'INSERT INTO sl_execution_idx (tenant, execution, session, run, position) VALUES (?, ?, ?, ?, ?)',
+      [tenant, execution, session, run, BigInt(entry.id)],
+    )
+  }
+  return null
+}
+
 function writeEntries(
   port: ParticipantPort,
   tenant: string,
   session: string,
   entries: readonly HistoryEntry[],
-): void {
+): ParticipantReply | null {
   for (const entry of entries) {
     const body = JSON.stringify(encodeValue(entry))
     port.execute(
@@ -395,6 +433,58 @@ function writeEntries(
           )
     }
   }
+  return indexExecutions(port, tenant, session, entries)
+}
+
+/** The receipt of one committed batch: the same for a command batch and an entries batch. */
+function batchReceipt(
+  input: Readonly<{
+    tenant: string
+    session: string
+    operation: string
+    seq: bigint
+    revision: string
+    entries: readonly HistoryEntry[]
+  }>,
+): CommitReceipt {
+  const { tenant, session, operation, seq, revision, entries } = input
+  const firstEntry = entries[0] as HistoryEntry
+  const lastEntry = entries[entries.length - 1] as HistoryEntry
+  return {
+    operation,
+    revision,
+    first: firstEntry.id,
+    last: lastEntry.id,
+    recovered: false,
+    source: {
+      owner: OWNER,
+      record: `${tenant}/${session}/${seq}`,
+      revision,
+      digest: `sha256:${sha256(canonicalText({ operation, first: firstEntry.id, last: lastEntry.id, kinds: entries.map(entry => entry.kind), payload: entries.map(entry => entry.payload) }))}`,
+    },
+  } as CommitReceipt
+}
+
+/** W1 step 7, last: the tail moves only from the tail that the batch was judged on. */
+function advanceTail(
+  port: ParticipantPort,
+  input: Readonly<{
+    tenant: string
+    session: string
+    tail: bigint
+    revision: string
+    seq: bigint
+    epoch: string
+  }>,
+): ParticipantReply | null {
+  const { tenant, session, tail, revision, seq, epoch } = input
+  const updated = port.execute(
+    'UPDATE sl_journal SET tail = ?, commit_seq = ?, epoch = ? WHERE tenant = ? AND session = ? AND tail = ?',
+    [BigInt(revision), seq, epoch, tenant, session, tail],
+  )
+  return updated.changes === 1n
+    ? null
+    : { kind: 'failed', diagnostic: 'the conditional tail update changed no row' }
 }
 
 function runQuery(
@@ -415,6 +505,14 @@ function runQuery(
     'SELECT form, receipt, result FROM sl_operation WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
     [tenant, session, operation],
   )
+  const stored =
+    row === undefined
+      ? undefined
+      : oneRow(
+          port,
+          'SELECT evidence FROM sl_operation_evidence WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
+          [tenant, session, operation],
+        )
   return {
     kind: 'participated',
     response:
@@ -425,6 +523,8 @@ function runQuery(
             form: text(row['form']),
             receipt: JSON.parse(text(row['receipt'])) as JsonValue,
             result: JSON.parse(text(row['result'])) as JsonValue,
+            evidence:
+              stored === undefined ? null : (JSON.parse(text(stored['evidence'])) as JsonValue),
           },
   }
 }
@@ -432,6 +532,7 @@ function runQuery(
 function runCommand(
   command: SessionCommand,
   guards: readonly GuardCommand[],
+  evidence: string | null,
   port: ParticipantPort,
 ): ParticipantReply {
   // Before the session or any lookup: the answer must not tell what exists.
@@ -548,6 +649,7 @@ function runCommand(
         JSON.stringify(encodeValue(receipt)),
       ],
     )
+    storeEvidence(port, { tenant, session, operation }, evidence)
     return participated(receipt, false)
   }
   if (decision.kind === 'recovered') {
@@ -558,7 +660,7 @@ function runCommand(
     )
     if (original === undefined)
       return { kind: 'failed', diagnostic: 'a recalled operation without a record' }
-    if (held === undefined && command.kind === 'completeInitialization')
+    if (held === undefined && command.kind === 'completeInitialization') {
       port.execute(
         'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [
@@ -572,6 +674,8 @@ function runCommand(
           text(original['receipt']),
         ],
       )
+      storeEvidence(port, { tenant, session, operation }, evidence)
+    }
     const value =
       command.kind === 'completeInitialization'
         ? { ...(JSON.parse(text(original['receipt'])) as CommitReceipt), recovered: true }
@@ -605,23 +709,10 @@ function runCommand(
     return { kind: 'failed', diagnostic: `reduce quarantined: ${reduced.diagnostic}` }
   // The index is a read projection of this transaction, never stored in the snapshot row.
   const { historyIndex: _index, ...snapshot } = reduced.snapshot
-  const firstEntry = entries[0] as HistoryEntry
-  const lastEntry = entries[entries.length - 1] as HistoryEntry
-  const receipt: CommitReceipt = {
-    operation,
-    revision,
-    first: firstEntry.id,
-    last: lastEntry.id,
-    recovered: false,
-    source: {
-      owner: OWNER,
-      record: `${tenant}/${session}/${seq}`,
-      revision,
-      digest: `sha256:${sha256(canonicalText({ operation, first: firstEntry.id, last: lastEntry.id, kinds: entries.map(entry => entry.kind), payload: entries.map(entry => entry.payload) }))}`,
-    },
-  } as CommitReceipt
+  const receipt = batchReceipt({ tenant, session, operation, seq, revision, entries })
 
-  writeEntries(port, tenant, session, entries)
+  const unindexed = writeEntries(port, tenant, session, entries)
+  if (unindexed !== null) return unindexed
   const epoch = maintainModelView(
     port,
     tenant,
@@ -664,20 +755,110 @@ function runCommand(
       JSON.stringify(encodeValue(result)),
     ],
   )
+  storeEvidence(port, { tenant, session, operation }, evidence)
   if (journal === undefined)
     port.execute(
       'INSERT INTO sl_journal (tenant, session, tail, commit_seq, epoch) VALUES (?, ?, ?, ?, ?)',
       [tenant, session, BigInt(revision), seq, epoch],
     )
   else {
-    const updated = port.execute(
-      'UPDATE sl_journal SET tail = ?, commit_seq = ?, epoch = ? WHERE tenant = ? AND session = ? AND tail = ?',
-      [BigInt(revision), seq, epoch, tenant, session, tail],
-    )
-    if (updated.changes !== 1n)
-      return { kind: 'failed', diagnostic: 'the conditional tail update changed no row' }
+    const moved = advanceTail(port, { tenant, session, tail, revision, seq, epoch })
+    if (moved !== null) return moved
   }
   return participated(result, false)
+}
+
+/**
+ * The entries interpretation commit: the consequence rows, the progress row, the model view, the
+ * snapshot with its saved progress, the derived rows, the `entries` operation record and the tail,
+ * in this one transaction. A failure at any step rolls all of them back.
+ */
+function publishEntries(port: ParticipantPort, batch: EntriesBatch): ParticipantReply {
+  const { tenant, session, operation, journal, previous, snapshot, entries } = batch
+  const revision = String(journal.tail + 1n)
+  const receipt = batchReceipt({ tenant, session, operation, seq: journal.seq, revision, entries })
+  const unindexed = writeEntries(port, tenant, session, entries)
+  if (unindexed !== null) return unindexed
+  const epoch = maintainModelView(port, tenant, session, journal.epoch, entries)
+  if (epoch === null)
+    return {
+      kind: 'failed',
+      diagnostic: 'the model view epoch exceeds the read bound of a compaction',
+    }
+  port.execute(
+    'INSERT OR REPLACE INTO sl_state (tenant, session, snapshot, covered) VALUES (?, ?, ?, ?)',
+    [tenant, session, JSON.stringify(encodeValue(snapshot)), BigInt(revision)],
+  )
+  maintainDerived(port, tenant, session, previous, snapshot)
+  port.execute(
+    'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      tenant,
+      session,
+      operation,
+      batch.digest,
+      'entries',
+      BigInt(revision),
+      JSON.stringify(encodeValue(receipt)),
+      JSON.stringify(encodeValue(batch.answer)),
+    ],
+  )
+  const moved = advanceTail(port, {
+    tenant,
+    session,
+    tail: journal.tail,
+    revision,
+    seq: journal.seq,
+    epoch,
+  })
+  return moved ?? participated(batch.answer, false)
+}
+
+/** The entries interpretation commit. Its answer carries the digest of the observation (SL07). */
+function runEntries(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPort) {
+  const judged = judgeEntries(facts, port)
+  const withDigest = (reply: ParticipantReply, digest: string): ParticipantReply =>
+    reply.kind === 'participated'
+      ? { kind: 'participated', response: { ...(reply.response as object), digest } }
+      : reply
+  switch (judged.kind) {
+    case 'unsupported':
+      return { kind: 'unsupported', basis: { reason: judged.reason } } as const
+    case 'stopped':
+      return stopped(judged.failure)
+    case 'failed':
+      return { kind: 'failed', diagnostic: judged.diagnostic } as const
+    case 'recovered':
+      return withDigest(participated(judged.result, true), judged.digest)
+    case 'publish':
+      return withDigest(publishEntries(port, judged.batch), judged.batch.digest)
+  }
+}
+
+/**
+ * The access evidence that a command carries, as the JSON text stored with its operation record.
+ * Absent is `null` (no decision travelled); a value that is not a durable evidence is `malformed`.
+ */
+function evidenceOf(value: JsonValue | undefined): string | null | 'malformed' {
+  if (value === undefined || value === null) return null
+  if (typeof value !== 'object' || Array.isArray(value)) return 'malformed'
+  const { owner, record, revision, digest } = value as Readonly<Record<string, JsonValue>>
+  return [owner, record, revision, digest].every(member => typeof member === 'string')
+    ? JSON.stringify({ owner, record, revision, digest })
+    : 'malformed'
+}
+
+/** The evidence row of an operation record, in the transaction that writes the record. */
+function storeEvidence(
+  port: ParticipantPort,
+  key: Readonly<{ tenant: string; session: string; operation: string }>,
+  evidence: string | null,
+): void {
+  if (evidence === null) return
+  port.execute(
+    'INSERT INTO sl_operation_evidence (tenant, session, operation, evidence) VALUES (?, ?, ?, ?)',
+    [key.tenant, key.session, key.operation, evidence],
+  )
 }
 
 const participant: ParticipantModule = {
@@ -693,6 +874,8 @@ const participant: ParticipantModule = {
         ? runQuery(port, tenant, session, operation)
         : { kind: 'unsupported', basis: { reason: 'query facts are incomplete' } }
     }
+    if (intent === 'entries') return runEntries(facts, port)
+    if (intent === 'check') return runChecks(facts, port)
     if (
       intent !== 'command' ||
       typeof facts['command'] !== 'object' ||
@@ -700,7 +883,9 @@ const participant: ParticipantModule = {
     )
       return {
         kind: 'unsupported',
-        basis: { reason: 'the facts are neither a command nor a query' },
+        basis: {
+          reason: 'the facts are neither a command, a check, an entries commit nor a query',
+        },
       }
     let command: SessionCommand
     let guards: GuardCommand[]
@@ -713,7 +898,13 @@ const participant: ParticipantModule = {
         basis: { reason: error instanceof Error ? error.message : 'undecodable facts' },
       }
     }
-    const reply = runCommand(command, guards, port)
+    const evidence = evidenceOf(facts['evidence'])
+    if (evidence === 'malformed')
+      return {
+        kind: 'unsupported',
+        basis: { reason: 'the access evidence of the command is not a durable evidence' },
+      }
+    const reply = runCommand(command, guards, evidence, port)
     // The digest of the command travels with the answer, so a later caller can tell a recall of the
     // same command from the same identity used for another command (SL07).
     return reply.kind === 'participated'

@@ -9,6 +9,7 @@ import type {
   RepresentationPolicyConfig,
   ScopeRef,
 } from '@omne-harness/request-context-contract'
+import type { ContextHolderSources } from './holder-sources.js'
 import type { RequestContextTrust } from './trust.js'
 
 /** Scope is an assembly declaration, not an access grant. */
@@ -94,6 +95,27 @@ export abstract class ContextAccountingInboxService<P>
   ): ReturnType<ContextAccountingInbox<P>['usage']>
 }
 export const contextAccountingInboxKey = ContextAccountingInboxService.provide
+
+/**
+ * The parts that a source holder lends to the borrower that registers source sets. The holder
+ * provides a subclass. A lease is an effect of the borrower's fiber: that fiber unloading ends the
+ * lease like `release`, and the holder then calls the settlement function of the lease. The key is
+ * a delivery path, not access control: every call of a part checks the access of that call.
+ * @owner packages/context/request-context-cordis-contract
+ */
+export abstract class ContextHolderSourcesService<P>
+  extends Service
+  implements ContextHolderSources<P>
+{
+  static readonly provide = 'contextHolderSources'
+  constructor(ctx: Context) {
+    super(ctx, ContextHolderSourcesService.provide)
+  }
+  abstract lease(
+    ...args: Parameters<ContextHolderSources<P>['lease']>
+  ): ReturnType<ContextHolderSources<P>['lease']>
+}
+export const contextHolderSourcesKey = ContextHolderSourcesService.provide
 export type RequestContextChangedPayload = Readonly<{
   scope: ScopeRef | null
   layerRevision: string
@@ -105,6 +127,7 @@ declare module '@deepseek-ai/cordis' {
     requestContext: RequestContextService<unknown>
     requestContextTrust: RequestContextTrustService<unknown>
     contextAccountingInbox: ContextAccountingInboxService<unknown>
+    contextHolderSources: ContextHolderSourcesService<unknown>
   }
   interface Events {
     /**

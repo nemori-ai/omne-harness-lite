@@ -26,12 +26,13 @@
   },
   "dependencies": {
     "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/message": "workspace:*",
     "@omne-harness/model-contract": "workspace:*",
     "@omne-harness/request-context-contract": "workspace:*"
   },
   "devDependencies": {
-    "@omne-harness/message": "workspace:*",
     "@omne-harness/request-context-cordis-contract": "workspace:*",
     "@omne-harness/runtime-context-contract": "workspace:*",
     "@types/node": "catalog:",

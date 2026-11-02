@@ -1,3 +1,4 @@
-// PACKAGE_TEMPLATE_DRAFT: Implement the existing public Service and pair acquisition/release.
-// Do not duplicate public service keys or replace domain commitments with provider limitations.
-export {}
+// The `./cordis` entry: the concrete subclass of `SessionService`, which is also the plugin. The
+// service key, the port keys and the event belong to session-cordis-contract and are not exported here.
+export { SessionProvider } from './provider.ts'
+export type { SessionProviderConfig } from './config.ts'

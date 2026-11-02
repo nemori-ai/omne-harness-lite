@@ -39,6 +39,7 @@ const documentedPairs = {
   agentAccountOutletKey: 'AgentAccountOutletService',
   agentExecutionControlKey: 'AgentExecutionControlService',
   agentInstancesKey: 'AgentInstancesService',
+  agentInstanceProvisionKey: 'AgentInstanceProvisionService',
 } as const
 
 /** The Agent packages that depend on this one. This one must not depend on either. */
@@ -57,10 +58,10 @@ const serviceClasses = exported.filter(
 )
 
 describe('service keys', () => {
-  it('exports 21 unique keys, one per documented pair', () => {
+  it('exports 22 unique keys, one per documented pair', () => {
     const keys = keyConstants.map(([, value]) => value)
-    expect(keys).toHaveLength(21)
-    expect(new Set(keys).size).toBe(21)
+    expect(keys).toHaveLength(22)
+    expect(new Set(keys).size).toBe(22)
     expect(keyConstants.map(([name]) => name).sort()).toEqual(Object.keys(documentedPairs).sort())
   })
 
@@ -75,8 +76,8 @@ describe('service keys', () => {
   )
 
   it('has one service class per key, no more, and one plugin beside them', () => {
-    expect(serviceClasses).toHaveLength(21)
-    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(21)
+    expect(serviceClasses).toHaveLength(22)
+    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(22)
     for (const [name] of serviceClasses) expect(name).toMatch(/^[A-Z][A-Za-z]+Service$/u)
     expect(exported.map(([name]) => name).filter(name => !/(Service|Key)$/u.test(name))).toEqual([
       'agentInstancesPlugin',
@@ -110,6 +111,7 @@ describe('the key texts', () => {
       agentAccountOutletKey: 'agentAccountOutlet',
       agentExecutionControlKey: 'agentExecutionControl',
       agentInstancesKey: 'agentInstances',
+      agentInstanceProvisionKey: 'agentInstanceProvision',
     })
   })
 })
@@ -117,8 +119,8 @@ describe('the key texts', () => {
 describe('the documentation that the built declaration carries', () => {
   const declaration = readFileSync(memberPath('dist/cordis.d.ts'), 'utf8')
 
-  it('names its owner on each of the 21 service classes and claims no contract id', () => {
-    expect(declaration.match(/@owner packages\/agent\/agent-cordis-contract/gu)).toHaveLength(21)
+  it('names its owner on each of the 22 service classes and claims no contract id', () => {
+    expect(declaration.match(/@owner packages\/agent\/agent-cordis-contract/gu)).toHaveLength(22)
     expect(declaration).not.toContain('@contract')
   })
 
@@ -190,7 +192,7 @@ describe('under Cordis 4.0.4', () => {
   it('provides each definition, whichever it is, under its own key and under no other', async () => {
     // `AgentInstancesService` takes the publication authority and is loaded through its plugin.
     const definitions = serviceClasses.filter(([, type]) => type.provide !== agentInstancesKey)
-    expect(definitions).toHaveLength(20)
+    expect(definitions).toHaveLength(21)
     for (const [name, type] of definitions) {
       const root = new Context()
       const make = type as unknown as new (ctx: Context) => Service
