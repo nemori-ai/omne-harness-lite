@@ -15,3 +15,7 @@
 - [绑定登记表](bindings.ts)与 [Catalog](catalog.ts)。
 - [缺席端口](absent-ports.ts)。
 - [账本守卫的组装](ledger-guards.ts)、[来源签发与操作身份](invocation-source.ts)、[授予核验](grant-verifiers.ts)、[启动守卫](start-guard.ts)与[文本结果](text-results.ts)。
+
+- [作者装载器](author-loader.ts)核合法设置、定义与 schema。
+- [执行绑定](executor-binding.ts)固定作者与启动身份，[活体执行](live-author-execution.ts)保存逐调用事实及停止状态。
+- [作者插件入口](contribute-tool.ts)与[换代协调者](author-generations.ts)组成 `./author`。

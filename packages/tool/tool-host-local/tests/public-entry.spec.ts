@@ -24,10 +24,12 @@ it('root entry exports the local start coordinator (G5), the host clock (G4), th
     'createLocalStartGuard',
     'createLocalTextResults',
     'createLocalToolBindingRegistry',
+    'createLocalToolBindings',
     'createLocalToolCatalog',
     'createLocalToolClock',
     'createLocalToolCredentials',
     'createLocalToolLedgerGuards',
+    'createLocalToolLoader',
     'localArgumentLimits',
     'startCoordinatorAdoption',
   ])
@@ -84,9 +86,22 @@ describe('production sources import no testing entry', () => {
     expect(sources.length).toBeGreaterThan(0)
   })
 
-  it.each(sources)('src/%s imports no testing entry and no Cordis', file => {
+  it.each(sources)('src/%s imports no testing entry and keeps Cordis in author adapters', file => {
     const text = readFileSync(memberPath(`src/${file}`), 'utf8')
-    expect(specifiersOf(text).filter(forbiddenInSource)).toEqual([])
+    const authorAdapter = [
+      'contribute-tool.ts',
+      'author-generations.ts',
+      'cordis.ts',
+      'cordis-host.ts',
+      'cordis-bindings.ts',
+    ].includes(file)
+    expect(
+      specifiersOf(text).filter(
+        specifier =>
+          /(^|\/)testing(\.d)?(\.ts|\.js)?$/u.test(specifier) ||
+          (!authorAdapter && forbiddenFromRoot(specifier)),
+      ),
+    ).toEqual([])
   })
 
   it('sees a testing entry in every form of import that the walker reads', () => {

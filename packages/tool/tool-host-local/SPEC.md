@@ -6,7 +6,7 @@
 
 - G4：宿主时钟适配器，同进程单调时钟加进程 epoch，跨进程比较返回 unknown。已实现，见[宿主时钟](#宿主时钟g4)。
 - G5：第一版采用同机的启动协调器和耐久受理台账，实现 [P04](../tool-contract/SPEC.md#p04-实际发起围栏) 要求的启动排序域。本地启动协调器已实现，见下文；现有测试使用非耐久记录仓。耐久记录仓提供者尚未交付，耐久受理台账仍依赖该提供者。
-- G7：`ToolBindingRegistry` 与换代协调者 `toolGenerations` 由本包实现。登记表与 Catalog 已实现；换代协调者尚未实现。见[绑定登记表与换代协调者](#绑定登记表与换代协调者g7)。
+- G7：本包提供登记表、Catalog、受信装载器、执行绑定与作者换代工厂。应用提供来源核验、合法设置、schema 检查、Scope、结果保管和持有者读取。见[作者装载与执行绑定](#作者装载与执行绑定)。
 - G9：本包命名为 `packages/tool/tool-host-local`。
 - TL-11：账本守卫的生产件、来源签发器与操作身份。已实现为纯工厂，见[账本守卫](#账本守卫tl-11)。装配接线在 `./cordis` 插件，尚未交付。
 
@@ -103,12 +103,12 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 ## 绑定登记表与换代协调者（G7）
 
-本节规则由 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 于 2026-10-21 采用。登记表（`createLocalToolBindingRegistry`）与 Catalog（`createLocalToolCatalog`）已在根入口实现；换代协调者尚未实现。公共的登记键、同键规则与保留义务归契约的 [G7](../tool-contract/SPEC.md#342-契约缺口决定)，协调者的动词与返回归 [Tool 的 Cordis 定义](../tool-cordis-contract/docs/cordis.md#换代协调者契约)。本节只写本包承担的部分。
+本节规则由 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 于 2026-10-21 采用。登记表（`createLocalToolBindingRegistry`）与 Catalog（`createLocalToolCatalog`）已在根入口实现；作者换代工厂由 `./author` 提供。公共的登记键、同键规则与保留义务归契约的 [G7](../tool-contract/SPEC.md#342-契约缺口决定)，协调者的动词与返回归 [Tool 的 Cordis 定义](../tool-cordis-contract/docs/cordis.md#换代协调者契约)。本节只写本包承担的部分。
 
 - 本包的绑定登记表在单机、单进程内成立，登记不耐久。跨进程、远端目录与耐久存储不在本包覆盖之内。
 - 两个 fiber 同时首次登记同一个键时，本地排序域决定哪一方成功，另一方得到 `conflict`。
-- 换代协调者 `toolGenerations` 是本包 `./cordis` 的 Service。它是 `ctx.plugin` 句柄的唯一持有者，由 `ensureLoaded` 动态 import 实现包。
-- 进程恢复后，`sweep` 重装持有者采用依据记下的键。包字节保留，同一 digest 可以重新 import。
+- `./author` 的换代工厂持有作者的 `ctx.plugin` 句柄。`ensureLoaded` 通过注入的受信模块来源核验并载入实现包；`toolGenerations` 的生产 Service 接线由整套 `./cordis` 装配负责。
+- 契约要求进程恢复后由 `sweep` 重装持有者采用依据记下的键。本工厂缺完整采用依据目录时返回 `unavailable`，不声称完成恢复。包字节保留由模块来源提供者负责。
 - 按键排空与交接依赖契约 [P09](../tool-contract/SPEC.md#p09-账目恢复与退出) 的 `inspectDrain({ executor })` 范围。该范围交付之前，有在途调用时 `unload` 停在 `draining`。
 
 ### 登记表与 Catalog 的实现范围
@@ -117,11 +117,11 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 - `register` 在一个同步步骤里完成来源核验、登记资格核验、键与形状核对、同键判定与写入，所以这一步就是本地排序域。调用方 fiber 由构造参数 `fiber()` 给出；它返回 null 时回复 `unavailable`。`retire(fiber)` 撤除该 fiber 的全部贡献，之后该 fiber 的登记回复 `unavailable`。
 - 登记键冲突按 G7：同一 fiber、同一装载 digest（`loaded.executor.digest`）认回原贡献，其他情形回复 `conflict`。`release` 只按自己的 token 撤除。登记序号单调递增，token 不重复。
 - `snapshot` 与 Catalog 按来源层判定可见：`official` 对任何合法租户可见，`organization` 要同组织，`tenant` 要同租户，`workspace` 对任何租户范围都不可见（本包不读取工作区授权）。无法证明合法的租户得到 `unavailable`，不得到空列表。
-- `pins` 与 `drain` 数 `pin(key, call)` 登记、尚未释放的持有。`pin` 是本包内部的接口，由后续的 `resolve` 在固定请求解析到该键时调用，收场时释放；本包尚未实现 `ToolBindings.resolve` 与 `recover`，所以生产路径上目前没有调用者。
+- `pins` 与 `drain` 数尚未释放的持有。`createLocalToolBindings.resolve` 通过 `selectAndPin` 原子选择并持有装载句柄；作者结束且事实全部确认后释放。`recover` 只认回本进程保留的执行，见[作者装载与执行绑定](#作者装载与执行绑定)。
 - Catalog 只列出 `live` 的贡献。同名的多份贡献取登记序号最小的一份。`inspect` 对不存在的名字与只有他租户登记的名字给出同一个回复（`invalid`，`unknown-tool`），不泄露存在性。`search` 按名字排序、每个名字一项，游标是上一页最后一项的名字，所以翻页期间新登记的工具不会让已发出的游标重复或漏项。可用性由注入的 `availability` 端口给出已核验的事实（资格、依赖、输入输出与附件兼容），Catalog 不从调用方取事实；端口不可答时回复 `unavailable`，不当作可用。
 - 执行者命令的用法文本与协议不在定义里，`usage` 对它回复 `unavailable`，不编造。
 
-已知限制：登记不耐久，只在单进程内成立；没有核验器的生产提供者（归应用装配）；工作区层不可见；没有 `ToolBindings.resolve` 与 `recover`，也没有换代协调者与 `./cordis` 入口。
+已知限制：登记不耐久，只在单进程内成立；没有核验器的生产提供者（归应用装配）；工作区层不可见；整套 runtime 的 `./cordis` 入口未交付。
 
 ## 宿主时钟（G4）
 
@@ -183,3 +183,23 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 ## 实例宿主与普通调用的边界
 
 本包尚未提供生产 ToolInstanceHost 或 ToolInstanceIdentities。来源签发器与操作身份已提供，见[账本守卫](#账本守卫tl-11)。宿主实现须在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不再接受全局 instance。当前测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger 和本地启动协调器组合，driver 的 instance 由测试 host 提供。这只证明单进程非耐久组合，不证明 claim、换实例接管或恢复。
+
+## 作者装载与执行绑定
+
+`createLocalToolLoader` 先核来源及登记资格，再读取该来源层的合法设置。它调用实现模块、派生定义并运行 `judgeToolDefinition`，最后等待注入的 schema 检查。任一步失败都不发布装载句柄。合法设置、来源真实性与 schema 提供者由装配给出；本包不推导设置覆盖规则。
+
+`createLocalToolBindings` 在登记表内原子选择并 pin 装载句柄。首选请求记下的键，包括 draining；回退只选同形、可访问的 live 贡献，并取最早登记的一份。绑定按 tenant/call 固定请求，按 tenant/call/start 认回执行。它核原 executor 与 permit 身份，先完成 `authority.consume`，再调用作者。未知消费不进入作者，不重放消费或执行。
+
+同一绑定为其他调用取得 pin 时，登记表在同步步骤中核对原注册仍在且该租户可访问。原注册撤除后，同键后继不能替它提供 pin；即使后继复用了同一个装载句柄，也属于另一注册。已保留的原 start 仍认回原结果。参数解析、执行和结果转换使用同一次选定的命令操作，未知命令在消费许可前拒绝。
+
+启动输入确定无效时，绑定释放本调用尚未使用的解析 pin。合法重试须重新取得原注册的 pin。已经发起或结果未知的执行不受该清理影响。同形回退的 executor 与固定 start.executor 不同时，本实现仍拒绝启动并释放未使用的 pin。该回退如何衔接固定请求与实际执行来源，仍须 Tool 账本、Driver 和绑定的组合承担者闭合；当前作者工厂不声明这条路径可执行。
+
+每个作者执行有独立 signal、事实流和控制记录。停止先返回 accepted，作者实际结束后才变为 stopped。事实按 cursor 重读，确认按 batch 认回；作者已结束且全部事实已有保管回执时解除 pin。未知返回、失去观察或保管失败继续保留责任。Scope 与最终结果转换是显式构造依赖。该执行绑定只支持 live-only，不承诺跨进程恢复。
+
+`./author` 导出 `contributeTool`、`createToolAuthorPlugin` 与 `createLocalToolGenerations`。作者插件静态依赖 toolBindings/toolGenerations，不提供服务键。贡献登记与撤除配对到作者 fiber 的 effect。服务适配器必须在普通函数中读取调用时的 `this.ctx`，用同步调用作用域把 fiber uid 传给登记表；箭头函数捕获提供者 Context 会产生错误归属。
+
+换代工厂接受长期宿主 Context、受信模块来源、装载器与持有者读取。来源适配器负责在 import 前核实现引用和包 digest；工厂先核权限，才调用它。相同键和 digest 认回，draining 不认回。确定性装载拒绝通过 `recordRejection` 保存依据后返回 rejected。引用读取失败保留并 reopen；有 pin 时保持 draining。没有完整的持有者采用依据目录时，sweep 返回 unavailable。该返回保留契约已有的目录缺口。
+
+[作者装载测试](tests/author-loading.spec.ts)验证装载及拒绝；[执行绑定测试](tests/author-binding.spec.ts)运行全部 23 条 N7 判据；[真实 Cordis 测试](tests/author-generations.spec.ts)验证 fiber 归属、失败撤除、排空与读取失败保留。外部来源、设置、schema 检查、启动 authority 和结果保管在这些测试中是测试提供者；不据此声明完整 runtime 装配已完成。
+
+[绑定回归测试](tests/author-binding-regressions.spec.ts)验证注册化身隔离、多命令的参数与操作选择，以及拒绝启动后的 pin 清理。跨 executor 同形回退的用例只证明安全拒绝与清理。
