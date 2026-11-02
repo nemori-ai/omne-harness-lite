@@ -8,7 +8,7 @@
 //    of each branch comes from trusted facts, never from the input: the execution branch and the
 //    submit branch route their execution through the execution index of the tenant; the invoke
 //    branch decodes its runtime scope as the session slot scope that AD-14 gives the instance
-//    (`sessionScopeEvidence`, bound to the tenant by its digest), and the Session snapshot of that
+//    (`sessionScopeEvidence`, whose digest only checks consistency), and the Session snapshot of that
 //    session must hold the execution in its active Run. The invoke and submit branches ask
 //    `agentAccessCheck` with their operation names; the execution branch is the runtime's call
 //    inside an operation already checked and is not checked again;
@@ -259,8 +259,9 @@ function createMessageHandoff<P>(
 
   /**
    * The invoke branch: the runtime scope is the slot scope of a session (AD-14). Its record names
-   * the session and its digest binds the tenant, so another tenant's scope or a forged one does not
-   * bind.
+   * the session. The digest is a consistency check only: it has no key, so anyone can compute it
+   * for a tenant and a session and it is not a guard. Another tenant's session is kept out by the
+   * tenant domain lookup and the Session execution boundary.
    */
   async function bindInvoke(
     access: Access<P>,
