@@ -59,7 +59,7 @@ export function createScriptedTerminalFacility<P = unknown>(
   }
   function reject(
     requestId: string,
-    reason: 'invalidInput' | 'closed' | 'busy',
+    reason: 'invalidInput' | 'closed' | 'busy' | 'unsupported',
   ): FacilityResult<never> {
     return { kind: 'rejected', requestId, reason }
   }
@@ -131,6 +131,7 @@ export function createScriptedTerminalFacility<P = unknown>(
   const facility: TerminalFacility<P> = {
     async create(request) {
       if (closed) return reject(request.requestId, 'closed')
+      if (request.retain !== undefined) return reject(request.requestId, 'unsupported')
       const ref = { id: `${namespace}-terminal-${terminals.size + 1}`, generation: '1' }
       terminals.set(ref.id, {
         ref: { ...ref },
@@ -139,6 +140,12 @@ export function createScriptedTerminalFacility<P = unknown>(
         state: { kind: 'idle' },
       })
       return { kind: 'done', requestId: request.requestId, value: { terminal: ref } }
+    },
+    async attach(request) {
+      return reject(request.requestId, closed ? 'closed' : 'unsupported')
+    },
+    async detach(request) {
+      return reject(request.requestId, closed ? 'closed' : 'unsupported')
     },
     execute,
     async close(request) {

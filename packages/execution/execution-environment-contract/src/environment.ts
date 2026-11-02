@@ -21,7 +21,13 @@ import type {
   Rejected,
   UnknownAcquisition,
 } from './lease.ts'
-import type { FacilityGuard, ManagedResource, RecoveryAccess, ResourceLedger } from './ports.ts'
+import type {
+  FacilityGuard,
+  ManagedResource,
+  RecoveryAccess,
+  ResourceLedger,
+  SessionTerminalRetention,
+} from './ports.ts'
 import type { EnvironmentRequirement, IsolationClaim } from './requirement.ts'
 
 /** The operating system a provider runs on: its type and its release. */
@@ -41,7 +47,7 @@ export type ProviderFacts = Readonly<{
   prerequisites: 'satisfied' | 'unsatisfied' | 'unknown'
 }>
 
-/** `scope` is the requester's scope; the provider indexes the resources and the acquisition under it. */
+/** `scope` owns the acquisition. Retained shells belong to `retention.scope` from their first reservation. */
 export type ProviderAcquireInput = Readonly<{
   acquisition: AcquisitionRef
   origin: OriginRef
@@ -49,6 +55,7 @@ export type ProviderAcquireInput = Readonly<{
   placement: Placement
   tenant: TenantId
   ledger: ResourceLedger
+  retention?: SessionTerminalRetention & { readonly released: AbortSignal }
 }>
 
 /**
@@ -150,7 +157,7 @@ export interface EnvironmentProvider {
   acquire(input: ProviderAcquireInput): Promise<ProviderAcquisition>
   /** Reads the original record by its full description, through the original generation or a successor. */
   inspectAcquisition(original: OriginalAcquisition): Promise<ProviderAcquisitionStatus>
-  /** Lists acquisitions of the scope that still hold a slot or a close responsibility. */
+  /** Lists unsettled acquisitions whose requester scope or retention scope matches. */
   listAcquisitions(scope: ScopeRef): Promise<AcquisitionListing>
   /** Seals the key, then compensates, waits, closes and reconciles. Never re-runs the original work. */
   settleAcquisition(original: OriginalAcquisition): Promise<AcquisitionSettlement>
@@ -222,6 +229,7 @@ export type AcquireInput<P> = Readonly<{
   placement: Placement
   ledger: ResourceLedger
   guard: FacilityGuard<P>
+  retention?: SessionTerminalRetention
 }>
 
 /** The actions the environment authority decides for ordinary access. */

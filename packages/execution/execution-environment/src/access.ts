@@ -106,5 +106,12 @@ export async function checkAccess<P>(
   const decision = await decide(ports.authority, access, action)
   if (decision.kind !== 'granted' || scope === undefined) return decision
   const failure = await bound(ports.bindings, scope, access.tenant)
-  return failure ?? decision
+  if (failure !== undefined) return failure
+  if (
+    (action.kind === 'acquire' || action.kind === 'inspect-original') &&
+    action.original.retentionScope !== undefined
+  ) {
+    return (await bound(ports.bindings, action.original.retentionScope, access.tenant)) ?? decision
+  }
+  return decision
 }

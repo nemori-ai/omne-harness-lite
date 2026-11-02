@@ -24,6 +24,10 @@ export type FileIdentity = {
   readonly version: FileVersion
 }
 
+export type FileWriteResult = FileIdentity & {
+  readonly writeEffect?: 'created' | 'in-place' | 'replaced'
+}
+
 export type FileInformation = FileIdentity & {
   /** Only `stat` can report `symlink`; content operations refuse a final symbolic link. */
   readonly type: 'file' | 'directory' | 'symlink'
@@ -80,7 +84,7 @@ export interface FileSystemFacility<P> {
       readonly mode: 'create' | 'replace'
       readonly expectedVersion?: FileVersion
     },
-  ): Promise<FacilityResult<FileIdentity>>
+  ): Promise<FacilityResult<FileWriteResult>>
   close(
     request: FileRequest<P> & { readonly handle: HandleGeneration },
   ): Promise<FacilityResult<{ readonly handle: HandleGeneration }>>

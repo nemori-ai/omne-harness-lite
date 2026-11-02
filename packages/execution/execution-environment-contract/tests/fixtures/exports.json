@@ -195,6 +195,11 @@
               "pending": false
             },
             {
+              "name": "FileWriteResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "FileInformation",
               "kind": "type",
               "pending": false
@@ -326,6 +331,16 @@
             },
             {
               "name": "ResourceLedger",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RetainedTerminalLedger",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SessionTerminalRetention",
               "kind": "type",
               "pending": false
             }
