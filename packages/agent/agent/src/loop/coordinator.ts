@@ -352,86 +352,93 @@ function sameAuthority(left: Authority | null, right: Authority): boolean {
 }
 
 type UnsupportedRecovery = Readonly<{ kind: 'unsupported'; node: string; card: string }>
+type Recovery = Outcome<LoopNode | 'evaluate', UnsupportedRecovery>
+
+/** The #502 stage that owns a node this coordinator cannot continue from yet. */
+function recoveryCard(node: string): string {
+  if (node.startsWith('X')) return '#502 stage 3'
+  if (node.startsWith('C')) return '#502 stage 4'
+  return /^[AT]/u.test(node) ? '#502 stage 2' : '#502 stage 5'
+}
+
+/** A node the recovery may continue from, or the named stage that still owns it. */
+function recoveryTarget(node: string): Recovery {
+  if (
+    /^[CX]/u.test(node) ||
+    !LOOP_NODES.includes(node as LoopNode) ||
+    ['E0', 'E1', 'E2', 'U0', 'Q1', 'R0', 'W0', 'F0', 'H0', 'M2', 'Q5'].includes(node)
+  )
+    return fail({ kind: 'unsupported', node, card: recoveryCard(node) })
+  return succeed(node as LoopNode)
+}
+
+/** The node of a saved action batch, by its barrier and slots. */
+function batchRecovery(position: string, batch: ActionBatch): string {
+  if (batch.barrier.kind === 'closed') return 'A1'
+  // The batch pass and the message admission continue where they are; T5 recognizes its Ja.
+  if (['T4', 'T5', 'I8'].includes(position)) return position
+  const slotted = (action: Action) => batch.slots.some(slot => slot.action === action.id)
+  if (batch.barrier.kind === 'all-denied') return batch.actions.every(slotted) ? 'T2' : 'A3'
+  // An action without a slot is sent, or sent again with its original request, only by A2.
+  const judged = (action: Action) => ['allowed', 'denied'].includes(action.judgment.kind)
+  if (batch.actions.some(action => judged(action) && !slotted(action))) return 'A2'
+  return batch.slots.some(slot => slot.kind === 'dispatched') ? 'T0' : 'T1'
+}
+
+/** The node of a saved call outside an action batch. */
+function callRecovery(position: string, call: PendingCall): Recovery {
+  if (call.purpose === 'compaction')
+    return fail({ kind: 'unsupported', node: 'M1', card: '#502 stage 4' })
+  if (call.purpose === 'action') return recoveryTarget('T0')
+  if (call.purpose === 'extension') return recoveryTarget('X2')
+  // A saved call survives request admission and result consumption. Its presence alone does
+  // not mean that observation at M1 is still pending.
+  if (['M0', 'M6', 'M1', 'M3', 'M4', 'M5', 'I3', 'Q2', 'Q4'].includes(position))
+    return recoveryTarget(position)
+  return recoveryTarget('M1')
+}
+
+/** The node of a saved compaction or request preparation, or null when neither is saved. */
+function preparationRecovery(at: AgentCheckpoint): Recovery | null {
+  if (at.compaction !== null) {
+    const ended = at.compaction.ended
+    return recoveryTarget(ended === 'committed' ? 'I1' : ended === 'failed' ? 'F1' : 'C1')
+  }
+  const prepared = at.requestPreparation
+  if (prepared === null) return null
+  if (prepared.kind === 'assembled') return succeed('P0')
+  if (prepared.kind === 'ready') return succeed('P1')
+  if (prepared.kind === 'cannot-fit') return succeed('F1')
+  return recoveryTarget('C0')
+}
 
 /** J5: snapshot facts that LoopFacts cannot carry stay in this pure recovery decision. */
 export function recoveryRoute(
   read: Pick<ExecutionSnapshot, 'checkpoint' | 'state' | 'unresolved'>,
-): Outcome<LoopNode | 'evaluate', UnsupportedRecovery> {
+): Recovery {
   const at = read.checkpoint
-  function target(node: string): Outcome<LoopNode | 'evaluate', UnsupportedRecovery> {
-    const card = node.startsWith('X')
-      ? '#502 stage 3'
-      : node.startsWith('C')
-        ? '#502 stage 4'
-        : /^[AT]/u.test(node)
-          ? '#502 stage 2'
-          : '#502 stage 5'
-    if (
-      /^[CX]/u.test(node) ||
-      !LOOP_NODES.includes(node as LoopNode) ||
-      ['E0', 'E1', 'E2', 'U0', 'Q1', 'R0', 'W0', 'F0', 'H0', 'M2', 'Q5'].includes(node)
-    )
-      return fail({ kind: 'unsupported', node, card })
-    return succeed(node as LoopNode)
-  }
   if (read.state.kind === 'ended') return succeed('F4')
   // A lost receipt must be reconciled before any dependent business continuation can run.
   if (read.unresolved.length > 0) return succeed('R0')
   if (read.state.kind === 'settling') return succeed(at.position === 'F3' ? 'F3' : 'F2')
   const passage = at.passages.find(item => item.progress.kind !== 'applied')
   if (passage !== undefined)
-    return target(
+    return recoveryTarget(
       passage.progress.kind === 'resolved' ? 'X5' : passage.progress.kind === 'asked' ? 'X4' : 'X2',
     )
-  if (at.batch !== null && at.batch.actions.length > 0) {
-    const batch = at.batch
-    if (batch.barrier.kind === 'closed') return target('A1')
-    // The batch pass and the message admission continue where they are; T5 recognizes its Ja.
-    if (['T4', 'T5', 'I8'].includes(at.position)) return target(at.position)
-    const slotted = (action: (typeof batch.actions)[number]) =>
-      batch.slots.some(slot => slot.action === action.id)
-    if (batch.barrier.kind === 'all-denied')
-      return target(batch.actions.every(slotted) ? 'T2' : 'A3')
-    // An action without a slot is sent, or sent again with its original request, only by A2.
-    if (
-      batch.actions.some(
-        action => ['allowed', 'denied'].includes(action.judgment.kind) && !slotted(action),
-      )
-    )
-      return target('A2')
-    if (batch.slots.some(slot => slot.kind === 'dispatched')) return target('T0')
-    return target('T1')
-  }
+  if (at.batch !== null && at.batch.actions.length > 0)
+    return recoveryTarget(batchRecovery(at.position, at.batch))
   const call = at.calls[0]
-  if (call !== undefined) {
-    if (call.purpose === 'compaction')
-      return fail({ kind: 'unsupported', node: 'M1', card: '#502 stage 4' })
-    if (call.purpose === 'action') return target('T0')
-    if (call.purpose === 'extension') return target('X2')
-    // A saved call survives request admission and result consumption. Its presence alone does
-    // not mean that observation at M1 is still pending.
-    if (['M0', 'M6', 'M1', 'M3', 'M4', 'M5', 'I3', 'Q2', 'Q4'].includes(at.position))
-      return target(at.position)
-    return target('M1')
-  }
+  if (call !== undefined) return callRecovery(at.position, call)
   // The input batch remains a consumption watermark after I3 closes the call. It does not rewind
   // a later node to request preparation. Position records that these earlier facets are consumed.
   if (['I3', 'I4', 'I8', 'F1', 'F2', 'F3', 'F4', 'O0', 'E9'].includes(at.position))
-    return target(at.position)
-  if (at.compaction !== null)
-    return target(
-      at.compaction.ended === 'committed' ? 'I1' : at.compaction.ended === 'failed' ? 'F1' : 'C1',
-    )
-  const prepared = at.requestPreparation
-  if (prepared !== null) {
-    if (prepared.kind === 'assembled') return succeed('P0')
-    if (prepared.kind === 'ready') return succeed('P1')
-    if (prepared.kind === 'cannot-fit') return succeed('F1')
-    return target('C0')
-  }
+    return recoveryTarget(at.position)
+  const preparation = preparationRecovery(at)
+  if (preparation !== null) return preparation
   if (at.inputBatch !== null) return succeed('I1')
   if (['E4', 'I0', 'I8'].includes(at.position)) return succeed('evaluate')
-  return target(at.position)
+  return recoveryTarget(at.position)
 }
 
 export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): ExecutionCoordinator {
@@ -559,6 +566,50 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   }
 
   /**
+   * Whether a refused advance is an effective cancellation of the open execution. If it is, the
+   * frame takes the latest snapshot and the run goes on at F0.
+   */
+  async function cancelledAdvance(failure: Failure): Promise<boolean> {
+    if (failure.kind !== 'stale-advance') return false
+    const latest = await load()
+    if (
+      'failure' in latest ||
+      latest.ok.state.kind === 'ended' ||
+      cancellationOf(latest.ok) === undefined
+    )
+      return false
+    checkpoint = latest.ok.checkpoint
+    revision = latest.ok.revision
+    return true
+  }
+
+  /** Where the run goes after the Journal refused the commit of `at`, or why it stops. */
+  async function afterRefusedCommit(
+    at: LoopNode,
+    failure: Failure,
+  ): Promise<Outcome<LoopNode, Failure>> {
+    // D5 5.1: the Journal lost the material of the prefix this commit carried. Drop the
+    // in-process prefix and wait in W0 with the saved one; the wake reads from it again.
+    if (failure.kind === 'unavailable' && failure.diagnostic.startsWith('missing-basis')) {
+      readPrefix = null
+      waitingAt = at
+      recheckDependency = null
+      waits = [{ kind: 'dependency', owner: failure.owner, position: at }]
+      return succeed('W0')
+    }
+    if (failure.kind === 'changed' && ['F1', 'F2'].includes(at)) {
+      finishRefused = true
+      return succeed('R0')
+    }
+    if (failure.kind === 'changed' && ['M0', 'M3'].includes(at)) {
+      const refreshed = await currentAttachment()
+      return 'failure' in refreshed ? refreshed : succeed(at)
+    }
+    if (await cancelledAdvance(failure)) return succeed('F0')
+    return fail(failure)
+  }
+
+  /**
    * Runs nodes from `from` until `until` is the next node or the Loop ends. Each handler names its
    * outcome; the table says where it goes; the commit moves `position` there. A handler that
    * fails, an outcome without a row, a refused commit or a thrown defect stops the run where it is.
@@ -575,18 +626,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       try {
         const ran = await handler()
         if ('failure' in ran) {
-          if (ran.failure.kind === 'stale-advance') {
-            const latest = await load()
-            if (
-              'ok' in latest &&
-              latest.ok.state.kind !== 'ended' &&
-              cancellationOf(latest.ok) !== undefined
-            ) {
-              checkpoint = latest.ok.checkpoint
-              revision = latest.ok.revision
-              node = 'F0'
-              continue
-            }
+          if (await cancelledAdvance(ran.failure)) {
+            node = 'F0'
+            continue
           }
           return fail({ node: at, failure: ran.failure })
         }
@@ -596,44 +638,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         if (ran.ok.commit !== null && to !== null) {
           const committed = await commit(at, to, ran.ok.commit)
           if ('failure' in committed) {
-            // D5 5.1: the Journal lost the material of the prefix this commit carried. Drop the
-            // in-process prefix and wait in W0 with the saved one; the wake reads from it again.
-            if (
-              committed.failure.kind === 'unavailable' &&
-              committed.failure.diagnostic.startsWith('missing-basis')
-            ) {
-              readPrefix = null
-              waitingAt = at
-              recheckDependency = null
-              waits = [{ kind: 'dependency', owner: committed.failure.owner, position: at }]
-              node = 'W0'
-              continue
-            }
-            if (committed.failure.kind === 'changed' && ['F1', 'F2'].includes(at)) {
-              finishRefused = true
-              node = 'R0'
-              continue
-            }
-            if (committed.failure.kind === 'changed' && ['M0', 'M3'].includes(at)) {
-              const refreshed = await currentAttachment()
-              if ('failure' in refreshed) return fail({ node: at, failure: refreshed.failure })
-              node = at
-              continue
-            }
-            if (committed.failure.kind === 'stale-advance') {
-              const latest = await load()
-              if (
-                'ok' in latest &&
-                latest.ok.state.kind !== 'ended' &&
-                cancellationOf(latest.ok) !== undefined
-              ) {
-                checkpoint = latest.ok.checkpoint
-                revision = latest.ok.revision
-                node = 'F0'
-                continue
-              }
-            }
-            return fail({ node: at, failure: committed.failure })
+            const next = await afterRefusedCommit(at, committed.failure)
+            if ('failure' in next) return fail({ node: at, failure: next.failure })
+            node = next.ok
+            continue
           }
         }
         // W0 yields this segment. The sole driver waits before taking its E1 successor.
@@ -1033,6 +1041,120 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   } satisfies Partial<Record<LoopNode, Handler>>
 
   // ------------------------------------------------------------------------------------------
+  // R0: the reconciliation of original operations, and where it goes on
+
+  /** The snapshot R0 reconciles: the latest one after a refused terminal, with the own commit. */
+  async function reconciliationBase(): Promise<Outcome<ExecutionSnapshot, Failure>> {
+    let before = required(snapshot, 'snapshot')
+    if (finishRefused) {
+      const latest = await load()
+      if ('failure' in latest) return latest
+      before = latest.ok
+    }
+    const original = pendingCommit?.operation
+    if (original !== undefined && !before.unresolved.includes(original))
+      before = { ...before, unresolved: [original, ...before.unresolved] }
+    return succeed(before)
+  }
+
+  /**
+   * Queries every unresolved operation of `before`; whether the own commit of this coordinator
+   * was settled. An unknown answer stops R0 under the original operation.
+   */
+  async function queryOriginals(before: ExecutionSnapshot): Promise<Outcome<boolean, Failure>> {
+    let resolvedOriginal = false
+    reconciliationOperations = before.unresolved
+    for (const operation of before.unresolved) {
+      const queried = await ports.journal.query({ ...access, execution, operation })
+      if ('failure' in queried) return queried
+      const own = pendingCommit?.operation === operation ? pendingCommit : null
+      // A waiting commit must not change the expected revision of the original operation.
+      if (queried.ok.kind === 'unknown') return fail({ kind: 'commit-unknown', operation })
+      if (own === null) continue
+      // Settled for another writer's operation; only recordControl can be refused durably, so
+      // for this coordinator's own commit it is a violation by the Journal provider.
+      if (queried.ok.kind === 'rejected')
+        return fail({
+          kind: 'unavailable',
+          owner: 'agentJournal',
+          diagnostic: `query answered rejected for the commit ${operation}`,
+        })
+      excludedNode = queried.ok.kind === 'excluded' ? own.node : null
+      resolvedOriginal = true
+    }
+    return succeed(resolvedOriginal)
+  }
+
+  /** R0 under an effective cancellation: the cancelled route goes on or waits in memory. */
+  function cancelledReconcile(): Outcome<Step, Failure> {
+    if (cancellationChanged) {
+      cancellationChanged = false
+      return finishDependencyWait('F1')
+    }
+    if (reissueObligations) {
+      finishRefused = false
+      return step('reconciled', null)
+    }
+    if (finishRefused) return finishDependencyWait('F3')
+    return step('reconciled', null)
+  }
+
+  function finishDependencyWait(node: 'F1' | 'F3'): Outcome<Step, Failure> {
+    finishWait = true
+    waitingAt = node
+    waits = [{ kind: 'dependency', owner: 'agentJournal', position: node }]
+    recheckDependency = null
+    return step('wait', null)
+  }
+
+  /** R0 after a refused terminal, with the facts read again: wait, or re-evaluate a node. */
+  function refusedFinishRoute(read: LoopFacts): Outcome<Step, Failure> {
+    finishRefused = false
+    // A tryFinish that could not determine the facts is a dependency to wait on, not a refusal
+    // to re-evaluate: the same terminal would be retried in a tight loop otherwise. The wake
+    // is a change of the execution or the check time; the terminal itself is a write, so
+    // nothing rechecks it inside the wait.
+    if (finishUnavailable !== null) {
+      const failure = finishUnavailable
+      finishUnavailable = null
+      finishWait = true
+      return waitFor('R0', failure, null)
+    }
+    const latest = required(snapshot, 'snapshot')
+    // Controls and extensions are still owned by their later cards. Never retry an unchanged
+    // refusal in a loop, or mistake an unimplemented responsibility for an empty queue.
+    if (latest.controls.length > 0)
+      return fail(notYet('R0', 'a terminal control responsibility', '#502 stage 5'))
+    if (latest.checkpoint.passages.some(passage => passage.progress.kind !== 'applied'))
+      return fail(notYet('R0', 'a pending passage', '#502 stage 3'))
+    if (
+      read.batch.ordered.length === 0 &&
+      decided?.kind === 'try-finish' &&
+      decided.failure !== null &&
+      !read.consumption.some(item => item.custody === null && item.completion === null)
+    )
+      excludedNode = 'F1'
+    else {
+      decided = null
+      excludedNode = 'I8'
+    }
+    return step('reconciled', null)
+  }
+
+  /**
+   * Whether another driver moved the execution on: a revision and checkpoint this coordinator did
+   * not write, while it has no unknown commit of its own and is not waking from its own wait.
+   */
+  function advancedByAnother(read: ExecutionSnapshot): boolean {
+    return (
+      read.revision !== revision &&
+      pendingCommit === null &&
+      !waking &&
+      canonical(read.checkpoint) !== canonical(checkpoint)
+    )
+  }
+
+  // ------------------------------------------------------------------------------------------
   // runExecution: E0, E1, E2, E3, E4, O0, E9
 
   const runExecutionNodes = {
@@ -1067,12 +1189,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const advancement = advancementOf(read.ok)
       if (advancement.kind === 'ended') return step('terminal', null)
       if (advancement.kind === 'superseded') return step('superseded', null)
-      if (
-        read.ok.revision !== revision &&
-        pendingCommit === null &&
-        !waking &&
-        canonical(read.ok.checkpoint) !== canonical(checkpoint)
-      ) {
+      if (advancedByAnother(read.ok)) {
         entry.idle()
         return step('found-existing', null)
       }
@@ -1181,60 +1298,20 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     },
     /** R0: committed follows the saved successor; excluded re-evaluates the original local node. */
     async R0() {
-      const originalCommit = pendingCommit
-      const terminalQuery = originalCommit?.node === 'F3'
+      const terminalQuery = pendingCommit?.node === 'F3'
       const terminalExpected = revision
-      let resolvedOriginal = false
-      let before = required(snapshot, 'snapshot')
-      if (finishRefused) {
-        const latest = await load()
-        if ('failure' in latest) return latest
-        before = latest.ok
-      }
-      const original = originalCommit?.operation
-      if (original !== undefined && !before.unresolved.includes(original))
-        before = { ...before, unresolved: [original, ...before.unresolved] }
-      reconciliationOperations = before.unresolved
-      for (const operation of before.unresolved) {
-        const queried = await ports.journal.query({ ...access, execution, operation })
-        if ('failure' in queried) return queried
-        const own = pendingCommit?.operation === operation ? pendingCommit : null
-        switch (queried.ok.kind) {
-          case 'unknown':
-            // A waiting commit must not change the expected revision of the original operation.
-            return fail({ kind: 'commit-unknown', operation })
-          case 'rejected':
-            // Settled for another writer's operation; only recordControl can be refused durably,
-            // so for this coordinator's own commit it is a violation by the Journal provider.
-            if (own !== null)
-              return fail({
-                kind: 'unavailable',
-                owner: 'agentJournal',
-                diagnostic: `query answered rejected for the commit ${operation}`,
-              })
-            break
-          case 'excluded':
-            if (own !== null) {
-              excludedNode = own.node
-              resolvedOriginal = true
-            }
-            break
-          case 'committed':
-            if (own !== null) {
-              excludedNode = null
-              resolvedOriginal = true
-            }
-            break
-        }
-      }
+      const before = await reconciliationBase()
+      if ('failure' in before) return before
+      const resolvedOriginal = await queryOriginals(before.ok)
+      if ('failure' in resolvedOriginal) return resolvedOriginal
       const loaded = await load()
       if ('failure' in loaded) return loaded
-      if (resolvedOriginal) pendingCommit = null
+      if (resolvedOriginal.ok) pendingCommit = null
       reconciliationOperations = []
       snapshot = {
         ...loaded.ok,
         unresolved: loaded.ok.unresolved.filter(
-          operation => !before.unresolved.includes(operation),
+          operation => !before.ok.unresolved.includes(operation),
         ),
       }
       if (terminalQuery && excludedNode === 'F3' && snapshot.revision !== terminalExpected) {
@@ -1245,28 +1322,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       revision = snapshot.revision
       if (snapshot.state.kind !== 'ended') state = committedState(snapshot.state)
       if (advancementOf(snapshot).kind !== 'current') return step('reconciled', null)
-      if (cancellationOf(snapshot) !== undefined) {
-        if (cancellationChanged) {
-          cancellationChanged = false
-          finishWait = true
-          waitingAt = 'F1'
-          waits = [{ kind: 'dependency', owner: 'agentJournal', position: 'F1' }]
-          recheckDependency = null
-          return step('wait', null)
-        }
-        if (reissueObligations) {
-          finishRefused = false
-          return step('reconciled', null)
-        }
-        if (finishRefused) {
-          finishWait = true
-          waitingAt = 'F3'
-          waits = [{ kind: 'dependency', owner: 'agentJournal', position: 'F3' }]
-          recheckDependency = null
-          return step('wait', null)
-        }
-        return step('reconciled', null)
-      }
+      if (cancellationOf(snapshot) !== undefined) return cancelledReconcile()
       const read = await readFacts(snapshot)
       if ('failure' in read) {
         if (read.failure.kind !== 'unavailable') return read
@@ -1274,38 +1330,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         return waitFor('R0', read.failure, readFacts)
       }
       facts = read.ok
-      if (finishRefused) {
-        finishRefused = false
-        // A tryFinish that could not determine the facts is a dependency to wait on, not a refusal
-        // to re-evaluate: the same terminal would be retried in a tight loop otherwise. The wake
-        // is a change of the execution or the check time; the terminal itself is a write, so
-        // nothing rechecks it inside the wait.
-        if (finishUnavailable !== null) {
-          const failure = finishUnavailable
-          finishUnavailable = null
-          finishWait = true
-          return waitFor('R0', failure, null)
-        }
-        // Controls and extensions are still owned by their later cards. Never retry an unchanged
-        // refusal in a loop, or mistake an unimplemented responsibility for an empty queue.
-        if (snapshot.controls.length > 0)
-          return fail(notYet('R0', 'a terminal control responsibility', '#502 stage 5'))
-        if (snapshot.checkpoint.passages.some(passage => passage.progress.kind !== 'applied'))
-          return fail(notYet('R0', 'a pending passage', '#502 stage 3'))
-        if (
-          read.ok.batch.ordered.length === 0 &&
-          decided?.kind === 'try-finish' &&
-          decided.failure !== null &&
-          !read.ok.consumption.some(item => item.custody === null && item.completion === null)
-        )
-          excludedNode = 'F1'
-        else {
-          decided = null
-          excludedNode = 'I8'
-        }
-        return step('reconciled', null)
-      }
-      return step('reconciled', null)
+      return finishRefused ? refusedFinishRoute(read.ok) : step('reconciled', null)
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
@@ -1561,6 +1586,234 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return succeed({ entry: found, delivery, pending })
   }
 
+  type Sent = Readonly<{ batch: ActionBatch; progressed: boolean }>
+
+  /** A2: every action denied at judgment gets its denied slot, saved before anything is sent. */
+  async function slotDeniedAtJudgment(batch: ActionBatch): Promise<Outcome<Sent, Failure>> {
+    let slotted = batch
+    for (const action of batch.actions)
+      if (action.judgment.kind === 'denied' && slotOf(batch, action.id) === undefined)
+        slotted = replaceSlot(slotted, deniedSlot(action, action.judgment.evidence))
+    if (slotted === batch) return succeed({ batch, progressed: false })
+    const saved = await commit('A2', 'A2', { checkpoint: { batch: slotted } })
+    return 'failure' in saved ? saved : succeed({ batch: slotted, progressed: true })
+  }
+
+  /** A2: the saved intent of a first attempt, before the Tool is asked. */
+  async function saveToolIntent(
+    batch: ActionBatch,
+    action: Action,
+  ): Promise<Outcome<Readonly<{ batch: ActionBatch; action: Action }>, Failure>> {
+    const stored = await preserveToolIntent(ports, access, execution, action)
+    if ('failure' in stored) return stored
+    const pending = stored.ok
+    const withIntent = { ...action, call: pending }
+    const next = replaceAction(batch, withIntent)
+    const saved = await commit('A2', 'A2', {
+      checkpoint: { batch: next, calls: [...required(checkpoint, 'checkpoint').calls, pending] },
+      effects: [{ action: action.id, pending, authority: required(authority, 'authority') }],
+    })
+    return 'failure' in saved ? saved : succeed({ batch: next, action: withIntent })
+  }
+
+  /**
+   * A2 for one allowed action: the intent of a first attempt is saved, the current advance is
+   * checked, and the complete original request is sent. Only an accepted or commit-unknown answer
+   * associates the call; a rejection denies only a first attempt with no earlier unknown.
+   */
+  async function sendAction(batch: ActionBatch, original: Action): Promise<Outcome<Sent, Failure>> {
+    if (original.judgment.kind !== 'allowed') return succeed({ batch, progressed: false })
+    const fresh = original.call === null
+    let next = batch
+    let action = original
+    if (fresh) {
+      const saved = await saveToolIntent(batch, original)
+      if ('failure' in saved) return saved
+      ;({ batch: next, action } = saved.ok)
+    }
+    const pending = required(action.call, 'tool intent')
+    // The last check before the Tool is asked: no invoke under a revoked advance.
+    const eligible = await currentAttachment()
+    if ('failure' in eligible) return eligible
+    const result = await ports.tools.invoke({ ...access, request: original.judgment.request })
+    if (result.kind === 'association-unknown') {
+      uncertainToolActions.add(action.id)
+      return succeed({ batch: next, progressed: false })
+    }
+    if (result.kind === 'rejected') {
+      if (!fresh || uncertainToolActions.has(action.id))
+        return succeed({ batch: next, progressed: false })
+      const evidence = agentEvidence(`${execution}/${action.id}/rejected`, result.failure)
+      next = replaceSlot(next, deniedSlot(action, evidence))
+      const saved = await commit('A2', 'A2', { checkpoint: { batch: next } })
+      return 'failure' in saved ? saved : succeed({ batch: next, progressed: true })
+    }
+    if (result.kind === 'commit-unknown') uncertainToolActions.add(action.id)
+    const associated: PendingCall = {
+      ...pending,
+      kind: 'tool',
+      purpose: 'action',
+      association: 'associated',
+      reference: result.reference,
+    }
+    next = replaceSlot(replaceAction(next, { ...action, call: associated }), {
+      kind: 'dispatched',
+      action: action.id,
+      each: null,
+      candidate: null,
+      handoff: null,
+    })
+    const saved = await commit('A2', 'A2', {
+      checkpoint: {
+        batch: next,
+        calls: required(checkpoint, 'checkpoint').calls.map(call =>
+          call.action === action.id ? associated : call,
+        ),
+      },
+    })
+    return 'failure' in saved ? saved : succeed({ batch: next, progressed: true })
+  }
+
+  /** The message source of a slot: its Tool result, or its denial. */
+  function slotSource(action: Action, slot: ActionSlot): InternalSource {
+    if (slot.kind === 'denied')
+      return { kind: 'action-denied', action: action.id, evidence: slot.evidence }
+    if (slot.kind !== 'result')
+      throw new Error(`coordinator defect: no message of a ${slot.kind} slot`)
+    return {
+      kind: 'tool-result',
+      action: action.id,
+      call: toolCallOf(access, required(toolCall(action), 'associated Tool call')),
+      result: slot.result,
+    }
+  }
+
+  /** T5: P fixes the request of one slot's message before anything is prepared. */
+  async function prepareSlotMessage(
+    batch: ActionBatch,
+    action: Action,
+    slot: ActionSlot,
+    source: InternalSource,
+  ): Promise<Outcome<PendingHandoff, Failure>> {
+    const predecessor = required(revision, 'revision')
+    const position = { step: required(checkpoint, 'checkpoint').step, node: 'T5', slot: action.id }
+    const request: PendingHandoff = {
+      kind: 'execution',
+      reference: {
+        kind: 'execution',
+        execution,
+        operation: handoffOperation(source.kind, position, predecessor),
+      },
+      predecessor,
+      position,
+      source,
+      candidate: required(slot.candidate, 'slot candidate'),
+      originalAdvance: required(authority, 'authority'),
+      predecessorHandoff: null,
+    }
+    const prepared = await commit('T5', 'T5', {
+      checkpoint: {
+        currentHandoff: request.reference,
+        batch: replaceSlot(batch, { ...slot, handoff: request.reference }),
+      },
+      handoff: { kind: 'prepare', request },
+      operation: handoffStage(request.reference.operation, 'prepare'),
+    })
+    return 'failure' in prepared ? prepared : succeed(request)
+  }
+
+  /**
+   * T5: the admission outcome of one H. A saved H is looked up first, so an outcome the provider
+   * already fixed is never prepared again. An unavailable prepare is a dependency to wait on.
+   */
+  async function slotOutcome(
+    request: PendingHandoff,
+    existing: ExecutionSnapshot['handoffs'][number] | undefined,
+  ): Promise<Outcome<HandoffOutcome | 'wait', Failure>> {
+    const recorded = existing === undefined ? undefined : recordedOutcome(existing.resolution)
+    if (recorded !== undefined) return succeed(recorded)
+    if (existing !== undefined) {
+      const found = await ports.handoff.lookup({
+        ...access,
+        kind: 'execution',
+        execution,
+        handoff: request.reference,
+      })
+      if ('failure' in found) return found
+      if (found.ok.kind === 'excluded')
+        return fail(notYet('T5', 'an excluded handoff (retire)', '#502 stage 5'))
+      if (found.ok.kind === 'recorded') return succeed(found.ok.outcome)
+    }
+    const prepared = await ports.handoff.prepare({
+      ...access,
+      kind: 'execution',
+      request,
+      advance: required(authority, 'authority'),
+    })
+    if ('ok' in prepared || prepared.failure.kind !== 'unavailable') return prepared
+    waitFor('T5', prepared.failure, null)
+    return succeed('wait')
+  }
+
+  /** T5: the Ja of one slot's message: the outcome, with the message when it was prepared. */
+  async function applySlotMessage(
+    request: PendingHandoff,
+    fixed: HandoffOutcome,
+  ): Promise<Outcome<void, Failure>> {
+    const decision = fixed.decision
+    return commit('T5', 'T5', {
+      checkpoint: { currentHandoff: null },
+      events:
+        decision.kind === 'prepared'
+          ? [{ kind: 'message', message: decision.message, source: decision.admission }]
+          : [],
+      handoff: { kind: 'resolve', outcome: fixed },
+      operation: handoffStage(request.reference.operation, 'resolve'),
+    })
+  }
+
+  type SlotAdmission = 'admitted' | 'rejected' | 'wait'
+
+  /** T5 for one slot: recognize its Ja, or fix, prepare and apply its message. */
+  async function admitSlot(action: Action): Promise<Outcome<SlotAdmission, Failure>> {
+    const batch = currentBatch()
+    const slot = slotOf(batch, action.id)
+    if (slot === undefined) return fail(defect('T5 with an action without a slot'))
+    if (slot.kind === 'background' || slot.kind === 'dispatched')
+      return fail(notYet('T5', 'a background placeholder message', '#502 stage 5'))
+    const source = slotSource(action, slot)
+    const handoff = slot.handoff
+    const existing =
+      handoff === null
+        ? undefined
+        : required(snapshot, 'snapshot').handoffs.find(
+            record => canonical(record.handoff) === canonical(handoff),
+          )
+    if (existing !== undefined && existing.history.kind !== 'pending') {
+      if (existing.history.kind === 'committed') return succeed('admitted')
+      const recorded = recordedOutcome(existing.resolution)
+      if (recorded?.decision.kind !== 'rejected')
+        return fail(notYet('T5', 'a retired tool message handoff', '#502 stage 5'))
+      rejectedMessage = { source, evidence: recorded.decision.evidence }
+      return succeed('rejected')
+    }
+    let request: PendingHandoff
+    if (existing?.request.kind === 'execution') request = existing.request
+    else {
+      const prepared = await prepareSlotMessage(batch, action, slot, source)
+      if ('failure' in prepared) return prepared
+      request = prepared.ok
+    }
+    const fixed = await slotOutcome(request, existing)
+    if ('failure' in fixed) return fixed
+    if (fixed.ok === 'wait') return succeed('wait')
+    const applied = await applySlotMessage(request, fixed.ok)
+    if ('failure' in applied) return applied
+    if (fixed.ok.decision.kind === 'prepared') return succeed('admitted')
+    rejectedMessage = { source, evidence: fixed.ok.decision.evidence }
+    return succeed('rejected')
+  }
+
   const runTools = {
     /** A3: all actions are denied; each gets its denied slot in the original order. */
     async A3() {
@@ -1639,82 +1892,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           owner: '@omne-harness/agent',
           diagnostic: 'toolConcurrency is unavailable',
         })
-      let batch = currentBatch()
-      let progressed = false
-      const deniedAtJudgment = batch.actions.filter(
-        action => action.judgment.kind === 'denied' && slotOf(batch, action.id) === undefined,
-      )
-      if (deniedAtJudgment.length > 0) {
-        for (const action of deniedAtJudgment)
-          if (action.judgment.kind === 'denied')
-            batch = replaceSlot(batch, deniedSlot(action, action.judgment.evidence))
-        const saved = await commit('A2', 'A2', { checkpoint: { batch } })
-        if ('failure' in saved) return saved
-        progressed = true
-      }
+      const slotted = await slotDeniedAtJudgment(currentBatch())
+      if ('failure' in slotted) return slotted
+      let { batch, progressed } = slotted.ok
       for (const original of unslotted(batch)) {
-        if (original.judgment.kind !== 'allowed') continue
         if (original.call === null && inFlight(batch).length >= limit) break
-        let action = original
-        let pending = action.call
-        const fresh = pending === null
-        if (pending === null) {
-          const stored = await preserveToolIntent(ports, access, execution, action)
-          if ('failure' in stored) return stored
-          pending = stored.ok
-          action = { ...action, call: pending }
-          batch = replaceAction(batch, action)
-          const saved = await commit('A2', 'A2', {
-            checkpoint: { batch, calls: [...required(checkpoint, 'checkpoint').calls, pending] },
-            effects: [{ action: action.id, pending, authority: required(authority, 'authority') }],
-          })
-          if ('failure' in saved) return saved
-        }
-        // The last check before the Tool is asked: no invoke under a revoked advance.
-        const eligible = await currentAttachment()
-        if ('failure' in eligible) return eligible
-        const result = await ports.tools.invoke({ ...access, request: original.judgment.request })
-        if (result.kind === 'association-unknown') {
-          uncertainToolActions.add(action.id)
-          continue
-        }
-        if (result.kind === 'rejected') {
-          if (!fresh || uncertainToolActions.has(action.id)) continue
-          batch = replaceSlot(
-            batch,
-            deniedSlot(action, agentEvidence(`${execution}/${action.id}/rejected`, result.failure)),
-          )
-          const saved = await commit('A2', 'A2', { checkpoint: { batch } })
-          if ('failure' in saved) return saved
-          progressed = true
-          continue
-        }
-        if (result.kind === 'commit-unknown') uncertainToolActions.add(action.id)
-        const associated: PendingCall = {
-          ...pending,
-          kind: 'tool',
-          purpose: 'action',
-          association: 'associated',
-          reference: result.reference,
-        }
-        action = { ...action, call: associated }
-        batch = replaceSlot(replaceAction(batch, action), {
-          kind: 'dispatched',
-          action: action.id,
-          each: null,
-          candidate: null,
-          handoff: null,
-        })
-        const saved = await commit('A2', 'A2', {
-          checkpoint: {
-            batch,
-            calls: required(checkpoint, 'checkpoint').calls.map(call =>
-              call.action === action.id ? associated : call,
-            ),
-          },
-        })
-        if ('failure' in saved) return saved
-        progressed = true
+        const sent = await sendAction(batch, original)
+        if ('failure' in sent) return sent
+        batch = sent.ok.batch
+        progressed ||= sent.ok.progressed
       }
       if (
         progressed ||
@@ -1837,111 +2023,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const read = await advancing()
       if ('failure' in read) return read
       for (const action of currentBatch().actions) {
-        const batch = currentBatch()
-        const slot = slotOf(batch, action.id)
-        if (slot === undefined) return fail(defect('T5 with an action without a slot'))
-        if (slot.kind === 'background' || slot.kind === 'dispatched')
-          return fail(notYet('T5', 'a background placeholder message', '#502 stage 5'))
-        const source: InternalSource =
-          slot.kind === 'denied'
-            ? { kind: 'action-denied', action: action.id, evidence: slot.evidence }
-            : {
-                kind: 'tool-result',
-                action: action.id,
-                call: toolCallOf(access, required(toolCall(action), 'associated Tool call')),
-                result: slot.result,
-              }
-        const handoff = slot.handoff
-        const existing =
-          handoff === null
-            ? undefined
-            : required(snapshot, 'snapshot').handoffs.find(
-                record => canonical(record.handoff) === canonical(handoff),
-              )
-        if (existing !== undefined && existing.history.kind !== 'pending') {
-          if (existing.history.kind === 'committed') continue
-          const recorded = recordedOutcome(existing.resolution)
-          if (recorded?.decision.kind === 'rejected') {
-            rejectedMessage = { source, evidence: recorded.decision.evidence }
-            return step('rejected', null)
-          }
-          return fail(notYet('T5', 'a retired tool message handoff', '#502 stage 5'))
-        }
-        let request: PendingHandoff
-        if (existing?.request.kind === 'execution') {
-          request = existing.request
-        } else {
-          const predecessor = required(revision, 'revision')
-          const position = {
-            step: required(checkpoint, 'checkpoint').step,
-            node: 'T5',
-            slot: action.id,
-          }
-          request = {
-            kind: 'execution',
-            reference: {
-              kind: 'execution',
-              execution,
-              operation: handoffOperation(source.kind, position, predecessor),
-            },
-            predecessor,
-            position,
-            source,
-            candidate: required(slot.candidate, 'slot candidate'),
-            originalAdvance: required(authority, 'authority'),
-            predecessorHandoff: null,
-          }
-          const prepared = await commit('T5', 'T5', {
-            checkpoint: {
-              currentHandoff: request.reference,
-              batch: replaceSlot(batch, { ...slot, handoff: request.reference }),
-            },
-            handoff: { kind: 'prepare', request },
-            operation: handoffStage(request.reference.operation, 'prepare'),
-          })
-          if ('failure' in prepared) return prepared
-        }
-        let fixed = existing === undefined ? undefined : recordedOutcome(existing.resolution)
-        if (fixed === undefined && existing !== undefined) {
-          const found = await ports.handoff.lookup({
-            ...access,
-            kind: 'execution',
-            execution,
-            handoff: request.reference,
-          })
-          if ('failure' in found) return found
-          if (found.ok.kind === 'excluded')
-            return fail(notYet('T5', 'an excluded handoff (retire)', '#502 stage 5'))
-          if (found.ok.kind === 'recorded') fixed = found.ok.outcome
-        }
-        if (fixed === undefined) {
-          const prepared = await ports.handoff.prepare({
-            ...access,
-            kind: 'execution',
-            request,
-            advance: required(authority, 'authority'),
-          })
-          if ('failure' in prepared)
-            return prepared.failure.kind === 'unavailable'
-              ? waitFor('T5', prepared.failure, null)
-              : prepared
-          fixed = prepared.ok
-        }
-        const decision = fixed.decision
-        const applied = await commit('T5', 'T5', {
-          checkpoint: { currentHandoff: null },
-          events:
-            decision.kind === 'prepared'
-              ? [{ kind: 'message', message: decision.message, source: decision.admission }]
-              : [],
-          handoff: { kind: 'resolve', outcome: fixed },
-          operation: handoffStage(request.reference.operation, 'resolve'),
-        })
-        if ('failure' in applied) return applied
-        if (decision.kind === 'rejected') {
-          rejectedMessage = { source, evidence: decision.evidence }
-          return step('rejected', null)
-        }
+        const admitted = await admitSlot(action)
+        if ('failure' in admitted) return admitted
+        if (admitted.ok === 'wait') return step('wait', null)
+        if (admitted.ok === 'rejected') return step('rejected', null)
       }
       return step('admitted')
     },
@@ -2377,6 +2462,127 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       : advanceToolControl(ports, access, execution, tool)
   }
 
+  /** F0 for one Model call: a per-call interrupt control, advanced like any Model control. */
+  async function interruptModelForCancel(
+    control: ControlRecord,
+    pending: ModelPendingCall,
+  ): Promise<Outcome<void, Failure>> {
+    const call = invocationParts(pending.reference, access.tenant).call
+    const operation = controlOperation(execution, control.operation, `interrupt/${call}`)
+    const accepted = await ports.journal.control({
+      ...access,
+      execution,
+      operation,
+      command: { kind: 'interrupt-model', call, reason: control.stages.accepted.source },
+    })
+    if ('failure' in accepted) return accepted
+    const latest = await load()
+    if ('failure' in latest) return latest
+    const child = latest.ok.controls.find(item => item.operation === operation)
+    if (child?.command.kind !== 'interrupt-model') return succeed(undefined)
+    return advanceModelControl(ports, access, execution, { ...child, command: child.command })
+  }
+
+  /** A refused settlement commit: a changed or unknown answer is reconciled at R0. */
+  function refusedSettlement(node: 'F1' | 'F2', failure: Failure): Outcome<Step, Failure> {
+    if (failure.kind === 'changed') cancellationChanged = true
+    if (failure.kind === 'commit-unknown') pendingCommit = { operation: failure.operation, node }
+    return failure.kind === 'changed' || failure.kind === 'commit-unknown'
+      ? step('reconcile', null)
+      : fail(failure)
+  }
+
+  /**
+   * F1 under an effective cancellation: the installation the Journal reads is the only source of
+   * the route. An author candidate of the same cancellation migrates; any other is established.
+   */
+  async function fixCancellation(
+    latest: ExecutionSnapshot,
+    cancel: ControlRecord,
+  ): Promise<Outcome<Step, Failure>> {
+    const readInstallation = ports.journal.readCancellationInstallation
+    if (readInstallation === undefined)
+      return fail({
+        kind: 'unavailable',
+        owner: 'agentJournal',
+        diagnostic: 'cancellation installation read is unavailable',
+      })
+    const installation = await readInstallation({ ...access, execution })
+    if ('failure' in installation) return installation
+    const current = latest.settlement.candidate
+    const route = latest.settlement.route
+    if (current?.conclusion.kind === 'cancelled' && route?.kind === 'cancellation')
+      return step('fixed', null)
+    const authorization = {
+      kind: 'cancel' as const,
+      control: cancel.operation,
+      source: cancel.stages.accepted.source,
+    }
+    const common = {
+      ...access,
+      execution,
+      authorization,
+      expected: latest.revision,
+      installation: installation.ok,
+    }
+    const settled = await ports.journal.commitSettlement(
+      current?.conclusion.kind === 'cancelled' && route?.kind === 'author'
+        ? {
+            ...common,
+            operation: journalOperation('F1', 'cancel-migrate', latest.revision),
+            kind: 'migrate-cancellation',
+            candidate: current.candidate,
+            originalRoute: route.record,
+            priorExcluded: null,
+          }
+        : {
+            ...common,
+            operation: journalOperation('F1', 'cancel-establish', latest.revision),
+            kind: 'establish-cancellation',
+            predecessor: current?.candidate ?? null,
+          },
+    )
+    return 'failure' in settled ? refusedSettlement('F1', settled.failure) : step('fixed', null)
+  }
+
+  /** The authorization of the terminal: the effective cancellation, or the current advance. */
+  function finishAuthorization(read: ExecutionSnapshot): FinishAuthorization {
+    const cancel = cancellationOf(read)
+    return cancel === undefined
+      ? { kind: 'advancement', authority: required(authority, 'authority') }
+      : { kind: 'cancel', control: cancel.operation, source: cancel.stages.accepted.source }
+  }
+
+  /**
+   * F3: prepareFinish issues the obligations of the candidate. A changed or unknown answer is
+   * the R0 step to take; `null` means the list is issued and tryFinish follows.
+   */
+  async function issueObligations(
+    before: ExecutionSnapshot,
+    candidate: Parameters<typeof ports.journal.prepareFinish>[0]['candidate'],
+    authorization: FinishAuthorization,
+  ): Promise<Outcome<Outcome<Step, Failure> | null, Failure>> {
+    const prepared = await ports.journal.prepareFinish({
+      ...access,
+      execution,
+      operation: journalOperation('F3', 'prepare', before.revision),
+      authorization,
+      expected: before.revision,
+      candidate,
+    })
+    if ('ok' in prepared) {
+      reissueObligations = false
+      return succeed(null)
+    }
+    if (prepared.failure.kind === 'changed') {
+      finishRefused = true
+      return succeed(step('reconcile', null))
+    }
+    if (prepared.failure.kind !== 'commit-unknown') return prepared
+    pendingCommit = { operation: prepared.failure.operation, node: 'F3' }
+    return succeed(step('reconcile', null))
+  }
+
   const settle = {
     async F0() {
       const read = await load()
@@ -2387,30 +2593,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const revoked = await establishCancellation(ports.journal, access, execution, control)
       if ('failure' in revoked) return revoked
       for (const pending of read.ok.checkpoint.calls) {
-        if (pending.kind === 'tool') {
-          const interrupted = await interruptToolForCancel(control, pending)
-          if ('failure' in interrupted) return interrupted
-          continue
-        }
-        const call = invocationParts(pending.reference, access.tenant).call
-        const operation = controlOperation(execution, control.operation, `interrupt/${call}`)
-        const accepted = await ports.journal.control({
-          ...access,
-          execution,
-          operation,
-          command: { kind: 'interrupt-model', call, reason: control.stages.accepted.source },
-        })
-        if ('failure' in accepted) return accepted
-        const latest = await load()
-        if ('failure' in latest) return latest
-        const child = latest.ok.controls.find(item => item.operation === operation)
-        if (child?.command.kind === 'interrupt-model') {
-          const advanced = await advanceModelControl(ports, access, execution, {
-            ...child,
-            command: child.command,
-          })
-          if ('failure' in advanced) return advanced
-        }
+        const interrupted =
+          pending.kind === 'tool'
+            ? await interruptToolForCancel(control, pending)
+            : await interruptModelForCancel(control, pending)
+        if ('failure' in interrupted) return interrupted
       }
       return step('cancelled', null)
     },
@@ -2419,60 +2606,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const latest = await load()
       if ('failure' in latest) return latest
       const cancel = cancellationOf(latest.ok)
-      if (cancel !== undefined) {
-        const readInstallation = ports.journal.readCancellationInstallation
-        if (readInstallation === undefined)
-          return fail({
-            kind: 'unavailable',
-            owner: 'agentJournal',
-            diagnostic: 'cancellation installation read is unavailable',
-          })
-        const installation = await readInstallation({ ...access, execution })
-        if ('failure' in installation) return installation
-        const current = latest.ok.settlement.candidate
-        const route = latest.ok.settlement.route
-        if (current?.conclusion.kind === 'cancelled' && route?.kind === 'cancellation')
-          return step('fixed', null)
-        const authorization = {
-          kind: 'cancel' as const,
-          control: cancel.operation,
-          source: cancel.stages.accepted.source,
-        }
-        const settled = await ports.journal.commitSettlement(
-          current?.conclusion.kind === 'cancelled' && route?.kind === 'author'
-            ? {
-                ...access,
-                execution,
-                operation: journalOperation('F1', 'cancel-migrate', latest.ok.revision),
-                kind: 'migrate-cancellation',
-                authorization,
-                expected: latest.ok.revision,
-                installation: installation.ok,
-                candidate: current.candidate,
-                originalRoute: route.record,
-                priorExcluded: null,
-              }
-            : {
-                ...access,
-                execution,
-                operation: journalOperation('F1', 'cancel-establish', latest.ok.revision),
-                kind: 'establish-cancellation',
-                authorization,
-                expected: latest.ok.revision,
-                installation: installation.ok,
-                predecessor: current?.candidate ?? null,
-              },
-        )
-        if ('failure' in settled) {
-          if (settled.failure.kind === 'changed') cancellationChanged = true
-          if (settled.failure.kind === 'commit-unknown')
-            pendingCommit = { operation: settled.failure.operation, node: 'F1' }
-          return settled.failure.kind === 'changed' || settled.failure.kind === 'commit-unknown'
-            ? step('reconcile', null)
-            : settled
-        }
-        return step('fixed', null)
-      }
+      if (cancel !== undefined) return fixCancellation(latest.ok, cancel)
       const at = required(checkpoint, 'checkpoint')
       const preparation = at.requestPreparation
       // Derive only from the committed preparation. An unknown I1 commit therefore follows the
@@ -2536,15 +2670,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           candidate: candidate.candidate,
           route: route.record,
         })
-        if ('failure' in judged) {
-          if (judged.failure.kind === 'changed') cancellationChanged = true
-          if (judged.failure.kind === 'commit-unknown')
-            pendingCommit = { operation: judged.failure.operation, node: 'F2' }
-          return judged.failure.kind === 'changed' || judged.failure.kind === 'commit-unknown'
-            ? step('reconcile', null)
-            : judged
-        }
-        return step('proceed', null)
+        return 'failure' in judged ? refusedSettlement('F2', judged.failure) : step('proceed', null)
       }
       return step('proceed', { state: { kind: 'settling' } })
     },
@@ -2561,33 +2687,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         finishRefused = true
         return step('reconcile', null)
       }
-      const cancel = cancellationOf(before.ok)
-      const authorization: FinishAuthorization =
-        cancel === undefined
-          ? {
-              kind: 'advancement',
-              authority: required(authority, 'authority'),
-            }
-          : { kind: 'cancel', control: cancel.operation, source: cancel.stages.accepted.source }
+      const authorization = finishAuthorization(before.ok)
       if (before.ok.state.intent.obligations === null || reissueObligations) {
-        const prepared = await ports.journal.prepareFinish({
-          ...access,
-          execution,
-          operation: journalOperation('F3', 'prepare', before.ok.revision),
-          authorization,
-          expected: before.ok.revision,
-          candidate: candidate.candidate,
-        })
-        if ('failure' in prepared) {
-          if (prepared.failure.kind === 'changed') {
-            finishRefused = true
-            return step('reconcile', null)
-          }
-          if (prepared.failure.kind !== 'commit-unknown') return prepared
-          pendingCommit = { operation: prepared.failure.operation, node: 'F3' }
-          return step('reconcile', null)
-        }
-        reissueObligations = false
+        const issued = await issueObligations(before.ok, candidate.candidate, authorization)
+        if ('failure' in issued) return issued
+        if (issued.ok !== null) return issued.ok
       }
       const read = await load()
       if ('failure' in read) return read

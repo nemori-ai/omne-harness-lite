@@ -8,9 +8,15 @@ import {
   type ControlStage,
   type ExecutionSnapshot,
   type Failure,
+  type PendingCall,
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
-import { decodeModelOperationId, resolveModelInvocationRef } from '@omne-harness/model-contract'
+import {
+  decodeModelOperationId,
+  resolveModelInvocationRef,
+  type ModelInvocationRef,
+  type ModelOperationId,
+} from '@omne-harness/model-contract'
 import type {
   ControlProgress,
   ToolInvocationRef,
@@ -76,13 +82,25 @@ export async function establishCancellation<P>(
   return succeed(undefined)
 }
 
-/** A control retry only observes a request whose original sending outcome is unresolved. */
-export async function advanceModelControl<P>(
+type ModelPending = Extract<PendingCall, { kind: 'model' }>
+type ModelStage = Exclude<ControlStage, 'accepted' | 'qualification-revoked' | 'duty-released'>
+type ModelControlScope<P> = Readonly<{
+  ports: Ports<P>
+  access: Access<P>
+  execution: AgentExecutionId
+  record: ModelControl
+  prefix: string
+  operation: ModelOperationId
+  reference: ModelInvocationRef
+}>
+
+/** The saved Model call that the control names, by kind and then by call. */
+async function modelControlTarget<P>(
   ports: Ports<P>,
   access: Access<P>,
   execution: AgentExecutionId,
   record: ModelControl,
-): Promise<Outcome<void, Failure>> {
+): Promise<Outcome<ModelPending, Failure>> {
   const loaded = await ports.journal.load({ ...access, execution })
   if ('failure' in loaded) return loaded
   const pending = [
@@ -99,75 +117,113 @@ export async function advanceModelControl<P>(
       owner: '@omne-harness/agent',
       diagnostic: 'original model control reference is unavailable',
     })
+  return succeed(pending)
+}
 
+/** Saves one observed stage of a Model control with its observation material. */
+async function saveModelStage<P>(
+  scope: ModelControlScope<P>,
+  stage: ModelStage,
+  state: 'reached' | 'unresolved',
+  observation: unknown,
+): Promise<Outcome<void, Failure>> {
+  const { ports, access, execution, record, prefix } = scope
+  const identity = `control/${prefix}/${stage}/${state}`
+  const stored = await ports.materials.preserve({
+    ...access,
+    execution,
+    identity,
+    consumer: {
+      owner: '@omne-harness/agent',
+      work: execution,
+      position: record.operation,
+      purpose: 'model-control',
+    },
+    value: {
+      kind: 'facts' as const,
+      schema: observationSchema,
+      value: json({
+        execution,
+        control: record.operation,
+        command: record.command,
+        reference: scope.reference,
+        operation: scope.operation,
+        observation,
+      }),
+    },
+  })
+  if ('failure' in stored) return stored
+  const recording = decodeAgentOperationId(identity)
+  if ('failure' in recording) throw new Error('invalid derived control recording operation')
+  const saved = await ports.journal.recordControl({
+    ...access,
+    execution,
+    operation: recording.ok,
+    target: record.operation,
+    stage,
+    state,
+    source: stored.ok,
+  })
+  return 'failure' in saved ? saved : succeed(undefined)
+}
+
+/**
+ * What the Model reports of the call: a settlement is the physical stop, a requested control is
+ * the producer's confirmation. `null` when nothing more is proven and a request may be sent.
+ */
+async function observedModelStop<P>(
+  scope: ModelControlScope<P>,
+): Promise<Outcome<void, Failure> | null> {
+  const { ports, access, record } = scope
+  const found = await ports.models.calls.inspect({ ...access, reference: scope.reference })
+  if ('failure' in found || found.ok.kind !== 'found') return succeed(undefined)
+  if (found.ok.state.phase === 'settled')
+    return saveModelStage(scope, 'physically-stopped', 'reached', found.ok.state.settlement)
+  if (record.stages['producer-confirmed']?.state === 'reached') return succeed(undefined)
+  if (found.ok.state.control.kind === 'requested')
+    return saveModelStage(scope, 'producer-confirmed', 'reached', found.ok.state.control)
+  if (record.stages['producer-confirmed']?.state === 'unresolved') return succeed(undefined)
+  return null
+}
+
+/** A control retry only observes a request whose original sending outcome is unresolved. */
+export async function advanceModelControl<P>(
+  ports: Ports<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  record: ModelControl,
+): Promise<Outcome<void, Failure>> {
+  const pending = await modelControlTarget(ports, access, execution, record)
+  if ('failure' in pending) return pending
   const prefix = createHash('sha256')
     .update(JSON.stringify([execution, record.operation]))
     .digest('hex')
   const operation = decodeModelOperationId(`mop_control_${prefix}`)
   if ('failure' in operation) throw new Error('invalid derived model control operation')
-  const modelOperation = operation.ok
-  const reference = pending.reference
-
-  async function save(
-    stage: Exclude<ControlStage, 'accepted' | 'qualification-revoked' | 'duty-released'>,
-    state: 'reached' | 'unresolved',
-    observation: unknown,
-  ): Promise<Outcome<void, Failure>> {
-    const identity = `control/${prefix}/${stage}/${state}`
-    const materialInput = {
-      ...access,
-      execution,
-      identity,
-      consumer: {
-        owner: '@omne-harness/agent',
-        work: execution,
-        position: record.operation,
-        purpose: 'model-control',
-      },
-      value: {
-        kind: 'facts' as const,
-        schema: observationSchema,
-        value: json({
-          execution,
-          control: record.operation,
-          command: record.command,
-          reference,
-          operation: modelOperation,
-          observation,
-        }),
-      },
-    }
-    const stored = await ports.materials.preserve(materialInput)
-    if ('failure' in stored) return stored
-    const recording = decodeAgentOperationId(identity)
-    if ('failure' in recording) throw new Error('invalid derived control recording operation')
-    const saved = await ports.journal.recordControl({
-      ...access,
-      execution,
-      operation: recording.ok,
-      target: record.operation,
-      stage,
-      state,
-      source: stored.ok,
-    })
-    return 'failure' in saved ? saved : succeed(undefined)
+  const scope: ModelControlScope<P> = {
+    ports,
+    access,
+    execution,
+    record,
+    prefix,
+    operation: operation.ok,
+    reference: pending.ok.reference,
   }
-
   if (record.stages['intent-established'] === undefined) {
-    const saved = await save('intent-established', 'reached', record.stages.accepted)
+    const saved = await saveModelStage(
+      scope,
+      'intent-established',
+      'reached',
+      record.stages.accepted,
+    )
     if ('failure' in saved) return saved
   }
   if (record.stages['physically-stopped']?.state === 'reached') return succeed(undefined)
-  const found = await ports.models.calls.inspect({ ...access, reference: pending.reference })
-  if ('failure' in found || found.ok.kind !== 'found') return succeed(undefined)
-  if (found.ok.state.phase === 'settled')
-    return save('physically-stopped', 'reached', found.ok.state.settlement)
-  if (record.stages['producer-confirmed']?.state === 'reached') return succeed(undefined)
-  if (found.ok.state.control.kind === 'requested')
-    return save('producer-confirmed', 'reached', found.ok.state.control)
-  if (record.stages['producer-confirmed']?.state === 'unresolved') return succeed(undefined)
-
-  const prepared = await save('producer-confirmed', 'unresolved', { kind: 'requesting' })
+  const observed = await observedModelStop(scope)
+  if (observed !== null) return observed
+  const prepared = await saveModelStage(scope, 'producer-confirmed', 'unresolved', {
+    kind: 'requesting',
+  })
   if ('failure' in prepared) return prepared
   const requested = await ports.models.calls.cancel({
     ...access,
@@ -175,7 +231,7 @@ export async function advanceModelControl<P>(
     operation: operation.ok,
   })
   if ('failure' in requested || requested.ok.kind !== 'requested') return succeed(undefined)
-  return save('producer-confirmed', 'reached', requested.ok)
+  return saveModelStage(scope, 'producer-confirmed', 'reached', requested.ok)
 }
 
 type ToolControlRecord = Pick<ControlRecord, 'operation' | 'stages'> &
@@ -286,23 +342,25 @@ export async function advanceToolControl<P>(
     return save('producer-confirmed', 'unresolved', observation, operation)
   }
 
+  /**
+   * The attempt was made. Without its reference nothing can find it again (SPEC "控制接受与迟到
+   * 引用"); with it, the original operation is queried and never repeated.
+   */
+  async function reconcileAttempt(): Promise<Outcome<void, Failure>> {
+    const known = record.toolOperation
+    if (known === null) return succeed(undefined)
+    const queried = await ports.tools.queries.queryOperation({ ...access, operation: known })
+    if ('failure' in queried || queried.ok.kind !== 'committed') return succeed(undefined)
+    return save('producer-confirmed', 'reached', queried.ok, known)
+  }
+
   if (record.stages['intent-established'] === undefined) {
     const saved = await save('intent-established', 'reached', record.stages.accepted, null)
     if ('failure' in saved) return saved
   }
   if (record.stages['physically-stopped']?.state === 'reached') return succeed(undefined)
   if (record.stages['producer-confirmed']?.state === 'reached') return succeed(undefined)
-  if (record.stages['producer-confirmed']?.state === 'unresolved') {
-    // The attempt was made. Without its reference nothing can find it again (SPEC "控制接受与迟到
-    // 引用"); with it, the original operation is queried and never repeated.
-    if (record.toolOperation === null) return succeed(undefined)
-    const queried = await ports.tools.queries.queryOperation({
-      ...access,
-      operation: record.toolOperation,
-    })
-    if ('failure' in queried || queried.ok.kind !== 'committed') return succeed(undefined)
-    return save('producer-confirmed', 'reached', queried.ok, record.toolOperation)
-  }
+  if (record.stages['producer-confirmed']?.state === 'unresolved') return reconcileAttempt()
   const requesting = await save('producer-confirmed', 'unresolved', { kind: 'requesting' }, null)
   if ('failure' in requesting) return requesting
   const sent = await ports.tools.commands.control({

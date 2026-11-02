@@ -5,6 +5,8 @@ import {
   decodePassageId,
   type Access,
   type Action,
+  type AdmissionDecision,
+  type Adoption,
   type AgentExecutionId,
   type Authority,
   type ConsumerRef,
@@ -20,6 +22,7 @@ import type { BlockId, ContentBlock } from '@omne-harness/content-block'
 import {
   resolveToolInvocationRef,
   type ToolCallId,
+  type ToolInvokeRequest,
   type ToolDelivery,
 } from '@omne-harness/tool-contract'
 import { judgeToolInvokeRequest } from '@omne-harness/tool-contract/provider'
@@ -75,6 +78,23 @@ export function toolConsumer(execution: AgentExecutionId, action: Action): Consu
   return { owner: '@omne-harness/agent', work: execution, position: action.id, purpose: 'action' }
 }
 
+/** An admission that did not allow the action: a denial, or the failure it stands for. */
+function notAllowed(
+  action: Action,
+  decision: Exclude<AdmissionDecision, { kind: 'allow' }>,
+): Outcome<Action, Failure> {
+  if (decision.kind === 'deny')
+    return succeed({ ...action, judgment: { kind: 'denied', evidence: decision.evidence } })
+  if (decision.kind === 'unavailable')
+    return fail({
+      kind: 'unavailable',
+      owner: 'agentActionAdmission',
+      diagnostic: decision.diagnostic,
+    })
+  // need-decision: the decision card round is not implemented yet.
+  return fail({ kind: 'unsupported' })
+}
+
 export async function admitToolAction<P>(
   ports: Ports<P>,
   access: Access<P>,
@@ -108,22 +128,32 @@ export async function admitToolAction<P>(
     decision: null,
   })
   if ('failure' in admitted) return admitted
-  if (admitted.ok.kind === 'deny')
-    return succeed({ ...action, judgment: { kind: 'denied', evidence: admitted.ok.evidence } })
-  if (admitted.ok.kind === 'unavailable')
-    return fail({
-      kind: 'unavailable',
-      owner: 'agentActionAdmission',
-      diagnostic: admitted.ok.diagnostic,
-    })
-  if (admitted.ok.kind === 'need-decision') return fail({ kind: 'unsupported' })
+  if (admitted.ok.kind !== 'allow') return notAllowed(action, admitted.ok)
   const prepared = await ports.toolRequests.prepare({
     ...input,
     definition: described.ok,
     admission: admitted.ok.evidence,
   })
   if ('failure' in prepared) return prepared
-  const checked = judgeToolInvokeRequest(prepared.ok)
+  const request = checkedRequest(prepared.ok, described.ok, input.consumer, action)
+  if ('failure' in request) return request
+  return succeed({
+    ...action,
+    judgment: { kind: 'allowed', evidence: admitted.ok.evidence, request: request.ok },
+  })
+}
+
+/**
+ * The prepared request, checked by the public Tool judgment and against the admitted action: the
+ * same definition, consumer and arguments. The source may not choose another of any of them.
+ */
+function checkedRequest(
+  prepared: ToolInvokeRequest,
+  definition: Adoption,
+  consumer: ConsumerRef,
+  action: Action,
+): Outcome<ToolInvokeRequest, Failure> {
+  const checked = judgeToolInvokeRequest(prepared)
   if ('failure' in checked)
     return fail({
       kind: 'invalid',
@@ -131,21 +161,18 @@ export async function admitToolAction<P>(
       reason: checked.failure.reason,
     })
   const request = checked.ok
-  if (
-    canonical(request.availability.definition.adoption) !== canonical(described.ok) ||
-    canonical(request.consumer) !== canonical(input.consumer) ||
-    request.arguments.original !== argumentsText(action.original.arguments) ||
-    request.arguments.effective !== action.effectiveArguments
-  )
+  const same =
+    canonical(request.availability.definition.adoption) === canonical(definition) &&
+    canonical(request.consumer) === canonical(consumer) &&
+    request.arguments.original === argumentsText(action.original.arguments) &&
+    request.arguments.effective === action.effectiveArguments
+  if (!same)
     return fail({
       kind: 'invalid',
       field: 'toolRequests',
       reason: 'request does not match the admitted action',
     })
-  return succeed({
-    ...action,
-    judgment: { kind: 'allowed', evidence: admitted.ok.evidence, request },
-  })
+  return succeed(request)
 }
 
 export async function preserveToolIntent<P>(
