@@ -65,10 +65,10 @@ import type {
 import { sessionKey, sessionTransactionsKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonical } from '../testing/canonical.ts'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
+import { subscribePublished } from './published-queue.ts'
 
 const OWNER = 'session-adapters/model-log'
 /** The event of the Journal plugin after each successful write (AD-05 trigger). */
-const PUBLISHED = 'session-adapters/agent-published'
 const CHANNEL = 'model-received'
 /** The reads after a `changed`: another commit moved the channel between the read and the commit. */
 const ROUNDS = 3
@@ -490,22 +490,15 @@ export function createSessionModelLogConsumptionPlugin<P>(
         }
         // AD-05 trigger: each successful write of the Journal names its execution; a consume after
         // it commits what was received since the saved progress, and nothing when nothing was.
-        const queues = new Map<string, Promise<void>>()
-        ctx.on(PUBLISHED, (tenant, sessionId, execution) => {
-          if (stopped) return
-          const text = tenantCodec.encode(tenant)
-          if (!text.ok) return
-          const key = JSON.stringify([text.value, sessionId])
-          const next = (queues.get(key) ?? Promise.resolve()).then(async () => {
-            const answer = await guarded({ tenant, session: sessionId, execution })
+        subscribePublished(
+          ctx,
+          () => stopped,
+          async target => {
+            const answer = await guarded(target)
             if ('failure' in answer)
-              logger.warn(`the consumption of ${execution} answered ${answer.failure.kind}`)
-          })
-          queues.set(key, next)
-          void next.finally(() => {
-            if (queues.get(key) === next) queues.delete(key)
-          })
-        })
+              logger.warn(`the consumption of ${target.execution} answered ${answer.failure.kind}`)
+          },
+        )
         ctx.effect(() => {
           current = guarded
           return () => {

@@ -44,9 +44,9 @@ import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/co
 import { canonical } from '../testing/canonical.ts'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
 import { readExecutionInterpretation, type InterpretationRead } from './agent-journal.ts'
+import { subscribePublished } from './published-queue.ts'
 
 const OWNER = 'session-adapters/journal-interpretation'
-const PUBLISHED = 'session-adapters/agent-published'
 /** The reads of one call: the first, and one more after a `changed`. */
 const ROUNDS = 2
 /** The sends of one observation whose outcome stays unknown, all under the same operation. */
@@ -261,27 +261,22 @@ export function createSessionJournalInterpretationPlugin<P>(
             return unavailable(`a dependency threw: ${describe(cause)}`)
           }
         }
-        /** The interpretations of one session run one after the other. */
-        const queues = new Map<string, Promise<void>>()
-        ctx.on(PUBLISHED, (tenant, sessionId, execution) => {
-          if (stopped) return
-          const text = tenantCodec.encode(tenant)
-          if (!text.ok) return
-          const key = JSON.stringify([text.value, sessionId])
-          const next = (queues.get(key) ?? Promise.resolve()).then(async () => {
-            const answer = await guarded({ tenant, session: sessionId, execution })
+        // The interpretations of one session run one after the other.
+        subscribePublished(
+          ctx,
+          () => stopped,
+          async target => {
+            const answer = await guarded(target)
             if ('failure' in answer)
-              logger.warn(`the interpretation of ${execution} answered ${answer.failure.kind}`)
+              logger.warn(
+                `the interpretation of ${target.execution} answered ${answer.failure.kind}`,
+              )
             else if (answer.ok.waiting > 0)
               logger.warn(
-                `${answer.ok.waiting} events of ${execution} have no decided consequences`,
+                `${answer.ok.waiting} events of ${target.execution} have no decided consequences`,
               )
-          })
-          queues.set(key, next)
-          void next.finally(() => {
-            if (queues.get(key) === next) queues.delete(key)
-          })
-        })
+          },
+        )
         ctx.effect(() => {
           current = guarded
           return () => {
