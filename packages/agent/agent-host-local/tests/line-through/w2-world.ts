@@ -237,6 +237,10 @@ export type W2Options = Readonly<{
   /** The fixed delay of the Model and Tool doubles when a step names none. */
   defaultDelayMs?: number
   receiverRecords?: number
+  /** A storage directory to use and leave in place, for a scenario that reopens it. */
+  root?: string
+  /** Called with each `agentMessageHandoff.prepare` input of the Agent and its answer. */
+  onHandoff?: (input: unknown, answer: unknown) => void
   /**
    * The earlier context: `double` (default) is the history of the K-RQ holder double of CP3;
    * `session` is AD-04, the history source of the Session log.
@@ -288,6 +292,7 @@ export async function openW2World(options: W2Options) {
     // The manual clock is moved by `until`, far faster than real time: no instance idles out.
     hostConfig: { instanceIdleMs: 2_000_000_000 },
     ...(options.receiverRecords === undefined ? {} : { receiverRecords: options.receiverRecords }),
+    ...(options.root === undefined ? {} : { root: options.root }),
     hostPlugin: createAgentHostPlugin((dependencies: Dependencies, runtimeOptions) =>
       createAgentRuntime(
         {
@@ -298,6 +303,15 @@ export async function openW2World(options: W2Options) {
             prepare: async input => {
               const answer = await dependencies.requests.prepare(input)
               prepared.push(answer)
+              return answer
+            },
+          },
+          // Every handoff the Agent asks for, with the answer, for a scenario that reads them again.
+          handoff: {
+            ...dependencies.handoff,
+            prepare: async input => {
+              const answer = await dependencies.handoff.prepare(input)
+              options.onHandoff?.(input, answer)
               return answer
             },
           },
@@ -612,6 +626,15 @@ export async function openW2World(options: W2Options) {
     }
   }
 
+  /**
+   * The invocation references of the Model calls the Agent saved for the execution: the identity
+   * under which Session knows a Model call as a producer (AD-05 writes `key.reference`).
+   */
+  async function modelReferences(): Promise<string[]> {
+    const loaded = ok(await w.journal().load({ ...agentAccess, execution: await execution() }))
+    return loaded.checkpoint.calls.flatMap(call => (call.kind === 'model' ? [call.reference] : []))
+  }
+
   /** The Run that Session last ended, null before the first end. */
   async function lastTerminal(): Promise<string | null> {
     const { run } = ok(await w.transactions.readWork(intakeAccess))
@@ -644,6 +667,7 @@ export async function openW2World(options: W2Options) {
     ...w,
     until,
     lastTerminal,
+    modelReferences,
     runRound,
     createSession,
     accept,

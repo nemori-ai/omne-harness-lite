@@ -10,7 +10,11 @@
 // the later events of the execution. The assertions follow the closure specification and are not to
 // be bent around those gaps.
 //
-// J4 interrupts one Model call (`stopCall`) and leaves the Tool call and the Run alone.
+// J4 interrupts one Model call (`stopCall`) and leaves the Tool call and the Run alone. Expected
+// state while defect D5 stays open: red. Session knows a Model call as a producer under its
+// invocation reference (AD-05 writes `key.reference`); AD-14 decodes `producer.call` as a
+// `ModelCallId` and drops a reference, while a call identity is `not-found` in Session. No identity
+// reaches the Agent, whatever the caller sends.
 // @module-tag slow
 // Why slow: real Workers, real files and the whole line on one root.
 import { afterEach, describe, expect, it } from 'vitest'
@@ -53,6 +57,8 @@ describe('J3: cancelling the Run stops new Model requests and Tool actions', () 
     await w.accept('j3-in', 'hello')
     await w.until(() => w.modelCalls.length === 1)
     const run = await activeRun(w)
+    // The world learns the execution of a Run while it is active; the cancel ends the Run quickly.
+    const execution = await w.execution()
 
     const operation = operationId('j3-cancel')
     const cancel = () =>
@@ -65,8 +71,9 @@ describe('J3: cancelling the Run stops new Model requests and Tool actions', () 
       terminal: { outcome: 'cancelled' },
     })
     // The Agent side holds the intent of the cancellation.
-    const execution = await w.execution()
     const loaded = ok(await w.journal().load({ ...w.agentAccess, execution }))
+    // First that AD-14 delivered the cancel to the Agent, then that the intent stage was reached.
+    expect(loaded.controls.map(record => record.command.kind)).toContain('cancel')
     const control = loaded.controls.find(record => record.command.kind === 'cancel')
     expect(control?.stages['intent-established']).toMatchObject({ state: 'reached' })
 
@@ -106,7 +113,9 @@ describe('J4: stopCall interrupts one call and leaves the rest alone', () => {
     await w.createSession('j4a')
     await w.accept('j4a-in', 'hello')
     await w.until(() => w.modelCalls.length === 1)
-    const [call] = w.modelCalls
+    // Session knows the call as the producer under its invocation reference, as AD-05 writes it.
+    await w.until(async () => (await w.modelReferences()).length === 1)
+    const [call] = await w.modelReferences()
     if (call === undefined) throw new Error('no Model call')
     const stop = () =>
       w.intake.work.stopCall({
@@ -116,6 +125,14 @@ describe('J4: stopCall interrupts one call and leaves the rest alone', () => {
       })
 
     const receipt = ok(await stop())
+    // Session found the call and requested the interrupt; `not-found` would mean it does not know it.
+    expect(receipt.answer).toMatchObject({ kind: 'requested' })
+    // The interrupt reached the Agent as a control of its execution on that call.
+    await w.until(async () => {
+      const execution = await w.execution()
+      const loaded = ok(await w.journal().load({ ...w.agentAccess, execution }))
+      return loaded.controls.some(record => record.command.kind === 'interrupt-model')
+    }, 5000)
     stopped.resolve()
     // The Run is not over: the Agent asks the Model again.
     await w.until(() => w.modelCalls.length === 2)

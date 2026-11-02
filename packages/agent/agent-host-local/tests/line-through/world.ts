@@ -446,6 +446,8 @@ export type LineWorldOptions = Readonly<{
   sessionProvider?: typeof SessionProvider
   /** What happens when a Model call is admitted; default one text reply (CP3). */
   model?: (admission: ModelAdmission) => Promise<unknown>
+  /** A storage directory to use and to leave in place, for a scenario that reopens it. */
+  root?: string
   /** Members of the agent-host configuration to change. */
   hostConfig?: Partial<AgentHostConfig>
   /** The agent-host plugin; default the production plugin over `createAgentRuntime`. */
@@ -510,7 +512,7 @@ const AGENT_HOST_CONFIG: AgentHostConfig = {
 
 /** Builds the world: every plugin mounted and active, no session created yet. */
 export async function openLineWorld(options: LineWorldOptions = {}) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), 'line-through-cp3-')))
+  const root = options.root ?? (await realpath(await mkdtemp(join(tmpdir(), 'line-through-cp3-'))))
   const ctx = new Context()
   const mounted: Fiber[] = []
   const plug = ctx.plugin as unknown as (
@@ -1143,7 +1145,8 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
         }
       }
       await created.control.close({ initiator: 'disposal' }).catch(() => undefined)
-      await rm(root, { recursive: true, force: true })
+      // A directory the caller handed in belongs to the caller: another process may still use it.
+      if (options.root === undefined) await rm(root, { recursive: true, force: true })
     },
   }
 }
