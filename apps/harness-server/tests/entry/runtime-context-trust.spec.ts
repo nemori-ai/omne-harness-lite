@@ -190,6 +190,48 @@ describe('createRuntimeContextAuthority (the request-context-trust order)', () =
     }
   })
 
+  it.each([
+    { mismatch: 'principal', principalTenant: tenantB, scopeTenant: tenantA },
+    { mismatch: 'scope ownership', principalTenant: tenantA, scopeTenant: tenantB },
+  ])(
+    'refuses a session reader when $mismatch differs from the eligibility tenant',
+    async ({ principalTenant, scopeTenant }) => {
+      const { authority, acting } = authorityWithActing('sessionWorkPrincipals', principalTenant)
+      const scopes = createSessionScopeSource({
+        readOwnership: () => ({
+          lookup: async () => ({
+            kind: 'bound',
+            tenant: scopeTenant,
+            session: 'ses_1' as SessionId,
+            generation: 'g1',
+          }),
+        }),
+        readPrincipalBindings: () => ({
+          read: async () => ({
+            ok: {
+              kind: 'bound',
+              tenant: scopeTenant,
+              session: 'ses_1' as SessionId,
+              source: { owner: 'test', record: 'r', revision: '1', digest: 'd' },
+            },
+          }),
+        }),
+      })
+      expect(await scopes.scopeOwners.lookup(scope)).toMatchObject({
+        kind: 'bound',
+        tenant: scopeTenant,
+        session: 'ses_1',
+      })
+      const subject = createRuntimeContextAuthority({
+        verifier: authority.verifier,
+        scopeOwners: scopes.scopeOwners,
+      })
+      expect(await subject.reader(acting, eligibility(acting, tenantA))).toEqual({
+        kind: 'refused',
+      })
+    },
+  )
+
   it('keeps missing and throwing ownership unavailable and captures the target before verification waits', async () => {
     const { authority, acting } = authorityWithActing('sessionWorkPrincipals', tenantA)
     const input = eligibility(acting, tenantA)

@@ -1,5 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
-import { expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { createEnvironmentRegistry } from '@omne-harness/execution-environment'
 import {
   acquisitionRef,
@@ -25,6 +25,7 @@ import {
   decodeScopeRef,
   type ScopeBinding,
   type ScopeBindingSource,
+  type ScopeRef,
   type AuthorityDecision,
 } from '@omne-harness/runtime-context-contract'
 import type { SessionId } from '@omne-harness/session-contract'
@@ -50,6 +51,27 @@ function identity() {
     'principal',
   )
   return { ...authority, actor, principal }
+}
+
+function originalAt(scope: ScopeRef) {
+  return {
+    tenant,
+    scope,
+    acquisition: acquisitionRef('a1'),
+    origin: originRef('o1'),
+    placement: {
+      kind: 'placement' as const,
+      binding: { kind: 'host_machine' as const },
+      provider: { name: 'test', generation: 'g1', version: 'v1' },
+      quotaDomain: 'test',
+      continuity: { kind: 'not_guaranteed' as const },
+      requirement: {
+        allowedBindings: [{ kind: 'host_machine' as const }],
+        facilities: ['command' as const],
+        isolation: [],
+      },
+    },
+  }
 }
 
 it('installs all three definition subclasses and combines real identity, shared scope facts and Registry', async () => {
@@ -161,24 +183,7 @@ it('checks every action tenant and scope, preserves source states, and fails clo
       { kind: 'resolve', scope },
     ),
   ).toEqual({ kind: 'refused' })
-  const original = {
-    tenant,
-    scope,
-    acquisition: acquisitionRef('a1'),
-    origin: originRef('o1'),
-    placement: {
-      kind: 'placement' as const,
-      binding: { kind: 'host_machine' as const },
-      provider: { name: 'test', generation: 'g1', version: 'v1' },
-      quotaDomain: 'test',
-      continuity: { kind: 'not_guaranteed' as const },
-      requirement: {
-        allowedBindings: [{ kind: 'host_machine' as const }],
-        facilities: ['command' as const],
-        isolation: [],
-      },
-    },
-  }
+  const original = originalAt(scope)
   const actions: EnvironmentAction[] = [
     { kind: 'resolve', scope },
     { kind: 'describe', scope },
@@ -244,6 +249,42 @@ it('checks every action tenant and scope, preserves source states, and fails clo
         acquisition: acquisitionRef('a1'),
       }),
     ).toEqual({ kind: 'unavailable' })
+})
+
+describe.each(['acquire', 'inspect-original'] as const)('%s original scope', kind => {
+  it.each([
+    { state: 'unbound', binding: { kind: 'unbound' }, expected: 'refused' },
+    {
+      state: 'another tenant',
+      binding: { kind: 'bound', tenant: otherTenant },
+      expected: 'refused',
+    },
+    { state: 'missing source', binding: undefined, expected: 'unavailable' },
+  ] as const)('returns $expected when the binding is $state', async ({ binding, expected }) => {
+    const issued = identity()
+    const originalScope = okOf(decodeScopeRef({ ref: 'scope-original' }), 'original scope')
+    const asked: string[] = []
+    const source: ScopeBindingSource | undefined =
+      binding === undefined
+        ? undefined
+        : {
+            lookup: async target => {
+              asked.push(target.ref)
+              return binding
+            },
+          }
+    const subject = new EntryExecutionEnvironmentAuthority(new Context(), {
+      readVerifier: () => issued.verifier,
+      readBindings: () => source,
+    })
+    expect(
+      await subject.authorize(
+        { principal: issued.principal, tenant },
+        { kind, original: originalAt(originalScope) },
+      ),
+    ).toEqual({ kind: expected })
+    expect(asked).toEqual(binding === undefined ? [] : [originalScope.ref])
+  })
 })
 
 it('retires only the reader generation, including an authorization awaiting its verifier', async () => {
