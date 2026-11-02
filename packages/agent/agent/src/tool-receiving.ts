@@ -3,6 +3,9 @@ import {
   decodeAgentOperationId,
   type Access,
   type AgentExecutionId,
+  type AgentJournalEntry,
+  type Failure,
+  type ReceivedCommitValue,
   type Reply,
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -37,20 +40,35 @@ type Maintenance<P> = Readonly<{
   signal: AbortSignal
 }>
 type Saved = Outcome<ToolSavedReceipt, ToolDeliveryFailure>
+type Rejected = Outcome<never, ToolDeliveryFailure>
+type Maintained = Awaited<Reply<ToolReceiverReport>>
+type Capacity = ReturnType<ToolReceiverDependencies<unknown>['capacity']>
+/** What one push has settled before a reception is kept. */
+type Pending<P> = Readonly<{
+  access: Access<P>
+  value: ToolDelivery<ContentBlock>
+  target: ToolReceptionTarget
+  recalled: boolean
+  key: string
+  tenant: string
+}>
 export interface AgentToolReceiver<P> extends ToolResultReceiver<P, ContentBlock> {
   retry(input: Maintenance<P>): Reply<ToolReceiverReport>
   recover(input: Maintenance<P>): Reply<ToolReceiverReport>
   inspect(): ToolReceiverReport
 }
 
-const unavailable = (dependency: string): Saved => fail({ kind: 'unavailable', dependency })
-const unknown = (): Saved => fail({ kind: 'outcome-unknown' })
+const unavailable = (dependency: string): Rejected => fail({ kind: 'unavailable', dependency })
+const unknown = (): Rejected => fail({ kind: 'outcome-unknown' })
 const invalid = (field: string, reason: string) =>
   fail<ToolDeliveryFailure>({ kind: 'invalid', field, reason })
 const keyOf = <P>(access: Access<P>, value: ToolDelivery<ContentBlock>) =>
   canonical([tenantKey(access), value.key])
 const binding = <P>(access: Access<P>, target: ToolReceptionTarget) =>
   canonical([tenantKey(access), target])
+const maintenanceFailure = (diagnostic: string): Maintained =>
+  fail({ kind: 'unavailable', owner: 'agent-tool-receiver', diagnostic })
+const receiveDenied = (): Maintained => fail({ kind: 'denied', action: 'receive-result' })
 
 function attachments(value: unknown, found = new Set<string>()): number {
   if (typeof value === 'object' && value !== null) {
@@ -58,6 +76,39 @@ function attachments(value: unknown, found = new Set<string>()): number {
     for (const child of Object.values(value)) attachments(child, found)
   }
   return found.size
+}
+
+/** A push that failed for a reason other than an unknown outcome stops maintenance. */
+function pushRejection(pushed: Saved): Maintained | null {
+  if (!('failure' in pushed) || pushed.failure.kind === 'outcome-unknown') return null
+  return pushed.failure.kind === 'denied'
+    ? receiveDenied()
+    : maintenanceFailure(pushed.failure.kind)
+}
+
+function accepts(
+  target: ToolReceptionTarget,
+  entry: Extract<AgentJournalEntry, { kind: 'received' }>,
+): boolean {
+  return (
+    entry.delivery.producer === 'tool' &&
+    target.pending.reference === entry.delivery.key.reference &&
+    target.pending.consumption === entry.consumption &&
+    canonical(target.pending.position) === canonical(entry.consumer)
+  )
+}
+
+/** Settles with `settle()` when the signal aborts first; the work itself keeps running. */
+async function raceAbort<T>(work: Promise<T>, signal: AbortSignal, settle: () => T): Promise<T> {
+  const abort = Promise.withResolvers<T>()
+  const stopped = () => abort.resolve(settle())
+  signal.addEventListener('abort', stopped, { once: true })
+  if (signal.aborted) stopped()
+  try {
+    return await Promise.race([work, abort.promise])
+  } finally {
+    signal.removeEventListener('abort', stopped)
+  }
 }
 
 export function createAgentToolReceiver<P>(
@@ -136,50 +187,20 @@ export function createAgentToolReceiver<P>(
     if ('failure' in judged) return invalid(judged.failure.field, judged.failure.reason)
     return succeed(target)
   }
-  async function finish(reception: ToolReception<P>, query: boolean): Promise<Saved> {
-    const input = {
-      ...reception.access,
-      execution: reception.target.execution,
-      operation: reception.operation,
-    }
-    let result
-    try {
-      result = query
-        ? await received.query(input)
-        : await received.commit({
-            ...input,
-            entry: toolReceivedDraft(reception.delivery, reception.target.pending.consumption),
-            material: toolDeliveryMaterial(reception.access, reception.delivery),
-          })
-    } catch {
-      reception.commit = { kind: 'unknown' }
-      state.diagnostics.set(reception.operation, 'joint-commit-threw')
-      return unknown()
-    }
-    if ('failure' in result) {
-      state.diagnostics.set(reception.operation, result.failure.kind)
-      if (result.failure.kind === 'denied' || result.failure.kind === 'conflict')
-        return fail({ kind: result.failure.kind })
-      if (
-        result.failure.kind === 'commit-unknown' ||
-        (query && result.failure.kind === 'unavailable')
-      ) {
-        reception.commit = { kind: 'unknown' }
-        return unknown()
-      }
-      return unavailable(
-        !query && result.failure.kind === 'unavailable' ? 'material' : 'responsibility',
-      )
-    }
-    if (result.ok.kind === 'unknown') {
+  function failedSave(reception: ToolReception<P>, failure: Failure, query: boolean): Saved {
+    state.diagnostics.set(reception.operation, failure.kind)
+    if (failure.kind === 'denied' || failure.kind === 'conflict')
+      return fail({ kind: failure.kind })
+    if (failure.kind === 'commit-unknown' || (query && failure.kind === 'unavailable')) {
       reception.commit = { kind: 'unknown' }
       return unknown()
     }
-    if (result.ok.kind === 'excluded') {
-      reception.commit = { kind: 'excluded' }
-      return unavailable('responsibility')
-    }
-    const value = result.ok.value
+    return unavailable(!query && failure.kind === 'unavailable' ? 'material' : 'responsibility')
+  }
+  async function verifySaved(
+    reception: ToolReception<P>,
+    value: ReceivedCommitValue,
+  ): Promise<Saved> {
     const expected = toolReceivedDraft(reception.delivery, reception.target.pending.consumption)
     const material = await dependencies.provider.materials.read({
       ...reception.access,
@@ -202,68 +223,104 @@ export function createAgentToolReceiver<P>(
     state.diagnostics.delete(reception.operation)
     return succeed(structuredClone({ key: reception.delivery.key, evidence: value.saved }))
   }
-  async function push(
-    input: Parameters<ToolResultReceiver<P, ContentBlock>['push']>[0],
-    recalled = false,
-  ): Promise<Saved> {
-    const access = { ...input.access },
-      value = structuredClone(input.delivery)
+  async function finish(reception: ToolReception<P>, query: boolean): Promise<Saved> {
+    const input = {
+      ...reception.access,
+      execution: reception.target.execution,
+      operation: reception.operation,
+    }
+    let result
+    try {
+      result = query
+        ? await received.query(input)
+        : await received.commit({
+            ...input,
+            entry: toolReceivedDraft(reception.delivery, reception.target.pending.consumption),
+            material: toolDeliveryMaterial(reception.access, reception.delivery),
+          })
+    } catch {
+      reception.commit = { kind: 'unknown' }
+      state.diagnostics.set(reception.operation, 'joint-commit-threw')
+      return unknown()
+    }
+    if ('failure' in result) return failedSave(reception, result.failure, query)
+    if (result.ok.kind === 'unknown') {
+      reception.commit = { kind: 'unknown' }
+      return unknown()
+    }
+    if (result.ok.kind === 'excluded') {
+      reception.commit = { kind: 'excluded' }
+      return unavailable('responsibility')
+    }
+    return verifySaved(reception, result.ok.value)
+  }
+  async function admitPush(
+    access: Access<P>,
+    value: ToolDelivery<ContentBlock>,
+  ): Promise<Outcome<ToolReceptionTarget, ToolDeliveryFailure>> {
     if (!tenantCodec.encode(access.tenant).ok) return fail({ kind: 'denied' })
     const ref = resolveToolInvocationRef(value.key.reference, access.tenant)
     if ('failure' in ref)
       return ref.failure.kind === 'malformed'
         ? invalid('key.reference', 'reference-malformed')
         : fail({ kind: 'denied' })
-    const admitted = await admit(access, value)
-    if ('failure' in admitted) return admitted
-    const key = keyOf(access, value),
-      tenant = tenantKey(access)
-    let current = state.receptions.get(key)
+    return admit(access, value)
+  }
+  /** Conflict, cancellation and capacity gates, in this order, before a reception is kept. */
+  function gate(
+    pending: Pending<P>,
+    current: ToolReception<P> | undefined,
+    signal: AbortSignal,
+  ): Outcome<Readonly<{ capacity: Capacity; active: number }>, ToolDeliveryFailure> {
+    const { access, value, target, recalled, key, tenant } = pending
     if (
       current &&
       (toolValueText(current.delivery) !== toolValueText(value) ||
-        binding(current.access, current.target) !== binding(access, admitted.ok))
+        binding(current.access, current.target) !== binding(access, target))
     )
       return fail({ kind: 'conflict' })
-    if (!current && !recalled && input.signal.aborted)
-      return fail({ kind: 'cancelled-before-accept' })
+    if (!current && !recalled && signal.aborted) return fail({ kind: 'cancelled-before-accept' })
     const capacity = dependencies.capacity(access.tenant)
     if (Object.values(capacity).some(limit => !Number.isSafeInteger(limit) || limit < 0))
       return unavailable('capacity')
     const active = state.active.get(tenant) ?? 0
     if (active >= capacity.inFlight) return fail({ kind: 'backpressured', resource: 'in-flight' })
     if (state.writing.has(key)) return unknown()
-    if (!current) {
-      const bytes = Buffer.byteLength(toolValueText(value)),
-        refs = attachments(value)
-      const kept = [...state.receptions.values()].filter(item => tenantKey(item.access) === tenant)
-      if (kept.length >= capacity.records)
-        return fail({ kind: 'backpressured', resource: 'records' })
-      if (kept.reduce((total, item) => total + item.bytes, bytes) > capacity.bytes)
-        return fail({ kind: 'backpressured', resource: 'bytes' })
-      if (kept.reduce((total, item) => total + item.attachments, refs) > capacity.attachments)
-        return fail({ kind: 'backpressured', resource: 'attachments' })
-      const operation = decodeAgentOperationId(
-        `received-tool-${createHash('sha256').update(key).digest('hex')}`,
-      )
-      if ('failure' in operation) throw new Error('invalid derived Tool reception operation')
-      current = {
-        access,
-        target: admitted.ok,
-        delivery: value,
-        operation: operation.ok,
-        bytes,
-        attachments: refs,
-        commit: { kind: recalled ? 'unknown' : 'new' },
-      }
-      state.receptions.set(key, current)
+    return succeed({ capacity, active })
+  }
+  /** Records a first-seen delivery against the tenant's record, byte and attachment limits. */
+  function keep(
+    pending: Pending<P>,
+    capacity: Capacity,
+  ): Outcome<ToolReception<P>, ToolDeliveryFailure> {
+    const { access, value, target, recalled, key, tenant } = pending
+    const bytes = Buffer.byteLength(toolValueText(value)),
+      refs = attachments(value)
+    const kept = [...state.receptions.values()].filter(item => tenantKey(item.access) === tenant)
+    if (kept.length >= capacity.records) return fail({ kind: 'backpressured', resource: 'records' })
+    if (kept.reduce((total, item) => total + item.bytes, bytes) > capacity.bytes)
+      return fail({ kind: 'backpressured', resource: 'bytes' })
+    if (kept.reduce((total, item) => total + item.attachments, refs) > capacity.attachments)
+      return fail({ kind: 'backpressured', resource: 'attachments' })
+    const operation = decodeAgentOperationId(
+      `received-tool-${createHash('sha256').update(key).digest('hex')}`,
+    )
+    if ('failure' in operation) throw new Error('invalid derived Tool reception operation')
+    const reception: ToolReception<P> = {
+      access,
+      target,
+      delivery: value,
+      operation: operation.ok,
+      bytes,
+      attachments: refs,
+      commit: { kind: recalled ? 'unknown' : 'new' },
     }
-    current.access = access
-    state.active.set(tenant, active + 1)
-    state.writing.add(key)
-    const reception = current,
-      wasSaved = current.commit.kind === 'saved'
-    const work = retain(
+    state.receptions.set(key, reception)
+    return succeed(reception)
+  }
+  /** Starts the write as a retained task; the writing slot is released when it ends. */
+  function write(reception: ToolReception<P>, key: string, tenant: string): Promise<Saved> {
+    return retain(
       (async () => {
         try {
           return await finish(reception, reception.commit.kind !== 'new')
@@ -277,119 +334,137 @@ export function createAgentToolReceiver<P>(
         }
       })(),
     )
-    if (wasSaved) return work
-    const abort = Promise.withResolvers<Saved>()
-    const stopped = () =>
-      abort.resolve(
-        reception.commit.kind === 'saved'
-          ? succeed(
-              structuredClone({
-                key: reception.delivery.key,
-                evidence: reception.commit.value.saved,
-              }),
-            )
-          : unknown(),
-      )
-    input.signal.addEventListener('abort', stopped, { once: true })
-    if (input.signal.aborted) stopped()
-    try {
-      return await Promise.race([work, abort.promise])
-    } finally {
-      input.signal.removeEventListener('abort', stopped)
+  }
+  async function push(
+    input: Parameters<ToolResultReceiver<P, ContentBlock>['push']>[0],
+    recalled = false,
+  ): Promise<Saved> {
+    const access = { ...input.access },
+      value = structuredClone(input.delivery)
+    const admitted = await admitPush(access, value)
+    if ('failure' in admitted) return admitted
+    const key = keyOf(access, value),
+      tenant = tenantKey(access)
+    let current = state.receptions.get(key)
+    const pending = { access, value, target: admitted.ok, recalled, key, tenant }
+    const gated = gate(pending, current, input.signal)
+    if ('failure' in gated) return gated
+    const { capacity, active } = gated.ok
+    if (!current) {
+      const created = keep(pending, capacity)
+      if ('failure' in created) return created
+      current = created.ok
     }
+    current.access = access
+    state.active.set(tenant, active + 1)
+    state.writing.add(key)
+    const reception = current,
+      wasSaved = current.commit.kind === 'saved'
+    const work = write(reception, key, tenant)
+    if (wasSaved) return work
+    return raceAbort(work, input.signal, () =>
+      reception.commit.kind === 'saved'
+        ? succeed(
+            structuredClone({
+              key: reception.delivery.key,
+              evidence: reception.commit.value.saved,
+            }),
+          )
+        : unknown(),
+    )
+  }
+  /** Returns the failure that stops maintenance, or null when every target is allowed. */
+  async function checkTargets(
+    input: Maintenance<P>,
+    targets: readonly ToolReceptionTarget[],
+  ): Promise<Maintained | null> {
+    for (const target of targets) {
+      if (input.signal.aborted) return maintenanceFailure('maintenance-cancelled')
+      const allowed = await qualify(input.access, target)
+      if (allowed.kind !== 'allowed')
+        return allowed.kind === 'denied' ? receiveDenied() : maintenanceFailure('access')
+    }
+    return null
+  }
+  async function replayEntry(
+    input: Maintenance<P>,
+    targets: readonly ToolReceptionTarget[],
+    entry: AgentJournalEntry,
+  ): Promise<Maintained | null> {
+    if (entry.kind !== 'received' || !targets.some(target => accepts(target, entry))) return null
+    const material = await dependencies.provider.materials.read({
+      ...input.access,
+      source: entry.material,
+    })
+    if ('failure' in material)
+      return material.failure.kind === 'denied' ? receiveDenied() : maintenanceFailure('materials')
+    const value = readToolDeliveryMaterial(input.access, material.ok, entry)
+    if (!value) return maintenanceFailure('materials')
+    if (input.signal.aborted) return maintenanceFailure('maintenance-cancelled')
+    return pushRejection(
+      await push({ access: input.access, delivery: value, signal: input.signal }, true),
+    )
+  }
+  async function replayJournal(
+    input: Maintenance<P>,
+    targets: readonly ToolReceptionTarget[],
+  ): Promise<Maintained | null> {
+    const snapshot = await dependencies.provider.journal.load({
+      ...input.access,
+      execution: input.execution,
+    })
+    if ('failure' in snapshot)
+      return snapshot.failure.kind === 'denied' ? receiveDenied() : maintenanceFailure('journal')
+    if (!snapshot.ok.entries) return maintenanceFailure('journal-entries')
+    for (const entry of snapshot.ok.entries) {
+      if (input.signal.aborted) return maintenanceFailure('maintenance-cancelled')
+      const stopped = await replayEntry(input, targets, entry)
+      if (stopped) return stopped
+    }
+    return null
+  }
+  async function retryUnknown(
+    input: Maintenance<P>,
+    scope: ReadonlySet<string>,
+  ): Promise<Maintained | null> {
+    for (const reception of Array.from(state.receptions.values())) {
+      if (input.signal.aborted) return maintenanceFailure('maintenance-cancelled')
+      if (
+        reception.commit.kind !== 'unknown' ||
+        !scope.has(binding(reception.access, reception.target))
+      )
+        continue
+      const stopped = pushRejection(
+        await push({ access: input.access, delivery: reception.delivery, signal: input.signal }),
+      )
+      if (stopped) return stopped
+    }
+    return null
+  }
+  async function maintenance(input: Maintenance<P>, recover: boolean): Promise<Maintained> {
+    if (input.signal.aborted) return maintenanceFailure('maintenance-cancelled')
+    const found = await dependencies.targets.forExecution(input)
+    if ('failure' in found)
+      return found.failure.kind === 'denied' ? receiveDenied() : maintenanceFailure('association')
+    const targets = structuredClone(found.ok)
+    if (targets.length === 0 || targets.some(target => target.execution !== input.execution))
+      return receiveDenied()
+    const scope = new Set(targets.map(target => binding(input.access, target)))
+    const allowed = await checkTargets(input, targets)
+    if (allowed) return allowed
+    const replayed = recover ? await replayJournal(input, targets) : null
+    if (replayed) return replayed
+    const retried = await retryUnknown(input, scope)
+    if (retried) return retried
+    const checked = await checkTargets(input, targets)
+    if (checked) return checked
+    return input.signal.aborted
+      ? maintenanceFailure('maintenance-cancelled')
+      : succeed(report(scope))
   }
   async function maintain(input: Maintenance<P>, recover: boolean): Reply<ToolReceiverReport> {
-    const failure = (diagnostic: string) =>
-      fail({ kind: 'unavailable' as const, owner: 'agent-tool-receiver', diagnostic })
-    const denied = () => fail({ kind: 'denied' as const, action: 'receive-result' })
-    const work = retain(
-      (async (): Reply<ToolReceiverReport> => {
-        if (input.signal.aborted) return failure('maintenance-cancelled')
-        const found = await dependencies.targets.forExecution(input)
-        if ('failure' in found)
-          return found.failure.kind === 'denied' ? denied() : failure('association')
-        const targets = structuredClone(found.ok)
-        if (targets.length === 0 || targets.some(target => target.execution !== input.execution))
-          return denied()
-        const scope = new Set(targets.map(target => binding(input.access, target)))
-        const check = async () => {
-          for (const target of targets) {
-            if (input.signal.aborted) return failure('maintenance-cancelled')
-            const allowed = await qualify(input.access, target)
-            if (allowed.kind !== 'allowed')
-              return allowed.kind === 'denied' ? denied() : failure('access')
-          }
-          return succeed(undefined)
-        }
-        const allowed = await check()
-        if ('failure' in allowed) return allowed
-        if (recover) {
-          const snapshot = await dependencies.provider.journal.load({
-            ...input.access,
-            execution: input.execution,
-          })
-          if ('failure' in snapshot)
-            return snapshot.failure.kind === 'denied' ? denied() : failure('journal')
-          if (!snapshot.ok.entries) return failure('journal-entries')
-          for (const entry of snapshot.ok.entries) {
-            if (input.signal.aborted) return failure('maintenance-cancelled')
-            if (entry.kind !== 'received' || entry.delivery.producer !== 'tool') continue
-            if (
-              !targets.some(
-                target =>
-                  target.pending.reference === entry.delivery.key.reference &&
-                  target.pending.consumption === entry.consumption &&
-                  canonical(target.pending.position) === canonical(entry.consumer),
-              )
-            )
-              continue
-            const material = await dependencies.provider.materials.read({
-              ...input.access,
-              source: entry.material,
-            })
-            if ('failure' in material)
-              return material.failure.kind === 'denied' ? denied() : failure('materials')
-            const value = readToolDeliveryMaterial(input.access, material.ok, entry)
-            if (!value) return failure('materials')
-            if (input.signal.aborted) return failure('maintenance-cancelled')
-            const pushed = await push(
-              { access: input.access, delivery: value, signal: input.signal },
-              true,
-            )
-            if ('failure' in pushed && pushed.failure.kind !== 'outcome-unknown')
-              return pushed.failure.kind === 'denied' ? denied() : failure(pushed.failure.kind)
-          }
-        }
-        const receptions = [...state.receptions.values()]
-        for (const reception of receptions) {
-          if (input.signal.aborted) return failure('maintenance-cancelled')
-          if (
-            reception.commit.kind !== 'unknown' ||
-            !scope.has(binding(reception.access, reception.target))
-          )
-            continue
-          const pushed = await push({
-            access: input.access,
-            delivery: reception.delivery,
-            signal: input.signal,
-          })
-          if ('failure' in pushed && pushed.failure.kind !== 'outcome-unknown')
-            return pushed.failure.kind === 'denied' ? denied() : failure(pushed.failure.kind)
-        }
-        const checked = await check()
-        if ('failure' in checked) return checked
-        return input.signal.aborted ? failure('maintenance-cancelled') : succeed(report(scope))
-      })().catch(() => failure('maintenance')),
-    )
-    const abort = Promise.withResolvers<Awaited<Reply<ToolReceiverReport>>>()
-    const stopped = () => abort.resolve(failure('maintenance-cancelled'))
-    input.signal.addEventListener('abort', stopped, { once: true })
-    if (input.signal.aborted) stopped()
-    try {
-      return await Promise.race([work, abort.promise])
-    } finally {
-      input.signal.removeEventListener('abort', stopped)
-    }
+    const work = retain(maintenance(input, recover).catch(() => maintenanceFailure('maintenance')))
+    return raceAbort(work, input.signal, () => maintenanceFailure('maintenance-cancelled'))
   }
   return succeed({
     push,

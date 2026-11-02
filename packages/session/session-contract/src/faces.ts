@@ -105,6 +105,13 @@ export type AdmittedMessage = Readonly<{
   consumption: ConsumptionId | null
 }>
 
+/**
+ * The adoption material of `startRun` and `reload`, with the freeze verdict that the adoption
+ * point proved. A verdict makes the decision answer `frozen` and commit nothing. `create` takes
+ * the bare `ResidentAdoption`: a new session has no resident shape to lose.
+ */
+export type StartAdoption = ResidentAdoption & Readonly<{ verdict?: FreezeVerdict }>
+
 export interface SessionWork<P> {
   accept(input: Mutation<P> & Readonly<{ value: RoutedInput }>): Reply<CommitReceipt>
   readWork(input: SessionAccess<P>): Reply<WorkSnapshot>
@@ -117,7 +124,7 @@ export interface SessionWork<P> {
         entry: EntryClass
         candidate: Adoption
         instance: AgentInstanceRef
-        residentAdoption?: ResidentAdoption
+        residentAdoption?: StartAdoption
       }>,
   ): Reply<StartedRun>
   claim(
@@ -132,7 +139,7 @@ export interface SessionWork<P> {
         instance: AgentInstanceRef
         expected: SessionRevision
         handover: DurableEvidence
-        residentAdoption?: ResidentAdoption
+        residentAdoption?: StartAdoption
       }>,
   ): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef }>>
   recordMessage(

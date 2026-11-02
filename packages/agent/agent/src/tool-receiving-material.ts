@@ -48,38 +48,35 @@ export function toolValueText(value: unknown): string {
     .join(',')}}`
 }
 
+const failedCauses = ['arguments', 'environment', 'executor', 'runtime-lost', 'result']
+
+function interruptedCause(cause: unknown): boolean {
+  if (!object(cause)) return false
+  switch (cause.kind) {
+    case 'foreground-limit':
+      return true
+    case 'resume-rejected':
+      return 'ok' in judgeEvidence(cause.exclusion)
+    case 'control':
+      return 'ok' in decodeToolOperationId(cause.operation) && typeof cause.withdrawn === 'boolean'
+    default:
+      return false
+  }
+}
+
 function terminal(value: unknown): value is ToolTerminal {
   if (!object(value)) return false
   switch (value.kind) {
     case 'completed':
       return true
     case 'failed':
-      return (
-        typeof value.diagnostic === 'string' &&
-        ['arguments', 'environment', 'executor', 'runtime-lost', 'result'].includes(
-          String(value.cause),
-        )
-      )
+      return typeof value.diagnostic === 'string' && failedCauses.includes(String(value.cause))
     case 'unavailable':
       return typeof value.reason === 'string'
     case 'no-response':
       return 'ok' in decodeToolWaitId(value.wait) && typeof value.reason === 'string'
-    case 'interrupted': {
-      const cause = value.cause
-      if (!object(cause)) return false
-      switch (cause.kind) {
-        case 'foreground-limit':
-          return true
-        case 'resume-rejected':
-          return 'ok' in judgeEvidence(cause.exclusion)
-        case 'control':
-          return (
-            'ok' in decodeToolOperationId(cause.operation) && typeof cause.withdrawn === 'boolean'
-          )
-        default:
-          return false
-      }
-    }
+    case 'interrupted':
+      return interruptedCause(value.cause)
     default:
       return false
   }
@@ -120,11 +117,35 @@ function adoption(value: unknown): value is Adoption {
   )
 }
 
+const nonEmptyStrings = (value: Record<string, unknown>, keys: readonly string[]) =>
+  keys.every(key => typeof value[key] === 'string' && value[key].length > 0)
+
+const contentBlocks = (value: unknown): boolean =>
+  Array.isArray(value) && value.every(block => 'ok' in judgeContentBlock(block))
+
+function resultData(data: Record<string, unknown>): boolean {
+  if (data.kind === 'none') return true
+  const schema = data.schema
+  return (
+    data.kind === 'json' &&
+    adoption(data.contract) &&
+    object(schema) &&
+    nonEmptyStrings(schema, ['id', 'revision', 'digest']) &&
+    jsonTree(data.value)
+  )
+}
+
+function resultOriginal(original: Record<string, unknown>): boolean {
+  return (
+    original.kind === 'none' ||
+    (original.kind === 'offloaded' && reference(original.source) && contentBlocks(original.summary))
+  )
+}
+
 function result(value: unknown): value is ToolResult<ContentBlock> {
   if (
     !object(value) ||
-    !Array.isArray(value.content) ||
-    !value.content.every(block => 'ok' in judgeContentBlock(block)) ||
+    !contentBlocks(value.content) ||
     !Array.isArray(value.attachments) ||
     !value.attachments.every(reference)
   )
@@ -132,23 +153,39 @@ function result(value: unknown): value is ToolResult<ContentBlock> {
   const data = value.data,
     original = value.original
   if (!object(data) || !object(original)) return false
-  const schema = data.schema
-  const validData =
-    data.kind === 'none' ||
-    (data.kind === 'json' &&
-      adoption(data.contract) &&
-      object(schema) &&
-      ['id', 'revision', 'digest'].every(
-        key => typeof schema[key] === 'string' && schema[key].length > 0,
-      ) &&
-      jsonTree(data.value))
-  const validOriginal =
-    original.kind === 'none' ||
-    (original.kind === 'offloaded' &&
-      reference(original.source) &&
-      Array.isArray(original.summary) &&
-      original.summary.every(block => 'ok' in judgeContentBlock(block)))
-  return validData && validOriginal
+  return resultData(data) && resultOriginal(original)
+}
+
+function accountDelivery(value: Record<string, unknown>, key: Record<string, unknown>): boolean {
+  return (
+    key.kind === 'account' &&
+    typeof key.event === 'string' &&
+    key.event.length > 0 &&
+    typeof key.revision === 'string' &&
+    account(value.account)
+  )
+}
+
+function resultOutcome(value: Record<string, unknown>): boolean {
+  return (
+    terminal(value.terminal) &&
+    (value.actualTerminal === null || terminal(value.actualTerminal)) &&
+    effect(value.effect)
+  )
+}
+
+function resultDelivery(value: Record<string, unknown>, key: Record<string, unknown>): boolean {
+  return (
+    value.kind === 'result' &&
+    key.kind === 'result' &&
+    'ok' in decodeToolResultVersion(key.result) &&
+    'ok' in decodeToolDeliveryId(value.delivery) &&
+    (value.relation === 'original' || value.relation === 'late') &&
+    resultOutcome(value) &&
+    'ok' in judgeEvidence(value.source) &&
+    result(value.value) &&
+    (value.account === null || account(value.account))
+  )
 }
 
 function delivery(value: unknown): value is ToolDelivery<ContentBlock> {
@@ -160,27 +197,9 @@ function delivery(value: unknown): value is ToolDelivery<ContentBlock> {
     'failure' in judgeConsumerRef(value.consumer)
   )
     return false
-  if (value.kind === 'account')
-    return (
-      value.key.kind === 'account' &&
-      typeof value.key.event === 'string' &&
-      value.key.event.length > 0 &&
-      typeof value.key.revision === 'string' &&
-      account(value.account)
-    )
-  return (
-    value.kind === 'result' &&
-    value.key.kind === 'result' &&
-    'ok' in decodeToolResultVersion(value.key.result) &&
-    'ok' in decodeToolDeliveryId(value.delivery) &&
-    (value.relation === 'original' || value.relation === 'late') &&
-    terminal(value.terminal) &&
-    (value.actualTerminal === null || terminal(value.actualTerminal)) &&
-    effect(value.effect) &&
-    'ok' in judgeEvidence(value.source) &&
-    result(value.value) &&
-    (value.account === null || account(value.account))
-  )
+  return value.kind === 'account'
+    ? accountDelivery(value, value.key)
+    : resultDelivery(value, value.key)
 }
 
 export function toolDeliveryMaterial<P>(

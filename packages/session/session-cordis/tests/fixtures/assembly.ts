@@ -208,8 +208,21 @@ export async function assemble(options: AssemblyOptions = {}) {
     source: evidence('idle/source'),
   })
   const baseEvidence = createMemorySessionEvidenceBridge()
-  const evidenceBridge: SessionEvidenceBridge = {
-    prepare: async command => {
+  const evidenceAccesses: SessionAccess<string>[] = []
+  const evidenceBridge: SessionEvidenceBridge<string> & {
+    /** The access of every call that reached the bridge, in order. */
+    accesses(): readonly SessionAccess<string>[]
+  } = {
+    accesses: () => [...evidenceAccesses],
+    prepare: async (command, access) => {
+      // The Cordis port hands the access of the original call on as it came; a call without it is a defect.
+      if (access === undefined || access.session !== command.input.session)
+        return fail({
+          kind: 'unavailable',
+          owner: 'evidence',
+          diagnostic: 'the evidence bridge was not given the access of the original call',
+        })
+      evidenceAccesses.push(access)
       if (command.kind === 'create' || command.kind === 'completeInitialization') {
         const guards: readonly GuardCommand[] = await backend.initializationGuards(command)
         return { ok: guards }
