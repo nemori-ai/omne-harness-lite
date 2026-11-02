@@ -28,6 +28,11 @@
 - [execution-record.spec.ts](execution-record.spec.ts)：只含 `session` 的组合无效，两个参加者的组合中 `execution-record` 在前；首次共同发布一次提交两个参加者，两处写后注入失败时两侧都不保存；发布计数与 head 修订号守卫；原操作行冲突带原摘要与原答案；另一租户读不到；只读核对成立时不写 Session 行，冲突时整批回滚；共同根在任一方发布时前进。
 - [execution-index.spec.ts](execution-index.spec.ts)：`startRun` 在同一事务里写执行索引，行与 SE13 位置一致；注入失败或 Session 拒绝时没有行；预置一行指向另一会话时 `startRun` 失败，原行不变；读 handler `session.execution` 对另一租户与没有 Run 的 execution 都输出 `null`，输入不全时 handler 失败。
 - [real-joint.spec.ts](real-joint.spec.ts)：真实 sqlite-provider 上的共同提交（慢层）：一次回执含两个参加者，读 Worker 读到前进的共同根；只读核对冲突回滚 Agent 一侧；回执返回后 SIGKILL 子进程，新提供者按原身份 `query` 得 `committed`，两侧记录都在。
+- [real-system-reads.spec.ts](real-system-reads.spec.ts)：真实 sqlite-provider 上的 R10、R11 系统读（慢层）。索引行直接写入域文件，只验证读取路径。
+- [log.spec.ts](log.spec.ts)：`commitLog` 的同事务发布：条目行、快照、操作行与尾部四处写失败后全部 `sl_` 表不变；同身份认回、异内容冲突、另一 operation 认回原回执、两个查询答 `conflict`、应答丢失后重试认回、未铸租户与另一租户。
+- [log-conformance.spec.ts](log-conformance.spec.ts)：session-contract 的 `commitLog` 符合性套件 LC-01 至 LC-10，在 `node:sqlite` 夹具与真实 sqlite-provider（慢层）上各跑一次。
+- [history-index.spec.ts](history-index.spec.ts)：K-5 同根索引与 R2-D28 观察尾部前缀：索引字段与 `er_` 行一致、同一提交里发布并解释、占位回执、取消后的后继 `startRun` 正负例、前缀判定的穷举表、20 轮与 200 轮的读取计数（慢层）、真实提供者上 `readWork` 带 `historyIndex`（慢层）。
+- [preadmission.spec.ts](preadmission.spec.ts)：准入记录的两阶段写入、Ki 唯一、结果只固定一次、跨租户读不到，以及真实提供者上杀进程后按原 H 读回（慢层）。
 - [fixtures/](fixtures/README.md)：测试夹具，见该目录。
 
 局限：这些用例是负控与入口检查，没有先红后绿记录。派生等于重算、分页与游标属性、写路径各 JC 行、并发写与失败分类注入尚未写（[验证义务](../docs/verification-obligations.md)）。真实提供者用例见 `real-provider.spec.ts`。

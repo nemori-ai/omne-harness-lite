@@ -52,6 +52,7 @@
 | 尚未实现的设计                        | `sl_batch`、`sl_blob`、`sl_ref_idx`、`sl_rebuild`；TB-04 的内联阈值与外置载荷；R9 的追赶与重建、`fold_version`、解释版本记录与隔离；R4 的按关联定位；PostgreSQL；`maxScanPerPage` 与读路径的逐条披露核对；配置项「内联阈值」「大对象去向」「快照重建方式」。`sl_state` 落后时 handler 返回 `behind`，端口映射为 `unavailable`，没有自动追赶                                                                                                                                                                               |
 | 与设计的差异                          | 提交身份的 `protocolVersion` 为 `2`，`scope` 为租户域，`operationKey` 为 `<SessionOperationId>#<代次>`。待办原因有八个，含 `initialization`（与 `PendingReason` 一致，下文 W3 与 R8 写「七个」处按八个读）。`sl_operation.form` 有 `batch`、`control`、`answer`、`entries`、`log` 五种，`answer` 行没有 `revision`。尝试代次上限初值为 8，游标有效期初值为 15 分钟。`commit` 先对各代次调用存储 `query`，不先点查 `sl_operation`；参加者模块不另核对材料集合，交给 `decide`；提交结果从回执的响应证据取出，不读回 `sl_operation` |
 | R7 的现状（Reduce R1-D23 按源码改写） | 未命中 `sl_operation` 的操作，在代次 1 得到存储 `not_committed` 时，`queryOperation` 与 `queryControlOperation` 对外答 `unknown`，与上文 R7 正文一致。源码里 `exclusion()` 仍构造 `not-committed` 与排除证据，但 `unfound()` 把它映射为 `unknown`，这份证据不到达调用方，见[已知限制](#已知限制)。真实 sqlite-provider 对从未使用的身份答带五项证明的 `not_committed`，`queryOperation` 仍答 `unknown`（`tests/real-provider.spec.ts`）                                                                                   |
+| R10、R11 系统读游标的现状 | R10 的续读游标绑定种类、目录修订与 `key`（载荷的可选字段 `key`，ResidentKey 文本）。验证时 `key` 缺省按 null 比较，不等时答 `invalid`，`field` 为 `cursor`，reason 为 `issued for another key`。R11 的游标不带 `key`，也不带目录修订。`key` 不放进租户或会话字段，因为系统读的这两个字段按协议为空。实现升级前签发、没有 `key` 的 R10 游标按新规则答 `invalid`；游标有效期 15 分钟且 M2 没有发行，按可接受的协议收紧处理。真实 sqlite-provider 上的系统读用例见 `tests/real-system-reads.spec.ts`；索引行直接写入域文件，只验证读取路径，不验证 W3 对索引的维护 |
 
 ### 已知限制
 
@@ -65,7 +66,7 @@
    - 同一通道两次同 `start` 的并发提交只有一次成功，这项保证来自租户事务域的串行写，不来自本成员。
    - 验证：`tests/entries.spec.ts` 在 `node:sqlite` 夹具上对后果行写入后、`sl_state` 写入前、尾部更新时与操作记录写入时各注入一次写失败，核对四张表都不变，再用同一输入只提交一次；另核对应答丢失时答 `commit-unknown`，查询答 `committed`，重发得到原回执。共用用例 `sessionEntriesConformance` 在夹具上（`tests/conformance.spec.ts`）与真实 sqlite-provider 上（`tests/real-provider.spec.ts`）各跑一次。夹具的回滚是 `node:sqlite` 上的模型，负控「把夹具的 ROLLBACK 改成 COMMIT」只证明用例能观察到回滚，不证明真实提供者的回滚。真实提供者上没有运行写失败注入，未执行。
 2. 两套测试夹具。`tests/fixtures/sqlite-storage.ts` 在 `node:sqlite` 的内存库上运行本成员真实的 participant 与 handler 模块，每个事务域一个库。它与真实读端口一样拒绝没有 `LIMIT` 的读语句。它不覆盖 Worker、持久、受理队列、关闭与限额，通过只说明模块的 SQL 语义成立。`tests/fixtures/real-provider.ts` 经 sqlite-provider 的公开入口在临时目录的文件库上组合真实存储，`tests/real-provider.spec.ts` 覆盖：Worker 下提交与读回；回执返回后杀进程，新提供者按原身份 `query` 得 `committed`；从未提交的身份得 `not_committed`，不当作 `committed`，`queryOperation` 答 `unknown`；关闭（租约归还，关闭后写入为 `commit-unknown`，`query` 为 `unknown`）；`command_limit` 与 `queue_full` 两种限额。迁移里建索引在真实提供者上可用。未覆盖：断电耐久、WAL 维护与读暂停、跨进程写者、读 Worker 崩溃、`lockWaitMs` 超时。组提交计数见第 6 条。
-3. 本批新增行为（读路径路由、控制答案、模型选择、游标绑定）没有先红后绿的记录。本成员以负控用例代替：租户隔离、跨租户域目录、游标篡改与未授权访问各有反例用例。负控只说明这些反例被拒绝，不说明旧实现曾失败。
+3. 本批新增行为（读路径路由、控制答案、模型选择、游标绑定）没有先红后绿的记录，R10 游标的 `key` 绑定除外。本成员以负控用例代替：租户隔离、跨租户域目录、游标篡改与未授权访问各有反例用例。负控只说明这些反例被拒绝，不说明旧实现曾失败。R10 的 `key` 绑定有先红后绿记录：`tests/system-reads.spec.ts`「a references cursor of one key is invalid for another key」在基线 `2a247db9a` 上红，实现后绿（C-SS17 的过程证据）。
 4. 上一节「尚未实现的设计」各项都是已知限制。它们在实现之前不得写成已验证。
 5. 偏离：材料集合核对（W1 第 3 步；session-contract「SessionTransactionPort」义务 1、2）。现行条款要求按命令种类核对 `guards` 的完整材料集合，缺一项或多一项答「不支持」。共同提交表的「参加者」列只有文字，没有可核对的 `owner`、`participant`、`protocol` 取值，身份桥、证据桥与 Context 输入在生产中也尚未实现，所以本成员现在只执行契约已固定的两处核对：`create` 与 `completeInitialization` 的 `session-initialization` 材料，`startRun` 的 `login-entry` 材料；其余命令的 `guards` 原样带入，不核对集合。退出条件：真实身份桥、证据桥与 Context 输入接入 Session 时，由 session-contract 的拥有者补导出逐命令材料表，本成员随之核对缺项与多项。条款原文不改（Reduce 裁定，#1000）。
 6. 组提交计数：`tests/real-provider.spec.ts` 并发提交 8 个会话的 `create`，原操作数 8，物理写事务数 8（读 WAL 提交帧得到，没有读提供者内部计数）。两者相等，记为零合并：参加者 `session` 标 `singleton`，按提供者规格 §4.5 单独成组。本成员不声称 G2-P 在这条路径上生效。这是 Windows 上 Node 26.12 的一次观察。
@@ -475,7 +476,7 @@ since(access, after, kinds, pageBytes):
 
 页预算按 `sl_entry.payload_bytes` 累计。内联与外置载荷都填这一列，所以判断截断不需要先读出载荷。外置在 `sl_blob` 的载荷只在条目确定进入本页之后才读取，不为被截断的条目读 blob。载荷里指向内容拥有者的耐久引用只以引用返回，读者按需向内容拥有者另取，本成员不代取。`session` 的条目缓存（[CA-1](../session/SPEC.md#ca-1)）不绕过本路径：分页、逐条披露核对与位置仍由本路径完成，缓存命中只省去已核权条目的载荷读取。
 
-游标是签名的自描述值，服务端不保存读会话。签名载荷含游标种类（`history`、`model-view`、`pending`、`references`、`released-scopes`）、租户、会话（系统读与待办为空）、过期时间与续读状态；历史游标的续读状态含边位置、固定上界、方向、`kinds` 与 `pageBytes`。验证时依次核对：签名密钥可读（不可读为 `unavailable`）、签名有效、种类、租户与会话与本次调用一致、未过期。任一不符为 `invalid`。游标不含主体摘要：每次续读都重新向访问裁定取当前决定。过期时间由 `cursorTtlMs` 给出，初值 15 分钟。签名密钥归装配，经 `sessionCursorSigning` 注入。
+游标是签名的自描述值，服务端不保存读会话。签名载荷含游标种类（`history`、`model-view`、`pending`、`references`、`released-scopes`）、租户、会话（系统读与待办为空）、过期时间与续读状态；历史游标的续读状态含边位置、固定上界、方向、`kinds` 与 `pageBytes`。`references` 的游标另带可选字段 `key`（ResidentKey 文本）。验证时依次核对：签名密钥可读（不可读为 `unavailable`）、签名有效、种类、租户与会话与本次调用一致、R10 游标的 `key` 与本次调用的键一致、未过期。任一不符为 `invalid`。游标不含主体摘要：每次续读都重新向访问裁定取当前决定。过期时间由 `cursorTtlMs` 给出，初值 15 分钟。签名密钥归装配，经 `sessionCursorSigning` 注入。
 
 <a id="r3"></a>
 
@@ -599,7 +600,7 @@ references(principal, scope = system, key, after, limit):
     返回 { sessions: [{ tenant, session, capability, shape }], next }
 ```
 
-引用的定义归契约：会话当前记下的登记键含该键且会话未归档；冻结而未归档的会话算引用；已归档的会话不算引用，因为归档同批取消未终结 Run。索引行按 [W3](#w3) 在 SE08、SE26、SE27、SE28 提交时维护，所以读取不扫描日志。游标绑定 `key` 与系统作用域，按 `(tenant, session)` 排序。退化：事务域数 T 大时每页 O(T log M)，由 XP-6 的目录决定遍历顺序，游标记当前事务域。索引重建中或任一事务域不可读时返回 `unavailable`，不返回部分结果冒充没有引用。
+引用的定义归契约：会话当前记下的登记键含该键且会话未归档；冻结而未归档的会话算引用；已归档的会话不算引用，因为归档同批取消未终结 Run。索引行按 [W3](#w3) 在 SE08、SE26、SE27、SE28 提交时维护，所以读取不扫描日志。游标绑定 `key` 与系统作用域，按 `(tenant, session)` 排序。游标同时绑定目录修订（既有行为），R11 的游标不绑定。退化：事务域数 T 大时每页 O(T log M)，由 XP-6 的目录决定遍历顺序，游标记当前事务域。索引重建中或任一事务域不可读时返回 `unavailable`，不返回部分结果冒充没有引用。
 
 <a id="r11"></a>
 
