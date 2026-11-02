@@ -1,6 +1,6 @@
 # execution-environment-host-local 的机制流程
 
-本页给出本成员的六条机制级流程。F-EEH01 至 F-EEH04 与 F-EEH06 有一张图和一张「失败与责任交接」表，F-EEH05 只有一段说明。行为以 [SPEC](../SPEC.md) 为准，图只投影它。F-EEH04 与 F-EEH06 是 Linux 上的 `command`；`terminal` 未实现，F-EEH05 只写它为什么没有图。机制见[架构的宿主命令机制](architecture.md#宿主命令机制)。
+本页给出本成员的六条机制级流程。F-EEH01 至 F-EEH04 与 F-EEH06 有一张图和一张「失败与责任交接」表，F-EEH05 只有一段说明。行为以 [SPEC](../SPEC.md) 为准，图只投影它。F-EEH04 与 F-EEH06 是 Linux 上的 `command`；F-EEH05 说明普通每获取的持久终端。机制见[架构的宿主命令机制](architecture.md#宿主命令机制)。
 
 协议级流程归 [execution-environment-contract 的流程](../../execution-environment-contract/docs/flows.md)。登记表内部的获取、过门、释放与恢复归 [execution-environment 的流程](../../execution-environment/docs/flows.md)。登记协议的定义归 [execution-environment-cordis-contract 的流程](../../execution-environment-cordis-contract/docs/flows.md)。
 
@@ -152,9 +152,11 @@ sequenceDiagram
 | 转发     | 门一侧管道写满时暂停读命令的两条管道，`drain` 后恢复；提供者一侧缓冲放不下时整块丢弃  | 非法帧、超长行、未知帧与次序不对的帧使资源失效，`result` 答 `failed`（`effectUnknown`）        |
 | 完成     | 只在收到退出帧时给出 `completed`                                                      | 没有收到退出帧时为 `failed`（`effectUnknown`）                                                 |
 
-### F-EEH05 终端腿与回执（未实现，不在 M2）
+### F-EEH05 终端腿与回执
 
-依据：[SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端未实现)的第一段。`terminal` 不在 M2（D-05）：宿主提供者不声明它，`outputMode` 为 `terminal` 的启动答 `unsupported`。本成员没有终端腿的代码，没有测试，也不引入 node-pty。协议级流程是契约的 [F-EEC08](../../execution-environment-contract/docs/flows.md#f-eec08-终端腿)。需要终端的工具在落点解析时得到 `missingFacility`。终端的机制设计等 D-05 放开后再写，这里不保留未经实现核对的图。
+依据：[SPEC 持久终端](../SPEC.md#持久终端)。创建按 plan、scope gate、permit、GO、shell 就绪的次序进行。每次执行先核对原获取与终端代，再占有 running 状态。驱动在原 shell 执行，控制 FIFO 报告开始与完成，gate 核对没有额外写者并排空 PTY 后交出终局，终端回到 idle。
+
+控制损坏、恢复目录失败或额外后台写者使终端 invalid，结果保留 effectUnknown。关闭与释放停止原 scope，只有监督读数确认才答 confirmed。未确认的资源继续由原获取排空或冷恢复承担。
 
 ### F-EEH06 停止确认与冷恢复
 

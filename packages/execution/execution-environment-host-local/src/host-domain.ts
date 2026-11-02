@@ -11,6 +11,7 @@ import type {
   ProviderQuota,
 } from '@omne-harness/execution-environment-contract'
 import type { HostCommands } from './host-command.ts'
+import type { HostTerminals } from './host-terminal.ts'
 import { hostFilesLimits } from './host-file-tree.ts'
 import {
   createHostFilesEngine,
@@ -67,6 +68,7 @@ export type DomainRecord = {
   readonly facade: TrackedFacade
   /** The command side of this acquisition: its admission and the processes it started. */
   readonly commands: HostCommands
+  readonly terminals: HostTerminals
   state: RecordState
   lease: EnvironmentLease | null
   invalidate: (value: LeaseInvalidation) => void
@@ -137,6 +139,7 @@ export type DomainInternals = Readonly<{
     generation: string,
     engine: HostFilesEngine,
     commands: () => HostCommands,
+    terminals: () => HostTerminals,
   ): AdmitResult
   find(original: OriginalAcquisition): DomainRecord | undefined
   records(): Iterable<DomainRecord>
@@ -365,16 +368,23 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
     if (record.state === 'settled') return settled
     record.facade.seal()
     record.commands.seal()
+    record.terminals.seal()
     record.invalidate({ source: 'provider', reason: 'released' })
     if (record.state === 'open') record.state = 'releasing'
     const quiet = await within(
-      Promise.all([record.facade.settled(), record.commands.settled()]).then(() => undefined),
+      Promise.all([
+        record.facade.settled(),
+        record.commands.settled(),
+        record.terminals.settled(),
+      ]).then(() => undefined),
       boundMs,
     )
     const open = await record.engine.closeOwned(record.owner)
     // A process still running is stopped by force: draining never leaves it to a later generation.
-    const resources = await record.commands.stopAll()
-    const busy = record.facade.inFlight() + record.commands.inFlight()
+    const resources = (
+      await Promise.all([record.commands.stopAll(), record.terminals.stopAll()])
+    ).flat()
+    const busy = record.facade.inFlight() + record.commands.inFlight() + record.terminals.inFlight()
     const pending: DrainResult = { kind: 'pending', resources }
     if (!quiet || open > 0 || busy > 0 || resources.length > 0) return pending
     // Exactly one return of the slot: only the first drain that finds nothing left settles.
@@ -403,7 +413,7 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
       generations.add(generation)
     },
     knowsGeneration: generation => generations.has(generation),
-    admit(original, fingerprint, generation, engine, commands) {
+    admit(original, fingerprint, generation, engine, commands, terminals) {
       const key = slotKey(original.tenant, original.acquisition)
       if (key === undefined) return { kind: 'unknown' }
       const existing = records.get(key)
@@ -428,6 +438,7 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
         engine,
         facade: trackedFacade(engine.facilityFor(owner), () => engine.seal(owner)),
         commands: commands(),
+        terminals: terminals(),
         state: 'open',
         lease: null,
         invalidate: () => undefined,

@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Draft execution-environment-host-local package; complete the accepted public contract before delivery",
   "engines": {
-    "node": ">=24"
+    "node": "\u003e=24"
   },
   "exports": {
     ".": {
@@ -23,7 +23,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "build": "rm -rf dist \u0026\u0026 tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
@@ -35,7 +35,8 @@
     "@omne-harness/execution-environment-contract": "workspace:*",
     "@omne-harness/execution-environment-cordis-contract": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
-    "@omne-harness/runtime-context-contract": "workspace:*"
+    "@omne-harness/runtime-context-contract": "workspace:*",
+    "node-pty": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
