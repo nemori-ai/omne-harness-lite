@@ -161,13 +161,11 @@ it('constructs the real factory without touching dependencies and keeps unsuppor
         evidence: { kind: 'retained', custody: proof('test') },
       }),
       subject.recover(unread(f.admit)),
-      subject.quiesce(),
     ])
   }
   const expected = [
     ['consumption.acknowledge', '6.1'],
     ['recover', '5.4'],
-    ['quiesce', '5.5'],
   ]
   const other = createModelRuntime(dependencies, configuration)
   const batches = await Promise.all([invoke(provider), invoke(provider), invoke(other)])
@@ -193,6 +191,8 @@ it('constructs the real factory without touching dependencies and keeps unsuppor
   }
   expect(new Set(replies).size).toBe(replies.length)
   expect(new Set(failures).size).toBe(failures.length)
+  // Quiesce answers from what this provider holds: nothing admitted, nothing touched.
+  expect(await provider.quiesce()).toEqual({ ok: { pending: '0', running: '0' } })
   expect(invoked).toBe(0)
 })
 it('rejects dependency and numeric configuration defects at construction', () => {

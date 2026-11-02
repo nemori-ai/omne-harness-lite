@@ -51,10 +51,12 @@
 
 ## 入口 `./cordis` · `cordis.d.ts`
 
+- `IdentityClockService` · `cordis.d.ts`
 - `IdentityOperationsService` · `cordis.d.ts`
 - `PrincipalIssuerService` · `cordis.d.ts`
 - `PrincipalVerifierService` · `cordis.d.ts`
 - `TenantStandingSourceService` · `cordis.d.ts`
+- `identityClockKey` · `cordis.d.ts`
 - `identityOperationsKey` · `cordis.d.ts`
 - `principalIssuerKey` · `cordis.d.ts`
 - `principalVerifierKey` · `cordis.d.ts`
@@ -84,7 +86,7 @@
 
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
-import type { IdentityOperations } from './operations.ts';
+import type { IdentityClock, IdentityOperations } from './operations.ts';
 import type { PrincipalIssuer, PrincipalVerifier } from './principal.ts';
 import type { TenantStandingSource } from './standing.ts';
 export declare abstract class IdentityOperationsService extends Service implements IdentityOperations {
@@ -114,12 +116,19 @@ export declare abstract class PrincipalIssuerService extends Service implements 
     abstract readonly issueActingForTenant: PrincipalIssuer['issueActingForTenant'];
 }
 export declare const principalIssuerKey = "principalIssuer";
+export declare abstract class IdentityClockService extends Service implements IdentityClock {
+    static readonly provide = "identityClock";
+    constructor(ctx: Context);
+    abstract readonly now: IdentityClock['now'];
+}
+export declare const identityClockKey = "identityClock";
 declare module '@deepseek-ai/cordis' {
     interface Context {
         identityOperations: IdentityOperationsService;
         tenantStanding: TenantStandingSourceService;
         principalVerifier: PrincipalVerifierService;
         principalIssuer: PrincipalIssuerService;
+        identityClock: IdentityClockService;
     }
 }
 ```

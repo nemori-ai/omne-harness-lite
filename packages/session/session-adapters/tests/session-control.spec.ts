@@ -2,7 +2,12 @@
 // the answer-only control branch and commitEntries. The shared conformance suite covers the
 // happy paths; these cases pin the answers it does not (denied, conflict, unavailable).
 import { describe, expect, it } from 'vitest'
-import type { RunId, SessionCommand } from '@omne-harness/session-contract'
+import type {
+  RunId,
+  SessionCommand,
+  SessionEntriesObservation,
+  SessionOperationId,
+} from '@omne-harness/session-contract'
 import { evidence } from '@omne-harness/session-contract/testing'
 import { sessionFixture } from './fixtures/session-conformance.ts'
 
@@ -142,11 +147,66 @@ describe('readModelSelection', () => {
 })
 
 describe('commitEntries', () => {
-  it('answers unavailable: the double has no pure range check and never reports an unchecked range as success', async () => {
+  // Replaces the case "answers unavailable: no pure range check" (P3 r2 7.5): the double now runs
+  // the shared range check, so the same intent is that a refused range is never success and writes
+  // nothing. The shared suite holds the ranges of a recorded execution (CF-05, CF-06).
+  const observation = (
+    fixture: ReturnType<typeof sessionFixture>,
+    operation: SessionOperationId,
+  ): SessionEntriesObservation => ({
+    tenant: fixture.access.tenant,
+    session: fixture.access.session,
+    run: 'run_never' as RunId,
+    execution: 'execution-never',
+    channel: 'tool-received',
+    operation,
+    after: '0',
+    through: '1',
+    boundary: {
+      execution: 'execution-never',
+      channel: 'tool-received',
+      revision: '1',
+      executionEvidence: evidence('head'),
+      count: '1',
+    },
+    items: [
+      {
+        ordinal: '1',
+        key: 'key-1',
+        fact: evidence('entry-1'),
+        interpretation: [
+          {
+            kind: 'execution',
+            producer: { kind: 'tool', call: 'call-1' },
+            source: evidence('fact'),
+          },
+        ],
+      },
+    ],
+  })
+
+  it('refuses a range of an execution that Session never recorded, and writes nothing', async () => {
     const { fixture } = await created()
-    const answer = await (
-      fixture.port as unknown as { commitEntries(input: unknown): Promise<unknown> }
-    ).commitEntries({ access: fixture.access })
-    expect(kindOf(answer)).toBe('unavailable')
+    const before = ok<{ revision: string }>(await fixture.port.readWork(fixture.access)).revision
+    const answer = await fixture.port.commitEntries({
+      observation: observation(fixture, fixture.operation('entries')),
+      start: { kind: 'initial' },
+    })
+    expect(answer).toMatchObject({ failure: { kind: 'unavailable', owner: 'session-history' } })
+    expect(ok<{ revision: string }>(await fixture.port.readWork(fixture.access)).revision).toBe(
+      before,
+    )
+  })
+
+  it('answers conflict for the identity of an answer-only control, before the range check', async () => {
+    const { fixture, cancel } = await created()
+    ok(await cancel('answered'))
+    const operation = fixture.operation('answered')
+    expect(
+      await fixture.port.commitEntries({
+        observation: observation(fixture, operation),
+        start: { kind: 'initial' },
+      }),
+    ).toEqual({ failure: { kind: 'conflict', operation } })
   })
 })

@@ -1,6 +1,6 @@
 # @omne-harness/runtime-context-cordis-contract 行为规格
 
-状态：Cordis 定义成员，`draft`。本成员只拥有 Runtime Context 的 Cordis 定义：一个服务键、一个抽象 `Service`、一个事件、一种 intercept 配置。领域行为归 [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md)。本页不另写第二份保证。`./cordis` 已实现服务定义；领域机制及生产提供者不在本成员。
+状态：Cordis 定义成员，`draft`。本成员只拥有 Runtime Context 的 Cordis 定义：三个服务键（`runtimeContext`、`runtimeContextTrust`、`runtimeContextReaderEligibility`）与对应的三个抽象 `Service`、一个事件、一种 intercept 配置，以及 `./testing` 子路径的读取资格交接替身与套件。领域行为归 [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md)。本页不另写第二份保证。`./cordis` 已实现服务定义；领域机制及生产提供者不在本成员。
 
 ## 范围与依据
 
@@ -22,6 +22,8 @@
 8. `./cordis` 的源码、生成声明和产物都不导入 `@omne-harness/runtime-context` 或 `@omne-harness/runtime-context-cordis`。
 9. 契约的两个权威端口（可信绑定来源与权威端口，见[通用权威端口](../runtime-context-contract/SPEC.md#通用权威端口)）是装配入口交给 Service 实现的运行时对象，不进插件树，也不由消费者插件提供。本成员不为它们定义服务键。Service 实现取不到端口时，对应操作按「不可用」收场，不放行。
 10. 构造输入键 `runtimeContextTrust` 只由抽象类 `RuntimeContextTrustService` 的 `static readonly provide` 给出，`super` 与常量 `runtimeContextTrustKey` 取自它，逐属性投影契约根入口的 `RuntimeContextTrust`。装配入口在受信子树 provide；提供者插件 `inject` 该键，键缺席时停在 PENDING。它不是 Runtime Context 能力，不进插件树 JSON 与插件配置，不增事件。子树可见性是装配位置，不是封装保证。
+11. 读取资格交接键 `runtimeContextReaderEligibility` 只由抽象类 `RuntimeContextReaderEligibilityService` 的 `static readonly provide` 给出，常量 `runtimeContextReaderEligibilityKey` 取自它。类实现契约根入口的 `ReaderEligibilityHandoff`。作用域持有者的适配器提供它，建立读者的一方 `inject` 它。`current({ principal, tenant, scope, consumer })` 返回五种结果之一：`current`（带资格身份）、`absent`、`refused`、`unknown`、`unavailable`。作用域不属于请求里的租户时，答复是 `refused`。持有者按自己的政策答复：可以返回已签发的资格，也可以当场签发。交接不授予读取权，访问边界仍是资格表与每次读取的核对（[RC-03](../runtime-context-contract/SPEC.md#rc-03-当前读取资格与缺项)）。返回的资格被取代或撤销后，`bind` 被拒，建立读者的一方再取一次。
+12. `./testing` 子路径发布脚本替身 `createScriptedReaderEligibility` 与套件 `readerEligibilityConformance`。脚本替身只答列出的请求：作用域绑定的租户与请求不同时答 `refused`，没有列出的请求答 `unavailable`，资格必须显式列出。套件不导入提供者成员，夹具交入被测的交接。根入口与 `./cordis` 不转导出 testing。
 
 ## 所有权、失败与生命周期
 
@@ -30,6 +32,7 @@
 | 服务键与抽象类 | 本成员 | 随包 |
 | 生产者登记 | 生产者插件的 fiber | 插件卸载、`dispose` 句柄，或服务撤除 |
 | 消费者类声明 | 消费者插件的 intercept 配置 | 随消费者 fiber |
+| 交出的资格身份 | 签发它的作用域持有者；建立读者的一方只持有身份 | 资格被取代或撤销时 `bind` 被拒，再取一次 |
 | 事件监听 | 监听者的 fiber（经 `ctx.on`） | 随监听者 fiber |
 | 值、修订、游标、资格核对 | 不在本成员。归 [runtime-context](../runtime-context/SPEC.md) | — |
 
@@ -46,7 +49,7 @@
 | 变化只是唤醒 | [RC-04](../runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料) | 性质 5 |
 | 事件命名与增补位置 | [IC-10](../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../docs/architecture/cordis-integration-conventions.md#ic-11) | 性质 5 |
 
-持续验证义务由提供者承担：生产者卸载后登记撤除；两个租户在同一块键上的登记各自撤除，互不影响；插件体重跑时旧一代的撤除不删掉新一代的登记；两个不同消费者类的插件各取到自己的 intercept 配置；按作用域过滤的唤醒只到达该作用域的监听者，载荷不带块键。机制读数与性质的对应以 [docs/cordis.md 的机制读数与假设](docs/cordis.md#机制读数与假设)为准：
+持续验证义务由提供者承担：读取资格交接的提供者运行 `readerEligibilityConformance`；生产者卸载后登记撤除；两个租户在同一块键上的登记各自撤除，互不影响；插件体重跑时旧一代的撤除不删掉新一代的登记；两个不同消费者类的插件各取到自己的 intercept 配置；按作用域过滤的唤醒只到达该作用域的监听者，载荷不带块键。机制读数与性质的对应以 [docs/cordis.md 的机制读数与假设](docs/cordis.md#机制读数与假设)为准：
 
 - `inject-object-config-reaches-service-resolve-config` 支撑性质 3，即各插件取到自己的 intercept 配置。
 - `emit-filter-selects-listeners-by-extended-ctx` 与 `ctx-set-does-not-notify` 支撑性质 5，即按作用域过滤的唤醒，以及值变化只经本事件通知。

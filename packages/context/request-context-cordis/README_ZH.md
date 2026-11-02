@@ -11,8 +11,8 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 
 状态：Service 实现成员，`draft`。采用依据是系统页的[成员与 Cordis 落位](../../../docs/architecture/runtime/request-context.md#成员与-cordis-落位)与 [SPEC](SPEC.md)。现在的实现情况如下：
 
-- 已实现：`src/cordis.ts` 导出 `RequestContextProvider`，它是 `RequestContextService` 的具体子类。插件必需信任键 `requestContextTrust`，在同一个 fiber 提供 `requestContext` 与 `contextAccountingInbox` 两个键。它实现了贡献登记、变化事件、`register`、`replace` 与 `assembly(target)`，撤除时关闭来源登记表。策略与账目选项由装配入口以插件选项交入。
-- 未实现：配置 Schema 校验、按配置选择策略、`notify('contributions', …)` 通知路径、经子 fiber 登记的两块生产者、重复装载检查。`src/index.ts` 仍只有模板标记，根入口没有导出。
+- 已实现：`src/cordis.ts` 导出 `RequestContextProvider`，它是 `RequestContextService` 的具体子类。插件必需信任键 `requestContextTrust`，在同一个 fiber 提供 `requestContext` 与 `contextAccountingInbox` 两个键。它实现了贡献登记、变化事件、`register`、`replace` 与 `assembly(target)`，撤除时关闭来源登记表。静态 `Config` 用 Standard Schema 校验插件选项，插件按名从可序列化的 `selection` 选压缩策略与表示策略（性质 4）；不给选择时，两个默认策略用初值运行。受信任的装配代码也可以改用 `policies` 交入现成的策略对象，`policies` 与 `selection` 互斥。账目选项由装配入口以插件选项交入。
+- 未实现：修剪阈值与缓存容量作为插件配置（契约的选择形状没有对应字段）、`notify('contributions', …)` 通知路径、经子 fiber 登记的两块生产者、重复装载检查。`src/index.ts` 仍只有模板标记，根入口没有导出。
 - 未验证：定义成员已有 Cordis 4.0.4 的 intercept 机制测试，读数尚未登记到共同 basis。`tests/provider.spec.ts` 只检查信任键、一个 fiber 两个键的寿命、经信任授权的登记与收件口。[Cordis 说明](docs/cordis.md#验证义务)的十项验证义务都没有完整覆盖它的测试。本成员不宣称持久化或跨进程一致性。
 - 经 Cordis 的调用方用 `assembly(target)` 取得已配置的操作组；操作组借用来源适配者经 `register` 为该目标登记的来源集合，每次调用时现取该作用域的贡献；目标没有登记时返回不可用。本插件只把贡献登记的变化经 `notify('contributions', …)` 交给来源登记表实例，不订阅别的变化。两块的生产者经子 fiber 可选依赖 Runtime Context。见 [Cordis 说明](docs/cordis.md#插件与服务)。
 
@@ -42,7 +42,7 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 
 ## 配置与运行
 
-插件配置用 Standard Schema 校验。字段是压缩策略的选择与参数、表示策略的选择与偏好顺序、修剪阈值与缓存容量。默认值只是初值，归 request-context。配置指向不存在的策略，或参数不合 Schema 时，插件加载失败，fiber 进入 `FAILED`，不回退到默认策略。一个 isolate 标签下只装一份本插件，同一标签下第二次装载失败。
+插件配置用 Standard Schema 校验。字段是压缩策略的选择与参数、表示策略的选择与偏好顺序（修剪阈值与缓存容量现在没有字段，见 [SPEC](SPEC.md)）。默认值只是初值，归 request-context。配置指向不存在的策略，或参数不合 Schema 时，插件加载失败，fiber 进入 `FAILED`，不回退到默认策略。一个 isolate 标签下只装一份本插件，同一标签下第二次装载失败。
 
 本成员没有环境前提，运行时不读取资源，不访问存储。进程失败后由贡献者重新登记。
 
@@ -54,7 +54,7 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 pnpm turbo run test --filter=@omne-harness/request-context-cordis
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有测试断言根入口没有导出、`./cordis` 只导出 `RequestContextProvider`，并检查上文列出的提供者行为，见 [tests/](tests/README.md)。Cordis 说明的十项验证义务随其余实现进入，其中一部分必须在真实 Cordis 上运行，见[验证义务](docs/cordis.md#验证义务)。持久化、跨进程一致性与端到端组合不在本成员。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有测试断言根入口没有导出、`./cordis` 只导出 `RequestContextProvider`，检查上文列出的提供者行为，并检查配置 Schema、配置不合时在真实 Cordis 4.0.4 上加载失败、按名选择策略，见 [tests/](tests/README.md)。Cordis 说明的十项验证义务随其余实现进入，其中一部分必须在真实 Cordis 上运行，见[验证义务](docs/cordis.md#验证义务)。持久化、跨进程一致性与端到端组合不在本成员。结构检查通过不表示行为已验证。
 
 ## 维护
 

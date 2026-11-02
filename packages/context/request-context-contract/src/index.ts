@@ -89,6 +89,7 @@ export type {
   ContextSourceRegistry,
   ContextRegistryOptions,
 } from './sources.js'
+export type { HistoryResolution, HistoryEvidenceResolver } from './history-resolution.js'
 export type {
   AccountingOrigin,
   ReceivedAccountFact,

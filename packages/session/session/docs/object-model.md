@@ -2,7 +2,7 @@
 
 本页描述本成员的实现内部对象：服务实例、调度与协调用的内存项、缓存项，以及一次命令调用的临时对象。它们是技术对象，不自动成为领域对象。`WorkSnapshot`、`CommitReceipt`、`ExecutionRef`、`ControlProgress`、`RecoveryTask`、`OperationRecord` 等契约对象归 [session-contract 的公开定义](../../session-contract/docs/public-api.md)与[契约对象模型](../../session-contract/docs/object-model/README.md)，本页只说明本成员怎样持有或引用它们。
 
-状态为候选技术设计。根入口目前为空。下面的对象由 [SPEC](../SPEC.md) 固定，类名与字段名随实现确定。
+状态为候选技术设计。根入口已导出工厂，实现覆盖 SPEC 的一个子集，见 SPEC 的[实现现状](../SPEC.md#实现现状)。下面的对象由 [SPEC](../SPEC.md) 固定，类名与字段名以 `src/` 为准。
 
 ## 构造对象
 
@@ -48,15 +48,15 @@
 | 对象 | 身份 | 持有什么 | 拥有者 | 创建 | 消失 |
 | --- | --- | --- | --- | --- | --- |
 | 条目缓存项（[CA-1](../SPEC.md#ca-1)） | `(tenant, session, position)` | 从已确认提交前缀读到的解码条目，含内联载荷 | 服务实例 | 读取已确认条目后 | 按字节 LRU 淘汰，预算为 `cache.entryBudgetBytes`。从不因失效而删除 |
-| 快照缓存槽（[CA-3](../SPEC.md#ca-3)） | `(tenant, session)` | 一份 `WorkSnapshot` 与它的 `revision` | 服务实例 | 权威读成功后 | 被同会话新快照替换；尾部修订不等或提交通知带来更大修订时丢弃；超过 `cache.snapshotSessions` 时按 LRU 淘汰 |
+| 快照缓存槽（[CA-3](../SPEC.md#ca-3)） | `(tenant, session)` | 一份 `WorkSnapshot` 与它的 `revision` | 服务实例 | 权威读成功后 | 被同会话新快照替换；CP-01 第 5 步得到 `changed` 或提交通知带来更大修订时丢弃；超过 `cache.snapshotSessions` 时按 LRU 淘汰 |
 
-`SessionId` 只在租户内唯一，所以缓存键都带租户。缓存命中前先完成核权：CA-3 命中前的尾部点查经事务端口按调用身份核权；CA-1 命中只省去载荷读取，分页、披露核对与位置仍由事务端口的历史读取完成。缓存不省去访问核对。视图前缀摘要缓存（CA-2）归 session-adapters 的历史源插件，不在本成员。已校验装配候选的缓存归装配协调者。
+`SessionId` 只在租户内唯一，所以缓存键都带租户。缓存命中前先完成核权：CA-3 的命中在面操作开头的那一次检查之后，CA-3 只用于流水线第 2 步，不做尾部比对；CA-1 命中只省去载荷读取，分页、披露核对与位置仍由事务端口的历史读取完成。缓存不省去访问核对。视图前缀摘要缓存（CA-2）归 session-adapters 的历史源插件，不在本成员。已校验装配候选的缓存归装配协调者。
 
 ### 一次调用的临时对象
 
 | 对象 | 身份 | 持有什么 | 生灭 |
 | --- | --- | --- | --- |
-| 流水线调用 | 一次变更命令的调用 | 派生的操作身份与参数摘要；带 `expected` 的命令在第 2 步读到的 `expected`；`changed` 重做次数；收到的材料。重做沿用同一操作身份 | 命令调用时创建；返回回执、失败或 `commit-unknown` 时消失。重做次数不超过 `command.retriesOnChanged` |
+| 流水线调用 | 一次变更命令的调用 | 派生的操作身份与参数摘要；调用方的 `expected`（服务不改写它）；`changed` 重做次数（只计不带调用方 `expected` 的命令）；收到的材料。重做沿用同一操作身份 | 命令调用时创建；返回回执、失败或 `commit-unknown` 时消失。重做次数不超过 `command.retriesOnChanged` |
 | 参加调用 | 提交方事务里的一次参加 | 提交方交来的 `Participation` 与载荷；`decide` 的结局 | 提交方调用参加者时创建；参加者响应后消失。提交方提交成功并回传确认后才发通知 |
 | 受理拓展点运行 | 一次 `accept` 之前的槽链运行 | 原提交、各槽的输出与结论 | C1 开始时创建；结论作为材料交给 `accept` 后消失。重复进入时重新运行 |
 

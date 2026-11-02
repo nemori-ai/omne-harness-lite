@@ -32,7 +32,7 @@ sequenceDiagram
     M->>M: decide(快照, command, guards, 操作记录)
     M->>D: 为批次分配 position；写 sl_entry、sl_input、sl_model_view 与其他派生索引行
     M->>M: reduce(前状态, 本批)
-    M->>D: 替换 sl_state；增删 sl_pending_idx；写 sl_operation（形式 batch、control 或 answer）；条件更新 sl_journal
+    M->>D: 替换 sl_state；增删 sl_pending_idx；写 sl_operation（形式 batch、control 或 answer）与同键的 sl_operation_evidence（命令带着访问证据时）；条件更新 sl_journal
     M-->>P: 参加
     P->>P: 写回执；COMMIT
     P-->>T: committed

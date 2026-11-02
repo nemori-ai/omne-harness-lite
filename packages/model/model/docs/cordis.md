@@ -54,7 +54,7 @@ ModelProfiles、ModelProfileMaintenance 与 ModelMessageConversion 可以独立�
 
 ## 单机提供者的插件划分
 
-以下是 model-host-local 的已接受导出设计与装配设计。该成员已有，目前只实现本地凭据保管及其 `LocalCredentialPlugin`；表中其余插件尚未实现。插件仅承担表中责任，不按内部纯函数增设 Service。键常量的唯一声明归 model-cordis-contract；框架入口引用它们，不能再写相同键的字符串。
+以下是 model-host-local 的已接受导出设计与装配设计。该成员已有，目前实现本地凭据保管及其 `LocalCredentialPlugin`，以及官方档案读取的 `ModelProfilesLocalPlugin`；表中其余插件尚未实现。插件仅承担表中责任，不按内部纯函数增设 Service。键常量的唯一声明归 model-cordis-contract；框架入口引用它们，不能再写相同键的字符串。
 
 | 插件 | 静态 inject 的键常量 | 提供与寿命 |
 | --- | --- | --- |
@@ -64,6 +64,7 @@ ModelProfiles、ModelProfileMaintenance 与 ModelMessageConversion 可以独立�
 | ModelSendStagePlugin | `[modelSendBoundaryKey]` | 单个发送阶段取得能力；退出后旧dispatch按原协议处理 |
 | ModelRetryStagePlugin | `[modelRetryPolicyKey]` | 单个重试位置取得策略；失去时按policy-unavailable收场，不卸载普通查询 |
 | ModelDirectoryStagePlugin | `[modelInstancesKey]` | connect与受信发布阶段取得原目录；其缺席不抹除持久调用 |
+| ModelProfilesLocalPlugin | 无静态 inject | 构造唯一 ModelProfilesService（键 `modelProfiles`），不读 settings 与 `modelCredential`；插件撤除则服务消失，仍被持有的旧句柄返回 `unavailable`；已实现 |
 
 档案权威、档案读取、准备、转换和诊断提供者各继承其唯一 Service 类。底层运行对象由装配入口按拥有者定义 provide，插件静态 inject。表中尚未采用的跨域键不以临时字符串或 ctx.get 代替；实际adapter加入装配时必须沿其真实定义登记。配置只含可序列化值，算法对象、driver和信号不得写入插件树。
 

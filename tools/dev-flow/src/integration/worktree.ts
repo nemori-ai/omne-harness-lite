@@ -24,6 +24,7 @@ import { basename, delimiter, dirname, extname, join, relative, resolve, sep } f
 import { fileURLToPath } from 'node:url'
 import { readTaskBinding, type TaskBinding } from '../delivery/binding.ts'
 import { fetchIssueCard, type GhCommand } from '../delivery/github-read.ts'
+import { INTEGRATION_LINE } from '../delivery/lines.ts'
 import { record } from '../delivery/protocol.ts'
 import { IntegrationError, json } from './parse.ts'
 
@@ -225,6 +226,26 @@ export function startInput(binding: TaskBinding) {
 }
 /** The task directory of a card under the worktree's tmp. */
 export const taskDirectory = (binding: TaskBinding) => `tmp/issue-${binding.issue.number}`
+/**
+ * The line-level task directory of a card under the worktree's tmp: the line session's plan,
+ * state and context map. A card on the integration track has no line directory of its own.
+ */
+export function lineDirectory(binding: TaskBinding): string | undefined {
+  if (binding.schemaVersion === 1)
+    throw new IntegrationError(
+      'refused',
+      `The binding of Issue #${binding.issue.number} is version 1 and cannot tell the line task directory; dispatch it again to write a version 2 binding`,
+    )
+  return binding.line === INTEGRATION_LINE ? undefined : `tmp/line-${binding.line}`
+}
+/**
+ * The directories a swap carries: the card's task directory and, when the card belongs to a
+ * line, the line task directory.
+ */
+function carriedDirectories(binding: TaskBinding): string[] {
+  const line = lineDirectory(binding)
+  return line === undefined ? [taskDirectory(binding)] : [taskDirectory(binding), line]
+}
 
 const CURSOR_RUNTIME = ['Dockerfile', 'environment.json', 'install.sh']
 /**
@@ -462,12 +483,14 @@ export function prepareWorktree({
     ]),
     () => {
       mkdirSync(task, { recursive: true })
-      if (evidence !== undefined) cpSync(evidence, task, { recursive: true })
+      // The copy holds each carried directory under its own relative path: `tmp/issue-<N>` and,
+      // for a line card, `tmp/line-<line>`. Restoring it at the tree root puts both in place.
+      if (evidence !== undefined) cpSync(evidence, tree, { recursive: true })
       // The copy may hold the start command of an earlier attempt; this one replaces it first.
       writeFileSync(input, `${JSON.stringify(startInput(binding), null, 2)}\n`)
     },
   )
-  if (evidence !== undefined) done.push(`restored ${evidence} into ${task}`)
+  if (evidence !== undefined) done.push(`restored ${evidence} into ${tree}`)
   done.push(`wrote ${input} for attempt ${binding.attempt}`)
   resumable('install', progress([commands.install, commands.projections, commands.start]), () =>
     pnpmStep(run, 'install', ['install', '--frozen-lockfile', '--ignore-scripts'], tree, pnpm),
@@ -495,15 +518,21 @@ export function prepareWorktree({
 type UntrackedEntry = { path: string; ignored: boolean }
 /**
  * The entries `git status --porcelain --ignored` reports beyond tracked changes: untracked
- * (`??`) and ignored (`!!`) paths, minus those under `keep`.
+ * (`??`) and ignored (`!!`) paths, minus those under any path of `keep`.
  */
-function untrackedEntries(tree: string, keep: string | undefined, run: Runner): UntrackedEntry[] {
+function untrackedEntries(
+  tree: string,
+  keep: readonly string[] | undefined,
+  run: Runner,
+): UntrackedEntry[] {
   return step(run, 'read untracked files', 'git', ['status', '--porcelain', '--ignored'], tree)
     .split('\n')
     .filter(line => line.startsWith('?? ') || line.startsWith('!! '))
     .map(line => ({ path: line.slice(3), ignored: line.startsWith('!! ') }))
     .filter(
-      ({ path }) => keep === undefined || !(path === `${keep}/` || path.startsWith(`${keep}/`)),
+      ({ path }) =>
+        keep === undefined ||
+        !keep.some(kept => path === `${kept}/` || path.startsWith(`${kept}/`)),
     )
 }
 
@@ -634,30 +663,39 @@ export function swapWorktree({
     )
   // Decide before the old tree changes: a host that cannot start pnpm leaves it attached.
   pnpmCommand(host)
-  // Real git reports an ignored directory as `!! tmp/`. The task directory under it is copied.
+  const carried = carriedDirectories(binding)
+  // Real git reports an ignored directory as `!! tmp/`. The carried directories under it are copied.
   const warnings = swapWarnings(
-    untrackedEntries(old, taskDirectory(binding), run).filter(entry => entry.path !== 'tmp/'),
+    untrackedEntries(old, carried, run).filter(entry => entry.path !== 'tmp/'),
   )
-  const source = join(old, taskDirectory(binding))
   const again = worktreeCommand(
     `swap --issue ${binding.issue.number} --old ${old} --tree ${tree} --root ${root} --remote ${remote}`,
   )
   const done: string[] = []
+  // The copy holds each carried directory under its own tmp path, so the restore puts the card
+  // directory into `tmp/issue-<N>` and the line directory into `tmp/line-<line>`.
+  const sources = carried
+    .map(path => ({ path, source: join(old, path) }))
+    .filter(({ source }) => existsSync(source))
   let evidence: string | undefined
-  if (existsSync(source)) {
+  if (sources.length > 0) {
     evidence = localStep('create the copy directory', () =>
       mkdtempSync(join(tmpdir(), `omne-swap-issue-${binding.issue.number}-`)),
     )
     const copy = evidence
     // The old tree is unchanged until the detach, so a failure here repeats the whole swap.
-    resumable('copy task directory', { done, resume: [again], evidence }, () =>
-      cpSync(source, copy, {
-        recursive: true,
-        // cpSync hands the filter native paths, so the last segment comes from path.basename.
-        filter: path => !basename(path).startsWith('agents-stage'),
-      }),
+    for (const { path, source } of sources)
+      resumable('copy task directory', { done, resume: [again], evidence }, () => {
+        mkdirSync(dirname(join(copy, path)), { recursive: true })
+        cpSync(source, join(copy, path), {
+          recursive: true,
+          // cpSync hands the filter native paths, so the last segment comes from path.basename.
+          filter: path => !basename(path).startsWith('agents-stage'),
+        })
+      })
+    done.push(
+      ...sources.map(({ path, source }) => `copied ${source} to ${join(evidence ?? '', path)}`),
     )
-    done.push(`copied ${source} to ${evidence}`)
   }
   resumable('detach old worktree', { done, resume: [again], evidence }, () =>
     step(run, 'detach old worktree', 'git', ['checkout', '--quiet', '--detach'], old),

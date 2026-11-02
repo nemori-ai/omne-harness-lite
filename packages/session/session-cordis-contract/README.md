@@ -18,6 +18,7 @@ Status: Cordis definition member, `draft`. The [SPEC](SPEC.md) states the proper
 | --- | --- | --- |
 | `SessionService` with the four faces, `sessionKey` | Exported | `src/cordis.ts` |
 | Eleven dependency Services and keys: `sessionAccessCheck`, `sessionTransactions`, `sessionPrincipals`, `sessionIdentity`, `sessionEvidence`, `sessionClock`, `sessionIdleInput`, `sessionContextInput`, `sessionNotifier`, `sessionAgentDrive`, `sessionScopeRelease` | Exported | `src/cordis.ts` |
+| Three trusted Services and keys: `sessionDelegatedTransactions`, `sessionWorkPrincipals`, `sessionPrincipalBindings` | Exported | `src/cordis.ts` |
 | `SessionIntercept`, the `Context` and `Events` augmentations, the event `session-cordis-contract/committed` | Exported | `src/cordis.ts` |
 | Type re-exports of the root entry | Exported, no runtime value | `src/index.ts` |
 - Not verified: the Cordis mechanism reading for the intercept configuration is source reading only. Thus property 4 of the SPEC is an assumption. See the [Cordis page](docs/cordis.md#机制读数与假设).
@@ -55,7 +56,7 @@ The package holds no resources. The fiber of the caller plugin owns the life of 
 
 ## Design
 
-Each entry has one source file. The outside dependencies are the types of session-contract and `@deepseek-ai/cordis`. The package imports no provider and no mechanism. The service has one key for all four faces. The new contract requires the access check, transaction port, and internal principals in `inject`. Every other port is taken at call time. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) and the [object model](docs/object-model.md) explain why this member has no flows and no domain objects of its own.
+Each entry has one source file. The outside dependencies are the types of session-contract and `@deepseek-ai/cordis`. The package imports no provider and no mechanism. The service has one key for all four faces. The Session provider puts the access check, the internal principals, and the two trusted keys `sessionDelegatedTransactions` and `sessionWorkPrincipals` in `inject`. The provider takes the transaction port `sessionTransactions` at call time, only for three directory reads. Every other port is taken at call time. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) and the [object model](docs/object-model.md) explain why this member has no flows and no domain objects of its own.
 
 ## Configuration and operation
 

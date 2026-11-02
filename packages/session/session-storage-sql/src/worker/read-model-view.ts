@@ -23,7 +23,7 @@ export default handler('session.model-view', (raw, port) => {
   const epoch = text(journal['epoch'])
   const head = oneRow(
     port,
-    'SELECT COALESCE(MAX(seq), 0) AS s FROM sl_model_view WHERE tenant = ? AND session = ? AND epoch = ?',
+    'SELECT COALESCE(MAX(seq), 0) AS s FROM sl_model_view WHERE tenant = ? AND session = ? AND epoch = ? LIMIT 1',
     [...bind, epoch],
   )
   const current = { epoch, upper: String(head?.['s'] ?? 0) }

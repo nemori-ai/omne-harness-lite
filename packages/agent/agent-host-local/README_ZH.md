@@ -4,11 +4,11 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 职责与状态
 
-具体的 Cordis 装配与资源生命周期。根入口提供独立 Model 接收组件，完整 Cordis 插件尚未实现。设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。
+具体的 Cordis 装配与资源生命周期。根入口提供独立 Model 接收组件。已实现：`./cordis` 导出 `agent-host` 插件 `agentHostPlugin`（实例取得、预约与发布、空闲回收、恢复入口与控制入口），尚未登记结果接收方。范围与已知缺口见 [SPEC](SPEC.md#宿主插件)。设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。
 
 ## 使用
 
-根入口导出 `createLocalModelReceiver(dependencies, state)` 与 `createModelReceiverState()`。重装配继续传原状态；依赖包含同一 Journal 提供者、当前资格、原目标、Model 只读面、账目出口和显式容量。形状见[公开入口](docs/public-api.md)。`./cordis` 仍为空。
+根入口导出 `createLocalModelReceiver(dependencies, state)` 与 `createModelReceiverState()`。重装配继续传原状态；依赖包含同一 Journal 提供者、当前资格、原目标、Model 只读面、账目出口和显式容量。形状见[公开入口](docs/public-api.md)。`./cordis` 导出 `agentHostPlugin`，见 [Cordis 装配](docs/cordis.md)。
 
 ## 契约
 
@@ -24,7 +24,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 验证
 
-本成员的类型与测试核对根入口导出。agent 成员使用公开 Model pusher 和同源内存 Journal 验证共享接收算法；它不证明完整 Cordis 插件或生产存储。
+本成员的类型与测试核对根入口导出。宿主插件的测试在真实 Cordis 4.0.4 上运行，依赖用 `@omne-harness/agent/testing` 的非耐久替身。agent 成员验证共享接收算法。这些测试不证明生产存储、真实授权或接收方登记。
 
 ## 维护
 

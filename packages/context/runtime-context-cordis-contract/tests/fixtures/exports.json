@@ -157,6 +157,24 @@
               "kind": "type",
               "pending": false,
               "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "ReaderEligibilityRequest",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "ReaderEligibilityResult",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "ReaderEligibilityHandoff",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
             }
           ]
         }
@@ -201,6 +219,50 @@
               "name": "RuntimeContextChangedPayload",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "RuntimeContextReaderEligibilityService",
+              "kind": "class",
+              "pending": false
+            },
+            {
+              "name": "runtimeContextReaderEligibilityKey",
+              "kind": "value",
+              "pending": false
+            }
+          ]
+        }
+      ]
+    },
+    "./testing": {
+      "chapters": [
+        {
+          "title": "替身与套件",
+          "names": [
+            {
+              "name": "createScriptedReaderEligibility",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "readerEligibilityConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ReaderEligibilityScript",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReaderEligibilityFixture",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReaderEligibilityCase",
+              "kind": "type",
+              "pending": false
             }
           ]
         }
@@ -211,7 +273,12 @@
     {
       "module": "@deepseek-ai/cordis",
       "interface": "Context",
-      "members": ["runtimeContext", "runtimeContextTrust", "[runtimeContextScopeKey]"],
+      "members": [
+        "runtimeContext",
+        "runtimeContextTrust",
+        "runtimeContextReaderEligibility",
+        "[runtimeContextScopeKey]"
+      ],
       "pending": false
     },
     {

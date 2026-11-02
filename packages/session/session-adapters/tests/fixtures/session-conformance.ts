@@ -26,15 +26,16 @@ export function sessionFixture(): SessionTransactionsFixture<string> {
   // well, and J40 observes only that both answers are the same, not which one refused; the scene
   // of participation-access.spec.ts records the check's own conclusion. Tenant and system
   // directories stay open.
+  const accessCheck = createPolicySessionAccessCheck<string>(request =>
+    request.target.kind === 'session' &&
+    'tenant' in request.access &&
+    !tenantEquals(request.access.tenant, access.tenant)
+      ? { kind: 'denied' }
+      : { kind: 'allowed', evidence: evidence(`access/${request.operation}`) },
+  )
   const backend = createMemorySessionJournal({
     initialization,
-    accessCheck: createPolicySessionAccessCheck(request =>
-      request.target.kind === 'session' &&
-      'tenant' in request.access &&
-      !tenantEquals(request.access.tenant, access.tenant)
-        ? { kind: 'denied' }
-        : { kind: 'allowed', evidence: evidence(`access/${request.operation}`) },
-    ),
+    accessCheck,
     authorize: () => 'allowed',
   })
   const view = backend.forSession(access)
@@ -44,6 +45,7 @@ export function sessionFixture(): SessionTransactionsFixture<string> {
     otherAccess: memoryOtherAccess('stranger'),
     creation: creation(),
     operation: operationId,
+    askedAccessChecks: () => accessCheck.controls.asked().length,
     initializationGuards: async command => {
       initialization.controls.register(
         command,

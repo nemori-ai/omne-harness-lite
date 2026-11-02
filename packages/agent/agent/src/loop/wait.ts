@@ -12,6 +12,20 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { LoopPorts } from './coordinator.ts'
 import { diagnosticOf } from './diagnostic.ts'
 
+/** The revision and the event cursor of one execution that the coordinator knows exactly. */
+export type HeldPosition = Readonly<{
+  revision: ExecutionRevision
+  emittedThrough: string | null
+}>
+
+/**
+ * W0 (loop-algorithm W0 row, mechanisms "等待、唤醒与公平"): start the observation of the Journal
+ * events, read the execution again, and sleep until an event, the check time or an abort when
+ * nothing moved. `held` is the position the coordinator already knows: the observation starts at
+ * its cursor and replaces the wait's own first read, so the wait reads the execution once (perf
+ * baseline 2.3: at most one complete read per entry into a wait). Without `held`, the wait reads a
+ * baseline first.
+ */
 export async function waitForExecutionChange<P>(
   input: Readonly<{
     ports: LoopPorts<P>
@@ -24,6 +38,7 @@ export async function waitForExecutionChange<P>(
     reconciliationDelayMs: number
     signal: AbortSignal
     recheck?: ((read: ExecutionSnapshot) => Promise<Outcome<unknown, Failure>>) | null
+    held?: HeldPosition | null
   }>,
 ): Promise<Outcome<'ready' | 'cancelled', Failure>> {
   const { ports, access, execution, signal } = input
@@ -60,24 +75,32 @@ export async function waitForExecutionChange<P>(
     }
     wake(fail(pumpFailure))
   }
+  /** The held position, or the baseline read: the wait's start. `null` when the read failed. */
+  const start = async (): Promise<Outcome<HeldPosition | null, Failure>> => {
+    if (input.held != null) return succeed(input.held)
+    const baseline = await ports.journal.load({ ...access, execution })
+    if ('ok' in baseline)
+      return succeed({
+        revision: baseline.ok.revision,
+        emittedThrough: baseline.ok.output.emittedThrough,
+      })
+    return baseline.failure.kind === 'unavailable' ? succeed(null) : baseline
+  }
   const run = async (): Promise<Outcome<'ready' | 'cancelled', Failure>> => {
     try {
-      const baseline = await ports.journal.load({ ...access, execution })
-      if (
-        input.operations.length === 0 &&
-        'ok' in baseline &&
-        baseline.ok.revision !== input.expected
-      )
+      const started = await start()
+      if ('failure' in started) return started
+      const from = started.ok
+      if (input.operations.length === 0 && from !== null && from.revision !== input.expected)
         return succeed('ready')
-      if ('failure' in baseline && baseline.failure.kind !== 'unavailable') return baseline
       // Durable replay from this cursor also covers a change before the iterator starts listening.
-      if ('ok' in baseline)
+      if (from !== null)
         tasks.push(
           (async () => {
             for await (const page of ports.journal.output.events({
               ...access,
               execution,
-              after: baseline.ok.output.emittedThrough,
+              after: from.emittedThrough,
               signal: controller.signal,
             })) {
               if (controller.signal.aborted) return
@@ -88,7 +111,7 @@ export async function waitForExecutionChange<P>(
             }
           })().catch(failed),
         )
-      // Observation consumption starts before these reads. Replay, the initial snapshot and the
+      // Observation consumption starts before this read. Replay, the initial snapshot and the
       // clock cover the window because these ports provide no registration-ready receipt.
       const latest = await ports.journal.load({ ...access, execution })
       if (input.operations.length === 0 && 'ok' in latest && latest.ok.revision !== input.expected)

@@ -1,7 +1,8 @@
-// The trust testing entry: the scripted trust double and the trust conformance suite.
-// It is one file because only the declared entry may import a testing subpath. It never imports a
-// provider member: the fixture hands in the registry factory, and the suite drives that registry
-// through its public ports only.
+// The testing entry: the scripted trust double and the trust conformance suite, defined here, and
+// the memory holder double and the holder sources suite, re-exported from their own files.
+// The trust part stays in this file because only the declared entry may import a testing subpath;
+// the holder files import no testing subpath. No file imports a provider member: the fixtures hand
+// in the registry factory or plug the holder, and the suites drive them through public ports only.
 import type {
   Access,
   Adoption,
@@ -343,3 +344,13 @@ export function requestContextTrustConformance<P>(
 ): readonly RequestContextTrustCase[] {
   return cases(fixture as unknown as RequestContextTrustFixture<string>)
 }
+
+export { createMemoryContextHolder } from './holder-sources.js'
+export type { MemoryContextHolder, MemoryContextHolderOptions } from './holder-sources.js'
+export { contextHolderSourcesConformance } from './holder-sources-conformance.js'
+export type {
+  ContextHolderPartCall,
+  ContextHolderSourcesCase,
+  ContextHolderSourcesFixture,
+  ContextHolderUnderTest,
+} from './holder-sources-conformance.js'

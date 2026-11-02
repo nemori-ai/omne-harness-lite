@@ -293,3 +293,16 @@ export function modelResultReceiverConformance(
     },
   ]
 }
+
+export {
+  createModelPreparationResourcesPlugin,
+  createScriptedModelPreparationResources,
+  modelPreparationResourcesConformance,
+} from './preparation-resources.ts'
+export type {
+  ModelPreparationResourcesCase,
+  ModelPreparationResourcesFixture,
+  ModelPreparationResourcesSubject,
+  ScriptedModelPreparationResources,
+  ScriptedModelPreparationResourcesScript,
+} from './preparation-resources.ts'

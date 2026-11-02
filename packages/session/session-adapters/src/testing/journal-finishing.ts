@@ -10,6 +10,7 @@ import type {
   Adoption,
   AgentCheckpoint,
   AgentExecutionId,
+  AgentJournalEntry,
   AgentOperationId,
   CancellationJudgmentRecord,
   CandidateSupersession,
@@ -235,6 +236,8 @@ export type ObligationSource = Readonly<{
   acceptanceOf: (input: AcceptedInput) => AgentOperationId | undefined
   controls: readonly ControlRecord[]
   results: readonly ResultResponsibility[]
+  /** The receiving entries of the execution (a `received` entry settles the call it names). */
+  entries: readonly AgentJournalEntry[]
   effects: readonly EffectIntent[]
   /** The interrupt and background controls that name the call of an effect. */
   interruptionsOf: (effect: EffectIntent) => readonly AgentOperationId[]
@@ -460,6 +463,11 @@ export function buildObligations(
   }
   for (const effect of source.effects) {
     const result = source.results.find(item => item.consumption === effect.pending.consumption)
+    // A result saved as a `received` entry of the same consumption settles the call too: the
+    // entry is the result's custody when the receiver wrote it (Agent SPEC "终结责任清单" call row).
+    const received = source.entries.find(
+      entry => entry.kind === 'received' && entry.consumption === effect.pending.consumption,
+    )
     // A later unknown return does not take an accepted association back to unknown; without an
     // accepted one the last record counts.
     const associations = source.finishing.toolAssociations.filter(
@@ -501,18 +509,20 @@ export function buildObligations(
       disposition:
         result !== undefined
           ? settled(result.result.source)
-          : finalFailure !== undefined
-            ? settled(finalFailure.source)
-            : association?.association.kind === 'accepted'
-              ? held(association.source, retain(association), custodian ?? SESSION_CUSTODIAN)
-              : association !== undefined
-                ? callUnknown(effect.action, association.source, retain(association))
-                : callUnknown(effect.action, effect.pending.fixed, {
-                    kind: 'producer-query',
-                    request: ofParameters({ pending: effect.pending }),
-                    ...BY_JOURNAL,
-                    purpose: 'query',
-                  }),
+          : received?.kind === 'received'
+            ? settled(received.material)
+            : finalFailure !== undefined
+              ? settled(finalFailure.source)
+              : association?.association.kind === 'accepted'
+                ? held(association.source, retain(association), custodian ?? SESSION_CUSTODIAN)
+                : association !== undefined
+                  ? callUnknown(effect.action, association.source, retain(association))
+                  : callUnknown(effect.action, effect.pending.fixed, {
+                      kind: 'producer-query',
+                      request: ofParameters({ pending: effect.pending }),
+                      ...BY_JOURNAL,
+                      purpose: 'query',
+                    }),
       action: effect.action,
       intent: recorded(
         source.finishing.effectOperations.get(effect.action),

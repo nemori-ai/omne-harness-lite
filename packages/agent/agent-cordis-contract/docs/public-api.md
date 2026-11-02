@@ -1,15 +1,17 @@
 # Agent Cordis 定义公开接口
 
-根入口 `.` 不导出值，只导出三个类型：`AgentLocalRoute`、`AgentRegistrationInput` 与 `AgentWithdrawalInput`，定义在 [src/index.ts](../src/index.ts)。根入口没有到 Cordis 的边：构建后的 `index.js` 没有导入，`index.d.ts` 也不引用 Cordis。
+根入口 `.` 不导出值，只导出五个类型：`AgentLocalRoute`、`AgentRegistrationInput`、`AgentWithdrawalInput`、`AgentInstanceSlotInput` 与 `AgentInstanceProvision`，定义在 [src/index.ts](../src/index.ts)。根入口没有到 Cordis 的边：构建后的 `index.js` 没有导入，`index.d.ts` 也不引用 Cordis。
 
 `./cordis` 由 [src/cordis.ts](../src/cordis.ts) 定义，源码是唯一定义，本页不手写签名。
 
-- 20 个抽象 Service 类与 1 个具体类 `AgentInstancesService`，共 21 个，另有 21 个键常量，命名是服务键加 `Key`，例如 `agentJournalKey`。键、类与契约类型的对照见 [Cordis 页的服务键表](cordis.md#服务键与提供者)。
+- 21 个抽象 Service 类与 1 个具体类 `AgentInstancesService`，共 22 个，另有 22 个键常量，命名是服务键加 `Key`，例如 `agentJournalKey`。键、类与契约类型的对照见 [Cordis 页的服务键表](cordis.md#服务键与提供者)。
 - `Context` 增补：每个键对应的服务类型。
 - `Events` 增补：`agent-cordis-contract/instance-retired`，参数是 tenant、AgentInstanceId、发布代次与原因。
 - 接口 `AgentPublicationAuthority`：宿主对一次登记或撤除的同步最终核验。它带 Cordis 的 `Context` 类型，所以只从 `./cordis` 导出。
 - 目录插件 `agentInstancesPlugin`：静态 `inject` 是 `agentPublicationAuthority` 与 `agentAccessCheck`，`Config` 是拒绝任何成员的空对象。
-- 根入口三个类型的再导出。
+- 根入口前三个类型的再导出。
+
+`./testing` 由 [src/testing.ts](../src/testing.ts) 定义，导出内存替身 `createMemoryInstanceProvision` 与符合性套件 `agentInstanceProvisionConformance`，以及它们的输入与夹具类型。替身是非耐久的，不进生产装配，也不导入 Cordis、`agent` 与 `agent-host-local`。规则见 [Cordis 页的实例的取得与回收](cordis.md#实例的取得与回收)。
 
 类型参数取自 `@omne-harness/agent-contract`。服务行为与依赖分类见 [cordis](cordis.md)。消费者只从 `@omne-harness/agent-cordis-contract/cordis` 导入绑定，不从实现包导入 Service。
 

@@ -1,8 +1,9 @@
 // A test provider of `SqlStorage` on node:sqlite. The memory double of sql-contract has no SQL, so
 // it cannot run the Session participant or the read handlers; this one runs the real modules of
 // this member against one in-memory database per transaction domain. It models receipts, rollback
-// by a stopping reply, recognition by the full identity, and scope partition. It does not model
-// Workers, durability, queues or limits, and a pass proves none of those.
+// by a stopping reply, recognition by the full identity, scope partition and the read port rules
+// (only SELECT, every statement with LIMIT). It does not model Workers, durability, queues or
+// limits, and a pass proves none of those.
 import { DatabaseSync } from 'node:sqlite'
 import {
   inputDigestV2,
@@ -27,8 +28,16 @@ import type {
   SqlCell,
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
+import indexMigration from '../../src/worker/execution-index-migration.ts'
+import recordMigration from '../../src/worker/execution-record-migration.ts'
+import executionRecord from '../../src/worker/execution-record.ts'
 import migration from '../../src/worker/migration.ts'
+import evidenceMigration from '../../src/worker/operation-evidence-migration.ts'
 import participant from '../../src/worker/participant.ts'
+import readExecutionOperation from '../../src/worker/read-execution-operation.ts'
+import readExecutionSession from '../../src/worker/read-execution-session.ts'
+import readExecutionState from '../../src/worker/read-execution-state.ts'
+import readHistoryRoot from '../../src/worker/read-history-root.ts'
 import readHistory from '../../src/worker/read-history.ts'
 import readInput from '../../src/worker/read-input.ts'
 import readModelSelection from '../../src/worker/read-model-selection.ts'
@@ -47,6 +56,22 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readPending,
   readReferences,
   readReleasedScopes,
+  readHistoryRoot,
+  readExecutionState,
+  readExecutionOperation,
+  readExecutionSession,
+]
+
+/** The participant modules by name; the execution order is the order of the commands. */
+const PARTICIPANTS: ReadonlyMap<string, ParticipantModule> = new Map([
+  [participant.participant, participant],
+  [executionRecord.participant, executionRecord],
+])
+const MIGRATIONS: readonly MigrationModule[] = [
+  migration,
+  recordMigration,
+  indexMigration,
+  evidenceMigration,
 ]
 
 export type StorageCall =
@@ -63,10 +88,17 @@ export type SqliteStorage = Readonly<{
   domains(): readonly string[]
   /** Seeds derived rows that the commands of this test cannot produce (a test set-up, not a path). */
   seed(domain: string, sql: string, params?: readonly SqlValue[]): void
+  /** Reads rows of one domain outside any transaction, for a test that counts what a commit wrote. */
+  select(domain: string, sql: string, params?: readonly SqlValue[]): QueryRows
   /** Makes every later read of `handler` answer unavailable; `null` ends it. */
   failReads(handler: string | null): void
   /** Makes the next commit answer `unknown` after it ran (the reply is lost). */
   loseNextReply(): void
+  /**
+   * Makes the participant port throw at the `nth` later statement that matches `pattern`, inside
+   * the write transaction; `null` ends it. The storage then rolls the transaction back.
+   */
+  failWrite(pattern: RegExp | null, nth?: number): void
 }>
 
 type Domain = {
@@ -108,6 +140,15 @@ export function createSqliteStorage(): SqliteStorage {
   const readSql: string[] = []
   let failing: string | null = null
   let lose = false
+  let writeFault: { pattern: RegExp; left: number } | null = null
+  /** Counts the statement against the armed write fault and throws at the chosen one. */
+  const faultAt = (sql: string): void => {
+    if (writeFault === null || !writeFault.pattern.test(sql)) return
+    writeFault.left -= 1
+    if (writeFault.left > 0) return
+    writeFault = null
+    throw new Error(`injected write failure at: ${sql.slice(0, 60)}`)
+  }
 
   const domainOf = (scope: DomainRef['scope'], name: string): Domain | null => {
     const domain = domains.get(name)
@@ -118,7 +159,7 @@ export function createSqliteStorage(): SqliteStorage {
     if (existing !== null) return existing
     const db = new DatabaseSync(':memory:')
     const port = { execute: (sql: string, params: readonly SqlValue[]) => rowsOf(db, sql, params) }
-    ;(migration as MigrationModule).up(port)
+    for (const module of MIGRATIONS) module.up(port)
     const domain: Domain = { scope, db, receipts: new Map() }
     domains.set(name, domain)
     return domain
@@ -137,12 +178,20 @@ export function createSqliteStorage(): SqliteStorage {
         responses: entries,
       }) as unknown as ReceiptV2
     domain.db.exec('BEGIN IMMEDIATE')
-    for (const command of request.commands) {
-      const module: ParticipantModule = participant
+    // The storage runs the commands in the fixed order of the combination: ascending names.
+    const ordered = [...request.commands].sort((a, b) =>
+      a.participant < b.participant ? -1 : a.participant > b.participant ? 1 : 0,
+    )
+    for (const command of ordered) {
+      const module = PARTICIPANTS.get(command.participant)
+      if (module === undefined) throw new Error(`no participant ${command.participant}`)
       let reply: RecordedReply
       try {
         const port = {
-          execute: (sql: string, params: readonly SqlValue[]) => rowsOf(domain.db, sql, params),
+          execute: (sql: string, params: readonly SqlValue[]) => {
+            faultAt(sql)
+            return rowsOf(domain.db, sql, params)
+          },
           requireFact: () => null,
           provideFact: () => undefined,
         }
@@ -248,6 +297,8 @@ export function createSqliteStorage(): SqliteStorage {
         execute: (sql, params) => {
           readSql.push(sql)
           if (!/^\s*SELECT/i.test(sql)) throw new Error('a read handler ran a write')
+          // sql-contract SPEC §9.4: every statement of a read handler has a LIMIT.
+          if (!/\blimit\b/i.test(sql)) throw new Error('a read statement has no LIMIT')
           return rowsOf(domain.db, sql, params)
         },
       })
@@ -268,11 +319,19 @@ export function createSqliteStorage(): SqliteStorage {
       if (domain === undefined) throw new Error('no such domain')
       rowsOf(domain.db, sql, params)
     },
+    select: (name, sql, params = []) => {
+      const domain = domains.get(name)
+      if (domain === undefined) throw new Error('no such domain')
+      return rowsOf(domain.db, sql, params)
+    },
     failReads: handler => {
       failing = handler
     },
     loseNextReply: () => {
       lose = true
+    },
+    failWrite: (pattern, nth = 1) => {
+      writeFault = pattern === null ? null : { pattern, left: nth }
     },
   }
 }
@@ -291,6 +350,6 @@ export function migratedPort(): Readonly<{
     requireFact: () => null,
     provideFact: () => undefined,
   }
-  ;(migration as MigrationModule).up(port)
+  for (const module of MIGRATIONS) module.up(port)
   return { port }
 }

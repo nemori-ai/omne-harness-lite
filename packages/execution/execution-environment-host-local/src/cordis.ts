@@ -1,4 +1,5 @@
-// PACKAGE_TEMPLATE_DRAFT: The registry Service, the files declaration plugin and the host files plugin are in place; the Runtime Context producer plugin, the command and terminal providers are not yet accepted.
+// PACKAGE_TEMPLATE_DRAFT: The registry Service, the files and command declaration plugins and the host files plugin are in place; the Runtime Context producer plugin and the terminal provider are not yet accepted.
+import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import {
   createEnvironmentRegistry,
@@ -6,6 +7,7 @@ import {
   type EnvironmentRegistry,
 } from '@omne-harness/execution-environment'
 import {
+  commandFacility,
   filesFacility,
   type EnvironmentAuthority,
   type EnvironmentProvider,
@@ -23,6 +25,7 @@ import {
   executionRecoveryAuthorityKey,
   executionScopeBindingKey,
 } from '@omne-harness/execution-environment-cordis-contract/cordis'
+import { commandOptionsIssue, type HostCommandOptions } from './host-command.ts'
 import type { HostFilesDomain } from './host-domain.ts'
 import { createHostFilesProvider, type HostFilesProviderOptions } from './host-provider.ts'
 
@@ -51,7 +54,15 @@ const emptyConfig: EmptyConfig = {
 }
 
 /** Configuration of the host files plugin. An absent field takes the provider's initial value. */
-export type HostFilesConfig = Readonly<{ drainBoundMs?: number }>
+export type HostFilesConfig = Readonly<
+  {
+    drainBoundMs?: number
+    /** Absolute path of the host files root; kept by the provider for the files side. */
+    filesRoot?: string
+    /** Absolute path of the provider's state directory; kept by the provider for the files side. */
+    stateDirectory?: string
+  } & HostCommandOptions
+>
 
 type ConfigResult<T> =
   | { readonly value: T }
@@ -69,7 +80,37 @@ function isPlainRecord(value: unknown): value is Readonly<Record<string, unknown
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** Accepts an absent or empty configuration, or `drainBoundMs` as a finite number zero or more. */
+const commandFields = [
+  'maxBufferedBytes',
+  'maxChunkBytes',
+  'startBoundMs',
+  'graceMs',
+  'stopBoundMs',
+  'probeRetryMs',
+] as const
+const pathFields = ['filesRoot', 'stateDirectory'] as const
+const numberFields = ['drainBoundMs', ...commandFields] as const
+const hostFields: readonly string[] = [...numberFields, ...pathFields]
+
+/** The issue of one host files configuration, or undefined when it is valid. */
+function hostConfigIssue(value: Readonly<Record<string, unknown>>): string | undefined {
+  const unknownKey = Object.keys(value).find(key => !hostFields.includes(key))
+  if (unknownKey !== undefined) return `configuration has no field ${unknownKey}`
+  const bound = value['drainBoundMs']
+  if (bound !== undefined && (typeof bound !== 'number' || !Number.isFinite(bound) || bound < 0))
+    return 'drainBoundMs must be a finite number, zero or more'
+  for (const name of pathFields) {
+    const path = value[name]
+    if (path !== undefined && (typeof path !== 'string' || !isAbsolute(path)))
+      return `${name} must be an absolute path`
+  }
+  return commandOptionsIssue(value)
+}
+
+/**
+ * Accepts an absent or empty configuration, `drainBoundMs` as a finite number zero or more, the two
+ * paths as absolute paths, and the command bounds the provider accepts.
+ */
 const hostFilesConfig: HostFilesConfigSchema = {
   '~standard': {
     version: 1,
@@ -77,16 +118,26 @@ const hostFilesConfig: HostFilesConfigSchema = {
     validate(value: unknown): ConfigResult<HostFilesConfig> {
       if (value == null) return { value: {} }
       if (!isPlainRecord(value)) return { issues: [{ message: 'configuration must be an object' }] }
-      const unknownKey = Object.keys(value).find(key => key !== 'drainBoundMs')
-      if (unknownKey !== undefined)
-        return { issues: [{ message: `configuration has no field ${unknownKey}` }] }
-      const bound = value['drainBoundMs']
-      if (bound === undefined) return { value: {} }
-      if (typeof bound !== 'number' || !Number.isFinite(bound) || bound < 0)
-        return { issues: [{ message: 'drainBoundMs must be a finite number, zero or more' }] }
-      return { value: { drainBoundMs: bound } }
+      const issue = hostConfigIssue(value)
+      if (issue !== undefined) return { issues: [{ message: issue }] }
+      const config: { -readonly [K in keyof HostFilesConfig]: HostFilesConfig[K] } = {}
+      for (const name of numberFields) {
+        const field = value[name]
+        if (typeof field === 'number') config[name] = field
+      }
+      for (const name of pathFields) {
+        const field = value[name]
+        if (typeof field === 'string') config[name] = field
+      }
+      return { value: config }
     },
   },
+}
+
+function commandOptionsOf(config: HostFilesConfig): HostCommandOptions {
+  const options: { -readonly [K in keyof HostCommandOptions]: HostCommandOptions[K] } = {}
+  for (const name of commandFields) if (config[name] !== undefined) options[name] = config[name]
+  return options
 }
 
 type Operation<P, O extends keyof ExecutionEnvironment<P>> = {
@@ -220,13 +271,25 @@ export const filesFacilityPlugin = {
   },
 }
 
+/** Registers the `command` facility declaration on the loading fiber. It registers no provider. */
+export const commandFacilityPlugin = {
+  name: 'commandFacility',
+  Config: emptyConfig,
+  inject: { [executionEnvironmentKey]: { caller: 'provider' } },
+  apply(ctx: Context) {
+    ctx.executionEnvironment.registerFacility(commandFacility)
+  },
+}
+
 /**
  * Makes the plugin that registers one host files provider of `domain` on the loading fiber. The
  * process host creates the domain once and keeps it; unloading the plugin retires the provider
  * generation, not the domain, so a reloaded plugin sees the original quota use and acquisitions.
- * The `files` declaration comes from `filesFacilityPlugin`; without it, acquisitions that need
- * `files` are refused. `drainBoundMs` bounds how long a release, a settlement or the retirement
- * waits for file operations in flight; a pending result writes one error to `ctx.logger`.
+ * The `files` and `command` declarations come from `filesFacilityPlugin` and
+ * `commandFacilityPlugin`; without one, acquisitions that need it are refused. `drainBoundMs` bounds
+ * how long a release, a settlement or the retirement waits for operations in flight; a retirement
+ * force-stops the commands this generation still runs. A pending result or a refused start writes
+ * one error to `ctx.logger`.
  */
 export function createHostFilesPlugin(domain: HostFilesDomain) {
   return {
@@ -236,9 +299,12 @@ export function createHostFilesPlugin(domain: HostFilesDomain) {
     apply(ctx: Context, config: HostFilesConfig = {}) {
       const logger = ctx.logger('executionEnvironment.hostFiles')
       const options: HostFilesProviderOptions = {
-        ...config,
         domain,
         diagnose: diagnostic => logger.error(diagnostic),
+        command: commandOptionsOf(config),
+        ...(config.drainBoundMs === undefined ? {} : { drainBoundMs: config.drainBoundMs }),
+        ...(config.filesRoot === undefined ? {} : { filesRoot: config.filesRoot }),
+        ...(config.stateDirectory === undefined ? {} : { stateDirectory: config.stateDirectory }),
       }
       ctx.executionEnvironment.registerProvider(createHostFilesProvider(options))
     },

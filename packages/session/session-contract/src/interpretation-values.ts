@@ -1,6 +1,6 @@
-// The values of the same-log entries interpretation (SPEC「entries 解释的范围证明与提交口」). Only
-// the shapes and the commit port signature are here; the pure check and the provider steps are the
-// work of the next segment. No Agent, Model or Tool type appears.
+// The values of the same-log entries interpretation. The range rules, the pure check and the provider
+// steps are in docs/same-log-pure.md「entries 通道的解释提交」 and entries-interpretation.ts. No Agent,
+// Model or Tool type appears.
 import type { DurableEvidence, RunId, SessionAccess, SessionOperationId } from './identity.ts'
 import type { ProducerFact } from './faces.ts'
 
@@ -49,7 +49,10 @@ export type SessionEntriesProgress = Readonly<{
   execution: string
   channel: SessionEntriesChannel
   through: string
-  /** The original receipt evidence of the Session commit that set `through`. */
+  /**
+   * The evidence of the Session commit that set `through`: its batch evidence, the `source` of the
+   * snapshot that the commit reduced to, which a replay of the log computes again.
+   */
   interpreted: DurableEvidence
 }>
 

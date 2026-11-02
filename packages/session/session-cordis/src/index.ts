@@ -1,2 +1,3 @@
-// PACKAGE_TEMPLATE_DRAFT: Export an independent factory/function consuming public contracts.
+// The root entry exports nothing (IC-4). A host without Cordis takes `createSessionInstance`
+// from `@omne-harness/session`; the plugin is at `./cordis`.
 export {}

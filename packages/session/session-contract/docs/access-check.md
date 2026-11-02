@@ -1,6 +1,6 @@
 # 当前访问检查的实现范围
 
-行为承诺归 [SPEC 当前操作的访问裁定](../SPEC.md#当前操作的访问裁定)。精确公开形状归 [access.ts](../src/access.ts)，根入口导出 `SessionAccessCheck`、`SessionAccessRequest`、`SessionAccessDecision`、`SessionAccessOperation`、`SessionAccessTarget` 与 `SessionReadAccessOperation`。
+行为承诺归 [SPEC 当前操作的访问裁定](../SPEC.md#当前操作的访问裁定)。委派视图的核对规则与失败答复例外，只归本页的[委派入口](#委派入口)一节，SPEC 引用该节。精确公开形状归 [access.ts](../src/access.ts)，根入口导出 `SessionAccessCheck`、`SessionAccessRequest`、`SessionAccessDecision`、`SessionAccessOperation`、`SessionAccessTarget` 与 `SessionReadAccessOperation`。
 
 变更请求通过 operation 关联原 `SessionCommand`。租户请求使用共同 `Access`，系统目录请求携带真实 principal 与 `scope: 'system'`，不伪造 tenant。裁定是 allowed 和证据、denied、unavailable 三种结果。类型不证明调用者有权。
 
@@ -36,7 +36,7 @@
 2. 结果为 allowed 时，服务实例以请求和证据调用 `bind`，取得只服务本次面操作的视图。视图的形状是 `SessionTransactionPort<P>`。
 3. 本次面操作内的认回点查、权威读、`changed` 重做与提交都经视图。视图不调用 `check`。
 
-视图按绑定核对每次调用：
+视图按绑定核对每次调用。下列规则是视图核对与失败答复的唯一来源：
 
 - 调用的租户与 Session 不等于请求目标时，视图答 `denied`。
 - 提交的命令与请求所带命令的种类、操作身份或 OP-00 摘要（不含 `expected`）不同时，视图答 `denied`。读请求不带命令，所以经读绑定的提交也答 `denied`。
@@ -63,7 +63,7 @@
 | 读口抛错 | `unavailable` |
 | 签发失败 | `unavailable`，`owner` 为 `identity` |
 
-`SessionInternalPrincipals` 保留，只用于系统维护。
+`SessionInternalPrincipals` 保留，只用于系统维护，适用的操作见 [session CP-01](../../session/SPEC.md#cp-access)。
 
 ## 尚未接入的部分
 
