@@ -46,6 +46,17 @@ it('rechecks held gaps before disclosure and prefers revoked access to overflow'
   f.source.close()
 })
 
+it('does not disclose a queued delta after observe authority is revoked', async () => {
+  const { f, iterator } = await observing()
+  await iterator.next()
+  f.confirm(f.facts('2'))
+  f.denied.add('observe')
+  expect((await iterator.next()).value).toEqual({ kind: 'ended', reason: 'denied' })
+  expect((await iterator.next()).done).toBe(true)
+  expect(f.waits.size).toBe(0)
+  f.source.close()
+})
+
 it('expires at the exact residence deadline and keeps the last delivered cursor', async () => {
   const { f, iterator } = await observing()
   const first = (await iterator.next()).value
