@@ -1,6 +1,6 @@
 // 变异一个成员：第一遍 Stryker（开增量时先放好上次的快照）、只因时限到了而超时的单独复核，汇总成员读数，
 // 测量有效时写回快照。成员之间互不依赖，入口按预算同时跑几个；这里的输出只有一行进度，读数交回入口按成员顺序汇总。
-import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { slugOf } from '../testing/run.ts'
 import {
@@ -22,6 +22,8 @@ import {
   planRecheck,
   recheckTargets,
   summarizeMember,
+  unexecutedMember,
+  type ExecutionFailure,
   type MemberMutation,
   type MutationReport,
 } from './report.ts'
@@ -29,12 +31,19 @@ import { isRunRecord, type RunRecord } from './run-reporter.ts'
 import type { MutationTarget } from './scope.ts'
 import { runStryker, type StrykerRun } from './stryker.ts'
 
-function readMutationReport(path: string): MutationReport | undefined {
+/** 原始报告没写出（`missing`）与写出了却读不出或形状不对（`unreadable`）分开：读数里各是一条原因。 */
+type ReportRead =
+  | { readonly kind: 'read'; readonly report: MutationReport }
+  | { readonly kind: 'missing' }
+  | { readonly kind: 'unreadable' }
+
+function readMutationReport(path: string): ReportRead {
+  if (!existsSync(path)) return { kind: 'missing' }
   try {
     const report: unknown = JSON.parse(readFileSync(path, 'utf8'))
-    return isMutationReport(report) ? report : undefined
+    return isMutationReport(report) ? { kind: 'read', report } : { kind: 'unreadable' }
   } catch {
-    return undefined
+    return { kind: 'unreadable' }
   }
 }
 
@@ -82,8 +91,8 @@ export interface MemberIncremental {
 }
 
 export interface MemberOutcome {
-  /** Stryker 没跑成（预检没通过、退出非零、没写出报告）时没有读数。 */
-  readonly result: MemberMutation | undefined
+  /** Stryker 没跑成（预检没通过、退出非零、报告没写出或读不出）时，读数是测量无效、带 `executionFailure`、不给分数。 */
+  readonly result: MemberMutation
   readonly errors: readonly string[]
   /** 没开增量时为 undefined。 */
   readonly incremental: MemberIncremental | undefined
@@ -131,10 +140,7 @@ export async function mutateMember(
     ...(prepared.run === undefined ? {} : { incremental: prepared.run }),
   }
   const ran = await runStryker(target, strykerRun)
-  const raw = readMutationReport(ran.reportPath)
-  // 开增量时 Stryker 把范围外的旧变异体原样留在报告里；不开增量时没有它们，读数只按这次生成的算。
-  const report =
-    raw === undefined || prepared.run === undefined ? raw : dropCarriedOver(target, raw)
+  const read = readMutationReport(ran.reportPath)
   const incremental = (): MemberIncremental | undefined => {
     if (context.incremental.kind === 'off') return undefined
     let reused: number | null = null
@@ -146,18 +152,38 @@ export async function mutateMember(
     }
     return { member: path, reused: prepared.run === undefined ? 0 : reused, notes }
   }
-  const failed = (error: string): MemberOutcome => {
+  const failed = (failure: ExecutionFailure): MemberOutcome => {
     console.log(`${label} ${path} ${Math.round(ran.wallSeconds)} 秒，出错`)
-    return { result: undefined, errors: [error], incremental: incremental() }
+    return {
+      result: unexecutedMember(target, failure),
+      errors: [`${path}：${failure.message}`],
+      incremental: incremental(),
+    }
   }
   if (ran.preflightFailed)
-    return failed(
-      `${path}：sandbox 预检没通过，快层测试在 sandbox 里没跑通，没有做变异，日志 ${ran.logPath}`,
-    )
-  if (ran.exitCode !== 0 || report === undefined)
-    return failed(
-      `${path}：Stryker 退出码 ${ran.exitCode}${report === undefined ? '，没有写出报告' : ''}，日志 ${ran.logPath}`,
-    )
+    return failed({
+      reason: 'preflight-failed',
+      message: `sandbox 预检没通过，快层测试在 sandbox 里没跑通，没有做变异，日志 ${ran.logPath}`,
+    })
+  if (ran.exitCode !== 0)
+    return failed({
+      reason: 'stryker-failed',
+      message:
+        `Stryker 退出码 ${ran.exitCode}` +
+        `${read.kind === 'missing' ? '，没有写出报告' : read.kind === 'unreadable' ? '，报告读不出或形状不对' : ''}，日志 ${ran.logPath}`,
+    })
+  if (read.kind === 'missing')
+    return failed({
+      reason: 'report-missing',
+      message: `Stryker 退出码 0，没有写出报告，日志 ${ran.logPath}`,
+    })
+  if (read.kind === 'unreadable')
+    return failed({
+      reason: 'report-unreadable',
+      message: `Stryker 退出码 0，报告 ${ran.reportPath} 读不出或形状不对，日志 ${ran.logPath}`,
+    })
+  // 开增量时 Stryker 把范围外的旧变异体原样留在报告里；不开增量时没有它们，读数只按这次生成的算。
+  const report = prepared.run === undefined ? read.report : dropCarriedOver(target, read.report)
   const ownRuns = readRunRecords(ran.runLogPath)
   const runs = withCarriedRuns(report, ownRuns, prepared.seeded)
   const first = summarizeMember(target, report, { runs })
@@ -179,7 +205,8 @@ export async function mutateMember(
         timeoutMS: context.testTimeoutSeconds * 1000,
       })
       seconds += again.wallSeconds
-      const recheck = readMutationReport(again.reportPath)
+      const recheckRead = readMutationReport(again.reportPath)
+      const recheck = recheckRead.kind === 'read' ? recheckRead.report : undefined
       if (again.preflightFailed || again.exitCode !== 0 || recheck === undefined)
         errors.push(
           `${path}：复核的 Stryker ${again.preflightFailed ? 'sandbox 预检没通过' : `退出码 ${again.exitCode}`}` +
@@ -225,7 +252,9 @@ export async function mutateMember(
   const reuse = incremental()
   console.log(
     `${label} ${path} ${Math.round(seconds)} 秒` +
-      `${result.valid ? '' : '，测量无效'}，存活 ${result.counts.Survived}、无覆盖 ${result.counts.NoCoverage}` +
+      (result.executionFailure === null
+        ? `${result.valid ? '' : '，测量无效'}，存活 ${result.counts.Survived}、无覆盖 ${result.counts.NoCoverage}`
+        : `，测量无效（${result.executionFailure.reason}）`) +
       (result.invalid.length > 0 ? `、不计分 ${result.invalid.length}` : '') +
       (result.rechecked.length > 0 ? `、复核 ${result.rechecked.length}` : '') +
       (result.unmutated.length > 0 ? `、没有变异体的改动 ${result.unmutated.length} 段` : '') +

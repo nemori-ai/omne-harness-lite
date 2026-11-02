@@ -213,8 +213,8 @@ describe('worktree preparation', () => {
   it('moves a local branch that is behind forward to the remote tip before adding the tree', () => {
     const root = home(),
       evidence = join(root, 'evidence')
-    mkdirSync(evidence)
-    writeFileSync(join(evidence, 'report.md'), 'kept')
+    mkdirSync(join(evidence, 'tmp/issue-7'), { recursive: true })
+    writeFileSync(join(evidence, 'tmp/issue-7/report.md'), 'kept')
     const tree = join(root, 'tree'),
       r = runner(behind)
     prepareWorktree({ root, tree, binding, evidence, run: r.run, host: linux })
@@ -259,9 +259,9 @@ describe('worktree preparation', () => {
     const root = home(),
       evidence = join(root, 'evidence'),
       tree = join(root, 'tree')
-    mkdirSync(evidence)
+    mkdirSync(join(evidence, 'tmp/issue-7'), { recursive: true })
     // The evidence of an earlier attempt carries that attempt's start command.
-    writeFileSync(join(evidence, 'start.json'), '{"attempt":"7-r1-a1"}')
+    writeFileSync(join(evidence, 'tmp/issue-7/start.json'), '{"attempt":"7-r1-a1"}')
     const r = runner({
       [`git show-ref --quiet --verify ${local}`]: { status: 1 },
       'pnpm install --frozen-lockfile': { status: 1, stderr: 'lock mismatch' },
@@ -276,7 +276,7 @@ describe('worktree preparation', () => {
       message: 'install failed (exit 1): lock mismatch',
       done: [
         `added worktree ${tree} on ${binding.branch}`,
-        `restored ${evidence} into ${join(tree, 'tmp/issue-7')}`,
+        `restored ${evidence} into ${tree}`,
         `wrote ${input} for attempt 7-r1-a2`,
       ],
       resume: [
@@ -618,6 +618,47 @@ describe('worktree swap', () => {
     expect(detach).toBeLessThan(move)
   })
 
+  it('carries the line task directory into the new tree beside the card one', () => {
+    const root = home(),
+      oldTree = old(root)
+    mkdirSync(join(oldTree, 'tmp/line-engineering-toolchain/w1'), { recursive: true })
+    writeFileSync(join(oldTree, 'tmp/line-engineering-toolchain/state.md'), 'line state')
+    writeFileSync(join(oldTree, 'tmp/line-engineering-toolchain/w1/plan.md'), 'wave plan')
+    const r = runner(clean)
+    runSwap({
+      root,
+      old: oldTree,
+      tree: join(root, 'new'),
+      binding,
+      run: r.run,
+      host: linux,
+    })
+    expect(readFileSync(join(root, 'new/tmp/issue-7/handoff.md'), 'utf8')).toBe('evidence')
+    expect(readFileSync(join(root, 'new/tmp/line-engineering-toolchain/state.md'), 'utf8')).toBe(
+      'line state',
+    )
+    expect(readFileSync(join(root, 'new/tmp/line-engineering-toolchain/w1/plan.md'), 'utf8')).toBe(
+      'wave plan',
+    )
+    // The old tree keeps both directories; nothing is moved away from it.
+    expect(existsSync(join(oldTree, 'tmp/line-engineering-toolchain/state.md'))).toBe(true)
+  })
+
+  it('refuses a version 1 binding that names no line instead of skipping the line directory', () => {
+    const root = home(),
+      { line: _line, ...v1fields } = binding
+    expect(() =>
+      runSwap({
+        root,
+        old: old(root),
+        tree: join(root, 'new'),
+        binding: { ...v1fields, schemaVersion: 1 },
+        run: runner(clean).run,
+        host: linux,
+      }),
+    ).toThrow('cannot tell the line task directory')
+  })
+
   it.each([
     [
       'uncommitted tracked changes',
@@ -698,7 +739,7 @@ describe('worktree swap', () => {
     ])
     // The copy stays in the temporary directory for the operator; this test's runSwap removes it.
     const copy = /to (.*)$/.exec(done[0] ?? '')?.[1] ?? ''
-    expect((failure as WorktreeStepError).evidence).toBe(copy)
+    expect(copy).toBe(join((failure as WorktreeStepError).evidence ?? '', 'tmp/issue-7'))
     expect(readFileSync(join(copy, 'handoff.md'), 'utf8')).toBe('evidence')
   })
 
@@ -715,10 +756,10 @@ describe('worktree swap', () => {
     expect(message).toContain('move local branch forward failed')
     expect(done).toEqual([expect.stringMatching(/^copied /), `detached ${oldTree}`])
     const copy = /to (.*)$/.exec(done[0] ?? '')?.[1] ?? ''
-    expect(evidence).toBe(copy)
+    expect(copy).toBe(join(evidence ?? '', 'tmp/issue-7'))
     expect(resume).toEqual([
       expect.stringContaining(
-        `prepare --issue 7 --tree ${tree} --evidence ${copy} --root ${root} --remote origin`,
+        `prepare --issue 7 --tree ${tree} --evidence ${evidence ?? ''} --root ${root} --remote origin`,
       ),
     ])
     expect(existsSync(tree)).toBe(false)
@@ -744,13 +785,15 @@ describe('a swap whose detach fails', () => {
     )
     expect(failure).toBeInstanceOf(WorktreeStepError)
     const { done, resume, evidence } = failure as WorktreeStepError
-    expect(done).toEqual([`copied ${join(oldTree, 'tmp/issue-7')} to ${evidence}`])
+    expect(done).toEqual([
+      `copied ${join(oldTree, 'tmp/issue-7')} to ${join(evidence ?? '', 'tmp/issue-7')}`,
+    ])
     expect(resume).toEqual([
       expect.stringContaining(
         `swap --issue 7 --old ${oldTree} --tree ${tree} --root ${root} --remote origin`,
       ),
     ])
-    expect(readFileSync(join(evidence ?? '', 'handoff.md'), 'utf8')).toBe('evidence')
+    expect(readFileSync(join(evidence ?? '', 'tmp/issue-7/handoff.md'), 'utf8')).toBe('evidence')
     expect(r.ran('git', 'worktree')).toBe(false)
   })
 })

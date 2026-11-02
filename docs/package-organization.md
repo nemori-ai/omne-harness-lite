@@ -98,6 +98,7 @@ packages/
 ├── identity/
 │   ├── identity/               主体、成员、登录与组织关系
 │   ├── authorization/          授权及共同动作准入
+│   ├── identity-sql/           身份契约的持久提供者：账号、成员与登录的 SQL 存储
 │   └── scrypt/                 有界 scrypt 派生与校验
 ├── assets/
 │   ├── assets/                 共同定义、版本、持有与来源
@@ -184,30 +185,31 @@ scripts/                       仓库自动化
 
 `schema` 只放 Schema 提供者。成员是 `packages/schema/schema-provider`。它做准入、首次编译、租约和槽位缓存。各业务形状仍由各自的拥有者持有。该组不是治理领域，也不是 `util` 或 `common`。提供者持有缓存和租约，不是纯表示。
 
-装配组有两个目标成员。`assembly` 维护求值、采用和交接。`kernel-basis` 维护 Cordis 插件辅助和测试装配。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。
+装配组有三个目标成员。`assembly` 维护求值、采用和交接。`kernel-basis` 维护 Cordis 插件辅助和测试装配。`adoption-contract`（`packages/assembly/adoption-contract`）是采用协调的契约成员，含纯类型、校验、摘要函数、Cordis 服务定义 `adoptionCoordinator`、内存替身与符合性套件；它不依赖 `assembly`、Session、Agent 与 Tool，只有应用成员与具名提供者导入它（[采用协调契约设计](domains/assembly-and-handoff/adoption-coordination.md) AC-18、AC-19）。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。
 
 `kernel-basis` 不声明服务键。它不收回其他能力的 Service 定义。根入口为空导出，并且不导入 `@deepseek-ai/cordis`。操作结果归 `packages/common/operation-result`。插件辅助从同包 `./cordis` 导出。测试装配从同包 `./testing` 导出。本页登记成员位置 `packages/assembly/kernel-basis`，具体实现范围见下段。
 
 `packages/assembly/kernel-basis` 已是 workspace 成员。根入口为空导出，`./cordis` 导出 `definePlugin`、`resolveOptional`、`registerInCallerFiber` 与类型 `Admission`，`./testing` 导出 `startTestAssembly`。封存实现 `packages.0.0.1.legacy/core/kernel-basis` 已退出 workspace，只供来源核对，新成员不依赖旧源码或探针。检查器在查看公开根之前跳过 `packages/core/kernel-basis`。说明见[符合性报告](../tools/repo-toolchain/src/arch/CONFORMANCE.md)。目标成员不使用该跳过。
 
 <a id="模型组的成员与采用范围"></a>
+
 ### 模型组的成员与采用范围
 
 `0.0.0 → 0.1.0` 的模型适配和请求沿用项目维护的 pi-ai 技术栈。model-contract、model-cordis-contract、model、model-host-local、pi-ai-transport、pi-ai-openai、pi-ai-anthropic 与 tokenizer-tiktoken 已是 workspace 成员，并按下表职责拥有文档。其中 model-contract、model-cordis-contract、model 与 model-host-local 的设计已接受。pi-ai-transport 与 tokenizer-tiktoken 的设计状态见下表「设计状态」。各成员的源码状态见下表「初始化状态」。pi-ai-openai 与 pi-ai-anthropic 以外的厂商家族成员及 tokenizer-huggingface 尚未初始化。不保留聚合全部实现的安装门面。
 
-| 成员，位于 packages/model 下 | 包边界 | 设计状态 | 初始化状态 |
-| --- | --- | --- | --- |
-| model-contract | 纯领域值、操作、必要纯函数与提供者协议；普通消费者和 adapter 作者不安装运行实现 | 已接受 | workspace 成员；已发布全部声明并有测试 |
-| model-cordis-contract | 唯一 Cordis 服务定义、键、增补及定义自有登记表；不安装 Model 运行提供者 | 已接受 | workspace 成员；已发布全部声明并有测试 |
-| model | 可复用领域执行与实际工厂，按契约注入依赖，不安装 Cordis | 已接受 | workspace 成员；托管运行与工厂未实现，已实现部分见[成员入口](../packages/model/model/README_ZH.md) |
-| model-host-local | 本地凭据保管、实例调度、时钟、目录装载及 Cordis 插件，复用 model | 已接受 | workspace 成员；实例调度、时钟、目录装载未实现，已实现部分见[成员入口](../packages/model/model-host-local/README_ZH.md) |
-| model-storage-sql | 调用事实的 SQL 存储：实现 model 共享归约核心的存储端口（`ModelCommandStorage`），与会话日志同处一租户一事务域；不安装 Cordis，`modelCommands` 应用插件归应用组合 | D3 决策记录（#446，第二层）已定 | workspace 成员；存储端口与表、行解析、提交循环已实现，装配与对拍在做，见[成员入口](../packages/model/model-storage-sql/README_ZH.md) |
-| pi-ai-transport | 共享 pi 请求机制、HTTP/SSE、连接资源及取消 | 成员划分与家族贡献取得协议已接受；其余细化沿组架构标注 | workspace 成员；根入口导出家族贡献接口类型、家族表、`createPiTransport` 与 `createNetworkResources`，子入口导出网关引擎与家族测试助手；ModelTransport 三段语义已实现，两个真实家族经它的联调在 pi-ai-anthropic 的慢层验证；媒体读取未实现，见[成员入口](../packages/model/pi-ai-transport/README_ZH.md) |
-| pi-ai-openai | OpenAI 家族的型号记录、请求与响应规则、计量与官方档案 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources` 与 12 条记录；快层验证规则、计量与夹具，经共享传输的联调在 pi-ai-anthropic 的慢层；经代理的示例只在手动运行时有证据，见[成员入口](../packages/model/pi-ai-openai/README_ZH.md) |
-| pi-ai-anthropic | Anthropic 家族的型号记录、请求与响应规则、计量、词表资源与官方档案 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createAnthropicFamily`、`officialAnthropicProfiles`、`anthropicTokenizerResources` 与 4 条记录；快层验证规则、计量、词表资源与夹具，慢层验证两个家族经共享传输的联调；两个经代理的示例只在手动运行时有证据，见[成员入口](../packages/model/pi-ai-anthropic/README_ZH.md) |
-| pi-ai-google、pi-ai-deepseek、pi-ai-xai、pi-ai-qwen、pi-ai-moonshot、pi-ai-zai | 按厂商家族内聚型号定义、请求与响应适配、完整计量、模板、资源和验证 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | 未初始化 |
-| tokenizer-tiktoken | 封装 js-tiktoken 的初始化与文本计数；具体词表、配置和模型模板归家族成员 | 成员划分与资源、计量分工已接受 | workspace 成员；根入口导出 `createTiktokenTokenizer` 与两个资源类型，pi-ai-openai 传入 o200k 秩数据，pi-ai-anthropic 传入 `claude.json`，见[成员入口](../packages/model/tokenizer-tiktoken/README_ZH.md) |
-| tokenizer-huggingface | 封装 Hugging Face 分词引擎的初始化与文本计数；具体词表、配置和模型模板归家族成员 | 成员划分与资源、计量分工已接受 | 未初始化 |
+| 成员，位于 packages/model 下                                                    | 包边界                                                                                                          | 设计状态                           | 初始化状态                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| model-contract                                                            | 纯领域值、操作、必要纯函数与提供者协议；普通消费者和 adapter 作者不安装运行实现                                                                 | 已接受                            | workspace 成员；已发布全部声明并有测试                                                                                                                                                                                                   |
+| model-cordis-contract                                                     | 唯一 Cordis 服务定义、键、增补及定义自有登记表；不安装 Model 运行提供者                                                                  | 已接受                            | workspace 成员；已发布全部声明并有测试                                                                                                                                                                                                   |
+| model                                                                     | 可复用领域执行与实际工厂，按契约注入依赖，不安装 Cordis                                                                              | 已接受                            | workspace 成员；托管运行与工厂未实现，已实现部分见[成员入口](../packages/model/model/README_ZH.md)                                                                                                                                                 |
+| model-host-local                                                          | 本地凭据保管、实例调度、时钟、目录装载及 Cordis 插件，复用 model                                                                      | 已接受                            | workspace 成员；实例调度、时钟、目录装载未实现，已实现部分见[成员入口](../packages/model/model-host-local/README_ZH.md)                                                                                                                                 |
+| model-storage-sql                                                         | 调用事实的 SQL 存储：实现 model 共享归约核心的存储端口（`ModelCommandStorage`），与会话日志同处一租户一事务域；不安装 Cordis，`modelCommands` 应用插件归应用组合 | D3 决策记录（#446，第二层）已定            | workspace 成员；存储端口与表、行解析、提交循环已实现，装配与对拍在做，见[成员入口](../packages/model/model-storage-sql/README_ZH.md)                                                                                                                          |
+| pi-ai-transport                                                           | 共享 pi 请求机制、HTTP/SSE、连接资源及取消                                                                                  | 成员划分与家族贡献取得协议已接受；其余细化沿组架构标注    | workspace 成员；根入口导出家族贡献接口类型、家族表、`createPiTransport` 与 `createNetworkResources`，子入口导出网关引擎与家族测试助手；ModelTransport 三段语义已实现，两个真实家族经它的联调在 pi-ai-anthropic 的慢层验证；媒体读取未实现，见[成员入口](../packages/model/pi-ai-transport/README_ZH.md)   |
+| pi-ai-openai                                                              | OpenAI 家族的型号记录、请求与响应规则、计量与官方档案                                                                               | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources` 与 12 条记录；快层验证规则、计量与夹具，经共享传输的联调在 pi-ai-anthropic 的慢层；经代理的示例只在手动运行时有证据，见[成员入口](../packages/model/pi-ai-openai/README_ZH.md)      |
+| pi-ai-anthropic                                                           | Anthropic 家族的型号记录、请求与响应规则、计量、词表资源与官方档案                                                                       | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createAnthropicFamily`、`officialAnthropicProfiles`、`anthropicTokenizerResources` 与 4 条记录；快层验证规则、计量、词表资源与夹具，慢层验证两个家族经共享传输的联调；两个经代理的示例只在手动运行时有证据，见[成员入口](../packages/model/pi-ai-anthropic/README_ZH.md) |
+| pi-ai-google、pi-ai-deepseek、pi-ai-xai、pi-ai-qwen、pi-ai-moonshot、pi-ai-zai | 按厂商家族内聚型号定义、请求与响应适配、完整计量、模板、资源和验证                                                                            | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | 未初始化                                                                                                                                                                                                                       |
+| tokenizer-tiktoken                                                        | 封装 js-tiktoken 的初始化与文本计数；具体词表、配置和模型模板归家族成员                                                                   | 成员划分与资源、计量分工已接受                | workspace 成员；根入口导出 `createTiktokenTokenizer` 与两个资源类型，pi-ai-openai 传入 o200k 秩数据，pi-ai-anthropic 传入 `claude.json`，见[成员入口](../packages/model/tokenizer-tiktoken/README_ZH.md)                                                 |
+| tokenizer-huggingface                                                     | 封装 Hugging Face 分词引擎的初始化与文本计数；具体词表、配置和模型模板归家族成员                                                              | 成员划分与资源、计量分工已接受                | 未初始化                                                                                                                                                                                                                       |
 
 具体型号默认作为家族内的精确绑定，不按型号逐一建包。依赖方向、拆分依据、装配责任和实际建包条件由[模型组架构](../packages/model/docs/architecture.md#成员与新增条件)维护。本页登记成员位置及初始化状态，不复制接口或支持型号清单。model-host-local 的本地凭据保管已实现；实例调度、时钟与目录装载的设计已接受，尚未实现。pi-ai 相关设计的采用范围及本实现线的延期条件沿组架构执行；后续运行成员随实际实现及验证切片建立。
 
@@ -215,25 +217,25 @@ scripts/                       仓库自动化
 
 领域页拥有责任及协作，下面只维护责任到目标能力组的导航，不把责任数量当作包数量。
 
-| 责任入口 | 目标组 | 就近维护的知识 |
-| --- | --- | --- |
-| [身份与授权](domains/identity-and-authorization/README.md) | identity | 主体关系、登录、授权与共同准入 |
-| [资产与规则](domains/assets-and-rules/README.md) | assets | 共同持有、来源、设置与权限求值 |
-| [工作区](domains/workspaces/README.md) | workspace | 工作区身份及资源关系 |
-| [会话与工作](domains/sessions-and-work/README.md) | session | 逻辑工作、输入受理及消费协调 |
-| [装配交接](domains/assembly-and-handoff/README.md) | assembly | 定义采用、绑定、交接和内核辅助 |
-| [Agent推进](domains/agent-progression/README.md) | agent | Loop与扩展推进 |
-| [模型调用](domains/model-invocation/README.md) | model | 请求、原执行、结果与费用 |
-| [工具执行](domains/tool-execution/README.md) | tool | 调用、执行与外部效果 |
-| [Runtime Context](domains/runtime-context/README.md) | context | 数据供给、注册、请求投影与组装 |
-| [人工介入](domains/human-intervention/README.md) | human-intervention | 决策请求及有效答复 |
-| [执行环境](domains/execution-environments/README.md) | execution | 落点、设施、租约与资源恢复 |
-| [日历](domains/calendars/README.md) | calendar | 版本、日期依据及计算 |
-| [日程与Job](domains/schedules-and-jobs/README.md) | schedule | 接受、执行协调及整体完成 |
-| [通知](domains/notifications/README.md) | notification | 发送、尝试与送达 |
-| [Slash Command](domains/slash-commands/README.md) | slash-command | 名称、绑定、识别与展开 |
-| [Skill](domains/skills/README.md) | skills | 方法取用、正文及资源 |
-| [MCP](domains/mcp/README.md) | mcp | 端点、连接、发现与桥接 |
+| 责任入口                                                   | 目标组             | 就近维护的知识                 |
+| ---------------------------------------------------------- | ------------------ | ------------------------------ |
+| [身份与授权](domains/identity-and-authorization/README.md) | identity           | 主体关系、登录、授权与共同准入 |
+| [资产与规则](domains/assets-and-rules/README.md)           | assets             | 共同持有、来源、设置与权限求值 |
+| [工作区](domains/workspaces/README.md)                     | workspace          | 工作区身份及资源关系           |
+| [会话与工作](domains/sessions-and-work/README.md)          | session            | 逻辑工作、输入受理及消费协调   |
+| [装配交接](domains/assembly-and-handoff/README.md)         | assembly           | 定义采用、绑定、交接和内核辅助 |
+| [Agent推进](domains/agent-progression/README.md)           | agent              | Loop与扩展推进                 |
+| [模型调用](domains/model-invocation/README.md)             | model              | 请求、原执行、结果与费用       |
+| [工具执行](domains/tool-execution/README.md)               | tool               | 调用、执行与外部效果           |
+| [Runtime Context](domains/runtime-context/README.md)       | context            | 数据供给、注册、请求投影与组装 |
+| [人工介入](domains/human-intervention/README.md)           | human-intervention | 决策请求及有效答复             |
+| [执行环境](domains/execution-environments/README.md)       | execution          | 落点、设施、租约与资源恢复     |
+| [日历](domains/calendars/README.md)                        | calendar           | 版本、日期依据及计算           |
+| [日程与Job](domains/schedules-and-jobs/README.md)          | schedule           | 接受、执行协调及整体完成       |
+| [通知](domains/notifications/README.md)                    | notification       | 发送、尝试与送达               |
+| [Slash Command](domains/slash-commands/README.md)          | slash-command      | 名称、绑定、识别与展开         |
+| [Skill](domains/skills/README.md)                          | skills             | 方法取用、正文及资源           |
+| [MCP](domains/mcp/README.md)                               | mcp                | 端点、连接、发现与桥接         |
 
 assets维护共同治理，具体类别维护专有定义与业务。共同治理不反向导入全部类别实现，Tool不接管被调用类别的业务状态。命令受理、Skill读取与脚本执行、MCP连接与实际调用的分责继续沿对应领域页。
 
@@ -303,12 +305,12 @@ flowchart TD
 
 Session、Agent、Model 与 Tool 按公开责任单向组合。Session 通过 Agent 的公开操作产生 Model 或 Tool 效果，Agent 可消费 Model 与 Tool 的必要公开契约。Agent、Model、Tool 的契约不要求认识 Session 的状态、生命周期或治理；Model、Tool 的契约也不要求认识 Agent 的状态、生命周期或治理。不透明的结果去处、调用身份或公共身份值不能暗含对外层内部状态的判断义务。
 
-| 来源职责 | 可以消费的方向 | 禁止的反向耦合 |
-| --- | --- | --- |
+| 来源职责                 | 可以消费的方向                   | 禁止的反向耦合                                                                     |
+| ------------------------ | -------------------------------- | ---------------------------------------------------------------------------------- |
 | Session 的邻域适配与协调 | Agent 公开契约；显示经公共流契约 | 不直接依赖 Model、Tool 操作契约执行控制或交付解除，也不从 Agent 取得服务后自行调用 |
-| Agent 的契约与协调 | Model、Tool 的必要公开契约 | 契约不依赖 Session 领域职责 |
-| Model 契约 | 按职责需要的公共值与窄端口 | 不依赖 Session、Agent 领域职责 |
-| Tool 契约 | 按职责需要的公共值与窄端口 | 不依赖 Session、Agent 领域职责 |
+| Agent 的契约与协调       | Model、Tool 的必要公开契约       | 契约不依赖 Session 领域职责                                                        |
+| Model 契约               | 按职责需要的公共值与窄端口       | 不依赖 Session、Agent 领域职责                                                     |
+| Tool 契约                | 按职责需要的公共值与窄端口       | 不依赖 Session、Agent 领域职责                                                     |
 
 本表不改变各组内部成员分工。Session 组只有 session-adapters 导入邻域契约；表中 Session 到 Agent 的方向不授予 session-contract 或 session-cordis 新的邻域导入权限。外部装配按其实际职责选择公开能力与提供者，不获得整个目录的反向依赖豁免。
 
@@ -322,14 +324,14 @@ access 组的 server-entry 为会话观察另有两条成员级依赖边：`serv
 
 先明确新增行为的要求、采用范围、身份与事实拥有者、调用方、结果、副作用和验证责任。普通既有承诺扩展就近处理，新增产品含义或公开保证由其拥有者决定。
 
-| 新增内容 | 放置判断 |
-| --- | --- |
-| 内部行为或计算函数 | 留实际拥有者的内部模块 |
-| 原契约的新提供者 | 放所属能力组，平台依赖和验证就近维护 |
-| 新资产类别 | 复用共同治理，专有知识由类别拥有者维护；不自动建包 |
-| 稳定新业务责任 | 确认责任和承诺后增加领域入口及能力组 |
-| 新应用或部署角色 | 装配和表现归apps，可复用业务归能力 |
-| 新Harness公开操作 | 原能力维护业务，access维护系统投影、SDK及接入 |
+| 新增内容           | 放置判断                                           |
+| ------------------ | -------------------------------------------------- |
+| 内部行为或计算函数 | 留实际拥有者的内部模块                             |
+| 原契约的新提供者   | 放所属能力组，平台依赖和验证就近维护               |
+| 新资产类别         | 复用共同治理，专有知识由类别拥有者维护；不自动建包 |
+| 稳定新业务责任     | 确认责任和承诺后增加领域入口及能力组               |
+| 新应用或部署角色   | 装配和表现归apps，可复用业务归能力                 |
+| 新Harness公开操作  | 原能力维护业务，access维护系统投影、SDK及接入      |
 
 新组不必先修改固定类别白名单，也不必同时增加SDK操作。运行时注册、扩展API、角色声明和测量载体由实际拥有者另行设计。实施顺序沿[Feature场景](engineering/scenarios/feature.md)及[领域扩展指导](domains/extending-the-system.md)。
 

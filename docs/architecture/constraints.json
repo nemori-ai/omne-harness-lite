@@ -526,6 +526,19 @@
       ],
       "ruling": "https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6480475331",
       "reason": "上下文组装要感知工具，工具要感知运行时上下文（PanQiWei 裁定）"
+    },
+    {
+      "id": "GCX-AGENT-CONTEXT",
+      "edges": [
+        { "from": "packages/context/agent-context", "to": "packages/agent/agent-contract" },
+        { "from": "packages/context/agent-context", "to": "packages/agent/agent-cordis-contract" },
+        { "from": "packages/agent/agent", "to": "packages/tool/tool-contract" },
+        { "from": "packages/agent/agent-contract", "to": "packages/tool/tool-contract" },
+        { "from": "packages/agent/agent-host-local", "to": "packages/tool/tool-contract" },
+        { "from": "packages/agent/agent-host-local", "to": "packages/tool/tool-cordis-contract" }
+      ],
+      "ruling": "https://github.com/nemori-ai/omne-harness-lite/issues/502#issuecomment-6562280172",
+      "reason": "agent-context 实现 Agent 的请求与账目出站端口，Agent 要用工具，工具要感知运行时上下文（Reduce 裁定）"
     }
   ]
 }
