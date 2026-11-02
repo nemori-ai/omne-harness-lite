@@ -1,4 +1,5 @@
 import { afterEach, expect, it } from 'vitest'
+import { rmSync } from 'node:fs'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { decodeToolOperationId, type DurableEvidence } from '@omne-harness/tool-contract'
 import { decodeToolInstanceId, defaultResultPolicy } from '@omne-harness/tool-contract/provider'
@@ -19,7 +20,10 @@ import { ledgerWorld } from './fixtures/ledger.ts'
 
 const opened: App[] = []
 afterEach(() => {
-  for (const app of opened.splice(0)) app.close()
+  const apps = opened.splice(0)
+  for (const app of apps) app.close()
+  for (const directory of new Set(apps.map(app => app.directory)))
+    rmSync(directory, { recursive: true, force: true })
 })
 
 function ok<T>(value: { ok: T } | { failure: unknown }): T {
