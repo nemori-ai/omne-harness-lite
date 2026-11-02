@@ -1,9 +1,11 @@
-// The `session-provider` row as a contract double (`implementation: 'contract-double'`): the
-// Session faces under the service key `session`, over sessions that live in process memory. It has
-// no business durability, and the real Session provider (line L-SES) replaces it. The row has no
-// shutdown phase.
+// The `session-provider` row. `sessionProviderRow`, the export the release names, is the real
+// Session provider of `real.ts` (`implementation: 'real'`, a `business` shutdown handle). This
+// module also keeps the contract double (`implementation: 'contract-double'`): the Session faces
+// under the service key `session`, over sessions that live in process memory, with no business
+// durability and no shutdown phase. The tests that observe arrivals and the R9 in-process layer
+// still load the double through `createSessionProviderRow`.
 //
-// The manifest equals the `session-provider` row of `src/s0/stubs.ts`. The row reads
+// The double's manifest equals the `session-provider` row of `src/s0/stubs.ts`. The double reads
 // `sessionAccessCheck` and asks it for every call. It does not read `sessionDelegatedTransactions`,
 // `sessionPrincipals` or `sessionWorkPrincipals`: a double needs no storage and runs no work, but
 // the injects keep the visibility and the start order of the row what the real provider needs.
@@ -22,6 +24,7 @@ import type { ArrivalObserver } from './arrival.ts'
 import { createSessionProviderFaces } from './faces.ts'
 
 export type { ArrivalObserver, SessionProviderArrival, SessionProviderMethod } from './arrival.ts'
+export { sessionProviderRealRow as sessionProviderRow } from './real.ts'
 
 export type CreateSessionProviderRowOptions = Readonly<{
   /** Receives one arrival per call that reaches the double: classes and verdicts, no credentials. */
@@ -44,7 +47,7 @@ class SessionProviderDouble extends SessionService<unknown> {
   }
 }
 
-/** A fresh row. A reload of the row, or another call of this function, starts with an empty memory. */
+/** A fresh double row. A reload of the row, or another call of this function, starts with an empty memory. */
 export function createSessionProviderRow(options: CreateSessionProviderRowOptions = {}) {
   return defineRow({
     row: 'session-provider',
@@ -74,5 +77,3 @@ export function createSessionProviderRow(options: CreateSessionProviderRowOption
     },
   })
 }
-
-export const sessionProviderRow = createSessionProviderRow()
