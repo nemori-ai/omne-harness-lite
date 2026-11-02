@@ -3,7 +3,9 @@
 // `sessionTransactions`（公开端口）、`sessionDelegatedTransactions`（受信，委派视图）、`tenantDomains`（部署枚举）、
 // `tenantDomainLookup`（受信，只读快照）、`sessionPrincipalBindings`（受信，会话归属读口）。
 // 登记规则：session-storage-sql 在每次读与提交都 `resolve` 租户的域（XP-6），而目录的 `resolve` 只查快照；
-// 只有 `create` 提交在访问裁定放行之后，由本行显式登记该租户。读与被拒的 `create` 不登记。
+// 只有访问裁定放行的 `create` 让本行登记该租户。公开端口在 `create` 提交前登记；委派视图绑定到一次放行的 `create`
+// 时，视图解析该租户的域就登记（Session 核心先经视图 `queryOperation` 再提交，登记必须在第一次读之前）。
+// 读与被拒的 `create` 不登记。
 // 已知限制：换 `combinationVersion` 不会为已登记的租户补登记（登记表不记版本），换版本需要另有拥有者定补登记的时机。
 // 游标签名按调用现取 `sessionCursorSigning`（IC-9），不在 inject 里；入口对象缺席时五种读答 `unavailable`。
 import type { Context } from '@deepseek-ai/cordis'
@@ -12,6 +14,7 @@ import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
   mutationAccessRequest,
   type SessionAccessCheck,
+  type SessionAccessRequest,
   type SessionCheckedAccess,
   type SessionDelegatedTransactions,
   type SessionFailure,
@@ -33,6 +36,7 @@ import { createSessionStorage, type SessionStorageOptions } from '@omne-harness/
 import type {
   CombinationRegistrationV2,
   SqlStorage,
+  TenantDomainAccess,
   TenantDomainLookup,
   TenantDomains,
 } from '@omne-harness/sql-contract'
@@ -45,7 +49,7 @@ import {
 } from '@omne-harness/sql-contract/cordis'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { storageCatalog } from '../storage/catalog.ts'
-import { boundAccessCheck, withinBinding } from './bound.ts'
+import { boundAccessCheck } from './bound.ts'
 import { SESSION_COMPOSITE_PARTICIPANTS, compositeManifestDigest } from './composite.ts'
 import { sessionStorageRowConfigSchema, type SessionStorageRowConfig } from './config.ts'
 import { openTenantDirectory, type RegisterOutcome, type TenantDirectory } from './directory.ts'
@@ -128,6 +132,37 @@ function registeringOnCreate<P>(
   return { ...port, commit: commit as SessionTransactionPort<P>['commit'] }
 }
 
+/**
+ * 放行的 `create` 所绑定的租户文本：请求是 `create` 的变更请求，且访问与命令指名同一租户和同一会话（与
+ * session-storage-sql 的第一道拒绝相同）。别的绑定，或租户、会话不一致的 `create`，给 `null`。
+ */
+function boundCreateTenant<P>(request: SessionAccessRequest<P>): string | null {
+  if (request.operation !== 'create') return null
+  const { command } = request.target
+  if (
+    !tenantEquals(request.access.tenant, command.input.tenant) ||
+    request.target.session !== command.input.session
+  )
+    return null
+  const text = tenantCodec.encode(command.input.tenant)
+  return text.ok ? text.value : null
+}
+
+/**
+ * 放行的 `create` 所绑定的视图看到的目录：解析这一个租户的域就登记（含迁移），其余租户照快照。Session 核心
+ * 在提交前先经视图 `queryOperation`，而 session-storage-sql 每次读都 `resolve`，所以登记落在视图的第一次解析，
+ * 不等到提交。登记失败时解析答 `unavailable`，session-storage-sql 把它作为该次调用的失败返回。
+ */
+function registeringAccess(directory: TenantDirectory, tenantText: string): TenantDomainAccess {
+  return {
+    ...directory.access,
+    resolve: input =>
+      input.tenant === tenantText
+        ? directory.ensureRegistered(input.tenant)
+        : directory.access.resolve(input),
+  }
+}
+
 const DENIED_IN_VIEW = ['commitEntries', 'pending', 'references', 'releasedScopes'] as const
 
 function delegatedView<P>(
@@ -135,14 +170,12 @@ function delegatedView<P>(
   directory: TenantDirectory,
   checked: SessionCheckedAccess<P>,
 ): SessionTransactionPort<P> {
-  const view = registeringOnCreate(
-    createSessionStorage({ ...base, accessCheck: boundAccessCheck(checked) }),
-    directory,
-    input =>
-      Promise.resolve(
-        withinBinding(checked.request, mutationAccessRequest(input.access, input.command)),
-      ),
-  )
+  const creating = boundCreateTenant(checked.request)
+  const view = createSessionStorage({
+    ...base,
+    ...(creating === null ? {} : { domains: registeringAccess(directory, creating) }),
+    accessCheck: boundAccessCheck(checked),
+  })
   const denied = (action: (typeof DENIED_IN_VIEW)[number]) => () =>
     Promise.resolve(fail<SessionFailure>({ kind: 'denied', action }))
   return {
