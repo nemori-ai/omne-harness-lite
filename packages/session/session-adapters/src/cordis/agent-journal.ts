@@ -225,13 +225,6 @@ type Written = Readonly<{
  */
 const ROUTE_ONLY: ReadonlySet<string> = new Set(['preserve'])
 
-/**
- * One reverse input directory row with the original attempt of its attachment. The storage side
- * adds `attempt` and `started` to its row (C-STORAGE-B); until then it ignores them.
- */
-type AdmissionRecord = ExecutionAdmissionRecord &
-  Partial<Readonly<{ attempt: string; started: DurableEvidence }>>
-
 function writtenOf(method: string, input: object): Written {
   const value = input as { execution?: unknown; operation?: unknown }
   return {
@@ -1039,8 +1032,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   /**
    * The reverse input directory rows of an open or a submit: the accepted input, its original grant
    * and attachment, and the original attempt of that attachment as the commit hook of the open or
-   * attach recorded it (with its SE15 receipt). An attachment without a recorded attempt has none;
-   * nothing is guessed from the current advance.
+   * attach recorded it. An attachment without a recorded attempt has none; nothing is guessed from
+   * the current advance.
    */
   function admissionsOf(
     after: CommonRoot,
@@ -1048,9 +1041,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     own: MemoryExecution | undefined,
     receipt: CommandReceipt | null,
     scratch: Scratch,
-  ): AdmissionRecord[] {
-    if ((written.method !== 'open' && written.method !== 'submit') || own === undefined)
-      return []
+  ): ExecutionAdmissionRecord[] {
+    if ((written.method !== 'open' && written.method !== 'submit') || own === undefined) return []
     if (receipt === null) return []
     const check = scratch.checks[0]
     const input =
@@ -1070,7 +1062,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         accepted: receipt.evidence,
         grant: check?.kind === 'open' ? check.grant : receipt.evidence,
         attachment: attachment.executionAttachment,
-        ...(original === undefined ? {} : { attempt: original.attempt, started: original.started }),
+        ...(original === undefined ? {} : { attempt: original.attempt }),
       },
     ]
   }

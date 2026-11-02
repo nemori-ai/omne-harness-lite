@@ -34,7 +34,9 @@ import {
   type SessionTransactionPort,
   type SessionFailure,
   type SessionOperationId,
-  type SessionLogObservation,
+  type SessionLogCommitObservation,
+  type SessionLogReceipt,
+  type CommitReceipt,
   type ConsumptionId,
   type CommittedBatch,
   type GuardCommand,
@@ -758,7 +760,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     sequence: string,
     operation: SessionOperationId,
     verify: () => SessionFailure | null = () => null,
-  ) {
+  ): Promise<Outcome<CommitReceipt | SessionLogReceipt | null, SessionFailure>> {
     await publications.wait(publicationKey(cell, operation))
     const qualification = verify()
     if (qualification) return fail(qualification)
@@ -820,7 +822,10 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         owner: 'session-history',
         diagnostic: 'original event',
       })
-    const observation: SessionLogObservation = {
+    // An observed-only event has no Session row; `commitLog` does not commit it (session-contract
+    // FR-03), and the next committed event names it in its gap.
+    if (fact.consequences.every(item => item.kind === 'observed')) return succeed(null)
+    const observation: SessionLogCommitObservation = {
       tenant: cell.tenant,
       session: cell.session,
       execution,
@@ -832,7 +837,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       source: fact.source,
       consequences: fact.consequences,
     }
-    const result = await base.controls.project(observation, operation)
+    const result = await base.commitLog({ observation })
     return fault === 'after-publish' && cell.current() !== root
       ? fail<SessionFailure>({ kind: 'commit-unknown', operation })
       : result
@@ -846,6 +851,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     queryControlOperation: base.queryControlOperation,
     readModelSelection: base.readModelSelection,
     commitEntries: base.commitEntries,
+    commitLog: base.commitLog,
     history: base.history,
     pending: base.pending,
     references: base.references,
@@ -927,7 +933,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     let view = views.get(key)
     if (!view) {
       view = createJournal(cell, {
-        prepareResult: resultPreparation(cell, publications, base.controls.project, agentFailure),
+        prepareResult: resultPreparation(cell, publications, base.commitLog, agentFailure),
         qualifyParticipation: (input, method, receipt) =>
           qualifyJoint(cell, input, method, receipt),
         participants: ['message', 'context-transition', 'custody', 'processed'],

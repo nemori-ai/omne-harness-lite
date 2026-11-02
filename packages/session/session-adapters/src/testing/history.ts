@@ -366,7 +366,8 @@ export function captureEventOriginal(
     registration(root, execution, value)
     const key = `${execution.id}\0${value.consumption}`,
       prior = root.agent.callOrigins.get(key)
-    if (!prior) root.agent.callOrigins.set(key, { first: event.sequence, pending: value, association: null })
+    if (!prior)
+      root.agent.callOrigins.set(key, { first: event.sequence, pending: value, association: null })
     else if (
       prior.pending.kind === 'tool' &&
       prior.pending.association === 'intent' &&

@@ -8,8 +8,9 @@
 // session, in one read of one publication: the head revision, the head receipt that the boundary
 // row names, and each event after the progress with the consequences that the Journal normalized
 // when it wrote the event, the same ones whose kinds the fact row holds. Every event becomes one
-// observation in order; the operation identity is derived from the observation, so the same read
-// of the same event is the same operation. A lost reply is sent again under the same operation and
+// observation in order, except an event that is only observed, which has no Session row and is
+// covered by the next committed event; the operation identity is derived from the observation, so
+// the same read of the same event is the same operation. A lost reply is sent again under the same operation and
 // recalls the original receipt (C-STORAGE answers `conflict` to `queryOperation` for this form, so
 // it is not asked). A `changed` answer reads again once. Any refusal is logged and not retried. An
 // event whose consequences were not decided (a control event, or an original the Journal did not
@@ -58,9 +59,8 @@ export type JournalInterpretationTarget = Readonly<{
 
 /**
  * The answer of one call. `readThrough` is the saved event progress of the execution after the
- * call; `committed` counts the events this call committed or recalled; `waiting` counts the events
- * after the progress that were not committed because the first of them has no decided
- * consequences.
+ * call (an observed-only tail stays after it); `committed` counts the events this call committed
+ * or recalled; `waiting` counts the events from the first one whose consequences are not decided.
  */
 export type JournalInterpreted = Readonly<{
   readThrough: string
@@ -130,7 +130,9 @@ function createJournalInterpretation<P>(
   ports: Ports<P>,
 ): (target: JournalInterpretationTarget) => Reply<JournalInterpreted> {
   /** One observation; an unknown outcome is sent again under the same operation. */
-  async function send(observation: SessionLogCommitObservation): Promise<Answer<SessionLogReceipt>> {
+  async function send(
+    observation: SessionLogCommitObservation,
+  ): Promise<Answer<SessionLogReceipt>> {
     let answer: Answer<SessionLogReceipt> = fail({
       kind: 'commit-unknown',
       operation: observation.operation,
@@ -168,6 +170,10 @@ function createJournalInterpretation<P>(
     for (const [at, event] of view.events.entries()) {
       const waiting = view.events.length - at
       if (event.consequences === null) return succeed({ readThrough, committed, waiting })
+      // An event that is only observed has no Session row: it is not committed, and the next
+      // committed event names it in its gap (session-contract FR-03; the observed tail is the
+      // prefix that a later startRun reads, R2-D28).
+      if (event.consequences.every(item => item.kind === 'observed')) continue
       if (view.head === null)
         return unavailable('the head of the execution was written by another execution')
       const value = {
@@ -262,7 +268,9 @@ export function createSessionJournalInterpretationPlugin<P>(
             if ('failure' in answer)
               logger.warn(`the interpretation of ${execution} answered ${answer.failure.kind}`)
             else if (answer.ok.waiting > 0)
-              logger.warn(`${answer.ok.waiting} events of ${execution} have no decided consequences`)
+              logger.warn(
+                `${answer.ok.waiting} events of ${execution} have no decided consequences`,
+              )
           })
           queues.set(key, next)
           void next.finally(() => {
