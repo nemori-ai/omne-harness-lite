@@ -174,7 +174,7 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     const routedNotOrdinary = command.kind === 'accept' && command.input.value.kind !== 'ordinary'
     if (EVIDENCE.has(command.kind) || routedNotOrdinary) {
       const evidence = await guarded(OWNERS.evidence, 'evidence.prepare', () =>
-        dependencies.evidence.prepare(command),
+        dependencies.evidence.prepare(command, access),
       )
       if ('failure' in evidence) return evidence
       guards.push(...evidence.ok)

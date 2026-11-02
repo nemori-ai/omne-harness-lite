@@ -18,6 +18,7 @@ import type {
   CustodyEvidenceCommand,
   GuardCommand,
   ProductionEvidenceCommand,
+  SessionAccess,
   SessionCommand,
   SessionEvidenceBridge,
 } from '@omne-harness/session-contract'
@@ -55,7 +56,10 @@ const CUSTODY: ReadonlySet<string> = new Set<CustodyEvidenceCommand['kind']>([
 ])
 
 type Prepared = ReturnType<SessionEvidenceBridge['prepare']>
-type Source = Readonly<{ key: string; prepare(command: SessionCommand): Prepared }>
+type Source<P> = Readonly<{
+  key: string
+  prepare(command: SessionCommand, access?: SessionAccess<P>): Prepared
+}>
 
 function describe(cause: unknown): string {
   try {
@@ -118,15 +122,15 @@ function bindsCommand(guard: GuardCommand, tenant: string, session: string): boo
  * and does not provide `sessionEvidence`, so Session mutations that need evidence answer
  * `unavailable` (装配页缺口表).
  */
-export class SessionEvidenceBridgeProvider extends SessionEvidenceBridgeService {
+export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceBridgeService<P> {
   static readonly inject = [
     sessionAdoptionSourceKey,
     sessionProductionSourceKey,
     sessionCustodySourceKey,
   ]
-  private readonly adoption: Source
-  private readonly production: Source
-  private readonly custody: Source
+  private readonly adoption: Source<P>
+  private readonly production: Source<P>
+  private readonly custody: Source<P>
   private closed = false
 
   constructor(ctx: Context) {
@@ -134,7 +138,9 @@ export class SessionEvidenceBridgeProvider extends SessionEvidenceBridgeService 
     // Each source is typed by its narrow command union; the bridge routes by kind before it calls.
     this.adoption = {
       key: sessionAdoptionSourceKey,
-      prepare: command => ctx[sessionAdoptionSourceKey].prepare(command as AdoptionEvidenceCommand),
+      // The original access goes to the adoption source as it came. The two other sources keep their signature.
+      prepare: (command, access) =>
+        ctx[sessionAdoptionSourceKey].prepare(command as AdoptionEvidenceCommand, access),
     }
     this.production = {
       key: sessionProductionSourceKey,
@@ -150,13 +156,13 @@ export class SessionEvidenceBridgeProvider extends SessionEvidenceBridgeService 
     })
   }
 
-  readonly prepare: SessionEvidenceBridge['prepare'] = async command => {
+  readonly prepare: SessionEvidenceBridge<P>['prepare'] = async (command, access) => {
     if (this.closed) return unavailable(BRIDGE_OWNER, 'the evidence bridge has stopped')
     // A tenant that legal-identity did not mint names no tenant: no source sees the command.
     const tenant = tenantCodec.encode(command.input.tenant)
     if (!tenant.ok) return fail({ kind: 'denied' as const, action: command.kind })
 
-    const sources: Source[] = []
+    const sources: Source<P>[] = []
     if (ADOPTION.has(command.kind)) sources.push(this.adoption)
     if (PRODUCTION.has(command.kind)) sources.push(this.production)
     if (CUSTODY.has(command.kind)) sources.push(this.custody)
@@ -167,7 +173,7 @@ export class SessionEvidenceBridgeProvider extends SessionEvidenceBridgeService 
     for (const source of sources) {
       let answer: Awaited<Prepared>
       try {
-        answer = await source.prepare(command)
+        answer = await source.prepare(command, access)
       } catch (cause) {
         return unavailable(source.key, `the source threw: ${describe(cause)}`)
       }
