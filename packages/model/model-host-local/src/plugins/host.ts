@@ -13,15 +13,21 @@
 // - All scheduling state is in the closure of `createLocalDriverHost`. The service instance carries
 //   the four operations of `ModelInstanceHost` and nothing else: `bind` stays with the plugin.
 import { randomUUID } from 'node:crypto'
-import { Service, type Context } from '@deepseek-ai/cordis'
+import { Service, symbols, type Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ModelRuntimeProvider } from '@omne-harness/model'
+import type {
+  ModelInitialHostChannel,
+  ModelObservationHost,
+  ModelObservationSource,
+} from '@omne-harness/model/commands'
 import type {
   CallAccess,
   ModelCallId,
   ModelFailure,
   ModelHandle,
   ModelRuntime,
+  Outcome,
   Reply,
 } from '@omne-harness/model-contract'
 import type {
@@ -43,6 +49,7 @@ import {
 } from '@omne-harness/model-cordis-contract/cordis'
 import { modelHostConfigSchema, type ModelHostSettings } from './config.ts'
 import { createRuntimeStage, reportRuntimeEvent, type ResultPushOptions } from './runtime.ts'
+import { createModelStreamLocalPlugin } from './stream-observation.ts'
 
 const DEPENDENCY = 'model-instance-host'
 const GENERATION = /^(0|[1-9][0-9]*)$/u
@@ -65,6 +72,7 @@ type HostInput = Readonly<{
   authority: ModelHostAuthority<unknown>
   /** The current observation qualification of the observer; see `ModelHostPluginOptions`. */
   qualifyObservation: ModelHostPluginOptions['qualifyObservation']
+  observation?: ModelObservationHost<unknown>
   report(event: HostEvent): void
 }>
 
@@ -132,6 +140,7 @@ function createLocalDriverHost(input: HostInput): ModelDriverHost<unknown> {
 
   async function closeNow(): Reply<void> {
     phase = 'closing'
+    input.observation?.close()
     // What was woken but not yet dispatched is handed to the successor: it is durable in the
     // commands and the recovery scan finds it. It is not reported as done.
     const undispatched = wakes.size
@@ -212,6 +221,7 @@ function createLocalDriverHost(input: HostInput): ModelDriverHost<unknown> {
         execution: Object.freeze({ ...execution }),
         registration: randomUUID(),
       })
+      input.observation?.attach(publication)
       routes.set(key, { publication, handle })
       return { ok: publication }
     },
@@ -228,7 +238,10 @@ function createLocalDriverHost(input: HostInput): ModelDriverHost<unknown> {
         held.publication.registration === registration &&
         held.publication.execution.instance === execution.instance &&
         held.publication.execution.generation === execution.generation
-      if (removed) routes.delete(key)
+      if (removed) {
+        input.observation?.retire(held.publication)
+        routes.delete(key)
+      }
       return { ok: { removed } }
     },
 
@@ -277,6 +290,13 @@ class HostContribution extends ModelInstanceHostService<unknown> {
  * serialisable values, so they come from the assembly that creates the plugin class.
  */
 export type ModelHostPluginOptions = Readonly<{
+  executionChannel?(): Outcome<ModelInitialHostChannel<unknown>, ModelFailure>
+  /** The entry closes its send child and then the channel after host and push drain. */
+  releaseExecution?(): Promise<void>
+  observation?: Readonly<{
+    commands: ModelCommands<unknown>
+    source: ModelObservationSource<unknown>
+  }>
   /**
    * Builds the runtime provider over the unbound host, the commands of the plugin and the injected
    * clock. The plugin binds its `driver` and calls its `quiesce` first when it shuts down. A
@@ -319,15 +339,45 @@ export function createModelRuntimeLocalPlugin(
   options: ModelHostPluginOptions,
 ): ModelRuntimeLocalPluginClass {
   async function start(ctx: Context, settings: ModelHostSettings): Promise<void> {
+    if (
+      options.observation !== undefined &&
+      options.observation.commands !== Reflect.get(ctx.modelCommands, symbols.original)
+    )
+      throw new TypeError('model host: observation commands do not match the injected service')
+    if (options.executionChannel !== undefined && options.releaseExecution === undefined)
+      throw new TypeError('model host: execution channel requires an entry release owner')
+    const captured = options.executionChannel?.()
+    if (captured !== undefined && 'failure' in captured)
+      throw new Error(`model host: execution channel unavailable (${captured.failure.kind})`)
+    const channel = captured?.ok
+    let releasing: Promise<void> | undefined
+    const releaseExecution = () => (releasing ??= releaseChannel())
+    async function releaseChannel(): Promise<void> {
+      if (channel === undefined) return
+      try {
+        await options.releaseExecution?.()
+      } catch {
+        ctx.logger.warn('model host: execution release failed')
+      } finally {
+        channel.close()
+      }
+    }
+    let observation: ModelObservationHost<unknown> | undefined
+    try {
+    const lease = options.observation?.source.openHost()
+    if (lease !== undefined && 'failure' in lease)
+      throw new Error(`model host: observation lease unavailable (${lease.failure.kind})`)
+    observation = lease?.ok
     const host = createLocalDriverHost({
       settings,
       authority: ctx.modelHostAuthority,
       qualifyObservation: access => options.qualifyObservation(access),
       report: event => reportOf(ctx, event),
+      ...(observation !== undefined && { observation }),
     })
     const stage = createRuntimeStage(
       {
-        commands: ctx.modelCommands,
+        commands: channel?.commands ?? ctx.modelCommands,
         authority: ctx.modelHostAuthority,
         report: event => reportRuntimeEvent(ctx, event),
       },
@@ -353,15 +403,27 @@ export function createModelRuntimeLocalPlugin(
         apply: (child: Context) => {
           new HostContribution(child, host)
           stage.contribute(child, provider.runtime)
+          if (observation !== undefined) createModelStreamLocalPlugin({ source: observation })(child)
         },
       })
       // One outer effect owns the contribution, the push and the shutdown. They are disposed in
       // reverse order of this list, one after the other: the shutdown first, then the push, which
       // keeps its unfinished deliveries in its ledger for a successor, and the contribution last.
-      ctx.effect(() => [contribution.dispose, stage.stop, orderedShutdown(ctx, provider, bound.ok)])
+      ctx.effect(() => [
+        contribution.dispose,
+        releaseExecution,
+        stage.stop,
+        orderedShutdown(ctx, provider, bound.ok, observation),
+      ])
       await contribution
     } catch (error) {
       await bound.ok.close()
+      await stage.stop()
+      throw error
+    }
+    } catch (error) {
+      observation?.close()
+      await releaseExecution()
       throw error
     }
   }
@@ -389,8 +451,10 @@ function orderedShutdown(
   ctx: Context,
   provider: Pick<ModelRuntimeProvider<unknown>, 'quiesce'>,
   binding: ModelDriverBinding,
+  observation: ModelObservationHost<unknown> | undefined,
 ): () => Promise<void> {
   return async () => {
+    observation?.close()
     try {
       const quiesced = await provider.quiesce()
       if ('failure' in quiesced)

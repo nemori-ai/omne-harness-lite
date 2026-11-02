@@ -132,6 +132,7 @@ export type {
   ModelRequestPreparationPluginClass,
 } from './plugins/preparation.ts'
 export { createModelRuntimeLocalPlugin } from './plugins/host.ts'
+export { createModelStreamLocalPlugin } from './plugins/stream-observation.ts'
 export { createConfiguredModelRuntimeLocalPlugin } from './plugins/configured-host.ts'
 export type { ConfiguredModelHostSettings } from './plugins/configured-host-config.ts'
 export type {

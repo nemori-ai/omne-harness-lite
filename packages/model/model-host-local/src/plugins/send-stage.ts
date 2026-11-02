@@ -16,6 +16,8 @@
 // successor plugin has no attempt for it and reads `unknown` from the dispatch record. The unload
 // does not take back a request that is on the wire.
 import type { Context } from '@deepseek-ai/cordis'
+import type { ModelInitialHostChannel } from '@omne-harness/model/commands'
+import type { ModelFailure, Outcome } from '@omne-harness/model-contract'
 import type { CredentialPort, ModelSendBoundary } from '@omne-harness/model-contract/provider'
 import {
   ModelCredentialService,
@@ -25,6 +27,7 @@ import {
 } from '@omne-harness/model-cordis-contract/cordis'
 import { assembleLocalModel, type LocalModel, type LocalModelConfig } from '../assembly.ts'
 import { fieldOf, isIntegerAtLeast } from '../fields.ts'
+import type { ModelMaterializationEvidenceReader } from '../materialization-proof.ts'
 
 /**
  * What the plugin needs besides its injected services and its configuration: the assembly of the
@@ -33,6 +36,10 @@ import { fieldOf, isIntegerAtLeast } from '../fields.ts'
  */
 export type ModelSendStagePluginOptions<P = unknown> = Readonly<
   Omit<LocalModelConfig<P>, 'credentials' | 'commands' | 'maxRetainedAttempts'>
+  & {
+    executionChannel?(): Outcome<ModelInitialHostChannel<P>, ModelFailure>
+    installMaterialization?(reader: ModelMaterializationEvidenceReader): () => void
+  }
 >
 
 /** The one bound of the send stage. It is required, and the plugin gives it no default. */
@@ -107,18 +114,42 @@ export function sendStagePluginOver<P>(
       if (!(credential instanceof ModelCredentialService))
         throw new TypeError('the injected modelCredential is not a ModelCredentialService')
       const credentials = withdrawablePort(credential)
+      const captured = options.executionChannel?.()
+      if (captured !== undefined && 'failure' in captured)
+        throw new Error(`model send stage: execution channel unavailable (${captured.failure.kind})`)
+      const channel = captured?.ok
+      if (channel !== undefined && channel.coordinator === null)
+        throw new Error('model send stage: execution channel has no coordinator')
       // The assembly refuses a configuration with a RangeError before it opens anything.
       const local = assemble({
         ...options,
         credentials: credentials.port,
-        commands: ctx.modelCommands,
+        commands: channel?.commands ?? ctx.modelCommands,
+        coordinator: channel?.coordinator ?? options.coordinator,
+        materialization: {
+          ...options.materialization,
+          execution: channel?.qualifyExecution ?? options.materialization.execution,
+        },
         maxRetainedAttempts: settings.maxRetainedAttempts,
       })
+      let withdrawMaterialization: (() => void) | undefined
+      try {
+        withdrawMaterialization = options.installMaterialization?.(local.materialization)
+      } catch (error) {
+        credentials.withdraw()
+        void local.close().catch(() => ctx.logger.warn('model send stage: abandoned send path did not close'))
+        throw error
+      }
       // The send path lives in these closures: any property of the instance is reachable by every
       // plugin that can read `ctx.modelSendBoundary`.
       this.send = (demand, signal) => local.send.send(demand, signal)
       ctx.fiber.effect(() => async () => {
         credentials.withdraw()
+        try {
+          withdrawMaterialization?.()
+        } catch {
+          ctx.logger.warn('model send stage: materialization reader withdrawal failed')
+        }
         try {
           await local.close()
         } catch {

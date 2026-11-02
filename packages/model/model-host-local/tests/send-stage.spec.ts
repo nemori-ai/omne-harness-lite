@@ -326,6 +326,10 @@ function optionsOf(scene: Scene, over: Partial<ModelSendStagePluginOptions> = {}
     routes: ROUTES,
     transportLimits: TRANSPORT_LIMITS,
     preparation: { maxCitedCalls: 8, supplierOf: factorySupplier<unknown>() },
+    materialization: {
+      maxRecords: 4,
+      execution: () => ({ ok: { owner: 'host', subject: 'legacy-channel', revision: '1' } }),
+    },
     ...over,
   } satisfies ModelSendStagePluginOptions
 }
@@ -426,6 +430,43 @@ function stageOver(
 
 afterEach(() => {
   SpyCredential.resolves = 0
+})
+
+it('captures the private channel and installs its materialization reader until the send stage exits', async () => {
+  const scene = sceneOf(REQUEST, 'channel-install')
+  const ctx = new Context()
+  await ctx.plugin(SpyCredential)
+  await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
+  const events: string[] = []
+  const commands = scene.memory.dependencies.commands
+  const coordinator = scene.memory.controls.send.coordinator
+  const qualifyExecution = vi.fn(() => ({ ok: { owner: 'host', subject: 'private', revision: '1' } }))
+  const executionChannel = vi.fn(() => ({ ok: {
+    commands, coordinator, qualifyExecution, prepare: vi.fn(), close: vi.fn(),
+  } }))
+  const reader = { prove: vi.fn() }
+  const installMaterialization = vi.fn(given => {
+    expect(given).toBe(reader)
+    events.push('install')
+    return () => { events.push('withdraw') }
+  })
+  const Stage = sendStagePluginOver({
+    options: optionsOf(scene, { executionChannel, installMaterialization }),
+    assemble: config => {
+      expect(config.commands === commands).toBe(true)
+      expect(config.coordinator).toBe(coordinator)
+      expect(config.materialization.execution).toBe(qualifyExecution)
+      return {
+        send: { send: vi.fn() }, preparation: { acquire: vi.fn() }, materialization: reader,
+        close: async () => { events.push('close') },
+      }
+    },
+  })
+  const fiber = await ctx.plugin(Stage, SETTINGS)
+  expect(executionChannel).toHaveBeenCalledTimes(1)
+  expect(installMaterialization).toHaveBeenCalledTimes(1)
+  await fiber.dispose()
+  expect(events).toEqual(['install', 'withdraw', 'close'])
 })
 
 describe('the plugin and its dependencies', () => {
