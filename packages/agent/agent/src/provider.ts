@@ -37,7 +37,12 @@ import type {
 } from './construction.ts'
 import { canonical } from './canonical.ts'
 import { createExecutionCoordinator } from './loop/coordinator.ts'
-import { advanceModelControl, establishCancellation } from './control.ts'
+import {
+  advanceModelControl,
+  advanceToolControl,
+  establishCancellation,
+  toolControlOf,
+} from './control.ts'
 
 const OWNER = '@omne-harness/agent'
 
@@ -251,6 +256,9 @@ export function createProvider<P, B extends ContentBlock>(
               command: control.command,
             })
           }
+          // A Tool control acts on its own original call only; the execution goes on.
+          const tool = control === undefined ? undefined : toolControlOf(control)
+          if (tool !== undefined) await advanceToolControl(dependencies, access, execution, tool)
           if (control?.command.kind === 'cancel')
             await establishCancellation(dependencies.journal, access, execution, control)
           return accepted

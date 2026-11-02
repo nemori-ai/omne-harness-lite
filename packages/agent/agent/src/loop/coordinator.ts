@@ -41,6 +41,7 @@ import type {
   AgentInstant,
   AgentOperationId,
   Authority,
+  ControlRecord,
   ConsumerRef,
   ConsumptionId,
   ActionId,
@@ -108,9 +109,11 @@ import { consumeModelResult, type ModelOutcome } from './model-result.ts'
 import { readModelDeliveryMaterial } from '../receiving-material.ts'
 import {
   advanceModelControl,
+  advanceToolControl,
   cancellationOf,
   controlOperation,
   establishCancellation,
+  toolControlOf,
 } from '../control.ts'
 import {
   actionOf,
@@ -2346,6 +2349,34 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // ------------------------------------------------------------------------------------------
   // settle: F1, F2, F3, F4 (F0 is stage 5; extension evaluation is stage 3)
 
+  /**
+   * F0 for one foreground Tool call: a per-call interrupt control derived from the cancellation,
+   * accepted by the Journal on the call's own reference and advanced like any Tool control. An
+   * intent without a reference cannot be interrupted; it stays unresolved and nothing is sent.
+   */
+  async function interruptToolForCancel(
+    control: ControlRecord,
+    pending: Extract<PendingCall, { kind: 'tool' }>,
+  ): Promise<Outcome<void, Failure>> {
+    if (pending.association !== 'associated') return succeed(undefined)
+    const call = toolCallOf(access, pending)
+    const operation = controlOperation(execution, control.operation, `interrupt-tool/${call}`)
+    const accepted = await ports.journal.control({
+      ...access,
+      execution,
+      operation,
+      command: { kind: 'interrupt-tool', call, reason: control.stages.accepted.source },
+    })
+    if ('failure' in accepted) return accepted
+    const latest = await load()
+    if ('failure' in latest) return latest
+    const child = latest.ok.controls.find(item => item.operation === operation)
+    const tool = child === undefined ? undefined : toolControlOf(child)
+    return tool === undefined
+      ? succeed(undefined)
+      : advanceToolControl(ports, access, execution, tool)
+  }
+
   const settle = {
     async F0() {
       const read = await load()
@@ -2356,7 +2387,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const revoked = await establishCancellation(ports.journal, access, execution, control)
       if ('failure' in revoked) return revoked
       for (const pending of read.ok.checkpoint.calls) {
-        if (pending.kind !== 'model') continue
+        if (pending.kind === 'tool') {
+          const interrupted = await interruptToolForCancel(control, pending)
+          if ('failure' in interrupted) return interrupted
+          continue
+        }
         const call = invocationParts(pending.reference, access.tenant).call
         const operation = controlOperation(execution, control.operation, `interrupt/${call}`)
         const accepted = await ports.journal.control({

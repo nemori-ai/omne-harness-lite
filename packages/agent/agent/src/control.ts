@@ -11,6 +11,11 @@ import {
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { decodeModelOperationId, resolveModelInvocationRef } from '@omne-harness/model-contract'
+import type {
+  ControlProgress,
+  ToolInvocationRef,
+  ToolOperationRef,
+} from '@omne-harness/tool-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AgentDependencies } from './construction.ts'
 import { json } from './receiving-values.ts'
@@ -171,4 +176,142 @@ export async function advanceModelControl<P>(
   })
   if ('failure' in requested || requested.ok.kind !== 'requested') return succeed(undefined)
   return save('producer-confirmed', 'reached', requested.ok)
+}
+
+type ToolControlRecord = Pick<ControlRecord, 'operation' | 'stages'> &
+  Readonly<{
+    command: Extract<ControlRecord['command'], { kind: 'interrupt-tool' | 'background-tool' }>
+    toolInvocation: ToolInvocationRef
+    toolOperation: ToolOperationRef | null
+  }>
+type ToolPorts<P> = Pick<AgentDependencies<P, ContentBlock>, 'journal' | 'tools' | 'materials'>
+
+/** The control record of a Tool call, narrowed when its command is a Tool control. */
+export function toolControlOf(record: ControlRecord): ToolControlRecord | undefined {
+  return record.command.kind === 'interrupt-tool' || record.command.kind === 'background-tool'
+    ? (record as ToolControlRecord)
+    : undefined
+}
+
+const toolObservationSchema = {
+  owner: '@omne-harness/agent',
+  name: 'tool-control-observation',
+  revision: '1',
+  digest: 'agent:tool-control-observation/1',
+} as const
+
+/**
+ * Advances one accepted Tool control by its own record: the original call snapshot `toolInvocation`
+ * is the only target, so no other call of the execution is touched. One Agent control makes at
+ * most one Tool control attempt. `producer-confirmed` is saved as unresolved before the attempt;
+ * an answer lost before its operation reference was saved stays unresolved and is never sent
+ * again. A saved reference is only queried. A request is never read as a physical stop.
+ */
+export async function advanceToolControl<P>(
+  ports: ToolPorts<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  record: ToolControlRecord,
+): Promise<Outcome<void, Failure>> {
+  const prefix = createHash('sha256')
+    .update(JSON.stringify([execution, record.operation]))
+    .digest('hex')
+
+  async function save(
+    stage: Exclude<ControlStage, 'accepted' | 'qualification-revoked' | 'duty-released'>,
+    state: 'reached' | 'unresolved',
+    observation: unknown,
+    toolOperation: ToolOperationRef | null,
+  ): Promise<Outcome<void, Failure>> {
+    const attachment = toolOperation === null ? '' : '/reference'
+    const identity = `control/${prefix}/${stage}/${state}${attachment}`
+    const stored = await ports.materials.preserve({
+      ...access,
+      execution,
+      identity,
+      consumer: {
+        owner: '@omne-harness/agent',
+        work: execution,
+        position: record.operation,
+        purpose: 'tool-control',
+      },
+      value: {
+        kind: 'facts' as const,
+        schema: toolObservationSchema,
+        value: json({
+          execution,
+          control: record.operation,
+          command: record.command,
+          reference: record.toolInvocation,
+          operation: toolOperation,
+          observation,
+        }),
+      },
+    })
+    if ('failure' in stored) return stored
+    const recording = decodeAgentOperationId(identity)
+    if ('failure' in recording) throw new Error('invalid derived control recording operation')
+    const saved = await ports.journal.recordControl({
+      ...access,
+      execution,
+      operation: recording.ok,
+      target: record.operation,
+      stage,
+      state,
+      source: stored.ok,
+      ...(toolOperation === null ? {} : { toolOperation }),
+    })
+    return 'failure' in saved ? saved : succeed(undefined)
+  }
+
+  /** What a committed control receipt proves: acceptance, or also the actual stop of the call. */
+  async function receipt(
+    operation: ToolOperationRef,
+    progress: ControlProgress,
+    observation: unknown,
+  ): Promise<Outcome<void, Failure>> {
+    if (
+      progress.kind === 'accepted' ||
+      progress.kind === 'stopped' ||
+      progress.kind === 'already-ended'
+    ) {
+      const confirmed = await save('producer-confirmed', 'reached', observation, operation)
+      if ('failure' in confirmed) return confirmed
+      if (progress.kind === 'accepted') return succeed(undefined)
+      return save('physically-stopped', 'reached', observation, operation)
+    }
+    // Pending, unknown, rejected out of reach or a changed relation: the reference is kept and
+    // the producer has not confirmed this request.
+    if (record.toolOperation !== null) return succeed(undefined)
+    return save('producer-confirmed', 'unresolved', observation, operation)
+  }
+
+  if (record.stages['intent-established'] === undefined) {
+    const saved = await save('intent-established', 'reached', record.stages.accepted, null)
+    if ('failure' in saved) return saved
+  }
+  if (record.stages['physically-stopped']?.state === 'reached') return succeed(undefined)
+  if (record.stages['producer-confirmed']?.state === 'reached') return succeed(undefined)
+  if (record.stages['producer-confirmed']?.state === 'unresolved') {
+    // The attempt was made. Without its reference nothing can find it again (SPEC "控制接受与迟到
+    // 引用"); with it, the original operation is queried and never repeated.
+    if (record.toolOperation === null) return succeed(undefined)
+    const queried = await ports.tools.queries.queryOperation({
+      ...access,
+      operation: record.toolOperation,
+    })
+    if ('failure' in queried || queried.ok.kind !== 'committed') return succeed(undefined)
+    return save('producer-confirmed', 'reached', queried.ok, record.toolOperation)
+  }
+  const requesting = await save('producer-confirmed', 'unresolved', { kind: 'requesting' }, null)
+  if ('failure' in requesting) return requesting
+  const sent = await ports.tools.commands.control({
+    ...access,
+    reference: record.toolInvocation,
+    intent: record.command.kind === 'background-tool' ? { kind: 'background' } : { kind: 'stop' },
+  })
+  if (sent.kind === 'rejected') return succeed(undefined)
+  if (sent.kind === 'commit-unknown')
+    return save('producer-confirmed', 'unresolved', { kind: 'commit-unknown' }, sent.operation)
+  return receipt(sent.operation, sent.receipt.progress, sent.receipt)
 }
