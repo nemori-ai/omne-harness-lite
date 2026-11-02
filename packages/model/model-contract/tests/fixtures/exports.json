@@ -1247,6 +1247,11 @@
               "pending": false
             },
             {
+              "name": "QualifiedCredentialQuery",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "CredentialPort",
               "kind": "type",
               "pending": false

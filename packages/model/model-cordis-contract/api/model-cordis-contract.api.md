@@ -45,6 +45,8 @@
 - `ModelRetryPolicyService` · `cordis.d.ts`
 - `ModelRuntimeService` · `cordis.d.ts`
 - `ModelSendBoundaryService` · `cordis.d.ts`
+- `ModelStreamObservationService` · `cordis.d.ts`
+- `ModelStreamReferencesService` · `cordis.d.ts`
 - `createModelResultReceiverTable` · `receivers.d.ts`
 - `modelClockKey` · `cordis.d.ts`
 - `modelCommandsKey` · `cordis.d.ts`
@@ -64,6 +66,8 @@
 - `modelRetryPolicyKey` · `cordis.d.ts`
 - `modelRuntimeKey` · `cordis.d.ts`
 - `modelSendBoundaryKey` · `cordis.d.ts`
+- `modelStreamObservationKey` · `cordis.d.ts`
+- `modelStreamReferencesKey` · `cordis.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
 
@@ -103,7 +107,7 @@ export declare const modelConvertersKey = "modelConverters";
 ```ts
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelPreparationResources, ModelResultReceiver, ModelRuntime, Revision } from '@omne-harness/model-contract';
+import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelPreparationResources, ModelResultReceiver, ModelRuntime, ModelStreamReferences, ModelStreamObservation, Revision } from '@omne-harness/model-contract';
 import type { CredentialPort, ModelClock, ModelCommands, ModelHostAuthority, ModelInstanceHost, ModelMessageConversion, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
 import type { ModelConvertersService } from './converters.ts';
 import type { ModelInstancesService } from './instances.ts';
@@ -114,13 +118,27 @@ export { ModelInstancesService, modelInstancesKey } from './instances.ts';
 export { ModelResultReceiverConflictError, createModelResultReceiverTable } from './receivers.ts';
 export type { ModelResultReceiverTable } from './receivers.ts';
 export type { ModelConverterAuthority, ModelConverterRegistration, ModelConverterRegistrationInput, ModelPublication, ModelPublicationAuthority, ModelRegistration, ModelRegistrationFailure, ModelRegistrationInput, } from './registration.ts';
-export declare abstract class ModelCredentialService extends Service implements CredentialPort {
+export declare abstract class ModelCredentialService<P = unknown> extends Service implements CredentialPort<P> {
     static readonly provide = "modelCredential";
     constructor(ctx: CordisContext);
-    abstract readonly present: CredentialPort['present'];
-    abstract readonly resolve: CredentialPort['resolve'];
+    abstract readonly present: CredentialPort<P>['present'];
+    abstract readonly resolve: CredentialPort<P>['resolve'];
+    readonly presentFor?: NonNullable<CredentialPort<P>['presentFor']>;
+    readonly resolveFor?: NonNullable<CredentialPort<P>['resolveFor']>;
 }
 export declare const modelCredentialKey = "modelCredential";
+export declare abstract class ModelStreamReferencesService<P> extends Service implements ModelStreamReferences<P> {
+    static readonly provide = "modelStreamReferences";
+    constructor(ctx: CordisContext);
+    abstract readonly current: ModelStreamReferences<P>['current'];
+}
+export declare const modelStreamReferencesKey = "modelStreamReferences";
+export declare abstract class ModelStreamObservationService<P> extends Service implements ModelStreamObservation<P> {
+    static readonly provide = "modelStreamObservation";
+    constructor(ctx: CordisContext);
+    abstract readonly observe: ModelStreamObservation<P>['observe'];
+}
+export declare const modelStreamObservationKey = "modelStreamObservation";
 export declare abstract class ModelRuntimeService<P> extends Service implements ModelRuntime<P> {
     static readonly provide = "modelRuntime";
     readonly registerResultReceiver: (owner: ConsumerRef['owner'], receiver: ModelResultReceiver<P>) => () => void;
@@ -261,6 +279,8 @@ declare module '@deepseek-ai/cordis' {
         modelConverterAuthority: ModelConverterAuthorityService<unknown>;
         modelConverters: ModelConvertersService<unknown>;
         modelInstances: ModelInstancesService<unknown>;
+        modelStreamReferences?: ModelStreamReferencesService<unknown>;
+        modelStreamObservation?: ModelStreamObservationService<unknown>;
         modelCredential?: ModelCredentialService;
     }
     interface Events {

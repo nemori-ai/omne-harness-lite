@@ -224,6 +224,7 @@
 - `ProfileChange` · `profile.d.ts`
 - `ProviderDiagnostic` · `provider-protocol.d.ts`
 - `Publication` · `provider-protocol.d.ts`
+- `QualifiedCredentialQuery` · `credential.d.ts`
 - `RecoveryRecord` · `provider-protocol.d.ts`
 - `ReplayDiagnostic` · `profile.d.ts`
 - `ReplayProjection` · `profile.d.ts`
@@ -876,7 +877,7 @@ export declare function sameCredentialHolder(left: Pick<CredentialReference, 'id
 ## 声明文件 `credential.d.ts`
 
 ```ts
-import type { TenantId } from '@omne-harness/legal-identity';
+import type { Access, TenantId } from '@omne-harness/legal-identity';
 import type { Identity } from './root.ts';
 export declare const MODEL_SEND = "model-send";
 export type CredentialId = Identity<'ModelCredentialId'>;
@@ -890,6 +891,12 @@ export type CredentialQuery = Readonly<{
     id: CredentialId;
     tenant: TenantId;
     purpose: string;
+}>;
+export type QualifiedCredentialQuery<P> = Readonly<{
+    id: CredentialId;
+    purpose: CredentialPurpose;
+    official: boolean;
+    access: Access<P>;
 }>;
 export type SendFace = Readonly<{
     authorized: boolean;
@@ -919,9 +926,11 @@ export type CredentialResolution = Readonly<{
 }> | Readonly<{
     kind: 'unavailable';
 }>;
-export type CredentialPort = {
+export type CredentialPort<P = unknown> = {
     present(reference: CredentialQuery): CredentialPresence;
     resolve(reference: CredentialQuery, face: SendFace): CredentialResolution;
+    presentFor?(input: Omit<QualifiedCredentialQuery<P>, 'official'>): CredentialPresence;
+    resolveFor?(input: QualifiedCredentialQuery<P>): CredentialResolution;
 };
 ```
 
@@ -2015,7 +2024,7 @@ export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } fro
 export type { ModelBindingFailure, ModelDriveInput, ModelDriver, ModelDriverBinding, ModelDriverHost, ModelHostAuthority, } from '../driver.ts';
 export type { ModelContentAuthority, ModelProfileSnapshot, ModelProfileSource, } from '../profile-source.ts';
 export type { ModelConsumerOwnerDeclaration } from '../consumer-owner.ts';
-export type { CredentialPort, CredentialPresence, CredentialPurpose, CredentialQuery, CredentialReference, CredentialResolution, SendFace, } from '../credential.ts';
+export type { CredentialPort, CredentialPresence, CredentialPurpose, CredentialQuery, CredentialReference, CredentialResolution, QualifiedCredentialQuery, SendFace, } from '../credential.ts';
 export { MODEL_SEND } from '../credential.ts';
 export { decodeCredentialId, sameCredentialHolder } from '../credential-values.ts';
 export { compareRevisions, decodeReadId } from '../identity-values.ts';
