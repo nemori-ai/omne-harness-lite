@@ -313,9 +313,7 @@ async function run(request: MutationRequest): Promise<number> {
     })
   }
 
-  const results = outcomes.flatMap(outcome =>
-    outcome.result === undefined ? [] : [outcome.result],
-  )
+  const results = outcomes.map(outcome => outcome.result)
   const errors = outcomes.flatMap(outcome => outcome.errors)
   // 快照没读成的原因记在成员的增量情况里，与运行中的原因放在一起。
   const reuse = outcomes.flatMap((outcome, index) =>

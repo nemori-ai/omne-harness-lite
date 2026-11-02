@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft runtime-context-cordis package; complete the accepted public contract before delivery",
+  "description": "Runtime context Cordis provider: the concrete RuntimeContextService subclass and plugin",
   "engines": {
     "node": ">=24"
   },
@@ -31,9 +31,12 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/runtime-context": "workspace:*",
+    "@omne-harness/runtime-context-contract": "workspace:*",
     "@omne-harness/runtime-context-cordis-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/legal-identity": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

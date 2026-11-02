@@ -101,7 +101,7 @@ sql-contract 给参加者一条业务响应通道，响应证据与回执同事�
 
 | 限制 | 现在的表现 | 拥有者与依据 |
 | --- | --- | --- |
-| `commitEntries` | 恒返回 `unavailable`，因为 session-contract 没有 entries 解释的纯范围检查 | session-contract 拥有者，见 [SPEC 已知限制](../SPEC.md#已知限制) |
+| `commitEntries` | 同批原子性由一次存储提交给出。同一通道的并发互斥来自租户事务域的串行写，不来自本成员。RD-1 至 RD-3 只在提交路径核对，因为没有快照重建 | 规则归 session-contract 拥有者，互斥归应用装配，见 [SPEC 已知限制](../SPEC.md#已知限制)第 1 条 |
 | 夹具不经过 sqlite-provider | 用例在 `node:sqlite` 上直接运行 participant 与 handler。Worker、持久、关闭、队列与限额没有覆盖 | 本成员与提供者拥有者，见 [SPEC 已知限制](../SPEC.md#已知限制) |
 | 尚未实现的设计 | `sl_batch`、`sl_blob`、`sl_ref_idx`、R9 追赶与重建、PostgreSQL、`maxScanPerPage` | 本成员，见 [SPEC 实现现状](../SPEC.md#实现现状) |
 | R7 代次 1 | 源码返回 `not-committed`，规格要求 `unknown` | 待 Session 契约拥有者裁定 |

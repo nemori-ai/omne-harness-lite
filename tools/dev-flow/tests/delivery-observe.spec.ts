@@ -666,6 +666,20 @@ describe('delivery observations', () => {
       ]),
     ).toContain('decision-object-unconfirmed')
   })
+  it('reads a line decision record as a line record, not as a card acceptance decision', () => {
+    const lineRecord = {
+      url: 'https://github.com/owner/repo/issues/1#issuecomment-6563940919',
+      author: 'writer',
+      body: '<!-- line-decision-record -->\n\n- 决定：开闭包 C-QUIESCE\n- 依据：波 1 观察',
+      updatedAt: at,
+    }
+    const record = observeDelivery(config(), capture([issue(1, { comments: [lineRecord] })]))
+    expect(record.findings.map(f => f.code)).not.toContain('decision-kind-invalid')
+    expect(record.cards[0]?.declaredDecisions).toEqual([])
+    // Without the marker the same text stays a card decision with a kind outside the range.
+    const cardDecision = { ...lineRecord, body: lineRecord.body.split('\n\n')[1] ?? '' }
+    expect(codes([issue(1, { comments: [cardDecision] })])).toContain('decision-kind-invalid')
+  })
   it('keeps absent comments and unknown collection as unknown', () => {
     expect(codes([issue(1, { commentsComplete: false })])).toContain(
       'acceptance-comments-incomplete',

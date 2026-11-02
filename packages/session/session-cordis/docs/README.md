@@ -24,7 +24,7 @@
 | [architecture.md](architecture.md) | 两个入口、六个模块、包外依赖、六条关键机制的理由、SOLID 与扩展边界 |
 | [flows.md](flows.md) | FC-01 装载与启动、FC-02 端口换代、FC-03 撤除、FC-04 扫描者接管 |
 | [object-model.md](object-model.md) | 服务实例、插件配置、端口接线、组合通知者与租户维护表。领域对象与机制对象指向各自拥有者 |
-| [public-api.md](public-api.md) | 两个入口。现有导出为空，随实现进入的导出单列；经服务键可见的两种附加结果 |
+| [public-api.md](public-api.md) | 两个入口。根入口为空，`./cordis` 导出 `SessionProvider`；经服务键可见的两种附加结果 |
 | [context.md](context.md) | 装配与独立使用两条路径，以及定位 |
 
-当前缺口：两个入口都没有源码。受理槽与来源变化通知的服务键在服务定义成员里还没有定义，租户集合也没有来源，见 [SPEC 的明确缺项](../SPEC.md#明确缺项)。具名维护者由负责人指定。
+当前缺口：受理槽与来源变化通知的服务键在服务定义成员里还没有定义，租户集合也没有来源，见 [SPEC 的明确缺项](../SPEC.md#明确缺项)。具名维护者由负责人指定。

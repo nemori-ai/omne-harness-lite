@@ -13,6 +13,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./commands": {
+      "source": "./src/commands/index.ts",
+      "types": "./dist/commands/index.d.ts",
+      "import": "./dist/commands/index.js"
+    },
     "./testing": {
       "source": "./src/testing/index.ts",
       "types": "./dist/testing/index.d.ts",

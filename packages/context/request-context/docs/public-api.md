@@ -18,8 +18,12 @@
 | --- | --- | --- | --- |
 | `createContextSourceRegistry` | 函数 | 输入 `ContextRegistryOptions<P>`（主体绑定、登记授权判定者、两个策略实现），返回 `ContextSourceRegistry<P>`：`register`、`replace`、`assembly(target)`、`close()` | [SPEC 来源登记表](../SPEC.md#来源登记表)、[RQ-12](../../request-context-contract/SPEC.md#rq-12-来源集合与登记面) |
 | `createContextAccounting` | 函数 | 输入 `AccountingOptions<P>`（来源核验、读取资格、窄采用来源、恢复授权、必填的 `limits`），返回 `{ inbox, recovery }`：`ContextAccountingInbox<P>` 与 `ContextRecovery<P>` | [SPEC 账目投影](../SPEC.md#账目投影)、[RQ-14](../../request-context-contract/SPEC.md#rq-14-窗口占用与账目收到)、[RQ-15](../../request-context-contract/SPEC.md#rq-15-普通访问与系统恢复) |
+| `createDefaultCompactionPolicy` | 函数 | 输入 `DefaultCompactionOptions`（含 `config`），返回契约压缩策略端口的实现，内含修剪器 | [默认策略与修剪器](../SPEC.md#默认策略与修剪器) |
+| `createDefaultRepresentationPolicy` | 函数 | 输入 `DefaultRepresentationOptions`（含 `preferences`），返回契约表示策略端口的实现 | 同上 |
+| `createAbsentConversionResults` | 函数 | 无输入，返回转换件结果读口：没有媒体输入时答缺席 | [RQ-12](../../request-context-contract/SPEC.md#rq-12-来源集合与登记面) |
+| `DEFAULT_COMPACTION_POLICY`、`DEFAULT_REPRESENTATION_CONFIG`、`DEFAULT_TRIM_BYTES` | 常量 | 配置初值，不是边界 | 同上 |
 
-参数与返回值的类型都归 [request-context-contract](../../request-context-contract/docs/public-api.md)，本成员不另写签名。[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口恰好导出这两个工厂。
+参数与返回值的类型都归 [request-context-contract](../../request-context-contract/docs/public-api.md)，本成员不另写签名。[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口恰好导出这两个工厂、三个构造件与三项配置初值。
 
 历史源读口、Model 准备资源、转换件结果读口与读取资格随来源集合 `ContextSources<P>` 登记，不在构造时给出，也不逐次交入。请求字节取自 Model 的 `rules.plan` 返回的物化表示，本成员没有序列化端口。
 
@@ -30,11 +34,9 @@
 | 定义 | 种类 | 输入与输出 | 依据 |
 | --- | --- | --- | --- |
 | 候选缓存 | 登记表实例的内部状态，另加 `notify(change)` | 键与 `PreparedInputKey` 相同；按组失效 | [候选缓存](../SPEC.md#候选缓存) |
-| 默认压缩策略 | 契约压缩策略端口的实现 | 触发界线、保留预算、保留偏好、修剪优先与步数上界，数值是配置初值 | [默认策略与修剪器](../SPEC.md#默认策略与修剪器) |
-| 默认表示策略 | 契约表示策略端口的实现 | 按模态的偏好顺序，原件优先于派生表示，派生表示优先于 transcript | 同上 |
-| 配置 | 工厂的参数 | 修剪阈值与缓存容量。默认值只是初值 | [候选缓存](../SPEC.md#候选缓存)、[默认策略与修剪器](../SPEC.md#默认策略与修剪器) |
+| 配置 | 工厂的参数 | 缓存容量。默认值只是初值；修剪阈值已在默认压缩策略的配置里 | [候选缓存](../SPEC.md#候选缓存)、[默认策略与修剪器](../SPEC.md#默认策略与修剪器) |
 
-两个默认策略要能被 request-context-cordis 按配置选中，所以要从根入口可达。它们是单独导出，还是由工厂按配置构造，SPEC 没有写明，随实现确定。
+两个默认策略单独从根入口导出，request-context-cordis 按配置选中后传给登记表工厂。
 
 缓存实现后，登记表实例的通知入口是 `notify(change)`，种类只有 `contributions`，带作用域引用（全局层为 `null`）与该层的修订（[候选缓存](../SPEC.md#候选缓存)）。[request-context-cordis](../../request-context-cordis/SPEC.md#结果与不变量) 经这个入口把贡献的登记与撤除告诉实例。别的组的变化不经通知，每次调用时由组令牌比较得知。
 

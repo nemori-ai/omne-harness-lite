@@ -56,6 +56,7 @@ import type {
 } from './values.ts'
 import { SESSION_RELEASE_DIGEST } from './release-digests.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
+import type { SessionEntriesChannel } from './interpretation-values.ts'
 
 /**
  * The interpreter of this member: the adoption that every snapshot and entry schema names.
@@ -253,6 +254,17 @@ export type SessionEntry =
   | Readonly<{ kind: 'history.annotated'; targets: readonly string[]; source: DurableEvidence }>
   | Readonly<{ kind: 'history.annotated'; run: RunId; execution: ExecutionRef }>
   | Readonly<{ kind: 'history.annotated'; run: RunId; terminal: RunTerminal }>
+  /** The progress row of one entries interpretation commit (docs/same-log-pure.md「entries 通道的解释提交」). */
+  | Readonly<{
+      kind: 'entries.interpreted'
+      run: RunId
+      execution: string
+      channel: SessionEntriesChannel
+      after: string
+      through: string
+      boundary: Readonly<{ revision: string; executionEvidence: DurableEvidence; count: string }>
+      interpreted: readonly Readonly<{ ordinal: string; key: string }>[]
+    }>
 
 export type SessionEntryKind = SessionEntry['kind']
 
@@ -399,6 +411,7 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'session.archived',
   'session.unarchived',
   'history.annotated',
+  'entries.interpreted',
 ])
 
 /**

@@ -4,7 +4,7 @@
 
 ## 使用方式
 
-本成员现在只导出信任输入插件 `createRuntimeContextPlugin`。其余是 SPEC 固定的用法，随实现生效。
+`./cordis` 导出具体子类 `RuntimeContextProvider` 与插件入口 `createRuntimeContextPlugin`，见[公开接口页](public-api.md)。
 
 ### 装配
 
@@ -12,11 +12,13 @@
 
 ```text
 行 id：runtime-context
-插件：@omne-harness/runtime-context-cordis 的 ./cordis 导出
-配置：{ 观察链保留上限, 来源调用与回调的超时, 诊断级别 }
+插件：@omne-harness/runtime-context-cordis 的 ./cordis 导出 RuntimeContextProvider
+注入：runtimeContextTrust（受信子树提供）
+配置：{ retention?, replayCapacity?, supplyBoundMs?, settleBoundMs?,
+        readCacheEntries?, refreshConcurrency?, refreshRetryMs?, diagnostics? }
 ```
 
-字段名与默认值随实现确定。一个 isolate 标签下只加一行。配置错误时装载失败，装配者据此停下整个装配。
+字段与初值见 [Cordis 说明的配置](cordis.md#配置)。一个 isolate 标签下只加一行。配置错误时装载失败，装配者据此停下整个装配。
 
 装载后，其他插件经服务定义使用服务：生产者插件 `inject` 服务键并登记，持有者的适配器调用持有者面，消费者一侧的适配器用对象形式 `inject` 声明消费者类再 `bind`。这些用法归 [runtime-context-cordis-contract 的使用与定位](../../runtime-context-cordis-contract/docs/context.md#使用方式)。
 

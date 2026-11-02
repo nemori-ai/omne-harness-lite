@@ -13,6 +13,29 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { fixture, mutate } from './fixtures/mutation.ts'
 
+/**
+ * 没有真正测完的成员照样写进读数：测量无效、带原因、不给分数；`summary.md` 里写明原因，没有「存活 0」之类的说法。
+ * 原来的写法是整个成员不出现在读数里，只在出错行里提一句。
+ */
+function expectNotRead(
+  ran: ReturnType<typeof mutate>,
+  out: string,
+  reason: string,
+  error: string,
+): void {
+  expect(ran.summary?.members).toEqual([
+    expect.objectContaining({
+      valid: false,
+      score: null,
+      executionFailure: expect.objectContaining({ reason }),
+    }),
+  ])
+  expect(ran.summary?.errors).toEqual([expect.stringContaining(error)])
+  const markdown = readFileSync(join(out, 'summary.md'), 'utf8')
+  expect(markdown).toContain(`测量无效（${reason}）`)
+  expect(markdown).not.toMatch(/存活 0|无存活|分数 \d/u)
+}
+
 // 真起 Stryker：一次约十几到几十秒，归慢层。
 describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
   it.each(['module', 'suite'] as const)(
@@ -98,14 +121,13 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       )
       const failedRerun = mutate(root, out)
       expect(failedRerun.ran.status, failedRerun.ran.stdout + failedRerun.ran.stderr).toBe(1)
-      expect(failedRerun.summary?.members).toEqual([])
-      expect(failedRerun.summary?.errors).toEqual([expect.stringContaining('sandbox 预检没通过')])
+      expectNotRead(failedRerun, out, 'preflight-failed', 'sandbox 预检没通过')
       expect(existsSync(join(out, 'packages__core__sign.mutation.json'))).toBe(false)
       expect(readdirSync(out).filter(name => name.includes('.history-'))).toHaveLength(2)
     },
   )
 
-  it('有测试文件在 sandbox 里加载失败就报错、不出读数，别的文件里的用例全过也一样（#481）', () => {
+  it('有测试文件在 sandbox 里加载失败就报错、不给分数，别的文件里的用例全过也一样（#481）', () => {
     const { root, memberDir } = fixture()
     writeFileSync(
       join(memberDir, 'src/sign.ts'),
@@ -161,8 +183,7 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     )
     const ran = mutate(root, join(root, 'out'))
     expect(ran.ran.status, `${ran.ran.stdout}${ran.ran.stderr}`).toBe(1)
-    expect(ran.summary?.members).toEqual([])
-    expect(ran.summary?.errors).toEqual([expect.stringContaining('sandbox 预检没通过')])
+    expectNotRead(ran, join(root, 'out'), 'preflight-failed', 'sandbox 预检没通过')
     const log = readFileSync(join(root, 'out/packages__core__sign.log'), 'utf8')
     expect(log).toMatch(/FAIL\s+tests\/alias\.spec\.ts/u)
     // sign.spec.ts 的两条与 sign.spec-d.ts 的一条类型断言都通过，类型检查没有报错。
@@ -191,8 +212,7 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     )
     const ran = mutate(root, join(root, 'out'))
     expect(ran.ran.status, `${ran.ran.stdout}${ran.ran.stderr}`).toBe(1)
-    expect(ran.summary?.members).toEqual([])
-    expect(ran.summary?.errors).toEqual([expect.stringContaining('sandbox 预检没通过')])
+    expectNotRead(ran, join(root, 'out'), 'preflight-failed', 'sandbox 预检没通过')
   })
 
   it('快层一条用例都没有时预检通过，由 Stryker 自己报没有用例，不算成加载失败', () => {
@@ -205,8 +225,7 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     rmSync(join(memberDir, 'tests/sign.spec.ts'))
     const ran = mutate(root, join(root, 'out'))
     expect(ran.ran.status, `${ran.ran.stdout}${ran.ran.stderr}`).toBe(1)
-    expect(ran.summary?.members).toEqual([])
-    expect(ran.summary?.errors).toEqual([expect.stringContaining('Stryker 退出码 1')])
+    expectNotRead(ran, join(root, 'out'), 'stryker-failed', 'Stryker 退出码 1')
     expect(readFileSync(join(root, 'out/packages__core__sign.log'), 'utf8')).toContain(
       'No tests were executed',
     )

@@ -14,6 +14,7 @@
 - [入口导出集合](export-set.spec.ts)
 - [终结责任类别的对照](obligation-category.spec.ts)
 - [依赖方向](dependency-direction.spec.ts)
+- [收尾协议轨迹回放驱动的自测](journal-replay.spec.ts)
 - [生产者接收面的套件与替身](receiving.spec.ts)
 - [生产者接收面的类型（类型测试）](receiving.spec-d.ts)
 - [导入图遍历](module-graph.ts)

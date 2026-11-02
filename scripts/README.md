@@ -122,20 +122,31 @@ Windows 上，非 MSYS 进程起的 bash 自己解析命令行，并展开没加
 dev-flow 的 `tests/test-slot-launch.spec.ts` 在所在平台上核对这些起法，包括带通配符的参数。
 
 经它执行的入口：根 `pnpm run check`（整套占一个名额）、`pnpm run test`、`pnpm run test:gate`、
-`pnpm run test:affected`、`pnpm run test:tier`、`pnpm run test:triage`、`pnpm run acceptance`、`pnpm run mutation`、`pnpm run metrics --coverage`；
+`pnpm run test:affected`、`pnpm run test:tier`、`pnpm run test:triage`、`pnpm run test:python`、`pnpm run acceptance`、`pnpm run mutation`、`pnpm run metrics --coverage`；
 `test:affected` 与 `mutation` 带 `--plan-only` 时不占名额。已经持有名额的进程再调用它
-（例如 `pnpm run check` 里嵌着的测试一步）直接放行，不重复排队。名额随持有它的进程退出而释放，
-进程被杀也不会留下卡死的锁。
+（例如 `pnpm run check` 里嵌着的测试一步）直接放行，不重复排队。名额随持有它的包装进程退出而释放，
+被杀也不会留下卡死的锁；POSIX 下杀持有者要杀整棵进程树（`kill -- -<进程组>`），只杀包装进程时被包装的命令成孤儿继续跑，
+名额却已经释放。Windows 的 `taskkill /T` 连子孙一起杀，没有这个问题。
 
-**先来后到**：进队时领一张号（锁目录里的 `ticket-<号>`），名额空出时只有号码最小的那张活票去拿，
-与谁隔多久看一次无关。票和名额（`slot-<序号>.lock`）都是独占创建的文件，记着登记它的进程号与心跳间隔，
-登记者定时刷新它的修改时间。进程不在了，或心跳停了超过三个间隔，登记就失效：排在中间的被杀掉，后面的照常往前挪，
-失效的文件由下一个看队列的进程删掉。队列的增删在 `queue.lock` 目录内进行，目录由 `mkdir` 原子创建。
+**先来后到**：进队时领一张号（锁目录里的 `ticket-<号>`），号比目录里见过的所有票号都大（失效的也算），
+名额空出时只有号码最小的那张活票去拿，与谁隔多久看一次无关。票和名额（`slot-<序号>.lock`）都是独占创建的文件，
+记着登记它的进程号、所在侧（`side=<平台>@<主机名>`，WSL 里再加 `/<发行版名>`）与心跳间隔，登记者定时刷新它的修改时间。
+进程不在了（只在同侧判，对侧的进程号判不了），或心跳停了超过三个间隔，登记就失效：排在中间的被杀掉，后面的照常往前挪，
+失效的文件由下一个看队列的进程删掉。等待者发现自己的票被回收时在标准错误报「票被回收，重新排队」并重新领号；
+持有者发现名额文件被删时报「名额文件被删」，命令照常跑完。没有 `side` 行的旧版登记按同侧处理。
+队列的增删在 `queue.lock` 目录内进行，目录由 `mkdir` 原子创建；它的持有者同侧按进程号判、对侧只看停留时间（30 秒），
+收尾只删自己建的那把锁。
+
+**一个锁目录**：Windows 侧与 WSL 侧共用 Windows 用户临时目录下的 `omne-test-slots-<用户名>`。WSL 里（有 `WSL_DISTRO_NAME`）
+脚本经 interop 起 Windows PowerShell 取 `%TEMP%` 的长名与 `%USERNAME%`（8.3 短名如 `ALIENW~1` 转成长名；
+systemd 启用后 binfmt 登记常被清掉，这时经 `/init` 起），在那里建目录与一个探针文件，再用 `wslpath -u` 转成 WSL 路径，
+在 WSL 路径下看得见探针才算同一个目录。解析失败或看不见探针时回退 `/tmp/omne-test-slots-<uid>`，
+并在标准错误报「WSL 与 Windows 没有共用名额」。`OMNE_TEST_SLOT_DIR` 仍可覆盖。
 
 | 环境变量 | 初值 | 含义 |
 |---|---|---|
 | `OMNE_TEST_SLOTS` | 1 | 同时允许几套在跑 |
-| `OMNE_TEST_SLOT_DIR` | `/tmp/omne-test-slots-<uid>`；Windows 为系统临时目录下的 `omne-test-slots-<用户名>` | 锁文件目录；同一用户的全部检出共用，不随 `TMPDIR` 变化。要跨用户排队，把它指到一个共享可写的目录 |
+| `OMNE_TEST_SLOT_DIR` | Windows 为系统临时目录下的 `omne-test-slots-<用户名>`；WSL 解析到同一个目录（见上）；其余 POSIX 为 `/tmp/omne-test-slots-<uid>` | 锁文件目录；同一用户的全部检出共用，不随 `TMPDIR` 变化。要跨用户排队，把它指到一个共享可写的目录 |
 | `OMNE_TEST_SLOT_POLL_SECONDS` | 5 | 没轮到时隔多久再看一次 |
 | `OMNE_TEST_SLOT_MAX_WAIT_SECONDS` | 7200 | 最多等多久；超过即以 **75** 退出，命令**没有执行** |
 | `OMNE_TEST_SLOT_LEDGER` | `${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl` | 运行账本，见下文 |
@@ -145,6 +156,24 @@ dev-flow 的 `tests/test-slot-launch.spec.ts` 在所在平台上核对这些起�
 要么稍后再跑，要么先看是谁占着（`cat <锁目录>/slot-*.lock`）。
 还没并入这一版的检出用的是基于 `flock` 的旧脚本，它与新脚本使用不同的登记方式，彼此不互斥；同一台机器上的检出应一起更新。
 旧脚本在 macOS 与 Windows 上无法运行。
+
+**已知限制**（#979 D1）：
+
+- 名额只覆盖经根脚本的入口。成员级 vitest（`pnpm exec vitest run`、`pnpm --filter <成员> test`、`turbo run test*`）不占名额，
+  与准入并发时，时序敏感的用例可能变红。
+- 跨侧判定只看心跳，依赖两侧时钟一致；WSL 的时钟落后超过心跳阈值（三个间隔加 5 秒）时，对侧活着的持有者会被误删，
+  持有者只能在标准错误报一句。
+- 嵌套放行靠 `OMNE_TEST_SLOT_HELD`，它不跨 interop 边界：从持有名额的一侧起另一侧的命令会再排一次队；
+  跨侧调用要显式传私有目录。
+- 多个 WSL 发行版之间由 `side` 里的发行版名区分，各算一侧，只看心跳。
+- 过渡期：还没并入这一版的 WSL 检出仍用 `/tmp/omne-test-slots-<uid>`，与新版不互斥。Reduce 把修补 RI 到 mainline、
+  各线轨道 FI 之后，过渡期结束。
+- POSIX 下只杀包装进程时命令成孤儿而名额已释放（见上）。
+- 队列锁被别人删掉又重建时，本进程不持锁就进临界区。名额本身仍靠独占创建，互斥不受影响，破坏的是先来后到的计数。
+  可达的路径只有两条：过渡期对侧旧版脚本删了这把锁，或本进程停滞超过 30 秒。
+- 持有者的心跳把 `utimes` 的任何失败都当作名额文件被删。9p 下对侧正在读该文件时，可能误报一句「名额文件被删」。
+  报错不影响互斥，命令照常跑完。
+- 领票循环没有次数上限。权限持续被拒，而 `mkdirSync(queue.lock)` 又没有先抛错时，进程会静默空转。
 
 一个名额等于整台机器，几分钟的受影响范围测试仍要排在几十分钟的全量覆盖率或变异测试后面；
 按任务大小分配名额要等数据再定（[#57](https://github.com/nemori-ai/omne-harness-lite/issues/57) 第二步）。
@@ -175,7 +204,9 @@ dev-flow 的 `tests/test-slot-launch.spec.ts` 在所在平台上核对这些起�
 
 **平均核数。**这类任务平均占几个核，等于 `cpuSeconds` 除以命令实际占用名额的时间。实际占用时间在 `heldSeconds` 秒以上、`heldSeconds` + 1 秒以下，所以平均核数落在 (`cpuSeconds` ÷ (`heldSeconds` + 1)，`cpuSeconds` ÷ `heldSeconds`] 这个区间里。`heldSeconds` 为 0 时无法相除，只有下界 `cpuSeconds` ÷ 1。命令越短，区间越宽，不要只取上界。
 
-脚本的行为由 `tools/test-runner/tests/test-slot.spec.ts` 核对。
+脚本的行为由 `tools/test-runner/tests/test-slot.spec.ts` 核对（WSL 的目录解析用替身覆盖，不依赖真实 WSL）；
+真实跨侧（Windows 持有、WSL 等待及反向，两侧各 20 个短命令抢同一目录）由 `tools/test-runner/tests/test-slot-wsl.spec.ts` 核对，
+它只在有 WSL 的 Windows 宿主上跑，否则写明原因跳过。
 
 ## CI
 

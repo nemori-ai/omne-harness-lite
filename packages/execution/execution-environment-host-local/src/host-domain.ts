@@ -6,10 +6,19 @@ import type {
   FacilityResult,
   FileSystemFacility,
   LeaseInvalidation,
+  ManagedResource,
   OriginalAcquisition,
   ProviderQuota,
 } from '@omne-harness/execution-environment-contract'
-import { createHostFilesEngine, type HostFilesEngine } from './host-files.ts'
+import type { HostCommands } from './host-command.ts'
+import { hostFilesLimits } from './host-file-tree.ts'
+import {
+  createHostFilesEngine,
+  type HostFileDiagnostic,
+  type HostFilesEngine,
+  type HostFilesEngineOptions,
+  type HostFilesLimits,
+} from './host-files.ts'
 
 /** The per-tenant quota policy of a host files domain. Its values are configuration, not contract. */
 export type HostFilesQuotaPolicy = (tenant: TenantId) => Readonly<{
@@ -35,7 +44,10 @@ export interface HostFilesDomain {
   /** The process instance this domain belongs to; a new process makes a new domain. */
   readonly instance: string
   readonly durability: 'process'
-  /** Retries the failed closes of every acquisition still releasing; answers how many remain. */
+  /**
+   * Retries the failed closes and the unconfirmed process stops of every acquisition still
+   * releasing; answers how many remain.
+   */
   maintain(): Promise<Readonly<{ pending: number }>>
 }
 
@@ -43,14 +55,18 @@ const defaultPerTenant = 64
 
 export type RecordState = 'open' | 'releasing' | 'settled'
 
-/** One acquisition of the domain: its original description, its facade and its owner tag. */
+/** One acquisition of the domain: its original description, its facades and its owner tag. */
 export type DomainRecord = {
   readonly owner: string
   readonly tenant: string
   readonly original: OriginalAcquisition
   readonly fingerprint: string
   readonly generation: string
+  /** The engine behind the facade; it holds the descriptors and handles of this acquisition. */
+  readonly engine: HostFilesEngine
   readonly facade: TrackedFacade
+  /** The command side of this acquisition: its admission and the processes it started. */
+  readonly commands: HostCommands
   state: RecordState
   lease: EnvironmentLease | null
   invalidate: (value: LeaseInvalidation) => void
@@ -59,7 +75,11 @@ export type DomainRecord = {
 /** The facility of one acquisition, with its own admission and in-flight set. */
 export type TrackedFacade = Readonly<{
   facility: FileSystemFacility<unknown>
-  /** Admits no new operation from now on. */
+  /**
+   * Admits no new operation from now on, and seals the engine for this owner at the same moment.
+   * The facade's seal is the answer to callers: a new operation answers `closed`. The engine's seal
+   * is only the signal that stops a running batch before its next publication.
+   */
   seal(): void
   sealed(): boolean
   inFlight(): number
@@ -73,17 +93,58 @@ export type AdmitResult =
   | Readonly<{ kind: 'quotaExceeded' | 'globalCapacityExceeded' }>
   | Readonly<{ kind: 'unknown' }>
 
+/** `pending` lists the processes whose stop is not confirmed; in-flight work and open descriptors are not resources. */
+export type DrainResult =
+  | Readonly<{ kind: 'settled' }>
+  | Readonly<{ kind: 'pending'; resources: readonly ManagedResource[] }>
+
+/** The configuration of the files engine a provider asks the domain for. */
+export type HostFilesSettings = Readonly<{
+  root?: string | undefined
+  stateDirectory?: string | undefined
+  limits?: Partial<HostFilesLimits> | undefined
+}>
+
+/** A provider's place in a shared engine: the engine, and the end of its diagnostic subscription. */
+export type EngineMembership = Readonly<{
+  engine: HostFilesEngine
+  /** Stops delivering the engine's diagnostics to this member; the engine stays. */
+  leave(): void
+}>
+
 /** The domain's internal surface for its providers. It is not part of the package's public entry. */
 export type DomainInternals = Readonly<{
-  engine: HostFilesEngine
+  /**
+   * The engine for `settings`: the first request makes it, every later request with the same
+   * settings shares it, so their acquisitions keep handle generations unique across providers.
+   * Throws when the settings are not valid. `diagnose` receives the diagnostics of the engine
+   * until `leave` is called.
+   */
+  joinEngine(
+    settings: HostFilesSettings,
+    diagnose: ((diagnostic: HostFileDiagnostic) => void) | undefined,
+  ): EngineMembership
   quota(tenant: TenantId): ProviderQuota | undefined
   registerGeneration(generation: string): void
   knowsGeneration(generation: string): boolean
-  admit(original: OriginalAcquisition, fingerprint: string, generation: string): AdmitResult
+  /**
+   * `engine` serves the new acquisition. `commands` makes its command side; a repeat never calls
+   * it.
+   */
+  admit(
+    original: OriginalAcquisition,
+    fingerprint: string,
+    generation: string,
+    engine: HostFilesEngine,
+    commands: () => HostCommands,
+  ): AdmitResult
   find(original: OriginalAcquisition): DomainRecord | undefined
   records(): Iterable<DomainRecord>
-  /** Seals, waits up to `boundMs`, retries closes; settles exactly once when nothing is left. */
-  drain(record: DomainRecord, boundMs: number): Promise<'settled' | 'pending'>
+  /**
+   * Seals, waits up to `boundMs`, retries closes, force-stops the processes; settles exactly once
+   * when nothing is left.
+   */
+  drain(record: DomainRecord, boundMs: number): Promise<DrainResult>
 }>
 
 const internals = new WeakMap<HostFilesDomain, DomainInternals>()
@@ -99,9 +160,10 @@ function retiredResult(requestId: string): FacilityResult<never> {
 
 /**
  * Counts the file operations of one acquisition. An operation is registered before its first await;
- * after `seal()` a new operation answers `closed` without touching the file system.
+ * after `seal()` a new operation answers `closed` without touching the file system. `sealEngine`
+ * runs in the same step as the facade's own seal.
  */
-function trackedFacade(files: FileSystemFacility<unknown>): TrackedFacade {
+function trackedFacade(files: FileSystemFacility<unknown>, sealEngine: () => void): TrackedFacade {
   const inFlight = new Set<Promise<unknown>>()
   let sealed = false
   const track =
@@ -136,6 +198,7 @@ function trackedFacade(files: FileSystemFacility<unknown>): TrackedFacade {
     facility,
     seal() {
       sealed = true
+      sealEngine()
     },
     sealed: () => sealed,
     inFlight: () => inFlight.size,
@@ -215,13 +278,65 @@ export function fingerprintOf(original: OriginalAcquisition): string {
   ])
 }
 
+type DiagnosticSink = (diagnostic: HostFileDiagnostic) => void
+
+type SharedEngine = Readonly<{ engine: HostFilesEngine; sinks: Set<DiagnosticSink> }>
+
+function engineOptions(
+  settings: HostFilesSettings,
+  diagnose: DiagnosticSink,
+): HostFilesEngineOptions {
+  return {
+    ...(settings.root === undefined ? {} : { root: settings.root }),
+    ...(settings.stateDirectory === undefined ? {} : { stateDirectory: settings.stateDirectory }),
+    diagnose,
+  }
+}
+
+/** Gives every diagnostic to each sink; a sink that throws changes nothing for the others. */
+function deliver(sinks: ReadonlySet<DiagnosticSink>, diagnostic: HostFileDiagnostic): void {
+  for (const sink of sinks)
+    try {
+      sink(diagnostic)
+    } catch {
+      /* A diagnostic sink never changes the result. */
+    }
+}
+
+/**
+ * The engines of one domain, one per files configuration: root, state directory and bounds. An
+ * engine keeps the handles and the descriptors of every acquisition made with it, so the
+ * acquisitions of one configuration, across provider generations, share it.
+ */
+function createEngineRegistry(): DomainInternals['joinEngine'] {
+  const engines = new Map<string, SharedEngine>()
+  return (settings, diagnose) => {
+    const limits = hostFilesLimits(settings.limits)
+    const key = JSON.stringify([settings.root ?? null, settings.stateDirectory ?? null, limits])
+    let shared = engines.get(key)
+    if (shared === undefined) {
+      const sinks = new Set<DiagnosticSink>()
+      const engine = createHostFilesEngine(
+        engineOptions(settings, diagnostic => deliver(sinks, diagnostic)),
+        limits,
+      )
+      shared = { engine, sinks }
+      engines.set(key, shared)
+    }
+    // Each member has a sink of its own, so one member leaving does not take another's away.
+    const sink: DiagnosticSink = diagnostic => diagnose?.(diagnostic)
+    shared.sinks.add(sink)
+    const sinks = shared.sinks
+    return { engine: shared.engine, leave: () => void sinks.delete(sink) }
+  }
+}
+
 /** Creates a host files domain. Create one per process host and pass it to every provider. */
 export function createHostFilesDomain(options: HostFilesDomainOptions = {}): HostFilesDomain {
   const quotaDomain = options.quotaDomain ?? 'host-files'
   if (quotaDomain === '') throw new RangeError('quotaDomain must not be empty')
   const policy: HostFilesQuotaPolicy =
     options.quota ?? (() => ({ perTenant: defaultPerTenant, global: null }))
-  const engine = createHostFilesEngine()
   const generations = new Set<string>()
   const records = new Map<string, DomainRecord>()
   let nextOwner = 1
@@ -245,19 +360,28 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
     return { unit: 'unsettled-acquisition', perTenant: answer.perTenant, global: answer.global }
   }
 
-  const drain = async (record: DomainRecord, boundMs: number): Promise<'settled' | 'pending'> => {
-    if (record.state === 'settled') return 'settled'
+  const drain = async (record: DomainRecord, boundMs: number): Promise<DrainResult> => {
+    const settled: DrainResult = { kind: 'settled' }
+    if (record.state === 'settled') return settled
     record.facade.seal()
+    record.commands.seal()
     record.invalidate({ source: 'provider', reason: 'released' })
     if (record.state === 'open') record.state = 'releasing'
-    const quiet = await within(record.facade.settled(), boundMs)
-    const open = await engine.closeOwned(record.owner)
-    if (!quiet || open > 0 || record.facade.inFlight() > 0) return 'pending'
+    const quiet = await within(
+      Promise.all([record.facade.settled(), record.commands.settled()]).then(() => undefined),
+      boundMs,
+    )
+    const open = await record.engine.closeOwned(record.owner)
+    // A process still running is stopped by force: draining never leaves it to a later generation.
+    const resources = await record.commands.stopAll()
+    const busy = record.facade.inFlight() + record.commands.inFlight()
+    const pending: DrainResult = { kind: 'pending', resources }
+    if (!quiet || open > 0 || busy > 0 || resources.length > 0) return pending
     // Exactly one return of the slot: only the first drain that finds nothing left settles.
-    if (record.state !== 'releasing') return record.state === 'settled' ? 'settled' : 'pending'
+    if (record.state !== 'releasing') return record.state === 'settled' ? settled : pending
     record.state = 'settled'
     record.lease = null
-    return 'settled'
+    return settled
   }
 
   const domain: HostFilesDomain = {
@@ -267,19 +391,19 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
     async maintain() {
       let pending = 0
       for (const record of records.values())
-        if (record.state === 'releasing' && (await drain(record, 0)) === 'pending') pending++
+        if (record.state === 'releasing' && (await drain(record, 0)).kind === 'pending') pending++
       return { pending }
     },
   }
 
   internals.set(domain, {
-    engine,
+    joinEngine: createEngineRegistry(),
     quota,
     registerGeneration: generation => {
       generations.add(generation)
     },
     knowsGeneration: generation => generations.has(generation),
-    admit(original, fingerprint, generation) {
+    admit(original, fingerprint, generation, engine, commands) {
       const key = slotKey(original.tenant, original.acquisition)
       if (key === undefined) return { kind: 'unknown' }
       const existing = records.get(key)
@@ -301,7 +425,9 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
         original,
         fingerprint,
         generation,
-        facade: trackedFacade(engine.facilityFor(owner)),
+        engine,
+        facade: trackedFacade(engine.facilityFor(owner), () => engine.seal(owner)),
+        commands: commands(),
         state: 'open',
         lease: null,
         invalidate: () => undefined,

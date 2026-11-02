@@ -140,6 +140,10 @@ function withParents(output: string): string[][] {
  *   local side branch, and count like commits on the chain.
  * - The worktree adds tracked files that differ from HEAD and untracked files Git does not
  *   ignore.
+ *
+ * Last, only the files whose current worktree content differs from `taskBase` stay (a deleted
+ * file differs, an untracked file counts as new). A file the card changed and later changed
+ * back, or added and later deleted, has no net change and does not count.
  */
 export function cardChanges(root: string, taskBase: string, branch: string): string[] {
   const head = git(root, ['rev-parse', '--verify', 'HEAD^{commit}'])
@@ -185,8 +189,13 @@ export function cardChanges(root: string, taskBase: string, branch: string): str
       ).forEach(changesOf)
   }
   add(git(root, ['diff', '--no-renames', '--name-only', '-z', 'HEAD']))
-  add(git(root, ['ls-files', '--others', '--exclude-standard', '-z']))
-  return [...files].sort()
+  const untracked = nameList(git(root, ['ls-files', '--others', '--exclude-standard', '-z']))
+  untracked.forEach(file => files.add(file))
+  const net = new Set([
+    ...nameList(git(root, ['diff', '--no-renames', '--name-only', '-z', taskBase])),
+    ...untracked,
+  ])
+  return [...files].filter(file => net.has(file)).sort()
 }
 
 /**

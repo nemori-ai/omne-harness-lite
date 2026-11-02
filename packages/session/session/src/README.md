@@ -8,7 +8,7 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明，本成
 
 ## 边界
 
-源码只用可擦除的 TypeScript 语法。本成员是 `module` 变体，没有 `cordis.ts`，任何源文件都不导入 `@deepseek-ai/cordis`。源码只依赖 session-contract，不导入邻域契约、Cordis 或存储实现。非类型行为写在包根 [SPEC.md](../SPEC.md)，调度策略的初值也以 SPEC 为准，不写在源码注释里代替规格。
+源码只用可擦除的 TypeScript 语法。本成员是 `module` 变体，没有 `cordis.ts`，任何源文件都不导入 `@deepseek-ai/cordis`。源码依赖 session-contract，以及它也依赖的公共包 legal-identity 与 operation-result。源码不导入邻域契约、Cordis 或存储实现。非类型行为写在包根 [SPEC.md](../SPEC.md)，调度策略的初值也以 SPEC 为准，不写在源码注释里代替规格。
 
 ## 维护
 
@@ -16,6 +16,6 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明，本成
 
 ## 本包事实
 
-现在只有 `index.ts`。它只有 `PACKAGE_TEMPLATE_DRAFT` 标记与空导出。这个标记表示公开定义还没有进入源码。
+`index.ts` 导出工厂、`defaultSchedulingPolicy` 与它们需要的类型。模块与 SPEC 条款的对应见本目录 [index.md](index.md)。
 
-当前缺口：工厂、命令处理器、协调器、调度器、缓存与 `defaultSchedulingPolicy` 都还没有进入。清单见[公开入口页](../docs/public-api.md#随实现进入的导出)。具名维护者由负责人指定。
+当前缺口：SPEC 的一部分机制还没有进入源码，清单与触发条件见 SPEC 的[实现现状](../SPEC.md#实现现状)。具名维护者由负责人指定。

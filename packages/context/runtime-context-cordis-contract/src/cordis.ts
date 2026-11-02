@@ -2,6 +2,7 @@ import { type Context, Service } from '@deepseek-ai/cordis'
 import type {
   ConsumerClass,
   ContextBlockKey,
+  ReaderEligibilityHandoff,
   RuntimeContextOperations,
   RuntimeContextTrust,
   ScopeRef,
@@ -75,6 +76,27 @@ export abstract class RuntimeContextService<P = unknown>
   abstract bind(...args: Operation<P, 'bind'>['args']): Operation<P, 'bind'>['result']
 }
 export const runtimeContextKey = RuntimeContextService.provide
+
+/**
+ * The handoff of a reader eligibility id from the scope holder to the party that builds a reader.
+ * The scope holder's adapter provides a subclass and answers by its own policy. The key is a
+ * delivery path, not access control: the handoff grants no read, and every read checks the
+ * eligibility (RC-03).
+ * @owner packages/context/runtime-context-contract
+ */
+export abstract class RuntimeContextReaderEligibilityService<P = unknown>
+  extends Service
+  implements ReaderEligibilityHandoff<P>
+{
+  static readonly provide = 'runtimeContextReaderEligibility'
+  constructor(ctx: Context) {
+    super(ctx, RuntimeContextReaderEligibilityService.provide)
+  }
+  abstract current(
+    ...args: Parameters<ReaderEligibilityHandoff<P>['current']>
+  ): ReturnType<ReaderEligibilityHandoff<P>['current']>
+}
+export const runtimeContextReaderEligibilityKey = RuntimeContextReaderEligibilityService.provide
 // oxlint-disable-next-line typescript/prefer-as-const -- A fixed exported type preserves the computed augmentation during instrumented declaration emit.
 export const runtimeContextScopeKey: 'scope' = 'scope'
 /** An explanatory payload shape. The event transmits its fields as two positional arguments. */
@@ -84,6 +106,7 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     runtimeContext: RuntimeContextService<unknown>
     runtimeContextTrust: RuntimeContextTrustService<unknown>
+    runtimeContextReaderEligibility: RuntimeContextReaderEligibilityService<unknown>
     [runtimeContextScopeKey]?: ScopeRef
   }
   interface Events {

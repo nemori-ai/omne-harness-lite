@@ -49,6 +49,11 @@ const system: SystemRecoveryAccess<string> = {
 }
 const limits: AccountingLimits = { maxTargets: 4, maxFactsPerTarget: 8, maxRevisionsPerDispatch: 4 }
 
+/** A target in the same tenant with a scope of its own. */
+function targetAt(name: string): ContextTarget {
+  return { tenant, scope: { ...target.scope, ref: `scope:${name}` } as never }
+}
+
 function account(revision: string, input = '700', id: string = call): CallAccount {
   return {
     subject: { kind: 'model_call', id },
@@ -745,12 +750,13 @@ describe('rebuild: access, capacity and failure paths', () => {
     gate.open()
     expect((await first).kind).toBe('rebuilt')
   })
-  it('maxTargets refuses a new target; rebuilding a known target needs no new slot', async () => {
-    const a = setup({ limits: { maxTargets: 1, maxFactsPerTarget: 8, maxRevisionsPerDispatch: 4 } })
+  it('rebuilding a known target needs no new slot and evicts no other target', async () => {
+    const a = setup({ limits: { maxTargets: 2, maxFactsPerTarget: 8, maxRevisionsPerDispatch: 4 } })
+    const other = targetAt('other')
     await a.rebuild()
-    const other: ContextTarget = { tenant, scope: { ...target.scope, ref: 'scope:other' } as never }
-    expect(await a.rebuildAt(other)).toEqual({ kind: 'unavailable', diagnostic: 'capacity' })
+    await a.rebuildAt(other)
     expect((await a.rebuild()).kind).toBe('rebuilt')
+    expect(await a.inbox.usage({ access, target: other })).toMatchObject({ kind: 'value' })
   })
   it('a failed rebuild of a new target gives its capacity slot back', async () => {
     const a = setup({
@@ -822,5 +828,214 @@ describe('rebuild: access, capacity and failure paths', () => {
     expect(await a.inbox.receive({ access, input: fact() })).toMatchObject({
       generation: second.generation,
     })
+  })
+})
+
+/** An adopted source whose count read waits until the promise settles. */
+function gatedSource(gate: Promise<void>): AdoptedRequestSource<string> {
+  const inner = createMemoryAdoptedSource<string>()
+  return {
+    authority: inner.authority,
+    readCount: async read => {
+      await gate
+      return inner.readCount(read)
+    },
+    readSource: read => inner.readSource(read),
+  }
+}
+async function isReady(a: ReturnType<typeof setup>, at: ContextTarget): Promise<boolean> {
+  return (await a.inbox.usage({ access, target: at })).kind === 'value'
+}
+async function settle(): Promise<void> {
+  for (let turn = 0; turn < 4; turn++) await Promise.resolve()
+}
+
+describe('target eviction (CX-11)', () => {
+  const small = (maxTargets: number): AccountingLimits => ({
+    maxTargets,
+    maxFactsPerTarget: 2,
+    maxRevisionsPerDispatch: 4,
+  })
+
+  it('keeps at most maxTargets ready targets: the oldest unused ones are evicted', async () => {
+    const a = setup({ limits: small(3) })
+    const targets = Array.from({ length: 10 }, (_, index) => targetAt(`t${index}`))
+    for (const at of targets) expect((await a.rebuildAt(at)).kind).toBe('rebuilt')
+    const states: boolean[] = []
+    for (const at of targets) states.push(await isReady(a, at))
+    expect(states).toEqual([...Array<boolean>(7).fill(false), true, true, true])
+  })
+
+  it('evicts the least recently used target; a usage or a receive counts as a use', async () => {
+    const a = setup({ limits: small(3) })
+    const [t1, t2, t3, t4, t5] = ['t1', 't2', 't3', 't4', 't5'].map(targetAt)
+    for (const at of [t1!, t2!, t3!]) await a.rebuildAt(at)
+    await a.inbox.usage({ access, target: t1! })
+    await a.rebuildAt(t4!)
+    expect(await isReady(a, t2!)).toBe(false)
+    // t3 is now the oldest unused one; a receive on it counts as a use.
+    await a.inbox.receive({ access, input: { ...fact(), target: t3! } })
+    await a.rebuildAt(t5!)
+    expect(await isReady(a, t1!)).toBe(false)
+    expect(await isReady(a, t3!)).toBe(true)
+  })
+
+  it('never evicts a target with a usage in flight', async () => {
+    const gate = deferred<void>()
+    const a = setup({ limits: small(2), adopted: gatedSource(gate.promise) })
+    const [t1, t2, t3] = [targetAt('t1'), targetAt('t2'), targetAt('t3')]
+    await a.rebuildAt(t1)
+    await a.rebuildAt(t2)
+    // t1 is the oldest and its usage is in flight, so t2 goes instead.
+    const inflight = a.inbox.usage({ access, target: t1 })
+    expect((await a.rebuildAt(t3)).kind).toBe('rebuilt')
+    gate.open()
+    expect(await inflight).toMatchObject({ kind: 'value', value: { kind: 'not-fixed' } })
+    expect(await isReady(a, t2)).toBe(false)
+    expect(await isReady(a, t3)).toBe(true)
+  })
+
+  it('never evicts a target with a receive in flight', async () => {
+    const gate = deferred<void>()
+    const a = setup({
+      limits: small(1),
+      source: () => gate.promise.then(() => ({ kind: 'allowed' }) as const),
+    })
+    await a.rebuild()
+    const inflight = a.inbox.receive({ access, input: fact() })
+    expect(await a.rebuildAt(targetAt('other'))).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'capacity',
+    })
+    gate.open()
+    expect(await inflight).toMatchObject({ kind: 'received' })
+  })
+
+  it('answers capacity before any replay when every ready target has an operation in flight', async () => {
+    const gate = deferred<void>()
+    const a = setup({ limits: small(1), adopted: gatedSource(gate.promise) })
+    await a.rebuild()
+    const inflight = a.inbox.usage({ access, target })
+    let pulled = false
+    async function* replay(): AsyncGenerator<ContextAccountingInput> {
+      pulled = true
+      yield* []
+    }
+    expect(
+      await a.recovery.rebuildAccounts({
+        access: system,
+        target: targetAt('other'),
+        replay: { snapshot: evidence, facts: replay() },
+      }),
+    ).toEqual({ kind: 'unavailable', diagnostic: 'capacity' })
+    expect(pulled).toBe(false)
+    gate.open()
+    expect(await inflight).toMatchObject({ kind: 'value' })
+  })
+
+  it('refuses the rebuild when the candidate became busy during the replay, and keeps the candidate', async () => {
+    const gate = deferred<void>()
+    const a = setup({ limits: small(1), adopted: gatedSource(gate.promise) })
+    const other = targetAt('other')
+    await a.rebuild()
+    const replayGate = deferred<void>()
+    async function* slow(): AsyncGenerator<ContextAccountingInput> {
+      await replayGate.promise
+      yield* []
+    }
+    const rebuilding = a.recovery.rebuildAccounts({
+      access: system,
+      target: other,
+      replay: { snapshot: evidence, facts: slow() },
+    })
+    await settle()
+    const inflight = a.inbox.usage({ access, target })
+    replayGate.open()
+    expect(await rebuilding).toEqual({ kind: 'unavailable', diagnostic: 'capacity' })
+    gate.open()
+    expect(await inflight).toMatchObject({ kind: 'value' })
+    expect(await a.inbox.receive({ access, input: { ...fact(), target: other } })).toMatchObject({
+      diagnostic: 'uninitialized',
+    })
+  })
+
+  it('evicts nothing when the rebuild fails', async () => {
+    const a = setup({ limits: small(1), checkFact: () => ({ kind: 'denied' }) })
+    await a.rebuild()
+    const other = targetAt('other')
+    expect(await a.rebuildAt(other, { ...fact(), target: other })).toEqual({ kind: 'denied' })
+    expect(await isReady(a, target)).toBe(true)
+  })
+
+  it('never takes a rebuilding target as the victim', async () => {
+    const a = setup({ limits: small(2) })
+    const other = targetAt('other')
+    await a.rebuild()
+    await a.rebuildAt(other)
+    const gate = deferred<void>()
+    async function* slow(): AsyncGenerator<ContextAccountingInput> {
+      await gate.promise
+      yield* []
+    }
+    // `target` is the oldest and it rebuilds again, so it is not a candidate meanwhile.
+    const again = a.recovery.rebuildAccounts({
+      access: system,
+      target,
+      replay: { snapshot: evidence, facts: slow() },
+    })
+    await settle()
+    expect((await a.rebuildAt(targetAt('third'))).kind).toBe('rebuilt')
+    gate.open()
+    expect((await again).kind).toBe('rebuilt')
+    expect(await isReady(a, other)).toBe(false)
+    expect(await isReady(a, target)).toBe(true)
+  })
+
+  it('an evicted target answers like one that was never rebuilt (E10)', async () => {
+    const a = setup({ limits: small(1) })
+    a.adoptedSource.set(adopted())
+    await a.rebuild(fact('0', '1001'))
+    expect(await a.inbox.usage({ access, target })).toMatchObject({
+      value: { kind: 'actual', usedTokens: '1001' },
+    })
+    await a.rebuildAt(targetAt('other'))
+    expect(await a.inbox.usage({ access, target })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'uninitialized',
+    })
+    expect(await a.inbox.receive({ access, input: fact('1', '1002') })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'uninitialized',
+    })
+  })
+
+  it('confirms nothing for an evicted target, and the replay rebuilds the same projection', async () => {
+    const a = setup({ limits: small(1) })
+    a.adoptedSource.set(adopted())
+    const durable = fact('0', '1001')
+    await a.rebuild(durable)
+    await a.rebuildAt(targetAt('other'))
+    expect((await a.inbox.receive({ access, input: durable })).kind).not.toBe('received')
+    expect((await a.rebuild(durable)).kind).toBe('rebuilt')
+    expect(await a.inbox.usage({ access, target })).toMatchObject({
+      value: { kind: 'actual', usedTokens: '1001' },
+    })
+  })
+
+  it('a full target still refuses new facts and no target is evicted for them', async () => {
+    const a = setup({ limits: small(2) })
+    const other = targetAt('other')
+    await a.rebuild()
+    await a.rebuildAt(other)
+    await a.inbox.receive({ access, input: fact('0') })
+    await a.inbox.receive({ access, input: fact('1') })
+    expect(await a.inbox.receive({ access, input: fact('2') })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'capacity',
+    })
+    expect(await a.inbox.receive({ access, input: fact('0') })).toMatchObject({
+      change: 'duplicate',
+    })
+    expect(await isReady(a, other)).toBe(true)
   })
 })

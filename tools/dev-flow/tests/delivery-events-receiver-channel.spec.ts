@@ -761,3 +761,106 @@ it('can subscribe to an owner-managed URL while retaining borrowed ownership', (
   expect(readChannelConfig(subscriber.path).webhookUrl).toBe(owner.config.webhookUrl)
   removeChannelHook(subscriber.config, subscriber.path, noGithub)
 })
+
+describe('restart after a stopped managed receiver', () => {
+  function stoppedManaged() {
+    const a = saved('https://smee.io/managed', true),
+      gh = github()
+    const owned = prepareChannelHook(a.config, a.path, gh.gh)
+    removeChannelHook(owned, a.path, gh.gh)
+    expect(readChannelConfig(a.path).ownership).toEqual({ kind: 'deleted', hookId: 1 })
+    return { a, gh }
+  }
+  it('serves again from a deleted config: same channel, one new exact hook, recorded as owned', () => {
+    const { a, gh } = stoppedManaged()
+    const restarted = prepareChannelHook(readChannelConfig(a.path), a.path, gh.gh)
+    expect(restarted.ownership).toEqual({ kind: 'owned', hookId: 2 })
+    expect(readChannelConfig(a.path).ownership).toEqual({ kind: 'owned', hookId: 2 })
+    expect(restarted.webhookUrl).toBe(a.config.webhookUrl)
+    expect(restarted.instanceId).toBe(a.config.instanceId)
+    expect([...gh.hooks.keys()]).toEqual([2])
+    expect(gh.hooks.get(2)?.config.url).toBe(a.config.webhookUrl)
+    expect(gh.calls.filter(call => call[2] === 'POST')).toHaveLength(2)
+    expect(gh.calls.some(call => call[2] === 'DELETE' && call.at(-1)?.endsWith('/2'))).toBe(false)
+    removeChannelHook(restarted, a.path, gh.gh)
+    expect(gh.hooks.size).toBe(0)
+  })
+  it('records creating before the POST and never leaves a failed rebuild readable as owned', () => {
+    const { a, gh } = stoppedManaged()
+    for (const failure of ['rejected', 'mismatched']) {
+      let seen: string | undefined
+      const broken: GhText = (argv, timeout) => {
+        if (argv[2] !== 'POST') return gh.gh(argv, timeout)
+        seen = readChannelConfig(a.path).ownership.kind
+        if (failure === 'rejected') throw new Error('HTTP 422 secret-channel')
+        return JSON.stringify({
+          ...hook(a.config, 9),
+          config: { url: 'https://smee.io/other', content_type: 'json' },
+        })
+      }
+      expect(() => prepareChannelHook(readChannelConfig(a.path), a.path, broken)).toThrow(
+        'hook-create-outcome-unknown',
+      )
+      expect(seen).toBe('creating')
+      expect(readChannelConfig(a.path).ownership.kind).toBe('creating')
+      expect(gh.hooks.size).toBe(0)
+      writePrivateJson(a.path, { ...a.config, ownership: { kind: 'deleted', hookId: 1 } })
+    }
+  })
+  it('after a crash that lost the rebuild response, the next serve recovers the hook without another POST', () => {
+    const { a, gh } = stoppedManaged()
+    const lost: GhText = (argv, timeout) => {
+      const result = gh.gh(argv, timeout)
+      if (argv[2] === 'POST') throw new Error('lost')
+      return result
+    }
+    expect(() => prepareChannelHook(readChannelConfig(a.path), a.path, lost)).toThrow(
+      'hook-create-outcome-unknown',
+    )
+    expect(readChannelConfig(a.path).ownership.kind).toBe('creating')
+    const again = prepareChannelHook(readChannelConfig(a.path), a.path, gh.gh)
+    expect(again.ownership).toEqual({ kind: 'owned', hookId: 2 })
+    expect(gh.calls.filter(call => call[2] === 'POST')).toHaveLength(2)
+    expect([...gh.hooks.keys()]).toEqual([2])
+  })
+  it('does not touch a foreign hook while rebuilding', () => {
+    const { a, gh } = stoppedManaged()
+    gh.hooks.set(50, {
+      ...hook(a.config, 50),
+      config: { url: 'https://smee.io/foreign', content_type: 'json' },
+    })
+    prepareChannelHook(readChannelConfig(a.path), a.path, gh.gh)
+    expect([...gh.hooks.keys()].sort((x, y) => x - y)).toEqual([2, 50])
+    expect(gh.calls.some(call => call[2] === 'DELETE' && call.at(-1)?.endsWith('/50'))).toBe(false)
+    expect(gh.calls.some(call => call.includes('--paginate'))).toBe(false)
+  })
+  it('the same serve call restarts a stopped receiver: stop deletes the hook, serve again creates a new one', async () => {
+    const server = await relay(),
+      a = saved(server.url, true),
+      gh = github()
+    try {
+      for (const round of [1, 2]) {
+        const stop = deferred()
+        const running = serveChannelReceiver({
+          configPath: a.path,
+          repository,
+          file: a.file,
+          gh: gh.gh,
+          stopped: stop.promise,
+          log: () => {},
+        })
+        await vi.waitFor(() =>
+          expect(readReceiverHealth({ file: a.file, repository }).healthy).toBe(true),
+        )
+        expect(readChannelConfig(a.path).ownership).toEqual({ kind: 'owned', hookId: round })
+        expect([...gh.hooks.keys()]).toEqual([round])
+        stop.resolve()
+        expect(await running).toBe(0)
+        expect(gh.hooks.size).toBe(0)
+        expect(readChannelConfig(a.path).ownership).toEqual({ kind: 'deleted', hookId: round })
+      }
+    } finally {
+      await server.close()
+    }
+  })
+})

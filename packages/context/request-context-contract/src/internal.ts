@@ -15,6 +15,14 @@ export function canonical(value: unknown): string {
 export function digest(value: unknown): string {
   return createHash('sha256').update(canonical(value)).digest('base64url')
 }
+/**
+ * The digest of an `Adoption` this package mints: SHA-256 of the canonical form as 64 lowercase
+ * hex characters, the encoding the Model request judgment requires. Identifiers and tokens keep
+ * `digest`.
+ */
+export function adoptionDigest(value: unknown): string {
+  return createHash('sha256').update(canonical(value)).digest('hex')
+}
 export function messageId(value: unknown): MessageId {
   const parsed = parseMessageId(`msg_${digest(value)}`)
   if (!parsed.ok) throw new Error('Deterministic message identity is invalid')

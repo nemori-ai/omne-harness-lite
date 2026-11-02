@@ -708,6 +708,43 @@
               "name": "RequestContextTrust",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "HistoryResolution",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/request-context-contract"
+            },
+            {
+              "name": "HistoryEvidenceResolver",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/request-context-contract"
+            },
+            {
+              "name": "ContextHolderParts",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LeaseSettlement",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextHolderLease",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextHolderLeaseResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextHolderSources",
+              "kind": "type",
+              "pending": false
             }
           ]
         }
@@ -762,6 +799,16 @@
               "name": "contextAccountingInboxKey",
               "kind": "value",
               "pending": false
+            },
+            {
+              "name": "ContextHolderSourcesService",
+              "kind": "class",
+              "pending": false
+            },
+            {
+              "name": "contextHolderSourcesKey",
+              "kind": "value",
+              "pending": false
             }
           ]
         }
@@ -796,6 +843,46 @@
               "name": "RequestContextTrustCase",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "createMemoryContextHolder",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "contextHolderSourcesConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "MemoryContextHolder",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MemoryContextHolderOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextHolderPartCall",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextHolderSourcesCase",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextHolderSourcesFixture",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextHolderUnderTest",
+              "kind": "type",
+              "pending": false
             }
           ]
         }
@@ -806,7 +893,12 @@
     {
       "module": "@deepseek-ai/cordis",
       "interface": "Context",
-      "members": ["requestContext", "requestContextTrust", "contextAccountingInbox"],
+      "members": [
+        "requestContext",
+        "requestContextTrust",
+        "contextAccountingInbox",
+        "contextHolderSources"
+      ],
       "pending": false
     },
     {

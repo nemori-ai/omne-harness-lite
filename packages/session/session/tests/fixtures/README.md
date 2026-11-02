@@ -4,7 +4,7 @@
 
 ## 允许的内容
 
-测试数据文件与说明。
+测试装配代码、测试数据文件与说明。
 
 ## 边界
 
@@ -16,4 +16,9 @@
 
 ## 本包事实
 
-现在为空。现有测试只检查根入口的导出，不需要固定输入。命令处理器与调度器的测试进入后，这里可以放带多条提交的会话日志样本、各类 Agent 事件序列与崩溃点注入表，并在本节写明它们对应的 SPEC 场景与生成方式。
+这里只有装配代码，没有数据文件：
+
+- [harness.ts](harness.ts)：一个会话服务实例与全部端口替身。委派入口外面包一层计数与提交注入，访问检查按主体所属租户裁定，用例可以预排下几次裁定。
+- [backends.ts](backends.ts)：session-contract 的内存替身对，以及初始化材料的来源。
+- [sql.ts](sql.ts)：session-storage-sql 的 `createSessionStoragePair` 在真实 sqlite-provider 上的组装，临时目录，两个租户各一个事务域。只经各包的公开入口组装。
+- [facade.ts](facade.ts)：把四个面包成 `SessionTransactionPort` 的形状，让 session-contract 的事务套件逐面驱动服务。用例交给 `commit` 的守卫材料转交证据桥。

@@ -36,6 +36,10 @@ if (reopened.kind === 'open') {
 
 Cordis 宿主用 `LocalCredentialPlugin` 装载同一保管库，配置 `{ path, factorySecret }`。装载与撤除的行为见 [Cordis 集成](cordis.md)。
 
+### 保管库初始化命令
+
+要在一台宿主上让 `LocalCredentialPlugin` 读到工厂秘密，先由人在该宿主上运行一次保管库初始化命令：`pnpm --filter @omne-harness/model-host-local exec node --experimental-strip-types src/vault-init-cli.ts --path <路径>`。命令从关闭回显的终端读一个密钥，在用户目录之下的空路径新建保管库，把密钥写成工厂秘密，输出 `已建立：<路径>` 或 `失败：<原因代码>`。它经 `createLocalCustodian` 建库，不属于插件，不从根入口导出，只建工厂秘密。运行责任在持有密钥的人，agent 不取密钥值。路径规则、失败原因表与权限做法见 [SPEC](../SPEC.md#保管库初始化命令)。
+
 ### 本地发送路径
 
 `assembleLocalModel` 把保管库接到 model 的发送边界与 pi 传输，并在同一组家族与 `ModelCommands` 上给出计量准备资源。调用方组合家族（含计量余量），给出 `ModelCommands` 与 `SendCoordinator`，并给出全部路由、限额与准备选项。

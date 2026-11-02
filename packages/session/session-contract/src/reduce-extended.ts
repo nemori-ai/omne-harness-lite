@@ -1,6 +1,7 @@
 import type { SessionEntry } from './entries.ts'
 import type { WorkSnapshot } from './values.ts'
 import type { DurableEvidence } from './identity.ts'
+import type { SessionEntriesProgress } from './interpretation-values.ts'
 import { applyResult, applyProducerFact } from './reduce-results.ts'
 import { requestControl, validateControlProgress } from './control-state.ts'
 import {
@@ -127,6 +128,17 @@ export function applyExtended(
         draft.run = { ...draft.run, execution: entry.execution }
       return null
     }
+    case 'entries.interpreted':
+      // RD-2 and RD-3. RD-1 needs the saved progress of the channel: see `advanceEntriesProgress`.
+      if (decimal(entry.through, 'entries.through') <= decimal(entry.after, 'entries.after'))
+        return 'entries progress does not advance'
+      if (
+        !(draft.executions ?? []).some(
+          item => item.run === entry.run && item.execution.execution === entry.execution,
+        )
+      )
+        return 'missing historical execution binding'
+      return null
     case 'run.batch-taken':
       // I-R3: an input is taken at most once. A repeated member or a second taking in the same
       // Run is a contradiction to report, not a value to merge.
@@ -247,4 +259,38 @@ export function applyExtended(
     default:
       return `unsupported entry ${entry.kind}`
   }
+}
+
+type ProgressRow = Extract<SessionEntry, { kind: 'entries.interpreted' }>
+
+/**
+ * The saved entries progress after the progress rows of one reduced batch (RD-1). A row must start
+ * at the saved through of its channel, or at 0 for a channel with no saved progress; it then sets
+ * the item of its channel to its through and to `evidence`, the evidence of the batch. Returns a
+ * diagnostic when the chain breaks.
+ */
+export function advanceEntriesProgress(
+  saved: readonly SessionEntriesProgress[],
+  rows: readonly ProgressRow[],
+  evidence: DurableEvidence,
+): readonly SessionEntriesProgress[] | string {
+  let progress = saved
+  for (const row of rows) {
+    const sameChannel = (item: SessionEntriesProgress) =>
+      item.run === row.run && item.execution === row.execution && item.channel === row.channel
+    const through = progress.find(sameChannel)?.through ?? '0'
+    if (row.after !== through)
+      return `entries progress of ${row.run}/${row.execution}/${row.channel} starts after ${row.after}, saved through ${through}`
+    const next: SessionEntriesProgress = {
+      run: row.run,
+      execution: row.execution,
+      channel: row.channel,
+      through: row.through,
+      interpreted: evidence,
+    }
+    progress = progress.some(sameChannel)
+      ? progress.map(item => (sameChannel(item) ? next : item))
+      : [...progress, next]
+  }
+  return progress
 }

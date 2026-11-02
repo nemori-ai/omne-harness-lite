@@ -77,6 +77,12 @@ import { judgeIdle } from './judgments.ts'
 import { materializeModelView, compactionReads, type MaterializedModelView } from './model-view.ts'
 import { decodeEntry } from './entries.ts'
 import { reduce } from './reduce.ts'
+import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
+import type {
+  SessionEntriesObservation,
+  SessionEntriesReceipt,
+  SessionEntriesStart,
+} from './interpretation-values.ts'
 import {
   createMemoryInitializationSource,
   type MemoryInitializationSource,
@@ -733,6 +739,84 @@ export function createMemorySessionTransactionPair<P>(
       return succeed(recall(receipt))
     }
 
+    /**
+     * The entries interpretation commit (docs/same-log-pure.md「entries 通道的解释提交」): no access
+     * check, the shared pure check, then the consequence rows, the progress row, the operation record
+     * and the snapshot with its saved progress in one replacement of the store. Nothing between the read of the store
+     * and that replacement awaits, and nothing is written before every check and the reduction pass.
+     */
+    const commitEntries = (
+      input: Readonly<{ observation: SessionEntriesObservation; start: SessionEntriesStart }>,
+    ): Outcome<SessionEntriesReceipt, SessionFailure> => {
+      const { observation, start } = input
+      const key = keyOf(observation.tenant, observation.session)
+      if ('failure' in key) return key
+      const store = stores.get(key.ok)
+      if (store === undefined) return fail(denied('commitEntries'))
+      if (store.answers.has(observation.operation))
+        return fail({ kind: 'conflict', operation: observation.operation })
+      const held = store.operations.get(observation.operation)
+      const decision = projectSessionEntries(store.snapshot, {
+        observation,
+        start,
+        saved: store.snapshot.entriesProgress ?? [],
+        record: held?.record ?? null,
+      })
+      if (decision.kind === 'rejected') return fail(decision.failure)
+      if (decision.kind === 'recovered') {
+        if (held === undefined) return fail(unavailable('a recalled operation without a record'))
+        return succeed(held.recall(decision.receipt) as SessionEntriesReceipt)
+      }
+      if (decision.progress === undefined)
+        return fail(unavailable('an entries decision without its progress'))
+      const revision = String(BigInt(store.snapshot.revision) + 1n) as SessionRevision
+      const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
+        ...entry,
+        id: String(store.entries.length + index + 1) as EntryId,
+        revision,
+      }))
+      const reduced = reduce(store.snapshot, {
+        revision,
+        entries,
+      })
+      if (reduced.kind === 'quarantined')
+        return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
+      const committedEntries = [...store.entries, ...entries]
+      const snapshot =
+        options.history === undefined
+          ? reduced.snapshot
+          : {
+              ...reduced.snapshot,
+              historyIndex: options.history.read(reduced.snapshot, committedEntries, {
+                kind: 'pending',
+                inputs: reduced.snapshot.pending,
+              }).index,
+            }
+      const answer: SessionEntriesReceipt = {
+        operation: observation.operation,
+        through: decision.progress.through,
+        interpreted: reduced.snapshot.source,
+      }
+      const operations = new Map(store.operations)
+      operations.set(observation.operation, {
+        record: {
+          operation: observation.operation,
+          digest: digestSessionEntries(observation),
+          receipt: receiptOf(observation.session, observation.operation, revision, entries),
+        },
+        recall: () => answer,
+        decision: null,
+      })
+      stores.set(key.ok, {
+        ...store,
+        snapshot,
+        modelView: materializeModelView(store.modelView, entries, committedEntries),
+        entries: committedEntries,
+        operations,
+      })
+      return succeed(answer)
+    }
+
     const page = (store: Store, cursor: Cursor): HistoryPage => {
       const upper = Math.min(cursor.upper, store.entries.length)
       const forward = cursor.direction === 'forward'
@@ -975,12 +1059,7 @@ export function createMemorySessionTransactionPair<P>(
           source: origin.record.receipt.source,
         })
       },
-      commitEntries: async () =>
-        fail(
-          unavailable(
-            'the in-memory double has no shared transaction domain, so it does not interpret entries',
-          ),
-        ),
+      commitEntries: async input => commitEntries(input),
       history,
       pending: async input => {
         const qualification = await qualify({
@@ -1243,6 +1322,8 @@ export interface SessionTransactionsFixture<P> {
   initializationGuards?(
     command: Extract<SessionCommand, { kind: 'create' }>,
   ): Promise<readonly GuardCommand[]>
+  /** The count of access checks that the port asked so far, for a case that asserts none is asked. */
+  readonly askedAccessChecks?: () => number
 }
 
 type Commit<K extends MutationName> = Awaited<ReturnType<Mutations[K]>>
@@ -2329,6 +2410,7 @@ export function memorySessionTransactionsFixture(): SessionTransactionsFixture<s
     creation: legalCreation(),
     operation: name => operationId(name),
     initializationGuards: memoryInitializationGuards(initialization),
+    askedAccessChecks: () => accessCheck.controls.asked().length,
   }
 }
 

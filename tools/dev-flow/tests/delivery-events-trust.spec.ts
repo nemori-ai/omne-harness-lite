@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { parseEventLine, type EventRecord } from '../src/delivery/events.ts'
+import { githubReconcile } from '../src/delivery/events-gh.ts'
 import { waitForEvent } from '../src/delivery/events-wait.ts'
 
 const dirs: string[] = []
@@ -159,6 +160,44 @@ describe('channel evidence', () => {
     )
     expect((await waiting).source).toBe('reconcile')
     expect(reconcile).toHaveBeenCalledTimes(2)
+  })
+
+  it('hands back two records created in the same second one after the other', async () => {
+    const created = '2026-11-01T10:00:07Z'
+    const url = (id: number) => `https://github.com/owner/repo/issues/7#issuecomment-${id}`
+    const comments = [4000, 4001, 4002].map(id => ({
+      body: '<!-- line-delta -->',
+      created_at: created,
+      html_url: url(id),
+    }))
+    const hint = (id: number): EventRecord => ({
+      ...closed,
+      delivery: `hint-${id}`,
+      event: 'issue_comment',
+      action: 'created',
+      number: 7,
+      state: null,
+      marker: 'line-delta',
+      html_url: url(id),
+      receivedAt: '2026-11-01T10:00:08Z',
+      receiver,
+    })
+    const file = eventFile(line(hint(4001)) + line(hint(4002)))
+    const reconcile = githubReconcile('owner/repo', () => [comments])
+    const commentPredicate = { kind: 'comment', issue: 7, marker: 'line-delta' } as const
+    const wait = (seen: string[], timeoutMs = 2000) =>
+      waitForEvent({
+        file,
+        repository: 'owner/repo',
+        predicate: commentPredicate,
+        since: created,
+        seen,
+        reconcile,
+        timeoutMs,
+      })
+    expect(await wait(['4000'])).toMatchObject({ source: 'reconcile', html_url: url(4001) })
+    expect(await wait(['4000', '4001'])).toMatchObject({ source: 'reconcile', html_url: url(4002) })
+    await expect(wait(['4000', '4001', '4002'], 200)).rejects.toThrow('No matching event')
   })
 
   it('retains a channel hint received during a pending read', async () => {

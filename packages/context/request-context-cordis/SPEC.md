@@ -1,19 +1,23 @@
 # @omne-harness/request-context-cordis 行为规格
 
-状态：Service 实现成员，`draft`，只有基本实现（信任注入、两个键、贡献登记、assembly），配置校验与策略选择未实现。本成员把 [request-context](../request-context/SPEC.md) 的机制装进 [request-context-cordis-contract](../request-context-cordis-contract/SPEC.md) 定义的服务 `requestContext`，并承担贡献登记表、策略实现选择、配置校验失败、isolate 绑定与撤除。领域行为和机制行为都不在本页。
+状态：Service 实现成员，`draft`，已实现信任注入、两个键、贡献登记、assembly，以及配置校验与按配置选择策略。`notify('contributions')` 路径、两块的生产者与重复装载检查未实现。本成员把 [request-context](../request-context/SPEC.md) 的机制装进 [request-context-cordis-contract](../request-context-cordis-contract/SPEC.md) 定义的服务 `requestContext`，并承担贡献登记表、策略实现选择、配置校验失败、isolate 绑定与撤除。领域行为和机制行为都不在本页。
 
 ## 范围与依据
 
-本成员从 `./cordis` 导出 `RequestContextProvider`，它是 `RequestContextService` 的具体子类，也是插件。根入口不导出任何东西（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）；不装配 Cordis 的独立调用方用 request-context-contract 根入口的 `createAssemblyOperations`，来源登记表的工厂是 [request-context](../request-context/SPEC.md) 的 `createContextSourceRegistry`。本成员提供两个键：`requestContext` 与 `contextAccountingInbox`（由同一个插件在同一个 fiber 提供），并必需 `inject` 信任键 `requestContextTrust`，缺席时停在 `PENDING`。本成员不增补新事件。插件已有基本实现，配置 Schema 校验与按配置选策略尚未实现，见 [Cordis 页](docs/cordis.md)。
+本成员从 `./cordis` 导出 `RequestContextProvider`，它是 `RequestContextService` 的具体子类，也是插件。根入口不导出任何东西（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）；不装配 Cordis 的独立调用方用 request-context-contract 根入口的 `createAssemblyOperations`，来源登记表的工厂是 [request-context](../request-context/SPEC.md) 的 `createContextSourceRegistry`。本成员提供两个键：`requestContext` 与 `contextAccountingInbox`（由同一个插件在同一个 fiber 提供），并必需 `inject` 信任键 `requestContextTrust`，缺席时停在 `PENDING`。本成员不增补新事件。配置 Schema 校验与按配置选策略已实现（性质 4），其余未实现项见下文，细节见 [Cordis 页](docs/cordis.md)。
 
-配置经 Standard Schema 校验（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。可调项：压缩策略的选择与它的参数、表示策略的选择与偏好顺序、修剪阈值、缓存容量。默认值只是初值。
+配置经 Standard Schema 校验（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。可调项：压缩策略的选择与它的参数、表示策略的选择与偏好顺序。默认值只是初值。
+
+选择的形状取自 request-context-cordis-contract 的 `RequestContextPolicySelection`：每个策略一个 `implementation` 名和完整的 `config`。该形状没有修剪阈值和缓存容量的字段，所以这两项现在不能经插件配置调整；修剪阈值取默认构造件的初值，缓存还没有实现。要增加字段，须先由契约成员改形状。
+
+插件选项有三种互斥的给法：不给 `policies` 也不给 `selection`，用两个默认策略的初值；给 `selection`，按名选择并校验；给 `policies`，由受信任的装配代码交入现成的策略对象（运行时对象，不进插件树 JSON）。`policies` 与 `selection` 并存时配置不合。当前只有一个名字 `default`。
 
 ## 结果与不变量
 
 1. 一个 isolate 标签下只装一份本插件（[IC-6](../../../docs/architecture/cordis-integration-conventions.md#ic-6)）。重复装载不静默覆盖。假设：重复装载在 `provide` 时失败，这一点只有源码读数，未经 basis 核验。
 2. 贡献登记表的寿命随贡献者 fiber：`contributeSection`、`contributeVariable` 在方法内 `this.ctx.effect` 登记；贡献者卸载时撤除函数移除登记，再调用来源登记表实例的 `notify('contributions', …)`（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）。段渲染结果只归来源登记表实例，本插件不持有。作用域引用从调用方 fiber 的 intercept 配置取得：`scope: null` 登记到全局层；取不到配置即拒绝。
 3. 同层同名登记拒绝。带逐请求变化变量的段拒绝。登记成功先调用来源登记表实例的 `notify('contributions', …)`，再发 `request-context-cordis-contract/changed`，载荷带作用域引用、该层的新修订与登记面实例的代次；派发放在 `try` 中，监听者失败只记录诊断（[IC-12](../../../docs/architecture/cordis-integration-conventions.md#ic-12)）。
-4. 策略实现在插件加载时按配置选择。配置里指向不存在的策略、或策略参数不合 schema，插件加载失败，不静默回退到默认策略。假设：此时 fiber 进入 `FAILED`，Service 子类的这条路径未经 basis 核验（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。
+4. 策略实现在插件加载时按配置选择。配置里指向不存在的策略、策略参数不合 schema、选择里有未知字段、`policies` 与 `selection` 并存、或没有 `accounting`，插件加载失败，不静默回退到默认策略。静态 `Config` 在构造器运行之前校验，校验时已经试建两个策略，所以构造器不会因配置问题而半途失败。已核验：在 Cordis 4.0.4 上，Service 子类的静态 `Config` 报告问题时，fiber 进入 `FAILED`（`FiberState` 是 const enum，运行时没有成员，测试用数值 3），不提供 `requestContext` 与 `contextAccountingInbox` 两个键（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)，`tests/config.spec.ts`）。
 5. 撤除顺序：插件卸载时先拒绝新的登记，新的组装返回不可用（服务已卸载），再取消在途组装（[RQ-09](../request-context-contract/SPEC.md#rq-09-取消恢复与迟到) 允许取消组装），然后丢弃贡献登记表，调用来源登记表的 `close()`，等待全部来源集合结算（[request-context-cordis-contract 性质 11](../request-context-cordis-contract/SPEC.md#结果与不变量)）；disposer 被调用不代替异步结算。被取消的组装返回不可用（服务已卸载）。撤除不撤回已交出的候选、计划或转换。本页的「组装」与「在途组装」都指经服务的 `assembly(target)` 交出的操作组发起的组装（[request-context-cordis-contract 性质 2](../request-context-cordis-contract/SPEC.md#结果与不变量)）。
 6. 本成员不为每次请求开 fiber，不用 `inject` 表达输入，不发第二种事件（[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17)）。历史源读口、转换件结果等读口属于来源集合，由来源适配者经 `register` 或 `replace` 按目标登记（[RQ-12](../request-context-contract/SPEC.md#rq-12-来源集合与登记面)）；`assembly(target)` 的操作组只借用该目标已登记的来源集合，目标没有登记时返回不可用；本插件不 `inject` 作用域持有者或模型侧的服务，只按配置选两个策略。租户、作用域与资格全部随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
 7. 本成员不导入任何协调者或持有者的契约。

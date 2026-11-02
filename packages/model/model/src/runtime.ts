@@ -2,6 +2,7 @@ import { judgeAdmit } from '@omne-harness/model-contract/provider'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { referenceFailure } from './reference.ts'
 import { createModelDriver } from './driver.ts'
+import { createSendInterruption } from './send/interruption.ts'
 import type { Reply } from '@omne-harness/model-contract'
 import type {
   ModelCommands,
@@ -120,13 +121,38 @@ export function createModelRuntime<P>(
 ): ModelRuntimeProvider<P> {
   validate(dependencies, configuration)
   const { commands, instances } = dependencies
+  // The driver sends through this wrapper, so that a committed cancel reaches the running stream.
+  const interruption = createSendInterruption(dependencies.send)
   const activity = createModelDriver(
     commands,
     instances,
     dependencies.clock,
     configuration,
-    dependencies.send,
+    interruption.send,
   )
+  // Quiesce closes this gate to new business admissions. An admission that passed it before is
+  // in flight; quiesce waits for it so that its call is counted.
+  let quiesced = false
+  const admitting = new Set<Promise<unknown>>()
+  async function admitNew(input: Parameters<typeof commands.admit>[0]) {
+    const result = await commands.admit(input)
+    if ('ok' in result) {
+      if (!result.ok.recovered) activity.admitted(input)
+      await wake({ tenant: input.tenant, call: input.call })
+    }
+    return result
+  }
+  // After quiesce only the replay of an admission that the authority already holds goes on.
+  async function admitQuiesced(input: Parameters<typeof commands.admit>[0]) {
+    const { principal, tenant, call, operation } = input
+    const found = await commands.recall({ principal, tenant, call, admission: operation })
+    if ('failure' in found) return found
+    if (found.ok.kind !== 'found')
+      return {
+        failure: { kind: 'unavailable', dependency: 'model-runtime', diagnostic: 'quiesced' },
+      } as const
+    return admitNew(input)
+  }
   async function wake(input: Parameters<typeof instances.schedule>[0]): Promise<void> {
     try {
       await instances.schedule(input)
@@ -150,9 +176,14 @@ export function createModelRuntime<P>(
               ? { failure: { kind: 'denied', action: 'tenant' } }
               : { failure: { kind: 'invalid', ...checked.failure } }
           const input = checked.ok
-          const result = await commands.admit(input)
-          if ('ok' in result) await wake({ tenant: input.tenant, call: input.call })
-          return result
+          if (quiesced) return admitQuiesced(input)
+          const pending = admitNew(input)
+          admitting.add(pending)
+          try {
+            return await pending
+          } finally {
+            admitting.delete(pending)
+          }
         },
         inspect: async ({ principal, tenant, reference }) => {
           const resolved = resolveModelInvocationRef(reference, tenant)
@@ -165,6 +196,9 @@ export function createModelRuntime<P>(
           const input = { principal, tenant, call, operation }
           const result = await commands.control(input)
           if ('ok' in result) {
+            // Only a committed control stops the stream. The termination still waits for the
+            // transport to confirm the physical stop.
+            interruption.interrupt(input)
             activity.requestRefresh(input)
             await wake({ tenant: input.tenant, call: input.call })
           }
@@ -230,7 +264,12 @@ export function createModelRuntime<P>(
       },
     },
     recover: () => unavailable('recover', '5.4'),
-    quiesce: () => unavailable('quiesce', '5.5'),
+    quiesce: async () => {
+      quiesced = true
+      await Promise.allSettled(admitting)
+      const { pending, running } = activity.counts()
+      return { ok: { pending: String(pending), running: String(running) } }
+    },
     driver: activity.driver,
   }
 }

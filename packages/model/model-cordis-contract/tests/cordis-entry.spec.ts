@@ -23,6 +23,7 @@ it('the cordis entry exports the service definitions with their keys, and no oth
     ModelRetryPolicyService: 'modelRetryPolicy',
     ModelRuntimeService: 'modelRuntime',
     ModelSendBoundaryService: 'modelSendBoundary',
+    ModelPreparationResourcesService: 'modelPreparationResources',
   }
   const keyName = (service: string) =>
     `${service[0]?.toLowerCase()}${service.slice(1, -'Service'.length)}Key`

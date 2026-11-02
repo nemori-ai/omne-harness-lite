@@ -22,17 +22,17 @@ PACKAGE_TEMPLATE_DRAFT
 
 状态：机制实现成员，候选技术设计，尚未技术接受。
 
-- 已实现：没有。`src/index.ts` 只有模板标记，根入口没有导出。
-- 未实现：工厂、命令处理器、协调器、调度器、缓存与 `close`，清单见[公开入口页](docs/public-api.md#随实现进入的导出)。
-- 未验证：[SPEC](SPEC.md) 的条款都没有测试，崩溃矩阵与故障场景也没有运行器。
+- 已实现：工厂 `createSessionInstance`、命令处理器流水线（CP-01）、四个面的读写（CP-03）、`close`，以及调度与协调的 SS-01 子集：S1、C2 的开 Run 顺序、S4 与 S3 的两个原因。清单与实现选择见 SPEC 的[实现现状](SPEC.md#实现现状)。
+- 未实现：CP-02 参加分支、非空受理槽列表、C2 的其余顺序、C1 单列的协调器、C3 至 C5、S2、S5 至 S7 与三层缓存。触发条件见 SPEC 的[未实现与触发条件](SPEC.md#未实现与触发条件)。
+- 已验证的范围：成员测试对内存替身对与真实 sqlite-provider 上的 SQL 提供者对运行 session-contract 的事务套件，并核对计次、跨租户与 SS-02 计数，见[已有测试](SPEC.md#已有测试)。崩溃矩阵与故障场景没有运行器。
 
-[session-cordis](../session-cordis/README_ZH.md) 的依赖里已经列出本成员，但两边的根入口都没有导出，所以现在没有运行中的调用。其他包不依赖本成员。
+[session-cordis](../session-cordis/README_ZH.md) 的依赖里已经列出本成员，但 session-cordis 的根入口还没有导出，所以现在没有运行中的调用。其他包不依赖本成员。
 
 ## 使用
 
-本成员只有根入口 `@omne-harness/session`，现在没有导出。实现进入之后，宿主按下面的顺序使用：
+本成员只有根入口 `@omne-harness/session`。宿主按下面的顺序使用：
 
-1. 构造 `SessionDependencies` 与 `SessionConfiguration`。启动条件只有事务端口与内部主体。
+1. 构造 `SessionDependencies` 与 `SessionConfiguration`。启动条件有四项：访问检查、委派事务入口、内部主体与会话工作主体。
 2. 调用 `createSessionInstance(dependencies, configuration)`。
 3. 用 `facesFor(caller)` 给每个调用方类各自的面。
 4. 对宿主要服务的每个租户调用 `maintain(tenant)`，保存返回的句柄。
@@ -41,17 +41,17 @@ PACKAGE_TEMPLATE_DRAFT
 
 只消费领域接口的调用方不安装本成员，安装 session-contract。Cordis 插件安装 session-cordis-contract。装配 Cordis 的应用也不直接导入本成员，由 session-cordis 代为调用工厂。独立使用与经 Cordis 使用的差别见[使用与定位](docs/context.md)。
 
-工厂的签名是候选形状，现在没有可运行的示例。
+工厂的签名是候选形状。成员测试 [tests/fixtures/harness.ts](tests/fixtures/harness.ts) 是一份可运行的完整装配。
 
 ## 契约
 
-- 公开形状归 `src/`，现在为空。
+- 公开形状归 `src/` 的根入口，导航见[公开入口页](docs/public-api.md#现有导出)。
 - [SPEC](SPEC.md) 拥有契约没有写的机制：流水线（CP）、拓展点（EX）、协调器（C1 至 C5）、调度器（S1 至 S7 与 SR）、事件读取（RD）、缓存（CA）、崩溃矩阵（CR）与验证义务（VM）。
 - [公开入口页](docs/public-api.md)拥有工厂、两个参数与实例成员。
 - [对象模型](docs/object-model.md)拥有构造对象与内存状态的拥有者。
 - 操作、失败、事件与状态机归[契约 SPEC](../session-contract/SPEC.md)，本成员只链接，不复述。
 
-调用工厂的一方拥有实例，负责关闭。`close` 之后四个面返回 `unavailable`；`close` 不回滚已提交的事实，也不取消任何 Agent、Tool 或 Model 的执行。出站端口缺席只让需要它的操作失败，事务端口缺席则整个实例不能启动。
+调用工厂的一方拥有实例，负责关闭。`close` 之后四个面返回 `unavailable`；`close` 不回滚已提交的事实，也不取消任何 Agent、Tool 或 Model 的执行。出站端口缺席只让需要它的操作失败；访问检查、委派事务入口、内部主体或会话工作主体缺席，则整个实例不能启动。每次面操作在开头调用一次访问检查。
 
 ## 设计
 
@@ -83,7 +83,7 @@ PACKAGE_TEMPLATE_DRAFT
 pnpm turbo run test --filter=@omne-harness/session
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有测试只断言根入口没有导出，不证明任何行为。SPEC 的[验证义务](SPEC.md#vm-机制的持续验证义务)与[故障场景](docs/fault-scenarios.md)是后继实现必须通过的结果，不是已运行的测试。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。测试覆盖的义务见 SPEC 的[已有测试](SPEC.md#已有测试)。其余[验证义务](SPEC.md#vm-机制的持续验证义务)与[故障场景](docs/fault-scenarios.md)还没有测试。结构检查通过不表示行为已验证。
 
 ## 维护
 
@@ -108,8 +108,8 @@ docs/                     内部设计、公开使用与集成说明
 ├── context.md            独立使用、经 Cordis 使用与定位
 ├── cordis.md             本成员不加载 Cordis 的理由
 └── fault-scenarios.md    故障场景
-src/                      只有 index.ts，现在为空导出
-tests/                    只有入口测试，fixtures/ 为空
+src/                      根入口与机制模块
+tests/                    成员测试，fixtures/ 有替身装配与真实 SQL 装配
 schema/                   现在为空，本成员不发布 Schema
 verification/             验证资源导航，models/ 与 proofs/ 为空
 adr/                      现在为空

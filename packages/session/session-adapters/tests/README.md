@@ -8,7 +8,7 @@
 
 ## 边界
 
-本成员的运行实现只有 `./testing` 的非耐久内存提供者 `createMemorySessionJournal`。现有测试从源码导入它，并用 session-contract 与 agent-contract 的契约测试件检查它，不需要真实存储或服务。翻译纯函数的测试不需要 Cordis。插件的测试需要真实 Cordis 容器，邻域一侧用其契约的提供者或最小替身。本成员只验证翻译与对应，不验证邻域行为。测试通过不代替规格或验收。
+本成员的运行实现有 `./testing` 的非耐久内存提供者 `createMemorySessionJournal`，与会话日志 Journal 的生产提供者 `createSessionLogJournal`。内存提供者的测试不需要真实存储。生产提供者的测试经 [fixtures/sql-scene.ts](fixtures/sql-scene.ts) 运行在 node:sqlite 替身（加载材料里的真实模块）或真实 sqlite-provider 上。翻译纯函数的测试不需要 Cordis。插件的测试需要真实 Cordis 容器，邻域一侧用其契约的提供者或最小替身。本成员只验证翻译与对应，不验证邻域行为。测试通过不代替规格或验收。
 
 ## 维护
 
@@ -16,7 +16,7 @@
 
 ## 本包事实
 
-现在有 27 个运行测试文件与 2 个类型测试文件，逐个列在 [index.md](index.md)。[public-entry.spec.ts](public-entry.spec.ts) 断言根入口没有导出，[cordis-entry.spec.ts](cordis-entry.spec.ts) 断言 `./cordis` 没有导出，其余 25 个运行测试检查 `./testing` 的内存提供者。类型测试是 [record-fault.spec-d.ts](record-fault.spec-d.ts) 与 [host-record.spec-d.ts](host-record.spec-d.ts)。`vitest.config.ts` 已经为类型测试打开了 typecheck。
+现在的运行测试文件与类型测试文件逐个列在 [index.md](index.md)。[public-entry.spec.ts](public-entry.spec.ts) 断言根入口没有导出，[cordis-entry.spec.ts](cordis-entry.spec.ts) 断言 `./cordis` 没有导出，其余 25 个运行测试检查 `./testing` 的内存提供者。类型测试是 [record-fault.spec-d.ts](record-fault.spec-d.ts) 与 [host-record.spec-d.ts](host-record.spec-d.ts)。`vitest.config.ts` 已经为类型测试打开了 typecheck。
 
 运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/session-adapters`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 

@@ -4,4 +4,5 @@
 
 ## 内容
 
-- [README.md](README.md)：固定输入的来源与约束。现在没有数据文件
+- [README.md](README.md)：固定输入的来源与约束
+- [messages.ts](messages.ts)：默认策略测试用的固定消息构造

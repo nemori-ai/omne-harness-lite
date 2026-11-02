@@ -24,4 +24,7 @@ export type {
   BindResult,
   ContextReader,
   RuntimeContextOperations,
+  ReaderEligibilityRequest,
+  ReaderEligibilityResult,
+  ReaderEligibilityHandoff,
 } from '@omne-harness/runtime-context-contract'

@@ -141,7 +141,7 @@ Matt `to-spec`、`to-tickets` 与按需的 `grill-with-docs` 在固定源中声�
 | pstack `swarm` | 派 `general-purpose` | 写、评审、验收按项目角色派。只读调查可以用 `general-purpose` 或 `Explore` |
 | pstack `swarm`、`poteto-mode` | 默认后台；`code-review` 前台 | 默认后台。下一步依赖结果、且前台没有别的工作时前台。线会话等自己派的子代理，按[线会话的工作范式](../../.meta_harness/agents/skills/line/canonical/references/work-paradigm.md)「等待：前台阻塞的工具调用」前台阻塞 |
 | pstack `poteto-mode`「Subagents」 | 默认新开；例外是新工作严格依赖原子代理的状态 | 同一闭包的追加与原范围内补做可以续用原写者。只读评审同一轮的追问可以续用原评审者。新一轮修复、换人、升级一律新开，见 `delegate` 步骤 7 与 [D7](workflow.md#d7-追加要求留痕并计入验收) |
-| pstack `swarm`、`poteto-mode` | 「Models」节自带分档 | 按角色源与 `dispatch-policy.json`，见 [D6](workflow.md#d6-按策略选模型按起点档位升级) |
+| pstack `swarm`、`poteto-mode` | 「Models」节自带分档 | 按角色源与 `dispatch-policy.json`，见 [D6](workflow.md#d6-按策略选模型按起点档位升级)。三档边界与流水读数的判法见 [角色源 README](../../.meta_harness/agents/roles/README.md#模型配置与本次派发) |
 | pstack `reflect` | 输入是当前会话记录，应用前逐条问用户 | 波段反思不用它。里程碑反思的通用教训部分可以用：输入换成派发流水与验收报告的摘要，改动路由到项目的维护入口，应用由负责人接受 |
 
 ## ub-mode 研发品味
@@ -224,6 +224,11 @@ ub-mode 与本项目的差异列在下一节的差异表中，来源列为 ub-mo
 | [harness-design-handbook](../../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md) | 出现新的能力或责任边界时，核对能力覆盖、性质保护责任和 Cordis 承载 | 风险与升级归[质量与证据](quality.md)，组合证明门槛归[验证说明](../verification.md) |
 
 普通工程、文档归属与交付由三层方法和现有工程拥有者承担，不加载 harness-design-handbook。
+
+两个页面模板随技能提供，数据格式与命令归各自的参考页，生成的 HTML 不进仓库：
+
+- Reduce 总控页：`integrate` 技能的 [总控页](../../.meta_harness/agents/skills/integrate/canonical/references/cockpit.md)，读 `reduce.json`，回答「谁在等 Reduce、下一步做什么」。
+- 线进度呈现页：`line` 技能的[两页分工](../../.meta_harness/agents/skills/line/canonical/references/wave-progress.md#两页分工在跑用-buildpy交回用-viewpy)，`view.py` 读同一份 `progress.json` 给交回与复盘留一份静态页；在跑时仍用 `build.py`。
 
 加载顺序按会话类型区分：
 

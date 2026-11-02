@@ -45,6 +45,11 @@ export type {
   Eligibility,
   EligibilityMaterial,
 } from './registration.js'
+export type {
+  ReaderEligibilityRequest,
+  ReaderEligibilityResult,
+  ReaderEligibilityHandoff,
+} from './reader-eligibility.js'
 export type { Necessity, ContextNeed, Translation, NeedBinding, NeedBindingRef } from './need.js'
 export type {
   BlockDescriptorBase,

@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 1,
+  "title": "M2 波 1 总控",
+  "updatedAt": "2026-11-02T02:24:00Z",
+  "summary": "五条线的波末 PR 已进各自轨道。现在的工作是两条轨道提升、42 条缝联调与五张卡的验收判定；两个面板模板是并行的第三件事。",
+  "upstream": {
+    "name": "mainline",
+    "head": "0f19b3391"
+  },
+  "tracks": [
+    {
+      "name": "integration/model",
+      "scope": "真模型、OpenRouter、模型记录",
+      "head": "148412f4a",
+      "card": 446,
+      "status": "review",
+      "lead": 12,
+      "note": "draft-ri 已 0 findings，等提升级 attest",
+      "handoff": "波末 PR #1048 已合入",
+      "handoffUrl": "https://github.com/nemori-ai/omne-harness-lite/pull/1048"
+    },
+    {
+      "name": "integration/session-run",
+      "scope": "存储、Session、Context、Agent",
+      "head": "2e635a4df",
+      "card": 502,
+      "status": "review",
+      "lead": 21,
+      "note": "等 ri-notes 与 draft-ri --review-issue 502",
+      "handoff": "波末 PR 已合入轨道"
+    },
+    {
+      "name": "integration/tool-exec",
+      "scope": "工具执行与执行环境",
+      "head": "c28256ea9",
+      "card": 421,
+      "status": "merged",
+      "lead": 9,
+      "note": "提升后可撤",
+      "handoff": "PR #1038",
+      "handoffUrl": "https://github.com/nemori-ai/omne-harness-lite/pull/1038"
+    },
+    {
+      "name": "integration/app-access",
+      "scope": "身份、接入、CLI、应用装配",
+      "head": "f569c00f1",
+      "card": 978,
+      "status": "merged",
+      "lead": 7,
+      "handoff": "PR #1049",
+      "handoffUrl": "https://github.com/nemori-ai/omne-harness-lite/pull/1049"
+    },
+    {
+      "name": "integration/m2-toolchain",
+      "scope": "工具链与运维",
+      "head": "c9bddf357",
+      "card": 979,
+      "status": "merged",
+      "lead": 4,
+      "note": "K12 泄漏修复已进 mainline",
+      "handoff": "PR #1047",
+      "handoffUrl": "https://github.com/nemori-ai/omne-harness-lite/pull/1047"
+    },
+    {
+      "name": "integration/joint",
+      "scope": "跨线联调",
+      "head": "0f19b3391",
+      "card": 1055,
+      "status": "waiting",
+      "lead": 0,
+      "note": "两条轨道都进 mainline 后才跑 S0～S2"
+    }
+  ],
+  "cards": [
+    {
+      "id": 446,
+      "title": "模型线父卡",
+      "track": "integration/model",
+      "stage": "review",
+      "binding": {
+        "attempt": "446-r3-a1",
+        "writeScope": ["packages/model/*", "packages/common/model-contract/*"],
+        "owner": "L-MODEL"
+      },
+      "waitingOn": "提升级 attest"
+    },
+    {
+      "id": 502,
+      "title": "会话线父卡",
+      "track": "integration/session-run",
+      "stage": "review",
+      "binding": {
+        "attempt": "502-r6-a1",
+        "writeScope": ["packages/session/*", "packages/agent-context/*"],
+        "owner": "L-RUN"
+      },
+      "waitingOn": "ri-notes"
+    },
+    {
+      "id": 421,
+      "title": "工具执行线父卡",
+      "track": "integration/tool-exec",
+      "stage": "accepted",
+      "binding": {
+        "attempt": "421-r6-a1",
+        "writeScope": ["packages/tool-execution/*"],
+        "owner": "L-TOOL"
+      }
+    },
+    {
+      "id": 978,
+      "title": "接入线父卡",
+      "track": "integration/app-access",
+      "stage": "accepted",
+      "binding": {
+        "attempt": "978-r4-a1",
+        "writeScope": ["packages/app-access/*", "packages/cli/*"],
+        "owner": "L-APP"
+      }
+    },
+    {
+      "id": 1055,
+      "title": "联调 A",
+      "track": "integration/joint",
+      "stage": "not-started",
+      "binding": {
+        "attempt": "未派发",
+        "writeScope": [],
+        "owner": "未定"
+      },
+      "waitingOn": "两条轨道提升"
+    }
+  ],
+  "requests": [
+    {
+      "id": "RQ-11",
+      "from": "L-RUN",
+      "to": "Reduce",
+      "layer": 3,
+      "what": "提升 PR 里的「契约变化」按成员还是按包汇总；两者都会影响 ri-notes 的读取",
+      "link": "https://github.com/nemori-ai/omne-harness-lite/issues/502",
+      "since": "2026-11-02T01:35:00Z",
+      "status": "open",
+      "note": "挡提升 PR 的正文"
+    },
+    {
+      "id": "RQ-12",
+      "from": "L-APP",
+      "to": "Reduce",
+      "layer": 3,
+      "what": "本波接收的 partial 决定是否由你代签，还是等 PanQiWei",
+      "link": "https://github.com/nemori-ai/omne-harness-lite/issues/978",
+      "since": "2026-11-02T02:01:00Z",
+      "status": "open"
+    },
+    {
+      "id": "RQ-09",
+      "from": "L-MODEL",
+      "to": "Reduce",
+      "layer": 3,
+      "what": "#782、#795 提升时是否一起升修订",
+      "link": "https://github.com/nemori-ai/omne-harness-lite/issues/446",
+      "since": "2026-11-02T00:50:00Z",
+      "status": "answered",
+      "answer": "只升 #795；#782 留给波 2 的模型目录卡"
+    },
+    {
+      "id": "RQ-08",
+      "from": "L-ENG",
+      "to": "Reduce",
+      "layer": 3,
+      "what": "K12 孤儿进程守护是否保留到波 2",
+      "since": "2026-11-01T23:40:00Z",
+      "status": "withdrawn",
+      "note": "修复已进 mainline，无需保留"
+    }
+  ],
+  "criticalPath": [
+    { "item": "model 提升级 attest", "minutes": 20, "state": "active" },
+    { "item": "session-run ri-notes", "minutes": 30, "state": "pending" },
+    { "item": "两个提升 PR", "minutes": 25, "state": "pending" },
+    { "item": "gate 合入 mainline", "minutes": 20, "state": "pending" },
+    { "item": "联调 S0～S2", "minutes": 60, "state": "pending" },
+    { "item": "42 条缝逐缝记录", "minutes": 45, "state": "pending" },
+    { "item": "五张卡验收判定", "minutes": 40, "state": "pending" }
+  ],
+  "risks": [
+    {
+      "severity": "bad",
+      "risk": "GitHub REST 配额被各线波末准入同时耗尽",
+      "impact": "准入报 API rate limit exceeded，整波停住",
+      "action": "同一时刻只让一条线做波末准入；失败先看 rate_limit 再重试"
+    },
+    {
+      "severity": "warn",
+      "risk": "把第二层事项误判为第三层",
+      "impact": "线空转等人批复",
+      "action": "答复前先核对该事项是否落在线的 writeScope 内"
+    },
+    {
+      "severity": "info",
+      "risk": "测试用例泄漏孤儿进程打满机器",
+      "impact": "内存 87%、CPU 100%",
+      "action": "PR #1039 已修复并进 mainline；新用例自带时限并杀进程树"
+    }
+  ],
+  "timeline": [
+    { "at": "2026-11-02T02:01:00Z", "event": "L-APP 提出 RQ-12：partial 决定由谁签" },
+    { "at": "2026-11-02T01:35:00Z", "event": "L-RUN 提出 RQ-11：「契约变化」汇总口径" },
+    { "at": "2026-11-02T01:22:00Z", "event": "integration/app-access 合入 f569c00f1（PR #1049）" },
+    { "at": "2026-11-02T01:14:00Z", "event": "integration/model 合入 148412f4a（PR #1048）" },
+    { "at": "2026-11-02T01:01:00Z", "event": "integration/m2-toolchain 合入 c9bddf357（PR #1047）" },
+    { "at": "2026-11-02T00:56:00Z", "event": "integration/tool-exec 合入 c28256ea9（PR #1038）" },
+    { "at": "2026-11-01T22:40:00Z", "event": "K12 修复 #1039 合入 mainline" }
+  ]
+}
