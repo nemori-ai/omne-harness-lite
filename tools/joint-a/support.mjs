@@ -28,6 +28,26 @@ export const serveDistribution = join(serverMember, 'config', 'serve.distributio
 
 /** `serve` 的关闭截止时间。`storage` 行的关闭期限比它低一秒。 */
 export const SHUTDOWN_DEADLINE_MS = 5000
+
+/**
+ * 联调脚本起整棵发行树，是重负载检查，要先取机器的运行名额（`scripts/with-test-slot.mjs`），
+ * 与准入、全量测试排同一个队。已经持有名额（`OMNE_TEST_SLOT_HELD`）时直接放行；否则在名额包装下
+ * 重新运行本脚本，并以它的退出码退出。
+ */
+export function holdTestSlot(scriptUrl) {
+  if (process.env['OMNE_TEST_SLOT_HELD']) return
+  const child = spawnSync(
+    process.execPath,
+    [
+      join(repoRoot, 'scripts', 'with-test-slot.mjs'),
+      process.execPath,
+      fileURLToPath(scriptUrl),
+      ...process.argv.slice(2),
+    ],
+    { stdio: 'inherit' },
+  )
+  process.exit(child.status ?? 1)
+}
 export const READINESS_TIMEOUT_MS = 15_000
 
 export const SESSION_PATH = '/session-public/1'

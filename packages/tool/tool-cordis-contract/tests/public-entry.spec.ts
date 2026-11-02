@@ -6,7 +6,7 @@ it('root entry exports no values; the definitions are at ./cordis', async () => 
   expect(Object.keys(root)).toEqual([])
 })
 
-it('the testing entry exports the registration and G7 suites, their non-durable doubles, the holder-reference reader double and the resident-key round trip, the dynamics skeleton and the case helpers', async () => {
+it('the testing entry exports the registration and G7 suites, their non-durable doubles, the holder-reference reader double, the two scripted adoption doubles and the resident-key round trip, the dynamics skeleton and the case helpers', async () => {
   const testing = await import('@omne-harness/tool-cordis-contract/testing')
   expect(Object.keys(testing).sort()).toEqual([
     'NotApplicable',
@@ -14,6 +14,8 @@ it('the testing entry exports the registration and G7 suites, their non-durable 
     'createMemoryToolBindingRegistry',
     'createMemoryToolRegistrations',
     'createMemoryToolResidencyReader',
+    'createScriptedAdoptionPoint',
+    'createScriptedToolGenerations',
     'isNotApplicable',
     'memoryToolBindingRegistryFixture',
     'memoryToolRegistrationFixture',
@@ -29,6 +31,8 @@ it('the testing entry exports the registration and G7 suites, their non-durable 
   expect(testing.createMemoryToolRegistrations().durability).toBe('none')
   expect(testing.createMemoryToolBindingRegistry([]).durability).toBe('none')
   expect(testing.createMemoryToolResidencyReader().durability).toBe('none')
+  expect(testing.createScriptedToolGenerations().durability).toBe('none')
+  expect(testing.createScriptedAdoptionPoint().durability).toBe('none')
 })
 
 describe('the testing entry has no Tool implementation and no Cordis at run time', () => {
