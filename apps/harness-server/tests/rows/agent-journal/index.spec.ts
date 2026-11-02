@@ -1,8 +1,7 @@
 // @module-tag slow
 // The `agent-journal` row: the real Session-log Journal provider over the real storage rows. The row
-// is ACTIVE and provides `agentJournal`; the provider serves the coordination its SPEC declares. The
-// row provides `agentJournal` only: `agentJournalEntries` and `agentMaterials` have no plugin yet,
-// so they stay absent (and a consumer that injects them stays PENDING).
+// is ACTIVE and provides `agentJournal`, `agentJournalEntries` and `agentMaterials` from the one
+// provider, as the assembly page asks; the provider serves the coordination its SPEC declares.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AgentJournal } from '@omne-harness/agent-contract'
 import {
@@ -40,12 +39,12 @@ async function start(): Promise<LoadedTree> {
 }
 
 describe('the agent-journal row: declaration', () => {
-  it('is the real row: provides `agentJournal`, injects the three keys, no shutdown phase, group `agent-journal`', () => {
+  it('is the real row: provides the three Journal keys, injects the three keys, no shutdown phase, group `agent-journal`', () => {
     expect(rowDeclarationOf(agentJournalRow)).toEqual({
       row: 'agent-journal',
       implementation: 'real',
       manifest: {
-        provides: ['agentJournal'],
+        provides: ['agentJournal', 'agentJournalEntries', 'agentMaterials'],
         injects: ['sessionAccessCheck', 'storage', 'tenantDomainLookup'],
         phase: null,
         sameProviderGroup: 'agent-journal',
@@ -65,11 +64,12 @@ describe('the agent-journal row: declaration', () => {
 })
 
 describe('the agent-journal row: on the real storage rows', () => {
-  it('is ACTIVE and provides `agentJournal`', { timeout: 60_000 }, async () => {
+  it('is ACTIVE and provides the three Journal keys', { timeout: 60_000 }, async () => {
     const tree = await start()
     expect(tree.allActive).toBe(true)
     expect(tree.state('agent-journal')).toMatchObject({ state: 'ACTIVE', missing: [] })
-    expect(tree.service<AgentJournal<unknown>>(agentJournalKey)).toBeDefined()
+    for (const key of [agentJournalKey, agentJournalEntriesKey, agentMaterialsKey])
+      expect(tree.service(key), key).toBeDefined()
   })
 
   it(
@@ -85,16 +85,6 @@ describe('the agent-journal row: on the real storage rows', () => {
         'message',
         'processed',
       ])
-    },
-  )
-
-  it(
-    'leaves `agentJournalEntries` and `agentMaterials` absent: no plugin provides them yet',
-    { timeout: 60_000 },
-    async () => {
-      const tree = await start()
-      expect(tree.service(agentJournalEntriesKey)).toBeUndefined()
-      expect(tree.service(agentMaterialsKey)).toBeUndefined()
     },
   )
 })

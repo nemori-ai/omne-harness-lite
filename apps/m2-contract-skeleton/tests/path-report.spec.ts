@@ -5,21 +5,23 @@ import { aggregatePath, HOP_IDS, RESIDUAL_GAPS } from '../src/path-report.ts'
 import { REQUIRED_SCENARIOS } from '../src/scenarios.ts'
 import { modelFragments, pathDependencies, skeletonInputs } from './first-path-doubles.ts'
 
-type GapRow = Readonly<{ gapId: string; blocking: boolean; owners: readonly number[] }>
+type GapRow = Readonly<{ gapId: string; blocking: boolean }>
 
-/** The rows of the residual gap table of a README: gap id, blocking column, owner cards. */
+/**
+ * The rows of the residual gap table of a README: gap id and blocking column. The README is a
+ * self-contained public document and names no cards; the owner cards live in RESIDUAL_GAPS and SPEC.
+ */
 function gapTable(text: string): readonly GapRow[] {
   return text
     .split('\n')
-    .filter(line => /^\| \[GAP-[A-Z-]+\]/.test(line))
+    .filter(line => /^\| (\[)?GAP-[A-Z-]+/.test(line))
     .map(line => {
       const cells = line.split('|').map(cell => cell.trim())
       const gapId = /GAP-[A-Z-]+/.exec(cells[1] ?? '')?.[0] ?? ''
       const blocking = cells[2] ?? ''
       if (!['no', '否', 'yes', '是'].includes(blocking))
         throw new Error(`blocking cell ${blocking}`)
-      const owners = [...(cells[3] ?? '').matchAll(/\[#(\d+)\]/g)].map(match => Number(match[1]))
-      return { gapId, blocking: blocking === 'yes' || blocking === '是', owners }
+      return { gapId, blocking: blocking === 'yes' || blocking === '是' }
     })
 }
 
@@ -29,11 +31,7 @@ const BLOCKED: readonly string[] = ['H09', 'H10', 'H11', 'H12', 'H13']
 
 describe('M2 path observations', () => {
   it('keeps the gap tables of README and README_ZH equal to RESIDUAL_GAPS', () => {
-    const expected = RESIDUAL_GAPS.map(gap => ({
-      gapId: gap.gapId,
-      blocking: gap.blocking,
-      owners: gap.owners.map(cardOf),
-    }))
+    const expected = RESIDUAL_GAPS.map(gap => ({ gapId: gap.gapId, blocking: gap.blocking }))
     for (const document of ['../README.md', '../README_ZH.md'])
       expect(gapTable(readFileSync(new URL(document, import.meta.url), 'utf8'))).toEqual(expected)
   })
