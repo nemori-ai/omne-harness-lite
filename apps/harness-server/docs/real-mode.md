@@ -177,7 +177,7 @@ expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
 | ----------------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tests/row.spec.ts`                 | fast | `defineRow` 的形状、IC-8 与前缀检查、三种插件形状在同一 fiber、行体承载的登记                                                                                     |
 | `tests/serve-types.spec-d.ts`       | 类型 | 声明类型的负例：成员插件不能直接做带阶段的行                                                                                                                      |
-| `tests/serve.spec.ts`               | fast | 混合发行树（真实 17、S0 替身 32，运维者层给绝对路径）、`agent-journal` 的组合配置、名字前缀、占位规则、夹具行走通、PENDING 诊断、四条装载前拒绝、`once`、四个阶段 |
+| `tests/serve.spec.ts`               | fast | 混合发行树（真实 19、S0 替身 30，运维者层给绝对路径）、`agent-journal` 的组合配置、名字前缀、占位规则、夹具行走通、PENDING 诊断、四条装载前拒绝、`once`、四个阶段 |
 | `tests/serve-lifecycle.spec.ts`     | fast | `serve` 版可见性、入口对象承载的登记落在行 fiber、`not-registered`                                                                                                |
 | `tests/real-manifests-sync.spec.ts` | fast | 真实清单与 `stubs.ts` 逐行比较、具名差额清单、无 `s0.` 名字、AAP-7                                                                                                |
 | `tests/serve-process.spec.ts`       | slow | `dist/bin.js serve`：混合发行树加运维者文件、`--stop-on-stdin-close`、用法错误、`s0` 的解析路径不变                                                               |
@@ -218,15 +218,17 @@ IC-19：下面四项保证只在同一进程、同一份模块副本里成立。
 
 装配入口给每个波 1 真实行什么。「协议给」列写这些东西不保证什么，那部分由契约拥有者负责。
 
-| 行                                    | 装配给                                                                                                                                                    | 协议给（装配不保证）                                                  |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `storage`                             | `storageHost`（入口对象，APP-1）、`s0.assemblyLifecycle`                                                                                                  | `storageHost` 的可见范围是装配范围，不是访问控制（sql-contract §2.3） |
-| `identity`                            | `storage`（受信存储子树）。时钟在插件内自建（DP1-C16）                                                                                                    | 持久性与单事务由 identity 持久提供者兑现（DP-3）                      |
-| `authorization`                       | `principalVerifier`（入口对象，APP-5）、`tenantStanding`（`identity` 行）。维护授权表是发行代码导入，不是装配给的对象                                     | 核验器只证明来源，不证明成员资格                                      |
-| `session-storage`                     | `storage`、`sessionAccessCheck`、`s0.assemblyLifecycle`。按调用现取 `sessionCursorSigning`（入口对象，APP-1）                                             | 游标密钥的文件保护靠目录继承（DP1-C19）                               |
-| `session-provider`（契约替身）        | `sessionAccessCheck`、`sessionDelegatedTransactions`、`sessionPrincipals`、`sessionWorkPrincipals`（入口对象，APP-5）。按调用现取 `sessionClock`（APP-5） | 替身没有业务持久性                                                    |
-| `agent-adoptions`、`adoption-sources` | `definitionMappings`（受信）                                                                                                                              | 映射内容的身份由 DP-2、APP-2 定                                       |
-| `server-entry`                        | `session`、签发作用域的 `principalIssuer`（APP-5）、`definitionMappings`、`s0.assemblyLifecycle`。按调用现取 `identityOperations`、`principalVerifier`    | 回环与明文的限制（线包 2.5）                                          |
+| 行                                    | 装配给                                                                                                                                                                                 | 协议给（装配不保证）                                                                        |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `storage`                             | `storageHost`（入口对象，APP-1）、`s0.assemblyLifecycle`                                                                                                                               | `storageHost` 的可见范围是装配范围，不是访问控制（sql-contract §2.3）                       |
+| `identity`                            | `storage`（受信存储子树）。时钟在插件内自建（DP1-C16）                                                                                                                                 | 持久性与单事务由 identity 持久提供者兑现（DP-3）                                            |
+| `authorization`                       | `principalVerifier`（入口对象，APP-5）、`tenantStanding`（`identity` 行）。维护授权表是发行代码导入，不是装配给的对象                                                                  | 核验器只证明来源，不证明成员资格                                                            |
+| `session-storage`                     | `storage`、`sessionAccessCheck`、`s0.assemblyLifecycle`。按调用现取 `sessionCursorSigning`（入口对象，APP-1）                                                                          | 游标密钥的文件保护靠目录继承（DP1-C19）                                                     |
+| `session-provider`（契约替身）        | `sessionAccessCheck`、`sessionDelegatedTransactions`、`sessionPrincipals`、`sessionWorkPrincipals`（入口对象，APP-5）。按调用现取 `sessionClock`（APP-5）                              | 替身没有业务持久性                                                                          |
+| `agent-adoptions`、`adoption-sources` | `definitionMappings`（受信）                                                                                                                                                           | 映射内容的身份由 DP-2、APP-2 定                                                             |
+| `runtime-context`                     | `runtimeContextTrust`（入口对象，受信）：`authority` 只放行经核验、租户与动作相等的代租户行事主体；`bindings` 与 `replayFacts` 在 AD-03 交付前答 `unavailable`；`current` 是进程代次桥 | 带目标的操作在绑定来源交付前一律 `unavailable`；代次桥不闭合 #677（撤权与换代没有同步来源） |
+| `session-ad12`                        | `runtimeContext`（`runtime-context` 行）；采用定义是发行代码 `src/assembly/context-definitions.ts`                                                                                     | 登记变更需要的协调者主体来源本装配没有，行答 `unavailable`                                  |
+| `server-entry`                        | `session`、签发作用域的 `principalIssuer`（APP-5）、`definitionMappings`、`s0.assemblyLifecycle`。按调用现取 `identityOperations`、`principalVerifier`                                 | 回环与明文的限制（线包 2.5）                                                                |
 
 签发者的受信具名持有者（ID-16）：`src/entry/principals.ts` 与 `server-entry` 行，没有别的。
 
