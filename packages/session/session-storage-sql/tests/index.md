@@ -16,4 +16,6 @@
 - [log-conformance.spec.ts](log-conformance.spec.ts)：`commitLog` 符合性套件，夹具与真实提供者
 - [history-index.spec.ts](history-index.spec.ts)：K-5 同根索引、观察尾部前缀与读取计数
 - [preadmission.spec.ts](preadmission.spec.ts)：准入记录
+- [admission-attempt-migration.spec.ts](admission-attempt-migration.spec.ts)：受理行原 attempt 列的迁移
+- [same-domain-tenant.spec.ts](same-domain-tenant.spec.ts)：同一事务域里两个租户的直查隔离
 - [fixtures/](fixtures/index.md)：`node:sqlite` 与真实提供者的测试夹具

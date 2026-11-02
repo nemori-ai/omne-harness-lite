@@ -42,6 +42,7 @@ type Admission = Readonly<{
   accepted: JsonValue
   grant: JsonValue
   attachment: string
+  attempt: string | null
 }>
 type Write = Readonly<{
   tenant: string
@@ -114,8 +115,10 @@ function parseBatch(item: Json): Batch | null {
 }
 
 function parseAdmission(item: Json): Admission | null {
-  const { input, execution, operation, attachment } = item
-  return isText(input) && isText(execution) && isText(operation) && isText(attachment)
+  const { input, execution, operation, attachment, attempt } = item
+  // An absent attempt is a legacy or unnamed one; a present one must be a non-empty text.
+  const named = attempt === undefined || attempt === null || isText(attempt)
+  return isText(input) && isText(execution) && isText(operation) && isText(attachment) && named
     ? {
         input,
         execution,
@@ -123,6 +126,7 @@ function parseAdmission(item: Json): Admission | null {
         accepted: item['accepted'] ?? null,
         grant: item['grant'] ?? null,
         attachment,
+        attempt: attempt ?? null,
       }
     : null
 }
@@ -208,13 +212,14 @@ function writeIndex(port: Executor, write: Write): void {
       'SELECT COALESCE(MAX(ordinal), -1) AS o FROM er_admission_idx WHERE tenant = ? AND session = ? AND input = ?',
       [tenant, session, admission.input],
     )
+    const ordinal = big(last?.['o'] ?? -1n) + 1n
     port.execute(
       'INSERT INTO er_admission_idx (tenant, session, input, ordinal, execution, operation, accepted, grant_ref, attachment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         tenant,
         session,
         admission.input,
-        big(last?.['o'] ?? -1n) + 1n,
+        ordinal,
         admission.execution,
         admission.operation,
         json(admission.accepted),
@@ -222,6 +227,12 @@ function writeIndex(port: Executor, write: Write): void {
         admission.attachment,
       ],
     )
+    // The original attempt is a row beside the admission, with its key; none when it is not named.
+    if (admission.attempt !== null)
+      port.execute(
+        'INSERT INTO er_admission_attempt_idx (tenant, session, input, ordinal, attempt) VALUES (?, ?, ?, ?, ?)',
+        [tenant, session, admission.input, ordinal, admission.attempt],
+      )
   }
 }
 

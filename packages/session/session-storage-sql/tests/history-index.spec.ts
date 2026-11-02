@@ -177,6 +177,95 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
     ])
   })
 
+  /** Opens Run 1, then claims a second SE15 of the same Run and returns both attempts. */
+  async function twoAttempts(s: Scene) {
+    const run = await open(s, 1)
+    const claimed = ok(
+      await s.a.port.commit({
+        access: s.a.access(TENANT_A),
+        command: {
+          kind: 'claim',
+          input: {
+            tenant: TENANT_A,
+            session: sessionId(SESSION),
+            operation: operationId('claim-1'),
+            run: run.run,
+            instance: { owner: 'agent', id: 'instance-2' },
+            continuity: evidence('continuity'),
+          },
+        },
+        guards: [],
+      }),
+    )
+    expect(claimed).toBeDefined()
+    const later = activeRun(await workOf(s.a))
+    expect(later.run).toBe(run.run)
+    expect(later.attempt).not.toBe(run.attempt)
+    return { run, first: run.attempt, second: later.attempt }
+  }
+
+  const submitted = (s: Scene, run: { execution: string }, input: string, attempt?: string) =>
+    s.agent.admit({
+      tenant: TENANT_A,
+      session: SESSION,
+      execution: run.execution,
+      input: input as never,
+      operation: `aop-submit-${input}`,
+      accepted: evidence(`agent/accepted/${input}`),
+      // The Agent's own receipt of the acceptance: it is not an SE15 and names no attempt.
+      grant: evidence(`agent/receipt/${input}`),
+      attachment: 'attachment-1',
+      ...(attempt === undefined ? {} : { attempt }),
+    })
+
+  it('a Run with two SE15 proves the original attempt of each admission from the row', async () => {
+    const s = await created()
+    const { run, first, second } = await twoAttempts(s)
+    ok(await s.a.accept(TENANT_A, SESSION, 'input-2'))
+    ok(await s.a.accept(TENANT_A, SESSION, 'input-3'))
+    await submitted(s, run, 'input-2', first)
+    await submitted(s, run, 'input-3', second)
+    const { index, reads } = indexOf(s.a, await workOf(s.a), run.execution)
+    const attemptOf = (input: string) =>
+      index.inputs.find(item => item.input === input)?.members.map(item => item.attempt)
+    expect(attemptOf('input-2')).toEqual([first])
+    expect(attemptOf('input-3')).toEqual([second])
+    const records = reads.admissions.flatMap(page => page.records)
+    expect(records.map(item => item.attempt).sort()).toEqual([first, second].sort())
+    // The SE15 of the record is the one of that attempt, not the one the grant happens to be.
+    expect(records.find(item => item.attempt === first)?.attemptStarted).not.toEqual(
+      records.find(item => item.attempt === second)?.attemptStarted,
+    )
+  })
+
+  it('a row without the attempt on a Run with two SE15 is not proved, and is not guessed', async () => {
+    const s = await created()
+    const { run, first, second } = await twoAttempts(s)
+    ok(await s.a.accept(TENANT_A, SESSION, 'input-2'))
+    ok(await s.a.accept(TENANT_A, SESSION, 'input-3'))
+    ok(await s.a.accept(TENANT_A, SESSION, 'input-4'))
+    await submitted(s, run, 'input-2')
+    await submitted(s, run, 'input-3', second)
+    // An attempt that is not an SE15 of the Run proves nothing either.
+    await submitted(s, run, 'input-4', 'attempt-of-another-run')
+    const { index } = indexOf(s.a, await workOf(s.a), run.execution)
+    expect(index.inputs.map(item => item.input)).not.toContain('input-2')
+    expect(index.inputs.map(item => item.input)).not.toContain('input-4')
+    expect(index.inputs.find(item => item.input === 'input-3')?.members[0]?.attempt).toBe(second)
+    expect(first).not.toBe(second)
+  })
+
+  it('one Run with one SE15 still proves a row that names no attempt', async () => {
+    const s = await created()
+    const run = await open(s, 1)
+    ok(await s.a.accept(TENANT_A, SESSION, 'input-2'))
+    await submitted(s, run, 'input-2')
+    const { index } = indexOf(s.a, await workOf(s.a), run.execution)
+    expect(index.inputs.find(item => item.input === 'input-2')?.members[0]?.attempt).toBe(
+      run.attempt,
+    )
+  })
+
   it('one storage commit publishes the Agent event and interprets it: the judgment reads the rows of the same transaction', async () => {
     const s = await created()
     const run = await open(s, 1)
@@ -444,7 +533,7 @@ async function counted(a: App, call: () => Promise<unknown>) {
   return {
     execution: sum(/FROM er_execution/u),
     facts: sum(/FROM er_fact_idx/u),
-    agent: sum(/FROM er_(execution|fact_idx|batch_idx|admission_idx)/u),
+    agent: sum(/FROM er_(execution|fact_idx|batch_idx|admission_idx|admission_attempt_idx)/u),
     log: sum(/FROM sl_entry/u),
   }
 }
@@ -551,6 +640,42 @@ describe('readWork carries the history index of its snapshot', () => {
         expect.objectContaining({ run: run.run, attempt: run.attempt, execution: run.execution }),
       ])
       expect(work.historyIndex?.root.session).toBe(SESSION)
+    },
+  )
+
+  // Why slow: the migration that creates the attempt table and the write that fills it run in the
+  // real Workers; the node:sqlite fixture would also accept an `ALTER TABLE` the provider refuses.
+  it(
+    'on the real provider the attempt a row names is written with it and read back',
+    { tags: ['slow'] },
+    async () => {
+      const real = await openRealApp()
+      reals.push(real)
+      ok(await real.create(TENANT_A))
+      ok(await real.accept(TENANT_A, SESSION, 'input-1'))
+      ok(await startRun(real, 'start-run-1'))
+      const run = activeRun(await workOf(real))
+      ok(await real.accept(TENANT_A, SESSION, 'input-2'))
+      const agent = agentPublisher({
+        storage: real.storage,
+        combination: real.combination,
+        domainOf: real.domainOf,
+      })
+      await agent.admit({
+        tenant: TENANT_A,
+        session: SESSION,
+        execution: run.execution,
+        input: 'input-2',
+        operation: 'aop-submit-2',
+        accepted: evidence('agent/accepted/2'),
+        grant: evidence('agent/receipt/2'),
+        attachment: 'attachment-1',
+        attempt: run.attempt,
+      })
+      const members = (await workOf(real)).historyIndex?.inputs.find(
+        item => item.input === 'input-2',
+      )?.members
+      expect(members?.map(item => item.attempt)).toEqual([run.attempt])
     },
   )
 })

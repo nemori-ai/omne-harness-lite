@@ -28,6 +28,7 @@ import type {
   SqlCell,
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
+import admissionAttemptMigration from '../../src/worker/admission-attempt-migration.ts'
 import indexMigration from '../../src/worker/execution-index-migration.ts'
 import recordMigration from '../../src/worker/execution-record-migration.ts'
 import executionRecord from '../../src/worker/execution-record.ts'
@@ -76,6 +77,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   indexMigration,
   evidenceMigration,
   preadmissionMigration,
+  admissionAttemptMigration,
 ]
 
 export type StorageCall =
