@@ -196,16 +196,9 @@ diagnostician 只覆盖终端取证。`surface` 不是 `terminal` 就停止。�
 Agent 工具的 `model` 参数覆盖（原 spec-reviewer 钉的就是 Opus 5.5，合并对照里「表达」那一种也是在它上面跑的）。判「选择」与「计划」
 用钉值的模型。Codex 一端钉 GPT-6 Astra，三种判断都用它。
 
-**developer 的模型按本次任务选**，不由角色固定。选法写在它的 description 里，依据是角色合一记录：
-
-| 任务 | Claude Code | Codex | 档位 |
-|---|---|---|---|
-| 能力与组合的行为、具体提供者（默认） | Opus 5.5 | GPT-6.1 Sol | high |
-| 单个模块、规格完整的应用切片 | Sonnet 5.5 | GPT-6.1 Sol | high |
-| 终端交互、验证设施（经济档的另一半） | Sonnet 5.5 | GPT-6.1 Sol | high |
-| 内核原语与生命周期机制 | Fable 5.1 | GPT-6 Astra | xhigh |
-| 跨模块生命周期、跨进程故障、精细算法 | Fable 5.1 | GPT-6 Astra | xhigh |
-| 安全敏感、跨多个包或整个装配、契约把失败／诊断／顺序留给判断、发布门禁 | Fable 5.1 | GPT-6 Astra | high |
+**developer 的模型按本次任务选**，不由角色固定。选法写在它的 description 里，依据是角色合一记录。
+工作类型与风险到档位的映射归[派发策略](dispatch-policy.json)的 `roles.developer`；各档模型归
+`developer/claude.yaml`、`developer/codex.toml` 的 `model`，默认档位归 `developer/assembly.toml` 的 `default_effort`。
 
 两端换模型的机制不同：Claude Code 的角色文件钉了默认模型，派发时用 Agent 工具的 `model` 参数覆盖；
 Codex 里**角色文件钉的模型优先于派发值**，所以 developer 与 qa 的 `codex.toml` 不钉模型，**Codex 派发必须显式给模型**，

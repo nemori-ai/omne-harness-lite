@@ -12,7 +12,7 @@
 
 # 消息正文
 
-先加载 `line`、`pstack:poteto-mode` 和 `asd-ste100`。阅读 {{working_directory}} 中的 `AGENTS.md`、`docs/orientation.md`，以及 {{line_pack_ref}} 指向的线级上下文地图与拥有者入口。派发子代理前加载 `delegate`，本波另有几张卡时加载 `claim`，实施前读取 `ub-mode`；本线专项技能按 {{line_work_kind}} 加载。
+先加载 `line` 和 `pstack:poteto-mode`。阅读 {{working_directory}} 中的 `AGENTS.md`、`docs/orientation.md`，以及 {{line_pack_ref}} 指向的线级上下文地图与拥有者入口。派发子代理前加载 `delegate`，本波另有几张卡时加载 `claim`，实施前读取 `ub-mode`；本线专项技能按 {{line_work_kind}} 加载。
 
 你是里程碑 {{milestone_name}} 的 {{line_name}} 线负责人。你在同一个会话里逐波工作或轮空，直到读到明确的 terminal delta。唯一的 reduce 会话是 {{reduce_session_ref}}。你负责本线本波的细化、实施和验证，包括线内跨领域的集成与联调。全局设计、跨线的消费者迁移与联调、集成冲突和交回后的问题归 reduce。
 
