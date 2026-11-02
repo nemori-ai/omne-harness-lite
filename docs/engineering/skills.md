@@ -141,7 +141,7 @@ Matt `to-spec`、`to-tickets` 与按需的 `grill-with-docs` 在固定源中声�
 | pstack `swarm` | 派 `general-purpose` | 写、评审、验收按项目角色派。只读调查可以用 `general-purpose` 或 `Explore` |
 | pstack `swarm`、`poteto-mode` | 默认后台；`code-review` 前台 | 默认后台。下一步依赖结果、且前台没有别的工作时前台。线会话等自己派的子代理，按[线会话的工作范式](../../.meta_harness/agents/skills/line/canonical/references/work-paradigm.md)「等待：前台阻塞的工具调用」前台阻塞 |
 | pstack `poteto-mode`「Subagents」 | 默认新开；例外是新工作严格依赖原子代理的状态 | 同一闭包的追加与原范围内补做可以续用原写者。只读评审同一轮的追问可以续用原评审者。新一轮修复、换人、升级一律新开，见 `delegate` 步骤 7 与 [D7](workflow.md#d7-追加要求留痕并计入验收) |
-| pstack `swarm`、`poteto-mode` | 「Models」节自带分档 | 按角色源与 `dispatch-policy.json`，见 [D6](workflow.md#d6-按策略选模型按起点档位升级)。三档的边界与波 1 的派发读数在 [角色源 README](../../.meta_harness/agents/roles/README.md#模型配置与本次派发) |
+| pstack `swarm`、`poteto-mode` | 「Models」节自带分档 | 按角色源与 `dispatch-policy.json`，见 [D6](workflow.md#d6-按策略选模型按起点档位升级)。三档边界与流水读数的判法见 [角色源 README](../../.meta_harness/agents/roles/README.md#模型配置与本次派发) |
 | pstack `reflect` | 输入是当前会话记录，应用前逐条问用户 | 波段反思不用它。里程碑反思的通用教训部分可以用：输入换成派发流水与验收报告的摘要，改动路由到项目的维护入口，应用由负责人接受 |
 
 ## ub-mode 研发品味
