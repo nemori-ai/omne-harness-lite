@@ -167,6 +167,7 @@ const ROUNDS = 4
 /** The calls that only read: they need no Session snapshot for the advance check. */
 const READS: ReadonlySet<string> = new Set([
   'load',
+  'readCancellationInstallation',
   'inputs',
   'readReplyAdmissions',
   'query',
@@ -1114,6 +1115,14 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         run(input, 'commitSettlement', core => core.port.commitSettlement(input)),
       recordTerminalObservation: input =>
         run(input, 'recordTerminalObservation', core => core.port.recordTerminalObservation(input)),
+      readCancellationInstallation: input =>
+        run(
+          input,
+          'readCancellationInstallation',
+          async core =>
+            (await core.port.readCancellationInstallation?.(input)) ??
+            fail(unavailable('the Journal core holds no cancellation installation read')),
+        ),
       load: input => run(input, 'load', core => core.port.load(input)),
       inputs: input => run(input, 'inputs', core => core.port.inputs(input)),
       readReplyAdmissions: input =>
