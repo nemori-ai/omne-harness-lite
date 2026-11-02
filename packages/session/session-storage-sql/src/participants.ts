@@ -470,28 +470,37 @@ export type PreadmissionParticipation =
   | Readonly<{ kind: 'failed'; diagnostic: string }>
   | Readonly<{ kind: 'unsupported'; reason: string }>
 
+/** A `participated` preadmission reply: the saved record and whether this write saved it. */
+function decodeSaved(response: JsonValue | undefined): PreadmissionParticipation {
+  const value = recordOf(response)
+  const created = value?.['created']
+  const record = decodePreadmissionRecord(value?.['record'] ?? null)
+  return value?.['kind'] === 'saved' &&
+    typeof created === 'boolean' &&
+    record !== null &&
+    record !== 'malformed'
+    ? { kind: 'saved', created, record }
+    : { kind: 'failed', diagnostic: 'a preadmission reply without its record' }
+}
+
+/** A `conflict` preadmission reply: an outcome without an intent, or the held record. */
+function decodeRefusal(basis: JsonValue | undefined): PreadmissionParticipation {
+  const value = recordOf(basis)
+  const reason = value?.['reason']
+  if (value?.['kind'] === 'invalid' && typeof reason === 'string')
+    return { kind: 'invalid', reason }
+  const record = decodePreadmissionRecord(value?.['record'] ?? null)
+  return value?.['kind'] === 'preadmission' && record !== null && record !== 'malformed'
+    ? { kind: 'conflict', record }
+    : { kind: 'failed', diagnostic: 'a preadmission conflict without a basis' }
+}
+
 export function decodePreadmissionReply(reply: RecordedReply): PreadmissionParticipation {
   switch (reply.kind) {
-    case 'participated': {
-      const response = recordOf(reply.response)
-      const record = decodePreadmissionRecord(response?.['record'] ?? null)
-      return response?.['kind'] === 'saved' &&
-        typeof response['created'] === 'boolean' &&
-        record !== null &&
-        record !== 'malformed'
-        ? { kind: 'saved', created: response['created'], record }
-        : { kind: 'failed', diagnostic: 'a preadmission reply without its record' }
-    }
-    case 'conflict': {
-      const basis = recordOf(reply.basis)
-      const reason = basis?.['reason']
-      if (basis?.['kind'] === 'invalid' && typeof reason === 'string')
-        return { kind: 'invalid', reason }
-      const record = decodePreadmissionRecord(basis?.['record'] ?? null)
-      return basis?.['kind'] === 'preadmission' && record !== null && record !== 'malformed'
-        ? { kind: 'conflict', record }
-        : { kind: 'failed', diagnostic: 'a preadmission conflict without a basis' }
-    }
+    case 'participated':
+      return decodeSaved(reply.response)
+    case 'conflict':
+      return decodeRefusal(reply.basis)
     case 'unsupported': {
       const reason = recordOf(reply.basis)?.['reason']
       return { kind: 'unsupported', reason: typeof reason === 'string' ? reason : 'unsupported' }
