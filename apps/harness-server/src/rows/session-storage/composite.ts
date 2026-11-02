@@ -1,16 +1,15 @@
 // 会话存储组合的声明（装配页「组合登记」，session-storage-sql `docs/cordis.md`「应用承担什么」）：参加者清单与清单摘要。
-// 参加者的目标形状是 `[execution-record, session]`（#978 评论 6562071029，L-RUN P5 第 (c) 项）。基线上没有
-// `execution-record` 的材料，而提供者按目录核对参加者（sql-contract §6.2 第 5 步），所以本波只登记有材料的参加者。
-// 待替换：L-RUN 交付 `@omne-harness/session-storage-sql/participants` 与 `execution-record` 的材料后，改这一个常量
-// 并换一个 `combinationVersion`。
-import { SESSION_PARTICIPANT } from '@omne-harness/session-storage-sql'
+// 参加者是 `[execution-record, session]`：`session` 参与者读的索引表归 `execution-record` 所有，所以两者必须同在一个
+// 组合里，否则提供者按目录核对参加者（sql-contract §6.2 第 5 步）会报 `read_table_unowned`。清单按名字排序，
+// 这里的顺序不影响摘要。
+import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
 import {
   combinationManifest,
   manifestDigest,
   type SqlMaterialCatalog,
 } from '@omne-harness/sql-contract'
 
-export const SESSION_COMPOSITE_PARTICIPANTS: readonly string[] = [SESSION_PARTICIPANT]
+export const SESSION_COMPOSITE_PARTICIPANTS: readonly string[] = [...SESSION_LOG_PARTICIPANTS]
 
 export type CompositeManifest =
   | Readonly<{ kind: 'manifest'; digest: string }>
