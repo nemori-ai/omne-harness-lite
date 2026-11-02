@@ -1336,7 +1336,6 @@ export declare function materialBelongs(material: CachedAssemblyMaterial, expect
     principal: PrincipalKey | undefined;
     generation: PreparedInputKey['generation'] | undefined;
     purpose: RequestPurpose;
-    position: PositionRef;
     target: ContextTarget;
 }>): boolean;
 ```

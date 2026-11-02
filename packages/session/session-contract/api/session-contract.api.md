@@ -2561,8 +2561,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:854d623d685fcf8df511e70698eca35ca9ab93133425ff2ae53e5d2c9e95ce80";
-export declare const SESSION_RELEASE_DIGEST = "sha256:854d623d685fcf8df511e70698eca35ca9ab93133425ff2ae53e5d2c9e95ce80";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:579032d5582be15deb8d39ba467927fb7edb2e8437efd03385221532065d3515";
+export declare const SESSION_RELEASE_DIGEST = "sha256:579032d5582be15deb8d39ba467927fb7edb2e8437efd03385221532065d3515";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
