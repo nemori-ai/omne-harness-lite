@@ -159,11 +159,8 @@ async function* factsOf(facts: readonly TransportFact[]): AsyncIterable<Transpor
 export function createMeasuredFixedDelayModel<P>(
   options: FixedDelayModelOptions,
 ): ModelSendBoundary<P> {
-  if (
-    !Number.isFinite(options.definedDelayMs) ||
-    options.definedDelayMs < 0 ||
-    options.definedDelayMs > 2_147_483_647
-  )
+  const definedDelayMs = options.definedDelayMs
+  if (!Number.isFinite(definedDelayMs) || definedDelayMs < 0 || definedDelayMs > 2_147_483_647)
     throw new RangeError('definedDelayMs must fit a nonnegative Node timer delay')
   const facts = structuredClone(
     options.facts ?? [{ kind: 'ended', termination: { kind: 'completed', reason: 'stop' } }],
@@ -181,7 +178,7 @@ export function createMeasuredFixedDelayModel<P>(
       let outcome: Interval['outcome'] = 'failed'
       try {
         signal.throwIfAborted()
-        await (options.wait ?? wait)(options.definedDelayMs, signal)
+        await (options.wait ?? wait)(definedDelayMs, signal)
         signal.throwIfAborted()
         outcome = 'completed'
         return { kind: 'started', window: invocationId, facts: factsOf(facts) }
@@ -204,7 +201,7 @@ export function createMeasuredFixedDelayModel<P>(
           stage: 'model-fixed-delay',
           provider: 'measured-fixed-delay-model',
           invocationId,
-          definedDelay: { value: options.definedDelayMs, unit: 'ms' },
+          definedDelay: { value: definedDelayMs, unit: 'ms' },
           actualStart: start,
           actualEnd: end,
         })

@@ -445,21 +445,29 @@ it('closes cancelled and exceptional waits and gives overlapping calls distinct 
   expect(JSON.stringify(recorded.events)).not.toContain(SECRET)
 })
 
-it('keeps invocation correlation when a caller advances the round before the wait ends', async () => {
+it('keeps invocation correlation and the adopted delay when caller objects change during a wait', async () => {
   const recorded = recorder()
   const frame = { ...recorded.measurement }
   const waiting = Promise.withResolvers<void>()
-  const model = createMeasuredFixedDelayModel({
+  const options = {
     definedDelayMs: 50,
     measurement: () => frame,
     wait: () => waiting.promise,
-  })
+  }
+  const model = createMeasuredFixedDelayModel(options)
   const pending = model.send(demand(), new AbortController().signal)
   frame.round = 12
   frame.logCount = 28
+  options.definedDelayMs = 100
   waiting.resolve()
   await pending
-  expect(recorded.events).toMatchObject([{ round: 11, logCount: { state: 'measured', value: 27 } }])
+  expect(recorded.events).toMatchObject([
+    {
+      round: 11,
+      logCount: { state: 'measured', value: 27 },
+      definedDelay: { value: 50, unit: 'ms' },
+    },
+  ])
 })
 
 // Uses a real timer and the real preparation plugin to produce raw interval evidence.
