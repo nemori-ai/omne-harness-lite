@@ -25,7 +25,7 @@
     },
     {
       "id": "session-provider",
-      "plugin": "sessionProviderRealRow",
+      "plugin": "sessionProviderRow",
       "config": {}
     },
     {

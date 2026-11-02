@@ -11,9 +11,6 @@ import { AA_FIXTURE_ROWS } from './fixtures/serve/index.ts'
 const KNOWN_GAPS: Readonly<
   Record<string, Readonly<{ patch: string; manifest: Partial<RowManifest> }>>
 > = {
-  // 真件行把关闭相位带进行声明，表里这一行还没有。装配页把 `assemblyLifecycle` 列进
-  // `session-provider` 的必需注入，所以相位是 `business`；表在补丁落地时补这一项。
-  'session-provider': { patch: 'AAP-15', manifest: { phase: 'business' } },
   // 真件行只提供 `agentJournal`。`agentJournalEntries` 与 `agentMaterials` 在
   // `session-adapters` 里还没有提供方（K-9：写 `AgentMaterials` 带不出一条执行路径），
   // 所以表里那两项要等它们有提供方时再随补丁一起从表里去掉。
