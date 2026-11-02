@@ -1,6 +1,6 @@
 # execution-environment-host-local 的机制流程
 
-本页给出本成员的六条机制级流程。F-EEH01 至 F-EEH04 与 F-EEH06 有一张图和一张「失败与责任交接」表，F-EEH05 只有一段说明。行为以 [SPEC](../SPEC.md) 为准，图只投影它。F-EEH04 与 F-EEH06 是 Linux 上的 `command`；F-EEH05 说明普通每获取的持久终端。机制见[架构的宿主命令机制](architecture.md#宿主命令机制)。
+本页给出本成员的机制级流程。F-EEH01 至 F-EEH04 与 F-EEH06 有一张图和一张「失败与责任交接」表。行为以 [SPEC](../SPEC.md) 为准，图只投影它。F-EEH04 与 F-EEH06 是 Linux 上的 `command`，F-EEH05 说明普通每获取的持久终端，F-EEH07 说明跨获取保留。机制见[架构的宿主命令机制](architecture.md#宿主命令机制)。
 
 协议级流程归 [execution-environment-contract 的流程](../../execution-environment-contract/docs/flows.md)。登记表内部的获取、过门、释放与恢复归 [execution-environment 的流程](../../execution-environment/docs/flows.md)。登记协议的定义归 [execution-environment-cordis-contract 的流程](../../execution-environment-cordis-contract/docs/flows.md)。
 
@@ -186,6 +186,18 @@ sequenceDiagram
 | 冷恢复 | 进程重启后，`listRecoveryResources` 按作用域摘要列举单元，`recover` 按 `{ unit, bootId }` 核对再停止；启动身份已变时答 `confirmedStopped` | 不重启命令，不接回输出，不重授旧许可，也不结清获取；没有可达的用户管理器时列举答 `unavailable` |
 
 ## 失败与生命周期
+
+### F-EEH07 保留、附着与回收
+
+依据：[SPEC Session 保留终端](../SPEC.md#session-保留终端)。
+
+1. A 的 create 同步登记终端恢复坐标并保留容量。平台用 retention ledger plan/permit 后启动 shell。创建成功后 A 自动附着。
+2. A 的 execute 占住该终端唯一运行段，使用 A 的获取账本 plan/permit。许可前不发送脚本。
+3. A 释放时永久 seal 原门面，收尾 A 自己的段并 detach。空闲 shell 仍归 retention ledger。
+4. B 通过新获取、B 的 origin 和当前授权 attach。B 的 execute 使用 B 的账本，沿原 shell 继续执行。
+5. scope 封闭或 provider 退役后，索引先封整个终端，拒绝新 attach/execute，再请求实际停止。未确认资源继续枚举并占容量。监督和记账都确认才完成回收。
+
+detach 后的迟到 attach 答 closed。另一获取正在运行时，detach 不停止那一段。创建或启动状态未知时不能再次发送 create 来认回，维护者用原预留资源继续停止。跨进程恢复只清理，不重新附着。
 
 | 情形                                                                                           | 结果                                                                                                                                     | 责任方                     | 依据                                                                                       |
 | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------ |
