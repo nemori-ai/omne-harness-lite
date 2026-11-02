@@ -182,22 +182,25 @@ export const reloadCommand = (candidate: Adoption): Reload => ({
   },
 })
 
+/** The plain value of a JSON tree. A `JsonValue` field inside the facts is itself such a tree. */
+export function plainOf(tree: unknown): unknown {
+  const node = tree as GuardCommand['facts']
+  switch (node.kind) {
+    case 'null':
+      return null
+    case 'boolean':
+    case 'string':
+      return node.value
+    case 'number':
+      return Number(node.lexeme)
+    case 'array':
+      return node.items.map(plainOf)
+    case 'object':
+      return Object.fromEntries(node.entries.map(({ key, value }) => [key, plainOf(value)]))
+  }
+}
+
 /** The plain content of a guard's `facts` tree, for assertions on what the material says. */
 export function factsOf(guard: GuardCommand): Plain {
-  const plain = (tree: GuardCommand['facts']): unknown => {
-    switch (tree.kind) {
-      case 'null':
-        return null
-      case 'boolean':
-      case 'string':
-        return tree.value
-      case 'number':
-        return Number(tree.lexeme)
-      case 'array':
-        return tree.items.map(plain)
-      case 'object':
-        return Object.fromEntries(tree.entries.map(({ key, value }) => [key, plain(value)]))
-    }
-  }
-  return plain(guard.facts) as Plain
+  return plainOf(guard.facts) as Plain
 }

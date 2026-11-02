@@ -26,7 +26,9 @@
     {
       "id": "session-provider",
       "plugin": "sessionProviderRow",
-      "config": {}
+      "config": {
+        "admission": "none"
+      }
     },
     {
       "id": "session-ad01",
@@ -55,7 +57,7 @@
     },
     {
       "id": "session-ad06",
-      "plugin": "stubPlugin",
+      "plugin": "sessionAd06Row",
       "config": {}
     },
     {
@@ -65,7 +67,7 @@
     },
     {
       "id": "session-ad10",
-      "plugin": "stubPlugin",
+      "plugin": "sessionAd10Row",
       "config": {}
     },
     {
@@ -75,7 +77,7 @@
     },
     {
       "id": "session-ad12",
-      "plugin": "stubPlugin",
+      "plugin": "sessionAd12Row",
       "config": {}
     },
     {
@@ -100,8 +102,11 @@
     },
     {
       "id": "agent-journal",
-      "plugin": "stubPlugin",
-      "config": {}
+      "plugin": "agentJournalRow",
+      "config": {
+        "combinationVersion": "session-composite/1",
+        "manifestDigest": "ecdc693595dbfffb2423aa6e985a36994ab057819cda953fb4c37232dc92d2a7"
+      }
     },
     {
       "id": "agent-adoptions",
@@ -157,7 +162,7 @@
     },
     {
       "id": "agent-model-selection",
-      "plugin": "stubPlugin",
+      "plugin": "agentModelSelectionRow",
       "config": {}
     },
     {
@@ -177,12 +182,12 @@
     },
     {
       "id": "model-instances",
-      "plugin": "stubPlugin",
+      "plugin": "modelInstancesRow",
       "config": {}
     },
     {
       "id": "model-converters",
-      "plugin": "stubPlugin",
+      "plugin": "modelConvertersRow",
       "config": {}
     },
     {
@@ -282,7 +287,7 @@
     },
     {
       "id": "runtime-context",
-      "plugin": "stubPlugin",
+      "plugin": "runtimeContextRow",
       "config": {}
     },
     {

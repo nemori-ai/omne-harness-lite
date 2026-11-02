@@ -260,7 +260,7 @@ async function holdAcross(
 }
 
 describe('with-test-slot.mjs 跨 WSL 与 Windows', { timeout: 240_000 }, () => {
-  it('WSL 里不给 OMNE_TEST_SLOT_DIR：解析到 Windows 侧临时目录下的同一个目录，两侧都看得见对方建的文件', async ctx => {
+  it('WSL 里不给 OMNE_TEST_SLOT_DIR：不同 TEMP 仍解析到 Windows 用户配置目录下的同一个目录', async ctx => {
     if (!wsl.ok) ctx.skip(wsl.reason)
     // 把一个私有目录当作 Windows 侧的 TEMP：WSLENV 让 interop 起的 PowerShell 看到它（/p 转成 Windows 路径）。
     const windowsTemp = join(dir, 'win-temp')
@@ -282,11 +282,9 @@ while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new I
     const holder = watch(spawn(file, args, { stdio: ['ignore', 'pipe', 'pipe'] }))
     await waitFor(() => existsSync(held) || holder.child.exitCode !== null, '脚本拿到名额')
     expect(holder.child.exitCode, holder.stderr()).toBeNull()
-    const windowsSlotDir = join(windowsTemp, `omne-test-slots-${userInfo().username}`)
+    const windowsSlotDir = join(userInfo().homedir, '.omne', 'test-slots')
     // WSL 侧登记在解析出的路径下，这个路径就是 Windows 侧那个目录。
-    expect(readFileSync(held, 'utf8')).toBe(
-      `${toWsl(windowsTemp)}/omne-test-slots-${userInfo().username}/slot-1.lock`,
-    )
+    expect(readFileSync(held, 'utf8')).toBe(`${toWsl(windowsSlotDir)}/slot-1.lock`)
     expect(holder.stderr()).not.toContain('没有共用名额')
     // Windows 侧看得见 WSL 登记的名额；PowerShell 建的探针用完即删。
     expect(readFileSync(join(windowsSlotDir, 'slot-1.lock'), 'utf8')).toContain('\nside=linux@')

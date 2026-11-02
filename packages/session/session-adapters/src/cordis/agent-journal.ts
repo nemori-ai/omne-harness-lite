@@ -18,6 +18,7 @@ import type {
   AgentReceivedProvider,
   CallerCommit,
   CommandReceipt,
+  DurableEvidence,
   ExecutionMutation,
   Failure,
 } from '@omne-harness/agent-contract'
@@ -83,6 +84,7 @@ import {
   type MemoryAgentJournalOptions,
   type MemoryExecution,
 } from '../testing/journal.ts'
+import { JOURNAL_OWNER } from '../testing/journal-values.ts'
 import {
   createCell,
   operationSemantic,
@@ -292,6 +294,32 @@ function indexOf(
     })
   }
   return { boundaries, facts, batches }
+}
+
+/**
+ * The tenant text and session that a material source of this provider names, or null for a source
+ * it did not make. The Journal core makes every material source (a `materials.preserve` and the
+ * material of a `received` commit) with `journalEvidence`: its record is a canonical array that
+ * opens with the namespace of the session's cell, the JSON text `[tenant, session]`, and the kind
+ * of the material.
+ */
+export function materialSessionOf(
+  source: DurableEvidence,
+): Readonly<{ tenant: string; session: SessionId }> | null {
+  if (source.owner !== JOURNAL_OWNER) return null
+  const head = /^\["((?:[^"\\]|\\.)*)","(?:material|received-material)",/u.exec(source.record)
+  if (head === null) return null
+  let namespace: unknown
+  try {
+    namespace = JSON.parse(JSON.parse(`"${head[1]}"`) as string)
+  } catch {
+    return null
+  }
+  if (!Array.isArray(namespace) || namespace.length !== 2) return null
+  const [tenant, session] = namespace as unknown[]
+  return typeof tenant === 'string' && typeof session === 'string'
+    ? { tenant, session: session as SessionId }
+    : null
 }
 
 export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>) {

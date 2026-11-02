@@ -7,14 +7,16 @@
 // combination, the same two values as the `session-storage` row declares (`config.ts` here computes
 // the digest from the same catalog). `routeCacheEntries` is optional.
 //
-// The row provides `agentJournal` only. The table row also lists `agentJournalEntries` and
-// `agentMaterials`, which the SPEC says have no plugin yet (K-9 of `session-adapters`: the write of
-// `AgentMaterials` carries no execution, so the way to the session is not decided). The row does not
-// stand in for them. Until they have a provider, `agent-host`, which injects all three, stays
-// `PENDING`; the table's `sameProviderGroup` is kept, so a second row that takes one of the missing
-// keys is refused before loading.
+// The row provides `agentJournal`, `agentJournalEntries` and `agentMaterials`: the one plugin body
+// makes the three services over one session-log Journal, so they are in one authoritative ordering
+// (agent-cordis-contract SPEC "生产者接收面的服务"). The table's `sameProviderGroup` is kept, so a
+// second row that takes one of the three keys is refused before loading.
 import { SessionLogAgentJournalProvider } from '@omne-harness/session-adapters/cordis'
-import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
+import {
+  agentJournalEntriesKey,
+  agentJournalKey,
+  agentMaterialsKey,
+} from '@omne-harness/agent-cordis-contract/cordis'
 import { sessionAccessCheckKey } from '@omne-harness/session-cordis-contract/cordis'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { defineRow } from '../../row.ts'
@@ -25,7 +27,7 @@ export const agentJournalRow = defineRow({
   row: 'agent-journal',
   implementation: 'real',
   manifest: {
-    provides: [agentJournalKey],
+    provides: [agentJournalKey, agentJournalEntriesKey, agentMaterialsKey],
     injects: [sessionAccessCheckKey, storageKey, tenantDomainLookupKey],
     sameProviderGroup: 'agent-journal',
   },

@@ -1,5 +1,6 @@
 // The shared fixture of the ModelCommands cases: a node:sqlite test provider of `SqlStorage` that
-// runs the real participant, migration and read handlers of this member, and the core options
+// runs the real participant, migration and read handlers of this member, loaded as a provider loads
+// them: from the module files of `modelStorageMaterials()`, by default export. The core options
 // (authority, evidence, owners, clock, limits) that build the SQL and the in-memory commands
 // alike. The provider keeps one in-memory database per transaction domain, receipts by full
 // identity and rollback on a stopping reply. It does not model Workers, durability, queues or
@@ -28,10 +29,8 @@ import type {
 } from '@omne-harness/model/commands'
 import {
   COMMAND_RESERVE_BYTES,
-  callHandler,
   createSqlModelCommands,
-  modelMigration,
-  pendingHandler,
+  modelStorageMaterials,
   type SqlModelCommandsOptions,
 } from '@omne-harness/model-storage-sql'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -44,8 +43,13 @@ import {
   type SqlStorage,
   type TenantDomainLookup,
 } from '@omne-harness/sql-contract'
-import type { QueryRows, SqlValue } from '@omne-harness/sql-contract/worker'
-import participant from '../src/commit.ts'
+import type {
+  MigrationModule,
+  ParticipantModule,
+  QueryRows,
+  ReadHandlerModule,
+  SqlValue,
+} from '@omne-harness/sql-contract/worker'
 
 // --- Values --------------------------------------------------------------------------------
 
@@ -150,8 +154,28 @@ function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): Que
   return { columns: [], rows: [], changes: BigInt(result.changes), lastInsertRowid: null }
 }
 
+async function defaultOf<T>(url: string): Promise<T> {
+  return ((await import(/* @vite-ignore */ url)) as { default: T }).default
+}
+
+/** The modules of the materials, each loaded by the default export of its file. */
+const MODULES = await (async () => {
+  const materials = modelStorageMaterials()
+  const [participant] = materials.participants
+  const [migration] = materials.migrations
+  if (participant === undefined || migration === undefined) throw new Error('fixture: no materials')
+  const handlers = await Promise.all(
+    materials.readHandlers.map(item => defaultOf<ReadHandlerModule>(item.moduleUrl)),
+  )
+  return {
+    participant: await defaultOf<ParticipantModule>(participant.moduleUrl),
+    migration: await defaultOf<MigrationModule>(migration.moduleUrl),
+    handlers: new Map(handlers.map(item => [item.handler, item])),
+  }
+})()
+const { participant } = MODULES
+
 type Domain = { readonly db: DatabaseSync; readonly receipts: Map<string, ReceiptV2> }
-const HANDLERS = new Map([callHandler, pendingHandler].map(item => [item.handler, item]))
 /** Receipts are kept by the full identity: the scope is part of it, as in the real provider. */
 const keyOf = (identity: SqlIdentity) =>
   JSON.stringify([identity.scope, identity.operation, identity.operationKey])
@@ -222,7 +246,7 @@ export function sqliteStorage() {
     const found = domains.get(name)
     if (found !== undefined) return found
     const db = new DatabaseSync(':memory:')
-    modelMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
+    MODULES.migration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
     const domain = { db, receipts: new Map<string, ReceiptV2>() }
     domains.set(name, domain)
     return domain
@@ -274,7 +298,7 @@ export function sqliteStorage() {
       )
     },
     read(request) {
-      const handler = HANDLERS.get(request.handler)
+      const handler = MODULES.handlers.get(request.handler)
       const db = domainOf(request.domain.transactionDomain).db
       const outcome = handler?.read(request.input, {
         execute: (sql, params) => rowsOf(db, sql, params),
