@@ -13,3 +13,7 @@
 - 本成员经 `@omne-harness/tool-contract` 消费公共定义，不复制公共类型或服务键。
 
 文档导航见 [index](index.md)。
+
+- [作者装载器](author-loader.ts)核合法设置、定义与 schema。
+- [执行绑定](executor-binding.ts)固定作者与启动身份，[活体执行](live-author-execution.ts)保存逐调用事实及停止状态。
+- [作者插件入口](contribute-tool.ts)与[换代协调者](author-generations.ts)组成 `./author`。

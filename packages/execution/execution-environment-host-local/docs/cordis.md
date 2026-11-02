@@ -4,7 +4,7 @@
 
 服务键、抽象类、intercept 配置与登记协议归 [execution-environment-cordis-contract 的 Cordis 说明](../../execution-environment-cordis-contract/docs/cordis.md)，本成员继承这些定义，不重复提供键。登记表机制归 [execution-environment](../../execution-environment/docs/architecture.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)。
 
-现状：`src/cordis.ts` 已实现 Service 子类、`files` 与 `command` 声明插件、宿主文件插件工厂 `createHostFilesPlugin(domain)`、空配置 Schema 与宿主文件插件的配置 Schema。模板标记写明 Runtime Context 生产者插件和 `terminal` 提供者还没有接受；调用方类由定义成员的九个模板方法核对。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
+现状：`src/cordis.ts` 已实现 Service 子类、`files`、`command` 与 `terminal` 声明插件、宿主文件插件工厂 `createHostFilesPlugin(domain)`、空配置 Schema 与宿主文件插件的配置 Schema。模板标记写明 Runtime Context 生产者插件和 `terminal` 提供者还没有接受；调用方类由定义成员的九个模板方法核对。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
 
 ## 插件与配置
 
@@ -19,7 +19,7 @@
 
 抽象类的构造函数以 `executionEnvironment` 登记服务，子类不写键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[service-subclass-provides-its-key](../../../../.meta_harness/design/basis/cordis/service-subclass-provides-its-key.md)）。服务登记在装载它的那条插件 fiber 上，插件撤除时键上就没有服务了。
 
-Service 子类写静态 `Config`，两个函数插件写 `Config` 字段（[IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。Service 子类与 `filesFacilityPlugin` 共用空配置 Schema：只接受缺省、`null` 或空对象，其余值校验失败，消息是「configuration accepts no fields」。宿主文件插件用自己的 Schema `HostFilesConfig`：另接受下列字段，都可以序列化，缺省时取提供者的初值。`drainBoundMs` 必须是有限的非负数，初值 10000 毫秒。`filesRoot` 与 `stateDirectory` 必须是绝对路径，经提供者选项交给文件引擎，分别是宿主文件根与批次清单目录。`maxBufferedBytes`、`maxChunkBytes`、`startBoundMs`、`graceMs`、`stopBoundMs` 与 `probeRetryMs` 是 `command` 设施的上界。列表与搜索的四项上界（`listPageLimit`、`searchEntryBudget`、`searchByteBudget`、`searchFileBytes`）是提供者选项 `limits` 的字段，Schema 现在不接受它们，所以插件配置给不了。诊断的回调与责任域不进配置：回调由插件体接到 `ctx.logger`，责任域由工厂参数进入。配额策略是责任域的选项，由进程宿主在创建责任域时给出。两个函数插件还没有经过 kernel-basis 的 `definePlugin`，见 [SPEC 明确缺项](../SPEC.md#明确缺项)。
+Service 子类写静态 `Config`，三个设施声明插件写 `Config` 字段（[IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。Service 子类与 `filesFacilityPlugin` 共用空配置 Schema：只接受缺省、`null` 或空对象，其余值校验失败，消息是「configuration accepts no fields」。宿主文件插件用自己的 Schema `HostFilesConfig`：另接受下列字段，都可以序列化，缺省时取提供者的初值。`drainBoundMs` 必须是有限的非负数，初值 10000 毫秒。`filesRoot` 与 `stateDirectory` 必须是绝对路径，经提供者选项交给文件引擎，分别是宿主文件根与批次清单目录。`maxBufferedBytes`、`maxChunkBytes`、`startBoundMs`、`graceMs`、`stopBoundMs` 与 `probeRetryMs` 是 `command` 设施的上界。列表与搜索的四项上界（`listPageLimit`、`searchEntryBudget`、`searchByteBudget`、`searchFileBytes`）是提供者选项 `limits` 的字段，Schema 现在不接受它们，所以插件配置给不了。诊断的回调与责任域不进配置：回调由插件体接到 `ctx.logger`，责任域由工厂参数进入。配额策略是责任域的选项，由进程宿主在创建责任域时给出。两个函数插件还没有经过 kernel-basis 的 `definePlugin`，见 [SPEC 明确缺项](../SPEC.md#明确缺项)。
 
 `files` 设施声明与宿主文件提供者分成两个插件。理由：声明的拥有者是 `files` 设施，宿主提供者只是它的一个实现者。分开之后，声明的生灭不随宿主提供者，以后的沙箱文件提供者不必依赖宿主插件在场。
 
@@ -113,6 +113,14 @@ Service 子类写静态 `Config`，两个函数插件写 `Config` 字段（[IC-1
 | 效应撤除只运行一次                                  | 源码读数：`fiber.ts` 的 `effect` 撤除以 `disposing` 标记只运行一次                                                                                                                                                                                                                  | 提供者撤除函数的重试不经效应                                                   |
 
 前两项是假设，补齐之前对应的行为以假设成立。Cordis 升版时，先按 IC 约定重跑相关 probe 与包测试。
+
+## 终端增量
+
+`terminalFacilityPlugin` 与其他设施声明插件同形，名称为 `terminalFacility`，只登记 terminal 声明，配置为空。缺席时需要 terminal 的落点解析仍答 missingFacility。宿主插件继续登记同一个 host-files 提供者，并返回登记的 disposer。没有增加 Service，也没有增加 onRetired 回调。
+
+`HostFilesConfig.terminal` 接受 [SPEC 持久终端](../SPEC.md#持久终端)的界值。嵌套配置拒绝未知字段与不合法数值。移除终端声明只撤除后续准入；卸载宿主提供者则通过原获取的共同排空停止终端 scope。未确认的停止继续经 RetirementPending 和原资源清单报告。
+
+采用 Cordis 4.0.4。此增量继承原有调用方 fiber 登记、Service 唯一键和撤除重试，没有改变内核机制主张。[host-terminal.spec.ts](../tests/host-terminal.spec.ts)用真实 Cordis 核对三设施共同落点、终端声明卸载和嵌套配置。
 
 ## 验证义务
 

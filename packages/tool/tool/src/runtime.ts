@@ -303,6 +303,7 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
           return controlled.failure.kind === 'commit-unknown'
             ? { kind: 'commit-unknown', operation: command.ok.reference }
             : { kind: 'rejected', failure: controlled.failure }
+        await scheduleAcceptedCallBestEffort(instances, resolved.ok.tenant, resolved.ok.call)
         return { kind: 'committed', operation: command.ok.reference, receipt: controlled.ok }
       },
       releaseDelivery: async input => {

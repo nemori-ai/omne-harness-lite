@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { access, constants, stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import { createRequire } from 'node:module'
 import {
   forceStopScope,
   launchScope,
@@ -177,4 +178,37 @@ export function createPrerequisiteProbe(input: {
       return running
     },
   })
+}
+
+/** Linux terminal prerequisites supplement the existing scope probe. No native module is loaded on another platform. */
+export type HostTerminalPrerequisite = 'linux' | 'bash' | 'mkfifo' | 'node-pty'
+
+export async function probeTerminalPrerequisites(): Promise<readonly HostTerminalPrerequisite[]> {
+  if (process.platform !== 'linux') return ['linux']
+  const missing: HostTerminalPrerequisite[] = []
+  for (const [path, name] of [
+    ['/bin/bash', 'bash'],
+    ['/usr/bin/mkfifo', 'mkfifo'],
+  ] as const) {
+    try {
+      await access(path, constants.X_OK)
+    } catch {
+      missing.push(name)
+    }
+  }
+  try {
+    const require = createRequire(import.meta.url)
+    const pty: unknown = require('node-pty')
+    const native: unknown =
+      typeof pty === 'object' && pty !== null ? Reflect.get(pty, 'native') : undefined
+    if (
+      typeof native !== 'object' ||
+      native === null ||
+      typeof Reflect.get(native, 'fork') !== 'function'
+    )
+      missing.push('node-pty')
+  } catch {
+    missing.push('node-pty')
+  }
+  return missing
 }
