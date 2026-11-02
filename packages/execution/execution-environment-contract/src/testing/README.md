@@ -35,6 +35,6 @@ started.observedCwd 是脚本报告的成功控制观察，仅在该段执行得
 
 terminalFacilityConformance({ subject, waitMs? }) 惰性返回用例。每条用例的 subject() 都建立两份独立获取，并返回 acquisitions: [first, second]。每项提供 facility、合法的 createRequest 模板、产生新关联身份的 request() 和 executeRequest(ref)。每次创建从 request() 取得新的 requestId。普通执行请求必须能自然结束。
 
-涉及运行中状态的用例还需要 control。start(acquisition, ref) 启动可控执行，finish(handle) 观察其退出并完成清理。stopMode 和 stopAnswer 声明该夹具准备的停止方式与答复。未确认停止的夹具在调用 finish 之前必须保持执行运行。真实后端通过夹具控制函数准备场景，不需要返回测试专属字段。缺少控制时三条用例报告不适用，不计通过。dispose() 清理本条用例的所有获取。
+涉及运行中状态的用例还需要 control。start(acquisition, ref) 启动可控执行，finish(handle) 观察其退出并完成清理。stopMode 和 stopAnswer 声明该夹具准备的段进程停止方式与答复。closeAnswer 独立声明持久终端的关闭答复。段进程停止与终端关闭分别确认，两者可以不同。未确认停止的夹具在调用 finish 之前必须保持执行运行；终端关闭未确认不表示段进程仍在运行。真实后端通过夹具控制函数准备场景，不需要返回测试专属字段。缺少控制时三条用例报告不适用，不计通过。dispose() 清理本条用例的所有获取。
 
 完整的双获取、两种停止答复及收场示例见 [terminal-conformance.spec.ts](../../tests/terminal-conformance.spec.ts)。它直接消费公开入口，并证明共享获取的故障实现能通过普通生命周期，却不能通过归属检查。套件只覆盖进程内协议判据，不证明真实 PTY、系统进程停止或目录持久化。

@@ -1564,6 +1564,7 @@ export type TerminalConformanceSubject = Readonly<{
         finish(process: ProcessHandle): Promise<void>;
         stopMode: 'graceful' | 'forced';
         stopAnswer: 'confirmed' | 'unconfirmed';
+        closeAnswer: 'confirmed' | 'unconfirmed';
     };
     dispose?(): Promise<void>;
 }>;

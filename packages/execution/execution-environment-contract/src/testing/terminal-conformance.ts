@@ -26,6 +26,7 @@ export type TerminalConformanceSubject = Readonly<{
     finish(process: ProcessHandle): Promise<void>
     stopMode: 'graceful' | 'forced'
     stopAnswer: 'confirmed' | 'unconfirmed'
+    closeAnswer: 'confirmed' | 'unconfirmed'
   }
   dispose?(): Promise<void>
 }>
@@ -166,16 +167,8 @@ async function checkClose(s: TerminalConformanceSubject): Promise<void> {
   const terminal = await create(a)
   const process = await control.start(a, terminal)
   try {
-    assert.equal(await close(a, terminal), control.stopAnswer)
+    assert.equal(await close(a, terminal), control.closeAnswer)
     assert.equal((await a.facility.execute(a.executeRequest(terminal))).kind, 'rejected')
-    if (control.stopAnswer === 'unconfirmed') {
-      let ended = false
-      void process.result.then(() => {
-        ended = true
-      })
-      await new Promise(resolve => setImmediate(resolve))
-      assert.equal(ended, false)
-    }
   } finally {
     await control.finish(process)
   }

@@ -30,7 +30,9 @@ const obligations = [
 function subject(
   stop: 'confirmed' | 'unconfirmed',
   shareAcquisition = false,
+  closeAnswer: 'confirmed' | 'unconfirmed' = stop,
 ): TerminalConformanceSubject {
+  const controlled = new Set<string>()
   const first = createScriptedTerminalFacility(req => ({
     kind: 'started',
     runs: req.script === 'controlled' ? 'untilStop' : 'exit',
@@ -63,6 +65,13 @@ function subject(
           usedCreateIds.add(request.requestId)
           return scripted.facility.create(request)
         },
+        async close(request) {
+          if (!controlled.has(request.terminal.id)) return scripted.facility.close(request)
+          if (closeAnswer === 'confirmed' && stop === 'unconfirmed')
+            await scripted.finish(request.terminal)
+          const answer = await scripted.facility.close(request)
+          return answer.kind === 'done' ? { ...answer, value: { status: closeAnswer } } : answer
+        },
       },
       createRequest: { ...request(), cwd: '.', env: {} },
       request,
@@ -76,12 +85,14 @@ function subject(
     control: {
       stopMode: 'forced',
       stopAnswer: stop,
+      closeAnswer,
       async start(acquisition, terminal) {
         const result = await acquisition.facility.execute({
           ...acquisition.executeRequest(terminal),
           script: 'controlled',
         })
         if (result.kind !== 'done') throw new Error(`controlled start: ${result.kind}`)
+        controlled.add(terminal.id)
         const scripted = acquisition === acquisitions[0] ? first : second
         running.set(result.value, () => scripted.finish(terminal))
         return result.value
@@ -113,6 +124,17 @@ for (const name of obligations) {
     })
   }
 }
+
+it.each([
+  ['confirmed', 'unconfirmed'],
+  ['unconfirmed', 'confirmed'],
+] as const)('accepts %s process stop with %s terminal close', async (stop, closeAnswer) => {
+  const test = terminalFacilityConformance({
+    subject: () => subject(stop, false, closeAnswer),
+  }).find(test => test.name === 'terminal.close-observation')
+  if (!test) throw new Error('missing close conformance case')
+  expect(await runConformanceCase(test)).toEqual({ name: test.name, status: 'pass' })
+})
 
 it('rejects a facility that shares acquisitions while its ordinary lifecycle still passes', async () => {
   const cases = terminalFacilityConformance({ subject: () => subject('confirmed', true) })
