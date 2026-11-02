@@ -3,6 +3,7 @@ import { succeed } from '@omne-harness/operation-result'
 import type {
   AgentDrivePort,
   ConsumptionId,
+  ProducerRef,
   WorkSnapshot,
   SessionLogObservation,
   SessionTransactionPort,
@@ -114,17 +115,20 @@ export async function controlFixture(options: Partial<HarnessOptions> = {}) {
       if (original.advance === null) throw new Error('missing attempt')
       const purpose = kind === 'tool' ? ('action' as const) : ('main' as const)
       const bindings = ['model-1', 'model-2'].map(call => ({
-        producer: { kind, call },
+        producer: { kind, call } as ProducerRef,
         action: call,
         consumer: { owner: 'agent', work: original.run, position: call, purpose },
         request: evidence(`request/${call}`),
         initiatingAttempt: original.advance?.attempt ?? null,
       }))
-      const consequences: SessionLogConsequence[] = bindings.map(binding => ({
-        kind: 'call-registration',
-        consumption: binding.producer.call as ConsumptionId,
-        registration: { kind: 'associated', binding, purpose },
-      }))
+      const consequences: SessionLogConsequence[] = bindings.map(
+        binding =>
+          ({
+            kind: 'call-registration',
+            consumption: binding.producer.call as ConsumptionId,
+            registration: { kind: 'associated', binding, purpose },
+          }) as SessionLogConsequence,
+      )
       const waiting = 'unassociated-tool' as ConsumptionId
       consequences.push({
         kind: 'call-registration',

@@ -141,12 +141,13 @@ it('SC-03 background-tool 只以原 producer 的执行与意图发送', async ()
   const f = await controlFixture()
   open.push(f.h)
   const [binding] = await f.calls('tool')
-  if (binding === undefined || binding.producer.kind !== 'tool') throw new Error('no tool binding')
+  if (binding === undefined) throw new Error('no tool binding')
+  const producer = { kind: 'tool' as const, call: binding.producer.call }
   succeeded(
     await f.h.faces('intake').work.control({
       ...f.h.access(),
       operation: operationId('background'),
-      intent: { kind: 'background-tool', producer: binding.producer },
+      intent: { kind: 'background-tool', producer },
     }),
     'background-tool',
   )
@@ -154,7 +155,7 @@ it('SC-03 background-tool 只以原 producer 的执行与意图发送', async ()
   expect(f.control.mock.calls[0]?.[0]).toMatchObject({
     execution: f.original.execution.execution,
     control: operationId('background'),
-    intent: { kind: 'background-tool', producer: binding.producer },
+    intent: { kind: 'background-tool', producer },
   })
 })
 
