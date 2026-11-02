@@ -1,6 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
+import { enterStage, withoutDeadlineChannel } from './deadlines.mjs'
 
 export function pnpmCommand(args) {
   if (process.platform !== 'win32') return ['pnpm', ...args]
@@ -41,19 +42,22 @@ function killTree(child) {
 
 export async function execute(
   argv,
-  { cwd, timeoutMs = 900_000, signal, stdout, stderr, env = {} } = {},
+  { cwd, timeoutMs = 900_000, signal, stdout, stderr, env = {}, deadline } = {},
 ) {
   const startedAt = new Date().toISOString()
   if (signal?.aborted)
     return { code: null, interrupted: 'cancelled', startedAt, stdout: '', stderr: '' }
+  enterStage('subprocess', timeoutMs)
   return new Promise(resolve => {
     let output = ''
     let errors = ''
     let interrupted = null
     let spawnError = null
+    let deadlineExceeded = null
+    let deadlineError = null
     const child = spawn(argv[0], argv.slice(1), {
       cwd,
-      env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0', ...env },
+      env: { ...process.env, ...withoutDeadlineChannel, NO_COLOR: '1', FORCE_COLOR: '0', ...env },
       shell: false,
       windowsHide: true,
       detached: process.platform !== 'win32',
@@ -77,15 +81,43 @@ export async function execute(
     }
     const cancel = () => stop('cancelled')
     signal?.addEventListener('abort', cancel, { once: true })
-    const timer = setTimeout(() => stop('timeout'), timeoutMs)
+    let timer
+    const started = performance.now()
+    const checkDeadline = () => {
+      let current
+      try {
+        current = deadline?.() ?? {
+          phase: 'subprocess',
+          startedAt,
+          timeoutMs,
+          remainingMs: timeoutMs - (performance.now() - started),
+        }
+      } catch (error) {
+        deadlineError = error.message
+        stop('deadline-unavailable')
+        return
+      }
+      if (current.remainingMs <= 0) {
+        deadlineExceeded = current
+        stop('timeout')
+      } else
+        timer = setTimeout(
+          checkDeadline,
+          Math.min(current.remainingMs, deadline ? 100 : 2_147_483_647),
+        )
+    }
+    checkDeadline()
     child.once('close', (code, childSignal) => {
       clearTimeout(timer)
       signal?.removeEventListener('abort', cancel)
+      enterStage('runner')
       resolve({
         code,
         signal: childSignal,
         interrupted,
         spawnError,
+        ...(deadlineExceeded ? { deadline: deadlineExceeded } : {}),
+        ...(deadlineError ? { deadlineError } : {}),
         startedAt,
         finishedAt: new Date().toISOString(),
         stdout: output,
