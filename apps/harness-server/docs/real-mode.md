@@ -47,7 +47,7 @@ export const storageRow = defineRow({
 
 - `row` 是装配页的行 id。真实导出只能装在它声明的行 id 上，装在别的行 id 上装载前退出 2（DP1-C9）。
 - `manifest` 里的名字只取定义包导出的键常量，不手写键文本。名字不写 `s0.assemblyLifecycle`，带阶段时由 `defineRow` 加进 `inject`。带 `s0.` 前缀的名字让 `defineRow` 抛出。
-- 清单必须与 `src/s0/stubs.ts` 的同一行相同。`tests/real-manifests-sync.spec.ts` 逐行比较 `./cordis` 的每个真实导出。等待装配页补丁的差额写在该测试的 `KNOWN_GAPS`，每条带 AAP 编号。
+- 清单必须与 `src/s0/stubs.ts` 的同一行相同。`tests/real-manifests-sync.spec.ts` 逐行比较 `./cordis` 的每个真实导出。等待装配页补丁的差额写在该测试的 `KNOWN_GAPS`，每条带具名补丁编号。
 - `lifecycle` 有三种：`none`（给 `plugin`）、`body`（给 `body`，可带 `Config`）、`entry-object`（给 `plugin` 与 `via`）。成员插件不能直接做带阶段的行：类型不能表达这种写法，见 `tests/serve-types.spec-d.ts`。
 - 被包装插件的字面 `inject` 必须包含在声明的 `injects` 里，否则 `defineRow` 抛出，模块装入即失败（IC-8 的补偿）。
 - 包装插件在同一个行 fiber 里转交被包装插件的 `Config` 与 `apply`，不建子 fiber。被包装插件可以是对象、函数或类（含 `Service` 子类），处理与 Cordis 4.0.4 的 `Fiber.execute` 相同。
@@ -103,9 +103,9 @@ export const storageHost: EntryObjectModule = {
 
 `EntryEnv` 不进插件，也不交给任何行。主体权威的符号与工厂只在 `src/entry/principals.ts`（APP-5）。
 
-## 波 2 的行与入口接线
+## 行与入口接线
 
-本节说明已有本地实现及其生产差额。候选汇集、测试组合、生产接线和交付接受是不同事实；下表不表示 M2 已闭合。ActorRef 已按 R2-D33 撤回，不进入本波交付。
+本节说明各行与入口对象的已有实现及生产接线差额。
 
 | 行或入口 | 已有实现与接线限制 | 精确说明 |
 | --- | --- | --- |
@@ -124,7 +124,7 @@ Runtime 与 Execution 的 `current()` 按 R2-D25 只保护调用方 fiber 的进
 
 动作规则按 R2-D34 配置在授权行的 `actionRules`，精确匹配、deny 优先和证据规则归 [授权政策](rows/authorization-policy.md#动作准入)。无规则、无匹配、来源故障、非空 permissions 或非 null decision 均为 `unavailable`。`createToolAccessGuard(readAdmission)` 每次读取当前准入服务，同一个 qualify 对象可交给 ToolAccessGuard 与 StartCoordinatorAccess；`invalidate`、`read-raw`、`read-raw-content` 缺资格来源，均答 `unavailable`。`issueTenantDomainScanner(env)` 只能在受信签发器安装后调用，交消费者的只有枚举主体。公共 Tool 消费者与扫描者仍需集成接线。
 
-自动首启接线的依据是独立提交 `f258266e56975328eb5b7d3323110f1cd2cee652`，未进入此次文档同步基线。它在最终配置与受信预检成功后、入口对象及任何业务行安装前，从最终 real storage/session-storage 行配置调用 `prepareTenantDirectory`。全新根自动初始化，已有根缺表或坏表失败；不得增加人工准备步骤。独立 `preparation-failed` 退出 3，固定诊断及其余输出规则见 [SPEC](../SPEC.md#装载与可见性)。该独立提交的测试不表示本树启动实测通过。目录的单写前提与 Windows 目录项耐久限制继续适用。
+真实模式在最终配置与受信预检成功后、入口对象及任何业务行安装前，从最终 real storage/session-storage 行配置调用 `prepareTenantDirectory`。全新根自动初始化，已有根缺表或坏表失败；不得增加人工准备步骤。独立 `preparation-failed` 退出 3，固定诊断及其余输出规则见 [SPEC](../SPEC.md#装载与可见性)。目录的单写前提与 Windows 目录项耐久限制继续适用。
 
 ## 占位规则
 
