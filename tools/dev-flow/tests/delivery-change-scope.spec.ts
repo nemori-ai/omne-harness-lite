@@ -272,6 +272,48 @@ describe('the changes of the card', () => {
     write(r.root, 'tmp/elsewhere.md', 'ignored by Git\n')
     expect(codes(r)).toEqual([])
   })
+
+  it('does not count a file outside the scope that the card changed and then changed back', () => {
+    const r = repo()
+    bind(r)
+    commitFiles(r.root, { 'tools/a.ts': 'a2\n' })
+    commitFiles(r.root, { 'tools/b.ts': 'b2\n' }, 'change b')
+    commitFiles(r.root, { 'tools/b.ts': 'b\n' }, 'restore b')
+    expect(codes(r)).toEqual([])
+  })
+
+  it('does not count a file whose committed change an uncommitted edit undoes', () => {
+    const r = repo()
+    bind(r)
+    commitFiles(r.root, { 'tools/b.ts': 'b2\n' }, 'change b')
+    write(r.root, 'tools/b.ts', 'b\n')
+    expect(codes(r)).toEqual([])
+  })
+
+  it('refuses a file outside the scope that the card changed and kept changed', () => {
+    const r = repo()
+    bind(r)
+    commitFiles(r.root, { 'tools/b.ts': 'b2\n' }, 'change b')
+    commitFiles(r.root, { 'tools/a.ts': 'a2\n' })
+    expect(codes(r)).toEqual([['change-outside-scope', 'tools/b.ts']])
+  })
+
+  it('refuses a file of taskBase that the card deleted', () => {
+    const r = repo()
+    bind(r)
+    git(r.root, ['rm', '-q', 'tools/b.ts'])
+    git(r.root, ['commit', '-m', 'delete b'])
+    expect(codes(r)).toEqual([['change-outside-scope', 'tools/b.ts']])
+  })
+
+  it('does not count a file outside the scope that the card added and then deleted', () => {
+    const r = repo()
+    bind(r)
+    commitFiles(r.root, { 'tools/new.ts': 'new\n' }, 'add new')
+    git(r.root, ['rm', '-q', 'tools/new.ts'])
+    git(r.root, ['commit', '-m', 'delete new'])
+    expect(codes(r)).toEqual([])
+  })
 })
 
 describe('the line of the card', () => {
