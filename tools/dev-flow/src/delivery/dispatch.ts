@@ -173,6 +173,26 @@ export type DispatchPlan = {
 function refuse(problems: readonly string[]): never {
   throw new IntegrationError('refused', `Dispatch refused: ${problems.join('; ')}`)
 }
+/**
+ * One PATCH of the card's body. The body goes over standard input (`-F body=@-`), never as an
+ * argument: a card body reaches tens of kilobytes, past the Windows command-line limit.
+ */
+function writeCardBody(repository: string, number: number, body: string, call: GhCommand): void {
+  call(
+    [
+      'api',
+      '--method',
+      'PATCH',
+      ...REST_HEADERS,
+      `repos/${repository}/issues/${number}`,
+      '-F',
+      'body=@-',
+    ],
+    TIMEOUT_MS,
+    body,
+  )
+}
+
 /** The comments of the card that already dispatch `attempt` at `revision`. */
 function earlierDispatches(issue: CapturedIssue, revision: number, attempt: string): string[] {
   return issue.comments.flatMap(comment => {
@@ -567,18 +587,7 @@ function writeRevision(
       'The card body changed after the checks read it; run post again. Nothing was written.',
     )
   try {
-    call(
-      [
-        'api',
-        '--method',
-        'PATCH',
-        ...REST_HEADERS,
-        `repos/${repository}/issues/${number}`,
-        '-f',
-        `body=${revise.body}`,
-      ],
-      TIMEOUT_MS,
-    )
+    writeCardBody(repository, number, revise.body, call)
   } catch {
     throw new IntegrationError(
       'unknown',
@@ -695,18 +704,7 @@ export function bindCard({
   const body = bindBody(card.body, binding, worktree)
   if (dryRun) return { body, applied: false }
   try {
-    call(
-      [
-        'api',
-        '--method',
-        'PATCH',
-        ...REST_HEADERS,
-        `repos/${repository}/issues/${number}`,
-        '-f',
-        `body=${body}`,
-      ],
-      TIMEOUT_MS,
-    )
+    writeCardBody(repository, number, body, call)
   } catch {
     throw new IntegrationError('unknown', 'Writing the card body failed. API output omitted.')
   }

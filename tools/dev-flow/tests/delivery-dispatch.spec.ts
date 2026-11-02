@@ -148,12 +148,20 @@ const plan = (
 /** A GitHub stand-in that holds one card body and one dispatch comment. */
 function github(body = cardBody()) {
   const calls: string[][] = []
-  const state = { body, comment: '' }
-  const call: GhCommand = argv => {
+  const state = { body, comment: '', stdin: '' }
+  const call: GhCommand = (argv, _timeout, input) => {
     calls.push([...argv])
     const method = argv[2],
       path = argv.find(item => item.startsWith('repos/')) ?? '',
-      value = argv.find(item => item.startsWith('body='))?.slice('body='.length)
+      field = argv.findIndex(item => item === '-f' || item === '-F'),
+      named = argv[field + 1] ?? '',
+      // `-F body=@-` reads the text from standard input; `-f body=<text>` carries it in argv.
+      value =
+        named === 'body=@-'
+          ? (state.stdin = input ?? '')
+          : named.startsWith('body=')
+            ? named.slice('body='.length)
+            : undefined
     if (method === 'POST' && path === 'repos/owner/repo/issues/7/comments')
       return { id: 55, html_url: `${url}#issuecomment-55` }
     if (method === 'PATCH' && path === 'repos/owner/repo/issues/comments/55') {
@@ -469,6 +477,19 @@ describe('posting and binding', () => {
       `\`\`\`json omne-integration-binding:v1\n${JSON.stringify({ ...binding, schemaVersion: 1 })}\n\`\`\``,
     )
     expect(() => bindBody(stray, binding)).toThrow()
+  })
+
+  it('writes a card body far over the command-line limit through standard input', () => {
+    const long = cardBody(START_ROW, `- 长正文：${'x'.repeat(120_000)}`)
+    const gh = github(long)
+    expect(
+      bindCard({ repository: 'owner/repo', binding, dryRun: false, call: gh.call }),
+    ).toMatchObject({ applied: true, verified: true })
+    const patch = gh.calls.find(c => c[2] === 'PATCH' && c.includes('repos/owner/repo/issues/7'))
+    expect(patch).toBeDefined()
+    expect(patch?.join(' ')).not.toContain('x'.repeat(1000))
+    expect(patch?.slice(-1)).toEqual(['body=@-'])
+    expect(gh.state.stdin.startsWith('## 身份与责任')).toBe(true)
   })
 
   it('writes the body and reads the binding back; a dry run writes nothing', () => {
