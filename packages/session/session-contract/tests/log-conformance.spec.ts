@@ -168,6 +168,20 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
+    name: 'queryOperation answers a log commit as a committed batch',
+    fails: [NAMES.commit],
+    fixture: () => {
+      const base = memorySessionLogFixture()
+      const queryOperation: Fixture['port']['queryOperation'] = async input => {
+        const answer = await base.port.queryOperation(input)
+        return 'failure' in answer && answer.failure.kind === 'conflict'
+          ? succeed({ kind: 'unknown' as const })
+          : answer
+      }
+      return { ...base, port: { ...base.port, queryOperation } }
+    },
+  },
+  {
     name: 'a delegated view commits',
     fails: [NAMES.delegated],
     fixture: () => {

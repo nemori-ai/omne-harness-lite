@@ -14,7 +14,7 @@ import type {
 import type { Adoption } from './identity.ts'
 import { tenantEquals, workspaceCodec, type WorkspaceId } from '@omne-harness/legal-identity'
 import type { RunTerminal, WorkSnapshot, WorkspaceAttachment } from './values.ts'
-import type { HistoryEntry, ProducerFact, SessionFailure } from './faces.ts'
+import type { HistoryEntry, ProducerFact, SessionFailure, StartAdoption } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import { encodeEntry } from './entries.ts'
 import {
@@ -258,6 +258,31 @@ function decideAccept(
 /** The owner of the guard material that confirms the login of an ordinary-input entry (#318 design, 「普通输入的来源与登录门」). */
 export const LOGIN_ENTRY_OWNER = 'login-entry'
 
+/**
+ * The adoption entries of a `startRun` or `reload`: the new resident tools, then the adoption
+ * entry when the candidate differs from the current adoption or the material names resident keys.
+ * A `verdict` in the material means the adoption point proved the resident shape lost: nothing is
+ * committed and the caller freezes.
+ */
+function adoptionEntries(
+  snapshot: WorkSnapshot,
+  material: StartAdoption | undefined,
+  candidate: Adoption,
+  current: Adoption,
+  source: DurableEvidence,
+): Decision {
+  if (material?.verdict !== undefined)
+    return rejected({ kind: 'frozen', verdict: material.verdict })
+  const residents = residentEntries(snapshot, material, source)
+  if (residents.kind !== 'entries') return residents
+  if (digestOf(candidate) === digestOf(current) && material === undefined) return residents
+  const keys = material === undefined ? {} : { residentKeys: material.keys }
+  return entries([
+    ...residents.entries,
+    encodeEntry({ kind: 'session.adoption', adopted: candidate, ...keys }, sessionOrigin(source)),
+  ])
+}
+
 function decideStartRun(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'startRun' }>,
@@ -282,29 +307,15 @@ function decideStartRun(
   const predecessor = snapshot.run.kind === 'terminal' ? snapshot.run.terminal.run : null
   const run = runIdOf(snapshot.session, judgment.first, predecessor)
   const source = commandEvidence(command.input.operation, 'run-started')
-  // The adoption point proved the resident shape lost: nothing is committed, the caller freezes.
-  const verdict = command.input.residentAdoption?.verdict
-  if (verdict !== undefined) return rejected({ kind: 'frozen', verdict })
-  const out: EncodedEntry[] = []
-  const residents = residentEntries(snapshot, command.input.residentAdoption, source)
-  if (residents.kind !== 'entries') return residents
-  out.push(...residents.entries)
-  if (
-    digestOf(candidate) !== digestOf(snapshot.definition.adopted) ||
-    command.input.residentAdoption !== undefined
+  const adopted = adoptionEntries(
+    snapshot,
+    command.input.residentAdoption,
+    candidate,
+    snapshot.definition.adopted,
+    source,
   )
-    out.push(
-      encodeEntry(
-        {
-          kind: 'session.adoption',
-          adopted: candidate,
-          ...(command.input.residentAdoption === undefined
-            ? {}
-            : { residentKeys: command.input.residentAdoption.keys }),
-        },
-        sessionOrigin(source),
-      ),
-    )
+  if (adopted.kind !== 'entries') return adopted
+  const out: EncodedEntry[] = [...adopted.entries]
   out.push(
     encodeEntry(
       {
@@ -595,27 +606,15 @@ function decideAttempt(
       command.input.candidate.name !== snapshot.definition.adopted.name
     )
       return invalid('candidate', 'a reload must preserve the definition identity')
-    const verdict = command.input.residentAdoption?.verdict
-    if (verdict !== undefined) return rejected({ kind: 'frozen', verdict })
-    const residents = residentEntries(snapshot, command.input.residentAdoption, source)
-    if (residents.kind !== 'entries') return residents
-    out.push(...residents.entries)
-    if (
-      digestOf(command.input.candidate) !== digestOf(snapshot.run.adoption) ||
-      command.input.residentAdoption !== undefined
+    const adopted = adoptionEntries(
+      snapshot,
+      command.input.residentAdoption,
+      command.input.candidate,
+      snapshot.run.adoption,
+      source,
     )
-      out.push(
-        encodeEntry(
-          {
-            kind: 'session.adoption',
-            adopted: command.input.candidate,
-            ...(command.input.residentAdoption === undefined
-              ? {}
-              : { residentKeys: command.input.residentAdoption.keys }),
-          },
-          sessionOrigin(source),
-        ),
-      )
+    if (adopted.kind !== 'entries') return adopted
+    out.push(...adopted.entries)
   }
   if (snapshot.run.advance !== null)
     out.push(

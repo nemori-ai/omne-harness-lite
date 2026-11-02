@@ -290,6 +290,111 @@ function receiptOf(
   return { operation, revision, first: first.id, last: last.id, recovered: false, source }
 }
 
+/** The saved receipt of one event channel record, answered again as a recall. */
+function recalled(record: NonNullable<ReturnType<Store['operations']['get']>>): SessionLogReceipt {
+  return { ...(record.recall(record.record.receipt) as SessionLogReceipt), recovered: true }
+}
+
+/**
+ * The recall by operation identity (LC-03, LC-04): null when the identity is new. A recorded
+ * identity of another form, or of another observation, is a conflict, and an answer-only control
+ * identity is a conflict too.
+ */
+function recallLogOperation(
+  store: Store,
+  observation: SessionLogCommitObservation,
+): Outcome<SessionLogReceipt, SessionFailure> | null {
+  const { operation } = observation
+  if (store.answers.has(operation)) return fail({ kind: 'conflict', operation })
+  const held = store.operations.get(operation)
+  if (held === undefined) return null
+  return held.log !== undefined && held.record.digest === digestSessionLog(observation)
+    ? succeed(recalled(held))
+    : fail({ kind: 'conflict', operation })
+}
+
+/**
+ * The projection wrote no row (LC-06, LC-07). An event at or below the saved progress recalls the
+ * original commit that covers it, and a store without that commit is `unavailable`. Any other event
+ * has no Session consequence and is not committed.
+ */
+function interpretedWithoutRows(
+  store: Store,
+  prepared: WorkSnapshot,
+  observation: SessionLogCommitObservation,
+): Outcome<SessionLogReceipt, SessionFailure> {
+  const reached = executionReadThrough(prepared, observation.run, observation.execution)
+  if (
+    observation.sequence === null ||
+    reached === null ||
+    BigInt(observation.sequence) > BigInt(reached)
+  )
+    return fail({
+      kind: 'invalid',
+      field: 'consequences',
+      reason: 'an observation without a Session consequence is not committed',
+    })
+  const sequence = BigInt(observation.sequence)
+  const covering = [...store.operations.values()]
+    .filter(
+      item =>
+        item.log?.execution === observation.execution && BigInt(item.log.readThrough) >= sequence,
+    )
+    .sort((left, right) =>
+      Number(BigInt(left.log?.readThrough ?? '0') - BigInt(right.log?.readThrough ?? '0')),
+    )[0]
+  return covering === undefined
+    ? fail(unavailable('the interpretation commit of that sequence is not held'))
+    : succeed(recalled(covering))
+}
+
+/** The execution progress row that the batch wrote for the Run of the observation. */
+function progressRowOf(
+  entries: readonly HistoryEntry[],
+  observation: SessionLogCommitObservation,
+): HistoryEntry | undefined {
+  return entries.findLast(row => {
+    const decoded = decodeEntry(row)
+    return (
+      'ok' in decoded &&
+      decoded.ok.kind === 'history.annotated' &&
+      'execution' in decoded.ok &&
+      decoded.ok.run === observation.run
+    )
+  })
+}
+
+/** The store after one event channel commit: rows, snapshot, operation record and model view in one value. */
+function publishedLog(
+  store: Store,
+  snapshot: WorkSnapshot,
+  entries: readonly HistoryEntry[],
+  observation: SessionLogCommitObservation,
+  answer: SessionLogReceipt,
+): Store {
+  const { operation } = observation
+  const revision = entries[0]?.revision as SessionRevision
+  const operations = new Map(store.operations)
+  operations.set(operation, {
+    record: {
+      operation,
+      digest: digestSessionLog(observation),
+      receipt: receiptOf(observation.session, operation, revision, entries),
+    },
+    recall: () => answer,
+    decision: null,
+    log: { execution: observation.execution, readThrough: answer.readThrough },
+  })
+  const committedEntries = [...store.entries, ...entries]
+  return {
+    ...store,
+    snapshot,
+    entries: committedEntries,
+    operations,
+    modelView: materializeModelView(store.modelView, entries, committedEntries),
+  }
+}
+
 /** The result of a commit for each mutation kind, built from the snapshot after the batch. */
 /** A control that left no progress item is not reachable, but it answers `null` (unavailable), never throws. */
 function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | null {
@@ -868,49 +973,13 @@ export function createMemorySessionTransactionPair<P>(
       if ('failure' in key) return key
       const store = stores.get(key.ok)
       if (store === undefined) return fail(denied('commitLog'))
-      const { operation } = observation
-      if (store.answers.has(operation)) return fail({ kind: 'conflict', operation })
-      const digest = digestSessionLog(observation)
-      const held = store.operations.get(operation)
-      if (held !== undefined)
-        return held.log !== undefined && held.record.digest === digest
-          ? succeed({ ...(held.recall(held.record.receipt) as SessionLogReceipt), recovered: true })
-          : fail({ kind: 'conflict', operation })
+      const held = recallLogOperation(store, observation)
+      if (held !== null) return held
       const { material, prepared, decision } = projectFor(store, observation)
       if (decision.kind === 'rejected') return fail(decision.failure)
       if (decision.kind !== 'entries')
         return fail(unavailable('a log projection that is not a batch of entries'))
-      if (decision.entries.length === 0) {
-        // Nothing to write: either the event is already interpreted, or it has no consequence.
-        const reached = executionReadThrough(prepared, observation.run, observation.execution)
-        if (
-          observation.sequence !== null &&
-          reached !== null &&
-          BigInt(observation.sequence) <= BigInt(reached)
-        ) {
-          const sequence = BigInt(observation.sequence)
-          const original = [...store.operations.values()]
-            .filter(
-              item =>
-                item.log?.execution === observation.execution &&
-                BigInt(item.log.readThrough) >= sequence,
-            )
-            .sort((left, right) =>
-              Number(BigInt(left.log?.readThrough ?? '0') - BigInt(right.log?.readThrough ?? '0')),
-            )[0]
-          if (original === undefined)
-            return fail(unavailable('the interpretation commit of that sequence is not held'))
-          return succeed({
-            ...(original.recall(original.record.receipt) as SessionLogReceipt),
-            recovered: true,
-          })
-        }
-        return fail({
-          kind: 'invalid',
-          field: 'consequences',
-          reason: 'an observation without a Session consequence is not committed',
-        })
-      }
+      if (decision.entries.length === 0) return interpretedWithoutRows(store, prepared, observation)
       const revision = String(BigInt(store.snapshot.revision) + 1n) as SessionRevision
       const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
         ...entry,
@@ -920,15 +989,7 @@ export function createMemorySessionTransactionPair<P>(
       const reduced = reduce(prepared, { revision, entries }, material?.reads)
       if (reduced.kind === 'quarantined')
         return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
-      const progress = entries.findLast(row => {
-        const decoded = decodeEntry(row)
-        return (
-          'ok' in decoded &&
-          decoded.ok.kind === 'history.annotated' &&
-          'execution' in decoded.ok &&
-          decoded.ok.run === observation.run
-        )
-      })
+      const progress = progressRowOf(entries, observation)
       const readThrough = executionReadThrough(
         reduced.snapshot,
         observation.run,
@@ -942,31 +1003,13 @@ export function createMemorySessionTransactionPair<P>(
       if (current !== store)
         return fail({ kind: 'changed', revision: (current ?? store).snapshot.revision })
       const answer: SessionLogReceipt = {
-        operation,
+        operation: observation.operation,
         execution: observation.execution,
         readThrough,
         interpreted: entryEvidence(progress),
         recovered: false,
       }
-      const operations = new Map(store.operations)
-      operations.set(operation, {
-        record: {
-          operation,
-          digest,
-          receipt: receiptOf(observation.session, operation, revision, entries),
-        },
-        recall: () => answer,
-        decision: null,
-        log: { execution: observation.execution, readThrough },
-      })
-      const committedEntries = [...store.entries, ...entries]
-      stores.set(key.ok, {
-        ...store,
-        snapshot: reduced.snapshot,
-        entries: committedEntries,
-        operations,
-        modelView: materializeModelView(store.modelView, entries, committedEntries),
-      })
+      stores.set(key.ok, publishedLog(store, reduced.snapshot, entries, observation, answer))
       return succeed(answer)
     }
 
@@ -1150,7 +1193,13 @@ export function createMemorySessionTransactionPair<P>(
         const store = await storeOf(input, 'queryOperation')
         if ('failure' in store) return store
         const held = store.ok.operations.get(input.operation)
-        if (held?.form === 'control' || store.ok.answers.has(input.operation))
+        // A control record and an event channel record are not batch records: the identity belongs
+        // to the other form, so this query answers conflict, as for a control record.
+        if (
+          held?.form === 'control' ||
+          held?.log !== undefined ||
+          store.ok.answers.has(input.operation)
+        )
           return fail({ kind: 'conflict', operation: input.operation })
         const resolution: OperationResolution =
           held === undefined

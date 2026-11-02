@@ -593,7 +593,7 @@ Session 命令：
 - 格式拒绝。`cancelRun` 的 `run` 为空、`urgency` 不是 `graceful` 或 `force`，`stopCall` 的 `producer.kind` 不是 `model` 或 `tool`、`producer.call` 为空，返回 `invalid`（带字段名）。格式拒绝不是已受理的业务答案：不写 `answers`，不写操作记录，不进 revision，同一身份之后可以用合法输入首次提交。
 - 同根查找。`runs` 与 `calls` 由提供者在提交事务内填写。缺项、重复项或 `covered` 不等于快照修订都是未知，返回 `unavailable`，不答 `not-found`。已结束目标答 `ended`；覆盖到快照的缺席答 `not-found`；这两种答案只保存操作答案，不增加条目与修订。活跃目标写条目并答 `requested`，不表示物理停止。
 - 失败集合封闭。`cancelRun` 只返回 `denied`、`invalid`、`conflict`、`commit-unknown`、`unavailable`、`quarantined`；`stopCall` 另有 `unsupported`。集合之外的拒绝是未知状态，折成 `unavailable`。
-- SL07 冲突域。冲突域是（租户、Session、`SessionOperationId`），一个身份只属于一个操作，无论 batch、control 还是 `commitEntries` 的 entries 形式。entries 记录带普通提交回执，两个查询口按 batch 记录处理它（[entries 通道的解释提交](docs/same-log-pure.md#entries-通道的解释提交)）。相同身份不同操作（含跨形式）返回 `conflict`，不执行业务，不返回原操作的种类、目标或答案。`cancelRun` 与 `stopCall` 共用冲突域，不是两张各自排重的表。
+- SL07 冲突域。冲突域是（租户、Session、`SessionOperationId`），一个身份只属于一个操作，无论 batch、control 还是 `commitEntries` 的 entries 形式。entries 记录带普通提交回执，两个查询口按 batch 记录处理它（[entries 通道的解释提交](docs/same-log-pure.md#entries-通道的解释提交)）。事件通道的 `commitLog` 记录既不是批次也不是控制回执，两个查询口对它的标识都答 `conflict`，结果不明时用同一标识重发 `commitLog` 认回（[事件通道的解释提交](docs/same-log-pure.md#事件通道的解释提交)）。相同身份不同操作（含跨形式）返回 `conflict`，不执行业务，不返回原操作的种类、目标或答案。`cancelRun` 与 `stopCall` 共用冲突域，不是两张各自排重的表。
 - `queryOperation` 的 conflict。对 control 记录的身份，`queryOperation` 返回 `conflict`（不是 `not-committed` 也不是 `unknown`）；`queryControlOperation` 对 batch 记录的身份同样返回 `conflict`。无记录时两者走同一未知分支。
 - `queryControlOperation`。返回原 `SessionControlReceipt`（`committed`）或 `unknown`；只答 control 记录，不借此读取原输入。原答案与最新状态分开：重放得原答案，不因目标后来结束而改写。
 - `readModelSelection`。返回保存的选择、一致读取的修订与保存该选择的原提交来源。尚无选择返回 `not-ready`，不使用默认值补值；数据不可读返回 `unavailable`，不返回 `not-ready`。

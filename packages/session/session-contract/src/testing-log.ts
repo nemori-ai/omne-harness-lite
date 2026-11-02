@@ -133,10 +133,8 @@ async function state<P>(fixture: SessionLogFixture<P>, operation: SessionOperati
     revision: snapshot.revision,
     readThrough: snapshot.run.kind === 'active' ? snapshot.run.execution.readThrough : null,
     entries: (await allEntries(fixture.port.history, fixture.access)).map(entry => entry.id),
-    query: succeeded(
-      await fixture.port.queryOperation({ ...fixture.access, operation }),
-      'queryOperation',
-    ),
+    // Raw: a committed log operation answers conflict here, which is also state.
+    query: await fixture.port.queryOperation({ ...fixture.access, operation }),
   }
 }
 
@@ -179,8 +177,16 @@ export function sessionLogConformance<P>(): readonly ConformanceCase<SessionLogF
         const kinds = (await allEntries(fixture.port.history, fixture.access)).map(row => row.kind)
         assert.ok(kinds.includes('call.bound'), 'the consequence row is committed')
         assert.ok(kinds.includes('history.annotated'), 'the progress row is committed')
-        const query = expectKind(after.query, 'committed', 'queryOperation after the commit')
-        assert.equal(query.receipt.operation, operation)
+        // The record of a log commit is neither a batch nor a control record: both queries answer
+        // conflict. A caller of unknown outcome retries `commitLog` with the same operation.
+        assert.deepEqual(refused(after.query, 'queryOperation'), { kind: 'conflict', operation })
+        assert.deepEqual(
+          refused(
+            await fixture.port.queryControlOperation({ ...fixture.access, operation }),
+            'queryControlOperation',
+          ),
+          { kind: 'conflict', operation },
+        )
       },
     ),
 
@@ -242,7 +248,11 @@ export function sessionLogConformance<P>(): readonly ConformanceCase<SessionLogF
           'the original receipt, not a new one',
         )
         assert.deepEqual(await state(fixture, retry), before, 'nothing was added')
-        assert.deepEqual(before.query, { kind: 'unknown' }, 'the retry identity saved no record')
+        assert.deepEqual(
+          before.query,
+          { ok: { kind: 'unknown' } },
+          'the retry identity saved no record',
+        )
       },
     ),
 

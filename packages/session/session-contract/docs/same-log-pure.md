@@ -176,7 +176,7 @@ session-storage-sql 在 `session` 参加者的一次写事务里完成同样的�
 
 ### 调用者义务
 
-1. 同一个事件用同一个操作标识重试。`commit-unknown` 之后，先用 `queryOperation` 认回，再用同一观察重发。
+1. 同一个事件用同一个操作标识重试。事件通道的记录既不是批次回执，也不是控制回执：`queryOperation` 与 `queryControlOperation` 对它的操作标识都答 `conflict`。结果不明时（例如 `commit-unknown`），用同一个操作标识与同一观察重发 `commitLog` 来认回，不靠这两个查询口。
 2. 收到 `changed` 时重读会话，再用同一观察重试。重试不会重复提交：事件已被另一次提交解释时按 LC-06 认回。
 3. 同一个操作标识只用于同一个观察。
 
