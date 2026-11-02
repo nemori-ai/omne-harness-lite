@@ -260,7 +260,8 @@ async function secondSession(s: SqlScene, name: string) {
   const initial: AcceptedInput = {
     id: ok(decodeInputId(admitted.input)),
     content: admitted.message,
-    source: admitted.origin,
+    // AD-14: the source basis of the initial input is the receipt of SE13 (PA-01 item 1).
+    source: started.receipt.source,
     priority: 'ordinary',
   }
   return {
@@ -599,7 +600,7 @@ const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<strin
       ...(options.cancellationPolicy === 'absent' ? { installation: null } : {}),
       acceptInput: async label => {
         const value = ordinaryInput(`input-${label}`)
-        ok(
+        const accepted = ok(
           await s.port.commit({
             access: s.sessionAccess,
             command: {
@@ -616,7 +617,8 @@ const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<strin
         )
         return {
           id: ok(decodeInputId(`input-${label}`)),
-          source: value.origin,
+          // AD-14: the source basis of a submitted input is the receipt of its SE11 (PA-01 item 2).
+          source: (accepted as { source: DurableEvidence }).source,
           content: value.message,
           priority: 'ordinary' as const,
         }

@@ -20,7 +20,7 @@ import { toolCall } from './fixtures/tool-call.ts'
 
 async function accept(s: SqlScene, label: string) {
   const value = ordinaryInput(`input-${label}`)
-  ok(
+  const accepted = ok(
     await s.port.commit({
       access: s.sessionAccess,
       command: {
@@ -37,7 +37,8 @@ async function accept(s: SqlScene, label: string) {
   )
   return {
     id: ok(decodeInputId(`input-${label}`)),
-    source: value.origin,
+    // AD-14: the source basis of a submitted input is the receipt of its SE11 (PA-01 item 2).
+    source: (accepted as { source: DurableEvidence }).source,
     content: value.message,
     priority: 'ordinary' as const,
   }
