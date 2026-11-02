@@ -47,7 +47,7 @@ head 的实际表集由 [src/worker/schema.ts](../src/worker/schema.ts) 定义�
 
 ### 执行记录参加者的表
 
-`execution-record` 参加者的表由 [src/worker/execution-record-schema.ts](../src/worker/execution-record-schema.ts) 定义，迁移是 `execution-record/001-execution-record`。七张表都是 `STRICT` 表，主键都以 `tenant` 开头。`state`、`answer`、`batch` 是提供者编码的不透明 JSON，本成员不解码。行为见 [SPEC 的 `execution-record` 参加者](../SPEC.md#参加者模块与材料)。
+`execution-record` 参加者的表由 [src/worker/execution-record-schema.ts](../src/worker/execution-record-schema.ts) 定义，迁移是 `execution-record/001-execution-record`；原受理的 attempt 在 `er_admission_attempt_idx`，由 `execution-record/003-admission-attempt` 建表。八张表都是 `STRICT` 表，主键都以 `tenant` 开头。`state`、`answer`、`batch` 是提供者编码的不透明 JSON，本成员不解码。行为见 [SPEC 的 `execution-record` 参加者](../SPEC.md#参加者模块与材料)。
 
 | 表                 | 列                                                                                                       | 主键                                | 说明                                                                                                                              |
 | ------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -58,8 +58,9 @@ head 的实际表集由 [src/worker/schema.ts](../src/worker/schema.ts) 定义�
 | `er_fact_idx`      | `tenant`、`execution`、`sequence`、`session`、`source`、`kinds`                                          | `(tenant, execution, sequence)`     | 事实边界：事件序号、原来源与 Session 后果种类                                                                                     |
 | `er_batch_idx`     | `tenant`、`execution`、`sequence`、`session`、`source`、`batch`                                          | `(tenant, execution, sequence)`     | input-taken 事件的完整批次                                                                                                        |
 | `er_admission_idx` | `tenant`、`session`、`input`、`ordinal`、`execution`、`operation`、`accepted`、`grant_ref`、`attachment` | `(tenant, session, input, ordinal)` | 原受理目录：一个输入的全部原受理，按受理顺序                                                                                      |
+| `er_admission_attempt_idx` | `tenant`、`session`、`input`、`ordinal`、`attempt` | `(tenant, session, input, ordinal)` | 原受理的 SE15 attempt，与 `er_admission_idx` 同键；写入方未写时没有行，旧行也没有 |
 
-`session` 参加者在 `readTables` 里声明 `er_root`、`er_execution`、`er_fact_idx`、`er_batch_idx` 与 `er_admission_idx`，不读 `er_state` 与 `er_operation`。
+`session` 参加者在 `readTables` 里声明 `er_root`、`er_execution`、`er_fact_idx`、`er_batch_idx`、`er_admission_idx` 与 `er_admission_attempt_idx`，不读 `er_state` 与 `er_operation`。
 
 ### 权威表（设计目标）
 

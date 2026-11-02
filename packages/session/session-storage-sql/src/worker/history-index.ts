@@ -116,6 +116,10 @@ function readable(cell: SqlCell | undefined): unknown {
   }
 }
 
+/** The text of a nullable column: null for an absent value (a legacy row) and for an empty one. */
+const optionalText = (cell: SqlCell | undefined): string | null =>
+  cell === null || cell === undefined || text(cell) === '' ? null : text(cell)
+
 /** A complete durable evidence: four non-empty texts. */
 function evidenceOf(value: unknown): DurableEvidence | null {
   if (typeof value !== 'object' || value === null) return null
@@ -364,7 +368,17 @@ function closeOver(context: Context, inputs: readonly string[]): Closure {
           WHERE tenant = ? AND session = ? AND input = ? ORDER BY ordinal LIMIT ?`,
         [scope.tenant, scope.session, input],
       )
-      closure.admissions.set(input, rows)
+      const named = new Map(
+        read(
+          `SELECT ordinal, attempt FROM er_admission_attempt_idx
+            WHERE tenant = ? AND session = ? AND input = ? ORDER BY ordinal LIMIT ?`,
+          [scope.tenant, scope.session, input],
+        ).map(row => [text(row['ordinal']), text(row['attempt'])] as const),
+      )
+      closure.admissions.set(
+        input,
+        rows.map(row => ({ ...row, attempt: named.get(text(row['ordinal'])) ?? null })),
+      )
       pendingExecutions.push(...rows.map(row => text(row['execution'])))
     }
     const execution = pendingExecutions.shift()
@@ -380,15 +394,19 @@ function closeOver(context: Context, inputs: readonly string[]): Closure {
 }
 
 /**
- * The attempt of one admission: the SE15 whose receipt is the grant, else the only SE15 of the Run.
- * Attempts are never removed, so a Run with one SE15 had that one when the admission was granted.
+ * The attempt of one admission: the SE15 the row names (`attempt`), else the SE15 whose receipt is
+ * the grant, else the only SE15 of the Run. A row that names an attempt is never matched any other
+ * way: when that SE15 is not of the Run the admission is not provable. Attempts are never removed,
+ * so a Run with one SE15 had that one when the admission was granted.
  */
 function attemptOf(
   attempts: readonly SessionAttemptRecord[],
   run: RunId,
   grant: DurableEvidence | null,
+  recorded: string | null,
 ): SessionAttemptRecord | null {
   const ofRun = attempts.filter(item => item.run === run)
+  if (recorded !== null) return ofRun.find(item => item.attempt === recorded) ?? null
   const named =
     grant === null
       ? undefined
@@ -409,7 +427,7 @@ function admissionsOf(
     if (start === undefined) return null
     const accepted = evidenceOf(readable(row['accepted']))
     const grant = evidenceOf(readable(row['grant_ref']))
-    const attempt = attemptOf(attempts, start.run, grant)
+    const attempt = attemptOf(attempts, start.run, grant, optionalText(row['attempt']))
     if (attempt === null || accepted === null || grant === null) return null
     records.push({
       ordinal: text(row['ordinal']),

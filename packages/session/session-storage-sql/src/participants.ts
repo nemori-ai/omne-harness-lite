@@ -222,6 +222,11 @@ export type ExecutionAdmissionRecord = Readonly<{
   accepted: DurableEvidence
   grant: DurableEvidence
   attachment: string
+  /**
+   * The SE15 attempt the acceptance was granted under. Without it a Run with more than one SE15
+   * cannot prove the original attempt of this row (`grant` is the Agent's receipt, not an SE15).
+   */
+  attempt?: string
 }>
 
 /**
