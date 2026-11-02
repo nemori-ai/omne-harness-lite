@@ -1,6 +1,6 @@
 # Agent 通用实现的构造入口
 
-根入口导出下列类型、`createAgentRuntime`、通用评估器 `agentEvaluator`（契约 `AgentEvaluator` 的实现，装配经 `AgentAdoptions` 为绑定的定义采用它）与它写入的 checkpoint 的 schema 采用 `agentCheckpointSchema`。根入口还导出独立 Model 接收工厂、宿主持有状态和完整材料读取器，说明见下文。`createAgentRuntime` 的协调者要求所采用的评估器以本包的节点集合（Loop 算法页节点表的节点 ID）为 `position` 词汇，并返回本包转移表能承接的 `Next`。经 `AgentAdoptions` 交来的其他评估器只与契约形状兼容，不与本协调者的语义兼容：它的位置与决定没有转移行时，执行以缺陷停止。工厂已实现创建校验与四个面的访问守卫，`invoke` 走 Loop 正常路径的骨架，其他操作本体尚未实现，实际支持范围与未实现的校验见[成员 README](../README_ZH.md#支持范围)。下列行为是设计中的工厂行为，操作和行为由 [纯契约](../../agent-contract/README.md) 拥有。测试装配在 `./testing` 入口，见[成员 README](../README_ZH.md#支持范围)。本包不接收 Cordis Context，不导入任何外部协调者的类型。
+根入口导出下列类型、`createAgentRuntime`、通用评估器 `agentEvaluator`（契约 `AgentEvaluator` 的实现，装配经 `AgentAdoptions` 为绑定的定义采用它）与它写入的 checkpoint 的 schema 采用 `agentCheckpointSchema`。根入口还导出独立 Model 接收工厂、宿主持有状态、完整材料读取器与控制推进 `advanceControl`，说明见下文。`createAgentRuntime` 的协调者要求所采用的评估器以本包的节点集合（Loop 算法页节点表的节点 ID）为 `position` 词汇，并返回本包转移表能承接的 `Next`。经 `AgentAdoptions` 交来的其他评估器只与契约形状兼容，不与本协调者的语义兼容：它的位置与决定没有转移行时，执行以缺陷停止。工厂已实现创建校验与四个面的访问守卫，`invoke` 走 Loop 正常路径的骨架，其他操作本体尚未实现，实际支持范围与未实现的校验见[成员 README](../README_ZH.md#支持范围)。下列行为是设计中的工厂行为，操作和行为由 [纯契约](../../agent-contract/README.md) 拥有。测试装配在 `./testing` 入口，见[成员 README](../README_ZH.md#支持范围)。本包不接收 Cordis Context，不导入任何外部协调者的类型。
 
 ## 参数与依赖
 
@@ -181,6 +181,12 @@ quiesce 的形状与行为都不在本页：形状见契约包的 AgentRuntimeCo
 2. invoke 与 resume 取本地执行槽的同一个同步动作里，经登记句柄 `report` 为 `occupied`。没有登记句柄的实例（`registration` 为 null）不报告，也不由宿主回收。
 
 JavaScript 单线程下，任一 invoke 要么先于宿主的到期回调取得执行槽，宿主读到 `occupied` 而放弃回收，要么晚于回调到达，此时 runtime 已 draining。两条义务是工厂的行为，由 AG-01 对工厂真件验证。
+
+## 控制推进
+
+`advanceControl(ports, access, execution, operation)` 按 Journal 已保存的控制记录推进一项已受理的控制，与执行句柄 `control` 受理之后的推进是同一个函数。ports 是 `AgentDependencies` 的 journal、models、tools 与 materials。取消建立意图并撤销推进资格；Model 或 Tool 中断只作用于原调用。每一步都在由该控制派生的 operation 下保存，所以同一 control operation 的重试认回已保存的步骤，不重复写。失败原样返回，调用方以同一 control operation 重试。Journal 里没有该控制时返回成功且不写。
+
+本函数不核验主体，也不受理控制。调用方须先以操作名 control 核验主体，并经 `AgentJournal.control` 取得受理，再调用它。宿主的长期控制入口在执行由本宿主仍在运行的 runtime 持有时，用该 runtime 的依赖调用它，见 [agent-host-local SPEC](../../agent-host-local/SPEC.md#宿主插件)。
 
 ## 独立 Model 接收入口
 

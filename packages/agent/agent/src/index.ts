@@ -1,5 +1,6 @@
 export { createAgentRuntime } from './runtime.ts'
 export { agentCheckpointSchema, agentEvaluator } from './loop/evaluator.ts'
+export { advanceControl } from './control.ts'
 export type {
   AgentConfiguration,
   AgentDependencies,
