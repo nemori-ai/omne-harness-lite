@@ -211,7 +211,7 @@ it('SC-02 原 Run 的执行记录不是恰好一个时不发送', async () => {
 })
 
 it('SC-06 离开传播的控制不再重放，且不留重放记录', async () => {
-  const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 2 } } })
+  const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 5 } } })
   open.push(f.h)
   let settled = false
   const read = f.h.backend.transactions.readWork.bind(f.h.backend.transactions)
@@ -228,16 +228,18 @@ it('SC-06 离开传播的控制不再重放，且不留重放记录', async () =
       })),
     })
   })
-  f.control.mockResolvedValue(fail({ kind: 'busy' }))
+  f.control.mockResolvedValue(fail({ kind: 'commit-unknown', operation: 'ignored-port-operation' }))
+  f.query.mockResolvedValue(succeed('unknown'))
   await f.cancel()
-  await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
+  await vi.waitFor(() => expect(f.query).toHaveBeenCalledTimes(1))
   settled = true
   f.h.clock.controls.advance(100)
   await turn()
   await turn()
-  // A running replay that finds the control settled stops without another send.
+  // A running replay that finds the control settled stops without asking or sending again.
   expect(f.control).toHaveBeenCalledTimes(1)
-  // The record is gone: a control seen propagating again starts from a fresh budget.
+  expect(f.query).toHaveBeenCalledTimes(1)
+  // Its record is gone: seen propagating again, the control starts over with a send, not a query.
   settled = false
   await f.notice()
   await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(2))
