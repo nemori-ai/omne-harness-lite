@@ -91,19 +91,20 @@ export async function controlFixture(options: Partial<HarnessOptions> = {}) {
     resume,
     original,
     project,
-    calls: async () => {
+    calls: async (kind: 'model' | 'tool' = 'model') => {
       if (original.advance === null) throw new Error('missing attempt')
+      const purpose = kind === 'tool' ? ('action' as const) : ('main' as const)
       const bindings = ['model-1', 'model-2'].map(call => ({
-        producer: { kind: 'model' as const, call },
+        producer: { kind, call },
         action: call,
-        consumer: { owner: 'agent', work: original.run, position: call, purpose: 'main' },
+        consumer: { owner: 'agent', work: original.run, position: call, purpose },
         request: evidence(`request/${call}`),
         initiatingAttempt: original.advance?.attempt ?? null,
       }))
       const consequences: SessionLogConsequence[] = bindings.map(binding => ({
         kind: 'call-registration',
         consumption: binding.producer.call as ConsumptionId,
-        registration: { kind: 'associated', binding, purpose: 'main' },
+        registration: { kind: 'associated', binding, purpose },
       }))
       const waiting = 'unassociated-tool' as ConsumptionId
       consequences.push({

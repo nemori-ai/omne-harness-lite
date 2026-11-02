@@ -99,17 +99,23 @@ export function createControlPropagation<P>(
       execution,
       operation: deriveDriveOperation({ kind: 'control', execution, control: progress.operation }),
     }
-    try {
-      if (replay.phase === 'query') {
-        const answer = await port.query(target)
-        if ('failure' in answer || answer.ok === 'unknown') return 'wait'
-        if (answer.ok === 'committed') {
-          replay.phase = 'stopped'
-          return 'stop'
-        }
-        replay.phase = 'send'
-        return 'again'
+    // One round is one outbound step: a send, or a query of the earlier send. A send that ended
+    // unknown is queried in the same round, so the smallest budget still asks before giving up.
+    const asked = async (): Promise<'wait' | 'again' | 'stop'> => {
+      const answer = await port.query(target)
+      if ('failure' in answer || answer.ok === 'unknown') {
+        replay.phase = 'query'
+        return 'wait'
       }
+      if (answer.ok === 'committed') {
+        replay.phase = 'stopped'
+        return 'stop'
+      }
+      replay.phase = 'send'
+      return 'again'
+    }
+    try {
+      if (replay.phase === 'query') return await asked()
       const answer = await port.control({
         ...target,
         control: progress.operation,
@@ -118,7 +124,7 @@ export function createControlPropagation<P>(
       if ('ok' in answer) return 'wait'
       if (answer.failure.kind === 'commit-unknown') {
         replay.phase = 'query'
-        return 'again'
+        return lifecycle.closed ? 'stop' : await asked()
       }
       if (answer.failure.kind === 'busy' || answer.failure.kind === 'unavailable') return 'wait'
       replay.phase = 'stopped'

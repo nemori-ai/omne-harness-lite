@@ -91,6 +91,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     'replaced',
     'read-failed',
     'principal-denied',
+    'archived',
     'closed',
   ] as const)
     it(`SC-01 ${withdrawal} 后原 invoke 不再发送`, async () => {
@@ -133,11 +134,46 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
         )
       } else if (withdrawal === 'principal-denied') {
         h.bindings.controls.answerNext({ ok: { kind: 'not-bound' } })
+      } else if (withdrawal === 'archived') {
+        succeeded(
+          await h.faces('intake').work.control({
+            ...h.access(),
+            operation: operationId('archive'),
+            intent: { kind: 'archive' },
+          }),
+          'archive',
+        )
       } else await h.instance.close()
       h.clock.controls.advance(1000)
       await turn()
       expect(invoke.mock.calls.filter(([input]) => input.execution === execution)).toHaveLength(1)
     })
+
+  it('SC-01 重新读取期间实例关闭则不发送', async () => {
+    const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
+    await h.create()
+    const invoke = vi.fn<AgentDrivePort['invoke']>(async () => fail({ kind: 'busy' }))
+    h.drive.invoke = invoke
+    await h.accept('input-1')
+    await vi.waitFor(() => expect(invoke).toHaveBeenCalledTimes(1))
+    await turn()
+    const original = h.backend.transactions.readWork.bind(h.backend.transactions)
+    let reading: (() => void) | undefined
+    let started = false
+    interceptReads(h, async input => {
+      started = true
+      await new Promise<void>(resolve => {
+        reading = resolve
+      })
+      return original(input)
+    })
+    h.clock.controls.advance(1000)
+    await vi.waitFor(() => expect(started).toBe(true))
+    const closing = h.instance.close()
+    reading?.()
+    await closing
+    expect(invoke).toHaveBeenCalledTimes(1)
+  })
 
   it('SC-01 commit-unknown 查询后立即重试仍重新核资格', async () => {
     const h = await service()

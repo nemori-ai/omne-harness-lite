@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { tenantEquals } from '@omne-harness/legal-identity'
-import { deriveDriveOperation } from '@omne-harness/session-contract'
+import { deriveDriveOperation, type ConsumptionId } from '@omne-harness/session-contract'
 import {
   creation,
   evidence,
@@ -136,16 +136,84 @@ for (const missing of ['attempt', 'history', 'ambiguous'] as const)
     expect((await readControlWork(f.h)).controls[0]?.state).toBe('propagating')
   })
 
+it('SC-03 background-tool 只以原 producer 的执行与意图发送', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  const [binding] = await f.calls('tool')
+  if (binding === undefined || binding.producer.kind !== 'tool') throw new Error('no tool binding')
+  succeeded(
+    await f.h.faces('intake').work.control({
+      ...f.h.access(),
+      operation: operationId('background'),
+      intent: { kind: 'background-tool', producer: binding.producer },
+    }),
+    'background-tool',
+  )
+  await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
+  expect(f.control.mock.calls[0]?.[0]).toMatchObject({
+    execution: f.original.execution.execution,
+    control: operationId('background'),
+    intent: { kind: 'background-tool', producer: binding.producer },
+  })
+})
+
+it('SC-03 后继 Run 开始后旧调用控制仍只指向原执行', async () => {
+  const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 3 } } })
+  open.push(f.h)
+  const [binding] = await f.calls()
+  if (binding === undefined) throw new Error('no binding')
+  succeeded(
+    await f.h.faces('intake').work.stopCall({
+      ...f.h.access(),
+      operation: operationId('stop'),
+      producer: binding.producer,
+    }),
+    'stopCall',
+  )
+  await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
+  await f.cancel()
+  await f.h.accept('input-2')
+  await vi.waitFor(async () => {
+    const snapshot = await readControlWork(f.h)
+    if (snapshot.run.kind !== 'active' || snapshot.run.run === f.original.run)
+      throw new Error('waiting for successor Run')
+  })
+  f.h.clock.controls.advance(100)
+  await vi.waitFor(() => expect(f.control.mock.calls.length).toBeGreaterThanOrEqual(4))
+  const stops = f.control.mock.calls.filter(([input]) => input.intent.kind === 'stop-call')
+  expect(stops.length).toBeGreaterThanOrEqual(2)
+  expect(
+    f.control.mock.calls.every(([input]) => input.execution === f.original.execution.execution),
+  ).toBe(true)
+})
+
 it('SC-04 受理不结清责任', async () => {
   const f = await controlFixture({ drive: false })
   open.push(f.h)
   await f.calls()
+  succeeded(
+    await f.h.faces('coordinator').work.preserveResult({
+      ...f.h.access(),
+      operation: operationId('preserve'),
+      participation: null,
+      consumption: 'model-1' as ConsumptionId,
+      result: {
+        producer: { kind: 'model', call: 'model-1' },
+        version: '1',
+        delivery: null,
+        source: evidence('result/model-1'),
+      },
+      custody: evidence('custody/model-1'),
+    }),
+    'preserve result',
+  )
   f.h.setDrive(true)
   const invoked = f.invoke.mock.calls.length
   await f.cancel(false)
   const before = await readControlWork(f.h)
   await f.notice()
   await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
+  expect(before.consumptions.some(item => item.results.length > 0)).toBe(true)
   expect(await readControlWork(f.h)).toEqual(before)
   expect(before.controls[0]?.pending).toHaveLength(2)
   expect(before.controls[0]?.pendingUnassociatedWaiting).toHaveLength(1)
@@ -186,6 +254,24 @@ it('SC-05 未知先查询', async () => {
   expect((await readControlWork(f.h)).controls[0]?.state).toBe('propagating')
 })
 
+it('SC-05 最小预算下未知提交仍先查询原身份', async () => {
+  const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 1 } } })
+  open.push(f.h)
+  f.control.mockResolvedValue(fail({ kind: 'commit-unknown', operation: 'ignored-port-operation' }))
+  f.query.mockResolvedValue(succeed('committed'))
+  await f.cancel()
+  await vi.waitFor(() => expect(f.query).toHaveBeenCalledTimes(1))
+  expect(f.control).toHaveBeenCalledTimes(1)
+  expect(f.query.mock.calls[0]?.[0]).toMatchObject({
+    execution: f.original.execution.execution,
+    operation: f.control.mock.calls[0]?.[0].operation,
+  })
+  f.h.clock.controls.advance(1000)
+  await f.notice()
+  expect(f.control).toHaveBeenCalledTimes(1)
+  expect(f.query).toHaveBeenCalledTimes(1)
+})
+
 it('SC-06 重复通知不绕过间隔与上限，关闭停止发送', async () => {
   const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 2 } } })
   open.push(f.h)
@@ -223,6 +309,27 @@ it('SC-06 在途发送只保留一个任务', async () => {
   complete?.()
 })
 
+it('SC-06 关闭时在途发送完成后不再发送', async () => {
+  const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 5 } } })
+  open.push(f.h)
+  let complete: (() => void) | undefined
+  f.control.mockImplementation(
+    () =>
+      new Promise(resolve => {
+        complete = () => resolve(fail({ kind: 'busy' }))
+      }),
+  )
+  await f.cancel()
+  await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
+  const closing = f.h.instance.close()
+  complete?.()
+  await closing
+  f.h.clock.controls.advance(10000)
+  await turn()
+  expect(f.control).toHaveBeenCalledTimes(1)
+  expect((await readControlWork(f.h)).controls[0]?.state).toBe('propagating')
+})
+
 for (const kind of ['control.requested', 'control.progress'])
   it(`SC-07 外部 ${kind} 唤醒`, async () => {
     const f = await controlFixture()
@@ -233,6 +340,45 @@ for (const kind of ['control.requested', 'control.progress'])
     await f.notice(kind)
     await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
   })
+
+it('SC-07 未提交的取消不传播', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  f.h.view.onCommit(async () =>
+    fail({ kind: 'unavailable', owner: 'test-commit', diagnostic: 'refused' }),
+  )
+  await f.h.faces('intake').work.cancelRun({
+    ...f.h.access(),
+    operation: operationId('cancel'),
+    run: f.original.run,
+    urgency: 'graceful',
+  })
+  f.h.view.onCommit(null)
+  await turn()
+  expect(f.control).not.toHaveBeenCalled()
+  expect((await readControlWork(f.h)).controls).toEqual([])
+})
+
+it('SC-07 提交未知的取消不提前传播，由扫描找回', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  f.h.view.onCommit(async (input, next) => {
+    await next()
+    return fail({ kind: 'commit-unknown', operation: input.command.input.operation })
+  })
+  const answer = await f.h.faces('intake').work.cancelRun({
+    ...f.h.access(),
+    operation: operationId('cancel'),
+    run: f.original.run,
+    urgency: 'graceful',
+  })
+  expect('failure' in answer && answer.failure.kind).toBe('commit-unknown')
+  f.h.view.onCommit(null)
+  await turn()
+  expect(f.control).not.toHaveBeenCalled()
+  succeeded(await f.h.instance.maintain(TENANT_A), 'maintain')
+  await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
+})
 
 it('SC-07 启动找回已保存控制', async () => {
   const f = await controlFixture()
