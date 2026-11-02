@@ -1,0 +1,235 @@
+import {
+  judgeEvidence,
+  type Access,
+  type Adoption,
+  type Material,
+  type ReceivedEntry,
+} from '@omne-harness/agent-contract'
+import {
+  judgeContentBlock,
+  type ContentBlock,
+  type ContentReference,
+} from '@omne-harness/content-block'
+import { tenantCodec } from '@omne-harness/legal-identity'
+import {
+  decodeToolOperationId,
+  judgeToolDelivery,
+  type ToolDelivery,
+  type ToolTerminal,
+  type ToolResult,
+  type Effect,
+} from '@omne-harness/tool-contract'
+import {
+  decodeToolDeliveryId,
+  decodeToolInvocationRef,
+  decodeToolResultVersion,
+  decodeToolWaitId,
+  judgeConsumerRef,
+} from '@omne-harness/tool-contract/provider'
+import { canonical } from './canonical.ts'
+import { account } from './receiving-material.ts'
+import { json, jsonTree, object, plain } from './receiving-values.ts'
+
+export const agentToolDeliverySchema: Adoption = Object.freeze({
+  owner: 'agent',
+  name: 'received-tool-delivery',
+  revision: '1',
+  digest: 'agent:received-tool-delivery/1',
+})
+
+/** Tool identity distinguishes a missing field from a field whose value is undefined. */
+export function toolValueText(value: unknown): string {
+  if (value === undefined) return 'undefined'
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(toolValueText).join(',')}]`
+  return `{${Object.entries(value)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([key, child]) => `${JSON.stringify(key)}:${toolValueText(child)}`)
+    .join(',')}}`
+}
+
+function terminal(value: unknown): value is ToolTerminal {
+  if (!object(value)) return false
+  switch (value.kind) {
+    case 'completed':
+      return true
+    case 'failed':
+      return (
+        typeof value.diagnostic === 'string' &&
+        ['arguments', 'environment', 'executor', 'runtime-lost', 'result'].includes(
+          String(value.cause),
+        )
+      )
+    case 'unavailable':
+      return typeof value.reason === 'string'
+    case 'no-response':
+      return 'ok' in decodeToolWaitId(value.wait) && typeof value.reason === 'string'
+    case 'interrupted': {
+      const cause = value.cause
+      if (!object(cause)) return false
+      switch (cause.kind) {
+        case 'foreground-limit':
+          return true
+        case 'resume-rejected':
+          return 'ok' in judgeEvidence(cause.exclusion)
+        case 'control':
+          return (
+            'ok' in decodeToolOperationId(cause.operation) && typeof cause.withdrawn === 'boolean'
+          )
+        default:
+          return false
+      }
+    }
+    default:
+      return false
+  }
+}
+
+function effect(value: unknown): value is Effect {
+  if (!object(value)) return false
+  switch (value.kind) {
+    case 'not-started':
+      return true
+    case 'not-occurred':
+    case 'occurred':
+      return 'ok' in judgeEvidence(value.evidence)
+    case 'unknown':
+      return typeof value.diagnostic === 'string'
+    default:
+      return false
+  }
+}
+
+function reference(value: unknown): value is ContentReference {
+  return (
+    object(value) &&
+    ['storage', 'key', 'mediaType', 'digest'].every(
+      key => typeof value[key] === 'string' && value[key].length > 0,
+    ) &&
+    typeof value.bytes === 'string' &&
+    /^(0|[1-9]\d*)$/u.test(value.bytes)
+  )
+}
+
+function adoption(value: unknown): value is Adoption {
+  return (
+    object(value) &&
+    ['owner', 'name', 'revision', 'digest'].every(
+      key => typeof value[key] === 'string' && value[key].length > 0,
+    )
+  )
+}
+
+function result(value: unknown): value is ToolResult<ContentBlock> {
+  if (
+    !object(value) ||
+    !Array.isArray(value.content) ||
+    !value.content.every(block => 'ok' in judgeContentBlock(block)) ||
+    !Array.isArray(value.attachments) ||
+    !value.attachments.every(reference)
+  )
+    return false
+  const data = value.data,
+    original = value.original
+  if (!object(data) || !object(original)) return false
+  const schema = data.schema
+  const validData =
+    data.kind === 'none' ||
+    (data.kind === 'json' &&
+      adoption(data.contract) &&
+      object(schema) &&
+      ['id', 'revision', 'digest'].every(
+        key => typeof schema[key] === 'string' && schema[key].length > 0,
+      ) &&
+      jsonTree(data.value))
+  const validOriginal =
+    original.kind === 'none' ||
+    (original.kind === 'offloaded' &&
+      reference(original.source) &&
+      Array.isArray(original.summary) &&
+      original.summary.every(block => 'ok' in judgeContentBlock(block)))
+  return validData && validOriginal
+}
+
+function delivery(value: unknown): value is ToolDelivery<ContentBlock> {
+  if (
+    !object(value) ||
+    !object(value.key) ||
+    value.key.producer !== 'tool' ||
+    'failure' in decodeToolInvocationRef(value.key.reference) ||
+    'failure' in judgeConsumerRef(value.consumer)
+  )
+    return false
+  if (value.kind === 'account')
+    return (
+      value.key.kind === 'account' &&
+      typeof value.key.event === 'string' &&
+      value.key.event.length > 0 &&
+      typeof value.key.revision === 'string' &&
+      account(value.account)
+    )
+  return (
+    value.kind === 'result' &&
+    value.key.kind === 'result' &&
+    'ok' in decodeToolResultVersion(value.key.result) &&
+    'ok' in decodeToolDeliveryId(value.delivery) &&
+    (value.relation === 'original' || value.relation === 'late') &&
+    terminal(value.terminal) &&
+    (value.actualTerminal === null || terminal(value.actualTerminal)) &&
+    effect(value.effect) &&
+    'ok' in judgeEvidence(value.source) &&
+    result(value.value) &&
+    (value.account === null || account(value.account))
+  )
+}
+
+export function toolDeliveryMaterial<P>(
+  access: Access<P>,
+  value: ToolDelivery<ContentBlock>,
+): Material<ContentBlock> {
+  const tenant = tenantCodec.encode(access.tenant)
+  if (!tenant.ok) throw new TypeError('invalid tenant')
+  return {
+    kind: 'facts',
+    schema: agentToolDeliverySchema,
+    value: json({ tenant: tenant.value, delivery: value }),
+  }
+}
+
+export function toolReceivedDraft(
+  value: ToolDelivery<ContentBlock>,
+  consumption: ReceivedEntry['consumption'],
+): Omit<ReceivedEntry, 'material'> {
+  const common = { kind: 'received' as const, consumer: value.consumer, consumption }
+  return value.kind === 'result'
+    ? { ...common, delivery: { producer: 'tool', key: value.key, account: value.account } }
+    : { ...common, delivery: { producer: 'tool', key: value.key, account: value.account } }
+}
+
+/** Validates saved bytes independently of the live runtime or producer's retained copy. */
+export function readToolDeliveryMaterial<P>(
+  access: Access<P>,
+  material: Material<ContentBlock>,
+  expected: Omit<ReceivedEntry, 'material'>,
+): ToolDelivery<ContentBlock> | null {
+  try {
+    if (
+      material.kind !== 'facts' ||
+      canonical(material.schema) !== canonical(agentToolDeliverySchema)
+    )
+      return null
+    const value = plain(material.value)
+    if (!object(value) || !delivery(value.delivery)) return null
+    if ('failure' in judgeToolDelivery({ tenant: access.tenant, delivery: value.delivery }))
+      return null
+    const tenant = tenantCodec.encode(access.tenant)
+    if (!tenant.ok || value.tenant !== tenant.value) return null
+    const { kind, consumer, consumption, delivery: received } = expected
+    return canonical(toolReceivedDraft(value.delivery, consumption)) ===
+      canonical({ kind, consumer, consumption, delivery: received })
+      ? value.delivery
+      : null
+  } catch {
+    return null
+  }
+}

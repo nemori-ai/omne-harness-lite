@@ -319,8 +319,10 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
   const entries: AgentJournalEntries<P> = { record }
   const materialPort: AgentMaterials<P, B> = {
     async preserve(input) {
-      const execution = custody.get(canonicalText([tenantText(input.tenant), input.consumer]))
-      if (!execution) return fail(denied())
+      const boundExecution = custody.get(canonicalText([tenantText(input.tenant), input.consumer]))
+      const execution = input.execution ?? boundExecution
+      if (!execution || (boundExecution !== undefined && boundExecution !== execution))
+        return fail(denied())
       const permission = qualified({ ...input, execution })
       if ('failure' in permission) return permission
       const source = doubleEvidence(
@@ -330,7 +332,10 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       )
       const key = canonicalText(source)
       const prior = materials.get(key)
-      if (prior && canonicalText(prior.value) !== canonicalText(input.value))
+      if (
+        prior &&
+        (prior.execution !== execution || canonicalText(prior.value) !== canonicalText(input.value))
+      )
         return fail({ kind: 'invalid', field: 'identity', reason: 'material identity conflict' })
       materials.set(key, {
         tenant: tenantText(input.tenant),
