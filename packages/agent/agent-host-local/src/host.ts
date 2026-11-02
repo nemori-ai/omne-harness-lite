@@ -13,16 +13,19 @@
 //   an `await` in between. Only `drained` unloads the contribution fiber. Any other answer keeps the
 //   instance published, writes an error record and waits for the next idle time.
 // - The recovery and control entries check the principal and then call the Journal. They need no
-//   live runtime and keep the Journal's answer, unknown included.
+//   live runtime and keep the Journal's answer, unknown included. A control that the Journal
+//   accepted is advanced like the handle does it when a runtime this host still runs holds the
+//   active attachment of the execution; otherwise it stays accepted for the recovery path.
 // The runtime's own duties (quiesce drains, detaches and withdraws through the handle) belong to
 // the factory. The host never takes the end of a fiber for a detach or for a stopped execution.
 import { randomUUID } from 'node:crypto'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
-import type {
-  AgentConfiguration,
-  AgentDependencies,
-  AgentProvider,
-  AgentRuntimeOptions,
+import {
+  advanceControl,
+  type AgentConfiguration,
+  type AgentDependencies,
+  type AgentProvider,
+  type AgentRuntimeOptions,
 } from '@omne-harness/agent'
 import {
   decodeAgentInstanceId,
@@ -797,11 +800,43 @@ export function createHost(input: HostInput): Host {
   const onExecution = (execution: Parameters<AgentJournal<unknown>['load']>[0]['execution']) =>
     ({ kind: 'execution', execution }) as const
 
-  /** Whether the attachment belongs to a runtime that this host still runs. */
-  function liveRuntimeOf(tenant: TenantId, instance: AgentInstanceId): boolean {
+  /** The record of `instance` when this host still runs its runtime. */
+  function liveRuntimeOf(tenant: TenantId, instance: AgentInstanceId): InstanceRecord | undefined {
     const text = tenantTextOf(tenant)
     const entry = text === undefined ? undefined : records.get(keyOf(text, instance))
     return entry !== undefined && entry.provider !== null && entry.status !== 'retired'
+      ? entry
+      : undefined
+  }
+
+  /**
+   * Advances an accepted control as the execution handle does, when the active attachment of the
+   * execution belongs to a runtime that this host still runs: the advance uses the dependencies of
+   * that runtime. With no such runtime the accepted control stays as the Journal saved it, for the
+   * recovery path. A failure is returned; the caller retries with the same control operation, and
+   * the advance recognizes every step it already saved.
+   */
+  async function advanceHeld(
+    request: Parameters<AgentExecutionControl<unknown>['control']>[0],
+  ): Reply<void> {
+    const access: Access<unknown> = { principal: request.principal, tenant: request.tenant }
+    try {
+      const loaded = await statics.journal.load({ ...access, execution: request.execution })
+      if ('failure' in loaded) return loaded
+      const attachment = loaded.ok.executionAttachment
+      const entry =
+        attachment === null ? undefined : liveRuntimeOf(request.tenant, attachment.instance)
+      if (entry === undefined) return succeed(undefined)
+      return await advanceControl(
+        dependenciesOf(entry),
+        access,
+        request.execution,
+        request.operation,
+      )
+    } catch (error) {
+      record('error', `the control ${request.operation} could not be advanced: ${describe(error)}`)
+      return fail(unavailable(OWNER, `the control ${request.operation} could not be advanced`))
+    }
   }
 
   const recovery: AgentExecutionRecovery<unknown> = {
@@ -825,7 +860,7 @@ export function createHost(input: HostInput): Host {
     detach: request =>
       throughJournal(request, 'detach', onExecution(request.execution), async () => {
         // SPEC "恢复与接管": the active attachment of a runtime that still runs needs takeover too.
-        if (liveRuntimeOf(request.tenant, request.authority.instance)) {
+        if (liveRuntimeOf(request.tenant, request.authority.instance) !== undefined) {
           const refused = await qualify(request, 'takeover', onExecution(request.execution))
           if (refused !== undefined) return fail(refused)
         }
@@ -834,10 +869,17 @@ export function createHost(input: HostInput): Host {
   }
 
   const control: AgentExecutionControl<unknown> = {
-    control: request =>
-      throughJournal(request, 'control', onExecution(request.execution), () =>
-        statics.journal.control(request),
-      ),
+    async control(request) {
+      const accepted = await throughJournal(
+        request,
+        'control',
+        onExecution(request.execution),
+        () => statics.journal.control(request),
+      )
+      if ('failure' in accepted) return accepted
+      const advanced = await advanceHeld(request)
+      return 'failure' in advanced ? advanced : accepted
+    },
   }
 
   return {

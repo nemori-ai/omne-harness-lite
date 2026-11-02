@@ -19,6 +19,7 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 - 预约、发布与撤除。reserve 只预约实例身份并返回登记句柄，不登记目录，不授予推进资格。发布权威同步核验两件事：该操作是宿主为这个预约发起的 publish，调用 fiber 是该实例的贡献 fiber。撤除只接受目录为该实例分配的登记身份，调用 fiber 须是宿主自己的 fiber 或该实例的贡献 fiber。旧登记身份的撤除不撤除后继登记。
 - 空闲回收。实例报告 idle 后，宿主用 `agentClock` 计时 `instanceIdleMs`。到期回调不经 await，先读最近一次报告，再标记回收，然后调用 quiesce。只有 drained 才卸载贡献 fiber。unresolved 或失败时，实例保持 published，宿主记录 error 级诊断，下一次空闲到期再试。
 - 恢复入口与控制入口。每个操作先以 `agentAccessCheck` 核验本操作名，目标是原 execution，然后调用 Journal。两个入口不要求活体 runtime，也不要求执行句柄。它们保留 Journal 的答复，包括未知。目标挂接属于本宿主仍在运行的 runtime 时，detach 另核 takeover。
+- 控制的推进。Journal 受理控制之后，宿主读原 execution 的当前挂接。挂接属于本宿主仍在运行的 runtime 时，宿主用该 runtime 的依赖经 `@omne-harness/agent` 的 `advanceControl` 推进这项控制，与执行句柄的 control 相同：取消建立意图并撤销推进资格，Model 或 Tool 中断只作用于原调用。推进在答复之前完成。推进失败时返回该失败，调用方以同一 control operation 重试，已保存的阶段按派生 operation 认回，不重复写。没有挂接，或挂接不属于本宿主仍在运行的 runtime 时，控制只保存为 accepted，由恢复路径推进，宿主不另造推进。
 - 突然失去依赖。插件体卸载时，宿主停止计时，不再建立实例，也不调用 detach。挂接与在途责任保留在 Journal，宿主不声称外部效果已撤回。
 
 ### 测量事件
@@ -60,4 +61,4 @@ Tool 工厂沿 [Tool 接收入口](../agent/docs/public-api.md#独立-tool-接�
 
 根入口测试实际装配接收工厂，验证 supported/unsupported、共同保存与原 handoff 重试。Agent 成员另验证接收算法、隔离、取消与换代。
 
-宿主插件的测试在真实 Cordis 4.0.4 上运行。它们验证装载、逐项缺席时的 PENDING、配置错误时的 FAILED、换提供者后插件体重跑、`agentInstanceProvisionConformance` 对宿主真件通过、回收保护点、quiesce 失败或 unresolved 时保持 published、宿主主体被拒、旧登记撤除不撤后继、非宿主 fiber 的撤除被拒，以及恢复入口与控制入口的读回、核验与跨租户拒绝。Journal、Model、授权与会话条件用 agent 的 `./testing` 替身。Runtime 一侧的停用义务用测试包装。`createAgentHostLocalPlugin({ measure })` 的用例在同一个真实宿主上经一次 invoke 取受理段，并核对它与 `agentHostPlugin` 同名、同 inject、同配置，不传观察者时照常服务（`tests/measure-plugin.spec.ts`）。这些测试不证明生产 Journal、真实授权、跨进程行为或接收方登记。文件清单见[测试说明](tests/index.md)。
+宿主插件的测试在真实 Cordis 4.0.4 上运行。它们验证装载、逐项缺席时的 PENDING、配置错误时的 FAILED、换提供者后插件体重跑、`agentInstanceProvisionConformance` 对宿主真件通过、回收保护点、quiesce 失败或 unresolved 时保持 published、宿主主体被拒、旧登记撤除不撤后继、非宿主 fiber 的撤除被拒，以及恢复入口与控制入口的读回、核验与跨租户拒绝。控制入口对本宿主仍在运行的 runtime 的执行推进取消、同一 control operation 的重试不再写入，用例在 `tests/control-entry.spec.ts`，Loop 由 `createAgentRuntime` 真件在替身依赖上运行。Journal、Model、授权与会话条件用 agent 的 `./testing` 替身。Runtime 一侧的停用义务用测试包装。`createAgentHostLocalPlugin({ measure })` 的用例在同一个真实宿主上经一次 invoke 取受理段，并核对它与 `agentHostPlugin` 同名、同 inject、同配置，不传观察者时照常服务（`tests/measure-plugin.spec.ts`）。这些测试不证明生产 Journal、真实授权、跨进程行为或接收方登记。文件清单见[测试说明](tests/index.md)。
