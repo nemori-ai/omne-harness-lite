@@ -16,5 +16,6 @@
 - [host-plugin.spec.ts](host-plugin.spec.ts)：装载、逐项缺席时的 PENDING、配置错误时的 FAILED、换提供者重跑与插件体结束
 - [provision.spec.ts](provision.spec.ts)：实例取得的符合性套件对宿主真件、回收保护点、quiesce 失败与 unresolved、预约、发布与撤除
 - [recovery.spec.ts](recovery.spec.ts)：恢复入口与无活体控制入口的读回、核验、跨租户拒绝、takeover 与突然失去依赖
+- [control-entry.spec.ts](control-entry.spec.ts)：控制入口对本宿主仍在运行的 runtime 的执行推进取消，Loop 不再发 Model 请求，重试不再写入，主体核验仍拒绝
 - [stage-ports.spec.ts](stage-ports.spec.ts)：局部依赖端口的现取与缺席
 - [fixtures/](fixtures/index.md)：测试固定输入
