@@ -3,6 +3,8 @@ import type {
   ModelConsumerOwnerDeclaration,
 } from '@omne-harness/model-contract/provider'
 import type { ModelOperationId } from '@omne-harness/model-contract'
+import type { ModelConfirmationDiagnostic } from '../commands/types.ts'
+import type { ModelObservationLimits, ModelObservationTiming } from '../stream-types.ts'
 import {
   MODEL_WRITE_METHODS,
   type CommandAction,
@@ -23,7 +25,11 @@ export type MemoryResource = CommandResource
 export type MemoryModelAuthority<P> = ModelCommandsAuthority<P>
 export type MemoryModelEvidence = ModelCommandsEvidence
 export type MemoryModelLimits = ModelCommandsLimits
-export type MemoryModelCommandsOptions<P> = ModelCommandsCoreOptions<P>
+export type MemoryModelCommandsOptions<P> = ModelCommandsCoreOptions<P> &
+  Readonly<{
+    observation?: Readonly<{ limits: ModelObservationLimits; timing: ModelObservationTiming }>
+    reportConfirmation?(event: ModelConfirmationDiagnostic): void
+  }>
 export const MEMORY_WRITE_METHODS = MODEL_WRITE_METHODS
 export type MemoryWriteMethod = ModelWriteMethod
 export type UnknownInjection = Pick<ExecutionRef, 'tenant' | 'call'> &

@@ -7,6 +7,7 @@ import {
   MODEL_SEND,
   decodeCredentialId,
   type CredentialReference,
+  type QualifiedCredentialQuery,
 } from '@omne-harness/model-contract/provider'
 import { ModelCredentialService } from '@omne-harness/model-cordis-contract/cordis'
 import { expect, it } from 'vitest'
@@ -31,8 +32,8 @@ async function servedByLocalPlugin() {
   seeded.put(reference, SECRET)
   seeded.close()
   const ctx = new Context()
-  await ctx.plugin(LocalCredentialPlugin, { path, factorySecret: FACTORY })
-  return { ctx, reference }
+  const fiber = await ctx.plugin(LocalCredentialPlugin, { path, factorySecret: FACTORY })
+  return { ctx, reference, fiber }
 }
 
 const MANAGEMENT = [
@@ -59,11 +60,34 @@ it('serves present and resolve through the real Cordis proxy', async () => {
   })
 })
 
-it('exposes nothing but present and resolve: no own or inherited property reaches the custodian', async () => {
+it('serves qualified custody through the real Cordis proxy and denies after disposal', async () => {
+  const { ctx, reference, fiber } = await servedByLocalPlugin()
+  const service = ctx.modelCredential
+  const input: QualifiedCredentialQuery<unknown> = {
+    id: reference.id,
+    purpose: MODEL_SEND,
+    official: false,
+    access: { tenant: reference.tenant, principal: null },
+  }
+  expect(service?.presentFor?.(input)).toMatchObject({ kind: 'known', present: true })
+  expect(service?.resolveFor?.(input)).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
+  await fiber.dispose()
+  expect(service?.presentFor?.(input)).toEqual({ kind: 'denied' })
+  expect(service?.resolveFor?.(input)).toEqual({ kind: 'denied' })
+})
+
+it('exposes only credential operations: no own or inherited property reaches the custodian', async () => {
   const { ctx } = await servedByLocalPlugin()
   const service = ctx.modelCredential as unknown as Record<string | symbol, unknown>
 
-  expect(Object.keys(service).sort()).toEqual(['ctx', 'name', 'present', 'resolve'])
+  expect(Object.keys(service).sort()).toEqual([
+    'ctx',
+    'name',
+    'present',
+    'presentFor',
+    'resolve',
+    'resolveFor',
+  ])
   const inherited = new Set<string | symbol>()
   for (
     let layer = Object.getPrototypeOf(service);
@@ -77,8 +101,9 @@ it('exposes nothing but present and resolve: no own or inherited property reache
     expect(key in service, key).toBe(false)
     expect(service[key], key).toBeUndefined()
   }
-  for (const key of ['present', 'resolve']) expect(typeof service[key]).toBe('function')
+  const operations = ['present', 'presentFor', 'resolve', 'resolveFor']
+  for (const key of operations) expect(typeof service[key]).toBe('function')
   for (const key of Reflect.ownKeys(service))
-    if (key !== 'ctx' && key !== 'present' && key !== 'resolve')
+    if (key !== 'ctx' && !operations.includes(String(key)))
       expect(['string', 'symbol', 'object']).toContain(typeof service[key])
 })

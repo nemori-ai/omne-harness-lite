@@ -179,6 +179,18 @@ importers:
       '@omne-harness/exchange-refs':
         specifier: workspace:*
         version: link:../../packages/common/exchange-refs
+      '@omne-harness/execution-environment':
+        specifier: workspace:*
+        version: link:../../packages/execution/execution-environment
+      '@omne-harness/execution-environment-contract':
+        specifier: workspace:*
+        version: link:../../packages/execution/execution-environment-contract
+      '@omne-harness/execution-environment-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/execution/execution-environment-cordis-contract
+      '@omne-harness/execution-environment-host-local':
+        specifier: workspace:*
+        version: link:../../packages/execution/execution-environment-host-local
       '@omne-harness/identity':
         specifier: workspace:*
         version: link:../../packages/identity/identity
@@ -203,6 +215,9 @@ importers:
       '@omne-harness/model-host-local':
         specifier: workspace:*
         version: link:../../packages/model/model-host-local
+      '@omne-harness/model-storage-sql':
+        specifier: workspace:*
+        version: link:../../packages/model/model-storage-sql
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../packages/common/operation-result
@@ -215,6 +230,9 @@ importers:
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract
+      '@omne-harness/request-context':
+        specifier: workspace:*
+        version: link:../../packages/context/request-context
       '@omne-harness/request-context-contract':
         specifier: workspace:*
         version: link:../../packages/context/request-context-contract
@@ -224,6 +242,9 @@ importers:
       '@omne-harness/request-context-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/context/request-context-cordis-contract
+      '@omne-harness/runtime-context':
+        specifier: workspace:*
+        version: link:../../packages/context/runtime-context
       '@omne-harness/runtime-context-contract':
         specifier: workspace:*
         version: link:../../packages/context/runtime-context-contract
@@ -257,6 +278,21 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../packages/storage/sqlite-provider
+      '@omne-harness/tool':
+        specifier: workspace:*
+        version: link:../../packages/tool/tool
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../packages/tool/tool-contract
+      '@omne-harness/tool-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/tool/tool-cordis-contract
+      '@omne-harness/tool-host-local':
+        specifier: workspace:*
+        version: link:../../packages/tool/tool-host-local
+      '@omne-harness/tool-storage-sql':
+        specifier: workspace:*
+        version: link:../../packages/tool/tool-storage-sql
       '@omne-harness/utc-instant':
         specifier: workspace:*
         version: link:../../packages/common/utc-instant
@@ -1602,6 +1638,9 @@ importers:
 
   packages/model/model-storage-sql:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -1611,6 +1650,9 @@ importers:
       '@omne-harness/model-contract':
         specifier: workspace:*
         version: link:../model-contract
+      '@omne-harness/model-cordis-contract':
+        specifier: workspace:*
+        version: link:../model-cordis-contract
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result

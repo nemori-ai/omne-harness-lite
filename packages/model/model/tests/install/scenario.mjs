@@ -236,10 +236,12 @@ const runtimeDependencies = testing.createTestModelDependencies({
     maxRetainedAttempts: 4,
     credentials: {
       present: () => ({ kind: 'unavailable' }),
-      resolve: (ref, face) => {
+      resolve: () => ({ kind: 'unavailable' }),
+      resolveFor: ref => {
         assert.equal(ref.id, 'official-installed-query')
-        assert.equal(ref.tenant, owner)
-        assert.deepEqual(face, { authorized: true, official: true })
+        assert.equal(ref.access.tenant, owner)
+        assert.equal(ref.access.principal, principal)
+        assert.equal(ref.official, true)
         return { kind: 'value', scope: 'factory', value: 'synthetic-send' }
       },
     },
@@ -388,10 +390,12 @@ const sender = createModelSendBoundary({
   coordinator: runtimeDependencies.controls.send.coordinator,
   credentials: {
     present: () => ({ kind: 'unavailable' }),
-    resolve: (ref, face) => {
+    resolve: () => ({ kind: 'unavailable' }),
+    resolveFor: ref => {
       assert.equal(ref.id, 'official-installed-query')
-      assert.equal(ref.tenant, owner)
-      assert.deepEqual(face, { authorized: true, official: true })
+      assert.equal(ref.access.tenant, owner)
+      assert.equal(ref.access.principal, principal)
+      assert.equal(ref.official, true)
       return { kind: 'value', scope: 'factory', value: 'synthetic-send' }
     },
   },

@@ -69,7 +69,7 @@ it('keeps the 53 provider obligations on the full assembly with the durable Mode
   expect(report.ok).toBe(Object.keys(KNOWN_FAILING).length === 0)
   // The report is about the durable commands, as the built subject says.
   expect(facts?.commandsKind).toBe('durable-sql')
-}, 600_000)
+}, 120_000)
 
 it('reports the assembly from what it built: the durable commands over the SQL storage, Cordis 4.0.x', async () => {
   const subject = await durableSubject()
@@ -84,4 +84,4 @@ it('reports the assembly from what it built: the durable commands over the SQL s
   } finally {
     await subject.dispose?.()
   }
-})
+}, 60_000)

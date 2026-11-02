@@ -16,7 +16,15 @@
     {
       "id": "authorization",
       "plugin": "authorization",
-      "config": {}
+      "config": {
+        "actionRules": {
+          "revision": "release-1",
+          "rules": [
+            { "id": "files", "effect": "allow", "tool": "Files" },
+            { "id": "shell", "effect": "allow", "tool": "Shell" }
+          ]
+        }
+      }
     },
     {
       "id": "session-storage",
@@ -29,11 +37,6 @@
       "config": {
         "admission": "none"
       }
-    },
-    {
-      "id": "session-ad01",
-      "plugin": "stubPlugin",
-      "config": {}
     },
     {
       "id": "session-ad02",

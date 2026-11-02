@@ -5,7 +5,7 @@
 
 根入口导出八个登记类型：`ModelRegistrationFailure`、`ModelPublication`、`ModelRegistrationInput`、`ModelRegistration`、`ModelPublicationAuthority`、`ModelConverterRegistrationInput`、`ModelConverterAuthority`、`ModelConverterRegistration`。`./cordis` 再导出这八个类型，并导出下列值：
 
-- 十六个抽象 Service 与键：`ModelCredentialService`（见[凭据服务定义](#凭据服务定义)）、`ModelRuntimeService`、`ModelCommandsService`、`ModelSendBoundaryService`、`ModelRetryPolicyService`、`ModelInstanceHostService`、`ModelClockService`、`ModelProfilesService`、`ModelProfileMaintenanceService`、`ModelRequestPreparationService`、`ModelPreparationResourcesService`（见[准备资源租约](#准备资源租约)）、`ModelMessageConversionService`、`ModelHostAuthorityService`、`ModelPublicationAuthorityService`、`ModelConverterAuthorityService`、`ModelDiagnosticsService`。
+- 十八个抽象 Service 与键：`ModelStreamReferencesService`、`ModelStreamObservationService`、`ModelCredentialService`（见[凭据服务定义](#凭据服务定义)）、`ModelRuntimeService`、`ModelCommandsService`、`ModelSendBoundaryService`、`ModelRetryPolicyService`、`ModelInstanceHostService`、`ModelClockService`、`ModelProfilesService`、`ModelProfileMaintenanceService`、`ModelRequestPreparationService`、`ModelPreparationResourcesService`（见[准备资源租约](#准备资源租约)）、`ModelMessageConversionService`、`ModelHostAuthorityService`、`ModelPublicationAuthorityService`、`ModelConverterAuthorityService`、`ModelDiagnosticsService`。
 - 两个具体目录 `ModelInstancesService` 与 `ModelConvertersService`，及键 `modelInstancesKey` 与 `modelConvertersKey`。
 - 结果接收登记：`ModelResultReceiverTable`（类型）、`createModelResultReceiverTable` 与 `ModelResultReceiverConflictError`，见[结果接收登记](#结果接收登记)。
 - `Context` 的全部增补和事件 `model-cordis-contract/call-changed`。
@@ -65,8 +65,19 @@ Context 以 unknown 表达边界输入，可信身份适配器在进入领域操
 - 声明：[`src/cordis.ts`](../src/cordis.ts)。
 - 行为测试：[`tests/credential-service.spec.ts`](../tests/credential-service.spec.ts)。
 
-凭据服务已实现，由 `./cordis` 导出。定义是抽象类，只有 `present` 与 `resolve`，形状与 `CredentialPort` 相同；诊断读取和保管管理不在服务上。定义不持有端口，实现不得把端口或保管者放在服务实例上，须放进构造时创建的闭包，因为实例的全部属性对任何能读 `ctx.modelCredential` 的插件可见。model-host-local 的 `./cordis` 中的 `LocalCredentialPlugin` 这样封住保管者。具体的本地保管与插件归 model-host-local。
+凭据服务已实现，由 `./cordis` 导出。定义 `ModelCredentialService<P = unknown>` 是抽象类，保留 `present` 与 `resolve`，新增非抽象可选的同步 `presentFor` 与 `resolveFor`，形状取自 `CredentialPort<P>`；诊断读取和保管管理不在服务上。定义不持有端口，实现不得把端口或保管者放在服务实例上，须放进构造时创建的闭包，因为实例的全部属性对任何能读 `ctx.modelCredential` 的插件可见。model-host-local 的 `./cordis` 中的 `LocalCredentialPlugin` 这样封住保管者。具体的本地保管与插件归 model-host-local。
 
 服务不核验调用方资格：`SendFace` 的 `authorized`、`official` 和引用里的 `tenant` 都由调用方自报。装配须只把该服务交给受信的发送边界。目前没有拥有者强制这一点，同一 isolate 的任意插件可以请求另一租户的凭据，这一项在 [SPEC](../SPEC.md#凭据服务)登记为未决。
 
 `modelCredential` 是可选成员：服务撤除后 `ctx.modelCredential` 缺席，消费者按依赖注入等待或失败，不假定存在。
+
+`presentFor` 与 `resolveFor` 不要求旧子类实现，也不改变旧构造函数。新路径的两种主体来源前提见 [Model 凭据契约](../../model-contract/SPEC.md#342-凭据引用与解析端口)，同步核验范围见 [SPEC](../SPEC.md#凭据服务)。主体伪造与 `official` 来源限制仍未关闭。
+
+## 公共观察服务
+
+本章给观察提供者与装配者：`ModelStreamReferencesService`、`ModelStreamObservationService` 及唯一键 `modelStreamReferencesKey`、`modelStreamObservationKey`。
+
+- 声明：[`src/cordis.ts`](../src/cordis.ts)。
+- 定义与撤除验证：[`tests/service-definitions.spec.ts`](../tests/service-definitions.spec.ts)。类型验证：[`tests/cordis-entry.spec-d.ts`](../tests/cordis-entry.spec-d.ts)。
+
+`current` 与 `observe` 的签名分别取自纯契约的 `ModelStreamReferences<P>` 与 `ModelStreamObservation<P>`。Context 的两个成员可选，主体默认为 `unknown`。服务缺席不能当成没有当前目标。每次调用携带观察者自己的 `Access`，由提供者逐次核验。两服务属于当前消费者安装规则的具名例外，实际提供与安装在联调 D 完成，见 [SPEC](../SPEC.md#结果推送与公共观察的装配边界)。
