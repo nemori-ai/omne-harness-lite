@@ -14,9 +14,9 @@
       "import": "./dist/cordis.js"
     },
     "./author": {
-      "source": "./src/contribute-tool.ts",
-      "types": "./dist/contribute-tool.d.ts",
-      "import": "./dist/contribute-tool.js"
+      "source": "./src/author.ts",
+      "types": "./dist/author.d.ts",
+      "import": "./dist/author.js"
     },
     ".": {
       "source": "./src/index.ts",

@@ -87,9 +87,3 @@ export function createToolAuthorPlugin<P, E, B extends ContentBlock>(
       contributeTool(ctx, config, module, input),
   }
 }
-
-export {
-  createLocalToolGenerations,
-  type LocalToolGenerationsInput,
-  type LocalToolAuthorSource,
-} from './author-generations.ts'
