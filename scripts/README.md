@@ -137,16 +137,17 @@ dev-flow 的 `tests/test-slot-launch.spec.ts` 在所在平台上核对这些起�
 队列的增删在 `queue.lock` 目录内进行，目录由 `mkdir` 原子创建；它的持有者同侧按进程号判、对侧只看停留时间（30 秒），
 收尾只删自己建的那把锁。
 
-**一个锁目录**：Windows 侧与 WSL 侧共用 Windows 用户临时目录下的 `omne-test-slots-<用户名>`。WSL 里（有 `WSL_DISTRO_NAME`）
-脚本经 interop 起 Windows PowerShell 取 `%TEMP%` 的长名与 `%USERNAME%`（8.3 短名如 `ALIENW~1` 转成长名；
-systemd 启用后 binfmt 登记常被清掉，这时经 `/init` 起），在那里建目录与一个探针文件，再用 `wslpath -u` 转成 WSL 路径，
+**一个锁目录**：Windows 侧与 WSL 侧共用 Windows 用户配置目录下的 `.omne/test-slots`。
+Windows 通过 `os.userInfo().homedir` 读取操作系统提供的用户配置目录。进程的 `TEMP`、`TMP` 和 `TMPDIR` 不影响这个默认值。
+WSL 里（有 `WSL_DISTRO_NAME`），脚本经 interop 起 Windows PowerShell，以 `[Environment]::GetFolderPath('UserProfile')` 读取同一目录。
+systemd 启用后 binfmt 登记常被清掉，这时经 `/init` 起。脚本在那里建目录与一个探针文件，再用 `wslpath -u` 转成 WSL 路径，
 在 WSL 路径下看得见探针才算同一个目录。解析失败或看不见探针时回退 `/tmp/omne-test-slots-<uid>`，
 并在标准错误报「WSL 与 Windows 没有共用名额」。`OMNE_TEST_SLOT_DIR` 仍可覆盖。
 
 | 环境变量 | 初值 | 含义 |
 |---|---|---|
 | `OMNE_TEST_SLOTS` | 1 | 同时允许几套在跑 |
-| `OMNE_TEST_SLOT_DIR` | Windows 为系统临时目录下的 `omne-test-slots-<用户名>`；WSL 解析到同一个目录（见上）；其余 POSIX 为 `/tmp/omne-test-slots-<uid>` | 锁文件目录；同一用户的全部检出共用，不随 `TMPDIR` 变化。要跨用户排队，把它指到一个共享可写的目录 |
+| `OMNE_TEST_SLOT_DIR` | Windows 为用户配置目录下的 `.omne/test-slots`；WSL 解析到同一个目录（见上）；其余 POSIX 为 `/tmp/omne-test-slots-<uid>` | 锁文件目录；同一用户的全部检出共用，不随 `TEMP`、`TMP` 或 `TMPDIR` 变化。要跨用户排队，把它指到一个共享可写的目录 |
 | `OMNE_TEST_SLOT_POLL_SECONDS` | 5 | 没轮到时隔多久再看一次 |
 | `OMNE_TEST_SLOT_MAX_WAIT_SECONDS` | 7200 | 最多等多久；超过即以 **75** 退出，命令**没有执行** |
 | `OMNE_TEST_SLOT_LEDGER` | `${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl` | 运行账本，见下文 |
@@ -159,6 +160,9 @@ systemd 启用后 binfmt 登记常被清掉，这时经 `/init` 起），在那�
 
 **已知限制**（#979 D1）：
 
+- 默认目录迁移期间，仍用 `os.tmpdir()` 的 Windows 检出及读取 `%TEMP%` 的 WSL 检出不会自动采用新目录。
+  新旧检出会分队。先等旧目录中的持有者和排队者全部退出，再一起更新检出，或为全部调用方显式设置 `OMNE_TEST_SLOT_DIR`。
+  Windows 和 WSL 的覆盖值必须指向同一物理目录。更新文件或改变环境变量不会迁移已经启动的进程。
 - 名额只覆盖经根脚本的入口。成员级 vitest（`pnpm exec vitest run`、`pnpm --filter <成员> test`、`turbo run test*`）不占名额，
   与准入并发时，时序敏感的用例可能变红。
 - 跨侧判定只看心跳，依赖两侧时钟一致；WSL 的时钟落后超过心跳阈值（三个间隔加 5 秒）时，对侧活着的持有者会被误删，
