@@ -127,14 +127,18 @@ export const allowAll: AccessPolicy = request => ({
 })
 
 /**
- * `sessionAccessCheck` 的契约替身行：行 id `authorization`，只提供这一个键。替身来自
+ * `sessionAccessCheck` 的契约替身行：行 id `authorization`，可显式附加测试 verifier。替身来自
  * `session-contract/testing`，没有业务持久性。
  */
-export function accessPolicyRow(policy: AccessPolicy): Readonly<{
+export function accessPolicyRow(
+  policy: AccessPolicy,
+  options: Readonly<{ includePrincipalVerifier?: boolean }> = {},
+): Readonly<{
   plugin: Plugin.Object
   check: ScriptedSessionAccessCheck<string>
 }> {
   const check = createPolicySessionAccessCheck<string>(policy)
+  const includePrincipalVerifier = options.includePrincipalVerifier ?? false
   const authority = inProcessPrincipalAuthority()
   class Verifier extends PrincipalVerifierService {
     readonly verify = authority.verifier.verify
@@ -146,7 +150,9 @@ export function accessPolicyRow(policy: AccessPolicy): Readonly<{
     row: 'authorization',
     implementation: 'contract-double',
     manifest: {
-      provides: [sessionAccessCheckKey, principalVerifierKey],
+      provides: includePrincipalVerifier
+        ? [sessionAccessCheckKey, principalVerifierKey]
+        : [sessionAccessCheckKey],
       injects: [],
       sameProviderGroup: null,
     },
@@ -155,7 +161,7 @@ export function accessPolicyRow(policy: AccessPolicy): Readonly<{
       name: 'policy-access-check',
       apply(ctx: Context) {
         new PolicyAccessCheck(ctx)
-        new Verifier(ctx)
+        if (includePrincipalVerifier) new Verifier(ctx)
       },
     },
   })
@@ -219,7 +225,7 @@ export async function loadStorageTree(options: TreeOptions): Promise<LoadedTree>
   if (!options.withoutSessionStorage && !existsSync(options.storageRoot))
     prepareTenantDirectory(options)
   const profile = serveProfile()
-  const policyRow = accessPolicyRow(options.policy ?? allowAll)
+  const policyRow = accessPolicyRow(options.policy ?? allowAll, { includePrincipalVerifier: true })
   const sessionStorageConfig: SessionStorageRowConfigInput = {
     combinationVersion: options.combinationVersion ?? 'session-composite/1',
     directoryFile: options.directoryFile,
