@@ -19,6 +19,8 @@ This member implements the items in the table below. They include standalone exe
 
 ## Usage
 
+Trusted assemblies use the `./commands` entry for process-local initial execution and confirmed public observation. They keep one factory-created `ModelInitialRun`, use it with one core and confirmation bridge, and pass one captured host channel to the host and sender. See the [entry guide](docs/public-api.md#共享归约核心子路径) and [behavior](SPEC.md#首次执行记录与私有通道). Public command references do not grant execution rights. Initial records do not survive a restart or permit successor takeover. Observation requires twelve explicit limits and a monotonic timing port. This support does not establish production identity mapping, application wiring, or complete revocation.
+
 Admission uses the shared `judgeAdmit` synchronously before queuing. It rejects malformed input without allocating a call or capacity. The [input contract](../model-contract/SPEC.md#封闭输入判断) defines frozen payload, preserved access identity and parser limits. Lesson 01 teaches admission judging. Lesson 04 passes the pure request judge before a supplier reports input-over-limit.
 
 A standalone program or a host that selects this implementation starts from [consumption and construction](docs/context.md). The design of executeModel, createModelRuntime, and the construction parameters is accepted. For their exact shapes, see the [public API design](docs/public-api.md). `executeModel`, `createModelRuntime`, and `createModelSendBoundary` are available from the root entry. The independent capability factories remain unimplemented.

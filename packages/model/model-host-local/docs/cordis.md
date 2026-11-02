@@ -4,21 +4,31 @@
 
 ## 集成入口
 
-`./cordis` 导出 `LocalCredentialPlugin`、`deliverInjected`、`ModelInstancesLocalPlugin`、`ModelConvertersLocalPlugin`、`createModelRuntimeLocalPlugin`、`createMemoryResultPushLedger`、`createModelRequestPreparationPlugin`、`createModelSendStagePlugin` 与 `ModelProfilesLocalPlugin`。`deliverInjected` 在 [deliver-injected.ts](../src/deliver-injected.ts)，不导入保管库；插件在 [src/plugins/](..)。`ModelProfilesLocalPlugin` 在 [plugins/profiles.ts](../src/plugins/profiles.ts)，是本包唯一导入家族包的文件。
+`./cordis` 导出 `LocalCredentialPlugin`、`deliverInjected`、`ModelInstancesLocalPlugin`、`ModelConvertersLocalPlugin`、`createModelRuntimeLocalPlugin`、`createConfiguredModelRuntimeLocalPlugin`、`createModelStreamLocalPlugin`、`createMemoryResultPushLedger`、`createModelRequestPreparationPlugin`、`createModelSendStagePlugin` 与 `ModelProfilesLocalPlugin`。`deliverInjected` 在 [deliver-injected.ts](../src/deliver-injected.ts)，不导入保管库；插件在 [src/plugins/](..)。`ModelProfilesLocalPlugin` 在 [plugins/profiles.ts](../src/plugins/profiles.ts)，是本包唯一导入家族包的文件。
 
-| 插件 | 静态 inject | 提供与寿命 |
-| --- | --- | --- |
-| `ModelInstancesLocalPlugin` | `modelPublicationAuthority` | 构造唯一 `ModelInstancesService`；权威换代时随 fiber 卸载与重装，后继目录从空开始 |
-| `ModelConvertersLocalPlugin` | `modelConverterAuthority` | 构造唯一 `ModelConvertersService`；独立于运行时与结果查询 |
-| `createModelRuntimeLocalPlugin` 造出的类 | `modelCommands`、`modelClock`、`modelHostAuthority`；配置四项上限 | `await bind` 成功后，在同一个子插件里发布 `modelInstanceHost`，提供者带 `runtime` 时也发布 `modelRuntime`。`modelRuntime` 持有结果接收登记表，推送按冻结的 `consumer.owner` 从表里解析接收方 |
-| `createModelRequestPreparationPlugin` 造出的类 | `modelCommands`；配置 `maxCitedCalls` | 在同一 fiber 发布 `modelRequestPreparation` 与 `modelPreparationResources`；后者的租约与 `prepare` 出自同一份准备资源，随 fiber 撤除后拒绝新租约 |
-| `ModelSendStagePlugin`（`createModelSendStagePlugin` 造出的类） | `modelCredential`、`modelCommands`；配置 `maxRetainedAttempts` | 发布 `modelSendBoundary`；发送路径随 fiber 建立与关闭，凭据端口先于关闭撤回 |
+| 插件                                                            | 静态 inject                                                       | 提供与寿命                                                                                                                                                                                   |
+| --------------------------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ModelInstancesLocalPlugin`                                     | `modelPublicationAuthority`                                       | 构造唯一 `ModelInstancesService`；权威换代时随 fiber 卸载与重装，后继目录从空开始                                                                                                            |
+| `ModelConvertersLocalPlugin`                                    | `modelConverterAuthority`                                         | 构造唯一 `ModelConvertersService`；独立于运行时与结果查询                                                                                                                                    |
+| `createModelRuntimeLocalPlugin` 造出的类                        | `modelCommands`、`modelClock`、`modelHostAuthority`；配置四项上限 | `await bind` 成功后，在同一个子插件里发布 `modelInstanceHost`，提供者带 `runtime` 时也发布 `modelRuntime`。`modelRuntime` 持有结果接收登记表，推送按冻结的 `consumer.owner` 从表里解析接收方 |
+| `createModelRequestPreparationPlugin` 造出的类                  | `modelCommands`；配置 `maxCitedCalls`                             | 在同一 fiber 发布 `modelRequestPreparation` 与 `modelPreparationResources`；后者的租约与 `prepare` 出自同一份准备资源，随 fiber 撤除后拒绝新租约                                             |
+| `ModelSendStagePlugin`（`createModelSendStagePlugin` 造出的类） | `modelCredential`、`modelCommands`；配置 `maxRetainedAttempts`    | 发布 `modelSendBoundary`；发送路径随 fiber 建立与关闭，凭据端口先于关闭撤回                                                                                                                  |
 
 三个造类的工厂交出对象选项，因为运行提供者、观察资格、推送账本、家族绑定、凭据补全、协调器与网络配置不是可序列化配置。宿主状态全在闭包里：消费者看到的实例只有 `schedule`、`publish`、`withdraw` 与 `directory`，`bind` 留在插件里。
 
+## 首次通道与同源观察
+
+入口从 records 的 `sendStage` 第二参数取得 initial 和 observation 配对。只开一个 channel，并让 host 与 send-stage 的 `executionChannel` getter 返回它。宿主还须提供 `releaseExecution`，发送阶段可通过 `installMaterialization` 安装真实 reader。`materialization.maxRecords` 与当前 execution 核验为必需对象选项，上限须覆盖 `maxRetainedAttempts`。完整行为归 [SPEC](../SPEC.md#首次执行与公共观察接线)。
+
+宿主的 observation.commands 保留真实 records Service 原体。装载时与 `Reflect.get(ctx.modelCommands, symbols.original)` 比较，同形对象与另一服务均不相等。不要比较 Cordis 每次产生的代理。配对通过后宿主取得 source 租约，以同一 contribution 发布 runtime 与两个观察服务。`createModelStreamLocalPlugin({ source })` 只转发该租约，抽象服务与键仍从 model-cordis-contract 取得。configured host 工厂原样转发这些对象选项，不把它们放进 JSON 配置。
+
+没有 getter 的旧装配继续采用原路径。采用首次机制时，缺真实 channel 或同源 pair 不能借公共命令或空观察替代。应用拥有真实主体映射、发行接线与跨行相等约束，成员支持本身不证明这些组合成立。
+
 ## 有序关闭
 
-宿主插件在 `Service.init` 里先建运行阶段与未绑定宿主，把运行阶段的命令端口交给提供者，`await host.bind(provider.driver)` 成功后在同一个 `try` 里创建发布子插件。子插件创建失败（例如 fiber 在启动窗口里被卸载）时，已绑定的宿主关闭。子插件的撤除、推送的停止与有序关闭放在同一个外层 effect 的列表里：Cordis 对一个 effect 的撤除按逆序逐个等待，所以 quiesce → 停派发并等待每个 drive 交还 → 停推送 → 撤贡献按这个次序发生。分成两个顶层 effect 会被并发撤除，次序就没有保证。shutdown 不抛出：它之后那一项若因异常被跳过，贡献就撤不掉。
+宿主插件在 `Service.init` 里先建运行阶段与未绑定宿主，把运行阶段的命令端口交给提供者，`await host.bind(provider.driver)` 成功后在同一个 `try` 里创建发布子插件。子插件创建失败（例如 fiber 在启动窗口里被卸载）时，已绑定的宿主关闭。一个外层 effect 的列表按逆序等待本宿主的关闭流程与贡献撤除。关闭开始同步退役观察，再 quiesce、停派发并等待 drive、停推送。配置 channel 时随后 await 入口 `releaseExecution`，最后撤贡献。
+
+入口回调须 dispose 自己捕获的真实 send 子 fiber，等资源关闭后再 channel.close，期间保留 commands 父 fiber。HOST 在 finally 再幂等关闭 channel。回调失败只报告安全诊断，不宣称资源成功释放。这个跨 fiber 次序归入口组合者，不能由一个宿主 fiber 或多个并发 effect 推导。正文释放不关闭 channel；异常失效时立即撤权仍归入口绑定拥有者。
 
 未派发的唤醒在关闭时留给后继，计数写进诊断。取不到 drive 输入的调用不驱动，原待办留在 `ModelCommands`。停推送时在途推送收到中止信号；未完成的推送、ACK、清理与晚到账目留在装配给出的推送账本里，拿同一账本的后继插件继续。账本同一时刻只有一个写者。
 
@@ -28,7 +38,7 @@
 
 构造时，插件用 `assembleLocalModel` 建发送路径。凭据经插件自己的端口交给发送边界。端口转发 `present`、`resolve` 及服务已有的可选 `presentFor`、`resolveFor`，不缓存值。缺少的新方法保持缺席，不回退旧方法。撤除先切断端口，捕获的新方法随后返回 `unavailable`，再等待发送路径关闭。服务实例只有 `send`，发送路径在构造函数的闭包里。
 
-退出由挂在 fiber 上的一个 effect 完成，次序是：撤回凭据端口，再关闭发送路径。关闭等待网络上在途的交换停止，不抛出，失败时只记一条不含原因的警告。退出时在两步之间的发送因凭据不可用以 `not-started` 收场，传输没有被启动。仍持旧引用的调用方对没有开始过的 dispatch 得到 `not-started`，诊断为 `send-resources-closed`。已经发出的请求不由卸载收回。
+退出由挂在 fiber 上的一个 effect 完成，次序是：撤回凭据端口与已安装的物化 reader，再关闭发送路径。撤 reader 失败仍继续关闭。关闭等待网络上在途的交换停止，不抛出，失败时只记一条不含原因的警告。退出时在两步之间的发送因凭据不可用以 `not-started` 收场，传输没有被启动。仍持旧引用的调用方对没有开始过的 dispatch 得到 `not-started`，诊断为 `send-resources-closed`。已经发出的请求不由卸载收回。
 
 | 东西     | 在本包里是什么                                                                                                        | 不是什么                                               |
 | -------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
