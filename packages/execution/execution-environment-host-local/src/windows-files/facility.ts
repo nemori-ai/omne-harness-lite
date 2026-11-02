@@ -131,9 +131,9 @@ try {
   $request=[Console]::In.ReadToEnd() | ConvertFrom-Json
   Add-Type -TypeDefinition $request.source
   if($request.operation -eq 'write') {
-    $result=[OmneFiles]::Write($request.root,$request.expectedRoot,[string[]]$request.segments,$request.named,$request.version,[bool]$request.create,$request.bytes)
+    $result=[OmneFiles]::Write($request.root,$request.expectedRoot,[string[]]$request.segments,$request.named,$request.version,($null -ne $request.version),[bool]$request.create,$request.bytes)
   } elseif($request.operation -in @('mkdir','remove','move')) {
-    $result=[OmneFiles]::Change($request.root,$request.expectedRoot,[string[]]$request.segments,$request.named,$request.operation,[bool]$request.recursive,$request.version,$request.targetRoot,$request.expectedTargetRoot,[string[]]$request.targetSegments,$request.targetNamed,[bool]$request.replace)
+    $result=[OmneFiles]::Change($request.root,$request.expectedRoot,[string[]]$request.segments,$request.named,$request.operation,[bool]$request.recursive,$request.version,($null -ne $request.version),$request.targetRoot,$request.expectedTargetRoot,[string[]]$request.targetSegments,$request.targetNamed,[bool]$request.replace)
   } else {
     $result=[OmneFiles]::Run($request.root,$request.expectedRoot,[string[]]$request.segments,$request.named,$request.operation,[long]$request.offset,[long]$request.limit,$request.pattern,[bool]$request.content,[bool]$request.recursive,[long]$request.entryBudget,[long]$request.byteBudget,[long]$request.fileBytes,$request.path,[bool]$request.rooted)
   }
@@ -169,7 +169,7 @@ type ChangeInput = Readonly<{
   named: string
   operation: 'mkdir' | 'remove' | 'move'
   recursive: boolean
-  version: string
+  version: string | null
   targetRoot: string
   expectedTargetRoot: string
   targetSegments: readonly string[]
@@ -180,7 +180,7 @@ type ChangeInput = Readonly<{
 type WriteInput = Pick<NativeInput, 'root' | 'expectedRoot' | 'segments' | 'named'> &
   Readonly<{
     operation: 'write'
-    version: string
+    version: string | null
     create: boolean
     bytes: string
   }>
@@ -351,7 +351,7 @@ export function createWindowsFiles(
       named: request.named.token,
       operation,
       recursive: request.recursive,
-      version: request.expectedVersion ?? '',
+      version: request.expectedVersion ?? null,
       targetRoot: destination.value.root,
       expectedTargetRoot: destination.value.expectedRoot,
       targetSegments: destination.value.segments,
@@ -415,6 +415,7 @@ export function createWindowsFiles(
         },
       }
       const source = await facility.read(request)
+      if (source.kind === 'unresolved') return reject(request.requestId, 'notFound')
       if (source.kind !== 'done') return source
       if (request.expectedVersion !== undefined && source.value.version !== request.expectedVersion)
         return reject(request.requestId, 'conflict')
@@ -429,6 +430,7 @@ export function createWindowsFiles(
         mode: target.kind === 'done' ? 'replace' : 'create',
         ...(target.kind === 'done' ? { expectedVersion: target.value.version } : {}),
       })
+      if (written.kind === 'unresolved') return reject(request.requestId, 'notFound')
       return written.kind === 'done'
         ? {
             kind: 'done',
@@ -448,16 +450,17 @@ export function createWindowsFiles(
         return reject(request.requestId, 'invalidInput')
       if (!request.named?.token) return reject(request.requestId, 'notAuthorized')
       const source = await endpoint(request.path)
-      if (!source.ok) return failed(request.requestId, source.failure, 'unresolved')
+      const missing = request.mode === 'create' ? 'notFound' : 'unresolved'
+      if (!source.ok) return failed(request.requestId, source.failure, missing)
       const result = await invoke({
         ...source.value,
         named: request.named.token,
         operation: 'write',
-        version: request.expectedVersion ?? '',
+        version: request.expectedVersion ?? null,
         create: request.mode === 'create',
         bytes: Buffer.from(request.bytes).toString('base64'),
       })
-      if (typeof result === 'string') return failed(request.requestId, result, 'unresolved')
+      if (typeof result === 'string') return failed(request.requestId, result, missing)
       return {
         kind: 'done',
         requestId: request.requestId,

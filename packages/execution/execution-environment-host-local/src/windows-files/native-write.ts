@@ -39,7 +39,8 @@ public static partial class OmneFiles {
       }
     } finally { if(target!=IntPtr.Zero && !CloseHandle(target)) throw new IOException("unknown"); }
   }
-  public static object Write(string root,string expectedRoot,string[] segments,string named,string version,bool create,string encoded) {
+  public static object Write(string root,string expectedRoot,string[] segments,string named,string version,bool hasVersion,bool create,string encoded) {
+    version=hasVersion?version:null;
     List<IntPtr> held=new List<IntPtr>(); IntPtr staged=IntPtr.Zero; bool published=false,created=false;
     try {
       if(segments.Length==0) throw new IOException("notAuthorized");

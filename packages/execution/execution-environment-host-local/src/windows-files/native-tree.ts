@@ -26,7 +26,7 @@ public static partial class OmneFiles {
   }
   static void CheckNamed(IntPtr handle,string named,string version) {
     Info info=Information(handle);
-    if(Token(info)!=named || (!String.IsNullOrEmpty(version) && Version(info)!=version)) throw new IOException("conflict");
+    if(Token(info)!=named || (version!=null && Version(info)!=version)) throw new IOException("conflict");
   }
   static IntPtr MakeDirectory(IntPtr parent,string name) {
     Unicode text=new Unicode(); text.length=checked((ushort)(name.Length*2)); text.maximum=text.length; text.buffer=Marshal.StringToHGlobalUni(name);
@@ -94,7 +94,7 @@ public static partial class OmneFiles {
       if(status<0) throw Error(RtlNtStatusToDosError(status));
     } finally { Marshal.FreeHGlobal(memory); }
   }
-  public static object Change(string root,string expectedRoot,string[] segments,string named,string operation,bool recursive,string version,string targetRoot,string expectedTargetRoot,string[] targetSegments,string targetNamed,bool replace) {
+  public static object Change(string root,string expectedRoot,string[] segments,string named,string operation,bool recursive,string version,bool hasVersion,string targetRoot,string expectedTargetRoot,string[] targetSegments,string targetNamed,bool replace) {
     List<IntPtr> held=new List<IntPtr>(); bool changed=false;
     try {
       if(segments.Length==0) throw new IOException("notAuthorized");
@@ -103,7 +103,7 @@ public static partial class OmneFiles {
       else {
         IntPtr parent=Parent(rootHandle,segments,held);
         current=OpenRelative(parent,segments[segments.Length-1],0x10081,false); held.Add(current);
-        CheckNamed(current,named,version); Info info=Information(current);
+        CheckNamed(current,named,hasVersion?version:null); Info info=Information(current);
         if(info.volume!=Information(rootHandle).volume) throw new IOException("notAuthorized");
         if(operation=="remove") {
           if(recursive && (info.attributes&16)!=0 && (info.attributes&0x400)==0) { CheckTree(current,info.volume); DeleteTree(current,info.volume,ref changed); }

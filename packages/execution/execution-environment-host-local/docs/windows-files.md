@@ -31,6 +31,12 @@
 
 Windows 不提供原位写。新建以 `NtCreateFile` 的 `FILE_CREATE` 实现排他创建，对应 `CREATE_NEW`。替换先在同目录创建新对象，写入并 `FlushFileBuffers`，再核对目标身份和 `expectedVersion`，最后通过 `NtSetInformationFile(FileRenameInformation)` 发布。发布持有源与父目录句柄，`ReplaceIfExists` 采用原子替换语义。版本是观察条件，不是外部 CAS。结果返回新对象以及 `writeEffect: created` 或 `replaced`。原文件的其他硬链接保留旧字节，替换后与目标名字分离。
 
+桥将未提供的版本传为 JSON null，并另传版本是否存在给原生入口，避免 PowerShell 把 null 转为空字符串后丢失条件。显式空字符串仍参与版本比较。新建、复制和批次预检遇到所需对象缺失时返回 `rejected/notFound`。读取、查看、列表和替换写入仍可返回 `unresolved`。
+
 复制读取已点名源，再通过相同写入路径发布新对象。批次先检查全部目标，再记录清单、刷盘全部暂存文件，随后逐项发布并刷盘回执。回执写入失败返回带原批次引用的 unknown。恢复只读原清单及当前目标，不重新发布。当前字节匹配暂存摘要时只列入 `matchingPrepared`，不补造发布回执。后续外部写入列为冲突。批次间没有多路径原子性，也未验证断电耐久性。效果未知时保留尚存暂存文件，供后续调查。
 
+每项发布的异步目标复核结束后，批次再次检查所有者是否封闭。封闭时返回原批次的 `unknown/closed`，保留已确认发布范围，并清理未发布暂存文件。此检查阻止尚未启动的发布，不撤销已经开始的原生操作。
+
 真实 Windows 测试见[读取与围栏](../tests/windows-files/read.spec.ts)、[名字操作](../tests/windows-files/tree.spec.ts)、[新建与替换](../tests/windows-files/write.spec.ts)及[复制与批次恢复](../tests/windows-files/batch.spec.ts)。回执故障用例使用真实文件系统，只注入清单写入失败。这些测试不证明 Linux 行为、完整提供者组合或断电恢复。
+
+[边界回归](../tests/windows-files/review-regressions.spec.ts)覆盖空版本、缺失对象映射，以及发布前复核期间封闭的交错。交错测试只暂停真实 stat 的返回，不替换文件系统结果。

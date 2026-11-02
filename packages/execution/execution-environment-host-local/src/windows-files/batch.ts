@@ -48,8 +48,10 @@ export function createWindowsBatch(options: {
         return reject(request.requestId, 'conflict')
       if (found.kind !== 'unresolved') return found
       const parent = await files.stat({ ...request, path: win32.dirname(request.path) })
+      if (parent.kind === 'unresolved') return reject(request.requestId, 'notFound')
       return parent.kind === 'done' ? undefined : parent
     }
+    if (found.kind === 'unresolved') return reject(request.requestId, 'notFound')
     if (found.kind !== 'done') return found
     return found.value.type !== 'file'
       ? reject(request.requestId, 'unsupported')
@@ -138,6 +140,7 @@ export function createWindowsBatch(options: {
         for (const [index, entry] of request.entries.entries()) {
           if (options.sealed()) return uncertain('closed')
           const refused = await check(entryRequest(request, entry), entry.expectedVersion)
+          if (options.sealed()) return uncertain('closed')
           if (refused !== undefined) {
             await writeManifest(file, { ...manifest, state: 'conflict', receipts: published })
             return uncertain('conflict')
