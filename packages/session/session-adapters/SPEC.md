@@ -653,6 +653,16 @@ Session 没有 suspend 意图，本插件不发 control(suspend)（#730 不被�
 
 控制受理不证明六阶段全部完成，也不授予推进资格。active 挂接如何获知长期控制仍归 Agent #502，不由本插件补造通知协议。
 
+##### 具名调用的解析
+
+Session 用调用引用指明 Model 与 Tool 调用：`producer.call` 是 `ModelInvocationRef` 或 `ToolInvocationRef` 文本（session-contract [稳定调用引用的读取](../session-contract/SPEC.md#稳定调用引用的读取)），即 AD-05 与 AD-06 从 `key.reference` 取的值。Agent 的 `interrupt-model`、`interrupt-tool` 与 `background-tool` 指明调用身份（`ModelCallId`、`ToolCallId`）。
+
+- 本插件用生产领域的公开解析器取调用身份：Model 用 `resolveModelInvocationRef`，Tool 用 `resolveToolInvocationRef`，租户为 `DriveTarget.tenant`。不切割字符串，也不拆 JSON 字段。
+- 回程不由本插件做。Agent 控制记录指明的调用，由 AD-02 的控制归一按该 execution 的原效果找回调用引用（`src/testing/control.ts` 的 `referencesOf`），再与 `producer.call` 比较。
+- 引用不能解析（格式错误、种类不对，或给的是调用身份而不是引用）：答 `unavailable`，诊断以 `translation defect` 开头，以 error 级写入日志，不调用 Agent。不答 `unsupported`，因为 Session 收到 `unsupported` 后停止重放，控制会被静默丢掉。Session 收到 `unavailable` 后保留任务并重放，控制不进入已传播。
+- 引用属于另一租户：答 `denied`，不调用 Agent。
+- 验证见 `tests/agent-drive.spec.ts` 的「control goes to the long-term control entry」一组。
+
 结果的对应：
 
 | Agent 的结果 | 端口结果 |
