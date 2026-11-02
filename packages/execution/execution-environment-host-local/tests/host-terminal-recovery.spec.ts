@@ -137,6 +137,10 @@ async function run(
 async function retainedFixture(retentionLedger = recorder()) {
   const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
   providers.push(provider)
+  if (provider.listRecoveryResources === undefined || provider.recover === undefined)
+    throw new Error('retention recovery missing')
+  const listResources = provider.listRecoveryResources.bind(provider)
+  const recover = provider.recover.bind(provider)
   const retentionScope = scope()
   const released = new AbortController()
   const acquire = async (origin: string, own = recorder()) => {
@@ -172,7 +176,16 @@ async function retainedFixture(retentionLedger = recorder()) {
   }
   const cwd = await realpath(await mkdtemp(join(tmpdir(), 'omne-retained-terminal-')))
   roots.push(cwd)
-  return { provider, acquire, cwd, retentionScope, retentionLedger, released }
+  return {
+    provider,
+    acquire,
+    cwd,
+    retentionScope,
+    retentionLedger,
+    released,
+    listResources,
+    recover,
+  }
 }
 
 it('retains one real shell across acquisition release and recovers its zero-attachment scope', async context => {
@@ -203,13 +216,13 @@ it('retains one real shell across acquisition release and recovers its zero-atta
   )
   expect(b.own.resources).toHaveLength(1)
   expect(await b.lease.release()).toMatchObject({ kind: 'released' })
-  const listed = await f.provider.listRecoveryResources(f.retentionScope)
+  const listed = await f.listResources(f.retentionScope)
   expect(listed.kind).toBe('listed')
   if (listed.kind !== 'listed') throw new Error('retained scope listing')
   expect(listed.resources).toHaveLength(1)
   f.released.abort()
   for (const resource of listed.resources)
-    expect(await f.provider.recover(resource)).toMatchObject({ status: 'confirmedStopped' })
+    expect(await f.recover(resource)).toMatchObject({ status: 'confirmedStopped' })
   expect(f.retentionLedger.stops).toContain('confirmed')
   expect(await f.provider.retire()).toMatchObject({ kind: 'drained' })
 }, 30_000)
@@ -266,13 +279,13 @@ it('prevents real retained creation when its scope closes during durable permiss
   const a = await f.acquire('a')
   const creating = a.terminal.create({ ...a.request, cwd: f.cwd, env, retain: 'session' })
   await waiting
-  expect(await f.provider.listRecoveryResources(f.retentionScope)).toMatchObject({
+  expect(await f.listResources(f.retentionScope)).toMatchObject({
     kind: 'listed',
     resources: owner.resources,
   })
   f.released.abort()
   for (const resource of owner.resources)
-    expect(await f.provider.recover(resource)).toMatchObject({ status: 'pending' })
+    expect(await f.recover(resource)).toMatchObject({ status: 'pending' })
   grant('confirmed')
   expect(await creating).toMatchObject({ reason: 'closed' })
   expect(owner.stops).toContain('confirmed')
