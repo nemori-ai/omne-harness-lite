@@ -12,7 +12,9 @@ import type { MemoryModelCommandsOptions, MemorySendSource } from './types.ts'
 
 export function createMemoryModelCommands<P>(options: MemoryModelCommandsOptions<P>) {
   const { commands, control, initial, observations } = memoryAssembly(options)
-  return { commands, control, initial, observations }
+  return options.initialRun === undefined && options.observation === undefined
+    ? { commands, control }
+    : { commands, control, initial, observations }
 }
 
 export function memoryAssembly<P>(options: MemoryModelCommandsOptions<P>) {
