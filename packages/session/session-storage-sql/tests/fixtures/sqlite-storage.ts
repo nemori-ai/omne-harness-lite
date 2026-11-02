@@ -37,6 +37,7 @@ import evidenceMigration from '../../src/worker/operation-evidence-migration.ts'
 import participant from '../../src/worker/participant.ts'
 import preadmissionMigration from '../../src/worker/preadmission-migration.ts'
 import readExecutionOperation from '../../src/worker/read-execution-operation.ts'
+import readExecutionParts from '../../src/worker/read-execution-parts.ts'
 import readExecutionSession from '../../src/worker/read-execution-session.ts'
 import readExecutionState from '../../src/worker/read-execution-state.ts'
 import readHistoryRoot from '../../src/worker/read-history-root.ts'
@@ -49,6 +50,7 @@ import readPreadmission from '../../src/worker/read-preadmission.ts'
 import readReferences from '../../src/worker/read-references.ts'
 import readReleasedScopes from '../../src/worker/read-released-scopes.ts'
 import readWork from '../../src/worker/read-work.ts'
+import statePartMigration from '../../src/worker/state-part-migration.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
   readWork,
@@ -61,6 +63,7 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readReleasedScopes,
   readHistoryRoot,
   readExecutionState,
+  readExecutionParts,
   readExecutionOperation,
   readExecutionSession,
   readPreadmission,
@@ -78,6 +81,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   evidenceMigration,
   preadmissionMigration,
   admissionAttemptMigration,
+  statePartMigration,
 ]
 
 export type StorageCall =

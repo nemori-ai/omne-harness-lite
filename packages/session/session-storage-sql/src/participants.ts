@@ -46,8 +46,13 @@ export const SESSION_INPUT_HANDLER = 'session.input'
 export const SESSION_EXECUTION_HANDLER = 'session.execution'
 /** The read handlers of the execution record participant. */
 export const EXECUTION_RECORD_HANDLERS = {
-  /** The publication count and the opaque state of the records of one session. */
+  /** The publication count and the whole opaque state of the records of one session. */
   state: 'execution-record.state',
+  /**
+   * The publication count and the records of one session page by page: the whole state of a writer
+   * that does not split it, and the named parts (`ExecutionRecordPartsRead`).
+   */
+  parts: 'execution-record.parts',
   /** The original answer of one operation. */
   operation: 'execution-record.operation',
   /** One preadmission record, by tenant and handoff or by tenant and entry (`PreadmissionRead`). */
@@ -229,6 +234,9 @@ export type ExecutionAdmissionRecord = Readonly<{
   attempt?: string
 }>
 
+/** One named part of the opaque state of a session's records; `state` null drops the part. */
+export type ExecutionRecordPart = Readonly<{ part: string; state: JsonValue | null }>
+
 /**
  * One write of the execution record provider. The participant does six things in the commit
  * transaction: it finds the execution row by tenant and execution; it updates the head revision
@@ -236,8 +244,13 @@ export type ExecutionAdmissionRecord = Readonly<{
  * it replaces the opaque state of the session's records; it writes the index rows; and it adds one
  * to the publication count of the session, only when the count is `published`.
  *
+ * The state travels whole (`state`: it replaces the whole state and drops every part) or in parts
+ * (`parts`: each named part is replaced or, with a null state, dropped; the rest stay). With
+ * `replace` the parts are the whole state: the whole state and every part not named go first.
+ * A write carries exactly one of `state` and `parts`.
+ *
  * `revision` equal to `expected` is a write that establishes no new revision of the execution.
- * `state` and `answer` are opaque: the participant stores them and never decodes them.
+ * `state`, each part and `answer` are opaque: the participant stores them and never decodes them.
  */
 export type ExecutionRecordWrite = Readonly<{
   tenant: TenantId
@@ -249,24 +262,31 @@ export type ExecutionRecordWrite = Readonly<{
   operation: string
   digest: string
   answer: JsonValue
-  state: JsonValue
   boundaries: readonly ExecutionBoundaryRecord[]
   facts: readonly ExecutionFactRecord[]
   batches: readonly ExecutionBatchRecord[]
   admissions: readonly ExecutionAdmissionRecord[]
-}>
+}> &
+  (
+    | Readonly<{ state: JsonValue; parts?: never; replace?: never }>
+    | Readonly<{ state?: never; parts: readonly ExecutionRecordPart[]; replace: boolean }>
+  )
 
-/** The opaque members (`state`, `answer`, each `batch`) travel as they are; the rest is encoded. */
+/** The opaque members (`state`, each part, `answer`, each `batch`) travel as they are. */
 export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2 {
-  const { state, answer, batches, ...rest } = write
+  const { state, parts, replace, answer, batches, ...rest } = write
   const encoded = encodeValue(rest) as Readonly<Record<string, JsonValue>>
+  const opaque: Readonly<Record<string, JsonValue>> =
+    parts === undefined
+      ? { state: state ?? null }
+      : { parts: parts.map(({ part, state: body }) => ({ part, state: body })), replace }
   return {
     participant: EXECUTION_RECORD_PARTICIPANT,
     facts: {
       intent: 'publish',
       write: {
         ...encoded,
-        state,
+        ...opaque,
         answer,
         batches: batches.map(({ batch, ...index }) => ({
           ...(encodeValue(index) as Readonly<Record<string, JsonValue>>),
@@ -339,6 +359,49 @@ export function decodeExecutionRecordState(output: JsonValue): ExecutionRecordSt
   return value === null || typeof published !== 'string'
     ? null
     : { published, state: value['state'] ?? null }
+}
+
+/**
+ * The input of `execution-record.parts`: `after` the last part of the previous page (null: the first
+ * page), `parts` the names to read (absent or null: every part).
+ */
+export type ExecutionRecordPartsRead = Readonly<{
+  tenant: string
+  session: string
+  after?: string | null
+  parts?: readonly string[] | null
+}>
+/**
+ * One page of `execution-record.parts`: the publication count when the page was read, the whole
+ * state of a writer that does not split it (first page only; null otherwise or when there is
+ * none), the parts in ascending part order, and the `after` of the next page (null: none).
+ */
+export type ExecutionRecordPartsPage = Readonly<{
+  published: string
+  state: JsonValue | null
+  parts: readonly Readonly<{ part: string; state: JsonValue }>[]
+  next: string | null
+}>
+
+export function decodeExecutionRecordParts(output: JsonValue): ExecutionRecordPartsPage | null {
+  const value = recordOf(output)
+  const published = value?.['published']
+  const next = value?.['next'] ?? null
+  const parts = value?.['parts']
+  if (
+    value === null ||
+    typeof published !== 'string' ||
+    !(next === null || typeof next === 'string') ||
+    !Array.isArray(parts)
+  )
+    return null
+  const decoded: { part: string; state: JsonValue }[] = []
+  for (const item of parts as readonly JsonValue[]) {
+    const part = recordOf(item)
+    if (part === null || typeof part['part'] !== 'string' || !('state' in part)) return null
+    decoded.push({ part: part['part'], state: part['state'] ?? null })
+  }
+  return { published, state: value['state'] ?? null, parts: decoded, next }
 }
 
 /** The input of `execution-record.operation` and the output it gives (null: no original). */

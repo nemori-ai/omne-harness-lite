@@ -1,7 +1,7 @@
 // The static materials of the Session storage: two participants (`session` and `execution-record`),
-// their six migrations (three of `session`: the log, the execution index and the operation
-// evidence table; three of `execution-record`: its records, the preadmission records and the
-// original attempt of an admission) and their
+// their seven migrations (three of `session`: the log, the execution index and the operation
+// evidence table; four of `execution-record`: its records, the preadmission records, the
+// original attempt of an admission and the state parts) and their
 // read handlers, as the SQL storage contract describes them
 // (sql-contract SPEC 4). The `session` participant reads the same-root index tables of
 // `execution-record` (sql-contract SPEC 4.1: a read table of another participant of the same
@@ -29,6 +29,8 @@ import {
   EXECUTION_RECORD_TABLES,
   PREADMISSION_MIGRATION,
   PREADMISSION_TABLES,
+  STATE_PART_MIGRATION,
+  STATE_PART_TABLES,
 } from './worker/execution-record-schema.ts'
 import {
   EXECUTION_INDEX_MIGRATION,
@@ -70,6 +72,10 @@ const preadmissionMigrationRef = Object.freeze({
 const admissionAttemptMigrationRef = Object.freeze({
   owner: ADMISSION_ATTEMPT_MIGRATION.owner,
   id: ADMISSION_ATTEMPT_MIGRATION.id,
+})
+const statePartMigrationRef = Object.freeze({
+  owner: STATE_PART_MIGRATION.owner,
+  id: STATE_PART_MIGRATION.id,
 })
 
 type Handler = Readonly<{
@@ -134,6 +140,13 @@ export const HANDLERS: readonly Handler[] = [
     migrations: [recordMigrationRef],
   },
   {
+    handler: 'execution-record.parts',
+    file: 'read-execution-parts',
+    tables: ['er_root', 'er_state', ...STATE_PART_TABLES],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: [recordMigrationRef, statePartMigrationRef],
+  },
+  {
     handler: 'execution-record.operation',
     file: 'read-execution-operation',
     tables: ['er_operation'],
@@ -165,6 +178,7 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
   const evidenceMigration = module('operation-evidence-migration')
   const preadmissionMigration = module('preadmission-migration')
   const admissionAttemptMigration = module('admission-attempt-migration')
+  const statePartMigration = module('state-part-migration')
   return {
     participants: [
       {
@@ -176,6 +190,7 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
           ...EXECUTION_RECORD_TABLES,
           ...PREADMISSION_TABLES,
           ...ADMISSION_ATTEMPT_TABLES,
+          ...STATE_PART_TABLES,
         ],
         readTables: [],
         requiresFacts: [],
@@ -231,6 +246,12 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
         ...admissionAttemptMigrationRef,
         moduleUrl: admissionAttemptMigration.moduleUrl,
         checksum: admissionAttemptMigration.digest,
+        requires: [recordMigrationRef],
+      },
+      {
+        ...statePartMigrationRef,
+        moduleUrl: statePartMigration.moduleUrl,
+        checksum: statePartMigration.digest,
         requires: [recordMigrationRef],
       },
     ],

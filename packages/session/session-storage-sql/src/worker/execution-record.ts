@@ -2,8 +2,9 @@
 // Agent Journal) in the Session log's transaction domain. In the commit transaction it does six
 // things and decides nothing of the Agent: it finds the execution row, compares the head revision
 // and the publication count with the expected ones, inserts the original answer under its unique
-// operation, replaces the opaque state, writes the index rows the provider prepared, and adds one
-// to the publication count. The state and the answers are opaque: it stores them as they came.
+// operation, replaces the opaque state (whole, or the parts the write names), writes the index rows
+// the provider prepared, and adds one to the publication count. The state, its parts and the
+// answers are opaque: it stores them as they came.
 // Its second intent keeps the preadmission records (`preadmission`): the intent of one handoff is
 // saved before the provider answers, and its outcome is fixed once.
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -44,6 +45,8 @@ type Admission = Readonly<{
   attachment: string
   attempt: string | null
 }>
+/** One named part of the opaque state; `state` null drops the part. */
+type Part = Readonly<{ part: string; state: JsonValue | null }>
 type Write = Readonly<{
   tenant: string
   session: string
@@ -54,7 +57,13 @@ type Write = Readonly<{
   operation: string
   digest: string
   answer: JsonValue
-  state: JsonValue
+  /**
+   * The whole state (`kind: 'whole'`), or the parts this write changes (`kind: 'parts'`); with
+   * `replace` the parts are the whole state and every part the write does not name goes.
+   */
+  state:
+    | Readonly<{ kind: 'whole'; state: JsonValue }>
+    | Readonly<{ kind: 'parts'; parts: readonly Part[]; replace: boolean }>
   boundaries: readonly Boundary[]
   facts: readonly Fact[]
   batches: readonly Batch[]
@@ -131,6 +140,24 @@ function parseAdmission(item: Json): Admission | null {
     : null
 }
 
+function parsePart(item: Json): Part | null {
+  const { part } = item
+  return isText(part) && 'state' in item ? { part, state: item['state'] ?? null } : null
+}
+
+/** The whole state or its parts: exactly one of `state` and `parts`, never both. */
+function parseState(raw: Json): Write['state'] | null {
+  if ('parts' in raw) {
+    if ('state' in raw) return null
+    const parts = listOf(raw['parts'], parsePart)
+    const replace = raw['replace'] ?? false
+    if (parts === null || typeof replace !== 'boolean') return null
+    if (new Set(parts.map(item => item.part)).size !== parts.length) return null
+    return { kind: 'parts', parts, replace }
+  }
+  return 'state' in raw ? { kind: 'whole', state: raw['state'] ?? null } : null
+}
+
 /** Parses the write at the boundary; a malformed one is unsupported and writes nothing. */
 function parseWrite(raw: JsonValue | undefined): Write | null {
   if (!isJson(raw)) return null
@@ -145,10 +172,11 @@ function parseWrite(raw: JsonValue | undefined): Write | null {
     !isInteger(published) ||
     !isText(operation) ||
     !isText(digest) ||
-    !('answer' in raw) ||
-    !('state' in raw)
+    !('answer' in raw)
   )
     return null
+  const state = parseState(raw)
+  if (state === null) return null
   const boundaries = listOf(raw['boundaries'], parseBoundary)
   const facts = listOf(raw['facts'], parseFact)
   const batches = listOf(raw['batches'], parseBatch)
@@ -164,7 +192,7 @@ function parseWrite(raw: JsonValue | undefined): Write | null {
     operation,
     digest,
     answer: raw['answer'] ?? null,
-    state: raw['state'] ?? null,
+    state,
     boundaries,
     facts,
     batches,
@@ -236,6 +264,38 @@ function writeIndex(port: Executor, write: Write): void {
   }
 }
 
+/**
+ * The whole state replaces the state of the session and drops its parts. Parts replace or drop the
+ * parts they name; with `replace` the whole state and every other part go first.
+ */
+function writeState(port: Executor, write: Write): void {
+  const { tenant, session, state } = write
+  const scope = [tenant, session]
+  if (state.kind === 'whole') {
+    port.execute('INSERT OR REPLACE INTO er_state (tenant, session, state) VALUES (?, ?, ?)', [
+      ...scope,
+      json(state.state),
+    ])
+    port.execute('DELETE FROM er_state_part WHERE tenant = ? AND session = ?', scope)
+    return
+  }
+  if (state.replace) {
+    port.execute('DELETE FROM er_state WHERE tenant = ? AND session = ?', scope)
+    port.execute('DELETE FROM er_state_part WHERE tenant = ? AND session = ?', scope)
+  }
+  for (const part of state.parts)
+    if (part.state === null)
+      port.execute('DELETE FROM er_state_part WHERE tenant = ? AND session = ? AND part = ?', [
+        ...scope,
+        part.part,
+      ])
+    else
+      port.execute(
+        'INSERT OR REPLACE INTO er_state_part (tenant, session, part, state) VALUES (?, ?, ?, ?)',
+        [...scope, part.part, json(part.state)],
+      )
+}
+
 function publish(port: Executor, write: Write): ParticipantReply {
   const { tenant, session, execution } = write
   // The original answer first: the provider tells a recall of the same operation by its digest.
@@ -280,11 +340,7 @@ function publish(port: Executor, write: Write): ParticipantReply {
     'INSERT INTO er_operation (tenant, operation, session, execution, digest, answer, published) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [tenant, write.operation, session, execution, write.digest, json(write.answer), next],
   )
-  port.execute('INSERT OR REPLACE INTO er_state (tenant, session, state) VALUES (?, ?, ?)', [
-    tenant,
-    session,
-    json(write.state),
-  ])
+  writeState(port, write)
   writeIndex(port, write)
   port.execute('INSERT OR REPLACE INTO er_root (tenant, session, published) VALUES (?, ?, ?)', [
     tenant,
