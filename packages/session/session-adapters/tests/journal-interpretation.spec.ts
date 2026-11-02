@@ -394,6 +394,24 @@ describe('AD-02: a step that took no input', () => {
     expect(f.sent.map(item => item.observation.sequence)).toEqual(['1', '3'])
   })
 
+  // The in-process index of a Journal copy rebuilt from the durable records (another writer of the
+  // session changed its publication count) must still know the range of the empty batch that the
+  // checkpoint names, or every later load fails (#502 D4, defect E).
+  it('a Journal copy rebuilt from the durable records loads after the empty take and goes on', async () => {
+    const f = await interpreted('ad02-empty-rebuilt')
+    const journal = f.c.journal()
+    await started(f.s, journal)
+    await takeNothing(f.s, journal, 'take-nothing')
+    // Another writer (a receiver's own Journal copy) moves the publication count, so the plugin's
+    // copy is rebuilt from the durable records at its next call.
+    await committed(f.s, f.s.view.journal, 'other-writer', [
+      { kind: 'message', message: assistantMessage('other'), source: evidence('other-writer') },
+    ])
+    ok(await f.s.fresh().journal.load({ ...f.s.access, execution: f.s.execution }))
+    await committed(f.s, journal, 'wait-after-rebuild', [{ kind: 'waiting', waits }], waits)
+    await reaches(f.s, '4')
+  })
+
   it('the memory double interprets the same sequence to the same progress', async () => {
     const m = await scene('memory-empty-take')
     const interpret = (sequence: string) =>
