@@ -21,9 +21,14 @@ export type RoundCount = Readonly<{
   stableRecompute: number
   storageCommits: Readonly<Record<string, number>>
   storageCommitTotal: number
+  /** Commits the storage answered with anything but `committed`: retries of a conflict. */
+  storageRollbacks: number
   storageReads: Readonly<Record<string, number>>
   storageReadRows: Readonly<Record<string, number>>
+  /** `commitLog` calls of AD-02 that Session accepted. */
   ad02Commits: number | null
+  /** `commitLog` calls of AD-02 that Session refused (a conflict on the head: AD-02 reads again). */
+  ad02Refused: number
   modelReceives: number
   toolReceives: number
   modelRequests: number
@@ -36,9 +41,11 @@ type Open = {
   historyRows: number
   storageCommits: Record<string, number>
   storageCommitTotal: number
+  storageRollbacks: number
   storageReads: Record<string, number>
   storageReadRows: Record<string, number>
   ad02Commits: number | null
+  ad02Refused: number
   modelReceives: number
   toolReceives: number
   modelRequests: number
@@ -78,9 +85,11 @@ export function createRoundCounters() {
     historyRows: 0,
     storageCommits: {},
     storageCommitTotal: 0,
+    storageRollbacks: 0,
     storageReads: {},
     storageReadRows: {},
     ad02Commits: null,
+    ad02Refused: 0,
     modelReceives: 0,
     toolReceives: 0,
     modelRequests: 0,
@@ -107,8 +116,12 @@ export function createRoundCounters() {
       return count
     },
     /** One storage commit: counted once for each participant that has a command in it. */
-    commit(participants: readonly string[]): void {
+    commit(participants: readonly string[], committed: boolean): void {
       inRound(current => {
+        if (!committed) {
+          current.storageRollbacks += 1
+          return
+        }
         current.storageCommitTotal += 1
         for (const participant of new Set(participants)) bump(current.storageCommits, participant)
       })
@@ -132,8 +145,11 @@ export function createRoundCounters() {
       inRound(current => (current.toolInvokes += 1))
     },
     /** The commits of the AD-02 plugin, once the world has it. */
-    ad02Commit(): void {
-      inRound(current => (current.ad02Commits = (current.ad02Commits ?? 0) + 1))
+    ad02Commit(accepted: boolean): void {
+      inRound(current => {
+        if (accepted) current.ad02Commits = (current.ad02Commits ?? 0) + 1
+        else current.ad02Refused += 1
+      })
     },
     /**
      * The history face of Session, with every read and every row it hands out counted. A row that an
@@ -182,7 +198,10 @@ export function countingStorage(storage: SqlStorage, counters: RoundCounters): S
     query: identity => storage.query(identity),
     commit: async (request, options) => {
       const result = await storage.commit(request, options)
-      counters.commit(request.commands.map(command => command.participant))
+      counters.commit(
+        request.commands.map(command => command.participant),
+        result.kind === 'committed',
+      )
       return result
     },
     read: async (request, options) => {

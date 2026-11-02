@@ -42,6 +42,7 @@ import {
   intakeAccess,
   ok,
   openLineWorld,
+  withAd02AndHandoff,
   strangerAccess,
   type LineWorld,
 } from './world.ts'
@@ -65,7 +66,9 @@ const textOf = (message: { blocks: readonly unknown[] }): string =>
 
 describe('CP3: from a Session input to the save of the Model result on the session log', () => {
   it('runs the whole line on one real Cordis root over the real sqlite-provider', async () => {
-    const w = await openLineWorld()
+    // The handoff provider and AD-02 are the real ones (C-ADAPTERS); only this call changed from the
+    // first form of the checkpoint, no assertion did.
+    const w = await openLineWorld(withAd02AndHandoff())
     worlds.push(w)
     const agent = { principal: COORDINATOR, tenant: TENANT }
 

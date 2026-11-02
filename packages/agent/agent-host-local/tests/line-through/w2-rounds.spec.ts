@@ -55,13 +55,58 @@ describe('J1: three rounds of one conversation', () => {
     })
   })
 
-  const defect = 'D4: from the second round AD-02 conflicts on the same-root execution head'
-  it.todo(`J1 round 2 and 3: the Model request grows with the earlier rounds (${defect})`)
-  it.todo(`J1 round 2 and 3: the history read returns only the new rows (${defect}; D3 for AD-04)`)
-  it.todo(`J1 round 2: the request carries the reasoning block of round 1 (${defect})`)
-  it.todo(
-    `J1 after each round readThrough equals emittedThrough and the next startRun passes (${defect})`,
-  )
+  it('J1 three rounds: the request grows and the history read returns only the new rows', async () => {
+    // The encrypted reasoning block of round 1 (`reasoning_state` of the message model), paired with
+    // its reply text.
+    const reasoning = {
+      kind: 'reasoning_state',
+      id: 'blk_reasoning_state',
+      visibility: { toHuman: false, toModel: true },
+      payload: 'opaque-state-of-round-1',
+      pairs: ['blk_r0'],
+    } as unknown as ReturnType<typeof replyText>
+    const w = await openW2World({
+      earlier: 'session',
+      model: a => ({
+        parts:
+          a.index === 0
+            ? [reasoning, replyText('r0', 'answer 0')]
+            : [replyText(`r${a.index}`, `answer ${a.index}`)],
+        reason: 'stop',
+      }),
+    })
+    worlds.push(w)
+    await w.createSession('j1')
+    for (const round of [1, 2, 3]) {
+      await w.runRound(round, `question ${round}`)
+      // After the round the interpretation has caught up with what the Agent emitted, so the next
+      // startRun goes through.
+      const { emitted, readThrough } = await w.progress(await w.execution())
+      expect(readThrough).toBe(emitted)
+    }
+
+    // The request of round n carries the inputs and the replies of the rounds before it.
+    const sizes = w.assembled.map(messages => messages.length)
+    expect(sizes).toHaveLength(3)
+    expect(sizes[1]).toBeGreaterThan(sizes[0] ?? 0)
+    expect(sizes[2]).toBeGreaterThan(sizes[1] ?? 0)
+    const second = w.assembled[1]?.map(textOf) ?? []
+    expect(second).toEqual(expect.arrayContaining(['question 1', 'answer 0']))
+    // The reasoning block of round 1 is replayed in the request of round 2.
+    const replayed = (w.assembled[1] ?? [])
+      .flatMap(message => message.blocks as readonly { kind: string }[])
+      .map(block => block.kind)
+    expect(replayed).toContain('reasoning_state')
+
+    // Rounds 2 and 3 read only what the round before added to the session log: its input and its
+    // reply, whatever the length of round 1; nothing already read is read again.
+    const [, two, three] = w.counters.rounds
+    for (const count of [two, three]) {
+      expect(count?.historyRows).toBe(2)
+      expect(count?.projectedRows).toBe(2)
+      expect(count?.stableRecompute).toBe(0)
+    }
+  })
 })
 
 describe('J2: a Tool result enters the next Model request', () => {
@@ -89,13 +134,29 @@ describe('J2: a Tool result enters the next Model request', () => {
     expect(saved).toHaveProperty('ok')
   })
 
-  const defect =
-    'D4: after the Tool result the Agent run fails and AD-02 conflicts on the execution head'
-  it.todo(
-    `J2 the next Model request of the round has the Tool result block of the same call (${defect})`,
-  )
-  it.todo(`J2 the Tool result enters the session log through AD-02 (${defect})`)
-  it.todo(
-    `J2 round 2 still has the Tool result block, read from history, with no new invoke (${defect})`,
-  )
+  it('J2 the Tool result enters the next request of the round and the request of round 2', async () => {
+    const w = await openW2World({
+      earlier: 'session',
+      model: a =>
+        a.index === 0
+          ? { parts: [toolCallBlock('tc-j2b')], reason: 'tool-suggestions' }
+          : { parts: [replyText(`r${a.index}`, `answer ${a.index}`)], reason: 'stop' },
+    })
+    worlds.push(w)
+    await w.createSession('j2b')
+    await w.runRound(1, 'read the file')
+    await w.runRound(2, 'and again')
+    expect(w.tools.invoke.calls).toHaveLength(1)
+
+    const toolResultOf = (messages: (typeof w.assembled)[number]) =>
+      messages.filter(message => message.role === 'tool')
+    // The next Model request of the same round has the Tool result of that call.
+    expect(toolResultOf(w.assembled[1] ?? [])).toHaveLength(1)
+    // The request of round 2 still has it: it comes from the history read, and the Tool double is not
+    // asked again.
+    expect(toolResultOf(w.assembled[2] ?? [])).toHaveLength(1)
+    expect(w.counters.rounds[1]).toMatchObject({ toolInvokes: 0 })
+    // AD-02 wrote the result into the session log: the second round read it back as a history row.
+    expect(w.counters.rounds[1]?.historyRows).toBeGreaterThan(0)
+  })
 })
