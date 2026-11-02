@@ -52,10 +52,9 @@ const BUILD_AWAIT =
   '两个应用成员的构建产物：pnpm --filter @omne-harness/harness-server build' +
   ' 与 pnpm --filter @omne-harness/cli build'
 const REAL_ROWS_AWAIT =
-  'integration/model @ 148412f4a 与 integration/session-run @ 2e635a4df 提升进 mainline，' +
-  '之后各线把 session-provider 换出契约替身，并把 agent-*、model-*、session-ad*、' +
-  'session-handoff、session-conditions、request-context、agent-context、runtime-context ' +
-  '换进 ./cordis 与发行配置'
+  '发行配置里剩下的替身行换进真件：session-provider 出契约替身，agent-*、model-*、' +
+  'session-ad*、session-handoff、session-conditions、request-context、agent-context、' +
+  'runtime-context 换进 ./cordis 与发行配置。Tool 与 Execution 的行属波 B，联调 C 之前不换'
 
 const checks = []
 const record = (step, name, state, detail, awaiting) =>
