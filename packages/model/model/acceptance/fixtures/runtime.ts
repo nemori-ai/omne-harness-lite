@@ -188,6 +188,7 @@ export function createAcceptanceAssembly(script: {
       credentials: script.credentials ?? {
         present: () => ({ kind: 'unavailable' }),
         resolve: () => ({ kind: 'value', scope: 'factory', value: 'synthetic-acceptance-only' }),
+        resolveFor: () => ({ kind: 'value', scope: 'factory', value: 'synthetic-acceptance-only' }),
       },
       sources: [
         {
