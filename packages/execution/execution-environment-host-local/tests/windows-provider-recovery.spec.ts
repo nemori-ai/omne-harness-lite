@@ -1,5 +1,5 @@
 /** @module-tag slow */
-import { expect, it, vi } from 'vitest'
+import { expect, it } from 'vitest'
 import { domainInternals } from '../src/host-domain.ts'
 import { fixture, value } from './windows-provider-fixture.ts'
 import { outputOf } from './windows-execution/terminal-fixture.ts'
@@ -83,7 +83,8 @@ it('stops a zero-attachment retained shell when its Session scope closes', async
     const capacity = domainInternals(f.domain)?.windowsCapacity()
     expect(capacity?.reading().terminals).toBe(1)
     released.abort()
-    await vi.waitFor(() => expect(capacity?.reading().terminals).toBe(0), { timeout: 15_000 })
+    expect(await f.domain.maintain()).toEqual({ pending: 0 })
+    expect(capacity?.reading().terminals).toBe(0)
     expect(await f.provider.listRecoveryResources?.(f.retention.scope)).toEqual({
       kind: 'unavailable',
     })
