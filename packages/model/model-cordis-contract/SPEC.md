@@ -78,6 +78,18 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 
 演化目标继续使用同一个 CredentialPort 与凭据服务，不增加平行 Qualified 服务。强制 access、旧 SendFace 删除、Supplier/失败联合及真实消费者迁移归 M2 里程碑（[#784](https://github.com/nemori-ai/omne-harness-lite/issues/784)）。`CredentialPort` 调用方自报资格的缺口登记在该卡。真实 provider/assembly 负责资格变化、原工作失效、换代和 S 的共同排序，在最后核权、相符秘密解析及同步 start 之间不插入 await。Settings 保管实际秘密与绑定事实，Model 核本次发送匹配；服务转发、异步预核或受信声明本身都不证明该保证。现有自报资格缺口仍存在，M-2 增量（[#682](https://github.com/nemori-ai/omne-harness-lite/issues/682)）不声称已经修复，组织来源的新授权政策也未在此采用。
 
+## 准备资源租约
+
+`ModelPreparationResourcesService` 是抽象定义，键是 `modelPreparationResources`。它只有一个抽象成员 `acquire`，签名取自 model-contract 的 `ModelPreparationResources<P>['acquire']`。定义不新造类型。租约的形状、释放与 lineage 的规则归 [model-contract](../model-contract/SPEC.md)。
+
+用途：请求装配方在计量每份候选之前取一份租约，用租约的绑定规划与计量，然后归还租约。租约必须在规划与计量之前取得，所以它不能放进 `prepare` 的结果里。
+
+与 `ModelRequestPreparationService` 的分工：`prepare` 形成固定请求，不计量。`acquire` 只给计量租约。两个端口各用一个键，各有一个定义。`acquire` 不是 `ModelRequestPreparationService` 的成员，也不经插件选项交给消费者。
+
+提供者：提供 `modelRequestPreparation` 的插件在同一插件 fiber 上提供这个键（[IC-2](../../../docs/architecture/cordis-integration-conventions.md#ic-2) 允许一个插件提供几个键）。两个键同时出现，同时撤除，读同一份调用事实。插件卸载后，经先前取得的服务引用调用 `acquire` 也返回 `unavailable`，不给新租约。卸载前取得的租约继续有效，直到归还。
+
+符合性义务：租约归还且没有失败之后，`acquire` 给出新的租约。归还钩子失败时，`release()` 以 `unavailable` 的 `failure` 返回，不抛出。`./testing` 的 `modelPreparationResourcesConformance` 核对这两条。通过只证明一个提供者在一个进程内的这两条规则。
+
 ## 验证边界
 
 转换目录、实例目录和抽象服务由真实 Cordis 4.0.4 的测试核对（见[验证说明](verification/README.md#转换目录测试)与[实例目录测试](verification/README.md#实例目录测试)）。[验证场景](verification/README.md#model-cordis-持续验证)中目录以外的义务仍是后继实现义务。公开方法的形状不能证明授权、持久提交或资源交接完成。

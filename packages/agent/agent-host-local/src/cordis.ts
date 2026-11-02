@@ -1,3 +1,4 @@
-// PACKAGE_TEMPLATE_DRAFT: Implement the existing public Service and pair acquisition/release.
-// Do not duplicate public service keys or replace domain commitments with provider limitations.
-export {}
+// The Cordis entry of the local Agent host: the `agent-host` plugin and the type of its
+// configuration. Service definitions and keys stay in `@omne-harness/agent-cordis-contract/cordis`.
+export { agentHostPlugin } from './host-plugin.ts'
+export type { AgentHostConfig } from './host-config.ts'

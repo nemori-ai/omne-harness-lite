@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft Cordis-free session implementation; runtime factories are not implemented",
+  "description": "Cordis-free session implementation: the factory, the command handler, the four faces and the scheduler subset of SS-01",
   "engines": {
     "node": ">=24"
   },
@@ -25,9 +25,15 @@
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/session-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/session-cordis-contract": "workspace:*",
+    "@omne-harness/session-storage-sql": "workspace:*",
+    "@omne-harness/sql-contract": "workspace:*",
+    "@omne-harness/sqlite-provider": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

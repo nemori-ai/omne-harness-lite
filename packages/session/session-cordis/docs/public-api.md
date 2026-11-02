@@ -15,16 +15,13 @@
 
 ### 现有导出
 
-两个入口现在都没有导出。`src/index.ts` 与 `src/cordis.ts` 只有模板标记。[public-entry.spec.ts](../tests/public-entry.spec.ts) 与 [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言两个入口的导出为空。
-
-### 随实现进入的导出
-
-下表的内容由 SPEC 固定。名称与签名随实现进入。某项进入 `src/` 后，把它移到上一节，并同步导出测试。
+根入口 `src/index.ts` 没有导出，[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言这一点。`./cordis` 入口 [src/cordis.ts](../src/cordis.ts) 的运行时导出只有 `SessionProvider`，[cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言这一点。精确签名以源码为准，本页不保留第二套手写签名。
 
 | 定义 | 入口 | 种类 | 依据 |
 | --- | --- | --- | --- |
-| `SessionService` 的具体子类 | `./cordis` | 类，同时是插件。静态 `inject` 只写访问检查、事务端口与内部主体的键，不写服务键 `session` | [性质 1、2](../SPEC.md#服务与依赖)、[插件与服务](cordis.md#插件与服务) |
-| 配置 Schema | `./cordis` | 子类的静态 `Config`，Standard Schema。字段 `policy`（`SchedulingPolicy` 的逐字段覆盖）、`disposeWaitMs` 与 `admission`（省略或 `'none'`） | [性质 3](../SPEC.md#服务与依赖)、[配置](cordis.md#配置) |
+| `SessionProvider` | `./cordis` | 类，是 `SessionService` 的具体子类，同时是插件。静态 `inject` 写访问检查、委派事务入口、内部主体、会话工作主体与装配生命周期五个键，不写服务键 `session`。第五个键是装配入口的私有键，见 [SPEC 的实现现状](../SPEC.md#实现现状) | [性质 1、2](../SPEC.md#服务与依赖)、[插件与服务](cordis.md#插件与服务) |
+| 配置 Schema | `./cordis` | `SessionProvider` 的静态 `Config`，Standard Schema。字段 `policy`（`SchedulingPolicy` 的逐字段覆盖）、`disposeWaitMs` 与 `admission`（省略或 `'none'`） | [性质 3](../SPEC.md#服务与依赖)、[配置](cordis.md#配置) |
+| `SessionProviderConfig` | `./cordis` | 类型，装配写的配置形状 | [性质 3](../SPEC.md#服务与依赖) |
 
 本成员不导出服务键常量、端口键常量或事件增补，它们只由服务定义成员导出（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11)）。本成员也不转导出工厂、`SchedulingPolicy` 或 `defaultSchedulingPolicy`，它们只由 [session](../../session/docs/public-api.md) 导出，独立宿主从那里取。根入口不导出任何东西（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。
 

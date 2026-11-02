@@ -15,6 +15,8 @@
 | `shutdown.spec.ts`    | fast | 有序关闭的阶段次序、截止时间、幂等、报告闩锁、登记准入（N-7）、运行期换代（N-3） |
 | `s0-process.spec.ts`  | slow | 启动 `dist/bin.js`，断言退出码与 JSON 输出，输入在 `tests/fixtures/process/`     |
 
+真实模式（`serve`）的用例、行用例与 R9 贯通用例（`tests/r9/`）列在 [real-mode.md](../docs/real-mode.md#真实模式的测试)。
+
 ## 运行
 
 在成员目录运行：

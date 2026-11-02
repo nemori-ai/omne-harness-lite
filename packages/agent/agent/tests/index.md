@@ -19,6 +19,7 @@
 - [loop-admission.spec.ts](loop-admission.spec.ts)：受理幂等、输入冲突、busy、commit-unknown 与 R0 重试路由
 - [loop-wait-reconcile.spec.ts](loop-wait-reconcile.spec.ts)：W0 失通知、观察窗口、检查时刻、原操作对账、窄接续的未知保护、依赖重查与严格 Node 清理失败
 - [loop-wait.spec.ts](loop-wait.spec.ts)：W0 对 query 的 rejected 视为已定、unknown 保持等待
+- [loop-model-wait.spec.ts](loop-model-wait.spec.ts)：AG-03 先等待再收到回复的一次模型请求：节点提交次数、#1011 读取位置、每次进入等待最多一次 `load`、自身 waiting 事件不唤醒、重读失败不算进度与等待期间的重复 invoke
 - [loop-recovery.spec.ts](loop-recovery.spec.ts)：E1/E2 只读认回与挂接撤销、E4 恢复路由、R0 原提交切点的 committed/excluded 接续与 W0 保存等待
 - [loop-coordinator.spec.ts](loop-coordinator.spec.ts)：E1 found-existing 正常结束协调
 - [canonical.spec.ts](canonical.spec.ts)：输入等价性、元素边界与字节视图
@@ -29,6 +30,7 @@
 - [fixtures.spec.ts](fixtures.spec.ts)：每个替身的编排接口
 - [memory-journal.spec.ts](memory-journal.spec.ts)：内存 Journal 的同形清单各条、绑定的 coordination 模式、`tryFinish` 的五类 blocked 次序与 unknown 项的 unavailable
 - [journal-core-conformance.spec.ts](journal-core-conformance.spec.ts)：内存 Journal 运行 agent-contract `./testing` 的 Journal 核心一致性套件（Q1、Q1b、Q3、Q11、Q13、R2、P、Ja、Rh，以及终结的候选投影、清单、blocked 次序、取消路线与六个结算变体）；基线无失败用例，三个只破坏一条规则的装饰器各使其规则所在的具名用例变红
+- [journal-replay.spec.ts](journal-replay.spec.ts)：内存 Journal 运行 agent-contract `./testing` 的轨迹回放（AG-23）：收尾协议模型导出的轨迹逐步核对答复与状态投影，三条负控的违规轨迹须在最后一步被报告
 - [host-record.spec-d.ts](host-record.spec-d.ts)：内存 Journal 的本地 `TestHostRecord` 与 `SettlementQualification` 与一致性套件的同名类型互相可赋值
 - [journal-support.ts](journal-support.ts)：测试共用的契约值与步骤
 - [module-graph.ts](module-graph.ts)：导入图遍历

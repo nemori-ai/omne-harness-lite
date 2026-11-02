@@ -6,11 +6,11 @@ Request Context 的 Cordis 定义成员，`service-contract` 变体。
 
 ## 职责与状态
 
-本成员只拥有 Request Context 这一接缝的 Cordis 定义：三个服务键 `requestContext`、`requestContextTrust`、`contextAccountingInbox`，三个抽象类 `RequestContextService`、`RequestContextTrustService`、`ContextAccountingInboxService`，intercept 配置 `{ scope }`、变化事件 `request-context-cordis-contract/changed`，以及选择压缩策略与表示策略的配置形状。`requestContext` 服务上唯一带寿命的部分是提示词贡献的登记面。信任服务与账目收件口服务投影原端口，自己没有寿命。纯操作、提示词贡献的两类与组装规则归 [request-context-contract](../request-context-contract/README.md)，缓存、预计算派生物与默认策略归 [request-context](../request-context/README_ZH.md)，Service 实现归 [request-context-cordis](../request-context-cordis/README_ZH.md)。本成员只认通用角色：贡献者、调用方、监听者与提供者。
+本成员只拥有 Request Context 这一接缝的 Cordis 定义：四个服务键 `requestContext`、`requestContextTrust`、`contextAccountingInbox`、`contextHolderSources`，四个抽象类 `RequestContextService`、`RequestContextTrustService`、`ContextAccountingInboxService`、`ContextHolderSourcesService`，intercept 配置 `{ scope }`、变化事件 `request-context-cordis-contract/changed`，以及选择压缩策略与表示策略的配置形状。`requestContext` 服务上唯一带寿命的部分是提示词贡献的登记面。信任服务与账目收件口服务投影原端口，自己没有寿命。纯操作、提示词贡献的两类与组装规则归 [request-context-contract](../request-context-contract/README.md)，缓存、预计算派生物与默认策略归 [request-context](../request-context/README_ZH.md)，Service 实现归 [request-context-cordis](../request-context-cordis/README_ZH.md)。本成员只认通用角色：贡献者、调用方、监听者与提供者。
 
 状态：Cordis 定义成员，`draft`。采用依据是系统页的[提示词贡献登记面](../../../docs/architecture/runtime/request-context.md#提示词贡献登记面)、[成员与 Cordis 落位](../../../docs/architecture/runtime/request-context.md#成员与-cordis-落位)与 [IC 约定](../../../docs/architecture/cordis-integration-conventions.md)。现在的实现情况如下：
 
-- 已实现：三个抽象 Service 类与派生服务键、intercept、策略选择类型、Context/Events 增补、根入口类型重导出，以及 `./testing` 的信任脚本替身与套件。
+- 已实现：四个抽象 Service 类与派生服务键、intercept、策略选择类型、Context/Events 增补、根入口类型重导出，以及 `./testing` 中信任与持有者部件的替身和套件。
 - 生产登记表、缓存、策略实现和装配不属于本成员。
 - 本地验证：真实 Cordis 4.0.4 探针覆盖对象注入、祖先作用域、调用方效应、事件过滤与 ctx.set，以及托管操作边界。共同 basis 登记尚未完成，测试提供者不证明生产提供者行为。
 - 经 Cordis 的来源适配者用 `register` 与 `replace` 按目标登记来源集合，登记挂在调用者的 fiber 上；调用方用 `assembly(target)` 取绑定选定策略与该目标来源集合的操作组；全局层以 `scope: null` 表达；事件由监听者按载荷过滤。`ScopeRef` 原样复用 Runtime Context，见 [Cordis 说明](docs/cordis.md)。
@@ -22,7 +22,7 @@ request-context 与 request-context-cordis 两个包依赖本成员，没有应�
 本成员有三个入口：
 
 - 根入口 `@omne-harness/request-context-cordis-contract`：只重导出契约类型并增加类型 `RequestContextTrust`，不导入 Cordis。
-- `@omne-harness/request-context-cordis-contract/cordis`：三个服务定义。
+- `@omne-harness/request-context-cordis-contract/cordis`：四个服务定义。
 - `@omne-harness/request-context-cordis-contract/testing`：信任脚本替身与信任套件，不是生产导出。
 
 贡献者插件这样声明作用域并在插件体里登记：
@@ -39,7 +39,7 @@ inject: { requestContext: { scope: 作用域引用 } }
 
 ## 契约
 
-- 公开形状归 `src/`，已有类型重导出、三个服务定义与 `./testing`。
+- 公开形状归 `src/`，已有类型重导出、四个服务定义与 `./testing`。
 - 类型以外的行为归 [SPEC](SPEC.md)，性质 1 至 15。
 - 服务定义、intercept 配置、事件、依赖分类、登记与撤除协议、策略选择、IC 符合性映射归 [Cordis 说明](docs/cordis.md)。
 - 导出索引归[公开接口页](docs/public-api.md)。
@@ -49,7 +49,7 @@ inject: { requestContext: { scope: 作用域引用 } }
 
 ## 设计
 
-三个入口各有一个入口源文件（`index.ts`、`cordis.ts`、`testing/index.ts`）。包外依赖是 request-context-contract 的类型与 `@deepseek-ai/cordis`。本成员不导入机制实现或提供者实现。三个服务各有一个键。`requestContext` 服务只承载登记面，纯操作留在契约根入口。事件只做带修订的失效提示，不是事实源。策略选择是配置，不是服务方法。模块与理由见[内部架构](docs/architecture.md)，两条机制流程见[机制流程](docs/flows.md)，三个技术对象见[对象模型](docs/object-model.md)。
+三个入口各有一个入口源文件（`index.ts`、`cordis.ts`、`testing/index.ts`）。包外依赖是 request-context-contract 的类型与 `@deepseek-ai/cordis`。本成员不导入机制实现或提供者实现。四个服务各有一个键。`requestContext` 服务只承载登记面，纯操作留在契约根入口。事件只做带修订的失效提示，不是事实源。策略选择是配置，不是服务方法。模块与理由见[内部架构](docs/architecture.md)，两条机制流程见[机制流程](docs/flows.md)，三个技术对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 

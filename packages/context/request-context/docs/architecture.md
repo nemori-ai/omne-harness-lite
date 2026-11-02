@@ -2,11 +2,11 @@
 
 本页说明本成员怎样组织派生计算、缓存与默认策略来兑现 [SPEC](../SPEC.md)。它是组内「供给机制与缓存」这一主题在 Request Context 一侧的唯一拥有者（[组架构](../../docs/architecture.md#主题与唯一拥有者)）。公开行为归 [request-context-contract SPEC](../../request-context-contract/SPEC.md)，贡献登记面与 Cordis 绑定归 [request-context-cordis-contract](../../request-context-cordis-contract/docs/cordis.md) 与 [request-context-cordis](../../request-context-cordis/docs/cordis.md)。实现内部对象的身份与生灭归[对象模型](object-model.md)。
 
-来源登记表（`src/registry.ts`）与账目投影（`src/accounting.ts`）已实现。候选缓存、派生物、默认策略与修剪器尚未实现，下文是 SPEC 固定的结构，文件名由实现确定。
+来源登记表（`src/registry.ts`）、账目投影（`src/accounting.ts`）、默认压缩策略（`src/compaction-strategy.ts`）、修剪器（`src/trimmer.ts`）、默认表示策略（`src/representation-strategy.ts`）与缺席的转换件结果读口（`src/conversion-results.ts`）已实现。候选缓存与派生物尚未实现，下文关于它们的部分是 SPEC 固定的结构，文件名由实现确定。
 
 ## 模块与依赖
 
-根入口导出两个工厂。`createContextSourceRegistry` 的输入是主体绑定、登记授权判定者与两个策略实现；来源集合（七组读口、窄采用来源、历史源读口、转换件结果读口、读取资格与 Model 准备资源）由来源适配者经 `register` 登记，调用方经 `assembly(target)` 取操作组。`createContextAccounting` 的输入是来源核验、读取资格、窄采用来源、恢复授权与必填的容量上限（[SPEC 范围与依据](../SPEC.md#范围与依据)）。本成员没有序列化端口：请求字节取自 Model 的 `rules.plan` 返回的物化表示。内部分成下列模块：
+根入口导出两个有状态工厂与三个无状态构造件。三个构造件是 `createDefaultCompactionPolicy`、`createDefaultRepresentationPolicy` 与 `createAbsentConversionResults`，另导出两组配置初值 `DEFAULT_COMPACTION_POLICY`、`DEFAULT_REPRESENTATION_CONFIG` 与 `DEFAULT_TRIM_BYTES`。`createContextSourceRegistry` 的输入是主体绑定、登记授权判定者与两个策略实现；来源集合（七组读口、窄采用来源、历史源读口、转换件结果读口、读取资格与 Model 准备资源）由来源适配者经 `register` 登记，调用方经 `assembly(target)` 取操作组。`createContextAccounting` 的输入是来源核验、读取资格、窄采用来源、恢复授权与必填的容量上限（[SPEC 范围与依据](../SPEC.md#范围与依据)）。本成员没有序列化端口：请求字节取自 Model 的 `rules.plan` 返回的物化表示。内部分成下列模块：
 
 | 模块 | 持有的状态 | 承担的 SPEC 行为 |
 | --- | --- | --- |
@@ -16,9 +16,9 @@
 | 派生物 | 段渲染结果（唯一拥有者）、工具声明投影、快照提醒文本 | 段渲染在收到 `contributions` 通知后从登记面读口读段并渲染；其余在输入变化时预计算，组装时只取用（[预计算的派生物](../SPEC.md#预计算的派生物)） |
 | 组装 | 无持久状态 | 比缓存键，按组只重算对应层，每次重算 ⑥、装入裁定与结局，按锚点比前缀摘要，epoch 已变时丢页重取（[本地行为](../SPEC.md#本地行为)） |
 | 计划与步 | 无持久状态 | 用压缩策略出计划并记下策略身份、参数摘要与压缩依据；`deriveStep` 核计划身份、步序号、依据与策略；修剪由修剪器在第一个摘要步之前完成，不算一步 |
-| 默认压缩策略 | 配置初值：触发界线、保留预算、保留偏好、修剪优先、步数上界 | [默认策略与修剪器](../SPEC.md#默认策略与修剪器) |
-| 默认表示策略 | 配置初值：按模态的偏好顺序 | 同上 |
-| 修剪器 | 配置初值：修剪阈值 | 同上 |
+| 默认压缩策略（已实现） | 配置初值：触发界线、保留预算、保留偏好、修剪优先、步数上界 | [默认策略与修剪器](../SPEC.md#默认策略与修剪器) |
+| 默认表示策略（已实现） | 配置初值：按模态的偏好顺序 | 同上 |
+| 修剪器（已实现） | 配置初值：修剪阈值 | 同上 |
 | 生命周期 | 登记表状态：开放、已关闭 | 关闭后新登记与新借用返回不可用，等待全部代际结算；缓存实现后同时释放缓存（[SPEC 所有权、失败与生命周期](../SPEC.md#所有权失败与生命周期)） |
 
 ```mermaid
@@ -43,7 +43,7 @@ flowchart LR
 
 本成员不持有任何耐久状态。登记表、账目索引、缓存与派生物都是进程内状态：登记项由来源适配者重新登记，账目索引从结果接收方的日志授权重建，缓存失效后从输入重建，不改变任何结果（[SPEC 范围与依据](../SPEC.md#范围与依据)）。计划进度、压缩转换与最终请求记录归协调者与历史持有者。
 
-包外运行依赖是 `@omne-harness/request-context-contract`、`@omne-harness/call-account` 与 `@omne-harness/legal-identity`：契约给出全部值类型、操作组 `createAssemblyOperations`、来源集合与账目协议的类型；call-account 判账目合法；legal-identity 编码与比较租户。本成员不导入 `@deepseek-ai/cordis`（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)），也不导入任何协调者、历史持有者或贡献者的契约。
+包外运行依赖是 `@omne-harness/request-context-contract`、`@omne-harness/content-block`、`@omne-harness/message`、`@omne-harness/call-account` 与 `@omne-harness/legal-identity`（`@omne-harness/model-contract` 只取类型）：content-block 与 message 供默认策略和修剪器读写内容块与消息；契约给出全部值类型、操作组 `createAssemblyOperations`、来源集合与账目协议的类型；call-account 判账目合法；legal-identity 编码与比较租户。本成员不导入 `@deepseek-ai/cordis`（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)），也不导入任何协调者、历史持有者或贡献者的契约。
 
 缓存实现后，登记表实例经 `notify(change)` 只得知一种变化：`contributions`，即贡献登记面某一层的变化，带作用域引用与该层的修订（[候选缓存](../SPEC.md#候选缓存)）。Cordis 路径上由 request-context-cordis 在登记或撤除之后调用它。实例收到后自己从登记面读口读段并渲染，渲染结果只归实例。历史、runtime context、模型侧与工具侧的变化不经通知，每次调用时由输入携带的修订比较得知。
 
@@ -140,7 +140,7 @@ SPEC 的[组合与验证](../SPEC.md#组合与验证)列出持续验证场景。
 
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |
-| 根入口恰好导出两个工厂 | [public-entry.spec.ts](../tests/public-entry.spec.ts) | 新导出进入时同步 |
+| 根入口恰好导出两个工厂、三个构造件与三项配置初值 | [public-entry.spec.ts](../tests/public-entry.spec.ts) | 新导出进入时同步 |
 | 登记表：冲突、代际、借用、发布、撤除、关闭，操作组一致性 | [registry.spec.ts](../tests/registry.spec.ts) | 缓存进入后补缓存与登记的交错 |
 | 账目投影：核验顺序、幂等、容量、四种状态、重建 | [accounting.spec.ts](../tests/accounting.spec.ts) | — |
 | 命中、按组失效、修订落后作废 | 没有 | 随实现进入 `tests/`，按组失效表每行一个场景 |

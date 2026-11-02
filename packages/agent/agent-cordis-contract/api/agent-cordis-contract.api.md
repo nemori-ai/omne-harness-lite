@@ -6,6 +6,8 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `AgentInstanceProvision` · `index.d.ts`
+- `AgentInstanceSlotInput` · `index.d.ts`
 - `AgentLocalRoute` · `index.d.ts`
 - `AgentRegistrationInput` · `index.d.ts`
 - `AgentWithdrawalInput` · `index.d.ts`
@@ -20,6 +22,7 @@
 - `AgentExecutionControlService` · `cordis.d.ts`
 - `AgentExecutionRecoveryService` · `cordis.d.ts`
 - `AgentInstanceHostService` · `cordis.d.ts`
+- `AgentInstanceProvisionService` · `cordis.d.ts`
 - `AgentInstancesService` · `cordis.d.ts`
 - `AgentJournalEntriesService` · `cordis.d.ts`
 - `AgentJournalService` · `cordis.d.ts`
@@ -48,6 +51,7 @@
 - `agentExecutionRecoveryKey` · `cordis.d.ts`
 - `agentExtensionsKey` · `cordis.d.ts`
 - `agentInstanceHostKey` · `cordis.d.ts`
+- `agentInstanceProvisionKey` · `cordis.d.ts`
 - `agentInstancesKey` · `cordis.d.ts`
 - `agentInstancesPlugin` · `cordis.d.ts`
 - `agentJournalEntriesKey` · `cordis.d.ts`
@@ -60,6 +64,18 @@
 - `agentReadsKey` · `cordis.d.ts`
 - `agentRequestsKey` · `cordis.d.ts`
 
+## 入口 `./testing` · `testing.d.ts`
+
+- `AgentInstanceProvision` · `index.d.ts`
+- `AgentInstanceProvisionCase` · `testing-provision-conformance.d.ts`
+- `AgentInstanceProvisionFixture` · `testing-provision-conformance.d.ts`
+- `AgentInstanceSlotInput` · `index.d.ts`
+- `MemoryInstanceProvision` · `testing-provision.d.ts`
+- `MemoryInstanceProvisionInput` · `testing-provision.d.ts`
+- `ProvisionOperation` · `testing-provision.d.ts`
+- `agentInstanceProvisionConformance` · `testing-provision-conformance.d.ts`
+- `createMemoryInstanceProvision` · `testing-provision.d.ts`
+
 ## 声明文件 `cordis.d.ts`
 
 ```ts
@@ -68,7 +84,7 @@ import { type ActionAdmission, type AgentAccessCheck, type AgentAccountOutlet, t
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type Outcome } from '@omne-harness/operation-result';
-import type { AgentLocalRoute, AgentRegistrationInput, AgentWithdrawalInput } from './index.ts';
+import type { AgentInstanceProvision, AgentLocalRoute, AgentRegistrationInput, AgentWithdrawalInput } from './index.ts';
 export type { AgentLocalRoute, AgentRegistrationInput, AgentWithdrawalInput } from './index.ts';
 export interface AgentPublicationAuthority<P> {
     check(input: AgentRegistrationInput<P> | AgentWithdrawalInput<P>, caller: Context): Outcome<void, Failure>;
@@ -230,6 +246,12 @@ export declare abstract class AgentExecutionControlService<P> extends Service im
     abstract readonly control: AgentExecutionControl<P>['control'];
 }
 export declare const agentExecutionControlKey = "agentExecutionControl";
+export declare abstract class AgentInstanceProvisionService<P> extends Service implements AgentInstanceProvision<P> {
+    static readonly provide = "agentInstanceProvision";
+    constructor(ctx: Context);
+    abstract readonly acquire: AgentInstanceProvision<P>['acquire'];
+}
+export declare const agentInstanceProvisionKey = "agentInstanceProvision";
 export declare class AgentInstancesService<P> extends Service implements AgentDirectory<P> {
     static readonly provide = "agentInstances";
     readonly resolve: AgentDirectory<P>['resolve'];
@@ -282,6 +304,7 @@ declare module '@deepseek-ai/cordis' {
         agentAccountOutlet: AgentAccountOutletService<unknown>;
         agentExecutionControl: AgentExecutionControlService<unknown>;
         agentInstances: AgentInstancesService<unknown>;
+        agentInstanceProvision: AgentInstanceProvisionService<unknown>;
     }
     interface Events {
         'agent-cordis-contract/instance-retired'(tenant: TenantId, instance: AgentInstanceId, generation: number, reason: 'withdrawn' | 'contributor-removed' | 'superseded'): void;
@@ -292,11 +315,79 @@ declare module '@deepseek-ai/cordis' {
 ## 声明文件 `index.d.ts`
 
 ```ts
-import type { AgentHandle, AgentInstanceHost, AgentRuntime } from '@omne-harness/agent-contract';
+import type { Access, Adoption, AgentHandle, AgentInstanceHost, AgentInstanceId, AgentRuntime, DurableEvidence, Registration, Reply } from '@omne-harness/agent-contract';
 export type AgentLocalRoute<P> = Readonly<{
     runtime: AgentRuntime<P>;
     observation: AgentHandle<P>;
 }>;
 export type AgentRegistrationInput<P> = Parameters<AgentInstanceHost<P>['publish']>[0];
 export type AgentWithdrawalInput<P> = Parameters<AgentInstanceHost<P>['withdraw']>[0];
+export type AgentInstanceSlotInput<P> = Access<P> & Readonly<{
+    scope: DurableEvidence;
+    definition: Adoption;
+}>;
+export interface AgentInstanceProvision<P> {
+    acquire(input: AgentInstanceSlotInput<P>): Reply<Readonly<{
+        instance: AgentInstanceId;
+        registration: Registration;
+    }>>;
+}
+```
+
+## 声明文件 `testing-provision-conformance.d.ts`
+
+```ts
+import type { Access, Adoption, AgentDirectory, AgentInstanceId, DurableEvidence } from '@omne-harness/agent-contract';
+import type { AgentInstanceProvision } from './index.ts';
+export type AgentInstanceProvisionCase = Readonly<{
+    name: string;
+    run: () => Promise<void>;
+}>;
+export interface AgentInstanceProvisionFixture<P> {
+    readonly provision: AgentInstanceProvision<P>;
+    readonly directory: AgentDirectory<P>;
+    access(tenant: 'a' | 'b'): Access<P>;
+    slot(variant: 'first' | 'other-definition'): Readonly<{
+        scope: DurableEvidence;
+        definition: Adoption;
+    }>;
+    idleOut(instance: AgentInstanceId): Promise<void>;
+    busyOut(instance: AgentInstanceId): Promise<void>;
+    live(): number;
+    denyReserve(): void;
+    denyHostPrincipal(): void;
+    dispose?(): Promise<void> | void;
+}
+export declare function agentInstanceProvisionConformance<P>(open: () => AgentInstanceProvisionFixture<P> | Promise<AgentInstanceProvisionFixture<P>>): readonly AgentInstanceProvisionCase[];
+```
+
+## 声明文件 `testing-provision.d.ts`
+
+```ts
+import { type Access, type AgentDirectory, type AgentInstanceId, type AgentRuntime, type Failure, type Reply } from '@omne-harness/agent-contract';
+import { type Outcome } from '@omne-harness/operation-result';
+import type { AgentInstanceProvision, AgentInstanceSlotInput } from './index.ts';
+export type ProvisionOperation = 'reserve' | 'publish' | 'quiesce';
+export type MemoryInstanceProvisionInput<P> = Readonly<{
+    create(slot: AgentInstanceSlotInput<P>, instance: AgentInstanceId): Reply<AgentRuntime<P>>;
+    check?(access: Access<P>, operation: ProvisionOperation): Outcome<void, Failure>;
+    hostPrincipal?: P;
+}>;
+export interface MemoryInstanceProvision<P> {
+    readonly durability: 'none';
+    readonly provision: AgentInstanceProvision<P>;
+    readonly directory: AgentDirectory<P>;
+    live(): number;
+    setIdle(instance: AgentInstanceId, idle: boolean): void;
+    reclaimIdle(): Promise<void>;
+}
+export declare function createMemoryInstanceProvision<P>(input: MemoryInstanceProvisionInput<P>): MemoryInstanceProvision<P>;
+```
+
+## 声明文件 `testing.d.ts`
+
+```ts
+export { createMemoryInstanceProvision, type MemoryInstanceProvision, type MemoryInstanceProvisionInput, type ProvisionOperation, } from './testing-provision.ts';
+export { agentInstanceProvisionConformance, type AgentInstanceProvisionCase, type AgentInstanceProvisionFixture, } from './testing-provision-conformance.ts';
+export type { AgentInstanceProvision, AgentInstanceSlotInput } from './index.ts';
 ```

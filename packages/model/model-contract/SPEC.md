@@ -191,7 +191,7 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 - 晚账修订份额用尽时，按[晚到账目与有界保管](#晚到账目与有界保管)在接管前拒绝新的晚报告，提交者继续保管可信来源。
 - 接收方自己的额度不足时，接收方对 push 返回[结果推送与保存](#结果推送与保存)已有的 `backpressured`。
 
-配额数值由实现采用并验证。本契约只要求租户之间互不拖累，以及拒绝按上述分支可观察。实现归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。
+配额数值由实现采用并验证。本契约只要求租户之间互不拖累，以及拒绝按上述分支可观察。本节所述的按租户公平目前没有实现，Model runtime 与装配它的宿主两侧都没有实现。M2 里程碑（[#784](https://github.com/nemori-ai/omne-harness-lite/issues/784)）之后另立承接卡实现它。
 
 ## 当前缺项
 
@@ -430,7 +430,7 @@ Model 公开面上接受调用方提交的 `ModelOperationId` 的每个方法，
 - 发送点 S：整次提交回滚。调用相位不变，dispatch 保持 prepared，不改成 not-sent。不记 ModelFault，不咨询重试策略，不消耗再试机会。driver 稍后重做同一次提交。
 - 策略点（prepareRetry、decideRetry）：整次提交回滚，不保存新的策略位置或再试决定。原失败 dispatch 与 retry-decision 相位不变。
 - ACK 点（证据适配器不可用）：返回 `unavailable`，`dependency` 为 `consumer-evidence`，不记故障。结果保管与清理状态不变，消费者以同一 operation 重试。
-- Model 不设上界，也不以超时收场。调用方需要放弃时用控制（cancel）。是否增加上界与对应收场原因尚未裁定，归 Model 契约拥有者。
+- Model 不设上界，也不以超时收场。调用方需要放弃时用控制（cancel）。具体的传输提供者可以有自己的可选等待上界，例如 [`pi-ai-transport` 的流停顿上界](../pi-ai-transport/SPEC.md#流停顿上界)。这类上界由该提供者自己的规格定义，本契约不定义，也不要求任何传输提供者设置。不论是否设置这类上界，已经启动的发出都靠控制放弃。本条这一部分只关系到已经启动的发出，与本列表其余各项依赖不可用时的等待无关。是否增加上界与对应收场原因尚未裁定，归 Model 契约拥有者。
 
 守卫参加者对不存在、跨租户或与问题不符的 `work` 一律答不合格；不可用只表示守卫自身依赖失败。这样受理点 C 不会泄露 `work` 是否存在。该义务随资格参加者协议并入协议正文。
 
@@ -984,7 +984,7 @@ ACK 前已经开始的真实读取不能被截成半份。读取完成或按既�
 
 租户读取自己成本账目。持有具名资格「组织成本账目读取」的主体读取全组织账目及明细，该资格由身份领域发布。账目可见不授予请求、回复、私人内容或凭据的访问权；模型和账目提供者共同保证原租户归属，而具体查询由身份与接入契约限制字段、用途和范围。
 
-组织范围的读面与 Tool 的[执行账与真实成本](../../tool/tool-contract/SPEC.md#执行账与真实成本)一样复用 `CallAccount` 字段。范围规则与读取顺序由身份成员的具名资格 [`organization-cost-ledger-read`](../../identity/identity/SPEC.md#具名资格与角色映射) 拥有：含已退出成员的租户，不含下级组织，先取裁定再按组织过滤。Model 不新增公开查询操作。组织范围的读取由接入/身份拥有者的范围查询发起（见[展示、诊断与实施证据](#展示诊断与实施证据)）。Model 是账目写入者。它回答该查询时，先向[身份与授权领域](../../../docs/domains/identity-and-authorization/README.md)取（主体、行事租户、读成本账目、组织）的裁定，再按组织过滤账目。裁定为拒绝时按 denied 返回。裁定来源不可用时按 unavailable 返回，dependency 指向授权来源。两种情况都不先过滤。账目资格不授予正文、原文、附件、凭据或秘密权限。实现归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。
+组织范围的读面与 Tool 的[执行账与真实成本](../../tool/tool-contract/SPEC.md#执行账与真实成本)一样复用 `CallAccount` 字段。范围规则与读取顺序由身份成员的具名资格 [`organization-cost-ledger-read`](../../identity/identity/SPEC.md#具名资格与角色映射) 拥有：含已退出成员的租户，不含下级组织，先取裁定再按组织过滤。Model 不新增公开查询操作。组织范围的读取由接入/身份拥有者的范围查询发起（见[展示、诊断与实施证据](#展示诊断与实施证据)）。Model 是账目写入者。它回答该查询时，先向[身份与授权领域](../../../docs/domains/identity-and-authorization/README.md)取（主体、行事租户、读成本账目、组织）的裁定，再按组织过滤账目。裁定为拒绝时按 denied 返回。裁定来源不可用时按 unavailable 返回，dependency 指向授权来源。两种情况都不先过滤。账目资格不授予正文、原文、附件、凭据或秘密权限。Model 宿主回答组织范围查询的一侧目前没有实现。M2 里程碑（[#784](https://github.com/nemori-ai/omne-harness-lite/issues/784)）之后另立承接卡实现它。
 
 ## 数据保护与异常
 

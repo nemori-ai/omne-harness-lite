@@ -72,8 +72,12 @@ console.log('scenario ok: value, denied, absent and a minted-tenant judgment')
 const testing = await import('@omne-harness/model/testing')
 const { createModelRuntime, createModelSendBoundary } = await import('@omne-harness/model')
 assert.deepEqual(Object.keys(testing).sort(), [
+  'ACCOUNT_OBLIGATIONS',
+  'checkCommandsAccounts',
   'createMemoryModelCommands',
+  'createModelCommandsCore',
   'createTestModelDependencies',
+  'modelCommands',
 ])
 const assembled = testing.createTestModelDependencies({
   owners: [],
@@ -104,13 +108,7 @@ const shell = createModelRuntime(assembled.dependencies, {
   retryBackoffMs: 0,
   cleanupRetryMs: 0,
 })
-assert.deepEqual(await shell.quiesce(), {
-  failure: {
-    kind: 'unavailable',
-    dependency: 'model-runtime',
-    diagnostic: 'managed-runtime-not-implemented operation=quiesce stage=5.5',
-  },
-})
+assert.deepEqual(await shell.quiesce(), { ok: { pending: '0', running: '0' } })
 const decodedCall = decodeModelCallId('mcall_installed')
 assert.ok('ok' in decodedCall, 'fixture model call id')
 assert.deepEqual(

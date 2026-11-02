@@ -74,18 +74,22 @@ export function fetchIssueCard(
     identity: { repository, number, url: card.url, id: text(card.issue.node_id, 'Issue.node_id') },
   }
 }
-/** Runs one `gh` command and returns its parsed JSON stdout. */
-export type GhCommand = (argv: readonly string[], timeoutMs: number) => unknown
+/**
+ * Runs one `gh` command and returns its parsed JSON stdout. `stdin` is the text handed to the
+ * process as its standard input; a call that passes none gets no input.
+ */
+export type GhCommand = (argv: readonly string[], timeoutMs: number, stdin?: string) => unknown
 /** A `GhCommand` that its callers use only for GET requests. */
 export type GhRead = GhCommand
 /** One launch of `gh`: its stdout text. Throws the process error of `execFileSync`. */
-export type GhProcess = (argv: readonly string[], timeoutMs: number) => string
-export const ghProcess: GhProcess = (argv, timeoutMs) =>
+export type GhProcess = (argv: readonly string[], timeoutMs: number, stdin?: string) => string
+export const ghProcess: GhProcess = (argv, timeoutMs, stdin) =>
   execFileSync('gh', [...argv], {
     encoding: 'utf8',
     timeout: timeoutMs,
     maxBuffer: 8 * 1024 * 1024,
-    stdio: ['ignore', 'pipe', 'pipe'],
+    // `input` writes the text to a pipe; `execFileSync` refuses another standard input with it.
+    ...(stdin === undefined ? { stdio: ['ignore', 'pipe', 'pipe'] } : { input: stdin }),
     shell: false,
   })
 /**
@@ -133,12 +137,12 @@ function transient(error: unknown): boolean {
  * The retried read is the same command, so a judgement that reads twice still reads twice.
  */
 export function ghCommand(run: GhProcess, sleep: (ms: number) => void = blockingSleep): GhCommand {
-  return (argv, timeoutMs) => {
+  return (argv, timeoutMs, stdin) => {
     const retries = isIdempotentGet(argv) ? GH_READ_RETRY_DELAYS_MS.length : 0
     for (let attempt = 0; ; attempt += 1) {
       let stdout: string
       try {
-        stdout = run(argv, timeoutMs)
+        stdout = run(argv, timeoutMs, stdin)
       } catch (error) {
         const failure = responseError(error) ?? error
         if (attempt >= retries || !transient(failure)) throw failure
@@ -171,8 +175,8 @@ type Answer = { value: unknown } | { error: GhReadError }
 /** A `GhRead` over `call` that answers a repeated GET from its first answer; writes pass through. */
 function cached(call: GhRead): GhRead {
   const answers = new Map<string, Answer>()
-  return (argv, timeoutMs) => {
-    if (!isIdempotentGet(argv)) return call(argv, timeoutMs)
+  return (argv, timeoutMs, stdin) => {
+    if (!isIdempotentGet(argv)) return call(argv, timeoutMs, stdin)
     const key = JSON.stringify(argv)
     let answer = answers.get(key)
     if (answer === undefined) {
@@ -200,9 +204,9 @@ export function reuseReads(call: GhRead): ReusedReads {
     shared,
     onceThenFresh: () => {
       const seen = new Set<string>()
-      return (argv, timeoutMs) => {
+      return (argv, timeoutMs, stdin) => {
         const key = JSON.stringify(argv)
-        if (!isIdempotentGet(argv) || seen.has(key)) return call(argv, timeoutMs)
+        if (!isIdempotentGet(argv) || seen.has(key)) return call(argv, timeoutMs, stdin)
         seen.add(key)
         return shared(argv, timeoutMs)
       }

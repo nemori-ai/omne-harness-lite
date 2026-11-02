@@ -69,6 +69,8 @@ describe('assembly closed outcomes and source boundaries', () => {
     if (a.kind === 'candidate-before-extension') {
       expect(a.candidate.coverage.history.anchors.at(-1)?.prefixDigest).toBe('chain:0')
       expect(a.candidate.assembled.messages).toHaveLength(1)
+      // The Model request judgment requires 64 lowercase hex for every Adoption digest.
+      expect(a.candidate.assembled.source.digest).toMatch(/^[0-9a-f]{64}$/u)
     }
   })
   it('requires reliable input save and uses caller scope', async () => {

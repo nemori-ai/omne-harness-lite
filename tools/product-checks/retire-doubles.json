@@ -1,0 +1,433 @@
+{
+  "source": {
+    "file": "retire.json",
+    "sha256": "800071d18d9dabad0e42f69947eda5789bb21473f022cd30aa11a7c7a7d48f5b",
+    "ref": "201de5d7727063068540966341a034304dc84f10"
+  },
+  "refreshedAt": "52fcf681a4105be19996dc1e86c2e4d3ab79300a",
+  "items": [
+    {
+      "id": "AG-11",
+      "category": "B",
+      "exports": ["createScriptedModelSelection"],
+      "exists": true,
+      "retireWave": "A",
+      "dueBy": "B",
+      "ownerKind": "reduce",
+      "note": "agent ./testing（packages/agent/agent/src/testing/index.ts:70），替会话保存的模型选择读面"
+    },
+    {
+      "id": "AG-14",
+      "category": "B",
+      "exports": ["createTableAdoptions"],
+      "exists": true,
+      "retireWave": "A",
+      "dueBy": "B",
+      "ownerKind": "reduce",
+      "note": "agent ./testing（packages/agent/agent/src/testing/index.ts:73），替采用点来源"
+    },
+    {
+      "id": "AG-16",
+      "category": "C",
+      "exports": ["createManualAgentClock"],
+      "exists": true,
+      "retireWave": null,
+      "dueBy": null,
+      "ownerKind": null,
+      "note": "手动时钟：测试要自己推进时间，真时钟不可控且不确定。只从装配上拆掉（联调 A 的 S0-1 核对插件树上有时钟行），代码留作测试设施"
+    },
+    {
+      "id": "MD-01",
+      "category": "C",
+      "exports": ["createScriptedModelProvider"],
+      "exists": true,
+      "retireWave": null,
+      "dueBy": null,
+      "ownerKind": null,
+      "note": "脚本化模型提供者：真件是联网的模型提供者，测试里不能用，响应与失败要可脚本化。只从装配上拆掉，代码留作测试设施"
+    },
+    {
+      "id": "MD-14",
+      "category": "B",
+      "exports": ["createAssemblyFixture"],
+      "exists": true,
+      "retireWave": "A",
+      "dueBy": "B",
+      "ownerKind": "reduce",
+      "note": "request-context-contract ./testing 的脚本准备资源（packages/context/request-context-contract/src/testing/fixtures.ts:258）；CS 同样这样接（apps/m2-contract-skeleton/SPEC.md:65）。导出名 createAssemblyFixture 同时承载其他夹具，导入方数按该名计，退役时只删脚本准备资源这一部分"
+    },
+    {
+      "id": "MD-15",
+      "category": "B",
+      "exports": ["createScriptedModelRequestPreparation"],
+      "exists": true,
+      "retireWave": null,
+      "dueBy": null,
+      "ownerKind": null,
+      "note": "并入 RD-MODEL。reduce 补交，由 RD-MODEL 交付（ModelRequestPreparation 的替身）。agent ./testing 的 createScriptedRequestPreparation 是 Agent 的 RequestPreparation，不是它"
+    },
+    {
+      "id": "MD-08",
+      "category": "A",
+      "exports": [],
+      "exists": true,
+      "retireWave": "A",
+      "dueBy": "B",
+      "ownerKind": "reduce",
+      "note": "CS 写死选择，没有档案读取的替身（apps/m2-contract-skeleton/tests/first-path-doubles.ts:84-86）。装配替身，随 CS 删除；档案读取的替身是 RD-MODEL"
+    },
+    {
+      "id": "AS-13",
+      "category": "B",
+      "exports": ["createFixedSessionCursorSigning"],
+      "exists": true,
+      "retireWave": null,
+      "dueBy": null,
+      "ownerKind": null,
+      "note": "并入 RD-CURSOR。reduce 补交，由 RD-CURSOR 交付（游标签名密钥的服务键与替身）"
+    },
+    {
+      "id": "ID-04",
+      "category": "none",
+      "exports": [],
+      "exists": true,
+      "retireWave": null,
+      "dueBy": null,
+      "ownerKind": null,
+      "note": "来源是既有实现：identity 根入口的 inProcessPrincipalAuthority 的核验器（packages/identity/identity/src/principal.ts:102），不是替身，没有可退的代码"
+    },
+    {
+      "id": "AG-06",
+      "category": "A",
+      "exports": [],
+      "exists": true,
+      "retireWave": "A",
+      "dueBy": "B",
+      "ownerKind": "reduce",
+      "note": "CS 的 H06 接法（apps/m2-contract-skeleton/SPEC.md:103）：Model 公开测试推送器 createScriptedResultPusher 推给 createLocalModelReceiver，接 agent-contract ./testing 的 createMemoryAgentJournalEntries。接线写在 CS 里，随 CS 删除；被接的 ./testing 导出不属于本项"
+    },
+    {
+      "id": "AG-18",
+      "category": "B",
+      "exports": ["createScriptedActionAdmission"],
+      "exists": true,
+      "retireWave": "B",
+      "dueBy": "C",
+      "ownerKind": "reduce",
+      "note": "agent ./testing（packages/agent/agent/src/testing/index.ts:64）"
+    },
+    {
+      "id": "TL-01",
+      "category": "B",
+      "exports": ["createScriptedToolRuntime"],
+      "exists": true,
+      "retireWave": "D",
+      "dueBy": "E",
+      "ownerKind": "reduce",
+      "note": "agent ./testing（packages/agent/agent/src/testing/index.ts:106），替工具运行门面"
+    },
+    {
+      "id": "TL-08",
+      "category": "B",
+      "exports": ["createMemoryToolStartAuthority", "memoryToolStartFenceFixture"],
+      "exists": true,
+      "retireWave": "B",
+      "dueBy": "C",
+      "ownerKind": "reduce",
+      "note": "tool-contract ./testing（packages/tool/tool-contract/src/testing.ts:22、36），内存工具启动围栏"
+    },
+    {
+      "id": "TL-04",
+      "category": "B",
+      "exports": ["createMemoryToolBindingRegistry"],
+      "exists": true,
+      "retireWave": "B",
+      "dueBy": "C",
+      "ownerKind": "reduce",
+      "note": "tool-cordis-contract ./testing（packages/tool/tool-cordis-contract/src/testing.ts:1157），内存工具登记表"
+    },
+    {
+      "id": "SS-17",
+      "category": "B",
+      "exports": ["createMemorySessionTransactions"],
+      "exists": true,
+      "retireWave": "B",
+      "dueBy": "C",
+      "ownerKind": "reduce",
+      "note": "session-contract ./testing（packages/session/session-contract/src/testing-transactions.ts:761），内存会话事务；本项顶替的是系统作用域读取这一面"
+    },
+    {
+      "id": "AS-11",
+      "category": "none",
+      "exports": [],
+      "exists": true,
+      "retireWave": null,
+      "dueBy": null,
+      "ownerKind": null,
+      "note": "来源是既有实现：真实工厂 createHostFilesDomain（packages/execution/execution-environment-host-local/src/host-domain.ts:219），没有替身"
+    },
+    {
+      "id": "AS-07",
+      "category": "B",
+      "exports": ["createMemoryToolResidencyReader"],
+      "exists": true,
+      "retireWave": null,
+      "dueBy": null,
+      "ownerKind": null,
+      "note": "并入 RD-TOOLHEAD。reduce 补交，由 RD-TOOLHEAD 交付（预置引用的常驻引用读取替身）"
+    },
+    {
+      "id": "ID-10",
+      "category": "B",
+      "exports": ["createTableToolAccess"],
+      "exists": true,
+      "retireWave": null,
+      "dueBy": null,
+      "ownerKind": null,
+      "note": "并入 RD-TOOLHEAD。reduce 补交，由 RD-TOOLHEAD 交付（Tool 访问守卫的替身）"
+    },
+    {
+      "id": "TL-05",
+      "category": "B",
+      "exports": [],
+      "exists": false,
+      "retireWave": null,
+      "dueBy": null,
+      "ownerKind": null,
+      "note": "reduce 补交，由 RD-COORD 交付（换代协调者的脚本替身）"
+    },
+    {
+      "id": "AS-06",
+      "category": "B",
+      "exports": [],
+      "exists": false,
+      "retireWave": null,
+      "dueBy": null,
+      "ownerKind": null,
+      "note": "reduce 补交，由 RD-COORD 交付（采用点事实的脚本替身）"
+    },
+    {
+      "id": "ST-07",
+      "category": "none",
+      "exports": [],
+      "exists": false,
+      "retireWave": null,
+      "dueBy": null,
+      "ownerKind": null,
+      "note": "无替身：这条边是命名规则，不是端口，AS-15 的用例按 XC-REBUILD 定论的命名规则自备事务域文件"
+    },
+    {
+      "id": "RD-MODEL",
+      "category": "B",
+      "exports": ["createScriptedModelProfiles", "createScriptedModelRequestPreparation"],
+      "exists": true,
+      "retireWave": "A",
+      "dueBy": "B",
+      "ownerKind": "reduce",
+      "note": "model-contract ./testing 补交的 ModelRequestPreparation 与 ModelProfiles 两份替身，由测试夹具 createPreparation、createProfiles 提升（packages/model/model-contract/tests/fixtures/consumers/context/services.ts:130、40）。导出名待冻结时定，目前按未有计"
+    },
+    {
+      "id": "RD-CURSOR",
+      "category": "B",
+      "exports": ["createFixedSessionCursorSigning"],
+      "exists": true,
+      "retireWave": "A",
+      "dueBy": "B",
+      "ownerKind": "reduce",
+      "note": "游标签名密钥的服务键与固定密钥替身，随 XC-ROWS1 的取用入口定键"
+    },
+    {
+      "id": "RD-TOOLHEAD",
+      "category": "B",
+      "exports": ["createMemoryToolResidencyReader", "createTableToolAccess"],
+      "exists": true,
+      "retireWave": "B",
+      "dueBy": "C",
+      "ownerKind": "reduce",
+      "note": "预置引用的常驻引用读取替身与 Tool 访问守卫替身，由套件夹具与测试里的映射提升（packages/tool/tool-cordis-contract/src/testing.ts:1447；packages/identity/authorization/tests/port-adapters.spec.ts:163、191）"
+    },
+    {
+      "id": "RD-COORD",
+      "category": "B",
+      "exports": [],
+      "exists": false,
+      "retireWave": "B",
+      "dueBy": "C",
+      "ownerKind": "reduce",
+      "note": "换代协调者与采用点事实的脚本替身，位置按 XC-COORD 的定论"
+    },
+    {
+      "id": "XC-STORAGE",
+      "category": "B",
+      "exports": ["createMemorySqlStorage"],
+      "exists": true,
+      "retireWave": "B",
+      "dueBy": "C",
+      "ownerKind": "reduce",
+      "note": "SQL 存储契约的 ./testing 替身，含迁移片段挂接与系统作用域两个变体；导出名待 #687 定，目前按未有计"
+    },
+    {
+      "id": "XC-SESSFACE",
+      "category": "B",
+      "exports": [
+        "createMemorySessionTransactionPair",
+        "memorySessionDelegatedTransactionsFixture"
+      ],
+      "exists": true,
+      "retireWave": "D",
+      "dueBy": "E",
+      "ownerKind": "reduce",
+      "note": "Reduce 裁定：另两面按交付正文的四个面逐面核，未点名导出。会话服务四个面的脚本化应答替身（新写）。证据桥沿用现有 createMemorySessionEvidenceBridge，指向那个现有替身，不另列；该现有替身不在本表范围，需要时由 reduce 补列"
+    },
+    {
+      "id": "XC-OBJSTORE",
+      "category": "B",
+      "exports": [],
+      "exists": false,
+      "retireWave": "C",
+      "dueBy": "C",
+      "ownerKind": "line",
+      "note": "对象或文件存储契约的 ./testing 替身，#541 新建"
+    },
+    {
+      "id": "XC-AUTHZ",
+      "category": "B",
+      "exports": ["scriptedMaintenanceGrants"],
+      "exists": true,
+      "retireWave": "B",
+      "dueBy": "C",
+      "ownerKind": "reduce",
+      "note": "Reduce 裁定（#979 评论 6561727762）：#997 交付 scriptedMaintenanceGrants；manualSystemClock 是时钟，不填。冻结交付写的是「访问检查替身按新规则更新」，没有点名现有替身（packages/identity/authorization 在 REF 上没有 ./testing 入口；agent ./testing 有 createScriptedAccessCheck 但正文未指它）。脚本把它当新交付的系统主体授权替身计，现有访问检查替身的更新并入本项"
+    },
+    {
+      "id": "XC-J19",
+      "category": "B",
+      "exports": [],
+      "exists": false,
+      "retireWave": "C",
+      "dueBy": "D",
+      "ownerKind": "reduce",
+      "note": "凭据端口与资格来源的替身"
+    },
+    {
+      "id": "XC-RCBRIDGE",
+      "category": "B",
+      "exports": ["createTestRuntimeContextTrust"],
+      "exists": true,
+      "retireWave": "B",
+      "dueBy": "C",
+      "ownerKind": "reduce",
+      "note": "同步 current() 桥的替身"
+    },
+    {
+      "id": "XC-CXREG",
+      "category": "B",
+      "exports": ["createMemorySessionPrincipalBindings", "createMemorySessionWorkPrincipals"],
+      "exists": true,
+      "retireWave": "A",
+      "dueBy": "B",
+      "ownerKind": "reduce",
+      "note": "Reduce 裁定：X1 的主体绑定就是登记表的主体绑定；createScriptedRequestContextTrust 归 K-RQ，不填。来源登记表的主体绑定与登记授权的替身"
+    },
+    {
+      "id": "XC-AGINST",
+      "category": "B",
+      "exports": [],
+      "exists": false,
+      "retireWave": "A",
+      "dueBy": "A",
+      "ownerKind": "line",
+      "note": "Agent 实例创建、停用与按会话选实例入口的替身"
+    },
+    {
+      "id": "XC-INTERRUPT",
+      "category": "B",
+      "exports": [],
+      "exists": false,
+      "retireWave": null,
+      "dueBy": null,
+      "ownerKind": null,
+      "note": "取消 Run 与中断单个调用两个操作的脚本化应答替身。账本里没有集成点依赖 IP-SS-22，消费边为 0，退役波算不出（见 retire.md 未算清单）"
+    },
+    {
+      "id": "XC-AGNP",
+      "category": "B",
+      "exports": [],
+      "exists": false,
+      "retireWave": null,
+      "dueBy": null,
+      "ownerKind": null,
+      "note": "Agent 契约 NP-03、NP-04、NP-05 缺口的替身。账本里没有集成点依赖 IP-AG-20，消费边为 0，退役波算不出（见 retire.md 未算清单）"
+    },
+    {
+      "id": "XC-TOOLRESULT",
+      "category": "B",
+      "exports": [],
+      "exists": false,
+      "retireWave": "B",
+      "dueBy": "C",
+      "ownerKind": "reduce",
+      "note": "补交的 Agent 材料替身（新写）。结果接收方沿用现有 createMemoryToolResultReceiver，指向那个现有替身，不另列；该现有替身不在本表范围，需要时由 reduce 补列"
+    },
+    {
+      "id": "XC-TENANTDOM",
+      "category": "B",
+      "exports": ["createMemoryTenantDomainLookup", "createMemorySqlStorage"],
+      "exists": true,
+      "retireWave": "B",
+      "dueBy": "C",
+      "ownerKind": "reduce",
+      "note": "Reduce 裁定：createMemoryTenantDomainLookup 是查找一半；createMemorySqlStorage（含 TenantDomainsService）是启动扫描读登记表一半。tenantDomains 类型与服务定义的替身，及启动扫描读登记表入口的替身"
+    },
+    {
+      "id": "XC-ADOPTSRC",
+      "category": "B",
+      "exports": [],
+      "exists": false,
+      "retireWave": "A",
+      "dueBy": "B",
+      "ownerKind": "reduce",
+      "note": "AD-10 装配采用来源的键与形状的替身"
+    },
+    {
+      "id": "XC-RESKEY",
+      "category": "B",
+      "exports": [],
+      "exists": false,
+      "retireWave": "B",
+      "dueBy": "C",
+      "ownerKind": "reduce",
+      "note": "X1 只交付根入口，往返由套件验，本项无独立替身（Reduce 裁定；./testing 只有 residentKeyRoundTripConformance 套件）。常驻键与 shape 编码的往返替身，提供方取 cards-plan.json suiteProviders 的点名"
+    },
+    {
+      "id": "XC-OBSERVE",
+      "category": "B",
+      "exports": [],
+      "exists": false,
+      "retireWave": "D",
+      "dueBy": "E",
+      "ownerKind": "reduce",
+      "note": "Reduce 裁定：保持 exists false，等 L-MODEL 波 D 交付；createScriptedModelRuntimeHost 是结果接收登记表的宿主替身，不填。Model current 与观察两个服务定义及 model-output-v1 投影的替身"
+    },
+    {
+      "id": "M15-SESSION-JOURNAL",
+      "category": "B",
+      "exports": ["createMemorySessionJournal"],
+      "exists": true,
+      "retireWave": "B",
+      "dueBy": "C",
+      "ownerKind": "reduce",
+      "note": "会话日志 Journal 替身（packages/session/session-adapters/src/testing/journal.ts，经 ./testing 的 createMemorySessionJournal 导出）。Journal 真件落地、全部消费者换成真件后删除，AG-23 的轨迹回放入口一并去掉（rulings-retire-20261030.md 第 5 条）"
+    },
+    {
+      "id": "M15-AGENT-JOURNAL",
+      "category": "C",
+      "exports": ["createMemoryAgentJournal"],
+      "exists": true,
+      "retireWave": null,
+      "dueBy": null,
+      "ownerKind": null,
+      "note": "Agent 内存 Journal 替身（packages/agent/agent/src/testing/journal.ts）：Journal 真件在 Session 一侧，Agent 的测试按依赖方向不能依赖它（领域不认识域外角色），与一致性套件一起留作 Agent 隔离测试的设施（rulings-retire-20261030.md 第 1 条）"
+    }
+  ]
+}

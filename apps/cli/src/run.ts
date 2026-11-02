@@ -4,7 +4,11 @@ import { parseArgv } from './argv.ts'
 
 export type { CliOutput, ExitCode }
 
-export function run(argv: readonly string[], output: CliOutput, runtime: CliRuntime): ExitCode {
+export async function run(
+  argv: readonly string[],
+  output: CliOutput,
+  runtime: CliRuntime,
+): Promise<ExitCode> {
   const command = parseArgv(argv, runtime.catalog)
   switch (command.kind) {
     case 'help':
@@ -24,6 +28,8 @@ export function run(argv: readonly string[], output: CliOutput, runtime: CliRunt
         homeFlag: command.homeFlag,
         environmentHome: runtime.environmentHome,
         homeDirectory: runtime.homeDirectory,
+        environmentServer: runtime.environmentServer,
+        services: runtime.services,
       })
     case 'usage-error':
       output.stderr(command.message)

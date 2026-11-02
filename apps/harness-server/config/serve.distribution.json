@@ -1,0 +1,299 @@
+{
+  "rows": [
+    {
+      "id": "storage",
+      "plugin": "storageRow",
+      "config": {}
+    },
+    {
+      "id": "identity",
+      "plugin": "identityRow",
+      "config": {
+        "maxLifetime": "PT2592000S",
+        "idlePeriod": "PT604800S"
+      }
+    },
+    {
+      "id": "authorization",
+      "plugin": "authorization",
+      "config": {}
+    },
+    {
+      "id": "session-storage",
+      "plugin": "sessionStorageRow",
+      "config": {}
+    },
+    {
+      "id": "session-provider",
+      "plugin": "sessionProviderRow",
+      "config": {
+        "admission": "none"
+      }
+    },
+    {
+      "id": "session-ad01",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-ad02",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-ad03",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-ad04",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-ad05",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-ad06",
+      "plugin": "sessionAd06Row",
+      "config": {}
+    },
+    {
+      "id": "session-ad09",
+      "plugin": "sessionAd09Row",
+      "config": {}
+    },
+    {
+      "id": "session-ad10",
+      "plugin": "sessionAd10Row",
+      "config": {}
+    },
+    {
+      "id": "session-ad11",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-ad12",
+      "plugin": "sessionAd12Row",
+      "config": {}
+    },
+    {
+      "id": "session-ad14",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-ad15",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-handoff",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-conditions",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "agent-journal",
+      "plugin": "agentJournalRow",
+      "config": {
+        "combinationVersion": "session-composite/1",
+        "manifestDigest": "ecdc693595dbfffb2423aa6e985a36994ab057819cda953fb4c37232dc92d2a7"
+      }
+    },
+    {
+      "id": "agent-adoptions",
+      "plugin": "agentAdoptionsRow",
+      "config": {
+        "mappings": [
+          {
+            "name": "assistant",
+            "candidate": {
+              "owner": "harness-server-release",
+              "name": "assistant",
+              "revision": "1",
+              "digest": "sha256:assistant"
+            },
+            "execution": {
+              "owner": "harness-server-release",
+              "name": "generic",
+              "revision": "1",
+              "digest": "sha256:generic"
+            },
+            "entryContract": {
+              "owner": "harness-server-release",
+              "name": "chat",
+              "revision": "1",
+              "digest": "sha256:chat"
+            },
+            "requiredIdentities": [],
+            "modes": {
+              "permission": "never",
+              "environment": {
+                "owner": "harness-server-release",
+                "name": "local",
+                "revision": "1",
+                "digest": "sha256:local"
+              },
+              "collaboration": "co-work"
+            },
+            "definition": {
+              "category": "AgentDefinition",
+              "name": "assistant",
+              "references": [],
+              "attributes": []
+            },
+            "extensions": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "adoption-sources",
+      "plugin": "adoptionSourcesRow",
+      "config": {}
+    },
+    {
+      "id": "agent-model-selection",
+      "plugin": "agentModelSelectionRow",
+      "config": {}
+    },
+    {
+      "id": "agent-host",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "agent-instances",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "model-host",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "model-instances",
+      "plugin": "modelInstancesRow",
+      "config": {}
+    },
+    {
+      "id": "model-converters",
+      "plugin": "modelConvertersRow",
+      "config": {}
+    },
+    {
+      "id": "model-profiles",
+      "plugin": "modelProfilesRow",
+      "config": {}
+    },
+    {
+      "id": "model-request-preparation",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "model-credential",
+      "plugin": "modelCredentialRow",
+      "config": {}
+    },
+    {
+      "id": "model-records",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "tool-records",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "tool-bindings",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "tool-runtime",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "tool-executor",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "tool-host",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "tool-residency",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "tool-instances",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "tool-environments",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "execution-environment",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "execution-files",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "execution-command",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "execution-host",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "request-context",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "agent-context",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "agent-account-outlet",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "runtime-context",
+      "plugin": "runtimeContextRow",
+      "config": {}
+    },
+    {
+      "id": "server-entry",
+      "plugin": "serverEntryRow",
+      "config": {}
+    }
+  ]
+}

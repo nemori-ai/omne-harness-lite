@@ -1,6 +1,6 @@
 # Agent 的 Cordis 集成
 
-状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。本页的服务定义、键常量、`Context` 与 `Events` 增补、目录服务和目录插件已经在 `./cordis` 实现，并在真实 Cordis 4.0.4 上测试。根入口只导出三个类型。`agentInstances` 的提供者是本包的目录插件 `agentInstancesPlugin`，其他服务键的提供者与宿主插件尚未实现，没有用真实提供者做过运行验证。
+状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。本页的服务定义、键常量、`Context` 与 `Events` 增补、目录服务和目录插件已经在 `./cordis` 实现，并在真实 Cordis 4.0.4 上测试。根入口只导出五个类型。`agentInstances` 的提供者是本包的目录插件 `agentInstancesPlugin`，其他服务键的提供者与宿主插件尚未实现，没有用真实提供者做过运行验证。
 
 本页消费[根操作定义](../../agent-contract/docs/public-api/README.md)。该定义的类型已在 agent-contract 实现，它的运行实现尚未提供。共同生命周期、事件、树和IC对账归[四成员集成](../../../../docs/architecture/runtime/runtime-contract-integration.md)。本页确定本成员独有的定义、依赖、登记与换代协议和事件，并给出本域对 [IC-1 至 IC-19](../../../../docs/architecture/cordis-integration-conventions.md) 的符合性映射。具体插件的装载、停止准入和撤除归 [agent-host-local](../../agent-host-local/docs/cordis.md)。本页不以加载成功宣称业务就绪。
 
@@ -8,16 +8,16 @@
 
 `@omne-harness/agent-cordis-contract/cordis` 唯一拥有下列抽象门面及表中本域接缝的服务定义、键常量、Context 增补和事件增补。它还导出目录插件 `agentInstancesPlugin`。宿主插件由 [agent-host-local](../../agent-host-local/docs/cordis.md) 提供。源码是 [src/cordis.ts](../src/cordis.ts)，它是唯一定义，本页不复制类声明。服务类不得复制方法形状，索引类型随根契约同步。
 
-`./cordis` 导出下列内容，根入口 `.` 只导出类型 `AgentLocalRoute`、`AgentRegistrationInput` 与 `AgentWithdrawalInput`。三个类型的定义在 [src/index.ts](../src/index.ts)，`./cordis` 再导出它们。
+`./cordis` 导出下列内容，根入口 `.` 只导出五个类型：`AgentLocalRoute`、`AgentRegistrationInput`、`AgentWithdrawalInput`、`AgentInstanceSlotInput` 与 `AgentInstanceProvision`。五个类型的定义在 [src/index.ts](../src/index.ts)，`./cordis` 再导出前三个。
 
-- 20 个抽象 Service 类，每个 `extends Service`，在 `static readonly provide` 写键一次。除 `AgentPublicationAuthorityService` 外，每个都 `implements` 同名的契约端口。另有这些类的键常量，命名是服务键加 `Key`，例如 `agentAccessCheckKey`。
+- 21 个抽象 Service 类，每个 `extends Service`，在 `static readonly provide` 写键一次。除 `AgentPublicationAuthorityService` 与 `AgentInstanceProvisionService` 外，每个都 `implements` 同名的契约端口。另有这些类的键常量，命名是服务键加 `Key`，例如 `agentAccessCheckKey`。
 - 具体类 `AgentInstancesService` 与键常量 `agentInstancesKey`。它是实例目录，含 `register`、`withdraw`、`resolve` 与 `connect`，登记状态放在构造函数的闭包里。`register` 与 `withdraw` 是普通函数，使 Cordis 把 `this.ctx` 绑到调用方，登记随调用方 fiber 撤除。
 - `AgentInstanceHostService` 另有进程内的 `route(tenant, instance)`。目录用它向宿主取已发布实例的 `AgentLocalRoute`。它不是契约操作。
 - 接口 `AgentPublicationAuthority`：宿主对一次登记或撤除的同步最终核验，`check` 收调用方的 Cordis `Context`。它带 Cordis 类型，所以只从 `./cordis` 导出，根入口不导出它。
 - 目录插件 `agentInstancesPlugin`，静态 `inject` 是 `agentPublicationAuthority` 与 `agentAccessCheck`。
-- `Context` 对 21 个键的增补，以及 `Events` 对 `agent-cordis-contract/instance-retired` 的增补。
+- `Context` 对 22 个键的增补，以及 `Events` 对 `agent-cordis-contract/instance-retired` 的增补。
 
-每个抽象 Service 按同一写法声明，键、类名和契约类型见下表。抽象 Service 把每个操作声明为 `readonly` 函数属性，所以提供者用箭头函数属性实现操作。提供者写成类方法时，TypeScript 报 TS2425。表中的服务类有两个例外，其余每个都 `implements` 根契约的同名端口，方法类型取自该端口。第一个例外是 `AgentPublicationAuthorityService`：它实现本页定义的 Cordis 接口 `AgentPublicationAuthority`，不是根契约的端口，因为它的 `check` 要接收调用方的 Cordis `Context`。第二个例外是 `AgentInstancesService`：它实现根契约的 `AgentDirectory`，是含登记逻辑的具体注册表，不是抽象类。定义入口把 Context 的各个键增补为对应的服务类。主体类型由装配的可信身份适配器专化，运行时仍核验输入。接口同形不证明授权。具体插件不得再次 ctx.provide 这些键。消费者导入定义入口的键常量，提供者选择归应用装配。
+每个抽象 Service 按同一写法声明，键、类名和契约类型见下表。抽象 Service 把每个操作声明为 `readonly` 函数属性，所以提供者用箭头函数属性实现操作。提供者写成类方法时，TypeScript 报 TS2425。表中的服务类有三个例外，其余每个都 `implements` 根契约的同名端口，方法类型取自该端口。第一个例外是 `AgentPublicationAuthorityService`：它实现本页定义的 Cordis 接口 `AgentPublicationAuthority`，不是根契约的端口，因为它的 `check` 要接收调用方的 Cordis `Context`。第二个例外是 `AgentInstancesService`：它实现根契约的 `AgentDirectory`，是含登记逻辑的具体注册表，不是抽象类。第三个例外是 `AgentInstanceProvisionService`：它实现本成员根入口的 `AgentInstanceProvision`。根契约不拥有这个端口，因为运行对象如何交给宿主属于宿主实现的装配接线，不是根契约操作。定义入口把 Context 的各个键增补为对应的服务类。主体类型由装配的可信身份适配器专化，运行时仍核验输入。接口同形不证明授权。具体插件不得再次 ctx.provide 这些键。消费者导入定义入口的键常量，提供者选择归应用装配。
 
 `AgentRuntime` 描述一个实例的运行能力。同一个 isolate 内一个键只有一个提供者（[IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6)），而一个宿主可以同时承载多个实例。所以本成员不为 `AgentRuntime` 定义 Context 键。消费者经 `agentInstances` 的 `resolve` 按显式租户和实例身份取得 `AgentRuntime`，目录不将 Context 层级当租户或工作身份。
 
@@ -48,8 +48,9 @@
 | agentAccountOutlet | AgentAccountOutletService | AgentAccountOutlet | 外域适配器：Request Context 一侧的账目收件适配器。Agent 拥有端口与键。尚无提供者 |
 | agentExecutionControl | AgentExecutionControlService | AgentExecutionControl | 宿主的长期执行记录适配器，受理经恢复入口发生的 control，不需要活体 runtime。实现归 [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) |
 | agentInstances | AgentInstancesService（具体） | AgentDirectory | 目录插件 `agentInstancesPlugin`，由本成员的 `./cordis` 导出，候选发行行是 `agent-instances` |
+| agentInstanceProvision | AgentInstanceProvisionService | AgentInstanceProvision（本成员根入口的类型） | 宿主：agent-host-local。与 `agentInstanceHost`、`agentPublicationAuthority`、`agentExecutionRecovery` 在同一插件体、同一 fiber 内构造，共用槽表与预约表。会话适配器 AD-14 只取得 `acquire`，取不到 `route`、登记句柄或任何停用动作。规则见[实例的取得与回收](#实例的取得与回收) |
 
-另有三个键属于外域定义，本成员只引用，不再声明：`modelRuntime` 归 [Model 的 Cordis 定义](../../../model/model-cordis-contract/docs/cordis.md)，`toolRuntime` 与 `toolStartFence` 归 [Tool 的 Cordis 定义](../../../tool/tool-cordis-contract/docs/cordis.md)。Agent 宿主以静态依赖取得 `toolStartFence`，不取得 `toolStartAuthority`，规则见 [SPEC](../SPEC.md#生产者接收面的服务)。
+另有三个键属于外域定义，本成员只引用，不再声明：`modelRuntime` 归 [Model 的 Cordis 定义](../../../model/model-cordis-contract/docs/cordis.md)，`toolRuntime` 与 `toolStartFence` 归 [Tool 的 Cordis 定义](../../../tool/tool-cordis-contract/docs/cordis.md)。Agent 宿主在使用点以局部依赖取得 `toolStartFence`，不取得 `toolStartAuthority`，规则见 [SPEC](../SPEC.md#生产者接收面的服务)。
 
 下列契约类型没有服务键，使用方按下表取得。
 
@@ -71,7 +72,7 @@
 | --- | --- | --- | --- | --- |
 | agent-contract | 领域类型、操作类型、判定、身份解码与结构判定、正文契约。不导入 Cordis | 无 | assets、call-account、content-block、json-text、legal-identity、message、model-contract、operation-result、schema-provider、tool-contract、zod | 生产依赖闭包不含 Cordis、具体宿主、Model 或 Tool 的实现包 |
 | agent | 工厂，当前为空。不导入 Cordis | 无 | agent-contract | 同上。设计页引用的类型依赖尚未声明，见[实施差异](../../agent-contract/verification/coverage.md#实施差异) |
-| agent-cordis-contract | 三个类型，不导出值，到 Cordis 没有边 | 服务定义、键常量、增补、事件、目录服务、目录插件、`AgentPublicationAuthority` | `@deepseek-ai/cordis`、agent-contract、content-block、legal-identity、operation-result | 不依赖 agent 和 agent-host-local。清单已声明源码导入的全部依赖 |
+| agent-cordis-contract | 五个类型，不导出值，到 Cordis 没有边。另有 `./testing`：内存替身与符合性套件，不导入 Cordis | 服务定义、键常量、增补、事件、目录服务、目录插件、`AgentPublicationAuthority` | `@deepseek-ai/cordis`、agent-contract、content-block、legal-identity、operation-result | 不依赖 agent 和 agent-host-local。清单已声明源码导入的全部依赖 |
 | agent-host-local | 当前为空 | 宿主插件 | `@deepseek-ai/cordis`、agent-contract、agent-cordis-contract、agent | 还需要 Model 的 Cordis 定义（`modelRuntime` 键）、Tool 的 Cordis 定义（`toolRuntime` 键）和 `kernel-basis`，清单尚未声明 |
 
 安装 agent-cordis-contract 明确带入 Cordis。只需领域值或纯接口的消费者安装 agent-contract，独立调用者安装 agent 的工厂。选择具体宿主的应用才安装 agent-host-local。
@@ -147,28 +148,27 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant A as 装配者
+    participant A as 会话适配器
     participant H as 宿主插件
     participant C as 授权适配器
     participant F as 实例贡献fiber
     participant RT as runtime
     participant R as 目录
-    A->>H: reserve 带Access 操作身份 scope 定义
-    H->>C: check reserve
+    A->>H: acquire 带Access scope 定义
+    H->>C: check reserve 调用方
     C-->>H: allowed
-    H-->>A: 实例身份和登记句柄
-    Note over A,H: 装配者请求宿主创建实例的入口形状未定义
+    H->>H: 宿主以派生的操作身份 reserve 得到实例身份和登记句柄
     H->>RT: 用inject的服务实例调用工厂 得到idle runtime 宿主持有AgentProvider
-    A->>H: publish 带Access 操作身份 实例身份 状态初值
-    H->>C: check publish
+    H->>C: 以宿主主体 check publish
     C-->>H: allowed
     H->>F: 在宿主Context上创建贡献fiber
     F->>R: ctx.get目录键后调用register
     R->>R: 同步核验预约 写入条目 生效于调用方fiber
     R-->>H: Registration published
-    Note over A,R: 执行结束后runtime回idle 登记保持
-    A->>H: 请求停用实例 入口形状未定义
-    H->>RT: quiesce
+    H-->>A: instance 与 Registration
+    Note over A,R: 执行结束后runtime回idle 登记保持 直到宿主按instanceIdleMs回收
+    H->>C: 空闲到期 以宿主主体 check quiesce
+    H->>RT: quiesce 由宿主发起 没有公开停用入口
     RT->>RT: draining 逐个detach交接在途execution
     RT->>H: 交清后经登记句柄withdraw
     H->>C: check withdraw
@@ -182,6 +182,52 @@ sequenceDiagram
     H->>F: 卸载贡献fiber
     Note over RT,R: 撤登记不停止Model或Tool的独立执行
 ```
+
+### 实例的取得与回收
+
+本节写宿主怎样按槽取得实例，又怎样回收它。形状是根入口的 `AgentInstanceProvision`（只有 `acquire`）与服务键 `agentInstanceProvision`。运行对象不出宿主，应用成员不 reserve、不 publish，也不持有 `AgentRuntimeControl`。租户与会话在运行中才出现，应用启动时无从预建。Agent runtime 同一时刻只有一个执行挂接，所以实例随会话按需建立，不按租户共用。
+
+**实例槽。** 实例槽由租户、安全作用域和精确定义采用组成。`acquire` 的输入 `AgentInstanceSlotInput` 里，租户取自 Access，另两项是 `scope` 与 `definition`。同一个槽在一个宿主进程内至多有一个已发布、未进入回收的实例。改变租户、作用域或采用任一项，得到另一个槽。宿主只按全等比较 `scope`，不解析它，也不据它授权。会话路径怎样组出这三项，以及会话槽引用的格式，归会话适配器 [AD-14](../../../session/session-adapters/SPEC.md#ad-14)，本成员不定义。
+
+**`acquire` 的行为。**
+
+1. 边界核对：租户经 legal-identity 解析，`scope` 用 `judgeEvidence`，`definition` 用 `judgeAdoption`。不通过返回 invalid，`field` 是成员名。
+2. 资格：以调用方的 Access 核验 `reserve`。拒绝时返回 denied，不预约任何东西。调用方只需要 `reserve` 一项资格。
+3. 槽内已有已发布且未标记回收的实例时，直接返回它的 `instance` 与当前 `Registration`。
+4. 槽内没有时，宿主以调用方的 Access 和自己派生的操作身份 reserve，调用工厂，再以宿主主体发布（核验 `publish`），然后返回。同一槽的并发调用共用这一次建立，得到同一个实例。
+5. 槽内的实例已标记回收时，不等它，按第 4 步建立新实例。新实例的身份不同。
+6. 工厂返回 unsupported 或 unavailable 时原样返回，不发布，并撤销预约。目录缺席时返回 unavailable。
+
+`acquire` 是收敛操作。它没有调用方的操作身份，重试一律回到第 3 步或第 4 步，不会认回已停用的旧实例。reserve 与 publish 的幂等仍由宿主自己的操作身份兑现。
+
+**宿主主体与授权操作清单。** 装配入口签发一个系统主体“Agent 宿主维护主体”，作为运行时对象 `agentHostPrincipal` 在根上 provide，`agent-host` 静态 inject 它，它不进插件配置。宿主用它代实例所属租户执行下表的动作。授权适配器的逐操作表要为下表每一行放行，系统主体代租户的授权来源归 XC-AUTHZ。
+
+| 主体 | 核验的操作名 | 动作 | 现行依据 |
+| --- | --- | --- | --- |
+| `acquire` 的调用方（会话适配器 AD-14 的出站主体） | `reserve` | 请求取得槽内的实例 | 上文第 2 步 |
+| Agent 宿主维护主体 | `publish` | 发布新实例 | 登记输入与撤除协议的 publish 行 |
+| Agent 宿主维护主体 | `quiesce` | 调用 `AgentRuntimeControl.quiesce` 停用实例 | “主体资格核验的调用位置”的 runtime 公开操作 |
+| Agent 宿主维护主体 | `withdraw` | quiesce 交清后经登记句柄撤登记 | 登记输入与撤除协议的 withdraw（句柄）行 |
+
+停用的动作名统一为 quiesce。`withdraw` 只是 quiesce 内部经登记句柄的那一步，沿用现行核验。宿主主体被拒或不可用时：发布失败使 `acquire` 返回同一失败；停用失败时实例保持 published，宿主记录 error 级诊断，下一次空闲到期再试，不声称已回收。
+
+**空闲回收。** 宿主插件配置有 `instanceIdleMs`（正整数，毫秒，初值由装配给）。实例经登记句柄 `report` 为 `idle` 后，宿主用 `agentClock.waitUntil` 计时。实例转为 `occupied` 时取消计时。到期时宿主执行下一段的保护点，然后以宿主主体、宿主派生的操作身份和原因证据（owner 为 `agent-host`，record 写 `idle-reclaim`）调用 quiesce。返回 drained 后，宿主卸载贡献 fiber，并从槽表删除该实例。返回 unresolved 时，登记保持 published，撤销回收标记，槽表恢复。
+
+会话归档在同一批里取消未终结的 Run。执行结束后实例变空闲，按上面回收。本版不另设归档到宿主的信号，所以归档后的撤回最迟晚 `instanceIdleMs`。再用同一个槽时，下一次 `acquire` 建立新实例。被关闭交接出去的执行，由会话恢复经 AD-14 的 `resume` 在新实例上接续。
+
+**有序关闭。** `assemblyLifecycle` 停止时，宿主以宿主主体对全部实例调用 quiesce。返回 unresolved 的实例留给 fiber 卸载，按“非计划卸载”处置。
+
+**上界。** 存活实例数不超过“同时有执行挂接的会话数加上最近 `instanceIdleMs` 内结束执行的会话数”。宿主测试用手动时钟断言：全部会话空闲超过 `instanceIdleMs` 后，存活实例数回到 0。
+
+**回收竞态的保护点。** 竞态是：空闲到期之后、quiesce 生效之前到达的 invoke 被受理，随后被 quiesce 的 detach 交接出去。保护点是：到期判定、回收标记与 runtime 进入 draining 在同一个不让出的本地动作里完成。三方各有一条义务。
+
+1. 宿主：计时到期的回调里，不经 `await`，依次做三件事。读该实例最近一次 `report`。不是 `idle` 就放弃本次回收。是 `idle` 就在槽表标记“回收中”，然后同步调用 quiesce。
+2. runtime：quiesce 在第一个 `await` 之前把 runtime 置为 draining。invoke 与 resume 取本地执行槽的同一个同步动作里，经登记句柄 `report` 为 `occupied`。
+3. 会话适配器 AD-14：invoke 或 resume 得到 unavailable，且这次取得的实例已不再是该槽的当前实例时，重新 `acquire` 一次，在新实例上重试一次。仍失败就交回 unavailable。
+
+JavaScript 单线程下，任一 invoke 要么在回调之前已取得执行槽（宿主读到 `occupied`，放弃回收），要么在回调之后到达（runtime 已 draining，返回 unavailable，Agent 不受理，没有执行被 detach）。回收标记使后到的 `acquire` 不再返回旧实例。这条保护靠同一进程内的槽表和单线程兑现，拆进程时的重兑现见[同进程保证](#同进程保证与拆进程时的重兑现)。
+
+**测试替身与符合性套件。** `./testing` 导出内存替身 `createMemoryInstanceProvision` 和套件 `agentInstanceProvisionConformance`。替身由测试给出工厂（`create`）、资格核验（`check`，对 `reserve`、`publish` 与 `quiesce` 各问一次）和空闲状态（`setIdle`）。`reclaimIdle` 模拟“空闲超过 `instanceIdleMs`”，并按上面的保护点回收全部空闲实例。会话适配器在宿主真件完成之前用它。套件对每个用例开一个新夹具，用例是：新槽、同槽先后两次、同槽并发两次、换定义、另一租户、空闲回收、占用时不回收、`reserve` 被拒、宿主主体被拒。套件对宿主插件真件要再跑一次，夹具的 `idleOut` 与 `busyOut` 由手动 `agentClock` 实现。替身不导入 Cordis、`agent` 与 `agent-host-local`，不证明它们。
 
 ## 依赖与定义拥有者
 
@@ -226,7 +272,7 @@ sequenceDiagram
 | 调用位置 | 操作名 |
 | --- | --- |
 | runtime 的公开操作 | invoke、resume、takeover、submit、control、read、events、acknowledge、observe、quiesce。takeover 在 resume 之内，只在快照显示旧挂接仍 active 时另核 |
-| 宿主 `agentInstanceHost` | reserve、publish、withdraw，包括登记句柄的 withdraw |
+| 宿主 `agentInstanceHost` 与 `agentInstanceProvision` | reserve、publish、withdraw，包括登记句柄的 withdraw。`acquire` 以调用方的 Access 核验 reserve。发布、停用与撤登记由宿主主体代实例所属租户发起，分别核验 publish、quiesce、withdraw，见[实例的取得与回收](#实例的取得与回收) |
 | 目录 `agentInstances` | resolve、connect |
 | 宿主恢复入口与长期执行记录适配器 | query、load、reconcile、detach、record-terminal-observation、record-message-handoff、settle、migrate-cancellation，以及经恢复入口发生的 read、events、acknowledge、submit、control。经 `agentExecutionControl` 的 control 在这里核验。submit 以原 execution 的逻辑目标核验，不要求活体 runtime 或当前挂接。直接调用 `commitSettlement` 时按变体核验：候选与判断变体用 settle，迁移变体用 settle 与 migrate-cancellation，卡片对账、迟到返回与 Tool 关联登记变体用 reconcile，目标都是原 execution。直接调用取消路线上的 `prepareFinish` 与 `tryFinish` 时用 settle，目标是原 execution |
 | `agentMessageHandoff` 提供者 | read-message-handoff（lookup，目标是 input-entry 或原 execution）与 exclude-message-handoff（exclude，目标是原 execution），不论调用方是谁都在这里核验。prepare 的直接调用也在这里核验，invoke 分支用 invoke，submit 分支用 submit。runtime 在已核验的公开操作之内调用 prepare 时不再次核验主体。提供者以静态 inject 取得 `agentAccessCheck` |
@@ -256,7 +302,7 @@ runtime 在已核验的公开操作之内调用 Journal 时不再次核验主体
 
 ### 撤除与在途责任
 
-Cordis 撤除的是登记、监听和具名可释放资源。execution 的状态、结果保管、交付责任和未知结果是跨重启仍须成立的 Agent 事实，按 SPEC 保存在 Journal，不放进 effect 闭包，也不让 disposer 改写业务终局。需要先停止准入、交接、再撤资源时，由宿主显式等待。宿主对实例调用 quiesce。quiesce 交清责任后经登记句柄 withdraw，再返回 drained。宿主收到 drained 之后才卸载贡献 fiber。装配者经宿主请求停用，不直接持有 `AgentRuntimeControl`；停用入口的形状见[宿主怎样创建并持有实例的 AgentProvider](../../agent/docs/architecture/open-questions.md#宿主怎样创建并持有实例的-agentprovider)。多个 effect 的卸载不提供这种完成顺序。Model 与 Tool 的独立执行不因 Agent 的登记撤除或 fiber 卸载而取消。外部操作已发出或结果未知时，撤除不能声称回滚。
+Cordis 撤除的是登记、监听和具名可释放资源。execution 的状态、结果保管、交付责任和未知结果是跨重启仍须成立的 Agent 事实，按 SPEC 保存在 Journal，不放进 effect 闭包，也不让 disposer 改写业务终局。需要先停止准入、交接、再撤资源时，由宿主显式等待。宿主对实例调用 quiesce。quiesce 交清责任后经登记句柄 withdraw，再返回 drained。宿主收到 drained 之后才卸载贡献 fiber。停用只由宿主自己发起，应用成员不持有 `AgentRuntimeControl`，也没有公开的停用入口，见[实例的取得与回收](#实例的取得与回收)。多个 effect 的卸载不提供这种完成顺序。Model 与 Tool 的独立执行不因 Agent 的登记撤除或 fiber 卸载而取消。外部操作已发出或结果未知时，撤除不能声称回滚。
 
 上述机制沿固定采用的 Cordis 4.0.4 核对。[调用方 effect 归属](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)、[提供者换代与插件重跑](../../../../.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md)、[释放顺序与持久事实的边界](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)、[抽象 Service 的键](../../../../.meta_harness/design/basis/cordis/service-subclass-provides-its-key.md)、[inject 没有可选形式](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md)、[配置与插件体失败](../../../../.meta_harness/design/basis/cordis/plugin-throw-fails-fiber.md)分别拥有机制依据。业务兑现仍须由本域提供者验证。
 
@@ -266,7 +312,7 @@ Cordis 撤除的是登记、监听和具名可释放资源。execution 的状态
 
 | IC | Agent 的处置 | 位置 | 性质 |
 | --- | --- | --- | --- |
-| [IC-1](../../../../docs/architecture/cordis-integration-conventions.md#ic-1) | 每个 Agent 接缝只有一个服务定义，由本成员拥有。`modelRuntime` 引用 Model 的定义，`toolRuntime` 与 `toolStartFence` 引用 Tool 的定义，本成员不再声明同键 | [服务键与提供者](#服务键与提供者) | 业务协议前提。定义已实现：`cordis-entry.spec.ts` 逐对核对 21 个键与类的 `provide`，类集合恰为 21 个。`tool-start-fence.spec.ts` 核对本成员不重新声明 `toolStartFence`。提供者尚未实现 |
+| [IC-1](../../../../docs/architecture/cordis-integration-conventions.md#ic-1) | 每个 Agent 接缝只有一个服务定义，由本成员拥有。`modelRuntime` 引用 Model 的定义，`toolRuntime` 与 `toolStartFence` 引用 Tool 的定义，本成员不再声明同键 | [服务键与提供者](#服务键与提供者) | 业务协议前提。定义已实现：`cordis-entry.spec.ts` 逐对核对 22 个键与类的 `provide`，类集合恰为 22 个。`tool-start-fence.spec.ts` 核对本成员不重新声明 `toolStartFence`。提供者尚未实现 |
 | [IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) | 键只在定义类的 `static readonly provide` 写一次，键常量取自它。宿主插件在一个插件体内逐个 new 各键的子类，登记落在同一条 fiber 上，子类不另写键 | [服务定义与入口](#服务定义与入口)；[插件与入口](../../agent-host-local/docs/cordis.md#插件与入口) | 机制事实：[service-subclass-provides-its-key](../../../../.meta_harness/design/basis/cordis/service-subclass-provides-its-key.md) |
 | [IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) | 抽象 Service `implements` 根契约的端口，不复制签名。`agentInstances` 是含登记逻辑的具体注册表。JSDoc 写 `@owner`，没有已登记的契约 ID，所以不写 `@contract` | [服务定义与入口](#服务定义与入口) | 业务协议前提 |
 | [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) | 四个成员的根入口都不导入 Cordis。Cordis 值只从 agent-cordis-contract 与 agent-host-local 的 `./cordis` 导出。agent-contract 的 `src` 没有 Cordis 引用。agent-cordis-contract 的根入口在值与声明两层都没有到 Cordis 的边，因为带 Cordis `Context` 的 `AgentPublicationAuthority` 只从 `./cordis` 导出 | [包入口与依赖对照](#包入口与依赖对照) | 业务协议前提。已验证：`agent-cordis-contract/tests/public-entry.spec.ts`（根入口无值导出，`dist/index.js` 没有导入，`dist/index.d.ts` 及其传递的声明到 Cordis 没有边，到别的包的 `/cordis` 入口、`agent` 与 `agent-host-local` 也没有边）；`agent-contract/tests/dependency-direction.spec.ts`（`dist/index.js` 与 `dist/index.d.ts` 的导入图不含 Cordis）。源码图没有单独遍历，遍历器只读构建产物：未验证。`agent` 与 `agent-host-local` 的根入口仍是空导出，没有可测对象 |
@@ -299,9 +345,10 @@ Cordis 撤除的是登记、监听和具名可释放资源。execution 的状态
 | 登记随调用方 fiber 撤除 | Cordis 的调用方 fiber effect | 没有对应机制，需要租约或心跳类协议，本版未定义 |
 | 发布权威的同步核验 | 预约表与目录写入在同一个不可让出的本地动作内 | 需要预约的一致性协议，本版未定义 |
 | `instance-retired` 通知 | 进程内的 `parallel` 派发 | 需要运输协议，本版未定义。通知可丢失和重复，由 Journal 与目录的权威状态恢复 |
+| 槽到实例的唯一性与回收保护点 | 宿主进程内的槽表加单线程：到期判定、回收标记与 runtime 进入 draining 在同一个不让出的本地动作内完成 | 本版未定义。本版是单实例部署，装配页的缺口表已登记为已知限制 |
 
 ## 验证义务
 
-本包的测试已经验证：根入口不加载绑定，定义入口不引具体提供者，键唯一，贡献者 fiber 卸载后登记消失，旧登记身份的晚到撤除不删除后继，目录每次现取宿主，目录插件缺少 inject 时停在 PENDING、换发布权威提供者时重载，目录插件拒绝非空配置且不提供服务。文件清单见[测试说明](../tests/README.md)。仍须由宿主插件与真实提供者验证：必需/局部/可选依赖的实际撤除范围，必需依赖缺席时宿主插件停在 PENDING 且不 reserve，宿主插件的配置错误使其进入 FAILED，以及旧引用拒绝与当前身份核验。这些验证对应[持续验证场景](../../agent-contract/verification/scenarios.md)中 SC-AG-200 至 SC-AG-215 的装配场景，这组场景需要宿主插件，目前没有运行。当前真实4.0.4探针仅支持共同页所列机制，根操作的持久性、跨进程、外部效果和业务接受须另由实际提供者证明。
+本包的测试已经验证：根入口不加载绑定，定义入口不引具体提供者，键唯一，贡献者 fiber 卸载后登记消失，旧登记身份的晚到撤除不删除后继，目录每次现取宿主，目录插件缺少 inject 时停在 PENDING、换发布权威提供者时重载，目录插件拒绝非空配置且不提供服务；内存替身 `createMemoryInstanceProvision` 通过符合性套件 `agentInstanceProvisionConformance`（`provision.spec.ts`），套件对故意破坏一条规则的提供者变红。文件清单见[测试说明](../tests/README.md)。替身与套件不证明宿主插件。宿主插件的测试要对真件再跑一次这套用例，并另验回收保护点（到期与 invoke 在同一轮，没有 detach）、宿主主体被拒时实例保持 published、有序关闭停用全部实例、quiesce 为 unresolved 时不撤登记。仍须由宿主插件与真实提供者验证：必需/局部/可选依赖的实际撤除范围，必需依赖缺席时宿主插件停在 PENDING 且不 reserve，宿主插件的配置错误使其进入 FAILED，以及旧引用拒绝与当前身份核验。这些验证对应[持续验证场景](../../agent-contract/verification/scenarios.md)中 SC-AG-200 至 SC-AG-215 的装配场景，这组场景需要宿主插件，目前没有运行。当前真实4.0.4探针仅支持共同页所列机制，根操作的持久性、跨进程、外部效果和业务接受须另由实际提供者证明。
 
 具体注入、阶段 fiber 与卸载交接由 [agent-host-local](../../agent-host-local/docs/cordis.md) 拥有。

@@ -31,7 +31,8 @@ export function resolveStateDirectory(input: StateDirectoryInput): StateDirector
 
 export function ensureStateDirectory(path: string): StateDirectoryReadiness {
   try {
-    mkdirSync(path, { recursive: true })
+    // A directory this call creates is private to the user; an existing one keeps its mode.
+    mkdirSync(path, { recursive: true, mode: 0o700 })
     return { kind: 'ready', path }
   } catch (error) {
     const code = errorCode(error)

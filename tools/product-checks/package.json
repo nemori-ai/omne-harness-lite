@@ -16,7 +16,8 @@
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false",
-    "scan": "node --conditions=source --experimental-strip-types src/cli.ts ../../packages ../../apps"
+    "scan": "node --conditions=source --experimental-strip-types src/cli.ts ../../packages ../../apps",
+    "retire": "node --conditions=source --experimental-strip-types src/retire/cli.ts"
   },
   "devDependencies": {
     "@omne-harness/legal-identity": "workspace:*",

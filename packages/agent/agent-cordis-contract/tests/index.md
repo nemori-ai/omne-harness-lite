@@ -6,6 +6,7 @@
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口的测试
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：Cordis 定义入口的测试
 - [cordis-entry.spec-d.ts](cordis-entry.spec-d.ts)：Cordis 定义入口的类型测试
+- [provision.spec.ts](provision.spec.ts)：实例取得与回收的符合性套件对内存替身
 - [registration.spec.ts](registration.spec.ts)：实例目录的登记、撤除与路由规则
 - [tool-start-fence.spec.ts](tool-start-fence.spec.ts)：Tool 启动围栏键的引用
 - [module-graph.ts](module-graph.ts)：导入图遍历

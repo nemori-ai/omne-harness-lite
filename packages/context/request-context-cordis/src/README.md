@@ -16,6 +16,6 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 ## 本包事实
 
-`index.ts` 只有 `PACKAGE_TEMPLATE_DRAFT` 标记与空导出。`cordis.ts` 导出 `RequestContextProvider`。
+`index.ts` 只有 `PACKAGE_TEMPLATE_DRAFT` 标记与空导出。`cordis.ts` 导出 `RequestContextProvider`，并用静态 `Config` 声明配置 Schema。`config.ts` 放配置 Schema 与按名选择策略的 `selectPolicies`；它的运行时导出不经 `cordis.ts` 重新导出，所以 `./cordis` 的运行时导出仍只有 `RequestContextProvider`。
 
-当前缺口：配置 Schema、按配置选择策略、通知路径与两块的生产者还没有进入。根入口不导出任何东西，独立调用方从 `request-context` 取机制工厂。清单见[公开接口页](../docs/public-api.md#随实现进入的导出)。具名维护者由负责人指定。
+当前缺口：通知路径、两块的生产者与重复装载检查还没有进入。根入口不导出任何东西，独立调用方从 `request-context` 取机制工厂。清单见[公开接口页](../docs/public-api.md#随实现进入的导出)。具名维护者由负责人指定。

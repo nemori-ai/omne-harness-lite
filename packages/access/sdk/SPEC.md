@@ -1,6 +1,8 @@
 # 客户端 SDK 行为规格
 
-本页拥有治理协议的客户端职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。
+本页拥有治理协议和会话协议的客户端职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。路径、方法、状态码、SSE 格式和两端共用的[客户端规则](../public-contract/docs/http-binding.md#客户端规则)只归[承载绑定页](../public-contract/docs/http-binding.md)。SDK 引用那一页，不复制它。
+
+下列条款由 #978 波 1 设计点 DP-2 采用，依据是 DP-2 决策记录（评论 6561904972）与 R1-D27（评论 6562041248）：本段第一段对会话协议和承载页的引用、「[会话客户端](#会话客户端)」与「[HTTP 传输适配](#http-传输适配)」两节、「[自动再送与缓存](#自动再送与缓存)」中把规则扩到会话操作的两句、「[验证](#验证)」一节中会话客户端与 HTTP 适配的验证义务、「[已知限制](#已知限制)」整节。其余条款保持原有的采用状态。
 
 ## 客户端职责
 
@@ -10,13 +12,55 @@ SDK 是调用者使用完整 Harness 治理消息的客户端入口。它持有�
 
 SDK 对同一个 `outcome` 使用公开契约里的解释。它不另定拒绝原因，也不把超时写成没有业务效果。
 
+## 会话客户端
+
+会话客户端使用公开契约的会话一组编解码函数。它发送 `session-public/1` 的消息，覆盖公开契约的七个会话操作。两个观察操作和观察客户端在后续波。公开契约的会话编解码函数不读写观察消息，所以公开契约提供观察消息的函数之前，SDK 不发观察操作。
+
+- 会话客户端只把带有相同 `messageId` 的响应交给该次调用，规则同治理客户端。
+- 会话客户端把 `loginProof` 放进消息体。它不把登录证明写进 HTTP 头、日志或错误文本。
+- 调用者在首次发送前生成 `createCallId`、`acceptId`、`inputId` 和 `controlId`，并在重试同一意图时保持不变。SDK 不替调用者换这些标识。`messageId` 不在此列。它只关联一次发送，不是去重键，调用者每次调用可以生成新的 `messageId`，见公开契约的[共同消息](../public-contract/SPEC.md#共同消息)。SDK 的自动再送发送同一份字节，所以沿用同一个 `messageId`。
+- 调用者不填写 `SessionOperationId`、登录或操作身份。SDK 不提供这样的参数。
+- 会话操作得到 `unknown`，或没有收到可信答复时，SDK 把它交给调用者。再送和认回由调用者发起，规则见承载页的客户端规则。
+- SDK 重新导出调用者构造请求所需的公开契约类型与编码入口。CLI 因此只依赖 SDK，不直接导入公开契约。
+
+```ts
+type SessionClient = {
+  submit(message: unknown): Promise<CallerResult>;
+};
+```
+
+`SessionClient` 与 `GovernanceClient` 对称，由同一个传输适配构造。上面是设计形状，本包现在不导出它。
+
+## HTTP 传输适配
+
+SDK 提供一个基于 `fetch` 的 HTTP 传输适配，实现 `GovernanceTransport` 的形状。该形状对两个位置通用。CLI 通过它发请求，不自己写 HTTP。调用者仍然可以交入自己的传输适配。
+
+适配按[承载绑定表](../public-contract/docs/http-binding.md#承载绑定表)工作。
+
+- 适配实例绑定一个位置和一个服务地址。它向该位置的固定路径发 POST。
+- 适配不跟随重定向。登录证明在请求体里，重定向会把它送到别处。
+- 适配按响应的 `Content-Type` 选择读取方式。响应是 JSON 时，无论状态码是什么，适配把完整的响应体字节作为 `response` 交出。所以 `unknown` 的状态 500 作为一条可读消息交给客户端。客户端再按 `messageId` 核对，读不出匹配的消息时，结果是 `uncertain`。
+- 适配在下列情况报告 `not-sent`：连接在写出任何请求字节之前失败（连接被拒、地址不可达、连接超时），或调用者在请求开始前取消。
+- 其他失败都报告 `uncertain`：已经写出部分请求字节后失败、响应体为空（例如 404、405、421 和响应体为空的 500）、响应不是 JSON，以及响应中途断开。
+
+```ts
+type HttpTransportOptions = {
+  origin: string;
+  location: "governance" | "session";
+};
+
+function createHttpTransport(options: HttpTransportOptions): GovernanceTransport;
+```
+
+上面是设计形状，本包现在不导出它。
+
 ## 自动再送与缓存
 
-本页每一个治理操作都使用这一条再送规则。传输适配报告请求字节没有发出时，SDK 自动再送一次。字节已经发出，或适配不能证明没有发出时，SDK 不自动再送。未知效果不能靠这次再送重做。调用者自己发起的下一次调用是一次新调用，并遵守该操作自己的重复规则。
+本页每一个治理操作和会话操作都使用这一条再送规则。传输适配报告请求字节没有发出时，SDK 自动再送一次。字节已经发出，或适配不能证明没有发出时，SDK 不自动再送。未知效果不能靠这次再送重做。调用者自己发起的下一次调用是一次新调用，并遵守该操作自己的重复规则。
 
 SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`。客户端应用可以保存屏幕投影。投影失败不改变已经返回的 `succeeded`。清掉投影不把 `unknown` 变成成功或没有发生。
 
-这些治理调用不刷新登录的空闲计时。`public-health` 不带登录证明，也不带行事租户。
+这些治理调用和会话调用不刷新登录的空闲计时。`public-health` 不带登录证明，也不带行事租户。
 
 ## 安装闭包
 
@@ -119,3 +163,18 @@ SDK 不另写结果含义。必须遵守的客户端规则是自动再送条件�
 - `issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。
 - 版本是 `governance-public/1` 时，`disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 在坏正文和坏证明下都是 `stage-not-provided`。版本不是 `governance-public/1` 时是 `protocol-rejected`。
 
+会话客户端与 HTTP 适配另有下列验证义务。
+
+- 会话操作的往返用环回服务端替身通过，响应按 `messageId` 关联。
+- 零字节再送只发生一次。写出部分字节后失败不再送。
+- 非回环地址的构造失败。
+- 重定向响应不被跟随，结果是 `uncertain`。
+- 状态 500 且响应体是匹配的 `unknown` 消息时，调用者得到 `response`，`outcome` 是 `unknown`。响应体为空的 500 得到 `uncertain`。
+- 任何输出、日志和错误文本都不含登录证明与凭据。
+
+## 已知限制
+
+- M2 的适配只接受 `127.0.0.1` 或 `localhost` 上的 `http:` 地址。其他地址的构造失败，包括 `https:`。这是 M2 的范围限制，不是登录证明的保护规则。M2 的服务只在回环地址上提供明文，见承载页的[已知限制](../public-contract/docs/http-binding.md#已知限制)。远程访问或 TLS 进入范围时，适配的这条限制随之改。
+- 「[客户端职责](#客户端职责)」要求注册和签发登录之前选定对端信任材料。M2 的明文回环连接没有可以核验的信任材料。M2 用上一条的回环地址限制代替这项核验，适配不要求调用者给出信任材料。TLS 进入范围时，这项核验随之生效。
+- M2 部署对 32 个治理操作答 `stage-not-provided`，这是服务端接入的[治理位置的偏离](../server-entry/SPEC.md#治理位置的偏离)。公开契约的 `readGovernanceResponse` 读不出这些响应，所以 SDK 的调用者发这些操作时得到 `uncertain`。偏离闭合后，这条限制随之消失。
+- 会话观察客户端不在波 1。

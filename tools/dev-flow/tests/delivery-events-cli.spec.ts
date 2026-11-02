@@ -276,6 +276,147 @@ describe('wait-cli', () => {
     expect(result.status).toBe(2)
     expect(JSON.parse(result.stderr)).toMatchObject({ kind: 'wait-error', code: 'ELOOP' })
   })
+
+  describe('waiting again from the output', () => {
+    const SINCE = '2026-11-01T10:00:00Z'
+    const url = (id: number) => `https://github.com/owner/repo/issues/7#issuecomment-${id}`
+    const commentPage = (...ids: number[]) => [
+      ids.map(id => ({
+        body: '<!-- line-delta -->\nx',
+        created_at: '2026-11-01T10:00:0' + String(ids.indexOf(id) + 1) + 'Z',
+        html_url: url(id),
+      })),
+    ]
+    const waitComment = (file: string, extra: string[]) => [
+      'comment',
+      '--issue',
+      '7',
+      '--marker',
+      'line-delta',
+      '--file',
+      file,
+      '--repo',
+      'owner/repo',
+      ...extra,
+    ]
+
+    it('gives the start point and the seen ids to wait again with, and waits on after them', () => {
+      const { home, env } = setup('OPEN', undefined, commentPage(6001, 6002))
+      const file = join(home, 'events.jsonl')
+      const first = run(waitComment(file, ['--since', SINCE]), env)
+      expect(first.status).toBe(0)
+      expect(JSON.parse(first.stdout)).toMatchObject({
+        source: 'reconcile',
+        html_url: url(6001),
+        next: { since: SINCE, seen: ['6001'] },
+      })
+      const second = run(waitComment(file, ['--since', SINCE, '--seen', '6001']), env)
+      expect(second.status).toBe(0)
+      expect(JSON.parse(second.stdout)).toMatchObject({
+        html_url: url(6002),
+        next: { since: SINCE, seen: ['6001', '6002'] },
+      })
+      const third = run(
+        waitComment(file, [
+          '--since',
+          SINCE,
+          '--seen',
+          '6001',
+          '--seen',
+          '6002',
+          '--timeout',
+          '0.3',
+        ]),
+        env,
+      )
+      expect(third.status).toBe(3)
+      expect(third.stdout).toBe('')
+    })
+
+    it('adds the seen ids of an any command and leaves the other commands without next', () => {
+      const { home, env } = setup('OPEN', undefined, commentPage(6001))
+      const result = run(
+        [
+          'any',
+          '--comment',
+          '7:line-delta',
+          '--seen',
+          '5999',
+          '--file',
+          join(home, 'events.jsonl'),
+          '--repo',
+          'owner/repo',
+        ],
+        env,
+      )
+      expect(result.status).toBe(0)
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        matched: 'comment',
+        next: { seen: ['5999', '6001'] },
+      })
+      const closed = setup('CLOSED')
+      const done = run(
+        ['issue-closed', '--issue', '5', '--file', join(closed.home, 'e.jsonl'), '--repo', 'o/r'],
+        closed.env,
+      )
+      expect(done.status).toBe(0)
+      expect(JSON.parse(done.stdout)).not.toHaveProperty('next')
+    })
+
+    it('still takes a delivery id as the start point and gives it back unchanged', () => {
+      const { home, env } = setup('OPEN')
+      const file = join(home, 'events.jsonl')
+      const comment = (delivery: string, id: number) =>
+        `${JSON.stringify({ delivery, event: 'issue_comment', action: 'created', number: 7, state: null, draft: null, base: null, head: null, marker: 'line-delta', html_url: url(id), receivedAt: '2026-11-01T10:00:05.000Z' })}\n`
+      writeFileSync(file, comment('mark', 6000) + comment('after', 6001))
+      const result = run(waitComment(file, ['--since', 'mark']), env)
+      expect(result.status).toBe(0)
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        source: 'event',
+        delivery: 'after',
+        next: { since: 'mark', seen: ['6001'] },
+      })
+    })
+
+    it('exits 2 for a seen id that is not a number and for --seen on other commands', () => {
+      const { home, env } = setup('OPEN')
+      // A short timeout, so that a command that wrongly accepts the arguments ends with 3, not hangs.
+      const tail = ['--file', join(home, 'events.jsonl'), '--repo', 'owner/repo', '--timeout', '1']
+      for (const args of [
+        ['comment', '--issue', '7', '--marker', 'm', '--seen', 'abc'],
+        ['comment', '--issue', '7', '--marker', 'm', '--seen', '12x'],
+        ['pr-ready', '--base', 'main', '--seen', '12'],
+        ['issue-closed', '--issue', '5', '--seen', '12'],
+      ]) {
+        const result = run([...args, ...tail], env)
+        expect(result.status).toBe(2)
+        expect(JSON.parse(result.stderr)).toMatchObject({ kind: 'wait-error' })
+      }
+    })
+
+    it('reads GitHub once more before exit 3 and exits 0 when a record appeared meanwhile', () => {
+      const home = realpathSync(mkdtempSync(join(tmpdir(), 'wait-cli-')))
+      homes.push(home)
+      const bin = join(home, 'bin')
+      mkdirSync(bin)
+      const counter = join(home, 'api-calls')
+      writeGh(
+        bin,
+        `#!/usr/bin/env node
+const fs = require('node:fs')
+if (process.argv[2] !== 'api') process.exit(94)
+fs.appendFileSync(${JSON.stringify(counter)}, 'x')
+const calls = fs.readFileSync(${JSON.stringify(counter)}, 'utf8').length
+process.stdout.write(JSON.stringify(calls < 2 ? [[]] : ${JSON.stringify(commentPage(6001))}))
+`,
+      )
+      const env = { ...process.env, ...ghEnv(bin) }
+      const result = run(waitComment(join(home, 'events.jsonl'), ['--timeout', '0.5']), env)
+      expect(result.status).toBe(0)
+      expect(JSON.parse(result.stdout)).toMatchObject({ source: 'reconcile', html_url: url(6001) })
+      expect(readFileSync(counter, 'utf8')).toBe('xx')
+    })
+  })
 })
 
 describe('events-receiver-cli clean', () => {

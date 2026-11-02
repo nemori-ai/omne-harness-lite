@@ -1,5 +1,7 @@
 // The derived account projection (RQ-14) and its recovery (RQ-15). The durable facts stay in the
-// result receiver's log; this index is rebuilt from it and never authorizes cleaning it.
+// result receiver's log; this index is rebuilt from it and never authorizes cleaning it. A target
+// is the unit of eviction (CX-11): when a new target needs a slot, the least recently used ready
+// target without an operation in flight goes back to "never initialized".
 import { canonicalAccount, judgeCallAccount, type CallAccount } from '@omne-harness/call-account'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import {
@@ -22,13 +24,20 @@ import {
 } from '@omne-harness/request-context-contract'
 import { createHash } from 'node:crypto'
 
-type Revision = Readonly<{ revision: bigint; fingerprint: string; account: CallAccount }>
+/** What assembly needs of the current revision: its number and the known input amount. */
+type Revision = Readonly<{ revision: bigint; known: bigint | null }>
 type DispatchIndex = { current: Revision | null; revisions: Map<string, string> }
 type Index = { dispatches: Map<string, DispatchIndex>; facts: number }
 type TargetState = {
   status: 'uninitialized' | 'rebuilding' | 'ready'
   generation: AccountingGeneration | null
   index: Index
+  /** Operations (`receive`, `usage`) that hold this target now. A held target is not evicted. */
+  inflight: number
+  /** The position of the last use in the instance order; the smallest is the least recent. */
+  touched: number
+  /** False while a new target is rebuilding for the first time: it has no slot yet. */
+  slotted: boolean
 }
 const ATTEMPTS = 2
 const INPUT_ITEMS = ['input', 'cache-read', 'cache-write'] as const
@@ -83,7 +92,7 @@ function apply(
   const value = BigInt(revision)
   if (entry.current !== null && entry.current.revision > value)
     return { kind: 'applied', change: 'superseded' }
-  entry.current = { revision: value, fingerprint: print, account }
+  entry.current = { revision: value, known: knownInput(account) }
   return { kind: 'applied', change: 'inserted' }
 }
 
@@ -190,6 +199,36 @@ export function createContextAccounting<P>(
   )
     throw new TypeError('Accounting limits must be positive safe integers')
   const states = new Map<string, TargetState>()
+  let slots = 0
+  let clock = 0
+  const touch = (state: TargetState): void => {
+    state.touched = ++clock
+  }
+  /** The least recently used target that is ready and has no operation in flight, if any. */
+  const victim = (): string | undefined => {
+    let found: string | undefined
+    let oldest = Infinity
+    for (const [key, state] of states)
+      if (state.status === 'ready' && state.inflight === 0 && state.touched < oldest) {
+        found = key
+        oldest = state.touched
+      }
+    return found
+  }
+  /**
+   * Holds one target for the length of an operation, so that it is not evicted meanwhile. `take`
+   * moves the hold to the given state; `release` is idempotent.
+   */
+  const holder = () => {
+    let held: TargetState | undefined
+    const take = (state: TargetState | undefined): void => {
+      if (state === held) return
+      if (held !== undefined) held.inflight--
+      held = state
+      if (held !== undefined) held.inflight++
+    }
+    return { take, release: () => take(undefined) }
+  }
   let generations = 0
   const nextGeneration = (): AccountingGeneration => {
     generations++
@@ -206,7 +245,7 @@ export function createContextAccounting<P>(
       const current = state.index.dispatches.get(
         `${fact.call.call}\u0000${adopted.dispatch}`,
       )?.current
-      const used = current === null || current === undefined ? null : knownInput(current.account)
+      const used = current === null || current === undefined ? null : current.known
       if (used !== null)
         return {
           kind: 'actual',
@@ -244,20 +283,27 @@ export function createContextAccounting<P>(
       if (!tenantEquals(access.tenant, input.target.tenant)) return { kind: 'denied' }
       if (!tenantEquals(input.call.tenant, input.target.tenant))
         return { kind: 'invalid', field: 'input.call.tenant', reason: 'tenant-mismatch' }
-      const authority = await options.sourceAuthority.check({ access, input })
-      if (authority.kind !== 'allowed') return authority
-      const account = admittedAccount(input)
-      if (account.kind !== 'account') return account
       const key = keyOf(input.target)
-      const state = key === null ? undefined : states.get(key)
-      // The state and generation are checked after the asynchronous checks, right before the write.
-      if (state === undefined || state.status === 'uninitialized')
-        return { kind: 'unavailable', diagnostic: 'uninitialized' }
-      if (state.status === 'rebuilding' || state.generation === null)
-        return { kind: 'unavailable', diagnostic: 'rebuilding' }
-      const applied = apply(state.index, input, account.account, limits)
-      if (applied.kind !== 'applied') return applied
-      return { kind: 'received', generation: state.generation, change: applied.change }
+      const hold = holder()
+      hold.take(key === null ? undefined : states.get(key))
+      try {
+        const authority = await options.sourceAuthority.check({ access, input })
+        if (authority.kind !== 'allowed') return authority
+        const account = admittedAccount(input)
+        if (account.kind !== 'account') return account
+        const state = key === null ? undefined : states.get(key)
+        // The state and generation are checked after the asynchronous checks, right before the write.
+        if (state === undefined || state.status === 'uninitialized')
+          return { kind: 'unavailable', diagnostic: 'uninitialized' }
+        if (state.status === 'rebuilding' || state.generation === null)
+          return { kind: 'unavailable', diagnostic: 'rebuilding' }
+        const applied = apply(state.index, input, account.account, limits)
+        if (applied.kind !== 'applied') return applied
+        touch(state)
+        return { kind: 'received', generation: state.generation, change: applied.change }
+      } finally {
+        hold.release()
+      }
     },
     async usage({ access, target }): Promise<SourceRead<WindowUsageValue>> {
       if (access === null || access === undefined)
@@ -265,42 +311,50 @@ export function createContextAccounting<P>(
       if (!tenantEquals(access.tenant, target.tenant)) return { kind: 'denied' }
       const key = keyOf(target)
       const read = { access, target }
-      for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
-        const refused = await eligible(access, target)
-        if (refused !== null) return refused
-        const before = await options.adoptedSource.readCount(read)
-        if (before.kind !== 'value') return before
-        const source = await options.adoptedSource.readSource(read)
-        if (source.kind !== 'value') return source
-        const after = await options.adoptedSource.readCount(read)
-        if (after.kind !== 'value') return after
-        if (before.value !== after.value) continue
-        const fact = source.value
-        if (
-          fact !== null &&
-          (!tenantEquals(fact.target.tenant, target.tenant) ||
-            !tenantEquals(fact.call.tenant, target.tenant) ||
-            fact.target.scope.ref !== target.scope.ref)
-        )
-          return { kind: 'invalid', field: 'adopted', reason: 'source-evidence-conflict' }
-        const adopted = fact === null ? null : decodeAdopted(fact)
-        if (adopted !== null && 'kind' in adopted) return adopted
-        const state = key === null ? undefined : states.get(key)
-        if (state === undefined || state.status !== 'ready')
-          return { kind: 'unavailable', diagnostic: state?.status ?? 'uninitialized' }
-        const generation = state.generation
-        const value = valueOf(adopted, state)
-        const again = await eligible(access, target)
-        if (again !== null) return again
-        const last: SourceRead<GroupToken> = await options.adoptedSource.readCount(read)
-        if (last.kind !== 'value') return last
-        if (last.value !== before.value) continue
-        // Publication: generation and readiness are checked with no await before returning.
-        if (state.status !== 'ready' || state.generation !== generation)
-          return { kind: 'unavailable', diagnostic: 'Account projection changed' }
-        return { kind: 'value', value }
+      const hold = holder()
+      hold.take(key === null ? undefined : states.get(key))
+      try {
+        for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+          const refused = await eligible(access, target)
+          if (refused !== null) return refused
+          const before = await options.adoptedSource.readCount(read)
+          if (before.kind !== 'value') return before
+          const source = await options.adoptedSource.readSource(read)
+          if (source.kind !== 'value') return source
+          const after = await options.adoptedSource.readCount(read)
+          if (after.kind !== 'value') return after
+          if (before.value !== after.value) continue
+          const fact = source.value
+          if (
+            fact !== null &&
+            (!tenantEquals(fact.target.tenant, target.tenant) ||
+              !tenantEquals(fact.call.tenant, target.tenant) ||
+              fact.target.scope.ref !== target.scope.ref)
+          )
+            return { kind: 'invalid', field: 'adopted', reason: 'source-evidence-conflict' }
+          const adopted = fact === null ? null : decodeAdopted(fact)
+          if (adopted !== null && 'kind' in adopted) return adopted
+          const state = key === null ? undefined : states.get(key)
+          if (state === undefined || state.status !== 'ready')
+            return { kind: 'unavailable', diagnostic: state?.status ?? 'uninitialized' }
+          hold.take(state)
+          const generation = state.generation
+          const value = valueOf(adopted, state)
+          const again = await eligible(access, target)
+          if (again !== null) return again
+          const last: SourceRead<GroupToken> = await options.adoptedSource.readCount(read)
+          if (last.kind !== 'value') return last
+          if (last.value !== before.value) continue
+          // Publication: generation and readiness are checked with no await before returning.
+          if (state.status !== 'ready' || state.generation !== generation)
+            return { kind: 'unavailable', diagnostic: 'Account projection changed' }
+          touch(state)
+          return { kind: 'value', value }
+        }
+        return { kind: 'unavailable', diagnostic: 'unstable-input:adopted' }
+      } finally {
+        hold.release()
       }
-      return { kind: 'unavailable', diagnostic: 'unstable-input:adopted' }
     },
   }
 
@@ -323,12 +377,17 @@ export function createContextAccounting<P>(
       const existing = states.get(key)
       if (existing?.status === 'rebuilding')
         return { kind: 'unavailable', diagnostic: 'rebuilding' }
-      if (existing === undefined && states.size >= limits.maxTargets)
+      // The precheck: a new target needs a free slot or a target to evict. Nothing is replayed
+      // for a rebuild that cannot be published. The eviction itself waits for the publication.
+      if (existing === undefined && slots >= limits.maxTargets && victim() === undefined)
         return { kind: 'unavailable', diagnostic: 'capacity' }
       const state: TargetState = existing ?? {
         status: 'uninitialized',
         generation: null,
         index: emptyIndex(),
+        inflight: 0,
+        touched: 0,
+        slotted: false,
       }
       states.set(key, state)
       state.status = 'rebuilding'
@@ -360,9 +419,22 @@ export function createContextAccounting<P>(
         }
         const last = await check()
         if (last.kind !== 'allowed') return last
+        // Publication, with no await from here on: take the slot of a new target, evicting the
+        // least recently used idle target if the table is full, then write the state.
+        if (!state.slotted) {
+          if (slots >= limits.maxTargets) {
+            const gone = victim()
+            if (gone === undefined) return { kind: 'unavailable', diagnostic: 'capacity' }
+            states.delete(gone)
+            slots--
+          }
+          slots++
+          state.slotted = true
+        }
         state.index = staging
         state.generation = nextGeneration()
         state.status = 'ready'
+        touch(state)
         rebuilt = true
         return { kind: 'rebuilt', generation: state.generation }
       } catch (error) {

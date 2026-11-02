@@ -5,8 +5,12 @@
 // money, so no default case exists.
 //
 // Environment, read only at this test boundary:
-// - OMNE_RECORD_CASE: one of RECORD_CASE_NAMES. A continued case replays its first round's
-//   recording from the same output root, so the first round is recorded before it.
+// - OMNE_RECORD_CASE: one of ALL_RECORD_CASE_NAMES, which holds the four reasoning cases and the
+//   two tool-call cases (`openai-tool-call`, then `openai-tool-call-continued`, model
+//   `openai/gpt-5.6-sol`). A continued case replays its first round's recording from the same
+//   output root, so the first round is recorded before it. The synthetic pieces of the tool-call
+//   cases below this package's `tests/fixtures/recordings/` are not read from there: the recorder
+//   writes `stream.sse` and `recording.json` into the output root.
 // - OMNE_RECORD_OUT: the root of the recordings. Default: pi-ai-transport's
 //   `tests/fixtures/recordings/`. An existing recording is never replaced.
 // - OMNE_RECORD_TARGET: the gateway origin. Default: `https://openrouter.ai/`.
@@ -24,8 +28,8 @@ import { recordRound } from '../support/recorder.ts'
 import {
   continuedRequest,
   firstRoundRequest,
+  ALL_RECORD_CASE_NAMES,
   isRecordCaseName,
-  RECORD_CASE_NAMES,
   RECORD_CASES,
   replayRound,
 } from '../support/recording-cases.ts'
@@ -52,7 +56,7 @@ it('records one real request of the named case', { timeout: 300_000 }, async ctx
   const name = process.env.OMNE_RECORD_CASE ?? ''
   if (process.env.OMNE_LIVE_TESTS !== '1' || name === '') ctx.skip()
   if (!isRecordCaseName(name))
-    throw new Error(`OMNE_RECORD_CASE must be one of ${RECORD_CASE_NAMES.join(', ')}`)
+    throw new Error(`OMNE_RECORD_CASE must be one of ${ALL_RECORD_CASE_NAMES.join(', ')}`)
   const item = RECORD_CASES[name]
   const output = process.env.OMNE_RECORD_OUT || DEFAULT_OUTPUT
   const ca = process.env.OMNE_RECORD_CA
@@ -74,12 +78,17 @@ it('records one real request of the named case', { timeout: 300_000 }, async ctx
         label: `replay-${item.round.first}`,
         vault,
       })
-      request = continuedRequest({ first, replayed })
+      request = continuedRequest({
+        first,
+        replayed,
+        ...(item.next !== undefined && { next: item.next }),
+      })
     }
     const outcome = await recordRound({
       name,
       request,
       requiresReasoningState: item.requiresReasoningState,
+      requiresToolCall: item.requiresToolCall === true,
       gateway,
       output,
       vault,

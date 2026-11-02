@@ -60,6 +60,8 @@
             { "name": "modelProfileMaintenanceKey", "kind": "value", "pending": false },
             { "name": "ModelRequestPreparationService", "kind": "class", "pending": false },
             { "name": "modelRequestPreparationKey", "kind": "value", "pending": false },
+            { "name": "ModelPreparationResourcesService", "kind": "class", "pending": false },
+            { "name": "modelPreparationResourcesKey", "kind": "value", "pending": false },
             { "name": "ModelMessageConversionService", "kind": "class", "pending": false },
             { "name": "modelMessageConversionKey", "kind": "value", "pending": false },
             { "name": "ModelHostAuthorityService", "kind": "class", "pending": false },
@@ -106,6 +108,19 @@
             { "name": "ModelResultReceiverFixture", "kind": "type", "pending": false },
             { "name": "ModelResultReceiverCase", "kind": "type", "pending": false }
           ]
+        },
+        {
+          "title": "准备资源租约",
+          "names": [
+            { "name": "createScriptedModelPreparationResources", "kind": "value", "pending": false },
+            { "name": "createModelPreparationResourcesPlugin", "kind": "value", "pending": false },
+            { "name": "modelPreparationResourcesConformance", "kind": "value", "pending": false },
+            { "name": "ScriptedModelPreparationResources", "kind": "type", "pending": false },
+            { "name": "ScriptedModelPreparationResourcesScript", "kind": "type", "pending": false },
+            { "name": "ModelPreparationResourcesSubject", "kind": "type", "pending": false },
+            { "name": "ModelPreparationResourcesFixture", "kind": "type", "pending": false },
+            { "name": "ModelPreparationResourcesCase", "kind": "type", "pending": false }
+          ]
         }
       ]
     }
@@ -131,7 +146,8 @@
         "modelConverters",
         "modelInstances",
         "modelConverterAuthority",
-        "modelCredential"
+        "modelCredential",
+        "modelPreparationResources"
       ],
       "pending": false
     },

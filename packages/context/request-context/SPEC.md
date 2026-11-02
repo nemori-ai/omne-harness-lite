@@ -1,17 +1,19 @@
 # @omne-harness/request-context 行为规格
 
-状态：机制实现成员，`draft`。本成员实现来源登记表 `createContextSourceRegistry` 与账目投影 `createContextAccounting`，有进程内的运行实现与契约测试。候选缓存、预计算派生物与默认策略已有本页的设计，尚未实现。公开行为归 [request-context-contract SPEC](../request-context-contract/SPEC.md)。本页只写实现真实承担的本地行为：登记代际与借用、账目索引与恢复状态、缓存键、按组失效、失效来源、预计算派生物、默认策略数值与修剪器行为。不重复契约条款。
+状态：机制实现成员，`draft`。本成员实现来源登记表 `createContextSourceRegistry` 与账目投影 `createContextAccounting`，有进程内的运行实现与契约测试。默认压缩策略、默认表示策略、修剪器与转换件结果读口的缺席实现已进入（见[默认策略与修剪器](#默认策略与修剪器)）。候选缓存与预计算派生物已有本页的设计，尚未实现。公开行为归 [request-context-contract SPEC](../request-context-contract/SPEC.md)。本页只写实现真实承担的本地行为：登记代际与借用、账目索引与恢复状态、缓存键、按组失效、失效来源、预计算派生物、默认策略数值与修剪器行为。不重复契约条款。
 
 ## 范围与依据
 
 本成员与 Cordis 无关（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。[request-context-cordis](../request-context-cordis/SPEC.md) 的根入口不导出任何东西；不装配 Cordis 又要托管登记的调用方直接从本成员取工厂，只要独立操作组的调用方用契约根入口的 `createAssemblyOperations`。贡献登记面与 isolate 绑定归 [request-context-cordis](../request-context-cordis/SPEC.md)。
 
-本成员导出两个工厂：
+本成员导出两个有状态工厂：
 
 | 工厂 | 输入 | 交出 |
 | --- | --- | --- |
 | `createContextSourceRegistry(options)` | 主体绑定、登记授权判定者、两个策略实现（压缩策略、表示策略）。经 Cordis 时策略由 request-context-cordis 按配置选定 | 来源登记表 `ContextSourceRegistry`：`register`、`replace`、`assembly(target)` 与 `close()`（[RQ-12](../request-context-contract/SPEC.md#rq-12-来源集合与登记面)） |
 | `createContextAccounting(options)` | 来源核验、读取资格桥、窄采用来源、恢复授权与容量上限 | 收件口 `ContextAccountingInbox` 与恢复口 `ContextRecovery`（[RQ-14](../request-context-contract/SPEC.md#rq-14-窗口占用与账目收到)） |
+
+另导出三个无状态的构造件，供装配者和 request-context-cordis 使用：`createDefaultCompactionPolicy(options)`、`createDefaultRepresentationPolicy(options)` 与 `createAbsentConversionResults()`，以及两个策略的配置初值 `DEFAULT_COMPACTION_POLICY`、`DEFAULT_REPRESENTATION_CONFIG` 与修剪阈值初值 `DEFAULT_TRIM_BYTES`。它们的行为见[默认策略与修剪器](#默认策略与修剪器)。
 
 历史源读口、Model 准备资源、转换件结果读口与读取资格随来源集合登记，不在构造时给出，也不逐次交入。请求字节取自 Model 的 `rules.plan` 返回的物化表示，本成员没有序列化端口。
 
@@ -39,12 +41,23 @@
 | 项 | 本地行为 |
 | --- | --- |
 | 目标状态 | 每个 `(tenant, scope)` 一份状态：`uninitialized`、`rebuilding` 或 `ready`，带当前 `AccountingGeneration` |
-| 索引 | 按 `(call, dispatch)` 保存各修订的规范内容指纹与当前最高修订的账目；指纹在本代际内保留 |
+| 索引 | 按 `(call, dispatch)` 保存各修订的修订号与规范内容指纹；当前最高修订另保留组装用的已知输入量（`bigint` 或 `null`，写入时算好）。不保留整份账目。指纹在本代际内保留 |
 | 代际 | 每次重建成功新取一个代际。`receive` 在异步核验之后、写索引之前再核代际与状态 |
 | 暂存 | 重建在单目标的暂存索引上进行，成功后整体替换当前索引；失败丢弃暂存，保留旧索引，目标保持未就绪；新目标重建失败时不占用 `maxTargets` 名额。最终授权失败或抛出异常同样收尾，目标不会停在重建中 |
 | 采用事实 | 窄采用来源读出的事实在边界解码：`windowTokens` 是正十进制整数，预测用量是非负十进制整数，账目依据只有三种，提交顺序合法；不合法为无效（`adopted.<字段>`），不抛出异常 |
 | 已知用量 | `input`、`cache-read`、`cache-write` 各恰好一项、已知、单位是 token 才相加；同名项重复视为口径不明，不给 `actual` |
-| 容量 | `limits` 构造时必填，没有默认值；缺项或不是正安全整数时构造抛出 `TypeError`。达到上限时拒收，不淘汰旧事实 |
+| 容量 | `limits` 构造时必填，没有默认值；缺项或不是正安全整数时构造抛出 `TypeError`。单目标事实数达到 `maxFactsPerTarget` 或单调度修订数达到 `maxRevisionsPerDispatch` 时拒收，不淘汰事实（[FACT-CAP](#已知限制)）。目标数达到 `maxTargets` 时按下一行淘汰目标 |
+| <a id="cx-11"></a>淘汰（CX-11） | 淘汰的单位是整个目标。触发点只有一个：`rebuildAccounts` 为新目标发布结果时目标数已满；`receive`、`usage` 从不淘汰。可淘汰的目标：状态为 `ready`、没有在途的 `receive` 或 `usage`、不是正在重建的目标。次序：在可淘汰的目标里取最久未用者，「用」指一次成功的 `receive`、`usage` 或重建，次序由实例内单调计数给出，不用时钟。重建开始前预检：目标数未满或存在可淘汰目标，否则立即返回 `unavailable('capacity')` 且不拉取重放。淘汰发生在发布时，与写入新目标状态在同一个同步动作里；发布时没有可淘汰目标（预检后候选被占用）则返回 `unavailable('capacity')` 并丢弃暂存，不淘汰任何目标。重建失败不淘汰。淘汰不确认任何事实：被淘汰的目标回到从未初始化，耐久账目仍在结果接收方的日志，重建时从日志重放得到同样的投影 |
+| <a id="cx-11-observable"></a>淘汰后的可观察后果（E10） | 被淘汰目标的 `receive` 与 `usage` 返回 `unavailable('uninitialized')`，与从未重建的目标完全相同，被拒绝的 `receive` 不产生 `received`，接收方保留待办。一个仍在使用的目标在两次操作之间被淘汰后，`usage` 保持 `uninitialized`，直到宿主再次完成授权重建。本成员不自己发起重建，也不订阅作用域结束，最久未用只是近似。谁在 `usage` 路径上发起重建，与账目投影的初始化一起设计（[ACCT-EVICT-ACTIVE](#已知限制)、ACCT-INIT） |
+
+#### 已知限制
+
+| 名称 | 内容 | 触发条件（到时重新设计） |
+| --- | --- | --- |
+| FACT-CAP | 单目标事实数达上限时拒收，不淘汰。契约要求同修订的指纹在本代际内保留，逐事实淘汰会破坏它；整个目标淘汰等于结束该目标的代际 | 度量显示单会话事实数接近上限 |
+| ACCT-EVICT-ACTIVE | 仍在使用的目标可能在两次操作之间被淘汰，之后 `usage` 返回 `uninitialized`，直到再次重建 | 与账目投影的初始化同时，设计 `usage` 路径上的重建发起者 |
+
+淘汰的内存占用不被测量，只验证行为等价（精简表示后现有 `actual`、`estimate`、`unmeasured`、`superseded`、冲突的结果不变）。这是覆盖边界。
 
 ### 候选缓存
 
@@ -106,9 +119,27 @@
 
 这些项都是配置字段，默认值只是初值（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。
 
+实现现状（`createDefaultCompactionPolicy`、`createDefaultRepresentationPolicy`）：
+
+- 构造时按契约的 Schema 校验参数，不合就抛出 `TypeError`，不更正也不回退到初值。配置只替换给出的字段，其余字段取初值。
+- 触发界线的两个字段是 `triggerPercent`（初值 `'80'`）与 `headroomTokens`（初值 `null`）。余量没有数值依据，所以初值为空，这一项和上表三个数值一起待重核。触发界线由契约和 Model 的窗口口径使用，不在 `plan` 里使用。
+- 保留预算的比例按窗口的全部 token 计算，与契约的 `retentionLimit` 同口径，没有减去输出预留。比契约宽的预算会被契约当作策略错误，所以这里不做减法。
+- 保留名单以单元为单位选取。工具调用与回答它的结果是同一个单元，不拆开保留（CM-03 配对）。结果在窗口之后的调用、含未完成工作的单元先进入保留名单，不参与排序。名单超过预算时答 `floor-exceeds-budget`。消息为空或模型不可读的条目不保留。
+- 排序：`newest-first` 按单元内最新条目由新到旧。`most-referenced` 先比单元内已回答的结果数，多者优先，同数再按较新者优先；历史上没有别的引用事实。
+- 每试加一个单元，就对完整保留集合计量一次，不对单条求和。计量未知时原样答未知，不当成零。
+- 修剪阈值是字节数，初值 `65536`，取配置值和调用方传入值中较小者。只缩短 `tool` 消息里超过阈值的文本块，在字符边界截断，不加标记。媒体占位本身是文本，同样处理。截断结果被消息判定拒绝时，该消息保持原样且不记入 `trimmed`。阈值进入参数摘要，改阈值使 `deriveStep` 返回无效。
+- 表示策略按偏好顺序选第一个可接受的形式。派生表示要求它自己的每个块都是模型可接受的模态且对模型可见；transcript 要求模型接受文本。没有可接受形式答 `none`，不伪造转换结果。
+- 摘要指令是一个固定的、对模型可见的文本块。
+
+转换件结果读口（CX-10）：`createAbsentConversionResults()` 给没有媒体输入的部署用。它按访问身份核对租户（与目标租户不同答无权），其余一律答没有任何条目的索引，即「任何块都没有转换件」。它不答不可用，也不编造转换结果；这样纯文本历史照常组装，遇到模型不接受的媒体块时，组装按契约答没有可用表示（带原结果）。接入真实转换件的读口由有媒体输入的部署提供。
+
+候选缓存、预计算派生物和 `notify` 尚未实现，见[候选缓存](#候选缓存)与[预计算的派生物](#预计算的派生物)的设计。修剪阈值以外的缓存容量没有字段。
+
 修剪器默认实现：只缩短交给摘要步的材料中超过阈值的工具结果与媒体占位，保留原消息身份与占位的引用，不改原记录，不改模型视图。阈值是配置初值。修剪只缩短交给摘要步的材料，不改变装入裁定。修剪在给出第一个摘要步之前完成一次，不算一步进度（[RQ-06](../request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)）。
 
 表示策略默认实现：同一块有多种表示可用时按模态的偏好顺序选，原件优先于派生表示，派生表示优先于 transcript；工具内容引用标待加载。偏好顺序是配置初值。
+
+默认压缩策略与默认表示策略铸造的身份采用，其 `digest` 是 SHA-256 的 64 位小写十六进制，这是 Model 请求判定要求的编码。参数摘要（`configDigest`）、块标识与计划标识不是采用，编码不变。
 
 ### 本地行为
 
@@ -163,7 +194,7 @@
 | 默认策略数值 | 与配置初值一致，可被配置覆盖 |
 | 窗口占用块 | 值是四种状态之一；重建前不可用，就绪且无固定请求为 `not-fixed` |
 | 登记表 | 同键第二次登记为冲突；替换后旧借用不发布；旧句柄撤除不删后继；`settled` 等待借用归零 |
-| 账目投影 | 新目标先重建再收账；同键同值认回、异值冲突、低修订不倒退；重建中不可用；重建失败保留旧索引；容量上限拒收不淘汰 |
+| 账目投影 | 新目标先重建再收账；同键同值认回、异值冲突、低修订不倒退；重建中不可用；重建失败保留旧索引；事实容量上限拒收、目标容量由淘汰回收（只淘汰就绪且无在途操作的最久未用目标，预检失败不重放，失败不淘汰） |
 | 复杂度 | 命中为七组比对；只有新输入时与新增消息数成正比；贡献变化只重算系统提示词；全重算只在访问身份、用途、消费位置或选定模型变化时发生 |
 
 本成员不覆盖：持久化、共同提交、模型发送、真实协调者与持有者的端到端组合。
