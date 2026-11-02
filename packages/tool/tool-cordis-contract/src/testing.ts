@@ -58,6 +58,7 @@ import type {
   VerifiedAuthority,
 } from './cordis.ts'
 import { residentKeyCases, type ResidentKeyRoundTripFixture } from './testing-resident-key.ts'
+import { scriptedToolGenerations, type ScriptedToolGenerations } from './testing-adoption-scripts.ts'
 
 /** Observe the settings reader behind the public loaderFor/load seam, not a copied config value. */
 export interface ToolLoaderSourceFixture<P, E, B extends ContentBlock> {
@@ -1501,7 +1502,6 @@ export {
 export type { ResidentKeyRoundTripFixture } from './testing-resident-key.ts'
 export {
   createScriptedAdoptionPoint,
-  createScriptedToolGenerations,
   type AdoptionPointAnswer,
   type AdoptionPointCall,
   type AdoptionPointInput,
@@ -1511,6 +1511,15 @@ export {
   type ScriptedGenerationsCall,
   type ScriptedToolGenerations,
 } from './testing-adoption-scripts.ts'
+
+/** The scripted generation coordinator of RD-COORD; see testing-adoption-scripts.ts. `loaderFor` throws `NotApplicable`. */
+export function createScriptedToolGenerations<P, E, B extends ContentBlock>(
+  input: Readonly<{ registry?: ToolBindingRegistry<P, E, B> }> = {},
+): ScriptedToolGenerations<P, E, B> {
+  return scriptedToolGenerations(input, handle => {
+    throw new NotApplicable(handle)
+  })
+}
 
 /** The round-trip suite of the resident key (XC-RESKEY); see testing-resident-key.ts. */
 export function residentKeyRoundTripConformance(): readonly ConformanceCase<ResidentKeyRoundTripFixture>[] {

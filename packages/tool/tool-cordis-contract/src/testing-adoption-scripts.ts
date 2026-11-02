@@ -20,7 +20,6 @@ import {
   type ToolBindingScope,
   type ToolLoadedRegistration,
 } from '@omne-harness/tool-contract/provider'
-import { NotApplicable } from './testing.ts'
 import type { ToolGenerations, ToolLoadFailure, ToolLoadState } from './cordis.ts'
 
 // ---------------------------------------------------------------------------------------------
@@ -61,12 +60,13 @@ type GenerationsScript<E, B extends ContentBlock> = Readonly<{
 /**
  * Builds the scripted coordinator. `ensureLoaded` finds the script by the binding key of the
  * authority (its layer and asset); without a script it answers `unavailable`. `unload` answers
- * `retained` and `sweep` an empty report; both only record the call. `loaderFor` throws
- * `NotApplicable`. A scripted write that the registry refuses, or that comes with the system scope,
+ * `retained` and `sweep` an empty report; both only record the call. `loaderFor` calls
+ * `missing('loaderFor')`; the testing entry passes one that throws `NotApplicable`. A scripted write that the registry refuses, or that comes with the system scope,
  * throws: the script is wrong, and the double must not answer `loaded` for a key it did not write.
  */
-export function createScriptedToolGenerations<P, E, B extends ContentBlock>(
-  input: Readonly<{ registry?: ToolBindingRegistry<P, E, B> }> = {},
+export function scriptedToolGenerations<P, E, B extends ContentBlock>(
+  input: Readonly<{ registry?: ToolBindingRegistry<P, E, B> }>,
+  missing: (handle: string) => never,
 ): ScriptedToolGenerations<P, E, B> {
   const { registry } = input
   const scripts: GenerationsScript<E, B>[] = []
@@ -111,7 +111,7 @@ export function createScriptedToolGenerations<P, E, B extends ContentBlock>(
       return succeed(Object.freeze({ reloaded: Object.freeze([]), unloaded: Object.freeze([]) }))
     },
     loaderFor() {
-      throw new NotApplicable('loaderFor')
+      return missing('loaderFor')
     },
   }
 
