@@ -107,8 +107,8 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 - 本包的绑定登记表在单机、单进程内成立，登记不耐久。跨进程、远端目录与耐久存储不在本包覆盖之内。
 - 两个 fiber 同时首次登记同一个键时，本地排序域决定哪一方成功，另一方得到 `conflict`。
-- 换代协调者 `toolGenerations` 是本包 `./cordis` 的 Service。它是 `ctx.plugin` 句柄的唯一持有者，由 `ensureLoaded` 动态 import 实现包。
-- 进程恢复后，`sweep` 重装持有者采用依据记下的键。包字节保留，同一 digest 可以重新 import。
+- `./author` 的换代工厂持有作者的 `ctx.plugin` 句柄。`ensureLoaded` 通过注入的受信模块来源核验并载入实现包；`toolGenerations` 的生产 Service 接线由整套 `./cordis` 装配负责。
+- 契约要求进程恢复后由 `sweep` 重装持有者采用依据记下的键。本工厂缺完整采用依据目录时返回 `unavailable`，不声称完成恢复。包字节保留由模块来源提供者负责。
 - 按键排空与交接依赖契约 [P09](../tool-contract/SPEC.md#p09-账目恢复与退出) 的 `inspectDrain({ executor })` 范围。该范围交付之前，有在途调用时 `unload` 停在 `draining`。
 
 ### 登记表与 Catalog 的实现范围
@@ -117,11 +117,11 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 - `register` 在一个同步步骤里完成来源核验、登记资格核验、键与形状核对、同键判定与写入，所以这一步就是本地排序域。调用方 fiber 由构造参数 `fiber()` 给出；它返回 null 时回复 `unavailable`。`retire(fiber)` 撤除该 fiber 的全部贡献，之后该 fiber 的登记回复 `unavailable`。
 - 登记键冲突按 G7：同一 fiber、同一装载 digest（`loaded.executor.digest`）认回原贡献，其他情形回复 `conflict`。`release` 只按自己的 token 撤除。登记序号单调递增，token 不重复。
 - `snapshot` 与 Catalog 按来源层判定可见：`official` 对任何合法租户可见，`organization` 要同组织，`tenant` 要同租户，`workspace` 对任何租户范围都不可见（本包不读取工作区授权）。无法证明合法的租户得到 `unavailable`，不得到空列表。
-- `pins` 与 `drain` 数 `pin(key, call)` 登记、尚未释放的持有。`pin` 是本包内部的接口，由后续的 `resolve` 在固定请求解析到该键时调用，收场时释放；本包尚未实现 `ToolBindings.resolve` 与 `recover`，所以生产路径上目前没有调用者。
+- `pins` 与 `drain` 数尚未释放的持有。`createLocalToolBindings.resolve` 通过 `selectAndPin` 原子选择并持有装载句柄；作者结束且事实全部确认后释放。`recover` 只认回本进程保留的执行，见[作者装载与执行绑定](#作者装载与执行绑定)。
 - Catalog 只列出 `live` 的贡献。同名的多份贡献取登记序号最小的一份。`inspect` 对不存在的名字与只有他租户登记的名字给出同一个回复（`invalid`，`unknown-tool`），不泄露存在性。`search` 按名字排序、每个名字一项，游标是上一页最后一项的名字，所以翻页期间新登记的工具不会让已发出的游标重复或漏项。可用性由注入的 `availability` 端口给出已核验的事实（资格、依赖、输入输出与附件兼容），Catalog 不从调用方取事实；端口不可答时回复 `unavailable`，不当作可用。
 - 执行者命令的用法文本与协议不在定义里，`usage` 对它回复 `unavailable`，不编造。
 
-已知限制：登记不耐久，只在单进程内成立；没有核验器的生产提供者（归应用装配）；工作区层不可见；没有 `ToolBindings.resolve` 与 `recover`，也没有换代协调者与 `./cordis` 入口。
+已知限制：登记不耐久，只在单进程内成立；没有核验器的生产提供者（归应用装配）；工作区层不可见；整套 runtime 的 `./cordis` 入口未交付。
 
 ## 宿主时钟（G4）
 
