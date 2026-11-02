@@ -106,7 +106,7 @@
 - `createMemoryToolRegistrations` · `testing.d.ts`
 - `createMemoryToolResidencyReader` · `testing-residency-memory.d.ts`
 - `createScriptedAdoptionPoint` · `testing-adoption-scripts.d.ts`
-- `createScriptedToolGenerations` · `testing-adoption-scripts.d.ts`
+- `createScriptedToolGenerations` · `testing.d.ts`
 - `isNotApplicable` · 包 `@omne-harness/tool-contract`
 - `memoryToolBindingRegistryFixture` · `testing.d.ts`
 - `memoryToolRegistrationFixture` · `testing.d.ts`
@@ -532,9 +532,9 @@ export type ScriptedToolGenerations<P, E, B extends ContentBlock> = Readonly<{
     answer(key: ToolBindingKey, result: Outcome<ToolLoadState, ToolLoadFailure>, write?: ToolLoadedRegistration<E, B>): void;
     readonly calls: readonly ScriptedGenerationsCall<P>[];
 }>;
-export declare function createScriptedToolGenerations<P, E, B extends ContentBlock>(input?: Readonly<{
+export declare function scriptedToolGenerations<P, E, B extends ContentBlock>(input: Readonly<{
     registry?: ToolBindingRegistry<P, E, B>;
-}>): ScriptedToolGenerations<P, E, B>;
+}>, missing: (handle: string) => never): ScriptedToolGenerations<P, E, B>;
 export type AdoptionPointRecorded = Extract<ReturnType<typeof residentToolFacts>, Readonly<{
     ok: unknown;
 }>>['ok'];
@@ -646,6 +646,7 @@ import { type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type
 import { type ConformanceCase } from '@omne-harness/tool-contract/testing';
 import type { ToolAuthorityFailure, ToolGenerations, ToolResidencyReader, ToolResidencyReference, ToolRegistration, ToolRegistrationFailure, ToolRegistrationInput, VerifiedAuthority } from './cordis.ts';
 import { type ResidentKeyRoundTripFixture } from './testing-resident-key.ts';
+import { type ScriptedToolGenerations } from './testing-adoption-scripts.ts';
 export interface ToolLoaderSourceFixture<P, E, B extends ContentBlock> {
     readonly generations?: Pick<ToolGenerations<P, E, B>, 'loaderFor'>;
     readonly authority: ToolAuthority;
@@ -751,6 +752,9 @@ export interface ToolResidencyReaderFixture {
 export declare function toolResidencyReaderConformance(): readonly ConformanceCase<ToolResidencyReaderFixture>[];
 export { createMemoryToolResidencyReader, type MemoryToolResidencyReader, type ResidentReferencesRead, } from './testing-residency-memory.ts';
 export type { ResidentKeyRoundTripFixture } from './testing-resident-key.ts';
-export { createScriptedAdoptionPoint, createScriptedToolGenerations, type AdoptionPointAnswer, type AdoptionPointCall, type AdoptionPointInput, type AdoptionPointRecorded, type AdoptionPointScript, type ScriptedAdoptionPoint, type ScriptedGenerationsCall, type ScriptedToolGenerations, } from './testing-adoption-scripts.ts';
+export { createScriptedAdoptionPoint, type AdoptionPointAnswer, type AdoptionPointCall, type AdoptionPointInput, type AdoptionPointRecorded, type AdoptionPointScript, type ScriptedAdoptionPoint, type ScriptedGenerationsCall, type ScriptedToolGenerations, } from './testing-adoption-scripts.ts';
+export declare function createScriptedToolGenerations<P, E, B extends ContentBlock>(input?: Readonly<{
+    registry?: ToolBindingRegistry<P, E, B>;
+}>): ScriptedToolGenerations<P, E, B>;
 export declare function residentKeyRoundTripConformance(): readonly ConformanceCase<ResidentKeyRoundTripFixture>[];
 ```
