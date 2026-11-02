@@ -13,13 +13,13 @@ The package does not own the rules of the Model commands. The shared core of `@o
 Status: `draft`. The [implementation status](SPEC.md#实现现状) of the SPEC gives the coverage.
 
 - Implemented: `createSqlModelCommands` (with `send`, also the send coordinator over the same core), `createSendMirror`, `createSqlModelStorage`, the tables and the migration, the row parse, the participant, the two handler modules, the static materials `modelStorageMaterials()` with their `codeDigest`, and the construction checks.
-- Not implemented: the application plugin `modelCommands` (L-APP).
+- Implemented: the `./cordis` factory `createSqlModelRecordsPlugin`, which publishes `modelCommands` and owns a separate send plugin fiber.
 - Known difference: after a restart, `query` can answer `not-committed` for a write whose outcome was unknown before the restart. The [known differences](SPEC.md#已知差异) of the SPEC give all differences from the memory commands.
-- No `./cordis` subpath exists. The application plugin `modelCommands` belongs to the application.
+- The application supplies the dependency mapping and send plugin through object options.
 
 ## Usage
 
-The root entry is the only entry. Create the durable commands:
+Use the root entry to create durable commands without Cordis:
 
 ```ts
 import { createSqlModelCommands } from '@omne-harness/model-storage-sql'
@@ -39,6 +39,40 @@ const { commands } = createSqlModelCommands({
 ```
 
 `commands` has the 22 methods of `ModelCommands`. The shared core runs each method with `run(work, scope)` of the storage. The scope gives the tenant, the call, and, for a write, the operation. In `work` the core reads with `documents` and `reserved`, and it writes one time with `commit` or `publish`. After a CAS conflict, the run reads again and runs the work again. `scanPending` uses the `pending` port of the storage and does not run an attempt.
+
+### Cordis assembly
+
+Use `./cordis` to publish the commands and load the send child. This helper accepts the application mapping and returns the records fiber:
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+import {
+  createSqlModelRecordsPlugin,
+  type SqlModelRecordsConfig,
+  type SqlModelRecordsPluginOptions,
+} from '@omne-harness/model-storage-sql/cordis'
+
+export function installRecords<C>(
+  ctx: Context,
+  options: SqlModelRecordsPluginOptions<unknown, C>,
+  config: SqlModelRecordsConfig,
+) {
+  return ctx.plugin(createSqlModelRecordsPlugin(options), config)
+}
+```
+
+The application must supply these mappings:
+
+| Input                            | Application responsibility                                                                                                                                                                                                                                                 |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options.inject`                 | Supply the complete list of service key constants needed by `resolve`. Exclude `modelCommands`, which this plugin provides.                                                                                                                                                |
+| `options.resolve(ctx, config)`   | Return `storage`, `domains`, `clock`, `authority`, `evidence`, `sources`, and `manifestDigest` for this activation. The application owns policy and the registered storage combination.                                                                                    |
+| `options.sendStage(coordinator)` | Return `{ plugin, config }` for the existing send stage. For the local host, call `createModelSendStagePlugin` from `@omne-harness/model-host-local/cordis` with this coordinator and the application's remaining send options. Its config supplies `maxRetainedAttempts`. |
+| `config`                         | Supply `owners`, all `limits` fields, `maxCallBytes`, `maxCommandBytes`, `combinationVersion`, and `send: { mirrorBytes, maxClaims }`. This entry supplies no numeric defaults.                                                                                            |
+
+All 22 methods delegate to one SQL command instance. Only the closure passes its coordinator to the send factory. No coordinator service key exists. Do not include the send child's credential dependency in the records dependency list unless `resolve` itself requires it. The send child declares its own dependencies.
+
+With Cordis 4.0.4, missing credentials leave the send child `PENDING` while the records fiber becomes `ACTIVE`. Restoring credentials activates the child. A child startup error is logged, leaves that child `FAILED`, and rejects an explicit wait for that child. It does not fail the records fiber. Monitor the child or its logs to establish send readiness. Removing the records fiber removes both contributions and waits for child cleanup. The injected storage remains owned by its provider, and committed facts remain in storage.
 
 ## Contracts
 
@@ -71,7 +105,7 @@ Construction fails when `maxCallBytes` plus the 64 KiB command reserve is more t
 
 ## Verification
 
-The tests in [tests/](tests/index.md) run the real participant, migration, and read handlers on `node:sqlite` in-memory databases. Most of them run the 22 methods through the shared core. They compare the accounts suite on the memory and the SQL commands. They do not cover the Worker, durability, queues, or close of the real provider.
+The tests in [tests/](tests/index.md) run the real participant, migration, and read handlers on `node:sqlite` in-memory databases. Most of them run the 22 methods through the shared core. They compare the accounts suite on the memory and the SQL commands. [cordis.spec.ts](tests/cordis.spec.ts) adds real Cordis lifecycle and configuration checks with a named send-stage substitute. These tests do not cover real transport, the Worker, durability, queues, or close of the real provider.
 
 ## Maintenance
 
