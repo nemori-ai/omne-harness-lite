@@ -161,7 +161,7 @@ describe('R9 release tree, in process: the principal that reaches the Session fa
     expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
     expect(run.of('startup-result')[0]).toMatchObject({
       accepting: true,
-      implementations: { real: 7, 'contract-double': 1, 's0-double': 41 },
+      implementations: { real: 11, 'contract-double': 0, 's0-double': 38 },
     })
     // The face saw the create and the input, each as the principal that the entry's own system
     // component acts with for the tenant. `access: allowed` is the access check, which asks the
