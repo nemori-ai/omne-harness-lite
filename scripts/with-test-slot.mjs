@@ -23,9 +23,9 @@
 // 已经持有名额的进程再调用本脚本（例如 pnpm run check 里嵌着的测试入口）直接放行，不重复排队。
 // 名额随持有它的包装进程退出而释放；POSIX 下杀持有者要杀整棵进程树，否则被包装的命令成孤儿继续跑而名额已释放。
 //
-// 一个锁目录（#979 D1）：Windows 侧是 os.tmpdir() 下的 omne-test-slots-<用户名>；WSL 侧（有 WSL_DISTRO_NAME）
-// 默认解析到同一个物理目录——经 interop 起 PowerShell 取 Windows 侧的临时目录与用户名（Get-Item 给出长名，
-// 8.3 短名也转成长名）、在那里建目录与一个探针文件，再 wslpath -u 转成 WSL 路径，看得见探针才算同一个目录。
+// 一个锁目录（#979）：Windows 侧是操作系统用户配置目录下的 .omne/test-slots，不随进程 TEMP/TMP 变化。
+// WSL 侧（有 WSL_DISTRO_NAME）经 interop 起 PowerShell 取同一 Windows 用户配置目录，
+// 在那里建目录与一个探针文件，再 wslpath -u 转成 WSL 路径，看得见探针才算同一个目录。
 // 解析失败或同目录判定不成立时回退 /tmp/omne-test-slots-<uid>，并在 stderr 报「WSL 与 Windows 没有共用名额」。
 // 其余 POSIX 是 /tmp/omne-test-slots-<uid>。
 //
@@ -107,7 +107,10 @@ try {
 
 /** 本侧的默认锁目录；WSL 里先试 Windows 侧的同一个目录，不成再回退并提醒。 */
 function defaultSlotDir() {
-  const own = join(process.platform === 'win32' ? os.tmpdir() : '/tmp', `omne-test-slots-${user}`)
+  const own =
+    process.platform === 'win32'
+      ? join(os.userInfo().homedir, '.omne', 'test-slots')
+      : join('/tmp', `omne-test-slots-${user}`)
   if (!env['WSL_DISTRO_NAME']) return own
   const shared = windowsSlotDir()
   if (shared.dir !== undefined) return shared.dir
@@ -118,7 +121,7 @@ function defaultSlotDir() {
 }
 
 /**
- * WSL 里解析 Windows 侧的默认锁目录。经 interop 起 Windows PowerShell：取 %TEMP% 的长名、拼上 omne-test-slots-%USERNAME%、
+ * WSL 里解析 Windows 侧的默认锁目录。经 interop 起 Windows PowerShell：取操作系统用户配置目录、拼上 .omne/test-slots、
  * 建目录、清掉 10 分钟前留下的探针、建一个以本进程号命名的探针文件，再报出目录。这边 wslpath -u 转成 WSL 路径，
  * 在那里看得见探针才算同一个目录，看完即删。任何一步不成都给出原因，由调用方回退。
  */
@@ -130,7 +133,7 @@ function windowsSlotDir() {
   const script = [
     '[Console]::OutputEncoding = [Text.Encoding]::UTF8',
     "$ErrorActionPreference = 'Stop'",
-    "$dir = Join-Path (Get-Item -LiteralPath $env:TEMP).FullName ('omne-test-slots-' + $env:USERNAME)",
+    "$dir = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.omne\\test-slots'",
     'New-Item -ItemType Directory -Force -Path $dir | Out-Null',
     "Get-ChildItem -LiteralPath $dir -Filter '.omne-probe-*' -Force | Where-Object { $_.LastWriteTime -lt (Get-Date).AddMinutes(-10) } | Remove-Item -Force",
     `New-Item -ItemType File -Force -Path (Join-Path $dir '${probe}') | Out-Null`,

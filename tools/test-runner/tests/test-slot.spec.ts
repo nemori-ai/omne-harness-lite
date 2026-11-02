@@ -19,7 +19,7 @@ import {
   writeFileSync,
   realpathSync,
 } from 'node:fs'
-import { hostname, tmpdir, userInfo } from 'node:os'
+import { hostname, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -237,11 +237,14 @@ function preload(name: string, source: string): Record<string, string> {
  * `unshared` 只报路径不建文件（解析出的目录里看不见 Windows 建的文件），`broken` 起不来。其余命令照常起。
  */
 const INTEROP_SOURCE = `import cp from 'node:child_process'
+import os from 'node:os'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { syncBuiltinESMExports } from 'node:module'
 import { dirname, join } from 'node:path'
 const root = process.env.SLOT_TEST_INTEROP_ROOT
 const mode = process.env.SLOT_TEST_INTEROP
+const originalUserInfo = os.userInfo
+os.userInfo = (...args) => ({ ...originalUserInfo(...args), homedir: join(root, 'profile') })
 const toLinux = windows => join(root, ...windows.replace(/^[A-Za-z]:\\\\/, '').split('\\\\'))
 const reply = (status, stdout, stderr) => ({ status, stdout, stderr, pid: 0, signal: null, output: [null, stdout, stderr] })
 const real = cp.spawnSync
@@ -260,7 +263,7 @@ cp.spawnSync = (file, args, options) => {
   }
   if (/powershell\\.exe$/iu.test(program)) {
     if (mode === 'broken') return reply(1, '', 'interop 关着\\n')
-    const windows = 'C:\\\\Temp\\\\omne-test-slots-tester'
+    const windows = 'C:\\\\Users\\\\tester\\\\.omne\\\\test-slots'
     if (mode === 'ok') {
       const linux = toLinux(windows)
       mkdirSync(linux, { recursive: true })
@@ -472,6 +475,84 @@ function tickets(): string[] {
 }
 
 describe('with-test-slot.sh', { timeout: 30_000 }, () => {
+  it.runIf(WINDOWS)(
+    'Windows 不同 TEMP 的默认目录仍共用名额：哨兵不重叠，账本恰好两条 ran',
+    async () => {
+      const profile = join(dir, 'profile')
+      mkdirSync(profile)
+      const home = preload(
+        'profile',
+        `import os from 'node:os'
+const original = os.userInfo
+os.userInfo = (...args) => ({ ...original(...args), homedir: process.env.SLOT_TEST_PROFILE })
+`,
+      )
+      const sentinel = `const fs = require('node:fs');
+const started = Date.now();
+fs.writeFileSync(process.argv[1], process.env.OMNE_TEST_SLOT_HELD);
+const timer = setInterval(() => {
+  if (fs.existsSync(process.argv[2])) {
+    clearInterval(timer);
+    fs.writeFileSync(process.argv[3], started + ' ' + Date.now());
+  } else if (Date.now() - started > 10_000) process.exit(90);
+}, 20);`
+      const start = (name: string) => {
+        const temp = join(dir, `temp-${name}`)
+        mkdirSync(temp)
+        return queue(
+          [
+            process.execPath,
+            '-e',
+            sentinel,
+            join(dir, `${name}.started`),
+            join(dir, 'release'),
+            join(dir, `${name}.interval`),
+          ],
+          {
+            ...home,
+            SLOT_TEST_PROFILE: profile,
+            TEMP: temp,
+            TMP: temp,
+            OMNE_TEST_SLOT_DIR: '',
+            WSL_DISTRO_NAME: '',
+            OMNE_TEST_SLOTS: '1',
+            OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '15',
+          },
+          [process.execPath, SCRIPT.replace(/\.sh$/u, '.mjs')],
+        )
+      }
+      const first = start('first')
+      await waitFor(() => existsSync(join(dir, 'first.started')), '第一个哨兵开始')
+      const second = start('second')
+      try {
+        await waitFor(
+          () => second.stderr().includes('排队中') || existsSync(join(dir, 'second.started')),
+          '第二个哨兵排队或错误地开始',
+        )
+        expect(existsSync(join(dir, 'second.started')), '第一个哨兵仍在运行，第二个不能开始').toBe(
+          false,
+        )
+        expect(second.stderr()).toContain('排队中')
+      } finally {
+        writeFileSync(join(dir, 'release'), '')
+        expect(await Promise.all([first.exited, second.exited])).toEqual([0, 0])
+      }
+      expect(readFileSync(join(dir, 'second.started'), 'utf8')).toBe(
+        readFileSync(join(dir, 'first.started'), 'utf8'),
+      )
+      const [, firstEnd] = readFileSync(join(dir, 'first.interval'), 'utf8').split(' ').map(Number)
+      const [secondStart] = readFileSync(join(dir, 'second.interval'), 'utf8')
+        .split(' ')
+        .map(Number)
+      expect(secondStart).toBeGreaterThanOrEqual(firstEnd ?? Number.NaN)
+      expect(ledger()).toHaveLength(2)
+      expect(ledger()).toMatchObject([
+        { event: 'ran', exitCode: 0 },
+        { event: 'ran', exitCode: 0 },
+      ])
+    },
+  )
+
   it('有空名额：执行命令并透传退出码与输出', () => {
     const result = slot(['bash', '-c', 'echo 跑了; exit 7'])
     expect(result.stdout).toBe('跑了\n')
@@ -905,7 +986,7 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
   })
 
   describe('WSL 里的默认目录', () => {
-    /** 不设 OMNE_TEST_SLOT_DIR，让脚本自己解析；Windows 上 TEMP 指到临时目录，回退也落在私有目录里。 */
+    /** 不设 OMNE_TEST_SLOT_DIR，让脚本自己解析；替身的用户配置目录把 Windows 回退隔离在私有目录里。 */
     function resolveDefault(mode: 'ok' | 'unshared' | 'broken') {
       const root = join(dir, 'windows')
       const env = slotEnv({
@@ -927,15 +1008,15 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
       )
       return { ...result, root }
     }
-    /** 回退目录：Windows 上是 TEMP（已指到临时目录）下的；POSIX 上是真实的 /tmp 下的，用例只在里面短暂领一次。 */
+    /** 回退目录：Windows 上是替身用户配置目录下的；POSIX 上是真实的 /tmp 下的，用例只在里面短暂领一次。 */
     const fallback = () =>
       WINDOWS
-        ? join(dir, `omne-test-slots-${userInfo().username}`)
+        ? join(dir, 'windows', 'profile', '.omne', 'test-slots')
         : `/tmp/omne-test-slots-${process.getuid?.() ?? ''}`
 
-    it('有 interop：解析到 Windows 侧临时目录下的同一个目录，探针用完即删，不提示', () => {
+    it('有 interop：解析到 Windows 用户配置目录下的同一个目录，探针用完即删，不提示', () => {
       const result = resolveDefault('ok')
-      const shared = join(result.root, 'Temp', 'omne-test-slots-tester')
+      const shared = join(result.root, 'Users', 'tester', '.omne', 'test-slots')
       expect(result.status, result.stderr).toBe(0)
       expect(result.stdout).toBe(join(shared, 'slot-1.lock'))
       expect(result.stderr).toBe('')
