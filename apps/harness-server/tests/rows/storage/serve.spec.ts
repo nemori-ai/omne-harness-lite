@@ -8,7 +8,6 @@ import { CURSOR_KEY_FILE, cursorSigning } from '../../../src/entry/cursor-signin
 import { storageHost } from '../../../src/entry/storage-host.ts'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import { sessionStorageRow } from '../../../src/rows/session-storage/index.ts'
-import { prepareTenantDirectory } from '../../../src/rows/session-storage/initialize.ts'
 import { storageRow } from '../../../src/rows/storage/index.ts'
 import { runServe, type S0Record } from '../../../src/run.ts'
 import { accessPolicyRow, allowAll, providerConfig } from './fixtures/tree.ts'
@@ -33,7 +32,6 @@ async function serveRows(): Promise<Run> {
   const storageRoot = join(base, 'storage')
   const { mkdirSync } = await import('node:fs')
   mkdirSync(stateRoot)
-  prepareTenantDirectory({ storageRoot, directoryFile: join(storageRoot, 'tenant-domains.json') })
   const policy = accessPolicyRow(allowAll)
   const records: S0Record[] = []
   const stderr: string[] = []

@@ -28,6 +28,7 @@ import { loadTree, type ResolvedTree } from './plugin-tree.ts'
 import { STUB_EXPORT, s0Profile, serveProfile, type Profile } from './profile.ts'
 import type { LoadedRow } from './readiness.ts'
 import { monotonicClock, runShutdown } from './shutdown.ts'
+import { prepareStartupDirectory } from './startup-directory.ts'
 import { createTrust, type Trust } from './trust.ts'
 import type {
   EntryEnv,
@@ -333,7 +334,9 @@ export async function runS0(options: RunS0Options): Promise<S0Result> {
   if (started.kind !== 'started') {
     if (started.kind === 'rejected')
       for (const diagnostic of started.diagnostics) stderr(`s0: ${describeDiagnostic(diagnostic)}`)
-    else stderr(`s0: entry-object ${started.name}: install failed`)
+    else if (started.kind === 'entry-failed')
+      stderr(`s0: entry-object ${started.name}: install failed`)
+    else stderr('s0: preparation failed')
     await root.fiber.dispose()
     return result(started.exitCode)
   }
@@ -646,6 +649,7 @@ async function runServeWithHostFiles(
     trust,
     rows,
     entryObjects,
+    prepare: () => prepareStartupDirectory(rows),
     readinessTimeoutMs: options.readinessTimeoutMs,
     barrier: () => {
       barrierCalls += 1
@@ -662,6 +666,11 @@ async function runServeWithHostFiles(
     stderr(`${SERVE_PREFIX}: entry-object ${started.name}: install failed`)
     const report = await shutdown()
     write({ kind: 'shutdown-result', ...report })
+    return result(started.exitCode)
+  }
+  if (started.kind === 'preparation-failed') {
+    stderr(`${SERVE_PREFIX}: tenant directory preparation failed`)
+    await root.fiber.dispose()
     return result(started.exitCode)
   }
 
