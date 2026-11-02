@@ -422,6 +422,8 @@ export type LineWorldOptions = Readonly<{
    * `contextHolderSources` (AD-04 does, with the earlier context read from the Session log).
    */
   holder?: 'double' | 'external'
+  /** The agent-context plugin; default `AgentContextProvider`. */
+  contextPlugin?: typeof AgentContextProvider
   /** The Session provider class; default `SessionProvider`. A subclass may observe the faces. */
   sessionProvider?: typeof SessionProvider
   /** What happens when a Model call is admitted; default one text reply (CP3). */
@@ -874,7 +876,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       inner.provide(MODEL_PREPARATION_RESOURCES, fixture.preparation)
     },
   })
-  await mount(AgentContextProvider, {
+  await mount(options.contextPlugin ?? AgentContextProvider, {
     owner: { owner: 'agent-context', name: 'cp3', revision: '1', digest: 'd' },
     resultCapacity: { bytes: '1048576', blocks: '1024', attachmentBytes: '0' },
   })

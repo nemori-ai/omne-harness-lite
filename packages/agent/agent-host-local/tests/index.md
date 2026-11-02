@@ -17,4 +17,11 @@
 - [provision.spec.ts](provision.spec.ts)：实例取得的符合性套件对宿主真件、回收保护点、quiesce 失败与 unresolved、预约、发布与撤除
 - [recovery.spec.ts](recovery.spec.ts)：恢复入口与无活体控制入口的读回、核验、跨租户拒绝、takeover 与突然失去依赖
 - [stage-ports.spec.ts](stage-ports.spec.ts)：局部依赖端口的现取与缺席
+- [line-through/](line-through/)：一条真实 Cordis 根上的线内组合用例与它的世界
+  - `world.ts`、`cp3.spec.ts`：CP3，Session 输入到 Model 结果保存
+  - `w2-world.ts`、`w2-measure.ts`：波 2 的组合世界，每轮计数与测量事件记录器
+  - `w2-rounds.spec.ts`：J1 三轮对话与 J2 工具结果进入下一轮请求
+  - `w2-control.spec.ts`：J3 取消 Run 与 J4 只中断一个调用
+  - `w2-handoff-restart.spec.ts`：J5 杀进程后按原身份读回准入记录
+  - `w2-counts.spec.ts`：J6 固定轮数的读写计数与测量事件
 - [fixtures/](fixtures/index.md)：测试固定输入

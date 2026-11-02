@@ -44,7 +44,8 @@ import {
   createSessionAgentJournalPlugin,
   createSessionHistorySource,
 } from '@omne-harness/session-adapters/cordis'
-import { SessionProvider } from '@omne-harness/session-cordis/cordis'
+import { createSessionProviderPlugin } from '@omne-harness/session-cordis/cordis'
+import { createAgentContextPlugin } from '@omne-harness/agent-context/cordis'
 import { judgeBlockIdentity } from '@omne-harness/content-block'
 import {
   encodeToolInvocationRef,
@@ -86,6 +87,7 @@ import {
   countingStorage,
   createRoundCounters,
   recordStage,
+  type MeasureEvent,
   type RoundCounters,
   type StageRecorder,
 } from './w2-measure.ts'
@@ -232,19 +234,28 @@ export type W2Options = Readonly<{
   /** The fixed delay of the Model and Tool doubles when a step names none. */
   defaultDelayMs?: number
   receiverRecords?: number
+  /**
+   * The earlier context: `double` (default) is the history of the K-RQ holder double of CP3;
+   * `session` is AD-04, the history source of the Session log.
+   */
+  earlier?: 'double' | 'session'
   /** Parts of other closures: `plugins` mount after the Agent host, `handoff: 'external'` keeps the scripted one out. */
   plugins?: readonly PluginMount[]
   handoff?: LineWorldOptions['handoff']
 }>
 
 /** The delay the doubles use when nothing else is said: it also keeps the Agent's own commits ahead of the reply. */
-const DEFAULT_DELAY_MS = 30
+const DEFAULT_DELAY_MS = 300
 
 export async function openW2World(options: W2Options) {
   const counters: RoundCounters = createRoundCounters()
+  const earlier = options.earlier ?? 'double'
   const delay = options.defaultDelayMs ?? DEFAULT_DELAY_MS
   const replies: ModelReplyRecord[] = []
   const toolRequests: ToolInvokeRequest[] = []
+  const prepared: unknown[] = []
+  /** The Model call identities in the order they were admitted. */
+  const modelCalls: string[] = []
   const toolPushes: Promise<unknown>[] = []
   let world: Awaited<ReturnType<typeof openLineWorld>> | undefined
   const here = () => {
@@ -254,7 +265,11 @@ export async function openW2World(options: W2Options) {
   let recorder: StageRecorder | null = null
 
   // --- the Session provider: the real one, its history face observed ---
-  class ObservedSession extends SessionProvider {
+  // The measurement observers are the `measure` parameters of the products (R2-D17): the Session
+  // and Context plugin factories, and the factory of the Agent runtime. They call the recorder of
+  // the scenario, when there is one, with the clock read at the call.
+  const observe = (event: unknown): void => recorder?.observe(event as MeasureEvent)
+  class ObservedSession extends createSessionProviderPlugin({ measure: observe }) {
     override get history() {
       return counters.observeHistory(super.history)
     }
@@ -278,6 +293,15 @@ export async function openW2World(options: W2Options) {
       createAgentRuntime(
         {
           ...dependencies,
+          // The answers of the request preparation, kept so a scenario can say why a call was not made.
+          requests: {
+            ...dependencies.requests,
+            prepare: async input => {
+              const answer = await dependencies.requests.prepare(input)
+              prepared.push(answer)
+              return answer
+            },
+          },
           // Double (R2-D36): the prepared request of the fixed schema.
           toolRequests: {
             describe: async () => ({ ok: testAdoption('w2-read_file') }),
@@ -289,17 +313,18 @@ export async function openW2World(options: W2Options) {
           },
         },
         runtimeOptions,
+        { measure: observe },
       ),
     ),
-    // Real (AD-04): the K-RQ holder sources over the Session log replace the holder double. The fixed
-    // request facts of the narrow adoption source are those of the world's adopted-request double.
-    holder: 'external',
+    // `earlier: 'session'` is real (AD-04): the K-RQ holder sources over the Session log replace the
+    // holder double. The fixed request facts of the narrow adoption source are those of the world's
+    // adopted-request double. By default the earlier context is the history of the holder double.
+    ...(earlier === 'session' ? { holder: 'external' as const } : {}),
     sessionProvider: ObservedSession,
+    contextPlugin: createAgentContextPlugin({ measure: observe }),
     plugins: ({ adopted }) => {
-      const ad04 = createSessionHistorySource({
-        heads: { sessionOf: headOf },
-        adopted,
-      })
+      if (earlier !== 'session') return options.plugins ?? []
+      const ad04 = createSessionHistorySource({ heads: { sessionOf: headOf }, adopted })
       return [[ad04.lowerBound], [ad04.source], ...(options.plugins ?? [])]
     },
     wrapModelReceiver: receiver => ({
@@ -312,6 +337,7 @@ export async function openW2World(options: W2Options) {
     }),
     model: async admission => {
       counters.modelRequest()
+      modelCalls.push(String(admission.call))
       const step = options.model(admission)
       const definedDelay = step.delayMs ?? delay
       const { pusher, tenant, call, index } = admission
@@ -329,16 +355,23 @@ export async function openW2World(options: W2Options) {
         })
       if (step.cost !== undefined) recordCost(admission, dispatch.ok, step)
       if (step.hold !== undefined) await step.hold
-      pusher.controller.settle({
-        ...target,
-        version: version.ok,
-        termination: { kind: 'completed', reason: step.reason },
-        parts: step.parts.map(block => ({ kind: 'sealed' as const, trims: [], block })) as never,
-        source: evidenceOf(`w2/model/${call}`),
-        pageSize: 10,
-        pageTargetBytes: 65536,
-      })
-      const pushed = await pusher.settled(target)
+      let pushed: unknown
+      try {
+        pusher.controller.settle({
+          ...target,
+          version: version.ok,
+          termination: { kind: 'completed', reason: step.reason },
+          parts: step.parts.map(block => ({ kind: 'sealed' as const, trims: [], block })) as never,
+          source: evidenceOf(`w2/model/${call}`),
+          pageSize: 10,
+          pageTargetBytes: 65536,
+        })
+        pushed = await pusher.settled(target)
+      } catch (error) {
+        // A call that a control ended while the double held it cannot settle: the late result is
+        // the double's, and the scenario reads what became of it from `replies`.
+        pushed = { late: String(error) }
+      }
       const actualEnd = performance.now()
       replies.push({ index, call: String(call), definedDelay, actualStart, actualEnd, pushed })
       recorder?.stub({
@@ -522,6 +555,7 @@ export async function openW2World(options: W2Options) {
         creation: creation(),
       }),
     )
+    if (earlier !== 'session') return
     // The create bound the context scope of the session; the Runtime Context handoff double has to
     // know it before the Agent reads the readable context (double: K-RC).
     const work = ok(await w.transactions.readWork(intakeAccess))
@@ -543,13 +577,30 @@ export async function openW2World(options: W2Options) {
     )
   }
 
+  /**
+   * Waits for `probe` on later turns, at most `ms` milliseconds. Each turn moves the manual Agent
+   * clock past one reconciliation check: the receivers write through their own Journal copy, so the
+   * plugin's event stream does not wake the Agent, and it picks a saved result up at that check (CP3).
+   */
+  async function until(probe: () => boolean | Promise<boolean>, ms = 20_000): Promise<void> {
+    const end = Date.now() + ms
+    while (!(await probe())) {
+      if (Date.now() > end) throw new Error('the condition never held')
+      w.clock.advanceTo(new Date(Date.parse(w.clock.now()) + 2000).toISOString())
+      await sleep(20)
+    }
+  }
+
   return {
     ...w,
+    until,
     createSession,
     accept,
     counters,
     replies,
     toolRequests,
+    prepared,
+    modelCalls,
     toolPushes,
     toolReceiver,
     toolState,
