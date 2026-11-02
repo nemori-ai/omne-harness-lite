@@ -277,7 +277,7 @@ function createMessageHandoff<P>(
           session,
           execution,
           handoff,
-          entry: entryOf(execution, request.reference.entry),
+          entry: entryOf(execution, prepare.request.reference.entry),
         },
         origin: { kind: 'invoke', instance, scope, definition, grant },
         basis: allowed.ok,
