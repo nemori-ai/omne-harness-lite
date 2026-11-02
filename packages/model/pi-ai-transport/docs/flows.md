@@ -114,7 +114,7 @@ flowchart LR
 
 - 响应体只能认领一次。读者读到末尾时响应关闭，交换随之归还名额。
 - 读者提前结束任何一层的迭代时，关闭逐层到达上游，响应被销毁，交换随之关闭。读者在第一次 `next()` 之前结束时也是如此。
-- 响应体在到达末尾之前结束时，读者得到 `ResponseBodyStoppedError`（本地停止在先）或 `ResponseBodyReadError`（对方关闭或重置连接）。
+- 响应体在到达末尾之前结束时，读者得到 `ResponseBodyStoppedError`（本地停止在先）、`ResponseBodyStalledError`（流停顿先到期）或 `ResponseBodyReadError`（对方关闭或重置连接）。
 - SSE 层失败时抛出 `SseProtocolError`。帧层失败时产出一个失败值。两种失败都会结束对上游的迭代，上游迭代的结束销毁响应，交换随之关闭。
 - 事件结束只结束帧序列。是否为合法终局由家族 decoder 判断。
 
@@ -149,6 +149,7 @@ sequenceDiagram
 - 错误体超过上限：本包关闭连接，结果是 `http-error`，错误体为 `too-large`，投递 `error-body-too-large` 诊断。
 - 错误体读取中连接中断：结果是 `http-error`，错误体为 `read-failed`。
 - 发起之后 `connectTimeoutMs` 内请求没有取得已连接的套接字：本包销毁请求，结果是 `connect-failed`，`timeout` 为 `true`。新建的直连要完成 TLS 握手。经代理的连接要完成 CONNECT、隧道与经隧道的 TLS 握手。
+- 配置了 `streamStallTimeoutMs`，从发起起两次收到字节的间隔达到它：本包停止交换，物理关闭之后给出终止，不新增结果种类。收到响应头之前，结果是 `stalled`，终止是 `upstream-unavailable`。2xx 响应头之后，结果仍是 `ok`，读者的迭代以 `ResponseBodyStalledError` 结束，终止是 `stream-lost`。诊断名都是 `stream-stall`。错误体读取中到期，错误体为 `read-failed`，终止仍按状态码。到期之前已给出的事实与用量保留。到期与取消同时到达时，先发生的胜出。
 - 连接被拒绝或在响应之前关闭：结果是 `connect-failed`，`timeout` 为 `false`。经代理时，代理拒绝 CONNECT、代理不可达与经隧道的 TLS 握手失败也是这个结果。
 - 经代理正在建立连接时停止、连接超时或关闭网络资源：本包同时结束这个建立中的连接，交换不等 Node 的隧道超时就物理关闭。
 - 响应没有状态码或错误体的块不是字节：本包销毁连接，物理关闭之后 `result` 拒绝。

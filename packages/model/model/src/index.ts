@@ -7,6 +7,7 @@ export {
   type BindingLife,
   type CustodianState,
 } from './credential.ts'
+export { createModelProfiles } from './profiles/profiles.ts'
 
 export { createModelRuntime } from './runtime.ts'
 export { executeModel } from './execute.ts'

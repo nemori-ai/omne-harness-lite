@@ -161,12 +161,18 @@ importers:
       '@omne-harness/agent':
         specifier: workspace:*
         version: link:../../packages/agent/agent
+      '@omne-harness/agent-context':
+        specifier: workspace:*
+        version: link:../../packages/context/agent-context
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../../packages/agent/agent-contract
       '@omne-harness/agent-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/agent/agent-cordis-contract
+      '@omne-harness/agent-host-local':
+        specifier: workspace:*
+        version: link:../../packages/agent/agent-host-local
       '@omne-harness/authorization':
         specifier: workspace:*
         version: link:../../packages/identity/authorization
@@ -185,30 +191,60 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../packages/common/legal-identity
+      '@omne-harness/model':
+        specifier: workspace:*
+        version: link:../../packages/model/model
       '@omne-harness/model-contract':
         specifier: workspace:*
         version: link:../../packages/model/model-contract
       '@omne-harness/model-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/model/model-cordis-contract
+      '@omne-harness/model-host-local':
+        specifier: workspace:*
+        version: link:../../packages/model/model-host-local
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../packages/common/operation-result
+      '@omne-harness/pi-ai-openai':
+        specifier: workspace:*
+        version: link:../../packages/model/pi-ai-openai
+      '@omne-harness/pi-ai-transport':
+        specifier: workspace:*
+        version: link:../../packages/model/pi-ai-transport
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract
       '@omne-harness/request-context-contract':
         specifier: workspace:*
         version: link:../../packages/context/request-context-contract
+      '@omne-harness/request-context-cordis':
+        specifier: workspace:*
+        version: link:../../packages/context/request-context-cordis
       '@omne-harness/request-context-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/context/request-context-cordis-contract
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../packages/context/runtime-context-contract
+      '@omne-harness/runtime-context-cordis':
+        specifier: workspace:*
+        version: link:../../packages/context/runtime-context-cordis
+      '@omne-harness/runtime-context-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/context/runtime-context-cordis-contract
       '@omne-harness/server-entry':
         specifier: workspace:*
         version: link:../../packages/access/server-entry
+      '@omne-harness/session-adapters':
+        specifier: workspace:*
+        version: link:../../packages/session/session-adapters
       '@omne-harness/session-contract':
         specifier: workspace:*
         version: link:../../packages/session/session-contract
+      '@omne-harness/session-cordis':
+        specifier: workspace:*
+        version: link:../../packages/session/session-cordis
       '@omne-harness/session-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/session/session-cordis-contract
@@ -1529,9 +1565,15 @@ importers:
       '@omne-harness/model-cordis-contract':
         specifier: workspace:*
         version: link:../model-cordis-contract
+      '@omne-harness/pi-ai-openai':
+        specifier: workspace:*
+        version: link:../pi-ai-openai
       '@omne-harness/pi-ai-transport':
         specifier: workspace:*
         version: link:../pi-ai-transport
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
       proper-lockfile:
         specifier: ^4.1.2
         version: 4.1.2
@@ -1539,18 +1581,49 @@ importers:
       '@omne-harness/call-account':
         specifier: workspace:*
         version: link:../../common/call-account
+      '@omne-harness/model-storage-sql':
+        specifier: workspace:*
+        version: link:../model-storage-sql
       '@omne-harness/pi-ai-anthropic':
         specifier: workspace:*
         version: link:../pi-ai-anthropic
-      '@omne-harness/pi-ai-openai':
-        specifier: workspace:*
-        version: link:../pi-ai-openai
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
       '@types/proper-lockfile':
         specifier: ^4.1.4
         version: 4.1.4
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/model/model-storage-sql:
+    dependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/model':
+        specifier: workspace:*
+        version: link:../model
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+    devDependencies:
+      '@omne-harness/session-storage-sql':
+        specifier: workspace:*
+        version: link:../../session/session-storage-sql
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

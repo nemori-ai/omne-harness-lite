@@ -75,10 +75,27 @@ export function createModelDriver<P>(
 ) {
   const activities = new Map<string, Activity<P>>()
   const running = new Set<string>()
+  // Calls this process admitted or drove that are not yet known to be settled. Only quiesce reads
+  // the count; a durable call that this process never touched is not in it.
+  const open = new Set<string>()
   const refreshes = new Map<string, { requested: boolean; completion: Promise<void> }>()
   function keyOf(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
     const tenant = tenantCodec.encode(input.tenant)
     return tenant.ok ? JSON.stringify([tenant.value, input.call]) : null
+  }
+  function admitted(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
+    const key = keyOf(input)
+    if (key) open.add(key)
+  }
+  function ended(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
+    const key = keyOf(input)
+    if (key) open.delete(key)
+  }
+  /** Calls in drive, and the other open calls of this process. */
+  function counts(): Readonly<{ pending: number; running: number }> {
+    let pending = 0
+    for (const key of open) if (!running.has(key)) pending++
+    return { pending, running: running.size }
   }
   async function refresh(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
     const key = keyOf(input)
@@ -225,6 +242,7 @@ export function createModelDriver<P>(
           : await writeSettlement(active, entry, entry.settlement, competition)
       if ('failure' in result) return result
     }
+    ended(active.claim)
     return { ok: undefined }
   }
   async function finish(
@@ -377,6 +395,7 @@ export function createModelDriver<P>(
       if ('failure' in published) return published
       active = published.ok
     }
+    if (recovery.ok.state.phase === 'settled') ended(input)
     if (active.stage.kind === 'idle') {
       if (records.ok.length || recovery.ok.state.phase === 'settled') return { ok: null }
       beginActivity(active, execution, recovery.ok)
@@ -545,6 +564,8 @@ export function createModelDriver<P>(
       try {
         const initial = await commands.loadRecovery(input)
         if ('failure' in initial) return initial
+        if (initial.ok.state.phase === 'settled') open.delete(key)
+        else open.add(key)
         if (signal.aborted) return { ok: undefined }
         if (running.has(key)) return blocked('drive-already-running')
         running.add(key)
@@ -559,7 +580,7 @@ export function createModelDriver<P>(
       }
     },
   }
-  return { driver, requestRefresh }
+  return { driver, requestRefresh, admitted, counts }
 }
 function definitelyRefused(failure: ModelFailure): boolean {
   return failure.kind !== 'commit-unknown' && failure.kind !== 'unavailable'

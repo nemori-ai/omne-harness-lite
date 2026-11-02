@@ -13,6 +13,10 @@
 | [deliver-injected.ts](../src/deliver-injected.ts) | `deliverInjected`：经静态注入取得 `modelCredential` 并调用 model 的 `deliver` | model（`deliver`）、model-contract、model-cordis-contract、Cordis |
 | [send-resources.ts](../src/send-resources.ts) | 生产发送资源：每次 `acquire` 一个 pi 传输及其私有凭据槽、物化传输归属、配置探针、`SendResourceDefect` | model（`SendResources` 类型）、model-contract、pi-ai-transport |
 | [assembly.ts](../src/assembly.ts) | 本地 Model 装配：创建并关闭网络资源，组合发送资源与 model 的发送边界，在同一组家族与 `ModelCommands` 上建计量准备资源；`close` 开始后两者都拒绝新的资源 | model（`createModelSendBoundary`、`createModelPreparationResources`）、model-contract、pi-ai-transport、send-resources |
+| [plugins/config.ts](../src/plugins/config.ts) | 两个宿主插件的配置：四项宿主上限与 `maxCitedCalls`，缺失或越界即加载失败，不给数值默认值 | fields |
+| [plugins/instances.ts](../src/plugins/instances.ts)、[plugins/converters.ts](../src/plugins/converters.ts) | 两个目录插件：继承契约包的目录服务，把注入的权威交给构造函数 | model-cordis-contract、Cordis |
+| [plugins/host.ts](../src/plugins/host.ts) | 宿主驱动：未绑定宿主、`bind`、有界唤醒与协程、路由发布与撤除、按调用核对观察资格、一个外层 effect 拥有的有序关闭，以及只发布 `modelInstanceHost` 的贡献 | model（`ModelRuntimeProvider` 类型）、model-contract、model-cordis-contract、Cordis、config |
+| [plugins/preparation.ts](../src/plugins/preparation.ts) | 请求准备插件：静态注入 `modelCommands`，经 `createModelPreparationResources` 取租约，按家族规则形成固定请求并交还租约；同一份资源交给装配作计量租约来源 | model（`createModelPreparationResources`）、model-contract、model-cordis-contract、Cordis、config |
 
 依赖方向是 cordis.ts 到 store.ts 到 records.ts，反向没有。deliver-injected.ts 不导入 store.ts 与 records.ts：注入发送只经服务取得凭据，不打开保管库。根入口不导入 Cordis 或 cordis.ts。assembly.ts 到 send-resources.ts，两者都不导入 store.ts、records.ts 或任何 `testing` 模块：装配只经 `CredentialPort` 消费保管库。本包依赖 model 取得判定函数、状态类型与发送边界；model 不依赖本包。本包依赖 pi-ai-transport 取得传输与网络资源；家族包只是测试依赖，由调用方组合后注入。
 
@@ -36,8 +40,14 @@
 
 **装配只组合。** 装配不持有业务状态，不另造协调语义。账目经 model 运行时的接收路径到达注入的 `ModelCommands`；补全、去重与修订替换归 `ModelCommands`。准备资源的绑定来源就是发送用的 `families`（`PiFamilyContributions` 在结构上满足 model 的 `PreparationBindingSource`），调用事实经同一个 `commands` 读取，所以计量与发送看到同一组家族记录和同一份调用事实。路由、代理、限额与 `maxCitedCalls` 都来自配置，余量来自家族配置。
 
+**绑定后才发布，贡献最后撤。** 宿主插件在 `Service.init` 里先建未绑定宿主，`await host.bind(...)` 成功后，才创建发布 `modelInstanceHost` 的子插件。子插件与有序关闭放在同一个外层 effect 的撤除列表里：Cordis 按逆序逐个撤除一个 effect 的部分，所以关闭（quiesce → 停派发并等待驱动交还）先跑，发布服务的贡献最后撤。分成两个顶层 effect 会被并发撤除。宿主状态全在闭包里，交给消费者的实例只有四个操作，`bind` 不出现。
+
+**观察资格来自装配。** 设计给宿主的注入只有 `modelCommands`、`modelClock`、`modelHostAuthority`，没有提供「当前 observe 资格」的来源。路由命中不当作授权，所以 `directory.connect` 先问装配给的 `qualifyObservation`，失败（含 `denied`）原样返回。
+
+**一个命令源。** 准备插件与宿主注入同一个 `modelCommands` 服务，准备资源只读它的 `dispatches`，所以延续计量读得到同一份调用事实。插件卸载后租约来源拒绝新租约，卸载前取得的租约持有自己的绑定直到释放。
+
 **一个关闭结束两部分。**装配的 `close` 是发送资源与准备资源共同的终点。`close` 开始后，两者都拒绝新的资源。发送资源返回自己的 `unavailable`（`pi-send-resources`，`send-resources-closed`）；准备资源返回指向装配的 `unavailable`（`model-host-local`，`assembly-closed`）。准备资源没有在途交换要等待，所以关闭只拒绝新的租约。关闭前取得的租约持有自己的绑定，由取得它的调用方释放。家族计量器是纯函数，关闭后仍可计量。
 
 ## 验证与维护
 
-保证与测试的对应见 [SPEC](../SPEC.md#组合与验证)。状态类型随 model 的判定变化时，同步 [records.ts](../src/records.ts)、[store.ts](../src/store.ts) 与测试。服务定义变化时同步 [cordis.ts](../src/cordis.ts) 与 [deliver-injected.ts](../src/deliver-injected.ts)。model 的 `SendResources` 端口或 pi-ai-transport 的传输配置变化时，同步 [send-resources.ts](../src/send-resources.ts)、[assembly.ts](../src/assembly.ts) 与对应测试。
+保证与测试的对应见 [SPEC](../SPEC.md#组合与验证)。状态类型随 model 的判定变化时，同步 [records.ts](../src/records.ts)、[store.ts](../src/store.ts) 与测试。服务定义变化时同步 [cordis.ts](../src/cordis.ts) 与 [deliver-injected.ts](../src/deliver-injected.ts)。model 的 `SendResources` 端口或 pi-ai-transport 的传输配置变化时，同步 [send-resources.ts](../src/send-resources.ts)、[assembly.ts](../src/assembly.ts) 与对应测试。宿主插件扩展或运行时门面接入时，同步 [plugins/host.ts](../src/plugins/host.ts) 的扩展点与 [plugins-host.spec.ts](../tests/plugins-host.spec.ts)。

@@ -1,14 +1,31 @@
-# 服务端接入
+# @omne-harness/server-entry
 
-本成员拥有治理位置与会话位置的入口职责。消息和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。路径、方法、状态码、请求体上限与 SSE 格式只归公开契约的[承载绑定](../public-contract/docs/http-binding.md)（候选，待批复：#978 DP-2）。本成员的行为在[行为规格](SPEC.md)，实现的组织在[内部设计](docs/internals.md)。
+[中文](README_ZH.md)
 
-## 阅读路径
+The HTTP entry for the governance and session locations of the Harness. It takes bytes that already have transport protection, reads them as public contract messages, recognizes the login, hands the request to the public entries of identity and Session, and answers with a public contract response. An application assembly uses it to expose a Harness Server on a loopback address.
 
-服务端实现者先读公开契约的判断次序，再读行为规格的[位置与操作范围](SPEC.md#位置与操作范围)，最后读本页的用法。装配者读本页的「使用」和「配置」。
+Message and `outcome` meanings stay in the [public contract](../public-contract/SPEC.md). Paths, methods, status codes, request body limits, and SSE framing stay in its [HTTP binding page](../public-contract/docs/http-binding.md). [SPEC.md](SPEC.md) owns the behavior of this package, and [internal design](docs/internals.md) covers the implementation.
 
-## 使用
+## Responsibility and status
 
-公开入口只有一个构造函数：
+This package owns the entry duties of both locations: the HTTP listener, request reading and counting, dispatch by path, login recognition, the acting tenant check, Session calls, status code mapping, SSE observation writes, and the ordered stop. It owns no business behavior and holds no login table. Business meaning and authoritative facts stay with their capabilities.
+
+Implemented:
+
+- `createServerEntry({ config, dependencies })`, which returns `start()` and `stop()`.
+- The `register-and-activate` and `issue-login` operations of the governance location.
+- The seven session operations and the two observation operations of the session location. An observation stream carries the confirmation, heartbeats, and the `ended` frame only.
+- The deterministic derivation of the session operation identity `SessionOperationId`.
+
+Not implemented at this stage:
+
+- The other 32 governance operations answer `stage-not-provided`.
+- The `state`, `refreshing`, `snapshot`, `delta`, and `gap` observation frames. Reattachment and refresh wait for the joint work.
+- TLS, remote access, and the sticky routing of a multi-instance deployment.
+
+## Usage
+
+The public entry is one constructor:
 
 ```ts
 import { createServerEntry } from '@omne-harness/server-entry'
@@ -36,54 +53,85 @@ const { address, port } = await entry.start()
 await entry.stop()
 ```
 
-上面的数值只是示例。初值归装配配置，本成员不写死任何初值。
+The numbers above are an example. Every value comes from the assembly configuration, and the package writes no initial value of its own.
 
-- `start()` 只在 `127.0.0.1` 上监听，明文 HTTP/1.1。`listenAddress` 是其他地址时，`start()` 以 `ServerEntryConfigError` 拒绝，不改写地址。`listenPort` 为 0 时由宿主分配端口，实际端口在返回值里。
-- `stop()` 停止接受新连接，给每个活动观察发 `ended(unavailable)`，等在途请求写完答复，然后关闭全部连接。
-- 两个位置的路径固定：`/governance-public/1` 与 `/session-public/1`。
+`start()` listens on `127.0.0.1` only and speaks plain HTTP/1.1. When `listenAddress` is any other address, `start()` refuses with `ServerEntryConfigError` and does not rewrite the address. A `listenPort` of 0 asks the host for a free port, and the returned value carries the actual port. `stop()` stops accepting new connections, sends `ended(unavailable)` to each active observation, waits for in-flight requests to finish their answers, and then closes every connection.
 
-### 依赖
+The two locations have fixed paths: `/governance-public/1` and `/session-public/1`.
 
-| 依赖                | 类型                                                 | 本成员怎样用                                                                            |
-| ------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `identity`          | identity 的 `IdentityOperations`                     | 治理位置的注册激活与签发登录；会话位置的登录识别                                        |
-| `issuer`            | identity 的 `PrincipalIssuer`                        | 签发本成员的系统主体（`component` 为 `server-entry`），以及每个会话请求的代租户行事主体 |
-| `session`           | `SessionIngressFaces`（本成员声明的 Session 面子集） | 会话位置的七个操作与观察建立时的读取资格核对。真实 `SessionService` 按结构满足它        |
-| `resolveDefinition` | `DefinitionResolver`                                 | `create-session` 把定义名解析为创建采用字段。返回 `undefined` 时答 `invalid`            |
-| `diagnostics`       | `DiagnosticSink`，可省略                             | 结构化诊断事件。事件不含正文、登录证明、凭据、主体或依赖的错误文本                      |
+### Dependencies
 
-### 配置
+| Dependency | Type | How this package uses it |
+| --- | --- | --- |
+| `identity` | identity's `IdentityOperations` | Registration and login issuance in the governance location; login recognition in the session location |
+| `issuer` | identity's `PrincipalIssuer` | Issues the system principal of this package (`component` is `server-entry`), and the acting principal of each session request |
+| `session` | `SessionIngressFaces`, the Session faces this package declares | The seven session operations and the read eligibility check when an observation opens. A real `SessionService` satisfies it structurally |
+| `resolveDefinition` | `DefinitionResolver` | `create-session` resolves a definition name into the fields the creation adopts. A returned `undefined` answers `invalid` |
+| `diagnostics` | `DiagnosticSink`, optional | Structured diagnostic events. An event holds no body, login proof, credential, principal, or dependency error text |
 
-| 字段                                                                               | 含义                                                                     |
-| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `listenAddress`、`listenPort`                                                      | 监听地址只能是 `127.0.0.1`；端口 0 表示由宿主分配                        |
-| `maxBodyBytes.small`、`maxBodyBytes.input`                                         | 治理路径与会话路径的请求体上限。它也是该路径 json-text 读取的 `maxBytes` |
-| `heartbeatIntervalMs`                                                              | SSE 心跳间隔                                                             |
-| `jsonBudgets`                                                                      | json-text 读取的其余五项预算                                             |
-| `maxPageBytes`                                                                     | `read-history` 的 `pageBytes` 上界                                       |
-| `historyKinds`                                                                     | `read-history` 披露的条目种类                                            |
-| `observation.perLogin`、`observation.perInstance`、`observation.cancelRetentionMs` | 每个登录与本实例的观察并发上界；观察结束后记录的保留期                   |
+## Contracts
 
-## 本阶段提供什么
+[SPEC.md](SPEC.md) owns the entry behavior: the location and operation scope, the decision order, the operation identity derivation, the status code mapping, the observation open and cancel, and the result of each call. The public types are the exports of `src/index.ts`.
 
-- 治理位置只提供 `register-and-activate` 与 `issue-login`。其余 32 个操作答 `stage-not-provided`，见行为规格的[治理位置的偏离](SPEC.md#治理位置的偏离)。
-- 会话位置提供七个会话操作与两个观察操作。观察在本阶段只有确认、心跳与 `ended` 帧，不定位 Model 调用，见内部设计的[本阶段的观察范围](docs/internals.md#本阶段的观察范围)。
-- 本成员不调用 authorization。会话操作的资格由 Session 的面裁定。
+The stable promises are:
 
-## 已知限制
+- The entry listens on `127.0.0.1` only and speaks plain HTTP/1.1. A wrong address fails the start and the entry does not rewrite it.
+- A status code comes from the `outcome` only. The same `outcome` always gets the same status code and the same response body shape.
+- A `denied` in the session location does not reveal whether the session exists. Every `denied` reason gives a byte-identical response except for `messageId`.
+- No login proof, credential, or issuer enters any output. The entry does not rewrite the `denied` and `basis-unavailable` results of identity and Session.
+- A `stop-call` on a `tool` target answers `unsupported`, whatever the session state and whether the `controlId` was used, and it writes no record.
+- An observation record lives in the memory of this instance only.
 
-- 明文、只绑回环。TLS 与远程访问不在 M2。
-- 观察不发 `state`、`refreshing`、`snapshot`、`delta`、`gap`，重附着与刷新归联调。
-- 成功业务访问报告尚未定义，会话操作不刷新登录的空闲计时。
-- `startRun` 时不再核登录是否仍有效。
-- 观察记录只在本实例内存里，多实例部署的粘性路由由部署另行给出。
-- Tool 目标的 `stop-call` 先到达 Session 的 `stopCall`，接入再把对外答案定为 `unsupported`。「不写任何记录」由 Session 的契约承诺（`stopCall` 对 Tool 目标在会话存在核对之前返回 `unsupported`），接入只兜住对外答案，挡不住一个不按契约写入的 Session。
-- `send-input` 交给 Session 的输入来源（`origin.record`）带登录状态文本。真实 Session 若把来源写进历史条目的 `payload`，`read-history` 会原样透传它。来源是否入 `payload`、登录状态文本是否机密，归 Session 与 identity 的拥有者，本成员不替它们裁定。
+Implementation details are free to change: the module layout, the diagnostic code set, and how the SSE writer queues frames.
 
-## 验证
+## Design
 
-在本目录运行 `pnpm run build`、`pnpm run typecheck` 与 `NO_COLOR=1 pnpm exec vitest run`。用例经真实回环 HTTP 调用本成员，用 identity 的 `./testing` 参考替身、进程内主体权威与测试目录里的 Session 面替身。用例清单在[内部设计](docs/internals.md#验证与维护)。替身通过不证明真实 Session、持久 identity 或跨进程主体来源。
+The entry reads bytes into public messages, then hands the requests that pass the protocol checks to the public entries of identity and the faces of Session. It holds no login table and puts no storage object into a response.
 
-## English promise
+Each location handler returns one of three answers to the HTTP layer: `json`, `no-answer`, or an observation stream. The status code of `json` comes from the `outcome` only. `no-answer` means this package has no trustworthy reply; the HTTP layer writes an empty-body 500 and closes the connection, and only a failure of this package uses it. The `outcome` to status code table is exhaustive, so a new `outcome` the public contract can encode fails the type check when the table has no row for it.
 
-This member owns the entry duties of the governance and session locations. Outcome meanings stay in the public contract; the HTTP carriage stays in its binding page. The entry listens on 127.0.0.1 only, stops at the first terminal result, does not rewrite an identity or Session result, keeps no login table, and never puts a login proof, a credential or an issuer into an output. At this stage the governance location provides registration and login issue only, and an observation stream carries the confirmation, heartbeats and the `ended` frame only.
+A session operation identity derives deterministically from the login text, the tenant text, and the request identifiers. The same business intent gets the same identity across a crash.
+
+The public contract does not depend on this package, and neither does the SDK. The package declares the ports it needs from its neighbors and knows nothing about their implementations.
+
+## Configuration and operation
+
+| Field | Meaning |
+| --- | --- |
+| `listenAddress`, `listenPort` | The address must be `127.0.0.1`. A port of 0 asks the host to assign one |
+| `maxBodyBytes.small`, `maxBodyBytes.input` | The body limits of the governance and session paths. Each limit is also the `maxBytes` of that path's json-text read |
+| `heartbeatIntervalMs` | The SSE heartbeat interval |
+| `jsonBudgets` | The other five json-text read budgets |
+| `maxPageBytes` | The upper bound of `pageBytes` in `read-history` |
+| `historyKinds` | The entry kinds `read-history` discloses |
+| `observation.perLogin`, `observation.perInstance`, `observation.cancelRetentionMs` | The observation concurrency bounds per login and per instance, and the retention of an ended record |
+
+Node 24 or later is required. The package reads no environment variable and no real secret. The caller completes transport protection: the entry accepts bytes that already have it, and a transport protection failure is `unknown` to the caller.
+
+Known limits:
+
+- Plain text on the loopback address only. TLS and remote access are out of scope at this stage.
+- An observation sends no `state`, `refreshing`, `snapshot`, `delta`, or `gap` frame. Reattachment and refresh wait for the joint work.
+- The report of a successful business access is not defined, and a session operation does not refresh the idle timer of a login.
+- `startRun` does not check again whether the login is still valid.
+- An observation record lives in the memory of this instance, and the sticky routing of a multi-instance deployment belongs to the deployment.
+- A `stop-call` on a `tool` target reaches `stopCall` of Session first, and the entry then fixes the outward answer as `unsupported`. The "no record" promise is Session's contract; the entry only guards the outward answer, and it cannot stop a Session that writes outside its contract.
+- The input source that `send-input` gives to Session carries login state text. If a real Session writes the source into the `payload` of a history entry, `read-history` passes it through. Whether the source enters the payload, and whether the login state text is secret, belong to Session and identity, and this package does not decide for them.
+
+## Verification
+
+Run in this directory:
+
+```sh
+pnpm run build
+pnpm run typecheck
+NO_COLOR=1 pnpm exec vitest run
+```
+
+The cases call this package over real loopback HTTP. They use the `./testing` reference doubles of identity, an in-process principal authority, and Session face doubles from the test directory. The case list is in [internal design](docs/internals.md#验证与维护). A passing double run does not prove a real Session, durable identity, or cross-process principal origin.
+
+## Maintenance
+
+Change [SPEC.md](SPEC.md) first, then the code and the cases. When the public contract adds or changes a term, check the status code table in `src/status.ts` and the result mapping in `src/session.ts` first, and the type check will name the missing row. When a Session face or a public identity type changes, check the subset used by `src/faces.ts` and `src/identity-steps.ts`.
+
+Keep [README_ZH.md](README_ZH.md) in step with this file. Both files state the same promises.

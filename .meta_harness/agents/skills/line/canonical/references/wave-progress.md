@@ -173,3 +173,40 @@ python tmp/line-<线>/build.py tmp/line-<线>/progress.json
 - `facts.py` 读 `closures[].worktree` 的提交数、未提交改动数、进程目录最近写入时间和头提交。`host` 为 `windows` 的直接读，为 `wsl` 的经 `wsl.exe -d Ubuntu-24.04` 在 WSL 内读。工作树不存在时该项记 `missing`，不报错。
 - `facts.py` 只改 `closures[].facts`、`resources.subagentsRunning` 与 `updatedAt`，不碰其它字段。它不回写 GitHub，也不改仓库。
 - `facts.py` 无参数时打印用法并退出 2。
+
+## 两页分工：在跑用 build.py，交回用 view.py
+
+同一份 `progress.json` 有两个生成器，读者不同，不重复实现。
+
+| | 在跑页 `build.py` | 呈现页 `view.py` |
+| --- | --- | --- |
+| 给谁 | 正在盯这条线的人：线负责人、Reduce、接手的人 | 之后读的人：交回后的交接、复盘、线外评审 |
+| 什么时候看 | 波中每 10 分钟以内刷新一次 | 交回前后生成一次，随报告一起留档 |
+| 内容 | 内嵌 spec 与 plan 全文、闭包依赖图、工作树事实、角色流水、资源占用、60 秒自动重载 | 判据表、成果条、闭包表、证据索引、波次时间线；不含自动重载与工作树事实 |
+| 数据 | `progress.json` 加 `facts.py` 刷新的 `closures[].facts` | 同一份 `progress.json`，不再读工作树 |
+| 谁的规则 | 本页的字段表与枚举就是唯一契约 | 校验直接调用 `build.check`，不另立规则 |
+
+判断方法：正在等一个长任务、还要再看几轮，开 `build.py` 的页面。要把这一波交给别人读，或者交回记录里要贴一个不再变的页面，用 `view.py`。
+
+`view.py` 只增加呈现所需的两处可选字段，`build.py` 不读它们，校验也不受影响：
+
+- `closures[].branch`：闭包分支，交给别人时写清它从哪来。
+- `closures[].report`：`{label, url}`，这张闭包的验收报告。
+- `closures[].acceptance`：没附报告时写 `"pending"`，页面显示「未附报告」。两者都不写时显示「—」。
+- `closures[].verdict`：一句话验收结论，可省略。
+
+闭包栏里的「轮次」取 `closures[].rounds`。证据链接按 URL 去重，每一条标出它支撑哪些判据编号。
+
+```sh
+# 交回前后生成一次；--now 固定「距今多久」的参照点，便于复现
+python tmp/line-<线>/view.py tmp/line-<线>/progress.json \
+  --out tmp/line-<线>/progress-page.html --now <UTC ISO>
+```
+
+`view.py` 与 `build.py` 放在同一目录，因为它导入 `build.py` 的校验与枚举表。复制生成器时两者一起复制（见上文「第一次建」），`panel.css` 也一起：
+
+```sh
+cp .meta_harness/agents/skills/line/canonical/scripts/progress/{build.py,facts.py,view.py,panel.css} tmp/line-<线>/
+```
+
+`panel.css` 与 `integrate` 技能 `scripts/cockpit/panel.css` 是同一份的两处副本，两份必须逐字节相同。`view.py` 在仓库内发现分叉会退出 2 并打印两份路径。

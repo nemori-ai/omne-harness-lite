@@ -8,7 +8,9 @@
 
 ## 边界
 
-[credential.spec.ts](credential.spec.ts) 用真实文件系统、子进程和注入的文件系统故障覆盖五种解析结果、租户隔离、轮换与撤销、文件损坏、关闭、保存确认未知、文件锁、发布路径关闭文件描述符与跨进程更新，并在真实 Cordis 4.0.4 下核对注入发送。[custodian-options.spec.ts](custodian-options.spec.ts) 覆盖建库采用已有文件、诊断容量、锁等待与超时的 `ELOCKED` 代码、非锁错误、三种不可用原因及其 `cause`、快照字段类型不对判为损坏，以及选项取值的拒绝。[credential-service.spec.ts](credential-service.spec.ts) 核对服务实例只暴露 `present` 与 `resolve`，保管库不可达。[cordis-entry.spec.ts](cordis-entry.spec.ts) 核对插件的发布、空路径建库并服务、撤除、配置校验，以及损坏文件上 `present` 返回不可用与撤除不报错。[deliver-injected.spec.ts](deliver-injected.spec.ts) 在真实 Cordis 4.0.4 下核对注入发送不导入保管库、提供者缺席时不发送、撤除重装后恢复与结果不变、更替提供者与非服务对象。[public-entry.spec.ts](public-entry.spec.ts) 核对根入口的导出清单。
+[credential.spec.ts](credential.spec.ts) 用真实文件系统、子进程和注入的文件系统故障覆盖五种解析结果、租户隔离、轮换与撤销、文件损坏、关闭、保存确认未知、文件锁、发布路径关闭文件描述符与跨进程更新，并在真实 Cordis 4.0.4 下核对注入发送。[custodian-options.spec.ts](custodian-options.spec.ts) 覆盖建库采用已有文件、诊断容量、锁等待与超时的 `ELOCKED` 代码、非锁错误、三种不可用原因及其 `cause`、快照字段类型不对判为损坏，以及选项取值的拒绝。[credential-service.spec.ts](credential-service.spec.ts) 核对服务实例只暴露 `present` 与 `resolve`，保管库不可达。[cordis-entry.spec.ts](cordis-entry.spec.ts) 核对插件的发布、空路径建库并服务、撤除、配置校验，以及损坏文件上 `present` 返回不可用与撤除不报错。[deliver-injected.spec.ts](deliver-injected.spec.ts) 在真实 Cordis 4.0.4 下核对注入发送不导入保管库、提供者缺席时不发送、撤除重装后恢复与结果不变、更替提供者与非服务对象。[public-entry.spec.ts](public-entry.spec.ts) 核对根入口的导出清单。[send-stage.spec.ts](send-stage.spec.ts) 在真实 Cordis 4.0.4 下核对发送阶段插件：服务随插件发布与撤回，缺凭据服务时插件等待并随它卸载，配置与装配被拒时什么都不建，经插件发送时凭据槽只在 `start` 期间有值且撤除后为空，退出后的新发送不启动传输也不解析凭据，退出时在途的发送以 `not-started` 收场，卸载等发送路径关闭。它的传输是观察凭据槽的工厂，凭据服务是计数的测试对象，命令是内存 `ModelCommands`。慢层用例把四份真实回放件经插件的 `modelSendBoundary` 回放，在同一用例里与装配路径对比事实、请求（除本地端口外逐字节相同）、终止、回执与账目。
+
+[runtime-host.spec.ts](runtime-host.spec.ts) 属于慢层，在真实 Cordis 4.0.4 上装出整装配：本包的运行时插件（宿主、运行门面、结果推送）与发送阶段插件、model 的真实运行时、model-storage-sql 的耐久 `ModelCommands` 与发送协调器（共用一个核心），用 model-contract 的 `checkModelProviderConformance` 跑 53 项提供者义务。替身有三个：SQL 存储是 model-storage-sql 测试里 node:sqlite 测试提供者的复制（运行真实参加者、迁移与读 handler，不模拟 Worker、耐久性与队列；参加者模块从该成员源码导入，因为它还不在公开面上），传输是脚本传输（事实来自钩子），发送阶段的网络只会关闭。故障注入在存储端口（`failNextWrite`、`blockCleanup`）与运行时读取的实例目录（`disconnectObservers`、`failDirectory`）上。用例要求 53 项各出现一次；失败只允许已知失败表里的两项 quiesce 义务且失败文本是 model 运行时的 5.5 桩；not-applicable 只允许显式允许表，目前为空。设 `OMNE_EVIDENCE_OUT=<目录>` 时写 `conformance.json`、`assembly.json`（取自实际装出的后端）与 `hooks.json`，不含请求体、凭据或主体名之外的身份。支撑在 [support/durable-assembly.ts](support/durable-assembly.ts)。
 
 [send-resources.spec.ts](send-resources.spec.ts) 用观察凭据槽的传输工厂代替会离开进程的 pi 发送，核对槽只在 `start` 期间有值、正常返回与抛出后都为空、两个资源互不见对方的值、异物与释放后的物化传输被拒绝、`release` 与 `close` 幂等，prepare 与 materialize 的失败原样穿过，关闭时资源或配置探针的关闭失败使 `close` 拒绝，调用方自己释放失败的资源不再由 `close` 重复报告；它还用真实 pi 传输与 OpenAI 家族核对异物物化传输被拒绝，这一步只编码，不发送。[assembly.spec.ts](assembly.spec.ts) 核对装配对路由、网络、尝试容量与准备配置的拒绝，准备租约经配置的家族取得绑定，`close` 开始后的取得返回具名不可用，关闭前取得的租约在关闭后仍能计量并释放，以及 `close` 幂等。它还经可观察的网络与发送资源工厂核对：准备配置被拒时不创建网络；装配被拒时关闭已创建的发送资源与网络，关闭失败不成为未处理的拒绝；`close` 让两个关闭都执行完，一个失败时抛出该失败，两个都失败时抛出含两者的 `AggregateError`。[local-model.spec.ts](local-model.spec.ts) 属于慢层：本地 HTTPS 服务只代替网关，回放两个家族录制的 SSE 正文；保管库、装配、发送边界、pi 传输、家族、model 运行时与内存 `ModelCommands` 都是真实实现。[continuation.spec.ts](continuation.spec.ts) 同属慢层，在同一组真实实现上让调用 X 收场、确认并清理，再经装配的 `preparation` 取得真实租约，用真实 `rules.plan` 与家族计量器计量延续 X 的请求，核对锚点、余量、方法名与跨租户的逐字节相同。[support/](support/) 里的 `records.ts` 经声明的开发依赖读取家族录制夹具，`https-server.ts` 起本地 HTTPS 服务并记录请求头与正文，`profiles.ts` 把家族记录的官方档案存成工厂档案，并给出测试用的 `supplierOf`，`local-host.ts` 为一次调用装配保管库、本地装配、内存 `ModelCommands` 与 model 运行时；它的 `close` 在宿主关闭失败时也关闭保管库。`metering.ts` 用真实租约和租约自己的 `rules.plan` 计量请求，并读取账目里已知的用量。`replay.ts` 把一份回放件经装配路径回放，并让宿主保持打开，供读取事实、发出记录与准备租约；打开或驱动失败时，它先关闭已打开的资源再抛出。它的 `recordedRequest` 给出回放件的请求，延续轮的请求由首轮回放读出的回复重建。
 
@@ -27,7 +29,17 @@
 - 以下情形同样不写文件：状态不是 200，目标响应不是恰好一个，调用没有收场（拒绝结果给出失败的种类，不含细节），发出记录不是恰好一个，终止不是恰好一个，或要求推理状态的用例回复里没有推理状态。录制目录已经存在时，录制器在发送之前拒绝，不覆盖已有录制。
 - 两个文件先写进同级的私有目录，再整体改名，所以录制目录要么完整，要么不存在。
 
-[support/recording-cases.ts](support/recording-cases.ts) 定义四个用例：两家各一个带推理状态的首轮（`openai-reasoning` 用 `openai/gpt-5.6-sol`，`anthropic-reasoning` 用 `anthropic/claude-sonnet-5`），以及两家各一个延续首轮的第二轮（`*-reasoning-continued`）。第二轮的请求由三部分组成：首轮请求、首轮回复与下一个问题。首轮回复不随录制保存。录制器在本机起 HTTPS 服务，把首轮录制的正文经同一条装配路径回放并读出回复。回放的请求体摘要必须等于首轮旁注的 `payloadDigest`，否则录制器拒绝。
+[support/recording-cases.ts](support/recording-cases.ts) 定义六个用例：四个是有真实回放件的推理用例，两个是工具调用用例（见下）。前四个：两家各一个带推理状态的首轮（`openai-reasoning` 用 `openai/gpt-5.6-sol`，`anthropic-reasoning` 用 `anthropic/claude-sonnet-5`），以及两家各一个延续首轮的第二轮（`*-reasoning-continued`）。第二轮的请求由三部分组成：首轮请求、首轮回复与下一个问题。首轮回复不随录制保存。录制器在本机起 HTTPS 服务，把首轮录制的正文经同一条装配路径回放并读出回复。回放的请求体摘要必须等于首轮旁注的 `payloadDigest`，否则录制器拒绝。
+
+工具调用用例是 `openai-tool-call` 与它的延续轮 `openai-tool-call-continued`，型号都是 `openai/gpt-5.6-sol`。型号的依据是这个型号在 Chat Completions 上无条件支持函数调用，且已有真实录制。请求的形状如下：
+
+- 工具是 `{ type: 'function', function: { name, description, parameters } }`，`parameters` 的根是对象（OpenAI 的 `object-root/1` 规则要求），`tool_choice` 为 `auto`。
+- 推理档位是 `medium`，不关推理。`xhigh` 不在契约的参数表里，所以不用。
+- 延续轮的请求是首轮请求、首轮回复（带工具调用与推理状态的同一条助手消息）与工具结果，工具结果紧跟那条助手消息。录制器新增 `requiresToolCall`：回复里没有工具调用时不写文件。
+
+这两个用例现在没有真实回放件，因为还没有真实工具流。它们的回放件是手写的合成流，放在 `fixtures/recordings/<用例>/synthetic.jsonl`。文件第一行是旁注（`model`、`payloadDigest`、`recordedAt`），其余每行是一个 SSE 帧：`{"data": "…"}` 或 `{"comment": "…"}`，读取时重建 SSE 字节并补上 `[DONE]`。`payloadDigest` 是本次代码为该请求写出的请求体摘要。请求体变化（工具形状、推理档位、投影）时，摘要变，回放用例变红，失败信息给出新值。合成回放件只证明请求形状与延续轮的路径，不证明真实模型会怎样回答。
+
+真实录制要先有保管库命令：保管库由用户写入，代理把占位值换成真实凭据。前提是：`OMNE_LIVE_TESTS=1`，`OMNE_RECORD_CASE=openai-tool-call`，给出 `HTTPS_PROXY`，其余变量同下。先录 `openai-tool-call`，再录 `openai-tool-call-continued`。真实录制写入 `OMNE_RECORD_OUT`（缺省为 pi-ai-transport 的 `tests/fixtures/recordings/`），格式与另外四份相同（`stream.sse` 与 `recording.json`）。录到之后，真实回放件取代合成回放件，并要在 pi-ai-transport 的回放件目录登记。本次没有发出任何真实请求。
 
 [recorder.spec.ts](recorder.spec.ts) 属于慢层。本地 HTTPS 服务分段写出回答，核对录制的字节与服务写出的字节逐字节相同，旁注摘要等于服务收到的请求体的 SHA-256。它还经本地 CONNECT 代理（[support/connect-proxy.ts](support/connect-proxy.ts)）核对同样的结果，并逐一核对上述不写文件的情形与第二轮的输入形状。它还用 pi-ai-openai 的真实网关流 `tests/fixtures/captured` 录制 `openai-reasoning`，核对首轮写出并带推理状态，第二轮把加密项连同真实 id 带回。[secret-scan.spec.ts](secret-scan.spec.ts) 属于快层，核对每个密钥模式、占位值放行，以及结果只含模式名。测试源码中的伪造密钥在运行时拼接，源码本身不含完整的密钥模式。
 
@@ -58,6 +70,22 @@ OMNE_EVIDENCE_OUT=<目录> pnpm --filter @omne-harness/model-host-local exec vit
 OMNE_EVIDENCE_OUT=<目录> pnpm --filter @omne-harness/model-host-local exec vitest run --mode slow --typecheck.enabled=false tests/recording-c1.spec.ts
 ```
 
+[line-e2e.spec.ts](line-e2e.spec.ts) 是本波的线内贯通用例，属于慢层，不依赖网络和密钥。它在一个 vitest 进程里起一个真实 Cordis 4.0.4 根 Context，由 [support/line-assembly.ts](support/line-assembly.ts) 按装载顺序装出：`LocalCredentialPlugin`（临时目录里的保管库，存占位值）、`ModelProfilesLocalPlugin`（官方 OpenAI 档案）、`ModelCommandsService`（model-storage-sql 的 `createSqlModelCommands`，给出 `send`，命令与发送协调器共用一个核心）、时钟与宿主权威服务、请求准备插件、发送阶段插件（真实 pi 传输与家族，路由指向本地 HTTPS 服务）、运行时插件与结果推送。五步各断言用户看得到的结果：
+
+- 准备：请求由 `modelProfiles.resolve` 得到的档案与 `modelRequestPreparation.prepare` 得出；准备期间本地服务没有收到请求。
+- 发送（回放）：调用 A 经发送阶段到本地服务，服务回放 `fixtures/recordings/openai-tool-call/synthetic.jsonl`；终止唯一；服务收到的请求体 SHA-256 等于回放件旁注的 `payloadDigest`；占位凭据只出现在 `Authorization` 头里，不在事实、发出记录、状态与插件日志里。
+- 持久：关掉并重开同一个 SQLite 文件后，一组没有运行时、没有进程内状态的新 `createSqlModelCommands` 读出调用 A 的收场、结果页与发出记录。
+- 推送：接收方替身登记后，A 被推送一次；接收方先回答 `saved`，生产方才 `handoff`；ACK 之后托管推进到 `released`。
+- 取消：调用 B 的流进行中（服务写出一段后挂住响应），`calls.cancel` 真正中断供应商流：传输的 `exchange-stopped` 出现在 `settle` 之前，B 的终止是该取消的 `interrupted`，取消前交付的内容仍在推送给接收方的结果里。
+
+替身各有来源：SQL 提供者是 `line-assembly.ts` 里的 `node:sqlite` 文件提供者，不是 `@omne-harness/sqlite-provider`——真实提供者按模块文件与摘要装载材料，而 model-storage-sql 还没有 `modelStorageMaterials()`（其 SPEC「明确缺项」），两个读 handler 没有模块文件。文件提供者在一个事务里运行该成员真实的参加者、迁移与读 handler，回执存在同一个文件里；它不模拟 Worker、队列、上界与崩溃耐久，通过不证明这些。参加者由该成员构建产物的模块文件装载（`dist/commit.js` 的默认导出），这是提供者装载材料的同一种方式。接收方是脚本接收方，代表 agent-host-local 的 `createLocalModelReceiver`，联调 A 才接真件。重试策略回答「没有计划」，重试不在本波。
+
+设 `OMNE_EVIDENCE_OUT=<目录>` 时写一份 `line-e2e.json`：五步各自的结论、两个调用的身份与终止种类、ModelCommands 与 SQL 提供者是哪个实现、Cordis 版本。文件不含请求体、回复正文、任何头与凭据。运行方式：
+
+```sh
+OMNE_EVIDENCE_OUT=<目录> pnpm --filter @omne-harness/model-host-local exec vitest run --mode slow tests/line-e2e.spec.ts
+```
+
 [live/record.spec.ts](live/record.spec.ts) 是录制器的真实入口。它只在 `OMNE_LIVE_TESTS=1` 并且 `OMNE_RECORD_CASE` 给出用例名时运行，否则在用例体内跳过。它读取以下环境变量：
 
 - `OMNE_RECORD_CASE`：用例名。第二轮从同一输出根目录读取首轮录制，所以首轮必须先录。
@@ -74,7 +102,7 @@ OMNE_EVIDENCE_OUT=<目录> pnpm --filter @omne-harness/model-host-local exec vit
 
 公开行为或 SPEC 条款变化时，同步对应测试与本目录 `index.md`。运行命令为 `pnpm --filter @omne-harness/model-host-local test`。
 
-录制一个用例的真实请求，在仓库根运行：
+录制一个用例的真实请求，在仓库根运行（把 `openai-reasoning` 换成 `ALL_RECORD_CASE_NAMES` 里的另一个名字即可，例如工具调用用例 `openai-tool-call`）：
 
 ```sh
 OMNE_LIVE_TESTS=1 OMNE_RECORD_CASE=openai-reasoning pnpm --filter @omne-harness/model-host-local run record:live
@@ -84,4 +112,4 @@ OMNE_LIVE_TESTS=1 OMNE_RECORD_CASE=openai-reasoning pnpm --filter @omne-harness/
 
 ## 本包事实
 
-测试通过不代替规格或验收。固定输入见 [fixtures](fixtures/index.md)，目前没有固定输入文件。
+测试通过不代替规格或验收。固定输入见 [fixtures](fixtures/index.md)。目前的固定输入只有两个工具调用用例的合成回放件 `fixtures/recordings/*/synthetic.jsonl`。

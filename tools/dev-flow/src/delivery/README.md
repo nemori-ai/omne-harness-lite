@@ -157,6 +157,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts 
    - 合并提交取 `git diff-tree --cc` 列出的文件，即与每个父提交都不同的文件：冲突的解决、合并时另加的改动，以及两侧都改过的文件（没有冲突也算）。
    - 合并带进来的提交（其他父提交可达、第一父提交不可达的提交）中，在本卡以外的远端跟踪分支上的不计入：目标分支、批次分支与别的卡来自远端。其余按上面两条逐个计入，例如本卡的本地侧分支。
    - 再加上工作树中与 HEAD 不同的已跟踪文件，以及 Git 不忽略的未跟踪文件。
+   - 最后只保留工作树当前内容相对 `taskBase` 净差异不为零的文件：本卡改过又改回原样、新增后又删除的文件不计入，被删除的 taskBase 文件计入。
    - 这项卡级写范围检查不用 context 的 `targetBase`，因为它只归因本卡从 taskBase 起的改动。影响面与组合检查仍使用 targetBase，不得据此忽略目标同步。
 3. `tmp` 下的路径与线归属表 `shared` 中的路径不计入。其余每个文件：
    - 不在 binding 的 `writeScope` 任一项之下时，为 `change-outside-scope`。

@@ -23,7 +23,17 @@ function seededReference(): CredentialReference {
 
 it('the cordis entry exports the plugin and the injected delivery, not the service definition', async () => {
   const cordis = await import('@omne-harness/model-host-local/cordis')
-  expect(Object.keys(cordis).sort()).toEqual(['LocalCredentialPlugin', 'deliverInjected'])
+  expect(Object.keys(cordis).sort()).toEqual([
+    'LocalCredentialPlugin',
+    'ModelConvertersLocalPlugin',
+    'ModelInstancesLocalPlugin',
+    'ModelProfilesLocalPlugin',
+    'createMemoryResultPushLedger',
+    'createModelRequestPreparationPlugin',
+    'createModelRuntimeLocalPlugin',
+    'createModelSendStagePlugin',
+    'deliverInjected',
+  ])
   expect(Object.getPrototypeOf(cordis.LocalCredentialPlugin)).toBe(ModelCredentialService)
 })
 
