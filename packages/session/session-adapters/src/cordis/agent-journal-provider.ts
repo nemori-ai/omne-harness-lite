@@ -285,16 +285,15 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     preserve(input) {
       if (closed) return Promise.resolve(stopped())
       // Without an execution the call names no session (K-9), and nothing is guessed.
-      const { execution, ...material } = input
+      const { execution } = input
       if (execution === undefined)
         return Promise.resolve(
           fail<Failure>(unavailable('a material to preserve names no session: no route to one')),
         )
-      // The route has chosen the session, so the call goes on without the execution: the session
-      // Journal does not read it for a material, and its write path would take a call that names an
-      // execution for a write of that execution's records, and never settle it.
+      // The session Journal reads the execution of a material only as its route, never as a write
+      // of that execution's records, so the call goes on unchanged.
       return routedView('preserve', { tenant: input.tenant, execution }, view =>
-        view.materials.preserve(material),
+        view.materials.preserve(input),
       )
     },
     async read(input) {

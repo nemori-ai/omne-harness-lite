@@ -17,12 +17,12 @@
 | 插件 | `inject` | 提供的键 | 登记 |
 | --- | --- | --- | --- |
 | AD-01 Agent 提交参加者 | `session: { caller: 'coordinator' }` | 无 | 向执行记录提供者登记 Session 参加者，形状待 P-1 |
-| AD-02 Agent 同日志解释 | `session: { caller: 'coordinator' }` | 无 | 不订阅事件。经本成员 Journal 提供者的 `output.read`、`output.events` 与 `load` 读同一会话日志 |
+| AD-02 Agent 同日志解释（`createSessionJournalInterpretationPlugin`，名 `session-ad02`） | `session: { caller: 'coordinator' }`、`sessionTransactions`、`storage`、受信 `tenantDomainLookup` | 无 | 订阅 `session-adapters/agent-published`，按会话排队。经 `execution-record.state` 读同一会话的 Agent 记录与发布点归一的后果，每个事件一次 `commitLog`。不配置；启动不扫描存储 |
 | AD-03 持有者与生产者 | `runtimeContext`（数组形式）；`session: { caller: 'coordinator' }` | 无 | `registerProducer` 的生产者登记，每个租户一份 |
 | AD-03 回放子插件 | `runtimeContext`（数组形式，持有者面，与主插件分开换代）；`session: { caller: 'reader' }` | 无 | 无 |
 | AD-03 变化提醒子插件 | `runtimeContext: { consumer: 'model' }` | 无 | 模型类绑定读者 |
 | AD-04 历史源 | 两个子插件：历史源子插件 `session: { caller: 'reader' }`；下界子插件 `session: { caller: 'coordinator' }`；RQ 来源登记服务 | 无 | 仅在完整 ContextSources 及当前资格可兑现时整组 register/replace；撤除等待在途与租约结清 |
-| AD-05 Model 日志消费适配 | `session: { caller: 'coordinator' }`。不注入 `modelRuntime`（[AD-05](../SPEC.md#ad-05)） | 无 | 不登记。经本成员 Journal 提供者读 `received` 条目与材料 |
+| AD-05 Model 日志消费适配（`createSessionModelLogConsumptionPlugin`，名 `session-ad05`） | `session: { caller: 'coordinator' }`、`agentJournal`、`agentMaterials`、`sessionTransactions`。不注入 `modelRuntime`（[AD-05](../SPEC.md#ad-05)） | 无 | 订阅 `session-adapters/agent-published`，按会话排队调用 `consume`。经本成员 Journal 提供者读 `received` 条目与材料 |
 | AD-06 Tool 日志消费适配 | `session: { caller: 'coordinator' }`；同一 AgentJournal 与 AgentMaterials 提供者 | 无 | 只读原 entries/results 与材料，不注入 Tool；完整收场材料不可读则 unavailable，保留任务 |
 | AD-08 受理拓展点 | `session: { caller: 'intake' }` | 无 | 不登记，待 NP-07 |
 | AD-09 身份桥 | 身份来源的服务（identity 的核验器） | `sessionIdentity` | 服务提供 |
@@ -32,10 +32,10 @@
 | AD-14 `AgentDrivePort` | `agentInstances`、`agentExecutionRecovery`、`agentExecutionControl`；`session: { caller: 'coordinator' }` | `sessionAgentDrive` | 服务提供 |
 | AD-15 `ScopeReleasePort` | `executionEnvironment: { caller: 'maintainer' }` | `sessionScopeRelease` | 服务提供；恢复授权由装配入口构造时交入 |
 | AD-15 重新释放子插件 | `executionEnvironment: { caller: 'maintainer' }`；`session: { caller: 'maintainer' }` | 无 | 无；恢复授权由同一个装配入口交入 |
-| J06 消息准入 | `session: { caller: 'coordinator' }`、`agentAccessCheck`；原消息政策与来源 | `agentMessageHandoff` | 继承 Agent 定义；不在准入中写消息，生产插件未交付 |
+| J06 消息准入（`createSessionMessageHandoffPlugin`，名 `session-handoff`） | `storage`、受信 `tenantDomainLookup`、`agentAccessCheck`、`session: { caller: 'coordinator' }` | `agentMessageHandoff` | 继承 Agent 定义；配置为 `combinationVersion`、`manifestDigest`。准入记录存在 `execution-record` 的 `er_preadmission`，先意图后结果；不在准入中写消息。`exclude` 答 `unsupported`（[J06](../SPEC.md#j06-消息准入的生产插件)） |
 | J06 当前条件 | `session: { caller: 'coordinator' }`（访问只经 Session 面核）；原 Authority/grant 与已采用来源 | `agentConditions` | 不补默认条件，生产插件未交付 |
 | 实时显示 | 同一日志的调用关联、公共 StreamObserver | 无 | 只观察 snapshot/delta/gap/ended，不控制、不保管、不确认解除；生产插件未交付 |
-| Agent Journal 提供者 | `sessionAccessCheck`、`storage`、受信 `tenantDomainLookup`；与 Session 共用会话日志的提交状态 | `agentJournal`（`extends AgentJournalService`）；同一提供者兑现 `agentJournalEntries` 与 `agentMaterials` | 服务提供。生产插件未交付；非耐久替身是 `./testing` 的 `createMemorySessionJournal`（[SPEC](../SPEC.md#agent-journal-提供者与非耐久替身)） |
+| Agent Journal 提供者（`SessionLogAgentJournalProvider` 或 `createSessionAgentJournalPlugin`） | `sessionAccessCheck`、`storage`、受信 `tenantDomainLookup`；与 Session 共用会话日志的提交状态 | `agentJournal`（`extends AgentJournalService`）；同一提供者兑现 `agentJournalEntries` 与 `agentMaterials` | 服务提供；每次写成功之后发 `session-adapters/agent-published`。非耐久替身是 `./testing` 的 `createMemorySessionJournal`（[SPEC](../SPEC.md#agent-journal-提供者与非耐久替身)） |
 
 说明：
 
@@ -53,7 +53,7 @@
 | `session.modes` 生产者 | `registerProducer` 在 Runtime Context 服务方法里以 `this.ctx.effect` 登记，效应落在 AD-03 的 fiber。登记带调用方可信主体与租户，生产者槽是租户加块键，为每个租户分别登记 | 每个租户的句柄分别撤除。读取按缺项返回。重跑时新一代先登记，旧一代后撤除 |
 | 模型类绑定读者 | `bind`，随变化提醒子插件 | 读者结束。下一次绑定取完整快照 |
 | Session 参加者 | 向执行记录提供者的组合登记，形状待 P-1 | 执行记录提供者对未登记参加者的共同提交返回 `unsupported`，不保存任何一半 |
-| 执行句柄 | 随 AD-14 的 fiber | 句柄丢弃。AD-02 不持有订阅：Agent 条目留在会话日志里，换代后从 `ExecutionRef.readThrough` 续读 |
+| 执行句柄 | 随 AD-14 的 fiber | 句柄丢弃。AD-02 的事件订阅随它的 fiber 撤除：Agent 条目留在会话日志里，换代后由下一个发布事件从 `ExecutionRef.readThrough` 续读 |
 | Journal 服务提供 | 提供者子类随插件装载登记在本插件 fiber 上 | 静态注入 `agentJournal` 的 Agent 插件随依赖撤除而卸载（[Agent 的 Cordis 页](../../../agent/agent-cordis-contract/docs/cordis.md)）。已提交的 Agent 条目与 Session 事实保留在会话日志里 |
 
 撤除不撤回已提交的会话事实，也不撤回已交给邻域的确认、释放或外部效果。

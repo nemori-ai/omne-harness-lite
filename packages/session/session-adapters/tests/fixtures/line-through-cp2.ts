@@ -13,16 +13,24 @@ import {
   decodeInputId,
   type AcceptedInput,
   type AgentExecutionId,
+  type AgentAccessCheck,
   type AgentJournal,
   type ExecutionSnapshot,
+  type MessageHandoff,
 } from '@omne-harness/agent-contract'
-import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
+import {
+  AgentAccessCheckService,
+  agentJournalKey,
+  agentMessageHandoffKey,
+} from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { succeed } from '@omne-harness/operation-result'
 import type {
   SessionAccess,
   SessionAccessDecision,
   SessionAccessRequest,
   SessionCommand,
+  SessionFaces,
 } from '@omne-harness/session-contract'
 import {
   adoptedInitializationFixture,
@@ -37,7 +45,10 @@ import {
   operationId,
   ordinaryInput,
 } from '@omne-harness/session-contract/testing'
-import { SessionAccessCheckService } from '@omne-harness/session-cordis-contract/cordis'
+import {
+  SessionAccessCheckService,
+  SessionService,
+} from '@omne-harness/session-cordis-contract/cordis'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
 import { createSessionStorage, sessionStorageMaterials } from '@omne-harness/session-storage-sql'
 import {
@@ -60,13 +71,23 @@ import {
 } from '@omne-harness/sql-contract'
 import { StorageService, TenantDomainLookupService } from '@omne-harness/sql-contract/cordis'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
+import { sessionScopeEvidence } from '../../src/cordis/agent-drive.ts'
 import { SessionLogAgentJournalProvider } from '../../src/cordis/agent-journal-provider.ts'
+import { createSessionMessageHandoffPlugin } from '../../src/cordis/message-handoff.ts'
 import { checkpoint, instance, ok, openInput, operation } from './common-journal.ts'
 import { realConfig } from './sql-real-config.ts'
 
 const COMBINATION = 'c1'
 /** The session of the checkpoint; the same name in the test and in the child. */
 export const CP2_SESSION = 'cp2-session'
+
+/** The adopted implementation that the handoff provider of this world names in its outcomes. */
+export const HANDOFF_ADOPTION = Object.freeze({
+  owner: '@omne-harness/session-adapters',
+  name: 'session-message-handoff',
+  revision: '1',
+  digest: 'session-adapters:session-message-handoff/1',
+})
 
 export const own = memoryAccess('tester', CP2_SESSION)
 export const other = memoryOtherAccess('intruder', CP2_SESSION)
@@ -218,10 +239,50 @@ export async function openCp2(root: string) {
     return { agent: agent.published, session: root.published }
   }
 
+  /**
+   * Mounts the message handoff provider (row `session-handoff`) on the same root once, with
+   * `session` that reads as the scene's principal and an `agentAccessCheck` that allows every
+   * request, and returns `agentMessageHandoff`.
+   */
+  async function handoff(): Promise<MessageHandoff<string>> {
+    if (ctx.get(agentMessageHandoffKey) === undefined) {
+      const work = { readWork: port.readWork }
+      class Session extends SessionService<unknown> {
+        get work(): SessionFaces<unknown>['work'] {
+          return work as unknown as SessionFaces<unknown>['work']
+        }
+        readonly management = {} as SessionFaces<unknown>['management']
+        readonly reconciliation = {} as SessionFaces<unknown>['reconciliation']
+        readonly history = {} as SessionFaces<unknown>['history']
+      }
+      class AgentAccess extends AgentAccessCheckService<unknown> {
+        readonly check: AgentAccessCheck<unknown>['check'] = input =>
+          Promise.resolve({
+            kind: 'allowed',
+            evidence: evidence(`agent-access/${input.operation}`),
+          })
+      }
+      await ctx.plugin(Session)
+      await ctx.plugin(AgentAccess)
+      await ctx.plugin(
+        createSessionMessageHandoffPlugin<string>({
+          coordinator: async () => succeed(own.principal),
+          principalIdentity: principal => `principal:${principal}`,
+          provider: HANDOFF_ADOPTION,
+        }),
+        combination,
+      )
+    }
+    const found = ctx.get(agentMessageHandoffKey)
+    if (found === undefined) throw new Error('agentMessageHandoff is not provided')
+    return found as MessageHandoff<string>
+  }
+
   return {
     port,
     commits,
     journal,
+    handoff,
     published,
     async sessionRevision(): Promise<string> {
       return ok(await port.readWork(own)).revision
@@ -334,5 +395,23 @@ export function messageCommit(
     replyAdmission: null,
     handoff: null,
     finish: null,
+  }
+}
+
+/**
+ * The invoke-branch prepare of the initial input of the seeded Run: the request of the open's
+ * original acceptance, and the runtime context whose scope is the session's slot scope (AD-14).
+ */
+export function invokePrepare(
+  seeded: Awaited<ReturnType<typeof seedCp2>>,
+): Parameters<MessageHandoff<string>['prepare']>[0] {
+  const request = seeded.open.original.outcome.request
+  if (request.kind !== 'input') throw new Error('fixture: an external request')
+  return {
+    principal: own.principal,
+    tenant: own.tenant,
+    kind: 'invoke',
+    request,
+    runtime: { ...seeded.open.runtime, scope: sessionScopeEvidence(OWN_TENANT, own.session) },
   }
 }

@@ -5,6 +5,7 @@
 // the real sqlite-provider (real Workers and files). The double models receipts, rollback by a
 // stopping reply, recognition by identity and the read rules; it does not model Workers or
 // durability, and a pass on it proves neither.
+import { Context, Service } from '@deepseek-ai/cordis'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -13,13 +14,17 @@ import {
   decodeAgentExecutionId,
   decodeInputId,
   type AcceptedInput,
+  type AgentJournal,
 } from '@omne-harness/agent-contract'
+import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type {
   SessionAccess,
   SessionAccessDecision,
   SessionAccessRequest,
   SessionCommand,
+  SessionFaces,
+  SessionTransactionPort,
 } from '@omne-harness/session-contract'
 import {
   adoptedInitializationFixture,
@@ -32,6 +37,11 @@ import {
   operationId,
   ordinaryInput,
 } from '@omne-harness/session-contract/testing'
+import {
+  SessionAccessCheckService,
+  SessionService,
+  sessionTransactionsKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
 import { createSessionStorage, sessionStorageMaterials } from '@omne-harness/session-storage-sql'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
@@ -55,6 +65,7 @@ import type {
   SqlCell,
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
+import { StorageService, TenantDomainLookupService } from '@omne-harness/sql-contract/cordis'
 import { createSqliteStorage as createRealStorage } from '@omne-harness/sqlite-provider'
 import {
   createTestCancellationPolicy,
@@ -62,6 +73,7 @@ import {
 } from '@omne-harness/agent-contract/testing'
 import type { DurableEvidence } from '@omne-harness/agent-contract'
 import { createSessionLogJournal } from '../../src/cordis/agent-journal.ts'
+import { SessionLogAgentJournalProvider } from '../../src/cordis/agent-journal-provider.ts'
 import { encodeSessionSlotRef } from '../../src/slot-ref.ts'
 import { checkpoint, instance, ok, openInput, operation } from './common-journal.ts'
 
@@ -527,4 +539,90 @@ export function handed(s: SqlScene, id: string, receipt: DurableEvidence) {
     },
     guards: [],
   })
+}
+
+/** What `cordisScene` mounts, and how its Session transactions behave. */
+export type CordisSceneOptions = Readonly<{
+  /** Wraps the `commitLog` of the Session transactions (counting, faults). */
+  commitLog?: (
+    inner: NonNullable<SessionTransactionPort<string>['commitLog']>,
+  ) => NonNullable<SessionTransactionPort<string>['commitLog']>
+  /** Leaves `sessionTransactions` out, so a plugin that needs it stays pending. */
+  transactions?: 'absent'
+}>
+
+/**
+ * A real Cordis root over the scene's storage: `storage`, the trusted `tenantDomainLookup`, the
+ * Session access check, the session-log Journal plugin (which sends
+ * `session-adapters/agent-published` after each successful write), `session` whose `work` reads as
+ * the scene's principal, and `sessionTransactions` over the scene's port. `mount` adds a plugin and
+ * `dispose` stops every fiber in reverse order.
+ */
+export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {}) {
+  const ctx = new Context()
+  const fibers: { dispose(): Promise<unknown> }[] = []
+  const mount = async (plugin: Parameters<Context['plugin']>[0], config?: unknown) => {
+    const fiber = await ctx.plugin(plugin, config as never)
+    fibers.push(fiber)
+    return fiber
+  }
+  const storage = s.storage
+  class Storage extends StorageService {
+    readonly registerCombination = storage.registerCombination
+    readonly commit = storage.commit
+    readonly query = storage.query
+    readonly read = storage.read
+  }
+  const domain = s.domain
+  class Lookup extends TenantDomainLookupService {
+    readonly lookup: TenantDomainLookup['lookup'] = input =>
+      Promise.resolve(
+        input.tenant === domain.scope.tenant ? { kind: 'ready', domain } : { kind: 'unregistered' },
+      )
+  }
+  class Access extends SessionAccessCheckService<unknown> {
+    readonly check = (request: SessionAccessRequest<unknown>): Promise<SessionAccessDecision> =>
+      Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) })
+  }
+  const work = { readWork: s.port.readWork }
+  class Session extends SessionService<unknown> {
+    get work(): SessionFaces<unknown>['work'] {
+      return work as unknown as SessionFaces<unknown>['work']
+    }
+    readonly management = {} as SessionFaces<unknown>['management']
+    readonly reconciliation = {} as SessionFaces<unknown>['reconciliation']
+    readonly history = {} as SessionFaces<unknown>['history']
+  }
+  const port = s.port
+  const inner = port.commitLog
+  if (inner === undefined) throw new Error('the Session storage port offers no commitLog')
+  const commitLog = options.commitLog?.(inner) ?? inner
+  class Transactions extends Service {
+    constructor(scope: Context) {
+      super(scope, sessionTransactionsKey)
+    }
+    readonly readWork = port.readWork
+    readonly commitEntries = port.commitEntries
+    readonly commitLog = commitLog
+  }
+  await mount(Storage)
+  await mount(Lookup)
+  await mount(Access)
+  await mount(Session)
+  if (options.transactions !== 'absent') await mount(Transactions)
+  const journal = await mount(SessionLogAgentJournalProvider, s.combination)
+  const face = <T>(key: string) => {
+    const found: unknown = ctx.get(key)
+    if (found === undefined) throw new Error(`${key} is not provided`)
+    return found as T
+  }
+  return {
+    ctx,
+    mount,
+    journalFiber: journal,
+    journal: () => face<AgentJournal<string>>(agentJournalKey),
+    async dispose() {
+      for (const fiber of fibers.splice(0).reverse()) await fiber.dispose()
+    },
+  }
 }

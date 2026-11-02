@@ -46,10 +46,10 @@
 | 编号 | 插件 | 方向 | 提供的键 | 调用 `session` 的调用方类 | 邻域操作 | 当前状态 |
 | --- | --- | --- | --- | --- | --- | --- |
 | [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | Session 自有日志提交内的 CallerCommit 与只读核对 | `./testing` 内存提供者已实现四种 CallerCommit 与 open、submit、attach、tryFinish 的只读核对。attach 按 [PA-01](../session-contract/SPEC.md#pa-01) 第 3 条核对普通推进与取消收束，取消收束含 SE16 条件。tryFinish 含 [PA-02](../session-contract/SPEC.md#pa-02) 的取消分支。judge-cancellation 的判断输入带 Session 的参加者事实。生产提供者经 `session` 参加者在同一次存储提交里核对与参加（[生产提供者的实现现状](#生产提供者的实现现状)）；按 Cordis 插件登记未交付 |
-| [AD-02](#ad-02) | Agent 同日志解释 | 入站 | 无 | `coordinator` | AgentJournal.load；同提供者 output.read/events | `./testing` 内存提供者已实现；生产插件未交付 |
-| [AD-03](#ad-03) | Runtime Context 持有者与 `session.modes` 生产者 | 入站 | `runtimeContextReaderEligibility`（K-RC），由持有者插件提供 | `coordinator`；回放子插件为 `reader` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`registerProducer`、`bind`、`changes`、`diffForReminder` | 回放子插件与持有者插件已实现（`src/cordis/context-holder.ts`），在真实 Cordis 上对 Runtime Context 内存替身验证。`replayFacts` 交给 `createSessionRuntimeContextTrust`。条目到提交输入的翻译协议待 AD-12 交付。`session.modes` 生产者与变化提醒子插件未交付。`./cordis` 导出由集成方合入。见 [AD-03 的实现现状](#ad-03-的实现现状) |
+| [AD-02](#ad-02) | Agent 同日志解释 | 入站 | 无 | `coordinator` | AgentJournal.load；同提供者 output.read/events | `./testing` 内存提供者已实现。生产插件 `createSessionJournalInterpretationPlugin` 已实现（`src/cordis/journal-interpretation.ts`，[实现现状](#ad-02-生产插件)），订阅 `session-adapters/agent-published`，经 `commitLog` 提交；在真实 Cordis 与 node:sqlite 替身上验证。控制事件在生产侧不归一（[已知限制](#已知限制)第 9 条） |
+| [AD-03](#ad-03) | Runtime Context 持有者与 `session.modes` 生产者 | 入站 | `runtimeContextReaderEligibility`（K-RC），由持有者插件提供 | `coordinator`；回放子插件为 `reader` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`registerProducer`、`bind`、`changes`、`diffForReminder` | 回放子插件 `session-ad03-replay`、持有者插件 `session-ad03` 与事实插件 `session-ad03-facts` 已实现（`src/cordis/context-holder.ts`），在真实 Cordis 上对 Runtime Context 内存替身验证。`replayFacts` 由事实插件回答，交给 `createSessionRuntimeContextTrust`；事实插件另以 `sessionScopeLookup` 回答作用域的归属（R2-D14）。条目到提交输入的翻译协议待 AD-12 交付。`session.modes` 生产者与变化提醒子插件未交付。`./cordis` 导出由集成方合入。见 [AD-03 的实现现状](#ad-03-的实现现状) |
 | [AD-04](#ad-04) | Request Context 历史来源 | 入站 | `contextHolderSources`（K-RQ），由历史源子插件提供 | 历史源子插件为 `reader`；下界子插件为 `coordinator` | HistorySource.read/compactionContext；会话侧四个部件经 K-RQ 租借给 agent-context，AD-04 自己不调用 `register`/`replace` | 两个子插件已实现（`src/cordis/history-source.ts`），在真实 Cordis 上对本成员的内存会话验证，K-RQ 套件通过。历史依据解码与固定请求事实由装配交入，真实提供者未交付。`./cordis` 导出由集成方合入。见 [AD-04 的实现现状](#ad-04-的实现现状) |
-| [AD-05](#ad-05) | Model 日志消费适配 | 入站 | 无 | `coordinator` | Agent Journal 的结果与账目读取；`sessionTransactions.commitEntries` | `./testing` 内存提供者已实现。生产插件 `createSessionModelLogConsumptionPlugin` 已实现（`src/cordis/model-log-consumption.ts`，[实现现状](#ad-05-生产插件)），在真实 Cordis 上装载与停止已验证；`./cordis` 导出由集成方合入。缺 `agentMaterials` 提供者时停在 `PENDING`（生产提供者插件已兑现该键，见 Journal 提供者一行）。Model ACK 到达未决 |
+| [AD-05](#ad-05) | Model 日志消费适配 | 入站 | 无 | `coordinator` | Agent Journal 的结果与账目读取；`sessionTransactions.commitEntries` | `./testing` 内存提供者已实现。生产插件 `createSessionModelLogConsumptionPlugin` 已实现（`src/cordis/model-log-consumption.ts`，[实现现状](#ad-05-生产插件)），订阅 `session-adapters/agent-published` 自动消费，在真实 Cordis 上装载与停止已验证；`./cordis` 导出由集成方合入。缺 `agentMaterials` 提供者时停在 `PENDING`（生产提供者插件已兑现该键，见 Journal 提供者一行）。Model ACK 到达未决 |
 | [Journal 提供者](#agent-journal-提供者与非耐久替身) | Agent Journal 提供者 | 入站 | `agentJournal`；同一提供者兑现 `agentJournalEntries` 与 `agentMaterials` | 不调用 `session`；`inject` `sessionAccessCheck`、`storage` 与受信 `tenantDomainLookup`；与 Session 共用会话日志的提交状态 | AgentJournal、AgentJournalEntries、AgentMaterials | 非耐久替身 `createMemorySessionJournal`（`./testing`）已实现。生产提供者 `createSessionLogJournal` 按会话给出三个端口。插件 `SessionLogAgentJournalProvider` 在同一插件体内提供 `agentJournal`、`agentJournalEntries` 与 `agentMaterials`，三者出自同一会话日志 Journal，经 `./cordis` 导出。Journal 与 entries 按租户与 execution 路由到会话；`materials.read` 按材料来源所记的会话路由；`materials.preserve` 不带 execution 也不带会话，存储里没有从 consumer 到会话的索引，答 `unavailable` 且不写入 |
 | [AD-06](#ad-06) | Tool 日志消费适配 | 入站 | 无 | `coordinator` | 同一 AgentJournal 的 entries/results 与 AgentMaterials 读取；`receive(execution/account)` | 生产插件 `createSessionToolLogConsumptionPlugin` 已实现（`src/cordis/tool-log-consumption.ts`），经 `sessionTransactions.commitEntries` 在 `tool-received` 通道提交，在真实 Cordis 上对本成员 `./testing` 内存提供者验证（`tests/tool-log-consumption.spec.ts`）。Tool 交付材料的读法由装配交入；没有已采用的 schema（[TOOL-SETTLEMENT-SCHEMA](../../../docs/architecture/runtime/application-assembly.md#tool-settlement-schema)）时 Tool 条目答 `unavailable` 并保留。行 `session-ad06` 进应用 `./cordis` 桶由集成方合入 |
 | [AD-08](#ad-08) | 受理拓展点接入 | 入站 | 无 | `intake` | 命令域与 hooks 的公开入口 | 待 [NP-07](#np-07) |
@@ -240,6 +240,27 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 
 <a id="ad-03"></a>
 
+##### AD-02 生产插件
+
+`createSessionJournalInterpretationPlugin(input)`（`src/cordis/journal-interpretation.ts`）返回插件 `plugin`（名为 `session-ad02`）与调用入口 `interpret`。插件不提供键。
+
+- 装载：`inject` 为 `session: { caller: 'coordinator' }`、`sessionTransactions`、`storage` 与受信 `tenantDomainLookup`。缺任一键时插件停在 `PENDING`，不提交。`input.coordinator` 与 AD-05、AD-14 的同名输入相同。`sessionTransactions` 没有 `commitLog` 时，调用答 `unavailable`。
+- 触发：插件订阅 `session-adapters/agent-published`（见下一条）。每个事件按会话排队，同一会话的解释一次只做一个。插件启动时不扫描存储；漏掉的事件由同一 execution 的下一个事件补上。`interpret({ tenant, session, execution })` 只进入当前一代插件，插件停止或缺依赖时答 `unavailable`。
+- AD-02 触发事件：`session-adapters/agent-published`（参数 `tenant`、`session`、`execution`，`@mode parallel`）声明在 `src/cordis/agent-journal-provider.ts`。Journal 插件在写方法（open、attach、detach、commit、submit、control、acknowledge、recordResult、recordControl、recordHandoff、tryFinish、commitSettlement、recordTerminalObservation）与 `agentJournalEntries.record` 答复成功之后恰好发一次；读方法、失败的写、没有路由成功的调用、插件停止之后都不发，`materials.preserve` 也不发。插件分发时不等监听者，监听者失败写 warn 日志，不改变答复。载荷只是唤醒信号，不携带事实，订阅者自己读日志。
+- 读取：插件以 `coordinator` 经 `session.work.readWork` 找出拥有该 execution 的 Run 与已存的事件进度 `readThrough`，找不到时答 `unavailable`（`owner` 为 `session-history`）。然后插件经 `readExecutionInterpretation` 读同一会话的 Agent 记录（`execution-record.state` 一次读取）：执行头的修订、边界行所记的头回执，以及 `readThrough` 之后的每个事件和发布点为它归一的后果。
+- 提交：每个事件组一个观察 `SessionLogCommitObservation`，经 `sessionTransactions.commitLog` 提交，一次一个事件，按序号顺序。后果只是 `observed` 的事件没有 Session 行，不单独提交，由下一个提交的事件在间隔里覆盖（session-contract FR-03）。操作身份由观察确定地派生，形如 `ad02_` 加摘要：同一读取的同一事件是同一操作。
+- 失败与认回：`commitLog` 答 `commit-unknown` 或抛错时，插件以同一操作、同一观察再发，最多发三次。session-storage-sql 对 log 形式的 `queryOperation` 答 `conflict`，所以插件不查询，只靠同一操作认回（这是线内实现取舍，偏离 DP2-1 第 3 节「unknown 走 queryOperation」的字样）。答 `changed` 时插件重读一次。其他拒绝原样返回并写日志，不重试。插件停止后不再发送。
+- 停下：后果没有归一的事件（控制事件，或原片段缺失的事件）停止本次解释。插件不把它当作 `observed`，也不提交别的东西；答复的 `waiting` 记从它起尚未提交的事件数。头回执是占位回执（另一 execution 的调用改动了该执行）时答 `unavailable`。
+- 验证：`tests/journal-interpretation.spec.ts` 在真实 Cordis 4.0.4 与 node:sqlite 替身上运行生产 Journal 插件与本插件：一次 Agent 写入之后不经测试调用就解释，进度到达后需要历史的 Session 命令通过（没有插件时答 `unavailable`）；`observed` 事件不提交；丢答复以同一操作认回，日志只有一次提交；同一事件触发两次只提交一次；插件停止、缺 `sessionTransactions`、另一租户的事件与拒绝 `commitLog` 的视图都不提交；R2-D28 反例（取消之后后继 `startRun` 读旧执行的非 `observed` 尾部）在插件提交尾部之后通过；3 轮与 200 轮里每轮的 `commitLog` 次数都是 1。
+
+##### 发布点的后果归一
+
+生产 Journal 在同根索引行的组装处（`src/cordis/agent-journal.ts` 的 `indexOf`）对每个新事件调用内存参照的同一个归一函数 `normalizeAgentEvent`（`src/testing/history.ts`），参数是写入之后的公共根与该执行。事实行的 `kinds` 就是归一结果的种类列表，同一份后果随 Agent 记录状态保存在 `notes.consequences`，边界行所记的头回执保存在 `notes.heads`，所以以后的解释读到的后果与索引一致。
+
+- 归一读的原片段（事件回执、事件的 Pending 与每个消费的首个调用事件、人侧材料）由提交钩子在写入时按内存替身的同一函数 `captureEventOriginal` 捕获，随 Agent 记录状态经 `journal-state` 编码保存。
+- 控制事件的后果读解释时的 Session 状态（原控制行、调用登记与 attempt 关系），生产 Journal 的副本里没有这些，所以控制事件的 `kinds` 为空、后果为空，存储读侧对它答 `unavailable`。原片段缺失的事件同样写空 `kinds`，不补造。
+- 受理行（`er_admission_idx`）带原挂接的 attempt：取 open 或 attach 的提交钩子已记的 Authority 到 attempt 关系；取不到就不写，不按当前推进猜。
+
 #### AD-03 Runtime Context 持有者与 `session.modes` 生产者
 
 本插件以作用域持有者身份使用 Runtime Context 的持有者面，以生产者身份供给 `session.modes`。作用域引用由 Session 铸造，按 Runtime Context 根入口的解码函数解码。
@@ -304,7 +325,7 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 
 ##### AD-03 的实现现状
 
-`createSessionContextHolder`（`src/cordis/context-holder.ts`）给出两个插件和一个端口。两个插件都在 `runtimeContext` 或 `session` 缺席时停在 `PENDING`。
+`createSessionContextHolder`（`src/cordis/context-holder.ts`）给出三个插件和一个端口：`{ holder, replay, facts, replayFacts }`。三个插件必须来自同一次工厂调用，因为它们共用作用域索引。持有者与回放子插件在 `runtimeContext` 或 `session` 缺席时停在 `PENDING`；事实插件只需要 `session`。
 
 1. 回放子插件 `session-ad03-replay` 注入 `runtimeContext`（不带 intercept 配置）与 `session: { caller: 'reader' }`。它是唯一调用 `applyCommit` 的一方。
    - `committed` 通知的种类含翻译协议列出的种类时，它以 `reader` 前向读完该会话的上下文记录，按日志顺序分到各作用域。
@@ -317,16 +338,21 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
    - 同一主体、消费者类与作用域已有资格，并且作用域的恢复与注册修订都没有变时，再交出这份资格。
    - 否则当场签发。块键集合是该消费者类不带翻译的绑定的块键，需要绑定集合是它带翻译的绑定。两者都为空时答 `absent`。同一次恢复内的重签取代旧资格。旧资格属于更早的恢复时，`beginReplay` 已使它失效，所以不取代它。
    - 持有者权威拒绝签发时答 `refused`。Runtime Context 不可用或未知时，原样答 `unavailable` 或 `unknown`。
-3. `replayFacts.stepCommittedBlocks` 交给 `createSessionRuntimeContextTrust`。它重新读该会话的上下文记录，截到 through，答最终注册中有步提交的 checkpointed 块。through 不在日志中时答 `unknown`。没见过的作用域、读不完的历史、翻译缺陷和停止的回放子插件，都答 `unavailable`。
+3. 事实插件 `session-ad03-facts` 注入 `session: { caller: 'coordinator' }`，以 `sessionReplayFacts` 与 `sessionScopeLookup` 两个键提供服务（服务类来自 session-cordis-contract）。插件停止时两个服务撤下，持有旧引用的调用答 `unavailable`。
+   - `replayFacts.stepCommittedBlocks` 交给 `createSessionRuntimeContextTrust`，不再经回放纤程：事实插件读同一批上下文记录，截到 through，答最终注册中有步提交的 checkpointed 块。through 不在日志中时答 `unknown`。回放子插件不运行时它仍可回答；事实插件未运行、读不完的历史与翻译缺陷答 `unavailable`。
+   - 作用域查找（R2-D14）：索引只说去哪里找。命中后以协调者主体读该会话的工作快照，在 `contextScopes` 里找该作用域：找到答 `known`（tenant、session、generation 取自快照，不取自 Cordis 代次或作用域文本）；快照没列出它答 `unknown`（伪造或他租户的作用域落在这里）。读取失败、主体取不到、快照答了另一个会话或租户、插件已停止答 `unavailable`。已结束的作用域仍答归属，答复不表示它仍然活跃。查找不授权任何访问。作用域未命中索引时，先等尚未结束的通知读取再答 `unknown`。
 
-两个插件对 `session` 和持有者面都使用装配交入的会话协调者主体。入参 `coordinator` 与 AD-14 的是同一个端口，取值按 #978 的答复。插件只保存派生物：作用域到会话的索引（进程内，有上界，跨代次保留）、每个作用域的恢复状态（回放子插件的 fiber）和已签发的资格（持有者插件的 fiber）。读取或翻译失败时，插件报告不可用，不把它当作空材料或业务拒绝。
+持有者与事实插件对 `session` 使用 `coordinator` 类和装配交入的会话协调者主体；回放子插件使用 `reader` 类。入参 `coordinator` 与 AD-14 的是同一个端口，取值按 #978 的答复。插件只保存派生物：作用域到会话的索引（进程内，有上界，跨代次保留，由回放子插件与事实插件两处写入，上界同为 `scopeIndexEntries`）、每个作用域的恢复状态（回放子插件的 fiber）和已签发的资格（持有者插件的 fiber）。读取或翻译失败时，插件报告不可用，不把它当作空材料或业务拒绝。
 
 已知缺口：
 
 - 条目到 `CommitInput` 的翻译是 AD-12 的已采用翻译协议，尚未交付。插件从入参 `translation` 取得它。协议交付之前，装配没有它的真实提供者。
 - 作用域到会话的索引只从 `committed` 通知建立。进程重启之后，一个会话在下一次提交之前，K-RC 对它的作用域答 `unavailable`。
 - `session.modes` 生产者、变化提醒子插件、第 1b 项、第 1c 项、归档之后撤销资格，以及签发时核对未应用的 SE07，都尚未交付。持有者插件按上表注入 `session` 的 `coordinator` 配置，但本版不调用它。
-- 每次同步都重读该会话的全部上下文记录，不按游标增量读取。
+- 每次同步都重读该会话的全部上下文记录，不按游标增量读取。事实插件对每个上下文类通知也重读一次（与回放子插件各读一次），成本随会话的上下文记录数线性增长（E9 由 C-JOINT 的 J6 实测）。
+- 事实插件只在自己运行期间建索引。它重启或冷启动后，旧作用域答 `unknown`，直到该会话下一次出现上下文类 `committed` 通知（R2-D14「冷启动后未见过的作用域：答 unknown」）。需要冷启动即可查找时，由调用方用 `unknown` 以外的途径补，本成员不提供。
+
+`historySessionOf(source)`（`src/history-session.ts`，根入口导出）从 Journal 核心铸的 history 证据解出 (tenant 文本, session)，供 ad03、ad04、ad05、ad14 行的 `heads.sessionOf` 使用。规则：owner 等于 Journal 的 owner；record 为命名空间、execution 与 `/history`；命名空间是 JSON 文本 `[tenant, session]`。它不解释 `consumer.work`，不授访问权；调用方在使用 session 之前仍须把 tenant 文本与调用者的租户比较并检查访问。它与 `materialSessionOf` 同源，不共享私有辅助函数。
 
 验证：[tests/context-holder.spec.ts](tests/context-holder.spec.ts) 在真实 Cordis 4.0.4 上运行。Runtime Context 是 runtime-context-contract 的内存替身。信任端口是 C18 的 `createSessionRuntimeContextTrust` 加本插件的 `replayFacts`。翻译协议与会话服务是脚本替身。没有对 runtime-context-cordis 真件、真实会话服务或真实存储运行。
 
@@ -409,9 +435,10 @@ Tool 宿主收到 saved 后自己解除交付责任，结果接收方只返回 s
 
 ##### AD-05 生产插件
 
-`createSessionModelLogConsumptionPlugin(input)`（`src/cordis/model-log-consumption.ts`）返回插件 `plugin` 与调用入口 `consume`。插件不提供键，不订阅事件。
+`createSessionModelLogConsumptionPlugin(input)`（`src/cordis/model-log-consumption.ts`）返回插件 `plugin` 与调用入口 `consume`。插件不提供键。
 
 - 装载：`inject` 为 `session: { caller: 'coordinator' }`、`agentJournal`、`agentMaterials` 与 `sessionTransactions`。缺任一键时插件停在 `PENDING`。任一依赖换代时插件重跑。`input.coordinator` 与 AD-14 的同名输入相同：装配入口按会话给出 coordinator 主体。
+- 触发：插件订阅 `session-adapters/agent-published`，对事件所名的执行调用自己的 `consume`，按会话排队。`consume` 从已存进度起读，所以没有新 Model 条目的事件不提交。received 经 `agentJournalEntries.record` 写入后自动消费一次。
 - 调用：`consume({ tenant, session, execution })` 只进入当前一代插件。插件停在 `PENDING` 或已经停止时，调用答 `unavailable`。插件停止时仍在等待读取的调用不提交，答 `unavailable`。
 - 读取：插件以 `coordinator` 经 `session.work.readWork` 读会话，找出拥有该 execution 的 Run。找不到时答 `unavailable`，`owner` 为 `session-history`。插件再经 `agentJournal.load` 读执行。`entries` 缺席时答 `unavailable`。`kind: received` 且 `delivery.producer: model` 的条目按提交顺序组成 `model-received` 通道。
 - 核对与翻译：插件从已存进度之后逐条处理。
@@ -422,9 +449,9 @@ Tool 宿主收到 saved 后自己解除交付责任，结果接收方只返回 s
 - 提交：已核对的各条组成一次观察，交给 `sessionTransactions.commitEntries`。后果行、进度行与操作答案在一次 Session 提交里发布。`start` 取 `readWork` 读到的已存进度。操作身份由观察确定地派生，形如 `ad05_` 加摘要。Agent 快照没有执行头证据，插件按 load 的修订与通道条目派生 `boundary.executionEvidence`，`owner` 为 `session-adapters/model-log`。
 - 失败与认回：`commitEntries` 答 `commit-unknown` 时，插件以同一观察再发一次，认回原操作。答 `changed` 时插件重读进度，最多三轮。`commitEntries` 抛错时答 `commit-unknown`。提交失败不撤销 Agent 已发布的条目、材料、绑定与 saved，进度也不推进。依赖在提交前抛错时答 `unavailable`。
 - 重复读取：已存进度覆盖的条目不再读材料，也不再提交。插件不注入 Model，也不调用 Model。
-- 不在插件里：Model ACK 到达仍未决，插件不产生 release 或 confirmed，`commitEntries` 也不接收它们（EI-20）。Tool 原确认的投影（JC-RELEASE-TOOL-PATH）不在本插件。谁在什么时候调用 `consume` 由装配决定，装配页现在没有这一行。
+- 不在插件里：Model ACK 到达仍未决，插件不产生 release 或 confirmed，`commitEntries` 也不接收它们（EI-20）。Tool 原确认的投影（JC-RELEASE-TOOL-PATH）不在本插件。插件自己经发布事件触发；装配页现在没有这一行。
 - 装配给：`agentJournal` 与 `agentMaterials` 来自同一个提供者，读同一份已提交状态。生产侧两键都由 `SessionLogAgentJournalProvider` 在同一插件体内兑现（[已知限制](#已知限制)第 6 条只剩 `materials.preserve` 的路由）；装配页还没有本插件的行，生产组合里 `session-ad05` 仍是替身。
-- 验证：`tests/model-log-consumption.spec.ts` 在真实 Cordis 4.0.4 上运行，Session 与 Agent Journal 用 `./testing` 的内存提供者，结果接收方的写入用同一提供者的 `received.commit`。用例覆盖：结果与账目的翻译、未报告账目、重复读取、丢答复认回、`changed` 重读、`entries` 缺席、材料读不到与各类不符、绑定不符、进度超过条目、执行不属于会话、未绑定调用等待、另一租户的目标、调用引用与材料、提交失败与抛错、四个依赖逐个缺席、停止后与停止时在途的调用。内存提供者不证明耐久、跨进程或会话日志生产提供者上的组合。
+- 验证：`tests/model-log-consumption.spec.ts` 在真实 Cordis 4.0.4 上运行，Session 与 Agent Journal 用 `./testing` 的内存提供者，结果接收方的写入用同一提供者的 `received.commit`。用例覆盖：发布事件之后不调用 `consume` 也消费一次、插件停止后事件不消费、结果与账目的翻译、未报告账目、重复读取、丢答复认回、`changed` 重读、`entries` 缺席、材料读不到与各类不符、绑定不符、进度超过条目、执行不属于会话、未绑定调用等待、另一租户的目标、调用引用与材料、提交失败与抛错、四个依赖逐个缺席、停止后与停止时在途的调用。内存提供者不证明耐久、跨进程或会话日志生产提供者上的组合。
 
 <a id="ad-06"></a>
 
@@ -453,6 +480,22 @@ Tool 宿主收到 saved 后自己解除交付责任，结果接收方只返回 s
 
 - `agentMessageHandoff`：`inject` `agentAccessCheck`，对 `prepare`、`lookup` 与 `exclude` 收到的 Agent `Access` 每次调用核一次当前访问。它读写 Session 时经 `session` 面，由 Session 执行边界按 `sessionAccessCheck` 在每次面操作开头再核一次，那是 Session 操作自己的裁定，不替代 Agent 一侧的检查。
 - `agentConditions`：不 `inject` `agentAccessCheck`。`CurrentConditions.read` 收到的 `Access` 只经 `session` 面使用，由 Session 执行边界按 `sessionAccessCheck` 核当前访问；本插件不自行裁定，也不缓存 allowed。装配页给它加上 `agentAccessCheck` 之前，Agent 一侧没有独立的访问检查，这是已知限制。
+
+#### J06 消息准入的生产插件
+
+`createSessionMessageHandoffPlugin(input)`（`src/cordis/message-handoff.ts`，行 `session-handoff`）返回提供 `agentMessageHandoff` 的插件。
+
+- 装载：`inject` 为 `storage`、受信 `tenantDomainLookup`、`agentAccessCheck` 与 `session: { caller: 'coordinator' }`。缺任一键时停在 `PENDING`，不提供键。配置是声明的 Session 日志组合（`combinationVersion`、`manifestDigest`）。`input` 给出协调者主体端口 `coordinator`、主体的稳定身份 `principalIdentity`（不含凭据）与本实现的采用 `provider`。插件停止后，持有旧引用的调用答 `unavailable`。
+- 绑定（Agent 消息准入第 1 步）：每个分支的会话来自可信事实，不来自输入。
+  - invoke：`runtime.scope` 是 AD-14 交给实例的会话槽作用域（`sessionScopeEvidence`）。它的 record 是会话，摘要绑定租户；按调用者租户重算摘要不等时答 `denied`（伪造或他租户的作用域）。再以协调者读该会话快照，当前 Run 须活跃且属于请求的 execution。然后以 `invoke` 与 `scope` 目标问 `agentAccessCheck`。
+  - submit：沿执行索引按 (租户, execution) 找会话；没有时答 `denied`。快照的当前 Run 须属于该 execution，再以 `submit` 与 execution 目标问 `agentAccessCheck`。
+  - execution：沿执行索引找会话，从同会话的 Journal 状态认回 P（请求须与 Journal 保存的 P 相同，否则 `invalid`）。这是运行时在已核验操作之内的调用，不再问 `agentAccessCheck`。
+- 认回（第 2 步）：外部请求按 Ki（execution 与原入口操作），内部请求按 H 读 `execution-record.preadmission`。已有记录的请求不同答 `conflict`；已有结果原样返回，先于 advance 判定。
+- 推进资格（第 3 步，execution 分支）：Journal 状态里该 advance 对应的 attempt 须等于快照的当前推进，否则答 `stale-advance`。
+- 意图（第 4 步）：首次调用以 `preadmission` 意图阶段同次保存 Ki、H、完整 request、origin、主体稳定身份、资格依据与实现采用，存储提交确认之后才继续。
+- 结果（第 6 步）：本波没有表示转换，prepared 的 message 取原 candidate，准入依据取原资格依据；候选不通过 `judgeMessage` 时为 rejected。以结果阶段固定一次，然后答复。
+- `lookup` 以 `read-message-handoff` 问 `agentAccessCheck`，只读记录：有结果答 `recorded`，只有意图答 `unknown` 并带原记录，没有记录答 `unknown`。`exclude` 本波未交付，答 `unsupported`。
+- 验证：`tests/message-handoff.spec.ts`（node:sqlite 替身）覆盖三个分支、同 Ki 认回且不写、伪造与他租户作用域、无 Run 的 execution、资格拒绝、P 不符、`stale-advance` 与结果先于 advance 认回、lookup 不写、他租户读不到。`tests/message-handoff-real.spec.ts`（真实 sqlite-provider，慢层）在子进程保存后杀进程，新进程按原 Ki 读回完整记录，同一 prepare 认回且不写。
 
 两个插件的当前来源、合法 Authority、配置/Context 采用和受理前内容政策仍由各原拥有者提供，本规格不发布新的政策端口。真实提供者未交付时不能装一个默认允许或空条件的插件冒充就绪。
 
@@ -920,11 +963,15 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 3. 替身是非耐久的内存实现，不证明耐久、进程重启或跨进程同提交；它不覆盖 sqlite-provider 或任何真实后端。
 4. K-6 提交协议有两份：切分 X 下，Journal 提供者的存储提交协议（`src/journal-commit.ts`：身份构造、代次循环、存储结果映射）与 session-storage-sql 的 `commit.ts` 是同一套规则的两份。触发条件：Session 组出现第三个提交方，或两份规则出现差异。届时把切分 Y 或「sql-contract 提供通用代次助手」交负责人重开。
 5. K-8 每次发布写整个会话的状态：生产提供者把一个会话的全部 Agent 记录作为一份不透明状态保存，每次 Agent 发布整行替换。写入代价随会话的 Agent 记录线性增长，K-1 的 `maxCommandBytes` 上限因此先到。AG-23 回放里一次写入最大约 0.58 MB。重建副本时整份读一次，读口 `execution-record.state` 有自己的输出上限：它不小于 `maxCommandBytes` 时，写得进的状态读得回（session-storage-sql 已知限制 K-1 写明差额与验证）。触发条件：真实会话的状态接近 `maxCommandBytes`，或写入延迟超过 `perf-baseline.md` 的阈值。届时把状态按执行或按记录拆成多行。
-6. K-9 `materials.preserve` 没有到会话的路由：`SessionLogAgentJournalProvider` 在同一插件体内提供 `agentJournal`、`agentJournalEntries` 与 `agentMaterials`（[生产提供者的实现现状](#生产提供者的实现现状)），装配页的 `agent-journal` 行已指向它。`agentJournal` 与 `agentJournalEntries` 经 session-storage-sql 的执行索引按 `(tenant, execution)` 找到会话，`materials.read` 按材料来源所记的会话路由；`materials.preserve` 不带 execution 也不带会话，存储里没有从 consumer 到会话的索引，所以恒答 `unavailable` 且不写入。这是已知限制：生产侧现在没有它的调用方，consumer 到会话的路由归波 2（DP2-2）。插件不传 `hostRecords`：它是运行时对象，装配怎样给出还没有决定。取消政策安装经插件工厂 `createSessionAgentJournalPlugin({ cancellation })` 交入；不经工厂装载的插件没有取消政策安装。触发条件：生产侧出现 `materials.preserve` 的调用方，或生产组合需要 `hostRecords`。
+6. K-9 `materials.preserve` 的路由：`SessionLogAgentJournalProvider` 在同一插件体内提供 `agentJournal`、`agentJournalEntries` 与 `agentMaterials`（[生产提供者的实现现状](#生产提供者的实现现状)），装配页的 `agent-journal` 行已指向它。`agentJournal` 与 `agentJournalEntries` 经 session-storage-sql 的执行索引按 `(tenant, execution)` 找到会话，`materials.read` 按材料来源所记的会话路由；`materials.preserve` 带 execution 时按 Journal 调用相同的路由找到所属会话，在该会话的 Journal 上保存，输入原样交给会话 Journal（会话 Journal 不把 material 的 execution 当作对该执行记录的写）；租户不是该执行的所有者或没有 Run 开始过该 execution 时答 `denied`（action `preserve`），执行索引不可读答 `unavailable`。不带 execution 时，存储里没有从 consumer 到会话的索引，所以答 `unavailable` 且不写入（兼容期行为）。插件不传 `hostRecords`：它是运行时对象，装配怎样给出还没有决定。取消政策安装经插件工厂 `createSessionAgentJournalPlugin({ cancellation })` 交入；不经工厂装载的插件没有取消政策安装。触发条件：不带 execution 的调用方迁移完毕后删除兼容期的 `unavailable` 分支；或生产组合需要 `hostRecords`。
 7. K-10 Journal 核心在 `src/testing/`：生产提供者导入 `src/testing/journal.ts` 与 `src/testing/root.ts` 的 Journal 核心，与内存替身共用一份 Agent 规则。核心的输入水位线在进程内索引缺项时，从水位线的记录文本还原范围，条件是起点为 0 或一个已知批次的终点、终点不超过已受理的输入数。触发条件：替身与生产提供者的规则需要分开时，把核心移出 `src/testing/`。
 8. K-11 推进资格的快照读：`commit` 等写入的推进资格核对（`advances`）读写入前的 `session.work` 快照，不在存储事务里复核。只有 `open`、`attach`、`submit`、`tryFinish` 与四种 CallerCommit 的 Session 参加在同一次提交里核对。取消判断（judge-cancellation）的参加者事实同样读快照，待交输入的依据记为 `unknown`。触发条件：Session 在快照读与提交之间撤回推进资格的竞争进入用例。
-9. K-12 AD-02 的生产插件未交付（AD-05 已由 `src/cordis/model-log-consumption.ts` 交付）：同日志解释（EC-01 后果、解释进度经 `commitEntries`）与 Model 日志消费只在 `./testing` 替身里实现。生产提供者的读口（`load`、`output.read`、`output.events`）已可供它们使用。同根索引的 Session 后果种类为空（session-storage-sql 已知限制 K-5）。
+9. K-12 生产侧的事件解释有三处缺口。AD-02 与 AD-05 的生产插件已交付（[AD-02 生产插件](#ad-02-生产插件)、[AD-05 生产插件](#ad-05-生产插件)）。
+   - 控制事件不归一：控制事件的后果读解释时的 Session 状态，生产 Journal 的副本里没有，所以它的 `kinds` 与后果都为空，AD-02 停在它前面，存储读侧对需要它的决定答 `unavailable`。取消路径（Agent `control` 写 accepted、intent-established 等控制事件）之后，同一执行后面的事件与需要该尾部的 Session 决定都答 `unavailable`。触发条件：生产取消接续进入验收。届时控制事件改在解释时归一（AD-02 读 Session 历史），或由发布点取得所需的 Session 片段，交负责人定。
+   - 同一提交的多个事件共用来源：Journal 一次提交追加的事件共用同一 `cause`。纯层的游标核对（session-contract `frontier-state`）按来源匹配行，`observed` 事件与同一来源的非 `observed` 事件分不开，答 `quarantined`（"interpretation cursor omits or replaces original consequences"）。内存替身同样如此。触发条件：生产 Agent 在一次提交里写 `message` 与 `waiting` 等混合事件。这是 session-contract 的缺口，交 C-CONTRACT 拥有者。
+   - 启动不扫描：AD-02、AD-05 只由发布事件唤醒，插件启动或换代时不扫描存储；漏掉的事件由同一 execution 的下一个事件补上，没有下一个事件的尾部留在未结工作里。
 10. K-13 真实组合与杀进程认回：生产提供者在真实 sqlite-provider 上运行了首次共同发布与解释提交；Journal 层的杀进程认回没有用例，存储层的杀进程认回由 session-storage-sql 的 `tests/real-joint.spec.ts` 覆盖。生产组合（应用的目录与登记）等 L-APP 的组合声明合入后复跑。
 11. K-14 嵌套深度：本成员的真实 sqlite-provider 用例把 `maxJsonDepth` 设为 80，而 session-storage-sql 的真实夹具用 64。原因已查清：存储对每条命令的事实限制嵌套深度，`create` 的初始化守卫事实（`initializationFixtureFacts`）内嵌了命令输入的带类型形式，输入每多一层，其中约多 7 层 JSON（由下面两个测量值得出）。本成员的场景用 `creation({ initial: ordinaryInput(…) })` 创建会话，输入嵌套到 `input.creation.initial.message.blocks[].visibility` 共 8 层，提交的命令因此嵌套 69 层；不带首条输入的 `creation()` 只有 5 层输入，命令嵌套 48 层。`create-depth.spec.ts` 固定这两个数。限制为 68 时 `create` 得 `command_limit`，69 时通过（慢层用例 `agent-journal-provider.spec.ts` 的真实 provider 路由用例复现），所以降回 64 不可能，除非场景放弃首条输入——而 Run 的首条输入是 `open` 的核对依据。80 在 69 之上留了余量。含义：真实的带首条输入的 `create` 需要 `maxJsonDepth` 至少 69；装配给出的上限需要用真实组合核对，输入消息的嵌套更深时更高。AG-23 回放中 Journal 写入的最大嵌套是 23。
 12. K-15 未定写入只在本进程内记得：存储受理后回复丢失的写入，提供者只在进程内保存它的代次，用来向存储查询（见[生产提供者的实现现状](#生产提供者的实现现状)第 6 步）。进程重启后，这个操作在新提供者看来从未发送过，`query` 答 `unknown`，而不是 `excluded`：存储对没有见过的身份和被丢弃的写入同样答 `not_committed`，只有发送者知道自己发送过。这是保守的答案，不会把没发生的事说成发生了；同一操作再次提交时存储按身份认回或接受。另外，Journal 核心在接管挂接（带 `takeover` 的 `attach`）时把此前待决的写入转为 `excluded`（栅栏）。这一步只改副本，不向存储查询；那个代次此后在存储里是否还会被执行，本提供者不另证明。触发条件：重启后的 `excluded` 查询成为产品需求。届时需要 `execution-record` 在发送之前登记意图，这是存储一侧的新意图，交负责人。
-13. K-16 结果的保管转移被 Session 拒绝：经 `recordResult` 的 `custody` 或 `processed` 转移，派生的 Session 命令 `preserveResult` 或 `completeConsumption` 需要该消费的生产者绑定，Session 没有时以 `invalid(consumption, no matching producer binding)` 停止（session-contract `decide-results`），提供者译为 Agent 的失败，`recordResult` 不推进修订。生产者绑定由 AD-05、AD-06 的 Tool 与 Model 路径登记，这两条生产插件未交付（K-12）。Agent 契约的核心 Journal 套件里有 1 个用例因此失败（见验证一节），已按断言固定。触发条件：AD-05 或 AD-06 的生产插件交付。
+13. K-16 结果的保管转移被 Session 拒绝：经 `recordResult` 的 `custody` 或 `processed` 转移，派生的 Session 命令 `preserveResult` 或 `completeConsumption` 需要该消费的生产者绑定，Session 没有时以 `invalid(consumption, no matching producer binding)` 停止（session-contract `decide-results`），提供者译为 Agent 的失败，`recordResult` 不推进修订。生产者绑定由 AD-05、AD-06 的 Tool 与 Model 路径登记；AD-05 已交付，AD-06 的生产插件另有实现。Agent 契约的核心 Journal 套件里有 1 个用例因此失败（见验证一节），已按断言固定。触发条件：AD-05 或 AD-06 的生产插件交付。
+14. K-17 AD-14 的取消只到 accepted：AD-14 的 `control` 按本规格经公开长期入口 `agentExecutionControl.control` 发出（不要求句柄）。agent-host-local 的长期控制入口只调用 `journal.control`，不调用 `advanceControl`，所以取消控制只保存到 `accepted`，`intent-established` 不会建立；带句柄的 `handle.control.control` 才会推进控制。修复在 Agent 宿主的长期控制入口，不在本成员；本成员不改为用句柄，因为那会违反本规格「control 不用句柄」的规则（见 [AD-14](#ad-14)）。触发条件：Agent 宿主的长期控制入口推进控制之后删除本条。
