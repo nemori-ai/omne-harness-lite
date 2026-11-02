@@ -8,7 +8,7 @@
 
 装载器、就绪、行快照差分、关闭协调器和进程入口 `dist/bin.js` 已经实现。启动次序、停止状态后不再调用 `start`、启动期 `start` 抛出的处置三项也已实现，见「有序关闭」节的「启动与停止状态」。真实模式的子命令 `serve`、行声明 `defineRow`、入口对象注册表与装载前检查已经实现。`./cordis` 已导出 S0 替身插件和多条真实行；`executionHost` 由每次运行的入口闭包另行绑定。真实模式的正文在 [docs/real-mode.md](docs/real-mode.md)，本页只写两种模式共同的行为与它们的差别。
 
-波 2 的驻留桥、宿主文件工厂、租户目录、动作规则、Runtime/Execution 信任入口及采用规划器已有本地实现，精确行为见真实模式的行说明。候选汇集不表示全部成果已被父分支接受，局部测试也不证明生产接线或 M2 闭合。ActorRef 已按 R2-D33 撤回，不在本波交付内。自动首启接线以独立提交 `f258266e56975328eb5b7d3323110f1cd2cee652` 为本页输入；该提交未进入此次文档同步基线，不能据此声称本树启动实测通过。
+驻留桥、宿主文件工厂、租户目录、动作规则、Runtime/Execution 信任入口及采用规划器已有实现。精确行为与生产接线差额见真实模式的行说明。
 
 ## 范围
 
@@ -65,7 +65,7 @@ node apps/harness-server/dist/bin.js serve --distribution <绝对 JSON 路径> [
 - 只在 `serve` 模式：注册表里同一个名字有两个模块（`duplicate-entry-object`，DP1-C11）。
 - 只在 `serve` 模式：发行层引用一个没有行声明的导出，按 `unknown-plugin` 拒绝（DP1-C8）。
 
-真实模式在最终层叠配置与受信预检成功后、入口对象安装和任何业务行装载前，自动准备启用的真实 `session-storage` 租户目录。准备使用最终 `storage` 与 `session-storage` 行配置，调用 `prepareTenantDirectory`，不增加人工首启步骤。全新存储根独占创建并写合法空表；已有根必须有合法登记表，缺表、损坏或半初始化均失败，不补空表。失败结果是独立的 `preparation-failed`，退出 3，stderr 仅写 `serve: tenant directory preparation failed`，不安装入口对象、不运行行体，也不写 `startup-result`。禁用或替身行不触发准备。来源为上述首启接线提交，目录规则归 [session-storage 行说明](docs/rows/session-storage.md)。
+真实模式在最终层叠配置与受信预检成功后、入口对象安装和任何业务行装载前，自动准备启用的真实 `session-storage` 租户目录。准备使用最终 `storage` 与 `session-storage` 行配置，调用 `prepareTenantDirectory`，不增加人工首启步骤。全新存储根独占创建并写合法空表；已有根必须有合法登记表，缺表、损坏或半初始化均失败，不补空表。失败结果是独立的 `preparation-failed`，退出 3，stderr 仅写 `serve: tenant directory preparation failed`，不安装入口对象、不运行行体，也不写 `startup-result`。禁用或替身行不触发准备。目录规则归 [session-storage 行说明](docs/rows/session-storage.md)。
 
 之后按最终树顺序，对每行从根依次 `isolate(名, 标签)` 得到该行上下文，再 `plugin(...)`。`await ctx.plugin(...)` 完成不等于 ACTIVE：入口读取每行实际 `fiber.state`，并对 Cordis 4.0.4 的 `FiberState` 枚举做穷尽映射。
 
