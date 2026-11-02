@@ -11,7 +11,7 @@
 现在的切片是 S1 存储骨架、C-WIRE-SQL 装配、C-COORD 发送协调器与 C-MODEL 静态材料。
 
 - 已实现：四张表与迁移 `001-model-records`；行与调用文档之间的解析；`createSqlModelStorage`，即 `ModelCommandStorage` 的 SQL 实现；参加者 `model`；读 handler `model.call` 与 `model.pending` 及各自的模块文件；静态材料 `modelStorageMaterials()` 及其 `codeDigest`；构造期核对；`createSqlModelCommands`，即共享核心的 22 个方法装在这份存储上；`createSendMirror`，即发送协调器。
-- 未实现：`modelCommands` 应用插件（L-APP）。
+- 已实现：`./cordis` 的 `createSqlModelRecordsPlugin`，在记录插件上发布 `modelCommands`，并拥有独立的发送子插件。应用接线由应用装配承担。
 
 ### 耐久的 ModelCommands
 
@@ -20,7 +20,20 @@
 - 选项是核心的选项（`owners`、`authority`、`evidence`、`clock`、`limits`）加上存储需要的 `storage`、`domains`、`combination`、`maxCallBytes`、`maxCommandBytes`、可选的 `attemptLimit` 与 `unresolvedLimit`，以及可选的 `send`（`mirrorBytes`、可选的 `maxClaims` 与发送来源 `sources`）。
 - 核心的 `limits.capacity` 在这里是每租户份额：`reserved` 给出该租户持有的容量，参加者在受理的同一次提交里按同一份额核对。所以不另设 `tenantCapacity`。
 - 构造期核对：核心的选项与 owner 声明（核心抛出）；N1 与组合（存储抛出）；`limits.scanPageCalls` 不超过 `model.pending` 一页的上限 1000。
-- 返回 `{ commands, coordinator }`。给出 `send` 时，命令与协调器共用同一个被装饰的存储与同一个核心，也就共用同一个资格权威；没有 `send` 时 `coordinator` 为 `null`。`model-records` 装配行用它同时提供 `modelCommands` 与 `modelSendCoordinator`。
+- 返回 `{ commands, coordinator }`。给出 `send` 时，命令与协调器共用同一个被装饰的存储与同一个核心，也就共用同一个资格权威；没有 `send` 时 `coordinator` 为 `null`。记录插件只发布 `modelCommands`；协调器经闭包传给发送子插件工厂，不是服务键。
+
+### Cordis 记录插件
+
+`./cordis` 的公开类型与数据校验归 [cordis.ts](src/cordis.ts) 和 [cordis-config.ts](src/cordis-config.ts)。采用依据为 L-MODEL 波 2 #446 r9 的 RECORDS 闭包。
+
+- 数据配置必须给出 `owners`、完整的 `limits`、`maxCallBytes`、`maxCommandBytes`、`combinationVersion` 与 `send.mirrorBytes/maxClaims`。数值为正安全整数，没有代码默认值。容量为十进制计数字符串。既有核心和 SQL 构造期检查继续生效，包括 N1 与扫描页上限。
+- 对象选项 `resolve(ctx, config)` 在每次激活时取得 `storage`、`domains`、`clock`、`authority`、`evidence`、`sources` 与 `manifestDigest`。应用必须在 `options.inject` 列出该工厂所需的完整服务键常量列表；`modelCommands` 不能成为自身依赖。解析器不替应用推断依赖，也不赋予应用授权政策。
+- 一次激活只调用一次 `createSqlModelCommands`。公开服务的 22 个方法全部委托这一实例。协调器只经 `options.sendStage(coordinator)` 交给发送插件及其数据配置，不挂在服务实例上，不新增服务键。
+- 命令方法准备好后调用 `ctx.plugin` 创建发送子 fiber，不等待它。发送插件可静态依赖 `modelCredential` 与 `modelCommands`。缺凭据只使发送子 fiber 等待，记录服务仍可查询。凭据恢复时由 Cordis 激活子插件。
+- 采用官方 `@deepseek-ai/cordis` 4.0.4，无自有 fork。发送子插件装载抛错时，Cordis 记录错误，子 fiber 进入 `FAILED`，等待该子 fiber 会拒绝；父记录 fiber 仍可为 `ACTIVE`。父启动成功只说明记录服务可用。应用须观察发送子 fiber 或对应日志，不能把父启动成功当作发送就绪。
+- 父 fiber 撤除会撤除命令贡献并等待子 fiber 清理。`storage`、`domains` 及其他注入对象仍归其提供者所有，记录插件不关闭它们。清理不撤销已提交 SQL 事实，也不声明已发出的外部请求可回滚。
+
+[cordis.spec.ts](tests/cordis.spec.ts) 用真实 Cordis、现有 `node:sqlite` 存储夹具与具名发送替身核对上述生命周期、配置拒绝与内存对拍。它不证明真实发送、Worker 耐久性或发行应用接线。
 
 ### 存储端口
 
