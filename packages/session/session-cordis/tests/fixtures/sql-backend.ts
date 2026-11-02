@@ -24,6 +24,7 @@ import {
 import { createSqliteStorage, type SqliteStorageConfig } from '@omne-harness/sqlite-provider'
 import { fixtureInitializationGuard, type BackendFactory } from './backends.ts'
 import { TENANT_A, TENANT_B } from './tenants.ts'
+import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
 
 const COMBINATION = 'c1'
 
@@ -89,11 +90,11 @@ function catalogOf(): { catalog: SqlMaterialCatalog; digest: string } {
     migrations: materials.migrations,
     readHandlers: materials.readHandlers,
     declaredCombinations: {
-      tenant: { combinationVersion: COMBINATION, participants: ['session'] },
+      tenant: { combinationVersion: COMBINATION, participants: [...SESSION_LOG_PARTICIPANTS] },
       system: null,
     },
   }
-  const manifest = combinationManifest({ catalog, participants: ['session'] })
+  const manifest = combinationManifest({ catalog, participants: [...SESSION_LOG_PARTICIPANTS] })
   if (manifest.kind !== 'manifest') throw new Error(`combination is ${manifest.kind}`)
   return { catalog, digest: manifestDigest(manifest.manifest) }
 }
@@ -139,7 +140,7 @@ export const sqlBackend: BackendFactory = {
         transactionDomain: entry.domain.transactionDomain,
         combinationVersion: COMBINATION,
         manifestDigest: digest,
-        participants: ['session'],
+        participants: [...SESSION_LOG_PARTICIPANTS],
       })
       if (registered.kind !== 'registered')
         throw new Error(`registration of ${entry.domain.transactionDomain} is ${registered.kind}`)
