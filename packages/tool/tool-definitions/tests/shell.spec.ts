@@ -64,6 +64,7 @@ it('retains terminal cwd through the fixture and never falls back for invalid or
   const author = value(createShellAuthor(fixture.config))
   const terminal = { id: 'session', generation: '1' }
   expect(await run(author, 'create_session', {}, fixture.environment)).toContain('"id":"session"')
+  expect(fixture.creates[0]).toMatchObject({ retain: 'session' })
   await run(author, 'execute', { terminal, script: 'cd /next' }, fixture.environment)
   expect(await run(author, 'execute', { terminal, script: 'pwd' }, fixture.environment)).toContain(
     '/next',
@@ -93,6 +94,42 @@ it('retains terminal cwd through the fixture and never falls back for invalid or
     ),
   ).toContain('notFound')
   expect(fixture.starts).toHaveLength(0)
+  expect(fixture.attachments.length).toBeGreaterThan(0)
+})
+
+it('refuses a missing or denied attachment before execute and never creates a replacement', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const terminal = { id: 'session', generation: '1' }
+  await run(author, 'create_session', {}, fixture.environment)
+  const unavailable = {
+    ...fixture.environment,
+    terminal: {
+      create: fixture.environment.terminal.create,
+      execute: fixture.environment.terminal.execute,
+      close: fixture.environment.terminal.close,
+      list: fixture.environment.terminal.list,
+    },
+  }
+  expect(await run(author, 'execute', { terminal, script: 'pwd' }, unavailable)).toContain(
+    'unsupported',
+  )
+  const denied = {
+    ...fixture.environment,
+    terminal: {
+      ...fixture.environment.terminal,
+      attach: async () =>
+        ({ kind: 'rejected', requestId: 'denied', reason: 'notAuthorized' }) as const,
+    },
+  }
+  expect(await run(author, 'execute', { terminal, script: 'pwd' }, denied)).toContain(
+    'notAuthorized',
+  )
+  expect(fixture.executions).toHaveLength(0)
+  expect(fixture.starts).toHaveLength(0)
+  expect(fixture.creates).toHaveLength(1)
+  expect(await run(author, 'create_session', {}, unavailable)).toContain('unsupported')
+  expect(fixture.creates).toHaveLength(1)
 })
 
 it('refuses background before either facility starts and drains split UTF-8 with a complete byte bound', async () => {

@@ -4,6 +4,12 @@
 
 ## 模块与依赖
 
+`src/host-retained-terminals.ts` 保存责任域的保留终端索引与每获取附着状态。它通过内部 `RetainedTerminalFactory` 消费平台实现。工厂同步返回终端身份、可恢复资源、start、execute、information 与 stop，不启动进程。共享层先登记资源和容量，再调用 start。平台负责 retention ledger 的创建许可与实际停止确认，共享层负责每段当前获取的账本和唯一运行占位。
+
+Linux 的 `retainedHostTerminalFactory` 在 `host-terminal.ts` 复用原 PTY gate、控制通道、输出缓冲与 systemd scope。scope 描述绑定 retention scope。平台启动在每次异步之后检查传入的封闭函数。创建结束后该函数只跟随保留范围和整个终端的关闭，不跟随创建获取的释放。
+
+索引由 `HostFilesDomain` 持有，没有跨责任域的模块全局索引。每获取门面 seal 与资源 close 分开。附着关系一旦 detach 不能复活。段的恢复引用保存原 shell 坐标，活进程内按段身份停止，跨进程只停止原 shell，不重建附着。资源枚举把进程内预留与平台监督枚举合并，避免把尚未启动或零附着的终端漏掉。
+
 | 入口                                                    | 源文件                                                          | 承载                                                                                                                                          |
 | ------------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@omne-harness/execution-environment-host-local`        | `src/index.ts`                                                  | 重导出下面三个模块的四个函数与类型，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）             |

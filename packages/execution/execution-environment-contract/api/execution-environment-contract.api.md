@@ -635,7 +635,7 @@ export type FileInformation = FileIdentity & {
     readonly modifiedMs: number;
 };
 export type FileEntry = FileInformation & {
-    readonly name: string;
+    readonly name?: string;
 };
 export type FileTarget = {
     readonly path: string;

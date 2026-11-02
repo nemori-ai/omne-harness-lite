@@ -19,7 +19,13 @@ import type {
   Retirement,
 } from '@omne-harness/execution-environment-contract'
 import { commandSettings, createHostCommands, type HostCommandOptions } from './host-command.ts'
-import { createHostTerminals, terminalSettings, type HostTerminalOptions } from './host-terminal.ts'
+import {
+  createHostTerminals,
+  retainedHostTerminalFactory,
+  terminalSettings,
+  type HostTerminalOptions,
+} from './host-terminal.ts'
+import { retainedLegShell } from './host-retained-terminals.ts'
 import {
   domainInternals,
   fingerprintOf,
@@ -409,6 +415,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         acquisition: input.acquisition,
         origin: input.origin,
         scope: input.scope,
+        ...(input.retention === undefined ? {} : { retentionScope: input.retention.scope }),
         placement: input.placement,
       }
       const admitted = internals.admit(
@@ -432,14 +439,16 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
                 acquisition: input.acquisition,
               }),
           }),
-        () =>
-          createHostTerminals({
+        () => {
+          const terminalInput = {
             ledger: input.ledger,
             provider: name,
             scope: input.scope,
             settings: terminal,
             prerequisites: terminalProbe,
-            unavailable: missing =>
+            unavailable: (
+              missing: readonly (HostCommandPrerequisite | HostTerminalPrerequisite)[],
+            ) =>
               report({
                 kind: 'terminalUnavailable',
                 provider: name,
@@ -447,7 +456,16 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
                 missing,
                 acquisition: input.acquisition,
               }),
-          }),
+          }
+          return internals.retainedTerminals.facade({
+            acquisition: input,
+            instance: domain.instance,
+            generation,
+            capacity: terminal.retainedCapacity,
+            ordinary: createHostTerminals(terminalInput),
+            reserve: retainedHostTerminalFactory(terminalInput),
+          })
+        },
       )
       return answerAdmission(admitted, input.acquisition)
     },
@@ -477,7 +495,11 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     async listAcquisitions(scope) {
       const acquisitions: OriginalAcquisition[] = []
       for (const record of internals.records())
-        if (record.state !== 'settled' && record.original.scope.ref === scope.ref)
+        if (
+          record.state !== 'settled' &&
+          (record.original.scope.ref === scope.ref ||
+            record.original.retentionScope?.ref === scope.ref)
+        )
           acquisitions.push(record.original)
       return { kind: 'listed', acquisitions }
     },
@@ -490,12 +512,32 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     },
     // Only the command scopes are managed resources. A host that is not Linux never ran one.
     async listRecoveryResources(scope) {
-      if (process.platform !== 'linux') return { kind: 'listed', resources: [] }
+      const retained = internals.retainedTerminals.resources(scope)
+      if (process.platform !== 'linux') return { kind: 'listed', resources: retained }
       const systemctl = (await supervisor())?.systemctl
       if (systemctl === undefined) return { kind: 'unavailable' }
-      return listScopes({ systemctl, scope, provider: name, boundMs: settings.stopBoundMs })
+      const listed = await listScopes({
+        systemctl,
+        scope,
+        provider: name,
+        boundMs: settings.stopBoundMs,
+      })
+      if (listed.kind !== 'listed') return listed
+      const resources = new Map(listed.resources.map(resource => [resource.key, resource]))
+      for (const resource of retained) resources.set(resource.key, resource)
+      // A reservation may arrive while the supervisor listing is in flight.
+      for (const resource of internals.retainedTerminals.resources(scope))
+        resources.set(resource.key, resource)
+      return { kind: 'listed', resources: [...resources.values()] }
     },
     async recover(resource) {
+      const retained = await internals.retainedTerminals.recover(resource)
+      if (retained !== undefined)
+        return {
+          status: retained === 'confirmed' ? 'confirmedStopped' : 'pending',
+          evidence: null,
+        }
+      resource = retainedLegShell(resource) ?? resource
       const coordinate = readScopeReference(resource.reference)
       if (resource.provider !== name || coordinate === undefined)
         return { status: 'unsupported', evidence: null }
@@ -528,6 +570,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     },
     async retire(): Promise<Retirement> {
       retired = true
+      const retainedDrain = internals.retainedTerminals.retire(generation)
       const own = [...internals.records()].filter(
         record => record.generation === generation && record.state !== 'settled',
       )
@@ -539,14 +582,16 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       }
       // Draining force-stops what this generation still runs: those outcomes end as effectUnknown.
       const results = await Promise.all(own.map(record => internals.drain(record, drainBoundMs)))
-      if (results.every(result => result.kind === 'settled')) {
+      const retainedResources = await retainedDrain
+      if (results.every(result => result.kind === 'settled') && retainedResources.length === 0) {
         // Nothing of this generation is left to report on; the engine stays with the domain.
         files.leave()
         return { kind: 'drained' }
       }
-      const resources = results.flatMap(result =>
-        result.kind === 'pending' ? result.resources : [],
-      )
+      const resources = [
+        ...retainedResources,
+        ...results.flatMap(result => (result.kind === 'pending' ? result.resources : [])),
+      ]
       diagnose(
         own.filter((_, index) => results[index]?.kind === 'pending'),
         resources,

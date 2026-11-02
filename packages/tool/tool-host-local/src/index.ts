@@ -1,4 +1,8 @@
 // Independent local host factories. This entry does not import Cordis.
+export type {
+  StartPermitRequirement,
+  StartPermitRequirements,
+} from './start-permit-requirements.ts'
 export { createLocalToolLoader, type LocalToolLoaderInput } from './author-loader.ts'
 export { createLocalToolBindings, type LocalToolBindingsInput } from './executor-binding.ts'
 export type { LocalAuthorExecution } from './live-author-execution.ts'

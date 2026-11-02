@@ -126,7 +126,7 @@
 
 ### 设施协议
 
-`files.list` 的条目是 `FileEntry`，在 `FileInformation` 上增加必需的 `name`。它是相对所列目录的单个实际路径段，不含该设施路径语法的分隔符，也不是 `.` 或 `..`。提供者从目录项取得名称，不从不透明对象 token 解析。`stat` 的形状不变。采用依据为 [R2-D20](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6576803965)。
+`files.list` 的条目是 `FileEntry`，在 `FileInformation` 上增加可选的 `name`，保留旧写方的合法形状。名称存在时，它是相对所列目录的单个实际路径段，不含该设施路径语法的分隔符，也不是 `.` 或 `..`。本线的 memory files 与 host-local 提供者始终从实际目录项给出名称，不从不透明对象 token 解析。需要名称的消费者遇到缺名条目时整体失败，不补造名称或静默丢条目。`stat` 的形状不变。名称来源要求依据 [R2-D20](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6576803965)，可加形状与失败关闭依据 [R2-D61](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6589414253)。
 
 设施是按名登记的开放协议。每种设施有一份设施声明，由这种设施的拥有者发布：键、操作名单、其中哪些操作须逐操作授权。全系统一个键只有一份声明；同一个键的第二份声明被拒绝登记，原声明不变。撤除声明后新的获取取不到这个键，已有租约上对这个键的后续操作以 `unsupported` 拒绝。拥有者用 `declare module` 增补 `EnvironmentFacilities` 给出类型，`describeFacility` 要求操作名单完整。声明只提供词汇，不安装设施，也不授权操作。依据：产品第 2 版「设施的声明、请求与守卫」。
 

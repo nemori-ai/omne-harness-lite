@@ -12,7 +12,9 @@
 
 ## 本地启动协调器（G5）
 
-`createLocalStartCoordinator({ store, access, guardsOf, commitAttempts })` 返回 `ToolStartAuthority`。`commitAttempts` 不是正安全整数时抛 `TypeError`。
+`createLocalStartCoordinator({ store, access, guardsOf, commitAttempts, permitRequirements? })` 返回 `ToolStartAuthority`。`commitAttempts` 不是正安全整数时抛 `TypeError`。
+
+R2-D60（[#421 的采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6587795951)）限定本波只启动可信来源明确判定不需授权许可的完整固定动作。`permitRequirements` 的可选性只保持旧构造形状，缺席时不允许新启动。生产来源由装配提供，完整授权许可的 grant/consume 配对留在波 3。本包不从空资源、空能力列表、工具名或访问资格推导无需许可。
 
 ### 1 排序域
 
@@ -24,7 +26,9 @@
 
 ### 2 许可与守卫
 
-`prepare` 核对资格、启动记录与固定请求，然后对 `guardsOf(request)` 的每个资源读取当前守卫修订号，从未失效的守卫是 `0`。它把许可提交为该启动的当前许可，再回复许可。新许可替换同一启动的旧许可。许可本身不授权执行。
+`prepare` 在首次异步等待前固定租户、调用、启动记录与完整请求，保留原主体引用。请求经契约判断器复制并冻结，不冻结调用方对象。它先核访问资格，再进入本租户串行区重核资格和当前许可需求。只有 `not-required` 携带完整 `DurableEvidence` 时才签发许可。`required` 回复 `unsupported`，采用为 `startCoordinatorAdoption`，原因为 `authorization-permit-required-in-wave2`。缺来源、未知、不可用、抛错或非法答复均回复 `unavailable`，依赖为 `start-permit-requirements`，不公开异常正文。
+
+协调器对 `guardsOf(request)` 的每个资源读取当前守卫修订号，从未失效的守卫是 `0`。许可记录保存完整固定请求、规范摘要、租户/调用/完整启动/原许可摘要的绑定，以及本次无需许可的来源证据。相同待决启动的不同固定请求回复 `conflict`。旧待决记录缺少完整绑定时回复 `unavailable`，不覆盖旧记录。请求相同的新许可可替换当前许可，但不清除已有的永久拒绝或受理。许可本身不授权执行。
 
 `invalidate` 把一个守卫的修订号加一，与失效操作记录一起提交之后才回复失效证据。每个租户内，操作号绑定完整守卫输入的规范摘要与首次证据。摘要涵盖 owner、resource、revision、完整 evidence 与 scope 变体的全部契约字段，不受属性顺序或额外属性影响。同操作号、同输入重送时回复首次证据，守卫不再前进；同操作号、异输入回复 `conflict`，`operation` 为本次操作号，不写记录。后续失效或使用同一记录仓重建协调器不改变原操作的绑定。提交结果未知回复 `commit-unknown`，不可用回复 `unavailable`，两者都不给证据。
 
@@ -35,9 +39,11 @@
 1. 该启动已有受理时回复原 `started`，已有启动拒绝或整次调用的排除时回复原 `rejected`。
 2. 许可不是该启动的当前许可（摘要不同，或已被 `inspect` 收回）：有排除标记时回复 `not-started` 与该标记，否则回复 `invalid`（`permit: not-issued`）。
 3. 许可里任一守卫的修订号已不是当前修订号：提交永久的启动拒绝，回复 `rejected`。失效先成立，所以不发起。
-4. 否则提交唯一的受理并收回许可，回复 `started`。受理先成立，所以之后的失效只影响后来的启动。
+4. 从持久记录重新校验完整请求、规范摘要与原许可绑定。旧待决记录缺完整请求或绑定时回复 `unknown`，保留原身份。
+5. 在串行区内重核当前访问资格和许可需求。访问被拒或明确需要许可时，提交永久拒绝并收回许可。需许可的原因为 `authorization-permit-required-in-wave2`。依赖不可用、缺席、未知、抛错或非法答复时回复 `unknown`，保留待决许可，不保存受理。
+6. 当前资格与无需许可结论成立后，提交唯一受理并收回许可，回复 `started`。受理记录与受理证据包含消费时的无需许可来源证据，不伪造授权许可消费事实。每次 CAS 冲突都重读记录并重核来源，不沿用上次允许结果。
 
-受理提交结果未知回复 `unknown`，之后重送同一许可会认回受理。
+受理或拒绝提交结果未知回复 `unknown`。之后重送同一许可认回实际提交的原事实。已有受理或拒绝无需再次查询许可需求来源，入口的访问资格检查仍然适用。旧受理不因缺少新来源字段而消失。最终重核后来源变化仍属于已有残余窗口，本包不承诺跨来源的瞬时撤权。
 
 ### 4 inspect
 

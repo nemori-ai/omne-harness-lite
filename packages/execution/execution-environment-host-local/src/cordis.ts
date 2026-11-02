@@ -94,7 +94,13 @@ const commandFields = [
 const pathFields = ['filesRoot', 'stateDirectory'] as const
 const numberFields = ['drainBoundMs', ...commandFields] as const
 const hostFields: readonly string[] = [...numberFields, ...pathFields, 'terminal']
-const terminalFields = [...commandFields, 'maxControlBytes', 'columns', 'rows'] as const
+const terminalFields = [
+  ...commandFields,
+  'maxControlBytes',
+  'columns',
+  'rows',
+  'retainedCapacity',
+] as const
 
 function terminalConfig(value: unknown): ConfigResult<HostTerminalOptions> {
   if (!isPlainRecord(value))

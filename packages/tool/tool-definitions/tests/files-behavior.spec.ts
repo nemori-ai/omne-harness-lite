@@ -3,6 +3,68 @@ import { createFilesAuthor, type FilesAuthorEnvironment } from '@omne-harness/to
 import { filesFixture } from './fixtures/files.ts'
 import { run, value } from './run-author.ts'
 
+it('fails the entire list when an older provider omits one entry name', async () => {
+  const fixture = filesFixture({ '/first': 'a', '/second': 'b' })
+  const originalList = fixture.environment.files.list
+  const environment: FilesAuthorEnvironment = {
+    files: {
+      ...fixture.environment.files,
+      list: async input => {
+        const result = await originalList(input)
+        if (result.kind !== 'done') return result
+        return {
+          ...result,
+          value: {
+            ...result.value,
+            entries: result.value.entries.map((entry, index) => {
+              const copy = { ...entry }
+              if (index === 1) delete copy.name
+              return copy
+            }),
+          },
+        }
+      },
+    },
+  }
+  const result = await run(
+    value(createFilesAuthor(fixture.config)),
+    'list',
+    { path: '/' },
+    environment,
+  )
+  expect(result).toMatch(/^unavailable/)
+  expect(result).toContain('entry-name-unavailable')
+  expect(result).not.toContain('first')
+  expect(result).not.toContain('second')
+  expect(result).not.toContain('done')
+})
+
+it.each(['write', 'edit'] as const)(
+  'reports the actual replacement effect for %s',
+  async command => {
+    const fixture = filesFixture({ '/a': 'before' })
+    const originalWrite = fixture.environment.files.write
+    const environment: FilesAuthorEnvironment = {
+      files: {
+        ...fixture.environment.files,
+        write: async input => {
+          const result = await originalWrite(input)
+          return result.kind === 'done'
+            ? { ...result, value: { ...result.value, writeEffect: 'replaced' } }
+            : result
+        },
+      },
+    }
+    const args =
+      command === 'write'
+        ? { path: '/a', text: 'after', mode: 'replace' }
+        : { path: '/a', old_text: 'before', new_text: 'after' }
+    const text = await run(value(createFilesAuthor(fixture.config)), command, args, environment)
+    expect(text).toContain('write_effect=replaced')
+    expect(fixture.text('/a')).toBe('after')
+  },
+)
+
 it.each(['move', 'copy'] as const)(
   'forwards replacement and version conditions for %s',
   async command => {

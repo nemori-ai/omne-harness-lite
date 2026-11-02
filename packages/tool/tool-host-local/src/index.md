@@ -3,6 +3,7 @@
 - [源码职责与现状](README.md)。
 - [根入口](index.ts)。
 - [本地启动协调器](start-coordinator.ts)。
+- [可信许可需求来源](start-permit-requirements.ts)。
 - [环境调度工厂](scheduled-environment.ts)与[调度策略](environment-policy.ts)。
 - [环境入口校验](environment-input.ts)。
 - [凭据适配工厂](credentials.ts)。

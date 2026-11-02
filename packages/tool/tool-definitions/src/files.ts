@@ -102,7 +102,8 @@ async function executeFiles(
           mode: args.text('mode') === 'create' ? 'create' : 'replace',
           ...expected(args),
         }),
-        value => `${header} ${identityText(value)}`,
+        value =>
+          `${header} ${identityText(value)} write_effect=${value.writeEffect ?? 'unreported'}`,
       ),
     edit: () =>
       editFiles(
@@ -111,12 +112,30 @@ async function executeFiles(
         false,
       ),
     patch: () => editFiles(files, args.edits(), true),
-    list: async () =>
-      confirmation(
-        await files.list({ path, ...page(args) }),
+    list: async () => {
+      const listed = await files.list({ path, ...page(args) })
+      if (listed.kind !== 'done') return confirmation(listed, () => '')
+      const entries: string[] = []
+      for (const entry of listed.value.entries) {
+        const name = entry.name
+        if (
+          typeof name !== 'string' ||
+          name === '' ||
+          name === '.' ||
+          name === '..' ||
+          /[/\\]/u.test(name)
+        )
+          return 'unavailable reason=entry-name-unavailable no entries returned'
+        entries.push(
+          `${JSON.stringify(name)}\t${entry.type}\t${entry.sizeBytes}\t${identityText(entry)}`,
+        )
+      }
+      return confirmation(
+        listed,
         value =>
-          `${header} ${identityText(value.directory)}\nnext_offset=${value.nextOffset ?? 'end'}\n${value.entries.map(entry => `${JSON.stringify(entry.name)}\t${entry.type}\t${entry.sizeBytes}\t${identityText(entry)}`).join('\n')}`,
-      ),
+          `${header} ${identityText(value.directory)}\nnext_offset=${value.nextOffset ?? 'end'}\n${entries.join('\n')}`,
+      )
+    },
     find: async () =>
       confirmation(
         await files.search({
