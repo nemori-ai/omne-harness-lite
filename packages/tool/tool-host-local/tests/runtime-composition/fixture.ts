@@ -72,6 +72,7 @@ export type Author = (
 export async function fixture(
   author: Author = async value => `answer:${value}`,
   receiver?: ToolResultReceiver<unknown, ToolMessageContentBlock>,
+  capacity = 32,
 ) {
   const root = new Context()
   const memory = createMemoryToolLedgerStore<ToolMessageContentBlock>()
@@ -277,7 +278,7 @@ export async function fixture(
           ? qualify({ ...value, principal: principal(value.tenant) })
           : { kind: 'denied', reason: 'wrong-controller' },
     },
-    capacity: 32,
+    capacity,
     observersPerCall: 4,
     observerQueueFrames: 8,
     observerResidenceMs: 1000,
@@ -451,6 +452,35 @@ export async function fixture(
     restoreReceiver: async () => {
       consumer = receive()
       await consumer
+    },
+    async newExecutor() {
+      const nextRoot = new Context()
+      const next = createLocalToolRuntimePlugins(input)
+      const external = nextRoot.plugin({
+        name: 'frozen-reopened-external',
+        apply(ctx: Context) {
+          new Clock(ctx)
+          new PublicationAuthority(ctx)
+          ctx.provide('executionEnvironment', execution)
+        },
+      })
+      await Promise.all([
+        external,
+        nextRoot.plugin(next.records),
+        nextRoot.plugin(next.instanceHost),
+        nextRoot.plugin(next.instances),
+        nextRoot.plugin(next.environments),
+        nextRoot.plugin(next.executor),
+        nextRoot.plugin(next.runtime),
+      ])
+      return {
+        api: nextRoot.toolRuntime,
+        plugins: next,
+        close: async () => {
+          await next.close()
+          await nextRoot.fiber.dispose()
+        },
+      }
     },
     close: async () => {
       await plugins.close()

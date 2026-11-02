@@ -75,3 +75,55 @@ it('C07 retirement rejects new work while preserving unresolved delivery for rea
     await world.close()
   }
 })
+
+it('completed and definitely rejected calls release the bounded scheduling capacity', async () => {
+  const world = await fixture(undefined, undefined, 1)
+  try {
+    const denied = world.invocation('bad-grant')
+    expect(
+      await world.api.invoke({
+        ...denied,
+        request: { ...denied.request, scope: { ...denied.request.scope, key: 'foreign' } },
+      }),
+    ).toMatchObject({ kind: 'rejected' })
+    expect(world.plugins.diagnostics().executor?.knownCalls).toBe(0)
+    const first = accepted(await world.api.invoke(world.invocation('first-slot')))
+    await world.settled(first)
+    await expect.poll(() => world.plugins.diagnostics().executor?.knownCalls).toBe(0)
+    const second = accepted(await world.api.invoke(world.invocation('second-slot')))
+    await world.settled(second)
+    expect(world.launches()).toBe(2)
+  } finally {
+    await world.close()
+  }
+})
+
+it('a new executor reads the original call but never attaches or restarts its old execution', async () => {
+  let complete: (value: string) => void = () => {}
+  const world = await fixture(
+    () =>
+      new Promise(resolve => {
+        complete = resolve
+      }),
+  )
+  let reopened: Awaited<ReturnType<typeof world.newExecutor>> | null = null
+  try {
+    const request = world.invocation('old-execution')
+    const reference = accepted(await world.api.invoke(request))
+    await expect.poll(() => world.launches()).toBe(1)
+    await world.plugins.close()
+    reopened = await world.newExecutor()
+    expect(accepted(await reopened.api.invoke(request))).toBe(reference)
+    const next = reopened
+    await expect
+      .poll(() => next.plugins.diagnostics().executor?.foreignExecutionRuns ?? 0)
+      .toBeGreaterThan(0)
+    expect(world.launches()).toBe(1)
+    expect(unbox(await next.api.instances.current(world.query(reference))).current).toBeNull()
+    expect(world.signals.get('{"value":"old-execution"}')?.aborted).toBe(false)
+  } finally {
+    complete('cleanup')
+    await reopened?.close()
+    await world.close()
+  }
+})

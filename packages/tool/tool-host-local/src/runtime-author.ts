@@ -38,10 +38,12 @@ export function createRuntimeAuthorExecution(
     configuration: ToolConfiguration
     custody: ToolOutputCustody<unknown>
   }>,
-): RuntimeAuthorExecution & Readonly<{ close(): void; pending(): number }> {
+): RuntimeAuthorExecution &
+  Readonly<{ close(): void; pending(): number; retainedReturns(): number }> {
   const text = createLocalTextResults()
   const shutdown = new AbortController()
   const pending = new Map<string, Parameters<ToolOutputCustody<unknown>['preserve']>[0]>()
+  const unencoded = new Map<AbortSignal, Parameters<RuntimeAuthorExecution['settle']>[0]>()
   const retry = () =>
     new Promise<void>(resolve => {
       const done = () => {
@@ -92,6 +94,7 @@ export function createRuntimeAuthorExecution(
   return {
     close: () => shutdown.abort(),
     pending: () => pending.size,
+    retainedReturns: () => unencoded.size,
     scope({ execution }) {
       const blocks = new Map<string, ProcessBlock>()
       const scope = createIndependentToolScope({
@@ -148,12 +151,19 @@ export function createRuntimeAuthorExecution(
       } catch {
         encoded = fail({ reason: 'The original return codec threw.' })
       }
-      if ('failure' in encoded)
+      if ('failure' in encoded) {
+        unencoded.set(call.execution.signal, call)
+        process.emitWarning(
+          'The original Tool return remains in memory after output codec failure.',
+          { code: 'TOOL_OUTPUT_CODEC_FAILED' },
+        )
         return fail({
           kind: 'unavailable',
           dependency: 'author-output-codec',
           diagnostic: encoded.failure.reason,
         })
+      }
+      unencoded.delete(call.execution.signal)
       const bytes = encoded.ok.slice()
       const raw = await retain({
         principal: call.principal,

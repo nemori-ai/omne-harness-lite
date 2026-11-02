@@ -66,6 +66,7 @@ export function createLocalToolRuntimePlugins(input: LocalToolRuntimeInput) {
         !retired &&
         executor !== null &&
         (wake === null ? executor.live() : executor.remember(wake)),
+      wake => executor?.rejectAdmission(wake),
     )
   }
   const close = async () => {
@@ -150,6 +151,7 @@ export function createLocalToolRuntimePlugins(input: LocalToolRuntimeInput) {
     diagnostics: () => ({
       retired,
       pendingOutputCustody: authorExecution.pending(),
+      retainedAuthorReturns: authorExecution.retainedReturns(),
       executor: executor?.diagnostics() ?? null,
     }),
   }

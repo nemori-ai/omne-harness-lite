@@ -110,10 +110,19 @@ export function createRuntimeDependencies(
   records: RuntimeRecords,
   host: () => ToolInstanceHost<unknown> | null,
   admit: (wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0] | null) => boolean,
+  rejectAdmission: (wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0]) => void,
 ): ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue> {
   const absent = createAbsentToolPorts<unknown>()
   return {
     ...records.ledger,
+    admissions: {
+      async admit(request) {
+        const answer = await records.ledger.admissions.admit(request)
+        if ('failure' in answer && answer.failure.kind !== 'commit-unknown')
+          rejectAdmission(request)
+        return answer
+      },
+    },
     ...stages,
     authority: records.authority,
     clock: input.clock,
@@ -135,7 +144,7 @@ export function createRuntimeDependencies(
             },
           }
         const bound = await input.sources.issuer.resolve(request)
-        if (bound.kind === 'rejected' || bound.kind === 'association-unknown') return bound
+        if (bound.kind !== 'bound') return bound
         if (!admit({ tenant: request.tenant, call: bound.call }))
           return {
             kind: 'rejected',
