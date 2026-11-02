@@ -5,7 +5,9 @@
 // PENDING and names that key. The trust is a test stand-in over the contract's scripted authority
 // ports: the real one is built by the assembly entry from the session bridge. The configuration is
 // the bounds and the diagnostics level of the assembly page; unknown fields and values outside a
-// bound are refused.
+// bound are refused. The last group loads the row on the real entry object `runtimeContextTrust`:
+// the row is ACTIVE, and a targeted operation of a verified principal answers `unavailable` with
+// cause `scope-binding`, because the entry cannot bind Session's scope digest to a tenant yet.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -22,7 +24,13 @@ import {
   runtimeContextKey,
   runtimeContextTrustKey,
 } from '@omne-harness/runtime-context-cordis-contract/cordis'
-import { rowDeclarationOf } from '../../../src/row.ts'
+import type { Plugin } from '@deepseek-ai/cordis'
+import { principalIssuerKey } from '@omne-harness/identity/cordis'
+import type { PrincipalIssuer } from '@omne-harness/identity'
+import type { RegistrationChange } from '@omne-harness/runtime-context-contract'
+import { principalIssuer, principalVerifier } from '../../../src/entry/principals.ts'
+import { runtimeContextTrust } from '../../../src/entry/runtime-context-trust.ts'
+import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { serveProfile } from '../../../src/profile.ts'
 import { runtimeContextRow } from '../../../src/rows/runtime-context/index.ts'
 import type { EntryObjectModule, RowId } from '../../../src/types.ts'
@@ -184,4 +192,72 @@ describe('the runtime-context row: on a test stand-in of `runtimeContextTrust`',
     expect(tree.state('runtime-context').state).toBe('FAILED')
     expect(tree.service(runtimeContextKey)).toBeUndefined()
   })
+})
+
+describe('the runtime-context row: on the real `runtimeContextTrust` entry object', () => {
+  /** A probe row that sees `principalIssuer`, issues an acting principal and asks the row once. */
+  function probeRow(seen: unknown[]): Plugin.Object {
+    const plugin: Plugin.Object = {
+      name: 'probe-runtime-context',
+      inject: [principalIssuerKey, runtimeContextKey],
+      async apply(ctx: Context) {
+        const issuer: PrincipalIssuer | undefined = ctx.get(principalIssuerKey)
+        if (issuer === undefined) throw new Error('fixture: no principalIssuer')
+        const actor = issuer.issueSystem({ component: 'session-ad03' })
+        if ('failure' in actor) throw new Error('fixture: actor')
+        const acting = issuer.issueActingForTenant({
+          actor: actor.ok,
+          tenant,
+          work: { owner: 'session', work: 'ses_1' },
+        })
+        if ('failure' in acting) throw new Error('fixture: acting principal')
+        const service: RuntimeContextOperations<unknown> | undefined = ctx.get(runtimeContextKey)
+        if (service === undefined) throw new Error('fixture: no runtimeContext')
+        const change: RegistrationChange = {
+          kind: 'remove',
+          scope,
+          tenant,
+          key: 'test.notes',
+          basedOn: 1,
+          creating: false,
+        }
+        seen.push(await service.prepareRegistration(acting.ok, change))
+        seen.push(await service.prepareRegistration(actor.ok, change))
+      },
+    }
+    return defineRow({
+      row: 'probe',
+      implementation: 'real',
+      manifest: {
+        provides: [],
+        injects: [principalIssuerKey, runtimeContextKey],
+        sameProviderGroup: null,
+      },
+      lifecycle: { kind: 'none' },
+      plugin,
+    })
+  }
+
+  it(
+    'is ACTIVE, and a targeted operation is unavailable (scope-binding) for a verified principal and refused for a system principal',
+    { timeout: 60_000 },
+    async () => {
+      const base = makeBase()
+      release.push(() => base.release())
+      const seen: unknown[] = []
+      const tree = await loadTree({
+        base,
+        rows: [declared(runtimeContextRow), declared(probeRow(seen))],
+        entryObjects: [principalVerifier, principalIssuer, runtimeContextTrust],
+        visibility: new Map([['probe' as RowId, [principalIssuerKey]]]),
+      })
+      release.push(() => tree.dispose())
+      expect(tree.allActive).toBe(true)
+      expect(tree.state('runtime-context')).toMatchObject({ state: 'ACTIVE', missing: [] })
+      expect(seen).toEqual([
+        { kind: 'unavailable', cause: 'scope-binding' },
+        { kind: 'refused', reason: 'unauthorized' },
+      ])
+    },
+  )
 })

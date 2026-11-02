@@ -15,6 +15,7 @@ import {
 import { modelClock } from './model-clock.ts'
 import { principalIssuer, principalVerifier, sessionPrincipals } from './principals.ts'
 import { requestContextTrust } from './request-context-trust.ts'
+import { runtimeContextTrust } from './runtime-context-trust.ts'
 import { sessionClock } from './session-clock.ts'
 import { sessionCustodySource, sessionProductionSource } from './session-evidence-sources.ts'
 import { sessionWorkPrincipals } from './session-work-principals.ts'
@@ -29,6 +30,7 @@ export const entryObjects: readonly EntryObjectModule[] = [
   sessionPrincipals,
   sessionWorkPrincipals,
   requestContextTrust,
+  runtimeContextTrust,
   sessionClock,
   sessionProductionSource,
   sessionCustodySource,

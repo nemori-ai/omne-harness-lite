@@ -45,7 +45,7 @@ beforeEach(() => {
 })
 
 describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
-  it('the release tree of 17 real and 32 s0-double rows loads, accepts, stops on request and exits 0', async () => {
+  it('the release tree of 19 real and 30 s0-double rows loads, accepts, stops on request and exits 0', async () => {
     // The operator layer gives what the distribution file does not hold: absolute paths and the port.
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
@@ -72,6 +72,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         'session-ad06:real',
         'session-ad09:real',
         'session-ad10:real',
+        'session-ad12:real',
         'agent-journal:real',
         'agent-adoptions:real',
         'adoption-sources:real',
@@ -80,6 +81,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         'model-converters:real',
         'model-profiles:real',
         'model-credential:real',
+        'runtime-context:real',
         'server-entry:real',
       ])
       expect(run.of('row-state').every(r => r['state'] === 'ACTIVE')).toBe(true)
@@ -90,7 +92,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         outcome: 'ready',
         enabledRows: 49,
         barrierCalls: 1,
-        implementations: { real: 17, 'contract-double': 0, 's0-double': 32 },
+        implementations: { real: 19, 'contract-double': 0, 's0-double': 30 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])
@@ -211,7 +213,12 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
 
   it('R1-3: a real row that injects an entry-object name the registry lacks is PENDING, with the module it is ACTIVE', async () => {
     const rows = tree([{ id: 'runtime-context', plugin: 'fixtureRuntimeContext' }])
-    const without = await serveOnce({ distribution: rows, plugins: fixturePlugins })
+    // The release registry carries `runtimeContextTrust` since C-TRUST; a registry without it is given explicitly.
+    const without = await serveOnce({
+      distribution: rows,
+      plugins: fixturePlugins,
+      entryObjects: [],
+    })
     expect(without.result.exitCode).toBe(4)
     expect(without.state('runtime-context')).toMatchObject({
       state: 'PENDING',

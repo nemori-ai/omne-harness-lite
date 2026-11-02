@@ -75,7 +75,7 @@
     },
     {
       "id": "session-ad12",
-      "plugin": "stubPlugin",
+      "plugin": "sessionAd12Row",
       "config": {}
     },
     {
@@ -285,7 +285,7 @@
     },
     {
       "id": "runtime-context",
-      "plugin": "stubPlugin",
+      "plugin": "runtimeContextRow",
       "config": {}
     },
     {
