@@ -52,6 +52,8 @@ type Faults = {
   epochChangedAt: number | null
   /** The `readWork` answer gets this `contextScopes` value. */
   scopes?: WorkSnapshot['contextScopes']
+  /** Rewrites every model view page Session answers, to a shape Session itself never gives. */
+  page?: (page: Extract<ModelViewRead, { kind: 'page' }>) => ModelViewRead
 }
 type Mounted = 'session' | 'lowerBound' | 'source'
 
@@ -99,6 +101,7 @@ async function world(
         const answer = await history.readModelView(input)
         if ('ok' in answer && answer.ok.kind === 'page') {
           modelViewRows.push(answer.ok.rows.length)
+          if (faults.page !== undefined) return { ok: faults.page(answer.ok) }
           if (faults.epochChangedAt === views) {
             const changed: ModelViewRead = {
               kind: 'epoch-changed',
@@ -146,6 +149,11 @@ async function world(
   })
 
   const ctx = options.ctx ?? new Context()
+  const logged: { name: string; type: string; text: string }[] = []
+  ctx.logger.exporter({
+    export: message =>
+      logged.push({ name: message.name, type: message.type, text: String(message.args[0]) }),
+  })
   const fibers = new Map<Mounted, Awaited<ReturnType<Context['plugin']>>>()
   const plugins = { session: Session, lowerBound: ad04.lowerBound, source: ad04.source } as const
   for (const name of options.mount ?? (['session', 'lowerBound', 'source'] as const)) {
@@ -227,6 +235,7 @@ async function world(
     fibers,
     calls,
     faults,
+    logged,
     qualification,
     head,
     access,
@@ -457,6 +466,79 @@ describe('the history read translates the Session model view', () => {
       }),
     ).toEqual({ kind: 'invalid', field: 'evidence', reason: 'upper-out-of-range' })
     expect(w.sessionCalls()).toBe(before)
+  })
+
+  // The Session model view numbers its rows from 1 and names the empty view by the bound "0", so a
+  // row or a cursor "0" has no history sequence, and a text that is not a canonical decimal has
+  // none either. The page is Session's, so a bad one is a defect of the translation: it is
+  // `unavailable` and it is logged at error level, never a quiet empty page or a made-up sequence.
+  describe('a Session page that does not translate is a visible defect', () => {
+    const rowZero = (page: Extract<ModelViewRead, { kind: 'page' }>): ModelViewRead => ({
+      ...page,
+      rows: page.rows.map((row, at) => (at === 0 ? { ...row, seq: '0' } : row)),
+    })
+    const cursor = (next: string) => (page: Extract<ModelViewRead, { kind: 'page' }>) =>
+      ({ ...page, next }) as ModelViewRead
+    it.each([
+      {
+        name: 'a row numbered 0',
+        page: rowZero,
+        diagnostic: 'model view row 0 does not translate',
+      },
+      {
+        name: 'a row that is not a canonical decimal',
+        page: (page: Extract<ModelViewRead, { kind: 'page' }>): ModelViewRead => ({
+          ...page,
+          rows: page.rows.map((row, at) => (at === 0 ? { ...row, seq: '01' } : row)),
+        }),
+        diagnostic: 'model view row 01 does not translate',
+      },
+      {
+        name: 'a next cursor of 0',
+        page: cursor('0'),
+        diagnostic: 'the model view cursor is not a history sequence',
+      },
+      {
+        name: 'a next cursor that is not a canonical decimal',
+        page: cursor('1.5'),
+        diagnostic: 'the model view cursor is not a history sequence',
+      },
+    ])('$name', async ({ page, diagnostic }) => {
+      const w = await world()
+      const { parts } = await w.borrow()
+      await w.remind(2)
+      const ev = await resolved(w, parts)
+      w.faults.page = page
+      const answer = await parts.history.read({
+        access: w.access,
+        evidence: ev,
+        cursor: null,
+        budgetBytes: 1,
+      })
+      expect(answer).toMatchObject({
+        kind: 'unavailable',
+        diagnostic: `translation defect: ${diagnostic}`,
+      })
+      expect(w.logged).toContainEqual({
+        name: 'session-adapters/history-source',
+        type: 'error',
+        text: `translation defect: ${diagnostic}`,
+      })
+    })
+
+    it('a bound of 0 in the basis is the empty history, not a defect', async () => {
+      const w = await world()
+      const { parts } = await w.borrow()
+      const ev = await resolved(w, parts)
+      const answer = await parts.history.read({
+        access: w.access,
+        evidence: { ...ev, upper: { kind: 'empty' } },
+        cursor: null,
+        budgetBytes: 1,
+      })
+      expect(answer.kind).not.toBe('unavailable')
+      expect(w.logged.filter(item => item.type === 'error')).toEqual([])
+    })
   })
 
   it('answers a scope it has not resolved unavailable, without a Session call', async () => {

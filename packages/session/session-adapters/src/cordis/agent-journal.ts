@@ -120,7 +120,16 @@ export type SessionLogJournalOptions<P> = Readonly<{
   combination: JournalCombination
   cancellation?: MemoryAgentJournalOptions<P>['cancellation']
   hostRecords?: MemoryAgentJournalOptions<P>['hostRecords']
+  /**
+   * Called with a diagnostic for a programming error (a `TypeError`) that the Journal read past
+   * while it normalized an event: the event is then left undecided, as for a missing original, and
+   * the Agent write keeps its answer. The owner logs it at error level.
+   */
+  fault?: Fault
 }>
+
+/** The channel a defect that the Journal went on past is reported through. */
+type Fault = (diagnostic: string) => void
 
 export type SessionLogJournalProvider<P> = AgentReceivedProvider<P, ContentBlock> & {
   received: NonNullable<AgentReceivedProvider<P, ContentBlock>['received']>
@@ -267,6 +276,26 @@ function durableRecords(root: CommonRoot): DurableAgentRecords {
 }
 
 /**
+ * The result of reading an original fragment, or null when the fragments do not give it. A missing
+ * original (`HistoryFailure`) is the expected reason, and nothing is invented for it. A
+ * `TypeError` is a defect of the reader, not a fact about the data: it is reported through `fault`
+ * and the read still answers null, so the Agent write that triggered it is not lost. Any other
+ * error is not this function's to hide.
+ */
+export function readOrNull<T>(what: string, fault: Fault | undefined, read: () => T): T | null {
+  try {
+    return read()
+  } catch (error) {
+    if (error instanceof HistoryFailure) return null
+    if (error instanceof TypeError) {
+      fault?.(`${what} read past a ${error.name}: ${error.message}`)
+      return null
+    }
+    throw error
+  }
+}
+
+/**
  * The Session consequences of one event as the shared normalization of the memory reference gives
  * them, from the original fragments of the same root; null when the fragments do not decide them
  * (a control event, an original that this root does not hold). Nothing is invented for a null.
@@ -275,13 +304,11 @@ function consequencesOf(
   root: CommonRoot,
   execution: MemoryExecution,
   event: MemoryExecution['events'][number],
+  fault: Fault | undefined,
 ): readonly SessionLogConsequence[] | null {
-  try {
-    return normalizeAgentEvent(root, execution, event)
-  } catch (error) {
-    if (error instanceof HistoryFailure || error instanceof TypeError) return null
-    throw error
-  }
+  return readOrNull(`the consequences of ${execution.id}/${event.sequence}`, fault, () =>
+    normalizeAgentEvent(root, execution, event),
+  )
 }
 
 /**
@@ -293,14 +320,12 @@ function deferredOf(
   root: CommonRoot,
   execution: MemoryExecution,
   event: MemoryExecution['events'][number],
+  fault: Fault | undefined,
 ): SessionControlEvidence | null {
   if (event.body.kind !== 'control') return null
-  try {
-    return controlEventEvidence(root, execution, event)
-  } catch (error) {
-    if (error instanceof HistoryFailure || error instanceof TypeError) return null
-    throw error
-  }
+  return readOrNull(`the control evidence of ${execution.id}/${event.sequence}`, fault, () =>
+    controlEventEvidence(root, execution, event),
+  )
 }
 
 /** The placeholder head of an execution that another execution's call changed (SPEC K-5). */
@@ -325,6 +350,7 @@ function indexOf(
   changed: readonly MemoryExecution[],
   receipt: CommandReceipt | null,
   notes: InterpretationNotes,
+  fault: Fault | undefined,
 ): Readonly<{
   boundaries: ExecutionBoundaryRecord[]
   facts: ExecutionFactRecord[]
@@ -338,8 +364,8 @@ function indexOf(
     const fresh = execution.events.slice(prior?.events.length ?? 0)
     for (const event of fresh) {
       if (event === undefined) continue
-      const consequences = consequencesOf(after, execution, event)
-      const control = consequences === null ? deferredOf(after, execution, event) : null
+      const consequences = consequencesOf(after, execution, event, fault)
+      const control = consequences === null ? deferredOf(after, execution, event, fault) : null
       notes.consequences.set(eventKey(execution.id, event.sequence), consequences)
       if (control !== null) notes.controls.set(eventKey(execution.id, event.sequence), control)
       facts.push({
@@ -379,17 +405,19 @@ function indexOf(
  * left out, not the write: the event's consequences are then not decided, and its fact row says so
  * with empty kinds.
  */
-function captureFresh(root: CommonRoot, execution: string, receipt: CommandReceipt): void {
+function captureFresh(
+  root: CommonRoot,
+  execution: string,
+  receipt: CommandReceipt,
+  fault: Fault | undefined,
+): void {
   const found = [...root.agent.executions.values()].find(item => item.id === execution)
   if (found === undefined) return
   const old = root.agent.indexedEvents.get(execution) ?? 0
-  for (const event of found.events.slice(old)) {
-    try {
-      captureEventOriginal(root, found, event, receipt)
-    } catch (error) {
-      if (!(error instanceof HistoryFailure || error instanceof TypeError)) throw error
-    }
-  }
+  for (const event of found.events.slice(old))
+    readOrNull(`the original of ${execution}/${event.sequence}`, fault, () =>
+      captureEventOriginal(root, found, event, receipt),
+    )
   root.agent.indexedEvents.set(execution, found.events.length)
 }
 
@@ -911,7 +939,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         participation(book, cell, input, method, receipt, decision),
       committed(input, method, receipt) {
         if (method === 'open' || method === 'attach') rememberAuthority(book, cell, input)
-        captureFresh(cell.state(), input.execution, receipt)
+        captureFresh(cell.state(), input.execution, receipt, options.fault)
         return undefined
       },
     })
@@ -1145,7 +1173,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       consequences: new Map(copy.notes.consequences),
       controls: new Map(copy.notes.controls),
     }
-    const index = indexOf(before, after, changed, receipt, notes)
+    const index = indexOf(before, after, changed, receipt, notes, options.fault)
     const admissions = admissionsOf(after, written, own, receipt, scratch)
     const execution = written.execution ?? own?.id ?? '-'
     const operation = storageOperation(
@@ -1193,6 +1221,112 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return settle(book, copy, notes, after, written, scratch, answer, operation, outcome)
   }
 
+  /** What one publication needs to turn a storage outcome into the call's answer. */
+  type Settling<T> = Readonly<{
+    book: Book<P>
+    copy: Copy<P>
+    notes: InterpretationNotes
+    after: CommonRoot
+    written: Written
+    scratch: Scratch
+    answer: Outcome<T, Failure>
+    /** The Agent operation of the write; null for a write without one (the material port). */
+    agentOperation: AgentOperationId | null
+  }>
+
+  /**
+   * A write without an Agent operation (the material port) has no identity to name or to recall
+   * by: wherever an answer would name one, it is `unavailable`, never an invented identity.
+   */
+  function nameless<T>(what: string): Settled<T> {
+    return {
+      kind: 'answer',
+      value: fail(unavailable(`${what} of a write without an Agent operation`)),
+    }
+  }
+
+  /** A conflict on the operation of the write: the same digest is the write itself, again. */
+  function conflicting<T>(job: Settling<T>, digest: string): Settled<T> {
+    if (digest === job.written.digest) return { kind: 'again' }
+    return job.agentOperation === null
+      ? nameless('a conflict')
+      : { kind: 'answer', value: fail({ kind: 'conflict', operation: job.agentOperation }) }
+  }
+
+  /** The write committed: the call's answer, and the copy then reflects it. */
+  function settleCommitted<T>(
+    job: Settling<T>,
+    receipt: Extract<Awaited<ReturnType<typeof commitJournal>>, { kind: 'committed' }>,
+  ): Settled<T> {
+    const entry = receipt.receipt.responses.find(item => item.participant === 'execution-record')
+    const reply = entry === undefined ? null : decodeExecutionRecordReply(entry.reply)
+    if (reply?.kind !== 'published')
+      return {
+        kind: 'answer',
+        value: fail(unavailable('a committed receipt without the Agent records')),
+      }
+    // An earlier generation committed this operation: the durable records answer it.
+    if (receipt.recalled) return conflicting(job, reply.digest)
+    job.book.copy = { ...job.copy, notes: job.notes }
+    job.book.published = reply.published
+    // What the copy holds is now durable: an excluded write, and one the Journal core fenced.
+    for (const at of job.book.held.keys()) {
+      const record = job.after.agent.operations.get(at)
+      if (record !== undefined && record.kind !== 'pending') job.book.held.delete(at)
+    }
+    return { kind: 'answer', value: job.answer }
+  }
+
+  /** The `execution-record` participant stopped the write: a lost race is `again`. */
+  function settleRecordStop<T>(
+    job: Settling<T>,
+    reply: ReturnType<typeof decodeExecutionRecordReply>,
+  ): Settled<T> {
+    switch (reply.kind) {
+      case 'revision-conflict':
+        return { kind: 'again' }
+      case 'operation-conflict':
+        return conflicting(job, reply.digest)
+      default:
+        return {
+          kind: 'answer',
+          value: fail(unavailable(`the Agent records were not saved: ${reply.kind}`)),
+        }
+    }
+  }
+
+  /** The Session participant stopped the write. */
+  function settleSessionStop<T>(
+    job: Settling<T>,
+    stop: Parameters<typeof decodeSessionReply>[0],
+  ): Settled<T> {
+    const reply = decodeSessionReply(stop)
+    const method = participationOf(job.written.method)
+    switch (reply.kind) {
+      case 'stopped':
+        return {
+          kind: 'answer',
+          value: fail(
+            method === null || job.agentOperation === null
+              ? unavailable('a Session stop without a participation')
+              : participationFailure(
+                  method,
+                  reply.failure as SessionFailure,
+                  job.agentOperation,
+                  job.scratch.commands[0]?.kind,
+                ),
+          ),
+        }
+      case 'unsupported':
+        return { kind: 'answer', value: fail({ kind: 'unsupported' }) }
+      default:
+        return {
+          kind: 'answer',
+          value: fail(unavailable(`the Session participant failed: ${JSON.stringify(reply)}`)),
+        }
+    }
+  }
+
   /**
    * What one storage outcome of a publication answers: the call's answer once the write committed
    * (the copy then reflects it), `again` for a lost race or a recalled own write, and the failure
@@ -1209,40 +1343,20 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     operation: string,
     outcome: Awaited<ReturnType<typeof commitJournal>>,
   ): Settled<T> {
-    // A write without an Agent operation (the material port) has no identity to name or to recall
-    // by: wherever an answer would name one, it is `unavailable`, never an invented identity.
     const agentOperation = written.operation as AgentOperationId | null
-    const nameless = (what: string): Settled<T> => ({
-      kind: 'answer',
-      value: fail(unavailable(`${what} of a write without an Agent operation`)),
-    })
+    const job: Settling<T> = {
+      book,
+      copy,
+      notes,
+      after,
+      written,
+      scratch,
+      answer,
+      agentOperation,
+    }
     switch (outcome.kind) {
-      case 'committed': {
-        const entry = outcome.receipt.responses.find(
-          item => item.participant === 'execution-record',
-        )
-        const reply = entry === undefined ? null : decodeExecutionRecordReply(entry.reply)
-        if (reply?.kind !== 'published')
-          return {
-            kind: 'answer',
-            value: fail(unavailable('a committed receipt without the Agent records')),
-          }
-        if (outcome.recalled)
-          // An earlier generation committed this operation: the durable records answer it.
-          return reply.digest === written.digest
-            ? { kind: 'again' }
-            : agentOperation === null
-              ? nameless('a conflict')
-              : { kind: 'answer', value: fail({ kind: 'conflict', operation: agentOperation }) }
-        book.copy = { ...copy, notes }
-        book.published = reply.published
-        // What the copy holds is now durable: an excluded write, and one the Journal core fenced.
-        for (const at of book.held.keys()) {
-          const record = after.agent.operations.get(at)
-          if (record !== undefined && record.kind !== 'pending') book.held.delete(at)
-        }
-        return { kind: 'answer', value: answer }
-      }
+      case 'committed':
+        return settleCommitted(job, outcome)
       case 'rolled-back': {
         const stop = outcome.receipt.responses.at(-1)
         if (stop === undefined)
@@ -1250,48 +1364,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             kind: 'answer',
             value: fail(unavailable('a rolled back receipt without a reply')),
           }
-        if (stop.participant === 'execution-record') {
-          const reply = decodeExecutionRecordReply(stop.reply)
-          switch (reply.kind) {
-            case 'revision-conflict':
-              return { kind: 'again' }
-            case 'operation-conflict':
-              if (reply.digest === written.digest) return { kind: 'again' }
-              return agentOperation === null
-                ? nameless('a conflict')
-                : { kind: 'answer', value: fail({ kind: 'conflict', operation: agentOperation }) }
-            default:
-              return {
-                kind: 'answer',
-                value: fail(unavailable(`the Agent records were not saved: ${reply.kind}`)),
-              }
-          }
-        }
-        const reply = decodeSessionReply(stop.reply)
-        const method = participationOf(written.method)
-        switch (reply.kind) {
-          case 'stopped':
-            return {
-              kind: 'answer',
-              value: fail(
-                method === null || agentOperation === null
-                  ? unavailable('a Session stop without a participation')
-                  : participationFailure(
-                      method,
-                      reply.failure as SessionFailure,
-                      agentOperation,
-                      scratch.commands[0]?.kind,
-                    ),
-              ),
-            }
-          case 'unsupported':
-            return { kind: 'answer', value: fail({ kind: 'unsupported' }) }
-          default:
-            return {
-              kind: 'answer',
-              value: fail(unavailable(`the Session participant failed: ${JSON.stringify(reply)}`)),
-            }
-        }
+        return stop.participant === 'execution-record'
+          ? settleRecordStop(job, decodeExecutionRecordReply(stop.reply))
+          : settleSessionStop(job, stop.reply)
       }
       case 'unknown': {
         if (agentOperation === null) return nameless('an unknown outcome')
