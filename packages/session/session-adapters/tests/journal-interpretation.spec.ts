@@ -872,6 +872,7 @@ describe('a session with earlier Runs: the bytes of one Run do not grow with the
     const f = await interpreted('ad02-runs')
     const journal = f.c.journal()
     const perRun: { written: number; read: number }[] = []
+    const executions: SqlScene['execution'][] = []
     let where: SqlScene = f.s
     for (let k = 1; k <= count; k += 1) {
       const mark = { written: f.bytes.written.length, read: f.bytes.read.length }
@@ -883,25 +884,36 @@ describe('a session with earlier Runs: the bytes of one Run do not grow with the
       await committed(where, journal, `run-${k}-message`, [
         { kind: 'message', message: assistantMessage(`run ${k}`), source: evidence(`run-${k}`) },
       ])
-      await vi.waitFor(async () => expect(await readThroughOf2(f.s, where.execution)).toBe('2'), {
+      const waits = [dependency(`run-${k}`)]
+      await committed(where, journal, `run-${k}-waiting`, [{ kind: 'waiting', waits }], waits)
+      await vi.waitFor(async () => expect(await readThroughOf2(f.s, where.execution)).toBe('3'), {
         timeout: 5000,
       })
       perRun.push({
         written: Math.max(...f.bytes.written.slice(mark.written)),
         read: Math.max(...f.bytes.read.slice(mark.read)),
       })
+      executions.push(where.execution)
       if (k === count) break
       where = await nextRun(f.s, k + 1)
     }
-    return perRun
+    return { perRun, executions, journal, s: f.s }
   }
 
   it('the largest write and the largest Agent records read of Run 4 equal those of Run 2', { timeout: 60_000 }, async () => {
-    const perRun = await runs(4)
+    const { perRun } = await runs(4)
     // Every Run writes and reads the same shapes; the identities have the same lengths.
-    console.log('K-8 per Run', JSON.stringify(perRun))
     expect(perRun[3]!.written).toBeLessThanOrEqual(perRun[1]!.written + 64)
     expect(perRun[3]!.read).toBeLessThanOrEqual(perRun[1]!.read + 64)
+  })
+
+  it('a copy rebuilt from the parts loads every execution as the copy that wrote them', { timeout: 60_000 }, async () => {
+    const { executions, journal, s } = await runs(3)
+    const fresh = s.fresh().journal
+    for (const execution of executions)
+      expect(await fresh.load({ ...s.access, execution })).toEqual(
+        await journal.load({ ...s.access, execution }),
+      )
   })
 })
 

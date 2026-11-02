@@ -313,14 +313,16 @@ describe('reading the parts', () => {
     const a = await app()
     for (const input of [{ session: '' }, { parts: [] }, { after: '' }, { parts: [''] }]) {
       // The handler throws; the test provider passes the throw on, a real one answers unavailable.
-      const kind = await a.provider.storage
-        .read({
+      const kind = await Promise.resolve()
+        .then(() =>
+          a.provider.storage.read({
           domain: { scope: { kind: 'tenant', tenant: textOf(TENANT_A) }, transactionDomain: 'dom_0' },
           handler: 'execution-record.parts',
           protocol: '1',
           requestKey: 'r',
           input: { tenant: textOf(TENANT_A), session: SESSION, ...input },
-        })
+        }),
+        )
         .then(
           result => result.kind,
           () => 'threw',

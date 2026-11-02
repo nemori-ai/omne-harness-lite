@@ -247,7 +247,7 @@ export type ExecutionRecordPart = Readonly<{ part: string; state: JsonValue | nu
  * The state travels whole (`state`: it replaces the whole state and drops every part) or in parts
  * (`parts`: each named part is replaced or, with a null state, dropped; the rest stay). With
  * `replace` the parts are the whole state: the whole state and every part not named go first.
- * A write carries exactly one of `state` and `parts`.
+ * A write with `parts` travels in parts; without, it travels whole (`state`, null when absent).
  *
  * `revision` equal to `expected` is a write that establishes no new revision of the execution.
  * `state`, each part and `answer` are opaque: the participant stores them and never decodes them.
@@ -266,11 +266,11 @@ export type ExecutionRecordWrite = Readonly<{
   facts: readonly ExecutionFactRecord[]
   batches: readonly ExecutionBatchRecord[]
   admissions: readonly ExecutionAdmissionRecord[]
-}> &
-  (
-    | Readonly<{ state: JsonValue; parts?: never; replace?: never }>
-    | Readonly<{ state?: never; parts: readonly ExecutionRecordPart[]; replace: boolean }>
-  )
+  /** The whole state; ignored when `parts` is given (a write carries one form). */
+  state?: JsonValue
+  parts?: readonly ExecutionRecordPart[]
+  replace?: boolean
+}>
 
 /** The opaque members (`state`, each part, `answer`, each `batch`) travel as they are. */
 export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2 {
@@ -279,7 +279,10 @@ export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2
   const opaque: Readonly<Record<string, JsonValue>> =
     parts === undefined
       ? { state: state ?? null }
-      : { parts: parts.map(({ part, state: body }) => ({ part, state: body })), replace }
+      : {
+          parts: parts.map(({ part, state: body }) => ({ part, state: body })),
+          replace: replace ?? false,
+        }
   return {
     participant: EXECUTION_RECORD_PARTICIPANT,
     facts: {
