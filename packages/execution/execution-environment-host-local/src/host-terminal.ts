@@ -16,7 +16,12 @@ import type {
   TerminalRef,
 } from '@omne-harness/execution-environment-contract'
 import { commandSettings, type CommandSettings, type HostCommandOptions } from './host-command.ts'
-import { type PrerequisiteProbe, probeTerminalPrerequisites } from './host-probe.ts'
+import {
+  type PrerequisiteProbe,
+  type HostTerminalPrerequisite,
+  type HostCommandPrerequisite,
+  probeTerminalPrerequisites,
+} from './host-probe.ts'
 import {
   forceStopScope,
   launchScope,
@@ -53,6 +58,8 @@ export function terminalSettings(options: HostTerminalOptions = {}): TerminalSet
   for (const name of ['maxControlBytes', 'columns', 'rows'] as const)
     if (!Number.isSafeInteger(settings[name]) || settings[name] < 1)
       throw new RangeError(`${name} must be a positive safe integer`)
+  if (settings.columns > 65535 || settings.rows > 65535)
+    throw new RangeError('terminal dimensions must not exceed 65535')
   if (settings.maxControlBytes < Math.ceil(settings.maxChunkBytes / 3) * 4 + 256)
     throw new RangeError('maxControlBytes must fit a base64 output chunk and its 256-byte envelope')
   return Object.freeze(settings)
@@ -73,7 +80,7 @@ type Input = Readonly<{
   scope: ScopeRef
   settings: TerminalSettings
   prerequisites: PrerequisiteProbe
-  unavailable(): void
+  unavailable(missing: readonly (HostTerminalPrerequisite | HostCommandPrerequisite)[]): void
 }>
 type CreateRequest = Parameters<TerminalFacility<unknown>['create']>[0]
 type ExecuteRequest = Parameters<TerminalFacility<unknown>['execute']>[0]
@@ -324,12 +331,13 @@ export function createHostTerminals(input: Input): HostTerminals {
     if (sealed || ledger.closed.aborted) return rejected(requestId, 'closed')
     if (
       Buffer.byteLength(JSON.stringify(request.env)) + Buffer.byteLength(request.cwd) + 512 >
-      settings.maxControlBytes
+      Math.min(settings.maxControlBytes, 1024 * 1024)
     )
       return rejected(requestId, 'invalidInput')
     const reading = await input.prerequisites.ready()
-    if (reading.kind !== 'satisfied' || !(await probeTerminalPrerequisites())) {
-      input.unavailable()
+    const missing = await probeTerminalPrerequisites()
+    if (reading.kind !== 'satisfied' || missing.length > 0) {
+      input.unavailable([...missing, ...(reading.kind === 'unsatisfied' ? reading.missing : [])])
       return rejected(requestId, 'unavailable')
     }
     if (sealed || ledger.closed.aborted) return rejected(requestId, 'closed')
@@ -350,7 +358,8 @@ export function createHostTerminals(input: Input): HostTerminals {
     }
     if (planned !== 'recorded') return rejected(requestId, planned)
     const entry = launch(request, coordinate, resource, reading.tools)
-    if (!(await within(entry.ready.promise, settings.startBoundMs))) {
+    const deadline = monotonicMs() + settings.startBoundMs
+    if (!(await within(entry.ready.promise, Math.max(0, deadline - monotonicMs())))) {
       await forceStop(entry)
       return { kind: 'unknown', requestId }
     }
@@ -371,7 +380,10 @@ export function createHostTerminals(input: Input): HostTerminals {
             : permit,
       )
     }
-    if (!send(entry, { c: 'go' }) || !(await within(entry.opened.promise, settings.startBoundMs))) {
+    if (
+      !send(entry, { c: 'go' }) ||
+      !(await within(entry.opened.promise, Math.max(0, deadline - monotonicMs())))
+    ) {
       await forceStop(entry)
       return { kind: 'unknown', requestId }
     }
@@ -379,6 +391,7 @@ export function createHostTerminals(input: Input): HostTerminals {
       await forceStop(entry)
       return rejected(requestId, 'closed')
     }
+    if (entry.state === 'invalid' || entry.state === 'closed') return { kind: 'unknown', requestId }
     return { kind: 'done', requestId, value: { terminal: entry.ref } }
   }
   const lookup = (ref: TerminalRef) => {

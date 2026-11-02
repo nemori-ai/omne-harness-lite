@@ -34,7 +34,9 @@ import { probeHostFilesPrerequisite } from './host-paths.ts'
 import {
   createPrerequisiteProbe,
   resolveSupervisor,
+  probeTerminalPrerequisites,
   type HostCommandPrerequisite,
+  type HostTerminalPrerequisite,
 } from './host-probe.ts'
 import {
   forceStopScope,
@@ -79,7 +81,7 @@ export type HostFilesDiagnostic =
       kind: 'commandUnavailable' | 'terminalUnavailable'
       provider: string
       generation: string
-      missing: readonly HostCommandPrerequisite[]
+      missing: readonly (HostCommandPrerequisite | HostTerminalPrerequisite)[]
       acquisition: string
     }>
   | Readonly<{
@@ -230,6 +232,10 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
   const probe = createPrerequisiteProbe({
     retryMs: settings.probeRetryMs,
     boundMs: settings.stopBoundMs,
+  })
+  const terminalProbe = createPrerequisiteProbe({
+    retryMs: terminal.probeRetryMs,
+    boundMs: terminal.stopBoundMs,
   })
   const filesPrerequisite = createFilesPrerequisiteReader(options.stateDirectory)
   const platform = Object.freeze({ os: process.platform, release: release() })
@@ -382,7 +388,12 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         platform,
         facilities,
         isolation: [],
-        prerequisites: merged([probe.facts(), await filesPrerequisite()]),
+        prerequisites: merged([
+          probe.facts(),
+          terminalProbe.facts(),
+          await filesPrerequisite(),
+          (await probeTerminalPrerequisites()).length === 0 ? 'satisfied' : 'unsatisfied',
+        ]),
       })
     },
     async quota(tenant) {
@@ -427,13 +438,13 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
             provider: name,
             scope: input.scope,
             settings: terminal,
-            prerequisites: probe,
-            unavailable: () =>
+            prerequisites: terminalProbe,
+            unavailable: missing =>
               report({
                 kind: 'terminalUnavailable',
                 provider: name,
                 generation,
-                missing: [],
+                missing,
                 acquisition: input.acquisition,
               }),
           }),

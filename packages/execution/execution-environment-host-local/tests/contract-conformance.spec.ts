@@ -113,6 +113,44 @@ for (const test of environmentProviderConformance({
     else expect(verdict.status).toBe('pass')
   })
 
+for (const test of environmentProviderConformance({
+  subject() {
+    const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
+    return {
+      provider,
+      binding: { kind: 'host_machine' },
+      facility: 'terminal',
+      scope: scope(),
+      tenant: access.tenant,
+      hooks: {
+        async prepareHeldOperation({ lease, input }) {
+          const terminal = lease.facility('terminal')
+          if (terminal === undefined) throw new Error('terminal facility missing')
+          return {
+            run: () =>
+              terminal.list({
+                requestId: 'terminal-after-retire',
+                origin: input.origin,
+                access,
+                binding: input.placement.binding,
+              }),
+            effectSnapshot: async () => provider.listRecoveryResources?.(input.scope),
+          }
+        },
+      },
+      dispose: async () => {
+        await provider.retire()
+      },
+    }
+  },
+}))
+  it('host-local terminal ' + test.name, async () => {
+    const verdict = await runConformanceCase(test)
+    expect(verdict.status).toBe(
+      test.name === 'V-EE18.retire-waits-for-in-flight' ? 'not-applicable' : 'pass',
+    )
+  })
+
 // These broken providers/registries are deliberately denied by the public cases, not by private checks.
 for (const fault of ['self-signed', 'retirement', 'repeat', 'declaration', 'scope'] as const)
   it('suite denies ' + fault, async () => {

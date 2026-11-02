@@ -20,19 +20,24 @@ export function createTerminalOutput(
     resolve?.()
   }
   const done = (): IteratorResult<OutputChunk> => ({ done: true, value: undefined })
-  const iterator: AsyncIterator<OutputChunk> = {
-    async next() {
-      for (;;) {
-        const chunk = queue.shift()
-        if (chunk !== undefined) {
-          buffered -= chunk.data.length
-          return { done: false, value: chunk }
-        }
-        if (closed || reader === 'abandoned') return done()
-        await new Promise<void>(resolve => {
-          wake = resolve
-        })
+  const read = async (): Promise<IteratorResult<OutputChunk>> => {
+    for (;;) {
+      const chunk = queue.shift()
+      if (chunk !== undefined) {
+        buffered -= chunk.data.length
+        return { done: false, value: chunk }
       }
+      if (closed || reader === 'abandoned') return done()
+      await new Promise<void>(resolve => {
+        wake = resolve
+      })
+    }
+  }
+  let pendingRead = Promise.resolve<IteratorResult<OutputChunk>>(done())
+  const iterator: AsyncIterator<OutputChunk> = {
+    next() {
+      pendingRead = pendingRead.then(read)
+      return pendingRead
     },
     async return() {
       reader = 'abandoned'

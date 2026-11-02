@@ -1,8 +1,79 @@
 import { describe, expect, it } from 'vitest'
+import { Context } from '@deepseek-ai/cordis'
+import { tenantCodec } from '@omne-harness/legal-identity'
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
+import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
+import { createHostFilesDomain } from '@omne-harness/execution-environment-host-local'
+import {
+  ExecutionEnvironmentRegistry,
+  filesFacilityPlugin,
+  commandFacilityPlugin,
+  terminalFacilityPlugin,
+  createHostFilesPlugin,
+} from '@omne-harness/execution-environment-host-local/cordis'
+import { testPorts } from './ports.ts'
 import { createTerminalOutput } from '../src/terminal-output.ts'
 import { createTerminalReader } from '../src/terminal-control.ts'
 
+it('loads the terminal declaration in real Cordis and removes only that declaration', async () => {
+  const tenant = tenantCodec.parse(
+    JSON.stringify({
+      organization: 'org_0123456789abcdefghjkmnpqrs',
+      account: 'acc_0123456789abcdefghjkmnpqrs',
+    }),
+  )
+  const scope = decodeScopeRef({ ref: 'terminal-cordis' })
+  if (!tenant.ok || !('ok' in scope)) throw new Error('identity fixture')
+  const ctx = new Context()
+  await testPorts(tenant.value).load(ctx)
+  await ctx.plugin(ExecutionEnvironmentRegistry)
+  await ctx.plugin(filesFacilityPlugin)
+  await ctx.plugin(commandFacilityPlugin)
+  const plugin = createHostFilesPlugin(createHostFilesDomain())
+  expect(
+    plugin.Config['~standard'].validate({
+      terminal: { maxBufferedBytes: 1024, maxChunkBytes: 128, maxControlBytes: 1024 },
+    }),
+  ).toHaveProperty('value')
+  expect(plugin.Config['~standard'].validate({ terminal: { maxControlBytes: 1 } })).toHaveProperty(
+    'issues',
+  )
+  const host = await ctx.plugin(plugin)
+  const declaration = await ctx.plugin(terminalFacilityPlugin)
+  const service = ctx.get(executionEnvironmentKey)
+  if (service === undefined) throw new Error('service missing')
+  const placement = () =>
+    service.resolvePlacement(
+      { principal: 'test', tenant: tenant.value },
+      {
+        scope: scope.ok,
+        requirement: {
+          allowedBindings: [{ kind: 'host_machine' }],
+          facilities: ['files', 'command', 'terminal'],
+          isolation: [],
+        },
+      },
+    )
+  try {
+    expect(await placement()).toMatchObject({ kind: 'placement', provider: { name: 'host-files' } })
+    await declaration.dispose()
+    expect(await placement()).toMatchObject({ kind: 'rejected', reason: 'missingFacility' })
+  } finally {
+    await host.dispose()
+  }
+})
+
 describe('terminal byte ownership', () => {
+  it('serializes concurrent reads from the single iterator without losing a wakeup', async () => {
+    const output = createTerminalOutput({ maxBufferedBytes: 8, maxChunkBytes: 1 })
+    const reader = output.output[Symbol.asyncIterator]()
+    const first = reader.next()
+    const second = reader.next()
+    output.push(Uint8Array.of(1, 2))
+    output.close()
+    expect((await first).value?.data).toEqual(Uint8Array.of(1))
+    expect((await second).value?.data).toEqual(Uint8Array.of(2))
+  })
   it('keeps raw bytes, gaps, and one reader without decoding text', async () => {
     const output = createTerminalOutput({ maxBufferedBytes: 4, maxChunkBytes: 4 })
     output.push(Uint8Array.of(0xff, 0x1b, 0x0d, 0x0a))

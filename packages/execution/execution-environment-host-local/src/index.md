@@ -21,3 +21,8 @@
 ## 阅读路径
 
 先读[公开接口页](../docs/public-api.md)找到名称与依据。宿主文件读[架构的宿主文件使用](../docs/architecture.md#宿主文件使用)，再读 `host-files.ts`。宿主命令读[架构的宿主命令机制](../docs/architecture.md#宿主命令机制)，再读 `host-command.ts`、`host-scope.ts` 与 `command-gate.ts`。装配读 [Cordis 说明](../docs/cordis.md)，再读 `cordis.ts`。
+
+- [host-terminal.ts](host-terminal.ts)：终端准入、状态、分段与停止
+- [terminal-control.ts](terminal-control.ts)：有界控制帧与代际核验
+- [terminal-output.ts](terminal-output.ts)：单读者原始字节缓冲
+- [terminal-gate.ts](terminal-gate.ts)：scope 内的持久 Bash 与 PTY 驱动

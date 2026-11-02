@@ -1,7 +1,7 @@
 /** @module-tag slow */
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, realpath, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -49,7 +49,7 @@ async function prerequisites() {
   return (
     enabled &&
     (await probeCommandPrerequisites(10_000)).kind === 'satisfied' &&
-    (await probeTerminalPrerequisites())
+    (await probeTerminalPrerequisites()).length === 0
   )
 }
 function value<T>(result: FacilityResult<T>): T {
@@ -190,6 +190,11 @@ it('isolates acquisition references and rejects a second running leg while anoth
   expect((await run(second, other, 'printf alive')).bytes.toString()).toBe('alive')
   expect(await busy.stop('forced')).toBe('confirmed')
   expect(await busy.result).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
+  expect(value(await f.terminal.list(base))).toContainEqual({
+    terminal: ref,
+    state: 'invalid',
+    observedCwd: f.cwd,
+  })
   expect((await run(second, other, 'printf still-alive')).bytes.toString()).toBe('still-alive')
 }, 30_000)
 
@@ -213,22 +218,33 @@ it('keeps the permit gate closed and drains a live terminal on release', async c
     return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')
   const record = recorder()
   let permit: (() => void) | undefined
+  let entered: (() => void) | undefined
   const wait = new Promise<void>(resolve => {
     permit = resolve
+  })
+  const permitting = new Promise<void>(resolve => {
+    entered = resolve
   })
   const f = await fixture({
     ...record.ledger,
     async permit() {
+      entered?.()
       await wait
       return 'closed'
     },
   })
-  const creating = f.terminal.create({ ...base, cwd: f.cwd, env })
+  const marker = join(f.cwd, 'started')
+  const startup = join(f.cwd, 'startup.sh')
+  await writeFile(startup, `printf started > '${marker}'\n`)
+  const creating = f.terminal.create({ ...base, cwd: f.cwd, env: { ...env, BASH_ENV: startup } })
+  await permitting
+  await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' })
   // A planned scope can exist before the shell. Releasing during permit still seals this acquisition.
   const releasing = f.lease.release()
   permit?.()
   expect(await creating).toMatchObject({ kind: 'rejected', reason: 'closed' })
   expect(await releasing).toEqual({ kind: 'released' })
+  await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' })
   expect(await f.terminal.list(base)).toMatchObject({ kind: 'rejected', reason: 'closed' })
   const live = await fixture()
   const ref = value(await live.terminal.create({ ...base, cwd: live.cwd, env })).terminal
@@ -248,6 +264,26 @@ await provider.retire(); process.stdout.write(JSON.stringify({listed,results}));
     const child = spawn(process.execPath, ['--input-type=module', '-e', source], {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
+
+    it('keeps an unconfirmed stop pending until the original supervisor can be reached again', async context => {
+      if (!(await prerequisites()))
+        return context.skip(true, 'Linux PTY and systemd prerequisites unavailable')
+      const record = recorder()
+      const f = await fixture(record.ledger)
+      const ref = value(await f.terminal.create({ ...base, cwd: f.cwd, env })).terminal
+      const handle = value(await f.terminal.execute({ ...base, terminal: ref, script: 'sleep 30' }))
+      const address = process.env['DBUS_SESSION_BUS_ADDRESS']
+      process.env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=/nonexistent-omne-terminal-bus'
+      try {
+        expect(await handle.stop('forced')).toBe('unconfirmed')
+        expect(record.stops).toContain('unconfirmed')
+      } finally {
+        if (address === undefined) delete process.env['DBUS_SESSION_BUS_ADDRESS']
+        else process.env['DBUS_SESSION_BUS_ADDRESS'] = address
+      }
+      expect(await handle.stop('forced')).toBe('confirmed')
+      expect(record.stops.at(-1)).toBe('confirmed')
+    }, 30_000)
     let output = ''
     let errors = ''
     child.stdout.setEncoding('utf8').on('data', (text: string) => {
@@ -274,7 +310,14 @@ it('lets a new process list and stop original terminal and command scopes withou
   const record = recorder()
   const f = await fixture(record.ledger)
   const ref = value(await f.terminal.create({ ...base, cwd: f.cwd, env })).terminal
-  const terminal = value(await f.terminal.execute({ ...base, terminal: ref, script: 'sleep 30' }))
+  const marker = join(f.cwd, 'once')
+  const terminal = value(
+    await f.terminal.execute({
+      ...base,
+      terminal: ref,
+      script: `printf x >> '${marker}'; sleep 30`,
+    }),
+  )
   const command = f.lease.facility('command')
   if (command === undefined) throw new Error('command facility missing')
   const process: ProcessHandle = value(
@@ -294,4 +337,5 @@ it('lets a new process list and stop original terminal and command scopes withou
   })
   expect(await terminal.result).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
   expect(await process.result).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
+  expect(await readFile(marker, 'utf8')).toBe('x')
 }, 30_000)

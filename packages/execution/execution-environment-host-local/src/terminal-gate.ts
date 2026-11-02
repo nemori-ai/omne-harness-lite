@@ -103,12 +103,7 @@ function writeAvailable(fd: number, bytes: Buffer): Buffer {
 function inOwnScope(): boolean {
   return readFileSync('/proc/self/cgroup', 'utf8')
     .split('\n')
-    .some(
-      line =>
-        line ===
-          `0::/user.slice/user-${process.getuid?.()}.slice/user@${process.getuid?.()}.service/app.slice/${unit}` ||
-        (line.startsWith('0::') && line.split('/').at(-1) === unit),
-    )
+    .some(line => line.startsWith('0::') && line.split('/').at(-1) === unit)
 }
 
 function noOtherWriters(): boolean {
