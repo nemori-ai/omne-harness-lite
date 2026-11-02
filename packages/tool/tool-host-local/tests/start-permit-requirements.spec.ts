@@ -70,10 +70,15 @@ async function fixture(
       ...(missing ? {} : { permitRequirements: source }),
     })
   let authority = create(options.missing)
-  const author = await bindingFixture(input => authority.consume(input))
-  if (author.request === undefined || author.request.availability.kind !== 'available')
-    throw new Error('missing fixed request')
+  const consumptions: Awaited<ReturnType<typeof authority.consume>>[] = []
+  const author = await bindingFixture(async input => {
+    const result = await authority.consume(input)
+    consumptions.push(result)
+    return result
+  })
   const fixed = author.request
+  if (fixed === undefined || fixed.availability.kind !== 'available')
+    throw new Error('missing fixed request')
   const call = { ...author.access, call: callId('call-1') }
   const start = {
     kind: 'start' as const,
@@ -107,6 +112,7 @@ async function fixture(
     records,
     acceptances,
     questions,
+    consumptions,
     call,
     start,
     fixed,
@@ -259,6 +265,69 @@ describe('R2-D60 start permit requirements', () => {
     expect(await f.acceptances()).toEqual([])
     expect(f.launches()).toBe(0)
   })
+
+  it.each(['denied', 'unavailable'] as const)(
+    'rechecks access after a CAS conflict changes allowed to %s',
+    async kind => {
+      let conflict = false
+      let verdict: AccessVerdict = { kind: 'allowed' }
+      const qualifications: AccessVerdict['kind'][] = []
+      const f = await fixture({
+        access: {
+          qualify: async () => {
+            qualifications.push(verdict.kind)
+            return verdict
+          },
+        },
+        wrap: memory => ({
+          durability: 'none',
+          read: domain => memory.read(domain),
+          commit: async input => {
+            if (conflict) {
+              conflict = false
+              verdict =
+                kind === 'denied'
+                  ? { kind, reason: 'membership revoked during CAS conflict' }
+                  : { kind, diagnostic: 'directory unavailable during CAS conflict' }
+              return { kind: 'conflict', current: input.expected }
+            }
+            return memory.commit(input)
+          },
+        }),
+      })
+      const permit = unbox(await f.prepare())
+      const previousChecks = qualifications.length
+      conflict = true
+      expect(await f.execute(permit)).toHaveProperty(
+        'failure.kind',
+        kind === 'denied' ? 'denied' : 'commit-unknown',
+      )
+      expect(qualifications.slice(previousChecks)).toEqual(['allowed', 'allowed', kind])
+      expect(f.consumptions).toMatchObject([
+        { ok: { kind: kind === 'denied' ? 'rejected' : 'unknown' } },
+      ])
+      expect(f.questions).toHaveLength(2)
+      expect(await f.acceptances()).toEqual([])
+      expect(f.launches()).toBe(0)
+      const records = await f.records()
+      const kinds = records.flatMap(value =>
+        typeof value === 'object' && value !== null ? [Reflect.get(value, 'kind')] : [],
+      )
+      verdict = { kind: 'allowed' }
+      if (kind === 'denied') {
+        expect(kinds).toEqual(['rejection'])
+        expect(unbox(await f.inspect())).toMatchObject({
+          kind: 'rejected',
+          reason: 'access-denied-before-start',
+        })
+        expect(unbox(await f.consume(permit))).toHaveProperty('kind', 'rejected')
+      } else {
+        expect(kinds).toEqual(['permit'])
+        expect(unbox(await f.consume(permit))).toHaveProperty('kind', 'started')
+      }
+      expect(f.launches()).toBe(0)
+    },
+  )
 
   it('rechecks after waiting for the tenant serial section', async () => {
     const entered = barrier()
