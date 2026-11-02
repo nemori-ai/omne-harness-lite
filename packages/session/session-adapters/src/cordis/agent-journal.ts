@@ -101,6 +101,7 @@ import {
   type JournalCell,
 } from '../testing/root.ts'
 import {
+  mergeParts,
   planParts,
   rebuildParts,
   recordsPart,
@@ -507,14 +508,16 @@ type PartsRead =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 /**
- * Reads the parts of one session's Agent records page by page; `only` reads that one part. Every
- * page must read the same publication count, else the read starts again. Records stored whole (by a
+ * Reads the parts of one session's Agent records page by page; `only` reads that one part, `since`
+ * only the parts written after that publication count (a dropped one with a null state). Every page
+ * must read the same publication count, else the read starts again. Records stored whole (by a
  * writer that does not split them) are not read here: they answer `unavailable`.
  */
 async function readParts(
   read: (input: JsonValue) => Promise<JsonValue | null>,
   scope: Readonly<{ tenant: string; session: string }>,
   only: string | null,
+  since: string | null = null,
 ): Promise<PartsRead> {
   const unread = (diagnostic: string): PartsRead => ({ kind: 'unavailable', diagnostic })
   for (let attempt = 0; attempt < PART_READ_ATTEMPTS; attempt += 1) {
@@ -527,6 +530,7 @@ async function readParts(
         session: scope.session,
         after,
         ...(only === null ? {} : { parts: [only] }),
+        ...(since === null ? {} : { since }),
       })
       if (output === null) return unread('the Agent records of the session are not readable')
       const page = decodeExecutionRecordParts(output)
@@ -1117,14 +1121,22 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const excluded = await settleHeld(book, domain)
     if (!excluded && book.copy !== null && book.published === root.published)
       return succeed(book.copy)
+    // A copy of an earlier count reads only the parts written since; otherwise every part.
+    const base = !excluded && book.copy !== null && book.published !== null ? book.copy : null
     const parts = await readParts(
       input => read(domain, EXECUTION_RECORD_HANDLERS.parts, EXECUTION_RECORD_PROTOCOL, input),
       { tenant: book.tenantText, session: book.session },
       null,
+      base === null ? null : book.published,
     )
     if (parts.kind === 'unavailable') return fail(unavailable(parts.diagnostic))
     try {
-      book.copy = build(book, rebuildParts(parts.parts))
+      book.copy = build(
+        book,
+        base === null
+          ? rebuildParts(parts.parts)
+          : mergeParts({ state: base.stored, layout: base.layout }, parts.parts),
+      )
     } catch (error) {
       book.copy = null
       return fail(unavailable(`the Agent records do not decode: ${String(error)}`))

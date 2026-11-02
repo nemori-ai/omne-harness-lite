@@ -239,16 +239,12 @@ export type RebuiltParts = Readonly<{
   layout: PartLayout
 }>
 
-/**
- * Rebuilds the durable state from its parts. A member a part does not know, or an entry that is
- * not `[order, key, value]`, is a part this provider did not write: it throws a TypeError.
- */
-export function rebuildParts(
-  parts: readonly Readonly<{ part: string; state: JsonValue }>[],
-): RebuiltParts {
-  const layout = emptyLayout()
-  const known = new Map(MEMBERS.map(member => [member.name, member]))
-  const gathered = new Map<string, { order: number; key: unknown; value: unknown }[]>()
+type Entry = Readonly<{ name: string; part: string; order: number; key: unknown; value: unknown }>
+
+/** The entries of stored parts, decoded. It throws a TypeError on a part this provider did not write. */
+function decodeParts(parts: readonly Readonly<{ part: string; state: JsonValue }>[]): Entry[] {
+  const known = new Set(MEMBERS.map(member => member.name))
+  const entries: Entry[] = []
   for (const { part, state } of parts) {
     if (typeof state !== 'object' || state === null || Array.isArray(state))
       throw new TypeError(`the part ${part} is not an object of members`)
@@ -258,20 +254,34 @@ export function rebuildParts(
       for (const item of list) {
         if (!Array.isArray(item) || item.length !== 3 || typeof item[0] !== 'number')
           throw new TypeError(`an entry of ${name} in ${part} is malformed`)
-        const key = decodeState(item[1] ?? null)
-        const order = item[0]
-        const id = idOf(name, key)
-        if (layout.places.has(id)) throw new TypeError(`the record ${id} is in two parts`)
-        layout.places.set(id, { part, order, key })
-        let set = layout.parts.get(part)
-        if (set === undefined) layout.parts.set(part, (set = new Set()))
-        set.add(id)
-        layout.next.set(name, Math.max(layout.next.get(name) ?? 0, order + 1))
-        let entries = gathered.get(name)
-        if (entries === undefined) gathered.set(name, (entries = []))
-        entries.push({ order, key, value: decodeState(item[2] ?? null) })
+        entries.push({
+          name,
+          part,
+          order: item[0],
+          key: decodeState(item[1] ?? null),
+          value: decodeState(item[2] ?? null),
+        })
       }
     }
+  }
+  return entries
+}
+
+/** The state and the layout of a set of entries, each map in the order of its entries' orders. */
+function assemble(entries: readonly Entry[], empty: boolean): RebuiltParts {
+  const layout = emptyLayout()
+  const gathered = new Map<string, Entry[]>()
+  for (const entry of entries) {
+    const id = idOf(entry.name, entry.key)
+    if (layout.places.has(id)) throw new TypeError(`the record ${id} is in two parts`)
+    layout.places.set(id, { part: entry.part, order: entry.order, key: entry.key })
+    let set = layout.parts.get(entry.part)
+    if (set === undefined) layout.parts.set(entry.part, (set = new Set()))
+    set.add(id)
+    layout.next.set(entry.name, Math.max(layout.next.get(entry.name) ?? 0, entry.order + 1))
+    let list = gathered.get(entry.name)
+    if (list === undefined) gathered.set(entry.name, (list = []))
+    list.push(entry)
   }
   const mapOf = (name: string): Map<unknown, unknown> =>
     new Map(
@@ -300,5 +310,39 @@ export function rebuildParts(
     indexedEvents: mapOf('indexedEvents'),
     notes,
   } as unknown as DurableJournalState
-  return { state, empty: parts.length === 0, layout }
+  return { state, empty, layout }
+}
+
+/**
+ * Rebuilds the durable state from its parts. A member a part does not know, or an entry that is
+ * not `[order, key, value]`, is a part this provider did not write: it throws a TypeError.
+ */
+export function rebuildParts(
+  parts: readonly Readonly<{ part: string; state: JsonValue }>[],
+): RebuiltParts {
+  return assemble(decodeParts(parts), parts.length === 0)
+}
+
+/**
+ * The stored state after the parts written since it: `changed` replaces the parts it names (a null
+ * state drops the part) and the records of the other parts stay as they are, undecoded. It throws
+ * as `rebuildParts` throws.
+ */
+export function mergeParts(
+  base: Readonly<{ state: DurableJournalState; layout: PartLayout }>,
+  changed: readonly Readonly<{ part: string; state: JsonValue | null }>[],
+): RebuiltParts {
+  const names = new Set(changed.map(item => item.part))
+  const members = new Map(MEMBERS.map(member => [member.name, member.read(base.state)]))
+  const kept: Entry[] = []
+  for (const [id, place] of base.layout.places) {
+    if (names.has(place.part)) continue
+    const name = memberOf(id)
+    kept.push({ name, part: place.part, order: place.order, key: place.key, value: members.get(name)?.get(place.key) })
+  }
+  const written = changed.filter(
+    (item): item is Readonly<{ part: string; state: JsonValue }> => item.state !== null,
+  )
+  const entries = [...kept, ...decodeParts(written)]
+  return assemble(entries, entries.length === 0)
 }

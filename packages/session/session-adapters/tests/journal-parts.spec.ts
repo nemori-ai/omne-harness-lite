@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import {
+  mergeParts,
   operationsPart,
   planParts,
   rebuildParts,
@@ -167,6 +168,36 @@ describe('a later publication', () => {
       state = next
     }
     expect(form(s.rebuild())).toEqual(form(state))
+  })
+})
+
+describe('a copy that another provider made stale', () => {
+  it('merging the parts written since gives the state a full rebuild gives, in the same order', () => {
+    const writer = store()
+    writer.publish(twoExecutions(), null)
+    // The reader's copy at this count: its state and layout, as a rebuild gave them.
+    const base = rebuildParts([...writer.parts].map(([part, state]) => ({ part, state })))
+    // The writer goes on: one record of exe_a changes, one of exe_b goes, a new execution comes.
+    const next = draft(writer.stored)
+    next.executions.set('k-a', { id: 'exe_a', revision: 2 } as never)
+    next.operations.delete(operationKey('exe_b', 'op-1'))
+    next.executions.set('k-c', { id: 'exe_c', revision: 1 } as never)
+    const before = new Map(writer.parts)
+    const written = writer.publish(next, null)
+    const changed = written.map(part => ({ part, state: writer.parts.get(part) ?? null }))
+    expect(changed.map(item => item.part).sort()).toEqual(
+      [operationsPart('exe_b'), recordsPart('exe_a'), recordsPart('exe_c')].sort(),
+    )
+    expect(before.has(recordsPart('exe_c'))).toBe(false)
+    const merged = mergeParts(base, changed)
+    expect(form(merged.state)).toEqual(form(next))
+    expect([...merged.state.executions.keys()]).toEqual(['k-a', 'k-b', 'k-c'])
+    // The merged layout goes on as the writer's does: the next plan writes the same parts.
+    const after = draft(merged.state)
+    after.executions.set('k-c', { id: 'exe_c', revision: 2 } as never)
+    expect(planParts(merged.layout, merged.state, after, null).parts.map(p => p.part)).toEqual([
+      recordsPart('exe_c'),
+    ])
   })
 })
 

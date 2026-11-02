@@ -864,13 +864,18 @@ function startRun(s: SqlScene, name: string) {
 /**
  * K-8: one session, Runs one after the other (cancel, accept the next input, startRun). The records
  * of the earlier executions stay in the session; a publication of the current one writes only its
- * own parts, and AD-02 reads only the part of the execution it interprets. With the whole state in
- * one row, both grew with every Run before (C-FIX-ROUNDS: past 1 MiB at round 4 of C-JOINT).
+ * own parts, AD-02 reads only the part of the execution it interprets, and a copy that another
+ * provider's write made stale reads only the parts written since. Two providers write each Run, as
+ * the Agent's Journal and the receiver's do. With the whole state in one row, the writes and the
+ * reads grew with every Run before (C-FIX-ROUNDS: past 1 MiB at round 4 of C-JOINT).
  */
 describe('a session with earlier Runs: the bytes of one Run do not grow with the Runs before it', () => {
   async function runs(count: number) {
     const f = await interpreted('ad02-runs')
     const journal = f.c.journal()
+    // A second provider of the same session over the same storage: its writes make the copy of the
+    // first one stale.
+    const other = f.s.view.journal
     const perRun: { written: number; read: number }[] = []
     const executions: SqlScene['execution'][] = []
     let where: SqlScene = f.s
@@ -881,7 +886,7 @@ describe('a session with earlier Runs: the bytes of one Run do not grow with the
       )
       ok(await handed(where, String(where.initial.id), opened.receipt.evidence))
       await take(where, journal)
-      await committed(where, journal, `run-${k}-message`, [
+      await committed(where, other, `run-${k}-message`, [
         { kind: 'message', message: assistantMessage(`run ${k}`), source: evidence(`run-${k}`) },
       ])
       const waits = [dependency(`run-${k}`)]
@@ -891,7 +896,7 @@ describe('a session with earlier Runs: the bytes of one Run do not grow with the
       })
       perRun.push({
         written: Math.max(...f.bytes.written.slice(mark.written)),
-        read: Math.max(...f.bytes.read.slice(mark.read)),
+        read: f.bytes.read.slice(mark.read).reduce((sum, size) => sum + size, 0),
       })
       executions.push(where.execution)
       if (k === count) break
@@ -900,11 +905,11 @@ describe('a session with earlier Runs: the bytes of one Run do not grow with the
     return { perRun, executions, journal, s: f.s }
   }
 
-  it('the largest write and the largest Agent records read of Run 4 equal those of Run 2', { timeout: 60_000 }, async () => {
+  it('the largest write and the Agent records read in Run 4 equal those of Run 2', { timeout: 60_000 }, async () => {
     const { perRun } = await runs(4)
     // Every Run writes and reads the same shapes; the identities have the same lengths.
     expect(perRun[3]!.written).toBeLessThanOrEqual(perRun[1]!.written + 64)
-    expect(perRun[3]!.read).toBeLessThanOrEqual(perRun[1]!.read + 64)
+    expect(perRun[3]!.read).toBeLessThanOrEqual(perRun[1]!.read + 1024)
   })
 
   it('a copy rebuilt from the parts loads every execution as the copy that wrote them', { timeout: 60_000 }, async () => {

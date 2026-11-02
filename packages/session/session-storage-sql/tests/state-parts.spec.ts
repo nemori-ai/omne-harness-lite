@@ -173,6 +173,11 @@ describe('a write in parts', () => {
       (await commit(a, 'aop_2', write(2, [{ part: 'x:exe_2', state: 2 }], true))).kind,
     ).toBe('committed')
     expect((await readAll(a)).parts).toEqual([{ part: 'x:exe_2', state: 2 }])
+    expect((await read(a, { since: '1' })).parts).toEqual([
+      { part: 'x:exe_0', state: null },
+      { part: 'x:exe_1', state: null },
+      { part: 'x:exe_2', state: 2 },
+    ])
   })
 
   it('a whole write drops every part, and the read gives its state on the first page', async () => {
@@ -187,7 +192,29 @@ describe('a write in parts', () => {
       parts: [],
       next: null,
     })
-    expect(rows(a, 'er_state_part')).toEqual([])
+    // The dropped part stays as a mark for a reader of an earlier count.
+    expect(await read(a, { since: '1' })).toMatchObject({ parts: [{ part: 'x:exe_1', state: null }] })
+  })
+
+  it('with since, a read gives only the parts written or dropped after that count', async () => {
+    const a = await app()
+    ok(await a.create(TENANT_A))
+    await commit(a, 'aop_1', write(1, [{ part: 'a', state: 1 }, { part: 'b', state: 1 }, { part: 'c', state: 1 }]))
+    await commit(a, 'aop_2', write(2, [{ part: 'b', state: 2 }]))
+    await commit(a, 'aop_3', write(3, [{ part: 'c', state: null }]))
+    expect((await read(a, { since: '0' })).parts).toEqual([
+      { part: 'a', state: 1 },
+      { part: 'b', state: 2 },
+      { part: 'c', state: null },
+    ])
+    expect((await read(a, { since: '1' })).parts).toEqual([
+      { part: 'b', state: 2 },
+      { part: 'c', state: null },
+    ])
+    expect((await read(a, { since: '2' })).parts).toEqual([{ part: 'c', state: null }])
+    expect((await read(a, { since: '3' })).parts).toEqual([])
+    // Without since the dropped part is not read.
+    expect((await readAll(a)).parts.map(item => item.part)).toEqual(['a', 'b'])
   })
 
   for (const [name, facts] of [
@@ -311,7 +338,14 @@ describe('reading the parts', () => {
 
   it('an input that names no session, an empty part list or an empty after is refused', async () => {
     const a = await app()
-    for (const input of [{ session: '' }, { parts: [] }, { after: '' }, { parts: [''] }]) {
+    for (const input of [
+      { session: '' },
+      { parts: [] },
+      { after: '' },
+      { parts: [''] },
+      { since: '-1' },
+      { since: 1 },
+    ]) {
       // The handler throws; the test provider passes the throw on, a real one answers unavailable.
       const kind = await Promise.resolve()
         .then(() =>

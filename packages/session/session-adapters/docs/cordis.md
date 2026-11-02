@@ -17,7 +17,7 @@
 | 插件 | `inject` | 提供的键 | 登记 |
 | --- | --- | --- | --- |
 | AD-01 Agent 提交参加者 | `session: { caller: 'coordinator' }` | 无 | 向执行记录提供者登记 Session 参加者，形状待 P-1 |
-| AD-02 Agent 同日志解释（`createSessionJournalInterpretationPlugin`，名 `session-ad02`） | `session: { caller: 'coordinator' }`、`sessionTransactions`、`storage`、受信 `tenantDomainLookup` | 无 | 订阅 `session-adapters/agent-published`，按会话排队。经 `execution-record.state` 读同一会话的 Agent 记录与发布点归一的后果，每个事件一次 `commitLog`。不配置；启动不扫描存储 |
+| AD-02 Agent 同日志解释（`createSessionJournalInterpretationPlugin`，名 `session-ad02`） | `session: { caller: 'coordinator' }`、`sessionTransactions`、`storage`、受信 `tenantDomainLookup` | 无 | 订阅 `session-adapters/agent-published`，按会话排队。经 `execution-record.parts` 只读该 execution 的分区，取 Agent 记录与发布点归一的后果，每个事件一次 `commitLog`。不配置；启动不扫描存储 |
 | AD-03 持有者与生产者 | `runtimeContext`（数组形式）；`session: { caller: 'coordinator' }` | 无 | `registerProducer` 的生产者登记，每个租户一份 |
 | AD-03 回放子插件 | `runtimeContext`（数组形式，持有者面，与主插件分开换代）；`session: { caller: 'reader' }` | 无 | 无 |
 | AD-03 变化提醒子插件 | `runtimeContext: { consumer: 'model' }` | 无 | 模型类绑定读者 |

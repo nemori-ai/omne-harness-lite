@@ -249,7 +249,7 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 - 装载：`inject` 为 `session: { caller: 'coordinator' }`、`sessionTransactions`、`storage` 与受信 `tenantDomainLookup`。缺任一键时插件停在 `PENDING`，不提交。`input.coordinator` 与 AD-05、AD-14 的同名输入相同。`sessionTransactions` 没有 `commitLog` 时，调用答 `unavailable`。
 - 触发：插件订阅 `session-adapters/agent-published`（见下一条）。每个事件按会话排队，同一会话的解释一次只做一个。插件启动时不扫描存储；漏掉的事件由同一 execution 的下一个事件补上。`interpret({ tenant, session, execution })` 只进入当前一代插件，插件停止或缺依赖时答 `unavailable`。
 - AD-02 触发事件：`session-adapters/agent-published`（参数 `tenant`、`session`、`execution`，`@mode parallel`）声明在 `src/cordis/agent-journal-provider.ts`。Journal 插件在写方法（open、attach、detach、commit、submit、control、acknowledge、recordResult、recordControl、recordHandoff、tryFinish、commitSettlement、recordTerminalObservation）与 `agentJournalEntries.record` 答复成功之后恰好发一次；读方法、失败的写、没有路由成功的调用、插件停止之后都不发，`materials.preserve` 也不发。插件分发时不等监听者，监听者失败写 warn 日志，不改变答复。载荷只是唤醒信号，不携带事实，订阅者自己读日志。
-- 读取：插件以 `coordinator` 经 `session.work.readWork` 找出拥有该 execution 的 Run 与已存的事件进度 `readThrough`，找不到时答 `unavailable`（`owner` 为 `session-history`）。然后插件经 `readExecutionInterpretation` 读同一会话的 Agent 记录（`execution-record.state` 一次读取）：执行头的修订、边界行所记的头回执，以及 `readThrough` 之后的每个事件和发布点为它归一的后果。
+- 读取：插件以 `coordinator` 经 `session.work.readWork` 找出拥有该 execution 的 Run 与已存的事件进度 `readThrough`，找不到时答 `unavailable`（`owner` 为 `session-history`）。然后插件经 `readExecutionInterpretation` 读同一会话里该 execution 的分区（`execution-record.parts` 只读 `x:<execution>`，见[分区存储](#分区存储)）：执行头的修订、边界行所记的头回执，以及 `readThrough` 之后的每个事件和发布点为它归一的后果。
 - 提交：每个事件组一个观察 `SessionLogCommitObservation`，经 `sessionTransactions.commitLog` 提交，一次一个事件，按序号顺序。后果只是 `observed` 的事件没有 Session 行，不单独提交，由下一个提交的事件在间隔里覆盖（session-contract FR-03）。操作身份由观察确定地派生，形如 `ad02_` 加摘要：同一读取的同一事件是同一操作。
 - 失败与认回：`commitLog` 答 `commit-unknown` 或抛错时，插件以同一操作、同一观察再发，最多发三次。session-storage-sql 对 log 形式的 `queryOperation` 答 `conflict`，所以插件不查询，只靠同一操作认回（这是线内实现取舍，偏离 DP2-1 第 3 节「unknown 走 queryOperation」的字样）。答 `changed` 时插件重读一次。其他拒绝原样返回并写日志，不重试。插件停止后不再发送。
 - 控制事件：事实为延后事实的事件，插件发后果为空、带 `control` 证据的观察，后果由 Session 在提交里判定（[控制归一](#控制归一)）。判定只有 `observed` 时，这次提交只推进解释进度。
@@ -892,7 +892,7 @@ AgentJournal、AgentJournalEntries 与 AgentMaterials 操作共用 Session 会�
 
 存储落点（P5）：Agent 记录由 session-storage-sql 的 `execution-record` 参加者保存，与 `session` 参加者在同一租户事务域、同一个组合。提供者只用 `@omne-harness/session-storage-sql/participants` 的词汇，不导入 `createSessionStorage`。Journal 提供者自己是首个发布点的提交方（切分 X）。
 
-Agent 规则：判定次序、认回、修订号与条件终结协议是本成员 `src/testing/journal.ts` 的 Journal 核心，与 `./testing` 替身相同。每个会话在进程内有这个核心的一份副本。副本是可丢的派生物（AD-00 第 7 条）。每次调用先读 `session.history-root`，发布计数与副本不同时，从 `execution-record.state` 重建副本。
+Agent 规则：判定次序、认回、修订号与条件终结协议是本成员 `src/testing/journal.ts` 的 Journal 核心，与 `./testing` 替身相同。每个会话在进程内有这个核心的一份副本。副本是可丢的派生物（AD-00 第 7 条）。每次调用先读 `session.history-root`，发布计数与副本不同时，经 `execution-record.parts` 分页读出该会话的全部分区，重建副本。
 
 一次 Journal 写入按下列次序工作：
 
@@ -900,7 +900,7 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 2. 读共同根，必要时重建副本。写入另读 `session.work`，供推进资格核对使用。
 3. 在副本上执行 Journal 核心。核心的判定次序、认回与重放规则不变。四种 CallerCommit 的派生参加先经 `sessionAccessCheck` 裁定一次（P6）。核心在副本上准备下一份状态，同时得到派生的 Session 参加：一条 Session 命令，或 `open`、`attach`、`submit`、`tryFinish` 的一条只读核对。
 4. 副本没有变化时直接答复（读、被核心拒绝的写、认回）。
-5. 副本有变化时，一次存储 `commit` 带两条命令：`execution-record` 的写入（不透明状态、原操作答案与摘要、执行边界、事实边界、批次与原受理目录）与派生的 Session 参加。存储操作身份由 execution 与 Agent 操作确定地编码，代次为 `#<n>`。
+5. 副本有变化时，一次存储 `commit` 带两条命令：`execution-record` 的写入（变了的分区、原操作答案与摘要、执行边界、事实边界、批次与原受理目录，见[分区存储](#分区存储)）与派生的 Session 参加。存储操作身份由 execution 与 Agent 操作确定地编码，代次为 `#<n>`。
 6. 只有已提交回执成为答复。其余结果都丢弃副本，下次调用从存储重建：
    - `execution-record` 的修订号或发布计数冲突：重建副本后重做本次调用，最多 4 轮，之后答 `unavailable`。4 轮和下面的 8 个代次都是本提供者的固定策略（`agent-journal.ts` 的 `ROUNDS`、`journal-commit.ts` 的 `ATTEMPTS`），不是配置项：连输 4 次发布竞争的会话在争用，再多一轮没有帮助；8 个代次都回滚的操作，重试也没有帮助。`commitJournal` 的 `attemptLimit` 入参只供测试。
    - 原操作行冲突：摘要与本次相同时重建并重做，核心按原答案认回。摘要不同时答 `conflict`。
@@ -957,6 +957,23 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 - `agent-journal-provider.spec.ts`：真实 Cordis 4.0.4 上装载与停止、三个依赖逐个缺席时停在 `PENDING`、配置不合法时 `FAILED`；停止后旧引用答 `unavailable`；两个会话各有执行时互不串；索引每个 execution 读一次，新实例从存储重建，超过缓存上限仍路由正确；未开 Run 的 execution 与另一租户的 execution 同答 `denied` 且不提交；索引读不到与未登记租户答 `unavailable`。agent-contract `./testing` 的 `agentJournalCoreConformance` 对 node:sqlite 替身运行两遍：一遍经插件，一遍不经插件直接用 `forSession`（同一份夹具，只换取得 Journal 的方式，所以插件路由的错与提供者的错可以分开）。54 个可驱动的用例中 53 个通过，两遍都是；剩下 1 个是提供者缺口（K-16：结果的保管转移被 Session 拒绝），用例按断言本身固定它：失败信息以 `recordResult` 开头，实际值与期望值是推进计数 `[0,0]` 与 `[1,0]`，其他失败或通过都是红。其余用例需要取消政策安装、宿主记录、资格脚本、旧候选或回复准入控制，生产插件没有这些接缝，记为未覆盖。慢层用例在真实 sqlite-provider 上核对两个会话的路由与另一租户的 `denied`。
 - `session-log-journal-complexity.spec.ts`：保留副本时，在进度标记之后读一页的存储读次数与返回事件数在 N = 10 与 N = 100 时相同；从头读全部的负控随 N 增长。
 
+### 分区存储
+
+生产提供者把一个会话的 Agent 记录按 execution 分区保存在 session-storage-sql 的 `er_state_part`（session-storage-sql SPEC 第 18 条），实现在 `src/cordis/journal-parts.ts`。
+
+| 分区 | 内容 |
+| --- | --- |
+| `x:<execution>` | 该 execution 的记录：执行、授权尝试、事件回执与原片段、调用来源、人工材料、索引进度、解释注记，以及结果接收里指明该 execution 的记录 |
+| `o:<execution>` | 该 execution 的操作记录 |
+| `s` | 不指明 execution、也不是由某个 execution 的写入新建的记录 |
+
+- 归属：一条记录按它自己指明的 execution 归入分区（执行按 `id`，操作按键里的 execution，事件类按键的前缀，解释注记按键里的 execution，结果接收按值里的 `execution`）。不指明 execution 的新记录归入新建它的那次写入的 execution；写入不带 execution 时归入 `s`。记录归入一个分区后不再换分区。
+- 写入：一次发布写出记录变了、新增或删除的分区，另外总是写出写入方 execution 的两个分区。是否变了按对象身份判断：Journal 核心改一条记录时换成新对象（草稿副本），不原地改已发布的记录。分区与原操作答案、索引行和派生的 Session 参加在同一次存储提交里，失败时一起不保存。
+- 顺序：分区里每条记录带它在所属映射里的序号，重建副本时按序号还原映射的插入顺序；删除后重新写入的记录取新序号，与进程内映射的顺序一致。
+- 读取：没有副本时分页读全部分区；副本的发布计数落后时（另一个提供者实例写过同一会话），只读这个计数之后写到或删除的分区（`since`），其余分区沿用副本里已解码的记录，合并后重建副本（`mergeParts`）。每页的发布计数必须相同，否则重读，最多 3 次，之后答 `unavailable`。副本里有排除的待决写入时整份重读。AD-02 的 `readExecutionInterpretation` 与 handoff 的执行分支只读所需 execution 的 `x:` 分区。遇到整份状态（`er_state`）时答 `unavailable`：0.0.x 不迁移旧的整份数据。
+- 语义键：操作记录保存的语义键是方法名加输入规范文本的 SHA-256（`src/testing/journal-values.ts` 的 `semanticKey`），不是规范文本本身。判定只比较语义键是否相等，含义不变；保存文本时，每条 commit 记录都带一份完整 checkpoint。
+- 验证：`tests/journal-parts.spec.ts` 核对归属、只写变了的分区与写入方分区、删除与清空分区、删除后重写的顺序、100 个 execution 后的写入只含写入方分区，以及畸形分区不重建。`tests/journal-interpretation.spec.ts` 的「a session with earlier Runs」在同一会话里依次跑 4 个 Run：第 4 个 Run 的最大写入与 AD-02 最大读取不超过第 2 个 Run 加 64 字节（改前分别从约 41 KB 涨到 156 KB、39 KB 涨到 154 KB），每个 Run 由两个提供者实例写入（像 Agent 的 Journal 与接收方各一个），所以副本每个 Run 都会落后一次；从分区重建的副本按 execution 读出的 `load` 与写入它们的副本相同。`tests/journal-parts.spec.ts` 另核对合并之后写入的分区与整份重建相同、顺序不变、合并出的布局继续只写变了的分区。
+
 ### 会话事务端口的契约面
 
 `./testing` 的会话事务替身实现 session-contract 的 `SessionTransactionPort<P>` 的全部操作。除 `commit`、读与历史面之外，下列三个操作在 head 补齐，行为以 session-contract 为准，本节只写替身怎样兑现。
@@ -975,7 +992,7 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 2. 上述三个操作与两项控制命令是新行为，没有先红后绿记录。验证以负控用例代替：跨租户、未授权、身份种类错配和重放各有反例用例。
 3. 替身是非耐久的内存实现，不证明耐久、进程重启或跨进程同提交；它不覆盖 sqlite-provider 或任何真实后端。
 4. K-6 提交协议有两份：切分 X 下，Journal 提供者的存储提交协议（`src/journal-commit.ts`：身份构造、代次循环、存储结果映射）与 session-storage-sql 的 `commit.ts` 是同一套规则的两份。触发条件：Session 组出现第三个提交方，或两份规则出现差异。届时把切分 Y 或「sql-contract 提供通用代次助手」交负责人重开。
-5. K-8 每次发布写整个会话的状态：生产提供者把一个会话的全部 Agent 记录作为一份不透明状态保存，每次 Agent 发布整行替换。写入代价随会话的 Agent 记录线性增长，K-1 的 `maxCommandBytes` 上限因此先到。AG-23 回放里一次写入最大约 0.58 MB。重建副本时整份读一次，读口 `execution-record.state` 有自己的输出上限：它不小于 `maxCommandBytes` 时，写得进的状态读得回（session-storage-sql 已知限制 K-1 写明差额与验证）。触发条件：真实会话的状态接近 `maxCommandBytes`，或写入延迟超过 `perf-baseline.md` 的阈值。届时把状态按执行或按记录拆成多行。
+5. K-8 一次发布写写入方 execution 的全部分区：Agent 记录已按 execution 分区（[分区存储](#分区存储)），一次发布的字节数不再随会话里更早的 execution 增长，但写入方自己的两个分区（`x:` 与 `o:`）每次整份写出，所以一次写入随同一 execution 的记录增长。C-JOINT 世界的纯文本轮里一次写入最大约 163 KB；Agent 的 checkpoint 带着本轮 Model 请求的内容引用，请求随对话变长，每轮多约 0.3 KB。单个分区仍受 K-1 的 `maxCommandBytes` 约束。触发条件：一个 execution 的分区接近 `maxCommandBytes`，或写入延迟超过 `perf-baseline.md` 的阈值。届时把分区再按记录拆细，或只写变了的记录。
 6. K-9 `materials.preserve` 的路由：`SessionLogAgentJournalProvider` 在同一插件体内提供 `agentJournal`、`agentJournalEntries` 与 `agentMaterials`（[生产提供者的实现现状](#生产提供者的实现现状)），装配页的 `agent-journal` 行已指向它。`agentJournal` 与 `agentJournalEntries` 经 session-storage-sql 的执行索引按 `(tenant, execution)` 找到会话，`materials.read` 按材料来源所记的会话路由；`materials.preserve` 带 execution 时按 Journal 调用相同的路由找到所属会话，在该会话的 Journal 上保存，输入原样交给会话 Journal（会话 Journal 不把 material 的 execution 当作对该执行记录的写）；租户不是该执行的所有者或没有 Run 开始过该 execution 时答 `denied`（action `preserve`），执行索引不可读答 `unavailable`。不带 execution 时，存储里没有从 consumer 到会话的索引，所以答 `unavailable` 且不写入（兼容期行为）。插件不传 `hostRecords`：它是运行时对象，装配怎样给出还没有决定。取消政策安装经插件工厂 `createSessionAgentJournalPlugin({ cancellation })` 交入；不经工厂装载的插件没有取消政策安装。触发条件：不带 execution 的调用方迁移完毕后删除兼容期的 `unavailable` 分支；或生产组合需要 `hostRecords`。
 7. K-10 Journal 核心在 `src/testing/`：生产提供者导入 `src/testing/journal.ts` 与 `src/testing/root.ts` 的 Journal 核心，与内存替身共用一份 Agent 规则。核心的输入水位线在进程内索引缺项时，从水位线的记录文本还原范围，条件是起点为 0 或一个已知批次的终点、终点不超过已受理的输入数。触发条件：替身与生产提供者的规则需要分开时，把核心移出 `src/testing/`。
 8. K-11 推进资格的快照读：`commit` 等写入的推进资格核对（`advances`）读写入前的 `session.work` 快照，不在存储事务里复核。只有 `open`、`attach`、`submit`、`tryFinish` 与四种 CallerCommit 的 Session 参加在同一次提交里核对。取消判断（judge-cancellation）的参加者事实同样读快照，待交输入的依据记为 `unknown`。触发条件：Session 在快照读与提交之间撤回推进资格的竞争进入用例。

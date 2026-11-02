@@ -266,34 +266,34 @@ function writeIndex(port: Executor, write: Write): void {
 
 /**
  * The whole state replaces the state of the session and drops its parts. Parts replace or drop the
- * parts they name; with `replace` the whole state and every other part go first.
+ * parts they name; with `replace` the whole state and every other part go first. A dropped part is
+ * kept as a row with a NULL state, marked with the count `next`, as every part this write writes.
  */
-function writeState(port: Executor, write: Write): void {
+function writeState(port: Executor, write: Write, next: bigint): void {
   const { tenant, session, state } = write
   const scope = [tenant, session]
+  const dropAll = () =>
+    port.execute(
+      'UPDATE er_state_part SET state = NULL, published = ? WHERE tenant = ? AND session = ? AND state IS NOT NULL',
+      [next, ...scope],
+    )
   if (state.kind === 'whole') {
     port.execute('INSERT OR REPLACE INTO er_state (tenant, session, state) VALUES (?, ?, ?)', [
       ...scope,
       json(state.state),
     ])
-    port.execute('DELETE FROM er_state_part WHERE tenant = ? AND session = ?', scope)
+    dropAll()
     return
   }
   if (state.replace) {
     port.execute('DELETE FROM er_state WHERE tenant = ? AND session = ?', scope)
-    port.execute('DELETE FROM er_state_part WHERE tenant = ? AND session = ?', scope)
+    dropAll()
   }
   for (const part of state.parts)
-    if (part.state === null)
-      port.execute('DELETE FROM er_state_part WHERE tenant = ? AND session = ? AND part = ?', [
-        ...scope,
-        part.part,
-      ])
-    else
-      port.execute(
-        'INSERT OR REPLACE INTO er_state_part (tenant, session, part, state) VALUES (?, ?, ?, ?)',
-        [...scope, part.part, json(part.state)],
-      )
+    port.execute(
+      'INSERT OR REPLACE INTO er_state_part (tenant, session, part, state, published) VALUES (?, ?, ?, ?, ?)',
+      [...scope, part.part, part.state === null ? null : json(part.state), next],
+    )
 }
 
 function publish(port: Executor, write: Write): ParticipantReply {
@@ -340,7 +340,7 @@ function publish(port: Executor, write: Write): ParticipantReply {
     'INSERT INTO er_operation (tenant, operation, session, execution, digest, answer, published) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [tenant, write.operation, session, execution, write.digest, json(write.answer), next],
   )
-  writeState(port, write)
+  writeState(port, write, next)
   writeIndex(port, write)
   port.execute('INSERT OR REPLACE INTO er_root (tenant, session, published) VALUES (?, ?, ?)', [
     tenant,

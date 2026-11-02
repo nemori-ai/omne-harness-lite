@@ -17,5 +17,6 @@
 - [history-index.spec.ts](history-index.spec.ts)：K-5 同根索引、观察尾部前缀与读取计数
 - [preadmission.spec.ts](preadmission.spec.ts)：准入记录
 - [admission-attempt-migration.spec.ts](admission-attempt-migration.spec.ts)：受理行原 attempt 列的迁移
+- [state-parts.spec.ts](state-parts.spec.ts)：Agent 记录的分区写入与分页读口
 - [same-domain-tenant.spec.ts](same-domain-tenant.spec.ts)：同一事务域里两个租户的直查隔离
 - [fixtures/](fixtures/index.md)：`node:sqlite` 与真实提供者的测试夹具

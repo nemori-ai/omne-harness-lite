@@ -366,18 +366,21 @@ export function decodeExecutionRecordState(output: JsonValue): ExecutionRecordSt
 
 /**
  * The input of `execution-record.parts`: `after` the last part of the previous page (null: the first
- * page), `parts` the names to read (absent or null: every part).
+ * page), `parts` the names to read (absent or null: every part), `since` a publication count (absent
+ * or null: every part that is there; given: only the parts a later publication wrote or dropped).
  */
 export type ExecutionRecordPartsRead = Readonly<{
   tenant: string
   session: string
   after?: string | null
   parts?: readonly string[] | null
+  since?: string | null
 }>
 /**
  * One page of `execution-record.parts`: the publication count when the page was read, the whole
  * state of a writer that does not split it (first page only; null otherwise or when there is
- * none), the parts in ascending part order, and the `after` of the next page (null: none).
+ * none), the parts in ascending part order (a dropped part, read with `since`, has a null state),
+ * and the `after` of the next page (null: none).
  */
 export type ExecutionRecordPartsPage = Readonly<{
   published: string
