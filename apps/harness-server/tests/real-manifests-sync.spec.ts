@@ -69,9 +69,7 @@ describe('real-manifests-sync', () => {
   test('the known gaps name rows of the table and a patch each', () => {
     for (const [row, gap] of Object.entries(KNOWN_GAPS)) {
       expect(profile.stubManifests.has(row as RowId), row).toBe(true)
-      expect(gap.patch).toMatch(
-        /^(?:AAP-\d+|R2-D41（Reduce 收件时改装配页、aa-rows、stubs）)$/,
-      )
+      expect(gap.patch).toMatch(/^(?:AAP-\d+|R2-D41（Reduce 收件时改装配页、aa-rows、stubs）)$/)
     }
   })
 
