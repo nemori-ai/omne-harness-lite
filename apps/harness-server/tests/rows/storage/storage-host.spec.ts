@@ -63,13 +63,17 @@ async function hostOn(expected: ReadonlyMap<RowId, LifecyclePhase>) {
 
 const expectedStorage = new Map<RowId, LifecyclePhase>([[STORAGE, 'storage']])
 
+/**
+ * The catalog with the `session` participant's code digest broken. The Session log combination runs
+ * `execution-record` first (ascending names), so ``first`` is no longer `session`; pick it by name.
+ */
 function tampered(catalog: SqlMaterialCatalog): SqlMaterialCatalog {
-  const [first, ...rest] = catalog.participants
-  if (first === undefined) throw new Error('catalog has no participant')
-  return {
-    ...catalog,
-    participants: [{ ...first, codeDigest: '0'.repeat(64) }, ...rest],
-  }
+  const index = catalog.participants.findIndex(item => item.participant === 'session')
+  const target = catalog.participants[index]
+  if (target === undefined) throw new Error('catalog has no session participant')
+  const participants = [...catalog.participants]
+  participants[index] = { ...target, codeDigest: '0'.repeat(64) }
+  return { ...catalog, participants }
 }
 
 const live: LoadedTree[] = []
