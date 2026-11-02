@@ -215,12 +215,24 @@ importers:
       '@omne-harness/request-context-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/context/request-context-cordis-contract
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../packages/context/runtime-context-contract
+      '@omne-harness/runtime-context-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/context/runtime-context-cordis-contract
       '@omne-harness/server-entry':
         specifier: workspace:*
         version: link:../../packages/access/server-entry
+      '@omne-harness/session-adapters':
+        specifier: workspace:*
+        version: link:../../packages/session/session-adapters
       '@omne-harness/session-contract':
         specifier: workspace:*
         version: link:../../packages/session/session-contract
+      '@omne-harness/session-cordis':
+        specifier: workspace:*
+        version: link:../../packages/session/session-cordis
       '@omne-harness/session-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/session/session-cordis-contract
