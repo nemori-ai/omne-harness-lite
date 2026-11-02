@@ -330,6 +330,89 @@ describe('the author route reads the closure tryFinish rebuilds', () => {
     expect(await finish(s, ready, 'end')).toMatchObject({ failure: { kind: 'unavailable' } })
   })
 
+  it('a call whose result is saved as a received entry is settled by that entry and the finish ends', async () => {
+    const s = await started('call-received')
+    const tool = toolCall(s.access.tenant, 'received-call')
+    const other = toolCall(s.access.tenant, 'unreceived-call')
+    const loaded = await load(s)
+    const attachment = loaded.executionAttachment ?? s.opened.authority
+    ok(
+      await commit(s, 'intent', {
+        checkpoint: { ...loaded.checkpoint, batch: tool.batch },
+        effects: [tool, other].map(item => ({
+          action: item.pending.action,
+          pending: item.pending,
+          authority: attachment,
+        })),
+      }),
+    )
+    const { material: _material, ...entry } = tool.entry
+    const received = ok(
+      await s.view.received.commit({
+        ...s.access,
+        execution: s.execution,
+        operation: operation('receive'),
+        entry,
+        material: {
+          kind: 'facts' as const,
+          schema: loaded.checkpoint.schema,
+          value: { kind: 'string' as const, value: 'complete Tool account fixture' },
+        },
+      }),
+    )
+    if (received.kind !== 'committed') throw new Error('commit expected')
+    const snapshot = await load(s)
+    expect(snapshot.results).toEqual([])
+    const ready = await prepareEnd(s)
+    const calls = ready.finishObligations?.items.filter(item => item.kind === 'call')
+    // Only the call whose consumption the entry names is settled; the other stays unknown.
+    expect(calls?.find(item => item.key === tool.pending.action)?.disposition).toMatchObject({
+      kind: 'settled',
+      completion: received.value.entry.material,
+    })
+    expect(calls?.find(item => item.key === other.pending.action)?.disposition).toMatchObject({
+      kind: 'unknown',
+    })
+    expect(await finish(s, ready, 'end-blocked')).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+  })
+
+  it('a call whose result is saved as a received entry ends the finish', async () => {
+    const s = await started('call-received-end')
+    const tool = toolCall(s.access.tenant, 'received-call')
+    const loaded = await load(s)
+    ok(
+      await commit(s, 'intent', {
+        checkpoint: { ...loaded.checkpoint, batch: tool.batch },
+        effects: [
+          {
+            action: tool.pending.action,
+            pending: tool.pending,
+            authority: loaded.executionAttachment ?? s.opened.authority,
+          },
+        ],
+      }),
+    )
+    const { material: _material, ...entry } = tool.entry
+    ok(
+      await s.view.received.commit({
+        ...s.access,
+        execution: s.execution,
+        operation: operation('receive'),
+        entry,
+        material: {
+          kind: 'facts' as const,
+          schema: loaded.checkpoint.schema,
+          value: { kind: 'string' as const, value: 'complete Tool account fixture' },
+        },
+      }),
+    )
+    const ready = await prepareEnd(s)
+    ok(await finish(s, ready, 'end'))
+    expect((await load(s)).state.kind).toBe('ended')
+  })
+
   it('a complete candidate with a prepared H that no Ja published is blocked with operations', async () => {
     const s = await started('pending-history')
     const before = await load(s)
