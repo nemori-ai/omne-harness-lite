@@ -15,23 +15,32 @@
 
 ### 耐久的 ModelCommands
 
-`createSqlModelCommands(options)` 等于 `modelCommands(createModelCommandsCore(核心选项, createSqlModelStorage(存储选项)))`；给出 `send` 时，核心建在 `createSendMirror` 装饰过的存储上。22 个方法的规则全部在共享核心，本成员不另写规则。
+`createSqlModelCommands(options)` 把 SQL 存储、可选确认接缝和可选发送镜像装在唯一的命令核心上。装饰次序为 SQL storage → observation storage → send mirror storage → core；未启用的装饰层省略。22 个方法的规则全部在共享核心，本成员不另写规则。
 
 - 选项是核心的选项（`owners`、`authority`、`evidence`、`clock`、`limits`）加上存储需要的 `storage`、`domains`、`combination`、`maxCallBytes`、`maxCommandBytes`、可选的 `attemptLimit` 与 `unresolvedLimit`，以及可选的 `send`（`mirrorBytes`、可选的 `maxClaims` 与发送来源 `sources`）。
 - 核心的 `limits.capacity` 在这里是每租户份额：`reserved` 给出该租户持有的容量，参加者在受理的同一次提交里按同一份额核对。所以不另设 `tenantCapacity`。
 - 构造期核对：核心的选项与 owner 声明（核心抛出）；N1 与组合（存储抛出）；`limits.scanPageCalls` 不超过 `model.pending` 一页的上限 1000。
-- 返回 `{ commands, coordinator }`。给出 `send` 时，命令与协调器共用同一个被装饰的存储与同一个核心，也就共用同一个资格权威；没有 `send` 时 `coordinator` 为 `null`。记录插件只发布 `modelCommands`；协调器经闭包传给发送子插件工厂，不是服务键。
+- 另可传入 `initialRun`、`observation: { limits, timing }` 与 `reportConfirmation`。首次记录与确认源的行为由 [model](../model/SPEC.md#首次执行记录与私有通道)拥有。只给 initialRun 时也安装确认接缝，不创建观察源；两者均缺席时保留旧配置行为。
+- 返回值增加 `initial` 与 `observations`，未启用时分别为 `null`。给出 `send` 时，命令与协调器共用同一个被装饰的存储与同一个核心，也就共用同一个资格权威；没有 `send` 时 `coordinator` 为 `null`。`initial.openHost` 的绑定门面仍使用这一核心、镜像与认领表，不另建执行缓存。
+
+### 最终确认与私有侧口
+
+SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开观察。确认桥每次 work 重建 pass，只有真实 `inner.run` 最终返回后，才按最后一轮的文档与绑定处理确认。CAS 冲突前的暂存不会发布，`commit-unknown` 保留原操作与首次 pending，不发布未确认状态。同操作重试只能认回已有首次记录，不从 SQL 的空 execution 重建来源。
+
+确认顺序为首次登记、公共确认源、发送镜像更新、命令返回。前两步之间不 await，观察额度耗尽也不能跳过首次登记。确认回调失败不回滚或覆盖已提交的业务结果：受影响 initial 或观察侧口不可用，报告仅含 `initial-confirmation-failed` 或 `observation-confirmation-failed`，不含正文与异常原因。report 抛错也不改变 Outcome。底层异常仍原样抛出，不发布暂存。直接工厂未给 report 时不输出；记录插件提供安全 logger。
+
+本成员不新增首次接管表或 migration。initialRun、观察记录、发送镜像与认领表都是进程内对象，耐久调用文档不等于这些运行记录可以在重启后恢复。恢复与后继接管仍属明确缺项。验证资源为 [stream-confirmation.spec.ts](tests/stream-confirmation.spec.ts)。
 
 ### Cordis 记录插件
 
 `./cordis` 的公开类型与数据校验归 [cordis.ts](src/cordis.ts) 和 [cordis-config.ts](src/cordis-config.ts)。采用依据为 L-MODEL 波 2 #446 r9 的 RECORDS 闭包。
 
 - 数据配置必须给出 `owners`、完整的 `limits`、`maxCallBytes`、`maxCommandBytes`、`combinationVersion` 与 `send.mirrorBytes/maxClaims`。数值为正安全整数，没有代码默认值。容量为十进制计数字符串。既有核心和 SQL 构造期检查继续生效，包括 N1 与扫描页上限。
-- 对象选项 `resolve(ctx, config)` 在每次激活时取得 `storage`、`domains`、`clock`、`authority`、`evidence`、`sources` 与 `manifestDigest`。应用必须在 `options.inject` 列出该工厂所需的完整服务键常量列表；`modelCommands` 不能成为自身依赖。解析器不替应用推断依赖，也不赋予应用授权政策。
-- 一次激活只调用一次 `createSqlModelCommands`。公开服务的 22 个方法全部委托这一实例。协调器只经 `options.sendStage(coordinator)` 交给发送插件及其数据配置，不挂在服务实例上，不新增服务键。
+- 对象选项 `resolve(ctx, config)` 在每次激活时取得 `storage`、`domains`、`clock`、`authority`、`evidence`、`sources` 与 `manifestDigest`，也可取得运行级 `initialRun` 和 `observation: { timing }`。观察十二项上限放在数据配置的 `observation` 中，timing 留在对象依赖中。两边只启用一边时加载失败；两边均缺席的旧配置仍可用。应用必须在 `options.inject` 列出该工厂所需的完整服务键常量列表；`modelCommands` 不能成为自身依赖。解析器不替应用推断依赖，也不赋予应用授权政策。
+- 一次激活只调用一次 `createSqlModelCommands`。公开服务的 22 个方法全部委托这一实例。`options.sendStage(coordinator, activation)` 经闭包交出协调器、initial 与可选的 observation 配对。旧单参数 callback 可以忽略第二参数。配对中的 `commands` 是本次真实 `ModelCommandsService` 原体，不是内部命令对象或 Cordis 代理；source 来自同一工厂。它们不成为 Service 属性，不新增 ctx 键。每次重新激活创建新配对，宿主须核原体身份。
 - 命令方法准备好后调用 `ctx.plugin` 创建发送子 fiber，不等待它。发送插件可静态依赖 `modelCredential` 与 `modelCommands`。缺凭据只使发送子 fiber 等待，记录服务仍可查询。凭据恢复时由 Cordis 激活子插件。
 - 采用官方 `@deepseek-ai/cordis` 4.0.4，无自有 fork。发送子插件装载抛错时，Cordis 记录错误，子 fiber 进入 `FAILED`，等待该子 fiber 会拒绝；父记录 fiber 仍可为 `ACTIVE`。父启动成功只说明记录服务可用。应用须观察发送子 fiber 或对应日志，不能把父启动成功当作发送就绪。
-- 父 fiber 撤除会撤除命令贡献并等待子 fiber 清理。`storage`、`domains` 及其他注入对象仍归其提供者所有，记录插件不关闭它们。清理不撤销已提交 SQL 事实，也不声明已发出的外部请求可回滚。
+- 父 fiber 撤除会关闭本次观察源、撤除命令贡献并等待子 fiber 清理。`storage`、`domains`、运行级 initialRun 及其他注入对象仍归其提供者所有，记录插件不关闭它们。清理不撤销已提交 SQL 事实，也不声明已发出的外部请求可回滚。宿主、发送子 fiber 与 channel 的正常关闭次序由入口组合者承担，见 [model-host-local](../model-host-local/SPEC.md#首次执行与公共观察接线)。
 
 [cordis.spec.ts](tests/cordis.spec.ts) 用真实 Cordis、现有 `node:sqlite` 存储夹具与具名发送替身核对上述生命周期、配置拒绝与内存对拍。它不证明真实发送、Worker 耐久性或发行应用接线。
 

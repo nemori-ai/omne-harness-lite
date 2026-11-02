@@ -40,6 +40,8 @@ const { commands } = createSqlModelCommands({
 
 `commands` has the 22 methods of `ModelCommands`. The shared core runs each method with `run(work, scope)` of the storage. The scope gives the tenant, the call, and, for a write, the operation. In `work` the core reads with `documents` and `reserved`, and it writes one time with `commit` or `publish`. After a CAS conflict, the run reads again and runs the work again. `scanPending` uses the `pending` port of the storage and does not run an attempt.
 
+The factory also accepts an optional `initialRun`, `observation: { limits, timing }`, and `reportConfirmation`. It returns `initial` and `observations`, each `null` when disabled. All enabled parts share one core. Initial records remain process-local and add no SQL takeover table. See [final confirmation and private ports](SPEC.md#最终确认与私有侧口).
+
 ### Cordis assembly
 
 Use `./cordis` to publish the commands and load the send child. This helper accepts the application mapping and returns the records fiber:
@@ -63,14 +65,16 @@ export function installRecords<C>(
 
 The application must supply these mappings:
 
-| Input                            | Application responsibility                                                                                                                                                                                                                                                 |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `options.inject`                 | Supply the complete list of service key constants needed by `resolve`. Exclude `modelCommands`, which this plugin provides.                                                                                                                                                |
-| `options.resolve(ctx, config)`   | Return `storage`, `domains`, `clock`, `authority`, `evidence`, `sources`, and `manifestDigest` for this activation. The application owns policy and the registered storage combination.                                                                                    |
-| `options.sendStage(coordinator)` | Return `{ plugin, config }` for the existing send stage. For the local host, call `createModelSendStagePlugin` from `@omne-harness/model-host-local/cordis` with this coordinator and the application's remaining send options. Its config supplies `maxRetainedAttempts`. |
-| `config`                         | Supply `owners`, all `limits` fields, `maxCallBytes`, `maxCommandBytes`, `combinationVersion`, and `send: { mirrorBytes, maxClaims }`. This entry supplies no numeric defaults.                                                                                            |
+| Input                                        | Application responsibility                                                                                                                                                                                                                                                 |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options.inject`                             | Supply the complete list of service key constants needed by `resolve`. Exclude `modelCommands`, which this plugin provides.                                                                                                                                                |
+| `options.resolve(ctx, config)`               | Return `storage`, `domains`, `clock`, `authority`, `evidence`, `sources`, and `manifestDigest` for this activation. The application owns policy and the registered storage combination.                                                                                    |
+| `options.sendStage(coordinator, activation)` | Return `{ plugin, config }` for the existing send stage. For the local host, call `createModelSendStagePlugin` from `@omne-harness/model-host-local/cordis` with this coordinator and the application's remaining send options. Its config supplies `maxRetainedAttempts`. |
+| `config`                                     | Supply `owners`, all `limits` fields, `maxCallBytes`, `maxCommandBytes`, `combinationVersion`, and `send: { mirrorBytes, maxClaims }`. This entry supplies no numeric defaults.                                                                                            |
 
 All 22 methods delegate to one SQL command instance. Only the closure passes its coordinator to the send factory. No coordinator service key exists. Do not include the send child's credential dependency in the records dependency list unless `resolve` itself requires it. The send child declares its own dependencies.
+
+For initial execution, `resolve` can return the runtime's `initialRun`. For observation, put all twelve limits in `config.observation` and return `observation: { timing }` from `resolve`. Supplying only one observation part fails loading. `sendStage(coordinator, activation)` receives `activation.initial` and the optional `{ commands, source }` observation pair. Its commands value is the actual records Service object. Pass that pair to the host without replacement. Existing callbacks can ignore the second argument. These objects stay in closures. The [records specification](SPEC.md#cordis-记录插件) owns the binding and lifecycle rules.
 
 With Cordis 4.0.4, missing credentials leave the send child `PENDING` while the records fiber becomes `ACTIVE`. Restoring credentials activates the child. A child startup error is logged, leaves that child `FAILED`, and rejects an explicit wait for that child. It does not fail the records fiber. Monitor the child or its logs to establish send readiness. Removing the records fiber removes both contributions and waits for child cleanup. The injected storage remains owned by its provider, and committed facts remain in storage.
 
