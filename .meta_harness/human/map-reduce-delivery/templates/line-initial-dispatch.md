@@ -53,7 +53,7 @@ Codex 宿主上，本线主代理模型用 `gpt-6-astra` @ high。档位心智�
 
 按顺序加载：
 
-1. `line`、`pstack:poteto-mode` 和 `asd-ste100`。先读 `line` 的 `references/work-paradigm.md`。这份范式给出分工、思维模型、三层准备、方法地图、本波计划、推进循环、证据、交回与等待。
+1. `line` 和 `pstack:poteto-mode`。先读 `line` 的 `references/work-paradigm.md`。这份范式给出分工、思维模型、三层准备、方法地图、本波计划、推进循环、证据、交回与等待。
 2. 本波另有几张卡时，按 `claim` 技能一次认领。
 3. 派发子代理时加载 `delegate`。
 4. 写 spec 的「原则与约束」或写、改代码前加载 `ub-mode`。它是用户级技能，按 `docs/development.md`「初始化 coding agent 插件」初始化。先确认宿主能发现 `ub-mode`，发现不了时报告缺口。

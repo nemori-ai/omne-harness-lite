@@ -53,7 +53,7 @@ Reduce 是项目总负责人，你是本线的 dev team lead。Reduce 每波只�
 ## 会话级：开工时一次做好
 
 1. **身份与长程目标。** 写下：本线是谁、线父卡、线包里本线里程碑的目标与验收、里程碑卡的关闭门、本线结果服务哪道门。以后每个局部决定都回到这里核对。
-2. **加载技能。** 先加载 `line`、`pstack:poteto-mode`、`asd-ste100`，读取实际工作树的 `AGENTS.md`、`docs/orientation.md`、线级上下文地图与拥有者入口；实施前读 `ub-mode`，并按本线工作类型加载专项技能。本波有几张卡时按 `claim` 一次认领；评审用 `review-code`、`review-docs`、`review-delivery`；派子代理时加载 `delegate`。改文档前加载 `asd-ste100`。
+2. **加载技能。** 先加载 `line` 和 `pstack:poteto-mode`，读取实际工作树的 `AGENTS.md`、`docs/orientation.md`、线级上下文地图与拥有者入口；实施前读 `ub-mode`，并按本线工作类型加载专项技能。本波有几张卡时按 `claim` 一次认领；评审用 `review-code`、`review-docs`、`review-delivery`；派子代理时加载 `delegate`。改文档前加载 `asd-ste100`。
 3. **方法地图。** 按下一节写一份本线版本：本线的主工作类型对应哪个 playbook，三层各用哪些技能，哪些项目规矩最常碰到。
 4. **环境。** 依赖安装、生成 agent 投影（`node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>`，它最后运行 `check:agents`）、`check:agents` 通过；记下 Node、pnpm、git 版本。
 5. **线级上下文地图主体。** 本线各波共用的拥有者正文、系统图景入口（`docs/orientation.md`）、最容易踩的耦合与禁止的依赖方向、相邻线的接口、读者角色。reduce 已给出时只核对。
