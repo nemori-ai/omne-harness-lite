@@ -81,8 +81,10 @@
 | --- | --- | --- |
 | 取消与中断控制 | [ExecutionControl、ControlStage、ControlRecord](../../../agent-contract/src/execution.ts) | 公开形状区分六个控制阶段。本模型的 confirmed 仅指派发围栏确认，不能直接写成 `physically-stopped` |
 | Session 意图及 Run 终态 | [decideCancelRun、decideStopCall](../../../../session/session-contract/src/decide-control.ts)，[Session SPEC](../../../../session/session/SPEC.md#c3-控制传播协调器) | 纯规则已有具名目标核验。需用真实事务及控制传播证明撤权与终态共同可见，以及迟到的正常结束不能覆盖取消 |
-| Agent 派发与唯一终态出口 | [coordinator.ts](../../src/loop/coordinator.ts) 的请求、工具与 F3，`prepareFinish` / `tryFinish` | 基线 F3 使用 advancement 授权。取消路线仍是 [U-19](../../docs/architecture/open-questions.md#待各拥有者闭合的具名缺口)，不得把本模型作为实现完成证据 |
-| Agent 控制入口 | [provider.ts](../../src/provider.ts) 的 `control.control` | 基线返回 stage 5 未实现。后续实现需验证派发前最新资格检查，不能只检查准备时的资格 |
+| Agent 派发与唯一终态出口 | [coordinator.ts](../../src/loop/coordinator.ts) 的 M6、A2、F0 至 F3，`prepareFinish` / `tryFinish` | 取消路线经 F0 至 F3 和唯一的 `tryFinish` 收场。未完成的部分见 [U-19](../../docs/architecture/open-questions.md#待各拥有者闭合的具名缺口)。模型派发是 M6：先读最新快照核对推进资格和取消，再调用 `models.calls.admit`。Tool 派发分下面两步，不得把本模型作为实现完成证据 |
+| Tool 派发第一步：invoke | A2 的 `sendAction` | 意图已保存后，协调者读最新快照，核对推进资格和有效取消，再调用 `tools.invoke`。这一步对应 `Dispatch(c)`。核对与 invoke 不是一个原子动作。F0 与这一步在同一个协调者内顺序执行，所以围栏确认不会落在核对与 invoke 之间。远端旧快照和跨进程围栏不在这一保证内 |
+| Tool 派发第二步：关联提交 | A2 的 `associate` | 这一步把 Tool 返回的调用引用写进 checkpoint。它记录 `Dispatch(c)` 已经发生的事实，不是新的派发。取消在 invoke 返回之后、关联提交之前生效时，关联仍然提交。F0 再按这个引用对该调用发出逐调用中断，对应 `ApplyCancel` 对前台调用的中断请求。迟到的结果按原引用接收，对应 `ReceiveContent`、`ReceiveCost`。没有引用的意图不对应任何已派发的调用，F0 不对它发出中断 |
+| Agent 控制入口 | [provider.ts](../../src/provider.ts) 的 `control.control`，[control.ts](../../src/control.ts) 的 `advanceControl` | 入口先保存命令，再按保存的记录推进。取消记录意图成立和推进资格撤销，对应 `Revoke` 中撤销推进资格的部分。Run 终态归 Session。中断只作用于原调用。任何一步失败时，入口把失败原样返回。调用方用同一 operation 重试，已保存的阶段按原操作认回，不重复建立 |
 | 内容与费用保存 | [receiving.ts](../../src/receiving.ts)、[receiving-outlet.ts](../../src/receiving-outlet.ts) | 需验证取消、单调用中断和逻辑终态之后，原材料、费用与接收责任继续可读。共同提交和原操作认回另由 reception 模型覆盖 |
 | 责任交接与收束 | [Finishing 的映射](../../../agent-contract/verification/formal-mapping.md)及 Journal 的 `commitSettlement` / `tryFinish` | 本模型只记录接收责任交接，不证明 U-29 的 Rh 保管、磁盘耐久或跨进程恢复 |
 
