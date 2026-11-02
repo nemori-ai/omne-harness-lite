@@ -1,9 +1,12 @@
 // The durable form of the Agent records of one session: the executions, the operation records,
 // the joint facts, the received state and the Authority to attempt relation that the Journal core
-// keeps in its root. The `execution-record` participant stores this form as opaque state; the
-// provider rebuilds its in-process root from it. Maps, sets, minted identities and bigints have
+// keeps in its root, the original fragments that the normalization of an event reads, and the
+// interpretation notes of the provider (head receipts and normalized consequences). The
+// `execution-record` participant stores this form as opaque state; the provider rebuilds its
+// in-process root from it. Maps, sets, minted identities and bigints have
 // marked forms, so a decoded value equals the encoded one. A function is not data: it is refused.
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
+import type { DurableEvidence, SessionLogConsequence } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { CommonRoot } from '../testing/root.ts'
 
@@ -97,13 +100,22 @@ export function decodeState(value: JsonValue): unknown {
   }
 }
 
-/** The part of the Journal core's root that is durable. */
+/**
+ * The part of the Journal core's root that is durable: the records, and the original fragments
+ * that the normalization of an event reads (its commit receipt, its Pending with the first call
+ * event of each consumption, its human material) with the count of events already captured.
+ */
 export type DurableAgentRecords = Readonly<{
   executions: CommonRoot['agent']['executions']
   operations: CommonRoot['agent']['operations']
   jointFacts: CommonRoot['agent']['jointFacts']
   authorities: CommonRoot['agent']['authorities']
   receiving: CommonRoot['receiving']
+  eventReceipts: CommonRoot['agent']['eventReceipts']
+  pendingEvents: CommonRoot['agent']['pendingEvents']
+  callOrigins: CommonRoot['agent']['callOrigins']
+  human: CommonRoot['agent']['human']
+  indexedEvents: CommonRoot['agent']['indexedEvents']
 }>
 
 export function recordsOf(root: CommonRoot): DurableAgentRecords {
@@ -113,5 +125,60 @@ export function recordsOf(root: CommonRoot): DurableAgentRecords {
     jointFacts: root.agent.jointFacts,
     authorities: root.agent.authorities,
     receiving: root.receiving,
+    eventReceipts: root.agent.eventReceipts,
+    pendingEvents: root.agent.pendingEvents,
+    callOrigins: root.agent.callOrigins,
+    human: root.agent.human,
+    indexedEvents: root.agent.indexedEvents,
+  }
+}
+
+/**
+ * What the provider keeps beside the core's records for the interpretation of the events (AD-02),
+ * written in the same commit as the index rows it mirrors.
+ *
+ * - `heads`: the head receipt evidence of each execution as its boundary row names it; null when
+ *   the row holds the placeholder of a write that another execution's call made.
+ * - `consequences`: the normalized Session consequences of each event, by `[execution, sequence]`
+ *   JSON text; null when the original fragments do not decide them (the fact row then has empty
+ *   kinds).
+ */
+export type InterpretationNotes = Readonly<{
+  heads: Map<string, DurableEvidence | null>
+  consequences: Map<string, readonly SessionLogConsequence[] | null>
+}>
+
+export const emptyNotes = (): InterpretationNotes => ({ heads: new Map(), consequences: new Map() })
+
+/** The key of one event in `InterpretationNotes.consequences`. */
+export const eventKey = (execution: string, sequence: string): string =>
+  JSON.stringify([execution, sequence])
+
+/** The whole durable state: the records and the interpretation notes. */
+export type DurableJournalState = DurableAgentRecords & Readonly<{ notes: InterpretationNotes }>
+
+/**
+ * The decoded state of one session. A member that an older state does not hold reads as empty: the
+ * fragments and notes it lacks make the normalization of its events unavailable, never invented.
+ */
+export function stateOf(value: JsonValue): DurableJournalState {
+  const decoded = decodeState(value) as Partial<DurableJournalState>
+  const map = <K, V>(member: Map<K, V> | undefined): Map<K, V> =>
+    member instanceof Map ? member : new Map()
+  const notes = decoded.notes
+  if (decoded.executions === undefined || decoded.operations === undefined)
+    throw new TypeError('the state holds no execution or operation records')
+  return {
+    executions: decoded.executions,
+    operations: decoded.operations,
+    jointFacts: decoded.jointFacts ?? [],
+    authorities: map(decoded.authorities),
+    receiving: decoded.receiving as CommonRoot['receiving'],
+    eventReceipts: map(decoded.eventReceipts),
+    pendingEvents: map(decoded.pendingEvents),
+    callOrigins: map(decoded.callOrigins),
+    human: map(decoded.human),
+    indexedEvents: map(decoded.indexedEvents),
+    notes: { heads: map(notes?.heads), consequences: map(notes?.consequences) },
   }
 }
