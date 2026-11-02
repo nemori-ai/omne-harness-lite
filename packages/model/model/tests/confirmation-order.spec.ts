@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
+import { encodeModelInvocationRef } from '@omne-harness/model-contract'
 import {
   createModelCommandsCore,
   createModelInitialExecution,
@@ -82,58 +83,82 @@ it('a storage throw after synchronous work clears confirmation and rethrows the 
   })
 })
 
-it('confirms initial admission before the real observation source sees accepted facts', async () => {
-  const f = fixture()
-  const original = observationModule.createModelObservationSource
-  let channel: ModelInitialHostChannel<typeof f.principal>
-  let prepared: ReturnType<typeof channel.prepare> | undefined
-  vi.spyOn(observationModule, 'createModelObservationSource').mockImplementation(input => {
-    const source = original(input)
-    return {
-      ...source,
-      confirm: facts => {
-        if (facts.state.phase === 'accepted') prepared = channel.prepare(f.admit)
-        source.confirm(facts)
+it.each([false, true])(
+  'confirms initial admission before real observation, including callback throw=%s',
+  async throwObservation => {
+    const f = fixture()
+    const original = observationModule.createModelObservationSource
+    let channel: ModelInitialHostChannel<typeof f.principal>
+    let prepared: ReturnType<typeof channel.prepare> | undefined
+    vi.spyOn(observationModule, 'createModelObservationSource').mockImplementation(input => {
+      const source = original(input)
+      return {
+        ...source,
+        confirm: facts => {
+          if (facts.state.phase === 'accepted') prepared = channel.prepare(f.admit)
+          source.confirm(facts)
+          if (throwObservation) throw new Error('private observation detail')
+        },
+      }
+    })
+    const run = createModelInitialRun<typeof f.principal>({
+      limits: { maxRecords: 1, maxBindings: 1, maxCallsPerBinding: 1 },
+      checkOriginRead: () => ({ ok: undefined }),
+    })
+    const memory = new MemoryState(f.options)
+    const diagnostics: unknown[] = []
+    const bridge = createModelObservationStorage({
+      storage: memory,
+      authority: f.options.authority,
+      initialRun: run,
+      report: event => {
+        diagnostics.push(event)
+        throw new Error('private report detail')
       },
+      observation: {
+        limits: {
+          maxSnapshotBytes: 100000,
+          maxDeltaBytes: 100000,
+          maxQueuedFrames: 16,
+          maxQueuedBytes: 500000,
+          maxObserversPerTenant: 4,
+          maxObservers: 4,
+          maxPendingSourceOperations: 4,
+          maxRetainedCalls: 8,
+          maxRetainedBytes: 1000000,
+          maxTotalBytes: 5000000,
+          maxQueueResidenceMs: 10000,
+          checkIntervalMs: 1000,
+        },
+        timing: { nowMs: () => 0, waitUntil: () => Promise.resolve('elapsed') },
+      },
+    })
+    const core = createModelCommandsCore({ ...f.options, initialRun: run }, bridge.storage)
+    const initial = createModelInitialExecution({ core, run })
+    channel = unbox(initial.openHost({ instance: instance() }))
+    try {
+      expect(await modelCommands(core).admit(f.admit)).toHaveProperty('ok')
+      expect(prepared).toBeDefined()
+      expect(await prepared).toHaveProperty('ok')
+      expect(diagnostics).toEqual(
+        throwObservation ? [{ kind: 'observation-confirmation-failed' }] : [],
+      )
+      if (throwObservation) {
+        const host = bridge.observations && unbox(bridge.observations.openHost())
+        const reference = unbox(
+          encodeModelInvocationRef({
+            tenant: f.tenant,
+            call: f.admit.call,
+            admission: f.admit.operation,
+          }),
+        )
+        expect(await host?.references.current({ access: f.admit, reference })).toMatchObject({
+          failure: { kind: 'unavailable' },
+        })
+      }
+    } finally {
+      channel.close()
+      bridge.observations?.close()
     }
-  })
-  const run = createModelInitialRun<typeof f.principal>({
-    limits: { maxRecords: 1, maxBindings: 1, maxCallsPerBinding: 1 },
-    checkOriginRead: () => ({ ok: undefined }),
-  })
-  const memory = new MemoryState(f.options)
-  const bridge = createModelObservationStorage({
-    storage: memory,
-    authority: f.options.authority,
-    initialRun: run,
-    report: () => {},
-    observation: {
-      limits: {
-        maxSnapshotBytes: 100000,
-        maxDeltaBytes: 100000,
-        maxQueuedFrames: 16,
-        maxQueuedBytes: 500000,
-        maxObserversPerTenant: 4,
-        maxObservers: 4,
-        maxPendingSourceOperations: 4,
-        maxRetainedCalls: 8,
-        maxRetainedBytes: 1000000,
-        maxTotalBytes: 5000000,
-        maxQueueResidenceMs: 10000,
-        checkIntervalMs: 1000,
-      },
-      timing: { nowMs: () => 0, waitUntil: () => Promise.resolve('elapsed') },
-    },
-  })
-  const core = createModelCommandsCore({ ...f.options, initialRun: run }, bridge.storage)
-  const initial = createModelInitialExecution({ core, run })
-  channel = unbox(initial.openHost({ instance: instance() }))
-  try {
-    expect(await modelCommands(core).admit(f.admit)).toHaveProperty('ok')
-    expect(prepared).toBeDefined()
-    expect(await prepared).toHaveProperty('ok')
-  } finally {
-    channel.close()
-    bridge.observations?.close()
-  }
-})
+  },
+)

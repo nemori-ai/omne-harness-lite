@@ -203,6 +203,39 @@ it('an undecided SQL admit cannot publish staged accepted facts or mint a claim'
   ).toMatchObject({ failure: { kind: 'unavailable' } })
 })
 
+it('a real SQL unknown write ends the stream before any staged state can escape', async () => {
+  const s = scene()
+  unbox(await s.commands.admit(s.admit))
+  const prepared = unbox(await s.channel.prepare(s.admit))
+  const execution = unbox(await s.channel.commands.claim(prepared))
+  const recovery = unbox(await s.commands.loadRecovery(s.admit))
+  unbox(
+    await s.channel.commands.prepareDispatch({
+      ...execution,
+      operation: opId('unknown-dispatch'),
+      expected: recovery.state.revision,
+      dispatch: unbox(decodeDispatchId('mdisp_unknown')),
+      supplier: s.admit.request.suppliers[0],
+      policyDecision: null,
+    }),
+  )
+  s.host.attach({ execution, registration: 'unknown-host' })
+  const current = unbox(
+    await s.host.references.current({ access: s.access, reference: s.reference }),
+  ).current
+  if (!current) throw new Error('stream')
+  const iterator = s.host.observation
+    .observe({ access: s.access, ref: current.ref, signal: new AbortController().signal })
+    [Symbol.asyncIterator]()
+  expect(await iterator.next()).toMatchObject({ value: { kind: 'snapshot' } })
+  s.sqlite.hooks.holdNext = true
+  expect(
+    await s.commands.control({ ...s.admit, operation: opId('unknown-control') }),
+  ).toMatchObject({ failure: { kind: 'commit-unknown' } })
+  expect(await iterator.next()).toMatchObject({ value: { kind: 'ended', reason: 'unavailable' } })
+  expect(await iterator.next()).toEqual({ done: true, value: undefined })
+})
+
 it('memory and SQL expose the same confirmed origin, state and private channel boundaries', async () => {
   const sql = scene()
   const options = sql.core.options
