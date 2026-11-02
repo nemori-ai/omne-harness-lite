@@ -144,7 +144,7 @@
 | 顺序 | 按 [PM-13](../session-contract/SPEC.md#pm-13) 经 AgentDrivePort.control 的长期入口送达原执行，不先取得挂接。接续收束与 J07 映射沿 [AD-14](../session-adapters/SPEC.md#ad-14)。原生产者确认或未知经 receive 保存。reconciled 只表示原控制的传播、生产者核对与原责任交接已对账，不以 Tool 围栏生效为条件 |
 | 输入与产出 | 原控制操作、固定选择与待核对责任；control 出站及 receive 命令。没有本域 startFence 字段或失效调用 |
 | 单写 | 同一控制 operation 重放认回；受理不等于实际停止 |
-| 失败分支 | 不可用与未知保留责任，按原身份接续。超过上限仍 propagating 并报告。suspend 的恢复次序未决保持，不以本域提交证明 Tool 已阻止新发起 |
+| 失败分支 | 不可用与未知保留责任，按原身份接续。超过上限仍 propagating 并报告。关闭不等待未应答的出站，迟到应答丢弃；重启后由 S3 以同一操作身份找回重放。suspend 的恢复次序未决保持，不以本域提交证明 Tool 已阻止新发起 |
 
 <a id="c4"></a>
 
@@ -402,7 +402,7 @@
 | [C3](#c3)、[C4](#c4)、[C5](#c5)，[S2](#s2)、[S5](#s5)、[S6](#s6)、[S7](#s7) | 不触发。`changed` 通知不唤醒任何调度器 | 各自的协调对象进入实现 |
 | S3 的其余六个原因、每会话退避、部署租户枚举 | 周期扫描只读 `inputs` 与 `unresolved`。租户由调用方逐个交入 `maintain` | 对应协调器进入实现。租户枚举归 session-cordis |
 | [CA](#ca-缓存) 三层缓存 | 没有缓存。第 2 步总经视图读权威快照 | 实测显示权威读成为瓶颈 |
-| 诊断出口 | `SessionDependencies` 没有诊断端口。通知失败、`forSession` 失败、S4 超过上限时只停止，不报告维护者。后台工作抛出的缺陷留在实例内存里 | 公开接口页增加诊断端口 |
+| 诊断出口 | `SessionDependencies` 没有诊断端口。通知失败、`forSession` 失败、S4 超过上限时只停止，不报告维护者。C3/S5 的 `maxReplays` 超限后控制停在 `propagating`，没有端口可以报告。后台工作抛出的缺陷留在实例内存里 | 公开接口页增加诊断端口 |
 
 ### 已有测试
 
