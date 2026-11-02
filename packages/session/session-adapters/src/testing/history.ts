@@ -333,6 +333,45 @@ function normalizeOriginal(
     unavailable('event original commit')
   return normalizeControl(root, execution, event)
 }
+/** The Pending calls one event names: the producer waits of a waiting event, the original of a producer event. */
+function pendingOf(root: CommonRoot, execution: MemoryExecution, event: AgentEvent): PendingCall[] {
+  if (event.body.kind === 'waiting')
+    return event.body.waits.flatMap(wait => (wait.kind === 'producer' ? [wait.pending] : []))
+  if (event.body.kind === 'producer')
+    return [normalizedResult(root, execution, event.body.consumption, event.body.result).pending]
+  return []
+}
+
+/**
+ * Keeps the first call event of the consumption of `value`, and the event that associates a Tool
+ * intent with its actual call.
+ */
+function rememberCallOrigin(
+  root: CommonRoot,
+  execution: MemoryExecution,
+  event: AgentEvent,
+  value: PendingCall,
+): void {
+  registration(root, execution, value)
+  const key = `${execution.id}\0${value.consumption}`,
+    prior = root.agent.callOrigins.get(key)
+  if (!prior) {
+    root.agent.callOrigins.set(key, { first: event.sequence, pending: value, association: null })
+    return
+  }
+  if (
+    prior.pending.kind === 'tool' &&
+    prior.pending.association === 'intent' &&
+    value.kind === 'tool' &&
+    value.association === 'associated' &&
+    prior.association === null
+  )
+    root.agent.callOrigins.set(key, {
+      ...prior,
+      association: { sequence: event.sequence, pending: value, source: event.cause },
+    })
+}
+
 /**
  * Keeps, in the root of the write that appended `event`, the original fragments that the
  * normalization of the event reads: its commit receipt, its ended position, the control records of
@@ -355,31 +394,9 @@ export function captureEventOriginal(
       `${execution.id}\0${event.sequence}`,
       structuredClone(execution.controls),
     )
-  const pending =
-    event.body.kind === 'waiting'
-      ? event.body.waits.flatMap(wait => (wait.kind === 'producer' ? [wait.pending] : []))
-      : event.body.kind === 'producer'
-        ? [normalizedResult(root, execution, event.body.consumption, event.body.result).pending]
-        : []
+  const pending = pendingOf(root, execution, event)
   root.agent.pendingEvents.set(`${execution.id}\0${event.sequence}`, pending)
-  for (const value of pending) {
-    registration(root, execution, value)
-    const key = `${execution.id}\0${value.consumption}`,
-      prior = root.agent.callOrigins.get(key)
-    if (!prior)
-      root.agent.callOrigins.set(key, { first: event.sequence, pending: value, association: null })
-    else if (
-      prior.pending.kind === 'tool' &&
-      prior.pending.association === 'intent' &&
-      value.kind === 'tool' &&
-      value.association === 'associated' &&
-      prior.association === null
-    )
-      root.agent.callOrigins.set(key, {
-        ...prior,
-        association: { sequence: event.sequence, pending: value, source: event.cause },
-      })
-  }
+  for (const value of pending) rememberCallOrigin(root, execution, event, value)
   if (event.body.kind === 'waiting' && event.body.waits.some(wait => wait.kind === 'human'))
     root.agent.human.set(
       `${execution.id}\0${event.sequence}`,

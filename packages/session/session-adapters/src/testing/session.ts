@@ -1168,18 +1168,28 @@ export function createSessionTransactions<P>(
     return succeed(receipt)
   }
 
+  /** The store of the observation's session: refused for a quarantined or unknown session. */
+  const storeFor = (
+    observation: SessionLogObservation,
+    action: string,
+  ): Outcome<Readonly<{ key: string; store: Store }>, SessionFailure> => {
+    const key = keyOf(observation.tenant, observation.session)
+    if ('failure' in key) return key
+    const blocked = stores.gate(key.ok)
+    if (blocked !== null) return fail({ kind: 'quarantined', diagnostic: blocked })
+    const store = stores.get(key.ok)
+    return store === undefined ? fail(denied(action)) : succeed({ key: key.ok, store })
+  }
+
   const prepareProjection = (
     observation: SessionLogObservation,
     operation: SessionOperationId,
     releases: readonly ToolRelease[] = [],
     beforePublish?: () => SessionFailure | null,
   ): Outcome<CommitReceipt | null, SessionFailure> => {
-    const key = keyOf(observation.tenant, observation.session)
-    if ('failure' in key) return key
-    const blocked = stores.gate(key.ok)
-    if (blocked !== null) return fail({ kind: 'quarantined', diagnostic: blocked })
-    const store = stores.get(key.ok)
-    if (store === undefined) return fail(denied('project'))
+    const found = storeFor(observation, 'project')
+    if ('failure' in found) return found
+    const { key, store } = found.ok
     const held = store.operations.get(operation)
     const digest = releases.length ? digestOf({ observation, releases }) : digestOf(observation)
     if (held !== undefined)
@@ -1187,7 +1197,7 @@ export function createSessionTransactions<P>(
         ? succeed({ ...held.record.receipt, recovered: true })
         : fail({ kind: 'conflict', operation })
     return publishProjection(
-      key.ok,
+      key,
       store,
       observation,
       operation,
@@ -1211,12 +1221,9 @@ export function createSessionTransactions<P>(
   ): Promise<Outcome<SessionLogReceipt, SessionFailure>> => {
     const { observation } = input
     const { operation } = observation
-    const key = keyOf(observation.tenant, observation.session)
-    if ('failure' in key) return key
-    const blocked = stores.gate(key.ok)
-    if (blocked !== null) return fail({ kind: 'quarantined', diagnostic: blocked })
-    const store = stores.get(key.ok)
-    if (store === undefined) return fail(denied('commitLog'))
+    const found = storeFor(observation, 'commitLog')
+    if ('failure' in found) return found
+    const { key, store } = found.ok
     if (store.answers.has(operation)) return fail({ kind: 'conflict', operation })
     const digest = digestSessionLog(observation)
     const held = store.operations.get(operation)
@@ -1227,7 +1234,7 @@ export function createSessionTransactions<P>(
         : fail({ kind: 'conflict', operation })
     }
     const published = publishProjection(
-      key.ok,
+      key,
       store,
       observation,
       operation,
@@ -1246,7 +1253,7 @@ export function createSessionTransactions<P>(
     )
     if ('failure' in published) return published
     if (published.ok === null) return logWithoutRows(store, observation)
-    const recorded = stores.get(key.ok)?.operations.get(operation)
+    const recorded = stores.get(key)?.operations.get(operation)
     const answer = recorded === undefined ? null : logReceiptOf(recorded)
     return answer === null ? fail(unavailable('a log commit without its receipt')) : succeed(answer)
   }

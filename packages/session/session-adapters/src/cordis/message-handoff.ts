@@ -63,7 +63,6 @@ import {
   decodePreadmissionReply,
   decodeSessionExecution,
   preadmissionFacts,
-  type PreadmissionIntent,
   type PreadmissionRecord,
 } from '@omne-harness/session-storage-sql/participants'
 import type {
@@ -110,6 +109,13 @@ type Ports<P> = Readonly<{
   ): Promise<Outcome<DurableEvidence, Failure>>
   combination: JournalCombination
   stopped(): boolean
+}>
+
+/** The trusted binding of one prepare: where it belongs, its origin and its qualification basis. */
+type Binding = Readonly<{
+  bound: Bound
+  origin: InputOrigin | null
+  basis: DurableEvidence | null
 }>
 
 /** Where one request belongs: its session and the identities its record is keyed by. */
@@ -237,89 +243,114 @@ function createMessageHandoff<P>(
   const runHolds = (work: WorkSnapshot, execution: string): boolean =>
     work.run.kind === 'active' && work.run.execution.execution === execution
 
-  /** Step 1: the trusted binding of each branch, and the qualification of an external call. */
-  async function bind(
+  /** The session the Run of `execution` is active in, after `check` allowed the call. */
+  async function qualified(
+    access: Access<P>,
+    session: SessionId,
+    execution: string,
+    action: 'invoke' | 'submit',
+    target: AgentAccessTarget,
+  ): Promise<Outcome<DurableEvidence, Failure>> {
+    const work = await snapshotOf(access.tenant, session)
+    if ('failure' in work) return work
+    if (!runHolds(work.ok, execution)) return fail(denied(action))
+    return ports.check(access, action, target)
+  }
+
+  /**
+   * The invoke branch: the runtime scope is the slot scope of a session (AD-14). Its record names
+   * the session and its digest binds the tenant, so another tenant's scope or a forged one does not
+   * bind.
+   */
+  async function bindInvoke(
     access: Access<P>,
     tenantText: string,
-    prepare: HandoffPrepare,
-  ): Promise<
-    Outcome<
-      Readonly<{ bound: Bound; origin: InputOrigin | null; basis: DurableEvidence | null }>,
-      Failure
-    >
-  > {
-    const domain = await domainOf(tenantText)
-    if ('failure' in domain) return domain
-    const request = prepare.request
-    const execution = request.reference.execution
-    const handoff = handoffOf(request)
-    if (prepare.kind === 'invoke') {
-      const { scope } = prepare.runtime
-      // The runtime scope of an invoke is the slot scope of a session (AD-14): its record names the
-      // session and its digest binds the tenant. Another tenant's scope or a forged one does not.
-      const session = scope.record as SessionId
-      if (canonical(sessionScopeEvidence(tenantText, session)) !== canonical(scope))
-        return fail(denied('invoke'))
-      const work = await snapshotOf(access.tenant, session)
-      if ('failure' in work) return work
-      if (!runHolds(work.ok, execution)) return fail(denied('invoke'))
-      const allowed = await ports.check(access, 'invoke', {
-        kind: 'scope',
-        scope,
-        definition: prepare.runtime.definition,
-      })
-      if ('failure' in allowed) return allowed
-      const { instance, definition, grant } = prepare.runtime
-      return succeed({
-        bound: {
-          tenant: access.tenant,
-          tenantText,
-          session,
-          execution,
-          handoff,
-          entry: entryOf(execution, prepare.request.reference.entry),
-        },
-        origin: { kind: 'invoke', instance, scope, definition, grant },
-        basis: allowed.ok,
-      })
-    }
-    const session = await sessionOfExecution(tenantText, domain.ok, execution, prepare.kind)
+    prepare: Extract<HandoffPrepare, { kind: 'invoke' }>,
+  ): Promise<Outcome<Binding, Failure>> {
+    const { scope, instance, definition, grant } = prepare.runtime
+    const reference = prepare.request.reference
+    const session = scope.record as SessionId
+    if (canonical(sessionScopeEvidence(tenantText, session)) !== canonical(scope))
+      return fail(denied('invoke'))
+    const allowed = await qualified(access, session, reference.execution, 'invoke', {
+      kind: 'scope',
+      scope,
+      definition,
+    })
+    if ('failure' in allowed) return allowed
+    return succeed({
+      bound: {
+        tenant: access.tenant,
+        tenantText,
+        session,
+        execution: reference.execution,
+        handoff: handoffOf(prepare.request),
+        entry: entryOf(reference.execution, reference.entry),
+      },
+      origin: { kind: 'invoke', instance, scope, definition, grant },
+      basis: allowed.ok,
+    })
+  }
+
+  /** The submit branch: the original execution by the execution index of the tenant. */
+  async function bindSubmit(
+    access: Access<P>,
+    tenantText: string,
+    domain: DomainRef,
+    prepare: Extract<HandoffPrepare, { kind: 'submit' }>,
+  ): Promise<Outcome<Binding, Failure>> {
+    const reference = prepare.request.reference
+    const execution = reference.execution
+    const session = await sessionOfExecution(tenantText, domain, execution, 'submit')
     if ('failure' in session) return session
-    if (prepare.kind === 'submit') {
-      const work = await snapshotOf(access.tenant, session.ok)
-      if ('failure' in work) return work
-      if (!runHolds(work.ok, execution)) return fail(denied('submit'))
-      const allowed = await ports.check(access, 'submit', { kind: 'execution', execution })
-      if ('failure' in allowed) return allowed
-      return succeed({
-        bound: {
-          tenant: access.tenant,
-          tenantText,
-          session: session.ok,
-          execution,
-          handoff,
-          entry: entryOf(execution, prepare.request.reference.entry),
-        },
-        origin: {
-          kind: 'submit',
-          executionBinding: {
-            owner: OWNER,
-            record: `${tenantText}/${execution}`,
-            revision: '1',
-            digest: sha256(canonical([tenantText, session.ok, execution])),
-          },
-          delivery: { kind: 'durable-view' },
-        },
-        basis: allowed.ok,
-      })
-    }
+    const allowed = await qualified(access, session.ok, execution, 'submit', {
+      kind: 'execution',
+      execution,
+    })
+    if ('failure' in allowed) return allowed
     return succeed({
       bound: {
         tenant: access.tenant,
         tenantText,
         session: session.ok,
         execution,
-        handoff,
+        handoff: handoffOf(prepare.request),
+        entry: entryOf(execution, reference.entry),
+      },
+      origin: {
+        kind: 'submit',
+        executionBinding: {
+          owner: OWNER,
+          record: `${tenantText}/${execution}`,
+          revision: '1',
+          digest: sha256(canonical([tenantText, session.ok, execution])),
+        },
+        delivery: { kind: 'durable-view' },
+      },
+      basis: allowed.ok,
+    })
+  }
+
+  /** Step 1: the trusted binding of each branch, and the qualification of an external call. */
+  async function bind(
+    access: Access<P>,
+    tenantText: string,
+    prepare: HandoffPrepare,
+  ): Promise<Outcome<Binding, Failure>> {
+    const domain = await domainOf(tenantText)
+    if ('failure' in domain) return domain
+    if (prepare.kind === 'invoke') return bindInvoke(access, tenantText, prepare)
+    if (prepare.kind === 'submit') return bindSubmit(access, tenantText, domain.ok, prepare)
+    const execution = prepare.request.reference.execution
+    const session = await sessionOfExecution(tenantText, domain.ok, execution, 'prepare')
+    if ('failure' in session) return session
+    return succeed({
+      bound: {
+        tenant: access.tenant,
+        tenantText,
+        session: session.ok,
+        execution,
+        handoff: handoffOf(prepare.request),
         entry: null,
       },
       origin: null,
@@ -431,6 +462,74 @@ function createMessageHandoff<P>(
         }
   }
 
+  /** Step 2: a held record answers by its own request; null when it holds no fixed outcome yet. */
+  function recall(
+    record: PreadmissionRecord,
+    request: HandoffRequest,
+  ): Outcome<HandoffOutcome | null, Failure> {
+    if (canonical(decodeIntent(record).request) !== canonical(request))
+      return fail({
+        kind: 'conflict',
+        operation:
+          request.reference.kind === 'execution'
+            ? request.reference.operation
+            : request.reference.entry,
+      })
+    return succeed(decodeOutcome(record))
+  }
+
+  /** Step 4: the first call saves the intent; the answer waits for the storage commit. */
+  function saveIntent(
+    access: Access<P>,
+    binding: Binding,
+    value: HandoffPrepare,
+  ): Promise<Outcome<PreadmissionRecord, Failure>> {
+    const { bound } = binding
+    const basis: DurableEvidence = binding.basis ?? {
+      owner: OWNER,
+      record: `${bound.tenantText}/${bound.handoff}/advance`,
+      revision: '1',
+      digest: sha256(canonical(value)),
+    }
+    return write(bound, {
+      phase: 'intent',
+      tenant: access.tenant,
+      handoff: bound.handoff,
+      entry: bound.entry,
+      session: bound.session,
+      execution: bound.execution,
+      intent: {
+        request: encodeState(value.request),
+        origin: encodeState(binding.origin),
+        principal: given.principalIdentity(access.principal),
+        qualification: encodeState(basis),
+        adoption: encodeState(given.provider),
+        materials: null,
+      },
+    })
+  }
+
+  /** Step 6: the outcome of the saved intent, fixed once; the answer is the fixed one. */
+  async function fixOutcome(bound: Bound, record: PreadmissionRecord): Reply<HandoffOutcome> {
+    const original = decodeIntent(record)
+    const outcome: HandoffOutcome = {
+      request: original.request,
+      origin: original.origin,
+      provider: given.provider,
+      qualification: original.qualification,
+      record: recordEvidence(record),
+      decision: decide(original.request, original.qualification),
+    }
+    const fixed = await write(bound, {
+      phase: 'outcome',
+      tenant: bound.tenant,
+      handoff: record.handoff,
+      outcome: { kind: outcome.decision.kind, outcome: encodeState(outcome) },
+    })
+    if ('failure' in fixed) return fixed
+    return succeed(decodeOutcome(fixed.ok) ?? outcome)
+  }
+
   async function prepare(input: Access<P> & HandoffPrepare): Reply<HandoffOutcome> {
     const { principal, tenant, ...shape } = input
     const judged = judgeHandoffPrepare(shape)
@@ -445,79 +544,27 @@ function createMessageHandoff<P>(
     const { bound } = binding.ok
     const held = await recordOf(bound)
     if ('failure' in held) return held
-    let record = held.ok
-    let authorities: ReadonlyMap<string, Readonly<{ attempt: string }>> | null = null
-    if (value.kind === 'execution') {
-      const saved = await internal(bound, value)
-      if ('failure' in saved) return saved
-      authorities = saved.ok
+    const saved = value.kind === 'execution' ? await internal(bound, value) : null
+    if (saved !== null && 'failure' in saved) return saved
+    if (held.ok !== null) {
+      const recalled = recall(held.ok, value.request)
+      if ('failure' in recalled) return recalled
+      if (recalled.ok !== null) return succeed(recalled.ok)
     }
-    if (record !== null) {
-      // Step 2: a held record answers by its own request; a fixed outcome is recalled first.
-      if (canonical(decodeIntent(record).request) !== canonical(value.request))
-        return fail({
-          kind: 'conflict',
-          operation:
-            value.request.reference.kind === 'execution'
-              ? value.request.reference.operation
-              : value.request.reference.entry,
-        })
-      const fixed = decodeOutcome(record)
-      if (fixed !== null) return succeed(fixed)
-    }
-    if (value.kind === 'execution' && authorities !== null) {
-      const current = await advances(bound, authorities, value)
+    if (value.kind === 'execution' && saved !== null) {
+      const current = await advances(bound, saved.ok, value)
       if ('failure' in current) return current
     }
+    let record = held.ok
     if (record === null) {
-      const basis =
-        binding.ok.basis ??
-        ({
-          owner: OWNER,
-          record: `${tenantText.value}/${bound.handoff}/advance`,
-          revision: '1',
-          digest: sha256(canonical(value)),
-        } satisfies DurableEvidence)
-      const intent: PreadmissionIntent = {
-        request: encodeState(value.request),
-        origin: encodeState(binding.ok.origin),
-        principal: given.principalIdentity(principal),
-        qualification: encodeState(basis),
-        adoption: encodeState(given.provider),
-        materials: null,
-      }
-      const saved = await write(bound, {
-        phase: 'intent',
-        tenant,
-        handoff: bound.handoff,
-        entry: bound.entry,
-        session: bound.session,
-        execution: bound.execution,
-        intent,
-      })
-      if ('failure' in saved) return saved
-      record = saved.ok
+      const intent = await saveIntent(access, binding.ok, value)
+      if ('failure' in intent) return intent
+      record = intent.ok
       // Another H already held this Ki: its own outcome, if fixed, is the answer.
       const fixed = decodeOutcome(record)
       if (fixed !== null) return succeed(fixed)
     }
-    const original = decodeIntent(record)
-    const outcome: HandoffOutcome = {
-      request: original.request,
-      origin: original.origin,
-      provider: given.provider,
-      qualification: original.qualification,
-      record: recordEvidence(record),
-      decision: decide(original.request, original.qualification),
-    }
-    const fixed = await write(bound, {
-      phase: 'outcome',
-      tenant,
-      handoff: record.handoff,
-      outcome: { kind: outcome.decision.kind, outcome: encodeState(outcome) },
-    })
-    if ('failure' in fixed) return fixed
-    return succeed(decodeOutcome(fixed.ok) ?? outcome)
+    return fixOutcome(bound, record)
   }
 
   async function lookup(input: Access<P> & HandoffLookup): Reply<HandoffResolution> {

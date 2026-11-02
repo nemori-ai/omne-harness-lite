@@ -1163,6 +1163,25 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       operation,
       commands: facts,
     })
+    return settle(book, copy, notes, after, written, scratch, answer, operation, outcome)
+  }
+
+  /**
+   * What one storage outcome of a publication answers: the call's answer once the write committed
+   * (the copy then reflects it), `again` for a lost race or a recalled own write, and the failure
+   * the outcome means otherwise. An unknown outcome keeps the write as held.
+   */
+  function settle<T>(
+    book: Book<P>,
+    copy: Copy<P>,
+    notes: InterpretationNotes,
+    after: CommonRoot,
+    written: Written,
+    scratch: Scratch,
+    answer: Outcome<T, Failure>,
+    operation: string,
+    outcome: Awaited<ReturnType<typeof commitJournal>>,
+  ): Settled<T> {
     // A write without an Agent operation (the material port) has no identity to name or to recall
     // by: wherever an answer would name one, it is `unavailable`, never an invented identity.
     const agentOperation = written.operation as AgentOperationId | null
