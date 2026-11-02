@@ -629,6 +629,8 @@ function memoryBackend(
       credentials: {
         present: () => ({ kind: 'unavailable' }),
         resolve: () => ({ kind: 'unavailable' }),
+        presentFor: () => ({ kind: 'unavailable' }),
+        resolveFor: () => ({ kind: 'unavailable' }),
       },
       sources: [source],
     },
@@ -690,6 +692,12 @@ class Clock extends ModelClockService {
 /** The factory credential: a synthetic value, never a real key. */
 class Credential extends ModelCredentialService {
   readonly present: CredentialPort['present'] = () => ({ kind: 'unavailable' })
+  readonly presentFor: NonNullable<CredentialPort['presentFor']> = () => ({ kind: 'unavailable' })
+  readonly resolveFor: NonNullable<CredentialPort['resolveFor']> = () => ({
+    kind: 'value',
+    scope: 'factory',
+    value: 'synthetic-credential',
+  })
   readonly resolve: CredentialPort['resolve'] = () => ({
     kind: 'value',
     scope: 'factory',
@@ -801,6 +809,7 @@ function channels() {
 /** The send resources of the stage: a scripted transport whose facts come from the channel. */
 function channelSendResources(channel: (call: ModelCallId) => Channel): PiSendResources<unknown> {
   return {
+    materialization: { prove: () => unavailable('model-materialization', 'scripted-transport') },
     async acquire(demand) {
       const stream = channel(demand.call)
       stream.acquired.resolve()
@@ -1056,6 +1065,10 @@ export async function durableSubject(
   const Stage = sendStagePluginOver({
     options: {
       coordinator: backend.coordinator,
+      materialization: {
+        maxRecords: STAGE_SETTINGS.maxRetainedAttempts,
+        execution: () => ({ ok: { owner: 'host', subject: 'channel', revision: '1' } }),
+      },
       families: FAMILIES,
       network: { maxConnections: 2, idleConnectionTimeoutMs: 1_000 },
       routes: {

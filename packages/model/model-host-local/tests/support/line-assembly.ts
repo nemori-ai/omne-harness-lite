@@ -668,6 +668,13 @@ export async function assembleLine(input: LineInput) {
   const Stage = createModelSendStagePlugin({
     families: FAMILIES,
     coordinator: durable.coordinator,
+    materialization: {
+      maxRecords: 4,
+      execution: reference =>
+        tenantEquals(reference.tenant, TENANT)
+          ? { ok: { owner: HOST_OWNER, subject: 'local-channel', revision: '1' } }
+          : { failure: { kind: 'denied', action: 'execution-channel' } },
+    },
     network: {
       maxConnections: 4,
       idleConnectionTimeoutMs: 60_000,
