@@ -162,7 +162,7 @@ export function createMeasuredFixedDelayModel<P>(
   const definedDelayMs = options.definedDelayMs
   if (!Number.isFinite(definedDelayMs) || definedDelayMs < 0 || definedDelayMs > 2_147_483_647)
     throw new RangeError('definedDelayMs must fit a nonnegative Node timer delay')
-  const facts = structuredClone(
+  const facts = structuredClone<readonly TransportFact[]>(
     options.facts ?? [{ kind: 'ended', termination: { kind: 'completed', reason: 'stop' } }],
   )
   return {

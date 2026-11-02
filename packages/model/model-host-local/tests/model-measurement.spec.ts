@@ -191,8 +191,12 @@ async function realPreparation(hooks: { plan?: () => void; release?: () => Promi
     },
     meter: {
       basis,
-      measure: () => ({ failure: { kind: 'unavailable', dependency: 'test-meter' } }),
-      measureCalibrated: () => ({ failure: { kind: 'unavailable', dependency: 'test-meter' } }),
+      measure: () => ({
+        failure: { kind: 'unavailable', dependency: 'test-meter', diagnostic: 'not-used' },
+      }),
+      measureCalibrated: () => ({
+        failure: { kind: 'unavailable', dependency: 'test-meter', diagnostic: 'not-used' },
+      }),
     },
     release: hooks.release ?? (async () => {}),
   }
