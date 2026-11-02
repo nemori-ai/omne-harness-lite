@@ -133,10 +133,17 @@ export function createAttemptRunner<P>(
           kind: 'refused',
           failure: { kind: 'invalid', field: 'receipt', reason: 'changed-after-commit' },
         }
-      const resolved = credentials.resolve(
-        { id: selection.id, tenant: attempt.input.tenant, purpose: MODEL_SEND },
-        { authorized: true, official: selection.scope === 'factory' },
-      )
+      if (!credentials.resolveFor || typeof selection.official !== 'boolean')
+        return {
+          kind: 'refused',
+          failure: unavailable('model-credential', 'qualified-path-missing'),
+        }
+      const resolved = credentials.resolveFor({
+        id: selection.id,
+        purpose: MODEL_SEND,
+        official: selection.official,
+        access: { principal: attempt.input.principal, tenant: attempt.input.tenant },
+      })
       if (resolved.kind === 'denied')
         return { kind: 'refused', failure: { kind: 'denied', action: 'model-credential' } }
       if (resolved.kind !== 'value')

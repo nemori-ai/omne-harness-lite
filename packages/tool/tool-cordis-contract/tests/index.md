@@ -10,6 +10,7 @@
 - [有缺陷的绑定登记表](flawed-bindings.ts)。
 - [自证运行器](conformance-harness.ts)。
 - [Cordis 增补类型测试](cordis-entry.spec-d.ts)。
+- [RD-COORD 脚本替身测试](adoption-scripts.spec.ts)与[类型测试](adoption-scripts.spec-d.ts)。
 - [导入图遍历工具](module-graph.ts)。
 - [测试夹具](fixtures/index.md)。
 - [包索引](../index.md)。

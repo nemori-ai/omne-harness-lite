@@ -42,7 +42,9 @@ Cordis 宿主用 `LocalCredentialPlugin` 装载同一保管库，配置 `{ path,
 
 ### 本地发送路径
 
-`assembleLocalModel` 把保管库接到 model 的发送边界与 pi 传输，并在同一组家族与 `ModelCommands` 上给出计量准备资源。调用方组合家族（含计量余量），给出 `ModelCommands` 与 `SendCoordinator`，并给出全部路由、限额与准备选项。
+`assembleLocalModel` 把保管库接到 model 的发送边界与 pi 传输，并在同一组家族与 `ModelCommands` 上给出计量准备资源。调用方组合家族（含计量余量），给出 `ModelCommands` 与 `SendCoordinator`，并给出全部路由、限额、物化与准备选项。
+
+下例的 `channel` 由入口从同次 records 激活的 `initial.openHost` 取得。命令、协调器和当前 execution 核验均取自这个真实通道，不能用恒成功函数代替核验。入口取得通道及关闭责任见[首次执行与公共观察接线](../SPEC.md#首次执行与公共观察接线)。
 
 ```ts
 import { assembleLocalModel, openLocalCustodian } from '@omne-harness/model-host-local'
@@ -50,15 +52,17 @@ import { composeFamilies } from '@omne-harness/pi-ai-transport'
 
 const opened = openLocalCustodian({ path: '/var/lib/omne/credentials.json' })
 if (opened.kind !== 'open') throw new Error(`vault unavailable: ${opened.cause}`)
+if (channel.coordinator === null) throw new Error('send coordinator unavailable')
 const local = assembleLocalModel({
   credentials: opened.custodian,
-  commands, // ModelCommands：现有实现只有 @omne-harness/model/testing 的内存版，耐久版由后续提供者给出
-  coordinator, // SendCoordinator：与 commands 共用同一资格权威
+  commands: channel.commands,
+  coordinator: channel.coordinator,
   families: composeFamilies([openAiFamily, anthropicFamily]),
   network: { maxConnections: 4, idleConnectionTimeoutMs: 30_000, proxy },
   routes: { openrouter: { url: openRouterUrl, endMarker: '[DONE]' } },
   transportLimits,
   maxRetainedAttempts: 8,
+  materialization: { maxRecords: 8, execution: channel.qualifyExecution },
   preparation: { maxCitedCalls: 64, supplierOf }, // supplierOf：为档案供应商补上凭据引用
 })
 // local.send 交给 createModelRuntime 的 dependencies.send
@@ -67,7 +71,9 @@ const lease = await local.preparation.acquire({ ...access, profile, lineage }) /
 await local.close()
 ```
 
-示例里的数值只说明形状，不是默认值。`local.close()` 不关闭 `commands`、`coordinator`、家族与保管库。`close()` 开始后，`local.preparation.acquire` 返回 `unavailable`（`model-host-local`，`assembly-closed`）。关闭前取得的租约仍可计量，调用方照常调用 `release`。
+示例里的数值只说明形状，不是生产默认值。`materialization.maxRecords` 必须是正安全整数，且不小于 `maxRetainedAttempts`。`local.materialization` 是真实成功产出处所建的只读证据 reader，入口证据适配器使用它验真；描述摘要或同形回执本身不证明来源。发送阶段插件可通过 `installMaterialization` 安装这个 reader，见[发送资源](../SPEC.md#发送资源)。
+
+`local.close()` 不关闭 `commands`、`coordinator`、家族与保管库。`close()` 开始后，`local.preparation.acquire` 返回 `unavailable`（`model-host-local`，`assembly-closed`）。关闭前取得的租约仍可计量，调用方照常调用 `release`。
 
 选择本包会安装 Cordis、model-cordis-contract、pi-ai-transport 与 proper-lockfile。只消费 model 或契约包的程序不需要它。
 

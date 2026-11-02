@@ -1,6 +1,6 @@
 # 关键流程
 
-本文件描述保管库解析、管理操作与本地发送三条流程。前提：调用者在受信的发送边界内同步调用 `resolve`，租户值与发送资格由调用者报告。
+本文件描述保管库解析、管理操作与本地发送三条流程。资格路径由受信发送边界同步调用 `resolveFor`，租户只取 `access.tenant`。受理点 C 已核验 `access`，`official` 取自档案事实。提供者只核同步绑定与工厂选择。旧 `resolve` 流程保留原行为。
 
 ## 流程
 
@@ -47,7 +47,7 @@ sequenceDiagram
   Boundary->>Resource: acquire（新建 pi 传输与私有槽）
   Boundary->>Pi: prepare、materialize
   Boundary->>Commands: recordMaterialization、openReceiveWindow
-  Boundary->>Custodian: resolve（发送围栏内，同步）
+  Boundary->>Custodian: resolveFor（发送围栏内，同步，access 与档案事实）
   Boundary->>Resource: startWithCredential(materialized, value)
   Resource->>Pi: 填槽，start，清槽
   Pi-->>Runtime: 事实流（区块、账目、唯一 ended）
