@@ -8,8 +8,8 @@
 // defect D3 of the report: the Session model view starts at sequence 1, Request Context reads from
 // 0), so no scenario here reads the earlier rounds from the Session log yet.
 //
-// Placeholders name what they wait for. Defect labels D3 and D4 are those of
-// `tmp/line-session-run/w2/C-JOINT/report.md`.
+// Placeholders name what they wait for. D3 and D4 are the combination defects of the first batch of
+// C-JOINT (attempt 502-r3-a2), handed back with their reproductions.
 // @module-tag slow
 // Why slow: real Workers, real files and the whole line on one root.
 import { afterEach, describe, expect, it } from 'vitest'

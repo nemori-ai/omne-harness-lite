@@ -3,9 +3,9 @@
 // Real (the product parts under test; the CP3 list in ./world.ts stays true):
 // - the `agentJournal` plugin of session-adapters with the trusted cancellation installation
 //   (`createSessionAgentJournalPlugin`, R2-D35), over the real sqlite-provider;
-// - the history source of the Session log for the earlier context (AD-04,
-//   `createSessionHistorySource`) in place of the K-RQ holder double, leased from
-//   `contextHolderSources` by a borrower plugin;
+// - with `earlier: 'session'` the history source of the Session log for the earlier context (AD-04,
+//   `createSessionHistorySource`), which provides `contextHolderSources` in place of the K-RQ holder
+//   double; by default the earlier context is the history of that double;
 // - the Model receiver of CP3 and the Tool receiver (`createLocalToolReceiver`) over the session-log
 //   Journal of the session.
 //
@@ -14,11 +14,12 @@
 //   (`AgentDependencies.toolRequests`, R2-D36: a fixed full request of a fixed schema);
 // - the Model: the scripted provider and result pusher, each reply with a fixed delay;
 // - the adopted-request and read-eligibility parts of the holder, and the Runtime Context handoff, are
-//   the CP3 doubles; AD-03 and the scope lookup are not installed here;
-// - AD-02 (interpretation of the Agent's publication), the handoff plugin and the measurement
-//   events of Session, Context and Agent are parts of other closures. A scenario that needs one of
-//   them is a named placeholder until the closure is in the parent branch. This world does not stand
-//   in for them.
+//   the CP3 doubles; AD-03 and the scope lookup are not installed here.
+//
+// Real, from the parent branch that has C-ADAPTERS: AD-02 (`createSessionJournalInterpretationPlugin`)
+// and the handoff provider (`createSessionMessageHandoffPlugin`), mounted after the Agent host. The
+// Session provider and the Context and Agent factories take the products' `measure` observers
+// (R2-D17), whose events go to the recorder of the scenario. `earlier: 'session'` installs AD-04.
 import { createAgentRuntime, type AgentDependencies } from '@omne-harness/agent'
 import { testAdoption } from '@omne-harness/agent/testing'
 import {
