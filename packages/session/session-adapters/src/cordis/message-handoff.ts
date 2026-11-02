@@ -541,13 +541,23 @@ function createMessageHandoff<P>(
     const access = { principal, tenant }
     const binding = await bind(access, tenantText.value, value)
     if ('failure' in binding) return binding
-    const { bound } = binding.ok
-    const held = await recordOf(bound)
+    const held = await recordOf(binding.ok.bound)
     if ('failure' in held) return held
+    return admit(access, binding.ok, value, held.ok)
+  }
+
+  /** Steps 2 to 6 for a bound request and the record its identity holds, if any. */
+  async function admit(
+    access: Access<P>,
+    binding: Binding,
+    value: HandoffPrepare,
+    held: PreadmissionRecord | null,
+  ): Reply<HandoffOutcome> {
+    const { bound } = binding
     const saved = value.kind === 'execution' ? await internal(bound, value) : null
     if (saved !== null && 'failure' in saved) return saved
-    if (held.ok !== null) {
-      const recalled = recall(held.ok, value.request)
+    if (held !== null) {
+      const recalled = recall(held, value.request)
       if ('failure' in recalled) return recalled
       if (recalled.ok !== null) return succeed(recalled.ok)
     }
@@ -555,9 +565,9 @@ function createMessageHandoff<P>(
       const current = await advances(bound, saved.ok, value)
       if ('failure' in current) return current
     }
-    let record = held.ok
+    let record = held
     if (record === null) {
-      const intent = await saveIntent(access, binding.ok, value)
+      const intent = await saveIntent(access, binding, value)
       if ('failure' in intent) return intent
       record = intent.ok
       // Another H already held this Ki: its own outcome, if fixed, is the answer.
