@@ -80,7 +80,9 @@
     - 事实边界：读 `(readThrough, emittedThrough]` 的事实行，另加 `commitLog` 观察序号那一行（纯层对已解释序号也按原行核对）。来源解析不出的行按缺行处理。
     - 批次：只列未解释的批次与观察序号的批次。本波不填 `taken`，已解释的批次若列出而没有对应的 taken，纯层判为矛盾，所以不列。
     - 原受理：按 `(input, ordinal)` 组成一页。Run 由原执行的 SE13 给出。attempt 取回执等于 `grant` 的 SE15，否则取该 Run 唯一的 SE15（attempt 不会删除，Run 只有一个 SE15 时受理用的就是它）。任一条对不上时，该输入整个不进入索引与读取，纯层答 `unavailable`。闭合之外的已路由输入只在该会话没有任何受理行时以空目录列出，这时空目录由行的缺席证明。
+    - 原受理的已知缺口：`er_admission_idx` 没有 attempt 列。`submit` 的受理行把 Agent 提交回执写进 `grant`，它不是 SE15 的回执。该 Run 有两个以上 SE15 时，attempt 无法从行证明，该输入的判定答 `unavailable`。session-adapters 的 `tests/session-log-journal-replay.spec.ts` 的「replay cancelled-1」两个用例（durable copy、kept copy）因此在 `submit` 后的交接答 `unavailable`（`history.inputs.<input>`）。这不是缺解释。补法需要提供者在受理行写出原 attempt（或其 SE15 回执），即新的 `execution-record/00N` 迁移或改变 `grant` 的含义，交负责人裁定。
     - 前缀（R2-D28 候选 C）：只对 `readThrough` 小于 `emittedThrough` 的执行构造。取最长的连续前缀 `(readThrough, k]`：序号无缺、`kinds` 非空且全为 `observed`、来源完整。不新增列，不读 `er_state`。是否覆盖所需上界由纯层判断。判定是纯函数 `observedPrefix`。
+    - 读取计数（`node:sqlite` 夹具，2026-11-03）：每轮 `startRun` 读 `er_` 行 0 行，`commitLog` 读 2 行（`er_execution` 1 行、`er_fact_idx` 1 行），第 1、20、200 轮相同。`sl_entry` 的读取为第 k 轮 `startRun` 3k 行、`commitLog` 3k+2 行。
     - 验证：`tests/history-index.spec.ts` 核对索引字段与 `er_` 行一致、占位回执的执行不进索引且 `commitLog` 答 `unavailable`、R2-D28 反例（取消后的后继 `startRun` 在完整观察尾部时通过，缺行、空 `kinds`、未知种类、混入非 observed 时答 `unavailable`，非 observed 后果经 `commitLog` 提交后重试通过）、前缀判定的穷举小规模表，以及读取计数：20 轮与 200 轮的对应轮次读到相同的 `er_` 行数，且每轮相同；三轮固定用例里后继 `startRun` 读到的事实行数等于未解释事件数。`sl_entry` 的读取（已路由输入、SE13、SE15）仍随轮数增长，见计数证据，不宣称解决 E9。
     - 尚未覆盖：`taken` 与已解释批次；真实 sqlite-provider 上的 K-5 读取只经 `tests/log-conformance.spec.ts` 的 `commitLog` 用例经过；适配器的 kinds 归一与生产 AD-02 发布点归 C-ADAPTERS。
 13. K-7 额外的 `changed`：每次 Agent 发布都使共同根前进。用旧根准备的 Session 提交会在新根上重判，即使这次 Agent 发布与它无关。触发条件：实测的重试次数超过 `perf-baseline.md` 的阈值。
@@ -100,7 +102,7 @@
     - 结果阶段（`phase` 为 `outcome`）：`kind` 为 `prepared` 或 `rejected`。没有意图记录时答「冲突」，依据为 `invalid`。已有结果时摘要相同则认回，不同答「冲突」。否则写入一次。
     - 读取：按 `tenant` 加 H 或 `tenant` 加 Ki 读回一条或 `null`。每条语句带租户条件。
     - 词汇：子路径导出 `preadmissionFacts`、`decodePreadmissionReply`、`decodePreadmissionRecord` 与类型 `PreadmissionIntentWrite`、`PreadmissionOutcomeWrite`、`PreadmissionRead`、`PreadmissionRecord`，handler 名为 `EXECUTION_RECORD_HANDLERS.preadmission`。
-    - 清单摘要：新迁移、新 handler、`session.work` 的读表与参加者模块摘要都改变组合的 `manifestDigest`。应用的材料目录与 `combinationVersion` 归 L-MODEL 与 Reduce，本成员不改。
+    - 清单摘要：新迁移、新 handler、`session.work` 的读表与参加者模块摘要都改变组合的 `manifestDigest`。只含本成员材料的 `execution-record` 加 `session` 组合，基线 `4195911b0` 为 `c80a46ac1d585df3e5e38728a3ef8bc268f84e3a0292586cfa7e43317a7cacd7`，本次为 `e0731f7e2df53b399a990e486947e41668315023aed017cea8cf118e670afc89`（`combinationManifest` 加 `manifestDigest` 计算）。应用的材料目录与 `combinationVersion` 归 L-MODEL 与 Reduce，本成员不改。
     - 验证：`tests/preadmission.spec.ts` 核对意图的全部成员与摘要、同 Ki 答原记录与原 H、同 H 异内容冲突、表对同租户同 Ki 的第二行拒绝写入、结果只固定一次、无意图答 `invalid`、另一租户按同 H 或同 Ki 读不到，以及真实提供者上写入后杀子进程、新提供者按原 H 读回完整记录。
 
 ### 两个「事务端口」
