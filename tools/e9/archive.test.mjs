@@ -7,7 +7,7 @@ import { writeArchive, readArchive, compareArchives } from './archive.mjs'
 import { STAGES, measured, syntheticRounds } from './metrics.mjs'
 import { runProcess } from './driver.mjs'
 
-const base = resolve('tmp/line-m2-toolchain/w2/e9-approved')
+const base = resolve('tmp/line-m2-toolchain/w2/e9-hardening')
 mkdirSync(base, { recursive: true })
 const metadata = {
   sha: 'a'.repeat(40),

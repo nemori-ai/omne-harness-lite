@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFileSync } from 'node:fs'
 import { driveRounds, runProcess } from './driver.mjs'
 import { syntheticRounds } from './metrics.mjs'
 
@@ -25,6 +26,7 @@ test('subprocess failure and timeout preserve their distinct facts', async () =>
   ])
   assert.equal(failed.exitCode, 7)
   assert.equal(failed.stderr, 'bad')
+  assert.equal(failed.cleanup, undefined)
   const timed = await runProcess(process.execPath, ['-e', 'setInterval(()=>{},1000)'], {
     timeoutMs: 100,
   })
@@ -40,7 +42,20 @@ test('timeout removes the spawned descendant process', async () => {
   let cleanupError
   try {
     assert.equal(timed.timedOut, true)
-    assert.throws(() => process.kill(pid, 0), /ESRCH/)
+    if (process.platform === 'linux') {
+      // A zombie has stopped executing but can await its external reaper.
+      try {
+        assert.match(readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1], /^[ZX] /)
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error
+      }
+      assert.equal(timed.cleanup.state, 'observed-stopped')
+      assert.ok(
+        timed.cleanup.processes.some(
+          row => row.pid === pid && ['exited', 'zombie'].includes(row.state),
+        ),
+      )
+    } else assert.throws(() => process.kill(pid, 0), /ESRCH/)
   } finally {
     try {
       process.kill(pid, 'SIGKILL')

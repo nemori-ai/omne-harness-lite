@@ -6,7 +6,7 @@ import test from 'node:test'
 import { runProcess } from './driver.mjs'
 import { readArchive } from './archive.mjs'
 
-const base = resolve('tmp/line-m2-toolchain/w2/e9-approved')
+const base = resolve('tmp/line-m2-toolchain/w2/e9-hardening')
 mkdirSync(base, { recursive: true })
 const cli = resolve('tools/e9/cli.mjs')
 const synthetic = pathToFileURL(resolve('tools/e9/synthetic.mjs')).href
@@ -34,7 +34,14 @@ async function withAdapter(body, check, timeout = '5000') {
         '--timeout-ms',
         timeout,
       ],
-      { timeoutMs: 15000 },
+      {
+        timeoutMs: 15000,
+        env: {
+          OMNE_TEST_SLOT_HELD: '',
+          OMNE_TEST_SLOT_DIR: join(directory, 'slots'),
+          OMNE_TEST_SLOT_LEDGER: join(directory, 'ledger.jsonl'),
+        },
+      },
     )
     await check(result, out, directory)
   } finally {

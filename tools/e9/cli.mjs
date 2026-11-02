@@ -9,6 +9,7 @@ import { thresholdValue, unmeasured } from './metrics.mjs'
 import { probeProduct } from './product.mjs'
 import { normalizeEvents } from './events.mjs'
 import { syntheticEvents, workload as syntheticWorkload } from './synthetic.mjs'
+import { wrapperDeadlines } from './deadlines.mjs'
 
 const ownRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -64,7 +65,7 @@ async function metadata(root, kind) {
   })
   if (status.exitCode !== 0) throw new Error('cannot read target worktree status')
   const held = process.env.OMNE_TEST_SLOT_HELD
-  let slot = { state: 'unheld', reason: 'synthetic selftest does not hold a load slot' }
+  let slot = { state: 'unheld', reason: 'this process does not hold a load slot' }
   if (held) {
     if (!existsSync(held)) throw new Error('slot environment points to a missing lock file')
     slot = { state: 'held', lockFile: held, registration: readFileSync(held, 'utf8') }
@@ -139,10 +140,12 @@ async function main() {
     return 0
   }
   const root = resolve(options.root)
+  if (existsSync(out)) throw new Error('run output directory already exists; use a fresh path')
   if (!process.env.OMNE_TEST_SLOT_HELD) {
     const slot = join(root, 'scripts/with-test-slot.mjs')
     if (!existsSync(slot)) throw new Error('target checkout has no with-test-slot entry')
     let forwarded = 0
+    const deadlines = wrapperDeadlines(options.timeoutMs, Boolean(options.adapter))
     const result = await runProcess(
       process.execPath,
       [
@@ -161,7 +164,7 @@ async function main() {
       ],
       {
         cwd: root,
-        timeoutMs: options.timeoutMs + 30000,
+        timeoutMs: deadlines.wrapperMs,
         onOutput: text => {
           process.stdout.write(text.slice(forwarded))
           forwarded = text.length
@@ -169,9 +172,60 @@ async function main() {
       },
     )
     process.stderr.write(result.stderr)
-    return result.exitCode
+    const summaryPath = join(out, 'summary.json')
+    const interrupted =
+      result.timedOut ||
+      result.cancelled ||
+      !result.closed ||
+      result.cleanup?.state === 'incomplete'
+    if (!interrupted && [0, 1, 3].includes(result.exitCode) && existsSync(summaryPath)) {
+      writeFileSync(
+        join(out, 'wrapper.json'),
+        JSON.stringify({ deadlines, process: result }, null, 2) + '\n',
+      )
+      return result.exitCode
+    }
+    const previous = existsSync(summaryPath) ? readArchive(out) : undefined
+    const meta = previous?.summary.metadata ?? (await metadata(root, 'product'))
+    meta.thresholdInput = options.thresholdExplicit ? 'cli' : 'default'
+    meta.endedAt = new Date().toISOString()
+    const progress = join(out, 'progress.jsonl')
+    const rows = existsSync(progress) ? readFileSync(progress, 'utf8').trim() : ''
+    const rounds = previous?.rounds ?? (rows ? rows.split('\n').map(line => JSON.parse(line)) : [])
+    const observations = [
+      ...(previous?.summary.observations ?? []),
+      {
+        state:
+          (result.exitCode === 75 || result.cancelled) &&
+          !result.timedOut &&
+          result.cleanup?.state !== 'incomplete'
+            ? 'blocked'
+            : 'fail',
+        reason:
+          result.exitCode === 75
+            ? 'load slot queue exhausted before execution'
+            : result.cancelled
+              ? 'load slot wrapper cancelled'
+              : 'load slot wrapper did not complete successfully',
+        exitCode: result.exitCode,
+        timedOut: result.timedOut,
+        cancelled: result.cancelled,
+      },
+    ]
+    mkdirSync(out, { recursive: true })
+    writeFileSync(
+      join(out, 'wrapper.json'),
+      JSON.stringify({ deadlines, process: result }, null, 2) + '\n',
+    )
+    const processesPath = join(out, 'processes.json')
+    const processes = existsSync(processesPath)
+      ? JSON.parse(readFileSync(processesPath, 'utf8'))
+      : []
+    writeFileSync(processesPath, JSON.stringify([...processes, result], null, 2) + '\n')
+    const summary = writeArchive(out, meta, rounds, options.threshold, observations)
+    process.stdout.write(JSON.stringify(summary, null, 2) + '\n')
+    return summary.state === 'fail' ? 1 : 3
   }
-  if (existsSync(out)) throw new Error('run output directory already exists; use a fresh path')
   const meta = await metadata(root, 'product')
   meta.thresholdInput = options.thresholdExplicit ? 'cli' : 'default'
   mkdirSync(out, { recursive: true })
@@ -201,7 +255,13 @@ async function main() {
       observations: adapterResult.observations,
       raw: [execution],
     }
-    if (execution.timedOut || execution.cancelled || execution.exitCode !== 0)
+    if (
+      execution.timedOut ||
+      execution.cancelled ||
+      execution.exitCode !== 0 ||
+      !execution.closed ||
+      execution.cleanup?.state === 'incomplete'
+    )
       result.observations.push({
         state: 'fail',
         reason: 'adapter subprocess did not complete successfully',

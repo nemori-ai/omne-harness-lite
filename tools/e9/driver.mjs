@@ -1,8 +1,9 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { performance } from 'node:perf_hooks'
 import { validateRounds } from './metrics.mjs'
+import { captureTree, observeTree } from './posix-tree.mjs'
 
-export function killTree(child) {
+export async function killTree(child, tree) {
   if (child.pid === undefined) return
   if (process.platform === 'win32') {
     const result = spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], {
@@ -10,14 +11,13 @@ export function killTree(child) {
       encoding: 'utf8',
       windowsHide: true,
     })
-    return { exitCode: result.status, error: result.error?.message }
+    return {
+      exitCode: result.status,
+      state: result.status === 0 && !result.error ? 'taskkill-result' : 'incomplete',
+      error: result.error?.message,
+    }
   }
-  try {
-    process.kill(-child.pid, 'SIGKILL')
-    return { exitCode: 0 }
-  } catch (error) {
-    return { exitCode: 1, error: error.message }
-  }
+  return (tree ?? observeTree(child.pid)).cleanup()
 }
 
 export function launchProcess(command, args, options = {}) {
@@ -29,22 +29,52 @@ export function launchProcess(command, args, options = {}) {
     detached: process.platform !== 'win32',
     stdio: ['pipe', 'pipe', 'pipe'],
   })
+  const tree =
+    process.platform !== 'win32' && child.pid !== undefined ? captureTree(child.pid) : undefined
   const done = new Promise(resolve => {
     let stdout = ''
     let stderr = ''
     let timedOut = false
     let cancelled = false
     let cleanup
+    let cleaning
+    let closingTimer
+    let settled = false
+    const stop = () => {
+      cleaning ??= killTree(child, tree).then(result => {
+        cleanup = result
+      })
+      closingTimer ??= setTimeout(() => {
+        child.stdout.destroy()
+        child.stderr.destroy()
+        child.stdin.destroy()
+        child.unref()
+        void finish(child.exitCode, child.signalCode, false)
+      }, 15000)
+      return cleaning
+    }
     const cancel = () => {
       cancelled = true
-      cleanup = killTree(child)
+      void stop()
     }
     process.once('SIGINT', cancel)
     process.once('SIGTERM', cancel)
-    const timer = setTimeout(() => {
-      timedOut = true
-      cleanup = killTree(child)
-    }, options.timeoutMs ?? 30000)
+    const deadline = started + (options.timeoutMs ?? 30000)
+    let timer
+    const arm = () => {
+      const remaining = deadline - performance.now()
+      timer = setTimeout(
+        () => {
+          if (performance.now() < deadline) arm()
+          else {
+            timedOut = true
+            void stop()
+          }
+        },
+        Math.min(2147483647, Math.max(1, remaining)),
+      )
+    }
+    arm()
     child.stdout.setEncoding('utf8').on('data', bytes => {
       stdout += bytes
       options.onOutput?.(stdout, child)
@@ -55,10 +85,14 @@ export function launchProcess(command, args, options = {}) {
     child.on('error', error => {
       stderr += error.message
     })
-    child.on('close', (code, signal) => {
+    async function finish(code, signal, closed = true) {
+      if (settled) return
+      settled = true
       clearTimeout(timer)
+      clearTimeout(closingTimer)
       process.removeListener('SIGINT', cancel)
       process.removeListener('SIGTERM', cancel)
+      await cleaning
       resolve({
         command,
         args,
@@ -66,11 +100,15 @@ export function launchProcess(command, args, options = {}) {
         signal: signal ?? 'none',
         timedOut,
         cancelled,
+        closed,
         ...(cleanup ? { cleanup } : {}),
         stdout,
         stderr,
         elapsedMs: performance.now() - started,
       })
+    }
+    child.on('close', (code, signal) => {
+      void finish(code, signal)
     })
     child.stdin.on('error', () => {})
     if (options.closeStdin !== false) child.stdin.end(options.input ?? '')
