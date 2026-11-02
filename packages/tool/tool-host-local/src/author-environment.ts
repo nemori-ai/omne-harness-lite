@@ -10,6 +10,7 @@ import type {
   ObjectToken,
   OriginRef,
   TerminalFacility,
+  TerminalRef,
 } from '@omne-harness/execution-environment-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ToolFailure } from '@omne-harness/tool-contract'
@@ -26,9 +27,20 @@ type BusinessRequest<T> = T extends { readonly entries: readonly (infer E)[] }
     : Omit<T, keyof FacilityRequest<unknown> | 'named'>
 
 export type AuthorFacility<F> = {
-  readonly [K in keyof F]: F[K] extends (request: infer R) => infer Result
+  readonly [K in keyof F]: NonNullable<F[K]> extends (request: infer R) => infer Result
     ? (request: BusinessRequest<R>) => Result
     : never
+}
+type RetentionTerminalFacility<P> = Omit<TerminalFacility<P>, 'create'> & {
+  create(
+    request: Parameters<TerminalFacility<P>['create']>[0] & { readonly retain?: 'session' },
+  ): ReturnType<TerminalFacility<P>['create']>
+  attach?(
+    request: FacilityRequest<P> & { readonly terminal: TerminalRef },
+  ): Promise<FacilityResult<{ readonly terminal: TerminalRef }>>
+  detach?(
+    request: FacilityRequest<P> & { readonly terminal: TerminalRef },
+  ): Promise<FacilityResult<{ readonly status: 'confirmed' | 'unconfirmed' }>>
 }
 export type EnvironmentFacts = Readonly<{
   system: string
@@ -39,7 +51,7 @@ export type EnvironmentFacts = Readonly<{
 export type ToolEnvironmentValue = Readonly<{
   files: AuthorFacility<FileSystemFacility<unknown>>
   command: AuthorFacility<CommandFacility<unknown>>
-  terminal: AuthorFacility<TerminalFacility<unknown>>
+  terminal: AuthorFacility<RetentionTerminalFacility<unknown>>
   facts: EnvironmentFacts
 }>
 export interface FileObjectNaming<P> {
@@ -177,6 +189,24 @@ export function createAuthorEnvironment<P>(input: AuthorEnvironmentInput<P>): To
       const common = base()
       const facility = input.lease.facility('terminal')
       return facility ? facility.create({ ...request, ...common }) : absent(common.requestId)
+    },
+    async attach(request) {
+      const common = base()
+      const facility: RetentionTerminalFacility<unknown> | undefined =
+        input.lease.facility('terminal')
+      if (!facility) return absent(common.requestId)
+      return facility.attach
+        ? facility.attach({ ...request, ...common })
+        : { kind: 'rejected', requestId: common.requestId, reason: 'unsupported' }
+    },
+    async detach(request) {
+      const common = base()
+      const facility: RetentionTerminalFacility<unknown> | undefined =
+        input.lease.facility('terminal')
+      if (!facility) return absent(common.requestId)
+      return facility.detach
+        ? facility.detach({ ...request, ...common })
+        : { kind: 'rejected', requestId: common.requestId, reason: 'unsupported' }
     },
     async execute(request) {
       const common = base()

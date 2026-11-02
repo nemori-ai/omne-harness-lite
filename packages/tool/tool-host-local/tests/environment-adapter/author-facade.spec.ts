@@ -134,7 +134,7 @@ function fixture() {
     naming: { name },
     facts: { system: 'fixture', release: '1', architecture: 'fixture', facilities: ['files'] },
   })
-  return { files, value, name }
+  return { files, value, name, facilities }
 }
 
 it.each(['move', 'copy'] as const)(
@@ -227,4 +227,55 @@ it('fails closed on unknown naming and never replaces terminal operations with c
   expect(
     await f.value.terminal.execute({ terminal: { id: 'old', generation: '1' }, script: 'echo' }),
   ).toMatchObject({ kind: 'rejected', reason: 'unavailable' })
+})
+
+it('checks optional terminal attachment capabilities and keeps the current acquisition origin', async () => {
+  const f = fixture()
+  const terminal: EnvironmentFacilities['terminal'] = {
+    create: vi.fn(),
+    execute: vi.fn(),
+    close: vi.fn(),
+    list: vi.fn(),
+  }
+  f.facilities.terminal = terminal
+  const target = { terminal: { id: 'retained', generation: '1' } }
+  if (!f.value.terminal.attach || !f.value.terminal.detach)
+    throw new Error('bound attachment methods missing')
+  expect(await f.value.terminal.attach(target)).toMatchObject({
+    kind: 'rejected',
+    reason: 'unsupported',
+  })
+  expect(await f.value.terminal.detach(target)).toMatchObject({
+    kind: 'rejected',
+    reason: 'unsupported',
+  })
+  const attach = vi.fn(
+    async (input: Parameters<EnvironmentFacilities['terminal']['close']>[0]) => ({
+      kind: 'done' as const,
+      requestId: input.requestId,
+      value: { terminal: input.terminal },
+    }),
+  )
+  const detach = vi.fn(
+    async (input: Parameters<EnvironmentFacilities['terminal']['close']>[0]) => ({
+      kind: 'done' as const,
+      requestId: input.requestId,
+      value: { status: 'unconfirmed' as const },
+    }),
+  )
+  const attached = { ...terminal, attach, detach }
+  f.facilities.terminal = attached
+  await f.value.terminal.attach(target)
+  expect(await f.value.terminal.detach(target)).toMatchObject({
+    kind: 'done',
+    value: { status: 'unconfirmed' },
+  })
+  expect(attach).toHaveBeenCalledWith(
+    expect.objectContaining({
+      origin: 'original',
+      access: { principal: principalA, tenant: tenantA },
+      terminal: target.terminal,
+    }),
+  )
+  expect(detach).toHaveBeenCalledTimes(1)
 })

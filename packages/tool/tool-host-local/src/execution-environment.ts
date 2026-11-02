@@ -12,6 +12,7 @@ import {
   type ResourceLedger,
 } from '@omne-harness/execution-environment-contract'
 import { tenantEquals } from '@omne-harness/legal-identity'
+import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest, type ToolAccessGuard, type ToolLedgerStore } from '@omne-harness/tool'
 import type { Adoption, Reply } from '@omne-harness/tool-contract'
@@ -35,10 +36,20 @@ import {
   type EnvironmentAddress,
   type EnvironmentState,
   type EnvironmentStorageOptions,
+  type EnvironmentOriginal,
 } from './environment-state.ts'
 
 export type EnvPreparationInput<P> = Parameters<ToolEnvironment<P, unknown>['prepare']>[0]
-export type EnvironmentPlan<P> = Readonly<{ acquire: AcquireInput<P>; facts: EnvironmentFacts }>
+export type EnvironmentRetention = Readonly<{
+  scope: ScopeRef
+  ledger: Pick<ResourceLedger, 'closed' | 'plan' | 'permit' | 'stopped'>
+}>
+export type EnvironmentAcquisition<P> = AcquireInput<P> &
+  Readonly<{ retention?: EnvironmentRetention }>
+export type EnvironmentPlan<P> = Readonly<{
+  acquire: EnvironmentAcquisition<P>
+  facts: EnvironmentFacts
+}>
 export type EnvironmentPlanResolver<P> = Readonly<{
   resolve(input: EnvPreparationInput<P>): Reply<EnvironmentPlan<P>>
 }>
@@ -49,9 +60,13 @@ export type LocalEnvironmentPlanInput<P> = Readonly<{
   execution: ExecutionEnvironment<P>
   access: ToolAccessGuard<P>
   requirement(input: EnvPreparationInput<P>): Reply<EnvironmentRequirement>
-  binding(
-    input: EnvPreparationInput<P>,
-  ): Reply<Readonly<{ origin: OriginRef; scope: AcquireInput<P>['scope'] }>>
+  binding(input: EnvPreparationInput<P>): Reply<
+    Readonly<{
+      origin: OriginRef
+      scope: AcquireInput<P>['scope']
+      retention?: EnvironmentRetention
+    }>
+  >
   guard: FacilityGuard<P>
   ledger(input: EnvPreparationInput<P>): Promise<ResourceLedger>
   facts(placement: Placement): Reply<EnvironmentFacts>
@@ -100,10 +115,11 @@ export function createLocalEnvironmentPlanResolver<P>(
         acquire: {
           acquisition: acquisitionRef(key),
           origin: binding.ok.origin,
-          scope: binding.ok.scope,
+          scope: request.preparation.request.requesterScope,
           placement,
           ledger: await ledger,
           guard: input.guard,
+          ...(binding.ok.retention ? { retention: binding.ok.retention } : {}),
         },
         facts: facts.ok,
       })
@@ -125,6 +141,8 @@ type Live<P> = {
   lease: EnvironmentLease | null
   adopting: boolean
   invalidated: boolean
+  value: ToolEnvironmentValue | null
+  principal: P | null
 }
 
 export function createLocalExecutionEnvironment<P>(
@@ -151,27 +169,48 @@ export function createLocalExecutionEnvironment<P>(
   const original = (
     request: EnvPreparationInput<P>,
     plan: EnvironmentPlan<P>,
-  ): OriginalAcquisition => ({
+  ): EnvironmentOriginal => ({
     tenant: request.tenant,
     acquisition: plan.acquire.acquisition,
     origin: plan.acquire.origin,
     scope: plan.acquire.scope,
     placement: plan.acquire.placement,
+    ...(plan.acquire.retention ? { retentionScope: plan.acquire.retention.scope } : {}),
   })
+
+  function prepared(request: EnvPreparationInput<P>, record: EnvironmentState, current: Live<P>) {
+    if (
+      !current.lease ||
+      current.invalidated ||
+      current.plan.acquire.ledger.closed.aborted ||
+      record.allocation.kind !== 'allocated'
+    )
+      return environmentFailure('original live environment unavailable')
+    if (!current.value || !Object.is(current.principal, request.principal)) {
+      current.value = createAuthorEnvironment({
+        access: request,
+        origin: current.plan.acquire.origin,
+        lease: current.lease,
+        naming: input.naming,
+        facts: current.plan.facts,
+      })
+      current.principal = request.principal
+    }
+    return succeed({
+      kind: 'prepared' as const,
+      environment: {
+        preparation: record.preparation,
+        evidence: record.evidence,
+        value: current.value,
+      },
+    })
+  }
 
   async function inspect(
     request: EnvPreparationInput<P>,
     record: EnvironmentState,
   ): Reply<PreparationProgress<ToolEnvironmentValue>> {
     if (record.closed) return environmentFailure('original acquisition is closed')
-    if (record.allocation.kind === 'rejected')
-      return succeed({
-        kind: 'rejected',
-        reason: record.allocation.reason,
-        evidence: record.evidence,
-      })
-    if (record.allocation.kind === 'excluded')
-      return succeed({ kind: 'excluded', exclusion: record.evidence })
     const answer = await input.execution.inspectAcquisition(accessOf(request), {
       kind: 'original',
       original: record.original,
@@ -179,10 +218,25 @@ export function createLocalExecutionEnvironment<P>(
     if (answer.kind !== 'original') return unknown(`original acquisition query ${answer.kind}`)
     if (canonicalDigest(answer.original) !== canonicalDigest(record.original))
       return environmentFailure('original acquisition query binding mismatch')
+    if (record.allocation.kind === 'rejected')
+      return succeed({
+        kind: 'rejected',
+        reason: record.allocation.reason,
+        evidence: record.evidence,
+      })
+    if (record.allocation.kind === 'not-allocated' || record.allocation.kind === 'settled')
+      return unknown(`original acquisition terminal: ${record.allocation.kind}`)
+    const current = live.get(key(record.preparation))
     const address = record.preparation
     const changed = await state.update(address, (current, receipt) => {
       if (!current) return environmentFailure('original acquisition disappeared')
       if (current.closed) return fail({ kind: 'not-settled' })
+      if (
+        current.allocation.kind === 'rejected' ||
+        current.allocation.kind === 'not-allocated' ||
+        current.allocation.kind === 'settled'
+      )
+        return succeed(current)
       if (answer.status === 'allocated')
         return succeed({
           ...current,
@@ -195,20 +249,40 @@ export function createLocalExecutionEnvironment<P>(
       if (answer.status === 'notAllocated' || answer.status === 'settled')
         return succeed({
           ...current,
-          allocation: { kind: 'excluded' },
-          evidence: receipt({ original: current.original, excluded: answer.status }),
+          allocation: { kind: answer.status === 'notAllocated' ? 'not-allocated' : 'settled' },
+          evidence: receipt({ original: current.original, terminal: answer.status }),
+        })
+      if (answer.status === 'allocationFailed')
+        return succeed({
+          ...current,
+          allocation: { kind: 'rejected', reason: answer.reason },
+          evidence: receipt({
+            original: current.original,
+            failure: answer.reason,
+            cleanup: answer.cleanup,
+          }),
         })
       return succeed(current)
     })
     if ('failure' in changed) return changed
-    if (answer.status === 'allocated')
+    if (changed.ok.allocation.kind === 'rejected')
+      return succeed({
+        kind: 'rejected',
+        reason: changed.ok.allocation.reason,
+        evidence: changed.ok.evidence,
+      })
+    if (changed.ok.allocation.kind === 'not-allocated' || changed.ok.allocation.kind === 'settled')
+      return unknown(`original acquisition terminal: ${changed.ok.allocation.kind}`)
+    if (answer.status === 'allocated') {
+      if (!current || current.invalidated || current.plan.acquire.ledger.closed.aborted)
+        return unknown('original live registration unavailable')
+      if (!current.adopting) return prepared(request, changed.ok, current)
       return succeed({
         kind: 'allocated',
         preparation: changed.ok.preparation,
         evidence: changed.ok.evidence,
       })
-    if (answer.status === 'notAllocated' || answer.status === 'settled')
-      return succeed({ kind: 'excluded', exclusion: changed.ok.evidence })
+    }
     if (answer.status === 'conflict')
       return fail({ kind: 'conflict', operation: address.operation })
     return succeed({ kind: 'pending', diagnostic: `original acquisition ${answer.status}` })
@@ -230,13 +304,19 @@ export function createLocalExecutionEnvironment<P>(
     const updated = await state.update(request.preparation, (record, receipt) => {
       if (!record) return environmentFailure('original acquisition disappeared')
       if (record.closed) return succeed(record)
+      if (
+        record.allocation.kind === 'rejected' ||
+        record.allocation.kind === 'not-allocated' ||
+        record.allocation.kind === 'settled'
+      )
+        return succeed(record)
       if (result.kind === 'acquired')
         return succeed({
           ...record,
           allocation: { kind: 'allocated' },
           evidence: receipt({ original: record.original, adoption: result.adoption }),
         })
-      if (result.kind === 'rejected')
+      if (result.kind === 'rejected' || result.kind === 'allocationFailed')
         return succeed({
           ...record,
           allocation: { kind: 'rejected', reason: result.reason },
@@ -245,29 +325,25 @@ export function createLocalExecutionEnvironment<P>(
       return succeed({ ...record, allocation: { kind: 'unknown' } })
     })
     if ('failure' in updated) return updated
-    if (updated.ok.closed || current.invalidated || current.plan.acquire.ledger.closed.aborted) {
+    if (
+      updated.ok.closed ||
+      current.invalidated ||
+      current.plan.acquire.ledger.closed.aborted ||
+      (result.kind === 'acquired' && updated.ok.allocation.kind !== 'allocated')
+    ) {
       if (current.lease) await current.lease.release()
       return environmentFailure('original acquisition closed during acquire')
     }
     if (result.kind === 'acquired') {
       current.adopting = false
-      return succeed({
-        kind: 'prepared',
-        environment: {
-          preparation: updated.ok.preparation,
-          evidence: updated.ok.evidence,
-          value: createAuthorEnvironment({
-            access: request,
-            origin: current.plan.acquire.origin,
-            lease: result.lease,
-            naming: input.naming,
-            facts: current.plan.facts,
-          }),
-        },
-      })
+      return prepared(request, updated.ok, current)
     }
-    if (result.kind === 'rejected')
-      return succeed({ kind: 'rejected', reason: result.reason, evidence: updated.ok.evidence })
+    if (updated.ok.allocation.kind === 'rejected')
+      return succeed({
+        kind: 'rejected',
+        reason: updated.ok.allocation.reason,
+        evidence: updated.ok.evidence,
+      })
     return succeed({
       kind: result.kind === 'pending' ? 'pending' : 'unknown',
       diagnostic: `execution acquisition ${result.kind}`,
@@ -296,7 +372,8 @@ export function createLocalExecutionEnvironment<P>(
       if (
         canonicalDigest(original(request, plan.ok)) !== canonicalDigest(existing.ok.original) ||
         plan.ok.acquire.guard !== local.plan.acquire.guard ||
-        plan.ok.acquire.ledger !== local.plan.acquire.ledger
+        plan.ok.acquire.ledger !== local.plan.acquire.ledger ||
+        plan.ok.acquire.retention?.ledger !== local.plan.acquire.retention?.ledger
       )
         return environmentFailure('original live acquisition inputs changed')
       const refreshed = await state.read(request.preparation)
@@ -308,21 +385,7 @@ export function createLocalExecutionEnvironment<P>(
         local.plan.acquire.ledger.closed.aborted
       )
         return environmentFailure('original acquisition is no longer live')
-      if (local.lease && !local.adopting)
-        return succeed({
-          kind: 'prepared',
-          environment: {
-            preparation: refreshed.ok.preparation,
-            evidence: refreshed.ok.evidence,
-            value: createAuthorEnvironment({
-              access: request,
-              origin: local.plan.acquire.origin,
-              lease: local.lease,
-              naming: input.naming,
-              facts: local.plan.facts,
-            }),
-          },
-        })
+      if (local.lease && !local.adopting) return prepared(request, refreshed.ok, local)
       const observed = await inspect(request, existing.ok)
       if ('failure' in observed || observed.ok.kind !== 'allocated' || !local.adopting)
         return observed
@@ -349,7 +412,14 @@ export function createLocalExecutionEnvironment<P>(
     })
     if ('failure' in saved) return saved
     if (!created) return inspect(request, saved.ok)
-    const current: Live<P> = { plan: plan.ok, lease: null, adopting: true, invalidated: false }
+    const current: Live<P> = {
+      plan: plan.ok,
+      lease: null,
+      adopting: true,
+      invalidated: false,
+      value: null,
+      principal: null,
+    }
     live.set(key(request.preparation), current)
     return acquire(request, current)
   }

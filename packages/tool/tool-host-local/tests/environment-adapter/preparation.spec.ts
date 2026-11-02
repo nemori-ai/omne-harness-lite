@@ -14,7 +14,11 @@ import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { PreparationRecord, ReleaseRecord } from '@omne-harness/tool-contract/provider'
 import { toolEnvironmentConformance } from '@omne-harness/tool-contract/testing'
-import type { ToolEnvironmentValue } from '../../src/author-environment.ts'
+import {
+  createMemoryFileSystem,
+  createScriptedCommandFacility,
+} from '@omne-harness/execution-environment-contract/testing'
+import type { FileObjectNaming, ToolEnvironmentValue } from '../../src/author-environment.ts'
 import { createLocalExecutionEnvironment } from '../../src/execution-environment.ts'
 import { createEnvironmentStateStore } from '../../src/environment-state.ts'
 import { createEnvironmentResourceLedger } from '../../src/environment-resource-ledger.ts'
@@ -138,7 +142,14 @@ function fixture() {
             authorize: async () => 'authorized',
           })
           return succeed({
-            acquire: { ...original, guard, ledger },
+            acquire: {
+              acquisition: original.acquisition,
+              origin: original.origin,
+              scope: original.scope,
+              placement: original.placement,
+              guard,
+              ledger,
+            },
             facts: {
               system: 'fixture',
               release: '1',
@@ -148,13 +159,14 @@ function fixture() {
           })
         },
       },
-      naming: { name: async () => succeed({ token: 'authorized' }) },
+      naming,
       cleanup: {
         settle: async () =>
           succeed({ kind: 'pending', diagnostic: 'exact original cleanup unavailable' }),
       },
     })
   const guard = { authorize: async () => 'authorized' as const }
+  const naming: FileObjectNaming<Principal> = { name: async () => succeed({ token: 'authorized' }) }
   const release = async () => {
     const saved = await state.read(preparation)
     if (!('ok' in saved) || !saved.ok) throw new Error('missing preparation')
@@ -171,6 +183,8 @@ function fixture() {
     return { ...access, release: record }
   }
   return {
+    naming,
+    facilities,
     store,
     state,
     preparation,
@@ -214,6 +228,61 @@ it('confirms the original acquisition before acquire and exposes a bound command
   expect(f.releaseLease).toHaveBeenCalledTimes(1)
 })
 
+it('writes and reads exact bytes through the adapter and the published file facility double', async () => {
+  const f = fixture()
+  const filesystem = createMemoryFileSystem()
+  f.facilities.files = filesystem.facility
+  f.naming.name = async input => {
+    const path = input.role === 'object' ? input.path : ''
+    const token = filesystem.objectToken(path)
+    if (!token) throw new Error('fixture object binding missing')
+    return succeed(token)
+  }
+  const env = f.build()
+  const result = await env.prepare(f.prepare)
+  if ('failure' in result || result.ok.kind !== 'prepared') throw new Error('not prepared')
+  const files = result.ok.environment.value.files
+  const bytes = new TextEncoder().encode('中文\r\nlast')
+  expect(await files.write({ path: 'new.txt', mode: 'create', bytes })).toMatchObject({
+    kind: 'done',
+  })
+  const read = await files.read({ path: 'new.txt' })
+  expect(read).toMatchObject({ kind: 'done', value: { bytes, eof: true } })
+  if (read.kind === 'done') await files.close({ path: 'new.txt', handle: read.value.handle })
+  expect(await env.release(await f.release())).toMatchObject({ ok: { kind: 'released' } })
+  filesystem.close()
+})
+
+it('drains command bytes and final status through the adapter and the published command double', async () => {
+  const f = fixture()
+  const command = createScriptedCommandFacility(() => ({
+    kind: 'started',
+    output: [{ stream: 'stdout', data: 'command-result' }],
+  }))
+  f.facilities.command = command.facility
+  const env = f.build()
+  const result = await env.prepare(f.prepare)
+  if ('failure' in result || result.ok.kind !== 'prepared') throw new Error('not prepared')
+  const started = await result.ok.environment.value.command.start({
+    executable: 'fixture',
+    args: [],
+    cwd: '/fixture',
+    env: {},
+    outputMode: 'separate',
+  })
+  if (started.kind !== 'done') throw new Error('command did not start')
+  const chunks: string[] = []
+  for await (const chunk of started.value.output) chunks.push(new TextDecoder().decode(chunk.data))
+  expect(chunks.join('')).toBe('command-result')
+  expect(await started.value.result).toMatchObject({
+    kind: 'completed',
+    exit: { kind: 'code', code: 0 },
+  })
+  expect(command.calls).toHaveLength(1)
+  expect(await env.release(await f.release())).toMatchObject({ ok: { kind: 'released' } })
+  command.close()
+})
+
 it.each(['unavailable', 'unknown-dropped'] as const)(
   'never acquires after %s original commit',
   async fault => {
@@ -235,8 +304,8 @@ it('keeps cold inspection and cold prepare lease-free and cold release pending',
   const f = fixture()
   await f.build().prepare(f.prepare)
   const cold = f.build()
-  expect(await cold.inspectPreparation(f.prepare)).toMatchObject({ ok: { kind: 'allocated' } })
-  expect(await cold.prepare(f.prepare)).toMatchObject({ ok: { kind: 'allocated' } })
+  expect(await cold.inspectPreparation(f.prepare)).toMatchObject({ ok: { kind: 'unknown' } })
+  expect(await cold.prepare(f.prepare)).toMatchObject({ ok: { kind: 'unknown' } })
   expect(f.acquire).toHaveBeenCalledTimes(1)
   expect(await cold.release(await f.release())).toMatchObject({ ok: { kind: 'pending' } })
   expect(f.execution.releaseScope).not.toHaveBeenCalled()
@@ -263,6 +332,23 @@ it('queries an unknown original and permits explicit first adoption only in its 
   expect(f.acquire.mock.calls[1]?.[1]).toBe(f.acquire.mock.calls[0]?.[1])
 })
 
+it('does not turn notAllocated into a retryable exclusion or revive it from a later query', async () => {
+  const f = fixture()
+  const env = f.build()
+  f.lose()
+  await env.prepare(f.prepare)
+  const saved = await f.state.read(f.preparation)
+  if ('failure' in saved || !saved.ok) throw new Error('original unavailable')
+  f.inspectAcquisition.mockResolvedValueOnce({
+    kind: 'original',
+    status: 'notAllocated',
+    original: saved.ok.original,
+  })
+  expect(await env.inspectPreparation(f.prepare)).toMatchObject({ ok: { kind: 'unknown' } })
+  expect(await env.prepare(f.prepare)).toMatchObject({ ok: { kind: 'unknown' } })
+  expect(f.acquire).toHaveBeenCalledTimes(1)
+})
+
 it('does not revive an acquisition when its reply arrives after durable closure', async () => {
   const f = fixture()
   const gate = Promise.withResolvers<void>()
@@ -277,13 +363,35 @@ it('does not revive an acquisition when its reply arrives after durable closure'
   expect(await env.prepare(f.prepare)).toHaveProperty('failure')
 })
 
+it('keeps an authoritative notAllocated terminal ahead of a late acquisition answer', async () => {
+  const f = fixture()
+  const gate = Promise.withResolvers<void>()
+  f.hold(gate.promise)
+  const env = f.build()
+  const waiting = env.prepare(f.prepare)
+  await vi.waitFor(() => expect(f.acquire).toHaveBeenCalledTimes(1))
+  const saved = await f.state.read(f.preparation)
+  if ('failure' in saved || !saved.ok) throw new Error('missing original')
+  f.inspectAcquisition.mockResolvedValueOnce({
+    kind: 'original',
+    status: 'notAllocated',
+    original: saved.ok.original,
+  })
+  expect(await env.inspectPreparation(f.prepare)).toMatchObject({ ok: { kind: 'unknown' } })
+  gate.resolve()
+  expect(await waiting).toHaveProperty('failure')
+  expect(f.releaseLease).toHaveBeenCalledTimes(1)
+})
+
 const applicable = new Set([
   'a preparation resent by its operation returns the original resource',
   'a resent preparation allocates nothing new',
+  'inspectPreparation recalls the original allocation',
   'inspectPreparation claims nothing for an operation never prepared',
   'a release resent by its operation returns the original evidence',
   'inspectRelease recalls the release',
   'inspectRelease of a release never submitted is not released',
+  'a preparation operation reused with another input is a conflict that changes nothing',
   'a release operation reused with another input is a conflict that changes nothing',
 ])
 for (const test of toolEnvironmentConformance<Principal, ToolEnvironmentValue>().filter(test =>
