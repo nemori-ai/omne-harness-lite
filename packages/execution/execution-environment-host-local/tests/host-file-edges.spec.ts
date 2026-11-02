@@ -207,12 +207,14 @@ it('gives one version for one state of the file across write, read, stat and a m
     mode: 'replace',
   })
   if (written.kind !== 'done') throw new Error('expected a write')
-  const read = await files.read(request(path, named, 'r'))
-  const stat = await files.stat(request(path, named, 's'))
+  const current = process.platform === 'win32' ? written.value.object : named
+  if (process.platform === 'win32') expect(current).not.toEqual(named)
+  const read = await files.read(request(path, current, 'r'))
+  const stat = await files.stat(request(path, current, 's'))
   expect(read).toMatchObject({ kind: 'done', value: { version: written.value.version } })
   expect(stat).toMatchObject({ kind: 'done', value: { version: written.value.version } })
   const replaced = await files.write({
-    ...request(path, named, 'w2'),
+    ...request(path, current, 'w2'),
     bytes: text('third'),
     mode: 'replace',
     expectedVersion: written.value.version,

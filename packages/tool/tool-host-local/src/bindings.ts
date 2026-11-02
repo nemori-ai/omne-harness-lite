@@ -7,7 +7,13 @@ import { randomUUID } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { Access, SourceLayer, ToolCallId, ToolDefinition } from '@omne-harness/tool-contract'
+import type {
+  Access,
+  FixedToolRequest,
+  SourceLayer,
+  ToolCallId,
+  ToolDefinition,
+} from '@omne-harness/tool-contract'
 import {
   sameBindingKey,
   sameShape,
@@ -73,14 +79,29 @@ export interface ToolListingSource<P> {
 /** A hold of one call on one key. `release` is idempotent. */
 export type ToolBindingPin = Readonly<{ release(): void }>
 
+/** A selection keeps the registration identity when another call needs a pin. */
+export type ToolBindingSelection<P, E, B extends ContentBlock> = Readonly<{
+  loaded: ToolLoadedRegistration<E, B>
+  pin: ToolBindingPin
+  repin(
+    access: Access<P>,
+    call: ToolCallId,
+  ): Outcome<ToolBindingPin, Readonly<{ kind: 'unavailable'; diagnostic: string }>>
+}>
+
 /**
- * The registry plus the three things that only this host's other parts use: `listings` for the
- * Catalog, `pin` for the resolution of a fixed request, and `retire` for the end of a fiber.
+ * Local extensions let the Catalog read listings, callers pin current keys or selected
+ * registrations, and the assembly retire an author's fiber.
  */
 export interface LocalToolBindingRegistry<P, E, B extends ContentBlock>
   extends ToolBindingRegistry<P, E, B>, ToolListingSource<P> {
   /** Holds `key` for `call` until the pin is released: `pins` and `drain` count it. */
   pin(key: ToolBindingKey, call: ToolCallId): Outcome<ToolBindingPin, ToolBindingKeyFailure>
+  selectAndPin(
+    access: Access<P>,
+    request: FixedToolRequest,
+    call: ToolCallId,
+  ): Outcome<ToolBindingSelection<P, E, B>, Readonly<{ kind: 'unavailable'; diagnostic: string }>>
   /** The fiber ended: withdraws its contributions and refuses its later registrations. */
   retire(fiber: string): void
 }
@@ -226,6 +247,12 @@ export function createLocalToolBindingRegistry<
       return succeed(undefined)
     }
 
+  const pinRow = (row: Row<E, B>, call: ToolCallId): ToolBindingPin => {
+    const hold = Symbol('pin')
+    row.pinned.set(hold, call)
+    return Object.freeze({ release: () => void row.pinned.delete(hold) })
+  }
+
   return Object.freeze({
     register,
     snapshot,
@@ -255,9 +282,42 @@ export function createLocalToolBindingRegistry<
     pin: (key, call) => {
       const row = find(key)
       if (row === undefined) return fail({ kind: 'unknown-key' })
-      const hold = Symbol('pin')
-      row.pinned.set(hold, call)
-      return succeed(Object.freeze({ release: () => void row.pinned.delete(hold) }))
+      return succeed(pinRow(row, call))
+    },
+    selectAndPin: (access, request, call) => {
+      const visible = visibleRows(access)
+      if (visible === null) return tenantUnreadable
+      const availability = request.availability
+      if (availability.kind !== 'available')
+        return fail({ kind: 'unavailable', diagnostic: 'the fixed tool is unavailable' })
+      const key = {
+        layer: availability.layer,
+        asset: {
+          name: availability.definition.name,
+          adoption: availability.definition.adoption,
+        },
+      }
+      const shape = shapeOf(availability.definition)
+      const same = visible.filter(row => sameShape(row.loaded.shape, shape))
+      const row =
+        same.find(candidate => sameBindingKey(candidate.key, key)) ??
+        same.find(candidate => candidate.state === 'live')
+      if (row === undefined)
+        return fail({ kind: 'unavailable', diagnostic: 'no accessible same-shape author' })
+      return succeed({
+        loaded: row.loaded,
+        pin: pinRow(row, call),
+        repin: (access, call) => {
+          const current = visibleRows(access)
+          if (current === null) return tenantUnreadable
+          if (!current.includes(row))
+            return fail({
+              kind: 'unavailable',
+              diagnostic: 'original author registration is absent',
+            })
+          return succeed(pinRow(row, call))
+        },
+      })
     },
     retire: fiber => {
       retired.add(fiber)
