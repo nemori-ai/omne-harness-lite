@@ -89,10 +89,14 @@ function markRecovered(value: unknown): unknown {
   return value
 }
 
+/** How a recalled result says it is a recall. */
+export type Recall = (value: unknown) => unknown
+
 function fromCommitted(
   receipt: ReceiptV2,
   expected: Expected,
   recall: boolean,
+  mark: Recall = markRecovered,
 ): Outcome<unknown, SessionFailure> {
   const entry = receipt.responses.find(item => item.participant === SESSION_PARTICIPANT)
   if (entry?.reply.kind !== 'participated')
@@ -101,7 +105,7 @@ function fromCommitted(
   if (answer.kind !== 'participated') return failure(unavailable('an undecodable session reply'))
   if (answer.digest !== expected.digest)
     return failure({ kind: 'conflict', operation: expected.operation })
-  return succeed(recall || answer.recovered ? markRecovered(answer.result) : answer.result)
+  return succeed(recall || answer.recovered ? mark(answer.result) : answer.result)
 }
 
 function fromRolledBack(receipt: ReceiptV2): Outcome<never, SessionFailure> {
@@ -128,10 +132,11 @@ function fromRolledBack(receipt: ReceiptV2): Outcome<never, SessionFailure> {
 function fromResult(
   result: CommitResultV2,
   expected: Expected,
+  mark: Recall,
 ): Outcome<unknown, SessionFailure> | 'next-attempt' {
   switch (result.kind) {
     case 'committed':
-      return fromCommitted(result, expected, false)
+      return fromCommitted(result, expected, false, mark)
     case 'rolled_back':
       return fromRolledBack(result)
     case 'unknown':
@@ -139,7 +144,7 @@ function fromResult(
     case 'identity_conflict':
       return result.existing.kind === 'rolled_back'
         ? 'next-attempt'
-        : fromCommitted(result.existing, expected, true)
+        : fromCommitted(result.existing, expected, true, mark)
     case 'rejected_before_accept':
       return result.reason === 'writer_not_current'
         ? failure({ kind: 'commit-unknown', operation: expected.operation })
@@ -150,13 +155,15 @@ function fromResult(
 /**
  * Commits the participant facts of one operation in the tenant domain. The attempt generation is
  * chosen by the storage receipts: a generation is used only when every earlier one is a rolled
- * back receipt, so an older attempt can never take effect beside a newer one (SPEC W1).
+ * back receipt, so an older attempt can never take effect beside a newer one (SPEC W1). `mark`
+ * says of a recalled result that it is a recall; the default fits a batch or control result.
  */
 export async function commitFacts<P>(
   context: Context<P>,
   domain: TenantDomainRef,
   expected: Expected,
   command: FactCommandV2,
+  mark: Recall = markRecovered,
 ): Promise<Outcome<unknown, SessionFailure>> {
   // Known limitation: the storage identity is `<SessionOperationId>#<generation>` in the tenant
   // domain, so one identity is one operation per tenant, not per session. An identity reused in
@@ -168,11 +175,12 @@ export async function commitFacts<P>(
     const identity = identityOf(domain, operation, `${operation}#${attempt}`)
     const found = await storage.query(identity)
     if (found.kind === 'rolled_back') continue
-    if (found.kind === 'committed') return fromCommitted(found, expected, true)
+    if (found.kind === 'committed') return fromCommitted(found, expected, true, mark)
     if (found.kind === 'unknown') return failure({ kind: 'commit-unknown', operation })
     const settled = fromResult(
       await storage.commit(requestOf(context, identity, command)),
       expected,
+      mark,
     )
     if (settled !== 'next-attempt') return settled
   }
@@ -247,6 +255,27 @@ async function lookup<P>(
   return succeed(answer.kind === 'operation' ? (answer as Found) : null)
 }
 
+/**
+ * True when the attempt left no record of its own identity and says so: a log commit that recalled
+ * the interpretation of another operation (committed), or that the pure layer refused (rolled
+ * back). Such an identity stays unknown, as in the memory pair, and is not a rejected attempt.
+ */
+function leftNoRecord(receipt: ReceiptV2): boolean {
+  const reply = receipt.responses.find(item => item.participant === SESSION_PARTICIPANT)?.reply
+  const said =
+    reply?.kind === 'participated'
+      ? reply.response
+      : reply?.kind === 'conflict'
+        ? reply.basis
+        : null
+  return (
+    typeof said === 'object' &&
+    said !== null &&
+    !Array.isArray(said) &&
+    (said as Readonly<Record<string, JsonValue>>)['recorded'] === false
+  )
+}
+
 /** An original that has no receipt: ask the storage about every attempt generation (SPEC R7). */
 async function exclusion<P>(
   context: Context<P>,
@@ -263,9 +292,10 @@ async function exclusion<P>(
     const found = await context.options.storage.query(
       identityOf(domain, operation, `${operation}#${attempt}`),
     )
-    if (found.kind === 'rolled_back') rolledBack = true
+    if (found.kind === 'rolled_back') rolledBack ||= !leftNoRecord(found)
     else if (found.kind === 'unknown') return { kind: 'unknown' }
-    else if (found.kind === 'committed') return { kind: 'committed-unseen' }
+    else if (found.kind === 'committed')
+      return leftNoRecord(found) ? { kind: 'unknown' } : { kind: 'committed-unseen' }
     else if (rolledBack) return { kind: 'attempt-rejected' }
     else
       return {
@@ -333,8 +363,9 @@ export async function queryOperation<P>(
   if ('failure' in looked) return looked
   const { found, rest } = looked.ok
   if (found === null) return unfound(rest as Rest, false)
-  // A control identity is not a batch identity (SL07). An entries record has a batch receipt.
-  if (found.form === 'control' || found.form === 'answer')
+  // A control identity is not a batch identity (SL07). An entries record has a batch receipt. A
+  // log record has neither: a caller of unknown outcome retries `commitLog` with the same identity.
+  if (found.form === 'control' || found.form === 'answer' || found.form === 'log')
     return failure({ kind: 'conflict', operation: input.operation })
   return succeed({ kind: 'committed', receipt: decodeValue(found.receipt) as CommitReceipt })
 }
@@ -347,7 +378,7 @@ export async function queryControlOperation<P>(
   if ('failure' in looked) return looked
   const { found, rest } = looked.ok
   if (found === null) return unfound(rest as Rest, true)
-  if (found.form === 'batch' || found.form === 'entries')
+  if (found.form === 'batch' || found.form === 'entries' || found.form === 'log')
     return failure({ kind: 'conflict', operation: input.operation })
   return succeed({ kind: 'committed', receipt: decodeValue(found.result) as never })
 }

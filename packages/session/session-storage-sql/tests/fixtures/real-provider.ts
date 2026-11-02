@@ -7,7 +7,17 @@ import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { SessionAccess, SessionCommand } from '@omne-harness/session-contract'
+import type {
+  ConsumptionId,
+  DurableEvidence,
+  RunId,
+  SessionAccess,
+  SessionCommand,
+  SessionLogCommitObservation,
+  SessionLogConsequence,
+  SessionTransactionPort,
+  WorkSnapshot,
+} from '@omne-harness/session-contract'
 import {
   adoptedInitializationFixture,
   createPolicySessionAccessCheck,
@@ -26,6 +36,7 @@ import {
   combinationManifest,
   manifestDigest,
   type CloseLeasePort,
+  type JsonValue,
   type QueryResultV2,
   type SqlIdentity,
   type SqlMaterialCatalog,
@@ -36,8 +47,19 @@ import {
   type TenantDomainAccess,
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage, type SqliteStorageConfig } from '@omne-harness/sqlite-provider'
-import { createSessionStorage, sessionStorageMaterials } from '../../src/index.ts'
-import type { ExecutionRecordWrite } from '../../src/participants.ts'
+import {
+  createSessionStorage,
+  createSessionStoragePair,
+  sessionStorageMaterials,
+} from '../../src/index.ts'
+import {
+  decodeExecutionRecordState,
+  EXECUTION_RECORD_HANDLERS,
+  executionRecordFacts,
+  type ExecutionRecordWrite,
+  type PreadmissionIntent,
+  type PreadmissionIntentWrite,
+} from '../../src/participants.ts'
 
 export const TENANT_A = testingTenant(
   'org_c0nf0rmance000000000000000',
@@ -259,13 +281,16 @@ export async function openRealApp(options: RealAppOptions = {}) {
     kind: 'allowed',
     evidence: evidence(`access/${request.operation}`),
   }))
-  const port = createSessionStorage<string>({
+  const storageOptions = {
     storage,
     domains,
     accessCheck,
     cursorSigning: createFixedSessionCursorSigning(),
     combination: { combinationVersion: COMBINATION, manifestDigest: digest },
-  })
+  }
+  const port = createSessionStorage<string>(storageOptions)
+  // The pair over the same options and storage: its public port and its delegated entry.
+  const pair = createSessionStoragePair<string>(storageOptions)
   const access = (tenant: TenantId, session = 'session-1'): SessionAccess<string> => ({
     principal: 'tester',
     tenant,
@@ -319,6 +344,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
     storageRoot,
     combination: { combinationVersion: COMBINATION, manifestDigest: digest },
     port,
+    pair,
     storage,
     control,
     events,
@@ -369,5 +395,319 @@ export function jointWrite(over: Partial<ExecutionRecordWrite> = {}): ExecutionR
     batches: [],
     admissions: [],
     ...over,
+  }
+}
+
+/**
+ * The Agent side of a fixture over any `SqlStorage`: it states original events and admissions to
+ * the same-root index through the `execution-record` participant, as the execution record provider
+ * would publish them. It asserts the original facts; it does not verify an adapter.
+ */
+export type AgentEvent = Readonly<{
+  tenant: TenantId
+  session: string
+  execution: string
+  sequence: string
+  revision: string
+  source: DurableEvidence
+  head: DurableEvidence
+  kinds: readonly string[]
+  ended?: boolean
+  batch?: JsonValue
+}>
+
+export type AgentAdmission = Readonly<{
+  tenant: TenantId
+  session: string
+  execution: string
+  input: string
+  operation: string
+  accepted: DurableEvidence
+  grant: DurableEvidence
+  attachment: string
+}>
+
+export function agentPublisher(input: {
+  storage: SqlStorage
+  combination: Readonly<{ combinationVersion: string; manifestDigest: string }>
+  domainOf: (tenant: TenantId) => string
+}) {
+  const heads = new Map<string, Readonly<{ revision: string; emitted: bigint; ended: unknown }>>()
+  const seen = new Set<string>()
+  let writes = 0
+  const domain = (tenant: TenantId) => ({
+    scope: { kind: 'tenant' as const, tenant: textOf(tenant) },
+    transactionDomain: input.domainOf(tenant),
+  })
+  const published = async (tenant: TenantId, session: string): Promise<string> => {
+    const read = await input.storage.read({
+      domain: domain(tenant),
+      handler: EXECUTION_RECORD_HANDLERS.state,
+      protocol: '1',
+      requestKey: `state-${String(writes)}`,
+      input: { tenant: textOf(tenant), session },
+    })
+    if (read.kind !== 'read') throw new Error(`the Agent state is not readable: ${read.kind}`)
+    return decodeExecutionRecordState(read.output)?.published ?? '0'
+  }
+  const commit = async (write: ExecutionRecordWrite): Promise<void> => {
+    writes += 1
+    const result = await input.storage.commit({
+      identity: identityOf(write.tenant, input.domainOf(write.tenant), write.operation),
+      ...input.combination,
+      commands: [executionRecordFacts(write)],
+    })
+    if (result.kind !== 'committed')
+      throw new Error(`the Agent write did not commit: ${JSON.stringify(result)}`)
+  }
+  const base = (tenant: TenantId, session: string, execution: string, published: string) => ({
+    tenant,
+    session: sessionId(session),
+    execution,
+    published,
+    operation: `aop_fixture_${String(writes)}`,
+    digest: `sha256:fixture-${String(writes)}`,
+    answer: { fixture: writes },
+    state: { fixture: writes },
+  })
+  return {
+    /** Publishes one original event: the new head, its fact row and, when given, its batch row. */
+    async publish(event: AgentEvent): Promise<void> {
+      const key = `${textOf(event.tenant)}/${event.session}/${event.execution}`
+      if (seen.has(`${key}#${event.sequence}`)) return
+      const prior = heads.get(key)
+      const emitted =
+        prior === undefined || BigInt(event.sequence) > prior.emitted
+          ? BigInt(event.sequence)
+          : prior.emitted
+      const ended =
+        event.ended === true
+          ? { sequence: event.sequence, source: event.source }
+          : (prior?.ended ?? null)
+      await commit({
+        ...base(
+          event.tenant,
+          event.session,
+          event.execution,
+          await published(event.tenant, event.session),
+        ),
+        expected: prior?.revision ?? null,
+        revision: event.revision,
+        boundaries: [
+          {
+            execution: event.execution,
+            revision: event.revision,
+            receipt: event.head,
+            emittedThrough: String(emitted),
+            ended: ended as never,
+          },
+        ],
+        facts: [
+          {
+            execution: event.execution,
+            sequence: event.sequence,
+            source: event.source,
+            kinds: event.kinds,
+          },
+        ],
+        batches:
+          event.batch === undefined
+            ? []
+            : [
+                {
+                  execution: event.execution,
+                  sequence: event.sequence,
+                  source: event.source,
+                  batch: event.batch,
+                },
+              ],
+        admissions: [],
+      })
+      heads.set(key, { revision: event.revision, emitted, ended })
+      seen.add(`${key}#${event.sequence}`)
+    },
+    /** Publishes one original admission of an input into the reverse directory. */
+    async admit(admission: AgentAdmission): Promise<void> {
+      const key = `${textOf(admission.tenant)}/${admission.session}/${admission.execution}`
+      const head = heads.get(key)?.revision ?? null
+      await commit({
+        ...base(
+          admission.tenant,
+          admission.session,
+          admission.execution,
+          await published(admission.tenant, admission.session),
+        ),
+        expected: head,
+        revision: head ?? '0',
+        boundaries: [],
+        facts: [],
+        batches: [],
+        admissions: [
+          {
+            input: admission.input,
+            execution: admission.execution,
+            operation: admission.operation,
+            accepted: admission.accepted,
+            grant: admission.grant,
+            attachment: admission.attachment,
+          },
+        ],
+      })
+    },
+  }
+}
+
+export type AgentPublisher = ReturnType<typeof agentPublisher>
+
+/** What a Run scene needs of an app: the port and its helpers, over either provider. */
+type SceneApp = Readonly<{
+  port: SessionTransactionPort<string>
+  access: (tenant: TenantId, session?: string) => SessionAccess<string>
+}>
+
+/** The current snapshot of session-1 of tenant A. */
+export async function workOf(a: SceneApp): Promise<WorkSnapshot> {
+  const read = await a.port.readWork(a.access(TENANT_A))
+  if ('failure' in read) throw new Error(`readWork: ${JSON.stringify(read.failure)}`)
+  return read.ok
+}
+
+/** Starts the next Run of session-1 of tenant A on its first pending input. */
+export function startRun(a: SceneApp, name: string) {
+  return a.port.commit({
+    access: a.access(TENANT_A),
+    command: {
+      kind: 'startRun',
+      input: {
+        tenant: TENANT_A,
+        session: sessionId('session-1'),
+        operation: operationId(name),
+        entry: 'interactive',
+        candidate: creation().definition.candidate,
+        instance: { owner: 'agent', id: 'instance-1' },
+      },
+    },
+    guards: [guard('evidence-bridge', 'login-entry', { session: 'session-1', operation: name })],
+  })
+}
+
+/** Cancels the Run `run` of session-1 of tenant A by a forced cancel-run control. */
+export function cancelRun(a: SceneApp, run: RunId, name: string) {
+  return a.port.commit({
+    access: a.access(TENANT_A),
+    command: {
+      kind: 'control',
+      input: {
+        tenant: TENANT_A,
+        session: sessionId('session-1'),
+        operation: operationId(name),
+        intent: { kind: 'cancel-run', run, urgency: 'force' },
+      },
+    },
+    guards: [],
+  })
+}
+
+/** The active Run of the snapshot: its Run, execution and current attempt. */
+export function activeRun(work: WorkSnapshot) {
+  if (work.run.kind !== 'active' || work.run.advance === null)
+    throw new Error('no active Run with an attempt')
+  return {
+    run: work.run.run,
+    execution: work.run.execution.execution,
+    attempt: work.run.advance.attempt,
+  }
+}
+
+/** The registration of the model call `n`, bound to `attempt` (a Session consequence of event `n`). */
+export function registrationOf(attempt: string, n: number | string): SessionLogConsequence {
+  return {
+    kind: 'call-registration',
+    consumption: `log-consumption-${String(n)}` as ConsumptionId,
+    registration: {
+      kind: 'associated',
+      binding: {
+        producer: { kind: 'model', call: `log-model-${String(n)}` },
+        action: `log-action-${String(n)}`,
+        consumer: {
+          owner: 'agent',
+          work: 'log-work',
+          position: `log-position-${String(n)}`,
+          purpose: 'main',
+        },
+        request: evidence(`log/request/${String(n)}`),
+        initiatingAttempt: attempt as never,
+      },
+      purpose: 'main',
+    },
+  }
+}
+
+/**
+ * Event `n` of `execution` in session-1 of tenant A: its sequence and head revision are both `n`.
+ * `tag` keeps the sources of two executions apart.
+ */
+export function eventOf(
+  scene: Readonly<{ run: RunId; execution: string }>,
+  n: number,
+  consequences: readonly SessionLogConsequence[],
+  operation: string,
+  tag = scene.execution,
+): SessionLogCommitObservation {
+  return {
+    tenant: TENANT_A,
+    session: sessionId('session-1'),
+    run: scene.run,
+    execution: scene.execution,
+    operation: operationId(operation),
+    sequence: String(n),
+    revision: String(n),
+    source: evidence(`${tag}/event/${String(n)}`),
+    executionEvidence: evidence(`${tag}/head/${String(n)}`),
+    consequences,
+  }
+}
+
+/** The Agent event that `observation` interprets, with the original kinds given (default: its own). */
+export function agentEventOf(
+  observation: SessionLogCommitObservation,
+  kinds: readonly string[] = observation.consequences.map(item => item.kind),
+): AgentEvent {
+  if (observation.sequence === null) throw new Error('a numbered event')
+  return {
+    tenant: observation.tenant,
+    session: observation.session,
+    execution: observation.execution,
+    sequence: observation.sequence,
+    revision: observation.revision,
+    source: observation.source,
+    head: observation.executionEvidence,
+    kinds,
+  }
+}
+
+/**
+ * The intent of handoff `handoff-1` under entry `entry-1` in session-1 of tenant A, before any Run.
+ * `change` replaces members of the opaque intent. The kill case writes this one in a child.
+ */
+export function preadmissionIntent(
+  change: Partial<PreadmissionIntent> = {},
+): PreadmissionIntentWrite {
+  return {
+    phase: 'intent',
+    tenant: TENANT_A,
+    handoff: 'handoff-1',
+    entry: 'entry-1',
+    session: sessionId('session-1'),
+    execution: null,
+    intent: {
+      request: { kind: 'invoke', input: 'hello' },
+      origin: evidence('agent/origin/1') as unknown as JsonValue,
+      principal: { kind: 'user', id: 'user-1' },
+      qualification: evidence('agent/qualified/1') as unknown as JsonValue,
+      adoption: { implementation: 'agent-1', version: '1' },
+      materials: ['material-1'],
+      ...change,
+    },
   }
 }

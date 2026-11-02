@@ -18,6 +18,7 @@ import {
   type SessionRunLookup,
   type SessionCommand,
   type SessionFailure,
+  type SessionInputScope,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -30,9 +31,10 @@ import type {
 import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
 import { runChecks } from './check.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
-import { readHistory } from './history-index.ts'
+import { readHistory, type SessionHistory } from './history-index.ts'
+import { judgeLog, type LogBatch } from './log.ts'
 import { PROTOCOL } from './schema.ts'
-import { big, oneRow, rowsOf, text } from './support.ts'
+import { big, oneRow, rowsOf, text, type Row } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_INITIALIZATION_RECEIPTS = 1000
@@ -529,12 +531,44 @@ function runQuery(
   }
 }
 
-function runCommand(
+/**
+ * The snapshot a result carries, with the history index of its pending inputs read from the rows
+ * this commit wrote, as `readWork` reads it (the memory pair gives its results the same index).
+ * Only the result of `create` carries the snapshot; over the read bound it carries none.
+ */
+function withIndex(port: ParticipantPort, command: SessionCommand, snapshot: WorkSnapshot) {
+  if (command.kind !== 'create') return snapshot
+  const tenant = tenantCodec.encode(snapshot.tenant)
+  if (!tenant.ok) return snapshot
+  const history = readHistory(port, tenant.value, snapshot.session, snapshot, {
+    kind: 'pending',
+    inputs: snapshot.pending,
+  })
+  return history === 'too-many' ? snapshot : { ...snapshot, historyIndex: history.index }
+}
+
+/** The rows a command is judged on: its key, the record of its identity, the journal and the snapshot. */
+type CommandStart = Readonly<{
+  tenant: string
+  session: string
+  operation: string
+  held: Row | undefined
+  journal: Row | undefined
+  previous: WorkSnapshot | null
+}>
+
+/** The command, its guards and the access evidence it carries, as the participant received them. */
+type Received = Readonly<{
+  command: SessionCommand
+  guards: readonly GuardCommand[]
+  evidence: string | null
+}>
+
+/** W1 steps 3 and 4: the key of the command, then its record, its journal row and its snapshot. */
+function commandStart(
   command: SessionCommand,
-  guards: readonly GuardCommand[],
-  evidence: string | null,
   port: ParticipantPort,
-): ParticipantReply {
+): CommandStart | ParticipantReply {
   // Before the session or any lookup: the answer must not tell what exists.
   if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
     return stopped({ kind: 'unsupported' })
@@ -562,26 +596,38 @@ function runCommand(
   )
   if (journal === undefined && command.kind !== 'create')
     return stopped({ kind: 'denied', action: command.kind })
-  let previous: WorkSnapshot | null = null
-  if (journal !== undefined) {
-    const state = oneRow(
-      port,
-      'SELECT snapshot, covered FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
-      [tenant, session],
-    )
-    if (state === undefined || big(state['covered']) !== big(journal['tail']))
-      return { kind: 'failed', diagnostic: 'sl_state does not cover the tail' }
-    previous = decodeValue(JSON.parse(text(state['snapshot'])) as JsonValue) as WorkSnapshot
-  }
+  const previous = journal === undefined ? null : coveringSnapshot(port, tenant, session, journal)
+  if (previous === 'behind')
+    return { kind: 'failed', diagnostic: 'sl_state does not cover the tail' }
+  return { tenant, session, operation, held, journal, previous }
+}
 
-  const record: OperationRecord | null =
-    held === undefined
-      ? null
-      : {
-          operation,
-          digest: text(held['input_digest']),
-          receipt: JSON.parse(text(held['receipt'])) as CommitReceipt,
-        }
+/** The snapshot row of the session, only when it covers the tail of `journal`. */
+function coveringSnapshot(
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  journal: Row,
+): WorkSnapshot | 'behind' {
+  const state = oneRow(
+    port,
+    'SELECT snapshot, covered FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
+    [tenant, session],
+  )
+  if (state === undefined || big(state['covered']) !== big(journal['tail'])) return 'behind'
+  return decodeValue(JSON.parse(text(state['snapshot'])) as JsonValue) as WorkSnapshot
+}
+
+const isStart = (value: CommandStart | ParticipantReply): value is CommandStart =>
+  !('kind' in value)
+
+/** The reads of `decide` that come from rows: the frozen receipt, the lookups and the receipts. */
+function commandReads(
+  port: ParticipantPort,
+  command: SessionCommand,
+  start: CommandStart,
+): Reads | ParticipantReply {
+  const { tenant, session, previous } = start
   const frozen =
     previous === null
       ? undefined
@@ -600,7 +646,7 @@ function runCommand(
       kind: 'failed',
       diagnostic: 'the operation receipts of the session exceed the read bound',
     }
-  const reads: Reads = {
+  return {
     compaction: null,
     ...(frozen === undefined
       ? {}
@@ -617,93 +663,105 @@ function runCommand(
         }
       : {}),
   }
-  // The history index is read in the same transaction as the snapshot, for the input range of this command.
-  const scope =
-    command.kind === 'startRun'
-      ? { kind: 'selected' as const, inputs: (previous?.pending ?? []).slice(0, 1) }
-      : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
-        ? { kind: 'selected' as const, inputs: [command.input.fact.input] }
-        : { kind: 'pending' as const, inputs: previous?.pending ?? [] }
-  const history = previous === null ? null : readHistory(port, tenant, session, previous, scope)
-  if (history === 'too-many')
-    return { kind: 'failed', diagnostic: 'the history index of the session exceeds the read bound' }
-  const prepared =
-    history === null || previous === null ? previous : { ...previous, historyIndex: history.index }
-  const decision: Decision = decide(prepared, command, guards, record, {
-    ...reads,
-    ...(history === null ? {} : { history: history.reads }),
-  })
+}
 
-  if (decision.kind === 'rejected') return stopped(decision.failure)
-  if (decision.kind === 'control-answer') {
-    const receipt = { operation, source: decision.source, answer: decision.answer }
+/** The input range whose history this command reads: its selected inputs, or the pending ones. */
+function commandScope(command: SessionCommand, previous: WorkSnapshot | null): SessionInputScope {
+  if (command.kind === 'startRun')
+    return { kind: 'selected', inputs: (previous?.pending ?? []).slice(0, 1) }
+  if (command.kind === 'receive' && command.input.fact.kind === 'input-handover')
+    return { kind: 'selected', inputs: [command.input.fact.input] }
+  return { kind: 'pending', inputs: previous?.pending ?? [] }
+}
+
+/** A control answer is saved under its identity with no revision: it writes no entry. */
+function saveControlAnswer(
+  port: ParticipantPort,
+  received: Received,
+  start: CommandStart,
+  decision: Extract<Decision, { kind: 'control-answer' }>,
+): ParticipantReply {
+  const { tenant, session, operation } = start
+  const receipt = { operation, source: decision.source, answer: decision.answer }
+  port.execute(
+    'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)',
+    [
+      tenant,
+      session,
+      operation,
+      commandDigest(received.command),
+      'answer',
+      JSON.stringify(encodeValue(receipt)),
+      JSON.stringify(encodeValue(receipt)),
+    ],
+  )
+  storeEvidence(port, { tenant, session, operation }, received.evidence)
+  return participated(receipt, false)
+}
+
+/**
+ * The recall of the original operation that `decide` named. A `completeInitialization` that recalls
+ * another operation saves its own record with the original receipt.
+ */
+function recallOriginal(
+  port: ParticipantPort,
+  received: Received,
+  start: CommandStart,
+  decision: Extract<Decision, { kind: 'recovered' }>,
+): ParticipantReply {
+  const { command, evidence } = received
+  const { tenant, session, operation, held } = start
+  const original = oneRow(
+    port,
+    'SELECT result, receipt FROM sl_operation WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
+    [tenant, session, decision.receipt.operation],
+  )
+  if (original === undefined)
+    return { kind: 'failed', diagnostic: 'a recalled operation without a record' }
+  if (held === undefined && command.kind === 'completeInitialization') {
     port.execute(
-      'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)',
+      'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [
         tenant,
         session,
         operation,
         commandDigest(command),
-        'answer',
-        JSON.stringify(encodeValue(receipt)),
-        JSON.stringify(encodeValue(receipt)),
+        'batch',
+        BigInt((JSON.parse(text(original['receipt'])) as CommitReceipt).revision),
+        text(original['receipt']),
+        text(original['receipt']),
       ],
     )
     storeEvidence(port, { tenant, session, operation }, evidence)
-    return participated(receipt, false)
   }
-  if (decision.kind === 'recovered') {
-    const original = oneRow(
-      port,
-      'SELECT result, receipt FROM sl_operation WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
-      [tenant, session, decision.receipt.operation],
-    )
-    if (original === undefined)
-      return { kind: 'failed', diagnostic: 'a recalled operation without a record' }
-    if (held === undefined && command.kind === 'completeInitialization') {
-      port.execute(
-        'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [
-          tenant,
-          session,
-          operation,
-          commandDigest(command),
-          'batch',
-          BigInt((JSON.parse(text(original['receipt'])) as CommitReceipt).revision),
-          text(original['receipt']),
-          text(original['receipt']),
-        ],
-      )
-      storeEvidence(port, { tenant, session, operation }, evidence)
-    }
-    const value =
-      command.kind === 'completeInitialization'
-        ? { ...(JSON.parse(text(original['receipt'])) as CommitReceipt), recovered: true }
-        : decodeValue(JSON.parse(text(original['result'])) as JsonValue)
-    return participated(value, true)
-  }
-  if (decision.entries.length === 0 && command.kind === 'considerAutoArchive' && previous !== null)
-    return participated({ result: autoArchiveResult(previous), receipt: null }, false)
+  const value =
+    command.kind === 'completeInitialization'
+      ? { ...(JSON.parse(text(original['receipt'])) as CommitReceipt), recovered: true }
+      : decodeValue(JSON.parse(text(original['result'])) as JsonValue)
+  return participated(value, true)
+}
 
-  // W1 step 7: positions, rows, derived rows, then the conditional tail update.
-  const tail = journal === undefined ? 0n : big(journal['tail'])
-  const seq = journal === undefined ? 1n : big(journal['commit_seq']) + 1n
-  const revision = String(tail + 1n)
-  const last = oneRow(
-    port,
-    'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ?',
-    [tenant, session],
-  )
-  const first = big(last?.['p'] ?? 0n) + 1n
-  const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
-    ...entry,
-    id: String(first + BigInt(index)),
-    revision,
-  })) as HistoryEntry[]
+/** The judged batch of a command, with what its publication needs. */
+type CommandBatch = Readonly<{
+  prepared: WorkSnapshot | null
+  history: SessionHistory | null
+  entries: Extract<Decision, { kind: 'entries' }>['entries']
+}>
+
+/** W1 step 7: positions, rows, derived rows, then the conditional tail update. */
+function publishCommand(
+  port: ParticipantPort,
+  received: Received,
+  start: CommandStart,
+  batch: CommandBatch,
+): ParticipantReply {
+  const { command, evidence } = received
+  const { tenant, session, operation, journal, previous } = start
+  const { tail, seq, revision, entries } = positioned(port, start, batch)
   const reduced = reduce(
-    prepared,
+    batch.prepared,
     { revision, entries } as never,
-    history === null ? undefined : history.reads,
+    batch.history === null ? undefined : batch.history.reads,
   )
   if (reduced.kind === 'quarantined')
     return { kind: 'failed', diagnostic: `reduce quarantined: ${reduced.diagnostic}` }
@@ -736,7 +794,7 @@ function runCommand(
     [tenant, session, JSON.stringify(encodeValue(snapshot)), BigInt(revision)],
   )
   maintainDerived(port, tenant, session, previous, snapshot)
-  const result = resultOf(command, snapshot, receipt)
+  const result = resultOf(command, withIndex(port, command, snapshot), receipt)
   if (result === null)
     return {
       kind: 'failed',
@@ -756,24 +814,126 @@ function runCommand(
     ],
   )
   storeEvidence(port, { tenant, session, operation }, evidence)
-  if (journal === undefined)
-    port.execute(
-      'INSERT INTO sl_journal (tenant, session, tail, commit_seq, epoch) VALUES (?, ?, ?, ?, ?)',
-      [tenant, session, BigInt(revision), seq, epoch],
-    )
-  else {
-    const moved = advanceTail(port, { tenant, session, tail, revision, seq, epoch })
-    if (moved !== null) return moved
-  }
-  return participated(result, false)
+  const moved = moveJournal(port, start, { tail, revision, seq, epoch })
+  return moved ?? participated(result, false)
 }
 
+/** The revision, commit sequence and entry positions of the batch, after the journal of `start`. */
+function positioned(port: ParticipantPort, start: CommandStart, batch: CommandBatch) {
+  const { tenant, session, journal } = start
+  const tail = journal === undefined ? 0n : big(journal['tail'])
+  const seq = journal === undefined ? 1n : big(journal['commit_seq']) + 1n
+  const revision = String(tail + 1n)
+  const last = oneRow(
+    port,
+    'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ?',
+    [tenant, session],
+  )
+  const first = big(last?.['p'] ?? 0n) + 1n
+  const entries: HistoryEntry[] = batch.entries.map((entry, index) => ({
+    ...entry,
+    id: String(first + BigInt(index)),
+    revision,
+  })) as HistoryEntry[]
+  return { tail, seq, revision, entries }
+}
+
+/** The journal row of a new session, or the conditional tail update of an existing one. */
+function moveJournal(
+  port: ParticipantPort,
+  start: CommandStart,
+  move: Readonly<{ tail: bigint; revision: string; seq: bigint; epoch: string }>,
+): ParticipantReply | null {
+  const { tenant, session, journal } = start
+  const { tail, revision, seq, epoch } = move
+  if (journal !== undefined)
+    return advanceTail(port, { tenant, session, tail, revision, seq, epoch })
+  port.execute(
+    'INSERT INTO sl_journal (tenant, session, tail, commit_seq, epoch) VALUES (?, ?, ?, ?, ?)',
+    [tenant, session, BigInt(revision), seq, epoch],
+  )
+  return null
+}
+
+/** The record of the command's identity that `decide` compares, or null for a new identity. */
+function recordOf(command: SessionCommand, start: CommandStart): OperationRecord | null {
+  const { held } = start
+  return held === undefined
+    ? null
+    : {
+        operation: command.input.operation,
+        digest: text(held['input_digest']),
+        receipt: JSON.parse(text(held['receipt'])) as CommitReceipt,
+      }
+}
+
+/** The history index is read in the same transaction as the snapshot, for the input range of this command. */
+function commandHistory(
+  port: ParticipantPort,
+  command: SessionCommand,
+  start: CommandStart,
+): SessionHistory | 'too-many' | null {
+  const { tenant, session, previous } = start
+  return previous === null
+    ? null
+    : readHistory(port, tenant, session, previous, commandScope(command, previous))
+}
+
+/** The answer to a command's decision: a refusal, a control answer, a recall or a published batch. */
+function settleDecision(
+  port: ParticipantPort,
+  received: Received,
+  start: CommandStart,
+  decision: Decision,
+  judged: Omit<CommandBatch, 'entries'>,
+): ParticipantReply {
+  const { command } = received
+  const { previous } = start
+  if (decision.kind === 'rejected') return stopped(decision.failure)
+  if (decision.kind === 'control-answer') return saveControlAnswer(port, received, start, decision)
+  if (decision.kind === 'recovered') return recallOriginal(port, received, start, decision)
+  if (decision.entries.length === 0 && command.kind === 'considerAutoArchive' && previous !== null)
+    return participated({ result: autoArchiveResult(previous), receipt: null }, false)
+  return publishCommand(port, received, start, { ...judged, entries: decision.entries })
+}
+
+function runCommand(
+  command: SessionCommand,
+  guards: readonly GuardCommand[],
+  evidence: string | null,
+  port: ParticipantPort,
+): ParticipantReply {
+  const start = commandStart(command, port)
+  if (!isStart(start)) return start
+  const reads = commandReads(port, command, start)
+  if ('kind' in reads) return reads
+  const history = commandHistory(port, command, start)
+  if (history === 'too-many')
+    return { kind: 'failed', diagnostic: 'the history index of the session exceeds the read bound' }
+  const { previous } = start
+  const prepared =
+    history === null || previous === null ? previous : { ...previous, historyIndex: history.index }
+  const decision: Decision = decide(prepared, command, guards, recordOf(command, start), {
+    ...reads,
+    ...(history === null ? {} : { history: history.reads }),
+  })
+  return settleDecision(port, { command, guards, evidence }, start, decision, { prepared, history })
+}
+
+/** What a same-log batch publishes: its rows, its snapshot and the record of its operation. */
+type SameLogBatch = EntriesBatch | LogBatch
+type SameLogRecord = Readonly<{ form: 'entries' | 'log'; receipt: unknown; result: unknown }>
+
 /**
- * The entries interpretation commit: the consequence rows, the progress row, the model view, the
- * snapshot with its saved progress, the derived rows, the `entries` operation record and the tail,
- * in this one transaction. A failure at any step rolls all of them back.
+ * One same-log interpretation commit (entries or log channel): the consequence rows, the progress
+ * row, the model view, the snapshot, the derived rows, the operation record and the tail, in this
+ * one transaction. A failure at any step rolls all of them back.
  */
-function publishEntries(port: ParticipantPort, batch: EntriesBatch): ParticipantReply {
+function publishSameLog(
+  port: ParticipantPort,
+  batch: SameLogBatch,
+  record: (receipt: CommitReceipt) => SameLogRecord,
+): ParticipantReply {
   const { tenant, session, operation, journal, previous, snapshot, entries } = batch
   const revision = String(journal.tail + 1n)
   const receipt = batchReceipt({ tenant, session, operation, seq: journal.seq, revision, entries })
@@ -790,6 +950,7 @@ function publishEntries(port: ParticipantPort, batch: EntriesBatch): Participant
     [tenant, session, JSON.stringify(encodeValue(snapshot)), BigInt(revision)],
   )
   maintainDerived(port, tenant, session, previous, snapshot)
+  const saved = record(receipt)
   port.execute(
     'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [
@@ -797,10 +958,10 @@ function publishEntries(port: ParticipantPort, batch: EntriesBatch): Participant
       session,
       operation,
       batch.digest,
-      'entries',
+      saved.form,
       BigInt(revision),
-      JSON.stringify(encodeValue(receipt)),
-      JSON.stringify(encodeValue(batch.answer)),
+      JSON.stringify(encodeValue(saved.receipt)),
+      JSON.stringify(encodeValue(saved.result)),
     ],
   )
   const moved = advanceTail(port, {
@@ -814,13 +975,16 @@ function publishEntries(port: ParticipantPort, batch: EntriesBatch): Participant
   return moved ?? participated(batch.answer, false)
 }
 
-/** The entries interpretation commit. Its answer carries the digest of the observation (SL07). */
+/** The answer of a same-log commit carries the digest of its observation (SL07). */
+function withDigest(reply: ParticipantReply, digest: string, extra: object = {}): ParticipantReply {
+  return reply.kind === 'participated'
+    ? { kind: 'participated', response: { ...(reply.response as object), ...extra, digest } }
+    : reply
+}
+
+/** The entries interpretation commit. Its record keeps the batch receipt and the entries receipt. */
 function runEntries(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPort) {
   const judged = judgeEntries(facts, port)
-  const withDigest = (reply: ParticipantReply, digest: string): ParticipantReply =>
-    reply.kind === 'participated'
-      ? { kind: 'participated', response: { ...(reply.response as object), digest } }
-      : reply
   switch (judged.kind) {
     case 'unsupported':
       return { kind: 'unsupported', basis: { reason: judged.reason } } as const
@@ -831,7 +995,51 @@ function runEntries(facts: Readonly<Record<string, JsonValue>>, port: Participan
     case 'recovered':
       return withDigest(participated(judged.result, true), judged.digest)
     case 'publish':
-      return withDigest(publishEntries(port, judged.batch), judged.batch.digest)
+      return withDigest(
+        publishSameLog(port, judged.batch, receipt => ({
+          form: 'entries',
+          receipt,
+          result: judged.batch.answer,
+        })),
+        judged.batch.digest,
+      )
+  }
+}
+
+/**
+ * The event channel interpretation commit. Its record keeps the log receipt in both columns: it is
+ * neither a batch nor a control record. A recall of another operation's interpretation and a
+ * refusal save no record of this identity, and say so (`recorded`), so the lookup reads this
+ * identity as unknown.
+ */
+function runLog(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPort) {
+  const judged = judgeLog(facts, port)
+  switch (judged.kind) {
+    case 'unsupported':
+      return { kind: 'unsupported', basis: { reason: judged.reason } } as const
+    case 'stopped':
+      return {
+        kind: 'conflict',
+        basis: { failure: encodeValue(judged.failure), recorded: false },
+      } as const
+    case 'failed':
+      return { kind: 'failed', diagnostic: judged.diagnostic } as const
+    case 'recovered':
+      return withDigest(participated(judged.result, true), judged.digest, {
+        recorded: judged.recorded,
+      })
+    case 'publish': {
+      const { answer } = judged.batch
+      return withDigest(
+        publishSameLog(port, judged.batch, () => ({
+          form: 'log',
+          receipt: answer,
+          result: answer,
+        })),
+        judged.batch.digest,
+        { recorded: true },
+      )
+    }
   }
 }
 
@@ -861,58 +1069,80 @@ function storeEvidence(
   )
 }
 
+/** The command intent: the command with its guards and evidence, answered with its digest. */
+function runCommandFacts(
+  facts: Readonly<Record<string, JsonValue>>,
+  port: ParticipantPort,
+): ParticipantReply {
+  if (typeof facts['command'] !== 'object' || !Array.isArray(facts['guards']))
+    return {
+      kind: 'unsupported',
+      basis: {
+        reason: 'the facts are neither a command, a check, a same-log commit nor a query',
+      },
+    }
+  let command: SessionCommand
+  let guards: GuardCommand[]
+  try {
+    command = decodeValue(facts['command'] as JsonValue) as SessionCommand
+    guards = decodeValue(facts['guards'] as JsonValue) as GuardCommand[]
+  } catch (error) {
+    return {
+      kind: 'unsupported',
+      basis: { reason: error instanceof Error ? error.message : 'undecodable facts' },
+    }
+  }
+  const evidence = evidenceOf(facts['evidence'])
+  if (evidence === 'malformed')
+    return {
+      kind: 'unsupported',
+      basis: { reason: 'the access evidence of the command is not a durable evidence' },
+    }
+  const reply = runCommand(command, guards, evidence, port)
+  // The digest of the command travels with the answer, so a later caller can tell a recall of the
+  // same command from the same identity used for another command (SL07).
+  return reply.kind === 'participated'
+    ? {
+        kind: 'participated',
+        response: { ...(reply.response as object), digest: commandDigest(command) },
+      }
+    : reply
+}
+
+/** The query intent: the original record of one operation identity. */
+function runQueryFacts(
+  facts: Readonly<Record<string, JsonValue>>,
+  port: ParticipantPort,
+): ParticipantReply {
+  const { tenant, session, operation } = facts as Record<string, unknown>
+  return typeof tenant === 'string' && typeof session === 'string' && typeof operation === 'string'
+    ? runQuery(port, tenant, session, operation)
+    : { kind: 'unsupported', basis: { reason: 'query facts are incomplete' } }
+}
+
 const participant: ParticipantModule = {
   participant: 'session',
   protocol: PROTOCOL,
   execute(facts, port) {
-    const intent = facts['intent']
-    if (intent === 'query') {
-      const { tenant, session, operation } = facts as Record<string, unknown>
-      return typeof tenant === 'string' &&
-        typeof session === 'string' &&
-        typeof operation === 'string'
-        ? runQuery(port, tenant, session, operation)
-        : { kind: 'unsupported', basis: { reason: 'query facts are incomplete' } }
-    }
-    if (intent === 'entries') return runEntries(facts, port)
-    if (intent === 'check') return runChecks(facts, port)
-    if (
-      intent !== 'command' ||
-      typeof facts['command'] !== 'object' ||
-      !Array.isArray(facts['guards'])
-    )
-      return {
-        kind: 'unsupported',
-        basis: {
-          reason: 'the facts are neither a command, a check, an entries commit nor a query',
-        },
-      }
-    let command: SessionCommand
-    let guards: GuardCommand[]
-    try {
-      command = decodeValue(facts['command'] as JsonValue) as SessionCommand
-      guards = decodeValue(facts['guards'] as JsonValue) as GuardCommand[]
-    } catch (error) {
-      return {
-        kind: 'unsupported',
-        basis: { reason: error instanceof Error ? error.message : 'undecodable facts' },
-      }
-    }
-    const evidence = evidenceOf(facts['evidence'])
-    if (evidence === 'malformed')
-      return {
-        kind: 'unsupported',
-        basis: { reason: 'the access evidence of the command is not a durable evidence' },
-      }
-    const reply = runCommand(command, guards, evidence, port)
-    // The digest of the command travels with the answer, so a later caller can tell a recall of the
-    // same command from the same identity used for another command (SL07).
-    return reply.kind === 'participated'
-      ? {
-          kind: 'participated',
-          response: { ...(reply.response as object), digest: commandDigest(command) },
+    switch (facts['intent']) {
+      case 'query':
+        return runQueryFacts(facts, port)
+      case 'entries':
+        return runEntries(facts, port)
+      case 'log':
+        return runLog(facts, port)
+      case 'check':
+        return runChecks(facts, port)
+      case 'command':
+        return runCommandFacts(facts, port)
+      default:
+        return {
+          kind: 'unsupported',
+          basis: {
+            reason: 'the facts are neither a command, a check, a same-log commit nor a query',
+          },
         }
-      : reply
+    }
   },
 }
 export default participant

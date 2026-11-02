@@ -11,4 +11,9 @@
 - [operation-evidence.spec.ts](operation-evidence.spec.ts)：操作记录的访问证据与它的迁移
 - [principal-bindings.spec.ts](principal-bindings.spec.ts)：会话归属读口的符合性与跨租户用例
 - [real-provider.spec.ts](real-provider.spec.ts)：真实 sqlite-provider 上的组合用例
+- [real-system-reads.spec.ts](real-system-reads.spec.ts)：真实 sqlite-provider 上的 R10、R11 系统读
+- [log.spec.ts](log.spec.ts)：`commitLog` 的同事务发布、认回与冲突
+- [log-conformance.spec.ts](log-conformance.spec.ts)：`commitLog` 符合性套件，夹具与真实提供者
+- [history-index.spec.ts](history-index.spec.ts)：K-5 同根索引、观察尾部前缀与读取计数
+- [preadmission.spec.ts](preadmission.spec.ts)：准入记录
 - [fixtures/](fixtures/index.md)：`node:sqlite` 与真实提供者的测试夹具
