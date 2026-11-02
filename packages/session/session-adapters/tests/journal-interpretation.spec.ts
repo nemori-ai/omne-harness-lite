@@ -130,8 +130,11 @@ async function submitted(s: SqlScene, journal: AgentJournal<string>, label: stri
 }
 
 /** One Agent commit of the scene's execution with `events`, at its current head. */
+/** Where an Agent write goes: the scene's access and execution, of the SQL scene or the memory one. */
+type Where = Pick<SqlScene, 'access' | 'execution'>
+
 async function committed(
-  s: SqlScene,
+  s: Where,
   journal: AgentJournal<string>,
   label: string,
   events: Parameters<AgentJournal<string>['commit']>[0]['events'],
@@ -160,7 +163,7 @@ async function committed(
 }
 
 /** The Agent takes the pending inputs, as the coordinator's first step does: event input-taken. */
-async function take(s: SqlScene, journal: AgentJournal<string>) {
+async function take(s: Where, journal: AgentJournal<string>) {
   const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
   const authority = loaded.executionAttachment
   if (authority === null) throw new Error('an active attachment is expected')
@@ -340,6 +343,74 @@ describe('AD-02: the execution head moves between the read and the commit', () =
     expect(await readThrough(f.s)).toBe('0')
     // The head stays still now: the next call commits.
     expect(ok(await f.interpretation.interpret(f.target))).toMatchObject({ readThrough: '1' })
+  })
+})
+
+/**
+ * A step that takes no input, as the step after a Tool result does: the Agent writes input-taken
+ * with an empty batch.
+ */
+async function takeNothing(s: Where, journal: AgentJournal<string>, label: string) {
+  const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
+  const authority = loaded.executionAttachment
+  if (authority === null) throw new Error('an active attachment is expected')
+  const page = ok(
+    await journal.inputs({ ...s.access, execution: s.execution, watermark: loaded.inputWatermark }),
+  )
+  if (page.batch.ordered.length !== 0) throw new Error('an empty batch is expected')
+  return ok(
+    await journal.commit({
+      ...s.access,
+      execution: s.execution,
+      operation: operation(label),
+      authority,
+      expected: loaded.revision,
+      checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+      state: { kind: 'advancing' },
+      events: [{ kind: 'input-taken', batch: page.batch }],
+      effects: [],
+      caller: { kind: 'none' },
+      replyAdmission: null,
+      handoff: null,
+      finish: null,
+    }),
+  )
+}
+
+// An empty batch has no Session acceptance (SE14 refuses it): the shared normalization gives the
+// event only `observed`, so the next committed event covers it, in the production AD-02 and in the
+// memory double alike.
+describe('AD-02: a step that took no input', () => {
+  const waits = [dependency('after-empty-take')]
+
+  it('the empty input-taken is not committed; the next committed event covers it', async () => {
+    const f = await interpreted('ad02-empty-take')
+    const journal = f.c.journal()
+    await started(f.s, journal)
+    await reaches(f.s, '1')
+    await takeNothing(f.s, journal, 'take-nothing')
+    await committed(f.s, journal, 'wait-after-empty', [{ kind: 'waiting', waits }], waits)
+    await reaches(f.s, '3')
+    expect(f.sent.map(item => item.observation.sequence)).toEqual(['1', '3'])
+  })
+
+  it('the memory double interprets the same sequence to the same progress', async () => {
+    const m = await scene('memory-empty-take')
+    const interpret = (sequence: string) =>
+      m.backend.controls.interpret({
+        ...m.access,
+        execution: m.execution,
+        sequence,
+        operation: operationId(`interpret-empty-${sequence}`),
+      })
+    await take(m, m.view.journal)
+    ok(await interpret('1'))
+    await takeNothing(m, m.view.journal, 'take-nothing')
+    await committed(m, m.view.journal, 'wait-after-empty', [{ kind: 'waiting', waits }], waits)
+    ok(await interpret('3'))
+    const snapshot = ok(await m.backend.transactions.readWork(m.access))
+    const own = snapshot.run.kind === 'active' ? snapshot.run.execution : undefined
+    expect(own?.readThrough).toBe('3')
   })
 })
 

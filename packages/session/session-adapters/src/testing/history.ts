@@ -240,6 +240,9 @@ export function normalizeAgentEvent(
   const body = event.body
   switch (body.kind) {
     case 'input-taken':
+      // A step that took no input (the step after a Tool result) has no Session acceptance: an
+      // empty batch is only observed, and Session's refusal of an empty SE14 batch stays as it is.
+      if (body.batch.ordered.length === 0) return [{ kind: 'observed' }]
       return [
         {
           kind: 'input-taken',
