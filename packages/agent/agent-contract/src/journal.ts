@@ -334,6 +334,10 @@ export interface AgentJournalObservation<P> {
 /** The read-only role group: snapshot, inputs, reply admissions, outcome query and event reads; see SPEC "托管协调与运行实例". */
 export interface AgentJournalReading<P> {
   load(input: Access<P> & Readonly<{ execution: AgentExecutionId }>): Reply<ExecutionSnapshot>
+  /** Reads the current governance installation reference under the existing Journal read qualification. */
+  readCancellationInstallation?(
+    input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
+  ): Reply<DurableEvidence>
   inputs(
     input: Access<P> & Readonly<{ execution: AgentExecutionId; watermark: DurableEvidence }>,
   ): Reply<Readonly<{ batch: InputBatch; messages: readonly Message[] }>>

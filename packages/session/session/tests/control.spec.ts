@@ -189,6 +189,114 @@ it('SC-03 后继 Run 开始后旧调用控制仍只指向原执行', async () =>
   ).toBe(true)
 })
 
+it('SC-02 原 Run 的执行记录不是恰好一个时不发送', async () => {
+  for (const shape of ['none', 'twice'] as const) {
+    const f = await controlFixture()
+    open.push(f.h)
+    const read = f.h.backend.transactions.readWork.bind(f.h.backend.transactions)
+    interceptReads(f.h, async input => {
+      const answer = await read(input)
+      if ('failure' in answer) return answer
+      const executions = answer.ok.executions ?? []
+      return succeed({
+        ...answer.ok,
+        executions: shape === 'none' ? [] : [...executions, ...executions],
+      })
+    })
+    await f.cancel()
+    await turn()
+    expect(f.control, shape).not.toHaveBeenCalled()
+    expect((await readControlWork(f.h)).controls[0]?.state, shape).toBe('propagating')
+  }
+})
+
+it('SC-06 离开传播的控制不再重放，且不留重放记录', async () => {
+  const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 5 } } })
+  open.push(f.h)
+  let settled = false
+  const read = f.h.backend.transactions.readWork.bind(f.h.backend.transactions)
+  interceptReads(f.h, async input => {
+    const answer = await read(input)
+    if ('failure' in answer || !settled) return answer
+    return succeed({
+      ...answer.ok,
+      controls: answer.ok.controls.map(control => ({
+        ...control,
+        state: 'reconciled' as const,
+        pending: [],
+        pendingUnassociatedWaiting: [],
+      })),
+    })
+  })
+  f.control.mockResolvedValue(fail({ kind: 'commit-unknown', operation: 'ignored-port-operation' }))
+  f.query.mockResolvedValue(succeed('unknown'))
+  await f.cancel()
+  await vi.waitFor(() => expect(f.query).toHaveBeenCalledTimes(1))
+  settled = true
+  f.h.clock.controls.advance(100)
+  await turn()
+  await turn()
+  // A running replay that finds the control settled stops without asking or sending again.
+  expect(f.control).toHaveBeenCalledTimes(1)
+  expect(f.query).toHaveBeenCalledTimes(1)
+  // Its record is gone: seen propagating again, the control starts over with a send, not a query.
+  settled = false
+  await f.notice()
+  await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(2))
+})
+
+it('SC-06 受理后停止的重放记录在控制离开传播后随发现清除', async () => {
+  const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 1 } } })
+  open.push(f.h)
+  let settled = false
+  let settledReads = 0
+  const read = f.h.backend.transactions.readWork.bind(f.h.backend.transactions)
+  interceptReads(f.h, async input => {
+    const answer = await read(input)
+    if ('failure' in answer || !settled) return answer
+    settledReads += 1
+    return succeed({
+      ...answer.ok,
+      controls: answer.ok.controls.map(control => ({
+        ...control,
+        state: 'reconciled' as const,
+        pending: [],
+        pendingUnassociatedWaiting: [],
+      })),
+    })
+  })
+  await f.cancel()
+  await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
+  f.h.clock.controls.advance(100)
+  await turn()
+  await f.notice()
+  expect(f.control).toHaveBeenCalledTimes(1)
+  settled = true
+  await f.notice()
+  await vi.waitFor(() => expect(settledReads).toBeGreaterThan(0))
+  await turn()
+  await turn()
+  settled = false
+  await f.notice()
+  await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(2))
+})
+
+it('SC-06 控制一直不返回时不占住会话队列，关闭也能结束', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  f.control.mockImplementation(() => new Promise(() => undefined))
+  await f.cancel()
+  await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
+  await f.h.accept('input-2')
+  await vi.waitFor(async () => {
+    const snapshot = await readControlWork(f.h)
+    if (snapshot.run.kind !== 'active' || snapshot.run.run === f.original.run)
+      throw new Error('waiting for successor Run')
+  })
+  await f.h.instance.close()
+  expect(f.control).toHaveBeenCalledTimes(1)
+})
+
 it('SC-04 受理不结清责任', async () => {
   const f = await controlFixture({ drive: false })
   open.push(f.h)

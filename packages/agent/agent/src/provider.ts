@@ -2,9 +2,9 @@
 // `invoke` admits the input and opens the execution (U0 to E0, #502 1.3): it reserves the one
 // execution slot, resolves the evaluator of the bound definition, returns the handle at E1, and
 // leaves the Loop to run on until the runtime is idle again. `observe` shows the state of the
-// instance as it changes. The other bodies are not implemented yet: after `allowed` each answers a
-// named `unavailable` that names the #502 stage that brings it. That is a stage-temporary answer,
-// never a success or a made-up result.
+// instance as it changes. Execution control saves its command, advances Model interruption and
+// establishes cancellation stages. The remaining bodies answer a named stage-temporary
+// `unavailable` after `allowed`.
 //
 // The slot and the observed state never disagree: `observe` shows the state that `stateOf` derives
 // from the slot, and every slot change goes through `occupy`. A run that stopped keeps the slot
@@ -37,6 +37,12 @@ import type {
 } from './construction.ts'
 import { canonical } from './canonical.ts'
 import { createExecutionCoordinator } from './loop/coordinator.ts'
+import {
+  advanceModelControl,
+  advanceToolControl,
+  establishCancellation,
+  toolControlOf,
+} from './control.ts'
 
 const OWNER = '@omne-harness/agent'
 
@@ -123,7 +129,7 @@ function inputText<P>(input: InvokeInput<P>): string {
 
 export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   binding: AgentRuntimeBinding
-  configuration: Pick<AgentConfiguration, 'reconciliationDelayMs'>
+  configuration: Pick<AgentConfiguration, 'reconciliationDelayMs' | 'toolConcurrency'>
   guard: AccessGuard<P>
   dependencies: AgentDependencies<P, B>
 }>
@@ -233,7 +239,30 @@ export function createProvider<P, B extends ContentBlock>(
         submit: input => guarded(input, 'submit', target, 'unassigned'),
       },
       control: {
-        control: input => guarded(input, 'control', target, 'stage 5'),
+        async control(input) {
+          const passed = await guard(input, 'control', target)
+          if ('failure' in passed) return passed
+          if (input.execution !== execution) return fail(foreign)
+          if (input.command.kind === 'suspend') return fail(notImplemented('suspend', 'stage 5'))
+          const accepted = await dependencies.journal.control(input)
+          if ('failure' in accepted) return accepted
+          const access = { principal: input.principal, tenant: input.tenant }
+          const loaded = await dependencies.journal.load({ ...access, execution })
+          if ('failure' in loaded) return accepted
+          const control = loaded.ok.controls.find(record => record.operation === input.operation)
+          if (control?.command.kind === 'interrupt-model') {
+            await advanceModelControl(dependencies, access, execution, {
+              ...control,
+              command: control.command,
+            })
+          }
+          // A Tool control acts on its own original call only; the execution goes on.
+          const tool = control === undefined ? undefined : toolControlOf(control)
+          if (tool !== undefined) await advanceToolControl(dependencies, access, execution, tool)
+          if (control?.command.kind === 'cancel')
+            await establishCancellation(dependencies.journal, access, execution, control)
+          return accepted
+        },
       },
       output: {
         async read(input) {
@@ -298,6 +327,7 @@ export function createProvider<P, B extends ContentBlock>(
       initial: input.initial,
       grant: input.grant,
       idle: release,
+      toolConcurrency: entry.configuration.toolConcurrency,
     })
     const opened = await coordinator.accept()
     if ('failure' in opened) {
