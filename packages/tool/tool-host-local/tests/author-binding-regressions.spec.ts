@@ -6,6 +6,7 @@ import type { FixedToolRequest, ToolStartRecord } from '@omne-harness/tool-contr
 import {
   defineCommandTool,
   defineToolOperation,
+  type ToolAuthority,
   type ToolImplementationModule,
 } from '@omne-harness/tool-contract/provider'
 import { completedFinal, createMemoryToolStartAuthority } from '@omne-harness/tool-contract/testing'
@@ -18,21 +19,20 @@ import {
   settings,
   unbox,
 } from './author-values.ts'
-import { fiberedRegistry, scriptedVerifier } from './binding-values.ts'
+import { authorityFor, fiberedRegistry, scriptedVerifier } from './binding-values.ts'
 import { adoption, callId, instanceId, operationId, request } from './coordinator-values.ts'
 
 type Start = Extract<ToolStartRecord, { kind: 'start' }>
 type Settlement = Parameters<LocalToolBindingsInput<string, unknown, ContentBlock>['settle']>[0]
+const fallbackAuthority = authorityFor({ kind: 'official' }, 'read_file', 'fallback-holding', '2')
 
 async function harness(module: ToolImplementationModule<unknown, ContentBlock>) {
   const loaded = unbox(await loadAuthor(module))
-  const { registry, asFiber } = fiberedRegistry(scriptedVerifier([authorAuthority]))
-  const register = (value = loaded) =>
-    unbox(
-      asFiber('author', () =>
-        registry.register({ ...authorAccess, authority: authorAuthority, loaded: value }),
-      ),
-    )
+  const { registry, asFiber } = fiberedRegistry(
+    scriptedVerifier([authorAuthority, fallbackAuthority]),
+  )
+  const register = (value = loaded, authority: ToolAuthority = authorAuthority) =>
+    unbox(asFiber('author', () => registry.register({ ...authorAccess, authority, loaded: value })))
   const contribution = register()
   const fixed = request({
     availability: {
@@ -142,8 +142,10 @@ describe('author binding registration ownership', () => {
     })
     const fixture = await harness(module)
     fixture.contribution.release()
-    const successor = unbox(await loadAuthor({ ...module, executor: adoption('fallback') }))
-    fixture.register(successor)
+    const successor = unbox(
+      await loadAuthor({ ...module, executor: adoption('fallback') }, fallbackAuthority),
+    )
+    fixture.register(successor, fallbackAuthority)
     const binding = await fixture.resolve()
     expect(unbox(fixture.registry.pins(successor.key))).toBe('1')
     expect(await binding.start(await fixture.input(), {})).toHaveProperty(
