@@ -31,8 +31,8 @@ import { fieldOf, isIntegerAtLeast } from '../fields.ts'
  * local send path. `preparation` is required because `assembleLocalModel` builds the preparation
  * leases in the same call; this plugin does not use them.
  */
-export type ModelSendStagePluginOptions = Readonly<
-  Omit<LocalModelConfig<unknown>, 'credentials' | 'commands' | 'maxRetainedAttempts'>
+export type ModelSendStagePluginOptions<P = unknown> = Readonly<
+  Omit<LocalModelConfig<P>, 'credentials' | 'commands' | 'maxRetainedAttempts'>
 >
 
 /** The one bound of the send stage. It is required, and the plugin gives it no default. */
@@ -55,22 +55,28 @@ export const modelSendStageConfigSchema = {
   '~standard': { version: 1 as const, vendor: 'model-host-local', validate: parseSettings },
 }
 
-export type ModelSendStagePluginClass = {
-  new (ctx: Context, settings: ModelSendStageSettings): ModelSendBoundaryService<unknown>
+export type ModelSendStagePluginClass<P = unknown> = {
+  new (ctx: Context, settings: ModelSendStageSettings): ModelSendBoundaryService<P>
   readonly inject: string[]
   readonly Config: typeof modelSendStageConfigSchema
 }
 
 /** The credential port of one plugin life: the injected service until the exit withdraws it. */
-function withdrawablePort(service: ModelCredentialService): {
-  readonly port: CredentialPort
+function withdrawablePort<P>(service: ModelCredentialService<P>): {
+  readonly port: CredentialPort<P>
   withdraw(): void
 } {
-  let held: ModelCredentialService | undefined = service
+  let held: ModelCredentialService<P> | undefined = service
   return {
     port: {
       present: reference => held?.present(reference) ?? { kind: 'unavailable' },
       resolve: (reference, face) => held?.resolve(reference, face) ?? { kind: 'unavailable' },
+      ...(service.presentFor === undefined
+        ? {}
+        : { presentFor: input => held?.presentFor?.(input) ?? { kind: 'unavailable' } }),
+      ...(service.resolveFor === undefined
+        ? {}
+        : { resolveFor: input => held?.resolveFor?.(input) ?? { kind: 'unavailable' } }),
     },
     withdraw() {
       held = undefined
@@ -82,18 +88,18 @@ function withdrawablePort(service: ModelCredentialService): {
  * The plugin class over an assembly function. `createModelSendStagePlugin` gives the real one; the
  * package tests give one over observable network and send resources.
  */
-export function sendStagePluginOver(
+export function sendStagePluginOver<P>(
   input: Readonly<{
-    options: ModelSendStagePluginOptions
-    assemble: (config: LocalModelConfig<unknown>) => LocalModel<unknown>
+    options: ModelSendStagePluginOptions<P>
+    assemble: (config: LocalModelConfig<P>) => LocalModel<P>
   }>,
-): ModelSendStagePluginClass {
+): ModelSendStagePluginClass<P> {
   const { options, assemble } = input
-  return class ModelSendStagePlugin extends ModelSendBoundaryService<unknown> {
+  return class ModelSendStagePlugin extends ModelSendBoundaryService<P> {
     static readonly inject = [modelCredentialKey, modelCommandsKey]
     static readonly Config = modelSendStageConfigSchema
 
-    readonly send: ModelSendBoundary<unknown>['send']
+    readonly send: ModelSendBoundary<P>['send']
 
     constructor(ctx: Context, settings: ModelSendStageSettings) {
       super(ctx)
@@ -125,8 +131,8 @@ export function sendStagePluginOver(
 }
 
 /** The send stage plugin class over the production send path. */
-export function createModelSendStagePlugin(
-  options: ModelSendStagePluginOptions,
-): ModelSendStagePluginClass {
+export function createModelSendStagePlugin<P>(
+  options: ModelSendStagePluginOptions<P>,
+): ModelSendStagePluginClass<P> {
   return sendStagePluginOver({ options, assemble: assembleLocalModel })
 }

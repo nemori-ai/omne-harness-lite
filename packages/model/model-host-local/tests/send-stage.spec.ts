@@ -219,6 +219,13 @@ class SpyCredential extends ModelCredentialService {
     SpyCredential.resolves += 1
     return { kind: 'value', scope: 'factory', value: PLACEHOLDER }
   }
+  override readonly presentFor: NonNullable<CredentialPort['presentFor']> = () => ({
+    kind: 'unavailable',
+  })
+  override readonly resolveFor: NonNullable<CredentialPort['resolveFor']> = () => {
+    SpyCredential.resolves += 1
+    return { kind: 'value', scope: 'factory', value: PLACEHOLDER }
+  }
 }
 
 // --- the observing transport of the fast tests ---------------------------------------------------
@@ -422,6 +429,86 @@ afterEach(() => {
 })
 
 describe('the plugin and its dependencies', () => {
+  it('forwards qualified methods while held and makes them unavailable before close completes', async () => {
+    const scene = sceneOf(REQUEST, 'qualified-port')
+    const watch = observing()
+    const ctx = new Context()
+    const presentFor = vi.fn<NonNullable<CredentialPort['presentFor']>>(() => ({
+      kind: 'unavailable',
+    }))
+    const resolveFor = vi.fn<NonNullable<CredentialPort['resolveFor']>>(() => ({
+      kind: 'value',
+      scope: 'factory',
+      value: PLACEHOLDER,
+    }))
+    class QualifiedCredential extends SpyCredential {
+      override readonly presentFor = presentFor
+      override readonly resolveFor = resolveFor
+    }
+    await ctx.plugin(QualifiedCredential)
+    await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
+    let port: CredentialPort | undefined
+    const Stage = sendStagePluginOver({
+      options: optionsOf(scene),
+      assemble: config => {
+        port = config.credentials
+        return assembleOver({ config, factories: watch.factories })
+      },
+    })
+    const fiber = await ctx.plugin(Stage, SETTINGS)
+    const input = {
+      id: decoded(decodeCredentialId('qualified-port')),
+      purpose: 'model-send' as const,
+      official: true,
+      access: { tenant: tenantOf('5'), principal: null },
+    }
+    expect(port?.presentFor?.(input)).toEqual({ kind: 'unavailable' })
+    expect(port?.resolveFor?.(input)).toEqual({
+      kind: 'value',
+      scope: 'factory',
+      value: PLACEHOLDER,
+    })
+    expect(presentFor).toHaveBeenCalledWith(input)
+    expect(resolveFor).toHaveBeenCalledWith(input)
+    expect(SpyCredential.resolves).toBe(0)
+    const finish = watch.hold()
+    const disposing = fiber.dispose()
+    await vi.waitFor(() => expect(watch.events).toContain('resources-close'))
+    expect(port?.presentFor?.(input)).toEqual({ kind: 'unavailable' })
+    expect(port?.resolveFor?.(input)).toEqual({ kind: 'unavailable' })
+    expect(presentFor).toHaveBeenCalledTimes(1)
+    expect(resolveFor).toHaveBeenCalledTimes(1)
+    finish()
+    await disposing
+    await watch.dispose()
+  })
+
+  it('preserves the absence of qualified methods on a legacy credential service', async () => {
+    const scene = sceneOf(REQUEST, 'legacy-port')
+    const watch = observing()
+    const ctx = new Context()
+    class LegacyCredential extends ModelCredentialService {
+      readonly present: CredentialPort['present'] = () => ({ kind: 'unavailable' })
+      readonly resolve: CredentialPort['resolve'] = () => ({ kind: 'unavailable' })
+    }
+    await ctx.plugin(LegacyCredential)
+    await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
+    let port: CredentialPort | undefined
+    const Stage = sendStagePluginOver({
+      options: optionsOf(scene),
+      assemble: config => {
+        port = config.credentials
+        return assembleOver({ config, factories: watch.factories })
+      },
+    })
+    const fiber = await ctx.plugin(Stage, SETTINGS)
+    expect(port?.presentFor).toBeUndefined()
+    expect(port?.resolveFor).toBeUndefined()
+    expect(SpyCredential.resolves).toBe(0)
+    await fiber.dispose()
+    await watch.dispose()
+  })
+
   it('serves modelSendBoundary while it lives and withdraws it with the fiber', async () => {
     const { ctx, Stage, watch } = await treeOf('serve')
     const fiber = await ctx.plugin(Stage, SETTINGS)

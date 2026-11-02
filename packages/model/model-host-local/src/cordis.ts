@@ -78,6 +78,12 @@ const unavailablePort: CredentialPort = {
   resolve() {
     return { kind: 'unavailable' }
   },
+  presentFor() {
+    return { kind: 'unavailable' }
+  },
+  resolveFor() {
+    return { kind: 'unavailable' }
+  },
 }
 
 function openPort(config: PluginConfig): {
@@ -98,6 +104,8 @@ export class LocalCredentialPlugin extends ModelCredentialService {
 
   readonly present: CredentialPort['present']
   readonly resolve: CredentialPort['resolve']
+  override readonly presentFor: NonNullable<CredentialPort['presentFor']>
+  override readonly resolveFor: NonNullable<CredentialPort['resolveFor']>
 
   constructor(ctx: Context, config: PluginConfig) {
     super(ctx)
@@ -106,6 +114,8 @@ export class LocalCredentialPlugin extends ModelCredentialService {
     const { port, custodian } = openPort(config)
     this.present = reference => port.present(reference)
     this.resolve = (reference, face) => port.resolve(reference, face)
+    this.presentFor = input => port.presentFor?.(input) ?? { kind: 'unavailable' }
+    this.resolveFor = input => port.resolveFor?.(input) ?? { kind: 'unavailable' }
     if (!custodian) return
     ctx.fiber.effect(() => () => {
       custodian.close()

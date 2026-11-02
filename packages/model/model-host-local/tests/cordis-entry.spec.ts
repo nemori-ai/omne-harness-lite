@@ -121,6 +121,15 @@ it('a plugin on a corrupt store still loads, answers present with unavailable, a
   const ctx = new Context()
   const fiber = await ctx.plugin(LocalCredentialPlugin, { path, factorySecret: 'synth-factory' })
   expect(ctx.modelCredential?.present(seededReference())).toEqual({ kind: 'unavailable' })
+  const reference = seededReference()
+  const input = {
+    id: reference.id,
+    purpose: MODEL_SEND,
+    official: true,
+    access: { tenant: reference.tenant, principal: null },
+  } as const
+  expect(ctx.modelCredential?.presentFor?.(input)).toEqual({ kind: 'unavailable' })
+  expect(ctx.modelCredential?.resolveFor?.(input)).toEqual({ kind: 'unavailable' })
   expect(readFileSync(path, 'utf8')).toBe('not-json')
 
   await fiber.dispose()

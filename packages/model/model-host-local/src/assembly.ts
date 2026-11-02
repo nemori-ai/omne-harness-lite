@@ -40,7 +40,7 @@ const ASSEMBLY_CLOSED: ModelFailure = Object.freeze({
 
 export type LocalModelConfig<P> = Readonly<{
   /** The credential custody, e.g. a local custodian. The send boundary resolves through it. */
-  credentials: CredentialPort
+  credentials: CredentialPort<P>
   /** The authority of calls, dispatches and accounts. The caller owns it and keeps it open. */
   commands: ModelCommands<P>
   coordinator: SendCoordinator<P>
