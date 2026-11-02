@@ -144,7 +144,7 @@
 | 顺序 | 按 [PM-13](../session-contract/SPEC.md#pm-13) 经 AgentDrivePort.control 的长期入口送达原执行，不先取得挂接。接续收束与 J07 映射沿 [AD-14](../session-adapters/SPEC.md#ad-14)。原生产者确认或未知经 receive 保存。reconciled 只表示原控制的传播、生产者核对与原责任交接已对账，不以 Tool 围栏生效为条件 |
 | 输入与产出 | 原控制操作、固定选择与待核对责任；control 出站及 receive 命令。没有本域 startFence 字段或失效调用 |
 | 单写 | 同一控制 operation 重放认回；受理不等于实际停止 |
-| 失败分支 | 不可用与未知保留责任，按原身份接续。超过上限仍 propagating 并报告。suspend 的恢复次序未决保持，不以本域提交证明 Tool 已阻止新发起 |
+| 失败分支 | 不可用与未知保留责任，按原身份接续。超过上限仍 propagating 并报告。关闭不等待未应答的出站，迟到应答丢弃；重启后由 S3 以同一操作身份找回重放。suspend 的恢复次序未决保持，不以本域提交证明 Tool 已阻止新发起 |
 
 <a id="c4"></a>
 
