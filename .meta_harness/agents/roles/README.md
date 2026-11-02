@@ -215,42 +215,18 @@ Codex 里**角色文件钉的模型优先于派发值**，所以 developer 与 q
 [模板与生成](../skills/design-subagents/canonical/references/packaging.md)。Codex 上，可调角色的 `codex.toml` 不钉档位，
 派发时必须显式给档位，不给就继承父会话的档位（历史探针里继承到过 low）。
 
-**M2 波 1 的派发读数**（116 条流水，快照 2026-11-02T00:18:47Z，策略版本 947.1）。这一节的数字只作派发时的参照，
-不改变策略默认值；收紧方向的改法仍归 [D6](../../../docs/engineering/workflow.md#d6-按策略选模型按起点档位升级)。
+**派发流水读数。** 台账积累到一定条数后，按 `ledger.py aggregate` 的同一口径读一遍，用来判断三档边界是否仍然合适。
+这一节的数字只作派发时的参照，不改变策略默认值；收紧方向的改法仍归 [D6](../../../docs/engineering/workflow.md#d6-按策略选模型按起点档位升级)。
 
-| 组合 | 条数 | 无阻断 | 均用时 | 均 tok |
-|---|---|---|---|---|
-| Sonnet 5.5 @ high | 44 | 35（80%） | 23.2 分 | 214k |
-| Opus 5.5 @ high | 40 | 29（72%） | 33.2 分 | 323k |
-| Fable 5.1 @ high | 14 | 12（86%） | 29.5 分 | 276k |
-| Sonnet 5.5 @ medium | 9 | 7（78%） | 14.1 分 | 153k |
-| Fable 5.1 @ xhigh | 5 | 3（60%） | 40.8 分 | 284k |
-| Opus 5.5 @ medium | 2 | 1（50%） | 14.8 分 | 233k |
-| Opus 5.5 @ xhigh | 2 | 0（0%） | 7.8 分 | 126k |
+读之前先明确口径：**「无阻断」指该轮验收没有 `blocking` 缺陷**，与验收结论字段的写法无关；均用时与均 tok 把未记录的行按 0 计入分母。样本不足的对子只作记录，不据此改动默认值。
 
-「无阻断」指该轮验收没有 `blocking` 缺陷，与验收结论字段的写法无关。均用时与均 tok 把未记录的行按 0 计入分母，
-与 `ledger.py aggregate` 同口径。除前三行外，每个组合的样本都不足 10 条：它们只作记录，不支持改动默认值。
+累计读数的结论按下面四条判：
 
-- **默认档的差距在噪声内，而且不是同条件对照。** Sonnet 在 high 上的无阻断率不比 Opus 低（80% 对 72%），
-  用时少 10 分钟，token 少三分之一。两组的 work 构成不同：`multi-package` 2 条、`cross-process-faults` 2 条、
-  `subtle-algorithm` 7 条都在 Opus 上，Sonnet 一条没有。这组数字既不支持把 `default` 往 Sonnet 挪，
-  也不构成 Opus 必要的证据。要判，得等同一 work 与 risk 下两边的条数都到 5。
-- **经济档用得少，且没用在错的地方。** 116 条里 medium 只有 11 条。按策略算经济档的 developer 任务有 22 条，
-  14 条用 Sonnet，8 条用高档；其中 4 条命中 `top_risks`（`K1`、`K12` 两次、`K3` 带 `cross-process-faults`）是规则要求。
-  真正越档的只有 4 条不带 `top_risks` 的 verification（`C06`、`C06b`、`C24`、`wave-end-review-coordinator`），
-  其中 `C06` 与 `wave-end-review-coordinator` 有阻断。单成员应用切片 2 条都在 Sonnet 上，都无阻断，终端 1 条同样。
-  结论：档位边界与数据相符，该改的是「verification 与终端默认就走经济档」这条没被执行。
-- **`hardest_risks` 没有反例，但有执行缺口。** 命中 hardest 风险的 17 条里，13 条没到 xhigh：
-  `subtle-algorithm` 9 条全在 high，`cross-module-lifecycle` 2 条全在 high，`cross-process-faults` 有 2 条在 high。
-  它们在 lower 档上 13 条里 11 条无阻断，所以数据不支持把这三项移出 hardest。要补的是派发时的核对：
-  命中 `subtle-algorithm` 就给 `--risk subtle-algorithm`，让解析器把档位抬到 xhigh。
-- **`security-sensitive` 仍缺同条件对照。** 23 条里 15 条在 Sonnet 或 Opus 的 high 上，20 条无阻断；
-  顶档 Fable @ high 的 8 条里 5 条无阻断。这组数字既不支持保留它，也不支持移除它。它留在 `top_risks` 里，
-  派发者按策略把它送顶档即可，不为这条经验另开例外。
-- **规格质量比档位更能解释返工。** 缺陷归属 writer 236、spec 59、env 1，规格问题约占 20%。
-  带规格缺陷的闭包 27% 返工（9/33），不带的是 16%（10/63）。规格缺陷集中在歧义、范围缺口、判据冲突与术语不一致，
-  这些不是 `brief-check` 的检查对象（它查缺节、路径与调用方）。拦在写规格那一步：按 `delegate`「写规格」自检
-  「验收判据之间有没有互相冲突」与「每条判据的输入在写范围里有没有来源」，比事后升档便宜。
+- **`default` 档的差距要在同条件下比。** 两侧的 work 与 risk 构成不同时（例如 `subtle-algorithm`、`cross-process-faults` 全堆在其中一个模型上），无阻断率的差值既不能支持挪动 `default`，也不构成另一个模型必要的证据。要判，得等同一 work 与 risk 下两边都有足够条数。
+- **经济档该用而没用，是执行问题不是策略问题。** 按策略算经济档的 developer 任务里，落在高档的部分先分两类：命中 `top_risks` 的属规则要求；不带的才是越档。越档集中在 verification 与终端这类工作，说明「按 work 默认走经济档」这条没被执行。
+- **`hardest_risks` 的缺口在派发核对。** 命中 hardest 风险的闭包如果没到 xhigh，先查派发时有没有给 `--risk`。给了解析器才会抬档；没给，档位规则形同虚设。样本里这类降档大多无阻断，所以数据不支持把对应风险移出 hardest，要补的是核对。
+- **`security-sensitive` 需要同条件对照才能动。** 没有对照时它留在 `top_risks`，按策略送顶档，不为此另开例外。
+- **规格质量比档位更能解释返工。** 缺陷归属里 spec 占一定比例时，说明返工来自规格的歧义、范围缺口、判据冲突与术语不一致——这些不是 `brief-check` 的检查对象（它查缺节、路径与调用方）。拦在写规格那一步：按 `delegate`「写规格」自检「验收判据之间有没有互相冲突」与「每条判据的输入在写范围里有没有来源」，比事后升档便宜。
 
 按任务取值在工作区根运行，使用具备 Python 3.12+ 和 PyYAML 的解释器：
 
