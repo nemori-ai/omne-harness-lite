@@ -227,18 +227,29 @@ async function assembled(
   return { ctx, plugin, journal, entries, materials, wiring: services.wiring }
 }
 
+/** The trusted cancellation installation of the test policy, as the assembly entry hands it in. */
+type TestCancellation = Readonly<{
+  installation: typeof testCancellationPolicyInstallation
+  policy: ReturnType<typeof createTestCancellationPolicy>
+}>
+const testCancellation = (): TestCancellation => ({
+  installation: testCancellationPolicyInstallation,
+  policy: createTestCancellationPolicy(),
+})
+
 /**
  * The Journal of the scene's session without the plugin: `createSessionLogJournal(...).forSession`
  * over the same scripted storage, so the core suite can tell a fault of the provider from one of
  * the plugin's routing.
  */
-async function direct(s: SqlScene) {
+async function direct(s: SqlScene, cancellation?: TestCancellation) {
   const services = servicesOf(s, await otherDomainOf(s))
   const journal = createSessionLogJournal<string>({
     storage: services.storage,
     tenantDomainLookup: services.lookup,
     sessionAccessCheck: { check: services.check },
     combination: s.combination,
+    ...(cancellation === undefined ? {} : { cancellation }),
   }).forSession(s.access).journal
   return { journal: () => journal, wiring: services.wiring }
 }
@@ -826,15 +837,27 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
 
 /**
  * The core suite's fixture through the plugin: each case opens its own scene and its own Cordis
- * root, and the execution through `agentJournal`. The plugin's Journal holds no cancellation
- * policy: a case that asks for one is reported uncovered, a case that asks for none is driven.
+ * root, and the execution through `agentJournal`. The Journal holds the test cancellation
+ * installation (R2-D35) unless the case asks for none.
  * Host records, settlement qualifications, legacy candidates and reply admission controls have no
  * seam in the production provider; those cases are uncovered too.
  */
 const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<string> => ({
   async open(name, options = {}): Promise<AgentJournalCoreOpened<string>> {
     const s = await scene(`${via === 'plugin' ? 'pj' : 'pd'}-${name}`.slice(0, 48))
-    const { journal: current, wiring } = via === 'plugin' ? await assembled(s) : await direct(s)
+    // An absent policy leaves the Journal without an installation; otherwise the test installation
+    // is handed in the way the production entry does (R2-D35): the plugin factory, or the option.
+    const installation = options.cancellationPolicy === 'absent' ? undefined : testCancellation()
+    const { journal: current, wiring } =
+      via === 'plugin'
+        ? await assembled(
+            s,
+            {},
+            installation === undefined
+              ? SessionLogAgentJournalProvider
+              : createSessionAgentJournalPlugin({ cancellation: installation }),
+          )
+        : await direct(s, installation)
     const base = current()
     const opened = ok(await base.open(s.openInput))
     ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
@@ -882,7 +905,7 @@ const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<strin
       receipt: opened.receipt,
       authority: opened.authority,
       checkpoint: s.checkpoint,
-      ...(options.cancellationPolicy === 'absent' ? { installation: null } : {}),
+      installation: installation?.installation ?? null,
       acceptInput: async label => {
         const value = ordinaryInput(`input-${label}`)
         const accepted = ok(
@@ -1005,6 +1028,14 @@ const PROVIDER_GAPS: readonly Readonly<{
       error.message.startsWith('recordResult') &&
       JSON.stringify((error as { actual?: unknown }).actual) === '[0,0]' &&
       JSON.stringify((error as { expected?: unknown }).expected) === '[1,0]',
+  },
+  {
+    name: 'judge-cancellation: a result without custody is a blocked judgment',
+    gap: 'the custody of a result is refused: Session holds no producer binding of the consumption (session-contract decide-results: no matching producer binding)',
+    pinned: error =>
+      error instanceof Error &&
+      error.message.startsWith('the custody should succeed') &&
+      error.message.includes('no matching producer binding'),
   },
 ]
 
