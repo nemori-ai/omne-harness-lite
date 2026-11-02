@@ -56,12 +56,18 @@ export function deferred<T>() {
 }
 
 export function within<T>(promise: Promise<T>, milliseconds: number): Promise<T | undefined> {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const timer = setTimeout(() => resolve(undefined), milliseconds)
-    void promise.then(value => {
-      clearTimeout(timer)
-      resolve(value)
-    })
+    void promise.then(
+      value => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      error => {
+        clearTimeout(timer)
+        reject(error)
+      },
+    )
   })
 }
 
@@ -119,10 +125,15 @@ export async function startBridge(input: {
   return {
     closed: closed.promise,
     send(command: 'go' | 'stop' | 'dispose') {
-      if (!child.stdin.destroyed && !child.stdin.writableEnded) child.stdin.write(`${command}\n`)
+      if (broken || child.stdin.destroyed || child.stdin.writableEnded) return false
+      child.stdin.write(`${command}\n`)
+      return true
     },
     disconnect() {
       child.stdin.end()
+    },
+    terminate() {
+      child.kill()
     },
   }
 }

@@ -17,7 +17,7 @@ public sealed class OmneRequest {
   public int maxChunkBytes, stopBoundMs;
 }
 
-public static class OmneWindowsBridge {
+public static partial class OmneWindowsBridge {
   public static void Main() { Console.SetIn(new StreamReader(Console.OpenStandardInput(),new UTF8Encoding(false,true),false,4096)); Console.SetOut(new StreamWriter(Console.OpenStandardOutput(),new UTF8Encoding(false),4096) {AutoFlush=true}); Run(); }
   [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] struct SI {
     public uint cb; public string reserved,desktop,title;
@@ -39,9 +39,7 @@ public static class OmneWindowsBridge {
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool SetInformationJobObject(IntPtr h,int cls,ref EXT_LIMIT info,uint len);
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool QueryInformationJobObject(IntPtr h,int cls,out ACCOUNT info,uint len,IntPtr ret);
   [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool CreateProcessW(string app,StringBuilder cmd,IntPtr pa,IntPtr ta,bool inherit,uint flags,IntPtr env,string cwd,ref SX si,out PI pi);
-  [DllImport("kernel32.dll",SetLastError=true)] static extern bool AssignProcessToJobObject(IntPtr job,IntPtr process);
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool TerminateJobObject(IntPtr job,uint code);
-  [DllImport("kernel32.dll",SetLastError=true)] static extern bool TerminateProcess(IntPtr process,uint code);
   [DllImport("kernel32.dll",SetLastError=true)] static extern uint ResumeThread(IntPtr thread);
   [DllImport("kernel32.dll",SetLastError=true)] static extern uint WaitForSingleObject(IntPtr handle,uint ms);
   [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetExitCodeProcess(IntPtr handle,out uint code);
@@ -107,7 +105,7 @@ public static class OmneWindowsBridge {
         byte[] data=new byte[chunk]; uint count;
         for(;;) {
           if(!ReadFile(pipe,data,(uint)data.Length,out count,IntPtr.Zero)) {
-            reader.complete=Marshal.GetLastWin32Error()==109;break;
+            reader.complete=Marshal.GetLastWin32Error()==109;if(stream=="terminal"&&!reader.complete)Emit(new {t="outputLost"});break;
           }
           if(count==0) { reader.complete=true;break; }
           Emit(new { t="data",s=stream,b=Convert.ToBase64String(data,0,(int)count) });
@@ -117,7 +115,7 @@ public static class OmneWindowsBridge {
   }
   static void Prepare(OmneRequest r,out OutputReader stdout,out OutputReader stderr) {
     IntPtr ir=IntPtr.Zero,iw=IntPtr.Zero,orr=IntPtr.Zero,ow=IntPtr.Zero,er=IntPtr.Zero,ew=IntPtr.Zero;
-    IntPtr env=IntPtr.Zero,list=IntPtr.Zero,handles=IntPtr.Zero;
+    IntPtr env=IntPtr.Zero,list=IntPtr.Zero,handles=IntPtr.Zero,jobs=IntPtr.Zero;
     try {
       job=CreateJobObjectW(IntPtr.Zero,r.name); Check(job!=IntPtr.Zero);
       if(Marshal.GetLastWin32Error()==183) {CloseHandle(job);job=IntPtr.Zero;throw new InvalidOperationException("Job name collision");}
@@ -127,10 +125,12 @@ public static class OmneWindowsBridge {
       Check(CreatePipe(out ir,out iw,ref sa,65536));Check(SetHandleInformation(iw,1,0));
       Check(CreatePipe(out orr,out ow,ref sa,65536));Check(SetHandleInformation(orr,1,0));
       Check(CreatePipe(out er,out ew,ref sa,65536));Check(SetHandleInformation(er,1,0));
-      IntPtr size=IntPtr.Zero;InitializeProcThreadAttributeList(IntPtr.Zero,1,0,ref size);
-      list=Marshal.AllocHGlobal(size);Check(InitializeProcThreadAttributeList(list,1,0,ref size));
+      IntPtr size=IntPtr.Zero;InitializeProcThreadAttributeList(IntPtr.Zero,2,0,ref size);
+      list=Marshal.AllocHGlobal(size);Check(InitializeProcThreadAttributeList(list,2,0,ref size));
       handles=Marshal.AllocHGlobal(IntPtr.Size*3);Marshal.Copy(new[]{ir,ow,ew},0,handles,3);
       Check(UpdateProcThreadAttribute(list,0,new IntPtr(0x20002),handles,new IntPtr(IntPtr.Size*3),IntPtr.Zero,IntPtr.Zero));
+      jobs=Marshal.AllocHGlobal(IntPtr.Size);Marshal.WriteIntPtr(jobs,job);
+      Check(UpdateProcThreadAttribute(list,0,new IntPtr(0x2000D),jobs,new IntPtr(IntPtr.Size),IntPtr.Zero,IntPtr.Zero));
       StringBuilder environment=new StringBuilder();
       List<string> keys=new List<string>(r.env.Keys);keys.Sort(StringComparer.OrdinalIgnoreCase);
       foreach(string key in keys) environment.Append(key).Append('=').Append(r.env[key]).Append('\0');
@@ -138,7 +138,6 @@ public static class OmneWindowsBridge {
       StringBuilder cmd=new StringBuilder(Quote(r.executable));foreach(string arg in r.args)cmd.Append(' ').Append(Quote(arg));
       SX sx=new SX();sx.si.cb=(uint)Marshal.SizeOf(sx);sx.si.flags=0x100;sx.si.input=ir;sx.si.output=ow;sx.si.error=ew;sx.list=list;
       Check(CreateProcessW(r.executable,cmd,IntPtr.Zero,IntPtr.Zero,true,0x08080404,env,r.cwd,ref sx,out child));
-      if(!AssignProcessToJobObject(job,child.process)) { int error=Marshal.GetLastWin32Error();TerminateProcess(child.process,138);throw new Win32Exception(error); }
       CloseHandle(ir);ir=IntPtr.Zero;CloseHandle(ow);ow=IntPtr.Zero;CloseHandle(ew);ew=IntPtr.Zero;
       stdout=Pump(orr,"stdout",r.maxChunkBytes);orr=IntPtr.Zero;stderr=Pump(er,"stderr",r.maxChunkBytes);er=IntPtr.Zero;
       IntPtr writer=iw;iw=IntPtr.Zero;
@@ -153,6 +152,7 @@ public static class OmneWindowsBridge {
       if(env!=IntPtr.Zero)Marshal.FreeHGlobal(env);
       if(list!=IntPtr.Zero){DeleteProcThreadAttributeList(list);Marshal.FreeHGlobal(list);}
       if(handles!=IntPtr.Zero)Marshal.FreeHGlobal(handles);
+      if(jobs!=IntPtr.Zero)Marshal.FreeHGlobal(jobs);
     }
   }
   public static void Run() {
@@ -160,11 +160,12 @@ public static class OmneWindowsBridge {
       OmneRequest r=Json.Deserialize<OmneRequest>(Line());bound=r.stopBoundMs;
       if(r.mode=="recover") {
         job=OpenJobObjectW(0x000C,false,r.name);
-        bool stopped=Stop();Emit(new { t="stopped", status=stopped?"confirmed":"unconfirmed" });
+        bool stopped=Stop();
         if(stopped) {
           try { using(EventWaitHandle oldRelease=EventWaitHandle.OpenExisting(r.name+"-release"))oldRelease.Set(); }
           catch(WaitHandleCannotBeOpenedException) { }
         }
+        Emit(new { t="stopped", status=stopped?"confirmed":"unconfirmed" });
         return;
       }
       release=new EventWaitHandle(false,EventResetMode.ManualReset,r.name+"-release");

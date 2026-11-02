@@ -5,21 +5,34 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { nativeSource } from './native-source.ts'
+import { terminalNativeSource } from './terminal-native-source.ts'
 
 const run = promisify(execFile)
 let compilation: Promise<string> | undefined
+let terminalCompilation: Promise<string> | undefined
 
 /** Compile only project source with the installed .NET Framework compiler. */
 export function windowsBridgeExecutable(): Promise<string> {
-  compilation ??= compile().catch(error => {
+  compilation ??= compile(false).catch(error => {
     compilation = undefined
     throw error
   })
   return compilation
 }
 
-async function compile(): Promise<string> {
-  const digest = createHash('sha256').update(nativeSource).digest('hex')
+export function windowsTerminalExecutable(): Promise<string> {
+  terminalCompilation ??= compile(true).catch(error => {
+    terminalCompilation = undefined
+    throw error
+  })
+  return terminalCompilation
+}
+
+async function compile(terminal: boolean): Promise<string> {
+  const digest = createHash('sha256')
+    .update(nativeSource)
+    .update(terminal ? terminalNativeSource : '')
+    .digest('hex')
   const cache = join(tmpdir(), 'omne-windows-execution', digest)
   const executable = join(cache, 'bridge.exe')
   try {
@@ -34,6 +47,8 @@ async function compile(): Promise<string> {
     const source = join(stage, 'bridge.cs')
     const result = join(stage, 'bridge.exe')
     await writeFile(source, nativeSource)
+    const terminalSource = join(stage, 'terminal.cs')
+    if (terminal) await writeFile(terminalSource, terminalNativeSource)
     const framework = join(
       process.env['SystemRoot'] ?? 'C:\\Windows',
       'Microsoft.NET',
@@ -47,6 +62,13 @@ async function compile(): Promise<string> {
         '/target:exe',
         `/out:${result}`,
         `/reference:${join(framework, 'System.Web.Extensions.dll')}`,
+        ...(terminal
+          ? [
+              '/main:OmneTerminalEntry',
+              `/reference:${join(process.env['SystemRoot'] ?? 'C:\\Windows', 'Microsoft.NET', 'assembly', 'GAC_MSIL', 'System.Management.Automation', 'v4.0_3.0.0.0__31bf3856ad364e35', 'System.Management.Automation.dll')}`,
+              terminalSource,
+            ]
+          : []),
         source,
       ],
       { windowsHide: true, timeout: 10_000, maxBuffer: 64 * 1024 },

@@ -51,23 +51,27 @@ export async function stopWindowsResource(
   resource: ManagedResource,
   boundMs: number,
 ): Promise<StopStatus> {
+  const deadline = now() + boundMs
+  const remaining = () => Math.max(0, deadline - now())
   const ref = resource.reference
   if (process.platform !== 'win32' || ref.kind !== 'object') return 'unconfirmed'
   const name = ref.entries.find(entry => entry.key === 'windowsJob')?.value
   if (
     name?.kind !== 'string' ||
-    !/^Local\\omne-command-[a-f0-9-]{36}$/u.test(name.value) ||
-    name.value !== `Local\\omne-command-${resource.key}`
+    !/^Local\\omne-(?:command|terminal)-[a-f0-9-]{36}$/u.test(name.value) ||
+    (name.value !== `Local\\omne-command-${resource.key}` &&
+      name.value !== `Local\\omne-terminal-${resource.key}`)
   )
     return 'unconfirmed'
   try {
-    await windowsBridgeExecutable()
+    if ((await within(windowsBridgeExecutable(), remaining())) === undefined) return 'unconfirmed'
   } catch {
     return 'unconfirmed'
   }
   const reply = deferred<StopStatus>()
+  if (remaining() <= 0) return 'unconfirmed'
   const bridge = await startBridge({
-    request: { mode: 'recover', name: name.value, stopBoundMs: boundMs },
+    request: { mode: 'recover', name: name.value, stopBoundMs: Math.ceil(remaining()) },
     maxChunkBytes: 1,
     onFrame: frame => {
       if (frame.t === 'stopped') reply.resolve(frame.status)
@@ -75,9 +79,15 @@ export async function stopWindowsResource(
     },
     onClosed: () => reply.resolve('unconfirmed'),
   })
-  const status = (await within(reply.promise, boundMs + 10_000)) ?? 'unconfirmed'
+  const status = (await within(reply.promise, remaining())) ?? 'unconfirmed'
   bridge.disconnect()
-  await within(bridge.closed, boundMs)
+  if (
+    (await within(
+      bridge.closed.then(() => true),
+      remaining(),
+    )) !== true
+  )
+    bridge.terminate()
   return status
 }
 
@@ -98,6 +108,9 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
     const outcome = deferred<CommandOutcome>()
     let stopReply = deferred<StopStatus>()
     let stopping: Promise<StopStatus> | undefined
+    let recording:
+      | { readonly status: StopStatus; readonly result: Promise<'recorded' | 'unavailable'> }
+      | undefined
     let confirmed = false
     let nativeStopped = false
     let finished = false
@@ -152,10 +165,11 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
             end(frame)
             break
           case 'stopped':
+            if (frame.status === 'confirmed') nativeStopped = true
             stopReply.resolve(frame.status)
             break
           case 'fault':
-            nativeStopped = frame.stopped === true
+            nativeStopped ||= frame.stopped === true
             ready.resolve(false)
             started.resolve(false)
             stopReply.resolve(nativeStopped ? 'confirmed' : 'unconfirmed')
@@ -175,27 +189,40 @@ export function createWindowsHostCommands(input: WindowsCommandsInput): HostComm
       stop() {
         if (confirmed) return Promise.resolve('confirmed')
         stopping ??= (async (): Promise<StopStatus> => {
+          const deadline = now() + settings.stopBoundMs
+          const remaining = () => Math.max(0, deadline - now())
           stopReply = deferred<StopStatus>()
-          if (!nativeStopped) bridge.send('stop')
+          const sent = !nativeStopped && bridge.send('stop')
           let status: StopStatus = nativeStopped
             ? 'confirmed'
-            : ((await within(stopReply.promise, settings.stopBoundMs)) ?? 'unconfirmed')
-          if (status === 'unconfirmed')
-            status = await stopWindowsResource(resource, settings.stopBoundMs)
+            : sent
+              ? ((await within(stopReply.promise, remaining())) ?? 'unconfirmed')
+              : 'unconfirmed'
+          if (status === 'unconfirmed' && remaining() > 0)
+            status = await stopWindowsResource(resource, remaining())
+          if (status === 'confirmed') {
+            nativeStopped = true
+            bridge.send('dispose')
+            bridge.disconnect()
+          }
           let recorded = false
+          let answered = false
           try {
-            recorded = (await ledger.stopped(resource.key, status)) === 'recorded'
+            recording ??= { status, result: ledger.stopped(resource.key, status) }
+            const answer = await within(recording.result, remaining())
+            answered = answer !== undefined
+            recorded = recording.status === status && answer === 'recorded'
+            if (answer !== undefined) recording = undefined
           } catch {
+            recording = undefined
             /* Ledger failure retains responsibility. */
           }
           if (status === 'confirmed' && recorded) {
             confirmed = true
             live.delete(entry)
-            bridge.send('dispose')
-            bridge.disconnect()
-            await within(bridge.closed, settings.stopBoundMs)
+            await within(bridge.closed, remaining())
           }
-          return status
+          return answered ? status : 'unconfirmed'
         })().finally(() => {
           stopping = undefined
         })
