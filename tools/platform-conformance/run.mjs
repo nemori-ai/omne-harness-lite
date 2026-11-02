@@ -61,7 +61,9 @@ export async function verifyCheckout(root, sha, options) {
 async function probe(options) {
   const pnpm = await execute(pnpmCommand(['--version']), options)
   const linux = process.platform === 'linux'
-  const systemd = linux ? await execute(['systemctl', '--user', 'show-environment'], options) : null
+  const systemd = linux
+    ? await execute(['systemctl', '--user', 'show', '--property=Version', '--value'], options)
+    : null
   const distro = existsSync('/etc/os-release') ? readFileSync('/etc/os-release', 'utf8') : null
   return {
     platform: process.platform,

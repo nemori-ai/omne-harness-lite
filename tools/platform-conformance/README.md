@@ -50,7 +50,7 @@ node tools/platform-conformance/cli.mjs prepare-wsl \
 
 命令只接受 HTTPS 或 SSH 远端。它执行 `git clone --no-checkout --branch`，在新检出里切到指定 SHA，核对远端可达性，然后执行 `pnpm install --frozen-lockfile --ignore-scripts`。依赖安装在该 WSL 检出中，不读取 Windows `node_modules`。准备记录保存在新检出的 `.git/platform-conformance-prepare.json`，失败时保留已创建的目录与可观察步骤，供调用者处理。它不修改已有 WSL 检出。
 
-准备完成后，按目标成员要求在 WSL 检出内构建依赖闭包，再运行相同的 `run` 命令。WSL 发行版、内核和 Linux systemd 用户服务可用性都会写入报告。Linux 上 `systemctl --user show-environment` 必须成功，探测不满足时不能通过。
+准备完成后，按目标成员要求在 WSL 检出内构建依赖闭包，再运行相同的 `run` 命令。WSL 发行版、内核和 Linux systemd 用户服务可用性都会写入报告。Linux 上 `systemctl --user show --property=Version --value` 必须成功，探测不满足时不能通过。探测只保存版本属性，不采集用户服务环境变量。
 
 ## 输出与判定
 
