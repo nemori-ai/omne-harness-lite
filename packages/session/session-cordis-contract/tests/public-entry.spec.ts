@@ -16,6 +16,16 @@ it('does not import Cordis or a provider from the root source', () => {
   expect(source).toMatch(/export type \* from '@omne-harness\/session-contract'/u)
 })
 
+it('keeps the pure fact types free of Cordis and of every provider', () => {
+  const source = readFileSync(
+    fileURLToPath(new URL('../src/context-facts.ts', import.meta.url)),
+    'utf8',
+  )
+  expect(source).not.toMatch(/@deepseek-ai\/cordis/u)
+  expect(source).not.toMatch(/@omne-harness\/session(-cordis|-adapters|-storage-sql)['/]/u)
+  expect(source).not.toMatch(/^import (?!type)/mu)
+})
+
 it('does not import a provider from the cordis source', () => {
   const source = readFileSync(fileURLToPath(new URL('../src/cordis.ts', import.meta.url)), 'utf8')
   expect(source).not.toMatch(/@omne-harness\/session(-cordis|-adapters|-storage-sql)['/]/u)

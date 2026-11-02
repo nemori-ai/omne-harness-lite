@@ -282,6 +282,9 @@ function decideStartRun(
   const predecessor = snapshot.run.kind === 'terminal' ? snapshot.run.terminal.run : null
   const run = runIdOf(snapshot.session, judgment.first, predecessor)
   const source = commandEvidence(command.input.operation, 'run-started')
+  // The adoption point proved the resident shape lost: nothing is committed, the caller freezes.
+  const verdict = command.input.residentAdoption?.verdict
+  if (verdict !== undefined) return rejected({ kind: 'frozen', verdict })
   const out: EncodedEntry[] = []
   const residents = residentEntries(snapshot, command.input.residentAdoption, source)
   if (residents.kind !== 'entries') return residents
@@ -592,6 +595,8 @@ function decideAttempt(
       command.input.candidate.name !== snapshot.definition.adopted.name
     )
       return invalid('candidate', 'a reload must preserve the definition identity')
+    const verdict = command.input.residentAdoption?.verdict
+    if (verdict !== undefined) return rejected({ kind: 'frozen', verdict })
     const residents = residentEntries(snapshot, command.input.residentAdoption, source)
     if (residents.kind !== 'entries') return residents
     out.push(...residents.entries)

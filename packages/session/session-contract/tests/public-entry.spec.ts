@@ -14,6 +14,8 @@ it('exports exactly the declared root runtime surface', () => {
     'deriveIngressOperation',
     'deriveSessionOperation',
     'digestSessionEntries',
+    'digestSessionLog',
+    'executionReadThrough',
     'initializationRegistrationCommit',
     'judgeAdvance',
     'judgeCompletion',

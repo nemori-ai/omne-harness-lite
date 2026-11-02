@@ -3,6 +3,7 @@
 // Model or Tool type appears.
 import type { DurableEvidence, RunId, SessionAccess, SessionOperationId } from './identity.ts'
 import type { ProducerFact } from './faces.ts'
+import type { SessionLogObservation } from './projection.ts'
 
 export type SessionEntriesChannel = 'model-received' | 'tool-received'
 
@@ -64,4 +65,29 @@ export type SessionEntriesReceipt = Readonly<{
   operation: SessionOperationId
   through: string
   interpreted: DurableEvidence
+}>
+
+/**
+ * The observation of the event channel commit (docs/same-log-pure.md「事件通道的解释提交」). The
+ * event channel read `operation` and `executionEvidence` as optional; this commit needs both: the
+ * operation identity is what a retry recalls, and the head receipt is what the saved fact binds.
+ */
+export type SessionLogCommitObservation = SessionLogObservation &
+  Readonly<{
+    operation: SessionOperationId
+    executionEvidence: DurableEvidence
+  }>
+
+/**
+ * What the event channel commit answers. `readThrough` is the event sequence that the execution
+ * progress reached after the commit, and `interpreted` is the saved evidence of that interpretation
+ * (the execution progress row), not a placeholder. `recovered` is true when the answer recalls an
+ * interpretation that was already committed.
+ */
+export type SessionLogReceipt = Readonly<{
+  operation: SessionOperationId
+  execution: string
+  readThrough: string
+  interpreted: DurableEvidence
+  recovered: boolean
 }>
