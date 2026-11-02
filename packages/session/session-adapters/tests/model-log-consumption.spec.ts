@@ -346,6 +346,42 @@ describe('a Model received entry becomes one entries-channel Session batch', () 
   })
 })
 
+describe('AD-05 trigger: the event of the Journal plugin wakes the consumption', () => {
+  /** Lets the not-awaited dispatch of an event and the queued consumption finish. */
+  const settle = () => new Promise<void>(resolve => setTimeout(resolve, 50))
+  /** What the Journal plugin sends after a successful write (C-ADAPTERS-A); the memory Journal does not. */
+  const published = (f: Awaited<ReturnType<typeof assembled>>, s: ModelScene) =>
+    f.ctx.parallel(
+      'session-adapters/agent-published',
+      s.access.tenant,
+      s.access.session,
+      s.execution,
+    )
+
+  it('a received write followed by the event is consumed once, with no call to consume', async () => {
+    const s = await modelScene('trigger')
+    const f = await assembled(s)
+    await receive(s, s.result, 'trigger')
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(1)
+    expect(await progressOf(s)).toMatchObject({ through: '1', execution: s.execution })
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(1)
+  })
+
+  it('a stopped plugin does not consume after the event', async () => {
+    const s = await modelScene('trigger-stopped')
+    const f = await assembled(s)
+    await receive(s, s.result, 'trigger-stopped')
+    await f.plugin.dispose()
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(0)
+  })
+})
+
 describe('reading again', () => {
   it('commits nothing, reads no material and answers the saved progress', async () => {
     const s = await modelScene('again')

@@ -37,6 +37,7 @@ import {
   type SessionCommand,
   type SessionFailure,
   type SessionId,
+  type SessionLogConsequence,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
@@ -74,7 +75,12 @@ import {
   type ParticipationMethod,
 } from '../participation-mapping.ts'
 import { canonical } from '../testing/canonical.ts'
-import { normalizedResult } from '../testing/history.ts'
+import {
+  HistoryFailure,
+  captureEventOriginal,
+  normalizeAgentEvent,
+  normalizedResult,
+} from '../testing/history.ts'
 import {
   createJournal,
   operationText,
@@ -91,7 +97,16 @@ import {
   type CommonRoot,
   type JournalCell,
 } from '../testing/root.ts'
-import { decodeState, encodeState, recordsOf, type DurableAgentRecords } from './journal-state.ts'
+import {
+  emptyNotes,
+  encodeState,
+  eventKey,
+  recordsOf,
+  stateOf,
+  type DurableAgentRecords,
+  type DurableJournalState,
+  type InterpretationNotes,
+} from './journal-state.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
   storage: SqlStorage
@@ -118,6 +133,8 @@ type Scratch = {
 type Copy<P> = Readonly<{
   cell: JournalCell<P>
   core: ReturnType<typeof createJournal<P>>
+  /** The interpretation notes of the durable state the copy reflects. */
+  notes: InterpretationNotes
 }>
 
 type CustodyAttempt =
@@ -202,11 +219,18 @@ type Written = Readonly<{
   digest: string
 }>
 
+/**
+ * A material preserve names an execution only as its route (K-9): it writes the session's received
+ * state and never that execution's records, so it is not a write of the execution.
+ */
+const ROUTE_ONLY: ReadonlySet<string> = new Set(['preserve'])
+
 function writtenOf(method: string, input: object): Written {
   const value = input as { execution?: unknown; operation?: unknown }
   return {
     method,
-    execution: typeof value.execution === 'string' ? value.execution : null,
+    execution:
+      typeof value.execution === 'string' && !ROUTE_ONLY.has(method) ? value.execution : null,
     operation: typeof value.operation === 'string' ? value.operation : null,
     digest: `sha256:${operationSemantic(input as ExecutionMutation<unknown>)}`,
   }
@@ -240,11 +264,46 @@ function durableRecords(root: CommonRoot): DurableAgentRecords {
   }
 }
 
-/** The same-root index rows of the executions a write changed (AD-02 table, Agent side). */
+/**
+ * The Session consequences of one event as the shared normalization of the memory reference gives
+ * them, from the original fragments of the same root; null when the fragments do not decide them
+ * (a control event, an original that this root does not hold). Nothing is invented for a null.
+ */
+function consequencesOf(
+  root: CommonRoot,
+  execution: MemoryExecution,
+  event: MemoryExecution['events'][number],
+): readonly SessionLogConsequence[] | null {
+  try {
+    return normalizeAgentEvent(root, execution, event)
+  } catch (error) {
+    if (error instanceof HistoryFailure || error instanceof TypeError) return null
+    throw error
+  }
+}
+
+/** The placeholder head of an execution that another execution's call changed (SPEC K-5). */
+function placeholderHead(execution: MemoryExecution): DurableEvidence {
+  return {
+    owner: OWNER,
+    record: `${execution.id}/head`,
+    revision: String(execution.revision),
+    digest: 'unknown',
+  }
+}
+
+/**
+ * The same-root index rows of the executions a write changed (AD-02 table, Agent side). The kinds
+ * of each new event are the kinds of its normalized consequences, and `notes` takes the same
+ * consequences and the head the boundary names, so a later interpretation reads what the index
+ * says. An event whose consequences the fragments do not decide has empty kinds.
+ */
 function indexOf(
   before: CommonRoot,
+  after: CommonRoot,
   changed: readonly MemoryExecution[],
   receipt: CommandReceipt | null,
+  notes: InterpretationNotes,
 ): Readonly<{
   boundaries: ExecutionBoundaryRecord[]
   facts: ExecutionFactRecord[]
@@ -258,13 +317,13 @@ function indexOf(
     const fresh = execution.events.slice(prior?.events.length ?? 0)
     for (const event of fresh) {
       if (event === undefined) continue
-      // The Session consequence kinds are not translated here yet (SPEC K-5): the row keeps the
-      // sequence and the original source, the kinds stay empty.
+      const consequences = consequencesOf(after, execution, event)
+      notes.consequences.set(eventKey(execution.id, event.sequence), consequences)
       facts.push({
         execution: execution.id,
         sequence: event.sequence,
         source: event.cause,
-        kinds: [],
+        kinds: consequences?.map(item => item.kind) ?? [],
       })
       if (event.body.kind === 'input-taken')
         batches.push({
@@ -274,19 +333,13 @@ function indexOf(
           batch: encodeState(event.body.batch),
         })
     }
+    const head = receipt?.execution === execution.id ? receipt.evidence : null
+    notes.heads.set(execution.id, head)
     const last = execution.events.at(-1)
     boundaries.push({
       execution: execution.id,
       revision: String(execution.revision),
-      receipt:
-        receipt?.execution === execution.id
-          ? receipt.evidence
-          : {
-              owner: OWNER,
-              record: `${execution.id}/head`,
-              revision: String(execution.revision),
-              digest: 'unknown',
-            },
+      receipt: head ?? placeholderHead(execution),
       emittedThrough: String(execution.events.length),
       ended:
         last !== undefined && last.body.kind === 'ended'
@@ -295,6 +348,26 @@ function indexOf(
     })
   }
   return { boundaries, facts, batches }
+}
+
+/**
+ * Captures the original fragments of the events that one write of `execution` appended, with the
+ * write's receipt, as the memory double does in its commit hook. A fragment that cannot be read is
+ * left out, not the write: the event's consequences are then not decided, and its fact row says so
+ * with empty kinds.
+ */
+function captureFresh(root: CommonRoot, execution: string, receipt: CommandReceipt): void {
+  const found = [...root.agent.executions.values()].find(item => item.id === execution)
+  if (found === undefined) return
+  const old = root.agent.indexedEvents.get(execution) ?? 0
+  for (const event of found.events.slice(old)) {
+    try {
+      captureEventOriginal(root, found, event, receipt)
+    } catch (error) {
+      if (!(error instanceof HistoryFailure || error instanceof TypeError)) throw error
+    }
+  }
+  root.agent.indexedEvents.set(execution, found.events.length)
 }
 
 /**
@@ -321,6 +394,113 @@ export function materialSessionOf(
   return typeof tenant === 'string' && typeof session === 'string'
     ? { tenant, session: session as SessionId }
     : null
+}
+
+/** One event of an execution with what its interpretation commits (AD-02). */
+export type InterpretableEvent = Readonly<{
+  sequence: string
+  source: DurableEvidence
+  /** The normalized consequences, the same the fact row's kinds name; null: not decided. */
+  consequences: readonly SessionLogConsequence[] | null
+}>
+
+/**
+ * One execution of a session's durable Agent records as AD-02 interprets it: its head revision, the
+ * head receipt its boundary row names (null: the placeholder, which the Session side answers
+ * `unavailable` for), and its events after a sequence, all from one read of one publication.
+ */
+export type ExecutionInterpretation = Readonly<{
+  revision: string
+  head: DurableEvidence | null
+  emittedThrough: string
+  events: readonly InterpretableEvent[]
+}>
+
+export type InterpretationRead =
+  | Readonly<{ kind: 'read'; execution: ExecutionInterpretation | null }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+/** What one read of the durable Agent records of a session gives: null state when none was written. */
+export type JournalStateRead =
+  | Readonly<{ kind: 'read'; state: DurableJournalState | null }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+/** The storage and the trusted domain lookup that a reader of the Agent records needs. */
+export type JournalStateSource = Readonly<{
+  storage: SqlStorage
+  tenantDomainLookup: TenantDomainLookup
+}>
+
+/**
+ * Reads the durable Agent records of one session as the provider wrote them: the records, the
+ * original fragments and the interpretation notes of one publication. It reads only.
+ */
+export async function readJournalState(
+  options: JournalStateSource,
+  target: Readonly<{ tenant: TenantId; session: SessionId }>,
+): Promise<JournalStateRead> {
+  const unread = (diagnostic: string): JournalStateRead => ({ kind: 'unavailable', diagnostic })
+  const text = tenantCodec.encode(target.tenant)
+  if (!text.ok) return unread('the tenant was not minted by legal-identity')
+  let result
+  try {
+    const found = await options.tenantDomainLookup.lookup({ tenant: text.value })
+    if (found.kind !== 'ready')
+      return unread(
+        found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
+      )
+    result = await options.storage.read({
+      domain: found.domain,
+      handler: EXECUTION_RECORD_HANDLERS.state,
+      protocol: EXECUTION_RECORD_PROTOCOL,
+      requestKey: randomUUID(),
+      input: { tenant: text.value, session: target.session },
+    })
+  } catch (error) {
+    return unread(`the read of the Agent records threw: ${String(error)}`)
+  }
+  if (result.kind !== 'read') return unread('the Agent records of the session are not readable')
+  const state = decodeExecutionRecordState(result.output)
+  if (state === null) return unread('the Agent records of the session do not decode')
+  if (state.state === null) return { kind: 'read', state: null }
+  try {
+    return { kind: 'read', state: stateOf(state.state) }
+  } catch (error) {
+    return unread(`the Agent records do not decode: ${String(error)}`)
+  }
+}
+
+/**
+ * Reads the events of one execution after `after` from the durable Agent records of its session,
+ * with the consequences and the head the same publication wrote beside its index rows. `null`
+ * execution: the session's records hold no such execution. It reads only; it never writes.
+ */
+export async function readExecutionInterpretation(
+  options: JournalStateSource,
+  target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
+): Promise<InterpretationRead> {
+  const read = await readJournalState(options, target)
+  if (read.kind === 'unavailable') return read
+  const records = read.state
+  const execution =
+    records === null
+      ? undefined
+      : [...records.executions.values()].find(item => item.id === target.execution)
+  if (records === null || execution === undefined) return { kind: 'read', execution: null }
+  const events = execution.events.slice(Number(target.after)).map(event => ({
+    sequence: event.sequence,
+    source: event.cause,
+    consequences: records.notes.consequences.get(eventKey(execution.id, event.sequence)) ?? null,
+  }))
+  return {
+    kind: 'read',
+    execution: {
+      revision: String(execution.revision),
+      head: records.notes.heads.get(execution.id) ?? null,
+      emittedThrough: String(execution.events.length),
+      events,
+    },
+  }
 }
 
 export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>) {
@@ -631,6 +811,65 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
+  /**
+   * The open or attach of an ordinary grant: the attempt it names is the advance of the active Run
+   * of this execution, and the check in the same commit verifies it. A cancel wind-down attachment
+   * has none.
+   */
+  function rememberAuthority(book: Book<P>, cell: JournalCell<P>, input: ExecutionMutation<P>) {
+    const snapshot = book.scratch?.snapshot ?? null
+    const root = cell.state()
+    const execution = [...root.agent.executions.values()].find(item => item.id === input.execution)
+    const authority = execution?.attachments.at(-1)?.authority
+    if (
+      authority === undefined ||
+      snapshot === null ||
+      snapshot.run.kind !== 'active' ||
+      snapshot.run.advance === null ||
+      snapshot.run.execution.execution !== input.execution
+    )
+      return
+    const grant =
+      'runtime' in input ? (input as OpenInput<P>).runtime.grant : (input as AttachInput<P>).grant
+    root.agent.authorities.set(`${input.execution}\0${canonical(authority)}`, {
+      run: snapshot.run.run,
+      attempt: snapshot.run.advance.attempt,
+      execution: input.execution,
+      ordinal: snapshot.run.ordinal,
+      started: grant ?? receiptStub(input.execution),
+    })
+  }
+
+  /** Fills a new root with the durable state of the session. */
+  function restore(cell: JournalCell<P>, records: DurableJournalState): void {
+    cell.mutate(() => {
+      const root = cell.state()
+      const into = <K, V>(target: Map<K, V>, source: ReadonlyMap<K, V>) => {
+        for (const [key, value] of source) target.set(key, value)
+      }
+      into(root.agent.executions, records.executions)
+      into(root.agent.operations, records.operations)
+      root.agent.jointFacts.push(...records.jointFacts)
+      into(root.agent.authorities, records.authorities)
+      into(root.agent.eventReceipts, records.eventReceipts)
+      into(root.agent.pendingEvents, records.pendingEvents)
+      into(root.agent.callOrigins, records.callOrigins)
+      into(root.agent.human, records.human)
+      into(root.agent.indexedEvents, records.indexedEvents)
+      // A state written before the fragments were kept: its events are not captured again with a
+      // later receipt; their fragments stay absent.
+      for (const execution of root.agent.executions.values())
+        if (!root.agent.indexedEvents.has(execution.id))
+          root.agent.indexedEvents.set(execution.id, execution.events.length)
+      for (const name of Object.keys(records.receiving) as (keyof CommonRoot['receiving'])[])
+        into(
+          root.receiving[name] as Map<unknown, unknown>,
+          records.receiving[name] as Map<unknown, unknown>,
+        )
+      cell.touch()
+    })
+  }
+
   function build(book: Book<P>, state: JsonValue | null): Copy<P> {
     const cell: JournalCell<P> = createCell<P>(book.tenant, book.session, {
       authorize: () => undefined,
@@ -644,53 +883,17 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       },
       participate: (input, method, receipt, decision) =>
         participation(book, cell, input, method, receipt, decision),
-      committed(input, method) {
-        if (method !== 'open' && method !== 'attach') return undefined
-        // The attempt an ordinary grant names is the advance of the active Run of this execution;
-        // the check in the same commit verifies it. A cancel wind-down attachment has none.
-        const snapshot = book.scratch?.snapshot ?? null
-        const root = cell.state()
-        const execution = [...root.agent.executions.values()].find(
-          item => item.id === input.execution,
-        )
-        const authority = execution?.attachments.at(-1)?.authority
-        if (
-          authority !== undefined &&
-          snapshot !== null &&
-          snapshot.run.kind === 'active' &&
-          snapshot.run.advance !== null &&
-          snapshot.run.execution.execution === input.execution
-        ) {
-          const grant =
-            'runtime' in input
-              ? (input as OpenInput<P>).runtime.grant
-              : (input as AttachInput<P>).grant
-          root.agent.authorities.set(`${input.execution}\0${canonical(authority)}`, {
-            run: snapshot.run.run,
-            attempt: snapshot.run.advance.attempt,
-            execution: input.execution,
-            ordinal: snapshot.run.ordinal,
-            started: grant ?? receiptStub(input.execution),
-          })
-        }
+      committed(input, method, receipt) {
+        if (method === 'open' || method === 'attach') rememberAuthority(book, cell, input)
+        captureFresh(cell.state(), input.execution, receipt)
         return undefined
       },
     })
+    let notes = emptyNotes()
     if (state !== null) {
-      const records = decodeState(state) as ReturnType<typeof recordsOf>
-      cell.mutate(() => {
-        const root = cell.state()
-        for (const [key, value] of records.executions) root.agent.executions.set(key, value)
-        for (const [key, value] of records.operations) root.agent.operations.set(key, value)
-        root.agent.jointFacts.push(...records.jointFacts)
-        for (const [key, value] of records.authorities) root.agent.authorities.set(key, value)
-        for (const name of Object.keys(records.receiving) as (keyof CommonRoot['receiving'])[]) {
-          const target = root.receiving[name] as Map<unknown, unknown>
-          for (const [key, value] of records.receiving[name] as Map<unknown, unknown>)
-            target.set(key, value)
-        }
-        cell.touch()
-      })
+      const records = stateOf(state)
+      restore(cell, records)
+      notes = records.notes
     }
     putBack(book, cell)
     const core = createJournal<P>(cell, {
@@ -701,7 +904,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
       ...(options.hostRecords === undefined ? {} : { hostRecords: options.hostRecords }),
     })
-    return { cell, core }
+    return { cell, core, notes }
   }
 
   /** Puts the held writes back into a rebuilt copy, unless the durable records already decided them. */
@@ -852,6 +1055,44 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     })
   }
 
+  /**
+   * The reverse input directory rows of an open or a submit: the accepted input, its original grant
+   * and attachment, and the original attempt of that attachment as the commit hook of the open or
+   * attach recorded it. An attachment without a recorded attempt has none; nothing is guessed from
+   * the current advance.
+   */
+  function admissionsOf(
+    after: CommonRoot,
+    written: Written,
+    own: MemoryExecution | undefined,
+    receipt: CommandReceipt | null,
+    scratch: Scratch,
+  ): ExecutionAdmissionRecord[] {
+    if ((written.method !== 'open' && written.method !== 'submit') || own === undefined) return []
+    if (receipt === null) return []
+    const check = scratch.checks[0]
+    const input =
+      check?.kind === 'open'
+        ? check.initial.input
+        : check?.kind === 'submit'
+          ? check.value.input
+          : null
+    const attachment = own.attachments.at(-1)?.authority
+    if (input === null || attachment === undefined) return []
+    const original = after.agent.authorities.get(`${own.id}\0${canonical(attachment)}`)
+    return [
+      {
+        input,
+        execution: own.id,
+        operation: written.operation ?? '',
+        accepted: receipt.evidence,
+        grant: check?.kind === 'open' ? check.grant : receipt.evidence,
+        attachment: attachment.executionAttachment,
+        ...(original === undefined ? {} : { attempt: original.attempt }),
+      },
+    ]
+  }
+
   async function publish<T>(
     book: Book<P>,
     domain: DomainRef,
@@ -873,31 +1114,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         ? undefined
         : [...before.agent.executions.values()].find(item => item.id === own.id)
     const receipt = receiptOf(answer)
-    const index = indexOf(before, changed, receipt)
-    const admissions: ExecutionAdmissionRecord[] = []
-    if (
-      (written.method === 'open' || written.method === 'submit') &&
-      own !== undefined &&
-      receipt !== null
-    ) {
-      const check = scratch.checks[0]
-      const input =
-        check?.kind === 'open'
-          ? check.initial.input
-          : check?.kind === 'submit'
-            ? check.value.input
-            : null
-      const attachment = own.attachments.at(-1)?.authority
-      if (input !== null && attachment !== undefined)
-        admissions.push({
-          input,
-          execution: own.id,
-          operation: written.operation ?? '',
-          accepted: receipt.evidence,
-          grant: check?.kind === 'open' ? check.grant : receipt.evidence,
-          attachment: attachment.executionAttachment,
-        })
+    const notes: InterpretationNotes = {
+      heads: new Map(copy.notes.heads),
+      consequences: new Map(copy.notes.consequences),
     }
+    const index = indexOf(before, after, changed, receipt, notes)
+    const admissions = admissionsOf(after, written, own, receipt, scratch)
     const execution = written.execution ?? own?.id ?? '-'
     const operation = storageOperation(
       execution,
@@ -916,7 +1138,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           operation,
           digest: written.digest,
           answer: encodeState(answer),
-          state: encodeState(durableRecords(after)),
+          state: encodeState({ ...durableRecords(after), notes }),
           ...index,
           admissions,
         }),
@@ -941,6 +1163,25 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       operation,
       commands: facts,
     })
+    return settle(book, copy, notes, after, written, scratch, answer, operation, outcome)
+  }
+
+  /**
+   * What one storage outcome of a publication answers: the call's answer once the write committed
+   * (the copy then reflects it), `again` for a lost race or a recalled own write, and the failure
+   * the outcome means otherwise. An unknown outcome keeps the write as held.
+   */
+  function settle<T>(
+    book: Book<P>,
+    copy: Copy<P>,
+    notes: InterpretationNotes,
+    after: CommonRoot,
+    written: Written,
+    scratch: Scratch,
+    answer: Outcome<T, Failure>,
+    operation: string,
+    outcome: Awaited<ReturnType<typeof commitJournal>>,
+  ): Settled<T> {
     // A write without an Agent operation (the material port) has no identity to name or to recall
     // by: wherever an answer would name one, it is `unavailable`, never an invented identity.
     const agentOperation = written.operation as AgentOperationId | null
@@ -966,7 +1207,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             : agentOperation === null
               ? nameless('a conflict')
               : { kind: 'answer', value: fail({ kind: 'conflict', operation: agentOperation }) }
-        book.copy = copy
+        book.copy = { ...copy, notes }
         book.published = reply.published
         // What the copy holds is now durable: an excluded write, and one the Journal core fenced.
         for (const at of book.held.keys()) {
