@@ -98,6 +98,7 @@ async function harness(module: ToolImplementationModule<unknown, ContentBlock>) 
     contribution,
     register,
     fixed,
+    bindings,
     resolve,
     input,
     settlements,
@@ -106,6 +107,47 @@ async function harness(module: ToolImplementationModule<unknown, ContentBlock>) 
 }
 
 describe('author binding registration ownership', () => {
+  it('preserves reserved and active pins when rejecting invalid start inputs', async () => {
+    const completion = Promise.withResolvers<unknown>()
+    const fixture = await harness(authorModule(() => completion.promise))
+    const binding = await fixture.resolve()
+    const input = await fixture.input()
+    try {
+      expect(await binding.start({ ...input, call: callId('other') }, {})).toHaveProperty(
+        'failure.field',
+        'permit',
+      )
+      expect(unbox(fixture.registry.drain(fixture.loaded.key))).toEqual({
+        pins: '1',
+        inflight: [callId('first')],
+      })
+      unbox(await binding.start(input, {}))
+      expect(
+        await binding.start(
+          { ...input, start: { ...input.start, executor: adoption('wrong') } },
+          {},
+        ),
+      ).toHaveProperty('failure.field', 'executor')
+      expect(unbox(fixture.registry.pins(fixture.loaded.key))).toBe('1')
+      expect(fixture.consumed()).toBe(1)
+    } finally {
+      completion.resolve('finished')
+    }
+  })
+
+  it('returns unavailable when no same-shape author remains', async () => {
+    const fixture = await harness(authorModule(async () => 'unused'))
+    fixture.contribution.release()
+    expect(
+      await fixture.bindings.resolve({
+        ...authorAccess,
+        call: callId('first'),
+        request: fixture.fixed,
+      }),
+    ).toMatchObject({ failure: { kind: 'unavailable', dependency: 'toolBindings' } })
+    expect(fixture.consumed()).toBe(0)
+  })
+
   it.each(['different load', 'same loaded handle'])(
     'cannot pin a successor through an old binding: %s',
     async successorKind => {
