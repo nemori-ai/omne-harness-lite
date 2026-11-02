@@ -21,6 +21,14 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 - 恢复入口与控制入口。每个操作先以 `agentAccessCheck` 核验本操作名，目标是原 execution，然后调用 Journal。两个入口不要求活体 runtime，也不要求执行句柄。它们保留 Journal 的答复，包括未知。目标挂接属于本宿主仍在运行的 runtime 时，detach 另核 takeover。
 - 突然失去依赖。插件体卸载时，宿主停止计时，不再建立实例，也不调用 detach。挂接与在途责任保留在 Journal，宿主不声称外部效果已撤回。
 
+### 测量事件
+
+<a id="测量事件"></a>依据 R2-D17（DP1 取 C）与 R2-D49：Agent 工厂的测量观察者经 `./cordis` 的 `createAgentHostLocalPlugin({ measure })` 交进来，仿 Session 日志 Journal 提供者的 `createSessionAgentJournalPlugin({ cancellation })`（R2-D35）。观察者是函数，不是配置成员，不是服务键，不进入 `agentHostConfig`。
+
+- 返回的插件与 `agentHostPlugin` 同名（`agent-host`），`inject`、配置与提供的五个服务面都不变。宿主为每个实例调用 `createAgentRuntime(依赖, 选项, { measure })`，把同一个观察者交给全部实例；事件的内容与时机归 [Agent SPEC](../agent/SPEC.md#测量事件)，本成员不加、不改事件。
+- 不传 `measure` 时与 `agentHostPlugin` 一致。`agentHostPlugin` 原样可用。
+- 观察者对 Agent 之外的段（Session、Context）没有作用；它们各自的插件入口交各自的观察者。
+
 已知缺口：
 
 1. Runtime 一侧的停用义务尚未实现。Agent 工厂的 quiesce 现在答 unavailable（#502 阶段 5），invoke 取执行槽时也不同步报告 occupied（XC-AGINST 第 3.5 节第 2 条）。所以用生产工厂时，空闲实例不会被回收；宿主只记录诊断，并按期重试。宿主一侧的回收与保护点只用测试包装验证。
@@ -52,4 +60,4 @@ Tool 工厂沿 [Tool 接收入口](../agent/docs/public-api.md#独立-tool-接�
 
 根入口测试实际装配接收工厂，验证 supported/unsupported、共同保存与原 handoff 重试。Agent 成员另验证接收算法、隔离、取消与换代。
 
-宿主插件的测试在真实 Cordis 4.0.4 上运行。它们验证装载、逐项缺席时的 PENDING、配置错误时的 FAILED、换提供者后插件体重跑、`agentInstanceProvisionConformance` 对宿主真件通过、回收保护点、quiesce 失败或 unresolved 时保持 published、宿主主体被拒、旧登记撤除不撤后继、非宿主 fiber 的撤除被拒，以及恢复入口与控制入口的读回、核验与跨租户拒绝。Journal、Model、授权与会话条件用 agent 的 `./testing` 替身。Runtime 一侧的停用义务用测试包装。这些测试不证明生产 Journal、真实授权、跨进程行为或接收方登记。文件清单见[测试说明](tests/index.md)。
+宿主插件的测试在真实 Cordis 4.0.4 上运行。它们验证装载、逐项缺席时的 PENDING、配置错误时的 FAILED、换提供者后插件体重跑、`agentInstanceProvisionConformance` 对宿主真件通过、回收保护点、quiesce 失败或 unresolved 时保持 published、宿主主体被拒、旧登记撤除不撤后继、非宿主 fiber 的撤除被拒，以及恢复入口与控制入口的读回、核验与跨租户拒绝。Journal、Model、授权与会话条件用 agent 的 `./testing` 替身。Runtime 一侧的停用义务用测试包装。`createAgentHostLocalPlugin({ measure })` 的用例在同一个真实宿主上经一次 invoke 取受理段，并核对它与 `agentHostPlugin` 同名、同 inject、同配置，不传观察者时照常服务（`tests/measure-plugin.spec.ts`）。这些测试不证明生产 Journal、真实授权、跨进程行为或接收方登记。文件清单见[测试说明](tests/index.md)。

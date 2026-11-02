@@ -7,7 +7,7 @@
 | 入口                                 | 源码                              | 内容                                                                                                                         | 调用者资格              |
 | ------------------------------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
 | `@omne-harness/agent-context`        | [src/index.ts](../src/index.ts)   | 四个工厂、材料库、三个第一波读口（`absentAccountTarget`、`firstWaveTools`、`absentStepResults`）与类型。不导入 Cordis        | 持有所需端口的调用者    |
-| `@omne-harness/agent-context/cordis` | [src/cordis.ts](../src/cordis.ts) | 插件类 `AgentAccountOutletProvider`、`AgentContextProvider`，常量 `MODEL_PREPARATION_RESOURCES`、`DEFAULT_MATERIAL_CAPACITY` | 装配代码，Cordis 上下文 |
+| `@omne-harness/agent-context/cordis` | [src/cordis.ts](../src/cordis.ts) | 插件类 `AgentAccountOutletProvider`、`AgentContextProvider`，插件工厂 `createAgentContextPlugin`，常量 `MODEL_PREPARATION_RESOURCES`、`DEFAULT_MATERIAL_CAPACITY` | 装配代码，Cordis 上下文 |
 
 ## 定义索引
 
@@ -22,3 +22,4 @@
 | `ToolsSource`、`firstWaveTools`、`StepResultSource`、`absentStepResults`                                 | [src/translate.ts](../src/translate.ts)           | SPEC [请求准备的取法](../SPEC.md#requests-groups)、[`derive`](../SPEC.md#requests-derive)                 |
 | `AgentAccountOutletProvider`、`AgentAccountOutletConfig`                                                 | [src/cordis.ts](../src/cordis.ts)                 | SPEC [出站插件](../SPEC.md#outlet-plugin)                                                                 |
 | `AgentContextProvider`、`AgentContextConfig`、`MODEL_PREPARATION_RESOURCES`、`DEFAULT_MATERIAL_CAPACITY` | 同上                                              | SPEC [上下文插件](../SPEC.md#context-plugin)                                                              |
+| `createAgentContextPlugin`、`AgentContextPluginInput`                                                    | 同上                                              | `createAgentContextPlugin({ measure? })` 返回继承 `AgentContextProvider` 的插件类，观察者见 SPEC [测量事件](../SPEC.md#测量事件) |

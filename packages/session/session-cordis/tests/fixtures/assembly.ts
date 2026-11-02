@@ -164,6 +164,8 @@ export type AssemblyOptions = Readonly<{
   omit?: readonly PortName[]
   /** Mount the session provider with this configuration; `false` leaves it out. */
   provider?: unknown
+  /** The plugin class to mount in place of `SessionProvider`, for the factory-made plugin cases. */
+  plugin?: typeof SessionProvider
 }>
 
 export async function assemble(options: AssemblyOptions = {}) {
@@ -342,7 +344,7 @@ export async function assemble(options: AssemblyOptions = {}) {
 
   let provider: Fiber | undefined
   const load = async (config?: unknown): Promise<Fiber> => {
-    const wrapped = plug(SessionProvider, config)
+    const wrapped = plug(options.plugin ?? SessionProvider, config)
     // The wrapper is a thenable that rejects when the load fails; the fiber under it is not.
     const fiber = Object.getPrototypeOf(wrapped) as Fiber
     mounted.push(fiber)

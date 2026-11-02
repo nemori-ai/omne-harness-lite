@@ -196,6 +196,8 @@ export type WorldOptions = Readonly<{
   factory?: 'plain' | 'duties'
   omit?: Injected
   config?: unknown
+  /** The plugin to load instead of the one over `factory`, for the factory-made plugin cases. */
+  plugin?: ReturnType<typeof createAgentHostPlugin>
 }>
 
 export function occupied(instance: AgentInstanceId): AgentState {
@@ -315,7 +317,7 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
       : (deps, opts) => createAgentRuntime(deps, opts)
   const configured = 'config' in options
   const host = root.plugin(
-    createAgentHostPlugin(factory),
+    options.plugin ?? createAgentHostPlugin(factory),
     (configured ? options.config : hostConfig) as AgentHostConfig,
   )
   // A refused configuration rejects the fiber; the test that expects it awaits the fiber itself.
