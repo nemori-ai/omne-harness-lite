@@ -19,4 +19,6 @@
 - [provider-conformance.spec.ts](provider-conformance.spec.ts)：公开提供者套件十六项义务的直接消费、逐项坏提供者否定与惰性组装。
 - [memory-file-system.spec.ts](memory-file-system.spec.ts)：内存文件设施替身的读写、版本冲突、路径与点名对象的拒绝、分段读取、查看、列表与关闭。
 - [scripted-command-facility.spec.ts](scripted-command-facility.spec.ts)：脚本命令设施替身的启动三种答复、输出块、终局、停止两态、单一读者与关闭。
+- [scripted-terminal-facility.spec.ts](scripted-terminal-facility.spec.ts)：终端的获取归属、代际、状态、并发、输出、停止、目录观察和单次覆盖。
+- [terminal-conformance.spec.ts](terminal-conformance.spec.ts)：终端套件七条协议义务的双停止场景、跨获取故障否定、缺控制与惰性组装。
 - [facility-doubles.spec.ts](facility-doubles.spec.ts)：两个替身装进脚本提供者租约后的往返路径，以及以内存文件替身作已持设施的提供者套件。

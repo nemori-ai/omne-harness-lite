@@ -163,6 +163,12 @@
 - `ScriptedFacilityGuard` · `testing/doubles.d.ts`
 - `ScriptedRecoveryAuthority` · `testing/doubles.d.ts`
 - `ScriptedScopeBindings` · `testing/doubles.d.ts`
+- `ScriptedTerminalAnswer` · `testing/scripted-terminal.d.ts`
+- `ScriptedTerminalFacility` · `testing/scripted-terminal.d.ts`
+- `TerminalConformanceAcquisition` · `testing/terminal-conformance.d.ts`
+- `TerminalConformanceOptions` · `testing/terminal-conformance.d.ts`
+- `TerminalConformanceSubject` · `testing/terminal-conformance.d.ts`
+- `TerminalScript` · `testing/scripted-terminal.d.ts`
 - `createMemoryFileSystem` · `testing/memory-files.d.ts`
 - `createMemoryResourceLedger` · `testing/doubles.d.ts`
 - `createScriptedCommandFacility` · `testing/scripted-command.d.ts`
@@ -171,9 +177,11 @@
 - `createScriptedFacilityGuard` · `testing/doubles.d.ts`
 - `createScriptedRecoveryAuthority` · `testing/doubles.d.ts`
 - `createScriptedScopeBindings` · `testing/doubles.d.ts`
+- `createScriptedTerminalFacility` · `testing/scripted-terminal.d.ts`
 - `environmentProviderConformance` · `testing/provider-conformance.d.ts`
 - `executionEnvironmentConformance` · `testing/environment-conformance.d.ts`
 - `runConformanceCase` · `testing/case.d.ts`
+- `terminalFacilityConformance` · `testing/terminal-conformance.d.ts`
 
 ## 声明文件 `binding.d.ts`
 
@@ -1380,6 +1388,8 @@ export { executionEnvironmentConformance, type EnvironmentConformanceOptions, ty
 export { createScriptedEnvironmentProvider, createMemoryResourceLedger, createScriptedFacilityGuard, createScriptedRecoveryAuthority, createScriptedEnvironmentAuthority, createScriptedScopeBindings, type EnvironmentAuthorityScript, type ScriptedEnvironmentAuthority, type ScriptedScopeBindings, type ProviderScript, type ScriptedEnvironmentProvider, type MemoryResourceLedger, type ScriptedFacilityGuard, type ScriptedRecoveryAuthority, } from './doubles.ts';
 export { createMemoryFileSystem, type MemoryFileSystem, type MemoryFileSystemOptions, } from './memory-files.ts';
 export { createScriptedCommandFacility, type CommandScript, type ScriptedCommandAnswer, type ScriptedCommandFacility, } from './scripted-command.ts';
+export { createScriptedTerminalFacility, type TerminalScript, type ScriptedTerminalAnswer, type ScriptedTerminalFacility, } from './scripted-terminal.ts';
+export { terminalFacilityConformance, type TerminalConformanceAcquisition, type TerminalConformanceSubject, type TerminalConformanceOptions, } from './terminal-conformance.ts';
 ```
 
 ## 声明文件 `testing/memory-files.d.ts`
@@ -1473,4 +1483,93 @@ type StopRecord = Readonly<{
 }>;
 export declare function createScriptedCommandFacility<P = unknown>(script: CommandScript<P>): ScriptedCommandFacility<P>;
 export {};
+```
+
+## 声明文件 `testing/scripted-process.d.ts`
+
+```ts
+import type { ProcessHandle } from '../index.ts';
+import type { ScriptedCommandAnswer } from './scripted-command.ts';
+type Started = Extract<ScriptedCommandAnswer, {
+    kind: 'started';
+}>;
+export type ScriptedStopRecord = Readonly<{
+    process: ProcessHandle['process'];
+    mode: 'graceful' | 'forced';
+    answer: 'confirmed' | 'unconfirmed';
+}>;
+export type ScriptedProcess = Readonly<{
+    handle: ProcessHandle;
+    settled: boolean;
+    complete(): void;
+}>;
+export declare function createScriptedProcess({ mode, answer, identity, onStop, }: {
+    mode: ProcessHandle['outputMode'];
+    answer: Started;
+    identity: ProcessHandle['process'];
+    onStop(record: ScriptedStopRecord): void;
+}): ScriptedProcess;
+export {};
+```
+
+## 声明文件 `testing/scripted-terminal.d.ts`
+
+```ts
+import type { TerminalFacility, TerminalRef } from '../index.ts';
+import type { ScriptedCommandAnswer } from './scripted-command.ts';
+import { type ScriptedStopRecord } from './scripted-process.ts';
+type ExecuteRequest<P> = Parameters<TerminalFacility<P>['execute']>[0];
+export type ScriptedTerminalAnswer = (Extract<ScriptedCommandAnswer, {
+    kind: 'started';
+}> & {
+    readonly observedCwd?: string;
+}) | Exclude<ScriptedCommandAnswer, {
+    kind: 'started';
+}>;
+export type TerminalScript<P = unknown> = (request: ExecuteRequest<P>, base: Readonly<{
+    observedCwd: string;
+    env: Readonly<Record<string, string>>;
+}>) => ScriptedTerminalAnswer | Promise<ScriptedTerminalAnswer>;
+export type ScriptedTerminalFacility<P = unknown> = Readonly<{
+    durability: 'none';
+    facility: TerminalFacility<P>;
+    calls: readonly ExecuteRequest<P>[];
+    stops: readonly ScriptedStopRecord[];
+    close(): void;
+    invalidate(terminal: TerminalRef): void;
+    finish(terminal: TerminalRef): Promise<void>;
+}>;
+export declare function createScriptedTerminalFacility<P = unknown>(script: TerminalScript<P>): ScriptedTerminalFacility<P>;
+export {};
+```
+
+## 声明文件 `testing/terminal-conformance.d.ts`
+
+```ts
+import type { FacilityRequest, ProcessHandle, TerminalFacility, TerminalRef } from '../index.ts';
+import { type ConformanceCase } from './case.ts';
+export type TerminalConformanceAcquisition = Readonly<{
+    facility: TerminalFacility<unknown>;
+    createRequest: Parameters<TerminalFacility<unknown>['create']>[0];
+    request(): FacilityRequest<unknown>;
+    executeRequest(terminal: TerminalRef): Parameters<TerminalFacility<unknown>['execute']>[0];
+}>;
+export type TerminalConformanceSubject = Readonly<{
+    acquisitions: readonly [
+        TerminalConformanceAcquisition,
+        TerminalConformanceAcquisition
+    ];
+    control?: {
+        start(acquisition: TerminalConformanceAcquisition, terminal: TerminalRef): Promise<ProcessHandle>;
+        finish(process: ProcessHandle): Promise<void>;
+        stopMode: 'graceful' | 'forced';
+        stopAnswer: 'confirmed' | 'unconfirmed';
+    };
+    dispose?(): Promise<void>;
+}>;
+export type TerminalConformanceOptions = Readonly<{
+    subject(): TerminalConformanceSubject | Promise<TerminalConformanceSubject>;
+    waitMs?: number;
+}>;
+export declare function terminalFacilityConformance(options: TerminalConformanceOptions): readonly ConformanceCase[];
 ```
