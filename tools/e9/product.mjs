@@ -4,6 +4,28 @@ import { pathToFileURL } from 'node:url'
 import { createServer } from 'node:net'
 import { launchProcess, runProcess } from './driver.mjs'
 
+export function cliObservation(operation, result) {
+  let response
+  try {
+    response = JSON.parse(result.stdout)
+  } catch {
+    // A missing or malformed reply cannot establish an unavailable basis.
+  }
+  if (
+    result.exitCode === 4 &&
+    response?.result === 'response' &&
+    response.outcome === 'basis-unavailable'
+  )
+    return {
+      state: 'blocked',
+      operation,
+      exitCode: result.exitCode,
+      outcome: response.outcome,
+      reason: 'adopted basis is unavailable; dependent product measurement remains pending',
+    }
+  return { state: result.exitCode === 0 ? 'pass' : 'fail', operation, exitCode: result.exitCode }
+}
+
 function freePort() {
   return new Promise((resolve, reject) => {
     const server = createServer()
@@ -104,11 +126,7 @@ export async function probeProduct(root, output) {
         { cwd: root, input },
       )
       raw.push(result)
-      observations.push({
-        state: result.exitCode === 0 ? 'pass' : 'fail',
-        operation: args[0],
-        exitCode: result.exitCode,
-      })
+      observations.push(cliObservation(args[0], result))
       return result
     }
     const account = `e9-${process.pid}`
