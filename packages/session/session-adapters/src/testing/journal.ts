@@ -2068,6 +2068,7 @@ export function createJournal<P>(
         },
         controls: execution.controls,
         results: execution.results,
+        entries: execution.entries,
         effects: execution.effects,
         interruptionsOf: effect => interruptionsOf(effect, execution.controls, execution.tenant),
         modelCallOf: effect => {
