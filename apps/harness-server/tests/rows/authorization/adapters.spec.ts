@@ -6,7 +6,9 @@
 // call them (policy draft §3).
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { Service, type Context } from '@deepseek-ai/cordis'
+import { Service, Context } from '@deepseek-ai/cordis'
+import { toolAccessGuardConformance, type ToolAccessGuardFixture } from '@omne-harness/tool/testing'
+import { decodeToolCallId } from '@omne-harness/tool-contract'
 import {
   effectiveArgumentsOf,
   noArguments,
@@ -49,9 +51,11 @@ import {
   createActionAdmission,
   createAgentAccessCheck,
   createSessionAccessCheck,
+  createToolAccessGuard,
   type AccessPorts,
 } from '../../../src/rows/authorization/adapters.ts'
 import { authorization } from '../../../src/rows/authorization/row.ts'
+import { authorizationConfig } from '../../../src/rows/authorization/action-rules.ts'
 import { serveProfile } from '../../../src/profile.ts'
 import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
@@ -61,6 +65,7 @@ const A = fixtureTenant('a')
 const B = fixtureTenant('b')
 const OWN = sessionId('ses_own')
 const OTHER = sessionId('ses_other')
+const toolCallId = (text: string) => okOf(decodeToolCallId(text), 'tool call')
 
 type StandingMode = 'member' | 'not-member' | 'unavailable' | 'throws'
 
@@ -663,6 +668,155 @@ describe('agentAccessCheck', () => {
 })
 
 describe('agentActionAdmission', () => {
+  const rules = { revision: 'ops-1', rules: [{ id: 'files', effect: 'allow', tool: 'Files' }] }
+  function action(principal: unknown) {
+    return {
+      principal,
+      tenant: A,
+      execution: 'e',
+      passage: 'p',
+      action: 'a',
+      original: { name: 'Files', arguments: '{}' },
+      effectiveArguments: '{}',
+      definition: { owner: 'tool', name: 'Files', revision: '1', digest: 'd' },
+      permissions: [],
+      decision: null,
+    }
+  }
+  it('requires the issued Session work principal, the correct tenant and current membership', async () => {
+    const w = world()
+    const admission = createActionAdmission({
+      readAdmission: () => w.ports.admission,
+      actionRules: rules,
+    })
+    for (const principal of [
+      w.login(),
+      w.foreign(),
+      w.system('unknown'),
+      { ...w.work() },
+      w.work(OWN, B),
+    ]) {
+      expect(await admission.admit(action(principal) as never)).toMatchObject({
+        ok: { kind: 'deny' },
+      })
+    }
+    w.flags.standing = 'not-member'
+    expect(await admission.admit(action(w.work()) as never)).toMatchObject({
+      ok: { kind: 'deny', reason: 'not-member' },
+    })
+  })
+  it('closes missing rules, unmatched tools or definitions, unsupported interpreters and failed dependencies', async () => {
+    const w = world()
+    const input = action(w.work())
+    const admission = createActionAdmission({
+      readAdmission: () => w.ports.admission,
+      actionRules: rules,
+    })
+    for (const change of [
+      { original: { name: 'Shell' } },
+      { permissions: [{ need: 'permission' }] },
+      { decision: {} },
+    ]) {
+      expect(await admission.admit({ ...input, ...change } as never)).toMatchObject({
+        ok: { kind: 'unavailable' },
+      })
+    }
+    const exact = createActionAdmission({
+      readAdmission: () => w.ports.admission,
+      actionRules: { ...rules, rules: [{ ...rules.rules[0], definition: input.definition }] },
+    })
+    expect(await exact.admit(input as never)).toMatchObject({ ok: { kind: 'allow' } })
+    for (const field of ['owner', 'name', 'revision', 'digest']) {
+      expect(
+        await exact.admit({
+          ...input,
+          definition: { ...input.definition, [field]: 'other' },
+        } as never),
+      ).toMatchObject({ ok: { kind: 'unavailable' } })
+    }
+    for (const mode of ['throws', 'unavailable'] as const) {
+      w.flags.standing = mode
+      expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'unavailable' } })
+    }
+    w.flags.standing = 'member'
+    w.flags.verifierThrows = true
+    expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'unavailable' } })
+    for (const readAdmission of [
+      () => undefined,
+      () => {
+        throw new Error('SECRET')
+      },
+      () => ({ check: async () => ({ kind: 'odd' }) as never }),
+    ]) {
+      const failed = createActionAdmission({ readAdmission, actionRules: rules })
+      const result = await failed.admit(input as never)
+      expect(result).toMatchObject({ ok: { kind: 'unavailable' } })
+      expect(JSON.stringify(result)).not.toContain('SECRET')
+    }
+  })
+  it('rejects invalid configuration instead of granting through unknown fields', () => {
+    for (const config of [
+      { grants: {} },
+      { actionRules: { revision: '', rules: [] } },
+      { actionRules: { ...rules, rules: [rules.rules[0], rules.rules[0]] } },
+      {
+        actionRules: {
+          ...rules,
+          rules: [{ id: 'r', effect: 'allow', tool: 'Files', extra: true }],
+        },
+      },
+    ]) {
+      expect(authorizationConfig.safeParse(config).success).toBe(false)
+    }
+  })
+  it('applies configured rules with deny precedence and binds evidence to the fixed action', async () => {
+    const w = world()
+    const input = {
+      principal: w.work(),
+      tenant: A,
+      execution: 'execution',
+      passage: 'passage',
+      action: 'action',
+      original: { name: 'Files', arguments: '{}' },
+      effectiveArguments: '{"secret":"value"}',
+      definition: { owner: 'tool', name: 'Files', revision: '1', digest: 'd' },
+      permissions: [],
+      decision: null,
+    }
+    const allow = { id: 'files', effect: 'allow', tool: 'Files' }
+    const deny = { id: 'blocked-files', effect: 'deny', tool: 'Files' }
+    for (const rules of [
+      [allow, deny],
+      [deny, allow],
+    ]) {
+      const admission = createActionAdmission({
+        readAdmission: () => w.ports.admission,
+        actionRules: { revision: 'ops-2', rules },
+      })
+      const result = await admission.admit(input as never)
+      expect(result).toMatchObject({
+        ok: {
+          kind: 'deny',
+          reason: 'rule/blocked-files',
+          evidence: { record: 'action-rule/blocked-files', revision: 'ops-2' },
+        },
+      })
+      expect(JSON.stringify(result)).not.toContain('secret')
+    }
+    const admission = createActionAdmission({
+      readAdmission: () => w.ports.admission,
+      actionRules: { revision: 'ops-1', rules: [allow] },
+    })
+    const pending = admission.admit(input as never)
+    Object.assign(input, { action: 'changed', effectiveArguments: 'changed' })
+    Object.assign(allow, { effect: 'deny' })
+    const answer = await pending
+    expect(answer).toMatchObject({ ok: { kind: 'allow' } })
+    expect(w.seen.admissions.at(-1)?.target.key).toBe('["execution","passage","action"]')
+    expect(w.seen.admissions.at(-1)?.arguments).toEqual(effectiveArgumentsOf('{"secret":"value"}'))
+    expect(await admission.admit(input as never)).not.toEqual(answer)
+  })
+
   it('has no default allow: every action is unavailable, with or without permissions or a decision', async () => {
     const admission = createActionAdmission()
     for (const input of [
@@ -677,7 +831,154 @@ describe('agentActionAdmission', () => {
   })
 })
 
+describe('Tool access qualification', () => {
+  function fixture(): ToolAccessGuardFixture<unknown> {
+    const w = world()
+    const guard = createToolAccessGuard(() => w.ports.admission)
+    const allowed = {
+      principal: w.work(),
+      tenant: A,
+      call: toolCallId('tc_auth'),
+      action: 'admit' as const,
+    }
+    return {
+      guard,
+      allowed,
+      unlisted: { ...allowed, principal: w.system('unlisted') },
+      otherTenant: { ...allowed, tenant: B },
+      forgedTenant: { ...allowed, tenant: { ...A } },
+      breakDependency: () => {
+        w.flags.verifierThrows = true
+      },
+    }
+  }
+  for (const check of toolAccessGuardConformance<unknown>()) {
+    it(check.name, async () => {
+      await check.run(fixture())
+    })
+  }
+  it.each([42, ''])('denies malformed call %j before reading admission', async call => {
+    const w = world()
+    let reads = 0
+    const guard = createToolAccessGuard(() => {
+      reads += 1
+      return w.ports.admission
+    })
+    const input = { principal: w.work(), tenant: A, call, action: 'admit' }
+    expect(await guard.qualify(input as never)).toMatchObject({ kind: 'denied' })
+    expect(reads).toBe(0)
+    expect(w.seen.admissions).toHaveLength(0)
+  })
+  it('maps every supported action, rejects unknown roles and reads dependencies again after retirement', async () => {
+    const w = world()
+    let live = true
+    const guard = createToolAccessGuard(() => (live ? w.ports.admission : undefined))
+    const input = { principal: w.work(), tenant: A, call: toolCallId('tc_auth') }
+    for (const action of [
+      'admit',
+      'lookup',
+      'query-operation',
+      'control',
+      'accept-decision',
+      'accept-resource',
+      'read-process',
+      'read-wait',
+      'read-diagnostics',
+      'read-result',
+      'read-content',
+      'release-delivery',
+      'account',
+      'recover',
+      'write',
+      'start',
+    ] as const) {
+      expect(await guard.qualify({ ...input, action })).toEqual({ kind: 'allowed' })
+      expect(w.seen.admissions.at(-1)).toMatchObject({
+        operation: { owner: 'tool', name: action },
+        target: { owner: 'tool', kind: 'call', key: input.call },
+        arguments: noArguments(),
+      })
+    }
+    for (const action of ['read-raw', 'read-raw-content', 'invalidate'] as const)
+      expect(await guard.qualify({ ...input, action } as never)).toMatchObject({
+        kind: 'unavailable',
+      })
+    for (const principal of [w.login(), w.foreign(), { ...input.principal }])
+      expect(await guard.qualify({ ...input, principal, action: 'admit' })).toMatchObject({
+        kind: 'denied',
+      })
+    expect(await guard.qualify({ ...input, action: 'unknown' } as never)).toMatchObject({
+      kind: 'denied',
+    })
+    expect(await guard.qualify({ ...input, action: 'start', call: null })).toMatchObject({
+      kind: 'denied',
+    })
+    const request = { ...input, action: 'admit' as const }
+    const pending = guard.qualify(request)
+    Object.assign(request, { call: toolCallId('tc_changed'), tenant: B })
+    expect(await pending).toEqual({ kind: 'allowed' })
+    expect(w.seen.admissions.at(-1)?.target.key).toBe('tc_auth')
+    live = false
+    expect(await guard.qualify({ ...input, tenant: A, action: 'admit' })).toMatchObject({
+      kind: 'unavailable',
+    })
+    const failing = createToolAccessGuard(() => {
+      throw new Error('SECRET')
+    })
+    const failure = await failing.qualify({ ...input, tenant: A, action: 'admit' })
+    expect(failure).toMatchObject({ kind: 'unavailable' })
+    expect(JSON.stringify(failure)).not.toContain('SECRET')
+  })
+})
+
 describe('the row', () => {
+  it('loads configured action admission in Cordis and retires the old allowing reference', async () => {
+    const ctx = new Context()
+    const authority = inProcessPrincipalAuthority()
+    const actor = okOf(
+      authority.issuer.issueSystem({ component: 'sessionWorkPrincipals' }),
+      'actor',
+    )
+    const principal = okOf(
+      authority.issuer.issueActingForTenant({
+        actor,
+        tenant: A,
+        work: { owner: 'session', work: OWN },
+      }),
+      'work',
+    )
+    const provider = await ctx.plugin({
+      name: 'identity-fixture',
+      apply(scope: Context) {
+        scope.provide(principalVerifierKey, authority.verifier)
+        scope.provide(tenantStandingKey, { read: async () => readingOf('member') })
+      },
+    })
+    const row = await ctx.plugin(authorization, {
+      actionRules: { revision: 'live-1', rules: [{ id: 'files', tool: 'Files', effect: 'allow' }] },
+    })
+    const input = {
+      principal,
+      tenant: A,
+      execution: 'e',
+      passage: 'p',
+      action: 'a',
+      original: { name: 'Files', arguments: '{}' },
+      effectiveArguments: '{}',
+      definition: { owner: 'tool', name: 'Files', revision: '1', digest: 'd' },
+      permissions: [],
+      decision: null,
+    }
+    try {
+      const admission = ctx.agentActionAdmission
+      expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'allow' } })
+      await row.dispose()
+      expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'unavailable' } })
+    } finally {
+      await row.dispose()
+      await provider.dispose()
+    }
+  })
   it('declares the manifest of the `authorization` row of the table, as a real row without a shutdown phase', () => {
     const declaration = rowDeclarationOf(authorization)
     const table = serveProfile().stubManifests.get('authorization' as never)
@@ -693,8 +994,8 @@ describe('the row', () => {
     expect(declaration?.manifest.phase).toBe(table?.phase)
   })
 
-  it('takes no configuration: the grant table cannot come through the plugin config (验收 3)', () => {
-    expect(authorization.Config).toBeUndefined()
+  it('takes action rules configuration without a maintenance grant service (验收 3)', () => {
+    expect(authorization.Config).toBeDefined()
     expect(authorization.inject).toEqual(expect.not.arrayContaining(['maintenanceGrants']))
   })
 
@@ -766,7 +1067,18 @@ describe('the row', () => {
             answers['agent'] = await agentAccessCheck.check(
               agentRequest(work, 'invoke', { kind: 'execution', execution }),
             )
-            answers['admission'] = await agentActionAdmission.admit({} as never)
+            answers['admission'] = await agentActionAdmission.admit({
+              principal: work,
+              tenant: A,
+              execution: 'e',
+              passage: 'p',
+              action: 'a',
+              original: { name: 'Files', arguments: '{}' },
+              effectiveArguments: '{}',
+              definition: { owner: 'tool', name: 'Files', revision: '1', digest: 'd' },
+              permissions: [],
+              decision: null,
+            } as never)
             flags.verifierThrows = true
             answers['broken'] = await sessionAccessCheck.check(read(work, 'readWork'))
           })()
@@ -788,7 +1100,12 @@ describe('the row', () => {
           {
             id: 'authorization',
             plugin: 'authorization',
-            config: { grants: { 'someone-else': {} } },
+            config: {
+              actionRules: {
+                revision: 'serve-1',
+                rules: [{ id: 'files', effect: 'allow', tool: 'Files' }],
+              },
+            },
           },
           { id: 'probe', plugin: 'probeRow', config: {} },
         ],
@@ -806,10 +1123,10 @@ describe('the row', () => {
     ])
     expect(answers['work']).toMatchObject({ kind: 'allowed' })
     expect(answers['holder']).toMatchObject({ kind: 'allowed' })
-    // A `grants` setting in the row config gives no purpose to anyone.
+    // Unlisted components have no maintenance purpose.
     expect(answers['intruder']).toEqual({ kind: 'denied' })
     expect(answers['agent']).toMatchObject({ kind: 'allowed' })
-    expect(answers['admission']).toMatchObject({ ok: { kind: 'unavailable' } })
+    expect(answers['admission']).toMatchObject({ ok: { kind: 'allow' } })
     expect(answers['broken']).toMatchObject({ kind: 'unavailable' })
     expect(JSON.stringify([answers, run.records, run.stderr])).not.toContain('SECRET-TEXT')
   })

@@ -1,4 +1,6 @@
 import type { Outcome } from '@omne-harness/operation-result'
+import type { ModelInitialRun } from './initial.ts'
+import type { CommandWrite, RunScope } from './storage.ts'
 import type { StreamAssembly } from '@omne-harness/stream-arrival'
 import type {
   Access,
@@ -120,12 +122,36 @@ export type ModelCommandsLimits = Readonly<{
 }>
 export type ResultPaging = Pick<ModelCommandsLimits, 'resultPageParts' | 'resultPageTargetBytes'>
 export type ModelCommandsCoreOptions<P> = Readonly<{
+  initialRun?: ModelInitialRun<P>
   owners: readonly ModelConsumerOwnerDeclaration[]
   authority: ModelCommandsAuthority<P>
   evidence: readonly ModelCommandsEvidence[]
   clock: Pick<ModelClock, 'now'>
   limits: ModelCommandsLimits
 }>
+export type ConfirmationSeen = Readonly<{
+  call: CallDocument | undefined
+  operation: Binding | undefined
+}>
+export type ConfirmationStage =
+  | Readonly<{ kind: 'write'; tenant: string; write: CommandWrite }>
+  | Readonly<{ kind: 'publish'; tenant: string; call: CallDocument }>
+export type ModelConfirmationPass = Readonly<{
+  scope: RunScope | null
+  seen: ConfirmationSeen | null
+  staged: ConfirmationStage | null
+}>
+export type ModelRunCompletion =
+  | Readonly<{ kind: 'confirmed' }>
+  | Readonly<{ kind: 'failed'; failure: ModelFailure }>
+  | Readonly<{ kind: 'threw' }>
+export type ModelConfirmationDiagnostic = Readonly<{
+  kind: 'initial-confirmation-failed' | 'observation-confirmation-failed'
+}>
+export type ModelBeforePublish = (
+  pass: ModelConfirmationPass | null,
+  completion: ModelRunCompletion,
+) => void
 export const MODEL_WRITE_METHODS = [
   'admit',
   'claim',

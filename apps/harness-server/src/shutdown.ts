@@ -2,7 +2,14 @@
 // 抛出记 failed，协调者继续下一阶段。报告确定后才调用 `assemblyReportSettled()`，之后才撤除根。
 import type { LifecycleEntry, LifecycleRegistry } from './lifecycle.ts'
 import { PHASE_ORDER } from './lifecycle.ts'
-import type { HandleOutcome, LifecyclePhase, RowId, ShutdownReport, StopResult } from './types.ts'
+import type {
+  HandleOutcome,
+  HostFilesReport,
+  LifecyclePhase,
+  RowId,
+  ShutdownReport,
+  StopResult,
+} from './types.ts'
 
 export type { ShutdownReport }
 
@@ -45,6 +52,8 @@ export type ShutdownRecord = Readonly<{
 
 export type ShutdownOptions = Readonly<{
   log?: (record: ShutdownRecord) => void
+  /** Entry-owned host retirement and final maintenance, bounded only for report collection. */
+  afterBusiness?: () => Promise<HostFilesReport>
   /** 步骤 9：撤除 Cordis 根。结果只进诊断。 */
   disposeRoot?: () => Promise<unknown> | unknown
 }>
@@ -121,6 +130,7 @@ async function execute(
   }
 
   const outcomes: HandleOutcome[] = []
+  let hostFiles: HostFilesReport | undefined
   for (const phase of PHASE_ORDER) {
     const rows = [...expected].filter(([, expectedPhase]) => expectedPhase === phase)
     const phaseOutcomes = await Promise.all(
@@ -146,11 +156,31 @@ async function execute(
       }),
     )
     outcomes.push(...phaseOutcomes)
+    if (phase === 'business' && options.afterBusiness !== undefined) {
+      const maintenance = Promise.resolve()
+        .then(options.afterBusiness)
+        .catch((): HostFilesReport => {
+          log('diagnostic', phase, null, 'host-files maintenance failed')
+          return { kind: 'unavailable', diagnostic: 'maintenance-failed' }
+        })
+      const timer = clock.after(deadline - clock.now())
+      const winner = await Promise.race([maintenance, timer.promise.then(() => null)])
+      if (winner === null) {
+        hostFiles = { kind: 'unavailable', diagnostic: 'deadline' }
+        void maintenance.then(() =>
+          log('late-result', phase, null, 'host-files maintenance completed after deadline'),
+        )
+      } else {
+        timer.cancel()
+        hostFiles = winner
+      }
+    }
   }
 
   const report: ShutdownReport = Object.freeze({
     overall: outcomes.every(o => o.result.kind === 'settled') ? 'settled' : 'incomplete',
     outcomes: Object.freeze(outcomes),
+    ...(hostFiles === undefined ? {} : { hostFiles: Object.freeze(hostFiles) }),
   })
   log('report-fixed', null, null, report.overall)
 

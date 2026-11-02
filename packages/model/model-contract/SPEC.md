@@ -452,6 +452,17 @@ R 先于 S 则不发；S 先于 R 则是已经启动的在途请求，撤权触�
 
 本节保留现有 CredentialPort 与 SendFace 消费形状。强制 access、真实秘密绑定及最终发送围栏的[迁移义务](#推送与公共观察的交付边界)另行适用；现有类型不证明调用方已受可靠核验，[Cordis 凭据服务](../model-cordis-contract/SPEC.md#凭据服务)所述自报资格缺口尚未解决。
 
+兼容期新路径：`CredentialPort<P = unknown>` 保留旧操作，增加可选的同步 `presentFor` 与 `resolveFor`。`QualifiedCredentialQuery<P>` 只从 `./provider` 导出，资格取自 `SendDemand.access`，不带自由 `tenant` 或 `authorized`。`presentFor` 不接收 `official`，只查询存在性。发送阶段只调用 `resolveFor`；提供者没有该成员时返回 `unavailable`，诊断为 `qualified-path-missing`，不得退回旧 `resolve`。
+
+新路径的契约前提是：只有受信发送边界注入该服务。发送 `access` 中的主体来自以下两种来源之一：
+
+- 在[受理点 C](#342-资格共同提交与实际发送)已核验的主体。
+- 入口窄签发器依据同一调用的原受理记录签发的主体。签发器只由入口运行级组合持有，签发的主体只绑定这一次调用。
+
+`official` 是调用方依据 `ModelSendSource.credential` 构造的档案事实。
+
+提供者只同步核对 `access.tenant` 与秘密绑定持有者，以及仅在没有租户绑定且 `official` 为真时允许 `factory`。已绑定但缺失、不可读、拒绝或不可用时不回退。新路径不读取 `SendFace`，解析与同步 start 之间不得 await。提供者不能同步核验主体来源或 `official` 的来源；受信边界之外伪造另一租户主体或错报档案事实的限制仍存在，不因增加类型而关闭。
+
 `CredentialId` 是由人命名的不透明身份，在凭据保管的配置路径上命名，Model 不铸造它。它无前缀，误混由类型阻止。`decodeCredentialId` 返回 `Outcome`，不抛异常，按 `type`、`empty`、`length`（超过 `MODEL_IDENTITY_MAX_LENGTH`，即 256 个 UTF-16 码元）、`character`（含任一 Unicode 空白、控制字符、格式字符或孤立代理码元）的顺序返回第一个失败，不裁剪、不折叠大小写。成功只证明格式，不证明存在或归属。
 
 引用由 `CredentialId`、租户 `TenantId` 和用途组成。用途只有 `MODEL_SEND`。持有引用不授予读取或发送资格。`CredentialQuery` 的用途是普通字符串，用途不符的查询，`present` 与 `resolve` 都返回 `denied`。
@@ -741,6 +752,19 @@ diff 按 after 顺序，只选择新增项和与 before 结构不同的旧项。
 公共 cursor 覆盖全部已确认投影变化。state-only 更新即使不改变 `OutputCursor`，也推进公共 cursor，不能直接拿 OutputCursor 充当公共 cursor。流 ended 只终止这次观察，调用结局仍从权威 CallState 或结果读取。
 
 Model 在原保存确认后发布投影。取得已确认快照 C 与登记 C 之后订阅在同一临界区完成，不能先读再普通 subscribe。可以合并已确认变化；每个公共 delta 帧的 from 必须是该观察者最后交出的 cursor。公共帧核权、队列限额与终止规则同样适用，不承诺逐上游分片或持久 replay。
+
+#### `model-output-v1` 的 JSON 投影
+
+`encodeModelOutputV1` 与 `decodeModelOutputV1` 是根入口的纯编解码函数。投影只包含可见块、Model 输出游标、修订和阶段，不包含 `ref`、`dispatch`、调用身份或消费者。它不提供生产观察服务或安装保证。
+
+- snapshot 的键集是 `{projection: 'model-output-v1', phase, cursor, revision, blocks}`。`cursor` 与 `revision` 分别来自 `ModelStreamSnapshot.value.cursor` 和 `value.state.revision`。
+- delta 的键集是 `{projection: 'model-output-v1', base: {cursor, revision}, cursor, revision, phase?, blocks}`。`base.cursor` 与 `base.revision` 分别来自内部 `ModelStreamDelta.from.outputCursor` 和 `from.revision`，表示消费者当前已应用视图，不限于最近一份 snapshot。顶层 `cursor` 与 `revision` 分别来自目标 `outputCursor` 和 `state.revision`。
+- `cursor` 是 Model 的 `OutputCursor`，`revision` 是 Model 的 `Revision`。JSON 中两者使用现有身份 codec 的规范十进制文本，不转为 number。它们与公共帧的 `StreamCursor` 独立，不互相推导。
+- 消费者应用 delta 前必须逐文本比较 `base` 与当前视图的 cursor、revision。任何一项不相同，消费者丢弃视图并重新取得 snapshot，不猜测或重排。
+- state-only delta 仍然输出：revision 前进，cursor 可以等于 `base.cursor`，未变的块不重复，`blocks` 可以为空。不能跳过这类 delta，否则下一份 delta 的 `base.revision` 无法匹配。
+- `phase` 只在目标阶段不同于基线阶段时出现在 delta 中。编码内部 `ModelStreamDelta` 时，调用方必须显式传入 `basePhase`，编码器据此决定是否输出 phase。
+
+可见块按现有 `VisibleBlock` 类型逐字段编码，未知块类型不输出。解码只得到 `ModelOutputV1` 投影值，不恢复完整 `ModelStreamDelta` 或 `CallState`。往返稳定指投影值 encode→decode→encode 后字节相同，不证明原内部对象可还原。公开声明与行为验证见[投影入口](docs/public-api.md#model-显示投影纯值)。
 
 ### current 的权威含义
 

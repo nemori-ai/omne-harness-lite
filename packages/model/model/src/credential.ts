@@ -7,6 +7,7 @@ import {
   type CredentialPurpose,
   type CredentialQuery,
   type CredentialResolution,
+  type QualifiedCredentialQuery,
   type SendFace,
 } from '@omne-harness/model-contract/provider'
 
@@ -72,8 +73,47 @@ export function judgeResolution(
 ): CredentialResolution {
   const gate = judgeGate(state, reference, face)
   if (gate) return gate
+  return resolveBinding(state, reference, face.official)
+}
+
+export function judgeQualifiedPresence<P>(
+  state: CustodianState,
+  input: Omit<QualifiedCredentialQuery<P>, 'official'>,
+): CredentialPresence {
+  const reference = qualifiedReference(input)
+  const presence = judgePresence(state, reference)
+  if (
+    presence.kind === 'known' &&
+    !presence.present &&
+    state.bindings.some(item => item.id === reference.id)
+  )
+    return { kind: 'denied' }
+  return presence
+}
+
+export function judgeQualifiedResolution<P>(
+  state: CustodianState,
+  input: QualifiedCredentialQuery<P>,
+): CredentialResolution {
+  const reference = qualifiedReference(input)
+  const gate = judgeGate(state, reference)
+  if (gate) return gate
+  return resolveBinding(state, reference, input.official)
+}
+
+function qualifiedReference<P>(
+  input: Omit<QualifiedCredentialQuery<P>, 'official'>,
+): CredentialQuery {
+  return { id: input.id, tenant: input.access.tenant, purpose: input.purpose }
+}
+
+function resolveBinding(
+  state: CustodianState,
+  reference: CredentialQuery,
+  official: boolean,
+): CredentialResolution {
   const binding = state.bindings.find(item => sameCredentialHolder(item, reference))
-  if (!binding) return missing(state, reference, face)
+  if (!binding) return missing(state, reference, official)
   switch (binding.life) {
     case 'revoked':
       return { kind: 'denied' }
@@ -91,12 +131,12 @@ export function judgeResolution(
 function missing(
   state: CustodianState,
   reference: CredentialQuery,
-  face: SendFace,
+  official: boolean,
 ): CredentialResolution {
   const heldByOther = state.bindings.some(item => item.id === reference.id)
   if (heldByOther) return { kind: 'denied' }
   const tenantHasBinding = state.bindings.some(item => tenantEquals(item.tenant, reference.tenant))
-  if (face.official && !tenantHasBinding) {
+  if (official && !tenantHasBinding) {
     // A binding holder that equals nobody could belong to the asking tenant, so "no binding" is unproven.
     if (state.bindings.some(item => !isMinted(item.tenant))) return { kind: 'denied' }
     return { kind: 'value', scope: 'factory', value: state.factorySecret }

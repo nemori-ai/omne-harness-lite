@@ -35,7 +35,7 @@ export type TestModelDependenciesOptions<P> = Omit<MemoryModelCommandsOptions<P>
     maxQueued: number
     sends: readonly TestModelSendPlan[]
     sending?: Readonly<{
-      credentials: CredentialPort
+      credentials: CredentialPort<P>
       sources: readonly MemorySendSource<P>[]
       maxRetainedAttempts: number
     }>
@@ -51,7 +51,7 @@ export function createTestModelDependencies<P>(options: TestModelDependenciesOpt
       return 'ok' in current ? current.ok.admission : null
     },
   )
-  const coordinator = memory.store.sendCoordinator(options.sending?.sources ?? [])
+  const coordinator = memory.sendCoordinator(options.sending?.sources ?? [])
   const createSender = (overrides: Partial<ModelSendBoundaryOptions<P>> = {}) =>
     createModelSendBoundary({
       commands: memory.commands,

@@ -35,7 +35,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'tenantDomainLookup',
       'sessionPrincipalBindings',
     ],
-    injects: ['storage', 'sessionAccessCheck'],
+    injects: ['storage', 'sessionAccessCheck', 'principalVerifier'],
     phase: 'composition',
   },
   'session-provider': {

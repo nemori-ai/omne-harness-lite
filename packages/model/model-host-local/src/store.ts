@@ -11,7 +11,14 @@ import {
 import { dirname } from 'node:path'
 import { lockSync } from 'proper-lockfile'
 import { tenantEquals } from '@omne-harness/legal-identity'
-import { judgeGate, judgePresence, judgeResolution, type CustodianState } from '@omne-harness/model'
+import {
+  judgeGate,
+  judgePresence,
+  judgeQualifiedPresence,
+  judgeQualifiedResolution,
+  judgeResolution,
+  type CustodianState,
+} from '@omne-harness/model'
 import {
   sameCredentialHolder,
   type CredentialPort,
@@ -104,6 +111,8 @@ function errorCode(error: unknown): string | undefined {
 }
 
 export type LocalCustodian = CredentialPort & {
+  presentFor: NonNullable<CredentialPort['presentFor']>
+  resolveFor: NonNullable<CredentialPort['resolveFor']>
   readonly path: string
   diagnostics(): readonly Diagnostic[]
   put(reference: CredentialReference, secret: string): void
@@ -231,6 +240,24 @@ function live(settings: Settings, initial: CustodianState): LocalCustodian {
       const state = current()
       if (!state) return { kind: 'unavailable' }
       const decision = judgeResolution(state, reference, face)
+      const binding = state.bindings.find(item => sameCredentialHolder(item, reference))
+      note({ stage: 'resolve', outcome: decision.kind, tenantMatch: binding !== undefined })
+      return decision
+    },
+    presentFor(input) {
+      const reference = { id: input.id, tenant: input.access.tenant, purpose: input.purpose }
+      const gate = judgeGate(holder.state, reference)
+      if (gate) return gate
+      const state = current()
+      return state ? judgeQualifiedPresence(state, input) : { kind: 'unavailable' }
+    },
+    resolveFor(input) {
+      const reference = { id: input.id, tenant: input.access.tenant, purpose: input.purpose }
+      const gate = judgeGate(holder.state, reference)
+      if (gate) return gate
+      const state = current()
+      if (!state) return { kind: 'unavailable' }
+      const decision = judgeQualifiedResolution(state, input)
       const binding = state.bindings.find(item => sameCredentialHolder(item, reference))
       note({ stage: 'resolve', outcome: decision.kind, tenantMatch: binding !== undefined })
       return decision
