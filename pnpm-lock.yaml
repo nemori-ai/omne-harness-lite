@@ -138,6 +138,10 @@ importers:
         version: 2.11.7
 
   apps/cli:
+    dependencies:
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../../packages/access/sdk
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -154,9 +158,72 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent/agent
+      '@omne-harness/agent-contract':
+        specifier: workspace:*
+        version: link:../../packages/agent/agent-contract
+      '@omne-harness/agent-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/agent/agent-cordis-contract
+      '@omne-harness/authorization':
+        specifier: workspace:*
+        version: link:../../packages/identity/authorization
+      '@omne-harness/exchange-refs':
+        specifier: workspace:*
+        version: link:../../packages/common/exchange-refs
+      '@omne-harness/identity':
+        specifier: workspace:*
+        version: link:../../packages/identity/identity
+      '@omne-harness/identity-sql':
+        specifier: workspace:*
+        version: link:../../packages/identity/identity-sql
       '@omne-harness/kernel-basis':
         specifier: workspace:*
         version: link:../../packages/assembly/kernel-basis
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../packages/common/legal-identity
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../packages/model/model-contract
+      '@omne-harness/model-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/model/model-cordis-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../packages/common/operation-result
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../packages/access/public-contract
+      '@omne-harness/request-context-contract':
+        specifier: workspace:*
+        version: link:../../packages/context/request-context-contract
+      '@omne-harness/request-context-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/context/request-context-cordis-contract
+      '@omne-harness/server-entry':
+        specifier: workspace:*
+        version: link:../../packages/access/server-entry
+      '@omne-harness/session-contract':
+        specifier: workspace:*
+        version: link:../../packages/session/session-contract
+      '@omne-harness/session-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/session/session-cordis-contract
+      '@omne-harness/session-storage-sql':
+        specifier: workspace:*
+        version: link:../../packages/session/session-storage-sql
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../packages/storage/sql-contract
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../packages/storage/sqlite-provider
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../packages/common/utc-instant
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -255,6 +322,10 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/access/sdk:
+    dependencies:
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../public-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -267,6 +338,40 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/access/server-entry:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness/identity':
+        specifier: workspace:*
+        version: link:../../identity/identity
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/kernel-basis':
+        specifier: workspace:*
+        version: link:../../assembly/kernel-basis
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../public-contract
+      '@omne-harness/session-contract':
+        specifier: workspace:*
+        version: link:../../session/session-contract
+      '@omne-harness/session-cordis-contract':
+        specifier: workspace:*
+        version: link:../../session/session-cordis-contract
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1238,6 +1343,43 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/identity/identity-sql:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness/identity':
+        specifier: workspace:*
+        version: link:../identity
+      '@omne-harness/kernel-basis':
+        specifier: workspace:*
+        version: link:../../assembly/kernel-basis
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/scrypt':
+        specifier: workspace:*
+        version: link:../scrypt
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
+    devDependencies:
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/identity/scrypt:
     devDependencies:
       '@types/node':
@@ -2039,6 +2181,40 @@ importers:
       '@typescript/typescript6':
         specifier: 'catalog:'
         version: 6.0.2
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/tool/tool-storage-sql:
+    dependencies:
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+      '@omne-harness/tool':
+        specifier: workspace:*
+        version: link:../tool
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../tool-contract
+    devDependencies:
+      '@omne-harness/tool-host-local':
+        specifier: workspace:*
+        version: link:../tool-host-local
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

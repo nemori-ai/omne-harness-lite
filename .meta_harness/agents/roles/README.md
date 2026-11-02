@@ -202,6 +202,7 @@ Agent 工具的 `model` 参数覆盖（原 spec-reviewer 钉的就是 Opus 5.5�
 |---|---|---|---|
 | 能力与组合的行为、具体提供者（默认） | Opus 5.5 | GPT-6.1 Sol | high |
 | 单个模块、规格完整的应用切片 | Sonnet 5.5 | GPT-6.1 Sol | high |
+| 终端交互、验证设施（经济档的另一半） | Sonnet 5.5 | GPT-6.1 Sol | high |
 | 内核原语与生命周期机制 | Fable 5.1 | GPT-6 Astra | xhigh |
 | 跨模块生命周期、跨进程故障、精细算法 | Fable 5.1 | GPT-6 Astra | xhigh |
 | 安全敏感、跨多个包或整个装配、契约把失败／诊断／顺序留给判断、发布门禁 | Fable 5.1 | GPT-6 Astra | high |
@@ -213,6 +214,21 @@ Codex 里**角色文件钉的模型优先于派发值**，所以 developer 与 q
 档位同样两端不同：Claude Code 上用 Agent 工具的 `effort` 参数传入解析结果，验证见 `design-subagents` 技能
 [模板与生成](../skills/design-subagents/canonical/references/packaging.md)。Codex 上，可调角色的 `codex.toml` 不钉档位，
 派发时必须显式给档位，不给就继承父会话的档位（历史探针里继承到过 low）。
+
+**派发流水读数。** 台账积累起来以后，按汇总口径读一遍，用来判断三档边界是否仍然合适。判法只作派发时的参照，
+不改变策略默认值；收紧方向的改法仍归 [D6](../../../docs/engineering/workflow.md#d6-按策略选模型按起点档位升级)。
+计数口径、样本量门槛与 `aggregate` 的命令参数见 [`delegate` 的台账口径](../skills/delegate/canonical/references/ledger.md)
+「汇总口径」与「命令」。
+
+读之前先明确两项：**「无阻断」指该轮验收没有 `blocking` 缺陷**，与验收结论字段的写法无关；均用时与均 tok 只在有数的轮上求平均，未记录的轮不计入和也不计入分母。
+
+累计读数的结论按下面五条判：
+
+- **`default` 档的差距要在同条件下比。** 两侧的 work 与 risk 构成不同时（例如 `subtle-algorithm`、`cross-process-faults` 集中在其中一个模型上），无阻断率的差值既不能支持挪动 `default`，也不构成另一个模型必要的证据。要判，得等同一 work 与 risk 的组合两边都有数——样本门槛归上述台账口径「写回门槛」。
+- **经济档该用而没用，是执行问题不是策略问题。** 按策略算经济档的 developer 任务里，落在默认档或顶档的部分先分两类：命中 `top_risks` 的是规则要求的档位；不带的才是越档。越档集中在 verification 与终端这类工作，说明「按 work 默认走经济档」这条没被执行。
+- **`hardest_risks` 的缺口在派发核对。** 命中 hardest 风险的闭包如果没到 xhigh，先查派发时有没有给 `--risk`。给了解析器才会抬档；没给，档位规则形同虚设。降档后无阻断，不等于该风险不需要 xhigh，只说明这一次没撞上。要补的是核对。
+- **`security-sensitive` 需要同条件对照才能动。** 没有对照时它留在 `top_risks`，按策略送顶档，不为此另开例外。
+- **返工主要来自规格，不是档位。** 缺陷归属里 spec 明显多于 writer 与 env 时，返工来自规格的歧义、范围缺口、判据冲突与术语不一致——这些不是 `brief-check` 的检查对象（它查缺节、路径与调用方）。这时先按 `delegate`「写规格」自检「验收判据之间有没有互相冲突」与「每条判据的输入在写范围里有没有来源」，比升档便宜。这一条判的是该不该继续按档位解释返工，不属于三档边界的调整。
 
 按任务取值在工作区根运行，使用具备 Python 3.12+ 和 PyYAML 的解释器：
 

@@ -1,7 +1,15 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { AdmissionCapture } from '../src/delivery/admission.ts'
@@ -145,15 +153,25 @@ const plan = (
     force: patch.force ?? false,
   })
 
-/** A GitHub stand-in that holds one card body and one dispatch comment. */
+/**
+ * A GitHub stand-in that holds one card body and one dispatch comment. A request body arrives as a
+ * `body=` field or as a JSON file named by `--input`; `inputs` records each `--input` path and
+ * whether the file existed during the call.
+ */
 function github(body = cardBody()) {
   const calls: string[][] = []
+  const inputs: { path: string; existed: boolean }[] = []
   const state = { body, comment: '' }
   const call: GhCommand = argv => {
     calls.push([...argv])
     const method = argv[2],
       path = argv.find(item => item.startsWith('repos/')) ?? '',
-      value = argv.find(item => item.startsWith('body='))?.slice('body='.length)
+      file = argv[argv.indexOf('--input') + 1],
+      value =
+        argv.includes('--input') && file !== undefined
+          ? (inputs.push({ path: file, existed: existsSync(file) }),
+            (JSON.parse(readFileSync(file, 'utf8')) as { body?: string }).body)
+          : argv.find(item => item.startsWith('body='))?.slice('body='.length)
     if (method === 'POST' && path === 'repos/owner/repo/issues/7/comments')
       return { id: 55, html_url: `${url}#issuecomment-55` }
     if (method === 'PATCH' && path === 'repos/owner/repo/issues/comments/55') {
@@ -177,7 +195,7 @@ function github(body = cardBody()) {
       }
     throw new Error(`unexpected call ${argv.join(' ')}`)
   }
-  return { call, calls, state }
+  return { call, calls, inputs, state }
 }
 
 describe('dispatch fields', () => {
@@ -645,6 +663,129 @@ describe('opening a new revision on a bound card', () => {
     ).toThrow('does not read back as revision 3. Nothing was posted')
     expect(gh.calls.map(c => c[2])).toEqual(['GET', 'PATCH', 'GET'])
   })
+})
+
+describe('writing a long body', () => {
+  // Mixed ASCII, quotes, backslashes, CJK and an astral character, so a lossy hop shows.
+  const LINE = '长正文「行」 "quote" back\\slash \u{1F600} tail\n'
+  const long = LINE.repeat(Math.ceil(40_000 / LINE.length) + 1)
+  const widest = (calls: string[][]) => Math.max(...calls.flat().map(item => item.length))
+  const dispatchBinding: TaskBindingV2 = {
+    ...plan().binding,
+    dispatch: `${url}#issuecomment-55`,
+  }
+
+  it('sends the bind card body outside the command line and writes it byte for byte', () => {
+    expect(long.length).toBeGreaterThan(40_000)
+    const gh = github(cardBody(START_ROW, long))
+    const result = bindCard({
+      repository: 'owner/repo',
+      binding: dispatchBinding,
+      dryRun: false,
+      call: gh.call,
+    })
+    expect(result).toMatchObject({ applied: true, verified: true })
+    expect(result.body).toContain(long)
+    expect(widest(gh.calls)).toBeLessThan(8000)
+    expect(gh.state.body).toBe(result.body)
+  })
+
+  it('sends the revised card body outside the command line and writes it byte for byte', () => {
+    const planned = plan({ spec: r3, card: bound(`${BOUND.body}\n${long}`) })
+    expect(planned.revise?.body.length).toBeGreaterThan(40_000)
+    const gh = github(`${BOUND.body}\n${long}`)
+    const result = postDispatch({
+      repository: 'owner/repo',
+      plan: planned,
+      basis: spec.basis,
+      prose: '## 修订 3 派发\n',
+      call: gh.call,
+    })
+    expect(result.verified).toBe(true)
+    expect(widest(gh.calls)).toBeLessThan(8000)
+    expect(gh.state.body).toBe(planned.revise?.body)
+  })
+
+  it('sends a long dispatch comment outside the command line and writes it byte for byte', () => {
+    const gh = github()
+    const prose = `## 正式派发\n${long}`
+    const result = postDispatch({
+      repository: 'owner/repo',
+      plan: plan(),
+      basis: spec.basis,
+      prose,
+      call: gh.call,
+    })
+    expect(result.verified).toBe(true)
+    expect(widest(gh.calls)).toBeLessThan(8000)
+    expect(gh.state.comment).toContain(prose)
+  })
+
+  // Each site: the card it starts from, the PATCH that fails, the error and how many bodies a clean run sends.
+  const sites: [string, string, string, RegExp, number, (call: GhCommand) => unknown][] = [
+    [
+      'the card body of bind',
+      cardBody(),
+      'repos/owner/repo/issues/7',
+      /Writing the card body failed/,
+      1,
+      call => bindCard({ repository: 'owner/repo', binding: dispatchBinding, dryRun: false, call }),
+    ],
+    [
+      'the revised card body',
+      BOUND.body,
+      'repos/owner/repo/issues/7',
+      /Writing revision 3 into the card body failed/,
+      2,
+      call =>
+        postDispatch({
+          repository: 'owner/repo',
+          plan: plan({ spec: r3, card: bound() }),
+          basis: spec.basis,
+          prose: 'x',
+          call,
+        }),
+    ],
+    [
+      'the dispatch comment',
+      cardBody(),
+      'repos/owner/repo/issues/comments/55',
+      /Editing the placeholder/,
+      1,
+      call =>
+        postDispatch({
+          repository: 'owner/repo',
+          plan: plan(),
+          basis: spec.basis,
+          prose: 'x',
+          call,
+        }),
+    ],
+  ]
+  it.each(sites)(
+    'leaves no temporary file behind for %s, on success and when the call throws',
+    (_name, card, patched, message, sent, run) => {
+      const ok = github(card)
+      run(ok.call)
+      expect(ok.inputs).toHaveLength(sent)
+      expect(ok.inputs.every(item => item.existed)).toBe(true)
+      expect(ok.inputs.some(item => existsSync(item.path) || existsSync(dirname(item.path)))).toBe(
+        false,
+      )
+
+      const gh = github(card)
+      const failing: GhCommand = (argv, timeout) => {
+        const result = gh.call(argv, timeout)
+        if (argv[2] === 'PATCH' && argv.includes(patched)) throw new Error('secret API body')
+        return result
+      }
+      expect(() => run(failing)).toThrow(message)
+      const failed = gh.inputs.at(-1)
+      expect(failed?.existed).toBe(true)
+      expect(existsSync(failed?.path ?? '')).toBe(false)
+      expect(existsSync(dirname(failed?.path ?? ''))).toBe(false)
+    },
+  )
 })
 
 describe('dispatch-cli post with an empty text', () => {

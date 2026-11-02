@@ -1,0 +1,432 @@
+{
+  "schemaVersion": 1,
+  "line": "tool-exec",
+  "lineName": "L-TOOL",
+  "wave": 1,
+  "parentCard": 421,
+  "branch": "PanQiWei/tool-exec-w1",
+  "head": "eba2f97f1",
+  "attempt": "421-r6-a1",
+  "updatedAt": "2026-11-02T19:10:00Z",
+  "summary": "C-COMMAND 在做 L3 实现评审，C-FILES-2 已合入；下一步派收敛提交，规格已写好。",
+  "productValue": {
+    "headline": "Agent 第一次能在本机真的执行命令、读写文件，并且能被中途叫停。",
+    "why": "M2 的目标是多轮交互端到端闭合。没有工具执行，Agent 只能聊天，不能替用户干活。本波把工具这一侧在真实宿主上跑通，联调时接到会话与模型上。",
+    "increments": [
+      {
+        "who": "使用者",
+        "canNow": "让 Agent 在授权的文件根里读、写、列目录、搜索文件；越出根目录的路径被拒绝，而且拒绝前不改动任何文件",
+        "before": "Agent 不能碰文件",
+        "status": "merged"
+      },
+      {
+        "who": "使用者",
+        "canNow": "让 Agent 在宿主上运行一条命令，并实时看到输出",
+        "before": "没有命令执行",
+        "status": "review"
+      },
+      {
+        "who": "使用者",
+        "canNow": "中途取消一个长时间运行的命令，同一次对话里的其他调用不受影响",
+        "before": "无法中断",
+        "status": "review"
+      },
+      {
+        "who": "运维者",
+        "canNow": "重启进程后，已发生的工具调用记录仍可查询，不会重复执行",
+        "before": "记录只在内存里，重启即丢",
+        "status": "in-progress"
+      },
+      {
+        "who": "其他线",
+        "canNow": "L-RUN 和 L-APP 可以按冻结接口接上真实的工具执行，而不是替身",
+        "before": "只有替身",
+        "status": "in-progress"
+      }
+    ],
+    "notYet": [
+      "全屏终端程序（如 vim、top）：M2 不做",
+      "沙箱隔离：M2 之后",
+      "工具调用跨进程恢复后的结清（冷恢复）：M2 之后"
+    ]
+  },
+  "eta": {
+    "prAt": "2026-11-02T21:00:00Z",
+    "deliverAt": "2026-11-02T22:00:00Z",
+    "confidence": "中",
+    "criticalPath": [
+      {
+        "item": "C-COMMAND 评审",
+        "minutes": 15,
+        "doneAt": null
+      },
+      {
+        "item": "C-FILES-2 修复",
+        "minutes": 40,
+        "doneAt": "2026-11-02T19:05:00Z"
+      },
+      {
+        "item": "合入两闭包",
+        "minutes": 15,
+        "doneAt": null
+      },
+      {
+        "item": "收敛提交",
+        "minutes": 40,
+        "doneAt": null
+      },
+      {
+        "item": "线内贯通",
+        "minutes": 20,
+        "doneAt": null
+      },
+      {
+        "item": "准入",
+        "minutes": 30,
+        "doneAt": null
+      },
+      {
+        "item": "PR+gate",
+        "minutes": 30,
+        "doneAt": null
+      },
+      {
+        "item": "交接报告",
+        "minutes": 30,
+        "doneAt": null
+      }
+    ],
+    "changedReason": "三个 L3 闭包各多一轮评审修复（规格没要求压复杂度）"
+  },
+  "deliverables": [
+    {
+      "id": "T1",
+      "title": "执行环境设计（GATE-EE）",
+      "risk": "L2",
+      "status": "merged",
+      "criteria": [
+        {
+          "text": "files 八项、command、平台探测、授予根各有设计",
+          "state": "met",
+          "evidence": [
+            {
+              "label": "候选",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561218000"
+            }
+          ]
+        },
+        {
+          "text": "决策记录",
+          "state": "met",
+          "evidence": [
+            {
+              "label": "D1",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561322330"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "Tool 起步",
+      "risk": "L2",
+      "status": "merged",
+      "criteria": [
+        {
+          "text": "时钟通过符合性套件",
+          "state": "met",
+          "evidence": [
+            {
+              "label": "证据",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561138965"
+            }
+          ]
+        },
+        {
+          "text": "执行器绑定套件",
+          "state": "deferred",
+          "note": "波 B（N7 已确认）"
+        }
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "执行环境宿主",
+      "risk": "L3",
+      "status": "review",
+      "criteria": [
+        {
+          "text": "files 十二项可用，结果四态",
+          "state": "met",
+          "evidence": [
+            {
+              "label": "C-FILES-2",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/issues/421"
+            }
+          ]
+        },
+        {
+          "text": "command 启动、流式、停止两态、单调用中断",
+          "state": "partial",
+          "note": "评审中"
+        },
+        {
+          "text": "线内贯通",
+          "state": "open"
+        }
+      ]
+    },
+    {
+      "id": "T4",
+      "title": "调用资格、记录仓与启动围栏",
+      "risk": "L3",
+      "status": "in-progress",
+      "criteria": [
+        {
+          "text": "TL-11 调用资格",
+          "state": "met",
+          "evidence": [
+            {
+              "label": "C-GUARD",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/issues/421"
+            }
+          ]
+        },
+        {
+          "text": "记录仓两组套件对耐久仓通过",
+          "state": "open"
+        }
+      ]
+    }
+  ],
+  "closures": [
+    {
+      "id": "C-START",
+      "title": "时钟、登记表、Catalog",
+      "deliverables": [
+        "T2"
+      ],
+      "deps": [],
+      "status": "merged",
+      "writer": {
+        "role": "developer",
+        "model": "sonnet",
+        "effort": "medium"
+      },
+      "rounds": 1,
+      "additions": 1
+    },
+    {
+      "id": "C-GUARD",
+      "title": "调用资格守卫",
+      "deliverables": [
+        "T4"
+      ],
+      "deps": [
+        "C-START"
+      ],
+      "status": "merged",
+      "critical": false,
+      "writer": {
+        "role": "developer",
+        "model": "sonnet",
+        "effort": "high"
+      },
+      "rounds": 2,
+      "additions": 0
+    },
+    {
+      "id": "C-FILES",
+      "title": "files 设施",
+      "deliverables": [
+        "T3"
+      ],
+      "deps": [
+        "C-START"
+      ],
+      "status": "merged",
+      "critical": true,
+      "host": "wsl",
+      "writer": {
+        "role": "developer",
+        "model": "sonnet",
+        "effort": "high"
+      },
+      "rounds": 2,
+      "additions": 0
+    },
+    {
+      "id": "C-COMMAND",
+      "title": "command 设施",
+      "deliverables": [
+        "T3"
+      ],
+      "deps": [
+        "C-START"
+      ],
+      "status": "review",
+      "critical": true,
+      "host": "wsl",
+      "writer": {
+        "role": "developer",
+        "model": "opus",
+        "effort": "high"
+      },
+      "rounds": 1,
+      "additions": 0,
+      "facts": {
+        "commits": 4,
+        "changed": 0,
+        "lastWriteMin": 6,
+        "head": "a1b2c3d feat(execution): command 停止两态"
+      }
+    },
+    {
+      "id": "C-LEDGER",
+      "title": "耐久记录仓",
+      "deliverables": [
+        "T4"
+      ],
+      "deps": [
+        "C-GUARD"
+      ],
+      "status": "fixing",
+      "writer": {
+        "role": "developer",
+        "model": "opus",
+        "effort": "high"
+      },
+      "rounds": 2,
+      "additions": 0,
+      "facts": {
+        "commits": 7,
+        "changed": 3,
+        "lastWriteMin": 2,
+        "head": "d4e5f6a fix(tool-storage-sql): 压低复杂度"
+      }
+    },
+    {
+      "id": "C-CONV",
+      "title": "收敛提交",
+      "deliverables": [
+        "T3"
+      ],
+      "deps": [
+        "C-FILES",
+        "C-COMMAND"
+      ],
+      "status": "planned",
+      "critical": true,
+      "writer": {
+        "role": "developer",
+        "model": "opus",
+        "effort": "high"
+      }
+    },
+    {
+      "id": "C-E2E",
+      "title": "线内贯通",
+      "deliverables": [
+        "T3",
+        "T4"
+      ],
+      "deps": [
+        "C-CONV",
+        "C-LEDGER"
+      ],
+      "status": "planned",
+      "critical": true,
+      "writer": {
+        "role": "main",
+        "model": "opus",
+        "effort": "high"
+      }
+    }
+  ],
+  "deviations": [
+    {
+      "axis": "progress",
+      "level": "warn",
+      "text": "ETA 比 18:07Z 估的晚 20 分钟：三个 L3 闭包各多一轮修复",
+      "since": "2026-11-02T18:55:00Z"
+    }
+  ],
+  "asks": [
+    {
+      "to": "Reduce",
+      "layer": 3,
+      "what": "21:00Z 前后 gate 需要 Reduce 代确认",
+      "link": null,
+      "since": "2026-11-02T18:55:00Z",
+      "status": "open",
+      "answer": null
+    },
+    {
+      "to": "Reduce",
+      "layer": 3,
+      "what": "关闭 #323",
+      "link": "https://github.com/nemori-ai/omne-harness-lite/issues/323",
+      "since": "2026-11-02T17:31:00Z",
+      "status": "answered",
+      "answer": "https://github.com/nemori-ai/omne-harness-lite/issues/323#issuecomment-6561518382"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "GATE-EE 执行环境宿主",
+      "layer": 2,
+      "link": "https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561322330"
+    },
+    {
+      "id": "D2",
+      "title": "Tool 耐久记录仓位置与 custody",
+      "layer": 2,
+      "link": "https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561321713"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "T3",
+      "title": "执行环境宿主",
+      "before": "execution-environment-host-local 只有 files 的部分操作，没有 command。",
+      "after": "files 十二项与 command 齐全；宿主文件根拒绝四类逃逸；command 每进程一个 systemd 用户 scope，停止分 confirmed / unconfirmed。",
+      "left": "terminal 模式答 unsupported；冷恢复只做资源级停止。"
+    }
+  ],
+  "resources": {
+    "heavyNow": 2,
+    "cap": 3,
+    "subagentsRunning": 3,
+    "note": "WSL 写者 2 个"
+  },
+  "docs": [
+    {
+      "label": "本波 spec",
+      "path": "tmp/line-tool-exec/w1/spec.md"
+    },
+    {
+      "label": "本波 plan",
+      "path": "tmp/line-tool-exec/w1/plan.md"
+    },
+    {
+      "label": "原则与约束",
+      "path": "tmp/line-tool-exec/constraints.md"
+    }
+  ],
+  "timeline": [
+    {
+      "at": "2026-11-02T18:55:00Z",
+      "event": "ETA 与自省贴卡"
+    },
+    {
+      "at": "2026-11-02T18:02:00Z",
+      "event": "推进范式贴卡"
+    },
+    {
+      "at": "2026-11-02T17:07:00Z",
+      "event": "C-START 合入父分支"
+    }
+  ]
+}

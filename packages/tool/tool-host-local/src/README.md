@@ -8,6 +8,7 @@
 - [environment-input.ts](environment-input.ts) 核租户、调用、原操作与实时环境采用，并固定准备输入。
 - [credentials.ts](credentials.ts) 选择配置引用，并在使用前核实际秘密绑定。真实 vault 尚未交付。
 - [start-coordinator.ts](start-coordinator.ts) 实现本地启动协调器，见 [SPEC](../SPEC.md#本地启动协调器g5)。
+- [ledger-guards.ts](ledger-guards.ts)、[invocation-source.ts](invocation-source.ts)、[grant-verifiers.ts](grant-verifiers.ts)、[start-guard.ts](start-guard.ts) 与 [text-results.ts](text-results.ts) 是账本守卫的生产件，见 [SPEC](../SPEC.md#账本守卫tl-11)。
 - 根入口不导入 `@deepseek-ai/cordis`。当前没有 `./cordis` 子入口，后续插件设计见 [Cordis 装配](../docs/cordis.md)。
 - 本成员经 `@omne-harness/tool-contract` 消费公共定义，不复制公共类型或服务键。
 

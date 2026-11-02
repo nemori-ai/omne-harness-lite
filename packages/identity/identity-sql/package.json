@@ -1,0 +1,47 @@
+{
+  "name": "@omne-harness/identity-sql",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Identity SQL provider: accounts, credentials, personal organizations, memberships and logins of the identity contract, kept in the system transaction domain of the SQL storage contract, with scrypt credential material and a ./cordis plugin",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/identity": "workspace:*",
+    "@omne-harness/kernel-basis": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/scrypt": "workspace:*",
+    "@omne-harness/sql-contract": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/sqlite-provider": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
