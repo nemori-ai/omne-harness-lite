@@ -83,6 +83,8 @@ export type ExecutionRoutedJournalOptions<P> = Readonly<{
    * only; a throw is swallowed and the call keeps its answer.
    */
   published?: (tenant: TenantId, session: SessionId, execution: AgentExecutionId) => void
+  /** Receives a programming error the Journal read past; see `SessionLogJournalOptions.fault`. */
+  fault?: SessionLogJournalOptions<P>['fault']
 }>
 
 type Journal<P> = AgentJournal<P>
@@ -112,6 +114,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     sessionAccessCheck: options.sessionAccessCheck,
     combination: options.combination,
     ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
+    ...(options.fault === undefined ? {} : { fault: options.fault }),
   })
   const limit = options.routeCacheEntries ?? ROUTE_CACHE_ENTRIES
   const routes = new Map<string, Route<P>>()
@@ -468,6 +471,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
           logger.warn(`dispatching ${PUBLISHED} failed: ${String(error)}`)
         }
       },
+      fault: diagnostic => logger.error(diagnostic),
       storage: ctx.storage,
       tenantDomainLookup: ctx.tenantDomainLookup,
       sessionAccessCheck: ctx.sessionAccessCheck,

@@ -120,7 +120,16 @@ export type SessionLogJournalOptions<P> = Readonly<{
   combination: JournalCombination
   cancellation?: MemoryAgentJournalOptions<P>['cancellation']
   hostRecords?: MemoryAgentJournalOptions<P>['hostRecords']
+  /**
+   * Called with a diagnostic for a programming error (a `TypeError`) that the Journal read past
+   * while it normalized an event: the event is then left undecided, as for a missing original, and
+   * the Agent write keeps its answer. The owner logs it at error level.
+   */
+  fault?: Fault
 }>
+
+/** The channel a defect that the Journal went on past is reported through. */
+type Fault = (diagnostic: string) => void
 
 export type SessionLogJournalProvider<P> = AgentReceivedProvider<P, ContentBlock> & {
   received: NonNullable<AgentReceivedProvider<P, ContentBlock>['received']>
@@ -267,6 +276,26 @@ function durableRecords(root: CommonRoot): DurableAgentRecords {
 }
 
 /**
+ * The result of reading an original fragment, or null when the fragments do not give it. A missing
+ * original (`HistoryFailure`) is the expected reason, and nothing is invented for it. A
+ * `TypeError` is a defect of the reader, not a fact about the data: it is reported through `fault`
+ * and the read still answers null, so the Agent write that triggered it is not lost. Any other
+ * error is not this function's to hide.
+ */
+export function readOrNull<T>(what: string, fault: Fault | undefined, read: () => T): T | null {
+  try {
+    return read()
+  } catch (error) {
+    if (error instanceof HistoryFailure) return null
+    if (error instanceof TypeError) {
+      fault?.(`${what} read past a ${error.name}: ${error.message}`)
+      return null
+    }
+    throw error
+  }
+}
+
+/**
  * The Session consequences of one event as the shared normalization of the memory reference gives
  * them, from the original fragments of the same root; null when the fragments do not decide them
  * (a control event, an original that this root does not hold). Nothing is invented for a null.
@@ -275,13 +304,11 @@ function consequencesOf(
   root: CommonRoot,
   execution: MemoryExecution,
   event: MemoryExecution['events'][number],
+  fault: Fault | undefined,
 ): readonly SessionLogConsequence[] | null {
-  try {
-    return normalizeAgentEvent(root, execution, event)
-  } catch (error) {
-    if (error instanceof HistoryFailure || error instanceof TypeError) return null
-    throw error
-  }
+  return readOrNull(`the consequences of ${execution.id}/${event.sequence}`, fault, () =>
+    normalizeAgentEvent(root, execution, event),
+  )
 }
 
 /**
@@ -293,14 +320,12 @@ function deferredOf(
   root: CommonRoot,
   execution: MemoryExecution,
   event: MemoryExecution['events'][number],
+  fault: Fault | undefined,
 ): SessionControlEvidence | null {
   if (event.body.kind !== 'control') return null
-  try {
-    return controlEventEvidence(root, execution, event)
-  } catch (error) {
-    if (error instanceof HistoryFailure || error instanceof TypeError) return null
-    throw error
-  }
+  return readOrNull(`the control evidence of ${execution.id}/${event.sequence}`, fault, () =>
+    controlEventEvidence(root, execution, event),
+  )
 }
 
 /** The placeholder head of an execution that another execution's call changed (SPEC K-5). */
@@ -325,6 +350,7 @@ function indexOf(
   changed: readonly MemoryExecution[],
   receipt: CommandReceipt | null,
   notes: InterpretationNotes,
+  fault: Fault | undefined,
 ): Readonly<{
   boundaries: ExecutionBoundaryRecord[]
   facts: ExecutionFactRecord[]
@@ -338,8 +364,8 @@ function indexOf(
     const fresh = execution.events.slice(prior?.events.length ?? 0)
     for (const event of fresh) {
       if (event === undefined) continue
-      const consequences = consequencesOf(after, execution, event)
-      const control = consequences === null ? deferredOf(after, execution, event) : null
+      const consequences = consequencesOf(after, execution, event, fault)
+      const control = consequences === null ? deferredOf(after, execution, event, fault) : null
       notes.consequences.set(eventKey(execution.id, event.sequence), consequences)
       if (control !== null) notes.controls.set(eventKey(execution.id, event.sequence), control)
       facts.push({
@@ -379,17 +405,19 @@ function indexOf(
  * left out, not the write: the event's consequences are then not decided, and its fact row says so
  * with empty kinds.
  */
-function captureFresh(root: CommonRoot, execution: string, receipt: CommandReceipt): void {
+function captureFresh(
+  root: CommonRoot,
+  execution: string,
+  receipt: CommandReceipt,
+  fault: Fault | undefined,
+): void {
   const found = [...root.agent.executions.values()].find(item => item.id === execution)
   if (found === undefined) return
   const old = root.agent.indexedEvents.get(execution) ?? 0
-  for (const event of found.events.slice(old)) {
-    try {
-      captureEventOriginal(root, found, event, receipt)
-    } catch (error) {
-      if (!(error instanceof HistoryFailure || error instanceof TypeError)) throw error
-    }
-  }
+  for (const event of found.events.slice(old))
+    readOrNull(`the original of ${execution}/${event.sequence}`, fault, () =>
+      captureEventOriginal(root, found, event, receipt),
+    )
   root.agent.indexedEvents.set(execution, found.events.length)
 }
 
@@ -911,7 +939,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         participation(book, cell, input, method, receipt, decision),
       committed(input, method, receipt) {
         if (method === 'open' || method === 'attach') rememberAuthority(book, cell, input)
-        captureFresh(cell.state(), input.execution, receipt)
+        captureFresh(cell.state(), input.execution, receipt, options.fault)
         return undefined
       },
     })
@@ -1145,7 +1173,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       consequences: new Map(copy.notes.consequences),
       controls: new Map(copy.notes.controls),
     }
-    const index = indexOf(before, after, changed, receipt, notes)
+    const index = indexOf(before, after, changed, receipt, notes, options.fault)
     const admissions = admissionsOf(after, written, own, receipt, scratch)
     const execution = written.execution ?? own?.id ?? '-'
     const operation = storageOperation(
