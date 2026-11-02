@@ -21,6 +21,7 @@ type Entry = {
   started: boolean
   retiring: boolean
   running: boolean
+  progress: string
 }
 
 export function createRuntimeExecutor(
@@ -72,6 +73,7 @@ export function createRuntimeExecutor(
       started: false,
       retiring: false,
       running: false,
+      progress: 'not-run',
     })
     return true
   }
@@ -180,7 +182,11 @@ export function createRuntimeExecutor(
           if (calls.get(keyOf(step)) === entry) calls.delete(keyOf(step))
           return
         }
-        await driver.run(step)
+        const progress = await driver.advance(step)
+        entry.progress =
+          progress.kind === 'failed'
+            ? `${progress.kind}/${progress.failure.kind}${progress.failure.kind === 'unavailable' ? `/${progress.failure.dependency}` : ''}`
+            : progress.kind
         if (abort.signal.aborted) return
         const after = await dependencies.commands.loadRecovery(step)
         if ('failure' in after) return
@@ -253,6 +259,7 @@ export function createRuntimeExecutor(
       completed,
       foreignExecutionRuns,
       unownedRuns,
+      progress: [...new Set([...calls.values()].map(entry => entry.progress))],
       retired: abort.signal.aborted,
     }),
     close(): Promise<void> {

@@ -13,13 +13,15 @@ it('C02 publishes a real handle and iterator return releases a pending observati
   try {
     const reference = accepted(await world.api.invoke(world.invocation('observe')))
     await expect
-      .poll(async () => unbox(await world.api.instances.current(world.query(reference))).current)
+      .poll(
+        async () => unbox(await world.api.instances.current(world.streamQuery(reference))).current,
+      )
       .not.toBeNull()
-    const selection = unbox(await world.api.instances.current(world.query(reference)))
+    const selection = unbox(await world.api.instances.current(world.streamQuery(reference)))
     if (selection.current === null) throw new Error('No published stream')
     const iterator = world.api.observation
       .observe({
-        access: world.query(reference).access,
+        access: world.streamQuery(reference).access,
         ref: selection.current.ref,
         signal: new AbortController().signal,
       })
@@ -46,19 +48,21 @@ it('directory replacement changes the stream without restarting the original aut
   try {
     const reference = accepted(await world.api.invoke(world.invocation('directory')))
     await expect
-      .poll(async () => unbox(await world.api.instances.current(world.query(reference))).current)
+      .poll(
+        async () => unbox(await world.api.instances.current(world.streamQuery(reference))).current,
+      )
       .not.toBeNull()
-    const before = unbox(await world.api.instances.current(world.query(reference))).current
+    const before = unbox(await world.api.instances.current(world.streamQuery(reference))).current
     if (before === null) throw new Error('Missing route')
     await world.directory.dispose()
-    expect(await world.api.instances.current(world.query(reference))).toMatchObject({
+    expect(await world.api.instances.current(world.streamQuery(reference))).toMatchObject({
       failure: { kind: 'unavailable' },
     })
     expect(unbox(await world.api.queries.lookup(world.query(reference))).kind).toBe('found')
     await world.root.plugin(world.plugins.instances)
     await expect
       .poll(async () => {
-        const selection = await world.api.instances.current(world.query(reference))
+        const selection = await world.api.instances.current(world.streamQuery(reference))
         return (
           'ok' in selection &&
           selection.ok.current !== null &&
@@ -69,7 +73,7 @@ it('directory replacement changes the stream without restarting the original aut
     expect(world.launches()).toBe(1)
     const stale = world.api.observation
       .observe({
-        access: world.query(reference).access,
+        access: world.streamQuery(reference).access,
         ref: before.ref,
         signal: new AbortController().signal,
       })
@@ -103,13 +107,15 @@ it('publishes process blocks only after the original fact reaches the ledger', a
   try {
     const reference = accepted(await world.api.invoke(world.invocation('process')))
     await expect
-      .poll(async () => unbox(await world.api.instances.current(world.query(reference))).current)
+      .poll(
+        async () => unbox(await world.api.instances.current(world.streamQuery(reference))).current,
+      )
       .not.toBeNull()
-    const current = unbox(await world.api.instances.current(world.query(reference))).current
+    const current = unbox(await world.api.instances.current(world.streamQuery(reference))).current
     if (current === null) throw new Error('Missing stream')
     const iterator = world.api.observation
       .observe({
-        access: world.query(reference).access,
+        access: world.streamQuery(reference).access,
         ref: current.ref,
         signal: AbortSignal.timeout(1500),
       })
@@ -145,9 +151,11 @@ it('the published source rejects a foreign tenant even without the ordinary faca
   try {
     const reference = accepted(await world.api.invoke(world.invocation('source-tenant')))
     await expect
-      .poll(async () => unbox(await world.api.instances.current(world.query(reference))).current)
+      .poll(
+        async () => unbox(await world.api.instances.current(world.streamQuery(reference))).current,
+      )
       .not.toBeNull()
-    const current = unbox(await world.api.instances.current(world.query(reference))).current
+    const current = unbox(await world.api.instances.current(world.streamQuery(reference))).current
     const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
     const route = unbox(
       await world.root.toolInstanceHost.directory.connect({
@@ -182,7 +190,9 @@ it('an old registration release cannot remove the route of a later token', async
   try {
     const reference = accepted(await world.api.invoke(world.invocation('publication-token')))
     await expect
-      .poll(async () => unbox(await world.api.instances.current(world.query(reference))).current)
+      .poll(
+        async () => unbox(await world.api.instances.current(world.streamQuery(reference))).current,
+      )
       .not.toBeNull()
     const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
     const access = { principal: 'alice', tenant: world.tenantA, call: parts.call }

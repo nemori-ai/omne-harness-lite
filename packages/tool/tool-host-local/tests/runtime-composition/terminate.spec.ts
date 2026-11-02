@@ -42,7 +42,8 @@ it('a foreign control subject cannot send stop to an original author', async () 
     expect(
       await world.api.commands.control({
         reference: call,
-        access: { tenant: world.tenantA, principal: 'bob' },
+        tenant: world.tenantA,
+        principal: 'bob',
         intent: { kind: 'stop' },
       }),
     ).toMatchObject({ kind: 'rejected', failure: { kind: 'denied' } })

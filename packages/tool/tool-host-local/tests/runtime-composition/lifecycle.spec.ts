@@ -126,7 +126,7 @@ it('a new executor reads the original call but never attaches or restarts its ol
       .poll(() => next.plugins.diagnostics().executor?.unownedRuns ?? 0)
       .toBeGreaterThan(0)
     expect(world.launches()).toBe(1)
-    expect(unbox(await next.api.instances.current(world.query(reference))).current).toBeNull()
+    expect(unbox(await next.api.instances.current(world.streamQuery(reference))).current).toBeNull()
     expect(world.signals.get('{"value":"old-execution"}')?.aborted).toBe(false)
   } finally {
     complete('cleanup')

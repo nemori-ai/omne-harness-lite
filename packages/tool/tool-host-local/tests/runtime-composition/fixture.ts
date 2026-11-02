@@ -1,7 +1,12 @@
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { expect } from 'vitest'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { canonicalDigest, type ToolConfiguration, type ToolLedgerStore } from '@omne-harness/tool'
+import {
+  canonicalDigest,
+  type ToolConfiguration,
+  type ToolLedgerStore,
+  type LedgerWrite,
+} from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import type {
   ToolDelivery,
@@ -10,6 +15,7 @@ import type {
   ToolInvocationRef,
   ToolResultReceiver,
 } from '@omne-harness/tool-contract'
+import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import {
   defineFunctionTool,
   defineToolOperation,
@@ -32,6 +38,7 @@ import {
   createLocalToolRuntimePlugins,
   type LocalToolRuntimeInput,
 } from '../../src/runtime-cordis.ts'
+import { createRuntimeSourceAccess } from '../../src/runtime-composition.ts'
 import { createLocalToolBindings } from '../../src/executor-binding.ts'
 import { createLocalToolLoader } from '../../src/author-loader.ts'
 import { createLocalToolBindingRegistry } from '../../src/bindings.ts'
@@ -340,8 +347,19 @@ export async function fixture(
           const call = await store.read(value.call)
           if (call.kind !== 'complete')
             return { kind: 'unavailable', diagnostic: 'fixture read failure' }
+          const writes: LedgerWrite<ToolMessageContentBlock>[] = []
+          for (const write of value.hostCommit.writes) {
+            if (write.kind === 'delete') writes.push(write)
+            else if (write.record.kind === 'host')
+              writes.push({ kind: 'put', record: write.record })
+            else
+              return {
+                kind: 'unavailable',
+                diagnostic: 'the frozen host commit accepts only host records',
+              }
+          }
           return call.revision === value.callExpected
-            ? store.commit(value.hostCommit)
+            ? store.commit({ ...value.hostCommit, writes })
             : { kind: 'call-changed' }
         },
       },
@@ -449,19 +467,62 @@ export async function fixture(
     return { principal: principal(tenant), tenant, request }
   }
   const query = (reference: ToolInvocationRef, tenant = tenantA) => ({
+    tenant,
+    principal: principal(tenant),
+    reference,
+  })
+  const streamQuery = (reference: ToolInvocationRef, tenant = tenantA) => ({
     access: { tenant, principal: principal(tenant) },
     reference,
   })
+  const snapshot = async (reference: ToolInvocationRef, tenant = tenantA) => {
+    const parts = unbox(resolveToolInvocationRef(reference, tenant))
+    const recovery = await root.toolCommands.loadRecovery({
+      tenant,
+      principal: principal(tenant),
+      call: parts.call,
+    })
+    const source =
+      subjectRecoveryGate === null
+        ? await createRuntimeSourceAccess({ store, sources, access, recovery: input.subjects })({
+            tenant,
+            call: parts.call,
+          })
+        : null
+    return {
+      runtime: plugins.diagnostics(),
+      source:
+        source === null ? 'held-by-fixture' : 'failure' in source ? source.failure : 'resolved',
+      recovery:
+        'failure' in recovery
+          ? recovery.failure
+          : {
+              phase: recovery.ok.state.phase,
+              execution: recovery.ok.state.execution,
+              tasks: recovery.ok.tasks.map(task => ({
+                kind: task.kind,
+                state: 'state' in task ? task.state : null,
+              })),
+            },
+    }
+  }
   async function settled(reference: ToolInvocationRef, tenant = tenantA) {
-    await expect
-      .poll(
-        async () => {
-          const found = await api.queries.lookup(query(reference, tenant))
-          return 'ok' in found && found.ok.kind === 'found' ? found.ok.state.phase : 'absent'
-        },
-        { timeout: 2000 },
+    try {
+      await expect
+        .poll(
+          async () => {
+            const found = unbox(await api.queries.lookup(query(reference, tenant)))
+            return found.kind === 'found' ? found.state.phase : found.kind
+          },
+          { timeout: 2000 },
+        )
+        .toBe('settled')
+    } catch (cause) {
+      throw new Error(
+        `The call did not settle: ${JSON.stringify(await snapshot(reference, tenant))}`,
+        { cause },
       )
-      .toBe('settled')
+    }
     const found = unbox(await api.queries.lookup(query(reference, tenant)))
     if (found.kind !== 'found' || found.state.phase !== 'settled')
       throw new Error('Missing settlement')
@@ -488,6 +549,8 @@ export async function fixture(
     launches: () => launches,
     invocation,
     query,
+    streamQuery,
+    snapshot,
     settled,
     tenantA,
     tenantB,
