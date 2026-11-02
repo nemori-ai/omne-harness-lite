@@ -2,7 +2,48 @@ import { expect, it } from 'vitest'
 
 it('root entry exposes the independent host receiver and its retained state', async () => {
   const root = (await import('@omne-harness/agent-host-local')) as Record<string, unknown>
-  expect(Object.keys(root).sort()).toEqual(['createLocalModelReceiver', 'createModelReceiverState'])
+  expect(Object.keys(root).sort()).toEqual([
+    'createLocalModelReceiver',
+    'createLocalToolReceiver',
+    'createModelReceiverState',
+    'createToolReceiverState',
+  ])
+})
+
+it('keeps the independent Tool receiver and its saved result across host reassembly', async () => {
+  const { createLocalToolReceiver, createToolReceiverState } =
+    await import('@omne-harness/agent-host-local')
+  const { createToolReceiverFixture } = await import('@omne-harness/agent/testing')
+  const fixture = await createToolReceiverFixture()
+  const state = createToolReceiverState<string>()
+  expect(
+    createLocalToolReceiver(
+      { ...fixture.dependencies, provider: { ...fixture.dependencies.provider, received: null } },
+      state,
+    ),
+  ).toEqual({ failure: { kind: 'unsupported' } })
+  const receiver = createLocalToolReceiver(fixture.dependencies, state)
+  if ('failure' in receiver) throw new Error('Tool receiver unavailable')
+  const input = {
+    access: fixture.access,
+    delivery: fixture.delivery,
+    signal: new AbortController().signal,
+  }
+  const saved = await receiver.ok.push(input)
+  expect(saved).toHaveProperty('ok')
+  const rebuilt = createLocalToolReceiver(fixture.dependencies, state)
+  if ('failure' in rebuilt) throw new Error('Tool receiver unavailable')
+  expect(await rebuilt.ok.push(input)).toEqual(saved)
+  const loaded = await fixture.journal.port.load({
+    ...fixture.access,
+    execution: fixture.execution,
+  })
+  expect(loaded).toHaveProperty('ok.entries', [
+    expect.objectContaining({
+      kind: 'received',
+      delivery: expect.objectContaining({ producer: 'tool' }),
+    }),
+  ])
 })
 
 it('assembles the real host receiver, saves through the common provider and retries the same handoff', async () => {
