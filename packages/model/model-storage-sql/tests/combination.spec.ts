@@ -2,7 +2,7 @@
 // combination for one tenant domain, and a construction that checks materials verifies the code
 // digests of both. The combination guarantee itself belongs to the session storage combination row
 // of the application (L-APP).
-import { copyFileSync, mkdtempSync, rmSync, appendFileSync } from 'node:fs'
+import { appendFileSync, copyFileSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -95,7 +95,7 @@ describe('the combination with the session log', () => {
     const model = modelStorageMaterials()
     const call = model.readHandlers.find(item => item.handler === CALL_HANDLER)
     if (call === undefined) throw new Error('no model.call handler')
-    const dir = mkdtempSync(join(tmpdir(), 'model-materials-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-materials-')))
     try {
       const copy = join(dir, 'handler-call.js')
       copyFileSync(fileURLToPath(call.moduleUrl), copy)
