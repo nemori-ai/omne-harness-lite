@@ -56,9 +56,10 @@ export function slotDeadline(config, settleMs, env = process.env) {
       // Ignore an unfinished append until the runner completes that record.
       const lines = readFileSync(path, 'utf8').split('\n')
       const line = lines.at(-2)
-      const stage = line !== undefined
-        ? parseStage(line)
-        : { phase: 'slot-wait', startedAt: queuedAt, timeoutMs: waitMs + pollMs }
+      const stage =
+        line !== undefined
+          ? parseStage(line)
+          : { phase: 'slot-wait', startedAt: queuedAt, timeoutMs: waitMs + pollMs }
       const remainingMs = stage.startedAt + stage.timeoutMs + settleMs - now()
       if (!Number.isFinite(remainingMs)) throw new Error('Invalid deadline stage remaining time')
       return {
