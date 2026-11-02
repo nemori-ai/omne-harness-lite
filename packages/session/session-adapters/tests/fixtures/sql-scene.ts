@@ -51,6 +51,8 @@ import {
   manifestDigest,
   type CommitResultV2,
   type ReceiptV2,
+  type ReadRequest,
+  type ReadResult,
   type RecordedReply,
   type SqlIdentity,
   type SqlMaterialCatalog,
@@ -347,6 +349,10 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
   // Every commit that reaches the storage, with the participants of its commands.
   const commits: string[][] = []
   const inner = storage
+  /** Rewrites what a read answers, to show a reader a durable record that Session never wrote. */
+  const rewriteReads: {
+    current: ((request: ReadRequest, answer: ReadResult) => ReadResult) | null
+  } = { current: null }
   storage = {
     registerCombination: input => inner.registerCombination(input),
     commit: request => {
@@ -354,7 +360,10 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
       return inner.commit(request)
     },
     query: identity => inner.query(identity),
-    read: (request, readOptions) => inner.read(request, readOptions),
+    read: async (request, readOptions) => {
+      const answer = await inner.read(request, readOptions)
+      return rewriteReads.current === null ? answer : rewriteReads.current(request, answer)
+    },
   }
   const registered = await storage.registerCombination({
     ...domain,
@@ -506,6 +515,7 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
     journals,
     view,
     fresh,
+    rewriteReads,
     execution,
     grant: started.receipt.source,
     initial,
