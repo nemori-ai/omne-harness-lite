@@ -1199,6 +1199,7 @@ describe('the translation drives AD-03 replay on real Session entries', () => {
     await mount(ctx, RuntimeContext)
     await mount(ctx, Session)
     await mount(ctx, holder.replay)
+    await mount(ctx, holder.facts)
     const committed = (kinds: readonly string[]) =>
       ctx.parallel(
         'session-cordis-contract/committed',
