@@ -132,63 +132,71 @@ describe('the real session-provider row: on the real storage rows', () => {
 })
 
 describe('the real session-provider row: through the serve tree', () => {
-  it('starts ACTIVE over the release tree, and the ordered shutdown runs its `business` handle first', { timeout: 60_000 }, async () => {
-    const base = makeBase()
-    live.push(() => base.release())
-    const stop = new AbortController()
-    const records: S0Record[] = []
-    const result = await runServe({
-      distribution: {
-        rows: [
-          { id: 'storage', plugin: 'storageRow', config: providerConfig(base.storageRoot) },
-          { id: 'authorization', plugin: 'policyRow', config: {} },
-          {
-            id: 'session-storage',
-            plugin: 'sessionStorageRow',
-            config: {
-              combinationVersion: 'session-composite/1',
-              directoryFile: base.directoryFile,
-              domainRule: 'organization-account/1',
+  it(
+    'starts ACTIVE over the release tree, and the ordered shutdown runs its `business` handle first',
+    { timeout: 60_000 },
+    async () => {
+      const base = makeBase()
+      live.push(() => base.release())
+      const stop = new AbortController()
+      const records: S0Record[] = []
+      const result = await runServe({
+        distribution: {
+          rows: [
+            { id: 'storage', plugin: 'storageRow', config: providerConfig(base.storageRoot) },
+            { id: 'authorization', plugin: 'policyRow', config: {} },
+            {
+              id: 'session-storage',
+              plugin: 'sessionStorageRow',
+              config: {
+                combinationVersion: 'session-composite/1',
+                directoryFile: base.directoryFile,
+                domainRule: 'organization-account/1',
+              },
             },
-          },
-          { id: 'session-provider', plugin: 'sessionProviderRealRow', config: { admission: 'none' } },
-        ],
-      },
-      stateRoot: base.stateRoot,
-      readinessTimeoutMs: 10_000,
-      shutdownDeadlineMs: 5000,
-      stop: stop.signal,
-      plugins: {
-        stubPlugin,
-        storageRow,
-        sessionStorageRow,
-        policyRow: accessPolicyRow(allowAll).plugin,
-        sessionProviderRealRow,
-      },
-      entryObjects: BASE_ENTRY_OBJECTS,
-      write: record => {
-        records.push(record)
-        if (record.kind === 'startup-result') stop.abort('test: startup seen')
-      },
-      stderr: () => {},
-    })
-    const of = (kind: string) => records.filter(record => record.kind === kind)
-    expect(result.exitCode).toBe(0)
-    expect(of('startup-result')[0]).toMatchObject({ accepting: true, outcome: 'ready' })
-    expect(of('row-state').map(record => [record['id'], record['state']])).toEqual([
-      ['storage', 'ACTIVE'],
-      ['authorization', 'ACTIVE'],
-      ['session-storage', 'ACTIVE'],
-      ['session-provider', 'ACTIVE'],
-    ])
-    const stops = of('shutdown-step')
-      .filter(record => record['action'] === 'stop-call')
-      .map(record => [record['row'], record['phase']])
-    expect(stops).toEqual([
-      ['session-provider', 'business'],
-      ['session-storage', 'composition'],
-      ['storage', 'storage'],
-    ])
-    expect(of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
-  })
+            {
+              id: 'session-provider',
+              plugin: 'sessionProviderRealRow',
+              config: { admission: 'none' },
+            },
+          ],
+        },
+        stateRoot: base.stateRoot,
+        readinessTimeoutMs: 10_000,
+        shutdownDeadlineMs: 5000,
+        stop: stop.signal,
+        plugins: {
+          stubPlugin,
+          storageRow,
+          sessionStorageRow,
+          policyRow: accessPolicyRow(allowAll).plugin,
+          sessionProviderRealRow,
+        },
+        entryObjects: BASE_ENTRY_OBJECTS,
+        write: record => {
+          records.push(record)
+          if (record.kind === 'startup-result') stop.abort('test: startup seen')
+        },
+        stderr: () => {},
+      })
+      const of = (kind: string) => records.filter(record => record.kind === kind)
+      expect(result.exitCode).toBe(0)
+      expect(of('startup-result')[0]).toMatchObject({ accepting: true, outcome: 'ready' })
+      expect(of('row-state').map(record => [record['id'], record['state']])).toEqual([
+        ['storage', 'ACTIVE'],
+        ['authorization', 'ACTIVE'],
+        ['session-storage', 'ACTIVE'],
+        ['session-provider', 'ACTIVE'],
+      ])
+      const stops = of('shutdown-step')
+        .filter(record => record['action'] === 'stop-call')
+        .map(record => [record['row'], record['phase']])
+      expect(stops).toEqual([
+        ['session-provider', 'business'],
+        ['session-storage', 'composition'],
+        ['storage', 'storage'],
+      ])
+      expect(of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
+    },
+  )
 })

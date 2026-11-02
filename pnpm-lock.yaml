@@ -161,12 +161,18 @@ importers:
       '@omne-harness/agent':
         specifier: workspace:*
         version: link:../../packages/agent/agent
+      '@omne-harness/agent-context':
+        specifier: workspace:*
+        version: link:../../packages/context/agent-context
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../../packages/agent/agent-contract
       '@omne-harness/agent-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/agent/agent-cordis-contract
+      '@omne-harness/agent-host-local':
+        specifier: workspace:*
+        version: link:../../packages/agent/agent-host-local
       '@omne-harness/authorization':
         specifier: workspace:*
         version: link:../../packages/identity/authorization
@@ -212,12 +218,18 @@ importers:
       '@omne-harness/request-context-contract':
         specifier: workspace:*
         version: link:../../packages/context/request-context-contract
+      '@omne-harness/request-context-cordis':
+        specifier: workspace:*
+        version: link:../../packages/context/request-context-cordis
       '@omne-harness/request-context-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/context/request-context-cordis-contract
       '@omne-harness/runtime-context-contract':
         specifier: workspace:*
         version: link:../../packages/context/runtime-context-contract
+      '@omne-harness/runtime-context-cordis':
+        specifier: workspace:*
+        version: link:../../packages/context/runtime-context-cordis
       '@omne-harness/runtime-context-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/context/runtime-context-cordis-contract
