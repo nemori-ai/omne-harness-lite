@@ -547,14 +547,15 @@ function createMessageHandoff<P>(
     return admit(access, binding.ok, value, held.ok)
   }
 
-  /** Steps 2 to 6 for a bound request and the record its identity holds, if any. */
-  async function admit(
-    access: Access<P>,
-    binding: Binding,
+  /**
+   * What steps 2 and 3 already decide: a refusal, the original outcome of the held record, or a
+   * stale advance. `null`: the request goes on to the intent and the outcome.
+   */
+  async function decidedEarly(
+    bound: Bound,
     value: HandoffPrepare,
     held: PreadmissionRecord | null,
-  ): Reply<HandoffOutcome> {
-    const { bound } = binding
+  ): Promise<Outcome<HandoffOutcome, Failure> | null> {
     const saved = value.kind === 'execution' ? await internal(bound, value) : null
     if (saved !== null && 'failure' in saved) return saved
     if (held !== null) {
@@ -566,6 +567,19 @@ function createMessageHandoff<P>(
       const current = await advances(bound, saved.ok, value)
       if ('failure' in current) return current
     }
+    return null
+  }
+
+  /** Steps 2 to 6 for a bound request and the record its identity holds, if any. */
+  async function admit(
+    access: Access<P>,
+    binding: Binding,
+    value: HandoffPrepare,
+    held: PreadmissionRecord | null,
+  ): Reply<HandoffOutcome> {
+    const { bound } = binding
+    const early = await decidedEarly(bound, value, held)
+    if (early !== null) return early
     let record = held
     if (record === null) {
       const intent = await saveIntent(access, binding, value)
