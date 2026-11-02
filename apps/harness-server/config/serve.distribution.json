@@ -31,11 +31,6 @@
       }
     },
     {
-      "id": "session-ad01",
-      "plugin": "stubPlugin",
-      "config": {}
-    },
-    {
       "id": "session-ad02",
       "plugin": "stubPlugin",
       "config": {}

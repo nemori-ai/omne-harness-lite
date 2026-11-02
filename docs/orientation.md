@@ -278,7 +278,7 @@ flowchart TB
 | 状态 | 元素 |
 | --- | --- |
 | 已接受正文 | 除下两行以外的全部元素与关系。assets · workspace 不在首条路径的发行层里（图中虚线框）。 |
-| 首条路径已装载（图中蓝底） | server-entry、identity、授权适配、session 与 session-adapters、Agent runtime、模型请求 runtime、工具 runtime、runtime-context、request-context、storage、执行环境；工具 runtime 到执行环境的连线（`tool-environments` 行）。执行环境由 `execution-environment`、`execution-files` 与 `execution-host-files` 行装载，只含 `files` 设施和 `host_machine` 的 `files` 提供者。四个工具与 `command` 的真实宿主是 M2 缺口 |
+| 首条路径已装载（图中蓝底） | server-entry、identity、授权适配、session 与 session-adapters、Agent runtime、模型请求 runtime、工具 runtime、runtime-context、request-context、storage、执行环境；工具 runtime 到执行环境的连线（`tool-environments` 行）。执行环境由 `execution-environment`、`execution-files` 与 `execution-host-files` 行装载，只含 `files` 设施和 `host_machine` 的 `files` 提供者。`Shell()`、`Files()` 两个多命令工具、`command` 的真实宿主、terminal 设施与 Windows 执行环境后端是 M2 缺口，进 M2 波 2（L-TOOL 交付；依据 R2-D2 第 1 条） |
 | 已写回，仍有具名缺口 | K-05 的 AD-05/06 日志消费责任与 `session-ad05` 装配行已写回；Model ACK 与 Tool 解除回执的缺口见[核心四项的方向](#核心四项的方向)，不能据本图声称运行接线完成 |
 | 已裁定待写回 | 无 |
 

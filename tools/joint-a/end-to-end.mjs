@@ -14,6 +14,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
+  holdTestSlot,
   SESSION_PATH,
   blockedCount,
   doubleRows,
@@ -38,6 +39,8 @@ import {
   verdict,
   writeJson,
 } from './support.mjs'
+
+holdTestSlot(import.meta.url)
 
 const CREDENTIALS = { alice: 'alice-pw-JOINTA-2f81', bob: 'bob-pw-JOINTA-73ce' }
 const INPUT_TEXT = 'joint-a S2 first round'
