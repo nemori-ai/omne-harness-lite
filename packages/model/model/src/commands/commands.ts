@@ -67,12 +67,14 @@ import {
   type ModelCommandCore,
 } from './state.ts'
 import type { CallDocument, DispatchDocument } from './types.ts'
+import { initialRunPort, type BoundCommandAccess } from './initial.ts'
 
 // The 22 methods of ModelCommands over the shared core: for each, the order of its checks, the
 // change it makes to the call document and the receipt that recovers it.
 
 export function callCommands<P>(
   core: ModelCommandCore<P>,
+  bound?: BoundCommandAccess<P>,
 ): Pick<ModelCommands<P>, 'admit' | 'recall' | 'query' | 'dispatches' | 'control' | 'settle'> {
   return {
     admit: raw => {
@@ -262,7 +264,7 @@ export function callCommands<P>(
             expected: input.expected,
             termination: input.termination,
           },
-          check: call => core.execution(input, call),
+          check: call => core.execution(input, call, bound),
           apply: draft => {
             const call = draft.call
             if (!call) return { failure: invalid('call', 'not-found') }
@@ -309,6 +311,7 @@ export function callCommands<P>(
 
 export function recoveryCommands<P>(
   core: ModelCommandCore<P>,
+  bound?: BoundCommandAccess<P>,
 ): Pick<ModelCommands<P>, 'scanPending' | 'loadRecovery' | 'claim'> {
   const scans = new Map<string, { tenant: string; calls: readonly ModelCallId[]; offset: number }>()
   function scanPage(scope: string, after: string | null, limit: number) {
@@ -380,7 +383,16 @@ export function recoveryCommands<P>(
           input,
           method: 'claim',
           fields: { instance: input.instance, continuity: input.continuity },
-          check: call => authFailure(core.authorize(input, 'recovery', call, input.call)),
+          check: call => {
+            if (core.options.initialRun === undefined)
+              return authFailure(core.authorize(input, 'recovery', call, input.call))
+            const checked = initialRunPort(core.options.initialRun)
+              .boundAccess(bound)
+              ?.claim(input, call) ?? {
+              failure: { kind: 'denied' as const, action: 'execution-channel' },
+            }
+            return 'failure' in checked ? checked.failure : null
+          },
           apply: draft => {
             const call = draft.call
             if (!call) return { failure: invalid('call', 'not-found') }
@@ -430,6 +442,7 @@ export function recoveryCommands<P>(
 
 export function dispatchCommands<P>(
   core: ModelCommandCore<P>,
+  bound?: BoundCommandAccess<P>,
 ): Pick<
   ModelCommands<P>,
   | 'prepareDispatch'
@@ -452,7 +465,7 @@ export function dispatchCommands<P>(
         input,
         method,
         fields,
-        check: call => core.execution(input, call),
+        check: call => core.execution(input, call, bound),
         apply: draft => {
           const call = draft.call
           if (!call) return { failure: invalid('call', 'not-found') }
@@ -629,7 +642,7 @@ export function dispatchCommands<P>(
             dispatch: input.dispatch,
             receipt: input.receipt,
           },
-          check: call => core.execution(input, call),
+          check: call => core.execution(input, call, bound),
           apply: draft => {
             const call = draft.call
             if (!call) return { failure: invalid('call', 'not-found') }
@@ -724,7 +737,7 @@ export function dispatchCommands<P>(
             window: input.window,
             facts: input.facts,
           },
-          check: call => core.execution(input, call),
+          check: call => core.execution(input, call, bound),
           apply: draft => {
             const call = draft.call
             if (!call) return { failure: invalid('call', 'not-found') }
@@ -835,7 +848,7 @@ export function dispatchCommands<P>(
             expected: input.expected,
             dispatch: input.dispatch,
           },
-          check: call => core.execution(input, call),
+          check: call => core.execution(input, call, bound),
           apply: draft => {
             const call = draft.call
             if (!call) return { failure: invalid('call', 'not-found') }
@@ -908,6 +921,7 @@ export function dispatchCommands<P>(
 
 export function consumptionCommands<P>(
   core: ModelCommandCore<P>,
+  bound?: BoundCommandAccess<P>,
 ): Pick<ModelCommands<P>, 'acquireRead' | 'nextRead' | 'endRead' | 'handoff' | 'advanceCleanup'> {
   return {
     acquireRead: input =>
@@ -1069,7 +1083,7 @@ export function consumptionCommands<P>(
           input,
           method: 'advanceCleanup',
           fields: { instance: input.instance, generation: input.generation },
-          check: call => core.execution(input, call),
+          check: call => core.execution(input, call, bound),
           apply: draft => {
             const call = draft.call
             if (!call) return { failure: invalid('call', 'not-found') }
@@ -1104,11 +1118,14 @@ export function consumptionCommands<P>(
 }
 
 /** All 22 methods over one core. */
-export function modelCommands<P>(core: ModelCommandCore<P>): ModelCommands<P> {
+export function modelCommands<P>(
+  core: ModelCommandCore<P>,
+  bound?: BoundCommandAccess<P>,
+): ModelCommands<P> {
   return {
-    ...callCommands(core),
-    ...recoveryCommands(core),
-    ...dispatchCommands(core),
-    ...consumptionCommands(core),
+    ...callCommands(core, bound),
+    ...recoveryCommands(core, bound),
+    ...dispatchCommands(core, bound),
+    ...consumptionCommands(core, bound),
   } satisfies ModelCommands<P>
 }
