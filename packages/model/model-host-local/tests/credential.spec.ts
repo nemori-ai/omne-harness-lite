@@ -74,6 +74,7 @@ import {
   decodeCredentialId,
   type CredentialQuery,
   type CredentialReference,
+  type QualifiedCredentialQuery,
   type SendFace,
 } from '@omne-harness/model-contract/provider'
 import { deliver } from '@omne-harness/model'
@@ -112,6 +113,44 @@ function face(overrides: Partial<SendFace> = {}): SendFace {
 function ordinary(value: unknown) {
   return JSON.stringify(value)
 }
+
+it('qualified custody selects by access tenant and keeps binding failures distinct', () => {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
+  const path = join(dir, 'store.json')
+  const custodian = createLocalCustodian({ path, factorySecret: FACTORY })
+  const ref = reference()
+  const input: QualifiedCredentialQuery<unknown> = {
+    id: ref.id,
+    purpose: MODEL_SEND,
+    official: true,
+    access: { tenant: ref.tenant, principal: null },
+  }
+  if (!custodian.presentFor || !custodian.resolveFor)
+    throw new Error('qualified custody methods missing')
+  expect(custodian.presentFor(input)).toMatchObject({ kind: 'known', present: false })
+  expect(custodian.resolveFor(input)).toEqual({ kind: 'value', scope: 'factory', value: FACTORY })
+  expect(custodian.resolveFor({ ...input, official: false })).toEqual({ kind: 'absent' })
+  custodian.put(ref, SECRET)
+  expect(custodian.presentFor(input)).toMatchObject({ kind: 'known', present: true })
+  expect(custodian.resolveFor(input)).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
+  expect(custodian.resolveFor({ ...input, access: { tenant: tenantB, principal: null } })).toEqual({
+    kind: 'denied',
+  })
+  expect(custodian.presentFor({ ...input, access: { tenant: tenantB, principal: null } })).toEqual({
+    kind: 'denied',
+  })
+  expect(custodian.resolveFor({ ...input, id: credentialId('other') })).toEqual({ kind: 'absent' })
+  custodian.markUnreadable(ref)
+  expect(custodian.resolveFor(input)).toEqual({ kind: 'unreadable' })
+  custodian.revoke(ref)
+  expect(custodian.resolveFor(input)).toEqual({ kind: 'denied' })
+  writeFileSync(path, 'not-json')
+  expect(custodian.presentFor(input)).toEqual({ kind: 'unavailable' })
+  expect(custodian.resolveFor(input)).toEqual({ kind: 'unavailable' })
+  custodian.close()
+  expect(custodian.presentFor(input)).toEqual({ kind: 'denied' })
+  expect(custodian.resolveFor(input)).toEqual({ kind: 'denied' })
+})
 
 it('an authorized send uses the current tenant secret and leaves the call record without it', () => {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))

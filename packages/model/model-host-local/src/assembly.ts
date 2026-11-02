@@ -27,6 +27,10 @@ import {
   type PiSendResources,
   type PiSendResourcesConfig,
 } from './send-resources.ts'
+import type {
+  ModelMaterializationEvidenceReader,
+  PiMaterializationOptions,
+} from './materialization-proof.ts'
 
 /**
  * The refusal of a preparation lease after the assembly's `close` starts. It names the assembly,
@@ -40,7 +44,7 @@ const ASSEMBLY_CLOSED: ModelFailure = Object.freeze({
 
 export type LocalModelConfig<P> = Readonly<{
   /** The credential custody, e.g. a local custodian. The send boundary resolves through it. */
-  credentials: CredentialPort
+  credentials: CredentialPort<P>
   /** The authority of calls, dispatches and accounts. The caller owns it and keeps it open. */
   commands: ModelCommands<P>
   coordinator: SendCoordinator<P>
@@ -52,6 +56,7 @@ export type LocalModelConfig<P> = Readonly<{
   routes: Readonly<Record<string, PiRoute>>
   transportLimits: PiTransportLimits
   maxRetainedAttempts: number
+  materialization: PiMaterializationOptions
   /**
    * The preparation resources: the leases read call facts from `commands` and take bindings from
    * `families`. The margin is the family's own configuration; this package adds no default.
@@ -66,6 +71,7 @@ export type LocalModelConfig<P> = Readonly<{
 
 export type LocalModel<P> = Readonly<{
   send: ModelSendBoundary<P>
+  materialization: ModelMaterializationEvidenceReader
   /**
    * The production `ModelPreparationResources` over `families` and `commands`. The caller releases
    * every lease it acquires. After `close` starts, `acquire` returns `unavailable` with the
@@ -133,6 +139,14 @@ export function assembleOver<P, N extends ClosableNetwork>(
   input: Readonly<{ config: LocalModelConfig<P>; factories: AssemblyFactories<P, N> }>,
 ): LocalModel<P> {
   const { config, factories } = input
+  if (
+    !config.materialization ||
+    !Number.isSafeInteger(config.materialization.maxRecords) ||
+    config.materialization.maxRecords <= 0 ||
+    config.materialization.maxRecords < config.maxRetainedAttempts ||
+    typeof config.materialization.execution !== 'function'
+  )
+    throw new RangeError('materialization.maxRecords must cover maxRetainedAttempts')
   // What needs no network is checked and built first, so its refusal leaves nothing open.
   const options = config.preparation
   if (typeof options !== 'object' || options === null)
@@ -152,6 +166,7 @@ export function assembleOver<P, N extends ClosableNetwork>(
       families: config.families,
       routes: config.routes,
       limits: config.transportLimits,
+      materialization: config.materialization,
     })
     send = createModelSendBoundary<P>({
       commands: config.commands,
@@ -186,6 +201,7 @@ export function assembleOver<P, N extends ClosableNetwork>(
   }
   return {
     send,
+    materialization: opened.materialization,
     preparation,
     close() {
       closing ??= closeAll()

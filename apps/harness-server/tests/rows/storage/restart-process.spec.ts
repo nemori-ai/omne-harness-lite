@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, test } from 'vitest'
+import { TENANT_A, TENANT_B, textOf } from './fixtures/tree.ts'
 
 const child = fileURLToPath(new URL('./fixtures/child.ts', import.meta.url))
 
@@ -66,5 +67,19 @@ describe('restart across processes (acceptance 2)', () => {
       report: { overall: 'settled' },
       outcome: { ok: expect.anything() },
     })
+    for (const result of [first, second]) {
+      expect(result.parsed).toMatchObject({
+        listing: {
+          kind: 'ready',
+          revision: '2',
+          entries: [{ tenant: textOf(TENANT_A) }, { tenant: textOf(TENANT_B) }],
+        },
+        denied: { kind: 'denied' },
+      })
+      expect('listing' in result.parsed && result.parsed.listing).toEqual(
+        'listing' in second.parsed && second.parsed.listing,
+      )
+      expect('denied' in result.parsed && result.parsed.denied).toEqual({ kind: 'denied' })
+    }
   })
 })

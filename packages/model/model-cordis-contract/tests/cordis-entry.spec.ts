@@ -6,6 +6,8 @@ it('the cordis entry exports the service definitions with their keys, and no oth
     unknown
   >
   const definitions = {
+    ModelStreamReferencesService: 'modelStreamReferences',
+    ModelStreamObservationService: 'modelStreamObservation',
     ModelClockService: 'modelClock',
     ModelCommandsService: 'modelCommands',
     ModelConverterAuthorityService: 'modelConverterAuthority',

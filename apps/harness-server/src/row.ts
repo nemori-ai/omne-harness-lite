@@ -133,9 +133,13 @@ export function defineRow(definition: RowDefinition): Plugin.Object {
   } else {
     const { plugin } = definition
     checkWrappedInject(row, plugin, manifest.injects)
+    const wrappedInject = Inject.resolve(plugin.inject)
+    const configuredInject = Object.values(wrappedInject).some(config => config !== null)
+      ? Object.assign(Object.fromEntries(inject.map(name => [name, null])), wrappedInject)
+      : inject
     wrapper = {
       name: row,
-      inject,
+      inject: configuredInject,
       ...(plugin.Config === undefined ? {} : { Config: plugin.Config }),
       apply: (ctx: Context, config: unknown) => runWrapped(plugin, ctx, config),
     }

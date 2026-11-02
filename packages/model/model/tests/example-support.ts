@@ -173,7 +173,8 @@ export function createExampleAssembly(script: {
       maxRetainedAttempts: 8,
       credentials: {
         present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind: 'value', scope: 'factory', value: 'synthetic-example-only' }),
+        resolve: () => ({ kind: 'unavailable' }),
+        resolveFor: () => ({ kind: 'value', scope: 'factory', value: 'synthetic-example-only' }),
       },
       sources: [
         {
