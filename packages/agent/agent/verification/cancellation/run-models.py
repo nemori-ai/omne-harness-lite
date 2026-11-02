@@ -97,6 +97,16 @@ def bridge(args):
     return completed.returncode
 
 
+def validate_config(case, config):
+    kind, expected = CASES[case]
+    if kind != "temporal":
+        return
+    lines = [line.split("\\*", 1)[0].strip() for line in config.splitlines()]
+    declarations = [line for line in lines if re.match(r"PROPERT(?:Y|IES)\b", line)]
+    if declarations != [f"PROPERTY {expected}"]:
+        raise ValueError(f"{case} requires exactly PROPERTY {expected}")
+
+
 def judge(case, code, output, timed_out=False):
     kind, property_name = CASES[case]
     if timed_out:
@@ -178,6 +188,9 @@ def native(args):
 def main():
     args = arguments()
     try:
+        if not args.parse_only:
+            for case in args.cases or CASES:
+                validate_config(case, (ROOT / f"{case}.cfg").read_text(encoding="utf-8"))
         if os.name == "nt" and not args.native:
             return bridge(args)
         if not args.native:

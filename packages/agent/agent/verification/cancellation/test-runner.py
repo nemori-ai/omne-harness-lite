@@ -37,6 +37,14 @@ class EvidenceJudgment(unittest.TestCase):
     def test_every_configuration_has_an_expectation(self):
         self.assertEqual(set(RUNNER.CASES), {path.stem for path in ROOT.glob("*.cfg")})
 
+    def test_temporal_config_rejects_wrong_or_multiple_properties(self):
+        RUNNER.validate_config("bad-finish", "PROPERTY EventualTermination\n")
+        for config in ["PROPERTY EventualReception\n",
+                       "PROPERTY EventualTermination\nPROPERTY EventualReception\n",
+                       "PROPERTIES EventualTermination EventualReception\n", ""]:
+            with self.subTest(config=config), self.assertRaises(ValueError):
+                RUNNER.validate_config("bad-finish", config)
+
     def test_temporal_counterexample_has_one_possible_property(self):
         for case, (kind, name) in RUNNER.CASES.items():
             if kind != "temporal":
