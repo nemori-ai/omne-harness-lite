@@ -57,7 +57,7 @@ it('a confirmed new admit supplies a narrow origin and one stable private claim,
     failure: { kind: 'denied', action: 'execution-channel' },
   })
   const execution = unbox(await channel.commands.claim(prepared))
-  expect(channel.qualifyExecution(structuredClone(execution))).toHaveProperty('ok')
+  expect(channel.qualifyExecution({ ...execution })).toHaveProperty('ok')
   const key = core.identity(access)
   if (typeof key !== 'string') throw new Error('tenant')
   const original = memory.documents(key).calls.get(access.call)
@@ -122,9 +122,9 @@ it('parallel channels retain separate claim inputs and cloned gates never grant 
   const [x, y] = await Promise.all([a.commands.claim(unbox(first)), b.commands.claim(unbox(next))])
   const left = unbox(x)
   const right = unbox(y)
-  expect(a.qualifyExecution(structuredClone(left))).toHaveProperty('ok')
+  expect(a.qualifyExecution({ ...left })).toHaveProperty('ok')
   expect(a.qualifyExecution(right)).toMatchObject({ failure: { kind: 'denied' } })
-  expect(b.qualifyExecution(structuredClone(right))).toHaveProperty('ok')
+  expect(b.qualifyExecution({ ...right })).toHaveProperty('ok')
   const forged = modelCommands(core, {
     claim: () => ({ ok: undefined }),
     execution: () => ({ ok: { owner: 'forged', subject: 'forged', revision: '1' } }),

@@ -273,8 +273,8 @@ class InitialRun<P> implements ModelInitialRun<P> {
             if (!live) return Promise.resolve({ failure: denied() })
             const auth = core.authorize(access, 'recovery', undefined, access.call)
             if ('failure' in auth) return Promise.resolve(auth)
-            return core.runRead(access, () =>
-              core.read(access, 'recovery', call => {
+            return core.runRead(access, () => {
+              const result = core.read(access, 'recovery', call => {
                 if (!live) return { failure: denied() }
                 const found = locate(access)
                 if ('failure' in found) return found
@@ -352,8 +352,14 @@ class InitialRun<P> implements ModelInitialRun<P> {
                 return {
                   ok: { ...access, instance, operation, continuity: structuredClone(continuity) },
                 }
-              }),
-            )
+              })
+              return 'failure' in result &&
+                result.failure.kind === 'invalid' &&
+                result.failure.field === 'call' &&
+                result.failure.reason === 'not-found'
+                ? { failure: failure('initial-record-missing') }
+                : result
+            })
           },
           qualifyExecution: gate.execution,
           commands: modelCommands(core, gate),

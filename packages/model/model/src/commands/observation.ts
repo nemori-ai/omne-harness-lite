@@ -196,7 +196,7 @@ export function createModelObservationStorage<P>(
         const call = documents.calls.get(decoded.ok.call)
         const authorized = checkedActor(
           input.authority.authorize({
-            action: 'observe',
+            action: read.purpose === 'current' ? 'facts' : 'observe',
             access: read.access,
             resource: {
               kind: 'call',
@@ -211,6 +211,18 @@ export function createModelObservationStorage<P>(
           (call && call.admission !== decoded.ok.admission)
         )
           return { failure: { kind: 'invalid', field: 'reference', reason: 'binding' } }
+        if (
+          [...documents.operations.values()].some(
+            operation => operation.call === decoded.ok.call && operation.status === 'unknown',
+          )
+        )
+          return {
+            failure: {
+              kind: 'unavailable',
+              dependency: 'stream-references',
+              diagnostic: 'confirmation-unavailable',
+            },
+          }
         if (!call) return { failure: { kind: 'invalid', field: 'call', reason: 'not-found' } }
         return { ok: undefined }
       },

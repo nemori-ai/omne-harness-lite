@@ -1,7 +1,8 @@
 // Real Cordis and the node:sqlite provider from fixture.ts. TestSendStage is a named
 // model-host-local send-stage substitute: it proves dependency/lifetime wiring, not transport.
-import { Context, type Fiber } from '@deepseek-ai/cordis'
+import { Context, symbols, type Fiber } from '@deepseek-ai/cordis'
 import type { SendCoordinator } from '@omne-harness/model'
+import { createModelInitialRun, type ModelObservationLimits } from '@omne-harness/model/commands'
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
 import { decodeDispatchId } from '@omne-harness/model-contract'
 import {
@@ -11,7 +12,10 @@ import {
   modelCredentialKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { afterEach, expect, it, vi } from 'vitest'
-import { createSqlModelRecordsPlugin } from '@omne-harness/model-storage-sql/cordis'
+import {
+  createSqlModelRecordsPlugin,
+  type ModelRecordsActivation,
+} from '@omne-harness/model-storage-sql/cordis'
 import { COMMAND_RESERVE_BYTES } from '../src/index.ts'
 import {
   callId,
@@ -293,4 +297,103 @@ it('matches memory command results through the published service', async () => {
   const recall = { ...input, admission: input.operation }
   expect(await f.ctx.modelCommands.recall(recall)).toEqual(await memory.recall(recall))
   expect(await f.ctx.modelCommands.dispatches(input)).toEqual(await memory.dispatches(input))
+})
+
+const observationLimits: ModelObservationLimits = {
+  maxSnapshotBytes: 100000,
+  maxDeltaBytes: 100000,
+  maxQueuedFrames: 16,
+  maxQueuedBytes: 500000,
+  maxObserversPerTenant: 4,
+  maxObservers: 4,
+  maxPendingSourceOperations: 4,
+  maxRetainedCalls: 8,
+  maxRetainedBytes: 1000000,
+  maxTotalBytes: 5000000,
+  maxQueueResidenceMs: 10000,
+  checkIntervalMs: 1000,
+}
+const observationTiming = {
+  nowMs: () => 0,
+  waitUntil: (_deadline: number, signal: AbortSignal) =>
+    new Promise<'cancelled'>(resolve => {
+      if (signal.aborted) resolve('cancelled')
+      else signal.addEventListener('abort', () => resolve('cancelled'), { once: true })
+    }),
+}
+
+it('passes a frozen pair of the actual records service and source anew on each activation', async () => {
+  const f = scene()
+  const activations: ModelRecordsActivation<Principal>[] = []
+  const run = createModelInitialRun<Principal>({
+    limits: { maxRecords: 8, maxBindings: 2, maxCallsPerBinding: 4 },
+    checkOriginRead: () => ({ ok: undefined }),
+  })
+  const Plugin = createSqlModelRecordsPlugin({
+    inject: [modelCredentialKey],
+    resolve: () => ({
+      ...f.dependencies,
+      initialRun: run,
+      observation: { timing: observationTiming },
+    }),
+    sendStage(_coordinator, activation) {
+      if (!activation) throw new Error('missing activation')
+      activations.push(activation)
+      return { plugin: function PairedSendStage() {}, config: {} }
+    },
+  })
+  const parent = await f.ctx.plugin(Plugin, { ...f.config, observation: observationLimits })
+  const credential = await f.ctx.plugin(f.TestCredential)
+  await parent.await()
+  const first = activations[0]
+  if (!first?.observation || !first.initial) throw new Error('missing pair')
+  expect(Object.isFrozen(first)).toBe(true)
+  expect(Object.isFrozen(first.observation)).toBe(true)
+  expect(first.observation.commands).toBe(Reflect.get(f.ctx.modelCommands, symbols.original))
+  expect(first.observation.commands).toBeInstanceOf(Plugin)
+  for (const property of ['initial', 'observation', 'observations', 'coordinator', 'storage'])
+    expect(Object.hasOwn(first.observation.commands, property)).toBe(false)
+  const input = f.core.admitOf(f.tenant, callId('paired'), opId('admit-paired'))
+  unbox(await f.ctx.modelCommands.admit(input))
+  const channel = unbox(first.initial.openHost({ instance: instanceId('pair') }))
+  const prepared = unbox(await channel.prepare(input))
+  const host = unbox(first.observation.source.openHost())
+  await credential.dispose()
+  await parent.await()
+  expect(first.observation.source.openHost()).toMatchObject({ failure: { kind: 'unavailable' } })
+  host.close()
+  await f.ctx.plugin(f.TestCredential)
+  await parent.await()
+  const second = activations[1]
+  if (!second?.observation || !second.initial) throw new Error('missing replacement pair')
+  expect(second.observation.commands).toBe(Reflect.get(f.ctx.modelCommands, symbols.original))
+  expect(second.observation.commands).not.toBe(first.observation.commands)
+  expect(second.observation.source).not.toBe(first.observation.source)
+  expect(unbox(await channel.prepare(input))).toEqual(prepared)
+  channel.close()
+})
+
+it('rejects half-enabled observation configuration and requires every explicit observation limit', async () => {
+  const f = scene()
+  const Plugin = createSqlModelRecordsPlugin({
+    inject: [],
+    resolve: () => ({ ...f.dependencies, observation: { timing: observationTiming } }),
+    sendStage: () => ({ plugin: function UnusedSendStage() {}, config: {} }),
+  })
+  for (const [plugin, config] of [
+    [Plugin, f.config],
+    [f.Plugin, { ...f.config, observation: observationLimits }],
+  ] as const) {
+    const fiber = f.ctx.plugin(plugin, config)
+    await expect(fiber).rejects.toThrow('both limits and timing')
+    await fiber.dispose()
+  }
+  for (const key of Object.keys(observationLimits)) {
+    const fiber = f.ctx.plugin(Plugin, {
+      ...f.config,
+      observation: { ...observationLimits, [key]: undefined },
+    })
+    await expect(fiber).rejects.toThrow()
+    await fiber.dispose()
+  }
 })

@@ -6,7 +6,9 @@ import {
   createModelObservationStorage,
   modelCommands,
   type ModelCommandStorage,
+  type ModelInitialHostChannel,
 } from '../src/commands/index.ts'
+import * as observationModule from '../src/stream-source.ts'
 import { initialRunPort } from '../src/commands/initial.ts'
 import { MemoryState } from '../src/testing/state.ts'
 import { fixture, instance, unbox } from './memory-fixture.ts'
@@ -78,4 +80,60 @@ it('a storage throw after synchronous work clears confirmation and rethrows the 
   expect(await channel.prepare(f.admit)).toMatchObject({
     failure: { diagnostic: 'confirmation-unavailable' },
   })
+})
+
+it('confirms initial admission before the real observation source sees accepted facts', async () => {
+  const f = fixture()
+  const original = observationModule.createModelObservationSource
+  let channel: ModelInitialHostChannel<typeof f.principal>
+  let prepared: ReturnType<typeof channel.prepare> | undefined
+  vi.spyOn(observationModule, 'createModelObservationSource').mockImplementation(input => {
+    const source = original(input)
+    return {
+      ...source,
+      confirm: facts => {
+        if (facts.state.phase === 'accepted') prepared = channel.prepare(f.admit)
+        source.confirm(facts)
+      },
+    }
+  })
+  const run = createModelInitialRun<typeof f.principal>({
+    limits: { maxRecords: 1, maxBindings: 1, maxCallsPerBinding: 1 },
+    checkOriginRead: () => ({ ok: undefined }),
+  })
+  const memory = new MemoryState(f.options)
+  const bridge = createModelObservationStorage({
+    storage: memory,
+    authority: f.options.authority,
+    initialRun: run,
+    report: () => {},
+    observation: {
+      limits: {
+        maxSnapshotBytes: 100000,
+        maxDeltaBytes: 100000,
+        maxQueuedFrames: 16,
+        maxQueuedBytes: 500000,
+        maxObserversPerTenant: 4,
+        maxObservers: 4,
+        maxPendingSourceOperations: 4,
+        maxRetainedCalls: 8,
+        maxRetainedBytes: 1000000,
+        maxTotalBytes: 5000000,
+        maxQueueResidenceMs: 10000,
+        checkIntervalMs: 1000,
+      },
+      timing: { nowMs: () => 0, waitUntil: () => Promise.resolve('elapsed') },
+    },
+  })
+  const core = createModelCommandsCore({ ...f.options, initialRun: run }, bridge.storage)
+  const initial = createModelInitialExecution({ core, run })
+  channel = unbox(initial.openHost({ instance: instance() }))
+  try {
+    expect(await modelCommands(core).admit(f.admit)).toHaveProperty('ok')
+    expect(prepared).toBeDefined()
+    expect(await prepared).toHaveProperty('ok')
+  } finally {
+    channel.close()
+    bridge.observations?.close()
+  }
 })

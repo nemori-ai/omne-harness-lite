@@ -1,6 +1,13 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import type { SendCoordinator } from '@omne-harness/model'
-import type { ModelSendSource } from '@omne-harness/model/commands'
+import type {
+  ModelInitialExecution,
+  ModelInitialRun,
+  ModelObservationSource,
+  ModelObservationTiming,
+  ModelSendSource,
+} from '@omne-harness/model/commands'
+import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import { ModelCommandsService, modelCommandsKey } from '@omne-harness/model-cordis-contract/cordis'
 import { createSqlModelCommands, type SqlModelCommandsOptions } from './commands.ts'
 import { sqlModelRecordsConfigSchema, type SqlModelRecordsConfig } from './cordis-config.ts'
@@ -12,14 +19,23 @@ export type SqlModelRecordsDependencies<P> = Readonly<
   Pick<SqlModelCommandsOptions<P>, 'storage' | 'domains' | 'authority' | 'evidence' | 'clock'> & {
     manifestDigest: string
     sources: readonly ModelSendSource<P>[]
+    initialRun?: ModelInitialRun<P>
+    observation?: Readonly<{ timing: ModelObservationTiming }>
   }
 >
+export type ModelRecordsActivation<P> = Readonly<{
+  initial: ModelInitialExecution<P> | null
+  observation: Readonly<{ commands: ModelCommands<P>; source: ModelObservationSource<P> }> | null
+}>
 
 export type SqlModelRecordsPluginOptions<P, C> = Readonly<{
   /** Complete static dependency list of resolve; must exclude modelCommands. */
   inject: readonly string[]
   resolve(ctx: Context, config: SqlModelRecordsConfig): SqlModelRecordsDependencies<P>
-  sendStage(coordinator: SendCoordinator<P>): Readonly<{ plugin: Plugin<C>; config: C }>
+  sendStage(
+    coordinator: SendCoordinator<P>,
+    access?: ModelRecordsActivation<P>,
+  ): Readonly<{ plugin: Plugin<C>; config: C }>
 }>
 
 export type SqlModelRecordsPluginClass<P> = {
@@ -65,9 +81,17 @@ export function createSqlModelRecordsPlugin<P, C>(
     constructor(ctx: Context, config: SqlModelRecordsConfig) {
       super(ctx)
       const dependencies = options.resolve(ctx, config)
-      const { commands, coordinator } = createSqlModelCommands({
-        ...config,
-        ...dependencies,
+      if ((dependencies.observation === undefined) !== (config.observation === undefined))
+        throw new TypeError('records observation requires both limits and timing')
+      const { observation: observationLimits, ...data } = config
+      const { observation: observationDependencies, ...resolved } = dependencies
+      const { commands, coordinator, initial, observations } = createSqlModelCommands({
+        ...data,
+        ...resolved,
+        ...(observationLimits === undefined || observationDependencies === undefined
+          ? {}
+          : { observation: { limits: observationLimits, timing: observationDependencies.timing } }),
+        reportConfirmation: event => ctx.logger.warn(`model records: ${event.kind}`),
         combination: {
           combinationVersion: config.combinationVersion,
           manifestDigest: dependencies.manifestDigest,
@@ -97,7 +121,13 @@ export function createSqlModelRecordsPlugin<P, C>(
       this.query = commands.query
       this.dispatches = commands.dispatches
       if (coordinator === null) throw new TypeError('records requires the send coordinator')
-      const send = options.sendStage(coordinator)
+      const activation: ModelRecordsActivation<P> = Object.freeze({
+        initial,
+        observation:
+          observations === null ? null : Object.freeze({ commands: this, source: observations }),
+      })
+      if (observations !== null) ctx.effect(() => () => observations.close())
+      const send = options.sendStage(coordinator, activation)
       ctx.plugin(send.plugin, send.config)
     }
   }
