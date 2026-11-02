@@ -161,16 +161,30 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
   configuration: ToolConfiguration,
 ): ToolProvider<P, B> {
-  checkToolConfiguration(configuration)
-  checkDependencies(dependencies)
-  const { commands, reads, admissions, instances, catalog } = dependencies
-  const { operationIdentities, sourceIssuer } = dependencies
+  const runtime = createToolRuntimeFacade(dependencies, configuration)
   const driver = createToolDriver(dependencies, {
     stepsPerRun: driverStepsPerRun(configuration),
     retryDelayMs: driverRetryDelayMs(configuration),
   })
-  // The release of the installation belongs to the drain (`quiesce` and `handover`).
-  instances.install(driver)
+  dependencies.instances.install(driver)
+  return Object.freeze({
+    runtime,
+    recover: () => unsupported('recover', 'recovery scan'),
+    quiesce: () => unsupported('quiesce', 'drain and handover'),
+    inspectDrain: () => unsupported('inspectDrain', 'drain and handover'),
+    handover: () => unsupported('handover', 'drain and handover'),
+  })
+}
+
+/** Builds the ordinary API without taking ownership of an executor installation. */
+export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
+  dependencies: ToolDependencies<P, B, E>,
+  configuration: ToolConfiguration,
+): ToolRuntime<P, B> {
+  checkToolConfiguration(configuration)
+  checkDependencies(dependencies)
+  const { commands, reads, admissions, instances, catalog } = dependencies
+  const { operationIdentities, sourceIssuer } = dependencies
   const stream = createStreamFacade<P, B>({ directory: instances.directory, reads })
 
   const invoke: ToolRuntime<P, B>['invoke'] = async input => {
@@ -355,11 +369,5 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
     }),
     catalog,
   }
-  return Object.freeze({
-    runtime: Object.freeze(runtime),
-    recover: () => unsupported('recover', 'recovery scan'),
-    quiesce: () => unsupported('quiesce', 'drain and handover'),
-    inspectDrain: () => unsupported('inspectDrain', 'drain and handover'),
-    handover: () => unsupported('handover', 'drain and handover'),
-  })
+  return Object.freeze(runtime)
 }

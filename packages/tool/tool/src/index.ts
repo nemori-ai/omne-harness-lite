@@ -63,7 +63,8 @@ export type {
 // the same way as the ledger: the tenant shape and the canonical digest.
 export { isTenantShape } from './boundary.ts'
 export { digestOf as canonicalDigest } from './evidence.ts'
-export { createToolRuntime, toolRuntimeAdoption } from './runtime.ts'
+export { createToolRuntime, createToolRuntimeFacade, toolRuntimeAdoption } from './runtime.ts'
+export { createToolDriver, type ToolDriverHandle, type DriverPolicy } from './driver.ts'
 export { createToolFactAcknowledgementGuard } from './fact-acknowledgements.ts'
 export {
   createTools,
