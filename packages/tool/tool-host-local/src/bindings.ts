@@ -90,8 +90,8 @@ export type ToolBindingSelection<P, E, B extends ContentBlock> = Readonly<{
 }>
 
 /**
- * The registry plus the three things that only this host's other parts use: `listings` for the
- * Catalog, `pin` for the resolution of a fixed request, and `retire` for the end of a fiber.
+ * Local extensions let the Catalog read listings, callers pin current keys or selected
+ * registrations, and the assembly retire an author's fiber.
  */
 export interface LocalToolBindingRegistry<P, E, B extends ContentBlock>
   extends ToolBindingRegistry<P, E, B>, ToolListingSource<P> {
