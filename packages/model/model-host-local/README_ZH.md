@@ -26,7 +26,11 @@
 
 ## 使用
 
-独立程序从根入口取得 `createLocalCustodian` 与 `openLocalCustodian`，不启动 Cordis。要发出真实请求时，程序从根入口取得 `assembleLocalModel`，给出保管库、`ModelCommands`、`SendCoordinator`、组合后的家族、网络配置、路由、限额与准备选项，得到 model 的发送边界 `send`、计量准备资源 `preparation` 与 `close`。`close` 开始后，`preparation` 拒绝新的租约；调用方在关闭前取得的租约仍可使用，直到调用方释放它。Cordis 宿主从 `./cordis` 装载 `LocalCredentialPlugin`，需要时用 `deliverInjected` 经静态注入发送。宿主插件是 `createModelRuntimeLocalPlugin` 与 `createModelRequestPreparationPlugin` 造出的类：它们的对象选项（运行提供者、观察资格、家族绑定、凭据补全）不可序列化，由创建插件类的装配给出。准备插件同时交出租约来源 `resources`，由装配交给请求组装；它不是服务键。发送阶段插件是 `createModelSendStagePlugin(options)` 造出的类：选项是本地发送路径的对象（家族、协调器、网络、路由、限额、准备配置），必需的设置只有 `maxRetainedAttempts`。插件静态注入 `modelCredential` 与 `modelCommands`，提供 `modelSendBoundary`，退出时先撤回自己的凭据端口，再关闭发送路径。用法与示例见[使用与定位](docs/context.md)，初始化与释放责任见[Cordis 集成](docs/cordis.md)。选择本成员会安装 Cordis、model-cordis-contract、pi-ai-transport 与 proper-lockfile；直接使用根入口不启动 Cordis，但安装闭包仍含它们。
+首次执行采用进程内运行记录，以及从同次 records 激活取得的一个真实 channel。宿主与发送阶段的 `executionChannel` getter 必须返回这个相同对象。宿主还须取得激活时的原 observation 配对与 `releaseExecution` 回调。回调先 dispose 真实发送子 fiber，等待其关闭，再关闭 channel，期间保持 commands 父 fiber 存活。对象接线见 [Cordis 集成](docs/cordis.md#首次通道与同源观察)，行为见[规格](SPEC.md#首次执行与公共观察接线)。生产主体映射和应用安装仍由应用负责，首次记录不提供重启恢复或后继接管。
+
+本地发送配置必须给出 `materialization: { maxRecords, execution }`。`maxRecords` 须为显式正安全整数，且不小于 `maxRetainedAttempts`。发送资源和本地装配都交出只读的 `materialization` reader，入口证据适配器可经发送阶段的 `installMaterialization` 安装它。reader 验证真实产出处的记录，形状相同的回执不证明来源。用法见[本地发送路径](docs/context.md#本地发送路径)，行为见[发送资源](SPEC.md#发送资源)。
+
+独立程序从根入口取得 `createLocalCustodian` 与 `openLocalCustodian`，不启动 Cordis。要发出真实请求时，程序从根入口取得 `assembleLocalModel`，给出保管库、`ModelCommands`、`SendCoordinator`、组合后的家族、网络配置、路由、限额、物化与准备选项，得到 model 的发送边界 `send`、计量准备资源 `preparation`、证据 reader `materialization` 与 `close`。`close` 开始后，`preparation` 拒绝新的租约；调用方在关闭前取得的租约仍可使用，直到调用方释放它。Cordis 宿主从 `./cordis` 装载 `LocalCredentialPlugin`，需要时用 `deliverInjected` 经静态注入发送。宿主插件是 `createModelRuntimeLocalPlugin` 与 `createModelRequestPreparationPlugin` 造出的类：它们的对象选项（运行提供者、观察资格、家族绑定、凭据补全）不可序列化，由创建插件类的装配给出。准备插件同时交出租约来源 `resources`，由装配交给请求组装；它不是服务键。发送阶段插件是 `createModelSendStagePlugin(options)` 造出的类：选项是本地发送路径的对象（家族、协调器、网络、路由、限额、物化与准备配置），必需的设置只有 `maxRetainedAttempts`。插件静态注入 `modelCredential` 与 `modelCommands`，提供 `modelSendBoundary`，退出时先撤回自己的凭据端口，再关闭发送路径。用法与示例见[使用与定位](docs/context.md)，初始化与释放责任见[Cordis 集成](docs/cordis.md)。选择本成员会安装 Cordis、model-cordis-contract、pi-ai-transport 与 proper-lockfile；直接使用根入口不启动 Cordis，但安装闭包仍含它们。
 
 ### 保管库初始化命令
 

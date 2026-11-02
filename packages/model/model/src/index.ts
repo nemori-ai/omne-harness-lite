@@ -2,6 +2,8 @@ export { deliver, type CallRecord, type SendLog } from './deliver.ts'
 export {
   judgeGate,
   judgePresence,
+  judgeQualifiedPresence,
+  judgeQualifiedResolution,
   judgeResolution,
   type Binding,
   type BindingLife,

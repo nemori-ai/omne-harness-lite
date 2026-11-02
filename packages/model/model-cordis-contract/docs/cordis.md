@@ -8,7 +8,7 @@
 
 精确声明见 [public-api](public-api.md#服务定义与入口)。
 
-凭据的 ModelCredentialService、modelCredential 键和 Context 增补已在本定义入口的 [`./cordis`](public-api.md#凭据服务定义)落地，是唯一定义。服务键为 `modelCredential`，是抽象定义，只有 `present` 与 `resolve`，诊断读取不在服务上。定义不持有端口；实现不得把端口或保管者放在服务实例上，须放进闭包，model-host-local 的 `./cordis` 中的 `LocalCredentialPlugin` 这样封住它。定义引用 model-contract 的凭据操作类型，不导入 model。`LocalCredentialPlugin` 在 model-host-local 的 `./cordis` 继承这个定义。model 不依赖本包。服务不核验调用方资格：`SendFace` 的授权字段和引用里的 `tenant` 都由调用方自报，同一 isolate 的任意插件可以请求另一租户的凭据。这一项在 [SPEC](../SPEC.md#凭据服务)登记为未决。
+凭据的 ModelCredentialService、modelCredential 键和 Context 增补已在本定义入口的 [`./cordis`](public-api.md#凭据服务定义)落地，是唯一定义。服务键为 `modelCredential`，是抽象定义，保留 `present` 与 `resolve`，并有非抽象可选的同步 `presentFor` 与 `resolveFor`，诊断读取不在服务上。定义不持有端口；实现不得把端口或保管者放在服务实例上，须放进闭包，model-host-local 的 `./cordis` 中的 `LocalCredentialPlugin` 这样封住它。定义引用 model-contract 的凭据操作类型，不导入 model。`LocalCredentialPlugin` 在 model-host-local 的 `./cordis` 继承这个定义。model 不依赖本包。服务不核验调用方资格：`SendFace` 的授权字段和引用里的 `tenant` 都由调用方自报，同一 isolate 的任意插件可以请求另一租户的凭据。这一项在 [SPEC](../SPEC.md#凭据服务)登记为未决。
 
 model-cordis-contract 的根只导出纯类型，Cordis 值和增补仅在 ./cordis；安装该包明确带入 Cordis。./cordis 的实例目录与转换目录在运行时调用 kernel-basis `./cordis` 的 [`registerInCallerFiber`](../../../assembly/kernel-basis/SPEC.md#调用方-fiber-登记辅助)，所以安装该包也带入 `@omne-harness/kernel-basis`。业务操作使用抽象 Service；实例与转换目录保留定义自有的具体登记逻辑，限 IC-3 允许的范围。业务插件及阶段适配器归 model-host-local；可复用领域执行归不依赖 Cordis 的 model。
 
@@ -69,3 +69,9 @@ Model 的全部能力不集中到一个必需依赖集合。下表补足独立�
 | modelConverters | ModelConverterCatalog / ModelConvertersService | 定义自有的具体注册服务；宿主装载，系统装配贡献时核当前资格 |
 
 目录为定义自有的具体 Service，其他行为端口为抽象 Service。宿主装载唯一 ModelConvertersService，不复制键或方法签名。这里没有新增 ModelInputMeterService 或每个供应商的全局键。计量和传输适配由提供者按固定 adoption 取得，具体算法作为依赖注入。新增算法不扩大普通消费者权限。源实现接管时须生成实际服务图核对本表，不能把表当已经存在的声明。
+
+## 公共观察与凭据兼容入口
+
+`ModelStreamReferencesService<P>` 与 `ModelStreamObservationService<P>` 分别提供 `modelStreamReferences` 与 `modelStreamObservation`。键常量取自定义类，方法签名取自 model-contract，Context 成员可选且以 `unknown` 表达主体。两服务的消费者为 server-entry 的 AC-07，提供与安装在联调 D 完成。这是当前消费者安装规则的具名例外，抽象定义不证明安装或观察资格。定义的发布、fiber 撤除及独立键由 [`service-definitions.spec.ts`](../tests/service-definitions.spec.ts) 验证。
+
+`ModelCredentialService<P = unknown>` 的旧构造与子类保持兼容。新路径只交给受信发送边界，发送 `access` 中主体的两种来源及同一调用绑定限制见 [Model 凭据契约](../../model-contract/SPEC.md#342-凭据引用与解析端口)。提供者只同步核验租户绑定及 `official` 工厂条件，不核主体来源或 `official` 来源。缺新路径不回退旧路径，具体条款与未决限制见 [SPEC](../SPEC.md#凭据服务)。

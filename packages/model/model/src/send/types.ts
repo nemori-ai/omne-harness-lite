@@ -16,6 +16,7 @@ import type {
 export type CredentialSelection = Readonly<{
   id: CredentialId
   scope: 'tenant' | 'factory'
+  official?: boolean
 }>
 export type SendStart =
   | Readonly<{ kind: 'started'; facts: AsyncIterable<TransportFact> }>
@@ -48,7 +49,7 @@ export interface SendResources<P> {
 export type ModelSendBoundaryOptions<P> = Readonly<{
   commands: ModelCommands<P>
   coordinator: SendCoordinator<P>
-  credentials: CredentialPort
+  credentials: CredentialPort<P>
   resources: SendResources<P>
   maxRetainedAttempts: number
 }>

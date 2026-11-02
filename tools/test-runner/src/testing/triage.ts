@@ -126,8 +126,8 @@ export async function rerunInFile(
       '--reporter=default',
       '--reporter=json',
       `--outputFile.json=${reportPath}`,
-      // 类型检查与用例是否通过无关，重跑时关掉。
-      '--typecheck.enabled=false',
+      // 慢层成员脚本已关闭类型检查；重复同一选项会被 Vitest 拒绝。
+      ...(script === 'test:slow' ? [] : ['--typecheck.enabled=false']),
     ],
     {
       cwd: memberDir,
