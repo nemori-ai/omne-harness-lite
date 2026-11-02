@@ -1638,6 +1638,9 @@ importers:
 
   packages/model/model-storage-sql:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -1647,6 +1650,9 @@ importers:
       '@omne-harness/model-contract':
         specifier: workspace:*
         version: link:../model-contract
+      '@omne-harness/model-cordis-contract':
+        specifier: workspace:*
+        version: link:../model-cordis-contract
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result

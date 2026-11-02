@@ -10,6 +10,11 @@ export {
   type UnavailableCause,
 } from './store.ts'
 export { assembleLocalModel, type LocalModel, type LocalModelConfig } from './assembly.ts'
+export type {
+  MaterializationProofInput,
+  ModelMaterializationEvidenceReader,
+  PiMaterializationOptions,
+} from './materialization-proof.ts'
 export {
   createPiSendResources,
   SendResourceDefect,

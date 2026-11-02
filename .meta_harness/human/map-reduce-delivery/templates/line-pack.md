@@ -24,7 +24,7 @@ Reduce 写本包时，把力气花在第 2、3 节。边界写清楚，线才不
 | 本波 attempt 与 binding | <线父卡上本波 attempt 的派发评论与 binding 链接。不抄写分支、taskBase 与写范围。idle 写「无」> |
 | 线轨道与开波同步 | <registry 的轨道 ID、直接上游、FI 源头、目标头与合并提交。只读回实际结果> |
 | 本波的其他卡 | <情形 2 才填：每张卡的链接、revision、attempt 与 binding。taskBase 都是父分支起点，写范围在线父卡 attempt 之内。规则归 `integration.md`「本波有几张卡」。情形 1 写「无」> |
-| 线父分支 | <binding 的 branch，形如 `<用户名>/<线短名>-w<波号>`，起点是 binding 的 taskBase。线负责人开工时建立并推送，在它的工作树上对本波 attempt 运行 `start`，是唯一写者> |
+| 线父分支 | <binding 的 branch，形如 `<用户名>/<线短名>-w<波号>`，起点是 binding 的 taskBase。Reduce 在开波 FI 后建好并推送；线负责人读回该分支，在它的工作树上对本波 attempt 运行 `start`，是唯一写者> |
 | 线级上下文地图与拥有者入口 | <实际工作树中的地图路径、先读正文与专项技能> |
 
 ## 2. 本线里程碑的目标、边界与验收

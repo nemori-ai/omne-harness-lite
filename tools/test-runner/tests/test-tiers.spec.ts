@@ -37,7 +37,7 @@ import {
   typecheckArgs,
 } from '../src/testing/turbo.ts'
 import { slugOf } from '../src/testing/run.ts'
-import { triage, triageSummary } from '../src/testing/triage.ts'
+import { rerunInFile, triage, triageSummary } from '../src/testing/triage.ts'
 import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/core/workspace'
 
 const ROOT_DEFINITION = fileURLToPath(new URL('../../../vitest.tiers.mts', import.meta.url))
@@ -634,6 +634,45 @@ describe('真起 vitest：带过滤的运行要么选中要么失败（#737）',
     const none = vitestWith(quickOnly, ['--mode', 'slow'])
     expect(none.status, none.output).toBe(0)
     expect(none.ran).toEqual([])
+  })
+
+  it('慢层归因重跑不重复类型开关，真实成功与失败都能执行', { tags: ['slow'] }, async () => {
+    const subject = project({
+      'rerun.spec.ts': [
+        "test('会通过', { tags: ['slow'] }, () => {})",
+        "test('会失败', { tags: ['slow'] }, () => { throw new Error('expected failure') })",
+      ].join('\n'),
+    })
+    writeFileSync(
+      join(subject, 'package.json'),
+      JSON.stringify({
+        name: 'slow-triage-fixture',
+        private: true,
+        scripts: {
+          'test:slow': `${JSON.stringify(process.execPath)} ${JSON.stringify(VITEST)} run --mode slow --typecheck.enabled=false`,
+        },
+      }),
+    )
+    const output = join(subject, 'triage')
+    mkdirSync(output)
+    const outcomes = []
+    for (const test of ['会通过', '会失败', undefined]) {
+      outcomes.push(
+        await rerunInFile(
+          subject,
+          'test:slow',
+          '.',
+          'tests/rerun.spec.ts',
+          test,
+          join(output, String(outcomes.length)),
+        ),
+      )
+    }
+    expect(outcomes, readFileSync(join(output, '0.log'), 'utf8')).toEqual([
+      'passed',
+      'failed',
+      'failed',
+    ])
   })
 
   it(

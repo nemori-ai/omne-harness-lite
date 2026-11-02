@@ -82,6 +82,7 @@ export type {
   CredentialQuery,
   CredentialReference,
   CredentialResolution,
+  QualifiedCredentialQuery,
   SendFace,
 } from '../credential.ts'
 export { MODEL_SEND } from '../credential.ts'

@@ -5,7 +5,14 @@ import type { SendCoordinator } from '@omne-harness/model'
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import {
   createModelCommandsCore,
+  createModelInitialExecution,
+  createModelObservationStorage,
   modelCommands,
+  type ModelInitialExecution,
+  type ModelObservationSource,
+  type ModelObservationLimits,
+  type ModelObservationTiming,
+  type ModelConfirmationDiagnostic,
   type ModelCommandsCoreOptions,
   type ModelSendSource,
 } from '@omne-harness/model/commands'
@@ -39,6 +46,8 @@ export type SqlModelCommandsOptions<P> = ModelCommandsCoreOptions<P> &
      * Without it the result has no coordinator.
      */
     send?: SendMirrorOptions & Readonly<{ sources: readonly ModelSendSource<P>[] }>
+    observation?: Readonly<{ limits: ModelObservationLimits; timing: ModelObservationTiming }>
+    reportConfirmation?(event: ModelConfirmationDiagnostic): void
   }>
 
 /**
@@ -48,6 +57,8 @@ export type SqlModelCommandsOptions<P> = ModelCommandsCoreOptions<P> &
 export type SqlModelCommands<P> = Readonly<{
   commands: ModelCommands<P>
   coordinator: SendCoordinator<P> | null
+  initial: ModelInitialExecution<P> | null
+  observations: ModelObservationSource<P> | null
 }>
 
 /**
@@ -57,7 +68,7 @@ export type SqlModelCommands<P> = Readonly<{
 export function createSqlModelCommands<P>(
   options: SqlModelCommandsOptions<P>,
 ): SqlModelCommands<P> {
-  const { owners, authority, evidence, clock, limits } = options
+  const { owners, authority, evidence, clock, limits, initialRun } = options
   if (!Number.isSafeInteger(limits.scanPageCalls) || limits.scanPageCalls > PENDING_PAGE_MAX)
     throw new RangeError(`scanPageCalls is above the model.pending page of ${PENDING_PAGE_MAX}`)
   const storage = createSqlModelStorage({
@@ -73,20 +84,49 @@ export function createSqlModelCommands<P>(
     ...(options.unresolvedLimit === undefined ? {} : { unresolvedLimit: options.unresolvedLimit }),
   })
   const { send } = options
+  const observed =
+    initialRun === undefined && options.observation === undefined
+      ? null
+      : createModelObservationStorage({
+          storage,
+          authority,
+          ...(initialRun === undefined ? {} : { initialRun }),
+          ...(options.observation === undefined ? {} : { observation: options.observation }),
+          report: options.reportConfirmation ?? (() => {}),
+        })
+  const confirmedStorage = observed?.storage ?? storage
   const mirror =
     send === undefined
       ? null
-      : createSendMirror(storage, {
+      : createSendMirror(confirmedStorage, {
           mirrorBytes: send.mirrorBytes,
           ...(send.maxClaims === undefined ? {} : { maxClaims: send.maxClaims }),
         })
   const core = createModelCommandsCore(
-    { owners, authority, evidence, clock, limits },
-    mirror?.storage ?? storage,
+    {
+      owners,
+      authority,
+      evidence,
+      clock,
+      limits,
+      ...(initialRun === undefined ? {} : { initialRun }),
+    },
+    mirror?.storage ?? confirmedStorage,
   )
   return {
     commands: modelCommands(core),
     coordinator:
       mirror === null || send === undefined ? null : mirror.coordinator(core, send.sources),
+    initial:
+      initialRun === undefined
+        ? null
+        : createModelInitialExecution({
+            run: initialRun,
+            core,
+            ...(mirror === null || send === undefined
+              ? {}
+              : { coordinator: bound => mirror.coordinator(core, send.sources, bound) }),
+          }),
+    observations: observed?.observations ?? null,
   }
 }
