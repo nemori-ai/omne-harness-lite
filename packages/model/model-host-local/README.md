@@ -68,6 +68,88 @@ The Turbo test tasks build this package and its dependencies before they run the
 
 The tests cover the five resolution results, tenant isolation, rotation and revocation, file corruption, close, cross-process update, and unknown save confirmation. They use the real Cordis 4.0.4 to check plugin publication and removal. The fast tests check the credential slot, the ownership of materialized transports, release, and close of the send resources. They also check that the assembly refuses new preparation leases after `close` starts, and that a lease from before `close` still meters and releases. The slow test replays the recorded SSE of both families from a local HTTPS server. It drives calls through the assembled send path and the Model runtime. It checks the `Bearer` credential, the single termination, the arrival of the account, and the payable amount. The slow gate replays the four real recordings through the same assembled path. Only the manual recorder sends real requests through the proxy. The continuous tests send no real request. The tests do not show other host capabilities. They do not show lock semantics across machines or on a network file system.
 
+## Configured runtime host
+
+`createConfiguredModelRuntimeLocalPlugin` from `@omne-harness/model-host-local/cordis`
+constructs the real Model runtime through the existing local host lifecycle.
+Its static dependencies are `modelCommands`, `modelClock`, and `modelHostAuthority`.
+It publishes `modelRuntime` and `modelInstanceHost` after the driver binds.
+Quiesce, drive drainage, result push shutdown, and service withdrawal retain their
+existing order. See the [host behavior](SPEC.md#宿主插件) and
+[result push behavior](SPEC.md#运行门面与结果推送).
+
+The factory accepts objects in `options`. The plugin configuration contains only
+the following 17 required numbers. There are no numeric defaults.
+
+| Group     | Field                         | Accepted values             |
+| --------- | ----------------------------- | --------------------------- |
+| `host`    | `concurrencyLimit`            | Positive safe integer       |
+| `host`    | `wakeCapacity`                | Positive safe integer       |
+| `host`    | `scanBatchSize`               | Positive safe integer       |
+| `host`    | `scanIntervalMs`              | Non-negative safe integer   |
+| `runtime` | `outputBatchBytes`            | Positive finite integer     |
+| `runtime` | `outputBatchDelayMs`          | Non-negative finite integer |
+| `runtime` | `observerBufferBytes`         | Positive finite integer     |
+| `runtime` | `observerCheckIntervalMs`     | Positive safe integer       |
+| `runtime` | `readIdleMs`                  | Positive finite integer     |
+| `runtime` | `resultPageTargetBytes`       | Positive finite integer     |
+| `runtime` | `retryBackoffMs`              | Non-negative finite integer |
+| `runtime` | `cleanupRetryMs`              | Non-negative finite integer |
+| `results` | `maxConcurrentCalls`          | Positive safe integer       |
+| `results` | `maxRedeliveries`             | Non-negative safe integer   |
+| `results` | `maxCleanupSteps`             | Positive safe integer       |
+| `results` | `maxPendingAccountsPerTenant` | Positive safe integer       |
+| `results` | `maxPendingAccounts`          | Positive safe integer       |
+
+Host validation reuses the existing host schema. Runtime and result validation
+follow the existing runtime constructor and result push rules. Those constructors
+also retain their own validation. The two scan fields remain reserved for the
+recovery scanner. This factory does not implement that scanner.
+
+The assembly supplies the complete send boundary through a stage bridge. The
+bridge owns the send resources and must reflect their current availability.
+The factory does not add the send stage as a static dependency. The assembly also
+supplies the observer qualification adapter and retains the ledger for successors:
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+import type { ModelSendBoundary } from '@omne-harness/model-contract/provider'
+import {
+  createConfiguredModelRuntimeLocalPlugin,
+  type ConfiguredModelHostOptions,
+  type ConfiguredModelHostSettings,
+  type ResultPushLedger,
+} from '@omne-harness/model-host-local/cordis'
+
+function installHost(
+  ctx: Context,
+  settings: ConfiguredModelHostSettings,
+  authority: { observe: ConfiguredModelHostOptions['qualifyObservation'] },
+  sendStageBridge: ModelSendBoundary<unknown>,
+  ledger: ResultPushLedger,
+) {
+  const Host = createConfiguredModelRuntimeLocalPlugin({
+    qualifyObservation: access => authority.observe(access),
+    send: { send: (demand, signal) => sendStageBridge.send(demand, signal) },
+    ledger,
+  })
+  return ctx.plugin(Host, settings)
+}
+```
+
+The authority adapter must check current observation access. A live route alone
+does not grant access. Application authorization policy remains with the caller.
+The factory supplies a retry policy whose `inspect` and `decide` return
+`unavailable`. It does not enable retries.
+
+[configured-host.spec.ts](tests/configured-host.spec.ts) uses real Cordis 4.0.4,
+the real runtime, memory commands, a manual clock, and named application adapters.
+Its numeric values come from `runtime-push.spec.ts` for small, bounded fixtures.
+They have no production measurement source and are not production defaults.
+The tests cover configuration rejection, service publication, observation denial,
+dependency withdrawal, ledger release, and send delegation. They do not prove
+application wiring, durable recovery, or the complete 53-obligation assembly.
+
 ## Maintenance
 
 When you change vault behavior, the record format, or the plugin entry, update the [documentation registration](documentation.json), the state shape that model judges, the use of the model-cordis-contract service definition, the group page, and the tests of this package. When the `SendResources` port of model or the transport configuration of pi-ai-transport changes, update the send resources, the local assembly, the SPEC, and the tests. Host capabilities that are not implemented keep their actual status. Do not promise them in the documents ahead of time.
