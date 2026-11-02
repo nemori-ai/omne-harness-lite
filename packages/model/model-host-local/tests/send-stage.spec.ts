@@ -285,6 +285,7 @@ function observing() {
       const resources = sendResourcesOver<unknown>({ config, createTransport })
       return {
         acquire: input => resources.acquire(input),
+        materialization: resources.materialization,
         async close() {
           events.push('resources-close')
           await closeGate
@@ -440,15 +441,25 @@ it('captures the private channel and installs its materialization reader until t
   const events: string[] = []
   const commands = scene.memory.dependencies.commands
   const coordinator = scene.memory.controls.send.coordinator
-  const qualifyExecution = vi.fn(() => ({ ok: { owner: 'host', subject: 'private', revision: '1' } }))
-  const executionChannel = vi.fn(() => ({ ok: {
-    commands, coordinator, qualifyExecution, prepare: vi.fn(), close: vi.fn(),
-  } }))
+  const qualifyExecution = vi.fn(() => ({
+    ok: { owner: 'host', subject: 'private', revision: '1' },
+  }))
+  const executionChannel = vi.fn(() => ({
+    ok: {
+      commands,
+      coordinator,
+      qualifyExecution,
+      prepare: vi.fn(),
+      close: vi.fn(),
+    },
+  }))
   const reader = { prove: vi.fn() }
   const installMaterialization = vi.fn(given => {
     expect(given).toBe(reader)
     events.push('install')
-    return () => { events.push('withdraw') }
+    return () => {
+      events.push('withdraw')
+    }
   })
   const Stage = sendStagePluginOver({
     options: optionsOf(scene, { executionChannel, installMaterialization }),
@@ -457,8 +468,12 @@ it('captures the private channel and installs its materialization reader until t
       expect(config.coordinator).toBe(coordinator)
       expect(config.materialization.execution).toBe(qualifyExecution)
       return {
-        send: { send: vi.fn() }, preparation: { acquire: vi.fn() }, materialization: reader,
-        close: async () => { events.push('close') },
+        send: { send: vi.fn() },
+        preparation: { acquire: vi.fn() },
+        materialization: reader,
+        close: async () => {
+          events.push('close')
+        },
       }
     },
   })
@@ -645,7 +660,7 @@ describe('a send through the plugin', () => {
       send: (input, signal) => ctx.modelSendBoundary.send(input, signal),
     })
     await run.drive(REQUEST)
-    expect(run.results.map(result => result.kind)).toEqual(['started'])
+    expect(run.results).toEqual([expect.objectContaining({ kind: 'started' })])
     // One acquire: the probe is the first transport, the send's own transport the second.
     const [sent] = watch.acquired()
     expect(sent?.reads).toEqual([PLACEHOLDER])
@@ -768,6 +783,7 @@ describe('a send through the plugin', () => {
         const resources = watch.factories.createSendResources(config)
         return {
           acquire: input => resources.acquire(input),
+          materialization: resources.materialization,
           async close() {
             await resources.close()
             throw new Error(cause)

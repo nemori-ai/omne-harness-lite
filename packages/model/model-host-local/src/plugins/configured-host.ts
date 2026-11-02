@@ -17,7 +17,10 @@ import {
 } from './host.ts'
 import type { ResultPushLedger } from './runtime.ts'
 
-export type ConfiguredModelHostOptions = Pick<ModelHostPluginOptions, 'qualifyObservation' | 'executionChannel' | 'releaseExecution' | 'observation'> &
+export type ConfiguredModelHostOptions = Pick<
+  ModelHostPluginOptions,
+  'qualifyObservation' | 'executionChannel' | 'releaseExecution' | 'observation'
+> &
   Readonly<{
     /** The stage bridge owns the send boundary and its resources. */
     send: ModelSendBoundary<unknown>
@@ -59,8 +62,12 @@ export function createConfiguredModelRuntimeLocalPlugin(
 
     constructor(ctx: Context, settings: ConfiguredModelHostSettings) {
       const Plugin = createModelRuntimeLocalPlugin({
-        ...(options.executionChannel !== undefined && { executionChannel: options.executionChannel }),
-        ...(options.releaseExecution !== undefined && { releaseExecution: options.releaseExecution }),
+        ...(options.executionChannel !== undefined && {
+          executionChannel: options.executionChannel,
+        }),
+        ...(options.releaseExecution !== undefined && {
+          releaseExecution: options.releaseExecution,
+        }),
         ...(options.observation !== undefined && { observation: options.observation }),
         qualifyObservation: options.qualifyObservation,
         results: { ledger: options.ledger, limits: settings.results },

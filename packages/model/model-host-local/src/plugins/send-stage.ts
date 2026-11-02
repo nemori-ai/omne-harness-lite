@@ -16,8 +16,7 @@
 // successor plugin has no attempt for it and reads `unknown` from the dispatch record. The unload
 // does not take back a request that is on the wire.
 import type { Context } from '@deepseek-ai/cordis'
-import type { ModelInitialHostChannel } from '@omne-harness/model/commands'
-import type { ModelFailure, Outcome } from '@omne-harness/model-contract'
+import type { ModelInitialExecution } from '@omne-harness/model/commands'
 import type { CredentialPort, ModelSendBoundary } from '@omne-harness/model-contract/provider'
 import {
   ModelCredentialService,
@@ -35,9 +34,8 @@ import type { ModelMaterializationEvidenceReader } from '../materialization-proo
  * leases in the same call; this plugin does not use them.
  */
 export type ModelSendStagePluginOptions<P = unknown> = Readonly<
-  Omit<LocalModelConfig<P>, 'credentials' | 'commands' | 'maxRetainedAttempts'>
-  & {
-    executionChannel?(): Outcome<ModelInitialHostChannel<P>, ModelFailure>
+  Omit<LocalModelConfig<P>, 'credentials' | 'commands' | 'maxRetainedAttempts'> & {
+    executionChannel?(): ReturnType<ModelInitialExecution<P>['openHost']>
     installMaterialization?(reader: ModelMaterializationEvidenceReader): () => void
   }
 >
@@ -116,7 +114,9 @@ export function sendStagePluginOver<P>(
       const credentials = withdrawablePort(credential)
       const captured = options.executionChannel?.()
       if (captured !== undefined && 'failure' in captured)
-        throw new Error(`model send stage: execution channel unavailable (${captured.failure.kind})`)
+        throw new Error(
+          `model send stage: execution channel unavailable (${captured.failure.kind})`,
+        )
       const channel = captured?.ok
       if (channel !== undefined && channel.coordinator === null)
         throw new Error('model send stage: execution channel has no coordinator')
@@ -137,7 +137,9 @@ export function sendStagePluginOver<P>(
         withdrawMaterialization = options.installMaterialization?.(local.materialization)
       } catch (error) {
         credentials.withdraw()
-        void local.close().catch(() => ctx.logger.warn('model send stage: abandoned send path did not close'))
+        void local
+          .close()
+          .catch(() => ctx.logger.warn('model send stage: abandoned send path did not close'))
         throw error
       }
       // The send path lives in these closures: any property of the instance is reachable by every

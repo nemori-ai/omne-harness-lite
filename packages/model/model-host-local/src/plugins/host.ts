@@ -17,7 +17,7 @@ import { Service, symbols, type Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ModelRuntimeProvider } from '@omne-harness/model'
 import type {
-  ModelInitialHostChannel,
+  ModelInitialExecution,
   ModelObservationHost,
   ModelObservationSource,
 } from '@omne-harness/model/commands'
@@ -27,7 +27,6 @@ import type {
   ModelFailure,
   ModelHandle,
   ModelRuntime,
-  Outcome,
   Reply,
 } from '@omne-harness/model-contract'
 import type {
@@ -290,7 +289,7 @@ class HostContribution extends ModelInstanceHostService<unknown> {
  * serialisable values, so they come from the assembly that creates the plugin class.
  */
 export type ModelHostPluginOptions = Readonly<{
-  executionChannel?(): Outcome<ModelInitialHostChannel<unknown>, ModelFailure>
+  executionChannel?(): ReturnType<ModelInitialExecution<unknown>['openHost']>
   /** The entry closes its send child and then the channel after host and push drain. */
   releaseExecution?(): Promise<void>
   observation?: Readonly<{
@@ -364,63 +363,71 @@ export function createModelRuntimeLocalPlugin(
     }
     let observation: ModelObservationHost<unknown> | undefined
     try {
-    const lease = options.observation?.source.openHost()
-    if (lease !== undefined && 'failure' in lease)
-      throw new Error(`model host: observation lease unavailable (${lease.failure.kind})`)
-    observation = lease?.ok
-    const host = createLocalDriverHost({
-      settings,
-      authority: ctx.modelHostAuthority,
-      qualifyObservation: access => options.qualifyObservation(access),
-      report: event => reportOf(ctx, event),
-      ...(observation !== undefined && { observation }),
-    })
-    const stage = createRuntimeStage(
-      {
-        commands: channel?.commands ?? ctx.modelCommands,
+      const lease = options.observation?.source.openHost()
+      if (lease !== undefined && 'failure' in lease)
+        throw new Error(`model host: observation lease unavailable (${lease.failure.kind})`)
+      observation = lease?.ok
+      const host = createLocalDriverHost({
+        settings,
         authority: ctx.modelHostAuthority,
-        report: event => reportRuntimeEvent(ctx, event),
-      },
-      options.results,
-    )
-    const provider = options.provider({
-      host,
-      commands: stage.commands,
-      clock: ctx.modelClock,
-    })
-    // The order is the guarantee: the host was built unbound, it binds here, and only after the
-    // bind has returned is the contribution that publishes it created.
-    const bound = await host.bind(provider.driver)
-    if ('failure' in bound) throw new Error(`the model host could not bind: ${bound.failure.kind}`)
-
-    try {
-      // The extension point of the runtime facade: `modelRuntime` is published in the same
-      // contribution as the host, after the bind above and from `provider`. The contribution is
-      // created inside this `try`: a fiber that unloads in the start window makes it throw, and the
-      // bound host must then close.
-      const contribution = ctx.plugin({
-        name: 'model-runtime-local-contribution',
-        apply: (child: Context) => {
-          new HostContribution(child, host)
-          stage.contribute(child, provider.runtime)
-          if (observation !== undefined) createModelStreamLocalPlugin({ source: observation })(child)
-        },
+        qualifyObservation: access => options.qualifyObservation(access),
+        report: event => reportOf(ctx, event),
+        ...(observation !== undefined && { observation }),
       })
-      // One outer effect owns the contribution, the push and the shutdown. They are disposed in
-      // reverse order of this list, one after the other: the shutdown first, then the push, which
-      // keeps its unfinished deliveries in its ledger for a successor, and the contribution last.
-      ctx.effect(() => [
-        contribution.dispose,
-        releaseExecution,
-        stage.stop,
-        orderedShutdown(ctx, provider, bound.ok, observation),
-      ])
-      await contribution
-    } catch (error) {
-      await bound.ok.close()
-      await stage.stop()
-      throw error
-    }
+      const stage = createRuntimeStage(
+        {
+          commands: channel?.commands ?? ctx.modelCommands,
+          authority: ctx.modelHostAuthority,
+          report: event => reportRuntimeEvent(ctx, event),
+        },
+        options.results,
+      )
+      const provider = options.provider({
+        host,
+        commands: stage.commands,
+        clock: ctx.modelClock,
+      })
+      // The order is the guarantee: the host was built unbound, it binds here, and only after the
+      // bind has returned is the contribution that publishes it created.
+      const bound = await host.bind(provider.driver)
+      if ('failure' in bound)
+        throw new Error(`the model host could not bind: ${bound.failure.kind}`)
+
+      try {
+        // The extension point of the runtime facade: `modelRuntime` is published in the same
+        // contribution as the host, after the bind above and from `provider`. The contribution is
+        // created inside this `try`: a fiber that unloads in the start window makes it throw, and the
+        // bound host must then close.
+        const contribution = ctx.plugin({
+          name: 'model-runtime-local-contribution',
+          apply: (child: Context) => {
+            new HostContribution(child, host)
+            stage.contribute(child, provider.runtime)
+            if (observation !== undefined)
+              createModelStreamLocalPlugin({ source: observation })(child)
+          },
+        })
+        // The entry owns the send child on another fiber. Await its release after drives and push
+        // return, while the commands parent is still alive.
+        ctx.effect(() => [
+          contribution.dispose,
+          async () => {
+            try {
+              await orderedShutdown(ctx, provider, bound.ok, observation)()
+              await stage.stop()
+            } catch {
+              ctx.logger.warn('model host: shutdown did not complete cleanly')
+            } finally {
+              await releaseExecution()
+            }
+          },
+        ])
+        await contribution
+      } catch (error) {
+        await bound.ok.close()
+        await stage.stop()
+        throw error
+      }
     } catch (error) {
       observation?.close()
       await releaseExecution()

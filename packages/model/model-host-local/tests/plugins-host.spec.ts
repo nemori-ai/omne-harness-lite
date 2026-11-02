@@ -269,9 +269,12 @@ function fixture(
 
 it('rejects an observation pair from a different commands service before opening a lease', async () => {
   const openHost = vi.fn()
-  const f = fixture({}, {
-    observation: { commands: memoryCommands(), source: { openHost, close: vi.fn() } },
-  })
+  const f = fixture(
+    {},
+    {
+      observation: { commands: memoryCommands(), source: { openHost, close: vi.fn() } },
+    },
+  )
   expect(await loadError(f.load())).toBeInstanceOf(Error)
   expect(openHost).not.toHaveBeenCalled()
   expect(f.ctx.modelInstanceHost).toBeUndefined()
@@ -283,22 +286,30 @@ it('captures the private execution channel once and gives its commands to the pr
   const commands = memoryCommands()
   const nextCommands = memoryCommands()
   let current = commands
-  const executionChannel = vi.fn(() => ({ ok: {
-    commands: current,
-    coordinator: null,
-    prepare: vi.fn(),
-    qualifyExecution: vi.fn(),
-    close: vi.fn(),
-  } }))
-  let supplied: ModelCommands<unknown> | undefined
-  const f = fixture({}, {
-    executionChannel,
-    releaseExecution: async () => {},
-    provider: input => {
-      supplied = input.commands
-      return { driver: { drive: async () => ({ ok: undefined }) }, quiesce: async () => ({ ok: { pending: '0', running: '0' } }) }
+  const executionChannel = vi.fn(() => ({
+    ok: {
+      commands: current,
+      coordinator: null,
+      prepare: vi.fn(),
+      qualifyExecution: vi.fn(),
+      close: vi.fn(),
     },
-  })
+  }))
+  let supplied: ModelCommands<unknown> | undefined
+  const f = fixture(
+    {},
+    {
+      executionChannel,
+      releaseExecution: async () => {},
+      provider: input => {
+        supplied = input.commands
+        return {
+          driver: { drive: async () => ({ ok: undefined }) },
+          quiesce: async () => ({ ok: { pending: '0', running: '0' } }),
+        }
+      },
+    },
+  )
   const fiber = await f.load()
   current = nextCommands
   expect(executionChannel).toHaveBeenCalledTimes(1)
@@ -311,16 +322,42 @@ it('keeps both real observation services on one lease and closes it before an in
   const publications: unknown[] = []
   const retired: unknown[] = []
   const observation: ModelObservationHost<unknown> = {
-    references: { current: vi.fn(async () => ({ ok: null })) },
+    references: {
+      current: vi.fn(
+        async (): ReturnType<ModelObservationHost<unknown>['references']['current']> => ({
+          failure: {
+            kind: 'unavailable',
+            dependency: 'test-source',
+            diagnostic: 'no-confirmation',
+          },
+        }),
+      ),
+    },
     observation: { observe: vi.fn(() => (async function* () {})()) },
-    attach: publication => { publications.push(publication) },
-    retire: publication => { retired.push(publication) },
-    close: () => { events.push('observation-close') },
+    attach: publication => {
+      publications.push(publication)
+    },
+    retire: publication => {
+      retired.push(publication)
+    },
+    close: () => {
+      events.push('observation-close')
+    },
   }
   const sourceClose = vi.fn()
   const openHost = vi.fn(() => ({ ok: observation }))
   let commands = memoryCommands()
-  const f = fixture({}, { observation: { get commands() { return commands }, source: { openHost, close: sourceClose } } })
+  const f = fixture(
+    {},
+    {
+      observation: {
+        get commands() {
+          return commands
+        },
+        source: { openHost, close: sourceClose },
+      },
+    },
+  )
   await f.ctx.plugin(f.Authority)
   await f.ctx.plugin(f.Clock)
   await f.ctx.plugin(f.Commands)
@@ -329,7 +366,10 @@ it('keeps both real observation services on one lease and closes it before an in
   const host = f.ctx.modelInstanceHost
   expect(f.ctx.modelStreamReferences).toBeDefined()
   expect(f.ctx.modelStreamObservation).toBeDefined()
-  const handle: ModelHandle<unknown> = { instance: instanceOf('lease'), observe: () => (async function* () {})() }
+  const handle: ModelHandle<unknown> = {
+    instance: instanceOf('lease'),
+    observe: () => (async function* () {})(),
+  }
   const execution = { ...wake('lease'), instance: handle.instance, generation: '1' }
   const first = unbox(await host.publish(execution, handle))
   const second = unbox(await host.publish({ ...execution, generation: '2' }, handle))
@@ -369,11 +409,15 @@ it('awaits the entry send child release after drive drain and before closing the
   const closing = Promise.withResolvers<void>()
   const closeStarted = Promise.withResolvers<void>()
   const channel = {
-    commands: memoryCommands(), coordinator: null,
-    prepare: vi.fn(), qualifyExecution: vi.fn(),
-    close: vi.fn(() => { events.push('channel-close') }),
+    commands: memoryCommands(),
+    coordinator: null,
+    prepare: vi.fn(),
+    qualifyExecution: vi.fn(),
+    close: vi.fn(() => {
+      events.push('channel-close')
+    }),
   }
-  let send: ReturnType<Context['plugin']> | undefined
+  let send: Awaited<ReturnType<Context['plugin']>> | undefined
   const releaseExecution = vi.fn(async () => {
     events.push('release-execution')
     await send?.dispose()
@@ -405,7 +449,12 @@ it('awaits the entry send child release after drive drain and before closing the
   expect(channel.close).not.toHaveBeenCalled()
   closing.resolve()
   await unloading
-  expect(events.slice(0, 4)).toEqual(['release-execution', 'send-close', 'send-closed', 'channel-close'])
+  expect(events.slice(0, 4)).toEqual([
+    'release-execution',
+    'send-close',
+    'send-closed',
+    'channel-close',
+  ])
   expect(releaseExecution).toHaveBeenCalledTimes(1)
   expect(channel.close).toHaveBeenCalled()
   await parent.dispose()
@@ -413,13 +462,24 @@ it('awaits the entry send child release after drive drain and before closing the
 
 it('closes the channel and reports a safe diagnostic when the entry release fails', async () => {
   const close = vi.fn()
-  const releaseExecution = vi.fn(async () => { throw new Error('secret-route-should-not-leak') })
-  const f = fixture({}, {
-    executionChannel: () => ({ ok: {
-      commands: memoryCommands(), coordinator: null, prepare: vi.fn(), qualifyExecution: vi.fn(), close,
-    } }),
-    releaseExecution,
+  const releaseExecution = vi.fn(async () => {
+    throw new Error('secret-route-should-not-leak')
   })
+  const f = fixture(
+    {},
+    {
+      executionChannel: () => ({
+        ok: {
+          commands: memoryCommands(),
+          coordinator: null,
+          prepare: vi.fn(),
+          qualifyExecution: vi.fn(),
+          close,
+        },
+      }),
+      releaseExecution,
+    },
+  )
   const host = await f.load()
   await host.dispose()
   expect(releaseExecution).toHaveBeenCalledTimes(1)
