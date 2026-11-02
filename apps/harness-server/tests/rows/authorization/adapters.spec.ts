@@ -857,6 +857,18 @@ describe('Tool access qualification', () => {
       await check.run(fixture())
     })
   }
+  it.each([42, ''])('denies malformed call %j before reading admission', async call => {
+    const w = world()
+    let reads = 0
+    const guard = createToolAccessGuard(() => {
+      reads += 1
+      return w.ports.admission
+    })
+    const input = { principal: w.work(), tenant: A, call, action: 'admit' }
+    expect(await guard.qualify(input as never)).toMatchObject({ kind: 'denied' })
+    expect(reads).toBe(0)
+    expect(w.seen.admissions).toHaveLength(0)
+  })
   it('maps every supported action, rejects unknown roles and reads dependencies again after retirement', async () => {
     const w = world()
     let live = true

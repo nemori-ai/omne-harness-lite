@@ -10,4 +10,4 @@
 
 普通授权的 current 使用 [Runtime Context 信任入口](runtime-context-trust.md) 的进程代次桥。它绑定读取方 fiber，在第一次等待前捕获。一个读取方退役不影响其他读取方，旧答案不复活。撤权、工作失效与 Request Context 换代没有同步来源到此桥，不闭合 #677。
 
-[组合用例](../../tests/rows/execution-authorities/authorities.spec.ts) 使用真实 Identity、Cordis 和 Execution Registry。Scope 来源、恢复授予与环境提供者使用显式测试实现。测试不启动外部进程，不证明真实后端、AD-03 或 AD-15 的生产接线就绪。Windows 是本次运行平台；同提交 Linux 验证由集成者安排。
+[组合用例](../../tests/rows/execution-authorities/authorities.spec.ts) 使用真实 Identity、Cordis 和 Execution Registry。Scope 来源、恢复授予与环境提供者使用显式测试实现。测试不启动外部进程，不证明真实后端、AD-03 或 AD-15 的生产接线就绪。Windows 与 Linux 的验证结果分别记录，不能互相替代。
