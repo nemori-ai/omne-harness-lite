@@ -26,7 +26,9 @@
     {
       "id": "session-provider",
       "plugin": "sessionProviderRow",
-      "config": {}
+      "config": {
+        "admission": "none"
+      }
     },
     {
       "id": "session-ad01",
