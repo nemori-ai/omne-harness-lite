@@ -26,7 +26,11 @@ This member is the single-machine host provider of Model. It implements local cr
 
 ## Usage
 
-A standalone program takes `createLocalCustodian` and `openLocalCustodian` from the root entry and does not start Cordis. To send real requests, a program takes `assembleLocalModel` from the root entry. It gives the vault, a `ModelCommands`, a `SendCoordinator`, the composed families, the network configuration, the routes, the limits, and the preparation options. It gets the Model send boundary `send`, the preparation resources `preparation`, and `close`. After `close` starts, `preparation` refuses new leases. A lease that the caller acquired before `close` stays usable until the caller releases it. A Cordis host loads `LocalCredentialPlugin` from the `./cordis` entry. When needed, it sends through static injection with `deliverInjected`. The host plugins are classes made by `createModelRuntimeLocalPlugin` and `createModelRequestPreparationPlugin`: their object options (the runtime provider, the observation qualification, the family bindings, the credential completion) are not serialisable, so the assembly that creates the plugin class supplies them. The preparation plugin also returns the lease source `resources` that the assembly hands to the request assembly; it is not a service key. The send stage plugin is a class made by `createModelSendStagePlugin(options)`: the options are the objects of the local send path (families, coordinator, network, routes, limits, preparation), and the one setting `maxRetainedAttempts` is required. The plugin injects `modelCredential` and `modelCommands`, serves `modelSendBoundary`, and on exit withdraws its credential port and closes the send path. For usage and examples, see [usage and position](docs/context.md). For initialization and disposal responsibilities, see [Cordis integration](docs/cordis.md). Selecting this member installs Cordis, model-cordis-contract, pi-ai-transport, and proper-lockfile. A program that uses only the root entry does not start Cordis, but its installation closure still contains them.
+Initial execution uses one process-local run and one captured channel from the records activation. Give that channel to both host and send-stage `executionChannel` getters. Give the host the activation's original observation pair and a `releaseExecution` callback. The callback disposes the actual send child, waits for its close, then closes the channel. Keep the commands parent alive during this sequence. See [Cordis assembly](docs/cordis.md#首次通道与同源观察) for the object options and [the specification](SPEC.md#首次执行与公共观察接线) for their behavior. Production identity mapping and application installation remain application responsibilities. Initial records do not provide restart recovery or successor takeover.
+
+The local send configuration requires `materialization: { maxRecords, execution }`. Its explicit positive safe-integer limit must cover `maxRetainedAttempts`. Both send resources and the local assembly expose a read-only `materialization` reader. Install it through the send stage's `installMaterialization` option when the entry supplies the evidence adapter. See [send resources](SPEC.md#发送资源).
+
+A standalone program takes `createLocalCustodian` and `openLocalCustodian` from the root entry and does not start Cordis. To send real requests, a program takes `assembleLocalModel` from the root entry. It gives the vault, a `ModelCommands`, a `SendCoordinator`, the composed families, the network configuration, the routes, the limits, the materialization options, and the preparation options. It gets the Model send boundary `send`, the preparation resources `preparation`, the evidence reader `materialization`, and `close`. After `close` starts, `preparation` refuses new leases. A lease that the caller acquired before `close` stays usable until the caller releases it. A Cordis host loads `LocalCredentialPlugin` from the `./cordis` entry. When needed, it sends through static injection with `deliverInjected`. The host plugins are classes made by `createModelRuntimeLocalPlugin` and `createModelRequestPreparationPlugin`: their object options (the runtime provider, the observation qualification, the family bindings, the credential completion) are not serialisable, so the assembly that creates the plugin class supplies them. The preparation plugin also returns the lease source `resources` that the assembly hands to the request assembly; it is not a service key. The send stage plugin is a class made by `createModelSendStagePlugin(options)`: the options are the objects of the local send path (families, coordinator, network, routes, limits, materialization, preparation), and the one setting `maxRetainedAttempts` is required. The plugin injects `modelCredential` and `modelCommands`, serves `modelSendBoundary`, and on exit withdraws its credential port and closes the send path. For usage and examples, see [usage and position](docs/context.md). For initialization and disposal responsibilities, see [Cordis integration](docs/cordis.md). Selecting this member installs Cordis, model-cordis-contract, pi-ai-transport, and proper-lockfile. A program that uses only the root entry does not start Cordis, but its installation closure still contains them.
 
 ### Vault initialization command
 
@@ -67,6 +71,88 @@ pnpm run check:docs
 The Turbo test tasks build this package and its dependencies before they run the selected tests. The `typecheck` task does not build. Direct `pnpm --filter @omne-harness/model-host-local test` does not build, so its required build output must already exist. The `test:fast` and `test:slow` tasks select the fast and slow layers, respectively.
 
 The tests cover the five resolution results, tenant isolation, rotation and revocation, file corruption, close, cross-process update, and unknown save confirmation. They use the real Cordis 4.0.4 to check plugin publication and removal. The fast tests check the credential slot, the ownership of materialized transports, release, and close of the send resources. They also check that the assembly refuses new preparation leases after `close` starts, and that a lease from before `close` still meters and releases. The slow test replays the recorded SSE of both families from a local HTTPS server. It drives calls through the assembled send path and the Model runtime. It checks the `Bearer` credential, the single termination, the arrival of the account, and the payable amount. The slow gate replays the four real recordings through the same assembled path. Only the manual recorder sends real requests through the proxy. The continuous tests send no real request. The tests do not show other host capabilities. They do not show lock semantics across machines or on a network file system.
+
+## Configured runtime host
+
+`createConfiguredModelRuntimeLocalPlugin` from `@omne-harness/model-host-local/cordis`
+constructs the real Model runtime through the existing local host lifecycle.
+Its static dependencies are `modelCommands`, `modelClock`, and `modelHostAuthority`.
+It publishes `modelRuntime` and `modelInstanceHost` after the driver binds.
+Quiesce, drive drainage, result push shutdown, and service withdrawal retain their
+existing order. See the [host behavior](SPEC.md#宿主插件) and
+[result push behavior](SPEC.md#运行门面与结果推送).
+
+The factory accepts objects in `options`. The plugin configuration contains only
+the following 17 required numbers. There are no numeric defaults.
+
+| Group     | Field                         | Accepted values             |
+| --------- | ----------------------------- | --------------------------- |
+| `host`    | `concurrencyLimit`            | Positive safe integer       |
+| `host`    | `wakeCapacity`                | Positive safe integer       |
+| `host`    | `scanBatchSize`               | Positive safe integer       |
+| `host`    | `scanIntervalMs`              | Non-negative safe integer   |
+| `runtime` | `outputBatchBytes`            | Positive finite integer     |
+| `runtime` | `outputBatchDelayMs`          | Non-negative finite integer |
+| `runtime` | `observerBufferBytes`         | Positive finite integer     |
+| `runtime` | `observerCheckIntervalMs`     | Positive safe integer       |
+| `runtime` | `readIdleMs`                  | Positive finite integer     |
+| `runtime` | `resultPageTargetBytes`       | Positive finite integer     |
+| `runtime` | `retryBackoffMs`              | Non-negative finite integer |
+| `runtime` | `cleanupRetryMs`              | Non-negative finite integer |
+| `results` | `maxConcurrentCalls`          | Positive safe integer       |
+| `results` | `maxRedeliveries`             | Non-negative safe integer   |
+| `results` | `maxCleanupSteps`             | Positive safe integer       |
+| `results` | `maxPendingAccountsPerTenant` | Positive safe integer       |
+| `results` | `maxPendingAccounts`          | Positive safe integer       |
+
+Host validation reuses the existing host schema. Runtime and result validation
+follow the existing runtime constructor and result push rules. Those constructors
+also retain their own validation. The two scan fields remain reserved for the
+recovery scanner. This factory does not implement that scanner.
+
+The assembly supplies the complete send boundary through a stage bridge. The
+bridge owns the send resources and must reflect their current availability.
+The factory does not add the send stage as a static dependency. The assembly also
+supplies the observer qualification adapter and retains the ledger for successors:
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+import type { ModelSendBoundary } from '@omne-harness/model-contract/provider'
+import {
+  createConfiguredModelRuntimeLocalPlugin,
+  type ConfiguredModelHostOptions,
+  type ConfiguredModelHostSettings,
+  type ResultPushLedger,
+} from '@omne-harness/model-host-local/cordis'
+
+function installHost(
+  ctx: Context,
+  settings: ConfiguredModelHostSettings,
+  authority: { observe: ConfiguredModelHostOptions['qualifyObservation'] },
+  sendStageBridge: ModelSendBoundary<unknown>,
+  ledger: ResultPushLedger,
+) {
+  const Host = createConfiguredModelRuntimeLocalPlugin({
+    qualifyObservation: access => authority.observe(access),
+    send: { send: (demand, signal) => sendStageBridge.send(demand, signal) },
+    ledger,
+  })
+  return ctx.plugin(Host, settings)
+}
+```
+
+The authority adapter must check current observation access. A live route alone
+does not grant access. Application authorization policy remains with the caller.
+The factory supplies a retry policy whose `inspect` and `decide` return
+`unavailable`. It does not enable retries.
+
+[configured-host.spec.ts](tests/configured-host.spec.ts) uses real Cordis 4.0.4,
+the real runtime, memory commands, a manual clock, and named application adapters.
+Its numeric values come from `runtime-push.spec.ts` for small, bounded fixtures.
+They have no production measurement source and are not production defaults.
+The tests cover configuration rejection, service publication, observation denial,
+dependency withdrawal, ledger release, and send delegation. They do not prove
+application wiring, durable recovery, or the complete 53-obligation assembly.
 
 ## Maintenance
 
