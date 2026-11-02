@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import {
   decodeActionId,
   decodeConsumptionId,
@@ -7,16 +8,26 @@ import {
   type AgentExecutionId,
   type Authority,
   type ConsumerRef,
+  type DurableEvidence,
+  type ExecutionSnapshot,
   type Failure,
   type PendingCall,
+  type ProducedResult,
+  type ReceivedEntry,
   type StepId,
 } from '@omne-harness/agent-contract'
-import type { ContentBlock } from '@omne-harness/content-block'
+import type { BlockId, ContentBlock } from '@omne-harness/content-block'
+import {
+  resolveToolInvocationRef,
+  type ToolCallId,
+  type ToolDelivery,
+} from '@omne-harness/tool-contract'
 import { judgeToolInvokeRequest } from '@omne-harness/tool-contract/provider'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AgentDependencies } from '../construction.ts'
 import { canonical } from '../canonical.ts'
 import { json } from '../receiving-values.ts'
+import type { Message } from './identities.ts'
 
 type Ports<P> = Pick<AgentDependencies<P, ContentBlock>, 'admission' | 'toolRequests' | 'materials'>
 
@@ -167,4 +178,107 @@ export async function preserveToolIntent<P>(
     position: input.consumer,
     fixed: stored.ok,
   })
+}
+
+export type AssociatedToolCall = Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
+
+/** The Tool call that a saved reference names, read back for the tenant it was issued to. */
+export function toolCallOf<P>(access: Access<P>, pending: AssociatedToolCall): ToolCallId {
+  return minted(resolveToolInvocationRef(pending.reference, access.tenant)).call
+}
+
+/**
+ * The received result entry of the original Tool call: the same reference, consumption and
+ * consumer. A late version or an account revision is not the result of the slot.
+ */
+export function toolReceivedOf(
+  read: ExecutionSnapshot,
+  pending: AssociatedToolCall,
+): ReceivedEntry | undefined {
+  return read.entries?.find(
+    (entry): entry is ReceivedEntry =>
+      entry.kind === 'received' &&
+      entry.delivery.producer === 'tool' &&
+      entry.delivery.key.kind === 'result' &&
+      entry.delivery.key.reference === pending.reference &&
+      entry.consumption === pending.consumption &&
+      canonical(entry.consumer) === canonical(pending.position),
+  )
+}
+
+/** The produced result that the slot keeps for a received Tool result. */
+export function toolProduced(
+  call: ToolCallId,
+  delivery: Extract<ToolDelivery<ContentBlock>, { kind: 'result' }>,
+): ProducedResult {
+  return {
+    producer: { kind: 'tool', call },
+    version: delivery.key.result,
+    delivery: delivery.delivery,
+    source: delivery.source,
+  }
+}
+
+type MessageBlock = Exclude<ContentBlock, Readonly<{ kind: 'thinking' }>>
+const VISIBLE = { toHuman: true, toModel: true } as const
+
+/** The message identity of the result or denial message of one action. */
+function toolMessageId(execution: AgentExecutionId, action: Action): Message['id'] {
+  const body = createHash('sha256')
+    .update(JSON.stringify([execution, action.id]))
+    .digest('hex')
+  // `msg_`, 40 hex digits and `_tool`: the 22 to 64 characters parseMessageId accepts. The brand
+  // has no runtime value, so naming it is the cast.
+  return `msg_${body.slice(0, 40)}_tool` as Message['id']
+}
+
+function toolMessage(
+  execution: AgentExecutionId,
+  action: Action,
+  body: readonly MessageBlock[],
+): Message {
+  const marker = {
+    kind: 'tool_result' as const,
+    id: `${action.id}/result` as BlockId,
+    visibility: VISIBLE,
+    callId: action.original.callId,
+  }
+  return { id: toolMessageId(execution, action), role: 'tool', blocks: [marker, ...body] }
+}
+
+/** T2: the candidate message of a result slot keeps every content block the Tool returned. */
+export function toolResultCandidate(
+  execution: AgentExecutionId,
+  action: Action,
+  content: readonly ContentBlock[],
+): Message {
+  return toolMessage(
+    execution,
+    action,
+    content.filter((block): block is MessageBlock => block.kind !== 'thinking'),
+  )
+}
+
+/** T2: the candidate message of a denied slot names the denial; the evidence stays in the slot. */
+export function deniedCandidate(execution: AgentExecutionId, action: Action): Message {
+  return toolMessage(execution, action, [
+    {
+      kind: 'text',
+      id: `${action.id}/denied` as BlockId,
+      visibility: VISIBLE,
+      text: 'The tool call was denied and did not run.',
+    },
+  ])
+}
+
+/** A denied slot before any single-result passage. */
+export function deniedSlot(action: Action, evidence: DurableEvidence) {
+  return {
+    kind: 'denied' as const,
+    action: action.id,
+    evidence,
+    each: null,
+    candidate: null,
+    handoff: null,
+  }
 }

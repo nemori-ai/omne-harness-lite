@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import type {
+  Action,
+  ActionBatch,
+  ActionSlot,
   AgentCheckpoint,
   Authority,
   ExecutionSnapshot,
@@ -24,6 +27,7 @@ import {
   ok,
   operation,
   otherTenant,
+  producedResult,
   type Principal,
 } from './journal-support.ts'
 import { options } from './factory-support.ts'
@@ -158,33 +162,18 @@ describe('E4 recovery routing', () => {
     expect(ok(route(checkpoint(position), { state: { kind: 'settling', intent } }))).toBe(position)
   })
 
-  it.each([
-    'C0',
-    'C1',
-    'C2',
-    'C3',
-    'C4',
-    'A3',
-    'T1',
-    'T2',
-    'T3',
-    'T4',
-    'T5',
-    'X0',
-    'X1',
-    'X2',
-    'X3',
-    'X4',
-    'X5',
-  ])('NA-E4-2: unfinished node %s has a named stage owner', position => {
-    expect(failure(route(checkpoint(position)))).toMatchObject({
-      kind: 'unsupported',
-      node: position,
-      card: expect.stringContaining('#502'),
-    })
-  })
+  it.each(['C0', 'C1', 'C2', 'C3', 'C4', 'X0', 'X1', 'X2', 'X3', 'X4', 'X5'])(
+    'NA-E4-2: unfinished node %s has a named stage owner',
+    position => {
+      expect(failure(route(checkpoint(position)))).toMatchObject({
+        kind: 'unsupported',
+        node: position,
+        card: expect.stringContaining('#502'),
+      })
+    },
+  )
 
-  it.each(['A0', 'A1', 'A2', 'T0'])(
+  it.each(['A0', 'A1', 'A2', 'A3', 'T0', 'T1', 'T2', 'T3', 'T4', 'T5'])(
     'resumes the implemented tool node %s without resetting its checkpoint',
     position => {
       const at = checkpoint(position)
@@ -192,6 +181,45 @@ describe('E4 recovery routing', () => {
       expect(at.position).toBe(position)
     },
   )
+
+  it('routes a saved action batch by its barrier and slots, never past an unslotted action', () => {
+    const action = (id: string, judgment: string, call: unknown = null) =>
+      ({ id, judgment: { kind: judgment }, call }) as unknown as Action
+    const slot = (id: string, kind: string, handoff: unknown = null) =>
+      ({ action: id, kind, each: null, candidate: null, handoff }) as unknown as ActionSlot
+    const batch = (
+      barrier: string,
+      actions: readonly Action[],
+      slots: readonly ActionSlot[],
+    ): ActionBatch =>
+      ({
+        id: 'step-1/actions',
+        source: producedResult('mcall_x'),
+        actions,
+        barrier: { kind: barrier, evidence: evidence('barrier') },
+        slots,
+        batchPass: null,
+      }) as unknown as ActionBatch
+    const at = (position: string, saved: ActionBatch) => ({ ...checkpoint(position), batch: saved })
+    const two = [action('a', 'allowed', pendingCall), action('b', 'allowed')]
+    expect(ok(route(at('A1', batch('closed', two, []))))).toBe('A1')
+    // b has no slot yet: only A2 may send it, even if a result of a is kept.
+    expect(ok(route(at('T2', batch('open', two, [slot('a', 'result')]))))).toBe('A2')
+    expect(
+      ok(route(at('T3', batch('open', two, [slot('a', 'dispatched'), slot('b', 'result')])))),
+    ).toBe('T0')
+    expect(
+      ok(route(at('T3', batch('open', two, [slot('a', 'result'), slot('b', 'result')])))),
+    ).toBe('T1')
+    expect(
+      ok(route(at('T5', batch('open', two, [slot('a', 'result'), slot('b', 'result')])))),
+    ).toBe('T5')
+    const denied = [action('a', 'denied'), action('b', 'denied')]
+    expect(ok(route(at('A1', batch('all-denied', denied, []))))).toBe('A3')
+    expect(
+      ok(route(at('T3', batch('all-denied', denied, [slot('a', 'denied'), slot('b', 'denied')])))),
+    ).toBe('T2')
+  })
 
   it('NA-E4-2: a saved extension passage takes precedence over the E3 position', () => {
     expect(failure(route(checkpoint('E3', [afterTerminalPassage('extension')])))).toMatchObject({

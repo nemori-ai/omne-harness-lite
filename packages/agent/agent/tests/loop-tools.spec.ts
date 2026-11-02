@@ -1,9 +1,91 @@
 import { describe, expect, it } from 'vitest'
-import type { ExecutionSnapshot, Material, PendingCall } from '@omne-harness/agent-contract'
+import type {
+  AgentEventBody,
+  EventPage,
+  ExecutionSnapshot,
+  Material,
+  PendingCall,
+} from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
-import { execution, ok } from './journal-support.ts'
+import {
+  decodeToolCallId,
+  decodeToolOperationId,
+  encodeToolInvocationRef,
+  type ToolInvokeOutcome,
+  type ToolState,
+} from '@omne-harness/tool-contract'
+import { evidence, execution, ok } from './journal-support.ts'
 import { alice, eventually, invoke } from './loop-support.ts'
-import { deliverToolSuggestion, toolAssembly } from './fixtures/tool-call.ts'
+import {
+  associatedTools,
+  deliverModelReply,
+  deliverToolSuggestion,
+  pushToolResult,
+  textBlock,
+  toolAccount,
+  toolAssembly,
+  toolCall,
+  toolDelivery,
+  toolReceiver,
+} from './fixtures/tool-call.ts'
+
+type Assembly = Awaited<ReturnType<typeof toolAssembly>>
+
+const input = { ...alice, execution: execution() }
+
+function accepted(name: string): ToolInvokeOutcome {
+  const reference = ok(
+    encodeToolInvocationRef({
+      tenant: alice.tenant,
+      call: ok(decodeToolCallId(`tcall_${name}`)),
+      admission: ok(decodeToolOperationId(`top_${name}`)),
+    }),
+  )
+  // Agent keeps the receipt as an original fact and never reads it as the current state, so the
+  // test does not build a full ToolState.
+  return { kind: 'accepted', reference, state: {} as ToolState, recovered: false }
+}
+
+/** Accepts each invoke with a new Tool call, in the order the Tool runtime received them. */
+function acceptEach(assembly: Assembly) {
+  let count = 0
+  assembly.controls.tools.invoke.always(async () => {
+    count += 1
+    return accepted(`call-${count}`)
+  })
+}
+
+async function snapshot(assembly: Assembly): Promise<ExecutionSnapshot> {
+  return ok(await assembly.dependencies.journal.load(input))
+}
+
+async function events(assembly: Assembly): Promise<readonly AgentEventBody[]> {
+  const bodies: AgentEventBody[] = []
+  let after: string | null = null
+  for (;;) {
+    const page: EventPage = ok(
+      await assembly.dependencies.journal.output.read({ ...input, after, limit: 100 }),
+    )
+    if (page.kind !== 'page') throw new Error('event gap')
+    bodies.push(...page.events.map(event => event.body))
+    if (page.caughtUp || page.events.length === 0) return bodies
+    after = page.next
+  }
+}
+
+function toolMessages(bodies: readonly AgentEventBody[]) {
+  return bodies.flatMap(body =>
+    body.kind === 'message' && body.message.role === 'tool' ? [body.message] : [],
+  )
+}
+
+async function secondModelCall(assembly: Assembly) {
+  await eventually(async () =>
+    (await snapshot(assembly)).checkpoint.calls.some(
+      call => call.kind === 'model' && call.action.startsWith('step-2/'),
+    ),
+  )
+}
 
 describe('tool action dispatch', () => {
   it('preserves the original request and intent before Tool receives it', async () => {
@@ -14,15 +96,13 @@ describe('tool action dispatch', () => {
       material: Material<ContentBlock> | null
     } = { snapshot: null, pending: null, material: null }
     assembly.controls.tools.invoke.always(async () => {
-      const snapshot = ok(
-        await assembly.dependencies.journal.load({ ...alice, execution: execution() }),
-      )
-      const pending = snapshot.checkpoint.calls.find(call => call.kind === 'tool')
+      const read = await snapshot(assembly)
+      const pending = read.checkpoint.calls.find(call => call.kind === 'tool')
       if (pending === undefined) throw new Error('missing Tool intent')
       const material = ok(
         await assembly.dependencies.materials.read({ ...alice, source: pending.fixed }),
       )
-      observed.snapshot = snapshot
+      observed.snapshot = read
       observed.pending = pending
       observed.material = material
       return { kind: 'association-unknown' }
@@ -46,5 +126,190 @@ describe('tool action dispatch', () => {
       effective: '{}',
       complete: true,
     })
+  })
+})
+
+describe('tool result round', () => {
+  it('admits the received result as a tool message and sends the next model request', async () => {
+    const assembly = await toolAssembly()
+    acceptEach(assembly)
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly)
+    const [pending] = await associatedTools(assembly, 1)
+    if (pending === undefined) throw new Error('no associated Tool call')
+    const receiver = toolReceiver(assembly)
+    const delivery = toolDelivery(pending, {
+      name: 'one',
+      content: [textBlock('contents of the file', 'blk_result_one')],
+      account: toolAccount(pending, '9'),
+    })
+    expect(await pushToolResult(receiver, delivery)).toHaveProperty('ok')
+    await secondModelCall(assembly)
+
+    const read = await snapshot(assembly)
+    // The tool call left the open calls; its received entry still holds content and account.
+    expect(read.checkpoint.calls.some(call => call.kind === 'tool')).toBe(false)
+    expect(read.checkpoint.batch).toBeNull()
+    const received = read.entries?.find(
+      entry => entry.kind === 'received' && entry.delivery.producer === 'tool',
+    )
+    if (received?.kind !== 'received') throw new Error('Tool result not received')
+    expect(received.delivery).toMatchObject({ account: { usage: [{ lexeme: '9' }] } })
+    const bodies = await events(assembly)
+    const [message] = toolMessages(bodies)
+    expect(message?.blocks).toEqual([
+      expect.objectContaining({ kind: 'tool_result', callId: 'tool-call-1' }),
+      expect.objectContaining({ kind: 'text', text: 'contents of the file' }),
+    ])
+    expect(bodies).toContainEqual(
+      expect.objectContaining({
+        kind: 'producer',
+        result: expect.objectContaining({
+          producer: { kind: 'tool', call: 'tcall_call-1' },
+          version: 'result-one',
+        }),
+      }),
+    )
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
+
+    // The next step ends the execution through the one terminal commit.
+    await deliverModelReply(assembly, [textBlock('done', 'blk_done')], 'final')
+    await eventually(async () => (await snapshot(assembly)).state.kind === 'ended')
+    expect((await snapshot(assembly)).state).toMatchObject({
+      kind: 'ended',
+      conclusion: { kind: 'complete' },
+    })
+  })
+
+  it('runs concurrent calls in independent slots and admits their messages in action order', async () => {
+    const assembly = await toolAssembly({ toolConcurrency: 2 })
+    acceptEach(assembly)
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    const [first, second] = await associatedTools(assembly, 2)
+    if (first === undefined || second === undefined) throw new Error('calls not associated')
+    // Both are in flight before either result arrives.
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
+    const receiver = toolReceiver(assembly)
+    // The second action's result arrives first; it is kept in its own slot at once.
+    expect(
+      await pushToolResult(
+        receiver,
+        toolDelivery(second, { name: 'b', content: [textBlock('result b', 'blk_b')] }),
+      ),
+    ).toHaveProperty('ok')
+    await eventually(async () =>
+      ((await snapshot(assembly)).checkpoint.batch?.slots ?? []).some(
+        slot => slot.kind === 'result' && slot.action === second.action,
+      ),
+    )
+    const waiting = await snapshot(assembly)
+    expect(waiting.checkpoint.batch?.slots.find(slot => slot.action === first.action)?.kind).toBe(
+      'dispatched',
+    )
+    expect(toolMessages(await events(assembly))).toEqual([])
+    expect(
+      await pushToolResult(
+        receiver,
+        toolDelivery(first, { name: 'a', content: [textBlock('result a', 'blk_a')] }),
+      ),
+    ).toHaveProperty('ok')
+    await secondModelCall(assembly)
+    expect(toolMessages(await events(assembly)).map(message => message.blocks[0])).toEqual([
+      expect.objectContaining({ callId: 'call-a' }),
+      expect.objectContaining({ callId: 'call-b' }),
+    ])
+  })
+
+  it('waits for a free place of toolConcurrency before sending the next call', async () => {
+    const assembly = await toolAssembly({ toolConcurrency: 1 })
+    acceptEach(assembly)
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    const [first] = await associatedTools(assembly, 1)
+    if (first === undefined) throw new Error('first call not associated')
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
+    const receiver = toolReceiver(assembly)
+    ok(await pushToolResult(receiver, toolDelivery(first, { name: 'a' })))
+    const [, second] = await associatedTools(assembly, 2)
+    if (second === undefined) throw new Error('second call not associated')
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
+    ok(await pushToolResult(receiver, toolDelivery(second, { name: 'b' })))
+    await secondModelCall(assembly)
+  })
+
+  it('keeps an association-unknown call as an intent and sends the same request again', async () => {
+    const assembly = await toolAssembly()
+    let attempts = 0
+    assembly.controls.tools.invoke.always(async () => {
+      attempts += 1
+      return attempts === 1 ? { kind: 'association-unknown' } : accepted('retried')
+    })
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly)
+    await eventually(async () => {
+      const read = await snapshot(assembly)
+      return read.state.kind === 'waiting' && read.checkpoint.position === 'A2'
+    })
+    const unknown = await snapshot(assembly)
+    // No slot and no denial: the action stays unresolved with its intent and request.
+    expect(unknown.checkpoint.batch?.slots).toEqual([])
+    expect(unknown.checkpoint.calls).toEqual([
+      expect.objectContaining({ kind: 'tool', association: 'intent' }),
+    ])
+    // The wait wakes at its check time and A2 repeats the complete original invoke.
+    const now = ok(await assembly.dependencies.clock.now())
+    ok(assembly.controls.clock.advanceTo(new Date(Date.parse(now) + 2000).toISOString() as never))
+    const [pending] = await associatedTools(assembly, 1)
+    const requests = assembly.controls.tools.invoke.calls.map(call => call.request)
+    expect(requests).toHaveLength(2)
+    expect(requests[1]).toEqual(requests[0])
+    if (pending === undefined) throw new Error('retried call not associated')
+    ok(await pushToolResult(toolReceiver(assembly), toolDelivery(pending, { name: 'retried' })))
+    await secondModelCall(assembly)
+  })
+
+  it('admits a denial message for each action when the whole batch is denied', async () => {
+    const assembly = await toolAssembly()
+    assembly.controls.admission.admit.always(() => ({
+      ok: { kind: 'deny', evidence: evidence('denied-by-policy'), reason: 'policy' },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly)).map(message => message.blocks[0])).toEqual([
+      expect.objectContaining({ callId: 'call-a' }),
+      expect.objectContaining({ callId: 'call-b' }),
+    ])
+  })
+
+  it('makes a rejected tool message a failure candidate of the execution', async () => {
+    const assembly = await toolAssembly()
+    acceptEach(assembly)
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly)
+    const [pending] = await associatedTools(assembly, 1)
+    if (pending === undefined) throw new Error('no associated Tool call')
+    assembly.controls.handoff.prepare.always(input => {
+      const { principal: _principal, tenant: _tenant, ...rest } = input
+      return {
+        ok: {
+          request: rest.request,
+          origin: null,
+          provider: { owner: 'test', name: 'handoff', revision: '1', digest: 'test:handoff/1' },
+          qualification: evidence('qualification'),
+          record: evidence('handoff-record'),
+          decision: { kind: 'rejected', reason: 'too-large', evidence: evidence('too-large') },
+        },
+      }
+    })
+    ok(await pushToolResult(toolReceiver(assembly), toolDelivery(pending, { name: 'one' })))
+    await eventually(async () => (await snapshot(assembly)).state.kind === 'ended')
+    expect((await snapshot(assembly)).state).toMatchObject({
+      kind: 'ended',
+      conclusion: { kind: 'fail' },
+    })
+    expect(toolMessages(await events(assembly))).toEqual([])
   })
 })

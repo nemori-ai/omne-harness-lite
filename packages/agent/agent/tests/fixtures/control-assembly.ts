@@ -1,4 +1,9 @@
-import { agentEvaluator, createAgentRuntime, type AgentDependencies } from '@omne-harness/agent'
+import {
+  agentEvaluator,
+  createAgentRuntime,
+  type AgentConfiguration,
+  type AgentDependencies,
+} from '@omne-harness/agent'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { createTestAgentDependencies, type TestJournalOptions } from '@omne-harness/agent/testing'
 import {
@@ -14,6 +19,7 @@ export async function controlAssembly(
   wrap: (
     dependencies: AgentDependencies<Principal, ContentBlock>,
   ) => AgentDependencies<Principal, ContentBlock> = dependencies => dependencies,
+  configuration: Partial<AgentConfiguration> = {},
 ) {
   const { dependencies, controls } = createTestAgentDependencies<Principal>({
     journal: {
@@ -33,6 +39,8 @@ export async function controlAssembly(
   controls.conditions.define(execution(), conditions())
   controls.selection.select.always(() => ({ ok: selected }))
   const assembled = wrap(dependencies)
-  const provider = ok(await createAgentRuntime(assembled, options({ reconciliationDelayMs: 1000 })))
+  const provider = ok(
+    await createAgentRuntime(assembled, options({ reconciliationDelayMs: 1000, ...configuration })),
+  )
   return { provider, dependencies: assembled, controls }
 }

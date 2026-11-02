@@ -117,8 +117,18 @@ function next(facts: LoopFacts): Outcome<Next, Failure> {
 /** Node table I8: a lawful basis to go on opens a new iteration; otherwise completion is proposed. */
 function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
   const { checkpoint } = facts
-  // Non-empty action batches and extension passages still belong to their own nodes.
-  if (checkpoint.batch !== null && checkpoint.batch.actions.length > 0) return unsupported
+  // A batch with actions reaches I8 only from T5, after every slot's message was admitted. Its
+  // results or denials are new history the model has not seen, so they are a basis to go on. A
+  // batch in any other state, and pending extension passages, belong to their own nodes.
+  const batch = checkpoint.batch
+  const toolRound = batch !== null && batch.actions.length > 0
+  if (
+    toolRound &&
+    !batch.actions.every(action =>
+      batch.slots.some(slot => slot.action === action.id && slot.handoff !== null),
+    )
+  )
+    return unsupported
   if (checkpoint.passages.some(passage => passage.progress.kind !== 'applied')) return unsupported
   const waiting: Waiting[] = checkpoint.calls.map(pending => ({ kind: 'producer', pending }))
   for (const producer of facts.producers) {
@@ -140,7 +150,11 @@ function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
   if (facts.consumption.some(item => item.custody === null && item.completion === null))
     waiting.push({ kind: 'dependency', owner: 'agentJournal', position: 'I8' })
   if (waiting.length > 0) return succeed({ kind: 'wait', waiting })
-  if (facts.batch.ordered.length > 0 || facts.conditions.progression.kind === 'continue')
+  if (
+    toolRound ||
+    facts.batch.ordered.length > 0 ||
+    facts.conditions.progression.kind === 'continue'
+  )
     return succeed({ kind: 'take-inputs', position: 'I0' })
   // Neither an action nor an empty queue ends the execution by itself: this is only a candidate,
   // which F1 fixes and F3 commits or refuses.
