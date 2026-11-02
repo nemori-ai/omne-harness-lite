@@ -370,11 +370,12 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
       if (shutdown.signal.aborted || access.signal.aborted)
         return deliveryUnavailable('delivery-wait')
       const existing = active.get(key)
-      if (existing !== undefined) return existing
+      if (existing !== undefined)
+        return (await wait(existing, access.signal)) ?? deliveryUnavailable('delivery-wait')
       if (active.size >= input.capacity || tenants.has(tenant))
         return Promise.resolve(deliveryUnavailable('delivery-capacity'))
       tenants.add(tenant)
-      const signal = AbortSignal.any([shutdown.signal, access.signal])
+      const signal = shutdown.signal
       const running = wait(run(access, signal), signal)
         .then(answer => answer ?? deliveryUnavailable('delivery-wait'))
         .catch(() => deliveryUnavailable('delivery-worker'))
@@ -383,7 +384,7 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
           tenants.delete(tenant)
         })
       active.set(key, running)
-      return running
+      return (await wait(running, access.signal)) ?? deliveryUnavailable('delivery-wait')
     },
     async close(): Promise<void> {
       shutdown.abort()

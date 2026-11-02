@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createLocalToolResultDelivery } from '../../src/result-delivery.ts'
 import { fixture } from './fixture.ts'
-import { tenantB } from '../coordinator-values.ts'
+import { callId, tenantB } from '../coordinator-values.ts'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { ok } from './fixture.ts'
 
@@ -176,4 +176,33 @@ it('does not expose a failed original-position recovery diagnostic', async () =>
   expect(answer).toHaveProperty('failure.kind', 'unavailable')
   expect(JSON.stringify(answer)).not.toContain('SECRET')
   expect(f.receiver.push).not.toHaveBeenCalled()
+})
+
+it('caller cancellation does not release a still-running call capacity slot', async () => {
+  const f = await fixture()
+  let started: () => void = () => undefined
+  const ready = new Promise<void>(resolve => {
+    started = resolve
+  })
+  vi.mocked(f.receiver.push).mockImplementation(() => {
+    started()
+    return new Promise(() => undefined)
+  })
+  const worker = createLocalToolResultDelivery({ ...f.input, capacity: 1 })
+  const caller = new AbortController()
+  const first = worker.drive({ ...f.access, signal: caller.signal })
+  await ready
+  caller.abort()
+  expect(await first).toHaveProperty('failure.kind', 'unavailable')
+  expect(
+    await worker.drive({
+      ...f.access,
+      call: callId('another-call'),
+      signal: new AbortController().signal,
+    }),
+  ).toHaveProperty('failure.dependency', 'delivery-capacity')
+  const joined = f.drive(worker)
+  await worker.close()
+  await joined
+  expect(f.receiver.push).toHaveBeenCalledTimes(1)
 })
