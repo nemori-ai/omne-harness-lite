@@ -50,7 +50,7 @@ function sessionConfig(directoryFile: string) {
 }
 
 function optionsFor(target: ReturnType<typeof location>) {
-  const policy = accessPolicyRow(allowAll)
+  const policy = accessPolicyRow(allowAll, { includePrincipalVerifier: true })
   return {
     distribution: {
       rows: [
