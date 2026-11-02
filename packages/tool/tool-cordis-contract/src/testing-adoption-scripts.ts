@@ -20,7 +20,7 @@ import {
   type ToolBindingScope,
   type ToolLoadedRegistration,
 } from '@omne-harness/tool-contract/provider'
-import { NotApplicable } from '@omne-harness/tool-contract/testing'
+import { NotApplicable } from './testing.ts'
 import type { ToolGenerations, ToolLoadFailure, ToolLoadState } from './cordis.ts'
 
 // ---------------------------------------------------------------------------------------------
