@@ -28,6 +28,7 @@ import {
 } from '@omne-harness/execution-environment-host-local'
 import {
   ExecutionEnvironmentRegistry,
+  commandFacilityPlugin,
   createHostFilesPlugin,
   filesFacilityPlugin,
 } from '@omne-harness/execution-environment-host-local/cordis'
@@ -529,5 +530,74 @@ it('refuses a scope the trusted binding source binds to another tenant, before a
   expect(await serviceOf(ctx).resolvePlacement(access, filesPlacement)).toEqual({
     kind: 'rejected',
     reason: 'notAuthorized',
+  })
+})
+
+it('resolves files and command on the one host provider once both declarations load, and terminal stays missing', async () => {
+  const ctx = new Context()
+  await testPorts(tenant).load(ctx)
+  await ctx.plugin(ExecutionEnvironmentRegistry)
+  await ctx.plugin(filesFacilityPlugin)
+  await ctx.plugin(hostPlugin())
+  const service = serviceOf(ctx)
+  const placementOf = (facilities: EnvironmentRequirement['facilities']) =>
+    service.resolvePlacement(access, {
+      scope: scope('scope-1'),
+      requirement: { allowedBindings: [host], facilities, isolation: [] },
+    })
+  expect(await placementOf(['files', 'command'])).toEqual({
+    kind: 'rejected',
+    reason: 'missingFacility',
+  })
+  const declaration = await ctx.plugin(commandFacilityPlugin)
+  expect(await placementOf(['files', 'command'])).toMatchObject({
+    kind: 'placement',
+    binding: host,
+    provider: { name: 'host-files' },
+  })
+  expect(await placementOf(['files', 'command', 'terminal'])).toEqual({
+    kind: 'rejected',
+    reason: 'missingFacility',
+  })
+  await declaration.dispose()
+  expect(await placementOf(['command'])).toEqual({ kind: 'rejected', reason: 'missingFacility' })
+})
+
+it('accepts the command bounds, the files root and the state directory on the host files plugin', () => {
+  const validate = hostPlugin().Config['~standard'].validate
+  const full = {
+    drainBoundMs: 10,
+    filesRoot: '/srv/files',
+    stateDirectory: '/srv/state',
+    maxBufferedBytes: 1024,
+    maxChunkBytes: 512,
+    startBoundMs: 100,
+    graceMs: 0,
+    stopBoundMs: 100,
+    probeRetryMs: 0,
+  }
+  expect(validate(full)).toEqual({ value: full })
+  for (const refused of [
+    { filesRoot: 'relative/files' },
+    { stateDirectory: '' },
+    { filesRoot: 7 },
+    { maxBufferedBytes: 0 },
+    { maxChunkBytes: 1.5 },
+    { maxChunkBytes: 2048, maxBufferedBytes: 1024 },
+    { startBoundMs: -1 },
+    { graceMs: Number.NaN },
+    { stopBoundMs: '5' },
+    { probeRetryMs: Number.POSITIVE_INFINITY },
+  ])
+    expect(validate(refused), JSON.stringify(refused)).toMatchObject({
+      issues: [{ message: expect.any(String) }],
+    })
+})
+
+it('accepts only an empty configuration on the command declaration plugin', () => {
+  const validate = commandFacilityPlugin.Config['~standard'].validate
+  for (const accepted of [undefined, null, {}]) expect(validate(accepted)).toEqual({ value: {} })
+  expect(validate({ extra: true })).toEqual({
+    issues: [{ message: 'configuration accepts no fields' }],
   })
 })

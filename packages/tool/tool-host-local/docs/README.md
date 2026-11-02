@@ -1,14 +1,14 @@
 # tool-host-local 文档职责
 
-本目录维护本提供者的内部设计、使用及集成说明。architecture 与 public-api 已说明本地启动协调器。cordis 保存后续 Cordis 插件的设计，插件尚未实现，当前没有可用的 `./cordis` 入口。context、flows 与 object-model 三个主题仍待展开。非类型行为归根 [SPEC](../SPEC.md)，公共行为归契约包的 [SPEC](../../tool-contract/SPEC.md)。
+本目录维护本提供者的内部设计、使用及集成说明。architecture 与 public-api 已说明本地启动协调器、宿主时钟、登记表、Catalog 与缺席端口。cordis 保存后续 Cordis 插件的设计，插件尚未实现，当前没有可用的 `./cordis` 入口。context、flows 与 object-model 三个主题仍待展开。非类型行为归根 [SPEC](../SPEC.md)，公共行为归契约包的 [SPEC](../../tool-contract/SPEC.md)。
 
-| 主题 | 信息职责 |
-| --- | --- |
-| [architecture.md](architecture.md) | 内部模块、依赖、状态和资源责任 |
-| [flows.md](flows.md) | 关键业务和数据流 UML |
-| [object-model.md](object-model.md) | 对象、身份、关联和生命周期 |
-| [public-api.md](public-api.md) | 导出入口与接口定义导航 |
-| [context.md](context.md) | 消费者、系统定位及调用场景 |
-| [cordis.md](cordis.md) | Cordis 依赖、服务实现与生命周期 |
+| 主题                               | 信息职责                        |
+| ---------------------------------- | ------------------------------- |
+| [architecture.md](architecture.md) | 内部模块、依赖、状态和资源责任  |
+| [flows.md](flows.md)               | 关键业务和数据流 UML            |
+| [object-model.md](object-model.md) | 对象、身份、关联和生命周期      |
+| [public-api.md](public-api.md)     | 导出入口与接口定义导航          |
+| [context.md](context.md)           | 消费者、系统定位及调用场景      |
+| [cordis.md](cordis.md)             | Cordis 依赖、服务实现与生命周期 |
 
 主题需要拆分时可升级为同名目录，并提供 README 和 index。目录索引见 [index](index.md)。

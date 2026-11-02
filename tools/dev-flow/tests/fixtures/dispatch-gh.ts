@@ -31,27 +31,12 @@ export function readDispatchGhState(path: string): DispatchGhState {
 /** The stand-in script; pass it to `writeGh`. `statePath` is the state file it reads and writes. */
 export function dispatchGhScript(statePath: string): string {
   return String.raw`#!/usr/bin/env node
-import { readFileSync, readSync, writeFileSync, writeSync } from 'node:fs'
+import { readFileSync, writeFileSync, writeSync } from 'node:fs'
 const STATE = ${JSON.stringify(statePath)}
 const URL = 'https://github.com/owner/repo/issues/7'
 const state = JSON.parse(readFileSync(STATE, 'utf8'))
 const args = process.argv.slice(2)
 state.calls.push(args)
-// A body given as body=@- carries the text on standard input; a body=<text> carries it in the arguments.
-function stdin() {
-  const chunks = []
-  const buffer = Buffer.alloc(65536)
-  try {
-    for (;;) {
-      const read = readSync(0, buffer, 0, buffer.length, null)
-      if (read === 0) break
-      chunks.push(Buffer.from(buffer.subarray(0, read)))
-    }
-  } catch {
-    // No standard input: an empty body.
-  }
-  return Buffer.concat(chunks).toString('utf8')
-}
 function answer(value, code = 0) {
   writeFileSync(STATE, JSON.stringify(state))
   writeSync(1, JSON.stringify(value))
@@ -72,8 +57,9 @@ function main() {
   }
   const method = args[2]
   const path = args.find(a => a === 'user' || a.startsWith('repos/')) || ''
-  const body = args.includes('body=@-')
-    ? stdin()
+  const input = args.indexOf('--input')
+  const body = input >= 0
+    ? JSON.parse(readFileSync(args[input + 1], 'utf8')).body
     : (args.find(a => a.startsWith('body=')) || '').slice(5)
   const issue = () => ({
     number: 7, node_id: 'I_7', html_url: URL, state: 'open', updated_at: '2026-10-26T00:00:00Z',

@@ -1,4 +1,6 @@
-import { writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { conditionDigest, type Confirmation, type Decision } from '../integration/authority.ts'
 import { blob, maybeBlob } from '../integration/git.ts'
 import {
@@ -46,6 +48,22 @@ import {
 
 const TIMEOUT_MS = 15_000
 const AUTHORITY_MARKER = 'omne-integration-authority:v1'
+
+/**
+ * Replaces the `body` of `path` with PATCH. The body travels as a JSON request file named by
+ * `--input`, never as a command-line argument: a long card body would pass the command-line limit.
+ * The file is removed whether the call returns or throws.
+ */
+function patchBody(call: GhCommand, path: string, body: string): void {
+  const dir = mkdtempSync(join(tmpdir(), 'omne-gh-body-'))
+  try {
+    const file = join(dir, 'body.json')
+    writeFileSync(file, JSON.stringify({ body }), 'utf8')
+    call(['api', '--method', 'PATCH', ...REST_HEADERS, path, '--input', file], TIMEOUT_MS)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
 
 /**
  * What the dispatcher decides for one attempt. Card facts (revision, attributes, milestone,
@@ -173,26 +191,6 @@ export type DispatchPlan = {
 function refuse(problems: readonly string[]): never {
   throw new IntegrationError('refused', `Dispatch refused: ${problems.join('; ')}`)
 }
-/**
- * One PATCH of the card's body. The body goes over standard input (`-F body=@-`), never as an
- * argument: a card body reaches tens of kilobytes, past the Windows command-line limit.
- */
-function writeCardBody(repository: string, number: number, body: string, call: GhCommand): void {
-  call(
-    [
-      'api',
-      '--method',
-      'PATCH',
-      ...REST_HEADERS,
-      `repos/${repository}/issues/${number}`,
-      '-F',
-      'body=@-',
-    ],
-    TIMEOUT_MS,
-    body,
-  )
-}
-
 /** The comments of the card that already dispatch `attempt` at `revision`. */
 function earlierDispatches(issue: CapturedIssue, revision: number, attempt: string): string[] {
   return issue.comments.flatMap(comment => {
@@ -454,7 +452,7 @@ export function postDispatch({
   const body = dispatchComment(prose, decision)
   const path = `repos/${repository}/issues/comments/${id}`
   try {
-    call(['api', '--method', 'PATCH', ...REST_HEADERS, path, '-f', `body=${body}`], TIMEOUT_MS)
+    patchBody(call, path, body)
   } catch {
     throw new IntegrationError(
       'unknown',
@@ -587,7 +585,7 @@ function writeRevision(
       'The card body changed after the checks read it; run post again. Nothing was written.',
     )
   try {
-    writeCardBody(repository, number, revise.body, call)
+    patchBody(call, `repos/${repository}/issues/${number}`, revise.body)
   } catch {
     throw new IntegrationError(
       'unknown',
@@ -704,7 +702,7 @@ export function bindCard({
   const body = bindBody(card.body, binding, worktree)
   if (dryRun) return { body, applied: false }
   try {
-    writeCardBody(repository, number, body, call)
+    patchBody(call, `repos/${repository}/issues/${number}`, body)
   } catch {
     throw new IntegrationError('unknown', 'Writing the card body failed. API output omitted.')
   }

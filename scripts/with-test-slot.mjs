@@ -8,7 +8,7 @@
 //
 // 策略都可用环境变量覆盖，下面是初值：
 //   OMNE_TEST_SLOTS                  名额数（1）
-//   OMNE_TEST_SLOT_DIR               锁文件目录（/tmp/omne-test-slots-<uid>，Windows 为系统临时目录下同名目录；同一用户的全部检出共用）
+//   OMNE_TEST_SLOT_DIR               锁文件目录（见下面「一个锁目录」；同一用户的全部检出共用）
 //   OMNE_TEST_SLOT_POLL_SECONDS      没轮到时隔多久再看一次（5）
 //   OMNE_TEST_SLOT_MAX_WAIT_SECONDS  最多等多久，超过即以 75 退出、命令不执行（7200）
 //   OMNE_TEST_SLOT_LEDGER            运行账本（${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl）
@@ -17,12 +17,24 @@
 // 命令用掉的 CPU 时间、起止时的机器负载、退出码。它给「按任务大小分配名额」（#57 第二步）校准用，
 // 所以跟名额同一个范围（同一用户的全部检出与克隆），放在重启也不清的用户状态目录；写不进去只提醒，不改退出码。
 //
-// 先来后到：进队时领一张票（ticket-<号>，号比队里所有活票都大），名额空出时只有号码最小的活票去拿。
-// 票与名额（slot-<序号>.lock）都是独占创建的文件，记着登记它的进程号与心跳间隔；登记者定时刷新修改时间。
-// 进程不在了，或心跳停了超过三个间隔，登记就算失效：失效的登记不挡后来者，由下一个看队列的进程删掉。
-// 这些文件只在队列锁（queue.lock 目录，mkdir 原子创建）内增删。
+// 先来后到：进队时领一张票（ticket-<号>，号比目录里见过的所有票号都大，失效的也算，所以回收后重领的号不会重复），
+// 名额空出时只有号码最小的活票去拿。票与名额（slot-<序号>.lock）都是独占创建的文件，记着登记它的进程号、
+// 所在侧（side）与心跳间隔；登记者定时刷新修改时间。这些文件只在队列锁（queue.lock 目录，mkdir 原子创建）内增删。
 // 已经持有名额的进程再调用本脚本（例如 pnpm run check 里嵌着的测试入口）直接放行，不重复排队。
-// 名额随持有它的进程退出而释放，被强行杀掉也不会卡死后来者。
+// 名额随持有它的包装进程退出而释放；POSIX 下杀持有者要杀整棵进程树，否则被包装的命令成孤儿继续跑而名额已释放。
+//
+// 一个锁目录（#979 D1）：Windows 侧是 os.tmpdir() 下的 omne-test-slots-<用户名>；WSL 侧（有 WSL_DISTRO_NAME）
+// 默认解析到同一个物理目录——经 interop 起 PowerShell 取 Windows 侧的临时目录与用户名（Get-Item 给出长名，
+// 8.3 短名也转成长名）、在那里建目录与一个探针文件，再 wslpath -u 转成 WSL 路径，看得见探针才算同一个目录。
+// 解析失败或同目录判定不成立时回退 /tmp/omne-test-slots-<uid>，并在 stderr 报「WSL 与 Windows 没有共用名额」。
+// 其余 POSIX 是 /tmp/omne-test-slots-<uid>。
+//
+// 分侧判存活：登记写 side=<platform>@<主机名>，WSL 里再加 /<发行版名>。进程号只在同侧判（两侧的进程号空间不同，
+// 对侧的号在本侧总是「不存在」）；对侧的登记只看心跳——名额与票停了超过三个间隔，队列锁停留超过 30 秒——就算失效。
+// 没有 side 行的旧版登记按同侧处理。失效的登记不挡后来者，由下一个看队列的进程删掉。
+// 队列锁与自己的票、名额都只删自己登记的：被别人当作失效删掉又重建的，不再动它。等待者发现自己的票被回收时，
+// 在 stderr 提示并重新排队；持有者发现名额文件被删时在 stderr 报一句，命令照常跑完。
+// 跨侧判定依赖两侧时钟一致：WSL 时钟落后超过心跳阈值时，对侧活着的持有者会被误删。
 import { spawn, spawnSync } from 'node:child_process'
 import {
   appendFileSync,
@@ -39,7 +51,7 @@ import {
   writeSync,
 } from 'node:fs'
 import os from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 
 const args = process.argv.slice(2)
 if (args.length === 0) {
@@ -74,11 +86,11 @@ if (slots < 1 || pollSeconds < 1) {
   process.stderr.write('with-test-slot: 名额数与轮询间隔须至少为 1\n')
   process.exit(2)
 }
+/** 本进程所在的侧：平台@主机名，WSL 里再加发行版名。登记里写它，判存活时按它决定进程号判不判。 */
+const SIDE = `${process.platform}@${os.hostname()}${env['WSL_DISTRO_NAME'] ? `/${env['WSL_DISTRO_NAME']}` : ''}`
 // 锁目录不跟 TMPDIR 走：不同的 TMPDIR 会把同一台机器上的调用者分进两个队列。
 const user = process.getuid?.() ?? os.userInfo().username
-const slotDir =
-  env['OMNE_TEST_SLOT_DIR'] ||
-  join(process.platform === 'win32' ? os.tmpdir() : '/tmp', `omne-test-slots-${user}`)
+const slotDir = env['OMNE_TEST_SLOT_DIR'] || defaultSlotDir()
 const ledger =
   env['OMNE_TEST_SLOT_LEDGER'] ||
   join(
@@ -93,6 +105,94 @@ try {
   // 写账本时再提醒
 }
 
+/** 本侧的默认锁目录；WSL 里先试 Windows 侧的同一个目录，不成再回退并提醒。 */
+function defaultSlotDir() {
+  const own = join(process.platform === 'win32' ? os.tmpdir() : '/tmp', `omne-test-slots-${user}`)
+  if (!env['WSL_DISTRO_NAME']) return own
+  const shared = windowsSlotDir()
+  if (shared.dir !== undefined) return shared.dir
+  process.stderr.write(
+    `with-test-slot: WSL 与 Windows 没有共用名额（${shared.reason}），这次用 ${own}\n`,
+  )
+  return own
+}
+
+/**
+ * WSL 里解析 Windows 侧的默认锁目录。经 interop 起 Windows PowerShell：取 %TEMP% 的长名、拼上 omne-test-slots-%USERNAME%、
+ * 建目录、清掉 10 分钟前留下的探针、建一个以本进程号命名的探针文件，再报出目录。这边 wslpath -u 转成 WSL 路径，
+ * 在那里看得见探针才算同一个目录，看完即删。任何一步不成都给出原因，由调用方回退。
+ */
+function windowsSlotDir() {
+  const powershell = wslpath('C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe')
+  if (powershell === undefined) return { reason: 'wslpath 不可用' }
+  if (!existsSync(powershell)) return { reason: `${powershell} 不存在` }
+  const probe = `.omne-probe-${process.pid}`
+  const script = [
+    '[Console]::OutputEncoding = [Text.Encoding]::UTF8',
+    "$ErrorActionPreference = 'Stop'",
+    "$dir = Join-Path (Get-Item -LiteralPath $env:TEMP).FullName ('omne-test-slots-' + $env:USERNAME)",
+    'New-Item -ItemType Directory -Force -Path $dir | Out-Null',
+    "Get-ChildItem -LiteralPath $dir -Filter '.omne-probe-*' -Force | Where-Object { $_.LastWriteTime -lt (Get-Date).AddMinutes(-10) } | Remove-Item -Force",
+    `New-Item -ItemType File -Force -Path (Join-Path $dir '${probe}') | Out-Null`,
+    'Write-Output $dir',
+  ].join('; ')
+  // Windows PowerShell 5.1 的 New-Item 没有 -LiteralPath，这里用 -Path；它不展开通配符。
+  const output = interop(powershell, ['-NoProfile', '-NonInteractive', '-Command', script])
+  if (output.reason !== undefined) return output
+  const windowsDir = output.stdout.trim().split(/\r?\n/).at(-1) ?? ''
+  if (!/^[A-Za-z]:\\/.test(windowsDir))
+    return { reason: `PowerShell 没有报出 Windows 侧的目录：${windowsDir || '（空）'}` }
+  const dir = wslpath(windowsDir)
+  if (dir === undefined) return { reason: `wslpath 转不了 ${windowsDir}` }
+  const probePath = join(dir, probe)
+  if (!existsSync(probePath))
+    return { reason: `Windows 在 ${windowsDir} 建的文件在 ${dir} 下看不见` }
+  rmSync(probePath, { force: true })
+  return { dir }
+}
+
+/** Windows 路径在 WSL 里的路径；wslpath 不可用或转不了时为 undefined。 */
+function wslpath(windowsPath) {
+  const result = spawnSync('wslpath', ['-u', windowsPath], { encoding: 'utf8', timeout: 10_000 })
+  if (result.status !== 0 || typeof result.stdout !== 'string') return undefined
+  const path = result.stdout.trim()
+  return path === '' ? undefined : path
+}
+
+/**
+ * 在 WSL 里起一个 Windows 程序，取它的标准输出。binfmt 登记了 WSLInterop 时直接起，内核会交给 /init；
+ * 没登记（systemd 启用后登记常被清掉；直接起会被 execvp 当作 shell 脚本交给 /bin/sh）时显式经 /init 起。
+ * 当前目录放在程序所在的 Windows 目录，免得 Windows 程序对 UNC 形式的 WSL 当前目录报警。
+ */
+function interop(file, args) {
+  const launcher = interopLauncher()
+  const [exe, ...argv] = [...launcher, file, ...args]
+  const result = spawnSync(exe, argv, {
+    encoding: 'utf8',
+    cwd: dirname(file),
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 60_000,
+  })
+  if (result.error === undefined && result.status === 0) return { stdout: result.stdout }
+  const how = launcher.length === 0 ? '' : '（经 /init）'
+  const why =
+    result.error !== undefined
+      ? result.error.message
+      : `退出码 ${result.status}${result.stderr.trim() === '' ? '' : `，${result.stderr.trim().split(/\r?\n/)[0]}`}`
+  return { reason: `${basename(file)} 起不来${how}：${why}` }
+}
+
+/** 起 Windows 程序要不要经 /init：binfmt_misc 里有 WSLInterop 登记就不用；没登记而 /init 在，就经它。 */
+function interopLauncher() {
+  try {
+    if (readdirSync('/proc/sys/fs/binfmt_misc').some(name => name.startsWith('WSLInterop')))
+      return []
+  } catch {
+    // 没有 binfmt_misc：按没登记算
+  }
+  return existsSync('/init') ? ['/init'] : []
+}
+
 const commandLine = args.join(' ').replaceAll('\n', ' ')
 const unixNow = () => Math.floor(Date.now() / 1000)
 // 账本里的时刻按毫秒取、经过的时长按毫秒相减后再取整秒：先各自取整再相减，跨过整秒边界的几毫秒会被记成 1 秒。
@@ -101,11 +201,11 @@ const sleepSync = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0
 const sleep = seconds => new Promise(settle => setTimeout(settle, seconds * 1000))
 
 /**
- * 票与名额登记同一格式：谁、从何时起、在哪个目录、跑什么命令、多久刷新一次心跳。
+ * 票与名额登记同一格式：谁、在哪一侧、从何时起、在哪个目录、跑什么命令、多久刷新一次心跳。
  * `since` 保持整秒：别的进程（包括旧版本的本脚本）按整秒读它，它只用于排队提示里的「已 N 秒」，不进账本。
  */
 function describe(beatSeconds) {
-  return `pid=${process.pid}\nsince=${unixNow()}\ncwd=${process.cwd()}\ncmd=${commandLine}\nbeat=${beatSeconds}\n`
+  return `pid=${process.pid}\nside=${SIDE}\nsince=${unixNow()}\ncwd=${process.cwd()}\ncmd=${commandLine}\nbeat=${beatSeconds}\n`
 }
 
 function fields(path) {
@@ -130,11 +230,23 @@ function processAlive(pid) {
   }
 }
 
-/** 登记还活着：登记它的进程在，心跳也没停太久；失效的顺手删掉。只在队列锁内调用。 */
+/** 登记在本侧：side 与本进程相同；没有 side 行的旧版登记也算本侧。 */
+const sameSide = entry => entry.side === undefined || entry.side === SIDE
+
+/** 登记是本进程自己写的。 */
+const mine = entry => entry !== undefined && Number(entry.pid) === process.pid && sameSide(entry)
+
+/** 登记里的进程还在：同侧按进程号判；对侧判不了进程号，只要登记在就算在。 */
+function registrantPresent(entry) {
+  if (!sameSide(entry)) return true
+  const pid = Number(entry.pid)
+  return Number.isSafeInteger(pid) && pid > 0 && (pid === process.pid || processAlive(pid))
+}
+
+/** 登记还活着：登记它的进程在（同侧才判），心跳也没停太久；失效的顺手删掉。只在队列锁内调用。 */
 function alive(path) {
   const entry = fields(path)
   if (entry === undefined) return false
-  const pid = Number(entry.pid)
   const beat = Number(entry.beat) || pollSeconds
   let age = 0
   try {
@@ -142,24 +254,59 @@ function alive(path) {
   } catch {
     return false
   }
-  if (
-    Number.isSafeInteger(pid) &&
-    pid > 0 &&
-    (pid === process.pid || processAlive(pid)) &&
-    age <= 3 * beat + 5
-  )
-    return true
-  rmSync(path, { force: true })
+  if (registrantPresent(entry) && age <= 3 * beat + 5) return true
+  remove(path)
   return false
 }
 
+/** 刷新自己登记的心跳。登记不在了、或已被别人重新登记（票被回收后号被重发），返回 false。 */
+function beatOwn(path) {
+  if (!mine(fields(path))) return false
+  try {
+    const now = new Date()
+    utimesSync(path, now, now)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** 删掉自己的登记；已经不是自己的（被回收又被别人登记）就不动。 */
+function removeOwn(path) {
+  if (mine(fields(path))) remove(path)
+}
+
+/**
+ * 删一份登记文件。对侧正读着它时 NTFS 经 9p 可能拒绝（EPERM、EBUSY）：这次删不掉就留着，
+ * 它仍是失效的，下一个看队列的进程再删。
+ */
+function remove(path) {
+  try {
+    rmSync(path, { force: true })
+  } catch {
+    // 下一轮再删
+  }
+}
+
+/**
+ * 独占创建登记文件。已存在时为 false；对侧刚删了同名文件、NTFS 还处在待删除状态时也会被拒（EPERM、EACCES、EBUSY），
+ * 同样算没创建成，由调用方换下一个号或下一轮再试。
+ */
 function createExclusive(path, text) {
   let fd
   try {
     fd = openSync(path, 'wx')
   } catch (error) {
-    if (error.code === 'EEXIST') return false
-    throw error
+    if (['EEXIST', 'EPERM', 'EACCES', 'EBUSY'].includes(error.code)) return false
+    if (error.code !== 'ENOENT') throw error
+    // 锁目录没了（或对侧刚删过同名文件、9p 一时报找不到）：补建目录再试一次
+    mkdirSync(dirname(path), { recursive: true })
+    try {
+      fd = openSync(path, 'wx')
+    } catch (again) {
+      if (['EEXIST', 'EPERM', 'EACCES', 'EBUSY'].includes(again.code)) return false
+      throw again
+    }
   }
   try {
     writeSync(fd, text)
@@ -169,33 +316,71 @@ function createExclusive(path, text) {
   return true
 }
 
-/** 队列锁：mkdir 是原子的。持有者不在了或停留超过 30 秒就当作失效。 */
+/** 删整个队列锁目录；对侧正在里面读写时 NTFS 经 9p 会先拒绝，照 Node 的退避重试几次。 */
+function removeQueueLock(lock) {
+  rmSync(lock, { recursive: true, force: true, maxRetries: 10, retryDelay: 20 })
+}
+
+/**
+ * 队列锁：mkdir 是原子的。持有者是同侧且进程不在了，或停留超过 30 秒，就当作失效；对侧的持有者只看停留时间。
+ * 目录刚建好就被别人删了（旧版脚本在对侧把本侧的进程号当作不存在）时，重新去拿。
+ * 收尾只删 owner 还是自己的锁：被别人当作失效删掉又重建的，是别人的。自己的锁删不掉时提醒一句，
+ * 它会在 30 秒后由下一个看队列的进程回收，不改命令的退出码。
+ */
 function inQueue(work) {
   const lock = join(slotDir, 'queue.lock')
+  const ownerPath = join(lock, 'owner')
+  let refusals = 0
   for (;;) {
     try {
       mkdirSync(lock)
-      break
     } catch (error) {
+      if (['EPERM', 'EACCES', 'EBUSY', 'ENOTEMPTY', 'ENOENT'].includes(error.code)) {
+        // 对侧刚删掉同名目录、NTFS 还处在待删除状态（Windows 报 EPERM，WSL 经 9p 报 ENOENT）：稍等再试；
+        // 锁目录真的没了就重建它。一直被拒就不是这种情形，照常抛出
+        if ((refusals += 1) > 250) throw error
+        if (error.code === 'ENOENT') mkdirSync(slotDir, { recursive: true })
+        sleepSync(20)
+        continue
+      }
       if (error.code !== 'EEXIST') throw error
-      const owner = fields(join(lock, 'owner'))
+      const owner = fields(ownerPath)
       let age = 0
       try {
         age = Date.now() / 1000 - statSync(lock).mtimeMs / 1000
       } catch {
         continue
       }
-      const pid = Number(owner?.pid)
-      if ((owner !== undefined && !processAlive(pid)) || age > 30)
-        rmSync(lock, { recursive: true, force: true })
-      else sleepSync(20)
+      const gone = owner !== undefined && sameSide(owner) && !processAlive(Number(owner.pid))
+      if (!gone && age <= 30) {
+        sleepSync(20)
+        continue
+      }
+      try {
+        removeQueueLock(lock)
+      } catch {
+        // 别人同时在动它：再看一遍
+      }
+      continue
+    }
+    try {
+      createExclusive(ownerPath, `pid=${process.pid}\nside=${SIDE}\n`)
+      break
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error
     }
   }
   try {
-    createExclusive(join(lock, 'owner'), `pid=${process.pid}\n`)
     return work()
   } finally {
-    rmSync(lock, { recursive: true, force: true })
+    if (mine(fields(ownerPath)))
+      try {
+        removeQueueLock(lock)
+      } catch (error) {
+        process.stderr.write(
+          `with-test-slot: 队列锁 ${lock} 删不掉（${error.code}），30 秒后由下一个看队列的进程回收\n`,
+        )
+      }
   }
 }
 
@@ -256,7 +441,10 @@ let ahead = 0
 let holders = []
 let holderIds = []
 
-/** 在队列锁内走一轮：清掉失效的票、数出排在前面的活票；第一次来就领票；排到最前就试名额。 */
+/**
+ * 在队列锁内走一轮：数出目录里见过的最大票号（失效的也算，重领的号才不会重复）、清掉失效的票、
+ * 数出排在前面的活票；第一次来就领票；排到最前就试名额。
+ */
 function takeTurn() {
   let newest = 0
   ahead = 0
@@ -264,8 +452,8 @@ function takeTurn() {
     const match = /^ticket-(\d+)$/.exec(name)
     if (match === null) continue
     const number = Number(match[1])
-    if (number === ticketNumber || !alive(join(slotDir, name))) continue
     newest = Math.max(newest, number)
+    if (number === ticketNumber || !alive(join(slotDir, name))) continue
     if (ticketNumber === 0 || number < ticketNumber) ahead += 1
   }
   if (ticketNumber === 0) {
@@ -279,7 +467,7 @@ function takeTurn() {
       const path = join(slotDir, `slot-${index}.lock`)
       if (existsSync(path) && alive(path)) continue
       if (createExclusive(path, describe(HOLDER_BEAT_SECONDS))) {
-        rmSync(ticket, { force: true })
+        removeOwn(ticket)
         acquired = index
         return
       }
@@ -294,7 +482,7 @@ function takeTurn() {
     let cmd = entry.cmd ?? ''
     if (cmd.length > 160) cmd = `${cmd.slice(0, 160)}…`
     holders.push(
-      `名额 ${index}/${slots} 正由「${cmd}」占着，已 ${duration(unixNow() - since)}（${entry.cwd ?? ''}，进程 ${entry.pid ?? ''}）`,
+      `名额 ${index}/${slots} 正由「${cmd}」占着，已 ${duration(Math.max(0, unixNow() - since))}（${entry.cwd ?? ''}，进程 ${entry.pid ?? ''}，${entry.side ?? SIDE}）`,
     )
     holderIds.push(`${entry.pid}@${since}`)
   }
@@ -338,22 +526,28 @@ function record(event, run) {
 
 // 等待时被打断：交还票再退出。
 const interrupted = signal => {
-  if (ticket !== undefined && acquired === 0) rmSync(ticket, { force: true })
+  if (ticket !== undefined && acquired === 0) removeOwn(ticket)
   process.exit(128 + (os.constants.signals[signal] ?? 1))
 }
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, interrupted)
 
 let announced = false
 let lastSeen = ''
+let recycled = false
 for (;;) {
   inQueue(takeTurn)
   aheadOnArrival ??= ahead
   waited = wholeSeconds(Date.now() - started)
+  if (recycled) {
+    process.stderr.write(`with-test-slot: 票被回收，重新排队（前面还有 ${ahead} 个）\n`)
+    recycled = false
+    lastSeen = ''
+  }
   if (acquired) break
   if (waited >= maxWaitSeconds) {
     status = 75
     inQueue(() => {
-      rmSync(ticket, { force: true })
+      removeOwn(ticket)
       record('gave-up', { endedAt: Date.now() })
     })
     process.stderr.write(
@@ -372,12 +566,10 @@ for (;;) {
     for (const line of holders) process.stderr.write(`with-test-slot:   ${line}\n`)
     lastSeen = seen
   }
-  try {
-    const now = new Date()
-    utimesSync(ticket, now, now)
-  } catch {
-    // 票被当作失效删掉了：下一轮重新领一张
+  if (!beatOwn(ticket)) {
+    // 票被当作失效删掉了（号可能已经发给别人）：下一轮重新领一张，领到后提示
     ticketNumber = 0
+    recycled = true
   }
   await sleep(pollSeconds)
 }
@@ -388,13 +580,14 @@ if (announced)
 const slotPath = join(slotDir, `slot-${acquired}.lock`)
 const acquiredAt = Date.now()
 const loadAtAcquire = load()
+let noticedGone = false
 const heartbeat = setInterval(() => {
-  try {
-    const now = new Date()
-    utimesSync(slotPath, now, now)
-  } catch {
-    // 名额文件不在了：命令照常跑完，结束时不再重复删除
-  }
+  if (beatOwn(slotPath) || noticedGone) return
+  // 名额文件被别人当作失效删掉了（对侧时钟偏差、或被手工清理）：命令照常跑完，结束时不再删它。
+  noticedGone = true
+  process.stderr.write(
+    `with-test-slot: 名额文件被删（${slotPath}），本进程的登记被当作失效；命令照常跑完，但别的等待者可能已经开始\n`,
+  )
 }, HOLDER_BEAT_SECONDS * 1000)
 // 不替换本进程：让本进程持有名额直到命令结束，命令留下的后台进程不会把名额带走。
 const result = await run(args, { ...process.env, OMNE_TEST_SLOT_HELD: slotPath }, true)
@@ -402,7 +595,7 @@ clearInterval(heartbeat)
 status = result.status
 const endedAt = Date.now()
 inQueue(() => {
-  rmSync(slotPath, { force: true })
+  removeOwn(slotPath)
   record('ran', { acquiredAt, endedAt, cpuSeconds: result.cpuSeconds, loadAtAcquire })
 })
 process.exit(status)

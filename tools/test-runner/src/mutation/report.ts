@@ -167,10 +167,30 @@ export interface RecheckReading {
   readonly allMutants: number
 }
 
+/**
+ * 变异没有真正执行的原因（成员读数的 `executionFailure.reason`，只加不改）：
+ * sandbox 预检没通过、Stryker 退出非零、原始报告没写出、原始报告读不出或形状不对、范围内的变异体生成了却一个都没跑。
+ * 范围内一个变异体都没生成不在其内：那是「未覆盖的改动段」（#737），测量照旧有效。
+ */
+export type ExecutionFailureReason =
+  | 'preflight-failed'
+  | 'stryker-failed'
+  | 'report-missing'
+  | 'report-unreadable'
+  | 'nothing-executed'
+
+/** 没有读数的原因：`message` 不带成员路径，出错行与读数标题各自在前面补上。 */
+export interface ExecutionFailure {
+  readonly reason: ExecutionFailureReason
+  readonly message: string
+}
+
 export interface MemberMutation {
   readonly member: string
-  /** 测量有效：原始报告没有 RuntimeError，也没有不能计分的变异体。无效时不给分数。 */
+  /** 测量有效：变异真正执行过，原始报告没有 RuntimeError，也没有不能计分的变异体。无效时不给分数。 */
   readonly valid: boolean
+  /** 变异没有真正执行时给原因，`valid` 必为 false，计数全是 0 只是占位，不表示没有存活；执行过为 null。 */
+  readonly executionFailure: ExecutionFailure | null
   readonly counts: Readonly<Record<MutantStatus, number>>
   /** 测出来的占（测出来＋没测出来）的百分比；测量无效或一个都没有时为 null。 */
   readonly score: number | null
@@ -193,6 +213,29 @@ export interface MemberMutation {
 }
 
 const SHOWN = 80
+
+/** 变异没有执行：成员照样有一条读数，测量无效、带原因、不给分数；计数与明细都是空的，不能读成「没有存活」。 */
+export function unexecutedMember(
+  target: MutationTarget,
+  failure: ExecutionFailure,
+): MemberMutation {
+  return {
+    member: target.member.path,
+    valid: false,
+    executionFailure: failure,
+    counts: zeroCounts(),
+    score: null,
+    survived: [],
+    noCoverage: [],
+    invalid: [],
+    rechecked: [],
+    runtimeErrors: 0,
+    typeTests: null,
+    recheck: null,
+    outside: 0,
+    unmutated: [],
+  }
+}
 
 /** 变异体在源码里替换掉的那段原文，压成一行。 */
 function originalText(source: string, mutant: ReportMutant): string {
@@ -487,12 +530,25 @@ export function summarizeMember(
   }
   const byPlace = (a: Finding, b: Finding) => a.file.localeCompare(b.file) || a.line - b.line
   const runtimeErrors = runtimeErrorCount(report) + runtimeErrorCount(inputs.recheck)
-  const valid = runtimeErrors === 0 && invalid.length === 0
+  // 范围内生成了变异体，却没有一个得出过判定：运行没有测它们。一个都没生成的另算（#737）。
+  const judged = (['Killed', 'Timeout', 'Survived', 'NoCoverage', 'RuntimeError'] as const).reduce(
+    (sum, status) => sum + counts[status],
+    0,
+  )
+  const executionFailure: ExecutionFailure | null =
+    counts.Pending > 0 && judged === 0 && invalid.length === 0
+      ? {
+          reason: 'nothing-executed',
+          message: `范围内生成了 ${counts.Pending} 个变异体，没有一个被执行（状态都是「未跑」），没有读数`,
+        }
+      : null
+  const valid = runtimeErrors === 0 && invalid.length === 0 && executionFailure === null
   const detected = counts.Killed + counts.Timeout
   const scored = detected + counts.Survived + counts.NoCoverage
   return {
     member: target.member.path,
     valid,
+    executionFailure,
     counts,
     score: !valid || scored === 0 ? null : Math.round((detected / scored) * 1000) / 10,
     survived: survived.sort(byPlace),
@@ -553,6 +609,11 @@ function scoreText(result: MemberMutation): string {
 /** 一个成员的读数；`detail` 为真时逐条列出存活、无覆盖、不计分与复核过的变异体。 */
 export function memberLines(result: MemberMutation, detail: boolean): string[] {
   const { counts } = result
+  // 没有真正执行：不列计数，免得读成「存活 0」。
+  if (result.executionFailure !== null)
+    return [
+      `${result.member}：测量无效（${result.executionFailure.reason}）——${result.executionFailure.message}；分数 —（测量无效）`,
+    ]
   const total =
     MUTANT_STATUSES.reduce((sum, status) => sum + counts[status], 0) + result.invalid.length
   const invalidCounts = INVALID_REASONS.map(
@@ -599,6 +660,9 @@ export function memberErrors(
   },
 ): string[] {
   const errors: string[] = []
+  // 成员级运行编排（member.ts）在 Stryker 没跑完时自己写出错行，不经这里；这里只管报告读得出、却一个变异体都没执行。
+  if (result.executionFailure !== null)
+    errors.push(`${result.member}：${result.executionFailure.message}，日志 ${paths.logPath}`)
   if (result.runtimeErrors > 0)
     errors.push(
       `${result.member}：${result.runtimeErrors} 个 RuntimeError，成员测量无效，原始报告 ${paths.reports.join('、')}`,

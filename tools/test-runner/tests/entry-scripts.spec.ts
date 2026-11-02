@@ -1,5 +1,7 @@
-// 根脚本背后的几个入口脚本（scripts/ 下）：只核它们拥有的部分——参数怎样分派、谁占运行名额、先后与退出码。
-// 真正的命令换成记录参数的假程序：node、uv 放在 PATH 前面，运行名额与钉住的 omne-metrics 放在脚本找它们的位置。
+// 根脚本背后的几个入口脚本（scripts/ 下）与根 package.json 的 `test:python` 一行：只核它们拥有的部分——
+// 参数怎样分派、谁占运行名额、先后与退出码。
+// 真正的命令换成记录参数的假程序：node、uv 放在 PATH 前面，运行名额与钉住的 omne-metrics 放在脚本找它们的位置；
+// 要核「名额被占时不起命令」的用例换用真实的名额脚本与私有锁目录。
 // 每次起脚本都带时限，到时连整棵进程树一起杀：被测脚本挂住或无限重入时用例变红，不留孤儿进程（#979 事故）。
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import {
@@ -86,6 +88,23 @@ function executable(path: string, text: string): void {
   chmodSync(path, 0o755)
 }
 
+/** 根 package.json 里一条脚本的命令行。 */
+function rootScript(name: string): string {
+  const parsed: unknown = JSON.parse(
+    readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'),
+  )
+  const scripts =
+    typeof parsed === 'object' && parsed !== null && 'scripts' in parsed
+      ? parsed.scripts
+      : undefined
+  const line =
+    typeof scripts === 'object' && scripts !== null && name in scripts
+      ? (scripts as Record<string, unknown>)[name]
+      : undefined
+  if (typeof line !== 'string') throw new Error(`根 package.json 没有脚本 ${name}`)
+  return line
+}
+
 /** 一次 `run` 的结果。`timedOut` 为真时脚本没在时限内结束，整棵进程树已被杀，`status` 为 null。 */
 interface Ran {
   readonly status: number | null
@@ -95,7 +114,11 @@ interface Ran {
   readonly pid: number | undefined
 }
 
-function fixture() {
+/**
+ * 夹具。`realSlot` 时放真实的名额脚本（`with-test-slot.sh` 与 `.mjs`），锁目录与账本指到夹具里；
+ * 否则放只记参数、打上已持有标记再执行命令的替身。
+ */
+function fixture(options: { readonly realSlot?: boolean } = {}) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-entry-scripts-')))
   homes.push(home)
   const root = join(home, 'root'),
@@ -109,18 +132,25 @@ function fixture() {
       join(root, 'scripts', name),
       readFileSync(new URL(`../../../scripts/${name}`, import.meta.url), 'utf8'),
     )
+  if (options.realSlot === true)
+    for (const name of ['with-test-slot.sh', 'with-test-slot.mjs'])
+      executable(
+        join(root, 'scripts', name),
+        readFileSync(new URL(`../../../scripts/${name}`, import.meta.url), 'utf8'),
+      )
   // 运行名额的替身：记下命令，给它打上「已持有名额」的标记再执行——真的名额脚本也这样做
   // （with-test-slot.mjs 给子进程 OMNE_TEST_SLOT_HELD）。check.sh 看不到这个标记就再去占名额：替身不打标记时
   // 它会无限重入自己，MSYS 上每一跳都留下一个进程（#979 事故）。标记已在时再被叫到，说明被测脚本无视了它：
   // 立刻以 97 退出、不执行命令，用例看到的是失败而不是挂住。
-  executable(
-    join(root, 'scripts/with-test-slot.sh'),
-    `#!/usr/bin/env bash
+  else
+    executable(
+      join(root, 'scripts/with-test-slot.sh'),
+      `#!/usr/bin/env bash
 if [[ -n "\${OMNE_TEST_SLOT_HELD:-}" ]]; then echo "with-test-slot 替身在名额已持有时被重入：$*" >&2; exit 97; fi
 printf "slot|%s\\n" "$*" >> "$TRACE"
 OMNE_TEST_SLOT_HELD=stub exec "$@"
 `,
-  )
+    )
   // omne-metrics 另记下收到的覆盖率并发度（环境变量）与 --plan 指向的文件在它运行时是否存在。
   executable(
     join(root, 'node_modules/.bin/omne-metrics'),
@@ -134,11 +164,12 @@ done
 `,
   )
   // node 只认测试运行器的 plan 与 coverage-parallel：前者写出 --json 指向的计划文件，FAIL_NODE 给出它的退出码；
-  // 后者打印 PARALLEL（缺省 3x5），FAIL_PARALLEL 给出它的退出码。
+  // 后者打印 PARALLEL（缺省 3x5），FAIL_PARALLEL 给出它的退出码。真实的名额脚本要起真的 node，那时不放这个替身。
   // HANG_NODE 模拟运行器挂住：记下自己与 sleep 的进程号（Windows 上记 Windows 进程号）供用例核对它们被杀，然后一直等。
-  executable(
-    join(bin, 'node'),
-    `#!/usr/bin/env bash
+  if (options.realSlot !== true)
+    executable(
+      join(bin, 'node'),
+      `#!/usr/bin/env bash
 printf 'node|%s\\n' "$*" >> "$TRACE"
 if [[ -n "\${HANG_NODE:-}" ]]; then
   winpid() { cat "/proc/$1/winpid" 2>/dev/null || echo "$1"; }
@@ -153,26 +184,42 @@ for (( i = 0; i < \${#args[@]}; i++ )); do
 done
 exit "\${FAIL_NODE:-0}"
 `,
+    )
+  // uv 被当作 pytest 起（给了 PYTEST_XDIST_AUTO_NUM_WORKERS）时，另记下 pytest 相关的两个环境变量。
+  executable(
+    join(bin, 'uv'),
+    `#!/usr/bin/env bash
+printf 'uv|%s\\n' "$*" >> "$TRACE"
+if [[ -n "\${PYTEST_XDIST_AUTO_NUM_WORKERS-}" ]]; then
+  printf 'uv-env|%s|%s\\n' "\${PYTHONDONTWRITEBYTECODE-unset}" "$PYTEST_XDIST_AUTO_NUM_WORKERS" >> "$TRACE"
+fi
+`,
   )
-  executable(join(bin, 'uv'), '#!/usr/bin/env bash\nprintf "uv|%s\\n" "$*" >> "$TRACE"\n')
-  const run = (
-    script: string,
-    args: string[],
-    env: Record<string, string> = {},
-    timeoutMs = RUN_TIMEOUT_MS,
+  const environment = (env: Record<string, string>): NodeJS.ProcessEnv => {
+    // 这份测试自己可能就跑在名额里（准入）：清掉继承的标记，用例要给的自己给。
+    const inherited: NodeJS.ProcessEnv = { ...process.env }
+    delete inherited['OMNE_TEST_SLOT_HELD']
+    return {
+      ...inherited,
+      PATH: `${bin}${delimiter}${process.env['PATH'] ?? ''}`,
+      TRACE: trace,
+      OMNE_TEST_SLOT_DIR: join(home, 'locks'),
+      OMNE_TEST_SLOT_LEDGER: join(home, 'ledger.jsonl'),
+      ...env,
+    }
+  }
+  /** 经 bash 起一条命令，带时限；到时杀整棵进程树并按失败返回。`run` 与 `runLine` 都走这里。 */
+  const launch = (
+    bashArgs: string[],
+    env: Record<string, string>,
+    timeoutMs: number,
+    cwd?: string,
   ): Promise<Ran> =>
     new Promise(resolve => {
       writeFileSync(trace, '')
-      // 这份测试自己可能就跑在名额里（准入）：清掉继承的标记，要给的用例自己给。
-      const inherited: NodeJS.ProcessEnv = { ...process.env }
-      delete inherited['OMNE_TEST_SLOT_HELD']
-      const child = spawn('bash', [join(root, 'scripts', script), ...args], {
-        env: {
-          ...inherited,
-          PATH: `${bin}${delimiter}${process.env['PATH'] ?? ''}`,
-          TRACE: trace,
-          ...env,
-        },
+      const child = spawn('bash', bashArgs, {
+        env: environment(env),
+        ...(cwd === undefined ? {} : { cwd }),
         // 标准输入不接管道：脚本不该读它，接了又不关就可能挂住。标准输出没有用例读，直接丢。
         stdio: ['ignore', 'ignore', 'pipe'],
         // POSIX 上另起进程组，杀树时按组杀；Windows 上 detached 会脱离 libuv 的 job，不用。
@@ -198,7 +245,7 @@ exit "\${FAIL_NODE:-0}"
       }
       timer = setTimeout(() => {
         timedOut = true
-        stderr += `\n[run] ${script} ${args.join(' ')} 超过 ${timeoutMs} 毫秒没结束，已杀整棵进程树`
+        stderr += `\n[run] bash ${bashArgs.join(' ')} 超过 ${timeoutMs} 毫秒没结束，已杀整棵进程树`
         if (child.pid !== undefined) killTree(child.pid)
         setTimeout(() => settle(null), CLOSE_GRACE_MS).unref()
       }, timeoutMs)
@@ -208,7 +255,24 @@ exit "\${FAIL_NODE:-0}"
       })
       child.once('close', code => settle(code))
     })
-  return { run, pidsFile }
+  const run = (
+    script: string,
+    args: string[],
+    env: Record<string, string> = {},
+    timeoutMs = RUN_TIMEOUT_MS,
+  ): Promise<Ran> => launch([join(root, 'scripts', script), ...args], env, timeoutMs)
+  /** 在夹具根目录里经 bash 跑一整条命令行（根 package.json 脚本的写法）。 */
+  const runLine = (line: string, env: Record<string, string> = {}): Promise<Ran> =>
+    launch(['-c', line], env, RUN_TIMEOUT_MS, root)
+  /** 在夹具的锁目录里放一份活着的名额登记（本进程的进程号、心跳新鲜）。 */
+  const occupySlot = () => {
+    mkdirSync(join(home, 'locks'), { recursive: true })
+    writeFileSync(
+      join(home, 'locks', 'slot-1.lock'),
+      `pid=${process.pid}\nsince=${Math.floor(Date.now() / 1000)}\ncwd=${home}\ncmd=占着的\nbeat=5\n`,
+    )
+  }
+  return { run, runLine, occupySlot, pidsFile }
 }
 
 describe('metrics.sh', () => {
@@ -325,6 +389,30 @@ describe('check-design.sh', () => {
     expect((await run('check-design.sh', [])).lines[1]).not.toContain('--stale')
     expect((await run('check-design.sh', ['--stale'])).status).toBe(2)
     expect((await run('check-design.sh', ['--bogus'])).status).toBe(2)
+  })
+})
+
+describe('package.json 的 test:python', () => {
+  const line = rootScript('test:python')
+
+  it('经运行名额：先建 tmp，再把 uv 连同 pytest 的参数与环境变量交给名额脚本', async () => {
+    const { runLine } = fixture()
+    const ran = await runLine(line)
+    expect(ran.status, ran.stderr).toBe(0)
+    expect(ran.lines).toEqual([
+      'slot|uv run --locked pytest --ignore-glob=*.legacy --basetemp=tmp/test-runs -n auto --dist worksteal',
+      'uv|run --locked pytest --ignore-glob=*.legacy --basetemp=tmp/test-runs -n auto --dist worksteal',
+      'uv-env|1|0',
+    ])
+  })
+
+  it('名额被占且最多等 0 秒：以 75 退出，不起 pytest', async () => {
+    const { runLine, occupySlot } = fixture({ realSlot: true })
+    occupySlot()
+    const refused = await runLine(line, { OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0' })
+    expect(refused.status).toBe(75)
+    expect(refused.stderr).toContain('命令没有执行')
+    expect(refused.lines).toEqual([])
   })
 })
 

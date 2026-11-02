@@ -286,7 +286,7 @@ POSIX 的启动时间单独取 ps lstart。认领时向该子命令传入 `TZ=UT
 
 版本 1、缺少身份、时间无效或启动时间格式不受支持的本地状态无法通过读取、健康检查或释放，不从旧时间文本猜测时区，不依据旧 PID 授予写权。恢复前须确认原接收器已停止、事件目录属于目标实例，以及配置里的仓库、主机和 hook 归属。只有旧 PID 已不存在或 pid 文件不存在时，新认领才可按既有守卫重建本地状态；PID 仍存活或无法确认已停止时保持拒绝。废弃的 guard 仍需在确认没有写者后人工处理。更新本地状态不迁移或删除 hook，不替代 hook 的精确所有权恢复。
 
-自建频道停止时只删除持久 owned hook，删除前验证精确身份。借用实例只退订，不调用 hook 写接口。创建响应丢失、日志失败或归属不明保存 recovery-needed。clean 只允许处理本机已停止且归属已证实的实例；全仓扫删入口退出。
+自建频道停止时只删除持久 owned hook，删除前验证精确身份。借用实例只退订，不调用 hook 写接口。停止后配置记为 deleted，表示 hook 已确认不存在，频道与实例标记保持不变。再次 serve 遇到 deleted 时，按 uncreated 的路径重建：先保存 creating，创建一个精确 hook，响应中的 hookId 保存为 owned。重建中断或响应丢失时，配置停在 creating，下次 serve 只按持久实例身份对账，不重复创建；创建失败或响应与持久身份不符时报 hook-create-outcome-unknown，不记为 owned。重建不扫描、不删除其他 hook，也不换频道或事件目录。创建响应丢失、日志失败或归属不明保存 recovery-needed。clean 只允许处理本机已停止且归属已证实的实例；全仓扫删入口退出。
 
 legacy 的 HTTP 接收器只绑定 127.0.0.1、只接受 POST。给出 secret 时校验 X-Hub-Signature-256；签名不符返回 401，非法投递返回 400，落盘完成返回 204，写失败返回 500。停止时结束自己的 forward 子进程并释放本地写者。gh forward 没有可证明所有权的创建回执，因此不得用前后列表差分猜 hook；停止保留 recovery-needed 并退出 2，422 另给 legacy-hook-conflict。SIGKILL 无法执行清理，后续按持久身份恢复。
 
@@ -302,20 +302,23 @@ check 消费通过上述读取校验的持久 `processStartedAt`，并要求事�
 - 事件文件变短，或 inode 变了（文件被换成另一个），从头重读。重读到的已计过的 delivery 仍按去重忽略。
 - 事件文件不存在不算错误。读事件文件状态的其他错误使等待失败并退出2。
 - 旧格式事件行在文件中已有匹配时直接返回，不读 GitHub。带频道身份的行只触发权威对账，不能直接放行。
-- 启动对账。已有内容没有可信匹配时，调用注入的对账函数。旧格式事件此后不再调用 GitHub API。`any` 对每个成员各调用一次，第一个命中的成员结束对账。事件在对账期间已经命中时，不再对后面的成员调用对账函数。对账命中时立即返回，输出标 `source: "reconcile"`。可信事件命中标 `source: "event"`。
+- 启动对账。已有内容没有可信匹配时，调用注入的对账函数。旧格式事件在启动对账之后不再调用 GitHub API，到期前的保底对账除外。`any` 对每个成员各调用一次，第一个命中的成员结束对账。事件在对账期间已经命中时，不再对后面的成员调用对账函数。对账命中时立即返回，输出标 `source: "reconcile"`。可信事件命中标 `source: "event"`。
 - 频道行的可选 `receiver` 包含非空 instanceId、repository、mode=channel、requiresReconcile=true。解析保留该信任标记；标记非法时整行无效，不降级成旧格式。频道行的 repository 必须等于调用者明确传入的 repository，且调用者必须提供 reconcile，否则等待失败。CLI 将已解析的 `--repo` 或 origin 仓库传入。
 - 频道业务行匹配谓词，或 receiver 的 connected/reconnected 诊断到达时，执行一次有界权威对账。仅权威结果能返回 `source: reconcile`。诊断可附 reasonCode、非负整数 connectionEpoch 和 coverage=coverage-gap；它不证明历史事件已完整重放。对账串行执行，对账期间收到的新触发保留到下一次读取；本地5秒检查不会自行触发平台轮询。
 - `any` 的输出多一个 `matched`，值是命中成员的谓词名。库层的 `any` 的成员可以是 `issue-closed`、`pr-ready` 与 `comment`，`wait-cli.ts any` 只组合 `issue-closed` 与 `comment`，所以命令输出的 `matched` 只会是这两个值。原子谓词的输出没有 `matched`。
 - 对账失败时等待失败并退出2，不继续等。对账读不到就不能证明没有错过事件。
-- 对账读平台当前状态，不是事件。`issue-closed` 看卡现在是否已关闭，`pr-ready` 看目标分支上是否有开放、非草稿且不在 `ignore` 里的 PR，只看 `gh pr list` 返回的前200个开放 PR，输出带它的号与 `head`，`comment` 看 `--since` 之后创建的评论里是否有标记。前两者不受 `--since` 限制。
-- `--since` 是 ISO 时间时，只认 `receivedAt` 晚于它的行。是 delivery id 时，只认文件里在该行之后的行。这个 id 不在已有内容里时，等待失败并退出2。
-- 超时退出3，标准错误写说明，标准输出为空。超时不表示条件不成立。没有 `--timeout` 时不超时。
+- 对账读平台当前状态，不是事件。`issue-closed` 看卡现在是否已关闭，`pr-ready` 看目标分支上是否有开放、非草稿且不在 `ignore` 里的 PR，只看 `gh pr list` 返回的前200个开放 PR，输出带它的号与 `head`，`comment` 看起点之后创建、带标记且评论 id 不在已处理集合里的评论，返回其中最早的一条。前两者不受 `--since` 与 `--seen` 限制。
+- 起点 `--since` 是 ISO 时间时，表示不早于它：事件文件的行按 `receivedAt` 比，对账按评论 `created_at` 比，等于起点的记录都算。是 delivery id 时，只认文件里在该行之后的行，对账没有时间起点，该行及之前各行里的评论 id 当作已处理。这个 id 不在已有内容里时，等待失败并退出2。工具不把 `receivedAt` 交给对账当 `created_at` 的下界，也不对任何时间加减余量。
+- 已处理集合 `--seen`（评论 id，只属于 `comment` 与 `any`，可重复，十进制）。评论 id 取自 `html_url` 里 `#issuecomment-` 之后的数字。评论行与对账结果的 id 在集合里时，两条路径都不算命中；频道提示行也一样，不触发对账。没有评论 id 的行不受集合影响。
+- 命中输出的 `next`：`comment` 与 `any` 的命中多一个 `next` 对象，`next.since` 是调用者给的 `--since` 原样，没给就没有这个字段，`next.seen` 是输入的已处理集合加上本次命中评论的 id（命中不是评论时不加）。其他命令的输出没有 `next`。起点不前移，已处理记录由 id 排除，所以重挂不会跳过起点之后尚未处理的记录（另一条线上更早创建的评论、同一秒创建的评论、积压的几条），也不会被已处理的记录立即再次唤醒（包括对账先命中、投递后到的那条）。
+- 对账对一个评论条件只返回一条，是最早的未处理评论。积压的记录按发布顺序一条一条返回，其余在重挂后立即返回。`any` 在第一个成立的成员处停止；`issue-closed` 成员成立后每次先命中。
+- 保底读回：到 `--timeout` 时，退出3之前再读一次本地事件文件，并对每个条件各对账一次，对账仍串行执行，已在进行的对账先结束。读回命中就按命中返回（`source` 按命中来源标注，退出0）。读回失败按对账失败退出2。读回也没有命中才退出3，标准错误写说明，标准输出为空。超时不表示条件不成立。没有 `--timeout` 时不超时。
 
-退出码：命中 0，输入、对账或文件错误 2，超时 3。`wait-cli.ts` 与 `events-receiver-cli.ts` 以2退出时，标准错误的 JSON 在错误带有系统错误码时多一个 `code` 字段，例如 `ELOOP`；输入错误不带 `code`。
+退出码：命中 0（包括到期时保底读回的命中），输入、对账或文件错误 2，超时且保底读回没有命中 3。`wait-cli.ts` 与 `events-receiver-cli.ts` 以2退出时，标准错误的 JSON 在错误带有系统错误码时多一个 `code` 字段，例如 `ELOOP`；输入错误不带 `code`。
 
 事件文件只保存归一后的字段，不含评论正文。接收器进程不在时，GitHub 不补发事件。旧格式通过启动对账补救，频道还在连接恢复和业务提示时对账。同一个事件文件由一个接收器写，第二个接收器启动会被拒绝。`--ignore <pr>@<head>` 可重复，只属于 `pr-ready`。`head` 须是完整的 commit sha，40 或 64 位十六进制，大小写不分。短 sha 以输入错误退出2，消息说明要完整 sha。`any` 接受可重复的 `--issue-closed <号>` 与 `--comment <issue>:<标记名>`，至少一个。
 
-验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、等待、对账及 legacy 生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖实际子进程 CLI、退出码、清理拒绝与 SIGHUP 收尾。[delivery-events-trust.spec.ts](../../tests/delivery-events-trust.spec.ts)验证频道提示不能直接放行、重连对账与读回期间新提示保留。[delivery-events-receiver-channel.spec.ts](../../tests/delivery-events-receiver-channel.spec.ts)验证 SSE、频道身份、hook 恢复与本地健康。[delivery-events-receiver-identity.spec.ts](../../tests/delivery-events-receiver-identity.spec.ts)用受控内核与时钟输入验证校时不改变身份、身份变化及旧状态拒绝、释放所有权和事件时间过滤。独立 UTC 或 America/New_York 生产进程与 UTC 或 Asia/Shanghai 消费进程覆盖启动前事件拒绝、相等边界接受及 DST 回拨。ps 替身按命令环境选择 UTC 或本地文本，并覆盖非 C locale。内核身份及系统查询输出受控，配置权限检查与文件读写使用实际宿主。网络 seam 和本地服务器不能替代真实双机、GitHub 投递及宿主续接验收。
+验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、等待、对账及 legacy 生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖实际子进程 CLI、退出码、`next` 与 `--seen` 的重挂、保底读回、清理拒绝与 SIGHUP 收尾。[delivery-events-trust.spec.ts](../../tests/delivery-events-trust.spec.ts)验证频道提示不能直接放行、重连对账、读回期间新提示保留，以及同一秒创建的两条记录按已处理集合依次返回。[delivery-events-receiver-channel.spec.ts](../../tests/delivery-events-receiver-channel.spec.ts)验证 SSE、频道身份、hook 恢复与本地健康。[delivery-events-receiver-identity.spec.ts](../../tests/delivery-events-receiver-identity.spec.ts)用受控内核与时钟输入验证校时不改变身份、身份变化及旧状态拒绝、释放所有权和事件时间过滤。独立 UTC 或 America/New_York 生产进程与 UTC 或 Asia/Shanghai 消费进程覆盖启动前事件拒绝、相等边界接受及 DST 回拨。ps 替身按命令环境选择 UTC 或本地文本，并覆盖非 C locale。内核身份及系统查询输出受控，配置权限检查与文件读写使用实际宿主。网络 seam 和本地服务器不能替代真实双机、GitHub 投递及宿主续接验收。
 
 ## 首次派发消息具体化
 
