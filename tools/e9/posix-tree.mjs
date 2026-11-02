@@ -3,10 +3,10 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { performance } from 'node:perf_hooks'
 
-export function processSnapshot(deadline) {
+export function processSnapshot(deadline, pid) {
   if (process.platform === 'linux') {
     const rows = []
-    for (const name of readdirSync('/proc')) {
+    for (const name of pid === undefined ? readdirSync('/proc') : [String(pid)]) {
       if (performance.now() >= deadline) throw new Error('process discovery deadline exceeded')
       if (!/^\d+$/.test(name)) continue
       try {
@@ -24,11 +24,13 @@ export function processSnapshot(deadline) {
     }
     return rows
   }
-  const result = spawnSync('ps', ['-axo', 'pid=,ppid=,stat=,lstart='], {
+  const selection = pid === undefined ? ['-a', '-x'] : ['-p', String(pid)]
+  const result = spawnSync('ps', [...selection, '-o', 'pid=,ppid=,stat=,lstart='], {
     encoding: 'utf8',
     timeout: Math.max(1, Math.ceil(Math.min(1000, deadline - performance.now()))),
     env: { ...process.env, LC_ALL: 'C' },
   })
+  if (!result.error && result.status === 1 && pid !== undefined && !result.stdout.trim()) return []
   if (result.error || result.status !== 0)
     throw new Error(result.error?.message ?? `ps exited ${result.status}`)
   return result.stdout
@@ -49,9 +51,20 @@ export function processSnapshot(deadline) {
 
 const stopped = row => !row || /^[ZX]/.test(row.state)
 
+export function captureTree(pid) {
+  try {
+    const [root] = processSnapshot(performance.now() + 1000, pid)
+    return observeTree(pid, { root })
+  } catch (error) {
+    return observeTree(pid, { rootError: error.message })
+  }
+}
+
 export function observeTree(
   pid,
   {
+    root,
+    rootError,
     snapshot = processSnapshot,
     signal = process.kill,
     pause = sleep,
@@ -60,7 +73,7 @@ export function observeTree(
     maxErrors = 32,
   } = {},
 ) {
-  const known = new Map()
+  const known = new Map(root?.pid === pid ? [[pid, { ...root }]] : [])
   const errors = []
   let omittedErrors = 0
   let initialized = false
@@ -72,11 +85,10 @@ export function observeTree(
   function collect() {
     if (performance.now() >= deadline) throw new Error('process cleanup deadline exceeded')
     const rows = snapshot(deadline)
+    if (performance.now() >= deadline) throw new Error('process cleanup deadline exceeded')
     const live = new Map(rows.map(row => [row.pid, row]))
     if (!initialized) {
-      const root = live.get(pid)
-      if (root) known.set(pid, root)
-      else
+      if (live.get(pid)?.identity !== root.identity)
         failure({ operation: 'discover', error: 'root unavailable; descendant ownership unknown' })
       initialized = true
     }
@@ -110,14 +122,9 @@ export function observeTree(
     deadline = started + deadlineMs
     let live
     try {
-      // Freeze discovered parents before the final traversal so they cannot add more children.
-      let count
-      do {
-        live = collect()
-        count = known.size
-        for (const row of known.values()) send(row, 'SIGSTOP', collect())
-        live = collect()
-      } while (known.size !== count && performance.now() - started < deadlineMs)
+      if (!known.size)
+        throw new Error(rootError ?? 'root spawn identity unavailable; ownership unknown')
+      live = collect()
       for (const row of [...known.values()].reverse()) send(row, 'SIGKILL', collect())
       do {
         live = collect()
@@ -130,6 +137,7 @@ export function observeTree(
         await pause(20)
       } while (performance.now() - started < deadlineMs)
     } catch (error) {
+      live = undefined
       failure({ operation: 'cleanup', error: error.message })
     }
     const processes = [...known.values()].map(row => {

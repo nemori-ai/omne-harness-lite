@@ -1,7 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { performance } from 'node:perf_hooks'
 import { validateRounds } from './metrics.mjs'
-import { observeTree } from './posix-tree.mjs'
+import { captureTree, observeTree } from './posix-tree.mjs'
 
 export async function killTree(child, tree) {
   if (child.pid === undefined) return
@@ -17,17 +17,7 @@ export async function killTree(child, tree) {
       error: result.error?.message,
     }
   }
-  const result = await (tree ?? observeTree(child.pid)).cleanup()
-  if (child.exitCode === null && child.signalCode === null) {
-    try {
-      child.kill('SIGKILL')
-    } catch (error) {
-      result.errors.push({ operation: 'root-fallback', error: error.message })
-      result.state = 'incomplete'
-      result.exitCode = 1
-    }
-  }
-  return result
+  return (tree ?? observeTree(child.pid)).cleanup()
 }
 
 export function launchProcess(command, args, options = {}) {
@@ -39,6 +29,8 @@ export function launchProcess(command, args, options = {}) {
     detached: process.platform !== 'win32',
     stdio: ['pipe', 'pipe', 'pipe'],
   })
+  const tree =
+    process.platform !== 'win32' && child.pid !== undefined ? captureTree(child.pid) : undefined
   const done = new Promise(resolve => {
     let stdout = ''
     let stderr = ''
@@ -49,7 +41,7 @@ export function launchProcess(command, args, options = {}) {
     let closingTimer
     let settled = false
     const stop = () => {
-      cleaning ??= killTree(child).then(result => {
+      cleaning ??= killTree(child, tree).then(result => {
         cleanup = result
       })
       closingTimer ??= setTimeout(() => {
