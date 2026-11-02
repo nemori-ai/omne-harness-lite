@@ -185,15 +185,27 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../packages/common/legal-identity
+      '@omne-harness/model':
+        specifier: workspace:*
+        version: link:../../packages/model/model
       '@omne-harness/model-contract':
         specifier: workspace:*
         version: link:../../packages/model/model-contract
       '@omne-harness/model-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/model/model-cordis-contract
+      '@omne-harness/model-host-local':
+        specifier: workspace:*
+        version: link:../../packages/model/model-host-local
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../packages/common/operation-result
+      '@omne-harness/pi-ai-openai':
+        specifier: workspace:*
+        version: link:../../packages/model/pi-ai-openai
+      '@omne-harness/pi-ai-transport':
+        specifier: workspace:*
+        version: link:../../packages/model/pi-ai-transport
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract
