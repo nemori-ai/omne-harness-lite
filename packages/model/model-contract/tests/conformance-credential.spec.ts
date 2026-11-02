@@ -193,7 +193,8 @@ describe('credential port conformance', () => {
             dispose() {
               disposed += 1
               if (disposal === 'throw') throw new Error('synthetic-disposal-error')
-              if (disposal === 'reject') return Promise.reject(new Error('synthetic-disposal-error'))
+              if (disposal === 'reject')
+                return Promise.reject(new Error('synthetic-disposal-error'))
               if (disposal === 'pending') return new Promise<void>(() => {})
             },
           })
