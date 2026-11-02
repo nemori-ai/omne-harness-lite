@@ -167,10 +167,11 @@ describe('local instance host', () => {
         throw new Error('routing-only fixture')
       },
     }
-    value(await local.publish(execution, handle))
+    const publication = value(await local.publish(execution, handle))
     expect(await local.directory.connect({ ...request(), principal: 'observer' })).toEqual({
       ok: { kind: 'live', handle },
     })
+    Reflect.set(publication, 'registration', 'changed-by-caller')
     let released = false
     const release = installation.release().then(() => {
       released = true
@@ -184,9 +185,9 @@ describe('local instance host', () => {
     expect(await local.publish(execution, handle)).toMatchObject({
       failure: { dependency: 'tool-instance-host' },
     })
-    expect(await local.directory.connect({ ...request(), principal: 'observer' })).toEqual({
-      ok: { kind: 'no-live-route' },
-    })
+    expect(value(await local.directory.connect({ ...request(), principal: 'observer' })).kind).toBe(
+      'no-live-route',
+    )
     finish.resolve()
     await release
     await installation.release()

@@ -156,7 +156,7 @@ export async function createLocalToolInstanceHost<P>(
         await routes.withdraw(published.ok)
         return unavailable('The Tool instance host closed during publication.')
       }
-      publications.set(published.ok.registration, published.ok)
+      publications.set(published.ok.registration, Object.freeze({ ...published.ok }))
       return published
     },
     withdraw: async publication => {
