@@ -40,4 +40,10 @@ export type {
   SessionContextInputPluginInput,
 } from './cordis/context-input.ts'
 export { SessionEvidenceBridgeProvider } from './cordis/evidence-bridge.ts'
+export { createSessionHistorySource } from './cordis/history-source.ts'
+export type {
+  SessionHistoryHead,
+  SessionHistoryHeads,
+  SessionHistorySourceInput,
+} from './cordis/history-source.ts'
 export { SessionIdentityBridgeProvider } from './cordis/identity-bridge.ts'

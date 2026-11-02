@@ -48,7 +48,7 @@
 | [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | Session 自有日志提交内的 CallerCommit 与只读核对 | `./testing` 内存提供者已实现四种 CallerCommit 与 open、submit、attach、tryFinish 的只读核对。attach 按 [PA-01](../session-contract/SPEC.md#pa-01) 第 3 条核对普通推进与取消收束，取消收束含 SE16 条件。tryFinish 含 [PA-02](../session-contract/SPEC.md#pa-02) 的取消分支。judge-cancellation 的判断输入带 Session 的参加者事实。生产提供者经 `session` 参加者在同一次存储提交里核对与参加（[生产提供者的实现现状](#生产提供者的实现现状)）；按 Cordis 插件登记未交付 |
 | [AD-02](#ad-02) | Agent 同日志解释 | 入站 | 无 | `coordinator` | AgentJournal.load；同提供者 output.read/events | `./testing` 内存提供者已实现；生产插件未交付 |
 | [AD-03](#ad-03) | Runtime Context 持有者与 `session.modes` 生产者 | 入站 | `runtimeContextReaderEligibility`（K-RC），由持有者插件提供 | `coordinator`；回放子插件为 `reader` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`registerProducer`、`bind`、`changes`、`diffForReminder` | 回放子插件与持有者插件已实现（`src/cordis/context-holder.ts`），在真实 Cordis 上对 Runtime Context 内存替身验证。`replayFacts` 交给 `createSessionRuntimeContextTrust`。条目到提交输入的翻译协议待 AD-12 交付。`session.modes` 生产者与变化提醒子插件未交付。`./cordis` 导出由集成方合入。见 [AD-03 的实现现状](#ad-03-的实现现状) |
-| [AD-04](#ad-04) | Request Context 历史来源 | 入站 | 无 | 历史源子插件为 `reader`；下界子插件为 `coordinator` | HistorySource.read/compactionContext；ContextSourceRegistry.register/replace | 来源材料未齐时不登记；生产插件未交付 |
+| [AD-04](#ad-04) | Request Context 历史来源 | 入站 | `contextHolderSources`（K-RQ），由历史源子插件提供 | 历史源子插件为 `reader`；下界子插件为 `coordinator` | HistorySource.read/compactionContext；会话侧四个部件经 K-RQ 租借给 agent-context，AD-04 自己不调用 `register`/`replace` | 两个子插件已实现（`src/cordis/history-source.ts`），在真实 Cordis 上对本成员的内存会话验证，K-RQ 套件通过。历史依据解码与固定请求事实由装配交入，真实提供者未交付。`./cordis` 导出由集成方合入。见 [AD-04 的实现现状](#ad-04-的实现现状) |
 | [AD-05](#ad-05) | Model 日志消费适配 | 入站 | 无 | `coordinator` | Agent Journal 的结果与账目读取；`sessionTransactions.commitEntries` | `./testing` 内存提供者已实现。生产插件 `createSessionModelLogConsumptionPlugin` 已实现（`src/cordis/model-log-consumption.ts`，[实现现状](#ad-05-生产插件)），在真实 Cordis 上装载与停止已验证；`./cordis` 导出由集成方合入。生产侧没有 `agentMaterials` 提供者时停在 `PENDING`。Model ACK 到达未决 |
 | [Journal 提供者](#agent-journal-提供者与非耐久替身) | Agent Journal 提供者 | 入站 | `agentJournal`；同一提供者兑现 `agentJournalEntries` 与 `agentMaterials` | 不调用 `session`；`inject` `sessionAccessCheck`、`storage` 与受信 `tenantDomainLookup`；与 Session 共用会话日志的提交状态 | AgentJournal、AgentJournalEntries、AgentMaterials | 非耐久替身 `createMemorySessionJournal`（`./testing`）已实现。生产提供者 `createSessionLogJournal` 按会话给出三个端口。提供 `agentJournal` 的插件 `SessionLogAgentJournalProvider` 按租户与 execution 路由到会话，经 `./cordis` 导出。提供 `agentJournalEntries` 与 `agentMaterials` 的插件未交付 |
 | [AD-06](#ad-06) | Tool 日志消费适配 | 入站 | 无 | `coordinator` | 同一 AgentJournal 的 entries/results 与 AgentMaterials 读取；`receive(execution/account)` | 生产插件未交付 |
@@ -362,6 +362,40 @@ CM-02 的来源完整性由本插件及其 Session 历史提供者负责：
 - 来源齐备与 current 接线是生产提供者的验证义务。NP-02 只保留缺少真实来源材料与生产接线的状态，不再声称 RQ 没有登记入口。
 
 前缀摘要缓存只缓存已核权页，键含 tenant/session/epoch/seq；命中不代替每页核权。人侧视图调用 RQ 纯操作 `projectForHuman`，不写回。
+
+##### AD-04 的实现现状
+
+按 [P2 决策记录](https://github.com/nemori-ai/omne-harness-lite/issues/502#issuecomment-6561777147) 第 2、3 条，来源集合由 agent-context 登记。AD-04 不调用 `register` 或 `replace`，它提供 K-RQ `contextHolderSources`，把会话侧四个部件租借给登记者。上文「来源集合登记与结束」中由 AD-04 登记的各条，按该决策由 agent-context 承担。RQ-12 的结算义务仍在 AD-04：它是来源持有者。
+
+`createSessionHistorySource`（`src/cordis/history-source.ts`）给出两个子插件。两个子插件都在 `session` 缺席时停在 `PENDING`。
+
+1. 历史源子插件 `session-ad04` 注入 `session: { caller: 'reader' }`，提供 `contextHolderSources`。每次 Session 调用都用本次部件调用的 Access，插件没有自己的主体。
+   - 租借是借用方 fiber 的效应。`release` 或借用方卸载结束租借，持有者在这时拉取借用方交入的结算函数。持有者卸载时先拒绝新的租借（答 `unavailable`），等全部已拉取的结算结束，再关闭借出的读口。读口关闭之后，四个部件都答 `unavailable`，不再调用 Session。
+   - 每个部件先核 Access 与目标：缺 Access 或租户为 `invalid`；目标租户不等于 Access 的租户时答 `denied`，不调用 Session。
+2. 下界子插件 `session-ad04-lower-bound` 注入 `session: { caller: 'coordinator' }`，以本次 Access 调用 `readWork`。历史源子插件经同一工厂的内部链接使用它，用于未结工作下界与会话的作用域绑定。它缺席时，历史依据解析与压缩窗口答 `unavailable`，`read`、读取资格与窄采用来源照常工作。
+
+四个部件：
+
+| 部件 | 怎样兑现 |
+| --- | --- |
+| `resolveHistory` | 装配交入的解码端口 `heads` 把历史依据（Agent 执行快照的 `history`）译为租户与会话。不认识的依据答 `invalid`；租户不等于 Access 的租户时答 `denied`。然后以 `readWork` 取会话的作用域绑定：最新绑定是当前作用域，它已结束时答 `unavailable`。会话的全部作用域进入作用域到会话的索引。再以 `readModelView`（依据为 null）取当前 epoch 与上界 |
+| `history.read` | 由索引找到目标作用域的会话。索引里没有时答 `unavailable`，不调用 Session。依据译为 `ModelViewBasis`，游标的 `after` 原样交给 `readModelView`。游标必须绑定同一依据，否则答 `invalid`。行的 `bytes` 转为十进制文本；没有行带 `sourceCall`，因为模型视图不带原 Model 调用。`epoch-changed` 带当前完整依据。Session 的失败不成为空页 |
+| `history.compactionContext` | 先读上界所在的行，再以 `reader` 前向读完整个会话日志，以 `coordinator` 读 `readWork`。窗口与未结工作下界用本成员 `./testing` 会话的同一个窗口函数（`compactionReads`，含 `openWork`）求得，然后截到上界所在的条目。`coverTo` 不在上界之内时答 `invalid`。最后再读一次上界所在的行，epoch 已变时答 `epoch-changed` |
+| `eligibility.check` | 由索引找到会话，以本次 Access 做一次 `readModelView` 读取。Session 允许时答 `allowed`，`denied` 原样交出，其余失败答 `unavailable`。`revision` 只随历史源子插件的代次变化 |
+| `adopted` | 先做与 `eligibility.check` 相同的核验。装配交入固定请求事实时转交给它；没有交入时答 `unavailable`（诊断 `adopted-facts-absent`），不答 `null` |
+
+epoch 的翻译：Session 的 epoch 文本可能含控制字符（本成员内存会话的 epoch 就含一个），`EpochId` 不接受它们。本插件把控制字符、空格、DEL 与 `%` 写成 `%xx`，反向时还原，所以翻译可逆。
+
+已知缺口：
+
+- 历史依据到会话的解码由装配交入（`heads`）。现在的 Journal 核心铸造的 `history` 依据只带会话命名空间与执行修订。解码的真实提供者没有交付。
+- 窄采用来源的固定请求事实由装配交入（`adopted`）。会话日志没有固定请求的条目，真实来源没有交付。这是 [NP-02](#np-02) 的一部分。
+- 作用域到会话的索引只由 `resolveHistory` 建立，在进程内保存，有上界。进程重启之后，同一作用域在下一次解析之前答 `unavailable`。
+- 压缩窗口每次前向读完整个会话日志，不按游标增量读取。它用的窗口函数在 `src/testing/`，与 K-10 同理。上一次合法压缩之后的窗口（`base` 为 `previous`）没有用例，因为内存会话的压缩提交要经 Agent 参加。
+- 前缀摘要缓存没有实现，每页都读 Session。
+- 历史源子插件以 `reader` 调用 Session，主体是本次 Access 转交来的会话协调者主体（[#978 答复](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6562982342) Q-3）。`forSession` 的 actor 只有 `coordinator` 与 `maintainer`，所以主体的 actor 不等于调用方类 `reader`。Session 的调用方类核对只比插件配置，不比 actor，所以放行不受影响。
+
+验证：[tests/history-source.spec.ts](tests/history-source.spec.ts) 在真实 Cordis 4.0.4 上运行。Session 是本成员 `./testing` 的内存会话，经脚本 Session 服务接入；历史依据解码是脚本替身。`contextHolderSourcesConformance` 的十一个用例通过。SS-21 用例对 N = 10 与 N = 100 行，比较游标之后一页的 Session 调用数与读到的行数。没有对 session-storage-sql、真实 agent-context 或真实 Request Context 运行。
 
 <a id="ad-05"></a>
 
