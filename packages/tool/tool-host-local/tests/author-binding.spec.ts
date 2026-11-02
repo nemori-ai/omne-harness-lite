@@ -5,7 +5,15 @@ import {
 } from '@omne-harness/tool-contract/testing'
 import { bindingFixture, unbox } from './author-values.ts'
 import { fail, succeed } from '@omne-harness/operation-result'
-import { adoption, callId, evidence, instanceId, operationId } from './coordinator-values.ts'
+import {
+  adoption,
+  callId,
+  evidence,
+  instanceId,
+  operationId,
+  startOf,
+} from './coordinator-values.ts'
+import { createLiveAuthorExecution } from '../src/live-author-execution.ts'
 
 describe('real author binding N7', () => {
   it('stopping one author leaves another invocation live', async () => {
@@ -53,6 +61,7 @@ describe('real author binding N7', () => {
       intent: { kind: 'stop' as const },
       source: evidence('stop'),
     }
+    expect(unbox(await live.inspectControl(control)).kind).toBe('pending')
     expect(unbox(await live.stop(control)).kind).toBe('accepted')
     await fixture.completeStop?.(first)
     expect(unbox(await live.inspectControl(control)).kind).toBe('stopped')
@@ -140,5 +149,35 @@ describe('real author binding N7', () => {
     ).toHaveProperty('failure.kind', 'denied')
     expect(fixture.launches?.()).toBe(0)
     expect(fixture.pins()).toBe('0')
+  })
+
+  it('keeps lost continuity unknown while recalling a control already accepted by the source', async () => {
+    const start = startOf('control-continuity')
+    const execution = createLiveAuthorExecution({ start, release() {} })
+    const control = {
+      tenant: start.execution.tenant,
+      call: start.execution.call,
+      operation: operationId('before-loss'),
+      adoption: adoption('stop'),
+      inputDigest: 'sha256:before-loss',
+      start,
+      intent: { kind: 'stop' as const },
+      source: evidence('before-loss'),
+    }
+    expect(unbox(await execution.live.inspectControl(control)).kind).toBe('pending')
+    expect(execution.signal.aborted).toBe(false)
+    const accepted = await execution.live.stop(control)
+    expect(accepted).toHaveProperty('ok.kind', 'accepted')
+    execution.lose(evidence('continuity-lost'))
+    expect(await execution.live.inspectControl(control)).toEqual(accepted)
+    expect(
+      unbox(
+        await execution.live.inspectControl({
+          ...control,
+          operation: operationId('after-loss'),
+          inputDigest: 'sha256:after-loss',
+        }),
+      ).kind,
+    ).toBe('unknown')
   })
 })
