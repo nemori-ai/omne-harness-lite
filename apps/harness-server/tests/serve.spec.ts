@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { stubPlugin } from '../src/cordis.ts'
+import { agentJournalCombination } from '../src/rows/agent-journal/config.ts'
 import { serveProfile } from '../src/profile.ts'
 import type { S0Record } from '../src/run.ts'
 import { rowIds } from '../src/s0/rows.ts'
@@ -44,7 +45,7 @@ beforeEach(() => {
 })
 
 describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
-  it('the release tree of 7 real, 1 contract-double and 41 s0-double rows loads, accepts, stops on request and exits 0', async () => {
+  it('the release tree of 16 real and 33 s0-double rows loads, accepts, stops on request and exits 0', async () => {
     // The operator layer gives what the distribution file does not hold: absolute paths and the port.
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
@@ -67,10 +68,15 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         'identity:real',
         'authorization:real',
         'session-storage:real',
-        'session-provider:contract-double',
+        'session-provider:real',
+        'session-ad06:real',
         'session-ad09:real',
+        'agent-journal:real',
         'agent-adoptions:real',
         'adoption-sources:real',
+        'agent-model-selection:real',
+        'model-instances:real',
+        'model-converters:real',
         'model-profiles:real',
         'model-credential:real',
         'server-entry:real',
@@ -83,13 +89,18 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         outcome: 'ready',
         enabledRows: 49,
         barrierCalls: 1,
-        implementations: { real: 10, 'contract-double': 1, 's0-double': 38 },
+        implementations: { real: 16, 'contract-double': 0, 's0-double': 33 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])
     } finally {
       rmSync(base, { recursive: true, force: true })
     }
+  })
+
+  it('the release gives agent-journal the combination that the session-storage row registers', () => {
+    const row = release.rows.find(r => r.id === 'agent-journal')
+    expect(row).toMatchObject({ plugin: 'agentJournalRow', config: agentJournalCombination() })
   })
 
   it('R1-1: only s0.assemblyLifecycle carries the s0. prefix', async () => {

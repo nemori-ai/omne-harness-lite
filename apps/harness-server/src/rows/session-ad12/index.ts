@@ -8,9 +8,13 @@
 // take too; the assembly page answers it with `SessionWorkPrincipals.forSession({ actor:
 // 'coordinator' })`). This assembly has no source the row may read: `sessionWorkPrincipals` is a
 // trusted name that only the `session-provider` row sees, and the page gives `session-ad12` no other
-// inject. The row therefore answers the port `unavailable` and names it. Only a registration
-// `change` asks the port; `create`, `startRun`, `reload` and a step commit do not. The row does not
-// sign a principal of its own and does not put the Session-internal coordinator in its place.
+// inject. The row therefore answers the port `unavailable`. The plugin reads only the kind of that
+// failure (session-adapters `context-input.ts`, the registration change): what a caller observes is
+// the plugin's own `unavailable` with owner `runtime-context` and a diagnostic that names the
+// coordinator principal; the `owner` the row writes below is not visible outside. Only a
+// registration `change` asks the port; `create`, `startRun`, `reload` and a step commit do not. The
+// row does not sign a principal of its own and does not put the Session-internal coordinator in its
+// place.
 import { fail } from '@omne-harness/operation-result'
 import { runtimeContextKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import {
@@ -21,7 +25,7 @@ import { sessionContextInputKey } from '@omne-harness/session-cordis-contract/co
 import { adoptedContextDefinitions } from '../../assembly/context-definitions.ts'
 import { defineRow } from '../../row.ts'
 
-/** The trusted name that would answer the port, and that this row cannot see. */
+/** The trusted name that would answer the port, and that this row cannot see. Stays inside the plugin. */
 const COORDINATOR_SOURCE = 'sessionWorkPrincipals'
 
 const noCoordinatorSource: SessionContextInputPluginInput<unknown>['coordinator'] = () =>

@@ -52,14 +52,14 @@ describe('the real session-provider row: declaration', () => {
     })
   })
 
-  it('provides what the table row provides and injects the same four keys; only the phase differs', () => {
+  it('provides what the table row provides, injects the same four keys and carries the table phase `business`', () => {
     const table = serveProfile().stubManifests.get('session-provider' as RowId)
     if (declaration === undefined || table === undefined) throw new Error('unreachable')
     const sorted = (names: readonly string[]) => [...names].sort()
     expect(sorted(declaration.manifest.provides)).toEqual(sorted(table.provides))
     expect(sorted(declaration.manifest.injects)).toEqual(sorted(table.injects))
     expect(declaration.manifest.sameProviderGroup).toBe(table.sameProviderGroup)
-    expect(table.phase).toBeNull()
+    expect(table.phase).toBe('business')
     expect(declaration.manifest.phase).toBe('business')
   })
 })
