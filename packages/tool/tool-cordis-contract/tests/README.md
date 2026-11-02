@@ -17,6 +17,8 @@
 | [conformance-harness.ts](conformance-harness.ts) | 自证的运行器，与 `tool-contract` 的副本同形，因为测试不能跨包导入相对路径。条款锚点接受 `IC-<编号>` |
 | [cordis-entry.spec-d.ts](cordis-entry.spec-d.ts) | `Context` 增补的服务类型、键的字面量类型和 `tool-cordis-contract/call-changed` 的参数；启动围栏服务只有 `invalidate`，启动排序域服务可以充当它 |
 | [residency.spec.ts](residency.spec.ts) | 常驻引用 Reader 套件（G7）的自证：守约的分页 Reader 全过；合并跨租户持有者、把中断页报成空页、丢 shape、重复项与不前进的游标各被套件的断言检出（只认 `AssertionError`）。另有 C7 的 Tool 侧定向测试（裁定 https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6480754440 ）：两个租户各有同名持有者、首次 shape 不同，按各自租户经 Reader 取首次 shape、经登记表的租户读取取当前贡献，再 `planAdoption`，一方 `freeze`、另一方 `advance`；把另一租户的事实交叉代入时两方结论都改变；显式租户缺失或未铸造时登记表读取 `unavailable`，该租户没有同名持有者时拒绝。按租户筛持有者与取记录键的是测试自己的组装代码（Reader 端口按 J20 是系统作用域，没有租户入参），所以这组用例只证明 `planAdoption` 的结论只取决于交给它的本租户事实，不是 Tool 产品代码按租户取事实的证据；实际冻结执行的租户隔离归 #680 |
+| [adoption-scripts.spec.ts](adoption-scripts.spec.ts) | RD-COORD 两个脚本替身：命中脚本时按脚本回答，换代协调者的 `loaded` 脚本把键写进登记表；没有脚本或脚本为 `unavailable` 时答 `unavailable`；调用记录保留调用方的 access 与输入，读回的是副本；登记表拒绝或系统作用域的脚本写入抛错，不答 `loaded` |
+| [adoption-scripts.spec-d.ts](adoption-scripts.spec-d.ts) | 采用点的第一个参数是 `Access`，输入只有 `recorded` 与 `capabilities`，传租户不能通过类型检查；换代协调者替身的 `generations` 就是 `ToolGenerations` |
 | [module-graph.ts](module-graph.ts) | 导入图遍历工具。各 Tool 包各有一份同样的副本，因为测试不能跨包导入相对路径 |
 
 运行命令分快层 `pnpm turbo run test:fast --filter=@omne-harness/tool-cordis-contract` 与慢层 `pnpm turbo run test:slow --filter=@omne-harness/tool-cordis-contract`。turbo 先构建本包及其依赖，再运行本层的 vitest。`*.spec-d.ts` 的类型检查属于快层。
