@@ -101,7 +101,7 @@ export type StableInputs<P> = Readonly<{
   rows: readonly HistoryRow[]
   /** The incremental judgment window under the same evidence, when it was asked for. */
   window: CompactionContext | null
-  /** How the rows were obtained, and the cached material of this position they continue. */
+  /** How the rows were obtained, and the cached material they continue. */
   historyRead: Readonly<{
     mode: HistoryReadMode | 'carried'
     added: readonly HistoryRow[]
@@ -116,8 +116,8 @@ export type InputReadOptions = Readonly<{
   /** The source set generation; carried rows are reused only within one generation. */
   generation?: PreparedInputKey['generation']
   /**
-   * Material derived earlier for the same principal, generation, target and position. It only
-   * shortens the history read; every group is still read and checked in this call.
+   * Material derived earlier for the same principal, generation, target and purpose, at any
+   * position. It only shortens the history read; every group is still read and checked in this call.
    */
   cached?: CachedAssemblyMaterial | null
 }>
@@ -134,7 +134,6 @@ function usableMaterial<P>(
     principal: options.principal,
     generation: options.generation,
     purpose: call.purpose,
-    position: call.position,
     target,
   })
   return belongs ? cached : null

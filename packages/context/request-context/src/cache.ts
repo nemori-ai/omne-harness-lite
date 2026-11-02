@@ -4,7 +4,13 @@
 // transaction after the publication check of the generation, with no await in between.
 import type { AssemblyReuse, CachedAssemblyMaterial } from '@omne-harness/request-context-contract'
 
-/** Slots kept per generation: one per principal, purpose and consumption position. */
+/**
+ * Slots kept per generation: one per principal and purpose. The consumption position is not part of
+ * the slot: each Run of a session asks from its own position, and the material of the previous Run
+ * is the prefix of the next one. Whether that material still describes a call is decided by the
+ * guards of each layer (history evidence and epoch, group tokens, snapshot identity), not by the
+ * position, which does not enter any derived content.
+ */
 export const CACHE_SLOT_LIMIT = 32
 
 type Slot = Readonly<{ revision: number; material: CachedAssemblyMaterial }>
@@ -20,8 +26,8 @@ export type GenerationCache = Readonly<{
   size(): number
 }>
 
-function slotName(parts: Readonly<{ principal: string; purpose: string; position: string }>) {
-  return `${parts.principal}\u0000${parts.purpose}\u0000${parts.position}`
+function slotName(parts: Readonly<{ principal: string; purpose: string }>) {
+  return `${parts.principal}\u0000${parts.purpose}`
 }
 
 export function createGenerationCache(limit: number = CACHE_SLOT_LIMIT): GenerationCache {
@@ -47,7 +53,6 @@ export function createGenerationCache(limit: number = CACHE_SLOT_LIMIT): Generat
             const name = slotName({
               principal: material.key.principal,
               purpose: material.key.identity.purpose,
-              position: material.key.identity.position,
             })
             if (!seen.has(name)) seen.set(name, slots.get(name)?.revision ?? 0)
             staged.set(name, material)

@@ -42,7 +42,7 @@ export type LayeredRequest = Readonly<{
   layers: RequestLayers
   messages: readonly Message[]
   anchorSource: Placement['anchorSource']
-  /** The stable parts of this placement, for a later call of the same position to build on. */
+  /** The stable parts of this placement, for a later call of the same principal and purpose. */
   stable: Readonly<{
     identity: SnapshotIdentity
     split: NonNullable<CachedAssemblyMaterial['split']>
