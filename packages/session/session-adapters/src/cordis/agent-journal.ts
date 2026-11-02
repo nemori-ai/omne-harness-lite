@@ -37,6 +37,7 @@ import {
   type SessionCommand,
   type SessionFailure,
   type SessionId,
+  type SessionControlEvidence,
   type SessionLogConsequence,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -91,6 +92,7 @@ import {
   type MemoryExecution,
 } from '../testing/journal.ts'
 import { JOURNAL_OWNER } from '../testing/journal-values.ts'
+import { controlEventEvidence } from '../testing/control.ts'
 import {
   createCell,
   operationSemantic,
@@ -282,6 +284,25 @@ function consequencesOf(
   }
 }
 
+/**
+ * The Agent evidence of a control event, whose consequences Session decides when it interprets
+ * the event (its fact row has the deferred marker); null for any other event, or when the
+ * original fragments do not give the evidence (the row then keeps empty kinds).
+ */
+function deferredOf(
+  root: CommonRoot,
+  execution: MemoryExecution,
+  event: MemoryExecution['events'][number],
+): SessionControlEvidence | null {
+  if (event.body.kind !== 'control') return null
+  try {
+    return controlEventEvidence(root, execution, event)
+  } catch (error) {
+    if (error instanceof HistoryFailure || error instanceof TypeError) return null
+    throw error
+  }
+}
+
 /** The placeholder head of an execution that another execution's call changed (SPEC K-5). */
 function placeholderHead(execution: MemoryExecution): DurableEvidence {
   return {
@@ -318,12 +339,14 @@ function indexOf(
     for (const event of fresh) {
       if (event === undefined) continue
       const consequences = consequencesOf(after, execution, event)
+      const control = consequences === null ? deferredOf(after, execution, event) : null
       notes.consequences.set(eventKey(execution.id, event.sequence), consequences)
+      if (control !== null) notes.controls.set(eventKey(execution.id, event.sequence), control)
       facts.push({
         execution: execution.id,
         sequence: event.sequence,
         source: event.cause,
-        kinds: consequences?.map(item => item.kind) ?? [],
+        kinds: control !== null ? ['deferred'] : (consequences?.map(item => item.kind) ?? []),
       })
       if (event.body.kind === 'input-taken')
         batches.push({
@@ -402,6 +425,8 @@ export type InterpretableEvent = Readonly<{
   source: DurableEvidence
   /** The normalized consequences, the same the fact row's kinds name; null: not decided. */
   consequences: readonly SessionLogConsequence[] | null
+  /** The Agent evidence of a deferred control fact, which Session decides; null otherwise. */
+  control: SessionControlEvidence | null
 }>
 
 /**
@@ -491,6 +516,7 @@ export async function readExecutionInterpretation(
     sequence: event.sequence,
     source: event.cause,
     consequences: records.notes.consequences.get(eventKey(execution.id, event.sequence)) ?? null,
+    control: records.notes.controls.get(eventKey(execution.id, event.sequence)) ?? null,
   }))
   return {
     kind: 'read',
@@ -1117,6 +1143,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const notes: InterpretationNotes = {
       heads: new Map(copy.notes.heads),
       consequences: new Map(copy.notes.consequences),
+      controls: new Map(copy.notes.controls),
     }
     const index = indexOf(before, after, changed, receipt, notes)
     const admissions = admissionsOf(after, written, own, receipt, scratch)
