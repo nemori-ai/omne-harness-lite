@@ -190,11 +190,11 @@ export async function runR9Flow(): Promise<FlowRecord> {
     checks.push(
       check(
         1,
-        'the real tree is accepting with 7 real, 1 contract-double and 41 s0-double rows',
+        'the real tree is accepting with 19 real and 30 s0-double rows',
         first?.startup?.['accepting'] === true &&
           first.startup['outcome'] === 'ready' &&
           JSON.stringify(first.startup['implementations']) ===
-            JSON.stringify({ real: 7, 'contract-double': 1, 's0-double': 41 }) &&
+            JSON.stringify({ real: 19, 'contract-double': 0, 's0-double': 30 }) &&
           first.pending.length === 0,
         `startup ${shortJson(first?.startup)}, not ACTIVE: ${(first?.pending ?? []).join(', ')}`,
       ),
@@ -297,11 +297,21 @@ export async function runR9Flow(): Promise<FlowRecord> {
       'x',
     ])
     const refusals = [bobOnRealWithAlice, bobOnUnknownWithAlice, bobOnReal, bobOnUnknown]
+    // With the owner's tenant text the answer is denied. Bob's own tenant has no transaction
+    // domain until its first create, so there the storage answers unavailable
+    // (session-storage-sql SPEC, "事务域目录没有该租户"). Either answer must not tell a real
+    // session from an unknown one; the next check compares them byte for byte.
+    const isDenied = (run: CliRun): boolean =>
+      run.status === 3 && run.result?.['outcome'] === 'denied'
+    const isUnregistered = (run: CliRun): boolean =>
+      run.status === 4 && run.result?.['outcome'] === 'basis-unavailable'
     checks.push(
       check(
         3,
-        'the other tenant is denied on the session, with exit 3 and outcome denied',
-        refusals.every(run => run.status === 3 && run.result?.['outcome'] === 'denied'),
+        'the other tenant is refused on the session: denied under the owner tenant, denied or unavailable under its own unregistered tenant',
+        isDenied(bobOnRealWithAlice) &&
+          isDenied(bobOnUnknownWithAlice) &&
+          [bobOnReal, bobOnUnknown].every(run => isDenied(run) || isUnregistered(run)),
         refusals.map(run => `${String(run.status)}/${String(run.result?.['outcome'])}`).join(' '),
       ),
       check(
@@ -336,9 +346,16 @@ export async function runR9Flow(): Promise<FlowRecord> {
     checks.push(
       check(
         3,
-        'the other tenant reading the history is denied, and the answer does not tell a real session from an unknown one',
+        'the other tenant reading the history is refused, and the answer does not tell a real session from an unknown one',
         Object.values(reads).every(reply => !reply.body.includes(INPUT_TEXT)) &&
-          Object.values(reads).every(reply => reply.body.includes('denied')) &&
+          [reads.ownerTenantReal, reads.ownerTenantUnknown].every(reply =>
+            reply.body.includes('"outcome":"denied"'),
+          ) &&
+          [reads.ownTenantReal, reads.ownTenantUnknown].every(
+            reply =>
+              reply.body.includes('"outcome":"denied"') ||
+              reply.body.includes('"outcome":"basis-unavailable"'),
+          ) &&
           sameBytes(reads.ownerTenantReal, reads.ownerTenantUnknown) &&
           sameBytes(reads.ownTenantReal, reads.ownTenantUnknown),
         Object.entries(reads)

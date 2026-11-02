@@ -196,16 +196,9 @@ diagnostician 只覆盖终端取证。`surface` 不是 `terminal` 就停止。�
 Agent 工具的 `model` 参数覆盖（原 spec-reviewer 钉的就是 Opus 5.5，合并对照里「表达」那一种也是在它上面跑的）。判「选择」与「计划」
 用钉值的模型。Codex 一端钉 GPT-6 Astra，三种判断都用它。
 
-**developer 的模型按本次任务选**，不由角色固定。选法写在它的 description 里，依据是角色合一记录：
-
-| 任务 | Claude Code | Codex | 档位 |
-|---|---|---|---|
-| 能力与组合的行为、具体提供者（默认） | Opus 5.5 | GPT-6.1 Sol | high |
-| 单个模块、规格完整的应用切片 | Sonnet 5.5 | GPT-6.1 Sol | high |
-| 终端交互、验证设施（经济档的另一半） | Sonnet 5.5 | GPT-6.1 Sol | high |
-| 内核原语与生命周期机制 | Fable 5.1 | GPT-6 Astra | xhigh |
-| 跨模块生命周期、跨进程故障、精细算法 | Fable 5.1 | GPT-6 Astra | xhigh |
-| 安全敏感、跨多个包或整个装配、契约把失败／诊断／顺序留给判断、发布门禁 | Fable 5.1 | GPT-6 Astra | high |
+**developer 的模型按本次任务选**，不由角色固定。选法写在它的 description 里，依据是角色合一记录。
+工作类型与风险到档位的映射归[派发策略](dispatch-policy.json)的 `roles.developer`；各档模型归
+`developer/claude.yaml`、`developer/codex.toml` 的 `model`，默认档位归 `developer/assembly.toml` 的 `default_effort`。
 
 两端换模型的机制不同：Claude Code 的角色文件钉了默认模型，派发时用 Agent 工具的 `model` 参数覆盖；
 Codex 里**角色文件钉的模型优先于派发值**，所以 developer 与 qa 的 `codex.toml` 不钉模型，**Codex 派发必须显式给模型**，
@@ -249,6 +242,10 @@ uv run --locked python .meta_harness/agents/skills/design-subagents/canonical/sc
 
 Cursor 一端暂不跟随：`cursor.yaml` 仍钉 `claude-fable-5-1-xhigh` 与 `claude-fable-5-1-high`，以保留现有资格。这是已知偏离。
 Cursor 派发者按上面的规则选已核对的模型 ID；Cursor 实际使用前，补 `-medium` 的支持证据并重新取得资格。
+
+**两种宿主并存时按会话实际所在的宿主取值。** Codex 与 Claude Code 共用同一套角色职责，但各有一份钉值，同一个角色在两端可能落到不同的模型与档位。取值只看承接本次派发的会话跑在哪一端：Claude Code 会话查 `claude.yaml`，Codex 会话查 `codex.toml`，不按另一端的历史读数为本次派发定档。线会话换宿主时新开会话，理由与做法归 `line` 技能的首次派发与 delta 模板。
+
+代码里的传值机制分两端。解析 `render_pair.py --resolve --policy-version <版本>` 按宿主、角色、work 与可选 `--risk` 输出 requested 的 `model` 与 `effort`。Claude Code 用 Agent 工具的 `model` 与 `effort` 参数带上这两个值，覆盖角色文件里的钉值。Codex 用派发消息或调用面的模型参数显式给出：developer 与 qa 的 `codex.toml` 不钉模型、也不钉档位，不给就继承父会话。两端的 requested 与 observed 都分别记录。
 
 原生文件存在不说明当前会话已加载。具名角色不可用时，可在已有授权内交接完整生成提示作普通
 agent 试用，并说明未经应用的原生沙箱与权限不能算生效；无可用独立评审能力时保留具体缺口。

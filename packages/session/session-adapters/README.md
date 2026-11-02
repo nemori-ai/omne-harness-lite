@@ -20,7 +20,7 @@ The package does not own governance rules, scheduling, or storage. [session-cont
 Status: adapter member, `draft`. The [SPEC](SPEC.md) is a candidate design. Technical acceptance has not happened for it.
 
 - Implemented: the `./testing` entry. Its non-durable memory provider implements AD-01, AD-02 and AD-05, and it provides the Agent Journal. The root entry (`src/index.ts`) and `./cordis` (`src/cordis.ts`) still hold only template markers.
-- Session transaction port: the session transaction double of `./testing` implements `queryControlOperation`, `readModelSelection`, and `commitEntries` of `SessionTransactionPort`. `commitEntries` returns `unavailable` for now, because session-contract has no pure range check for the entries interpretation yet. See the [known limits](SPEC.md#已知限制).
+- Session transaction port: the session transaction double of `./testing` implements `queryControlOperation`, `readModelSelection`, and `commitEntries` of `SessionTransactionPort`. `commitEntries` asks no access check and commits through the pure range check of session-contract. `readWork` then reads the saved progress back. See the [known limits](SPEC.md#已知限制).
 - Not implemented: the production implementations of all seventeen plugins and port providers, and all durable providers.
 - Blocked by named premises: the history source, the intake extension points, and the residency ports. Two Agent entries also block work: the late-result entry and the execution views with no live runtime. The [SPEC](SPEC.md#具名前提与明确缺项) lists each premise and the behavior before it closes.
 

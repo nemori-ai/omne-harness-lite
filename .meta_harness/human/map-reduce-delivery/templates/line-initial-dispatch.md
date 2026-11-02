@@ -12,7 +12,7 @@
 
 # 消息正文
 
-先加载 `line`、`pstack:poteto-mode` 和 `asd-ste100`。阅读 {{working_directory}} 中的 `AGENTS.md`、`docs/orientation.md`，以及 {{line_pack_ref}} 指向的线级上下文地图与拥有者入口。派发子代理前加载 `delegate`，本波另有几张卡时加载 `claim`，实施前读取 `ub-mode`；本线专项技能按 {{line_work_kind}} 加载。
+先加载 `line` 和 `pstack:poteto-mode`。阅读 {{working_directory}} 中的 `AGENTS.md`、`docs/orientation.md`，以及 {{line_pack_ref}} 指向的线级上下文地图与拥有者入口。派发子代理前加载 `delegate`，本波另有几张卡时加载 `claim`，实施前读取 `ub-mode`；本线专项技能按 {{line_work_kind}} 加载。
 
 你是里程碑 {{milestone_name}} 的 {{line_name}} 线负责人。你在同一个会话里逐波工作或轮空，直到读到明确的 terminal delta。唯一的 reduce 会话是 {{reduce_session_ref}}。你负责本线本波的细化、实施和验证，包括线内跨领域的集成与联调。全局设计、跨线的消费者迁移与联调、集成冲突和交回后的问题归 reduce。
 
@@ -28,12 +28,20 @@
 | 里程碑卡 | {{milestone_issue_url}} |
 | 线父卡 | {{line_parent_issue_url}} |
 | 首次消息修订 | {{dispatch_revision}} |
-| 机器与宿主 | {{machine_and_host}} |
+| 宿主与主代理模型 | {{machine_and_host}} |
 | 工作目录 | {{working_directory}} |
 | 线父卡本波的 attempt 与 binding | {{binding_refs}} |
 | 线包 | {{line_pack_ref}} |
 
 分支、taskBase、工作树和写范围只从 binding 读取。本消息不抄写这些值。同一修订被重复转发时，接续已有执行，不新建执行。本消息与 binding 或线包不一致时，按第 6 节交回 blocked。
+
+### 宿主与主代理模型
+
+本消息开一条新会话。一条线固定由一种宿主承载：宿主或主代理模型变了，就为这条线新开会话，不把旧会话改挂到新宿主上。旧宿主的读数不能直接套用到新宿主：派发台账里已积累的档位经验只覆盖出读数的那一个宿主，换宿主后要从头积累。线要续波且宿主未变时，继续用同一会话读 delta，不重发本消息。
+
+Codex 宿主上，本线主代理模型用 `gpt-6-astra` @ high。档位心智映射：`gpt-6.1-sol` 对标 Claude Sonnet，`gpt-6.1-terra` 对标 Claude Haiku（经济档），`gpt-6-astra` 是顶档。顶档模型上的档位上限与 hardest 判法归 `roles/README.md`「模型配置与本次派发」，本消息不复述。
+
+派发子代理时的模型与档位仍按 {{role_policy_ref}} 的解析结果取值。本波是本线在新宿主上的第一波，没有该宿主的历史读数，起点档位按解析结果给，不按旧宿主的读数下调。
 
 ## 2 先加载
 
@@ -45,7 +53,7 @@
 
 按顺序加载：
 
-1. `line`、`pstack:poteto-mode` 和 `asd-ste100`。先读 `line` 的 `references/work-paradigm.md`。这份范式给出分工、思维模型、三层准备、方法地图、本波计划、推进循环、证据、交回与等待。
+1. `line` 和 `pstack:poteto-mode`。先读 `line` 的 `references/work-paradigm.md`。这份范式给出分工、思维模型、三层准备、方法地图、本波计划、推进循环、证据、交回与等待。
 2. 本波另有几张卡时，按 `claim` 技能一次认领。
 3. 派发子代理时加载 `delegate`。
 4. 写 spec 的「原则与约束」或写、改代码前加载 `ub-mode`。它是用户级技能，按 `docs/development.md`「初始化 coding agent 插件」初始化。先确认宿主能发现 `ub-mode`，发现不了时报告缺口。
@@ -78,11 +86,22 @@
 
 项目规矩与拥有者见 `work-paradigm.md`「最常碰到的项目规矩」。
 
+### 开工门槛
+
+先过开工门槛，再派任何子代理。顺序与判法归 `work-paradigm.md`「开工门槛」，本消息只给指针和本波要求：
+
+1. 先理解本波需求，列出不懂的、可疑的、和自己判断冲突的地方。
+2. 有歧义直接问 Reduce，用本地会话消息，一次问一个具体问题，不等交回，不带进波中。
+3. 再写 `spec.md` 与 `plan.md`，按范式「本波计划」切闭包。
+4. 最后才派第一批子代理，只派不依赖任何未决项的闭包。
+
+跳过任一步就派子代理的，波末交回会被退回。闭包表写出来之前不派第一批子代理。
+
 ### 按宿主选择角色模型
 
 角色策略与解析结果：{{role_policy_ref}}。
 
-会话级准备时写下自己的宿主与版本。派发子代理按 `delegate`「选模型」；规则、钉值与宿主传值机制归 `.meta_harness/agents/roles/README.md`「模型配置与本次派发」。
+会话级准备时写下自己的宿主与版本。派发子代理按 `delegate`「选模型」；规则、钉值与宿主传值机制归 `.meta_harness/agents/roles/README.md`「模型配置与本次派发」，本消息不复述。两种宿主并存时，按实际承载本会话的那个宿主取值，不按另一个宿主的读数取值。
 
 ### 开发为主的线：工程准则
 
@@ -129,6 +148,12 @@
 ```sh
 {{handoff_post_command}}
 ```
+
+### 派发流水与台账
+
+本线的派发流水由你维护，路径是 `tmp/line-<线>/delegate/flow.jsonl`，不入库。每个经过独立验收的闭包在验收后追加一行，字段与判法归 `delegate` 的[台账口径](../../../../.meta_harness/agents/skills/delegate/canonical/references/ledger.md)。只读调研、起草、建卡、派发与装环境没有独立验收，不写行，改在反思里列出它们的模型、档位、用时与追加数。
+
+流水在波末随交接报告交给 Reduce。Reduce 在跨线集成完成后汇总五条线的流水，写回 `.meta_harness/agents/evaluation/dispatch-ledger/ledger.json` 的批次。那个目录的单写者是 Reduce，你不写它，也不改写已合的批次。
 
 做不了时，用同一个入口交回 blocked 或 failed。写清原因、已完成部分和剩余工作，然后停写。没有远端通路时，在本机保存交回记录并打开供人带回。不声称记录已发布。
 

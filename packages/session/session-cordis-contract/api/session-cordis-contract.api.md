@@ -202,6 +202,7 @@
 - `deriveDriveOperation` · 包 `@omne-harness/session-contract`
 - `deriveIngressOperation` · 包 `@omne-harness/session-contract`
 - `deriveSessionOperation` · 包 `@omne-harness/session-contract`
+- `digestSessionEntries` · 包 `@omne-harness/session-contract`
 - `initializationRegistrationCommit` · 包 `@omne-harness/session-contract`
 - `judgeAdvance` · 包 `@omne-harness/session-contract`
 - `judgeCompletion` · 包 `@omne-harness/session-contract`
@@ -209,6 +210,7 @@
 - `judgeRunStart` · 包 `@omne-harness/session-contract`
 - `mutationAccessRequest` · 包 `@omne-harness/session-contract`
 - `openWork` · 包 `@omne-harness/session-contract`
+- `projectSessionEntries` · 包 `@omne-harness/session-contract`
 - `projectSessionLog` · 包 `@omne-harness/session-contract`
 - `readAccessRequest` · 包 `@omne-harness/session-contract`
 - `reduce` · 包 `@omne-harness/session-contract`

@@ -9,6 +9,7 @@ import {
   evidence,
   memorySessionTransactionsFixture,
   ordinaryInput,
+  sessionEntriesConformance,
   sessionTransactionsConformance,
   type SessionTransactionsFixture,
 } from '@omne-harness/session-contract/testing'
@@ -476,5 +477,205 @@ describe('the SessionTransactionPort suite', () => {
 
   it('has a violating variant that makes each case fail', () => {
     expectEveryCaseIsCaught(cases, variants)
+  })
+})
+
+const entriesCases = sessionEntriesConformance<string>()
+
+const ENTRIES = {
+  commit: 'commitEntries commits the range and its receipt names the batch evidence of the commit',
+  revision:
+    'the consequence and the progress row are one new revision, and readWork reads the saved progress back',
+  continue:
+    'the next range continues from the start that readWork gives, and a start behind the saved progress is changed',
+  recall:
+    'the same operation with the same observation recalls the original receipt and writes nothing',
+  conflict: 'an operation identity of another observation or of another commit form is a conflict',
+  refusal:
+    'a refused commitEntries leaves the revision, the log and the operation identity unchanged',
+  query:
+    'queryOperation answers committed for an entries operation, and queryControlOperation conflict',
+  tenant: 'an observation of another tenant is denied, the same as for a session that never was',
+  access: 'commitEntries asks no access check, for a commit, a recall and a refusal',
+} as const
+
+const entriesLegal: readonly LegalProvider<Fixture>[] = [
+  { name: 'the conforming in-memory port', fixture: memorySessionTransactionsFixture },
+  {
+    name: 'the in-memory port without a second tenant',
+    fixture: () => {
+      const { otherAccess: _other, ...rest } = memorySessionTransactionsFixture()
+      return rest
+    },
+    notApplicable: { [ENTRIES.tenant]: 'otherAccess' },
+  },
+]
+
+type EntriesInput = Parameters<Port['commitEntries']>[0]
+
+const entriesVariants: readonly Variant<Fixture>[] = [
+  {
+    name: 'readWork leaves out the saved progress',
+    fails: [ENTRIES.revision, ENTRIES.continue],
+    fixture: variant(real => ({
+      readWork: async input => {
+        const answer = await real.readWork(input)
+        if (!('ok' in answer)) return answer
+        const { entriesProgress: _progress, ...snapshot } = answer.ok
+        return succeed(snapshot)
+      },
+    })),
+  },
+  {
+    name: 'commitEntries asks the access check of a public read',
+    fails: [ENTRIES.access],
+    fixture: () => {
+      const base = memorySessionTransactionsFixture()
+      return {
+        ...base,
+        port: {
+          ...base.port,
+          commitEntries: async input => {
+            await base.port.readWork(base.access)
+            return base.port.commitEntries(input)
+          },
+        },
+      }
+    },
+  },
+  {
+    name: 'the receipt names another evidence than the batch evidence of the commit',
+    fails: [ENTRIES.commit, ENTRIES.revision],
+    fixture: variant(real => ({
+      commitEntries: async input => {
+        const answer = await real.commitEntries(input)
+        return 'ok' in answer ? succeed({ ...answer.ok, interpreted: evidence('variant') }) : answer
+      },
+    })),
+  },
+  {
+    name: 'history leaves out the progress row',
+    fails: [ENTRIES.revision],
+    fixture: variant(real => ({
+      history: {
+        ...real.history,
+        begin: async input => {
+          const page = await real.history.begin(input)
+          return 'ok' in page
+            ? succeed({
+                ...page.ok,
+                entries: page.ok.entries.filter(entry => entry.kind !== 'entries.interpreted'),
+              })
+            : page
+        },
+      },
+    })),
+  },
+  {
+    name: 'a recall commits again under a fresh identity',
+    fails: [ENTRIES.recall],
+    fixture: variant(real => {
+      const seen = new Set<string>()
+      return {
+        commitEntries: async (input: EntriesInput) => {
+          const text = JSON.stringify(input)
+          if (!seen.has(text)) {
+            seen.add(text)
+            return real.commitEntries(input)
+          }
+          const operation =
+            `${input.observation.operation}/again` as typeof input.observation.operation
+          return real.commitEntries({ ...input, observation: { ...input.observation, operation } })
+        },
+      }
+    }),
+  },
+  {
+    name: 'an entries conflict is reported as unavailable',
+    fails: [ENTRIES.conflict],
+    fixture: variant(real => ({
+      commitEntries: async input => {
+        const answer = await real.commitEntries(input)
+        return 'failure' in answer && answer.failure.kind === 'conflict'
+          ? fail({ kind: 'unavailable' as const, owner: 'variant', diagnostic: 'conflict hidden' })
+          : answer
+      },
+    })),
+  },
+  {
+    name: 'without rollback: a refused commitEntries keeps a write',
+    fails: [ENTRIES.continue, ENTRIES.conflict, ENTRIES.refusal, ENTRIES.tenant, ENTRIES.access],
+    fixture: variant(real => {
+      const fixture = memorySessionTransactionsFixture()
+      let writes = 0
+      return {
+        commitEntries: async input => {
+          const answer = await real.commitEntries(input)
+          if ('failure' in answer) {
+            writes += 1
+            await real.commit({
+              access: fixture.access,
+              command: {
+                kind: 'accept',
+                input: {
+                  tenant: fixture.access.tenant,
+                  session: fixture.access.session,
+                  operation: fixture.operation(`kept-write-${writes}`),
+                  value: ordinaryInput(`kept-write-${writes}`),
+                },
+              },
+              guards: [],
+            })
+          }
+          return answer
+        },
+      }
+    }),
+  },
+  {
+    name: 'queryOperation answers conflict for an entries operation',
+    fails: [ENTRIES.recall, ENTRIES.conflict, ENTRIES.query],
+    fixture: variant(real => {
+      const committed = new Set<string>()
+      return {
+        commitEntries: async input => {
+          const answer = await real.commitEntries(input)
+          if ('ok' in answer) committed.add(answer.ok.operation)
+          return answer
+        },
+        queryOperation: async input =>
+          committed.has(input.operation)
+            ? fail({ kind: 'conflict' as const, operation: input.operation })
+            : real.queryOperation(input),
+      }
+    }),
+  },
+  {
+    name: 'commitEntries answers for the session of another tenant',
+    fails: [ENTRIES.tenant],
+    fixture: variant(real => {
+      const fixture = memorySessionTransactionsFixture()
+      return {
+        commitEntries: async input =>
+          real.commitEntries({
+            ...input,
+            observation: { ...input.observation, tenant: fixture.access.tenant },
+          }),
+      }
+    }),
+  },
+]
+
+describe('the commitEntries suite', () => {
+  it('is well formed: unique names and a clause for every case', () => {
+    expectWellFormed(entriesCases)
+    expect(entriesCases.map(item => item.name)).toEqual(Object.values(ENTRIES))
+  })
+
+  itPassesLegal(entriesCases, entriesLegal)
+  itFailsExactly(entriesCases, entriesVariants)
+
+  it('has a violating variant that makes each case fail', () => {
+    expectEveryCaseIsCaught(entriesCases, entriesVariants)
   })
 })

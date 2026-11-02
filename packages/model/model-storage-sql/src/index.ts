@@ -3,8 +3,8 @@
 // table definitions and the migration, the stored call document with its row parse, and the
 // `ModelCommandStorage` with its construction checks. The types of the storage port belong to
 // `@omne-harness/model/commands`; they are re-exported here unchanged, not copied. The root also
-// exports the send coordinator over an in-process mirror of that storage (`createSendMirror`). The
-// static materials with their digests are a later slice. Imports no Cordis.
+// exports the send coordinator over an in-process mirror of that storage (`createSendMirror`), and
+// the static materials with their digests (`modelStorageMaterials`). Imports no Cordis.
 export {
   createSqlModelCommands,
   type SqlModelCommands,
@@ -87,3 +87,8 @@ export {
   type SendMirror,
   type SendMirrorOptions,
 } from './coordinator.ts'
+export {
+  PENDING_READ_MAX_OUTPUT_BYTES,
+  modelStorageMaterials,
+  type ModelStorageMaterials,
+} from './materials.ts'

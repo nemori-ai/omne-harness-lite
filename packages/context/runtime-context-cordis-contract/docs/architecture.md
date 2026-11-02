@@ -37,7 +37,7 @@ flowchart LR
 
 ### 一个服务三面，不按块建服务
 
-本成员只定义一个服务键 `runtimeContext`，三面操作都在这一个抽象类上。块是数据，不是服务。理由如下：
+三面操作都在服务键 `runtimeContext` 的一个抽象类上。另外两个键 `runtimeContextTrust` 与 `runtimeContextReaderEligibility` 分别是信任输入与读取资格交接，不承载三面操作。块是数据，不是服务。理由如下：
 
 1. 每块一个服务，键的数量随块数增长，也不合 [IC-7](../../../../docs/architecture/cordis-integration-conventions.md#ic-7) 的能力名词键名。
 2. 作用域登记了哪些块是 Runtime Context 的数据。Cordis 服务表只知道进程里有哪些服务，两张表会并存。

@@ -35,7 +35,7 @@ export default handler('session.history', (raw, port) => {
   if (journal === undefined) return { kind: 'absent' }
   const head = oneRow(
     port,
-    'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ?',
+    'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ? LIMIT 1',
     bind,
   )
   const forward = input.direction === 'forward'

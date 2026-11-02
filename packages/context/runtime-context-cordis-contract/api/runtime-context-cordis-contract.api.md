@@ -21,6 +21,9 @@
 - `PrepareRegistrationResult` · 包 `@omne-harness/runtime-context-contract`
 - `ProducerHandle` · 包 `@omne-harness/runtime-context-contract`
 - `ProducerRegistration` · 包 `@omne-harness/runtime-context-contract`
+- `ReaderEligibilityHandoff` · 包 `@omne-harness/runtime-context-contract`
+- `ReaderEligibilityRequest` · 包 `@omne-harness/runtime-context-contract`
+- `ReaderEligibilityResult` · 包 `@omne-harness/runtime-context-contract`
 - `RegisterProducerResult` · 包 `@omne-harness/runtime-context-contract`
 - `RegistrationChange` · 包 `@omne-harness/runtime-context-contract`
 - `RegistrationRevision` · 包 `@omne-harness/runtime-context-contract`
@@ -36,17 +39,27 @@
 
 - `RuntimeContextChangedPayload` · `cordis.d.ts`
 - `RuntimeContextIntercept` · `cordis.d.ts`
+- `RuntimeContextReaderEligibilityService` · `cordis.d.ts`
 - `RuntimeContextService` · `cordis.d.ts`
 - `RuntimeContextTrustService` · `cordis.d.ts`
 - `runtimeContextKey` · `cordis.d.ts`
+- `runtimeContextReaderEligibilityKey` · `cordis.d.ts`
 - `runtimeContextScopeKey` · `cordis.d.ts`
 - `runtimeContextTrustKey` · `cordis.d.ts`
+
+## 入口 `./testing` · `testing/index.d.ts`
+
+- `ReaderEligibilityCase` · `testing/index.d.ts`
+- `ReaderEligibilityFixture` · `testing/index.d.ts`
+- `ReaderEligibilityScript` · `testing/index.d.ts`
+- `createScriptedReaderEligibility` · `testing/index.d.ts`
+- `readerEligibilityConformance` · `testing/index.d.ts`
 
 ## 声明文件 `cordis.d.ts`
 
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
-import type { ConsumerClass, ContextBlockKey, RuntimeContextOperations, RuntimeContextTrust, ScopeRef, ViewRevision } from '@omne-harness/runtime-context-contract';
+import type { ConsumerClass, ContextBlockKey, ReaderEligibilityHandoff, RuntimeContextOperations, RuntimeContextTrust, ScopeRef, ViewRevision } from '@omne-harness/runtime-context-contract';
 type Operation<P, O extends keyof RuntimeContextOperations<P>> = {
     args: Parameters<RuntimeContextOperations<P>[O]>;
     result: ReturnType<RuntimeContextOperations<P>[O]>;
@@ -79,6 +92,12 @@ export declare abstract class RuntimeContextService<P = unknown> extends Service
     abstract bind(...args: Operation<P, 'bind'>['args']): Operation<P, 'bind'>['result'];
 }
 export declare const runtimeContextKey = "runtimeContext";
+export declare abstract class RuntimeContextReaderEligibilityService<P = unknown> extends Service implements ReaderEligibilityHandoff<P> {
+    static readonly provide = "runtimeContextReaderEligibility";
+    constructor(ctx: Context);
+    abstract current(...args: Parameters<ReaderEligibilityHandoff<P>['current']>): ReturnType<ReaderEligibilityHandoff<P>['current']>;
+}
+export declare const runtimeContextReaderEligibilityKey = "runtimeContextReaderEligibility";
 export declare const runtimeContextScopeKey: 'scope';
 export type RuntimeContextChangedPayload = Readonly<{
     scope: ScopeRef;
@@ -88,6 +107,7 @@ declare module '@deepseek-ai/cordis' {
     interface Context {
         runtimeContext: RuntimeContextService<unknown>;
         runtimeContextTrust: RuntimeContextTrustService<unknown>;
+        runtimeContextReaderEligibility: RuntimeContextReaderEligibilityService<unknown>;
         [runtimeContextScopeKey]?: ScopeRef;
     }
     interface Events {
@@ -100,5 +120,37 @@ export {};
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { ScopeRef, ScopeText, ContextBlockKey, ConsumerClass, ContextBlocks, ContextBlockDescriptor, SuppliedBlockDescriptor, StatefulBlockDescriptor, ViewRevision, RegistrationRevision, EligibilityId, ProducerRegistration, RegisterProducerResult, ProducerHandle, RegistrationChange, PrepareRegistrationResult, EligibilityMaterial, Eligibility, IssueEligibilityResult, RevokeEligibilityResult, CommitInput, ApplyCommitResult, BindResult, ContextReader, RuntimeContextOperations, } from '@omne-harness/runtime-context-contract';
+export type { ScopeRef, ScopeText, ContextBlockKey, ConsumerClass, ContextBlocks, ContextBlockDescriptor, SuppliedBlockDescriptor, StatefulBlockDescriptor, ViewRevision, RegistrationRevision, EligibilityId, ProducerRegistration, RegisterProducerResult, ProducerHandle, RegistrationChange, PrepareRegistrationResult, EligibilityMaterial, Eligibility, IssueEligibilityResult, RevokeEligibilityResult, CommitInput, ApplyCommitResult, BindResult, ContextReader, RuntimeContextOperations, ReaderEligibilityRequest, ReaderEligibilityResult, ReaderEligibilityHandoff, } from '@omne-harness/runtime-context-contract';
+```
+
+## 声明文件 `testing/index.d.ts`
+
+```ts
+import { type TenantId } from '@omne-harness/legal-identity';
+import type { EligibilityId, ReaderEligibilityHandoff, ReaderEligibilityRequest, ReaderEligibilityResult, ScopeRef } from '@omne-harness/runtime-context-contract';
+export type ReaderEligibilityScript<P> = Readonly<{
+    scopes: readonly Readonly<{
+        scope: ScopeRef;
+        tenant: TenantId;
+    }>[];
+    answers: readonly Readonly<{
+        request: ReaderEligibilityRequest<P>;
+        result: ReaderEligibilityResult;
+    }>[];
+}>;
+export declare function createScriptedReaderEligibility<P>(script: ReaderEligibilityScript<P>): ReaderEligibilityHandoff<P>;
+export interface ReaderEligibilityFixture<P> {
+    readonly handoff: ReaderEligibilityHandoff<P>;
+    readonly held: Readonly<{
+        request: ReaderEligibilityRequest<P>;
+        eligibility: EligibilityId;
+    }>;
+    readonly otherTenant: TenantId;
+}
+export type ReaderEligibilityCase = Readonly<{
+    name: string;
+    clause: string;
+    run(): Promise<void>;
+}>;
+export declare function readerEligibilityConformance<P>(fixture: ReaderEligibilityFixture<P>): readonly ReaderEligibilityCase[];
 ```

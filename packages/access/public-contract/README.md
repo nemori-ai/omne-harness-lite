@@ -2,13 +2,13 @@
 
 [中文](README_ZH.md)
 
-Pure codecs for the `governance-public/1` and `session-public/1` protocols. Clients and server adapters share the same request, response, and refusal rules.
+Pure codecs for the `governance-public/1` and `session-public/1` protocols. They turn a request or response object into bytes and back, and they validate the whole document on the way in. A client and a server adapter that both use this package share one set of rules for messages, outcomes, and refusals, instead of each writing its own. The SDK and the server entry are its first consumers.
 
 ## Responsibility and status
 
 This package implements 34 governance request operations and seven session operations, including `cancel-run` and `stop-call` for session interruption. It recognizes four governance operations that this stage does not provide. [SPEC.md](SPEC.md) owns their behavior. [The public exports](src/index.ts) expose eight functions, four for each protocol, and their input and result types. [Governance messages](src/messages.ts) and [session messages](src/session-messages.ts) associate each operation with its permitted outcomes and bodies. [The public API navigation](docs/public-api.md) indexes every export.
 
-The package does not authenticate a caller, authorize an action, perform a business operation, or select a transport protection protocol. The [HTTP binding page](docs/http-binding.md) fixes the HTTP and SSE carriage of both positions. Identity and authorization retain responsibility for authentication, authorization, and business operations. Session retains the session business rules. SDK and server-entry remain separate consumers with their own delivery obligations.
+The package does not authenticate a caller, authorize an action, perform a business operation, or select a transport protection protocol. The [HTTP binding page](docs/http-binding.md) fixes the HTTP and SSE carriage of both positions. Identity and authorization keep responsibility for authentication, authorization, and business operations. Session keeps the session business rules. SDK and server-entry remain separate consumers with their own delivery obligations.
 
 ## Usage
 
@@ -38,21 +38,25 @@ if (encoded.kind === 'encoded') {
 }
 ```
 
-The limits in this example are caller choices. The package supplies no defaults. Use `readGovernanceResponse` with the original operation and expected message ID. It validates the whole response before matching the ID. Use `encodeGovernanceResponse` with that operation for business results. Its common-refusal overload accepts `protocol-rejected` or `stage-not-provided` without an operation.
+The limits above are caller choices. The package supplies no defaults. Use `readGovernanceResponse` with the original operation and expected message ID. It validates the whole response before it matches the ID. Use `encodeGovernanceResponse` with that operation for business results. Its common-refusal overload accepts `protocol-rejected` or `stage-not-provided` without an operation.
 
-Required login proof becomes local `ProofInput`. Missing and empty proof remain distinct protocol states for the business owner to check. Identity fields use values minted by legal-identity. Time fields use utc-instant values. Tenant text preserves both the organization and account. Parameter objects use json-text trees, including their original number lexemes.
+Required login proof becomes a local `ProofInput`. A missing proof and an empty proof remain distinct protocol states for the business owner to check. Identity fields use values minted by legal-identity. Time fields use utc-instant values. Tenant text preserves both the organization and the account. Parameter objects use json-text trees, including their original number lexemes.
 
 ## Contracts
 
-[SPEC.md](SPEC.md#公开编解码入口与实现细化) defines validation order, closed fields, budgets, correlation, and diagnostics. [The session codec clauses](SPEC.md#会话编解码函数) apply the same rules to the session group and state which step-1 checks stay with the server adapter. The eight functions are synchronous and have no external effects. Invalid programming arguments throw a fixed `TypeError`. Invalid request or response models return `invalid`. Diagnostics contain only a finite code, with no credentials, proofs, input paths, or raw bytes.
+[SPEC.md](SPEC.md#公开编解码入口与实现细化) defines validation order, closed fields, budgets, correlation, and diagnostics. [The session codec clauses](SPEC.md#会话编解码函数) apply the same rules to the session group and state which step-1 checks stay with the server adapter. The eight functions are synchronous and have no external effects. Invalid programming arguments throw a fixed `TypeError`. An invalid request or response model returns `invalid`. Diagnostics contain only a finite code, with no credential, proof, input path, or raw byte.
 
-A decoded request proves protocol validity only. For a session request, this covers only the step-1 checks that this package owns: the `message` check stops at a JSON object whose `role` is `user`, and the server adapter completes the full message decoding. A decoded response proves its operation-specific shape and correlation only. Neither result proves a business authorization or durable commit.
+The stable promises are the exported functions, their input and result types, and the operation, outcome, and body shapes of both protocols. A change to any of them is a protocol change.
+
+A decoded request proves protocol validity only. For a session request, this covers only the step-1 checks that this package owns: the `message` check stops at a JSON object whose `role` is `user`, and the server adapter completes the full message decoding. A decoded response proves its operation-specific shape and correlation only. Neither result proves a business authorization or a durable commit.
+
+Implementation details are free to change: the internal module layout, the exact diagnostic codes beyond their documented set, and the parsing strategy.
 
 ## Design
 
-[Internal design](docs/internals.md) describes the closed operation table, wire conversion, and duplicate-key correlation scan. Strict json-text parsing is the only source of business data. A duplicate failure can trigger a second, iterative scan that recovers only a unique root message ID. This scan validates the entire document and applies the same six budgets.
+[Internal design](docs/internals.md) describes the closed operation table, the wire conversion, and the duplicate-key correlation scan. Strict json-text parsing is the only source of business data. A duplicate failure can trigger a second, iterative scan that recovers only a unique root message ID. This scan validates the entire document and applies the same six budgets.
 
-The runtime dependencies are json-text, legal-identity, utc-instant, and jsonc-parser. The package has no Cordis entry or lifecycle resources. Published files contain `dist`; the `source` export condition is for workspace development. Independent consumers use the `import` and `types` conditions.
+The runtime dependencies are json-text, legal-identity, utc-instant, and jsonc-parser. The package has no Cordis entry and no lifecycle resources. Published files contain `dist`; the `source` export condition is for workspace development. An independent consumer uses the `import` and `types` conditions.
 
 ## Configuration and operation
 
@@ -72,10 +76,12 @@ The tests exercise the public exports. `protocol.spec.ts` covers common boundari
 
 `session-protocol.spec.ts` covers, with accepted and rejected vectors, each step-1 rule that `readSessionRequest` owns. For `message`, this is the object and `role` check, not the full message decoding. It also covers the cross-version rejection in both positions. `session-responses.spec.ts` covers every outcome of every session operation, closed bodies, history pages, `unmatched`, `unreadable`, and the common refusal overload. `session-consumption.spec-d.ts` checks the session operation, body, and outcome types. `session-control-protocol.spec.ts`, `session-control-responses.spec.ts`, and `session-control-consumption.spec-d.ts` cover the `cancel-run` and `stop-call` requests, outcome sets, success bodies, and types, with one violated rule per case. The package does not map Session results to wire outcomes, and it does not derive operation identities. The server adapter owns both.
 
-`fixtures/client.ts` and `fixtures/server.ts` independently consume the package name. Each fixture has one governance exchange and one session exchange. `install-closure.spec.ts` packs this package and its three workspace dependencies, installs them in a fresh directory, compiles both fixtures, and runs both exchanges with Node against `dist`. That test needs pnpm and access to its configured package registry or cache for jsonc-parser. It removes its temporary installation and records the closure in the task's temporary evidence directory. `fixtures/profile.mjs` observes bounded codec workloads through `dist`.
+`fixtures/client.ts` and `fixtures/server.ts` consume the package name independently. Each fixture has one governance exchange and one session exchange. `install-closure.spec.ts` packs this package and its three workspace dependencies, installs them in a fresh directory, compiles both fixtures, and runs both exchanges with Node against `dist`. That test needs pnpm and access to its configured package registry or cache for jsonc-parser. It removes its temporary installation and records the closure in the task's temporary evidence directory. `fixtures/profile.mjs` observes bounded codec workloads through `dist`.
 
 These are pure protocol and package-consumption checks. Real transport, login, authorization, storage, Session calls, and end-to-end governance and session journeys require their owners' validation.
 
 ## Maintenance
 
-Keep messages, operation rules, codecs, and the SPEC synchronized. Protocol changes require both consumer fixtures, the type counterexamples, and the full operation matrices. Recheck the installation closure after dependency changes. SDK and server-entry own migration of their future runtime consumers.
+Keep messages, operation rules, codecs, and the SPEC synchronized. A protocol change needs both consumer fixtures, the type counterexamples, and the full operation matrices. Recheck the installation closure after a dependency change. SDK and server-entry own the migration of their runtime consumers.
+
+Keep [README_ZH.md](README_ZH.md) in step with this file. Both files state the same promises.

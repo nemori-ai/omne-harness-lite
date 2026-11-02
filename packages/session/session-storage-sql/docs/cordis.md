@@ -18,7 +18,7 @@
 | 存储服务与提供者 | 应用装入 sql-contract 与 sqlite-provider 的插件 | 本包只收 `SqlStorage` 对象，不 inject，不知道提供者 |
 | 游标签名能力 | 应用 | 本包只收 `cursorSigning` |
 | `sessionTransactions` 服务键 | 应用：用 `createSessionStorage` 得到端口，交给服务键 | 键与抽象类归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#端口服务键)，本包不提供 |
-| 迁移执行与重启后的迁移 | 提供者（DO-1，见 [sqlite-provider 规格](../../../storage/sqlite-provider/SPEC.md) §5.3） | 迁移模块 `session/001-session-log`。插件加载时不登记组合，这一步已按 Context r3 删除 |
+| 迁移执行与重启后的迁移 | 提供者（DO-1，见 [sqlite-provider 规格](../../../storage/sqlite-provider/SPEC.md) §5.3） | 迁移模块 `session/001-session-log`、`session/002-execution-index`、`session/003-operation-evidence`（以及 `execution-record/001-execution-record`）。插件加载时不登记组合，这一步已按 Context r3 删除 |
 | 注册的结果处理（`registerCombination` 的各类拒绝） | 应用 | 无。拒绝规则见 [sql-contract §6](../../../storage/sql-contract/SPEC.md#6-registercombination) |
 
 ## 撤除与资源

@@ -231,7 +231,7 @@ Reduce 收到 blocked 或 failed 后，核对事实和剩余责任，继续处�
 
 ## 6 初始派发消息的生成与人工转发
 
-初始消息模板见 [Line 首次派发消息](../../.meta_harness/human/map-reduce-delivery/templates/line-initial-dispatch.md)。它面向新 Line 会话，不是线会话给子代理的简报。已有 Line 下一波读取 delta，不重新创建人类会话或重发首次消息。
+初始消息模板见 [Line 首次派发消息](../../.meta_harness/human/map-reduce-delivery/templates/line-initial-dispatch.md)。它面向新 Line 会话，不是线会话给子代理的简报。已有 Line 下一波读取 delta，不重新创建人类会话或重发首次消息；这只在宿主与主代理模型都不变时成立。换宿主或换主代理模型时新开 Line 会话，并按首次派发模板重新发首次消息。
 
 ```text
 renderInitial(m,l,dispatchRevision,hostProfile,machineBinding) → temporaryFile
