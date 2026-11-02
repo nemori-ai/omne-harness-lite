@@ -27,6 +27,7 @@ CASES = {
     "bad-skip-query": ("invariant", "QueryBeforeResend"),
     "bad-propagating-filter": ("invariant", "ReplayOnlyWhilePropagating"),
     "bad-association": ("invariant", "TargetSafe"),
+    "bad-ignore-stopped": ("invariant", "NoSendAfterCommitted"),
     "valid-cancel-run": ("positive", None),
     "valid-stop-call": ("positive", None),
 }

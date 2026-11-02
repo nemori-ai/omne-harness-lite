@@ -7,7 +7,8 @@ EXTENDS Naturals, FiniteSets, TLC
 CONSTANTS Insiders, Outsiders, Requests, MaxLen, MaxEpoch, MaxGen, Bugs
 Principals == Insiders \cup Outsiders
 BugNames == {"no-publish-check", "no-clear-on-retire", "skip-auth-on-hit",
-             "no-gap-check", "shared-key", "no-epoch-check", "overwrite-newer"}
+             "no-gap-check", "shared-key", "no-epoch-check", "overwrite-newer",
+             "skip-recheck"}
 ASSUME /\ Insiders \cap Outsiders = {} /\ Insiders # {} /\ Requests # {}
        /\ MaxLen \in Nat /\ MaxEpoch \in Nat \ {0} /\ MaxGen \in Nat \ {0}
        /\ Bugs \subseteq BugNames
@@ -30,7 +31,7 @@ States == {"idle", "begun", "loaded", "read", "checked", "done"}
 Results == {None, "ok", "denied", "unavailable", "invalid"}
 Idle == [state |-> "idle", principal |-> None, gen |-> 0, auth |-> FALSE, hot |-> FALSE,
          seen |-> 0, loaded |-> NoMaterial, rows |-> {}, read |-> 0, len |-> 0, epoch |-> 0,
-         prefix |-> 0, result |-> None, pubgen |-> 0]
+         prefix |-> 0, result |-> None, pubgen |-> 0, recheck |-> FALSE]
 Empty == [s \in Slots |-> NoMaterial]
 Clear == IF "no-clear-on-retire" \in Bugs THEN cache ELSE Empty
 
@@ -96,11 +97,14 @@ Read(r) ==
   /\ UNCHANGED <<env, cache, rev, regressed>>
 
 (* The last eligibility observation before the result leaves the operation group.      *)
+(* `recheck` records the real eligibility at this moment, whether or not the check ran: *)
+(* the `skip-recheck` defect lets the call pass without consulting the authority.       *)
 Recheck(r) ==
   /\ req[r].state = "read"
-  /\ IF allowed[req[r].principal] \/ req[r].hot
-     THEN req' = [req EXCEPT ![r].state = "checked"]
-     ELSE req' = [req EXCEPT ![r].state = "done", ![r].result = "denied"]
+  /\ LET real == allowed[req[r].principal]
+     IN IF "skip-recheck" \in Bugs \/ real \/ req[r].hot
+        THEN req' = [req EXCEPT ![r].state = "checked", ![r].recheck = real]
+        ELSE req' = [req EXCEPT ![r].state = "done", ![r].result = "denied"]
   /\ UNCHANGED <<env, cache, rev, regressed>>
 
 Regresses(old, new) ==
@@ -174,7 +178,7 @@ TypeOK ==
        /\ req[r].state \in States /\ req[r].result \in Results
        /\ req[r].principal \in Principals \cup {None}
        /\ req[r].gen \in 0..MaxGen /\ req[r].pubgen \in 0..MaxGen
-       /\ req[r].auth \in BOOLEAN /\ req[r].hot \in BOOLEAN
+       /\ req[r].auth \in BOOLEAN /\ req[r].hot \in BOOLEAN /\ req[r].recheck \in BOOLEAN
        /\ req[r].loaded = NoMaterial \/ Material(req[r].loaded)
        /\ req[r].rows \subseteq Rows
        /\ req[r].read \in 0..MaxLen /\ req[r].len \in 0..MaxLen
@@ -190,6 +194,9 @@ NoStalePublication == \A r \in Published : req[r].pubgen = req[r].gen
 CacheIsCurrent == \A s \in Slots : cache[s] # NoMaterial => (~withdrawn /\ cache[s].gen = gen)
 (* S2: every published call was admitted with real eligibility and from the tenant.    *)
 Authorized == \A r \in Published : req[r].auth /\ req[r].principal \in Insiders
+(* S2: the eligibility observed just before the result left was real, so the hot path   *)
+(* cannot skip the recheck before publication.                                          *)
+RecheckedEligible == \A r \in Published : req[r].recheck
 (* S2: a call only ever sees material derived for its own principal.                   *)
 HitBelongsToPrincipal ==
   \A r \in Requests : req[r].loaded # NoMaterial => req[r].loaded.owner = req[r].principal

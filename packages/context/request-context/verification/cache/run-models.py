@@ -33,6 +33,7 @@ CASES = {
     "bad-shared-key": ("invariant", "HitBelongsToPrincipal"),
     "bad-epoch": ("invariant", "Equivalence"),
     "bad-overwrite": ("invariant", "NoRegression"),
+    "bad-skip-recheck": ("invariant", "RecheckedEligible"),
     "valid-pairs": ("positive", None),
     "valid-cache": ("positive", None),
 }
