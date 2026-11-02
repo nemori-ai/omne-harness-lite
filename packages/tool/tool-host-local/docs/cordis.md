@@ -10,6 +10,8 @@
 
 登记在同步入口捕获调用方 Context 与 uid，以 AsyncLocalStorage 向纯登记表传递该次调用方。贡献的 effect 只释放原 token。同一 fiber 重启可以用同一 uid 重新登记；仅最终 dispose 才永久 retire 该 uid。装载前后核同一调用方活化及其当前依赖，旧活化的迟到装载不能登记到新活化。
 
+可追踪的服务引用携带调用方 Context，不是每条后台异步链的活化令牌。普通 register 按调用时的活动 Context、来源和当前资格核验；调用者负责在自己的 effect 收场中结束后台工作。本包拒绝已退役提供者的操作，并保护标准贡献 helper 中已开始的挂起装载，不声称辨认任意后台 continuation 的起源。
+
 常驻引用提供者仍存在但页读取失败时，协调者保留作者并 reopen。真实必需依赖被卸载时，Cordis 卸载宿主及其子作者；该代挂起请求返回 unavailable，旧引用不能继续装载。作者贡献撤除不证明其他宿主持有的执行 pin、结果或外部资源已经结清。
 
 装配 runtime 时显式提供 operationIdentities 与 sourceIssuer.resolve，来源核验器读取同一实际入口保存的完整绑定。生产提供者仍未实现。宿主创建实例时取得身份，并传给 driver.run；同一存活实例重复唤醒沿用。该传参不增加 claim 或接管保证。普通入口与受信 admission 的边界归[契约](../../tool-contract/SPEC.md#342-普通操作与实例目录)。
