@@ -23,8 +23,8 @@
 // 已经持有名额的进程再调用本脚本（例如 pnpm run check 里嵌着的测试入口）直接放行，不重复排队。
 // 名额随持有它的包装进程退出而释放；POSIX 下杀持有者要杀整棵进程树，否则被包装的命令成孤儿继续跑而名额已释放。
 //
-// 一个锁目录（#979）：Windows 侧是操作系统用户配置目录下的 .omne/test-slots，不随进程 TEMP/TMP 变化。
-// WSL 侧（有 WSL_DISTRO_NAME）经 interop 起 PowerShell 取同一 Windows 用户配置目录，
+// 一个锁目录（#979）：Windows 侧是 os.tmpdir() 下的 omne-test-slots-<OS 用户名>。
+// WSL 侧（有 WSL_DISTRO_NAME）经 interop 起 PowerShell 取 Windows 临时目录与 OS 用户名，
 // 在那里建目录与一个探针文件，再 wslpath -u 转成 WSL 路径，看得见探针才算同一个目录。
 // 解析失败或同目录判定不成立时回退 /tmp/omne-test-slots-<uid>，并在 stderr 报「WSL 与 Windows 没有共用名额」。
 // 其余 POSIX 是 /tmp/omne-test-slots-<uid>。
@@ -48,7 +48,7 @@ import {
   rmSync,
   statSync,
   utimesSync,
-  writeSync,
+  writeFileSync,
 } from 'node:fs'
 import os from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
@@ -107,10 +107,7 @@ try {
 
 /** 本侧的默认锁目录；WSL 里先试 Windows 侧的同一个目录，不成再回退并提醒。 */
 function defaultSlotDir() {
-  const own =
-    process.platform === 'win32'
-      ? join(os.userInfo().homedir, '.omne', 'test-slots')
-      : join('/tmp', `omne-test-slots-${user}`)
+  const own = join(process.platform === 'win32' ? os.tmpdir() : '/tmp', `omne-test-slots-${user}`)
   if (!env['WSL_DISTRO_NAME']) return own
   const shared = windowsSlotDir()
   if (shared.dir !== undefined) return shared.dir
@@ -121,7 +118,7 @@ function defaultSlotDir() {
 }
 
 /**
- * WSL 里解析 Windows 侧的默认锁目录。经 interop 起 Windows PowerShell：取操作系统用户配置目录、拼上 .omne/test-slots、
+ * WSL 里解析 Windows 侧的默认锁目录。经 interop 起 Windows PowerShell：取临时目录长名与操作系统用户名，
  * 建目录、清掉 10 分钟前留下的探针、建一个以本进程号命名的探针文件，再报出目录。这边 wslpath -u 转成 WSL 路径，
  * 在那里看得见探针才算同一个目录，看完即删。任何一步不成都给出原因，由调用方回退。
  */
@@ -133,7 +130,7 @@ function windowsSlotDir() {
   const script = [
     '[Console]::OutputEncoding = [Text.Encoding]::UTF8',
     "$ErrorActionPreference = 'Stop'",
-    "$dir = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.omne\\test-slots'",
+    "$dir = Join-Path (Get-Item -LiteralPath $env:TEMP).FullName ('omne-test-slots-' + [Environment]::UserName)",
     'New-Item -ItemType Directory -Force -Path $dir | Out-Null',
     "Get-ChildItem -LiteralPath $dir -Filter '.omne-probe-*' -Force | Where-Object { $_.LastWriteTime -lt (Get-Date).AddMinutes(-10) } | Remove-Item -Force",
     `New-Item -ItemType File -Force -Path (Join-Path $dir '${probe}') | Out-Null`,
@@ -208,19 +205,37 @@ const sleep = seconds => new Promise(settle => setTimeout(settle, seconds * 1000
  * `since` 保持整秒：别的进程（包括旧版本的本脚本）按整秒读它，它只用于排队提示里的「已 N 秒」，不进账本。
  */
 function describe(beatSeconds) {
-  return `pid=${process.pid}\nside=${SIDE}\nsince=${unixNow()}\ncwd=${process.cwd()}\ncmd=${commandLine}\nbeat=${beatSeconds}\n`
+  return `version=2\npid=${process.pid}\nside=${SIDE}\nsince=${unixNow()}\ncwd=${process.cwd()}\ncmd=${commandLine}\nbeat=${beatSeconds}\n`
 }
 
-function fields(path) {
+/** undefined 是路径不存在，null 是尚未完整发布或读取失败，只有完整登记才可判死。 */
+function fields(path, queueOwner = false) {
   try {
-    return Object.fromEntries(
-      readFileSync(path, 'utf8')
+    const text = readFileSync(path, 'utf8')
+    if (!text.endsWith('\n')) return null
+    const entry = Object.fromEntries(
+      text
         .split('\n')
         .filter(line => line.includes('='))
         .map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]),
     )
-  } catch {
-    return undefined
+    const pid = Number(entry.pid)
+    if (!Number.isSafeInteger(pid) || pid < 1) return null
+    if (entry.side !== undefined && entry.side === '') return null
+    // 旧 owner 只有 pid 和可选的 side；新版先写 version，部分内容不会被误认成旧 owner。
+    if (queueOwner && Object.keys(entry).every(key => ['pid', 'side'].includes(key))) return entry
+    if (
+      !/^\d+$/.test(entry.since ?? '') ||
+      !entry.cwd ||
+      !entry.cmd ||
+      !/^\d+$/.test(entry.beat ?? '') ||
+      Number(entry.beat) < 1 ||
+      (entry.version !== undefined && (entry.version !== '2' || !entry.side))
+    )
+      return null
+    return entry
+  } catch (error) {
+    return error.code === 'ENOENT' ? undefined : null
   }
 }
 
@@ -237,7 +252,7 @@ function processAlive(pid) {
 const sameSide = entry => entry.side === undefined || entry.side === SIDE
 
 /** 登记是本进程自己写的。 */
-const mine = entry => entry !== undefined && Number(entry.pid) === process.pid && sameSide(entry)
+const mine = entry => entry != null && Number(entry.pid) === process.pid && sameSide(entry)
 
 /** 登记里的进程还在：同侧按进程号判；对侧判不了进程号，只要登记在就算在。 */
 function registrantPresent(entry) {
@@ -250,6 +265,7 @@ function registrantPresent(entry) {
 function alive(path) {
   const entry = fields(path)
   if (entry === undefined) return false
+  if (entry === null) return true
   const beat = Number(entry.beat) || pollSeconds
   let age = 0
   try {
@@ -301,18 +317,11 @@ function createExclusive(path, text) {
     fd = openSync(path, 'wx')
   } catch (error) {
     if (['EEXIST', 'EPERM', 'EACCES', 'EBUSY'].includes(error.code)) return false
-    if (error.code !== 'ENOENT') throw error
-    // 锁目录没了（或对侧刚删过同名文件、9p 一时报找不到）：补建目录再试一次
-    mkdirSync(dirname(path), { recursive: true })
-    try {
-      fd = openSync(path, 'wx')
-    } catch (again) {
-      if (['EEXIST', 'EPERM', 'EACCES', 'EBUSY'].includes(again.code)) return false
-      throw again
-    }
+    if (error.code === 'ENOENT') return false
+    throw error
   }
   try {
-    writeSync(fd, text)
+    writeFileSync(fd, text)
   } finally {
     closeSync(fd)
   }
@@ -347,14 +356,14 @@ function inQueue(work) {
         continue
       }
       if (error.code !== 'EEXIST') throw error
-      const owner = fields(ownerPath)
+      const owner = fields(ownerPath, true)
       let age = 0
       try {
         age = Date.now() / 1000 - statSync(lock).mtimeMs / 1000
       } catch {
         continue
       }
-      const gone = owner !== undefined && sameSide(owner) && !processAlive(Number(owner.pid))
+      const gone = owner != null && sameSide(owner) && !processAlive(Number(owner.pid))
       if (!gone && age <= 30) {
         sleepSync(20)
         continue
@@ -367,8 +376,7 @@ function inQueue(work) {
       continue
     }
     try {
-      createExclusive(ownerPath, `pid=${process.pid}\nside=${SIDE}\n`)
-      break
+      if (createExclusive(ownerPath, describe(pollSeconds)) && mine(fields(ownerPath, true))) break
     } catch (error) {
       if (error.code !== 'ENOENT') throw error
     }
@@ -376,7 +384,7 @@ function inQueue(work) {
   try {
     return work()
   } finally {
-    if (mine(fields(ownerPath)))
+    if (mine(fields(ownerPath, true)))
       try {
         removeQueueLock(lock)
       } catch (error) {

@@ -4,7 +4,8 @@
 // （慢层开着 preParse，静态 skipIf 会把整个文件丢掉）。
 // 核对三件事（#979 D1）：WSL 里不给 OMNE_TEST_SLOT_DIR 时解析到 Windows 侧的同一个目录（Windows 建的探针文件
 // WSL 看得见、WSL 登记的名额 Windows 看得见）；Windows 持有时 WSL 排队、反向亦然；两侧各 20 个短命令抢同一目录，
-// 从没同时在跑（跨侧由 Windows 侧的观察者盯运行标记，同侧比各自时钟的区间与账本）、40 个进程都以 0 退出、恰好 40 行 ran。
+// 从没同时在跑（独立原子占用哨兵覆盖命令有效区间，另采样运行标记）、40 个进程都以 0 退出、恰好 40 行 ran。
+// Date.now 在 WSL 上可能回拨，墙钟区间与账本只留作诊断，不作重叠门；hrtime 原值不跨平台比较。
 // WSL 侧只读工作树里的脚本（它只用 Node 标准库），不往 WSL 里装任何东西；锁目录放在 Windows 临时目录下的私有目录。
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
 import {
@@ -19,7 +20,7 @@ import {
 } from 'node:fs'
 import { tmpdir, userInfo } from 'node:os'
 import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const SCRIPT = resolve(
@@ -145,14 +146,30 @@ const until = Date.now() + 90_000;
 while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);`
 
 /**
- * 经名额执行的短命令：开始时建 `<argv[1]>.running` 标记，睡 300 毫秒，结束时删掉标记，
- * 把开始与结束的毫秒时刻（本侧时钟）写进 `<argv[1]>`。
+ * 独立哨兵覆盖所有有效工作，包括运行标记和诊断写入。竞争失败立即退出 86，不等待、不串行化命令。
+ * argv[2] 放哨兵与诊断，argv[3] 只供负控延长首个命令，正常命令仍睡 300 毫秒。
  */
-const RUN_CODE = `const started = Date.now();
+const RUN_CODE = `const path = require('node:path');
+const sentinel = process.argv[2] + '/active';
+const observation = process.argv[2] + '/' + path.basename(process.argv[1]);
+let fd;
+try { fd = fs.openSync(sentinel, 'wx'); }
+catch (error) { fs.writeFileSync(observation + '.collision', error.code); process.exit(86); }
+const started = Date.now(), monoStarted = process.hrtime.bigint().toString();
 fs.writeFileSync(process.argv[1] + '.running', '');
-Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 300);
+if (process.argv[3]) {
+  const deadline = performance.now() + 10000;
+  while (!fs.existsSync(process.argv[3])) {
+    if (performance.now() > deadline) throw new Error('sentinel control timed out');
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+  }
+} else Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 300);
 fs.rmSync(process.argv[1] + '.running');
-fs.writeFileSync(process.argv[1], started + ' ' + Date.now());`
+const ended = Date.now(), monoEnded = process.hrtime.bigint().toString();
+fs.writeFileSync(process.argv[1], started + ' ' + ended);
+fs.writeFileSync(observation + '.json', JSON.stringify({ pid: process.pid, started, ended, monoStarted, monoEnded }));
+fs.closeSync(fd);
+fs.rmSync(sentinel);`
 
 /**
  * 两侧的时钟不一定对得上（本机 WSL 落后 Windows 约 2 秒），跨侧的重叠不能比时刻。
@@ -260,38 +277,114 @@ async function holdAcross(
 }
 
 describe('with-test-slot.mjs 跨 WSL 与 Windows', { timeout: 240_000 }, () => {
-  it('WSL 里不给 OMNE_TEST_SLOT_DIR：不同 TEMP 仍解析到 Windows 用户配置目录下的同一个目录', async ctx => {
+  it('占用哨兵的负控：绕过 slot 的并发命令立即报告 EEXIST，不能等待放行', async () => {
+    const runs = join(dir, 'runs')
+    const observations = join(dir, 'observations')
+    mkdirSync(runs)
+    mkdirSync(observations)
+    const release = join(dir, 'release')
+    const firstPath = join(runs, 'first')
+    const first = watch(
+      spawn(process.execPath, ['-e', RUN_CODE, firstPath, observations, release], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }),
+    )
+    try {
+      await waitFor(() => existsSync(`${firstPath}.running`), '首个命令占用哨兵')
+      const second = watch(
+        spawn(process.execPath, ['-e', RUN_CODE, join(runs, 'second'), observations], {
+          stdio: ['ignore', 'pipe', 'pipe'],
+        }),
+      )
+      expect(await second.exited, second.stderr()).toBe(86)
+      expect(readFileSync(join(observations, 'second.collision'), 'utf8')).toBe('EEXIST')
+      expect(first.child.exitCode).toBeNull()
+      expect(existsSync(`${firstPath}.running`)).toBe(true)
+    } finally {
+      writeFileSync(release, '')
+      expect(await first.exited, first.stderr()).toBe(0)
+    }
+  })
+
+  it('没有 USERNAME 且不给 OMNE_TEST_SLOT_DIR：Windows 与 WSL 仍共用旧 TEMP 目录', async ctx => {
     if (!wsl.ok) ctx.skip(wsl.reason)
     // 把一个私有目录当作 Windows 侧的 TEMP：WSLENV 让 interop 起的 PowerShell 看到它（/p 转成 Windows 路径）。
     const windowsTemp = join(dir, 'win-temp')
     mkdirSync(windowsTemp)
     const held = join(dir, 'held')
     const release = join(dir, 'release')
-    const code = `fs.writeFileSync(process.argv[1], process.env.OMNE_TEST_SLOT_HELD);
+    const code = `if (process.env.USERNAME !== undefined) throw new Error('USERNAME must be absent');
+fs.writeFileSync(process.argv[1], process.env.OMNE_TEST_SLOT_HELD);
 const until = Date.now() + 90_000;
 while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);`
     const [file, args] = wslArgs(
       [
         `cd ${q(wslDir)}`,
-        'unset OMNE_TEST_SLOT_DIR OMNE_TEST_SLOT_HELD',
+        'unset OMNE_TEST_SLOT_DIR OMNE_TEST_SLOT_HELD USERNAME',
         `export TEMP=${q(toWsl(windowsTemp))} WSLENV=TEMP/p`,
         `export OMNE_TEST_SLOT_LEDGER=${q(`${wslDir}/ledger-wsl.jsonl`)}`,
         `node ${q(toWsl(SCRIPT))} node -e ${q(code)} ${q(toWsl(held))} ${q(toWsl(release))}`,
       ].join(' && '),
     )
-    const holder = watch(spawn(file, args, { stdio: ['ignore', 'pipe', 'pipe'] }))
+    const cleanEnv = { ...process.env }
+    delete cleanEnv['USERNAME']
+    const holder = (() => {
+      const username = Object.entries(process.env).filter(
+        ([key]) => key.toUpperCase() === 'USERNAME',
+      )
+      for (const [key] of username) delete process.env[key]
+      try {
+        return watch(spawn(file, args, { env: cleanEnv, stdio: ['ignore', 'pipe', 'pipe'] }))
+      } finally {
+        for (const [key, value] of username) process.env[key] = value
+      }
+    })()
     await waitFor(() => existsSync(held) || holder.child.exitCode !== null, '脚本拿到名额')
     expect(holder.child.exitCode, holder.stderr()).toBeNull()
-    const windowsSlotDir = join(userInfo().homedir, '.omne', 'test-slots')
+    const windowsSlotDir = join(windowsTemp, `omne-test-slots-${userInfo().username}`)
     // WSL 侧登记在解析出的路径下，这个路径就是 Windows 侧那个目录。
     expect(readFileSync(held, 'utf8')).toBe(`${toWsl(windowsSlotDir)}/slot-1.lock`)
     expect(holder.stderr()).not.toContain('没有共用名额')
     // Windows 侧看得见 WSL 登记的名额；PowerShell 建的探针用完即删。
     expect(readFileSync(join(windowsSlotDir, 'slot-1.lock'), 'utf8')).toContain('\nside=linux@')
     expect(readdirSync(windowsSlotDir).filter(name => name.startsWith('.omne-probe-'))).toEqual([])
+    const waiterStarted = join(dir, 'windows.started')
+    const strict = join(dir, 'strict-environment.mjs')
+    writeFileSync(
+      strict,
+      'for (const key of Object.keys(process.env)) if (key.toUpperCase() === "USERNAME") delete process.env[key]\n',
+    )
+    const waiterEnv: NodeJS.ProcessEnv = {
+      ...cleanEnv,
+      NODE_OPTIONS: `--import ${pathToFileURL(strict).href}`,
+      TEMP: windowsTemp,
+      TMP: windowsTemp,
+      OMNE_TEST_SLOT_LEDGER: join(dir, 'ledger-windows.jsonl'),
+      OMNE_TEST_SLOT_POLL_SECONDS: '1',
+    }
+    delete waiterEnv['OMNE_TEST_SLOT_DIR']
+    delete waiterEnv['OMNE_TEST_SLOT_HELD']
+    const waiter = watch(
+      spawn(
+        process.execPath,
+        [
+          SCRIPT,
+          process.execPath,
+          '-e',
+          'if (process.env.USERNAME !== undefined) throw new Error("USERNAME must be absent"); fs.writeFileSync(process.argv[1], process.env.OMNE_TEST_SLOT_HELD)',
+          waiterStarted,
+        ],
+        { env: waiterEnv, stdio: ['ignore', 'pipe', 'pipe'] },
+      ),
+    )
+    await waiter.until('排队中')
+    expect(existsSync(waiterStarted)).toBe(false)
     writeFileSync(release, '')
     expect(await holder.exited, holder.stderr()).toBe(0)
+    expect(await waiter.exited, waiter.stderr()).toBe(0)
+    expect(readFileSync(waiterStarted, 'utf8')).toBe(join(windowsSlotDir, 'slot-1.lock'))
     expect(ledgerLines('ledger-wsl.jsonl')).toMatchObject([{ event: 'ran', exitCode: 0 }])
+    expect(ledgerLines('ledger-windows.jsonl')).toMatchObject([{ event: 'ran', exitCode: 0 }])
   })
 
   it('Windows 持有、WSL 等待：等待者排队不开始，持有者结束后才开始', async ctx => {
@@ -311,16 +404,18 @@ while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new I
   it('两侧各 20 个短命令抢同一目录：运行两两不重叠，40 个进程都以 0 退出，账本恰好 40 行 ran', async ctx => {
     if (!wsl.ok) ctx.skip(wsl.reason)
     const runs = join(dir, 'runs')
+    const observations = join(dir, 'observations')
     mkdirSync(runs)
+    mkdirSync(observations)
     const count = 20
     const windowsSide = Array.from({ length: count }, (_, index) =>
-      onWindows(RUN_CODE, [join(runs, `windows-${index}`)]),
+      onWindows(RUN_CODE, [join(runs, `windows-${index}`), observations]),
     )
     // WSL 侧一次起 20 个放到后台，逐个 wait 收退出码；wsl.exe 退出时会杀掉它起的进程，所以要在里面等完。
     const script = [
       wslPrefix(),
       'pids=()',
-      `for i in $(seq 1 ${count}); do node ${q(toWsl(SCRIPT))} node -e ${q(RUN_CODE)} ${q(`${wslDir}/runs`)}/wsl-$i & pids+=($!); done`,
+      `for i in $(seq 1 ${count}); do node ${q(toWsl(SCRIPT))} node -e ${q(RUN_CODE)} ${q(`${wslDir}/runs`)}/wsl-$i ${q(toWsl(observations))} >${q(toWsl(observations))}/wsl-$i.stdout 2>${q(toWsl(observations))}/wsl-$i.stderr & pids+=($!); done`,
       'failures=0; for p in "${pids[@]}"; do wait "$p" || failures=$((failures + 1)); done',
       'echo "failures=$failures"',
     ].join(' && ')
@@ -330,6 +425,10 @@ while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new I
     const exits = await Promise.all(windowsSide.map(run => run.exited))
     const wslExit = await wslSide.exited
     const seen = stopObserving()
+    for (const [index, run] of windowsSide.entries()) {
+      writeFileSync(join(observations, `windows-${index}.stdout`), run.stdout())
+      writeFileSync(join(observations, `windows-${index}.stderr`), run.stderr())
+    }
     const complaints = windowsSide
       .map((run, index) => (exits[index] === 0 ? '' : `windows-${index}：\n${run.stderr()}`))
       .filter(Boolean)
@@ -337,10 +436,16 @@ while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new I
     expect(exits, complaints).toEqual(Array.from({ length: count }, () => 0))
     expect(wslExit, wslSide.stderr()).toBe(0)
     expect(wslSide.stdout(), wslSide.stderr()).toContain('failures=0')
+    expect(
+      readdirSync(observations).filter(name => name.endsWith('.collision')),
+      '独立占用哨兵冲突',
+    ).toEqual([])
+    expect(readdirSync(observations).filter(name => name.endsWith('.json'))).toHaveLength(2 * count)
+    expect(existsSync(join(observations, 'active'))).toBe(false)
     // 跨侧：观察者从没同时看到两个在跑。
     expect(seen.overlap, '同时在跑').toEqual([])
     expect(seen.most).toBe(1)
-    // 同侧：各命令自己记的毫秒区间（同一个时钟）两两不重叠；两侧各 20 份记录。
+    // 墙钟和单调时钟原值只作诊断。WSL 墙钟会回拨，不按它们排序判互斥。
     const intervals = readdirSync(runs)
       .filter(name => !name.endsWith('.running'))
       .map(name => {
@@ -349,20 +454,13 @@ while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new I
       })
     expect(intervals).toHaveLength(2 * count)
     for (const side of ['windows', 'wsl']) {
-      const own = intervals
-        .filter(run => run.name.startsWith(side))
-        .sort((a, b) => a.started - b.started)
+      const own = intervals.filter(run => run.name.startsWith(side))
       expect(own).toHaveLength(count)
-      for (let index = 1; index < own.length; index += 1) {
-        const previous = own[index - 1]
-        const current = own[index]
-        expect(
-          current?.started,
-          `${previous?.name} 与 ${current?.name} 重叠`,
-        ).toBeGreaterThanOrEqual(previous?.ended ?? Number.NaN)
-      }
+      expect(own.every(run => Number.isFinite(run.started) && Number.isFinite(run.ended))).toBe(
+        true,
+      )
     }
-    // 账本：两侧各自的 ran 合起来恰好 40 行、都以 0 退出；同侧按秒截断的占用区间两两不重叠。
+    // 账本仍须恰好 40 行、都以 0 退出，RFC3339 原值保留作诊断。
     const sides = {
       windows: ledgerLines('ledger-windows.jsonl'),
       wsl: ledgerLines('ledger-wsl.jsonl'),
@@ -370,12 +468,12 @@ while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new I
     const ran = [...sides.windows, ...sides.wsl]
     expect(ran).toHaveLength(2 * count)
     expect(ran.every(line => line.event === 'ran' && line.exitCode === 0)).toBe(true)
-    for (const lines of Object.values(sides)) {
-      const held = lines
-        .map(line => ({ from: Date.parse(line.acquiredAt ?? ''), to: Date.parse(line.endedAt) }))
-        .sort((a, b) => a.from - b.from)
-      for (let index = 1; index < held.length; index += 1)
-        expect(held[index]?.from).toBeGreaterThanOrEqual(held[index - 1]?.to ?? Number.NaN)
-    }
+    expect(
+      ran.every(
+        line =>
+          Number.isFinite(Date.parse(line.acquiredAt ?? '')) &&
+          Number.isFinite(Date.parse(line.endedAt)),
+      ),
+    ).toBe(true)
   })
 })
