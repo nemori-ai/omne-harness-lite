@@ -226,7 +226,7 @@ async function run(scratch) {
     const readRequests = requestsOf(scratch.storageRoot)
     settle(
       STEPS[4][1],
-      readRequests.length === 0 || readRequests.every(r => r == null)
+      readRequests.every(r => r == null)
         ? undefined
         : readRequests.some(r => r != null && String(r).includes(READ_TOKEN)),
       readRequests.length === 0
@@ -258,12 +258,11 @@ async function run(scratch) {
     const edited = readFileSync(join(workdir, 'edit-me.txt'), 'utf8').replaceAll('\r\n', '\n')
     settle(STEPS[6][1], edited === EDIT_AFTER, `内容 ${JSON.stringify(edited.slice(0, 120))}`)
     const filesRequests = requestsOf(scratch.storageRoot)
-    const filesSeen =
-      filesRequests.length === 0 || filesRequests.every(r => r == null)
-        ? undefined
-        : filesRequests.some(
-            r => r != null && /edit-me\.txt/.test(String(r)) && TOOL_RESULT.test(String(r)),
-          )
+    const filesSeen = filesRequests.every(r => r == null)
+      ? undefined
+      : filesRequests.some(
+          r => r != null && /edit-me\.txt/.test(String(r)) && TOOL_RESULT.test(String(r)),
+        )
     settle(
       STEPS[7][1],
       filesSeen,
