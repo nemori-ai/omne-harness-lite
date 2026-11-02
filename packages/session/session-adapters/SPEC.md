@@ -972,7 +972,7 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 - 顺序：分区里每条记录带它在所属映射里的序号，重建副本时按序号还原映射的插入顺序；删除后重新写入的记录取新序号，与进程内映射的顺序一致。
 - 读取：没有副本时分页读全部分区；副本的发布计数落后时（另一个提供者实例写过同一会话），只读这个计数之后写到或删除的分区（`since`），其余分区沿用副本里已解码的记录，合并后重建副本（`mergeParts`）。每页的发布计数必须相同，否则重读，最多 3 次，之后答 `unavailable`。副本里有排除的待决写入时整份重读。AD-02 的 `readExecutionInterpretation` 与 handoff 的执行分支只读所需 execution 的 `x:` 分区。遇到整份状态（`er_state`）时答 `unavailable`：0.0.x 不迁移旧的整份数据。
 - 语义键：操作记录保存的语义键是方法名加输入规范文本的 SHA-256（`src/testing/journal-values.ts` 的 `semanticKey`），不是规范文本本身。判定只比较语义键是否相等，含义不变；保存文本时，每条 commit 记录都带一份完整 checkpoint。
-- 验证：`tests/journal-parts.spec.ts` 核对归属、只写变了的分区与写入方分区、删除与清空分区、删除后重写的顺序、100 个 execution 后的写入只含写入方分区，以及畸形分区不重建。`tests/journal-interpretation.spec.ts` 的「a session with earlier Runs」在同一会话里依次跑 4 个 Run：第 4 个 Run 的最大写入与 AD-02 最大读取不超过第 2 个 Run 加 64 字节（改前分别从约 41 KB 涨到 156 KB、39 KB 涨到 154 KB），每个 Run 由两个提供者实例写入（像 Agent 的 Journal 与接收方各一个），所以副本每个 Run 都会落后一次；从分区重建的副本按 execution 读出的 `load` 与写入它们的副本相同。`tests/journal-parts.spec.ts` 另核对合并之后写入的分区与整份重建相同、顺序不变、合并出的布局继续只写变了的分区。
+- 验证：`tests/journal-parts.spec.ts` 核对归属、只写变了的分区与写入方分区、删除与清空分区、删除后重写的顺序、100 个 execution 后的写入只含写入方分区，以及畸形分区不重建。`tests/journal-interpretation.spec.ts` 的「a session with earlier Runs」在同一会话里依次跑 4 个 Run：第 4 个 Run 的最大一次写入不超过第 2 个 Run 加 64 字节，Agent 记录的读取总量（AD-02 与副本补读）不超过第 2 个 Run 加 1 KiB。实测第 1 到第 4 个 Run 的最大写入是 29,229 到 29,280 字节，读取总量是 67,231 到 67,336 字节；改前（整份单行）最大写入从约 41 KB 涨到 156 KB，副本落后时整份重读的变异下第 2、第 4 个 Run 的读取总量是 94,916 与 147,244 字节。每个 Run 由两个提供者实例写入（像 Agent 的 Journal 与接收方各一个），所以副本每个 Run 都会落后一次；从分区重建的副本按 execution 读出的 `load` 与写入它们的副本相同。`tests/journal-parts.spec.ts` 另核对合并之后写入的分区与整份重建相同、顺序不变、合并出的布局继续只写变了的分区。
 
 ### 会话事务端口的契约面
 

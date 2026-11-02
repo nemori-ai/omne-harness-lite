@@ -34,7 +34,8 @@ export default handler('execution-record.parts', (input, port) => {
   if (scope === null) throw new Error('invalid input')
   const raw = input as Record<string, unknown>
   const after = raw['after'] ?? null
-  if (after !== null && (typeof after !== 'string' || after === '')) throw new Error('invalid input')
+  if (after !== null && (typeof after !== 'string' || after === ''))
+    throw new Error('invalid input')
   const names = namesOf(raw)
   const since = sinceOf(raw)
   if (names === 'invalid' || since === 'invalid') throw new Error('invalid input')
@@ -60,7 +61,13 @@ export default handler('execution-record.parts', (input, port) => {
     `SELECT part, state FROM er_state_part
       WHERE tenant = ? AND session = ? AND part > ?${written}${filter}
       ORDER BY part LIMIT ${PART_PAGE_ROWS + 1}`,
-    [scope.tenant, scope.session, after ?? '', ...(since === null ? [] : [since]), ...(names ?? [])],
+    [
+      scope.tenant,
+      scope.session,
+      after ?? '',
+      ...(since === null ? [] : [since]),
+      ...(names ?? []),
+    ],
   )
   const parts: { part: string; state: JsonValue }[] = []
   let used = 0
@@ -73,7 +80,10 @@ export default handler('execution-record.parts', (input, port) => {
       break
     }
     used += size
-    parts.push({ part: text(row['part']), state: body === null ? null : (JSON.parse(body) as JsonValue) })
+    parts.push({
+      part: text(row['part']),
+      state: body === null ? null : (JSON.parse(body) as JsonValue),
+    })
   }
   return { published: String(big(root['published'])), state, parts, next }
 })

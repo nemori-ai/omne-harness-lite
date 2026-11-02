@@ -122,7 +122,8 @@ function withoutHeads(output: JsonValue): JsonValue {
   const copy = structuredClone(output) as {
     parts?: { state: { 'notes.heads'?: unknown[][] } }[]
   }
-  for (const part of copy.parts ?? []) for (const entry of part.state['notes.heads'] ?? []) entry[2] = null
+  for (const part of copy.parts ?? [])
+    for (const entry of part.state['notes.heads'] ?? []) entry[2] = null
   return copy as JsonValue
 }
 
@@ -881,9 +882,7 @@ describe('a session with earlier Runs: the bytes of one Run do not grow with the
     let where: SqlScene = f.s
     for (let k = 1; k <= count; k += 1) {
       const mark = { written: f.bytes.written.length, read: f.bytes.read.length }
-      const opened = ok(
-        await journal.open(k === 1 ? f.s.openInput : (where as SqlScene).openInput),
-      )
+      const opened = ok(await journal.open(k === 1 ? f.s.openInput : (where as SqlScene).openInput))
       ok(await handed(where, String(where.initial.id), opened.receipt.evidence))
       await take(where, journal)
       await committed(where, other, `run-${k}-message`, [
@@ -905,21 +904,29 @@ describe('a session with earlier Runs: the bytes of one Run do not grow with the
     return { perRun, executions, journal, s: f.s }
   }
 
-  it('the largest write and the Agent records read in Run 4 equal those of Run 2', { timeout: 60_000 }, async () => {
-    const { perRun } = await runs(4)
-    // Every Run writes and reads the same shapes; the identities have the same lengths.
-    expect(perRun[3]!.written).toBeLessThanOrEqual(perRun[1]!.written + 64)
-    expect(perRun[3]!.read).toBeLessThanOrEqual(perRun[1]!.read + 1024)
-  })
+  it(
+    'the largest write and the Agent records read in Run 4 equal those of Run 2',
+    { timeout: 60_000 },
+    async () => {
+      const { perRun } = await runs(4)
+      // Every Run writes and reads the same shapes; the identities have the same lengths.
+      expect(perRun[3]!.written).toBeLessThanOrEqual(perRun[1]!.written + 64)
+      expect(perRun[3]!.read).toBeLessThanOrEqual(perRun[1]!.read + 1024)
+    },
+  )
 
-  it('a copy rebuilt from the parts loads every execution as the copy that wrote them', { timeout: 60_000 }, async () => {
-    const { executions, journal, s } = await runs(3)
-    const fresh = s.fresh().journal
-    for (const execution of executions)
-      expect(await fresh.load({ ...s.access, execution })).toEqual(
-        await journal.load({ ...s.access, execution }),
-      )
-  })
+  it(
+    'a copy rebuilt from the parts loads every execution as the copy that wrote them',
+    { timeout: 60_000 },
+    async () => {
+      const { executions, journal, s } = await runs(3)
+      const fresh = s.fresh().journal
+      for (const execution of executions)
+        expect(await fresh.load({ ...s.access, execution })).toEqual(
+          await journal.load({ ...s.access, execution }),
+        )
+    },
+  )
 })
 
 /** The saved event progress of `execution`, whether its Run is active or ended. */

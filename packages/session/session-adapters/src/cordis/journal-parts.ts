@@ -54,7 +54,8 @@ const jsonAt = (key: unknown, index: number): unknown => {
 }
 
 /** The joint facts are a list: a member keyed by position. */
-const listEntries = (list: readonly unknown[]): Entries => new Map(list.map((item, at) => [at, item]))
+const listEntries = (list: readonly unknown[]): Entries =>
+  new Map(list.map((item, at) => [at, item]))
 
 const MEMBERS: readonly Member[] = [
   { name: 'executions', read: s => s.executions, owner: (_k, v) => field(v, 'id') },
@@ -78,17 +79,15 @@ const MEMBERS: readonly Member[] = [
   { name: 'notes.heads', read: s => s.notes.heads, owner: k => k },
   { name: 'notes.consequences', read: s => s.notes.consequences, owner: k => jsonAt(k, 0) },
   { name: 'notes.controls', read: s => s.notes.controls, owner: k => jsonAt(k, 0) },
-  ...RECEIVING.map(
-    (name): Member => ({
-      name: `receiving.${name}`,
-      read: s => s.receiving[name] as Entries,
-      owner: (_k, v) => {
-        if (name === 'consumerExecutions') return v
-        if (name === 'pendingBindings') return field(Array.isArray(v) ? v[0] : undefined, 'execution')
-        return field(v, 'execution')
-      },
-    }),
-  ),
+  ...RECEIVING.map((name): Member => ({
+    name: `receiving.${name}`,
+    read: s => s.receiving[name] as Entries,
+    owner: (_k, v) => {
+      if (name === 'consumerExecutions') return v
+      if (name === 'pendingBindings') return field(Array.isArray(v) ? v[0] : undefined, 'execution')
+      return field(v, 'execution')
+    },
+  })),
 ]
 
 /** Where one record is: its part and its order in the member. */
@@ -338,7 +337,13 @@ export function mergeParts(
   for (const [id, place] of base.layout.places) {
     if (names.has(place.part)) continue
     const name = memberOf(id)
-    kept.push({ name, part: place.part, order: place.order, key: place.key, value: members.get(name)?.get(place.key) })
+    kept.push({
+      name,
+      part: place.part,
+      order: place.order,
+      key: place.key,
+      value: members.get(name)?.get(place.key),
+    })
   }
   const written = changed.filter(
     (item): item is Readonly<{ part: string; state: JsonValue }> => item.state !== null,

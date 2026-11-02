@@ -126,7 +126,10 @@ describe('the migration and the read handler of the state parts', () => {
     expect(owner?.ownedTables).toContain('er_state_part')
     const reader = readHandlers.find(item => item.handler === 'execution-record.parts')
     expect(reader?.readTables).toEqual(['er_root', 'er_state', 'er_state_part'])
-    expect(reader?.requiresMigrations).toContainEqual({ owner: 'execution-record', id: '004-state-parts' })
+    expect(reader?.requiresMigrations).toContainEqual({
+      owner: 'execution-record',
+      id: '004-state-parts',
+    })
   })
 })
 
@@ -168,10 +171,17 @@ describe('a write in parts', () => {
   it('with replace, the parts are the whole state: every other part goes', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
-    await commit(a, 'aop_1', write(1, [{ part: 'x:exe_0', state: 0 }, { part: 'x:exe_1', state: 1 }]))
-    expect(
-      (await commit(a, 'aop_2', write(2, [{ part: 'x:exe_2', state: 2 }], true))).kind,
-    ).toBe('committed')
+    await commit(
+      a,
+      'aop_1',
+      write(1, [
+        { part: 'x:exe_0', state: 0 },
+        { part: 'x:exe_1', state: 1 },
+      ]),
+    )
+    expect((await commit(a, 'aop_2', write(2, [{ part: 'x:exe_2', state: 2 }], true))).kind).toBe(
+      'committed',
+    )
     expect((await readAll(a)).parts).toEqual([{ part: 'x:exe_2', state: 2 }])
     expect((await read(a, { since: '1' })).parts).toEqual([
       { part: 'x:exe_0', state: null },
@@ -193,13 +203,23 @@ describe('a write in parts', () => {
       next: null,
     })
     // The dropped part stays as a mark for a reader of an earlier count.
-    expect(await read(a, { since: '1' })).toMatchObject({ parts: [{ part: 'x:exe_1', state: null }] })
+    expect(await read(a, { since: '1' })).toMatchObject({
+      parts: [{ part: 'x:exe_1', state: null }],
+    })
   })
 
   it('with since, a read gives only the parts written or dropped after that count', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
-    await commit(a, 'aop_1', write(1, [{ part: 'a', state: 1 }, { part: 'b', state: 1 }, { part: 'c', state: 1 }]))
+    await commit(
+      a,
+      'aop_1',
+      write(1, [
+        { part: 'a', state: 1 },
+        { part: 'b', state: 1 },
+        { part: 'c', state: 1 },
+      ]),
+    )
     await commit(a, 'aop_2', write(2, [{ part: 'b', state: 2 }]))
     await commit(a, 'aop_3', write(3, [{ part: 'c', state: null }]))
     expect((await read(a, { since: '0' })).parts).toEqual([
@@ -221,7 +241,15 @@ describe('a write in parts', () => {
     ['both state and parts', { state: 1, parts: [] }],
     ['a part without a name', { parts: [{ part: '', state: 1 }] }],
     ['a part without a state', { parts: [{ part: 'x:exe_1' }] }],
-    ['the same part twice', { parts: [{ part: 'p', state: 1 }, { part: 'p', state: 2 }] }],
+    [
+      'the same part twice',
+      {
+        parts: [
+          { part: 'p', state: 1 },
+          { part: 'p', state: 2 },
+        ],
+      },
+    ],
     ['replace that is not a boolean', { parts: [], replace: 'yes' }],
     ['neither state nor parts', {}],
   ] as const)
@@ -268,7 +296,12 @@ describe('a write in parts', () => {
       combinationVersion: 'c1',
       manifestDigest: 'a'.repeat(64),
       commands: [
-        executionRecordFacts(write(2, [{ part: 'x:exe_1', state: 2 }, { part: 'o:exe_1', state: 2 }])),
+        executionRecordFacts(
+          write(2, [
+            { part: 'x:exe_1', state: 2 },
+            { part: 'o:exe_1', state: 2 },
+          ]),
+        ),
         sessionCommandFacts(accept, [guard('login', 'login-entry', 'present')]),
       ],
     })
@@ -302,7 +335,15 @@ describe('reading the parts', () => {
     const a = await app()
     ok(await a.create(TENANT_A))
     const huge = 'h'.repeat(PART_PAGE_TEXT + 10)
-    await commit(a, 'aop_1', write(1, [{ part: 'a', state: 1 }, { part: 'b', state: huge }, { part: 'c', state: 3 }]))
+    await commit(
+      a,
+      'aop_1',
+      write(1, [
+        { part: 'a', state: 1 },
+        { part: 'b', state: huge },
+        { part: 'c', state: 3 },
+      ]),
+    )
     const first = await read(a, { after: null })
     expect(first.parts.map(item => item.part)).toEqual(['a'])
     const second = await read(a, { after: first.next })
@@ -313,7 +354,15 @@ describe('reading the parts', () => {
   it('reads only the parts it names', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
-    await commit(a, 'aop_1', write(1, [{ part: 'x:exe_1', state: 1 }, { part: 'o:exe_1', state: 2 }, { part: 'x:exe_2', state: 3 }]))
+    await commit(
+      a,
+      'aop_1',
+      write(1, [
+        { part: 'x:exe_1', state: 1 },
+        { part: 'o:exe_1', state: 2 },
+        { part: 'x:exe_2', state: 3 },
+      ]),
+    )
     expect(await read(a, { parts: ['x:exe_1'] })).toEqual({
       published: '1',
       state: null,
@@ -350,12 +399,15 @@ describe('reading the parts', () => {
       const kind = await Promise.resolve()
         .then(() =>
           a.provider.storage.read({
-          domain: { scope: { kind: 'tenant', tenant: textOf(TENANT_A) }, transactionDomain: 'dom_0' },
-          handler: 'execution-record.parts',
-          protocol: '1',
-          requestKey: 'r',
-          input: { tenant: textOf(TENANT_A), session: SESSION, ...input },
-        }),
+            domain: {
+              scope: { kind: 'tenant', tenant: textOf(TENANT_A) },
+              transactionDomain: 'dom_0',
+            },
+            handler: 'execution-record.parts',
+            protocol: '1',
+            requestKey: 'r',
+            input: { tenant: textOf(TENANT_A), session: SESSION, ...input },
+          }),
         )
         .then(
           result => result.kind,

@@ -30,7 +30,10 @@ function draft(state: DurableJournalState): Mutable {
         : Array.isArray(member)
           ? [...member]
           : Object.fromEntries(
-              Object.entries(member as object).map(([inner, map]) => [inner, new Map(map as Map<unknown, unknown>)]),
+              Object.entries(member as object).map(([inner, map]) => [
+                inner,
+                new Map(map as Map<unknown, unknown>),
+              ]),
             ),
     ]),
   )
@@ -63,7 +66,9 @@ function store() {
     },
     /** A new copy from the stored parts, in the order the storage reads them. */
     rebuild(): DurableJournalState {
-      rebuilt = rebuildParts([...parts].sort(([a], [b]) => (a < b ? -1 : 1)).map(([part, state]) => ({ part, state })))
+      rebuilt = rebuildParts(
+        [...parts].sort(([a], [b]) => (a < b ? -1 : 1)).map(([part, state]) => ({ part, state })),
+      )
       layout = rebuilt.layout
       stored = rebuilt.state
       return rebuilt.state
@@ -78,8 +83,14 @@ function twoExecutions(): Mutable {
   const state = draft(rebuildParts([]).state)
   state.executions.set('k-a', { id: 'exe_a', revision: 1 } as never)
   state.executions.set('k-b', { id: 'exe_b', revision: 1 } as never)
-  state.operations.set(operationKey('exe_a', 'op-1'), { kind: 'committed', key: 'open:sha256:1' } as never)
-  state.operations.set(operationKey('exe_b', 'op-1'), { kind: 'committed', key: 'open:sha256:2' } as never)
+  state.operations.set(operationKey('exe_a', 'op-1'), {
+    kind: 'committed',
+    key: 'open:sha256:1',
+  } as never)
+  state.operations.set(operationKey('exe_b', 'op-1'), {
+    kind: 'committed',
+    key: 'open:sha256:2',
+  } as never)
   state.eventReceipts.set('exe_a\u00001', { receipt: 'a1' } as never)
   state.notes.consequences.set(JSON.stringify(['exe_b', '1']), [])
   // A record that names no execution: it goes to the writer's part, or the session part.
@@ -92,7 +103,13 @@ describe('the first publication', () => {
     const s = store()
     const state = twoExecutions()
     expect(s.publish(state, null).sort()).toEqual(
-      [operationsPart('exe_a'), operationsPart('exe_b'), recordsPart('exe_a'), recordsPart('exe_b'), SESSION_PART].sort(),
+      [
+        operationsPart('exe_a'),
+        operationsPart('exe_b'),
+        recordsPart('exe_a'),
+        recordsPart('exe_b'),
+        SESSION_PART,
+      ].sort(),
     )
     expect(Object.keys(s.parts.get(recordsPart('exe_a')) as object).sort()).toEqual([
       'eventReceipts',
@@ -106,7 +123,9 @@ describe('the first publication', () => {
     const s = store()
     s.publish(twoExecutions(), 'exe_a')
     expect(s.parts.has(SESSION_PART)).toBe(false)
-    expect(Object.keys(s.parts.get(recordsPart('exe_a')) as object)).toContain('receiving.materials')
+    expect(Object.keys(s.parts.get(recordsPart('exe_a')) as object)).toContain(
+      'receiving.materials',
+    )
   })
 })
 
@@ -164,8 +183,13 @@ describe('a later publication', () => {
     for (let n = 0; n < 100; n += 1) {
       const next = draft(state)
       next.executions.set(`k-${n}`, { id: `exe_${n}`, revision: 1 } as never)
-      next.operations.set(operationKey(`exe_${n}`, 'op-1'), { kind: 'committed', key: `k${n}` } as never)
-      expect(s.publish(next, `exe_${n}`).sort()).toEqual([operationsPart(`exe_${n}`), recordsPart(`exe_${n}`)].sort())
+      next.operations.set(operationKey(`exe_${n}`, 'op-1'), {
+        kind: 'committed',
+        key: `k${n}`,
+      } as never)
+      expect(s.publish(next, `exe_${n}`).sort()).toEqual(
+        [operationsPart(`exe_${n}`), recordsPart(`exe_${n}`)].sort(),
+      )
       state = next
     }
     expect(form(s.rebuild())).toEqual(form(state))

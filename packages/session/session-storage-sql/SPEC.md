@@ -112,7 +112,7 @@
     - 读取：输入 `tenant`、`session`、`after`（上一页最后一个分区名，首页为 null）、可选的 `parts`（只读所列分区名，1 到 64 个）与可选的 `since`（一个发布计数）。不带 `since` 时读出现存的分区，不读已删除标记；带 `since` 时只读 `published` 大于它的分区，已删除的分区以 null 状态读出，持有该计数时副本的读方只读之后变了的分区。输出发布计数、整份状态（只在首页给出，没有时为 null）、按分区名升序的分区与 `next`（下一页的 `after`，没有下一页时为 null）。一页最多 64 个分区，累计文本到 256 KiB 之前停下，但至少含一个分区。每页是一次快照；跨页的一致性由读方核对各页的发布计数。每条语句带 `tenant` 与 `session` 条件，另一租户按同名会话读到空页。
     - 词汇：子路径导出 `decodeExecutionRecordParts` 与类型 `ExecutionRecordPart`、`ExecutionRecordPartsRead`、`ExecutionRecordPartsPage`，handler 名为 `EXECUTION_RECORD_HANDLERS.parts`。
     - 不迁移旧数据：0.0.x 不承诺旧字节兼容（[当前演进政策](../../../docs/engineering/publication.md#当前演进与消费者)），已有的整份状态行留在 `er_state`，本成员不把它拆成分区。session-adapters 的提供者只读分区，遇到整份状态答 `unavailable`。
-    - 清单摘要：新迁移、新 handler 与参加者模块摘要都改变组合的 `manifestDigest`。只含本成员材料的 `execution-record` 加 `session` 组合，基线 `1d0166605` 为 `MANIFEST_BASE`，本次为 `MANIFEST_NEW`（`combinationManifest` 加 `manifestDigest` 计算）。应用的材料目录与 `combinationVersion` 归 Reduce，本成员不改。
+    - 清单摘要：新迁移、新 handler 与参加者模块摘要都改变组合的 `manifestDigest`。只含本成员材料的 `execution-record` 加 `session` 组合，基线 `1d0166605` 为 `adb6a8d5d5ccc00d1a8d16111179e07d51c027d4b945bd46c78ac92fad102bed`，本次为 `b543b8c09ccb8a5a7c254a0346b133d40081667c04af6af9b520b57da40597df`（`combinationManifest` 加 `manifestDigest` 对 `src` 材料计算，`combinationVersion` 取 `c1`）。应用的材料目录与 `combinationVersion` 归 Reduce，本成员不改。
     - 验证：`tests/state-parts.spec.ts` 核对迁移的依赖与表的归属、分区替换与删除、`replace`、整份写删除分区、`since` 只读之后写到或删除的分区、六种畸形写入不写任何行、同一提交里 Session 写失败时分区一起回滚、分页的行数与文本预算、超过预算的分区单独成页、只读所列分区、另一租户读不到、畸形读输入被拒。
 
 ### 两个「事务端口」
