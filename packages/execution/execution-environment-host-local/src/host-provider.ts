@@ -18,13 +18,10 @@ import type {
   ProviderFacts,
   Retirement,
 } from '@omne-harness/execution-environment-contract'
-import { commandSettings, createHostCommands, type HostCommandOptions } from './host-command.ts'
-import {
-  createHostTerminals,
-  retainedHostTerminalFactory,
-  terminalSettings,
-  type HostTerminalOptions,
-} from './host-terminal.ts'
+import { commandSettings, type HostCommandOptions } from './host-command.ts'
+import { terminalSettings, type HostTerminalOptions } from './host-terminal.ts'
+import { createHostPlatform } from './host-platform.ts'
+import { stopWindowsResource } from './windows-execution/index.ts'
 import { retainedLegShell } from './host-retained-terminals.ts'
 import {
   domainInternals,
@@ -37,20 +34,13 @@ import {
 } from './host-domain.ts'
 import type { HostFileDiagnostic, HostFilesLimits } from './host-files.ts'
 import { probeHostFilesPrerequisite } from './host-paths.ts'
-import {
-  createPrerequisiteProbe,
-  resolveSupervisor,
-  probeTerminalPrerequisites,
-  type HostCommandPrerequisite,
-  type HostTerminalPrerequisite,
-} from './host-probe.ts'
+import { type HostCommandPrerequisite, type HostTerminalPrerequisite } from './host-probe.ts'
 import {
   forceStopScope,
   cleanupTerminalScope,
   listScopes,
   readBootId,
   readScopeReference,
-  type Supervisor,
 } from './host-scope.ts'
 
 /** Initial value of `drainBoundMs` when the configuration does not give one. */
@@ -234,14 +224,10 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
   internals.registerGeneration(generation)
   const facilities: readonly FacilityKey[] = Object.freeze(['files', 'command', 'terminal'])
   let retired = false
-  // The probe of the command prerequisites starts now; `describe` reports `unknown` until it answers.
-  const probe = createPrerequisiteProbe({
-    retryMs: settings.probeRetryMs,
-    boundMs: settings.stopBoundMs,
-  })
-  const terminalProbe = createPrerequisiteProbe({
-    retryMs: terminal.probeRetryMs,
-    boundMs: terminal.stopBoundMs,
+  const execution = createHostPlatform({
+    settings,
+    terminal,
+    windowsCapacity: internals.windowsCapacity,
   })
   const filesPrerequisite = createFilesPrerequisiteReader(options.stateDirectory)
   const platform = Object.freeze({ os: process.platform, release: release() })
@@ -295,12 +281,6 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     const result = await internals.drain(record, drainBoundMs)
     if (result.kind === 'pending') diagnose([record], result.resources, record.original.acquisition)
     return result
-  }
-
-  /** The supervisor: the probe's, or resolved now for recovery when the probe is not satisfied. */
-  const supervisor = async (): Promise<Supervisor | undefined> => {
-    const reading = await probe.ready()
-    return reading.kind === 'satisfied' ? reading.tools : resolveSupervisor(settings.stopBoundMs)
   }
 
   /** The lease of one acquisition: its facade, its invalidation and its release. */
@@ -394,12 +374,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         platform,
         facilities,
         isolation: [],
-        prerequisites: merged([
-          probe.facts(),
-          terminalProbe.facts(),
-          await filesPrerequisite(),
-          (await probeTerminalPrerequisites()).length === 0 ? 'satisfied' : 'unsatisfied',
-        ]),
+        prerequisites: merged([...(await execution.prerequisites()), await filesPrerequisite()]),
       })
     },
     async quota(tenant) {
@@ -424,12 +399,11 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         generation,
         files.engine,
         () =>
-          createHostCommands({
+          execution.commands({
             ledger: input.ledger,
             provider: name,
             scope: input.scope,
             settings,
-            prerequisites: probe,
             unavailable: missing =>
               report({
                 kind: 'commandUnavailable',
@@ -445,7 +419,6 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
             provider: name,
             scope: input.scope,
             settings: terminal,
-            prerequisites: terminalProbe,
             unavailable: (
               missing: readonly (HostCommandPrerequisite | HostTerminalPrerequisite)[],
             ) =>
@@ -462,8 +435,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
             instance: domain.instance,
             generation,
             capacity: terminal.retainedCapacity,
-            ordinary: createHostTerminals(terminalInput),
-            reserve: retainedHostTerminalFactory(terminalInput),
+            ...execution.terminals(terminalInput),
           })
         },
       )
@@ -510,11 +482,12 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       const result = await drain(record)
       return result.kind === 'settled' ? { kind: 'settled' } : result
     },
-    // Only the command scopes are managed resources. A host that is not Linux never ran one.
+    // Windows has no complete cold owner index; partial live records cannot prove recovery complete.
     async listRecoveryResources(scope) {
+      if (process.platform === 'win32') return { kind: 'unavailable' }
       const retained = internals.retainedTerminals.resources(scope)
       if (process.platform !== 'linux') return { kind: 'listed', resources: retained }
-      const systemctl = (await supervisor())?.systemctl
+      const systemctl = (await execution.supervisor())?.systemctl
       if (systemctl === undefined) return { kind: 'unavailable' }
       const listed = await listScopes({
         systemctl,
@@ -538,6 +511,11 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
           evidence: null,
         }
       resource = retainedLegShell(resource) ?? resource
+      if (process.platform === 'win32') {
+        if (resource.provider !== name) return { status: 'unsupported', evidence: null }
+        const stopped = await stopWindowsResource(resource, settings.stopBoundMs)
+        return { status: stopped === 'confirmed' ? 'confirmedStopped' : 'pending', evidence: null }
+      }
       const coordinate = readScopeReference(resource.reference)
       if (resource.provider !== name || coordinate === undefined)
         return { status: 'unsupported', evidence: null }
@@ -551,7 +529,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
             entries: [unit, { key: 'bootId', value: { kind: 'string', value: bootId } }],
           },
         }
-      const tools = await supervisor()
+      const tools = await execution.supervisor()
       if (tools === undefined) return { status: 'pending', evidence: null }
       const reading = await forceStopScope({ tools, coordinate, boundMs: settings.stopBoundMs })
       if (reading.status === 'confirmed') await cleanupTerminalScope(coordinate.unit)

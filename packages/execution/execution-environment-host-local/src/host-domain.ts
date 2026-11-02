@@ -1,4 +1,8 @@
 import { randomUUID } from 'node:crypto'
+import {
+  createWindowsTerminalCapacity,
+  type WindowsTerminalCapacity,
+} from './windows-execution/terminal-output.ts'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type {
@@ -121,6 +125,7 @@ export type EngineMembership = Readonly<{
 /** The domain's internal surface for its providers. It is not part of the package's public entry. */
 export type DomainInternals = Readonly<{
   retainedTerminals: RetainedTerminalIndex
+  windowsCapacity(): WindowsTerminalCapacity
   /**
    * The engine for `settings`: the first request makes it, every later request with the same
    * settings shares it, so their acquisitions keep handle generations unique across providers.
@@ -349,6 +354,7 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
   const generations = new Set<string>()
   const records = new Map<string, DomainRecord>()
   const retainedTerminals = createRetainedTerminalIndex()
+  let windowsCapacity: WindowsTerminalCapacity | undefined
   let nextOwner = 1
 
   const unsettled = (tenant?: string) => {
@@ -415,6 +421,7 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
 
   internals.set(domain, {
     retainedTerminals,
+    windowsCapacity: () => (windowsCapacity ??= createWindowsTerminalCapacity()),
     joinEngine: createEngineRegistry(),
     quota,
     registerGeneration: generation => {
