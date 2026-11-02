@@ -4,8 +4,10 @@ import { evidence, execution, modelCall, ok, operation, otherTenant } from './jo
 import { alice, eventually, invoke, loopAssembly } from './loop-support.ts'
 import { testCancellationPolicyInstallation } from '@omne-harness/agent-contract/testing'
 import { controlAssembly } from './fixtures/control-assembly.ts'
+import type { PendingCall } from '@omne-harness/agent-contract'
 import {
   associatedTools,
+  deliverModelReply,
   deliverToolSuggestion,
   pushToolResult,
   textBlock,
@@ -551,5 +553,143 @@ describe('tool call control', () => {
       expect.objectContaining({ kind: 'tool', association: 'intent' }),
     ])
     expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+  })
+})
+
+describe('content and account read back after control', () => {
+  type Assembly = Awaited<ReturnType<typeof controlAssembly>>
+
+  async function modelPending(
+    assembly: Assembly,
+    input: {
+      principal: string
+      tenant: typeof alice.tenant
+      execution: ReturnType<typeof execution>
+    },
+  ) {
+    let pending: PendingCall | undefined
+    await eventually(async () => {
+      pending = ok(await assembly.dependencies.journal.load(input)).checkpoint.calls.find(
+        call => call.kind === 'model',
+      )
+      if (pending?.kind !== 'model') return false
+      const found = ok(
+        await assembly.dependencies.models.calls.inspect({
+          ...alice,
+          reference: pending.reference,
+        }),
+      )
+      return found.kind === 'found'
+    })
+    if (pending?.kind !== 'model') throw new Error('model call not saved')
+    return pending
+  }
+
+  /** The received Model result of the execution, with its material read through Materials. */
+  async function receivedModel(
+    assembly: Assembly,
+    input: {
+      principal: string
+      tenant: typeof alice.tenant
+      execution: ReturnType<typeof execution>
+    },
+  ) {
+    const snapshot = ok(await assembly.dependencies.journal.load(input))
+    const received = snapshot.entries?.find(
+      entry =>
+        entry.kind === 'received' &&
+        entry.delivery.producer === 'model' &&
+        entry.delivery.key.kind === 'result',
+    )
+    if (received?.kind !== 'received' || received.delivery.producer !== 'model')
+      throw new Error('the Model result was not retained')
+    if (!('accounts' in received.delivery)) throw new Error('a result carries its accounts')
+    const material = ok(
+      await assembly.dependencies.materials.read({ ...alice, source: received.material }),
+    )
+    return { snapshot, accounts: received.delivery.accounts, material: JSON.stringify(material) }
+  }
+
+  it('keeps the delivered content and account of an interrupted Model call readable', async () => {
+    const assembly = await controlAssembly()
+    const handle = ok(await invoke(assembly))
+    const input = { ...alice, execution: handle.execution }
+    const pending = await modelPending(assembly, input)
+    const { call } = ok(resolveModelInvocationRef(pending.reference, alice.tenant))
+    ok(
+      await handle.control.control({
+        ...input,
+        operation: operation('interrupt-delivered'),
+        command: { kind: 'interrupt-model', call, reason: evidence('interrupt-delivered') },
+      }),
+    )
+    await deliverModelReply(
+      assembly,
+      [textBlock('delivered before the stop', 'blk_kept')],
+      'kept',
+      '17',
+    )
+    await eventually(async () =>
+      (ok(await assembly.dependencies.journal.load(input)).entries ?? []).some(
+        entry => entry.kind === 'received' && entry.delivery.producer === 'model',
+      ),
+    )
+    const { accounts, material } = await receivedModel(assembly, input)
+    expect(material).toContain('delivered before the stop')
+    expect(accounts).toEqual([
+      expect.objectContaining({
+        dispatch: 'mdisp_kept',
+        account: expect.objectContaining({ usage: [expect.objectContaining({ lexeme: '17' })] }),
+      }),
+    ])
+    const controlled = ok(await assembly.dependencies.journal.load(input)).controls.find(
+      item => item.operation === operation('interrupt-delivered'),
+    )
+    // The interrupt did not end the execution or revoke its advance.
+    expect(controlled?.stages['qualification-revoked']).toBeUndefined()
+  })
+
+  it('keeps the existing content and account readable after the run is cancelled', async () => {
+    const assembly = await toolAssembly()
+    assembly.controls.tools.invoke.always(async () => ({
+      kind: 'accepted',
+      reference: ok(
+        encodeToolInvocationRef({
+          tenant: alice.tenant,
+          call: ok(decodeToolCallId('tcall_held')),
+          admission: ok(decodeToolOperationId('top_held')),
+        }),
+      ),
+      state: {} as ToolState,
+      recovered: false,
+    }))
+    const handle = ok(await invoke(assembly))
+    const input = { ...alice, execution: handle.execution }
+    // The run holds a Tool call open, so the cancellation lands on a live execution.
+    await deliverToolSuggestion(assembly, [toolCall()], '23')
+    const [held] = await associatedTools(assembly, 1)
+    if (held === undefined) throw new Error('no associated Tool call')
+    const before = await receivedModel(assembly, input)
+    ok(
+      await handle.control.control({
+        ...input,
+        operation: operation('cancel-after-content'),
+        command: { kind: 'cancel', reason: evidence('cancel-after-content') },
+      }),
+    )
+    ok(await pushToolResult(toolReceiver(assembly), toolDelivery(held, { name: 'held' })))
+    await eventually(
+      async () => ok(await assembly.dependencies.journal.load(input)).state.kind === 'ended',
+    )
+    const after = await receivedModel(assembly, input)
+    expect(after.snapshot.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'cancelled' } })
+    expect(after.material).toContain('tool-call-1')
+    expect(after.accounts).toEqual(before.accounts)
+    expect(after.accounts).toEqual([
+      expect.objectContaining({
+        dispatch: 'mdisp_tools',
+        account: expect.objectContaining({ usage: [expect.objectContaining({ lexeme: '23' })] }),
+      }),
+    ])
   })
 })

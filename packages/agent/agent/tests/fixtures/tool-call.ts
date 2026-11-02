@@ -121,6 +121,8 @@ export async function deliverModelReply(
   assembly: Assembly,
   parts: readonly (ContentBlock | Action['original'])[],
   name: string,
+  /** The input token count the dispatch reports as its account; none when omitted. */
+  accountLexeme?: string,
 ) {
   let pending: PendingCall | undefined
   await eventually(async () => {
@@ -139,6 +141,38 @@ export async function deliverModelReply(
     dispatch: ok(decodeDispatchId(`mdisp_${name}`)),
     firstContent: 'observed',
   })
+  if (accountLexeme !== undefined) {
+    // The scripted provider keeps only the dispatches a test records; this one reports an account.
+    const { admission } = ok(resolveModelInvocationRef(pending.reference, alice.tenant))
+    assembly.controls.models.recordDispatch({
+      ...alice,
+      call,
+      record: {
+        dispatch: ok(decodeDispatchId(`mdisp_${name}`)),
+        supplier: {
+          adoption: adoption('supplier'),
+          recipient: 'recipient',
+          model: 'model',
+          credential: { kind: 'factory' },
+        },
+        intent: admission,
+        send: 'started',
+        firstContent: 'observed',
+        terminal: { kind: 'completed', reason: 'tool-suggestions' },
+        account: {
+          subject: { kind: 'model_call', id: call },
+          usage: [{ name: 'input', state: 'known', lexeme: accountLexeme, unit: 'token' }],
+          cost: [],
+          trimmed: { state: 'unknown', unit: 'token' },
+          place: 'suite',
+          duration: { state: 'unknown' },
+          receipt: 'received',
+          revision: '0',
+        },
+        materialization: null,
+      },
+    })
+  }
   assembly.controls.models.settle({
     ...alice,
     call,
@@ -156,8 +190,9 @@ export async function deliverModelReply(
 export async function deliverToolSuggestion(
   assembly: Assembly,
   calls: readonly Action['original'][] = [toolCall()],
+  accountLexeme?: string,
 ) {
-  await deliverModelReply(assembly, calls, 'tools')
+  await deliverModelReply(assembly, calls, 'tools', accountLexeme)
 }
 
 /** The plain text reply of a later step. */

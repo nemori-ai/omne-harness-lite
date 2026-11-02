@@ -412,20 +412,28 @@ function preparationRecovery(at: AgentCheckpoint): Recovery | null {
   return recoveryTarget('C0')
 }
 
-/** J5: snapshot facts that LoopFacts cannot carry stay in this pure recovery decision. */
-export function recoveryRoute(
+/** The routes the execution state, a lost receipt or a pending passage decide alone. */
+function stateRecovery(
   read: Pick<ExecutionSnapshot, 'checkpoint' | 'state' | 'unresolved'>,
-): Recovery {
+): Recovery | null {
   const at = read.checkpoint
   if (read.state.kind === 'ended') return succeed('F4')
   // A lost receipt must be reconciled before any dependent business continuation can run.
   if (read.unresolved.length > 0) return succeed('R0')
   if (read.state.kind === 'settling') return succeed(at.position === 'F3' ? 'F3' : 'F2')
   const passage = at.passages.find(item => item.progress.kind !== 'applied')
-  if (passage !== undefined)
-    return recoveryTarget(
-      passage.progress.kind === 'resolved' ? 'X5' : passage.progress.kind === 'asked' ? 'X4' : 'X2',
-    )
+  if (passage === undefined) return null
+  const progress = passage.progress.kind
+  return recoveryTarget(progress === 'resolved' ? 'X5' : progress === 'asked' ? 'X4' : 'X2')
+}
+
+/** J5: snapshot facts that LoopFacts cannot carry stay in this pure recovery decision. */
+export function recoveryRoute(
+  read: Pick<ExecutionSnapshot, 'checkpoint' | 'state' | 'unresolved'>,
+): Recovery {
+  const at = read.checkpoint
+  const settled = stateRecovery(read)
+  if (settled !== null) return settled
   if (at.batch !== null && at.batch.actions.length > 0)
     return recoveryTarget(batchRecovery(at.position, at.batch))
   const call = at.calls[0]
@@ -610,6 +618,26 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   }
 
   /**
+   * The table row of one outcome and its commit: the next node, or the node a refused commit
+   * goes to. `yielded` is the end of a drive segment at a saved W0 wait.
+   */
+  async function move(
+    at: LoopNode,
+    ran: Step,
+  ): Promise<Outcome<Readonly<{ to: LoopNode | null; yielded: boolean }>, Failure>> {
+    const to = successor(at, ran.on)
+    if (to === undefined) return fail(defect(`${at} has no transition on ${ran.on}`))
+    if (ran.commit !== null && to !== null) {
+      const committed = await commit(at, to, ran.commit)
+      if ('failure' in committed) {
+        const next = await afterRefusedCommit(at, committed.failure)
+        return 'failure' in next ? next : succeed({ to: next.ok, yielded: false })
+      }
+    }
+    return succeed({ to, yielded: at === 'W0' && ran.on === 'saved-wait' })
+  }
+
+  /**
    * Runs nodes from `from` until `until` is the next node or the Loop ends. Each handler names its
    * outcome; the table says where it goes; the commit moves `position` there. A handler that
    * fails, an outcome without a row, a refused commit or a thrown defect stops the run where it is.
@@ -632,21 +660,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           }
           return fail({ node: at, failure: ran.failure })
         }
-        const to = successor(at, ran.ok.on)
-        if (to === undefined)
-          return fail({ node: at, failure: defect(`${at} has no transition on ${ran.ok.on}`) })
-        if (ran.ok.commit !== null && to !== null) {
-          const committed = await commit(at, to, ran.ok.commit)
-          if ('failure' in committed) {
-            const next = await afterRefusedCommit(at, committed.failure)
-            if ('failure' in next) return fail({ node: at, failure: next.failure })
-            node = next.ok
-            continue
-          }
-        }
+        const moved = await move(at, ran.ok)
+        if ('failure' in moved) return fail({ node: at, failure: moved.failure })
         // W0 yields this segment. The sole driver waits before taking its E1 successor.
-        if (at === 'W0' && ran.ok.on === 'saved-wait') return succeed(to)
-        node = to
+        if (moved.ok.yielded) return succeed(moved.ok.to)
+        node = moved.ok.to
       } catch (error) {
         return fail({ node: at, failure: defect(diagnosticOf(error)) })
       }
@@ -1085,6 +1103,31 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return succeed(resolvedOriginal)
   }
 
+  /**
+   * R0 takes the snapshot after its queries as the frame, without the operations it settled. An
+   * excluded terminal at another revision than its own is a refused terminal to evaluate again.
+   */
+  function adoptReconciled(
+    loaded: ExecutionSnapshot,
+    before: ExecutionSnapshot,
+    terminalQuery: boolean,
+    terminalExpected: ExecutionRevision | null,
+  ): ExecutionSnapshot {
+    reconciliationOperations = []
+    const adopted = {
+      ...loaded,
+      unresolved: loaded.unresolved.filter(operation => !before.unresolved.includes(operation)),
+    }
+    if (terminalQuery && excludedNode === 'F3' && adopted.revision !== terminalExpected) {
+      excludedNode = null
+      finishRefused = true
+    }
+    checkpoint = adopted.checkpoint
+    revision = adopted.revision
+    if (adopted.state.kind !== 'ended') state = committedState(adopted.state)
+    return adopted
+  }
+
   /** R0 under an effective cancellation: the cancelled route goes on or waits in memory. */
   function cancelledReconcile(): Outcome<Step, Failure> {
     if (cancellationChanged) {
@@ -1307,20 +1350,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const loaded = await load()
       if ('failure' in loaded) return loaded
       if (resolvedOriginal.ok) pendingCommit = null
-      reconciliationOperations = []
-      snapshot = {
-        ...loaded.ok,
-        unresolved: loaded.ok.unresolved.filter(
-          operation => !before.ok.unresolved.includes(operation),
-        ),
-      }
-      if (terminalQuery && excludedNode === 'F3' && snapshot.revision !== terminalExpected) {
-        excludedNode = null
-        finishRefused = true
-      }
-      checkpoint = snapshot.checkpoint
-      revision = snapshot.revision
-      if (snapshot.state.kind !== 'ended') state = committedState(snapshot.state)
+      snapshot = adoptReconciled(loaded.ok, before.ok, terminalQuery, terminalExpected)
       if (advancementOf(snapshot).kind !== 'current') return step('reconciled', null)
       if (cancellationOf(snapshot) !== undefined) return cancelledReconcile()
       const read = await readFacts(snapshot)
@@ -1649,14 +1679,24 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       return 'failure' in saved ? saved : succeed({ batch: next, progressed: true })
     }
     if (result.kind === 'commit-unknown') uncertainToolActions.add(action.id)
+    return associate(next, action, pending, result.reference)
+  }
+
+  /** A2: the call reference Tool returned is saved with the action and its dispatched slot. */
+  async function associate(
+    batch: ActionBatch,
+    action: Action,
+    pending: PendingCall,
+    reference: AssociatedToolCall['reference'],
+  ): Promise<Outcome<Sent, Failure>> {
     const associated: PendingCall = {
       ...pending,
       kind: 'tool',
       purpose: 'action',
       association: 'associated',
-      reference: result.reference,
+      reference,
     }
-    next = replaceSlot(replaceAction(next, { ...action, call: associated }), {
+    const next = replaceSlot(replaceAction(batch, { ...action, call: associated }), {
       kind: 'dispatched',
       action: action.id,
       each: null,
@@ -1774,6 +1814,19 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
 
   type SlotAdmission = 'admitted' | 'rejected' | 'wait'
 
+  /** T5 for a slot whose H already has its history disposition: never admitted again. */
+  function disposedSlot(
+    existing: ExecutionSnapshot['handoffs'][number],
+    source: InternalSource,
+  ): Outcome<SlotAdmission, Failure> {
+    if (existing.history.kind === 'committed') return succeed('admitted')
+    const recorded = recordedOutcome(existing.resolution)
+    if (recorded?.decision.kind !== 'rejected')
+      return fail(notYet('T5', 'a retired tool message handoff', '#502 stage 5'))
+    rejectedMessage = { source, evidence: recorded.decision.evidence }
+    return succeed('rejected')
+  }
+
   /** T5 for one slot: recognize its Ja, or fix, prepare and apply its message. */
   async function admitSlot(action: Action): Promise<Outcome<SlotAdmission, Failure>> {
     const batch = currentBatch()
@@ -1789,14 +1842,8 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         : required(snapshot, 'snapshot').handoffs.find(
             record => canonical(record.handoff) === canonical(handoff),
           )
-    if (existing !== undefined && existing.history.kind !== 'pending') {
-      if (existing.history.kind === 'committed') return succeed('admitted')
-      const recorded = recordedOutcome(existing.resolution)
-      if (recorded?.decision.kind !== 'rejected')
-        return fail(notYet('T5', 'a retired tool message handoff', '#502 stage 5'))
-      rejectedMessage = { source, evidence: recorded.decision.evidence }
-      return succeed('rejected')
-    }
+    if (existing !== undefined && existing.history.kind !== 'pending')
+      return disposedSlot(existing, source)
     let request: PendingHandoff
     if (existing?.request.kind === 'execution') request = existing.request
     else {
@@ -2583,6 +2630,32 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return succeed(step('reconcile', null))
   }
 
+  /** F3: where the answer of tryFinish goes; only `ended` is the terminal. */
+  function finishOutcome(
+    finished: Awaited<ReturnType<typeof ports.journal.tryFinish>>,
+  ): Outcome<Step, Failure> {
+    if ('failure' in finished) {
+      if (finished.failure.kind === 'unavailable') {
+        // The facts, qualification or closure could not be determined (SPEC "条件终结" result
+        // table): nothing was written; R0 waits on the dependency and the terminal is retried.
+        finishUnavailable = finished.failure
+        finishRefused = true
+        return step('reconcile', null)
+      }
+      if (finished.failure.kind !== 'commit-unknown') return finished
+      pendingCommit = { operation: finished.failure.operation, node: 'F3' }
+      return step('reconcile', null)
+    }
+    if (finished.ok.kind !== 'ended') {
+      // A changed projection or a stale list is issued again after the re-evaluation.
+      if (finished.ok.kind === 'changed') reissueObligations = true
+      finishRefused = true
+      return step('reconcile', null)
+    }
+    revision = finished.ok.receipt.revision
+    return step('ended', null)
+  }
+
   const settle = {
     async F0() {
       const read = await load()
@@ -2708,26 +2781,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         expected: revision,
         intent: read.ok.state.intent,
       })
-      if ('failure' in finished) {
-        if (finished.failure.kind === 'unavailable') {
-          // The facts, qualification or closure could not be determined (SPEC "条件终结" result
-          // table): nothing was written; R0 waits on the dependency and the terminal is retried.
-          finishUnavailable = finished.failure
-          finishRefused = true
-          return step('reconcile', null)
-        }
-        if (finished.failure.kind !== 'commit-unknown') return finished
-        pendingCommit = { operation: finished.failure.operation, node: 'F3' }
-        return step('reconcile', null)
-      }
-      if (finished.ok.kind !== 'ended') {
-        // A changed projection or a stale list is issued again after the re-evaluation.
-        if (finished.ok.kind === 'changed') reissueObligations = true
-        finishRefused = true
-        return step('reconcile', null)
-      }
-      revision = finished.ok.receipt.revision
-      return step('ended', null)
+      return finishOutcome(finished)
     },
     /** F4: recognize the fixed terminal ledger. Pending observations stay with the long-lived
      * Journal; extension evaluation is stage 3 and no completion is invented here. */
