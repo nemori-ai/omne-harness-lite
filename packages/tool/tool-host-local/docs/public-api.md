@@ -22,4 +22,4 @@
 
 作者链路的根入口工厂是 `createLocalToolLoader` 和 `createLocalToolBindings`，输入形状分别由 [author-loader.ts](../src/author-loader.ts) 和 [executor-binding.ts](../src/executor-binding.ts) 拥有。登记表另提供 `selectAndPin`，在选择句柄的同步步骤内取得 pin。返回的 `ToolBindingSelection` 保存原装载句柄、初始 pin 和 `repin(access, call)`。补 pin 在同步步骤中核对原注册仍在且该租户可访问，不能借同键后继补 pin。原 `pin(key, call)` 仍按当前键持有贡献，不用于旧绑定的补 pin。
 
-`./author` 是作者 Cordis 入口，导出 `contributeTool`、`createToolAuthorPlugin`、`createLocalToolGenerations`。配置只含 authority、construction、settings。模块和实际服务是构造依赖。协调者的 `recordRejection` 必须保存可供采用点读取的拒绝依据。工厂不创建 Settings SDK，不自行实现 schema 提供者或持久结果保管。
+[src/author.ts](../src/author.ts) 拥有 `./author` 作者 Cordis 入口，导出 `contributeTool`、`createToolAuthorPlugin`、`createLocalToolGenerations`。配置只含 authority、construction、settings。模块和实际服务是构造依赖。协调者的 `recordRejection` 必须保存可供采用点读取的拒绝依据。工厂不创建 Settings SDK，不自行实现 schema 提供者或持久结果保管。

@@ -32,7 +32,7 @@
 
 ## 账本守卫
 
-根入口另导出账本守卫的生产件（[TL-11](SPEC.md#账本守卫tl-11)）：`createLocalToolLedgerGuards`（组装八项守卫）、`createLocalInvocationSource`（来源签发器与来源守卫，绑定写进记录仓的 `host` 域）、`createLocalOperationIdentities`、`createLocalGrantVerifiers`（一个范围值，D1）、`createLocalStartGuard`、`createLocalTextResults`，以及常量 `localArgumentLimits`、`INVOCATION_SOURCE_DOMAIN_KEY` 与 `PROGRAMMATIC_NOT_IN_M2`。它们都是纯工厂。资格裁定、主体比较与主体编码以参数进入，装配接线在尚未交付的 `./cordis` 插件。
+根入口另导出账本守卫的生产件（[TL-11](SPEC.md#账本守卫tl-11)）：`createLocalToolLedgerGuards`（组装八项守卫）、`createLocalInvocationSource`（来源签发器与来源守卫，绑定写进记录仓的 `host` 域）、`createLocalOperationIdentities`、`createLocalGrantVerifiers`（一个范围值，D1）、`createLocalStartGuard`、`createLocalTextResults`，以及常量 `localArgumentLimits`、`INVOCATION_SOURCE_DOMAIN_KEY` 与 `PROGRAMMATIC_NOT_IN_M2`。它们都是纯工厂。资格裁定、主体比较与主体编码以参数进入。当前 `./cordis` 只提供作者宿主与绑定插件，完整账本守卫和 runtime 的组合仍由应用装配负责。
 
 验证范围：`tests/ledger-guards.spec.ts`、`tests/invocation-source.spec.ts`、`tests/grant-verifiers.spec.ts`、`tests/start-guard.spec.ts`。它们用 `tool` 的真账本与内存记录仓，资格用 `createTableToolAccess`，只证明单进程内的行为：跨租户拒绝且不读记录仓、来源认回与伪造、授予、启动守卫、文本结果、组装的必填项与预算。不证明耐久，也不证明资格真件。
 
