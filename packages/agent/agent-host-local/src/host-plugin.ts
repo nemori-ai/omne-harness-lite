@@ -5,7 +5,7 @@
 // of any of them unloads the body and runs it again, and the registrations of the old instances end
 // with their contribution fibers.
 import type { Context } from '@deepseek-ai/cordis'
-import { createAgentRuntime, type AgentMeasure } from '@omne-harness/agent'
+import { createAgentRuntime, type AgentDependencies, type AgentMeasure } from '@omne-harness/agent'
 import type { AgentInstanceId } from '@omne-harness/agent-contract'
 import {
   AgentExecutionControlService,
@@ -24,6 +24,7 @@ import {
   agentRequestsKey,
   type AgentLocalRoute,
 } from '@omne-harness/agent-cordis-contract/cordis'
+import type { ContentBlock } from '@omne-harness/content-block'
 import { definePlugin } from '@omne-harness/kernel-basis/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
@@ -157,17 +158,28 @@ export type AgentHostLocalPluginInput = Readonly<{
    * member. Absent: no event is built, as with `agentHostPlugin`.
    */
   measure?: AgentMeasure
+  /**
+   * The trusted source of Tool requests (R2-D36), put into the dependencies of every runtime this
+   * host builds. It is the host's construction dependency: a function object, not a configuration
+   * member and not a service key. Absent: the dependencies carry none, so each Tool action answers
+   * `unavailable` as with `agentHostPlugin`.
+   */
+  toolRequests?: AgentDependencies<unknown, ContentBlock>['toolRequests']
 }>
 
 /**
- * The `agent-host` plugin with the measurement observer that the assembly entry hands in. The
- * name, `inject`, configuration and provided keys are those of `agentHostPlugin`; the observer is
- * not a Cordis service and not a configuration member. Use the returned plugin as
- * `ctx.plugin(plugin, config)` does with `agentHostPlugin`.
+ * The `agent-host` plugin with the construction dependencies that the assembly entry hands in: the
+ * measurement observer and the Tool request source. The name, `inject`, configuration and provided
+ * keys are those of `agentHostPlugin`; neither is a Cordis service or a configuration member. Use
+ * the returned plugin as `ctx.plugin(plugin, config)` does with `agentHostPlugin`.
  */
 export function createAgentHostLocalPlugin(input: AgentHostLocalPluginInput = {}) {
-  const { measure } = input
+  const { measure, toolRequests } = input
   return createAgentHostPlugin((dependencies, options) =>
-    createAgentRuntime(dependencies, options, measure === undefined ? {} : { measure }),
+    createAgentRuntime(
+      toolRequests === undefined ? dependencies : { ...dependencies, toolRequests },
+      options,
+      measure === undefined ? {} : { measure },
+    ),
   )
 }
