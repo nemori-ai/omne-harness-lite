@@ -5,6 +5,9 @@ import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { ConfigError } from './config-schema.ts'
 import { stubPlugin } from './cordis.ts'
+import * as releasePlugins from './cordis.ts'
+import { createHostFilesRuntime, type HostFilesRuntime } from './host-files.ts'
+import { createExecutionHostBinding, hostFactoryBindings } from './rows/execution-host/index.ts'
 import { entryObjects as releaseEntryObjects } from './entry/index.ts'
 import {
   LifecycleRegistry,
@@ -13,8 +16,10 @@ import {
 } from './lifecycle.ts'
 import {
   createSessionWorkPrincipals,
+  disposeRow,
   disposeTree,
   startTree,
+  validateFactoryRows,
   type EntryObject,
   type PreflightDiagnostic,
   type RowSpec,
@@ -450,8 +455,26 @@ function stopRequest(signal: AbortSignal): { promise: Promise<string>; cancel: (
 }
 
 export async function runServe(options: RunServeOptions): Promise<ServeResult> {
+  const hostFiles = createHostFilesRuntime({
+    diagnose: diagnostic => options.stderr(`${SERVE_PREFIX}: ${diagnostic.kind}`),
+  })
+  try {
+    return await runServeWithHostFiles(options, hostFiles)
+  } finally {
+    await hostFiles.close()
+  }
+}
+
+async function runServeWithHostFiles(
+  options: RunServeOptions,
+  hostFiles: HostFilesRuntime,
+): Promise<ServeResult> {
   const { write, stderr } = options
-  const profile = options.plugins === undefined ? serveProfile() : serveProfile(options.plugins)
+  const executionHost = createExecutionHostBinding(hostFiles)
+  const profile = serveProfile({
+    ...(options.plugins ?? releasePlugins),
+    executionHost: executionHost.plugin,
+  })
   const probes: Probes = { started: [], applied: [] }
   let barrierCalls = 0
   let accepting = false
@@ -473,8 +496,15 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
   let tree: ResolvedTree
   let rows: RowSpec[]
   try {
+    validateFactoryRows({
+      distribution: options.distribution,
+      operator: options.operator,
+      allowlist: profile.allowlist,
+      bindings: hostFactoryBindings,
+    })
     tree = loadTree(options.distribution, options.operator, profile.allowlist)
     rows = tree.rows.map((row): RowSpec => {
+      if (row.plugin === 'executionHost') executionHost.parseConfig(row.config)
       if (row.plugin === STUB_EXPORT) {
         const manifest = manifests.get(row.id) ?? NO_MANIFEST
         return {
@@ -550,17 +580,30 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
   const root = new Context()
   let loaded: readonly LoadedRow[] = []
   let shutdownReport: ReturnType<typeof runShutdown> | undefined
-  const shutdown = () =>
-    (shutdownReport ??= runShutdown(
+  const shutdown = () => {
+    hostFiles.stopPeriodic()
+    return (shutdownReport ??= runShutdown(
       registry,
       expected,
       options.shutdownDeadlineMs,
       monotonicClock,
       {
         log: write,
-        disposeRoot: () => disposeTree(root, loaded),
+        ...(hasHostFiles ? { afterBusiness: finishHostFiles } : {}),
+        disposeRoot: async () => {
+          if (hasHostFiles) await finishHostFiles()
+          await hostFiles.close()
+          await disposeTree(root, loaded)
+        },
       },
     ))
+  }
+  const hasHostFiles = rows.some(spec => spec.row.plugin === 'executionHost')
+  const finishHostFiles = () =>
+    hostFiles.finish(async () => {
+      const row = loaded.find(candidate => candidate.id === 'execution-host')
+      if (row !== undefined) await disposeRow(row, () => hostFiles.request())
+    })
   let stoppedByRegistry = () => {}
   const registryStop = new Promise<void>(resolve => {
     stoppedByRegistry = resolve
