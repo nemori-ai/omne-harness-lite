@@ -67,7 +67,7 @@ Line 保存当前授权、冻结输入、已消费 delta 和未完成操作。�
 
 Reduce 为每条参加线在线父卡上登记本波的一个 attempt，并在线包里写已接受依据、本线里程碑的目标与验收、本波的交付边界、写集、局部裁量和期限。不为线建工作卡。线父卡保存线包、delta、交回、每波的交接报告与长期责任。开波先把 F 同步到线轨道，保存 FI 结果与固定同步点。线负责人从同步后的线轨道头建本波的线父分支，在它的工作树上对本波的 attempt 运行 `start`。后一波只保留预案。线包足以使新 Line 独立判断入口、可写范围、完成条件、两个边界和失败出口。
 
-每线首次从[初始消息模板](templates/line-initial-dispatch.md)生成临时文件，路径为 `tmp/milestone-<id>/dispatch/<line>-r<revision>.md`。Reduce 在本机同布局演练消息里的每条命令，演练证据交给校验。正文第一段先列 `line`、`pstack:poteto-mode`、`asd-ste100`，以及实际工作树的 `AGENTS.md`、`docs/orientation.md`、线级上下文地图和拥有者入口。校验后，已授权本机协作的 Reduce 经 mirasim 创建或定位线会话，直接发送并读回，分别记录发送、收到与认领。没有直接通信授权或能力时，才打开供人原样转发。后续波用 delta，不新建 Line 会话。
+每线首次从[初始消息模板](templates/line-initial-dispatch.md)生成临时文件，路径为 `tmp/milestone-<id>/dispatch/<line>-r<revision>.md`。Reduce 在本机同布局演练消息里的每条命令，演练证据交给校验。正文第一段先列 `line`、`pstack:poteto-mode`，以及实际工作树的 `AGENTS.md`、`docs/orientation.md`、线级上下文地图和拥有者入口。校验后，已授权本机协作的 Reduce 经 mirasim 创建或定位线会话，直接发送并读回，分别记录发送、收到与认领。没有直接通信授权或能力时，才打开供人原样转发。后续波用 delta，宿主与主代理模型未变时不新建 Line 会话；换宿主或换主代理模型时新开会话，见[首次派发模板](templates/line-initial-dispatch.md)「宿主与主代理模型」。
 
 ### 线内
 

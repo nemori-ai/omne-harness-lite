@@ -83,6 +83,24 @@ export function operatorLayer(options: {
           domainRule: 'organization-account/1',
         },
       },
+      // 模型侧两行的配置是机器级参数：保管库路径与官方档案快照。写进运维层，不写进发行配置。
+      {
+        kind: 'replace',
+        id: 'model-credential',
+        config: {
+          path: join(options.storageRoot, 'model-vault.json'),
+          factorySecret: 'r9-test-factory-secret',
+        },
+      },
+      {
+        kind: 'replace',
+        id: 'model-profiles',
+        config: {
+          retryPolicy: { owner: 'r9', name: 'retry', revision: '1', digest: '0'.repeat(64) },
+          compactionTriggerPercent: '80',
+          updatedAt: '2026-11-02T00:00:00Z',
+        },
+      },
       { kind: 'replace', id: 'server-entry', config: { listenPort: options.port } },
     ],
   }

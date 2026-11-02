@@ -92,7 +92,7 @@ redo 也走本节：Reduce 更正输入后在线父卡上登记新 attempt，再
    - 当前分工与冻结点：当前波与收口卡、assignment 与原因、F、`wave_boundary_ref`、`write_set_ref`。
    - 交回与等待：`handoff_post_command`、`wait_command`、`events_receiver_health_command`、`line_state_path`、`final_report_ref`。
 
-   分支、taskBase 与写范围只写线父卡本波 attempt 的 binding 引用。正文第一段先点名 `line`、`pstack:poteto-mode`、`asd-ste100`，以及实际工作树的 `AGENTS.md`、`docs/orientation.md`、线级上下文地图和拥有者入口。用既有 `line_pack_ref` 指向地图与拥有者导航，`line_work_kind` 列本线专项技能。`machine_and_host` 与 `role_policy_ref` 填本次已采用的宿主、模型和 effort，不把单次选择写成永久默认。字段里没有占位符和秘密，也没有与 binding 矛盾的副本。
+   分支、taskBase 与写范围只写线父卡本波 attempt 的 binding 引用。正文第一段先点名 `line`、`pstack:poteto-mode`，以及实际工作树的 `AGENTS.md`、`docs/orientation.md`、线级上下文地图和拥有者入口。用既有 `line_pack_ref` 指向地图与拥有者导航，`line_work_kind` 列本线专项技能。`machine_and_host` 与 `role_policy_ref` 填本次已采用的宿主、模型和 effort，不把单次选择写成永久默认。字段里没有占位符和秘密，也没有与 binding 矛盾的副本。
 
    写命令之前先运行工具的帮助或读它的实现，确认参数，不凭印象猜写（P8）。README 与实现不一致时，按冲突报告给工具的拥有者，不在消息里自己选一种写法。命令字段只放 reduce 能在本机演练的命令。`events_receiver_health_command` 只放只读的 `events-receiver-cli health` 命令。接收器的 `init` 与 `serve` 会创建 webhook、启动常驻服务，不放进消息。消息引用 `tools/dev-flow/src/delivery/README.md`「事件等待」的启动方法。
 

@@ -60,7 +60,7 @@
     },
     {
       "id": "session-ad09",
-      "plugin": "stubPlugin",
+      "plugin": "sessionAd09Row",
       "config": {}
     },
     {
@@ -187,7 +187,7 @@
     },
     {
       "id": "model-profiles",
-      "plugin": "stubPlugin",
+      "plugin": "modelProfilesRow",
       "config": {}
     },
     {
@@ -197,7 +197,7 @@
     },
     {
       "id": "model-credential",
-      "plugin": "stubPlugin",
+      "plugin": "modelCredentialRow",
       "config": {}
     },
     {
