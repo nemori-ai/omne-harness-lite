@@ -30,6 +30,14 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 - 不传 `measure` 时与 `agentHostPlugin` 一致。`agentHostPlugin` 原样可用。
 - 观察者对 Agent 之外的段（Session、Context）没有作用；它们各自的插件入口交各自的观察者。
 
+### Tool 请求来源
+
+<a id="tool-请求来源"></a>依据 R2-D36：可信的 Tool 请求供给者是 Agent 宿主的构造依赖，不是服务键。它经 `./cordis` 的 `createAgentHostLocalPlugin({ toolRequests })` 交进来，与 `measure` 同一个入口。`toolRequests` 的形状是 `AgentDependencies['toolRequests']`（`describe` 与 `prepare` 两个面）。它是函数对象，不是配置成员，不进入 `agentHostConfig`，也不加 `inject` 键。
+
+- 宿主为每个实例调用 `createAgentRuntime` 时，把传入的 `toolRequests` 放进该 runtime 的依赖，全部实例共用同一个来源。Tool 动作的准入、`describe` 与 `prepare` 的校验和 Tool 调用归 [Agent SPEC](../agent/SPEC.md)，本成员不加、不改。
+- 不传 `toolRequests` 时，依赖不带它，Tool 动作的准入答 `unavailable`（owner 为 `agentToolRequests`），Tool 不被调用。`agentHostPlugin` 原样可用，行为不变。
+- 来源的生产投影由 Reduce 供给；本成员不实现它，也不推断它的内容。
+
 已知缺口：
 
 1. Runtime 一侧的停用义务尚未实现。Agent 工厂的 quiesce 现在答 unavailable（#502 阶段 5），invoke 取执行槽时也不同步报告 occupied（XC-AGINST 第 3.5 节第 2 条）。所以用生产工厂时，空闲实例不会被回收；宿主只记录诊断，并按期重试。宿主一侧的回收与保护点只用测试包装验证。
@@ -61,4 +69,4 @@ Tool 工厂沿 [Tool 接收入口](../agent/docs/public-api.md#独立-tool-接�
 
 根入口测试实际装配接收工厂，验证 supported/unsupported、共同保存与原 handoff 重试。Agent 成员另验证接收算法、隔离、取消与换代。
 
-宿主插件的测试在真实 Cordis 4.0.4 上运行。它们验证装载、逐项缺席时的 PENDING、配置错误时的 FAILED、换提供者后插件体重跑、`agentInstanceProvisionConformance` 对宿主真件通过、回收保护点、quiesce 失败或 unresolved 时保持 published、宿主主体被拒、旧登记撤除不撤后继、非宿主 fiber 的撤除被拒，以及恢复入口与控制入口的读回、核验与跨租户拒绝。控制入口对本宿主仍在运行的 runtime 的执行推进取消、同一 control operation 的重试不再写入，用例在 `tests/control-entry.spec.ts`，Loop 由 `createAgentRuntime` 真件在替身依赖上运行。Journal、Model、授权与会话条件用 agent 的 `./testing` 替身。Runtime 一侧的停用义务用测试包装。`createAgentHostLocalPlugin({ measure })` 的用例在同一个真实宿主上经一次 invoke 取受理段，并核对它与 `agentHostPlugin` 同名、同 inject、同配置，不传观察者时照常服务（`tests/measure-plugin.spec.ts`）。这些测试不证明生产 Journal、真实授权、跨进程行为或接收方登记。文件清单见[测试说明](tests/index.md)。
+宿主插件的测试在真实 Cordis 4.0.4 上运行。它们验证装载、逐项缺席时的 PENDING、配置错误时的 FAILED、换提供者后插件体重跑、`agentInstanceProvisionConformance` 对宿主真件通过、回收保护点、quiesce 失败或 unresolved 时保持 published、宿主主体被拒、旧登记撤除不撤后继、非宿主 fiber 的撤除被拒，以及恢复入口与控制入口的读回、核验与跨租户拒绝。控制入口对本宿主仍在运行的 runtime 的执行推进取消、同一 control operation 的重试不再写入，用例在 `tests/control-entry.spec.ts`，Loop 由 `createAgentRuntime` 真件在替身依赖上运行。Journal、Model、授权与会话条件用 agent 的 `./testing` 替身。Runtime 一侧的停用义务用测试包装。`createAgentHostLocalPlugin({ measure })` 的用例在同一个真实宿主上经一次 invoke 取受理段，并核对它与 `agentHostPlugin` 同名、同 inject、同配置，不传观察者时照常服务（`tests/measure-plugin.spec.ts`）。`createAgentHostLocalPlugin({ toolRequests })` 的用例在同一个真实宿主上让 Model 建议一个 Tool 调用，核对 `describe` 与 `prepare` 各一次、Tool 替身 invoke 一次；不传时同一动作不调用 Tool（`tests/tool-requests-plugin.spec.ts`）。这些测试不证明生产 Journal、真实授权、跨进程行为或接收方登记。文件清单见[测试说明](tests/index.md)。
