@@ -1,6 +1,8 @@
 # tool 内部架构
 
-本页规定 Tool 实现的内部模块与构造方法。领域位置、责任边界与设计状态归契约包的[领域架构](../../tool-contract/docs/architecture.md)。本包已实现独立执行、记录仓端口与账本工厂、runtime 的逻辑终局路径，以及真实调用从受理、启动、事实保管到原结果收场与 queue 名额释放的推进协程。尚未交付的操作回复具名的 `unsupported`，增量名是：真实环境自动释放与未交付事实分支（`execution facts and release`）、控制（`controls`）、等待（`waits, decisions and resources`）、过程观察（`process observation and diagnostics`）、恢复（`recovery scan`）、排空与交接（`drain and handover`）。计时依赖宿主时钟，该时钟尚未交付。绑定登记表、Catalog 与 Cordis 插件也尚未交付。操作与增量名的对应见[包入口的支持范围](../README_ZH.md#支持范围)，准确范围见 [SPEC](../SPEC.md#当前范围)。
+本页规定 Tool 实现的内部模块与构造方法。领域位置、责任边界与设计状态归契约包的[领域架构](../../tool-contract/docs/architecture.md)。本包已实现独立执行、记录仓端口与账本工厂、runtime 的逻辑终局路径，以及真实调用从受理、启动、事实保管到原结果收场与 queue 名额释放的推进协程。在途 stop 和原环境 release 待办由 [driver-control.ts](../src/driver-control.ts) 推进；控制事务由 [ledger-control.ts](../src/ledger-control.ts) 决定。传播确认不替代真实终局或结果交付。
+
+尚未交付的操作回复具名的 `unsupported`。这些分支包括启动前及启动结果未知时的停止、withdraw/background、未交付事实分支、等待、过程观察、恢复扫描、排空与交接。计时依赖宿主时钟，该时钟尚未交付。绑定登记表、Catalog 与 Cordis 插件也尚未交付。准确范围见 [SPEC](../SPEC.md#当前范围)。
 
 ## 内部模块与依赖
 
@@ -301,13 +303,17 @@ runtime.invoke 在第一次 await 前用契约判定器固定 payload，再通�
 
 [driver-facts.ts](../src/driver-facts.ts) 拥有每原 start 的受管 reader 和 ACK 编排。[driver-binding.ts](../src/driver-binding.ts) 按 tenant/call/start 保留原 live 与恢复路由。[driver.ts](../src/driver.ts) 保持每 call 串行、step budget 和统一 retryDelay。读取回调不写 ledger，业务事实及待办仍由 call 域 CAS 决定。信号竞争与退出前提见 [SPEC 第 25 条](../SPEC.md#25-原事实受管推进)。
 
+### 控制主体与传播
+
+[ledger-control-subjects.ts](../src/ledger-control-subjects.ts) 调用受信主体提供者，认回原操作时先比较稳定主体，CAS 重试重新比较赢家。`prepareDispatch` 从原 control receipt 恢复主体引用，核对 source 对主体、intent 和 start 的绑定，再检查原主体当前资格。[ledger-control.ts](../src/ledger-control.ts) 生成控制意图和拒绝的原子写集。拒绝只关闭 stop 传播待办，不生成物理停止或环境释放事实。
+
+[driver-control.ts](../src/driver-control.ts) 先恢复原 binding 并查询，只有双方 pending 才调用 prepareDispatch。推进者负责恢复与观察写入，控制主体负责停止资格，两者不互相替代。主体引用不包含可重新签发的 principal 数据；真实身份恢复属于装配提供者。完整行为及验证前提见 [SPEC 第 29 条](../SPEC.md#29-原调用停止与释放待办)。
 
 ### 原结果与环境清理模块
 
 [ledger.ts](../src/ledger.ts) 拥有边界、当前资格、外部端口调用和多 operation 排除围栏。[ledger-settlement.ts](../src/ledger-settlement.ts) 核原 final、单赢家并生成终局及全部后继任务的同提交写集。[ledger-environment-release.ts](../src/ledger-environment-release.ts) 拥有全过程保管闭包、按 preparation 唯一的 canonical 计划和观察确认。外部 retain 在 CAS 之外只按原身份调用，CAS 重判不能沿用过期闭包。
 
 [driver-settlement.ts](../src/driver-settlement.ts) 从原 task.basis 读取 SavedFact，再重送原 preserveResult。[driver.ts](../src/driver.ts) 在成功后重读 queue 待办，确认已关闭才报告进展和 wake。未确认 ACK 不阻止此路径。正常 completed 关闭 reader，异常终局保留后续原 process 和 blocked facts 责任。完整必要行为归 [SPEC 第 26 条](../SPEC.md#26-原结果收场与释放责任)，跨域顺序见 [flows](flows.md#原结果与释放)。
-
 
 ### 内容读取的责任
 
@@ -321,9 +327,7 @@ runtime.invoke 在第一次 await 前用契约判定器固定 payload，再通�
 
 原结果版本、当前资格、附件关联和原件动作分类仍归账本及其提供者。Tools 不持有第二份结果账本，不取得原工具执行、控制、释放或 raw 口。模型只接收 ToolResult 的 P14 投影和真实 help。调用方拥有 invoke 路由、新消费位置与受信 readReply，不能把内部 ResultPage.next 交给模型代替元工具协议。精确行为归 [SPEC 第 28 条](../SPEC.md#28-tools-固定结果适配器)。
 
-
 [模型闭环装配](../tests/tools-model-values.ts) 在测试中分开两个调用方。受信宿主运行实际源 executor、登记 Tools 作者、经真实 runtime invoke，并用 readReply 收齐元回应后投影。PagingModel 的构造和方法只接收 P14 内容块，没有 runtime、存储、ResultPage 或私有协议 codec。故障客户端对公开凭据的损坏测试独立于 PagingModel。入站 guard 与作者 codec 使用相同的有限参数预算，两层检查均保留。
-
 
 ### 记录仓一致性设施
 
