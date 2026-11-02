@@ -183,6 +183,19 @@ function fixture() {
   }
 }
 
+it('does not turn a completed foreground leg into a confirmed platform stop', async () => {
+  const f = fixture()
+  const a = f.facade()
+  const terminal = await f.create(a)
+  const handle = value(await a.facility.execute({ ...request, terminal, script: 'done' }))
+  f.finish(terminal.id)
+  await handle.result
+  f.setStop('unconfirmed')
+  expect(await handle.stop('forced')).toBe('unconfirmed')
+  expect(f.stopped).toEqual([terminal.id])
+  expect(f.index.resources(scope('session'))).toHaveLength(1)
+})
+
 it('retains the shell after acquisition release and never revives the old facade', async () => {
   const f = fixture()
   const a = f.facade()

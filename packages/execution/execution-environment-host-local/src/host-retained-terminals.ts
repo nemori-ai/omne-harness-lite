@@ -364,8 +364,8 @@ export function createRetainedTerminalIndex() {
               ...answer.value,
               result,
               async stop(mode: 'graceful' | 'forced') {
-                if (leg.stopped) return recordStop(leg, 'confirmed')
                 const status = await answer.value.stop(mode)
+                if (leg.stopped) return status
                 const recorded = await recordStop(leg, status)
                 if (status === 'confirmed' && entry.running === leg) entry.running = undefined
                 return recorded
