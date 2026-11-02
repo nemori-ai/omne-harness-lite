@@ -8,10 +8,10 @@
 
 ### 实现现状
 
-现在的切片是 S1 存储骨架、C-WIRE-SQL 装配与 C-COORD 发送协调器。
+现在的切片是 S1 存储骨架、C-WIRE-SQL 装配、C-COORD 发送协调器与 C-MODEL 静态材料。
 
-- 已实现：四张表与迁移 `001-model-records`；行与调用文档之间的解析；`createSqlModelStorage`，即 `ModelCommandStorage` 的 SQL 实现；参加者 `model`；读 handler `model.call` 与 `model.pending` 的模块；构造期核对；`createSqlModelCommands`，即共享核心的 22 个方法装在这份存储上；`createSendMirror`，即发送协调器。
-- 未实现：静态材料 `modelStorageMaterials()` 及其 `codeDigest`；`modelCommands` 应用插件（L-APP）。
+- 已实现：四张表与迁移 `001-model-records`；行与调用文档之间的解析；`createSqlModelStorage`，即 `ModelCommandStorage` 的 SQL 实现；参加者 `model`；读 handler `model.call` 与 `model.pending` 及各自的模块文件；静态材料 `modelStorageMaterials()` 及其 `codeDigest`；构造期核对；`createSqlModelCommands`，即共享核心的 22 个方法装在这份存储上；`createSendMirror`，即发送协调器。
+- 未实现：`modelCommands` 应用插件（L-APP）。
 
 ### 耐久的 ModelCommands
 
@@ -194,6 +194,19 @@ JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对
 
 本成员拥有四张表、迁移、参加者 `model` 与两个读 handler。它不拥有存储提交协议、回执、事务域目录与组合登记。会话存储组合在 `create` 时登记包含 `session` 与 `model` 的组合。本成员不登记、不迁移。待恢复的判定 `hasRecoveryWork` 归共享核心，本成员调用它写 `pending` 列。
 
+### 静态材料
+
+`modelStorageMaterials()` 每次调用读一遍模块文件，返回 sql-contract §4 的三类描述。每个模块以构建产物的文件 URL 与文件字节的 SHA-256 描述，提供者按该文件的默认导出加载：
+
+| 材料                           | 模块文件             | 描述                                                                       |
+| ------------------------------ | -------------------- | -------------------------------------------------------------------------- |
+| 参加者 `model`                 | `commit.ts`          | 协议 `1`，拥有四张 `md_` 表，不读别的参加者的表，`grouping` 为 `singleton` |
+| 迁移 `model/001-model-records` | `schema.ts`          | 无前置迁移                                                                 |
+| 读 handler `model.call`        | `handler-call.ts`    | `snapshot`；读四张表；`maxRowsRead` 20000；`maxOutputBytes` 4 MiB          |
+| 读 handler `model.pending`     | `handler-pending.ts` | `snapshot`；只读 `md_call`；`maxRowsRead` 1001；`maxOutputBytes` 1 MiB     |
+
+两个读都是 `snapshot`：`run` 读一个调用后按行版本比较写入，读不到更新的提交只会造成冲突与重读，不会丢写。handler 的模块文件只默认导出 `reads.ts` 里的 handler，所以摘要只覆盖该文件本身的字节；`reads.ts` 等被导入文件的变化不改变它，这与参加者、迁移模块的摘要相同。本成员不建目录、不声明组合：应用把这份材料与别的拥有者的材料合成一个目录。
+
 ### 生命周期
 
 `createSqlModelStorage` 在构造期核对选项。之后它只持有结论未定的登记，不持有资源。存储与事务域查询由调用方提供并负责关闭。`work` 必须是同步的：一次 `run` 的读写面只在 `work` 同步运行期间有效。
@@ -218,13 +231,13 @@ JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对
 | M4-3：资格结果、守卫声明、调用与容量由一次提交写入；提交失败时都不存在；N1 在提交处拒绝                                                               | `tests/admission.spec.ts`   |
 | M4-4：经 commands 的他租户调用与不存在相同；写路径不碰他租户的同名调用；参加者拒绝他租户行                                                            | `tests/tenant.spec.ts`      |
 | M4-5：保存成功但回包丢失时，同 operation 重试认回原结果、不重复写；未定 operation 进入待恢复扫描；按租户的登记上限；commit 须在 scope 的 operation 内 | `tests/unknown.spec.ts`     |
-| M4-6（早期守卫）：与 `sessionStorageMaterials()` 组成有效组合，构造期核对两方的 `codeDigest`                                                          | `tests/combination.spec.ts` |
+| M4-6（早期守卫）：与 `sessionStorageMaterials()` 组成有效组合，构造期核对两方的 `codeDigest`；handler 文件变了而摘要未更新时构造失败                  | `tests/combination.spec.ts` |
+| 静态材料：四个模块各有文件 URL 与匹配的 SHA-256；按默认导出加载出描述所指的参加者、迁移与 handler，并经它们服务 commands 的读取                       | `tests/materials.spec.ts`   |
 
-用例在 `node:sqlite` 上运行真实的参加者、迁移与 handler 模块，后五个经共享核心运行 `ModelCommands`。它们不覆盖提供者的 Worker、耐久性、队列与关闭（联调 A）。组合保证归 L-APP 的会话存储组合行，`combination.spec.ts` 只是早期守卫。
+用例在 `node:sqlite` 上运行真实的参加者、迁移与 handler 模块，夹具按 `modelStorageMaterials()` 的模块文件以默认导出加载它们；后五个经共享核心运行 `ModelCommands`。它们不覆盖提供者的 Worker、耐久性、队列与关闭（联调 A）。组合保证归 L-APP 的会话存储组合行，`combination.spec.ts` 只是早期守卫。
 
 ### 明确缺项
 
-- 静态材料与模块文件：提供者按每个模块文件的默认导出加载。现在 `schema.ts` 默认导出迁移，`commit.ts` 默认导出参加者。两个 handler 在 `reads.ts` 中是具名导出，还需要各自的模块文件与 `modelStorageMaterials()`。
 - 与会话日志同处一个事务域时的写队列争用没有实测数据。ST-09 或 E9 的测量显示 Model 写使会话日志提交的排队时延超过阈值时，按 R1-D2 重开分域。
 - 跨租户的全局容量上界不在一个事务域内，M2 不设。
 - 结构度量：`src/documents.ts` 与 `src/commit.ts` 中原超过 alert 阈值的六个函数已拆分（D3d 第 8 条）。

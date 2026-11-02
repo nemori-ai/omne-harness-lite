@@ -1,6 +1,8 @@
-// The `agentJournal` plugin of the session-log Journal provider (assembly page row `agent-journal`).
-// An AgentJournal call names a tenant and an execution, not a session; the records live per
-// session. Session wrote the execution of every Run into the execution index of session-storage-sql
+// The plugin of the session-log Journal provider (assembly page row `agent-journal`): one plugin
+// body serves `agentJournal`, `agentJournalEntries` and `agentMaterials` over one session-log
+// Journal, so the three are in one authoritative ordering (agent-cordis-contract SPEC
+// "生产者接收面的服务"). An AgentJournal or entries call names a tenant and an execution, not a
+// session; the records live per session. Session wrote the execution of every Run into the execution index of session-storage-sql
 // in the same commit as its SE13, so the plugin reads the session of a call there, by tenant and
 // execution, and hands the call to `createSessionLogJournal(...).forSession` of that session
 // (L-RUN decision w1-c19-q1). The relation never changes once committed: the plugin keeps it in a
@@ -10,10 +12,27 @@
 // answer: `denied` with the name of the operation, as the core answers for an execution it does
 // not hold (Agent SPEC "判定次序与失败映射" 1). Nothing is written for either. A lookup that
 // cannot be read is `unavailable`, never `denied`: a failed read does not prove absence.
+//
+// A material call names no execution. A material source that this provider made names its session
+// (`materialSessionOf`), so `materials.read` goes to that session of the caller's tenant. A
+// `materials.preserve` names neither an execution nor a session, and the storage has no index from
+// its consumer to a session, so it answers `unavailable` and writes nothing (session-adapters SPEC,
+// known limitation K-9).
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
-import type { AgentExecutionId, AgentJournal, Failure } from '@omne-harness/agent-contract'
-import { AgentJournalService } from '@omne-harness/agent-cordis-contract/cordis'
+import type {
+  AgentExecutionId,
+  AgentJournal,
+  AgentJournalEntries,
+  AgentMaterials,
+  Failure,
+} from '@omne-harness/agent-contract'
+import {
+  AgentJournalEntriesService,
+  AgentJournalService,
+  AgentMaterialsService,
+} from '@omne-harness/agent-cordis-contract/cordis'
+import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SessionAccessCheck, SessionId } from '@omne-harness/session-contract'
@@ -26,7 +45,11 @@ import {
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import type { JournalCombination } from '../journal-commit.ts'
-import { createSessionLogJournal } from './agent-journal.ts'
+import {
+  createSessionLogJournal,
+  materialSessionOf,
+  type SessionLogJournalProvider,
+} from './agent-journal.ts'
 
 const OWNER = 'session-log-journal'
 /** The initial bound of the route cache; the assembly may set another (IC-14). */
@@ -43,6 +66,9 @@ export type ExecutionRoutedJournalOptions<P> = Readonly<{
 }>
 
 type Journal<P> = AgentJournal<P>
+type Materials<P> = AgentMaterials<P, ContentBlock>
+/** The faces of one session's Journal: Journal, entries, materials and received commits. */
+type SessionView<P> = SessionLogJournalProvider<P>
 type Scope = Readonly<{ tenant: TenantId; execution: AgentExecutionId }>
 
 const unavailable = (diagnostic: string): Failure => ({
@@ -52,8 +78,10 @@ const unavailable = (diagnostic: string): Failure => ({
 })
 
 /**
- * The AgentJournal of every session of the storage, routed by tenant and execution. `close` makes
- * every later call, also through a reference held from before, answer `unavailable`.
+ * The AgentJournal, AgentJournalEntries and AgentMaterials of every session of the storage, over
+ * one session-log Journal: Journal and entries calls are routed by tenant and execution, a material
+ * read by the session its source names. `close` makes every later call, also through a reference
+ * held from before, answer `unavailable`.
  */
 export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalOptions<P>) {
   const journals = createSessionLogJournal<P>({
@@ -63,12 +91,12 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     combination: options.combination,
   })
   const limit = options.routeCacheEntries ?? ROUTE_CACHE_ENTRIES
-  const routes = new Map<string, Journal<P>>()
+  const routes = new Map<string, SessionView<P>>()
   let closed = false
 
-  function remember(key: string, journal: Journal<P>): void {
+  function remember(key: string, view: SessionView<P>): void {
     routes.delete(key)
-    routes.set(key, journal)
+    routes.set(key, view)
     while (routes.size > limit) {
       const oldest = routes.keys().next().value
       if (oldest === undefined) break
@@ -76,8 +104,8 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     }
   }
 
-  /** The Journal of the session that started `scope.execution`, or the failure the call answers. */
-  async function journalOf(scope: Scope, action: string): Promise<Outcome<Journal<P>, Failure>> {
+  /** The faces of the session that started `scope.execution`, or the failure the call answers. */
+  async function viewOf(scope: Scope, action: string): Promise<Outcome<SessionView<P>, Failure>> {
     if (closed) return fail(unavailable('the agentJournal plugin has stopped'))
     const tenant = tenantCodec.encode(scope.tenant)
     if (!tenant.ok) return fail({ kind: 'denied', action })
@@ -114,23 +142,32 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     const indexed = decodeSessionExecution(result.output)
     if (indexed === 'malformed') return fail(unavailable('the execution index row is malformed'))
     if (indexed === null) return fail({ kind: 'denied', action })
-    const journal = journals.forSession({
+    const view = journals.forSession({
       tenant: scope.tenant,
       session: indexed.session as SessionId,
-    }).journal
-    remember(key, journal)
-    return succeed(journal)
+    })
+    remember(key, view)
+    return succeed(view)
   }
 
-  /** One call: route it, then hand it to the Journal of its session unchanged. */
+  /** One call: route it, then hand it to its session unchanged. */
+  function routedView<A>(
+    action: string,
+    scope: Scope,
+    call: (view: SessionView<P>) => Promise<Outcome<A, Failure>>,
+  ): Promise<Outcome<A, Failure>> {
+    return viewOf(scope, action).then(found =>
+      'failure' in found ? fail<Failure>(found.failure) : call(found.ok),
+    )
+  }
+
+  /** One Journal call: route it, then hand it to the Journal of its session unchanged. */
   function routed<A>(
     action: string,
     scope: Scope,
     call: (journal: Journal<P>) => Promise<Outcome<A, Failure>>,
   ): Promise<Outcome<A, Failure>> {
-    return journalOf(scope, action).then(found =>
-      'failure' in found ? fail<Failure>(found.failure) : call(found.ok),
-    )
+    return routedView(action, scope, view => call(view.journal))
   }
 
   const journal: Journal<P> = {
@@ -162,18 +199,46 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
       // The action names are the ones the core answers for an execution it does not hold.
       read: input => routed('read', input, j => j.output.read(input)),
       async *events(input) {
-        const found = await journalOf(input, 'events')
+        const found = await viewOf(input, 'events')
         if ('failure' in found) {
           yield fail<Failure>(found.failure)
           return
         }
-        yield* found.ok.output.events(input)
+        yield* found.ok.journal.output.events(input)
       },
+    },
+  }
+
+  const entries: AgentJournalEntries<P> = {
+    record: input => routedView('record', input, view => view.entries.record(input)),
+  }
+
+  const stopped = () => fail<Failure>(unavailable('the agentJournal plugin has stopped'))
+  const materials: Materials<P> = {
+    preserve: () =>
+      Promise.resolve(
+        closed
+          ? stopped()
+          : fail<Failure>(unavailable('a material to preserve names no session: no route to one')),
+      ),
+    async read(input) {
+      if (closed) return stopped()
+      const tenant = tenantCodec.encode(input.tenant)
+      if (!tenant.ok) return fail({ kind: 'denied', action: 'materials.read' })
+      const named = materialSessionOf(input.source)
+      // Another tenant's material is unreadable to this caller, as the session's own read answers.
+      if (named === null || named.tenant !== tenant.value)
+        return fail(unavailable('the material source names no session of this tenant'))
+      return journals
+        .forSession({ tenant: input.tenant, session: named.session })
+        .materials.read(input)
     },
   }
 
   return {
     journal,
+    entries,
+    materials,
     close(): void {
       closed = true
       routes.clear()
@@ -228,11 +293,35 @@ const configSchema = {
   },
 }
 
+/** `agentJournalEntries`, made by the body of `SessionLogAgentJournalProvider`. */
+class SessionLogJournalEntries extends AgentJournalEntriesService<unknown> {
+  readonly record: AgentJournalEntries<unknown>['record']
+
+  constructor(ctx: Context, entries: AgentJournalEntries<unknown>) {
+    super(ctx)
+    this.record = entries.record
+  }
+}
+
+/** `agentMaterials`, made by the body of `SessionLogAgentJournalProvider`. */
+class SessionLogMaterials extends AgentMaterialsService<unknown, ContentBlock> {
+  readonly preserve: Materials<unknown>['preserve']
+  readonly read: Materials<unknown>['read']
+
+  constructor(ctx: Context, materials: Materials<unknown>) {
+    super(ctx)
+    this.preserve = materials.preserve
+    this.read = materials.read
+  }
+}
+
 /**
- * The `agentJournal` provider. It needs `storage`, the trusted `tenantDomainLookup` and
- * `sessionAccessCheck`; with any of them absent the plugin stays pending and provides no key. A
- * new provider of any of them unloads the plugin and runs it again with an empty route cache.
- * Stopping makes every call, also through a reference held from before, answer `unavailable`.
+ * The provider of `agentJournal`, `agentJournalEntries` and `agentMaterials`: the three services
+ * are made in this one plugin body over one session-log Journal, so they come and go together. It
+ * needs `storage`, the trusted `tenantDomainLookup` and `sessionAccessCheck`; with any of them
+ * absent the plugin stays pending and provides none of the keys. A new provider of any of them
+ * unloads the plugin and runs it again with an empty route cache. Stopping makes every call, also
+ * through a reference held from before, answer `unavailable`.
  */
 export class SessionLogAgentJournalProvider extends AgentJournalService<unknown> {
   static readonly inject = [storageKey, tenantDomainLookupKey, sessionAccessCheckKey]
@@ -294,6 +383,8 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     this.readReplyAdmissions = journal.readReplyAdmissions
     this.query = journal.query
     this.output = journal.output
+    new SessionLogJournalEntries(ctx, routed.entries)
+    new SessionLogMaterials(ctx, routed.materials)
     ctx.effect(() => () => routed.close())
   }
 }

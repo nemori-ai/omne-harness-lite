@@ -69,7 +69,6 @@ import {
   AgentAccessCheckService,
   AgentAdoptionsService,
   AgentClockService,
-  AgentMaterialsService,
   CurrentConditionsService,
   DecisionCardsService,
   ExtensionImplementationsService,
@@ -587,7 +586,6 @@ export async function openLineWorld() {
     [DecisionCardsService, createScriptedDecisionCards<unknown>().port, 'DecisionCards'],
     [ActionAdmissionService, createScriptedActionAdmission<unknown>().port, 'ActionAdmission'],
     [RegisteredReadsService, createScriptedReads<unknown>().port, 'Reads'],
-    [AgentMaterialsService, sessionLog.materials, 'Materials'],
   ] as const)
     await mount(serviceOf(Base as unknown as AbstractService, port, name))
   const tools = createScriptedToolRuntime<unknown>()

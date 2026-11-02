@@ -178,7 +178,7 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
     const leased = ctx.contextHolderSources.lease({
       settle: () => requests?.close() ?? Promise.resolve({ kind: 'settled' }),
     })
-    const preparation: ModelPreparationResources<unknown> = ctx.get(MODEL_PREPARATION_RESOURCES)
+    const preparation: ModelPreparationResources<unknown> = ctx[MODEL_PREPARATION_RESOURCES]
     const refused =
       leased.kind === 'leased'
         ? unavailable('agent-context-closed')
