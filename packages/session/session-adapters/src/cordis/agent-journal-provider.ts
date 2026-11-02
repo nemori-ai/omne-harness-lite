@@ -249,6 +249,14 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     commitSettlement: input => written('commitSettlement', input, j => j.commitSettlement(input)),
     recordTerminalObservation: input =>
       written('recordTerminalObservation', input, j => j.recordTerminalObservation(input)),
+    readCancellationInstallation: input =>
+      routed(
+        'readCancellationInstallation',
+        input,
+        async j =>
+          (await j.readCancellationInstallation?.(input)) ??
+          fail(unavailable('the session Journal has no cancellation installation read')),
+      ),
     load: input => routed('load', input, j => j.load(input)),
     inputs: input => routed('inputs', input, j => j.inputs(input)),
     readReplyAdmissions: input =>
@@ -435,6 +443,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
   readonly tryFinish: AgentJournal<unknown>['tryFinish']
   readonly commitSettlement: AgentJournal<unknown>['commitSettlement']
   readonly recordTerminalObservation: AgentJournal<unknown>['recordTerminalObservation']
+  readonly readCancellationInstallation: AgentJournal<unknown>['readCancellationInstallation']
   readonly load: AgentJournal<unknown>['load']
   readonly inputs: AgentJournal<unknown>['inputs']
   readonly readReplyAdmissions: AgentJournal<unknown>['readReplyAdmissions']
@@ -488,6 +497,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     this.tryFinish = journal.tryFinish
     this.commitSettlement = journal.commitSettlement
     this.recordTerminalObservation = journal.recordTerminalObservation
+    this.readCancellationInstallation = journal.readCancellationInstallation
     this.load = journal.load
     this.inputs = journal.inputs
     this.readReplyAdmissions = journal.readReplyAdmissions

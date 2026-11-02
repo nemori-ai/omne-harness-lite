@@ -159,8 +159,10 @@ function routed(next: () => AgentJournal<string>): AgentJournal<string> {
   const journal = next()
   const call =
     <K extends Exclude<keyof AgentJournal<string>, 'capabilities' | 'output'>>(name: K) =>
-    (input: Parameters<AgentJournal<string>[K]>[0]) =>
-      (next()[name] as (value: typeof input) => ReturnType<AgentJournal<string>[K]>)(input)
+    (input: Parameters<NonNullable<AgentJournal<string>[K]>>[0]) =>
+      (next()[name] as (value: typeof input) => ReturnType<NonNullable<AgentJournal<string>[K]>>)(
+        input,
+      )
   return {
     capabilities: journal.capabilities,
     open: call('open'),
@@ -177,6 +179,7 @@ function routed(next: () => AgentJournal<string>): AgentJournal<string> {
     tryFinish: call('tryFinish'),
     commitSettlement: call('commitSettlement'),
     recordTerminalObservation: call('recordTerminalObservation'),
+    readCancellationInstallation: call('readCancellationInstallation'),
     load: call('load'),
     inputs: call('inputs'),
     readReplyAdmissions: call('readReplyAdmissions'),

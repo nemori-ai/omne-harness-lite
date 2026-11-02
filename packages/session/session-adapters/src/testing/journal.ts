@@ -4187,6 +4187,16 @@ export function createJournal<P>(
       return write('recordTerminalObservation', input, key, prepare, beforeRecognition)
     },
 
+    async readCancellationInstallation(input) {
+      const fault = readFault('load')
+      if (fault !== undefined) return fault
+      const found = owned(input, 'load')
+      if ('failure' in found) return found
+      return options.cancellation === undefined
+        ? fail(damaged('no cancellation policy is installed on this binding'))
+        : succeed(copy(options.cancellation.installation.record))
+    },
+
     async load(input) {
       const fault = readFault('load')
       if (fault !== undefined) return fault
