@@ -58,6 +58,7 @@ it('reports the original unknown batch with confirmed scope and planned diff wit
     fixture.environment,
   )
   expect(result).toContain('unknown batch={"id":"batch-original","generation":"g"}')
+  expect(result).toMatch(/^unknown/)
   expect(result).toContain('confirmed published=["/a"]')
   expect(result).toContain('planned diff')
   expect(result).toContain('Do not resubmit')

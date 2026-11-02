@@ -1,4 +1,8 @@
-import type { FileIdentity, FacilityResult } from '@omne-harness/execution-environment-contract'
+import type {
+  FileBatchOutcome,
+  FileIdentity,
+  FacilityResult,
+} from '@omne-harness/execution-environment-contract'
 import type { FilesAuthorEnvironment } from './environment.ts'
 import type { ExactEdit } from './protocol.ts'
 import { confirmation, diff, identityText } from './text.ts'
@@ -106,7 +110,7 @@ export async function editFiles(
         expectedVersion: item.identity.version,
       })),
     })
-    return `${confirmation(result, value => `${value.kind === 'committed' ? 'done' : 'unknown'} batch=${JSON.stringify(value.batch)}\nconfirmed published=${JSON.stringify(value.published)}${value.kind === 'unknown' ? ` reason=${value.reason}\nOriginal batch requires recovery. Do not resubmit.` : ''}`)}\nplanned diff (publication is confirmed only by the range above)\n${plannedDiff}`
+    return `${batchConfirmation(result)}\nplanned diff (publication is confirmed only by the range above)\n${plannedDiff}`
   }
   const item = plan.prepared[0]
   if (item === undefined) return 'rejected reason=empty-edit'
@@ -117,4 +121,10 @@ export async function editFiles(
     expectedVersion: item.identity.version,
   })
   return `${confirmation(result, value => `path=${JSON.stringify(item.path)} ${identityText(value)}`)}\n${result.kind === 'done' ? 'applied diff' : 'planned diff (not confirmed)'}\n${plannedDiff}`
+}
+function batchConfirmation(result: FacilityResult<FileBatchOutcome>): string {
+  if (result.kind !== 'done') return confirmation(result, () => '')
+  const value = result.value
+  const status = value.kind === 'committed' ? 'done' : 'unknown'
+  return `${status} request=${JSON.stringify(result.requestId)}\n${status} batch=${JSON.stringify(value.batch)}\nconfirmed published=${JSON.stringify(value.published)}${value.kind === 'unknown' ? ` reason=${value.reason}\nOriginal batch requires recovery. Do not resubmit.` : ''}`
 }
