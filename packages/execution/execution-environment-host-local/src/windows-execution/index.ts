@@ -32,12 +32,15 @@ function invalid(request: StartRequest): FacilityReason | undefined {
   )
     return 'invalidInput'
   const controlSize =
-    JSON.stringify({
-      executable: request.executable,
-      cwd: request.cwd,
-      args: request.args,
-      env: request.env,
-    }).length +
+    Buffer.byteLength(
+      JSON.stringify({
+        executable: request.executable,
+        cwd: request.cwd,
+        args: request.args,
+        env: request.env,
+      }),
+      'utf8',
+    ) +
     4 * Math.ceil((request.stdin?.byteLength ?? 0) / 3) +
     256
   if (controlSize > 2 * 1024 * 1024) return 'capacity'

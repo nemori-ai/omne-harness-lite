@@ -18,7 +18,7 @@ public sealed class OmneRequest {
 }
 
 public static class OmneWindowsBridge {
-  public static void Main() { Run(); }
+  public static void Main() { Console.SetIn(new StreamReader(Console.OpenStandardInput(),new UTF8Encoding(false,true),false,4096)); Console.SetOut(new StreamWriter(Console.OpenStandardOutput(),new UTF8Encoding(false),4096) {AutoFlush=true}); Run(); }
   [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] struct SI {
     public uint cb; public string reserved,desktop,title;
     public uint x,y,xsize,ysize,xchars,ychars,fill,flags;
