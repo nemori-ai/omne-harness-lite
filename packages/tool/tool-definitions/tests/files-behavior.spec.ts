@@ -1,7 +1,34 @@
 import { expect, it } from 'vitest'
-import { createFilesAuthor } from '@omne-harness/tool-definitions'
+import { createFilesAuthor, type FilesAuthorEnvironment } from '@omne-harness/tool-definitions'
 import { filesFixture } from './fixtures/files.ts'
 import { run, value } from './run-author.ts'
+
+it.each(['move', 'copy'] as const)(
+  'forwards replacement and version conditions for %s',
+  async command => {
+    const fixture = filesFixture({ '/a': 'source', '/b': 'target' })
+    const requests: Parameters<FilesAuthorEnvironment['files']['move']>[0][] = []
+    const environment: FilesAuthorEnvironment = {
+      files: {
+        ...fixture.environment.files,
+        [command]: async (request: Parameters<FilesAuthorEnvironment['files']['move']>[0]) => {
+          requests.push(request)
+          return fixture.environment.files[command](request)
+        },
+      },
+    }
+    const result = await run(
+      value(createFilesAuthor(fixture.config)),
+      command,
+      { path: '/a', target: '/b', replace: true, expected_version: 'source-version' },
+      environment,
+    )
+    expect(result).toMatch(/^done/)
+    expect(requests).toEqual([
+      { path: '/a', target: { path: '/b' }, replace: true, expectedVersion: 'source-version' },
+    ])
+  },
+)
 
 it('preflights every patch target before any write and commits one versioned batch', async () => {
   const fixture = filesFixture({ '/a': 'a中\r\n', '/b': 'b', '/c': 'c' })

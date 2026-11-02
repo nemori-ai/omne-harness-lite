@@ -1,3 +1,6 @@
+import { execFile } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 import { expect, it } from 'vitest'
 import { createIndependentToolScope } from '@omne-harness/tool'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
@@ -5,6 +8,19 @@ import { createShellAuthor, type ShellAuthorEnvironment } from '@omne-harness/to
 import type { ProcessHandle } from '@omne-harness/execution-environment-contract'
 import { shellFixture } from './fixtures/shell.ts'
 import { run, value } from './run-author.ts'
+
+it(
+  'observes early result rejection in a Node subprocess while public Shell execution drains output',
+  { tags: ['slow'] },
+  async () => {
+    const { stdout, stderr } = await promisify(execFile)(process.execPath, [
+      '--experimental-strip-types',
+      fileURLToPath(new URL('./fixtures/early-result-rejection.ts', import.meta.url)),
+    ])
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({ routes: 2, unhandledRejections: 0 })
+  },
+)
 
 it('stops only the interrupted handle and preserves unconfirmed while another invocation completes', async () => {
   const fixture = shellFixture()

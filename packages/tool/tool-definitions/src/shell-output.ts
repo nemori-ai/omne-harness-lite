@@ -18,6 +18,7 @@ export async function collectProcess(
   signal: AbortSignal,
   maximum: number,
 ): Promise<string> {
+  const result = handle.result.catch(() => undefined)
   const streams = new Map<Stream, StreamState>()
   let stop: Promise<'confirmed' | 'unconfirmed'> | undefined
   const cancel = () => {
@@ -25,14 +26,9 @@ export async function collectProcess(
   }
   signal.addEventListener('abort', cancel, { once: true })
   if (signal.aborted) cancel()
-  let outcome: CommandOutcome | undefined
   try {
     const readFailure = await drainOutput(handle, streams, maximum)
-    try {
-      outcome = await handle.result
-    } catch {
-      outcome = undefined
-    }
+    const outcome = await result
     const stopped = stop === undefined ? 'not-requested' : await stop
     const status =
       outcome?.kind === 'completed' && !readFailure && !signal.aborted ? 'done' : 'unknown'
