@@ -155,7 +155,6 @@ describe('17 the runtime factory and later increments', () => {
     )
     const reference = referenceFor('call-1', 'op-1')
     const later = {
-      control: runtime.commands.control({ ...access, reference, intent: { kind: 'stop' } }),
       readProcess: runtime.queries.readProcess({ ...access, reference, at: null }),
       readWait: runtime.queries.readWait({ ...access, reference, wait: 'w1' as never }),
       readDiagnostics: runtime.queries.readDiagnostics({ ...access, reference, after: null }),
@@ -167,23 +166,19 @@ describe('17 the runtime factory and later increments', () => {
       const answer = await probe
       expect([name, answer]).toMatchObject([
         name,
-        name === 'control'
-          ? {
-              kind: 'rejected',
-              failure: { kind: 'unsupported', reason: expect.stringContaining('not implemented') },
-            }
-          : {
-              failure: { kind: 'unsupported', reason: expect.stringContaining('not implemented') },
-            },
+        { failure: { kind: 'unsupported', reason: expect.stringContaining('not implemented') } },
       ])
-      const failure =
-        name === 'control'
-          ? ((answer as { failure?: { kind: string; adoption?: { name: string } } }).failure ??
-            (answer as { failure?: never }).failure)
-          : (answer as { failure?: { kind: string; adoption?: { name: string } } }).failure
+      const failure = (answer as { failure?: { kind: string; adoption?: { name: string } } })
+        .failure
       if (failure?.kind === 'unsupported' && failure.adoption !== undefined)
         expect([toolRuntimeAdoption.name, 'tool-ledger']).toContain(failure.adoption.name)
     }
+    expect(
+      await runtime.commands.control({ ...access, reference, intent: { kind: 'stop' } }),
+    ).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'call', reason: 'unknown-call' },
+    })
   })
 
   it('17 factory: the catalog is the dependency, and the directory access resolves through it', async () => {

@@ -13,11 +13,12 @@
 - 逻辑终局：`createToolRuntime`（G8）的 invoke、queries.lookup、queries.queryOperation、queries.readResult、commands.releaseDelivery 与 queries.account。这些调用不进入环境或执行者（第 10–16 条）。
 - 读取：固定结果完整块页、关联附件字节页和精确原件元数据，IO 后复核当前资格；字节读取须显式 provider，附非耐久内存组合（第 27 条）。
 - 事实保管：受信 `commands.receiveFacts` 接收 process/final，`recordFactAcknowledgement` 核来源确认并清除 ACK 责任，`loadRecovery.streams` 与实现读口 `ledger.facts.read` 提供恢复依据（第 24 条）。
-- 已启动调用收场：从原保存 final 主动确认独立结果保管，原子建立原结果、交付、真实 effect、物理结束及后继任务，跨域修复释放队列名额。环境释放只交付计划与报告核验（第 26 条）。
+- 已启动调用收场：从原保存 final 主动确认独立结果保管，原子建立原结果、交付、真实 effect、物理结束及后继任务，跨域修复释放队列名额。环境释放沿原计划自动查询、请求并核验回执（第 26 条）。
+- 在途停止：已记录 live 启动的 `control(stop)` 同提交保存原意图、收据与 stop 待办，driver 经原 binding 推进。原执行已结束时记录 `already-ended`。传播进度与物理终局分开（第 29 条）。
 - 到启动为止的真实调用：受理、环境准备、FIFO 排队、启动意图、live-only 绑定启动、原围栏对账与启动记录，以及永久排除后的启动前拒绝收场（第 19–23 条）。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。
 - 过程观察的门面：`instances.current` 与 `observation.observe` 经实例目录路由到当前代次的 handle，交出每一帧之前重核资格（[运行时观察门面](#运行时观察门面)）。
 
-尚未实现：真实环境 release 自动驱动、完整计时、控制、等待、真实过程观察源与 readProcess、恢复扫描、排空与交接。未交付的操作或分支回复具名 `unsupported`。slot 释放不证明环境资源已经释放。内部机制见 [architecture](docs/architecture.md)。
+尚未实现：完整计时、启动前停止与启动结果未知时的停止、withdraw/background 控制、等待、真实过程观察源与 readProcess、恢复扫描、排空与交接。未交付的操作或分支回复具名 `unsupported`。slot 释放不证明环境资源已经释放。内部机制见 [architecture](docs/architecture.md)。
 
 ## 独立执行怎样满足 P11
 
@@ -211,7 +212,6 @@ runtime 的 `instances` 与 `observation` 由 [src/stream-facade.ts](src/stream-
 - `unknown-delayed`：现在不写入，回复未知；提交保持在途，直到 `landDelayed` 按顺序落盘。落盘时重新比对 `expected`，修订号已变则丢弃并报告 `conflict`。
 - `throw-applied`：已写入后抛出。
 
-
 内存仓先在局部 Map 完成全部新值复制、put 与 delete，再同步发布 records 与 revision。复制拒绝不留下部分写入。正常提交、已应用未知、应用后抛错与延迟落地共用此路径；应用后抛错仍保留完整提交。`HostRecord.value` 的 `unknown` 不承诺任意宿主值都能编码。
 
 `toolLedgerStoreConformance()` 提供记录仓判据，`toolLedgerStoreCompositionConformance()` 用真实 ledger 提供 P01 组合判据。两者只从 `./testing` 返回既有 ConformanceCase 数组，用 node:assert 判定。具体 fixture、控制与资源责任见 [public-api](docs/public-api.md#ledger-store-conformance-testing)，消费方式见 [README](README_ZH.md#记录仓一致性用例)。提供者只供应 store，不供应 ledger 或业务 oracle。
@@ -311,6 +311,7 @@ Store 分区与 ledger 授权分别验证。组合只核真实 ledger commands/r
 本口径按 [#430 revision 2 的具名决定](https://github.com/nemori-ai/omne-harness-lite/issues/430#issuecomment-6285621097)取代此前附加的「marker 提交后所有并发协程都不再调用 start」保证。旧 C430-1 反例的两次方法尝试、一次实际 launch 仍是有效反例，不能声称旧保证已修复。
 
 本增量没有诊断正文的持久化端口。`run` 不向外输出原绑定异常正文，`readDiagnostics` 仍未交付。固定的失败标记仅用于识别启动责任，不证明原异常正文已保存。发起前端口和查询端口返回的具名失败仍交回驱动。它们抛出的未知异常以同一错误对象向 `run` 调用方传播，不映射为 `unavailable`，也不因此自动重调度或写终局。原启动待办与名额保留。绑定已尝试后的失败与抛错则必须沿原围栏对账，不因捕获异常就终局或释放名额。后续查询抛错时传播该查询错误，保留尚未确认的绑定失败责任。运行成功或失败后只清除本次串行记录，不删除后继运行，也不生成额外的未处理拒绝。
+
 - 环境值：本进程准备的环境值留在内存里。没有时协程调用 `inspectPreparation` 重新连接，失败回复 `unavailable`（`dependency` 为 `tool-environment`）。
 
 ### 本包采用的读法，待契约拥有者确认
@@ -346,7 +347,7 @@ Store 分区与 ledger 授权分别验证。组合只核真实 ledger commands/r
 
 可选 `beforeIssue?:()=>void` 是 testing 专用的同步故障钩子，在 reservation 保存后、签发前执行。抛错答 issuance-unknown，保留原 call/admission 与 reservation；下一次同意图重入按原身份重试签发。issued 重入不再执行该钩子。它不是异步事务回调，也不增加生产端口或耐久保证。该局部修订依据 [#547 来源快照与恢复补充采用](https://github.com/nemori-ai/omne-harness-lite/issues/547#issuecomment-6288512604)。
 
-公开 control 已实现输入封闭复制、分配新 operation、引用编码和现有 commands.control 的结果映射。非法 intent 不分配；委托抛错为带原 operation 的 commit-unknown。真实 ledger 控制状态机仍 unsupported，合法调用消耗身份但零控制事实，不声称停止完成。配对 commands/reads 替身只验证门面操作对账。
+公开 control 已实现输入封闭复制、分配新 operation、引用编码和现有 commands.control 的结果映射。非法 intent 不分配；委托抛错为带原 operation 的 commit-unknown。在途 stop 的真实 ledger 路径见[第 29 条](#29-原调用停止与释放待办)。尚未交付的控制分支返回 unsupported，身份已消耗但没有控制事实。配对 commands/reads 替身只验证门面操作对账。
 
 当前提供者、原子步骤和有界模型的映射见 [恢复验证](verification/models/README.md)。未交付生产来源、自动恢复 scanner、完整控制或生产宿主。
 
@@ -434,8 +435,7 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 
 当前 final 没有实际结束 clock marker。running 计时转 unknown，保存原 segment、accumulatedMs，诊断为 `execution-end-clock-marker-unavailable`，同提交 blocked clock 任务。原 unknown 保持证据与诊断；paused/closed 保留已知累计并 closed。收场不调用晚到 elapsed、不写零、不重复累计，也不把保管等待计成执行时间。clock 未知不阻止可信结束后的 slot 释放。
 
-[收场账本测试](tests/ledger-settlement.spec.ts)、[环境计划与确认测试](tests/ledger-environment-release.spec.ts)、[排除交错](tests/exclusion-interleavings.spec.ts)和 [driver 组合](tests/driver-settlement.spec.ts)分别覆盖对应边界。它们使用真实内存 ledger/custody/executor 与受控宿主，不能证明生产耐久、跨进程或断电恢复。[有限收场模型](verification/models/README.md#原结果与队列释放模型)只检查其明确有界范围；完整计时、控制、scanner、真实环境自动 release、完整异常源恢复及 late-result 仍未覆盖。
-
+[收场账本测试](tests/ledger-settlement.spec.ts)、[环境计划与确认测试](tests/ledger-environment-release.spec.ts)、[排除交错](tests/exclusion-interleavings.spec.ts)和 [driver 组合](tests/driver-settlement.spec.ts)分别覆盖对应边界。[控制与释放推进](tests/control-progression.spec.ts)覆盖原调用停止、权限收窄、旧代回包和原释放任务。它们使用真实内存 ledger/custody/executor 与受控宿主，不能证明生产耐久、跨进程或断电恢复。[有限收场模型](verification/models/README.md#原结果与队列释放模型)只检查其明确有界范围；完整计时、未交付控制分支、scanner、真实环境后端、完整异常源恢复及 late-result 仍未覆盖。
 
 ## 27 固定结果与内容读取
 
@@ -483,5 +483,18 @@ readReply 核固定版本及各页必要元数据。重复 cursor、非结束空
 
 [Tools 行为测试](tests/tools.spec.ts)及[类型测试](tests/tools.spec-d.ts)覆盖真实作者注册、内存 runtime 组合、再次分页、闭合参数、引用、可见 ref、失败与精确预算。它们使用非耐久内存依赖。真实模型、生产存储、Cordis 和跨进程未验证。
 
-
 [模型消费组合](tests/tools-model-loop.spec.ts) 以实际 runtime、作者 codec、readReply 及 P14 连接受信宿主与模拟模型。模型只接收投影块和实际帮助，依据可见 reference、next、kind 形成新请求。测试宿主将入站参数预算与 ToolsOptions.arguments 对齐，分别保留 runtime 入站检查和作者参数检查。各新调用以新消费位置与调用引用区分，其结果归属按 reference/resultVersion 成对判断，版本字符串无需全局唯一。
+
+## 29 原调用停止与释放待办
+
+采用契约 [P06](../tool-contract/SPEC.md#p06-内部等待与答复) 的在途 stop 和 [P03](../tool-contract/SPEC.md#p03-环境准备和释放) 的释放推进。`control` 在同一调用事务中保存 `ToolState.controls`、原操作收据和完整 `ControlDispatch` 待办。相同 operation 和输入认回原收据，不同输入返回 conflict。`loadRecovery.controls` 投影已保存的控制，不从任务名称推断意图。
+
+driver 传播前重核控制资格，再以原 `ToolStartRecord` 取得 recovery binding。每次先查询 `inspectControl`；尚为 pending 的原控制才向该 binding 发送同操作 stop。accepted 和 unknown 只继续查询。当前控制资格收窄时保存 rejected，保留原意图。晚到确认须匹配原 source 和原启动，包括执行代次。
+
+当前资格检查使用 driver 的调度主体。ControlRecord 没有原控制主体，ToolAccessGuard 也不能按控制来源认回该主体。因此不同主体代为推进时，尚未兑现原控制方撤权后的拒绝传播；同主体测试不能证明这一保证。控制来源的持久关联与核权映射仍需拥有者确定，本实现不把当前检查等同于完整的 P06 控制资格保证。
+
+accepted 不关闭 stop 待办。stopped、already-ended 或 rejected 关闭传播待办，但不直接修改执行状态、结果、队列或环境。原 final 事实继续沿第 26 条收场。公开 control 成功提交后请求宿主调度原调用；调度提示丢失不撤销已保存的任务。
+
+release 待办先查询原 `ReleaseRecord`，pending 时向环境提供者发送同记录。unknown 只查询。ledger 继续核验实际 released 回执；pending、unknown、rejected 或不可用均保留任务。释放不删除尚未完成的 deliver 任务。
+
+`scanPending` 仍返回 unsupported。现有 `ToolLedgerStore.read/commit` 只处理具名域，无法枚举租户内有待办的调用。进程内调度与已知调用的 loadRecovery 不构成耐久扫描；完整恢复须由扫描端口及其提供者补齐。上述组合验证使用真实 ledger/driver 和可控 binding、内存记录仓，不证明生产后端的耐久性。

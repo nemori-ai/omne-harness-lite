@@ -1,4 +1,7 @@
 import { matchEnvironmentAdoption } from './environment-adoption.ts'
+import { controlIntent } from './control-intent.ts'
+import { controlProgress } from './control-progress.ts'
+import { controlFinished, decideControl, decideRecordControl } from './ledger-control.ts'
 // The ledger factory (G1): `createToolLedger(store, guards, clock, configuration, settlement)` gives the
 // ToolCommands and ToolReads of this implementation, and the admission entry that the runtime
 // uses. Each entry checks its boundary input, asks the guards, reads the domain, lets a pure
@@ -1064,7 +1067,14 @@ export function createToolLedger<P, B extends ContentBlock>(
         const command = { ...checked, ...judged.ok, inputDigest: digestOf(judged.ok) }
         return Promise.resolve(succeed((snapshot, mint) => decideRelease(snapshot, command, mint)))
       }),
-    control: input => later(input, 'control', 'control', 'controls'),
+    control: async input => {
+      const intent = controlIntent(input)
+      if ('failure' in intent) return intent
+      return mutate(input, 'control', context => {
+        const command = { ...context, intent: intent.ok, inputDigest: digestOf(intent.ok) }
+        return Promise.resolve(succeed((snapshot, mint) => decideControl(snapshot, command, mint)))
+      })
+    },
     acceptDecision: input =>
       later(input, 'accept-decision', 'acceptDecision', 'waits, decisions and resources'),
     acceptResource: input =>
@@ -1090,7 +1100,32 @@ export function createToolLedger<P, B extends ContentBlock>(
     preserveResult,
     recordResponse: input => write(input, 'recordResponse', 'waits, decisions and resources'),
     closeWait: input => write(input, 'closeWait', 'waits, decisions and resources'),
-    recordControl: input => later(input, 'control', 'recordControl', 'controls'),
+    recordControl: async input => {
+      const fixed = fixCleanupFields(input, ['control', 'source', 'progress'])
+      if ('failure' in fixed) return fixed
+      const control = decodeToolOperationIdField(fixed.ok.control, 'control')
+      if ('failure' in control) return control
+      const source = judgeEvidenceField(fixed.ok.source, 'source')
+      if ('failure' in source) return source
+      const progress = controlProgress(fixed.ok.progress)
+      if ('failure' in progress) return progress
+      return mutate(input, 'write', async context => {
+        const qualification = await access(context, 'control')
+        if ('failure' in qualification && qualification.failure.kind !== 'denied')
+          return qualification
+        const command = {
+          ...context,
+          control: control.ok,
+          source: source.ok,
+          progress: progress.ok,
+          qualificationDenied: 'failure' in qualification && !controlFinished(progress.ok),
+          inputDigest: digestOf(fixed.ok),
+        }
+        return Promise.resolve(
+          succeed((snapshot, mint) => decideRecordControl(snapshot, command, mint)),
+        )
+      })
+    },
     receiveFacts: async input => {
       const fixed = fixFactInput(input, guards.policy, toolLedgerAdoption)
       if ('failure' in fixed) return fixed

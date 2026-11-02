@@ -19,7 +19,7 @@
 
 普通 releaseDelivery 成功返回 `released` 与生产者原耐久回执，不附本次操作引用。首次释放和已释放后的重入同形，后者不再写入。`commit-unknown` 保留本次操作引用供 queryOperation 查询。可靠否定只排除这次操作，不能推出交付仍 pending。可靠否定后可明确再次释放以取得原回执，未知或不可读时不能自动重发。lookup 按原 admission 定位，返回当前权威 ToolState，可按当前 result 及 delivery 中的交付号与 consumer 认回已有释放。invoke 的 state 是受理时回执。readProcess 未支持，ResultPage 不含 DeliveryState。
 
-- [ledger-guards.ts](../src/ledger-guards.ts)：`ToolInvokeAuthority` 的当前 consumer 资格与稳定主体比较，装配者将同一实例交来源及配对 guard。`createTestInvocationSource({ authority, snapshotPrincipal })` 必须显式提供资格与语义快照，无默认授权或通用主体复制。来源的 durability 为 none。控制最小门面已转发，真实 ledger 仍 unsupported。
+- [ledger-guards.ts](../src/ledger-guards.ts)：`ToolInvokeAuthority` 的当前 consumer 资格与稳定主体比较，装配者将同一实例交来源及配对 guard。`createTestInvocationSource({ authority, snapshotPrincipal })` 必须显式提供资格与语义快照，无默认授权或通用主体复制。来源的 durability 为 none。控制门面已接入真实 ledger 的在途 stop，适用范围见 [SPEC 第 29 条](../SPEC.md#29-原调用停止与释放待办)。
 
 [testing-source.ts](../src/testing-source.ts)的同步 snapshotPrincipal 在来源首次 await 前固定可认证主体；bindings 返回隔离诊断副本。可选同步 beforeIssue 在 reservation 保存后注入签发故障，抛错保留原身份返回 issuance-unknown，issued 不再运行钩子。精确行为见 [实现 SPEC](../SPEC.md#普通调用重入的实现范围)。
 
@@ -27,15 +27,12 @@
 
 `facts` 是实现包的 ToolLedgerFacts 读口，SavedFact 保留原 start、source、event、cursor 与完整 fact。它凭精确 event evidence 和当前 recover 资格读取，供 settle 消费者恢复原 final。`preserveResult` 使用 WriteContext，主动调用独立保管后再提交原结果与后继责任。`planRelease`、`recordRelease` 与受限 `recordTask(blocked)` 使用 Mutation，不含 caller expected。完整条件、未知和支持边界见 [收场规则](../SPEC.md#26-原结果收场与释放责任)。普通 runtime 不暴露事实写入或此恢复读口。自动原事实推进、信号寿命和恢复缺口见 [SPEC 第 25 条](../SPEC.md#25-原事实受管推进)。
 
-
 - [ledger-content.ts](../src/ledger-content.ts) 实现结果与附件关联、IO 前后资格及页面核验。行为与 provider 证明责任见 [内容读取](../SPEC.md#27-固定结果与内容读取)。
 - [testing.ts](../src/testing.ts) 经 testing 入口导出 `createMemoryToolContent`、`MemoryToolContent` 与 `MemoryContentFault`。`createTestToolDependencies` 将它装配为 `doubles.content` 并复用其 custody。内存提供者只拥有字节及游标，不维护第二份结果账本。
-
 
 `ToolAccessGuard.qualify` 的 `read-raw-content` 表示原件字节操作，须在一个可信权限事实判定点检查两项基础权限与主体/租户/call 范围。它不是可单独授予的新许可位。guard 无一致视图时答 unavailable。raw 元数据继续使用 read-raw；普通附件继续使用 read-content。精确失败与返回时序由 [SPEC 第 27 条](../SPEC.md#27-固定结果与内容读取)拥有。
 
 - [tools.ts](../src/tools.ts) 从根入口导出 createTools、Tools、ToolsAccess、ToolsOptions 和窄读依赖 ToolsReadRuntime。`implementation` 是 Tools 元工具的实现侧 `ToolImplementation`（[RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md)），交绑定提供者登记；`definition` 是以元工具的官方治理（常驻、不可编程、无必需能力，版本为 `toolsAdoption`）经 `deriveDefinition` 派生的 `ToolDefinition`。present 交首屏模型结果，readReply 是收齐新元调用回应的受信方法。签名由源码拥有，完整行为与预算见 [SPEC 第 28 条](../SPEC.md#28-tools-固定结果适配器)。
-
 
 Tools 的基本调用顺序和 JSON 参数示例见 [README](../README.md#model-result-retrieval)。宿主须对齐 runtime 入站参数限制与 ToolsOptions.arguments，固定当前身份和每次新调用的消费位置，再于 readReply 完整成功后调用 P14。结果身份为调用引用与结果版本的组合。模型无需获得这些宿主能力，投影与实际 help 足以完成接续。
 
@@ -50,7 +47,6 @@ Tools 的基本调用顺序和 JSON 参数示例见 [README](../README.md#model-
 The controls arm the next corresponding IO: `readUnavailable`, `commitUnavailable`, `unknownApplied`, `unknownDropped` and `throwApplied`. `delayed.arm` holds a commit with an unknown reply. `delayed.land` resolves after all held commits finish their original expected-revision check. `rejectedHostValue` returns a value that this provider explicitly refuses to encode. The probe accepts an exception, `unknown` or `unavailable`, then requires an unchanged complete snapshot and a successful equivalent legal batch. It does not define a common encoding rejection protocol. The probe uses a matching expected revision without competing commits. Any `committed` or `conflict` reply fails the probe.
 
 The cases have stable `name` and `clause` fields. Direct consumption and the evidence limits are described in the [usage guide](../README.md#ledger-store-conformance). This adds a testing API in the G6 owner package. No existing consumer requires migration.
-
 
 ## Tool 访问守卫的替身与套件（`./testing`）
 
