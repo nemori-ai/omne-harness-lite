@@ -13,7 +13,8 @@ export function createModelCommandsCore<P>(
   return new ModelCommandCore(options, storage)
 }
 export { modelCommands } from './commands.ts'
-export { createModelInitialRun, createModelInitialExecution } from './initial.ts'
+export { createModelInitialRun } from './initial.ts'
+export { createModelInitialExecution } from './initial-execution.ts'
 export type {
   InitialTarget,
   ModelAcceptedOrigin,

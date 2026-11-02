@@ -19,7 +19,6 @@ import type {
   ModelDriveInput,
 } from '@omne-harness/model-contract/provider'
 import type { SendCoordinator } from '../send.ts'
-import { modelCommands } from './commands.ts'
 import type { ModelCommandCore } from './state.ts'
 import type {
   CallDocument,
@@ -91,6 +90,7 @@ type InitialRunPort<P> = Readonly<{
   boundAccess(bound: BoundCommandAccess<P> | undefined): BoundCommandAccess<P> | null
   createExecution(
     core: ModelCommandCore<P>,
+    commands: (bound: BoundCommandAccess<P>) => ModelCommands<P>,
     coordinator?: (bound: BoundCommandAccess<P>) => SendCoordinator<P>,
   ): ModelInitialExecution<P>
 }>
@@ -123,7 +123,8 @@ class InitialRun<P> implements ModelInitialRun<P> {
       finishConfirmation: (pass, completion) => this.#finishConfirmation(pass, completion),
       failConfirmation: pass => this.#disable(pass),
       boundAccess: bound => this.#boundAccess(bound),
-      createExecution: (core, coordinator) => this.#createExecution(core, coordinator),
+      createExecution: (core, commands, coordinator) =>
+        this.#createExecution(core, commands, coordinator),
     })
   }
   static access<P>(access: object, run: ModelInitialRun<P>): InitialRunPort<P> {
@@ -200,6 +201,7 @@ class InitialRun<P> implements ModelInitialRun<P> {
   }
   #createExecution(
     core: ModelCommandCore<P>,
+    commands: (bound: BoundCommandAccess<P>) => ModelCommands<P>,
     coordinator?: (bound: BoundCommandAccess<P>) => SendCoordinator<P>,
   ): ModelInitialExecution<P> {
     const locate = (
@@ -383,7 +385,7 @@ class InitialRun<P> implements ModelInitialRun<P> {
             })
           },
           qualifyExecution: gate.execution,
-          commands: modelCommands(core, gate),
+          commands: commands(gate),
           coordinator: coordinator?.(gate) ?? null,
           close: () => {
             if (!live) return
@@ -434,15 +436,4 @@ export function createModelInitialRun<P>(
   }>,
 ): ModelInitialRun<P> {
   return Object.freeze(new InitialRun<P>(initialRunAccess, options))
-}
-export function createModelInitialExecution<P>(
-  input: Readonly<{
-    run: ModelInitialRun<P>
-    core: ModelCommandCore<P>
-    coordinator?: (bound: BoundCommandAccess<P>) => SendCoordinator<P>
-  }>,
-): ModelInitialExecution<P> {
-  if (input.core.options.initialRun !== input.run)
-    throw new TypeError('initial execution must share the core initialRun')
-  return initialRunPort(input.run).createExecution(input.core, input.coordinator)
 }
