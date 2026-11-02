@@ -7,21 +7,38 @@
 // same `denied` and nothing is written; an unreadable index is `unavailable`, never `denied`. The
 // Agent contract's core Journal suite passes through the plugin over the Session log in SQL (the
 // node:sqlite double of the published modules), and routing holds on the real sqlite-provider.
+// The same plugin body also provides `agentJournalEntries` and `agentMaterials`: the three keys
+// belong to the plugin's own fiber and go together; a received delivery is one fact to the three;
+// a record whose reply was lost is decided by the Journal of the same provider; a material read goes
+// to the session its source names and waits for a write of that session in flight, and `preserve`,
+// which names no session, is unavailable.
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import {
+  decodeActionId,
   decodeAgentExecutionId,
   decodeInputId,
   type AcceptedInput,
   type AgentJournal,
+  type AgentJournalEntries,
+  type AgentMaterials,
   type DurableEvidence,
+  type Material,
+  type PendingCall,
+  type ReceivedEntry,
 } from '@omne-harness/agent-contract'
 import {
   agentJournalCoreConformance,
+  sampleReceivedModelResult,
   type AgentJournalCoreFixture,
   type AgentJournalCoreOpened,
 } from '@omne-harness/agent-contract/testing'
-import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
+import {
+  agentJournalEntriesKey,
+  agentJournalKey,
+  agentMaterialsKey,
+} from '@omne-harness/agent-cordis-contract/cordis'
+import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type {
   SessionAccess,
@@ -58,6 +75,9 @@ const PENDING = 0
 const ACTIVE = 2
 const FAILED = 3
 
+/** The three keys one provider serves in one authoritative ordering (assembly row `agent-journal`). */
+const FACES = [agentJournalKey, agentJournalEntriesKey, agentMaterialsKey] as const
+
 const other = memoryOtherAccess('intruder', 'route-other')
 const textOf = (tenant: SessionAccess<string>['tenant']) => {
   const encoded = tenantCodec.encode(tenant)
@@ -78,8 +98,12 @@ type Wiring = {
   failIndex: boolean
   /** Every read of the execution index, by the tenant it named. */
   indexReads: string[]
+  /** How many storage reads the plugin made, of any handler. */
+  reads: number
   /** The fault of the next storage commit, if any; the commit takes it. */
   fault: Fault | null
+  /** When set, the next storage commit takes it, calls `reached` and waits for `released`. */
+  hold: Readonly<{ reached: () => void; released: Promise<void> }> | null
 }
 
 /**
@@ -88,13 +112,19 @@ type Wiring = {
  * check that allows everything.
  */
 function servicesOf(s: SqlScene, otherDomain: DomainRef) {
-  const wiring: Wiring = { failIndex: false, indexReads: [], fault: null }
+  const wiring: Wiring = { failIndex: false, indexReads: [], reads: 0, fault: null, hold: null }
   const storage: SqlStorage = s.storage
   // The operations whose commit never ran and whose outcome stays undecided (`pending`).
   const undecided = new Set<string>()
   const wrapped: SqlStorage = {
     registerCombination: input => storage.registerCombination(input),
     commit: async (input, options) => {
+      const hold = wiring.hold
+      wiring.hold = null
+      if (hold !== null) {
+        hold.reached()
+        await hold.released
+      }
       const fault = wiring.fault
       wiring.fault = null
       if (fault === null) return storage.commit(input, options)
@@ -107,6 +137,7 @@ function servicesOf(s: SqlScene, otherDomain: DomainRef) {
         ? Promise.resolve({ kind: 'unknown', identity, diagnostic: 'scripted pending' })
         : storage.query(identity),
     read: (request, options) => {
+      wiring.reads += 1
       if (request.handler === 'session.execution') {
         wiring.indexReads.push(String((request.input as { tenant?: unknown }).tenant))
         if (wiring.failIndex)
@@ -174,12 +205,15 @@ async function assembled(s: SqlScene, config: Readonly<{ routeCacheEntries?: num
   await mount(ctx, services.Lookup)
   await mount(ctx, services.Access)
   const plugin = await mount(ctx, SessionLogAgentJournalProvider, { ...s.combination, ...config })
-  const journal = () => {
-    const found = ctx.get(agentJournalKey)
-    if (found === undefined) throw new Error('agentJournal is not provided')
-    return found as AgentJournal<string>
+  const face = <T>(key: string) => {
+    const found: unknown = ctx.get(key)
+    if (found === undefined) throw new Error(`${key} is not provided`)
+    return found as T
   }
-  return { ctx, plugin, journal, wiring: services.wiring }
+  const journal = () => face<AgentJournal<string>>(agentJournalKey)
+  const entries = () => face<AgentJournalEntries<string>>(agentJournalEntriesKey)
+  const materials = () => face<AgentMaterials<string, ContentBlock>>(agentMaterialsKey)
+  return { ctx, plugin, journal, entries, materials, wiring: services.wiring }
 }
 
 /**
@@ -308,10 +342,10 @@ describe('loading and stopping on real Cordis', () => {
         if (key !== absent) await mount(ctx, plugin)
       const fiber = await mount(ctx, SessionLogAgentJournalProvider, s.combination)
       expect(fiber.state).toBe(PENDING)
-      expect(ctx.get(agentJournalKey)).toBeUndefined()
+      for (const key of FACES) expect(ctx.get(key), key).toBeUndefined()
       await mount(ctx, providers[absent])
       expect(fiber.state).toBe(ACTIVE)
-      expect(ctx.get(agentJournalKey)).toBeDefined()
+      for (const key of FACES) expect(ctx.get(key), key).toBeDefined()
     })
 
   it('fails to load, and provides nothing, without a valid declared combination', async () => {
@@ -536,6 +570,246 @@ describe('an execution that is not the caller tenant’s', () => {
       failure: { kind: 'unavailable', owner: 'session-log-journal' },
     })
     expect(s.commits.length).toBe(commits)
+  })
+})
+
+// --- the entries and materials faces --------------------------------------------------------------
+
+const unavailableHere = { failure: { kind: 'unavailable', owner: 'session-log-journal' } }
+const CONSUMER = { owner: 'suite', work: 'work', position: 'at', purpose: 'action' }
+
+function factsMaterial(name: string): Material<ContentBlock> {
+  return {
+    kind: 'facts',
+    schema: { owner: 'suite', name: 'payload', revision: '1', digest: 'fixture' },
+    value: { kind: 'string', value: name },
+  }
+}
+
+/**
+ * Opens the scene's execution through the plugin and makes it wait on one Model call, so the call's
+ * consumption is bound to the execution. Returns the delivery of that call without its material.
+ */
+async function waitingOnModel(
+  s: SqlScene,
+  journal: AgentJournal<string>,
+  name: string,
+): Promise<Omit<ReceivedEntry, 'material'>> {
+  const opened = ok(await journal.open(s.openInput))
+  const result = sampleReceivedModelResult(s.access.tenant, name)
+  if (result.delivery.producer !== 'model') throw new Error('fixture: a Model entry')
+  const pending: Extract<PendingCall, { kind: 'model' }> = {
+    kind: 'model',
+    purpose: 'main',
+    action: ok(decodeActionId('action')),
+    reference: result.delivery.key.reference,
+    consumption: result.consumption,
+    position: result.consumer,
+    fixed: evidence('request'),
+  }
+  const waits = [{ kind: 'producer' as const, pending }]
+  ok(
+    await journal.commit({
+      ...s.access,
+      execution: s.execution,
+      operation: operation(`pending-${name}`),
+      authority: opened.authority,
+      expected: opened.receipt.revision,
+      checkpoint: { ...s.checkpoint, calls: [pending] },
+      state: { kind: 'waiting', waits },
+      events: [{ kind: 'waiting', waits }],
+      effects: [{ pending, action: pending.action, authority: opened.authority }],
+      caller: { kind: 'none' },
+      replyAdmission: null,
+      handoff: null,
+      finish: null,
+    }),
+  )
+  const { material: _material, ...draft } = result
+  return draft
+}
+
+describe('agentJournalEntries and agentMaterials: the same provider as agentJournal', () => {
+  it('serves the three keys from its own fiber, removes the three together when it stops, and a held reference then answers unavailable', async () => {
+    const s = await scene('faces-fiber')
+    const { ctx, plugin, journal, entries, materials } = await assembled(s)
+    // Compared by identity: printing a Cordis fiber reads services it does not inject.
+    for (const key of FACES) expect(plugin.store?.[key]?.fiber === plugin, key).toBe(true)
+    ok(await journal().open(s.openInput))
+    const value = factsMaterial('kept')
+    const source = ok(
+      await s.view.materials.preserve({ ...s.access, identity: 'kept', consumer: CONSUMER, value }),
+    )
+    const held = { entries: entries(), materials: materials() }
+    expect(ok(await held.materials.read({ ...s.access, source }))).toEqual(value)
+    await plugin.dispose()
+    for (const key of FACES) expect(ctx.get(key), key).toBeUndefined()
+    const commits = s.commits.length
+    const entry = sampleReceivedModelResult(s.access.tenant, 'after-stop')
+    expect(
+      await held.entries.record({
+        ...s.access,
+        execution: s.execution,
+        operation: operation('after-stop'),
+        authority: null,
+        entry,
+      }),
+    ).toMatchObject(unavailableHere)
+    // A source of this session that read before the stop: only the stop refuses it now.
+    expect(await held.materials.read({ ...s.access, source })).toMatchObject(unavailableHere)
+    expect(
+      await held.materials.preserve({
+        ...s.access,
+        identity: 'after-stop',
+        consumer: CONSUMER,
+        value: factsMaterial('after-stop'),
+      }),
+    ).toMatchObject(unavailableHere)
+    expect(s.commits.length).toBe(commits)
+  })
+
+  it('a delivery the result receiver saved in the session log is one fact to all three faces', async () => {
+    const s = await scene('faces-received')
+    const { journal, entries, materials } = await assembled(s)
+    const draft = await waitingOnModel(s, journal(), 'faces-received')
+    const material = factsMaterial('faces-received')
+    // The result receiver saves entry, material and saved in one commit of the same session log.
+    const saved = ok(
+      await s.view.received.commit({
+        ...s.access,
+        execution: s.execution,
+        operation: operation('receive'),
+        entry: draft,
+        material,
+      }),
+    )
+    if (saved.kind !== 'committed') throw new Error(`received ${saved.kind}`)
+    const { entry, receipt } = saved.value
+
+    const loaded = ok(await journal().load({ ...s.access, execution: s.execution }))
+    expect(loaded.entries).toContainEqual(entry)
+    expect(ok(await materials().read({ ...s.access, source: entry.material }))).toEqual(material)
+    // The entries face recognizes the saved delivery: the original receipt and no second fact.
+    expect(
+      ok(
+        await entries().record({
+          ...s.access,
+          execution: s.execution,
+          operation: operation('record-again'),
+          authority: null,
+          entry,
+        }),
+      ),
+    ).toEqual(receipt)
+    expect(ok(await journal().load({ ...s.access, execution: s.execution })).revision).toBe(
+      loaded.revision,
+    )
+  })
+
+  it('a record whose reply was lost is decided by the Journal of the same provider: excluded once the storage proves it never ran', async () => {
+    const s = await scene('faces-lost')
+    const { journal, entries, wiring } = await assembled(s)
+    ok(await journal().open(s.openInput))
+    const input = {
+      ...s.access,
+      execution: s.execution,
+      operation: operation('lost-record'),
+      authority: null,
+      entry: sampleReceivedModelResult(s.access.tenant, 'faces-lost'),
+    }
+    wiring.fault = 'dropped'
+    expect(await entries().record(input)).toEqual({
+      failure: { kind: 'commit-unknown', operation: input.operation },
+    })
+    const query = { ...s.access, execution: s.execution, operation: input.operation }
+    expect(ok(await journal().query(query))).toMatchObject({ kind: 'excluded' })
+  })
+
+  it('records for an execution no Run started as for one of another tenant: the same denied, nothing written', async () => {
+    const s = await scene('faces-denied')
+    const { journal, entries } = await assembled(s)
+    ok(await journal().open(s.openInput))
+    const commits = s.commits.length
+    const record = (access: typeof s.access, execution: typeof s.execution) =>
+      entries().record({
+        ...access,
+        execution,
+        operation: operation('denied-record'),
+        authority: null,
+        entry: sampleReceivedModelResult(access.tenant, 'faces-denied'),
+      })
+    const foreign = await record(other, s.execution)
+    const never = await record(s.access, ok(decodeAgentExecutionId('run_never/execution')))
+    expect(foreign).toEqual({ failure: { kind: 'denied', action: 'record' } })
+    expect(never).toEqual(foreign)
+    expect(s.commits.length).toBe(commits)
+  })
+
+  it('reads a material through the session its source names; another tenant and a foreign source are unavailable, and preserve, which names no session, is unavailable without a write', async () => {
+    const s = await scene('faces-materials')
+    const { journal, materials, wiring } = await assembled(s)
+    ok(await journal().open(s.openInput))
+    const value = factsMaterial('kept')
+    const source = ok(
+      await s.view.materials.preserve({ ...s.access, identity: 'kept', consumer: CONSUMER, value }),
+    )
+    expect(ok(await materials().read({ ...s.access, source }))).toEqual(value)
+
+    const commits = s.commits.length
+    const reads = wiring.reads
+    // Another tenant's source is refused before the storage is asked anything.
+    expect(await materials().read({ ...other, source })).toMatchObject(unavailableHere)
+    expect(wiring.reads).toBe(reads)
+    expect(
+      await materials().read({ ...s.access, source: evidence('not-a-session-log-material') }),
+    ).toMatchObject(unavailableHere)
+    expect(
+      await materials().preserve({ ...s.access, identity: 'new', consumer: CONSUMER, value }),
+    ).toMatchObject(unavailableHere)
+    expect(s.commits.length).toBe(commits)
+  })
+
+  it('a material read is ordered with the writes of the same session: it waits for the write in flight', async () => {
+    const s = await scene('faces-ordering')
+    const { journal, entries, materials, wiring } = await assembled(s)
+    ok(await journal().open(s.openInput))
+    const value = factsMaterial('ordered')
+    const source = ok(
+      await s.view.materials.preserve({
+        ...s.access,
+        identity: 'ordered',
+        consumer: CONSUMER,
+        value,
+      }),
+    )
+    let reached!: () => void
+    const writing = new Promise<void>(resolve => {
+      reached = resolve
+    })
+    let release!: () => void
+    const released = new Promise<void>(resolve => {
+      release = resolve
+    })
+    wiring.hold = { reached, released }
+    const write = entries().record({
+      ...s.access,
+      execution: s.execution,
+      operation: operation('ordering-record'),
+      authority: null,
+      entry: sampleReceivedModelResult(s.access.tenant, 'faces-ordering'),
+    })
+    await writing
+
+    const read = materials().read({ ...s.access, source })
+    const first = await Promise.race([
+      read.then(() => 'read'),
+      new Promise(resolve => setTimeout(() => resolve('waiting'), 200)),
+    ])
+    release()
+
+    expect(first).toBe('waiting')
+    expect(await write).toHaveProperty('ok')
+    expect(ok(await read)).toEqual(value)
   })
 })
 

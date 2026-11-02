@@ -3,7 +3,9 @@ import type { LifecyclePhase, RowId, RowManifest } from '../types.ts'
 /**
  * Human projection of the provide and inject columns of the AA plugin-tree table.
  * Names are the formal AA keys; the S0 private service name is `s0.<key>`.
- * Keys that the table gives only in prose (the evidence sources of `session-ad10`) are left out.
+ * Keys that the table gives only in prose are written out where a real row of `./cordis` injects
+ * them (`session-ad10`: the three evidence sources; `session-ad06`: the Journal views and
+ * `sessionTransactions`), so that `real-manifests-sync` compares the real row with this table.
  * When AA changes the rows, regenerate aa-rows.json, then update this table by hand.
  */
 type Entry = {
@@ -44,15 +46,21 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'sessionPrincipals',
       'sessionWorkPrincipals',
     ],
+    phase: 'business',
   },
   'session-ad01': { injects: ['session'] },
   'session-ad02': { injects: ['session'] },
   'session-ad03': { injects: ['runtimeContext', 'session'] },
   'session-ad04': { injects: ['session'] },
   'session-ad05': { injects: ['session'] },
-  'session-ad06': { injects: ['session'] },
+  'session-ad06': {
+    injects: ['session', 'agentJournal', 'agentMaterials', 'sessionTransactions'],
+  },
   'session-ad09': { provides: ['sessionIdentity'], injects: ['principalVerifier'] },
-  'session-ad10': { provides: ['sessionEvidence'] },
+  'session-ad10': {
+    provides: ['sessionEvidence'],
+    injects: ['sessionAdoptionSource', 'sessionProductionSource', 'sessionCustodySource'],
+  },
   'session-ad11': {
     provides: ['sessionIdleInput'],
     injects: ['modelRuntime', 'toolRuntime', 'session'],
@@ -72,7 +80,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
     provides: ['sessionScopeRelease'],
     injects: ['executionEnvironment', 'session'],
   },
-  'session-handoff': { provides: ['agentMessageHandoff'], injects: ['session'] },
+  'session-handoff': {
+    provides: ['agentMessageHandoff'],
+    injects: ['session', 'agentAccessCheck'],
+  },
   'session-conditions': { provides: ['agentConditions'], injects: ['session'] },
   'agent-journal': {
     provides: ['agentJournal', 'agentJournalEntries', 'agentMaterials'],

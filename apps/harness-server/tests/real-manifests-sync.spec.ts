@@ -10,12 +10,7 @@ import { AA_FIXTURE_ROWS } from './fixtures/serve/index.ts'
 /** 具名差额清单：行 → 补丁编号与该补丁落地后 `stubs.ts` 这一行会变成的样子（只写变化的字段）。 */
 const KNOWN_GAPS: Readonly<
   Record<string, Readonly<{ patch: string; manifest: Partial<RowManifest> }>>
-> = {
-  // 真件行只提供 `agentJournal`。`agentJournalEntries` 与 `agentMaterials` 在
-  // `session-adapters` 里还没有提供方（K-9：写 `AgentMaterials` 带不出一条执行路径），
-  // 所以表里那两项要等它们有提供方时再随补丁一起从表里去掉。
-  'agent-journal': { patch: 'AAP-16', manifest: { provides: ['agentJournal'] } },
-}
+> = {}
 
 const profile = serveProfile()
 
