@@ -692,8 +692,8 @@ class Clock extends ModelClockService {
 /** The factory credential: a synthetic value, never a real key. */
 class Credential extends ModelCredentialService {
   readonly present: CredentialPort['present'] = () => ({ kind: 'unavailable' })
-  readonly presentFor: NonNullable<CredentialPort['presentFor']> = () => ({ kind: 'unavailable' })
-  readonly resolveFor: NonNullable<CredentialPort['resolveFor']> = () => ({
+  override readonly presentFor: NonNullable<CredentialPort['presentFor']> = () => ({ kind: 'unavailable' })
+  override readonly resolveFor: NonNullable<CredentialPort['resolveFor']> = () => ({
     kind: 'value',
     scope: 'factory',
     value: 'synthetic-credential',
