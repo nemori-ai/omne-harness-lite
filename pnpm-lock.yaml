@@ -440,9 +440,54 @@ importers:
         specifier: workspace:*
         version: link:../../tool/tool-cordis-contract
     devDependencies:
+      '@omne-harness/agent-context':
+        specifier: workspace:*
+        version: link:../../context/agent-context
       '@omne-harness/message':
         specifier: workspace:*
         version: link:../../common/message
+      '@omne-harness/request-context':
+        specifier: workspace:*
+        version: link:../../context/request-context
+      '@omne-harness/request-context-contract':
+        specifier: workspace:*
+        version: link:../../context/request-context-contract
+      '@omne-harness/request-context-cordis':
+        specifier: workspace:*
+        version: link:../../context/request-context-cordis
+      '@omne-harness/request-context-cordis-contract':
+        specifier: workspace:*
+        version: link:../../context/request-context-cordis-contract
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
+      '@omne-harness/runtime-context-cordis':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-cordis
+      '@omne-harness/runtime-context-cordis-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-cordis-contract
+      '@omne-harness/session-adapters':
+        specifier: workspace:*
+        version: link:../../session/session-adapters
+      '@omne-harness/session-contract':
+        specifier: workspace:*
+        version: link:../../session/session-contract
+      '@omne-harness/session-cordis':
+        specifier: workspace:*
+        version: link:../../session/session-cordis
+      '@omne-harness/session-cordis-contract':
+        specifier: workspace:*
+        version: link:../../session/session-cordis-contract
+      '@omne-harness/session-storage-sql':
+        specifier: workspace:*
+        version: link:../../session/session-storage-sql
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
