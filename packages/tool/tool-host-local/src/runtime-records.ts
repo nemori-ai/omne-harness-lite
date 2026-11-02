@@ -24,6 +24,7 @@ export function createRuntimeRecords(
     store: input.store,
     access: input.access.start,
     guardsOf: input.guardsOf,
+    permitRequirements: input.permitRequirements,
     commitAttempts: input.configuration.ledgerCommitAttempts,
   })
   const guards = createLocalToolLedgerGuards({

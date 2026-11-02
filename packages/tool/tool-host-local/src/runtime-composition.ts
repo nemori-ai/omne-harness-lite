@@ -42,6 +42,7 @@ export type LocalToolRuntimeInput = Readonly<{
   controlSubjects: ToolControlSubjects<unknown>
   grants: ReadonlyMap<string, ToolGrantVerifier<unknown>>
   guardsOf: LocalStartCoordinatorInput<unknown>['guardsOf']
+  permitRequirements: NonNullable<LocalStartCoordinatorInput<unknown>['permitRequirements']>
   resolveAccess: LocalInstanceInput<unknown>['resolveAccess']
   clock: ToolClock
   configuration: ToolConfiguration

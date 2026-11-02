@@ -58,9 +58,13 @@ it('directory replacement changes the stream without restarting the original aut
     await expect
       .poll(async () => {
         const selection = await world.api.instances.current(world.query(reference))
-        return 'ok' in selection ? selection.ok.current?.ref : undefined
+        return (
+          'ok' in selection &&
+          selection.ok.current !== null &&
+          selection.ok.current.ref !== before.ref
+        )
       })
-      .not.toBe(before.ref)
+      .toBe(true)
     expect(world.launches()).toBe(1)
     const stale = world.api.observation
       .observe({

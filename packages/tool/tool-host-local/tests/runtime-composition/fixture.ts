@@ -259,6 +259,9 @@ export async function fixture(
     clock,
     configuration,
     guardsOf: () => [],
+    permitRequirements: {
+      check: async () => ({ kind: 'not-required', source: evidence('frozen-no-permit-action') }),
+    },
     grants: createLocalGrantVerifiers(fixed.scope),
     bindings: () => bindings,
     catalog: () => catalog,
