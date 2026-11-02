@@ -535,3 +535,50 @@ describe('the decision is the last await before the registration changes', () =>
     expect(auth.calls).toEqual(['register'])
   })
 })
+
+describe('a hot cache keeps the borrow, publication and lease rules (CX-14)', () => {
+  it('an operation that reused cached material is not published after a replacement', async () => {
+    const f = createAssemblyFixture()
+    const registry = registryFor(f)
+    const first = await registered(registry, f)
+    await registry.assembly(f.target).assemble(f.call)
+    const original = f.sources.groups.tools.readSource
+    ;(f.sources.groups.tools as { readSource: typeof original }).readSource = async call => {
+      const value = await original(call)
+      await registry.replace({
+        access: f.call.access,
+        expected: first.ref,
+        sources: createAssemblyFixture().sources,
+      })
+      return value
+    }
+    expect(await registry.assembly(f.target).assemble(f.call)).toMatchObject({
+      kind: 'unavailable',
+      owner: 'source-registry',
+    })
+  })
+  it('a withdrawn generation answers unavailable although its cache was hot', async () => {
+    const f = createAssemblyFixture()
+    const registry = registryFor(f)
+    const handle = await registered(registry, f)
+    await registry.assembly(f.target).assemble(f.call)
+    const receipt = handle.withdraw()
+    expect(await registry.assembly(f.target).assemble(f.call)).toMatchObject({
+      kind: 'unavailable',
+      owner: 'source-registry',
+    })
+    await expect(receipt.settled).resolves.toEqual({ kind: 'settled' })
+  })
+  it('a hot call still takes its own lease and a lease that does not come back is reported', async () => {
+    let leak = false
+    const f = createAssemblyFixture({ preparation: { release: () => (leak ? stuck() : {}) } })
+    const registry = registryFor(f)
+    await registered(registry, f)
+    await registry.assembly(f.target).assemble(f.call)
+    const before = f.preparation.calls().length
+    leak = true
+    await registry.assembly(f.target).assemble(f.call)
+    expect(f.preparation.calls().length).toBeGreaterThan(before)
+    await expect(registry.close()).resolves.toEqual({ kind: 'unavailable', outstanding: [owner] })
+  })
+})
