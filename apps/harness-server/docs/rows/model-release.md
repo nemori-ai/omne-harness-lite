@@ -36,7 +36,7 @@
 
 `ActorRef` 的来源（model-contract SPEC「ActorRef 是身份拥有者生成的可核验原事实引用」）：
 
-- `authorize` 返回的原主体引用：`owner` 是 `tenantStanding`（能重读同一记录的 standing 来源的服务键），`subject` 是 `standing.evidence.record`，`revision` 是 `standing.evidence.revision`。W 与 M 都指向租户账号的 standing 记录；M 代该账号行事。
+- `authorize` 返回的原主体引用：`owner` 是 `tenantStanding`（能重读同一记录的 standing 来源的服务键），`subject` 是 `standing.evidence.record`，`revision` 是 `standing.evidence.revision`。W 与 M 都指向租户账号的 standing 记录；M 代该账号行事。这是租户级的记录：同一租户的全部 W 与 M 共用一个 ActorRef（见已知限制）。
 - `execution(ExecutionRef)` 返回的绑定引用：`owner` 是 `modelHostAuthority`，`subject` 是 `instance`，`revision` 是 `generation`。通道 gate 已核这两项属于本绑定记录，本模块再核 `instance` 等于 `resolve` 时 `channel.prepare` 返回的 instance。
 
 没有可核验来源的字段不编造：M 没有自己的签发记录修订，所以不另造 M 专用的 `revision`。
@@ -59,19 +59,24 @@
 - W 的受理点是 `model-host` 行交给 runtime 的命令包装（`src/model/commands-qualifying.ts`）：每个方法先核验主体、读 standing、把结果登记在表里，调用真件，finally 释放。捕获只活在这一次调用里。`qualifyObservation` 同法。
 - M 的受理点是 `resolve`。登记项随 `model-host` 行的 fiber 退役失效（`currentForReader` 的代次闭包）。
 - `authorize` 查表：没有登记项答 `unavailable`（`model-access-qualification`）；核验拒绝、不是成员、租户不符答 `denied`；核验或 standing 不可用答 `unavailable`；再按 R2-D33 方案 A 的九动作矩阵判：`admit`、`control` 只 W；`facts`、`content`、`handoff`、`account`、`observe` W 与 M；`recovery`、`send` 只 M 且限它绑定的那一个调用；租户级 `recovery`（`scanPending`）答 `unavailable`。
-- `current(demand)`：`demand.principal` 是登记过的 M、租户与调用相等、宿主 fiber 未退役时 `authorized: true`；`noTenantBinding` 等于供应商凭据是 `factory`。
+- `current(demand)`：`demand.principal` 是登记过的 M、租户与调用相等、宿主 fiber 未退役时 `authorized: true`；`noTenantBinding` 等于 `demand.supplier.credential.kind === 'factory'`（见已知限制：这使成员的工厂围栏永不拒绝）。
 
 ## 运行级组合与释放次序
 
 入口对象 `modelHostAuthority` 在自己的闭包里持有本运行的 Model 组合（`src/model/composition.ts`）。组合不挂在任何服务实例上：`ctx.get('modelHostAuthority')` 只拿到 `resolve`。两行各经 `src/model/ports.ts` 按运行的根上下文取自己的窄口：`model-records` 拿 `checkOriginRead` 与 `attach`（附着句柄给出本次附着的通道、发送子 fiber 的登记与 `detach`），`model-host` 拿 `bindHost`（绑定给出 `executionChannel`、`releaseExecution`、`qualify`、`qualifyObservation` 与推送账本）。`grantOriginRead`、`attached`、宿主退役闭包与通道的直接读口只有入口的 `resolve` 读得到。组合持有 origin 读许可、一次记录激活的附着（`initial` 与资格表；第二次附着被拒）、唯一的执行通道（附着时以随机 `minst_` 打开，宿主与发送子插件的 `executionChannel` 都返回它）、宿主绑定与推送账本。无关插件经 `ctx.get` 拿不到签发者、standing 读口、登记表的写口（`captureHost`、`recordHostBinding`）、`initial`，也拿不到通道；`tests/entry/model-authorities.spec.ts` 有这条反例。
 
-`model-host` 是 `business` 阶段的行体承载：宿主插件跑在行的子 fiber 里，业务停止 dispose 该子 fiber，这就是成员的有序关闭（关观察、quiesce、停派发等 drive 交还、停推送、`releaseExecution`）。`releaseExecution` 由入口组合兑现：先 dispose 记录行的发送子 fiber，等发送资源关闭，再关 channel；宿主 finally 幂等再关一次。期间 `model-records` 父 fiber 存活。期限内未完成答 `incomplete`。
+`model-host` 是 `business` 阶段的行体承载：宿主插件跑在行的子 fiber 里，业务停止 dispose 该子 fiber，这就是成员的有序关闭（关观察、quiesce、停派发等 drive 交还、停推送、`releaseExecution`）。`releaseExecution` 由入口组合兑现：先 dispose 记录行的发送子 fiber，等发送资源关闭，再关 channel 并结束附着，之后任何一方取 `executionChannel` 都答 `unavailable`（`records-not-attached`），不交出已关闭的通道；宿主 finally 与记录行的 effect 再关一次都是幂等的。期间 `model-records` 父 fiber 存活。期限内未完成答 `incomplete`。
+
+资格表的宿主绑定项（`execution` 查的 `{instance, operation}`）有界：通道关闭（附着结束）与宿主 fiber 退役时整表清空，每次登记先丢掉 `current()` 已为假的项；上界是一个通道、一代宿主内不同调用的数量。宿主插件没有按调用结束的回调，所以一代宿主内同一调用的项保留到通道关闭。
 
 ## 已知限制
 
 - **实时撤权（#677）**：M 的登记项只随宿主 fiber 退役失效；W 只在每次调用时重读 standing。撤权确认与下一次调用之间没有同步来源。
 - **直接经 `modelCommands` 服务的 W 调用没有受理点**，一律 `unavailable`（`principal-not-qualified`）。M2 树里这样的消费者只有 `model-request-preparation` 的世系读取，首次调用没有世系。
-- **`noTenantBinding` 只是本应用没有租户凭据设置来源的事实**，真实持有关系由保管库的 `resolveFor` 再核。
+- **`noTenantBinding` 等于 `demand.supplier.credential.kind === 'factory'`，所以成员的工厂围栏永不拒绝**：对工厂回退的全部防护依赖保管库的 `resolveFor`，它按 facts a.4 核对该租户是否持有任何绑定。M2 没有租户凭据设置来源，应用自己的供应商补全把工厂引用交给每个供应商。
+- **ActorRef 是租户级的 standing 记录**：同一租户的全部 W 与 M 共用一个 ActorRef，`resolve` 第 3 步对原发起者的核对退化为「同一租户」。M2 是个人租户，按 R2-D33 方案 A 接受；按主体区分的 ActorRef 由入口签发者在波 3 给出。
+- **W 的受理捕获以调用为期，不以入口为期**：一个 W 在宿主包装的命令调用进行中时，拿同一个 W 直接经 `modelCommands` 服务发起的调用也被放行（`authorize` 只查表里有没有这个对象的捕获）。调用结束后捕获释放，直接调用回到 `unavailable`。记录，不修。
+- **s0 树不变**：`config/s0.distribution.json` 与 s0 允许表没有改动，s0 只装 `stubPlugin`；真件只进 `serve.distribution.json`。
 - **`receive`、`lateFact`、`retry`、`handoff` 证据恒 `unavailable`**：首内容保持 `none-proven`，重试收场 `policy-unavailable`（首内容前停顿长期 `running`，用户仍可取消），结果停在 `saved` 不 ACK（AD-05 未接），晚到账目不补录。
 - **目录发布权威恒 `denied`**：不挡本地 host 的 drive（R2-D33 §5.3）。
 - **官方档案采用摘要规则是 model-host-local 私有规则的复制**，由 `tests/model/sources.spec.ts` 对真实 `ModelProfilesLocalPlugin` 守护。
@@ -80,8 +85,8 @@
 
 ## 持续验证
 
-- [资格登记表](../../tests/model/qualification.spec.ts)：W 与 M 的九动作矩阵、核验失败与 standing 的各答法、ActorRef 三字段来源、执行引用、`current`、fiber 退役后永远为假。
-- [宿主权威](../../tests/entry/model-authorities.spec.ts)：`resolve` 的四步与每步失败、origin 读许可只在读内、签发者缺席、宿主未绑定、prepare 不被跳过、二次附着被拒、无关插件经 `ctx.get` 只拿到 `resolve`。
+- [资格登记表](../../tests/model/qualification.spec.ts)：W 与 M 的九动作矩阵、核验失败与 standing 的各答法、ActorRef 三字段来源、执行引用、`current`、fiber 退役后永远为假、绑定表清空与丢弃退役项。
+- [宿主权威](../../tests/entry/model-authorities.spec.ts)：`resolve` 的四步与每步失败、origin 读许可只在读内、签发者缺席、宿主未绑定、prepare 不被跳过、二次附着被拒、`releaseExecution` 后不交出已关闭的通道、无关插件经 `ctx.get` 只拿到 `resolve`。
 - [跨行断言](../../tests/model/consistency.spec.ts)：四条相等各一条反例，装载前退出 2。
 - [发送来源](../../tests/model/sources.spec.ts)：档案采用与真实档案插件相等。
 - [两行真件](../../tests/rows/model/records-host.spec.ts)：真实 SQLite 与 session-storage 上装两行，经 runtime 的受理点放行 W、拒绝未核验主体，直接命令口 `unavailable`，宿主 `resolve` 读到未受理调用，缺凭据配置时发送 `unavailable`，业务阶段 `settled`。
