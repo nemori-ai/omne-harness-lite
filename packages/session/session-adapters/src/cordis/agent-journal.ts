@@ -23,6 +23,7 @@ import type {
   DurableEvidence,
   ExecutionMutation,
   Failure,
+  ModelReceptionTargets,
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -153,6 +154,12 @@ type Fault = (diagnostic: string) => void
 
 export type SessionLogJournalProvider<P> = AgentReceivedProvider<P, ContentBlock> & {
   received: NonNullable<AgentReceivedProvider<P, ContentBlock>['received']>
+  /**
+   * The original consumption bindings of this session's executions (agent-contract J02 item 1):
+   * the bindings that the committed PendingCalls established, kept in the session's Agent records
+   * after the checkpoint dropped the call or the attachment ended.
+   */
+  targets: ModelReceptionTargets<P>
 }
 
 /**
@@ -237,6 +244,8 @@ const READS: ReadonlySet<string> = new Set([
   'output.read',
   'materials.read',
   'received.query',
+  'targets.forExecution',
+  'targets.resolve',
 ])
 const OWNER = 'session-log-journal'
 
@@ -1922,6 +1931,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       received: {
         commit: input => run(input, 'received', core => core.provider.received.commit(input)),
         query: input => run(input, 'received.query', core => core.provider.received.query(input)),
+      },
+      // The bindings are durable records of the session (`receiving.*` parts), so a copy rebuilt
+      // after a restart answers as the copy that committed them did.
+      targets: {
+        forExecution: input =>
+          run(input.access, 'targets.forExecution', core => core.targets.forExecution(input)),
+        resolve: input => run(input.access, 'targets.resolve', core => core.targets.resolve(input)),
       },
     }
   }

@@ -318,6 +318,17 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
                   ? succeed({ kind: 'excluded' as const, evidence: previous.evidence })
                   : fail(conflict(input)),
             }
+          // The same operation with the same input is the original commit: answer it without a
+          // write. An alias here would change the records and make the session-log provider publish
+          // a change that holds nothing new.
+          if (previous?.kind === 'committed' && previous.key === text) {
+            const original = hooks.state().aliases.get(operationKey(input))
+            if (original) {
+              const value = rich(input, original)
+              if ('failure' in value) return { kind: 'answer', value }
+              return { kind: 'answer', value: succeed({ kind: 'committed' as const, value: value.ok }) }
+            }
+          }
           if (previous?.kind === 'committed' && previous.key !== text) {
             const old = hooks.state().aliases.get(operationKey(input))
             if (
@@ -631,7 +642,9 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       const requested = resolveModelInvocationRef(input.reference, input.access.tenant)
       if ('failure' in requested) return fail(denied())
       const found = hooks.state().callTargets.get(targetKey(input.access, requested.ok.call))
-      if (!found) return fail(denied())
+      // A route names the execution whose records are read; a binding of another one is absent.
+      if (!found || (input.execution !== undefined && input.execution !== found.execution))
+        return fail(denied())
       const permission = qualified({ ...input.access, execution: found.execution })
       return 'failure' in permission ? permission : succeed(structuredClone(found))
     },
