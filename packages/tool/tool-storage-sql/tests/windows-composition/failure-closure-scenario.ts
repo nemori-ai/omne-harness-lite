@@ -45,7 +45,7 @@ export async function runFailureClosureScenario(assembly: WindowsAssembly): Prom
 
   checks.readQueueFullRejectsWithUnavailable =
     overLimitRead.outcome.kind === 'rejected' &&
-    overLimitRead.outcome.reason.kind === 'unavailable'
+    overLimitRead.outcome.failure.kind === 'unavailable'
 
   // Wait for the original 32 reads to complete
   const completedReads = await Promise.all(inFlightReads)
