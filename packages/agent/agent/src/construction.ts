@@ -56,6 +56,11 @@ export type AgentConfiguration = Readonly<{
   /** The coordination mode this assembly requires of the Journal binding; no implicit default. */
   coordination: JournalCapabilities['coordination']
   loopGuardPolicy: Adoption
+  /**
+   * The most steps one execution takes (M2 fallback of R2-D221; the full loop judgment is wave 3).
+   * Absent: `DEFAULT_MAX_RUN_STEPS`. A step is one main Model request and the tools it calls.
+   */
+  maxRunSteps?: number
 }>
 
 export type AgentRuntimeOptions = Readonly<{

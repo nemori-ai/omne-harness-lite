@@ -41,6 +41,7 @@
 - [journal-received.spec.ts](journal-received.spec.ts)：同源提供者执行 required 接收共同提交套件
 - [model-receiver.spec.ts](model-receiver.spec.ts)：资格、原交付校验、未知、容量、账目和重装配
 - [loop-tools.spec.ts](loop-tools.spec.ts)：Tool 动作分发先保存原请求与意图再交给 Tool；收到的结果作为工具消息准入并发出下一次 Model 请求；并发调用在各自的槽里运行并按动作顺序准入消息，`toolConcurrency` 满时等待空位；关联未知的调用保留意图并重发同一请求；整批被拒时每个动作各有拒绝消息；源 Ja 的调用方：声明了 `message` 时工具消息交给 message 参加者，没有声明时调用方为 none，主回复始终为 none。夹具 [fixtures/tool-call.ts](fixtures/tool-call.ts)
+- [loop-run-steps.spec.ts](loop-run-steps.spec.ts)：执行步数上限 `maxRunSteps`（R2-D221 的 M2 临时兜底）。脚本化 Model 每一步都调同一个工具：上限之内由 Model 收尾时正常完成；走满上限时不开新一步，执行以 kind 为 `guard` 的失败候选结束；配置缺省时用 50。每条都配负控
 - [loop-consumption-scope.spec.ts](loop-consumption-scope.spec.ts)：协调器铸造的消费标识带 execution：两个 execution 的同一步是两个消费，后一个 Run 的调用登记不与前一个冲突
 - [loop-admission-pages.spec.ts](loop-admission-pages.spec.ts)：回复准入读取（Agent SPEC「回复准入的已核实前缀」）的纯部分：选下界的规则、普通提交携带的位置，以及已核实前缀前移之前对每一页的核对，每个用例只破坏一页的一个条件
 - [loop-admission-read.spec.ts](loop-admission-read.spec.ts)：E2 对回复准入事实的读取：协调器选的下界、进程内前缀、普通提交携带的读位置、提交时缺依据的答复进入 W0、缺依据时对原出处重读一次，以及从已保存前缀恢复读取。内存 Journal 不耐久，这里不证明耐久提供者

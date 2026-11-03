@@ -162,6 +162,11 @@ describe('the agent-host row: declaration and configuration', () => {
     expect(accepts({ ...hostConfig, jointCommits: ['message', 'message'] })).toBe(false)
   })
 
+  it('accepts the optional step limit `maxRunSteps` and refuses a zero one (R2-D221)', () => {
+    expect(accepts({ ...hostConfig, maxRunSteps: 50 })).toBe(true)
+    expect(accepts({ ...hostConfig, maxRunSteps: 0 })).toBe(false)
+  })
+
   it('refuses `jointCommits` without `message`, which the member schema alone accepts (R2-D93)', () => {
     for (const jointCommits of [[], ['custody', 'processed']]) {
       const value = { ...hostConfig, jointCommits }

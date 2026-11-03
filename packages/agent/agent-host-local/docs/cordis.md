@@ -125,7 +125,7 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
 | agent-host | 包 `@omne-harness/agent-host-local`，`./cordis` 的导出名 `agentHostPlugin` | 见下方示例 |
 | agent-instances | 包 `@omne-harness/agent-cordis-contract`，`./cordis` 的导出名 `agentInstancesPlugin` | 空对象 |
 
-示例的数值只示意格式，不是默认值。默认值由装配提供。
+示例的数值只示意格式，不是默认值。默认值由装配提供。`maxRunSteps` 是例外：它可以缺省，缺省时 Agent 工厂取 50（M2 临时兜底，R2-D221），宿主不另给值。
 
 ```json
 {
@@ -140,7 +140,8 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
     "toolConcurrency": 4,
     "jointCommits": ["message", "context-transition", "custody", "processed"],
     "coordination": "coordinated",
-    "loopGuardPolicy": { "owner": "agent", "name": "loop-guard-default", "revision": "1", "digest": "sha256:…" }
+    "loopGuardPolicy": { "owner": "agent", "name": "loop-guard-default", "revision": "1", "digest": "sha256:…" },
+    "maxRunSteps": 50
   }
 }
 ```

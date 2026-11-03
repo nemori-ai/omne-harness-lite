@@ -35,6 +35,7 @@ const FIELDS: ReadonlySet<string> = new Set([
   'jointCommits',
   'coordination',
   'loopGuardPolicy',
+  'maxRunSteps',
 ])
 
 const isPositive = (value: unknown) =>
@@ -53,6 +54,13 @@ function jointCommitsIssue(value: unknown): string | undefined {
   return undefined
 }
 
+/** Optional: the factory takes its default step limit when the assembly gives none (R2-D221). */
+function stepLimitIssues(value: unknown): readonly string[] {
+  return value === undefined || isPositive(value)
+    ? []
+    : ['maxRunSteps: not a positive safe integer']
+}
+
 /** The issues of one value, in the order of the fields. An empty list means a valid value. */
 function issuesOf(value: unknown): readonly Issue[] {
   if (typeof value !== 'object' || value === null || Array.isArray(value))
@@ -65,6 +73,7 @@ function issuesOf(value: unknown): readonly Issue[] {
     if (!isPositive(read(field))) issues.push(`${field}: not a positive safe integer`)
   for (const field of NON_NEGATIVE)
     if (!isNonNegative(read(field))) issues.push(`${field}: not a non-negative safe integer`)
+  issues.push(...stepLimitIssues(read('maxRunSteps')))
   if (!COORDINATION.includes(read('coordination'))) issues.push('coordination: unknown mode')
   const joint = jointCommitsIssue(read('jointCommits'))
   if (joint !== undefined) issues.push(joint)
@@ -73,7 +82,10 @@ function issuesOf(value: unknown): readonly Issue[] {
   return issues.map(message => ({ message }))
 }
 
-/** The Standard Schema of the plugin configuration. It has no default: the assembly gives every item. */
+/**
+ * The Standard Schema of the plugin configuration. It has no default: the assembly gives every
+ * item except the optional `maxRunSteps`, whose default the factory owns.
+ */
 export const agentHostConfig = {
   '~standard': {
     version: 1 as const,

@@ -15,8 +15,9 @@ function forbidden(specifier: string): boolean {
   )
 }
 
-it('root entry exports the factory, evaluator, checkpoint, control advance and producer receivers; construction shapes are types', () => {
+it('root entry exports the factory, evaluator, checkpoint, control advance, step limit default and producer receivers; construction shapes are types', () => {
   expect(Object.keys(agent).sort()).toEqual([
+    'DEFAULT_MAX_RUN_STEPS',
     'advanceControl',
     'agentCheckpointSchema',
     'agentEvaluator',

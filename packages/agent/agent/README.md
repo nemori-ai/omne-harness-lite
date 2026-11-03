@@ -272,6 +272,7 @@ These choices describe phase 1 readings and mechanisms not delivered. The node t
 - In free, reserved and running slots, phase 1 does not recognize the same operation naming another execution as the same admission. A free slot can admit a second execution. A held slot follows normal routing and usually returns busy. Detecting this reuse requires an index across executions. The Journal provider owns that index. Phase 1 does not provide it.
 - I1 accepts assembled on the first prepare and stops on an illegal first ready (#558 S-11). P0/P1 remain the existing straight-through path without extensions. Changed selections, recipient/coverage consistency retries and the final extra selection remain undelivered.
 - M0 inherits the ready `requestPreparation`, which holds the final request (#558 M04-2). The loop judgment, a trusted system extension, does not run at M4 (stages 3 and 7).
+- The M2 fallback of R2-D221: before E4 or I8 opens a new step, it checks `maxRunSteps` (default 50). When the execution took that many steps, it ends with a failure candidate of kind `guard`, not with completion. The fallback writes no guard fact. The full loop judgment is wave 3. The tests are in `tests/loop-run-steps.spec.ts`.
 
 The memory Journal follows the readings that #558 decided:
 
