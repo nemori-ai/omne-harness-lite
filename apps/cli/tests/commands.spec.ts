@@ -9,6 +9,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { writeSessionOwners } from '@omne-harness/cli'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   commandMissing,
@@ -58,6 +59,18 @@ function cli(argv: readonly string[], options: InProcessOptions = {}) {
 
 async function login(service: FakeService, identifier = 'alice') {
   return cli(['login', '--login-identifier', identifier, '--server', service.origin])
+}
+
+/**
+ * A login that also owns `sessionId` as the tenant of that login. The commands that act on an
+ * existing session need the owner: no `--tenant` and no record is a usage error, so the tests
+ * that are not about the owner rule start from a state in which the owner is known.
+ */
+async function loginOwningSession(service: FakeService) {
+  const result = await login(service)
+  const written = writeSessionOwners(state, new Map([[sessionId, tenantText]]))
+  expect(written.kind).toBe('written')
+  return result
 }
 
 const loginFile = () => join(state, 'login.json')
@@ -268,7 +281,7 @@ describe('session commands', () => {
 
     it('sends the login proof in the body, prints the response, and keeps the proof out of the output', async () => {
       const service = await serve()
-      await login(service)
+      await loginOwningSession(service)
       const result = await cli([name, ...args])
       expect(result.code).toBe(0)
       const printed = parsed(result.stdout)
@@ -282,7 +295,7 @@ describe('session commands', () => {
 
     it('exits 5 with result uncertain when the service is not running', async () => {
       const service = await serve()
-      await login(service)
+      await loginOwningSession(service)
       const port = await closedPort()
       const result = await cli([name, ...args, '--server', `http://127.0.0.1:${port}`])
       expect(result.code).toBe(5)
@@ -305,7 +318,7 @@ describe('session commands', () => {
           ? { outcome: 'succeeded', body: loginBody(seen) }
           : { outcome, body: {} },
       )
-      await login(service)
+      await loginOwningSession(service)
       const result = await cli([name, ...args])
       expect(result.code).toBe(code)
       expect(parsed(result.stdout)).toMatchObject({ result: 'response', outcome, body: {} })
@@ -318,7 +331,7 @@ describe('session commands', () => {
           ? { outcome: 'succeeded', body: loginBody(seen) }
           : { outcome: 'unknown', body: {} },
       )
-      await login(service)
+      await loginOwningSession(service)
       const result = await cli([name, ...args])
       expect(result.code).toBe(5)
       expect(result.stderr).toBe(resultUncertain(name))
@@ -327,7 +340,7 @@ describe('session commands', () => {
 
     it('exits 2 for a missing value, a repeated option, an unknown option, and a stray word', async () => {
       const service = await serve()
-      await login(service)
+      await loginOwningSession(service)
       const before = service.seen.length
       const [first] = args
       const stray = [
@@ -346,14 +359,14 @@ describe('session commands', () => {
 
     it('exits 2 when the server address is not a loopback http address', async () => {
       const service = await serve()
-      await login(service)
+      await loginOwningSession(service)
       const result = await cli([name, ...args, '--server', 'http://example.com:8787'])
       expect(result).toMatchObject({ code: 2, stdout: '', stderr: serverRefused })
     })
 
     it('exits 1 when standard output cannot be written', async () => {
       const service = await serve()
-      await login(service)
+      await loginOwningSession(service)
       const result = await cli([name, ...args], { failStdout: true })
       expect(result.code).toBe(1)
       expect(result.stderr).toContain(`omne ${name}:`)
@@ -371,7 +384,7 @@ describe('session commands', () => {
 
   it('create-session sends the login tenant as the acting tenant and echoes its ids', async () => {
     const service = await serve()
-    await login(service)
+    await loginOwningSession(service)
     const result = await cli(['create-session', '--definition', 'default', '--purpose', 'demo'])
     const request = parsed(result.stdout)['request'] as Record<string, string>
     expect(request['tenant']).toBe(tenantText)
@@ -385,7 +398,7 @@ describe('session commands', () => {
 
   it('create-session keeps a caller-supplied call id so a retry repeats the same intent', async () => {
     const service = await serve()
-    await login(service)
+    await loginOwningSession(service)
     const result = await cli([
       'create-session',
       '--definition',
@@ -401,7 +414,7 @@ describe('session commands', () => {
 
   it('send-input wraps the text as one user message and may start with a dash', async () => {
     const service = await serve()
-    await login(service)
+    await loginOwningSession(service)
     const result = await cli(['send-input', '--session', sessionId, '--text', '-5 apples'])
     const request = parsed(result.stdout)['request'] as Record<string, string>
     expect(request['tenant']).toBe(tenantText)
@@ -425,7 +438,7 @@ describe('session commands', () => {
 
   it('send-input sends the same message for the same input id', async () => {
     const service = await serve()
-    await login(service)
+    await loginOwningSession(service)
     const argv = [
       'send-input',
       '--session',
@@ -447,7 +460,7 @@ describe('session commands', () => {
 
   it('cancel-run sends the run and defaults the urgency to graceful', async () => {
     const service = await serve()
-    await login(service)
+    await loginOwningSession(service)
     const result = await cli(['cancel-run', '--session', sessionId, '--run', 'run-7'])
     const request = parsed(result.stdout)['request'] as Record<string, string>
     expect(request['tenant']).toBe(tenantText)
@@ -463,7 +476,7 @@ describe('session commands', () => {
 
   it('cancel-run accepts force and refuses any other urgency', async () => {
     const service = await serve()
-    await login(service)
+    await loginOwningSession(service)
     const forced = await cli([
       'cancel-run',
       '--session',
@@ -485,7 +498,7 @@ describe('session commands', () => {
         ? { outcome: 'succeeded', body: loginBody(seen) }
         : { outcome: 'unsupported', body: {} },
     )
-    await login(service)
+    await loginOwningSession(service)
     const result = await cli([
       'stop-call',
       '--session',
@@ -510,7 +523,7 @@ describe('session commands', () => {
 
   it('refuses a producer kind that is neither model nor tool', async () => {
     const service = await serve()
-    await login(service)
+    await loginOwningSession(service)
     const result = await cli([
       'stop-call',
       '--session',
@@ -525,7 +538,7 @@ describe('session commands', () => {
 
   it('names the first missing required option', async () => {
     const service = await serve()
-    await login(service)
+    await loginOwningSession(service)
     expect(await cli(['cancel-run', '--session', sessionId])).toMatchObject({
       code: 2,
       stderr: commandMissing('cancel-run', '--run'),
@@ -538,7 +551,7 @@ describe('session commands', () => {
 
   it('--tenant replaces the login tenant, and a bad tenant text is a usage error', async () => {
     const service = await serve()
-    await login(service)
+    await loginOwningSession(service)
     const sent = await cli([
       'cancel-run',
       '--session',
@@ -566,7 +579,7 @@ describe('session commands', () => {
     const first = await serve()
     const second = await serve()
     const third = await serve()
-    await login(first)
+    await loginOwningSession(first)
     const args = ['cancel-run', '--session', sessionId, '--run', 'r']
     await cli(args)
     await cli(args, { omneServer: second.origin })
@@ -586,7 +599,12 @@ describe('server address for register and login', () => {
       '--server',
       'https://example.com',
     ])
-    expect(result).toMatchObject({ code: 2, stdout: '', stderr: serverRefused, credentialReads: 0 })
+    expect(result).toMatchObject({
+      code: 2,
+      stdout: '',
+      stderr: serverRefused,
+      credentialReads: 0,
+    })
   })
 
   it('prefers --server over OMNE_SERVER', async () => {

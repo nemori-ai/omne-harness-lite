@@ -14,6 +14,7 @@ import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli
 import { readLoginState, writeLoginState, type LoginState } from './login-state.ts'
 import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
+import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
 import { ensureStateDirectory, resolveStateDirectory } from './state-directory.ts'
 
 const defaultServer = 'http://127.0.0.1:8787'
@@ -173,20 +174,39 @@ async function runAccount(
 
 interface SessionContext {
   readonly state: LoginState
-  readonly loginTenant: TenantId
   readonly newId: () => string
 }
 
 type Built = { readonly request: SessionRequest; readonly echo: RequestEcho }
 
-interface SessionCommand<Parsed> {
+interface SessionCommandBase<Parsed> {
   readonly name: string
   readonly accepted: readonly string[]
   readonly required: readonly string[]
   /** Checks the values that need no state. Returns `undefined` for a usage error. */
   readonly parse: (values: Option) => Parsed | undefined
-  readonly build: (parsed: Parsed, context: SessionContext) => Built
 }
+
+/** Creates a session. The tenant that is selected at login is the acting tenant. */
+interface CreatingCommand<Parsed> extends SessionCommandBase<Parsed> {
+  readonly kind: 'creating'
+  readonly build: (parsed: Parsed, context: SessionContext & { loginTenant: TenantId }) => Built
+}
+
+/**
+ * Acts on a session that exists. The owner of a session is fixed when it is created, so the
+ * tenant of the request is the owner and never the tenant that is selected now.
+ */
+interface ExistingCommand<Parsed> extends SessionCommandBase<Parsed> {
+  readonly kind: 'existing'
+  readonly target: (parsed: Parsed) => {
+    readonly session: string
+    readonly tenant: TenantId | undefined
+  }
+  readonly build: (parsed: Parsed, context: SessionContext & { owner: TenantId }) => Built
+}
+
+type SessionCommand<Parsed> = CreatingCommand<Parsed> | ExistingCommand<Parsed>
 
 /** `--tenant`: `undefined` when absent, `null` when present but not a tenant text. */
 function tenantOption(values: Option): TenantId | undefined | null {
@@ -222,26 +242,65 @@ async function runSession<Parsed>(
   if (opened.kind === 'refused' || loginTenant === undefined)
     return localFailure(output, `omne: login state is invalid\n`)
 
-  const { request, echo } = command.build(parsed, {
-    state: login.state,
-    loginTenant,
-    newId: environment.services.newId,
-  })
+  const context = { state: login.state, newId: environment.services.newId }
+  let built: Built
+  let owners: ReadonlyMap<string, string> = new Map()
+  if (command.kind === 'creating') {
+    // The records are read before anything is sent, so a damaged file stops the command before a
+    // session exists that the file cannot take.
+    const records = readSessionOwners(directory.path)
+    if (records.kind === 'failure') return localFailure(output, records.message)
+    owners = records.owners
+    built = command.build(parsed, { ...context, loginTenant })
+  } else {
+    const { session, tenant: given } = command.target(parsed)
+    let owner = given
+    if (owner === undefined) {
+      const records = readSessionOwners(directory.path)
+      if (records.kind === 'failure') return localFailure(output, records.message)
+      owner = parseTenantText(records.owners.get(session) ?? '')
+    }
+    if (owner === undefined)
+      return usageError(
+        output,
+        `omne ${name}: the owner tenant of this session is unknown
+Add --tenant <tenant>.
+`,
+      )
+    built = command.build(parsed, { ...context, owner })
+  }
   const client = createSessionClient({ transport: opened.transport })
-  const result = await attempt(() => client.submit(request))
+  const result = await attempt(() => client.submit(built.request))
   if (result === undefined) return usageError(output, unrecognized(name))
-  return report(name, result, echo, output)
+  const code = report(name, result, built.echo, output)
+  if (command.kind !== 'creating') return code
+
+  const session =
+    result.kind === 'response' && result.message.outcome === 'succeeded'
+      ? text(result.message.body, 'session')
+      : ''
+  if (session === '') return code
+  const saved = writeSessionOwners(
+    directory.path,
+    new Map(owners).set(session, tenantText(loginTenant)),
+  )
+  if (saved.kind === 'written') return code
+  const reason = saved.code === undefined ? '' : `: ${saved.code}`
+  output.stderr(`omne ${name}: cannot write session records ${saved.path}${reason}
+`)
+  return 1
 }
 
 function proofOf(state: LoginState) {
   return { kind: 'present', value: state.loginProof } as const
 }
 
-const createSession: SessionCommand<{
+const createSession: CreatingCommand<{
   definition: string
   purpose: string
   createCallId: string | undefined
 }> = {
+  kind: 'creating',
   name: 'create-session',
   accepted: ['--definition', '--purpose', '--create-call-id', serverOption],
   required: ['--definition'],
@@ -279,13 +338,14 @@ function targeted(values: Option): Targeted | undefined {
   return { session: values.get('--session') ?? '', tenant, controlId: values.get('--control-id') }
 }
 
-const sendInput: SessionCommand<
+const sendInput: ExistingCommand<
   Omit<Targeted, 'controlId'> & {
     text: string
     acceptId: string | undefined
     inputId: string | undefined
   }
 > = {
+  kind: 'existing',
   name: 'send-input',
   accepted: ['--session', '--text', '--tenant', '--accept-id', '--input-id', serverOption],
   required: ['--session', '--text'],
@@ -300,11 +360,11 @@ const sendInput: SessionCommand<
       inputId: values.get('--input-id'),
     }
   },
-  build: (parsed, { state, loginTenant, newId }) => {
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: (parsed, { state, owner: tenant, newId }) => {
     const messageId = newId()
     const acceptId = parsed.acceptId ?? newId()
     const inputId = parsed.inputId ?? newId()
-    const tenant = parsed.tenant ?? loginTenant
     return {
       request: {
         protocolVersion: 'session-public/1',
@@ -324,7 +384,8 @@ const sendInput: SessionCommand<
   },
 }
 
-const cancelRun: SessionCommand<Targeted & { run: string; urgency: 'graceful' | 'force' }> = {
+const cancelRun: ExistingCommand<Targeted & { run: string; urgency: 'graceful' | 'force' }> = {
+  kind: 'existing',
   name: 'cancel-run',
   accepted: ['--session', '--run', '--urgency', '--tenant', '--control-id', serverOption],
   required: ['--session', '--run'],
@@ -334,10 +395,10 @@ const cancelRun: SessionCommand<Targeted & { run: string; urgency: 'graceful' | 
     if (target === undefined || (urgency !== 'graceful' && urgency !== 'force')) return undefined
     return { ...target, run: values.get('--run') ?? '', urgency }
   },
-  build: (parsed, { state, loginTenant, newId }) => {
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: (parsed, { state, owner: tenant, newId }) => {
     const messageId = newId()
     const controlId = parsed.controlId ?? newId()
-    const tenant = parsed.tenant ?? loginTenant
     return {
       request: {
         protocolVersion: 'session-public/1',
@@ -357,7 +418,8 @@ const cancelRun: SessionCommand<Targeted & { run: string; urgency: 'graceful' | 
   },
 }
 
-const stopCall: SessionCommand<Targeted & { kind: 'model' | 'tool'; call: string }> = {
+const stopCall: ExistingCommand<Targeted & { kind: 'model' | 'tool'; call: string }> = {
+  kind: 'existing',
   name: 'stop-call',
   accepted: ['--session', '--producer-kind', '--call', '--tenant', '--control-id', serverOption],
   required: ['--session', '--producer-kind', '--call'],
@@ -367,10 +429,10 @@ const stopCall: SessionCommand<Targeted & { kind: 'model' | 'tool'; call: string
     if (target === undefined || (kind !== 'model' && kind !== 'tool')) return undefined
     return { ...target, kind, call: values.get('--call') ?? '' }
   },
-  build: (parsed, { state, loginTenant, newId }) => {
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: (parsed, { state, owner: tenant, newId }) => {
     const messageId = newId()
     const controlId = parsed.controlId ?? newId()
-    const tenant = parsed.tenant ?? loginTenant
     return {
       request: {
         protocolVersion: 'session-public/1',

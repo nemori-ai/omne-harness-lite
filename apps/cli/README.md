@@ -14,6 +14,7 @@ Implemented:
 - The six commands. Each command sends one public operation through the SDK and prints one JSON object.
 - Credential entry without echo on a terminal, and from a pipe.
 - `login.json` in the state directory, written through a temporary file and a rename.
+- `sessions.json` in the state directory: for each session `create-session` made, the tenant that owns it. The same write method.
 - Usage errors for every other argument list.
 - `resolveStateDirectory` and `ensureStateDirectory` as public functions.
 
@@ -48,25 +49,25 @@ The server address comes from `--server`, then `OMNE_SERVER`, then (for session 
 
 Every command prints one JSON object to standard output. The object has four keys:
 
-| Key | When it appears | Content |
-| --- | --- | --- |
-| `result` | Always | `response` or `uncertain` |
-| `outcome` | `result` is `response` | The public contract outcome |
-| `body` | `result` is `response` | The response body. For `login`, the body has no `loginProof` |
-| `request` | Always | The identifiers this call sent |
+| Key       | When it appears        | Content                                                      |
+| --------- | ---------------------- | ------------------------------------------------------------ |
+| `result`  | Always                 | `response` or `uncertain`                                    |
+| `outcome` | `result` is `response` | The public contract outcome                                  |
+| `body`    | `result` is `response` | The response body. For `login`, the body has no `loginProof` |
+| `request` | Always                 | The identifiers this call sent                               |
 
 `request` holds `messageId` for every command, plus the call, accept, input, or control identifiers of the operation. To retry the same intent, pass them back with `--create-call-id`, `--accept-id`, `--input-id`, or `--control-id`. The command then reuses the identifiers, so the server can recognize the retry. A new `messageId` is fine.
 
 `uncertain` means the command has no trustworthy reply. The request may have reached the server, or it may not have. Treat it as neither success nor absence. The exit code reflects that:
 
-| Exit code | Condition |
-| --- | --- |
-| `0` | `succeeded` or `no-change` |
-| `1` | Local failure: identity file, state directory, login state, credential read, or a failed stdout write |
-| `2` | Usage error, including an invalid server address |
-| `3` | Any other refusal, such as `denied`, `not-found`, or `unsupported` |
-| `4` | `basis-unavailable`. Retry later |
-| `5` | `uncertain` or an `unknown` outcome |
+| Exit code | Condition                                                                                             |
+| --------- | ----------------------------------------------------------------------------------------------------- |
+| `0`       | `succeeded` or `no-change`                                                                            |
+| `1`       | Local failure: identity file, state directory, login state, credential read, or a failed stdout write |
+| `2`       | Usage error, including an invalid server address                                                      |
+| `3`       | Any other refusal, such as `denied`, `not-found`, or `unsupported`                                    |
+| `4`       | `basis-unavailable`. Retry later                                                                      |
+| `5`       | `uncertain` or an `unknown` outcome                                                                   |
 
 Other programs can reuse the state directory functions:
 
@@ -95,7 +96,7 @@ The stable promises are:
 - Help and version write only to standard output and exit `0`.
 - Usage errors write only to standard error and exit `2`.
 - A missing or invalid `dist/cli-identity.json` makes `--version` exit `1`.
-- Help, version, usage errors, and `register` do not open, create, or change a state directory. Only `login` creates it. The four session commands only read it.
+- Help, version, usage errors, and `register` do not open, create, or change a state directory. Only `login` creates it. The four session commands only read it, except that `create-session` also writes `sessions.json` after a success.
 - Only `login.json` holds the login proof. No standard output, error text, or other state file holds the credential or the proof.
 - `resolveStateDirectory` never touches the filesystem.
 - `ensureStateDirectory` never removes what occupies the path. It returns an error instead of throwing. A directory it creates has mode `0700` on POSIX.
@@ -114,6 +115,7 @@ Each module has one job:
 - `src/report.ts` prints the result object and maps `result` and `outcome` to an exit code.
 - `src/credential.ts` reads the credential. `editCredential` is the pure line editor for a terminal.
 - `src/login-state.ts` reads and writes `login.json`.
+- `src/session-owners.ts` reads and writes `sessions.json`.
 - `src/services.ts` holds the real services: the SDK HTTP transport, process stdin, and random identifiers.
 - `src/identity.ts` reads `cli-identity.json` beside the build module through `import.meta.url`.
 - `src/run.ts` maps a parsed command to output and an exit code.
@@ -126,13 +128,13 @@ The build writes the version into `dist/cli-identity.json`. The printed version 
 
 ## Configuration and operation
 
-| Input | Effect |
-| --- | --- |
-| `--home <directory>` | The state directory. A usage error for `register`. Help and version do not use it. |
-| `OMNE_HOME` | The state directory when `--home` is absent. Help and version do not resolve or create that path. An empty value is an error, not a fallback to the default. |
-| `HOME` | The default state directory is `$HOME/.omne`. |
-| `--server <url>` | The server address. Overrides `OMNE_SERVER`. |
-| `OMNE_SERVER` | The server address when `--server` is absent. An empty value counts as absent. |
+| Input                | Effect                                                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--home <directory>` | The state directory. A usage error for `register`. Help and version do not use it.                                                                           |
+| `OMNE_HOME`          | The state directory when `--home` is absent. Help and version do not resolve or create that path. An empty value is an error, not a fallback to the default. |
+| `HOME`               | The default state directory is `$HOME/.omne`.                                                                                                                |
+| `--server <url>`     | The server address. Overrides `OMNE_SERVER`.                                                                                                                 |
+| `OMNE_SERVER`        | The server address when `--server` is absent. An empty value counts as absent.                                                                               |
 
 Requirements:
 

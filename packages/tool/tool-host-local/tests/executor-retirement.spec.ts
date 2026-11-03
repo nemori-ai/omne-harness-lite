@@ -5,9 +5,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
+import type { ToolExecutionRef } from '@omne-harness/tool-contract'
 import type { ToolDriver, ToolInstanceHost } from '@omne-harness/tool-contract/provider'
 import { createRuntimeExecutor } from '../src/runtime-executor.ts'
-import { instanceId } from './coordinator-values.ts'
+import { evidence, instanceId } from './coordinator-values.ts'
 import { fixture } from './delivery/fixture.ts'
 
 type ExecutorInput = Parameters<typeof createRuntimeExecutor>[0]
@@ -59,16 +60,36 @@ function controlledHost() {
   }
 }
 
-async function world() {
+/**
+ * `execution`: the recovery reports an ended execution of this instance, so the executor publishes
+ * the call through `ctx.plugin` and owns a fiber. `fiber` is what that plugin call returns.
+ */
+async function world(
+  options: Readonly<{ execution?: boolean; fiber?: { dispose(): Promise<void> } }> = {},
+) {
   const f = await fixture()
   const recovery = gate()
   let recovered = 0
+  const execution: ToolExecutionRef = {
+    tenant: f.access.tenant,
+    call: f.access.call,
+    instance: instanceId,
+    generation: '1',
+  }
   const loadRecovery = vi.fn(
     async (input: Parameters<typeof f.ledger.commands.loadRecovery>[0]) => {
       await recovery.pass()
       const answer = await f.ledger.commands.loadRecovery(input)
       recovered += 1
-      return answer
+      if ('failure' in answer || options.execution !== true) return answer
+      return succeed({
+        ...answer.ok,
+        execution,
+        state: {
+          ...answer.ok.state,
+          execution: { kind: 'ended' as const, evidence: evidence('ended') },
+        },
+      })
     },
   )
   const access = gate()
@@ -78,7 +99,10 @@ async function world() {
   })
   const controlled = controlledHost()
   const executor = createRuntimeExecutor({
-    ctx: { logger: () => ({ warn: () => undefined }) } as unknown as Context,
+    ctx: {
+      logger: () => ({ warn: () => undefined }),
+      plugin: () => options.fiber ?? null,
+    } as unknown as Context,
     settings: {
       store: f.store,
       access: { guard: f.input.access },
@@ -134,10 +158,37 @@ it('R2-D164 a complete call retires when the run in progress ends, and is not re
     const delivery2 = w.access.hold()
     run2Recovery.resolve()
     await run2
-    expect(w.executor.diagnostics().completed).toBe(1)
+    await vi.waitFor(() => expect(w.executor.diagnostics().completed).toBe(1))
     expect(w.executor.knows(w.f.access)).toBe(false)
     await w.executor.close()
     delivery2.resolve()
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('R2-D186 a failed cleanup keeps the call, the interval wakes it, and it retires once', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  try {
+    const dispose = vi.fn(async () => undefined)
+    dispose.mockRejectedValueOnce(new Error('cleanup failed'))
+    const w = await world({ execution: true, fiber: { dispose } })
+    const { call } = w.f.access
+    expect(w.executor.remember(w.f.access)).toBe(true)
+    // Round 1 publishes the call (a fiber) and delivers; the retirement's cleanup fails.
+    await w.controlled.run(w.step)
+    await vi.waitFor(() => expect(dispose).toHaveBeenCalledTimes(1))
+    expect(w.executor.diagnostics().completed).toBe(0)
+    expect(w.executor.knows(w.f.access)).toBe(true)
+    // Not complete any more: the interval wakes the call again.
+    vi.advanceTimersByTime(RETRY_MS)
+    expect(w.controlled.scheduled).toEqual([call])
+    // Round 2 judges the delivery outcome again; this time the cleanup succeeds.
+    await w.controlled.run(w.step)
+    await vi.waitFor(() => expect(w.executor.diagnostics().completed).toBe(1))
+    expect(dispose).toHaveBeenCalledTimes(2)
+    expect(w.executor.knows(w.f.access)).toBe(false)
+    await w.executor.close()
   } finally {
     vi.useRealTimers()
   }

@@ -1,18 +1,24 @@
 // 可信 Tool 请求供给者（R2-D36 第 2、3 点，Tool B 段）：五个来源（核验器、Catalog、会话快照、可信作用域绑定、
 // 发行快照）每次现取；任一缺席或不符都答 unavailable 或 denied，跨租户被拒。供给的请求经 Tool 公开判定通过，
 // 且定义、consumer、参数都是准入动作的原样。
+import { Service, type Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
+import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
+import type { PrincipalIssuer } from '@omne-harness/identity'
+import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import type { ScopeBindingSource } from '@omne-harness/runtime-context-contract'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { WorkSnapshot } from '@omne-harness/session-contract'
+import type { SessionFaces, WorkSnapshot } from '@omne-harness/session-contract'
+import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import type {
   ToolAvailability,
   ToolCatalog,
   ToolDefinition,
   ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
+import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import {
   deriveDefinition,
   judgeToolDefinition,
@@ -24,7 +30,9 @@ import { releaseOf } from '../../src/entry/tool-release.ts'
 import { governanceOf } from '../../src/entry/tool-release-manifest.ts'
 import {
   createReleaseToolRequests,
+  releaseToolRequestsOf,
   routeOf,
+  type ReleaseToolRequests,
   type ToolRequestPorts,
 } from '../../src/entry/tool-requests.ts'
 import { RELEASE_TOOL_SCOPE } from '../../src/rows/tool-runtime/scope.ts'
@@ -129,7 +137,10 @@ function actionInput(principal: unknown, tenant = TENANT_A, name = 'Shell.execut
 }
 
 async function prepared(ports: ToolRequestPorts, principal: unknown, tenant = TENANT_A) {
-  const source = createReleaseToolRequests(ports)
+  return preparedBy(createReleaseToolRequests(ports), principal, tenant)
+}
+
+async function preparedBy(source: ReleaseToolRequests, principal: unknown, tenant = TENANT_A) {
   const input = actionInput(principal, tenant)
   const described = await source.describe(input)
   if ('failure' in described) return described
@@ -181,6 +192,23 @@ describe('the trusted Tool request source', () => {
     expect(await prepared(ports, structuredClone(principalA))).toMatchObject({
       failure: { kind: 'denied' },
     })
+  })
+
+  it('denies a verified principal that names a session but was issued for another component (N3)', async () => {
+    const { fixture, ports } = await world()
+    const issuer = fixture.env
+      .readTrusted(principalIssuerKey)
+      .get(principalIssuerKey) as PrincipalIssuer
+    const actor = okOf(issuer.issueSystem({ component: 'notSessionWork' }), 'actor')
+    const other = okOf(
+      issuer.issueActingForTenant({
+        actor,
+        tenant: TENANT_A,
+        work: { owner: 'session', work: 'ses-a' },
+      }),
+      'principal',
+    )
+    expect(await prepared(ports, other)).toMatchObject({ failure: { kind: 'denied' } })
   })
 
   it('answers unavailable without the catalog', async () => {
@@ -262,5 +290,43 @@ describe('the trusted Tool request source', () => {
         admission: { owner: 'test', record: 'admission', revision: '1', digest: 'd' },
       }),
     ).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+})
+
+/**
+ * A Session service on the root whose `work` face records the caller class it was read for (the
+ * intercept configuration of the caller, as the Session provider reads it) and answers `snapshot`.
+ */
+function recordingSession(snapshot: WorkSnapshot, callers: unknown[]) {
+  class RecordingSession extends SessionService<unknown> {
+    get work(): SessionFaces<unknown>['work'] {
+      const config: unknown = this[Service.resolveConfig]()
+      callers.push(
+        typeof config === 'object' && config !== null ? Reflect.get(config, 'caller') : undefined,
+      )
+      return { readWork: async () => succeed(snapshot) } as unknown as SessionFaces<unknown>['work']
+    }
+    readonly management = {} as SessionFaces<unknown>['management']
+    readonly reconciliation = {} as SessionFaces<unknown>['reconciliation']
+    readonly history = {} as SessionFaces<unknown>['history']
+  }
+  return { name: 'fixture-session', apply: (ctx: Context) => void new RecordingSession(ctx) }
+}
+
+describe('the release composition releaseToolRequestsOf on a real Cordis root (R2-D189 N1)', () => {
+  it('reads the session as the reader caller and the scope binding under executionScopeBinding', async () => {
+    const { fixture, ports, principalA, snapshot } = await world()
+    const callers: unknown[] = []
+    await fixture.root.plugin(recordingSession(snapshot, callers))
+    fixture.root.provide(toolCatalogKey, ports.catalog())
+    fixture.root.provide(executionScopeBindingKey, ports.scopeBinding())
+    const request = okOf(
+      await preparedBy(releaseToolRequestsOf(fixture.root), principalA),
+      'prepare',
+    ) as ToolInvokeRequest
+    expect(okOf(judgeToolInvokeRequest(request), 'judge')).toBeDefined()
+    expect(request.requesterScope).toEqual(SCOPE)
+    expect(callers.length).toBeGreaterThan(0)
+    expect(new Set(callers)).toEqual(new Set(['reader']))
   })
 })

@@ -384,7 +384,7 @@ describe('the delegated entry and the trusted reads', () => {
     expect('ok' in (await bound.readWork(access(TENANT_A, 's1')))).toBe(true)
   })
 
-  test('tenantDomains denies an unissued principal and sessionPrincipalBindings stays unavailable', async () => {
+  test('tenantDomains denies an unissued principal and sessionPrincipalBindings answers unavailable for a tenant the directory has not registered', async () => {
     const tree = await load(workspace())
     started(tree)
     const domains = tree.service<TenantDomains<string>>(tenantDomainsKey)

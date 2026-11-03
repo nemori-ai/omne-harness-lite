@@ -35,3 +35,11 @@ export {
   type StateDirectoryResolution,
   type StateDirectorySource,
 } from './state-directory.ts'
+export {
+  readSessionOwners,
+  sessionOwnersPath,
+  writeSessionOwners,
+  type SessionOwners,
+  type SessionOwnersRead,
+  type SessionOwnersWrite,
+} from './session-owners.ts'

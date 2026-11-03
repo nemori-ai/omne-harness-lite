@@ -20,6 +20,10 @@
 
 部署必须保证该登记文件只有一个写者。多个进程同时改同一登记表不受支持。启动后外部改写或删除的实时检测不在保证内。Windows 不提供这里采用的目录刷盘操作，因此本实现不承诺目录项的断电耐久。文件数据仍执行 fsync。关闭停止新登记并等待在途登记，截止时尚未结束则报告 incomplete。
 
+## 会话归属读口
+
+本行用 session-storage-sql 的 `createSessionPrincipalBindings` 构造受信 `sessionPrincipalBindings`，所用的存储与目录和公开端口相同。这个名字只在受信作用域里可见，根上取不到（R2-D192）。没有登记的租户答 unavailable。
+
 ## 部署枚举
 
 本行必需注入 `principalVerifier`，每次核验时重新取得该服务。行内复用 `referenceSystemActionAuthorization`，并消费共享的 `releaseMaintenanceGrants`。请求固定为 tenant-domains/enumerate、系统资源 tenant-domains/registered-tenants、资源键 deployment 与 `noArguments()`。

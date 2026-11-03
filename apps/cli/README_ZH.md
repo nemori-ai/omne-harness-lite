@@ -14,6 +14,7 @@
 - 六个命令。每个命令经 SDK 发送一个公开操作，并打印一个 JSON 对象。
 - 终端上不回显的凭据输入，以及从管道读取凭据。
 - 状态目录里的 `login.json`，经临时文件加改名写入。
+- 状态目录里的 `sessions.json`：`create-session` 建的每个会话和它的归属租户。写入方式相同。
 - 其余参数一律按用法错误处理。
 - 公开函数 `resolveStateDirectory` 和 `ensureStateDirectory`。
 
@@ -48,25 +49,25 @@ node apps/cli/dist/bin.js stop-call --session <id> --producer-kind model --call 
 
 每个命令向标准输出写一个 JSON 对象，含四个键：
 
-| 键 | 出现条件 | 内容 |
-| --- | --- | --- |
-| `result` | 总是 | `response` 或 `uncertain` |
-| `outcome` | `result` 为 `response` | 公开契约的 outcome |
-| `body` | `result` 为 `response` | 响应体。`login` 的响应体去掉 `loginProof` |
-| `request` | 总是 | 本次调用发出的标识 |
+| 键        | 出现条件               | 内容                                      |
+| --------- | ---------------------- | ----------------------------------------- |
+| `result`  | 总是                   | `response` 或 `uncertain`                 |
+| `outcome` | `result` 为 `response` | 公开契约的 outcome                        |
+| `body`    | `result` 为 `response` | 响应体。`login` 的响应体去掉 `loginProof` |
+| `request` | 总是                   | 本次调用发出的标识                        |
 
 `request` 总是含 `messageId`，另含该操作使用过的创建、接受、输入或控制标识。要重试同一意图，用 `--create-call-id`、`--accept-id`、`--input-id` 或 `--control-id` 把原值传回。命令沿用这些标识，服务器因此能认出是同一次意图。`messageId` 换新的没有问题。
 
 `uncertain` 表示命令没有可信答复。请求可能已经到达服务器，也可能没有。它既不是成功，也不是没有发生。退出码反映这一点：
 
-| 退出码 | 条件 |
-| --- | --- |
-| `0` | `succeeded` 或 `no-change` |
-| `1` | 本地失败：身份文件、状态目录、登录状态、凭据读取或标准输出写入失败 |
-| `2` | 用法错误，包括服务地址不合法 |
-| `3` | 其余拒绝，例如 `denied`、`not-found`、`unsupported` |
-| `4` | `basis-unavailable`，稍后可再试 |
-| `5` | `uncertain` 或 `unknown` 结果 |
+| 退出码 | 条件                                                               |
+| ------ | ------------------------------------------------------------------ |
+| `0`    | `succeeded` 或 `no-change`                                         |
+| `1`    | 本地失败：身份文件、状态目录、登录状态、凭据读取或标准输出写入失败 |
+| `2`    | 用法错误，包括服务地址不合法                                       |
+| `3`    | 其余拒绝，例如 `denied`、`not-found`、`unsupported`                |
+| `4`    | `basis-unavailable`，稍后可再试                                    |
+| `5`    | `uncertain` 或 `unknown` 结果                                      |
 
 其他程序可以复用状态目录函数：
 
@@ -95,7 +96,7 @@ else {
 - 帮助和版本只写标准输出，退出 `0`。
 - 用法错误只写标准错误，退出 `2`。
 - `dist/cli-identity.json` 缺失或无效时，`--version` 退出 `1`。
-- 帮助、版本、用法错误和 `register` 不打开、不创建、不修改状态目录。只有 `login` 创建它。四个会话命令只读取它。
+- 帮助、版本、用法错误和 `register` 不打开、不创建、不修改状态目录。只有 `login` 创建它。四个会话命令只读取它，只是 `create-session` 成功后还会写 `sessions.json`。
 - 只有 `login.json` 含登录证明。任何标准输出、错误文本和其他状态文件都不含凭据或证明。
 - `resolveStateDirectory` 不访问文件系统。
 - `ensureStateDirectory` 不删除占用路径的文件或目录。它返回错误，不抛出异常。它新建的目录在 POSIX 上权限为 `0700`。
@@ -114,6 +115,7 @@ else {
 - `src/report.ts` 打印结果对象，并把 `result` 与 `outcome` 映射为退出码。
 - `src/credential.ts` 读取凭据。`editCredential` 是终端上的纯行编辑函数。
 - `src/login-state.ts` 读写 `login.json`。
+- `src/session-owners.ts` 读写 `sessions.json`。
 - `src/services.ts` 放真实服务：SDK 的 HTTP 传输适配、进程标准输入和随机标识。
 - `src/identity.ts` 通过 `import.meta.url` 读取构建模块旁的 `cli-identity.json`。
 - `src/run.ts` 把解析结果映射为输出和退出码。
@@ -126,13 +128,13 @@ else {
 
 ## 配置与运行
 
-| 输入 | 效果 |
-| --- | --- |
-| `--home <directory>` | 状态目录。对 `register` 是用法错误。帮助和版本不使用它。 |
-| `OMNE_HOME` | 没有 `--home` 时的状态目录。帮助和版本不解析、也不创建该路径。空值是错误，不退回默认目录。 |
-| `HOME` | 默认状态目录是 `$HOME/.omne`。 |
-| `--server <url>` | 服务地址，覆盖 `OMNE_SERVER`。 |
-| `OMNE_SERVER` | 没有 `--server` 时的服务地址。空值视为没有。 |
+| 输入                 | 效果                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------ |
+| `--home <directory>` | 状态目录。对 `register` 是用法错误。帮助和版本不使用它。                                   |
+| `OMNE_HOME`          | 没有 `--home` 时的状态目录。帮助和版本不解析、也不创建该路径。空值是错误，不退回默认目录。 |
+| `HOME`               | 默认状态目录是 `$HOME/.omne`。                                                             |
+| `--server <url>`     | 服务地址，覆盖 `OMNE_SERVER`。                                                             |
+| `OMNE_SERVER`        | 没有 `--server` 时的服务地址。空值视为没有。                                               |
 
 运行要求：
 

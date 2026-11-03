@@ -6,6 +6,9 @@
 // 用例经 CLI 建 `coding` 会话、发一条输入，然后看 Session 为这个会话取到的两个工作主体：维护者（S1 读快照）与
 // 协调者（C2 提交 `startRun`）都签发成功。会话工作主体是发行的同一组合（`createSessionWorkPrincipals`、入口的窄签发
 // 视图、经受信作用域现读的归属读口），外面只多一层记录答复的观察。
+// 所以这条用例观察的是重新组合的 `observedWorkPrincipals`，不是发行的 `session-work-principals.ts` 模块本身。发行模块
+// 改成经根读取归属读口这类回归，由 `tests/rows/tool-runtime/composition.spec.ts` 的第二条用例（发行读口）与
+// `tests/entry/session-work-principals.spec.ts` 兜住（R2-D195 N2）。
 // 登录门由 Session 在 `startRun` 的提交事务里核对首条输入保存的 origin（R2-D198），CLI 经登录发的输入带
 // `login-entry` origin，所以 Run 开始：历史里出现 `run.started`（G-DIALOG 第二层）。用例只证明到 Run 开始。
 // 模型回复还写不进历史：Agent 在 I1 等 Runtime Context 读取资格、Request Context 来源登记与固定请求事实，

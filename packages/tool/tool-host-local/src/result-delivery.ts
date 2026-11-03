@@ -50,6 +50,9 @@ export type LocalDeliveryInput<P, B extends ContentBlock> = Readonly<{
   capacity: number
 }>
 
+/** One tenant's runs in flight: the last one started or queued, and how many wait behind it. */
+type Turn = { last: Promise<unknown> | null; queued: number }
+
 function tenantKey(tenant: TenantId): string | null {
   const encoded = tenantCodec.encode(tenant)
   return encoded.ok ? encoded.value : null
@@ -116,8 +119,12 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
   const state = createDeliveryState(input.store)
   const shutdown = new AbortController()
   const active = new Map<string, Reply<Readonly<{ pending: number }>>>()
-  /** The last run of each tenant, started or queued. The next run of the tenant waits for it. */
-  const turns = new Map<string, Promise<unknown>>()
+  /**
+   * The tenants with a run in flight: one running run each, and the runs queued behind it in
+   * arrival order. The capacity counts tenants here; the queue of one tenant does not take the
+   * place of another tenant (R2-D186).
+   */
+  const turns = new Map<string, Turn>()
 
   async function current(access: CallAccess<P>): Reply<CallAccess<P>> {
     const recovered = await input.position.access({ tenant: access.tenant, call: access.call })
@@ -347,6 +354,51 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     return succeed({ pending })
   }
 
+  /**
+   * Where a new run of the tenant goes. A tenant without a run in flight takes one of the
+   * `capacity` places. A tenant with one keeps its place: the run waits behind the running one,
+   * in arrival order, as long as the tenant's running and queued runs stay within `capacity`.
+   * Null when there is no place.
+   */
+  function admit(tenant: string): Turn | null {
+    const turn = turns.get(tenant)
+    if (turn !== undefined) return turn.queued + 1 < input.capacity ? turn : null
+    if (turns.size >= input.capacity) return null
+    const fresh: Turn = { last: null, queued: 0 }
+    turns.set(tenant, fresh)
+    return fresh
+  }
+
+  /**
+   * Runs `work` after the last run of the tenant. The turn belongs to the worker: a caller that
+   * stops observing leaves it in place (R2-D164). A turn that comes after close does not run.
+   */
+  function enqueue(
+    turn: Turn,
+    tenant: string,
+    key: string,
+    work: () => Reply<Readonly<{ pending: number }>>,
+  ): Reply<Readonly<{ pending: number }>> {
+    const previous = turn.last
+    if (previous !== null) turn.queued += 1
+    const start = (): Reply<Readonly<{ pending: number }>> => {
+      if (previous !== null) turn.queued -= 1
+      return shutdown.signal.aborted
+        ? Promise.resolve(deliveryUnavailable('delivery-wait'))
+        : work()
+    }
+    const running: Reply<Readonly<{ pending: number }>> = (previous ?? Promise.resolve())
+      .then(start, start)
+      .catch(() => deliveryUnavailable('delivery-worker'))
+      .finally(() => {
+        active.delete(key)
+        if (turn.last === running) turns.delete(tenant)
+      })
+    turn.last = running
+    active.set(key, running)
+    return running
+  }
+
   return Object.freeze({
     async drive(
       access: CallAccess<P> & Readonly<{ signal: AbortSignal }>,
@@ -373,27 +425,13 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
       const existing = active.get(key)
       if (existing !== undefined)
         return (await wait(existing, access.signal)) ?? deliveryUnavailable('delivery-wait')
-      if (active.size >= input.capacity)
-        return Promise.resolve(deliveryUnavailable('delivery-capacity'))
-      // One run per tenant at a time, in arrival order: a later call of the tenant waits for its
-      // turn instead of being refused, so a call that is driven more often cannot starve it
-      // (R2-D164). The turn belongs to the worker; a caller that stops observing leaves it.
-      const signal = shutdown.signal
-      const start = (): Reply<Readonly<{ pending: number }>> =>
-        signal.aborted
-          ? Promise.resolve(deliveryUnavailable('delivery-wait'))
-          : wait(run(access, signal), signal).then(
-              answer => answer ?? deliveryUnavailable('delivery-wait'),
-            )
-      const running = (turns.get(tenant) ?? Promise.resolve())
-        .then(start, start)
-        .catch(() => deliveryUnavailable('delivery-worker'))
-        .finally(() => {
-          active.delete(key)
-          if (turns.get(tenant) === running) turns.delete(tenant)
-        })
-      turns.set(tenant, running)
-      active.set(key, running)
+      const turn = admit(tenant)
+      if (turn === null) return deliveryUnavailable('delivery-capacity')
+      const running = enqueue(turn, tenant, key, () =>
+        wait(run(access, shutdown.signal), shutdown.signal).then(
+          answer => answer ?? deliveryUnavailable('delivery-wait'),
+        ),
+      )
       return (await wait(running, access.signal)) ?? deliveryUnavailable('delivery-wait')
     },
     async close(): Promise<void> {

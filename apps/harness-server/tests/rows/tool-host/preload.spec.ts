@@ -97,4 +97,32 @@ describe('tool-host: the release authors are loaded by the registrant at start',
     for (const access of seen) expect(access).toBe(registrant)
     expect(results.map(result => result.outcome)).toEqual(['unavailable', 'unavailable'])
   })
+
+  it('a throw while reading the release is kept in the start load: a warning, no rejection', async () => {
+    const fixture = await releaseFixture()
+    roots.push(fixture)
+    const throwing = new Proxy(fixture.root, {
+      get(target, property, receiver) {
+        if (property === 'get')
+          return () => {
+            throw new Error('test: the service read threw')
+          }
+        return Reflect.get(target, property, receiver) as unknown
+      },
+    })
+    const results = await preloadRelease(throwing, {
+      ensureLoaded: async () => {
+        throw new Error('unreached')
+      },
+    })
+    expect(results).toEqual([])
+    expect(
+      fixture.logs.some(
+        message =>
+          message.name === 'tool-host' &&
+          message.type === 'warn' &&
+          message.args.map(String).join(' ').includes('the start load threw'),
+      ),
+    ).toBe(true)
+  })
 })
