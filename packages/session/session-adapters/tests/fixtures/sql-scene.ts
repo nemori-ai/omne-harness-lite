@@ -18,6 +18,7 @@ import {
 } from '@omne-harness/agent-contract'
 import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { fail } from '@omne-harness/operation-result'
 import type {
   SessionAccess,
   SessionAccessDecision,
@@ -594,10 +595,39 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
     readonly check = (request: SessionAccessRequest<unknown>): Promise<SessionAccessDecision> =>
       Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) })
   }
-  const work = { readWork: s.port.readWork, readModelSelection: s.port.readModelSelection }
+  // The caller classes that the Session faces admit for the two reads of this stand-in
+  // (session-contract SPEC「四个面与公开操作」: `readWork` coordinator and maintainer;「控制与模型选择」:
+  // `readModelSelection` intake and maintainer). A declared class outside them is refused as the
+  // provider refuses it; a read without a declared class (a test reading directly) is not judged.
+  const admitted: Readonly<Record<'readWork' | 'readModelSelection', readonly string[]>> = {
+    readWork: ['coordinator', 'maintainer'],
+    readModelSelection: ['intake', 'maintainer'],
+  }
+  const faceFor = (caller: unknown) => {
+    const gate =
+      <I, T>(operation: keyof typeof admitted, read: (input: I) => Promise<T>) =>
+      (input: I): Promise<T> =>
+        typeof caller === 'string' && !admitted[operation].includes(caller)
+          ? (Promise.resolve(fail({ kind: 'denied', action: operation })) as Promise<T>)
+          : read(input)
+    return {
+      readWork: gate('readWork', s.port.readWork),
+      readModelSelection: gate('readModelSelection', s.port.readModelSelection),
+    }
+  }
   class Session extends SessionService<unknown> {
     get work(): SessionFaces<unknown>['work'] {
-      return work as unknown as SessionFaces<unknown>['work']
+      let intercept: unknown
+      try {
+        intercept = this[Service.resolveConfig]()
+      } catch {
+        intercept = undefined
+      }
+      const caller =
+        typeof intercept === 'object' && intercept !== null
+          ? (intercept as Readonly<Record<string, unknown>>)['caller']
+          : undefined
+      return faceFor(caller) as unknown as SessionFaces<unknown>['work']
     }
     readonly management = {} as SessionFaces<unknown>['management']
     readonly reconciliation = {} as SessionFaces<unknown>['reconciliation']

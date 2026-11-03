@@ -295,7 +295,8 @@ class SessionConditions extends CurrentConditionsService<unknown> {
 
 /**
  * The plugin of `agentConditions` (row `session-conditions`). It needs `storage`, the trusted
- * `tenantDomainLookup` and `session` with the `coordinator` class; while any is absent it stays
+ * `tenantDomainLookup` and `session` with the `coordinator` class (the saved model selection is
+ * read through the `maintainer` face of the same service); while any is absent it stays
  * pending and provides nothing. It has no configuration. Stopping makes every call, also through a
  * reference held from before, answer `unavailable`.
  */
@@ -315,7 +316,21 @@ export function createSessionConditionsPlugin<P>(input: SessionConditionsInput) 
         storage: ctx[storageKey],
         tenantDomainLookup: ctx[tenantDomainLookupKey],
         readWork: access => session.work.readWork(access as never),
-        readModelSelection: access => session.work.readModelSelection(access as never),
+        // The saved selection is a read of the intake and maintainer classes (session-contract SPEC
+        // 「控制与模型选择」), not of the coordinator: it goes through the `maintainer` face of the same
+        // Session service, with the caller's own Access, so the access check stays the Session's.
+        readModelSelection: access => {
+          const face = ctx.intercept(sessionKey, { caller: 'maintainer' }).get(sessionKey, false)
+          return face === undefined
+            ? Promise.resolve(
+                fail({
+                  kind: 'unavailable' as const,
+                  owner: OWNER,
+                  diagnostic: 'the Session maintainer face is absent',
+                }),
+              )
+            : face.work.readModelSelection(access as never)
+        },
       })
       const guarded: CurrentConditions<unknown>['read'] = async input => {
         if (stopped) return fail(unavailable('the conditions provider has stopped'))
