@@ -1,6 +1,7 @@
 // What one snapshot of a real directory holds: every file under the root, hidden ones and the
 // `.omne` directory included, as `/`-separated package paths; directories, empty ones included,
-// are not entries; the root name is the last segment of the root. A locator of another kind, an
+// are not entries; the root name is the last segment of the root. A file name that is no
+// package path makes the package unreadable. A locator of another kind, an
 // absent root and a root that is a file name no package of this source.
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -32,6 +33,20 @@ describe('snapshot of a directory', () => {
     if (!('ok' in answer)) throw new Error(answer.failure)
     expect(answer.ok.entries).toEqual([])
   })
+
+  it.each([
+    ['a backslash', 'back\\slash.md'],
+    ['a control character', 'line\nbreak.md'],
+  ])(
+    'answers entry-unreadable for a file name with %s, which is no package path',
+    async (_, name) => {
+      const root = join(await scratch(), 'pkg')
+      await writeTree(root, { files: { 'SKILL.md': '---\nname: pkg\n---\n', [name]: 'text\n' } })
+      expect(await createDirectorySource().snapshot(directory(root))).toEqual({
+        failure: 'entry-unreadable',
+      })
+    },
+  )
 
   it('answers package-not-found for a root that is a file', async () => {
     const base = await scratch()

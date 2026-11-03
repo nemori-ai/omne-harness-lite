@@ -9,7 +9,8 @@ import { promisify } from 'node:util'
 import { describe, expect, it, onTestFinished } from 'vitest'
 import { isPackageDigest, isPackagePath, type PackagePath } from '@omne-harness/skill-contract'
 import type { SkillPackageSource } from '@omne-harness/skill-contract/provider'
-import { createDirectorySource } from '@omne-harness/skill-host-local'
+import { createDirectorySource, type DirectoryFs } from '@omne-harness/skill-host-local'
+import { realFs } from './fs-double.ts'
 import { directory, scratch, writeTree } from './scratch.ts'
 
 const MANIFEST = '---\nname: pkg\ndescription: Links.\n---\n'
@@ -169,9 +170,16 @@ describe('two faults in one package', () => {
     await writeTree(base, { files: { 'secret.txt': 'secret\n' } })
     const first = join(base, 'dangling-first')
     await writeTree(first, { links: { a: 'missing', b: '../secret.txt' } })
-    expect(await snapshotFailure(first)).toBe('entry-unreadable')
     const second = join(base, 'leak-first')
     await writeTree(second, { links: { b: 'missing', a: '../secret.txt' } })
-    expect(await snapshotFailure(second)).toBe('outside-package')
+    const reversed: DirectoryFs = {
+      ...realFs,
+      readdir: async path => [...(await realFs.readdir(path))].reverse(),
+    }
+    for (const fs of [realFs, reversed]) {
+      const source = createDirectorySource({ fs })
+      expect(await source.snapshot(directory(first))).toEqual({ failure: 'entry-unreadable' })
+      expect(await source.snapshot(directory(second))).toEqual({ failure: 'outside-package' })
+    }
   })
 })
