@@ -22,7 +22,7 @@ import { evidence, operationId } from '@omne-harness/session-contract/testing'
 import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionHistorySource } from '../src/cordis/history-source.ts'
 import { ok } from './fixtures/common-journal.ts'
-import { sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
+import { sqlScene } from './fixtures/sql-scene.ts'
 
 type ModelViewInput = Parameters<SessionFaces<unknown>['history']['readModelView']>[0]
 type Sent = Readonly<{ after: string | null; rows: number }>
