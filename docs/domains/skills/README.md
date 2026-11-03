@@ -48,4 +48,4 @@ Skill与Tool依赖沿有效产品绑定；MCP动作不是独立资产，不能�
 
 ## 产品与技术承接
 
-[正式产品阅读位置](../../../.meta_harness/design/product/skills/design.md)维护能力、阶段与第四章未决，仍为草案，不改变本页原接受范围。[领域交接设计](architecture.md)与[跨领域流程](key-flows.md)只说明技术草案的责任关系。[能力组工程入口](../../../packages/skills/README.md)登记成员尚未具名及完整行为的正式承接缺项；原 contracts 继续是未分配、未采用的候选，不变为组统一 SPEC。
+[正式产品阅读位置](../../../.meta_harness/design/product/skills/design.md)维护能力、阶段与第四章未决，仍为草案，不改变本页原接受范围。[领域交接设计](architecture.md)与[跨领域流程](key-flows.md)只说明技术草案的责任关系。[能力组工程入口](../../../packages/skills/README.md)登记候选的具名文档目标（尚非 workspace 成员）及完整行为的成员承接表；原 contracts 继续是未采用的候选，不变为组统一 SPEC。
