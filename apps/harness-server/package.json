@@ -28,7 +28,8 @@
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false",
-    "check:aa-rows": "node scripts/aa-rows.mjs check --aa ../../docs/architecture/runtime/application-assembly.md --rows src/s0/aa-rows.json"
+    "check:aa-rows": "node scripts/aa-rows.mjs check --aa ../../docs/architecture/runtime/application-assembly.md --rows src/s0/aa-rows.json",
+    "check:tool-release": "node scripts/tool-release.mjs check"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
@@ -45,6 +46,7 @@
     "@omne-harness/execution-environment-host-local": "workspace:*",
     "@omne-harness/identity": "workspace:*",
     "@omne-harness/identity-sql": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
     "@omne-harness/kernel-basis": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/model": "workspace:*",
@@ -64,6 +66,7 @@
     "@omne-harness/runtime-context-contract": "workspace:*",
     "@omne-harness/runtime-context-cordis": "workspace:*",
     "@omne-harness/runtime-context-cordis-contract": "workspace:*",
+    "@omne-harness/schema-provider": "workspace:*",
     "@omne-harness/server-entry": "workspace:*",
     "@omne-harness/session-adapters": "workspace:*",
     "@omne-harness/session-contract": "workspace:*",
@@ -75,6 +78,7 @@
     "@omne-harness/tool": "workspace:*",
     "@omne-harness/tool-contract": "workspace:*",
     "@omne-harness/tool-cordis-contract": "workspace:*",
+    "@omne-harness/tool-definitions": "workspace:*",
     "@omne-harness/tool-host-local": "workspace:*",
     "@omne-harness/tool-storage-sql": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*",
