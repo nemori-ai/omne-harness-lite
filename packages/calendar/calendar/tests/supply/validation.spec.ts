@@ -161,6 +161,18 @@ describe('candidate authority and coverage', () => {
     })
     expect(result.kind).toBe('unknown')
   })
+  it('requires nonblank evidence for an independence registration', () => {
+    const result = validateCalendarCandidate({
+      policy: us,
+      candidate: current,
+      oracles: [oracle],
+      independenceRegistry: registry.map(entry => ({ ...entry, evidenceRef: ' \t\n ' })),
+    })
+    expect(result.kind).toBe('unknown')
+    expect(result.findings.find(finding => finding.code === 'oracle.independence')?.status).toBe(
+      'unknown',
+    )
+  })
   it('retains unknown for a missing required exception observation', () => {
     expect(
       validate(candidate([truth])).findings.find(

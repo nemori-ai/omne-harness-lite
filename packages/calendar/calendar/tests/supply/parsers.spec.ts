@@ -67,6 +67,7 @@ describe('CN real source formats', () => {
       'untrusted host',
       text('holiday_api_sample.json').replaceAll('www.gov.cn', 'gov.cn.evil.example'),
     ],
+    ['insecure authority', text('holiday_api_sample.json').replaceAll('https://', 'http://')],
     ['HTML', '<html>upstream unavailable</html>'],
     ['empty years', '{"Years":{}}'],
   ])('rejects %s with retained raw hash/reference', (_name, value) => {
