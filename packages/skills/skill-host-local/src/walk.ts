@@ -1,29 +1,86 @@
-// Reads one package directory as it is now: the root, a recursive walk that follows links, and the
-// classification of every file system refusal into the closed set of source failures. Whether a
-// resolved path is inside the root is decided here, by whole path segments, for both `snapshot`
-// and `open`.
+// Reads one package directory as it is now: the root, a recursive walk that resolves every entry
+// before it reads it, and the classification of every file system answer into the closed set of
+// source failures. All classification is in this file. Whether a resolved path is inside the root
+// is decided here, by whole path segments, for both `snapshot` and `open`.
 import { basename, join, sep } from 'node:path'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { isPackagePath, type Bytes, type PackagePath } from '@omne-harness/skill-contract'
 import type { SourceFailure } from '@omne-harness/skill-contract/provider'
-import { attempt, type DirectoryEntry, type DirectoryFs } from './fs.ts'
+import type { DirectoryFs, Opened } from './fs.ts'
 
-function codes(
-  failure: SourceFailure,
-  list: readonly string[],
-): ReadonlyMap<string, SourceFailure> {
+/**
+ * The most names that one walk visits, counted over every listing, also when links reach one
+ * directory many times. Links without a cycle can still multiply the visits: two links per level
+ * to the next level give 2^n visits at depth n.
+ */
+const VISIT_BUDGET = 65_536
+
+type Table = ReadonlyMap<string, SourceFailure>
+
+function codes(failure: SourceFailure, list: readonly string[]): Table {
   return new Map(list.map(code => [code, failure]))
 }
 
-/** The root: absent, or not a directory. Any other refusal is `unavailable`. */
+/** The root: absent, or not a directory. */
 const ROOT = codes('package-not-found', ['ENOENT', 'ENOTDIR'])
-/** A link and the object it resolves to: dangling, a cycle, or not readable. */
-const LINK = codes('entry-unreadable', ['ELOOP', 'ENOENT', 'ENOTDIR', 'EACCES', 'EPERM', 'EIO'])
-/** A file or a directory inside the package that is listed but cannot be read. An entry that
- * vanished after the listing (`ENOENT`) is a change in progress, so it stays `unavailable`. */
-const READ = codes('entry-unreadable', ['EACCES', 'EPERM', 'EIO', 'EINVAL', 'ENXIO'])
-/** `open`: the path names nothing, or names a directory, which is not an entry. */
-const OPEN = codes('entry-not-found', ['ENOENT', 'ENOTDIR', 'EISDIR'])
+/** Resolving an entry, or reading the kind of what it resolves to: a cycle, a path through a
+ * file, or no permission. `ENOENT` of a resolution is decided in `resolveEntry`. */
+const RESOLVE = codes('entry-unreadable', ['ELOOP', 'ENOTDIR', 'EACCES', 'EPERM', 'EIO'])
+/** Listing a directory or opening a file inside the package: no permission, a link put in its
+ * place after the resolution (`ELOOP`), or a socket (`ENXIO`). */
+const READ = codes('entry-unreadable', ['EACCES', 'EPERM', 'EIO', 'ELOOP', 'ENXIO'])
+/** `open`: the path names nothing. */
+const OPEN = codes('entry-not-found', ['ENOENT', 'ENOTDIR'])
+/** An opened object that is not a regular file. In a walk, a directory there means the tree
+ * changed after the source read the kind. For `open`, a directory is not an entry. */
+const NOT_REGULAR_IN_WALK = {
+  directory: 'unavailable',
+  other: 'entry-unreadable',
+} as const satisfies Record<Exclude<Opened['kind'], 'file'>, SourceFailure>
+const NOT_REGULAR_IN_OPEN = {
+  directory: 'entry-not-found',
+  other: 'unavailable',
+} as const satisfies Record<Exclude<Opened['kind'], 'file'>, SourceFailure>
+
+/** The failure that `table` gives for `code`. A code that the table does not list is `unavailable`. */
+function classify(table: Table, code: string): SourceFailure {
+  return table.get(code) ?? 'unavailable'
+}
+
+/** The `code` of a file system error. Any other error is thrown again unchanged. */
+function codeOf(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    const { code } = error
+    if (typeof code === 'string') return code
+  }
+  throw error
+}
+
+/** Runs one read of the seam. A refusal comes back as its code. */
+async function attempt<T>(read: () => Promise<T>): Promise<Outcome<T, string>> {
+  try {
+    return succeed(await read())
+  } catch (error) {
+    return fail(codeOf(error))
+  }
+}
+
+/** Runs one read of the seam. A refusal comes back as the failure that `table` gives. */
+async function step<T>(read: () => Promise<T>, table: Table): Promise<Outcome<T, SourceFailure>> {
+  const answer = await attempt(read)
+  return 'ok' in answer ? answer : fail(classify(table, answer.failure))
+}
+
+const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+
+/** Strict UTF-8, a leading byte order mark kept. Undefined for bytes that are not UTF-8. */
+function decode(bytes: Uint8Array): string | undefined {
+  try {
+    return decoder.decode(bytes)
+  } catch {
+    return undefined
+  }
+}
 
 /** One file of the package: its package path and all its bytes. */
 export type PackageFile = Readonly<{ path: PackagePath; bytes: Bytes }>
@@ -39,36 +96,66 @@ export function isWithin(root: string, target: string): boolean {
 }
 
 /**
- * The root with every link resolved, checked to be a directory. A root that resolves to the file
- * system root has no name, so no package can be there; a root that is a file holds no package.
+ * The root with every link resolved, checked to be a directory with a name. A root that resolves
+ * to the file system root has no name, and a root that is a file holds no package. A resolved
+ * root that is not UTF-8 cannot be named as a path, so no package of this source is there.
  */
 async function resolveRoot(fs: DirectoryFs, root: string): Promise<Outcome<string, SourceFailure>> {
-  const real = await attempt(() => fs.realpath(root), ROOT)
-  if (!('ok' in real)) return real
-  if (basename(real.ok) === '') return fail('package-not-found')
-  const kind = await attempt(() => fs.lstat(real.ok), ROOT)
+  const resolved = await step(() => fs.realpath(root), ROOT)
+  if (!('ok' in resolved)) return resolved
+  const real = decode(resolved.ok)
+  if (real === undefined || basename(real) === '') return fail('package-not-found')
+  const kind = await step(() => fs.lstat(real), ROOT)
   if (!('ok' in kind)) return kind
-  if (!kind.ok.isDirectory()) return fail('package-not-found')
-  return real
+  return kind.ok.isDirectory() ? succeed(real) : fail('package-not-found')
 }
 
-type Walk = Readonly<{ fs: DirectoryFs; root: string; files: PackageFile[] }>
+/**
+ * An entry with every link resolved. When the resolution finds nothing, the entry dangles if it is
+ * still there, and it vanished after the listing if it is not.
+ */
+async function resolveEntry(fs: DirectoryFs, at: string): Promise<Outcome<string, SourceFailure>> {
+  const resolved = await attempt(() => fs.realpath(at))
+  if ('ok' in resolved) {
+    const real = decode(resolved.ok)
+    return real === undefined ? fail('entry-unreadable') : succeed(real)
+  }
+  if (resolved.failure !== 'ENOENT') return fail(classify(RESOLVE, resolved.failure))
+  const still = await attempt(() => fs.lstat(at))
+  return fail('ok' in still ? 'entry-unreadable' : classify(RESOLVE, still.failure))
+}
+
+/**
+ * The private state of one `collect` call. Only `collect` makes one, and nothing outside the call
+ * sees it before the call returns.
+ */
+type Walk = {
+  readonly fs: DirectoryFs
+  readonly root: string
+  readonly files: PackageFile[]
+  visits: number
+}
 
 /** A directory on the walk: its resolved path, its package path segments, and the resolved
  * directories from the root down to it, which a link must not enter again. */
 type Place = Readonly<{ real: string; segments: readonly string[]; ancestors: ReadonlySet<string> }>
 
 /** UTF-16 code unit order, so the first failure of a walk does not depend on listing order. */
-function byName(left: DirectoryEntry, right: DirectoryEntry): number {
-  return left.name < right.name ? -1 : left.name > right.name ? 1 : 0
+function byCodeUnit(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0
 }
 
-async function read(walk: Walk, segments: readonly string[], real: string) {
+async function read(
+  walk: Walk,
+  segments: readonly string[],
+  real: string,
+): Promise<SourceFailure | undefined> {
   const path = segments.join('/')
   if (!isPackagePath(path)) return 'entry-unreadable'
-  const bytes = await attempt(() => walk.fs.readFile(real), READ)
-  if (!('ok' in bytes)) return bytes.failure
-  walk.files.push({ path, bytes: bytes.ok })
+  const opened = await step(() => walk.fs.readFile(real), READ)
+  if (!('ok' in opened)) return opened.failure
+  if (opened.ok.kind !== 'file') return NOT_REGULAR_IN_WALK[opened.ok.kind]
+  walk.files.push({ path, bytes: opened.ok.bytes })
   return undefined
 }
 
@@ -79,47 +166,57 @@ async function descend(
   real: string,
 ): Promise<SourceFailure | undefined> {
   if (place.ancestors.has(real)) return 'entry-unreadable'
-  const listing = await attempt(() => walk.fs.readdir(real), READ)
+  const listing = await step(() => walk.fs.readdir(real), READ)
   if (!('ok' in listing)) return listing.failure
   const ancestors = new Set([...place.ancestors, real])
   return walkListing(walk, { real, segments, ancestors }, listing.ok)
 }
 
-async function follow(walk: Walk, place: Place, segments: readonly string[], link: string) {
-  const target = await attempt(() => walk.fs.realpath(link), LINK)
-  if (!('ok' in target)) return target.failure
-  if (!isWithin(walk.root, target.ok)) return 'outside-package'
-  const kind = await attempt(() => walk.fs.lstat(target.ok), LINK)
+/**
+ * One name of a listing. Every entry takes the same path, whatever kind the listing reported:
+ * resolve it, check that it is inside the root, read the kind of what it resolves to, then walk
+ * or read that. A file is opened without following a final link, so an entry that another
+ * writer replaces by a link after the check is refused.
+ */
+async function visit(walk: Walk, place: Place, name: string): Promise<SourceFailure | undefined> {
+  walk.visits += 1
+  if (walk.visits > VISIT_BUDGET) return 'entry-unreadable'
+  const segments = [...place.segments, name]
+  const resolved = await resolveEntry(walk.fs, join(place.real, name))
+  if (!('ok' in resolved)) return resolved.failure
+  const target = resolved.ok
+  if (!isWithin(walk.root, target)) return 'outside-package'
+  const kind = await step(() => walk.fs.lstat(target), RESOLVE)
   if (!('ok' in kind)) return kind.failure
-  if (kind.ok.isDirectory()) return descend(walk, place, segments, target.ok)
-  if (kind.ok.isFile()) return read(walk, segments, target.ok)
+  if (kind.ok.isDirectory()) return descend(walk, place, segments, target)
+  if (kind.ok.isFile()) return read(walk, segments, target)
   return 'entry-unreadable'
 }
 
-async function walkEntry(walk: Walk, place: Place, entry: DirectoryEntry) {
-  const segments = [...place.segments, entry.name]
-  const path = join(place.real, entry.name)
-  if (entry.isSymbolicLink()) return follow(walk, place, segments, path)
-  if (entry.isDirectory()) return descend(walk, place, segments, path)
-  if (entry.isFile()) return read(walk, segments, path)
-  return 'entry-unreadable'
-}
-
+/** The names of one listing, in code unit order. A name that is not UTF-8 makes the listing
+ * unreadable before any of its entries is visited. */
 async function walkListing(
   walk: Walk,
   place: Place,
-  listing: readonly DirectoryEntry[],
+  listing: readonly Uint8Array[],
 ): Promise<SourceFailure | undefined> {
-  for (const entry of [...listing].sort(byName)) {
-    const failure = await walkEntry(walk, place, entry)
+  const names: string[] = []
+  for (const raw of listing) {
+    const name = decode(raw)
+    if (name === undefined) return 'entry-unreadable'
+    names.push(name)
+  }
+  for (const name of names.sort(byCodeUnit)) {
+    const failure = await visit(walk, place, name)
     if (failure !== undefined) return failure
   }
   return undefined
 }
 
 /**
- * Every file under `root`, read now. Directories are walked and are not entries. Links are
- * resolved and must stay inside the resolved root. The first failure in name order ends the walk.
+ * Every file under `root`, read now. Directories are walked and are not entries. Every entry is
+ * resolved and must stay inside the resolved root. The walk is depth first; inside each directory
+ * it takes the names in code unit order, and the first failure ends it.
  */
 export async function collect(
   fs: DirectoryFs,
@@ -127,16 +224,20 @@ export async function collect(
 ): Promise<Outcome<Collected, SourceFailure>> {
   const real = await resolveRoot(fs, root)
   if (!('ok' in real)) return real
-  const listing = await attempt(() => fs.readdir(real.ok), ROOT)
+  const listing = await step(() => fs.readdir(real.ok), ROOT)
   if (!('ok' in listing)) return listing
-  const walk: Walk = { fs, root: real.ok, files: [] }
+  const walk: Walk = { fs, root: real.ok, files: [], visits: 0 }
   const place: Place = { real: real.ok, segments: [], ancestors: new Set([real.ok]) }
   const failure = await walkListing(walk, place, listing.ok)
   if (failure !== undefined) return fail(failure)
   return succeed({ rootName: basename(real.ok), files: walk.files })
 }
 
-/** The bytes at `path` under `root` now. The path must resolve inside the resolved root. */
+/**
+ * The bytes at `path` under `root` now. The path must resolve inside the resolved root, and the
+ * resolved file is opened without following a final link. A resolved path that is not UTF-8
+ * names no entry.
+ */
 export async function readEntry(
   fs: DirectoryFs,
   root: string,
@@ -144,8 +245,14 @@ export async function readEntry(
 ): Promise<Outcome<Bytes, SourceFailure>> {
   const real = await resolveRoot(fs, root)
   if (!('ok' in real)) return real
-  const target = await attempt(() => fs.realpath(join(real.ok, path)), OPEN)
-  if (!('ok' in target)) return target
-  if (!isWithin(real.ok, target.ok)) return fail('outside-package')
-  return attempt(() => fs.readFile(target.ok), OPEN)
+  const resolved = await step(() => fs.realpath(join(real.ok, path)), OPEN)
+  if (!('ok' in resolved)) return resolved
+  const target = decode(resolved.ok)
+  if (target === undefined) return fail('entry-not-found')
+  if (!isWithin(real.ok, target)) return fail('outside-package')
+  const opened = await step(() => fs.readFile(target), OPEN)
+  if (!('ok' in opened)) return opened
+  return opened.ok.kind === 'file'
+    ? succeed(opened.ok.bytes)
+    : fail(NOT_REGULAR_IN_OPEN[opened.ok.kind])
 }

@@ -1,6 +1,8 @@
 // Refusals of the file system, made through the injected `DirectoryFs` seam: the tests run as any
 // user, root included, because no file mode is involved. Each refusal comes back as the source
-// failure that the README "Behavior" section gives for it.
+// failure that the README "Behavior" section gives for it. Every code that a table of the source
+// lists has its own case here, so a code removed from a table turns a case red.
+import { rm } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { isPackageDigest, isPackagePath } from '@omne-harness/skill-contract'
@@ -35,8 +37,13 @@ async function open(fs: DirectoryFs, root: string, at: string) {
 
 const named = (name: string) => (path: string) => basename(path) === name
 
+/** The codes that make an entry unreadable when the source resolves it or reads its kind. */
+const RESOLVE_CODES = ['ELOOP', 'ENOTDIR', 'EACCES', 'EPERM', 'EIO']
+/** The codes that make an entry unreadable when the source lists a directory or reads a file. */
+const READ_CODES = ['EACCES', 'EPERM', 'EIO', 'ELOOP', 'ENXIO']
+
 describe('a file that cannot be read', () => {
-  it.each(['EACCES', 'EPERM', 'EIO'])(
+  it.each(READ_CODES)(
     'with %s makes snapshot answer entry-unreadable and open answer unavailable',
     async code => {
       const root = await samplePackage()
@@ -52,23 +59,93 @@ describe('a file that cannot be read', () => {
     const fs = failing('readFile', named('guide.md'), refusal('ENOENT'))
     expect(await snapshot(fs, root)).toBe('unavailable')
   })
+
+  it('that vanished after open resolved it makes open answer entry-not-found', async () => {
+    const root = await samplePackage()
+    const fs = failing('readFile', named('guide.md'), refusal('ENOENT'))
+    expect(await open(fs, root, 'notes/guide.md')).toBe('entry-not-found')
+  })
 })
 
-describe('a directory inside the package that cannot be read', () => {
-  it('makes snapshot answer entry-unreadable', async () => {
+describe('an object that is not a regular file when the source opens it', () => {
+  const opened = (kind: 'directory' | 'other'): DirectoryFs => ({
+    ...realFs,
+    readFile: async path => (named('guide.md')(path) ? { kind } : realFs.readFile(path)),
+  })
+
+  it('makes snapshot answer unavailable for a directory and entry-unreadable for another object', async () => {
     const root = await samplePackage()
-    expect(await snapshot(failing('readdir', named('notes'), refusal('EACCES')), root)).toBe(
+    expect(await snapshot(opened('directory'), root)).toBe('unavailable')
+    expect(await snapshot(opened('other'), root)).toBe('entry-unreadable')
+  })
+
+  it('makes open answer entry-not-found for a directory and unavailable for another object', async () => {
+    const root = await samplePackage()
+    expect(await open(opened('directory'), root, 'notes/guide.md')).toBe('entry-not-found')
+    expect(await open(opened('other'), root, 'notes/guide.md')).toBe('unavailable')
+  })
+})
+
+describe('a directory inside the package that cannot be listed', () => {
+  it.each(READ_CODES)('with %s makes snapshot answer entry-unreadable', async code => {
+    const root = await samplePackage()
+    expect(await snapshot(failing('readdir', named('notes'), refusal(code)), root)).toBe(
       'entry-unreadable',
     )
   })
 })
 
-describe('a link that cannot be resolved for lack of permission', () => {
-  it('makes snapshot answer entry-unreadable', async () => {
+describe('an entry that cannot be resolved', () => {
+  it.each(RESOLVE_CODES)('with %s makes snapshot answer entry-unreadable', async code => {
+    const root = await samplePackage()
+    expect(await snapshot(failing('realpath', named('guide-link.md'), refusal(code)), root)).toBe(
+      'entry-unreadable',
+    )
+  })
+
+  it('with a code that the source does not list makes snapshot answer unavailable', async () => {
     const root = await samplePackage()
     expect(
-      await snapshot(failing('realpath', named('guide-link.md'), refusal('EACCES')), root),
+      await snapshot(failing('realpath', named('guide-link.md'), refusal('EMFILE')), root),
+    ).toBe('unavailable')
+  })
+})
+
+describe('an entry whose kind cannot be read after it was resolved', () => {
+  it.each(RESOLVE_CODES)('with %s makes snapshot answer entry-unreadable', async code => {
+    const root = await samplePackage()
+    expect(await snapshot(failing('lstat', named('guide.md'), refusal(code)), root)).toBe(
+      'entry-unreadable',
+    )
+  })
+
+  it('because it vanished (ENOENT) makes snapshot answer unavailable', async () => {
+    const root = await samplePackage()
+    expect(await snapshot(failing('lstat', named('guide.md'), refusal('ENOENT')), root)).toBe(
+      'unavailable',
+    )
+  })
+})
+
+describe('a link that cannot be resolved because its target is missing', () => {
+  it('answers entry-unreadable while the link itself is still there', async () => {
+    const root = await samplePackage()
+    expect(
+      await snapshot(failing('realpath', named('guide-link.md'), refusal('ENOENT')), root),
     ).toBe('entry-unreadable')
+  })
+
+  it('answers unavailable when the link itself vanished after the listing', async () => {
+    const root = await samplePackage()
+    const fs: DirectoryFs = {
+      ...realFs,
+      readdir: async path => {
+        const listing = await realFs.readdir(path)
+        if (path === root) await rm(join(root, 'guide-link.md'))
+        return listing
+      },
+    }
+    expect(await snapshot(fs, root)).toBe('unavailable')
   })
 })
 
@@ -90,12 +167,15 @@ describe('the root directory', () => {
     },
   )
 
-  it('when it cannot be resolved for ENOENT answers package-not-found in snapshot and open', async () => {
-    const root = await samplePackage()
-    const fs = failing('realpath', named('pkg'), refusal('ENOENT'))
-    expect(await snapshot(fs, root)).toBe('package-not-found')
-    expect(await open(fs, root, 'SKILL.md')).toBe('package-not-found')
-  })
+  it.each(['ENOENT', 'ENOTDIR'])(
+    'when it cannot be resolved for %s answers package-not-found in snapshot and open',
+    async code => {
+      const root = await samplePackage()
+      const fs = failing('realpath', named('pkg'), refusal(code))
+      expect(await snapshot(fs, root)).toBe('package-not-found')
+      expect(await open(fs, root, 'SKILL.md')).toBe('package-not-found')
+    },
+  )
 
   it('when it cannot be resolved for EACCES answers unavailable in snapshot and open', async () => {
     const root = await samplePackage()

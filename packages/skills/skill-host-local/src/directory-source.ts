@@ -11,15 +11,19 @@ import { nodeFs, type DirectoryFs } from './fs.ts'
 import { collect, readEntry } from './walk.ts'
 
 /**
- * A walk cannot list one path twice or a file above another path, so only a root without a name
- * can make `sealSnapshot` refuse, and there is no package there. A file system seam that lists
- * a name twice gives a listing that no package can have.
+ * `resolveRoot` gives only roots with a name, and a walk cannot list one path twice or a file
+ * above another path. A file system seam that lists a name twice gives a listing that no package
+ * can have.
  */
-const DEFECT = {
-  'invalid-root-name': 'package-not-found',
-  'duplicate-path': 'entry-unreadable',
-  'prefix-conflict': 'entry-unreadable',
-} as const satisfies Record<SnapshotDefect['kind'], SourceFailure>
+function failureOf(defect: SnapshotDefect): SourceFailure {
+  switch (defect.kind) {
+    case 'invalid-root-name':
+      throw new Error('unreachable: the walk gives only a root with a name')
+    case 'duplicate-path':
+    case 'prefix-conflict':
+      return 'entry-unreadable'
+  }
+}
 
 /**
  * A source that reads packages from local directories. The locator is
@@ -37,7 +41,7 @@ export function createDirectorySource(
       const collected = await collect(fs, locator.root)
       if (!('ok' in collected)) return collected
       const sealed = sealSnapshot(collected.ok)
-      return 'ok' in sealed ? sealed : fail(DEFECT[sealed.failure.kind])
+      return 'ok' in sealed ? sealed : fail(failureOf(sealed.failure))
     },
     async open(locator, _digest, path) {
       if (locator.kind !== 'directory') return fail('package-not-found')
