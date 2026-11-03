@@ -249,13 +249,12 @@ describe('T-6: the bounds of the cache', () => {
   it('over the byte bound the least recently used session goes, and is read whole again', async () => {
     const probe = await app()
     await probe.create(TENANT_A, 's-1')
-    const one = (
-      probe.provider.select(
-        'dom_0',
-        'SELECT length(snapshot) AS n FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
-        [textOf(TENANT_A), 's-1'],
-      ).rows[0]?.[0] as bigint
-    ).valueOf()
+    const one = probe.provider.select(
+      'dom_0',
+      'SELECT length(snapshot) AS n FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
+      [textOf(TENANT_A), 's-1'],
+    ).rows[0]?.[0]
+    if (one === undefined || one === null) throw new Error('the snapshot row is missing')
     // Room for one snapshot and a half: the second session pushes the first one out.
     const a = await app({ workCache: { bytes: Math.floor(Number(one) * 1.5) } })
     for (const session of ['s-1', 's-2']) await a.create(TENANT_A, session)
