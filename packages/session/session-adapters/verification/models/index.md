@@ -4,4 +4,4 @@
 
 ## 内容
 
-- [README.md](README.md)：模型清单与前提。现在没有模型
+- [README.md](README.md)：模型清单与前提。目前没有模型

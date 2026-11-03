@@ -12,7 +12,11 @@ import { portOf } from './port.ts'
 
 export type { SessionStorageOptions } from './context.ts'
 export { createSessionPrincipalBindings, type SessionPrincipalBindingsOptions } from './bindings.ts'
-export { sessionStorageMaterials, type SessionStorageMaterials } from './materials.ts'
+export {
+  sessionStorageMaterials,
+  type SessionStorageMaterials,
+  type SessionStorageMaterialsOptions,
+} from './materials.ts'
 export { SESSION_PARTICIPANT } from './participants.ts'
 
 /** The public port. Every method asks the access check once. */

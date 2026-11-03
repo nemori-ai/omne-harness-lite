@@ -19,7 +19,8 @@
 测试文件：
 
 - [public-entry.spec.ts](public-entry.spec.ts)：断言根入口没有导出。
-- [cordis-entry.spec.ts](cordis-entry.spec.ts)：断言 `./cordis` 入口只导出 `SessionProvider`，源码入口与发布入口一致。
+- [cordis-entry.spec.ts](cordis-entry.spec.ts)：断言 `./cordis` 入口只导出 `SessionProvider` 与 `createSessionProviderPlugin`，源码入口与发布入口一致。
+- [measure-plugin.spec.ts](measure-plugin.spec.ts)：真实 Cordis 上装 `createSessionProviderPlugin({ measure })`，观察者收到 session 的成对段事件；不传时行为不变。
 - [provider-load.spec.ts](provider-load.spec.ts)：装载、五个 `inject` 键任一缺席时停在 `PENDING`、换代时先卸载再重跑、配置错误、重复装载、受理声明。
 - [provider-callers.spec.ts](provider-callers.spec.ts)：调用方类核对。
 - [provider-ports.spec.ts](provider-ports.spec.ts)：按调用现取的端口缺席与抛出。

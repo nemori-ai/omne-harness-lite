@@ -6,7 +6,8 @@
 
 - [README.md](README.md)：测试范围、真实依赖与替身
 - [public-entry.spec.ts](public-entry.spec.ts)：公开入口的测试，断言根入口没有导出
-- [cordis-entry.spec.ts](cordis-entry.spec.ts)：Cordis 绑定入口的测试，断言 `./cordis` 只导出 `SessionProvider`
+- [measure-plugin.spec.ts](measure-plugin.spec.ts)：测量观察者经插件工厂交入真实 Cordis 装载的实例
+- [cordis-entry.spec.ts](cordis-entry.spec.ts)：Cordis 绑定入口的测试，断言 `./cordis` 只导出 `SessionProvider` 与 `createSessionProviderPlugin`
 - [provider-load.spec.ts](provider-load.spec.ts)：装载、`PENDING`、换代、配置、重复装载
 - [provider-callers.spec.ts](provider-callers.spec.ts)：调用方类核对
 - [provider-ports.spec.ts](provider-ports.spec.ts)：按调用现取的端口

@@ -40,6 +40,10 @@
 | `AssemblyPolicies`, `AssemblyOperations` | [ports.ts](../src/ports.ts) |
 | `PreparedInputKey` | [values.ts](../src/values.ts) |
 | `AssemblyOperationsInput` | [operations.ts](../src/operations.ts) |
+| `AssemblyReuse` | [reuse.ts](../src/reuse.ts) |
+| `CachedAssemblyMaterial` | [reuse.ts](../src/reuse.ts) |
+| `ContentControl` | [reuse.ts](../src/reuse.ts) |
+| `SnapshotIdentity` | [reuse.ts](../src/reuse.ts) |
 | `createAssemblyOperations` | [operations.ts](../src/operations.ts) |
 | `SourceRead`, `SourceGroupValue`, `GroupSource`, `ContextGroupSources`, `AdoptedRead`, `AdoptedRequestSource`, `SourceDecision`, `ContextReadEligibility`, `PrincipalBinding`, `ContextSources`, `SourceRegistrationAuthority`, `SourceSettlement`, `ContextRegistration`, `RegistrationResult`, `ContextSourceRegistry`, `ContextRegistryOptions` | [sources.ts](../src/sources.ts) |
 | `HistoryResolution`, `HistoryEvidenceResolver` | [history-resolution.ts](../src/history-resolution.ts) |

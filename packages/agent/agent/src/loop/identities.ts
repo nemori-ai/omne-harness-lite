@@ -110,8 +110,24 @@ export function mainBatch(step: StepId): ActionBatchId {
   return minted(decodeActionBatchId(text), text)
 }
 
-export function mainConsumption(step: StepId): ConsumptionId {
-  const text = `${step}/main/reply`
+/**
+ * The consumptions of one execution. Session keeps the call registrations of a session by
+ * consumption (session-contract `SessionWorkEntryIndex`: calls are unique by consumption), and a
+ * session holds the executions of all its Runs, so a consumption names its execution as well as its
+ * step: the same step of two executions is two consumptions.
+ */
+function consumptionScope(execution: AgentExecutionId): string {
+  return digest(execution).slice(0, 40)
+}
+
+export function mainConsumption(execution: AgentExecutionId, step: StepId): ConsumptionId {
+  const text = `${consumptionScope(execution)}/${step}/main/reply`
+  return minted(decodeConsumptionId(text), text)
+}
+
+/** The consumption of the result of one Tool action of the execution. */
+export function toolConsumption(execution: AgentExecutionId, action: ActionId): ConsumptionId {
+  const text = `${consumptionScope(execution)}/${action}/result`
   return minted(decodeConsumptionId(text), text)
 }
 

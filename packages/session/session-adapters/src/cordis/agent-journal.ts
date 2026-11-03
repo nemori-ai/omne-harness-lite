@@ -7,9 +7,10 @@
 // keeps the core over an in-process root that is a disposable copy of the durable records: before
 // each call it compares the publication count of the session with the one its copy reflects and
 // rebuilds the copy from storage when they differ. A write prepares the next state in the copy;
-// the provider then commits that state, the index rows and the derived Session participation in
-// one storage commit. Only a committed receipt makes the answer of the call; any other result
-// discards the copy, so the next call starts from the durable records.
+// the provider then commits the parts of that state the write changed (`journal-parts.ts`), the
+// index rows and the derived Session participation in one storage commit. Only a committed receipt
+// makes the answer of the call; any other result discards the copy, so the next call starts from
+// the durable records.
 import { createHash, randomUUID } from 'node:crypto'
 import type {
   AgentExecutionId,
@@ -37,6 +38,8 @@ import {
   type SessionCommand,
   type SessionFailure,
   type SessionId,
+  type SessionControlEvidence,
+  type SessionLogConsequence,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
@@ -44,13 +47,13 @@ import {
   EXECUTION_RECORD_PROTOCOL,
   SESSION_HISTORY_ROOT_HANDLER,
   SESSION_PROTOCOL,
-  SESSION_WORK_HANDLER,
+  decodeExecutionRecordParts,
   decodeExecutionRecordReply,
-  decodeExecutionRecordState,
   decodeSessionHistoryRoot,
   decodeSessionReply,
-  decodeSessionWork,
   executionRecordFacts,
+  readCachedSessionWork,
+  registerSessionWorkIndex,
   sessionCheckFacts,
   sessionCommandFacts,
   type ExecutionAdmissionRecord,
@@ -67,14 +70,24 @@ import type {
   SqlStorage,
   TenantDomainLookup,
 } from '@omne-harness/sql-contract'
-import { commitJournal, standingOf, type JournalCombination } from '../journal-commit.ts'
+import {
+  commitJournal,
+  jointSessionWork,
+  standingOf,
+  type JournalCombination,
+} from '../journal-commit.ts'
 import {
   participationAccessFailure,
   participationFailure,
   type ParticipationMethod,
 } from '../participation-mapping.ts'
 import { canonical } from '../testing/canonical.ts'
-import { normalizedResult } from '../testing/history.ts'
+import {
+  HistoryFailure,
+  captureEventOriginal,
+  normalizeAgentEvent,
+  normalizedResult,
+} from '../testing/history.ts'
 import {
   createJournal,
   operationText,
@@ -85,13 +98,31 @@ import {
   type MemoryExecution,
 } from '../testing/journal.ts'
 import { JOURNAL_OWNER } from '../testing/journal-values.ts'
+import { controlEventEvidence } from '../testing/control.ts'
 import {
   createCell,
   operationSemantic,
   type CommonRoot,
   type JournalCell,
 } from '../testing/root.ts'
-import { decodeState, encodeState, recordsOf, type DurableAgentRecords } from './journal-state.ts'
+import {
+  mergeParts,
+  planParts,
+  rebuildParts,
+  recordsPart,
+  type PartLayout,
+  type PartPlan,
+  type RebuiltParts,
+} from './journal-parts.ts'
+import {
+  decodeState,
+  encodeState,
+  eventKey,
+  recordsOf,
+  type DurableAgentRecords,
+  type DurableJournalState,
+  type InterpretationNotes,
+} from './journal-state.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
   storage: SqlStorage
@@ -103,7 +134,16 @@ export type SessionLogJournalOptions<P> = Readonly<{
   combination: JournalCombination
   cancellation?: MemoryAgentJournalOptions<P>['cancellation']
   hostRecords?: MemoryAgentJournalOptions<P>['hostRecords']
+  /**
+   * Called with a diagnostic for a programming error (a `TypeError`) that the Journal read past
+   * while it normalized an event: the event is then left undecided, as for a missing original, and
+   * the Agent write keeps its answer. The owner logs it at error level.
+   */
+  fault?: Fault
 }>
+
+/** The channel a defect that the Journal went on past is reported through. */
+type Fault = (diagnostic: string) => void
 
 export type SessionLogJournalProvider<P> = AgentReceivedProvider<P, ContentBlock> & {
   received: NonNullable<AgentReceivedProvider<P, ContentBlock>['received']>
@@ -118,6 +158,12 @@ type Scratch = {
 type Copy<P> = Readonly<{
   cell: JournalCell<P>
   core: ReturnType<typeof createJournal<P>>
+  /** The interpretation notes of the durable state the copy reflects. */
+  notes: InterpretationNotes
+  /** The durable state the copy reflects, as stored: what a publication compares its state with. */
+  stored: DurableJournalState
+  /** Where each stored record is among the parts; it changes when a publication commits. */
+  layout: PartLayout
 }>
 
 type CustodyAttempt =
@@ -167,6 +213,7 @@ const ROUNDS = 4
 /** The calls that only read: they need no Session snapshot for the advance check. */
 const READS: ReadonlySet<string> = new Set([
   'load',
+  'readCancellationInstallation',
   'inputs',
   'readReplyAdmissions',
   'query',
@@ -185,6 +232,38 @@ const unavailable = (diagnostic: string): Failure => ({
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
 type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
 
+/**
+ * The hand-over the Session participation of one write derives from (AD-01 table). It is the
+ * caller of a `commit` or the transfer of a `recordResult`, except for the main reply: a `commit`
+ * whose caller is none and that applies the prepared outcome of a model-reply H (the Ja of
+ * `handoff.resolve` with its `replyAdmission`) writes the reply into the Session history in the same
+ * storage commit, through the same `recordMessage` writer as the `message` hand-over. Its source is
+ * the original handoff record and its admission the prepared result (Agent SPEC "真实历史的提交点":
+ * the main reply is a core history duty of the Journal and never a CallerCommit.message).
+ */
+function historyCaller<P>(input: ExecutionMutation<P>, method: JournalWrite): CallerCommit {
+  if (method === 'recordResult')
+    return (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
+  if (method !== 'commit') return { kind: 'none' }
+  const commit = input as Parameters<AgentJournal<P>['commit']>[0]
+  if (commit.caller.kind !== 'none') return commit.caller
+  const handoff = commit.handoff
+  if (handoff?.kind !== 'resolve') return commit.caller
+  const { request, decision, record } = handoff.outcome
+  if (
+    request.kind !== 'execution' ||
+    request.source.kind !== 'model-reply' ||
+    decision.kind !== 'prepared'
+  )
+    return commit.caller
+  return {
+    kind: 'message',
+    message: decision.message,
+    source: record,
+    admission: decision.admission,
+  }
+}
+
 /** The storage operation of one Agent operation of one execution. */
 function storageOperation(execution: string, operation: string): string {
   return `aop_${createHash('sha256')
@@ -201,11 +280,18 @@ type Written = Readonly<{
   digest: string
 }>
 
+/**
+ * A material preserve names an execution only as its route (K-9): it writes the session's received
+ * state and never that execution's records, so it is not a write of the execution.
+ */
+const ROUTE_ONLY: ReadonlySet<string> = new Set(['preserve'])
+
 function writtenOf(method: string, input: object): Written {
   const value = input as { execution?: unknown; operation?: unknown }
   return {
     method,
-    execution: typeof value.execution === 'string' ? value.execution : null,
+    execution:
+      typeof value.execution === 'string' && !ROUTE_ONLY.has(method) ? value.execution : null,
     operation: typeof value.operation === 'string' ? value.operation : null,
     digest: `sha256:${operationSemantic(input as ExecutionMutation<unknown>)}`,
   }
@@ -239,11 +325,82 @@ function durableRecords(root: CommonRoot): DurableAgentRecords {
   }
 }
 
-/** The same-root index rows of the executions a write changed (AD-02 table, Agent side). */
+/**
+ * The result of reading an original fragment, or null when the fragments do not give it. A missing
+ * original (`HistoryFailure`) is the expected reason, and nothing is invented for it. A
+ * `TypeError` is a defect of the reader, not a fact about the data: it is reported through `fault`
+ * and the read still answers null, so the Agent write that triggered it is not lost. Any other
+ * error is not this function's to hide.
+ */
+export function readOrNull<T>(what: string, fault: Fault | undefined, read: () => T): T | null {
+  try {
+    return read()
+  } catch (error) {
+    if (error instanceof HistoryFailure) return null
+    if (error instanceof TypeError) {
+      fault?.(`${what} read past a ${error.name}: ${error.message}`)
+      return null
+    }
+    throw error
+  }
+}
+
+/**
+ * The Session consequences of one event as the shared normalization of the memory reference gives
+ * them, from the original fragments of the same root; null when the fragments do not decide them
+ * (a control event, an original that this root does not hold). Nothing is invented for a null.
+ */
+function consequencesOf(
+  root: CommonRoot,
+  execution: MemoryExecution,
+  event: MemoryExecution['events'][number],
+  fault: Fault | undefined,
+): readonly SessionLogConsequence[] | null {
+  return readOrNull(`the consequences of ${execution.id}/${event.sequence}`, fault, () =>
+    normalizeAgentEvent(root, execution, event),
+  )
+}
+
+/**
+ * The Agent evidence of a control event, whose consequences Session decides when it interprets
+ * the event (its fact row has the deferred marker); null for any other event, or when the
+ * original fragments do not give the evidence (the row then keeps empty kinds).
+ */
+function deferredOf(
+  root: CommonRoot,
+  execution: MemoryExecution,
+  event: MemoryExecution['events'][number],
+  fault: Fault | undefined,
+): SessionControlEvidence | null {
+  if (event.body.kind !== 'control') return null
+  return readOrNull(`the control evidence of ${execution.id}/${event.sequence}`, fault, () =>
+    controlEventEvidence(root, execution, event),
+  )
+}
+
+/** The placeholder head of an execution that another execution's call changed (SPEC K-5). */
+function placeholderHead(execution: MemoryExecution): DurableEvidence {
+  return {
+    owner: OWNER,
+    record: `${execution.id}/head`,
+    revision: String(execution.revision),
+    digest: 'unknown',
+  }
+}
+
+/**
+ * The same-root index rows of the executions a write changed (AD-02 table, Agent side). The kinds
+ * of each new event are the kinds of its normalized consequences, and `notes` takes the same
+ * consequences and the head the boundary names, so a later interpretation reads what the index
+ * says. An event whose consequences the fragments do not decide has empty kinds.
+ */
 function indexOf(
   before: CommonRoot,
+  after: CommonRoot,
   changed: readonly MemoryExecution[],
   receipt: CommandReceipt | null,
+  notes: InterpretationNotes,
+  fault: Fault | undefined,
 ): Readonly<{
   boundaries: ExecutionBoundaryRecord[]
   facts: ExecutionFactRecord[]
@@ -257,13 +414,18 @@ function indexOf(
     const fresh = execution.events.slice(prior?.events.length ?? 0)
     for (const event of fresh) {
       if (event === undefined) continue
-      // The Session consequence kinds are not translated here yet (SPEC K-5): the row keeps the
-      // sequence and the original source, the kinds stay empty.
+      const consequences = consequencesOf(after, execution, event, fault)
+      const control = consequences === null ? deferredOf(after, execution, event, fault) : null
+      notes.consequences.set(eventKey(execution.id, event.sequence), consequences)
+      if (control !== null) notes.controls.set(eventKey(execution.id, event.sequence), control)
       facts.push({
         execution: execution.id,
         sequence: event.sequence,
         source: event.cause,
-        kinds: [],
+        kinds: control !== null ? ['deferred'] : (consequences?.map(item => item.kind) ?? []),
+        // The body row beside the index row: the same values `notes` takes, read back by AD-02.
+        consequences: encodeState(consequences),
+        control: encodeState(control),
       })
       if (event.body.kind === 'input-taken')
         batches.push({
@@ -273,19 +435,13 @@ function indexOf(
           batch: encodeState(event.body.batch),
         })
     }
+    const head = receipt?.execution === execution.id ? receipt.evidence : null
+    notes.heads.set(execution.id, head)
     const last = execution.events.at(-1)
     boundaries.push({
       execution: execution.id,
       revision: String(execution.revision),
-      receipt:
-        receipt?.execution === execution.id
-          ? receipt.evidence
-          : {
-              owner: OWNER,
-              record: `${execution.id}/head`,
-              revision: String(execution.revision),
-              digest: 'unknown',
-            },
+      receipt: head ?? placeholderHead(execution),
       emittedThrough: String(execution.events.length),
       ended:
         last !== undefined && last.body.kind === 'ended'
@@ -294,6 +450,28 @@ function indexOf(
     })
   }
   return { boundaries, facts, batches }
+}
+
+/**
+ * Captures the original fragments of the events that one write of `execution` appended, with the
+ * write's receipt, as the memory double does in its commit hook. A fragment that cannot be read is
+ * left out, not the write: the event's consequences are then not decided, and its fact row says so
+ * with empty kinds.
+ */
+function captureFresh(
+  root: CommonRoot,
+  execution: string,
+  receipt: CommandReceipt,
+  fault: Fault | undefined,
+): void {
+  const found = [...root.agent.executions.values()].find(item => item.id === execution)
+  if (found === undefined) return
+  const old = root.agent.indexedEvents.get(execution) ?? 0
+  for (const event of found.events.slice(old))
+    readOrNull(`the original of ${execution}/${event.sequence}`, fault, () =>
+      captureEventOriginal(root, found, event, receipt),
+    )
+  root.agent.indexedEvents.set(execution, found.events.length)
 }
 
 /**
@@ -320,6 +498,337 @@ export function materialSessionOf(
   return typeof tenant === 'string' && typeof session === 'string'
     ? { tenant, session: session as SessionId }
     : null
+}
+
+/** One event of an execution with what its interpretation commits (AD-02). */
+export type InterpretableEvent = Readonly<{
+  sequence: string
+  source: DurableEvidence
+  /** The normalized consequences, the same the fact row's kinds name; null: not decided. */
+  consequences: readonly SessionLogConsequence[] | null
+  /** The Agent evidence of a deferred control fact, which Session decides; null otherwise. */
+  control: SessionControlEvidence | null
+}>
+
+/**
+ * One execution of a session's durable Agent records as AD-02 interprets it: its head revision, the
+ * head receipt its boundary row names (null: the placeholder, which the Session side answers
+ * `unavailable` for), and its events after a sequence, all from one read of one publication.
+ */
+export type ExecutionInterpretation = Readonly<{
+  revision: string
+  head: DurableEvidence | null
+  emittedThrough: string
+  events: readonly InterpretableEvent[]
+}>
+
+export type InterpretationRead =
+  | Readonly<{ kind: 'read'; execution: ExecutionInterpretation | null }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+/** What one read of the durable Agent records of a session gives: null state when none was written. */
+export type JournalStateRead =
+  | Readonly<{ kind: 'read'; state: DurableJournalState | null }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+/** The storage and the trusted domain lookup that a reader of the Agent records needs. */
+export type JournalStateSource = Readonly<{
+  storage: SqlStorage
+  tenantDomainLookup: TenantDomainLookup
+}>
+
+/**
+ * How many times a read of the parts starts again when its pages read different publication counts
+ * (a writer committed between two pages). Three is the same fixed bound as `SENDS` of the AD-02
+ * plugin (`journal-interpretation.ts`): enough to ride over a passing writer, not a policy knob. After the last try
+ * the read answers `unavailable` ("kept changing"); it never gives a state mixed of two counts.
+ */
+const PART_READ_ATTEMPTS = 3
+
+type PartsRead =
+  | Readonly<{
+      kind: 'read'
+      published: string
+      parts: readonly Readonly<{ part: string; state: JsonValue }>[]
+    }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+/**
+ * Reads the parts of one session's Agent records page by page; `only` reads that one part, `since`
+ * only the parts written after that publication count (a dropped one with a null state). Every page
+ * must read the same publication count, else the read starts again. Records stored whole (by a
+ * writer that does not split them) are not read here: they answer `unavailable`.
+ */
+async function readParts(
+  read: (input: JsonValue) => Promise<JsonValue | null>,
+  scope: Readonly<{ tenant: string; session: string }>,
+  only: string | null,
+  since: string | null = null,
+): Promise<PartsRead> {
+  const unread = (diagnostic: string): PartsRead => ({ kind: 'unavailable', diagnostic })
+  for (let attempt = 0; attempt < PART_READ_ATTEMPTS; attempt += 1) {
+    let after: string | null = null
+    let published: string | null = null
+    const parts: Readonly<{ part: string; state: JsonValue }>[] = []
+    for (;;) {
+      const output = await read({
+        tenant: scope.tenant,
+        session: scope.session,
+        after,
+        ...(only === null ? {} : { parts: [only] }),
+        ...(since === null ? {} : { since }),
+      })
+      if (output === null) return unread('the Agent records of the session are not readable')
+      const page = decodeExecutionRecordParts(output)
+      if (page === null) return unread('the Agent records of the session do not decode')
+      if (page.state !== null)
+        return unread('the Agent records of the session are stored whole, not in parts')
+      if (published !== null && page.published !== published) break
+      published = page.published
+      parts.push(...page.parts)
+      if (page.next === null) return { kind: 'read', published, parts }
+      after = page.next
+    }
+  }
+  return unread('the Agent records of the session kept changing while they were read')
+}
+
+/**
+ * Reads the durable Agent records of one session as the provider wrote them: the records, the
+ * original fragments and the interpretation notes of one publication. `only` reads one part (the
+ * records of one execution: `recordsPart`); the state then holds that part's records only. It
+ * reads only.
+ */
+export async function readJournalState(
+  options: JournalStateSource,
+  target: Readonly<{ tenant: TenantId; session: SessionId }>,
+  only: string | null = null,
+): Promise<JournalStateRead> {
+  const unread = (diagnostic: string): JournalStateRead => ({ kind: 'unavailable', diagnostic })
+  const text = tenantCodec.encode(target.tenant)
+  if (!text.ok) return unread('the tenant was not minted by legal-identity')
+  let found
+  try {
+    found = await options.tenantDomainLookup.lookup({ tenant: text.value })
+  } catch (error) {
+    return unread(`the read of the Agent records threw: ${String(error)}`)
+  }
+  if (found.kind !== 'ready')
+    return unread(
+      found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
+    )
+  const domain = found.domain
+  const parts = await readParts(
+    async input => {
+      try {
+        const result = await options.storage.read({
+          domain,
+          handler: EXECUTION_RECORD_HANDLERS.parts,
+          protocol: EXECUTION_RECORD_PROTOCOL,
+          requestKey: randomUUID(),
+          input,
+        })
+        return result.kind === 'read' ? result.output : null
+      } catch {
+        return null
+      }
+    },
+    { tenant: text.value, session: target.session },
+    only,
+  )
+  if (parts.kind === 'unavailable') return parts
+  try {
+    const rebuilt = rebuildParts(parts.parts)
+    return { kind: 'read', state: rebuilt.empty ? null : rebuilt.state }
+  } catch (error) {
+    return unread(`the Agent records do not decode: ${String(error)}`)
+  }
+}
+
+/**
+ * Reads the events of one execution after `after` (C-WORKCACHE design §5, path P): the head row of
+ * the execution and its fact rows after `after` with their bodies, from the append-only index rows
+ * the publications wrote, page by page. Only the events after the reader's progress are read, so a
+ * read does not grow with the session or with the records of the execution. Every page must read
+ * the same head, else the read starts again. A fact without a body row (a publication before the
+ * body table) falls back to the records of the execution (`interpretationFromRecords`). `null`
+ * execution: the session's records hold no such execution. It reads only; it never writes.
+ */
+export async function readExecutionInterpretation(
+  options: JournalStateSource,
+  target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
+): Promise<InterpretationRead> {
+  const unread = (diagnostic: string): InterpretationRead => ({ kind: 'unavailable', diagnostic })
+  const text = tenantCodec.encode(target.tenant)
+  if (!text.ok) return unread('the tenant was not minted by legal-identity')
+  let found
+  try {
+    found = await options.tenantDomainLookup.lookup({ tenant: text.value })
+  } catch (error) {
+    return unread(`the read of the Agent records threw: ${String(error)}`)
+  }
+  if (found.kind !== 'ready')
+    return unread(
+      found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
+    )
+  const domain = found.domain
+  const read = async (after: string): Promise<JsonValue | null> => {
+    try {
+      const result = await options.storage.read({
+        domain,
+        handler: EXECUTION_RECORD_HANDLERS.executionFacts,
+        protocol: EXECUTION_RECORD_PROTOCOL,
+        requestKey: randomUUID(),
+        input: { tenant: text.value, session: target.session, execution: target.execution, after },
+      })
+      return result.kind === 'read' ? result.output : null
+    } catch {
+      return null
+    }
+  }
+  const facts = await readFacts(read, target.after)
+  if (facts.kind === 'absent') return { kind: 'read', execution: null }
+  if (facts.kind === 'unavailable') return facts
+  if (facts.bodiless) return interpretationFromRecords(options, target)
+  return { kind: 'read', execution: facts.execution }
+}
+
+type FactsRead =
+  | Readonly<{ kind: 'read'; execution: ExecutionInterpretation; bodiless: boolean }>
+  | Readonly<{ kind: 'absent' }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+type FactsPage = Readonly<{
+  revision: string
+  receipt: DurableEvidence | null
+  emittedThrough: string
+  facts: readonly Readonly<Record<string, JsonValue>>[]
+  next: string | null
+}>
+
+/** One page of `execution-record.execution-facts`, `'absent'`, or null when it does not parse. */
+function factsPageOf(output: JsonValue): FactsPage | 'absent' | null {
+  if (typeof output !== 'object' || output === null || Array.isArray(output)) return null
+  const page = output as Readonly<Record<string, JsonValue>>
+  if (page['kind'] === 'absent') return 'absent'
+  const revision = page['revision']
+  const emittedThrough = page['emittedThrough']
+  const facts = page['facts']
+  const next = page['next']
+  if (page['kind'] !== 'facts' || typeof revision !== 'string') return null
+  if (typeof emittedThrough !== 'string' || !Array.isArray(facts)) return null
+  if (next !== null && typeof next !== 'string') return null
+  return {
+    revision,
+    receipt: (page['receipt'] ?? null) as DurableEvidence | null,
+    emittedThrough,
+    facts: facts as readonly Readonly<Record<string, JsonValue>>[],
+    next: next ?? null,
+  }
+}
+
+/** A body member of a fact: decoded, or null for a fact without a body row. */
+function bodyOf<T>(value: JsonValue | undefined): T | null {
+  return value === undefined || value === 'absent' ? null : (decodeState(value) as T | null)
+}
+
+/**
+ * The events after `after` from the fact pages. The sequences must follow `after` without a gap:
+ * an interpreter commits the events in order, so a missing row is `unavailable`, never skipped.
+ */
+async function readFacts(
+  read: (after: string) => Promise<JsonValue | null>,
+  after: string,
+): Promise<FactsRead> {
+  const unread = (diagnostic: string): FactsRead => ({ kind: 'unavailable', diagnostic })
+  for (let attempt = 0; attempt < PART_READ_ATTEMPTS; attempt += 1) {
+    let head: FactsPage | null = null
+    let from = after
+    let bodiless = false
+    const events: InterpretableEvent[] = []
+    for (;;) {
+      const output = await read(from)
+      if (output === null) return unread('the facts of the execution are not readable')
+      const page = factsPageOf(output)
+      if (page === 'absent')
+        return head === null
+          ? { kind: 'absent' }
+          : unread('the execution went away while its facts were read')
+      if (page === null) return unread('the facts of the execution do not decode')
+      const moved =
+        head !== null &&
+        (page.revision !== head.revision || page.emittedThrough !== head.emittedThrough)
+      if (moved) break
+      head = page
+      for (const fact of page.facts) {
+        const expected = String(BigInt(after) + BigInt(events.length) + 1n)
+        if (fact['sequence'] !== expected)
+          return unread(`the facts of the execution have a gap at sequence ${expected}`)
+        if (fact['consequences'] === 'absent' || fact['control'] === 'absent') bodiless = true
+        events.push({
+          sequence: expected,
+          source: fact['source'] as unknown as DurableEvidence,
+          consequences: bodyOf<readonly SessionLogConsequence[]>(fact['consequences']),
+          control: bodyOf<SessionControlEvidence>(fact['control']),
+        })
+      }
+      if (page.next === null) {
+        // The last page ends at the head: a missing last row or a cut page is not the end.
+        const through = String(BigInt(after) + BigInt(events.length))
+        if (BigInt(through) < BigInt(head.emittedThrough))
+          return unread(
+            `the facts of the execution end at sequence ${through}, before ${head.emittedThrough}`,
+          )
+        // A placeholder head (digest `unknown`) is no head: the Session side answers unavailable.
+        const receipt = head.receipt
+        return {
+          kind: 'read',
+          bodiless,
+          execution: {
+            revision: head.revision,
+            head: receipt === null || receipt.digest === 'unknown' ? null : receipt,
+            emittedThrough: head.emittedThrough,
+            events,
+          },
+        }
+      }
+      from = page.next
+    }
+  }
+  return unread('the facts of the execution kept changing while they were read')
+}
+
+/**
+ * The events of one execution after `after` from the records of its session (one read of the
+ * execution's part), for facts that a publication wrote without a body row.
+ */
+async function interpretationFromRecords(
+  options: JournalStateSource,
+  target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
+): Promise<InterpretationRead> {
+  const read = await readJournalState(options, target, recordsPart(target.execution))
+  if (read.kind === 'unavailable') return read
+  const records = read.state
+  const execution =
+    records === null
+      ? undefined
+      : [...records.executions.values()].find(item => item.id === target.execution)
+  if (records === null || execution === undefined) return { kind: 'read', execution: null }
+  const events = execution.events.slice(Number(target.after)).map(event => ({
+    sequence: event.sequence,
+    source: event.cause,
+    consequences: records.notes.consequences.get(eventKey(execution.id, event.sequence)) ?? null,
+    control: records.notes.controls.get(eventKey(execution.id, event.sequence)) ?? null,
+  }))
+  return {
+    kind: 'read',
+    execution: {
+      revision: String(execution.revision),
+      head: records.notes.heads.get(execution.id) ?? null,
+      emittedThrough: String(execution.events.length),
+      events,
+    },
+  }
 }
 
 export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>) {
@@ -378,14 +887,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return result.kind === 'read' ? result.output : null
   }
 
-  /** The Session snapshot the `advances` check of this call reads. */
+  /**
+   * The Session snapshot the `advances` check of this call reads, through the work cache of the
+   * storage (session-storage-sql RT-04): a version read, and a whole read only after a commit.
+   */
   async function snapshotOf(book: Book<P>, domain: DomainRef): Promise<WorkSnapshot | null> {
-    const output = await read(domain, SESSION_WORK_HANDLER, SESSION_PROTOCOL, {
-      tenant: book.tenantText,
-      session: book.session,
-    })
-    const work = output === null ? null : decodeSessionWork(output)
-    return work?.kind === 'state' ? work.snapshot : null
+    const work = await readCachedSessionWork(options.storage, domain, book.tenantText, book.session)
+    return work.kind === 'state' ? work.snapshot : null
   }
 
   function participation(
@@ -470,10 +978,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     method: JournalWrite,
     receipt: CommandReceipt,
   ): Outcome<SessionCommand, Failure> | undefined {
-    let caller: CallerCommit = { kind: 'none' }
-    if (method === 'commit') caller = (input as Parameters<AgentJournal<P>['commit']>[0]).caller
-    if (method === 'recordResult')
-      caller = (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
+    const caller = historyCaller(input, method)
     if (caller.kind === 'none') return undefined
     const operation = deriveSessionOperation({
       kind: 'participation',
@@ -630,7 +1135,66 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
-  function build(book: Book<P>, state: JsonValue | null): Copy<P> {
+  /**
+   * The open or attach of an ordinary grant: the attempt it names is the advance of the active Run
+   * of this execution, and the check in the same commit verifies it. A cancel wind-down attachment
+   * has none.
+   */
+  function rememberAuthority(book: Book<P>, cell: JournalCell<P>, input: ExecutionMutation<P>) {
+    const snapshot = book.scratch?.snapshot ?? null
+    const root = cell.state()
+    const execution = [...root.agent.executions.values()].find(item => item.id === input.execution)
+    const authority = execution?.attachments.at(-1)?.authority
+    if (
+      authority === undefined ||
+      snapshot === null ||
+      snapshot.run.kind !== 'active' ||
+      snapshot.run.advance === null ||
+      snapshot.run.execution.execution !== input.execution
+    )
+      return
+    const grant =
+      'runtime' in input ? (input as OpenInput<P>).runtime.grant : (input as AttachInput<P>).grant
+    root.agent.authorities.set(`${input.execution}\0${canonical(authority)}`, {
+      run: snapshot.run.run,
+      attempt: snapshot.run.advance.attempt,
+      execution: input.execution,
+      ordinal: snapshot.run.ordinal,
+      started: grant ?? receiptStub(input.execution),
+    })
+  }
+
+  /** Fills a new root with the durable state of the session. */
+  function restore(cell: JournalCell<P>, records: DurableJournalState): void {
+    cell.mutate(() => {
+      const root = cell.state()
+      const into = <K, V>(target: Map<K, V>, source: ReadonlyMap<K, V>) => {
+        for (const [key, value] of source) target.set(key, value)
+      }
+      into(root.agent.executions, records.executions)
+      into(root.agent.operations, records.operations)
+      root.agent.jointFacts.push(...records.jointFacts)
+      into(root.agent.authorities, records.authorities)
+      into(root.agent.eventReceipts, records.eventReceipts)
+      into(root.agent.pendingEvents, records.pendingEvents)
+      into(root.agent.callOrigins, records.callOrigins)
+      into(root.agent.human, records.human)
+      into(root.agent.indexedEvents, records.indexedEvents)
+      // A state written before the fragments were kept: its events are not captured again with a
+      // later receipt; their fragments stay absent.
+      for (const execution of root.agent.executions.values())
+        if (!root.agent.indexedEvents.has(execution.id))
+          root.agent.indexedEvents.set(execution.id, execution.events.length)
+      for (const name of Object.keys(records.receiving) as (keyof CommonRoot['receiving'])[])
+        into(
+          root.receiving[name] as Map<unknown, unknown>,
+          records.receiving[name] as Map<unknown, unknown>,
+        )
+      cell.touch()
+    })
+  }
+
+  function build(book: Book<P>, stored: RebuiltParts): Copy<P> {
     const cell: JournalCell<P> = createCell<P>(book.tenant, book.session, {
       authorize: () => undefined,
       advances(execution, authority): boolean {
@@ -643,64 +1207,24 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       },
       participate: (input, method, receipt, decision) =>
         participation(book, cell, input, method, receipt, decision),
-      committed(input, method) {
-        if (method !== 'open' && method !== 'attach') return undefined
-        // The attempt an ordinary grant names is the advance of the active Run of this execution;
-        // the check in the same commit verifies it. A cancel wind-down attachment has none.
-        const snapshot = book.scratch?.snapshot ?? null
-        const root = cell.state()
-        const execution = [...root.agent.executions.values()].find(
-          item => item.id === input.execution,
-        )
-        const authority = execution?.attachments.at(-1)?.authority
-        if (
-          authority !== undefined &&
-          snapshot !== null &&
-          snapshot.run.kind === 'active' &&
-          snapshot.run.advance !== null &&
-          snapshot.run.execution.execution === input.execution
-        ) {
-          const grant =
-            'runtime' in input
-              ? (input as OpenInput<P>).runtime.grant
-              : (input as AttachInput<P>).grant
-          root.agent.authorities.set(`${input.execution}\0${canonical(authority)}`, {
-            run: snapshot.run.run,
-            attempt: snapshot.run.advance.attempt,
-            execution: input.execution,
-            ordinal: snapshot.run.ordinal,
-            started: grant ?? receiptStub(input.execution),
-          })
-        }
+      committed(input, method, receipt) {
+        if (method === 'open' || method === 'attach') rememberAuthority(book, cell, input)
+        captureFresh(cell.state(), input.execution, receipt, options.fault)
         return undefined
       },
     })
-    if (state !== null) {
-      const records = decodeState(state) as ReturnType<typeof recordsOf>
-      cell.mutate(() => {
-        const root = cell.state()
-        for (const [key, value] of records.executions) root.agent.executions.set(key, value)
-        for (const [key, value] of records.operations) root.agent.operations.set(key, value)
-        root.agent.jointFacts.push(...records.jointFacts)
-        for (const [key, value] of records.authorities) root.agent.authorities.set(key, value)
-        for (const name of Object.keys(records.receiving) as (keyof CommonRoot['receiving'])[]) {
-          const target = root.receiving[name] as Map<unknown, unknown>
-          for (const [key, value] of records.receiving[name] as Map<unknown, unknown>)
-            target.set(key, value)
-        }
-        cell.touch()
-      })
-    }
+    if (!stored.empty) restore(cell, stored.state)
     putBack(book, cell)
     const core = createJournal<P>(cell, {
       participants: PARTICIPANTS,
       grant: () => true,
+      participates: (input, method) => historyCaller(input, method).kind !== 'none',
       qualifyParticipation: (input, method, receipt) => qualify(book, cell, input, method, receipt),
       terminalParticipant: input => terminalParticipant(book, cell, input.execution, input.control),
       ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
       ...(options.hostRecords === undefined ? {} : { hostRecords: options.hostRecords }),
     })
-    return { cell, core }
+    return { cell, core, notes: stored.state.notes, stored: stored.state, layout: stored.layout }
   }
 
   /** Puts the held writes back into a rebuilt copy, unless the durable records already decided them. */
@@ -712,11 +1236,16 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         if (root.agent.operations.has(at)) continue
         // The reference core keeps the custody attempt of a write while it is pending and after it
         // is excluded, so the custody chain of the H goes on from it in both cases.
+        // The execution is replaced, not changed in place: the stored one is what a publication
+        // compares with (journal-parts.ts).
         if (held.custody !== null) {
-          const execution = [...root.agent.executions.values()].find(
-            item => item.id === held.execution,
-          )
-          execution?.custodyAttempts.set(held.operation, held.custody)
+          const found = [...root.agent.executions].find(([, item]) => item.id === held.execution)
+          if (found !== undefined) {
+            const [key, execution] = found
+            const custodyAttempts = new Map(execution.custodyAttempts)
+            custodyAttempts.set(held.operation, held.custody)
+            root.agent.executions.set(key, { ...execution, custodyAttempts })
+          }
         }
         if (held.standing === 'unknown') {
           root.agent.operations.set(at, {
@@ -776,36 +1305,52 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     digest: 'none',
   })
 
-  /** Brings the copy of `book` to the durable records of its session. */
-  async function sync(book: Book<P>, domain: DomainRef): Promise<Outcome<Copy<P>, Failure>> {
-    const rootOutput = await read(domain, SESSION_HISTORY_ROOT_HANDLER, SESSION_PROTOCOL, {
+  /** The common root of the session in one read, or null when it is not readable. */
+  async function readRoot(book: Book<P>, domain: DomainRef) {
+    const output = await read(domain, SESSION_HISTORY_ROOT_HANDLER, SESSION_PROTOCOL, {
       tenant: book.tenantText,
       session: book.session,
     })
-    const root = rootOutput === null ? null : decodeSessionHistoryRoot(rootOutput)
+    return output === null ? null : decodeSessionHistoryRoot(output)
+  }
+
+  /** The copy of `book` as the parts read make it: rebuilt, or merged into the copy of an earlier count. */
+  function copyOf(
+    book: Book<P>,
+    base: Copy<P> | null,
+    parts: readonly Readonly<{ part: string; state: JsonValue }>[],
+  ): Copy<P> {
+    return build(
+      book,
+      base === null
+        ? rebuildParts(parts)
+        : mergeParts({ state: base.stored, layout: base.layout }, parts),
+    )
+  }
+
+  /** Brings the copy of `book` to the durable records of its session. */
+  async function sync(book: Book<P>, domain: DomainRef): Promise<Outcome<Copy<P>, Failure>> {
+    const root = await readRoot(book, domain)
     if (root === null) return fail(unavailable('the common root of the session is not readable'))
     const excluded = await settleHeld(book, domain)
     if (!excluded && book.copy !== null && book.published === root.published)
       return succeed(book.copy)
-    const stateOutput = await read(
-      domain,
-      EXECUTION_RECORD_HANDLERS.state,
-      EXECUTION_RECORD_PROTOCOL,
-      {
-        tenant: book.tenantText,
-        session: book.session,
-      },
+    // A copy of an earlier count reads only the parts written since; otherwise every part.
+    const base = !excluded && book.published !== null ? book.copy : null
+    const parts = await readParts(
+      input => read(domain, EXECUTION_RECORD_HANDLERS.parts, EXECUTION_RECORD_PROTOCOL, input),
+      { tenant: book.tenantText, session: book.session },
+      null,
+      base === null ? null : book.published,
     )
-    const state = stateOutput === null ? null : decodeExecutionRecordState(stateOutput)
-    if (state === null)
-      return fail(unavailable('the Agent records of the session are not readable'))
+    if (parts.kind === 'unavailable') return fail(unavailable(parts.diagnostic))
     try {
-      book.copy = build(book, state.state)
+      book.copy = copyOf(book, base, parts.parts)
     } catch (error) {
       book.copy = null
       return fail(unavailable(`the Agent records do not decode: ${String(error)}`))
     }
-    book.published = state.published
+    book.published = parts.published
     return succeed(book.copy)
   }
 
@@ -851,6 +1396,44 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     })
   }
 
+  /**
+   * The reverse input directory rows of an open or a submit: the accepted input, its original grant
+   * and attachment, and the original attempt of that attachment as the commit hook of the open or
+   * attach recorded it. An attachment without a recorded attempt has none; nothing is guessed from
+   * the current advance.
+   */
+  function admissionsOf(
+    after: CommonRoot,
+    written: Written,
+    own: MemoryExecution | undefined,
+    receipt: CommandReceipt | null,
+    scratch: Scratch,
+  ): ExecutionAdmissionRecord[] {
+    if ((written.method !== 'open' && written.method !== 'submit') || own === undefined) return []
+    if (receipt === null) return []
+    const check = scratch.checks[0]
+    const input =
+      check?.kind === 'open'
+        ? check.initial.input
+        : check?.kind === 'submit'
+          ? check.value.input
+          : null
+    const attachment = own.attachments.at(-1)?.authority
+    if (input === null || attachment === undefined) return []
+    const original = after.agent.authorities.get(`${own.id}\0${canonical(attachment)}`)
+    return [
+      {
+        input,
+        execution: own.id,
+        operation: written.operation ?? '',
+        accepted: receipt.evidence,
+        grant: check?.kind === 'open' ? check.grant : receipt.evidence,
+        attachment: attachment.executionAttachment,
+        ...(original === undefined ? {} : { attempt: original.attempt }),
+      },
+    ]
+  }
+
   async function publish<T>(
     book: Book<P>,
     domain: DomainRef,
@@ -872,38 +1455,24 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         ? undefined
         : [...before.agent.executions.values()].find(item => item.id === own.id)
     const receipt = receiptOf(answer)
-    const index = indexOf(before, changed, receipt)
-    const admissions: ExecutionAdmissionRecord[] = []
-    if (
-      (written.method === 'open' || written.method === 'submit') &&
-      own !== undefined &&
-      receipt !== null
-    ) {
-      const check = scratch.checks[0]
-      const input =
-        check?.kind === 'open'
-          ? check.initial.input
-          : check?.kind === 'submit'
-            ? check.value.input
-            : null
-      const attachment = own.attachments.at(-1)?.authority
-      if (input !== null && attachment !== undefined)
-        admissions.push({
-          input,
-          execution: own.id,
-          operation: written.operation ?? '',
-          accepted: receipt.evidence,
-          grant: check?.kind === 'open' ? check.grant : receipt.evidence,
-          attachment: attachment.executionAttachment,
-        })
+    const notes: InterpretationNotes = {
+      heads: new Map(copy.notes.heads),
+      consequences: new Map(copy.notes.consequences),
+      controls: new Map(copy.notes.controls),
     }
+    const index = indexOf(before, after, changed, receipt, notes, options.fault)
+    const admissions = admissionsOf(after, written, own, receipt, scratch)
     const execution = written.execution ?? own?.id ?? '-'
     const operation = storageOperation(
       execution,
       `${written.method}\0${written.operation ?? randomUUID()}`,
     )
+    const next: DurableJournalState = { ...durableRecords(after), notes }
     let facts: FactCommandV2[]
+    let plan: PartPlan
     try {
+      // The parts of this write: what changed since the stored state, and the writer's own parts.
+      plan = planParts(copy.layout, copy.stored, next, written.execution ?? own?.id ?? null)
       facts = [
         executionRecordFacts({
           tenant: book.tenant,
@@ -915,7 +1484,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           operation,
           digest: written.digest,
           answer: encodeState(answer),
-          state: encodeState(durableRecords(after)),
+          parts: plan.parts,
+          replace: false,
           ...index,
           admissions,
         }),
@@ -940,40 +1510,154 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       operation,
       commands: facts,
     })
-    // A write without an Agent operation (the material port) has no identity to name or to recall
-    // by: wherever an answer would name one, it is `unavailable`, never an invented identity.
-    const agentOperation = written.operation as AgentOperationId | null
-    const nameless = (what: string): Settled<T> => ({
+    const settled = settle(
+      { book, copy, notes, after, next, plan, written, scratch, answer },
+      operation,
+      outcome,
+    )
+    // The publication moved the count of the Agent records: the work cache replaces the index of
+    // the Session snapshot it holds, or folds the batch of a Session participation of the same
+    // commit, instead of reading the snapshot whole (session-storage-sql RT-04).
+    if (outcome.kind === 'committed' && !outcome.recalled && book.published !== null)
+      await registerSessionWorkIndex(
+        options.storage,
+        domain,
+        book.tenantText,
+        book.session,
+        book.published,
+        jointSessionWork(outcome),
+      )
+    return settled
+  }
+
+  /** What one publication needs to turn a storage outcome into the call's answer. */
+  type Published<T> = Readonly<{
+    book: Book<P>
+    copy: Copy<P>
+    notes: InterpretationNotes
+    after: CommonRoot
+    /** The durable state the write publishes, and the parts it writes of it. */
+    next: DurableJournalState
+    plan: PartPlan
+    written: Written
+    scratch: Scratch
+    answer: Outcome<T, Failure>
+  }>
+  type Settling<T> = Published<T> &
+    Readonly<{
+      /** The Agent operation of the write; null for a write without one (the material port). */
+      agentOperation: AgentOperationId | null
+    }>
+  /**
+   * A write without an Agent operation (the material port) has no identity to name or to recall
+   * by: wherever an answer would name one, it is `unavailable`, never an invented identity.
+   */
+  function nameless<T>(what: string): Settled<T> {
+    return {
       kind: 'answer',
       value: fail(unavailable(`${what} of a write without an Agent operation`)),
-    })
-    switch (outcome.kind) {
-      case 'committed': {
-        const entry = outcome.receipt.responses.find(
-          item => item.participant === 'execution-record',
-        )
-        const reply = entry === undefined ? null : decodeExecutionRecordReply(entry.reply)
-        if (reply?.kind !== 'published')
-          return {
-            kind: 'answer',
-            value: fail(unavailable('a committed receipt without the Agent records')),
-          }
-        if (outcome.recalled)
-          // An earlier generation committed this operation: the durable records answer it.
-          return reply.digest === written.digest
-            ? { kind: 'again' }
-            : agentOperation === null
-              ? nameless('a conflict')
-              : { kind: 'answer', value: fail({ kind: 'conflict', operation: agentOperation }) }
-        book.copy = copy
-        book.published = reply.published
-        // What the copy holds is now durable: an excluded write, and one the Journal core fenced.
-        for (const at of book.held.keys()) {
-          const record = after.agent.operations.get(at)
-          if (record !== undefined && record.kind !== 'pending') book.held.delete(at)
-        }
-        return { kind: 'answer', value: answer }
+    }
+  }
+
+  /** A conflict on the operation of the write: the same digest is the write itself, again. */
+  function conflicting<T>(job: Settling<T>, digest: string): Settled<T> {
+    if (digest === job.written.digest) return { kind: 'again' }
+    return job.agentOperation === null
+      ? nameless('a conflict')
+      : { kind: 'answer', value: fail({ kind: 'conflict', operation: job.agentOperation }) }
+  }
+
+  /** The write committed: the call's answer, and the copy then reflects it. */
+  function settleCommitted<T>(
+    job: Settling<T>,
+    receipt: Extract<Awaited<ReturnType<typeof commitJournal>>, { kind: 'committed' }>,
+  ): Settled<T> {
+    const entry = receipt.receipt.responses.find(item => item.participant === 'execution-record')
+    const reply = entry === undefined ? null : decodeExecutionRecordReply(entry.reply)
+    if (reply?.kind !== 'published')
+      return {
+        kind: 'answer',
+        value: fail(unavailable('a committed receipt without the Agent records')),
       }
+    // An earlier generation committed this operation: the durable records answer it.
+    if (receipt.recalled) return conflicting(job, reply.digest)
+    job.plan.commit()
+    job.book.copy = { ...job.copy, notes: job.notes, stored: job.next }
+    job.book.published = reply.published
+    // What the copy holds is now durable: an excluded write, and one the Journal core fenced.
+    for (const at of job.book.held.keys()) {
+      const record = job.after.agent.operations.get(at)
+      if (record !== undefined && record.kind !== 'pending') job.book.held.delete(at)
+    }
+    return { kind: 'answer', value: job.answer }
+  }
+
+  /** The `execution-record` participant stopped the write: a lost race is `again`. */
+  function settleRecordStop<T>(
+    job: Settling<T>,
+    reply: ReturnType<typeof decodeExecutionRecordReply>,
+  ): Settled<T> {
+    switch (reply.kind) {
+      case 'revision-conflict':
+        return { kind: 'again' }
+      case 'operation-conflict':
+        return conflicting(job, reply.digest)
+      default:
+        return {
+          kind: 'answer',
+          value: fail(unavailable(`the Agent records were not saved: ${reply.kind}`)),
+        }
+    }
+  }
+
+  /** The Session participant stopped the write. */
+  function settleSessionStop<T>(
+    job: Settling<T>,
+    stop: Parameters<typeof decodeSessionReply>[0],
+  ): Settled<T> {
+    const reply = decodeSessionReply(stop)
+    const method = participationOf(job.written.method)
+    switch (reply.kind) {
+      case 'stopped':
+        return {
+          kind: 'answer',
+          value: fail(
+            method === null || job.agentOperation === null
+              ? unavailable('a Session stop without a participation')
+              : participationFailure(
+                  method,
+                  reply.failure as SessionFailure,
+                  job.agentOperation,
+                  job.scratch.commands[0]?.kind,
+                ),
+          ),
+        }
+      case 'unsupported':
+        return { kind: 'answer', value: fail({ kind: 'unsupported' }) }
+      default:
+        return {
+          kind: 'answer',
+          value: fail(unavailable(`the Session participant failed: ${JSON.stringify(reply)}`)),
+        }
+    }
+  }
+
+  /**
+   * What one storage outcome of a publication answers: the call's answer once the write committed
+   * (the copy then reflects it), `again` for a lost race or a recalled own write, and the failure
+   * the outcome means otherwise. An unknown outcome keeps the write as held.
+   */
+  function settle<T>(
+    published: Published<T>,
+    operation: string,
+    outcome: Awaited<ReturnType<typeof commitJournal>>,
+  ): Settled<T> {
+    const { book, after, written } = published
+    const agentOperation = written.operation as AgentOperationId | null
+    const job: Settling<T> = { ...published, agentOperation }
+    switch (outcome.kind) {
+      case 'committed':
+        return settleCommitted(job, outcome)
       case 'rolled-back': {
         const stop = outcome.receipt.responses.at(-1)
         if (stop === undefined)
@@ -981,48 +1665,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             kind: 'answer',
             value: fail(unavailable('a rolled back receipt without a reply')),
           }
-        if (stop.participant === 'execution-record') {
-          const reply = decodeExecutionRecordReply(stop.reply)
-          switch (reply.kind) {
-            case 'revision-conflict':
-              return { kind: 'again' }
-            case 'operation-conflict':
-              if (reply.digest === written.digest) return { kind: 'again' }
-              return agentOperation === null
-                ? nameless('a conflict')
-                : { kind: 'answer', value: fail({ kind: 'conflict', operation: agentOperation }) }
-            default:
-              return {
-                kind: 'answer',
-                value: fail(unavailable(`the Agent records were not saved: ${reply.kind}`)),
-              }
-          }
-        }
-        const reply = decodeSessionReply(stop.reply)
-        const method = participationOf(written.method)
-        switch (reply.kind) {
-          case 'stopped':
-            return {
-              kind: 'answer',
-              value: fail(
-                method === null || agentOperation === null
-                  ? unavailable('a Session stop without a participation')
-                  : participationFailure(
-                      method,
-                      reply.failure as SessionFailure,
-                      agentOperation,
-                      scratch.commands[0]?.kind,
-                    ),
-              ),
-            }
-          case 'unsupported':
-            return { kind: 'answer', value: fail({ kind: 'unsupported' }) }
-          default:
-            return {
-              kind: 'answer',
-              value: fail(unavailable(`the Session participant failed: ${JSON.stringify(reply)}`)),
-            }
-        }
+        return stop.participant === 'execution-record'
+          ? settleRecordStop(job, decodeExecutionRecordReply(stop.reply))
+          : settleSessionStop(job, stop.reply)
       }
       case 'unknown': {
         if (agentOperation === null) return nameless('an unknown outcome')
@@ -1114,6 +1759,14 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         run(input, 'commitSettlement', core => core.port.commitSettlement(input)),
       recordTerminalObservation: input =>
         run(input, 'recordTerminalObservation', core => core.port.recordTerminalObservation(input)),
+      readCancellationInstallation: input =>
+        run(
+          input,
+          'readCancellationInstallation',
+          async core =>
+            (await core.port.readCancellationInstallation?.(input)) ??
+            fail(unavailable('the Journal core holds no cancellation installation read')),
+        ),
       load: input => run(input, 'load', core => core.port.load(input)),
       inputs: input => run(input, 'inputs', core => core.port.inputs(input)),
       readReplyAdmissions: input =>

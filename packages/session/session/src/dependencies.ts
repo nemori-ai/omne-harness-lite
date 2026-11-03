@@ -48,7 +48,7 @@ export type SessionDependencies<P> = Readonly<{
   /** The public port, only for pending, references and releasedScopes. Its methods check once. */
   directory: Current<SessionTransactionPort<P>>
   identity: SessionIdentityBridge<P>
-  evidence: SessionEvidenceBridge
+  evidence: SessionEvidenceBridge<P>
   clock: SessionClock
   idle: SessionIdleInput<P>
   context: SessionContextInput<P>

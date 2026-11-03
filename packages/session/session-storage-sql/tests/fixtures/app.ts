@@ -52,7 +52,14 @@ export const textOf = (tenant: TenantId): string => {
 
 export type App = Awaited<ReturnType<typeof app>>
 
-export async function app(options: { directory?: readonly TenantId[]; now?: () => number } = {}) {
+export async function app(
+  options: {
+    directory?: readonly TenantId[]
+    now?: () => number
+    /** The bounds of the work cache of the storage (SPEC RT-04); the member's defaults when absent. */
+    workCache?: SessionStorageOptions<string>['workCache']
+  } = {},
+) {
   const provider: SqliteStorage = createSqliteStorage()
   const known = options.directory ?? [TENANT_A, TENANT_B]
   const entries: TenantDomain[] = known.map((tenant, index) => ({
@@ -107,6 +114,7 @@ export async function app(options: { directory?: readonly TenantId[]; now?: () =
     cursorSigning: signing,
     combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
     now: options.now ?? (() => clock),
+    ...(options.workCache === undefined ? {} : { workCache: options.workCache }),
   }
   const port = createSessionStorage<string>(storageOptions)
   // The pair over the same options and storage: its public port and its delegated entry.
@@ -171,6 +179,8 @@ export async function app(options: { directory?: readonly TenantId[]; now?: () =
   return {
     port,
     pair,
+    /** The options of both ports, for a test that opens another port instance. */
+    storageOptions,
     bindings,
     provider,
     register,

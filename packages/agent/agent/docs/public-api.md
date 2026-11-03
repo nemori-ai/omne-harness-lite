@@ -1,6 +1,6 @@
 # Agent 通用实现的构造入口
 
-根入口导出下列类型、`createAgentRuntime`、通用评估器 `agentEvaluator`（契约 `AgentEvaluator` 的实现，装配经 `AgentAdoptions` 为绑定的定义采用它）与它写入的 checkpoint 的 schema 采用 `agentCheckpointSchema`。根入口还导出独立 Model 接收工厂、宿主持有状态和完整材料读取器，说明见下文。`createAgentRuntime` 的协调者要求所采用的评估器以本包的节点集合（Loop 算法页节点表的节点 ID）为 `position` 词汇，并返回本包转移表能承接的 `Next`。经 `AgentAdoptions` 交来的其他评估器只与契约形状兼容，不与本协调者的语义兼容：它的位置与决定没有转移行时，执行以缺陷停止。工厂已实现创建校验与四个面的访问守卫，`invoke` 走 Loop 正常路径的骨架，其他操作本体尚未实现，实际支持范围与未实现的校验见[成员 README](../README_ZH.md#支持范围)。下列行为是设计中的工厂行为，操作和行为由 [纯契约](../../agent-contract/README.md) 拥有。测试装配在 `./testing` 入口，见[成员 README](../README_ZH.md#支持范围)。本包不接收 Cordis Context，不导入任何外部协调者的类型。
+根入口导出下列类型、`createAgentRuntime`、通用评估器 `agentEvaluator`（契约 `AgentEvaluator` 的实现，装配经 `AgentAdoptions` 为绑定的定义采用它）与它写入的 checkpoint 的 schema 采用 `agentCheckpointSchema`。根入口还导出独立 Model 接收工厂、宿主持有状态、完整材料读取器与控制推进 `advanceControl`，说明见下文。`createAgentRuntime` 的协调者要求所采用的评估器以本包的节点集合（Loop 算法页节点表的节点 ID）为 `position` 词汇，并返回本包转移表能承接的 `Next`。经 `AgentAdoptions` 交来的其他评估器只与契约形状兼容，不与本协调者的语义兼容：它的位置与决定没有转移行时，执行以缺陷停止。工厂已实现创建校验与四个面的访问守卫，`invoke` 走 Loop 正常路径的骨架，其他操作本体尚未实现，实际支持范围与未实现的校验见[成员 README](../README_ZH.md#支持范围)。下列行为是设计中的工厂行为，操作和行为由 [纯契约](../../agent-contract/README.md) 拥有。测试装配在 `./testing` 入口，见[成员 README](../README_ZH.md#支持范围)。本包不接收 Cordis Context，不导入任何外部协调者的类型。
 
 ## 参数与依赖
 
@@ -91,8 +91,11 @@ export interface AgentProvider<P> {
 export declare function createAgentRuntime<P, B extends ContentBlock>(
   dependencies: AgentDependencies<P, B>,
   options: AgentRuntimeOptions,
+  extras?: AgentRuntimeExtras,
 ): Reply<AgentProvider<P>>
 ```
+
+`extras` 是可选的第三个参数，目前只有 `measure`：测量事件的观察者，行为见 SPEC 的[测量事件](../SPEC.md#测量事件)。它不是配置，不进入配置校验，缺省不发任何事件。
 
 创建先校验配置、安全作用域、精确采用和提供者能力，成功得到 idle 实例。提供者能力包括三项：Journal 绑定声明的 `capabilities.coordination` 与配置 `coordination` 严格相等；Journal 提供者对配置 `jointCommits` 中每一种共同提交声明了参加者；Journal 绑定已固定消息准入的历史组合登记。三项核对都在创建 runtime、登记或写状态之前完成。
 
@@ -156,7 +159,7 @@ createAgentRuntime 没有操作身份，也不是幂等操作：每次调用创�
 | reconciliationBatchLimit | 恢复与等待之内每个处理段最多对账或重读的未决项数。达到限额后 Agent 让出调度机会，下一段接着处理，不丢项。限额不是未决项总数的上界                                      | 项   | 正整数，不超过安全整数范围                                                                          | 由装配提供 |
 | denialBackoffMs          | 模型回复被消息准入否决之后，发新调用之前的退避                                                                                                                         | 毫秒 | 非负整数。否决次数不设上限                                                                          | 由装配提供 |
 | toolConcurrency          | 一个 execution 内同时在途的获准 Tool 调用数上限。超出的动作按原动作顺序等待名额。Tool 自己的并发与排队规则另行适用                                                     | 个   | 正整数，不超过安全整数范围                                                                          | 由装配提供 |
-| jointCommits             | 本装配会使用的 CallerCommit 共同提交种类。创建时与 Journal 提供者声明的参加者逐种比对，缺一种返回 unsupported。独立调用的装配列空表。它不表达输入与终态的协调能力，那项由 `coordination` 表达 | 无   | 列表元素取自 message、context-transition、custody、processed，不重复。`none` 不需要参加者，不在表中 | 由装配提供 |
+| jointCommits             | 本装配会使用的 CallerCommit 共同提交种类。创建时与 Journal 提供者声明的参加者逐种比对，缺一种返回 unsupported。独立调用的装配列空表。它不表达输入与终态的协调能力，那项由 `coordination` 表达。已知限制：创建只核本表是参加者的子集。Journal 声明了 `message` 而本表漏列时，T5 的工具消息以 `none` 提交，Session 历史里没有这条消息，也不报错。发行配置须列全，由装配检查核对 | 无   | 列表元素取自 message、context-transition、custody、processed，不重复。`none` 不需要参加者，不在表中 | 由装配提供 |
 | coordination             | 本装配要求的 Journal 协调模式。创建时与 Journal 绑定声明的 `capabilities.coordination` 严格相等，不相等返回 unsupported。没有隐式默认。standalone 配置加 standalone 绑定可独立 invoke、submit 与 finish；coordinated 配置加 coordinated 绑定在 open、attach、submit 与 tryFinish 强制协调核对，规则见 SPEC 的“[提交参加者协议](../../agent-contract/SPEC.md#提交参加者协议)” | 无   | `standalone` 或 `coordinated`，必填 | 由装配提供 |
 | loopGuardPolicy          | 循环判断这一受信系统扩展所用检测策略的精确采用。算法与阈值由该采用携带，守卫事实的 `policy` 记录它。阈值不是本表的数值项，Agent 不写死数值                             | 无   | `Adoption` 的四个字段都是非空字符串。通用实现解析不到该采用时，创建返回 unavailable                 | 由装配提供 |
 
@@ -179,6 +182,12 @@ quiesce 的形状与行为都不在本页：形状见契约包的 AgentRuntimeCo
 
 JavaScript 单线程下，任一 invoke 要么先于宿主的到期回调取得执行槽，宿主读到 `occupied` 而放弃回收，要么晚于回调到达，此时 runtime 已 draining。两条义务是工厂的行为，由 AG-01 对工厂真件验证。
 
+## 控制推进
+
+`advanceControl(ports, access, execution, operation)` 按 Journal 已保存的控制记录推进一项已受理的控制，与执行句柄 `control` 受理之后的推进是同一个函数。ports 是 `AgentDependencies` 的 journal、models、tools 与 materials。取消建立意图并撤销推进资格；Model 或 Tool 中断只作用于原调用。每一步都在由该控制派生的 operation 下保存，所以同一 control operation 的重试认回已保存的步骤，不重复写。失败原样返回，调用方以同一 control operation 重试。Journal 里没有该控制时返回成功且不写。
+
+本函数不核验主体，也不受理控制。调用方须先以操作名 control 核验主体，并经 `AgentJournal.control` 取得受理，再调用它。宿主的长期控制入口在执行由本宿主仍在运行的 runtime 持有时，用该 runtime 的依赖调用它，见 [agent-host-local SPEC](../../agent-host-local/SPEC.md#宿主插件)。
+
 ## 独立 Model 接收入口
 
 根入口导出 `createAgentModelReceiver`、`createModelReceiverState`、`agentModelDeliverySchema` 和 `readModelDeliveryMaterial`。类型由 [receiving-types.ts](../src/receiving-types.ts) 与 [receiving.ts](../src/receiving.ts) 拥有。
@@ -192,6 +201,20 @@ facts 材料保存原租户编码与完整 ModelDelivery。精确采用为 owner
 正常 loop 只 admit/cancel Model；未知或恢复时 inspect 只作受理对账。M1/M3/I3 消费 Journal 的 received 与同提供者材料，不再保留 processed 完成材料或 Model ACK 管线。保留的 Journal recordResult 服务其他既有责任。
 
 测试装配可显式传 receivingPrincipal 启用公开 Model testing pusher。controls.pusher 暴露 deliveries、settled 与 acknowledgements，controls.receiver 是独立接收方。controls.journal.provider 为同源四视图，targets 在原 PendingCall 提交时保留原绑定。该提供者无磁盘耐久。`createModelReceiverFixture()` 提供真实 memory Journal、原 PendingCall 及显式 Model/Access/outlet 替身，供宿主工厂的公共入口测试使用；它不运行真实 Model host。
+
+## 独立 Tool 接收入口
+
+`createAgentToolReceiver(dependencies, state)` 提供 `ToolResultReceiver` 的 push，以及 retry、recover 和 inspect。`createToolReceiverState()` 的返回值由宿主持有，与 Agent runtime 的生命期分开。组件重建继续传同一状态，不清除未知操作或真实在途任务。received 为 null 时返回 unsupported。
+
+依赖包括同一 `AgentReceivedProvider`、`AgentAccessCheck`、`ToolReceptionTargets` 和租户容量函数。targets.resolve 按原调用引用与完整 consumer 查询持久保留的 Tool PendingCall、consumption、execution 和原 instance。目标提供者须先核当前访问资格，再返回原绑定或 null。null 表示不存在原消费关联，push 按 Tool 协议返回 invalid/key.reference/not-accepted；来源不可读返回 unavailable/association。绑定存在后，接收方核 receive-result、原 reference 与 consumer。targets.forExecution 返回该 execution 的完整原绑定集合，不从当前挂接或 consumer.work 推断身份。
+
+新交付取得租户独立的 records、bytes、attachments 与 inFlight 额度后，经原共同提交端口一次保存材料和 received。unknown 继续查询原 operation，不能再次 preserve 或新建提交身份。重复 key 不占新逻辑额度，实际在途调用仍占 inFlight。signal 只结束等待，不撤销已受理的写入；真实写入结束才释放在途额度。
+
+Tool 完整材料采用 [公共 SPEC 的结果接收](../../agent-contract/SPEC.md#结果接收) 中 R2-D36 的 facts schema。`readToolDeliveryMaterial(access, material, expected)` 验证材料并返回完整 ToolDelivery，不合法时返回 null。该函数不核当前资格，也不证明耐久。Tool 的结果和迟到账目各自按原 key 保存，尚无账目保持 null。接收方只返回 saved，生产者自行完成 release。Model 专用的 AgentAccountOutlet 不用于 Tool 账目。
+
+retry 只认回本次授权绑定集合中的未知操作。recover 从同一 Journal 的 received 与完整材料认回已保存结果，不重写材料。两者返回 `Reply<ToolReceiverReport>`，返回前重核当前资格。inspect 是宿主管理的全局视图，不作为租户查询。内存状态和测试 Journal 只支持同进程接续，不能据此宣称 SQLite 耐久、Tool release 日志或跨进程恢复已完成。
+
+`@omne-harness/agent/testing` 的 `createToolReceiverFixture()` 在真实内存 Journal 中提交原 Tool PendingCall，提供显式访问与目标查询替身，用于宿主入口验证。它不运行真实 Tool host。
 
 ## 测试 Journal 的保留引用故障
 

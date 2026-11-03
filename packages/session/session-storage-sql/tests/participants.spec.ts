@@ -57,14 +57,19 @@ describe('the ./participants entry', () => {
       'SESSION_PROTOCOL',
       'SESSION_WORK_HANDLER',
       'decodeExecutionRecordOperation',
+      'decodeExecutionRecordParts',
       'decodeExecutionRecordReply',
-      'decodeExecutionRecordState',
+      'decodePreadmissionRecord',
+      'decodePreadmissionReply',
       'decodeSessionExecution',
       'decodeSessionHistoryRoot',
       'decodeSessionInput',
       'decodeSessionReply',
       'decodeSessionWork',
       'executionRecordFacts',
+      'preadmissionFacts',
+      'readCachedSessionWork',
+      'registerSessionWorkIndex',
       'sessionCheckDigest',
       'sessionCheckFacts',
       'sessionCommandFacts',
@@ -72,12 +77,12 @@ describe('the ./participants entry', () => {
     expect(entry['SESSION_LOG_PARTICIPANTS']).toEqual(['execution-record', 'session'])
   })
 
-  it('imports only the codec and type-only shapes: no port, context or commit module', () => {
+  it('imports only the codec, the work cache and type-only shapes: no port, context or commit module', () => {
     const text = readFileSync(join(root, 'src', 'participants.ts'), 'utf8')
     const values = [...text.matchAll(/^import (?!type )[^\n]*from '([^']+)'/gm)].map(
       match => match[1],
     )
-    expect(values).toEqual(['./codec.ts'])
+    expect(values).toEqual(['./codec.ts', './work-cache.ts'])
   })
 })
 

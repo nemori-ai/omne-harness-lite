@@ -9,6 +9,8 @@ import {
   judgeIdle,
   mutationAccessRequest,
   projectSessionEntries,
+  digestSessionLog,
+  executionReadThrough,
   projectSessionLog,
   readAccessRequest,
   reduce,
@@ -38,6 +40,8 @@ import type {
   SessionCommand,
   SessionTransactionPort,
   SessionLogObservation,
+  SessionLogCommitObservation,
+  SessionLogReceipt,
   ProducerRef,
   RunId,
   SessionCallLookup,
@@ -67,6 +71,16 @@ const TESTING_OWNER = '@omne-harness/session-adapters/testing'
 type Recall = (receipt: CommitReceipt) => unknown
 
 type Store = SessionState
+
+/** The log receipt that a recorded operation recalls; null for a record of another form. */
+function logReceiptOf(
+  held: NonNullable<ReturnType<Store['operations']['get']>>,
+): SessionLogReceipt | null {
+  const answer = held.recall(held.record.receipt)
+  return typeof answer === 'object' && answer !== null && 'readThrough' in answer
+    ? (answer as SessionLogReceipt)
+    : null
+}
 
 type Cursor = Readonly<{
   tenant: string
@@ -137,6 +151,8 @@ export function commitAccessMatches<P>(
 }
 
 export interface MemorySessionLogTransactions<P> extends MemorySessionTransactions<P> {
+  /** The event channel interpretation commit (session-contract `commitLog`). */
+  readonly commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>
   readonly controls: MemorySessionTransactions<P>['controls'] &
     Readonly<{
       project(
@@ -1062,24 +1078,21 @@ export function createSessionTransactions<P>(
     },
   }
 
-  const prepareProjection = (
+  /**
+   * The projection, reduction and publication of one observation that no record of `operation`
+   * holds yet: `null` when it wrote no row. The operation record keeps `digest` and recalls what
+   * `answerOf` gives for the published receipt and snapshot.
+   */
+  const publishProjection = (
+    key: string,
+    store: Store,
     observation: SessionLogObservation,
     operation: SessionOperationId,
+    digest: string,
+    answerOf: (receipt: CommitReceipt, snapshot: WorkSnapshot) => Recall,
     releases: readonly ToolRelease[] = [],
     beforePublish?: () => SessionFailure | null,
   ): Outcome<CommitReceipt | null, SessionFailure> => {
-    const key = keyOf(observation.tenant, observation.session)
-    if ('failure' in key) return key
-    const blocked = stores.gate(key.ok)
-    if (blocked !== null) return fail({ kind: 'quarantined', diagnostic: blocked })
-    const store = stores.get(key.ok)
-    if (store === undefined) return fail(denied('project'))
-    const held = store.operations.get(operation)
-    const digest = releases.length ? digestOf({ observation, releases }) : digestOf(observation)
-    if (held !== undefined)
-      return held.record.digest === digest
-        ? succeed({ ...held.record.receipt, recovered: true })
-        : fail({ kind: 'conflict', operation })
     const selected = observation.consequences.find(item => item.kind === 'input-taken')
     const material = options.history?.read(
       store.snapshot,
@@ -1140,11 +1153,11 @@ export function createSessionTransactions<P>(
     operations.set(operation, {
       record: { operation, digest, receipt },
       projection: observation,
-      recall: value => value,
+      recall: answerOf(receipt, reduced.snapshot),
     })
     const refusal = beforePublish?.()
     if (refusal) return fail(refusal)
-    stores.set(key.ok, {
+    stores.set(key, {
       ...store,
       snapshot: reduced.snapshot,
       lastCommit: receipt,
@@ -1155,8 +1168,134 @@ export function createSessionTransactions<P>(
     return succeed(receipt)
   }
 
+  /** The store of the observation's session: refused for a quarantined or unknown session. */
+  const storeFor = (
+    observation: SessionLogObservation,
+    action: string,
+  ): Outcome<Readonly<{ key: string; store: Store }>, SessionFailure> => {
+    const key = keyOf(observation.tenant, observation.session)
+    if ('failure' in key) return key
+    const blocked = stores.gate(key.ok)
+    if (blocked !== null) return fail({ kind: 'quarantined', diagnostic: blocked })
+    const store = stores.get(key.ok)
+    return store === undefined ? fail(denied(action)) : succeed({ key: key.ok, store })
+  }
+
+  const prepareProjection = (
+    observation: SessionLogObservation,
+    operation: SessionOperationId,
+    releases: readonly ToolRelease[] = [],
+    beforePublish?: () => SessionFailure | null,
+  ): Outcome<CommitReceipt | null, SessionFailure> => {
+    const found = storeFor(observation, 'project')
+    if ('failure' in found) return found
+    const { key, store } = found.ok
+    const held = store.operations.get(operation)
+    const digest = releases.length ? digestOf({ observation, releases }) : digestOf(observation)
+    if (held !== undefined)
+      return held.record.digest === digest
+        ? succeed({ ...held.record.receipt, recovered: true })
+        : fail({ kind: 'conflict', operation })
+    return publishProjection(
+      key,
+      store,
+      observation,
+      operation,
+      digest,
+      () => value => value,
+      releases,
+      beforePublish,
+    )
+  }
+
+  /**
+   * The event channel interpretation commit (session-contract docs/same-log-pure.md, the event
+   * channel commit) with the pure checks of the projection: no access check, the recall by
+   * operation and digest, then one publication of the consequence rows, the progress row and the
+   * operation record. `interpreted` is the source of the commit, the evidence that the history
+   * index of this double names for the saved progress. An observation that writes no row recalls
+   * the commit that covers its sequence, as the session-contract double does.
+   */
+  const commitLog = async (
+    input: Readonly<{ observation: SessionLogCommitObservation }>,
+  ): Promise<Outcome<SessionLogReceipt, SessionFailure>> => {
+    const { observation } = input
+    const { operation } = observation
+    const found = storeFor(observation, 'commitLog')
+    if ('failure' in found) return found
+    const { key, store } = found.ok
+    if (store.answers.has(operation)) return fail({ kind: 'conflict', operation })
+    const digest = digestSessionLog(observation)
+    const held = store.operations.get(operation)
+    if (held !== undefined) {
+      const recalled = logReceiptOf(held)
+      return recalled !== null && held.record.digest === digest
+        ? succeed({ ...recalled, recovered: true })
+        : fail({ kind: 'conflict', operation })
+    }
+    const published = publishProjection(
+      key,
+      store,
+      observation,
+      operation,
+      digest,
+      (receipt, snapshot) => {
+        const value: SessionLogReceipt = {
+          operation,
+          execution: observation.execution,
+          readThrough:
+            executionReadThrough(snapshot, observation.run, observation.execution) ?? '0',
+          interpreted: receipt.source,
+          recovered: false,
+        }
+        return () => value
+      },
+    )
+    if ('failure' in published) return published
+    if (published.ok === null) return logWithoutRows(store, observation)
+    const recorded = stores.get(key)?.operations.get(operation)
+    const answer = recorded === undefined ? null : logReceiptOf(recorded)
+    return answer === null ? fail(unavailable('a log commit without its receipt')) : succeed(answer)
+  }
+
+  /**
+   * The observation wrote no row. An event at or below the saved progress recalls the event channel
+   * commit that covers it; a store without that commit is `unavailable`. Any other event has no
+   * Session consequence and is not committed.
+   */
+  const logWithoutRows = (
+    store: Store,
+    observation: SessionLogCommitObservation,
+  ): Outcome<SessionLogReceipt, SessionFailure> => {
+    const reached = executionReadThrough(store.snapshot, observation.run, observation.execution)
+    if (
+      observation.sequence === null ||
+      reached === null ||
+      BigInt(observation.sequence) > BigInt(reached)
+    )
+      return fail({
+        kind: 'invalid',
+        field: 'consequences',
+        reason: 'an observation without a Session consequence is not committed',
+      })
+    const sequence = BigInt(observation.sequence)
+    const covering = [...store.operations.values()]
+      .map(logReceiptOf)
+      .filter(
+        (item): item is SessionLogReceipt =>
+          item !== null &&
+          item.execution === observation.execution &&
+          BigInt(item.readThrough) >= sequence,
+      )
+      .sort((left, right) => Number(BigInt(left.readThrough) - BigInt(right.readThrough)))[0]
+    return covering === undefined
+      ? fail(unavailable('the interpretation commit of that sequence is not held'))
+      : succeed({ ...covering, recovered: true })
+  }
+
   return Object.freeze({
     ...port,
+    commitLog,
     prepareCommand: commit,
     prepareReconciliation: prepareProjection,
     durability: 'none' as const,

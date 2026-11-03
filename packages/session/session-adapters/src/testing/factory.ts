@@ -7,7 +7,6 @@ import { normalizeControls } from './control.ts'
 import { createFrontier, commandScope, defaultBudget } from './frontier.ts'
 import { emptyHistory } from './empty-history.ts'
 import { sessionView } from './session-view.ts'
-import { captureHuman } from './human.ts'
 import {
   type AcceptedInput,
   type AgentJournal,
@@ -35,7 +34,9 @@ import {
   type SessionTransactionPort,
   type SessionFailure,
   type SessionOperationId,
-  type SessionLogObservation,
+  type SessionLogCommitObservation,
+  type SessionLogReceipt,
+  type CommitReceipt,
   type ConsumptionId,
   type CommittedBatch,
   type GuardCommand,
@@ -65,8 +66,8 @@ import {
   grantAttempt,
   findGrantAttempt,
   authorityAttempt,
+  captureEventOriginal,
   normalizedResult,
-  registration,
   executionKey,
   HistoryFailure,
 } from './history.ts'
@@ -291,68 +292,17 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             const old = root.agent.indexedEvents.get(input.execution) ?? 0
             const batches = [...(root.agent.batches.get(input.execution) ?? [])]
             for (const event of execution.events.slice(old)) {
-              root.agent.eventReceipts.set(`${execution.id}\0${event.sequence}`, receipt)
-              if (event.body.kind === 'ended')
-                root.agent.ended.set(execution.id, {
-                  sequence: event.sequence,
-                  source: event.cause,
-                })
-              if (event.body.kind === 'control')
-                root.agent.controls.set(
-                  `${execution.id}\0${event.sequence}`,
-                  structuredClone(execution.controls),
-                )
-              const pending =
-                event.body.kind === 'waiting'
-                  ? event.body.waits.flatMap(wait =>
-                      wait.kind === 'producer' ? [wait.pending] : [],
-                    )
-                  : event.body.kind === 'producer'
-                    ? [
-                        normalizedResult(root, execution, event.body.consumption, event.body.result)
-                          .pending,
-                      ]
-                    : []
-              root.agent.pendingEvents.set(`${execution.id}\0${event.sequence}`, pending)
-              for (const value of pending) {
-                registration(root, execution, value)
-                const key = `${execution.id}\0${value.consumption}`,
-                  prior = root.agent.callOrigins.get(key)
-                if (!prior)
-                  root.agent.callOrigins.set(key, {
-                    first: event.sequence,
-                    pending: value,
-                    association: null,
-                  })
-                else if (
-                  prior.pending.kind === 'tool' &&
-                  prior.pending.association === 'intent' &&
-                  value.kind === 'tool' &&
-                  value.association === 'associated' &&
-                  prior.association === null
-                )
-                  root.agent.callOrigins.set(key, {
-                    ...prior,
-                    association: { sequence: event.sequence, pending: value, source: event.cause },
-                  })
-              }
-              if (
-                event.body.kind === 'waiting' &&
-                event.body.waits.some(wait => wait.kind === 'human')
-              ) {
-                try {
-                  root.agent.human.set(
-                    `${execution.id}\0${event.sequence}`,
-                    captureHuman(event, execution.checkpoint, receipt),
-                  )
-                } catch (error) {
-                  return {
-                    kind: 'invalid',
-                    field: 'events.waiting',
-                    reason:
-                      error instanceof Error ? error.message : 'invalid original human material',
-                  } as const
-                }
+              try {
+                captureEventOriginal(root, execution, event, receipt)
+              } catch (error) {
+                // Only the human material check refuses here; any other throw is the outer catch's.
+                if (!(error instanceof TypeError) || error instanceof HistoryFailure) throw error
+                return {
+                  kind: 'invalid',
+                  field: 'events.waiting',
+                  reason:
+                    error instanceof Error ? error.message : 'invalid original human material',
+                } as const
               }
             }
             for (const event of execution.events.slice(old))
@@ -810,7 +760,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     sequence: string,
     operation: SessionOperationId,
     verify: () => SessionFailure | null = () => null,
-  ) {
+  ): Promise<Outcome<CommitReceipt | SessionLogReceipt | null, SessionFailure>> {
     await publications.wait(publicationKey(cell, operation))
     const qualification = verify()
     if (qualification) return fail(qualification)
@@ -872,7 +822,10 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         owner: 'session-history',
         diagnostic: 'original event',
       })
-    const observation: SessionLogObservation = {
+    // An observed-only event has no Session row; `commitLog` does not commit it (session-contract
+    // FR-03), and the next committed event names it in its gap.
+    if (fact.consequences.every(item => item.kind === 'observed')) return succeed(null)
+    const observation: SessionLogCommitObservation = {
       tenant: cell.tenant,
       session: cell.session,
       execution,
@@ -884,7 +837,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       source: fact.source,
       consequences: fact.consequences,
     }
-    const result = await base.controls.project(observation, operation)
+    const result = await base.commitLog({ observation })
     return fault === 'after-publish' && cell.current() !== root
       ? fail<SessionFailure>({ kind: 'commit-unknown', operation })
       : result
@@ -898,6 +851,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     queryControlOperation: base.queryControlOperation,
     readModelSelection: base.readModelSelection,
     commitEntries: base.commitEntries,
+    commitLog: base.commitLog,
     history: base.history,
     pending: base.pending,
     references: base.references,
@@ -979,7 +933,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     let view = views.get(key)
     if (!view) {
       view = createJournal(cell, {
-        prepareResult: resultPreparation(cell, publications, base.controls.project, agentFailure),
+        prepareResult: resultPreparation(cell, publications, base.commitLog, agentFailure),
         qualifyParticipation: (input, method, receipt) =>
           qualifyJoint(cell, input, method, receipt),
         participants: ['message', 'context-transition', 'custody', 'processed'],

@@ -1,14 +1,13 @@
 import { tenantEquals } from '@omne-harness/legal-identity'
+import type { SessionReplayFacts, StepCommittedBlocks } from '@omne-harness/session-cordis-contract'
 import type {
   AuthorityDecision,
-  CommitRef,
   ContextBlockKey,
   FinishReplayAction,
   HolderDecision,
   RuntimeContextAuthority,
   RuntimeContextTrust,
   ScopeBindingSource,
-  ScopeRef,
 } from '@omne-harness/runtime-context-contract'
 
 /**
@@ -21,21 +20,9 @@ export interface RuntimeContextCurrentBridge {
   capture(): Readonly<{ current(): boolean }>
 }
 
-/** What the holder's own durable facts say about the checkpointed blocks of one scope. */
-export type StepCommittedBlocks =
-  | Readonly<{ kind: 'known'; keys: readonly ContextBlockKey[] }>
-  | Readonly<{ kind: 'unavailable' }>
-  | Readonly<{ kind: 'unknown' }>
-
-/**
- * The holder's facts read from the session log. Only a recovery that finishes asks them.
- * `stepCommittedBlocks` answers the keys of the checkpointed blocks of the scope's final
- * registration that have at least one step commit up to `through`. A block that is registered but
- * has no step commit is not listed: it has no value to restore.
- */
-export interface SessionReplayFacts {
-  stepCommittedBlocks(scope: ScopeRef, through: CommitRef | null): Promise<StepCommittedBlocks>
-}
+// The replay facts are declared by the Cordis contract of Session, which also carries the service
+// key. They are re-exported here for the consumers that read them from this member.
+export type { SessionReplayFacts, StepCommittedBlocks }
 
 /** Every port is required. There is no default that allows. */
 export type SessionRuntimeContextTrustInput<P> = Readonly<{

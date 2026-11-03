@@ -7,9 +7,11 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { agentModelContextKey, agentRequestsKey } from '@omne-harness/agent-cordis-contract/cordis'
+import type { ContextMeasureEvent } from '@omne-harness/agent-context'
 import {
   AgentContextProvider,
   MODEL_PREPARATION_RESOURCES,
+  createAgentContextPlugin,
 } from '@omne-harness/agent-context/cordis'
 import { ModelRequestPreparationService } from '@omne-harness/model-cordis-contract/cordis'
 import { RequestContextProvider } from '@omne-harness/request-context-cordis/cordis'
@@ -160,13 +162,16 @@ const KEYS: readonly Key[] = [
   'modelPreparationResources',
 ]
 
-async function assembled(leaveOut: Key | null = null) {
+async function assembled(
+  leaveOut: Key | null = null,
+  Plugin: typeof AgentContextProvider = AgentContextProvider,
+) {
   const w = await createWorld()
   const { plugins, holder } = await providers(w)
   const ctx = new Context()
   const fibers = new Map<Key, Awaited<ReturnType<(typeof plugins)[Key]>>>()
   for (const key of KEYS) if (key !== leaveOut) fibers.set(key, await plugins[key](ctx))
-  const plugin = await ctx.plugin(AgentContextProvider, config)
+  const plugin = await ctx.plugin(Plugin, config)
   return { w, ctx, plugin, holder, fibers }
 }
 
@@ -274,5 +279,32 @@ describe('AgentContextProvider on real Cordis', () => {
     await Promise.resolve(plugin).catch(() => undefined)
     expect(plugin.state).toBe(FAILED)
     expect(ctx.get(agentRequestsKey)).toBeUndefined()
+  })
+})
+
+describe('createAgentContextPlugin on real Cordis (SPEC「测量事件」)', () => {
+  it('hands the observer to the preparation and the read the plugin serves', async () => {
+    const events: ContextMeasureEvent[] = []
+    const Plugin = createAgentContextPlugin({ measure: event => events.push(event) })
+    const { ctx, plugin, w } = await assembled(null, Plugin)
+    expect(plugin.state).toBe(ACTIVE)
+    const prepared = await readAndPrepare(ctx, w)
+    expect('ok' in prepared && prepared.ok.kind).toBe('assembled')
+    expect(events.map(event => `${event.operation}:${event.phase}`)).toEqual([
+      'read:start',
+      'read:end',
+      'prepare:start',
+      'prepare:end',
+    ])
+  })
+
+  it('has the inject and the configuration of the provider, and no event without an observer', async () => {
+    const Plugin = createAgentContextPlugin()
+    expect(Plugin).not.toBe(AgentContextProvider)
+    expect(Plugin.inject).toBe(AgentContextProvider.inject)
+    expect(Plugin.Config).toBe(AgentContextProvider.Config)
+    const { ctx, w } = await assembled(null, Plugin)
+    const prepared = await readAndPrepare(ctx, w)
+    expect('ok' in prepared && prepared.ok.kind).toBe('assembled')
   })
 })

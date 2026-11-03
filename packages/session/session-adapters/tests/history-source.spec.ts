@@ -3,8 +3,8 @@
 // pulled settlement, reads that stay open until every settlement has ended); the history reads
 // call Session as `reader` and `readWork` as `coordinator`, both with the access of the call;
 // another tenant is denied before any Session call; the model view translates to the Request
-// Context history (escaped epoch, canonical sequences, a cursor bound to its evidence, a fixed
-// upper bound, epoch changes, no empty page for a failure); the compaction window is cut at the
+// Context history (escaped epoch, canonical sequences from 0 while the Session rows count from 1, a
+// cursor bound to its evidence, a fixed upper bound, epoch changes, no empty page for a failure); the compaction window is cut at the
 // fixed upper bound and needs the lower bound sub-plugin; the eligibility bridge and the narrow
 // adoption source check the access of every call; a tail page costs the same at N = 10 and N = 100
 // rows (SS-21); both sub-plugins stay absent without `session`, and the lent reads answer
@@ -24,6 +24,7 @@ import type {
   HistoryEvidence,
   HistoryReadResult,
 } from '@omne-harness/request-context-cordis-contract'
+import type { HistoryCursor } from '@omne-harness/request-context-contract'
 import {
   ContextHolderSourcesService,
   contextHolderSourcesKey,
@@ -51,6 +52,8 @@ type Faults = {
   epochChangedAt: number | null
   /** The `readWork` answer gets this `contextScopes` value. */
   scopes?: WorkSnapshot['contextScopes']
+  /** Rewrites every model view page Session answers, to a shape Session itself never gives. */
+  page?: (page: Extract<ModelViewRead, { kind: 'page' }>) => ModelViewRead
 }
 type Mounted = 'session' | 'lowerBound' | 'source'
 
@@ -98,6 +101,7 @@ async function world(
         const answer = await history.readModelView(input)
         if ('ok' in answer && answer.ok.kind === 'page') {
           modelViewRows.push(answer.ok.rows.length)
+          if (faults.page !== undefined) return { ok: faults.page(answer.ok) }
           if (faults.epochChangedAt === views) {
             const changed: ModelViewRead = {
               kind: 'epoch-changed',
@@ -145,6 +149,11 @@ async function world(
   })
 
   const ctx = options.ctx ?? new Context()
+  const logged: { name: string; type: string; text: string }[] = []
+  ctx.logger.exporter({
+    export: message =>
+      logged.push({ name: message.name, type: message.type, text: String(message.args[0]) }),
+  })
   const fibers = new Map<Mounted, Awaited<ReturnType<Context['plugin']>>>()
   const plugins = { session: Session, lowerBound: ad04.lowerBound, source: ad04.source } as const
   for (const name of options.mount ?? (['session', 'lowerBound', 'source'] as const)) {
@@ -226,6 +235,7 @@ async function world(
     fibers,
     calls,
     faults,
+    logged,
     qualification,
     head,
     access,
@@ -404,7 +414,8 @@ describe('the history read translates the Session model view', () => {
     const ev = await resolved(w, parts)
     const scopes = ok(await w.s.backend.transactions.readWork(w.s.access)).contextScopes ?? []
     expect(ev.target.scope.ref).toBe(scopes.at(-1)?.scope)
-    expect(ev.upper).toEqual({ kind: 'entry', seq: '3' })
+    // Three Session rows, 1 to 3: the history rows are 0 to 2.
+    expect(ev.upper).toEqual({ kind: 'entry', seq: '2' })
     // The Session epoch holds a control character; the EpochId writes it as %00.
     expect(ev.epoch).toContain('%00')
     expect(ev.epoch).not.toContain('\u0000')
@@ -416,7 +427,7 @@ describe('the history read translates the Session model view', () => {
     await w.remind(3)
     const ev = await resolved(w, parts)
     await w.remind(2, 'late')
-    expect(await readAll(parts, w.access, ev)).toEqual(['1', '2', '3', '4'])
+    expect(await readAll(parts, w.access, ev)).toEqual(['0', '1', '2', '3'])
     const first = await parts.history.read({
       access: w.access,
       evidence: ev,
@@ -425,10 +436,10 @@ describe('the history read translates the Session model view', () => {
     })
     if (first.kind !== 'page') throw new Error('not a page')
     const [row] = first.page.rows
-    expect(row).toMatchObject({ seq: '1', entry: '3', message: { role: 'user' } })
+    expect(row).toMatchObject({ seq: '0', entry: '3', message: { role: 'user' } })
     expect(typeof row?.bytes).toBe('string')
     expect(row).not.toHaveProperty('sourceCall')
-    expect(first.page.next).toEqual({ evidence: ev, after: '1' })
+    expect(first.page.next).toEqual({ evidence: ev, after: '0' })
   })
 
   it('refuses a cursor of another evidence and a malformed upper bound without a Session call', async () => {
@@ -437,7 +448,7 @@ describe('the history read translates the Session model view', () => {
     await w.remind(2)
     const ev = await resolved(w, parts)
     const before = w.sessionCalls()
-    const other: HistoryEvidence = { ...ev, upper: { kind: 'entry', seq: '2' as never } }
+    const other: HistoryEvidence = { ...ev, upper: { kind: 'entry', seq: '1' as never } }
     expect(
       await parts.history.read({
         access: w.access,
@@ -455,6 +466,98 @@ describe('the history read translates the Session model view', () => {
       }),
     ).toEqual({ kind: 'invalid', field: 'evidence', reason: 'upper-out-of-range' })
     expect(w.sessionCalls()).toBe(before)
+  })
+
+  // The Session model view numbers its rows from 1 and names the empty view by the bound "0", so a
+  // row "0" has no history sequence, and a text that is not a canonical decimal has none either. A
+  // Session cursor is opaque and is never decoded, but it names the position after the last row of
+  // its page, so a cursor on a page without rows names nothing. The page is Session's, so a bad one is a defect of the translation: it is
+  // `unavailable` and it is logged at error level, never a quiet empty page or a made-up sequence.
+  describe('a Session page that does not translate is a visible defect', () => {
+    const rowZero = (page: Extract<ModelViewRead, { kind: 'page' }>): ModelViewRead => ({
+      ...page,
+      rows: page.rows.map((row, at) => (at === 0 ? { ...row, seq: '0' } : row)),
+    })
+    it.each([
+      {
+        name: 'a row numbered 0',
+        page: rowZero,
+        diagnostic: 'model view row 0 does not translate',
+      },
+      {
+        name: 'a row that is not a canonical decimal',
+        page: (page: Extract<ModelViewRead, { kind: 'page' }>): ModelViewRead => ({
+          ...page,
+          rows: page.rows.map((row, at) => (at === 0 ? { ...row, seq: '01' } : row)),
+        }),
+        diagnostic: 'model view row 01 does not translate',
+      },
+      {
+        name: 'a next cursor that follows no row',
+        page: (page: Extract<ModelViewRead, { kind: 'page' }>): ModelViewRead => ({
+          ...page,
+          rows: [],
+          next: 'after-nothing',
+        }),
+        diagnostic: 'the model view cursor follows no row',
+      },
+    ])('$name', async ({ page, diagnostic }) => {
+      const w = await world()
+      const { parts } = await w.borrow()
+      await w.remind(2)
+      const ev = await resolved(w, parts)
+      w.faults.page = page
+      const answer = await parts.history.read({
+        access: w.access,
+        evidence: ev,
+        cursor: null,
+        budgetBytes: 1,
+      })
+      expect(answer).toMatchObject({
+        kind: 'unavailable',
+        diagnostic: `translation defect: ${diagnostic}`,
+      })
+      expect(w.logged).toContainEqual({
+        name: 'session-adapters/history-source',
+        type: 'error',
+        text: `translation defect: ${diagnostic}`,
+      })
+    })
+
+    it('a page that does not move past the cursor it was asked from is a defect, not thousands of reads', async () => {
+      const w = await world()
+      const { parts } = await w.borrow()
+      await w.remind(6)
+      const ev = await resolved(w, parts)
+      // Every page is the first row alone with the cursor of the start: the skip never advances.
+      w.faults.page = page => ({ ...page, rows: page.rows.slice(0, 1), next: '0' })
+      const calls = w.sessionCalls()
+      const answer = await parts.history.read({
+        access: w.access,
+        evidence: ev,
+        cursor: { evidence: ev, after: '4' as never },
+        budgetBytes: 1,
+      })
+      expect(answer).toMatchObject({
+        kind: 'unavailable',
+        diagnostic: 'translation defect: the model view page does not move on',
+      })
+      expect(w.sessionCalls() - calls).toBeLessThanOrEqual(3)
+    })
+
+    it('a bound of 0 in the basis is the empty history, not a defect', async () => {
+      const w = await world()
+      const { parts } = await w.borrow()
+      const ev = await resolved(w, parts)
+      const answer = await parts.history.read({
+        access: w.access,
+        evidence: { ...ev, upper: { kind: 'empty' } },
+        cursor: null,
+        budgetBytes: 1,
+      })
+      expect(answer.kind).not.toBe('unavailable')
+      expect(w.logged.filter(item => item.type === 'error')).toEqual([])
+    })
   })
 
   it('answers a scope it has not resolved unavailable, without a Session call', async () => {
@@ -485,7 +588,7 @@ describe('the history read translates the Session model view', () => {
     })
     expect(changed).toEqual({
       kind: 'epoch-changed',
-      current: { target: ev.target, epoch: `${ev.epoch}+1`, upper: { kind: 'entry', seq: '1' } },
+      current: { target: ev.target, epoch: `${ev.epoch}+1`, upper: { kind: 'entry', seq: '0' } },
     })
     w.qualification.session = 'unavailable'
     const down = await parts.history.read({
@@ -495,6 +598,39 @@ describe('the history read translates the Session model view', () => {
       budgetBytes: 9,
     })
     expect(down.kind).toBe('unavailable')
+  })
+
+  // request-context-contract SPEC, "历史源读口与 epoch 视图": the rows of an epoch are numbered from 0
+  // without a gap, the upper bound is the last row, and each cursor names the last row returned. A
+  // page that starts at the Session row number 1 is refused by the Request Context reader.
+  it('numbers the rows of an epoch from 0 to the upper bound, as the Request Context reads them', async () => {
+    const w = await world()
+    const { parts } = await w.borrow()
+    await w.remind(4)
+    const ev = await resolved(w, parts)
+    if (ev.upper.kind !== 'entry') throw new Error('an entry upper bound is expected')
+    let cursor: HistoryCursor | null = null
+    let expected = 0n
+    for (let pages = 0; ; pages++) {
+      if (pages > 20) throw new Error('the read did not end')
+      const answer: HistoryReadResult = await parts.history.read({
+        access: w.access,
+        evidence: ev,
+        cursor,
+        budgetBytes: 1,
+      })
+      if (answer.kind !== 'page') throw new Error(`not a page: ${JSON.stringify(answer)}`)
+      for (const row of answer.page.rows) {
+        expect(row.seq).toBe(String(expected))
+        expected += 1n
+      }
+      if (answer.page.next === null) break
+      expect(answer.page.next.after).toBe(answer.page.rows.at(-1)?.seq)
+      cursor = answer.page.next
+    }
+    // The last row is the upper bound: five rows, 0 to 4.
+    expect(String(expected - 1n)).toBe(ev.upper.seq)
+    expect(ev.upper.seq).toBe('4')
   })
 })
 
@@ -637,37 +773,81 @@ describe('the read eligibility bridge and the narrow adoption source', () => {
 
 // --- SS-21 -----------------------------------------------------------------------------------------
 
+/**
+ * The Session calls of one read after a kept cursor (SS-21, R2-D72): one page from the cursor
+ * Session issued, and one more page that asks Session for the cursor before the new upper bound,
+ * because a page that reaches the upper bound carries no cursor (`mint`, K-18). The constant does
+ * not depend on the history: a read that grows with N is the defect this case guards.
+ */
+const CALLS_PER_TAIL_READ = 2
+
 describe('SS-21: a page after the cursor costs the same at N = 10 and N = 100 rows', () => {
-  async function tail(rows: number) {
-    const w = await world()
-    const { parts } = await w.borrow()
-    await w.remind(rows - 1)
-    const ev = await resolved(w, parts)
-    const calls = w.sessionCalls()
-    const served = w.modelViewRows.length
-    const after = String(rows - 2) as never
+  // The cursor is the one a reader holds from its previous read: the history had N - 2 rows, the
+  // reader read them all, and two rows were added since. The Session cursors are opaque, so the
+  // reader starts at the cursor it kept one row before the previous upper bound.
+  type Tail = Readonly<{ calls: number; rows: number; returned: readonly string[] }>
+  type TailRead = (
+    parts: ContextHolderParts<unknown>,
+    w: Awaited<ReturnType<typeof world>>,
+    ev: HistoryEvidence,
+    after: string,
+  ) => Promise<readonly string[]>
+
+  /** The read of the case: the rows after the cursor, with the cursor the reader kept. */
+  const afterCursor: TailRead = async (parts, w, ev, after) => {
     const answer = await parts.history.read({
       access: w.access,
       evidence: ev,
-      cursor: { evidence: ev, after },
+      cursor: { evidence: ev, after: after as never },
       budgetBytes: 400,
     })
     if (answer.kind !== 'page') throw new Error(JSON.stringify(answer))
+    return answer.page.rows.map(row => row.seq)
+  }
+
+  async function tail(rows: number, read: TailRead = afterCursor): Promise<Tail> {
+    const w = await world()
+    const { parts } = await w.borrow()
+    await w.remind(rows - 3)
+    expect(await readAll(parts, w.access, await resolved(w, parts))).toHaveLength(rows - 2)
+    await w.remind(2, 'later')
+    const ev = await resolved(w, parts)
+    const calls = w.sessionCalls()
+    const served = w.modelViewRows.length
+    // The history rows are 0 to rows - 1: the cursor is before the last two.
+    const returned = await read(parts, w, ev, String(rows - 3))
     return {
       calls: w.sessionCalls() - calls,
       rows: w.modelViewRows.slice(served).reduce((sum, count) => sum + count, 0),
-      returned: answer.page.rows.map(row => row.seq),
+      returned,
     }
   }
 
-  it('reads one model view page holding only the rows after the cursor', async () => {
+  /** What the case asserts of the two sizes: the same constant number of calls and rows. */
+  function expectFlat(small: Tail, large: Tail) {
+    expect(small.calls).toBe(CALLS_PER_TAIL_READ)
+    expect(large.calls).toBe(CALLS_PER_TAIL_READ)
+    expect(small.rows).toBe(large.rows)
+  }
+
+  it('reads the rows after the cursor and one row before it, then the cursor for the next read', async () => {
     const small = await tail(10)
     const large = await tail(100)
-    expect(small.calls).toBe(1)
-    expect(large.calls).toBe(1)
-    expect(small.rows).toBe(large.rows)
-    expect(small.returned).toEqual(['9', '10'])
-    expect(large.returned).toEqual(['99', '100'])
+    expectFlat(small, large)
+    expect(small.returned).toEqual(['8', '9'])
+    expect(large.returned).toEqual(['98', '99'])
+  })
+
+  it('negative control: a reader that reads the history from the start fails the same assertions', async () => {
+    // Every read starts at the beginning and skips the rows it has: the calls grow with N.
+    const fromStart: TailRead = async (parts, w, ev, after) => {
+      const seqs = await readAll(parts, w.access, ev)
+      return seqs.filter(seq => Number(seq) > Number(after))
+    }
+    const small = await tail(10, fromStart)
+    const large = await tail(100, fromStart)
+    expect(large.calls).toBeGreaterThan(small.calls)
+    expect(() => expectFlat(small, large)).toThrow()
   })
 
   it('negative control: reading the history from the start grows with N', async () => {

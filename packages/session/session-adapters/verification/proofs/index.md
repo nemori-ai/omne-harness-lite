@@ -4,4 +4,4 @@
 
 ## 内容
 
-- [README.md](README.md)：证明清单与假设。现在没有证明
+- [README.md](README.md)：证明清单与假设。目前没有证明

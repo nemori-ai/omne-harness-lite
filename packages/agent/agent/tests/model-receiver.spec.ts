@@ -113,6 +113,34 @@ async function setup() {
 }
 
 describe('host Model receiver', () => {
+  it('routes standalone material by explicit execution and retains its access boundary', async () => {
+    const s = await setup()
+    const consumer = {
+      ...s.delivery.consumer,
+      work: 'opaque-value-not-an-execution',
+      position: 'material',
+    }
+    const input = {
+      ...alice,
+      execution: execution(),
+      identity: 'standalone-material',
+      consumer,
+      value: s.assembly.controls.journal.receiving.material('standalone'),
+    }
+    const source = ok(await s.dependencies.provider.materials.preserve(input))
+    expect(ok(await s.dependencies.provider.materials.read({ ...alice, source }))).toEqual(
+      input.value,
+    )
+    s.assembly.controls.journal.receiving.qualify(alice, execution(), 'denied')
+    expect(await s.dependencies.provider.materials.read({ ...alice, source })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+    expect(await s.dependencies.provider.materials.preserve(input)).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+  })
   it('jointly saves complete material and recalls it after detach and reassembly', async () => {
     const s = await setup()
     const saved = ok(await s.push())

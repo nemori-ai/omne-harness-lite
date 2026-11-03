@@ -11,6 +11,7 @@ import type {
   SessionInternalPrincipals,
 } from '@omne-harness/session-contract'
 import type { Advance } from './advance.ts'
+import type { ControlPropagation } from './control.ts'
 import { OWNERS, unavailable } from './failures.ts'
 import type { Lifecycle } from './lifecycle.ts'
 import type { SchedulingPolicy } from './policy.ts'
@@ -30,7 +31,7 @@ export type Scan = Readonly<{
   stopAll(): void
 }>
 
-const PERIODIC_REASONS: readonly PendingReason[] = ['inputs', 'unresolved']
+const PERIODIC_REASONS: readonly PendingReason[] = ['inputs', 'unresolved', 'controls']
 
 export function createScan<P>(
   input: Readonly<{
@@ -41,9 +42,11 @@ export function createScan<P>(
     maintainer: SessionFaces<P>
     advance: Advance
     resolution: Resolution
+    controls: ControlPropagation
   }>,
 ): Scan {
-  const { lifecycle, policy, scheduling, principals, maintainer, advance, resolution } = input
+  const { lifecycle, policy, scheduling, principals, maintainer, advance, resolution, controls } =
+    input
   const scanners = new Map<string, Readonly<{ handle: MaintenanceHandle; stop: AbortController }>>()
 
   const page = (tenant: TenantId, after: string | null, reason?: PendingReason) =>
@@ -61,6 +64,7 @@ export function createScan<P>(
     if ('failure' in principal) return
     const snapshot = await maintainer.work.readWork({ principal: principal.ok, ...ref })
     if ('failure' in snapshot) return
+    if (snapshot.ok.controls.some(control => control.state === 'propagating')) controls.trigger(ref)
     if (snapshot.ok.pending.length > 0) advance.trigger(ref)
     for (const operation of snapshot.ok.unresolved)
       resolution.watch(ref, operation, () => {

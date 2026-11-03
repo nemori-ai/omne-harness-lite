@@ -394,6 +394,26 @@
               "pending": false
             },
             {
+              "name": "AssemblyReuse",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CachedAssemblyMaterial",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContentControl",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SnapshotIdentity",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "createAssemblyOperations",
               "kind": "value",
               "pending": false
@@ -1221,7 +1241,10 @@
     {
       "module": "@omne-harness/runtime-context-contract",
       "interface": "ContextBlocks",
-      "members": ["context.compaction-settings", "context.window-usage"],
+      "members": [
+        "context.compaction-settings",
+        "context.window-usage"
+      ],
       "pending": false
     }
   ]

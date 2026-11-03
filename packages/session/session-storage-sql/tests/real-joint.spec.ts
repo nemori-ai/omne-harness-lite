@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { JsonValue } from '@omne-harness/sql-contract'
 import {
   guard,
   operationId,
@@ -22,7 +23,7 @@ import {
   decodeExecutionRecordReply,
   decodeSessionHistoryRoot,
   decodeSessionReply,
-  decodeExecutionRecordState,
+  decodeExecutionRecordParts,
   executionRecordFacts,
   sessionCheckFacts,
   sessionCommandFacts,
@@ -75,6 +76,12 @@ async function read(app: RealApp, handler: string) {
   return result.output
 }
 
+/** The publication count and the whole state of the session (the first page of the parts read). */
+function stateOf(output: JsonValue) {
+  const page = decodeExecutionRecordParts(output)
+  return page === null ? null : { published: page.published, state: page.state }
+}
+
 describe('the joint commit on the real write Worker', () => {
   it('commits both sides in one receipt and the read Worker reads the moved common root', async () => {
     const app = await open()
@@ -96,7 +103,7 @@ describe('the joint commit on the real write Worker', () => {
     const after = decodeSessionHistoryRoot(await read(app, 'session.history-root'))
     expect(after?.published).toBe('1')
     expect(BigInt(after!.position)).toBeGreaterThan(BigInt(before!.position) + 1n)
-    expect(decodeExecutionRecordState(await read(app, 'execution-record.state'))).toEqual({
+    expect(stateOf(await read(app, 'execution-record.parts'))).toEqual({
       published: '1',
       state: { records: ['joint'] },
     })
@@ -125,7 +132,7 @@ describe('the joint commit on the real write Worker', () => {
       kind: 'stopped',
       failure: { kind: 'denied', action: 'attach' },
     })
-    expect(decodeExecutionRecordState(await read(app, 'execution-record.state'))).toEqual({
+    expect(stateOf(await read(app, 'execution-record.parts'))).toEqual({
       published: '0',
       state: null,
     })
@@ -156,7 +163,7 @@ describe('the size of the Agent records of one session', () => {
       commands: [command('aop_edge', room)],
     })
     expect(accepted.kind).toBe('committed')
-    expect(decodeExecutionRecordState(await read(app, 'execution-record.state'))).toEqual({
+    expect(stateOf(await read(app, 'execution-record.parts'))).toEqual({
       published: '1',
       state,
     })
@@ -190,7 +197,7 @@ describe('the process is killed after the joint receipt came back', () => {
     expect(queryKindOf(found)).toBe('committed')
     if (found.kind !== 'committed') return
     expect(found.responses.map(item => item.participant)).toEqual(['execution-record', 'session'])
-    expect(decodeExecutionRecordState(await read(app, 'execution-record.state'))).toEqual({
+    expect(stateOf(await read(app, 'execution-record.parts'))).toEqual({
       published: '1',
       state: { records: ['joint'] },
     })

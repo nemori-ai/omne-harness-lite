@@ -1,6 +1,6 @@
 # @omne-harness/session-storage-sql 行为规格
 
-状态：存储成员，`draft`。head `80852180e` 已实现事务端口、参加者模块、八个读 handler 与静态材料。#502 C19 加入第二个参加者 `execution-record`、共同日志根、`session` 的只读核对与 `./participants` 子路径，见[参加者模块与材料](#参加者模块与材料)。本成员只经 [sql-contract](../../storage/sql-contract/SPEC.md) 的公开形状使用 SQL；本页其余条款是设计目标，实现覆盖范围见下文[实现现状](#实现现状)。本成员是 Session 组里唯一接触介质的成员。它用 SQL 表兑现 [session-contract](../session-contract/SPEC.md) 声明的 `SessionTransactionPort`：提交、权威读、原操作查询、控制操作查询、模型选择读、历史读、epoch 视图读、待办扫描、引用查询与已释放作用域读。治理规则不在本页，本页只写表、索引、写路径、读路径、符合性与介质差异。
+状态：存储成员，`draft`。已实现事务端口、两个参加者 `session` 与 `execution-record`、共同日志根、`session` 的只读核对、`./participants` 子路径、静态材料与读 handler，见[实现现状](#实现现状)与[参加者模块与材料](#参加者模块与材料)。事件通道的解释提交 `commitLog`、K-5 同根索引读取、观察尾部前缀与准入记录见[已知限制](#已知限制)第 12、16、17 条。本成员只经 [sql-contract](../../storage/sql-contract/SPEC.md) 的公开形状使用 SQL；本页其余条款是设计目标，实现覆盖范围见下文[实现现状](#实现现状)。本成员是 Session 组里唯一接触介质的成员。它用 SQL 表兑现 [session-contract](../session-contract/SPEC.md) 声明的 `SessionTransactionPort`：提交、权威读、原操作查询、控制操作查询、模型选择读、历史读、epoch 视图读、待办扫描、引用查询与已释放作用域读。治理规则不在本页，本页只写表、索引、写路径、读路径、符合性与介质差异。
 
 本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。表与索引的列、键与约束在 [docs/object-model.md](docs/object-model.md)，写路径、压缩提交与派生重建的时序在 [docs/flows.md](docs/flows.md)，验证义务在 [docs/verification-obligations.md](docs/verification-obligations.md)。
 
@@ -44,18 +44,21 @@
 
 | 条款                                  | 现状                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 根入口导出                            | `createSessionStorage`、`createSessionStoragePair`、`createSessionPrincipalBindings`、`sessionStorageMaterials`、`SESSION_PARTICIPANT` 和它们的类型。子路径 `./participants` 导出两个参加者的词汇，见[对外部提交方的词汇](#对外部提交方的词汇)。没有 `./cordis` 子路径，也没有该源文件。会话存储组合由应用承担，本成员不建 Cordis 服务、目录或组合登记                                                                                                                                                                    |
+| 根入口导出                            | `createSessionStorage`、`createSessionStoragePair`、`createSessionPrincipalBindings`、`sessionStorageMaterials`、`SESSION_PARTICIPANT` 和它们的类型（含 `SessionStorageMaterialsOptions`）。子路径 `./participants` 导出两个参加者的词汇，见[对外部提交方的词汇](#对外部提交方的词汇)。没有 `./cordis` 子路径，也没有该源文件。会话存储组合由应用承担，本成员不建 Cordis 服务、目录或组合登记                                                                                                                                                                    |
 | SQL 依赖                              | 只从 `@omne-harness/sql-contract` 与 `@omne-harness/sql-contract/worker` 导入。不导入 `packages/storage/**` 内部，`dependencies` 不含 `@omne-harness/sqlite-provider`，源码里没有 `node:sqlite`。`devDependencies` 有 sqlite-provider，只供 `tests/real-provider.spec.ts` 用它的公开入口                                                                                                                                                                                                                                  |
-| 端口操作                              | `commit`、`readWork`、`readInput`、`queryOperation`、`queryControlOperation`、`readModelSelection`、`commitEntries`、`history`（`begin`、`next`、`since`、`readModelView`）、`pending`、`references`、`releasedScopes` 已实现。`commitEntries` 的步骤见[已知限制](#已知限制)第 1 条                                                                                                                                                                                                                                       |
-| 静态材料                              | 两个参加者 `execution-record` 与 `session`（`grouping` 都为 `singleton`）；四个迁移 `session/001-session-log`、`session/002-execution-index`、`session/003-operation-evidence` 与 `execution-record/001-execution-record`；十二个 `snapshot` 读 handler：`session.work`、`session.input`、`session.model-selection`、`session.history`、`session.model-view`、`session.pending`、`session.references`、`session.released-scopes`、`session.history-root`、`session.execution`、`execution-record.state`、`execution-record.operation`。每个模块带文件摘要   |
-| 当前表                                | `sl_journal`、`sl_entry`、`sl_operation`、`sl_state`、`sl_input`、`sl_model_view`、`sl_annotation_idx`、`sl_pending_idx`、`sl_resident_idx`、`sl_released_scope_idx`，另有 `sl_kind_idx` 与 `sl_operation_revision_idx` 两个二级索引。执行索引 `sl_execution_idx` 也归 `session`，见[执行索引](#执行索引)。操作的访问证据 `sl_operation_evidence` 也归 `session`，见[操作记录的访问证据](#操作记录的访问证据)。`execution-record` 拥有 `er_root`、`er_state`、`er_operation`、`er_execution`、`er_fact_idx`、`er_batch_idx`、`er_admission_idx` 与二级索引 `er_execution_session_idx`。列见[对象模型](docs/object-model.md)   |
+| 端口操作                              | `commit`、`readWork`、`readInput`、`queryOperation`、`queryControlOperation`、`readModelSelection`、`commitEntries`、`commitLog`、`history`（`begin`、`next`、`since`、`readModelView`）、`pending`、`references`、`releasedScopes` 已实现。`commitEntries` 的步骤见[已知限制](#已知限制)第 1 条，`commitLog` 的步骤见第 16 条。`readWork` 的快照带同一快照里读出的 `historyIndex`，见第 12 条                                                                                                                                                                                                                                       |
+| 静态材料                              | 两个参加者 `execution-record` 与 `session`（`grouping` 都为 `singleton`）；八个迁移 `session/001-session-log`、`session/002-execution-index`、`session/003-operation-evidence`、`execution-record/001-execution-record`、`execution-record/002-preadmission`、`execution-record/003-admission-attempt`、`execution-record/004-state-parts` 与 `execution-record/005-fact-body`；十七个 `snapshot` 读 handler：`session.work`、`session.work-version`、`session.work-index`、`session.work-reads`、`session.input`、`session.model-selection`、`session.history`、`session.model-view`、`session.pending`、`session.references`、`session.released-scopes`、`session.history-root`、`session.execution`、`execution-record.parts`、`execution-record.execution-facts`、`execution-record.operation`、`execution-record.preadmission`。`session.work` 另读 `sl_entry` 与 `er_` 同根索引表；`session.work-version` 只读 `sl_journal` 与 `er_root` 两次主键点查（[RT-04](#rt-04)）。每个模块带文件摘要。材料变化改变组合的清单摘要，见第 17 条   |
+| 当前表                                | `sl_journal`、`sl_entry`、`sl_operation`、`sl_state`、`sl_input`、`sl_model_view`、`sl_annotation_idx`、`sl_pending_idx`、`sl_resident_idx`、`sl_released_scope_idx`，另有 `sl_kind_idx` 与 `sl_operation_revision_idx` 两个二级索引。执行索引 `sl_execution_idx` 也归 `session`，见[执行索引](#执行索引)。操作的访问证据 `sl_operation_evidence` 也归 `session`，见[操作记录的访问证据](#操作记录的访问证据)。`execution-record` 拥有 `er_root`、`er_state`、`er_state_part`、`er_operation`、`er_execution`、`er_fact_idx`、`er_batch_idx`、`er_admission_idx`、`er_admission_attempt_idx`、`er_preadmission`、`er_fact_body` 与二级索引 `er_execution_session_idx`、唯一索引 `er_preadmission_entry_idx`。列见[对象模型](docs/object-model.md)   |
 | 尚未实现的设计                        | `sl_batch`、`sl_blob`、`sl_ref_idx`、`sl_rebuild`；TB-04 的内联阈值与外置载荷；R9 的追赶与重建、`fold_version`、解释版本记录与隔离；R4 的按关联定位；PostgreSQL；`maxScanPerPage` 与读路径的逐条披露核对；配置项「内联阈值」「大对象去向」「快照重建方式」。`sl_state` 落后时 handler 返回 `behind`，端口映射为 `unavailable`，没有自动追赶                                                                                                                                                                               |
-| 与设计的差异                          | 提交身份的 `protocolVersion` 为 `2`，`scope` 为租户域，`operationKey` 为 `<SessionOperationId>#<代次>`。待办原因有八个，含 `initialization`（与 `PendingReason` 一致，下文 W3 与 R8 写「七个」处按八个读）。`sl_operation.form` 有 `batch`、`control`、`answer`、`entries` 四种，`answer` 行没有 `revision`。尝试代次上限初值为 8，游标有效期初值为 15 分钟。`commit` 先对各代次调用存储 `query`，不先点查 `sl_operation`；参加者模块不另核对材料集合，交给 `decide`；提交结果从回执的响应证据取出，不读回 `sl_operation` |
+| 与设计的差异                          | 提交身份的 `protocolVersion` 为 `2`，`scope` 为租户域，`operationKey` 为 `<SessionOperationId>#<代次>`。待办原因有八个，含 `initialization`（与 `PendingReason` 一致，下文 W3 与 R8 写「七个」处按八个读）。`sl_operation.form` 有 `batch`、`control`、`answer`、`entries`、`log` 五种，`answer` 行没有 `revision`。尝试代次上限初值为 8，游标有效期初值为 15 分钟。`commit` 先对各代次调用存储 `query`，不先点查 `sl_operation`；参加者模块不另核对材料集合，交给 `decide`；提交结果从回执的响应证据取出，不读回 `sl_operation` |
 | R7 的现状（Reduce R1-D23 按源码改写） | 未命中 `sl_operation` 的操作，在代次 1 得到存储 `not_committed` 时，`queryOperation` 与 `queryControlOperation` 对外答 `unknown`，与上文 R7 正文一致。源码里 `exclusion()` 仍构造 `not-committed` 与排除证据，但 `unfound()` 把它映射为 `unknown`，这份证据不到达调用方，见[已知限制](#已知限制)。真实 sqlite-provider 对从未使用的身份答带五项证明的 `not_committed`，`queryOperation` 仍答 `unknown`（`tests/real-provider.spec.ts`）                                                                                   |
+| R10、R11 系统读游标的现状 | R10 的续读游标绑定种类、目录修订与 `key`（载荷的可选字段 `key`，ResidentKey 文本）。验证时 `key` 缺省按 null 比较，不等时答 `invalid`，`field` 为 `cursor`，reason 为 `issued for another key`。R11 的游标不带 `key`，也不带目录修订。`key` 不放进租户或会话字段，因为系统读的这两个字段按协议为空。实现升级前签发、没有 `key` 的 R10 游标按新规则答 `invalid`；游标有效期 15 分钟且 M2 没有发行，按可接受的协议收紧处理。真实 sqlite-provider 上的系统读用例见 `tests/real-system-reads.spec.ts`；索引行直接写入域文件，只验证读取路径，不验证 W3 对索引的维护 |
 
 ### 已知限制
 
 <a id="已知限制"></a>
+
+K-n 编号是 Session 组各成员共用的一套序列：本页用 K-1 至 K-5 与 K-7，[session-adapters](../session-adapters/SPEC.md#已知限制) 用 K-6 与 K-8 至 K-22，缺号不表示遗漏。无 K 编号的条目按位置号引用。
 
 1. `commitEntries` 的实现与它的限制。规则与失败类别归 session-contract 的 [entries 通道的解释提交](../session-contract/docs/same-log-pure.md#entries-通道的解释提交)。本成员按下列步骤兑现：
    - 端口侧（`src/entries.ts`）不问访问检查，因为调用者是受信的解释者。租户不是 legal-identity 铸造的时返回 `invalid`（字段 `tenant`），不调用存储。其余输入编码为意图 `entries` 的参加者事实，按 `commit` 的同一套尝试代次提交。应答摘要用 `digestSessionEntries`，摘要不同的同一身份答 `conflict`。
@@ -65,19 +68,65 @@
    - 同一通道两次同 `start` 的并发提交只有一次成功，这项保证来自租户事务域的串行写，不来自本成员。
    - 验证：`tests/entries.spec.ts` 在 `node:sqlite` 夹具上对后果行写入后、`sl_state` 写入前、尾部更新时与操作记录写入时各注入一次写失败，核对四张表都不变，再用同一输入只提交一次；另核对应答丢失时答 `commit-unknown`，查询答 `committed`，重发得到原回执。共用用例 `sessionEntriesConformance` 在夹具上（`tests/conformance.spec.ts`）与真实 sqlite-provider 上（`tests/real-provider.spec.ts`）各跑一次。夹具的回滚是 `node:sqlite` 上的模型，负控「把夹具的 ROLLBACK 改成 COMMIT」只证明用例能观察到回滚，不证明真实提供者的回滚。真实提供者上没有运行写失败注入，未执行。
 2. 两套测试夹具。`tests/fixtures/sqlite-storage.ts` 在 `node:sqlite` 的内存库上运行本成员真实的 participant 与 handler 模块，每个事务域一个库。它与真实读端口一样拒绝没有 `LIMIT` 的读语句。它不覆盖 Worker、持久、受理队列、关闭与限额，通过只说明模块的 SQL 语义成立。`tests/fixtures/real-provider.ts` 经 sqlite-provider 的公开入口在临时目录的文件库上组合真实存储，`tests/real-provider.spec.ts` 覆盖：Worker 下提交与读回；回执返回后杀进程，新提供者按原身份 `query` 得 `committed`；从未提交的身份得 `not_committed`，不当作 `committed`，`queryOperation` 答 `unknown`；关闭（租约归还，关闭后写入为 `commit-unknown`，`query` 为 `unknown`）；`command_limit` 与 `queue_full` 两种限额。迁移里建索引在真实提供者上可用。未覆盖：断电耐久、WAL 维护与读暂停、跨进程写者、读 Worker 崩溃、`lockWaitMs` 超时。组提交计数见第 6 条。
-3. 本批新增行为（读路径路由、控制答案、模型选择、游标绑定）没有先红后绿的记录。本成员以负控用例代替：租户隔离、跨租户域目录、游标篡改与未授权访问各有反例用例。负控只说明这些反例被拒绝，不说明旧实现曾失败。
+3. 本批新增行为（读路径路由、控制答案、模型选择、游标绑定）没有先红后绿的记录，R10 游标的 `key` 绑定除外。本成员以负控用例代替：租户隔离、跨租户域目录、游标篡改与未授权访问各有反例用例。负控只说明这些反例被拒绝，不说明旧实现曾失败。R10 的 `key` 绑定有先红后绿记录：`tests/system-reads.spec.ts`「a references cursor of one key is invalid for another key」在实现之前红，实现之后绿。
 4. 上一节「尚未实现的设计」各项都是已知限制。它们在实现之前不得写成已验证。
 5. 偏离：材料集合核对（W1 第 3 步；session-contract「SessionTransactionPort」义务 1、2）。现行条款要求按命令种类核对 `guards` 的完整材料集合，缺一项或多一项答「不支持」。共同提交表的「参加者」列只有文字，没有可核对的 `owner`、`participant`、`protocol` 取值，身份桥、证据桥与 Context 输入在生产中也尚未实现，所以本成员现在只执行契约已固定的两处核对：`create` 与 `completeInitialization` 的 `session-initialization` 材料，`startRun` 的 `login-entry` 材料；其余命令的 `guards` 原样带入，不核对集合。退出条件：真实身份桥、证据桥与 Context 输入接入 Session 时，由 session-contract 的拥有者补导出逐命令材料表，本成员随之核对缺项与多项。条款原文不改（Reduce 裁定，#1000）。
 6. 组提交计数：`tests/real-provider.spec.ts` 并发提交 8 个会话的 `create`，原操作数 8，物理写事务数 8（读 WAL 提交帧得到，没有读提供者内部计数）。两者相等，记为零合并：参加者 `session` 标 `singleton`，按提供者规格 §4.5 单独成组。本成员不声称 G2-P 在这条路径上生效。这是 Windows 上 Node 26.12 的一次观察。
 7. `exclusion()` 构造的 `not-committed` 排除证据（`record`、`digest`）是死数据：`unfound()` 不把它交给调用方。要么删除，要么等辨认参加操作的入口补上后启用，见[明确缺项](#明确缺项)。
-8. K-1 大载荷：执行记录的一次写入超过存储的 `maxCommandBytes` 时，提交方答 `unavailable`。本成员不写 `sl_blob`，也没有外置载荷的链路。触发条件：真实材料或执行记录超过上限。读口上限：读 handler `execution-record.state` 的 `maxOutputBytes` 固定为 1 MiB（`materials.ts`），与装配的 `maxCommandBytes` 无关。读出的输出是状态加一个很短的外壳（`{"published":"<n>","state":…}`），写入的命令是同一份状态加答案、摘要、标识和索引行（至少数百字节），所以只要 `maxCommandBytes` 不超过 1 MiB，能写入的状态一定读得回：两个上限数值相等，差额是命令里状态以外的字节。`tests/real-joint.spec.ts` 在 `maxCommandBytes` 为 1 MiB 的真实 provider 上写入恰好等于上限的命令（多一字节被拒为 `command_limit`），再读回同一份状态。装配把 `maxCommandBytes` 配到 1 MiB 以上时这个保证不再成立：读口上限必须随之放大，否则状态写得进、读不回，该会话此后每次调用都读不到记录而答 `unavailable`。
+8. K-1 大载荷：执行记录的一次写入超过存储的 `maxCommandBytes` 时，提交方答 `unavailable`。本成员不写 `sl_blob`，也没有外置载荷的链路。触发条件：真实材料或执行记录超过上限。读口上限：每个读 handler 的 `maxOutputBytes` 是装配参数，本成员没有默认值，也没有源码常量。`sessionStorageMaterials({ readOutputLimitBytes })` 必填该参数，类型 `SessionStorageMaterialsOptions`，必须是正安全整数；缺参数、0、负数、小数、`NaN`、无穷、超出安全范围或不是数字，构造时抛 `TypeError`（`readOutputLimitBytes must be a positive safe integer`），不读任何文件。推荐值 20 MiB（20971520，R2-D81：长会话的快照每轮增长，不能停在 1 MiB，见 [session SN-1](../session/SPEC.md#sn-1)；harness-server 的发行构建写明这个值，见第 19 条）。该值与装配的 `maxCommandBytes` 无关。上限由装配保证：本成员看不到提供者的配置，不核对它。提供者读时答 `handler_unavailable`，这是可见的失败；装配期另有 sqlite-provider 的启动核对（R2-D89）：构造期核对每个读 handler 的 `maxOutputBytes` 不超过 `maxReadResultBytes`，见 [sqlite-provider 的构造与域打开](../../storage/sqlite-provider/SPEC.md#53-do-1构造与域打开)与[配置](../../storage/sqlite-provider/SPEC.md#121-配置)。提供者不为输出上限超过自己 `maxReadResultBytes` 的 handler 服务（读时答 `handler_unavailable`），并按这个上限为每次读预留 `globalReadResultBytes`（含只读几行的读），所以装配把 `maxReadResultBytes` 配到至少 `readOutputLimitBytes`，`globalReadResultBytes` 至少是同时在途的读数乘它，不足时多出来的并发读答 `queue_full`。`maxRowsRead` 仍是 2000：`session.work` 的索引最多读 1000 行，分区读口一页最多 65 行，都与会话长度无关，不先于字节上限挡住长会话。整份状态由分区读口 `execution-record.parts` 的首页读出（第 18 条），不分区的写入方只有整份状态，首页的输出是状态加一个很短的外壳（`{"published":"<n>","state":…,"parts":[],"next":null}`），写入的命令是同一份状态加答案、摘要、标识和索引行（至少数百字节），所以只要 `maxCommandBytes` 不超过 `readOutputLimitBytes`，能写入的整份状态一定读得回：两个上限数值相等，差额是命令里状态以外的字节。`tests/real-joint.spec.ts` 在 `maxCommandBytes` 为 1 MiB 的真实 provider 上写入恰好等于上限的命令（多一字节被拒为 `command_limit`），再读回同一份状态。`tests/read-output-limit.spec.ts` 在写入上限放大的真实 provider 上写入 2 MiB 与几乎填满读上限的状态并整份读回，输出超过 `readOutputLimitBytes`（该用例传 20 MiB）时读口答 `read_limit`，不交出任何部分。分区读口 `execution-record.parts` 分页读（第 18 条），一页在文本预算之前停下，所以一个会话的分区总量不受 1 MiB 限制；单个分区受同一论证约束：分区写进同一条命令，分区不超过 `maxCommandBytes`，读它的那一页只含它时也读得回。装配把 `maxCommandBytes` 配到超过 `readOutputLimitBytes` 时这个保证不再成立：读口上限必须随之放大，否则状态写得进、读不回，该会话此后每次调用都读不到记录而答 `unavailable`。
 9. K-2 线性序依赖单写者：共同根的严格递增依赖 SQLite 每个事务域只有一个写事务。PostgreSQL 或跨进程写者要另做串行化，例如锁住 `er_root` 与 `sl_journal` 两行。触发条件：PostgreSQL 提供者或跨进程写者进入范围。
 10. K-3 Agent 读形状：Agent 的读口只能用通用索引列。读形状要按别的字段过滤或排序时，要新增 `execution-record/00N` 迁移，由本成员的串行写者写。在此之前提供者不能用全量扫描代替。触发条件：Agent 契约改读口形状。
 11. K-4 执行顺序依赖名字：共同提交里 `session` 读到本批 `er_` 写入，这依赖名字序（`execution-record` 在 `session` 之前）。触发条件：任一参加者改名，或任一方声明事实依赖（依赖图先于名字序决定顺序）。`tests/execution-record.spec.ts` 断言当前顺序。
-12. K-5 同根索引尚未进入 Session 的历史索引：`session` 的 `readTables` 声明了 `er_` 索引表，提交里只读 `er_root` 组出根。执行边界、事实边界、批次与原受理目录还没有填进 `SessionHistoryIndex` 的 `executions`、`batches` 与 `reads.admissions`。事实边界行的 Session 后果种类也还是空列表。依赖它们的历史解释按 Session 已有规则答 `unavailable`，不答空。触发条件：AD-02 的同日志解释进入实现。
+12. K-5 同根索引的读取（R3、R2-D28 候选 C）。`src/worker/history-index.ts` 是唯一的组装处。`session` 的命令、`commitLog` 的判定与读 handler `session.work` 都调用它，在同一写事务或同一读快照里读两方的行。
+    - 范围：只读本次决定涉及的关系（session-contract FR-01）。起点是本次的输入范围与本次点名的执行（`commitLog` 的观察执行）。输入经 `er_admission_idx` 找到原受理的执行，执行经 `er_batch_idx` 找到未解释批次的成员输入，直到闭合。每张 `er_` 表都按键点查或范围查，`er_execution` 按 `(tenant, execution, session)` 点查，不读该会话的全部执行。全部语句共用一个行数上界（提交里 100 000 行，`session.work` 里 1 000 行）。超出上界时提交答「失败」，`session.work` 的快照不带 `historyIndex`。
+    - 执行边界：`run` 与 `started` 来自同会话的 `run.started` 条目。`revision`、`emittedThrough`、`ended` 取 `er_execution` 的列，`executionEvidence` 取回执列。`readThrough` 取快照里该执行的进度，`interpreted` 是该 Run 最后一条带执行进度的 `history.annotated` 条目的证据（与 `commitLog` 回执的 `interpreted` 用同一函数）。下列执行整条不进入索引，纯层对它答 `unavailable`：没有同会话的 SE13；回执是占位（`digest` 为 `unknown`）或解析不出；`ended` 解析不出；某个事实行的 `kinds` 含未知种类（延后标记 `deferred` 是已知种类，见 session-contract FR-01）；进度大于 0 却找不到解释条目。
+    - 事实边界：读 `(readThrough, emittedThrough]` 的事实行，另加 `commitLog` 观察序号那一行（纯层对已解释序号也按原行核对）。来源解析不出的行按缺行处理。
+    - 批次：只列未解释的批次与观察序号的批次。当前不填 `taken`，已解释的批次若列出而没有对应的 taken，纯层判为矛盾，所以不列。
+    - 原受理：按 `(input, ordinal)` 组成一页。Run 由原执行的 SE13 给出。attempt 取回执等于 `grant` 的 SE15，否则取该 Run 唯一的 SE15（attempt 不会删除，Run 只有一个 SE15 时受理用的就是它）。任一条对不上时，该输入整个不进入索引与读取，纯层答 `unavailable`。闭合之外的已路由输入只在该会话没有任何受理行时以空目录列出，这时空目录由行的缺席证明。
+    - 原受理的 attempt：`er_admission_idx` 不加列。sqlite-provider 的迁移端口对 STRICT 表的 `ALTER TABLE ADD COLUMN` 放行不足（见[操作记录的访问证据](#操作记录的访问证据)），所以原 attempt 另存一张表 `er_admission_attempt_idx (tenant, session, input, ordinal, attempt)`，主键与 `er_admission_idx` 相同，迁移 `execution-record/003-admission-attempt`（依赖 001，`CREATE TABLE IF NOT EXISTS`，可重复执行；`verify` 核对表存在）。`submit` 的受理行把 Agent 提交回执写进 `grant`，它不是 SE15 的回执，`grant` 的含义不变。写入方在受理行里写出原 attempt（`ExecutionAdmissionRecord.attempt`，可选），`writeIndex` 在写受理行的同一事务里写这一行；未写 attempt 时不写行。`closeOver` 按 `(tenant, session, input)` 范围读出这张表，`attemptOf` 先按它在该 Run 的 SE15 里精确匹配，所名 attempt 不在该 Run 里则该输入不可证。没有 attempt 行（迁移前的旧行，或写入方未写）时保持原逻辑：`grant` 是该 Run 某个 SE15 的回执，或该 Run 只有一个 SE15，否则该输入的判定答 `unavailable`，不猜。**存储侧已就绪，写入方由 session-adapters 补**：`src/cordis/agent-journal.ts` 的 `publish` 组装 `admissions` 时尚未写 `attempt`，在它落地前 session-adapters 的 `tests/session-log-journal-replay.spec.ts` 的「replay cancelled-1」两个用例（durable copy、kept copy）仍在 `submit` 后的交接答 `unavailable`（`history.inputs.<input>`）。`session.work` 读这张表，所以它的 `requiresMigrations` 含 003，`session` 参加者的 `readTables` 含它。
+    - 控制来源：同一次 `sl_entry` 读取另取 `control.requested` 与 `run.terminal` 行，按位置推出每个 Session 控制提出时 active Run 的 execution，放进 reads 的 `controls`，供纯层判定延后控制事实。
+    - 前缀（R2-D28 候选 C）：只对 `readThrough` 小于 `emittedThrough` 的执行构造。取最长的连续前缀 `(readThrough, k]`：序号无缺、`kinds` 非空且全为 `observed`、来源完整。不新增列，不读 `er_state`。是否覆盖所需上界由纯层判断。判定是纯函数 `observedPrefix`。
+    - 读取计数：在 `node:sqlite` 夹具上，每轮 `startRun` 读 `er_` 行 0 行，`commitLog` 读 2 行（`er_execution` 1 行、`er_fact_idx` 1 行），第 1、20、200 轮相同。五种 Session 行只读 Worker 保留的游标之后的行（[Worker 内的两处保留](#worker-retention)）：没有新行的读不读这五种行，一次提交之后的读只读这次提交写的行。冷启动、淘汰与游标指纹不符时从第一行重建，这一次的读量随会话的行数增长。
+    - 验证：`tests/history-index.spec.ts` 核对索引字段与 `er_` 行一致、同一 Run 有两个 SE15 时按 attempt 行指回原 attempt（无 attempt 行或指名别的 Run 的 attempt 时该输入不进索引；真实提供者上写入并读回，慢层）、占位回执的执行不进索引且 `commitLog` 答 `unavailable`、R2-D28 反例（取消后的后继 `startRun` 在完整观察尾部时通过，缺行、空 `kinds`、未知种类、混入非 observed 时答 `unavailable`，非 observed 后果经 `commitLog` 提交后重试通过）、前缀判定的穷举小规模表，以及读取计数：20 轮与 200 轮的对应轮次读到相同的 `er_` 行数，且每轮相同；三轮固定用例里后继 `startRun` 读到的事实行数等于未解释事件数。增量保留的读取由 `tests/history-index-incremental.spec.ts` 核对：没有新行的第二次读不读五种行，一次提交之后的读只读它写的行。本成员不宣称重建那一次的读量与会话长度无关。
+    - 尚未覆盖：`taken` 与已解释批次；真实 sqlite-provider 上的 K-5 读取只经 `tests/log-conformance.spec.ts` 的 `commitLog` 用例经过；适配器的 kinds 归一与生产 AD-02 发布点归 session-adapters。
 13. K-7 额外的 `changed`：每次 Agent 发布都使共同根前进。用旧根准备的 Session 提交会在新根上重判，即使这次 Agent 发布与它无关。触发条件：实测的重试次数超过 `perf-baseline.md` 的阈值。
 14. N-P5-8 重建写口：本成员不提供同根索引的重建或回填写路径。`execution-record` 没有「不推进修订、只写索引」的意图，中立迁移也补不出由 Agent 语义派生的列。触发条件：K-3 或 K-5 的回填，或 SL14 判定索引缺项要重建。届时由本成员提出一个只写索引的意图，交负责人裁定。
 15. 真实组合待复跑：共同提交、冲突回滚与杀进程后认回在真实 sqlite-provider 上运行（`tests/real-joint.spec.ts`）。生产组合（应用的材料目录与登记）等 L-APP 的组合声明合入后复跑。
+16. `commitLog` 的实现与它的限制。规则归 session-contract 的[事件通道的解释提交](../session-contract/docs/same-log-pure.md)。
+    - 端口侧（`src/log.ts`）不问访问检查。租户不是 legal-identity 铸造的时返回 `invalid`，不调用存储。观察编码为意图 `log` 的参加者事实，按 `commit` 的同一套尝试代次提交，摘要用 `digestSessionLog`。委派视图答 `denied`（`action` 为 `commitLog`）。
+    - 判定（`src/worker/log.ts`）：在写事务里读 `sl_journal`、`sl_state` 与该身份的 `sl_operation` 行。没有该会话的日志时答 `denied`。同身份的 `log` 记录摘要相同时认回原回执，否则答 `conflict`，这一步先于历史核对。然后读 K-5 历史索引（第 12 条），调用 `projectSessionLog` 与 `reduce`。纯层的拒绝原样答复，不写任何行。
+    - 零条目：纯层不给条目时，序号不大于已存进度的观察认回覆盖它的 `log` 记录（进度最小的那条），`recovered` 为真，不写行；没有这样的记录时答 `unavailable`。其余观察答 `invalid`（字段 `consequences`）。延后控制事实是例外：Session 判定后只有 `observed` 时，纯层仍交出进度行，这次提交只写解释进度，不是失败（session-contract FR-03、FR-05）。零条目的处理与 session-contract `./testing` 的内存实现一致。认回不保存本身份的记录，回复带 `recorded: false`，所以 `queryOperation` 对这个身份仍答 `unknown`。
+    - 发布：与 `commitEntries` 共用写入步骤（`sl_entry`、`sl_model_view`、`sl_state`、派生索引、`sl_operation`、尾部），全部在同一事务。操作行的 `form` 为 `log`，`receipt` 与 `result` 两列都保存 `SessionLogReceipt`，其 `interpreted` 是本批执行进度条目的证据。
+    - 查询：`queryOperation` 与 `queryControlOperation` 对 `log` 记录都答 `conflict`。结果不明时，调用方用同一 operation 重试 `commitLog` 认回原回执。
+    - 并发：同一事务域的写事务串行，所以不会产生 `changed`。两个 operation 交错解释同一事件时，后到者在同一事务里看到新进度，按零条目认回。
+    - 验证：`tests/log-conformance.spec.ts` 在 `node:sqlite` 夹具与真实 sqlite-provider 上运行 LC-01 至 LC-10。`tests/log.spec.ts` 在条目行、快照、操作行与尾部各注入一次写失败，核对全部 `sl_` 表不变，同一观察随后只提交一次；另核对同身份认回、异内容冲突、另一 operation 认回原回执、两个查询答 `conflict`、应答丢失后重试认回、命令身份冲突、未铸租户不到存储，以及另一租户与不存在的会话答相同的 `denied`。真实提供者上没有运行写失败注入。
+17. 准入记录（M-GENERATION 的 SaveIntent、Commit、Lookup）。`execution-record` 的第二个意图 `preadmission`，表 `er_preadmission`，迁移 `execution-record/002-preadmission`（依赖 001），读 handler `execution-record.preadmission`。
+    - 列：`tenant` 与 `handoff`（H）为主键；`entry`（Ki）可空，`(tenant, entry)` 唯一（SQLite 与 PostgreSQL 的唯一索引都把 NULL 视为互不相同）；`session`、`execution` 可空，存储不推断；`intent` 与 `outcome` 是不透明的规范 JSON，`intent_digest`、`outcome_digest` 是参加者对规范 JSON 计算的摘要。
+    - 意图阶段（`phase` 为 `intent`）：意图必须带 `request`、`origin`、`principal`、`qualification`、`adoption`、`materials` 六个成员。同 Ki 已有记录时原样答复，不写，不论 H。同 H 已有记录时摘要相同则认回，不同答「冲突」。都没有时插入。答复在提交之后到达，带 `created` 与完整记录。
+    - 结果阶段（`phase` 为 `outcome`）：`kind` 为 `prepared` 或 `rejected`。没有意图记录时答「冲突」，依据为 `invalid`。已有结果时摘要相同则认回，不同答「冲突」。否则写入一次。
+    - 读取：按 `tenant` 加 H 或 `tenant` 加 Ki 读回一条或 `null`。每条语句带租户条件。
+    - 词汇：子路径导出 `preadmissionFacts`、`decodePreadmissionReply`、`decodePreadmissionRecord` 与类型 `PreadmissionIntentWrite`、`PreadmissionOutcomeWrite`、`PreadmissionRead`、`PreadmissionRecord`，handler 名为 `EXECUTION_RECORD_HANDLERS.preadmission`。
+    - 清单摘要：新迁移、新 handler、`session.work` 的读表与参加者模块摘要都改变组合的 `manifestDigest`。当前值由 `combinationManifest` 加 `manifestDigest` 计算，归 Reduce 的组合声明；应用的材料目录与 `combinationVersion` 本成员不改。
+    - 验证：`tests/preadmission.spec.ts` 核对意图的全部成员与摘要、同 Ki 答原记录与原 H、同 H 异内容冲突、表对同租户同 Ki 的第二行拒绝写入、结果只固定一次、无意图答 `invalid`、另一租户按同 H 或同 Ki 读不到，以及真实提供者上写入后杀子进程、新提供者按原 H 读回完整记录。
+
+18. 分区状态（session-adapters 已知限制 K-8 的处置）。`execution-record` 的不透明状态可以分区保存：表 `er_state_part (tenant, session, part, state, published)`，主键 `(tenant, session, part)`，STRICT；`published` 是最后写这个分区的那次发布的计数，`state` 为 NULL 的行是已删除分区的标记；迁移 `execution-record/004-state-parts`（依赖 001，`CREATE TABLE IF NOT EXISTS`，可重复执行；`verify` 核对表存在）；读 handler `execution-record.parts`（依赖 001 与 004）。
+    - 写入：`ExecutionRecordWrite` 带 `parts` 时按分区写，不带时按整份写，两者只能带一种（同时带答「不支持」）。分区写替换所列分区，分区的 `state` 为 null 时删除该分区（留下 `state` 为 NULL 的标记行），其余分区不变；`replace` 为真时先删整份状态，并把该会话其余分区标为已删除。整份写替换 `er_state` 并把该会话全部分区标为已删除。本次写到或标记的分区，`published` 都是本次发布的新计数。分区名非空、在一次写入里不重复，否则整次写入答「不支持」，不写任何行。分区与原操作答案、索引行、发布计数在同一事务里写入，失败时一起回滚（第 4 步）。分区名与分区内容对本成员不透明，分区怎样划分归写入方。
+    - 读取：输入 `tenant`、`session`、`after`（上一页最后一个分区名，首页为 null）、可选的 `parts`（只读所列分区名，1 到 64 个）与可选的 `since`（一个发布计数）。不带 `since` 时读出现存的分区，不读已删除标记；带 `since` 时只读 `published` 大于它的分区，已删除的分区以 null 状态读出，持有该计数时副本的读方只读之后变了的分区。输出发布计数、整份状态（只在首页给出，没有时为 null）、按分区名升序的分区与 `next`（下一页的 `after`，没有下一页时为 null）。一页最多 64 个分区，累计文本到 256 KiB 之前停下，但至少含一个分区。每页是一次快照；跨页的一致性由读方核对各页的发布计数。每条语句带 `tenant` 与 `session` 条件，另一租户按同名会话读到空页。
+    - 词汇：子路径导出 `decodeExecutionRecordParts` 与类型 `ExecutionRecordPart`、`ExecutionRecordPartsRead`、`ExecutionRecordPartsPage`，handler 名为 `EXECUTION_RECORD_HANDLERS.parts`。没有只读整份状态的 handler：0.0.x 的当前政策要求迁移调用方后删除替代实现，这个读口在分区写入之后会对该会话答 `state` 为 null，读起来像没有记录，所以已删除；整份状态由 `parts` 的首页给出，调用方只读这一个口。
+    - 不迁移旧数据：0.0.x 不承诺旧字节兼容（[当前演进政策](../../../docs/engineering/publication.md#当前演进与消费者)），已有的整份状态行留在 `er_state`，本成员不把它拆成分区。session-adapters 的提供者只读分区，遇到整份状态答 `unavailable`。
+    - 清单摘要：新迁移、新 handler 与参加者模块摘要都改变组合的 `manifestDigest`。当前值由 `combinationManifest` 加 `manifestDigest` 对构建后的 `dist` 材料计算，归 Reduce 的组合声明；读 handler 的 `maxOutputBytes` 不进摘要。应用的材料目录与 `combinationVersion` 本成员不改。
+    - 验证：`tests/state-parts.spec.ts` 核对迁移的依赖与表的归属、分区替换与删除、`replace`、整份写删除分区、`since` 只读之后写到或删除的分区、八种畸形写入不写任何行、同一提交里 Session 写失败时分区一起回滚、分页的行数与文本预算、超过预算的分区单独成页、只读所列分区、畸形读输入被拒。另一租户读不到：两个租户放在同一个库里，租户 B 的同名会话与同名分区种在租户 A 的库中，读口的 root、整份、分区三条语句与分区写的 `replace` 删整份、全部置空两条语句，去掉任一处的 `tenant` 条件，用例变红；分区写后租户 B 的行不变。
+19. 读口上限的覆写（R2-D81、R2-D89）。读口上限是 `sessionStorageMaterials` 的必填参数（第 8 条）。harness-server 的发行构建在 `src/rows/storage/catalog.ts` 里用具名常量 `DISTRIBUTION_SESSION_READ_OUTPUT_LIMIT_BYTES`（20971520）传入。运维者暂时不能在 `serve.distribution.json` 里覆写这个值，要改只能改源码并重新构建；覆写的配置通道归 Reduce。触发条件：运维者需要不同的上限。
+    - 验证：`tests/materials-options.spec.ts` 核对缺参数、`undefined`、`null`、0、负数、小数、`NaN`、无穷、超出安全范围与数字文本都在构造时抛 `TypeError`，传入的值成为每个读 handler 的 `maxOutputBytes`，两次构建的值互不共享；`tests/read-output-limit.spec.ts` 与 `tests/work-read-limit.spec.ts` 经参数传入 20 MiB 并用真实 provider 读回。
+20. 事实体（R2-D90）。AD-02 解释一个 execution 时只需要它的头行与进度之后的事件，所以每条事实行旁边另存它的正文：表 `er_fact_body (tenant, execution, sequence, session, consequences, control)`，主键与 `er_fact_idx` 相同，STRICT；迁移 `execution-record/005-fact-body`（依赖 001，`CREATE TABLE IF NOT EXISTS`，可重复执行；`verify` 核对表存在）。不加列，理由同 `er_admission_attempt_idx`。
+    - 写入：`ExecutionFactRecord` 带 `consequences` 或 `control` 任一成员（含显式 `null`）时，`writeIndex` 在写这条事实行的同一循环里写一行正文；两个成员都不带的写入方不写正文。两个成员是写入方给的 JSON，原样保存：`consequences` 为 NULL 表示后果未定，`control` 为 NULL 表示不是延后的控制事实。行只追加，与事实行同一事务。
+    - 读取：handler `execution-record.execution-facts`（依赖 001 与 005），输入 `tenant`、`session`、`execution`、`after`（十进制序号）。先按 `(tenant, execution, session)` 点查 `er_execution`，没有行答 `{ kind: 'absent' }`（含别的会话或别的租户的同名 execution）；再按主键范围读 `sequence > after` 的事实行，左连接正文，按序号一页最多 200 行，多一行说明有下一页（`next` 为本页最后一个序号）。输出头行的 `revision`、`receipt`、`emittedThrough`、`ended` 与每条事实的 `sequence`、`source`、`kinds`、`consequences`、`control`；没有正文行的事实，两个成员都是字符串 `'absent'`。读的行数是一行头加进度之后的事实数，与会话长度和该 execution 之前的事实数无关。
+    - 词汇：handler 名为 `EXECUTION_RECORD_HANDLERS.executionFacts`，子路径不另加解码函数，读者自己解析。
+    - 不迁移旧数据：已有事实行没有正文，读者对它们回退到读分区（session-adapters 已知限制）。
+    - 清单摘要：新迁移与新 handler 改变组合的 `manifestDigest`，按 R2-D90 并入 session-composite/2；当前值由 `combinationManifest` 加 `manifestDigest` 计算，归 Reduce 的组合声明。
+    - 验证：`tests/execution-facts.spec.ts` 在同一个迁移过的库上核对：正文与事实同读、没有正文的事实答 `'absent'`、只读进度之后的事实且行数不随之前的事实增长、另一租户与另一会话读不到、畸形序号被拒。
+21. 历史索引的 Session 行在 Worker 模块里增量保留（[Worker 内的两处保留](#worker-retention)）。`src/worker/history-index.ts` 的 `sessionRows` 按会话保留五种行（`intake.routed`、`run.started`、`run.attempt-started`、`run.terminal`、`control.requested`）折出的索引，下次只读游标之后的行；游标处的行指纹不符就从第一行重建，游标之后有空洞就丢掉保留的索引并让本次调用失败。修订大于日志尾部的行是未提交事务的行，只折进本次调用的副本，从不保留。修订不大于尾部就当作已提交，这只在 `session` 参加者是 `grouping: 'singleton'` 时成立：每个写事务只有一个操作，参加者在推进尾部之前读索引。组提交里后一个操作会看到同组前一个操作推进的尾部，从而保留同组仍可能回滚的行。把 `session` 改成 `groupable` 之前，必须先重新设计这份保留。验证：`tests/history-index-incremental.spec.ts`（其中「rows of an open transaction folded over a kept index are folded into a copy」覆盖副本分支：保留索引之上读到未提交的第 2、3 行，回滚后另一事务提交不同的第 2 行与相同的第 3 行，得到 `in-1`、`in-X`、`in-3`；把副本改成直接用保留的索引时这条用例变红）。
+22. 具名差额「待 Reduce 重算」：迁移 `execution-record/005-fact-body`（第 20 条）、写 Worker 的解析快照与历史索引的 Session 行保留（[Worker 内的两处保留](#worker-retention)）、工作缓存的折叠与新增的 `session.work-index`、`session.work-reads` 两个 handler（[RT-04](#rt-04)）都改变本成员材料的模块摘要，因而改变组合的 `manifestDigest`。`apps/harness-server/config/serve.distribution.json` 里的 `manifestDigest` 还是改动之前应有的值，本成员不改 apps，也不改 `serve.spec`；由集成方统一重算。重算之前，按该配置装配的组合与本成员材料的摘要不一致。
 
 ### 两个「事务端口」
 
@@ -92,6 +141,7 @@
 | `queryControlOperation`                          | R7，同一路径，只认控制答案                                                                                |
 | `readModelSelection`                             | 读 handler `session.model-selection`                                                                      |
 | `commitEntries`                                  | 翻译为存储契约的一次 `commit`，参加者事实的意图为 `entries`。不问访问检查（[已知限制](#已知限制)第 1 条） |
+| `commitLog`                                      | 翻译为存储契约的一次 `commit`，参加者事实的意图为 `log`。不问访问检查（[已知限制](#已知限制)第 16 条）    |
 | `history.begin`、`history.next`、`history.since` | R2                                                                                                        |
 | `history.readModelView`                          | R5                                                                                                        |
 | `pending`                                        | R8                                                                                                        |
@@ -106,7 +156,7 @@
 
 | 编号 | 入口                      | 采用方式                                                                                                                                                  |
 | ---- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| XP-1 | 参加者模块登记            | `sessionStorageMaterials()` 返回 `ParticipantDescriptor`，应用把它并入材料目录并声明组合。本成员不登记                                                    |
+| XP-1 | 参加者模块登记            | `sessionStorageMaterials({ readOutputLimitBytes })` 返回 `ParticipantDescriptor`，应用把它并入材料目录并声明组合。本成员不登记                                                    |
 | XP-2 | 参加者业务响应通道        | 模块返回 `participated`、`conflict`（带依据）、`unsupported`、`failed`。响应证据与回执同事务保存，端口从证据还原结果，不在事务外重算（[W1 第 9 步](#w1)） |
 | XP-3 | 事务外读入口              | `SqlStorage.read`，八个 handler，`ordering` 为 `snapshot`，每页一个有界事务。每次读带随机 `requestKey`                                                    |
 | XP-4 | `SqlValue` 与 `QueryRows` | 位置列以 `bigint` 读写，其余为文本。形状见 sql-contract §10                                                                                               |
@@ -138,13 +188,13 @@ TB-04 的大载荷保管链路仍是 Session 契约记下的[明确缺项](../se
 1. 按 `(tenant, operation)` 点查原操作答案。这一行已经存在时，响应「冲突」，依据带原摘要与原答案。提供者按摘要认回或答 `conflict`。
 2. 读该会话的发布计数 `er_root.published`，按 `(tenant, execution)` 读执行行的 head 修订号。
 3. 计数不等于 `write.published`、修订号不等于 `write.expected`，或执行行属于另一个会话时，响应「冲突」，依据带当前修订号与当前计数。模块不写任何行。
-4. 写原操作答案与语义摘要，替换该会话的不透明状态 `er_state.state`。
+4. 写原操作答案与语义摘要，写该会话的不透明状态：整份写替换 `er_state.state` 并把全部分区标为已删除；分区写替换或删除所列分区（`er_state_part`），带 `replace` 时先删整份状态并把其余分区标为已删除（第 18 条）。
 5. 写提供者准备的同根索引行：执行边界（`er_execution`）、事实边界（`er_fact_idx`）、批次（`er_batch_idx`）与原受理目录（`er_admission_idx`）。
 6. 把 `er_root.published` 加 1，响应「参加」。回复带新计数与本次写入的摘要。
 
-记录模型分三类列。通用索引列是 `tenant`、`session`、`execution`、修订号、事件序号、操作键与摘要，模块只做相等比较与排序。不透明载荷（`state`、`answer`、批次）是提供者编码的 JSON，模块不解码。同根索引用 Session 的词：执行边界、事实边界、批次与原受理。写入不带自身执行的边界行时（例如没有执行的材料保存），只受发布计数守卫。索引内容是否正确由提供者负责。
+记录模型分三类列。通用索引列是 `tenant`、`session`、`execution`、修订号、事件序号、操作键与摘要，模块只做相等比较与排序。不透明载荷（`state`、分区、`answer`、批次）是提供者编码的 JSON，模块不解码。同根索引用 Session 的词：执行边界、事实边界、批次与原受理。写入不带自身执行的边界行时（例如没有执行的材料保存），只受发布计数守卫。索引内容是否正确由提供者负责。
 
-执行边界行的回执列（`er_execution.receipt`）：提供者在写入的答案带有该执行的 `CommandReceipt` 时，把它的证据写进这一列。答案不带回执、或回执属于另一个执行时，提供者写一个占位证据：`owner` 为 `session-log-journal`，`record` 为 `<execution>/head`，`revision` 为该执行本次的修订，`digest` 为 `unknown`。占位不是回执证据，`digest` 为 `unknown` 的行不能当作 Agent 回执核验或引用。当前会产生占位的写入，是核心 Journal 套件和 AG-23 回放里观察到的 `detach` 与 `recordControl`：它们的答案不是 `CommandReceipt`（`tests/agent-journal-provider.spec.ts` 观察，没有穷举其余写入）。读执行边界的一方（K-5，AD-02 的同日志解释）实现时，要么在提供者一侧让这些写入也带可核验的回执，要么把占位行按「没有回执」处理，答 `unavailable`；在此之前没有读者依赖这一列。
+执行边界行的回执列（`er_execution.receipt`）：提供者在写入的答案带有该执行的 `CommandReceipt` 时，把它的证据写进这一列。答案不带回执、或回执属于另一个执行时，提供者写一个占位证据：`owner` 为 `session-log-journal`，`record` 为 `<execution>/head`，`revision` 为该执行本次的修订，`digest` 为 `unknown`。占位不是回执证据，`digest` 为 `unknown` 的行不能当作 Agent 回执核验或引用。当前会产生占位的写入，是核心 Journal 套件和 AG-23 回放里观察到的 `detach` 与 `recordControl`：它们的答案不是 `CommandReceipt`（`tests/agent-journal-provider.spec.ts` 观察，没有穷举其余写入）。读执行边界的一方（K-5）把占位行按「没有回执」处理：该执行不进入历史索引，依赖它的判定答 `unavailable`（[已知限制](#已知限制)第 12 条）。
 
 #### 操作记录的访问证据
 
@@ -163,7 +213,7 @@ session-contract 的访问契约要求：一次提交带着的访问裁定证据
 
 <a id="执行索引"></a>
 
-`AgentJournal` 的调用只带租户与 execution，不带会话。Session 在 `startRun` 时分配 execution，写进 SE13（session-contract JC-05）。执行索引把 execution 对应到会话，供 Journal 提供者路由一次调用（[L-RUN 决策记录 w1-c19-q1](https://github.com/nemori-ai/omne-harness-lite/issues/502#issuecomment-6563847140)）。它是 session-adapters「同根读取与原记录索引」表第一行中 execution 到会话与 Run 的部分。同一行的 attempt 与原 grant（SE15）不在本索引里，归 K-5。
+`AgentJournal` 的调用只带租户与 execution，不带会话。Session 在 `startRun` 时分配 execution，写进 SE13（session-contract JC-05）。执行索引把 execution 对应到会话，供 Journal 提供者路由一次调用（[决策记录 w1-c19-q1](https://github.com/nemori-ai/omne-harness-lite/issues/502#issuecomment-6563847140)）。它是 session-adapters「同根读取与原记录索引」表第一行中 execution 到会话与 Run 的部分。同一行的 attempt 与原 grant（SE15）不在本索引里，归 K-5。
 
 - 写入：`session` 参加者写入一条 `run.started`（SE13）条目时，在同一事务里写一行 `sl_execution_idx`：`(tenant, execution)` 对应会话、Run 与该 SE13 的位置。`startRun` 被拒绝、失败或回滚时，这一行也不存在。
 - 唯一：execution 在租户内唯一。该 execution 已有一行时，不论指向哪个会话，参加者答「失败」，诊断说明已有索引。存储回滚整个批次，原行不变，不覆盖。Session 的 `commit` 对外答 `unavailable`。
@@ -209,8 +259,8 @@ session-contract 的访问契约要求：一次提交带着的访问裁定证据
 子路径 `@omne-harness/session-storage-sql/participants` 导出两个参加者的数据格式词汇（P5 决策第 5 条）。它只导入编码函数与类型，不引入 `createSessionStorage` 等提供者实现（IC-5）。本成员的 `commit.ts` 与 `entries.ts` 也用它，成员内只有一份编解码。
 
 - 名字与版本：`SESSION_PARTICIPANT`、`EXECUTION_RECORD_PARTICIPANT`、`SESSION_LOG_PARTICIPANTS`（按执行顺序）、两个协议版本，以及读 handler 名 `SESSION_HISTORY_ROOT_HANDLER`、`SESSION_WORK_HANDLER`、`SESSION_INPUT_HANDLER`、`SESSION_EXECUTION_HANDLER`、`EXECUTION_RECORD_HANDLERS`。
-- 构造：`sessionCommandFacts`、`sessionCheckFacts`、`sessionCheckDigest`、`executionRecordFacts`。`executionRecordFacts` 只编码索引成员，`state`、`answer` 与批次原样传递。
-- 解码：`decodeSessionReply` 给出参加（结果、是否认回、摘要）、停止（Session 失败）、失败或不支持。调用方用 session-contract 的 `commandDigest` 比较摘要：相等是同一命令的认回，不等是同身份的另一命令。`decodeExecutionRecordReply`、`decodeExecutionRecordState`、`decodeExecutionRecordOperation`、`decodeSessionHistoryRoot`、`decodeSessionWork`、`decodeSessionInput`、`decodeSessionExecution` 解码对应的回复与读输出。`decodeSessionExecution` 区分没有这一行（`null`）与输出损坏（`malformed`）。
+- 构造：`sessionCommandFacts`、`sessionCheckFacts`、`sessionCheckDigest`、`executionRecordFacts`、`preadmissionFacts`。`executionRecordFacts` 只编码索引成员，`state`、`answer` 与批次原样传递。`preadmissionFacts` 只编码租户，意图与结果原样传递。
+- 解码：`decodeSessionReply` 给出参加（结果、是否认回、摘要）、停止（Session 失败）、失败或不支持。调用方用 session-contract 的 `commandDigest` 比较摘要：相等是同一命令的认回，不等是同身份的另一命令。`decodeExecutionRecordReply`、`decodeExecutionRecordParts`、`decodeExecutionRecordOperation`、`decodeSessionHistoryRoot`、`decodeSessionWork`、`decodeSessionInput`、`decodeSessionExecution`、`decodePreadmissionReply`、`decodePreadmissionRecord` 解码对应的回复与读输出。`decodeSessionExecution` 区分没有这一行（`null`）与输出损坏（`malformed`）。
 
 0.0.x 阶段这组导出只增加，不改名。这是 C19 对 L-APP 的承诺。
 
@@ -448,7 +498,7 @@ since(access, after, kinds, pageBytes):
 
 页预算按 `sl_entry.payload_bytes` 累计。内联与外置载荷都填这一列，所以判断截断不需要先读出载荷。外置在 `sl_blob` 的载荷只在条目确定进入本页之后才读取，不为被截断的条目读 blob。载荷里指向内容拥有者的耐久引用只以引用返回，读者按需向内容拥有者另取，本成员不代取。`session` 的条目缓存（[CA-1](../session/SPEC.md#ca-1)）不绕过本路径：分页、逐条披露核对与位置仍由本路径完成，缓存命中只省去已核权条目的载荷读取。
 
-游标是签名的自描述值，服务端不保存读会话。签名载荷含游标种类（`history`、`model-view`、`pending`、`references`、`released-scopes`）、租户、会话（系统读与待办为空）、过期时间与续读状态；历史游标的续读状态含边位置、固定上界、方向、`kinds` 与 `pageBytes`。验证时依次核对：签名密钥可读（不可读为 `unavailable`）、签名有效、种类、租户与会话与本次调用一致、未过期。任一不符为 `invalid`。游标不含主体摘要：每次续读都重新向访问裁定取当前决定。过期时间由 `cursorTtlMs` 给出，初值 15 分钟。签名密钥归装配，经 `sessionCursorSigning` 注入。
+游标是签名的自描述值，服务端不保存读会话。签名载荷含游标种类（`history`、`model-view`、`pending`、`references`、`released-scopes`）、租户、会话（系统读与待办为空）、过期时间与续读状态；历史游标的续读状态含边位置、固定上界、方向、`kinds` 与 `pageBytes`。`references` 的游标另带可选字段 `key`（ResidentKey 文本）。验证时依次核对：签名密钥可读（不可读为 `unavailable`）、签名有效、种类、租户与会话与本次调用一致、R10 游标的 `key` 与本次调用的键一致、未过期。任一不符为 `invalid`。游标不含主体摘要：每次续读都重新向访问裁定取当前决定。过期时间由 `cursorTtlMs` 给出，初值 15 分钟。签名密钥归装配，经 `sessionCursorSigning` 注入。
 
 <a id="r3"></a>
 
@@ -484,7 +534,7 @@ R6 让从中间位置跳转的读取也能看到后来的更正与标注，服�
 
 <a id="r7"></a>
 
-**实现状态：**`queryOperation` 与 `queryControlOperation` 共用同一条查找路径：先经一次意图为 `query` 的提交读 `sl_operation`，会话不存在时 `denied`；命中后按 `form` 区分：`queryOperation` 认 `batch` 与 `entries`，`queryControlOperation` 只认 `control` 与 `answer`，认错种类返回 `conflict`（SL07）。未命中时才对各代次调用存储 `query`。代次 1 的差异见[实现现状](#实现现状)的 R7 一行。
+**实现状态：**`queryOperation` 与 `queryControlOperation` 共用同一条查找路径：先经一次意图为 `query` 的提交读 `sl_operation`，会话不存在时 `denied`；命中后按 `form` 区分：`queryOperation` 认 `batch` 与 `entries`，`queryControlOperation` 只认 `control` 与 `answer`，认错种类返回 `conflict`（SL07）。`log` 记录两者都答 `conflict`。存储回执已提交、但回复带 `recorded: false`（`commitLog` 认回别的 operation）的身份按未命中处理，答 `unknown`。未命中时才对各代次调用存储 `query`。代次 1 的差异见[实现现状](#实现现状)的 R7 一行。
 
 **R7 原操作认回：`queryOperation`。**
 
@@ -572,7 +622,7 @@ references(principal, scope = system, key, after, limit):
     返回 { sessions: [{ tenant, session, capability, shape }], next }
 ```
 
-引用的定义归契约：会话当前记下的登记键含该键且会话未归档；冻结而未归档的会话算引用；已归档的会话不算引用，因为归档同批取消未终结 Run。索引行按 [W3](#w3) 在 SE08、SE26、SE27、SE28 提交时维护，所以读取不扫描日志。游标绑定 `key` 与系统作用域，按 `(tenant, session)` 排序。退化：事务域数 T 大时每页 O(T log M)，由 XP-6 的目录决定遍历顺序，游标记当前事务域。索引重建中或任一事务域不可读时返回 `unavailable`，不返回部分结果冒充没有引用。
+引用的定义归契约：会话当前记下的登记键含该键且会话未归档；冻结而未归档的会话算引用；已归档的会话不算引用，因为归档同批取消未终结 Run。索引行按 [W3](#w3) 在 SE08、SE26、SE27、SE28 提交时维护，所以读取不扫描日志。游标绑定 `key` 与系统作用域，按 `(tenant, session)` 排序。游标同时绑定目录修订（既有行为），R11 的游标不绑定。退化：事务域数 T 大时每页 O(T log M)，由 XP-6 的目录决定遍历顺序，游标记当前事务域。索引重建中或任一事务域不可读时返回 `unavailable`，不返回部分结果冒充没有引用。
 
 <a id="r11"></a>
 
@@ -586,6 +636,27 @@ releasedScopes(principal, scope = system, after, limit):
 ```
 
 账本是会话日志的 SE25。索引只收已归档会话的释放读回（[W3](#w3)）。退化与 R10 相同。
+
+<a id="worker-retention"></a>
+
+**Worker 内的两处保留。**每个 Worker 模块实例保留两种可重算的派生物。它们不是权威，每次使用都先核对存储里的行。它们与主线程里端口侧的工作缓存（[RT-04](#rt-04)）是不同的层：端口侧的缓存按版本点查，命中时不读 `sl_state`；本节两处在 Worker 内，命中前仍读行并核对内容。
+
+- 参加者的解析快照（`src/worker/participant.ts` 的 `ParsedSnapshots`，只在写 Worker 里使用）：
+  - 作用：同一会话的提交读到相同的 `sl_state` 文本时，不再做 `JSON.parse` 与解码。读 Worker 不使用它。
+  - 键：租户加会话。
+  - 核对：每次提交仍读该会话的 `sl_state` 行，并核对 `covered` 等于尾部。只有行文本与保留项的来源文本逐字相等时才复用，否则重新解析。命中时因此仍读一次整行，并做一次与快照长度成正比的字符串比较，省下的是解析。
+  - 与技术设计的差别：技术设计 v2 §6.1 在 `covered` 等于尾部时复用，不读该行。本实现按内容核对（R2-D96 接受这项偏离），理由有三条：修订号不区分数据库，一个模块实例可服务多个库，进程内测试提供者即如此；回滚的写入可能留下一个修订，后来的提交以别的内容再写同一修订；组提交里后一个操作会看到前一个操作暂存的行。文本相等时解析结果相等，所以命中不会回答行里没有的快照。
+  - 保留的对象：只保留事务读到的快照，不保留提交算出的快照，因为参加者看不到事务是否提交。保留的快照深冻结：写入它的调用抛 `TypeError`，提交失败并回滚，下一位读者仍得到解析后的行。
+  - 失败：行没有覆盖尾部时答 `behind` 并丢掉该项；行解析失败时抛错，该会话不保留任何项。
+  - 上界：每个 Worker 最多保留 256 个会话（`PARTICIPANT_SNAPSHOT_SESSIONS`），保留的文本总长最多 64 Mi 个 UTF-16 码元（`PARTICIPANT_SNAPSHOT_TEXT`），按最近最少使用淘汰；单个文本超过总长上界时不保留；会话上界为 0 时不保留任何项。保留项只影响速度，不影响答案。
+  - 验证：`tests/participant-snapshot-cache.spec.ts`。
+- 历史索引的 Session 行（`src/worker/history-index.ts` 的 `sessionRows`，写 Worker 与读 Worker 各保留一份）：
+  - 作用：Session 日志只追加，已存的行不变，所以折出的索引下次只需读游标之后的行。折入五种行：`intake.routed`、`run.started`、`run.attempt-started`、`run.terminal`、`control.requested`。答案与读全部行的答案相等。
+  - 键与核对：租户加会话。使用前核对游标处日志行的指纹；不符（库被替换或回滚，或一个模块实例服务多个库）时，从第一行重建。游标之后的行必须连续；出现空洞表示日志不只是追加，此时丢掉保留项，本次调用失败（提交回滚，读答 `unavailable`），下一次调用重建。
+  - 未提交的行：修订大于日志尾部的行属于未提交的事务，只折进本次调用的副本，不保留。修订不大于尾部的行当作已提交，这依赖 `session` 参加者是 `singleton`，见[已知限制](#已知限制)第 21 条。
+  - 上界：最多保留 256 个会话，保留的行数总和最多 262144；单个会话超过行数上界时不保留。保留的行也计入 K-5 的行数上界（第 12 条），超过时答案是 `too-many`，与读全部行相同。
+  - 读取计数：见[已知限制](#已知限制)第 12 条的读取计数。
+  - 验证：`tests/history-index-incremental.spec.ts`。
 
 ### 保留与缓存
 
@@ -603,7 +674,42 @@ releasedScopes(principal, scope = system, after, limit):
 
 <a id="rt-04"></a>
 
-**RT-04 存储侧缓存。**本成员只缓存不可变或可重算的派生物：预编译语句、每个事务域的迁移版本与归约版本、R10 取 shape 时按 `(tenant, session, position)` 缓存的 SE36 载荷。权威读（R1、R7）与 `sl_journal` 的读数不缓存。条目缓存与快照缓存归 `session`，视图前缀摘要缓存归 `session-adapters`，本成员不持有它们。
+**RT-04 存储侧缓存。**本成员缓存不可变或可重算的派生物：预编译语句、每个事务域的迁移版本与归约版本、R10 取 shape 时按 `(tenant, session, position)` 缓存的 SE36 载荷，以及下面的工作缓存。`sl_journal` 的读数本身不缓存，R7 不缓存。条目缓存与 CA-3 的命令处理器快照槽归 `session`，视图前缀摘要缓存归 `session-adapters`，本成员不持有它们。
+
+工作缓存（`src/work-cache.ts`）。R1 的回答可以由端口从进程内缓存给出，但每次都先核对存储，缓存永远不是权威：
+
+- 范围：每个数据库一份。身份由 `storeOf` 取：先穿过 Cordis 服务代理（`Symbol.for('cordis.original')`）到被包装的对象，再取它自有的 `read` 函数；`read` 不是自有函数（类方法，各实例共用）时取对象本身。提供者为自己的库建一个 `read` 闭包，复制方法的包装（把端口登记为服务）复制的是同一个闭包，所以同一个库的公开端口、委派视图、会话归属读口、经 `./participants` 的 `readCachedSessionWork` 读的调用方（session-adapters 的 Journal 提供者）与各插件拿到的代理共用一份缓存；不同的库没有相同的自有 `read`，绝不共用，即使事务域名、租户、会话与版本都相同。键是事务域、租户文本与会话；`SessionId` 只在租户内唯一，所以两个租户的同名会话是两个键。缓存不是核权点：端口先取访问裁定、再按调用指名的租户取事务域，之后才查缓存。
+- 单飞：读到同一版本的并发读共用一次整读（以键与版本登记进行中的整读，结束即清除）；整读失败时所有等待者拿到同一个 `unavailable`，下一次读重新回源。版本点查失败的读不合并。
+- 版本：`(sl_journal.tail, er_root.published)`。`session.work` 的回答依赖这两个计数：快照行只在推进 `tail` 的事务里替换，`historyIndex` 读的 `er_` 行只在推进 `published` 的事务里写。两者只增不减。
+- 读：先经 `session.work-version` 点查当前版本（`sl_journal` 与 `er_root` 各一次主键点查，只读 `tail` 与 `published`，不读 `sl_state`：SQLite 取 `covered` 要走完快照正文的溢出页，代价随快照增长。行数与字节与会话大小无关）。会话不存在答 `denied`；版本与缓存项相等时返回缓存的已解析快照（缓存项只从核对过 `covered == tail` 的整读登记，快照行只在推进 `tail` 的事务里替换，所以 `tail` 相等时仍覆盖它）；不相等、没有缓存项、点查失败或回答不可解析时整读 `session.work`，按它在同一读快照里给出的版本登记。整读失败或解码失败时删除该项并返回失败。`tail` 或 `published` 任一项小于缓存项时（两者分别比较）删除该项并答 `unavailable`，诊断写 backwards（日志倒退，例如库被换成备份），不当作一次普通读。
+- 返回的快照是深冻结的同一对象：调用方写入会抛 `TypeError`，不会改变下一位读者所见。
+- 上界：按 LRU 淘汰，会话数上限 `WORK_CACHE_SESSIONS`（256）、快照文本字节上限 `WORK_CACHE_BYTES`（64 MiB），可经 `SessionStorageOptions.workCache` 覆盖，`0` 表示不缓存；单个快照超过字节上限时不登记。同一存储对象上第一个读者的上界生效。被淘汰的会话再读时整读一次。
+- 提交不读缓存：提交在参加者里按事务内的当前状态裁定，`expected` 与尾部在事务内核对，缓存不参与。其他进程的提交由下一次读的版本点查发现。
+- 本进程的提交折叠进缓存。提交回复把本次批次交给工作缓存：`session` 参加者在推进尾部的两条写路径（命令批次、同日志批次）的回复里带 `work`，含新版本 `(tail, published)`（`published` 在同一事务里点读 `er_root`）、快照正文长度、本批首末位置，以及本批归约所依据的历史读取的输入范围与焦点（`basis`）。`basis` 的 JSON 文本超过 `WORK_BASIS_BYTES`（16 KiB）时不带；entries 通道在没有索引与读数的快照上归约，只标 `indexed: false`。认回不带 `work`。端口只在回复新鲜且已提交（不是认回、不是 `recovered`）、缓存持有的版本正是 `(tail − 1, published)` 时折叠，依次：经 `session.history` 读本批条目（O(k)，核对位置连续、修订等于 `tail`）；经 `session.work-reads` 在读 Worker 里按「位置不超过本批首位减一、`published` 相等」复现参加者的历史索引与读数（Session 行写后不变，`er_` 行只随 `published` 变；该 handler 核对 `published` 与该位置行的修订，Worker 保留的索引已越过该位置时也答 `stale`）；在持有的快照上换入这份索引，用同一个 `reduce` 与这份读数归约；经 `session.work-index` 按与 `session.work` 相同的函数和上界（`workIndexOf`）算新快照的索引，该 handler 先核对存储的 `tail` 仍等于折叠的 `tail`，不等答 `stale`；发布计数小于所问也答 `stale`，大于所问时按当前计数算索引并在答复里给出该计数。快照行只在推进 `tail` 的事务里替换（见上文「版本」），所以折叠期间插入的发布只改变索引：全部成立就以 `(tail, 答复的 published)` 登记。没有持有项、版本不衔接、`basis` 缺席、`reduce` 隔离、条目读不全或 `stale` 时都不登记，只计数，下一次读照旧点查加整读。折叠进行期间，点查到同一版本的读等折叠结束再取登记项。折叠从不改变提交的回答，也从不抛错。
+- 本进程的 Agent 发布只换索引：Journal 提供者在发布提交后调用 `registerSessionWorkIndex`，缓存持有该会话时，按持有的 `tail` 经 `session.work-index` 重算索引，换掉持有项的索引并以答复的版本登记（计数可能已越过这次发布，同上）；快照行只随 `tail` 变，所以快照本身沿用。`tail` 已变（`stale`）或没有持有项时不登记。
+- 本进程的 Journal 共同提交也折叠：Journal 提供者的一次发布里带 Session 参加（命令批次）时，Session 参加者的回复同样带 `work`。同一事务里 `execution-record` 参加者先运行（名字序，见已知限制第 11 条），把发布计数加一，Session 参加者随后点读到的就是加一后的计数。所以这条提交只在缓存持有的版本正是 `(tail − 1, published − 1)` 时折叠，复现读数与读新索引都用回复里的计数；其余步骤与端口提交相同。只取这次调用发出、已提交、不是认回、Session 回答不是 `recovered` 的回复；回滚的提交没有 `work`。Journal 提供者调用 `registerSessionWorkIndex` 时带上这份 `work` 就折叠，不带就只换索引。
+- 计数：`workFoldCounts()` 给出本进程的 `folded`、`indexed`、`skipped`、`quarantined`、`stale`，以及其中按越过的计数登记的 `republished`，供测量使用。
+- 回复会落盘：sqlite-provider 把参加者回复连同收据写进 `_sql_receipt`，单份回复超过 `maxResponseBytes`（初值 64 KiB）时提交回滚。所以 `basis` 有 16 KiB 的界，每次提交的收据至多多出这么多；`basis` 只是输入范围与焦点，通常几百字节。
+- 已知限制：整读仍是 O(|S|)，冷启动、淘汰、外部提交、`basis` 超界与折叠不成立时付一次。`session.work-index` 与 `session.work-reads` 的输入带全部 Run 的执行引用，长度随 Run 数增长。主线程的 `reduce` 对持有快照做顶层浅拷贝，代价未单独测。
+
+<a id="rt-04-owner"></a>
+
+当前状态的拥有者与直接读者。工作缓存（下称 WorkHolder）是一个进程里 Session 当前状态 `session.work` 的唯一内存拥有者。它不是权威：权威仍在存储，每个答案都带一个在存储快照里读到的版本，资格由事务内的裁定决定。
+
+- 只有 WorkHolder 调用 `session.work` 与 `session.work-version` 两个 handler。其余读当前状态的调用方都经 WorkHolder：Session 核心的面操作经端口 `readWork`（`src/reads.ts`），session-adapters 的插件经核心面 `session.work.readWork`，不经核心的两个读者（会话归属读口 `src/bindings.ts`、session-adapters 的 Journal 提供者）经 `readCachedSessionWork`。`tests/direct-reads.spec.ts` 用 `git grep` 核对这条边界：全仓 `packages`、`apps` 的产品源码里以文本点名这两个 handler 的文件，只有定义它们的 `src/worker/read-work.ts` 与 `src/worker/read-work-version.ts`、登记材料的 `src/materials.ts`、声明常量的 `src/participants.ts` 与 `src/work-cache.ts`。
+- 保留直接读 Session log 存储的有五类，另有一处已知限制（`session.model-selection`，见本条末尾）。它们读的不是当前状态，或者本身就是某份状态的拥有者：
+  1. WorkHolder 自己：版本点查、整读，以及折叠用的 `session.history` 批读、`session.work-reads` 与 `session.work-index`。
+  2. 按不可变坐标分页的读：`session.history` 按 `position` 分页（服务入口的历史读与核权、CP-01 第 6 步取本次提交的条目、AD-03 回放刚提交的批次），`session.model-view` 按 `(epoch, seq)` 读后缀。每页 O(页)，无状态，与会话长度无关。
+  3. Journal 提供者的 `sync`：它是 Agent 执行记录的内存拥有者（每个会话一份副本），按 `session.history-root` 点查与 `execution-record.parts` 的 `published` 增量同步；AD-05、AD-06 经它的 `load` 读，不直接读存储。
+  4. AD-02 的事实后缀读：`execution-record.execution-facts` 只读 `sequence > readThrough` 的只追加行，O(k)（[已知限制](#已知限制)第 20 条）。
+  5. 提交路径在写事务里的读：参加者读快照行、历史索引与操作记录，`queryOperation` 的认回读操作记录。CAS、`decide` 与认回必须读事务内的当前值，不读缓存。
+
+  按主键的点查（`session.execution` 的路由、`execution-record.operation` 的认回）与会话大小无关，归各自的调用方。
+
+  五类之外还有一处直接读快照行：`session.model-selection`（`src/worker/read-model-selection.ts`，端口的 `readModelSelection`）读 `sl_state.snapshot` 并整份 `JSON.parse`，只为取出保存的模型选择。它不经 WorkHolder，是已知限制：代价随快照增长，每次调用付一次；改为经 WorkHolder 取当前状态后再读选择记录，留待后续。`tests/direct-reads.spec.ts` 另用 `git grep` 核对 `sl_state` 只出现在表声明、迁移、提交路径、WorkHolder 的整读、这处读者，以及只在注释或数据里点名它的文件中；清单外新出现的读者使用例变红。
+- 已知限制：
+  - AD-07（session-adapters `message-handoff.ts`）取交接记录与权限时整读该 execution 的分区，O(|x|)。处置方向：随分区拆细改为向 Journal 提供者查询，需要 session-cordis-contract 新增服务键。
+  - AD-04（session-adapters `history-source.ts`）为压缩窗口翻完全部历史，O(n)。处置方向：改为窗口函数。
 
 ### 符合性
 
@@ -688,7 +794,7 @@ releasedScopes(principal, scope = system, after, limit):
 
 - 迁移片段分两类。权威表的迁移只增列或增表、不改旧列含义、不改位置与身份（`sl_operation` 的访问证据因提供者不允许对 STRICT 表执行 `ALTER TABLE` 而增表，见[操作记录的访问证据](#操作记录的访问证据)）；派生表的迁移可以整体重建。两类都随提供者的原子迁移执行：DDL、数据与迁移标记同事务，失败回到迁移前（[XP-5](#xp-table)）。
 - 归约版本升级是一次 `sl_state` 全量重建（R9），不是迁移。它在格式迁移之后、开放写准入之前完成，或在首次治理读时按会话惰性完成。两种方式都是策略配置。
-- 本成员没有 Cordis 入口，也没有关闭函数：`createSessionStorage` 返回的端口只持有应用交入的存储、目录、访问裁定与游标签名，不持有连接。应用在装配时把 `sessionStorageMaterials()` 并入材料目录并声明组合，端口在提供者就绪后才可用。已提交的条目不因端口被丢弃而变得可撤回。
+- 本成员没有 Cordis 入口，也没有关闭函数：`createSessionStorage` 返回的端口只持有应用交入的存储、目录、访问裁定与游标签名，不持有连接。应用在装配时把 `sessionStorageMaterials({ readOutputLimitBytes })` 并入材料目录并声明组合，端口在提供者就绪后才可用。已提交的条目不因端口被丢弃而变得可撤回。
 - 提供者关闭期间，写路径可能得到 `commit-unknown` 或 `unavailable`，两者都不当作未提交：`commit` 先对代次 1 调 `query`，关闭后 `query` 答 `unknown`（诊断 `closing`），写路径直接返回 `commit-unknown`；直接走到 `commit` 的路径得到 `closing` 映射的 `unavailable`。真实提供者下实测为前者。在途的语句跑完。读入口随提供者关闭而不可用。
 
 ### SQLite 与 PostgreSQL

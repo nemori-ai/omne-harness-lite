@@ -201,6 +201,14 @@ export type MemoryAgentJournalOptions<P> = Readonly<{
     receipt: CommandReceipt,
   ) => Promise<Outcome<JointDecision, Failure>>
 
+  /**
+   * Whether one public `commit` or `recordResult` derives a Session participation, so that
+   * `qualifyParticipation` decides it. Absent: the call participates when its caller is not none.
+   * A binding whose fixed history combination also writes the main reply of a caller-none Ja
+   * (Agent SPEC "真实历史的提交点") says so here.
+   */
+  participates?: (input: ExecutionMutation<P>, method: 'commit' | 'recordResult') => boolean
+
   retainedToolInvocationFaults?: boolean
 
   participants?: Iterable<JointCommitKind>
@@ -348,6 +356,31 @@ type Attachment = {
 }
 
 type Range = Readonly<{ from: number; to: number }>
+
+/**
+ * The input range of a batch that an execution took, when the in-process index is rebuilt from the
+ * events: from the position of its first input, or, for an empty batch (a step that took no input),
+ * the range its identity names, which `inputs` issued as `batchIdOf(execution, from, to)`.
+ */
+function takenRange(
+  execution: Readonly<{ id: AgentExecutionId; inputs: readonly Readonly<{ id: InputId }>[] }>,
+  batch: Readonly<{ id: InputBatchId; ordered: readonly InputId[] }>,
+): Range | undefined {
+  const [first] = batch.ordered
+  if (first !== undefined) {
+    const from = execution.inputs.findIndex(input => input.id === first)
+    return from < 0 ? undefined : { from, to: from + batch.ordered.length }
+  }
+  const named = /\/batch\/(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/u.exec(String(batch.id))
+  if (named === null) return undefined
+  const from = Number(named[1])
+  const to = Number(named[2])
+  return from === to &&
+    to <= execution.inputs.length &&
+    batchIdOf(execution.id, from, to) === batch.id
+    ? { from, to }
+    : undefined
+}
 
 export type MemoryExecution = {
   id: AgentExecutionId
@@ -1417,9 +1450,8 @@ export function createJournal<P>(
       value = { batches: new Map(), watermarks: new Map() }
       for (const event of execution.events)
         if (event.body.kind === 'input-taken') {
-          const ordered = event.body.batch.ordered
-          const from = execution.inputs.findIndex(input => input.id === ordered[0])
-          if (from >= 0) value.batches.set(event.body.batch.id, { from, to: from + ordered.length })
+          const range = takenRange(execution, event.body.batch)
+          if (range !== undefined) value.batches.set(event.body.batch.id, range)
         }
       caches.set(execution, value)
     }
@@ -1638,7 +1670,8 @@ export function createJournal<P>(
         method === 'commit'
           ? (input as Parameters<AgentJournal<P>['commit']>[0]).caller
           : (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
-      if (caller.kind !== 'none' && options.qualifyParticipation) {
+      const participates = options.participates?.(input, method) ?? caller.kind !== 'none'
+      if (participates && options.qualifyParticipation) {
         // The Session decision of the derived participation: once per public call, before any
         // Session preparation, the pause point and the joint publication; a recognized operation
         // is decided again with its original receipt.
@@ -2301,6 +2334,7 @@ export function createJournal<P>(
       if (
         decision.kind !== 'prepared' ||
         !sameValue(caller.message, decision.message) ||
+        !sameValue(caller.source, outcome.record) ||
         !sameValue(caller.admission, decision.admission)
       )
         return fail(invalid('caller', 'the message commit does not match the outcome of the H'))
@@ -4185,6 +4219,16 @@ export function createJournal<P>(
           ? denied('recordTerminalObservation')
           : undefined
       return write('recordTerminalObservation', input, key, prepare, beforeRecognition)
+    },
+
+    async readCancellationInstallation(input) {
+      const fault = readFault('load')
+      if (fault !== undefined) return fault
+      const found = owned(input, 'load')
+      if ('failure' in found) return found
+      return options.cancellation === undefined
+        ? fail(damaged('no cancellation policy is installed on this binding'))
+        : succeed(copy(options.cancellation.installation.record))
     },
 
     async load(input) {

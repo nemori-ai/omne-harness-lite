@@ -8,7 +8,12 @@
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { GuardCommand, SessionCommand, SessionFailure } from '@omne-harness/session-contract'
+import type {
+  GuardCommand,
+  SessionAccess,
+  SessionCommand,
+  SessionFailure,
+} from '@omne-harness/session-contract'
 import {
   adoptedInitializationFixture,
   creation,
@@ -34,6 +39,7 @@ const B = memoryOtherAccess<unknown>('caller')
 type SourceName = 'adoption' | 'production' | 'custody'
 type Answer = (
   command: SessionCommand,
+  access?: SessionAccess<unknown>,
 ) => Promise<{ ok: readonly GuardCommand[] } | { failure: SessionFailure }>
 
 /** A command of the given kind; the bridge reads only the kind, the tenant and the session. */
@@ -57,12 +63,18 @@ async function mount(ctx: Context, plugin: Parameters<Context['plugin']>[0]) {
 /** The three source services; each records the commands it was asked and answers by script. */
 function sources(scripts: Partial<Record<SourceName, Answer>> = {}) {
   const asked: { source: SourceName; kind: string }[] = []
+  /** The access that each source received, by arity: a source that never got a second argument has none. */
+  const received: { source: SourceName; given: readonly unknown[] }[] = []
   const answer =
     (source: SourceName): Answer =>
-    async given => {
-      asked.push({ source, kind: given.kind })
+    async (...given) => {
+      const [command, access] = given
+      asked.push({ source, kind: command.kind })
+      received.push({ source, given })
       const scripted = scripts[source]
-      return scripted ? scripted(given) : succeed([guard(`${source}-source`, source, given.kind)])
+      return scripted
+        ? scripted(command, access)
+        : succeed([guard(`${source}-source`, source, command.kind)])
     }
   class Adoption extends SessionAdoptionSourceService {
     readonly prepare = answer('adoption') as SessionAdoptionSourceService['prepare']
@@ -73,20 +85,25 @@ function sources(scripts: Partial<Record<SourceName, Answer>> = {}) {
   class Custody extends SessionCustodySourceService {
     readonly prepare = answer('custody') as SessionCustodySourceService['prepare']
   }
-  return { asked, services: { adoption: Adoption, production: Production, custody: Custody } }
+  return {
+    asked,
+    received,
+    services: { adoption: Adoption, production: Production, custody: Custody },
+  }
 }
 
 async function assembled(scripts: Partial<Record<SourceName, Answer>> = {}) {
   const ctx = new Context()
-  const { asked, services } = sources(scripts)
+  const { asked, received, services } = sources(scripts)
   const fibers = {
     adoption: await mount(ctx, services.adoption),
     production: await mount(ctx, services.production),
     custody: await mount(ctx, services.custody),
   }
   const bridge = await mount(ctx, SessionEvidenceBridgeProvider)
-  const prepare = (given: SessionCommand) => ctx.get(sessionEvidenceKey)!.prepare(given)
-  return { ctx, asked, fibers, bridge, prepare }
+  const prepare = (given: SessionCommand, access?: SessionAccess<unknown>) =>
+    ctx.get(sessionEvidenceKey)!.prepare(given, access)
+  return { ctx, asked, received, fibers, bridge, prepare }
 }
 const provides = (ctx: Context) => ctx.get(sessionEvidenceKey) !== undefined
 
@@ -157,6 +174,48 @@ describe('the material table, split by command', () => {
     const { asked, prepare } = await assembled()
     expect(await prepare(command('claim'))).toEqual(succeed([]))
     expect(asked).toEqual([])
+  })
+})
+
+describe('the access of the original call', () => {
+  it('gives the adoption source the access object of the call as it came, and no other source', async () => {
+    const { received, prepare } = await assembled()
+    // `startRun` takes adoption material; `preserveResult` takes production and custody material.
+    expect(await prepare(command('startRun'), A)).toHaveProperty('ok')
+    expect(await prepare(command('preserveResult'), A)).toHaveProperty('ok')
+    const adoption = received.filter(item => item.source === 'adoption')
+    expect(adoption).toHaveLength(1)
+    expect(adoption[0]?.given[1]).toBe(A)
+    for (const item of received.filter(item => item.source !== 'adoption'))
+      expect(item.given, `${item.source} keeps its signature`).toHaveLength(1)
+  })
+
+  it('keeps an absent access absent, and authorizes nothing by it', async () => {
+    const { received, prepare } = await assembled()
+    expect(await prepare(command('startRun'))).toHaveProperty('ok')
+    expect(received[0]?.given[1]).toBeUndefined()
+  })
+
+  it('passes the access of the call to the adoption source for every adoption command', async () => {
+    const { received, prepare } = await assembled()
+    for (const kind of ['startRun', 'reload', 'change', 'freeze'] as const)
+      expect(await prepare(command(kind), A)).toHaveProperty('ok')
+    expect(received.filter(item => item.source === 'adoption').map(item => item.given[1])).toEqual([
+      A,
+      A,
+      A,
+      A,
+    ])
+  })
+
+  it('still loads a source written before access and plan', async () => {
+    const ctx = new Context()
+    class Old extends SessionAdoptionSourceService {
+      readonly prepare = (async () =>
+        succeed([guard('old', 'adoption', 'x')])) as SessionAdoptionSourceService['prepare']
+    }
+    await mount(ctx, Old)
+    expect(ctx.get('sessionAdoptionSource')?.plan).toBeUndefined()
   })
 })
 

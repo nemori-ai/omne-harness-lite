@@ -423,6 +423,7 @@ export interface AgentMaterials<P, B extends ContentBlock> {
   preserve(
     input: Access<P> &
       Readonly<{
+        execution?: AgentExecutionId
         identity: string
         consumer: ConsumerRef
         value: Material<B>
