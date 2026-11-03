@@ -2,7 +2,8 @@
 // signature names only the kinds that the operation can give.
 import type { StandIn } from './values.ts'
 
-export type UnsupportedWhat = 'no-readable-package' | 'binary-not-representable' | 'dialect'
+/** What is not supported. Text and bytes are both representable, and inspection has no dialect. */
+export type UnsupportedWhat = 'no-readable-package'
 
 export type SkillFailure =
   /** No permission, no such identity, or a basis for another identity: the three look the same. */

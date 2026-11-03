@@ -1,15 +1,80 @@
-# skill-contract
+# @omne-harness/skill-contract
 
-本成员只提供已接受的资产类别端口 `skillBodyContract`。发现、脚本执行和发布不在这个入口。
+[中文](README_ZH.md)
 
-## 责任与使用
+The pure contract member of the Skill group. It gives the Skill values, failures, service interfaces, pure functions, the three demand ports, their conformance suites, and the `skill` category port of `@omne-harness/assets`.
 
-独立消费从公开入口 `skillBodyContract` 取得端口，再向 `@omne-harness/assets` 的注册表登记。调用 `judge` 不执行正文里的函数。`tools` 中每一项都必须是类别 `tool` 加 name。本包依赖 `@omne-harness/assets`，不依赖 `@omne-harness/tool`。
+## Responsibility and status
 
-## 契约与设计
+This member owns the Skill words that other members use: the package rules, the snapshot and its digest, the failure kinds, the port shapes, and the asset body of the `skill` category. It has no service implementation, no source, and no runtime state. The services `PackageInspection`, `SkillCatalog` and `SkillAccess` are interfaces only. Their implementation is in `@omne-harness/skill`. The directory source is in `@omne-harness/skill-host-local`.
 
-端口字段和拒绝结果以[资产规格](../../assets/assets/SPEC.md#accepted-public-types)为准。本成员不解释装配采用。
+Status: the shapes and the rules are candidates of the first Skill wave. They do not have technical acceptance. The pure functions and the memory doubles have tests. No real source, read check or resolution is verified here.
 
-## 验证与维护
+## Usage
 
-默认测试责任是单元和契约。命令是 `pnpm --filter @omne-harness/skill-contract test`。集成测试和端到端测试不在本成员。
+There are three entries:
+
+- `@omne-harness/skill-contract`: for callers. Values, failures, service interfaces, pure functions and `skillBodyContract`.
+- `@omne-harness/skill-contract/provider`: for port implementations. The ports, `SkillRef`, `PackageLocator` and `sealSnapshot`.
+- `@omne-harness/skill-contract/testing`: for the tests of port implementations. It imports `vitest` at run time, so the consumer must install `vitest`.
+
+A source gives a snapshot only through `sealSnapshot`. A check of a package then looks like this:
+
+```ts
+import { parseSkillPackage, toPackagePath } from '@omne-harness/skill-contract'
+import { sealSnapshot } from '@omne-harness/skill-contract/provider'
+
+const manifest = new TextEncoder().encode('---\nname: review\ndescription: Reviews a change.\n---\nBody.\n')
+const path = toPackagePath('SKILL.md')
+if (!('ok' in path)) throw new Error('bad path')
+const sealed = sealSnapshot({ rootName: 'review', files: [{ path: path.ok, bytes: manifest }] })
+if (!('ok' in sealed)) throw new Error(sealed.failure.kind)
+const checked = parseSkillPackage({ snapshot: sealed.ok, control: { manifest } })
+```
+
+To register the category port, give `skillBodyContract()` to the category registry of `@omne-harness/assets`. This member has no Cordis entry.
+
+## Contracts
+
+The public types in `src/` own the data shapes. [SPEC.md](SPEC.md) owns the behavior that the types cannot show: the rejection order, the snapshot digest, the frontmatter and declaration rules, the read shape rules, the port requirements, the conformance suites and the category port extension. [docs/public-api.md](docs/public-api.md) indexes the public definitions. The machine-readable shape of `.omne/skill.json` is [schema/skill-declaration.schema.json](schema/skill-declaration.schema.json).
+
+## Design
+
+The member is a set of small modules: values, names, digests, media types, the snapshot constructor, the package parser, the shape readers that the declaration file and the asset body share, the projection, the category port, and the test suites. See [docs/architecture.md](docs/architecture.md).
+
+## Configuration and operation
+
+There is no runtime configuration. Two defaults are policy values with an override: the declaration budget of `parseSkillPackage` (`declarationLimits`) and the read page of 65536 bytes that the `SkillAccess` implementation uses. The member needs Node.js 24 or later.
+
+## Verification
+
+Run `pnpm run build`, `pnpm run typecheck` and `pnpm test` in this directory. The tests are unit and contract tests. `tests/conformance-red.spec.ts` is in the slow tier: it starts a child test run and checks that the suites fail a double that discloses an identity. See [tests/README.md](tests/README.md) and the verification section of [SPEC.md](SPEC.md).
+
+## Maintenance
+
+Change the public shapes only by additive changes after this member merges into the parent branch. When a shape or a rule changes, update SPEC.md, the schema, the tests, and the consumers `@omne-harness/skill` and `@omne-harness/skill-host-local`. The group design is in [../docs/architecture.md](../docs/architecture.md).
+
+## Directory structure and documentation roles
+
+```text
+README.md, README_ZH.md   Entry: purpose, status, and this map
+index.md                  Reading paths through the package
+SPEC.md                   Behavior beyond the public types
+documentation.json        Documentation registration
+docs/                     Internal design, public use, and integration
+├── architecture.md       Modules, state and resource ownership, mechanisms
+├── flows.md              Key business flows and data flows
+├── object-model.md       Internal object model
+├── public-api.md         Public boundary and definition index
+├── context.md            Consumer use and position in the system
+└── cordis.md             Cordis applicability and integration
+src/                      Public definitions, validation, and implementation
+tests/                    Continuous tests; fixtures/ holds test inputs
+schema/                   External schemas
+verification/             models/ and proofs/
+adr/                      Implementation decisions with continuing consumers
+examples/                 Examples against the public entry
+resources/                Non-source runtime resources
+```
+
+Each directory has README.md for its role and index.md for navigation. See [index.md](index.md) for reading paths. The template directory `acceptance/` is not present: independent acceptance owners create it.
