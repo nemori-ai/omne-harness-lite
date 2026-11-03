@@ -3,7 +3,9 @@
     {
       "id": "storage",
       "plugin": "storageRow",
-      "config": {}
+      "config": {
+        "maxJsonDepth": 128
+      }
     },
     {
       "id": "identity",

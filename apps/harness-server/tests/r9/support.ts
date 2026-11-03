@@ -282,6 +282,8 @@ export function operatorLayer(options: {
   shutdownDeadlineMs?: number
   /** The `https:` URL of the Model route; the local gateway in tests that send a Model call. */
   modelRoute?: string
+  /** Replaces the release `maxJsonDepth` of the storage row (the negative control of R2-D270). */
+  maxJsonDepth?: number
 }): unknown {
   const deadline = options.shutdownDeadlineMs ?? SHUTDOWN_DEADLINE_MS
   const model = modelRowsOperatorConfig(options)
@@ -291,7 +293,11 @@ export function operatorLayer(options: {
       {
         kind: 'replace',
         id: 'storage',
-        config: providerConfig(options.storageRoot, { closeDeadlineMs: deadline - 1000 }),
+        // A `replace` swaps the whole row, so it copies the release `maxJsonDepth` (R2-D270).
+        config: providerConfig(options.storageRoot, {
+          closeDeadlineMs: deadline - 1000,
+          maxJsonDepth: options.maxJsonDepth ?? releaseMaxJsonDepth(),
+        }),
       },
       {
         kind: 'replace',
@@ -346,6 +352,16 @@ export function operatorLayer(options: {
       { kind: 'replace', id: 'server-entry', config: { listenPort: options.port } },
     ],
   }
+}
+
+/** The `maxJsonDepth` the release distribution gives the storage row. */
+export function releaseMaxJsonDepth(): number {
+  const release = JSON.parse(readFileSync(distributionPath, 'utf8')) as {
+    rows: { id: string; config: Record<string, unknown> }[]
+  }
+  const depth = release.rows.find(entry => entry.id === 'storage')?.config['maxJsonDepth']
+  if (typeof depth !== 'number') throw new Error('the release storage row gives no maxJsonDepth')
+  return depth
 }
 
 export function writeOperator(path: string, layer: unknown): void {

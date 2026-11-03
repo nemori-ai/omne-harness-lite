@@ -1,7 +1,8 @@
 // A local Model gateway for the release-tree tests (R2-D258): a real HTTPS server on 127.0.0.1 with a
-// self-signed certificate, so a test never sends a Model call to a real supplier. Every request gets
-// the same answer, HTTP 400 with an error body, so a Run that calls the Model ends the same way each
-// time. The send path accepts only `https:` routes, so the certificate must be trusted:
+// self-signed certificate, so a test never sends a Model call to a real supplier. By default every
+// request gets the same answer, HTTP 400 with an error body, so a Run that calls the Model ends the
+// same way each time; a test may script the answers instead (`answer`). The send path accepts only
+// `https:` routes, so the certificate must be trusted:
 // - a `serve` child process trusts it through `NODE_EXTRA_CA_CERTS` (`certPath`);
 // - a tree in the test process trusts it through `trustInProcess()`, which `close()` undoes.
 // No vitest import: the r9 driver (`tests/r9/drive.ts`) uses this file too. The certificate comes
@@ -20,6 +21,18 @@ export const GATEWAY_PATH = '/api/v1/chat/completions'
 /** The error body of every answer. */
 export const GATEWAY_REFUSAL = JSON.stringify({
   error: { message: 'local test gateway: every request is refused', code: 400 },
+})
+
+/** One scripted answer: the status and the body (an SSE stream for 200). */
+export type GatewayAnswer = Readonly<{ status: number; contentType: string; body: string }>
+
+/** Answers request `index` (0 for the first) with its JSON body text. */
+export type GatewayScript = (request: Readonly<{ index: number; body: string }>) => GatewayAnswer
+
+const refusal: GatewayScript = () => ({
+  status: 400,
+  contentType: 'application/json',
+  body: GATEWAY_REFUSAL,
 })
 
 export type ModelGateway = Readonly<{
@@ -66,17 +79,20 @@ function certificate(directory: string): { keyPath: string; certPath: string } {
   return { keyPath, certPath }
 }
 
-export async function startModelGateway(): Promise<ModelGateway> {
+export async function startModelGateway(answer: GatewayScript = refusal): Promise<ModelGateway> {
   const directory = realpathSync(mkdtempSync(join(tmpdir(), 'harness-model-gateway-')))
   const { keyPath, certPath } = certificate(directory)
   const cert = readFileSync(certPath, 'utf8')
   let count = 0
   const server = createServer({ key: readFileSync(keyPath), cert }, (request, response) => {
+    const index = count
     count += 1
-    request.resume()
+    const chunks: Buffer[] = []
+    request.on('data', (chunk: Buffer) => chunks.push(chunk))
     request.on('end', () => {
-      response.writeHead(400, { 'content-type': 'application/json' })
-      response.end(GATEWAY_REFUSAL)
+      const reply = answer({ index, body: Buffer.concat(chunks).toString('utf8') })
+      response.writeHead(reply.status, { 'content-type': reply.contentType })
+      response.end(reply.body)
     })
   })
   await new Promise<void>((resolve, reject) => {
