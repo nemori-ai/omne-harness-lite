@@ -969,7 +969,7 @@ describe('the translation of committed Session entries', () => {
   it('gives back the initial registration, the later change, the step commit and the scope end', async () => {
     const log = await sessionLog()
     const translation = createSessionContextTranslation(definitions)
-    const inputs = log.entries.map(entry => ok(translation.commitOf(entry), entry.kind))
+    const inputs = log.entries.map(entry => ok(translation.commitOf(entry, log.access), entry.kind))
     const expected: CommitInput[] = [
       {
         kind: 'registration',
@@ -1018,13 +1018,23 @@ describe('the translation of committed Session entries', () => {
     expect(new Set(translation.kinds)).toEqual(new Set(log.entries.map(entry => entry.kind)))
   })
 
-  it('gives null for the end of a scope that it has no record of, and for other entries', async () => {
+  // R2-D219 B1: a scope with no registration and no step commit is recovered with the empty
+  // material (AD-03 1a), so its end must reach Runtime Context too. The tenant is the session's.
+  it('gives the end of a scope that it has no other record of, with the tenant of its session, and null for other entries', async () => {
     const log = await sessionLog()
     const archived = log.entries.find(entry => entry.kind === 'session.archived')!
     const fresh = createSessionContextTranslation(definitions)
-    expect(fresh.commitOf(archived)).toEqual(succeed(null))
+    expect(fresh.commitOf(archived, log.access)).toEqual(
+      succeed({
+        kind: 'scope',
+        commit: contextScopeEndCommit({ scope: log.scope.ref, operation: log.archive }),
+        scope: log.scope,
+        tenant: log.access.tenant,
+        scopeEnded: true,
+      }),
+    )
     const other: HistoryEntry = { ...archived, kind: 'session.model-selected' }
-    expect(fresh.commitOf(other)).toEqual(succeed(null))
+    expect(fresh.commitOf(other, log.access)).toEqual(succeed(null))
   })
 
   it('fails, never guesses, on a record it cannot restore', async () => {
@@ -1036,34 +1046,34 @@ describe('the translation of committed Session entries', () => {
       ...initial!,
       payload: rewrite(initial!.payload, 'scope', tree('session-scope:elsewhere')),
     }
-    expect(translation.commitOf(misplaced)).toHaveProperty('failure')
+    expect(translation.commitOf(misplaced, log.access)).toHaveProperty('failure')
     // A definition that no longer gives back the binding.
     const forgetful = createSessionContextTranslation({ ...definitions, binding: () => undefined })
-    expect(forgetful.commitOf(initial!)).toHaveProperty('failure')
+    expect(forgetful.commitOf(initial!, log.access)).toHaveProperty('failure')
     // A later registration recorded under another scope than its material names.
     const moved: HistoryEntry = {
       ...later!,
       payload: rewrite(later!.payload, 'scope', tree('session-scope:elsewhere')),
     }
-    expect(translation.commitOf(moved)).toHaveProperty('failure')
+    expect(translation.commitOf(moved, log.access)).toHaveProperty('failure')
     // A step commit recorded under another scope than its head names.
     const step = log.entries.find(entry => entry.kind === 'session.recovery-input-adopted')!
     const strayStep: HistoryEntry = {
       ...step,
       payload: rewrite(step.payload, 'scope', tree('session-scope:elsewhere')),
     }
-    expect(translation.commitOf(strayStep)).toHaveProperty('failure')
+    expect(translation.commitOf(strayStep, log.access)).toHaveProperty('failure')
     // A payload that is not a JSON tree.
     expect(
-      translation.commitOf({ ...later!, payload: { kind: 'object' } as never }),
+      translation.commitOf({ ...later!, payload: { kind: 'object' } as never }, log.access),
     ).toHaveProperty('failure')
   })
 
-  it('fails on a scope that two records name with two tenants', async () => {
+  it('fails on a record that names another tenant than its session', async () => {
     const log = await sessionLog()
     const step = log.entries.find(entry => entry.kind === 'session.recovery-input-adopted')!
     const translation = createSessionContextTranslation(definitions)
-    ok(translation.commitOf(step), 'step')
+    ok(translation.commitOf(step, log.access), 'step')
     const theirs: HistoryEntry = {
       ...step,
       payload: rewrite(
@@ -1084,49 +1094,26 @@ describe('the translation of committed Session entries', () => {
         }),
       ),
     }
-    expect(translation.commitOf(theirs)).toHaveProperty('failure')
+    expect(translation.commitOf(theirs, log.access)).toHaveProperty('failure')
+    // The same record is the other tenant's own when its session is.
+    expect(translation.commitOf(theirs, B)).toMatchObject({
+      ok: { kind: 'step', tenant: B.tenant },
+    })
   })
-})
 
-describe('the scope-to-tenant derivative of the translation', () => {
-  it('fails the end of a scope whose tenant it evicted, and keeps null for a scope it never saw', async () => {
+  it('keeps no tenant of its own: the end of a scope is the tenant of the session it is read for, whatever it read before', async () => {
     const log = await sessionLog()
     const [initial] = log.entries
-    const step = log.entries.find(entry => entry.kind === 'session.recovery-input-adopted')!
     const archived = log.entries.find(entry => entry.kind === 'session.archived')!
-    // A step commit of another scope: with room for one scope, it evicts the scope of the log.
-    const other = scopeRef('session-scope:other')
-    const elsewhere: HistoryEntry = {
-      ...step,
-      payload: rewrite(
-        rewrite(step.payload, 'scope', tree(other.ref)),
-        'declaration',
-        tree({
-          kind: 'context-step-commit',
-          basis: evidence('basis/other'),
-          ...ok(
-            encodeContextStepCommit({
-              tenant: log.access.tenant,
-              stepCommit: { ...log.step, scope: other },
-              executionEnded: false,
-              operation: log.stepOperation,
-            }),
-            'encode',
-          ),
-        }),
-      ),
-    }
-    const small = createSessionContextTranslation(definitions, { scopeTenants: 1 })
-    ok(small.commitOf(initial!), 'initial')
-    ok(small.commitOf(elsewhere), 'elsewhere')
-    expect(small.commitOf(archived)).toHaveProperty('failure')
-    // Read again from the start, as the holder does: the tenant is learnt again and the end applies.
-    ok(small.commitOf(initial!), 'initial again')
-    expect(ok(small.commitOf(archived), 'end')).toMatchObject({ kind: 'scope', scope: log.scope })
-    // A scope that no record named still ends as null.
-    expect(
-      createSessionContextTranslation(definitions, { scopeTenants: 1 }).commitOf(archived),
-    ).toEqual(succeed(null))
+    const translation = createSessionContextTranslation(definitions)
+    ok(translation.commitOf(initial!, log.access), 'initial')
+    expect(ok(translation.commitOf(archived, log.access), 'end')).toMatchObject({
+      kind: 'scope',
+      scope: log.scope,
+      tenant: log.access.tenant,
+    })
+    // No derivative of earlier reads decides the tenant, so none can be evicted or go stale.
+    expect(ok(translation.commitOf(archived, B), 'end for B')).toMatchObject({ tenant: B.tenant })
   })
 })
 

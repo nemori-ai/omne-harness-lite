@@ -25,17 +25,19 @@ import {
   SessionInternalPrincipalsService,
   sessionPrincipalsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
+import { SESSION_WORK_OWNER } from '../rows/authorization/principals.ts'
+import { SESSION_WORK_COMPONENT } from '../rows/tool-runtime/session-work.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
 
-/** 入口自己签发的组件名（DP-1 表 3-3，取名规则 DP5-C5：服务键.字段名，或服务键本身）。 */
+/**
+ * 入口自己签发的组件名（DP-1 表 3-3，取名规则 DP5-C5：服务键.字段名，或服务键本身）。会话工作主体的组件名与
+ * 工作拥有者（AA 运行时对象表「会话工作主体」）各只有一份定义，判定一侧（`sessionWorkOf`）与签发一侧共用。
+ */
 export const ENTRY_COMPONENTS = Object.freeze({
   sessionCoordinator: 'sessionPrincipals.coordinator',
   sessionMaintainer: 'sessionPrincipals.maintainer',
-  sessionWork: 'sessionWorkPrincipals',
+  sessionWork: SESSION_WORK_COMPONENT,
 })
-
-/** 会话工作主体的原工作：工作拥有者是 Session，工作文本是会话 id（AA 运行时对象表「会话工作主体」）。 */
-export const SESSION_WORK_OWNER = 'session'
 
 type EntryPrincipals = Readonly<{
   issuer: PrincipalIssuer

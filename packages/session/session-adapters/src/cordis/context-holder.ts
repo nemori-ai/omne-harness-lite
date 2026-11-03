@@ -12,21 +12,24 @@
 //   caller class, and provides `runtimeContextReaderEligibility` (K-RC). Its policy: answer the
 //   eligibility it issued for the same principal, consumer class and scope while the scope's
 //   recovery and registration revision are unchanged; otherwise issue one on the spot from the
-//   scope's final registrations, superseding the earlier one.
+//   scope's final registrations, superseding the earlier one. It reads the work snapshot for the
+//   replay, which as `reader` cannot: a new scope with no record is recovered with the empty
+//   material only while the snapshot lists it open (R2-D219).
 // - The facts plugin `session-ad03-facts` injects `session` alone, with the `coordinator` caller
-//   class, so it runs without Runtime Context and without the replay sub-plugin. It indexes the
-//   scopes that the context records of a session name, from the same `committed` notices, and
-//   answers two questions from the session's own facts. `replayFacts.stepCommittedBlocks` reads the
-//   records and folds them up to the checkpoint, so C18's trust checks a finished recovery against
-//   the log, not against the material. The scope lookup answers the tenant, session and generation
-//   of a scope from the session's work snapshot: the index only says where to look, the snapshot
-//   decides. It names an owner and grants nothing.
+//   class, so it runs without Runtime Context and without the replay sub-plugin. Its history
+//   sub-plugin `session-ad03-facts-history` reads the context records as `reader`. It indexes the
+//   scopes that the records of a session name, and the open scopes of the session's snapshot, from
+//   the same `committed` notices, and answers two questions from the session's own facts.
+//   `replayFacts.stepCommittedBlocks` reads the records and folds them up to the checkpoint, so
+//   C18's trust checks a finished recovery against the log, not against the material. The scope
+//   lookup answers the tenant, session and generation of a scope from the session's work snapshot:
+//   the index only says where to look, the snapshot decides. It names an owner and grants nothing.
 //
 // The Session log is the authority. The plugins keep only derivatives: the scope-to-session index
-// (one map of the process lifetime, bounded, written by the replay and the facts plugin), the
-// recovery state of each scope (one replay fiber), and the issued eligibilities (one holder fiber). Named gap: the translation from a committed Session entry to a
-// Runtime Context commit input is AD-12's adopted translation protocol. It is not delivered; the
-// assembly hands it in as `translation`.
+// (one map of the process lifetime, bounded), the sessions whose snapshot could not be indexed
+// (bounded), the recovery state of each scope (one replay fiber), and the issued eligibilities
+// (one holder fiber). The translation from a committed Session entry to a Runtime Context commit
+// input is AD-12's translation protocol; the assembly hands it in as `translation`.
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -88,7 +91,11 @@ const MAX_PAGES = 10000
 export interface SessionContextTranslation {
   /** The history entry kinds that can record a Runtime Context commit. */
   readonly kinds: readonly string[]
-  commitOf(entry: HistoryEntry): Outcome<CommitInput | null, string>
+  /** `session` is the session whose log holds the entry: the end of a scope (SE27) takes its tenant. */
+  commitOf(
+    entry: HistoryEntry,
+    session: Readonly<{ tenant: TenantId }>,
+  ): Outcome<CommitInput | null, string>
 }
 
 /**
@@ -149,9 +156,16 @@ type ScopeView =
       final: ReadonlyMap<ContextBlockKey, Registered>
     }>
 
-/** The replay fiber as the holder plugin sees it. */
+/** The work snapshot of one session read by a `coordinator` plugin, or why it cannot be had. */
+type SnapshotRead = (bound: Bound) => Promise<Outcome<WorkSnapshot, string>>
+
+/**
+ * The replay fiber as the holder plugin sees it. The replay sub-plugin calls `session` as `reader`,
+ * which cannot read the work snapshot (`readWork` admits `coordinator` and `maintainer`), so the
+ * holder plugin hands in its own snapshot read.
+ */
 interface ReplayFiber {
-  ensure(scope: ScopeRef, tenant: TenantId): Promise<ScopeView>
+  ensure(scope: ScopeRef, tenant: TenantId, snapshot: SnapshotRead): Promise<ScopeView>
 }
 
 /** The facts fiber as the two facts services and `replayFacts` see it. It never throws. */
@@ -165,6 +179,14 @@ type Shared<P> = Readonly<{
   recoveries: { next: number }
   /** The indexing reads of the facts plugin still running: a lookup waits for them before `unseen`. */
   learning: Set<Promise<void>>
+  /** session key → the snapshot read that indexes its open scopes now, shared by every asker. */
+  indexing: Map<string, Promise<Outcome<void, string>>>
+  /**
+   * session key → a session whose open scopes could not be indexed from its snapshot, and why.
+   * The holder reads such a snapshot again on demand before it calls a scope unseen. Bounded like
+   * the index; the oldest goes first.
+   */
+  unindexed: Map<string, Readonly<{ bound: Bound; diagnostic: string }>>
 }>
 
 function describe(cause: unknown): string {
@@ -327,17 +349,89 @@ async function principalOf<P>(
   }
 }
 
+/** Sets a key newest last in a bounded map; the oldest goes when the bound is passed. */
+function setNewest<K, V>(map: Map<K, V>, key: K, value: V, limit: number): void {
+  map.delete(key)
+  map.set(key, value)
+  while (map.size > limit) {
+    const oldest = map.keys().next()
+    if (oldest.done === true) break
+    map.delete(oldest.value)
+  }
+}
+
 /** Notes the session of a scope in the index, newest last; the oldest goes when the bound is passed. */
 function remember<P>(shared: Shared<P>, scope: string, bound: Bound): void {
-  const { index } = shared
-  const limit = shared.input.scopeIndexEntries ?? SCOPE_INDEX_ENTRIES
-  index.delete(scope)
-  index.set(scope, bound)
-  while (index.size > limit) {
-    const oldest = index.keys().next().value
-    if (oldest === undefined) break
-    index.delete(oldest)
+  setNewest(shared.index, scope, bound, shared.input.scopeIndexEntries ?? SCOPE_INDEX_ENTRIES)
+}
+
+/** The key of one session in the per-session maps; `undefined` for a tenant that cannot be encoded. */
+function sessionKeyOf(bound: Bound): string | undefined {
+  const tenant = tenantText(bound.tenant)
+  return tenant === undefined ? undefined : JSON.stringify([tenant, bound.session])
+}
+
+/**
+ * The work snapshot read of a plugin that calls `session` as `coordinator`. A snapshot that answers
+ * another session or tenant than the one asked is not this session's snapshot.
+ */
+function snapshotReader<P>(ctx: Context, shared: Shared<P>): SnapshotRead {
+  return async bound => {
+    const principal = await principalOf(shared.input, bound)
+    if ('failure' in principal) return principal
+    try {
+      const work = await ctx[sessionKey].work.readWork({
+        principal: principal.ok,
+        tenant: bound.tenant,
+        session: bound.session,
+      })
+      if ('failure' in work) return fail(`the snapshot read answered ${work.failure.kind}`)
+      if (!tenantEquals(work.ok.tenant, bound.tenant) || work.ok.session !== bound.session)
+        return fail('the snapshot read answered another session than the one it asked')
+      return succeed(work.ok)
+    } catch (cause) {
+      return fail(`the snapshot read threw: ${describe(cause)}`)
+    }
   }
+}
+
+/**
+ * Indexes the open scopes that the snapshot of one session lists (AD-03 1a: a new scope has no
+ * record yet). Askers of the same session share the read in flight; `fresh` starts a new one, for a
+ * notice that minted a scope after that read may have begun. A read that fails leaves the session
+ * in `unindexed` with its reason, so the holder can read it again on demand.
+ */
+function indexSnapshot<P>(
+  shared: Shared<P>,
+  bound: Bound,
+  key: string,
+  read: SnapshotRead,
+  fresh: boolean,
+): Promise<Outcome<void, string>> {
+  const running = shared.indexing.get(key)
+  if (running !== undefined && !fresh) return running
+  const limit = shared.input.scopeIndexEntries ?? SCOPE_INDEX_ENTRIES
+  const indexed = (async (): Promise<Outcome<void, string>> => {
+    let snapshot: Outcome<WorkSnapshot, string>
+    try {
+      snapshot = await read(bound)
+    } catch (cause) {
+      snapshot = fail(`the snapshot read threw: ${describe(cause)}`)
+    }
+    if ('failure' in snapshot) {
+      setNewest(shared.unindexed, key, { bound, diagnostic: snapshot.failure }, limit)
+      return snapshot
+    }
+    for (const binding of snapshot.ok.contextScopes ?? [])
+      if (binding.ended === null) remember(shared, binding.scope, bound)
+    shared.unindexed.delete(key)
+    return succeed(undefined)
+  })()
+  shared.indexing.set(key, indexed)
+  void indexed.finally(() => {
+    if (shared.indexing.get(key) === indexed) shared.indexing.delete(key)
+  })
+  return indexed
 }
 
 /**
@@ -399,7 +493,7 @@ function recordReader<P>(
     for (const entry of entries) {
       let translated: Outcome<CommitInput | null, string>
       try {
-        translated = input.translation.commitOf(entry)
+        translated = input.translation.commitOf(entry, { tenant: bound.tenant })
       } catch (cause) {
         translated = fail(`the translation threw: ${describe(cause)}`)
       }
@@ -441,6 +535,15 @@ function recordReader<P>(
 }
 
 // --- the replay sub-plugin -----------------------------------------------------------------------
+
+/** What one sync of a session did, as the holder's answer needs it. */
+type Synced =
+  | Readonly<{ kind: 'synced' }>
+  | Readonly<{ kind: 'ended' }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+const SYNCED = { kind: 'synced' } as const
+const STOPPED = { kind: 'unavailable', diagnostic: 'the replay sub-plugin has stopped' } as const
 
 function startReplay<P>(ctx: Context, shared: Shared<P>): void {
   const holder: RuntimeContextOperations<unknown> = ctx[runtimeContextKey]
@@ -573,89 +676,138 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
     }
   }
 
-  /** Reads the session's records and brings every scope in them up to date. */
-  async function sync(
-    bound: Bound,
-    wanted?: ScopeRef,
-  ): Promise<Readonly<{ ok: true } | { diagnostic: string }>> {
-    const read = await readRecords(bound)
-    if (read.kind === 'unavailable') return { diagnostic: read.diagnostic }
-    // A scope of this session that the complete read holds no record of is a new scope: it is
-    // recovered with the empty material, which is complete because the read is (AD-03 1a).
-    if (wanted !== undefined && !read.scopes.has(wanted.ref)) {
-      const state = states.get(wanted.ref)
-      if (state === undefined || state.phase === 'failed')
-        await recover(read.principal, bound, wanted, [], state)
-    }
+  /** Brings every scope that the records of one complete read name up to date. */
+  async function apply(read: Extract<Read<P>, { kind: 'read' }>, bound: Bound): Promise<Synced> {
     for (const [ref, { scope, records }] of read.scopes) {
-      if (closed) return { diagnostic: 'the replay sub-plugin has stopped' }
+      if (closed) return STOPPED
       remember(shared, ref, bound)
       const state = states.get(ref)
       if (state === undefined || state.phase === 'failed')
         await recover(read.principal, bound, scope, records, state)
       else if (state.phase === 'open') await catchUp(read.principal, bound, scope, records)
     }
-    return { ok: true }
+    return SYNCED
   }
 
-  function sessionOf(bound: Bound): string | undefined {
-    const tenant = tenantText(bound.tenant)
-    return tenant === undefined ? undefined : JSON.stringify([tenant, bound.session])
+  /** Reads the session's records and brings every scope in them up to date. */
+  async function sync(bound: Bound): Promise<Synced> {
+    const read = await readRecords(bound)
+    if (read.kind === 'unavailable') return read
+    return apply(read, bound)
+  }
+
+  /**
+   * `sync` for the scope that the holder asks about. A scope that the complete read holds no record
+   * of is a new scope (AD-03 1a). The snapshot, read after the records, decides whether it still is
+   * one: listed and not ended, it is recovered with the empty material, which is complete because
+   * the read before was. Ended, it answers `ended` without a recovery: the end record that the read
+   * did not hold reaches Runtime Context with the next read. Not listed, or not readable, it is
+   * unavailable: the empty material is never taken for a scope the session does not show open.
+   */
+  async function syncFor(bound: Bound, wanted: ScopeRef, snapshot: SnapshotRead): Promise<Synced> {
+    const read = await readRecords(bound)
+    if (read.kind === 'unavailable') return read
+    const applied = await apply(read, bound)
+    if (applied.kind !== 'synced' || read.scopes.has(wanted.ref)) return applied
+    const listed = await snapshot(bound)
+    if (closed) return STOPPED
+    if ('failure' in listed)
+      return { kind: 'unavailable', diagnostic: `the session snapshot: ${listed.failure}` }
+    const binding = listed.ok.contextScopes?.find(item => item.scope === wanted.ref)
+    if (binding === undefined)
+      return { kind: 'unavailable', diagnostic: 'the session snapshot does not list the scope' }
+    if (binding.ended !== null) return { kind: 'ended' }
+    const state = states.get(wanted.ref)
+    if (state === undefined || state.phase === 'failed')
+      await recover(read.principal, bound, wanted, [], state)
+    return SYNCED
   }
 
   async function settled(): Promise<void> {
     await Promise.all(chains.values())
   }
 
+  /**
+   * The session of a scope that the index does not hold. Notices still in flight may index it;
+   * then the sessions of the tenant whose snapshot could not be indexed are read again. A read that
+   * fails again is the answer: the scope may be one of that session's.
+   */
+  async function locate(
+    scope: ScopeRef,
+    tenant: TenantId,
+    snapshot: SnapshotRead,
+  ): Promise<Bound | Readonly<{ diagnostic: string }> | undefined> {
+    await Promise.all([settled(), ...shared.learning])
+    const found = index.get(scope.ref)
+    if (found !== undefined) return found
+    const failures: string[] = []
+    // A copy: a read that fails again moves its session to the end of the map.
+    for (const [key, { bound }] of Array.from(shared.unindexed)) {
+      if (!tenantEquals(bound.tenant, tenant)) continue
+      const indexed = await indexSnapshot(shared, bound, key, snapshot, false)
+      if ('failure' in indexed) failures.push(indexed.failure)
+    }
+    const after = index.get(scope.ref)
+    if (after !== undefined || failures.length === 0) return after
+    return {
+      diagnostic: `the open scopes of a session could not be indexed: ${failures.join('; ')}`,
+    }
+  }
+
+  /** The view of a scope from the recovery state this fiber holds. */
+  function viewOf(scope: ScopeRef, bound: Bound): ScopeView {
+    const state = states.get(scope.ref)
+    if (closed) return STOPPED
+    if (state === undefined)
+      return { kind: 'unavailable', diagnostic: 'the session log holds no record of the scope' }
+    switch (state.phase) {
+      case 'failed':
+        return { kind: 'unavailable', diagnostic: 'the recovery of the scope did not complete' }
+      case 'ended':
+        return { kind: 'ended' }
+      case 'open':
+        return {
+          kind: 'open',
+          bound,
+          recovery: state.recovery,
+          revision: state.revision,
+          final: state.final,
+        }
+      default: {
+        const exhaustive: never = state
+        return exhaustive
+      }
+    }
+  }
+
   const fiber: ReplayFiber = {
-    async ensure(scope, tenant) {
-      if (closed) return { kind: 'unavailable', diagnostic: 'the replay sub-plugin has stopped' }
+    async ensure(scope, tenant, snapshot) {
+      if (closed) return STOPPED
       let bound = index.get(scope.ref)
       if (bound === undefined) {
-        // A notice in flight may be about to index the scope.
-        await Promise.all([settled(), ...shared.learning])
-        bound = index.get(scope.ref)
+        const located = await locate(scope, tenant, snapshot)
+        if (located === undefined) return { kind: 'unseen' }
+        if ('diagnostic' in located) return { kind: 'unavailable', diagnostic: located.diagnostic }
+        bound = located
       }
-      if (bound === undefined) return { kind: 'unseen' }
       // The tenant is checked before anything of the session is read.
       if (!tenantEquals(bound.tenant, tenant)) return { kind: 'other-tenant' }
-      const key = sessionOf(bound)
+      const key = sessionKeyOf(bound)
       if (key === undefined) return { kind: 'unavailable', diagnostic: 'unminted tenant' }
       const known = states.get(scope.ref)
       if (known === undefined || known.phase === 'failed') {
         const target = bound
-        const result = await serialize(key, () => sync(target, scope))
-        if ('diagnostic' in result) return { kind: 'unavailable', diagnostic: result.diagnostic }
+        const result = await serialize(key, () => syncFor(target, scope, snapshot))
+        if (result.kind !== 'synced') return result
       }
-      const state = states.get(scope.ref)
-      if (closed) return { kind: 'unavailable', diagnostic: 'the replay sub-plugin has stopped' }
-      if (state === undefined)
-        return { kind: 'unavailable', diagnostic: 'the session log holds no record of the scope' }
-      switch (state.phase) {
-        case 'failed':
-          return { kind: 'unavailable', diagnostic: 'the recovery of the scope did not complete' }
-        case 'ended':
-          return { kind: 'ended' }
-        case 'open':
-          return {
-            kind: 'open',
-            bound,
-            recovery: state.recovery,
-            revision: state.revision,
-            final: state.final,
-          }
-        default: {
-          const exhaustive: never = state
-          return exhaustive
-        }
-      }
+      return viewOf(scope, bound)
     },
   }
 
   ctx.on('session-cordis-contract/committed', (tenant, session, _revision, _source, kinds) => {
     if (closed || !kinds.some(kind => input.translation.kinds.includes(kind))) return
     const bound = { tenant, session }
-    const key = sessionOf(bound)
+    const key = sessionKeyOf(bound)
     if (key === undefined) return
     return serialize(key, () => sync(bound)).then(
       () => undefined,
@@ -694,12 +846,6 @@ class SessionScopeLookupProvider extends SessionScopeLookupService {
   }
 }
 
-/**
- * `session-ad03-facts` depends on `session` alone, so it runs without Runtime Context and without
- * the replay sub-plugin. It keeps the scope-to-session index from the committed notices and answers
- * two questions from the session's own durable facts: which session a scope belongs to, and which
- * checkpointed blocks have a step commit.
- */
 /** Where the history sub-plugin of the current generation leaves its record reader. */
 type HistoryLink<P> = { read: ((bound: Bound) => Promise<Read<P>>) | undefined }
 
@@ -722,6 +868,12 @@ function createFactsHistoryPlugin<P>(shared: Shared<P>, link: HistoryLink<P>) {
   }
 }
 
+/**
+ * `session-ad03-facts` depends on `session` alone, so it runs without Runtime Context and without
+ * the replay sub-plugin. It keeps the scope-to-session index from the committed notices and answers
+ * two questions from the session's own durable facts: which session a scope belongs to, and which
+ * checkpointed blocks have a step commit.
+ */
 async function startFacts<P>(ctx: Context, shared: Shared<P>): Promise<void> {
   const logger = ctx.logger(LOGGER)
   const { index, input } = shared
@@ -732,6 +884,7 @@ async function startFacts<P>(ctx: Context, shared: Shared<P>): Promise<void> {
       kind: 'unavailable',
       diagnostic: 'the history sub-plugin of the facts plugin is not running',
     })
+  const readSnapshot = snapshotReader(ctx, shared)
   /** The notices whose read has not ended: a lookup waits for them before it says `unknown`. */
   const learning = shared.learning
   /**
@@ -739,69 +892,34 @@ async function startFacts<P>(ctx: Context, shared: Shared<P>): Promise<void> {
    * index. A notice of a session not in it reads the snapshot once: the kinds of a notice do not
    * always name the creation (a large entry can fall outside the notice's page).
    */
-  const scoped = new Set<string>()
+  const scoped = new Map<string, true>()
   let closed = false
 
+  /** Indexes the scopes that the context records of one session name. A read that fails indexes nothing. */
+  async function learnRecords(bound: Bound): Promise<void> {
+    const read = await readRecords(bound)
+    if (read.kind === 'unavailable')
+      logger.warn(`the scopes of a session were not indexed: ${read.diagnostic}`)
+    else if (!closed) for (const ref of read.scopes.keys()) remember(shared, ref, bound)
+  }
+
   /**
-   * Indexes the scopes of one session. The records name the scopes that hold context records. The
-   * first notice of a session in this generation, and a notice that mints a scope (creation,
-   * unarchiving), also index the open scopes of the snapshot: a new scope has no record yet, and the
-   * holder must still find it (AD-03 1a). A read that fails indexes nothing of its own part.
+   * Indexes the open scopes of the session's snapshot: a new scope has no record yet, and the holder
+   * must still find it (AD-03 1a). Concurrent first notices of a session share one read: a session
+   * has no notice before its creation, so a read in flight already sees the scope it minted. A
+   * notice that mints a scope later (unarchiving) reads afresh.
    */
-  async function learn(bound: Bound, recorded: boolean, minted: boolean): Promise<void> {
-    if (recorded) {
-      const read = await readRecords(bound)
-      if (read.kind === 'unavailable')
-        logger.warn(`the scopes of a session were not indexed: ${read.diagnostic}`)
-      else if (!closed) for (const ref of read.scopes.keys()) remember(shared, ref, bound)
+  async function learnScopes(bound: Bound, key: string, minted: boolean): Promise<void> {
+    const read: SnapshotRead = async target => {
+      const answer = await readSnapshot(target)
+      return closed ? fail('the facts plugin has stopped') : answer
     }
-    const key = sessionKeyOf(bound)
-    if (closed || key === undefined || (!minted && scoped.has(key))) return
-    const snapshot = await snapshotOf(bound)
-    if (snapshot === undefined || closed) return
-    for (const binding of snapshot.contextScopes ?? [])
-      if (binding.ended === null) remember(shared, binding.scope, bound)
-    scoped.delete(key)
-    scoped.add(key)
-    const limit = input.scopeIndexEntries ?? SCOPE_INDEX_ENTRIES
-    while (scoped.size > limit) {
-      const oldest = scoped.values().next().value
-      if (oldest === undefined) break
-      scoped.delete(oldest)
+    const indexed = await indexSnapshot(shared, bound, key, read, minted)
+    if ('failure' in indexed) {
+      logger.warn(`the open scopes of a session were not indexed: ${indexed.failure}`)
+      return
     }
-  }
-
-  function sessionKeyOf(bound: Bound): string | undefined {
-    const tenant = tenantText(bound.tenant)
-    return tenant === undefined ? undefined : JSON.stringify([tenant, bound.session])
-  }
-
-  /** The snapshot of the session, or `undefined` when it cannot be had as the session it was asked for. */
-  async function snapshotOf(bound: Bound): Promise<WorkSnapshot | undefined> {
-    const principal = await principalOf(input, bound)
-    if ('failure' in principal) {
-      logger.warn(`the scope lookup has no principal: ${principal.failure}`)
-      return undefined
-    }
-    try {
-      const work = await ctx[sessionKey].work.readWork({
-        principal: principal.ok,
-        tenant: bound.tenant,
-        session: bound.session,
-      })
-      if ('failure' in work) {
-        logger.warn(`the scope lookup read answered ${work.failure.kind}`)
-        return undefined
-      }
-      if (!tenantEquals(work.ok.tenant, bound.tenant) || work.ok.session !== bound.session) {
-        logger.error('the scope lookup read answered another session than the one it asked')
-        return undefined
-      }
-      return work.ok
-    } catch (cause) {
-      logger.warn(`the scope lookup read threw: ${describe(cause)}`)
-      return undefined
-    }
+    setNewest(scoped, key, true, input.scopeIndexEntries ?? SCOPE_INDEX_ENTRIES)
   }
 
   const answers: FactsFiber = {
@@ -815,11 +933,15 @@ async function startFacts<P>(ctx: Context, shared: Shared<P>): Promise<void> {
       }
       if (closed) return UNAVAILABLE
       if (bound === undefined) return UNKNOWN
-      const snapshot = await snapshotOf(bound)
-      if (closed || snapshot === undefined) return UNAVAILABLE
+      const snapshot = await readSnapshot(bound)
+      if (closed) return UNAVAILABLE
+      if ('failure' in snapshot) {
+        logger.warn(`the scope lookup: ${snapshot.failure}`)
+        return UNAVAILABLE
+      }
       // The index only says where to look. The snapshot is the fact: a scope that it does not list
       // is not this session's, and the generation is the one it records for that scope.
-      const binding = snapshot.contextScopes?.find(item => item.scope === scope.ref)
+      const binding = snapshot.ok.contextScopes?.find(item => item.scope === scope.ref)
       if (binding === undefined) return UNKNOWN
       return {
         kind: 'known',
@@ -863,13 +985,18 @@ async function startFacts<P>(ctx: Context, shared: Shared<P>): Promise<void> {
 
   ctx.on('session-cordis-contract/committed', (tenant, session, _revision, _source, kinds) => {
     if (closed) return
+    const bound = { tenant, session }
+    const key = sessionKeyOf(bound)
     const minted = kinds.some(kind => SCOPE_MINTING_KINDS.includes(kind))
-    const key = sessionKeyOf({ tenant, session })
-    const unscoped = key !== undefined && !scoped.has(key)
     const recorded = kinds.some(kind => input.translation.kinds.includes(kind))
-    if (!minted && !unscoped && !recorded) return
-    const work = learn({ tenant, session }, recorded, minted).catch(cause =>
-      logger.warn(`the scopes of a session were not indexed: ${describe(cause)}`),
+    const scoping = key !== undefined && (minted || !scoped.has(key))
+    if (!recorded && !scoping) return
+    const work = Promise.all([
+      recorded ? learnRecords(bound) : undefined,
+      key !== undefined && scoping ? learnScopes(bound, key, minted) : undefined,
+    ]).then(
+      () => undefined,
+      cause => logger.warn(`the scopes of a session were not indexed: ${describe(cause)}`),
     )
     learning.add(work)
     void work.finally(() => learning.delete(work))
@@ -929,12 +1056,15 @@ class SessionReaderEligibilityProvider<P> extends RuntimeContextReaderEligibilit
   private readonly shared: Shared<P>
   private readonly held = new Map<string, Held[]>()
   private readonly issuing = new Map<string, Promise<unknown>>()
+  /** This plugin's own `coordinator` read of the work snapshot, which the replay fiber cannot make. */
+  private readonly snapshot: SnapshotRead
   private closed = false
 
   constructor(scope: Context, shared: Shared<P>) {
     super(scope)
     this.scope = scope
     this.shared = shared
+    this.snapshot = snapshotReader(scope, shared)
     scope.effect(() => () => {
       this.closed = true
       this.held.clear()
@@ -949,7 +1079,7 @@ class SessionReaderEligibilityProvider<P> extends RuntimeContextReaderEligibilit
     if (this.closed) return down('the holder plugin has stopped')
     const fiber = this.shared.link.replay
     if (fiber === undefined) return down('the replay sub-plugin is not running')
-    const view = await fiber.ensure(request.scope, request.tenant)
+    const view = await fiber.ensure(request.scope, request.tenant, this.snapshot)
     switch (view.kind) {
       case 'unseen':
         return down('the holder has not seen this scope in the session log')
@@ -1092,6 +1222,8 @@ export function createSessionContextHolder<P>(input: SessionContextHolderInput<P
     link: { replay: undefined, facts: undefined },
     recoveries: { next: 0 },
     learning: new Set(),
+    indexing: new Map(),
+    unindexed: new Map(),
   }
   // The same facts as the `sessionReplayFacts` service, for a caller that holds this value.
   const replayFacts: SessionReplayFacts = {

@@ -131,6 +131,32 @@ describe('the session cell of the release list (R2-D202)', () => {
     ).resolves.toEqual({ kind: 'denied' })
   })
 
+  it('denies a session cell for a principal whose issuing component is not sessionWorkPrincipals, before it reads the scope (R2-D219)', async () => {
+    // A grant that names another component with the session cell: its principal has a session work
+    // and the scope is that session's, but only `sessionWorkPrincipals` issues session work principals.
+    const other = authorityWithActing('session-ad04', tenantA)
+    const owned = ownedAs(bound(tenantA, 'ses_1'))
+    const decision = await createRegistrationAuthority({
+      verifier: other.authority.verifier,
+      grants: [
+        {
+          component: 'session-ad04',
+          owners: [AGENT_CONTEXT_OWNER.owner],
+          actions: ['register'],
+          ownSession: true,
+        },
+      ],
+      scopeOwners: owned.source,
+    }).check({
+      access: { principal: other.acting, tenant: tenantA },
+      target: target(tenantA),
+      owner: AGENT_CONTEXT_OWNER,
+      action: 'register',
+    })
+    expect(decision).toEqual({ kind: 'denied' })
+    expect(owned.asked()).toBe(0)
+  })
+
   it('keeps an unknown or unreadable ownership as it is, and answers unavailable without the source', async () => {
     await expect(check(ownedAs({ kind: 'unknown' }).source)).resolves.toEqual({ kind: 'unknown' })
     await expect(check(ownedAs({ kind: 'unavailable' }).source)).resolves.toMatchObject({
