@@ -1,6 +1,6 @@
 // One call per public entry of the transaction port, for the tenant and session it is given.
-import type { EntryId, InputId } from '@omne-harness/session-contract'
-import { operationId } from '@omne-harness/session-contract/testing'
+import type { EntryId, InputId, RunId, SessionId } from '@omne-harness/session-contract'
+import { evidence, operationId } from '@omne-harness/session-contract/testing'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { App } from './app.ts'
 
@@ -93,3 +93,31 @@ export const SYSTEM_ENTRIES: readonly EntryCall[] = [
 
 export const kindOf = (value: unknown): string | undefined =>
   (value as { failure?: { kind: string } }).failure?.kind
+
+/**
+ * The interpreter entries: they ask no access check (the caller is the trusted interpreter), so
+ * they are not in `SESSION_ENTRIES`, whose cases expect an access refusal before any storage call.
+ * For another tenant's session they answer `denied`, the same as for a session that never was.
+ */
+export const INTERPRETER_ENTRIES: readonly EntryCall[] = [
+  {
+    name: 'commitLog',
+    call: (a, t, s) => {
+      if (a.port.commitLog === undefined) throw new Error('the SQL port offers no commitLog')
+      return a.port.commitLog({
+        observation: {
+          tenant: t,
+          session: s as SessionId,
+          run: 'run-of-another' as RunId,
+          execution: 'execution-of-another',
+          operation: operationId('log-of-another'),
+          sequence: '1',
+          revision: '1',
+          source: evidence('agent/other/event/1'),
+          executionEvidence: evidence('agent/other/head/1'),
+          consequences: [{ kind: 'observed' }],
+        },
+      })
+    },
+  },
+]

@@ -15,11 +15,13 @@
 
 ### 现有导出
 
-根入口 `src/index.ts` 没有导出，[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言这一点。`./cordis` 入口 [src/cordis.ts](../src/cordis.ts) 的运行时导出只有 `SessionProvider`，[cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言这一点。精确签名以源码为准，本页不保留第二套手写签名。
+根入口 `src/index.ts` 没有导出，[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言这一点。`./cordis` 入口 [src/cordis.ts](../src/cordis.ts) 的运行时导出是 `SessionProvider` 与 `createSessionProviderPlugin`，[cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言这一点。精确签名以源码为准，本页不保留第二套手写签名。
 
 | 定义 | 入口 | 种类 | 依据 |
 | --- | --- | --- | --- |
 | `SessionProvider` | `./cordis` | 类，是 `SessionService` 的具体子类，同时是插件。静态 `inject` 写访问检查、委派事务入口、内部主体、会话工作主体与装配生命周期五个键，不写服务键 `session`。第五个键是装配入口的私有键，见 [SPEC 的实现现状](../SPEC.md#实现现状) | [性质 1、2](../SPEC.md#服务与依赖)、[插件与服务](cordis.md#插件与服务) |
+| `createSessionProviderPlugin` | `./cordis` | 函数，`createSessionProviderPlugin({ measure? })` 返回继承 `SessionProvider` 的插件类，把测量观察者交给每次装载建出的实例。`inject`、`Config` 与提供的键不变，不加服务键 | [测量事件](../SPEC.md#测量事件) |
+| `SessionProviderPluginInput` | `./cordis` | 类型，工厂的入参形状 | 同上 |
 | 配置 Schema | `./cordis` | `SessionProvider` 的静态 `Config`，Standard Schema。字段 `policy`（`SchedulingPolicy` 的逐字段覆盖）、`disposeWaitMs` 与 `admission`（省略或 `'none'`） | [性质 3](../SPEC.md#服务与依赖)、[配置](cordis.md#配置) |
 | `SessionProviderConfig` | `./cordis` | 类型，装配写的配置形状 | [性质 3](../SPEC.md#服务与依赖) |
 

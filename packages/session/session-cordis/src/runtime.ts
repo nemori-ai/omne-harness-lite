@@ -2,7 +2,11 @@
 // Context, the instance, the combined notifier, the listener of foreign notices, the scanner table
 // and the removal with its two triggers. The class in `provider.ts` only exposes the faces of it.
 import type { Context } from '@deepseek-ai/cordis'
-import { createSessionInstance, type SessionDependencies } from '@omne-harness/session'
+import {
+  createSessionInstance,
+  type SessionDependencies,
+  type SessionMeasure,
+} from '@omne-harness/session'
 import type {
   SessionCallerClass,
   SessionFaces,
@@ -30,7 +34,11 @@ export type ProviderRuntime = Readonly<{
 }>
 
 /** Builds the instance and wires every effect of the plugin on `ctx`. Call it from the plugin body. */
-export function startProvider(ctx: Context, config: ResolvedProviderConfig): ProviderRuntime {
+export function startProvider(
+  ctx: Context,
+  config: ResolvedProviderConfig,
+  measure?: SessionMeasure,
+): ProviderRuntime {
   const diagnose = diagnoser(ctx)
   let removing = false
 
@@ -90,7 +98,11 @@ export function startProvider(ctx: Context, config: ResolvedProviderConfig): Pro
       current: () => (config.admission === 'none' ? [] : null),
     },
   }
-  const instance = createSessionInstance(dependencies, { policy: config.policy })
+  const instance = createSessionInstance(
+    dependencies,
+    { policy: config.policy },
+    measure === undefined ? {} : { measure },
+  )
   const scanners = createScanners({ instance, removing: () => removing, diagnose })
 
   const teardown = createTeardown({

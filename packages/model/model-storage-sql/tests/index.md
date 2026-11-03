@@ -14,7 +14,7 @@
 | [admission.spec.ts](admission.spec.ts)     | M4-3：受理的资格结果、守卫声明、调用与容量同一次提交成立，提交失败时都不存在；N1 在提交处拒绝                                                                                          |
 | [tenant.spec.ts](tenant.spec.ts)           | M4-4：两个租户共用一个事务域，经 commands 的他租户调用与不存在相同；写路径不碰他租户的同名调用                                                                                         |
 | [unknown.spec.ts](unknown.spec.ts)         | M4-5：回包丢失后同 operation 重试认回、不重复写；未定 operation 进入待恢复扫描；按租户的登记上限；commit 须在 scope 的 operation 内                                                    |
-| [combination.spec.ts](combination.spec.ts) | M4-6 早期守卫：与 `sessionStorageMaterials()` 组成有效组合，构造期核对两方的 `codeDigest`；handler 文件变了而摘要未更新时构造失败                                                      |
+| [combination.spec.ts](combination.spec.ts) | M4-6 早期守卫：与 `sessionStorageMaterials(options)` 组成有效组合，构造期核对两方的 `codeDigest`；handler 文件变了而摘要未更新时构造失败                                                      |
 | [materials.spec.ts](materials.spec.ts)     | 静态材料：四个模块的文件 URL 与 SHA-256，按默认导出加载出描述所指的模块，并经加载的 handler 服务 commands 的读取                                                                       |
 
 ## 运行

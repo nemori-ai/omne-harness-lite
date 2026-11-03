@@ -4,6 +4,7 @@ import type { SessionTransactionPort } from '@omne-harness/session-contract'
 import { commit, queryControlOperation, queryOperation } from './commit.ts'
 import type { Context } from './context.ts'
 import { commitEntries } from './entries.ts'
+import { commitLog } from './log.ts'
 import {
   historyFace,
   pending,
@@ -23,6 +24,7 @@ export function portOf<P>(context: Context<P>): SessionTransactionPort<P> {
     queryControlOperation: input => queryControlOperation(context, input),
     readModelSelection: input => readModelSelection(context, input),
     commitEntries: input => commitEntries(context, input),
+    commitLog: input => commitLog(context, input),
     history: historyFace(context),
     pending: input => pending(context, input),
     references: input => references(context, input),

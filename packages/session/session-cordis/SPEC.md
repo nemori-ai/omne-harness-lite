@@ -78,6 +78,14 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 
 进程失败：本成员没有可恢复的东西。重启后插件重新装载，扫描者在各租户的下一条通知到达时重新绑定。会话事实与待办在存储里，由 S3 的启动扫描找回（[S3](../session/SPEC.md#s3)）。
 
+### 测量事件
+
+<a id="测量事件"></a>依据 R2-D17（DP1 取 C）与 R2-D49：session 工厂的测量观察者经 `./cordis` 的 `createSessionProviderPlugin({ measure })` 交进来，仿 Session 日志 Journal 提供者的 `createSessionAgentJournalPlugin({ cancellation })`（R2-D35）。观察者是函数，不是配置成员，不是服务键。
+
+- 返回的类继承 `SessionProvider`，`inject`、静态 `Config`、提供的键 `session` 与撤除都不变。每次装载时它把 `measure` 作为 `createSessionInstance(依赖, 配置, { measure })` 的第三个参数交给本次建出的实例；事件的内容与时机归 [session SPEC](../session/SPEC.md#测量事件)，本成员不加、不改、不转写事件。
+- 不传 `measure` 时与 `SessionProvider` 一致，实例不建任何事件。`SessionProvider` 原样可用。
+- 同一个返回的类可以多次装载；它们共用同一个观察者，`span` 在进程内唯一，起止不会错配。观察者抛出不改变任何答复，这由 session 兑现。
+
 ## 明确缺项
 
 下列缺口闭合之前，本成员按「之前」一列表现。
@@ -121,6 +129,7 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 | 4 | [provider-callers.spec.ts](tests/provider-callers.spec.ts) |
 | 5、6 | [provider-notice.spec.ts](tests/provider-notice.spec.ts) |
 | 8 | [provider-teardown.spec.ts](tests/provider-teardown.spec.ts)、[checkpoint-cp1.spec.ts](tests/checkpoint-cp1.spec.ts)（真实存储上的有序关闭） |
+| 测量观察者经插件工厂交入（[测量事件](#测量事件)） | [measure-plugin.spec.ts](tests/measure-plugin.spec.ts)：真实 Cordis 上装 `createSessionProviderPlugin({ measure })`，一次 `create` 让观察者收到成对的段事件；`inject` 与 `Config` 同 `SessionProvider`；不传时服务照常 |
 | 线内贯通检查点 CP1 | [checkpoint-cp1.spec.ts](tests/checkpoint-cp1.spec.ts)：真实 Cordis 上装本插件与 session-storage-sql，对真实 sqlite-provider 创建会话、经 work 面追加一次命令、查询得 `committed`；另一租户的主体答 `denied` |
 
 ## 验证

@@ -8,6 +8,7 @@ import { stubPlugin } from './cordis.ts'
 import * as releasePlugins from './cordis.ts'
 import { createHostFilesRuntime, type HostFilesRuntime } from './host-files.ts'
 import { createExecutionHostBinding, hostFactoryBindings } from './rows/execution-host/index.ts'
+import { checkModelRowConsistency } from './model/consistency.ts'
 import { entryObjects as releaseEntryObjects } from './entry/index.ts'
 import {
   LifecycleRegistry,
@@ -506,6 +507,7 @@ async function runServeWithHostFiles(
       bindings: hostFactoryBindings,
     })
     tree = loadTree(options.distribution, options.operator, profile.allowlist)
+    checkModelRowConsistency(tree.rows)
     rows = tree.rows.map((row): RowSpec => {
       if (row.plugin === 'executionHost') executionHost.parseConfig(row.config)
       if (row.plugin === STUB_EXPORT) {

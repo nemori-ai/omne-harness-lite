@@ -21,9 +21,11 @@
 // unknown, and is not committed as an empty item. Model release confirmation is not read here: the
 // MODEL-ACK-ARRIVAL duty of Session JC-Release is open, so `saved` never becomes a release.
 //
-// The plugin keeps nothing but the current generation of its dependencies. A call made while the
-// plugin is pending or stopped, or one that was waiting when it stopped, answers `unavailable`
-// and commits nothing.
+// The plugin keeps nothing but the current generation of its dependencies and one queue per
+// session. It is woken by `session-adapters/agent-published`, the event of the Journal plugin after
+// each successful write, and consumes the execution the event names; `consume` stays callable. A
+// call made while the plugin is pending or stopped, or one that was waiting when it stopped,
+// answers `unavailable` and commits nothing.
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
@@ -63,8 +65,10 @@ import type {
 import { sessionKey, sessionTransactionsKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonical } from '../testing/canonical.ts'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
+import { subscribePublished } from './published-queue.ts'
 
 const OWNER = 'session-adapters/model-log'
+/** The event of the Journal plugin after each successful write (AD-05 trigger). */
 const CHANNEL = 'model-received'
 /** The reads after a `changed`: another commit moved the channel between the read and the commit. */
 const ROUNDS = 3
@@ -445,7 +449,9 @@ function headEvidence(
  * The AD-05 plugin and the call that reaches it. The plugin provides no key: it needs `session`
  * with the `coordinator` caller class, `agentJournal`, `agentMaterials` and `sessionTransactions`,
  * and stays pending while any of them is absent. A new provider of any of them runs the plugin
- * again. `consume` reaches the current generation; while there is none it answers `unavailable`.
+ * again. It subscribes to `session-adapters/agent-published` and consumes the named execution after
+ * each event, one session at a time; an event that names no Model entry commits nothing. `consume`
+ * reaches the current generation; while there is none it answers `unavailable`.
  */
 export function createSessionModelLogConsumptionPlugin<P>(
   input: SessionModelLogConsumptionInput<P>,
@@ -482,6 +488,17 @@ export function createSessionModelLogConsumptionPlugin<P>(
             return unavailable(`a dependency threw: ${describe(cause)}`)
           }
         }
+        // AD-05 trigger: each successful write of the Journal names its execution; a consume after
+        // it commits what was received since the saved progress, and nothing when nothing was.
+        subscribePublished(
+          ctx,
+          () => stopped,
+          async target => {
+            const answer = await guarded(target)
+            if ('failure' in answer)
+              logger.warn(`the consumption of ${target.execution} answered ${answer.failure.kind}`)
+          },
+        )
         ctx.effect(() => {
           current = guarded
           return () => {

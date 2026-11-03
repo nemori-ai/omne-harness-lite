@@ -2,8 +2,9 @@
 // strategies: the four outcomes of prepare, the request that the Model double fixes, the lineage of
 // a second round, the translated groups, the staging table, the registration, the failure classes,
 // and the plan identity, bound and completed checks of derive and resume.
+import { writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import type { Preparation } from '@omne-harness/agent-contract'
+import { decodeActionId, type Preparation } from '@omne-harness/agent-contract'
 import { decodeModelCallId } from '@omne-harness/model-contract'
 import type {
   AssemblyCall,
@@ -16,6 +17,7 @@ import {
   authority,
   createWorld,
   evidence,
+  historyRow,
   meterBy,
   owner,
   tenantOf,
@@ -431,5 +433,83 @@ describe('derive and resume', () => {
       kind: 'unavailable',
       diagnostic: expect.stringContaining('tools-source-absent'),
     })
+  })
+})
+
+describe('CX-14 the derivation of a long conversation grows with the new rows', () => {
+  const seed = 2
+  const perRound = 2
+  const actionOf = (round: number) => {
+    const id = decodeActionId(`action-${round}`)
+    if ('failure' in id) throw new Error('fixture action')
+    return id.ok
+  }
+  /** One real round: the holder resolves the head to the longer history, then the adapter prepares. */
+  async function round(w: World, index: number, last: number) {
+    w.growTo(last)
+    w.observation.reset()
+    const calls = w.f.preparation.calls().length
+    const context = await w.read()
+    const result = await w.requests.prepare(w.prepareInput(context, { action: actionOf(index) }))
+    const kind = kindOf(result)
+    if (kind !== 'assembled') throw new Error(`round ${index}: ${JSON.stringify(result)}`)
+    const whole = w.f.preparation.calls()[calls]
+    return {
+      round: index,
+      ...w.observation.counts(),
+      // The whole request is still measured with every message of the history.
+      measuredMessages: whole?.assembled[0]?.messages.length ?? 0,
+      requestMessages:
+        'ok' in result && result.ok.kind === 'assembled' ? result.ok.input.messages.length : 0,
+    }
+  }
+  const worldOf = (rounds: number) =>
+    createWorld({
+      rows: Array.from({ length: seed + perRound * rounds }, (_, i) => historyRow(i, `row ${i}`)),
+      upper: seed - 1,
+    })
+
+  it('CX-14 reads only the new rows in the second and third round', async () => {
+    const w = await worldOf(3)
+    const first = await round(w, 1, seed - 1)
+    const second = await round(w, 2, seed + perRound - 1)
+    const third = await round(w, 3, seed + 2 * perRound - 1)
+    expect(first).toMatchObject({ pageCalls: 1, returnedRows: seed })
+    for (const next of [second, third])
+      expect(next).toMatchObject({ pageCalls: 1, returnedRows: perRound, olderRowsTouched: 1 })
+    expect(second.requestMessages).toBeGreaterThan(first.requestMessages)
+    expect(third.requestMessages).toBeGreaterThan(second.requestMessages)
+    expect(second.messageRows).toBeLessThan(first.messageRows + perRound * 2)
+  })
+
+  it('CX-14 keeps derivation counts constant for 200 rounds', async () => {
+    const rounds = 200
+    const w = await worldOf(rounds)
+    const table = [await round(w, 1, seed - 1)]
+    for (let index = 2; index <= rounds; index++)
+      table.push(await round(w, index, seed + perRound * (index - 1) - 1))
+    const derived = (item: (typeof table)[number]) => ({
+      pageCalls: item.pageCalls,
+      returnedRows: item.returnedRows,
+      messageRows: item.messageRows,
+      touchedRows: item.touchedRows,
+      olderRowsTouched: item.olderRowsTouched,
+    })
+    const early = table.slice(10, 30).map(derived)
+    const late = table.slice(180, 200).map(derived)
+    // Rounds 11 to 30 and rounds 181 to 200 do the same work per round, pair by pair.
+    expect(late).toEqual(early.slice(0, late.length))
+    for (const item of table.slice(1)) {
+      expect(item.pageCalls).toBe(1)
+      expect(item.returnedRows).toBe(perRound)
+      // Only the last cached row is read: the cursor of the tail read continues from it.
+      expect(item.olderRowsTouched).toBe(1)
+    }
+    // The full request is not skipped: it is still built and measured over the whole history.
+    const requests = table.map(item => item.requestMessages)
+    expect(requests.at(-1)).toBeGreaterThan((requests[19] ?? 0) * 5)
+    expect(table.at(-1)?.measuredMessages).toBeGreaterThan(table[19]?.measuredMessages ?? 0)
+    const out = process.env.CX14_COUNTS_OUT
+    if (out !== undefined) writeFileSync(out, JSON.stringify(table, null, 1))
   })
 })

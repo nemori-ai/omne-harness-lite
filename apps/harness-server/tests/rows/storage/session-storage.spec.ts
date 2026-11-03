@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test } from 'vitest'
+import { MODEL_PARTICIPANT } from '@omne-harness/model-storage-sql'
 import type { SessionTransactionPort } from '@omne-harness/session-contract'
 import { mutationAccessRequest } from '@omne-harness/session-contract'
 import {
@@ -19,6 +20,7 @@ import { tenantDomainLookupKey, tenantDomainsKey } from '@omne-harness/sql-contr
 import { runTenantDomainLookupConformance } from '@omne-harness/sql-contract/testing'
 import { cursorSigning } from '../../../src/entry/cursor-signing.ts'
 import { storageHost } from '../../../src/entry/storage-host.ts'
+import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
 import { storageCatalog } from '../../../src/rows/storage/catalog.ts'
 import { SESSION_COMPOSITE_PARTICIPANTS } from '../../../src/rows/session-storage/composite.ts'
 import {
@@ -316,6 +318,13 @@ describe('the composite declaration (acceptance 6)', () => {
     for (const participant of SESSION_COMPOSITE_PARTICIPANTS)
       expect(names, participant).toContain(participant)
     expect([...SESSION_COMPOSITE_PARTICIPANTS]).toEqual([...SESSION_COMPOSITE_PARTICIPANTS].sort())
+  })
+
+  test('wave 2: the model participant and its migration are in the combination the row registers (R2-D6, R2-D65)', () => {
+    expect(SESSION_COMPOSITE_PARTICIPANTS).toContain(MODEL_PARTICIPANT)
+    const catalog = storageCatalog()
+    expect(catalog.migrations.map(item => item.owner)).toContain(MODEL_PARTICIPANT)
+    expect(COMBINATION_VERSION).toBe('session-composite/2')
   })
 })
 

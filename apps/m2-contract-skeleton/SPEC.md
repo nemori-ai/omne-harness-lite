@@ -65,7 +65,7 @@ The path uses one tenant and one principal from H02 onward. The tenant comes fro
 The path gives one observation for each hop that it reached. An observation has one of four kinds:
 
 - `not-reached`: the path stopped before the hop. The report gives the evidence `not-reached`.
-- `refused`: an upstream public entry refused a call with a named failure, such as `run-active` or `unavailable`, or the Agent journal shows the loop at a named refusal point, such as the loop position I4 or M6. The evidence names the refusal.
+- `refused`: an upstream public entry refused a call with a named failure, such as `run-active` or `unavailable`, or the Agent journal shows the loop at a named refusal point, such as the loop position A0 with a pending action, or M6. The evidence names the refusal.
 - `disconnected`: the calls answered, but the results do not meet the connection criterion of the hop. This kind also covers a hop that is pending: the path made no call because an input is missing, such as an injection without a value, or because the store does not supply the part that the hop reads, such as H13 on the default store.
 - `connected`: the public calls succeeded in order and met the criterion.
 
@@ -113,7 +113,7 @@ The hop `state` follows these rules:
 
 `fullPath` is `complete` only when all thirteen unique hops are `verified` with a connected fragment and there is no structural error. Any other result keeps it `incomplete`. The field `gaps` lists the hops that are not verified.
 
-`residualGaps` lists what the connected path does not include. Each residual gap has `gapId`, `hops`, `owners`, `blocking`, and `reason`. A residual gap names a part of the target system that this path replaces with a call sequence of this application or does not exercise. A blocking residual gap names a part that the hop definition below needs and that no public entry supplies. The hops that it names stay in the `gap` state. A non-blocking residual gap names a part that this application calls directly or leaves out. `owners` lists open cards only. A residual gap without an open implementation card names the M2 milestone card [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784). The sections below are the only detailed inventory of residual gaps.
+`residualGaps` lists what the connected path does not include. Each residual gap has `gapId`, `hops`, `owners`, `blocking`, and `reason`. A residual gap names a part of the target system that this path replaces with a call sequence of this application or does not exercise. A blocking residual gap names a part that the hop definition below needs and that no public entry supplies. The hops that it names stay in the `gap` state. A non-blocking residual gap names a part that this application calls directly or leaves out. `owners` lists open cards only, except that a part which Reduce wires in the assembly names Reduce and its decision (GAP-TOOL-LOOP). A residual gap without an open implementation card names the M2 milestone card [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784). The sections below are the only detailed inventory of residual gaps.
 
 `checksPassed` describes the checks inside one invocation. Every required scenario must occur once, execute, and match its expectation. Every hop fragment must pass. Exceptions, timeouts, missing or repeated entries, `fail`, and `not-applicable` make this value false. External Vitest results, independent reviews, and QA do not change this value.
 
@@ -158,7 +158,7 @@ The path does not call `quiesce` to end a round. On the happy path the Agent exe
 
 The path waits for each Agent reply for at most `replyTurns` event-loop turns. The default is 2000. Each turn yields to the event loop through `setImmediate` from `node:timers/promises`. Every wait of the main rounds and of the probes that ends at the bound adds a timeout label to the evidence of its hop. The label tells a wait that ended at its bound from a refusal of an upstream entry. When the Model does not settle, H06 through H08 do not connect, and the report says which call did not occur.
 
-H10 and H12 reuse the first-reply wait recorded by the round driver. They do not start another wait for that reply. H10 keeps its separate wait for the reply after the tool result unless the snapshot shows the I4 refusal. A missing wait record adds no timeout label and proves no reply.
+H10 and H12 reuse the first-reply wait recorded by the round driver. They do not start another wait for that reply. H10 keeps its separate wait for the reply after the tool result unless the snapshot shows the A0 refusal. A missing wait record adds no timeout label and proves no reply.
 
 A failed governance scenario does not remove its hop or stop the Model checks. An exception in the connected path becomes a structural error and leaves every hop in the `gap` state. Evidence holds fixed labels, failure kinds, positions, and counts. The report holds no free text of a supplier or a port, and no credential, login proof, or message body.
 
@@ -249,7 +249,7 @@ The hop is connected when all three rounds replied.
 
 ## H10
 
-In the `tool` probe session the scripted Model answers the first call with a `tool_call` block for `read_file`. It answers a later call with a text reply. The Tool runtime of the tests runs each invocation in the file and command doubles of [#791](https://github.com/nemori-ai/omne-harness-lite/issues/791): it reads a file, writes the file, and starts one command. The probe waits for the tool-call reply. When the loop did not stop at I4, the probe also waits for the reply that follows the tool result.
+In the `tool` probe session the scripted Model answers the first call with a `tool_call` block for `read_file`. It answers a later call with a text reply. The Tool runtime of the tests runs each invocation in the file and command doubles of [#791](https://github.com/nemori-ai/omne-harness-lite/issues/791): it reads a file, writes the file, and starts one command. The probe waits for the tool-call reply. When the loop did not stop at A0 with an action pending, the probe also waits for the reply that follows the tool result.
 
 The hop is connected when all of these are true (card item 2):
 
@@ -263,7 +263,7 @@ The Tool runtime double of the Agent test dependencies answers each invocation i
 
 Two parts of this application also stop the next step of H10 after GAP-TOOL-LOOP closes: the Request Context fixture throws when the second Model call assembles after the tool-call reply, and the message bridge refuses the `tool-result` source ([path.ts](src/path.ts), the message bridge). The known limitations under 「Resource lifetime and failure」 give the details.
 
-The probe judges the stop at I4 from the last journal snapshot that it read. When a wait ends at its bound, the evidence says so.
+The probe judges the stop at A0 from the last journal snapshot that it read. The stop counts as a refusal only when the action batch still holds a `pending` action; an A0 snapshot with no pending action is an ordinary step, and the probe goes on waiting. When a wait ends at its bound, the evidence says so.
 
 ## H11
 
@@ -331,11 +331,11 @@ The gap closes when a later round can start its Run or submit to the execution, 
 
 ## GAP-TOOL-LOOP
 
-Blocking for H10. The Agent loop of the adopted base does not run the tool calls of a Model reply. Stage 2 of [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) owns that step.
+Blocking for H10. The Agent loop of the adopted base now turns the tool calls of a Model reply into an action batch and admits each action at A0. The assembly of this application does not give the Agent a trusted Tool request source (`toolRequests`), so A0 answers `unavailable` (owner `agentToolRequests`) and the loop does not dispatch the action. Per R2-D36, Reduce owns the production source of `toolRequests` and wires it in B3.
 
-Observed stop: the loop admits the tool-call reply and hands it over to Session. Its journal stays `advancing` at [I4](../../packages/agent/agent/docs/architecture/loop-algorithm.md#节点表), the step that turns the tool-call parts into an action batch. The Tool runtime receives no invocation. The file and command doubles of #791 see no call. The Model admits no second call.
+Observed stop: the loop admits the tool-call reply and hands it over to Session. Its journal stays `advancing` at A0 (the admission of each action of the batch, see the [node table](../../packages/agent/agent/docs/architecture/loop-algorithm.md#节点表)), and the action stays `pending`. The Tool runtime receives no invocation. The file and command doubles of #791 see no call. The Model admits no second call.
 
-The gap closes when the H10 criteria above hold. Owners: the stage 2 cards [#520](https://github.com/nemori-ai/omne-harness-lite/issues/520), [#524](https://github.com/nemori-ai/omne-harness-lite/issues/524), [#525](https://github.com/nemori-ai/omne-harness-lite/issues/525), [#526](https://github.com/nemori-ai/omne-harness-lite/issues/526) and [#528](https://github.com/nemori-ai/omne-harness-lite/issues/528) of #502.
+The gap closes when the H10 criteria above hold, that is, when the assembly supplies `toolRequests` and the two further stops below it (the Request Context fixture and the `tool-result` source of the message bridge) are also removed. Owner: Reduce B3 (R2-D36), for the missing `toolRequests` in the assembly.
 
 ## GAP-AGENT-REASSEMBLY
 

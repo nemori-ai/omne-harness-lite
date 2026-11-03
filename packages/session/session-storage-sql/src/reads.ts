@@ -27,7 +27,7 @@ import {
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { decodeValue } from './codec.ts'
-import { open, OWNER, seal } from './cursor.ts'
+import { open, OWNER, seal, type CursorBinding } from './cursor.ts'
 import {
   domainOf,
   failure,
@@ -37,6 +37,7 @@ import {
   type Context,
   type HandlerOutput,
 } from './context.ts'
+import { readCachedWork } from './work-cache.ts'
 
 type Reply<T> = Promise<Outcome<T, SessionFailure>>
 
@@ -65,13 +66,36 @@ async function sessionRead<P>(
   return succeed({ out: out.ok, tenant: domain.ok.text })
 }
 
+/**
+ * R1 through the work cache of the storage (SPEC RT-04): the access, the domain of the tenant the
+ * call names, then the cached read, which checks the version of the session in the store first.
+ */
 export async function readWork<P>(
   context: Context<P>,
   access: SessionAccess<P>,
 ): Reply<WorkSnapshot> {
-  const read = await sessionRead(context, access, 'readWork', 'session.work')
-  if ('failure' in read) return read
-  return succeed(decodeValue(read.ok.out['snapshot'] as JsonValue) as WorkSnapshot)
+  const decided = await qualify(context, readAccessRequest(access, 'readWork'))
+  if ('failure' in decided) return decided
+  const domain = await domainOf(context, access.tenant)
+  if ('failure' in domain) return domain
+  const read = await readCachedWork({
+    storage: context.options.storage,
+    domain: domain.ok.domain,
+    tenant: domain.ok.text,
+    session: access.session,
+    ...(context.options.workCache === undefined ? {} : { bounds: context.options.workCache }),
+  })
+  switch (read.kind) {
+    case 'state':
+      return succeed(read.snapshot)
+    // A session the tenant does not have answers like a session of another tenant (default deny).
+    case 'absent':
+      return failure({ kind: 'denied', action: 'readWork' })
+    case 'behind':
+      return failure(unavailable('session.work: the state does not cover the tail yet'))
+    case 'unavailable':
+      return failure(unavailable(read.diagnostic))
+  }
 }
 
 export async function readInput<P>(
@@ -325,6 +349,25 @@ export async function pending<P>(
 type SystemState = Readonly<{ tenant: string; after: unknown }>
 
 /**
+ * R10 binds its cursor to the directory revision: a continuation under another revision is
+ * invalid, so a tenant registered before the cursor is never skipped. R11 does not bind it.
+ * R10 also binds the resident key: a cursor of one key does not continue another key's walk.
+ */
+function systemBinding(
+  kind: 'references' | 'released-scopes',
+  revision: string,
+  key: string | null,
+): CursorBinding {
+  return {
+    kind,
+    tenant: null,
+    session: null,
+    ...(kind === 'references' ? { revision } : {}),
+    ...(key === null ? {} : { key }),
+  }
+}
+
+/**
  * Pages through the tenant domains in tenant order. Each domain is read on its own snapshot; the
  * walk claims no single snapshot across them, and a domain that does not answer ends it as
  * `unavailable` rather than as a shorter page.
@@ -334,6 +377,7 @@ async function systemWalk<P, Row>(
   kind: 'references' | 'released-scopes',
   handler: string,
   extra: Readonly<Record<string, JsonValue>>,
+  key: string | null,
   after: string | null,
   limit: number,
   rowOf: (tenant: TenantId, row: Record<string, JsonValue>) => Row,
@@ -343,14 +387,7 @@ async function systemWalk<P, Row>(
     return failure({ kind: 'invalid', field: 'limit', reason: 'not a positive integer' })
   const listed = await context.options.domains.snapshot()
   if (listed.kind !== 'ready') return failure(unavailable(`tenant domains: ${listed.diagnostic}`))
-  // R10 binds its cursor to the directory revision: a continuation under another revision is
-  // invalid, so a tenant registered before the cursor is never skipped. R11 does not bind it.
-  const binding = {
-    kind,
-    tenant: null,
-    session: null,
-    ...(kind === 'references' ? { revision: listed.value.revision } : {}),
-  }
+  const binding = systemBinding(kind, listed.value.revision, key)
   let from: SystemState | null = null
   if (after !== null) {
     const state = await open<SystemState>(context.cursor, binding, after)
@@ -415,6 +452,7 @@ export async function references<P>(
     'references',
     'session.references',
     { key: input.key },
+    input.key,
     input.after,
     input.limit,
     (tenant, row): ResidentReference =>
@@ -445,6 +483,7 @@ export async function releasedScopes<P>(
     'released-scopes',
     'session.released-scopes',
     {},
+    null,
     input.after,
     input.limit,
     (tenant, row): ReleasedScope =>

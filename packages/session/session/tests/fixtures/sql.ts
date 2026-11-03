@@ -56,8 +56,8 @@ function config(storageRoot: string): SqliteStorageConfig {
     readQueueGlobal: 256,
     readQueueTimeoutMs: 5000,
     maxReadInputBytes: 262144,
-    maxReadResultBytes: 4194304,
-    globalReadResultBytes: 33554432,
+    maxReadResultBytes: 20971520,
+    globalReadResultBytes: 268435456,
     readObservationMs: 5000,
     readerIdleMs: 30000,
     queryQueuePerDomain: 16,
@@ -81,7 +81,7 @@ function config(storageRoot: string): SqliteStorageConfig {
 }
 
 function catalogOf(): { catalog: SqlMaterialCatalog; digest: string } {
-  const materials = sessionStorageMaterials()
+  const materials = sessionStorageMaterials({ readOutputLimitBytes: 20971520 })
   const catalog: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
     participants: materials.participants,

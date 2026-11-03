@@ -1,5 +1,6 @@
 // The session binding source (D-AUTH r4 4.1, R1-D14 O3). It reads the authoritative state row of
-// one session in the domain of the tenant that the call names. It proves the tenant ownership and
+// one session in the domain of the tenant that the call names, through the work cache of the
+// storage (SPEC RT-04). It proves the tenant ownership and
 // the established identity only, and it does not ask the access check. An unknown session and a
 // session of another tenant read alike as `not-bound`; a read that could not look is `unavailable`.
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -8,12 +9,10 @@ import type {
   SessionFailure,
   SessionId,
   SessionPrincipalBindingSource,
-  WorkSnapshot,
 } from '@omne-harness/session-contract'
-import type { JsonValue } from '@omne-harness/sql-contract'
-import { decodeValue } from './codec.ts'
 import { OWNER } from './cursor.ts'
-import { domainOf, readHandler, type SessionStorageOptions } from './context.ts'
+import { domainOf, type SessionStorageOptions } from './context.ts'
+import { readCachedSessionWork } from './work-cache.ts'
 
 export type SessionPrincipalBindingsOptions = Pick<
   SessionStorageOptions<unknown>,
@@ -40,16 +39,18 @@ export function createSessionPrincipalBindings(
     ): Promise<BindingRead> => {
       const domain = await domainOf(reach, input.tenant)
       if ('failure' in domain) return unreadableOf(domain.failure)
-      const out = await readHandler(reach, domain.ok.domain, 'session.work', {
-        tenant: domain.ok.text,
-        session: input.session,
-      })
-      if ('failure' in out) return unreadableOf(out.failure)
-      if (out.ok['kind'] === 'absent') return succeed({ kind: 'not-bound' })
-      if (out.ok['kind'] !== 'state')
+      const read = await readCachedSessionWork(
+        options.storage,
+        domain.ok.domain,
+        domain.ok.text,
+        input.session,
+      )
+      if (read.kind === 'absent') return succeed({ kind: 'not-bound' })
+      if (read.kind === 'unavailable') return unreadable(`session binding: ${read.diagnostic}`)
+      if (read.kind === 'behind')
         return unreadable('session binding: the state does not cover the tail yet')
       // The tenant and session are those of the stored record, not those of the request.
-      const snapshot = decodeValue(out.ok['snapshot'] as JsonValue) as WorkSnapshot
+      const snapshot = read.snapshot
       return succeed({
         kind: 'bound',
         tenant: snapshot.tenant,

@@ -706,6 +706,7 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
         const source = await ok(
           joint.materials.preserve({
             ...input,
+            execution: input.execution,
             identity: 'legacy',
             consumer: input.entry.consumer,
             value: input.material,
@@ -771,6 +772,7 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
         const source = await ok(
           joint.materials.preserve({
             ...foreign,
+            execution: foreign.execution,
             identity: 'foreign-legacy',
             consumer: foreign.entry.consumer,
             value: input.material,
@@ -916,6 +918,7 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
         const source = await ok(
           joint.materials.preserve({
             ...legacy,
+            execution: legacy.execution,
             identity: 'record-then-commit',
             consumer: legacy.entry.consumer,
             value: legacy.material,

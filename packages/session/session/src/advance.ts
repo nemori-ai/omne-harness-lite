@@ -7,6 +7,7 @@ import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
   deriveDriveOperation,
   deriveSessionOperation,
+  judgeAdvance,
   judgeRunStart,
   type AgentDrivePort,
   type DriveFailure,
@@ -157,6 +158,24 @@ export function createAdvance<P>(
     }
   }
 
+  /** Whether the advance of this attempt still holds on the current snapshot (SC-01). */
+  const stillAdvancing = async (ref: SessionRef, started: StartedRun): Promise<boolean> => {
+    const snapshot = await as('coordinator', ref, principal =>
+      coordinator.readWork({ principal, ...ref }),
+    )
+    if (lifecycle.closed || 'failure' in snapshot) return false
+    return (
+      judgeAdvance(snapshot.ok, {
+        kind: 'attempt',
+        advance: started.advance,
+        expected: snapshot.ok.revision,
+      }).kind === 'ok'
+    )
+  }
+
+  const retriable = (failure: DriveFailure): boolean =>
+    failure.kind === 'busy' || failure.kind === 'unavailable' || failure.kind === 'commit-unknown'
+
   /**
    * The outbound invoke with the identity derived from the committed start (OP-00). `busy`,
    * `unavailable` and an unknown outcome back off by `advance.retryDelaysMs`, always with the same
@@ -174,6 +193,7 @@ export function createAdvance<P>(
     for (let attempt = 0; ; attempt += 1) {
       const port = drive()
       if (lifecycle.closed || port === null) return
+      if (!(await stillAdvancing(ref, started))) return
       const answer = await invokeOnce(port, {
         ...target,
         first: started.first,
@@ -183,13 +203,7 @@ export function createAdvance<P>(
       if ('ok' in answer) return handOver(ref, started, answer.ok.evidence)
       const failure = answer.failure
       if (failure.kind === 'invalid') return closeRefused(ref, started, failure.rejection)
-      if (
-        failure.kind !== 'busy' &&
-        failure.kind !== 'unavailable' &&
-        failure.kind !== 'commit-unknown'
-      )
-        return
-      const delay = delays[attempt]
+      const delay = retriable(failure) ? delays[attempt] : undefined
       if (delay === undefined) return
       if (failure.kind === 'commit-unknown' && (await settled(port, target))) continue
       if (!(await scheduling.wait(delay))) return

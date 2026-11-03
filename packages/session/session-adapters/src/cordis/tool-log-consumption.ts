@@ -66,6 +66,8 @@ import {
   type ToolDelivery,
 } from '@omne-harness/tool-contract'
 import { canonical } from '../testing/canonical.ts'
+import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
+import { subscribePublished } from './published-queue.ts'
 
 const OWNER = 'session-adapters/tool-log'
 const CHANNEL = 'tool-received'
@@ -94,9 +96,16 @@ export type ToolDeliveryReader = (material: Material<ContentBlock>) => ToolDeliv
 /**
  * What the assembly hands to AD-06. `toolDeliveries` is null until the Agent owner adopts the Tool
  * delivery schema (TOOL-SETTLEMENT-SCHEMA); with null every Tool entry answers `unavailable`.
+ * `coordinator` is the principal that the assembly issues to the coordinator of one session, as for
+ * AD-05 (`forSession({ actor: 'coordinator', ... })`). The published-event trigger needs it, since
+ * the event names no principal; without it the plugin subscribes to nothing and only `consume`
+ * reads.
  */
 export type SessionToolLogConsumptionInput = Readonly<{
   toolDeliveries: ToolDeliveryReader | null
+  coordinator?: (
+    input: Readonly<{ tenant: TenantId; session: SessionId }>,
+  ) => Promise<Outcome<unknown, SessionCoordinatorPrincipalFailure>>
 }>
 
 /**
@@ -529,7 +538,9 @@ const configSchema = {
  * The AD-06 plugin and the call that reaches it. The plugin provides no key: it needs `session`
  * with the `coordinator` caller class, `agentJournal`, `agentMaterials` and `sessionTransactions`,
  * and stays pending while any of them is absent. A new provider of any of them runs the plugin
- * again. `consume` reaches the current generation; while there is none it answers `unavailable`.
+ * again. With `input.coordinator` it subscribes to `session-adapters/agent-published` and reads the
+ * named execution after each event, one session at a time. `consume` reaches the current
+ * generation; while there is none it answers `unavailable`.
  */
 export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsumptionInput) {
   let current: ((target: ToolLogTarget) => Reply<ToolLogConsumed>) | null = null
@@ -574,6 +585,40 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
             return unavailable(`a dependency threw: ${describe(cause)}`)
           }
         }
+        // AD-06 trigger, as AD-05: each successful write of the Journal names its execution; a read
+        // after it commits the Tool entries received since the saved progress, and nothing when
+        // there are none. The event carries no principal, so the coordinator is asked for it.
+        const { coordinator } = input
+        if (coordinator === undefined)
+          logger.warn(
+            'AD-06 consumes nothing by itself: no coordinator principal is given, so the plugin does not subscribe and only `consume` reads (SPEC AD-06 trigger, known limit)',
+          )
+        else
+          subscribePublished(
+            ctx,
+            () => stopped,
+            async ({ tenant, session: sessionId, execution }) => {
+              try {
+                const principal = await coordinator({ tenant, session: sessionId })
+                if ('failure' in principal) {
+                  logger.warn(
+                    `no coordinator principal for ${execution}: ${principal.failure.kind}`,
+                  )
+                  return
+                }
+                const answer = await guarded({
+                  principal: principal.ok,
+                  tenant,
+                  session: sessionId,
+                  execution,
+                })
+                if ('failure' in answer)
+                  logger.warn(`the consumption of ${execution} answered ${answer.failure.kind}`)
+              } catch (cause) {
+                logger.error(`trigger: the coordinator threw: ${describe(cause)}`)
+              }
+            },
+          )
         ctx.effect(() => {
           current = guarded
           return () => {

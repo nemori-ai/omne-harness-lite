@@ -19,6 +19,7 @@
 现有文件：
 
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口的导出集合是 `SESSION_PARTICIPANT`、`createSessionPrincipalBindings`、`createSessionStorage`、`createSessionStoragePair`、`sessionStorageMaterials`；`exports` 只有 `.` 与 `./participants`；没有 `./cordis`（不在 `exports`、不可导入、源文件不存在）；源码只经 `@omne-harness/sql-contract` 与 `@omne-harness/sql-contract/worker` 导入 SQL 形状，不导入 `packages/storage/**`、sqlite-provider 或 `node:sqlite`，`package.json` 不依赖 sqlite-provider；每个读 handler 是 `snapshot`；每条 SELECT 有 LIMIT。
+- [materials-options.spec.ts](materials-options.spec.ts)：`sessionStorageMaterials` 的 `readOutputLimitBytes`（SPEC K-1、第 19 条）：缺参数、`undefined`、`null`、0、负数、小数、`NaN`、无穷、超出安全范围、数字文本都在构造时抛 `TypeError`；传入的值成为每个读 handler 的 `maxOutputBytes`；两次构建互不共享。
 - [tenant-isolation.spec.ts](tenant-isolation.spec.ts)：访问裁定不放行时每个入口 `denied`，且没有任何调用到达存储；访问指名别的租户或会话的 `commit` 被拒绝；另一租户的会话读为 `denied`，向它提交不改变它；`pending` 只列出本租户的会话；两个租户的同名会话是两个会话；每次调用用本租户的事务域；目录答了别的租户时拒绝，目录不认识该租户时 `unavailable` 而不是空。
 - [delegated.spec.ts](delegated.spec.ts)：session-contract 的委派视图符合性套件在本包上运行。视图不调用访问检查，对另一会话、另一租户或另一命令答 `denied`。夹具的 `decisionOf` 读 `sl_operation_evidence`，所以「a view commit stores the bound evidence with the operation record」对 SQL 提供者通过，没有不适用项。另加租户用例：租户 B 有同名会话时，经租户 A 绑定的视图对 B 的每个会话读与提交都答 `denied`，不调用检查，也没有调用到达存储。
 - [operation-evidence.spec.ts](operation-evidence.spec.ts)：操作记录的访问证据。迁移 `session/003-operation-evidence` 排在执行索引之后并登记模块；视图提交存绑定证据，公开端口提交存本次裁定的证据；认回不改原证据；在操作行之后注入失败时没有证据行，重试只存一次；不带证据的外部提交方没有证据行；畸形证据答「不支持」并回滚；`query` 意图读回证据，另一租户的名字下答 `no-session`。
@@ -28,6 +29,23 @@
 - [execution-record.spec.ts](execution-record.spec.ts)：只含 `session` 的组合无效，两个参加者的组合中 `execution-record` 在前；首次共同发布一次提交两个参加者，两处写后注入失败时两侧都不保存；发布计数与 head 修订号守卫；原操作行冲突带原摘要与原答案；另一租户读不到；只读核对成立时不写 Session 行，冲突时整批回滚；共同根在任一方发布时前进。
 - [execution-index.spec.ts](execution-index.spec.ts)：`startRun` 在同一事务里写执行索引，行与 SE13 位置一致；注入失败或 Session 拒绝时没有行；预置一行指向另一会话时 `startRun` 失败，原行不变；读 handler `session.execution` 对另一租户与没有 Run 的 execution 都输出 `null`，输入不全时 handler 失败。
 - [real-joint.spec.ts](real-joint.spec.ts)：真实 sqlite-provider 上的共同提交（慢层）：一次回执含两个参加者，读 Worker 读到前进的共同根；只读核对冲突回滚 Agent 一侧；回执返回后 SIGKILL 子进程，新提供者按原身份 `query` 得 `committed`，两侧记录都在。
+- [real-system-reads.spec.ts](real-system-reads.spec.ts)：真实 sqlite-provider 上的 R10、R11 系统读（慢层）。索引行直接写入域文件，只验证读取路径。
+- [log.spec.ts](log.spec.ts)：`commitLog` 的同事务发布：条目行、快照、操作行与尾部四处写失败后全部 `sl_` 表不变；同身份认回、异内容冲突、另一 operation 认回原回执、两个查询答 `conflict`、应答丢失后重试认回、未铸租户与另一租户。
+- [log-conformance.spec.ts](log-conformance.spec.ts)：session-contract 的 `commitLog` 符合性套件 LC-01 至 LC-10，在 `node:sqlite` 夹具与真实 sqlite-provider（慢层）上各跑一次。
+- [history-index.spec.ts](history-index.spec.ts)：K-5 同根索引与 R2-D28 观察尾部前缀：索引字段与 `er_` 行一致、同一提交里发布并解释、占位回执、取消后的后继 `startRun` 正负例、前缀判定的穷举表、同一 Run 有两个 SE15 时按 attempt 行指回原 attempt（含真实提供者上写入并读回）、无行与指名别的 Run 的 attempt 不进索引、单 SE15 的无 attempt 行仍可证、20 轮与 200 轮的读取计数（慢层）、真实提供者上 `readWork` 带 `historyIndex`（慢层）。
+- [admission-attempt-migration.spec.ts](admission-attempt-migration.spec.ts)：迁移 `execution-record/003-admission-attempt` 依赖 001 并登记模块；在有旧行的库上建表，旧行没有 attempt 行，第二次运行不改表定义也不丢已有行，`verify` 在无表时失败。
+- [state-parts.spec.ts](state-parts.spec.ts)：迁移 `execution-record/004-state-parts` 依赖 001、表归 `execution-record`；分区写只替换或删除所列分区，`replace` 先删其余，整份写删除全部分区；八种畸形写入答「不支持」且不写任何行；同一提交里 Session 写失败时分区一起回滚；读口按行数与文本预算分页、超过预算的分区单独成页、只读所列分区、畸形输入被拒；两个租户放在同一个库里，同会话名、同分区名，读口的三条语句与分区写的删整份、全部置空两条语句，去掉任一处的 `tenant` 条件，用例变红。
+- [work-cache.spec.ts](work-cache.spec.ts)：工作缓存（SPEC RT-04，快层，node:sqlite 夹具）：每个用例按 handler 计存储读次数。同版本连读只整读一次；本端口或另一个存储对象提交后、同一 `tail` 下 Agent 发布后都重读；两租户同名会话不串；读与提交交错时回答不早于已完成的提交；会话数与字节上界按 LRU 淘汰；`tail` 倒退答 `unavailable`；命中的对象深冻结；版本点查失败时整读；只改快照行不改尾部时本缓存不变、新存储对象读到新值；版本点查一行一条语句，行数与字节与快照大小无关。
+- [direct-reads.spec.ts](direct-reads.spec.ts)：当前状态直接读的边界（SPEC RT-04「当前状态的拥有者与直接读者」，快层）：对全仓 `packages`、`apps` 的产品源码（含未跟踪文件，不含归档）跑 `git grep`，以文本点名 `session.work`、`session.work-version` 两个 handler 的文件只有定义、登记与工作缓存这五个，三个 handler 常量只在声明处使用。`git grep` 自身失败时用例失败，不当作通过。
+- [work-fold.spec.ts](work-fold.spec.ts)：本进程提交的折叠（SPEC RT-04，快层）：T-F1 `commit`（accept、startRun、cancel-run 控制）、`commitEntries`、`commitLog` 各折叠一次，下一次读不整读，答案与整读的规范编码逐字节相等；T-F2 没有持有项、认回、参加者拒绝、发布计数不衔接时不折叠；T-F1（H2）`session.work-reads` 在本批之前的位置复现的索引与读数，与本批之前读到的逐字节相等；T-F3 读新索引之前插入一次发布，`session.work-index` 在同一 `tail`、当前计数上给出索引，按新计数登记，下一次读不整读、见到新索引且与整读相等；读新索引之前插入另一端口的提交，答 `stale`、不登记、下一次整读；复现读数之前插入发布，`session.work-reads` 答 `stale`、不再读索引；T-F4 篡改本批一行使 `reduce` 隔离，不登记；T-F5 折叠途中 10 个并发读等折叠，整读 0 次；T-F6 决定的输入范围超过 16 KiB 时不带，不折叠，下一次整读。
+- [work-fold-real.spec.ts](work-fold-real.spec.ts)：真实 sqlite-provider 上（慢层，`maxResponseBytes` 65536）：待办输入使 `basis` 超过 64 KiB 时提交仍成功，收据最长不超过 `WORK_BASIS_BYTES` 加 16 KiB；去掉 `basis` 的界时提交失败（变异 M8r）。
+- [work-read-limit.spec.ts](work-read-limit.spec.ts)：真实 sqlite-provider 上 Session 快照的读上限（慢层，session SPEC SN-1）：存储行里快照最长的文本加长到超过 20 MiB（形状不变），`session.work` 答 `read_limit`，`readWork` 很快答 `unavailable` 且诊断带 `read_limit`；对照组 20 MiB 以内整份读回，2 MiB 的快照（超过原 1 MiB 上限）也整份读回。快照直接写进关闭的域文件，只验证读路径。
+- [read-output-limit.spec.ts](read-output-limit.spec.ts)：真实 sqlite-provider 上读 handler 的 20 MiB 输出上限落在 Agent 记录上（慢层，session-storage-sql SPEC K-1）：写入上限放大后，经真实提交写入 2 MiB 与离上限一 KiB 的状态，`execution-record.parts` 整份读回；输出超过 20 MiB 时答 `read_limit`，不带任何输出。上限在用例里是字面值，经 `readOutputLimitBytes` 参数传入，参数被忽略、改小、改大一 KiB 或改小两 KiB 都使用例变红。
+- [preadmission.spec.ts](preadmission.spec.ts)：准入记录的两阶段写入、Ki 唯一、结果只固定一次、跨租户读不到，以及真实提供者上杀进程后按原 H 读回（慢层）。
+- [same-domain-tenant.spec.ts](same-domain-tenant.spec.ts)：同一事务域里租户 A 的行，以租户 B 读不到：准入记录按 H 与按 Ki 的点查（`findPreadmission`），以及 `commitLog` 对 `sl_journal` 的读（答 `denied`）。其他规格的夹具把每个租户放在各自的事务域里，语句丢了 `tenant = ?` 也读不到别家的行，所以这里在同一个库里写、再换租户读，并各带一个以租户 A 读的对照。
+- [history-index-incremental.spec.ts](history-index-incremental.spec.ts)：历史索引的 Session 行在 Worker 内增量保留（SPEC「Worker 内的两处保留」）：保留的索引与整读的答案相等，没有新行的读不读五种行，游标之后有空洞时本次调用失败、下一次重建，未提交事务的行不保留，会话数与行数有上界。
+- [participant-snapshot-cache.spec.ts](participant-snapshot-cache.spec.ts)：参加者的解析快照（SPEC「Worker 内的两处保留」）：同一快照只解析一次，按行文本核对，失败的提交保留它读到的快照，保留的快照深冻结，会话数与文本总长有上界。
+- [execution-facts.spec.ts](execution-facts.spec.ts)：事实体与 `execution-record.execution-facts`（第 20 条）：正文随事实写入，只读序号之后的事实，分页，租户隔离，畸形序号被拒。
 - [fixtures/](fixtures/README.md)：测试夹具，见该目录。
 
 局限：这些用例是负控与入口检查，没有先红后绿记录。派生等于重算、分页与游标属性、写路径各 JC 行、并发写与失败分类注入尚未写（[验证义务](../docs/verification-obligations.md)）。真实提供者用例见 `real-provider.spec.ts`。

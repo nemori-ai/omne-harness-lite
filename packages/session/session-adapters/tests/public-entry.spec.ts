@@ -6,6 +6,7 @@ it('root entry exports the pure functions that have landed', async () => {
     'createSessionRuntimeContextTrust',
     'decodeSessionSlotRef',
     'encodeSessionSlotRef',
+    'historySessionOf',
   ])
   expect(typeof root['createSessionRuntimeContextTrust']).toBe('function')
 })

@@ -31,7 +31,7 @@ flowchart LR
 独立宿主直接调用工厂。下例是职责伪代码，不表示当前包已有运行导出：
 
 ```text
-实例 = createSessionInstance(依赖, { policy: defaultSchedulingPolicy 或替换后的策略 })
+实例 = createSessionInstance(依赖, { policy: defaultSchedulingPolicy 或替换后的策略 }, { measure?: 测量观察者 })
 
 依赖：accessCheck           = 每次实际操作核验当前访问（启动条件，尚未实施）
       transactions          = 存储提供者的事务端口（启动条件，与 accessCheck、principals 一起）

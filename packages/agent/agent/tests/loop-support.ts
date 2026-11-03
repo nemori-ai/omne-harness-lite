@@ -8,6 +8,7 @@ import {
   type AgentConfiguration,
   type AgentDependencies,
   type AgentProvider,
+  type AgentRuntimeExtras,
 } from '@omne-harness/agent'
 import {
   createTestAgentDependencies,
@@ -279,6 +280,7 @@ export async function loopAssembly(
   ) => AgentDependencies<Principal, ContentBlock> = dependencies => dependencies,
   reply: ScriptedReply = ONE_TEXT,
   configuration: Partial<AgentConfiguration> = { reconciliationDelayMs: 1000 },
+  extras: AgentRuntimeExtras = {},
 ): Promise<LoopAssembly> {
   const { dependencies, controls } = createTestAgentDependencies<Principal>({
     receivingPrincipal: 'alice',
@@ -297,7 +299,7 @@ export async function loopAssembly(
     models: respondingModels(dependencies.models, controls.models, release, reply, controls.pusher),
   })
   const guarded = assembled
-  const provider = ok(await createAgentRuntime(guarded, options(configuration)))
+  const provider = ok(await createAgentRuntime(guarded, options(configuration), extras))
   return { provider, dependencies: guarded, controls, release }
 }
 

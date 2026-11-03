@@ -593,7 +593,7 @@ Session 命令：
 - 格式拒绝。`cancelRun` 的 `run` 为空、`urgency` 不是 `graceful` 或 `force`，`stopCall` 的 `producer.kind` 不是 `model` 或 `tool`、`producer.call` 为空，返回 `invalid`（带字段名）。格式拒绝不是已受理的业务答案：不写 `answers`，不写操作记录，不进 revision，同一身份之后可以用合法输入首次提交。
 - 同根查找。`runs` 与 `calls` 由提供者在提交事务内填写。缺项、重复项或 `covered` 不等于快照修订都是未知，返回 `unavailable`，不答 `not-found`。已结束目标答 `ended`；覆盖到快照的缺席答 `not-found`；这两种答案只保存操作答案，不增加条目与修订。活跃目标写条目并答 `requested`，不表示物理停止。
 - 失败集合封闭。`cancelRun` 只返回 `denied`、`invalid`、`conflict`、`commit-unknown`、`unavailable`、`quarantined`；`stopCall` 另有 `unsupported`。集合之外的拒绝是未知状态，折成 `unavailable`。
-- SL07 冲突域。冲突域是（租户、Session、`SessionOperationId`），一个身份只属于一个操作，无论 batch、control 还是 `commitEntries` 的 entries 形式。entries 记录带普通提交回执，两个查询口按 batch 记录处理它（[entries 通道的解释提交](docs/same-log-pure.md#entries-通道的解释提交)）。相同身份不同操作（含跨形式）返回 `conflict`，不执行业务，不返回原操作的种类、目标或答案。`cancelRun` 与 `stopCall` 共用冲突域，不是两张各自排重的表。
+- SL07 冲突域。冲突域是（租户、Session、`SessionOperationId`），一个身份只属于一个操作，无论 batch、control 还是 `commitEntries` 的 entries 形式。entries 记录带普通提交回执，两个查询口按 batch 记录处理它（[entries 通道的解释提交](docs/same-log-pure.md#entries-通道的解释提交)）。事件通道的 `commitLog` 记录既不是批次也不是控制回执，两个查询口对它的标识都答 `conflict`，结果不明时用同一标识重发 `commitLog` 认回（[事件通道的解释提交](docs/same-log-pure.md#事件通道的解释提交)）。相同身份不同操作（含跨形式）返回 `conflict`，不执行业务，不返回原操作的种类、目标或答案。`cancelRun` 与 `stopCall` 共用冲突域，不是两张各自排重的表。
 - `queryOperation` 的 conflict。对 control 记录的身份，`queryOperation` 返回 `conflict`（不是 `not-committed` 也不是 `unknown`）；`queryControlOperation` 对 batch 记录的身份同样返回 `conflict`。无记录时两者走同一未知分支。
 - `queryControlOperation`。返回原 `SessionControlReceipt`（`committed`）或 `unknown`；只答 control 记录，不借此读取原输入。原答案与最新状态分开：重放得原答案，不因目标后来结束而改写。
 - `readModelSelection`。返回保存的选择、一致读取的修订与保存该选择的原提交来源。尚无选择返回 `not-ready`，不使用默认值补值；数据不可读返回 `unavailable`，不返回 `not-ready`。
@@ -887,7 +887,7 @@ SE07 保存原键、CommitRef、完整原材料、basedOn、revision、scope 与
 | JC-27 | 无 Session 命令：待交输入核对     | 执行记录提供者（条件终结）                                                                    | Session 参加者，只读                                           | 终结意图                                                                                                                                                                                        | 不写 Session 条目。有待交输入或取消已成立时按 [PA-02](#pa-02) 响应「冲突」                                                                                                                                                                              |
 | JC-28 | `freeze`                          | Session                                                                                       | 存储参加者；证据桥                                             | Tool 的冻结判定与耐久证据                                                                                                                                                                       | SE37；`frozen` 非空；没有未终结 Run 时，`pending` 的全部输入以 SE38 解除待处理资格                                                                                                                                                                      |
 
-Agent 原事实先由同一 Journal 提交保存。Session 后续按 [EC-01](#ec-01) 读取原事实，以 `projectSessionLog` 决定另一次解释提交。该次提交共同保存 SE14/18/19/22/25/26 等后果、适用 SE16/SE38、解释进度与 Session 原操作答案，不经 JC-24 的 `receive`。快照对账不推进事件 `readThrough`。
+Agent 原事实先由同一 Journal 提交保存。Session 后续按 [EC-01](#ec-01) 读取原事实，以 `projectSessionLog` 决定另一次解释提交，经端口的可选方法 `commitLog` 发布（[事件通道的解释提交](docs/same-log-pure.md#事件通道的解释提交)；不加访问裁定，不新增 `sl_operation_evidence`）。该次提交共同保存 SE14/18/19/22/25/26 等后果、适用 SE16/SE38、解释进度与 Session 原操作答案，不经 JC-24 的 `receive`。快照对账不推进事件 `readThrough`。
 
 Session 参加执行的命令（JC-06、09、11、12）走同一条流水线：按 OP-00 认回、权威读、领域服务裁定、写事实。差别只在提交由执行记录提供者发起，回执经调用方交接回到 Agent。参加者只接收版本化材料，核对来源与 schema，在已登记的组合内经授权的事务端口工作。先读工作状态、再异步受理的两次成功不能声称资格与受理共同成立。执行记录提供者对未声明的共同提交种类返回 `unsupported` 时，Session 不保存任何一半。
 
@@ -1331,11 +1331,11 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 | `InputAdmissionBoundary`   | `input: InputId`、`directory: string`、`version: string`、`count: string`、`members: readonly InputAdmissionMember[]`、`source: DurableEvidence`。目录身份和版本非空，数量为非负十进制。目录按原受理提交顺序覆盖该输入在全部 Run 的原交入关系，固定范围为 `[0,count)`。目录的来源与数量由同根原记录索引给出，不能由请求页长度生成。                                                                                         |
 | `InputAdmissionMember`     | `ordinal: string`、`run: RunId`、`execution: string`、`operation: string`、`accepted: DurableEvidence`、`attempt: AttemptId`。members 是同根权威目录的有序成员索引，序号范围与 count 相符。请求页必须逐项匹配这些原关系键，不能替换成员。                                                                                                                                                                                   |
 | `ExecutionHistoryBoundary` | `run: RunId`、`execution: string`、`started: DurableEvidence`、`revision: string`、`executionEvidence: DurableEvidence`、`emittedThrough: string`、`readThrough: string`、`interpreted: DurableEvidence                                                                                                                                                                                                                     | null`、`ended: { sequence: string, source: DurableEvidence }                                                                                                                     | null`、`facts: readonly SessionFactBoundary[]`。facts 覆盖本次所需而尚未解释的事件范围。Run 与执行由原 SE13 固定。revision 与 executionEvidence 来自同根 load 的真实 head 及其原回执。readThrough 与 interpreted 来自已确认 Session 解释提交，零进度时 interpreted 为 null。ended 为该根已有的原结束事件，不能从 EOF 推导。 |
-| `SessionFactBoundary`      | `sequence: string`、`source: DurableEvidence`、`kinds: readonly SessionLogConsequence['kind'][]`。kinds 是提供者从该原事件取得的 Session 后果种类及原顺序，无后果时为 observed。它来自可信根，不取请求 facts 自报值。批次正文另外由 SessionBatchRecord 固定，调用和等待的原字段真实性仍由 FR-07 的原协议校验负责。                                                                                                          |
+| `SessionFactBoundary`      | `sequence: string`、`source: DurableEvidence`、`kinds: readonly SessionLogConsequence['kind'][]`。kinds 是提供者从该原事件取得的 Session 后果种类及原顺序，无后果时为 observed。控制事件的后果读解释时的 Session 状态，提供者在 Agent 提交时定不下来，kinds 写延后标记 `['deferred']`（`SessionFactKind`），后果由 Session 在解释提交时按 `decideControlConsequences` 判定，见 [FR-05](#fr-05) 的延后控制事实。它来自可信根，不取请求 facts 自报值。批次正文另外由 SessionBatchRecord 固定，调用和等待的原字段真实性仍由 FR-07 的原协议校验负责。                                                                                                          |
 | `SessionBatchRecord`       | `run: RunId`、`execution: string`、`sequence: string`、`source: DurableEvidence`、`batch: InputBatch`。batch 保留原事件的完整有序成员、水位线与身份；这是尚未解释或已经解释原承接的只读消费投影，不是新的业务决定。                                                                                                                                                                                                         |
 | `SessionAttemptRecord`     | `run: RunId`、`attempt: AttemptId`、`execution: string`、`ordinal: string`、`started: DurableEvidence`。started 指向已成立的原 SE15；执行关系同时符合原 SE13。记录允许证明旧 attempt，不要求其当前仍有推进资格。                                                                                                                                                                                                            |
 | `SessionTakenRecord`       | `run: RunId`、`execution: string`、`sequence: string`、`source: DurableEvidence`、`batch: InputBatch`、`commit: DurableEvidence`。完整批次和原事件身份来自已成立 SE14，commit 指向其原解释提交。                                                                                                                                                                                                                            |
-| `SessionHistoryReads`      | `root: SessionLogRoot`、`scope: SessionInputScope`、`admissions: readonly InputAdmissionPage[]`、`prefixes: readonly SessionExecutionPrefix[]`、`attempts: readonly SessionAttemptRecord[]`、`taken: readonly SessionTakenRecord[]`。每项均与 root 同根。额外无关项不能代替缺项。attempts 与 taken 的每项必须对应 historyIndex 中同身份、同来源的原记录；reads 不能自建一个 snapshot 没有的 attempt 或已解释事实。          |
+| `SessionHistoryReads`      | `root: SessionLogRoot`、`scope: SessionInputScope`、`admissions: readonly InputAdmissionPage[]`、`prefixes: readonly SessionExecutionPrefix[]`、`attempts: readonly SessionAttemptRecord[]`、`taken: readonly SessionTakenRecord[]`。每项均与 root 同根。额外无关项不能代替缺项。attempts 与 taken 的每项必须对应 historyIndex 中同身份、同来源的原记录；reads 不能自建一个 snapshot 没有的 attempt 或已解释事实。可选的 `controls: readonly SessionControlOrigin[]` 给出每个 Session 控制（SE24）提出时 active Run 的 execution，没有 active Run 时为 null；判定延后控制事实时必须有，缺席答 unavailable。          |
 | `SessionInputScope`        | 两个分支。`{ kind: 'pending', inputs: readonly InputId[] }` 要求 inputs 与 snapshot.pending 的有序集合完整相等。`{ kind: 'selected', inputs: readonly InputId[] }` 要求 inputs 精确等于本次 startRun 候选首条、将交入输入或被解释完整批次的明确范围。不得由 reads 自选并缩小命令范围。                                                                                                                                      |
 | `InputAdmissionPage`       | `input`、`directory`、`version`、`offset: string`、`next: string                                                                                                                                                                                                                                                                                                                                                            | null`、`records: readonly SessionInputAdmission[]`。offset 是本页第一项在原目录中的零起点序号；next 必须是本页结尾序号，只有结尾等于权威 count 时才为 null。非末页不允许零记录。 |
 | `SessionInputAdmission`    | `ordinal: string`、`run: RunId`、`execution: string`、`runStarted: DurableEvidence`、`operation: string`、`accepted: DurableEvidence`、`attempt: AttemptId`、`attemptStarted: DurableEvidence`、`attachment: string`、`grant: DurableEvidence`。operation 与 accepted 定位原交入受理，不能用 SE35 缺席证明未受理。其原 SE13、SE15、grant 与 attachment 由提供者在原受理发布时固定。相同输入的多个合法受理各占一个目录位置。 |
@@ -1383,7 +1383,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 1. 核对当前资格并认回原操作。已提交的 freeze、cancel 或终结返回原答案。未知解释提交先按原身份认回，unknown 不能表示该前缀没有发布。
 2. 捕获根 G 的 Q、完整原交入目录、E、解释进度、原 SE13/SE15、head revision/receipt、emittedThrough 与当前 grant。不得把几个读取时点拼成 G。
 3. 逐个相关 execution 解释所需连续前缀。准备不解释 ended。input-taken 按原完整批次产生 SE14，中间 producer、waiting、control 仍产生适用后果，无后果事件按 EC-02 越过。不能只挑 taken 而跳过其它必要后果。
-4. 每段后果、解释进度与操作答案另笔共同发布。失败不撤销此前成功段。没有后果的扫描位置仅为可丢的内部准备进度，不单独提交 cursor-only 批次。
+4. 每段后果、解释进度与操作答案另笔共同发布。失败不撤销此前成功段。没有后果的扫描位置仅为可丢的内部准备进度，不单独提交 cursor-only 批次。唯一的例外是延后控制事实：Session 判定它只有 observed 时，这次解释提交只写解释进度，因为间隔里只能越过 kinds 为 observed 的事实。
 5. 必须完成本次捕获 E 的全部所需前缀，才重算 Q。某个 SE14 使 Q 缩小不提前丢掉 E 中尚未完成的前缀。然后取得最新根 G′，重新核对 Q、目录、相关 head 与当前资格，只补新增关系或必要后缀。
 6. 最终提交在 G′ 上重核 lifecycle、frozen、原 Run、当前 grant、原操作和完整输入范围，以共同根 CAS 或等价串行化一次发布。CAS 失败重读重算。以前成功的前缀不是继续使用旧 pending 的授权。
 
@@ -1415,6 +1415,8 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 <a id="fr-05"></a>
 
 #### FR-05 真实 head、事件进度与来源
+
+延后控制事实：事实边界的 kinds 为 `['deferred']` 时，观察必须带 `control: SessionControlEvidence`（Agent 控制记录、调用收场片段与紧急输入的中性证据，由适配器翻译），后果必须为空。`projectSessionLog` 用 `decideControlConsequences` 在本次提交的快照、reads 的 attempts 与 controls 上判定后果，再照常投影；结果只有 observed 时只写解释进度。非延后事实带 `control` 返回 invalid。重放核对（`validateReplayHistory`）对延后事实只接受 `control` 行，个数不限；只写进度的批次以延后事实结尾时不要求同批后果。未解释的延后事实不是 observed，不能被间隔越过，前缀与观察尾部的核对对它答 unavailable。
 
 `SessionLogObservation` 可增加 `executionEvidence?: DurableEvidence`。`revision` 固定取本次同根 load 的真实 head revision，executionEvidence 取该 head 的原 CommandReceipt 证据。`source` 始终是被解释事件或事实的原来源。`sequence` 仅为事件序号，快照、entries 或 results 对账为 null。它们不推进事件 readThrough。
 
@@ -1897,6 +1899,20 @@ Session 服务实例的必需依赖是 `SessionAccessCheck`、`SessionDelegatedT
 拒绝原因的来源见执行环境契约的[拒绝原因](../../execution/execution-environment-contract/SPEC.md#拒绝原因)与[恢复](../../execution/execution-environment-contract/SPEC.md#恢复)。释放不发起新的获取。逻辑归档在归档提交时已经成立，不等待物理全停。对人的时间线只记录「已发起释放」与读回结果。系统层说明见[作用域释放](../../../docs/architecture/runtime/control-and-recovery.md#作用域释放)。
 
 
+
+### 可加契约与过渡支持范围
+
+下列形状以可加方式进入契约，旧形状继续可用。破坏性收口（删旧形状、收紧必填）与跨线迁移由集成方在收口时完成，不在本节。
+
+| 形状 | 内容 | 旧形状 |
+| --- | --- | --- |
+| `SessionTransactionPort.commitLog` | 可选方法，事件通道的解释提交，回执是 `SessionLogReceipt`（[规则](docs/same-log-pure.md#事件通道的解释提交)）。`SessionLogCommitObservation` 要求 `operation` 与 `executionEvidence`，旧 `SessionLogObservation` 保留 | 旧提供者可以省略它；`./testing` 的 `controls.project` 保留旧回执形状 |
+| `SessionEvidenceBridge<P = unknown>.prepare(command, access?)` | Session 总是传本次调用的实际 `SessionAccess<P>`，桥原样交给采用来源。缺 `access` 不授权任何东西，现有失败保持不变 | 只收 `command` 的旧桥仍可赋值 |
+| `SessionAdoptionSource<P = unknown>.prepare(command, access?)` | 同上 | 旧来源仍可赋值。生产来源与保管来源的签名不变 |
+| `SessionAdoptionSource.plan?` | 可选采用点，Session 在 `startRun` 前调用：`(access, { recorded, capabilities })`，答 `{ material, verdict }`，失败是简单的 `{ kind: 'unavailable' }`，不包成 `SessionFailure`。形状与 Tool 侧冻结的采用点替身双向可赋值，Session 只用自有投影类型 | 缺席时 Session 不调用采用点 |
+| `startRun`、`reload` 的 `residentAdoption.verdict?` | 带 `verdict` 时判定 `frozen{verdict}`，不提交。`ResidentAdoption` 本体与 `create` 不带这个槽 | 不带 `verdict` 的调用照旧 |
+
+本节只声明形状与纯判断。`plan` 的 C2 调用流程由 Session 成员实现，不在本成员。
 
 ### 具名前提与明确缺项
 

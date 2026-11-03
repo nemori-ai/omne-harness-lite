@@ -298,6 +298,34 @@ function foreignToolReturn<P>(
 export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[] {
   return [
     {
+      name: 'cancellation installation read returns the configured record without changing execution state',
+      run: async () => {
+        const opened = await fixture.open('read-cancellation-installation')
+        const read = opened.journal.readCancellationInstallation
+        if (read === undefined || opened.installation === undefined) {
+          await uncoveredCase('', 'cancellation installation read').run()
+          return
+        }
+        const before = await load(opened)
+        const input = { ...opened.access, execution: opened.execution }
+        if (opened.installation === null)
+          await refused(read(input), 'unavailable', 'missing installation')
+        else
+          assert.deepEqual(
+            await ok(read(input), 'read cancellation installation'),
+            opened.installation.record,
+          )
+        assert.deepEqual(await load(opened), before, 'the installation read writes no state')
+        const other = await requireOtherAccess(opened)
+        if (other !== undefined)
+          await refused(
+            read({ ...other, execution: opened.execution }),
+            'denied',
+            'foreign installation read',
+          )
+      },
+    },
+    {
       name: 'F1: a settling commit with `finish` establishes the candidate under this operation, its author route and the FinishIntent projection with obligations and beforeTerminal null; the retry recognizes; other content under the same operation conflicts; a non-settling commit with finish, and a settling commit before any candidate, are invalid',
       run: async () => {
         const opened = await fixture.open('f1-candidate')

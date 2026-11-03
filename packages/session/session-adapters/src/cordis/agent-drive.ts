@@ -32,7 +32,7 @@ import {
   agentInstancesKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import { decodeModelCallId } from '@omne-harness/model-contract'
+import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   Adoption,
@@ -48,7 +48,7 @@ import type {
   SessionId,
 } from '@omne-harness/session-contract'
 import { AgentDrivePortService, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
-import { decodeToolCallId } from '@omne-harness/tool-contract'
+import { resolveToolInvocationRef, type ToolCallId } from '@omne-harness/tool-contract'
 import { decodeSessionSlotRef } from '../slot-ref.ts'
 
 /** The failures of the coordinator principal: those of `SessionWorkPrincipals.forSession`. */
@@ -130,30 +130,58 @@ function receiptOf(receipt: CommandReceipt): DriveReceipt {
   return { revision: receipt.revision, evidence: receipt.evidence }
 }
 
-/** The Agent control that one Session control intent becomes, or null when none is sent. */
+/**
+ * Why a Session producer reference does not give its call: `malformed` is a translation defect,
+ * `foreign-tenant` names another tenant's call and is refused.
+ */
+type Unresolved = Readonly<{ kind: 'malformed' | 'foreign-tenant'; diagnostic: string }>
+
+const unresolved = (
+  family: 'Model' | 'Tool',
+  failure: Readonly<{ kind: string }>,
+): Outcome<never, Unresolved> =>
+  failure.kind === 'foreign-tenant'
+    ? fail({ kind: 'foreign-tenant', diagnostic: `the ${family} call belongs to another tenant` })
+    : fail({
+        kind: 'malformed',
+        diagnostic: `the ${family} call is not a ${family} invocation reference (${failure.kind})`,
+      })
+
+/**
+ * The Tool call that a Session Tool producer names. Session names a call by its invocation
+ * reference (session-contract 稳定调用引用的读取); the Agent control names the call, which the
+ * Tool resolver gives for the target tenant.
+ */
+function toolCallOf(reference: string, tenant: TenantId): Outcome<ToolCallId, Unresolved> {
+  const parts = resolveToolInvocationRef(reference, tenant)
+  return 'ok' in parts ? succeed(parts.ok.call) : unresolved('Tool', parts.failure)
+}
+
+/**
+ * The Agent control that one Session control intent becomes, or null when none is sent. A producer
+ * is resolved for the target tenant: Session names a Model or Tool call by its invocation
+ * reference, the Agent control by the call that the reference holds.
+ */
 function controlOf(
   intent: Control,
+  tenant: TenantId,
   reason: DurableEvidence,
-): Outcome<ExecutionControl | null, string> {
+): Outcome<ExecutionControl | null, Unresolved> {
   switch (intent.kind) {
     case 'stop-call': {
       const { producer } = intent
       if (producer.kind === 'model') {
-        const call = decodeModelCallId(producer.call)
-        return 'ok' in call
-          ? succeed({ kind: 'interrupt-model', call: call.ok, reason })
-          : fail('the Model call is not a Model call identity')
+        const parts = resolveModelInvocationRef(producer.call, tenant)
+        return 'ok' in parts
+          ? succeed({ kind: 'interrupt-model', call: parts.ok.call, reason })
+          : unresolved('Model', parts.failure)
       }
-      const call = decodeToolCallId(producer.call)
-      return 'ok' in call
-        ? succeed({ kind: 'interrupt-tool', call: call.ok, reason })
-        : fail('the Tool call is not a Tool call identity')
+      const call = toolCallOf(producer.call, tenant)
+      return 'ok' in call ? succeed({ kind: 'interrupt-tool', call: call.ok, reason }) : call
     }
     case 'background-tool': {
-      const call = decodeToolCallId(intent.producer.call)
-      return 'ok' in call
-        ? succeed({ kind: 'background-tool', call: call.ok, reason })
-        : fail('the Tool call is not a Tool call identity')
+      const call = toolCallOf(intent.producer.call, tenant)
+      return 'ok' in call ? succeed({ kind: 'background-tool', call: call.ok, reason }) : call
     }
     case 'cancel-run':
     case 'archive':
@@ -162,7 +190,10 @@ function controlOf(
       return succeed(null)
     default: {
       const unknown: never = intent
-      return fail(`unknown control ${describe((unknown as { kind?: unknown }).kind)}`)
+      return fail({
+        kind: 'malformed',
+        diagnostic: `unknown control ${describe((unknown as { kind?: unknown }).kind)}`,
+      })
     }
   }
 }
@@ -278,8 +309,13 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       const prepared = await this.prepare(input)
       if ('failure' in prepared) return prepared
       const { mutation, tenant } = prepared.ok
-      const command = controlOf(input.intent, sessionBasis(tenant, input.session, input.control))
-      if ('failure' in command) return this.defect('control', command.failure)
+      const reason = sessionBasis(tenant, input.session, input.control)
+      const command = controlOf(input.intent, input.tenant, reason)
+      // Another tenant's call is refused like any cross-tenant target; Agent is not called.
+      if ('failure' in command)
+        return command.failure.kind === 'foreign-tenant'
+          ? fail({ kind: 'denied' })
+          : this.defect('control', command.failure.diagnostic)
       // unarchive is reconciled by the original Session command; Agent is not called.
       if (command.ok === null) return fail({ kind: 'unsupported' })
       const answer = await this.scope.agentExecutionControl.control({

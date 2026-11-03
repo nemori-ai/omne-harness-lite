@@ -1,5 +1,5 @@
-// AD-03, the Runtime Context holder of Session (SPEC AD-03, docs/cordis.md): two plugins and the
-// `replayFacts` port of `createSessionRuntimeContextTrust`.
+// AD-03, the Runtime Context holder of Session (SPEC AD-03, docs/cordis.md): three plugins, the
+// `replayFacts` port of `createSessionRuntimeContextTrust` and the scope lookup (R2-D14, R2-D29).
 //
 // - The replay sub-plugin `session-ad03-replay` injects the holder face and `session` with the
 //   `reader` caller class. It is the only caller of `applyCommit`. A `committed` notice whose kinds
@@ -13,17 +13,23 @@
 //   eligibility it issued for the same principal, consumer class and scope while the scope's
 //   recovery and registration revision are unchanged; otherwise issue one on the spot from the
 //   scope's final registrations, superseding the earlier one.
-// - `replayFacts.stepCommittedBlocks` reads the same records again and folds them up to the
-//   checkpoint, so C18's trust checks a finished recovery against the log, not against the material.
+// - The facts plugin `session-ad03-facts` injects `session` alone, with the `coordinator` caller
+//   class, so it runs without Runtime Context and without the replay sub-plugin. It indexes the
+//   scopes that the context records of a session name, from the same `committed` notices, and
+//   answers two questions from the session's own facts. `replayFacts.stepCommittedBlocks` reads the
+//   records and folds them up to the checkpoint, so C18's trust checks a finished recovery against
+//   the log, not against the material. The scope lookup answers the tenant, session and generation
+//   of a scope from the session's work snapshot: the index only says where to look, the snapshot
+//   decides. It names an owner and grants nothing.
 //
 // The Session log is the authority. The plugins keep only derivatives: the scope-to-session index
-// (process lifetime, bounded), the recovery state of each scope (one replay fiber), and the issued
-// eligibilities (one holder fiber). Named gap: the translation from a committed Session entry to a
+// (one map of the process lifetime, bounded, written by the replay and the facts plugin), the
+// recovery state of each scope (one replay fiber), and the issued eligibilities (one holder fiber). Named gap: the translation from a committed Session entry to a
 // Runtime Context commit input is AD-12's adopted translation protocol. It is not delivered; the
 // assembly hands it in as `translation`.
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
-import { fail, type Outcome } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   CommitInput,
   CommitRef,
@@ -50,11 +56,17 @@ import {
 import type {
   HistoryEntry,
   HistoryPage,
+  SessionAccess,
   SessionFailure,
   SessionId,
+  WorkSnapshot,
 } from '@omne-harness/session-contract'
-import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
-import type { SessionReplayFacts, StepCommittedBlocks } from '../runtime-context-trust.ts'
+import type { SessionReplayFacts, SessionScopeLookup } from '@omne-harness/session-cordis-contract'
+import {
+  SessionReplayFactsService,
+  SessionScopeLookupService,
+  sessionKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
 
 const LOGGER = 'session-adapters/context-holder'
@@ -135,17 +147,19 @@ type ScopeView =
       final: ReadonlyMap<ContextBlockKey, Registered>
     }>
 
-/** The replay fiber as the holder plugin and `replayFacts` see it. */
+/** The replay fiber as the holder plugin sees it. */
 interface ReplayFiber {
   ensure(scope: ScopeRef, tenant: TenantId): Promise<ScopeView>
-  stepCommittedBlocks(scope: ScopeRef, through: CommitRef | null): Promise<StepCommittedBlocks>
 }
+
+/** The facts fiber as the two facts services and `replayFacts` see it. It never throws. */
+interface FactsFiber extends SessionScopeLookup, SessionReplayFacts {}
 
 type Shared<P> = Readonly<{
   input: SessionContextHolderInput<P>
   /** scope text → its session; a derivative of Session's own records, kept across generations. */
   index: Map<string, Bound>
-  link: { replay: ReplayFiber | undefined }
+  link: { replay: ReplayFiber | undefined; facts: FactsFiber | undefined }
   recoveries: { next: number }
 }>
 
@@ -283,7 +297,7 @@ function upTo(
   return undefined
 }
 
-// --- the replay sub-plugin -----------------------------------------------------------------------
+// --- the context records and the scope index -----------------------------------------------------
 
 /** The records of one scope, in log order, with the scope as the first record names it. */
 type ScopeRecords = Readonly<{ scope: ScopeRef; records: readonly ContextRecord[] }>
@@ -292,25 +306,146 @@ type Read<P> =
   | Readonly<{ kind: 'read'; principal: P; scopes: ReadonlyMap<string, ScopeRecords> }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
+type Logger = ReturnType<Context['logger']>
+
+/** The coordinator principal of the session, or why the assembly cannot give it. */
+async function principalOf<P>(
+  input: SessionContextHolderInput<P>,
+  bound: Bound,
+): Promise<Outcome<P, string>> {
+  try {
+    const answer = await input.coordinator(bound)
+    return 'ok' in answer
+      ? answer
+      : fail(`the coordinator principal is not available: ${answer.failure.kind}`)
+  } catch (cause) {
+    return fail(`the coordinator principal source threw: ${describe(cause)}`)
+  }
+}
+
+/** Notes the session of a scope in the index, newest last; the oldest goes when the bound is passed. */
+function remember<P>(shared: Shared<P>, scope: string, bound: Bound): void {
+  const { index } = shared
+  const limit = shared.input.scopeIndexEntries ?? SCOPE_INDEX_ENTRIES
+  index.delete(scope)
+  index.set(scope, bound)
+  while (index.size > limit) {
+    const oldest = index.keys().next().value
+    if (oldest === undefined) break
+    index.delete(oldest)
+  }
+}
+
+/**
+ * The read of the context records of one session, shared by the replay sub-plugin and the facts
+ * plugin. Each plugin reads with its own `session` service, so the caller class of the read is the
+ * caller class of that plugin.
+ */
+function recordReader<P>(
+  ctx: Context,
+  shared: Shared<P>,
+  logger: Logger,
+): (bound: Bound) => Promise<Read<P>> {
+  const { input } = shared
+  const pageBytes = input.pageBytes ?? PAGE_BYTES
+
+  /** One page of the history read, or why the read cannot go on. */
+  async function pageOf(
+    call: () => Promise<Outcome<HistoryPage, SessionFailure>>,
+  ): Promise<Outcome<HistoryPage, string>> {
+    try {
+      const answer = await call()
+      return 'ok' in answer ? answer : fail(`the history read answered ${answer.failure.kind}`)
+    } catch (cause) {
+      return fail(`the history read threw: ${describe(cause)}`)
+    }
+  }
+
+  /** Every history entry of a context kind of one session, in log order, or why the read ended early. */
+  async function readEntries(
+    access: SessionAccess<P>,
+  ): Promise<Outcome<readonly HistoryEntry[], string>> {
+    const entries: HistoryEntry[] = []
+    let page = await pageOf(() =>
+      ctx[sessionKey].history.begin({
+        ...access,
+        kinds: input.translation.kinds,
+        from: null,
+        direction: 'forward',
+        pageBytes,
+      }),
+    )
+    for (let pages = 1; ; pages++) {
+      if ('failure' in page) return page
+      entries.push(...page.ok.entries)
+      if (page.ok.exhausted) return succeed(entries)
+      const cursor = page.ok.next
+      if (cursor === null || pages >= MAX_PAGES)
+        return fail('the history read ended before it was exhausted')
+      page = await pageOf(() => ctx[sessionKey].history.next({ ...access, cursor }))
+    }
+  }
+
+  /** The records of the entries, grouped by scope; a translation defect or another tenant's record fails the whole. */
+  function groupByScope(
+    entries: readonly HistoryEntry[],
+    bound: Bound,
+  ): Outcome<Map<string, { scope: ScopeRef; records: ContextRecord[] }>, string> {
+    const scopes = new Map<string, { scope: ScopeRef; records: ContextRecord[] }>()
+    for (const entry of entries) {
+      let translated: Outcome<CommitInput | null, string>
+      try {
+        translated = input.translation.commitOf(entry)
+      } catch (cause) {
+        translated = fail(`the translation threw: ${describe(cause)}`)
+      }
+      if ('failure' in translated) return fail(`entry ${entry.id}: ${translated.failure}`)
+      const commit = translated.ok
+      if (commit === null) continue
+      const target = targetOf(commit)
+      if (!tenantEquals(target.tenant, bound.tenant))
+        return fail(`entry ${entry.id} names another tenant than its session`)
+      const group = scopes.get(target.scope.ref) ?? { scope: target.scope, records: [] }
+      group.records.push({ entry, input: commit })
+      scopes.set(target.scope.ref, group)
+    }
+    return succeed(scopes)
+  }
+
+  /**
+   * Every context record of one session, in log order, grouped by scope. A read that ends before it
+   * is exhausted, a translation defect, and a record whose tenant is not the session's are not a
+   * complete read: the answer is unavailable and nothing is indexed.
+   */
+  async function readRecords(bound: Bound): Promise<Read<P>> {
+    const principal = await principalOf(input, bound)
+    if ('failure' in principal) return { kind: 'unavailable', diagnostic: principal.failure }
+    const access = { principal: principal.ok, tenant: bound.tenant, session: bound.session }
+    const entries = await readEntries(access)
+    if ('failure' in entries) return { kind: 'unavailable', diagnostic: entries.failure }
+    const scopes = groupByScope(entries.ok, bound)
+    if ('failure' in scopes) return defect(scopes.failure)
+    return { kind: 'read', principal: principal.ok, scopes: scopes.ok }
+  }
+
+  function defect(diagnostic: string): Read<P> {
+    logger.error(`translation defect: ${diagnostic}`)
+    return { kind: 'unavailable', diagnostic: `translation defect: ${diagnostic}` }
+  }
+
+  return readRecords
+}
+
+// --- the replay sub-plugin -----------------------------------------------------------------------
+
 function startReplay<P>(ctx: Context, shared: Shared<P>): void {
   const holder: RuntimeContextOperations<unknown> = ctx[runtimeContextKey]
   const logger = ctx.logger(LOGGER)
-  const { input, index } = shared
-  const pageBytes = input.pageBytes ?? PAGE_BYTES
-  const limit = input.scopeIndexEntries ?? SCOPE_INDEX_ENTRIES
+  const { index, input } = shared
+  const readRecords = recordReader(ctx, shared, logger)
   const states = new Map<string, ScopeState>()
   const chains = new Map<string, Promise<void>>()
   let closed = false
-
-  function remember(scope: string, bound: Bound): void {
-    index.delete(scope)
-    index.set(scope, bound)
-    while (index.size > limit) {
-      const oldest = index.keys().next().value
-      if (oldest === undefined) break
-      index.delete(oldest)
-    }
-  }
 
   /** Runs the work of one session after the work already queued for it. */
   function serialize<T>(key: string, task: () => Promise<T>): Promise<T> {
@@ -325,84 +460,6 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
       if (chains.get(key) === settled) chains.delete(key)
     })
     return next
-  }
-
-  async function principalOf(bound: Bound): Promise<Outcome<P, string>> {
-    try {
-      const answer = await input.coordinator(bound)
-      return 'ok' in answer
-        ? answer
-        : fail(`the coordinator principal is not available: ${answer.failure.kind}`)
-    } catch (cause) {
-      return fail(`the coordinator principal source threw: ${describe(cause)}`)
-    }
-  }
-
-  /** One page of the history read, or why the read cannot go on. */
-  async function pageOf(
-    call: () => Promise<Outcome<HistoryPage, SessionFailure>>,
-  ): Promise<Outcome<HistoryPage, string>> {
-    try {
-      const answer = await call()
-      return 'ok' in answer ? answer : fail(`the history read answered ${answer.failure.kind}`)
-    } catch (cause) {
-      return fail(`the history read threw: ${describe(cause)}`)
-    }
-  }
-
-  /**
-   * Every context record of one session, in log order, grouped by scope. A read that ends before it
-   * is exhausted, a translation defect, and a record whose tenant is not the session's are not a
-   * complete read: the answer is unavailable and nothing is indexed.
-   */
-  async function readRecords(bound: Bound): Promise<Read<P>> {
-    const principal = await principalOf(bound)
-    if ('failure' in principal) return { kind: 'unavailable', diagnostic: principal.failure }
-    const access = { principal: principal.ok, tenant: bound.tenant, session: bound.session }
-    const entries: HistoryEntry[] = []
-    let page = await pageOf(() =>
-      ctx[sessionKey].history.begin({
-        ...access,
-        kinds: input.translation.kinds,
-        from: null,
-        direction: 'forward',
-        pageBytes,
-      }),
-    )
-    for (let pages = 1; ; pages++) {
-      if ('failure' in page) return { kind: 'unavailable', diagnostic: page.failure }
-      entries.push(...page.ok.entries)
-      if (page.ok.exhausted) break
-      const cursor = page.ok.next
-      if (cursor === null || pages >= MAX_PAGES)
-        return { kind: 'unavailable', diagnostic: 'the history read ended before it was exhausted' }
-      page = await pageOf(() => ctx[sessionKey].history.next({ ...access, cursor }))
-    }
-
-    const scopes = new Map<string, { scope: ScopeRef; records: ContextRecord[] }>()
-    for (const entry of entries) {
-      let translated: Outcome<CommitInput | null, string>
-      try {
-        translated = input.translation.commitOf(entry)
-      } catch (cause) {
-        translated = fail(`the translation threw: ${describe(cause)}`)
-      }
-      if ('failure' in translated) return defect(`entry ${entry.id}: ${translated.failure}`)
-      const commit = translated.ok
-      if (commit === null) continue
-      const target = targetOf(commit)
-      if (!tenantEquals(target.tenant, bound.tenant))
-        return defect(`entry ${entry.id} names another tenant than its session`)
-      const group = scopes.get(target.scope.ref) ?? { scope: target.scope, records: [] }
-      group.records.push({ entry, input: commit })
-      scopes.set(target.scope.ref, group)
-    }
-    return { kind: 'read', principal: principal.ok, scopes }
-  }
-
-  function defect(diagnostic: string): Read<P> {
-    logger.error(`translation defect: ${diagnostic}`)
-    return { kind: 'unavailable', diagnostic: `translation defect: ${diagnostic}` }
   }
 
   async function recover(
@@ -518,7 +575,7 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
     if (read.kind === 'unavailable') return { diagnostic: read.diagnostic }
     for (const [ref, { scope, records }] of read.scopes) {
       if (closed) return { diagnostic: 'the replay sub-plugin has stopped' }
-      remember(ref, bound)
+      remember(shared, ref, bound)
       const state = states.get(ref)
       if (state === undefined || state.phase === 'failed')
         await recover(read.principal, bound, scope, records, state)
@@ -579,17 +636,6 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
         }
       }
     },
-    // Not serialized with the session's work: a recovery in that work asks these facts.
-    async stepCommittedBlocks(scope, through) {
-      if (closed) return { kind: 'unavailable' }
-      const bound = index.get(scope.ref)
-      if (bound === undefined) return { kind: 'unavailable' }
-      const read = await readRecords(bound)
-      if (read.kind === 'unavailable') return { kind: 'unavailable' }
-      const records = upTo(read.scopes.get(scope.ref)?.records ?? [], through)
-      if (records === undefined) return { kind: 'unknown' }
-      return { kind: 'known', keys: fold(records).stepCommitted }
-    },
   }
 
   ctx.on('session-cordis-contract/committed', (tenant, session, _revision, _source, kinds) => {
@@ -607,6 +653,157 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
     return () => {
       closed = true
       if (shared.link.replay === fiber) shared.link.replay = undefined
+    }
+  })
+}
+
+// --- the facts plugin ----------------------------------------------------------------------------
+
+const UNAVAILABLE = { kind: 'unavailable' } as const
+const UNKNOWN = { kind: 'unknown' } as const
+
+/** `sessionReplayFacts`: the trusted entry of Runtime Context reads it per call (R2-D29). */
+class SessionReplayFactsProvider extends SessionReplayFactsService {
+  readonly stepCommittedBlocks: SessionReplayFacts['stepCommittedBlocks']
+  constructor(scope: Context, fiber: FactsFiber) {
+    super(scope)
+    this.stepCommittedBlocks = (target, through) => fiber.stepCommittedBlocks(target, through)
+  }
+}
+
+/** `sessionScopeLookup`: answers the owner of a scope and grants nothing (R2-D14, R2-D29). */
+class SessionScopeLookupProvider extends SessionScopeLookupService {
+  readonly lookup: SessionScopeLookup['lookup']
+  constructor(scope: Context, fiber: FactsFiber) {
+    super(scope)
+    this.lookup = target => fiber.lookup(target)
+  }
+}
+
+/**
+ * `session-ad03-facts` depends on `session` alone, so it runs without Runtime Context and without
+ * the replay sub-plugin. It keeps the scope-to-session index from the committed notices and answers
+ * two questions from the session's own durable facts: which session a scope belongs to, and which
+ * checkpointed blocks have a step commit.
+ */
+function startFacts<P>(ctx: Context, shared: Shared<P>): void {
+  const logger = ctx.logger(LOGGER)
+  const { index, input } = shared
+  const readRecords = recordReader(ctx, shared, logger)
+  /** The notices whose read has not ended: a lookup waits for them before it says `unknown`. */
+  const learning = new Set<Promise<void>>()
+  let closed = false
+
+  /** Indexes the scopes that the records of one session name. A read that fails indexes nothing. */
+  async function learn(bound: Bound): Promise<void> {
+    const read = await readRecords(bound)
+    if (read.kind === 'unavailable') {
+      logger.warn(`the scopes of a session were not indexed: ${read.diagnostic}`)
+      return
+    }
+    if (closed) return
+    for (const ref of read.scopes.keys()) remember(shared, ref, bound)
+  }
+
+  /** The snapshot of the session, or `undefined` when it cannot be had as the session it was asked for. */
+  async function snapshotOf(bound: Bound): Promise<WorkSnapshot | undefined> {
+    const principal = await principalOf(input, bound)
+    if ('failure' in principal) {
+      logger.warn(`the scope lookup has no principal: ${principal.failure}`)
+      return undefined
+    }
+    try {
+      const work = await ctx[sessionKey].work.readWork({
+        principal: principal.ok,
+        tenant: bound.tenant,
+        session: bound.session,
+      })
+      if ('failure' in work) {
+        logger.warn(`the scope lookup read answered ${work.failure.kind}`)
+        return undefined
+      }
+      if (!tenantEquals(work.ok.tenant, bound.tenant) || work.ok.session !== bound.session) {
+        logger.error('the scope lookup read answered another session than the one it asked')
+        return undefined
+      }
+      return work.ok
+    } catch (cause) {
+      logger.warn(`the scope lookup read threw: ${describe(cause)}`)
+      return undefined
+    }
+  }
+
+  const answers: FactsFiber = {
+    async lookup(scope) {
+      if (closed) return UNAVAILABLE
+      let bound = index.get(scope.ref)
+      if (bound === undefined) {
+        // A notice in flight may be about to index the scope.
+        await Promise.all(learning)
+        bound = index.get(scope.ref)
+      }
+      if (closed) return UNAVAILABLE
+      if (bound === undefined) return UNKNOWN
+      const snapshot = await snapshotOf(bound)
+      if (closed || snapshot === undefined) return UNAVAILABLE
+      // The index only says where to look. The snapshot is the fact: a scope that it does not list
+      // is not this session's, and the generation is the one it records for that scope.
+      const binding = snapshot.contextScopes?.find(item => item.scope === scope.ref)
+      if (binding === undefined) return UNKNOWN
+      return {
+        kind: 'known',
+        tenant: bound.tenant,
+        session: bound.session,
+        generation: binding.generation,
+      }
+    },
+    // Reads the records itself, outside any replay: a recovery that finishes asks these facts.
+    async stepCommittedBlocks(scope, through) {
+      if (closed) return UNAVAILABLE
+      const bound = index.get(scope.ref)
+      if (bound === undefined) return UNAVAILABLE
+      const read = await readRecords(bound)
+      if (read.kind === 'unavailable' || closed) return UNAVAILABLE
+      const records = upTo(read.scopes.get(scope.ref)?.records ?? [], through)
+      if (records === undefined) return UNKNOWN
+      return { kind: 'known', keys: fold(records).stepCommitted }
+    },
+  }
+  // A read that throws is not an answer: both facts say `unavailable`.
+  const fiber: FactsFiber = {
+    lookup: async scope => {
+      try {
+        return await answers.lookup(scope)
+      } catch {
+        return UNAVAILABLE
+      }
+    },
+    stepCommittedBlocks: async (scope, through) => {
+      try {
+        return await answers.stepCommittedBlocks(scope, through)
+      } catch {
+        return UNAVAILABLE
+      }
+    },
+  }
+
+  new SessionReplayFactsProvider(ctx, fiber)
+  new SessionScopeLookupProvider(ctx, fiber)
+
+  ctx.on('session-cordis-contract/committed', (tenant, session, _revision, _source, kinds) => {
+    if (closed || !kinds.some(kind => input.translation.kinds.includes(kind))) return
+    const work = learn({ tenant, session }).catch(cause =>
+      logger.warn(`the scopes of a session were not indexed: ${describe(cause)}`),
+    )
+    learning.add(work)
+    void work.finally(() => learning.delete(work))
+    return work
+  })
+  ctx.effect(() => {
+    shared.link.facts = fiber
+    return () => {
+      closed = true
+      if (shared.link.facts === fiber) shared.link.facts = undefined
     }
   })
 }
@@ -805,27 +1002,22 @@ class SessionReaderEligibilityProvider<P> extends RuntimeContextReaderEligibilit
 }
 
 /**
- * The AD-03 plugins and the `replayFacts` port for `createSessionRuntimeContextTrust`. Mount both
- * plugins; each one stays `PENDING` while `runtimeContext` or `session` is absent. `replayFacts`
- * answers `unavailable` while the replay sub-plugin is not running.
+ * The AD-03 plugins and the `replayFacts` port for `createSessionRuntimeContextTrust`. Mount the
+ * three plugins. `holder` and `replay` stay `PENDING` while `runtimeContext` or `session` is
+ * absent; `facts` needs `session` alone and provides `sessionReplayFacts` and `sessionScopeLookup`.
+ * `replayFacts` answers `unavailable` while the facts plugin is not running.
  */
 export function createSessionContextHolder<P>(input: SessionContextHolderInput<P>) {
   const shared: Shared<P> = {
     input,
     index: new Map(),
-    link: { replay: undefined },
+    link: { replay: undefined, facts: undefined },
     recoveries: { next: 0 },
   }
+  // The same facts as the `sessionReplayFacts` service, for a caller that holds this value.
   const replayFacts: SessionReplayFacts = {
-    async stepCommittedBlocks(scope, through) {
-      const fiber = shared.link.replay
-      if (fiber === undefined) return { kind: 'unavailable' }
-      try {
-        return await fiber.stepCommittedBlocks(scope, through)
-      } catch {
-        return { kind: 'unavailable' }
-      }
-    },
+    stepCommittedBlocks: (scope, through) =>
+      shared.link.facts?.stepCommittedBlocks(scope, through) ?? Promise.resolve(UNAVAILABLE),
   }
   return {
     /** `session-ad03`: the holder that provides `runtimeContextReaderEligibility`. */
@@ -848,6 +1040,16 @@ export function createSessionContextHolder<P>(input: SessionContextHolderInput<P
       },
       apply(ctx: Context) {
         startReplay(ctx, shared)
+      },
+    },
+    /** `session-ad03-facts`: provides `sessionReplayFacts` and `sessionScopeLookup`; it needs `session` alone. */
+    facts: {
+      name: 'session-ad03-facts',
+      inject: {
+        [sessionKey]: { caller: 'coordinator' as const },
+      },
+      apply(ctx: Context) {
+        startFacts(ctx, shared)
       },
     },
     replayFacts,

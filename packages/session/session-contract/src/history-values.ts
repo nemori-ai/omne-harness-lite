@@ -2,6 +2,7 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type { AttemptId, DurableEvidence, InputId, RunId, SessionId } from './identity.ts'
 import type { InputBatch } from './values.ts'
 import type { SessionLogConsequence } from './projection.ts'
+import type { SessionControlOrigin } from './control-normalization.ts'
 
 /** A provider-authenticated common-log root, distinct from every domain revision. */
 export type SessionLogRoot = Readonly<{
@@ -26,11 +27,20 @@ export type InputAdmissionBoundary = Readonly<{
   members: readonly InputAdmissionMember[]
   source: DurableEvidence
 }>
+/**
+ * A consequence kind of a fact boundary, or `deferred`: a control event whose consequences Session
+ * decides when it interprets the event (`decideControlConsequences`), so the provider cannot name
+ * them when the Agent commits. A deferred fact has exactly `['deferred']`.
+ */
+export type SessionFactKind = SessionLogConsequence['kind'] | 'deferred'
 export type SessionFactBoundary = Readonly<{
   sequence: string
   source: DurableEvidence
-  kinds: readonly SessionLogConsequence['kind'][]
+  kinds: readonly SessionFactKind[]
 }>
+/** True when the kinds of a fact boundary are the deferred marker. */
+export const isDeferredFact = (kinds: readonly SessionFactKind[]): boolean =>
+  kinds.length === 1 && kinds[0] === 'deferred'
 export type ExecutionHistoryBoundary = Readonly<{
   run: RunId
   execution: string
@@ -104,4 +114,6 @@ export type SessionHistoryReads = Readonly<{
   prefixes: readonly SessionExecutionPrefix[]
   attempts: readonly SessionAttemptRecord[]
   taken: readonly SessionTakenRecord[]
+  /** The original execution of each open Session control; read for a deferred control fact. */
+  controls?: readonly SessionControlOrigin[]
 }>
