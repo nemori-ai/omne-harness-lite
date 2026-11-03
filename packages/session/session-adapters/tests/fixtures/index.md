@@ -5,6 +5,7 @@
 ## 内容
 
 - [README.md](README.md)：固定输入的来源与约束
+- [adopted-request.ts](adopted-request.ts)：一次采用请求的取值：Request Context 形状的覆盖、固定请求记录、agent-context 为覆盖铸的证据摘要，以及模型调用引用（FIXED-FACTS F4、F5）
 - [common-journal.ts](common-journal.ts)：共用场景 `scene`，在内存提供者上建立会话日志与可配置的访问裁定，并导出 `ok`、操作身份与检查点等构造；`openInput` 与 `submitInput` 按消息准入构造 `open` 的原受理与运行时上下文，以及 `submit` 的 new-input 谱系
 - [progression.ts](progression.ts)：在 `scene` 上推进一个 Run 的步骤：交入（初始输入或一次 submit 的输入）、受理、承接、取消、冻结、开新 Run 与结束
 - [tool-call.ts](tool-call.ts)：Tool 调用与 Model 结果的离线原事实样本
@@ -12,5 +13,5 @@
 - [original-scope.ts](original-scope.ts)：以 `create` 建立带原作用域的会话
 - [session-conformance.ts](session-conformance.ts)：session-contract 事务一致性套件的夹具
 - [entries-conformance.ts](entries-conformance.ts)：agent-contract entries 一致性套件的夹具
-- [sql-scene.ts](sql-scene.ts)：生产 Journal 提供者的场景：node:sqlite 替身（加载材料里的真实模块）或真实 sqlite-provider 上的会话存储与 Journal，一个已开 Run 的会话，以及故障注入与提交计数
+- [sql-scene.ts](sql-scene.ts)：生产 Journal 提供者的场景：node:sqlite 替身（加载材料里的真实模块）或真实 sqlite-provider 上的会话存储与 Journal，一个已开 Run 的会话，以及故障注入（按语句文本或按语句与参数）与提交计数；`nextRun` 取消当前 Run 并开下一个
 - [sql-real-config.ts](sql-real-config.ts)：真实 sqlite-provider 的配置

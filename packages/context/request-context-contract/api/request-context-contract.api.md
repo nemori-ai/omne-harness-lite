@@ -72,6 +72,8 @@
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `EpochId` · `refs.d.ts`
 - `FitVerdict` · `values.d.ts`
+- `FixedRequestRecord` · `fixed-request.d.ts`
+- `FixedRequestRecordRejection` · `fixed-request.d.ts`
 - `GroupName` · `values.d.ts`
 - `GroupSource` · `sources.d.ts`
 - `GroupToken` · `refs.d.ts`
@@ -176,6 +178,7 @@
 - `decodeCandidateRef` · `refs.d.ts`
 - `decodeCommitOrder` · `refs.d.ts`
 - `decodeEpochId` · `refs.d.ts`
+- `decodeFixedRequestRecord` · `fixed-request.d.ts`
 - `decodeGroupToken` · `refs.d.ts`
 - `decodeHistorySequence` · `refs.d.ts`
 - `decodePassageRef` · `refs.d.ts`
@@ -185,6 +188,8 @@
 - `decodeRecoveryGrantRef` · `refs.d.ts`
 - `decodeRegistrationRef` · `refs.d.ts`
 - `decodeSourceGeneration` · `refs.d.ts`
+- `encodeFixedRequestRecord` · `fixed-request.d.ts`
+- `forecastOf` · `fixed-request.d.ts`
 - `judgeBudget` · `budget.d.ts`
 - `placeContext` · `placement.d.ts`
 - `planProgressSchema` · `schema.d.ts`
@@ -585,6 +590,35 @@ import type { ToolDeclarationSet } from './values.js';
 export declare function declareTools(tools: readonly ToolAdoption[]): ToolDeclarationSet;
 ```
 
+## 声明文件 `fixed-request.d.ts`
+
+```ts
+import type * as M from '@omne-harness/model-contract';
+import type { JsonValue } from '@omne-harness/json-text';
+import type { Outcome } from '@omne-harness/operation-result';
+import { type CandidateRef, type ContextTarget } from './refs.js';
+import type { ContinuationBasis, Coverage } from './values.js';
+export type FixedRequestRecord = Readonly<{
+    schema: 'request-context/fixed-request/1';
+    target: ContextTarget;
+    candidate: CandidateRef;
+    coverage: Coverage;
+    windowTokens: string;
+    forecast: Readonly<{
+        kind: 'estimate';
+        usedTokens: string;
+    }> | null;
+    continuation: ContinuationBasis | null;
+}>;
+export type FixedRequestRecordRejection = Readonly<{
+    field: string;
+    reason: 'unsupported-format';
+}>;
+export declare function forecastOf(report: M.RequestBudget): FixedRequestRecord['forecast'];
+export declare function encodeFixedRequestRecord(value: FixedRequestRecord): JsonValue;
+export declare function decodeFixedRequestRecord(value: unknown): Outcome<FixedRequestRecord, FixedRequestRecordRejection>;
+```
+
 ## 声明文件 `history-read.d.ts`
 
 ```ts
@@ -659,6 +693,8 @@ export type { ContributionRejection, ContributionResult, ContributionsResult, Pr
 export type { RequestPurpose, AssemblyCall, InputGroups, GroupName, HistoryUpper, HistoryCursor, TenantModelCall, SourcedMessage, ContinuationBasis, AdoptedRequestFact, CompactionBasis, HistoryEvidence, NewInputBatch, BlockMaterial, SnapshotMaterial, ContextReadGroup, AssemblyContext, PromptContributionBase, PromptSection, PromptVariable, PromptContribution, PromptContributionSet, SelectedModel, ToolAdoption, ConditionsEvidence, AlterationEvidence, PreviousPreparation, TransitionEvidence, Layer, PrefixBreakReason, LayerAnchor, SnapshotAnchor, Coverage, BudgetBreach, FitVerdict, RepresentationChoice, SnapshotReminder, TailFacts, RequestLayers, RequestCandidate, CompactionPlan, PlanProgress, SummaryMaterial, StepRequest, StepInput, ContextTransition, AssemblyFailure, InvalidReason, UnavailableOwner, AssemblyUnknown, AssemblyOutcome, AssemblyResult, PlanResult, StepResult, } from './values.js';
 export { LAYER_ORDER, PREFIX_BREAK_REASONS } from './values.js';
 export type { DeriveInput } from './values.js';
+export type { FixedRequestRecord, FixedRequestRecordRejection } from './fixed-request.js';
+export { encodeFixedRequestRecord, decodeFixedRequestRecord, forecastOf, } from './fixed-request.js';
 ```
 
 ## 声明文件 `input-read.d.ts`

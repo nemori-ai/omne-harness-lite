@@ -11,7 +11,15 @@
 // What changed is told by identity: the Journal core replaces a record it changes (its draft copy)
 // and never changes a published one in place. The parts of the writing execution are written on
 // every publication of that execution in any case.
+//
+// One more part is not a list of members: `a` holds the request that the last main-purpose M0 of
+// the session recorded (`AdoptedPart`, FIXED-FACTS F4). The publication of that M0 writes it, and
+// only the next one replaces it. Its `record` is the opaque state of the preparing side; nothing
+// here decodes it.
+import type { AgentCheckpoint } from '@omne-harness/agent-contract'
+import type { Adoption, DurableEvidence } from '@omne-harness/exchange-refs'
 import type { JsonValue } from '@omne-harness/sql-contract'
+import { canonical } from '../testing/canonical.ts'
 import { emptyReceivingState } from '../testing/journal-receiving.ts'
 import {
   decodeState,
@@ -26,6 +34,124 @@ export const SESSION_PART = 's'
 export const recordsPart = (execution: string): string => `x:${execution}`
 /** The part of the operation records of one execution. */
 export const operationsPart = (execution: string): string => `o:${execution}`
+/** The part of the request that the last main-purpose M0 of the session recorded. */
+export const ADOPTED_PART = 'a'
+
+/**
+ * The request that the last main-purpose M0 of the session recorded, with its adoption order.
+ * `order` is canonical decimal text from `1`, one more for each request written; it is not an
+ * execution revision and not the publication count. `coverage` is the `adoptedContext` of the same
+ * checkpoint. `reference`, `fixed`, `schema` and `record` are the checkpoint's `adoptedRequest`,
+ * kept as given.
+ */
+export type AdoptedPart = Readonly<{
+  order: string
+  execution: string
+  reference: string
+  fixed: DurableEvidence
+  coverage: DurableEvidence | null
+  schema: Adoption
+  record: JsonValue
+}>
+
+type AdoptedRequest = NonNullable<AgentCheckpoint['adoptedRequest']>
+
+const ORDER = /^[1-9][0-9]*$/
+const EVIDENCE_KEYS = ['owner', 'record', 'revision', 'digest']
+const ADOPTION_KEYS = ['owner', 'name', 'revision', 'digest']
+const isText = (value: unknown): value is string => typeof value === 'string'
+const isObject = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/** An object with exactly `names` as members, each one text. */
+function texts(value: unknown, names: readonly string[]): boolean {
+  return (
+    isObject(value) &&
+    Object.keys(value).length === names.length &&
+    names.every(name => isText(value[name]))
+  )
+}
+
+/** Each member of the stored `a` part, and what its value must be. */
+const ADOPTED_MEMBERS: Readonly<Record<keyof AdoptedPart, (value: unknown) => boolean>> = {
+  order: value => isText(value) && ORDER.test(value),
+  execution: isText,
+  reference: isText,
+  fixed: value => texts(value, EVIDENCE_KEYS),
+  coverage: value => value === null || texts(value, EVIDENCE_KEYS),
+  schema: value => texts(value, ADOPTION_KEYS),
+  record: value => value !== undefined,
+}
+
+/** The stored form of the `a` part: plain JSON, without the marks of `journal-state.ts`. */
+export function encodeAdopted(adopted: AdoptedPart): JsonValue {
+  return {
+    order: adopted.order,
+    execution: adopted.execution,
+    reference: adopted.reference,
+    fixed: { ...adopted.fixed },
+    coverage: adopted.coverage === null ? null : { ...adopted.coverage },
+    schema: { ...adopted.schema },
+    record: adopted.record,
+  }
+}
+
+/** The `a` part as stored. It throws a TypeError on a part that this provider did not write. */
+export function decodeAdopted(state: JsonValue): AdoptedPart {
+  if (!isObject(state)) throw new TypeError('the adopted part is not an object')
+  const names = Object.keys(ADOPTED_MEMBERS) as (keyof AdoptedPart)[]
+  if (Object.keys(state).length !== names.length)
+    throw new TypeError('the adopted part does not hold its members')
+  for (const name of names)
+    if (!Object.hasOwn(state, name) || !ADOPTED_MEMBERS[name](state[name]))
+      throw new TypeError(`the adopted ${name} is malformed`)
+  const value = state as unknown as AdoptedPart
+  return {
+    order: value.order,
+    execution: value.execution,
+    reference: value.reference,
+    fixed: value.fixed,
+    coverage: value.coverage,
+    schema: value.schema,
+    record: value.record,
+  }
+}
+
+/** What tells one recorded request from another: its invocation and its fixed basis. */
+const requestKey = (request: AdoptedRequest): string =>
+  canonical([request.reference, request.fixed])
+
+/**
+ * The `a` part that one publication writes, or null when it writes none. It writes one when the
+ * checkpoint of an execution holds an `adoptedRequest` that its stored checkpoint did not hold: a
+ * new main-purpose M0. A publication that leaves every `adoptedRequest` as stored writes none, also
+ * when `current` is the request of another execution. The order is one more than that of
+ * `current`.
+ */
+export function planAdopted(
+  current: AdoptedPart | null,
+  stored: DurableJournalState,
+  next: DurableJournalState,
+): AdoptedPart | null {
+  let adopted: AdoptedPart | null = null
+  for (const [key, execution] of next.executions) {
+    const request = execution.checkpoint.adoptedRequest
+    if (request === null || request === undefined) continue
+    const prior = stored.executions.get(key)?.checkpoint.adoptedRequest
+    if (prior !== null && prior !== undefined && requestKey(prior) === requestKey(request)) continue
+    const last: AdoptedPart | null = adopted ?? current
+    adopted = {
+      order: (BigInt(last?.order ?? '0') + 1n).toString(),
+      execution: execution.id,
+      reference: request.reference,
+      fixed: request.fixed,
+      coverage: execution.checkpoint.adoptedContext ?? null,
+      schema: request.schema,
+      record: request.record,
+    }
+  }
+  return adopted
+}
 
 type Entries = ReadonlyMap<unknown, unknown>
 
@@ -263,6 +389,8 @@ export type RebuiltParts = Readonly<{
   state: DurableJournalState
   empty: boolean
   layout: PartLayout
+  /** The request of the `a` part; null when the session has none. */
+  adopted: AdoptedPart | null
 }>
 
 type Entry = Readonly<{ name: string; part: string; order: number; key: unknown; value: unknown }>
@@ -293,8 +421,24 @@ function decodeParts(parts: readonly Readonly<{ part: string; state: JsonValue }
   return entries
 }
 
+/** The decoded `a` part among stored parts; null when they do not hold it or drop it. */
+function adoptedAmong(
+  parts: readonly Readonly<{ part: string; state: JsonValue | null }>[],
+): AdoptedPart | null {
+  const found = parts.find(item => item.part === ADOPTED_PART)
+  return found === undefined || found.state === null ? null : decodeAdopted(found.state)
+}
+
+/** The parts that are lists of members: every part but `a`. */
+const memberParts = <T extends Readonly<{ part: string }>>(parts: readonly T[]): T[] =>
+  parts.filter(item => item.part !== ADOPTED_PART)
+
 /** The state and the layout of a set of entries, each map in the order of its entries' orders. */
-function assemble(entries: readonly Entry[], empty: boolean): RebuiltParts {
+function assemble(
+  entries: readonly Entry[],
+  empty: boolean,
+  adopted: AdoptedPart | null,
+): RebuiltParts {
   const layout = emptyLayout()
   const gathered = new Map<string, Entry[]>()
   for (const entry of entries) {
@@ -336,7 +480,7 @@ function assemble(entries: readonly Entry[], empty: boolean): RebuiltParts {
     indexedEvents: mapOf('indexedEvents'),
     notes,
   } as unknown as DurableJournalState
-  return { state, empty, layout }
+  return { state, empty, layout, adopted }
 }
 
 /**
@@ -346,7 +490,7 @@ function assemble(entries: readonly Entry[], empty: boolean): RebuiltParts {
 export function rebuildParts(
   parts: readonly Readonly<{ part: string; state: JsonValue }>[],
 ): RebuiltParts {
-  return assemble(decodeParts(parts), parts.length === 0)
+  return assemble(decodeParts(memberParts(parts)), parts.length === 0, adoptedAmong(parts))
 }
 
 /**
@@ -355,9 +499,12 @@ export function rebuildParts(
  * as `rebuildParts` throws.
  */
 export function mergeParts(
-  base: Readonly<{ state: DurableJournalState; layout: PartLayout }>,
+  base: Readonly<{ state: DurableJournalState; layout: PartLayout; adopted: AdoptedPart | null }>,
   changed: readonly Readonly<{ part: string; state: JsonValue | null }>[],
 ): RebuiltParts {
+  const adopted = changed.some(item => item.part === ADOPTED_PART)
+    ? adoptedAmong(changed)
+    : base.adopted
   const names = new Set(changed.map(item => item.part))
   const members = new Map(MEMBERS.map(member => [member.name, member.read(base.state)]))
   const kept: Entry[] = []
@@ -372,9 +519,9 @@ export function mergeParts(
       value: members.get(name)?.get(place.key),
     })
   }
-  const written = changed.filter(
+  const written = memberParts(changed).filter(
     (item): item is Readonly<{ part: string; state: JsonValue }> => item.state !== null,
   )
   const entries = [...kept, ...decodeParts(written)]
-  return assemble(entries, entries.length === 0)
+  return assemble(entries, entries.length === 0, adopted)
 }

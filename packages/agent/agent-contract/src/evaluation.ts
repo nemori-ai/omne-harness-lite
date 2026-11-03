@@ -258,6 +258,16 @@ export type GuardFact = Readonly<{
   passage: PassageId
   at: AgentInstant
 }>
+/**
+ * The final request of the last main-purpose M0: its invocation, the fixed basis of the ready
+ * preparation, and the preparing side's opaque state with the schema it names.
+ */
+export type AdoptedRequest = Readonly<{
+  reference: M.ModelInvocationRef
+  fixed: DurableEvidence
+  schema: Adoption
+  record: JsonValue
+}>
 export type AgentCheckpoint = Readonly<{
   schema: Adoption
   definition: Adoption
@@ -270,6 +280,12 @@ export type AgentCheckpoint = Readonly<{
   requestPreparation: Preparation | null
   compaction: CompactionState | null
   adoptedContext: DurableEvidence | null
+  /**
+   * The request the last main-purpose M0 recorded: written only by that commit and replaced only
+   * by the next one; null in a new execution. `record` is the `state` of the ready preparation,
+   * kept as given and never read by the Agent. Optional until Reduce makes it required (R2-D18).
+   */
+  adoptedRequest?: AdoptedRequest | null
   guard: GuardFact | null
   completedPassages: readonly PassageId[]
   priorConditions: DurableEvidence | null

@@ -23,7 +23,7 @@
 | AD-03 事实插件（名 `session-ad03-facts`） | `session: { caller: 'coordinator' }`（经 `readWork` 读快照） | `sessionReplayFacts`、`sessionScopeLookup` | 无；不依赖 `runtimeContext` |
 | AD-03 事实插件的历史子插件（名 `session-ad03-facts-history`） | `session: { caller: 'reader' }`（读上下文记录） | 无 | 无；不在时事实插件的记录读取答 `unavailable` |
 | AD-03 变化提醒子插件 | `runtimeContext: { consumer: 'model' }` | 无 | 模型类绑定读者 |
-| AD-04 历史源 | 两个子插件：历史源子插件 `session: { caller: 'reader' }`；下界子插件 `session: { caller: 'coordinator' }`；RQ 来源登记服务 | 无 | 仅在完整 ContextSources 及当前资格可兑现时整组 register/replace；撤除等待在途与租约结清 |
+| AD-04 历史源 | 两个子插件：历史源子插件 `session: { caller: 'reader' }`；下界子插件 `session: { caller: 'coordinator' }`；RQ 来源登记服务。窄采用来源按调用取受信 `sessionAdoptedRequests`，不进 `inject`，缺席时答 `unavailable` | 无 | 仅在完整 ContextSources 及当前资格可兑现时整组 register/replace；撤除等待在途与租约结清 |
 | AD-05 Model 日志消费适配（`createSessionModelLogConsumptionPlugin`，名 `session-ad05`） | `session: { caller: 'coordinator' }`、`agentJournal`、`agentMaterials`、`sessionTransactions`。不注入 `modelRuntime`（[AD-05](../SPEC.md#ad-05)） | 无 | 订阅 `session-adapters/agent-published`，按会话排队调用 `consume`。经本成员 Journal 提供者读 `received` 条目与材料 |
 | AD-06 Tool 日志消费适配 | `session: { caller: 'coordinator' }`；同一 AgentJournal 与 AgentMaterials 提供者 | 无 | 只读原 entries/results 与材料，不注入 Tool；完整收场材料不可读则 unavailable，保留任务 |
 | AD-08 受理拓展点 | `session: { caller: 'intake' }` | 无 | 不登记，待 NP-07 |
@@ -37,7 +37,7 @@
 | J06 消息准入（`createSessionMessageHandoffPlugin`，名 `session-handoff`） | `storage`、受信 `tenantDomainLookup`、`agentAccessCheck`、`session: { caller: 'coordinator' }` | `agentMessageHandoff` | 继承 Agent 定义；配置为 `combinationVersion`、`manifestDigest`。准入记录存在 `execution-record` 的 `er_preadmission`，先意图后结果；不在准入中写消息。`exclude` 答 `unsupported`（[J06](../SPEC.md#j06-消息准入的生产插件)） |
 | J06 当前条件（`createSessionConditionsPlugin`，名 `session-conditions`） | `storage`、受信 `tenantDomainLookup`、`session: { caller: 'coordinator' }`（访问只经 Session 面核）；子插件 `session-conditions-selection` 以 `session: { caller: 'maintainer' }` 读保存的模型选择（一个插件只用一个调用方类）；构造时交入 `defaultModes` 解析器 | `agentConditions` | 继承 Agent 定义；没有配置。以原 Authority 经执行索引定位会话，Run 持有 execution 且 attempt 为当前才读；缺来源答 `unavailable`，不补默认条件（[J06](../SPEC.md#j06-当前条件的生产插件)） |
 | 实时显示 | 同一日志的调用关联、公共 StreamObserver | 无 | 只观察 snapshot/delta/gap/ended，不控制、不保管、不确认解除；生产插件未交付 |
-| Agent Journal 提供者（`SessionLogAgentJournalProvider` 或 `createSessionAgentJournalPlugin`） | `sessionAccessCheck`、`storage`、受信 `tenantDomainLookup`；与 Session 共用会话日志的提交状态 | `agentJournal`（`extends AgentJournalService`）；同一提供者兑现 `agentJournalEntries` 与 `agentMaterials` | 服务提供；每次写成功之后发 `session-adapters/agent-published`。非耐久替身是 `./testing` 的 `createMemorySessionJournal`（[SPEC](../SPEC.md#agent-journal-提供者与非耐久替身)） |
+| Agent Journal 提供者（`SessionLogAgentJournalProvider` 或 `createSessionAgentJournalPlugin`） | `sessionAccessCheck`、`storage`、受信 `tenantDomainLookup`；与 Session 共用会话日志的提交状态 | `agentJournal`（`extends AgentJournalService`）；同一提供者兑现 `agentJournalEntries`、`agentMaterials` 与 session-cordis-contract 的 `sessionAdoptedRequests`（会话分区 `a` 的窄读） | 服务提供；每次写成功之后发 `session-adapters/agent-published`。非耐久替身是 `./testing` 的 `createMemorySessionJournal`（[SPEC](../SPEC.md#agent-journal-提供者与非耐久替身)） |
 
 说明：
 

@@ -392,9 +392,9 @@ CM-02 的来源完整性由本插件及其 Session 历史提供者负责：
 
 - 来源适配者以显式 `(tenant, scope)`、owner 与当前来源代次调用 `ContextSourceRegistry.register`，一组发布 groups、adopted、history、conversions、eligibility、preparation。七组中 identity 仍由 RQ 按调用访问身份取值，其余组按公开 `ContextGroupSources` 提供。AD-04 不单独注册半套 history。
 - replace 使用原 RegistrationRef。旧 withdraw 不能删除后继，旧代在途不能发布新结果。withdraw.settled 等待该代实际操作与 Model 租约交还。应用装配负责来源关闭；独立窄 adopted/accounting 读取与 registry 借用分别收口，不能用一边 settled 推定另一边结束。
-- `AdoptedRequestSource.readCount/readSource` 只读已有固定请求权威事实，输入是普通 Access/target。不回调 RC、assemble 或 usage，不制造执行修订为会话采用顺序。合法 adopted=null 与 usage 的非法 value:null 分开。not-fixed、unmeasured、actual、estimate 保持 RQ-14 原状态，required:true 不变。
+- `AdoptedRequestSource.readCount/readSource` 只读已有固定请求权威事实，输入是普通 Access/target。权威事实是会话日志 Journal 提供者的分区 `a`（[分区存储](#分区存储)），它与主用途 M0 同一次提交写入。不回调 RC、assemble 或 usage，不制造执行修订为会话采用顺序：`order` 取 `a` 自带的采用计数。合法 adopted=null 与 usage 的非法 value:null 分开。not-fixed、unmeasured、actual、estimate 保持 RQ-14 原状态，required:true 不变。
 - 原账目从 Agent Journal 经 Agent 的 AccountOutlet 交给 Context，不由 Session 转发，不更换其幂等键。系统重建授权、checkFact 与后续追赶归对应来源拥有者，普通 Access 不替代系统授权。
-- 来源齐备与 current 接线是生产提供者的验证义务。NP-02 只保留缺少真实来源材料与生产接线的状态，不再声称 RQ 没有登记入口。
+- 来源齐备与 current 接线是生产提供者的验证义务。NP-02 只保留缺少真实来源材料与生产接线的状态，不再声称 RQ 没有登记入口。窄采用来源的材料已由分区 `a` 交付，发行装配的接线（F6）仍待完成。
 
 前缀摘要缓存只缓存已核权页，键含 tenant/session/epoch/seq；命中不代替每页核权。人侧视图调用 RQ 纯操作 `projectForHuman`，不写回。
 
@@ -417,20 +417,20 @@ CM-02 的来源完整性由本插件及其 Session 历史提供者负责：
 | `history.read` | 由索引找到目标作用域的会话。索引里没有时答 `unavailable`，不调用 Session。依据译为 `ModelViewBasis`，返回行的 seq 按上面的行号换算。续读用 Session 签发的游标，代价与界限见 K-18：源子插件按会话与 epoch 在进程内记住每个签发游标所在的行和见过的每行字节数，每次从 after 之前最近的已记游标开始读，跳过 after 及之前的行，交回的行不超过 `budgetBytes`（至少一行）。到达上界的页不带游标，所以这样一页之后再读一次上界前一行之前的行，取得上界前一行的游标；下一轮从那里开始，只多读一行。没有可用的游标时（冷启动的源子插件、另一个 epoch、Session 拒收记住的游标，或已记的游标被上限淘汰）从 epoch 开头读，跳过已有的行。一次读取内用本次读取里 Session 返回的 `next` 游标翻页前进，不靠游标表里还剩哪些记录，所以表满时从开头读也一定前进到 after，每页最多 200 行（存储的页限制），Session 调用数约等于行数除以 200；游标表满 16 个时丢掉行号最低的游标，刚签发的那个不丢；Session 拒收记住的游标时丢掉该会话的全部记录，再读一次。游标必须绑定同一依据，否则答 `invalid`。行的 `bytes` 转为十进制文本；没有行带 `sourceCall`，因为模型视图不带原 Model 调用。`epoch-changed` 带当前完整依据。Session 的失败不成为空页 |
 | `history.compactionContext` | 先读上界所在的行，再以 `reader` 前向读完整个会话日志，以 `coordinator` 读 `readWork`。窗口与未结工作下界用本成员 `./testing` 会话的同一个窗口函数（`compactionReads`，含 `openWork`）求得，然后截到上界所在的条目。`coverTo` 不在上界之内时答 `invalid`。最后再读一次上界所在的行，epoch 已变时答 `epoch-changed` |
 | `eligibility.check` | 由索引找到会话，以本次 Access 做一次 `readModelView` 读取。Session 允许时答 `allowed`，`denied` 原样交出，其余失败答 `unavailable`。`revision` 只随历史源子插件的代次变化 |
-| `adopted` | 先做与 `eligibility.check` 相同的核验。装配交入固定请求事实时转交给它；没有交入时答 `unavailable`（诊断 `adopted-facts-absent`），不答 `null` |
+| `adopted` | 先做与 `eligibility.check` 相同的核验。然后按调用取 `sessionAdoptedRequests`（session-cordis-contract，会话日志 Journal 提供者在 `agentJournal` 的同一插件体里提供），以本次 Access 与索引里目标作用域的会话调用 `readAdoptedRequest`。服务缺席时答 `unavailable`（诊断 `adopted-requests-absent`）。提供者的 `denied` 原样交出，`unavailable` 与抛错答 `unavailable`，不答 `null`。提供者答 `null`（本会话还没有主用途 M0）时答 `null`。有记录时用 request-context-contract 的 `decodeFixedRequestRecord` 解码 `record`，不能解码答 `invalid`（`adopted`、`unsupported-format`）。记录的租户不等于 Access 的租户时答 `denied`。记录的作用域不等于目标作用域时答 `null`：上一次主用途 M0 固定的是更早作用域的请求，目标作用域还没有固定过。`a.coverage` 缺席，或记录里覆盖的摘要（规范文本的 SHA-256，base64url，与 agent-context 铸证据的算法相同）不等于 `a.coverage.digest` 时，答 `invalid`（`adopted`、`source-evidence-conflict`）。`reference` 经 model-contract 的 `resolveModelInvocationRef` 按目标租户解不开时答同一个 `invalid`。都通过时交出 `AdoptedRequestFact`：`coverage`、`candidate`、`windowTokens`、`forecast`、`continuation` 取自记录，`target` 是本次目标，`call` 是解出的调用，`order` 是 `a.order`，`committed` 是 `a.fixed`，`accounting` 恒为 `unsettled`（账目依据在波 3 的 F7）。`readCount` 读同一事实：有事实时令牌由历史源子插件的代次、`order` 与 `committed.digest` 组成，没有时由代次、`none` 与目标作用域组成，只在新的主用途 M0 落地时变化 |
 
 epoch 的翻译：Session 的 epoch 文本可能含控制字符（本成员内存会话的 epoch 就含一个），`EpochId` 不接受它们。本插件把控制字符、空格、DEL 与 `%` 写成 `%xx`，反向时还原，所以翻译可逆。
 
 已知缺口：
 
 - 历史依据到会话的解码由装配交入（`heads`）。现在的 Journal 核心铸造的 `history` 依据只带会话命名空间与执行修订。解码的真实提供者没有交付。
-- 窄采用来源的固定请求事实由装配交入（`adopted`）。会话日志没有固定请求的条目，真实来源没有交付。这是 [NP-02](#np-02) 的一部分。
+- 窄采用来源的 `accounting` 恒为 `unsettled`，所以 RQ-14 的 `usage` 最多到 `estimate`。`unique` 要从结果接收条目的账目关联，放在波 3 的 F7。`continuation` 也在 F7 填写。本改动之前写入的会话没有分区 `a`，读作 `null`。
 - 作用域到会话的索引只由 `resolveHistory` 建立，在进程内保存，有上界。进程重启之后，同一作用域在下一次解析之前答 `unavailable`。
 - 压缩窗口每次前向读完整个会话日志，不按游标增量读取。它用的窗口函数在 `src/testing/`，与 K-10 同理。上一次合法压缩之后的窗口（`base` 为 `previous`）没有用例，因为内存会话的压缩提交要经 Agent 参加。
 - 前缀摘要缓存没有实现，每页都读 Session。
 - 历史源子插件以 `reader` 调用 Session，主体是本次 Access 转交来的会话协调者主体（[#978 答复](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6562982342) Q-3）。`forSession` 的 actor 只有 `coordinator` 与 `maintainer`，所以主体的 actor 不等于调用方类 `reader`。Session 的调用方类核对只比插件配置，不比 actor，所以放行不受影响。
 
-验证：[tests/history-source.spec.ts](tests/history-source.spec.ts) 在真实 Cordis 4.0.4 上运行。Session 是本成员 `./testing` 的内存会话，经脚本 Session 服务接入；历史依据解码是脚本替身。`contextHolderSourcesConformance` 的十一个用例通过。SS-21 用例里读者持有上一次读取的游标，对 N = 10 与 N = 100 行比较游标之后的 Session 调用数（两次）与读到的行数。内存会话按行号续读，看不出游标是否不透明，所以 [tests/history-source-cursor.spec.ts](tests/history-source-cursor.spec.ts) 用 session-storage-sql 的 Session 端口（node:sqlite 替身，运行发布的模块，游标经签名）验证：跨页读只交出 Session 签发的游标；连续三轮每轮新增两行，每轮读到的行数在 4 行与 40 行的历史上相同，不超过 5 行；冷启动的源子插件、被拒收的游标与另一个 epoch 都从开头读，答出的行正确；420 行的历史先记满 16 个以上高位游标，再从开头读，答出全部行，Session 调用数不超过行数除以 200 取整加 3（上限淘汰后的回退）。SS-21 用例把读到上界后的两次 Session 调用（一页续读、一次补取游标）写成具名常量，两档历史都断言等于它，并带一条从头读的负控（调用数随历史增长时同一断言变红）。变异：恢复上限淘汰的原次序（刚签发的游标可被丢）或换回上一版的 `history-source.ts` 时，游标表满的用例变红；每次都不记游标时读取量与 SS-21 用例变红；把行号当游标交出时跨页与多轮用例变红；游标记录不按 epoch 分开时 epoch 用例变红。没有对真实 sqlite-provider、真实 agent-context 或真实 Request Context 运行。
+验证：[tests/history-source.spec.ts](tests/history-source.spec.ts) 在真实 Cordis 4.0.4 上运行。Session 是本成员 `./testing` 的内存会话，经脚本 Session 服务接入；历史依据解码是脚本替身。`contextHolderSourcesConformance` 的十一个用例通过，窄采用来源是真实实现，读的是脚本化的 `sessionAdoptedRequests`。窄采用来源另有八个用例（FIXED-FACTS F5）：没有主用途 M0 时答 `null`，一次之后 `AdoptedRequestFact` 的十个字段逐项等于映射；令牌只在新的 M0 时变化；两个 execution 的 M0 依次答 `order` 1 与 2；记录的租户不符答 `denied`，作用域是更早作用域时答 `null`；提供者答 `unavailable`、`denied` 或抛错时分别答 `unavailable`、`denied`、`unavailable`，不答 `null`；服务缺席答 `unavailable`；记录的覆盖被改过或 `a.coverage` 缺席时答 `source-evidence-conflict`，记录不能解码时答 `unsupported-format`；RQ-14 组合用真实的 `createContextAccounting`（request-context 只作开发依赖），目标经空重放重建，`usage` 在首次 M0 之前为 `not-fixed`，之后为 `estimate`，`usedTokens` 与 `windowTokens` 取自记录。变异：把提供者的 `unavailable` 改成 `null`、`order` 改取 `fixed.revision`、去掉覆盖摘要核对、令牌不随事实变化、不比较作用域，各自让对应用例变红。SS-21 用例里读者持有上一次读取的游标，对 N = 10 与 N = 100 行比较游标之后的 Session 调用数（两次）与读到的行数。内存会话按行号续读，看不出游标是否不透明，所以 [tests/history-source-cursor.spec.ts](tests/history-source-cursor.spec.ts) 用 session-storage-sql 的 Session 端口（node:sqlite 替身，运行发布的模块，游标经签名）验证：跨页读只交出 Session 签发的游标；连续三轮每轮新增两行，每轮读到的行数在 4 行与 40 行的历史上相同，不超过 5 行；冷启动的源子插件、被拒收的游标与另一个 epoch 都从开头读，答出的行正确；420 行的历史先记满 16 个以上高位游标，再从开头读，答出全部行，Session 调用数不超过行数除以 200 取整加 3（上限淘汰后的回退）。SS-21 用例把读到上界后的两次 Session 调用（一页续读、一次补取游标）写成具名常量，两档历史都断言等于它，并带一条从头读的负控（调用数随历史增长时同一断言变红）。变异：恢复上限淘汰的原次序（刚签发的游标可被丢）或换回上一版的 `history-source.ts` 时，游标表满的用例变红；每次都不记游标时读取量与 SS-21 用例变红；把行号当游标交出时跨页与多轮用例变红；游标记录不按 epoch 分开时 epoch 用例变红。没有对真实 sqlite-provider、真实 agent-context 或真实 Request Context 运行。
 
 <a id="ad-05"></a>
 
@@ -836,7 +836,7 @@ Session 契约的 [P-1 至 P-8](../session-contract/SPEC.md#具名前提与明�
 
 | 编号 | 缺什么 | 拥有者 | 之前 |
 | --- | --- | --- | --- |
-| <a id="np-02"></a>NP-02 | RQ 已有 ContextSourceRegistry；会话的完整原历史、转换、采用来源与 current 生产接线尚未交付 | Session 历史提供者、各来源拥有者与应用装配 | AD-04 仅在整组来源及资格可兑现时登记；缺必要材料返回 unavailable，不发布半套来源 |
+| <a id="np-02"></a>NP-02 | RQ 已有 ContextSourceRegistry；窄采用来源的材料已由会话日志 Journal 提供者的分区 `a` 交付（FIXED-FACTS F4、F5），会话的完整原历史、转换与 current 生产接线尚未交付，`sessionAdoptedRequests` 的发行接线归 F6 | Session 历史提供者、各来源拥有者与应用装配 | AD-04 仅在整组来源及资格可兑现时登记；缺必要材料返回 unavailable，不发布半套来源 |
 | <a id="np-03"></a>NP-03 | 无句柄时 input.submit 的取得路径；长期 control 已由 J07 定义 | Agent 拥有者 | submit 缺句柄时 unavailable；control 走 agentExecutionControl，不受该缺口阻断 |
 | <a id="np-04"></a>NP-04 | 合格保管方记录迟到结果的公开入口。`reconcile` 的输入只有操作身份，不带结果、交接与释放；`recordResult` 是执行记录端口，只在 Agent 已核验的操作内调用 | Agent 拥有者 | `recordResult` 返回 `unavailable`，任务保留。Agent 记录已删除时，Session 照契约单方保管 |
 | <a id="np-05"></a>NP-05 | `load` 不区分记录不存在与读取失败 | Agent 拥有者 | 本成员不产生 `missing` |
@@ -932,6 +932,7 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 - 查不到：没有 Run 开过的 execution 与另一租户的 execution 得到同一个答复 `denied`，`action` 是操作名（`output.read` 为 `read`，`output.events` 为 `events`），与核心对不持有的执行的答复相同（Agent SPEC「判定次序与失败映射」第 1 条）。两种情形都不写存储。
 - 读不到：租户没有事务域或查找失败、索引读取失败、输出损坏，都答 `unavailable`，`owner` 为 `session-log-journal`。读取失败不当作不存在。
 - 三个键：同一插件体在同一个会话日志 Journal 上再构造 `agentJournalEntries` 与 `agentMaterials` 两个服务实例，三者在同一权威排序域。entries 与 Journal 一样按 `(tenant, execution)` 路由；`materials.read` 按材料来源所记的会话路由；`materials.preserve` 恒答 `unavailable`（见[已知限制](#已知限制)第 6 条）。
+- 采用请求的读口：同一插件体还提供 session-cordis-contract 的 `sessionAdoptedRequests`（FIXED-FACTS F4）。`readAdoptedRequest({ access, session })` 按会话读，不经执行路由。租户不是 legal-identity 铸造的时答 `denied`。然后以 `history.readModelView` 与该会话为目标调用一次 `sessionAccessCheck`：`denied` 原样交出，`unavailable` 或检查抛错答 `unavailable`，都不读存储。允许时按[分区存储](#分区存储)的「读采用请求」读 `a`。存储按租户分开，另一个租户读不到本会话的 `a`。停止后，停止前取得的引用答 `unavailable`。
 - 治理安装（R2-D35、R2-D16）：插件工厂 `createSessionAgentJournalPlugin({ cancellation })`（`./cordis`，同 `createSessionAgentDrivePlugin` 的先例）返回继承 `SessionLogAgentJournalProvider` 的插件类，`inject`、配置与提供的三个键不变。`cancellation` 是装配入口交入的不可变安装（记录加判断实现），不进配置，也不是插件树上的键；插件创建每个会话 Journal 时原样转交，judge 每次判断调用一次。不传 `cancellation`（或不用工厂、直接装载 `SessionLogAgentJournalProvider`）时，取消终结答 `unavailable`。该安装同时是可选读口 `readCancellationInstallation`（R2-D35）的来源：session-log Journal 与按执行路由的 Journal、`forSession` 视图都实现它，按 `(tenant, execution)` 路由并核对与 `load` 相同的读取资格，返回交入安装的 `record`（`DurableEvidence`），不改变执行状态；没有交入安装时答 `unavailable`。
 - 不在插件里：`hostRecords` 运行时选项（见[已知限制](#已知限制)第 6 条）；`cancellation` 只经上一条的工厂交入。
 
@@ -971,6 +972,7 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 - `session-log-journal-real.spec.ts`（真实 sqlite-provider）：首次共同发布、只读核对冲突回滚、清单摘要不符时失败关闭、解释提交与首次发布分开。
 - `session-log-journal-replay.spec.ts`：AG-23 的轨迹回放（agent-contract `./testing` 的 `agentJournalReplayConformance`）对生产提供者逐步通过，分两种：保留副本，与每次调用都从存储重建副本。
 - `agent-journal-provider.spec.ts`：真实 Cordis 4.0.4 上装载与停止、三个依赖逐个缺席时停在 `PENDING`、配置不合法时 `FAILED`；停止后旧引用答 `unavailable`；两个会话各有执行时互不串；索引每个 execution 读一次，新实例从存储重建，超过缓存上限仍路由正确；未开 Run 的 execution 与另一租户的 execution 同答 `denied` 且不提交；索引读不到与未登记租户答 `unavailable`。agent-contract `./testing` 的 `agentJournalCoreConformance` 对 node:sqlite 替身运行两遍：一遍经插件，一遍不经插件直接用 `forSession`（同一份夹具，只换取得 Journal 的方式，所以插件路由的错与提供者的错可以分开）。54 个可驱动的用例中 53 个通过，两遍都是；剩下 1 个是提供者缺口（K-16：结果的保管转移被 Session 拒绝），用例按断言本身固定它：失败信息以 `recordResult` 开头，实际值与期望值是推进计数 `[0,0]` 与 `[1,0]`，其他失败或通过都是红。其余用例需要取消政策安装、宿主记录、资格脚本、旧候选或回复准入控制，生产插件没有这些接缝，记为未覆盖。慢层用例在真实 sqlite-provider 上核对两个会话的路由与另一租户的 `denied`。
+- `journal-adopted-part.spec.ts`（node:sqlite 替身）：在 `x:` 分区写入之后、`a` 写入时注入失败，`x:` 与 `a` 都不可见，同一 M0 随后两者都写；没有改动 `adoptedRequest` 的两次发布不写 `a`（按 `a` 行的发布计数断言）；两个 execution 各一次 M0，`order` 为 `1`、`2`，两次 M0 时的执行修订是 4 与 3；新建的提供者读到的 `a` 与写入方相同，它的下一次 M0 取 `order` 2；两实例竞争时输方的提交被回滚（K-20），重读后读到赢方的 `a`，它的下一次 M0 取 `order` 2，两方读到的相同；200 轮 M0 中 `a` 的字节数最多相差 2（`order` 从一位到三位），每轮写的分区行数相同。`journal-parts.spec.ts` 另核对：另一个 execution 再次发布、请求不变时不写 `a`，重建与合并带上 `a`，畸形的 `a` 不重建。`agent-journal-provider.spec.ts` 核对插件提供 `sessionAdoptedRequests`：M0 之前答 `null`，之后答已存请求，每次以 `history.readModelView` 核对访问；拒绝、未定与抛错的检查不读存储；停止后旧引用答 `unavailable`。变异（交付报告列出）：`a` 不进同一提交、不比已存 checkpoint、`order` 改用执行修订、重建丢掉 `a`、提交后副本不换 `a`、`a` 累积旧请求，各自让对应用例变红。
 - `session-log-journal-complexity.spec.ts`：保留副本时，在进度标记之后读一页的存储读次数与返回事件数在 N = 10 与 N = 100 时相同；从头读全部的负控随 N 增长。
 
 ### 分区存储
@@ -982,11 +984,14 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 | `x:<execution>` | 该 execution 的记录：执行、授权尝试、事件回执与原片段、调用来源、人工材料、索引进度、解释注记，以及结果接收里指明该 execution 的记录 |
 | `o:<execution>` | 该 execution 的操作记录 |
 | `s` | 不指明 execution、也不是由某个 execution 的写入新建的记录 |
+| `a` | 会话最后一次主用途 M0 记下的请求（FIXED-FACTS F4）：`order`、`execution`、`reference`、`fixed`、`coverage`、`schema` 与 `record`。它不是成员列表，见下面「采用请求」一条 |
 
 - 归属：一条记录按它自己指明的 execution 归入分区（执行按 `id`，操作按键里的 execution，事件类按键的前缀，解释注记按键里的 execution，结果接收按值里的 `execution`）。不指明 execution 的新记录归入新建它的那次写入的 execution；写入不带 execution 时归入 `s`。记录归入一个分区后不再换分区。
 - 写入：一次发布写出记录变了、新增或删除的分区，另外总是写出写入方 execution 的两个分区。是否变了按对象身份判断：Journal 核心改一条记录时换成新对象（草稿副本），不原地改已发布的记录。分区与原操作答案、索引行和派生的 Session 参加在同一次存储提交里，失败时一起不保存。
 - 顺序：分区里每条记录带它在所属映射里的序号，重建副本时按序号还原映射的插入顺序；删除后重新写入的记录取新序号，与进程内映射的顺序一致。
 - 读取：没有副本时分页读全部分区；副本的发布计数落后时（另一个提供者实例写过同一会话），只读这个计数之后写到或删除的分区（`since`），其余分区沿用副本里已解码的记录，合并后重建副本（`mergeParts`）。每页的发布计数必须相同，否则重读，最多 3 次，之后答 `unavailable`。副本里有排除的待决写入时整份重读。AD-02 的 `readExecutionInterpretation` 与 handoff 的执行分支只读所需 execution 的 `x:` 分区。遇到整份状态（`er_state`）时答 `unavailable`：0.0.x 不迁移旧的整份数据。
+- 采用请求（分区 `a`）：一次发布里，某个 execution 的 checkpoint 带有新的 `adoptedRequest`（它的 `reference` 与 `fixed` 和已存 checkpoint 里的不同，即一次新的主用途 M0）时，提供者在同一次存储提交里写 `a`。`a` 的 `order` 是会话内的采用计数，从 `1` 起，每写一次加一，不是执行修订，也不是发布计数。`reference`、`fixed`、`schema` 与 `record` 原样取自 `adoptedRequest`，`coverage` 取自同一 checkpoint 的 `adoptedContext`。提供者不解码 `record`。没有改动任何 `adoptedRequest` 的发布不写 `a`，另一个 execution 再次发布、它的请求不变时也不写。进程内副本在提交成功后同步换成新的 `a`。重建副本与合并时 `a` 随其余分区读出。`a` 的字节数只随一次请求的大小变，不随会话的轮数增长。
+- 读采用请求：`readAdopted({ tenant, session })` 先读共同根。副本的发布计数与共同根相同时从副本答复，否则只点读 `a` 一个分区，不重建副本。没有 `a` 时答 `null`，读不到或 `a` 不能解码时答 `unavailable`。本改动之前写入的会话没有 `a`，同样答 `null`（0.0.x 不承诺旧字节）。
 - 语义键：操作记录保存的语义键是方法名加输入规范文本的 SHA-256（`src/testing/journal-values.ts` 的 `semanticKey`），不是规范文本本身。判定只比较语义键是否相等，含义不变；保存文本时，每条 commit 记录都带一份完整 checkpoint。
 - 验证：`tests/journal-parts-read.spec.ts` 核对提供者的分页读取：夹具把每页改成最多一个分区，一个只开了一个 execution 的会话也要读多页，新提供者重建后 `load` 与写入方相同；各页发布计数不一致时从首页重读，第二次读到一致即为答案，每次都不一致则读满 3 次后答 `unavailable`，不重建副本；首页带整份状态时答 `unavailable`。夹具改写的是真实读 handler 的答案，所以页序与 `after` 语义不变；计数不一致用改写第二页的 `published` 模拟另一个实例在两页之间发布。`tests/journal-parts.spec.ts` 核对归属、只写变了的分区与写入方分区、删除与清空分区、删除后重写的顺序、100 个 execution 后的写入只含写入方分区，以及畸形分区不重建。`tests/journal-interpretation.spec.ts` 的「a session with earlier Runs」在同一会话里依次跑 4 个 Run：第 4 个 Run 的最大一次写入不超过第 2 个 Run 加 64 字节，Agent 记录的读取总量（AD-02 与副本补读）不超过第 2 个 Run 加 1 KiB。实测第 1 到第 4 个 Run 的最大写入是 29,229 到 29,280 字节，读取总量是 67,231 到 67,336 字节；改前（整份单行）最大写入从约 41 KB 涨到 156 KB，副本落后时整份重读的变异下第 2、第 4 个 Run 的读取总量是 94,916 与 147,244 字节。每个 Run 由两个提供者实例写入（像 Agent 的 Journal 与接收方各一个），所以副本每个 Run 都会落后一次；从分区重建的副本按 execution 读出的 `load` 与写入它们的副本相同。`tests/journal-parts.spec.ts` 另核对合并之后写入的分区与整份重建相同、顺序不变、合并出的布局继续只写变了的分区。
 
