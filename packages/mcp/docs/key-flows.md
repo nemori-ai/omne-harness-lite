@@ -1,6 +1,6 @@
 # MCP组内逻辑责任流程
 
-状态：工程设计草案。`@omne-harness/mcp-contract` 已有实现（候选，尚未取得技术接受），其余成员只有模板草稿或尚未建立；流程中的服务和端口都是候选，见[工程设计](architecture.md#模型)。完整公开行为仍在原任务的候选契约中，流程落位不表示已采用。跨领域交接见[领域流程](../../../docs/domains/mcp/key-flows.md)。本页只写本组承担的步骤。图中组外的一方合并为「调用方」，需求端口按端口名出现。
+状态：工程设计草案。`@omne-harness/mcp-contract` 已有实现（候选，尚未取得技术接受）。`@omne-harness/mcp` 已实现核心（候选，第二波，尚未取得技术接受），调用口在第三波，行为正文是它的 [SPEC](../mcp/SPEC.md)。其余成员只有模板草稿或尚未建立；流程中的服务和端口都是候选，见[工程设计](architecture.md#模型)。完整公开行为仍在原任务的候选契约中，流程落位不表示已采用。跨领域交接见[领域流程](../../../docs/domains/mcp/key-flows.md)。本页只写本组承担的步骤。图中组外的一方合并为「调用方」，需求端口按端口名出现。
 
 ## F-MC01 接入点采用、凭据和 MCP 连接
 
@@ -10,13 +10,13 @@
 2. `EndpointInspection` 判定 `AdoptionView` 交来的正文。存在但非法的来源给出拒绝原因，不当作空来源。
 3. `Connections.ensure` 经 `UseEligibility.check` 核对本次使用资格。只有 `granted` 才继续。`refused` 的原因分两类：无使用资格（`not-eligible`），或有资格但被设置挡下（`local-command-not-enabled`、`disabled`）。被设置挡下时，也先关闭原有的 MCP 连接。两类原因怎样交给读面，见[工程设计的 MCP 声明的端口](architecture.md#mcp-声明的端口)。
 4. `Connections` 用 `peerAccountOf(认证方式, 凭据配值)` 得出对端账号。认证方式为 `none` 时，对端账号是 `anonymous`，凭据缺值不是失败。认证方式不是 `none` 而凭据配值缺失时停止，答 `credential-unavailable`（`missing`），不退回其他凭据。对端账号只由这个纯函数得出，不由 `CredentialUse` 答复，见 [K1](../mcp-contract/SPEC.md#keys)。
-5. `Connections` 用租户、接入点持有、采用修订与对端账号组成 `ConnectionKey`。这个键已有 MCP 连接时，复用它，不再取凭据。采用修订变了，键就变，于是建立新的 MCP 连接。
+5. `Connections` 用租户、接入点持有、采用修订与对端账号组成 `ConnectionKey`。然后它经 `AdoptionView.endpoint` 再读一次采用，不信任第 1 步交来的采用修订。未采用时答 `not-available-to-you`。不可读或采用修订已变时答 `unknown`。这几种都不建连，也不关闭其他连接。同一租户、同一持有的重读、关闭其他采用修订的连接与建立连接条目在一个临界区内完成，见[工程设计的 MCP 连接](architecture.md#mcp-连接)。这个键已有 MCP 连接时，复用它，不再取凭据。采用修订变了，键就变，于是建立新的 MCP 连接。
 6. 需要新建 MCP 连接、认证方式又不是 `none` 时，`Connections` 经 `CredentialUse.acquire` 按用途取得凭据句柄：stdio 用 `process-env`，Streamable HTTP 用 `http-authorization` 并带连接目标。本端口只交句柄。缺失、被拒或不可读时停止，不退回其他凭据。
 7. stdio 接入点：代际加一，再经 `ProcessLanding.start(access, launch, env)` 取得本机进程。`launch` 是正文里的启动声明，stdio 不读连接目标。`env` 是 `setting` 来源变量的非秘密配值，加上 `credential` 来源变量共用的进程凭据句柄。秘密值由 `ProcessLanding` 注入。落点或设施不成立时停止，不静默落到宿主。
 8. `McpTransport.discover` 判定对端时代并协商。成功后 MCP 连接进入 `ready`，不等 MCP 动作清单。Streamable HTTP 在这时代际加一。首次发现由调用方经 `ActionDiscovery.refresh` 触发，见 F-MC02。
 9. Streamable HTTP 上对端答需要授权时，MCP 读取受保护资源元数据，交出签发者与 scope，结局是 `authorization-required`。MCP 不发起授权流程。
 
-部分创建或取消后，依原准备身份查询及清理。资源关闭失败时保留下一处置者。首次失败不造合法清单。代际何时加一与状态转移见[工程设计](architecture.md#mcp-连接)。
+连接时限从取凭据开始计时（认证方式为 `none` 时从第 7 步开始），覆盖到第 8 步。端口不理会中止信号时，`Connections` 自己停止等待，并收口迟到交来的结果，见[工程设计的 MCP 连接](architecture.md#mcp-连接)不变式 5。部分创建或取消后，依原准备身份查询及清理。资源关闭失败时保留下一处置者。首次失败不造合法清单。代际何时加一与状态转移见[工程设计](architecture.md#mcp-连接)。
 
 ```mermaid
 flowchart TD
@@ -32,7 +32,10 @@ flowchart TD
     Q -->|granted| P{peerAccountOf 认证方式 凭据配值}
     P -->|凭据配值缺失| U[不可连接 不发起动作]
     P -->|对端账号 none 时 anonymous| K[组成 ConnectionKey 含采用修订]
-    K --> W{这个键已有 MCP 连接}
+    K --> RR{再读一次采用}
+    RR -->|未采用| V
+    RR -->|不可读或采用修订已变| N
+    RR -->|采用修订相同| W{这个键已有 MCP 连接}
     W -->|有| O[复用 MCP 连接]
     W -->|需要新建| M{认证方式}
     M -->|none| S{传输种类}
@@ -54,7 +57,7 @@ flowchart TD
 
 首次发现由调用方经 `ActionDiscovery.refresh` 触发。在这之前，`ActionDiscovery.current` 交出的视图取得状态是「未取得」。
 
-`ActionDiscovery.refresh` 在接入点已采用、当前资格和 MCP 连接条件成立时，先经 `CatalogStore` 读取当前清单及其修订，再调用 `McpTransport.listActions`。校验内容与来源后，它经 `mergeListing` 合成新清单，再经 `CatalogStore` 按读到的修订条件整份写入。每个 MCP 已知动作保留对端原样的定义，并带定义的内容摘要。
+`ActionDiscovery.refresh` 在接入点已采用、当前资格和 MCP 连接条件成立时，先经 `CatalogStore` 读取当前清单及其修订，再调用 `McpTransport.listActions`。取分页另起一个时限，上界与连接时限相同。某页超时时，这一页算失败，`refresh` 保留原采用（`listing-incomplete`），MCP 连接转为 `degraded`（`list-failed`）。校验内容与来源后，它经 `mergeListing` 合成新清单，再经 `CatalogStore` 按读到的修订条件整份写入。每个 MCP 已知动作保留对端原样的定义，并带定义的内容摘要。
 
 清单从未取得时报告「尚未取得」，与「已取得、动作有零个」分开。只有全部分页取完、每项合法、对端动作名不重复时才采用。逐动作权限项只在清单已取得后派生，见[设置声明与逐动作权限](architecture.md#设置声明与逐动作权限)。
 
@@ -64,7 +67,7 @@ flowchart TD
 
 对应 J-MC03，INV-MC02、INV-MC09、INV-MC11–12。
 
-求值触发后，`ActionDiscovery` 读取候选。发布前，它核对当前选择、资格、连接代际和较新的刷新。资格或来源过期时拒绝发布；校验失败时不混拼。`CatalogStore` 答修订冲突时，表示已有较新的采用，本次结果不覆盖它。写入不可用时，`refresh` 答 `unknown`，不报新修订。合法的新清单只影响后续调用，撤权在下一次使用时生效。已发出的调用按原输入执行。调用方带着旧的定义的内容摘要发起时，MCP 返回「未发出」，原因是定义已变，由调用方重新判断。结构变化交给装配。在途动作不自动重发。
+求值触发后，`ActionDiscovery` 读取候选。发布前，它在发布边界紧挨写入核对四项：资格仍是 `granted`；清单所在连接的采用修订仍是当前采用修订；产出清单的连接代际仍是当前代际；本次刷新没有被调用方中止。资格或来源过期时拒绝发布；校验失败时不混拼。调用方中止 `refresh` 时，它答保留原采用（`cancelled`），不标记清单。共享的建连不受调用方中止影响，只受连接时限约束。四项的结果见[工程设计的读口](architecture.md#读口)。`CatalogStore` 答修订冲突时，表示已有较新的采用，本次结果不覆盖它。写入不可用时，`refresh` 答 `unknown`，不报新修订。合法的新清单只影响后续调用，撤权在下一次使用时生效。已发出的调用按原输入执行。调用方带着旧的定义的内容摘要发起时，MCP 返回「未发出」，原因是定义已变，由调用方重新判断。结构变化交给装配。在途动作不自动重发。
 
 ```mermaid
 sequenceDiagram
@@ -78,7 +81,7 @@ sequenceDiagram
     S-->>A: 当前清单与修订 或不存在
     A->>P: 当前资格下 listActions
     P-->>A: 清单与版本依据
-    A->>A: 复核选择 代际 取消 撤权
+    A->>A: 紧挨写入复核 资格 采用修订 代际 中止
     alt 条件仍成立
         A->>K: adopt 带代际与修订
         A->>S: write 按读到的修订条件
