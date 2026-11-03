@@ -6,8 +6,10 @@
 // 用例经 CLI 建 `coding` 会话、发一条输入，然后看 Session 为这个会话取到的两个工作主体：维护者（S1 读快照）与
 // 协调者（C2 提交 `startRun`）都签发成功。会话工作主体是发行的同一组合（`createSessionWorkPrincipals`、入口的窄签发
 // 视图、经受信作用域现读的归属读口），外面只多一层记录答复的观察。
-// 只证明到「不再卡在归属读口」，不断言 `run.started`：协调者的 `startRun` 之后答 `login-required`（会话身份桥），
-// Run 开始后 Agent 的 `read-conditions` 被拒，这两层是已知阻断，归别的闭包（R2-D190）。
+// 登录门由 Session 在 `startRun` 的提交事务里核对首条输入保存的 origin（R2-D198），CLI 经登录发的输入带
+// `login-entry` origin，所以 Run 开始：历史里出现 `run.started`（G-DIALOG 第二层）。用例只证明到 Run 开始。
+// 模型回复还写不进历史：Agent 在 I1 等 Runtime Context 读取资格、Request Context 来源登记与固定请求事实，
+// 这三项是 G-DIALOG 报告里的具名阻断（第四至六层），不在本用例断言。
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
@@ -63,6 +65,24 @@ const readHistory = (tenant: string, session: string, loginProof: string) => ({
 
 type Issued = Readonly<{ actor: string; session: string; outcome: string }>
 
+/** The operator layer with `read-history` also listing the Run start, so the history shows it. */
+function withHistoryKinds(layer: unknown): unknown {
+  const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
+  return {
+    ops: ops.map(op =>
+      op.id === 'server-entry'
+        ? {
+            ...op,
+            config: {
+              ...op.config,
+              historyKinds: ['message.user', 'message.assistant', 'run.started'],
+            },
+          }
+        : op,
+    ),
+  }
+}
+
 /**
  * The release `sessionWorkPrincipals`, composed as the entry composes it, with each answer recorded:
  * `issued`, or the failure kind.
@@ -112,7 +132,7 @@ function kindsOf(body: string): string[] {
 
 describe('the release tree with the release session ownership read', () => {
   it(
-    'an input sent to a coding session: the input is in the history, and Session gets its maintainer and coordinator principals for the session',
+    'an input sent to a coding session: Session gets its work principals for the session and the Run starts',
     { timeout: 180_000 },
     async () => {
       const dir = newScratch('run-start-')
@@ -124,7 +144,7 @@ describe('the release tree with the release session ownership read', () => {
       const issued: Issued[] = []
       const finished = runServe({
         distribution: release,
-        operator: operatorLayer({ storageRoot: dir.storageRoot, port }),
+        operator: withHistoryKinds(operatorLayer({ storageRoot: dir.storageRoot, port })),
         plugins: { ...cordis },
         entryObjects: releaseEntryObjects.map(module =>
           module.name === sessionWorkPrincipalsKey ? observedWorkPrincipals(issued) : module,
@@ -178,9 +198,18 @@ describe('the release tree with the release session ownership read', () => {
           Date.now() < end && !mine().some(entry => entry.actor === 'coordinator');
           await sleep(100)
         );
-        const history = await post(port, request)
+        // C2 commits `startRun` after the coordinator principal: wait until the history shows the Run.
+        let history = await post(port, request)
+        for (
+          const end = Date.now() + 30_000;
+          Date.now() < end && !kindsOf(history.body).includes('run.started');
+          await sleep(200)
+        )
+          history = await post(port, request)
         expect(history.status, history.body).toBe(200)
         expect(kindsOf(history.body)).toContain('message.user')
+        // The input came through the login, so the login gate of `startRun` lets the Run start.
+        expect(kindsOf(history.body)).toContain('run.started')
         expect(history.body).toContain(INPUT_TEXT)
         const answers = mine()
         expect(answers.some(entry => entry.actor === 'maintainer')).toBe(true)
