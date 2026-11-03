@@ -427,7 +427,7 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 | SK-D04 | 每个操作都经 `SkillReadCheck` 与 `SkillResolution` 现场判定。调用方带回的Skill 材料依据也由 `SkillResolution` 核对，包定位由它当场给出 | `not-available-to-you`、`unavailable-stand-in`、`basis-unavailable`、`unknown` | 读取权不缓存，历史依据不代替判定，也不授予访问 |
 | SK-D05 | 内容随成功结果内联交出，交出后归接收方。大内容按字节范围分页 | 不新增失败种类 | Skill 不做临时保管。Skill 材料依据加包内路径只是重读句柄，不是保管引用：重读重新核验读取权，来源不再保留时失败 |
 | SK-D06 | 见[失败种类](#失败种类) | 全部种类 | 对无权主体不披露身份是否存在。部分结果不是失败 |
-| SK-D07 | `skill-access` 的应用服务只依赖本组纯契约与公共值成员，不依赖 Cordis。`@omne-harness/skill-contract/testing` 导出 `SkillPackageSource`、`SkillAccess`、`SkillReadCheck` 与 `SkillResolution` 的符合性套件，以及内存来源 | 不新增失败种类 | 访问上下文与作用域由调用方显式传入，依据层：要求 [SYS-OPEN](../../../docs/requirements.md#独立使用与替换sys-open) |
+| SK-D07 | `@omne-harness/skill` 的应用服务只依赖本组纯契约与公共值成员，不依赖 Cordis。`@omne-harness/skill-contract/testing` 导出 `SkillPackageSource`、`SkillAccess`、`SkillReadCheck` 与 `SkillResolution` 的符合性套件，以及内存来源 | 不新增失败种类 | 访问上下文与作用域由调用方显式传入，依据层：要求 [SYS-OPEN](../../../docs/requirements.md#独立使用与替换sys-open) |
 
 表中各决定的产品与架构依据层，见上文[读取](#读取)、[失败种类](#失败种类)与 [Q-SK03](#q-sk03-两条内容采用路径与可靠交接协议)的决定表。
 
@@ -529,7 +529,7 @@ P1 各项来自独立消费者的需求。版本变化观察的首版范围是�
 | 原生格式是 `SKILL.md`（头部字段按官方规格）加可选的 `.omne/skill.json` | 产品 J-SK01「已有 `SKILL.md`、可选 `.omne/skill.json` 和按需资源的包形式」；官方规格 [Specification](https://agentskills.io/specification) |
 | 不认识的头部字段原样保留，不解释 | 产品 [Q-SK05](../../../.meta_harness/design/product/skills/design.md#q-sk05-原生及兼容来源格式支持与成员归属)「识别成功不能承诺全部字段……兼容」 |
 | 兼容格式作为解析方言增加，不另造目录协议 | 产品 J-SK01「工作区原生方法使用已有……包形式」；G6 |
-| 现有纯契约成员由 `@omne-harness/skill` 改名为 `@omne-harness/skill-contract`，与 Tool 组的 `tool-contract` 和 MCP 组的 `mcp-contract` 命名一致。另加三个具名文档目标：`skill-access`、`skill-cordis-contract`、`skill-host-local`，见[组入口](../README.md#成员与依赖) | 能力组先例 [Tool 能力组](../../tool/README.md#包与依赖)；工程 [里程碑内的规则](../../../docs/engineering/integration.md#里程碑内的规则) |
+| 现有纯契约成员由 `@omne-harness/skill` 改名为 `@omne-harness/skill-contract`，与 Tool 组的 `tool-contract` 和 MCP 组的 `mcp-contract` 命名一致。通用实现使用包名 `@omne-harness/skill`。另加 Cordis 契约 `skill-cordis-contract` 与本地宿主 `@omne-harness/skill-host-local`。成员状态见[组入口](../README.md#成员与依赖) | 能力组先例 [Tool 能力组](../../tool/README.md#包与依赖)；工程 [里程碑内的规则](../../../docs/engineering/integration.md#里程碑内的规则) |
 
 | 剩余义务 | 拥有者 |
 | --- | --- |
@@ -559,11 +559,11 @@ P1 各项来自独立消费者的需求。版本变化观察的首版范围是�
 
 ## 完整行为候选的正式承接缺口
 
-原任务的完整行为候选尚未采用。下表写明每份候选由哪个成员或拥有者承接。波次只有三种：第一波、第一波之后、Cordis 服务键波。`@omne-harness/skill-contract` 是现有 workspace 成员，其余成员都是具名文档目标，尚非 workspace 成员。逐条不变式与验证义务在实施时随成员规格分配。过程稿不作为正式导航依赖。
+原任务的完整行为候选尚未采用。下表写明每份候选由哪个成员或拥有者承接。波次只有三种：第一波、第一波之后、Cordis 服务键波。`@omne-harness/skill-contract` 是已实现的 workspace 成员。`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 是 workspace 成员，但只有模板草稿。`skill-cordis-contract` 是具名文档目标，尚非 workspace 成员。逐条不变式与验证义务在实施时随成员规格分配。过程稿不作为正式导航依赖。
 
 | 原候选 | 承接者 | 承接方式 | 状态 |
 | --- | --- | --- | --- |
-| `method-and-resource-access.md` | `@omne-harness/skill-contract`：值、端口、服务接口与符合性设施。`skill-access`：`PackageInspection`、`SkillCatalog`、`SkillAccess`。`skill-host-local` 的目录来源部分：`DirectorySource` | 成员规格，第一波随实施写。`DirectorySource` 在第一波。`SkillCatalog` 与 `export` 在第一波之后 | 候选，尚未承接 |
+| `method-and-resource-access.md` | `@omne-harness/skill-contract`：值、端口、服务接口与符合性设施。`@omne-harness/skill`：`PackageInspection`、`SkillCatalog`、`SkillAccess`。`skill-host-local` 的目录来源部分：`DirectorySource` | 成员规格，第一波随实施写。`DirectorySource` 在第一波。`SkillCatalog` 与 `export` 在第一波之后 | 候选，尚未承接 |
 | `content-adoption-and-evolution.md` | 不归本组成员。由承接内容的各方维护，见 [Q-SK03](#q-sk03-两条内容采用路径与可靠交接协议) | 各拥有者的契约 | 尚未承接 |
 | `script-execution-bridge.md` | 不归本组成员。本组只承接脚本声明、包导出与脚本身份，见 [Q-SK04](#q-sk04-脚本桥接的发起控制和原结果协议)。执行与控制归 Tool 与执行环境 | 各拥有者的契约 | 尚未承接 |
 | 总览、完整不变式及持续验证范围 | 组维护者。各成员规格承接本成员的不变式。`@omne-harness/skill-contract/testing` 的符合性套件承接来源与读取的共同验证，以及 `SkillReadCheck` 与 `SkillResolution` 的不披露要求 | 实施时 | 尚未承接 |

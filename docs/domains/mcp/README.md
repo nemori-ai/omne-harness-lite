@@ -49,4 +49,4 @@ Agent替换、客户端断开或连接恢复不自动取消或重发远端动作
 
 ## 产品与技术承接
 
-[正式产品阅读位置](../../../.meta_harness/design/product/mcp/design.md)维护能力、阶段与第四章未决，仍为草案，不改变本页原接受范围。[领域交接设计](architecture.md)与[跨领域流程](key-flows.md)只说明技术草案的责任关系。[能力组工程入口](../../../packages/mcp/README.md)登记成员尚未具名及完整行为的[正式承接缺项](../../../packages/mcp/docs/architecture.md#完整行为候选的正式承接缺口)；原 contracts 继续是未分配、未采用的候选，不变为组统一 SPEC。
+[正式产品阅读位置](../../../.meta_harness/design/product/mcp/design.md)维护能力、阶段与第四章未决，仍为草案，不改变本页原接受范围。[领域交接设计](architecture.md)与[跨领域流程](key-flows.md)只说明技术草案的责任关系。[能力组工程入口](../../../packages/mcp/README.md)登记成员及其状态，以及完整行为的[正式承接缺项](../../../packages/mcp/docs/architecture.md#完整行为候选的正式承接缺口)；原 contracts 继续是未分配、未采用的候选，不变为组统一 SPEC。

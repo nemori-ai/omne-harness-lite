@@ -1,6 +1,6 @@
 # Skill领域交接设计
 
-状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)，本页只维护事实拥有者和跨领域交接。端口、服务与成员都是候选，尚未实现。工程细化见[组工程设计](../../../packages/skills/docs/architecture.md)，具名文档目标尚非 workspace 成员。
+状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)，本页只维护事实拥有者和跨领域交接。端口、服务与成员都是候选，尚未实现。工程细化见[组工程设计](../../../packages/skills/docs/architecture.md)。成员状态见[组入口](../../../packages/skills/README.md#成员与依赖)：部分成员只有模板草稿，具名文档目标尚非 workspace 成员。
 
 ## 责任与消费者
 
