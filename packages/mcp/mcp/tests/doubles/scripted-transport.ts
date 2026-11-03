@@ -36,12 +36,13 @@ export type ScriptedTransports = McpTransportFactory &
     remaining: () => number
   }>
 
-const FAILURE_KINDS: readonly string[] = [
-  'not-sent',
-  'no-answer',
-  'error-answer',
-  'answer-malformed',
-]
+const FAILURE_KIND_TABLE = {
+  'not-sent': true,
+  'no-answer': true,
+  'error-answer': true,
+  'answer-malformed': true,
+} satisfies Record<TransportFailure['kind'], true>
+const FAILURE_KINDS: readonly string[] = Object.keys(FAILURE_KIND_TABLE)
 
 function isTransportFailure(value: object): value is TransportFailure {
   return 'kind' in value && typeof value.kind === 'string' && FAILURE_KINDS.includes(value.kind)
