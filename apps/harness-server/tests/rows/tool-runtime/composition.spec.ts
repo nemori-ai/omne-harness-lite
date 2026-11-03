@@ -1,15 +1,15 @@
 // Tool B 段的进程内组合：真实 Cordis 根上装 Tool 运行时五行、tool-bindings、tool-host（预装发行作者）、执行环境
 // 四行（宿主提供者真件），真实 SQLite 存储与会话存储组合（tool 参加者在同一登记里），真实入口对象（核验器、
 // 签发者、会话工作主体、发行来源权威与登记者、toolClock、toolPublicationAuthority、执行环境授权）。
-// 只有五处是具名替身：identity 行（租户存续）、authorization 行（会话访问裁定放行一切，只为建会话登记租户）、
+// 具名替身：identity 行（租户存续）、authorization 行（会话访问裁定放行一切，只为建会话登记租户）、
 // tool-residency 行（空的常驻引用）、可信作用域绑定的来源（本用例的作用域绑定到本租户；生产来源是
-// session-ad03 的作用域查找，这里不建 Context 作用域），以及会话归属读口：发行的 `session-storage` 行对
-// `sessionPrincipalBindings.read` 一律答 unavailable（行内已知限制），所以入口的会话工作主体用真实的
-// `createSessionWorkPrincipals` 加一个只认本用例会话的归属读口。生产里这一缺口让 Tool 调用答 unavailable，
-// 见最后一个用例。
+// session-ad03 的作用域查找，这里不建 Context 作用域）。会话归属读口有两种：第一条用例用一个只认本用例会话的
+// 归属替身（入口的 `createSessionWorkPrincipals` 读它）；第二条用例用发行的 `session-storage` 行提供的
+// `sessionPrincipalBindings`（session-storage-sql 的 `createSessionPrincipalBindings`）和发行的入口对象
+// `sessionWorkPrincipals`，证明发行读口签得出会话工作主体，调用真正执行。
 // 请求由生产的 Tool 请求供给者构造（`createReleaseToolRequests`），会话快照读口给出那个作用域。
 // 用例：Shell.execute 一次、Files.write 加 Files.read 各一次，读回原结果；外租户的同一调用被拒。
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -394,127 +394,109 @@ async function ready(ctx: Context, saved: ToolDelivery<ToolMessageContentBlock>[
   return { runtime, principal }
 }
 
+type Ran = Readonly<{
+  value: Readonly<{
+    shell: Awaited<ReturnType<typeof call>>
+    write: Awaited<ReturnType<typeof call>>
+    read: Awaited<ReturnType<typeof call>>
+    foreign: Awaited<ReturnType<Runtime['invoke']>>
+  }>
+  exitCode: number | null
+  filesRoot: string
+  saved: readonly ToolDelivery<ToolMessageContentBlock>[]
+}>
+
+/** Shell once, Files write and read once, then the same Shell call by tenant B's work principal. */
+async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
+  const { storageRoot } = workspace()
+  const { rows, tools } = rowsOf(storageRoot)
+  const policy = accessPolicyRow(allowAll)
+  const saved: ToolDelivery<ToolMessageContentBlock>[] = []
+  const { value, run } = await withLiveRows(
+    {
+      rows,
+      plugins: {
+        ...cordis,
+        identityStandIn,
+        residencyStandIn,
+        policyAccess: policy.plugin,
+      },
+      entryObjects: entryObjects(work),
+      probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
+    },
+    async ctx => {
+      const { runtime, principal } = await ready(ctx, saved)
+      // Files takes absolute paths inside the files root.
+      const target = join(tools.filesRoot, 'tool-b.txt')
+      const shell = await call(
+        runtime,
+        principal,
+        await requestFor(ctx, principal, 'Shell.execute', '{"script":"Write-Output tool-b-shell"}'),
+      )
+      const write = await call(
+        runtime,
+        principal,
+        await requestFor(
+          ctx,
+          principal,
+          'Files.write',
+          JSON.stringify({ path: target, text: 'tool-b-files', mode: 'create' }),
+        ),
+      )
+      const read = await call(
+        runtime,
+        principal,
+        await requestFor(ctx, principal, 'Files.read', JSON.stringify({ path: target })),
+      )
+      const foreignRequest = await requestFor(
+        ctx,
+        principal,
+        'Shell.execute',
+        '{"script":"Write-Output foreign"}',
+      )
+      const foreign = await runtime.invoke({
+        principal: ctx.get(WORK_B),
+        tenant: TENANT_A,
+        request: foreignRequest,
+      })
+      // Delivery to the original consumer runs on its own worker after the call settles.
+      await until(
+        async () => saved.length,
+        count => count >= 3,
+        10_000,
+      )
+      return { shell, write, read, foreign }
+    },
+  )
+  return { value, exitCode: run.result.exitCode, filesRoot: tools.filesRoot, saved }
+}
+
+function expectRan(ran: Ran): void {
+  const { value } = ran
+  expect(value.shell.state.terminal).toMatchObject({ kind: 'completed' })
+  expect(value.shell.text).toContain('tool-b-shell')
+  expect(value.write.text).toMatch(/^done request=/u)
+  expect(value.read.text).toContain('tool-b-files')
+  expect(readFileSync(join(ran.filesRoot, 'tool-b.txt'), 'utf8')).toBe('tool-b-files')
+  expect(value.foreign).toMatchObject({ kind: 'rejected', failure: { kind: 'denied' } })
+  expect(ran.saved.length).toBeGreaterThanOrEqual(3)
+  expect(ran.exitCode).toBe(0)
+}
+
 describe('Tool segment B: the release rows in one process composition', () => {
   it(
     'runs Shell once and Files twice through the production request source; another tenant is refused',
     { timeout: 180_000 },
     async () => {
-      const { storageRoot } = workspace()
-      const { rows, tools } = rowsOf(storageRoot)
-      const policy = accessPolicyRow(allowAll)
-      const saved: ToolDelivery<ToolMessageContentBlock>[] = []
-      const { value, run } = await withLiveRows(
-        {
-          rows,
-          plugins: {
-            ...cordis,
-            identityStandIn,
-            residencyStandIn,
-            policyAccess: policy.plugin,
-          },
-          entryObjects: entryObjects(workPrincipalsOverStandIn),
-          probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
-        },
-        async ctx => {
-          const { runtime, principal } = await ready(ctx, saved)
-          // Files takes absolute paths inside the files root.
-          const target = join(tools.filesRoot, 'tool-b.txt')
-          const shell = await call(
-            runtime,
-            principal,
-            await requestFor(
-              ctx,
-              principal,
-              'Shell.execute',
-              '{"script":"Write-Output tool-b-shell"}',
-            ),
-          )
-          const write = await call(
-            runtime,
-            principal,
-            await requestFor(
-              ctx,
-              principal,
-              'Files.write',
-              JSON.stringify({ path: target, text: 'tool-b-files', mode: 'create' }),
-            ),
-          )
-          const read = await call(
-            runtime,
-            principal,
-            await requestFor(ctx, principal, 'Files.read', JSON.stringify({ path: target })),
-          )
-          const foreignRequest = await requestFor(
-            ctx,
-            principal,
-            'Shell.execute',
-            '{"script":"Write-Output foreign"}',
-          )
-          const foreign = await runtime.invoke({
-            principal: ctx.get(WORK_B),
-            tenant: TENANT_A,
-            request: foreignRequest,
-          })
-          // Delivery to the original consumer runs on its own worker after the call settles.
-          await until(
-            async () => saved.length,
-            count => count >= 3,
-            10_000,
-          )
-          return { shell, write, read, foreign }
-        },
-      )
-      expect(value.shell.state.terminal).toMatchObject({ kind: 'completed' })
-      expect(value.shell.text).toContain('tool-b-shell')
-      expect(value.write.text).toMatch(/^done request=/u)
-      expect(value.read.text).toContain('tool-b-files')
-      expect(readFileSync(join(tools.filesRoot, 'tool-b.txt'), 'utf8')).toBe('tool-b-files')
-      expect(value.foreign).toMatchObject({ kind: 'rejected', failure: { kind: 'denied' } })
-      expect(saved.length).toBeGreaterThanOrEqual(3)
-      expect(run.result.exitCode).toBe(0)
+      expectRan(await shellAndFiles(workPrincipalsOverStandIn))
     },
   )
 
   it(
-    'with the release session ownership read (always unavailable today) a call is accepted but never runs',
+    'with the release session ownership read and the release work principals, Shell and Files run; another tenant is refused',
     { timeout: 180_000 },
     async () => {
-      const { storageRoot } = workspace()
-      const { rows, tools } = rowsOf(storageRoot)
-      const policy = accessPolicyRow(allowAll)
-      const saved: ToolDelivery<ToolMessageContentBlock>[] = []
-      const { value } = await withLiveRows(
-        {
-          rows,
-          plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
-          entryObjects: entryObjects(sessionWorkPrincipals),
-          probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
-        },
-        async ctx => {
-          const { runtime, principal } = await ready(ctx, saved)
-          const request = await requestFor(
-            ctx,
-            principal,
-            'Files.write',
-            JSON.stringify({
-              path: join(tools.filesRoot, 'never.txt'),
-              text: 'never',
-              mode: 'create',
-            }),
-          )
-          const caller = { principal, tenant: TENANT_A }
-          const outcome = await runtime.invoke({ ...caller, request })
-          if (outcome.kind !== 'accepted') throw new Error(`invoke: ${JSON.stringify(outcome)}`)
-          // Several driver retry periods (50 ms each in the operator values).
-          await new Promise(resolve => setTimeout(resolve, 3000))
-          return runtime.queries.lookup({ ...caller, reference: outcome.reference })
-        },
-      )
-      expect(value).toMatchObject({
-        ok: { kind: 'found', state: { phase: 'accepted', execution: { kind: 'not-started' } } },
-      })
-      expect(existsSync(join(tools.filesRoot, 'never.txt'))).toBe(false)
-      expect(saved).toEqual([])
+      expectRan(await shellAndFiles(sessionWorkPrincipals))
     },
   )
 })

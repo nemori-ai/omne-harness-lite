@@ -794,7 +794,7 @@ releasedScopes(principal, scope = system, after, limit):
 
 - 迁移片段分两类。权威表的迁移只增列或增表、不改旧列含义、不改位置与身份（`sl_operation` 的访问证据因提供者不允许对 STRICT 表执行 `ALTER TABLE` 而增表，见[操作记录的访问证据](#操作记录的访问证据)）；派生表的迁移可以整体重建。两类都随提供者的原子迁移执行：DDL、数据与迁移标记同事务，失败回到迁移前（[XP-5](#xp-table)）。
 - 归约版本升级是一次 `sl_state` 全量重建（R9），不是迁移。它在格式迁移之后、开放写准入之前完成，或在首次治理读时按会话惰性完成。两种方式都是策略配置。
-- 本成员没有 Cordis 入口，也没有关闭函数：`createSessionStorage` 返回的端口只持有应用交入的存储、目录、访问裁定与游标签名，不持有连接。应用在装配时把 `sessionStorageMaterials({ readOutputLimitBytes })` 并入材料目录并声明组合，端口在提供者就绪后才可用。已提交的条目不因端口被丢弃而变得可撤回。
+- 本成员没有 Cordis 入口，也没有关闭函数：`createSessionStorage` 返回的端口只持有应用交入的存储、目录、访问裁定与游标签名，不持有连接。应用在装配时把 `sessionStorageMaterials({ readOutputLimitBytes })` 并入材料目录并声明组合，端口在提供者就绪后才可用。会话归属读口 `createSessionPrincipalBindings` 只收存储与目录，不收访问裁定；应用用公开端口的同一存储与同一目录构造它，交给受信服务键 `sessionPrincipalBindings`，所以它与端口共用工作缓存，也按同一目录解析租户。已提交的条目不因端口被丢弃而变得可撤回。
 - 提供者关闭期间，写路径可能得到 `commit-unknown` 或 `unavailable`，两者都不当作未提交：`commit` 先对代次 1 调 `query`，关闭后 `query` 答 `unknown`（诊断 `closing`），写路径直接返回 `commit-unknown`；直接走到 `commit` 的路径得到 `closing` 映射的 `unavailable`。真实提供者下实测为前者。在途的语句跑完。读入口随提供者关闭而不可用。
 
 ### SQLite 与 PostgreSQL
