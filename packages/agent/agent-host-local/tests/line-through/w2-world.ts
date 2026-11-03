@@ -338,6 +338,12 @@ const LONG_RUN_LIMITS = {
   globalReadResultBytes: 2 ** 31,
   groupMaxInputBytes: 1 << 30,
   groupMaxResponseReservationBytes: 1 << 30,
+  // The WAL limits of sqlite-provider (default 64 MiB, 128 MiB, 64 MiB). J6 is a long run and does not
+  // test WAL back pressure: the whole Agent records written on each publication reach several MiB late
+  // in the run, and a few such writes in a row take the WAL past the read pause (`read-paused`).
+  journalSizeLimitBytes: 1 << 30,
+  walReadPauseBytes: 1 << 30,
+  walWriteStopBytes: 2 ** 31,
 } as const
 
 /** The delay the doubles use when nothing else is said: it also keeps the Agent's own commits ahead of the reply. */
