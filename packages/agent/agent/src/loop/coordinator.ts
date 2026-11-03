@@ -41,6 +41,7 @@ import type {
   AgentInstant,
   AgentOperationId,
   Authority,
+  CallerCommit,
   ControlRecord,
   ExecutionControl,
   ConsumerRef,
@@ -80,7 +81,11 @@ import type {
 } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { AgentDependencies, AgentRuntimeBinding } from '../construction.ts'
+import type {
+  AgentConfiguration,
+  AgentDependencies,
+  AgentRuntimeBinding,
+} from '../construction.ts'
 import {
   AGENT_OWNER,
   agentEvidence,
@@ -149,6 +154,12 @@ export type LoopPorts<P> = Pick<
 export type ExecutionEntry<P> = Readonly<{
   ports: LoopPorts<P>
   binding: AgentRuntimeBinding
+  /**
+   * The joint-commit kinds of the factory configuration, which the factory checked against the
+   * participants of the Journal binding (SPEC "提交参加者协议"). The Ja of a source whose kind is
+   * listed carries that CallerCommit; see `historyCaller`.
+   */
+  jointCommits: AgentConfiguration['jointCommits']
   evaluator: AgentEvaluator
   /** The Access of the invoke; every operation of the execution runs under it. */
   access: Access<P>
@@ -215,6 +226,8 @@ type Write = Readonly<{
   effects?: readonly EffectIntent[]
   replyAdmission?: ModelReplyAdmission
   handoff?: HandoffChange
+  /** The hand-over of a Ja to a declared participant; none when absent (see `historyCaller`). */
+  caller?: CallerCommit
   /** The operation of the commit, when it is not the node's own; a Ja is derived from its H. */
   operation?: AgentOperationId
   /**
@@ -224,6 +237,44 @@ type Write = Readonly<{
    */
   recordsFact?: true
 }>
+
+/**
+ * The CallerCommit of the Ja that applies `fixed` (SPEC "真实历史的提交点"). When the assembly
+ * declared the kind in `jointCommits`, the prepared message of a tool result, a denied action or a
+ * reminder (T5, X5) is a `message` hand-over: its source is the original handoff record and its
+ * admission the prepared result. The prepared compaction transition (C3) is a `context-transition`
+ * hand-over: its value is the transition of the request and its admission the prepared result.
+ * Otherwise the caller is none and the Journal's fixed history composition keeps the same history
+ * duty in the same transaction. The main reply is never a CallerCommit: its history is the Journal's
+ * core duty, carried by `replyAdmission`. A rejected outcome publishes no history, so it has none.
+ */
+function historyCaller(
+  jointCommits: AgentConfiguration['jointCommits'],
+  fixed: HandoffOutcome,
+): CallerCommit {
+  const { request, decision, record } = fixed
+  if (request.kind !== 'execution' || decision.kind !== 'prepared') return { kind: 'none' }
+  const source = request.source
+  switch (source.kind) {
+    case 'model-reply':
+      return { kind: 'none' }
+    case 'context-transition':
+      return jointCommits.includes('context-transition')
+        ? { kind: 'context-transition', value: source.transition, admission: decision.admission }
+        : { kind: 'none' }
+    case 'tool-result':
+    case 'action-denied':
+    case 'reminder':
+      return jointCommits.includes('message')
+        ? {
+            kind: 'message',
+            message: decision.message,
+            source: record,
+            admission: decision.admission,
+          }
+        : { kind: 'none' }
+  }
+}
 
 /** The outcome of one node and the commit it writes; `commit: null` writes no commit. */
 type Step = Readonly<{ on: Label; commit: Write | null }>
@@ -551,7 +602,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       state: nextState,
       events: write.events ?? [],
       effects: write.effects ?? [],
-      caller: { kind: 'none' },
+      caller: write.caller ?? { kind: 'none' },
       replyAdmission: write.replyAdmission ?? null,
       handoff: write.handoff ?? null,
       finish: write.finish ?? null,
@@ -1812,6 +1863,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         decision.kind === 'prepared'
           ? [{ kind: 'message', message: decision.message, source: decision.admission }]
           : [],
+      caller: historyCaller(entry.jointCommits, fixed),
       handoff: { kind: 'resolve', outcome: fixed },
       operation: handoffStage(request.reference.operation, 'resolve'),
     })

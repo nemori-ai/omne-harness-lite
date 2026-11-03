@@ -43,6 +43,7 @@ describe('the coordinator result of an admission already advanced in the Journal
     const coordinator = createExecutionCoordinator({
       ports: assembly.dependencies,
       binding: options().binding,
+      jointCommits: options().configuration.jointCommits,
       evaluator: agentEvaluator,
       access: alice,
       execution: execution(),
@@ -66,6 +67,7 @@ describe('the coordinator result when a node throws', () => {
     const coordinator = createExecutionCoordinator({
       ports: assembly.dependencies,
       binding: options().binding,
+      jointCommits: options().configuration.jointCommits,
       evaluator: {
         ...agentEvaluator,
         next() {
