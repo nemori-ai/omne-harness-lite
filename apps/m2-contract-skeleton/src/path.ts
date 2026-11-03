@@ -1881,9 +1881,17 @@ function stateLabel(snapshot: AgentSnapshot | null): string {
     : `agent:journal state ${snapshot.state.kind} at ${snapshot.checkpoint.position}`
 }
 
-/** Whether the loop stopped at I4, the step that refuses a reply with tool calls until #502 stage 2. */
+/**
+ * Whether the loop stopped at A0 with an action still pending. The Agent loop admits each action
+ * of the batch at A0 and answers `unavailable` when the assembly gives it no trusted Tool request
+ * source (`toolRequests`), so the journal stays at A0 and the action stays `pending`.
+ */
 function atToolRefusal(snapshot: AgentSnapshot | null): boolean {
-  return snapshot?.state.kind === 'advancing' && snapshot.checkpoint.position === 'I4'
+  return (
+    snapshot?.state.kind === 'advancing' &&
+    snapshot.checkpoint.position === 'A0' &&
+    (snapshot.checkpoint.batch?.actions.some(action => action.judgment.kind === 'pending') ?? false)
+  )
 }
 
 /** The facility calls of card #790 item 2: a file read, a file write and one command. */
@@ -1913,7 +1921,7 @@ function toolRoundTripClosed(
 /**
  * H10: the Model requests a tool; the Agent runs it in the execution environment and calls the
  * Model again with the result. The probe waits for the tool-call reply, then for the reply after
- * the tool result unless the loop already stopped at I4.
+ * the tool result unless the loop already stopped at A0.
  */
 async function probeToolRoundTrip(context: PathContext): Promise<ConnectedObservation> {
   const probe = await openProbe(context, TOOL_PROBE)
@@ -1921,7 +1929,7 @@ async function probeToolRoundTrip(context: PathContext): Promise<ConnectedObserv
   const { session, drive } = probe.opened
   const { agent } = drive
   const { snapshot, waits } = await awaitToolRound(context, session, drive)
-  // The refusal at I4 is judged from the last snapshot that the probe read.
+  // The refusal at A0 is judged from the last snapshot that the probe read.
   const refused = atToolRefusal(snapshot)
   const effects = agent.toolEffects()
   const toolResult = drive.log.requestBlocks.has('tool_result')
@@ -1932,7 +1940,11 @@ async function probeToolRoundTrip(context: PathContext): Promise<ConnectedObserv
     ...waits,
     `caller-reported: Tool runtime invocations ${agent.toolInvocations()}, execution-environment effects ${effects.join(',') || 'none'}, Model admissions ${agent.admitted()}`,
     stateLabel(snapshot),
-    ...(refused ? ['agent:the loop stopped at I4 with the tool-call reply (GAP-TOOL-LOOP)'] : []),
+    ...(refused
+      ? [
+          'agent:the loop stopped at A0 with the tool-call action pending: no trusted Tool request source (GAP-TOOL-LOOP)',
+        ]
+      : []),
     toolResult
       ? 'agent:a later Model request carried the tool result'
       : 'agent:no Model request carried a tool result',
@@ -1945,7 +1957,7 @@ function timedOut(waited: BridgeLog['waited'], label: string): readonly string[]
 }
 
 /**
- * The waits of the tool probe: for the tool-call reply, then, unless the loop stopped at I4, for
+ * The waits of the tool probe: for the tool-call reply, then, unless the loop stopped at A0, for
  * the reply after the tool result. Returns the last snapshot it read and the waits that timed out.
  */
 async function awaitToolRound(
