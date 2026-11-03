@@ -122,11 +122,11 @@ it('reuses the original acquisition history when a real Cordis factory row reloa
     })
     // Both platforms read the original bytes. The win32 branch that expected rejected/unavailable
     // went stale when L-TOOL delivered the Windows files backend (67450f08c, 3f82f5bbc); consumer
-    // migration by Reduce per R2-D142 item 11.
-    expect(read).toMatchObject({
-      kind: 'done',
-      value: { bytes: new TextEncoder().encode('kept') },
-    })
+    // migration by Reduce per R2-D142 item 11. The Windows backend returns a Buffer, which is a
+    // Uint8Array, so the bytes are compared as a plain Uint8Array view.
+    if (read.kind !== 'done') throw new Error(`expected done, got ${JSON.stringify(read)}`)
+    expect(read.value.bytes).toBeInstanceOf(Uint8Array)
+    expect(new Uint8Array(read.value.bytes)).toEqual(new TextEncoder().encode('kept'))
     expect(await readFile(path, 'utf8')).toBe('kept')
     await first.dispose()
     await root.plugin(plugin, config)
