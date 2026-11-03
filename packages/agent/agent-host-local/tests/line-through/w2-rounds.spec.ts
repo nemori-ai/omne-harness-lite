@@ -27,12 +27,12 @@ const NEW_ROWS_PER_ROUND = 2
  */
 const AD04_READS = 2
 /**
- * The page read returns the added rows and the row before them (the signed cursor of Session is
- * usable only one row early); the mint read, which gets that cursor for the next round, reads the rows
- * of this round again, which are the added rows. So the added rows are read twice, and the formula
- * is `added + 1 + added`, not `added + constant` (a ruling of Reduce is open on the form).
+ * The rows the AD-04 read path reads for `added` new rows: the page read returns the added rows and the
+ * row before them (the signed cursor of Session is usable only one row early), and the mint read,
+ * which gets that cursor for the next round, reads the rows of this round again. So: `2 * added + 1`
+ * (R2-D75). Rounds 2 and 3 measure 5 rows for 2 added rows.
  */
-const AD04_ROWS_FOR = (added: number) => added + 1 + added
+const AD04_ROWS_FOR = (added: number) => 2 * added + 1
 
 const worlds: W2World[] = []
 afterEach(async () => {
