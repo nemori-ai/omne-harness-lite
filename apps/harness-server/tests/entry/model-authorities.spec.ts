@@ -43,15 +43,15 @@ import type {
   ModelInitialHostChannel,
 } from '@omne-harness/model/commands'
 import {
-  modelCompositionOf,
   modelConverterAuthority,
   modelHostAuthority,
   modelPublicationAuthority,
 } from '../../src/entry/model-authorities.ts'
 import { principalIssuer, principalVerifier } from '../../src/entry/principals.ts'
+import { modelHostPortOf, modelRecordsPortOf } from '../../src/model/ports.ts'
 import { MODEL_HOST_COMPONENT, MODEL_WORK_OWNER } from '../../src/model/principals.ts'
 import { ACTOR_OWNER, createModelQualification } from '../../src/model/qualification.ts'
-import { fixtureEnv, fixtureTenant, got, okOf } from './support.ts'
+import { fixtureEnv, fixtureTenant, got, heldValues, okOf } from './support.ts'
 
 const TENANT = fixtureTenant('a')
 const OTHER = fixtureTenant('b')
@@ -160,19 +160,20 @@ async function installed(options: { withIssuer?: boolean; standing?: TenantStand
     host,
     publication: got(fixture.root.get(modelPublicationAuthorityKey), 'modelPublicationAuthority'),
     converter: got(fixture.root.get(modelConverterAuthorityKey), 'modelConverterAuthority'),
-    composition: got(modelCompositionOf(fixture.root), 'composition'),
+    records: got(modelRecordsPortOf(fixture.root), 'records port'),
+    hostPort: got(modelHostPortOf(fixture.root), 'host port'),
   }
 }
 
 /** 一个记录行的附着与一个宿主行的绑定，像两行在装载时做的那样。 */
 async function attachedAndBound(scene: Awaited<ReturnType<typeof installed>>) {
-  const { fixture, script, composition } = scene
+  const { fixture, script, records } = scene
   const verifier = got(fixture.root.get('principalVerifier'), 'verifier') as PrincipalVerifier
   const qualification = createModelQualification({
     verifier,
     standing: { read: () => Promise.resolve(script.standing) },
   })
-  const attached = composition.attach(fixture.root, {
+  const attached = records.attach(fixture.root, {
     initial: scriptedInitial(script),
     qualification,
   })
@@ -186,7 +187,7 @@ async function attachedAndBound(scene: Awaited<ReturnType<typeof installed>>) {
   })
   await fiber
   if (hostCtx === undefined) throw new Error('fixture: no host context')
-  const binding = composition.bindHost(hostCtx)
+  const binding = scene.hostPort.bindHost(hostCtx)
   return { qualification, binding, hostFiber: fiber, handle: attached.ok }
 }
 
@@ -252,6 +253,47 @@ describe('the three model authorities on a real Cordis context', () => {
     })
     expect(JSON.stringify(resolved)).not.toContain('mcall_one')
   })
+
+  it('an unrelated plugin that reads modelHostAuthority gets resolve only: no composition, no write port, no channel (defect: the composition on a public service)', async () => {
+    const scene = await installed()
+    const bound = await attachedAndBound(scene)
+    let seen: unknown
+    await scene.fixture.root.plugin({
+      name: 'unrelated',
+      inject: [modelHostAuthorityKey],
+      apply(ctx: Context) {
+        seen = ctx.get(modelHostAuthorityKey)
+      },
+    })
+    const service = seen as Record<string, unknown>
+    expect(typeof service.resolve).toBe('function')
+    for (const name of [
+      'composition',
+      'attached',
+      'attach',
+      'grantOriginRead',
+      'checkOriginRead',
+      'executionChannel',
+      'bindHost',
+      'hostCurrent',
+      'initial',
+      'qualification',
+      'captureHost',
+      'recordHostBinding',
+      'releaseExecution',
+    ])
+      expect(service[name], name).toBeUndefined()
+    const held = heldValues(seen)
+    for (const [what, value] of [
+      ['records port', scene.records],
+      ['host port', scene.hostPort],
+      ['attach handle', bound.handle],
+      ['host binding', bound.binding],
+      ['qualification', bound.qualification],
+      ['qualification authority', bound.qualification.authority],
+    ] as const)
+      expect(held.has(value), what).toBe(false)
+  })
 })
 
 describe('modelHostAuthority.resolve: read the acceptance, issue M, check the relation, prepare', () => {
@@ -292,16 +334,16 @@ describe('modelHostAuthority.resolve: read the acceptance, issue M, check the re
     const scene = await installed()
     await attachedAndBound(scene)
     const target = { tenant: TENANT, call: CALL }
-    expect(scene.composition.checkOriginRead(target)).toEqual({
+    expect(scene.records.checkOriginRead(target)).toEqual({
       failure: { kind: 'denied', action: 'origin-read' },
     })
     let seen: unknown
     scene.script.onRead = read => {
-      seen = scene.composition.checkOriginRead(read)
+      seen = scene.records.checkOriginRead(read)
     }
     expect(await scene.host.resolve(target)).toHaveProperty('ok')
     expect(seen).toEqual({ ok: undefined })
-    expect(scene.composition.checkOriginRead(target)).toEqual({
+    expect(scene.records.checkOriginRead(target)).toEqual({
       failure: { kind: 'denied', action: 'origin-read' },
     })
   })
@@ -424,15 +466,21 @@ describe('modelHostAuthority.resolve: read the acceptance, issue M, check the re
   it('a second records attachment is refused while one is attached; after detach the next one is accepted', async () => {
     const scene = await installed()
     const bound = await attachedAndBound(scene)
-    const again = scene.composition.attach(scene.fixture.root, {
+    const again = scene.records.attach(scene.fixture.root, {
       initial: scriptedInitial(scene.script),
       qualification: bound.qualification,
     })
     expect(again).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(bound.handle.executionChannel()).toHaveProperty('ok')
     bound.handle.detach()
-    expect(scene.composition.attached()).toBeUndefined()
+    expect(bound.handle.executionChannel()).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'records-not-attached' },
+    })
+    expect(await scene.host.resolve({ tenant: TENANT, call: CALL })).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'records-not-attached' },
+    })
     expect(
-      scene.composition.attach(scene.fixture.root, {
+      scene.records.attach(scene.fixture.root, {
         initial: scriptedInitial(scene.script),
         qualification: bound.qualification,
       }),

@@ -256,8 +256,8 @@ IC-19：下面四项保证只在同一进程、同一份模块副本里成立。
 | `runtime-context`                     | `runtimeContextTrust`（入口对象，受信）：`authority` 只放行经核验、租户与动作相等的代租户行事主体；`bindings` 与 `replayFacts` 在 AD-03 交付前答 `unavailable`；`current` 是进程代次桥 | 带目标的操作在绑定来源交付前一律 `unavailable`；代次桥不闭合 #677（撤权与换代没有同步来源） |
 | `session-ad12`                        | `runtimeContext`（`runtime-context` 行）；采用定义是发行代码 `src/assembly/context-definitions.ts`                                                                                     | 登记变更需要的协调者主体来源本装配没有，行答 `unavailable`                                  |
 | `server-entry`                        | `session`、签发作用域的 `principalIssuer`（APP-5）、`definitionMappings`、`s0.assemblyLifecycle`。按调用现取 `identityOperations`、`principalVerifier`                                 | 回环与明文的限制（线包 2.5）                                                                |
-| `model-records`                       | `storage`、`tenantDomainLookup`（受信存储子树）、`modelClock`、`principalVerifier`、`tenantStanding`；经 `modelHostAuthority` 的运行级组合交出 `initial` 与资格表、取 origin 读检查与执行通道；见[Model 生产接线](rows/model-release.md) | 撤权与换代没有同步来源（#677）；直接经 `modelCommands` 的 W 调用没有受理点，一律 `unavailable` |
-| `model-host`                          | `modelCommands`、`modelClock`、`modelHostAuthority`；经运行级组合取 `executionChannel`、`releaseExecution`、`qualifyObservation` 与推送账本；按调用现取 `modelSendBoundary`；`business` 阶段行体承载 | 重试策略恒 `unavailable`；目录发布恒 `denied`；数值是运维者层的测试值                      |
+| `model-records`                       | `storage`、`tenantDomainLookup`（受信存储子树）、`modelClock`、`principalVerifier`、`tenantStanding`；经本行在运行级组合上的窄口（`src/model/ports.ts`）交出 `initial` 与资格表、取 origin 读检查与本次附着的通道；见[Model 生产接线](rows/model-release.md) | 撤权与换代没有同步来源（#677）；直接经 `modelCommands` 的 W 调用没有受理点，一律 `unavailable` |
+| `model-host`                          | `modelCommands`、`modelClock`、`modelHostAuthority`；经本行在运行级组合上的窄口取 `executionChannel`、`releaseExecution`、`qualifyObservation` 与推送账本；按调用现取 `modelSendBoundary`；`business` 阶段行体承载 | 重试策略恒 `unavailable`；目录发布恒 `denied`；数值是运维者层的测试值                      |
 
 签发者的受信具名持有者（ID-16）：`src/entry/principals.ts` 与 `server-entry` 行，没有别的。
 

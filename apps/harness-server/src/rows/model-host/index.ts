@@ -1,7 +1,8 @@
 // The `model-host` row (assembly page row table, R2-D6, `tmp/wire-model/design.md` §4, §5, §7):
 // model-host-local's `createModelRuntimeLocalPlugin` with the real Model runtime as its provider.
 // It injects `modelCommands`, `modelClock` and `modelHostAuthority` (the plugin's static inject).
-// The objects that do not go into configuration come from the run composition the entry holds:
+// The objects that do not go into configuration come from the row's port of the run composition
+// (`src/model/ports.ts`; the injected authority carries nothing but `resolve`):
 // - `executionChannel`: the one channel of the current records activation, shared with the send stage.
 // - `releaseExecution`: disposes the send child, then closes the channel (host-local SPEC release order).
 // - `qualifyObservation`: the `observe` row of the authority, after qualifying the observer.
@@ -29,8 +30,8 @@ import {
   modelSendBoundaryKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { createModelRuntimeLocalPlugin } from '@omne-harness/model-host-local/cordis'
-import { modelCompositionOf } from '../../entry/model-authorities.ts'
 import { qualifyingCommands } from '../../model/commands-qualifying.ts'
+import { modelHostPortOf } from '../../model/ports.ts'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { monotonicClock } from '../../shutdown.ts'
 import { modelHostConfig, type ModelHostConfig } from './config.ts'
@@ -73,12 +74,12 @@ function hostPlugin(config: ModelHostConfig): Plugin.Object {
     name: 'model-host',
     inject: [modelCommandsKey, modelClockKey, modelHostAuthorityKey],
     apply(ctx: Context) {
-      const composition = modelCompositionOf(ctx)
-      if (composition === undefined)
+      const port = modelHostPortOf(ctx)
+      if (port === undefined)
         throw new Error(
           'model-host: the modelHostAuthority entry object of this release is not installed',
         )
-      const binding = composition.bindHost(ctx)
+      const binding = port.bindHost(ctx)
       const send = lateBoundSendBoundary(ctx)
       const Plugin = createModelRuntimeLocalPlugin({
         executionChannel: binding.executionChannel,

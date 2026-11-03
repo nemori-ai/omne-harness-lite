@@ -1,6 +1,8 @@
 // The run-level composition of the Model rows (`tmp/wire-model/design.md` §5, model-host-local SPEC
-// 「首次执行与公共观察接线」): the entry object `modelHostAuthority` holds one of these per run, and the
-// `model-records` and `model-host` rows reach it through `modelCompositionOf(ctx)`. It owns:
+// 「首次执行与公共观察接线」): the entry object `modelHostAuthority` holds one of these per run in its own
+// closure. No public service carries it: the two rows get only their narrow ports (`records`, `host`)
+// through `src/model/ports.ts`, keyed by the root context of the run; `resolve` alone reads the rest.
+// It owns:
 // - the origin read grants of `resolve` (`checkOriginRead` of the first-execution run);
 // - the attachment of one records activation (its `initial` and its qualification registry);
 // - the one execution channel both the host and the send stage capture;
@@ -42,8 +44,27 @@ export type ModelRecordsAttachment = Readonly<{
 export type ModelRecordsHandle = Readonly<{
   /** The send child the records plugin created; the host releases it before the channel. */
   captureSendChild(fiber: Fiber): void
+  /** The channel of this attachment, for the send stage; unavailable once the attachment ended. */
+  executionChannel(): Outcome<ModelInitialHostChannel<unknown>, ModelFailure>
   /** Ends the attachment: closes the channel and forgets the activation. */
   detach(): void
+}>
+
+/** The port of the `model-records` row: the origin read check of its first-execution run and one attachment. */
+export type ModelRecordsPort = Readonly<{
+  /** The origin read check of the first-execution run: only a granted target may be read. */
+  checkOriginRead(target: InitialTarget): Outcome<void, ModelFailure>
+  /** One attachment per records activation; a second one is refused. */
+  attach(
+    ctx: Context,
+    attachment: ModelRecordsAttachment,
+  ): Outcome<ModelRecordsHandle, ModelFailure>
+}>
+
+/** The port of the `model-host` row: one binding per host activation. */
+export type ModelHostPort = Readonly<{
+  /** Binds the host row's fiber: its retirement is the `current` of every host capture. */
+  bindHost(ctx: Context): ModelHostBinding
 }>
 
 /** What the host row takes from the composition for one of its activations. */
@@ -57,22 +78,16 @@ export type ModelHostBinding = Readonly<{
   ledger: ResultPushLedger
 }>
 
+/** The whole composition: the two row ports, and what only `resolve` reads. Never on a service. */
 export type ModelRunComposition = Readonly<{
-  /** The origin read check of the first-execution run: only a granted target may be read. */
-  checkOriginRead(target: InitialTarget): Outcome<void, ModelFailure>
+  records: ModelRecordsPort
+  host: ModelHostPort
   /** Grants the origin read of one target to the caller; the return revokes it. */
   grantOriginRead(target: InitialTarget): () => void
-  /** One attachment per records activation; a second one is refused. */
-  attach(
-    ctx: Context,
-    attachment: ModelRecordsAttachment,
-  ): Outcome<ModelRecordsHandle, ModelFailure>
   /** The current attachment, for `resolve`. */
   attached(): ModelRecordsAttachment | undefined
-  /** The one channel of the current attachment, for the host and the send stage. */
+  /** The one channel of the current attachment, for `resolve`. */
   executionChannel(): Outcome<ModelInitialHostChannel<unknown>, ModelFailure>
-  /** Binds the host row's fiber: its retirement is the `current` of every host capture. */
-  bindHost(ctx: Context): ModelHostBinding
   /** The retirement closure of the bound host, for `resolve`; absent while no host is bound. */
   hostCurrent(): (() => boolean) | undefined
 }>
@@ -92,7 +107,7 @@ export function createModelRunComposition(): ModelRunComposition {
   let attached: Attached | undefined
   let hostCurrent: (() => boolean) | undefined
 
-  const checkOriginRead: ModelRunComposition['checkOriginRead'] = target => {
+  const checkOriginRead: ModelRecordsPort['checkOriginRead'] = target => {
     const key = keyOf(target)
     return key !== undefined && (grants.get(key) ?? 0) > 0
       ? succeed(undefined)
@@ -113,7 +128,7 @@ export function createModelRunComposition(): ModelRunComposition {
     }
   }
 
-  const attach: ModelRunComposition['attach'] = (ctx, attachment) => {
+  const attach: ModelRecordsPort['attach'] = (ctx, attachment) => {
     if (attached !== undefined) return fail(unavailable('records-already-attached'))
     const decoded = decodeModelInstanceId(`minst_${randomBytes(16).toString('hex')}`)
     if ('failure' in decoded) return fail(unavailable('instance-identity'))
@@ -132,6 +147,10 @@ export function createModelRunComposition(): ModelRunComposition {
         captureSendChild: fiber => {
           current.sendChild.fiber = fiber
         },
+        executionChannel: () =>
+          attached === current
+            ? succeed(current.channel)
+            : fail(unavailable('records-not-attached')),
         detach: () => {
           if (attached !== current) return
           attached = undefined
@@ -144,7 +163,7 @@ export function createModelRunComposition(): ModelRunComposition {
   const executionChannel: ModelRunComposition['executionChannel'] = () =>
     attached === undefined ? fail(unavailable('records-not-attached')) : succeed(attached.channel)
 
-  const bindHost: ModelRunComposition['bindHost'] = ctx => {
+  const bindHost: ModelHostPort['bindHost'] = ctx => {
     const current = currentForReader(readers, ctx)
     hostCurrent = current
     ctx.effect(() => () => {
@@ -177,12 +196,11 @@ export function createModelRunComposition(): ModelRunComposition {
   }
 
   return Object.freeze({
-    checkOriginRead,
+    records: Object.freeze({ checkOriginRead, attach }),
+    host: Object.freeze({ bindHost }),
     grantOriginRead,
-    attach,
     attached: () => attached,
     executionChannel,
-    bindHost,
     hostCurrent: () => hostCurrent,
   })
 }

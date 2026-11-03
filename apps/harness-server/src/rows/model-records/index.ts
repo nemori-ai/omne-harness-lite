@@ -3,7 +3,7 @@
 // the send stage of model-host-local as a child fiber of the same row (plan A of R2-D6). The row
 // provides `modelCommands` itself and `modelSendBoundary` through its child.
 //
-// What the row builds from its injects and the run composition of the entry:
+// What the row builds from its injects and its port of the run composition (`src/model/ports.ts`):
 // - the first-execution run (`createModelInitialRun`) with the origin read check of the composition;
 // - the qualification registry over `principalVerifier` and `tenantStanding` (the synchronous
 //   `authority`, `execution` and `current` read what the admission points captured);
@@ -40,8 +40,8 @@ import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-a
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
-import { modelCompositionOf } from '../../entry/model-authorities.ts'
 import { createModelEvidence } from '../../model/evidence.ts'
+import { modelRecordsPortOf } from '../../model/ports.ts'
 import { createModelQualification } from '../../model/qualification.ts'
 import { officialSendSources } from '../../model/sources.ts'
 import { defineRow } from '../../row.ts'
@@ -95,8 +95,8 @@ function evidenceOf(
 
 /** One activation of the row: the plugin class is built for it, so every live object is in its closure. */
 function activate(ctx: Context, config: ModelRecordsConfig): void {
-  const composition = modelCompositionOf(ctx)
-  if (composition === undefined)
+  const port = modelRecordsPortOf(ctx)
+  if (port === undefined)
     throw new Error(
       'model-records: the modelHostAuthority entry object of this release is not installed',
     )
@@ -117,7 +117,7 @@ function activate(ctx: Context, config: ModelRecordsConfig): void {
   } = { initial: undefined, reader: undefined }
   const initialRun = createModelInitialRun<unknown>({
     limits: config.app.initial,
-    checkOriginRead: target => composition.checkOriginRead(target),
+    checkOriginRead: target => port.checkOriginRead(target),
   })
   const { sendStage } = config.app
   const Records = createSqlModelRecordsPlugin<unknown, ModelSendStageSettings>({
@@ -143,7 +143,7 @@ function activate(ctx: Context, config: ModelRecordsConfig): void {
       if (activation?.initial === null || activation === undefined)
         throw new Error('model-records: the records activation gave no first-execution record')
       live.initial = activation.initial
-      const attached = composition.attach(ctx, { initial: activation.initial, qualification })
+      const attached = port.attach(ctx, { initial: activation.initial, qualification })
       if ('failure' in attached)
         throw new Error(
           `model-records: the run composition refused the attachment (${attached.failure.kind})`,
@@ -181,7 +181,7 @@ function activate(ctx: Context, config: ModelRecordsConfig): void {
           maxCitedCalls: sendStage.preparation.maxCitedCalls,
           supplierOf: factorySupplier,
         },
-        executionChannel: () => composition.executionChannel(),
+        executionChannel: () => handle.executionChannel(),
         installMaterialization: reader => {
           live.reader = reader
           return () => {

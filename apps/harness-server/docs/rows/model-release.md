@@ -63,7 +63,7 @@
 
 ## 运行级组合与释放次序
 
-入口对象 `modelHostAuthority` 持有本运行的 Model 组合（`src/model/composition.ts`），两行经 `modelCompositionOf(ctx)` 接上来。组合持有 origin 读许可、一次记录激活的附着（`initial` 与资格表；第二次附着被拒）、唯一的执行通道（附着时以随机 `minst_` 打开，宿主与发送子插件的 `executionChannel` 都返回它）、宿主绑定与推送账本。组合不交出签发者、standing 读口或登记表的写口；只拿到通道而没有 M 登记项的调用方做不了 claim 与 send。
+入口对象 `modelHostAuthority` 在自己的闭包里持有本运行的 Model 组合（`src/model/composition.ts`）。组合不挂在任何服务实例上：`ctx.get('modelHostAuthority')` 只拿到 `resolve`。两行各经 `src/model/ports.ts` 按运行的根上下文取自己的窄口：`model-records` 拿 `checkOriginRead` 与 `attach`（附着句柄给出本次附着的通道、发送子 fiber 的登记与 `detach`），`model-host` 拿 `bindHost`（绑定给出 `executionChannel`、`releaseExecution`、`qualify`、`qualifyObservation` 与推送账本）。`grantOriginRead`、`attached`、宿主退役闭包与通道的直接读口只有入口的 `resolve` 读得到。组合持有 origin 读许可、一次记录激活的附着（`initial` 与资格表；第二次附着被拒）、唯一的执行通道（附着时以随机 `minst_` 打开，宿主与发送子插件的 `executionChannel` 都返回它）、宿主绑定与推送账本。无关插件经 `ctx.get` 拿不到签发者、standing 读口、登记表的写口（`captureHost`、`recordHostBinding`）、`initial`，也拿不到通道；`tests/entry/model-authorities.spec.ts` 有这条反例。
 
 `model-host` 是 `business` 阶段的行体承载：宿主插件跑在行的子 fiber 里，业务停止 dispose 该子 fiber，这就是成员的有序关闭（关观察、quiesce、停派发等 drive 交还、停推送、`releaseExecution`）。`releaseExecution` 由入口组合兑现：先 dispose 记录行的发送子 fiber，等发送资源关闭，再关 channel；宿主 finally 幂等再关一次。期间 `model-records` 父 fiber 存活。期限内未完成答 `incomplete`。
 
@@ -81,7 +81,7 @@
 ## 持续验证
 
 - [资格登记表](../../tests/model/qualification.spec.ts)：W 与 M 的九动作矩阵、核验失败与 standing 的各答法、ActorRef 三字段来源、执行引用、`current`、fiber 退役后永远为假。
-- [宿主权威](../../tests/entry/model-authorities.spec.ts)：`resolve` 的四步与每步失败、origin 读许可只在读内、签发者缺席、宿主未绑定、prepare 不被跳过、二次附着被拒。
+- [宿主权威](../../tests/entry/model-authorities.spec.ts)：`resolve` 的四步与每步失败、origin 读许可只在读内、签发者缺席、宿主未绑定、prepare 不被跳过、二次附着被拒、无关插件经 `ctx.get` 只拿到 `resolve`。
 - [跨行断言](../../tests/model/consistency.spec.ts)：四条相等各一条反例，装载前退出 2。
 - [发送来源](../../tests/model/sources.spec.ts)：档案采用与真实档案插件相等。
 - [两行真件](../../tests/rows/model/records-host.spec.ts)：真实 SQLite 与 session-storage 上装两行，经 runtime 的受理点放行 W、拒绝未核验主体，直接命令口 `unavailable`，宿主 `resolve` 读到未受理调用，缺凭据配置时发送 `unavailable`，业务阶段 `settled`。

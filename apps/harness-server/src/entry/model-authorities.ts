@@ -3,8 +3,9 @@
 // `model-converters`，都在根上 provide。发布与转换器登记核验对任何请求答 `denied`（入口没有预约表与采用表，不认识即拒绝；
 // R2-D33 §5.3：目录发布恒 denied 不挡本地 host 的 drive）。
 //
-// `modelHostAuthority` 是波 2 的真件（简报 B3-M 第 4 项、`tmp/wire-model/design.md` §3）。它持有本运行的 Model 组合
-// （`src/model/composition.ts`），`model-records` 与 `model-host` 两行经 `modelCompositionOf(ctx)` 接上来。`resolve` 按
+// `modelHostAuthority` 是波 2 的真件（简报 B3-M 第 4 项、`tmp/wire-model/design.md` §3）。它在自己的闭包里持有本运行的
+// Model 组合（`src/model/composition.ts`），服务实例上只有 `resolve`；`model-records` 与 `model-host` 两行各经
+// `src/model/ports.ts` 按根上下文取自己的窄口（附着、宿主绑定），`ctx.get` 拿不到组合的任何部分（R2-D108 B1）。`resolve` 按
 // 固定次序取事实：读原受理（只在本次许可内）→ 用入口受信读取的签发者签 M → 核受理记录与 M 的关系（租户、调用、原发起者就是
 // 本租户账号）→ `channel.prepare`。任一步失败答 `unavailable` 或 `denied`，不补造 ActorRef、operation 或摘要。
 // 签发者只在安装时经受信名 `principalIssuer` 读一次；签发闭包固定 actor 与 `work.owner`，不交给任何行。
@@ -32,6 +33,7 @@ import {
 } from '@omne-harness/model-cordis-contract/cordis'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import { createModelRunComposition, type ModelRunComposition } from '../model/composition.ts'
+import { registerModelRowPorts } from '../model/ports.ts'
 import { MODEL_HOST_COMPONENT, MODEL_WORK_OWNER } from '../model/principals.ts'
 import { ACTOR_OWNER, readSubject } from '../model/qualification.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
@@ -172,25 +174,13 @@ class EntryModelConverterAuthority extends ModelConverterAuthorityService<unknow
   }
 }
 
-/** 本运行的 Model 组合挂在服务实例上，两行经 `modelCompositionOf` 读；类里不用 `#` 私有字段（经代理时 `this` 不是实例）。 */
-export class EntryModelHostAuthority extends ModelHostAuthorityService<unknown> {
+/** 服务实例上只有 `resolve`；组合留在入口闭包里，不挂到任何 `ctx.get` 能到的对象上。 */
+class EntryModelHostAuthority extends ModelHostAuthorityService<unknown> {
   readonly resolve: ModelHostAuthority<unknown>['resolve']
-  readonly composition: ModelRunComposition
-  constructor(
-    ctx: Context,
-    authority: ModelHostAuthority<unknown>,
-    composition: ModelRunComposition,
-  ) {
+  constructor(ctx: Context, authority: ModelHostAuthority<unknown>) {
     super(ctx)
-    this.composition = composition
     this.resolve = input => authority.resolve(input)
   }
-}
-
-/** 行读本运行的 Model 组合：注入的权威若是本入口的实现，取它的组合；否则没有。 */
-export function modelCompositionOf(ctx: Context): ModelRunComposition | undefined {
-  const service: unknown = ctx.get(modelHostAuthorityKey)
-  return service instanceof EntryModelHostAuthority ? service.composition : undefined
 }
 
 /** 模型宿主签发闭包：经入口受信读取的签发者签系统 actor，再固定它与 `work.owner`。签发者缺席时为 undefined。 */
@@ -233,6 +223,7 @@ export const modelHostAuthority: EntryObjectModule = {
   implementation: 'real',
   install(scope, env) {
     const composition = env.once(COMPOSITION, createModelRunComposition)
+    registerModelRowPorts(scope, { records: composition.records, host: composition.host })
     const issue = modelWorkIssuerOf(env)
     if (issue === undefined)
       scope
@@ -243,6 +234,6 @@ export const modelHostAuthority: EntryObjectModule = {
       issue,
       standing: () => scope.get(tenantStandingKey),
     })
-    new EntryModelHostAuthority(scope, authority, composition)
+    new EntryModelHostAuthority(scope, authority)
   },
 }
