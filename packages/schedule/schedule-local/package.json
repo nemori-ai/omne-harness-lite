@@ -34,9 +34,13 @@
     "@omne-harness/schedule": "workspace:*",
     "@omne-harness/schedule-contract": "workspace:*",
     "@omne-harness/schedule-cordis-contract": "workspace:*",
-    "@omne-harness/sql-contract": "workspace:*"
+    "@omne-harness/sql-contract": "workspace:*",
+    "canonicalize": "5.1.0",
+    "piscina": "5.3.2",
+    "zod": "catalog:"
   },
   "devDependencies": {
+    "@omne-harness/sqlite-provider": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
