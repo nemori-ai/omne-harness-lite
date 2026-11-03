@@ -380,6 +380,18 @@ assistant 消息里的推理续接状态部件与其他块一样进入历史投�
 
 窄来源适配器负责把原覆盖证据关联到候选、调用、提交顺序、窗口与账目依据。没有这些事实时，独立协议可以验证，真实的 `actual` 供块不能声明完成。
 
+**固定请求记录。**`FixedRequestRecord` 是协调者一侧在固定那一刻保存的耐久记录，窄采用来源读回它来拼 `AdoptedRequestFact`。本成员拥有它的格式与含义，保存它的一方不解释它。格式名是 `request-context/fixed-request/1`，字段如下。
+
+| 字段 | 含义 |
+| --- | --- |
+| `target`、`candidate` | 固定时的目标与候选身份。读回时核对 `target`，不符不能当作本次目标的事实 |
+| `coverage` | 固定那一刻候选的原覆盖证据，不是读回时用当前读取重算的覆盖。保存者另存它的摘要，读回时核对 `digest(record.coverage)`，不符为来源证据冲突（`source-evidence-conflict`） |
+| `windowTokens` | 固定所用档案的 `context.window.provided`，规范正十进制文本；不是读回时的当前档案 |
+| `forecast` | 固定时整请求 `input-tokens` 计量的最大值（`forecastOf`：每项取上界，估算项含余量），为 `estimate` 或 `null`（报告里没有该项检查）。不是当前重算 |
+| `continuation` | 原延续依据。本波恒为 `null`，格式留着槽位；`decodeFixedRequestRecord` 现在拒绝非 `null` 的值（`unsupported-format`），待它有耐久形式时再放开 |
+
+`encodeFixedRequestRecord` 给出可存的 JSON 值，租户用规范文本。`decodeFixedRequestRecord` 逐键核对：多余或缺少的键、其他格式名、非正十进制的 `windowTokens`、`kind` 不是 `estimate` 的预测、形状不对的覆盖，都是 `unsupported-format`，并指出出错的字段。`AdoptedRequestFact` 的 `call`、`order`、`committed` 与 `accounting` 不在记录里，它们由保存者在固定之后的提交里给出。
+
 #### 恢复与容量
 
 `ContextRecovery.rebuildAccounts({ access, target, replay })` 只接受系统作用域的访问身份（RQ-15）。`replay` 是结果接收方的适配器给出的固定日志快照：`snapshot` 是快照证据，`facts` 是快照下应由本成员消费的原账目修订及原发出关联。`facts` 正常结束表示快照已完整消费，读取异常不能伪造正常结束。
