@@ -599,6 +599,15 @@ export function createModelObservationSource<P>(
       },
     }
   }
+  /** Reserves the bytes of a publication; a new call beyond the retained calls has no room. */
+  function reservePublication(publication: Publication, replacing: boolean): () => void {
+    if (!replacing && publications.size >= limits.maxRetainedCalls)
+      throw new RangeError('observation publication capacity')
+    const measured = measureStreamValue(publication, limits.maxTotalBytes)
+    const release = measured && budget.reserve(measured.bytes)
+    if (!release) throw new RangeError('observation publication capacity')
+    return release
+  }
   const source: ModelObservationSource<P> = {
     openHost() {
       if (closed || activeHost)
@@ -700,11 +709,7 @@ export function createModelObservationSource<P>(
           if (prior && samePublication(prior, publication)) return
           const entry = records.get(key)
           if (entry) retireTarget(entry)
-          if (!prior && publications.size >= limits.maxRetainedCalls)
-            throw new RangeError('observation publication capacity')
-          const measured = measureStreamValue(publication, limits.maxTotalBytes)
-          const release = measured && budget.reserve(measured.bytes)
-          if (!release) throw new RangeError('observation publication capacity')
+          const release = reservePublication(publication, prior !== undefined)
           publicationReleases.get(key)?.()
           publicationReleases.set(key, release)
           publications.set(key, publication)
