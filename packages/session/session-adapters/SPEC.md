@@ -336,14 +336,14 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
    - 本代次没有恢复过的作用域，先做第 1a 项的恢复会话。through 取该作用域的最后一个提交。材料按第 1a 项第 2 步构造，只含有步提交的 checkpointed 块。块被移除之前的步提交，不算作重新增加之后的块的步提交。
    - 已恢复的作用域，按原 CommitRef 与完整输入，逐条对尚未覆盖的记录调用 `applyCommit`。记录包括 SE07、步提交与作用域结束。
    - `out-of-order` 与 `replay-incomplete` 开始一个取代当前会话的恢复会话。恢复没有完成时，下一次通知或下一次签发之前再恢复，并取代没有完成的那个会话。
-   - 新作用域（第 1a 项「创建一个作用域」）：会话日志里还没有它的记录。事实插件在铸造作用域的通知（`session.created`、`session.unarchived`）后把快照里未结束的作用域记进索引。第一次为它签发之前，回放子插件完整读一遍该会话的上下文记录；读完而没有它的记录时，以空材料（through 为 null）完成恢复。读不完时不恢复，答 `unavailable`。
+   - 新作用域（第 1a 项「创建一个作用域」）：会话日志里还没有它的记录。事实插件在本代次第一次收到某会话的通知时，以及收到铸造作用域的通知（`session.created`、`session.unarchived`）时，把快照里未结束的作用域记进索引。通知的种类不总能列出创建：Session 的提交通知只读一页条目，大的创建条目可能不在页内。第一次为它签发之前，回放子插件完整读一遍该会话的上下文记录；读完而没有它的记录时，以空材料（through 为 null）完成恢复。读不完时不恢复，答 `unavailable`。
 2. 持有者插件 `session-ad03` 注入 `runtimeContext` 与 `session: { caller: 'coordinator' }`，提供 K-RC `runtimeContextReaderEligibility`。`current` 的政策如下：
    - 先核作用域的租户。租户不符时答 `refused`，不读会话，也不签发。
    - 本插件没有见过的作用域答 `unavailable`。恢复没有完成时答 `unavailable`。作用域已经结束时答 `absent`。
    - 同一主体、消费者类与作用域已有资格，并且作用域的恢复与注册修订都没有变时，再交出这份资格。
    - 否则当场签发。块键集合是该消费者类不带翻译的绑定的块键，需要绑定集合是它带翻译的绑定。两者都为空时也签发，答 `current`，读者读到空快照（R2-D202）。`absent` 只留给没有资格可签的情形（作用域已结束、Runtime Context 以 `scope-ended` 拒签），所以真缺资格不会被当作空读。同一次恢复内的重签取代旧资格。旧资格属于更早的恢复时，`beginReplay` 已使它失效，所以不取代它。
    - 持有者权威拒绝签发时答 `refused`。Runtime Context 不可用或未知时，原样答 `unavailable` 或 `unknown`。
-3. 事实插件 `session-ad03-facts` 注入 `session: { caller: 'coordinator' }`，以 `sessionReplayFacts` 与 `sessionScopeLookup` 两个键提供服务（服务类来自 session-cordis-contract）。它也在铸造作用域的通知后经 `readWork` 把快照中未结束的作用域记进共用索引（见第 1 项的新作用域）。插件停止时两个服务撤下，持有旧引用的调用答 `unavailable`。
+3. 事实插件 `session-ad03-facts` 注入 `session: { caller: 'coordinator' }`，以 `sessionReplayFacts` 与 `sessionScopeLookup` 两个键提供服务（服务类来自 session-cordis-contract）。它也在会话的第一次通知与铸造作用域的通知后经 `readWork` 把快照中未结束的作用域记进共用索引（见第 1 项的新作用域）；已读过的会话按索引上界记在本代次内，不重复读。插件停止时两个服务撤下，持有旧引用的调用答 `unavailable`。
    - `replayFacts.stepCommittedBlocks` 交给 `createSessionRuntimeContextTrust`，不再经回放纤程：事实插件读同一批上下文记录，截到 through，答最终注册中有步提交的 checkpointed 块。through 不在日志中时答 `unknown`。回放子插件不运行时它仍可回答；事实插件未运行、读不完的历史与翻译缺陷答 `unavailable`。
    - 作用域查找（R2-D14）：索引只说去哪里找。命中后以协调者主体读该会话的工作快照，在 `contextScopes` 里找该作用域：找到答 `known`（tenant、session、generation 取自快照，不取自 Cordis 代次或作用域文本）；快照没列出它答 `unknown`（伪造或他租户的作用域落在这里）。读取失败、主体取不到、快照答了另一个会话或租户、插件已停止答 `unavailable`。已结束的作用域仍答归属，答复不表示它仍然活跃。查找不授权任何访问。作用域未命中索引时，先等尚未结束的通知读取再答 `unknown`。
 

@@ -385,7 +385,7 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
   }
   const work = {
     readWork: async (input: SessionAccess<unknown>) => {
-      factsCalls.push({ method: 'readWork', input, caller: 'coordinator' })
+      factsCalls.push({ method: 'readWork', input, caller: { caller: 'coordinator' } })
       if (!owns(input)) return fail({ kind: 'denied', action: 'readWork' })
       return succeed({
         tenant: input.tenant,
@@ -868,6 +868,16 @@ describe('the runtimeContextReaderEligibility provider', () => {
     if (bound.kind !== 'bound') throw new Error(`expected bound, got ${bound.kind}`)
     const snapshot = await bound.reader.snapshot()
     expect(snapshot).toMatchObject({ kind: 'success', value: { blocks: [], missing: [] } })
+  })
+
+  it('indexes the snapshot scopes on the first notice of a session even when its kinds do not name the creation, and only once', async () => {
+    const f = await assembled()
+    f.mint(A, scopeA)
+    // The creation entry can fall outside the notice's page: the first notice names other kinds.
+    await f.committed(A, ['intake.routed'])
+    await f.committed(A, [REGISTRATION])
+    expect((await f.handoff()!.current(modelRequest)).kind).toBe('current')
+    expect(f.factsCalls.filter(call => call.method === 'readWork')).toHaveLength(1)
   })
 
   it('a scope that no snapshot lists stays unseen, and an ended one is not indexed', async () => {

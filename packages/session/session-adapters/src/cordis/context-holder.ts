@@ -706,24 +706,44 @@ function startFacts<P>(ctx: Context, shared: Shared<P>): void {
   const readRecords = recordReader(ctx, shared, logger)
   /** The notices whose read has not ended: a lookup waits for them before it says `unknown`. */
   const learning = shared.learning
+  /**
+   * The sessions whose snapshot scopes this generation has indexed, oldest first, bounded like the
+   * index. A notice of a session not in it reads the snapshot once: the kinds of a notice do not
+   * always name the creation (a large entry can fall outside the notice's page).
+   */
+  const scoped = new Set<string>()
   let closed = false
 
   /**
-   * Indexes the scopes of one session. The records name the scopes that hold context records. A
-   * notice that mints a scope (creation, unarchiving) also indexes the open scope of the snapshot: a
-   * new scope has no record yet, and the holder must still find it (AD-03 1a). A read that fails
-   * indexes nothing of its own part.
+   * Indexes the scopes of one session. The records name the scopes that hold context records. The
+   * first notice of a session in this generation, and a notice that mints a scope (creation,
+   * unarchiving), also index the open scopes of the snapshot: a new scope has no record yet, and the
+   * holder must still find it (AD-03 1a). A read that fails indexes nothing of its own part.
    */
   async function learn(bound: Bound, minted: boolean): Promise<void> {
     const read = await readRecords(bound)
     if (read.kind === 'unavailable')
       logger.warn(`the scopes of a session were not indexed: ${read.diagnostic}`)
     else if (!closed) for (const ref of read.scopes.keys()) remember(shared, ref, bound)
-    if (!minted || closed) return
+    const key = sessionKeyOf(bound)
+    if (closed || key === undefined || (!minted && scoped.has(key))) return
     const snapshot = await snapshotOf(bound)
     if (snapshot === undefined || closed) return
     for (const binding of snapshot.contextScopes ?? [])
       if (binding.ended === null) remember(shared, binding.scope, bound)
+    scoped.delete(key)
+    scoped.add(key)
+    const limit = input.scopeIndexEntries ?? SCOPE_INDEX_ENTRIES
+    while (scoped.size > limit) {
+      const oldest = scoped.values().next().value
+      if (oldest === undefined) break
+      scoped.delete(oldest)
+    }
+  }
+
+  function sessionKeyOf(bound: Bound): string | undefined {
+    const tenant = tenantText(bound.tenant)
+    return tenant === undefined ? undefined : JSON.stringify([tenant, bound.session])
   }
 
   /** The snapshot of the session, or `undefined` when it cannot be had as the session it was asked for. */
@@ -812,8 +832,11 @@ function startFacts<P>(ctx: Context, shared: Shared<P>): void {
   new SessionScopeLookupProvider(ctx, fiber)
 
   ctx.on('session-cordis-contract/committed', (tenant, session, _revision, _source, kinds) => {
+    if (closed) return
     const minted = kinds.some(kind => SCOPE_MINTING_KINDS.includes(kind))
-    if (closed || (!minted && !kinds.some(kind => input.translation.kinds.includes(kind)))) return
+    const key = sessionKeyOf({ tenant, session })
+    const unscoped = key !== undefined && !scoped.has(key)
+    if (!minted && !unscoped && !kinds.some(kind => input.translation.kinds.includes(kind))) return
     const work = learn({ tenant, session }, minted).catch(cause =>
       logger.warn(`the scopes of a session were not indexed: ${describe(cause)}`),
     )
