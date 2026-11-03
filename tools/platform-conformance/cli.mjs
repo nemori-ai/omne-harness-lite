@@ -78,8 +78,35 @@ export function parse(args) {
     for (const file of member.tests) relativePath(file)
     if (new Set(member.tests).size !== member.tests.length)
       throw new Error('Duplicate requested test')
+    validateExclusive(member)
   }
   return { ...config, out: resolve(values.out), members }
+}
+
+const PLATFORMS = ['win32', 'linux', 'darwin']
+const nonEmpty = value => typeof value === 'string' && value.trim().length > 0
+
+/** 清单里的 platformExclusive：[{file, test, runsOn, reason}]，test 是 Vitest JSON 的 fullName。 */
+function validateExclusive(member) {
+  if (member.platformExclusive === undefined) return
+  if (!Array.isArray(member.platformExclusive))
+    throw new Error('platformExclusive must be an array')
+  const keys = new Set()
+  for (const item of member.platformExclusive) {
+    if (!member.tests.includes(item?.file))
+      throw new Error('platformExclusive file must be one of the requested tests')
+    if (!nonEmpty(item.test) || !nonEmpty(item.reason))
+      throw new Error('platformExclusive needs test and reason')
+    if (
+      !Array.isArray(item.runsOn) ||
+      item.runsOn.length === 0 ||
+      !item.runsOn.every(platform => PLATFORMS.includes(platform))
+    )
+      throw new Error(`platformExclusive runsOn must list platforms from ${PLATFORMS.join(', ')}`)
+    const key = JSON.stringify([item.file, item.test])
+    if (keys.has(key)) throw new Error('Duplicate platformExclusive declaration')
+    keys.add(key)
+  }
 }
 
 export async function main(args = process.argv.slice(2), { settleMs = 30_000 } = {}) {
