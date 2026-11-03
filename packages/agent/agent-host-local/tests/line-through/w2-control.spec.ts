@@ -4,11 +4,12 @@
 //
 // J3 cancels the Run (`cancelRun`, graceful) while a Model call is in flight and asserts, on the
 // Agent side, that the cancellation intent is established, and that nothing new is sent after it.
-// Expected state while the upstream gaps stay open: red. K-17 (the long-lived control entry of
-// agent-host-local writes `accepted` and does not advance) keeps `intent-established` from being
-// built, and K-12 (control events are not normalized after a cancel) keeps AD-02 from interpreting
-// the later events of the execution. The assertions follow the closure specification and are not to
-// be bent around those gaps.
+// Expected state while the upstream gaps stay open: red. The known limit "the control that the
+// recovery path does not advance" in the agent-host-local SPEC (anchor `恢复路径的未推进控制`: the
+// long-lived control entry writes `accepted` and does not advance) keeps `intent-established` from
+// being built, and K-12 (control events are not normalized after a cancel) keeps AD-02 from
+// interpreting the later events of the execution. The assertions follow the closure specification
+// and are not to be bent around those gaps.
 //
 // J4 interrupts one Model call (`stopCall`) and leaves the Tool call and the Run alone. Expected
 // state while defect D5 stays open: red. Session knows a Model call as a producer under its
