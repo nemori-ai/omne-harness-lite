@@ -36,12 +36,37 @@ export const IDENTITY_SCOPE: StorageScope = Object.freeze({ kind: 'system' })
 
 const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
 
-function module(name: string): Readonly<{ moduleUrl: string; digest: string }> {
-  const moduleUrl = new URL(`./worker/${name}${extension}`, import.meta.url).href
-  const digest = createHash('sha256')
+function fileDigest(moduleUrl: string): string {
+  return createHash('sha256')
     .update(readFileSync(fileURLToPath(moduleUrl)))
     .digest('hex')
-  return { moduleUrl, digest }
+}
+
+function module(name: string): Readonly<{ moduleUrl: string; digest: string }> {
+  const moduleUrl = new URL(`./worker/${name}${extension}`, import.meta.url).href
+  return { moduleUrl, digest: fileDigest(moduleUrl) }
+}
+
+/** A relative module specifier in an import or export statement, or in a dynamic import. */
+const RELATIVE_IMPORT = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"](\.{1,2}\/[^'"]+)['"]/gu
+
+/**
+ * Every module that `entry` loads through relative imports, `entry` included, followed to the end:
+ * the URL relative to `entry`'s directory and the file digest of each, sorted by URL. A package
+ * import (`@omne-harness/...`) is outside this list.
+ */
+function moduleClosure(entry: string): readonly string[] {
+  const base = new URL('.', entry).href
+  const seen = new Set<string>()
+  const pending = [entry]
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    if (seen.has(next)) continue
+    seen.add(next)
+    const source = readFileSync(fileURLToPath(next), 'utf8')
+    for (const match of source.matchAll(RELATIVE_IMPORT))
+      if (match[1] !== undefined) pending.push(new URL(match[1], next).href)
+  }
+  return [...seen].sort().map(url => `${url.slice(base.length)} ${fileDigest(url)}`)
 }
 
 const migrationRef = Object.freeze({ owner: MIGRATION.owner, id: MIGRATION.id })
@@ -163,8 +188,11 @@ export type IdentitySqlCombination = Readonly<{
 let combination: IdentitySqlCombination | undefined
 
 /**
- * The combination of the identity domain: the one participant, and a version that carries the
- * manifest digest, so a changed build registers a new version and leaves the old one (DP3-C4).
+ * The combination of the identity domain: the one participant, and a version that changes with
+ * every change of what the participant does, so a changed build registers a new version and
+ * leaves the old one (DP3-C4, IS-01). The manifest holds the digest of the participant file only;
+ * the participant also runs the modules that it imports. So the version digest covers the manifest
+ * digest and the file digests of the participant's whole relative import closure.
  */
 export function identitySqlCombination(): IdentitySqlCombination {
   if (combination !== undefined) return combination
@@ -180,9 +208,14 @@ export function identitySqlCombination(): IdentitySqlCombination {
   if (manifest.kind !== 'manifest')
     throw new Error(`the identity materials do not form a combination: ${manifest.kind}`)
   const digest = manifestDigest(manifest.manifest)
+  const participantUrl = own.participants[0]?.moduleUrl
+  if (participantUrl === undefined) throw new Error('the identity materials have no participant')
+  const version = createHash('sha256')
+    .update([`manifest ${digest}`, ...moduleClosure(participantUrl)].join('\n'))
+    .digest('hex')
   combination = {
     participants: [IDENTITY_PARTICIPANT],
-    combinationVersion: `identity-sql/${digest}`,
+    combinationVersion: `identity-sql/${version}`,
     manifestDigest: digest,
   }
   return combination

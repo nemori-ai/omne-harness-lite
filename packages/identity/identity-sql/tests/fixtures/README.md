@@ -22,7 +22,7 @@
 - `faults.ts`：把契约套件的账号、登录与组织记录库故障映射到读与提交，读失败与回执丢失的包装。
 - `restart-child.ts`：重启用例的子进程脚本，自引用包名导入 `dist`。
 - `governance.ts`：治理契约套件的夹具。每次 `create` 是新部署，`restart` 关闭存储后用同一组文件重开。可换成负控副本。
-- `mutants.ts`：负控用的 `dist` 副本与四项核对的改写锚点。
+- `mutants.ts`：负控用的 `dist` 副本与各项核对的改写锚点：最后管理员、预期角色、撤销后识别失效、名单完整性、到期目标不写撤销行、签发时刻下界，以及组合版本对导入闭包的覆盖。
 - `governance-child.ts`：撤销跨进程与 001 升级用例的子进程脚本。
 - `identity-001/`：6c68f4a4b 的 `participant.ts`、`schema.ts`、`support.ts` 原样副本。
 

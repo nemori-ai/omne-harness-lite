@@ -84,7 +84,7 @@ sequenceDiagram
     R-->>P: 账号或空闲时长
   end
   P->>W: commit(一条 identity 命令)
-  W->>W: 1 发起登录有效、选择等于 actingTenant
+  W->>W: 1 发起登录有效（未撤销、读数不早于签发、未到期）、选择等于 actingTenant
   W->>W: 2 行动者角色
   W->>W: 3 预期状态与最后管理员保护
   W->>W: 写入，或什么都不写
@@ -96,7 +96,7 @@ sequenceDiagram
 ### 治理读（SPEC IS-11）
 
 1. 提供者读时钟并采用，编码 `login`，行事查询再编码 `actingTenant`。
-2. 读 handler `identity.governance` 在一个快照里核对发起登录与选择，不成立答 `denied`。
+2. 读 handler `identity.governance` 在一个快照里核对发起登录与选择，不成立答 `denied`。读数早于这份登录的 `issued_at` 时答 `clock-earlier-than-record`，提供者答 `basis-unavailable`。
 3. handler 按可见性答 `not-visible` 或 `denied`，或读出对象。名单超过 1000 项时这次读失败。
 4. 提供者解析输出。读失败或输出畸形答 `basis-unavailable`，名单不带数组。
 
@@ -116,6 +116,7 @@ sequenceDiagram
 | 治理核对不成立                             | 参加者照常提交，响应带 `denied`、`not-visible`、`conflict` 或 `no-change`，不写入 | 参加者 |
 | 提交 `unknown`                             | 用同一身份 `query` 认回。认不回时拒绝 Promise        | 调用方按 ID-17 或 ID-18 认回           |
 | 时钟倒退、不可得                           | `basis-unavailable`                                  | 提供者，不采用读数                     |
+| 读数早于所判定登录的 `issued_at`（重启后时钟倒退） | 识别与治理都答 `basis-unavailable`，诊断 `clock-earlier-than-record` | 提供者与参加者，不写入 |
 | `stop()` 之后的新调用                      | IS-07 的答复                                         | 提供者                                 |
 | `stop()` 之前已受理的调用                  | 跑完，按以上映射作答                                 | 提供者与 scrypt `close` 等已开始的计算 |
 | 进程崩溃                                   | 已 `committed` 的事实保留。重启后 DO-1 恢复域        | 存储提供者                             |

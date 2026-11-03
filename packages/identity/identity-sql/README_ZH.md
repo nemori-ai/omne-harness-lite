@@ -42,7 +42,7 @@ await scrypt.module.close()
 
 工厂不读墙钟，不打开 scrypt，不登记组合，也不关闭任何东西。调用方先登记组合，用完后先 `stop()` 再关闭 scrypt 模块。
 
-Cordis 集成：`@omne-harness/identity-sql/cordis` 导出 `IdentitySqlPlugin`。它 `inject: ['storage', 'identityClock']`。配置是两个登录时长 `maxLifetime`、`idlePeriod` 与两个可省略的邀请时长 `invitationDefaultDuration`、`invitationMaxDuration`，都是 `PT<秒>S` 文本。初值 `IDENTITY_SQL_DEFAULT_CONFIG`：登录 30 天与空闲 7 天，邀请默认 7 天、最长 30 天。插件体打开 scrypt、派生假材料、登记组合、用注入的时钟构造提供者，并提供三个键。细节见 [docs/cordis.md](docs/cordis.md)。
+Cordis 集成：`@omne-harness/identity-sql/cordis` 导出 `IdentitySqlPlugin`。它 `inject: ['storage', 'identityClock']`。配置是两个登录时长 `maxLifetime`、`idlePeriod` 与两个邀请时长 `invitationDefaultDuration`、`invitationMaxDuration`，都是 `PT<秒>S` 文本，四项必填，缺一项时 fiber 失败。`IDENTITY_SQL_DEFAULT_CONFIG` 列出初值，供部署显式取用：登录 30 天与空闲 7 天，邀请默认 7 天、最长 30 天。插件体打开 scrypt、派生假材料、登记组合、用注入的时钟构造提供者，并提供三个键。细节见 [docs/cordis.md](docs/cordis.md)。
 
 应用把 `identitySqlMaterials()` 聚合进存储目录，否则参加者与读 handler 不可用。
 

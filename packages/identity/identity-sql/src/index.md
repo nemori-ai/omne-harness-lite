@@ -11,7 +11,7 @@
 - [governance.ts](governance.ts)：治理端口，提交与读的映射
 - [result.ts](result.ts)：`basis-unavailable`、读失败原因与 `IdentitySqlResultUnknown`
 - [materials.ts](materials.ts)：材料描述、事务域、组合版本与登记请求
-- [config.ts](config.ts)：配置形状、校验、初值与常量期限源
+- [config.ts](config.ts)：配置形状、校验、四项初值与常量期限源
 - [deadline.ts](deadline.ts)：截止时刻加法
 - [identifiers.ts](identifiers.ts)：标识、操作键、登录凭证与摘要
 - [worker/schema.ts](worker/schema.ts)：表、名字、排序键与跨 Worker 边界的形状

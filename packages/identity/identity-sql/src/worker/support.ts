@@ -10,7 +10,7 @@ import type {
   SqlCell,
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
-import { MEMBERSHIP_ACTIVE, PROTOCOL } from './schema.ts'
+import { CLOCK_EARLIER_THAN_RECORD, MEMBERSHIP_ACTIVE, PROTOCOL } from './schema.ts'
 
 export type Row = Readonly<Record<string, SqlCell>>
 
@@ -49,43 +49,95 @@ export function orderKeySql(column: string): string {
   return `(substr(${column}, 1, 19) || '.' || rtrim(iif(substr(${column}, 20, 1) = '.', substr(${column}, 21, length(${column}) - 21), ''), '0'))`
 }
 
-/**
- * The condition that the login row `alias` is valid at the reading with order key `?`, `?`: not
- * revoked, and the reading earlier than both deadlines. It takes the reading's key twice.
- */
-export function liveLoginSql(alias: string): string {
-  return `NOT EXISTS (SELECT 1 FROM id_login_revocation r WHERE r.login = ${alias}.login)
-    AND ${orderKeySql(`${alias}.max_deadline`)} > ? AND ${orderKeySql(`${alias}.idle_deadline`)} > ?`
+/** The condition that the login row `alias` has a revocation row. */
+export function revokedSql(alias: string): string {
+  return `EXISTS (SELECT 1 FROM id_login_revocation r WHERE r.login = ${alias}.login)`
 }
 
-/** The initiating login when it is valid at `nowKey`: its account and its current selection. */
-export function liveCaller(
-  port: Executor,
-  login: string,
-  nowKey: string,
-): Readonly<{ account: string; selection: string }> | undefined {
+/**
+ * The condition that the reading with order key `?` is earlier than the issue time of the login
+ * row `alias`: the lower bound of recognition (IS-05 step 5). It takes the reading's key once.
+ */
+export function issuedAfterSql(alias: string): string {
+  return `${orderKeySql(`${alias}.issued_at`)} > ?`
+}
+
+/** The condition that the reading `?`, `?` is not earlier than one of the two deadlines. */
+function endedSql(alias: string): string {
+  return `(${orderKeySql(`${alias}.max_deadline`)} <= ? OR ${orderKeySql(`${alias}.idle_deadline`)} <= ?)`
+}
+
+/**
+ * The condition that the login row `alias` is valid at the reading with order key `?`: not
+ * revoked, issued no later than the reading, and the reading earlier than both deadlines. It takes
+ * the reading's key three times.
+ */
+export function liveLoginSql(alias: string): string {
+  return `NOT ${revokedSql(alias)} AND NOT ${issuedAfterSql(alias)} AND NOT ${endedSql(alias)}`
+}
+
+/** The standing of a login at one reading, judged in the order of recognition (IS-05 steps 4 to 6). */
+export const STANDING = Object.freeze({
+  revoked: 'revoked',
+  early: 'early',
+  ended: 'ended',
+  live: 'live',
+})
+
+/**
+ * The standing of the login row `alias` at the reading with order key `?`, as one of the texts of
+ * `STANDING`: a revocation first, then a reading earlier than the issue time, then the deadlines.
+ * It takes the reading's key three times.
+ */
+export function loginStandingSql(alias: string): string {
+  return `CASE WHEN ${revokedSql(alias)} THEN '${STANDING.revoked}'
+    WHEN ${issuedAfterSql(alias)} THEN '${STANDING.early}'
+    WHEN ${endedSql(alias)} THEN '${STANDING.ended}' ELSE '${STANDING.live}' END`
+}
+
+/** A valid initiating login: its account and its current selection. */
+export type Caller = Readonly<{ kind: 'caller'; account: string; selection: string }>
+
+/**
+ * A refused initiating login. `denied`: unknown, revoked, ended, or not the acting tenant.
+ * `CLOCK_EARLIER_THAN_RECORD`: the reading is earlier than its issue time, so it is not judged.
+ */
+export type Refusal = Readonly<{
+  kind: 'refused'
+  outcome: 'denied' | typeof CLOCK_EARLIER_THAN_RECORD
+}>
+
+const REFUSED_DENIED: Refusal = Object.freeze({ kind: 'refused', outcome: 'denied' })
+const REFUSED_EARLY: Refusal = Object.freeze({
+  kind: 'refused',
+  outcome: CLOCK_EARLIER_THAN_RECORD,
+})
+
+/** The initiating login when it is valid at `nowKey`, or why it is refused. */
+export function liveCaller(port: Executor, login: string, nowKey: string): Caller | Refusal {
   const row = oneRow(
     port,
-    `SELECT l.account AS account, l.tenant_text AS selection FROM id_login l
-      WHERE l.login = ? AND ${liveLoginSql('l')} LIMIT 1`,
-    [login, nowKey, nowKey],
+    `SELECT l.account AS account, l.tenant_text AS selection, ${loginStandingSql('l')} AS standing
+      FROM id_login l WHERE l.login = ? LIMIT 1`,
+    [nowKey, nowKey, nowKey, login],
   )
-  return row === undefined
-    ? undefined
-    : { account: text(row['account']), selection: text(row['selection']) }
+  if (row === undefined) return REFUSED_DENIED
+  const standing = text(row['standing'])
+  if (standing === STANDING.early) return REFUSED_EARLY
+  if (standing !== STANDING.live) return REFUSED_DENIED
+  return { kind: 'caller', account: text(row['account']), selection: text(row['selection']) }
 }
 
 /** The caller of an acting call: valid, and its selection is the acting tenant of the request. */
 export function actingCaller(
   port: Executor,
   facts: Readonly<{ login: string; nowKey: string; actingTenant: string; actingAccount: string }>,
-): Readonly<{ account: string; selection: string }> | undefined {
+): Caller | Refusal {
   const who = liveCaller(port, facts.login, facts.nowKey)
-  return who !== undefined &&
-    who.selection === facts.actingTenant &&
-    who.account === facts.actingAccount
+  if (who.kind !== 'caller') return who
+  return who.selection === facts.actingTenant && who.account === facts.actingAccount
     ? who
-    : undefined
+    : REFUSED_DENIED
 }
 
 export type MembershipRow = Readonly<{ state: string; role: string; tenantText: string }>

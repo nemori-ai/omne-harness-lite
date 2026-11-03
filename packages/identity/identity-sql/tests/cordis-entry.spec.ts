@@ -22,7 +22,6 @@ import {
 } from '@omne-harness/identity/cordis'
 import { manualIdentityClock, type ManualIdentityClock } from '@omne-harness/identity/testing'
 import { encodeInstant, parseDuration } from '@omne-harness/utc-instant'
-import { IDENTITY_SQL_DEFAULT_CONFIG } from '@omne-harness/identity-sql'
 import { IdentitySqlPlugin } from '@omne-harness/identity-sql/cordis'
 import { START, duration, instant } from './fixtures/provider.ts'
 import { openSqliteStorage, type OpenedStorage } from './fixtures/storage.ts'
@@ -59,9 +58,17 @@ async function hostContext(options: Readonly<{ clock?: boolean }> = {}): Promise
   return { ctx, storage, clock }
 }
 
-/** The idle period of the default configuration, plus one second. */
+/** Every field written out, as a deployment writes it: the provider has no duration of its own. */
+const CONFIG = Object.freeze({
+  maxLifetime: 'PT2592000S',
+  idlePeriod: 'PT604800S',
+  invitationDefaultDuration: 'PT604800S',
+  invitationMaxDuration: 'PT2592000S',
+})
+
+/** The idle period of the configuration, plus one second. */
 function pastIdlePeriod() {
-  const idle = parseDuration(IDENTITY_SQL_DEFAULT_CONFIG.idlePeriod)
+  const idle = parseDuration(CONFIG.idlePeriod)
   if (!idle.ok) throw new Error('fixture: default idle period')
   return { idle: idle.value, second: duration('PT1S') }
 }
@@ -73,7 +80,7 @@ describe('IdentitySqlPlugin', () => {
 
   it('fails the fiber on an illegal lifetime', async () => {
     const { ctx } = await hostContext()
-    const fiber = ctx.plugin(IdentitySqlPlugin, { maxLifetime: 'PT0S', idlePeriod: 'PT1S' })
+    const fiber = ctx.plugin(IdentitySqlPlugin, { ...CONFIG, maxLifetime: 'PT0S' })
     await expect(fiber).rejects.toThrow()
     expect(fiber.state as number).toBe(FAILED)
     expect(ctx.get(identityOperationsKey)).toBeUndefined()
@@ -82,7 +89,7 @@ describe('IdentitySqlPlugin', () => {
   it('fails the fiber on a default invitation duration longer than the maximum', async () => {
     const { ctx } = await hostContext()
     const fiber = ctx.plugin(IdentitySqlPlugin, {
-      ...IDENTITY_SQL_DEFAULT_CONFIG,
+      ...CONFIG,
       invitationDefaultDuration: 'PT2592001S',
     })
     await expect(fiber).rejects.toThrow()
@@ -90,9 +97,20 @@ describe('IdentitySqlPlugin', () => {
     expect(ctx.get(identityGovernanceKey)).toBeUndefined()
   })
 
+  it('fails the fiber when the invitation durations are left out', async () => {
+    const { ctx } = await hostContext()
+    // A deployment file is data: the plugin judges what it holds, whatever its static type says.
+    const partial: unknown = { maxLifetime: CONFIG.maxLifetime, idlePeriod: CONFIG.idlePeriod }
+    const fiber = ctx.plugin(IdentitySqlPlugin, partial as typeof CONFIG)
+    await expect(fiber).rejects.toThrow()
+    expect(fiber.state as number).toBe(FAILED)
+    expect(ctx.get(identityOperationsKey)).toBeUndefined()
+    expect(ctx.get(identityGovernanceKey)).toBeUndefined()
+  })
+
   it('stays PENDING without identityClock and provides neither key', async () => {
     const { ctx } = await hostContext({ clock: false })
-    const fiber = ctx.plugin(IdentitySqlPlugin, IDENTITY_SQL_DEFAULT_CONFIG)
+    const fiber = ctx.plugin(IdentitySqlPlugin, CONFIG)
     cleanups.push(() => fiber.dispose())
     // Give the fiber every chance to start: it must not, because a required service is absent.
     await new Promise(resolve => setTimeout(resolve, 50))
@@ -108,7 +126,7 @@ describe('IdentitySqlPlugin', () => {
     { tags: ['slow'], timeout: 120_000 },
     async () => {
       const { ctx, storage, clock } = await hostContext()
-      const fiber = await ctx.plugin(IdentitySqlPlugin, IDENTITY_SQL_DEFAULT_CONFIG)
+      const fiber = await ctx.plugin(IdentitySqlPlugin, CONFIG)
       const operations = ctx.get(identityOperationsKey)
       const standing = ctx.get(tenantStandingKey)
       const governance = ctx.get(identityGovernanceKey)

@@ -36,9 +36,9 @@
 
 ### IS-01 记录位置与组合
 
-全部记录落在作用域 `{ kind: 'system' }`、事务域 `system.identity`。十张表都归参加者 `identity`，分组声明是 `singleton`。组合版本是 `identity-sql/<清单摘要>`，清单摘要由 `identitySqlCombination()` 用本成员自己的材料计算。同一构建每次算出同一个值。构建改变材料字节时，版本随之改变，新登记不覆盖旧登记。
+全部记录落在作用域 `{ kind: 'system' }`、事务域 `system.identity`。十张表都归参加者 `identity`，分组声明是 `singleton`。`identitySqlCombination()` 用本成员自己的材料计算清单摘要与组合版本。同一构建每次算出同一组值。参加者做的事改变时，版本随之改变，新登记不覆盖旧登记。
 
-清单含参加者的代码摘要、它拥有的表与两个迁移。所以加入 002 的构建登记一个新版本，001 构建的旧登记留在域里。参加者模块的代码摘要只覆盖 `participant` 文件本身，不覆盖它导入的 `schema` 与 `support`。治理命令的核对与写入因此全部写在 `participant` 文件里，改它们就改组合版本。
+清单含参加者的代码摘要、它拥有的表与两个迁移。所以加入 002 的构建登记一个新版本，001 构建的旧登记留在域里。参加者的代码摘要只覆盖 `participant` 文件本身。参加者还执行它导入的模块：`schema` 与 `support`，`support` 里有发起登录、成员资格与组织种类的核对 SQL。所以组合版本不直接用清单摘要。版本是 `identity-sql/<版本摘要>`。版本摘要是 SHA-256，输入是清单摘要，加上参加者按相对路径导入的全部模块（含它自己）的相对路径与文件摘要。改 `participant`、`schema` 或 `support` 中的任一文件，版本都会改变。版本摘要不含文件所在的目录。登记里的 `manifestDigest` 仍是清单摘要。
 
 `system.` 前缀保留给系统作用域的事务域。租户事务域的推导规则不得产出以它开头的标识。
 
@@ -177,7 +177,7 @@ scrypt `derive` 的任何计算前拒绝，以及 `done` 得到 `unavailable`，
 
 参加者在这一条命令里按下列次序核对，前一步给出结果时不进入后一步，最后才写入：
 
-1. 发起登录有效：有这一行，没有撤销行，两个截止时刻都晚于本次读数。行事操作还要求这份登录的当前选择等于 `actingTenant`。不成立时答 `denied`。
+1. 发起登录有效。次序与识别（IS-05 第 4 至 6 步）相同：有这一行；没有撤销行；本次读数不早于这份登录的 `issued_at`；两个截止时刻都晚于本次读数。行事操作还要求这份登录的当前选择等于 `actingTenant`。读数早于 `issued_at` 时，参加者不判定这份登录，答 `clock-earlier-than-record`，提供者答 `basis-unavailable`，诊断相同。其余不成立的情况答 `denied`。
 2. 行动者的角色：所需角色由默认团队方案给出，提供者把角色名放进事实。参加者自己不认识任何角色名。
 3. 预期状态：`expectedRole`、邀请的 `expectedState`、切换前的选择，以及最后管理员保护。
 
@@ -203,11 +203,12 @@ scrypt `derive` 的任何计算前拒绝，以及 `done` 得到 `unavailable`，
 
 查询类操作各是一次 `read`，读 handler 是 `identity.governance`，次序 `snapshot`。查询是：查询创建回执、查询邀请、收到的邀请、发出的邀请、本人成员资格、组织成员、当前租户与本人有效登录。
 
-handler 在同一个快照里先核对发起登录，规则同 IS-10 第 1 步，再读对象。拒绝答 `denied` 或 `not-visible`，不读对象的记录。可见性按 identity ID-18「可见性」：曾经是成员的账号看得见组织，从未成为成员的账号得到 `not-visible`。
+handler 在同一个快照里先核对发起登录，规则同 IS-10 第 1 步，再读对象。拒绝答 `denied` 或 `not-visible`，不读对象的记录。读数早于发起登录的 `issued_at` 时，提供者答 `basis-unavailable`，诊断 `clock-earlier-than-record`。本人有效登录的名单还要求：本账号未撤销的登录里，没有一份的 `issued_at` 晚于本次读数。有这样一份时，名单不完整，同样答 `basis-unavailable`。可见性按 identity ID-18「可见性」：曾经是成员的账号看得见组织，从未成为成员的账号得到 `not-visible`。
 
 | 读结果                        | 治理结果                                                                                    |
 | ----------------------------- | ------------------------------------------------------------------------------------------- |
 | 读到，结果是 `denied`、`not-visible` | 同名结果                                                                              |
+| 读到，结果是 `clock-earlier-than-record` | `basis-unavailable`，同一诊断。`queryCreateOrganization` 也是这个结果，不答 `unknown` |
 | 读到，输出能解析              | `succeeded`，或 ID-18 规定的结果                                                            |
 | 读到，输出不能解析            | `basis-unavailable`，诊断 `governance-read-malformed`                                       |
 | `unavailable`、`cancelled`    | `basis-unavailable`，诊断 `governance-read-unavailable:<原因>`。`queryCreateOrganization` 答 `unknown`，带同一诊断 |
@@ -217,13 +218,13 @@ handler 在同一个快照里先核对发起登录，规则同 IS-10 第 1 步�
 handler 另有两个预读，它们不核对发起登录：
 
 - `account-of` 按登录标识读账号。发出邀请用它算被邀请者在该组织的租户文本。参加者在资格核对之后按标识重读一次，与预读的账号不同时答 `not-visible`。
-- `login-terms` 读登录的空闲时长与当前是否有效。成功业务访问报告用它算新的空闲截止时刻。
+- `login-terms` 读登录的空闲时长与当前是否有效。成功业务访问报告用它算新的空闲截止时刻。读数早于这份登录的 `issued_at` 时，它答 `clock-earlier-than-record`。
 
 <a id="is-12"></a>
 
 ### IS-12 撤销与当前选择
 
-- 撤销写一行 `id_login_revocation`。撤销行不删除，也不随重启消失，所以撤销后的识别一直答 `invalid`（IS-05 第 4 步）。目标已撤销或已到期时答 `no-change`，不写第二行。目标不存在与属于其他账号得到相同的 `not-visible`。
+- 撤销写一行 `id_login_revocation`。撤销行不删除，也不随重启消失，所以撤销后的识别一直答 `invalid`（IS-05 第 4 步）。目标不存在与属于其他账号得到相同的 `not-visible`。参加者按识别的次序判定目标：已撤销时答 `no-change`，不写第二行；读数早于目标的 `issued_at` 时答 `basis-unavailable`，诊断 `clock-earlier-than-record`；已到期（读数不早于任一截止时刻）时答 `no-change`，不写撤销行。
 - `id_login.tenant_text` 是这份登录当前的选择。签发写入个人租户。切换在同一条命令里核对选择仍等于 `actingTenant`、目标是本账号的有效成员资格，再改写这一列。切换只改这一行，同账号的其他登录不变。成员被移除时这一列不变。
 
 <a id="is-13"></a>
@@ -242,9 +243,9 @@ handler 另有两个预读，它们不核对发起登录：
 `reportBusinessAccess({ login })` 按 R2-D203 对 P-7 的裁定实现：
 
 1. 已停止时答 `basis-unavailable`。读一次时钟。`login` 不能编码时答 `not-refreshed`。
-2. 预读 `login-terms`。读不到答 `basis-unavailable`。没有这份登录，或它已撤销、已失效，答 `not-refreshed`。
+2. 预读 `login-terms`。读不到答 `basis-unavailable`。读数早于这份登录的 `issued_at` 时答 `basis-unavailable`，诊断 `clock-earlier-than-record`。没有这份登录，或它已撤销、已失效，答 `not-refreshed`。
 3. 新的空闲截止时刻是本次读数加签发时冻结的空闲时长。超出 0000 年至 9999 年时答 `basis-unavailable`。
-4. 提交一条命令。参加者再核对登录有效，不成立时答 `not-refreshed`，不复活登录。成立时只在新值晚于原值时改写 `idle_deadline`，再答 `refreshed`，带改写后的值。
+4. 提交一条命令。参加者再核对登录有效（IS-10 第 1 步），读数早于 `issued_at` 时答 `basis-unavailable`，其余不成立时答 `not-refreshed`，不复活登录。成立时只在新值晚于原值时改写 `idle_deadline`，再答 `refreshed`，带改写后的值。
 
 报告只改这一份登录的 `idle_deadline`。`max_deadline` 不变。治理操作与识别都不报告，也不刷新。`queryOwnValidLogins` 给出的 `idleDeadline` 是这一列的当前值（P-11）。
 
@@ -252,7 +253,7 @@ handler 另有两个预读，它们不核对发起登录：
 
 ### IS-15 邀请时长的配置
 
-插件配置在两个登录时长之外有两个邀请时长：`invitationDefaultDuration` 与 `invitationMaxDuration`，都是 `PT<秒>S` 文本，都须大于零，默认时长不长于最长时长。配置省略它们时，校验填入初值 `PT604800S`（7 天）与 `PT2592000S`（30 天）（R2-D204 第 7 条）。初值写在 `IDENTITY_SQL_INVITATION_DEFAULTS`。部署可以在发行配置里写自己的值。
+插件配置在两个登录时长之外有两个邀请时长：`invitationDefaultDuration` 与 `invitationMaxDuration`，都是 `PT<秒>S` 文本，都须大于零，默认时长不长于最长时长。四项都必填：缺任一项时校验不通过，插件 fiber 失败，不提供任何键。校验不填入任何值（R2-D240）。部署在发行配置里写全四项；P-10 的初值是 `PT604800S`（7 天）与 `PT2592000S`（30 天）（R2-D204 第 7 条）。`IDENTITY_SQL_DEFAULT_CONFIG` 列出这四个初值，供部署显式取用。
 
 提供者经注入的 `InvitationTermsSource` 在每次发出邀请时读时长，不在代码里写死。时长不可得或非法时，发出邀请答 `basis-unavailable`。请求的时长不大于零或长于最长时长时答 `denied`。这两项判断在资格核对之后、查找被邀请标识之前生效。
 
@@ -300,7 +301,7 @@ handler 另有两个预读，它们不核对发起登录：
 ### 已知限制
 
 1. **每次成功业务访问报告是一次提交。** IS-14 先读一次，再提交一次，每次提交写一份存储回执。高频访问的部署因此在 `system.identity` 上多出同频的写。本成员不合并报告。退出条件：报告频率成为瓶颈时，由报告方或本成员按时间窗合并，并修订 IS-14。
-2. **跨重启的时钟下界不完整。** 重启或插件重跑后，实例的最晚读数重新开始。识别一面，下界只到每份登录的 `issued_at`：时钟倒退到某份登录的截止时刻之前、`issued_at` 之后时，已失效的登录会再次识别为有效。签发一面没有跨重启的下界，新登录的 `issuedAt` 可以早于已有登录，它的截止时刻也更早，所以不延长任何登录的有效期。不用 `max(issued_at)` 补下界的理由见 DP-3 候选 DP3-C14。
+2. **跨重启的时钟下界不完整。** 重启或插件重跑后，实例的最晚读数重新开始。识别与治理一面，下界只到所判定登录的 `issued_at`（IS-05 第 5 步、IS-10 第 1 步）：时钟倒退到某份登录的截止时刻之前、`issued_at` 之后时，已失效的登录会再次识别为有效，也能再次发起治理调用。邀请的截止时刻没有这样的下界：时钟倒退到邀请截止时刻之前时，尚未判定过期的开放邀请读出 `open`。签发一面没有跨重启的下界，新登录的 `issuedAt` 可以早于已有登录，它的截止时刻也更早，所以不延长任何登录的有效期。不用 `max(issued_at)` 补下界的理由见 DP-3 候选 DP3-C14。
 3. **scrypt 参数固定在代码里（IC-14 偏离）。** 插件体使用 `SCRYPT_PROFILE`，`inFlight` 为 1，`queue` 为 4。并发超过 5 个的签发或注册得到 `basis-unavailable` 或 `not-loginable`。改参数要改代码并发版，而且只能放宽：N、r、p、keylen 不得小于已发布的值。收紧后，超过新配置的旧材料在计算前得到 `unavailable`，全部已有账号的签发都答 `basis-unavailable`。退出条件：部署需要调整并发或计算参数时，把七个字段写成行配置，并在插件体校验「只能放宽」。
 4. **同进程的受信行能写系统域。** `storage` 不是访问控制。受信存储子树内的其他行能对 `system.identity` 提交，前提是它们知道参加者名与清单摘要。保护靠受信行只由发行代码安装。
 5. **没有未激活注册与留存期。** 本提供者只有注册即激活一种开通方案。
@@ -348,7 +349,9 @@ handler 另有两个预读，它们不核对发起登录：
 | IS-04 的 scrypt 映射与假材料                                   | `tests/scrypt-mapping.spec.ts`                                                   | 同上                           |
 | IS-02 输入上界                                                 | `tests/register-transaction.spec.ts`                                             | 同上                           |
 | 公开入口、材料与组合                                           | `tests/public-entry.spec.ts`                                                     | 无                             |
-| 插件：配置失败、缺时钟 PENDING、三键、注入时钟与截止时刻、撤销、邀请初值、撤除 | `tests/cordis-entry.spec.ts`（端到端用例在慢层，用 `SCRYPT_PROFILE`） | Cordis 4.0.4、sqlite-provider  |
+| IS-01：组合版本覆盖参加者的导入闭包；负控：版本只取清单时，`support` 的改动不改变版本 | `tests/combination-version.spec.ts` 与 `tests/fixtures/mutants.ts` | `dist` 副本 |
+| IS-12：撤销已到期、未撤销的目标答 `no-change`，不写撤销行；IS-10、IS-11：读数早于 `issued_at` 时治理调用答 `basis-unavailable`，不写入；两项各有负控 | `tests/governance-login-bounds.spec.ts`（慢层）与 `tests/fixtures/mutants.ts` | sqlite-provider、scrypt 小配置、`dist` 副本 |
+| 插件：配置失败、缺邀请时长时失败、缺时钟 PENDING、三键、注入时钟与截止时刻、撤销、邀请时长、撤除 | `tests/cordis-entry.spec.ts`（端到端用例在慢层，用 `SCRYPT_PROFILE`） | Cordis 4.0.4、sqlite-provider  |
 | AC-1：治理契约套件对持久实现通过，两组配置                     | `tests/governance-contract.spec.ts`（慢层）                                      | sqlite-provider、scrypt 小配置 |
 | 负控：去掉最后管理员、预期角色、撤销后识别失效、名单完整性四项核对之一，对应用例变红；未改动的副本全部通过 | `tests/governance-negative.spec.ts`（慢层）与 `tests/fixtures/mutants.ts` | 同上，`dist` 副本 |
 | AC-2：两位管理员互相移除或降级，50 次，每次至多一方成功，至少留一位超级管理员 | `tests/last-admin-concurrent.spec.ts`（慢层）                     | 同上                           |

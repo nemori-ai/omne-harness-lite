@@ -1,13 +1,16 @@
 // `identity.governance`: the governance reads (SPEC IS-11, IS-13), each in one snapshot. Every query
 // except the two pre-reads first checks the initiating login at the call's reading, and an acting
 // one also checks that the selection is the acting tenant; a refused read answers `denied` or
-// `not-visible` and reads no record of the object. A list is whole or the read fails: a list longer
+// `not-visible` and reads no record of the object. A reading earlier than the issue time of a login
+// that the read judges answers `clock-earlier-than-record`, which the provider gives as
+// `basis-unavailable` (IS-11). A list is whole or the read fails: a list longer
 // than `GOVERNANCE_LIST_LIMIT` fails the read, so the provider answers `basis-unavailable` and
 // never a cut list. The pre-reads `account-of` and `login-terms` give the provider the account of an
 // identifier and the idle period of a login before a commit; their answers never reach a caller.
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { HandlerOutcome, ReadHandlerModule, ReadPort } from '@omne-harness/sql-contract/worker'
 import {
+  CLOCK_EARLIER_THAN_RECORD,
   GOVERNANCE_LIST_LIMIT,
   HANDLERS,
   MEMBERSHIP_ACTIVE,
@@ -22,15 +25,18 @@ import {
 import {
   actingCaller,
   holdsActiveRole,
-  isTrue,
+  issuedAfterSql,
   liveCaller,
   liveLoginSql,
+  loginStandingSql,
   membershipOf,
   nullableText,
   oneRow,
   orderKeySql,
   organizationKind,
+  revokedSql,
   rowsOf,
+  STANDING,
   text,
   type Row,
 } from './support.ts'
@@ -113,7 +119,7 @@ type Input<Q extends GovernanceQuery> = Extract<GovernanceReadInput, { query: Q 
 
 function createReceipt(input: Input<'create-receipt'>, port: ReadPort): GovernanceReadOutput {
   const who = liveCaller(port, input.login, input.nowKey)
-  if (who === undefined) return DENIED
+  if (who.kind !== 'caller') return { outcome: who.outcome }
   const row = oneRow(
     port,
     `SELECT name, governance_model_id, outcome, organization, tenant_text FROM id_create_receipt
@@ -136,7 +142,7 @@ function createReceipt(input: Input<'create-receipt'>, port: ReadPort): Governan
 
 function invitation(input: Input<'invitation'>, port: ReadPort): GovernanceReadOutput {
   const who = actingCaller(port, input)
-  if (who === undefined) return DENIED
+  if (who.kind !== 'caller') return { outcome: who.outcome }
   const row =
     input.invitation === null
       ? undefined
@@ -155,7 +161,7 @@ function invitation(input: Input<'invitation'>, port: ReadPort): GovernanceReadO
 
 function received(input: Input<'received'>, port: ReadPort): GovernanceReadOutput {
   const who = liveCaller(port, input.login, input.nowKey)
-  if (who === undefined) return DENIED
+  if (who.kind !== 'caller') return { outcome: who.outcome }
   const rows = listRows(
     port,
     `SELECT ${INVITATION_COLUMNS} FROM id_invitation WHERE invited_account = ? ORDER BY invitation`,
@@ -166,7 +172,7 @@ function received(input: Input<'received'>, port: ReadPort): GovernanceReadOutpu
 
 function issued(input: Input<'issued'>, port: ReadPort): GovernanceReadOutput {
   const who = actingCaller(port, input)
-  if (who === undefined) return DENIED
+  if (who.kind !== 'caller') return { outcome: who.outcome }
   const organization = input.actingOrganization
   const kind = organizationKind(port, organization)
   if (kind === undefined || kind === PERSONAL_ORGANIZATION) return DENIED
@@ -181,7 +187,7 @@ function issued(input: Input<'issued'>, port: ReadPort): GovernanceReadOutput {
 
 function ownMemberships(input: Input<'own-memberships'>, port: ReadPort): GovernanceReadOutput {
   const who = liveCaller(port, input.login, input.nowKey)
-  if (who === undefined) return DENIED
+  if (who.kind !== 'caller') return { outcome: who.outcome }
   const rows = listRows(
     port,
     `SELECT organization, tenant_text, role_model, role_model_revision, role FROM id_membership
@@ -201,7 +207,7 @@ function ownMemberships(input: Input<'own-memberships'>, port: ReadPort): Govern
 
 function members(input: Input<'members'>, port: ReadPort): GovernanceReadOutput {
   const who = actingCaller(port, input)
-  if (who === undefined) return DENIED
+  if (who.kind !== 'caller') return { outcome: who.outcome }
   const organization = input.organization
   const own = organization === null ? undefined : membershipOf(port, organization, who.account)
   // A former member sees the organization; an account that never was a member does not.
@@ -226,18 +232,26 @@ function members(input: Input<'members'>, port: ReadPort): GovernanceReadOutput 
 
 function currentTenant(input: Input<'current-tenant'>, port: ReadPort): GovernanceReadOutput {
   const who = liveCaller(port, input.login, input.nowKey)
-  return who === undefined ? DENIED : read({ tenantText: who.selection })
+  return who.kind !== 'caller' ? { outcome: who.outcome } : read({ tenantText: who.selection })
 }
 
 function ownLogins(input: Input<'own-logins'>, port: ReadPort): GovernanceReadOutput {
   const who = liveCaller(port, input.login, input.nowKey)
-  if (who === undefined) return DENIED
+  if (who.kind !== 'caller') return { outcome: who.outcome }
+  // A login of the account issued after the reading is not judged, so the list would not be whole.
+  const early = oneRow(
+    port,
+    `SELECT 1 AS early FROM id_login l
+      WHERE l.account = ? AND NOT ${revokedSql('l')} AND ${issuedAfterSql('l')} LIMIT 1`,
+    [who.account, input.nowKey],
+  )
+  if (early !== undefined) return { outcome: CLOCK_EARLIER_THAN_RECORD }
   const rows = listRows(
     port,
     `SELECT l.login AS login, l.issued_at AS issued_at, l.max_deadline AS max_deadline,
         l.idle_deadline AS idle_deadline
       FROM id_login l WHERE l.account = ? AND ${liveLoginSql('l')} ORDER BY l.login`,
-    [who.account, input.nowKey, input.nowKey],
+    [who.account, input.nowKey, input.nowKey, input.nowKey],
   )
   return read({
     logins: rows.map(row => ({
@@ -259,15 +273,15 @@ function accountOf(input: Input<'account-of'>, port: ReadPort): GovernanceReadOu
 function loginTerms(input: Input<'login-terms'>, port: ReadPort): GovernanceReadOutput {
   const row = oneRow(
     port,
-    `SELECT l.idle_period AS idle_period, (${liveLoginSql('l')}) AS live
+    `SELECT l.idle_period AS idle_period, ${loginStandingSql('l')} AS standing
       FROM id_login l WHERE l.login = ? LIMIT 1`,
-    [input.nowKey, input.nowKey, input.login],
+    [input.nowKey, input.nowKey, input.nowKey, input.login],
   )
+  if (row === undefined) return read({ login: null })
+  const standing = text(row['standing'])
+  if (standing === STANDING.early) return { outcome: CLOCK_EARLIER_THAN_RECORD }
   return read({
-    login:
-      row === undefined
-        ? null
-        : { idlePeriod: text(row['idle_period']), live: isTrue(row['live']) },
+    login: { idlePeriod: text(row['idle_period']), live: standing === STANDING.live },
   })
 }
 
