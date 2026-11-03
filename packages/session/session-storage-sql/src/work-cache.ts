@@ -579,9 +579,18 @@ async function folded(
   return indexed
 }
 
-/** True when `before` is the version just below the fold: one tail lower, the same publications. */
-const follows = (before: WorkVersion, fold: WorkFold): boolean =>
-  count(before.tail) + 1n === count(fold.tail) && before.published === fold.published
+/**
+ * How the publication count of a fold relates to the held one: `same` for a commit of the port, and
+ * `next` for a joint commit of the Journal provider, whose `execution-record` participant runs
+ * before the `session` participant in the same transaction and adds one to the count, so the count
+ * the Session participant read and reports is the held one plus one.
+ */
+export type FoldPublished = 'same' | 'next'
+
+/** True when `before` is the version just below the fold: one tail lower, the count as `published` says. */
+const follows = (before: WorkVersion, fold: WorkFold, published: FoldPublished): boolean =>
+  count(before.tail) + 1n === count(fold.tail) &&
+  count(before.published) + (published === 'next' ? 1n : 0n) === count(fold.published)
 
 /**
  * Folds one committed batch of this process into the cache (C-TOPOLOGY §2.9). The commit path
@@ -590,7 +599,11 @@ const follows = (before: WorkVersion, fold: WorkFold): boolean =>
  * that moved on registers nothing, and the next read reads whole as before. A publication count
  * that moved on meanwhile is registered with the index read at it (P-4). It never throws.
  */
-export async function foldCommitted(reach: WorkReach, fold: WorkFold): Promise<void> {
+export async function foldCommitted(
+  reach: WorkReach,
+  fold: WorkFold,
+  published: FoldPublished = 'same',
+): Promise<void> {
   try {
     const cache = workCacheOf(reach.storage, reach.bounds)
     const key = workKey(reach.domain.transactionDomain, reach.tenant, reach.session)
@@ -598,7 +611,7 @@ export async function foldCommitted(reach: WorkReach, fold: WorkFold): Promise<v
     const flight = `${key}|${fold.tail}|${fold.published}`
     if (
       held === undefined ||
-      !follows(held.version, fold) ||
+      !follows(held.version, fold, published) ||
       (fold.indexed && fold.basis === undefined) ||
       cache.flights.has(flight) ||
       cache.folds.has(flight)
@@ -672,8 +685,10 @@ export async function refreshWorkIndex(reach: WorkReach, published: string): Pro
 }
 
 /**
- * `refreshWorkIndex` for a writer that already holds the domain of the tenant (the Journal
- * provider), after its publication committed with the count `published`.
+ * For a writer that already holds the domain of the tenant (the Journal provider), after its
+ * publication committed with the count `published`. With the work of a Session participation in
+ * the same fresh commit, the batch is folded (`foldCommitted`, the count one past the held one);
+ * without it, the index of the held snapshot is replaced (`refreshWorkIndex`).
  */
 export function registerSessionWorkIndex(
   storage: SqlStorage,
@@ -681,6 +696,10 @@ export function registerSessionWorkIndex(
   tenantText: string,
   session: string,
   published: string,
+  work?: WorkFold,
 ): Promise<void> {
-  return refreshWorkIndex({ storage, domain, tenant: tenantText, session }, published)
+  const reach = { storage, domain, tenant: tenantText, session }
+  return work === undefined
+    ? refreshWorkIndex(reach, published)
+    : foldCommitted(reach, work, 'next')
 }

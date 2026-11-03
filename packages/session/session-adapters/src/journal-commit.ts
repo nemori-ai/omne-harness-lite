@@ -4,6 +4,11 @@
 // generation is used only when every earlier one is a rolled back receipt, so an older attempt can
 // never take effect beside a newer one. The same rules are in session-storage-sql `commit.ts`;
 // this second copy is the known limitation K-6 of session-adapters SPEC.
+import {
+  SESSION_PARTICIPANT,
+  decodeSessionReply,
+  type SessionWorkReply,
+} from '@omne-harness/session-storage-sql/participants'
 import type {
   CommitRequestV2,
   CommittedV2,
@@ -30,6 +35,19 @@ export type JournalCommitResult =
   | Readonly<{ kind: 'rolled-back'; receipt: RolledBackV2 }>
   | Readonly<{ kind: 'unknown'; diagnostic: string; attempt: number }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+/**
+ * What the Session participation of a joint commit tells the work cache (session-storage-sql
+ * RT-04): only from a commit this call sent and that committed, never from a recall, a recovered
+ * Session answer or a rolled back commit.
+ */
+export function jointSessionWork(outcome: JournalCommitResult): SessionWorkReply | undefined {
+  if (outcome.kind !== 'committed' || outcome.recalled) return undefined
+  const entry = outcome.receipt.responses.find(item => item.participant === SESSION_PARTICIPANT)
+  if (entry?.reply.kind !== 'participated') return undefined
+  const reply = decodeSessionReply(entry.reply)
+  return reply.kind === 'participated' && !reply.recovered ? reply.work : undefined
+}
 
 export type JournalCommitInput = Readonly<{
   storage: SqlStorage

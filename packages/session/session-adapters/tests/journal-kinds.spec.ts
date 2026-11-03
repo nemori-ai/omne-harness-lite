@@ -508,3 +508,37 @@ describe('a publication replaces the index of the held Session snapshot (session
     expect(held).toEqual(decoded?.kind === 'state' ? decoded.snapshot : null)
   })
 })
+
+describe('a joint commit with a Session participation folds its batch (session-storage-sql RT-04)', () => {
+  it('the next readWork reads no whole snapshot, and answers what a whole read gives', async () => {
+    const s = await scene('joint-fold')
+    if (s.controls === null) throw new Error('the double storage is expected')
+    await started(s)
+    const before = await work(s)
+    const message = assistantMessage('answer')
+    await committed(s, 'joint-message', () => ({
+      events: [{ kind: 'message', message, source: evidence('message-admission') }],
+      caller: {
+        kind: 'message',
+        message,
+        source: evidence('message-source'),
+        admission: evidence('message-admission'),
+      },
+    }))
+    const from = s.controls.reads.length
+    const held = await work(s)
+    expect(s.controls.reads.slice(from).filter(item => item === SESSION_WORK_HANDLER)).toEqual([])
+    // The joint commit moved the Session tail: the held answer is the folded one.
+    expect(BigInt(held.revision)).toBe(BigInt(before.revision) + 1n)
+    const whole = await s.storage.read({
+      domain: s.domain,
+      handler: SESSION_WORK_HANDLER,
+      protocol: SESSION_PROTOCOL,
+      requestKey: 'joint-fold-whole',
+      input: { tenant: s.domain.scope.tenant, session: s.access.session },
+    })
+    if (whole.kind !== 'read') throw new Error('the whole read failed')
+    const decoded = decodeSessionWork(whole.output)
+    expect(held).toEqual(decoded?.kind === 'state' ? decoded.snapshot : null)
+  })
+})
