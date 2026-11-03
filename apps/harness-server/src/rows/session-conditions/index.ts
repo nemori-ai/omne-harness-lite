@@ -1,7 +1,8 @@
 // The `session-conditions` row (SC1, R2-D145): the J06 current conditions plugin of session-adapters
 // (`createSessionConditionsPlugin`), which provides `agentConditions`. It reads the Session snapshot
-// and the saved model selection through `session` as `coordinator` with the caller's own Access, and
-// the execution index and the Journal attempt record through the trusted `storage` and
+// through `session` as `coordinator`, and its sub-plugin `session-conditions-selection` reads the
+// saved model selection as `maintainer` (the classes that read admits), both with the caller's Access.
+// It reads the execution index and the Journal attempt record through the trusted `storage` and
 // `tenantDomainLookup`. Construction input (a runtime object, not configuration): the resolver of a
 // session's tenant-default modes over the trusted `definitionMappings` table, below.
 //

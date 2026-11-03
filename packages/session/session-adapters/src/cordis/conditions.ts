@@ -293,12 +293,39 @@ class SessionConditions extends CurrentConditionsService<unknown> {
   }
 }
 
+type ReadSelection = Ports<unknown>['readModelSelection']
+
+/** Where the selection sub-plugin of the current generation leaves its read; empty while it is not running. */
+type SelectionLink = { read: ReadSelection | undefined }
+
+/**
+ * The sub-plugin `session-conditions-selection`: the saved model selection is a read of the
+ * `intake` and `maintainer` classes (session-contract SPEC「控制与模型选择」), and a plugin calls
+ * `session` with one caller class only (AD-00 rule 1). So this sub-plugin injects `session` as
+ * `maintainer` and reads nothing else; the caller's own Access goes through, so the access check
+ * stays the Session's. While it is not running, the selection read answers `unavailable`.
+ */
+function createSelectionPlugin(link: SelectionLink) {
+  return {
+    name: 'session-conditions-selection',
+    inject: { [sessionKey]: { caller: 'maintainer' as const } },
+    apply(ctx: Context) {
+      const session = ctx[sessionKey]
+      const read: ReadSelection = access => session.work.readModelSelection(access)
+      link.read = read
+      ctx.effect(() => () => {
+        if (link.read === read) link.read = undefined
+      })
+    },
+  }
+}
+
 /**
  * The plugin of `agentConditions` (row `session-conditions`). It needs `storage`, the trusted
- * `tenantDomainLookup` and `session` with the `coordinator` class (the saved model selection is
- * read through the `maintainer` face of the same service); while any is absent it stays
- * pending and provides nothing. It has no configuration. Stopping makes every call, also through a
- * reference held from before, answer `unavailable`.
+ * `tenantDomainLookup` and `session` with the `coordinator` class; while any is absent it stays
+ * pending and provides nothing. Its sub-plugin `session-conditions-selection` reads the saved model
+ * selection with the `maintainer` class. It has no configuration. Stopping makes every call, also
+ * through a reference held from before, answer `unavailable`.
  */
 export function createSessionConditionsPlugin<P>(input: SessionConditionsInput) {
   return {
@@ -308,29 +335,24 @@ export function createSessionConditionsPlugin<P>(input: SessionConditionsInput) 
       [tenantDomainLookupKey]: null,
       [sessionKey]: { caller: 'coordinator' as const },
     },
-    apply(ctx: Context) {
+    async apply(ctx: Context) {
       let stopped = false
       const session = ctx[sessionKey]
       const logger = ctx.logger(LOGGER)
+      const link: SelectionLink = { read: undefined }
       const conditions = createConditions<P>(input, {
         storage: ctx[storageKey],
         tenantDomainLookup: ctx[tenantDomainLookupKey],
-        readWork: access => session.work.readWork(access as never),
-        // The saved selection is a read of the intake and maintainer classes (session-contract SPEC
-        // 「控制与模型选择」), not of the coordinator: it goes through the `maintainer` face of the same
-        // Session service, with the caller's own Access, so the access check stays the Session's.
-        readModelSelection: access => {
-          const face = ctx.intercept(sessionKey, { caller: 'maintainer' }).get(sessionKey, false)
-          return face === undefined
-            ? Promise.resolve(
-                fail({
-                  kind: 'unavailable' as const,
-                  owner: OWNER,
-                  diagnostic: 'the Session maintainer face is absent',
-                }),
-              )
-            : face.work.readModelSelection(access as never)
-        },
+        readWork: access => session.work.readWork(access),
+        readModelSelection: access =>
+          link.read?.(access) ??
+          Promise.resolve(
+            fail({
+              kind: 'unavailable' as const,
+              owner: OWNER,
+              diagnostic: 'the selection sub-plugin is not running',
+            }),
+          ),
       })
       const guarded: CurrentConditions<unknown>['read'] = async input => {
         if (stopped) return fail(unavailable('the conditions provider has stopped'))
@@ -345,6 +367,7 @@ export function createSessionConditionsPlugin<P>(input: SessionConditionsInput) 
       ctx.effect(() => () => {
         stopped = true
       })
+      await ctx.plugin(createSelectionPlugin(link))
     },
   }
 }
