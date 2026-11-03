@@ -29,6 +29,7 @@ import {
   type PartsRoundReads,
   type RoundCount,
 } from './w2-measure.ts'
+import { CONTROL_PER_ROUND, roundGrowthOf, type Growth } from './growth.ts'
 import { intakeAccess } from './world.ts'
 
 const worlds: W2World[] = []
@@ -56,7 +57,11 @@ const stable = ({
   storageReads: { [PARTS_HANDLER]: _partsCalls, ...reads },
   storageReadRows,
   ...rest
-}: RoundCount) => ({ ...rest, storageReads: untimed(reads), storageReadRows: untimed(storageReadRows) })
+}: RoundCount) => ({
+  ...rest,
+  storageReads: untimed(reads),
+  storageReadRows: untimed(storageReadRows),
+})
 
 /**
  * The reads whose counts depend on how the Agent publications and the Session commits interleave:
@@ -72,7 +77,9 @@ const TIMED_HANDLERS: readonly string[] = [
 ]
 
 const untimed = (counts: Readonly<Record<string, number>>): Record<string, number> =>
-  Object.fromEntries(Object.entries(counts).filter(([handler]) => !TIMED_HANDLERS.includes(handler)))
+  Object.fromEntries(
+    Object.entries(counts).filter(([handler]) => !TIMED_HANDLERS.includes(handler)),
+  )
 
 /** The timed counts of one round, by name. */
 function timedOf(count: RoundCount): Record<string, number> {
@@ -84,65 +91,44 @@ function timedOf(count: RoundCount): Record<string, number> {
   return timed
 }
 
-/**
- * The growth rule of R2-D17 (tools/e9 `evaluateGrowth`), taken for the timed counts by R2-D118: the
- * rounds 11 to 200 in blocks of 10, the median of each block, a least-squares line through the 19
- * medians. The count grows when the slope is positive, R² is at least 0.95 and the growth over 180
- * rounds exceeds three times the median absolute deviation of the residuals.
- */
-const GROWTH = { firstRound: 11, lastRound: 200, blockSize: 10, minR2: 0.95, madFactor: 3, span: 180 }
-/** The negative control of R2-D118: this much per round added to a count must be judged growth. */
-const CONTROL_PER_ROUND = 0.1
-
-const median = (values: readonly number[]): number => {
-  const sorted = [...values].sort((a, b) => a - b)
-  const middle = sorted.length >> 1
-  return sorted.length % 2 === 1 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2
-}
-
-type Growth = Readonly<{ grows: boolean; slope: number; r2: number; residualMAD: number }>
-
-/** Judges one count per round (index 0 is round 1) by the rule of `GROWTH`. */
-function roundGrowthOf(values: readonly number[]): Growth {
-  const samples = values.slice(GROWTH.firstRound - 1, GROWTH.lastRound)
-  const xs: number[] = []
-  const ys: number[] = []
-  for (let block = 0; block * GROWTH.blockSize < samples.length; block += 1) {
-    xs.push(GROWTH.firstRound + block * GROWTH.blockSize + (GROWTH.blockSize - 1) / 2)
-    ys.push(median(samples.slice(block * GROWTH.blockSize, (block + 1) * GROWTH.blockSize)))
-  }
-  const meanX = xs.reduce((sum, x) => sum + x, 0) / xs.length
-  const meanY = ys.reduce((sum, y) => sum + y, 0) / ys.length
-  const slope =
-    xs.reduce((sum, x, index) => sum + (x - meanX) * (ys[index]! - meanY), 0) /
-    xs.reduce((sum, x) => sum + (x - meanX) ** 2, 0)
-  const residuals = ys.map((y, index) => y - (meanY + slope * (xs[index]! - meanX)))
-  const variance = ys.reduce((sum, y) => sum + (y - meanY) ** 2, 0)
-  const r2 = variance === 0 ? 0 : 1 - residuals.reduce((sum, r) => sum + r * r, 0) / variance
-  const center = median(residuals)
-  const residualMAD = median(residuals.map(r => Math.abs(r - center)))
-  const grows = slope > 0 && r2 >= GROWTH.minR2 && slope * GROWTH.span > GROWTH.madFactor * residualMAD
-  return { grows, slope, r2, residualMAD }
-}
+/** What `judgeTimedGrowth` says of one timed count: its own judgement and that of its control. */
+type TimedJudgement = Readonly<{ measured: Growth; control: Growth }>
 
 /**
- * Judges every timed count of the run and writes the judgement: the names that grow, and the names
- * whose negative control (the count plus `CONTROL_PER_ROUND` times the round) is not judged growth.
+ * Judges every timed count of the run by the growth rule (`growth.ts`, R2-D118): each name with its
+ * own judgement and with that of its negative control, the count plus `CONTROL_PER_ROUND` times the
+ * round. It only judges; `timedGrowth` writes the evidence.
  */
-function timedGrowth(shape: Shape, completed: readonly RoundCount[]) {
+function judgeTimedGrowth(completed: readonly RoundCount[]): Record<string, TimedJudgement> {
   const names = Object.keys(timedOf(completed[0]!))
-  const judged = Object.fromEntries(
+  return Object.fromEntries(
     names.map(name => {
       const values = completed.map(count => timedOf(count)[name]!)
       const control = values.map((value, index) => value + (index + 1) * CONTROL_PER_ROUND)
       return [name, { measured: roundGrowthOf(values), control: roundGrowthOf(control) }]
     }),
   )
-  writeFileSync(new URL(`j6-timed-growth-${shape}.json`, OUT), JSON.stringify(judged, null, 1))
+}
+
+/** The names that grow, and the names whose negative control is not judged growth. */
+const verdictOf = (judged: Readonly<Record<string, TimedJudgement>>) => {
+  const names = Object.keys(judged)
   return {
     growing: names.filter(name => judged[name]!.measured.grows),
     controlMissed: names.filter(name => !judged[name]!.control.grows),
   }
+}
+
+/** Writes the judgement of one shape to the evidence file of the run. */
+function writeTimedGrowth(shape: Shape, judged: Readonly<Record<string, TimedJudgement>>): void {
+  writeFileSync(new URL(`j6-timed-growth-${shape}.json`, OUT), JSON.stringify(judged, null, 1))
+}
+
+/** Judges the timed counts, writes the judgement, and returns the verdict the case asserts. */
+function timedGrowth(shape: Shape, completed: readonly RoundCount[]) {
+  const judged = judgeTimedGrowth(completed)
+  writeTimedGrowth(shape, judged)
+  return verdictOf(judged)
 }
 
 type Shape = 'tool' | 'plain'
@@ -318,7 +304,7 @@ async function runToLimit(shape: Shape, w: W2World) {
 
 describe('J6: fixed round counts', () => {
   it(
-    'J6 plain shape: 200 rounds, the counts of rounds 181-200 equal those of rounds 11-30',
+    'J6 plain shape: 200 rounds, the timed counts do not grow with the rounds and the other counts of rounds 181-200 equal those of rounds 11-30',
     { timeout: 3_600_000 },
     async () => {
       const w = await openW2World({
@@ -345,7 +331,7 @@ describe('J6: fixed round counts', () => {
   )
 
   it(
-    'J6 tool shape: 200 rounds, two Model results and one Tool result each round, the counts of rounds 181-200 equal those of rounds 11-30',
+    'J6 tool shape: 200 rounds, two Model results and one Tool result each round, the timed counts do not grow with the rounds and the other counts of rounds 181-200 equal those of rounds 11-30',
     { timeout: 3_600_000 },
     async () => {
       const w = await openW2World({
