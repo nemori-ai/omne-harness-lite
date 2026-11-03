@@ -260,6 +260,46 @@ retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的�
 
 [第五课](examples/05-read-and-acknowledge.ts)演示公开读取及 processed ACK。[消费测试](tests/README.md#公开结果消费)验证真实 runtime、内存 Commands 和脚本上游，不证明生产耐久、真实厂商或跨进程恢复。
 
+<a id="ack-证据在栅栏外读取的证明"></a>
+### ACK 证据在栅栏外读取的证明
+
+本节是人工成文证明，依据[验证说明](../../../docs/verification.md#证据要求何时触发)「依赖某性质放宽顺序控制」一行：ACK 的 owner 证据不再在写栅栏内问，改为栅栏外读、栅栏内核对，须证明放宽之后目标保证不变。按 R2-D262 的裁定不建形式模型，本证明没有经过机器检查。
+
+**命题。** `handoff` 以操作 o 把调用 c 的保管从 `producer` 改为 `acknowledged`，当且仅当 c 冻结的 owner 证据适配器确认了「提交那一刻的 c」上的这次 ACK。这与在栅栏内同步询问适配器的旧做法结果相同。不确认的答复（`unavailable`、`handoff-invalid`）都不写：保管、结果和份额都不变。
+
+**定义。** 问题 Q(c, a) 是 ACK a 在调用 c 上交给适配器的输入，principal 除外，由 [handoff-evidence.ts](src/commands/handoff-evidence.ts) 的 `handoffQuestion` 给出。核对时比较 Q 的五项：
+
+1. 适配器：按受理时冻结的证据采用找到的同一对象。
+2. 调用：租户、call，以及由原 admission 得出的 invocation reference。
+3. 完整 consumer。
+4. 结果版本。
+5. 证据本身。
+
+Q 里还带执行代次（`execution`），所以比较比五项更严。栅栏外的读取记下 (适配器, Q, 答复)，写入在栅栏内对当前调用重新求 Q，两者相同才采用答复（`provenHandoff`）。
+
+**前提。**
+
+- H1（owner 记录只增不变）：Agent 的接收记录一旦稳定保存，查询就答 committed；committed 带原回执，已成立的成功记录保持原含义（agent-contract SPEC 第 237 与 241 行，「[原操作认回与恢复](../../agent/agent-contract/SPEC.md#原操作认回与恢复)」与「[查询的四种结论与持久拒绝](../../agent/agent-contract/SPEC.md#查询的四种结论与持久拒绝)」；会话日志只追加）。所以适配器在 t₁ 对 Q 的确认在任何 t₂ > t₁ 对同一 Q 仍成立。不确认的答复不被采用为确认，不依赖这一前提。
+- H2（Q 的来源）：consumer、admission（因而 reference）与证据采用在受理时冻结（model-contract SPEC「[参数与注入的裁定](../model-contract/SPEC.md#342-参数与注入的裁定)」）；结果版本在收场时固定；执行代次只由 `claim` 改变；租户与 call 是输入。
+- H3（写入串行）：同一调用的写入经存储的单写栅栏串行，栅栏内看到的是提交前的当前调用。
+
+**推导。** 写入提交 `acknowledged` 必须满足两条：栅栏内对当前调用 c₂ 的前置判定通过；读到的答复是对 Q(c₂) 的确认。前置判定与栅栏外读取共用 `handoffQuestion`，两处拒绝同样的 ACK。第二条推出：适配器对 Q(c₁) 作了确认，且 Q(c₁) = Q(c₂)。由 H1，这份确认在提交时对 Q(c₂) 仍成立，与在栅栏内同步询问得到的确认相同。反方向：答复不是确认，或 Q(c₁) ≠ Q(c₂)，写入在提交前返回失败。写入的 apply 失败时不绑定操作、不改调用，所以什么也不写，同一操作以后可以重试。由 H3，提交与其他写入之间没有交错。
+
+**交错逐条覆盖。**
+
+| 读取与写入之间发生的事 | 为什么命题仍成立 |
+| --- | --- |
+| 另一个 ACK（另一操作）先提交 | 保管已是 `acknowledged`，Q 不含保管。写入沿原分支返回现有确认，不覆盖它；采用的答复仍须是对 Q(c₂) 的确认。同一操作已绑定时走认回，不用读到的答复 |
+| 清理推进或完成 | 清理只在 `acknowledged` 之后发生，不改变 Q；此时写入返回现有确认，不恢复保管 |
+| 换代（`claim`，代次加一） | 执行代次在 Q 里，Q(c₁) ≠ Q(c₂)，写入答 `unavailable`（`evidence-not-read-for-this-call`），不写；同一操作再来时按新代次提问 |
+| owner 或证据采用变化 | consumer 与证据采用在受理时冻结，调用上的 owner 不变；装配换了适配器对象时，对象身份不同，答复不被采用 |
+| 结果版本变化 | 已收场调用的结果版本固定；ACK 给的版本不同时，两处的前置判定都答 `handoff-invalid`，不问适配器 |
+| 读失败、适配器答 `unavailable` 或 `handoff-invalid` | 不是确认，写入原样返回失败，不写 |
+
+**守护用例。** [handoff-evidence.spec.ts](tests/handoff-evidence.spec.ts) 的「does not keep an answer read for the call before it was claimed again」：在适配器答复之前对同一调用 `claim`，断言答 `unavailable`、保管仍是 `producer`、同一操作随后确认。负控：把核对改成只看 `proof === null`，这条用例变红。同一文件还覆盖晚到的确认、晚到的 `unavailable`、拒绝不写，以及写入先拒的 ACK 不问适配器。
+
+**未闭合的部分。** H1 由 Journal 提供者兑现，由它的用例支持：session-adapters 的 `agentReceivedRecords` 用例核对了同一存储上新实例读回同一记录。本证明不证明提供者实现。跨进程写入不在 H3 范围内，M2 是单协调进程（model-contract SPEC「资格、共同提交与实际发送」）。
+
 ## 准备资源与校准租约
 
 `createModelPreparationResources(options)` 实现共同 [`ModelPreparationResources`](../model-contract/SPEC.md#档案和准备提供者的组合协议)。构造声明归 [preparation/resources.ts](src/preparation/resources.ts)。`options.commands` 只用 `dispatches`；`options.bindings` 是结构化端口，pi 家族贡献（`PiFamilyContributions`）直接满足它，本包不导入 pi-ai-transport；`options.supplierOf` 为每个档案供应商给出带凭据引用的 `Supplier`，与请求准备使用同一推导；`options.maxCitedCalls` 是一份 lineage 最多引用的调用数，来自配置，没有包默认值。`maxCitedCalls` 不是正安全整数时构造抛 `RangeError`。

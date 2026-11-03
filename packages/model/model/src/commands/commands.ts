@@ -70,7 +70,7 @@ import {
 } from './state.ts'
 import type { Applied, CallDocument, DispatchDocument, Draft } from './types.ts'
 import { initialRunPort, type BoundCommandAccess } from './initial.ts'
-import { provenHandoff, readHandoffProof } from './handoff-evidence.ts'
+import { handoffQuestion, provenHandoff, readHandoffProof } from './handoff-evidence.ts'
 
 /** Every execution write first needs its call, still at the revision that the writer expected. */
 function atExpected<T>(
@@ -1024,18 +1024,9 @@ export function consumptionCommands<P>(
           apply: draft => {
             const call = draft.call
             if (!call) return { failure: invalid('call', 'not-found') }
-            if (call.state.phase !== 'settled') return { failure: { kind: 'not-settled' } }
-            if (input.result !== call.state.settlement.version)
-              return { failure: { kind: 'handoff-invalid', reason: 'result-version' } }
-            const source =
-              input.evidence.kind === 'processed'
-                ? input.evidence.completion
-                : input.evidence.custody
-            if (source.owner !== call.state.consumer.owner)
-              return { failure: { kind: 'handoff-invalid', reason: 'consumer-owner' } }
-            const adapter = core.adapter(call)
-            if ('kind' in adapter) return { failure: adapter }
-            const proof = provenHandoff(core, input, call, read)
+            const question = handoffQuestion(core, input, call)
+            if ('failure' in question) return question
+            const proof = provenHandoff(question.ok, read)
             if ('failure' in proof) return proof
             if (call.state.custody.kind === 'producer') {
               call.state = {

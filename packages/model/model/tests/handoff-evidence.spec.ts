@@ -173,3 +173,49 @@ it('writes nothing on a refusal of forged evidence, and the same operation ackno
   forged = false
   expect(unbox(await s.commands.handoff(s.ack)).custody.kind).toBe('acknowledged')
 })
+
+// R2-D262 N1: the guard of the read before the fence. The adapter is asked about the call as it
+// was; while its answer is on its way the call is claimed again (a new generation). The write must
+// not take the answer for the changed call: `unavailable`, the custody stays, and the same
+// operation acknowledges once it is asked about the call as it is now. Red when the write keeps a
+// proof whose question differs from its own (for example a guard of `proof === null` alone).
+it('does not keep an answer read for the call before it was claimed again, and the same operation acknowledges after', async () => {
+  let release: () => void = () => {}
+  let held = true
+  const s = await settledWith(async input => {
+    if (held) {
+      held = false
+      await new Promise<void>(resolve => {
+        release = resolve
+      })
+    }
+    return input.evidence.kind === 'retained'
+      ? { ok: input.evidence.custody }
+      : { failure: { kind: 'handoff-invalid', reason: 'kind' } }
+  })
+  const pending = s.commands.handoff(s.ack)
+  for (let n = 0; n < 100 && s.asked.length === 0; n += 1)
+    await new Promise(resolve => setTimeout(resolve, 1))
+  expect(s.asked).toHaveLength(1)
+  const before = s.asked[0]?.execution?.generation
+  unbox(
+    await s.commands.claim({
+      ...s.f.admit,
+      operation: op('claim-again'),
+      instance: instance('two'),
+      continuity: proof(s.f.admit.call),
+    }),
+  )
+  release()
+  expect(await pending).toEqual({
+    failure: {
+      kind: 'unavailable',
+      dependency: 'consumer-evidence',
+      diagnostic: 'evidence-not-read-for-this-call',
+    },
+  })
+  expect(await s.state()).toEqual({ kind: 'producer' })
+  expect(unbox(await s.commands.handoff(s.ack)).custody.kind).toBe('acknowledged')
+  // The second question was about the new generation.
+  expect(s.asked[1]?.execution?.generation).not.toBe(before)
+})

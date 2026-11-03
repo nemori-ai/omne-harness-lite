@@ -6,12 +6,21 @@
 // - `handoff`: the custody evidence of the Agent consumer owner (R2-D257). It reads the durable
 //   received record that the Agent receiver committed, through the trusted `agentReceivedRecords`
 //   of the `agent-journal` row, and confirms only an exact match (`createAgentCustodyEvidence`).
-//   The face absent, or a record absent, different or unreadable: `unavailable`, and the Model keeps
-//   the result and its share until a later ACK of the same operation confirms.
+//   The face absent, or a record absent or unreadable: `unavailable`; evidence that differs from
+//   the committed record: `handoff-invalid` (R2-D260). Either way the Model keeps the result and
+//   its share until a later ACK of the same operation confirms.
+//   The M2 release has one consumer owner of Model calls, `@omne-harness/agent` (the operator layers
+//   give `model-records.owners` that one owner; no other member admits Model calls in M2). The
+//   handoff of another owner is routed nowhere and answers `unavailable` (`owner-not-wired`): its
+//   evidence is not refused as forged, it waits for its own adapter (R2-D262 S2).
 // - `receive`, `lateFact`, `retry`: no production source in wave 2. `receive` unproven keeps the
 //   first content `none-proven`; `retry` keeps `policy-unavailable`. Known limitations of M2.
 import type { Context } from '@deepseek-ai/cordis'
-import { createAgentCustodyEvidence, type AgentCustodyEvidence } from '@omne-harness/agent'
+import {
+  AGENT_CONSUMER_OWNER,
+  createAgentCustodyEvidence,
+  type AgentCustodyEvidence,
+} from '@omne-harness/agent'
 import type { AgentReceivedRecords } from '@omne-harness/agent-contract'
 import { agentReceivedRecordsKey } from '@omne-harness/agent-cordis-contract/cordis'
 import type { Adoption, ModelFailure } from '@omne-harness/model-contract'
@@ -55,16 +64,21 @@ export function createModelEvidence(
     receive: () => unavailable('model-receive-evidence', 'receive-window-unproven'),
     lateFact: () => unavailable('model-late-fact-evidence', 'no-supplier-record-source'),
     retry: () => unavailable('model-retry-policy', 'not-configured'),
-    handoff: given =>
-      sources.custody()?.verify({
-        principal: given.principal,
-        tenant: given.tenant,
-        call: given.call,
-        consumer: given.consumer,
-        reference: given.reference,
-        result: given.result,
-        evidence: given.evidence,
-      }) ?? unavailable('consumer-evidence', 'received-records-absent'),
+    handoff: given => {
+      if (given.consumer.owner !== AGENT_CONSUMER_OWNER)
+        return unavailable('consumer-evidence', 'owner-not-wired')
+      return (
+        sources.custody()?.verify({
+          principal: given.principal,
+          tenant: given.tenant,
+          call: given.call,
+          consumer: given.consumer,
+          reference: given.reference,
+          result: given.result,
+          evidence: given.evidence,
+        }) ?? unavailable('consumer-evidence', 'received-records-absent')
+      )
+    },
   }
   return Object.freeze(adapter)
 }
