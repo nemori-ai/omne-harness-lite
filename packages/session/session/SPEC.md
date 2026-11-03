@@ -486,7 +486,7 @@
 
 <a id="sn-1"></a>SN-1 Session 快照的读上限：一个会话的权威快照（`WorkSnapshot`）在存储里是一行，`readWork` 一次读出整份。快照里随 Run 增长、Run 结束后也不移出的部分有 `consumptions`、`callRegistrations`、`executions`、`entriesProgress` 与读出时附带的 `historyIndex`。session-storage-sql 的读口 `session.work` 有固定的 1 MiB 输出上限（`materials.ts` 的 `maxOutputBytes`，与装配无关）。
 
-- 约多少轮：在 C-JOINT 世界的纯文本形状（每轮一次输入、一次 Model 请求、一次回复，每轮一个新 Run）里，快照第 1 轮末 15,920 字节，此后每轮约增 6.1 KB，第 168 轮末 1,041,932 字节；第 169 轮 `session.work` 答 `read_limit`（曲线见 `tmp/line-session-run/w2/C-FIX-ROUNDS/j6-curve.csv`，#502 C-FIX-ROUNDS）。工具形（每轮两次 Model 请求、一次 Tool 调用）前 3 轮每轮约增 14.5 KB，按线性外推约第 70 轮到上限，未实测到上限。
+- 约多少轮：在 C-JOINT 世界的纯文本形状（每轮一次输入、一次 Model 请求、一次回复，每轮一个新 Run）里，快照第 1 轮末 15,920 字节，此后每轮约增 6.1 KB，第 168 轮末 1,041,932 字节；第 169 轮 `session.work` 答 `read_limit`（曲线见 `tmp/line-session-run/w2/C-FIX-ROUNDS/j6-curve.csv`，#502 C-FIX-ROUNDS）。工具形（每轮两次 Model 请求、一次 Tool 调用）实测：完成 69 轮，第 70 轮不收口（该轮 Tool 结果已由接收方保存，之后 `session.work` 读答 `read_limit`）；快照第 1 轮末 26,101 字节，第 69 轮末单次最大读 1,039,556 字节，第 70 轮 1,045,705 字节，每轮约增 14.9 KB（曲线与原始记录见 `tmp/line-session-run/w2/C-JOINT/j6-curve-tool.csv`、`j6-tool-r70.md`，#502 C-JOINT）。
 - 触发后的表现：`readWork` 立即答 `unavailable`，诊断为 `read session.work: read_limit`，不挂起，也不交出部分快照（session-storage-sql `tests/work-read-limit.spec.ts`）。此后凡经 `readWork` 读这份快照的操作对这个会话都答 `unavailable`，C-JOINT 世界里表现为下一轮没有结束（`runRound` 读快照失败）；已写入的会话日志与条目不受影响。
 - 触发条件：一个会话累计的 Run 与调用登记使快照超过 1 MiB。上限是读口的固定值，不随 `maxCommandBytes` 调整，本限制不靠调高上限解决。
 - 处置（波 3）：压缩已结束的 Run，把已终结 Run 的消费、调用登记、执行与条目进度从快照移到按 Run 存放的归档里，快照只留未结的工作与一个有界的摘要，使快照大小与已结束的 Run 数无关。快照形状在那之前不变。
