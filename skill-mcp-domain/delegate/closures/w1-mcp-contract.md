@@ -156,3 +156,16 @@ developer，implementation_kind product，Claude Opus 5.5，effort high。理由
 37. [交付 3] `tests/public-entry.spec.ts` 的导入遍历改用 TypeScript 编译器 API 或同时匹配两种引号。
 
 验收追加：A1–A8 照旧；新增 A9：`CallMode`/`mode-unsupported`/`taskSupport` 在 `src` 与 SPEC 中无命中；A10：`provider-types.spec-d.ts` 存在且通过；A11：README 无草稿标记，`pnpm package:template scan --member packages/mcp/mcp-contract --json` 的 findings 为空。收尾门禁照旧。按本节的 A、B、C、D 分别至少一个提交。
+
+**E. 第 2 轮补充：结构读数（依据 reviews/r1-structure.md）**
+38. `deliveredItem`（`content.ts`）拆分：按 type 的读取表（text/image/audio → 各自读取函数；不在表里即 `type-unknown`）与协议类型表（resource_link/resource），去掉四层嵌套三元。
+39. `launchOf`（`endpoint.ts`）拆分：抽 `facilitiesOf(value)`（含非空、不重复，与 `environmentOf` 对称）与 `optionalNonEmptyText(value)` 处理 `cwd`。
+40. `parseEndpointBody` 轻拆：抽 `transportOf(transport, launch): Transport | 'launch-missing' | 'launch-unexpected'`；拒绝顺序留在主函数并在 JSDoc 写明保留理由。
+41. `actionDefinitionOf` 保留，JSDoc 写明理由。
+
+**F. 第 2 轮补充：差分变异（依据 reviews/r1-mutation.md；完整存活清单在 /home/user/omne-harness-lite/tmp/mutation-ledger/15e2976e8/20261103-145501）**
+42. 补用例杀掉可判定的存活：`values.ts:46/48` 与 `endpoint.ts:35` 的正则锚点（`xsha256:<64hex>`、`sha256:<64hex>x`、`http://` 前后带杂字符、env 名 `A-b`）；`values.ts:56` 控制字符边界三例；`values.ts:135`（带 userinfo 的 URL、`http:///x`）；`content.ts:11` base64 长度（`Q==`、`QQ=`、`QQQQQ`）；`content.ts:43/49/55/59/65/68`（空 mimeType、空 uri、resource 非对象、resource 缺 uri、缺 type、type 非文本各一例）；`classify.ts:33/48/81/89`（`structuredContent` 缺省、`inputRequests` 缺省、error 非对象、error 缺 data）；`catalog.ts:158` 超过 `maxPages`（`page-limit-exceeded` 现在无覆盖）；`catalog.ts:184-187` 各页 `ttlMs` 取最小值与 `changedNotified: false`；`catalog.ts:201` 修订耗尽的防御（可注入起始修订）；`catalog.ts:206-207` 排序比较器逆序输入；`catalog.ts:258` `markUnavailable` 对「已不可用但原因不是 no-longer-offered」的动作改写原因；`endpoint.ts:84/86/90/95/103/116/131`（launch 非对象、多余成员、缺 command、`facilities`/`cwd`/`env` 缺省通过、env 项缺 name）；`catalog.ts:94-101` 随 G1 删除 `taskSupport` 后不再存在。
+43. 记为等价并写明：`values.ts:54` 的 `index <= length`；`catalog.ts:206` 的 `<→<=`（动作名唯一）；`classify.ts:108` 的 `never` 分支；`catalog.ts:142` SHA-256 后防御断言。
+44. `detail`/说明文字的 StringLiteral 存活不追，SPEC 写明 `detail` 不是契约字段。
+45. 11 个超时未复核都在 `testing-landing.ts:111-143`（非热点）：用 `ProcessHandle.stop()` 的替身实现核对一遍没有真正的无限等待；有则修，无则在交回里写明。
+46. 变异使模块顶层（schema 文本读取、套件构造）抛错导致整次无效：不为此改代码。

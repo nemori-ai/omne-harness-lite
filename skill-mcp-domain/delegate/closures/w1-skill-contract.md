@@ -143,3 +143,17 @@ developer，implementation_kind product，Claude Opus 5.5，effort high。理由
 28. `acceptance/` 四个文件由 reduce 以 main 角色补建，写者不建。
 
 验收追加：A1–A8 照旧，且 A5 的变红证明改为进程内；新增 A9：`skillPackageSourceConformance` 对外来 digest 的用例存在且通过；A10：`provider-types.spec-d.ts` 存在且通过。收尾门禁照旧。按本节的 A、B、C、D 分别至少一个提交。
+
+**E. 第 2 轮补充：结构读数（依据 reviews/r1-structure.md）**
+29. `interpret`（`parse/manifest.ts`）拆分：抽 `boundedText(value, max)` 供 description 与 compatibility 共用，抽 `manifestOf(name, fields)` 做组装；`interpret` 只留校验顺序。
+30. `convert`（`parse/yaml-value.ts`）拆分：抽 `sequence(...)` 与 `mapping(...)`，主函数只留别名展开、预算、深度与四路分派。
+31. `parseSkillPackage` 保留在一个函数里（拒绝顺序是契约），在 JSDoc 写明保留理由；可以抽 `nameMismatch(name, rootName, expected)`。
+32. `frontmatterOf`：核实 `for` 条件 `start <= text.length` 是否不自退、末尾 `return undefined` 是否走不到；是则改 `for (;;)` 并补覆盖这一分支的用例，否则在代码里注释说明。
+33. 包内重复：`DESCRIPTION_MAX` 与「1..N 码点文本」检查合到一处（`parse/shape.ts`），`contract.ts` 与 `parse/manifest.ts` 共用。
+34. 与 tool-contract 的 25 行克隆（`stringField`/`field`/`isObject`）本轮保留，不抽；14 行克隆保留。
+
+**F. 第 2 轮补充：差分变异（依据 reviews/r1-mutation.md；完整存活清单在 /home/user/omne-harness-lite/tmp/mutation-ledger/5982f2be5/20261103-144713）**
+35. 补用例杀掉可判定的存活：`names.ts:13` 与 `isSafeReason` 的控制字符边界（U+001F、U+007F、U+009F 各一例，含与不含）；`snapshot.ts:31` 排序比较器（逆序输入，断言输出次序与摘要）；`contract.ts:99-101` 正文 `description` 长度 0 与 1025 的拒绝；`contract.ts:23-31` 断言类别端口交出的 `schema` 读出值（字段名与类别枚举）；`parse/yaml-value.ts:41/55/56`（非 map 节点、null 值、数值）；`parse/declaration.ts:60-61`（`formatVersion` 缺失、非数值）；`parse/manifest.ts:73/77/108/122-125`（metadata 非文本映射、`compatibility` 非文本、可选字段缺省与存在各一例）；`parse/package.ts:75`（带 `expectedName` 且与根名相等时通过）。
+36. 记为等价并在测试或代码注释写明理由：`names.ts:11` `index <= text.length`（`charCodeAt(length)` 是 NaN）；`snapshot.ts:31` 的 `<→<=`（路径唯一）；`digest.ts:25/42` 的 SHA-256 后防御断言；`snapshot.ts:82` 随 C21 删除。
+37. 错误说明文字（`detail`）与 schema 文本的 StringLiteral 存活不追：SPEC 写明 `detail` 是给人看的说明，不是契约字段，调用方不得据它分支。
+38. 变异把 `new TextDecoder('utf-8', …)` 的编码改成 `''` 使模块加载抛错，工具判整次无效。不为此改代码；reduce 在合入后复跑一次确认存活数下降即可。
