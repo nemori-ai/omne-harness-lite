@@ -6,10 +6,22 @@
 // index rows change only in the transaction that moves them, so an equal version means that no
 // commit came between the two reads. Any other answer reads the whole snapshot again. The cache
 // decides no access: each caller asks its access and resolves the tenant domain before it reads.
+//
+// A commit of this process does not make the next read whole (C-TOPOLOGY §2.9): the commit path
+// folds its batch onto the held snapshot with the same pure `reduce` the participant ran, and a
+// publication of the Agent records replaces only the index of the held snapshot. Neither decides
+// that an answer is valid: what they register carries a version that the store answered, and every
+// read still checks the version first.
 import { randomUUID } from 'node:crypto'
-import type { WorkSnapshot } from '@omne-harness/session-contract'
+import {
+  reduce,
+  type HistoryEntry,
+  type SessionHistoryIndex,
+  type SessionHistoryReads,
+  type WorkSnapshot,
+} from '@omne-harness/session-contract'
 import type { DomainRef, JsonValue, SqlStorage } from '@omne-harness/sql-contract'
-import { decodeValue } from './codec.ts'
+import { decodeValue, encodeValue } from './codec.ts'
 import { PROTOCOL } from './worker/schema.ts'
 
 /** The sessions the cache keeps by default; past it the least recently used session goes. */
@@ -19,6 +31,8 @@ export const WORK_CACHE_BYTES = 64 * 1024 * 1024
 
 export const WORK_HANDLER = 'session.work'
 export const WORK_VERSION_HANDLER = 'session.work-version'
+const WORK_INDEX_HANDLER = 'session.work-index'
+const HISTORY_HANDLER = 'session.history'
 
 /** The bounds of one cache. `sessions: 0` or `bytes: 0` keeps nothing. */
 export type WorkCacheBounds = Readonly<{ sessions?: number; bytes?: number }>
@@ -39,6 +53,11 @@ export type WorkCache = Readonly<{
    * waits for it instead of reading the snapshot again (single-flight).
    */
   readonly flights: Map<string, Promise<WorkRead>>
+  /**
+   * The folds in flight, by key and the version they fold to: a read that finds the store at that
+   * version waits for the fold and answers its entry instead of reading the snapshot whole.
+   */
+  readonly folds: Map<string, Promise<void>>
   readonly size: number
   readonly bytes: number
 }>
@@ -112,6 +131,7 @@ export function createWorkCache(bounds: WorkCacheBounds = {}): WorkCache {
     },
     delete: drop,
     flights: new Map(),
+    folds: new Map(),
     get size() {
       return entries.size
     },
@@ -190,6 +210,7 @@ type Record = Readonly<{ [key: string]: JsonValue }>
 async function readOne(
   reach: WorkReach,
   handler: string,
+  input: Readonly<{ [key: string]: JsonValue }> = {},
 ): Promise<Readonly<{ output: Record }> | Readonly<{ unavailable: string }>> {
   try {
     const result = await reach.storage.read({
@@ -197,7 +218,7 @@ async function readOne(
       handler,
       protocol: PROTOCOL,
       requestKey: randomUUID(),
-      input: { tenant: reach.tenant, session: reach.session },
+      input: { ...input, tenant: reach.tenant, session: reach.session },
     })
     if (result.kind !== 'read')
       return {
@@ -266,6 +287,14 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
   // version read failed reads alone.
   if (version === null) return readWhole(reach, cache, key)
   const flight = `${key}|${version.tail}|${version.published}`
+  // A commit or publication of this process is folding to the version read: its entry answers.
+  const folding = cache.folds.get(flight)
+  if (folding !== undefined) {
+    await folding
+    const done = cache.get(key)
+    if (done !== undefined && sameVersion(done.version, version))
+      return { kind: 'state', snapshot: done.snapshot }
+  }
   const running = cache.flights.get(flight)
   if (running !== undefined) return running
   const started = readWhole(reach, cache, key).finally(() => cache.flights.delete(flight))
@@ -325,4 +354,268 @@ export function readCachedSessionWork(
     session,
     ...(options.workCache === undefined ? {} : { bounds: options.workCache }),
   })
+}
+
+// ---------------------------------------------------------------------------------------------
+// Folding the commits and publications of this process (C-TOPOLOGY §2.9)
+
+/**
+ * What a published Session batch tells the cache: the version and stored text length of the new
+ * snapshot, the positions of the batch, and the basis the participant reduced it on. `indexed` is
+ * false for a batch reduced on the stored snapshot alone (no index, no reads); an indexed batch
+ * without `basis` had a basis over the bound of the reply, and is not folded.
+ */
+export type WorkFold = Readonly<{
+  tail: string
+  published: string
+  bytes: number
+  first: string
+  last: string
+  indexed: boolean
+  basis?: JsonValue
+}>
+
+/** How the folds and index replacements of this process ended, for measurement. */
+export type WorkFoldCounts = {
+  /** A commit folded and registered. */
+  folded: number
+  /** A publication replaced the index of a held snapshot. */
+  indexed: number
+  /** No held snapshot at the version before, a basis over the bound, or a read of this version in flight. */
+  skipped: number
+  /** `reduce` quarantined the batch on the held snapshot. */
+  quarantined: number
+  /** The store moved on, or a read the fold needs failed or answered something else. */
+  stale: number
+}
+
+const counts: WorkFoldCounts = { folded: 0, indexed: 0, skipped: 0, quarantined: 0, stale: 0 }
+
+/** A copy of the counts of this process. */
+export function workFoldCounts(): WorkFoldCounts {
+  return { ...counts }
+}
+
+/** The page size of the batch read of a fold; a page holds at least one entry whatever its size. */
+const FOLD_PAGE_BYTES = 4 * 1024 * 1024
+
+/** A held snapshot without its index: what the stored snapshot row holds. */
+function unindexed(snapshot: WorkSnapshot): WorkSnapshot {
+  const { historyIndex: _index, ...rest } = snapshot
+  return rest
+}
+
+/**
+ * The fields of a snapshot that its history index reads (`workIndexOf`), for `session.work-index`:
+ * tenant, session, revision, pending inputs, and the execution and read-through of the current Run
+ * and of the earlier ones.
+ */
+function indexInput(snapshot: WorkSnapshot): JsonValue {
+  const reference = (execution: Readonly<{ execution: string; readThrough: string }>) => ({
+    execution: execution.execution,
+    readThrough: execution.readThrough,
+  })
+  const { run } = snapshot
+  return encodeValue({
+    tenant: snapshot.tenant,
+    session: snapshot.session,
+    revision: snapshot.revision,
+    pending: snapshot.pending,
+    run:
+      run.kind === 'active'
+        ? { kind: run.kind, run: run.run, execution: reference(run.execution) }
+        : { kind: run.kind },
+    executions: (snapshot.executions ?? []).map(item => ({
+      run: item.run,
+      execution: reference(item.execution),
+    })),
+  })
+}
+
+/** The snapshot at `version` with the index the store answers there; null when it moved on. */
+async function withIndex(
+  reach: WorkReach,
+  version: WorkVersion,
+  snapshot: WorkSnapshot,
+): Promise<WorkSnapshot | null> {
+  const read = await readOne(reach, WORK_INDEX_HANDLER, {
+    tail: version.tail,
+    published: version.published,
+    snapshot: indexInput(snapshot),
+  })
+  if (!('output' in read)) return null
+  const out = read.output
+  if (out['kind'] === 'too-many') return snapshot
+  if (out['kind'] !== 'index') return null
+  return {
+    ...snapshot,
+    historyIndex: decodeValue(out['index'] as JsonValue) as SessionHistoryIndex,
+  }
+}
+
+/** The entries of the batch at positions `first` to `last`, all of revision `tail`; null otherwise. */
+async function batchEntries(reach: WorkReach, fold: WorkFold): Promise<HistoryEntry[] | null> {
+  const first = BigInt(fold.first)
+  const last = BigInt(fold.last)
+  const entries: HistoryEntry[] = []
+  let input: Readonly<{ [key: string]: JsonValue }> = {
+    mode: 'begin',
+    kinds: [],
+    direction: 'forward',
+    from: first > 1n ? String(first - 1n) : null,
+    edge: null,
+    upper: null,
+    pageBytes: FOLD_PAGE_BYTES,
+  }
+  for (;;) {
+    const read = await readOne(reach, HISTORY_HANDLER, input)
+    if (!('output' in read) || read.output['kind'] !== 'page') return null
+    const page = decodeValue(read.output['entries'] as JsonValue) as HistoryEntry[]
+    for (const entry of page) {
+      if (BigInt(entry.id) > last) break
+      entries.push(entry)
+    }
+    const next = read.output['next'] as Readonly<{ edge: string; upper: string }> | null
+    if (entries.length > Number(last - first) || next === null) break
+    input = { ...input, mode: 'next', edge: next.edge, upper: next.upper }
+  }
+  const whole =
+    entries.length === Number(last - first) + 1 &&
+    entries.every(
+      (entry, at) => entry.id === String(first + BigInt(at)) && entry.revision === fold.tail,
+    )
+  return whole ? entries : null
+}
+
+/** The snapshot `fold` makes of `held`, at the fold's version; null when it cannot be proved. */
+async function folded(
+  reach: WorkReach,
+  held: WorkSnapshot,
+  fold: WorkFold,
+): Promise<WorkSnapshot | null> {
+  const entries = await batchEntries(reach, fold)
+  if (entries === null) {
+    counts.stale += 1
+    return null
+  }
+  let previous = unindexed(held)
+  let reads: SessionHistoryReads | undefined
+  if (fold.indexed) {
+    const basis = decodeValue(fold.basis as JsonValue) as Readonly<{
+      index: SessionHistoryIndex
+      reads: SessionHistoryReads
+    }>
+    previous = { ...previous, historyIndex: basis.index }
+    reads = basis.reads
+  }
+  const reduced = reduce(previous, { revision: fold.tail, entries } as never, reads)
+  if (reduced.kind === 'quarantined') {
+    counts.quarantined += 1
+    return null
+  }
+  const version = { tail: fold.tail, published: fold.published }
+  const snapshot = await withIndex(reach, version, unindexed(reduced.snapshot))
+  if (snapshot === null) counts.stale += 1
+  return snapshot
+}
+
+/** True when `before` is the version just below the fold: one tail lower, the same publications. */
+const follows = (before: WorkVersion, fold: WorkFold): boolean =>
+  count(before.tail) + 1n === count(fold.tail) && before.published === fold.published
+
+/**
+ * Folds one committed batch of this process into the cache (C-TOPOLOGY §2.9). The commit path
+ * calls it with the work of a fresh committed reply only, never a recall. It folds only onto a held
+ * snapshot one tail below with the same publication count; anything else, a quarantine, or a store
+ * that moved on registers nothing, and the next read reads whole as before. It never throws.
+ */
+export async function foldCommitted(reach: WorkReach, fold: WorkFold): Promise<void> {
+  try {
+    const cache = workCacheOf(reach.storage, reach.bounds)
+    const key = workKey(reach.domain.transactionDomain, reach.tenant, reach.session)
+    const held = cache.get(key)
+    const flight = `${key}|${fold.tail}|${fold.published}`
+    if (
+      held === undefined ||
+      !follows(held.version, fold) ||
+      (fold.indexed && fold.basis === undefined) ||
+      cache.flights.has(flight) ||
+      cache.folds.has(flight)
+    ) {
+      counts.skipped += 1
+      return
+    }
+    const running = folded(reach, held.snapshot, fold).then(snapshot => {
+      if (snapshot === null) return
+      cache.set(key, {
+        version: { tail: fold.tail, published: fold.published },
+        bytes: fold.bytes,
+        snapshot: frozen(snapshot),
+      })
+      counts.folded += 1
+    })
+    cache.folds.set(flight, running)
+    try {
+      await running
+    } finally {
+      cache.folds.delete(flight)
+    }
+  } catch {
+    counts.stale += 1
+  }
+}
+
+/**
+ * Replaces the index of the held snapshot after a publication of the Agent records of this process
+ * moved the publication count to `published` (C-TOPOLOGY §2.9.2): the snapshot row moves only with
+ * the tail, so the held snapshot stays; its index is read again at the held tail and the new count.
+ * Nothing is registered when no snapshot is held, or the store is at another version. It never
+ * throws.
+ */
+export async function refreshWorkIndex(reach: WorkReach, published: string): Promise<void> {
+  try {
+    const cache = workCacheOf(reach.storage, reach.bounds)
+    const key = workKey(reach.domain.transactionDomain, reach.tenant, reach.session)
+    const held = cache.get(key)
+    if (held === undefined || count(published) <= count(held.version.published)) {
+      counts.skipped += 1
+      return
+    }
+    const version = { tail: held.version.tail, published }
+    const flight = `${key}|${version.tail}|${version.published}`
+    if (cache.flights.has(flight) || cache.folds.has(flight)) {
+      counts.skipped += 1
+      return
+    }
+    const running = withIndex(reach, version, unindexed(held.snapshot)).then(snapshot => {
+      if (snapshot === null) {
+        counts.stale += 1
+        return
+      }
+      cache.set(key, { version, bytes: held.bytes, snapshot: frozen(snapshot) })
+      counts.indexed += 1
+    })
+    cache.folds.set(flight, running)
+    try {
+      await running
+    } finally {
+      cache.folds.delete(flight)
+    }
+  } catch {
+    counts.stale += 1
+  }
+}
+
+/**
+ * `refreshWorkIndex` for a writer that already holds the domain of the tenant (the Journal
+ * provider), after its publication committed with the count `published`.
+ */
+export function registerSessionWorkIndex(
+  storage: SqlStorage,
+  domain: DomainRef,
+  tenantText: string,
+  session: string,
+  published: string,
+): Promise<void> {
+  return refreshWorkIndex({ storage, domain, tenant: tenantText, session }, published)
 }

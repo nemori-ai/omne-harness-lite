@@ -147,10 +147,55 @@ type PendingReason = string
 const isControl = (command: SessionCommand): boolean =>
   command.kind === 'cancelRun' || command.kind === 'stopCall'
 
-const participated = (result: unknown, recovered: boolean): ParticipantReply => ({
+const participated = (
+  result: unknown,
+  recovered: boolean,
+  work?: JsonValue,
+): ParticipantReply => ({
   kind: 'participated',
-  response: { result: encodeValue(result), recovered },
+  response: { result: encodeValue(result), recovered, ...(work === undefined ? {} : { work }) },
 })
+
+/** The JSON text the decision basis of a work reply may take (C-TOPOLOGY §2.9 H1). */
+export const WORK_BASIS_BYTES = 16 * 1024
+
+/**
+ * What a published batch tells the work cache of the main thread (C-TOPOLOGY §2.9), so that it can
+ * fold the batch onto the snapshot it holds instead of reading the new one whole: the version and
+ * the stored text length of the new snapshot, the positions of the batch, and the history index
+ * and reads the batch was reduced on (`basis`). `indexed` is false when the batch was reduced on
+ * the stored snapshot without an index and without reads (the entries channel). The basis is left
+ * out over `WORK_BASIS_BYTES`, and the cache then reads the snapshot whole. It is never stored by
+ * this participant and never recalled: a recall carries no work.
+ */
+function workOf(
+  port: ParticipantPort,
+  input: Readonly<{
+    tenant: string
+    session: string
+    revision: string
+    stored: string
+    entries: readonly HistoryEntry[]
+    basis: SessionHistory | 'none'
+  }>,
+): JsonValue {
+  const { tenant, session, revision, stored, entries, basis } = input
+  const root = oneRow(port, 'SELECT published FROM er_root WHERE tenant = ? AND session = ? LIMIT 1', [
+    tenant,
+    session,
+  ])
+  const work = {
+    tail: revision,
+    published: root === undefined ? '0' : text(root['published']),
+    bytes: stored.length,
+    first: (entries[0] as HistoryEntry).id,
+    last: (entries[entries.length - 1] as HistoryEntry).id,
+    indexed: basis !== 'none',
+  }
+  if (basis === 'none') return work
+  const encoded = encodeValue({ index: basis.index, reads: basis.reads })
+  return JSON.stringify(encoded).length > WORK_BASIS_BYTES ? work : { ...work, basis: encoded }
+}
 const stopped = (failure: SessionFailure): ParticipantReply => ({
   kind: 'conflict',
   basis: { failure: encodeValue(failure) },
@@ -876,9 +921,10 @@ function publishCommand(
       'INSERT OR REPLACE INTO sl_input (tenant, session, input, value) VALUES (?, ?, ?, ?)',
       [tenant, session, admitted.input, JSON.stringify(encodeValue(admitted))],
     )
+  const stored = JSON.stringify(encodeValue(snapshot))
   port.execute(
     'INSERT OR REPLACE INTO sl_state (tenant, session, snapshot, covered) VALUES (?, ?, ?, ?)',
-    [tenant, session, JSON.stringify(encodeValue(snapshot)), BigInt(revision)],
+    [tenant, session, stored, BigInt(revision)],
   )
   maintainDerived(port, tenant, session, previous, snapshot)
   const result = resultOf(command, withIndex(port, command, snapshot), receipt)
@@ -902,7 +948,12 @@ function publishCommand(
   )
   storeEvidence(port, { tenant, session, operation }, evidence)
   const moved = moveJournal(port, start, { tail, revision, seq, epoch })
-  return moved ?? participated(result, false)
+  if (moved !== null) return moved
+  const work =
+    batch.history === null
+      ? undefined
+      : workOf(port, { tenant, session, revision, stored, entries, basis: batch.history })
+  return participated(result, false, work)
 }
 
 /** The revision, commit sequence and entry positions of the batch, after the journal of `start`. */
@@ -1032,9 +1083,10 @@ function publishSameLog(
       kind: 'failed',
       diagnostic: 'the model view epoch exceeds the read bound of a compaction',
     }
+  const stored = JSON.stringify(encodeValue(snapshot))
   port.execute(
     'INSERT OR REPLACE INTO sl_state (tenant, session, snapshot, covered) VALUES (?, ?, ?, ?)',
-    [tenant, session, JSON.stringify(encodeValue(snapshot)), BigInt(revision)],
+    [tenant, session, stored, BigInt(revision)],
   )
   maintainDerived(port, tenant, session, previous, snapshot)
   const saved = record(receipt)
@@ -1059,7 +1111,13 @@ function publishSameLog(
     seq: journal.seq,
     epoch,
   })
-  return moved ?? participated(batch.answer, false)
+  if (moved !== null) return moved
+  const basis = 'basis' in batch ? batch.basis : 'none'
+  return participated(
+    batch.answer,
+    false,
+    workOf(port, { tenant, session, revision, stored, entries, basis }),
+  )
 }
 
 /** The answer of a same-log commit carries the digest of its observation (SL07). */

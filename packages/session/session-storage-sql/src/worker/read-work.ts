@@ -6,11 +6,8 @@
 import type { WorkSnapshot } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue } from '../codec.ts'
-import { readHistory } from './history-index.ts'
+import { workIndexOf } from './history-index.ts'
 import { big, handler, oneRow, scopeOf, text } from './support.ts'
-
-/** The rows the index may read in one handler call, below the row bound of the handler (2000). */
-const INDEX_ROWS = 1000
 
 export default handler('session.work', (input, port) => {
   const scope = scopeOf(input)
@@ -30,14 +27,7 @@ export default handler('session.work', (input, port) => {
   const body = text(row['snapshot'])
   const stored = JSON.parse(body) as JsonValue
   const snapshot = decodeValue(stored) as WorkSnapshot
-  const history = readHistory(
-    port,
-    scope.tenant,
-    scope.session,
-    snapshot,
-    { kind: 'pending', inputs: snapshot.pending },
-    INDEX_ROWS,
-  )
+  const history = workIndexOf(port, scope.tenant, scope.session, snapshot)
   return {
     kind: 'state',
     // The version this answer was read at, from the same snapshot (SPEC RT-04), and the length of

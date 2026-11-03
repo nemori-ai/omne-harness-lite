@@ -69,6 +69,7 @@ describe('the ./participants entry', () => {
       'executionRecordFacts',
       'preadmissionFacts',
       'readCachedSessionWork',
+      'registerSessionWorkIndex',
       'sessionCheckDigest',
       'sessionCheckFacts',
       'sessionCommandFacts',

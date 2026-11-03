@@ -131,6 +131,14 @@ export const HANDLERS: readonly Handler[] = [
     tables: ['sl_journal', 'er_root'],
     migrations: [migrationRef, recordMigrationRef],
   },
+  {
+    // The index of a snapshot the work cache folded (SPEC RT-04): the tables of `session.work`
+    // without the snapshot row, answered only at the version the cache folded to.
+    handler: 'session.work-index',
+    file: 'read-work-index',
+    tables: ['sl_journal', 'sl_entry', ...EXECUTION_RECORD_INDEX_TABLES],
+    migrations: [migrationRef, recordMigrationRef, admissionAttemptMigrationRef],
+  },
   { handler: 'session.input', file: 'read-input', tables: ['sl_journal', 'sl_input'] },
   {
     handler: 'session.model-selection',

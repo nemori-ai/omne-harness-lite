@@ -896,3 +896,28 @@ export function readHistory(
     throw error
   }
 }
+
+/** The rows the index of a work answer may read in one handler call, below the handler row bound. */
+const WORK_INDEX_ROWS = 1000
+
+/**
+ * The history index of a `readWork` answer: the pending inputs of `snapshot`, under one row bound.
+ * The whole work read and the index read of the work cache both build it here, so their answers
+ * are equal. Of the snapshot it reads `tenant`, `session`, `revision`, `pending`, `run` and
+ * `executions`.
+ */
+export function workIndexOf(
+  port: Executor,
+  tenant: string,
+  session: string,
+  snapshot: WorkSnapshot,
+): SessionHistory | 'too-many' {
+  return readHistory(
+    port,
+    tenant,
+    session,
+    snapshot,
+    { kind: 'pending', inputs: snapshot.pending },
+    WORK_INDEX_ROWS,
+  )
+}

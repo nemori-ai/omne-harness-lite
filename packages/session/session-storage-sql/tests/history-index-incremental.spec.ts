@@ -14,7 +14,9 @@ import type {
   WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { operationId, sessionId } from '@omne-harness/session-contract/testing'
+import type { SqlStorage } from '@omne-harness/sql-contract'
 import { encodeValue } from '../src/codec.ts'
+import { createSessionStorage } from '../src/index.ts'
 import { readHistory } from '../src/worker/history-index.ts'
 import { app, textOf, TENANT_A, type App } from './fixtures/app.ts'
 import { activeRun, cancelRun, startRun, workOf } from './fixtures/real-provider.ts'
@@ -85,6 +87,17 @@ async function readBoth(a: App) {
   return { kept, whole, work }
 }
 
+/** `a` with a port over a storage object of its own: a work cache of its own (SPEC RT-04). */
+function apart(a: App): App {
+  const storage: SqlStorage = {
+    registerCombination: input => a.provider.storage.registerCombination(input),
+    commit: request => a.provider.storage.commit(request),
+    query: identity => a.provider.storage.query(identity),
+    read: request => a.provider.storage.read(request),
+  } as SqlStorage
+  return { ...a, port: createSessionStorage<string>({ ...a.storageOptions, storage }) }
+}
+
 function claim(a: App, run: string, name: string) {
   return a.port.commit({
     access: a.access(TENANT_A),
@@ -153,7 +166,9 @@ describe('T-A3-1: the kept index answers as a whole read after every commit', ()
     expect(again.indexed()).toBe(0)
 
     const before = maxPosition(a)
-    ok(await cancelRun(a, activeRun(work).run, 'cancel-1'))
+    // Through a port with a cache of its own and no held snapshot, so the commit folds nothing
+    // into the work cache and reads no index (SPEC RT-04): the next read is the first after it.
+    ok(await cancelRun(apart(a), activeRun(work).run, 'cancel-1'))
     const [[written]] = a.provider.select(
       DOMAIN,
       `SELECT COUNT(*) AS n FROM sl_entry WHERE tenant = ? AND session = ? AND position > ?

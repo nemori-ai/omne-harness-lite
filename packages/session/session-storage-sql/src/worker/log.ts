@@ -21,7 +21,7 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { decodeValue, plainOf } from '../codec.ts'
 import type { JournalRow } from './entries.ts'
-import { entryEvidence, readHistory } from './history-index.ts'
+import { entryEvidence, readHistory, type SessionHistory } from './history-index.ts'
 import { big, oneRow, rowsOf, text } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
@@ -38,6 +38,8 @@ export type LogBatch = Readonly<{
   snapshot: WorkSnapshot
   entries: readonly HistoryEntry[]
   answer: SessionLogReceipt
+  /** The history index and reads the observation was judged and reduced on. */
+  basis: SessionHistory
 }>
 
 /**
@@ -231,7 +233,7 @@ function batchOf(
   projected: Readonly<{
     prepared: WorkSnapshot
     entries: readonly HistoryEntry[]
-    reads: Parameters<typeof reduce>[2]
+    history: SessionHistory
   }>,
 ): LogJudgment {
   const { tenant, journal } = start
@@ -248,7 +250,7 @@ function batchOf(
     id: String(first + BigInt(index)),
     revision,
   })) as HistoryEntry[]
-  const reduced = reduce(projected.prepared, { revision, entries } as never, projected.reads)
+  const reduced = reduce(projected.prepared, { revision, entries } as never, projected.history.reads)
   // Every contradiction of the batch with the history: nothing is written.
   if (reduced.kind === 'quarantined')
     return { kind: 'stopped', failure: { kind: 'quarantined', diagnostic: reduced.diagnostic } }
@@ -276,6 +278,7 @@ function batchOf(
         interpreted: entryEvidence(tenant, session, progress),
         recovered: false,
       },
+      basis: projected.history,
     },
   }
 }
@@ -337,6 +340,6 @@ export function judgeLog(
   return batchOf(port, start, observation, digest, {
     prepared,
     entries: decision.entries as unknown as HistoryEntry[],
-    reads: history.reads,
+    history,
   })
 }
