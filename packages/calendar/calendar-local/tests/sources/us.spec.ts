@@ -188,3 +188,36 @@ it('refuses an absent Vacanza artifact', async () => {
     'unavailable',
   )
 })
+
+it.each([
+  'complete',
+  'missing count',
+  'wrong count',
+  'wrong pages',
+  'outside cutoff',
+  'cutoff before floor',
+])('validates a bounded FR publication corpus: %s', async shape => {
+  let query: URLSearchParams | undefined
+  const origin = await server((request, response) => {
+    query = new URL(request.url ?? '/', 'https://www.federalregister.gov').searchParams
+    sendJson(response, {
+      results: [
+        { ...other, publication_date: shape === 'outside cutoff' ? '2026-01-01' : '2025-12-21' },
+      ],
+      ...(shape === 'missing count' ? {} : { count: shape === 'wrong count' ? 2 : 1 }),
+      total_pages: shape === 'wrong pages' ? 2 : 1,
+      next_page_url: null,
+    })
+  })
+  const adapter = source('federal-register-eo-feed', {
+    usWindow: {
+      ...usWindow,
+      federalRegisterScanThrough: shape === 'cutoff before floor' ? '2023-12-31' : '2025-12-31',
+    },
+    testEndpoints: { origins: { 'https://www.federalregister.gov': origin } },
+  })
+  const result = await adapter.acquire({ acquiredAt })
+  expect(result.kind).toBe(shape === 'complete' ? 'acquired' : 'unavailable')
+  if (shape === 'complete')
+    expect(query?.get('conditions[publication_date][lte]')).toBe('2025-12-31')
+})

@@ -53,5 +53,6 @@ export interface CalendarSourceAdapterOptions {
     knowledgeAsOf: Instant
     authorityRef: string
     federalRegisterScanFloor: string
+    federalRegisterScanThrough?: string
   }>
 }

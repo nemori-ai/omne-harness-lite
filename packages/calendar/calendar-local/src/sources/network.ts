@@ -94,6 +94,8 @@ const frDocument = z.object({
 })
 const frPage = z.object({
   results: z.array(frDocument),
+  count: z.int().nonnegative().optional(),
+  total_pages: z.int().positive().optional(),
   next_page_url: z.url().nullable().optional(),
 })
 const frFields = [
@@ -115,6 +117,11 @@ export function federalRegisterListUrl(options: CalendarSourceAdapterOptions): s
   url.searchParams.set('per_page', '1000')
   for (const field of frFields) url.searchParams.append('fields[]', field)
   url.searchParams.set('conditions[publication_date][gte]', floor)
+  if (options.usWindow.federalRegisterScanThrough !== undefined) {
+    const through = localDateSchema.parse(options.usWindow.federalRegisterScanThrough)
+    if (through < floor) throw new Error('Federal Register cutoff precedes its scan floor')
+    url.searchParams.set('conditions[publication_date][lte]', through)
+  }
   return url.href
 }
 function checkFrPageUrl(value: string, initial: string): string {
@@ -127,6 +134,18 @@ function checkFrPageUrl(value: string, initial: string): string {
       throw new Error('Federal Register pagination changed its scan or fields')
   }
   return url.href
+}
+function verifyFrCompleteness(pages: readonly unknown[], required: boolean): void {
+  const parsed = pages.map(page => frPage.parse(page))
+  const count = parsed.reduce((sum, page) => sum + page.results.length, 0)
+  for (const page of parsed) {
+    if (required && (page.count === undefined || page.total_pages === undefined))
+      throw new Error('Bounded Federal Register scan lacks completeness metadata')
+    if (page.count !== undefined && page.count !== count)
+      throw new Error('Federal Register result count is incomplete or changed during pagination')
+    if (page.total_pages !== undefined && page.total_pages !== pages.length)
+      throw new Error('Federal Register page count is incomplete or changed during pagination')
+  }
 }
 export async function acquireFederalRegister(
   http: SourceHttp,
@@ -144,6 +163,16 @@ export async function acquireFederalRegister(
     const response = await http.read(checkFrPageUrl(next, initial))
     const raw = decodeJson(response.content)
     const page = frPage.parse(raw)
+    const floor = options.usWindow?.federalRegisterScanFloor
+    const through = options.usWindow?.federalRegisterScanThrough
+    if (
+      page.results.some(
+        document =>
+          (floor !== undefined && document.publication_date < floor) ||
+          (through !== undefined && document.publication_date > through),
+      )
+    )
+      throw new Error('Federal Register result is outside its declared publication scan')
     pages.push(raw)
     for (const document of page.results) {
       if (seen.has(document.document_number)) throw new Error('Duplicate Federal Register document')
@@ -162,6 +191,7 @@ export async function acquireFederalRegister(
     next = page.next_page_url ?? null
   }
   if (!seen.size) throw new Error('Federal Register aggregate list is empty')
+  verifyFrCompleteness(pages, options.usWindow?.federalRegisterScanThrough !== undefined)
   return {
     content: encode({
       kind: 'federal_register_eo_bundle',
