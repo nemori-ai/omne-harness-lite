@@ -8,12 +8,13 @@ import {
   type JudgeContext,
   type Judgment,
 } from '@omne-harness/assets'
-import { attributeItem, type AttributeItem } from './definition.ts'
+import { INSTRUCTION_LIMITS, attributeItem, type AttributeItem } from './definition.ts'
+import { instructionsProblem } from './judge-definition.ts'
 
 const CATEGORY = 'AgentDefinition'
 
 const schemaRead = readBodyText(
-  '{"kind":"agent-definition-body","properties":{"name":"string","references":"[{capability:{category,name},resident?}]","attributes":"[{item}]"}}',
+  '{"kind":"agent-definition-body","properties":{"name":"string","references":"[{capability:{category,name},resident?}]","attributes":"[{item}]","instructions?":"[{id,text}]"}}',
   {
     maxBytes: 1000,
     maxDepth: 8,
@@ -34,6 +35,7 @@ type BodyRefusal =
   | 'invalid-resident'
   | 'unknown-attribute'
   | 'duplicate-attribute'
+  | 'invalid-instructions'
   | 'unknown-field'
 
 type Refused = { readonly ok: false; readonly rejected: BodyRefusal }
@@ -94,8 +96,11 @@ function decode(body: unknown, context?: JudgeContext): Decoded {
   if (!references.ok) return references
   const items = decodeAttributes(valueAt(members, 'attributes'))
   if (!items.ok) return items
+  const instructions = decodeInstructions(valueAt(members, 'instructions'))
+  if (!instructions.ok) return instructions
   // A body carries no version, so `version` is an unknown key like any other.
-  if (!onlyKeys(members, ['name', 'references', 'attributes'])) return reject('unknown-field')
+  if (!onlyKeys(members, ['name', 'references', 'attributes', 'instructions']))
+    return reject('unknown-field')
   return { ok: true, references: references.ids, items: items.items }
 }
 
@@ -153,6 +158,30 @@ function decodeAttributes(
     items.push(item)
   }
   return { ok: true, items }
+}
+
+/**
+ * The `instructions` rules, the same as `judgeAgentDefinition` applies (SPEC "声明判断"): absent is
+ * legal; present, a non-empty list of objects with exactly a non-empty `id` and a non-empty `text`,
+ * then the composition rules of `instructionsProblem`. Every failure is `invalid-instructions`,
+ * except an unknown key inside a section, which is `unknown-field` like every other unknown key.
+ */
+function decodeInstructions(value: JsonValue | undefined): Step<Record<never, never>> {
+  if (value === undefined) return { ok: true }
+  if (value.kind !== 'array' || value.items.length === 0) return reject('invalid-instructions')
+  const sections: { id: string; text: string }[] = []
+  for (const element of value.items) {
+    const members = membersOf(element)
+    const id = textOf(valueAt(members, 'id'))
+    const text = textOf(valueAt(members, 'text'))
+    if (members === undefined || id === undefined || id === '' || text === undefined || text === '')
+      return reject('invalid-instructions')
+    if (!onlyKeys(members, ['id', 'text'])) return reject('unknown-field')
+    sections.push({ id, text })
+  }
+  if (sections.length > INSTRUCTION_LIMITS.maxSections || instructionsProblem(sections) !== undefined)
+    return reject('invalid-instructions')
+  return { ok: true }
 }
 
 /**

@@ -441,7 +441,7 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 ### 定义与扩展声明
 
-公开入口是 `judgeAgentDefinition` 与 `judgeLoopExtensions`。成功结果必须是逐层冻结、不与输入共享对象的声明数据副本。`judgeAgentDefinition` 的成功值冻结定义本身、`references` 与 `attributes` 及其中每个元素，引用的 `capability` 也冻结。`judgeLoopExtensions` 的成功值冻结批次数组和其中每项声明，声明里的 `dimension`、`needs`（含每项需要声明及其 `schema`）与 `implementation` 也冻结。单项拒绝只有 `kind` 与 `reason`。一批扩展被拒绝时还有 `index`。容器不合法时 `index` 为 0。某一项不合法时 `index` 是该项序号。
+公开入口是 `judgeAgentDefinition` 与 `judgeLoopExtensions`。成功结果必须是逐层冻结、不与输入共享对象的声明数据副本。`judgeAgentDefinition` 的成功值冻结定义本身、`references` 与 `attributes` 及其中每个元素，引用的 `capability` 也冻结。`judgeLoopExtensions` 的成功值冻结批次数组和其中每项声明，声明里的 `dimension`、`needs`（含每项需要声明及其 `schema`）与 `implementation` 也冻结。`judgeAgentDefinition` 的成功值还冻结 `instructions` 与其中每段。单项拒绝有 `kind` 与 `reason`，可带诊断文本 `detail`。`detail` 只给人和日志读，没有固定词表，调用方只按 `reason` 决定。`judgeAgentDefinition` 在 `instructions` 不合法时给出 `detail`，写明哪一段的哪个成员违反哪条规则。一批扩展被拒绝时还有 `index`。容器不合法时 `index` 为 0。某一项不合法时 `index` 是该项序号。
 
 拒绝原因共十四种：`malformed`、`duplicate-capability`、`unknown-attribute`、`unknown-position`、`unknown-power`、`dimension-missing`、`dimension-not-allowed`、`power-above-ceiling`、`needs-not-allowed`、`implementation-missing`、`error-policy-not-allowed`、`unavailability-not-allowed`、`executable`、`checker-failed`。设计只规定了 `needs`、`implementation`、`onError` 与 `unavailability` 的合法组合，没有给拒绝原因命名。后四个原因（`needs-not-allowed`、`implementation-missing`、`error-policy-not-allowed`、`unavailability-not-allowed`）沿用“一个字段一个原因”的既有写法，调用方不必读诊断文本。`judgeAgentDefinition` 只返回 `malformed`、`duplicate-capability`、`unknown-attribute`、`executable` 与 `checker-failed`。
 
@@ -453,13 +453,27 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 `judgeAgentDefinition` 的输入是封闭对象：`category` 为 `AgentDefinition`，`name` 是非空字符串。定义不带版本：`version` 不是声明表的成员，输入带 `version` 时按“声明表没有列出的成员”得到 `malformed`。每个新 execution 采用当时的合法胜出者，规则见[定义专题的版本采用](docs/public-api/definition.md#版本采用与实际变化)。`references` 与 `attributes` 必须是数组。空数组合法。缺席和 null 拒绝。每个引用是封闭对象，`capability` 是带非空 `category` 与非空 `name` 的封闭对象，`resident` 可省略，给出时是布尔值。每个 attribute 是只含 `item` 的封闭对象。允许的 item 是 `first_token_wait_limit`、`post_first_token_stall_limit`、`model`，常量 `ATTRIBUTE_ITEMS` 列出它们。`item` 是字符串但不在这三项里时得到 `unknown-attribute`。其他结构问题都得到 `malformed`。同一 capability 的 category 与 name 至多一次，重复得到 `duplicate-capability`。同一 `item` 出现两次得到 `malformed`。成功结果的 attribute 只保留 `item`。成功结果没有版本字段。本入口不读取资产库。
 
+`instructions` 是定义携带的系统提示词，可省略（R2-D124：定义是它的提示词的唯一源）。省略时成功值里也没有这个成员，判定结果、冻结输出与规范文本与没有这条规则时逐字相同。给出时它是有序段的数组，规则如下，常量 `INSTRUCTION_LIMITS` 列出数值与 id 形状。
+
+| 规则 | 不满足时 |
+| --- | --- |
+| 是数组，段数 1 到 32。空数组不合法：「没有提示词」只有省略一种写法，同一内容只有一份规范文本 | `malformed` |
+| 每段是只含 `id` 与 `text` 的封闭对象，两者都是非空字符串 | `malformed` |
+| `id` 匹配 `^[a-z][a-z0-9-]{0,63}$`，在本定义内不重复 | `malformed` |
+| `text` 按 UTF-8 字节计不超过 10000。复制阶段的字符串上限按 UTF-16 码元计，多字节字符能通过那一项而超出这一项，所以这一项另算 | `malformed` |
+| `text` 不含 `{{`。提示词渲染把它读成变量引用，定义段不带变量 | `malformed` |
+| 整份声明仍受上文的限额约束，含 100000 字节 | 现有规则 |
+
+段的次序就是提示词的次序。成功值的每段只保留 `id` 与 `text`。提示词改动一个字，定义的规范文本就变，采用摘要由采用方按定义正文算出（harness-server 的 `agent-adoptions` 行），所以摘要随之变化。Request Context 组装时怎样读这些段归 agent-context 的[请求准备](../../context/agent-context/SPEC.md#requests-groups)。
+
 一份定义有多处不合法时，`judgeAgentDefinition` 按下面的次序返回第一处。
 
 1. 复制。复制按自有键的次序逐层遍历输入。遍历到每个值时，复制检查深度、单个对象的成员数、JSON 值个数、字符串长度与数字文本长度，也检查这个值是不是函数或访问器。原型、循环引用等其他复制问题同样在遍历到该值时报告。所以限额问题与 `executable` 哪个先报告，取决于遍历先到达哪一个。例如定义先有函数成员、后有超长字符串成员时得到 `executable`，两个成员的次序相反时得到 `malformed`。
 2. 字节上限。复制完成之后，判断才计算整份文本的字节数。所以输入超过字节上限、后面的成员里又有函数时，得到 `executable`。
-3. 结构问题。schema 校验的第一个问题决定原因，其余问题不报告。问题按 schema 的成员次序排列：`category`、`name`、`references`、`attributes`，然后是声明表没有列出的成员。这个次序与输入的键序无关。
+3. 结构问题。schema 校验的第一个问题决定原因，其余问题不报告。问题按 schema 的成员次序排列：`category`、`name`、`references`、`attributes`、`instructions`，然后是声明表没有列出的成员。这个次序与输入的键序无关。
 4. 重复的 capability。
 5. 重复的 item。
+6. `instructions` 的组合规则：按段的次序，每段依次查 id 形状、id 重复、`text` 字节数、变量标记。
 
 扩展按提交顺序返回。每项声明含 `name`、`position`、`power` 与 `implementation`，可含 `dimension`、`needs`、`onError` 与 `unavailability`。输入还可带来源提示 `source`，值是 `workspace` 或 `author`。`source` 只用于上限判断，不进入成功值，因为设计类型 `LoopExtensionDeclaration` 没有 `source` 字段。`name` 必须是非空字符串。声明表没有列出的成员一律得到 `malformed`。
 
@@ -545,7 +559,7 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 正文规则与 `judgeAgentDefinition` 同源，同一组夹具在两个入口上得到相同的接受与拒绝。差别有三处。第一，正文不带 `category` 键，因为注册表的键给出类别，带它得到 `unknown-field`。第二，`context.capabilityName` 给出时，正文 `name` 必须与它相等。第三，`judgeAgentDefinition` 按上文的声明限额检查输入，正文契约不另设限额，读树的限额由调用 `readBodyText` 的一方给出。
 
-正文判断的拒绝原因共七个，与 `RefusalReason` 分开，条件见下表。正文与定义同样不带版本：`version` 是未列出的键，得到 `unknown-field`。
+正文判断的拒绝原因共八个，与 `RefusalReason` 分开，条件见下表。正文与定义同样不带版本：`version` 是未列出的键，得到 `unknown-field`。
 
 | 拒绝原因 | 条件 |
 | --- | --- |
@@ -555,7 +569,8 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 | `invalid-resident` | 引用的 `resident` 存在，但不是布尔值 |
 | `unknown-attribute` | `attributes` 缺失或不是数组，某项不是对象，或某项的 `item` 不在 `ATTRIBUTE_ITEMS` 里 |
 | `duplicate-attribute` | 同一 `item` 出现多次 |
-| `unknown-field` | 正文、引用、能力或属性项里有未列出的键 |
+| `invalid-instructions` | `instructions` 存在但违反声明判断的任一条 `instructions` 规则：不是非空数组、段数超过 32、段不是对象、`id` 或 `text` 缺失、为空或不是字符串、`id` 形状不合或重复、`text` 超过 10000 字节或含 `{{` |
+| `unknown-field` | 正文、引用、能力、属性项或提示词段里有未列出的键 |
 
 一份正文有多处不合法时，`judge` 按下面的次序返回第一处。
 
@@ -563,6 +578,7 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 2. `name`，然后是 `name-mismatch`。
 3. `references`：先查它是不是数组，再逐个引用依次查 `capability`、`resident`、引用与能力里的未知键。全部引用通过后查重复的 capability。
 4. `attributes`：先查它是不是数组，再逐项依次查 `item`、属性项里的未知键、重复的 `item`。
+5. `instructions`（存在时）：先查它是不是非空数组，再逐段依次查 `id` 与 `text`、段里的未知键，全部段通过后查段数与组合规则。
 5. 正文顶层的未知键。
 
 第一，`deriveDeclarations` 的 `entries` 取正文的 attribute 项。设计没有给出 AgentDefinition 的声明词汇，所以沿用上文已经固定的 attribute 词表，不新造概念。第二，嵌套对象里的未知键一律得到 `unknown-field`，与 `judgeAgentDefinition` 的严格对象一致。第三，`references` 与 `attributes` 缺失按拒绝处理，不视为空表，与上文“缺席和 null 拒绝”一致。第四，上表的七个拒绝原因与上面的检查次序。
