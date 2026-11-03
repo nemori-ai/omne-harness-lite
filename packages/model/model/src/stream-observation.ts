@@ -123,23 +123,26 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
             if (request.signal.aborted) return { kind: 'ended', reason: 'observer-closed' }
             return held
           }
+          /** Before an open delivery: qualification, abort and residence; false once it held a terminal. */
+          function recheck(): boolean {
+            const checked = ports.check(request)
+            if ('failure' in checked) {
+              hold({ kind: 'ended', reason: publicReason(checked.failure) })
+              return false
+            }
+            if (request.signal.aborted) {
+              abort()
+              return false
+            }
+            if (expired()) {
+              gap()
+              return false
+            }
+            return true
+          }
           function flush(): void {
             if (!pending || phase === 'closed' || phase === 'new' || phase === 'opening') return
-            if (phase === 'open') {
-              const checked = ports.check(request)
-              if ('failure' in checked) {
-                hold({ kind: 'ended', reason: publicReason(checked.failure) })
-                return
-              }
-              if (request.signal.aborted) {
-                abort()
-                return
-              }
-              if (expired()) {
-                gap()
-                return
-              }
-            }
+            if (phase === 'open' && !recheck()) return
             if (terminal) {
               const frame = disclose(terminal)
               const resolve = pending
