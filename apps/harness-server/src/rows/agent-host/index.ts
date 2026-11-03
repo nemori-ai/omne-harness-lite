@@ -109,9 +109,9 @@ export const agentHostRowConfig = {
   },
 }
 
-/** A signal that aborts at `deadline` on the shutdown's monotonic clock. */
+/** A signal that aborts at `deadline` on the shutdown's monotonic clock (whole ms, rounded up). */
 function signalAt(deadline: number): AbortSignal {
-  const left = deadline - monotonicClock.now()
+  const left = Math.ceil(deadline - monotonicClock.now())
   return left > 0 ? AbortSignal.timeout(left) : AbortSignal.abort()
 }
 
