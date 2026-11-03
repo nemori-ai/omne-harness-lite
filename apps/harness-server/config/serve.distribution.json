@@ -85,7 +85,7 @@
     },
     {
       "id": "session-ad14",
-      "plugin": "stubPlugin",
+      "plugin": "sessionAd14Row",
       "config": {}
     },
     {
@@ -282,12 +282,15 @@
     },
     {
       "id": "agent-host",
-      "plugin": "stubPlugin",
-      "config": {}
+      "plugin": "agentHostRow",
+      "config": {
+        "jointCommits": ["message", "context-transition", "custody", "processed"],
+        "coordination": "coordinated"
+      }
     },
     {
       "id": "agent-instances",
-      "plugin": "stubPlugin",
+      "plugin": "agentInstancesRow",
       "config": {}
     },
     {

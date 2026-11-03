@@ -111,12 +111,50 @@ const RECORDS = {
   },
 }
 
+// agent-host 的运维者值（SC4，R2-D162）。`replace` 整行替换，所以发行层的 `jointCommits`、`coordination`
+// 要逐字重抄（漏 `message` 会被行 schema 在装载时拒绝）；其余是工厂数值与实例空闲时长，测试值。
+// `loopGuardPolicy` 还没有生产采用来源（具名缺件，归 L-RUN 波 3），这里是测试采用。
+const AGENT_HOST = {
+  jointCommits: ['message', 'context-transition', 'custody', 'processed'],
+  coordination: 'coordinated',
+  observerBufferBytes: 65_536,
+  reconciliationDelayMs: 0,
+  reconciliationBatchLimit: 8,
+  denialBackoffMs: 0,
+  toolConcurrency: 1,
+  loopGuardPolicy: { ...ADOPTION, name: 'loop-guard' },
+  instanceIdleMs: 60_000,
+}
+
+/**
+ * Shell 的构造值：宿主上真实的 shell（R2-D156、R2-D169），按 L-TOOL 已有的执行环境约定。
+ * Windows 取系统自带的 Windows PowerShell，参数与环境同 tool-storage-sql 的 Windows 组合用例
+ * （`tests/windows-composition/assembly.ts`、`authors.ts`）；其余平台取 `/bin/bash -c`。
+ */
+function shellConstruction(storageRoot) {
+  if (process.platform === 'win32') {
+    const systemRoot = process.env.SystemRoot ?? 'C:\\Windows'
+    return {
+      resultMaxBytes: 65536,
+      executable: join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+      argsPrefix: ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command'],
+      cwd: storageRoot,
+      env: { SystemRoot: systemRoot, WINDIR: systemRoot, TEMP: storageRoot, TMP: storageRoot },
+    }
+  }
+  return {
+    resultMaxBytes: 65536,
+    executable: '/bin/bash',
+    argsPrefix: ['-c'],
+    cwd: storageRoot,
+    env: {},
+  }
+}
+
 /**
  * 联调 B 用的运维者层：联调 A 的一份之上，覆盖或加上模型侧、Context 侧、工具侧、Session 适配行的值。
  * `historyKinds` 给了就写进 `server-entry`（`read-history` 默认只列用户与助手消息）。
- *
- * Shell 的 `executable` 是测试值（当前 Node），不是真实命令行：工具侧 `execution-*` 还是替身时
- * 不会执行命令；换真件、要让 S4 真的执行 Shell 时，这里要改成宿主上的真实 shell。
+ * Shell 与 Files 的 `construction` 都在 `tool-host` 行；Shell 取宿主上真实的 shell，见 `shellConstruction`。
  */
 export function operatorLayerB(options) {
   const base = baseOperatorLayer(options)
@@ -145,13 +183,7 @@ export function operatorLayerB(options) {
       'tool-host',
       {
         construction: {
-          Shell: {
-            resultMaxBytes: 65536,
-            executable: process.execPath,
-            argsPrefix: [],
-            cwd: options.storageRoot,
-            env: {},
-          },
+          Shell: shellConstruction(options.storageRoot),
           Files: { resultMaxBytes: 65536 },
         },
       },
@@ -167,6 +199,7 @@ export function operatorLayerB(options) {
         resultCapacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
       },
     ],
+    ['agent-host', AGENT_HOST],
     ['session-ad03', { scopeIndexEntries: 4096, pageBytes: 65536 }],
     ['session-ad04', { scopeIndexEntries: 4096, pageBytes: 65536 }],
     [

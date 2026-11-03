@@ -182,6 +182,31 @@ export function modelRowsOperatorConfig(options: { storageRoot: string }) {
   }
 }
 
+/**
+ * The `agent-host` row of the operator layer. A `replace` swaps the whole row config, so it copies
+ * the two release items, `jointCommits` and `coordination`, from the distribution file (R2-D162)
+ * and adds the factory numbers and `instanceIdleMs`, which are operator values. These are test
+ * values; `loopGuardPolicy` has no production adoption source yet (a named gap, L-RUN wave 3).
+ */
+function agentHostOperatorConfig(): Record<string, unknown> {
+  const release = JSON.parse(readFileSync(distributionPath, 'utf8')) as {
+    rows: { id: string; config: Record<string, unknown> }[]
+  }
+  const row = release.rows.find(entry => entry.id === 'agent-host')
+  if (row === undefined) throw new Error('the release has no agent-host row')
+  return {
+    jointCommits: row.config['jointCommits'],
+    coordination: row.config['coordination'],
+    observerBufferBytes: 65_536,
+    reconciliationDelayMs: 0,
+    reconciliationBatchLimit: 8,
+    denialBackoffMs: 0,
+    toolConcurrency: 1,
+    loopGuardPolicy: { ...MODEL_TEST_ADOPTION, name: 'loop-guard' },
+    instanceIdleMs: 60_000,
+  }
+}
+
 export function operatorLayer(options: {
   storageRoot: string
   port: number
@@ -255,6 +280,8 @@ export function operatorLayer(options: {
         id: 'session-ad04',
         config: { scopeIndexEntries: 4096, pageBytes: 65536 },
       },
+      // SC4（R2-D162）：agent-host 换真件后，工厂数值与实例空闲时长归运维者层；整行替换时重抄发行层的两项。
+      { kind: 'replace', id: 'agent-host', config: agentHostOperatorConfig() },
       { kind: 'replace', id: 'server-entry', config: { listenPort: options.port } },
     ],
   }
