@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-03T13:59:41Z",
+  "updatedAt": "2026-11-03T14:56:06Z",
   "head": "21175c9f9",
   "links": [
     {
@@ -27,16 +27,34 @@
         {
           "id": "w1-skill-contract",
           "line": "Skill",
-          "state": "进行中",
+          "state": "待评审",
           "round": 1,
-          "note": "skill-contract：值、失败、纯函数、./provider、./testing、SPEC"
+          "note": "7 个提交，284 条测试；硬线全过；4 个函数超 warn、2 处与 tool-contract 的克隆待交代",
+          "links": [
+            {
+              "text": "PR",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1110"
+            },
+            {
+              "text": "5982f2be5"
+            }
+          ]
         },
         {
           "id": "w1-mcp-contract",
           "line": "MCP",
-          "state": "进行中",
+          "state": "待评审",
           "round": 1,
-          "note": "mcp-contract：值、结局、清单、端口、套件、SPEC"
+          "note": "6 个提交，212 条测试；硬线全过；4 个函数超 warn 待交代",
+          "links": [
+            {
+              "text": "PR",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1111"
+            },
+            {
+              "text": "15e2976e8"
+            }
+          ]
         }
       ],
       "criteria": [
@@ -162,6 +180,22 @@
     {
       "at": "2026-11-03T13:59:41Z",
       "text": "实现架构页合并为一页两标签（Skill、MCP），含技术讲解；旧的两份分领域页面停用"
+    },
+    {
+      "at": "2026-11-03T14:45:53Z",
+      "text": "两个闭包交回；reduce 复跑门禁与 clean-loop（四条硬线全过），开 PR #1110、#1111 到父分支"
+    },
+    {
+      "at": "2026-11-03T14:45:53Z",
+      "text": "派出 6 个评审：正确性、结构读数、设计与实践、差分变异、SPEC 表达、交付边界"
+    },
+    {
+      "at": "2026-11-03T14:56:06Z",
+      "text": "评审 3/6 回：交付边界、正确性、设计与实践；无阻断。待回：结构读数（排名额）、差分变异（Skill 已跑完，MCP 在跑）、SPEC 表达"
+    },
+    {
+      "at": "2026-11-03T14:56:06Z",
+      "text": "reduce 裁定草稿 decisions-r1.md：合入前改契约——去掉过时的 CallMode/mode-unsupported（2026-07-28 由服务端决定任务）、补 tasks/update、PackageInspection 移到 ./provider；两成员套件与品牌授予形态统一"
     }
   ]
 }
