@@ -12,10 +12,13 @@
 // combination, the same two values as the `session-storage` row declares (`config.ts` here computes
 // the digest from the same catalog). `routeCacheEntries` is optional.
 //
-// The row provides `agentJournal`, `agentJournalEntries` and `agentMaterials`: the one plugin body
-// makes the three services over one session-log Journal, so they are in one authoritative ordering
-// (agent-cordis-contract SPEC "生产者接收面的服务"). The table's `sameProviderGroup` is kept, so a
-// second row that takes one of the three keys is refused before loading.
+// The row provides `agentJournal`, `agentJournalEntries`, `agentMaterials` and
+// `sessionAdoptedRequests`: the one plugin body makes the four services over one session-log
+// Journal, so they are in one authoritative ordering (agent-cordis-contract SPEC "生产者接收面的服务").
+// `sessionAdoptedRequests` is the fixed request that the last main-purpose M0 recorded in the session
+// log (FIXED-FACTS F4); the `session-ad04` row reads it per call. It is a root name, not in the
+// trusted table (R2-D246; the trusted visibility is wave 3 R3). The table's `sameProviderGroup` is
+// kept, so a second row that takes one of the four keys is refused before loading.
 import {
   createSessionAgentJournalPlugin,
   type SessionAgentJournalPluginInput,
@@ -25,7 +28,10 @@ import {
   agentJournalKey,
   agentMaterialsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
-import { sessionAccessCheckKey } from '@omne-harness/session-cordis-contract/cordis'
+import {
+  sessionAccessCheckKey,
+  sessionAdoptedRequestsKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { releaseCancellation } from '../../entry/cancellation-installation.ts'
 import { defineRow } from '../../row.ts'
@@ -38,7 +44,12 @@ export function createAgentJournalRow(input: SessionAgentJournalPluginInput = {}
     row: 'agent-journal',
     implementation: 'real',
     manifest: {
-      provides: [agentJournalKey, agentJournalEntriesKey, agentMaterialsKey],
+      provides: [
+        agentJournalKey,
+        agentJournalEntriesKey,
+        agentMaterialsKey,
+        sessionAdoptedRequestsKey,
+      ],
       injects: [sessionAccessCheckKey, storageKey, tenantDomainLookupKey],
       sameProviderGroup: 'agent-journal',
     },

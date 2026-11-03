@@ -113,7 +113,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['definitionMappings', 'session', 'storage', 'tenantDomainLookup'],
   },
   'agent-journal': {
-    provides: ['agentJournal', 'agentJournalEntries', 'agentMaterials'],
+    provides: ['agentJournal', 'agentJournalEntries', 'agentMaterials', 'sessionAdoptedRequests'],
     injects: ['sessionAccessCheck', 'storage', 'tenantDomainLookup'],
     group: 'agent-journal',
   },
