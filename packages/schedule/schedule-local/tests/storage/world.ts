@@ -3,7 +3,11 @@ import { mkdtempSync, mkdirSync, readFileSync, realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { createScheduleManagementApplication, type ManagementAccess } from '@omne-harness/schedule'
+import {
+  createScheduleManagementApplication,
+  type ManagementAccess,
+  type ScheduleManagementDependencies,
+} from '@omne-harness/schedule'
 import { ScheduleIdSchema } from '@omne-harness/schedule-contract'
 import {
   createScheduleManagementSqlBackend,
@@ -134,7 +138,7 @@ export async function openWorld(
     guards,
   })
   let authorized = access()
-  const app = createScheduleManagementApplication({
+  const dependencies: ScheduleManagementDependencies = {
     ...backend,
     authorizer: {
       async authorize() {
@@ -171,7 +175,8 @@ export async function openWorld(
     },
     clock: { now: () => now },
     ids: { schedule: () => ScheduleIdSchema.parse(randomUUID()) },
-  })
+  }
+  const app = createScheduleManagementApplication(dependencies)
   async function configure(
     overrides: {
       access?: ManagementAccess
@@ -233,6 +238,7 @@ export async function openWorld(
     storage,
     raw: created.storage,
     guards,
+    dependencies,
     ...backend,
     ...app,
     configure,

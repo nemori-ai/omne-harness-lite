@@ -2,7 +2,15 @@
 
 ## 范围与依据
 
-本成员实现可终止规则计算及日程管理的本地SQL后端。领域决定复用schedule核心，跨域交接只消费公开协议。安装边界归[包组织](../../../docs/package-organization.md#日历与日程的安装和部署边界)，业务目标归[Schedule SPEC](../schedule/SPEC.md)。恢复扫描、Job执行和Cordis装配尚未实现。
+本成员实现可终止规则计算、日程管理SQL后端及本地应用/Cordis装配。领域决定复用schedule核心，跨域交接只消费公开协议。安装边界归[包组织](../../../docs/package-organization.md#日历与日程的安装和部署边界)，业务目标归[Schedule SPEC](../schedule/SPEC.md)。恢复扫描和Job执行尚未实现。
+
+## 应用组合与生命周期
+
+本地应用组合管理、预测和查询，共用同一SQL后端及具名依赖。history、当前授权、配额、环境与日历必须显式提供，缺失不能伪装为空事实。工厂拥有计算worker，借用SqlStorage，宿主负责材料登记和存储退出。
+
+close先同步拒绝新调用，再等待已接受调用真实结束及worker退出。旧命令引用返回rejected，旧查询引用返回error，错误码为dependency_blocked。重复close返回同一Promise。未结束调用使close保持待定，不能据卸载推断写入未发生或工作已取消。初始化失败须等待已分配worker清理；两个失败同时发生时保留原错误与清理错误。
+
+Cordis插件显式inject存储和日历服务，并继承唯一Schedule服务定义。依赖换代撤除本实例服务及worker，不删除持久事实或关闭借用依赖。恢复后建立新实例，原操作身份保持。
 
 ## 必要约束
 

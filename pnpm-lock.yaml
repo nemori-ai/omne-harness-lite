@@ -2067,6 +2067,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/calendar-cordis-contract':
+        specifier: workspace:*
+        version: link:../../calendar/calendar-cordis-contract
       '@omne-harness/schedule':
         specifier: workspace:*
         version: link:../schedule

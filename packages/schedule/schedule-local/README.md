@@ -4,7 +4,7 @@
 
 ## Responsibility and status
 
-Provides bounded rule calculation in workers and SQL persistence for Schedule management. It reuses domain decisions from schedule. This private 0.0.0 package does not yet provide Job execution, recovery scanning or Cordis bindings.
+Provides bounded rule calculation in workers and SQL persistence for Schedule management. The local application composes management, prediction and queries. Its Cordis plugin injects storage and Calendar services. This private 0.0.0 package does not provide Job execution or recovery scanning.
 
 ## Usage
 
@@ -20,7 +20,7 @@ See the [group architecture](../docs/architecture.md) for consumers and dependen
 
 ## Configuration and operation
 
-Node >=24 and ESM. The host supplies worker capacity, SqlStorage, a fixed scope, combination identity and guard adapter. It owns storage shutdown and must await worker.dispose(). Local and future remote implementations must preserve the same public semantics.
+Node >=24 and ESM. The host supplies worker capacity, SqlStorage, a fixed scope, combination identity and guard adapter. It owns storage shutdown. Await application.close() when using the combined application, or worker.dispose() when using the standalone worker. Local and future remote implementations must preserve the same public semantics.
 
 ## Verification
 
@@ -28,7 +28,7 @@ Run `pnpm --filter @omne-harness/schedule-local build`, `typecheck` and `test`. 
 
 ## Maintenance
 
-Update consumers, necessary behavior and verification when implementing public definitions. Keep planned behavior distinct from actual exports. The empty cordis entry is not an installed service.
+Update consumers, necessary behavior and verification when implementing public definitions. Keep planned behavior distinct from actual exports. The Cordis plugin requires explicit dependencies and preserves stored facts across dependency replacement.
 
 ## Directory structure and documentation roles
 

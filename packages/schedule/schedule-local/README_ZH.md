@@ -4,7 +4,7 @@
 
 ## 职责与状态
 
-本包提供可终止规则worker与日程管理SQL后端，复用schedule纯领域决定。当前为private 0.0.0。Job执行、恢复扫描及Cordis绑定尚未实现。
+本包提供可终止规则worker与日程管理SQL后端，复用schedule纯领域决定。当前为private 0.0.0。本地应用组合管理、预测与查询，Cordis插件显式注入存储和日历。Job执行和恢复扫描尚未实现。
 
 ## 使用
 
@@ -20,7 +20,7 @@
 
 ## 配置与运行
 
-Node >=24，ESM。宿主提供worker容量、SqlStorage、固定scope、组合身份与守卫适配，并负责存储关闭及等待worker.dispose。单机后端与未来远程实现必须遵守相同公共语义，不能以同进程调用替代可靠交接。
+Node >=24，ESM。宿主提供worker容量、SqlStorage、固定scope、组合身份与守卫适配，并负责存储关闭。组合应用须等待application.close，独立worker须等待worker.dispose。单机后端与未来远程实现必须遵守相同公共语义，不能以同进程调用替代可靠交接。
 
 ## 验证
 
