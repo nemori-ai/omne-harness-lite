@@ -22,7 +22,7 @@
 
 <a id="mc-2"></a>
 
-- **MC-2 关口**（S1）：S1 只有一份实现，在 `internal/gate.ts`：`admit` 先问 `AdoptionView.endpoint`（`adopted`，并把正文解析一次），再问 `UseEligibility.check`（`judge`），交出一个带裁决的 `GateDecision`；`refusalOf` 把裁决映射为 R1 的拒绝。未采用答 `not-available-to-you` 且不问资格；采用不可读或正文不能解析答 `unknown`；资格 `not-eligible` 答 `not-available-to-you`；被设置挡下答 `blocked` 带原因；资格 `unknown` 答 `unknown`。生产入口是 `internal/guard.ts` 的 `admitForUse`（读口、`release`）与 `stillAdmitted`（发布边界），以及 `status.ts` 在 `admit`/`judge` 上的组合；它们不另写映射。两个令牌：`AdoptedOnly`（采用通过、正文已读、资格未判）与 `AdmittedEndpoint`（资格也通过），都是冻结副本，带模块私有品牌并登记在模块私有的 `WeakSet` 里；需要连接的函数只收后者，`assertAdmitted` 对其他对象（含 `AdoptedOnly`、副本）抛出 `TypeError`。反例：未采用的接入点让资格替身被调用。变异：`admit` 先问资格再看采用 → `gate.spec.ts`「without asking eligibility」与 `races.spec.ts`「(D1)」变红。
+- **MC-2 关口**（S1）：S1 只有一份实现，在 `internal/gate.ts`：`admit` 先问 `AdoptionView.endpoint`（`adopted`，并把正文解析一次），再问 `UseEligibility.check`（`judge`），交出一个带裁决的 `GateDecision`；`refusalOf` 把裁决映射为 R1 的拒绝。未采用答 `not-available-to-you` 且不问资格；采用不可读或正文不能解析答 `unknown`；资格 `not-eligible` 答 `not-available-to-you`；被设置挡下答 `blocked` 带原因；资格 `unknown` 答 `unknown`。生产入口是 `internal/guard.ts` 的 `admitForUse`（读口、`release`）与 `stillAdmitted`（发布边界），以及 `status.ts` 在 `admit`/`judge` 上的组合；它们不另写映射。两个令牌：`AdoptedOnly`（采用通过、正文已读、资格未判）与 `AdmittedEndpoint`（资格也通过），都是冻结副本，带模块私有品牌并登记在模块私有的 `WeakSet` 里；需要连接的函数只收后者，`assertAdmitted` 对其他对象（含 `AdoptedOnly`、副本）抛出 `TypeError`。令牌只在关口内从采用端口的答复铸出，铸造函数不导出；`judge` 只接受登记过的 `AdoptedOnly`，换了正文或定义的副本抛出 `TypeError`，所以被准入的连接只在端口交来的材料上建立。`list` 经 `admitScope` 在关口内逐项裁决。反例：未采用的接入点让资格替身被调用；换掉定义的令牌副本被 `judge` 准入并启动了不是采用的命令。变异：`admit` 先问资格再看采用 → `gate.spec.ts`「without asking eligibility」与 `races.spec.ts`「(D1)」变红；`judge` 不核令牌来源 → `gate.spec.ts`「only a token this gate handed out」变红。
 
 <a id="mc-3"></a>
 
@@ -34,7 +34,7 @@
 
 <a id="mc-5"></a>
 
-- **MC-5 建立连接**（S4 第 4 步、R6、S7、S9，不变式 3、5）：连接表对一个键只建一条连接。状态是 `ready` 或 `degraded` 时复用；`preparing` 在途时等同一个 promise（单飞）；`lost` 或 `closed` 时重建，代际延续；同键的关闭在途时先等关闭完成。建立前重读 `AdoptionView.endpoint`：修订与令牌不同时答 `unknown`，不建连、不关别的连接。建立的次序：`Connection.attempt()` → `auth` 不是 `none` 时 `CredentialUse.acquire`（stdio 用 `process-env`，HTTP 用 `http-authorization` 带 target） → stdio 经 `ProcessLanding.start` 取进程 → `McpTransportFactory.open` → `transport.discover()` → `Connection.ready(peer)`。连接时限从取凭据起计时，覆盖取凭据、进程启动、打开传输与协商，用 `AbortSignal.timeout(bound)`；端口不尊重信号时连接表自己放弃等待，迟到交来的句柄释放、进程 `stop()`、传输关闭。调用方的 `signal` 不进建连：单飞由所有调用方共享，只受连接时限约束。任一步失败或端口抛出：传输关闭、已起的进程 `stop()`、凭据句柄释放（S9：进程句柄在 `stop()` 返回之后，准备失败立即）、连接转 `lost` 带 S7 原因与 `residual`、清单经 `markUnavailable` 写入；端口抛出的错误在收场后原样抛给调用方。失败的答复与原因：
+- **MC-5 建立连接**（S4 第 4 步、R6、S7、S9，不变式 3、5）：连接表对一个键只建一条连接。状态是 `ready` 或 `degraded` 时复用；`preparing` 在途时等同一个 promise（单飞）；`lost` 或 `closed` 时重建，代际延续；同键的关闭在途时先等关闭完成。建立前重读 `AdoptionView.endpoint`：未采用答 `not-available-to-you`，不可读答 `unknown`，修订与令牌不同答 `unknown`；三种都不建连、不关别的连接。同一租户同一持有的 `ensure` 在一个临界区里完成重读、关闭其他修订的连接与条目的建立（建连本身在临界区外），所以两个修订的令牌先后过重读只留一个条目：后过的那个关闭先建的。建立的次序：`Connection.attempt()` → `auth` 不是 `none` 时 `CredentialUse.acquire`（stdio 用 `process-env`，HTTP 用 `http-authorization` 带 target） → stdio 经 `ProcessLanding.start` 取进程 → `McpTransportFactory.open` → `transport.discover()` → `Connection.ready(peer)`。连接时限从取凭据起计时，覆盖取凭据、进程启动、打开传输与协商，用 `AbortSignal.timeout(bound)`；端口不尊重信号时连接表自己放弃等待：迟到交来的句柄释放、传输关闭；迟到交来的进程 `await stop()`，范围不是 `tree-confirmed` 时并入条目的 `lingering`，状态视图由它报告 `residual`，下一次关闭再停一次。落点在时限内未答时凭据句柄不立即释放：进程交来则在它 `stop()` 返回后释放，落点答失败则随答复释放（S9）。迟到答复或收口的 reject 丢弃，不成为未处理拒绝。调用方的 `signal` 不进建连：单飞由所有调用方共享，只受连接时限约束。任一步失败或端口抛出：连接先同步转 `lost` 带 S7 原因，再经条目唯一的拆除关传输、`stop()` 已起的进程、释放凭据句柄（S9：进程句柄在 `stop()` 返回之后，没有进程时立即），`residual` 由拆除的结果报告，清单经 `markUnavailable` 写入；端口抛出的错误在收场后原样抛给调用方。失败的答复与原因：
 
   | 失败                                                                       | 答复                                | `lost` 原因                                                            | `markUnavailable` 原因   |
   | -------------------------------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------- | ------------------------ |
@@ -45,7 +45,7 @@
   | `discover` 答 `no-answer`                                                  | `effect-unknown` 带子因             | `stream-broken`、`process-exited`；`abandoned` 记 `preparation-failed` | `connection-unavailable` |
   | `discover` 答 `error-answer`、`answer-malformed`                           | `connection-unavailable`            | `discover-failed`                                                      | `connection-unavailable` |
 
-  `ensure` 的失败分两个阶段：`settings`（S4 的拒绝、K1 的 `credential-unavailable(missing)`、修订不符的 `unknown`；没有标记）与 `connect`（上表的答复，带标记结果 `catalog`：`marked`、`revision-conflict`、`unavailable`、`not-acquired`）。凭据缺失时没有对端账号，所以不标记清单。反例：落点永不返回时 `ensure` 永不返回、`release` 被拖住。变异：`landing.start` 不经 `untilAborted` → `races.spec.ts`「(B5)」变红；失败路径不释放句柄 → `ensure.spec.ts` 三条「released exactly once」变红。
+  `ensure` 的失败分两个阶段：`settings`（S4 的拒绝、K1 的 `credential-unavailable(missing)`、重读采用的 `not-available-to-you` 与 `unknown`；没有标记）与 `connect`（上表的答复，带标记结果 `catalog`：`marked`、`revision-conflict`、`unavailable`、`not-acquired`）。凭据缺失时没有对端账号，所以不标记清单。反例：落点永不返回时 `ensure` 永不返回、`release` 被拖住；时限后才交来的进程答 `unconfirmed` 却不进 `residual`。变异：`landing.start` 不经 `untilAborted` → `races.spec.ts`「(B5)」变红；失败路径不释放句柄 → `ensure.spec.ts` 三条「released exactly once」变红；迟到的进程不并入 `lingering` → `races.spec.ts`「(R3-2, S9)」变红；时限到时立即释放句柄 → 「(S9)」变红；重读与建条目不在一个临界区 → 「(observation)」变红。
 
 <a id="mc-6"></a>
 
@@ -65,7 +65,7 @@
 
 <a id="mc-10"></a>
 
-- **MC-10 关闭**（S8、S9、组页 `close()` 次序，不变式 4）：`release` 过关口后关闭该租户该持有的连接，一个键同时只有一次关闭在进行（单飞）：`Connection.close()` 拒新请求 → 等在途的建连结束 → `transport.close()` → stdio `process.stop()`（含上次未确认停止的进程） → 释放凭据句柄。报告 `released` 带确认范围（几个进程时取最窄的），没有进程带 `no-process`，没有连接答 `no-connection`。`stop()` 答 `tree-confirmed` 时条目删除（只删仍属于本次关闭的条目），状态回到 `none`；答 `root-only` 或 `unconfirmed` 时进程句柄留在条目里，状态是 `lost`（`close-unconfirmed`）带 `residual`，再次 `release` 或重建前再次 `stop()`，报告它这次确认的范围。`closeAll` 对每条连接做同样的事，不问采用与资格。关闭不声称进程已停。反例：关闭进行中建起的新连接被删掉，进程无人停。变异：`ensure` 不等在途的关闭 → `races.spec.ts`「(B4)」变红；先 `stop()` 再 `transport.close()` → `release.spec.ts`「closes the transport before it stops the process」变红。
+- **MC-10 关闭**（S8、S9、组页 `close()` 次序，不变式 4）：`release` 过关口后关闭该租户该持有的连接，一个键同时只有一次关闭在进行（单飞），拆除也只有一次（条目的 `tearing`）：`lose`、准备失败、重建前的再停与关闭共用它。次序：`Connection.close()`（或 `lose()`）先同步拒新请求 → 关闭等在途的建连结束 → `transport.close()` → stdio `process.stop()`（含上次未确认停止的与迟到交来的进程） → 释放凭据句柄。`lose` 在途时的 `release` 等这次拆除完成再报告；`lose` 在途时的 `ensure` 等它完成再建。报告 `released` 带确认范围（几个进程时取最窄的），没有进程带 `no-process`，没有连接答 `no-connection`。`stop()` 答 `tree-confirmed` 时条目删除（只删仍属于本次关闭的条目），状态回到 `none`；答 `root-only` 或 `unconfirmed` 时进程句柄留在条目里，状态是 `lost`（`close-unconfirmed`）带 `residual`，再次 `release` 或重建前再次 `stop()`，报告它这次确认的范围。`closeAll` 对每条连接做同样的事，不问采用与资格。关闭不声称进程已停。反例：关闭进行中建起的新连接被删掉，进程无人停；`lose` 拆除途中 `release` 先报告 `released`，进程先于传输停止。变异：`ensure` 不等在途的关闭 → `races.spec.ts`「(B4)」变红；先 `stop()` 再 `transport.close()` → `release.spec.ts`「closes the transport before it stops the process」变红；`lose` 在拆除之后才转状态 → `races.spec.ts`「(R3-1)」变红。
 
 <a id="mc-11"></a>
 
@@ -92,12 +92,12 @@
 ## 所有权、失败与生命周期
 
 - 连接表拥有每条连接的 `Connection`、传输、进程句柄、凭据句柄与未确认停止的进程列表。聚合只做状态转移，不做 I/O；非法转移是 `TypeError`，表示本包的编程错误，不是对端或端口的失败。
-- 凭据句柄每条连接恰好取得一次、释放一次：进程句柄在 `stop()` 返回之后释放，HTTP 句柄随传输关闭释放，准备失败时在 `finally` 释放。
-- 进程由连接表收口。`stop()` 的确认范围只记在视图的 `residual` 上；调用了 `stop()` 不证明进程已停。未确认停止的进程在下一次关闭或重建前再次请求停止。
+- 凭据句柄每条连接恰好取得一次、释放一次：进程句柄在 `stop()` 返回之后释放（时限后才交来的进程也是），HTTP 句柄随传输关闭释放，没有进程的准备失败时立即释放。
+- 进程由连接表收口，时限后才交来的进程也由它停止一次。`stop()` 的确认范围只记在视图的 `residual` 上；调用了 `stop()` 不证明进程已停。未确认停止的进程在下一次关闭或重建前再次请求停止。等待迟到落点的条目在关闭后仍保留，直到落点答复。
 - 外部效果：进程启动与传输打开是外部效果。关闭不可逆；一次失败的准备可能留下进程，它作为 `residual` 报告给宿主。
-- 并发：同一键的并发 `ensure` 共享一个 promise；同一键的关闭也只有一次在进行，`ensure` 等它完成再建。并发 `refresh` 各自取页，发布边界与存储的条件写入保证只有一份发布，另一份 `kept`（`superseded`）。迟到的结果按产出它的代际识别，不改变新连接。连接表的操作在一个事件循环内串行化状态变化，没有锁。
+- 并发：同一键的并发 `ensure` 共享一个 promise；同一键的关闭也只有一次在进行，拆除只有一次（`lose`、准备失败、重建与关闭共用），`ensure` 等它们完成再建；同一租户同一持有的 `ensure` 串行决定哪个修订的条目存在。并发 `refresh` 各自取页，发布边界与存储的条件写入保证只有一份发布，另一份 `kept`（`superseded`）。迟到的结果按产出它的代际识别，不改变新连接。连接表的操作在一个事件循环内串行化状态变化，没有锁。
 - 取消：调用方的 `signal` 只属于这一次 `refresh`：等待建连、取页与发布边界各自核对它，答 `kept`（`cancelled`）；建连本身只受连接时限约束，由同键的调用方共享。取消已取得的页不撤销对端效果；取消只阻止发布。
-- 时限：连接时限从取凭据起覆盖建连全程；取页阶段另起同一上界。端口不尊重信号时连接表自己放弃等待，迟到的结果被收口（句柄释放、进程停止、传输关闭）。
+- 时限：连接时限从取凭据起覆盖建连全程；取页阶段另起同一上界。端口不尊重信号时连接表自己放弃等待，迟到的结果被收口（句柄释放、进程停止并记录未确认的范围、传输关闭）；收口的 reject 丢弃，本包没有日志口可报。
 - 内存存储与连接表都不跨重启。
 
 ## 组合与验证
@@ -105,15 +105,15 @@
 | 条款  | 验证                                                                                                                                                                     | 命令                                                             |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
 | MC-1  | `tests/config.spec.ts`、`tests/core.spec.ts`                                                                                                                             | `pnpm turbo run build typecheck test --filter=@omne-harness/mcp` |
-| MC-2  | `tests/gate.spec.ts`（六种答复、未采用不问资格、伪造令牌）、`tests/types.spec-d.ts`（字面量赋不进 `AdmittedEndpoint`）                                                   | 同上                                                             |
+| MC-2  | `tests/gate.spec.ts`（六种答复、未采用不问资格、伪造令牌、`judge` 只认本关口的令牌）、`tests/types.spec-d.ts`（字面量赋不进 `AdmittedEndpoint`）                        | 同上                                                             |
 | MC-3  | `tests/ensure.spec.ts`「the connection key」：两个租户、两个对端账号各不共用连接。变异：键文本去掉对端账号 → 用例变红                                                    | 同上                                                             |
 | MC-4  | `tests/ensure.spec.ts`「setting defects」、`tests/refresh.spec.ts`「current and peer」                                                                                   | 同上                                                             |
-| MC-5  | `tests/ensure.spec.ts`「connection failures」「the connection bound」：替身计数证明句柄取一次释放一次、进程 `stop()` 被调用。变异：失败路径不释放句柄 → 用例变红         | 同上                                                             |
+| MC-5  | `tests/ensure.spec.ts`「connection failures」「the connection bound」「read again before a build」；`tests/races.spec.ts`「(R3-2, S9)」「(observation)」。变异：失败路径不释放句柄 → 用例变红 | 同上                                                             |
 | MC-6  | `tests/connection.spec.ts` 穷举两种策略下的每个合法与非法转移；`tests/release.spec.ts`「rebuilds after an unconfirmed close」。变异：stdio 失败的尝试不加代际 → 用例变红 | 同上                                                             |
 | MC-7  | `tests/refresh.spec.ts`：`published`、三种 `kept`、页失败、两次并发的两种次序。变异：发布边界去掉代际核对 → 「迟到结果不发布」用例变红                                   | 同上                                                             |
 | MC-8  | `tests/refresh.spec.ts`「current and peer do not connect」：传输工厂替身调用计数为 0，`basisCurrent` 三态                                                                | 同上                                                             |
 | MC-9  | `tests/status.spec.ts`：凭据四态、`use` 两态、`residual`、`list` 的过滤与整次 `unknown`、无权主体的 `deepStrictEqual`                                                    | 同上                                                             |
-| MC-10 | `tests/release.spec.ts`：替身记录的调用序列是 `transport.close` → `process.stop`；三种范围；HTTP 句柄释放一次；`closeAll` 不问采用与资格                                 | 同上                                                             |
+| MC-10 | `tests/release.spec.ts`：替身记录的调用序列是 `transport.close` → `process.stop`；三种范围；HTTP 句柄释放一次；`closeAll` 不问采用与资格；`tests/races.spec.ts`「(B4)」「(R3-1)」 | 同上                                                             |
 | MC-11 | `tests/ensure.spec.ts`「closes the connection of an earlier adoption revision」、`tests/status.spec.ts`、`tests/refresh.spec.ts`「publish boundary: eligibility」        | 同上                                                             |
 | MC-12 | `tests/in-flight.spec.ts`                                                                                                                                                | 同上                                                             |
 | MC-13 | `tests/memory-store.spec.ts` 跑 `mcpCatalogStoreConformance()`，CS8 记为不适用；三条隔离用例                                                                             | 同上                                                             |

@@ -53,14 +53,14 @@ sequenceDiagram
     T->>A: ready(peer)
 ```
 
-关闭（`connections.release` 与 `closeAll`，SPEC MC-10）：一个键同时只有一次关闭：拒新请求（`Connection.close()`）→ 等在途的建连结束 → `transport.close()` → `process.stop()`（含上次未确认停止的）→ 释放凭据句柄 → 报告确认范围。
+关闭（`connections.release` 与 `closeAll`，SPEC MC-10）：一个键同时只有一次关闭：拒新请求（`Connection.close()`）→ 等在途的建连结束 → `transport.close()` → `process.stop()`（含上次未确认停止的）→ 释放凭据句柄 → 报告确认范围。拆除（后三步）是条目唯一的，`lose` 与准备失败先同步转 `lost` 再走同一个拆除；拆除途中的关闭或 `ensure` 等它完成。
 
 下一波 `invoke` 的次序（本波不实现）：`InFlightCalls.reserve` → `admit` → 读清单核动作与摘要 → `table.ensure` → `transport.call` → `markSent` → 等结局 → `markEnded`。
 
 ## 失败与生命周期
 
 - 关口拒绝或配值缺陷时没有连接、没有外部效果。
-- 建立连接的任一步失败、超时或端口抛出：传输关闭、已起的进程 `stop()`、凭据句柄释放、连接转 `lost`、清单 `markUnavailable`；迟到交来的句柄、进程与传输同样收口。答复与原因表见 SPEC MC-5。
+- 建立连接的任一步失败、超时或端口抛出：连接转 `lost`、传输关闭、已起的进程 `stop()`、凭据句柄释放、清单 `markUnavailable`；迟到交来的句柄与传输同样收口，迟到交来的进程停止一次、未确认的范围记为 `residual`，它的凭据句柄在这次 `stop()` 之后释放。答复与原因表见 SPEC MC-5。
 - 调用方中止：等建连时答 `kept(cancelled)`（建连留给其他调用方），取页时答 `kept(cancelled)`，发布边界上答 `kept(cancelled)`；都不标记清单。
 - 页取得失败：`not-sent` 使连接 `lost` 并标记清单；其他失败与取页超时使连接 `degraded`，刷新答 `kept(listing-incomplete)`，原采用不变。旧代际迟到的页不改变重建后的连接，刷新答 `kept(superseded)`。
 - 发布边界不成立时不写入：迟到的连接 `kept(superseded)`，取消 `kept(cancelled)`，资格不再 `granted` 答对应 `Refusal`。

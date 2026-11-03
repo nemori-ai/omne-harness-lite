@@ -26,14 +26,14 @@
 
 ## 关键机制与理由
 
-- **关口只有一份，令牌有两个。** S1 的次序与映射只在 `gate.ts`：`admit` 交出带裁决的 `GateDecision`，`admitForUse`、`stillAdmitted`、`status.inspect`、`status.list` 都在它上面组合。「先核采用再核资格」不靠纪律：需要连接的函数只收 `AdmittedEndpoint`，它只由 `judge` 在资格 `granted` 时授予；只过采用的 `AdoptedOnly` 是另一个品牌，赋不进去。两者都是带解析过正文的冻结副本，登记在模块私有的 `WeakSet` 里；运行期 `assertAdmitted` 挡住伪造的对象。
+- **关口只有一份，令牌有两个。** S1 的次序与映射只在 `gate.ts`：`admit` 交出带裁决的 `GateDecision`，`admitForUse`、`stillAdmitted`、`status.inspect`、`status.list` 都在它上面组合。「先核采用再核资格」不靠纪律：需要连接的函数只收 `AdmittedEndpoint`，它只由 `judge` 在资格 `granted` 时授予；只过采用的 `AdoptedOnly` 是另一个品牌，赋不进去。两者都是带解析过正文的冻结副本，只在关口内从采用端口的答复铸出（铸造函数不导出），登记在模块私有的 `WeakSet` 里；`judge` 只认登记过的令牌，运行期 `assertAdmitted` 挡住伪造的对象，所以准入的连接只在端口交来的材料上建立。
 - **聚合不做 I/O，只有一个写者。** `Connection` 只做状态转移；连接表在每次端口调用之后告诉它结果，服务经 `table.settle`、`table.lose` 报告，`Ensured` 只交只读视图。非法转移抛 `TypeError`，因为它只能来自本包的编程错误。两种代际策略写成 `GenerationPolicy`：新增一种传输只加一个取值。
 - **键的规范文本。** 连接表与内存存储的 `Map` 键是 `connectionKeyOf`、`catalogKeyOf` 的固定字段序 JSON 文本。租户文本来自 `tenantCodec.encode`，所以不是 `legal-identity` 造出的租户进不了表。
-- **建连与关闭都单飞，代际延续。** 同一键的并发 `ensure` 共享条目上的一个 promise；同一键的关闭也只有一次在进行，`ensure` 等它完成再建，`forget` 只删仍属于本次关闭的条目。关闭后条目删除，但键的最后代际留在一张小表里，下一条连接从它继续，所以一次运行内一个键的代际不重复，W3 的 `cancel`、`continueWithInput` 可以用代际数值比较。迟到的结果（旧代际的页）经 `settle`/`lose` 的代际守卫被忽略。
-- **时限由本包自己守，调用方的中止只属于调用方。** 建连的时限从取凭据起覆盖 `acquire`、`landing.start`、`open`、`discover`，取页另起同一上界；每一步经 `untilAborted` 等待，端口不尊重信号时也在时限内答复，迟到的句柄释放、进程停止、传输关闭。调用方的 `signal` 不进共享的建连：等建连、取页与发布边界各自核对它，答 `kept(cancelled)`，不标记清单。
+- **建连、拆除与关闭都单飞，代际延续。** 同一键的并发 `ensure` 共享条目上的一个 promise；条目的拆除只有一次在进行（`tearing`），`lose`、准备失败、重建前的再停与关闭共用它，`lose` 先同步转状态再拆除；同一键的关闭也只有一次在进行（`closing`），`ensure` 等关闭或拆除完成再建；条目只在关闭后无所持有、无所等待时删除。同一租户同一持有的 `ensure` 在一个临界区里重读采用、关闭其他修订的连接并建立条目（建连在临界区外），所以哪个修订的条目存在由临界区决定，两个修订的令牌先后过重读只留一个。关闭后条目删除，但键的最后代际留在一张小表里，下一条连接从它继续，所以一次运行内一个键的代际不重复，W3 的 `cancel`、`continueWithInput` 可以用代际数值比较。迟到的结果（旧代际的页）经 `settle`/`lose` 的代际守卫被忽略。
+- **时限由本包自己守，调用方的中止只属于调用方。** 建连的时限从取凭据起覆盖 `acquire`、`landing.start`、`open`、`discover`，取页另起同一上界；每一步经 `untilAborted` 等待，端口不尊重信号时也在时限内答复；迟到交来的句柄释放、传输关闭，迟到交来的进程停止一次并把未确认的范围记进条目的 `lingering`，等待落点的条目不被删除。落点未答时凭据句柄随可能到来的进程走：进程交来则在它 `stop()` 之后释放，落点答失败则随答复释放（S9）。迟到答复或收口的 reject 丢弃：它不是任何调用方的结果，本包也没有日志口。调用方的 `signal` 不进共享的建连：等建连、取页与发布边界各自核对它，答 `kept(cancelled)`，不标记清单。
 - **失败按阶段，带着清单标记的结果回来。** `ensure` 的失败是 `{ stage: 'settings', reason }` 或 `{ stage: 'connect', reason, catalog }`：S5 要求 `refresh` 对标记写入的冲突答 `kept(superseded)`、不可用答 `unknown`，而 W3 的 `invoke` 只要 `reason`。两种消费者各取所需，标记只做一次。
 - **发布边界在服务里，紧挨写入。** `mergeListing` 只核清单修订（契约 C5）；`refresh` 先做异步的核对（`stillAdmitted`：资格与采用修订），再在写入前同步核对代际与取消，中间没有 await。两次并发刷新各自取页，谁先写谁发布，另一方由存储的 `revision-conflict` 得到 `superseded`。
-- **关闭只报告确认范围。** `teardown` 的次序固定：关传输、停进程（含上次未确认停止的）、释放句柄；关闭前先拒新请求并等在途的建连结束。未确认停止的进程留在条目的 `lingering` 里（带它确认的范围），视图由它报告 `residual`，下一次关闭或重建前再问一次。端口抛出时同样 `teardown` 再抛出。
+- **关闭只报告确认范围。** `teardown` 的次序固定：关传输、停进程（含上次未确认停止的）、释放句柄；关闭前先拒新请求并等在途的建连结束。未确认停止的进程留在条目的 `lingering` 里（带它确认的范围），视图由同持有全部条目的 `lingering` 报告 `residual`，下一次关闭或重建前再问一次。端口抛出时同样 `teardown` 再抛出。
 - **时钟。** 清单取得时刻来自 `createMcpCore` 的 `now`；不给时读本机时钟，并按仓库规则标注为观察时刻。它不参与本包的任何判断。
 
 ## 验证与维护

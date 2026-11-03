@@ -24,4 +24,4 @@
 
 ## 本包事实
 
-替身：契约 `./testing` 的五个内存替身（经 `doubles/ports.ts` 加计数与脚本化的 `stop()` 范围）、`doubles/scripted-transport.ts` 的传输工厂。并发用例用 `doubles/deferred.ts` 排次序，不用计时器；只有连接时限与取页时限的用例用 1 ms、50 ms 的真实时限。真实依赖：无。`public-entry.spec.ts` 经构建产物导入包名，其余用例经相对路径导入 `src/`。缺口：没有真实传输、进程与对端；调用口的用例在下一波。
+替身：契约 `./testing` 的五个内存替身（经 `doubles/ports.ts` 加计数与脚本化的 `stop()` 范围）、`doubles/scripted-transport.ts` 的传输工厂、`doubles/stalls.ts` 让某次端口调用等到测试放行（迟到的落点、凭据与采用答复）。并发用例用 `doubles/deferred.ts` 排次序，不用计时器；只有连接时限与取页时限的用例用 1 ms、50 ms 的真实时限。真实依赖：无。`public-entry.spec.ts` 经构建产物导入包名，其余用例经相对路径导入 `src/`。缺口：没有真实传输、进程与对端；调用口的用例在下一波。
