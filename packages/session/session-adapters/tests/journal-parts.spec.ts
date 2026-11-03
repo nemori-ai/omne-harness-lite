@@ -5,8 +5,12 @@
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import {
+  ADOPTED_PART,
+  decodeAdopted,
+  encodeAdopted,
   mergeParts,
   operationsPart,
+  planAdopted,
   planParts,
   rebuildParts,
   recordsPart,
@@ -251,6 +255,91 @@ describe('a part this provider did not write', () => {
     ).toThrow('in two parts')
     expect(() => rebuildParts([{ part: 'x:e', state: { executions: [['k', 'v']] } }])).toThrow(
       'malformed',
+    )
+  })
+})
+
+/** An execution record whose checkpoint holds the request `tag`, or none. */
+function withRequest(id: string, tag: string | null) {
+  return {
+    id,
+    revision: 1,
+    checkpoint: {
+      adoptedContext: tag === null ? null : { owner: 'c', record: `cov/${tag}`, revision: '1', digest: tag },
+      adoptedRequest:
+        tag === null
+          ? null
+          : {
+              reference: `ref-${tag}`,
+              fixed: { owner: 'f', record: `fix/${tag}`, revision: '1', digest: `d-${tag}` },
+              schema: { owner: 's', name: 'n', revision: '1', digest: 's' },
+              record: { tag },
+            },
+    },
+  }
+}
+
+describe('the a part (FIXED-FACTS F4)', () => {
+  it('is planned for a new adoptedRequest only, also when a is the request of another execution', () => {
+    const stored = draft(rebuildParts([]).state)
+    stored.executions.set('k-a', withRequest('exe_a', 'a1') as never)
+    stored.executions.set('k-b', withRequest('exe_b', 'b1') as never)
+    // `a` names the request of exe_b, the later M0; exe_a publishes again with its request as it was.
+    const current = {
+      order: '2',
+      execution: 'exe_b',
+      reference: 'ref-b1',
+      fixed: { owner: 'f', record: 'fix/b1', revision: '1', digest: 'd-b1' },
+      coverage: null,
+      schema: { owner: 's', name: 'n', revision: '1', digest: 's' },
+      record: { tag: 'b1' },
+    }
+    const next = draft(stored)
+    next.executions.set('k-a', { ...withRequest('exe_a', 'a1'), revision: 2 } as never)
+    expect(planAdopted(current, stored, next)).toBeNull()
+    // A new request of exe_a: the next order, with the coverage evidence of its checkpoint.
+    next.executions.set('k-a', withRequest('exe_a', 'a2') as never)
+    expect(planAdopted(current, stored, next)).toEqual({
+      order: '3',
+      execution: 'exe_a',
+      reference: 'ref-a2',
+      fixed: { owner: 'f', record: 'fix/a2', revision: '1', digest: 'd-a2' },
+      coverage: { owner: 'c', record: 'cov/a2', revision: '1', digest: 'a2' },
+      schema: { owner: 's', name: 'n', revision: '1', digest: 's' },
+      record: { tag: 'a2' },
+    })
+    // The first request of a session takes order 1.
+    expect(planAdopted(null, stored, next)?.order).toBe('1')
+  })
+
+  it('a rebuild and a merge carry the a part, and a part that is not one does not rebuild', () => {
+    const adopted = {
+      order: '7',
+      execution: 'exe_a',
+      reference: 'ref',
+      fixed: { owner: 'f', record: 'fix', revision: '1', digest: 'd' },
+      coverage: null,
+      schema: { owner: 's', name: 'n', revision: '1', digest: 's' },
+      record: { opaque: ['kept', 1] },
+    }
+    const s = store()
+    s.publish(twoExecutions(), null)
+    const parts = [...s.parts].map(([part, state]) => ({ part, state }))
+    const rebuilt = rebuildParts([...parts, { part: ADOPTED_PART, state: encodeAdopted(adopted) }])
+    expect(rebuilt.adopted).toEqual(adopted)
+    expect(form(rebuilt.state)).toEqual(form(rebuildParts(parts).state))
+    expect(rebuildParts(parts).adopted).toBeNull()
+    // A merge without the a part keeps it; one with it replaces it.
+    expect(mergeParts(rebuilt, []).adopted).toEqual(adopted)
+    const replaced = { ...adopted, order: '8' }
+    expect(
+      mergeParts(rebuilt, [{ part: ADOPTED_PART, state: encodeAdopted(replaced) }]).adopted,
+    ).toEqual(replaced)
+    expect(() => decodeAdopted({ ...(encodeAdopted(adopted) as object), order: '0' })).toThrow(
+      TypeError,
+    )
+    expect(() => decodeAdopted({ ...(encodeAdopted(adopted) as object), extra: 1 })).toThrow(
+      TypeError,
     )
   })
 })

@@ -10,7 +10,8 @@
 // the provider then commits the parts of that state the write changed (`journal-parts.ts`), the
 // index rows and the derived Session participation in one storage commit. Only a committed receipt
 // makes the answer of the call; any other result discards the copy, so the next call starts from
-// the durable records.
+// the durable records. A publication that carries a new main-purpose M0 writes the `a` part (the
+// request that M0 recorded, with its adoption order) in the same commit; `readAdopted` reads it.
 import { createHash, randomUUID } from 'node:crypto'
 import type {
   AgentExecutionId,
@@ -106,10 +107,15 @@ import {
   type JournalCell,
 } from '../testing/root.ts'
 import {
+  ADOPTED_PART,
+  decodeAdopted,
+  encodeAdopted,
   mergeParts,
+  planAdopted,
   planParts,
   rebuildParts,
   recordsPart,
+  type AdoptedPart,
   type PartLayout,
   type PartPlan,
   type RebuiltParts,
@@ -149,6 +155,15 @@ export type SessionLogJournalProvider<P> = AgentReceivedProvider<P, ContentBlock
   received: NonNullable<AgentReceivedProvider<P, ContentBlock>['received']>
 }
 
+/**
+ * What the `a` part of one session holds when it is read: the request that the last main-purpose
+ * M0 recorded, or null when no M0 of the session recorded one. It checks no access: the caller
+ * of `readAdopted` has checked it.
+ */
+export type AdoptedRead =
+  | Readonly<{ kind: 'value'; value: AdoptedPart | null }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
 type Scratch = {
   checks: SessionCheck[]
   commands: SessionCommand[]
@@ -164,6 +179,8 @@ type Copy<P> = Readonly<{
   stored: DurableJournalState
   /** Where each stored record is among the parts; it changes when a publication commits. */
   layout: PartLayout
+  /** The `a` part of the durable state the copy reflects. */
+  adopted: AdoptedPart | null
 }>
 
 type CustodyAttempt =
@@ -1258,7 +1275,14 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
       ...(options.hostRecords === undefined ? {} : { hostRecords: options.hostRecords }),
     })
-    return { cell, core, notes: stored.state.notes, stored: stored.state, layout: stored.layout }
+    return {
+      cell,
+      core,
+      notes: stored.state.notes,
+      stored: stored.state,
+      layout: stored.layout,
+      adopted: stored.adopted,
+    }
   }
 
   /** Puts the held writes back into a rebuilt copy, unless the durable records already decided them. */
@@ -1358,7 +1382,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       book,
       base === null
         ? rebuildParts(parts)
-        : mergeParts({ state: base.stored, layout: base.layout }, parts),
+        : mergeParts({ state: base.stored, layout: base.layout, adopted: base.adopted }, parts),
     )
   }
 
@@ -1386,6 +1410,43 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
     book.published = parts.published
     return succeed(book.copy)
+  }
+
+  /**
+   * The `a` part of one session at the publication count of this read. A copy that reflects that
+   * count answers from memory; otherwise the read takes the `a` part alone from storage and leaves
+   * the copy as it is, so a cold provider does not rebuild every part to answer it.
+   */
+  async function readAdopted(
+    scope: Readonly<{ tenant: TenantId; session: SessionId }>,
+  ): Promise<AdoptedRead> {
+    const book = bookOf(scope.tenant, scope.session)
+    if (book === null) return { kind: 'unavailable', diagnostic: 'the tenant is not minted' }
+    const domain = await domainOf(book)
+    if ('failure' in domain)
+      return {
+        kind: 'unavailable',
+        diagnostic:
+          domain.failure.kind === 'unavailable' ? domain.failure.diagnostic : domain.failure.kind,
+      }
+    const root = await readRoot(book, domain.ok)
+    if (root === null)
+      return { kind: 'unavailable', diagnostic: 'the common root of the session is not readable' }
+    const copy = book.copy
+    if (copy !== null && book.published === root.published)
+      return { kind: 'value', value: copy.adopted }
+    const parts = await readParts(
+      input => read(domain.ok, EXECUTION_RECORD_HANDLERS.parts, EXECUTION_RECORD_PROTOCOL, input),
+      { tenant: book.tenantText, session: book.session },
+      ADOPTED_PART,
+    )
+    if (parts.kind === 'unavailable') return parts
+    const found = parts.parts.find(item => item.part === ADOPTED_PART)
+    try {
+      return { kind: 'value', value: found === undefined ? null : decodeAdopted(found.state) }
+    } catch (error) {
+      return { kind: 'unavailable', diagnostic: `the adopted part does not decode: ${String(error)}` }
+    }
   }
 
   type Settled<T> =
@@ -1504,9 +1565,15 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const next: DurableJournalState = { ...durableRecords(after), notes }
     let facts: FactCommandV2[]
     let plan: PartPlan
+    // A new main-purpose M0 in this write: the `a` part goes into the same commit as its records.
+    const adopted = planAdopted(copy.adopted, copy.stored, next)
     try {
       // The parts of this write: what changed since the stored state, and the writer's own parts.
       plan = planParts(copy.layout, copy.stored, next, written.execution ?? own?.id ?? null)
+      const parts =
+        adopted === null
+          ? plan.parts
+          : [...plan.parts, { part: ADOPTED_PART, state: encodeAdopted(adopted) }]
       facts = [
         executionRecordFacts({
           tenant: book.tenant,
@@ -1518,7 +1585,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           operation,
           digest: written.digest,
           answer: encodeState(answer),
-          parts: plan.parts,
+          parts,
           replace: false,
           ...index,
           admissions,
@@ -1545,7 +1612,18 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       commands: facts,
     })
     const settled = settle(
-      { book, copy, notes, after, next, plan, written, scratch, answer },
+      {
+        book,
+        copy,
+        notes,
+        after,
+        next,
+        plan,
+        adopted: adopted ?? copy.adopted,
+        written,
+        scratch,
+        answer,
+      },
       operation,
       outcome,
     )
@@ -1573,6 +1651,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     /** The durable state the write publishes, and the parts it writes of it. */
     next: DurableJournalState
     plan: PartPlan
+    /** The `a` part once the write committed. */
+    adopted: AdoptedPart | null
     written: Written
     scratch: Scratch
     answer: Outcome<T, Failure>
@@ -1616,7 +1696,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     // An earlier generation committed this operation: the durable records answer it.
     if (receipt.recalled) return conflicting(job, reply.digest)
     job.plan.commit()
-    job.book.copy = { ...job.copy, notes: job.notes, stored: job.next }
+    job.book.copy = { ...job.copy, notes: job.notes, stored: job.next, adopted: job.adopted }
     job.book.published = reply.published
     // What the copy holds is now durable: an excluded write, and one the Journal core fenced.
     for (const at of job.book.held.keys()) {
@@ -1843,5 +1923,5 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
-  return { forSession, durability: 'storage' as const }
+  return { forSession, readAdopted, durability: 'storage' as const }
 }

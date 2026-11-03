@@ -929,6 +929,7 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 - 查不到：没有 Run 开过的 execution 与另一租户的 execution 得到同一个答复 `denied`，`action` 是操作名（`output.read` 为 `read`，`output.events` 为 `events`），与核心对不持有的执行的答复相同（Agent SPEC「判定次序与失败映射」第 1 条）。两种情形都不写存储。
 - 读不到：租户没有事务域或查找失败、索引读取失败、输出损坏，都答 `unavailable`，`owner` 为 `session-log-journal`。读取失败不当作不存在。
 - 三个键：同一插件体在同一个会话日志 Journal 上再构造 `agentJournalEntries` 与 `agentMaterials` 两个服务实例，三者在同一权威排序域。entries 与 Journal 一样按 `(tenant, execution)` 路由；`materials.read` 按材料来源所记的会话路由；`materials.preserve` 恒答 `unavailable`（见[已知限制](#已知限制)第 6 条）。
+- 采用请求的读口：同一插件体还提供 session-cordis-contract 的 `sessionAdoptedRequests`（FIXED-FACTS F4）。`readAdoptedRequest({ access, session })` 按会话读，不经执行路由。租户不是 legal-identity 铸造的时答 `denied`。然后以 `history.readModelView` 与该会话为目标调用一次 `sessionAccessCheck`：`denied` 原样交出，`unavailable` 或检查抛错答 `unavailable`，都不读存储。允许时按[分区存储](#分区存储)的「读采用请求」读 `a`。存储按租户分开，另一个租户读不到本会话的 `a`。停止后，停止前取得的引用答 `unavailable`。
 - 治理安装（R2-D35、R2-D16）：插件工厂 `createSessionAgentJournalPlugin({ cancellation })`（`./cordis`，同 `createSessionAgentDrivePlugin` 的先例）返回继承 `SessionLogAgentJournalProvider` 的插件类，`inject`、配置与提供的三个键不变。`cancellation` 是装配入口交入的不可变安装（记录加判断实现），不进配置，也不是插件树上的键；插件创建每个会话 Journal 时原样转交，judge 每次判断调用一次。不传 `cancellation`（或不用工厂、直接装载 `SessionLogAgentJournalProvider`）时，取消终结答 `unavailable`。该安装同时是可选读口 `readCancellationInstallation`（R2-D35）的来源：session-log Journal 与按执行路由的 Journal、`forSession` 视图都实现它，按 `(tenant, execution)` 路由并核对与 `load` 相同的读取资格，返回交入安装的 `record`（`DurableEvidence`），不改变执行状态；没有交入安装时答 `unavailable`。
 - 不在插件里：`hostRecords` 运行时选项（见[已知限制](#已知限制)第 6 条）；`cancellation` 只经上一条的工厂交入。
 
@@ -968,6 +969,7 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 - `session-log-journal-real.spec.ts`（真实 sqlite-provider）：首次共同发布、只读核对冲突回滚、清单摘要不符时失败关闭、解释提交与首次发布分开。
 - `session-log-journal-replay.spec.ts`：AG-23 的轨迹回放（agent-contract `./testing` 的 `agentJournalReplayConformance`）对生产提供者逐步通过，分两种：保留副本，与每次调用都从存储重建副本。
 - `agent-journal-provider.spec.ts`：真实 Cordis 4.0.4 上装载与停止、三个依赖逐个缺席时停在 `PENDING`、配置不合法时 `FAILED`；停止后旧引用答 `unavailable`；两个会话各有执行时互不串；索引每个 execution 读一次，新实例从存储重建，超过缓存上限仍路由正确；未开 Run 的 execution 与另一租户的 execution 同答 `denied` 且不提交；索引读不到与未登记租户答 `unavailable`。agent-contract `./testing` 的 `agentJournalCoreConformance` 对 node:sqlite 替身运行两遍：一遍经插件，一遍不经插件直接用 `forSession`（同一份夹具，只换取得 Journal 的方式，所以插件路由的错与提供者的错可以分开）。54 个可驱动的用例中 53 个通过，两遍都是；剩下 1 个是提供者缺口（K-16：结果的保管转移被 Session 拒绝），用例按断言本身固定它：失败信息以 `recordResult` 开头，实际值与期望值是推进计数 `[0,0]` 与 `[1,0]`，其他失败或通过都是红。其余用例需要取消政策安装、宿主记录、资格脚本、旧候选或回复准入控制，生产插件没有这些接缝，记为未覆盖。慢层用例在真实 sqlite-provider 上核对两个会话的路由与另一租户的 `denied`。
+- `journal-adopted-part.spec.ts`（node:sqlite 替身）：在 `x:` 分区写入之后、`a` 写入时注入失败，`x:` 与 `a` 都不可见，同一 M0 随后两者都写；没有改动 `adoptedRequest` 的两次发布不写 `a`（按 `a` 行的发布计数断言）；两个 execution 各一次 M0，`order` 为 `1`、`2`，两次 M0 时的执行修订是 4 与 3；新建的提供者读到的 `a` 与写入方相同，它的下一次 M0 取 `order` 2；两实例竞争时输方的提交被回滚（K-20），重读后读到赢方的 `a`，它的下一次 M0 取 `order` 2，两方读到的相同；200 轮 M0 中 `a` 的字节数最多相差 2（`order` 从一位到三位），每轮写的分区行数相同。`journal-parts.spec.ts` 另核对：另一个 execution 再次发布、请求不变时不写 `a`，重建与合并带上 `a`，畸形的 `a` 不重建。`agent-journal-provider.spec.ts` 核对插件提供 `sessionAdoptedRequests`：M0 之前答 `null`，之后答已存请求，每次以 `history.readModelView` 核对访问；拒绝、未定与抛错的检查不读存储；停止后旧引用答 `unavailable`。变异（交付报告列出）：`a` 不进同一提交、不比已存 checkpoint、`order` 改用执行修订、重建丢掉 `a`、提交后副本不换 `a`、`a` 累积旧请求，各自让对应用例变红。
 - `session-log-journal-complexity.spec.ts`：保留副本时，在进度标记之后读一页的存储读次数与返回事件数在 N = 10 与 N = 100 时相同；从头读全部的负控随 N 增长。
 
 ### 分区存储
@@ -979,11 +981,14 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 | `x:<execution>` | 该 execution 的记录：执行、授权尝试、事件回执与原片段、调用来源、人工材料、索引进度、解释注记，以及结果接收里指明该 execution 的记录 |
 | `o:<execution>` | 该 execution 的操作记录 |
 | `s` | 不指明 execution、也不是由某个 execution 的写入新建的记录 |
+| `a` | 会话最后一次主用途 M0 记下的请求（FIXED-FACTS F4）：`order`、`execution`、`reference`、`fixed`、`coverage`、`schema` 与 `record`。它不是成员列表，见下面「采用请求」一条 |
 
 - 归属：一条记录按它自己指明的 execution 归入分区（执行按 `id`，操作按键里的 execution，事件类按键的前缀，解释注记按键里的 execution，结果接收按值里的 `execution`）。不指明 execution 的新记录归入新建它的那次写入的 execution；写入不带 execution 时归入 `s`。记录归入一个分区后不再换分区。
 - 写入：一次发布写出记录变了、新增或删除的分区，另外总是写出写入方 execution 的两个分区。是否变了按对象身份判断：Journal 核心改一条记录时换成新对象（草稿副本），不原地改已发布的记录。分区与原操作答案、索引行和派生的 Session 参加在同一次存储提交里，失败时一起不保存。
 - 顺序：分区里每条记录带它在所属映射里的序号，重建副本时按序号还原映射的插入顺序；删除后重新写入的记录取新序号，与进程内映射的顺序一致。
 - 读取：没有副本时分页读全部分区；副本的发布计数落后时（另一个提供者实例写过同一会话），只读这个计数之后写到或删除的分区（`since`），其余分区沿用副本里已解码的记录，合并后重建副本（`mergeParts`）。每页的发布计数必须相同，否则重读，最多 3 次，之后答 `unavailable`。副本里有排除的待决写入时整份重读。AD-02 的 `readExecutionInterpretation` 与 handoff 的执行分支只读所需 execution 的 `x:` 分区。遇到整份状态（`er_state`）时答 `unavailable`：0.0.x 不迁移旧的整份数据。
+- 采用请求（分区 `a`）：一次发布里，某个 execution 的 checkpoint 带有新的 `adoptedRequest`（它的 `reference` 与 `fixed` 和已存 checkpoint 里的不同，即一次新的主用途 M0）时，提供者在同一次存储提交里写 `a`。`a` 的 `order` 是会话内的采用计数，从 `1` 起，每写一次加一，不是执行修订，也不是发布计数。`reference`、`fixed`、`schema` 与 `record` 原样取自 `adoptedRequest`，`coverage` 取自同一 checkpoint 的 `adoptedContext`。提供者不解码 `record`。没有改动任何 `adoptedRequest` 的发布不写 `a`，另一个 execution 再次发布、它的请求不变时也不写。进程内副本在提交成功后同步换成新的 `a`。重建副本与合并时 `a` 随其余分区读出。`a` 的字节数只随一次请求的大小变，不随会话的轮数增长。
+- 读采用请求：`readAdopted({ tenant, session })` 先读共同根。副本的发布计数与共同根相同时从副本答复，否则只点读 `a` 一个分区，不重建副本。没有 `a` 时答 `null`，读不到或 `a` 不能解码时答 `unavailable`。本改动之前写入的会话没有 `a`，同样答 `null`（0.0.x 不承诺旧字节）。
 - 语义键：操作记录保存的语义键是方法名加输入规范文本的 SHA-256（`src/testing/journal-values.ts` 的 `semanticKey`），不是规范文本本身。判定只比较语义键是否相等，含义不变；保存文本时，每条 commit 记录都带一份完整 checkpoint。
 - 验证：`tests/journal-parts-read.spec.ts` 核对提供者的分页读取：夹具把每页改成最多一个分区，一个只开了一个 execution 的会话也要读多页，新提供者重建后 `load` 与写入方相同；各页发布计数不一致时从首页重读，第二次读到一致即为答案，每次都不一致则读满 3 次后答 `unavailable`，不重建副本；首页带整份状态时答 `unavailable`。夹具改写的是真实读 handler 的答案，所以页序与 `after` 语义不变；计数不一致用改写第二页的 `published` 模拟另一个实例在两页之间发布。`tests/journal-parts.spec.ts` 核对归属、只写变了的分区与写入方分区、删除与清空分区、删除后重写的顺序、100 个 execution 后的写入只含写入方分区，以及畸形分区不重建。`tests/journal-interpretation.spec.ts` 的「a session with earlier Runs」在同一会话里依次跑 4 个 Run：第 4 个 Run 的最大一次写入不超过第 2 个 Run 加 64 字节，Agent 记录的读取总量（AD-02 与副本补读）不超过第 2 个 Run 加 1 KiB。实测第 1 到第 4 个 Run 的最大写入是 29,229 到 29,280 字节，读取总量是 67,231 到 67,336 字节；改前（整份单行）最大写入从约 41 KB 涨到 156 KB，副本落后时整份重读的变异下第 2、第 4 个 Run 的读取总量是 94,916 与 147,244 字节。每个 Run 由两个提供者实例写入（像 Agent 的 Journal 与接收方各一个），所以副本每个 Run 都会落后一次；从分区重建的副本按 execution 读出的 `load` 与写入它们的副本相同。`tests/journal-parts.spec.ts` 另核对合并之后写入的分区与整份重建相同、顺序不变、合并出的布局继续只写变了的分区。
 

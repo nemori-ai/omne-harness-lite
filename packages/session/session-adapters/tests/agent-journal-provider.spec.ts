@@ -61,7 +61,11 @@ import {
   ordinaryInput,
   testingTenant,
 } from '@omne-harness/session-contract/testing'
-import { SessionAccessCheckService } from '@omne-harness/session-cordis-contract/cordis'
+import type { SessionAdoptedRequests } from '@omne-harness/session-cordis-contract'
+import {
+  SessionAccessCheckService,
+  sessionAdoptedRequestsKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import type { DomainRef, SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { StorageService, TenantDomainLookupService } from '@omne-harness/sql-contract/cordis'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
@@ -74,6 +78,7 @@ import {
 } from '../src/cordis/agent-journal-provider.ts'
 import { checkpoint, instance, ok, openInput, operation } from './fixtures/common-journal.ts'
 import { handed, sqlScene, type SqlScene, type SqlSceneOptions } from './fixtures/sql-scene.ts'
+import { m0Checkpoint } from './fixtures/adopted-request.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 
 // `FiberState` is a const enum of Cordis, so its members are not values to import: in Cordis 4.0.4
@@ -111,6 +116,10 @@ type Wiring = {
   fault: Fault | null
   /** When set, the next storage commit takes it, calls `reached` and waits for `released`. */
   hold: Readonly<{ reached: () => void; released: Promise<void> }> | null
+  /** The decision of the Session access check; every request is allowed when absent. */
+  decide?: ((request: SessionAccessRequest<unknown>) => SessionAccessDecision) | undefined
+  /** Every request the Session access check decided. */
+  decided: SessionAccessRequest<unknown>[]
 }
 
 /**
@@ -119,7 +128,14 @@ type Wiring = {
  * check that allows everything.
  */
 function servicesOf(s: SqlScene, otherDomain: DomainRef) {
-  const wiring: Wiring = { failIndex: false, indexReads: [], reads: 0, fault: null, hold: null }
+  const wiring: Wiring = {
+    failIndex: false,
+    indexReads: [],
+    reads: 0,
+    fault: null,
+    hold: null,
+    decided: [],
+  }
   const storage: SqlStorage = s.storage
   // The operations whose commit never ran and whose outcome stays undecided (`pending`).
   const undecided = new Set<string>()
@@ -175,8 +191,15 @@ function servicesOf(s: SqlScene, otherDomain: DomainRef) {
   class Lookup extends TenantDomainLookupService {
     readonly lookup = lookup
   }
-  const check = (request: SessionAccessRequest<unknown>): Promise<SessionAccessDecision> =>
-    Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) })
+  const check = (request: SessionAccessRequest<unknown>): Promise<SessionAccessDecision> => {
+    wiring.decided.push(request)
+    return Promise.resolve(
+      wiring.decide?.(request) ?? {
+        kind: 'allowed',
+        evidence: evidence(`access/${request.operation}`),
+      },
+    )
+  }
   class Access extends SessionAccessCheckService<unknown> {
     readonly check = check
   }
@@ -224,7 +247,8 @@ async function assembled(
   const journal = () => face<AgentJournal<string>>(agentJournalKey)
   const entries = () => face<AgentJournalEntries<string>>(agentJournalEntriesKey)
   const materials = () => face<AgentMaterials<string, ContentBlock>>(agentMaterialsKey)
-  return { ctx, plugin, journal, entries, materials, wiring: services.wiring }
+  const adopted = () => face<SessionAdoptedRequests<unknown>>(sessionAdoptedRequestsKey)
+  return { ctx, plugin, journal, entries, materials, adopted, wiring: services.wiring }
 }
 
 /** The trusted cancellation installation of the test policy, as the assembly entry hands it in. */
@@ -650,6 +674,89 @@ async function waitingOnModel(
   const { material: _material, ...draft } = result
   return draft
 }
+
+describe('sessionAdoptedRequests: the a part of a session, from the same plugin body', () => {
+  /** One main-purpose M0 of the scene's execution through `journal`. */
+  async function m0(s: SqlScene, journal: AgentJournal<string>, authority: unknown, tag: string) {
+    const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
+    const scope = { ref: 'scope:adopted-plugin' } as never
+    const { adoptedRequest, adoptedContext } = m0Checkpoint({ tenant: s.access.tenant, scope }, tag)
+    return ok(
+      await journal.commit({
+        ...s.access,
+        execution: s.execution,
+        operation: operation(`m0-${tag}`),
+        authority: authority as never,
+        expected: loaded.revision,
+        checkpoint: { ...loaded.checkpoint, adoptedRequest, adoptedContext },
+        state: { kind: 'advancing' },
+        events: [],
+        effects: [],
+        caller: { kind: 'none' },
+        replyAdmission: null,
+        handoff: null,
+        finish: null,
+      }),
+    )
+  }
+
+  it('answers null before the first M0 and the saved request after it, checking history.readModelView on the session each call', async () => {
+    const s = await scene('adopted-plugin')
+    const { plugin, journal, adopted, wiring } = await assembled(s)
+    expect(plugin.store?.[sessionAdoptedRequestsKey]?.fiber === plugin).toBe(true)
+    const read = () => adopted().readAdoptedRequest({ access: s.access, session: s.access.session })
+    const open = ok(await journal().open(s.openInput))
+    expect(await read()).toEqual({ kind: 'value', value: null })
+    await m0(s, journal(), open.authority, '1')
+    const answer = await read()
+    expect(answer).toMatchObject({ kind: 'value', value: { order: '1', execution: s.execution } })
+    expect(wiring.decided.at(-1)).toEqual({
+      access: s.access,
+      operation: 'history.readModelView',
+      target: { kind: 'session', session: s.access.session },
+    })
+  })
+
+  it('a denied access is denied, an undecided one or a throwing check unavailable, and nothing is read', async () => {
+    const s = await scene('adopted-plugin-access')
+    const { adopted, wiring, journal } = await assembled(s)
+    const open = ok(await journal().open(s.openInput))
+    await m0(s, journal(), open.authority, '1')
+    const read = () => adopted().readAdoptedRequest({ access: s.access, session: s.access.session })
+    const reads = wiring.reads
+    wiring.decide = () => ({ kind: 'denied' })
+    expect(await read()).toEqual({ kind: 'denied' })
+    wiring.decide = () => ({ kind: 'unavailable', diagnostic: 'qualification source down' })
+    expect(await read()).toEqual({ kind: 'unavailable', diagnostic: 'qualification source down' })
+    wiring.decide = () => {
+      throw new Error('check threw')
+    }
+    expect(await read()).toMatchObject({ kind: 'unavailable' })
+    expect(wiring.reads).toBe(reads)
+    // An unminted tenant is refused before the check; another tenant never reads this session's a.
+    wiring.decide = undefined
+    const unminted = { ...s.access, tenant: structuredClone(s.access.tenant) }
+    expect(
+      await adopted().readAdoptedRequest({ access: unminted, session: s.access.session }),
+    ).toEqual({ kind: 'denied' })
+    expect(
+      await adopted().readAdoptedRequest({
+        access: { principal: other.principal, tenant: other.tenant },
+        session: s.access.session,
+      }),
+    ).toEqual({ kind: 'value', value: null })
+  })
+
+  it('a held reference answers unavailable after the plugin stopped', async () => {
+    const s = await scene('adopted-plugin-stop')
+    const { plugin, adopted } = await assembled(s)
+    const held = adopted()
+    await plugin.dispose()
+    expect(
+      await held.readAdoptedRequest({ access: s.access, session: s.access.session }),
+    ).toMatchObject({ kind: 'unavailable' })
+  })
+})
 
 describe('agentJournalEntries and agentMaterials: the same provider as agentJournal', () => {
   it('serves the three keys from its own fiber, removes the three together when it stops, and a held reference then answers unavailable', async () => {

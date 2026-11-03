@@ -13,7 +13,6 @@
 // combination (real participants, migrations and read handlers).
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  decodeAgentExecutionId,
   decodeInputId,
   type AgentJournal,
   type DurableEvidence,
@@ -39,16 +38,8 @@ import {
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { EXECUTION_RECORD_HANDLERS } from '@omne-harness/session-storage-sql/participants'
 import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
-import {
-  checkpoint,
-  instance,
-  ok,
-  openInput,
-  operation,
-  scene,
-  submitInput,
-} from './fixtures/common-journal.ts'
-import { cordisScene, handed, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
+import { ok, operation, scene, submitInput } from './fixtures/common-journal.ts'
+import { cordisScene, handed, nextRun, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 type CommitLog = NonNullable<SessionTransactionPort<string>['commitLog']>
 type Sent = Readonly<{ observation: SessionLogCommitObservation }>
@@ -983,66 +974,4 @@ async function readThroughOf2(s: SqlScene, execution: string): Promise<string | 
   if (snapshot.run.kind === 'active' && snapshot.run.execution.execution === execution)
     return snapshot.run.execution.readThrough
   return readThroughOf(snapshot, execution)
-}
-
-/** Cancels the active Run, accepts input `n` and starts the next Run: the scene of its execution. */
-async function nextRun(s: SqlScene, n: number): Promise<SqlScene> {
-  const snapshot = await work(s)
-  if (snapshot.run.kind !== 'active') throw new Error('an active Run is expected')
-  ok(
-    await s.port.commit({
-      access: s.sessionAccess,
-      command: {
-        kind: 'control',
-        input: {
-          tenant: s.access.tenant,
-          session: s.access.session,
-          operation: operationId(`cancel-${n}`),
-          intent: { kind: 'cancel-run', run: snapshot.run.run, urgency: 'force' },
-        },
-      },
-      guards: [],
-    }),
-  )
-  const value = ordinaryInput(`input-${n}`)
-  ok(
-    await s.port.commit({
-      access: s.sessionAccess,
-      command: {
-        kind: 'accept',
-        input: {
-          tenant: s.access.tenant,
-          session: s.access.session,
-          operation: operationId(`accept-${n}`),
-          value,
-        },
-      },
-      guards: [guard('evidence-bridge', 'ordinary-intake', value)],
-    }),
-  )
-  const started = ok(await startRun(s, `start-${n}`))
-  const next = await work(s)
-  if (next.run.kind !== 'active') throw new Error('the next Run is not active')
-  const execution = ok(decodeAgentExecutionId(next.run.execution.execution))
-  const admitted = ok(await s.port.readInput({ ...s.access, input: next.run.first }))
-  const initial = {
-    id: ok(decodeInputId(admitted.input)),
-    content: admitted.message,
-    source: (started as { receipt: { source: DurableEvidence } }).receipt.source,
-    priority: 'ordinary' as const,
-  }
-  return {
-    ...s,
-    execution,
-    initial,
-    openInput: openInput({
-      access: s.access,
-      execution,
-      operation: operation(`open-${n}`),
-      instance: instance(),
-      grant: initial.source,
-      initial,
-      checkpoint: checkpoint(),
-    }),
-  }
 }
