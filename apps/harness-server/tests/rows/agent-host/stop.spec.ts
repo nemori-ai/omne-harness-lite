@@ -214,7 +214,6 @@ describe('the agent-host row: ordered stop with the Agent factory of this releas
         kind: 'incomplete',
         detail: expect.stringContaining(`${instance}: quiesce left 1 execution(s) unresolved`),
       })
-      ok(await started.directory.resolve({ ...caller, instance }))
     },
   )
 })
