@@ -207,7 +207,9 @@ async function cancel(a: App, work: WorkSnapshot) {
 }
 
 describe('the materials of the Session log combination', () => {
-  const materials = sessionStorageMaterials({ readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES })
+  const materials = sessionStorageMaterials({
+    readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES,
+  })
   const catalog: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
     participants: materials.participants,

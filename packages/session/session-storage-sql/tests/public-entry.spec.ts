@@ -55,7 +55,9 @@ describe('public entries', () => {
 })
 
 describe('materials', () => {
-  const materials = sessionStorageMaterials({ readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES })
+  const materials = sessionStorageMaterials({
+    readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES,
+  })
 
   it('describes every read handler as a snapshot read (SQL r2 section 17)', () => {
     expect(materials.readHandlers.length).toBe(HANDLERS.length)

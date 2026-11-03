@@ -79,7 +79,9 @@ async function started(a: App, session: string, tenant: TenantId = TENANT_A) {
 
 describe('the materials of the execution index', () => {
   it('the session participant owns the index table through its own second migration, and the handler reads only that table', () => {
-    const materials = sessionStorageMaterials({ readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES })
+    const materials = sessionStorageMaterials({
+      readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES,
+    })
     const session = materials.participants.find(item => item.participant === 'session')
     expect(session?.ownedTables).toContain('sl_execution_idx')
     expect(materials.migrations.map(item => `${item.owner}/${item.id}`)).toContain(
@@ -91,7 +93,9 @@ describe('the materials of the execution index', () => {
   })
 
   it('the index migration requires the session log migration, which creates the table it extends', () => {
-    const migrations = sessionStorageMaterials({ readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES }).migrations
+    const migrations = sessionStorageMaterials({
+      readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES,
+    }).migrations
     const index = migrations.find(
       item => `${item.owner}/${item.id}` === 'session/002-execution-index',
     )

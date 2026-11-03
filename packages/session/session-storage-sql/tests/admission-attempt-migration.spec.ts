@@ -44,7 +44,9 @@ const DEFINITION = `SELECT sql FROM sqlite_schema WHERE name = 'er_admission_att
 
 describe('execution-record/003-admission-attempt', () => {
   it('requires the records migration, owns its table and is registered with its module', () => {
-    const { migrations, participants } = sessionStorageMaterials({ readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES })
+    const { migrations, participants } = sessionStorageMaterials({
+      readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES,
+    })
     const found = migrations.find(
       item => item.owner === 'execution-record' && item.id === '003-admission-attempt',
     )
