@@ -6,12 +6,14 @@ import { writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { decodeActionId, type Preparation } from '@omne-harness/agent-contract'
 import { decodeModelCallId } from '@omne-harness/model-contract'
-import type {
-  AssemblyCall,
-  AssemblyOperations,
-  StepResult,
+import {
+  decodeFixedRequestRecord,
+  type AssemblyCall,
+  type AssemblyOperations,
+  type StepResult,
 } from '@omne-harness/request-context-contract'
 import { fixtureBudget } from '@omne-harness/request-context-contract/testing'
+import { digest } from '../src/records.ts'
 import {
   RESULT_CAPACITY,
   authority,
@@ -80,6 +82,89 @@ describe('prepare', () => {
     expect(result.request.messages).toEqual(w.candidates.at(-1)?.assembled.messages)
     expect(result.capacity).toEqual(RESULT_CAPACITY)
     expect(w.counts.model).toBe(1)
+  })
+
+  describe('the fixed request record in the state of a ready preparation (RQ-14)', () => {
+    /** A report with two input-tokens checks; the forecast is the larger one. */
+    const twoChecks: NonNullable<WorldOptions['meter']> = () => {
+      const [only] = fixtureBudget().checks
+      if (only === undefined) throw new Error('fixture check')
+      const at = (amount: string) => ({
+        ...only,
+        measurement: { kind: 'exact' as const, amount, method: only.supplier },
+      })
+      return { ok: { ...fixtureBudget(), checks: [at('7'), at('90')] } }
+    }
+    /** The selection of a profile with another window than the fixture profile has. */
+    function widerSelection(w: World, provided: string) {
+      const { profile } = w.selection.resolution
+      const { context } = profile.definition
+      return {
+        ...w.selection,
+        resolution: {
+          ...w.selection.resolution,
+          profile: {
+            ...profile,
+            definition: {
+              ...profile.definition,
+              context: { ...context, window: { ...context.window, provided } },
+            },
+          },
+        },
+      }
+    }
+
+    it('keeps the facts of this moment: coverage, window of the fixing profile, forecast, candidate and target', async () => {
+      const w = await createWorld({ meter: twoChecks })
+      const result = okOf(
+        await prepared(w, { beforeModelCall: w.passed, selection: widerSelection(w, '4000') }),
+      )
+      if (result.kind !== 'ready') throw new Error(`expected ready, got ${result.kind}`)
+      const decoded = decodeFixedRequestRecord(result.state)
+      if (!('ok' in decoded)) throw new Error(`state refused: ${JSON.stringify(decoded)}`)
+      const record = decoded.ok
+      expect(digest(record.coverage)).toBe(result.coverage.digest)
+      expect(record.coverage).toEqual(w.candidates.at(-1)?.coverage)
+      expect(record.windowTokens).toBe('4000')
+      expect(record.forecast).toEqual({ kind: 'estimate', usedTokens: '90' })
+      expect(record.candidate).toBe('action-1')
+      expect(record.target).toEqual(w.f.target)
+      expect(record.continuation).toBeNull()
+    })
+
+    it('keeps the coverage of the candidate, not a coverage that a later read gives', async () => {
+      const w = await createWorld({
+        rows: Array.from({ length: 3 }, (_, i) => historyRow(i)),
+        upper: 0,
+      })
+      const first = okOf(await prepared(w, { beforeModelCall: w.passed }))
+      w.growTo(2)
+      const later = okOf(await prepared(w, { beforeModelCall: w.passed }))
+      if (first.kind !== 'ready' || later.kind !== 'ready') throw new Error('expected ready')
+      const record = decodeFixedRequestRecord(first.state)
+      if (!('ok' in record)) throw new Error('state refused')
+      expect(digest(record.ok.coverage)).toBe(first.coverage.digest)
+      expect(digest(record.ok.coverage)).not.toBe(later.coverage.digest)
+    })
+
+    it('has no forecast when the report has no input-tokens check', async () => {
+      const w = await createWorld({ meter: () => ({ ok: { ...fixtureBudget(), checks: [] } }) })
+      const result = okOf(await prepared(w, { beforeModelCall: w.passed }))
+      if (result.kind !== 'ready') throw new Error(`expected ready, got ${result.kind}`)
+      const record = decodeFixedRequestRecord(result.state)
+      expect('ok' in record && record.ok.forecast).toBeNull()
+    })
+
+    it('leaves the state null for assembled and needs-compaction preparations', async () => {
+      const w = await createWorld()
+      const assembled = okOf(await prepared(w))
+      expect(assembled.kind).toBe('assembled')
+      expect(assembled.state).toEqual({ kind: 'null' })
+      const compact = await createWorld({ meter: meterBy(500) })
+      const needs = okOf(await prepared(compact))
+      expect(needs.kind).toBe('needs-compaction')
+      expect(needs.state).toEqual({ kind: 'null' })
+    })
   })
 
   it('declares continues in the second round when the first request is the fixed adoption', async () => {
