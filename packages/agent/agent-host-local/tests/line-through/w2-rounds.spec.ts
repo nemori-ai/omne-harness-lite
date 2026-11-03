@@ -110,6 +110,19 @@ describe('J1: three rounds of one conversation', () => {
     // The two assertions of the first form of the criterion, for the AD-04 read path alone (the probes
     // left out): rounds 2 and 3 hand out only the rows the round before added, and nothing handed out
     // before is handed out again. R2-D74: they stay as they were until Reduce rules on them.
+    // The measured values go to the log before the assertions below (R2-D75: red stays red).
+    console.log(
+      'J1-AD04',
+      JSON.stringify(
+        w.counters.rounds.map(count => ({
+          round: count.round,
+          ad04ProjectedRows: count.ad04ProjectedRows,
+          ad04StableRecompute: count.ad04StableRecompute,
+          ad04ReadCalls: count.ad04ReadCalls,
+          ad04ReadRows: count.ad04ReadRows,
+        })),
+      ),
+    )
     for (const count of [two, three]) {
       expect(count?.ad04ProjectedRows).toBe(2)
       expect(count?.ad04StableRecompute).toBe(0)
