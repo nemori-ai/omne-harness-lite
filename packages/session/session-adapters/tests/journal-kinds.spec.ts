@@ -386,6 +386,83 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
     })
   })
 
+  /** Every page holds one fact at most, and names the next: the read follows the pages. */
+  type Page = Facts & { next: string | null; revision: string; emittedThrough: string }
+  const onePerPage = (page: Page): Page =>
+    page.facts.length <= 1
+      ? page
+      : { ...page, facts: page.facts.slice(0, 1), next: page.facts[0]!.sequence }
+  const rewritePages = (s: SqlScene, change: (page: Page, after: string) => Page) => {
+    const asked: string[] = []
+    s.rewriteReads.current = (request, answer) => {
+      if (request.handler !== EXECUTION_RECORD_HANDLERS.executionFacts || answer.kind !== 'read')
+        return answer
+      const after = (request.input as { after: string }).after
+      asked.push(after)
+      return { ...answer, output: change(structuredClone(answer.output) as Page, after) as never }
+    }
+    return asked
+  }
+  const readOf = (s: SqlScene, after = '0') =>
+    readExecutionInterpretation(
+      { storage: s.storage, tenantDomainLookup: lookup(s) },
+      { tenant: s.access.tenant, session: s.access.session, execution: s.execution, after },
+    )
+
+  it('a missing last fact row is not the end: unavailable, not a shorter read', async () => {
+    const s = await eventful('facts-tail')
+    rewriteFacts(s, output => ({
+      ...output,
+      facts: output.facts.filter(fact => fact.sequence !== '4'),
+    }))
+    expect(await readOf(s)).toMatchObject({
+      kind: 'unavailable',
+      diagnostic: expect.stringContaining('end at sequence 3, before 4'),
+    })
+  })
+
+  it('facts over several pages are read page by page to the end, as one read gives them', async () => {
+    const s = await eventful('facts-pages')
+    const whole = await interpretation(s)
+    const asked = rewritePages(s, page => onePerPage(page))
+    expect(await interpretation(s)).toEqual(whole)
+    expect(asked).toEqual(['0', '1', '2', '3'])
+  })
+
+  it('T-P7: a head that moves between pages starts the read again; one that keeps moving is unavailable after three tries', async () => {
+    const s = await eventful('facts-moving')
+    const whole = await interpretation(s)
+    let firsts = 0
+    const movingFor = (tries: number) => (page: Page, after: string) => {
+      if (after === '0') firsts += 1
+      const shrunk = onePerPage(page)
+      return after !== '0' && firsts <= tries
+        ? { ...shrunk, revision: String(BigInt(shrunk.revision) + 1n) }
+        : shrunk
+    }
+    rewritePages(s, movingFor(1))
+    expect(await interpretation(s)).toEqual(whole)
+    expect(firsts).toBe(2)
+    firsts = 0
+    rewritePages(s, movingFor(Number.POSITIVE_INFINITY))
+    expect(await readOf(s)).toMatchObject({
+      kind: 'unavailable',
+      diagnostic: expect.stringContaining('kept changing'),
+    })
+    expect(firsts).toBe(3)
+  })
+
+  it('T-P6: facts a writer stored without a body are read from the records, counted as part reads', async () => {
+    const s = await eventful('facts-legacy')
+    const fresh = await interpretation(s)
+    if (s.controls === null) throw new Error('the double storage is expected')
+    // As a writer before the body table left them: the index rows without their bodies.
+    s.controls.select('DELETE FROM er_fact_body')
+    const legacy = await readsDuring(s, EXECUTION_RECORD_HANDLERS.parts, () => interpretation(s))
+    expect(legacy.reads).toBeGreaterThan(0)
+    expect(legacy.value).toEqual(fresh)
+  })
+
   it('an execution of another session reads as none', async () => {
     const s = await eventful('facts-other-session')
     const read = await readExecutionInterpretation(

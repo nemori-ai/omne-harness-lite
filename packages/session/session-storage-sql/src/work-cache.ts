@@ -61,6 +61,15 @@ function compare(left: WorkVersion, right: WorkVersion): number {
   return published === 0n ? 0 : published < 0n ? -1 : 1
 }
 
+function sameVersion(left: WorkVersion, right: WorkVersion): boolean {
+  return left.tail === right.tail && left.published === right.published
+}
+
+/** Either count below the one it was read at: both only grow, so the store went back. */
+function movedBack(now: WorkVersion, before: WorkVersion): boolean {
+  return count(now.tail) < count(before.tail) || count(now.published) < count(before.published)
+}
+
 function bound(value: number | undefined, fallback: number, name: string): number {
   const given = value ?? fallback
   if (!Number.isSafeInteger(given) || given < 0)
@@ -241,9 +250,8 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
     if (current['kind'] === 'version' && tail !== null && published !== null) {
       version = { tail, published }
       if (held !== undefined) {
-        const order = compare(version, held.version)
-        if (order === 0) return { kind: 'state', snapshot: held.snapshot }
-        if (order < 0) {
+        if (sameVersion(version, held.version)) return { kind: 'state', snapshot: held.snapshot }
+        if (movedBack(version, held.version)) {
           cache.delete(key)
           return {
             kind: 'unavailable',

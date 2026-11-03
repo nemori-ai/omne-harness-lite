@@ -429,6 +429,29 @@ describe('a snapshot row behind the tail', () => {
   })
 })
 
+describe('T-7b: a publication count that moved backwards while the tail moved on', () => {
+  it('answers unavailable with the backwards diagnostic, and the next read is whole', async () => {
+    const a = await app()
+    await a.create(TENANT_A)
+    const root = (published: bigint) =>
+      a.provider.seed(
+        'dom_0',
+        'INSERT OR REPLACE INTO er_root (tenant, session, published) VALUES (?, ?, ?)',
+        [textOf(TENANT_A), 'session-1', published],
+      )
+    root(3n)
+    okOf(await a.port.readWork(a.access(TENANT_A)))
+    expect(await a.accept(TENANT_A, 'session-1', 'i-1')).toHaveProperty('ok')
+    root(2n)
+    const moved = await a.port.readWork(a.access(TENANT_A))
+    expect('failure' in moved && moved.failure.kind).toBe('unavailable')
+    expect(JSON.stringify(moved)).toMatch(/backwards/)
+    const from = a.provider.calls.length
+    okOf(await a.port.readWork(a.access(TENANT_A)))
+    expect(readsOf(a, WHOLE, from)).toBe(1)
+  })
+})
+
 describe('T-8: the answer of a hit is frozen', () => {
   it('a reader that writes to it throws, and the next reader sees the snapshot unchanged', async () => {
     const a = await app()

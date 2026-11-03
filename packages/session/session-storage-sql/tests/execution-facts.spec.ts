@@ -117,6 +117,24 @@ describe('execution-record.execution-facts', () => {
     expect(read(port, TENANT_A, '0').rows).toEqual([1, before + 1])
   })
 
+  it('more facts than a page: the first page ends at 200 and names the next, the second ends the read', () => {
+    const { port } = migratedPort()
+    const count = 250
+    publish(
+      port,
+      TENANT_A,
+      0,
+      Array.from({ length: count }, (_, index) => fact(index + 1, { consequences: CONSEQUENCES })),
+    )
+    const first = read(port, TENANT_A, '0').output
+    expect((first['facts'] as JsonValue[]).length).toBe(200)
+    expect(first['next']).toBe('200')
+    const second = read(port, TENANT_A, '200').output
+    expect((second['facts'] as JsonValue[]).length).toBe(50)
+    expect(second['next']).toBeNull()
+    expect(second['emittedThrough']).toBe(String(count))
+  })
+
   it('another tenant with the same session and execution reads nothing of it', () => {
     const { port } = migratedPort()
     publish(port, TENANT_A, 0, [fact(1, { consequences: CONSEQUENCES })])

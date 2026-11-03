@@ -767,6 +767,12 @@ async function readFacts(
         })
       }
       if (page.next === null) {
+        // The last page ends at the head: a missing last row or a cut page is not the end.
+        const through = String(BigInt(after) + BigInt(events.length))
+        if (BigInt(through) < BigInt(head.emittedThrough))
+          return unread(
+            `the facts of the execution end at sequence ${through}, before ${head.emittedThrough}`,
+          )
         // A placeholder head (digest `unknown`) is no head: the Session side answers unavailable.
         const receipt = head.receipt
         return {
