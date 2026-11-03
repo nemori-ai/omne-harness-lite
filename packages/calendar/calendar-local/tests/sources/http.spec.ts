@@ -45,6 +45,9 @@ it('acquires exact bytes and never substitutes acquisition time for source knowl
   if (result.kind !== 'acquired') return
   expect(Buffer.from(result.material.content).toString()).toBe(ics)
   expect(result.material.knowledgeAsOf).toBe('2026-10-01T00:00:00.000Z')
+  expect(result.material.transportEvidence?.[0]?.url).toBe(
+    `${origin}/policy-data-oversight/pay-leave/federal-holidays/holidays.ics`,
+  )
   expect(result.material.transportEvidence).toEqual([
     expect.objectContaining({
       method: 'GET',
@@ -135,8 +138,18 @@ it('applies the timeout to streaming bytes and cancels an in-flight fetch', asyn
   expect((await adapter(origin, { timeoutMs: 30 }).acquire({ acquiredAt })).kind).toBe(
     'unavailable',
   )
+  const received = Promise.withResolvers<void>()
+  const streaming = await serve(response => {
+    response.writeHead(200, {
+      'content-type': 'text/calendar',
+      'last-modified': 'Thu, 01 Oct 2026 00:00:00 GMT',
+    })
+    response.write('BEGIN:VCALENDAR\r\n')
+    received.resolve()
+  })
   const abort = new AbortController()
-  const pending = adapter(origin).acquire({ acquiredAt }, { signal: abort.signal })
+  const pending = adapter(streaming).acquire({ acquiredAt }, { signal: abort.signal })
+  await received.promise
   abort.abort()
   expect((await pending).kind).toBe('unavailable')
 })

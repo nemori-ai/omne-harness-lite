@@ -183,7 +183,7 @@ export function createSourceHttp(input: {
       if (method === 'HEAD') await response.body?.cancel()
       total += content.byteLength
       const evidence = {
-        url: current.href,
+        url: actual,
         status: response.status,
         headers: headersEvidence(response.headers),
         content,
