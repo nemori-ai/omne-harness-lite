@@ -2,6 +2,12 @@
 // principal is the AD-14 outbound principal of the coordinator; the login principal never calls
 // Agent directly; the agent host maintenance principal is one system principal and passes a cell
 // only where the grant table names it. `satisfies` makes a missing or extra row a type error.
+//
+// Role neutrality (identity delivery spec D2): every `member` cell asks the tenant admission with an
+// empty `requires`, so tenant role never decides a Session or Agent operation. Basis: no accepted
+// text makes a Session or Agent operation conditional on a tenant role; a Session is the private
+// work of the tenant (PD:33); the only named qualification, `organization-cost-ledger-read`, has no
+// Session consumer (ID-16:301-307). Proof: tests/rows/authorization/role-neutral-member-cells.spec.ts.
 import type { AgentAccessOperation } from '@omne-harness/agent-contract'
 import { cell, row, type PolicyRow } from './cells.ts'
 
