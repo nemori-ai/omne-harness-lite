@@ -15,6 +15,7 @@
 - [measure-plugin.spec.ts](measure-plugin.spec.ts)：`createAgentHostLocalPlugin({ measure })` 把观察者交给宿主建出的 runtime，经真实宿主的一次 invoke 发出受理段
 - [tool-requests-plugin.spec.ts](tool-requests-plugin.spec.ts)：`createAgentHostLocalPlugin({ toolRequests })` 把 Tool 请求来源交给宿主建出的 runtime，Model 建议的 Tool 动作经来源 describe、prepare 后 invoke 一次；不传时 Tool 不被调用
 - [host-plugin.spec.ts](host-plugin.spec.ts)：装载、逐项缺席时的 PENDING、配置错误时的 FAILED、换提供者重跑与插件体结束
+- [ordered-stop.spec.ts](ordered-stop.spec.ts)：有序停止 `quiesceAll`：无实例 settled，drained 后卸载贡献 fiber，unresolved、抛出、生产工厂的 unavailable 与超过截止时 incomplete 并点名，停止开始后 `acquire` 被拒
 - [provision.spec.ts](provision.spec.ts)：实例取得的符合性套件对宿主真件、回收保护点、quiesce 失败与 unresolved、预约、发布与撤除
 - [recovery.spec.ts](recovery.spec.ts)：恢复入口与无活体控制入口的读回、核验、跨租户拒绝、takeover 与突然失去依赖
 - [control-entry.spec.ts](control-entry.spec.ts)：控制入口对本宿主仍在运行的 runtime 的执行推进取消，Loop 不再发 Model 请求，重试不再写入，主体核验仍拒绝；守卫拒绝时不推进，Journal 收不到该主体的读写

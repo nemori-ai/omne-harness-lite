@@ -8,6 +8,10 @@ Tool 对应入口为 `createLocalToolReceiver(dependencies, state)` 和 `createT
 
 `@omne-harness/agent-host-local/cordis` 导出宿主插件 `agentHostPlugin`、插件工厂 `createAgentHostLocalPlugin`（入参类型 `AgentHostLocalPluginInput`）与配置类型 `AgentHostConfig`。`createAgentHostLocalPlugin({ measure? })` 返回与 `agentHostPlugin` 同名同 inject 同配置的插件，把 Agent 测量观察者交给宿主建出的每个 runtime，见 SPEC [测量事件](../SPEC.md#测量事件)。同一入口的 `toolRequests?` 把 R2-D36 的可信 Tool 请求供给者（`AgentDependencies['toolRequests']`）放进每个 runtime 的依赖，不传时 Tool 动作答 unavailable，见 SPEC [Tool 请求来源](../SPEC.md#tool-请求来源)。插件的装载、配置与服务面见 [Cordis 装配页](cordis.md#插件与入口)，实现范围与缺口见 [SPEC](../SPEC.md#宿主插件)。
 
+三个插件对象（类型 `AgentHostPlugin`）都带有序停止 `quiesceAll({ signal })`，结果类型是 `AgentHostStopResult`：`settled`，或 `incomplete` 加 `detail` 与 `instances`（类型 `AgentHostUnsettled`）。语义见 SPEC [有序停止](../SPEC.md#有序停止)。
+
+`@omne-harness/agent-host-local/testing` 导出 `createAgentHostPluginOver(factory)` 与类型 `AgentHostRuntimeFactory`。它返回与 `agentHostPlugin` 同名、同 inject、同配置、带同一有序停止的插件，runtime 由调用方给的工厂建立。测试用它替代生产工厂尚未兑现的 runtime 停用义务，只证明宿主一侧。生产代码不导入它。
+
 接收工厂返回 `Outcome`：联合接收能力存在时为 `ok` 句柄；`received=null` 时为 `failure: { kind: 'unsupported' }`，不创建接收能力。
 
 push 完成共同提交、材料核对及入队后返回 saved，出口未决不占用接收写槽。retry/recover 返回 Agent Reply，核当前资格并限制到一次捕获的原绑定集合；拒绝不返回 counts 或私有诊断。inspect 仅供宿主管理，不能作为租户查询。实际任务与出站驱动代由 state 托管，旧组件不能驱动后继待办。取消时最终资格尚未完成，维护返回无内容 maintenance-cancelled，实际出口任务继续到真实结束。
