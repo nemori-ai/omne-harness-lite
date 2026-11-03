@@ -6,19 +6,9 @@ import { openWindowsAssembly } from './assembly.ts'
 import { runFilesScenario } from './files-scenario.ts'
 import { runShellScenario } from './shell-scenario.ts'
 import { runInterruptScenario } from './interrupt-scenario.ts'
+import { failureDetails } from './helpers.ts'
 
 export type WindowsScenario = (assembly: WindowsAssembly) => Promise<ScenarioResult>
-
-function failureDetails(error: unknown): unknown {
-  if (!(error instanceof Error)) return String(error)
-  return {
-    name: error.name,
-    message: error.message,
-    stack: error.stack,
-    cause: error.cause === undefined ? undefined : failureDetails(error.cause),
-    errors: error instanceof AggregateError ? error.errors.map(failureDetails) : undefined,
-  }
-}
 
 export async function runWindowsToolComposition() {
   assert.equal(process.platform, 'win32')
@@ -158,21 +148,21 @@ export async function runWindowsToolComposition() {
       )
       await rm(candidate, { recursive: true, force: false })
     }
-  const passed = (name: string) =>
-    Object.values(results[name]?.checks ?? {}).length > 0 &&
-    Object.values(results[name].checks).every(Boolean)
+  const files = results.files
+  const shell = results.shell
+  const interrupt = results.interrupt
+  assert.ok(files && shell && interrupt, 'Every required scenario must have completed')
+  const passed = (result: ScenarioResult) =>
+    Object.values(result.checks).length > 0 && Object.values(result.checks).every(Boolean)
   return {
     backend: process.platform === 'win32' ? 'windows-real' : 'invalid-platform',
-    files: passed('files') ? 'passed' : 'failed',
-    shell: passed('shell') ? 'passed' : 'failed',
+    files: passed(files) ? 'passed' : 'failed',
+    shell: passed(shell) ? 'passed' : 'failed',
     retainedTerminal:
-      results.shell.checks.retainedCwd && results.shell.checks.freshAttachment
-        ? 'passed'
-        : 'failed',
-    targetStopped: results.interrupt.checks.aStopConfirmed === true,
-    otherCallContinued: results.interrupt.checks.bContinues === true,
-    originalConsumerSaved:
-      saved.length > 0 && passed('files') && passed('shell') && passed('interrupt'),
+      shell.checks.retainedCwd && shell.checks.freshAttachment ? 'passed' : 'failed',
+    targetStopped: interrupt.checks.aStopConfirmed === true,
+    otherCallContinued: interrupt.checks.bContinues === true,
+    originalConsumerSaved: saved.length > 0 && passed(files) && passed(shell) && passed(interrupt),
     evidenceDirectory,
     observations: summary,
   }

@@ -65,7 +65,7 @@ import { createAuthority, witnessStore } from './authority.ts'
 import { createAuthors, type Environment } from './authors.ts'
 import { openStorage } from './storage.ts'
 import { createEnvironmentSchemaCheck } from './schema.ts'
-import { evidence, until, value } from './helpers.ts'
+import { evidence, failureDetails, until, value } from './helpers.ts'
 import type {
   AcquisitionEvidence,
   CompletedInvocation,
@@ -136,6 +136,21 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     throw error
   })
   const root = new Context()
+  const fiberFailures: unknown[] = []
+  const fiberObservations: Promise<void>[] = []
+  root.on('internal/status', fiber => {
+    if (fiber.state !== 3) return
+    const uid = fiber.uid
+    fiberObservations.push(
+      fiber.await().then(
+        () => undefined,
+        async cause => {
+          fiberFailures.push(cause)
+          await record('cordis-fiber-failed', { uid, failure: failureDetails(cause) })
+        },
+      ),
+    )
+  })
   let retireProvider: () => Promise<unknown> = async () => undefined
   let stopBundle: () => Promise<void> = async () => {}
   try {
@@ -383,12 +398,12 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       waitUntil = clock.waitUntil
     }
     class Contribution extends ToolContributionAuthorityService<unknown> {
-      verify(candidate: ToolAuthority) {
+      readonly verify = (candidate: ToolAuthority) => {
         return authors.tool(candidate) && authority.active()
           ? succeed(candidate as VerifiedAuthority)
           : fail({ kind: 'denied' as const })
       }
-      admits(access: { principal: unknown; tenant: typeof authority.tenant }) {
+      readonly admits = (access: { principal: unknown; tenant: typeof authority.tenant }) => {
         return authority.active() &&
           access.principal === authority.principal &&
           tenantEquals(access.tenant, authority.tenant)
@@ -397,14 +412,14 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       }
     }
     class Residency extends ToolResidencyReaderService {
-      async referencing() {
+      readonly referencing = async () => {
         return succeed({ items: [], next: null })
       }
     }
     class Publication extends ToolPublicationAuthorityService<unknown> {
-      check(
+      readonly check = (
         request: Parameters<ToolPublicationAuthorityService<unknown>['check']>[0],
-      ): ReturnType<ToolPublicationAuthorityService<unknown>['check']> {
+      ): ReturnType<ToolPublicationAuthorityService<unknown>['check']> => {
         const [execution, handle] = request.publication
         return authority.active() &&
           tenantEquals(execution.tenant, authority.tenant) &&
@@ -537,7 +552,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     if (!(currentBindings instanceof Bindings))
       throw new Error('The real bindings provider has the wrong adoption')
     readBindings = () => {
-      const current = root.get('toolBindings')
+      const current: unknown = root.get('toolBindings')
       return current instanceof Bindings ? current : undefined
     }
     const Host = createLocalToolHostPlugin<unknown, Environment, ToolMessageContentBlock>({
@@ -614,13 +629,18 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       },
     })
     await root.plugin(Host)
-    for (const requested of Object.values(authors.authorities))
-      value(
-        await root.toolGenerations.ensureLoaded({
-          authority: requested,
-          access: { principal: authority.principal, tenant: authority.tenant },
-        }),
-      )
+    for (const requested of Object.values(authors.authorities)) {
+      const loaded = await root.toolGenerations.ensureLoaded({
+        authority: requested,
+        access: { principal: authority.principal, tenant: authority.tenant },
+      })
+      await Promise.all(fiberObservations)
+      if ('failure' in loaded)
+        throw new AggregateError(
+          [loaded.failure, ...fiberFailures],
+          `Author ${requested.asset.name} failed to load: ${JSON.stringify(loaded.failure)}`,
+        )
+    }
     const api = root.toolRuntime
     const accepted: Invocation[] = []
     const saved = new Map<string, ToolDelivery<ToolMessageContentBlock>>()
@@ -788,7 +808,12 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
           content.push(...page.value.content)
           after = page.next
         }
-        const result = { ...first, value: { ...first.value, content }, next: null }
+        const textContent = content.map(block => {
+          if (block.kind !== 'text')
+            throw new Error(`The declared text-only consumer received ${block.kind}`)
+          return block
+        })
+        const result = { ...first, value: { ...first.value, content: textContent }, next: null }
         const delivery = [...saved.values()].find(
           item =>
             item.kind === 'result' &&
@@ -857,10 +882,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
           await cleanupStep(failures, 'cleanup failure evidence', () =>
             record('cleanup-failed', {
               result,
-              failures: failures.map(error => ({
-                message: error.message,
-                cause: String(error.cause),
-              })),
+              failures: failures.map(failureDetails),
             }),
           )
           throw new AggregateError(failures, 'Windows composition cleanup was not fully confirmed')
@@ -878,7 +900,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     const storage = await cleanupStep(failures, 'setup SQLite', () => sql.close())
     await cleanupStep(failures, 'setup failure evidence', () =>
       record('setup-failed', {
-        diagnostic: String(error),
+        failure: failureDetails(error),
         provider,
         runtime,
         cordis,

@@ -61,7 +61,7 @@ function bindEnvironment<E>(
           typeof slot.parameters
         >({
           parameters: slot.parameters,
-          returns: slot.returns,
+          returns: { ...slot.returns, kind: 'ordinary' },
           author: {
             ...author,
             executor: {

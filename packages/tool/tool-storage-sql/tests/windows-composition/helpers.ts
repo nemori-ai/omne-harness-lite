@@ -7,8 +7,20 @@ import { canonicalDigest } from '@omne-harness/tool'
 import type { DurableEvidence } from '@omne-harness/tool-contract'
 
 export function value<T>(answer: Outcome<T, unknown>): T {
-  if ('failure' in answer) throw new Error(JSON.stringify(answer.failure))
+  if ('failure' in answer)
+    throw new Error(JSON.stringify(answer.failure), { cause: answer.failure })
   return answer.ok
+}
+export function failureDetails(error: unknown): unknown {
+  if (!(error instanceof Error)) return error
+  return {
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
+    failure: 'failure' in error ? error.failure : undefined,
+    cause: error.cause === undefined ? undefined : failureDetails(error.cause),
+    errors: error instanceof AggregateError ? error.errors.map(failureDetails) : undefined,
+  }
 }
 export function tree(input: unknown): JsonValue {
   const parsed = readJsonText(JSON.stringify(input), {
