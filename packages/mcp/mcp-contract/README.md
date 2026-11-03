@@ -1,50 +1,73 @@
 # @omne-harness/mcp-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
-Draft module package.
+The pure contract of the MCP group: values, outcomes, failures, the five application service interfaces, pure functions, the category port of MCP endpoint bodies, the requirement ports, and conformance suites for the port implementers.
+
 ## Responsibility and status
 
-<!-- documentation:placeholder -->
+This package states what MCP gives and what MCP needs, in MCP's own words. It does not name its callers. It has no service implementation, no transport, and no SDK. The MCP SDK, Cordis and every implementation stay out of this package.
 
-Describe actual consumers, platforms, responsibility, and adoption basis. Separate implemented, pending, and unverified behavior.
+Status: candidate contract, without technical acceptance. The behavior is in [SPEC.md](SPEC.md). The group design is in [the group engineering design](../docs/architecture.md).
+
+| Part                                                                                            | State                                                                    |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Values, brand guards, keys                                                                      | Implemented and tested                                                   |
+| Endpoint body parser, category port `mcp`, schema                                               | Implemented and tested                                                   |
+| Catalog functions `completeListing`, `mergeListing`, `markUnavailable`, `actionPermissionItems` | Implemented and tested                                                   |
+| `classifyOutcome`, `toContentBlocks`, `boundInstructions`                                       | Implemented and tested                                                   |
+| Five service interfaces                                                                         | Interfaces only. `@omne-harness/mcp` implements them                     |
+| Five requirement ports and the transport port                                                   | Interfaces only. Conformance suites and in-memory doubles in `./testing` |
+| Real peers, credentials, process landings, durable storage                                      | Not verified here                                                        |
 
 ## Usage
 
-<!-- documentation:placeholder -->
+The package has three entries. Callers import the root. Port implementers import `./provider`. Port implementers import `./testing` in their tests only.
 
-Give a working example, dependencies, and initialization and disposal responsibilities. Distinguish independent use from Cordis integration. Check public exports, source value dependencies, generated declarations, runtime startup, and the installation closure separately. A ./cordis entry does not prove independent installation.
+```ts
+import { mcpEndpointBodyContract, parseEndpointBody } from '@omne-harness/mcp-contract'
+
+const parsed = parseEndpointBody(body, 'files')
+if ('failure' in parsed) report(parsed.failure)
+registry.register(mcpEndpointBodyContract())
+```
+
+A port implementer runs a suite in its own test framework:
+
+```ts
+import { mcpCatalogStoreConformance, runConformanceCase } from '@omne-harness/mcp-contract/testing'
+
+for (const conformance of mcpCatalogStoreConformance())
+  it(conformance.name, async () => {
+    expect(await runConformanceCase(conformance, newFixture())).toEqual({ kind: 'passed' })
+  })
+```
+
+The package has no initialization and holds no resource. It does not need Cordis. See [docs/context.md](docs/context.md).
 
 ## Contracts
 
-<!-- documentation:placeholder -->
+- Public types and runtime checks: [src/](src/README.md), indexed in [docs/public-api.md](docs/public-api.md).
+- Behavior beyond the types: [SPEC.md](SPEC.md).
+- Endpoint body schema: [schema/endpoint-body.schema.json](schema/endpoint-body.schema.json).
 
-Link public types, necessary validation, and the sole behavior owner. SPEC.md owns behavior beyond types, and docs/public-api.md indexes the public definitions. Identify error, lifecycle, and resource responsibilities without copying signatures or state machines.
+The pure functions do not throw on peer data. They return a closed failure. Two exceptions are preconditions: `mergeListing` throws `TypeError` for a listing that `completeListing` did not build, and `boundInstructions` throws `RangeError` for a bound that is not a positive safe integer.
 
 ## Design
 
-<!-- documentation:placeholder -->
-
-Summarize internal modules and invariant owners. The full design belongs in docs/architecture.md, docs/flows.md, and docs/object-model.md.
+Modules: `brands`, `values`, `endpoint`, `listing`, `catalog`, `classify`, `content`, `instructions`, `keys`, `outcomes`, `ports`, `transport`, `services`, and the `testing-*` modules of the `./testing` entry. See [docs/architecture.md](docs/architecture.md), [docs/flows.md](docs/flows.md) and [docs/object-model.md](docs/object-model.md).
 
 ## Configuration and operation
 
-<!-- documentation:placeholder -->
-
-Describe configuration owners, defaults, environment requirements, and explicit dependencies. State the caller and package responsibilities during operation.
+The package has no configuration. `McpConfig` is the configuration type of the service implementation. Its four fields are required and have no default (SPEC S3). The connect timeout comes from the adoption or from the `connectBound` of a request (SPEC S4).
 
 ## Verification
 
-<!-- documentation:placeholder -->
-
-List repeatable commands, properties, assumptions, and uncovered behavior. Add tests with actual assertions. Passing structure checks does not establish business behavior.
+Run `pnpm turbo run build typecheck test --filter=@omne-harness/mcp-contract`. The tests import the built package. They cover every rejection reason of the body, the catalog properties with a seeded random walk, an exhaustive outcome table, every content type, the five suites on the in-memory doubles, and doubles that break the contract and make the suites fail. Type tests pin each closed set and the `./provider` type exports. SPEC.md lists what the tests do not cover.
 
 ## Maintenance
 
-<!-- documentation:placeholder -->
-
-Identify consumers and checks that must change with public contracts, resources, or dependencies. Explain inapplicable information. Record named gaps for unknown information.
+A change to a public type or a SPEC clause changes `@omne-harness/mcp`, `@omne-harness/mcp-host-local` and the group design. Update `tests/closed-sets.ts` when a closed set changes. Keep `schema/endpoint-body.schema.json` and `src/endpoint-schema.ts` equal. A test checks them. After the contract is merged, only additive changes are allowed without a new decision.
 
 ## Directory structure and documentation roles
 

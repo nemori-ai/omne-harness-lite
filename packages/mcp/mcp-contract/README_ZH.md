@@ -1,50 +1,73 @@
 # @omne-harness/mcp-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
-module 变体草稿。
+MCP 组的纯契约：值、结局、失败、五个应用服务的接口、纯函数、接入点正文的类别端口、需求端口，以及给端口实现方的符合性套件。
+
 ## 职责与状态
 
-<!-- documentation:placeholder -->
+本包用 MCP 自己的词写出 MCP 提供什么、需要什么。它不点名调用方。它没有服务实现，没有传输，也没有 SDK。MCP SDK、Cordis 与任何实现都不进入本包。
 
-填写实际消费者、平台、职责和采用依据。区分已实现、未实现与未验证。
+状态：候选契约，尚未取得技术接受。行为正文是 [SPEC.md](SPEC.md)，组设计是[组工程设计](../docs/architecture.md)。
+
+| 部分                                                                                   | 状态                                         |
+| -------------------------------------------------------------------------------------- | -------------------------------------------- |
+| 值、品牌守卫、键                                                                       | 已实现并测试                                 |
+| 正文解析、类别端口 `mcp`、schema                                                       | 已实现并测试                                 |
+| 清单函数 `completeListing`、`mergeListing`、`markUnavailable`、`actionPermissionItems` | 已实现并测试                                 |
+| `classifyOutcome`、`toContentBlocks`、`boundInstructions`                              | 已实现并测试                                 |
+| 五个服务接口                                                                           | 只有接口，由 `@omne-harness/mcp` 实现        |
+| 五个需求端口与传输端口                                                                 | 只有接口；`./testing` 有符合性套件与内存替身 |
+| 真实对端、凭据、进程落点、耐久存储                                                     | 本包不验证                                   |
 
 ## 使用
 
-<!-- documentation:placeholder -->
+本包有三个入口。调用方导入公开根。端口实现方导入 `./provider`。端口实现方只在测试里导入 `./testing`。
 
-给出最小有效示例、依赖及初始化和释放责任。分别说明独立使用入口与 Cordis 集成入口。逐项核对公开 exports、源码值依赖、生成声明、运行启动和安装闭包。存在 ./cordis 不证明独立安装成立。
+```ts
+import { mcpEndpointBodyContract, parseEndpointBody } from '@omne-harness/mcp-contract'
+
+const parsed = parseEndpointBody(body, 'files')
+if ('failure' in parsed) report(parsed.failure)
+registry.register(mcpEndpointBodyContract())
+```
+
+端口实现方在自己的测试框架里运行套件：
+
+```ts
+import { mcpCatalogStoreConformance, runConformanceCase } from '@omne-harness/mcp-contract/testing'
+
+for (const conformance of mcpCatalogStoreConformance())
+  it(conformance.name, async () => {
+    expect(await runConformanceCase(conformance, newFixture())).toEqual({ kind: 'passed' })
+  })
+```
+
+本包不需要初始化，不持有资源，不需要 Cordis。见 [docs/context.md](docs/context.md)。
 
 ## 契约
 
-<!-- documentation:placeholder -->
+- 公开类型与运行时校验：[src/](src/README.md)，索引在 [docs/public-api.md](docs/public-api.md)。
+- 类型以外的行为：[SPEC.md](SPEC.md)。
+- 正文 schema：[schema/endpoint-body.schema.json](schema/endpoint-body.schema.json)。
 
-链接公开类型、必要校验及唯一行为正文。类型外行为由 SPEC.md 拥有，公开定义的导航在 docs/public-api.md。说明错误、生命周期与资源责任的拥有者，不复制签名或状态机。
+纯函数对对端数据不抛出，答封闭的失败。有两处是前提违反：`mergeListing` 对不是 `completeListing` 构造的清单抛出 `TypeError`；`boundInstructions` 对不是正安全整数的上界抛出 `RangeError`。
 
 ## 设计
 
-<!-- documentation:placeholder -->
-
-概述内部模块和关键不变量的拥有者。完整设计写在 docs/architecture.md、docs/flows.md 与 docs/object-model.md。
+模块：`brands`、`values`、`endpoint`、`listing`、`catalog`、`classify`、`content`、`instructions`、`keys`、`outcomes`、`ports`、`transport`、`services`，以及 `./testing` 入口的 `testing-*` 模块。见 [docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md) 与 [docs/object-model.md](docs/object-model.md)。
 
 ## 配置与运行
 
-<!-- documentation:placeholder -->
-
-填写配置拥有者、默认行为、环境前提和显式依赖。说明调用者与包各自的运行责任。
+本包没有配置。`McpConfig` 是服务实现的配置类型，四个字段都必填，没有缺省值（SPEC S3）。连接超时取采用交来的配值或请求里的 `connectBound`（SPEC S4）。
 
 ## 验证
 
-<!-- documentation:placeholder -->
-
-填写可复跑命令、性质、前提和未覆盖。提供有实际断言的测试。结构通过不表示业务行为已验证。
+运行 `pnpm turbo run build typecheck test --filter=@omne-harness/mcp-contract`。测试导入构建后的包，覆盖正文的每个拒绝原因、清单性质与带种子的随机序列、结局穷举表、每种内容类型、五个套件对内存替身的运行，以及违约替身使套件变红。类型测试钉住每个封闭集合与 `./provider` 的类型导出。SPEC.md 列出测试没有覆盖的部分。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-说明公开契约、资源或依赖变化时必须同步的消费者和验证入口。信息不适用时写明理由，未知时登记具名缺口。
+公开类型或 SPEC 条款变化时，同步 `@omne-harness/mcp`、`@omne-harness/mcp-host-local` 与组设计。封闭集合变化时更新 `tests/closed-sets.ts`。`schema/endpoint-body.schema.json` 与 `src/endpoint-schema.ts` 保持相同，有测试核对。契约合入后，没有新的决定只做可加改动。
 
 ## 目录结构与文档职责
 

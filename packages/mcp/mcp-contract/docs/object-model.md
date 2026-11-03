@@ -1,17 +1,37 @@
 # 对象模型
 
-<!-- documentation:placeholder -->
-
-本文件描述本包内部对象的职责、身份、状态、关联、组合、继承与生命周期，配类图。它不强迫实现改成 class；纯函数或值包写实际模型与不适用项。
+本包没有类实例，只有不可变的值与纯函数。`ActionCatalogRecord` 是一份清单记录：它带修订、采用依据、新鲜度和按名字排序的 `KnownAction` 列表；每个 `KnownAction` 带最近合法定义、定义摘要和可用性。`CompleteListing` 是一次完整取得，带它所基于的修订。
 
 ## 对象与关系
 
-<!-- documentation:placeholder -->
-
-待补：对象职责、身份、状态与关联，以及类图。
+```mermaid
+classDiagram
+    class ActionCatalogRecord {
+        revision
+        basis
+        freshness
+    }
+    class KnownAction {
+        name
+        definitionDigest
+        availability
+    }
+    class ActionDefinition {
+        name
+        outputSchema
+        definition
+        annotations 不可信
+    }
+    class CompleteListing {
+        basedOn
+        basis
+        freshness
+    }
+    ActionCatalogRecord *-- KnownAction
+    KnownAction --> ActionDefinition : lastLawful
+    CompleteListing --> ActionDefinition : actions
+```
 
 ## 生命周期
 
-<!-- documentation:placeholder -->
-
-待补：对象的创建、变化与销毁责任。
+`completeListing` 构造并冻结完整清单。`mergeListing` 与 `markUnavailable` 每次产出一份新记录，修订加一，原记录不变。记录的保存归 `CatalogStore` 的实现方。

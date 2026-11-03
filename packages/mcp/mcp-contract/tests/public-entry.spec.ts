@@ -37,6 +37,35 @@ const ROOT = [
   'toContentBlocks',
 ].sort()
 
+const PROVIDER_TYPES = [
+  'AdoptedEndpoint',
+  'AdoptionView',
+  'CallRequest',
+  'CatalogStore',
+  'CredentialFailure',
+  'CredentialPurpose',
+  'CredentialUse',
+  'EligibilityVerdict',
+  'ExpectedRevision',
+  'HttpCredentialHandle',
+  'HttpPurpose',
+  'ListingPage',
+  'McpTransport',
+  'McpTransportFactory',
+  'ProcessCredentialHandle',
+  'ProcessEnvironment',
+  'ProcessHandle',
+  'ProcessLanding',
+  'ProcessPurpose',
+  'ProcessSetting',
+  'SentCall',
+  'StopScope',
+  'TaskAnswer',
+  'TransportFailure',
+  'TransportMaterial',
+  'UseEligibility',
+]
+
 const TESTING = [
   'NotApplicable',
   'classifyOutcomeCases',
@@ -70,6 +99,19 @@ it('the testing entry exports the conformance facilities', async () => {
   expect(Object.keys(testing).sort()).toEqual(TESTING)
 })
 
+function sourceOf(file: string): string {
+  return readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8')
+}
+
+/**
+ * The relative modules that a source file imports or re-exports, in either quote style, through
+ * `from`, a bare `import` or a dynamic `import()`.
+ */
+function relativeImports(text: string): readonly string[] {
+  const pattern = /(?:\bfrom\s*|\bimport\s*\(?\s*)(["'])\.\/([^"']+)\1/gu
+  return [...text.matchAll(pattern)].flatMap(match => (match[2] === undefined ? [] : [match[2]]))
+}
+
 /** The source files that an entry reaches through relative imports. */
 function reached(entry: string): ReadonlySet<string> {
   const seen = new Set<string>()
@@ -77,9 +119,7 @@ function reached(entry: string): ReadonlySet<string> {
   for (let file = pending.pop(); file !== undefined; file = pending.pop()) {
     if (seen.has(file)) continue
     seen.add(file)
-    const text = readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8')
-    for (const match of text.matchAll(/from '\.\/([^']+)'/gu))
-      if (match[1] !== undefined) pending.push(match[1])
+    for (const target of relativeImports(sourceOf(file))) pending.push(target)
   }
   return seen
 }
@@ -95,7 +135,26 @@ it('the root and provider entries do not reach the testing modules', () => {
 it('no source file imports an MCP SDK or Cordis', () => {
   const files = [...reached('index.ts'), ...reached('provider.ts'), ...reached('testing.ts')]
   for (const file of new Set(files)) {
-    const text = readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8')
-    expect(text).not.toMatch(/from '@modelcontextprotocol\/|from '@deepseek-ai\/cordis/u)
+    expect(sourceOf(file)).not.toMatch(/["']@modelcontextprotocol\/|["']@deepseek-ai\/cordis/u)
   }
+})
+
+it('reads relative imports in either quote style and form', () => {
+  const text = [
+    "import { a } from './single.ts'",
+    'export { b } from "./double.ts"',
+    "import './bare.ts'",
+    'const c = await import("./dynamic.ts")',
+    "import { d } from '@omne-harness/other'",
+  ].join('\n')
+  expect(relativeImports(text)).toEqual(['single.ts', 'double.ts', 'bare.ts', 'dynamic.ts'])
+})
+
+it('the provider entry exports exactly the port type names', () => {
+  const names = [...sourceOf('provider.ts').matchAll(/export type \{([^}]*)\}/gu)]
+    .flatMap(match => (match[1] ?? '').split(','))
+    .map(name => name.trim())
+    .filter(name => name !== '')
+    .sort()
+  expect(names).toEqual(PROVIDER_TYPES)
 })
