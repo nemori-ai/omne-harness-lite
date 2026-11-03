@@ -7,21 +7,26 @@
 // - The registration is an effect of the plugin fiber, so it ends with the fiber. The ordered stop
 //   removes it first, before it quiesces instances: the Model then keeps a later delivery owed
 //   (`waiting`, `no-receiver`) instead of pushing it into a host that is stopping.
-// - Maintenance. Every execution that a push resolved a target of is known to the driver. The first
-//   time the driver sees it in this process it calls `recover` (the account backlog is rebuilt from
-//   the `received` entries), and after that `retry`, as long as the report keeps pending work. The
-//   wait between two runs starts at `retryMs` and doubles up to `retryMaxMs`; the clock is
-//   `agentClock`. A `denied` answer ends the driving of that execution. The access of the run is the
-//   access of the push that made the execution known, so the run is checked as that push was.
+// - Maintenance. An execution becomes known to the driver when a push of it passed the receiver's
+//   `receive-result` check; the access of that push is the access of the runs, and a push that the
+//   check refused changes nothing. A new receiver over a state that already holds pending work (a
+//   body that runs again) knows the executions of that work, with the access their receptions kept.
+//   The first run in this receiver calls `recover` (the account backlog is rebuilt from the
+//   `received` entries), later runs call `retry`, as long as the report keeps pending work. The wait
+//   between two runs starts at `retryMs` and doubles up to `retryMaxMs`; the clock is `agentClock`.
+//   A clock that gives no reading or cannot wait, or a run that throws, is retried after the same
+//   backoff on the process timer, so one failure does not end the driving. A `denied` answer ends
+//   the driving of that execution with a warning.
 // - A run in flight when the driver stops is aborted through its signal; the receiver keeps every
 //   accepted commit and every handoff (agent public-api "独立 Model 接收入口").
+import { setTimeout as sleep } from 'node:timers/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import { AGENT_CONSUMER_OWNER } from '@omne-harness/agent'
 import type {
   Access,
+  AgentAccessCheck,
   AgentClock,
   AgentExecutionId,
-  ModelReceptionTargets,
 } from '@omne-harness/agent-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
@@ -99,7 +104,7 @@ export function startReception(
     return tenant.ok ? JSON.stringify([tenant.value, execution]) : undefined
   }
 
-  /** A push resolved a target of `execution`: drive the maintenance of it from now on. */
+  /** A push of `execution` passed `receive-result` with `access`: drive its maintenance with it. */
   function known(access: Access<unknown>, execution: AgentExecutionId): void {
     if (stopped) return
     const key = keyOf(access, execution)
@@ -120,6 +125,27 @@ export function startReception(
     schedule(key, fresh)
   }
 
+  /** The next wait of `entry`: twice the last one, never above `retryMaxMs`. */
+  function backoff(entry: Driven): void {
+    entry.delay = Math.min(entry.delay * 2, settings.retryMaxMs)
+  }
+
+  /** One wait and one run. Answers why the driving failed this time, or undefined. */
+  async function attempt(
+    key: string,
+    entry: Driven,
+    signal: AbortSignal,
+  ): Promise<string | undefined> {
+    const now = await clock.now()
+    if ('failure' in now) return `agentClock gave no reading (${now.failure.kind})`
+    const at = new Date(Date.parse(now.ok) + entry.delay).toISOString()
+    const waited = await clock.waitUntil(at, signal)
+    if ('failure' in waited) return `agentClock could not wait (${waited.failure.kind})`
+    if (waited.ok !== 'elapsed' || signal.aborted) return undefined
+    await run(key, entry, signal)
+    return undefined
+  }
+
   function schedule(key: string, entry: Driven): void {
     if (stopped) return
     const timer = new AbortController()
@@ -127,26 +153,24 @@ export function startReception(
     const end = () => timer.abort()
     stopping.signal.addEventListener('abort', end, { once: true })
     void (async () => {
+      let failed: string | undefined
       try {
-        const now = await clock.now()
-        if ('failure' in now) {
-          log('error', `reception: agentClock gave no reading; ${entry.execution} waits`)
-          return
-        }
-        const at = new Date(Date.parse(now.ok) + entry.delay).toISOString()
-        const waited = await clock.waitUntil(at, timer.signal)
-        if (stopped || timer.signal.aborted || entry.timer !== timer) return
-        if ('failure' in waited) {
-          log('error', `reception: agentClock could not wait (${waited.failure.kind})`)
-          return
-        }
-        if (waited.ok !== 'elapsed') return
-        await run(key, entry, timer.signal)
+        failed = await attempt(key, entry, timer.signal)
       } catch (error) {
-        log('error', `reception: the maintenance of ${entry.execution} failed: ${describe(error)}`)
+        failed = `the run threw: ${describe(error)}`
       } finally {
         stopping.signal.removeEventListener('abort', end)
       }
+      if (failed === undefined || stopped || entry.timer !== timer) return
+      // The clock cannot pace this wait, so the process timer does; the entry stays driven.
+      log('error', `reception: the maintenance of ${entry.execution} failed: ${failed}; it retries`)
+      backoff(entry)
+      try {
+        await sleep(entry.delay, undefined, { signal: timer.signal, ref: false })
+      } catch {
+        return
+      }
+      if (!stopped && entry.timer === timer) schedule(key, entry)
     })()
   }
 
@@ -165,15 +189,29 @@ export function startReception(
       driven.delete(key)
       return
     }
-    entry.delay = Math.min(entry.delay * 2, settings.retryMaxMs)
+    backoff(entry)
     schedule(key, entry)
   }
 
-  const targets: ModelReceptionTargets<unknown> = {
-    forExecution: query => ctx.agentModelReceptionTargets.forExecution(query),
-    async resolve(query) {
-      const answer = await ctx.agentModelReceptionTargets.resolve(query)
-      if ('ok' in answer) known(query.access, answer.ok.execution)
+  /** The executions whose work this state still holds, with the access their receptions kept. */
+  function adopt(): void {
+    for (const item of state.outbound.values())
+      if (item.kind === 'pending') known(item.access, item.target.execution)
+    for (const reception of state.receptions.values())
+      if (reception.commit.kind === 'unknown') known(reception.access, reception.target.execution)
+  }
+
+  // The receiver checks `receive-result` on the original execution before it reads or writes. An
+  // allowed answer is the admission of the push, and only that makes its access the driver's.
+  const access: AgentAccessCheck<unknown> = {
+    async check(request) {
+      const answer = await ctx.agentAccessCheck.check(request)
+      if (
+        answer.kind === 'allowed' &&
+        request.operation === 'receive-result' &&
+        request.target.kind === 'execution'
+      )
+        known(request.access, request.target.execution)
       return answer
     },
   }
@@ -195,8 +233,8 @@ export function startReception(
         materials: ctx.agentMaterials,
         received: ctx.agentReceivedCommits,
       },
-      access: ctx.agentAccessCheck,
-      targets,
+      access,
+      targets: ctx.agentModelReceptionTargets,
       outlet: ctx.agentAccountOutlet,
       models,
       capacity: () => capacity,
@@ -207,6 +245,7 @@ export function startReception(
   if ('failure' in built) throw new Error('agent-host: the received commits port is unsupported')
   const receiver = built.ok
   const removal = ctx.modelRuntime.registerResultReceiver(AGENT_CONSUMER_OWNER, receiver)
+  adopt()
   log('info', `reception: the Model result receiver is registered under ${AGENT_CONSUMER_OWNER}`)
 
   return {

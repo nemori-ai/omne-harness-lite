@@ -16,6 +16,7 @@ import {
   type AcceptedInput,
   type AgentAccountOutcome,
   type AgentAccountOutlet,
+  type AgentClock,
   type AgentExecutionId,
   type ExecutionSnapshot,
   type RuntimeConditions,
@@ -113,13 +114,21 @@ async function until(probe: () => boolean | Promise<boolean>, ms = 10_000): Prom
   }
 }
 
+type HostOptions = Readonly<{
+  outlet?: AgentAccountOutlet<Principal>
+  clock?: (port: AgentClock) => AgentClock
+  reception?: Partial<typeof RECEPTION>
+}>
+
 /** A host whose pusher resolves from the Model runtime's table, with EXECUTION waiting at M1. */
-async function waitingAtM1(outlet?: AgentAccountOutlet<Principal>) {
+async function waitingAtM1(options: HostOptions | AgentAccountOutlet<Principal> = {}) {
+  const given: HostOptions = 'deliver' in options ? { outlet: options } : options
   const host = await openWorld({
     stages: true,
     pushTo: 'host',
-    config: { ...hostConfig, reception: { ...RECEPTION, retryMs: RETRY_MS } },
-    ...(outlet === undefined ? {} : { outlet }),
+    config: { ...hostConfig, reception: { ...RECEPTION, ...given.reception } },
+    ...(given.outlet === undefined ? {} : { outlet: given.outlet }),
+    ...(given.clock === undefined ? {} : { clock: given.clock }),
     dependencies: {
       journal: {
         cancellation: {
@@ -335,5 +344,147 @@ describe('the Model result receiver of the host plugin', () => {
       inspect(): { pending: number }
     }
     await until(() => receiver.inspect().pending === 0)
+  })
+})
+
+/** An outlet that answers `unavailable` until `open()`, and counts every handoff it got. */
+function gatedOutlet() {
+  let opened = false
+  const delivered: unknown[] = []
+  const outlet: AgentAccountOutlet<Principal> = {
+    async deliver(given) {
+      delivered.push(given.handoff)
+      return opened ? { kind: 'received' } : { kind: 'unavailable', diagnostic: 'scope-unresolved' }
+    },
+  }
+  return {
+    outlet,
+    delivered,
+    open() {
+      opened = true
+    },
+  }
+}
+
+type Inspectable = { inspect(): { pending: number }; push: (input: never) => Promise<unknown> }
+const receiverOf = (host: World) =>
+  host.receivers.resolve(AGENT_CONSUMER_OWNER) as unknown as Inspectable
+
+const plus = (instant: string, ms: number) => new Date(Date.parse(instant) + ms).toISOString()
+
+/** Waits until the driver waits for `instant` on the manual clock. */
+const waitsFor = (host: World, instant: string) =>
+  until(() => host.controls.clock.pending().includes(instant))
+
+describe('the maintenance driver of the host receiver', () => {
+  // N1. Red when a clock without a reading ends the driving: the entry then never waits again.
+  it('goes on after agentClock gave no reading once', async () => {
+    const gate = gatedOutlet()
+    let failNext = false
+    const { host, load } = await waitingAtM1({
+      outlet: gate.outlet,
+      reception: { retryMs: 20, retryMaxMs: 160 },
+      clock: port => ({
+        async now() {
+          if (!failNext) return port.now()
+          failNext = false
+          return { failure: { kind: 'unavailable', owner: 'test-clock', diagnostic: 'once' } }
+        },
+        waitUntil: (instant, signal) => port.waitUntil(instant, signal),
+      }),
+    })
+    const start = host.controls.clock.now()
+    await settleReply(host, await load())
+    await until(async () => (await load()).state.kind === 'ended')
+    await waitsFor(host, plus(start, 20))
+    // The run at +20 keeps the account pending; the next reading of the clock fails once.
+    failNext = true
+    ok(host.controls.clock.advanceTo(plus(start, 20)))
+    await until(() => gate.delivered.length >= 2)
+    await until(() => host.errors.some(text => text.includes('agentClock gave no reading')))
+    // The driver waits again after its backoff (40, then 80 after the failure) and delivers.
+    await waitsFor(host, plus(start, 100))
+    gate.open()
+    ok(host.controls.clock.advanceTo(plus(start, 100)))
+    await until(() => receiverOf(host).inspect().pending === 0)
+  })
+
+  // N2. Red when a run does not double the wait, or does not stop at retryMaxMs.
+  it('doubles the wait after each run with pending work, up to retryMaxMs', async () => {
+    const gate = gatedOutlet()
+    const { host, load } = await waitingAtM1({
+      outlet: gate.outlet,
+      reception: { retryMs: 1000, retryMaxMs: 4000 },
+    })
+    const start = host.controls.clock.now()
+    await settleReply(host, await load())
+    let at = start
+    for (const wait of [1000, 2000, 4000, 4000]) {
+      at = plus(at, wait)
+      await waitsFor(host, at)
+      ok(host.controls.clock.advanceTo(at))
+    }
+    await waitsFor(host, plus(at, 4000))
+    expect(gate.delivered.length).toBeGreaterThanOrEqual(5)
+  })
+
+  // N2. Red when the driver goes on after `denied`, or says nothing.
+  it('stops driving an execution whose maintenance is denied, with a warning', async () => {
+    const gate = gatedOutlet()
+    const { host, load } = await waitingAtM1({ outlet: gate.outlet })
+    const start = host.controls.clock.now()
+    await settleReply(host, await load())
+    await waitsFor(host, plus(start, RETRY_MS))
+    host.controls.access.check.always(input =>
+      input.operation === 'receive-result'
+        ? { kind: 'denied' }
+        : { kind: 'allowed', evidence: evidence(`access/${input.operation}`) },
+    )
+    ok(host.controls.clock.advanceTo(plus(start, RETRY_MS)))
+    await until(() => host.warnings.some(text => text.includes('was denied')))
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const next = plus(start, 3 * RETRY_MS)
+    expect(host.controls.clock.pending()).not.toContain(next)
+    expect(receiverOf(host).inspect().pending).toBe(1)
+  })
+
+  // N5. Red when a body that runs again does not take over the pending work of the state.
+  it('a body that runs again drives the pending work it found in the state', async () => {
+    const gate = gatedOutlet()
+    const { host, load } = await waitingAtM1({ outlet: gate.outlet })
+    await settleReply(host, await load())
+    expect(receiverOf(host).inspect().pending).toBe(1)
+    await host.host.dispose()
+    const again = host.root.plugin(host.plugin, { ...hostConfig, reception: RECEPTION })
+    await again
+    const now = host.controls.clock.now()
+    await waitsFor(host, plus(now, RETRY_MS))
+    gate.open()
+    ok(host.controls.clock.advanceTo(plus(now, RETRY_MS)))
+    await until(() => receiverOf(host).inspect().pending === 0)
+    expect(gate.delivered.length).toBeGreaterThanOrEqual(2)
+  })
+
+  // Item 5 of R2-D250. Red when a refused push replaces the access the driver keeps.
+  it('keeps the access of the admitted push when a later push is refused', async () => {
+    const gate = gatedOutlet()
+    const { host, load } = await waitingAtM1({ outlet: gate.outlet })
+    const start = host.controls.clock.now()
+    const { record } = await settleReply(host, await load())
+    await waitsFor(host, plus(start, RETRY_MS))
+    host.controls.access.check.always(input =>
+      input.access.principal === 'intruder'
+        ? { kind: 'denied' }
+        : { kind: 'allowed', evidence: evidence(`access/${input.operation}`) },
+    )
+    const refused = await receiverOf(host).push({
+      access: { principal: 'intruder', tenant: caller('a').tenant },
+      delivery: record.delivery,
+      signal: new AbortController().signal,
+    } as never)
+    expect(refused).toMatchObject({ failure: { kind: 'denied' } })
+    gate.open()
+    ok(host.controls.clock.advanceTo(plus(start, RETRY_MS)))
+    await until(() => receiverOf(host).inspect().pending === 0)
   })
 })

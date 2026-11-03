@@ -81,7 +81,13 @@ import {
   type ExecutionRoutedJournalOptions,
 } from '../src/cordis/agent-journal-provider.ts'
 import { checkpoint, instance, ok, openInput, operation } from './fixtures/common-journal.ts'
-import { handed, sqlScene, type SqlScene, type SqlSceneOptions } from './fixtures/sql-scene.ts'
+import {
+  handed,
+  nextRun,
+  sqlScene,
+  type SqlScene,
+  type SqlSceneOptions,
+} from './fixtures/sql-scene.ts'
 import { m0Checkpoint } from './fixtures/adopted-request.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 
@@ -656,6 +662,7 @@ async function waitingOnModel(
   s: SqlScene,
   journal: AgentJournal<string>,
   name: string,
+  quiet = false,
 ): Promise<Omit<ReceivedEntry, 'material'>> {
   const opened = ok(await journal.open(s.openInput))
   const result = sampleReceivedModelResult(s.access.tenant, name)
@@ -678,8 +685,10 @@ async function waitingOnModel(
       authority: opened.authority,
       expected: opened.receipt.revision,
       checkpoint: { ...s.checkpoint, calls: [pending] },
-      state: { kind: 'waiting', waits },
-      events: [{ kind: 'waiting', waits }],
+      // `quiet`: no event, so the Session history of the Run needs no original of it (a next Run
+      // of the session reads that history).
+      state: quiet ? { kind: 'advancing' } : { kind: 'waiting', waits },
+      events: quiet ? [] : [{ kind: 'waiting', waits }],
       effects: [{ pending, action: pending.action, authority: opened.authority }],
       caller: { kind: 'none' },
       replyAdmission: null,
@@ -790,6 +799,31 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
       'denied',
     )
     expect(await targets().forExecution({ access: other, execution: s.execution })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+  })
+
+  // R2-D250 N3. Red when a route to another execution of the same session reads the binding of the
+  // first one: both routes reach the same session log, so only the execution of the binding tells.
+  // The execution index routes the sibling to the same session as soon as its Run started. The session
+  // core and the plugin both compare the execution; the case turns red when neither does.
+  it('a route to another execution of the same session does not resolve the binding of the first', async () => {
+    const s = await scene('recv-sibling')
+    const { journal, targets } = await assembled(s)
+    const draft = await waitingOnModel(s, journal(), 'recv-sibling', true)
+    if (draft.delivery.producer !== 'model') throw new Error('fixture: a Model entry')
+    const sibling = await nextRun(s, 2)
+    expect(sibling.execution).not.toBe(s.execution)
+    const query = {
+      access: s.access,
+      consumer: draft.consumer,
+      reference: draft.delivery.key.reference,
+    }
+    expect(ok(await targets().resolve({ ...query, execution: s.execution })).execution).toBe(
+      s.execution,
+    )
+    expect(await targets().resolve({ ...query, execution: sibling.execution })).toHaveProperty(
       'failure.kind',
       'denied',
     )

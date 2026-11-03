@@ -64,6 +64,19 @@ function freeze<T>(value: T): T {
   }
   return value
 }
+/**
+ * The target query of one delivery. The route is read from the position this Agent registered; the
+ * target is the binding the provider answers with. Another owner's position names no route.
+ */
+function targetQuery<P>(access: Access<P>, delivery: ModelDelivery) {
+  const route = positionExecution(delivery.consumer)
+  return {
+    access,
+    reference: delivery.key.reference,
+    consumer: delivery.consumer,
+    ...(route === null ? {} : { execution: route }),
+  }
+}
 const receptionKey = <P>(access: Access<P>, delivery: ModelDelivery) =>
   canonical([tenantKey(access), delivery.key])
 
@@ -170,14 +183,7 @@ export function createAgentModelReceiver<P>(
     if (stopped?.aborted) return fail({ kind: 'cancelled-before-accept' })
     let resolved
     try {
-      // The route is read from the position this Agent registered; the target is the binding.
-      const route = positionExecution(delivery.consumer)
-      resolved = await dependencies.targets.resolve({
-        access,
-        reference: delivery.key.reference,
-        consumer: delivery.consumer,
-        ...(route === null ? {} : { execution: route }),
-      })
+      resolved = await dependencies.targets.resolve(targetQuery(access, delivery))
     } catch (error) {
       return failed('targets', error)
     }
