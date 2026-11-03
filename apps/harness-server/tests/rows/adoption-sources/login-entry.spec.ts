@@ -2,6 +2,7 @@
 // 「桥接责任」, the login gate; session-adapters SPEC AD-10). The confirmation comes only from the
 // first input's origin as the Session log holds it; a read that fails stays a failure.
 import { fail, succeed } from '@omne-harness/operation-result'
+import { deriveSessionOperation } from '@omne-harness/session-contract'
 import type {
   AdoptionEvidenceCommand,
   DurableEvidence,
@@ -29,12 +30,26 @@ type StartRun = Extract<AdoptionEvidenceCommand, { kind: 'startRun' }>
 const FIRST = 'input-first' as InputId
 const LATER = 'input-later' as InputId
 
-const startOf = (entry: 'interactive' | 'dispatch', session = access.session): StartRun => ({
+/** The operation identity of a start formed for `first` (session-contract OP-00), as C2 forms it. */
+const operationFor = (first: InputId, predecessor: string | null = null) =>
+  deriveSessionOperation({
+    kind: 'startRun',
+    session: access.session,
+    first,
+    predecessor: predecessor as never,
+  })
+
+const startOf = (
+  entry: 'interactive' | 'dispatch',
+  session = access.session,
+  first: InputId = FIRST,
+  predecessor: string | null = null,
+): StartRun => ({
   kind: 'startRun',
   input: {
     tenant: access.tenant,
     session,
-    operation: 'op-start' as never,
+    operation: operationFor(first, predecessor),
     entry,
     candidate: candidateOf('alpha'),
     instance: { owner: 'agent', id: 'instance-1' },
@@ -105,6 +120,7 @@ describe('the confirmation comes from the first input that the decision will tak
       version: 1,
       session: access.session,
       input: FIRST,
+      operation: operationFor(FIRST),
       origin: 'sha256:login',
     })
     // The login state text of the origin is not copied into the material.
@@ -132,6 +148,29 @@ describe('the confirmation comes from the first input that the decision will tak
       )
       expect(asked).toEqual(['readWork'])
     }
+  })
+
+  test('a start formed for another first input than the one read gets no confirmation', async () => {
+    // The first input changed after the start was formed: the log now holds LATER first. The
+    // confirmation of the start for FIRST would vouch for an input the start did not name.
+    const changed = readsOf({ snapshot: snapshotOf({ pending: [LATER] }) })
+    expect(await loginConfirmationOf(changed.reads, startOf('interactive'), access)).toEqual(
+      succeed(null),
+    )
+    expect(changed.asked).toEqual(['readWork'])
+    // The same holds for the predecessor: a start formed before the last Run ended names none.
+    const ended = snapshotOf({
+      run: { kind: 'terminal', terminal: { run: 'run-earlier' } } as never,
+    })
+    expect(
+      await loginConfirmationOf(readsOf({ snapshot: ended }).reads, startOf('interactive'), access),
+    ).toEqual(succeed(null))
+    const named = await loginConfirmationOf(
+      readsOf({ snapshot: ended }).reads,
+      startOf('interactive', access.session, FIRST, 'run-earlier'),
+      access,
+    )
+    expect('ok' in named && named.ok?.owner).toBe(LOGIN_ENTRY_OWNER)
   })
 
   test('a dispatch start needs no gate and reads nothing', async () => {

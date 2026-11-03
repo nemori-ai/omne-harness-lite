@@ -33,9 +33,9 @@
 装配页的登录门由本行兑现（[桥接责任](../../../../docs/architecture/runtime/application-assembly.md#桥接责任)，session-adapters [AD-10](../../../../packages/session/session-adapters/SPEC.md#ad-10)）。`startRun` 的命令不带首条输入，所以本行自己读首条输入。实现在 `login-entry.ts`。
 
 1. 入口类别不是 `interactive` 时，本行不读 Session，也不给确认。`decide` 只对交互入口要求登录确认。
-2. 本行以本次调用的 `SessionAccess` 读 Session 的工作快照，再用 `judgeRunStart` 取首条输入。Session 的 `work` 面每次调用现取，调用方类是 `coordinator`。本行不 `inject` `session`，因为 Session 经证据桥 `inject` 本行，静态注入会形成等待环。
+2. 本行以本次调用的 `SessionAccess` 读 Session 的工作快照，再用 `judgeRunStart` 取首条输入。本行按 OP-00 由会话、这条输入与前继 Run 派生 `startRun` 的操作身份。它不等于命令的操作身份时，命令是为另一条首条输入形成的，本行不给确认。Session 的 `work` 面每次调用现取，调用方类是 `coordinator`。本行不 `inject` `session`，因为 Session 经证据桥 `inject` 本行，静态注入会形成等待环。
 3. 本行以同一 `SessionAccess` 读首条输入。它的 `origin` 的 `owner` 是 `login-entry` 时，本行在映射材料之后交出确认材料，`owner` 为 `login-entry`。
-4. 确认材料的 `facts` 只有会话、首条输入和 `origin` 的摘要。`origin` 的记录正文是登录状态文本，不复制进材料。
+4. 确认材料的 `facts` 只有会话、首条输入、操作身份和 `origin` 的摘要。`origin` 的记录正文是登录状态文本，不复制进材料。
 
 下列情形不给确认。Session 因此答 `login-required`：
 

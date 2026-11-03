@@ -13,6 +13,7 @@
 // interactive start reads the Session. A dispatch start gets no confirmation and needs none.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  deriveSessionOperation,
   judgeRunStart,
   type AdoptionEvidenceCommand,
   type GuardCommand,
@@ -71,6 +72,16 @@ export async function loginConfirmationOf<P>(
   if ('failure' in work) return work
   const judgment = judgeRunStart(work.ok, command.input.entry)
   if (judgment.kind !== 'eligible') return succeed(null)
+  // The start names its first input only through its operation identity (session-contract OP-00:
+  // session, first input, predecessor). A start formed for another first input than the one read
+  // here gets no confirmation, so a confirmation never vouches for an input the start did not name.
+  const operation = deriveSessionOperation({
+    kind: 'startRun',
+    session: command.input.session,
+    first: judgment.first,
+    predecessor: work.ok.run.kind === 'terminal' ? work.ok.run.terminal.run : null,
+  })
+  if (operation !== command.input.operation) return succeed(null)
   const first = await reads.readInput({ ...access, input: judgment.first })
   if ('failure' in first) return first
   const origin = first.ok.origin
@@ -86,6 +97,7 @@ export async function loginConfirmationOf<P>(
         { key: 'version', value: { kind: 'number', lexeme: '1' } },
         { key: 'session', value: { kind: 'string', value: command.input.session } },
         { key: 'input', value: { kind: 'string', value: judgment.first } },
+        { key: 'operation', value: { kind: 'string', value: operation } },
         { key: 'origin', value: { kind: 'string', value: origin.digest } },
       ],
     },

@@ -280,13 +280,13 @@ function initializationGuardOf(
  * `inject`: Session injects this source through the evidence bridge, so a static `session` here
  * would wait for itself. An absent face is `undefined`, and the start is then `unavailable`.
  */
-function sessionWorkOf<P>(ctx: Context): SessionWorkReads<P> | undefined {
+function sessionWorkOf(ctx: Context): SessionWorkReads<unknown> | undefined {
   const work = ctx.intercept(sessionKey, { caller: 'coordinator' }).get(sessionKey, false)?.work
   return work === undefined
     ? undefined
     : {
-        readWork: access => work.readWork(access as never),
-        readInput: input => work.readInput(input as never),
+        readWork: access => work.readWork(access),
+        readInput: input => work.readInput(input),
       }
 }
 
@@ -315,7 +315,7 @@ async function prepareFrom<P>(
       const entry = mappings.byCandidate(command.input.candidate)
       if (entry === undefined)
         return invalid('candidate', 'the candidate is not a definition adoption of this deployment')
-      const login = await loginConfirmationOf(sessionWorkOf<P>(ctx), command, access)
+      const login = await loginConfirmationOf<unknown>(sessionWorkOf(ctx), command, access)
       if ('failure' in login) return login
       const mapping = materialOf(mappings, command.kind, entry)
       return succeed(login.ok === null ? [mapping] : [mapping, login.ok])
