@@ -63,25 +63,28 @@ describe('one arrival order for writes and barriers', () => {
   })
 
   it('barriers that keep arriving do not starve a write: it enters at its turn', async () => {
-    // Defect: a write waits while any barrier is queued, so a stream of barriers that always has
-    // one queued never lets the write in.
+    // Defect: a write waits while any barrier is queued (the old implementation), so with
+    // barriers queued behind it the write never enters: b1 would be granted instead of w.
     const barrier = new WriteBarrier()
     const log: string[] = []
-    let held = track(log, 'b0', barrier.acquire(DOMAIN, {}))
+    const held = track(log, 'b0', barrier.acquire(DOMAIN, {}))
     await flush()
     const write = track(log, 'w', barrier.enterWrite(DOMAIN, {}))
-    for (let round = 1; round <= 3; round += 1) {
-      // The next barrier queues before the held one releases: a barrier is always queued.
-      const next = track(log, `b${String(round)}`, barrier.acquire(DOMAIN, {}))
-      held.release()
-      await flush()
-      held = next
-    }
-    expect(log).toEqual(['b0:granted', 'w:granted', 'b1:granted'])
+    // Three more barriers queue behind the write while b0 is still held.
+    const later = [1, 2, 3].map(round =>
+      track(log, `b${String(round)}`, barrier.acquire(DOMAIN, {})),
+    )
+    held.release()
+    await flush()
+    expect(log).toEqual(['b0:granted', 'w:granted'])
     write.release()
     await flush()
     expect(log).toEqual(['b0:granted', 'w:granted', 'b1:granted'])
-    held.release()
+    for (const item of later) {
+      item.release()
+      await flush()
+    }
+    expect(log).toEqual(['b0:granted', 'w:granted', 'b1:granted', 'b2:granted', 'b3:granted'])
   })
 
   it('writes that keep arriving do not starve a barrier: later writes wait behind it', async () => {
