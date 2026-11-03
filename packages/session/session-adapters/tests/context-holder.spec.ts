@@ -36,6 +36,7 @@ import {
 } from '@omne-harness/runtime-context-contract/testing'
 import {
   RuntimeContextService,
+  runtimeContextKey,
   runtimeContextReaderEligibilityKey,
 } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { readerEligibilityConformance } from '@omne-harness/runtime-context-cordis-contract/testing'
@@ -372,11 +373,32 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
         fail({ kind: 'unavailable', owner: 'session', diagnostic: 'not used' }),
     }
   }
+  // The context scopes of each session's snapshot, as Session mints them (J18). The facts plugin
+  // reads them as `coordinator` when a notice mints a scope.
+  const scopes = new Map<string, { scope: string; ended: unknown }[]>()
+  const mint = (access: SessionAccess<unknown>, scope: ScopeRef, ended: unknown = null) => {
+    const key = sessionKey(access)
+    scopes.set(key, [
+      ...(scopes.get(key) ?? []),
+      { scope: scope.ref, ended, generation: String((scopes.get(key)?.length ?? 0) + 1) } as never,
+    ])
+  }
+  const work = {
+    readWork: async (input: SessionAccess<unknown>) => {
+      factsCalls.push({ method: 'readWork', input, caller: 'coordinator' })
+      if (!owns(input)) return fail({ kind: 'denied', action: 'readWork' })
+      return succeed({
+        tenant: input.tenant,
+        session: input.session,
+        contextScopes: scopes.get(sessionKey(input)) ?? [],
+      })
+    },
+  } as unknown as SessionFaces<unknown>['work']
   class Session extends SessionService<unknown> {
     get history(): SessionFaces<unknown>['history'] {
       return historyFaceFor(this[Service.resolveConfig]())
     }
-    readonly work = {} as SessionFaces<unknown>['work']
+    readonly work = work
     readonly management = {} as SessionFaces<unknown>['management']
     readonly reconciliation = {} as SessionFaces<unknown>['reconciliation']
   }
@@ -417,6 +439,7 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
     factsCalls,
     principalsAsked,
     append,
+    mint,
     committed,
     handoff,
     methods: () => rcCalls.map(call => call.method),
@@ -816,14 +839,48 @@ describe('the runtimeContextReaderEligibility provider', () => {
     })
   })
 
-  it('answers absent for a consumer class that the registrations give nothing to read', async () => {
+  it('issues an eligibility with no key to a consumer class that the registrations give nothing to read', async () => {
     const f = await assembled()
     seedA(f)
     await f.committed(A, [REGISTRATION, STEP])
-    expect(await f.handoff()!.current({ ...modelRequest, consumer: 'extension' })).toEqual({
-      kind: 'absent',
+    const answer = await f.handoff()!.current({ ...modelRequest, consumer: 'extension' })
+    expect(answer.kind).toBe('current')
+    expect(lastInput(f, 'issueEligibility')).toMatchObject({
+      consumer: 'extension',
+      keys: [],
+      bindings: [],
     })
-    expect(f.methods().filter(method => method === 'issueEligibility')).toEqual([])
+  })
+
+  it('recovers a newly minted scope that has no context record with the empty material and issues an empty eligibility (AD-03 1a)', async () => {
+    const f = await assembled()
+    f.mint(A, scopeA)
+    await f.committed(A, ['session.created'])
+    const answer = await f.handoff()!.current(modelRequest)
+    if (answer.kind !== 'current')
+      throw new Error(`expected current, got ${JSON.stringify(answer)}`)
+    expect(f.methods()).toEqual(['beginReplay', 'finishReplay', 'issueEligibility'])
+    expect(lastInput(f, 'beginReplay')).toMatchObject({ scope: scopeA, through: null })
+    expect(lastInput(f, 'issueEligibility')).toMatchObject({ keys: [], bindings: [] })
+    // The reader of that eligibility reads the empty snapshot: a value, not a missing one.
+    const rc = f.ctx.get(runtimeContextKey) as RuntimeContextService<unknown>
+    const bound = await rc.bind(answer.eligibility)
+    if (bound.kind !== 'bound') throw new Error(`expected bound, got ${bound.kind}`)
+    const snapshot = await bound.reader.snapshot()
+    expect(snapshot).toMatchObject({ kind: 'success', value: { blocks: [], missing: [] } })
+  })
+
+  it('a scope that no snapshot lists stays unseen, and an ended one is not indexed', async () => {
+    const f = await assembled()
+    // A creation notice whose snapshot lists only an ended scope, and no notice for scope B.
+    f.mint(A, scopeA, evidence('ended'))
+    await f.committed(A, ['session.created'])
+    for (const request of [modelRequest, { ...modelRequest, scope: scopeB, tenant: B.tenant }])
+      expect(await f.handoff()!.current(request)).toEqual({
+        kind: 'unavailable',
+        diagnostic: 'the holder has not seen this scope in the session log',
+      })
+    expect(f.methods()).toEqual([])
   })
 
   it('reissues with supersedes when a later registration changes the revision', async () => {

@@ -72,6 +72,8 @@ import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
 const LOGGER = 'session-adapters/context-holder'
 /** The initial bound of the scope-to-session index; the assembly may set another (IC-14). */
 const SCOPE_INDEX_ENTRIES = 4096
+/** The Session entry kinds whose batch mints a new context scope (session-contract J18). */
+const SCOPE_MINTING_KINDS: readonly string[] = ['session.created', 'session.unarchived']
 /** The initial page size of one history read; the assembly may set another (IC-14). */
 const PAGE_BYTES = 65536
 /** A read that has not ended after this many pages is not a complete read. */
@@ -161,6 +163,8 @@ type Shared<P> = Readonly<{
   index: Map<string, Bound>
   link: { replay: ReplayFiber | undefined; facts: FactsFiber | undefined }
   recoveries: { next: number }
+  /** The indexing reads of the facts plugin still running: a lookup waits for them before `unseen`. */
+  learning: Set<Promise<void>>
 }>
 
 function describe(cause: unknown): string {
@@ -570,9 +574,19 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
   }
 
   /** Reads the session's records and brings every scope in them up to date. */
-  async function sync(bound: Bound): Promise<Readonly<{ ok: true } | { diagnostic: string }>> {
+  async function sync(
+    bound: Bound,
+    wanted?: ScopeRef,
+  ): Promise<Readonly<{ ok: true } | { diagnostic: string }>> {
     const read = await readRecords(bound)
     if (read.kind === 'unavailable') return { diagnostic: read.diagnostic }
+    // A scope of this session that the complete read holds no record of is a new scope: it is
+    // recovered with the empty material, which is complete because the read is (AD-03 1a).
+    if (wanted !== undefined && !read.scopes.has(wanted.ref)) {
+      const state = states.get(wanted.ref)
+      if (state === undefined || state.phase === 'failed')
+        await recover(read.principal, bound, wanted, [], state)
+    }
     for (const [ref, { scope, records }] of read.scopes) {
       if (closed) return { diagnostic: 'the replay sub-plugin has stopped' }
       remember(shared, ref, bound)
@@ -599,7 +613,7 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
       let bound = index.get(scope.ref)
       if (bound === undefined) {
         // A notice in flight may be about to index the scope.
-        await settled()
+        await Promise.all([settled(), ...shared.learning])
         bound = index.get(scope.ref)
       }
       if (bound === undefined) return { kind: 'unseen' }
@@ -610,7 +624,7 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
       const known = states.get(scope.ref)
       if (known === undefined || known.phase === 'failed') {
         const target = bound
-        const result = await serialize(key, () => sync(target))
+        const result = await serialize(key, () => sync(target, scope))
         if ('diagnostic' in result) return { kind: 'unavailable', diagnostic: result.diagnostic }
       }
       const state = states.get(scope.ref)
@@ -691,18 +705,25 @@ function startFacts<P>(ctx: Context, shared: Shared<P>): void {
   const { index, input } = shared
   const readRecords = recordReader(ctx, shared, logger)
   /** The notices whose read has not ended: a lookup waits for them before it says `unknown`. */
-  const learning = new Set<Promise<void>>()
+  const learning = shared.learning
   let closed = false
 
-  /** Indexes the scopes that the records of one session name. A read that fails indexes nothing. */
-  async function learn(bound: Bound): Promise<void> {
+  /**
+   * Indexes the scopes of one session. The records name the scopes that hold context records. A
+   * notice that mints a scope (creation, unarchiving) also indexes the open scope of the snapshot: a
+   * new scope has no record yet, and the holder must still find it (AD-03 1a). A read that fails
+   * indexes nothing of its own part.
+   */
+  async function learn(bound: Bound, minted: boolean): Promise<void> {
     const read = await readRecords(bound)
-    if (read.kind === 'unavailable') {
+    if (read.kind === 'unavailable')
       logger.warn(`the scopes of a session were not indexed: ${read.diagnostic}`)
-      return
-    }
-    if (closed) return
-    for (const ref of read.scopes.keys()) remember(shared, ref, bound)
+    else if (!closed) for (const ref of read.scopes.keys()) remember(shared, ref, bound)
+    if (!minted || closed) return
+    const snapshot = await snapshotOf(bound)
+    if (snapshot === undefined || closed) return
+    for (const binding of snapshot.contextScopes ?? [])
+      if (binding.ended === null) remember(shared, binding.scope, bound)
   }
 
   /** The snapshot of the session, or `undefined` when it cannot be had as the session it was asked for. */
@@ -791,8 +812,9 @@ function startFacts<P>(ctx: Context, shared: Shared<P>): void {
   new SessionScopeLookupProvider(ctx, fiber)
 
   ctx.on('session-cordis-contract/committed', (tenant, session, _revision, _source, kinds) => {
-    if (closed || !kinds.some(kind => input.translation.kinds.includes(kind))) return
-    const work = learn({ tenant, session }).catch(cause =>
+    const minted = kinds.some(kind => SCOPE_MINTING_KINDS.includes(kind))
+    if (closed || (!minted && !kinds.some(kind => input.translation.kinds.includes(kind)))) return
+    const work = learn({ tenant, session }, minted).catch(cause =>
       logger.warn(`the scopes of a session were not indexed: ${describe(cause)}`),
     )
     learning.add(work)
@@ -919,8 +941,9 @@ class SessionReaderEligibilityProvider<P> extends RuntimeContextReaderEligibilit
     if (held !== undefined && held.recovery === view.recovery && held.revision === view.revision)
       return { kind: 'current', eligibility: held.eligibility }
 
+    // An empty key set is issued too: the reader then reads the empty snapshot. `absent` stays the
+    // answer of a scope that has no eligibility to give, so a missing one is never read as empty.
     const readable = readableBy(view.final, request.consumer)
-    if (readable.keys.length === 0 && readable.bindings.length === 0) return { kind: 'absent' }
     let principal: Outcome<P, SessionCoordinatorPrincipalFailure>
     try {
       principal = await this.shared.input.coordinator(view.bound)
@@ -1013,6 +1036,7 @@ export function createSessionContextHolder<P>(input: SessionContextHolderInput<P
     index: new Map(),
     link: { replay: undefined, facts: undefined },
     recoveries: { next: 0 },
+    learning: new Set(),
   }
   // The same facts as the `sessionReplayFacts` service, for a caller that holds this value.
   const replayFacts: SessionReplayFacts = {
