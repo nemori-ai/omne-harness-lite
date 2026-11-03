@@ -64,6 +64,12 @@ const adoption = (name: string) => ({
 const EXECUTION: AgentExecutionId = ok(decodeAgentExecutionId('reception-execution'))
 const REPLY = 'the reply the receiver saved'
 const RETRY_MS = 1000
+/** How the Model records a supplier's HTTP 400 for the call: the input was rejected upstream. */
+const REJECTED_400 = {
+  cause: 'input-rejected' as const,
+  diagnostic: 'the supplier answered 400',
+  upstreamStatus: '400',
+}
 
 const conditions: RuntimeConditions = {
   source: evidence('conditions'),
@@ -162,8 +168,11 @@ const RECEPTION = {
   retryMaxMs: 8 * RETRY_MS,
 }
 
+/** What the supplier of the scripted call answered: a reply, or an HTTP 400 that fails the call. */
+type Answer = 'reply' | 'rejected-400'
+
 /** Settles the open Model call with one text and an account; the pusher pushes it at once. */
-async function settleReply(host: World, snapshot: ExecutionSnapshot) {
+async function settleReply(host: World, snapshot: ExecutionSnapshot, answer: Answer = 'reply') {
   const pending = snapshot.checkpoint.calls.find(call => call.kind === 'model')
   if (pending?.kind !== 'model') throw new Error('no Model call is open')
   const { call, admission } = ok(resolveModelInvocationRef(pending.reference, caller('a').tenant))
@@ -183,7 +192,10 @@ async function settleReply(host: World, snapshot: ExecutionSnapshot) {
       intent: admission,
       send: 'started',
       firstContent: 'observed',
-      terminal: { kind: 'completed', reason: 'stop' },
+      terminal:
+        answer === 'reply'
+          ? { kind: 'completed', reason: 'stop' }
+          : { kind: 'failed', fault: REJECTED_400 },
       account: {
         subject: { kind: 'model_call', id: call },
         usage: [{ name: 'input', state: 'known', lexeme: '17', unit: 'token' }],
@@ -201,8 +213,11 @@ async function settleReply(host: World, snapshot: ExecutionSnapshot) {
     ...caller('a'),
     call,
     version: ok(decodeResultVersion('mrver_reception')),
-    termination: { kind: 'completed', reason: 'stop' },
-    parts: [
+    termination:
+      answer === 'reply'
+        ? { kind: 'completed', reason: 'stop' }
+        : { kind: 'failed', fault: REJECTED_400 },
+    parts: answer === 'rejected-400' ? [] : [
       {
         kind: 'sealed',
         trims: [],
@@ -241,6 +256,19 @@ describe('the Model result receiver of the host plugin', () => {
     expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
     expect(receivedResults(ended)).toHaveLength(1)
     expect(ended.checkpoint.calls.filter(call => call.kind === 'model')).toEqual([])
+  })
+
+  // Red when the receiver does not save a failed result: the Agent then never learns that the call
+  // failed and waits at M1 instead of ending with no reply (I3 to F1).
+  it('a call the supplier rejected with 400 is saved, and the execution fails with no reply', async () => {
+    const { host, load } = await waitingAtM1()
+    const { record, call } = await settleReply(host, await load(), 'rejected-400')
+    expect(record.status).toBe('saved')
+    await until(async () => (await load()).state.kind === 'ended')
+    const ended = await load()
+    expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'fail' } })
+    expect(ended.settlement.candidates.at(-1)?.failure).toMatchObject({ kind: 'no-reply', call })
+    expect(receivedResults(ended)).toHaveLength(1)
   })
 
   // Red when the ordered stop leaves the registration in place: a push during the shutdown would

@@ -35,7 +35,7 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 - 账目出站与 saved。共同提交、材料核对和入队之后就答 saved，不等待 outlet。发行的账目出站在没有目标解析器时答 `unavailable`（`scope-unresolved`），这只让账目留在待办里由维护驱动重试，不挡住 saved。
 - 配置。`reception` 可选，六项都是正整数：`records`、`bytes`、`attachments`、`inFlight`、`retryMs`、`retryMaxMs`，且 `retryMaxMs` 不小于 `retryMs`。缺省时取 `src/reception.ts` 的 `RECEPTION_INITIAL`，它们是配置初值，不是本成员的上限。
 
-用例在 `tests/reception.spec.ts`：登记后推送的回复让 execution 越过 M1 并结束；有序停止撤销登记，之后的推送是 `no-receiver`；宿主停机期间推送失败的结果在插件体恢复后重投，只保存一次；outlet 答 `scope-unresolved` 时仍答 saved，驱动的重试稍后送达账目。Model 是 model-contract 的脚本化推送器，从 Model runtime 的登记表解析接收方。这些用例不证明真实 Model 宿主、会话日志 Journal 或进程重启。
+用例在 `tests/reception.spec.ts`：登记后推送的回复让 execution 越过 M1 并结束；供应方答 400 的失败结果同样保存，execution 以 no-reply 失败结束；有序停止撤销登记，之后的推送是 `no-receiver`；宿主停机期间推送失败的结果在插件体恢复后重投，只保存一次；outlet 答 `scope-unresolved` 时仍答 saved，驱动的重试稍后送达账目。Model 是 model-contract 的脚本化推送器，从 Model runtime 的登记表解析接收方。这些用例不证明真实 Model 宿主、会话日志 Journal 或进程重启。
 
 ### 测量事件
 
