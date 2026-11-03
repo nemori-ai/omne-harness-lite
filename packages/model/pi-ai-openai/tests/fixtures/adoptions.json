@@ -10,5 +10,7 @@
   {"name":"openai/gpt-5.6-terra","revision":"1","digest":"d759ddec3f9eeef365f59442a3e7b449be4ca647faaac74e0398cc55c1ba2348"},
   {"name":"openai/gpt-5.6-terra-pro","revision":"1","digest":"0f1462c8d2680bbbb84b68f66b647442932f19e24e258b8e9f5898fb651f7267"},
   {"name":"openai/gpt-5.6-luna","revision":"1","digest":"1d0c6d9017d18e08ce6b54a1e2e749d493ba128d079cf28b9ee09d2b65be3221"},
-  {"name":"openai/gpt-5.6-luna-pro","revision":"1","digest":"6ff6c4de092a101dc4e96ba53dd0932d582e34bdabe2b63560a45e2ea8a84346"}
+  {"name":"openai/gpt-5.6-luna-pro","revision":"1","digest":"6ff6c4de092a101dc4e96ba53dd0932d582e34bdabe2b63560a45e2ea8a84346"},
+  {"name":"openai/gpt-6.1-sol","revision":"1","digest":"512a8bcb968476e2790be7207732bf0047fcd1a1315abb141ef7d16fd0e88404"},
+  {"name":"openai/gpt-6.1-terra","revision":"1","digest":"f894db8afc97825197d9601455e4347d88f585b523993a3923fd888434ba9e61"}
 ]

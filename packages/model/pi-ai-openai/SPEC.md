@@ -36,10 +36,11 @@
    - 每次请求写 `store: false`；收场之后最多接受 2 帧尾帧。
 5. 参数：
    - `max-output-tokens` 受支持，上限 128000，写入 `max_tokens`，没有默认值；
-   - `reasoning-effort` 受支持，没有默认值。每个受支持的值原样写入 `reasoning.effort`，与封存件相同。每条记录支持 `low`、`medium`、`high` 与 `max`。`none` 在每条记录中为 `unsupported`：网关把 `none` 理解为关闭推理，而按[项目约定](../docs/architecture.md#厂商适配的内聚范围)，本包的记录不关闭推理。封存件中标准型号公布 `none`，Astra 的两个型号不公布 `none`；
+   - `reasoning-effort` 受支持，没有默认值。每个受支持的值原样写入 `reasoning.effort`，与封存件相同。每条记录支持 `low`、`medium`、`high` 与 `max`。`none` 在每条记录中为 `unsupported`：网关把 `none` 理解为关闭推理，而按[项目约定](../docs/architecture.md#厂商适配的内聚范围)，本包的记录不关闭推理。封存件中标准型号公布 `none`，Astra 的两个型号不公布 `none`；2026-11-03 的官方型号页中 GPT-6.1 Sol 也不公布 `none`。官方各型号另公布 `xhigh`，契约的推理强度没有这一档，所以记录不提供；
    - `temperature`、`top-p`、`stop`、`seed` 与两个 penalty 为 `unsupported`。封存件静默丢弃它们，现行行为是发出前明确失败。
 6. 回放：声明取默认值，即 `produces` 为 `openrouter/<路由名>`，`accepts` 只含它自己，`foreignThinking` 为 `omit`。格式 `produces` 与 `accepts` 都是 `openai-responses-v1`。外来工具轮次不能接续时，请求保持请求的推理强度。
 7. 档案数据：输入为文本与图片，输出为文本。窗口 1050000，输入 922000，输出 128000，三项的上游值为有限值，证据是记录中的 `profile.evidence`。单图 4194304 字节，上游值未知。
+8. 来源：GPT-6 与 GPT-5.6 的 12 条记录从封存件迁入，见 [provenance.json](provenance.json)。`openai/gpt-6.1-sol` 与 `openai/gpt-6.1-terra` 取自 2026-11-03 的 OpenAI 官方型号页与 OpenRouter 端点元数据，证据写在各自的 `profile.evidence`。官方视觉指南不列这两个型号，它们的图片规则取 GPT-6 Sol 与 Luna 的 `sol-luna-auto-proxy/1`，用量规则为 `openai-usage/1`。
 
 <a id="规则"></a>
 ### 规则
@@ -146,3 +147,9 @@
 - 真实路由的发送只经 model-host-local 的手动录制器验证。持续验证只回放录下的[pi-ai-transport 的回放件](../pi-ai-transport/tests/fixtures/README.md)，不发出真实请求。示例的实跑只在手动设置开关时有证据。
 - 夹具中没有余量为负的 usage，所以 `usage-inconsistent` 诊断只经直接调用验证。
 - 网关对 `max` 的接受只有一次经代理的手工确认，不在持续验证中。
+
+已知限制：
+
+- 6 条 Pro 记录（`openai/gpt-6-astra-pro`、`openai/gpt-6-sol-pro`、`openai/gpt-6-luna-pro`、`openai/gpt-5.6-sol-pro`、`openai/gpt-5.6-terra-pro`、`openai/gpt-5.6-luna-pro`）在 2026-11-03 的 OpenAI 官方型号页、全部型号页与价格页中都查不到，只在 OpenRouter 的公开型号列表中存在。这 6 条按 Reduce 裁定 R2-D125 保留，状态仍为 `current`。OpenRouter 上同样查不到官方来源的 `openai/gpt-6.1-sol-pro` 与 `openai/gpt-6.1-terra-pro` 不收。
+- `openai/gpt-6.1-terra` 的图片规则 `sol-luna-auto-proxy/1` 是推断。官方视觉指南不列这个型号，GPT-6 也没有 Terra 型号可以对照，所以记录取同代 Sol 与 Luna 的代理规则。记录的 `profile.evidence` 写明这一点。
+- 官方各型号公布推理强度 `xhigh`，契约的推理强度没有这一档，所以记录不提供。
