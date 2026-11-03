@@ -60,34 +60,37 @@ export const ScheduleInstructionSchema = scheduleUtf8TextSchema(65_536)
 export const ScheduleReasonSchema = scheduleCodePointTextSchema(1_024)
 export const ScheduleOperationKeySchema = scheduleUtf8TextSchema(128)
 
-// Reject objects with runtime serialization behavior before Zod copies their properties.
+// Validate without copying: z.json() drops literal __proto__ properties.
 function isJsonData(value: unknown, ancestors = new Set<object>()): boolean {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return true
   if (typeof value === 'number')
     return Number.isFinite(value) && (!Number.isInteger(value) || Number.isSafeInteger(value))
   if (typeof value !== 'object' || ancestors.has(value)) return false
   const prototype: unknown = Object.getPrototypeOf(value)
-  if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) return false
+  if (Array.isArray(value)) {
+    if (prototype !== Array.prototype || Object.keys(value).length !== value.length) return false
+  } else if (prototype !== Object.prototype && prototype !== null) return false
   if (Object.getOwnPropertySymbols(value).length !== 0) return false
   ancestors.add(value)
   const descriptors = Object.getOwnPropertyDescriptors(value)
-  const valid =
-    Object.entries(descriptors).every(([key, descriptor]) => {
-      if (Array.isArray(value) && key === 'length') return true
-      return (
-        descriptor.enumerable === true &&
-        'value' in descriptor &&
-        isJsonData(descriptor.value, ancestors)
-      )
-    }) &&
-    (!Array.isArray(value) || Object.keys(value).length === value.length)
+  const valid = Object.entries(descriptors).every(([key, descriptor]) => {
+    if (Array.isArray(value)) {
+      if (key === 'length') return true
+      if (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length) return false
+    }
+    return (
+      descriptor.enumerable === true &&
+      'value' in descriptor &&
+      isJsonData(descriptor.value, ancestors)
+    )
+  })
   ancestors.delete(value)
   return valid
 }
-export const ScheduleJsonValueSchema = z
-  .unknown()
-  .refine(value => isJsonData(value), 'Expected plain JSON data with finite safe numbers')
-  .pipe(z.json())
+export const ScheduleJsonValueSchema = z.custom<z.infer<ReturnType<typeof z.json>>>(
+  value => isJsonData(value),
+  'Expected plain JSON data with finite safe numbers',
+)
 export type ScheduleJsonValue = z.infer<typeof ScheduleJsonValueSchema>
 export type ScheduleId = z.infer<typeof ScheduleIdSchema>
 export type ScheduleOperationRef = z.infer<typeof ScheduleOperationRefSchema>
