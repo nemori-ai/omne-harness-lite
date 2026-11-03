@@ -469,16 +469,15 @@ describe('the history read translates the Session model view', () => {
   })
 
   // The Session model view numbers its rows from 1 and names the empty view by the bound "0", so a
-  // row or a cursor "0" has no history sequence, and a text that is not a canonical decimal has
-  // none either. The page is Session's, so a bad one is a defect of the translation: it is
+  // row "0" has no history sequence, and a text that is not a canonical decimal has none either. A
+  // Session cursor is opaque and is never decoded, but it names the position after the last row of
+  // its page, so a cursor on a page without rows names nothing. The page is Session's, so a bad one is a defect of the translation: it is
   // `unavailable` and it is logged at error level, never a quiet empty page or a made-up sequence.
   describe('a Session page that does not translate is a visible defect', () => {
     const rowZero = (page: Extract<ModelViewRead, { kind: 'page' }>): ModelViewRead => ({
       ...page,
       rows: page.rows.map((row, at) => (at === 0 ? { ...row, seq: '0' } : row)),
     })
-    const cursor = (next: string) => (page: Extract<ModelViewRead, { kind: 'page' }>) =>
-      ({ ...page, next }) as ModelViewRead
     it.each([
       {
         name: 'a row numbered 0',
@@ -494,14 +493,13 @@ describe('the history read translates the Session model view', () => {
         diagnostic: 'model view row 01 does not translate',
       },
       {
-        name: 'a next cursor of 0',
-        page: cursor('0'),
-        diagnostic: 'the model view cursor is not a history sequence',
-      },
-      {
-        name: 'a next cursor that is not a canonical decimal',
-        page: cursor('1.5'),
-        diagnostic: 'the model view cursor is not a history sequence',
+        name: 'a next cursor that follows no row',
+        page: (page: Extract<ModelViewRead, { kind: 'page' }>): ModelViewRead => ({
+          ...page,
+          rows: [],
+          next: 'after-nothing',
+        }),
+        diagnostic: 'the model view cursor follows no row',
       },
     ])('$name', async ({ page, diagnostic }) => {
       const w = await world()
@@ -755,10 +753,15 @@ describe('the read eligibility bridge and the narrow adoption source', () => {
 // --- SS-21 -----------------------------------------------------------------------------------------
 
 describe('SS-21: a page after the cursor costs the same at N = 10 and N = 100 rows', () => {
+  // The cursor is the one a reader holds from its previous read: the history had N - 2 rows, the
+  // reader read them all, and two rows were added since. The Session cursors are opaque, so the
+  // reader starts at the cursor it kept one row before the previous upper bound.
   async function tail(rows: number) {
     const w = await world()
     const { parts } = await w.borrow()
-    await w.remind(rows - 1)
+    await w.remind(rows - 3)
+    expect(await readAll(parts, w.access, await resolved(w, parts))).toHaveLength(rows - 2)
+    await w.remind(2, 'later')
     const ev = await resolved(w, parts)
     const calls = w.sessionCalls()
     const served = w.modelViewRows.length
@@ -778,11 +781,13 @@ describe('SS-21: a page after the cursor costs the same at N = 10 and N = 100 ro
     }
   }
 
-  it('reads one model view page holding only the rows after the cursor', async () => {
+  it('reads the rows after the cursor and one row before it, then the cursor for the next read', async () => {
     const small = await tail(10)
     const large = await tail(100)
-    expect(small.calls).toBe(1)
-    expect(large.calls).toBe(1)
+    // One page from the kept cursor (the row before the cursor and the two new rows), one page
+    // that asks Session for the cursor before the new upper bound.
+    expect(small.calls).toBe(2)
+    expect(large.calls).toBe(2)
     expect(small.rows).toBe(large.rows)
     expect(small.returned).toEqual(['8', '9'])
     expect(large.returned).toEqual(['98', '99'])
