@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:omne-harness:mcp-contract:endpoint-body",
+  "title": "MCP endpoint body",
+  "description": "The body of an MCP asset. The remote address, the credential and the connect timeout are settings, not body members. The parser of @omne-harness/mcp-contract decides validity; this schema documents the same rules.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "transport", "auth"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "transport": { "enum": ["stdio", "streamable-http"] },
+    "auth": { "enum": ["none", "static", "oauth"] },
+    "launch": { "$ref": "#/$defs/launch" }
+  },
+  "if": { "properties": { "transport": { "const": "stdio" } }, "required": ["transport"] },
+  "then": { "required": ["launch"] },
+  "else": { "not": { "required": ["launch"] } },
+  "$defs": {
+    "launch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "cwd": { "type": "string", "minLength": 1 },
+        "env": {
+          "description": "Variable names are unique.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/environment" }
+        },
+        "facilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "source"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "source": { "enum": ["setting", "credential"] }
+      }
+    }
+  }
+}
