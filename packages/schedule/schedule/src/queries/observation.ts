@@ -138,6 +138,7 @@ export class QueryObservation {
     return snapshot
   }
   async list(access: ReadAccess, request: ScheduleListRequest) {
+    freeze(request)
     const page = await this.read(ScheduleListPageSchema, () =>
       this.dependencies.store.listSchedules({ access, request }),
     )
@@ -191,6 +192,7 @@ export class QueryObservation {
     observationRevision: string,
     request: ScheduleExecutionsRequest,
   ) {
+    freeze(request)
     const page = await this.read(ScheduleExecutionsPageSchema, () =>
       this.dependencies.history.read({ access, observationRevision, request }),
     )
@@ -214,6 +216,7 @@ export class QueryObservation {
     return page
   }
   async predict(input: SchedulePredictionInput) {
+    freeze(input)
     const result = this.parse(
       SchedulePreviewResultSchema,
       await this.call(() => this.dependencies.prediction.preview(this.context, input)),
