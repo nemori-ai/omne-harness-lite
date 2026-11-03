@@ -46,8 +46,6 @@ export const SESSION_INPUT_HANDLER = 'session.input'
 export const SESSION_EXECUTION_HANDLER = 'session.execution'
 /** The read handlers of the execution record participant. */
 export const EXECUTION_RECORD_HANDLERS = {
-  /** The publication count and the whole opaque state of the records of one session. */
-  state: 'execution-record.state',
   /**
    * The publication count and the records of one session page by page: the whole state of a writer
    * that does not split it, and the named parts (`ExecutionRecordPartsRead`).
@@ -350,18 +348,6 @@ export function decodeExecutionRecordReply(reply: RecordedReply): ExecutionRecor
     case 'failed':
       return { kind: 'failed', diagnostic: `${reply.category}: ${reply.diagnostic}` }
   }
-}
-
-/** The input of `execution-record.state` and the output it gives. */
-export type ExecutionRecordStateRead = Readonly<{ tenant: string; session: string }>
-export type ExecutionRecordState = Readonly<{ published: string; state: JsonValue | null }>
-
-export function decodeExecutionRecordState(output: JsonValue): ExecutionRecordState | null {
-  const value = recordOf(output)
-  const published = value?.['published']
-  return value === null || typeof published !== 'string'
-    ? null
-    : { published, state: value['state'] ?? null }
 }
 
 /**

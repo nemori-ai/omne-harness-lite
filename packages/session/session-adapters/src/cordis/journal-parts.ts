@@ -123,6 +123,108 @@ export type PartPlan = Readonly<{
   commit(): void
 }>
 
+/** What one planning of a publication has decided so far; nothing in `layout` changes before `commit`. */
+type Staging = Readonly<{
+  layout: PartLayout
+  /** The new place of a record, or null for a record that goes. */
+  staged: Map<string, Place | null>
+  /** The parts to write. */
+  dirty: Set<string>
+  /** The next order of each member. */
+  counters: Map<string, number>
+  writer: string | null
+}>
+
+function nextOrder(staging: Staging, member: string): number {
+  const order = staging.counters.get(member) ?? 0
+  staging.counters.set(member, order + 1)
+  return order
+}
+
+/** Stages the records of one member that are new, changed, moved to the end of the map, or gone. */
+function stageMember(staging: Staging, member: Member, before: Entries, after: Entries): void {
+  const { layout, staged, dirty, writer } = staging
+  let last = -1
+  for (const [key, value] of after) {
+    const id = idOf(member.name, key)
+    const place = layout.places.get(id)
+    if (place === undefined) {
+      const part = partOf(member, key, value, writer)
+      const order = nextOrder(staging, member.name)
+      staged.set(id, { part, order, key })
+      dirty.add(part)
+      last = order
+      continue
+    }
+    if (before.get(key) !== value) dirty.add(place.part)
+    if (place.order < last) {
+      // The record moved to the end of its map (deleted and set again): it takes a new order.
+      const order = nextOrder(staging, member.name)
+      staged.set(id, { ...place, order })
+      dirty.add(place.part)
+      last = order
+      continue
+    }
+    last = place.order
+  }
+  for (const key of before.keys()) {
+    if (after.has(key)) continue
+    const id = idOf(member.name, key)
+    const place = layout.places.get(id)
+    if (place === undefined) continue
+    staged.set(id, null)
+    dirty.add(place.part)
+  }
+}
+
+/** The records of `part` once the staged places are applied. */
+function membersOf({ layout, staged }: Staging, part: string): string[] {
+  const ids = new Set(layout.parts.get(part) ?? [])
+  for (const [id, place] of staged) {
+    // A staged record that left this part: only a deletion leaves one (a record never changes part).
+    if (place === null || place.part !== part) ids.delete(id)
+    else ids.add(id)
+  }
+  return [...ids]
+}
+
+/** The dirty parts in name order, each encoded from the next values; null state: the part is empty. */
+function encodeParts(staging: Staging, values: ReadonlyMap<string, Entries>) {
+  return [...staging.dirty].sort().map(part => {
+    const ids = membersOf(staging, part)
+    if (ids.length === 0) return { part, state: null }
+    const body: Record<string, JsonValue[]> = {}
+    for (const id of ids) {
+      const place = staging.staged.get(id) ?? staging.layout.places.get(id)
+      if (place === undefined || place === null) continue
+      const name = memberOf(id)
+      const value = values.get(name)?.get(place.key)
+      ;(body[name] ??= []).push([place.order, encodeState(place.key), encodeState(value)])
+    }
+    for (const list of Object.values(body))
+      list.sort((a, b) => ((a as number[])[0] ?? 0) - ((b as number[])[0] ?? 0))
+    return { part, state: body as JsonValue }
+  })
+}
+
+/** Applies the staged places to the layout: the publication committed. */
+function applyStaged({ layout, staged, counters }: Staging): void {
+  for (const [id, place] of staged) {
+    const prior = layout.places.get(id)
+    if (prior !== undefined) layout.parts.get(prior.part)?.delete(id)
+    if (place === null) {
+      layout.places.delete(id)
+      continue
+    }
+    layout.places.set(id, place)
+    let set = layout.parts.get(place.part)
+    if (set === undefined) layout.parts.set(place.part, (set = new Set()))
+    set.add(id)
+  }
+  for (const [part, set] of layout.parts) if (set.size === 0) layout.parts.delete(part)
+  for (const [name, order] of counters) layout.next.set(name, order)
+}
+
 /**
  * The parts that changed between the stored state and the next one, encoded. `writer` is the
  * execution of the write: a new record that names no execution goes to its part, and its own parts
@@ -134,98 +236,23 @@ export function planParts(
   next: DurableJournalState,
   writer: string | null,
 ): PartPlan {
-  const staged = new Map<string, Place | null>()
-  const dirty = new Set<string>()
-  if (writer !== null) {
+  const staging: Staging = {
+    layout,
+    staged: new Map(),
+    dirty: new Set(),
+    counters: new Map(layout.next),
+    writer,
+  }
+  if (writer !== null)
     for (const part of [recordsPart(writer), operationsPart(writer)])
-      if (layout.parts.has(part)) dirty.add(part)
-  }
-  const counters = new Map(layout.next)
-  const nextOrder = (member: string): number => {
-    const order = counters.get(member) ?? 0
-    counters.set(member, order + 1)
-    return order
-  }
+      if (layout.parts.has(part)) staging.dirty.add(part)
   const values = new Map<string, Entries>()
   for (const member of MEMBERS) {
     const after = member.read(next)
-    const before = member.read(stored)
     values.set(member.name, after)
-    let last = -1
-    for (const [key, value] of after) {
-      const id = idOf(member.name, key)
-      const place = layout.places.get(id)
-      if (place === undefined) {
-        const part = partOf(member, key, value, writer)
-        const order = nextOrder(member.name)
-        staged.set(id, { part, order, key })
-        dirty.add(part)
-        last = order
-        continue
-      }
-      if (before.get(key) !== value) dirty.add(place.part)
-      if (place.order < last) {
-        // The record moved to the end of its map (deleted and set again): it takes a new order.
-        const order = nextOrder(member.name)
-        staged.set(id, { ...place, order })
-        dirty.add(place.part)
-        last = order
-        continue
-      }
-      last = place.order
-    }
-    for (const key of before.keys()) {
-      if (after.has(key)) continue
-      const id = idOf(member.name, key)
-      const place = layout.places.get(id)
-      if (place === undefined) continue
-      staged.set(id, null)
-      dirty.add(place.part)
-    }
+    stageMember(staging, member, member.read(stored), after)
   }
-  const membersOf = (part: string): string[] => {
-    const ids = new Set(layout.parts.get(part) ?? [])
-    for (const [id, place] of staged) {
-      if (place === null || place.part !== part) ids.delete(id)
-      else ids.add(id)
-    }
-    // A staged record that left this part: only a deletion leaves one (a record never changes part).
-    return [...ids]
-  }
-  const parts = [...dirty].sort().map(part => {
-    const ids = membersOf(part)
-    if (ids.length === 0) return { part, state: null }
-    const body: Record<string, JsonValue[]> = {}
-    for (const id of ids) {
-      const place = staged.get(id) ?? layout.places.get(id)
-      if (place === undefined || place === null) continue
-      const name = memberOf(id)
-      const value = values.get(name)?.get(place.key)
-      ;(body[name] ??= []).push([place.order, encodeState(place.key), encodeState(value)])
-    }
-    for (const list of Object.values(body))
-      list.sort((a, b) => ((a as number[])[0] ?? 0) - ((b as number[])[0] ?? 0))
-    return { part, state: body as JsonValue }
-  })
-  return {
-    parts,
-    commit() {
-      for (const [id, place] of staged) {
-        const prior = layout.places.get(id)
-        if (prior !== undefined) layout.parts.get(prior.part)?.delete(id)
-        if (place === null) {
-          layout.places.delete(id)
-          continue
-        }
-        layout.places.set(id, place)
-        let set = layout.parts.get(place.part)
-        if (set === undefined) layout.parts.set(place.part, (set = new Set()))
-        set.add(id)
-      }
-      for (const [part, set] of layout.parts) if (set.size === 0) layout.parts.delete(part)
-      for (const [name, order] of counters) layout.next.set(name, order)
-    },
-  }
+  return { parts: encodeParts(staging, values), commit: () => applyStaged(staging) }
 }
 
 /**

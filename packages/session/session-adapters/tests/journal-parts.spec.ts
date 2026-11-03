@@ -163,6 +163,19 @@ describe('a later publication', () => {
     expect(form(s.rebuild())).toEqual(form(next))
   })
 
+  it('a record deleted by one publication and set again by a later one is stored again', () => {
+    const s = store()
+    s.publish(twoExecutions(), null)
+    const gone = draft(s.stored)
+    gone.receiving.materials.delete('material-1')
+    s.publish(gone, null)
+    expect(s.parts.has(SESSION_PART)).toBe(false)
+    const back = draft(s.stored)
+    back.receiving.materials.set('material-1', { content: 'again' } as never)
+    expect(s.publish(back, null)).toEqual([SESSION_PART])
+    expect(form(s.rebuild())).toEqual(form(back))
+  })
+
   it('a record deleted and set again moves to the end of its map, in the rebuilt copy too', () => {
     const s = store()
     s.publish(twoExecutions(), null)

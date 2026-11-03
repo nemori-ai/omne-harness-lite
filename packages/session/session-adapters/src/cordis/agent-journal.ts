@@ -528,7 +528,12 @@ export type JournalStateSource = Readonly<{
   tenantDomainLookup: TenantDomainLookup
 }>
 
-/** The pages of `execution-record.parts` a reader follows before it gives up on a moving count. */
+/**
+ * How many times a read of the parts starts again when its pages read different publication counts
+ * (a writer committed between two pages). Three is the same fixed bound as `SENDS` of the AD-02
+ * plugin (`journal-interpretation.ts`): enough to ride over a passing writer, not a policy knob. After the last try
+ * the read answers `unavailable` ("kept changing"); it never gives a state mixed of two counts.
+ */
 const PART_READ_ATTEMPTS = 3
 
 type PartsRead =
@@ -1140,19 +1145,38 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     digest: 'none',
   })
 
-  /** Brings the copy of `book` to the durable records of its session. */
-  async function sync(book: Book<P>, domain: DomainRef): Promise<Outcome<Copy<P>, Failure>> {
-    const rootOutput = await read(domain, SESSION_HISTORY_ROOT_HANDLER, SESSION_PROTOCOL, {
+  /** The common root of the session in one read, or null when it is not readable. */
+  async function readRoot(book: Book<P>, domain: DomainRef) {
+    const output = await read(domain, SESSION_HISTORY_ROOT_HANDLER, SESSION_PROTOCOL, {
       tenant: book.tenantText,
       session: book.session,
     })
-    const root = rootOutput === null ? null : decodeSessionHistoryRoot(rootOutput)
+    return output === null ? null : decodeSessionHistoryRoot(output)
+  }
+
+  /** The copy of `book` as the parts read make it: rebuilt, or merged into the copy of an earlier count. */
+  function copyOf(
+    book: Book<P>,
+    base: Copy<P> | null,
+    parts: readonly Readonly<{ part: string; state: JsonValue }>[],
+  ): Copy<P> {
+    return build(
+      book,
+      base === null
+        ? rebuildParts(parts)
+        : mergeParts({ state: base.stored, layout: base.layout }, parts),
+    )
+  }
+
+  /** Brings the copy of `book` to the durable records of its session. */
+  async function sync(book: Book<P>, domain: DomainRef): Promise<Outcome<Copy<P>, Failure>> {
+    const root = await readRoot(book, domain)
     if (root === null) return fail(unavailable('the common root of the session is not readable'))
     const excluded = await settleHeld(book, domain)
     if (!excluded && book.copy !== null && book.published === root.published)
       return succeed(book.copy)
     // A copy of an earlier count reads only the parts written since; otherwise every part.
-    const base = !excluded && book.copy !== null && book.published !== null ? book.copy : null
+    const base = !excluded && book.published !== null ? book.copy : null
     const parts = await readParts(
       input => read(domain, EXECUTION_RECORD_HANDLERS.parts, EXECUTION_RECORD_PROTOCOL, input),
       { tenant: book.tenantText, session: book.session },
@@ -1161,12 +1185,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     )
     if (parts.kind === 'unavailable') return fail(unavailable(parts.diagnostic))
     try {
-      book.copy = build(
-        book,
-        base === null
-          ? rebuildParts(parts.parts)
-          : mergeParts({ state: base.stored, layout: base.layout }, parts.parts),
-      )
+      book.copy = copyOf(book, base, parts.parts)
     } catch (error) {
       book.copy = null
       return fail(unavailable(`the Agent records do not decode: ${String(error)}`))
