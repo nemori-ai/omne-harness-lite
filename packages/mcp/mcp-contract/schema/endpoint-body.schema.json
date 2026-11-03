@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:omne-harness:mcp-contract:endpoint-body",
+  "$id": "urn:omne-harness:mcp-contract:endpoint-body:1",
   "title": "MCP endpoint body",
   "description": "The body of an MCP asset. The remote address, the credential and the connect timeout are settings, not body members. The parser of @omne-harness/mcp-contract decides validity; this schema documents the same rules.",
   "type": "object",

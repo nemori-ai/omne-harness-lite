@@ -1,27 +1,57 @@
 # @omne-harness/mcp-contract 行为规格
 
-状态：候选契约，尚未取得技术接受。本页封闭 [MCP 能力组工程设计](../docs/architecture.md)列给本成员的未定项。公开形状与运行时校验归 `src/` 的公开定义，本页只写类型不能完整表达的行为。本成员只有纯函数、类型、类别端口与测试设施，没有服务实现。服务实现、`CatalogStore` 的生产实现、传输实现和真实组合都不在本成员。
+状态：候选契约，尚未取得技术接受。本页封闭 [MCP 能力组工程设计](../docs/architecture.md)列给本成员的未定项。公开类型是形状的唯一来源，本页只写类型不能表达的行为：每一项在什么条件下出现，以及必须的结果。本成员只有纯函数、类型、类别端口与测试设施。服务实现、`CatalogStore` 的生产实现、传输实现和真实组合都不在本成员。
 
 ## 范围与依据
 
 本成员是 MCP 组的纯契约成员。它用 MCP 自己的词对外提供值、结局、失败、五个应用服务的接口、纯函数和接入点正文的类别端口。它不点名任何调用方，不依赖 Cordis，不依赖任何 MCP SDK。官方 SDK 的类型不进入本成员。
 
-| 依据                                                                                | 修订                         | 本页采用的范围                                                                                           |
-| ----------------------------------------------------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------- |
-| [组工程设计](../docs/architecture.md)                                               | `21175c9f9`                  | 边界、协议基线、模型、值对象、MCP 连接、动作清单、设置声明、端口、应用服务、调用结果、内容交付、失败种类 |
-| W1 MCP 线实施规格「已定事项」1–19                                                   | 2026-11-03，负责人会话内裁定 | 入口、类别名、正文形状、变量绑定、上界与配置、`classifyOutcome` 的注入校验、不可信值与服务接口的写法     |
-| [资产成员 SPEC](../../assets/assets/SPEC.md#accepted-public-types)                  | `21175c9f9`                  | `BodyContract` 的字段与判断规则                                                                          |
-| [MCP 协议修订 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28) | 2026-07-28                   | 结果形状、`resultType`、多轮输入、内容类型、JSON-RPC 错误码、任务扩展的任务句柄                          |
+| 依据                                                                                                 | 修订                       | 本页采用的范围                                                                                           |
+| ---------------------------------------------------------------------------------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [组工程设计](../docs/architecture.md)                                                                | `21175c9f9`                | 边界、协议基线、模型、值对象、MCP 连接、动作清单、设置声明、端口、应用服务、调用结果、内容交付、失败种类 |
+| 负责人 2026-11-03 裁定                                                                               | 见[负责人裁定](#decisions) | 本页每一条与组页不同或组页未定的决定                                                                     |
+| [资产成员 SPEC](../../assets/assets/SPEC.md#accepted-public-types)                                   | `21175c9f9`                | `BodyContract` 的字段与判断规则                                                                          |
+| [MCP 协议修订 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28)                  | 2026-07-28                 | 结果形状、`resultType`、多轮输入、内容类型、JSON-RPC 错误码、授权                                        |
+| [MCP 任务扩展](https://modelcontextprotocol.github.io/ext-tasks/specification/2026-07-28/tasks.html) | 2026-07-28                 | 任务句柄、`tasks/get`、`tasks/update`、`tasks/cancel`                                                    |
+
+<a id="decisions"></a>
+
+### 负责人裁定
+
+负责人在 2026-11-03 作出下列决定。本页的条款兑现它们。
+
+1. 三个入口 `.`、`./provider`、`./testing`，各有 `source`、`types`、`import`。见[三个入口](#entries)。
+2. 接入点正文登记的类别是 `mcp`。见 E5。
+3. 正文的形状、名字词法、拒绝原因集合与 schema 文件。见 E1–E6。
+4. `env` 每项写变量名与来源 `setting` 或 `credential`，正文不写值。见 E3。
+5. 设置声明项：连接目标、凭据、连接超时三项固定设置，加上每个 `setting` 来源变量的一项。逐动作权限项不经类别端口产出。见 E5、C8。
+6. 对端账号只由 `peerAccountOf` 得出，`CredentialUse` 只答句柄。见 K1。
+7. `AdoptionView` 有 `endpoints` 与 `endpoint` 两个操作。见 AV。
+8. `McpTransport` 与 `McpTransportFactory` 在 `./provider`。见 T。
+9. `mergeListing` 只按清单修订做条件判断，清单带上取得前读到的修订，输入只能是 `completeListing` 构造的清单。见 C4–C6。
+10. 「未发出」、拒绝与连接失败的原因是封闭集合。见 R1–R6。
+11. 不可用原因是封闭集合。见 R3。
+12. `CallOutcome` 有六种，`unknown` 有三种子因。是否建任务由对端逐次决定，请求不带方式。见 O1–O6。
+13. 授权发现的四个字段与取值来源。见 R4。
+14. 凭据用途与按用途分型的句柄。见 CU。
+15. `McpConfig` 的四个必填字段；连接超时缺值时用请求里的 `connectBound`。见 S3、S4。
+16. `classifyOutcome` 接收注入的输出校验函数。见 O3。
+17. `toContentBlocks` 的转换规则。见 D1–D5。
+18. 哪些对端内容用 `Untrusted` 包住。见 V4。
+19. 五个服务只写接口与结果值，`ActionInvoker` 是 `ActionCalls` 与 `TaskControl` 的交集。见 S。
+20. 配值可以缺失或不合法，两者分别报告 `config-missing` 与 `config-invalid`。见 R1、S4。
+21. 任务的多轮输入经 `provideTaskInput` 交回；任务操作只对发起者开放。见 S2、T6。
+22. 明文 `http` 只用于回环主机。见 V3。
 
 <a id="entries"></a>
 
 ### 三个入口
 
-| 入口         | 给谁                   | 内容                                                                                       |
-| ------------ | ---------------------- | ------------------------------------------------------------------------------------------ |
-| `.`          | 调用方与实现方         | 值、品牌守卫、结局、失败、五个服务接口与结果值、纯函数、`mcpEndpointBodyContract()`        |
-| `./provider` | 端口的实现方           | 五个需求端口、`McpTransport`、`McpTransportFactory` 及其答复类型。只有类型，没有运行时导出 |
-| `./testing`  | 端口的实现方，用于自测 | 五个需求端口的符合性套件、各自的内存替身、`classifyOutcomeCases`、`mergeListingCases`      |
+| 入口         | 给谁                   | 内容                                                                                                 |
+| ------------ | ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| `.`          | 调用方与实现方         | 值、品牌守卫、结局、失败、五个服务接口与结果值、纯函数、`mcpEndpointBodyContract()`                  |
+| `./provider` | 端口的实现方           | 五个需求端口、`McpTransport`、`McpTransportFactory` 及其答复类型。只有类型，不重复根入口已导出的类型 |
+| `./testing`  | 端口的实现方，用于自测 | 五个需求端口的符合性套件、各自的内存替身、`classifyOutcomeCases`、`mergeListingCases`                |
 
 公开根不导入 `./testing`。产品源码不导入 `./testing`。
 
@@ -29,24 +59,41 @@
 
 ### 本页封闭的组页未定项
 
-| 组页位置       | 未定项                                               | 本页条款                                         |
-| -------------- | ---------------------------------------------------- | ------------------------------------------------ |
-| 第 170 行      | `StdioLaunch` 的变量绑定、工作目录的写法与缺省       | [E3](#endpoint)、[E4](#endpoint)                 |
-| 第 181 行      | `degraded` 的原因集合                                | [S7](#services)                                  |
-| 第 318、330 行 | 连接超时缺值时的上界与失败码；各设置项与权限项的值域 | [E5](#endpoint)、[C8](#catalog)、[S3](#services) |
-| 第 343 行      | 进程句柄的精确形状                                   | [PL](#port-landing)                              |
-| 第 355 行      | `UseEligibility` 拒绝原因的完整集合                  | [UE](#port-eligibility)                          |
-| 第 374、599 行 | 授权发现的三项字段；`CredentialUse` 的用途值域       | [R4](#refusals)、[CU](#port-credentials)         |
-| 第 401 行      | 不可用原因的封闭集合                                 | [R3](#refusals)                                  |
-| 第 430 行      | 「未发出」原因的封闭集合                             | [R2](#refusals)                                  |
-| 第 465 行      | 控制操作在资格不是 `granted` 时的失败码              | [R1](#refusals)                                  |
-| 第 525 行      | 精确的失败码                                         | [失败码总表](#failure-codes)                     |
-| 第 600 行      | 变量名绑定到非秘密配值还是凭据句柄，以及写法         | [E3](#endpoint)                                  |
-| 第 602 行      | 对端日志通知里的秘密                                 | [S6](#services)                                  |
-| 第 603 行      | 分页数、清单大小与 `instructions` 的上界             | [S3](#services)、[C2](#catalog)                  |
-| 第 604 行      | 部分准备与配置错误的报告形状，含连接超时缺值         | [R2](#refusals)、[S4](#services)                 |
+| 组页位置       | 未定项                                                 | 本页条款                                          |
+| -------------- | ------------------------------------------------------ | ------------------------------------------------- |
+| 第 170 行      | `StdioLaunch` 的变量绑定、工作目录的写法与缺省         | [E3、E4](#endpoint)                               |
+| 第 181 行      | `degraded` 的原因集合                                  | [S7](#services)                                   |
+| 第 318 行      | 连接超时缺值时的上界与失败码                           | [S4](#services)                                   |
+| 第 330 行      | 各设置项与权限项的值域                                 | [E5](#endpoint)、[C8](#catalog)                   |
+| 第 343 行      | 进程句柄的精确形状                                     | [PL](#port-landing)                               |
+| 第 355 行      | `UseEligibility` 拒绝原因的完整集合                    | [UE](#port-eligibility)                           |
+| 第 374、599 行 | 授权发现的四个字段；`CredentialUse` 的用途值域         | [R4](#refusals)、[CU](#port-credentials)          |
+| 第 401 行      | 不可用原因的封闭集合                                   | [R3](#refusals)                                   |
+| 第 430 行      | 「未发出」原因的封闭集合                               | [R2](#refusals)                                   |
+| 第 445 行      | 任务处于 `input_required` 时怎样取得输入请求并带回答复 | [S2](#services)、[T6](#port-transport)            |
+| 第 465 行      | 控制操作在资格不是 `granted` 时的失败码                | [R1](#refusals)                                   |
+| 第 525 行      | 精确的失败码                                           | [失败码索引](#failure-codes)                      |
+| 第 600 行      | 变量名绑定到非秘密配值还是凭据句柄，以及写法           | [E3](#endpoint)                                   |
+| 第 602 行      | 对端日志通知里的秘密                                   | [S6](#services)                                   |
+| 第 603 行      | 分页数、清单大小与 `instructions` 的上界               | [C1](#catalog)、[S3](#services)                   |
+| 第 604 行      | 部分准备与配置错误的报告形状                           | [R1](#refusals)、[S4](#services)、[S7](#services) |
 
-本页不封闭下列两项，见[未封闭项](#open-items)：第 601 行（`deriveDeclarations` 取得清单的上下文），第 445 行（任务处于 `input_required` 时怎样取得输入请求）。
+本页不封闭组页第 601 行（`deriveDeclarations` 取得清单的上下文），见[未封闭项](#open-items)。
+
+<a id="deviations"></a>
+
+### 与组页的差异
+
+下列差异都已由负责人在 2026-11-03 裁定接受，组页随后写回。
+
+| 组页位置         | 组页的写法                                           | 本页的写法                               | 裁定                                     |
+| ---------------- | ---------------------------------------------------- | ---------------------------------------- | ---------------------------------------- |
+| 第 171 行        | 对端账号随凭据句柄交回                               | 对端账号只由 `peerAccountOf` 得出（K1）  | 接受，与组页第 342 行一致                |
+| 第 411–412 行    | 调用带方式 `mode`，方式不支持时「未发出」            | 请求不带方式，是否建任务由对端决定（O2） | 接受，2026-07-28 的任务扩展如此规定      |
+| 第 442 行        | `taskResult` 答结局、尚未结束、已过期或 `unknown`    | 另有 `cancelled`（S2）                   | 接受，任务扩展有「已取消、无结果」的终态 |
+| 第 488 行        | `inputRequired` 带 `inputRequests` 与 `requestState` | 两项各自可选，至少有一项（O2）           | 接受，协议如此规定                       |
+| 「调用结果」一节 | 未知的 `resultType` 未定                             | 答 `protocolError`（O5）                 | 接受                                     |
+| 「对外接口」一节 | `CredentialUse` 答一种句柄                           | 按用途分型（CU1）                        | 接受                                     |
 
 ## 结果与不变量
 
@@ -54,39 +101,45 @@
 
 ### 值与不可信内容
 
-- **V1** 每个品牌只由公开根里的一个守卫授予，例如 `isEndpointName`、`isMillis`、`isConnectionTarget`。守卫不修补输入。不透明的文本品牌（持有、采用修订、凭据配值、动作名、关联键、请求状态、任务号、协议版本）接受任何非空文本，原样保存，只比较相等。
-- **V2** `Millis` 是正的安全整数。`Generation` 是非负的安全整数。`CatalogRevision` 是正的安全整数，第一次采用的修订是 1。`DefinitionDigest` 是 `sha256:` 加 64 位小写十六进制。
-- **V3** `ConnectionTarget` 只做句法检查：小写 `http` 或 `https`，绝对地址，有主机，没有 fragment，没有 userinfo，整串没有空白、控制字符或反斜杠。不合法时守卫答否，不修补后接收。句法检查不判定对端可信，也不阻止秘密出现在地址里。
-- **V4** 对端自报的内容只经 `Untrusted<T>` 交出：`serverInfo`、`instructions`、动作定义的 annotations、内容项的 annotations、进度与日志通知、授权发现里的受保护资源元数据。调用方读这些值必须经 `untrusted` 字段，类型系统不把它们当作可信值。它们不是身份或授权的依据。
+- **V1** 每个品牌只由公开根里的一个守卫授予，例如 `isEndpointName`、`isMillis`、`isConnectionTarget`。守卫不修补输入。持有、采用修订、凭据配值、动作名、关联键、请求状态、任务号、协议版本这八个品牌只要求非空文本：它们按名字区分含义不同的值，不检查内容。这些值原样保存，只比较相等。
+- **V2** `Millis` 是正的安全整数。`Generation` 是非负的安全整数。`CatalogRevision` 是正的安全整数，第一次采用的修订是 1。`DefinitionDigest` 与 `InstructionsDigest` 是 `sha256:` 加 64 位小写十六进制。
+- **V3** `ConnectionTarget` 只做句法检查：小写 `https`，或者主机是回环主机（`localhost`、`127.0.0.1`、`::1`）时的小写 `http`；绝对地址；有主机；没有 fragment；没有 userinfo；整串没有空白、控制字符或反斜杠。其他明文 `http` 地址不合法。不合法时守卫答否，不修补后接收。句法检查不判定对端可信，也不阻止秘密出现在地址里。
+- **V4** 下列对端内容用 `Untrusted<T>` 包住：`serverInfo`、`instructions`、动作定义的 annotations、内容项的 annotations、进度与日志通知、授权发现里的受保护资源元数据、任务报告里的 `inputRequests`。读这些值必须经 `untrusted` 字段。其余对端内容原样交出，同样不是身份或授权的依据，例如授权发现的 `issuers` 与 `scopes`、`inputRequired` 结局的 `inputRequests`、动作定义里的 title、description、icons 与 `_meta`、`fault` 的 `message` 与 `data`、内容与结构化内容。
 
 <a id="endpoint"></a>
 
 ### 接入点正文
 
-- **E1** `parseEndpointBody(body, capabilityName?)` 只接受 `@omne-harness/json-text` 的 JSON 树。正文是对象，成员只有 `name`、`transport`、`auth`、`launch`。任何其他输入答 `malformed`，不抛出。
-- **E2** 拒绝原因是封闭集合，按下列顺序判定，第一个成立的原因就是答复：
-  1. `malformed`：结构不合法。包括未知成员、`name` 不合词法（`^[a-z0-9]+(?:-[a-z0-9]+)*$`，1–64 个字符）、`transport` 或 `auth` 不是文本、`launch` 内部不合法。
+- **E1** `parseEndpointBody(body, capabilityName?)` 只接受 `@omne-harness/json-text` 的 JSON 树。正文是对象，成员只有 `name`、`transport`、`auth`、`launch`。它不抛出。
+- **E2** 拒绝原因按下列顺序判定，第一个成立的原因就是答复。先报结构，再报名字，最后报组合，这个顺序让同一个正文总得到同一个原因：
+  1. `malformed`：输入不是 JSON 树，或结构不合法。结构不合法包括未知成员、`name` 不合词法（`^[a-z0-9]+(?:-[a-z0-9]+)*$`，1–64 个字符）、`transport` 或 `auth` 不是文本、`launch` 内部不合法。
   2. `name-mismatch`：给出了能力名，且 `name` 与它不同。没有给出能力名时不比较。
   3. `transport-unknown`：`transport` 不是 `stdio` 或 `streamable-http`。
   4. `auth-unknown`：`auth` 不是 `none`、`static` 或 `oauth`。
-  5. `launch-missing`：`stdio` 没有 `launch`。`launch-unexpected`：`streamable-http` 带了 `launch`。
-- **E3** `launch` 的成员是 `command`（必需，非空）、`args`、`cwd`、`env`、`facilities`。省略的列表读作空列表。`env` 每项只有 `name` 与 `source`，正文不写值。`name` 是环境变量名（`^[A-Za-z_][A-Za-z0-9_]*$`），同一正文里不重复。`source` 是 `setting` 或 `credential`：
+  5. `malformed`：组合不合法。`stdio` 配 `oauth` 不合法，因为授权规范只用于 HTTP。`auth` 是 `none` 而 `env` 里有 `credential` 来源的变量也不合法。
+  6. `launch-missing`：`stdio` 没有 `launch`。`launch-unexpected`：`streamable-http` 带了 `launch`。
+- **E3** `launch` 的成员是 `command`（必需，非空）、`args`、`cwd`、`env`、`facilities`。省略的列表读作空列表。`env` 每项只有 `name` 与 `source`，正文不写值。`name` 是环境变量名（`^[A-Za-z_][A-Za-z0-9_]*$`），同一正文里不重复。`source` 的含义如下：
   - `setting`：取 `AdoptionView` 在 `processEnv` 里交来的同名非秘密配值。
-  - `credential`：起进程时由凭据句柄注入。秘密值不经过 MCP。
-    正文没有列出的变量不隐式补入。命令是一个程序，不经 shell 解释。参数原样传递，不插值，不展开。`facilities` 的项非空，不重复。
+  - `credential`：起进程时由进程凭据句柄注入。秘密值不经过 MCP。几个 `credential` 变量共用同一份凭据配值，各自注入什么由 `CredentialUse` 与 `ProcessLanding` 两个实现方约定。
+
+  正文没有列出的变量不隐式补入。命令是一个程序，不经 shell 解释。参数原样传递，不插值，不展开。`facilities` 的项合词法（`^[a-z][a-z0-9-]{0,31}$`），不重复。
+
 - **E4** `cwd` 是非空文本，原样交给 `ProcessLanding`，由落点解释。省略 `cwd` 时由落点决定工作目录。MCP 不选落点，所以不给缺省。
-- **E5** `mcpEndpointBodyContract()` 登记类别 `mcp`。它的 `judge`、`deriveDeclarations`、`references` 只接受 `readBodyText` 的读取结果，其他输入答 `incomplete-reference`，这是资产契约的规则。`judge` 的拒绝原因与 E2 相同。`deriveDeclarations` 按下列规则产出固定设置的声明项，次序固定：
-  - `setting:placement-identity:target`：只对 `streamable-http`。值域是 `ConnectionTarget`。
-  - `setting:placement-identity:credential`：只在 `auth` 不是 `none` 时。值域是 `CredentialBinding`，没有缺省值。
-  - `setting:preference:connect-timeout`：总是产出。值域是 `Millis`，没有缺省值。
-    判断失败时 `deriveDeclarations` 与 `references` 抛出 `TypeError`，错误文本带拒绝原因。`references` 对合法正文答空列表：接入点不引用其他能力。逐动作权限项不经类别端口产出，见 [C8](#catalog)。
-- **E6** `launchesLocalCommand(definition)` 对 `stdio` 答真，对 `streamable-http` 答假。加载正文时就能回答。`schema/endpoint-body.schema.json` 是同一规则的说明文档，正文是否合法由 E1–E2 决定。
+- **E5** `mcpEndpointBodyContract()` 登记类别 `mcp`。它的 `judge`、`deriveDeclarations`、`references` 只接受 `readBodyText` 的读取结果，其他输入答 `incomplete-reference`，这是资产契约的规则。`judge` 的拒绝原因与 E2 相同。`deriveDeclarations` 按下列次序产出设置声明项：
+  1. `setting:placement-identity:target`：只对 `streamable-http`。值域是 `ConnectionTarget`。
+  2. `setting:placement-identity:credential`：只在 `auth` 不是 `none` 时。值域是 `CredentialBinding`，没有缺省值。
+  3. `setting:placement-identity:env.<NAME>`：每个 `setting` 来源的变量一项，按正文次序。值域是文本，没有缺省值。
+  4. `setting:preference:connect-timeout`：总是产出。值域是 `Millis`，没有缺省值。
+
+  判断失败时 `deriveDeclarations` 与 `references` 抛出 `TypeError`，错误文本带拒绝原因。`references` 对合法正文答空列表：接入点不引用其他能力。
+
+- **E6** `launchesLocalCommand(definition)` 对 `stdio` 答真，对 `streamable-http` 答假。加载正文时就能回答。`schema/endpoint-body.schema.json` 是同一规则的说明文档，`$id` 带格式版本 `:1`。正文是否合法由 E1–E2 决定。
 
 <a id="keys"></a>
 
 ### 对端账号与键
 
-- **K1** 对端账号只由 `peerAccountOf(auth, binding)` 得出。`auth` 是 `none` 时答 `anonymous`，不读凭据配值。否则凭据配值缺失答 `credential-missing`，不退回其他凭据。`CredentialUse` 不答复对端账号。
+- **K1** 对端账号只由 `peerAccountOf(auth, binding)` 得出。`auth` 是 `none` 时答 `anonymous`，不读凭据配值。否则凭据配值缺失答 `credential-missing`，不退回其他凭据。服务把它报告为：要连接的操作答 `credential-unavailable`（`missing`）；不连接的 `current` 与 `peer` 答 `config-missing`（`credential`）。`CredentialUse` 不答复对端账号。
 - **K2** `connectionKeyOf` 由租户、持有、采用修订与对端账号组成。采用修订一变，键就变。不同租户、不同对端账号的键不同。
 - **K3** `catalogKeyOf` 由租户、对端账号与持有组成，不含采用修订与协议版本。采用修订或协议版本变化时，已知动作不离开清单。
 
@@ -96,23 +149,25 @@
 
 - **C1** `completeListing` 只在下列条件全部成立时构造完整清单，否则答第一个成立的缺陷：
   1. `page-failed`：任一页失败。前面已取得的各页也不采用。
-  2. `page-limit-exceeded`：页数超过上界，或取到上界时最后一页仍有下一页。
+  2. `page-limit-exceeded`：页数超过 `maxPages`，或取到 `maxPages` 页时最后一页仍有下一页。
   3. `pages-unfinished`：没有页，或最后一页仍有下一页。
-  4. `action-limit-exceeded`：动作总数超过上界。
-  5. `action-invalid`：某一项不是对象，`name` 不是非空文本，`inputSchema` 不是对象，`outputSchema` 或 `annotations` 存在但不是对象，或 `execution.taskSupport` 不是 `forbidden`、`optional`、`required`。
+  4. `action-limit-exceeded`：动作总数超过 `maxActions`。
+  5. `action-invalid`：某一项不是对象，`name` 不是非空文本，`inputSchema` 不是对象，或 `outputSchema`、`annotations` 存在但不是对象。
   6. `duplicate-action-name`：动作名重复，跨页也算。
-- **C2** 完整清单的新鲜度：取得时刻由调用方给出，`ttlMs` 取各页给出值中的最小值，`changedNotified` 为假。省略的 `execution` 或 `taskSupport` 读作 `forbidden`。
-- **C3** 动作定义原样保存，不改写。`definition` 是对端对象去掉 `annotations` 后的原样内容，annotations 另存为不可信值。`digestDefinition` 是对端原对象（含 annotations）规范化后的 SHA-256：对象成员按 UTF-16 码元排序，数字保留原样的词形。成员次序不改变摘要，任何内容或数字词形的变化都改变摘要。
-- **C4** `mergeListing(current, listing, basedOn)` 只接受 `completeListing` 在同一模块实例里构造的清单，其他对象答 `not-complete`。复制出来的对象也答 `not-complete`。
-- **C5** `mergeListing` 只按清单修订做条件判断。当前修订（未取得时是 `absent`）不等于 `basedOn` 时答 `stale-revision`，不产出记录。它不比较连接代际：产出清单的那一代连接是否仍是当前连接，在发布边界由服务实现核对。
+- **C2** 完整清单带上调用方给出的 `basedOn`：取得前经 `CatalogStore.read` 读到的修订，从未写入时是 `absent`。新鲜度的取得时刻由调用方给出，`ttlMs` 取各页给出值中的最小值，`changedNotified` 为假。清单、它的动作列表与每个动作都冻结。
+- **C3** 动作定义原样保存，不改写。`definition` 是对端对象去掉 `annotations` 后的原样内容，annotations 另存为不可信值。`digestDefinition` 对对端原对象（含 annotations）的规范化文本算 SHA-256。规范化文本的规则：对象成员按名字的 UTF-16 码元排序；字符串按 RFC 8785 转义；数字保留原样的词形；没有空白；文本按 UTF-8 编码。成员次序不改变摘要，任何内容或数字词形的变化都改变摘要。
+- **C4** `mergeListing(current, listing)` 只接受 `completeListing` 在同一模块实例里构造的清单。其他对象，包括复制出来的清单，使它抛出 `TypeError`。这项登记是进程内的凭证：清单不能序列化后传给另一个进程再合并；同一进程加载本成员两份时，两份互不承认对方构造的清单。
+- **C5** `mergeListing` 只按清单修订做条件判断。当前修订（未取得时是 `absent`）不等于清单的 `basedOn` 时答 `stale-revision`，不产出记录。它不比较连接代际：产出清单的那一代连接是否仍是当前连接，在发布边界由服务实现核对。
 - **C6** 条件成立时，`mergeListing` 产出一份完整的新记录：
   - 清单里的动作可用，带新的定义与摘要。
   - 已知但不在清单里的动作仍在记录里，保留最近合法定义与摘要，标为不可用，原因是 `no-longer-offered`。
   - 修订是原修订加一，第一次是 1。
   - 采用依据与新鲜度取自本次清单。
   - 动作按名字排序，名字不重复。
-    空清单也是「已取得」，表示对端提供零个动作。「未取得」不是零个动作。
-- **C7** `markUnavailable(record, reason)` 把可用的动作标为不可用，原因是给出的连接、凭据、授权或落点原因。原因是 `no-longer-offered` 的动作保留这个原因。定义与摘要不变，修订加一。
+
+  空清单也是「已取得」，表示对端提供零个动作。「未取得」不是零个动作。
+
+- **C7** `markUnavailable(record, reason)` 把每个动作标为不可用，原因是给出的连接、凭据、授权或落点原因。原因是 `no-longer-offered` 的动作保留这个原因，其他已不可用的动作改为新原因。定义与摘要不变，修订加一。修订已是最大安全整数时，`mergeListing` 与 `markUnavailable` 抛出 `RangeError`。
 - **C8** `actionPermissionItems` 在「未取得」时答 `not-acquired`，不推断零个动作。「已取得」时每个已知动作一项，项名是 `execute:<对端动作名>`，可用与不可用的动作都有。项名只由动作名决定。每项的值域是 `forbid`、`auto`、`ask`。MCP 只声明权限项，不判定权限。
 
 <a id="outcomes"></a>
@@ -120,14 +175,17 @@
 ### 结局分类
 
 - **O1** `classifyOutcome(answer, context)` 是全函数，不抛出。`context` 给出发出时的连接代际、动作的 `outputSchema`（如有）和注入的输出校验函数。
-- **O2** 对端答 `result` 时按 `resultType` 分类。缺 `resultType` 的结果来自旧对端，按 `complete` 处理：
+- **O2** 对端答 `result` 时按 `resultType` 分类。缺 `resultType` 的结果来自旧对端，按 `complete` 处理。请求不带方式，是否建任务由对端对每个请求自己决定：
   - `complete` 且 `isError` 为真：`toolError`，带内容与结构化内容（如有）。这是动作自己的失败，不是协议失败。
-  - `complete` 且 `isError` 缺省或为假：`complete`，带内容、结构化内容（如有）与输出校验结论。省略的 `content` 读作空列表。
-  - `input_required`：`inputRequired`，带 `inputRequests`、`requestState`（各自如有）与发出代际。两者至少有一项。
+  - `complete` 且 `isError` 缺省或为假：`complete`，带内容、结构化内容（如有）与输出校验结论。
+  - `input_required`：`inputRequired`，带 `inputRequests`、`requestState`（各自如有）与发出代际。两者至少有一项，`inputRequests` 是对象。
   - `task`：`task`，带 `taskId` 与发出代际。
-- **O3** 输出校验结论只有三种：动作没有声明 `outputSchema` 时是 `no-schema`，不调用校验函数。声明了 `outputSchema` 但结果没有结构化内容时是 `violates`，原因是 `structured-content-missing`，不调用校验函数。其余情形调用一次校验函数，用它的答复。`toolError` 不调用校验函数。
-- **O4** 对端答 JSON-RPC 错误时是 `protocolError`，`fault` 带整数错误码、消息与 `data`（如有）。错误码不作翻译，所有码都按同一规则交出。协议错误不证明调用没有效果。
-- **O5** 读不懂的应答也是 `protocolError`，不猜测成功：未知的 `resultType` 答 `result-type-unknown` 并带原值；结果不是对象、`resultType` 不是文本、`content` 不是列表、`isError` 不是布尔值、多轮结果两项都没有或 `requestState` 为空、任务句柄没有 `taskId` 时答 `result-malformed`；错误对象缺整数码或消息时答 `error-malformed`。
+- **O3** 输出校验结论只有三种：动作没有声明 `outputSchema` 时是 `no-schema`，不调用校验函数。声明了 `outputSchema` 但结果没有结构化内容时是 `violates`，不调用校验函数。其余情形调用一次校验函数，用它的答复。`toolError` 不调用校验函数。
+- **O4** 对端答 JSON-RPC 错误时是 `protocolError`，`fault` 是 `peer-error`，带整数错误码、消息与 `data`（如有）。错误码不作翻译，所有码都按同一规则交出。协议错误不证明调用没有效果。
+- **O5** 读不懂的应答也是 `protocolError`，不猜测成功：
+  - `result-type-unknown`：`resultType` 是未知的文本，带原值。
+  - `result-malformed`：结果不是对象，`resultType` 不是文本，缺 `content` 或 `content` 不是列表，`isError` 不是布尔值，多轮结果两项都没有、`inputRequests` 不是对象或 `requestState` 为空，任务句柄没有 `taskId`。
+  - `error-malformed`：错误对象不是对象，或缺整数码，或缺消息。
 - **O6** 已发出但没有应答时是 `unknown`，子因是 `stream-broken`、`process-exited` 或 `abandoned`。`unknown` 表示效果未知，不压成失败，不重发。
 
 <a id="content"></a>
@@ -135,20 +193,53 @@
 ### 内容交付
 
 - **D1** `toContentBlocks(items)` 按对端次序逐项转换，一项对应一项，不丢弃任何一项。
-- **D2** `text` 转成文本块，`image` 转成图块，`audio` 转成语音块。媒体类型原样交出，不改写。`data` 必须是 base64。
+- **D2** `text` 转成文本块，`image` 转成图块，`audio` 转成语音块。媒体类型原样交出，不改写，不能为空。`data` 是 RFC 4648 第 4 节的标准 base64，带填充。
 - **D3** `resource_link` 与 `resource` 原样带协议类型交出，不改写成文本。`resource_link` 要有非空 `uri` 与文本 `name`。`resource` 要有带非空 `uri` 的 `resource` 对象，并且恰好有 `text` 或 base64 的 `blob` 之一。
-- **D4** 不合法的一项转成 `invalid`，带一个文本块，文本说明它的位置、类型与原因。原因是封闭集合 `ContentDefect`。说明文本不复制这一项的内容。不在 2026-07-28 内容类型里的类型答 `type-unknown`。
-- **D5** 块的标识是 `content-<位置>`，在一份结局内唯一。每个块对人与模型都可见：谁看到什么由调用方决定。内容项的 annotations 作为不可信值另交，`_meta` 原样另交。
+- **D4** 不合法的一项转成 `invalid`，带原因与一个说明文本块。原因与它出现的条件：
+  - `not-an-object`：这一项不是对象。`type-missing`：没有文本的 `type`。`type-unknown`：`type` 不在 2026-07-28 的内容类型里。
+  - `annotations-invalid`：annotations 存在但不是对象。
+  - `text-invalid`：文本项的 `text` 不是文本。`data-invalid`：图或语音的 `data` 不是 base64。`mime-type-invalid`：图或语音缺媒体类型或媒体类型为空。
+  - `uri-invalid`、`name-invalid`：资源链接缺非空 `uri` 或文本 `name`。`resource-invalid`：内嵌资源不满足 D3。
+
+  说明文本带位置、类型与原因，不复制这一项的内容。说明文本的措辞不是契约，只有 `reason` 与 `type` 是。
+
+- **D5** 块的标识是 `content-<位置>`，位置从 0 计，在一份结局内唯一。每个块对人与模型都可见：谁看到什么由调用方决定。内容项的 annotations 作为不可信值另交，`_meta` 原样另交。
 
 <a id="refusals"></a>
 
-### 拒绝、未发出与不可用
+### 拒绝、连接失败、未发出与不可用
 
-- **R1** 读口、调用口与状态口的拒绝是 `Refusal`：`not-available-to-you`、`blocked`（带 `local-command-not-enabled` 或 `disabled`）、`unknown`。未采用、无权与不存在对任何主体都是 `not-available-to-you`，不可区分。控制操作（`release`、`queryTask`、`taskResult`）在资格不是 `granted` 时也只答这三种。
-- **R2** 「未发出」原因是封闭集合：`Refusal` 的三种，`correlation-key-in-use`，`cancelled`，`definition-changed`，`action-unavailable`，`mode-unsupported`，以及连接条件 `ConnectionCondition` 的五种：`credential-unavailable`（带 `missing`、`rejected` 或 `unknown`），`authorization-required`（带授权发现），`landing-unavailable`，`connection-unavailable`，`config-missing`（带 `connect-timeout` 或 `target`）。「未发出」没有对端效果。
-- **R3** 不可用原因是封闭集合：`no-longer-offered`、`connection-unavailable`、`authorization-required`、`credential-unavailable`、`landing-unavailable`。
-- **R4** 授权发现有四个字段：`resourceMetadataUrl`（受保护资源元数据的地址），`resourceMetadata`（元数据本身，不可信），`issuers`（元数据列出的授权服务器签发者），`scopes`（对端要求的 scope）。MCP 不做授权流程。
+每个集合的成员以类型为准，本节写每一项在什么条件下出现。
+
+- **R1** `Refusal` 在使用连接之前给出：
+  - `not-available-to-you`：接入点未采用、主体无资格或接入点不存在。三者对任何主体不可区分。
+  - `blocked`：主体有资格，但被设置挡下，带 `local-command-not-enabled` 或 `disabled`。
+  - `unknown`：采用或资格不可读，或者答复无法证明，例如任务不在本次运行的任务表里。
+  - `config-missing`：操作需要的配值缺失，带配置项：`connect-timeout`、`target`、`credential` 或 `env:<NAME>`。
+  - `config-invalid`：配值存在但它的守卫拒绝了它，带同样的配置项。
+
+  控制操作在资格不是 `granted` 时只答 `Refusal`。
+
+- **R2** `NotSentReason` 是「未发出」的原因，「未发出」没有对端效果。除 `Refusal` 与 `ConnectionFailure` 的各项外：
+  - `correlation-key-in-use`：同一（租户、主体、关联键）已在途。
+  - `cancelled`：占位后、发出前收到了 `cancel`。
+  - `definition-changed`：调用方预期的定义摘要与当前摘要不同。
+  - `action-unavailable`：已知动作不可用，或不在清单里。
+- **R3** `UnavailableReason` 写进已知动作的可用性：`no-longer-offered` 由 `mergeListing` 给出；`connection-unavailable`、`authorization-required`、`credential-unavailable`、`landing-unavailable` 由 `markUnavailable` 按连接条件给出。
+- **R4** 授权发现有四个字段：
+  - `resourceMetadataUrl`：受保护资源元数据的地址。
+  - `metadata`：元数据是否取到，`fetched` 或 `unavailable`。`resourceMetadata` 只在取到时出现，是不可信值。
+  - `issuers`：元数据的 `authorization_servers`。元数据没取到时为空。
+  - `scopes`：对端 `WWW-Authenticate` 头的 `scope`。没有时取元数据的 `scopes_supported`。都没有时为空。
+
+  MCP 不做授权流程。
+
 - **R5** `CallOutcome` 只描述已发出的调用。`InvokeResult` 用 `not-sent` 与 `sent` 两种分开它们。
+- **R6** `ConnectionFailure` 在需要连接、而连接条件不成立时给出：
+  - `credential-unavailable`：凭据缺失、被拒或不可读，带 `missing`、`rejected` 或 `unknown`。
+  - `authorization-required`：对端答需要授权，带授权发现。
+  - `landing-unavailable`：进程落点或设施不成立，或落点不可读。
+  - `connection-unavailable`：传输打不开，协商失败，或请求在发出前失败。
 
 <a id="services"></a>
 
@@ -156,14 +247,35 @@
 
 本成员只写接口与结果值。下列条款约束接口的实现方。
 
-- **S1** 除 `ActionInvoker.cancel` 与 `ActionInvoker.cancelTask` 以外，读口、调用口与状态口的每个操作先经 `AdoptionView.endpoint` 核采用，再经 `UseEligibility.check` 核资格。未采用时答 `not-available-to-you`，不再问资格。`AdoptionView` 不可读时答 `unknown`。资格答 `not-eligible` 时答 `not-available-to-you`，答被设置挡下时给出该原因，答 `unknown` 时答 `unknown`。
-- **S2** `cancel` 只按（租户、主体、关联键）在本次运行的在途表里定位，不核采用与资格。答复是 `signalled`、`no-call-in-flight` 或 `unknown`。占位后、发出前收到的 `cancel` 使原调用答「未发出：`cancelled`」。`cancelTask` 只供发起该任务的同一租户与主体使用，不核采用与资格。
-- **S3** `McpConfig` 的四个字段都必填，没有缺省值：`principalKey` 给出主体的稳定文本；`maxListingPages`、`maxActions`、`instructionsByteLimit` 是正的安全整数，分别限制一次取得的分页数、一次取得接受的动作数、保留的 `instructions` 的 UTF-8 字节数。超出 `instructionsByteLimit` 的部分截断，`instructions` 标明已截断并带摘要与取得时的连接代际。
-- **S4** 连接超时取 `AdoptionView` 交来的 `connectTimeout`。缺值时用操作请求里的 `connectBound`。两者都没有时，`invoke` 与 `continueWithInput` 答「未发出：`config-missing`（`connect-timeout`）」，`refresh` 答「保留原采用」，原因相同。Streamable HTTP 缺连接目标时同样答 `config-missing`（`target`）。
-- **S5** `refresh` 答新的修订、「保留原采用」带 `KeptReason`，或 `Refusal`。`CatalogStore` 写入不可用时答 `unknown`，不报告新修订。修订冲突时答「保留原采用」，原因是 `newer-adoption`。
-- **S6** 进度与日志通知经调用方给出的观察函数交出，标为不可信，不代替结局。本组不把通知写进自己的日志：对端日志不经过 `ProcessLanding`，MCP 无法按值遮盖其中的秘密。
-- **S7** `EndpointStatusView` 的连接状态是 `none`、`preparing`、`ready`、`degraded`、`lost`。`degraded` 的原因是 `discover-failed` 或 `list-failed`，即最近一次非调用请求暂时失败。`lost` 的原因是 `preparation-failed`、`process-exited`、`stream-broken`、`negotiation-invalid` 或 `session-ended`。凭据只报告 `present`、`absent` 或 `not-required`，不报告值。
-- **S8** `release` 与 `closeAll` 只报告实际确认的范围。没有进程的连接报告 `no-process`。
+- **S1** 除 `ActionInvoker.cancel`、`ActionInvoker.cancelTask` 与 `Connections.closeAll` 以外，每个操作先经 `AdoptionView.endpoint` 核采用，再经 `UseEligibility.check` 核资格。未采用时答 `not-available-to-you`，不再问资格。`AdoptionView` 不可读时答 `unknown`。资格答 `not-eligible` 时答 `not-available-to-you`，答被设置挡下时给出该原因，答 `unknown` 时答 `unknown`。`EndpointStatus.list` 经 `AdoptionView.endpoints` 取列表，再逐项核资格，只列出有资格的接入点；任一项资格答 `unknown`，整次答 `unknown`。
+- **S2** `cancel` 只按（租户、主体、关联键）在本次运行的在途表里定位，不核采用与资格。答复是 `signalled`、`no-call-in-flight` 或 `unknown`。占位后、发出前收到的 `cancel` 使原调用答「未发出：`cancelled`」。服务在本次运行内保存已发出的任务表，键是（租户、主体、持有、任务号）。`queryTask`、`taskResult`、`provideTaskInput`、`cancelTask` 只对发起者开放：非发起者、重启之后和表里没有的任务一律答 `unknown`，不随任务是否存在而变。`cancelTask` 不核采用与资格。`taskResult` 对已取消、没有结果的任务答 `cancelled`。`provideTaskInput` 把答复交给 `input_required` 的任务。任务表不跨重启，这是已知限制。
+- **S3** `McpConfig` 的四个字段都必填，没有缺省值：`principalKey` 给出主体的稳定文本；`maxListingPages`、`maxActions`、`instructionsByteLimit` 是正的安全整数，分别限制一次取得的分页数、一次取得接受的动作数、保留的 `instructions` 的 UTF-8 字节数。`instructions` 经 `boundInstructions` 截断：截断在完整的 UTF-8 字符边界内，摘要是 `InstructionsDigest`，对截断前的全文算。
+- **S4** 配值按下列规则使用：
+  - 连接超时取 `AdoptionView` 交来的 `connectTimeout`。缺值时用请求或任务引用里的 `connectBound`。两者都没有时答 `config-missing`（`connect-timeout`）。
+  - Streamable HTTP 缺连接目标时答 `config-missing`（`target`）。
+  - `processEnv` 缺某个 `setting` 来源变量时答 `config-missing`（`env:<NAME>`）。
+  - 任一配值是 `invalid` 时答 `config-invalid`，带同样的配置项。
+  - 凭据配值缺失时按 K1 报告。
+
+  `invoke` 与 `continueWithInput` 把这些答复作为「未发出」的原因，其他操作把它们作为失败。
+
+- **S5** `refresh` 答下列之一：
+  - `published`：清单已整份发布，带新的修订。
+  - `kept`，原因是 `superseded`：`CatalogStore` 写入时答修订冲突，`mergeListing` 答 `stale-revision`，或产出清单的那一代连接在发布前已不是当前连接。原采用不变。
+  - `kept`，原因是 `listing-incomplete`：`completeListing` 答了缺陷（某页失败、重名、超过上界等），带这个缺陷。原采用不变。
+  - 失败：`CatalogStore` 读取或写入不可用时答 `unknown`，不报告新修订；连接条件不成立时答 `ConnectionFailure`。
+- **S6** 进度与日志通知经调用方给出的观察函数交出，标为不可信，不代替结局。观察函数抛出不影响调用的结局。本组不把通知写进自己的日志：对端日志不经过 `ProcessLanding`，MCP 无法按值遮盖其中的秘密。
+- **S7** `EndpointStatusView` 的连接状态是 `none`、`preparing`、`ready`、`degraded`、`lost`。`degraded` 的原因：`discover-failed` 或 `list-failed`，即最近一次 `server/discover` 或 `tools/list` 暂时失败。`lost` 的原因：
+  - `preparation-failed`：准备失败，不属于下面几种。
+  - `authorization-required`：对端答需要授权。
+  - `process-exited`：stdio 进程退出。
+  - `stream-broken`：管道或流断开。
+  - `negotiation-invalid`：已记录的协商结果不再成立。
+  - `session-ended`：旧对端终止了会话。
+
+  准备失败或关闭后留下的进程与它确认的停止范围记在 `residual`，`lost` 状态与视图都可以带它。凭据只报告 `present`、`absent` 或 `not-required`，不报告值。
+
+- **S8** `release` 与 `closeAll` 只报告实际确认的范围。没有进程的连接报告 `no-process`，没有连接时报告 `no-connection`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。
 
 ## 所有权、失败与生命周期
 
@@ -173,7 +285,7 @@
 
 ### `AdoptionView`（AV）
 
-- **AV1** `endpoint(access, ref)` 对已采用的接入点答该项，带采用修订、正文、三项固定设置的配值与 stdio 进程环境所需的非秘密配值。未配的设置项如实缺值，不补缺省值。
+- **AV1** `endpoint(access, ref)` 对已采用的接入点答该项，带采用修订、正文、三项固定设置的配值与 stdio 进程环境所需的非秘密配值。未配的设置项答 `absent`，守卫拒绝的配值答 `invalid` 并带原文，不补缺省值。
 - **AV2** `endpoints(access, scope)` 只列出该作用域里已采用的接入点。
 - **AV3** 未采用的接入点答 `not-adopted`。
 - **AV4** 对其他租户的主体，已采用的接入点与不存在的接入点答复完全相同，都是 `not-adopted`。
@@ -183,6 +295,8 @@
 <a id="port-eligibility"></a>
 
 ### `UseEligibility`（UE）
+
+拒绝原因以 `EligibilityVerdict` 的类型为准：`not-eligible`、`local-command-not-enabled`、`disabled`。
 
 - **UE1** 有使用资格的主体答 `granted`。
 - **UE2** 无使用资格的主体，对已存在与不存在的接入点答复完全相同，都是 `refused`、`not-eligible`。
@@ -194,7 +308,7 @@
 
 ### `CredentialUse`（CU）
 
-- **CU1** `acquire` 的用途是 `process-env`，或 `http-authorization` 带连接目标。HTTP 的句柄只对这份持有与这个连接目标有效。句柄能为一个出站请求授权，能回报对端的拒绝，能释放。
+- **CU1** `acquire` 按用途答不同的句柄。`process-env` 答 `ProcessCredentialHandle`：MCP 不读它，只把它交给 `ProcessLanding`，并在用完后释放。它怎样变成变量值，是 `CredentialUse` 与 `ProcessLanding` 两个实现方之间的约定；内存替身用一张内部表兑现这条约定。`http-authorization` 带连接目标，答 `HttpCredentialHandle`：它只对这份持有与这个连接目标有效，能为一个出站请求授权，能回报对端的拒绝，能释放。句柄以 `purpose` 字段区分。
 - **CU2** 没有凭据时答 `missing`。
 - **CU3** 答复不退回组织、官方或其他租户的凭据。
 - **CU4** 句柄不是秘密值。句柄、它的序列化形式与它的检视文本都不含秘密值。
@@ -206,12 +320,13 @@
 
 ### `ProcessLanding`（PL）
 
-进程句柄给出标准输入、标准输出、已遮盖秘密的标准错误、根进程退出的信号，以及 `stop()`。`start` 的环境由非秘密配值与按变量名给出的凭据句柄组成。
+进程句柄给出标准输入、标准输出、已遮盖秘密的标准错误、根进程退出的信号，以及 `stop()`。`start` 的环境由非秘密配值与按变量名给出的进程凭据句柄组成。
 
 - **PL1** `stop()` 请求停止该进程及其全部后代，答实际确认的范围：`tree-confirmed`、`root-only` 或 `unconfirmed`。确认了停止时，`exited` 会兑现。调用了 `stop()` 不证明进程已停。
 - **PL2** 交出标准错误之前遮盖其中的秘密值。
 - **PL3** 设施不成立时答 `facility-missing`，不起进程。
 - **PL4** 落点不成立时答 `landing-invalid`，不静默落到宿主。不能判定时答 `unknown`。
+- **PL5** `stop()` 可以重复调用。再次调用不失败，答复不比第一次确认的范围小。
 
 <a id="port-store"></a>
 
@@ -232,58 +347,67 @@
 
 - **T1** 失败只分两种：`not-sent` 表示请求没有离开，没有对端效果；`no-answer` 表示请求已离开而没有应答，效果未知。`call` 的失败只会是 `not-sent`，没有应答经 `answer` 交出 `no-answer`。
 - **T2** 传输交出对端的原样应答，不分类。分类由 `classifyOutcome` 完成。
-- **T3** `discover` 在旧对端上回退到 `initialize`。对端答需要授权时，失败是 `not-sent`、`authorization-required`，带授权发现。
-- **T4** `cancelRequest` 发出取消通知，不证明对端已停止。`close()` 只关闭传输，不停止进程。进程由进程句柄的持有者停止。
-- **T5** `getTaskResult` 答 `finished`（带原样应答）、`cancelled`、`not-finished` 或 `expired`。对端删除过期任务后答 `expired`，不当作失败或完成。
+- **T3** `discover` 在旧对端上回退到 `initialize`。客户端是否在请求上声明任务扩展能力，由传输实现决定。
+- **T4** 对端对一个请求答 HTTP 401 或权限不足的 403，而这个请求曾用凭据句柄授权时，传输先调用该句柄的 `reportRejection()`，再报 `not-sent`、`authorization-required`，带授权发现。
+- **T5** `cancelRequest` 发出取消通知，不证明对端已停止。`close()` 只关闭传输，不停止进程。进程由进程句柄的持有者停止。
+- **T6** `getTask` 答任务报告，`input_required` 的任务带它在等的 `inputRequests`；对端删除过期任务后答 `expired`，不当作失败或完成。`updateTask` 经 `tasks/update` 交回答复，答 `accepted` 或 `already-terminal`。`getTaskResult` 答 `finished`（带原样应答）、`cancelled`、`not-finished` 或 `expired`。
 
 <a id="failure-codes"></a>
 
-### 失败码总表
+### 失败码索引
 
-| 阶段       | 失败码                                                                                                                                                                                               | 出处           |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| 正文       | `malformed`、`name-mismatch`、`transport-unknown`、`auth-unknown`、`launch-missing`、`launch-unexpected`；类别端口另有资产规则的 `incomplete-reference`                                              | E2、E5         |
-| 对端账号   | `credential-missing`                                                                                                                                                                                 | K1             |
-| 识别与资格 | `not-available-to-you`、`blocked`、`unknown`                                                                                                                                                         | R1             |
-| 连接条件   | `credential-unavailable`、`authorization-required`、`landing-unavailable`、`connection-unavailable`、`config-missing`                                                                                | R2             |
-| 调用发起   | `correlation-key-in-use`、`cancelled`、`definition-changed`、`action-unavailable`、`mode-unsupported`                                                                                                | R2             |
-| 发现       | `page-failed`、`page-limit-exceeded`、`pages-unfinished`、`action-limit-exceeded`、`action-invalid`、`duplicate-action-name`                                                                         | C1             |
-| 采用       | `stale-revision`、`not-complete`；服务答复 `newer-adoption`、`superseded`、`listing-incomplete`                                                                                                      | C4、C5、S5     |
-| 已发出调用 | `protocolError` 的 `peer-error`、`result-type-unknown`、`result-malformed`、`error-malformed`；`unknown` 的 `stream-broken`、`process-exited`、`abandoned`                                           | O4–O6          |
-| 内容       | `ContentDefect` 的十种原因                                                                                                                                                                           | D4             |
-| 端口       | `AdoptionView`：`unknown`；`CredentialUse`：`missing`、`rejected`、`unknown`；`ProcessLanding`：`landing-invalid`、`facility-missing`、`unknown`；`CatalogStore`：`unavailable`、`revision-conflict` | AV、CU、PL、CS |
-| 传输       | `not-sent`（`connection-unavailable`、`authorization-required`）、`no-answer`（三种子因）                                                                                                            | T1             |
+每个集合的成员以类型为准。本表只指出类型与给出条件的条款。
+
+| 阶段             | 类型                                                                                                                                                                                               | 条款               |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| 正文             | `EndpointBodyRejection`；类别端口另有资产规则的 `incomplete-reference`                                                                                                                             | E2、E5             |
+| 对端账号         | `peerAccountOf` 的 `credential-missing`                                                                                                                                                            | K1                 |
+| 识别、资格与配置 | `Refusal`                                                                                                                                                                                          | R1、S1、S4         |
+| 连接条件         | `ConnectionFailure`                                                                                                                                                                                | R6                 |
+| 调用发起         | `NotSentReason`                                                                                                                                                                                    | R2                 |
+| 发现与采用       | `ListingDefect`、`MergeRefusal`、`KeptReason`                                                                                                                                                      | C1、C5、S5         |
+| 已发出调用       | `ProtocolFault`、`NoAnswerCause`                                                                                                                                                                   | O4–O6              |
+| 内容             | `ContentDefect`                                                                                                                                                                                    | D4                 |
+| 已知动作         | `UnavailableReason`                                                                                                                                                                                | R3                 |
+| 连接状态         | `DegradedReason`、`LostReason`                                                                                                                                                                     | S7                 |
+| 端口             | `AdoptionView` 的 `unknown`；`EligibilityVerdict`；`CredentialFailure`；`ProcessLanding` 的 `landing-invalid`、`facility-missing`、`unknown`；`CatalogStore` 的 `unavailable`、`revision-conflict` | AV、UE、CU、PL、CS |
+| 传输             | `TransportFailure`                                                                                                                                                                                 | T1、T4             |
 
 ### 生命周期与所有权
 
 - 本成员的函数不持有资源，不发起外部操作。
-- `mergeListing` 认的是同一模块实例构造的清单。同一进程里加载两份本成员时，一份构造的清单在另一份里答 `not-complete`。
-- `./testing` 的内存替身不耐久，只用于自测，不能装配进产品。内存 `CatalogStore` 替身不是 W2 的生产内存实现。
+- `completeListing` 的登记是进程内凭证，见 C4。
+- `./testing` 的内存替身不耐久，只用于自测，不能装配进产品。内存 `CatalogStore` 替身不是 `@omne-harness/mcp` 的内存实现。
 
 ## 组合与验证
 
-| 条款               | 验证                                                                                                     | 命令                                                                      |
-| ------------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| 入口与依赖         | `tests/public-entry.spec.ts` 核对三个入口的运行时导出                                                    | `pnpm turbo run build typecheck test --filter=@omne-harness/mcp-contract` |
-| V1–V3              | `tests/values.spec.ts`                                                                                   | 同上                                                                      |
-| E1–E6              | `tests/endpoint.spec.ts`：每个拒绝原因一个反例，Schema 与解析规则一致                                    | 同上                                                                      |
-| K1–K3              | `tests/keys.spec.ts`                                                                                     | 同上                                                                      |
-| C1–C8              | `tests/catalog.spec.ts` 的性质测试与带种子的随机序列；`tests/conformance.spec.ts` 跑 `mergeListingCases` | 同上                                                                      |
-| O1–O6              | `tests/classify.spec.ts` 跑 `classifyOutcomeCases` 并核对覆盖                                            | 同上                                                                      |
-| D1–D5              | `tests/content.spec.ts`                                                                                  | 同上                                                                      |
-| AV、UE、CU、PL、CS | `tests/conformance.spec.ts` 让五个套件跑内存替身，并用违约替身证明套件会变红                             | 同上                                                                      |
+| 条款               | 验证                                                                                                                           | 命令                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| 入口与依赖         | `tests/public-entry.spec.ts` 核对三个入口的运行时导出与导入关系；`tests/provider-types.spec-d.ts` 核对 `./provider` 的类型导出 | `pnpm turbo run build typecheck test --filter=@omne-harness/mcp-contract` |
+| 封闭集合           | `tests/closed-sets.spec-d.ts` 把代码列表钉在类型上；`tests/spec-closed-sets.spec.ts` 核对本页写到每一项                        | 同上                                                                      |
+| V1–V3              | `tests/values.spec.ts`                                                                                                         | 同上                                                                      |
+| S3 的截断          | `tests/instructions.spec.ts`                                                                                                   | 同上                                                                      |
+| E1–E6              | `tests/endpoint.spec.ts`：每个拒绝原因一个反例，schema 与解析规则一致                                                          | 同上                                                                      |
+| K1–K3              | `tests/keys.spec.ts`                                                                                                           | 同上                                                                      |
+| C1–C8              | `tests/catalog.spec.ts` 的性质测试与带种子的随机序列；`tests/conformance.spec.ts` 跑 `mergeListingCases`                       | 同上                                                                      |
+| O1–O6              | `tests/classify.spec.ts` 跑 `classifyOutcomeCases` 并核对覆盖                                                                  | 同上                                                                      |
+| D1–D5              | `tests/content.spec.ts`                                                                                                        | 同上                                                                      |
+| AV、UE、CU、PL、CS | `tests/conformance.spec.ts` 让五个套件跑内存替身，并用违约替身证明套件会变红                                                   | 同上                                                                      |
 
-端口的实现方这样使用套件：从 `./testing` 取 `describe<端口>Conformance()`，为每个用例新建一份夹具，在自己的测试框架里逐个登记并运行 `run(fixture)`。用例失败时抛出 `node:assert` 的 `AssertionError`。夹具缺少某个用例需要的句柄时抛出 `NotApplicable`，这不算通过。
+端口的实现方这样使用套件：从 `./testing` 取 `mcp<端口>Conformance()`，为每个用例新建一份夹具，用 `runConformanceCase` 在自己的测试框架里逐个运行。结论有三种：
+
+- 通过。
+- 失败：用例抛出 `node:assert` 的 `AssertionError` 或其他错误，`runConformanceCase` 把它抛给调用方。
+- 不适用：夹具缺少用例需要的句柄，`runConformanceCase` 答 `not-applicable`。不适用既不是通过也不是失败，调用方单独计数。本成员对内存替身的测试把不适用当作失败，因为替身提供全部句柄。
 
 未覆盖：
 
 - 服务条款 S1–S8 没有实现，本成员不能验证它们。它们由服务实现的测试验证。
-- 传输条款 T1–T5 的契约测试与真实服务端夹具不在本成员。
+- 传输条款 T1–T6 的契约测试与真实服务端夹具不在本成员。
 - 真实对端、真实凭据、真实进程落点、耐久存储的行为都没有证据。替身通过不等于真实组合通过。
 
 <a id="open-items"></a>
 
 ### 未封闭项
 
-- 组页第 601 行：资产的 `deriveDeclarations(body, context)` 拿不到 MCP 动作清单，逐动作权限项不能经类别端口派生。本成员只提供 `actionPermissionItems`。拥有者：资产 SPEC 的拥有者与本成员的维护者。
-- 组页第 445 行：任务处于 `input_required` 时，怎样取得任务的输入请求并经 `tasks/update` 带回答复。`TaskControl` 目前只答任务状态。拥有者：本成员的维护者，随任务扩展的实现确定。
+组页第 601 行：资产的 `deriveDeclarations(body, context)` 拿不到 MCP 动作清单，逐动作权限项不能经类别端口派生。本成员只提供 `actionPermissionItems`。拥有者：资产 SPEC 的拥有者与本成员的维护者。

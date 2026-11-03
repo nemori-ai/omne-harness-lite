@@ -355,6 +355,10 @@ describe('schema/endpoint-body.schema.json', () => {
       )
   })
 
+  it('carries format version 1 in its identifier', () => {
+    expect(JSON.parse(text).$id).toBe('urn:omne-harness:mcp-contract:endpoint-body:1')
+  })
+
   it('states the name lexicon that the parser applies', () => {
     const pattern = new RegExp(file.properties.name.pattern, 'u')
     for (const name of ['a', 'files', 'files-2', 'a1-b2-c3', 'Files', 'files-', '-files', 'a--b'])

@@ -99,6 +99,15 @@ export function mcpProcessLandingConformance<P>(): readonly ConformanceCase<
         })
       },
     ),
+    conformanceCase('PL5', 'answers a repeated stop without a smaller range', async fixture => {
+      const process = await started(fixture)
+      const first = await process.stop()
+      const second = await process.stop()
+      assert.ok(
+        STOP_SCOPES.indexOf(second) <= STOP_SCOPES.indexOf(first),
+        `the second stop answered ${second} after ${first}`,
+      )
+    }),
   ]
 }
 
