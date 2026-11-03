@@ -2,7 +2,7 @@
 
 ## 采用与范围
 
-`@omne-harness/identity/cordis` 提供四个抽象 `Service` 类及对应键。定义按 [#991 的局部采用](https://github.com/nemori-ai/omne-harness-lite/issues/991#issuecomment-6552957257)维护，实施范围是 [#992](https://github.com/nemori-ai/omne-harness-lite/issues/992)。公开形状来自本成员根入口，行为仍由 [SPEC ID-16 与 ID-17](../SPEC.md)拥有。根入口不加载 Cordis。
+`@omne-harness/identity/cordis` 提供四个抽象 `Service` 类及对应键。定义按 [#991 的局部采用](https://github.com/nemori-ai/omne-harness-lite/issues/991#issuecomment-6552957257)维护，实施范围是 [#992](https://github.com/nemori-ai/omne-harness-lite/issues/992)。公开形状来自本成员根入口，行为仍由 [SPEC ID-16 与 ID-17](../SPEC.md)拥有。第六个定义 `IdentityGovernanceService`（键 `identityGovernance`）是治理端口 `IdentityGovernance` 的服务定义，行为归 SPEC ID-18。它是一次可加改动（R1-D27、R2-D203），既有定义与键不变。根入口不加载 Cordis。
 
 | 抽象类                        | 键常量                  | 服务键               | 原接口                 |
 | ----------------------------- | ----------------------- | -------------------- | ---------------------- |
@@ -43,7 +43,7 @@ await fiber.dispose()
 
 ## 验证资源与限制
 
-- `tests/cordis.spec.ts` 在真实 4.0.4 `Context` 上安装具体子类，检查四键、委托、主体对象一致性与撤除。Operations 子类用闭包持有 `./testing` 参考替身，运行原 `checkIdentityOperationsContract` 套件。参考替身没有未激活账号，因此该套件的 `login-inactive-uniform` 仍不适用。
+- `tests/cordis.spec.ts` 在真实 4.0.4 `Context` 上安装具体子类，检查四键、委托、主体对象一致性与撤除。治理子类委托 `./testing` 的治理参考替身，运行 `checkIdentityGovernanceContract`，并在撤除后核对键已不可取得。Operations 子类用闭包持有 `./testing` 参考替身，运行原 `checkIdentityOperationsContract` 套件。参考替身没有未激活账号，因此该套件的 `login-inactive-uniform` 仍不适用。
 - `tests/cordis.spec-d.ts` 检查七个原接口成员类型、Context 属性和错误赋值。它不复制结果联合。
 - `tests/cordis-package.spec.ts` 打包并解包本成员，在独立目录消费 `dist` 与类型声明。依赖复用已锁定的本机产物，不安装新依赖。Node 加载钩子拒绝根入口的 Cordis 导入，独立消费者验证 `./cordis` 的加载、注册与撤除。
 

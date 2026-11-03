@@ -11,22 +11,23 @@
 | 端口                                    | 文件                 | 说明                                                                                                                                                                                                    |
 | --------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `IdentityOperations`、`PrincipalIssuer` | identity 的公开类型  | 注册激活、签发登录、识别登录；签发本成员的系统主体与代租户行事主体                                                                                                                                      |
+| `IdentityGovernance`                    | identity 的公开类型  | 18 个治理操作与成功业务访问的报告。可选，与 `IdentityOperations` 共用记录                                                                                                                               |
 | `SessionIngressFaces`                   | `src/faces.ts`       | Session 四个面中本成员实际调用的子集：`management.create`、`work.accept`、`work.queryOperation`、`work.cancelRun`、`work.stopCall`、`history.begin`、`history.next`。真实 `SessionService` 按结构满足它 |
 | `DefinitionResolver`                    | `src/faces.ts`       | 定义名到 `SessionCreation` 采用字段的解析函数。映射数据归 `definition-mappings`，装配注入函数                                                                                                           |
 | `DiagnosticSink`                        | `src/diagnostics.ts` | 结构化诊断。事件只有 code、path 与 operation，没有正文、证明、凭据、主体或依赖的错误文本                                                                                                                |
 
-本成员不调用 authorization。会话操作的资格由 Session 面在访问裁定里判断（handoff「登录到 Access」第 3 点）。
+本成员不调用 authorization。会话操作的资格由 Session 面在访问裁定里判断（handoff「登录到 Access」第 3 点）。治理操作的资格由 identity 在提交时判断（identity ID-18）。
 
 ## 模块
 
 | 文件                | 责任                                                                                                                                             |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `http.ts`           | `createServerEntry`：只绑 `127.0.0.1` 的监听、承载页第 1 到第 5 步、按路径读取请求体并计数、分派到两个位置、写出答复、`stop`                     |
-| `governance.ts`     | 治理位置：`register-and-activate` 与 `issue-login` 交 identity；四个阶段操作与其余 32 个操作答 `stage-not-provided`；identity 抛错时没有可信答复 |
+| `governance.ts`     | 治理位置：声明不提供的 14 个操作的常量；`register-and-activate` 与 `issue-login` 交 identity；18 个治理操作的第 4、6 步与到治理端口的映射       |
 | `session.ts`        | 会话位置：读取分派、七个操作的判断次序第 2 到第 6 步、Session 结果到公开 `outcome` 的映射                                                        |
-| `identity-steps.ts` | 第 2 步与第 4 步：登录识别，账号关系核对，签发代租户行事主体。系统主体在首次需要时签发一次并保留                                                 |
+| `identity-steps.ts` | 登录识别，账号关系核对，签发代租户行事主体，成功业务访问的报告。系统主体在首次需要时签发一次并保留                                               |
 | `derivation.ts`     | 会话标识、输入标识、三族操作身份与登录入口证据的派生                                                                                             |
-| `observation.ts`    | 观察消息的手写读写、本实例的观察记录、取消与替换、连接关闭即取消                                                                                 |
+| `observation.ts`    | 观察消息的手写读写、本实例的观察记录、取消与替换、连接关闭即取消、每轮的登录重核与按登录结束                                                     |
 | `sse.ts`            | 一个 SSE 响应的串行写入者：确认事件、帧与心跳经同一个队列写出                                                                                    |
 | `session-codec.ts`  | 会话位置的编码：公开契约的编码函数写出每一条响应，编码失败是本成员故障                                                                           |
 | `status.ts`         | `outcome` 到状态码的表。键类型是公开契约能编码的全部 `outcome`，少一行类型检查就变红                                                             |
@@ -37,7 +38,7 @@
 位置处理函数向 HTTP 层交回 `Answer`（`src/answers.ts`）：
 
 - `json`：状态码只由 `outcome` 决定；`close` 为真时带 `Connection: close`。
-- `no-answer`：本成员没有可信答复。HTTP 层写空正文的 500 并关闭连接。它只用于本成员自身的故障、定义映射抛错、编码失败，以及治理位置 identity 抛错这一种情况。
+- `no-answer`：本成员没有可信答复。HTTP 层写空正文的 500 并关闭连接。它只用于本成员自身的故障、定义映射抛错、编码失败，以及治理位置 identity 抛错。治理端口被拒绝时，`create-organization` 答带响应体的 `unknown`，不用 `no-answer`。
 - `sse`：第一条事件是确认。只有 `succeeded` 的观察带 `attach`，HTTP 层在确认事件入队之后调用它登记观察；其余结果写完第一条事件就结束响应。
 
 ## 依赖抛错的两类
@@ -58,7 +59,9 @@ Session 失败种类在该操作公开结果集之外时（例如 `login-require
 - 认领与附着：`claim` 先占名额并返回 `ObservationClaim`，HTTP 层把确认事件入队之后再 `attach` 已打开的流。两步之间没有 `await`，但别的请求的 `cancel-observation`、同键再次建立或 `stop` 可能在微任务间隙到达。这时记录已经离开活动集，`ended` 帧在流附着时写出，确认仍在它之前。`stop()` 的 `endAll` 只等已附着的流写完；尚未附着的认领由 HTTP 层的在途计数兜住，它的响应写完之后 `stop()` 才关闭连接。
 - 客户端在确认写出之前断开：`SseStream` 在构造时核对响应是否已销毁或已结束，已经关闭就直接进入关闭态。附着到它的登记立即释放名额，不 arm 心跳，`finished` 立即落定，`stop()` 不会等一个永不结束的流。
 - 确认之后，流上只有心跳与 `ended` 帧。本阶段不定位 Model 调用登记，不查询 `current`，不发 `state`、`refreshing`、`snapshot`、`delta`、`gap`。刷新策略与资源上界中的 `interval`、`backoff`、`maxAttempts`、`deadline`、`currentTimeout`、`frameQueueBytes`、`locatePages` 本阶段没有消费者，不在配置里。
-- `ended` 的原因：`observer-cancelled`（`cancel-observation`）、`observer-replaced`（同一登录同一会话同一 `observationId` 再次建立）、`unavailable`（`stop`）。
+- 建立成功后，接入报告一次成功业务访问。报告在流附着、`onClose` 登记之后开始，接入不等它结束。会话位置的报告由 `JsonAnswer.afterWrite` 在 HTTP 层写出答复之后开始。所以报告永不结束时，答复、名额释放与 `stop()` 都不受影响。
+- 登录重核：本阶段没有定位与刷新，一轮就是一个心跳间隔 `heartbeatIntervalMs`。附着之后，每个观察有自己的计时器，到期后用建立时的登录证明调用一次 `recognizeLogin`。同一观察的重核串行，结束之后到达的结果被丢弃。这样做的代价是心跳间隔同时决定了登录失效被发现的时延。观察接上 #746 的刷新循环之后，重核改在每轮刷新之前，周期改由刷新策略决定。
+- `ended` 的原因：`observer-cancelled`（`cancel-observation`）、`observer-replaced`（同一登录同一会话同一 `observationId` 再次建立）、`denied`（本实例撤销该登录，或重核答 `invalid`）、`unavailable`（`stop`，或重核答 `basis-unavailable`）。
 - 连接关闭即取消：观察记录从活动集移除，保留 `cancelRetentionMs`，供 `cancel-observation` 重放得到 `ended`。
 - 观察记录只在本实例内存里。它是可丢弃的观察状态，不是权限缓存。
 
@@ -81,7 +84,10 @@ Session 失败种类在该操作公开结果集之外时（例如 `login-require
 | 用例文件                             | 覆盖                                                                                                                           |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
 | `tests/http-layer.spec.ts`           | 监听地址、路径、方法、Host、Content-Type、请求体上限、空正文 500、stop                                                         |
-| `tests/governance.spec.ts`           | 注册激活、签发登录、四个阶段操作、未提供的操作、协议拒绝、identity 抛错                                                        |
+| `tests/governance.spec.ts`           | 注册激活、签发登录与 `loginId`、四个阶段操作、声明不提供的 14 个操作不识别登录、协议拒绝、identity 抛错                         |
+| `tests/governance-operations.spec.ts` | 18 个治理操作的结果映射与状态码、第 4 与第 6 步先于端口、`denied` 与 `not-visible` 逐字节相同、端口的两类拒绝、诊断无秘密      |
+| `tests/business-access.spec.ts`      | 只有会话位置的 `succeeded` 与建立成功的观察报告业务访问；报告失败不改答复；只刷新报告的那份登录                                |
+| `tests/observation-login.spec.ts`    | 撤销立刻结束该登录的观察、到期在下一轮结束、不可判定时 `ended(unavailable)`、其他登录的取消得到 `not-found` 且不调用 Session    |
 | `tests/session-operations.spec.ts`   | 七个操作、判断次序逐步、denied 逐字节相同、两类依赖抛错                                                                        |
 | `tests/derivation.spec.ts`           | 每族只改一个字段身份就变；`messageId` 不进身份                                                                                 |
 | `tests/observation.spec.ts`          | 确认先于帧、心跳、取消、替换、连接关闭、确认前断开后名额释放与 `stop()` 返回、并发建立只放行一个、手写读取的每条封闭规则、stop |
@@ -90,7 +96,7 @@ Session 失败种类在该操作公开结果集之外时（例如 `login-require
 | `tests/secrets.spec.ts`              | 响应、诊断与错误文本里没有登录证明、凭据与签发者，带正控                                                                       |
 | `tests/status.spec.ts`               | 状态码表与承载页逐项相同                                                                                                       |
 
-用例经 `tests/support/harness.ts` 起真实回环 HTTP，用 identity 的 `./testing` 参考替身、进程内主体权威与 `tests/support/session-double.ts` 的 Session 面替身。替身保持 Session 自己写明的判定顺序，它不证明真实 Session、持久 identity 或跨进程主体来源。
+用例经 `tests/support/harness.ts` 起真实回环 HTTP，用 identity 的 `./testing` 参考替身（`inProcessIdentity`：共用记录的操作端口与治理端口、可控时钟与记录库故障开关）、进程内主体权威与 `tests/support/session-double.ts` 的 Session 面替身。替身保持 Session 自己写明的判定顺序，它不证明真实 Session、持久 identity 或跨进程主体来源。
 
 ## 观察接入的责任选择
 

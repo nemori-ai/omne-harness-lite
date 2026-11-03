@@ -1,7 +1,9 @@
 // The governance location: register and activate, issue a login, the four stage operations, the
-// 32 operations this deployment does not provide, protocol rejections, and an identity fault.
+// fourteen operations this deployment declares not provided, protocol rejections, and an identity
+// fault. The eighteen governed operations are in governance-operations.spec.ts.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { IdentityOperations } from '@omne-harness/identity'
+import { NOT_PROVIDED_GOVERNANCE_OPERATIONS } from '../src/governance.ts'
 import { GOVERNANCE_PATH, governance, send, startFixture, type Fixture } from './support/harness.ts'
 
 let fixture: Fixture | undefined
@@ -50,11 +52,15 @@ describe('register-and-activate and issue-login', () => {
     expect(json.outcome).toBe('succeeded')
     expect(Object.keys(json.body).sort()).toEqual([
       'issuedAt',
+      'loginId',
       'loginIdentifier',
       'loginProof',
       'tenantId',
     ])
     expect(json.body.loginProof).not.toBe('')
+    // P-6: the identifier of the new login, for a later revoke-login; it is not the proof.
+    expect(json.body.loginId).toMatch(/^lgn_[0-9a-z]{26}$/)
+    expect(json.body.loginId).not.toBe(json.body.loginProof)
     const wrong = await send(fixture.port, GOVERNANCE_PATH, {
       body: governance('issue-login', { loginIdentifier: 'alice', credential: 'pw-2' }),
     })
@@ -87,7 +93,92 @@ describe('register-and-activate and issue-login', () => {
   })
 })
 
+const ORG = 'org_abcdefghjkmnpqrstvwxyz2345'
+const ACTING =
+  '{"organization":"org_abcdefghjkmnpqrstvwxyz2345","account":"acc_abcdefghjkmnpqrstvwxyz2345"}'
+const PROOF = { loginProof: 'some-proof' }
+const PROOF_ACTING = { loginProof: 'some-proof', actingTenant: ACTING }
+
+/** One well-formed request per declared operation: each passes the closed field check of step 3. */
+const DECLARED: readonly (readonly [string, unknown, Record<string, unknown>])[] = [
+  ['public-health', {}, {}],
+  ['replace-credential', { currentCredential: 'pw-1', newCredential: 'pw-2' }, PROOF],
+  ['query-organization', { organizationId: ORG }, PROOF_ACTING],
+  [
+    'open-affiliation-request',
+    { superiorOrganizationId: ORG, subordinateOrganizationId: ORG },
+    PROOF_ACTING,
+  ],
+  ['accept-affiliation-request', { requestId: 'r-1', expectedState: 'pending' }, PROOF_ACTING],
+  ['reject-affiliation-request', { requestId: 'r-1', expectedState: 'pending' }, PROOF_ACTING],
+  ['withdraw-affiliation-request', { requestId: 'r-1', expectedState: 'pending' }, PROOF_ACTING],
+  ['release-affiliation', { affiliationId: 'a-1', expectedState: 'effective' }, PROOF_ACTING],
+  ['query-received-affiliation-requests', {}, PROOF_ACTING],
+  ['query-issued-affiliation-requests', {}, PROOF_ACTING],
+  ['query-affiliation-request', { requestId: 'r-1' }, PROOF_ACTING],
+  ['judge-admission', { resource: 'r', action: 'a', parameters: {}, scopeId: 's' }, PROOF_ACTING],
+  [
+    'submit-authorization-expression',
+    { expression: 'e', action: 'a', object: 'o', parameters: {} },
+    PROOF_ACTING,
+  ],
+  ['withdraw-authorization-expression', { expressionId: 'x-1' }, PROOF_ACTING],
+]
+
+/** The eighteen governed operations of the identity spec F2. */
+const GOVERNED = [
+  'create-organization',
+  'query-create-organization',
+  'issue-member-invitation',
+  'accept-member-invitation',
+  'reject-member-invitation',
+  'withdraw-member-invitation',
+  'query-invitation',
+  'query-received-invitations',
+  'query-issued-invitations',
+  'query-own-memberships',
+  'query-organization-members',
+  'leave-organization',
+  'remove-member',
+  'change-member-role',
+  'switch-current-tenant',
+  'query-current-tenant',
+  'revoke-login',
+  'query-own-valid-logins',
+]
+
+function countingRecognition(): Readonly<{
+  calls: string[]
+  wrap: (base: IdentityOperations) => IdentityOperations
+}> {
+  const calls: string[] = []
+  return {
+    calls,
+    wrap: base => ({
+      registerAndActivate: input => base.registerAndActivate(input),
+      issueLogin: input => base.issueLogin(input),
+      recognizeLogin: input => {
+        calls.push(input.loginProof)
+        return base.recognizeLogin(input)
+      },
+    }),
+  }
+}
+
 describe('operations this deployment does not provide', () => {
+  it('declares exactly the fourteen operations; with the two and the eighteen they are the 34', () => {
+    expect([...NOT_PROVIDED_GOVERNANCE_OPERATIONS].sort()).toEqual(
+      DECLARED.map(([operation]) => operation).sort(),
+    )
+    const all = new Set([
+      ...NOT_PROVIDED_GOVERNANCE_OPERATIONS,
+      ...GOVERNED,
+      'register-and-activate',
+      'issue-login',
+    ])
+    expect(all.size).toBe(34)
+  })
+
   it('answers stage-not-provided to the four stage operations even with a bad body or proof', async () => {
     fixture = await startFixture()
     for (const operation of [
@@ -109,36 +200,34 @@ describe('operations this deployment does not provide', () => {
     }
   })
 
-  it('answers stage-not-provided to a provided operation it does not offer, and protocol-rejected to its bad fields', async () => {
-    fixture = await startFixture()
-    const notOffered: readonly (readonly [string, unknown, Record<string, unknown>])[] = [
-      ['public-health', {}, {}],
-      ['query-current-tenant', {}, { loginProof: 'x' }],
-      ['revoke-login', { targetLoginId: 'lgn_abcdefghjkmnpqrstvwxyz2345' }, { loginProof: 'x' }],
-      [
-        'judge-admission',
-        { resource: 'r', action: 'a', parameters: {}, scopeId: 's' },
-        {
-          loginProof: 'x',
-          actingTenant:
-            '{"organization":"org_abcdefghjkmnpqrstvwxyz2345","account":"acc_abcdefghjkmnpqrstvwxyz2345"}',
-        },
-      ],
-    ]
-    for (const [operation, body, extra] of notOffered) {
+  it('answers stage-not-provided to each declared operation without recognizing the login', async () => {
+    const recognition = countingRecognition()
+    fixture = await startFixture({ identity: recognition.wrap })
+    for (const [operation, body, extra] of DECLARED) {
       const reply = await send(fixture.port, GOVERNANCE_PATH, {
         body: governance(operation, body, extra, 'm-3'),
       })
       expect(reply.status, operation).toBe(501)
-      expect(reply.json).toEqual({
+      expect(reply.json, operation).toEqual({
         protocolVersion: 'governance-public/1',
         messageId: 'm-3',
         outcome: 'stage-not-provided',
         body: {},
       })
     }
+    expect(recognition.calls).toEqual([])
+    // Control: a governed operation with the same proof does reach the recognition.
+    const governedReply = await send(fixture.port, GOVERNANCE_PATH, {
+      body: governance('query-current-tenant', {}, PROOF),
+    })
+    expect(governedReply.status).toBe(403)
+    expect(recognition.calls).toEqual(['some-proof'])
+  })
+
+  it('answers protocol-rejected to a declared operation with bad fields', async () => {
+    fixture = await startFixture()
     const badFields = await send(fixture.port, GOVERNANCE_PATH, {
-      body: governance('query-current-tenant', { extra: 1 }, { loginProof: 'x' }, 'm-4'),
+      body: governance('judge-admission', { resource: 'r' }, PROOF_ACTING, 'm-4'),
     })
     expect(badFields.status).toBe(400)
     expect(badFields.json).toEqual({

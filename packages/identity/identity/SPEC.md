@@ -1,6 +1,6 @@
 # identity：长期行为规格
 
-状态：[具名采用](https://github.com/nemori-ai/omne-harness-lite/issues/266#issuecomment-6190010029)覆盖 ID-01 至 ID-09、ID-12 至 ID-14 及本阶段范围的业务规则。ID-10、ID-15 是后续验证义务。ID-11 继续登记公开形状与机制的承接责任。ID-16 定义首批公开形状，类型在本成员 `src/index.ts`。ID-17 按 [#745 派发](https://github.com/nemori-ai/omne-harness-lite/issues/745#issuecomment-6398214808)定义注册激活、签发登录与识别登录的公开形状及 `./testing` 参考替身。账号、组织、登录和成员关系的持久提供者是 `@omne-harness/identity-sql`（ID-11）。该提供者的条款与验证归它自己的 SPEC，本文不作为它已验证的证明。
+状态：[具名采用](https://github.com/nemori-ai/omne-harness-lite/issues/266#issuecomment-6190010029)覆盖 ID-01 至 ID-09、ID-12 至 ID-14 及本阶段范围的业务规则。ID-10、ID-15 是后续验证义务。ID-11 继续登记公开形状与机制的承接责任。ID-16 定义首批公开形状，类型在本成员 `src/index.ts`。ID-17 按 [#745 派发](https://github.com/nemori-ai/omne-harness-lite/issues/745#issuecomment-6398214808)定义注册激活、签发登录与识别登录的公开形状及 `./testing` 参考替身。ID-18 按 Reduce 的 R2-D203 定义治理端口、成功业务访问报告的形状，以及 `./testing` 的治理契约套件与参考替身。账号、组织、登录和成员关系的持久提供者是 `@omne-harness/identity-sql`（ID-11）。该提供者的条款与验证归它自己的 SPEC，本文不作为它已验证的证明。
 
 产品规则归[身份与授权产品](../../../.meta_harness/design/product/identity-and-authorization/design.md)，协作与依赖归[领域架构](../../../docs/domains/identity-and-authorization/architecture.md)。本文拥有主体、组织关系、成员、认证、登录及可信资格事实。资源权限配值、人工交互和实际业务执行由其他拥有者负责。
 
@@ -270,7 +270,7 @@
 
 ## ID-16 首批公开形状：主体与资格事实
 
-本节的类型在 `src/index.ts` 定义。本节只写类型表达不了的条款。登录、账号、成员关系的存储与流程不在本节，三项操作的形状见 ID-17。本节的当前资格读口由 [`@omne-harness/identity-sql`](../identity-sql/SPEC.md) 实现。成功业务访问报告的形状及采用待后续定义。
+本节的类型在 `src/index.ts` 定义。本节只写类型表达不了的条款。登录、账号、成员关系的存储与流程不在本节，三项操作的形状见 ID-17。本节的当前资格读口由 [`@omne-harness/identity-sql`](../identity-sql/SPEC.md) 实现。成功业务访问报告的形状见 ID-18。
 
 首批原主体语义与提供者前提按 [#659 的有限采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/659#issuecomment-6370208573)采用。本节不引入一般递归委派链或登录实例主体。
 
@@ -295,6 +295,25 @@
 `PrincipalVerifier.verify(value)` 答 `verified`、`rejected` 或 `unavailable`。核验是判定，不是解码：`verified` 返回的 `principal` 就是传入的那个值，同一个对象。跨进程场景在边界先把收到的数据解码成主体，再用它构造 `Access`；核验仍对那个值判定。与已签发主体形状相同的手写副本答 `rejected`。核验器不能回答时答 `unavailable`，不答 `verified`。核验只证明来源；它不证明当前成员资格，也不证明动作获准。
 
 `inProcessPrincipalAuthority()` 是进程内权威，是骨架参考件。它登记自己签发的对象，核验是登记成员资格。它同时返回签发者与核验器，不实现持有约束、原工作关系核对、登录存储或当前工作资格守卫。使用该参考件的真实装配仍须兑现这些前提。这只在同一进程、同一份已加载模块内成立。主体经过 JSON、结构化克隆、worker 消息或另一个进程后不再带有签发。跨进程的来源验证归后续提供者，不由本节承诺。
+
+### 持有者与关系核对位置
+
+本发行有三个代租户行事主体的持有者。每个持有者在签发之前核对原工作关系。应用装配页登记同一张表。
+
+| 持有者 | 位置 | 关系核对 |
+| --- | --- | --- |
+| server-entry 的登录步骤 | `packages/access/server-entry/src/identity-steps.ts` | 账号相等：识别出的账号等于目标租户的账号，见上一段 |
+| 会话工作主体的签发者 `sessionWorkPrincipals` | `apps/harness-server/src/entry/session-work-principals.ts` | 会话的归属读口 |
+| Model 宿主权威 | `apps/harness-server/src/entry/model-authorities.ts` | 原受理记录 |
+
+进程内参考件不实现持有约束。在本发行里，装配用两样东西兑现这项约束：
+
+1. 受信表 `apps/harness-server/src/s0/aa-rows.json` 只把签发者交给列出的持有者。
+2. harness-server 的 `check:aa-rows` 做两项机读检查：
+   - 受信名不从根上下文读取。
+   - `issueActingForTenant(` 与 `issueSystem(` 只出现在白名单文件里。
+
+这两项检查归 harness-server，本成员不兑现它们。增加持有者时，装配同时更新受信表、白名单和上表。
 
 ### 具名资格与角色映射
 
@@ -456,9 +475,140 @@
 
 套件对参考替身通过，只证明替身满足上列用例。它不证明下面的内容：持久与恢复（ID-09）、跨进程的凭证核验、秘密保管与凭据派生的强度、多进程并发、闰秒附近的截止时刻、未激活留存与接续，以及响应时间等时序侧信道。时序侧信道不在本节范围内。真实提供者另行取得这些证据。
 
+## ID-18 治理端口
+
+本节定义治理操作的公开形状。类型在 `src/governance.ts`，从包根导出。业务规则沿 ID-03、ID-05 至 ID-08 与 ID-13。本节只写类型表达不了的条款。结果种类与[公开协议](../../access/public-contract/SPEC.md)对应操作的业务结果对应。公开协议到本节的映射归服务端接入，不在本节。
+
+ID-17 的三项操作不变。治理操作放在独立端口 `IdentityGovernance`，有独立的 Cordis 服务键 `identityGovernance`（R1-D27 的可加改动）。
+
+### 端口、发起登录与注入
+
+`IdentityGovernance` 有十九项异步操作。分组如下：
+
+- 组织与成员：`createOrganization`、`queryCreateOrganization`、`issueMemberInvitation`、`acceptMemberInvitation`、`rejectMemberInvitation`、`withdrawMemberInvitation`、`queryInvitation`、`queryReceivedInvitations`、`queryIssuedInvitations`、`queryOwnMemberships`、`queryOrganizationMembers`、`leaveOrganization`、`removeMember`、`changeMemberRole`。
+- 当前租户：`switchCurrentTenant`、`queryCurrentTenant`。
+- 登录：`revokeLogin`、`queryOwnValidLogins`、`reportBusinessAccess`。
+
+每项输入带 `login`，即发起登录的 `LoginStateId`。调用方从同一请求的识别结果（ID-17）取得它。提供者在提交时再核对这份登录：
+
+1. 登录记录库能答复，否则结果是 `basis-unavailable`。
+2. 登录存在、未撤销，且本次时钟读数早于两个截止时刻。否则结果是 `denied`。
+
+公开协议要求行事租户的操作，输入还带 `actingTenant`。提供者在提交时核对它等于该登录的当前选择。不等时结果是 `denied`，结果不带实际选择。`reportBusinessAccess` 不使用上面两步，规则见下文。
+
+持有本端口的组件可以用任何已识别的登录行事。所以装配只把本端口交给受信持有者，与签发者同等对待。受信表的登记归装配，不在本成员。
+
+提供者用 ID-17 的注入时钟 `IdentityClock`，规则相同：较早的读数不被采用，相应操作答 `basis-unavailable`。邀请期限经注入端口 `InvitationTermsSource` 读入。`InvitationTerms` 有默认时长 `defaultDuration` 与最长时长 `maxDuration`。两者都须大于零，默认时长不长于最长时长。配置不可得或非法时，发出邀请答 `basis-unavailable`。具体数值不进入本规格。部署说明自己的配置初值，提供者不在代码里写死时长。
+
+每项写操作的登录核对、资格核对、预期状态核对与写入在同一次提交里完成。两次并发调用不能都通过同一项核对后再各自写入。
+
+操作对畸形输入不抛出。按标识查找的对象找不到时，结果是 `not-visible`。其他畸形输入的结果是 `denied`，没有业务效果。Promise 被拒绝时，结果对调用方保持未知（ID-09）。调用方不自动重做。`createOrganization` 用 `queryCreateOrganization` 认回。
+
+`diagnostic` 是内部诊断。它不包含凭据、登录凭证、登录标识或登录的 `LoginStateId` 文本。
+
+### 可见性
+
+`not-visible` 不区分对象不存在、属于其他账号与无权看见。三种情况的结果完全相同。
+
+- 组织：持有或曾经持有该组织成员资格的账号看得见该组织。从未成为成员的账号得到 `not-visible`。已解除的成员看得见组织，所以它的治理请求得到 `denied`，不是 `not-visible`。
+- 成员：被处置的目标须是该组织的有效成员，否则结果是 `not-visible`。
+- 邀请：被邀请账号与发出组织的当前有效超级管理员看得见。其他账号得到 `not-visible`。
+- 登录：同一账号的登录看得见。其他账号的登录与不存在的登录得到相同的 `not-visible`。
+
+### 组织与成员关系
+
+本阶段只采用默认团队方案（`DEFAULT_TEAM_MODEL`）。资格由 identity 在写入同一事实的提交里核对，不调用 authorization。原因是 ID-06 要求核对与提交共同守住最后管理员保护。
+
+- `createOrganization`：
+  - `governanceModelId` 只接受 `default-team`。其他值答 `denied`，不退回默认方案。名称是空白文本时答 `denied`。
+  - 成功时，组织、创建者租户 `tenant(organization, account)` 与首位超级管理员在同一次提交里成立。
+  - 回执按「账号 + `createCallId`」保存，绑定 `name` 与 `governanceModelId`。回执保存 `succeeded` 与 `denied`。同一 `createCallId` 与相同输入交回已保存的结果。输入不同时答 `conflict`，不交出已保存的结果。
+- `queryCreateOrganization` 只读回执。输入相同时交回回执里的结果，输入不同时答 `conflict`。没有该账号的回执，或回执现在读不出时，答 `unknown`。`unknown` 不说明创建是否发生。
+- `issueMemberInvitation`：
+  - 发出组织是 `actingTenant` 所属的组织。个人组织答 `denied`。行动者须是该组织当前有效的超级管理员，否则答 `denied`。
+  - `duration` 不大于零或长于最长时长时答 `denied`。省略时用本次读到的默认时长。`expiresAt` 在发出时固定，后来的配置变化不改变它。
+  - 资格核对在查找被邀请标识之前完成。标识不对应已激活账号时答 `not-visible`。邀请不带角色。
+- 接受、拒绝与撤回按下面的次序判断。前一步给出结果时，不进入后一步。
+  1. 邀请不存在，或调用者看不见：`not-visible`。
+  2. 接受或拒绝的行动者不是被邀请账号，或撤回的行动者不是发出组织的当前有效超级管理员：`denied`，邀请不变。
+  3. 邀请已经终结或已经过期：`no-change`，带已经形成的那一个终结。提供者第一次判定过期时写下过期终结。之后时钟倒退或重启都不使邀请重新开放。
+  4. 接受时被邀请账号已是有效成员：`no-change`，`state` 为 `accepted`。邀请在同一次提交里形成接受终结，角色与租户不变。
+  5. 其他情况成功。接受时，首次加入与重新加入都得到普通成员，沿用 `tenant(organization, account)`，不恢复旧角色。
+- `leaveOrganization`：组织是 `actingTenant` 所属的组织，成员是登录的账号。个人组织答 `denied`。账号不是该组织的有效成员时答 `denied`。退出后组织会没有有效超级管理员时答 `denied`。退出不删除租户，也不改写登录的当前选择。
+- `removeMember` 与 `changeMemberRole`：
+  - 行动者看不见组织或目标时答 `not-visible`。行动者不是当前有效超级管理员时答 `denied`。
+  - `targetRole` 不是该模型的角色时答 `denied`。目标角色与当前角色相同时答 `succeeded`，事实不变。
+  - `expectedRole` 与提交时的当前角色不同时答 `conflict`。
+  - 变化后组织会没有有效超级管理员时答 `denied`，原因不外露。两位管理员并发移除或降级对方时，至多一方成功，另一方答 `denied`。
+- 读面：
+  - `queryOwnMemberships` 只返回本人当前有效的成员资格。
+  - `queryOrganizationMembers` 不带 `includeRemoved` 时，组织的有效成员可读，只返回有效成员。`includeRemoved: true` 只有超级管理员可读，只返回已解除成员。已解除成员的 `role` 是它离开时的角色。
+  - `queryInvitation` 按上面的可见性。`state` 是本次读取时的状态。
+  - `queryReceivedInvitations` 只返回本人收到的邀请。`queryIssuedInvitations` 只给 `actingTenant` 所属组织的当前有效超级管理员。个人组织与普通成员答 `denied`。
+  - 名单任一项判不出时，整份名单答 `basis-unavailable`。结果不带数组，不返回部分名单或空名单。
+- 成员变化只改资格事实。治理操作不改写已有对象的归属，也不删除会话等资源。
+
+### 当前租户
+
+- `switchCurrentTenant` 只改这一份登录的当前选择，同账号的其他登录不变。目标租户的账号须是登录的账号，且目标须是有效成员资格的租户，否则答 `denied`。目标等于当前选择时答 `no-change`。失败时原选择保持。只有 `succeeded` 带租户。
+- 切换成功后，ID-17 的 `recognizeLogin` 对这份登录返回的 `tenant` 是新的选择。
+- `queryCurrentTenant` 不带 `actingTenant`。从未切换时返回个人租户。读不到时答 `basis-unavailable`，不编造个人租户。
+- 成员被移除后，登录的当前选择保持不变。之后的准入读到 `not-member`。
+
+### 登录
+
+- `revokeLogin`：
+  - 目标不存在或属于其他账号时答 `not-visible`，两种情况结果相同。
+  - 目标已撤销或已到期时答 `no-change`。
+  - 其他情况撤销目标，答 `succeeded`。发起登录可以撤销自己，这就是退出。撤销与发起登录的核对在同一次提交里。
+- 撤销之后，ID-17 的 `recognizeLogin` 对这份凭证答 `invalid`。已撤销的登录在识别的第 3 步之后、读时钟之前判定为失效。撤销按 ID-09 持久保留，重启后不复活。
+- `queryOwnValidLogins` 返回账号全部当前有效的登录。名单含发起登录。每一项不含凭证或凭据。`idleDeadline` 是最近一次刷新后的空闲截止时刻。名单为空时答 `basis-unavailable`。
+
+### 成功业务访问报告
+
+`reportBusinessAccess({ login })` 是 ID-03 与 ID-16 所说的成功业务访问报告。调用方只为这份登录的成功业务访问报告。失败请求、治理操作、健康检查与仅完成认证都不报告。
+
+- `refreshed`：提交时该登录有效。空闲截止时刻改为本次时钟读数加签发时冻结的空闲时长。新值早于原值时保留原值。
+- `not-refreshed`：登录不存在、已撤销或已失效。失效的登录不复活。
+- `basis-unavailable`：时钟或登录记录库不可得。
+
+报告只刷新这一份登录，不刷新同账号的其他登录。最长截止时刻不变。报告失败不改变调用方已经给出的结果。治理操作不刷新空闲计时。
+
+### 未采用的事项
+
+下列事项按 Reduce 的默认做法处理。产品裁定不同时，本节随之修订。
+
+- 治理操作不新增具名资格（P-1）。设置资格与会话管理资格保持默认拒绝。
+- 端口不提供组织隶属与更换凭据（P-8）。服务端接入把这些操作声明为本阶段不提供。
+- 邀请的默认时长与最长时长是部署配置（P-10），本成员没有初值。
+
+### 契约测试套件与参考替身
+
+`@omne-harness/identity/testing` 增加下列导出。
+
+| 导出 | 用途 |
+| --- | --- |
+| `checkIdentityGovernanceContract(fixture, options)` | 治理契约套件。对 `fixture` 产生的提供者逐项运行用例，返回逐项报告。它不依赖测试框架 |
+| `IDENTITY_GOVERNANCE_CONTRACT_CASES` | 套件的用例清单，报告按此顺序列出 |
+| `inProcessIdentity({ clock, terms, invitationTerms, faults })` | 进程内参考替身。返回共用记录的 `operations` 与 `governance`，以及 `restart()` |
+| `adjustableInvitationTerms(initial)` | 可控邀请期限配置：改值、置为不可得 |
+
+`fixture.create(options)` 每次产生一个新的空部署，返回同一部署的 `operations` 与 `governance`。两者须共用记录：经 `governance` 的撤销与切换对 `operations.recognizeLogin` 生效。
+
+- `options` 与操作套件的相同：起始时间点、一短一长两个时长。
+- 套件把登录的两个时长都设为长时长的 8 倍。邀请的默认时长是短时长，最长时长是长时长。个别用例自己改登录期限。
+- 可选的 `fixture.restart(providers)` 在同一份已提交记录上产生新的提供者实例，不带此前采用过的最晚读数。没有它时，重启用例报告为不适用。
+- `fixture.injectsRecordFaults` 为真时，提供者须把 `faults` 接到账号、登录与组织记录库。`RecordStore` 因此增加 `organizations`，它包括组织、成员资格、邀请与创建回执。
+
+套件覆盖上文各条，每条至少有一个反例。用例名覆盖身份治理交付规格 A、B、C 组与 F3 的全部验收名，另加每个读面的正例与拒绝。
+
+参考替身与 `inProcessIdentityOperations` 用同一套内存记录实现。每个写操作先读时钟与配置，然后在没有 `await` 的一段里核对并写入。`restart()` 保留记录，重新开始最晚读数。替身只实现默认团队方案，邀请标识是随机文本。
+
+套件对参考替身通过，只证明替身满足上列用例。它不证明持久与恢复、跨进程并发、真实存储的提交原子性与时序侧信道。真实提供者另行取得这些证据。
+
 ## 本阶段范围
 
-本节业务范围已经采用。注册激活、签发登录与识别登录的公开形状见 ID-17。其余公开类型和全部持久实现仍待后续交付。纯值边界保持。
+本节业务范围已经采用。注册激活、签发登录与识别登录的公开形状见 ID-17，治理端口见 ID-18。其余公开类型和全部持久实现仍待后续交付。纯值边界保持。
 
 账号是自然人在本部署中的全局使用身份，不是实名证明。组织是协作范围。租户由组织与账号共同确定，是该账号在该组织中的稳定身份。成员资格说明此人是否仍属于组织。角色说明能做什么，不写进租户。凭据证明本人，不以可读形式保存。登录状态是一次成功登录签发的独立状态，归该账号。退出登录不注销账号，不解除成员，也不终结组织或租户。
 

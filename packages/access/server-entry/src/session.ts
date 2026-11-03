@@ -59,6 +59,19 @@ export type SessionContext = Readonly<{
 type Request = SessionRequest
 type Reply = JsonAnswer | NoAnswer
 
+/** A reply with the outcome it carries, so the caller knows a `succeeded` without reading bytes. */
+type Replied = Readonly<{ outcome: PublicOutcome; reply: Reply }>
+
+function answererOf(
+  request: Request,
+  context: SessionContext,
+): (outcome: PublicOutcome, body: unknown) => Replied {
+  return (outcome, body) => ({
+    outcome,
+    reply: sessionAnswer(request.operation, request.messageId, outcome, body, context.diagnostics),
+  })
+}
+
 /** A plain value of a json-text tree, for the message package. Keys are defined, never assigned. */
 function plainOf(value: JsonValue): unknown {
   switch (value.kind) {
@@ -214,9 +227,8 @@ async function createSession(
   request: SessionRequest<'create-session'>,
   admitted: Admitted,
   context: SessionContext,
-): Promise<Reply> {
-  const answer = (outcome: PublicOutcome, body: unknown): Reply =>
-    sessionAnswer(request.operation, request.messageId, outcome, body, context.diagnostics)
+): Promise<Replied> {
+  const answer = answererOf(request, context)
   // Step 5: the definition must be in the deployment mapping. A throwing mapping is the entry's own fault.
   const resolved = context.resolveDefinition(request.body.definition)
   if (resolved === undefined) return answer('invalid', {})
@@ -258,9 +270,8 @@ async function queryOperation(
   operation: SessionOperationId,
   admitted: Admitted,
   context: SessionContext,
-): Promise<Reply> {
-  const answer = (outcome: PublicOutcome, body: unknown): Reply =>
-    sessionAnswer(request.operation, request.messageId, outcome, body, context.diagnostics)
+): Promise<Replied> {
+  const answer = answererOf(request, context)
   const { target } = admitted
   const result = await readCall(
     () =>
@@ -294,9 +305,8 @@ async function sendInput(
   message: Message,
   admitted: Admitted,
   context: SessionContext,
-): Promise<Reply> {
-  const answer = (outcome: PublicOutcome, body: unknown): Reply =>
-    sessionAnswer(request.operation, request.messageId, outcome, body, context.diagnostics)
+): Promise<Replied> {
+  const answer = answererOf(request, context)
   const { caller, target } = admitted
   const operation = acceptOperation(target.tenantText, target.session, request.body.acceptId)
   const input = inputIdentity(target.tenantText, target.session, request.body.inputId) as InputId
@@ -326,9 +336,8 @@ async function readHistory(
   request: SessionRequest<'read-history'>,
   admitted: Admitted,
   context: SessionContext,
-): Promise<Reply> {
-  const answer = (outcome: PublicOutcome, body: unknown): Reply =>
-    sessionAnswer(request.operation, request.messageId, outcome, body, context.diagnostics)
+): Promise<Replied> {
+  const answer = answererOf(request, context)
   const { target } = admitted
   const access = { principal: admitted.principal, tenant: target.tenant, session: target.session }
   const { body } = request
@@ -358,9 +367,8 @@ async function cancelRun(
   request: SessionRequest<'cancel-run'>,
   admitted: Admitted,
   context: SessionContext,
-): Promise<Reply> {
-  const answer = (outcome: PublicOutcome, body: unknown): Reply =>
-    sessionAnswer(request.operation, request.messageId, outcome, body, context.diagnostics)
+): Promise<Replied> {
+  const answer = answererOf(request, context)
   const { caller, target } = admitted
   const { controlId, run } = request.body
   const operation = controlOperation(caller.loginText, target.tenantText, target.session, controlId)
@@ -409,9 +417,8 @@ async function stopCall(
   request: SessionRequest<'stop-call'>,
   admitted: Admitted,
   context: SessionContext,
-): Promise<Reply> {
-  const answer = (outcome: PublicOutcome, body: unknown): Reply =>
-    sessionAnswer(request.operation, request.messageId, outcome, body, context.diagnostics)
+): Promise<Replied> {
+  const answer = answererOf(request, context)
   const { caller, target } = admitted
   const { controlId, producer } = request.body
   const operation = controlOperation(caller.loginText, target.tenantText, target.session, controlId)
@@ -469,6 +476,23 @@ async function handleRequest(request: Request, context: SessionContext): Promise
       {},
       context.diagnostics,
     )
+  const { outcome, reply } = await operate(request, message, admitted, context)
+  // A `succeeded` that reaches the wire is a successful business access of this login (identity
+  // ID-18). The report starts after the answer is written; nothing waits for it.
+  if (outcome === 'succeeded' && reply.kind === 'json')
+    return {
+      ...reply,
+      afterWrite: () => void context.steps.reportBusinessAccess(admitted.caller),
+    }
+  return reply
+}
+
+function operate(
+  request: Request,
+  message: Message | undefined,
+  admitted: Admitted,
+  context: SessionContext,
+): Promise<Replied> {
   switch (request.operation) {
     case 'create-session':
       return createSession(request, admitted, context)
