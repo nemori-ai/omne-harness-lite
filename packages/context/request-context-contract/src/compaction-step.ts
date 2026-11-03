@@ -113,7 +113,6 @@ export async function deriveFrom<P>(
     context,
     {
       selection: plan.basis.selection,
-      representation: plan.basis.representation,
       source: plan.policy.identity,
     },
     [...retained, ...after],

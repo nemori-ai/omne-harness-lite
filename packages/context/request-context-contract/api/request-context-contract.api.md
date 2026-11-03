@@ -415,8 +415,7 @@ import type * as M from '@omne-harness/model-contract';
 import type { Message } from '@omne-harness/message';
 import type { AssemblyInput, RequestLayers } from './values.js';
 import type { SnapshotIdentity, CachedAssemblyMaterial } from './reuse.js';
-import type { AssemblyPolicies } from './ports.js';
-export declare function assembledInput<P>(input: AssemblyInput<P>, policies: AssemblyPolicies, layers: RequestLayers, messages: readonly Message[]): M.AssembledModelInput;
+export declare function assembledInput<P>(input: AssemblyInput<P>, layers: RequestLayers, messages: readonly Message[]): M.AssembledModelInput;
 export type LayeredRequest = Readonly<{
     kind: 'layers';
     layers: RequestLayers;
@@ -542,7 +541,6 @@ export declare function materialOf(projected: ProjectedHistory, covered: readonl
 export declare function retentionLimit(retain: import('./ports.js').RetainBudget, selection: SelectedModel): bigint;
 export type CompactionCandidate = Readonly<{
     selection: SelectedModel;
-    representation: Adoption;
     source: Adoption;
 }>;
 export declare function measureCompactionCandidate<P>(context: OperationContext<P>, candidate: CompactionCandidate, projected: readonly ProjectedMessage[], messages: readonly Message[]): Promise<M.RequestBudget | AssemblyFailure | AssemblyUnknown>;
@@ -781,10 +779,10 @@ import type * as M from '@omne-harness/model-contract';
 import type { Message } from '@omne-harness/message';
 import type { Access } from './refs.js';
 import type { AdoptedRequestFact, AssemblyFailure, ContinuationBasis, HistoryEvidence, ProjectedMessage, SelectedModel } from './values.js';
-export type ModelInputContent = Pick<M.AssembledModelInput, 'system' | 'messages' | 'tools' | 'toolChoice' | 'representation' | 'source'>;
-export declare function buildModelInput(selection: Pick<SelectedModel, 'parameters' | 'replay'>, content: ModelInputContent): M.AssembledModelInput;
+export type ModelInputContent = Pick<M.AssembledModelInput, 'system' | 'messages' | 'tools' | 'toolChoice' | 'source'>;
+export declare function buildModelInput(selection: Pick<SelectedModel, 'profile' | 'parameters' | 'replay'>, content: ModelInputContent): M.AssembledModelInput;
 export type ContinuationFacts = Omit<ContinuationBasis, 'call' | 'fixed'>;
-export declare function continuationFacts(history: HistoryEvidence, selection: SelectedModel, assembled: M.AssembledModelInput): ContinuationFacts;
+export declare function continuationFacts(history: HistoryEvidence, selection: SelectedModel, assembled: M.AssembledModelInput, projection: M.Adoption): ContinuationFacts;
 export declare function lineageFor<P>(access: Access<P>, projected: readonly ProjectedMessage[], messages: readonly Message[], continuation: Readonly<{
     adopted: AdoptedRequestFact | null;
     facts: ContinuationFacts;

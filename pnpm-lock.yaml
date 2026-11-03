@@ -1016,6 +1016,12 @@ importers:
         specifier: workspace:*
         version: link:../request-context-contract
     devDependencies:
+      '@omne-harness/pi-ai-openai':
+        specifier: workspace:*
+        version: link:../../model/pi-ai-openai
+      '@omne-harness/pi-ai-transport':
+        specifier: workspace:*
+        version: link:../../model/pi-ai-transport
       '@omne-harness/request-context-cordis-contract':
         specifier: workspace:*
         version: link:../request-context-cordis-contract

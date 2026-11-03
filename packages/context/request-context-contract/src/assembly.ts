@@ -42,8 +42,13 @@ export async function assembleInputs<P>(
   })
   const represented = await representLayers(input, context, dynamic.messages)
   if (represented.kind !== 'chosen') return represented
-  const assembled = assembledInput(input, context.policies, dynamic.layers, represented.messages)
-  const facts = continuationFacts(input.history, input.selection, assembled)
+  const assembled = assembledInput(input, dynamic.layers, represented.messages)
+  const facts = continuationFacts(
+    input.history,
+    input.selection,
+    assembled,
+    context.policies.representation.identity,
+  )
   const measured = await measureLayers(
     input,
     context,

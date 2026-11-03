@@ -8,6 +8,7 @@
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口的导出名单与类型
 - [default-policies.spec.ts](default-policies.spec.ts)：默认压缩、表示策略与修剪器
 - [default-assembly.spec.ts](default-assembly.spec.ts)：默认策略在真实操作组里的固定请求与 `lineage.continues`
+- [model-representation.spec.ts](model-representation.spec.ts)：真实 OpenAI 家族绑定下的请求表示采用（四份候选都取档案的值）
 - [conversion-results.spec.ts](conversion-results.spec.ts)：缺席的转换件结果读口
 - [registry.spec.ts](registry.spec.ts)：来源登记表与操作组一致性
 - [accounting.spec.ts](accounting.spec.ts)：账目投影、窗口占用与恢复

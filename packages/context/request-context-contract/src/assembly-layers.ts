@@ -11,14 +11,12 @@ import type {
   SnapshotAnchor,
 } from './values.js'
 import type { SnapshotIdentity, CachedAssemblyMaterial } from './reuse.js'
-import type { AssemblyPolicies } from './ports.js'
 import { adoptionDigest } from './internal.js'
 import { buildModelInput } from './model-input.js'
 import { compareHistorySequence, type HistorySequence } from './refs.js'
 import { canonical } from './internal.js'
 export function assembledInput<P>(
   input: AssemblyInput<P>,
-  policies: AssemblyPolicies,
   layers: RequestLayers,
   messages: readonly Message[],
 ): M.AssembledModelInput {
@@ -27,7 +25,6 @@ export function assembledInput<P>(
     messages,
     tools: layers.toolDeclarations.direct,
     toolChoice: 'auto',
-    representation: policies.representation.identity,
     source: {
       owner: 'request-context-contract',
       name: 'assembly',
