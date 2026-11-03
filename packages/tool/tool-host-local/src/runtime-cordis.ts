@@ -5,7 +5,7 @@ import type {
   ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import { ToolInstanceHostService } from '@omne-harness/tool-cordis-contract/cordis'
-import { createRuntimeAuthorExecution } from './runtime-author.ts'
+import { createRuntimeAuthorExecution, type RuntimeAuthorExecution } from './runtime-author.ts'
 import {
   createRuntimeDependencies,
   createRuntimeStages,
@@ -100,8 +100,14 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
     authorExecution.close()
     await executor?.close()
   }
+  // A named type keeps the declaration on RuntimeAuthorExecution; an inferred one would inline
+  // exchange-refs types that this member does not depend on.
+  const publicAuthorExecution: RuntimeAuthorExecution = {
+    scope: authorExecution.scope,
+    settle: authorExecution.settle,
+  }
   return {
-    authorExecution: { scope: authorExecution.scope, settle: authorExecution.settle },
+    authorExecution: publicAuthorExecution,
     records: {
       name: 'local-tool-records',
       apply(ctx: Context) {
