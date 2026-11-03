@@ -213,6 +213,9 @@ export function createServerEntry(input: {
     switch (answer.kind) {
       case 'json':
         writeJson(res, answer, answer.close === true)
+        // The answer is out before any follow-up starts, so a follow-up that never settles cannot
+        // hold the answer or `stop()` (SPEC「成功业务访问的报告」).
+        answer.afterWrite?.()
         return
       case 'no-answer':
         writeNoAnswer(res)

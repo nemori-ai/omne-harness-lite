@@ -683,6 +683,39 @@ describe('steps 4 and 6 before the port', () => {
     expect(own.status).toBe(403)
     expect(reached).toEqual([alice.accountText])
   })
+
+  it('denies an acting tenant of the same account in another organization, before the port', async () => {
+    const reached: string[] = []
+    fixture = await startFixture({
+      governance: (base): IdentityGovernance => ({
+        ...base,
+        issueMemberInvitation: input => {
+          reached.push(input.actingTenant.organization.text)
+          return base.issueMemberInvitation(input)
+        },
+      }),
+    })
+    const alice = await login(fixture, 'alice')
+    await login(fixture, 'bob')
+    const created = json(
+      await call(alice, 'create-organization', {
+        createCallId: 'c-1',
+        name: 'Team',
+        governanceModelId: MODEL,
+      }),
+    ).body
+    const teamTenant = created.tenantId as string
+    // The selection is still the personal tenant: the team tenant of the same account is not it.
+    const invite = { invitedLoginIdentifier: 'bob' }
+    const refused = await call(alice, 'issue-member-invitation', invite, teamTenant, 'm-r')
+    expect(expectAnswer(refused, 403, 'denied', 'same account, other organization')).toEqual({})
+    expect(reached).toEqual([])
+    // Control: after the switch the same acting tenant reaches the port and succeeds.
+    await call(alice, 'switch-current-tenant', { tenantId: teamTenant })
+    const accepted = await call(alice, 'issue-member-invitation', invite, teamTenant)
+    expectAnswer(accepted, 200, 'succeeded', 'after the switch')
+    expect(reached).toEqual([created.organizationId])
+  })
 })
 
 describe('the governance port fails', () => {

@@ -542,10 +542,10 @@ export async function handleObservation(
     },
   })
   if (claim === undefined) return refuse('basis-unavailable')
-  // The establishment succeeded: a successful business access of this login (identity ID-18). An
-  // end that arrives during this wait is written when the stream attaches.
-  await context.steps.reportBusinessAccess(caller)
-  return sseAnswer(confirmationText(messageId, 'succeeded', observationId), 'succeeded', stream =>
-    claim.attach(stream),
-  )
+  return sseAnswer(confirmationText(messageId, 'succeeded', observationId), 'succeeded', stream => {
+    claim.attach(stream)
+    // The establishment succeeded: a successful business access of this login (identity ID-18).
+    // It starts after the stream is attached and its close is watched; nothing waits for it.
+    void context.steps.reportBusinessAccess(caller)
+  })
 }

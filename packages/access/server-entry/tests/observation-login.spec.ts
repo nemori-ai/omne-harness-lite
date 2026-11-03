@@ -4,6 +4,7 @@
 // unjudgeable login ends it with `ended(unavailable)`. `cancel-observation` from another login of
 // the same account finds nothing, ends nothing and calls no Session face.
 import { afterEach, describe, expect, it } from 'vitest'
+import type { IdentityGovernance } from '@omne-harness/identity'
 import { parseDuration } from '@omne-harness/utc-instant'
 import {
   GOVERNANCE_PATH,
@@ -93,6 +94,29 @@ describe('observation-ended-on-revoke', () => {
     expect((await kept.waitForEvents(2))[1]).toEqual(
       endedFrame('obs-a', 'observer-cancelled', 'm-k'),
     )
+  })
+
+  it('ends the target observations when the revoke answers no-change', async () => {
+    fixture = await startFixture({
+      config: { heartbeatIntervalMs: 60_000 },
+      // The port answers no-change and writes nothing: the target login stays valid in identity,
+      // so only the revoke branch can end its observation within the test.
+      governance: (base): IdentityGovernance => ({
+        ...base,
+        revokeLogin: () => Promise.resolve({ kind: 'no-change' }),
+      }),
+    })
+    const first = await login(fixture, 'alice')
+    const second = await anotherLogin(fixture, first)
+    const session = await createSession(fixture, first)
+    const stream = openSse(fixture.port, observe(first, session, 'obs-1'))
+    await stream.waitForEvents(1)
+    const replay = await send(fixture.port, GOVERNANCE_PATH, {
+      body: governed(second, 'revoke-login', { targetLoginId: first.loginId }, null),
+    })
+    expect((replay.json as { outcome: string }).outcome).toBe('no-change')
+    expect((await stream.waitForEvents(2))[1]).toEqual(endedFrame('obs-1', 'denied'))
+    await stream.ended
   })
 
   it('does not end observations when the revoke is refused', async () => {

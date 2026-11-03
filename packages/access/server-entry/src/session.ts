@@ -478,9 +478,12 @@ async function handleRequest(request: Request, context: SessionContext): Promise
     )
   const { outcome, reply } = await operate(request, message, admitted, context)
   // A `succeeded` that reaches the wire is a successful business access of this login (identity
-  // ID-18). The report settles before the answer is written and never changes it.
+  // ID-18). The report starts after the answer is written; nothing waits for it.
   if (outcome === 'succeeded' && reply.kind === 'json')
-    await context.steps.reportBusinessAccess(admitted.caller)
+    return {
+      ...reply,
+      afterWrite: () => void context.steps.reportBusinessAccess(admitted.caller),
+    }
   return reply
 }
 

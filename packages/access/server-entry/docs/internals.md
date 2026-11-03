@@ -59,7 +59,7 @@ Session 失败种类在该操作公开结果集之外时（例如 `login-require
 - 认领与附着：`claim` 先占名额并返回 `ObservationClaim`，HTTP 层把确认事件入队之后再 `attach` 已打开的流。两步之间没有 `await`，但别的请求的 `cancel-observation`、同键再次建立或 `stop` 可能在微任务间隙到达。这时记录已经离开活动集，`ended` 帧在流附着时写出，确认仍在它之前。`stop()` 的 `endAll` 只等已附着的流写完；尚未附着的认领由 HTTP 层的在途计数兜住，它的响应写完之后 `stop()` 才关闭连接。
 - 客户端在确认写出之前断开：`SseStream` 在构造时核对响应是否已销毁或已结束，已经关闭就直接进入关闭态。附着到它的登记立即释放名额，不 arm 心跳，`finished` 立即落定，`stop()` 不会等一个永不结束的流。
 - 确认之后，流上只有心跳与 `ended` 帧。本阶段不定位 Model 调用登记，不查询 `current`，不发 `state`、`refreshing`、`snapshot`、`delta`、`gap`。刷新策略与资源上界中的 `interval`、`backoff`、`maxAttempts`、`deadline`、`currentTimeout`、`frameQueueBytes`、`locatePages` 本阶段没有消费者，不在配置里。
-- 建立成功后，接入报告一次成功业务访问。报告在认领之后、确认写出之前，所以认领与附着之间有一次 `await`。这段时间里到达的结束同样在附着时写出。
+- 建立成功后，接入报告一次成功业务访问。报告在流附着、`onClose` 登记之后开始，接入不等它结束。会话位置的报告由 `JsonAnswer.afterWrite` 在 HTTP 层写出答复之后开始。所以报告永不结束时，答复、名额释放与 `stop()` 都不受影响。
 - 登录重核：本阶段没有定位与刷新，一轮就是一个心跳间隔 `heartbeatIntervalMs`。附着之后，每个观察有自己的计时器，到期后用建立时的登录证明调用一次 `recognizeLogin`。同一观察的重核串行，结束之后到达的结果被丢弃。这样做的代价是心跳间隔同时决定了登录失效被发现的时延。观察接上 #746 的刷新循环之后，重核改在每轮刷新之前，周期改由刷新策略决定。
 - `ended` 的原因：`observer-cancelled`（`cancel-observation`）、`observer-replaced`（同一登录同一会话同一 `observationId` 再次建立）、`denied`（本实例撤销该登录，或重核答 `invalid`）、`unavailable`（`stop`，或重核答 `basis-unavailable`）。
 - 连接关闭即取消：观察记录从活动集移除，保留 `cancelRetentionMs`，供 `cancel-observation` 重放得到 `ended`。
