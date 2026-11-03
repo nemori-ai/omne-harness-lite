@@ -156,15 +156,23 @@ function acknowledgementRollback(
   receipt: ReceiptV2,
   acknowledgement: CalendarReactionAcknowledgement,
 ): CalendarAcknowledgementResult {
-  const stop = receipt.responses.at(-1)
-  if (stop?.participant !== PARTICIPANT || stop.reply.kind !== 'conflict')
-    return { kind: 'unknown' }
+  const own = receipt.responses.find(entry => entry.participant === PARTICIPANT)
+  if (own?.reply.kind === 'participated') {
+    const response = z
+      .strictObject({ action: z.literal('ackReaction'), acknowledgement: ackSchema })
+      .safeParse(own.reply.response)
+    if (!response.success) return { kind: 'unknown' }
+    return canonical(response.data.acknowledgement) === canonical(acknowledgement)
+      ? { kind: 'rejected', reason: 'providerUnavailable' }
+      : { kind: 'rejected', reason: 'invalid' }
+  }
+  if (own?.reply.kind !== 'conflict') return { kind: 'unknown' }
   const basis = z
     .strictObject({
       reason: z.enum(['notFound', 'invalid', 'authorityRejected']),
       acknowledgementDigest: z.string(),
     })
-    .safeParse(stop.reply.basis)
+    .safeParse(own.reply.basis)
   if (!basis.success) return { kind: 'unknown' }
   if (basis.data.acknowledgementDigest !== digest(acknowledgement))
     return { kind: 'rejected', reason: 'invalid' }

@@ -94,6 +94,11 @@ async function acknowledge(
   if (!parsed.success) return { kind: 'rejected', reason: 'invalid' }
   const acknowledgement = parsed.data
   try {
+    canonical(acknowledgement)
+  } catch {
+    return { kind: 'rejected', reason: 'invalid' }
+  }
+  try {
     const result = await options.storage.commit({
       identity: acknowledgementIdentity(acknowledgement),
       combinationVersion: options.combination.combinationVersion,

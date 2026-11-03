@@ -189,7 +189,9 @@ export function invariantFindings(input: SupplyValidationInput): SupplyFinding[]
   const regular = input.candidate.days.filter(day => !exceptions.has(day.date))
   const years = fullYears(input.candidate)
   return input.policy.validation.invariants.flatMap(invariant => {
-    const evaluate = evaluators[invariant.invariantId]
+    const evaluate = Object.hasOwn(evaluators, invariant.invariantId)
+      ? evaluators[invariant.invariantId]
+      : undefined
     if (!evaluate)
       return [
         finding(

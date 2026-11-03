@@ -106,6 +106,42 @@ const validate = (
   })
 
 describe('candidate authority and coverage', () => {
+  it.each(['toString', 'constructor', '__proto__'])(
+    'does not resolve inherited properties as declared invariant %s',
+    invariantId => {
+      const result = validateCalendarCandidate({
+        policy: {
+          ...us,
+          validation: {
+            ...us.validation,
+            invariants: [
+              { invariantId, severity: 'blocker', description: 'Unknown invariant', params: {} },
+            ],
+          },
+        },
+        candidate: current,
+        oracles: [oracle],
+        independenceRegistry: registry,
+      })
+      expect(result.kind).toBe('unknown')
+      expect(result.findings).toContainEqual(
+        expect.objectContaining({ code: invariantId, status: 'unknown', severity: 'blocker' }),
+      )
+    },
+  )
+  it.each([NaN, Infinity, -Infinity])(
+    'does not report health for an invalid threshold %s',
+    threshold => {
+      for (const field of ['criticalFloorDays', 'warningFloorDays'] as const) {
+        expect(
+          classifyCalendarSupplyHorizon({
+            policy: { ...us, horizon: { ...us.horizon, [field]: threshold } },
+            remainingCoverageDays: 400,
+          }),
+        ).toBe('unknown')
+      }
+    },
+  )
   it('validates full-year statutory truth against registered captured oracle', () => {
     expect(validate(current).kind).toBe('success')
   })

@@ -427,3 +427,74 @@ it('never reports a failed repository read as an empty result', async () => {
     }),
   ).toThrow(/authority participant/)
 })
+
+it('recognizes a bound acknowledgement rolled back by a later participant', async () => {
+  let fail = true
+  const w = await world(storage => ({
+    ...storage,
+    commit: (input, options) =>
+      storage.commit(
+        input.identity.operation === 'calendar.ackReaction' && fail
+          ? {
+              ...input,
+              commands: [
+                ...input.commands,
+                { participant: 'fixture.after-calendar-write', facts: { mode: 'fail' } },
+              ],
+            }
+          : input,
+        options,
+      ),
+  }))
+  const published = await w.persistence.commitDisposition(command())
+  if (published.kind !== 'recorded' || published.receipt.outboxId === null)
+    throw new Error('Missing publication')
+  const ack = {
+    acknowledgementKey: 'late-failure',
+    id: published.receipt.outboxId,
+    operationRef: published.receipt.operationRef,
+    handoffRef: 'consumer:accepted',
+    authorityGuardRefs: ['fixture-ack'],
+  }
+  expect(await w.persistence.acknowledgeReaction(ack)).toEqual({
+    kind: 'rejected',
+    reason: 'providerUnavailable',
+  })
+  fail = false
+  expect(await w.persistence.acknowledgeReaction(ack)).toEqual({
+    kind: 'rejected',
+    reason: 'providerUnavailable',
+  })
+  expect(await w.persistence.acknowledgeReaction({ ...ack, handoffRef: 'changed' })).toEqual({
+    kind: 'rejected',
+    reason: 'invalid',
+  })
+  expect(
+    await w.persistence.acknowledgeReaction({
+      ...ack,
+      acknowledgementKey: 'approved-after-rollback',
+    }),
+  ).toEqual({ kind: 'acknowledged' })
+})
+
+it('rejects an acknowledgement that cannot be canonicalized before any storage commit', async () => {
+  let commits = 0
+  const w = await world(storage => ({
+    ...storage,
+    commit: (input, options) => {
+      commits++
+      return storage.commit(input, options)
+    },
+  }))
+  const before = commits
+  expect(
+    await w.persistence.acknowledgeReaction({
+      acknowledgementKey: '\ud800',
+      id: 'outbox',
+      operationRef: 'operation',
+      handoffRef: 'consumer:accepted',
+      authorityGuardRefs: ['grant'],
+    }),
+  ).toEqual({ kind: 'rejected', reason: 'invalid' })
+  expect(commits).toBe(before)
+})

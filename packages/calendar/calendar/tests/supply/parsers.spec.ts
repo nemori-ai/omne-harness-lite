@@ -28,6 +28,16 @@ const success = (result: SourceParseResult) => {
 }
 const fromText = (value: string) => ({ ...material, content: new TextEncoder().encode(value) })
 
+it.each(['20260230', '20261301', '20260015', '20260100'])(
+  'rejects an invalid OPM date before ICAL can normalize %s',
+  raw => {
+    const input = fromText(
+      `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nDTSTART;VALUE=DATE:${raw}\r\nSUMMARY:Holiday\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`,
+    )
+    expect(parseOpmCalendar({ ...input, mediaType: 'text/calendar' }).kind).toBe('rejected')
+  },
+)
+
 // Mutations of captured inputs are fault injection, never authoritative data.
 describe('CN real source formats', () => {
   it('replays the captured lanceliao artifact with 142 sourced overrides', () => {

@@ -13,11 +13,11 @@ function opmDay(
     event.hasProperty('rdate')
   )
     throw new Error('OPM event needs exactly one date and no recurrence')
-  const rawStart: unknown = event.getFirstPropertyValue('dtstart')
+  const rawStart: unknown = event.getFirstProperty('dtstart')?.toJSON()
   const summary: unknown = event.getFirstPropertyValue('summary')
-  if (!(rawStart instanceof ICAL.Time) || !rawStart.isDate)
-    throw new Error('DTSTART must be VALUE=DATE')
-  const day = isoDate.parse(rawStart.toString())
+  const [, , , day] = z
+    .tuple([z.literal('dtstart'), z.unknown(), z.literal('date'), isoDate])
+    .parse(rawStart)
   if (typeof summary === 'string' && /inauguration/i.test(summary)) return null
   return sourceDay(
     'opm-federal-holidays-ics',

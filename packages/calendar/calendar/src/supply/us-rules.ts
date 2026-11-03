@@ -149,7 +149,9 @@ export function classifyCalendarSupplyHorizon(input: {
 }): 'ok' | 'warning' | 'critical' | 'unknown' {
   const { horizon } = input.policy
   if (
-    !Number.isFinite(input.remainingCoverageDays) ||
+    ![input.remainingCoverageDays, horizon.warningFloorDays, horizon.criticalFloorDays].every(
+      Number.isFinite,
+    ) ||
     horizon.criticalFloorDays > horizon.warningFloorDays
   )
     return 'unknown'
