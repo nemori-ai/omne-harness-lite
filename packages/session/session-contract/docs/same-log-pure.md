@@ -8,13 +8,13 @@
 
 `decide` 在后继首条输入与全部 SE38 路径核对相应输入范围。`projectSessionLog` 保存真实 head 回执与原事件来源，逐项检查同次观察中的登记、等待和结果。`reduce` 用相同本域校验拒绝矛盾的新协议批次，不发布临时状态。已提交副作用必须在原快照中成立，读取材料不能代替它们。原事件重放仍核对来源与固定身份，但不重新施加旧等待或旧控制进度。
 
-同日志批次同时核验后果与执行进度。每项后果须有匹配原执行的进度行，推进范围内须有全部适用后果。这项配对核对只适用于事件通道（`via` 为 `same-log`）。entries 通道的核对见下一节。缺任一项则隔离整批。entries/results 对账保持已有事件序号，不虚构新 cursor。归约在同批临时状态中核对调用的原 SE15 与原事件 Run；旧 call 分支遵循相同约束。
+同日志批次同时核验后果与执行进度。每项后果须有匹配原执行的进度行，推进范围内须有全部适用后果。这项配对核对只适用于事件通道（`via` 为 `same-log`）。entries 通道的核对见下一节。缺任一项则隔离整批。延后控制事实是例外：Session 判定它只有 `observed` 时，这次提交只写进度行，同批没有后果行（见下文 LC-07 与[延后控制事实](#延后控制事实)）。entries/results 对账保持已有事件序号，不虚构新 cursor。归约在同批临时状态中核对调用的原 SE15 与原事件 Run；旧 call 分支遵循相同约束。
 
 缺少必要原材料返回 `unavailable`；错域先返回 `denied`。输入字段错误返回具体 `invalid`，固定绑定冲突回显本次 `observation.operation`。需要冲突身份却省略 operation 时返回 `unavailable`。新完整日志的矛盾在归约入口返回 `quarantined`。精确解释采用不匹配仍按原版本边界拒绝。
 
 ## entries 通道的解释提交
 
-`SessionTransactionPort.commitEntries` 提交一段 entries 通道的解释结果。调用者是受信的解释者，端口不做访问检查。[entries-interpretation.ts](../src/entries-interpretation.ts) 的 `projectSessionEntries` 做范围检查，`digestSessionEntries` 求认回摘要。每个提供者都调用这两个函数，不另写一份检查。规则来源是 P3 候选 r2 与 #502 的决策记录：采用 23 条规则，删去 EI-22。
+`SessionTransactionPort.commitEntries` 提交一段 entries 通道的解释结果。调用者是受信的解释者，端口不做访问检查。[entries-interpretation.ts](../src/entries-interpretation.ts) 的 `projectSessionEntries` 做范围检查，`digestSessionEntries` 求认回摘要。每个提供者都调用这两个函数，不另写一份检查。本通道有 23 条规则，编号 EI-22 已删除。
 
 ### 输入
 
@@ -143,6 +143,10 @@ session-storage-sql 在 `session` 参加者的一次写事务里完成同样的�
 
 输入是 `SessionLogCommitObservation`：事件通道的 `SessionLogObservation`，其中 `operation` 与 `executionEvidence` 必填。操作标识是重试时认回的依据，头回执是保存的事实所绑定的原执行 head。摘要 `digestSessionLog` 绑定除操作标识外的完整观察输入，用 `log` 标签与全部命令及 entries 通道的摘要隔开。
 
+#### 延后控制事实
+
+Agent 的控制事件是延后事实：它的事实边界 kinds 为 `['deferred']`，观察带 `control` 证据（Agent 控制记录、调用收场片段与紧急输入的中性证据，由适配器翻译），`consequences` 为空。后果取决于解释时哪些 Session 控制仍未结，所以 Session 在本次提交的快照上判定：`projectSessionLog` 调用 [control-normalization.ts](../src/control-normalization.ts) 的 `decideControlConsequences`，输入是快照、`reads.attempts` 与 `reads.controls`。`reads.controls` 给出每个未结 Session 控制提出时当前 Run 的原 execution，由读历史的提供者按日志顺序推出（session-storage-sql 的做法见其 SPEC 的「控制来源」）。判定为空时结果是 `observed`。延后事实带非空 `consequences`，或非延后事实带 `control`，都是 `invalid`。延后事实缺 `control` 是 `unavailable`。
+
 回执是 `SessionLogReceipt`：`operation`、`execution`、`readThrough`、`interpreted`、`recovered`。`readThrough` 是提交后该执行的事件进度。`interpreted` 是保存的解释事实的证据，即该次提交里执行进度行的证据，不是占位，也不是观察里的 `source` 或 `executionEvidence`。`recovered` 为真表示这次答案认回了已提交的解释。
 
 ### 检查顺序与失败
@@ -155,21 +159,22 @@ session-storage-sql 在 `session` 参加者的一次写事务里完成同样的�
 | LC-04 | 该操作标识已有记录但摘要不同，或属于其他形式的记录。 | `conflict`，`operation` 取本次标识 |
 | LC-05 | `projectSessionLog` 的全部检查：执行与 Run 归属、head 修订、事件序号范围、完整后果次序、各后果的原事实。 | 该函数给出的失败；head 修订不符是 `invalid`，字段 `revision` |
 | LC-06 | 事件序号不大于该执行已保存的进度：认回覆盖该序号的原提交，不新增提交，不保存这次的操作标识。没有这样的原提交时不猜。 | 认回时返回原回执，`recovered` 为真；找不到原提交时 `unavailable` |
-| LC-07 | 至少一项后果不是 `observed`。只有 `observed` 的事件不单独提交，下一批的进度检查仍从已存进度起算。 | `invalid`，字段 `consequences` |
+| LC-07 | 至少一项后果不是 `observed`。只有 `observed` 的事件不单独提交，下一批的进度检查仍从已存进度起算。例外是延后控制事实：Session 判定后只有 `observed` 时，只写进度行，不是失败。 | `invalid`，字段 `consequences` |
 | LC-08 | 归约通过。 | `quarantined` |
 | LC-09 | 发布前重新读取头：提供者在读取之后、发布之前，会话已被另一次提交改动。 | `changed`，`revision` 取新的修订，什么都没写 |
+| LC-10 | 委派视图若带有 `commitLog`，调用它。 | `denied`，什么都没写 |
 
-第一条失败的规则决定失败类别。LC-03 的认回先于 LC-05 至 LC-08 的状态检查。
+第一条失败的规则决定失败类别。LC-03 的认回先于 LC-05 至 LC-08 的状态检查。LC-10 在调用入口生效，不进入 LC-01 至 LC-09。
 
 ### 成功时写什么
 
-一次成功的提交在同一次发布里写：后果行，一条 `history.annotated` 的执行进度行，操作记录（摘要为 `digestSessionLog`，回执为 `SessionLogReceipt`），以及归约后的快照。`readThrough` 取自归约后快照里该执行的进度。`interpreted` 是执行进度行的证据。失败与认回都不改变日志、快照与进度。
+一次成功的提交在同一次发布里写：后果行，一条 `history.annotated` 的执行进度行，操作记录（摘要为 `digestSessionLog`，回执为 `SessionLogReceipt`），以及归约后的快照。延后控制事实判定后只有 `observed` 时没有后果行，只写进度行、操作记录与快照。`readThrough` 取自归约后快照里该执行的进度。`interpreted` 是执行进度行的证据。失败与认回都不改变日志、快照与进度。
 
 ### 提供者的步骤
 
 1. 读该会话与操作记录。无会话答 `denied`。有记录按 LC-03、LC-04 处理。
 2. 取同根历史材料，调用 `projectSessionLog`。失败原样返回。
-3. 没有行可写：按 LC-06 认回，或按 LC-07 拒绝。
+3. 没有行可写：按 LC-06 认回，或按 LC-07 拒绝。延后控制事实判定后只有 `observed` 时，`projectSessionLog` 仍交出进度行，这一步不拒绝。
 4. 调用 `reduce`。隔离则返回 `quarantined`。
 5. 发布前核对读取头（LC-09）。未变则一次写入后果行、进度行、操作记录与快照。
 6. 回执取自保存的行，不另造证据。
@@ -187,7 +192,7 @@ session-storage-sql 在 `session` 参加者的一次写事务里完成同样的�
 | 后果行、进度行、操作记录与快照同时可见，失败时都不可见 | 提供者的单次提交 | 内存替身只在进程内成立 |
 | 两次交错的提交只有一次写入，失败的一次答 `changed` 或认回 | LC-09。内存替身在读取与发布之间让出一次，使这条核对可观察 | 生产提供者由同事务内的读写兑现 |
 
-内存替身不耐久，不证明事务、持久或跨进程。真实提供者与 AD-03 的服务供给由后续成员兑现；`./testing` 的 `controls.project` 保留旧回执形状与行为，迁移与删除由后续闭包协调。
+内存替身不耐久，不证明事务、持久或跨进程。真实提供者与 AD-03 的服务供给由后续成员兑现；`./testing` 的 `controls.project` 保留旧回执形状与行为，迁移与删除见 [SPEC 的过渡支持范围](../SPEC.md#可加契约与过渡支持范围)。
 
 ## 登记、控制与压缩
 
@@ -202,7 +207,7 @@ session-storage-sql 在 `session` 参加者的一次写事务里完成同样的�
 - [work-entry-behavior.spec.ts](../tests/work-entry-behavior.spec.ts) 检查原控制引用、逐项漏下界、缺索引、非消息压缩、责任结清及旧事件重放。
 - [same-log-integrity.spec.ts](../tests/same-log-integrity.spec.ts) 检查直接归约的跨 Run 拒绝、双向批次完整性、空事件对账及合法迟到认回。
 - [entries-interpretation.spec.ts](../tests/entries-interpretation.spec.ts) 对 EI-01 至 EI-23（无 EI-22）各写一条只违反该规则的用例，断言失败类别与字段，并检查 RD-1 至 RD-3 的进度链与重放。
-- [testing-log.ts](../src/testing-log.ts) 是 `commitLog` 的共用符合性用例 `sessionLogConformance`（LC-01 至 LC-09 与委派视图一例），经 `./testing` 导出。夹具用 `observe` 向提供者的历史陈述原事件，用可选的 `delegatedView` 给出委派视图。[log-conformance.spec.ts](../tests/log-conformance.spec.ts) 在内存替身上运行它，并用违反各规则的变体证明每条用例都会变红。
+- [testing-log.ts](../src/testing-log.ts) 是 `commitLog` 的共用符合性用例 `sessionLogConformance`（用例编号 LC-01 至 LC-10，其中 LC-10 是委派视图），经 `./testing` 导出。用例编号是用例序号，与上表规则编号不一一对应：用例 LC-01 是成功提交，LC-02 对应规则 LC-03，LC-03 对应 LC-04，LC-04 对应 LC-06，LC-06 对应 LC-01，LC-07 对应 LC-05，LC-08 对应 LC-07，LC-05 是进度连续，LC-09 与 LC-10 对应同号规则。夹具用 `observe` 向提供者的历史陈述原事件，用可选的 `delegatedView` 给出委派视图。[log-conformance.spec.ts](../tests/log-conformance.spec.ts) 在内存替身上运行它，并用违反各规则的变体证明每条用例都会变红。
 - [adoption-verdict.spec.ts](../tests/adoption-verdict.spec.ts) 检查 `startRun` 与 `reload` 的采用材料带 `verdict` 时判定为 `frozen` 且不生成条目。[log-types.spec-d.ts](../tests/log-types.spec-d.ts) 是类型负控。
 - [testing-entries.ts](../src/testing-entries.ts) 是 `commitEntries` 的共用符合性用例 `sessionEntriesConformance`（CF-01 至 CF-09），经 `./testing` 导出。CF-02 与 CF-03 只从 `readWork().entriesProgress` 读回已存进度并续写。CF-09 要求夹具提供 `askedAccessChecks`，断言提交、认回与拒绝都不问访问检查。两个内存替身、session-storage-sql 的 `node:sqlite` 夹具与真实 sqlite-provider 各跑一次。自证与违例变体在 [transactions-conformance.spec.ts](../tests/transactions-conformance.spec.ts)。
 - [history-source-isolation.spec.ts](../tests/history-source-isolation.spec.ts) 检查同文本身份在不同租户、不同 Session 的原事件、目录、前缀与根隔离。
