@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-11-03T16:11:02Z",
-  "head": "21175c9f9",
+  "updatedAt": "2026-11-03T16:19:51Z",
+  "head": "aafc0cdc9",
   "links": [
     {
       "text": "波段计划",
@@ -27,16 +27,16 @@
         {
           "id": "w1-skill-contract",
           "line": "Skill",
-          "state": "待合入",
+          "state": "已合入",
           "round": 3,
-          "note": "Skill head 3adb30b2c（364 例；reduce 补一处耐插桩测试）；门禁、读数、回路全绿；变异复跑中",
+          "note": "PR #1110 合入父分支 aafc0cdc9（merge commit）。3 轮，364 例，覆盖 97%，硬线全过；变异 1595/被杀 1244/存活 288（含替身 156），manifest.ts 头部扫描边界记为 W2 已知测试缺口",
           "links": [
             {
               "text": "PR",
               "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1110"
             },
             {
-              "text": "3adb30b2c"
+              "text": "aafc0cdc9"
             }
           ]
         },
@@ -61,42 +61,114 @@
         {
           "id": "SC1",
           "text": "三个入口与导出键集合；公开根不导入 ./testing",
-          "state": "open"
+          "state": "met",
+          "evidence": [
+            {
+              "text": "PR #1110",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1110"
+            },
+            {
+              "text": "r1-delivery.md + r2/r3 复审"
+            }
+          ]
         },
         {
           "id": "SC2",
           "text": "每个拒绝原因有包样本；按次序给第一个原因",
-          "state": "open"
+          "state": "met",
+          "evidence": [
+            {
+              "text": "PR #1110",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1110"
+            },
+            {
+              "text": "r1-delivery.md + r2/r3 复审"
+            }
+          ]
         },
         {
           "id": "SC3",
           "text": "纯函数边界穷举",
-          "state": "open"
+          "state": "met",
+          "evidence": [
+            {
+              "text": "PR #1110",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1110"
+            },
+            {
+              "text": "r1-delivery.md + r2/r3 复审"
+            }
+          ]
         },
         {
           "id": "SC4",
           "text": "sealSnapshot 拒绝重复与前缀冲突；摘要与次序、包根名无关",
-          "state": "open"
+          "state": "met",
+          "evidence": [
+            {
+              "text": "PR #1110",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1110"
+            },
+            {
+              "text": "r1-delivery.md + r2/r3 复审"
+            }
+          ]
         },
         {
           "id": "SC5",
           "text": "三个端口套件全绿；违反无披露的替身使套件变红",
-          "state": "open"
+          "state": "met",
+          "evidence": [
+            {
+              "text": "PR #1110",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1110"
+            },
+            {
+              "text": "r1-delivery.md + r2/r3 复审"
+            }
+          ]
         },
         {
           "id": "SC6",
           "text": "skillBodyContract 可加扩展；旧测试原样通过；设置声明项",
-          "state": "open"
+          "state": "met",
+          "evidence": [
+            {
+              "text": "PR #1110",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1110"
+            },
+            {
+              "text": "r1-delivery.md + r2/r3 复审"
+            }
+          ]
         },
         {
           "id": "SC7",
           "text": "迁到 3.0.0 完整骨架",
-          "state": "open"
+          "state": "met",
+          "evidence": [
+            {
+              "text": "PR #1110",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1110"
+            },
+            {
+              "text": "r1-delivery.md + r2/r3 复审"
+            }
+          ]
         },
         {
           "id": "SC8",
           "text": "SPEC 封闭全部未定项；声明 schema",
-          "state": "open"
+          "state": "met",
+          "evidence": [
+            {
+              "text": "PR #1110",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1110"
+            },
+            {
+              "text": "r1-delivery.md + r2/r3 复审"
+            }
+          ]
         },
         {
           "id": "MC1",
@@ -224,6 +296,10 @@
     {
       "at": "2026-11-03T16:11:02Z",
       "text": "MCP 第 4 轮交回；Skill 变异因测试读源码文本不耐插桩而无效，reduce 改一处后重跑；两边完整链串行运行中，绿则合入"
+    },
+    {
+      "at": "2026-11-03T16:19:51Z",
+      "text": "w1-skill-contract 合入父分支（aafc0cdc9）；SC1–SC8 全部 met"
     }
   ]
 }
