@@ -29,6 +29,9 @@ const CREDENTIALS = { alice: 'alice-pw-MARKER-7f3a', bob: 'bob-pw-MARKER-91c2' }
 const INPUT_TEXT = 'hello from the r9 flow MARKER-input'
 /** A session id of the real shape that nobody created. */
 const UNKNOWN_SESSION = 'f'.repeat(64)
+/** How long the flow waits for the Run that the input started to end before the first stop. */
+const RUN_END_TIMEOUT_MS = 60_000
+const RUN_END_POLL_MS = 500
 
 export type Check = Readonly<{
   /** Acceptance item of the R9 closure (APP-12). 0 is the flow itself. */
@@ -102,6 +105,28 @@ const readHistory = (tenant: string, session: string, loginProof: string) => ({
   loginProof,
 })
 
+/**
+ * The operator layer of the flow: the release layer of `support.ts`, plus the Run entries in the
+ * history that `server-entry` serves. The flow reads `run.terminal` to know that the Run the input
+ * started has ended before it stops the process.
+ */
+function withRunEntries(layer: unknown): unknown {
+  const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
+  return {
+    ops: ops.map(op =>
+      op.id === 'server-entry'
+        ? {
+            ...op,
+            config: {
+              ...op.config,
+              historyKinds: ['message.user', 'message.assistant', 'run.started', 'run.terminal'],
+            },
+          }
+        : op,
+    ),
+  }
+}
+
 function pendingRows(records: readonly Rec[]): string[] {
   return records
     .filter(record => record.kind === 'row-state' && record['state'] !== 'ACTIVE')
@@ -121,7 +146,10 @@ export async function runR9Flow(): Promise<FlowRecord> {
   try {
     const port = await freePort()
     const operatorPath = join(scratch.base, 'operator.json')
-    writeOperator(operatorPath, operatorLayer({ storageRoot: scratch.storageRoot, port }))
+    writeOperator(
+      operatorPath,
+      withRunEntries(operatorLayer({ storageRoot: scratch.storageRoot, port })),
+    )
     const homes = {
       alice: join(scratch.base, 'home-alice'),
       bob: join(scratch.base, 'home-bob'),
@@ -370,6 +398,20 @@ export async function runR9Flow(): Promise<FlowRecord> {
       ),
     )
 
+    // Item 4 is an ordered stop and a restart, not a stop with work in flight: the input started a
+    // Run (its Model call goes out), so the flow waits until the history shows that Run ended. A
+    // stop while the Run is still running answers `incomplete` on purpose (AG-QUIESCE).
+    const ended = await waitForRunEnd(port, aliceTenant, session, aliceProof)
+    outputs.push(ended.body)
+    checks.push(
+      check(
+        4,
+        'the Run that the input started ends before the first stop (run.terminal in the history)',
+        ended.ok,
+        `no run.terminal after ${String(RUN_END_TIMEOUT_MS)} ms: status ${String(ended.status)}`,
+      ),
+    )
+
     const firstStop = await stop(server)
     server = undefined
     checks.push(
@@ -513,6 +555,22 @@ export async function runR9Flow(): Promise<FlowRecord> {
   } finally {
     await server?.kill()
     scratch.remove()
+  }
+}
+
+/** Reads the owner's history until a `run.terminal` entry is there, or the timeout passes. */
+async function waitForRunEnd(
+  port: number,
+  tenant: string,
+  session: string,
+  loginProof: string,
+): Promise<{ ok: boolean; status: number; body: string }> {
+  const deadline = Date.now() + RUN_END_TIMEOUT_MS
+  for (;;) {
+    const reply = await post(port, SESSION_PATH, readHistory(tenant, session, loginProof))
+    if (reply.status === 200 && reply.body.includes('"run.terminal"')) return { ok: true, ...reply }
+    if (Date.now() >= deadline) return { ok: false, ...reply }
+    await new Promise(resolve => setTimeout(resolve, RUN_END_POLL_MS))
   }
 }
 
