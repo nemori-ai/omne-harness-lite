@@ -260,5 +260,8 @@ describe('projectAssetBody', () => {
     const port = skillBodyContract()
     expect(port.judge(read.value, { capabilityName: 'full-skill' })).toEqual({ ok: true })
     expect(port.references(read.value)).toEqual([{ category: 'tool', name: 'read_file' }])
+    expect(port.deriveDeclarations(read.value)).toEqual({
+      entries: ['setting:binding:api-endpoint', 'setting:preference:tone'],
+    })
   })
 })

@@ -8,9 +8,29 @@ import {
   type JsonValue,
   type Judgment,
 } from '@omne-harness/assets'
+import { toPackageDigest } from './digest.ts'
+import {
+  fieldsOf,
+  firstFinding,
+  onlyKeys,
+  readScripts,
+  readSettings,
+  type Findings,
+} from './parse/shape.ts'
+import type { SettingDeclaration } from './values.ts'
 
 const schemaRead = readBodyText(
-  '{"kind":"skill-body","properties":{"name":"string","tools":{"category":"tool","name":"string"}}}',
+  JSON.stringify({
+    kind: 'skill-body',
+    properties: {
+      name: 'string',
+      description: 'string',
+      tools: { category: 'tool', name: 'string' },
+      scripts: { entry: 'string', runKind: 'string', facilities: 'string[]', parameters: 'json' },
+      settings: { name: 'string', category: 'preference|binding|placement-identity|governance' },
+      package: { digest: 'string' },
+    },
+  }),
   {
     maxBytes: 1000,
     maxDepth: 8,
@@ -31,7 +51,11 @@ export function skillBodyContract(): BodyContract {
     deriveDeclarations(body, context) {
       const decision = judge(body, context)
       if (!decision.ok) throw new TypeError(`skill body failed judgment: ${decision.rejected}`)
-      return { entries: [] }
+      return {
+        entries: extensionOf(body).settings.map(
+          setting => `setting:${setting.category}:${setting.name}`,
+        ),
+      }
     },
     references(body, context) {
       const decision = judge(body, context)
@@ -55,7 +79,42 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
   if (context?.capabilityName !== undefined && name !== context.capabilityName)
     return refusal('name-mismatch')
   if (toolRefs(body) === undefined) return refusal('incomplete-reference')
-  return { ok: true }
+  const first = firstFinding(extensionOf(body).findings)
+  return first === undefined ? { ok: true } : refusal(first.code)
+}
+
+const DESCRIPTION_MAX = 1024
+
+/**
+ * Reads the additive fields: `description`, `scripts`, `settings` and `package.digest`. Each one
+ * may be absent. They follow the same shape rules as `.omne/skill.json`.
+ */
+function extensionOf(body: unknown): {
+  findings: Findings
+  settings: readonly SettingDeclaration[]
+} {
+  const findings: Findings = []
+  const description = field(body, 'description')
+  if (description !== undefined) {
+    const text = description.kind === 'string' ? description.value : undefined
+    const length = text === undefined ? 0 : [...text].length
+    if (length < 1 || length > DESCRIPTION_MAX)
+      findings.push({
+        code: 'malformed',
+        detail: 'description is not text of 1 to 1024 characters',
+      })
+  }
+  readScripts(field(body, 'scripts'), findings)
+  const settings = readSettings(field(body, 'settings'), findings)
+  const pack = field(body, 'package')
+  if (pack !== undefined) {
+    const fields = fieldsOf(pack)
+    if (fields !== undefined) onlyKeys(fields, ['digest'], 'package', findings)
+    const digest = fields?.get('digest')
+    if (digest?.kind !== 'string' || !('ok' in toPackageDigest(digest.value)))
+      findings.push({ code: 'malformed', detail: 'package.digest is not a package digest' })
+  }
+  return { findings, settings }
 }
 
 function toolRefs(body: unknown): readonly { category: string; name: string }[] | undefined {
