@@ -21,7 +21,12 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { decodeValue, plainOf } from '../codec.ts'
 import type { JournalRow } from './entries.ts'
-import { entryEvidence, readHistory, type SessionHistory } from './history-index.ts'
+import {
+  entryEvidence,
+  readHistory,
+  type HistoryFocus,
+  type SessionHistory,
+} from './history-index.ts'
 import { big, oneRow, rowsOf, text } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
@@ -38,8 +43,8 @@ export type LogBatch = Readonly<{
   snapshot: WorkSnapshot
   entries: readonly HistoryEntry[]
   answer: SessionLogReceipt
-  /** The history index and reads the observation was judged and reduced on. */
-  basis: SessionHistory
+  /** The input range and focus of the history read the observation was judged and reduced on. */
+  decision: Readonly<{ scope: SessionInputScope; focus: HistoryFocus }>
 }>
 
 /**
@@ -234,6 +239,7 @@ function batchOf(
     prepared: WorkSnapshot
     entries: readonly HistoryEntry[]
     history: SessionHistory
+    focus: HistoryFocus
   }>,
 ): LogJudgment {
   const { tenant, journal } = start
@@ -282,7 +288,7 @@ function batchOf(
         interpreted: entryEvidence(tenant, session, progress),
         recovered: false,
       },
-      basis: projected.history,
+      decision: { scope: projected.history.reads.scope, focus: projected.focus },
     },
   }
 }
@@ -308,6 +314,13 @@ export function judgeLog(
           recorded: true,
         }
       : { kind: 'stopped', failure: { kind: 'conflict', operation: observation.operation } }
+  const focus: HistoryFocus = {
+    executions: [observation.execution],
+    event:
+      observation.sequence === null
+        ? null
+        : { execution: observation.execution, sequence: observation.sequence },
+  }
   const history = readHistory(
     port,
     tenant,
@@ -315,13 +328,7 @@ export function judgeLog(
     previous,
     scopeOf(previous, observation),
     undefined,
-    {
-      executions: [observation.execution],
-      event:
-        observation.sequence === null
-          ? null
-          : { execution: observation.execution, sequence: observation.sequence },
-    },
+    focus,
   )
   if (history === 'too-many')
     return { kind: 'failed', diagnostic: 'the history index of the session exceeds the read bound' }
@@ -345,5 +352,6 @@ export function judgeLog(
     prepared,
     entries: decision.entries as unknown as HistoryEntry[],
     history,
+    focus,
   })
 }

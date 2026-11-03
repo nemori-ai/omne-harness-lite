@@ -99,6 +99,12 @@ type Scope = Readonly<{ tenant: string; session: string }>
 class TooMany extends Error {}
 
 /**
+ * A read bounded at a position below what this Worker already folded for the session: the kept
+ * index cannot be rolled back, so the read is not answered (C-TOPOLOGY §2.9 H2).
+ */
+export class BelowKept extends Error {}
+
+/**
  * Every statement reads at most what is left of one shared row bound, and counts against it. A
  * statement with its own `page` reads at most that many rows and is complete at fewer. Each
  * statement ends with `LIMIT ?`, and the reader binds that last parameter. `charge` counts rows
@@ -429,7 +435,8 @@ const viewOf = (index: SessionRowsIndex): SessionRowsView => ({
  * that the group can still roll back. A groupable `session` participant needs another design of
  * this cache first (SPEC 已知限制第 21 条).
  */
-function sessionRows(read: Reader, port: Executor, scope: Scope): SessionRowsView {
+function sessionRows(read: Reader, port: Executor, scope: Scope, upto?: bigint): SessionRowsView {
+  if (upto !== undefined) return sessionRowsThrough(read, port, scope, upto)
   const key = JSON.stringify([scope.tenant, scope.session])
   const base = provenBase(port, scope, key)
   const from = base?.through ?? 0n
@@ -461,6 +468,34 @@ function sessionRows(read: Reader, port: Executor, scope: Scope): SessionRowsVie
   return viewOf(index)
 }
 
+/**
+ * The Session rows up to position `upto`, as a decision saw them when the log ended there
+ * (C-TOPOLOGY §2.9 H2). The rows after the kept cursor up to `upto` are folded into a copy, which is
+ * never kept. A kept cursor past `upto` cannot be rolled back: the read throws `BelowKept`.
+ */
+function sessionRowsThrough(
+  read: Reader,
+  port: Executor,
+  scope: Scope,
+  upto: bigint,
+): SessionRowsView {
+  const key = JSON.stringify([scope.tenant, scope.session])
+  const base = provenBase(port, scope, key)
+  if (base !== undefined && base.through > upto)
+    throw new BelowKept(`the kept index is past position ${String(upto)}`)
+  const from = base?.through ?? 0n
+  read.charge(base?.count ?? 0)
+  const after = rowsAfter(read, port, scope, from, upto)
+  if (after.added === 0n) return viewOf(base ?? emptyIndex())
+  if (base !== undefined && after.last - from !== after.added)
+    throw new Error(
+      `the history index found a gap in the Session log after position ${String(from)}: ${String(after.added)} rows up to position ${String(after.last)}`,
+    )
+  const index = base === undefined ? emptyIndex() : cloneIndex(base)
+  fold(index, scope, after.rows.map(plant))
+  return viewOf(index)
+}
+
 /** The kept index of `key` when the log row at its cursor still has its fingerprint; else none. */
 function provenBase(port: Executor, scope: Scope, key: string): SessionRowsIndex | undefined {
   const base = kept.get(key)
@@ -472,18 +507,26 @@ function provenBase(port: Executor, scope: Scope, key: string): SessionRowsIndex
 /** The rows after `from`: those of the five kinds, and the count, last position and top revision of all. */
 type RowsAfter = Readonly<{ rows: readonly Row[]; added: bigint; last: bigint; top: bigint }>
 
-function rowsAfter(read: Reader, port: Executor, scope: Scope, from: bigint): RowsAfter {
+function rowsAfter(
+  read: Reader,
+  port: Executor,
+  scope: Scope,
+  from: bigint,
+  upto?: bigint,
+): RowsAfter {
+  const bounded = upto === undefined ? '' : ' AND position <= ?'
+  const bounds = upto === undefined ? [from] : [from, upto]
   const rows = read(
     `SELECT position, revision, entry FROM sl_entry
-      WHERE tenant = ? AND session = ? AND kind IN ${INDEXED_KINDS} AND position > ?
+      WHERE tenant = ? AND session = ? AND kind IN ${INDEXED_KINDS} AND position > ?${bounded}
       ORDER BY position LIMIT ?`,
-    [scope.tenant, scope.session, from],
+    [scope.tenant, scope.session, ...bounds],
   )
   const after = oneRow(
     port,
     `SELECT COUNT(*) AS n, MAX(position) AS last, MAX(revision) AS top FROM sl_entry
-      WHERE tenant = ? AND session = ? AND position > ? LIMIT 1`,
-    [scope.tenant, scope.session, from],
+      WHERE tenant = ? AND session = ? AND position > ?${bounded} LIMIT 1`,
+    [scope.tenant, scope.session, ...bounds],
   )
   const added = after === undefined ? 0n : big(after['n'])
   return added === 0n
@@ -504,8 +547,13 @@ function journalTail(port: Executor, scope: Scope): bigint {
  * The evidence of the latest interpretation row (`history.annotated` with an execution) of `run`:
  * the saved fact that the execution progress of the snapshot came from. Read backward in pages.
  */
-function interpretedOf(read: Reader, scope: Scope, run: RunId): DurableEvidence | null {
-  let before: bigint | null = null
+function interpretedOf(
+  read: Reader,
+  scope: Scope,
+  run: RunId,
+  upto?: bigint,
+): DurableEvidence | null {
+  let before: bigint | null = upto === undefined ? null : upto + 1n
   for (;;) {
     const rows = read(
       `SELECT position, revision, entry FROM sl_entry
@@ -555,6 +603,8 @@ type Context = Readonly<{
   snapshot: WorkSnapshot
   starts: ReadonlyMap<string, Start>
   focus: HistoryFocus
+  /** The last Session position the decision saw; the whole log when absent. */
+  upto?: bigint
 }>
 
 /** The sequence below the unread range that this decision still reads: the focused event, or none. */
@@ -599,7 +649,8 @@ function boundaryOf(context: Context, execution: string): ExecutionHistoryBounda
     ),
   )
   if (facts === null) return null
-  const interpreted = readThrough === '0' ? null : interpretedOf(read, scope, start.run)
+  const interpreted =
+    readThrough === '0' ? null : interpretedOf(read, scope, start.run, context.upto)
   if (readThrough !== '0' && interpreted === null) return null
   return {
     run: start.run,
@@ -855,19 +906,28 @@ export function readHistory(
   scope: SessionInputScope,
   limit: number = MAX_ROWS,
   focus: HistoryFocus = NO_FOCUS,
+  upto?: bigint,
 ): SessionHistory | 'too-many' {
   const where: Scope = { tenant, session }
   const read = boundedReader(port, limit)
   try {
-    const { routed, starts, attempts, attemptsByRun, controls } = sessionRows(read, port, where)
-    const common = logRoot(port, tenant, session, snapshot.revision)
+    const { routed, starts, attempts, attemptsByRun, controls } = sessionRows(
+      read,
+      port,
+      where,
+      upto,
+    )
+    const common = logRoot(port, tenant, session, snapshot.revision, upto)
     const root: SessionLogRoot = {
       tenant: snapshot.tenant,
       session: snapshot.session,
       position: common.position,
       source: common.source,
     }
-    const closure = closeOver({ read, scope: where, snapshot, starts, focus }, scope.inputs)
+    const closure = closeOver(
+      { read, scope: where, snapshot, starts, focus, ...(upto === undefined ? {} : { upto }) },
+      scope.inputs,
+    )
     const unadmitted =
       read(
         'SELECT input FROM er_admission_idx WHERE tenant = ? AND session = ? LIMIT ?',

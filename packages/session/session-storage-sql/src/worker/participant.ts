@@ -31,7 +31,7 @@ import type {
 import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
 import { runChecks } from './check.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
-import { readHistory, type SessionHistory } from './history-index.ts'
+import { NO_FOCUS, readHistory, type HistoryFocus, type SessionHistory } from './history-index.ts'
 import { judgeLog, readCoveringText, type CoveringSnapshot, type LogBatch } from './log.ts'
 import { PROTOCOL } from './schema.ts'
 import { big, oneRow, rowsOf, text, type Row } from './support.ts'
@@ -152,17 +152,21 @@ const participated = (result: unknown, recovered: boolean, work?: JsonValue): Pa
   response: { result: encodeValue(result), recovered, ...(work === undefined ? {} : { work }) },
 })
 
-/** The JSON text the decision basis of a work reply may take (C-TOPOLOGY §2.9 H1). */
+/** The JSON text the decision of a work reply may take (C-TOPOLOGY §2.9). */
 export const WORK_BASIS_BYTES = 16 * 1024
+
+/** The input range and focus of the history read a batch was judged and reduced on. */
+type Decided = Readonly<{ scope: SessionInputScope; focus: HistoryFocus }>
 
 /**
  * What a published batch tells the work cache of the main thread (C-TOPOLOGY §2.9), so that it can
  * fold the batch onto the snapshot it holds instead of reading the new one whole: the version and
- * the stored text length of the new snapshot, the positions of the batch, and the history index
- * and reads the batch was reduced on (`basis`). `indexed` is false when the batch was reduced on
- * the stored snapshot without an index and without reads (the entries channel). The basis is left
- * out over `WORK_BASIS_BYTES`, and the cache then reads the snapshot whole. It is never stored by
- * this participant and never recalled: a recall carries no work.
+ * the stored text length of the new snapshot, the positions of the batch, and the input range and
+ * focus of the history read the batch was reduced on (`basis`), from which a read Worker reproduces
+ * that index and those reads (H2). `indexed` is false when the batch was reduced on the stored
+ * snapshot without an index and without reads (the entries channel). The basis is left out over
+ * `WORK_BASIS_BYTES`, and the cache then reads the snapshot whole: the provider stores every reply
+ * with its receipt and fails one over its response bound. A recall carries no work.
  */
 function workOf(
   port: ParticipantPort,
@@ -172,10 +176,10 @@ function workOf(
     revision: string
     stored: string
     entries: readonly HistoryEntry[]
-    basis: SessionHistory | 'none'
+    decided: Decided | 'none'
   }>,
 ): JsonValue {
-  const { tenant, session, revision, stored, entries, basis } = input
+  const { tenant, session, revision, stored, entries, decided } = input
   const root = oneRow(
     port,
     'SELECT published FROM er_root WHERE tenant = ? AND session = ? LIMIT 1',
@@ -187,12 +191,13 @@ function workOf(
     bytes: stored.length,
     first: (entries[0] as HistoryEntry).id,
     last: (entries[entries.length - 1] as HistoryEntry).id,
-    indexed: basis !== 'none',
+    indexed: decided !== 'none',
   }
-  if (basis === 'none') return work
-  const encoded = encodeValue({ index: basis.index, reads: basis.reads })
+  if (decided === 'none') return work
+  const encoded = encodeValue(decided)
   return JSON.stringify(encoded).length > WORK_BASIS_BYTES ? work : { ...work, basis: encoded }
 }
+
 const stopped = (failure: SessionFailure): ParticipantReply => ({
   kind: 'conflict',
   basis: { failure: encodeValue(failure) },
@@ -949,7 +954,14 @@ function publishCommand(
   const work =
     batch.history === null
       ? undefined
-      : workOf(port, { tenant, session, revision, stored, entries, basis: batch.history })
+      : workOf(port, {
+          tenant,
+          session,
+          revision,
+          stored,
+          entries,
+          decided: { scope: batch.history.reads.scope, focus: NO_FOCUS },
+        })
   return participated(result, false, work)
 }
 
@@ -1109,11 +1121,11 @@ function publishSameLog(
     epoch,
   })
   if (moved !== null) return moved
-  const basis = 'basis' in batch ? batch.basis : 'none'
+  const decided = 'decision' in batch ? batch.decision : 'none'
   return participated(
     batch.answer,
     false,
-    workOf(port, { tenant, session, revision, stored, entries, basis }),
+    workOf(port, { tenant, session, revision, stored, entries, decided }),
   )
 }
 

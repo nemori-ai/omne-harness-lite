@@ -139,6 +139,14 @@ export const HANDLERS: readonly Handler[] = [
     tables: ['sl_journal', 'sl_entry', ...EXECUTION_RECORD_INDEX_TABLES],
     migrations: [migrationRef, recordMigrationRef, admissionAttemptMigrationRef],
   },
+  {
+    // The basis a committed batch was reduced on (SPEC RT-04): its index and reads, read at the
+    // position before the batch and the same publication count.
+    handler: 'session.work-reads',
+    file: 'read-work-reads',
+    tables: ['sl_journal', 'sl_entry', ...EXECUTION_RECORD_INDEX_TABLES],
+    migrations: [migrationRef, recordMigrationRef, admissionAttemptMigrationRef],
+  },
   { handler: 'session.input', file: 'read-input', tables: ['sl_journal', 'sl_input'] },
   {
     handler: 'session.model-selection',

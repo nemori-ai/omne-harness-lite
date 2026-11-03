@@ -32,6 +32,7 @@ export const WORK_CACHE_BYTES = 64 * 1024 * 1024
 export const WORK_HANDLER = 'session.work'
 export const WORK_VERSION_HANDLER = 'session.work-version'
 const WORK_INDEX_HANDLER = 'session.work-index'
+const WORK_READS_HANDLER = 'session.work-reads'
 const HISTORY_HANDLER = 'session.history'
 
 /** The bounds of one cache. `sessions: 0` or `bytes: 0` keeps nothing. */
@@ -361,9 +362,10 @@ export function readCachedSessionWork(
 
 /**
  * What a published Session batch tells the cache: the version and stored text length of the new
- * snapshot, the positions of the batch, and the basis the participant reduced it on. `indexed` is
- * false for a batch reduced on the stored snapshot alone (no index, no reads); an indexed batch
- * without `basis` had a basis over the bound of the reply, and is not folded.
+ * snapshot, the positions of the batch, and the input range and focus of the history read the
+ * participant reduced it on (`basis`). `indexed` is false for a batch reduced on the stored snapshot
+ * alone (no index, no reads); an indexed batch without `basis` had one over the bound of the reply,
+ * and is not folded.
  */
 export type WorkFold = Readonly<{
   tail: string
@@ -487,6 +489,31 @@ async function batchEntries(reach: WorkReach, fold: WorkFold): Promise<HistoryEn
   return whole ? entries : null
 }
 
+/**
+ * The history index and reads the participant reduced the batch on, reproduced by
+ * `session.work-reads` at the position before the batch and the same publication count (H2).
+ */
+async function decisionBasis(
+  reach: WorkReach,
+  held: WorkSnapshot,
+  fold: WorkFold,
+): Promise<Readonly<{ index: SessionHistoryIndex; reads: SessionHistoryReads }> | null> {
+  const decided = fold.basis as Readonly<{ scope: JsonValue; focus: JsonValue }>
+  const read = await readOne(reach, WORK_READS_HANDLER, {
+    revision: held.revision,
+    published: fold.published,
+    upto: String(BigInt(fold.first) - 1n),
+    inputs: decided.scope,
+    focus: decided.focus,
+    snapshot: indexInput(held),
+  })
+  if (!('output' in read) || read.output['kind'] !== 'basis') return null
+  return decodeValue(read.output['basis'] as JsonValue) as Readonly<{
+    index: SessionHistoryIndex
+    reads: SessionHistoryReads
+  }>
+}
+
 /** The snapshot `fold` makes of `held`, at the fold's version; null when it cannot be proved. */
 async function folded(
   reach: WorkReach,
@@ -501,10 +528,11 @@ async function folded(
   let previous = unindexed(held)
   let reads: SessionHistoryReads | undefined
   if (fold.indexed) {
-    const basis = decodeValue(fold.basis as JsonValue) as Readonly<{
-      index: SessionHistoryIndex
-      reads: SessionHistoryReads
-    }>
+    const basis = await decisionBasis(reach, held, fold)
+    if (basis === null) {
+      counts.stale += 1
+      return null
+    }
     previous = { ...previous, historyIndex: basis.index }
     reads = basis.reads
   }

@@ -1,13 +1,15 @@
-// The commit path of this process folds its batch into the work cache (SPEC RT-04, C-TOPOLOGY §2.9
-// H1): the participant replies with the version, the positions and the basis of the batch; the port
-// reads the batch rows, runs the same `reduce` on the held snapshot and reads the new index with
-// `session.work-index`. What it registers must be the answer a whole read gives (F-1); it folds only
+// The commit path of this process folds its batch into the work cache (SPEC RT-04, C-TOPOLOGY §2.9):
+// the participant replies with the version, the positions, and the input range and focus of the
+// history read of the batch; the port reads the batch rows, reproduces that index and those reads
+// with `session.work-reads` at the position before the batch (H2), runs the same `reduce` on the
+// held snapshot and reads the new index with `session.work-index`. What it registers must be the answer a whole read gives (F-1); it folds only
 // a fresh commit onto the version just below (F-2); a publication in between (F-3), a quarantine
 // (F-4) or a basis over the bound (F-6) registers nothing and the next read is whole; readers of the
 // new version wait for the fold instead of reading whole (F-5). Each case counts the handler reads
 // the storage served and the fold counts of this process.
 import type {
   SessionEntriesObservation,
+  SessionInputScope,
   SessionLogCommitObservation,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -24,6 +26,8 @@ import { describe, expect, it } from 'vitest'
 import { canonicalText, encodeValue } from '../src/codec.ts'
 import { createSessionStorage } from '../src/index.ts'
 import { workFoldCounts, type WorkFoldCounts } from '../src/work-cache.ts'
+import { NO_FOCUS, readHistory } from '../src/worker/history-index.ts'
+import { PROTOCOL } from '../src/worker/schema.ts'
 import { app, textOf, TENANT_A, type App } from './fixtures/app.ts'
 import {
   activeRun,
@@ -228,6 +232,53 @@ describe('T-F1: a folded snapshot is the answer of a whole read', () => {
   })
 })
 
+describe('T-F1 (H2): the basis of a batch is read again as it was before the batch', () => {
+  it('session.work-reads at the position before a startRun answers the index and reads read then', async () => {
+    const a = await app()
+    ok(await a.create(TENANT_A))
+    ok(await a.accept(TENANT_A, 'session-1', 'input-1'))
+    ok(await a.accept(TENANT_A, 'session-1', 'input-2'))
+    const held = await wholeRead(a)
+    const { historyIndex: _index, ...stored } = held
+    const scope = { kind: 'pending', inputs: held.pending } as SessionInputScope
+    const port = {
+      execute: (sql: string, params: readonly unknown[]) =>
+        a.provider.select('dom_0', sql, params as never) as never,
+    }
+    const then = readHistory(port, textOf(TENANT_A), 'session-1', stored as WorkSnapshot, scope)
+    if (then === 'too-many') throw new Error('too many rows')
+    const [[upto]] = a.provider.select(
+      'dom_0',
+      'SELECT MAX(position) FROM sl_entry WHERE tenant = ? AND session = ?',
+      [textOf(TENANT_A), 'session-1'],
+    ).rows as unknown as [[bigint]]
+    // The batch adds a Run start, an attempt and the taken input after that position.
+    ok(await startRun(a, 'start-run-1'))
+    const read = await a.provider.storage.read({
+      domain: { scope: { kind: 'tenant', tenant: textOf(TENANT_A) }, transactionDomain: 'dom_0' },
+      handler: 'session.work-reads',
+      protocol: PROTOCOL,
+      requestKey: 'work-reads-1',
+      input: {
+        tenant: textOf(TENANT_A),
+        session: 'session-1',
+        revision: held.revision,
+        published: '0',
+        upto: String(upto),
+        inputs: encodeValue(scope),
+        focus: encodeValue(NO_FOCUS),
+        snapshot: encodeValue(stored),
+      },
+    })
+    if (read.kind !== 'read') throw new Error(`the read failed: ${read.kind}`)
+    const output = read.output as Record<string, unknown>
+    expect(output['kind']).toBe('basis')
+    expect(canonicalText(output['basis'])).toBe(
+      canonicalText(encodeValue({ index: then.index, reads: then.reads })),
+    )
+  })
+})
+
 describe('T-F2: only a fresh commit onto the version just below folds', () => {
   it('no held snapshot: nothing folds, and the next read is whole', async () => {
     const a = await app()
@@ -337,6 +388,45 @@ describe('T-F3: a publication between the commit and its fold', () => {
   })
 })
 
+describe('T-F3 (H2): a publication before the basis of the batch is read again', () => {
+  it('the basis read finds another count: nothing is registered, and the next read is whole', async () => {
+    const a = await app()
+    const agent = agentPublisher({
+      storage: a.provider.storage,
+      combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
+      domainOf: () => 'dom_0',
+    })
+    const { port, hooks } = portOver(a)
+    ok(await a.create(TENANT_A))
+    ok(await a.accept(TENANT_A, 'session-1', 'input-1'))
+    ok(await startRun(a, 'start-run-1'))
+    ok(await a.accept(TENANT_A, 'session-1', 'input-2'))
+    const run = activeRun(await readWork(port, a))
+    hooks.set('session.work-reads', () =>
+      agent.admit({
+        tenant: TENANT_A,
+        session: 'session-1',
+        execution: run.execution,
+        input: 'input-2',
+        operation: 'aop-submit-2',
+        accepted: evidence('agent/accepted/2'),
+        grant: evidence('agent/receipt/2'),
+        attachment: 'attachment-1',
+        attempt: run.attempt,
+      }),
+    )
+    const before = workFoldCounts()
+    const committing = a.provider.calls.length
+    ok(await accept(a, port, 'input-3'))
+    expect(since(before)).toEqual({ ...none, stale: 1 })
+    // The fold stops at the basis read: it reads no index for a version it cannot prove.
+    expect(readsOf(a, 'session.work-index', committing)).toBe(0)
+    const from = a.provider.calls.length
+    await readWork(port, a)
+    expect(readsOf(a, WHOLE, from)).toBe(1)
+  })
+})
+
 describe('T-F4: a batch that reduce quarantines on the held snapshot', () => {
   it('is not registered; the quarantine is counted and the next read is whole', async () => {
     const a = await app()
@@ -389,11 +479,11 @@ describe('T-F5: reads of the new version while the fold runs', () => {
   })
 })
 
-describe('T-F6: a basis over the bound of the reply', () => {
+describe('T-F6: a decision over the bound of the reply', () => {
   it('is left out of the reply: nothing folds, and the next read is whole', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
-    // Pending inputs with long names: the index and reads of the scope pass 16 KiB.
+    // Pending inputs with long names: the input range of the decision passes 16 KiB.
     for (let n = 0; n < 12; n += 1)
       ok(await a.accept(TENANT_A, 'session-1', `input-${String(n)}-${'x'.repeat(2000)}`))
     await readWork(a.port, a)
