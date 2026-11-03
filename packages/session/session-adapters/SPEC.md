@@ -343,7 +343,7 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
    - 同一主体、消费者类与作用域已有资格，并且作用域的恢复与注册修订都没有变时，再交出这份资格。
    - 否则当场签发。块键集合是该消费者类不带翻译的绑定的块键，需要绑定集合是它带翻译的绑定。两者都为空时也签发，答 `current`，读者读到空快照（R2-D202）。`absent` 只留给没有资格可签的情形（作用域已结束、Runtime Context 以 `scope-ended` 拒签），所以真缺资格不会被当作空读。同一次恢复内的重签取代旧资格。旧资格属于更早的恢复时，`beginReplay` 已使它失效，所以不取代它。
    - 持有者权威拒绝签发时答 `refused`。Runtime Context 不可用或未知时，原样答 `unavailable` 或 `unknown`。
-3. 事实插件 `session-ad03-facts` 注入 `session: { caller: 'coordinator' }`，以 `sessionReplayFacts` 与 `sessionScopeLookup` 两个键提供服务（服务类来自 session-cordis-contract）。它也在会话的第一次通知与铸造作用域的通知后经 `readWork` 把快照中未结束的作用域记进共用索引（见第 1 项的新作用域）；已读过的会话按索引上界记在本代次内，不重复读。插件停止时两个服务撤下，持有旧引用的调用答 `unavailable`。
+3. 事实插件 `session-ad03-facts` 注入 `session: { caller: 'coordinator' }`，以 `sessionReplayFacts` 与 `sessionScopeLookup` 两个键提供服务（服务类来自 session-cordis-contract）。它读上下文记录经子插件 `session-ad03-facts-history`，后者只注入 `session: { caller: 'reader' }`：历史读取只接受 `reader`，一个插件只用一个调用方类（[AD-00](#ad-00) 第 1 条）。子插件不在时记录读取答 `unavailable`。它也在会话的第一次通知与铸造作用域的通知后经 `readWork` 把快照中未结束的作用域记进共用索引（见第 1 项的新作用域）；已读过的会话按索引上界记在本代次内，不重复读。插件停止时两个服务撤下，持有旧引用的调用答 `unavailable`。
    - `replayFacts.stepCommittedBlocks` 交给 `createSessionRuntimeContextTrust`，不再经回放纤程：事实插件读同一批上下文记录，截到 through，答最终注册中有步提交的 checkpointed 块。through 不在日志中时答 `unknown`。回放子插件不运行时它仍可回答；事实插件未运行、读不完的历史与翻译缺陷答 `unavailable`。
    - 作用域查找（R2-D14）：索引只说去哪里找。命中后以协调者主体读该会话的工作快照，在 `contextScopes` 里找该作用域：找到答 `known`（tenant、session、generation 取自快照，不取自 Cordis 代次或作用域文本）；快照没列出它答 `unknown`（伪造或他租户的作用域落在这里）。读取失败、主体取不到、快照答了另一个会话或租户、插件已停止答 `unavailable`。已结束的作用域仍答归属，答复不表示它仍然活跃。查找不授权任何访问。作用域未命中索引时，先等尚未结束的通知读取再答 `unknown`。
 

@@ -351,19 +351,23 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
       annotations: [],
     }
   }
+  // The history face admits the `reader` class only (session-contract「四个面与公开操作」); another
+  // class is refused as the provider refuses it. Both readers of the records (the replay sub-plugin
+  // and the history sub-plugin of the facts plugin) are `reader`, so both land in `historyCalls`.
   const historyFaceFor = (caller: unknown): SessionFaces<unknown>['history'] => {
-    const calls = (caller as { caller?: unknown }).caller === 'reader' ? historyCalls : factsCalls
+    const reader = (caller as { caller?: unknown }).caller === 'reader'
+    const calls = reader ? historyCalls : factsCalls
     return {
       begin: async input => {
         calls.push({ method: 'begin', input, caller })
-        if (!owns(input)) return fail({ kind: 'denied', action: 'history.begin' })
+        if (!reader || !owns(input)) return fail({ kind: 'denied', action: 'history.begin' })
         if (faults.history)
           return fail({ kind: 'unavailable', owner: 'session', diagnostic: 'history down' })
         return succeed(page(sessionKey(input), input.kinds, 0))
       },
       next: async input => {
         calls.push({ method: 'next', input, caller })
-        if (!owns(input)) return fail({ kind: 'denied', action: 'history.next' })
+        if (!reader || !owns(input)) return fail({ kind: 'denied', action: 'history.next' })
         const [key, kinds, offset] = JSON.parse(input.cursor) as [string, string[], number]
         if (key !== sessionKey(input)) return fail({ kind: 'denied', action: 'history.next' })
         return succeed(page(key, kinds, offset))
@@ -962,7 +966,8 @@ describe('on real Cordis', () => {
     expect(f.handoff()).toBeUndefined()
     seedA(f)
     await f.committed(A, [REGISTRATION, STEP])
-    expect(f.historyCalls).toEqual([])
+    // No recovery: only the facts plugin read the records.
+    expect(f.methods()).toEqual([])
     // The facts plugin needs `session` alone: it has indexed the scope and answers.
     expect(await f.holder.replayFacts.stepCommittedBlocks(scopeA, null)).toEqual({
       kind: 'known',
@@ -1011,7 +1016,8 @@ describe('on real Cordis', () => {
     seedA(f)
     await f.replayFiber.dispose()
     await f.committed(A, [REGISTRATION, STEP])
-    expect(f.historyCalls).toEqual([])
+    // No recovery and no apply: only the facts plugin read the records.
+    expect(f.methods()).toEqual([])
     expect(await f.holder.replayFacts.stepCommittedBlocks(scopeA, { commit: 's3' })).toEqual({
       kind: 'known',
       keys: [NOTES],

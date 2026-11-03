@@ -700,10 +700,38 @@ class SessionScopeLookupProvider extends SessionScopeLookupService {
  * two questions from the session's own durable facts: which session a scope belongs to, and which
  * checkpointed blocks have a step commit.
  */
-function startFacts<P>(ctx: Context, shared: Shared<P>): void {
+/** Where the history sub-plugin of the current generation leaves its record reader. */
+type HistoryLink<P> = { read: ((bound: Bound) => Promise<Read<P>>) | undefined }
+
+/**
+ * `session-ad03-facts-history`: the history face admits the `reader` class only, and a plugin calls
+ * `session` with one caller class (AD-00 rule 1). So the facts plugin, which reads snapshots as
+ * `coordinator`, reads the context records through this sub-plugin.
+ */
+function createFactsHistoryPlugin<P>(shared: Shared<P>, link: HistoryLink<P>) {
+  return {
+    name: 'session-ad03-facts-history',
+    inject: { [sessionKey]: { caller: 'reader' as const } },
+    apply(sub: Context) {
+      const read = recordReader(sub, shared, sub.logger(LOGGER))
+      link.read = read
+      sub.effect(() => () => {
+        if (link.read === read) link.read = undefined
+      })
+    },
+  }
+}
+
+async function startFacts<P>(ctx: Context, shared: Shared<P>): Promise<void> {
   const logger = ctx.logger(LOGGER)
   const { index, input } = shared
-  const readRecords = recordReader(ctx, shared, logger)
+  const history: HistoryLink<P> = { read: undefined }
+  const readRecords = (bound: Bound): Promise<Read<P>> =>
+    history.read?.(bound) ??
+    Promise.resolve({
+      kind: 'unavailable',
+      diagnostic: 'the history sub-plugin of the facts plugin is not running',
+    })
   /** The notices whose read has not ended: a lookup waits for them before it says `unknown`. */
   const learning = shared.learning
   /**
@@ -720,11 +748,13 @@ function startFacts<P>(ctx: Context, shared: Shared<P>): void {
    * unarchiving), also index the open scopes of the snapshot: a new scope has no record yet, and the
    * holder must still find it (AD-03 1a). A read that fails indexes nothing of its own part.
    */
-  async function learn(bound: Bound, minted: boolean): Promise<void> {
-    const read = await readRecords(bound)
-    if (read.kind === 'unavailable')
-      logger.warn(`the scopes of a session were not indexed: ${read.diagnostic}`)
-    else if (!closed) for (const ref of read.scopes.keys()) remember(shared, ref, bound)
+  async function learn(bound: Bound, recorded: boolean, minted: boolean): Promise<void> {
+    if (recorded) {
+      const read = await readRecords(bound)
+      if (read.kind === 'unavailable')
+        logger.warn(`the scopes of a session were not indexed: ${read.diagnostic}`)
+      else if (!closed) for (const ref of read.scopes.keys()) remember(shared, ref, bound)
+    }
     const key = sessionKeyOf(bound)
     if (closed || key === undefined || (!minted && scoped.has(key))) return
     const snapshot = await snapshotOf(bound)
@@ -836,8 +866,9 @@ function startFacts<P>(ctx: Context, shared: Shared<P>): void {
     const minted = kinds.some(kind => SCOPE_MINTING_KINDS.includes(kind))
     const key = sessionKeyOf({ tenant, session })
     const unscoped = key !== undefined && !scoped.has(key)
-    if (!minted && !unscoped && !kinds.some(kind => input.translation.kinds.includes(kind))) return
-    const work = learn({ tenant, session }, minted).catch(cause =>
+    const recorded = kinds.some(kind => input.translation.kinds.includes(kind))
+    if (!minted && !unscoped && !recorded) return
+    const work = learn({ tenant, session }, recorded, minted).catch(cause =>
       logger.warn(`the scopes of a session were not indexed: ${describe(cause)}`),
     )
     learning.add(work)
@@ -851,6 +882,7 @@ function startFacts<P>(ctx: Context, shared: Shared<P>): void {
       if (shared.link.facts === fiber) shared.link.facts = undefined
     }
   })
+  await ctx.plugin(createFactsHistoryPlugin(shared, history))
 }
 
 // --- the holder plugin and the reader eligibility handoff ----------------------------------------
@@ -1095,8 +1127,8 @@ export function createSessionContextHolder<P>(input: SessionContextHolderInput<P
       inject: {
         [sessionKey]: { caller: 'coordinator' as const },
       },
-      apply(ctx: Context) {
-        startFacts(ctx, shared)
+      async apply(ctx: Context) {
+        await startFacts(ctx, shared)
       },
     },
     replayFacts,
