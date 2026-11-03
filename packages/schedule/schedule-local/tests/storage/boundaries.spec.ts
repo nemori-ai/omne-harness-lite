@@ -16,6 +16,37 @@ async function world(options: Parameters<typeof openWorld>[0] = {}) {
   return w
 }
 
+test('extra input scope cannot replace the backend scope on any read method', async () => {
+  const w = await world()
+  const command = createCommand('bound-read-scope')
+  expect(await w.persistence.commit(command)).toMatchObject({ kind: 'recorded' })
+  const backend = createScheduleManagementSqlBackend({
+    storage: w.raw,
+    scope: { kind: 'tenant', tenant: 't2' },
+    combinationVersion: w.combination.combinationVersion,
+    manifestDigest: w.combination.manifestDigest,
+    guards: w.guards,
+  })
+  const input = {
+    scheduleId: command.input.allocatedId,
+    scope: w.scope,
+  }
+  const list = { scope: w.scope, access: readAccess(), request: listRequest() }
+  const revisions = {
+    scope: w.scope,
+    access: readAccess(),
+    request: { scheduleId: input.scheduleId, cursor: null, limit: 50 },
+  }
+  const results = [
+    await backend.store.readSchedule({ ...input, owner: context.owner }),
+    await backend.store.getSchedule({ ...input, access: readAccess() }),
+    await backend.store.listSchedules(list),
+    await backend.store.readRevisions(revisions),
+  ]
+  for (const result of results)
+    expect(result).toMatchObject({ kind: 'unavailable', error: { code: 'forbidden' } })
+})
+
 test.each([
   { basisGuard: 'basis:revoked' },
   { quotaGuard: 'quota:revoked' },

@@ -75,11 +75,11 @@ const snapshotSchema = z.strictObject({
 export function managementStore(storage: SqlStorage, scope: StorageScope): ScheduleManagementStore {
   return {
     readSchedule: input =>
-      readRepository(storage, { kind: 'schedule', scope, ...input }, snapshotSchema),
-    getSchedule: input => readRepository(storage, { kind: 'get', scope, ...input }, snapshotSchema),
+      readRepository(storage, { ...input, kind: 'schedule', scope }, snapshotSchema),
+    getSchedule: input => readRepository(storage, { ...input, kind: 'get', scope }, snapshotSchema),
     listSchedules: input =>
-      readRepository(storage, { kind: 'list', scope, ...input }, ScheduleListPageSchema),
+      readRepository(storage, { ...input, kind: 'list', scope }, ScheduleListPageSchema),
     readRevisions: input =>
-      readRepository(storage, { kind: 'revisions', scope, ...input }, ScheduleRevisionsPageSchema),
+      readRepository(storage, { ...input, kind: 'revisions', scope }, ScheduleRevisionsPageSchema),
   }
 }
