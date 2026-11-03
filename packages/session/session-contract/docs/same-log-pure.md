@@ -143,11 +143,11 @@ session-storage-sql 在 `session` 参加者的一次写事务里完成同样的�
 
 输入是 `SessionLogCommitObservation`：事件通道的 `SessionLogObservation`，其中 `operation` 与 `executionEvidence` 必填。操作标识是重试时认回的依据，头回执是保存的事实所绑定的原执行 head。摘要 `digestSessionLog` 绑定除操作标识外的完整观察输入，用 `log` 标签与全部命令及 entries 通道的摘要隔开。
 
+回执是 `SessionLogReceipt`：`operation`、`execution`、`readThrough`、`interpreted`、`recovered`。`readThrough` 是提交后该执行的事件进度。`interpreted` 是保存的解释事实的证据，即该次提交里执行进度行的证据，不是占位，也不是观察里的 `source` 或 `executionEvidence`。`recovered` 为真表示这次答案认回了已提交的解释。
+
 #### 延后控制事实
 
 Agent 的控制事件是延后事实：它的事实边界 kinds 为 `['deferred']`，观察带 `control` 证据（Agent 控制记录、调用收场片段与紧急输入的中性证据，由适配器翻译），`consequences` 为空。后果取决于解释时哪些 Session 控制仍未结，所以 Session 在本次提交的快照上判定：`projectSessionLog` 调用 [control-normalization.ts](../src/control-normalization.ts) 的 `decideControlConsequences`，输入是快照、`reads.attempts` 与 `reads.controls`。`reads.controls` 给出每个未结 Session 控制提出时当前 Run 的原 execution，由读历史的提供者按日志顺序推出（session-storage-sql 的做法见其 SPEC 的「控制来源」）。判定为空时结果是 `observed`。延后事实带非空 `consequences`，或非延后事实带 `control`，都是 `invalid`。延后事实缺 `control` 是 `unavailable`。
-
-回执是 `SessionLogReceipt`：`operation`、`execution`、`readThrough`、`interpreted`、`recovered`。`readThrough` 是提交后该执行的事件进度。`interpreted` 是保存的解释事实的证据，即该次提交里执行进度行的证据，不是占位，也不是观察里的 `source` 或 `executionEvidence`。`recovered` 为真表示这次答案认回了已提交的解释。
 
 ### 检查顺序与失败
 
