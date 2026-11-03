@@ -29,7 +29,12 @@ import {
   type ScopeBindingSource,
   type ScopeRef,
 } from '@omne-harness/runtime-context-contract'
-import type { SessionAccess, SessionFailure, SessionId, WorkSnapshot } from '@omne-harness/session-contract'
+import type {
+  SessionAccess,
+  SessionFailure,
+  SessionId,
+  WorkSnapshot,
+} from '@omne-harness/session-contract'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonicalDigest } from '@omne-harness/tool'
 import type {
@@ -56,7 +61,9 @@ export type ToolRequestPorts = Readonly<{
   verifier(): PrincipalVerifier | undefined
   catalog(): ToolCatalog<unknown> | undefined
   /** 以 `reader` 调用方类读会话快照；会话服务缺席时为 undefined。 */
-  readWork(access: SessionAccess<unknown>): Promise<Outcome<WorkSnapshot, SessionFailure>> | undefined
+  readWork(
+    access: SessionAccess<unknown>,
+  ): Promise<Outcome<WorkSnapshot, SessionFailure>> | undefined
   scopeBinding(): ScopeBindingSource | undefined
   release(): ToolRelease
 }>
@@ -113,7 +120,9 @@ async function availabilityOf(
   ports: ToolRequestPorts,
   release: Trusted,
   input: DescribeInput,
-): Promise<Outcome<Extract<ToolAvailability, { kind: 'available' }> & { command: string | null }, Failure>> {
+): Promise<
+  Outcome<Extract<ToolAvailability, { kind: 'available' }> & { command: string | null }, Failure>
+> {
   const catalog = ports.catalog()
   if (catalog === undefined) return unavailable('tool catalog absent')
   const { name, command } = routeOf(input.original.name)
@@ -185,7 +194,9 @@ async function currentScope(
 export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolRequests {
   const trusted = (): Outcome<Trusted, Failure> => {
     const release = ports.release()
-    return release.kind === 'trusted' ? succeed(release) : unavailable('release snapshot unavailable')
+    return release.kind === 'trusted'
+      ? succeed(release)
+      : unavailable('release snapshot unavailable')
   }
 
   const describe: ReleaseToolRequests['describe'] = async input => {

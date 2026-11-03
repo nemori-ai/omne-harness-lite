@@ -139,7 +139,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string }) {
     // `maxCommandBytes` is the storage provider's (`providerConfig`); `maxCallBytes` leaves the reserve.
     maxCallBytes: 524_288,
     maxCommandBytes: 1_048_576,
-    combinationVersion: 'session-composite/2',
+    combinationVersion: 'session-composite/3',
     send: { mirrorBytes: 4_194_304, maxClaims: 8 },
     initial: { maxRecords: 1024, maxBindings: 4, maxCallsPerBinding: 1024 },
     sendStage: {
@@ -200,7 +200,7 @@ export function operatorLayer(options: {
         kind: 'replace',
         id: 'session-storage',
         config: {
-          combinationVersion: 'session-composite/2',
+          combinationVersion: 'session-composite/3',
           directoryFile: join(options.storageRoot, 'tenant-domains.json'),
           domainRule: 'organization-account/1',
         },
@@ -436,7 +436,9 @@ export function runOmne(options: {
 
 /** The login proof that `omne login` saved in a state directory. Only tests and the driver read it. */
 export function savedLoginProof(home: string): string {
-  const state = JSON.parse(readFileSync(join(home, 'login.json'), 'utf8')) as { loginProof: string }
+  const state = JSON.parse(readFileSync(join(home, 'login.json'), 'utf8')) as {
+    loginProof: string
+  }
   return state.loginProof
 }
 

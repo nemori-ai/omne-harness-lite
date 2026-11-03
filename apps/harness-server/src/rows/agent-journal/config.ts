@@ -10,8 +10,10 @@ import { storageCatalog } from '../storage/catalog.ts'
  * it from `session-composite/1` to `session-composite/2` once (R2-D65): the `model` participant
  * joined and the session log gained a migration. A version change does not re-register the tenants
  * that the old version registered; a development environment clears its storage root (R2-D98).
+ * Segment B of the Tool wiring moved it to `session-composite/3` once more: the `tool` participant
+ * of the Tool ledger joined the same combination.
  */
-export const COMBINATION_VERSION = 'session-composite/2'
+export const COMBINATION_VERSION = 'session-composite/3'
 
 export type AgentJournalCombination = Readonly<{
   combinationVersion: string

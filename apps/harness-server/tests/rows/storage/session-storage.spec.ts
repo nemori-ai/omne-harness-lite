@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test } from 'vitest'
 import { MODEL_PARTICIPANT } from '@omne-harness/model-storage-sql'
+import { TOOL_PARTICIPANT } from '@omne-harness/tool-storage-sql'
 import type { SessionTransactionPort } from '@omne-harness/session-contract'
 import { mutationAccessRequest } from '@omne-harness/session-contract'
 import {
@@ -324,7 +325,13 @@ describe('the composite declaration (acceptance 6)', () => {
     expect(SESSION_COMPOSITE_PARTICIPANTS).toContain(MODEL_PARTICIPANT)
     const catalog = storageCatalog()
     expect(catalog.migrations.map(item => item.owner)).toContain(MODEL_PARTICIPANT)
-    expect(COMBINATION_VERSION).toBe('session-composite/2')
+    expect(COMBINATION_VERSION).toBe('session-composite/3')
+  })
+
+  test('segment B: the tool participant and its migration are in the same combination', () => {
+    expect(SESSION_COMPOSITE_PARTICIPANTS).toContain(TOOL_PARTICIPANT)
+    const catalog = storageCatalog()
+    expect(catalog.migrations.map(item => item.owner)).toContain(TOOL_PARTICIPANT)
   })
 })
 
