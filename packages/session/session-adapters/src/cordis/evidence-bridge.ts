@@ -117,6 +117,54 @@ function bindsCommand(guard: GuardCommand, tenant: string, session: string): boo
   )
 }
 
+/** What the bridge has to answer: the outcome of `prepare`. */
+type Answer = Awaited<Prepared>
+
+/**
+ * The material one source gave, or the outcome that ends the preparation: a throw, an answer that
+ * is no outcome or no material list, or the source's own failure, which keeps its kind and its
+ * owner and is not rewritten into a business refusal.
+ */
+async function guardsOf<P>(
+  source: Source<P>,
+  command: SessionCommand,
+  access: SessionAccess<P> | undefined,
+): Promise<Readonly<{ guards: readonly GuardCommand[] }> | Readonly<{ stop: Answer }>> {
+  let answer: Answer
+  try {
+    answer = await source.prepare(command, access)
+  } catch (cause) {
+    return { stop: unavailable(source.key, `the source threw: ${describe(cause)}`) }
+  }
+  if (typeof answer !== 'object' || answer === null)
+    return { stop: unavailable(source.key, 'the source answered no outcome') }
+  if ('failure' in answer) return { stop: answer }
+  if (!Array.isArray(answer.ok) || !answer.ok.every(isGuard))
+    return { stop: unavailable(source.key, 'the source answered a malformed material') }
+  return { guards: answer.ok }
+}
+
+/**
+ * The refusal of one material on the boundary of the bridge, or null when it passes: a login
+ * confirmation belongs to `startRun` only, and an initialization material must bind the tenant and
+ * the session of the command.
+ */
+function refusalOf(
+  guard: GuardCommand,
+  sourceKey: string,
+  command: SessionCommand,
+  tenant: string,
+): Answer | null {
+  if (guard.owner === LOGIN_ENTRY && command.kind !== 'startRun')
+    return unavailable(
+      sourceKey,
+      `the source gave a login confirmation for ${command.kind}; it belongs to startRun only`,
+    )
+  if (guard.owner === INITIALIZATION && !bindsCommand(guard, tenant, command.input.session))
+    return fail({ kind: 'denied' as const, action: command.kind })
+  return null
+}
+
 /**
  * The evidence bridge. It needs all three sources: with one of them absent the plugin stays pending
  * and does not provide `sessionEvidence`, so Session mutations that need evidence answer
@@ -162,38 +210,17 @@ export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceB
     const tenant = tenantCodec.encode(command.input.tenant)
     if (!tenant.ok) return fail({ kind: 'denied' as const, action: command.kind })
 
-    const sources: Source<P>[] = []
-    if (ADOPTION.has(command.kind)) sources.push(this.adoption)
-    if (PRODUCTION.has(command.kind)) sources.push(this.production)
-    if (CUSTODY.has(command.kind)) sources.push(this.custody)
+    const sources = this.sourcesFor(command)
     // The material table has no row for this command (`claim`, a routed accept): no material.
     if (sources.length === 0) return succeed([])
 
     const materials: GuardCommand[] = []
     for (const source of sources) {
-      let answer: Awaited<Prepared>
-      try {
-        answer = await source.prepare(command, access)
-      } catch (cause) {
-        return unavailable(source.key, `the source threw: ${describe(cause)}`)
-      }
-      if (typeof answer !== 'object' || answer === null)
-        return unavailable(source.key, 'the source answered no outcome')
-      // A source failure keeps its kind and its owner: not rewritten into a business refusal.
-      if ('failure' in answer) return answer
-      if (!Array.isArray(answer.ok) || !answer.ok.every(isGuard))
-        return unavailable(source.key, 'the source answered a malformed material')
-      for (const guard of answer.ok) {
-        if (guard.owner === LOGIN_ENTRY && command.kind !== 'startRun')
-          return unavailable(
-            source.key,
-            `the source gave a login confirmation for ${command.kind}; it belongs to startRun only`,
-          )
-        if (
-          guard.owner === INITIALIZATION &&
-          !bindsCommand(guard, tenant.value, command.input.session)
-        )
-          return fail({ kind: 'denied' as const, action: command.kind })
+      const given = await guardsOf(source, command, access)
+      if ('stop' in given) return given.stop
+      for (const guard of given.guards) {
+        const refused = refusalOf(guard, source.key, command, tenant.value)
+        if (refused !== null) return refused
         materials.push(guard)
       }
     }
@@ -204,5 +231,14 @@ export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceB
         `no source gave material for ${command.kind}`,
       )
     return succeed(materials)
+  }
+
+  /** The sources the material table names for the kind of `command`, in table order. */
+  private sourcesFor(command: SessionCommand): Source<P>[] {
+    const sources: Source<P>[] = []
+    if (ADOPTION.has(command.kind)) sources.push(this.adoption)
+    if (PRODUCTION.has(command.kind)) sources.push(this.production)
+    if (CUSTODY.has(command.kind)) sources.push(this.custody)
+    return sources
   }
 }
