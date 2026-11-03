@@ -40,9 +40,11 @@ describe('a legal package', () => {
     if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
     expect(result.ok.manifest.name).toBe('demo')
     expect(result.ok.manifest.description).toBe('A demo.')
-    expect(result.ok.declaration.dependencies).toEqual([{ category: 'tool', name: 'read_file' }])
-    expect(result.ok.declaration.settings).toEqual([{ name: 'tone', category: 'preference' }])
-    expect(result.ok.snapshot.entries.map(entry => entry.path)).toEqual([
+    expect(result.ok.declaration.dependencies).toStrictEqual([
+      { category: 'tool', name: 'read_file' },
+    ])
+    expect(result.ok.declaration.settings).toStrictEqual([{ name: 'tone', category: 'preference' }])
+    expect(result.ok.snapshot.entries.map(entry => entry.path)).toStrictEqual([
       '.omne/skill.json',
       'SKILL.md',
       'docs/a.md',
@@ -53,7 +55,7 @@ describe('a legal package', () => {
     const inspection = createPackageInspection(demoSource({ 'SKILL.md': manifest }))
     const result = await inspection.inspect(locator)
     if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
-    expect(result.ok.declaration).toEqual({ dependencies: [], scripts: [], settings: [] })
+    expect(result.ok.declaration).toStrictEqual({ dependencies: [], scripts: [], settings: [] })
   })
 
   it('passes the expected name to the package rules', async () => {
@@ -83,7 +85,7 @@ describe('a legal package', () => {
     const snapshot = await memory.snapshot(locator)
     if (!('ok' in snapshot)) throw new Error(snapshot.failure)
     expect(await createPackageInspection(source).inspect(locator)).toHaveProperty('ok')
-    expect(opened.sort()).toEqual([
+    expect(opened.sort()).toStrictEqual([
       `${snapshot.ok.digest}:.omne/skill.json`,
       `${snapshot.ok.digest}:SKILL.md`,
     ])
@@ -100,7 +102,7 @@ describe('a legal package', () => {
       },
     }
     expect(await createPackageInspection(source).inspect(locator)).toHaveProperty('ok')
-    expect(opened).toEqual(['SKILL.md'])
+    expect(opened).toStrictEqual(['SKILL.md'])
   })
 })
 
@@ -161,7 +163,7 @@ describe('the source fails at open', () => {
       open: async (target, digest, path) =>
         path === failing ? fail('unavailable') : memory.open(target, digest, path),
     }
-    expect(await failureOf(source)).toEqual({ kind: 'source-unavailable' })
+    expect(await failureOf(source)).toStrictEqual({ kind: 'source-unavailable' })
   })
 
   it('answers version-changed when the bytes of a control file are off the snapshot', async () => {
@@ -173,6 +175,6 @@ describe('the source fails at open', () => {
           ? succeed(encoder.encode(`${manifest}changed\n`))
           : memory.open(target, digest, path),
     }
-    expect(await failureOf(source)).toEqual({ kind: 'version-changed' })
+    expect(await failureOf(source)).toStrictEqual({ kind: 'version-changed' })
   })
 })

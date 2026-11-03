@@ -4,7 +4,8 @@
 // answers everyone so that the read check is the only guard. A not-applicable case counts as a
 // failure here: the fixture offers everything. On the second world the same suite runs in
 // process on a service whose read check grants everyone, and fails exactly on the
-// non-disclosure cases.
+// non-disclosure cases. On the hiding world the same skipped read check is invisible to A1–A3:
+// the resolution hides the stranger by itself, so that world proves nothing about the read check.
 import { AssertionError } from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 import { createSkillAccess } from '@omne-harness/skill'
