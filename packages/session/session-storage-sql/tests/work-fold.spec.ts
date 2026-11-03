@@ -63,9 +63,17 @@ function since(before: WorkFoldCounts): WorkFoldCounts {
     skipped: now.skipped - before.skipped,
     quarantined: now.quarantined - before.quarantined,
     stale: now.stale - before.stale,
+    republished: now.republished - before.republished,
   }
 }
-const none: WorkFoldCounts = { folded: 0, indexed: 0, skipped: 0, quarantined: 0, stale: 0 }
+const none: WorkFoldCounts = {
+  folded: 0,
+  indexed: 0,
+  skipped: 0,
+  quarantined: 0,
+  stale: 0,
+  republished: 0,
+}
 
 /**
  * A port over a storage object of its own (a work cache of its own). `hooks` run once, before the
@@ -350,7 +358,7 @@ describe('T-F2: only a fresh commit onto the version just below folds', () => {
 })
 
 describe('T-F3: a publication between the commit and its fold', () => {
-  it('the index read finds another count: nothing is registered, and the next read is whole and shows it', async () => {
+  it('the index read at the folded tail finds a newer count: the fold registers at that count with its index (P-4)', async () => {
     const a = await app()
     const agent = agentPublisher({
       storage: a.provider.storage,
@@ -378,12 +386,31 @@ describe('T-F3: a publication between the commit and its fold', () => {
     )
     const before = workFoldCounts()
     ok(await accept(a, port, 'input-3'))
-    expect(since(before)).toEqual({ ...none, stale: 1 })
+    expect(since(before)).toEqual({ ...none, folded: 1, republished: 1 })
+    const from = a.provider.calls.length
+    const after = await readWork(port, a)
+    expect(readsOf(a, WHOLE, from)).toBe(0)
+    const members = after.historyIndex?.inputs.find(item => item.input === 'input-2')?.members
+    expect(members?.map(item => item.attempt)).toEqual([run.attempt])
+    expect(canonicalText(encodeValue(after))).toBe(canonicalText(encodeValue(await wholeRead(a))))
+  })
+
+  it('a newer tail at the index read: nothing is registered, and the next read is whole', async () => {
+    const a = await app()
+    const { port, hooks } = portOver(a)
+    ok(await a.create(TENANT_A))
+    await readWork(port, a)
+    hooks.set('session.work-index', async () => {
+      ok(await accept(a, portOver(a).port, 'input-other'))
+    })
+    const before = workFoldCounts()
+    ok(await accept(a, port, 'input-1'))
+    // The other port holds nothing, so its own commit skips its fold.
+    expect(since(before)).toEqual({ ...none, stale: 1, skipped: 1 })
     const from = a.provider.calls.length
     const after = await readWork(port, a)
     expect(readsOf(a, WHOLE, from)).toBe(1)
-    const members = after.historyIndex?.inputs.find(item => item.input === 'input-2')?.members
-    expect(members?.map(item => item.attempt)).toEqual([run.attempt])
+    expect(after.pending.length).toBe(2)
   })
 })
 

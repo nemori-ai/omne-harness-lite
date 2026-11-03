@@ -70,7 +70,12 @@ import type {
   SqlStorage,
   TenantDomainLookup,
 } from '@omne-harness/sql-contract'
-import { commitJournal, standingOf, type JournalCombination } from '../journal-commit.ts'
+import {
+  commitJournal,
+  jointSessionWork,
+  standingOf,
+  type JournalCombination,
+} from '../journal-commit.ts'
 import {
   participationAccessFailure,
   participationFailure,
@@ -1511,7 +1516,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       outcome,
     )
     // The publication moved the count of the Agent records: the work cache replaces the index of
-    // the Session snapshot it holds instead of reading the snapshot whole (session-storage-sql RT-04).
+    // the Session snapshot it holds, or folds the batch of a Session participation of the same
+    // commit, instead of reading the snapshot whole (session-storage-sql RT-04).
     if (outcome.kind === 'committed' && !outcome.recalled && book.published !== null)
       await registerSessionWorkIndex(
         options.storage,
@@ -1519,6 +1525,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         book.tenantText,
         book.session,
         book.published,
+        jointSessionWork(outcome),
       )
     return settled
   }

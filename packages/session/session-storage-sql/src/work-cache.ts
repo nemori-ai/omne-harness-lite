@@ -400,9 +400,18 @@ export type WorkFoldCounts = {
   quarantined: number
   /** The store moved on, or a read the fold needs failed or answered something else. */
   stale: number
+  /** Of `folded` and `indexed`: registered at a publication count that moved on meanwhile. */
+  republished: number
 }
 
-const counts: WorkFoldCounts = { folded: 0, indexed: 0, skipped: 0, quarantined: 0, stale: 0 }
+const counts: WorkFoldCounts = {
+  folded: 0,
+  indexed: 0,
+  skipped: 0,
+  quarantined: 0,
+  stale: 0,
+  republished: 0,
+}
 
 /** A copy of the counts of this process. */
 export function workFoldCounts(): WorkFoldCounts {
@@ -445,12 +454,18 @@ function indexInput(snapshot: WorkSnapshot): JsonValue {
   })
 }
 
-/** The snapshot at `version` with the index the store answers there; null when it moved on. */
+type Indexed = Readonly<{ version: WorkVersion; snapshot: WorkSnapshot }>
+
+/**
+ * The snapshot at the tail of `version` with the index the store answers there, and the version it
+ * answered: the publication count may have moved past the one asked, since the snapshot row moves
+ * only with the tail (P-4). Null when the tail moved, or a read failed.
+ */
 async function withIndex(
   reach: WorkReach,
   version: WorkVersion,
   snapshot: WorkSnapshot,
-): Promise<WorkSnapshot | null> {
+): Promise<Indexed | null> {
   const read = await readOne(reach, WORK_INDEX_HANDLER, {
     tail: version.tail,
     published: version.published,
@@ -458,11 +473,17 @@ async function withIndex(
   })
   if (!('output' in read)) return null
   const out = read.output
-  if (out['kind'] === 'too-many') return snapshot
-  if (out['kind'] !== 'index') return null
+  // Over the row bound the whole read answers without an index too, at the version asked.
+  if (out['kind'] === 'too-many') return { version, snapshot }
+  const published = textOf(out['published'])
+  if (out['kind'] !== 'index' || published === null) return null
+  if (published !== version.published) counts.republished += 1
   return {
-    ...snapshot,
-    historyIndex: decodeValue(out['index'] as JsonValue) as SessionHistoryIndex,
+    version: { tail: version.tail, published },
+    snapshot: {
+      ...snapshot,
+      historyIndex: decodeValue(out['index'] as JsonValue) as SessionHistoryIndex,
+    },
   }
 }
 
@@ -530,7 +551,7 @@ async function folded(
   reach: WorkReach,
   held: WorkSnapshot,
   fold: WorkFold,
-): Promise<WorkSnapshot | null> {
+): Promise<Indexed | null> {
   const entries = await batchEntries(reach, fold)
   if (entries === null) {
     counts.stale += 1
@@ -553,22 +574,36 @@ async function folded(
     return null
   }
   const version = { tail: fold.tail, published: fold.published }
-  const snapshot = await withIndex(reach, version, unindexed(reduced.snapshot))
-  if (snapshot === null) counts.stale += 1
-  return snapshot
+  const indexed = await withIndex(reach, version, unindexed(reduced.snapshot))
+  if (indexed === null) counts.stale += 1
+  return indexed
 }
 
-/** True when `before` is the version just below the fold: one tail lower, the same publications. */
-const follows = (before: WorkVersion, fold: WorkFold): boolean =>
-  count(before.tail) + 1n === count(fold.tail) && before.published === fold.published
+/**
+ * How the publication count of a fold relates to the held one: `same` for a commit of the port, and
+ * `next` for a joint commit of the Journal provider, whose `execution-record` participant runs
+ * before the `session` participant in the same transaction and adds one to the count, so the count
+ * the Session participant read and reports is the held one plus one.
+ */
+export type FoldPublished = 'same' | 'next'
+
+/** True when `before` is the version just below the fold: one tail lower, the count as `published` says. */
+const follows = (before: WorkVersion, fold: WorkFold, published: FoldPublished): boolean =>
+  count(before.tail) + 1n === count(fold.tail) &&
+  count(before.published) + (published === 'next' ? 1n : 0n) === count(fold.published)
 
 /**
  * Folds one committed batch of this process into the cache (C-TOPOLOGY §2.9). The commit path
  * calls it with the work of a fresh committed reply only, never a recall. It folds only onto a held
- * snapshot one tail below with the same publication count; anything else, a quarantine, or a store
- * that moved on registers nothing, and the next read reads whole as before. It never throws.
+ * snapshot one tail below with the same publication count; anything else, a quarantine, or a tail
+ * that moved on registers nothing, and the next read reads whole as before. A publication count
+ * that moved on meanwhile is registered with the index read at it (P-4). It never throws.
  */
-export async function foldCommitted(reach: WorkReach, fold: WorkFold): Promise<void> {
+export async function foldCommitted(
+  reach: WorkReach,
+  fold: WorkFold,
+  published: FoldPublished = 'same',
+): Promise<void> {
   try {
     const cache = workCacheOf(reach.storage, reach.bounds)
     const key = workKey(reach.domain.transactionDomain, reach.tenant, reach.session)
@@ -576,7 +611,7 @@ export async function foldCommitted(reach: WorkReach, fold: WorkFold): Promise<v
     const flight = `${key}|${fold.tail}|${fold.published}`
     if (
       held === undefined ||
-      !follows(held.version, fold) ||
+      !follows(held.version, fold, published) ||
       (fold.indexed && fold.basis === undefined) ||
       cache.flights.has(flight) ||
       cache.folds.has(flight)
@@ -584,12 +619,12 @@ export async function foldCommitted(reach: WorkReach, fold: WorkFold): Promise<v
       counts.skipped += 1
       return
     }
-    const running = folded(reach, held.snapshot, fold).then(snapshot => {
-      if (snapshot === null) return
+    const running = folded(reach, held.snapshot, fold).then(indexed => {
+      if (indexed === null) return
       cache.set(key, {
-        version: { tail: fold.tail, published: fold.published },
+        version: indexed.version,
         bytes: fold.bytes,
-        snapshot: frozen(snapshot),
+        snapshot: frozen(indexed.snapshot),
       })
       counts.folded += 1
     })
@@ -608,8 +643,8 @@ export async function foldCommitted(reach: WorkReach, fold: WorkFold): Promise<v
  * Replaces the index of the held snapshot after a publication of the Agent records of this process
  * moved the publication count to `published` (C-TOPOLOGY §2.9.2): the snapshot row moves only with
  * the tail, so the held snapshot stays; its index is read again at the held tail and the new count.
- * Nothing is registered when no snapshot is held, or the store is at another version. It never
- * throws.
+ * Nothing is registered when no snapshot is held, or the store is at another tail; a count that
+ * moved past `published` meanwhile is registered with the index read at it. It never throws.
  */
 export async function refreshWorkIndex(reach: WorkReach, published: string): Promise<void> {
   try {
@@ -626,12 +661,16 @@ export async function refreshWorkIndex(reach: WorkReach, published: string): Pro
       counts.skipped += 1
       return
     }
-    const running = withIndex(reach, version, unindexed(held.snapshot)).then(snapshot => {
-      if (snapshot === null) {
+    const running = withIndex(reach, version, unindexed(held.snapshot)).then(indexed => {
+      if (indexed === null) {
         counts.stale += 1
         return
       }
-      cache.set(key, { version, bytes: held.bytes, snapshot: frozen(snapshot) })
+      cache.set(key, {
+        version: indexed.version,
+        bytes: held.bytes,
+        snapshot: frozen(indexed.snapshot),
+      })
       counts.indexed += 1
     })
     cache.folds.set(flight, running)
@@ -646,8 +685,10 @@ export async function refreshWorkIndex(reach: WorkReach, published: string): Pro
 }
 
 /**
- * `refreshWorkIndex` for a writer that already holds the domain of the tenant (the Journal
- * provider), after its publication committed with the count `published`.
+ * For a writer that already holds the domain of the tenant (the Journal provider), after its
+ * publication committed with the count `published`. With the work of a Session participation in
+ * the same fresh commit, the batch is folded (`foldCommitted`, the count one past the held one);
+ * without it, the index of the held snapshot is replaced (`refreshWorkIndex`).
  */
 export function registerSessionWorkIndex(
   storage: SqlStorage,
@@ -655,6 +696,10 @@ export function registerSessionWorkIndex(
   tenantText: string,
   session: string,
   published: string,
+  work?: WorkFold,
 ): Promise<void> {
-  return refreshWorkIndex({ storage, domain, tenant: tenantText, session }, published)
+  const reach = { storage, domain, tenant: tenantText, session }
+  return work === undefined
+    ? refreshWorkIndex(reach, published)
+    : foldCommitted(reach, work, 'next')
 }
