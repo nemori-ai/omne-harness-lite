@@ -97,6 +97,13 @@ export const HANDLERS: readonly Handler[] = [
     // It reads `er_admission_attempt_idx`, which the third migration of `execution-record` creates.
     migrations: [migrationRef, recordMigrationRef, admissionAttemptMigrationRef],
   },
+  {
+    // The version check of the work cache (SPEC RT-04): three point reads, no snapshot text.
+    handler: 'session.work-version',
+    file: 'read-work-version',
+    tables: ['sl_journal', 'sl_state', 'er_root'],
+    migrations: [migrationRef, recordMigrationRef],
+  },
   { handler: 'session.input', file: 'read-input', tables: ['sl_journal', 'sl_input'] },
   {
     handler: 'session.model-selection',

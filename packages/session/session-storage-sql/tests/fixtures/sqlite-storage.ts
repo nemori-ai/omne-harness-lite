@@ -48,11 +48,13 @@ import readPending from '../../src/worker/read-pending.ts'
 import readPreadmission from '../../src/worker/read-preadmission.ts'
 import readReferences from '../../src/worker/read-references.ts'
 import readReleasedScopes from '../../src/worker/read-released-scopes.ts'
+import readWorkVersion from '../../src/worker/read-work-version.ts'
 import readWork from '../../src/worker/read-work.ts'
 import statePartMigration from '../../src/worker/state-part-migration.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
   readWork,
+  readWorkVersion,
   readInput,
   readModelSelection,
   readHistory,

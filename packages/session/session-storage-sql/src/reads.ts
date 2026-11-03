@@ -37,6 +37,7 @@ import {
   type Context,
   type HandlerOutput,
 } from './context.ts'
+import { readCachedWork } from './work-cache.ts'
 
 type Reply<T> = Promise<Outcome<T, SessionFailure>>
 
@@ -65,13 +66,36 @@ async function sessionRead<P>(
   return succeed({ out: out.ok, tenant: domain.ok.text })
 }
 
+/**
+ * R1 through the work cache of the storage (SPEC RT-04): the access, the domain of the tenant the
+ * call names, then the cached read, which checks the version of the session in the store first.
+ */
 export async function readWork<P>(
   context: Context<P>,
   access: SessionAccess<P>,
 ): Reply<WorkSnapshot> {
-  const read = await sessionRead(context, access, 'readWork', 'session.work')
-  if ('failure' in read) return read
-  return succeed(decodeValue(read.ok.out['snapshot'] as JsonValue) as WorkSnapshot)
+  const decided = await qualify(context, readAccessRequest(access, 'readWork'))
+  if ('failure' in decided) return decided
+  const domain = await domainOf(context, access.tenant)
+  if ('failure' in domain) return domain
+  const read = await readCachedWork({
+    storage: context.options.storage,
+    domain: domain.ok.domain,
+    tenant: domain.ok.text,
+    session: access.session,
+    ...(context.options.workCache === undefined ? {} : { bounds: context.options.workCache }),
+  })
+  switch (read.kind) {
+    case 'state':
+      return succeed(read.snapshot)
+    // A session the tenant does not have answers like a session of another tenant (default deny).
+    case 'absent':
+      return failure({ kind: 'denied', action: 'readWork' })
+    case 'behind':
+      return failure(unavailable('session.work: the state does not cover the tail yet'))
+    case 'unavailable':
+      return failure(unavailable(read.diagnostic))
+  }
 }
 
 export async function readInput<P>(
