@@ -662,6 +662,23 @@ releasedScopes(principal, scope = system, after, limit):
 - 提交不经缓存：提交在参加者里按事务内的当前状态裁定，`expected` 与尾部在事务内核对，缓存不参与。本进程的提交与其他进程的提交都由下一次读的版本点查发现。
 - 已知限制：整读仍是 O(|S|)，每次提交或 Agent 发布之后的第一次读付一次（C-WORKCACHE 的 design.md §7）。
 
+<a id="rt-04-owner"></a>
+
+当前状态的拥有者与直接读者（C-WORKCACHE 拓扑，R2-D102）。工作缓存（下称 WorkHolder）是一个进程里 Session 当前状态 `session.work` 的唯一内存拥有者。它不是权威：权威仍在存储，每个答案都带一个在存储快照里读到的版本，资格由事务内的裁定决定。
+
+- 只有 WorkHolder 调用 `session.work` 与 `session.work-version` 两个 handler。其余读当前状态的调用方都经 WorkHolder：Session 核心的面操作经端口 `readWork`（`src/reads.ts`），session-adapters 的插件经核心面 `session.work.readWork`，不经核心的两个读者（会话归属读口 `src/bindings.ts`、session-adapters 的 Journal 提供者）经 `readCachedSessionWork`。
+- 保留直接读 Session log 存储的只有五类。它们读的不是当前状态，或者本身就是某份状态的拥有者：
+  1. WorkHolder 自己：版本点查与整读。
+  2. 按不可变坐标分页的读：`session.history` 按 `position` 分页（服务入口的历史读与核权、CP-01 第 6 步取本次提交的条目、AD-03 回放刚提交的批次），`session.model-view` 按 `(epoch, seq)` 读后缀。每页 O(页)，无状态，与会话长度无关。
+  3. Journal 提供者的 `sync`：它是 Agent 执行记录的内存拥有者（每个会话一份副本），按 `session.history-root` 点查与 `execution-record.parts` 的 `published` 增量同步；AD-05、AD-06 经它的 `load` 读，不直接读存储。
+  4. AD-02 的事实后缀读：`execution-record.execution-facts` 只读 `sequence > readThrough` 的只追加行，O(k)（[已知限制](#已知限制)第 20 条）。
+  5. 提交路径在写事务里的读：参加者读快照行、历史索引与操作记录，`queryOperation` 的认回读操作记录。CAS、`decide` 与认回必须读事务内的当前值，不读缓存。
+
+  按主键的点查（`session.execution` 的路由、`execution-record.operation` 的认回）与会话大小无关，归各自的调用方。
+- 已知限制，波 3 处理：
+  - AD-07（session-adapters `message-handoff.ts`）取交接记录与权限时整读该 execution 的分区，O(|x|)。处置方向：随分区拆细（B-6）改为向 Journal 提供者查询，需要 session-cordis-contract 新增服务键。
+  - AD-04（session-adapters `history-source.ts`）为压缩窗口翻完全部历史，O(n)。处置方向：改为窗口函数（C-WORKCACHE design.md §12.4）。
+
 ### 符合性
 
 <a id="c-01"></a>

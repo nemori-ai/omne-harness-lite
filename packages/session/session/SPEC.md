@@ -348,6 +348,7 @@
 
 - CA-3 的命中与 `changed` 后的权威读都在面操作开头的那一次 `check` 之后（[CP-01](#cp-access)）。核权失败时返回 `denied`、`invalid` 或 `unavailable`，不使用缓存。
 - 已知限制：`SessionTransactionPort` 没有只返回尾部修订的读操作，所以 CA-3 不做尾部比对，命中只用于 CP-01 第 2 步。那里的正确性不依赖快照新鲜度（带 `expected` 的命令由事务内核对兜底，其余命令由事务内的 `decide` 重新裁定）。`readWork` 的回答不走 CA-3。按版本核对的快照缓存由 SQL 存储在端口内部提供（session-storage-sql [RT-04](../session-storage-sql/SPEC.md#rt-04)），契约不变；其他存储提供者没有这项缓存时 `readWork` 每次整读。
+- `session.work` 的唯一内存拥有者是 SQL 存储的工作缓存（WorkHolder，session-storage-sql [当前状态的拥有者与直接读者](../session-storage-sql/SPEC.md#rt-04-owner)）。CA-3 槽不是第二个拥有者：它只供 CP-01 第 2 步的事务外预判，从不回答 `readWork` 或 `loadRecovery`。本成员的读取（S1 至 S3、C5、CP-01 第 2 步的权威读、`readWork`、`loadRecovery`、`inspectIdle`）都经委派视图或端口到达 WorkHolder，本成员不直接读存储的 `session.work`。保留直接读 Session log 存储的五类调用点与 AD-07、AD-04 两项已知限制见该节。
 - CA-1 命中只省去载荷读取。分页、逐条披露核对与条目位置仍由事务端口的历史读取完成，缓存只按条目身份为已核权页提供载荷。
 - CA-2 命中同样不代替 `readModelView` 的核权（[session-adapters](../session-adapters/SPEC.md)）。
 
