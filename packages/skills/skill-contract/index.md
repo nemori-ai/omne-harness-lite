@@ -20,7 +20,7 @@
 - [examples/](examples/index.md)：使用示例
 - [resources/](resources/index.md)：运行所需的非源码资源
 
-模板目录 `acceptance/` 不在本包：它归独立验收者，由其创建。
+- [acceptance/](acceptance/index.md)：独立验收入口，归验收者维护；本包没有验收场景
 
 ## 阅读路径
 

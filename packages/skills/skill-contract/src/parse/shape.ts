@@ -4,7 +4,7 @@
 // can give the first code by order.
 import { capabilityId, type CapabilityId, type JsonValue } from '@omne-harness/assets'
 import { INSPECT_REJECTIONS, type InspectRejectionCode } from '../failures.ts'
-import { toPackagePath } from '../names.ts'
+import { isControlFile, toPackagePath } from '../names.ts'
 import type {
   PackagePath,
   ScriptDeclaration,
@@ -125,8 +125,8 @@ export function readDependencies(value: JsonValue | undefined): Read<CapabilityI
 
 /**
  * The entry of a script. An absolute entry points outside the package. Any other entry that is not
- * a package path, a `..` segment included, is malformed. With `normalized`, the entry must already
- * be in the form that `toPackagePath` gives.
+ * a package path, a `..` segment included, is malformed. With `normalized`, as in an asset body,
+ * the entry must already be in the form that `toPackagePath` gives and must not be a control file.
  */
 function entryOf(raw: string, at: string, normalized: boolean): Read<PackagePath | undefined> {
   if (raw.startsWith('/')) {
@@ -136,6 +136,8 @@ function entryOf(raw: string, at: string, normalized: boolean): Read<PackagePath
   const path = toPackagePath(raw)
   if (!('ok' in path) || (normalized && path.ok !== raw))
     return { value: undefined, findings: [malformed(`${at}.entry is not a package path`)] }
+  if (normalized && isControlFile(path.ok))
+    return { value: undefined, findings: [malformed(`${at}.entry is a control file`)] }
   return { value: path.ok, findings: [] }
 }
 

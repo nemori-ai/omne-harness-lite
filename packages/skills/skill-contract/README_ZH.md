@@ -30,7 +30,7 @@ Skill 能力组的纯契约成员。它提供 Skill 的值、失败、服务接�
 
 ## 配置与运行
 
-本成员没有运行时配置。`parseSkillPackage` 的调用方可以给出另一份声明预算（`declarationLimits`）。65536 字节的读取页在本版本固定。运行需要 Node.js 24 或更高版本。
+本成员没有运行时配置。`parseSkillPackage` 的调用方可以给出另一份声明预算（`declarationLimits`）。65536 字节的读取页在本版本固定。一个进程只能加载本成员一份：一份模块实例密封的快照不被另一份承认。运行需要 Node.js 24 或更高版本。
 
 ## 验证
 
@@ -61,6 +61,7 @@ verification/             models/ 与 proofs/
 adr/                      有持续消费者的实现取舍
 examples/                 面向公开入口的示例
 resources/                运行所需的非源码资源
+acceptance/               独立验收；fixtures/ 放验收输入
 ```
 
-每个目录有 README.md 说明职责，有 index.md 导航。阅读路径见 [index.md](index.md)。模板目录 `acceptance/` 不在本成员：独立验收者创建它。
+每个目录有 README.md 说明职责，有 index.md 导航。阅读路径见 [index.md](index.md)。`acceptance/` 归独立验收者维护。本纯契约成员没有验收场景。

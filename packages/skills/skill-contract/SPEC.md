@@ -9,11 +9,11 @@
 | 依据 | 修订 | 本规格采用的范围 |
 | --- | --- | --- |
 | [组工程设计](../docs/architecture.md) | `21175c9f9` | 模型、资产正文与 Skill 包、端口、应用服务、检查与发现、包格式规则、读取、失败种类、验证 |
-| 负责人 2026-11-03 裁定 | 2026-11-03 | 入口与各入口的内容；内容摘要算法；`SafeReason` 的形状；读取内容是文本或字节；正文起点；每页 65536 字节；中止为 `aborted`；`.omne/skill.json` 的形状与格式版本；四个设置类别；声明项编码；声明的 JSON 预算；YAML 头部的解析；`skillBodyContract` 只做可加扩展；`SkillResolution.adopted` 只交两种答复；快照只能经 `sealSnapshot` 构造。第 1 轮评审之后的裁定见[与组页的差异](#group-differences) |
+| 领域设计裁定 | 2026-11-03 | 入口与各入口的内容；内容摘要算法；`SafeReason` 的形状；读取内容是文本或字节；正文起点；每页 65536 字节；中止为 `aborted`；`.omne/skill.json` 的形状与格式版本；四个设置类别；声明项编码；声明的 JSON 预算；YAML 头部的解析；`skillBodyContract` 只做可加扩展；`SkillResolution.adopted` 只交两种答复；快照只能经 `sealSnapshot` 构造。评审之后的裁定见[与组页的差异](#group-differences) |
 | 资产公开类型 `@omne-harness/assets` | `21175c9f9` | `BodyContract`、`CapabilityId`、`Declarations` |
 | [官方 Agent Skills 规格](https://agentskills.io/specification) | 2026-11-03 读取 | `SKILL.md` 的头部字段与目录结构 |
 
-各裁定的内容写在下文对应的条款里。
+各裁定的内容写在下文对应的条款里。裁定编号（例如 G3、C19）只是过程标签，决定的内容已经写全在本页。
 
 <a id="entries"></a>
 
@@ -23,12 +23,12 @@
 
 | 入口 | 给谁 | 内容 |
 | --- | --- | --- |
-| `@omne-harness/skill-contract` | 读 Skill 的调用方 | 值、守卫、失败、`SkillCatalog` 与 `SkillAccess` 的接口及结果值、纯函数、`skillBodyContract` |
+| `@omne-harness/skill-contract` | 调用方；端口实现方另读 `./provider` | 值、守卫、失败、`SkillCatalog` 与 `SkillAccess` 的接口及结果值、纯函数、`skillBodyContract` |
 | `@omne-harness/skill-contract/provider` | 来源、资产登记与端口的实现方 | 三个需求端口及其答复类型、`PackageInspection` 接口、`SkillRef`、`PackageLocator`、`sealSnapshot`、`SnapshotDefect` |
 | `@omne-harness/skill-contract/testing` | 端口实现方的测试 | 三个端口的符合性套件、内存替身、`ConformanceCase`、`NotApplicable`、`runConformanceCase`、`isNotApplicable` |
 
 - 公开根与 `./provider` 都不导入 `./testing`。三个入口都不导入测试框架。
-- 公开根不导出 `SkillRef`、`PackageLocator`、`PackageInspection` 与 `sealSnapshot`。读 Skill 的调用方拿不到包定位。
+- 公开根不导出 `SkillRef`、`PackageLocator`、`PackageInspection` 与 `sealSnapshot`。调用方拿不到包定位。
 
 <a id="closed-items"></a>
 
@@ -39,6 +39,7 @@
 | 第 71 行 | 值的精确类型 | `src/values.ts`；[值与守卫](#values) |
 | 第 77 行 | 媒体类型推断的精确规则 | [媒体类型](#media-type) |
 | 第 87 行 | `SafeReason` 的精确形状 | [值与守卫](#values) |
+| 第 306 行 | 精确的诊断编号与预算数值 | 预算见[`.omne/skill.json`](#declaration)与[`SKILL.md`](#manifest)；诊断编号不设：拒绝只带原因码与 `detail`，见[检查 Skill 包](#parse) |
 | 第 324 行 | 脚本声明的精确规则 | [`.omne/skill.json`](#declaration) |
 | 第 346 行 | 中止结果的表示 | [读取的形状规则](#read-shape) |
 | 第 491 行 | 精确类型；`target` 的形状；字节范围的单位；按 UTF-8 切页的规则；二进制条目在 `ContentBlock` 中的表示；读取的默认上限；中止结果的表示；`export` 的上限与分批；内容摘要的算法；媒体类型推断的精确规则；`SafeReason` 的形状 | [值与守卫](#values)、[内容摘要](#digest)、[媒体类型](#media-type)、[读取的形状规则](#read-shape) |
@@ -55,19 +56,24 @@
 
 | 差异 | 本页条款 | 依据 |
 | --- | --- | --- |
-| `PackageInspection` 的接口在 `./provider`，不在公开根。它的调用方是来源与资产登记一侧，不是读者 | [入口](#entries) | 负责人 2026-11-03 裁定 G3 |
-| `SkillReadCheck.check` 答带 `kind` 的判别联合，不答文本联合 | [需求端口](#ports) | 负责人 2026-11-03 裁定 C19 |
-| `SourceFailure` 多一种 `entry-unreadable`，组页「链接与非常规文件拒绝为 `malformed`」经它进入 | [需求端口](#ports) | 负责人 2026-11-03 裁定 E10 |
-| `sealSnapshot` 收文件字节，不收来源算好的条目事实。代价：来源须整包读入内存才能交出快照 | [快照](#snapshot) | 负责人 2026-11-03 裁定（第 1 轮偏离 8） |
-| `sealSnapshot` 拒绝空的或含 `/` 的包根目录名 | [快照](#snapshot) | 负责人 2026-11-03 裁定 E12 |
-| 头部 YAML 读不出时不判 `name-mismatch`，判 `malformed` | [拒绝次序](#rejection-order) | 负责人 2026-11-03 第 1 轮正确性评审裁定 |
-| 含 `..` 段的脚本入口判 `malformed`，不判 `outside-package` | [`.omne/skill.json`](#declaration) | 负责人 2026-11-03 裁定 C2 |
-| 控制字节与快照不对应时 `parseSkillPackage` 答 `version-changed` | [前提与版本](#parse-preconditions) | 负责人 2026-11-03 裁定 C1 |
-| 只做检查的值公开守卫 `isX`，`toPackagePath` 仍规范化并答 `Outcome` | [值与守卫](#values) | 负责人 2026-11-03 裁定（品牌授予规则） |
-| `./testing` 的套件是无框架的用例列表；本版本没有 `SkillAccess` 的套件 | [符合性套件](#conformance) | 负责人 2026-11-03 裁定 C18 |
-| `description`、`scripts`、`settings` 与 `package` 是 `skill` 资产正文的保留字段 | [`skill` 类别端口](#category-port) | 负责人 2026-11-03 裁定 C3 |
-| 本成员不依赖 `@omne-harness/content-block`：读取交出文本或字节 | [读取的形状规则](#read-shape) | 负责人 2026-11-03 裁定（读取内容） |
-| `unsupported` 本版本只有 `no-readable-package` 一种：文本与字节都能表示，检查没有方言 | [读取的形状规则](#read-shape) | 本页自定，待组页拥有者确认 |
+| `PackageInspection` 的接口在 `./provider`，不在公开根。它的调用方是来源与资产登记一侧，不是读者 | [入口](#entries) | 领域设计裁定 G3（2026-11-03） |
+| `SkillReadCheck.check` 答带 `kind` 的判别联合，不答文本联合 | [需求端口](#ports) | 领域设计裁定 C19（2026-11-03） |
+| `SourceFailure` 多一种 `entry-unreadable`，组页「链接与非常规文件拒绝为 `malformed`」经它进入 | [需求端口](#ports) | 领域设计裁定 E10（2026-11-03） |
+| `sealSnapshot` 收文件字节，不收来源算好的条目事实。代价：来源须整包读入内存才能交出快照 | [快照](#snapshot) | 领域设计裁定，第 1 轮偏离 8（2026-11-03） |
+| `sealSnapshot` 拒绝空的或含 `/` 的包根目录名 | [快照](#snapshot) | 领域设计裁定 E12（2026-11-03） |
+| 头部 YAML 读不出时不判 `name-mismatch`，判 `malformed` | [拒绝次序](#rejection-order) | 领域设计裁定 C22′（2026-11-03） |
+| 含 `..` 段的脚本入口判 `malformed`，不判 `outside-package` | [`.omne/skill.json`](#declaration) | 领域设计裁定 C2（2026-11-03） |
+| 控制字节与快照不对应时 `parseSkillPackage` 答 `version-changed` | [前提与版本](#parse-preconditions) | 领域设计裁定 C1（2026-11-03） |
+| 只做检查的值公开守卫 `isX`，`toPackagePath` 仍规范化并答 `Outcome` | [值与守卫](#values) | 领域设计裁定，品牌授予规则（2026-11-03） |
+| `./testing` 的套件是无框架的用例列表 | [符合性套件](#conformance) | 领域设计裁定 C18（2026-11-03） |
+| 本版本的 `./testing` 没有 `SkillAccess` 的套件 | [符合性套件](#conformance) | 不在本成员这次交付的范围内：`SkillAccess` 的套件随 `@omne-harness/skill` 的实现，以可加改动加入 `./testing` |
+| `description`、`scripts`、`settings` 与 `package` 是 `skill` 资产正文的保留字段 | [`skill` 类别端口](#category-port) | 领域设计裁定 C3（2026-11-03） |
+| `list` 与 `export` 也收 `signal`，也可以答 `aborted`；组页只给 `read` 写了 `signal` | [读取的形状规则](#read-shape) | 领域设计裁定 S3-16（2026-11-03） |
+| `SkillPackageSource.snapshot` 可以答 `outside-package`（包内链接解析后落在根外）。有这种链接的包整包不可读 | [需求端口](#ports) | 领域设计裁定 S3-6（2026-11-03） |
+| 来源在快照阶段答 `entry-unreadable` 或 `outside-package` 时，检查以对应原因结束，不按拒绝次序判其余原因 | [拒绝次序](#rejection-order) | 领域设计裁定 S3-4（2026-11-03） |
+| 类别端口要求 `name` 合 `SkillName` 的词法，否则拒绝 `name-invalid`。这收紧了资产规格中 `skill` 一段 | [`skill` 类别端口](#category-port) | 领域设计裁定 S3-17（2026-11-03） |
+| 本成员不依赖 `@omne-harness/content-block`：读取交出文本或字节 | [读取的形状规则](#read-shape) | 领域设计裁定，读取内容（2026-11-03） |
+| `unsupported` 本版本只有 `no-readable-package` 一种：文本与字节都能表示，检查没有方言 | [读取的形状规则](#read-shape) | 领域设计裁定 S2-6（2026-11-03） |
 
 ## 结果与不变量
 
@@ -86,6 +92,7 @@
 | `SafeReason` | `isSafeReason` | 长 1 到 256 个字符（按码点计）。不含 C0 控制字符、DEL 与 C1 控制字符，不含孤立代理项 |
 | `AssetVersion` | `isAssetVersion` | 规则同 `SafeReason`。Skill 不解释资产版本 |
 | `MediaType` | `inferMediaType` | 见[媒体类型](#media-type) |
+| 控制文件 | `isControlFile` | 包内路径逐字等于 `SKILL.md` 或 `.omne/skill.json`。控制文件不是资源 |
 | `SkillPackageSnapshot` | `sealSnapshot` | 见[快照](#snapshot) |
 
 - `isSafeReason` 只判词形。它不判断原因是否向该主体披露了无权知道的内容。这一义务归 `SkillResolution` 的实现，见[需求端口](#ports)。
@@ -110,7 +117,7 @@
 
 `sealSnapshot({ rootName, files })` 是快照唯一的构造器。来源交出快照时必须用它。`files` 的每一项是一个包内路径与该条目的全部字节。`sealSnapshot` 按下列次序判断：
 
-1. `rootName` 为空或含 `/` 时，答 `invalid-root-name`。
+1. `rootName` 为空或含 `/` 时，答 `invalid-root-name`。根名只用来与清单的 name 比较，所以只拦这两种不可能是目录名的写法，不另加词法。
 2. 两个文件的包内路径相同时，答 `duplicate-path`，带重复的路径。
 3. 一个文件的路径是另一个路径的祖先目录时，答 `prefix-conflict`，带两个路径。检查对每个路径逐级查它的每个祖先，不靠排序后相邻比较。所以 `a`、`a-b`、`a/b` 三个条目报 `a` 与 `a/b` 冲突。
 4. 否则，`sealSnapshot` 从字节算出每个条目的大小、内容摘要、媒体类型与 `encoding`，并算出快照的内容摘要。
@@ -159,6 +166,8 @@
 
 扩展名优先于内容。
 
+<a id="parse"></a>
+
 ### 检查 Skill 包
 
 `parseSkillPackage` 收一个快照、控制文件的字节、可选的期望名字与可选的声明预算。它答 `SkillDefinition`、一个拒绝原因，或 `version-changed`。
@@ -170,7 +179,7 @@
 
 #### 前提与版本
 
-调用方先从来源取得控制文件的字节：`SKILL.md` 与 `.omne/skill.json`。
+调用方先从来源取得快照与控制文件的字节：`SKILL.md` 与 `.omne/skill.json`。来源失败（例如 `entry-unreadable`、`outside-package`、`unavailable`）由调用方先按[映射](#ports)处理，处理之后才调用 `parseSkillPackage`。
 
 - 快照不是 `sealSnapshot` 造出的时，`parseSkillPackage` 抛出 `TypeError`。这是唯一抛出的情形。
 - 控制字节与快照不对应时，`parseSkillPackage` 答 `version-changed`，不做其余判断。「不对应」指下列任一情形：
@@ -201,14 +210,17 @@ malformed
 1. `manifest-missing`：快照没有 `SKILL.md`。
 2. `name-mismatch`：头部能读出 name，且 name 不逐字等于包根目录名。带期望名字时，name 不逐字等于它也是这一种。
 3. `declaration-format-unsupported`：`.omne/skill.json` 是 JSON 对象，但 `formatVersion` 不是词形为 `1` 的数。这时不做声明的其余判断。
-4. `outside-package`：脚本入口是绝对路径。
+4. `outside-package`：脚本入口是绝对路径；或者来源在快照阶段答 `outside-package`（由调用方映射）。
 5. `tool-ref-invalid`：依赖声明的类别不是 `tool`，或名字为空。
 6. `setting-category-unknown`：设置声明的类别不是四个设置项类别之一。
-7. `malformed`：其余格式错误。
+7. `malformed`：其余格式错误；或者来源在快照阶段答 `entry-unreadable`（由调用方映射）。
 
+- 次序的例外：来源在快照阶段答 `entry-unreadable` 或 `outside-package` 时，检查没有快照可判，以对应的原因结束，不再按次序判其余原因。
 - 「头部能读出 name」指：头部的 YAML 解析没有错误与警告，内容是映射，且 `name` 的值是文本。否则不判 `name-mismatch`，头部的问题判为 `malformed`。
 - name 等于包根目录名、但不合 `SkillName` 的词法时，判为 `malformed`。
 - 同一个包违反几条规则时，`parseSkillPackage` 先读完全部可读的部分，再取次序最前的一条。
+
+<a id="manifest"></a>
 
 #### `SKILL.md`
 
@@ -282,12 +294,15 @@ governance
 - 字节范围是起点加长度，单位是字节。
   - 每页最多 65536 字节。不给范围时，起点为 0，长度为 65536。
   - 长度超过 65536 时，实际范围向内收到 65536 字节。
-  - 起点大于或等于总长时，交出空内容，`complete` 为真。
+  - 起点大于或等于总长时，交出空内容，实际范围报为起点等于总长、长度 0，`complete` 为真。
   - 长度为 0 时交出空内容。按下文 `complete` 的规则，这时只有起点大于或等于总长才为真。
   - 起点或长度为负数或非整数时，是调用方的错误，读取抛出 `TypeError`。
   - 本版本的每页上限不可配置。
 - 读正文时，内容摘要核对整个 `SKILL.md` 条目。字节范围与总长都相对正文起点，不含头部。
-- 文本条目按 UTF-8 字符边界切页。实际范围向内收：起点后移到下一个字符边界，终点前移到上一个字符边界。结果写出实际范围。请求的长度短于起点处的一个字符时，实际范围可以为空。调用方从实际范围的终点继续读，实际范围为空时用至少 4 字节的长度重读。
+- 结果写出实际范围，它这样确定：
+  - 实际起点是不小于请求起点的第一个字符边界。二进制条目的每个字节都是边界，所以实际起点就是请求起点。实际起点超过总长时截到总长。
+  - 实际长度是实际交出的字节数。文本条目的终点前移到不大于请求终点的上一个字符边界，所以实际长度可以小于请求长度。
+  - 请求的长度短于起点处的一个字符时，文本收成空范围：实际范围报为已后移的实际起点与长度 0。调用方从实际范围的终点继续读，实际范围为空时用至少 4 字节的长度重读。
 - 文本条目保留 BOM：BOM 是正文或资源的一部分，文本与字节范围对齐。
 - 读取内容是文本或字节。文本条目交出文本，二进制条目交出字节。Skill 不产出 `ContentBlock`，内容块的组装归接收方。
 - `complete` 为真，当且仅当实际范围的终点（起点加长度）不小于总长，也就是这一页之后没有剩余字节。部分结果不是失败。
@@ -328,10 +343,11 @@ no-readable-package
 
 `skillBodyContract()` 交出 `skill` 类别的 `BodyContract`。资产正文是 Skill 包的声明投影：名字、说明、必需的工具、脚本声明、设置声明与包的内容摘要。
 
-- 原有规则不变：正文必须经 `readBodyText` 读取；名字为空、工具引用不是 Tool 身份时拒绝为 `incomplete-reference`；名字不等于能力名时拒绝为 `name-mismatch`。原有拒绝先于扩展字段的拒绝。
+- 原有规则不变：正文必须经 `readBodyText` 读取；名字为空、工具引用不是 Tool 身份时拒绝为 `incomplete-reference`；名字不等于能力名时拒绝为 `name-mismatch`。
+- 名字必须合 `SkillName` 的词法，否则拒绝为 `name-invalid`。这收紧了资产规格中 `skill` 一段：那一段只要求名字非空。判断次序是：正文与名字为空（`incomplete-reference`）、`name-mismatch`、`name-invalid`、工具引用（`incomplete-reference`），然后是扩展字段。
 - 扩展字段 `description`、`scripts`、`settings` 与 `package` 都可以缺省，所以没有它们的旧正文仍然合法。这四个字段名从此是 `skill` 资产正文的保留字段：它们在场时必须合下列规则，否则拒绝。
 - `description` 是长 1 到 1024 个字符（按码点计）的文本。
-- `scripts` 与 `settings` 的每一项与 `.omne/skill.json` 的规则相同，跨项规则也相同：重复为 `malformed`。脚本入口不核对是否在包中，但必须已经规范化：`./run.sh` 这类未规范化的写法为 `malformed`。
+- `scripts` 与 `settings` 的每一项与 `.omne/skill.json` 的规则相同，跨项规则也相同：重复为 `malformed`。脚本入口不核对是否在包中，但必须已经规范化，也不得是控制文件：`./run.sh` 这类未规范化的写法与 `SKILL.md` 都为 `malformed`。
 - `package` 是只有 `digest` 一个字段的对象，`digest` 合 `PackageDigest` 的形式。
 - 扩展字段的拒绝原因是 `outside-package`、`setting-category-unknown` 与 `malformed`，按此次序取第一个。
 - 正文的其他顶层字段不判断。
@@ -342,7 +358,7 @@ no-readable-package
 
 ## 所有权、失败与生命周期
 
-本成员只有纯函数、类型与测试设施。它没有异步资源，不持有状态，没有外部效果。纯函数的失败都是返回值。下列情形例外，它们抛出 `TypeError`：
+本成员只有纯函数、类型与测试设施。它没有异步资源，没有外部效果。它只持有一项状态：快照登记的私有 `WeakSet`，见[快照](#snapshot-credential)。纯函数的失败都是返回值。下列情形例外，它们抛出 `TypeError`：
 
 - `parseSkillPackage` 收到不是 `sealSnapshot` 造出的快照。
 - 类别端口的 `deriveDeclarations` 与 `references` 在判断失败后抛出，这是资产的约定。
@@ -360,15 +376,19 @@ no-readable-package
 - `snapshot` 必须交出 `sealSnapshot` 造出的快照（PS1）。包不变时，两次快照相等（PS2）。
 - 找不到包答 `package-not-found`（PS4），来源此刻不可达答 `unavailable`。
 - `snapshot` 遇到设备、管道、套接字、无法解析或成环的链接时答 `entry-unreadable`。
-- `open` 交出的字节必须与快照中该条目的事实相符：内容摘要、大小、`encoding` 与 `inferMediaType` 的结果（PS3）。
+- `snapshot` 遇到解析后落在包根之外的包内链接时答 `outside-package`（PS8）。连带后果：有这种链接的包整包不可读，这是包的缺陷。
+- 包不变时，`open` 交出的字节与快照中该条目的事实相符：内容摘要、大小、`encoding` 与 `inferMediaType` 的结果（PS3）。
 - `open` 找不到包答 `package-not-found`（PS5）。条目不在答 `entry-not-found`（PS6）。条目解析后落在包根之外答 `outside-package`。来源自己发现字节与条目内容摘要不符时答 `bytes-mismatch`。
 - `open` 的 `digest` 是调用方已经核对过的快照内容摘要。按内容摘要存放字节的来源找不到该摘要时答 `package-not-found`（PS7）。不按内容摘要存放的来源可以不看它：Skill 会按条目内容摘要核对字节。
 
 `SkillResolution`：
 
 - `resolve` 按下列次序答复：先 `known-unavailable`，再 `adopted` 或 `basis-not-lawful`，再 `none`，再 `unknown`。`known-unavailable` 与是否带依据无关（PR7）。
-- 已采用的身份答 `adopted`，带内部引用与声明投影（PR1）。不存在的身份答 `none`（PR2）。
-- 带依据时，`resolve` 不比较内容摘要：内容摘要由 Skill 在读取时与当前快照比较。依据带资产版本时，`resolve` 核对该资产版本是不是这个主体在此作用域可读的、该能力的合法版本。依据不带资产版本时，`resolve` 核对该能力在依据的来源层对这个主体合法可读。合法就答 `adopted`（PR3），否则答 `basis-not-lawful`（PR4）。
+- 已采用的身份答 `adopted`，带内部引用与声明投影（PR1）。身份对该主体没有对应时答 `none`，带依据也答 `none`（PR2）。
+- 没有已知集合的实现不答 `known-unavailable`，这时不出现替换件。
+- 带依据时，`resolve` 不比较内容摘要：内容摘要由 Skill 在读取时与当前快照比较。依据带资产版本时，`resolve` 核对该资产版本是不是这个主体在此作用域可读的、该能力的合法版本。依据不带资产版本时，`resolve` 核对该能力在依据的来源层对这个主体合法可读。
+- 身份对该主体合法对应时：依据合法就答 `adopted`，其中的内部引用（包定位与内容摘要）指向依据所指的材料，而不是当前采用的材料（PR3）；依据不合法就答 `basis-not-lawful`（PR4）。
+- 资产版本不合 `AssetVersion` 的词法时，Skill 无法表示这份材料。这时端口答 `known-unavailable`，原因是「资产版本不可表示」。
 - `known-unavailable` 带的原因必须可以向该主体说明：它不含秘密，也不披露该主体无权知道的内容。这一义务归端口的实现，`isSafeReason` 只核对词形。
 - `adopted` 只交 `adopted` 与 `known-unavailable` 两种答复，每个身份一个（PR6）。集合为空时答空数组，不是失败。
 - 唯一的失败是 `unknown`，即此刻无法判定。
@@ -408,7 +428,10 @@ duplicate-path
 prefix-conflict
 ```
 
-`entry-unreadable` 的映射补充组工程设计的映射表：检查（`inspect`）把它映射为拒绝 `malformed`；`read`、`list` 与 `export` 把它映射为 `source-unavailable`。
+下列映射补充组工程设计的映射表：
+
+- `snapshot` 答 `entry-unreadable`：检查（`inspect`）映射为拒绝 `malformed`；`read`、`list` 与 `export` 映射为 `source-unavailable`。
+- `snapshot` 答 `outside-package`：检查映射为拒绝 `outside-package`；`read`、`list` 与 `export` 映射为 `outside-package`。
 
 ### 不在本成员
 
@@ -426,18 +449,18 @@ prefix-conflict
 
 - 实现方为每个用例新建一份夹具，在自己的测试框架里逐个登记并运行 `run(fixture)`。`runConformanceCase` 运行一个用例并答结果。
 - 用例失败时抛出 `node:assert` 的 `AssertionError`。
-- 夹具缺少用例需要的东西时，用例抛出 `NotApplicable`。这不算通过，也不算失败，实现方要单独计数。来源不按内容摘要存放时，PS7 不适用。依据所指材料没有资产版本时，PR4 不适用。夹具没有 `standIn` 时，PR7 不适用。
+- 夹具缺少用例需要的东西时，用例抛出 `NotApplicable`。这不算通过，也不算失败，实现方要单独计数。来源不按内容摘要存放时，PS7 不适用。夹具没有 `escaping` 时，PS8 不适用。夹具没有 `earlier` 时，PR3 的早先版本一例不适用。所采用材料没有资产版本时，PR4 的资产版本一例不适用；夹具没有 `unlawfulLayer` 时，PR4 的来源层一例不适用。夹具没有 `standIn` 时，PR7 不适用。
 - 本成员对内存替身的测试把 `NotApplicable` 当作失败：替身必须覆盖全部用例。
 
 | 套件 | 夹具 | 用例 |
 | --- | --- | --- |
-| `skillPackageSourceConformance` | `source`；`present`：来源持有、用例运行期间不变的包；`absent`：不对应任何包的定位；`addressing`：是否按内容摘要存放 | PS1–PS7 |
-| `skillResolutionConformance` | `resolution`；`permitted`、`refused` 两个主体与作用域；`adopted`：对 `permitted` 已采用的身份；`missing`：对谁都不存在的身份；`standIn`：可选，对 `permitted` 合法已知、此刻不可用的身份 | PR1–PR7 |
+| `skillPackageSourceConformance` | `source`；`present`：来源持有、用例运行期间不变的包；`absent`：不对应任何包的定位；`addressing`：是否按内容摘要存放；`escaping`：可选，有一个链接解析后落在根外的包 | PS1–PS8 |
+| `skillResolutionConformance` | `resolution`；`permitted`、`refused` 两个主体与作用域；`adopted`：对 `permitted` 已采用的身份；`missing`：对谁都不存在的身份；`standIn`：可选，对 `permitted` 合法已知、此刻不可用的身份；`earlier`：可选，`adopted` 的一个早先合法版本的依据；`unlawfulLayer`：可选，`adopted` 对 `permitted` 不合法的来源层 | PR1–PR7 |
 | `skillReadCheckConformance` | `readCheck`；`permitted`、`refused`；`readable`：`permitted` 能读的身份；`missing` | PC1–PC3 |
 
 无披露用例 PR5 与 PC3 的名字都是 `answers a principal without the right the same for an existing and a missing identity`。它们比较 `refused` 问已存在的身份与问 `missing` 的答复，两者必须完全相同。PR5 同时比较带依据的答复，并要求 `refused` 的当前合法集合不含 `adopted` 与 `standIn`。
 
-内存替身 `createMemorySource`、`createMemoryResolution` 与 `createMemoryReadCheck` 通过各自的全部用例。`createMemorySource` 按快照的内容摘要存放字节。替身通过不证明真实来源、真实读取权、真实求值或耐久。
+内存替身 `createMemorySource`、`createMemoryResolution` 与 `createMemoryReadCheck` 通过各自的全部用例。`createMemorySource` 按快照的内容摘要存放字节，并可以模拟包内链接：链接读目标的字节，目标落在根外时快照答 `outside-package`，目标不是包内文件时答 `entry-unreadable`。替身通过不证明真实来源、真实读取权、真实求值或耐久。
 
 ### 持续验证
 

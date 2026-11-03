@@ -81,6 +81,9 @@ describe('skill-declaration.schema.json', () => {
     expect(verdict({ formatVersion: 1, scripts: [{ ...script, entry: './.' }] })).toBe('malformed')
     expect(schema.description).toContain('lone surrogate')
     expect(schema.description).toContain('code points')
+    expect(schema.description).toContain('repeated key')
+    expect(schema.description).toContain('byte order mark')
+    expect(schema.description).toContain('not UTF-8')
   })
 
   it('lists exactly the setting categories that the parser accepts', () => {
@@ -138,6 +141,8 @@ describe('skill-declaration.schema.json', () => {
     'a/../run.sh',
     'a\\run.sh',
     'a//run.sh',
+    'a\u2028//run.sh',
+    'a\u2029/../run.sh',
     'a/',
     'run.sh\n',
   ])('agrees with the parser on the form of the script entry %j', entry => {

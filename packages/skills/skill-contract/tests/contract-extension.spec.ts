@@ -63,6 +63,11 @@ describe('the extended skill body', () => {
       { scripts: [{ ...script, entry: './scripts/run.sh' }] },
       'malformed',
     ],
+    [
+      'a script entry that is a control file',
+      { scripts: [{ ...script, entry: 'SKILL.md' }] },
+      'malformed',
+    ],
     ['a repeated script entry', { scripts: [script, { ...script, runKind: 'node' }] }, 'malformed'],
     ['a script entry that is not a path', { scripts: [{ ...script, entry: 'a\\b' }] }, 'malformed'],
     ['a script without an entry', { scripts: [{ runKind: 'shell', facilities: [] }] }, 'malformed'],

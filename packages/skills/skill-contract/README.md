@@ -44,7 +44,7 @@ The member is a set of small modules: values, names, digests, media types, the s
 
 ## Configuration and operation
 
-There is no runtime configuration. A caller of `parseSkillPackage` can give another declaration budget (`declarationLimits`). The read page of 65536 bytes is fixed in this version. The member needs Node.js 24 or later.
+There is no runtime configuration. A caller of `parseSkillPackage` can give another declaration budget (`declarationLimits`). The read page of 65536 bytes is fixed in this version. Load this member only once in a process: a snapshot that one module instance seals is not accepted by another instance. The member needs Node.js 24 or later.
 
 ## Verification
 
@@ -75,6 +75,7 @@ verification/             models/ and proofs/
 adr/                      Implementation decisions with continuing consumers
 examples/                 Examples against the public entry
 resources/                Non-source runtime resources
+acceptance/               Independent acceptance; fixtures/ holds its inputs
 ```
 
-Each directory has README.md for its role and index.md for navigation. See [index.md](index.md) for reading paths. The template directory `acceptance/` is not present: independent acceptance owners create it.
+Each directory has README.md for its role and index.md for navigation. See [index.md](index.md) for reading paths. The independent acceptance owners maintain `acceptance/`. This pure contract member has no acceptance scenario.

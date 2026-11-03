@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:omne-harness:skill-contract:skill-declaration:1",
   "title": ".omne/skill.json",
-  "description": "The declarations of a Skill package, format version 1. The behavior owner is SPEC.md of @omne-harness/skill-contract. Lengths count Unicode code points. The parser rejects these documents, and this schema does not express the rule: a formatVersion written as 1.0 or 1e0 (the lexeme must be 1); a script entry made of . segments only; a text with a lone surrogate; a document over the JSON budget; a script entry that is not a file of the package or is a control file; script entries that repeat after . segments are removed; setting names that repeat.",
+  "description": "The declarations of a Skill package, format version 1. The behavior owner is SPEC.md of @omne-harness/skill-contract. Lengths count Unicode code points. The parser rejects these documents, and this schema does not express the rule: a formatVersion written as 1.0 or 1e0 (the lexeme must be 1); a script entry made of . segments only; a text with a lone surrogate; a repeated key; a byte order mark; bytes that are not UTF-8; a document over the JSON budget; a script entry that is not a file of the package or is a control file; script entries that repeat after . segments are removed; setting names that repeat.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -51,7 +51,7 @@
           "entry": {
             "description": "A relative path inside the package. No leading slash, no backslash, no empty segment, no .. segment, no control character.",
             "type": "string",
-            "pattern": "^(?!/)(?!.*//)(?!.*/$)(?!(?:.*/)?\\.\\.(?:/|$))[^\\\\\\u0000-\\u001f\\u007f-\\u009f]+$"
+            "pattern": "^(?!/)(?![\\s\\S]*//)(?![\\s\\S]*/$)(?!(?:[\\s\\S]*/)?\\.\\.(?:/|$))[^\\\\\\u0000-\\u001f\\u007f-\\u009f]+$"
           },
           "runKind": {
             "description": "Skill does not interpret the run kind.",
