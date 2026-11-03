@@ -270,11 +270,22 @@ function json(text: string): JsonValue {
   return read.value
 }
 
-async function until<T>(read: () => Promise<T>, done: (value: T) => boolean, ms: number) {
+/**
+ * Polls `read` until `done` holds. At the deadline it throws with what it waited for and the last
+ * value it read, so a slow cold start reads as a timeout of a named wait, not as a later assertion.
+ */
+async function until<T>(
+  what: string,
+  read: () => Promise<T>,
+  done: (value: T) => boolean,
+  ms: number,
+): Promise<T> {
   const end = Date.now() + ms
   for (;;) {
     const value = await read()
-    if (done(value) || Date.now() > end) return value
+    if (done(value)) return value
+    if (Date.now() > end)
+      throw new Error(`until: ${what} not reached in ${ms} ms; last value ${JSON.stringify(value)}`)
     await new Promise(resolve => setTimeout(resolve, 50))
   }
 }
@@ -337,6 +348,7 @@ async function call(runtime: Runtime, principal: unknown, request: ToolInvokeReq
   const outcome = await runtime.invoke({ ...caller, request })
   if (outcome.kind !== 'accepted') throw new Error(`invoke: ${JSON.stringify(outcome)}`)
   const found = await until(
+    'the call to settle',
     () => runtime.queries.lookup({ ...caller, reference: outcome.reference }),
     read => 'ok' in read && read.ok.kind === 'found' && read.ok.state.phase === 'settled',
     60_000,
@@ -384,6 +396,7 @@ async function ready(ctx: Context, saved: ToolDelivery<ToolMessageContentBlock>[
   const principal = ctx.get(WORK_A)
   // The release authors were preloaded by the tool-host row; wait until the catalog lists them.
   await until(
+    'the catalog to list the release authors',
     () =>
       requestFor(ctx, principal, 'Files.read', '{"path":"x"}').then(
         () => true,
@@ -462,9 +475,10 @@ async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
       })
       // Delivery to the original consumer runs on its own worker after the call settles.
       await until(
+        'three deliveries to the original consumer',
         async () => saved.length,
         count => count >= 3,
-        10_000,
+        30_000,
       )
       return { shell, write, read, foreign }
     },
@@ -529,9 +543,10 @@ describe('Tool segment B: the release rows in one process composition', () => {
               await requestFor(ctx, principal, 'Files.read', JSON.stringify({ path: target })),
             )
           await until(
+            `${calls + 1} deliveries to the original consumer`,
             async () => saved.length,
             count => count >= calls + 1,
-            10_000,
+            30_000,
           )
           const residents = toolRuntimeHolder(ctx).residents
           return Object.fromEntries([...residents].map(([name, size]) => [name, size()]))
