@@ -16,10 +16,24 @@
 | --- | --- | --- | --- |
 | mcp-contract | 纯契约：值对象、类别端口、纯函数、端口与应用服务接口；测试入口导出 stdio 与 Streamable HTTP 共用的传输契约测试。不依赖 Cordis 与任何实现 | assets（类别端口）、operation-result、legal-identity、content-block、json-text | 候选，尚非 workspace 成员 |
 | mcp | 通用实现：`Connection`、`ActionCatalog` 两个聚合与五个应用服务。不含 Cordis，不含官方 SDK | 只依赖 mcp-contract 及其公共值包 | 候选，尚非 workspace 成员 |
-| mcp-cordis-contract | Cordis 服务定义与服务键，不含实现 | mcp-contract、Cordis | 候选，尚非 workspace 成员 |
+| mcp-cordis-contract | Cordis 服务定义与服务键，不含实现。建立后暂不进应用插件树 | mcp-contract、Cordis | 候选，尚非 workspace 成员 |
 | mcp-host-local | 本地宿主：stdio 与 Streamable HTTP 两种 `McpTransport` 实现，使用官方 SDK | mcp、mcp-contract、mcp-cordis-contract、官方 MCP SDK（精确版本待核实） | 候选，尚非 workspace 成员 |
 
 依赖方向是 mcp-host-local → {mcp, mcp-cordis-contract} → mcp-contract。mcp 与 mcp-cordis-contract 互不依赖。这一方向沿 [Tool 组](../tool/README.md#包与依赖)的先例。
+
+```mermaid
+flowchart LR
+    hostLocal[mcp-host-local] --> mcp[mcp]
+    hostLocal --> cordisContract[mcp-cordis-contract]
+    hostLocal --> contract[mcp-contract]
+    hostLocal --> sdk[官方 MCP SDK]
+    mcp --> contract
+    cordisContract --> contract
+    cordisContract --> cordis[Cordis]
+    contract --> common[assets operation-result legal-identity content-block json-text]
+```
+
+候选决定：mcp-cordis-contract 建立后暂不进应用插件树。它只给出服务定义与服务键。进入插件树排在后续交付，等相邻领域的实现方就绪。
 
 预期的消费方式（候选，同沿 Tool 组先例）：其他领域只依赖 mcp-contract；独立程序再加 mcp；应用装配使用 mcp-host-local。凭据保管、本机进程落点、采用视图和使用资格由组外实现方经端口交给本组，本组成员不导入它们的实现。
 

@@ -182,6 +182,62 @@
   [PF-016 §5.7 人要做的事分三族](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 13）；常驻工具的例外见已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1、R5）
 - **别混**：不是历史装配清单，不是资产所有权目录；保留历史可见身份不授予继续使用的权利。
 
+### UL-governance-center-health-check · 治理中心体检 · Governance Center Health Check
+
+> **中**：[治理中心](grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)关于「我此刻在不在、能不能答」的自述，
+> 从部署事实现算、不另存。**公开部分恰三样**——在不在、[治理中心标识](grounding-and-isolation.md#ul-governance-center-identifier--治理中心标识--governance-center-identifier)、版本——
+> 任何够得到中心的人**登录之前就能看，且不受版本核对那一关挡**；完整部分（起来的时刻、数据所在够不够得着、
+> [部署密钥](grounding-and-isolation.md#ul-deployment-key--部署密钥--deployment-key)在不在完整不完整、时钟正不正常、
+> 每一项[部署参数](grounding-and-isolation.md#ul-deployment-parameter--部署参数--deployment-parameter)的值）
+> 只有[运维者](subjects-and-ownership.md#ul-deployment-operator--运维者--deployment-operator)在中心所在的机器上看得到。
+> **两部分都不含任何治理事实，不含任何秘密的值。**正文简称「中心体检」。
+>
+> **EN**: A governance center's own statement of "am I up, can I answer", computed from deployment
+> facts and not stored separately. **The public part is exactly three things** — up or not, the
+> governance center identifier, the version — readable **before login** by anyone who can reach the
+> center and **not blocked by the version check**; the full part (when it started, whether its data
+> is reachable, whether the deployment key is present and complete, whether the clock is sane, the
+> value of each deployment parameter) is visible only to the deployment operator on the center's own
+> machine. **Neither part carries any governance fact or any secret value.** Product text shortens
+> it to "center health check".
+
+- **形态**：视图
+- **出处**：[PF-017 §4 中心体检](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#中心体检) ·
+  [§6.17](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#617-体检只说部署不说里面有谁)（rev 8）
+- **⚠️ 别混**：与 [PF-016 本机族的「体检」](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)是**同一个词的两头**：
+  那边是客户端自查「能不能连上中心」，这边是中心自述「我在不在」；**取同一个词是有意的**，两头合起来才是「这条路通不通」
+- **注意**：不是[当下可用性](#ul-current-availability--当下可用性--current-availability)——那是一份能力的依赖解析结果，这是一次部署的自述
+
+### UL-governance-center-reachability · 治理中心可达性 · Governance Center Reachability
+
+> **中**：一处[会话据点](grounding-and-isolation.md#ul-session-base--会话据点--session-base)对它所属的
+> [治理中心](grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)**此刻在不在应答**的观察：
+> 最近一次与中心的往来拿到了中心的一份答复，就是可达；落在「问不到」——没有拿到中心的答复——就是不可达。
+> **答复说了什么不影响它**：中心答「不认你这个登录状态」「这件事此刻答不了」，照样是可达。
+> **它只是一个观察，不作任何准入依据**：可达不说明成员资格有效、登录状态作数，不可达也不说明它们无效；
+> 中心不可达时，已经执行的 Run 继续；新 Run 开始前仍须确认登录有效。
+>
+> **EN**: A session base's observation of **whether the governance center it belongs to is answering
+> right now**: reachable when the latest exchange with the center brought back an answer from it,
+> unreachable when the latest exchange ended in "could not ask" — no answer from the center came back.
+> **What the answer said does not matter**: a center replying "that login state is not accepted" or
+> "this cannot be answered now" is reachable. **It is an observation only and admits nothing**: being
+> reachable does not mean a membership is valid or a login state still counts, and being unreachable does
+> not mean they are invalid; a run already under way can continue while the center is unreachable. A new run still requires confirmation of a valid login before it starts.
+
+- **形态**：属性
+- **出处**：[PF-016 §6.17](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活) ·
+  [§5.6 哪几件事必须现读](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#哪几件事必须现读)（rev 13） ·
+  [PF-017 §4 中心体检](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#中心体检)（rev 8）
+- **⚠️ 别混 ①**：**不是[治理中心体检](#ul-governance-center-health-check--治理中心体检--governance-center-health-check)**——
+  体检是中心自述「我在不在、能不能答」；这一条是据点这一头的观察。体检答「数据所在够不着」，中心照样在应答，照样可达
+- **别混 ②**：**裸写「可达性」不作数**——形式检查里的可达性说的是某个状态走不走得到，
+  [当下可用性](#ul-current-availability--当下可用性--current-availability)说的是一样能力此刻用不用得了，都与这一条无关
+- **注意 ①**：**它变了不让任何东西停下**——中心问不到不是让据点上任何在途工作停的理由；
+  再连上之后，那几件必须现读的事按新读到的重新算（[PF-016 §6.17](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)）
+- **注意 ②**：规格层（`capability.center-connection` v2，本能力在规格里叫「中心连接」）把它分成三态：
+  多出的「尚未判定」是据点这一侧起来之后还没有任何一次往来有结果——**既不当可达，也不当不可达**
+
 ## MCP 对端够不够得着
 
 ### UL-mcp-connection · MCP 连接 · MCP Connection
@@ -252,61 +308,5 @@
 - **别混 ①**：**不是[替换件](#ul-stand-in--替换件--stand-in)**。替换件是它不可用时在会话里占在原位的呈现；MCP 已知动作是清单里的那一项
 - **别混 ②**：**不是资产**。对端动作随接入点一起被持有、授权与治理，见 [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp)
 - **注意**：产品正文称这些动作合起来是「已知集合」。裸写「已知动作」不作术语，跨 topic 写全称
-
-### UL-governance-center-health-check · 治理中心体检 · Governance Center Health Check
-
-> **中**：[治理中心](grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)关于「我此刻在不在、能不能答」的自述，
-> 从部署事实现算、不另存。**公开部分恰三样**——在不在、[治理中心标识](grounding-and-isolation.md#ul-governance-center-identifier--治理中心标识--governance-center-identifier)、版本——
-> 任何够得到中心的人**登录之前就能看，且不受版本核对那一关挡**；完整部分（起来的时刻、数据所在够不够得着、
-> [部署密钥](grounding-and-isolation.md#ul-deployment-key--部署密钥--deployment-key)在不在完整不完整、时钟正不正常、
-> 每一项[部署参数](grounding-and-isolation.md#ul-deployment-parameter--部署参数--deployment-parameter)的值）
-> 只有[运维者](subjects-and-ownership.md#ul-deployment-operator--运维者--deployment-operator)在中心所在的机器上看得到。
-> **两部分都不含任何治理事实，不含任何秘密的值。**正文简称「中心体检」。
->
-> **EN**: A governance center's own statement of "am I up, can I answer", computed from deployment
-> facts and not stored separately. **The public part is exactly three things** — up or not, the
-> governance center identifier, the version — readable **before login** by anyone who can reach the
-> center and **not blocked by the version check**; the full part (when it started, whether its data
-> is reachable, whether the deployment key is present and complete, whether the clock is sane, the
-> value of each deployment parameter) is visible only to the deployment operator on the center's own
-> machine. **Neither part carries any governance fact or any secret value.** Product text shortens
-> it to "center health check".
-
-- **形态**：视图
-- **出处**：[PF-017 §4 中心体检](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#中心体检) ·
-  [§6.17](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#617-体检只说部署不说里面有谁)（rev 8）
-- **⚠️ 别混**：与 [PF-016 本机族的「体检」](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)是**同一个词的两头**：
-  那边是客户端自查「能不能连上中心」，这边是中心自述「我在不在」；**取同一个词是有意的**，两头合起来才是「这条路通不通」
-- **注意**：不是[当下可用性](#ul-current-availability--当下可用性--current-availability)——那是一份能力的依赖解析结果，这是一次部署的自述
-
-### UL-governance-center-reachability · 治理中心可达性 · Governance Center Reachability
-
-> **中**：一处[会话据点](grounding-and-isolation.md#ul-session-base--会话据点--session-base)对它所属的
-> [治理中心](grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)**此刻在不在应答**的观察：
-> 最近一次与中心的往来拿到了中心的一份答复，就是可达；落在「问不到」——没有拿到中心的答复——就是不可达。
-> **答复说了什么不影响它**：中心答「不认你这个登录状态」「这件事此刻答不了」，照样是可达。
-> **它只是一个观察，不作任何准入依据**：可达不说明成员资格有效、登录状态作数，不可达也不说明它们无效；
-> 中心不可达时，已经执行的 Run 继续；新 Run 开始前仍须确认登录有效。
->
-> **EN**: A session base's observation of **whether the governance center it belongs to is answering
-> right now**: reachable when the latest exchange with the center brought back an answer from it,
-> unreachable when the latest exchange ended in "could not ask" — no answer from the center came back.
-> **What the answer said does not matter**: a center replying "that login state is not accepted" or
-> "this cannot be answered now" is reachable. **It is an observation only and admits nothing**: being
-> reachable does not mean a membership is valid or a login state still counts, and being unreachable does
-> not mean they are invalid; a run already under way can continue while the center is unreachable. A new run still requires confirmation of a valid login before it starts.
-
-- **形态**：属性
-- **出处**：[PF-016 §6.17](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活) ·
-  [§5.6 哪几件事必须现读](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#哪几件事必须现读)（rev 13） ·
-  [PF-017 §4 中心体检](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#中心体检)（rev 8）
-- **⚠️ 别混 ①**：**不是[治理中心体检](#ul-governance-center-health-check--治理中心体检--governance-center-health-check)**——
-  体检是中心自述「我在不在、能不能答」；这一条是据点这一头的观察。体检答「数据所在够不着」，中心照样在应答，照样可达
-- **别混 ②**：**裸写「可达性」不作数**——形式检查里的可达性说的是某个状态走不走得到，
-  [当下可用性](#ul-current-availability--当下可用性--current-availability)说的是一样能力此刻用不用得了，都与这一条无关
-- **注意 ①**：**它变了不让任何东西停下**——中心问不到不是让据点上任何在途工作停的理由；
-  再连上之后，那几件必须现读的事按新读到的重新算（[PF-016 §6.17](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)）
-- **注意 ②**：规格层（`capability.center-connection` v2，本能力在规格里叫「中心连接」）把它分成三态：
-  多出的「尚未判定」是据点这一侧起来之后还没有任何一次往来有结果——**既不当可达，也不当不可达**
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
