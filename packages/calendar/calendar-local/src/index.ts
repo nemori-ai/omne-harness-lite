@@ -16,3 +16,23 @@ export type {
   CalendarPersistenceAuthorityRequirement,
   CalendarPersistenceAuthorityFact,
 } from './storage/authority.ts'
+export {
+  createCalendarSqlSupplyStorage,
+  type CalendarSqlSupplyStorageOptions,
+  type CalendarSqlSupplyStorage,
+} from './supply-storage/provider.ts'
+export {
+  calendarSupplySqlMaterials,
+  calendarSupplyStorageAuthorityFact,
+  calendarSupplyStorageResultFact,
+  calendarSupplyStorageParticipant,
+  calendarSupplyReadLimit,
+  calendarSupplyMaxMaterialBytes,
+  type CalendarSupplySqlMaterials,
+} from './supply-storage/materials.ts'
+export type {
+  CalendarSupplyStorageAuthority,
+  CalendarSupplyStorageAuthorityRequirement,
+  CalendarSupplyStorageAuthorityFact,
+} from './supply-storage/authority.ts'
+export type { CalendarSeedPackSource, CalendarSeedPackRegistry } from './supply-storage/custody.ts'
