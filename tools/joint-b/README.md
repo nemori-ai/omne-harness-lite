@@ -30,8 +30,8 @@ S4-8（只中断一个调用）。它们没有脚本，也就不会被报成通�
 ## 命令
 
 ```sh
-node tools/joint-b/conversation.mjs [--model-source real|replay] [--evidence <目录>] [--keep]
-node tools/joint-b/tools.mjs [--platform windows|linux] [--model-source real|replay] [--evidence <目录>] [--keep]
+node tools/joint-b/conversation.mjs [--definition <名>] [--model-source real|replay] [--evidence <目录>] [--keep]
+node tools/joint-b/tools.mjs [--definition <名>] [--platform windows|linux] [--model-source real|replay] [--evidence <目录>] [--keep]
 ```
 
 先构建（同联调 A）：
@@ -41,11 +41,17 @@ pnpm --filter @omne-harness/harness-server... run build
 pnpm --filter @omne-harness/cli... run build
 ```
 
+- [operator.mjs](operator.mjs) 是联调 B 的运维者层：在联调 A 那份之上补模型、Context、工具、Session 适配行的
+  数值（抄自 `apps/harness-server/tests/r9/support.ts`）。联调 A 那份缺这些行，`serve` 装载时
+  model-records、request-context、session-ad03、session-ad04 会 FAILED，树起不来，注册、登录、建会话全部
+  退出 5。新行要运维层数值时在这里补。
 - 入口开头调用联调 A 的 `holdTestSlot`，先取机器运行名额。公共件从 `../joint-a/support.mjs` 复用，
   `support.mjs` 只加联调 B 自己的部分。
 - `--model-source`：树上模型侧已全是真件时，发消息会触到真实模型或回放，要有授权。不给这个参数，
   相关步骤记等件，不发消息。它只标注证据。树上还有替身行时脚本照常发消息（打不到真实模型），
   观察只作参考写进等件。
+- `--definition`：建会话用的定义，默认 `coding`。`assistant` 没有 `initialModelSelection`，拿不到回复，
+  也没有工具引用，S4 无工具可调，所以不再作默认值。
 - `--platform`：只标注证据，并核对与本机一致，不一致记失败（避免证据标错平台）。跨平台由调用方
   在 Windows 宿主与 WSL 独立检出上各跑一遍，分别报告；没跑的一侧不算通过。
 - 单轮回复等待上限默认 90 秒，用 `OMNE_JOINT_B_REPLY_MS` 调。
@@ -66,6 +72,36 @@ pnpm --filter @omne-harness/cli... run build
 
 ## 当前预期
 
+**在当前树上，预期结果是缺件时退出 3（等件），不能假装通过。** 只要 `MODEL_SIDE`／`TOOL_SIDE` 范围内还有替身行，
+相关步骤就只记等件，观察到的东西写进等件说明。脚本认替身行靠 `implementation !== 'real'`，范围正则见
+`support.mjs` 的 `MODEL_SIDE` 与 `TOOL_SIDE`（已含 `session-conditions`，随 `apps/harness-server/src/s0/stubs.ts`
+的行表同步）。
+
+### S2～S4 依赖哪些行是真件
+
+依据 Reduce 的可达性调研 `tmp/m2-reduce/wave2/reduce/c1-reachability.md` 第 2 节（任务材料，不入库；`coding` 定义下）：
+
+- S2、S3（单轮到多轮回复、Model 账目、Journal 条目）：`session-conditions`（SC1）、`agent-host`、`agent-instances`、
+  `session-ad14`（SC4），`agent-model-selection` 能解析到会话（G-SELECT），`agent-context` 第六组工具来源能收
+  非空 bindings（G-TOOLS6，`coding` 引用 Files 与 Shell），以及模型目录与 `model-host`、真实模型或获准回放的授权。
+  `session-ad11`、`session-ad15` 仍是替身时不挡这几步。
+- S4-1～S4-5：在上面之外加 `tool-records`、`tool-runtime`、`tool-executor`、`tool-instances`、`tool-environments`
+  和 `execution-environment`、`execution-files`、`execution-command`、`execution-host`（Tool 段），以及
+  `authorization` 对 Files、Shell 的动作准入。
+- S4-7：再加 Journal 的取消治理安装（G-CANCEL），和 Run 标识的读口（下节）。
+
+### S4-7 的 Run 标识
+
+`cancel-run` 要 `--run <id>`。目前唯一的公开读口是 `read-history`：Session 契约在启动 Run 时写一条
+`run.started` 条目，载荷里有 `run`。`read-history` 默认只列 `message.user` 与 `message.assistant`，所以
+`tools.mjs` 在运维层把 `server-entry` 的 `historyKinds` 加上 `run.started`（`startTree` 的 `historyKinds`
+选项）。CLI 没有读命令，SDK 也只有同一组会话操作，`send-input` 的成功输出只有 `recovered`。读不到该条目时
+S4-7 记等件，不猜 Run 标识。
+
+具名缺件：条目载荷里 `run` 的形状按 `session-contract` 的 `run.started` 取；真实会话提供方换上以后，
+要在首跑时核对 `read-history` 确实给出这类条目。
+
+
 当前发行树多数行仍是替身，跑出来应以等件为主。主要等的件：
 
 - S2、S3、S4 的真实回复与 Model 账目：L-RUN 的 AD-02 与 session-ad* 真件、L-MODEL 的 model-host 真件，
@@ -73,7 +109,7 @@ pnpm --filter @omne-harness/cli... run build
 - S3-2「历史页读取次数」：L-RUN 在历史页读取处发出的计数事件。读取次数是进程内计数，域文件里没有，
   本脚本接不到，等 L-RUN 给出可读的观察来源后再接进来。
 - S4-3、S4-7 的命令记录：L-TOOL 的 `tl_record` 落盘。
-- S4-7 的 Run 标识：`read-history` 或 `send-input` 的公开输出里能读到 Run 标识（L-RUN，SS-22）。
+- S4-7 的 Run 标识：`read-history` 读到 `run.started` 条目（见上节）。
 - S4-9：Windows 侧另等 T-D Windows 后端，Linux 侧在 WSL 独立检出上跑。
 
 ## 已知限制

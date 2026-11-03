@@ -24,6 +24,7 @@ import {
   isUserEntry,
   logEntries,
   missingBuild,
+  MODEL_SIDE,
   modelCalls,
   modelParts,
   newScratch,
@@ -43,15 +44,13 @@ holdTestSlot(import.meta.url)
 
 const args = parseArgs(process.argv.slice(2))
 const ROUND_TEXTS = ['joint-b round one', 'joint-b round two', 'joint-b round three']
-const MODEL_SIDE =
-  /^(agent-|model-|session-ad|session-provider|session-handoff|request-context|runtime-context)/
 
 const BUILD_AWAIT =
   '两个应用成员的构建产物：pnpm --filter @omne-harness/harness-server... run build' +
   ' 与 pnpm --filter @omne-harness/cli... run build'
 const REAL_ROWS_AWAIT =
-  '波 2 的 L-RUN 与 L-MODEL 把 session-ad*、agent-*、model-records、model-host 等行换进真件，' +
-  '联调 A 装配后遗留的等件（session-ad10、session-ad12、AD-02、model-host）先闭合'
+  '树上模型侧替身行换进真件：session-conditions（SC1）、agent-host、agent-instances、session-ad14（SC4），' +
+  '以及 G-SELECT、G-TOOLS6 的修复（见 README「S2～S4 依赖哪些行是真件」）；替身清单见证据文件的 doubleRows'
 const MODEL_SOURCE_AWAIT =
   '真实模型或获准回放的授权：以 --model-source real|replay 重跑，并在运维层给出模型凭据或回放记录'
 const COUNT_EVENT_AWAIT =
@@ -96,7 +95,11 @@ async function run(scratch) {
   const tree = await startTree(scratch)
   try {
     const doubles = relevantDoubles(tree.records, MODEL_SIDE)
-    evidence = { modelSource: args.modelSource ?? null, doubleRows: doubles }
+    evidence = {
+      definition: args.definition,
+      modelSource: args.modelSource ?? null,
+      doubleRows: doubles,
+    }
     if (doubles.length === 0 && args.modelSource === undefined) {
       blockAll(
         rec,
@@ -106,7 +109,7 @@ async function run(scratch) {
       )
       return
     }
-    const opened = openSession(tree)
+    const opened = openSession(tree, args.definition)
     if (opened.session === '') {
       blockAll(rec, STEPS, `建会话没有成功（${opened.detail}），后面的判据走不到`, REAL_ROWS_AWAIT)
       return

@@ -28,6 +28,7 @@ import {
   openSession,
   parseArgs,
   readHistory,
+  runIdOf,
   recorder,
   relevantDoubles,
   report,
@@ -35,6 +36,7 @@ import {
   sendInput,
   sleep,
   startTree,
+  TOOL_SIDE,
   succeeded,
   waitFor,
   REPLY_TIMEOUT_MS,
@@ -45,8 +47,9 @@ holdTestSlot(import.meta.url)
 const args = parseArgs(process.argv.slice(2))
 const HOST_PLATFORM = process.platform === 'win32' ? 'windows' : process.platform
 const PLATFORM = args.platform ?? HOST_PLATFORM
-const TOOL_SIDE =
-  /^(agent-|model-|session-ad|session-provider|session-handoff|request-context|runtime-context|tool-|execution|command|terminal|app-access|access-)/
+
+/** 默认两类之外加 `run.started`：S4-7 靠它读 Run 标识。 */
+const HISTORY_KINDS = ['message.user', 'message.assistant', 'run.started']
 
 const READ_TOKEN = 'joint-b-read-token-7f3c9'
 const SECOND_FILE = 'second.txt'
@@ -59,8 +62,9 @@ const BUILD_AWAIT =
   '两个应用成员的构建产物：pnpm --filter @omne-harness/harness-server... run build' +
   ' 与 pnpm --filter @omne-harness/cli... run build'
 const REAL_ROWS_AWAIT =
-  '波 2 的 L-RUN、L-MODEL、L-TOOL、L-APP 把 session-ad*、agent-*、model-*、tool-*、' +
-  'execution-*、command/terminal 设施行换进真件，联调 A 装配后遗留的等件先闭合'
+  '树上替身行换进真件：模型侧同 conversation.mjs，加 tool-records、tool-runtime、tool-executor、' +
+  'tool-instances、tool-environments 与 execution-environment、execution-files、execution-command、' +
+  'execution-host（见 README「S2～S4 依赖哪些行是真件」）；替身清单见证据文件的 doubleRows'
 const MODEL_SOURCE_AWAIT =
   '真实模型或获准回放的授权：以 --model-source real|replay 重跑，并在运维层给出模型凭据或回放记录'
 const RECORD_AWAIT =
@@ -140,10 +144,11 @@ function findFile(root, name) {
 }
 
 async function run(scratch) {
-  const tree = await startTree(scratch)
+  const tree = await startTree(scratch, { historyKinds: HISTORY_KINDS })
   try {
     const doubles = relevantDoubles(tree.records, TOOL_SIDE)
     evidence = {
+      definition: args.definition,
       platform: PLATFORM,
       hostPlatform: HOST_PLATFORM,
       modelSource: args.modelSource ?? null,
@@ -158,7 +163,7 @@ async function run(scratch) {
       )
       return
     }
-    const opened = openSession(tree)
+    const opened = openSession(tree, args.definition)
     if (opened.session === '') {
       blockAll(rec, STEPS, `建会话没有成功（${opened.detail}），后面的判据走不到`, REAL_ROWS_AWAIT)
       return
@@ -315,17 +320,17 @@ async function cancelLongCommand(tree, scratch, session, settle, doubles, waitMs
     ? await waitFor(
         async () => {
           const read = await readHistory(tree, session)
-          return /"run(Id)?":"[^"]+"/.test(JSON.stringify(read.entries)) ? read : undefined
+          return runIdOf(read.entries) === undefined ? undefined : read
         },
         Math.min(waitMs, 30_000),
       )
     : undefined
-  const runId =
-    history === undefined
-      ? undefined
-      : /"run(?:Id)?":"([^"]+)"/.exec(JSON.stringify(history.entries))?.[1]
+  const runId = history === undefined ? undefined : runIdOf(history.entries)
   if (runId === undefined) {
-    const why = '会话历史里读不到 Run 标识，无从取消；Run 标识的公开读取面由 L-RUN 给出'
+    const why =
+      '会话历史里没有 run.started 条目，读不到 Run 标识，无从取消。公开读口只有 read-history ' +
+      '（CLI 与 SDK 都没有读 Run 的命令），运维层已把 run.started 列进 historyKinds；' +
+      '没有该条目说明会话日志还没写出它（会话提供方是替身，或发消息没有触发 Run）'
     for (const name of [STEPS[8][1], STEPS[9][1]])
       rec.blocked(
         'S4-7',
@@ -333,7 +338,7 @@ async function cancelLongCommand(tree, scratch, session, settle, doubles, waitMs
         why,
         doubles.length > 0
           ? REAL_ROWS_AWAIT
-          : 'Run 标识出现在 read-history 或 send-input 的公开输出里（L-RUN，SS-22）',
+          : 'read-history 在 historyKinds 含 run.started 时读到该条目（Session 契约的 run.started；会话提供方换真件，SS-22）',
       )
     return
   }
