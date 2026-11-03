@@ -67,11 +67,13 @@ it('writes the provider entry only as type re-exports and the one runtime re-exp
     expect(statement).toMatch(
       /^export type \{ [A-Za-z, ]+,? \} from '\.\/[a-z-]+\.ts'$|^export \{ sealSnapshot \} from '\.\/snapshot\.ts'$/,
     )
+  // Comments and empty statements are not exports: the mutation sandbox adds both.
+  const withoutComments = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
   const rest = statements.reduce(
     (left, statement) => left.replace(/\s+/g, ' ').replace(statement, ''),
-    text.replace(/\s+/g, ' '),
+    withoutComments.replace(/\s+/g, ' '),
   )
-  expect(rest.trim()).toBe('')
+  expect(rest.replace(/[;\s]/g, '')).toBe('')
 })
 
 it('names on the provider entry exactly the types and values that the SPEC gives it', () => {
