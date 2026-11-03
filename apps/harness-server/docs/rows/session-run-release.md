@@ -43,7 +43,7 @@
 
 所以「用 `coding` 建会话、跑一轮、模型拿到带 v2 的系统提示词」在发行树里还跑不到：会话能建，模型选择能读回，定义段的读取链（`agentAdoptions` → `agent-context` → `request-context`）和当前条件（`session-conditions`）是真件，但没有 `agent-host` 就没有 Agent 实例去调用 `prepare`。
 
-`session-conditions` 的具名缺件：SC1-GAP-RESIDENTS（生产 create 的常驻集恒为空，`bindings` 恒为 `[]`，R2-D136 波 3 补 `DefinitionMappingEntry` 的常驻字段）；SC1-GAP-ADOPTION-COORDINATOR（`adoptionCoordinator` 读口不存在，`configuration` 直接取 Run 采用，波 4）；SC1-GAP-TOOLS-SOURCE（agent-context 第六组仍是 `firstWaveTools`，`bindings` 非空即 `tools-source-absent`，Tool B 段接工具来源）。设计页在任务 tmp（`tmp/sc1/design.md`）。
+`session-conditions` 的具名缺件：SC1-GAP-RESIDENTS 已由 G-RESIDENTS 关闭（R2-D159）：create 按映射条目的 `residentCapabilities` 提交常驻工具，见[采用来源](adoption-sources.md#create-的常驻工具)，首装限制见同页；SC1-GAP-ADOPTION-COORDINATOR（`adoptionCoordinator` 读口不存在，`configuration` 直接取 Run 采用，波 4）；SC1-GAP-TOOLS-SOURCE（agent-context 第六组仍是 `firstWaveTools`，`bindings` 非空即 `tools-source-absent`，Tool B 段接工具来源）。设计页在任务 tmp（`tmp/sc1/design.md`）。
 
 ## 验证
 
