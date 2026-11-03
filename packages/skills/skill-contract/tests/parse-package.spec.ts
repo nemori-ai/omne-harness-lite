@@ -175,7 +175,7 @@ describe('a legal package', () => {
     const result = parse('demo', { 'SKILL.md': demo(['__proto__: {polluted: true}']) })
     if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
     expect(Object.getOwnPropertyNames(result.ok.manifest.extra)).toEqual(['__proto__'])
-    expect(({} as Record<string, unknown>)['polluted']).toBeUndefined()
+    expect(Object.prototype).not.toHaveProperty('polluted')
   })
 
   it('resolves an alias inside a field that it keeps', () => {
