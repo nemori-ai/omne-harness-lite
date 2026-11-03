@@ -127,6 +127,20 @@ export const calendarHealthSchema = z
 export type CalendarHealth = z.infer<typeof calendarHealthSchema>
 export const calendarHealthResultSchema = calendarQueryResultSchema(calendarHealthSchema)
 
+export const calendarTransportEvidenceSchema = z
+  .strictObject({
+    url: z.url(),
+    method: z.enum(['GET', 'HEAD']),
+    status: z.int().min(100).max(599),
+    etag: z.string().nullable(),
+    lastModified: z.string().nullable(),
+    contentLength: z.int().nonnegative().nullable(),
+    bodyHash: contentHashSchema.nullable(),
+    knowledgeBasis: ref,
+  })
+  .readonly()
+export type CalendarTransportEvidence = z.infer<typeof calendarTransportEvidenceSchema>
+
 export const calendarSeedMaterialSchema = z
   .strictObject({
     sourceId: ref,
@@ -136,6 +150,7 @@ export const calendarSeedMaterialSchema = z
     authorityRef: ref,
     mediaType: ref,
     rawHash: contentHashSchema,
+    transportEvidence: z.array(calendarTransportEvidenceSchema).readonly().optional(),
     contentBase64: z
       .string()
       .regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/),

@@ -3,6 +3,7 @@ import {
   calendarRefreshInputSchema,
   calendarPublicationQuerySchema,
   calendarSeedPackSchema,
+  calendarTransportEvidenceSchema,
 } from '../src/supply.ts'
 
 describe('supply wire', () => {
@@ -33,5 +34,23 @@ describe('supply wire', () => {
     expect(calendarSeedPackSchema.safeParse({ releaseRef: 'r1', calendars: [] }).success).toBe(
       false,
     )
+  })
+  it('preserves structured transport evidence without encoding it in authority references', () => {
+    const observation = {
+      url: 'https://example.test/calendar.csv',
+      method: 'GET',
+      status: 200,
+      etag: 'abc',
+      lastModified: 'Mon, 02 Nov 2026 00:00:00 GMT',
+      contentLength: 123,
+      bodyHash: 'a'.repeat(64),
+      knowledgeBasis: 'HTTP Last-Modified',
+    }
+    expect(calendarTransportEvidenceSchema.parse(JSON.parse(JSON.stringify(observation)))).toEqual(
+      observation,
+    )
+    expect(
+      calendarTransportEvidenceSchema.safeParse({ ...observation, bodyHash: 'wrong' }).success,
+    ).toBe(false)
   })
 })

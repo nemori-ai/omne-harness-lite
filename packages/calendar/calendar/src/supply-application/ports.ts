@@ -6,6 +6,7 @@ import type {
   CalendarRefreshInput,
   CalendarSeedPack,
   CalendarSourceStanding,
+  CalendarTransportEvidence,
   Instant,
 } from '@omne-harness/calendar-contract'
 import type {
@@ -32,6 +33,7 @@ export interface CalendarSupplyAuthority {
   ): Promise<CalendarSupplyAuthorityResult>
 }
 export type CalendarSourceMaterial = Readonly<{
+  transportEvidence?: readonly CalendarTransportEvidence[]
   sourceId: string
   content: Uint8Array
   mediaType: string
