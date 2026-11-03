@@ -1,12 +1,15 @@
 // Tool B 段的进程内组合：真实 Cordis 根上装 Tool 运行时五行、tool-bindings、tool-host（预装发行作者）、执行环境
 // 四行（宿主提供者真件），真实 SQLite 存储与会话存储组合（tool 参加者在同一登记里），真实入口对象（核验器、
 // 签发者、会话工作主体、发行来源权威与登记者、toolClock、toolPublicationAuthority、执行环境授权）。
-// 只有四处是具名替身：identity 行（租户存续）、authorization 行（会话访问裁定放行一切，只为建会话登记租户）、
+// 只有五处是具名替身：identity 行（租户存续）、authorization 行（会话访问裁定放行一切，只为建会话登记租户）、
 // tool-residency 行（空的常驻引用）、可信作用域绑定的来源（本用例的作用域绑定到本租户；生产来源是
-// session-ad03 的作用域查找，这里不建 Context 作用域）。
+// session-ad03 的作用域查找，这里不建 Context 作用域），以及会话归属读口：发行的 `session-storage` 行对
+// `sessionPrincipalBindings.read` 一律答 unavailable（行内已知限制），所以入口的会话工作主体用真实的
+// `createSessionWorkPrincipals` 加一个只认本用例会话的归属读口。生产里这一缺口让 Tool 调用答 unavailable，
+// 见最后一个用例。
 // 请求由生产的 Tool 请求供给者构造（`createReleaseToolRequests`），会话快照读口给出那个作用域。
 // 用例：Shell.execute 一次、Files.write 加 Files.read 各一次，读回原结果；外租户的同一调用被拒。
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -17,8 +20,17 @@ import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
 import { decodeScopeRef, type ScopeBindingSource } from '@omne-harness/runtime-context-contract'
-import type { SessionTransactionPort, WorkSnapshot } from '@omne-harness/session-contract'
-import { sessionTransactionsKey } from '@omne-harness/session-cordis-contract/cordis'
+import type {
+  SessionPrincipalBindingSource,
+  SessionTransactionPort,
+  WorkSnapshot,
+} from '@omne-harness/session-contract'
+import {
+  SessionWorkPrincipalsService,
+  sessionTransactionsKey,
+  sessionWorkPrincipalsKey,
+} from '@omne-harness/session-cordis-contract/cordis'
+import type { Principal } from '@omne-harness/identity'
 import type {
   ToolDelivery,
   ToolInvokeRequest,
@@ -42,7 +54,10 @@ import {
   principalVerifier,
   sessionWorkIssuerOf,
 } from '../../../src/entry/principals.ts'
-import { sessionWorkPrincipals } from '../../../src/entry/session-work-principals.ts'
+import {
+  createSessionWorkPrincipals,
+  sessionWorkPrincipals,
+} from '../../../src/entry/session-work-principals.ts'
 import { storageHost } from '../../../src/entry/storage-host.ts'
 import {
   toolContributionAuthority,
@@ -139,6 +154,35 @@ const executionAuthorities: readonly EntryObjectModule[] = createExecutionAuthor
   readBindings: () => scopeBindings,
 }).map(module => ({ ...module, implementation: 'contract-double' as const }))
 
+/** Stands for the session ownership read: only this test's session of tenant A is bound. */
+const ownershipStandIn: SessionPrincipalBindingSource = {
+  read: async ({ tenant, session }) =>
+    tenantEquals(tenant, TENANT_A) && session === access(TENANT_A, SESSION).session
+      ? succeed({
+          kind: 'bound' as const,
+          tenant,
+          session,
+          source: { owner: 'test', record: 'ownership', revision: '1', digest: 'd' },
+        })
+      : succeed({ kind: 'not-bound' as const }),
+}
+
+/** The real session work principals of the entry over the ownership stand-in. */
+const workPrincipalsOverStandIn: EntryObjectModule = {
+  name: sessionWorkPrincipalsKey,
+  implementation: 'contract-double',
+  install(scope, env) {
+    const work = createSessionWorkPrincipals({
+      issue: sessionWorkIssuerOf(env),
+      readBindings: () => ownershipStandIn,
+    })
+    class Work extends SessionWorkPrincipalsService<Principal> {
+      readonly forSession = work.forSession
+    }
+    new Work(scope)
+  },
+}
+
 /** A session work principal of each tenant, issued by the entry's own narrow work issuer. */
 function workPrincipal(name: string, tenant: TenantId): EntryObjectModule {
   return {
@@ -197,14 +241,14 @@ function rowsOf(storageRoot: string) {
   }
 }
 
-const entryObjects: readonly EntryObjectModule[] = [
+const entryObjects = (work: EntryObjectModule): readonly EntryObjectModule[] => [
   principalVerifier,
   principalIssuer,
   toolReleaseRegistrant,
   toolContributionAuthority,
   toolClock,
   toolPublicationAuthority,
-  sessionWorkPrincipals,
+  work,
   ...executionAuthorities,
   storageHost,
   cursorSigning,
@@ -314,6 +358,42 @@ async function call(runtime: Runtime, principal: unknown, request: ToolInvokeReq
   return { state: found.ok.state, text }
 }
 
+/** Registers tenant A, installs the result receiver and waits until the catalog lists the authors. */
+async function ready(ctx: Context, saved: ToolDelivery<ToolMessageContentBlock>[]) {
+  // The session create registers tenant A's domain with the combination that holds `tool`.
+  const command = createCommand(TENANT_A, SESSION)
+  const created = await (ctx.get(sessionTransactionsKey) as SessionTransactionPort<string>).commit({
+    access: access(TENANT_A, SESSION),
+    command,
+    guards: createGuards(command),
+  })
+  if (!('ok' in created)) throw new Error(`create: ${JSON.stringify(created)}`)
+  const runtime = ctx.get(toolRuntimeKey) as Runtime
+  const receiver: ToolResultReceiver<unknown, ToolMessageContentBlock> = {
+    async push(input) {
+      saved.push(input.delivery)
+      const key = canonicalDigest(input.delivery.key)
+      return succeed({
+        key: input.delivery.key,
+        evidence: { owner: '@omne-harness/agent', record: key, revision: '1', digest: key },
+      })
+    },
+  }
+  runtime.registerResultReceiver('@omne-harness/agent', receiver)
+  const principal = ctx.get(WORK_A)
+  // The release authors were preloaded by the tool-host row; wait until the catalog lists them.
+  await until(
+    () =>
+      requestFor(ctx, principal, 'Files.read', '{"path":"x"}').then(
+        () => true,
+        () => false,
+      ),
+    ready => ready,
+    30_000,
+  )
+  return { runtime, principal }
+}
+
 describe('Tool segment B: the release rows in one process composition', () => {
   it(
     'runs Shell once and Files twice through the production request source; another tenant is refused',
@@ -332,39 +412,13 @@ describe('Tool segment B: the release rows in one process composition', () => {
             residencyStandIn,
             policyAccess: policy.plugin,
           },
-          entryObjects,
+          entryObjects: entryObjects(workPrincipalsOverStandIn),
           probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
         },
         async ctx => {
-          // The session create registers tenant A's domain with the combination that holds `tool`.
-          const command = createCommand(TENANT_A, SESSION)
-          const created = await (
-            ctx.get(sessionTransactionsKey) as SessionTransactionPort<string>
-          ).commit({ access: access(TENANT_A, SESSION), command, guards: createGuards(command) })
-          if (!('ok' in created)) throw new Error(`create: ${JSON.stringify(created)}`)
-          const runtime = ctx.get(toolRuntimeKey) as Runtime
-          const receiver: ToolResultReceiver<unknown, ToolMessageContentBlock> = {
-            async push(input) {
-              saved.push(input.delivery)
-              const key = canonicalDigest(input.delivery.key)
-              return succeed({
-                key: input.delivery.key,
-                evidence: { owner: '@omne-harness/agent', record: key, revision: '1', digest: key },
-              })
-            },
-          }
-          runtime.registerResultReceiver('@omne-harness/agent', receiver)
-          const principal = ctx.get(WORK_A)
-          // The release authors were preloaded by the tool-host row; wait until the catalog lists them.
-          await until(
-            () =>
-              requestFor(ctx, principal, 'Files.read', '{"path":"x"}').then(
-                () => true,
-                () => false,
-              ),
-            ready => ready,
-            30_000,
-          )
+          const { runtime, principal } = await ready(ctx, saved)
+          // Files takes absolute paths inside the files root.
+          const target = join(tools.filesRoot, 'tool-b.txt')
           const shell = await call(
             runtime,
             principal,
@@ -382,13 +436,13 @@ describe('Tool segment B: the release rows in one process composition', () => {
               ctx,
               principal,
               'Files.write',
-              '{"path":"tool-b.txt","text":"tool-b-files","mode":"create"}',
+              JSON.stringify({ path: target, text: 'tool-b-files', mode: 'create' }),
             ),
           )
           const read = await call(
             runtime,
             principal,
-            await requestFor(ctx, principal, 'Files.read', '{"path":"tool-b.txt"}'),
+            await requestFor(ctx, principal, 'Files.read', JSON.stringify({ path: target })),
           )
           const foreignRequest = await requestFor(
             ctx,
@@ -401,6 +455,12 @@ describe('Tool segment B: the release rows in one process composition', () => {
             tenant: TENANT_A,
             request: foreignRequest,
           })
+          // Delivery to the original consumer runs on its own worker after the call settles.
+          await until(
+            async () => saved.length,
+            count => count >= 3,
+            10_000,
+          )
           return { shell, write, read, foreign }
         },
       )
@@ -412,6 +472,49 @@ describe('Tool segment B: the release rows in one process composition', () => {
       expect(value.foreign).toMatchObject({ kind: 'rejected', failure: { kind: 'denied' } })
       expect(saved.length).toBeGreaterThanOrEqual(3)
       expect(run.result.exitCode).toBe(0)
+    },
+  )
+
+  it(
+    'with the release session ownership read (always unavailable today) a call is accepted but never runs',
+    { timeout: 180_000 },
+    async () => {
+      const { storageRoot } = workspace()
+      const { rows, tools } = rowsOf(storageRoot)
+      const policy = accessPolicyRow(allowAll)
+      const saved: ToolDelivery<ToolMessageContentBlock>[] = []
+      const { value } = await withLiveRows(
+        {
+          rows,
+          plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+          entryObjects: entryObjects(sessionWorkPrincipals),
+          probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
+        },
+        async ctx => {
+          const { runtime, principal } = await ready(ctx, saved)
+          const request = await requestFor(
+            ctx,
+            principal,
+            'Files.write',
+            JSON.stringify({
+              path: join(tools.filesRoot, 'never.txt'),
+              text: 'never',
+              mode: 'create',
+            }),
+          )
+          const caller = { principal, tenant: TENANT_A }
+          const outcome = await runtime.invoke({ ...caller, request })
+          if (outcome.kind !== 'accepted') throw new Error(`invoke: ${JSON.stringify(outcome)}`)
+          // Several driver retry periods (50 ms each in the operator values).
+          await new Promise(resolve => setTimeout(resolve, 3000))
+          return runtime.queries.lookup({ ...caller, reference: outcome.reference })
+        },
+      )
+      expect(value).toMatchObject({
+        ok: { kind: 'found', state: { phase: 'accepted', execution: { kind: 'not-started' } } },
+      })
+      expect(existsSync(join(tools.filesRoot, 'never.txt'))).toBe(false)
+      expect(saved).toEqual([])
     },
   )
 })
