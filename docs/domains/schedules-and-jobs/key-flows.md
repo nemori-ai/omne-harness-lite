@@ -14,7 +14,7 @@ Agent granular authoring 可先形成零未来接受的 draft，owner promote �
 
 每次 due 扫描先对账 followUserEnvironment 的原子环境值，再计算候选。explicit 固定日历身份及 timezone，版本 latest/pinned 独立选择。旧准备证明因环境或 current generation 改变而失效时重新准备，不能替换其冻结依据。已接受 Job 不改。环境不相容恢复从当前时刻重锚，不回补该停泊区间。
 
-依赖只接受原拥有者带身份、版本和范围的权威事实，核心只应用 ready/blocked/terminal 及原因。读取失败或含混 404 保持未知受阻，不推断永久删除。恢复只承认同一身份的更高有效版本，不能用同名新对象、latest release 或旧 restore 复活终态。依赖 ready 与用户 paused 可并存。
+依赖只接受原拥有者带身份、版本和范围的权威事实，核心只应用 ready/blocked/terminal 及原因。读取失败或含混 404 保持未知受阻，不推断永久删除。恢复只承认同一身份的更高有效版本，不能用同名新对象、其他定义的发布或旧 restore 复活终态。依赖 ready 与用户 paused 可并存。
 
 ## F-SJ03 准备与最终接受
 

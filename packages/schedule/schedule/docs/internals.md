@@ -135,7 +135,7 @@ agent/new 只幂等建立一个会话；agent/existing 只向明确会话提交�
 
 ## 14. 定时 subagent handoff 与 master 回传
 
-本节由外部Agent执行/结果回传适配器实现。源handoff映射为Work.agent：session.mode=new，agentProfileRef绑定同租户exact immutable Blueprint release，instruction保存工作要求，returnTo.targetRef保存originating master的opaque引用，并保留结果政策。Job核心不解析master或Blueprint领域对象。它不保存凭证快照，也不取得“以后永远可执行”的资格。
+本节由外部 Agent 执行/结果回传适配器实现。handoff 映射为 Work.agent：session.mode=new，agentDefinitionRef 绑定同租户稳定 AgentDefinition 身份，instruction 保存工作要求，returnTo.targetRef 保存 originating master 的 opaque 引用，并保留结果政策。目标不固定源 Blueprint 发布：到期启动新 Run 时，Session 采用同一定义最新合法发布，执行回执记录实际采用；同一 Run 普通恢复保留原采用。Job 冻结的是定义身份和工作意图，不是未来 Run 的发布版本。Job 核心不解析 master 或 Agent 内部对象，不保存凭证快照，也不取得永久执行资格。
 
 仅此handoff profile 的每个执行 occurrence 接受后新建一次 child 工作，与源 master 有明确归属。handoff 默认 overlap=skip，无显式 parallel 时前序未终态就记录 skipped；源兼容 profile 不默认排队。master idle 不妨碍按已固定 target 直接派发，无需先叫醒 master 重选目标。重复 start 查询原 execution receipt，不能多建 child。child 执行终态与 raw report 先耐久保存，再形成独立 MasterReturnIntent。
 

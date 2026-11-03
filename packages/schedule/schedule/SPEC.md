@@ -84,7 +84,7 @@ pause 阻止新到期/补跑接受，resume 仅恢复暂停并沿已声明补跑
 
 ### INV-SJ13 执行意图与三种承接路径完整区分
 
-Work 在接受时冻结。program 保存注册程序引用和经 schema 校验的 JSON input，不含 instruction/session，不接受自由脚本，未装载 Session/Agent 仍能创建、查询、接受和执行。agent 必须保存非空 instruction 与 session 判别分支。new 保存稳定 agentProfileRef，每 Job 幂等建立一次新执行会话，恢复不得再建；existing 保存明确 sessionRef，只投递该会话，不以 agentProfileRef 改写其 Agent。目标不存在、终局、跨租户或无准入资格时拒绝或受阻，绝不回退 new。三条路径由外部适配器实现 Job 自有 JobExecutor。核心不解析 Session/Agent 内部对象。
+Work 在接受时冻结。program 保存注册程序引用和经 schema 校验的 JSON input，不含 instruction/session，不接受自由脚本，未装载 Session/Agent 仍能创建、查询、接受和执行。agent 必须保存非空 instruction 与 session 判别分支。new 保存稳定 agentDefinitionRef，每 Job 幂等建立一次新执行会话，恢复不得再建；existing 保存明确 sessionRef，只投递该会话，不以 agentDefinitionRef 改写其 Agent。目标不存在、终局、跨租户或无准入资格时拒绝或受阻，绝不回退 new。三条路径由外部适配器实现 Job 自有 JobExecutor。核心不解析 Session/Agent 内部对象。
 
 Session intake/inbound 决定 instruction 的合法消息种类、是否形成 turn、排队或恢复推进点。Work 不含 message role、Run 或 Session 聚合。existing 不等同 self-wake，也不自动续旧 Run。入队只表明承接/pending，实际执行、目标证据和原关联终态成立才结算。new 的上下文、资料和工作区显式引用且当前有权，不能复制创建者全量历史或授权。执行适配必须把当前 Job 的上报/目标检查能力正确绑定到本次执行关联，existing 中不能因另一输入改写本 Job 绑定。验证义务 V-SJ13。
 
@@ -192,9 +192,11 @@ Q-SJ02 落实精确身份/公开形状及读面；Q-SJ03 落实日期算法/版�
 | 设备暂时离线、资源暂时不可用 | blocked/逐窗拒绝，保留身份 | 同一权威关系恢复后按该 Schedule catchUp 处理 |
 | 日历暂不可取或覆盖不足 | 停泊、真实原因 | 恢复后重算，执行按有界 catchUp；提醒不补 |
 | 环境不相容或待对账 | 停泊 | 当前时刻重锚，不回补停泊区间 |
-| Membership suspend、原 release deactivate、原 Session 用户归档 | 可恢复 blocked | 仅 owning authority 明确恢复同一关系才 ready |
-| Device retire、Tenant 关闭、原 master 永久失效、exact release tombstone、Membership 移除 | terminallyInvalidated | 保留历史，禁止用同名新对象、latest release 或新 Membership 复活 |
+| Membership suspend、AgentDefinition 暂无合法可用发布、原 Session 用户归档 | 可恢复 blocked | 仅 owning authority 明确恢复同一关系才 ready |
+| Device retire、Tenant 关闭、原 master 永久失效、AgentDefinition 身份永久失效、Membership 移除 | terminallyInvalidated | 保留历史，禁止用同名新定义、其他定义的发布或新 Membership 复活 |
 | 权威读取失败或含混 404 | unknown/blocked | 不推断终局删除、不自动授予权限 |
+
+旧 agent 发布停用或删除不自动等于定义身份失效。同一定义的新合法发布可解除“暂无可用发布”的阻塞；已开始 Run 的采用与恢复由 Session 规则决定，不能在本域暗换版本。
 
 权威事实含 authorityRef、identity、version、observedAt、disposition 和 reason。每依赖只应用更高 version，terminal 不能被旧 restore 覆盖。无可比较版本的 provider 不得声称能可靠处理迟到恢复。
 
@@ -238,7 +240,9 @@ Agent 经已授权 official capability 间接形成未来工作的路径沿该 c
 
 self-wake 属 Session 续跑同一工作：耐久 checkpoint、wakeId/generation、claim、同一Session/Run/trace、截止、次数、active budget及ProgressMonitor均由外部拥有者管理。retime不清预算/计数，取消不能被过期timer或重启复活。无进展及生存期限持续命中原监测器，不能无限挂起逃逸。Job.agent/existing仅执行本次固定instruction，不能据此实现或假装已经具备self-wake。两者不互相替代。
 
-本节由外部Agent执行/结果回传适配器实现。源handoff映射为Work.agent：session.mode=new，agentProfileRef绑定同租户exact immutable Blueprint release，instruction保存工作要求，returnTo.targetRef保存originating master的opaque引用，并保留结果政策。Job核心不解析master或Blueprint领域对象。它不保存凭证快照，也不取得“以后永远可执行”的资格。
+源适配差异 AD-SJ01：S14 的精确 Blueprint 发布改为目标 AgentDefinition 动态采用，依据产品 J-SJ14 与 Session 的新 Run 采用规则。S14-T01/T08 保留工作身份与接受快照义务，但不声称保留固定发布。V-SJ13 必须验证：保存意图时 R1、启动前合法发布 R2，新 Run 采用 R2；R3 在同一 Run 恢复前发布时仍恢复 R2；定义失效不改投同名对象。
+
+本节由外部 Agent 执行/结果回传适配器实现。handoff 映射为 Work.agent：session.mode=new，agentDefinitionRef 绑定同租户稳定 AgentDefinition 身份，instruction 保存工作要求，returnTo.targetRef 保存 originating master 的 opaque 引用，并保留结果政策。目标不固定源 Blueprint 发布：到期启动新 Run 时，Session 采用同一定义最新合法发布，执行回执记录实际采用；同一 Run 普通恢复保留原采用。Job 冻结的是定义身份和工作意图，不是未来 Run 的发布版本。Job 核心不解析 master 或 Agent 内部对象，不保存凭证快照，也不取得永久执行资格。
 
 仅此handoff profile 的每个执行 occurrence 接受后新建一次 child 工作，与源 master 有明确归属。handoff 默认 overlap=skip，无显式 parallel 时前序未终态就记录 skipped；源兼容 profile 不默认排队。master idle 不妨碍按已固定 target 直接派发，无需先叫醒 master 重选目标。重复 start 查询原 execution receipt，不能多建 child。child 执行终态与 raw report 先耐久保存，再形成独立 MasterReturnIntent。
 

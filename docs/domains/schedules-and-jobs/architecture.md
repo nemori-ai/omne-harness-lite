@@ -9,7 +9,7 @@
 | Schedule 定义与控制                      | 完整工作描述、时间和政策、owner/author、控制、修订和 lineage | 原子完整保存；当前读写资格；重要变更换身份，旧 Job 不改       |
 | Job 接受与协调                           | 来源、冻结要求、日期依据、次数、候选处置、等待控制和整体结算 | 最新依据与接受一致；同一来源去重；未知不换键重建              |
 | Calendar                                 | 不可变版本、覆盖、出处、日期计算和发布守卫                   | 日程不发布供应数据，不读写日历私有表                          |
-| 环境、身份、权限、配额、资产和资源拥有者 | 原身份、环境 revision、当前资格、exact release 及资源条件    | 公共值用于当前决定，不复制完整外域对象；持有引用不授权        |
+| 环境、身份、权限、配额、资产和资源拥有者 | 原身份、环境 revision、当前资格、定义身份、实际采用及资源条件    | 公共值用于当前决定，不复制完整外域对象；持有引用不授权        |
 | 外部执行适配器                           | JobExecutor 到程序或 Session 协议的翻译、原执行关联          | 核心不导入 Session/Agent；适配器不改 Job 规则或原执行内部状态 |
 | Session、Agent、Model、Tool 或程序能力   | 合法输入、消息、Run/attempt、推进与实际执行、原结果和效果    | 入队不是完成；Run 终态不直接结算 Job；保留 executionRef       |
 | Notification                             | 通知耐久受理、可取回、渠道尝试、送达和确认                   | 同一意图不重复发送；补送不重做原工作                          |
@@ -44,7 +44,7 @@ flowchart TB
 
 ### 工作值与外域引用
 
-Work 区分 program 与 agent。program 保存已注册 programRef 和合法 input，不接受任意脚本。agent 保存必需 instruction，并区分 new 的 agentProfileRef 与 existing 的不透明 sessionRef。new/existing 是本次工作的要求，Session 聚合、消息类、Run 和 Agent Loop 是外域内部知识，不进入核心 DTO。
+Work 区分 program 与 agent。program 保存已注册 programRef 和合法 input，不接受任意脚本。agent 保存必需 instruction，并区分 new 的 agentDefinitionRef 与 existing 的不透明 sessionRef。new/existing 是本次工作的要求，Session 聚合、消息类、Run 和 Agent Loop 是外域内部知识，不进入核心 DTO。
 
 JobExecutor 声明 inspect、start、query 和 requestStop 所需语义。inspect 的 proof 描述有范围、有版本的当前条件及 query/stop 能力，不是永久许可。start/query 区分 accepted、pending、unknown、rejected，并保留原 executionRef。程序或会话适配器负责可靠承接、原身份查询和真实停止证明；核心按这些事实推进自己的状态。接口能力不足时在准入拒绝，不能模拟成功。
 
@@ -102,4 +102,4 @@ Session intake/inbound 根据来源及政策将 instruction 解释为合法输�
 
 self-wake 是 Session 当前工作的耐久挂起和继续，由 SessionContinuation、checkpoint、唤醒提供者和原进展监测保护，不是创建未来 Schedule。它沿同一 Run/trace 的 lineage、generation、截止与预算，不因挂起或重启重置无进展检测。这些接口不进入 Schedule imports、inject 或根导出。
 
-定时 handoff 是 agent-new 的一种外部执行与结果回传组合，绑定同租户 exact profile/release 和不透明 master 返回目标。它不能把所有 agent-existing 改成 child 创建。master busy、归档、永久失效及回传背压由原拥有者解释；Job 只保留稳定关联和分别结算的结果。用户交付物、原始 child report 和主题归档不能混为同一完成事实。
+定时 handoff 是 agent-new 的一种外部执行与结果回传组合，绑定同租户 AgentDefinition 身份和不透明 master 返回目标；新 Run 由 Session 动态采用该定义最新合法发布，普通恢复沿用原采用，执行回执保留实际版本。它不能把所有 agent-existing 改成 child 创建。master busy、归档、永久失效及回传背压由原拥有者解释；Job 只保留稳定关联和分别结算的结果。用户交付物、原始 child report 和主题归档不能混为同一完成事实。

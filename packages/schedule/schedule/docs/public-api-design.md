@@ -58,7 +58,7 @@ type AgentModes = {
 type WorkspaceInput = { workspaceRef: Ref; instanceRef: Ref; basisRef: Ref }
 type MaterialInput = { resourceRef: Ref; versionRef: Ref }
 type AgentSessionPlan =
-  | { mode: 'new'; agentProfileRef: Ref; modes: AgentModes; workspace: WorkspaceInput | null }
+  | { mode: 'new'; agentDefinitionRef: Ref; modes: AgentModes; workspace: WorkspaceInput | null }
   | { mode: 'existing'; sessionRef: Ref }
 type Work =
   | { kind: 'program'; programRef: Ref; input: JsonValue }
@@ -86,19 +86,19 @@ interface ScheduleDefinition {
 type InitialState = { kind: 'active' } | { kind: 'draft'; reason: string }
 ```
 
-label 1..200 code points。instruction 1..65,536 UTF-8 bytes，本设计资源边界，不假称源相同。draft reason 1..1,024 code points。programRef、agentProfileRef、sessionRef、returnTo.targetRef 是 Job 契约拥有的 opaque 引用值，具体执行适配器解析。Job 应用服务只消费自己定义的 JobExecutor port 及其可执行性/资格证明，不调用或 import Session/Agent 领域服务。programRef 必须解析为已注册、已采用版本的程序及输入 schema；input 不允许携带任意可执行脚本。
+label 1..200 code points。instruction 1..65,536 UTF-8 bytes，本设计资源边界，不假称源相同。draft reason 1..1,024 code points。programRef、agentDefinitionRef、sessionRef、returnTo.targetRef 是 Job 契约拥有的 opaque 引用值，具体执行适配器解析。Job 应用服务只消费自己定义的 JobExecutor port 及其可执行性/资格证明，不调用或 import Session/Agent 领域服务。programRef 必须解析为已注册、已采用版本的程序及输入 schema；input 不允许携带任意可执行脚本。
 
 **执行意图的冻结与解释**：Schedule 中的 Work 是未来安排内容，接受时完整复制进 Job.body.frozenWork。program 与 agent 互斥，program 不携带 instruction/session。agent 必须有非空 instruction 和 session 判别分支，不从 actor、创建来源或 instruction 是否存在猜测类型。
 
-new 必须显式提供 modes 和 workspace；无工作区传 null，无资料传 materials=[]。AgentModes 是 Job 所需的运行意图投影：permission/collaboration 的值对齐 Session 公开 Modes，environmentAdoptionRef 指向环境拥有者可解析的精确采用依据。外部 adapter 将这些值映射为 SessionCreation 的 explicit modes、workspace 和 workspaceAttachment；不复制 SessionCreation，也不从发起者会话、agentProfileRef 或当前租户默认偷偷补值。WorkspaceInput 的 workspaceRef 是合法工作区身份，instanceRef/basisRef 分别引用工作区实例及采用版本，由工作区拥有者校验，不能用本地路径代替。MaterialInput 引用资料拥有者的一份明确资源版本，不嵌入全量历史、凭证或临时运行时对象；版本未知不得退回最新版本。
+new 必须显式提供 modes 和 workspace；无工作区传 null，无资料传 materials=[]。AgentModes 是 Job 所需的运行意图投影：permission/collaboration 的值对齐 Session 公开 Modes，environmentAdoptionRef 指向环境拥有者可解析的精确采用依据。外部 adapter 将这些值映射为 SessionCreation 的 explicit modes、workspace 和 workspaceAttachment；不复制 SessionCreation，也不从发起者会话、agentDefinitionRef 或当前租户默认偷偷补值。WorkspaceInput 的 workspaceRef 是合法工作区身份，instanceRef/basisRef 分别引用工作区实例及采用版本，由工作区拥有者校验，不能用本地路径代替。MaterialInput 引用资料拥有者的一份明确资源版本，不嵌入全量历史、凭证或临时运行时对象；版本未知不得退回最新版本。
 
-materials 可用于 new 或 existing 的本次输入。existing 不允许传 modes/workspace/agentProfileRef，也不改变目标会话已采用的运行配置和工作区。inspect 校验所有引用及组合支持，ready 的 workFingerprint 覆盖完整 modes、workspace 和 materials。接受时冻结这些值；start 仍需当前读取、启动及使用资格，冻结不延长授权。解析失败须明确 rejected/blocked，不能忽略资料或改成空工作区。更改运行模式、工作区或资料引用走 replace；已接受 Job 不变。V-SJ13 须覆盖同一 AgentDefinition 的不同运行模式/资料/工作区、明确空值、撤权、未知版本及 existing 禁止覆盖。
+materials 可用于 new 或 existing 的本次输入。existing 不允许传 modes/workspace/agentDefinitionRef，也不改变目标会话已采用的运行配置和工作区。inspect 校验所有引用及组合支持，ready 的 workFingerprint 覆盖完整 modes、workspace 和 materials。接受时冻结这些值；start 仍需当前读取、启动及使用资格，冻结不延长授权。解析失败须明确 rejected/blocked，不能忽略资料或改成空工作区。更改运行模式、工作区或资料引用走 replace；已接受 Job 不变。V-SJ13 须覆盖同一 AgentDefinition 的不同运行模式/资料/工作区、明确空值、撤权、未知版本及 existing 禁止覆盖。
 
-- new：每个已接受 Job 新建一个执行会话。适配器以 Job 的稳定执行身份幂等认领，重试及 runtime/attempt 恢复不能新建另一个会话；agentProfileRef 为实际采用的稳定配置/发布引用。
-- existing：向明确的 sessionRef 提交本次 instruction，不再携带 agentProfileRef 去覆盖既有会话的 Agent。目标不存在、终局、跨租户或无准入资格时返回明确拒绝/受阻，绝不改为 new。
+- new：每个已接受 Job 新建一个执行会话。适配器以 Job 的稳定执行身份幂等认领，重试及 runtime/attempt 恢复不能新建另一个会话；agentDefinitionRef 只标识稳定 AgentDefinition 身份，不是发布版本。新 Run 开始时由 Session 采用该定义最新合法发布；同一 Run 普通恢复保持原采用。
+- existing：向明确的 sessionRef 提交本次 instruction，不再携带 agentDefinitionRef 去覆盖既有会话的 Agent。目标不存在、终局、跨租户或无准入资格时返回明确拒绝/受阻，绝不改为 new。
 - Session intake / inbound 决定将 instruction 适配为 SystemReminderMessage、UserMessage 或其他获准输入。Work 中不出现消息类、role、Run/turn 对象或 Session 聚合字段。Job 可记录提交来源供其政策使用，但不能通过伪造 message role 取得权限。
 - existing 表示在已有会话中执行本次 Job；是否新建 turn、排队或恢复某个推进点由 Session 拥有者决定。它不自动等同 self-wake，不自动延续旧 Run，也不能只因“消息已入队”把 Job 判为执行成功。
-- 源 handoff 不是第三种执行引擎。它映射为 agent + session.new，exact Blueprint release 由 agentProfileRef 承载，originating master 由 returnTo.targetRef 承载；回传与实际消息适配都归外部组合。
+- 源 handoff 不是第三种执行引擎。它映射为 agent + session.new，AgentDefinition 身份由 agentDefinitionRef 承载，源固定发布按目标动态采用规则适配，originating master 由 returnTo.targetRef 承载；回传与实际消息适配都归外部组合。
 
 execution.notifications 必须显式传值。纯执行为 []，执行并通知为非空数组，每个event至多一项，target必须是当前可披露的明确目标。接受时冻结全部声明，Job按每个已选实际事件形成一个稳定义务；模板内容可引用本次已证实成果，不得在失败/取消时生成虚构成功文案。后续仅按真实事件取已冻结声明，不重新读Schedule。通知失败不改执行结局。reminder不带该字段。
 
@@ -124,7 +124,7 @@ Reminder 并发投递仍由 notification provider 负责各 intent 的真实结�
 
 Receipt.disposition 为 acceptedExecution、acceptedReminder、rejected、missed、skipped。acceptedExecution 必须有 jobId；acceptedReminder 必须有 notification Job 的 jobId及notificationIntentId，notificationId 在通知拥有者确认后才可填；其余三种均无 jobId/notificationId。prepared 只存在 Preparation，不伪装 receipt。
 
-JobView.body 为判别联合：execution 分支含 frozenWork、frozenNotifications、notificationObligations、startedAt、executionRef、executionState、executionOutcome、resultOutcomes；notification 分支含 frozenContent、notificationIntentId、notificationId或null、primaryOutcome、deliverySummaryRef、acknowledgementRef或null，不含Session/Run/executionWork。notification.primaryOutcome 为 pending/durableAvailable/failed/unknown/cancelled，其中durableAvailable须引用通知拥有者的可取回证明。另有coordinationReason或null。图10的notificationBlocked是协调投影，映射primaryOutcome=pending/unknown加coordinationReason；确定失败才映射failed，不能把unknown变成failed。取消请求不能伪造其已撤回。
+JobView.body 为判别联合：execution 分支含 frozenWork、frozenNotifications、notificationObligations、startedAt、executionRef、executionState、executionOutcome、executionAdoptions、resultOutcomes；notification 分支含 frozenContent、notificationIntentId、notificationId或null、primaryOutcome、deliverySummaryRef、acknowledgementRef或null，不含Session/Run/executionWork。notification.primaryOutcome 为 pending/durableAvailable/failed/unknown/cancelled，其中durableAvailable须引用通知拥有者的可取回证明。另有coordinationReason或null。图10的notificationBlocked是协调投影，映射primaryOutcome=pending/unknown加coordinationReason；确定失败才映射failed，不能把unknown变成failed。取消请求不能伪造其已撤回。
 
 execution.executionOutcome 为 succeeded、failed、cancelled、unknown 的带原因/原回执联合。unknown 不是终态证据，不能解除 replace 的停止等待。ResultOutcomes 的精确 shape 见第 6 节。notificationObligations 每项含 obligationId、event、eventReceiptRef、semanticKey、frozenContent、target、intentId、notificationId或null、handoffState、durableAvailableReceiptRef或null、outcome。obligationId/semanticKey按jobId+event唯一，同提交保存事件与义务；handoffState为retained/accepted/unknown，unknown保持本域责任。
 
@@ -406,7 +406,7 @@ Tool贡献的发布、装载与撤除沿[Tool Cordis已接受设计](../../../to
 
 ```text
 program: {kind:program, programRef:registered-backup-v1, input:{resourceRef:workspace-A}}
-agent/new: {kind:agent, instruction:生成本周摘要, session:{mode:new, agentProfileRef:release-42, modes:{permission:never, environmentAdoptionRef:env-1, collaboration:auto-drive}, workspace:null}, materials:[], returnTo:null, resultPolicy:...}
+agent/new: {kind:agent, instruction:生成本周摘要, session:{mode:new, agentDefinitionRef:agent-definition-42, modes:{permission:never, environmentAdoptionRef:env-1, collaboration:auto-drive}, workspace:null}, materials:[], returnTo:null, resultPolicy:...}
 agent/existing: {kind:agent, instruction:补充上次问题的分析, session:{mode:existing, sessionRef:session-7}, materials:[], returnTo:null, resultPolicy:...}
 ```
 
@@ -424,6 +424,8 @@ JobStore/PreparationStore/OutboxStore 是本域持久消费端口，保存与查
 | start | jobId、attemptId、frozenWork、basis、guardRefs | ExecutionObservation；幂等键比较workFingerprint，异内容明确拒绝 |
 | query | jobId、attemptId | 原ExecutionObservation，不启动工作；无法找到不等于证明未启动 |
 | requestStop | executionRef、operationKey、reason | pending或unknown附原operationRef；rejected附DomainError；stopped附executionRef、stopReceiptRef、observedAt；alreadyTerminal附原terminalReceiptRef及outcome，不能改写原结局 |
+
+ExecutionObservation 的 agent 执行观察另含 executionAdoptions[]，每项为 opaque executionUnitRef、agentDefinitionRef、adoptedReleaseRef、adoptionReceiptRef。这些是执行拥有者出具的实际采用证据，不是 Job 可指定的版本；尚未采用时数组为空。一个 Job 涉及多个新 Run 时按各自执行单元保留证据，恢复不改写旧项。查询和 recordOutcome 保留原关联证据，不能只记录最后版本。
 
 ExecutionObservation是判别联合。accepted含executionRef、resolvedTargetRef、acceptedReceiptRef、acceptedAt与progress，progress为queued、running或terminal。queued没有startedAt/终态；running含startedAt；terminal含startedAt或null、terminalReceiptRef、finishedAt、outcome=succeeded/failed/cancelled及resultEvidenceRefs。pending含operationRef及retryAfterMs，executionRef/resolvedTargetRef可null；unknown含operationRef及已知关联，不提供终态；rejected含DomainError且只能在有确定拒绝依据时使用。已started与未started取消的差别保留在terminal的原receipt，不能仅看Job投影猜测。
 
