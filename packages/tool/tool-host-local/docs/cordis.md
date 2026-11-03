@@ -1,6 +1,18 @@
 # tool-host-local 的 Cordis 集成
 
-本页规定单机宿主 `./cordis` 插件的装配：作者原语、schema 阶段依赖、作者装载与贡献登记、阶段装配与换代。下列各节从 [Tool 的 Cordis 定义](../../tool-cordis-contract/docs/cordis.md)整段迁入，含义未改。服务定义、键、登记协议与通知仍归 `tool-cordis-contract`，本包插件继承这些定义，不重复提供服务键。插件尚未实现，当前包没有可用的 `./cordis` 入口。
+本页规定单机宿主的 Cordis 装配：作者原语、schema 阶段依赖、作者装载与贡献登记、阶段装配与换代。服务定义、键、登记协议与通知归 [Tool 的 Cordis 定义](../../tool-cordis-contract/docs/cordis.md)。作者插件由 `./author` 提供，`./cordis` 提供下述作者宿主与绑定工厂；这两个工厂不代替完整 runtime 的装配。
+
+## 已交付的插件工厂
+
+`createLocalToolHostPlugin` 的源码与输入类型归 [cordis-host.ts](../src/cordis-host.ts)。工厂通过受信闭包接收 source、loaderFor、recordRejection；插件提供 toolGenerations，静态依赖 toolBindings、toolContributionAuthority 和 toolResidencyReader。配置只能省略或为空对象，不能装入函数、主体、Context 或服务对象。应用把它与自己拥有的常驻引用桥成对装载。
+
+`createLocalToolBindingsPlugin` 的源码与输入类型归 [cordis-bindings.ts](../src/cordis-bindings.ts)。工厂接收 availability、authority、scope 和 settle，提供 toolBindings 与 toolCatalog，静态依赖 toolContributionAuthority。authority 是当前启动阶段的受信适配；scope 与 settle 仍由真实运行时负责，不得用假成功替代结果保管。
+
+登记在同步入口捕获调用方 Context 与 uid，以 AsyncLocalStorage 向纯登记表传递该次调用方。贡献的 effect 只释放原 token。同一 fiber 重启可以用同一 uid 重新登记；仅最终 dispose 才永久 retire 该 uid。装载前后核同一调用方活化及其当前依赖，旧活化的迟到装载不能登记到新活化。
+
+可追踪的服务引用携带调用方 Context，不是每条后台异步链的活化令牌。普通 register 按调用时的活动 Context、来源和当前资格核验；调用者负责在自己的 effect 收场中结束后台工作。本包拒绝已退役提供者的操作，并保护标准贡献 helper 中已开始的挂起装载，不声称辨认任意后台 continuation 的起源。
+
+常驻引用提供者仍存在但页读取失败时，协调者保留作者并 reopen。真实必需依赖被卸载时，Cordis 卸载宿主及其子作者；该代挂起请求返回 unavailable，旧引用不能继续装载。作者贡献撤除不证明其他宿主持有的执行 pin、结果或外部资源已经结清。
 
 装配 runtime 时显式提供 operationIdentities 与 sourceIssuer.resolve，来源核验器读取同一实际入口保存的完整绑定。生产提供者仍未实现。宿主创建实例时取得身份，并传给 driver.run；同一存活实例重复唤醒沿用。该传参不增加 claim 或接管保证。普通入口与受信 admission 的边界归[契约](../../tool-contract/SPEC.md#342-普通操作与实例目录)。
 
@@ -38,17 +50,17 @@ ToolBindingsService.register 在当前资格下接收 ToolLoadedRegistration 与
 
 各 key 的定义只在 `tool-cordis-contract/cordis`。表中组合作为具体插件的静态字面量 inject，不能使用运行期依赖名数组。跨领域实际提供者继承或适配原拥有者定义，不在 Tool 重造授权、环境、决策或存储服务。
 
-| 插件职责 | 静态必需键 | 局部阶段能力及退出 |
-| --- | --- | --- |
-| 门面 | toolCommands、toolReads | Catalog/Directory 的窄代理逐次 ctx.get；按 P16 处理缺席，不缓存旧引用 |
-| 长期执行宿主 | toolCommands、toolInstanceHost、toolClock | 捕获构造时 host Context，安装 driver；不捕获调用时 Service.this.ctx 作为长期父级 |
-| 实例发布 | toolInstances、toolPublicationAuthority | 在 host 的实例 fiber 中 register；本 fiber 只持有自己的贡献 token |
-| 准备/启动适配 | toolBindings、toolEnvironments、toolStartAuthority | 固定采用与资源租约，缺席立即返回 unavailable 并保留任务 |
-| 等待适配 | toolDecisions 或 toolResourceResponses | 分别由 Ask/资源阶段插件静态声明；不能伪造可选 inject 数组 |
-| 输出适配 | toolOutputCustody、toolResultPolicy | 原输出先保存，策略缺席不删除原件 |
-| 程序执行方组合适配 | toolChildren、toolRuntime | 程序能力由独立环境提供者注入；仅暴露限权代理 |
-| 作者插件 fiber | toolBindings、toolGenerations 与实现需要的服务，写在实现包的静态字面量里 | 不 provide 服务键；插件体只调用 contributeTool，登记以本 fiber 的 ctx.effect 配对；fiber 撤除时登记随 effect 撤除 |
-| 换代协调者 | toolBindings、toolContributionAuthority、toolResidencyReader | 提供 toolGenerations；唯一持有 ctx.plugin 句柄，作者插件挂在长期宿主 ctx 下，协调者重跑从 snapshot 重建句柄表；经 ToolResidencyReader 读持有者引用，按保留义务决定是否 dispose |
+| 插件职责           | 静态必需键                                                               | 局部阶段能力及退出                                                                                                                                                             |
+| ------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 门面               | toolCommands、toolReads                                                  | Catalog/Directory 的窄代理逐次 ctx.get；按 P16 处理缺席，不缓存旧引用                                                                                                          |
+| 长期执行宿主       | toolCommands、toolInstanceHost、toolClock                                | 捕获构造时 host Context，安装 driver；不捕获调用时 Service.this.ctx 作为长期父级                                                                                               |
+| 实例发布           | toolInstances、toolPublicationAuthority                                  | 在 host 的实例 fiber 中 register；本 fiber 只持有自己的贡献 token                                                                                                              |
+| 准备/启动适配      | toolBindings、toolEnvironments、toolStartAuthority                       | 固定采用与资源租约，缺席立即返回 unavailable 并保留任务                                                                                                                        |
+| 等待适配           | toolDecisions 或 toolResourceResponses                                   | 分别由 Ask/资源阶段插件静态声明；不能伪造可选 inject 数组                                                                                                                      |
+| 输出适配           | toolOutputCustody、toolResultPolicy                                      | 原输出先保存，策略缺席不删除原件                                                                                                                                               |
+| 程序执行方组合适配 | toolChildren、toolRuntime                                                | 程序能力由独立环境提供者注入；仅暴露限权代理                                                                                                                                   |
+| 作者插件 fiber     | toolBindings、toolGenerations 与实现需要的服务，写在实现包的静态字面量里 | 不 provide 服务键；插件体只调用 contributeTool，登记以本 fiber 的 ctx.effect 配对；fiber 撤除时登记随 effect 撤除                                                              |
+| 换代协调者         | toolBindings、toolContributionAuthority、toolResidencyReader             | 提供 toolGenerations；唯一持有 ctx.plugin 句柄，作者插件挂在长期宿主 ctx 下，协调者重跑从 snapshot 重建句柄表；经 ToolResidencyReader 读持有者引用，按保留义务决定是否 dispose |
 
 Commands 提供者整体不能把 Catalog 设为静态必需依赖。新准入的定义核验在局部阶段完成；原操作认回、控制及持久事实提交不依赖最新发现。长期 ToolInstanceHost 也不静态依赖目录，实例发布在其独立子 fiber 中 inject 目录和发布资格。Catalog、Directory 与持久 Commands/Reads、长期宿主不得共用一个会连带卸载的提供者 fiber。目录换代只重建发布，不重启业务执行。
 
@@ -92,3 +104,14 @@ sequenceDiagram
 本包插件至少验证必需/局部/可选依赖的实际撤除范围、旧引用拒绝及当前身份核验。当前真实4.0.4探针仅支持共同页所列机制。根已 ACTIVE 后动态装载并撤除带登记的作者插件，由 basis 条目 [late-plugin-load-unload-does-not-rerun-others](../../../../.meta_harness/design/basis/cordis/late-plugin-load-unload-does-not-rerun-others.md) 及其在 `kernel-basis` 的探针证明，对应 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#问题与有效输入) 的第 6 项。根操作的持久性、跨进程、外部效果和业务接受须另由实际提供者证明。定义入口自身的验证义务归 [tool-cordis-contract](../../tool-cordis-contract/docs/cordis.md#验证义务)。
 
 普通来源按 tenant/完整 consumer 原子 resolve，配对 guard 必须复核稳定主体与原绑定。宿主 schedule 继续合并同 tenant/call 的唤醒，不以重复 invoke 建立新执行。当前生产来源和实例宿主仍未实现。
+
+## 作者入口的实现状态
+
+本包提供 `./author` 的作者贡献及纯换代工厂，以及 `./cordis` 的作者宿主与绑定插件。完整 runtime 组合另由装配提供。采用官方 `@deepseek-ai/cordis` 4.0.4，无自有 fork。真实 Context 用例核登记 uid、依赖撤除、重启、首次 LOADING 中的迟到装载及 draining pin；它们不证明真实存储、执行设施或应用接线已通过。
+
+Scope 与最终事实适配是 `createLocalToolBindings` 的构造依赖，返回不确定时保留原执行。来源、设置、schema、持有者读取和拒绝依据保存由受信装配提供。完整运行组合不能由作者入口测试推定。
+
+
+## 具名偏离：热换代作者保留
+
+按 [R2-D63](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6591819035)，本批只保证首次装载，以及 Reader 仍在但读取失败时保留贡献。持有者存在时热撤 Reader、协调者换代不撤作者的完整配对留在波 3。当前服务撤除会由 Cordis 卸载作者，贡献随之丢失；不宣称冻结契约的热换代保留义务已经兑现。上游 tool-cordis-contract/docs/cordis.md 的完整目标保持不变，不能把本偏离当作对其改写。

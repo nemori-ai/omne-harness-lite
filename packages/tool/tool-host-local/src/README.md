@@ -9,7 +9,11 @@
 - [credentials.ts](credentials.ts) 选择配置引用，并在使用前核实际秘密绑定。真实 vault 尚未交付。
 - [start-coordinator.ts](start-coordinator.ts) 实现本地启动协调器，见 [SPEC](../SPEC.md#本地启动协调器g5)。
 - [ledger-guards.ts](ledger-guards.ts)、[invocation-source.ts](invocation-source.ts)、[grant-verifiers.ts](grant-verifiers.ts)、[start-guard.ts](start-guard.ts) 与 [text-results.ts](text-results.ts) 是账本守卫的生产件，见 [SPEC](../SPEC.md#账本守卫tl-11)。
-- 根入口不导入 `@deepseek-ai/cordis`。当前没有 `./cordis` 子入口，后续插件设计见 [Cordis 装配](../docs/cordis.md)。
+- 根入口不导入 `@deepseek-ai/cordis`。独立的 [cordis.ts](cordis.ts) 提供 `./cordis` 子入口，集成说明见 [Cordis 装配](../docs/cordis.md)。
 - 本成员经 `@omne-harness/tool-contract` 消费公共定义，不复制公共类型或服务键。
 
 文档导航见 [index](index.md)。
+
+- [作者装载器](author-loader.ts)核合法设置、定义与 schema。
+- [执行绑定](executor-binding.ts)固定作者与启动身份，[活体执行](live-author-execution.ts)保存逐调用事实及停止状态。
+- [作者入口](author.ts)导出[贡献实现](contribute-tool.ts)与[换代协调者](author-generations.ts)，实现文件不反向导入该入口。

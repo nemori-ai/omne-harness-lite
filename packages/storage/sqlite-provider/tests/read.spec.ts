@@ -136,12 +136,24 @@ describe('limits and handler failures (C15, SPEC 9.2 steps 4 to 13)', () => {
     expect(summary(await storage.read(readRequest('nope')))).toBe('unavailable/handler_unavailable')
   })
 
-  it('returns handler_unavailable when the handler may return more than maxReadResultBytes', async () => {
-    const { storage } = await readyProvider(workspace, built, {
-      maxReadResultBytes: 64,
-      globalReadResultBytes: 64,
+  it('reads back a result between 1 MiB and 20 MiB under the candidate config (R2-D81)', async () => {
+    const big = await buildReadMaterials(workspace, {
+      bigout: { maxOutputBytes: 20 * 1024 * 1024 },
     })
-    expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/handler_unavailable')
+    const { storage } = await readyProvider(workspace, big)
+    const size = 3 * 1024 * 1024
+    const result = await storage.read(readRequest('bigout', { n: size }))
+    expect(result).toMatchObject({ kind: 'read' })
+    expect(result.kind === 'read' ? (result.output as string).length : 0).toBe(size)
+  })
+
+  it('still returns read_limit for an output above a 20 MiB handler bound', async () => {
+    const big = await buildReadMaterials(workspace, {
+      bigout: { maxOutputBytes: 20 * 1024 * 1024 },
+    })
+    const { storage } = await readyProvider(workspace, big)
+    const result = await storage.read(readRequest('bigout', { n: 20 * 1024 * 1024 + 1 }))
+    expect(summary(result)).toBe('unavailable/read_limit')
   })
 
   it('returns schema_unavailable when a required migration marker is missing', async () => {
