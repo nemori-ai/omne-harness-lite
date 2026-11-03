@@ -20,7 +20,11 @@
 // and the handoff provider (`createSessionMessageHandoffPlugin`), mounted after the Agent host. The
 // Session provider and the Context and Agent factories take the products' `measure` observers
 // (R2-D17), whose events go to the recorder of the scenario. `earlier: 'session'` installs AD-04.
-import { createAgentRuntime, type AgentDependencies } from '@omne-harness/agent'
+import {
+  agentToolDeliverySchema,
+  createAgentRuntime,
+  type AgentDependencies,
+} from '@omne-harness/agent'
 import { testAdoption } from '@omne-harness/agent/testing'
 import {
   type Access,
@@ -28,6 +32,7 @@ import {
   type DurableEvidence,
   type EventPage,
   type ExecutionSnapshot,
+  type Material,
   type PendingCall,
 } from '@omne-harness/agent-contract'
 import {
@@ -35,7 +40,7 @@ import {
   testCancellationPolicyInstallation,
 } from '@omne-harness/agent-contract/testing'
 import type { ContentBlock } from '@omne-harness/content-block'
-import { tenantEquals } from '@omne-harness/legal-identity'
+import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
   decodeDispatchId,
   decodeResultVersion,
@@ -43,12 +48,14 @@ import {
   type ResultPart,
 } from '@omne-harness/model-contract'
 import { historySessionOf } from '@omne-harness/session-adapters'
+import type { SessionId } from '@omne-harness/session-contract'
 import {
   createSessionAgentJournalPlugin,
   createSessionHistorySource,
   createSessionJournalInterpretationPlugin,
   createSessionMessageHandoffPlugin,
   createSessionModelLogConsumptionPlugin,
+  createSessionToolLogConsumptionPlugin,
 } from '@omne-harness/session-adapters/cordis'
 import { createSessionProviderPlugin } from '@omne-harness/session-cordis/cordis'
 import { createAgentContextPlugin } from '@omne-harness/agent-context/cordis'
@@ -164,6 +171,68 @@ export type ToolStep = Readonly<{
   hold?: Promise<unknown>
 }>
 export type ToolScript = (index: number, request: ToolInvokeRequest) => ToolStep
+
+/**
+ * The adopted reading of the Tool delivery material for AD-06 (R2-D36, `agent/received-tool-delivery/1`).
+ * The Agent root offers `readToolDeliveryMaterial(access, material, expected)`, which needs the
+ * expected received entry that AD-06 does not hand to its reader; so the world reads the envelope
+ * itself (schema and shape) and AD-06 does the checks against the entry.
+ */
+function readToolDelivery(
+  material: Material<ContentBlock>,
+): { tenant: string; delivery: ToolDelivery<ContentBlock> } | null {
+  if (material.kind !== 'facts') return null
+  const { schema } = material
+  if (
+    schema.owner !== agentToolDeliverySchema.owner ||
+    schema.name !== agentToolDeliverySchema.name ||
+    schema.revision !== agentToolDeliverySchema.revision ||
+    schema.digest !== agentToolDeliverySchema.digest
+  )
+    return null
+  const value = material.value as { tenant?: unknown; delivery?: unknown } | null
+  if (value === null || typeof value !== 'object') return null
+  if (
+    typeof value.tenant !== 'string' ||
+    typeof value.delivery !== 'object' ||
+    value.delivery === null
+  )
+    return null
+  return { tenant: value.tenant, delivery: value.delivery as ToolDelivery<ContentBlock> }
+}
+
+/** Wakes AD-06 for every `agent-published` event, one session at a time and in order. */
+function ad06Wake(
+  consume: (target: {
+    principal: unknown
+    tenant: TenantId
+    session: SessionId
+    execution: AgentExecutionId
+  }) => Promise<unknown>,
+  coordinator: (input: { tenant: TenantId; session: SessionId }) => Promise<unknown>,
+) {
+  const queues = new Map<string, Promise<void>>()
+  return {
+    name: 'w2-ad06-trigger',
+    apply(ctx: { on: (name: string, listener: (...args: never[]) => void) => unknown }) {
+      ctx.on('session-adapters/agent-published', (async (
+        tenant: TenantId,
+        session: SessionId,
+        execution: AgentExecutionId,
+      ) => {
+        const key = JSON.stringify([tenant, session])
+        const next = (queues.get(key) ?? Promise.resolve()).then(async () => {
+          const principal = await coordinator({ tenant, session })
+          await consume({ principal, tenant, session, execution })
+        })
+        queues.set(key, next)
+        void next.finally(() => {
+          if (queues.get(key) === next) queues.delete(key)
+        })
+      }) as never)
+    },
+  }
+}
 
 /** The full request of the fixed schema (R2-D36), shaped by the consumer the Agent names. */
 function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeRequest {
@@ -374,13 +443,19 @@ export async function openW2World(options: W2Options) {
             })()
           : []
       // Real (AD-05): the Model results the Agent received enter the session log, so the replies are
-      // history rows of the next round. AD-06 (Tool results) is not woken by the Journal yet and has no
-      // delivery reader; it is not mounted.
+      // history rows of the next round.
       const ad05 = createSessionModelLogConsumptionPlugin<string>({ coordinator })
+      // Real (AD-06): the Tool results the Agent received enter the session log. The product plugin has
+      // no trigger of its own (AD-05 subscribes itself); the world wakes it with the same
+      // `agent-published` event, one session at a time, as AD-05 does.
+      const ad06 = createSessionToolLogConsumptionPlugin({ toolDeliveries: readToolDelivery })
+      const ad06Trigger = ad06Wake(ad06.consume, coordinator)
       return [
         ...history,
         [ad02.plugin],
         [ad05.plugin],
+        [ad06.plugin],
+        [ad06Trigger],
         [handoff, combination],
         ...(options.plugins ?? []),
       ]

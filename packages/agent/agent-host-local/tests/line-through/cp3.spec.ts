@@ -103,7 +103,8 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
     // execution-record participant alone (M-GENERATION SaveIntent), so the open is the first commit
     // with both participants.
     const opening = w.commits.find(
-      seen => seen.participants.includes('execution-record') && seen.participants.includes('session'),
+      seen =>
+        seen.participants.includes('execution-record') && seen.participants.includes('session'),
     )
     expect([...(opening?.participants ?? [])].sort()).toEqual(['execution-record', 'session'])
     expect(opening?.result.kind).toBe('committed')
