@@ -1,9 +1,9 @@
 // The read bound of the Session snapshot (session SPEC 已知限制 SN-1): `session.work` hands the whole
-// stored snapshot out, and its handler has the fixed output limit of 20 MiB (`materials.ts`,
-// `READ_OUTPUT_LIMIT_BYTES`). A snapshot past it is not read: the real provider answers `read_limit`,
+// stored snapshot out, and its handler has the output limit the application gives
+// `sessionStorageMaterials` (`readOutputLimitBytes`, here 20 MiB). A snapshot past it is not read: the real provider answers `read_limit`,
 // and `readWork` answers a prompt `unavailable` that names it, never a hang and never a part of the
 // snapshot. A snapshot between the old bound of 1 MiB and the new one reads whole. The limit is a
-// literal here, not the constant of the source, so that a changed constant turns the cases red. In
+// literal handed in through the parameter, so that a handler that ignores it turns the cases red. In
 // the C-JOINT world the snapshot of one session passes 1 MiB at about round 169 of the plain shape;
 // here the stored row is made that large directly: the longest text member of the stored snapshot is
 // lengthened, so the snapshot keeps its shape. The row is written into the closed domain file, as the
@@ -48,7 +48,7 @@ function longestText(value: Json, path: (string | number)[] = []): (string | num
 async function sessionOfSize(bytes: number) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'session-work-limit-')))
   roots.push(root)
-  const first = await openRealApp({ root })
+  const first = await openRealApp({ root, readOutputLimitBytes: LIMIT })
   expect(await first.create(TENANT_A)).toHaveProperty('ok')
   await first.close()
   const db = new DatabaseSync(first.domainFile(first.domainOf(TENANT_A)))
@@ -76,7 +76,7 @@ async function sessionOfSize(bytes: number) {
   } finally {
     db.close()
   }
-  const app = await openRealApp({ root })
+  const app = await openRealApp({ root, readOutputLimitBytes: LIMIT })
   apps.push(app)
   const read = () =>
     app.storage.read({

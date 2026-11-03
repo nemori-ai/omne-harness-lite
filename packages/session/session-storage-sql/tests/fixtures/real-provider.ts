@@ -60,6 +60,7 @@ import {
   type PreadmissionIntent,
   type PreadmissionIntentWrite,
 } from '../../src/participants.ts'
+import { FIXTURE_READ_OUTPUT_LIMIT_BYTES } from './read-limit.ts'
 
 export const TENANT_A = testingTenant(
   'org_c0nf0rmance000000000000000',
@@ -127,8 +128,8 @@ export function realConfig(storageRoot: string): SqliteStorageConfig {
   }
 }
 
-function catalogOf(): { catalog: SqlMaterialCatalog; digest: string } {
-  const materials = sessionStorageMaterials()
+function catalogOf(readOutputLimitBytes: number): { catalog: SqlMaterialCatalog; digest: string } {
+  const materials = sessionStorageMaterials({ readOutputLimitBytes })
   const catalog: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
     participants: materials.participants,
@@ -204,13 +205,17 @@ export type RealAppOptions = Readonly<{
   root?: string
   config?: Partial<SqliteStorageConfig>
   tenants?: readonly TenantId[]
+  /** The read output limit given to the materials; 20 MiB without it. */
+  readOutputLimitBytes?: number
 }>
 
 export async function openRealApp(options: RealAppOptions = {}) {
   const owned = options.root === undefined
   const root = options.root ?? (await realpath(await mkdtemp(join(tmpdir(), 'session-real-'))))
   const storageRoot = join(root, 'storage')
-  const { catalog, digest } = catalogOf()
+  const { catalog, digest } = catalogOf(
+    options.readOutputLimitBytes ?? FIXTURE_READ_OUTPUT_LIMIT_BYTES,
+  )
   const events: string[] = []
   const closeLeases: CloseLeasePort = {
     admit(name) {

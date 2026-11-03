@@ -22,6 +22,7 @@ import {
   type ExecutionRecordWrite,
 } from '../src/participants.ts'
 import { sessionStorageMaterials } from '../src/materials.ts'
+import { FIXTURE_READ_OUTPUT_LIMIT_BYTES } from './fixtures/read-limit.ts'
 import { PART_PAGE_ROWS, PART_PAGE_TEXT } from '../src/worker/read-execution-parts.ts'
 import { app, TENANT_A, TENANT_B, textOf, type App } from './fixtures/app.ts'
 
@@ -118,7 +119,7 @@ const rows = (a: App, table: string) =>
 
 describe('the migration and the read handler of the state parts', () => {
   it('004-state-parts requires the records migration and its table is owned by execution-record', () => {
-    const { migrations, participants, readHandlers } = sessionStorageMaterials()
+    const { migrations, participants, readHandlers } = sessionStorageMaterials({ readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES })
     const found = migrations.find(item => item.id === '004-state-parts')
     expect(found?.owner).toBe('execution-record')
     expect(found?.requires).toEqual([{ owner: 'execution-record', id: '001-execution-record' }])

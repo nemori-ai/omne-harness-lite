@@ -16,6 +16,7 @@ import {
 } from '@omne-harness/session-contract/testing'
 import { sessionCommandFacts } from '../src/participants.ts'
 import { sessionStorageMaterials } from '../src/materials.ts'
+import { FIXTURE_READ_OUTPUT_LIMIT_BYTES } from './fixtures/read-limit.ts'
 import { app, TENANT_A, TENANT_B, textOf, type App } from './fixtures/app.ts'
 import { kindOf } from './fixtures/entries.ts'
 
@@ -87,7 +88,7 @@ function directCommit(a: App, command: SessionCommand, extra: Readonly<Record<st
 
 describe('the migration of the evidence table', () => {
   it('comes after the execution index of the same owner and is registered with its module', () => {
-    const { migrations } = sessionStorageMaterials()
+    const { migrations } = sessionStorageMaterials({ readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES })
     const ids = migrations.map(item => `${item.owner}/${item.id}`)
     expect(ids).toEqual([
       'session/001-session-log',
@@ -100,7 +101,7 @@ describe('the migration of the evidence table', () => {
     ])
     const found = migrations.find(item => item.id === '003-operation-evidence')
     expect(found?.requires).toEqual([{ owner: 'session', id: '002-execution-index' }])
-    const session = sessionStorageMaterials().participants.find(
+    const session = sessionStorageMaterials({ readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES }).participants.find(
       item => item.participant === 'session',
     )
     expect(session?.ownedTables).toContain('sl_operation_evidence')

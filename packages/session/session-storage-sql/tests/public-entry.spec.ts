@@ -4,6 +4,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { HANDLERS, sessionStorageMaterials } from '../src/materials.ts'
+import { FIXTURE_READ_OUTPUT_LIMIT_BYTES } from './fixtures/read-limit.ts'
 
 const root = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
 const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
@@ -54,7 +55,7 @@ describe('public entries', () => {
 })
 
 describe('materials', () => {
-  const materials = sessionStorageMaterials()
+  const materials = sessionStorageMaterials({ readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES })
 
   it('describes every read handler as a snapshot read (SQL r2 section 17)', () => {
     expect(materials.readHandlers.length).toBe(HANDLERS.length)

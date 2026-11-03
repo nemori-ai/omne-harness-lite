@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 import type { SqlCell, SqlValue } from '@omne-harness/sql-contract/worker'
 import { sessionStorageMaterials } from '../src/materials.ts'
+import { FIXTURE_READ_OUTPUT_LIMIT_BYTES } from './fixtures/read-limit.ts'
 import admissionAttempt from '../src/worker/admission-attempt-migration.ts'
 import recordMigration from '../src/worker/execution-record-migration.ts'
 
@@ -43,7 +44,7 @@ const DEFINITION = `SELECT sql FROM sqlite_schema WHERE name = 'er_admission_att
 
 describe('execution-record/003-admission-attempt', () => {
   it('requires the records migration, owns its table and is registered with its module', () => {
-    const { migrations, participants } = sessionStorageMaterials()
+    const { migrations, participants } = sessionStorageMaterials({ readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES })
     const found = migrations.find(
       item => item.owner === 'execution-record' && item.id === '003-admission-attempt',
     )

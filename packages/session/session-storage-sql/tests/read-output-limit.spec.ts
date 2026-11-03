@@ -1,10 +1,10 @@
-// The output limit of the read handlers of the member (`materials.ts`, `READ_OUTPUT_LIMIT_BYTES`: 20
-// MiB, session-storage-sql SPEC K-1) on the Agent records: the whole state of a session comes back
+// The output limit of the read handlers of the member (the `readOutputLimitBytes` the application
+// gives `sessionStorageMaterials`, here 20 MiB, session-storage-sql SPEC K-1) on the Agent records: the whole state of a session comes back
 // through `execution-record.parts` as one output, so a state past the old bound of 1 MiB is read whole
 // and a state whose output passes 20 MiB answers `read_limit`, never a part of it. The state is written
 // through the real commit path, so the write bounds of the provider are raised for this file: the
-// command of the largest state has to fit `maxCommandBytes`. The limit is a literal here, not the
-// constant of the source, so that a changed constant turns the cases red.
+// command of the largest state has to fit `maxCommandBytes`. The limit is a literal handed in through
+// the parameter, so that a handler that ignores the parameter turns the cases red.
 // @module-tag slow
 // Why slow: real Workers and real files; a state of 20 MiB is written and read.
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
@@ -40,7 +40,7 @@ afterEach(async () => {
 async function opened(): Promise<RealApp> {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'session-read-output-')))
   roots.push(root)
-  const app = await openRealApp({ root, config: WRITE })
+  const app = await openRealApp({ root, config: WRITE, readOutputLimitBytes: LIMIT })
   apps.push(app)
   expect('ok' in (await app.create(TENANT_A))).toBe(true)
   return app
