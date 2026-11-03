@@ -14,6 +14,18 @@ import type { ToolEnvironmentValue } from './author-environment.ts'
 
 type Wake = Parameters<ToolInstanceHost<unknown>['schedule']>[0]
 type Publication = ReturnType<typeof createRuntimePublication>
+type Recovered = Extract<
+  Awaited<
+    ReturnType<
+      ToolDependencies<
+        unknown,
+        ToolMessageContentBlock,
+        ToolEnvironmentValue
+      >['commands']['loadRecovery']
+    >
+  >,
+  { ok: unknown }
+>
 type Entry = {
   wake: Wake
   publication: Publication | null
@@ -86,10 +98,7 @@ export function createRuntimeExecutor(
   }
   const publish = (
     step: Parameters<ToolDriver<unknown>['run']>[0],
-    recovery: Extract<
-      Awaited<ReturnType<typeof dependencies.commands.loadRecovery>>,
-      { ok: unknown }
-    >,
+    recovery: Recovered,
     entry: Entry,
   ) => {
     const original = recovery.ok
@@ -194,6 +203,31 @@ export function createRuntimeExecutor(
     if (calls.get(key) === entry) calls.delete(key)
     completed += 1
   }
+  /**
+   * Drives the delivery of the call and judges the outcome. The delivery worker owns its own
+   * wait; it never occupies the host's driver queue. A settled call whose delivery is done and
+   * whose fresh recovery shows nothing pending is complete: it retires once no run is in progress.
+   */
+  const deliver = (
+    step: Parameters<ToolDriver<unknown>['run']>[0],
+    entry: Entry,
+    after: Recovered,
+  ): void => {
+    void delivery
+      .drive({ ...step, signal: abort.signal })
+      .then(async delivered => {
+        if ('failure' in delivered || delivered.ok.pending !== 0) return
+        if (after.ok.state.phase !== 'settled') return
+        const current = await dependencies.commands.loadRecovery(step)
+        if ('failure' in current || calls.get(keyOf(step)) !== entry) return
+        const { execution } = current.ok.state
+        if (execution.kind !== 'ended' && execution.kind !== 'not-started') return
+        if (current.ok.tasks.some(task => task.state === 'pending')) return
+        entry.complete = true
+        await retire(step, entry)
+      })
+      .catch(() => undefined)
+  }
   const advancing: ToolDriver<unknown> = {
     async run(step) {
       const entry = calls.get(keyOf(step))
@@ -224,29 +258,7 @@ export function createRuntimeExecutor(
         if ('failure' in after) return
         publish(step, after, entry)
         await entry.publication?.refresh(step, after.ok.admission)
-        // The delivery worker owns its own wait. It never occupies the host's driver queue.
-        void delivery
-          .drive({ ...step, signal: abort.signal })
-          .then(async delivered => {
-            if (
-              'failure' in delivered ||
-              delivered.ok.pending !== 0 ||
-              after.ok.state.phase !== 'settled'
-            )
-              return
-            const current = await dependencies.commands.loadRecovery(step)
-            if (
-              'ok' in current &&
-              !current.ok.tasks.some(task => task.state === 'pending') &&
-              (current.ok.state.execution.kind === 'ended' ||
-                current.ok.state.execution.kind === 'not-started') &&
-              calls.get(keyOf(step)) === entry
-            ) {
-              entry.complete = true
-              await retire(step, entry)
-            }
-          })
-          .catch(() => undefined)
+        deliver(step, entry, after)
       } finally {
         entry.running = false
         void retire(step, entry)
