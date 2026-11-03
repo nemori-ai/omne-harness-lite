@@ -64,6 +64,7 @@ export interface CalendarSourceMaterialStore {
   read(
     input: Readonly<{ reference: string }>,
   ): Promise<CalendarReadResult<CalendarStoredMaterial | null>>
+  /** Verify packHash against the stored raw bytes before parsing the seed manifest. */
   readSeed(
     input: Readonly<{ packRef: string; packHash: string }>,
   ): Promise<CalendarReadResult<CalendarSeedPack>>
@@ -127,6 +128,7 @@ export interface CalendarSupplyJournal {
   ): Promise<CalendarJournalResult<readonly CalendarPreparedRun[]>>
 }
 export interface CalendarReactionSink {
+  /** The same reaction id must return the original durable handoffRef on retries. */
   handoff(
     input: CalendarPendingReaction,
   ): Promise<
