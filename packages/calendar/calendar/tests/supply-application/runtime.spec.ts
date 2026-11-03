@@ -252,6 +252,7 @@ describe('supply application against controlled ports', () => {
       payload: { a: [-1, 1e30, null, []], z: '中文😀/' },
     })
     expect(a).toBe(b)
+    expect(a).toBe('31ef847c72e1feef20ed46e5a12e0ae95fe27fc6e40c760034d6a837b82201f5')
     expect(a).toMatch(/^[a-f0-9]{64}$/)
     expect(
       supplyFingerprint({
