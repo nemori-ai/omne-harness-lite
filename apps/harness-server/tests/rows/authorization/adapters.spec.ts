@@ -274,12 +274,29 @@ describe('sessionAccessCheck: members and branches', () => {
     expect(w.seen.standing).toEqual([])
   })
 
-  it('denies D-1 and D-2 for the login principal and calls nothing', async () => {
+  it('lets the own login set the tenant settings and manage the session, with no named qualification', async () => {
     const w = world()
     for (const kind of ['configureAutoArchive', 'setRelation']) {
-      expect(await w.session.check(mutate(w.login(), kind))).toEqual({ kind: 'denied' })
+      expect((await w.session.check(mutate(w.login(), kind))).kind, kind).toBe('allowed')
+    }
+    expect(w.seen.admissions.map(input => input.requires)).toEqual([[], []])
+  })
+
+  it('denies the two operations to a login principal of another tenant, and reads nothing', async () => {
+    const w = world()
+    for (const kind of ['configureAutoArchive', 'setRelation']) {
+      const request = mutate(w.login(B), kind, {}, { tenant: A })
+      expect(await w.session.check(request), kind).toEqual({ kind: 'denied' })
     }
     expect(w.reached()).toBe(0)
+  })
+
+  it('denies the two operations to the work principal and to a foreign principal', async () => {
+    const w = world()
+    for (const kind of ['configureAutoArchive', 'setRelation']) {
+      expect(await w.session.check(mutate(w.work(), kind)), kind).toEqual({ kind: 'denied' })
+      expect(await w.session.check(mutate(w.foreign(), kind)), kind).toEqual({ kind: 'denied' })
+    }
   })
 })
 
@@ -1250,12 +1267,8 @@ describe('the row specification agrees with the tables', () => {
     }
   })
 
-  it('writes the D items as default denials: outside the M2 public surface, auto archive not built', () => {
-    const items = region('d-items')
-    for (const item of Object.values(DECISION_ITEMS)) {
-      expect(items).toContain(`### ${item.id}`)
-      expect(items).toContain(item.missingRule)
-    }
-    expect(items).toContain('默认拒绝：操作不在 M2 公开面，自动归档尚未实现，已知限制')
+  it('writes that no D item is open', () => {
+    expect(Object.keys(DECISION_ITEMS)).toEqual([])
+    expect(region('d-items')).toContain('没有未决项')
   })
 })

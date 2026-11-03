@@ -220,6 +220,12 @@ describe('role-neutral-member-cells', () => {
     expect(count).toBeGreaterThan(40)
   })
 
+  it('includes the two cells R2-D204 opened for the own login, so restoring them to pending turns this red', () => {
+    const ids = cells.map(cell => cell.id)
+    expect(ids).toContain('session.setRelation.login')
+    expect(ids).toContain('session.configureAutoArchive.login')
+  })
+
   it('allows each member cell for both roles, so the comparison is not between two denials', async () => {
     for (const cell of cells) {
       for (const role of ROLES) {
