@@ -697,7 +697,7 @@ releasedScopes(principal, scope = system, after, limit):
 当前状态的拥有者与直接读者。工作缓存（下称 WorkHolder）是一个进程里 Session 当前状态 `session.work` 的唯一内存拥有者。它不是权威：权威仍在存储，每个答案都带一个在存储快照里读到的版本，资格由事务内的裁定决定。
 
 - 只有 WorkHolder 调用 `session.work` 与 `session.work-version` 两个 handler。其余读当前状态的调用方都经 WorkHolder：Session 核心的面操作经端口 `readWork`（`src/reads.ts`），session-adapters 的插件经核心面 `session.work.readWork`，不经核心的两个读者（会话归属读口 `src/bindings.ts`、session-adapters 的 Journal 提供者）经 `readCachedSessionWork`。`tests/direct-reads.spec.ts` 用 `git grep` 核对这条边界：全仓 `packages`、`apps` 的产品源码里以文本点名这两个 handler 的文件，只有定义它们的 `src/worker/read-work.ts` 与 `src/worker/read-work-version.ts`、登记材料的 `src/materials.ts`、声明常量的 `src/participants.ts` 与 `src/work-cache.ts`。
-- 保留直接读 Session log 存储的只有五类。它们读的不是当前状态，或者本身就是某份状态的拥有者：
+- 保留直接读 Session log 存储的有五类，另有一处已知限制（`session.model-selection`，见本条末尾）。它们读的不是当前状态，或者本身就是某份状态的拥有者：
   1. WorkHolder 自己：版本点查、整读，以及折叠用的 `session.history` 批读、`session.work-reads` 与 `session.work-index`。
   2. 按不可变坐标分页的读：`session.history` 按 `position` 分页（服务入口的历史读与核权、CP-01 第 6 步取本次提交的条目、AD-03 回放刚提交的批次），`session.model-view` 按 `(epoch, seq)` 读后缀。每页 O(页)，无状态，与会话长度无关。
   3. Journal 提供者的 `sync`：它是 Agent 执行记录的内存拥有者（每个会话一份副本），按 `session.history-root` 点查与 `execution-record.parts` 的 `published` 增量同步；AD-05、AD-06 经它的 `load` 读，不直接读存储。
@@ -705,6 +705,8 @@ releasedScopes(principal, scope = system, after, limit):
   5. 提交路径在写事务里的读：参加者读快照行、历史索引与操作记录，`queryOperation` 的认回读操作记录。CAS、`decide` 与认回必须读事务内的当前值，不读缓存。
 
   按主键的点查（`session.execution` 的路由、`execution-record.operation` 的认回）与会话大小无关，归各自的调用方。
+
+  五类之外还有一处直接读快照行：`session.model-selection`（`src/worker/read-model-selection.ts`，端口的 `readModelSelection`）读 `sl_state.snapshot` 并整份 `JSON.parse`，只为取出保存的模型选择。它不经 WorkHolder，是已知限制：代价随快照增长，每次调用付一次；改为经 WorkHolder 取当前状态后再读选择记录，留待后续。`tests/direct-reads.spec.ts` 另用 `git grep` 核对 `sl_state` 只出现在表声明、迁移、提交路径、WorkHolder 的整读、这处读者，以及只在注释或数据里点名它的文件中；清单外新出现的读者使用例变红。
 - 已知限制：
   - AD-07（session-adapters `message-handoff.ts`）取交接记录与权限时整读该 execution 的分区，O(|x|)。处置方向：随分区拆细改为向 Journal 提供者查询，需要 session-cordis-contract 新增服务键。
   - AD-04（session-adapters `history-source.ts`）为压缩窗口翻完全部历史，O(n)。处置方向：改为窗口函数。
