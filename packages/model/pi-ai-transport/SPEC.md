@@ -406,7 +406,7 @@ Model runtime 不读家族表。家族在绑定的 `replayFormat` 中给出这�
 - `replayFormat` 是记录的 `replay.formats.produces`。
 - `counting` 是 `meter.instance.basis`，`meter` 是 `meter.instance`。它实现 `CalibratedInputMeter`：`measureCalibrated` 接收准备租约交来的 `MeterCalibration`，`measure` 是同一算法加空校准（没有锚点、没有来源）。
 - `rules.plan`、`tools`、`encode` 都是纯计算，不读环境、秘密、网络或文件。
-- `createDecoder()` 每次返回一个新的解码器，按 `limits` 限制缓冲，见“网关引擎：流解释”。
+- `createDecoder({ request })` 每次返回一个新的解码器，按 `limits` 限制缓冲，见“网关引擎：流解释”。`request` 是本次 encode 的同一请求：解码器用它的工具名表把上游的函数名映射回工具名，见下文“工具名”。这个请求的工具名不能写出时（encode 对它返回 `unsupported`），`createDecoder` 抛出 `RangeError`：没有发出的请求没有解码器。
 - `release` 包一层家族的 `release`：第一次调用调用它，之后每次调用返回第一次的 Promise。
 
 下列情况下，`bindChatCompletions` 同步抛出 `RangeError`。这些是家族包的缺陷：
@@ -426,7 +426,7 @@ Model runtime 不读家族表。家族在绑定的 `replayFormat` 中给出这�
 - `serving.order` 写入请求体的 `provider.order`。`serving.reports` 供解码器核对流中报告的服务方。
 - `wire.roles.instruction` 是系统指令的角色。`wire.roles.reminder` 是 system reminder 的角色。压缩摘要的角色是 `user`。
 - `wire.content` 为 `compact` 时，只有一个文本部件的内容写成字符串，其他内容写成部件数组。为 `parts` 时，所有内容都写成部件数组。
-- `wire.cache`、`wire.image`、`wire.fixed` 见下文“请求体”。`wire.usageTail` 归解码器。
+- `wire.cache`、`wire.image`、`wire.fixed` 见下文“请求体”。`wire.usageTail` 归解码器。`wire.toolNames` 见下文“工具名”。
 - `parameters` 按契约 `Parameter` 的全部 kind（`extension` 除外）给出规则：`unsupported`，或 `supported` 加取值范围（`accept`）、默认值（`default`）与网关字段（`wire`）。`reasoning-effort` 按值映射，可以映射为 `unsupported`。
 - `extensions` 按 `definition` 采用的全部四项匹配扩展参数，匹配到时写入规则的网关字段。
 - `replay.declaration` 是本记录的官方回放声明，只供官方档案使用。plan 与 encode 不读它。`replay.formats` 是回放格式。
@@ -471,7 +471,7 @@ plan 不返回诊断。
 
 #### 投影
 
-投影把系统指令、消息与工具声明映射为网关消息。失败的 `field` 是安全路径：`/system/<i>`、`/messages/<i>/blocks/<j>`、`/messages/<i>`、`/tools/<k>/<hook 的字段>` 或 `toolChoice`。
+投影把系统指令、消息与工具声明映射为网关消息。失败的 `field` 是安全路径：`/system/<i>`、`/messages/<i>/blocks/<j>`、`/messages/<i>`、`/tools/<k>/name`、`/tools/<k>/<hook 的字段>` 或 `toolChoice`。
 
 - `visibility.toModel` 为假的块不写出。空文本块照原样写成文本部件：引擎不删除它，也不改写历史（组架构“不得悄悄删工具、改历史”）。`tool_internal` 消息不写出。所有块都对模型不可见的 user、reminder 与压缩消息不写出。
 - 系统指令只含文本。模型可见的非文本块返回 `unsupported`。
@@ -480,8 +480,21 @@ plan 不返回诊断。
 - 工具消息：角色为 `tool`，`tool_call_id` 为规范化的调用 id，内容是结果中的文本。结果中的图片不写进工具消息。连续的一串工具消息的全部图片在这串之后写成一条 user 消息。引擎不写占位文本，不插入桥接的 assistant 消息。
 - 工具调用 id：符合 `^[A-Za-z0-9_-]{1,64}$` 时保留，否则为 `call_` 加该 id 的 SHA-256 base64url 的前 32 个字符。
 - 孤立的调用（之后没有对应结果）返回 `invalid`，`reason` 为 `orphan-tool-call`。没有对应调用的结果返回 `invalid`，`reason` 为 `orphan-tool-result`。
-- 工具：`{ type: 'function', function: { name, description, parameters } }`，`parameters` 经 `hooks.toolSchema`。`binding.tools.convertToModelPayload` 给出同一形式。
-- `tool_choice`：没有工具时，`none` 与 `auto` 不写出，`required` 或指名返回 `invalid`（`reason` 为 `no-tools`）。指名的工具不在工具中时返回 `invalid`（`reason` 为 `unknown-tool`）。
+- 工具：`{ type: 'function', function: { name, description, parameters } }`，`name` 是网关名（见下文“工具名”），`parameters` 经 `hooks.toolSchema`。`binding.tools.convertToModelPayload` 给出同一形式；它只看一项声明，所以只核长度，名字写不出时返回 `unsupported`，`field` 为 `name`。
+- `tool_choice`：没有工具时，`none` 与 `auto` 不写出，`required` 或指名返回 `invalid`（`reason` 为 `no-tools`）。指名的工具不在工具中时返回 `invalid`（`reason` 为 `unknown-tool`）。指名写网关名。
+
+<a id="工具名"></a>
+工具名：工具名是 Tool 领域给出的身份，日志、历史与工具声明都保存这个名字。网关只接受字符为 `[A-Za-z0-9_-]`、长度有上限的函数名（OpenRouter 对带点的名字返回 400）。这项编码约束属于请求表示，由记录的 `wire.toolNames` 固定：`rule` 是映射规则，`maxLength` 是供应商的最大长度。规则名与长度在记录摘要内，所以改规则就改变采用，也改变 `<记录名>#representation`。
+
+- `underscore/1`：每个不在 `[A-Za-z0-9_-]` 中的码点写成 `_`，其他字符不变。本来就合格的名字原样写出，例如 `Files.read` 写成 `Files_read`，`lookup__exact` 不变。
+- 一次请求的名字表：先按顺序取工具声明的名字，再按消息顺序取历史中模型可见的 `tool_call` 与 `tool_call_unparsed` 的名字。同一名字只取一次。投影第一步建这张表，表的失败先于消息的失败返回：
+  - 网关名为空或长于 `maxLength`：`unsupported`，`field` 为 `/tools/<k>/name` 或 `/messages/<i>/blocks/<j>`；
+  - 两个不同的名字得到同一网关名（例如 `a.b` 与 `a_b`）：在后出现的那一项返回 `unsupported`，路径同上。
+  引擎不截断名字，也不为了避开冲突改动别的名字。
+- 写出：工具的 `function.name`、指名的 `tool_choice` 与历史调用的 `function.name` 都写网关名。工具消息只写 `tool_call_id`，不写名字。
+- 交给计量器的投影也用网关名（工具、工具选择与 turns 中的调用块），所以计量看到的就是发出的形状。
+- 解码：解码器用同一请求的表把上游函数名映射回工具名，见“封口”。表里没有的上游名字原样保留。
+- 来源：pi 1.0.0 与 deepseek-harness 都没有可逆的工具名映射。pi 只对调用 id 做有损替换（`id.replace(/[^a-zA-Z0-9_-]/g, "_")`）；deepseek-harness 的 `publicToolName`（`packages/mcp/mcp-client/src/tools.ts`，提交 8bd07339）在注册时用同一字符替换，改动名字时追加哈希，靠注册表还原。本规则沿用这一字符替换，用请求内的名字表还原，冲突与超长返回 `unsupported`。
 
 回放按 model-contract 的 `projectReplay` 投影。`declaration` 在 plan 中是档案声明展开后的值，在 encode 中是 encode 的输入。`formats` 取记录的 `replay.formats.accepts`。请求关闭回放时 `off` 为真。`resent` 在 plan 中为空，在 encode 中是 encode 的输入：
 
@@ -596,7 +609,7 @@ flowchart LR
 #### 封口
 
 - 文本块与思考块封为 `text` 与 `thinking`，内容是累计值。块的身份是 `b<序号>`，可见性对人与模型都可见。
-- 工具参数块封为 `tool_call`：`callId` 是上游的调用 `id`，`name` 是上游的名字，`arguments` 是参数文本按 `limits.toolArguments` 解码的值。空参数文本是空对象。没有 `id` 为 `tool-call-without-id`，不能解码为 `tool-arguments-invalid`。
+- 工具参数块封为 `tool_call`：`callId` 是上游的调用 `id`，`name` 是上游名字经本请求工具名表还原的工具名（见“工具名”），`arguments` 是参数文本按 `limits.toolArguments` 解码的值。空参数文本是空对象。没有 `id` 为 `tool-call-without-id`，不能解码为 `tool-arguments-invalid`。
 - 记录有推理编解码器且缓存了推理项时，解码器把全部拼接后的项交给 `hooks.reasoning.seal` 一次。hook 失败时，解码器以该 fault 失败。hook 给出的每个载荷在新的序号上整块封为推理续接状态部件，不先开块：可见性对人不可见、对模型可见，`pairs` 指向思考块（没有思考块时为空）。空载荷不产生部件。长度超过 message 成员 `REASONING_STATE_PAYLOAD_MAX_LENGTH`（1048576）的载荷不产生部件，解码器在原位置给出一条 `diagnostic` 事实：`reasoning-state-dropped`，`reason` 为 `payload-too-long`，`length` 为载荷长度。
 
 #### 失败与阶段
@@ -639,7 +652,7 @@ hook 成功时，`end()` 按下列次序给出事实：
 
 - `request.json`：恰好两个成员的对象。`request` 是一个 `FixedModelRequest` 的普通 JSON，经契约的 `judgeFixedModelRequest` 读入。它的供应商采用必须是该记录的采用，参数采用只取这个供应商的项。`body` 是期望的请求体。检查把 `request` 交给 `encode`（媒体为空），把结果与 `body` 按排序键无损 JSON 比较。
 - `stream.sse`：一个响应体的 SSE 字节，以 `data: [DONE]` 结束。
-- `facts.json`：期望的事实数组，最后一项是 `ended`。事实按 `JSON.stringify` 写出：块与工具参数中的 JSON 值是 `json-text` 值树。检查让绑定的新解码器经与发送相同的主体解码（含唯一 `ended` 的守护与终止映射）回放 `stream.sse`，再按值比较。
+- `facts.json`：期望的事实数组，最后一项是 `ended`。事实按 `JSON.stringify` 写出：块与工具参数中的 JSON 值是 `json-text` 值树。检查让绑定为 `request` 新建的解码器经与发送相同的主体解码（含唯一 `ended` 的守护与终止映射）回放 `stream.sse`，再按值比较。`request.json` 不合格、契约拒绝其请求或编码失败时，不回放 `stream.sse`：解码器要读这个请求的工具名。
 
 绑定由 `composeFamilies([family])` 以工厂凭据的供应商取得，检查之后释放。回放的 SSE 与 JSON 预算取文件大小，所以限额不会截断夹具。
 

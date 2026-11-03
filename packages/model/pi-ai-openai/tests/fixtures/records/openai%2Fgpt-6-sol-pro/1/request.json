@@ -12,7 +12,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6-sol-pro",
           "revision": "1",
-          "digest": "309ad22fa8f21236aeb9bb23b14b5d2f723ff945456623f42df266f296462cd9"
+          "digest": "c9a1e31df609851587cd4ab0a1a900706b0128bb4da875754ce2199799dc9f42"
         },
         "recipient": "openrouter",
         "model": "openai/gpt-6-sol-pro",
@@ -92,7 +92,7 @@
       "owner": "@omne-harness/pi-ai-openai",
       "name": "openai/gpt-6-sol-pro#representation",
       "revision": "1",
-      "digest": "309ad22fa8f21236aeb9bb23b14b5d2f723ff945456623f42df266f296462cd9"
+      "digest": "c9a1e31df609851587cd4ab0a1a900706b0128bb4da875754ce2199799dc9f42"
     },
     "parameterAdoptions": [
       {
@@ -100,7 +100,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6-sol-pro",
           "revision": "1",
-          "digest": "309ad22fa8f21236aeb9bb23b14b5d2f723ff945456623f42df266f296462cd9"
+          "digest": "c9a1e31df609851587cd4ab0a1a900706b0128bb4da875754ce2199799dc9f42"
         },
         "applied": {
           "kind": "max-output-tokens",

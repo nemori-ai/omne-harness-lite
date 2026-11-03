@@ -1,14 +1,15 @@
 // The only entry of the gateway engine: one record, its hooks and its meter become the complete
 // accepted family binding.
-import type { Adoption, Supplier } from '@omne-harness/model-contract'
+import type { Adoption, FixedModelRequest, Supplier } from '@omne-harness/model-contract'
 import { recordAdoption } from '../family-table.ts'
 import { isPositiveInteger } from '../limits.ts'
 import type { PiFamilyBinding } from '../family.ts'
 import { createChatCompletionsDecoder } from './decoder.ts'
 import { GATEWAY_FIELDS } from './gateway.ts'
 import { defaultParameter, judgeParameter, PARAMETER_KINDS } from './parameters.ts'
-import { recordDeclaration, toolPayload } from './projection.ts'
+import { convertTool, recordDeclaration } from './projection.ts'
 import { encodeRequest, planRequest, type RequestContext } from './request.ts'
+import { TOOL_NAME_RULES, toolNamesOf, type ToolNames } from './tool-names.ts'
 import type {
   ChatCompletionsLimits,
   ChatCompletionsRecord,
@@ -73,6 +74,15 @@ function checkInput(input: ChatCompletionsBindingInput, adoption: Adoption): voi
     throw new RangeError(
       `record ${record.name}: usageTail.maxFrames must be a non-negative integer`,
     )
+  const { toolNames } = record.wire
+  if (typeof toolNames !== 'object' || toolNames === null)
+    throw new RangeError(`record ${record.name}: wire.toolNames must be an object`)
+  if (!TOOL_NAME_RULES.includes(toolNames.rule))
+    throw new RangeError(`record ${record.name}: wire.toolNames.rule is not an engine rule`)
+  if (!isPositiveInteger(toolNames.maxLength))
+    throw new RangeError(
+      `record ${record.name}: wire.toolNames.maxLength must be a positive integer`,
+    )
   for (const kind of PARAMETER_KINDS) {
     const fallback = defaultParameter(record.parameters, kind)
     if (fallback === null) continue
@@ -121,6 +131,29 @@ function checkFields(record: ChatCompletionsRecord): void {
 }
 
 /**
+ * The tool names of the request whose response the decoder reads: the table that encode used.
+ * Throws for a request whose names encode refuses: no decoder is made for a request that was not
+ * sent.
+ */
+function decoderNames(
+  record: ChatCompletionsRecord,
+  adapter: Adoption,
+  request: FixedModelRequest,
+): ToolNames {
+  const names = toolNamesOf({
+    profile: record.wire.toolNames,
+    tools: request.tools,
+    messages: request.messages,
+    adapter,
+  })
+  if (!('ok' in names))
+    throw new RangeError(
+      `the request of a decoder has tool names that encode refuses: ${names.failure.kind}`,
+    )
+  return names.ok
+}
+
+/**
  * Builds the complete binding of one record. Pure: no environment, secret, network or file.
  * `counting` is `meter.instance.basis`, and `replayFormat` is `record.replay.formats.produces`.
  * `release` wraps the release of the family once: every call returns the promise of the first.
@@ -152,12 +185,18 @@ export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamil
     meter: meter.instance,
     replayFormat: record.replay.formats.produces,
     tools: Object.freeze({
-      convertToModelPayload: (declaration: Parameters<typeof toolPayload>[0]) =>
-        toolPayload(declaration, hooks),
+      convertToModelPayload: (declaration: Parameters<typeof convertTool>[0]) =>
+        convertTool(declaration, hooks, record.wire.toolNames, adoption),
     }),
     encode: (encodeInput: Parameters<typeof encodeRequest>[1]) =>
       encodeRequest(context, encodeInput),
-    createDecoder: () => createChatCompletionsDecoder({ record, hooks, limits }),
+    createDecoder: ({ request }: Readonly<{ request: FixedModelRequest }>) =>
+      createChatCompletionsDecoder({
+        record,
+        hooks,
+        limits,
+        names: decoderNames(record, adoption, request),
+      }),
     release(): Promise<void> {
       released ??= input.release()
       return released

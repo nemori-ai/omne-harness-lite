@@ -110,6 +110,8 @@ const COMMON = {
     image: { mediaTypes: IMAGE_MEDIA_TYPES, detail: 'auto' },
     fixed: [{ field: 'store', value: false }],
     usageTail: { maxFrames: 2 },
+    // Anthropic takes tool names of `[a-zA-Z0-9_-]`, at most 64 long.
+    toolNames: { rule: 'underscore/1', maxLength: 64 },
   },
   parameters: PARAMETERS,
   extensions: [],

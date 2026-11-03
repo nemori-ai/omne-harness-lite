@@ -12,7 +12,7 @@
           "owner": "@omne-harness/pi-ai-anthropic",
           "name": "anthropic/claude-sonnet-5",
           "revision": "2",
-          "digest": "298a9bae25f10658b24cfb2d87ebd5dd6ca9bead6bf1216b6f5242af2321a849"
+          "digest": "8e5049e1dab64ed1bc383812c37b6a94f6071c07b49184a0e1ab4396168f813d"
         },
         "recipient": "openrouter",
         "model": "anthropic/claude-sonnet-5",
@@ -92,7 +92,7 @@
       "owner": "@omne-harness/pi-ai-anthropic",
       "name": "anthropic/claude-sonnet-5#representation",
       "revision": "2",
-      "digest": "298a9bae25f10658b24cfb2d87ebd5dd6ca9bead6bf1216b6f5242af2321a849"
+      "digest": "8e5049e1dab64ed1bc383812c37b6a94f6071c07b49184a0e1ab4396168f813d"
     },
     "parameterAdoptions": [
       {
@@ -100,7 +100,7 @@
           "owner": "@omne-harness/pi-ai-anthropic",
           "name": "anthropic/claude-sonnet-5",
           "revision": "2",
-          "digest": "298a9bae25f10658b24cfb2d87ebd5dd6ca9bead6bf1216b6f5242af2321a849"
+          "digest": "8e5049e1dab64ed1bc383812c37b6a94f6071c07b49184a0e1ab4396168f813d"
         },
         "applied": {
           "kind": "max-output-tokens",
