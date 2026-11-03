@@ -149,7 +149,7 @@ async function settledOrPending<T>(promise: Promise<T>): Promise<T | 'pending'> 
   ])
 }
 
-it('declares the host layer, the files and command keys, no isolation, and an empty resource recovery', async () => {
+it('declares the host facilities, no isolation, and platform resource recovery availability', async () => {
   const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
   expect(provider).toMatchObject({
     name: 'host-files',
@@ -163,9 +163,9 @@ it('declares the host layer, the files and command keys, no isolation, and an em
     provider.generation,
   )
   expect(provider.quotaDomain).toBe('host-files')
-  // The command scopes are listed through the user manager; a Linux host without one cannot list.
+  // Windows has no complete cold index; Linux needs a reachable user manager.
   expect(await provider.listRecoveryResources?.(scope1)).toEqual(
-    (await userManagerReachable()) || process.platform !== 'linux'
+    process.platform !== 'win32' && ((await userManagerReachable()) || process.platform !== 'linux')
       ? { kind: 'listed', resources: [] }
       : { kind: 'unavailable' },
   )

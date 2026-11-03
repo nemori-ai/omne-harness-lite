@@ -21,7 +21,7 @@ import type {
 import { commandSettings, type HostCommandOptions } from './host-command.ts'
 import { terminalSettings, type HostTerminalOptions } from './host-terminal.ts'
 import { createHostPlatform } from './host-platform.ts'
-import { stopWindowsResource } from './windows-execution/index.ts'
+import { readWindowsJobReference, stopWindowsResource } from './windows-execution/index.ts'
 import { retainedLegShell } from './host-retained-terminals.ts'
 import {
   domainInternals,
@@ -515,7 +515,8 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         }
       resource = retainedLegShell(resource) ?? resource
       if (process.platform === 'win32') {
-        if (resource.provider !== name) return { status: 'unsupported', evidence: null }
+        if (resource.provider !== name || readWindowsJobReference(resource.reference) === undefined)
+          return { status: 'unsupported', evidence: null }
         const stopped = await stopWindowsResource(resource, settings.stopBoundMs)
         return { status: stopped === 'confirmed' ? 'confirmedStopped' : 'pending', evidence: null }
       }

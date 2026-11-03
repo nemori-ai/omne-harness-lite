@@ -47,20 +47,29 @@ function invalid(request: StartRequest): FacilityReason | undefined {
   return undefined
 }
 
+export function readWindowsJobReference(
+  reference: ManagedResource['reference'],
+): string | undefined {
+  if (reference.kind !== 'object') return undefined
+  const name = reference.entries.find(entry => entry.key === 'windowsJob')?.value
+  return name?.kind === 'string' &&
+    /^Local\\omne-(?:command|terminal)-[a-f0-9-]{36}$/u.test(name.value)
+    ? name.value
+    : undefined
+}
+
 export async function stopWindowsResource(
   resource: ManagedResource,
   boundMs: number,
 ): Promise<StopStatus> {
   const deadline = now() + boundMs
   const remaining = () => Math.max(0, deadline - now())
-  const ref = resource.reference
-  if (process.platform !== 'win32' || ref.kind !== 'object') return 'unconfirmed'
-  const name = ref.entries.find(entry => entry.key === 'windowsJob')?.value
+  const name = readWindowsJobReference(resource.reference)
   if (
-    name?.kind !== 'string' ||
-    !/^Local\\omne-(?:command|terminal)-[a-f0-9-]{36}$/u.test(name.value) ||
-    (name.value !== `Local\\omne-command-${resource.key}` &&
-      name.value !== `Local\\omne-terminal-${resource.key}`)
+    process.platform !== 'win32' ||
+    name === undefined ||
+    (name !== `Local\\omne-command-${resource.key}` &&
+      name !== `Local\\omne-terminal-${resource.key}`)
   )
     return 'unconfirmed'
   try {
@@ -71,7 +80,7 @@ export async function stopWindowsResource(
   const reply = deferred<StopStatus>()
   if (remaining() <= 0) return 'unconfirmed'
   const bridge = await startBridge({
-    request: { mode: 'recover', name: name.value, stopBoundMs: Math.ceil(remaining()) },
+    request: { mode: 'recover', name, stopBoundMs: Math.ceil(remaining()) },
     maxChunkBytes: 1,
     onFrame: frame => {
       if (frame.t === 'stopped') reply.resolve(frame.status)

@@ -18,6 +18,18 @@ it('recovers the original Job without stopping another terminal or claiming cold
       await a.terminal.create({ ...a.call, cwd: f.root, env: f.identity.env }),
     ).terminal
     expect(await f.provider.listRecoveryResources?.(a.input.scope)).toEqual({ kind: 'unavailable' })
+    for (const reference of [
+      { kind: 'null' },
+      { kind: 'object', entries: [] },
+      {
+        kind: 'object',
+        entries: [{ key: 'windowsJob', value: { kind: 'string', value: 'not-a-job' } }],
+      },
+    ] as const)
+      expect(await f.provider.recover?.({ ...resource, reference })).toEqual({
+        status: 'unsupported',
+        evidence: null,
+      })
     expect(await f.provider.recover?.({ ...resource, key: 'wrong-key' })).toMatchObject({
       status: 'pending',
     })

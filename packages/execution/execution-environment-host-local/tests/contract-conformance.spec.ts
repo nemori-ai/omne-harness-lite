@@ -12,6 +12,7 @@ import {
   executionEnvironmentConformance,
   createScriptedRecoveryAuthority,
   runConformanceCase,
+  type ProviderConformanceOptions,
 } from '@omne-harness/execution-environment-contract/testing'
 import { createEnvironmentRegistry } from '@omne-harness/execution-environment'
 import {
@@ -35,6 +36,23 @@ function scope(): ProviderAcquireInput['scope'] {
   }
   if (!valid(ref)) throw new Error('scope fixture')
   return { ref }
+}
+
+function* hostProviderConformance(options: ProviderConformanceOptions) {
+  const budgets = process.platform === 'win32' ? [undefined, 60_000] : [undefined]
+  for (const waitMs of budgets) {
+    for (const test of environmentProviderConformance(
+      waitMs === undefined ? options : { ...options, waitMs },
+    )) {
+      const slow =
+        process.platform === 'win32' &&
+        (test.name === 'V-EE18.facts-match-declaration' ||
+          test.name === 'V-EE22.facts-schema-refusal-has-item-reasons')
+      if (slow !== (waitMs !== undefined)) continue
+      // Cold Windows facts compile native bridges and run four file probes.
+      yield { test, options: slow ? { tags: ['slow'], timeout: 70_000 } : {} }
+    }
+  }
 }
 for (const test of executionEnvironmentConformance<string>({
   subject(ports) {
@@ -62,7 +80,7 @@ for (const test of executionEnvironmentConformance<string>({
   it(test.name, async () => {
     expect(await runConformanceCase(test)).toMatchObject({ status: 'pass' })
   })
-for (const test of environmentProviderConformance({
+for (const { test, options } of hostProviderConformance({
   subject() {
     const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
     let root: string | undefined
@@ -106,14 +124,14 @@ for (const test of environmentProviderConformance({
     }
   },
 }))
-  it('host-local ' + test.name, async () => {
+  it('host-local ' + test.name, options, async () => {
     const verdict = await runConformanceCase(test)
     if (test.name === 'V-EE18.retire-waits-for-in-flight')
       expect(verdict.status).toBe('not-applicable')
     else expect(verdict.status).toBe('pass')
   })
 
-for (const test of environmentProviderConformance({
+for (const { test, options } of hostProviderConformance({
   subject() {
     const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
     return {
@@ -144,7 +162,7 @@ for (const test of environmentProviderConformance({
     }
   },
 }))
-  it('host-local terminal ' + test.name, async () => {
+  it('host-local terminal ' + test.name, options, async () => {
     const verdict = await runConformanceCase(test)
     expect(verdict.status).toBe(
       test.name === 'V-EE18.retire-waits-for-in-flight' ? 'not-applicable' : 'pass',
