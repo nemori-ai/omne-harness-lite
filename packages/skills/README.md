@@ -1,6 +1,6 @@
 # Skill能力组
 
-状态：唯一的 workspace 成员是 `@omne-harness/skill`，它提供已接受的 `skill` 类别端口。组的分解、模型、端口与服务是工程设计草案，全部为候选决定，尚未取得技术接受。发现、读取、导出和发布仍没有成员实现。脚本执行不归本组。
+状态：本组有三个 workspace 成员。`@omne-harness/skill-contract` 提供已接受的 `skill` 类别端口。`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 是模板草稿，没有公开导出或实现。组的分解、模型、端口与服务是工程设计草案，全部为候选决定，尚未取得技术接受。发现、读取、导出和发布仍没有成员实现。脚本执行不归本组。
 
 ## 责任与范围
 
@@ -8,29 +8,29 @@
 
 ## 成员与依赖
 
-真实 workspace 成员只有一个。组设计把它定为本组的纯契约成员，不改名：
+本组有三个 workspace 成员。纯契约成员由原 `@omne-harness/skill` 改名为 `@omne-harness/skill-contract`，与 Tool 组的 `tool-contract` 和 MCP 组的 `mcp-contract` 命名一致。通用实现 `@omne-harness/skill` 与本地宿主 `@omne-harness/skill-host-local` 是第一波的模板草稿：它们只有 `typescript-package@3.0.0` 的 `module` 骨架，没有公开导出、实现、成员 SPEC 或采用标识，也不声明生产依赖。职责与允许的生产依赖都是候选决定，尚未取得技术接受，随成员规格确定。
 
-| 成员 | 当前状态 | 阅读入口 |
-| --- | --- | --- |
-| `@omne-harness/skill`（`packages/skills/skill`） | 已实现已接受的 `skill` 类别端口 `skillBodyContract`。依赖 `@omne-harness/assets`，不依赖 Tool。不提供发现、读取、导出或发布 | [成员入口](skill/README.md)与[规格](skill/SPEC.md) |
+| 成员 | 当前状态 | 职责 | 允许的生产依赖 | 阅读入口 |
+| --- | --- | --- | --- | --- |
+| `@omne-harness/skill-contract`（`packages/skills/skill-contract`，纯契约） | 已实现已接受的 `skill` 类别端口 `skillBodyContract`。依赖 `@omne-harness/assets`，不依赖 Tool。不提供发现、读取、导出或发布 | 值、纯函数、端口与服务接口，以及 `./testing` 符合性设施，见下文 | 见下文 | [成员入口](skill-contract/README.md)与[规格](skill-contract/SPEC.md) |
+| `@omne-harness/skill`（`packages/skills/skill`，通用实现） | 模板草稿，第一波 | 三个应用服务：`PackageInspection`、`SkillCatalog`、`SkillAccess`。名字对应领域的「方法与资源取用」。只依赖本组纯契约与公共值成员，不依赖 Cordis，也不依赖任何调用方的成员 | `@omne-harness/skill-contract`，以及 `@omne-harness/skill-contract` 允许的公共值成员 | [成员入口](skill/README.md) |
+| `@omne-harness/skill-host-local`（`packages/skills/skill-host-local`，本地宿主） | 模板草稿。只建了目录来源部分所在的成员，Cordis 插件部分在 Cordis 服务键波补 `src/cordis.ts` | 两部分。目录来源部分：本机目录来源 `DirectorySource`，在第一波。Cordis 插件部分：本组的 Cordis 插件，在 Cordis 服务键波。内容存储来源等存储契约就绪后再加 | 目录来源部分：`@omne-harness/skill-contract` 与宿主依赖。Cordis 插件部分另加 `@omne-harness/skill` 与 `skill-cordis-contract` | [成员入口](skill-host-local/README.md) |
 
-作为纯契约成员，`@omne-harness/skill` 在组设计中还要承接值、纯函数、端口与服务接口。它的 `./testing` 入口导出符合性设施：`SkillPackageSource`、`SkillAccess`、`SkillReadCheck` 与 `SkillResolution` 的符合性套件，以及内存来源。`SkillReadCheck` 与 `SkillResolution` 的套件核对：对无权主体，答复不随该身份是否存在而变。这些都是候选，尚未实现。它允许的生产依赖逐个列出：`@omne-harness/assets`、`@omne-harness/operation-result`、`@omne-harness/legal-identity`、`@omne-harness/content-block` 与 `@omne-harness/json-text`。
+作为纯契约成员，`@omne-harness/skill-contract` 在组设计中还要承接值、纯函数、端口与服务接口。它的 `./testing` 入口导出符合性设施：`SkillPackageSource`、`SkillAccess`、`SkillReadCheck` 与 `SkillResolution` 的符合性套件，以及内存来源。`SkillReadCheck` 与 `SkillResolution` 的套件核对：对无权主体，答复不随该身份是否存在而变。这些都是候选，尚未实现。它允许的生产依赖逐个列出：`@omne-harness/assets`、`@omne-harness/operation-result`、`@omne-harness/legal-identity`、`@omne-harness/content-block` 与 `@omne-harness/json-text`。
 
-组设计另有三个具名文档目标。它们都尚非 workspace 成员：没有包、源码或运行实例。名字、职责与依赖都是候选决定，尚未取得技术接受。建包时随成员规格确定。分波只有三种：第一波、第一波之后、Cordis 服务键波，见[成员承接表](docs/architecture.md#完整行为候选的正式承接缺口)。
+组设计另有一个具名文档目标。它尚非 workspace 成员：没有包、源码或运行实例。名字、职责与依赖都是候选决定，尚未取得技术接受。建包时随成员规格确定。分波只有三种：第一波、第一波之后、Cordis 服务键波，见[成员承接表](docs/architecture.md#完整行为候选的正式承接缺口)。
 
 | 具名文档目标 | 状态 | 职责 | 允许的生产依赖 |
 | --- | --- | --- | --- |
-| `skill-access`（通用实现） | 尚非 workspace 成员 | 三个应用服务：`PackageInspection`、`SkillCatalog`、`SkillAccess`。名字对应领域的「方法与资源取用」。只依赖本组纯契约与公共值成员，不依赖 Cordis，也不依赖任何调用方的成员 | `@omne-harness/skill`，以及 `@omne-harness/skill` 允许的公共值成员 |
-| `skill-cordis-contract`（Cordis 契约） | 尚非 workspace 成员 | 服务键与抽象 Service。不含实现。暂不进应用插件树。在 Cordis 服务键波 | `@omne-harness/skill` 与 Cordis 发布包 4.0.4，版本依据[技术基础](../../docs/architecture/technical-foundations.md#共同技术选择)「产品与工程运行时」 |
-| `skill-host-local`（本地宿主） | 尚非 workspace 成员 | 两部分。目录来源部分：本机目录来源 `DirectorySource`，在第一波。Cordis 插件部分：本组的 Cordis 插件，在 Cordis 服务键波。内容存储来源等存储契约就绪后再加 | 目录来源部分：`@omne-harness/skill` 与宿主依赖。Cordis 插件部分另加 `skill-access` 与 `skill-cordis-contract` |
+| `skill-cordis-contract`（Cordis 契约） | 尚非 workspace 成员 | 服务键与抽象 Service。不含实现。暂不进应用插件树。在 Cordis 服务键波 | `@omne-harness/skill-contract` 与 Cordis 发布包 4.0.4，版本依据[技术基础](../../docs/architecture/technical-foundations.md#共同技术选择)「产品与工程运行时」 |
 
-依赖方向照 Tool 能力组的先例：`skill-host-local` 指向 `skill-access`、`skill-cordis-contract` 与 `@omne-harness/skill`。其中指向 `skill-access` 与 `skill-cordis-contract` 的两条随 Cordis 插件部分在 Cordis 服务键波加入，图中用虚线。第一波的目录来源部分只指向 `@omne-harness/skill`。`skill-access` 与 `skill-cordis-contract` 各自指向 `@omne-harness/skill`，彼此不依赖。依赖方向在建包时写入架构约束，本页不改约束文件。
+依赖方向照 Tool 能力组的先例：`@omne-harness/skill-host-local` 指向 `@omne-harness/skill`、`skill-cordis-contract` 与 `@omne-harness/skill-contract`。其中指向 `@omne-harness/skill` 与 `skill-cordis-contract` 的两条随 Cordis 插件部分在 Cordis 服务键波加入，图中用虚线。第一波的目录来源部分只指向 `@omne-harness/skill-contract`。`@omne-harness/skill` 与 `skill-cordis-contract` 各自指向 `@omne-harness/skill-contract`，彼此不依赖。依赖方向在建包时写入架构约束，本页不改约束文件。
 
 ```mermaid
 flowchart TD
-  H[skill-host-local] -.->|Cordis 服务键波| X[skill-access]
+  H["@omne-harness/skill-host-local"] -.->|Cordis 服务键波| X["@omne-harness/skill"]
   H -.->|Cordis 服务键波| C[skill-cordis-contract]
-  H --> K["@omne-harness/skill"]
+  H --> K["@omne-harness/skill-contract"]
   X --> K
   C --> K
   C --> R[Cordis 发布包]

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Skill body port for the accepted asset category contract",
+  "description": "General Skill implementation: the PackageInspection, SkillCatalog, and SkillAccess application services",
   "engines": {
     "node": ">=24"
   },
@@ -24,9 +24,7 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {
-    "@omne-harness/assets": "workspace:*"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

@@ -1,6 +1,6 @@
 # MCP能力组
 
-状态：工程设计草案。本组只有组文档，没有 workspace 成员、源码或运行支持。下文的成员、模型和决定都是候选，落位不授予技术接受。
+状态：工程设计草案。本组有三个 workspace 成员，都是模板草稿，没有公开导出、实现或运行支持。下文的成员、模型和决定都是候选，落位不授予技术接受。
 
 ## 责任与范围
 
@@ -10,14 +10,14 @@
 
 ## 成员与依赖
 
-本组当前没有 workspace 成员。下面四个是具名文档目标，都尚非 workspace 成员。模型、端口和服务见[工程设计](docs/architecture.md#模型)，依据见 [Q-MC02](docs/architecture.md#q-mc02-成员与公开身份操作形状的技术归属)。
+下表列出本组的三个成员与一个具名文档目标。mcp-contract、mcp 与 mcp-host-local 是第一波的 workspace 成员，但只是模板草稿：它们只有 `typescript-package@3.0.0` 的 `module` 骨架，没有公开导出、实现、成员 SPEC 或采用标识，也不声明生产依赖。mcp-host-local 的 Cordis 插件部分在 Cordis 服务键波补 `src/cordis.ts`。mcp-cordis-contract 仍是具名文档目标，尚非 workspace 成员，在 Cordis 服务键波建立。模型、端口和服务见[工程设计](docs/architecture.md#模型)，依据见 [Q-MC02](docs/architecture.md#q-mc02-成员与公开身份操作形状的技术归属)。
 
-| 文档目标 | 职责 | 允许依赖 | 状态 |
+| 成员或文档目标 | 职责 | 允许依赖 | 状态 |
 | --- | --- | --- | --- |
-| mcp-contract | 纯契约：值对象、类别端口、纯函数、端口与应用服务接口。测试入口导出符合性设施：stdio 与 Streamable HTTP 共用的传输契约测试、五个需求端口（含 `CatalogStore`）的符合性套件、本地真实服务端夹具、`classifyOutcome` 与 `mergeListing` 的穷举测试入口。不依赖 Cordis 与任何实现 | assets（类别端口）、operation-result、legal-identity、content-block、json-text | 候选，尚非 workspace 成员 |
-| mcp | 通用实现：`Connection`、`ActionCatalog` 两个聚合与五个应用服务，以及 `CatalogStore` 的内存实现。内存实现不耐久。不含 Cordis，不含官方 SDK | 只依赖 mcp-contract 及其公共值包 | 候选，尚非 workspace 成员 |
+| [mcp-contract](mcp-contract/README.md) | 纯契约：值对象、类别端口、纯函数、端口与应用服务接口。测试入口导出符合性设施：stdio 与 Streamable HTTP 共用的传输契约测试、五个需求端口（含 `CatalogStore`）的符合性套件、本地真实服务端夹具、`classifyOutcome` 与 `mergeListing` 的穷举测试入口。不依赖 Cordis 与任何实现 | assets（类别端口）、operation-result、legal-identity、content-block、json-text | 候选，workspace 模板草稿成员 |
+| [mcp](mcp/README.md) | 通用实现：`Connection`、`ActionCatalog` 两个聚合与五个应用服务，以及 `CatalogStore` 的内存实现。内存实现不耐久。不含 Cordis，不含官方 SDK | 只依赖 mcp-contract 及其公共值包 | 候选，workspace 模板草稿成员 |
 | mcp-cordis-contract | Cordis 服务定义与服务键，不含实现。建立后暂不进应用插件树 | mcp-contract、Cordis | 候选，尚非 workspace 成员 |
-| mcp-host-local | 本地宿主：stdio 与 Streamable HTTP 两种 `McpTransport` 实现与授权发现，使用官方 SDK | mcp、mcp-contract、mcp-cordis-contract、官方 `@modelcontextprotocol/client` 2.3.1。测试用的本地真实服务端另用官方 `@modelcontextprotocol/server` 2.3.1 | 候选，尚非 workspace 成员 |
+| [mcp-host-local](mcp-host-local/README.md) | 本地宿主：stdio 与 Streamable HTTP 两种 `McpTransport` 实现与授权发现，使用官方 SDK | mcp、mcp-contract、mcp-cordis-contract、官方 `@modelcontextprotocol/client` 2.3.1。测试用的本地真实服务端另用官方 `@modelcontextprotocol/server` 2.3.1 | 候选，workspace 模板草稿成员 |
 
 依赖方向是 mcp-host-local → {mcp, mcp-cordis-contract} → mcp-contract。mcp 与 mcp-cordis-contract 互不依赖。这一方向沿 [Tool 组](../tool/README.md#包与依赖)的先例。SDK 版本与协议线沿架构[技术基础](../../docs/architecture/technical-foundations.md#共同技术选择)「MCP连接与动作桥接」一行，精确锁定以 lockfile 为准，见[协议基线与兼容](docs/architecture.md#协议基线与兼容)。
 

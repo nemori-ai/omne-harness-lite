@@ -1,1 +1,2 @@
-export { skillBodyContract } from './contract.ts'
+// PACKAGE_TEMPLATE_DRAFT: Export the accepted public functions/types here.
+export {}
