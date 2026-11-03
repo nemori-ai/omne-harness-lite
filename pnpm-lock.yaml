@@ -2314,6 +2314,12 @@ importers:
 
   packages/tool/tool-host-local:
     dependencies:
+      '@omne-harness/execution-environment-cordis-contract':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-cordis-contract
+      '@omne-harness/stream-arrival':
+        specifier: workspace:*
+        version: link:../../common/stream-arrival
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
