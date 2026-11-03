@@ -307,6 +307,50 @@ describe('adoption planner: the registry read after a load', () => {
   })
 })
 
+describe('adoption planner: a recorded shape that Tool does not read back for the capability', () => {
+  const emptyRegistry = (f: Setup) => createAdoptionPlanner(withBindings(f, []))
+
+  it('keeps the recorded key for a readable shape of the capability (control)', async () => {
+    const f = setup()
+    expect(
+      await emptyRegistry(f).plan(f.access, { recorded: [f.recorded], capabilities: [] }),
+    ).toEqual(
+      succeed({
+        material: { residents: [], keys: [{ capability: f.capability, key: f.recorded.key }] },
+        verdict: null,
+      }),
+    )
+  })
+
+  it('rejects a recorded shape that is named for another capability', async () => {
+    const f = setup()
+    // The recorded shape is a JSON value; its  member is the one Tool reads back.
+    const shape = f.recorded.shape as unknown as {
+      entries: { key: string; value: unknown }[]
+    }
+    const named = {
+      ...shape,
+      entries: shape.entries.map(entry =>
+        entry.key === 'name'
+          ? { key: 'name', value: { kind: 'string', value: 'other_tool' } }
+          : entry,
+      ),
+    }
+    const recorded = { ...f.recorded, shape: named } as unknown as typeof f.recorded
+    expect(
+      await emptyRegistry(f).plan(f.access, { recorded: [recorded], capabilities: [] }),
+    ).toEqual(fail({ kind: 'unavailable' }))
+  })
+
+  it('rejects a recorded shape that the projection refuses, even with nothing live to compare', async () => {
+    const f = setup()
+    const recorded = { ...f.recorded, shape: { kind: 'null' as const } }
+    expect(
+      await emptyRegistry(f).plan(f.access, { recorded: [recorded], capabilities: [] }),
+    ).toEqual(fail({ kind: 'unavailable' }))
+  })
+})
+
 describe('adoption planner: keys that cannot be encoded', () => {
   it('rejects an advance to a live version whose key has no resident encoding', async () => {
     const f = setup()
