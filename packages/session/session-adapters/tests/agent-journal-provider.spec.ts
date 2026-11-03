@@ -731,9 +731,7 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
     const draft = await waitingOnModel(s, first.journal(), 'recv-targets')
     const pending = draft.delivery.producer === 'model' ? draft.delivery.key.reference : null
     if (pending === null) throw new Error('fixture: a Model entry')
-    const all = ok(
-      await first.targets().forExecution({ access: s.access, execution: s.execution }),
-    )
+    const all = ok(await first.targets().forExecution({ access: s.access, execution: s.execution }))
     expect(all).toHaveLength(1)
     const [target] = all
     expect(target?.execution).toBe(s.execution)
@@ -780,16 +778,21 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
     const { journal, targets } = await assembled(s)
     const draft = await waitingOnModel(s, journal(), 'recv-route')
     if (draft.delivery.producer !== 'model') throw new Error('fixture: a Model entry')
-    const query = { access: s.access, consumer: draft.consumer, reference: draft.delivery.key.reference }
+    const query = {
+      access: s.access,
+      consumer: draft.consumer,
+      reference: draft.delivery.key.reference,
+    }
     expect(await targets().resolve(query)).toHaveProperty('failure.kind', 'denied')
     const nobody = ok(decodeAgentExecutionId('recv-route-nobody'))
     expect(await targets().resolve({ ...query, execution: nobody })).toHaveProperty(
       'failure.kind',
       'denied',
     )
-    expect(
-      await targets().forExecution({ access: other, execution: s.execution }),
-    ).toHaveProperty('failure.kind', 'denied')
+    expect(await targets().forExecution({ access: other, execution: s.execution })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
   })
 })
 

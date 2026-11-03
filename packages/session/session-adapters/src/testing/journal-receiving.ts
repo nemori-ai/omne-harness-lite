@@ -326,7 +326,10 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
             if (original) {
               const value = rich(input, original)
               if ('failure' in value) return { kind: 'answer', value }
-              return { kind: 'answer', value: succeed({ kind: 'committed' as const, value: value.ok }) }
+              return {
+                kind: 'answer',
+                value: succeed({ kind: 'committed' as const, value: value.ok }),
+              }
             }
           }
           if (previous?.kind === 'committed' && previous.key !== text) {

@@ -347,10 +347,8 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
       const { execution } = input
       // No route names no session, and the storage has no index from a call to one.
       if (execution === undefined) return fail<Failure>({ kind: 'denied', action: 'resolve' })
-      const found = await routedView(
-        'resolve',
-        { tenant: input.access.tenant, execution },
-        view => view.targets.resolve(input),
+      const found = await routedView('resolve', { tenant: input.access.tenant, execution }, view =>
+        view.targets.resolve(input),
       )
       // The binding names its own execution; another one is not the binding of this route.
       if ('ok' in found && found.ok.execution !== execution)

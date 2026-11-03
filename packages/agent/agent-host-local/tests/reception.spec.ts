@@ -217,18 +217,21 @@ async function settleReply(host: World, snapshot: ExecutionSnapshot, answer: Ans
       answer === 'reply'
         ? { kind: 'completed', reason: 'stop' }
         : { kind: 'failed', fault: REJECTED_400 },
-    parts: answer === 'rejected-400' ? [] : [
-      {
-        kind: 'sealed',
-        trims: [],
-        block: {
-          kind: 'text',
-          id: 'blk_r' as BlockId,
-          visibility: { toHuman: true, toModel: true },
-          text: REPLY,
-        },
-      },
-    ],
+    parts:
+      answer === 'rejected-400'
+        ? []
+        : [
+            {
+              kind: 'sealed',
+              trims: [],
+              block: {
+                kind: 'text',
+                id: 'blk_r' as BlockId,
+                visibility: { toHuman: true, toModel: true },
+                text: REPLY,
+              },
+            },
+          ],
     source: evidence('model-reception'),
     pageSize: 10,
     pageTargetBytes: 65536,
