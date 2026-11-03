@@ -1,4 +1,5 @@
 // Shared by the Worker modules: row access over the statement ports, and the handler input check.
+import type { HistoryEntry } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type {
   HandlerOutcome,
@@ -80,6 +81,29 @@ export function readVersion(
     tail: text(row['tail']),
     published: row['published'] === null ? '0' : text(row['published']),
   }
+}
+
+/**
+ * The entries of a batch at the positions after the last entry of the session, all of `revision`:
+ * the ids that the rows, the receipt and the reduction of the batch use.
+ */
+export function assignPositions(
+  port: Executor,
+  scope: Scope,
+  revision: string,
+  entries: readonly object[],
+): HistoryEntry[] {
+  const last = oneRow(
+    port,
+    'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ? LIMIT 1',
+    [scope.tenant, scope.session],
+  )
+  const first = big(last?.['p'] ?? 0n) + 1n
+  return entries.map((entry, index) => ({
+    ...entry,
+    id: String(first + BigInt(index)),
+    revision,
+  })) as HistoryEntry[]
 }
 
 export function scopeOf(input: unknown): Scope | null {
