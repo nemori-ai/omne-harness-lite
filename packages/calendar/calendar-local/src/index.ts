@@ -36,3 +36,14 @@ export type {
   CalendarSupplyStorageAuthorityFact,
 } from './supply-storage/authority.ts'
 export type { CalendarSeedPackSource, CalendarSeedPackRegistry } from './supply-storage/custody.ts'
+export {
+  createCalendarSourceAdapters,
+  calendarSourceUrls,
+  defaultCalendarSourceLimits,
+  type CalendarSourceAdapterOptions,
+  type CalendarSourceLimits,
+  type CalendarHttpClient,
+  type CalendarSourceKnowledge,
+  type CalendarSourceResponseEvidence,
+  type CalendarVacanzaArtifact,
+} from './sources/index.ts'
