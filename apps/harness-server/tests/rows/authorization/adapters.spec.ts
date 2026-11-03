@@ -854,7 +854,11 @@ describe('Tool access qualification', () => {
   }
   for (const check of toolAccessGuardConformance<unknown>()) {
     it(check.name, async () => {
-      await check.run(fixture())
+      const subject = fixture()
+      // The suite is only evidence if the fixture really separates listed from unlisted principals.
+      expect(await subject.guard.qualify(subject.allowed)).toEqual({ kind: 'allowed' })
+      expect(await subject.guard.qualify(subject.unlisted)).toMatchObject({ kind: 'denied' })
+      await expect(check.run(subject)).resolves.toBeUndefined()
     })
   }
   it.each([42, ''])('denies malformed call %j before reading admission', async call => {
