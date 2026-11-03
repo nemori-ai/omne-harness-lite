@@ -40,6 +40,8 @@ describe('bodyOffsetOf', () => {
     ['a closing delimiter that ends the file with a lone CR', '---\nname: x\n---\r'],
     ['CR line ends only', '---\rname: x\r---\r'],
     ['a four-dash closing line', '---\nname: x\n----\n'],
+    ['a three-byte closing line that is not all dashes', '---\nname: x\n-=-\n'],
+    ['a three-byte opening line that is not all dashes', '-x-\nname: x\n---\n'],
   ])('gives undefined for %s', (_case, text) => {
     expect(bodyOffsetOf(bytes(text))).toBeUndefined()
   })
@@ -78,6 +80,8 @@ describe('frontmatter boundaries through the package rules', () => {
     ['CR line ends only', '---\rname: demo\rdescription: d\r---\r'],
     ['a four-dash closing line', '---\nname: demo\ndescription: d\n----\n'],
     ['a two-dash closing line', '---\nname: demo\ndescription: d\n--\n'],
+    ['a three-byte closing line that is not all dashes', '---\nname: demo\ndescription: d\n-=-\n'],
+    ['a three-byte opening line that is not all dashes', '-x-\nname: demo\ndescription: d\n---\n'],
     ['a closing line with a leading space', '---\nname: demo\ndescription: d\n ---\n'],
   ])('rejects %s as malformed', (_case, text) => {
     expect(codeOf(parse('demo', { 'SKILL.md': text }))).toBe('malformed')

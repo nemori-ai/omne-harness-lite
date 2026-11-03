@@ -1,29 +1,19 @@
 # tests
 
-<!-- documentation:placeholder -->
-
 本目录承载本包适用的持续测试。测试种类的责任与边界见仓库[包级测试责任与边界](../../../../docs/verification.md#包级测试责任与边界)。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 `*.spec.ts` 等测试文件、测试辅助代码，以及 `fixtures/` 下的固定输入。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
 说明每类测试用到的真实依赖与替身。测试通过不代替规格或验收。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 公开行为或 `SPEC.md` 条款变化时，同步对应测试与本目录 `index.md`。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+测试是单元与契约测试。服务经包名从 `dist/` 导入，所以先运行 `pnpm run build`；三段与映射表直接从 `src/` 导入。三个端口都是 `@omne-harness/skill-contract/testing` 的内存替身，由 `access-world.ts` 组成一个世界：一个读者、一个无权主体、一个已采用的 Skill 与它的早先版本、一个替换件、一个没有可读包的身份、一个只被读取判定准许的身份。世界的控制项在调用之间替换材料、篡改条目、让 `open` 抛出、拒绝所有人、在快照后中止。替身通过不证明真实端口的行为。`conformance.spec.ts` 在本实现上运行 `skillAccessConformance()`，并对跳过读取判定的服务核对恰好 A1–A3 变红。测试与义务的对应见 [SPEC「组合与验证」](../SPEC.md#组合与验证)。

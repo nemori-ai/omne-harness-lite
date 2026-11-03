@@ -13,28 +13,32 @@ export type Sliced = Readonly<{
   complete: boolean
 }>
 
-const utf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
-
-function isContinuation(byte: number | undefined): boolean {
-  return byte !== undefined && (byte & 0b1100_0000) === 0b1000_0000
+/** Whether the byte at `at` continues a character. Past the end there is no byte: a boundary. */
+function continuationAt(region: Bytes, at: number): boolean {
+  return ((region[at] ?? 0) & 0b1100_0000) === 0b1000_0000
 }
 
 /** The first character boundary at or after `index`; the total counts as a boundary. */
 function boundaryAtOrAfter(region: Bytes, index: number): number {
   let at = index
-  while (at < region.length && isContinuation(region[at])) at += 1
+  while (continuationAt(region, at)) at += 1
   return at
 }
 
-/** The last character boundary at or before `index`, not before `floor`. */
-function boundaryAtOrBefore(region: Bytes, index: number, floor: number): number {
+/** The last character boundary at or before `index`. `index` is not before a boundary, so the
+ * walk stops there at the latest. */
+function boundaryAtOrBefore(region: Bytes, index: number): number {
   let at = index
-  while (at > floor && at < region.length && isContinuation(region[at])) at -= 1
+  while (continuationAt(region, at)) at -= 1
   return at
 }
 
 function isCount(value: number): boolean {
   return Number.isInteger(value) && value >= 0
+}
+
+function decodeText(slice: Bytes): string {
+  return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(slice)
 }
 
 /**
@@ -58,10 +62,10 @@ export function sliceRange(
     start + Math.min(requested?.length ?? PAGE_LIMIT, PAGE_LIMIT),
     total,
   )
-  const end = text ? boundaryAtOrBefore(region, requestedEnd, start) : requestedEnd
+  const end = text ? boundaryAtOrBefore(region, requestedEnd) : requestedEnd
   const slice = region.slice(start, end)
   return {
-    content: text ? { kind: 'text', text: utf8.decode(slice) } : { kind: 'bytes', bytes: slice },
+    content: text ? { kind: 'text', text: decodeText(slice) } : { kind: 'bytes', bytes: slice },
     range: { start, length: end - start },
     total,
     complete: end >= total,

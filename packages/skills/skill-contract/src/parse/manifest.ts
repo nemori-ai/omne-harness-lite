@@ -49,7 +49,9 @@ const encoder = new TextEncoder()
 function lineAt(bytes: Uint8Array, start: number): Readonly<{ end: number; next?: number }> {
   const newline = bytes.indexOf(LF, start)
   if (newline === -1) return { end: bytes.length }
-  const end = newline > start && bytes[newline - 1] === CR ? newline - 1 : newline
+  // The byte before the line end is the CR of a CRLF, or a byte of the line, or the LF of the
+  // line before (`start` is never inside a line end), so no lower bound is needed.
+  const end = bytes[newline - 1] === CR ? newline - 1 : newline
   return { end, next: newline + 1 }
 }
 

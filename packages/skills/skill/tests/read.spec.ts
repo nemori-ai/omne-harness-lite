@@ -12,6 +12,7 @@ import {
   currentBasis,
   earlierBasis,
   failureOf,
+  FRONT,
   GUIDE,
   mallory,
   noPackage,
@@ -55,6 +56,13 @@ describe('read gives', () => {
     expect(result.part).toEqual({ kind: 'resource', path: 'docs/guide.md' })
     expect(result.mediaType).toBe('text/markdown')
     expect(result.content).toEqual({ kind: 'text', text: GUIDE })
+  })
+
+  it('a resource whole, even when its text looks like a frontmatter', async () => {
+    const { access } = createWorld()
+    const result = okOf(await access.read(alice, scope, resource('docs/front.md')))
+    expect(result.content).toEqual({ kind: 'text', text: FRONT })
+    expect(result.total).toBe(bytesOf(FRONT).length)
   })
 
   it('a binary resource as bytes without a media type', async () => {
@@ -185,9 +193,13 @@ describe('list gives', () => {
     const { access, controls } = createWorld()
     const listing = okOf(await access.list(alice, scope, review))
     expect(listing.basis).toEqual(currentBasis)
-    expect(listing.resources.map(entry => entry.path)).toEqual(['assets/blob.bin', 'docs/guide.md'])
-    expect(listing.resources.map(entry => entry.encoding)).toEqual(['binary', 'text'])
-    expect(listing.resources[1]).toMatchObject({
+    expect(listing.resources.map(entry => entry.path)).toEqual([
+      'assets/blob.bin',
+      'docs/front.md',
+      'docs/guide.md',
+    ])
+    expect(listing.resources.map(entry => entry.encoding)).toEqual(['binary', 'text', 'text'])
+    expect(listing.resources[2]).toMatchObject({
       mediaType: 'text/markdown',
       size: bytesOf(GUIDE).length,
     })

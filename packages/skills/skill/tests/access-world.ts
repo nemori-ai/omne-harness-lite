@@ -81,6 +81,8 @@ export const review = capability('review')
 export const retired = capability('retired')
 export const noPackage = capability('no-package')
 export const checkedOnly = capability('checked-only')
+/** Adopted from a workspace source: a reference without an asset version. */
+export const workspaceNote = capability('workspace-note')
 export const missing = capability('nobody-has-this')
 
 export const reviewLocator: PackageLocator = { kind: 'directory', root: '/skills/review' }
@@ -89,6 +91,8 @@ const encoder = new TextEncoder()
 export const BODY = 'Read the diff.\n仔细看每一处改动。\n'
 export const MANIFEST = `---\nname: review\ndescription: Reviews a change.\n---\n${BODY}`
 export const GUIDE = 'héllo 中文 guide\n'
+/** A resource whose text looks like a frontmatter: a resource has no header to leave out. */
+export const FRONT = '---\nx: 1\n---\nnot a body\n'
 export const BLOB = new Uint8Array([0, 1, 2, 0xff, 0xfe, 3])
 
 /** The files of the adopted material of `review`. */
@@ -96,6 +100,7 @@ export const currentFiles: MemoryPackage['files'] = {
   'SKILL.md': MANIFEST,
   '.omne/skill.json': '{"formatVersion":1}',
   'docs/guide.md': GUIDE,
+  'docs/front.md': FRONT,
   'assets/blob.bin': BLOB,
 }
 /** An earlier, still lawful version of `review`. */
@@ -206,7 +211,7 @@ export function createWorld(): World {
     },
   }
   const readCheck = createMemoryReadCheck<Principal, Scope>(
-    [review, retired, noPackage, checkedOnly].map(item => ({
+    [review, retired, noPackage, checkedOnly, workspaceNote].map(item => ({
       capability: item,
       visible: onlyAlice,
     })),
@@ -229,6 +234,22 @@ export function createWorld(): World {
         name: granted(isSkillName, 'retired'),
         description: 'Was disabled.',
         reason: granted(isSafeReason, 'Disabled by the organization.'),
+      },
+    },
+    {
+      capability: workspaceNote,
+      visible: everyone,
+      state: {
+        kind: 'adopted',
+        current: {
+          ref: {
+            capability: workspaceNote,
+            layer: 'workspace',
+            locator: reviewLocator,
+            digest: currentDigest,
+          },
+          declared: { ...declared, name: granted(isSkillName, 'workspace-note') },
+        },
       },
     },
     {

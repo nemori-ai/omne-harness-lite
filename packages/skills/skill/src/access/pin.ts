@@ -31,19 +31,9 @@ const SOURCE_UNAVAILABLE = Object.freeze({ kind: 'source-unavailable' } as const
  * port contract, so the source is not usable: `source-unavailable`. */
 function snapshotFailure(failure: SourceFailure, basis: boolean): SnapshotFailure {
   const mapped = sourceFailureTo('access', failure, basis)
-  switch (mapped.kind) {
-    case 'basis-unavailable':
-    case 'source-unavailable':
-    case 'outside-package':
-      return mapped
-    case 'resource-missing':
-    case 'version-changed':
-      return SOURCE_UNAVAILABLE
-    default: {
-      const exhaustive: never = mapped
-      return exhaustive
-    }
-  }
+  return mapped.kind === 'resource-missing' || mapped.kind === 'version-changed'
+    ? SOURCE_UNAVAILABLE
+    : mapped
 }
 
 export function pin<P, S>(
@@ -66,9 +56,9 @@ export async function pin<P, S>(
   if (ref.digest === undefined) return fail({ kind: 'unsupported', what: 'no-readable-package' })
   const digest = basis?.digest ?? ref.digest
   // Step 7: the current snapshot must carry the pinned digest.
-  if (checkpoint(signal) !== undefined) return fail(ABORTED)
+  if (checkpoint(signal) === 'aborted') return fail(ABORTED)
   const taken = await ports.source.snapshot(ref.locator)
-  if (checkpoint(signal) !== undefined) return fail(ABORTED)
+  if (checkpoint(signal) === 'aborted') return fail(ABORTED)
   if (!('ok' in taken)) return fail(snapshotFailure(taken.failure, basis !== undefined))
   if (taken.ok.digest !== digest)
     return fail(

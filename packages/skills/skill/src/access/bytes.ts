@@ -39,9 +39,9 @@ export async function verifiedBytes<P, S>(
   const entry = pinned.snapshot.entries.find(item => item.path === path)
   if (entry === undefined) return fail({ kind: 'resource-missing' })
   // Step 10: the bytes, from the source, checked against the entry digest.
-  if (checkpoint(signal) !== undefined) return fail(ABORTED)
+  if (checkpoint(signal) === 'aborted') return fail(ABORTED)
   const opened = await ports.source.open(pinned.locator, pinned.digest, entry.path)
-  if (checkpoint(signal) !== undefined) return fail(ABORTED)
+  if (checkpoint(signal) === 'aborted') return fail(ABORTED)
   if (!('ok' in opened))
     return fail(sourceFailureTo('access', opened.failure, pinned.gated.basis !== undefined))
   if (computeDigest(opened.ok) !== entry.digest) return fail({ kind: 'version-changed' })

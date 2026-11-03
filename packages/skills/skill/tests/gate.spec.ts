@@ -21,6 +21,7 @@ import {
   retired,
   review,
   scope,
+  tool,
   type Principal,
   type Scope,
 } from './access-world.ts'
@@ -43,6 +44,14 @@ describe('step 1: the basis names the target', () => {
       kind: 'not-available-to-you',
     })
     expect(called).toBe(0)
+  })
+
+  it('step-01-bad-basis also for the same name in another category', async () => {
+    const { ports } = createWorld()
+    const basis = { ...currentBasis, capability: tool('review') }
+    expect(failureOf(await gate(ports, alice, scope, review, basis))).toEqual({
+      kind: 'not-available-to-you',
+    })
   })
 
   it('step-01-same-basis passes a basis that names the target', async () => {
@@ -92,8 +101,24 @@ describe('step 3: the resolution', () => {
     const { ports } = createWorld()
     const gated = okOf(await gate(ports, alice, scope, review))
     expect(gated.ref.locator).toEqual({ kind: 'directory', root: '/skills/review' })
-    expect(gated.declared.tools.map(tool => tool.name)).toEqual(['read-file'])
-    expect(gated.basis).toBeUndefined()
+    expect(gated.declared.tools.map(item => item.name)).toEqual(['read-file'])
+    expect(gated).not.toHaveProperty('basis')
+  })
+
+  it('step-03-passes the basis to the resolution only when there is one', async () => {
+    const { ports } = createWorld()
+    const received: unknown[] = []
+    const recording: SkillResolution<Principal, Scope> = {
+      ...ports.resolution,
+      resolve: (who, at, item, options) => {
+        received.push(options)
+        return ports.resolution.resolve(who, at, item, options)
+      },
+    }
+    const recorded = { ...ports, resolution: recording }
+    okOf(await gate(recorded, alice, scope, review))
+    okOf(await gate(recorded, alice, scope, review, currentBasis))
+    expect(received).toStrictEqual([undefined, { basis: currentBasis }])
   })
 
   it('step-03-adopted-by-basis gives the material that the basis names', async () => {

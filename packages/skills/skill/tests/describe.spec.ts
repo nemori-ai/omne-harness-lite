@@ -7,6 +7,7 @@ import {
   checkedOnly,
   createWorld,
   currentBasis,
+  currentDigest,
   earlierBasis,
   failureOf,
   mallory,
@@ -15,6 +16,7 @@ import {
   okOf,
   review,
   scope,
+  workspaceNote,
 } from './access-world.ts'
 
 describe('the description', () => {
@@ -36,6 +38,15 @@ describe('the description', () => {
     const { access } = createWorld()
     const description = okOf(await access.describe(alice, scope, review, { basis: earlierBasis }))
     expect(description.material).toEqual({ kind: 'pinned', basis: earlierBasis })
+  })
+
+  it('pins a workspace material without an asset version key', async () => {
+    const { access } = createWorld()
+    const description = okOf(await access.describe(alice, scope, workspaceNote))
+    expect(description.material).toStrictEqual({
+      kind: 'pinned',
+      basis: { capability: workspaceNote, layer: 'workspace', digest: currentDigest },
+    })
   })
 
   it('states no-readable-package when the reference has no digest', async () => {

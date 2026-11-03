@@ -19,9 +19,9 @@ export type AccessSourceFailure = Extract<
   }
 >
 
+/** Both columns take `basis`: whether the operation carries a Skill material basis. */
 type Row = Readonly<{
-  inspect: InspectFailure
-  /** `basis` says whether the operation carries a Skill material basis. */
+  inspect: (basis: boolean) => InspectFailure
   access: (basis: boolean) => AccessSourceFailure
 }>
 
@@ -29,35 +29,35 @@ const SOURCE_UNAVAILABLE = Object.freeze({ kind: 'source-unavailable' } as const
 const VERSION_CHANGED = Object.freeze({ kind: 'version-changed' } as const)
 
 const always =
-  (failure: AccessSourceFailure): Row['access'] =>
+  <F>(failure: F): ((basis: boolean) => F) =>
   () =>
     failure
 
 const TABLE: Readonly<Record<SourceFailure, Row>> = {
   'package-not-found': {
-    inspect: SOURCE_UNAVAILABLE,
+    inspect: always(SOURCE_UNAVAILABLE),
     access: basis => (basis ? { kind: 'basis-unavailable' } : SOURCE_UNAVAILABLE),
   },
   'entry-not-found': {
-    inspect: SOURCE_UNAVAILABLE,
+    inspect: always(SOURCE_UNAVAILABLE),
     access: always({ kind: 'resource-missing' }),
   },
-  'bytes-mismatch': { inspect: VERSION_CHANGED, access: always(VERSION_CHANGED) },
+  'bytes-mismatch': { inspect: always(VERSION_CHANGED), access: always(VERSION_CHANGED) },
   'outside-package': {
-    inspect: {
+    inspect: always({
       kind: 'rejected',
       code: 'outside-package',
       detail: 'an entry or a link of the package resolves outside its root',
-    },
+    }),
     access: always({ kind: 'outside-package' }),
   },
-  unavailable: { inspect: SOURCE_UNAVAILABLE, access: always(SOURCE_UNAVAILABLE) },
+  unavailable: { inspect: always(SOURCE_UNAVAILABLE), access: always(SOURCE_UNAVAILABLE) },
   'entry-unreadable': {
-    inspect: {
+    inspect: always({
       kind: 'rejected',
       code: 'malformed',
       detail: 'the source cannot read an entry of the package',
-    },
+    }),
     access: always(SOURCE_UNAVAILABLE),
   },
 }
@@ -77,6 +77,5 @@ export function sourceFailureTo(
   failure: SourceFailure,
   basis: boolean,
 ): InspectFailure | AccessSourceFailure {
-  const row = TABLE[failure]
-  return op === 'inspect' ? row.inspect : row.access(basis)
+  return TABLE[failure][op](basis)
 }
