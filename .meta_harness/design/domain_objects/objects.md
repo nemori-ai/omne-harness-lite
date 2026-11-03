@@ -356,6 +356,34 @@
 - **依据**：[PF-016 §4 治理中心](../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#治理中心)（rev 13）；[PF-016 §5.1](../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#51-三处地方各自拥有什么)（rev 13）；[PF-016 §5.6](../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)（rev 13）；[PF-017 §5.2 中心的一生](../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#52-中心的一生)（rev 8）；[PF-017 §6.12](../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)（rev 8）；[PF-017 flows §三 状态流转](../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/flows.md#三状态流转)（rev 8）
 - **并入**：「治理事实所在的那个中心」（交付面草案里的「中心治理节点」）——同一处：[账号](#ul-account--账号)、[组织](#ul-organization--组织)、[租户](#ul-tenant--租户)与成员资格、角色、[邀请](#ul-invitation--邀请)与[隶属请求](#ul-affiliation-request--隶属请求)，以及组织层与租户层的那些范围化对象都在它那里，**而它不知道任何会话**
 
+## 取用与可用性
+
+### UL-mcp-connection · MCP 连接
+
+- **宿主**：产品正文未述它的寿命跟着谁。[J-MC01](../product/mcp/design.md#j-mc01-采用端点并取得合法连接条件) 只写部分建立的进程、监听和连接由取得者收口
+- **身份**：产品正文未述标识方式。已接受的 MCP 领域页要求连接按租户与凭据账号分开，见补充依据
+- **生灭**：准备 → 建立（核验对端身份后发布可解释的连接状态）→ 失联后按合法的当前条件恢复，或由取得者收口；取消准备与已建立的资源分开处理，确认丢失时查原准备，不重复启动本机进程。终结正文未述
+- **依据**：[MCP 产品页 J-MC01](../product/mcp/design.md#j-mc01-采用端点并取得合法连接条件)（rev 1）；[J-MC06](../product/mcp/design.md#j-mc06-断线后恢复连接和原工作)（rev 1）；[产品需求描述](../product/mcp/design.md#产品需求描述)（rev 1）
+- **补充依据**：已接受的 [MCP 领域页 模块角色与事实归属](../../../docs/domains/mcp/README.md#模块角色与事实归属)：连接按租户与凭据账号分开，一个租户的调用不经另一个租户的凭据认证的连接执行
+- **未裁**：标识方式、状态集合，以及恢复后的连接是否沿用原来的身份，产品正文都未述。这些归系统架构设计（MCP 能力组工程设计），不是产品未决项
+
+### UL-mcp-action-catalog · MCP 动作清单
+
+- **宿主**：产品正文未述
+- **身份**：产品正文未述标识方式；[产品需求描述](../product/mcp/design.md#产品需求描述)写连接参数、凭据和动作清单都不是接入点的身份。已接受的 MCP 领域页要求清单按租户与凭据账号分开，见补充依据
+- **生灭**：初次没有合法清单时只说明尚未发现 → 合法发现取得、候选校验与完整采用成立后成为当前清单 → 每次合法刷新整份更新；失败时保持原采用，迟到的刷新不覆盖较新的选择。终结正文未述
+- **依据**：[MCP 产品页 J-MC02](../product/mcp/design.md#j-mc02-发现合法动作并理解不可用)（rev 1）；[J-MC03](../product/mcp/design.md#j-mc03-刷新后续采用且保护原调用)（rev 1）；[J-MC01](../product/mcp/design.md#j-mc01-采用端点并取得合法连接条件)（rev 1）
+- **补充依据**：已接受的 [MCP 领域页 模块角色与事实归属](../../../docs/domains/mcp/README.md#模块角色与事实归属)：一个租户看不到按另一个账号发现的动作清单
+- **未裁**：标识方式与保存位置归系统架构设计（MCP 能力组工程设计），不是产品未决项
+
+### UL-mcp-known-action · MCP 已知动作
+
+- **宿主**：[MCP 动作清单](#ul-mcp-action-catalog--mcp-动作清单)。产品正文称这些动作合起来是「已知集合」
+- **身份**：产品正文未述标识方式；[J-MC02](../product/mcp/design.md#j-mc02-发现合法动作并理解不可用) 只要求合法发现返回动作身份、定义版本与端点关联
+- **生灭**：经合法发现取得并采用后进入已知集合 → 可用 ⇄ 不可用（断线、撤权、禁用、必需依赖缺席或对端不再提供时不可用，保留最近合法形状与安全原因）。删除正文未述
+- **依据**：[MCP 产品页 J-MC02](../product/mcp/design.md#j-mc02-发现合法动作并理解不可用)（rev 1）；[产品需求描述](../product/mcp/design.md#产品需求描述)（rev 1）
+- **未裁**：标识方式归系统架构设计（MCP 能力组工程设计），不是产品未决项
+
 ## 执行与收场
 
 ### UL-tool-execution · 工具执行

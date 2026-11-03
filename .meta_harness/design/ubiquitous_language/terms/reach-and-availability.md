@@ -182,6 +182,77 @@
   [PF-016 §5.7 人要做的事分三族](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 13）；常驻工具的例外见已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1、R5）
 - **别混**：不是历史装配清单，不是资产所有权目录；保留历史可见身份不授予继续使用的权利。
 
+## MCP 对端够不够得着
+
+### UL-mcp-connection · MCP 连接 · MCP Connection
+
+> **中**：**一个 [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp) 接入点为一个[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)、以一个对端账号与对端建立起来的接通。**
+> 对端账号是这个租户那份持有上的 [MCP 凭据](capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential)让对端认出的账号。
+> 建立时核验对端身份，并与对端协商协议版本与能力。
+> MCP 连接按租户、对端账号与接入点分开：两个租户、两个对端账号不共用同一条 MCP 连接。
+> 本机命令型接入点的 MCP 连接带一个本机进程；远端接入点的 MCP 连接是与对端协商得到的一组结果，不带进程。
+> 它供给发现与调用的条件，不拥有任何一次调用的结果。
+>
+> **EN**: **The link that one MCP access point establishes with its far side for one tenant, under
+> one far-side account.** The far-side account is the account that the far side recognises from
+> the MCP credential on that tenant's holding. Establishing the link verifies the far side's
+> identity and negotiates the protocol version and capabilities with the far side. MCP connections
+> are separate per tenant, far-side account and access point: two tenants or two far-side accounts
+> never share one MCP connection. For a local-command access point, an MCP connection includes one
+> local process. For a remote access point, an MCP connection is a set of results negotiated with
+> the far side and includes no process. It supplies the conditions for discovery and calls. It does
+> not own the result of any call.
+
+- **形态**：对象
+- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC01](../../product/mcp/design.md#j-mc01-采用端点并取得合法连接条件) · [J-MC06](../../product/mcp/design.md#j-mc06-断线后恢复连接和原工作)（rev 1）；按租户与凭据账号分开见已接受的 [MCP 领域页 模块角色与事实归属](../../../../docs/domains/mcp/README.md#模块角色与事实归属)。本机进程与协商结果之分来自 Skill 与 MCP 领域的候选技术设计，产品正文未述
+- **⚠️ 别混 ①**：**不是[连接件](capabilities-and-composition.md#ul-connector--连接件--connector)**。连接件把外部消息送进来，方向相反
+- **别混 ②**：**不是[连接目标](capabilities-and-composition.md#ul-connection-target--连接目标--connection-target)**。连接目标是接入点上的一项设置，说连到对端的哪里；MCP 连接是按这项设置实际接通的结果
+- **别混 ③**：**不是接入点本身**。接入点是资产，身份是它的 name；同一个接入点可以同时有几条 MCP 连接，分属不同租户或不同对端账号
+- **注意 ①**：连接时限与调用时限各自独立。MCP 连接恢复不说明原调用没有发生，也不重发原调用
+- **注意 ②**：MCP 产品页与领域页在 MCP 语境里裸写「连接」指它；跨 topic 引用写全称
+
+### UL-mcp-action-catalog · MCP 动作清单 · MCP Action Catalog
+
+> **中**：**一个 MCP 接入点在一个租户、一个对端账号之下最近一次合法取得并采用的对端动作集合，连同此前合法取得过的全部 [MCP 已知动作](#ul-mcp-known-action--mcp-已知动作--mcp-known-action)。**
+> 它按租户、对端账号与接入点分开保存：一个租户看不到按另一个对端账号取得的清单。
+> 只有合法发现取得的结果才能把新动作加进来。对端不再提供某个动作时，那个动作留在清单里并标为不可用。
+> 清单整份更新，不出现一半新一半旧的清单。
+>
+> **EN**: **The set of far-side actions that one MCP access point most recently obtained lawfully and
+> adopted for one tenant under one far-side account, together with every MCP known action that it
+> obtained lawfully before.** It is kept separate per tenant, far-side account and access point: one
+> tenant cannot see a catalog obtained under another far-side account. Only a result obtained by
+> lawful discovery can add a new action. When the far side no longer offers an action, that action
+> stays in the catalog, marked unavailable. The catalog is updated as a whole. A catalog that is
+> part new and part old never occurs.
+
+- **形态**：对象
+- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC02](../../product/mcp/design.md#j-mc02-发现合法动作并理解不可用) · [J-MC03](../../product/mcp/design.md#j-mc03-刷新后续采用且保护原调用)（rev 1）；按租户与凭据账号分开见已接受的 [MCP 领域页 模块角色与事实归属](../../../../docs/domains/mcp/README.md#模块角色与事实归属)
+- **⚠️ 别混 ①**：**不是[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)**。动作空间属于一个会话，从合法纳入这个会话的能力投影得到；MCP 动作清单属于租户、对端账号与接入点，不随会话结束
+- **别混 ②**：**不是[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)**，与一次装配无关
+- **注意**：发现或刷新失败时保持原清单并说明原因，不当成空清单。产品正文称它「合法清单」「最近合法清单」时，指的就是它
+
+### UL-mcp-known-action · MCP 已知动作 · MCP Known Action
+
+> **中**：**[MCP 动作清单](#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog)里曾经由合法发现取得过的一个对端动作。**
+> 它保留自己的身份，以及最近一次合法取得的定义形状。
+> 对端此刻提供与否、连接通断、撤权或禁用，只改变它可用还是不可用，不使它离开清单。
+> 从未由合法发现取得的动作不是 MCP 已知动作，也不凭猜测为它生成定义。
+> 它纳入一个会话时，在[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)里是一个工具条目。
+>
+> **EN**: **One far-side action in an MCP action catalog that a lawful discovery obtained at some
+> time.** It keeps its identity and the definition shape from its latest lawful discovery. Whether
+> the far side offers it now, whether the connection is up, and revocation or disablement change
+> only whether it is available. They do not remove it from the catalog. An action that no lawful
+> discovery obtained is not an MCP known action, and no definition is generated for it by guess.
+> When it is admitted to a session, it is one tool entry in the action space.
+
+- **形态**：对象
+- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC02](../../product/mcp/design.md#j-mc02-发现合法动作并理解不可用)（rev 1）
+- **别混 ①**：**不是[替换件](#ul-stand-in--替换件--stand-in)**。替换件是它不可用时在会话里占在原位的呈现；MCP 已知动作是清单里的那一项
+- **别混 ②**：**不是资产**。对端动作随接入点一起被持有、授权与治理，见 [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp)
+- **注意**：产品正文称这些动作合起来是「已知集合」。裸写「已知动作」不作术语，跨 topic 写全称
+
 ### UL-governance-center-health-check · 治理中心体检 · Governance Center Health Check
 
 > **中**：[治理中心](grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)关于「我此刻在不在、能不能答」的自述，
