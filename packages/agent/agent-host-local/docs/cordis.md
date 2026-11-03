@@ -20,7 +20,7 @@ Agent 核心的原位置解释、Journal 交接和材料保管服务保持可独
 
 Agent 实例 dispose、detach 或重建不清空接收状态。接收组件重装配继续使用同一宿主状态，以 recover 恢复 received 账目待办。宿主驱动可重试待办，保留 blocked 待办及其诊断，不因重装配自动重发。停止组件的本次驱动不取消已受理的共同提交，也不删除已保存的材料。内存状态不承诺进程重启恢复。耐久宿主另须保存接收与出站业务事实；实际 Promise 和驱动代仅用于本进程的任务控制。
 
-完整插件尚未接入这个组件。Cordis 定义没有提供 `AgentReceivedCommits` 与原消费绑定目标查询的服务键，插件不能从注入的服务组装接收组件，所以也没有经 `modelRuntime` 的接收登记把它登记。这个缺口见 [SPEC 的宿主插件](../SPEC.md#宿主插件)。
+宿主插件在插件体内组装这个组件（R2-D237）。它从 inject 得到的 `agentJournal`、`agentJournalEntries`、`agentMaterials`、`agentReceivedCommits`、`agentModelReceptionTargets`、`agentAccessCheck`、`agentAccountOutlet` 与 `modelRuntime` 取得依赖，经 `modelRuntime.registerResultReceiver` 把接收方登记到 Agent 的 consumer owner（`AGENT_CONSUMER_OWNER`）下。登记是插件 fiber 的 effect，随 fiber 结束（IC-13）。接收状态按 Cordis 根保存一份，插件体重跑时交给新接收方。行为见 [SPEC 的结果接收](../SPEC.md#结果接收)。
 
 ### 静态依赖
 
@@ -47,7 +47,7 @@ export const agentHostPlugin = definePlugin({
 
 除这十项外，宿主插件还静态 inject 运行时对象 `agentHostPrincipal`，即装配入口签发的系统主体“Agent 宿主维护主体”。它与 `toolResidencyPrincipal` 同一做法，不进插件配置，也不是工厂的依赖。宿主用它代实例所属租户发布、停用和撤登记，见[实例的取得与回收](../../agent-cordis-contract/docs/cordis.md#实例的取得与回收)。
 
-实现的 `inject` 是上面十项加 `agentHostPrincipal`。应用装配页为接收组件另列的 `agentJournalEntries`、`agentMaterials` 与 `agentAccountOutlet`，以及有序关闭用的 `assemblyLifecycle`，在接收组件接入与 `assemblyLifecycle` 有定义之前不写进数组。数组不在运行时拼接，也不经变量转手。写进数组的依赖缺席时，宿主插件停在 PENDING，插件体不运行；它换提供者时，Cordis 卸载并重新运行插件体，见 Cordis 页的[依赖与定义拥有者](../../agent-cordis-contract/docs/cordis.md#依赖与定义拥有者)。依赖逐项的必需性、缺席与换代结果只归[通用工厂](../../agent/docs/public-api.md#依赖逐项分类)，取得方式由本页拥有，Cordis 页的取得方式表只写键、取得方式与该键特有的 Cordis 事实。
+实现的 `inject` 是上面十项，加结果接收方用的 `agentJournalEntries`、`agentMaterials`、`agentReceivedCommits`、`agentModelReceptionTargets` 与 `agentAccountOutlet`，再加 `agentHostPrincipal`。有序关闭用的 `assemblyLifecycle` 在有定义之前不写进数组。数组不在运行时拼接，也不经变量转手。写进数组的依赖缺席时，宿主插件停在 PENDING，插件体不运行；它换提供者时，Cordis 卸载并重新运行插件体，见 Cordis 页的[依赖与定义拥有者](../../agent-cordis-contract/docs/cordis.md#依赖与定义拥有者)。依赖逐项的必需性、缺席与换代结果只归[通用工厂](../../agent/docs/public-api.md#依赖逐项分类)，取得方式由本页拥有，Cordis 页的取得方式表只写键、取得方式与该键特有的 Cordis 事实。
 
 ### 局部依赖与可选依赖
 
@@ -162,4 +162,4 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
 
 外部协调者的装配须验证：协调者已可靠受理而通知尚未到达时，Agent 不能越过原输入完成；不能先提交一域再提交另一域。独立装配须验证消费者不回复终态批准也能完成。两者均核原输入身份、共同事件保存、查询未知与旧挂接失权；加载成功不证明这些性质。
 
-实现时验证静态 inject、局部依赖撤除、旧引用拒绝和先业务交接后 dispose。另须验证：Journal 提供者没有声明装配所需的共同提交时工厂返回 unsupported；贡献 fiber 卸载后登记消失；旧登记身份的晚到撤除不撤后继；quiesce 返回 unresolved 时宿主不撤登记。宿主插件的测试在真实 Cordis 4.0.4 上验证静态 inject、配置错误、换提供者重跑、实例取得的符合性套件、回收保护点、quiesce 未交清时不撤登记、旧登记的晚到撤除不撤后继，以及恢复与控制入口。测试清单见[测试说明](../tests/index.md)。有序关闭用测试包装的 runtime 停用义务验证宿主一侧。局部依赖的子 fiber 撤除与接收方登记尚未验证。根入口另以真实工厂和同源内存 Journal 验证 supported/unsupported、共同保存及原 handoff 重试。
+实现时验证静态 inject、局部依赖撤除、旧引用拒绝和先业务交接后 dispose。另须验证：Journal 提供者没有声明装配所需的共同提交时工厂返回 unsupported；贡献 fiber 卸载后登记消失；旧登记身份的晚到撤除不撤后继；quiesce 返回 unresolved 时宿主不撤登记。宿主插件的测试在真实 Cordis 4.0.4 上验证静态 inject、配置错误、换提供者重跑、实例取得的符合性套件、回收保护点、quiesce 未交清时不撤登记、旧登记的晚到撤除不撤后继，以及恢复与控制入口。测试清单见[测试说明](../tests/index.md)。有序关闭用测试包装的 runtime 停用义务验证宿主一侧。接收方登记、有序停止撤销登记、宿主停机期间推送的结果在恢复后只保存一次，以及维护驱动的重试见 `tests/reception.spec.ts`。局部依赖的子 fiber 撤除尚未验证。根入口另以真实工厂和同源内存 Journal 验证 supported/unsupported、共同保存及原 handoff 重试。

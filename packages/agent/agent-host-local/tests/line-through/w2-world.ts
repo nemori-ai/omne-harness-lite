@@ -426,12 +426,12 @@ export async function openW2World(options: W2Options) {
         ? createAgentHostLocalPlugin({ measure: observe, toolRequests: toolRequestSource })
         : observedHandoffHost(options.onHandoff, toolRequestSource, observe),
     // `earlier: 'session'` is real (AD-04): the K-RQ holder sources over the Session log replace the
-    // holder double. The fixed request facts of the narrow adoption source are those of the world's
-    // adopted-request double. By default the earlier context is the history of the holder double.
+    // holder double. The narrow adoption source reads the fixed request facts from the session's
+    // partition `a` (R2-D228). By default the earlier context is the history of the holder double.
     ...(earlier === 'session' ? { holder: 'external' as const } : {}),
     sessionProvider: ObservedSession,
     contextPlugin: createAgentContextPlugin({ measure: observe }),
-    plugins: ({ adopted, combination, coordinator }) => {
+    plugins: ({ combination, coordinator }) => {
       // Real (AD-02): the Agent's publication is interpreted into the session log, woken by the
       // Journal plugin's `agent-published` event. Real: the handoff provider and its records.
       const ad02 = createSessionJournalInterpretationPlugin<string>({ coordinator })
@@ -443,7 +443,7 @@ export async function openW2World(options: W2Options) {
       const history =
         earlier === 'session'
           ? (() => {
-              const ad04 = createSessionHistorySource({ heads: { sessionOf: headOf }, adopted })
+              const ad04 = createSessionHistorySource({ heads: { sessionOf: headOf } })
               return [[ad04.lowerBound], [ad04.source]] as const
             })()
           : []

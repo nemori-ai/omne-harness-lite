@@ -260,9 +260,9 @@ function notDrained(result: Quiesced): string | undefined {
     : `quiesce failed with ${failure.kind}`
 }
 
-/** The factory configuration: the plugin configuration without the host's own item. */
+/** The factory configuration: the plugin configuration without the host's own items. */
 function factoryConfiguration(config: AgentHostConfig): AgentConfiguration {
-  const { instanceIdleMs: _host, ...configuration } = config
+  const { instanceIdleMs: _host, reception: _reception, ...configuration } = config
   return configuration
 }
 
