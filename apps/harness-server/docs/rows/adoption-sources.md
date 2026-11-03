@@ -28,26 +28,6 @@
 
 **首装的限制。** 发行权威的 `admits` 只接受发行登记者登记官方作者。规划器用会话的 access 首装 Shell、Files 时得到 `denied`，所以创建答 `unavailable`。发行树里还没有一方在启动时以登记者装载这两个作者。在那之前，名字列了常驻工具的定义在发行树里不能创建会话。行用例先由登记者装载作者，再创建。
 
-## startRun 的登录确认
-
-装配页的登录门由本行兑现（[桥接责任](../../../../docs/architecture/runtime/application-assembly.md#桥接责任)，session-adapters [AD-10](../../../../packages/session/session-adapters/SPEC.md#ad-10)）。`startRun` 的命令不带首条输入，所以本行自己读首条输入。实现在 `login-entry.ts`。
-
-1. 入口类别不是 `interactive` 时，本行不读 Session，也不给确认。`decide` 只对交互入口要求登录确认。
-2. 本行以本次调用的 `SessionAccess` 读 Session 的工作快照，再用 `judgeRunStart` 取首条输入。本行按 OP-00 由会话、这条输入与前继 Run 派生 `startRun` 的操作身份。它不等于命令的操作身份时，命令是为另一条首条输入形成的，本行不给确认。Session 的 `work` 面每次调用现取，调用方类是 `coordinator`。本行不 `inject` `session`，因为 Session 经证据桥 `inject` 本行，静态注入会形成等待环。
-3. 本行以同一 `SessionAccess` 读首条输入。它的 `origin` 的 `owner` 是 `login-entry` 时，本行在映射材料之后交出确认材料，`owner` 为 `login-entry`。
-4. 确认材料的 `facts` 只有会话、首条输入、操作身份和 `origin` 的摘要。`origin` 的记录正文是登录状态文本，不复制进材料。
-
-下列情形不给确认。Session 因此答 `login-required`：
-
-- 首条输入的 `origin` 不是登录入口证据。
-- 快照里没有可开 Run 的首条输入。这时 `decide` 在登录门之前已经拒绝。
-
-下列情形答失败，不交出映射材料：
-
-- Session 的 `work` 面缺席，或调用没有带 `SessionAccess`：`unavailable`，`owner` 为 `sessionAdoptionSource`。
-- `SessionAccess` 的会话不是命令的会话：`denied`。
-- 读快照或读首条输入失败：原样交回 Session 的失败。
-
 行目录另导出 `createAdoptionPlanner(options)`。它实现应用的采用点事实采集，通过 Tool 公开接口生成 Session 候选材料。采用规则归 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md#采用点判定)，交接责任归[工具运行时](../../../../docs/architecture/runtime/tool-runtime.md#冻结判定只随采用材料到达)。
 
 ## 输入与结果
@@ -78,6 +58,4 @@
 
 [create 常驻工具用例](../../tests/rows/adoption-sources/create-residents.spec.ts)在真实发行快照、登记者、`tool-bindings` 与 `tool-host` 上调用本行的 `prepare`，再交给 Session 核心 `decide`。
 
-[登录确认用例](../../tests/rows/adoption-sources/login-entry.spec.ts)以替身读口覆盖上一节的各分支：确认只取首条输入，别的来源与不可开 Run 不给确认，读口缺席、他会话与读取失败答失败。另有一条用例在没有 Session 的发行树里调用本行：行保持 ACTIVE，交互入口答 `unavailable`。
-
-这些证据覆盖应用规划、`create` 的组合与登录确认的分支，不证明新 Run 的采用点、Session C2 或端到端已接线。
+这些证据覆盖应用规划与 `create` 的组合，不证明新 Run 的采用点、Session C2 或端到端已接线。
