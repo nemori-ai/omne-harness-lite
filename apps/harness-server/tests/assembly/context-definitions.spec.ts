@@ -165,14 +165,15 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
       attributes: [],
     })
     const coding = mappings.find(entry => entry.name === 'coding')
-    expect(coding?.definition).toMatchObject({
+    if (coding === undefined) throw new Error('the release has no coding entry')
+    expect(coding.definition).toMatchObject({
       references: [
         { capability: { category: 'Tool', name: 'Files' }, resident: true },
         { capability: { category: 'Tool', name: 'Shell' }, resident: true },
       ],
       attributes: [{ item: 'model' }],
     })
-    expect((coding?.definition as { instructions?: unknown[] }).instructions).toHaveLength(10)
+    expect((coding.definition as { instructions?: unknown[] }).instructions).toHaveLength(10)
   })
 
   it('answers undefined for every adopted definition: there is no block to restore', () => {

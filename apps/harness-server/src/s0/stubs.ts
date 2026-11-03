@@ -176,7 +176,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'agent-context': {
     provides: ['agentRequests', 'agentModelContext'],
-    injects: ['requestContext', 'runtimeContext', 'modelRequestPreparation'],
+    injects: ['requestContext', 'runtimeContext', 'modelRequestPreparation', 'agentAdoptions'],
   },
   'agent-account-outlet': {
     provides: ['agentAccountOutlet'],
