@@ -55,6 +55,7 @@
 - [journal-kinds.spec.ts](journal-kinds.spec.ts)：生产 Journal 在发布点写的事实行种类等于其归一后果的种类，Session 纯层在同一提交里接受这些后果；控制事件带延后标记与 Agent 证据；开 Run 的反向输入目录行指名原 attempt；AD-02 从事实行读进度之后的事件，没有正文时回退到读分区；Agent 发布换掉持有的 Session 快照的索引（session-storage-sql RT-04）。发布提交后工作缓存只换索引，共同提交带 Session 参加时折叠其批次，两种情形下一次读都不整读、答案与整读相等（session-storage-sql RT-04）。
 - [journal-commit-work.spec.ts](journal-commit-work.spec.ts)：共同提交交给工作缓存的 Session `work` 只来自本次发出、已提交、非认回、非 `recovered` 的回复；回滚与没有 Session 参加的提交不给。
 - [message-handoff.spec.ts](message-handoff.spec.ts)：J06 消息准入提供者在真实 Cordis 与 node:sqlite 替身上：invoke 与 submit 分支经可信事实绑定请求，意图先于结果保存；同一 Ki 认回原 H 与结果且不写；execution 分支认回 Journal 的 P，被取代的推进答 `stale-advance`，已固定的结果先于推进判定认回；结果只固定一次；`lookup` 不写；伪造与他租户的作用域、没有 Run 的 execution 与被拒的资格都被拒且不写；他租户读不到记录
+- [conditions.spec.ts](conditions.spec.ts)：J06 当前条件提供者在真实 Cordis 与 node:sqlite 替身上：完整来源时各字段与已提交事实一致且同事实同 `source`；auto-drive 的默认与声明变化投影为 `continue`；默认模式不可解、无模型选择、未登记 execution、已停止提供者各自关闭；他租户 Access 读不到快照；被取代的 Authority 带 previous 仍答 `stale-advance`
 - [message-handoff-real.spec.ts](message-handoff-real.spec.ts)：J06 在真实 sqlite-provider 上（慢层）：子进程（[fixtures/message-handoff-child.ts](fixtures/message-handoff-child.ts)）保存 invoke 准入的意图与结果后被 SIGKILL，新进程按原 Ki 读回完整记录，同一 prepare 认回原结果且不写
 - [fixtures/](fixtures/index.md)：测试共用的构造与固定输入
 

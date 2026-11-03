@@ -42,10 +42,10 @@
 | `session-ad14` | AD-14 `AgentDrivePort` | `sessionAgentDrive` | `agentInstances`、`agentInstanceProvision`、`agentExecutionRecovery`、`agentExecutionControl`、`session`（`'coordinator'`） | `sessionWorkPrincipals`（受信，取协调者主体） | 无 |
 | `session-ad15` | AD-15 作用域释放，含重新释放子插件 | `sessionScopeRelease` | `executionEnvironment`（`caller: 'maintainer'`）；子插件还需 `session`（`'maintainer'`） | 构造时交入恢复授权 | 超时、重试退避与重新释放页大小 |
 | `session-handoff` | session-adapters 的 J06 消息准入插件（`createSessionMessageHandoffPlugin`，B1 已接） | `agentMessageHandoff` | `session`（`'coordinator'`）、`agentAccessCheck`；`storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记）；`sessionWorkPrincipals`（受信，取协调者主体） | 协调者主体来源；调用者稳定身份文本；本提供者的采用身份 | `combinationVersion`、`manifestDigest`：与 `agent-journal` 行相同的会话日志组合。准入记录落 `execution-record` 参加者的 `er_preadmission` 表，见[租户到事务域的目录](#租户到事务域的目录) |
-| `session-conditions` | session-adapters 的 J06 当前条件插件。波 4 交付，波 2 保持发行配置里的替身 | `agentConditions` | `session`（`'coordinator'`）、`adoptionCoordinator`（读当前采用配置，`read`；服务键尚不存在，见缺口表） | 实际已采用配置、模型选择、Context 与 bindings 的原来源（见缺口表） | 无 |
+| `session-conditions` | session-adapters 的 J06 当前条件插件（`createSessionConditionsPlugin`，最小实现，SC1 已接，R2-D145）。以原 Authority 经执行索引定位会话，Run 持有该 execution 且 Journal 记录的 attempt 为当前 attempt 才读；`configuration` 取 Run 采用，`progression` 由协作模式投影（`co-work` → `evaluate-completion`，`auto-drive` → `continue`），`model` 取已保存路由的采用依据，`context` 取未结束的 Runtime Context 作用域，`bindings` 取常驻工具；缺任何来源答 `unavailable`，不补默认。完整设计（`adoptionCoordinator` 读口）归波 4，形状不变 | `agentConditions` | `session`（`'coordinator'`，调用方 Access 只经此面核访问）；`storage`、`tenantDomainLookup`（受信存储子树；执行索引与 Journal 的 attempt 记录）；`definitionMappings`（受信；解出 `tenant-default` 模式的值，映射条目的模式采用须与创建所记来源逐字相等） | 租户默认模式解析器（基于受信 `definitionMappings` 构造） | 无 |
 | `agent-journal` | session-adapters 的会话日志 Journal 提供者 | `agentJournal`；同一提供者兑现 `AgentJournalEntries` 与 `AgentMaterials`，并兑现 AD-01 Agent 同日志提交参加者（不另装 `session-ad01` 行） | `sessionAccessCheck`（派生的 Session 参加按 Session 操作裁定）；`storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记）；与 `session-storage` 共用会话日志提交状态 | 无 | 组合版本与清单摘要，取自会话存储组合的声明（提交请求要带它们） |
 | `agent-adoptions` | 应用成员的采用适配插件 | `agentAdoptions`；`definitionMappings`（受信，与 `agentAdoptions` 出自同一份解析表与内容身份） | 无 | 无 | [定义名映射](#桥接责任) |
-| `adoption-sources` | 应用成员的采用来源插件，实现 Session 的 `SessionAdoptionSource`。对 `create` 出具 Session 的初始化守卫（[初始化守卫编码](../../../packages/session/session-contract/SPEC.md#初始化守卫编码)）：初始采用是部署映射的条目，计划与要求是该条目的 `requiredIdentities`，常驻工具、来源与结果为空；创建声明了映射没有的来源、结果或常驻工具时答 `invalid`。`startRun`、`reload` 仍出具映射材料，常驻工具的冻结判定经 `plan` 给出，见[桥接责任](#桥接责任)。本行也是领域角色「采用协调」的装配协调者，不另开行 | `sessionAdoptionSource` | `definitionMappings`（受信） | `toolBindings`（`snapshot(access)` 读登记表）；`toolGenerations`（`ensureLoaded` 首装） | 无 |
+| `adoption-sources` | 应用成员的采用来源插件，实现 Session 的 `SessionAdoptionSource`。对 `create` 出具 Session 的初始化守卫（[初始化守卫编码](../../../packages/session/session-contract/SPEC.md#初始化守卫编码)）：初始采用是部署映射的条目，计划与要求是该条目的 `requiredIdentities`，来源与结果为空；常驻工具是条目 `residentCapabilities` 列出的工具，以本次 `SessionAccess` 经采用规划器解出，首次定义取自受信发行快照，任何一项解不出答 `unavailable`（G-RESIDENTS，R2-D159）；创建声明了映射没有的来源、结果或常驻工具时答 `invalid`。`startRun`、`reload` 仍出具映射材料，常驻工具的冻结判定经 `plan` 给出，见[桥接责任](#桥接责任)。本行也是领域角色「采用协调」的装配协调者，不另开行 | `sessionAdoptionSource` | `definitionMappings`（受信） | `toolBindings`（`snapshot(access)` 读登记表）；`toolGenerations`（`ensureLoaded` 首装） | 无 |
 | `agent-model-selection` | 应用成员的模型选择适配插件，实现 Agent 的 `ModelSelection` | `agentModelSelection` | `modelProfiles` | 会话保存的选择及其来源，读取面见缺口表 | 无 |
 | `agent-host` | `@omne-harness/agent-host-local` 的宿主插件 | Agent 宿主、`agentPublicationAuthority`、`agentExecutionRecovery`、`agentExecutionControl`、`agentInstanceProvision` | `agentJournal`、`agentJournalEntries`、`agentMaterials`、`agentAccessCheck`、`agentAdoptions`、`agentConditions`、`agentRequests`、`agentModelSelection`、`agentModelContext`、`agentMessageHandoff`、`agentAccountOutlet`、`modelRuntime`、`agentClock`、`agentHostPrincipal`、`assemblyLifecycle` | `toolRuntime`，在工具阶段取得；`toolStartFence`，要使启动失效时先预检，再在子 fiber 取得；其余局部依赖见[宿主的 Cordis 页](../../../packages/agent/agent-host-local/docs/cordis.md#局部依赖与可选依赖) | `jointCommits`：与 Journal 提供者支持的共同提交种类一致；`instanceIdleMs`：实例空闲回收时长；Agent [工厂配置](../../../packages/agent/agent/docs/public-api.md#工厂配置)的其余项 |
 | `agent-instances` | `@omne-harness/agent-cordis-contract` 的 `agentInstancesPlugin` | `agentInstances` | `agentPublicationAuthority`、`agentAccessCheck` | 无 | 无 |
@@ -169,6 +169,9 @@ flowchart LR
   session-storage --> agent-journal
   storage --> session-handoff
   session-storage --> session-handoff
+  storage --> session-conditions
+  session-storage --> session-conditions
+  agent-adoptions --> session-conditions
   agent-adoptions --> adoption-sources
   tool-bindings -.-> adoption-sources
   tool-host -.-> adoption-sources
@@ -179,7 +182,7 @@ flowchart LR
   agent-account-outlet --> agent-host
 ```
 
-箭头从提供方指向使用方。除 `session-storage` 到 `agent-journal` 表示同一会话日志提交状态外，实线是 `inject`（必需，缺席时使用方停在 `PENDING`）；虚线是按调用现取（缺席时只让需要它的操作返回 `unavailable`）。`session-provider` 对 `session-ad*` 提供的端口按调用现取，`agent-host` 与 `session-ad14` 之间的方向也只有一条实线，所以插件树没有 `inject` 环。`session-ad10` 的来源服务、`session-ad04` 的 RQ 来源登记服务、`session-conditions` 的原来源、Tool 内部后端与 Model 除目录阶段以外的阶段依赖未在图中展开，以表及成员 Cordis 页为准。运行时对象不进插件树，图中不画。受信名的 `inject` 也画实线；哪些行在受信作用域内见[受信子树](#受信子树)。装配入口提供的对象（签发者、会话工作主体、Agent 宿主维护主体、Context 信任、`assemblyLifecycle`）是运行时对象，图中不画。`tool-records` 到 `agent-host` 是虚线：`toolStartFence` 是局部依赖。`model-records`、`tool-records` 与 `session-handoff` 对 `session-storage` 的实线是受信的 `tenantDomainLookup`。`adoption-sources` 的两条虚线是按调用现取的 `toolBindings` 与 `toolGenerations`。
+箭头从提供方指向使用方。除 `session-storage` 到 `agent-journal` 表示同一会话日志提交状态外，实线是 `inject`（必需，缺席时使用方停在 `PENDING`）；虚线是按调用现取（缺席时只让需要它的操作返回 `unavailable`）。`session-provider` 对 `session-ad*` 提供的端口按调用现取，`agent-host` 与 `session-ad14` 之间的方向也只有一条实线，所以插件树没有 `inject` 环。`session-ad10` 的来源服务、`session-ad04` 的 RQ 来源登记服务、Tool 内部后端与 Model 除目录阶段以外的阶段依赖未在图中展开，以表及成员 Cordis 页为准。运行时对象不进插件树，图中不画。受信名的 `inject` 也画实线；哪些行在受信作用域内见[受信子树](#受信子树)。装配入口提供的对象（签发者、会话工作主体、Agent 宿主维护主体、Context 信任、`assemblyLifecycle`）是运行时对象，图中不画。`tool-records` 到 `agent-host` 是虚线：`toolStartFence` 是局部依赖。`model-records`、`tool-records`、`session-handoff` 与 `session-conditions` 对 `session-storage` 的实线是受信的 `tenantDomainLookup`；`agent-adoptions` 到 `session-conditions` 的实线是受信的 `definitionMappings`。`adoption-sources` 的两条虚线是按调用现取的 `toolBindings` 与 `toolGenerations`。
 
 ### 受信子树
 
@@ -213,6 +216,7 @@ flowchart LR
 | `session-ad14` | `sessionWorkPrincipals` |
 | `agent-journal` | `storage`、`tenantDomainLookup` |
 | `session-handoff` | `storage`、`tenantDomainLookup`、`sessionWorkPrincipals` |
+| `session-conditions` | `storage`、`tenantDomainLookup`、`definitionMappings` |
 | `model-records` | `storage`、`tenantDomainLookup` |
 | `tool-records` | `storage`、`tenantDomainLookup` |
 | `agent-adoptions` | `definitionMappings` |
@@ -241,7 +245,7 @@ flowchart LR
 | `session-storage`、`session-provider`、`session-ad*` 行的源码与 `session` 服务键 | Session 实现，待建卡；目标形状已在 [session-cordis-contract 的 Cordis 页](../../../packages/session/session-cordis-contract/docs/cordis.md)固定 |
 | `session-storage` 行的会话存储组合插件：目录、首次 `create` 时的组合登记与迁移、Session SQL 纯工厂接线与共同关闭。成员 `./cordis` 及其加载时一次登记的步骤删除，不再提供 `sessionTransactions` | Session 实现交纯工厂、登记材料与实例关闭契约；M2 应用装配实现交组合插件与登记表 |
 | 登记表重建的两个前提：存储提供者文件名与事务域标识的对应、推导规则可逆 | 存储提供者（[#687](https://github.com/nemori-ai/omne-harness-lite/issues/687)、[#786](https://github.com/nemori-ai/omne-harness-lite/issues/786) 存储线）与应用装配实现；前提不成立时登记表丢失只能人工恢复 |
-| `session-handoff` 与 `session-conditions` 行：session-adapters J06 的两个生产插件，以及当前条件读取的原来源。`session-handoff` 的准入记录落 `execution-record` 参加者的新独立表；`session-conditions` 依赖的 `adoptionCoordinator` 服务键尚不存在，依赖 [#688](https://github.com/nemori-ai/omne-harness-lite/issues/688) 与 app-access 线的提供者行 | Session 实现；`session-handoff` 在波 2，`session-conditions` 移到波 4，波 2 该行保持发行配置里的替身；不以默认允许或空条件的插件冒充就绪。交付前 `agent-host` 停在 `PENDING`，首条路径不能开始接收消息 |
+| `session-conditions` 行的完整设计：`adoptionCoordinator` 服务键尚不存在，依赖 [#688](https://github.com/nemori-ai/omne-harness-lite/issues/688) 与 app-access 线的提供者行；agent-context 第六组的工具来源（Tool B 段）也还没有。常驻工具已在 create 时按映射填充（G-RESIDENTS，R2-D159），但发行树里还没有一方以发行登记者装载 Shell、Files，列了常驻工具的定义在发行树里创建答 `unavailable` | 波 4 J06 完整设计把 `configuration` 的来源换成采用协调者的读口，公开形状不变；最小实现（SC1，R2-D145）已在波 2 换成真件，`bindings` 取已提交的常驻工具。不以默认允许或空条件的插件冒充就绪：缺来源仍答 `unavailable` |
 | Session 一侧 `release` 的记账，Tool 一侧：具名偏离 [`JC-RELEASE-TOOL-PATH`](../../../packages/session/session-contract/SPEC.md#jc-release-tool-path)。Tool 宿主收到 `saved` 后自己解除，解除回执怎样进入日志未定。日志中已有原生产者确认时，AD-05 按 [JC-Release](../../../packages/session/session-contract/SPEC.md#jc-release) 经 `receive(release)` 写 SE19。没有确认时保持 pending，`judgeIdle` 为 not-due，该项不进入 `openWork`。闭合前推送路径没有回执进日志，所以用过工具的会话都不会自动归档 | Agent 契约与宿主拥有者；闭合放在 M2 之后的里程碑 |
 | Session 一侧 `release` 的记账，Model 一侧：`MODEL-ACK-ARRIVAL` 未决，保持 pending，`judgeIdle` 为 not-due，该项不进入 `openWork`，闭合前有 Model 结果的会话不会自动归档 | Agent 契约与宿主拥有者承接 Model 确认到达，闭合放在 M2 之后的里程碑；不把 Tool 的 `recordResult` 路径套给 Model |
 | <a id="tool-settlement-schema"></a>具名偏离 `TOOL-SETTLEMENT-SCHEMA`：Tool 收场的完整 schema（`terminal`、`actualTerminal`、`effect`）未采用。AD-06 缺少可读的完整材料时返回 `unavailable` 并保留任务 | Agent 契约与宿主拥有者；补采用放在里程碑 M2 |
@@ -253,7 +257,7 @@ flowchart LR
 | 具名真实提供者：AD-03 的可信绑定与同步 current，AD-04 的完整历史与采用顺序，AD-15 的原获取与目录来源 | Session 实现与 M2 应用装配实现；认领前对应行不宣称可运行 |
 | `runtimeContextTrust` 的两个来源：作用域绑定（作用域文本是 Session 铸造的单向摘要，入口解码不了；作用域到会话的索引是 AD-03 持有者的派生物）与持有者事实（`session-ad03` 以服务键 `sessionReplayFacts` 提供，R2-D5）。作用域绑定的来源：波 2 由 L-RUN 在交 `session-ad03` 时给出，持有者以新服务键导出作用域到 `(tenant, session, generation)` 的查找，与 `sessionReplayFacts` 同形、同批（session-cordis-contract 可加改动）；入口的 `bindings` 用它解出会话，再经受信 `sessionPrincipalBindings` 核对归属，答 `bound{tenant}` 或 `unbound`，查找缺席仍答 `unavailable`（R2-D14）。`authority` 允许的主体类别由 L-RUN 作为设计点报批，批复前放行名单为空，即全部拒绝。交付前入口对象对两者都答 `unavailable`，带目标的 Runtime Context 操作一律 `unavailable`（cause `scope-binding`）；`current()` 由进程代次桥兑现，撤权、原工作失效与 Request Context 换代没有同步来源到达它（[#677](https://github.com/nemori-ai/omne-harness-lite/issues/677) 不闭合） | Session 实现（`session-ad03` 行，波 2）；#677 归资格与组合拥有者 |
 | `agent-adoptions` 行：采用适配 | 首条路径由应用成员按定义名映射提供；采用协调契约归 [#688](https://github.com/nemori-ai/omne-harness-lite/issues/688) |
-| `agent-context`、`request-context`、`agent-account-outlet` 与 `session-ad02/03/04/05`、`session-handoff` 行：B1（R2-D136）已换真件；发行里没有生产来源的参数以具名缺件答不可用，见 [B1 行页](../../../apps/harness-server/docs/rows/session-run-release.md) | 缺件归 Reduce 批次 E 之后；`agent-host`、`agent-instances`、`session-ad14` 等 `session-conditions`（波 4）就位后换真件 |
+| `agent-context`、`request-context`、`agent-account-outlet` 与 `session-ad02/03/04/05`、`session-handoff` 行：B1（R2-D136）已换真件；发行里没有生产来源的参数以具名缺件答不可用，见 [B1 行页](../../../apps/harness-server/docs/rows/session-run-release.md) | 缺件归 Reduce 批次 E 之后；`agent-host`、`agent-instances`、`session-ad14` 在 `session-conditions`（SC1 已接）、Tool B 段之后由 SC4 换真件 |
 | `model-host`、`model-instances`、`model-converters`、`model-profiles` 行及 Model 局部阶段插件：运行、档案与宿主生产实现 | [#446](https://github.com/nemori-ai/omne-harness-lite/issues/446)（L-MODEL 线父卡；原 #795 的范围并入本波 attempt，#795 不复用）；按[Model 插件划分](../../../packages/model/model/docs/cordis.md#单机提供者的插件划分)保留目录与查询的故障隔离 |
 | Tool 门面、执行宿主、实例目录与执行环境适配的生产插件；`tool-records` 行的插件；`tool-bindings` 行的启动权威、执行作用域与收场（波 2 A 段答 `unavailable`，B 段接 Tool 运行时组）；`execution-command` 行与 `execution-host` 行的 `command` 提供者；`Shell()`、`Files()` 两个多命令工具的定义与 Catalog；terminal 设施与 Windows 执行环境后端 | M2 Tool 与执行环境实现拥有者（L-TOOL，波 2）；现有 [#791](https://github.com/nemori-ai/omne-harness-lite/issues/791) 只交契约核对与 `./testing`，不关闭宿主缺口 |
 | `toolInstanceHost` 的提供方式：`tool-executor` 静态 `inject` 它，由 `tool-executor` 自供还是另成一行未定；回答前 `tool-executor` 行不宣称可装 | M2 Tool 实现拥有者 |
@@ -308,7 +312,7 @@ flowchart LR
 | 签发者安装 | identity 的签发者 | `server-entry` 经 `inject` 取得的签发者（签发作用域） | 未安装时 `server-entry` 行停在 `PENDING`；运行中签发失败时按[会话判断次序](../../../packages/access/public-contract/SPEC.md#会话判断次序)第 4 步返回 `basis-unavailable` |
 | 登录门的证据 | 首条普通输入的 `origin`（`owner` 为 `login-entry`） | `session-ad10` 的证据桥交给 `startRun` 的登录确认 | `origin` 不是登录入口证据时不给确认，Session 返回 `login-required`；它不进入公开结果 |
 | 采用点冻结判定（装配协调者） | 本次 `SessionAccess` 的租户、常驻工具首次定义 shape 与精确采用事实；登记表快照（`toolBindings`）与重装回答（`toolGenerations`） | 新 Run 与显式 reload 均调用 `planAdoption`，把判定放进候选采用材料；由 `session-provider` 的 C2 提交命令及 `freeze` | 收集依据不可用时不补造判定。`toolGenerations` 缺席或 `ensureLoaded` 答 `unavailable` 时，协调者按暂时失败给替换件，不判冻结。登记表缺席时整份材料答 `unavailable` 还是按未知处理，读法待裁（L-TOOL 与 L-RUN 出候选，Reduce 批，波 2 联调前定）。完整失败按[采用点判定](../../../packages/tool/tool-contract/SPEC.md#采用点判定)与 Session 命令契约处理 |
-| 定义名映射 | 公开消息的定义名 | 每个定义名一条：定义候选、执行类型与入口契约的采用，`requiredIdentities`，`modes` 的默认值，以及按能力给出的 `ToolAuthority`（供首装 `ensureLoaded`，由 L-APP 行配置）；同一条也是 `agent-adoptions` 投影 `agentAdoptions` 的依据 | 定义名不在映射内时，服务端接入按会话判断次序第 5 步返回 `invalid` |
+| 定义名映射 | 公开消息的定义名 | 每个定义名一条：定义候选、执行类型与入口契约的采用，`requiredIdentities`，`modes` 的默认值，以及常驻工具的能力名 `residentCapabilities`（取自定义里 `resident` 的 Tool 引用；首装用的 `ToolAuthority` 由受信发行快照按名字解出，映射不另存）；同一条也是 `agent-adoptions` 投影 `agentAdoptions` 的依据 | 定义名不在映射内时，服务端接入按会话判断次序第 5 步返回 `invalid` |
 
 定义名映射是发行层数据，放在 `agent-adoptions` 行的配置里；`server-entry` 只选择用哪一份。`agent-adoptions` 只解析一次映射数据，用同一份只读表提供 `agentAdoptions` 与 `definitionMappings`；`server-entry` 与 `adoption-sources` `inject` `definitionMappings`，不再读第二份配置。映射非法时 `agent-adoptions` 行 `FAILED`。`modes` 的默认值来自映射条目，首条路径不读取租户设置。登录门与定义名映射的公开一侧见[公开接入与宿主](runtime-contract-handoff.md#318-公开接入与宿主)。
 
@@ -377,7 +381,7 @@ Session 实现的后继任务尚未建立；在它们写成可派发材料之前
 
 - 删除行 `session-ad01`，由 `agent-journal` 行兑现。运维者层若有指向 `session-ad01` 的覆盖，按 IC-16 启动失败。
 - 行 `session-ad02`、`session-ad05` 的必需列加 `sessionTransactions`；`session-ad03`、`session-ad04`、`session-ad05`、`session-ad12`、`session-ad14` 对 `sessionWorkPrincipals` 可见。
-- 行 `session-handoff` 进受信存储子树；行 `session-conditions` 移到波 4。
+- 行 `session-handoff` 进受信存储子树；行 `session-conditions` 移到波 4，后由 R2-D145 以最小实现提前到波 2（SC1）：进受信存储子树，并对 `definitionMappings` 可见。
 - 行 `model-records` 加 `modelClock`、`principalVerifier`、`tenantStanding` 与 `modelSendBoundary`；行 `adoption-sources` 加两个按调用现取的键。
 - 行 `model-host`、`model-records`、`model-request-preparation` 换成真件（B3-M，R2-D6、R2-D33）；`model` 参加者并入会话存储组合，发行 `combinationVersion` 换到 `session-composite/2`（R2-D65）；`modelHostAuthority` 成为真件，持有入口运行级的 Model 组合。
 - 行 `tool-bindings`、`tool-host`、`tool-residency` 换成真件（B3-T2a，R2-D66）；`tool-bindings` 加两个按调用现取的键，`tool-host` 加一个按调用现取的键与运维者层构造配置；运行时对象表加 Tool 贡献来源权威与发行登记者。

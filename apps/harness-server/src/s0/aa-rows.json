@@ -134,6 +134,14 @@
       ]
     },
     {
+      "row": "session-conditions",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "definitionMappings"
+      ]
+    },
+    {
       "row": "model-records",
       "names": [
         "storage",

@@ -4,12 +4,23 @@
 // key. It parses nothing and reads no configuration.
 import { createHash } from 'node:crypto'
 import { Service, type Context } from '@deepseek-ai/cordis'
-import type { Adoption, Modes, SavedModelSelection } from '@omne-harness/session-contract'
+import type {
+  Adoption,
+  Modes,
+  SavedModelSelection,
+  SessionAdoptionPlanInput,
+} from '@omne-harness/session-contract'
 
 /**
  * What one public definition name resolves into: the parts of a session creation that the public
  * message does not carry. `modes` are the explicit defaults of this definition. The first path reads
  * no tenant setting.
+ *
+ * `residentCapabilities` names the resident tools that a session of this definition adopts at
+ * `create`, as the capability names of the adoption point input (`SessionAdoptionPlanInput`). The
+ * mapping names them only: their authority, shape and key come from the deployment's tool sources
+ * when the session is created, and a name that those sources cannot resolve fails the creation. An
+ * absent field adopts no resident tool.
  */
 export type DefinitionMappingEntry = Readonly<{
   name: string
@@ -19,6 +30,7 @@ export type DefinitionMappingEntry = Readonly<{
   requiredIdentities: readonly Readonly<{ capability: string; name: string }>[]
   modes: Modes
   initialModelSelection?: SavedModelSelection
+  residentCapabilities?: SessionAdoptionPlanInput['capabilities']
 }>
 
 /** The read-only table. `identity` marks the whole parsed table and does not depend on the tenant. */

@@ -21,6 +21,7 @@
 | `session-ad04` | `createSessionHistorySource({ heads, … })`，源与下界两个子插件 | `heads.sessionOf = historySessionOf` | `scopeIndexEntries`、`pageBytes`（运维者层） |
 | `session-ad05` | `createSessionModelLogConsumptionPlugin({ coordinator })` | 协调者主体来源 | 无 |
 | `session-handoff` | `createSessionMessageHandoffPlugin({ coordinator, principalIdentity, provider })` | 协调者主体来源；主体身份文本；提供者采用身份 | `combinationVersion`、`manifestDigest`（与 `agent-journal` 行相同） |
+| `session-conditions`（SC1，R2-D145） | `createSessionConditionsPlugin({ defaultModes })` | 租户默认模式解析器 `defaultModesOf(definitionMappings)`：映射条目的模式采用须与创建所记来源逐字相等 | 无 |
 
 协调者主体来源是 `src/rows/session-adapters/coordinator.ts`：行 inject 受信的 `sessionWorkPrincipals`，以 `forSession({ actor: 'coordinator', tenant, session })` 作答。它是运行时对象，不进配置。
 
@@ -37,12 +38,13 @@
 
 | 行 | 原因 |
 | --- | --- |
-| `agent-host`、`agent-instances`、`session-ad14` | `agent-host` 必需 inject `agentConditions`，它由 `session-conditions` 行提供，该行归波 4，发行里是替身；真件装上会停在 `PENDING`，`serve` 以退出码 4 结束。`agent-instances` 与 `session-ad14` 依赖 `agent-host` 提供的键，同理 |
-| `session-conditions` | 波 4；不以默认允许或空条件的插件冒充就绪 |
+| `agent-host`、`agent-instances`、`session-ad14` | 归 SC4：等 Tool B 段（`toolRequests`、Tool runtime）与 SC2 之后一起换真件并做端到端验收。`agentConditions` 已由 `session-conditions` 行提供（SC1） |
 | `session-ad11`、`session-ad15` | 依赖 `toolRuntime`、`executionEnvironment`，归 B3 的 Tool B 段 |
 
-所以「用 `coding` 建会话、跑一轮、模型拿到带 v2 的系统提示词」在发行树里还跑不到：会话能建，模型选择能读回，定义段的读取链（`agentAdoptions` → `agent-context` → `request-context`）是真件，但没有 `agent-host` 就没有 Agent 实例去调用 `prepare`。
+所以「用 `coding` 建会话、跑一轮、模型拿到带 v2 的系统提示词」在发行树里还跑不到：会话能建，模型选择能读回，定义段的读取链（`agentAdoptions` → `agent-context` → `request-context`）和当前条件（`session-conditions`）是真件，但没有 `agent-host` 就没有 Agent 实例去调用 `prepare`。
+
+`session-conditions` 的具名缺件：SC1-GAP-RESIDENTS 已由 G-RESIDENTS 关闭（R2-D159）：create 按映射条目的 `residentCapabilities` 提交常驻工具，见[采用来源](adoption-sources.md#create-的常驻工具)，首装限制见同页；SC1-GAP-ADOPTION-COORDINATOR（`adoptionCoordinator` 读口不存在，`configuration` 直接取 Run 采用，波 4）；SC1-GAP-TOOLS-SOURCE（agent-context 第六组仍是 `firstWaveTools`，`bindings` 非空即 `tools-source-absent`，Tool B 段接工具来源）。设计页在任务 tmp（`tmp/sc1/design.md`）。
 
 ## 验证
 
-[serve 用例](../../tests/serve.spec.ts)证明发行树 33 真件、15 替身全部 `ACTIVE`，启动就绪、退出 0。[coding-agent 用例](../../tests/assembly/coding-agent.spec.ts)证明定义段经真实采用面组装成系统提示词。端到端一轮等 `session-conditions` 与 Tool B 段。
+[serve 用例](../../tests/serve.spec.ts)证明发行树 34 真件、14 替身全部 `ACTIVE`，启动就绪、退出 0。[session-conditions 行用例](../../tests/rows/session-conditions/default-modes.spec.ts)证明租户默认模式只在映射条目仍代表创建所记来源时交出。[coding-agent 用例](../../tests/assembly/coding-agent.spec.ts)证明定义段经真实采用面组装成系统提示词。端到端一轮等 Tool B 段与 SC4。

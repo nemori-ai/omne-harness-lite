@@ -13,6 +13,12 @@ export {
   createSessionAgentJournalPlugin,
   type SessionAgentJournalPluginInput,
 } from './cordis/agent-journal-provider.ts'
+export {
+  createSessionConditionsPlugin,
+  type DefaultModes,
+  type DefaultModesFailure,
+  type SessionConditionsInput,
+} from './cordis/conditions.ts'
 export { createSessionContextHolder } from './cordis/context-holder.ts'
 export {
   createSessionJournalInterpretationPlugin,

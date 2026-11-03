@@ -25,6 +25,28 @@ export type MappingTable = Readonly<{
 
 const candidateKey = (candidate: Adoption): string => canonicalText(candidate)
 
+/** The category of a reference that names a tool. Only tools can be resident in a session. */
+const TOOL_CATEGORY = 'Tool'
+
+/**
+ * The resident tools of a definition, in the order the definition lists them: the names of its
+ * references marked `resident`. The definition is the one declaration of them; the table copies the
+ * names into the public entry and keeps no second list. A resident reference that is not a tool
+ * cannot be adopted by a session, so it fails the table instead of being left out.
+ */
+function residentCapabilitiesOf(definition: AgentDefinition, at: string): readonly string[] {
+  const names: string[] = []
+  for (const [index, reference] of definition.references.entries()) {
+    if (reference.resident !== true) continue
+    if (reference.capability.category !== TOOL_CATEGORY)
+      throw new Error(
+        `${at}.definition.references.${index}: a resident reference must name a ${TOOL_CATEGORY}`,
+      )
+    names.push(reference.capability.name)
+  }
+  return Object.freeze(names)
+}
+
 export async function buildTable(config: AgentAdoptionsConfig): Promise<MappingTable> {
   const entries: DefinitionMappingEntry[] = []
   const agentSides = new Map<string, AgentSide>()
@@ -35,6 +57,7 @@ export async function buildTable(config: AgentAdoptionsConfig): Promise<MappingT
       throw new Error(`${at}.definition: refused (${definition.reason})`)
     if (definition.value.name !== item.name)
       throw new Error(`${at}.definition.name: must equal the definition name "${item.name}"`)
+    const residents = residentCapabilitiesOf(definition.value, at)
     const extensions = await judgeLoopExtensions(item.extensions)
     if (extensions.kind === 'refused')
       throw new Error(`${at}.extensions.${extensions.index}: refused (${extensions.reason})`)
@@ -49,6 +72,7 @@ export async function buildTable(config: AgentAdoptionsConfig): Promise<MappingT
         ...(item.initialModelSelection === undefined
           ? {}
           : { initialModelSelection: Object.freeze(item.initialModelSelection) }),
+        ...(residents.length === 0 ? {} : { residentCapabilities: residents }),
       }),
     )
     agentSides.set(candidateKey(item.candidate), {
