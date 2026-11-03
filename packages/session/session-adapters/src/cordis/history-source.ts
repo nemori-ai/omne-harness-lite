@@ -292,13 +292,15 @@ type ViewRead =
  * fiber; rows of an epoch never change, so neither does a kept cursor's position or a kept size.
  */
 class CursorBook {
+  readonly key: string
+  readonly epoch: string
   readonly tokens = new Map<bigint, string>()
   private readonly sizes = new Map<bigint, number>()
 
-  constructor(
-    readonly key: string,
-    readonly epoch: string,
-  ) {}
+  constructor(key: string, epoch: string) {
+    this.key = key
+    this.epoch = epoch
+  }
 
   /** The highest row at or before `after` with a kept cursor; 0 is the start, which needs none. */
   start(after: bigint): bigint {
