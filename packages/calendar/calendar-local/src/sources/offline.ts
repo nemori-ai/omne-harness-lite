@@ -2,7 +2,11 @@ import { parseVacanzaCalendar } from '@omne-harness/calendar'
 import { instantSchema, localDateSchema, type Instant } from '@omne-harness/calendar-contract'
 import { z } from 'zod'
 import { decodeJson, digest, encode } from './http.ts'
-import type { CalendarSourceAdapterOptions, CalendarSourceLimits } from './types.ts'
+import type {
+  CalendarSourceAdapterOptions,
+  CalendarSourceLimits,
+  CalendarVacanzaArtifact,
+} from './types.ts'
 
 export function computedMaterial(
   options: CalendarSourceAdapterOptions,
@@ -25,16 +29,11 @@ const artifactSchema = z.object({
   window_start_year: z.number().int(),
   window_end_year: z.number().int(),
 })
-export async function vacanzaMaterial(
-  options: CalendarSourceAdapterOptions,
-  acquiredAt: Instant,
+function verifyVacanzaArtifact(
+  content: Uint8Array,
+  artifact: CalendarVacanzaArtifact,
   limits: CalendarSourceLimits,
-  signal: AbortSignal,
-) {
-  const artifact = options.vacanzaArtifact
-  if (!artifact) throw new Error('Fixed Vacanza artifact is not configured')
-  const content = await artifact.read(signal)
-  signal.throwIfAborted()
+): void {
   if (!content.byteLength || content.byteLength > limits.maxBodyBytes)
     throw new Error('Vacanza artifact byte limit exceeded or empty')
   if (!/^[a-f0-9]{64}$/.test(artifact.sha256) || digest(content) !== artifact.sha256)
@@ -47,6 +46,18 @@ export async function vacanzaMaterial(
     artifact.endYear - artifact.startYear + 1 > limits.maxYears
   )
     throw new Error('Vacanza artifact version or requested range mismatch')
+}
+export async function vacanzaMaterial(
+  options: CalendarSourceAdapterOptions,
+  acquiredAt: Instant,
+  limits: CalendarSourceLimits,
+  signal: AbortSignal,
+) {
+  const artifact = options.vacanzaArtifact
+  if (!artifact) throw new Error('Fixed Vacanza artifact is not configured')
+  const content = await artifact.read(signal)
+  signal.throwIfAborted()
+  verifyVacanzaArtifact(content, artifact, limits)
   const knowledgeAsOf = instantSchema.parse(artifact.knowledgeAsOf)
   if (knowledgeAsOf > acquiredAt || !artifact.reference.trim())
     throw new Error('Invalid Vacanza knowledge evidence')
