@@ -66,8 +66,7 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 4. 局部依赖在每次调用时经 `ctx.get` 现取，缺席时立即答 unavailable。设计中的阶段子 fiber（`ctx.inject`）尚未实现。`ToolRuntime` 中不返回 Reply 的成员在缺席时也得到 Reply 形状的失败；本版不装配 Tool 阶段。
 5. 恢复入口的 reconcile 在核验之后答具名 unavailable。
 6. 宿主的预约表与槽表只在内存，只在本进程有效。已结束实例的记录保留到插件体结束。
-7. warn 级别的诊断在默认导出级别下看不到。Cordis 4.0.4 的级别顺序是 ERROR 0、INFO 1、WARN 2、DEBUG 3，导出器缺省目标级别是 INFO，所以 `warn` 只到达级别不低于 2 的导出器。维护驱动的 denied 诊断用 warn，Model 宿主的 `no-receiver` 诊断也用 warn（R2-D237）。发行树没有设置更高级别的导出器时，这两条都看不到。触发条件：装配给出日志导出器及其级别。
-8. MODEL-RECV 改到的函数里有几个圈复杂度超过 alert（12）。数字取自 `scripts/metrics.sh --base 75001c0f9`，基线取自 FF-SESSION efb902da9 的度量：
+7. MODEL-RECV 改到的函数里有几个圈复杂度超过 alert（12）。数字取自 `scripts/metrics.sh --base 75001c0f9`，基线取自 FF-SESSION efb902da9 的度量：
    - agent `createAgentModelReceiver.admit` 是 28，与基线相同。路由查询已拆到 `targetQuery`。28 来自原有的逐步核验，每一步都有拒绝、不可用与取消三个出口，见 J02 第 9、10 条。
    - session-adapters `createJournalReceiving.received.commit` 是 22，基线 21。多出的 1 是同操作认回的出口，判断本身在 `recommitted` 里。
    - session-adapters `buildObligations` 是 44，与基线相同。收场失败的判断已拆到 `settlesCall`。agent 的同名函数是 43，基线 42，多出的 1 来自 L11-FAIL 的 1624f49f2（`model-refused`），不是本成员的改动。

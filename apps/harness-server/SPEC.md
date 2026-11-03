@@ -152,6 +152,7 @@ S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前�
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tree`           | `implementation` 按行取 `real`、`contract-double` 或 `s0-double`                                                                                                                                                                                            |
 | `entry-object`   | 新增，只在 `serve`。每个入口对象一条：`name`、`implementation`、`trusted`。不含对象的值。`s0.assemblyLifecycle` 记 `real`，占位对象记 `s0-double`。与 `tree` 一样在装载前完整输出                                                                           |
+| `log`            | 新增，只在 `serve`。`level`（`error`、`info` 或 `warn`）、`name`（记录器名）、`text`（格式化后的消息）。根上登记的导出器把级别不高于 WARN 的 Cordis 日志各写成一条，DEBUG 不输出（R2-D253）。消息带什么由各行负责，导出器不另裁剪。格式化失败时 `text` 是固定文字，写出失败时这条丢弃，都不抛给记日志的调用方 |
 | `startup-result` | `profile: 'real'`、`scope: 'serving'`。`accepting` 见「就绪与诊断」。新增 `implementations`：三种实现各自的行数                                                                                                                                             |
 | 之后             | `accepting` 为 true 时进程等停止请求：`--stop-on-stdin-close`、SIGINT、SIGTERM 或运行期换代。收到后 stderr 写 `serve: stop requested: <原因>`，再走有序关闭。启动码非零时与 S0 一样立即发起计划停止。装载前拒绝时 stdout 只有 `tree` 与 `entry-object` 记录 |
 

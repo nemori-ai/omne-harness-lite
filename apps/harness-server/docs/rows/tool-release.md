@@ -46,7 +46,7 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
 读不到、形状不对、产物不等、重建不等，快照都是 `unavailable`。快照不可用不让启动失败，但此后两个方法都答
 `unavailable`。这时入口在 Cordis 记录器 `tool-release` 上打一条 warn，写明固定的原因短语（例如
 `artifacts differ from the manifest`、`manifest differs from its recomputation`、`manifest unreadable`）。日志只是
-观察，不改变失败关闭。Cordis 4.0.4 的导出器默认只导出到 info 级别，要看到这条 warn，导出器的级别要开到 warn。
+观察，不改变失败关闭。`serve` 在根上登记的导出器导出到 warn 级别，这条 warn 作为 `log` 记录写到 stdout（R2-D253）。
 
 快照只从刚核对过的包根 import：直接 import `<包根>/dist/index.js` 的文件 URL，不经包名解析，所以解析条件
 （例如 `--conditions=source`）换不成未核对的源码。这个入口文件必须在包产物清单里。
