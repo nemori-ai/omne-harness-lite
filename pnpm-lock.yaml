@@ -2314,12 +2314,6 @@ importers:
 
   packages/tool/tool-host-local:
     dependencies:
-      '@omne-harness/execution-environment-cordis-contract':
-        specifier: workspace:*
-        version: link:../../execution/execution-environment-cordis-contract
-      '@omne-harness/stream-arrival':
-        specifier: workspace:*
-        version: link:../../common/stream-arrival
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
@@ -2332,6 +2326,9 @@ importers:
       '@omne-harness/execution-environment-contract':
         specifier: workspace:*
         version: link:../../execution/execution-environment-contract
+      '@omne-harness/execution-environment-cordis-contract':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-cordis-contract
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -2344,6 +2341,9 @@ importers:
       '@omne-harness/schema-provider':
         specifier: workspace:*
         version: link:../../schema/schema-provider
+      '@omne-harness/stream-arrival':
+        specifier: workspace:*
+        version: link:../../common/stream-arrival
       '@omne-harness/tool':
         specifier: workspace:*
         version: link:../tool
@@ -2388,6 +2388,24 @@ importers:
         specifier: workspace:*
         version: link:../tool-contract
     devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness/execution-environment-host-local':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-host-local
+      '@omne-harness/identity':
+        specifier: workspace:*
+        version: link:../../identity/identity
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
+      '@omne-harness/tool-definitions':
+        specifier: workspace:*
+        version: link:../tool-definitions
       '@omne-harness/tool-host-local':
         specifier: workspace:*
         version: link:../tool-host-local

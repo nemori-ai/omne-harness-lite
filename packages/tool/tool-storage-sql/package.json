@@ -36,6 +36,12 @@
     "@omne-harness/tool-host-local": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness/execution-environment-host-local": "workspace:*",
+    "@omne-harness/identity": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/sqlite-provider": "workspace:*",
+    "@omne-harness/tool-definitions": "workspace:*",
+    "@deepseek-ai/cordis": "catalog:"
   }
 }

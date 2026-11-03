@@ -52,7 +52,7 @@ export type ToolEnvironmentValue = Readonly<{
   files: AuthorFacility<FileSystemFacility<unknown>>
   command: AuthorFacility<CommandFacility<unknown>>
   terminal: AuthorFacility<RetentionTerminalFacility<unknown>>
-  facts: EnvironmentFacts
+  facts: EnvironmentFacts & Readonly<{ os: string }>
 }>
 export interface FileObjectNaming<P> {
   name(
@@ -230,6 +230,7 @@ export function createAuthorEnvironment<P>(input: AuthorEnvironmentInput<P>): To
     terminal: Object.freeze(terminal),
     facts: Object.freeze({
       ...input.facts,
+      os: input.facts.system,
       facilities: Object.freeze([...input.facts.facilities]),
     }),
   })

@@ -127,7 +127,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 - Catalog 只列出 `live` 的贡献。同名的多份贡献取登记序号最小的一份。`inspect` 对不存在的名字与只有他租户登记的名字给出同一个回复（`invalid`，`unknown-tool`），不泄露存在性。`search` 按名字排序、每个名字一项，游标是上一页最后一项的名字，所以翻页期间新登记的工具不会让已发出的游标重复或漏项。可用性由注入的 `availability` 端口给出已核验的事实（资格、依赖、输入输出与附件兼容），Catalog 不从调用方取事实；端口不可答时回复 `unavailable`，不当作可用。
 - 执行者命令的用法文本与协议不在定义里，`usage` 对它回复 `unavailable`，不编造。
 
-已知限制：登记不耐久，只在单进程内成立；没有核验器的生产提供者（归应用装配）；工作区层不可见；整套 runtime 的 `./cordis` 入口未交付。
+已知限制：登记不耐久，只在单进程内成立；没有核验器的生产提供者（归应用装配）；工作区层不可见；`./cordis` 已提供运行时组合工厂，真实外域提供者由应用装配负责。
 
 ## 宿主时钟（G4）
 
@@ -188,7 +188,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 ## 实例宿主与普通调用的边界
 
-本包尚未提供生产 ToolInstanceHost 或 ToolInstanceIdentities。来源签发器与操作身份已提供，见[账本守卫](#账本守卫tl-11)。宿主实现须在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不再接受全局 instance。当前测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger 和本地启动协调器组合，driver 的 instance 由测试 host 提供。这只证明单进程非耐久组合，不证明 claim、换实例接管或恢复。
+`createLocalToolRuntimePlugins` 组装生产实例宿主和实例身份。宿主在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不接受全局 instance。组合测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger、本地启动协调器与实例宿主贯通。该证据不证明真实 SQL/Windows 端到端、claim、换实例接管或重启恢复。精确装配责任见[运行时组合工厂](docs/cordis.md#运行时组合工厂)。
 
 ## 作者装载与执行绑定
 
@@ -209,7 +209,6 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 [作者装载测试](tests/author-loading.spec.ts)验证装载及拒绝；[执行绑定测试](tests/author-binding.spec.ts)运行全部 23 条 N7 判据；[真实 Cordis 测试](tests/author-generations.spec.ts)验证 fiber 归属、失败撤除、排空与读取失败保留。外部来源、设置、schema 检查、启动 authority 和结果保管在这些测试中是测试提供者；不据此声明完整 runtime 装配已完成。
 
 [绑定回归测试](tests/author-binding-regressions.spec.ts)验证注册化身隔离、多命令的参数与操作选择，以及拒绝启动后的 pin 清理。跨 executor 同形回退的用例只证明安全拒绝与清理。
-
 
 ## 具名偏离：热换代作者保留
 

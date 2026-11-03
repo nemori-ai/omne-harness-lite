@@ -63,6 +63,8 @@ describe('current file authorization', () => {
       naming: { name },
       facts: { system: 'fixture', release: '1', architecture: 'fixture', facilities: ['files'] },
     })
+    expect(value.facts.os).toBe('fixture')
+    expect(value.facts.system).toBe('fixture')
     const request = {
       path: '/authorized/new',
       bytes: new Uint8Array([42]),
