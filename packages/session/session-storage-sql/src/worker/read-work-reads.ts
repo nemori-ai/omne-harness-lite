@@ -15,21 +15,30 @@ const count = /^\d+$/
 const isCount = (value: JsonValue | undefined): value is string =>
   typeof value === 'string' && count.test(value)
 
-export default handler('session.work-reads', (input, port) => {
-  const scope = scopeOf(input)
+type Request = Readonly<{
+  revision: string
+  published: string
+  upto: string
+  inputs: JsonValue
+  focus: JsonValue
+  snapshot: JsonValue
+}>
+
+/** The members of the input past the tenant and session; an input without them is invalid. */
+function requestOf(input: JsonValue): Request {
   const { revision, published, upto, inputs, focus, snapshot } = input as Readonly<
     Record<string, JsonValue>
   >
-  if (
-    scope === null ||
-    !isCount(revision) ||
-    !isCount(published) ||
-    !isCount(upto) ||
-    inputs === undefined ||
-    focus === undefined ||
-    snapshot === undefined
-  )
+  const counts = [revision, published, upto].every(isCount)
+  if (!counts || inputs === undefined || focus === undefined || snapshot === undefined)
     throw new Error('invalid input')
+  return { revision, published, upto, inputs, focus, snapshot } as Request
+}
+
+export default handler('session.work-reads', (input, port) => {
+  const scope = scopeOf(input)
+  if (scope === null) throw new Error('invalid input')
+  const { revision, published, upto, inputs, focus, snapshot } = requestOf(input)
   const root = oneRow(
     port,
     'SELECT published FROM er_root WHERE tenant = ? AND session = ? LIMIT 1',

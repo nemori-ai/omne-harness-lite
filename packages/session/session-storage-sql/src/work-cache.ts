@@ -288,19 +288,30 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
   // version read failed reads alone.
   if (version === null) return readWhole(reach, cache, key)
   const flight = `${key}|${version.tail}|${version.published}`
-  // A commit or publication of this process is folding to the version read: its entry answers.
-  const folding = cache.folds.get(flight)
-  if (folding !== undefined) {
-    await folding
-    const done = cache.get(key)
-    if (done !== undefined && sameVersion(done.version, version))
-      return { kind: 'state', snapshot: done.snapshot }
-  }
+  const folded = await afterFold(cache, key, flight, version)
+  if (folded !== undefined) return { kind: 'state', snapshot: folded }
   const running = cache.flights.get(flight)
   if (running !== undefined) return running
   const started = readWhole(reach, cache, key).finally(() => cache.flights.delete(flight))
   cache.flights.set(flight, started)
   return started
+}
+
+/**
+ * When a commit or publication of this process is folding to the version read, the snapshot it
+ * registered at that version, once it ends; otherwise undefined.
+ */
+async function afterFold(
+  cache: WorkCache,
+  key: string,
+  flight: string,
+  version: WorkVersion,
+): Promise<WorkSnapshot | undefined> {
+  const folding = cache.folds.get(flight)
+  if (folding === undefined) return undefined
+  await folding
+  const done = cache.get(key)
+  return done !== undefined && sameVersion(done.version, version) ? done.snapshot : undefined
 }
 
 /** One whole read: the answer replaces the entry of `key`, and a failure drops it. */
