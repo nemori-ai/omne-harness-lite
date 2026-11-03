@@ -201,3 +201,19 @@ developer，implementation_kind product，Claude Opus 5.5，effort high。理由
 68. [M3-27/M3-10/M3-11] 「负责人裁定」改为「领域设计裁定（2026-11-03）」；JSDoc「purpose is its brand」改为「以 purpose 字段区分」；`byName`、`compareKeys` 旁注明「V8 TimSort 只用 < 0；不是语言层等价」。
 
 验收追加：A12：`git grep -n "already-terminal\|负责人裁定" packages/mcp/mcp-contract/src packages/mcp/mcp-contract/SPEC.md` 无命中；A13：`error-answer`、`effect-unknown` 有用例与 SPEC 条款；A14：provider 类型导出集合用例对 `export type *` 注入变红（交回附证据）。收尾门禁照旧。A、B 各至少一个提交。
+
+### 第 4 轮（2026-11-03，reduce 追加；依据 decisions-r2.md 的 M4-1…M4-9；只有本成员）
+
+第 3 轮 B1 改法的表达复审仍有 1 项阻断（读不懂的应答无落点）。下面各条照做，在现有分支继续提交，基线不变。
+
+69. [M4-1] `TransportFailure` 加 `{kind:'answer-malformed', what}`（`what` 封闭：`status-unknown`、`input-requests-missing`、`result-missing`、`error-shape`、`tools-missing`、`discover-shape`）；`OperationFailure` 同步加；`ErrorAnswer.code` 按 O4 词形判整数，否则 `answer-malformed(error-shape)`。closed-sets 与 SPEC 同步。
+70. [M4-2] T2 限定为 `call` 的应答；非调用请求由传输解释到 SPEC 点名的形状为止。
+71. [M4-3] T6：`getTask` 不交内容；`getTaskResult` 也发 `tasks/get`，读 completed/failed。
+72. [M4-4] S5：非调用请求的 `not-sent`（`authorization-required`、`connection-unavailable`）按 S7 转 `lost`；页的 `no-answer`/`error-answer`/`answer-malformed` 转 `degraded(list-failed)`（`DegradedReason` 没有就加）；`markUnavailable` 后 `CatalogStore` 冲突答 `superseded`，不可用答 `unknown`。
+73. [M4-5] `current`/`peer` 的失败用 Extract 收窄（不含 `effect-unknown`、`error-answer`、`answer-malformed`）；`refresh` 中 `discover` 的 `no-answer` → `effect-unknown`，`error-answer`/`answer-malformed` → `connection-unavailable` 且连接 `lost(discover-failed)`。
+74. [M4-6] S9 改称「进程凭据句柄」；`ProcessHandle.stop()` 返回后即释放凭据句柄（不论范围）；准备失败立即释放。
+75. [M4-7] `LostReason` 加 `close-unconfirmed`；`release`/`closeAll`/自动关闭得 `unconfirmed` 或 `root-only` 时状态为 `lost(close-unconfirmed)` 并带 `residual`；`tree-confirmed` 才回 `none`。SPEC 定义「确认停止」= `stop()` 答 `tree-confirmed`。
+76. [M4-8] S8 写「状态为 `none` 时答 `no-connection`」；T6 补「`update`/`cancel` 对已过期任务得 `error-answer(-32602)`」；S2 补「`AdoptionView` 答 `unknown` 时任务操作答 `Refusal unknown`」。
+77. [M4-9] S2：任务操作可复用现有连接而不核资格；要新建连接必须 `UseEligibility` 答 `granted`，否则 `effect-unknown(no-connection)`；取消不启动新进程。
+
+验收追加：A15：`answer-malformed` 有类型、closed-sets 钉住、SPEC 条款与至少一条用例；A16：`close-unconfirmed` 同上。收尾门禁照旧。一个提交即可。

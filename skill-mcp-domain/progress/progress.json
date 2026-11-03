@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-03T15:59:46Z",
+  "updatedAt": "2026-11-03T16:11:02Z",
   "head": "21175c9f9",
   "links": [
     {
@@ -29,14 +29,14 @@
           "line": "Skill",
           "state": "待合入",
           "round": 3,
-          "note": "Skill 第 3 轮交回 d4114ff6f（364 例，扫描 pass）；reduce 完整链排队中；无需再派复审",
+          "note": "Skill head 3adb30b2c（364 例；reduce 补一处耐插桩测试）；门禁、读数、回路全绿；变异复跑中",
           "links": [
             {
               "text": "PR",
               "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1110"
             },
             {
-              "text": "d4114ff6f"
+              "text": "3adb30b2c"
             }
           ]
         },
@@ -44,15 +44,15 @@
           "id": "w1-mcp-contract",
           "line": "MCP",
           "state": "待合入",
-          "round": 3,
-          "note": "MCP 第 3 轮交回 654e422fd（296 例，扫描 pass）；reduce 完整链运行中；B1 改法表达复审进行中",
+          "round": 4,
+          "note": "MCP 第 4 轮交回 302441beb（298 例）：answer-malformed、close-unconfirmed、任务操作新建连接须 granted；reduce 完整链排队中",
           "links": [
             {
               "text": "PR",
               "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1111"
             },
             {
-              "text": "654e422fd"
+              "text": "302441beb"
             }
           ]
         }
@@ -220,6 +220,10 @@
     {
       "at": "2026-11-03T15:59:46Z",
       "text": "第 3 轮两边交回；reduce 在两 head 上跑完整链（门禁、读数、回路、变异），MCP 另派 B1 改法的最小表达复审"
+    },
+    {
+      "at": "2026-11-03T16:11:02Z",
+      "text": "MCP 第 4 轮交回；Skill 变异因测试读源码文本不耐插桩而无效，reduce 改一处后重跑；两边完整链串行运行中，绿则合入"
     }
   ]
 }

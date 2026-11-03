@@ -101,3 +101,21 @@
 
 - Skill（d4114ff6f）：`isBoundedText` 放 `names.ts`（避免 shape↔names 成环）；`name-invalid` 排在 `name-mismatch` 之后、工具引用之前；PS8/PR3/PR4 新例各用可选夹具字段，缺时 NotApplicable；内存来源对不指向包内文件的链接答 `entry-unreadable`；「SkillAccess 套件」依据栏不写波次名。
 - MCP（654e422fd）：`OperationFailure` 另含 `error-answer`（第 47 条漏列，写者补对）；照做 M3-3、M3-5；`resourceMetadataUrl` 的 well-known 回退为连接目标的 `/.well-known/oauth-protected-resource`；不合法的连接超时答 `config-invalid`，不退回 `connectBound`。
+
+## MCP 第 3 轮 B1 改法复审（B1 残留 1 阻断）→ 第 4 轮（只 MCP）
+
+| # | 发现 | 裁定 |
+| --- | --- | --- |
+| M4-1 | 非调用请求收到读不懂的应答无落点 | `TransportFailure` 加 `{kind:'answer-malformed', what}`（status 不在五值、`input_required` 缺 `inputRequests`、`completed` 缺 `result`、错误对象缺整数码或消息、`tools/list` 缺 `tools`、`discover` 结果不合形）；`OperationFailure` 同步加；`ErrorAnswer.code` 按 O4 词形判整数，否则 `answer-malformed` |
+| M4-2 | T2「原样不分类」范围 | 限定为 `call` 的应答；非调用请求由传输解释到 SPEC 点名的形状为止 |
+| M4-3 | `getTask` 「读内容」 | `getTask` 不交内容，删「内容」；`getTaskResult` 也发 `tasks/get`，读 completed/failed |
+| M4-4 | S5 与 S7 冲突；degraded 原因缺 | 非调用请求的 `not-sent`（`authorization-required`、`connection-unavailable`）按 S7 转 `lost`；页的 `no-answer`/`error-answer`/`answer-malformed` 转 `degraded(list-failed)`；`markUnavailable` 后 `CatalogStore` 冲突答 `superseded`，不可用答 `unknown` |
+| M4-5 | `current`/`peer` 永不产生新失败；`refresh` 中 `discover` 的已发出失败两读 | `current`/`peer` 用 Extract 收窄；`discover` 的 `no-answer` → `effect-unknown`，`error-answer`/`answer-malformed` → `connection-unavailable` 且连接 `lost(discover-failed)` |
+| M4-6 | S9「进程句柄」同名不同义；unconfirmed 与准备失败时的释放 | 改称「进程凭据句柄」；`stop()` 返回后即释放（不论范围）；准备失败立即释放 |
+| M4-7 | 关闭后遗留进程无原因 | `LostReason` 加 `close-unconfirmed`：`release`/`closeAll`/自动关闭答 `unconfirmed` 时状态为 `lost(close-unconfirmed)` 带 `residual`；`tree-confirmed` 才回 `none`。「确认停止」= `stop()` 答 `tree-confirmed` |
+| M4-8 | 建议 8–10 | S8 写「状态为 none 时」；T6 写 `update`/`cancel` 对已过期任务得 `error-answer(-32602)`；`AdoptionView` 答 `unknown` 时 `cancelTask` 答 `Refusal unknown` |
+| M4-9 | 范围外：`cancelTask` 不核资格却可重建连接 | 任务操作可复用现有连接而不核资格；要新建连接必须 `UseEligibility` 答 `granted`，否则 `effect-unknown(no-connection)`。取消只减少效果，不启动新进程 |
+
+## 第 4 轮交回（MCP 302441beb）写者自定事项（接受）
+- `ReadFailure = Exclude<OperationFailure, 已发出类三种>`，公开根导出；`LostReason` 加 `discover-failed`。
+- 两边 provider 导出形式用例改为耐插桩（Skill 由 reduce 改 3adb30b2c；MCP 由写者改）。
