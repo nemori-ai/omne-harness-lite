@@ -6,6 +6,7 @@ import type { SessionFailure, StartedRun } from '@omne-harness/session-contract'
 import {
   creation,
   operationId,
+  intakeInput,
   ordinaryInput,
   succeeded,
 } from '@omne-harness/session-contract/testing'
@@ -141,11 +142,17 @@ describe('step 3: a refusal that the snapshot decides', () => {
     expect(h.view.calls().map(call => call.method)).toEqual(['queryOperation', 'readWork'])
   })
 
-  it('a refusal that needs material is left to the commit: startRun without the login confirmation is login-required', async () => {
+  it('a refusal that needs the stored input is left to the commit: a first input from another origin is login-required', async () => {
     const h = await service()
     await h.create()
-    await h.accept('input-1')
-    h.baseEvidence.controls.loginEntry(false)
+    expect(
+      'ok' in
+        (await h.faces('intake').work.accept({
+          ...h.access(),
+          operation: operationId('accept-input-1'),
+          value: intakeInput('input-1'),
+        })),
+    ).toBe(true)
     const answer = await h.faces('coordinator').work.startRun({
       ...h.access(),
       operation: operationId('start'),

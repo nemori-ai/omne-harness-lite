@@ -53,6 +53,7 @@ import type {
 import type {
   CommitReceipt,
   AdmittedMessage,
+  EntryClass,
   HistoryEntry,
   HistoryPage,
   OperationResolution,
@@ -67,10 +68,10 @@ import type {
   SessionCommand,
   SessionTransactionPort,
 } from './ports.ts'
-import { decide, commandDigest, LOGIN_ENTRY_OWNER } from './decide.ts'
+import { decide, commandDigest } from './decide.ts'
 import { judgeCompletion } from './judgments.ts'
 import { SESSION_INTERPRETER } from './entries.ts'
-import { type OperationRecord } from './judgments.ts'
+import { type DecideReads, type OperationRecord } from './judgments.ts'
 import { canonicalText, digestOf, deriveSessionOperation } from './operations.ts'
 import { projectSessionLog, type SessionLogObservation } from './projection.ts'
 import { consumptionIdOf } from './decide-results.ts'
@@ -110,11 +111,11 @@ import {
   assistantMessage,
   creation as legalCreation,
   evidence,
-  guard,
   memoryAccess,
   memoryOtherAccess,
   mintEvidence,
   operationId,
+  intakeInput,
   ordinaryInput,
   sessionId,
 } from './testing-values.ts'
@@ -456,6 +457,22 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | nul
 }
 
 /** The ordinary input that a command admits, if any, for `readInput`. */
+/** `startRun`: the stored first pending input with its origin, from the same store as the snapshot. */
+function firstInputRead(
+  command: SessionCommand,
+  store:
+    | Readonly<{
+        snapshot: WorkSnapshot
+        inputs: ReadonlyMap<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>
+      }>
+    | undefined,
+): Pick<DecideReads, 'firstInput'> {
+  if (command.kind !== 'startRun' || store === undefined) return {}
+  const first = store.snapshot.pending[0]
+  const stored = first === undefined ? undefined : store.inputs.get(first)
+  return stored === undefined ? {} : { firstInput: { input: stored.input, origin: stored.origin } }
+}
+
 function admittedInput(command: SessionCommand): Extract<RoutedInput, { kind: 'ordinary' }> | null {
   if (command.kind === 'accept' && command.input.value.kind === 'ordinary')
     return command.input.value
@@ -738,6 +755,7 @@ export function createMemorySessionTransactionPair<P>(
         ...(command.kind === 'stopCall' && store !== undefined
           ? { calls: [callLookup(key.ok, store.snapshot, command.input.producer)] }
           : {}),
+        ...firstInputRead(command, store),
         initializationReceipts: [...(store?.operations.values() ?? [])].map(
           value => value.record.receipt,
         ),
@@ -1529,9 +1547,6 @@ export function scene<P>(fixture: SessionTransactionsFixture<P>) {
     guards: readonly GuardCommand[] = [],
     as: SessionAccess<P> = access,
   ): Promise<Commit<K>> => port.commit<K>({ access: as, command, guards }) as Promise<Commit<K>>
-  /** The login confirmation the assembly's evidence bridge takes from the first input's origin. */
-  const loginEntry = (name: string) =>
-    guard('evidence-bridge', LOGIN_ENTRY_OWNER, { session: access.session, operation: name })
   const create = async (name = 'create', creation = fixture.creation) => {
     const command: Extract<SessionCommand, { kind: 'create' }> = {
       kind: 'create',
@@ -1539,24 +1554,28 @@ export function scene<P>(fixture: SessionTransactionsFixture<P>) {
     }
     return commit<'create'>(command, (await fixture.initializationGuards?.(command)) ?? [])
   }
-  const accept = (input: string, name = `accept-${input}`) =>
+  const accept = (
+    input: string,
+    name = `accept-${input}`,
+    value: Extract<RoutedInput, { kind: 'ordinary' }> = ordinaryInput(input),
+  ) =>
     commit<'accept'>({
       kind: 'accept',
-      input: { ...base, operation: fixture.operation(name), value: ordinaryInput(input) },
+      input: { ...base, operation: fixture.operation(name), value },
     })
-  const startRun = (name = 'start-run', login = true) =>
+  const startRun = (name = 'start-run', entry: EntryClass = 'interactive') =>
     commit<'startRun'>(
       {
         kind: 'startRun',
         input: {
           ...base,
           operation: fixture.operation(name),
-          entry: 'interactive',
+          entry,
           candidate: fixture.creation.definition.candidate,
           instance: { owner: 'agent', id: 'instance-1' },
         },
       },
-      login ? [loginEntry(name)] : [],
+      [],
     )
   const handover = async (execution: string, input: string, name = `handover-${input}`) => {
     const operation = fixture.operation(name)
@@ -1883,18 +1902,18 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
 
     conformanceCase(
       'R2',
-      'startRun of an interactive entry needs the login-entry confirmation among the guards',
+      'an interactive startRun needs a first input whose stored origin is the login entry',
       async fixture => {
         const s = scene(fixture)
         succeeded(await s.create(), 'create')
-        succeeded(await s.accept('input-1'), 'accept')
-        const refusal = refused(
-          await s.startRun('start-without-login', false),
-          'startRun without login',
-        )
-        expectKind(refusal, 'login-required', 'startRun without login')
+        // The first input came from another origin; a later one came through the login.
+        succeeded(await s.accept('input-1', 'accept-input-1', intakeInput('input-1')), 'accept')
+        succeeded(await s.accept('input-2'), 'accept login input')
+        const refusal = refused(await s.startRun('start-interactive'), 'interactive startRun')
+        expectKind(refusal, 'login-required', 'interactive startRun')
         assert.equal((await s.readWork()).run.kind, 'none', 'the refusal opens no Run')
-        succeeded(await s.startRun('start-with-login'), 'startRun with login')
+        // A dispatch entry asks for no login.
+        succeeded(await s.startRun('start-dispatch', 'dispatch'), 'dispatch startRun')
       },
     ),
 

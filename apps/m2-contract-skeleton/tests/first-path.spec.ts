@@ -3,7 +3,12 @@
 // records the public refusal it meets instead of building the missing behavior.
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { HistoryPage, RunId } from '@omne-harness/session-contract'
+import type {
+  HistoryPage,
+  RunId,
+  SessionCommand,
+  SessionTransactionPort,
+} from '@omne-harness/session-contract'
 import {
   createMemoryInitializationSource,
   memoryOtherAccess,
@@ -51,6 +56,24 @@ const evidenceAt = (observed: FirstPathObservation, hop: FirstPathHop) =>
   evidenceOf(observed[hop] ?? NOT_REACHED)
 
 /** A Session store whose transaction port is wrapped by `wrap`; the evidence bridge stays. */
+/**
+ * A Session store whose accepted ordinary inputs lose the login-entry origin that the path gives
+ * them, as an input that did not come through the login entry: Session refuses to start a Run.
+ */
+function withoutLoginOrigin<P>(port: SessionTransactionPort<P>): SessionTransactionPort<P> {
+  const commit = (input: Parameters<SessionTransactionPort<P>['commit']>[0]) => {
+    const command: SessionCommand = input.command
+    if (command.kind !== 'accept' || command.input.value.kind !== 'ordinary')
+      return port.commit(input)
+    const value = {
+      ...command.input.value,
+      origin: { ...command.input.value.origin, owner: 'intake' },
+    }
+    return port.commit({ ...input, command: { ...command, input: { ...command.input, value } } })
+  }
+  return { ...port, commit: commit as SessionTransactionPort<P>['commit'] }
+}
+
 function wrappedStore(
   wrap: (assembly: SessionAssembly) => SessionAssembly['transactions'],
 ): Pick<PathDependencies, 'session'> {
@@ -152,17 +175,19 @@ describe('connected tenant path, first round', () => {
   it('stops at H03 when the Session evidence bridge is unavailable', async () => {
     const observed = await runFirstTenantPath(
       pathDependencies({
-        session: sessionAssembly('contract-memory', bridge => bridge.controls.unavailable(true)),
+        session: sessionAssembly('contract-memory', {
+          evidence: bridge => bridge.controls.unavailable(true),
+        }),
       }),
     )
     expect(observed.H03).toEqual({ kind: 'refused', evidence: ['session-create:unavailable'] })
     expect(kindAt(observed, 'H04')).not.toBe('connected')
   })
 
-  it('refuses startRun with login-required when the evidence bridge gives no login confirmation', async () => {
+  it('refuses startRun with login-required when the first input did not come through the login entry', async () => {
     const observed = await runFirstTenantPath(
       pathDependencies({
-        session: sessionAssembly('contract-memory', bridge => bridge.controls.loginEntry(false)),
+        session: sessionAssembly('contract-memory', { transactions: withoutLoginOrigin }),
       }),
     )
     expect(kindAt(observed, 'H03')).toBe('connected')
@@ -293,7 +318,7 @@ describe('connected tenant path, first round', () => {
     const refused = await runContractSkeleton(
       skeletonInputs({
         path: pathDependencies({
-          session: sessionAssembly('contract-memory', bridge => bridge.controls.loginEntry(false)),
+          session: sessionAssembly('contract-memory', { transactions: withoutLoginOrigin }),
         }),
       }),
     )

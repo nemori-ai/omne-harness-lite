@@ -6,8 +6,7 @@
 //
 // Its own checks are few and on the boundary: a command whose tenant was not minted gets `denied`;
 // an initialization material (session-contract「初始化守卫编码」) that binds another tenant or session
-// than the command gets `denied`; a login confirmation is only for `startRun`; and a command of the
-// table with no material at all is `unavailable`, not an empty success. A source failure comes back
+// than the command gets `denied`; and a command of the table with no material at all is `unavailable`, not an empty success. A source failure comes back
 // as the source gave it. The resident-tool part of the candidate adoption (P-8) is still a candidate:
 // the bridge passes the source's material through and encodes no resident key.
 import type { Context } from '@deepseek-ai/cordis'
@@ -31,8 +30,6 @@ import {
 
 /** The owner named in `unavailable` when the bridge itself cannot answer. */
 const BRIDGE_OWNER = 'sessionEvidence'
-/** The owner of the login confirmation material (session-contract `LOGIN_ENTRY_OWNER`). */
-const LOGIN_ENTRY = 'login-entry'
 /** The owner of the initialization guard material (session-contract「初始化守卫编码」). */
 const INITIALIZATION = 'session-initialization'
 
@@ -145,21 +142,10 @@ async function guardsOf<P>(
 }
 
 /**
- * The refusal of one material on the boundary of the bridge, or null when it passes: a login
- * confirmation belongs to `startRun` only, and an initialization material must bind the tenant and
- * the session of the command.
+ * The refusal of one material on the boundary of the bridge, or null when it passes: an
+ * initialization material must bind the tenant and the session of the command.
  */
-function refusalOf(
-  guard: GuardCommand,
-  sourceKey: string,
-  command: SessionCommand,
-  tenant: string,
-): Answer | null {
-  if (guard.owner === LOGIN_ENTRY && command.kind !== 'startRun')
-    return unavailable(
-      sourceKey,
-      `the source gave a login confirmation for ${command.kind}; it belongs to startRun only`,
-    )
+function refusalOf(guard: GuardCommand, command: SessionCommand, tenant: string): Answer | null {
   if (guard.owner === INITIALIZATION && !bindsCommand(guard, tenant, command.input.session))
     return fail({ kind: 'denied' as const, action: command.kind })
   return null
@@ -219,7 +205,7 @@ export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceB
       const given = await guardsOf(source, command, access)
       if ('stop' in given) return given.stop
       for (const guard of given.guards) {
-        const refused = refusalOf(guard, source.key, command, tenant.value)
+        const refused = refusalOf(guard, command, tenant.value)
         if (refused !== null) return refused
         materials.push(guard)
       }

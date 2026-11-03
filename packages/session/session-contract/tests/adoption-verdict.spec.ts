@@ -9,7 +9,12 @@ import type {
   SessionCommand,
 } from '@omne-harness/session-contract'
 import { decide } from '@omne-harness/session-contract'
-import { evidence, guard, operationId, refused } from '@omne-harness/session-contract/testing'
+import {
+  evidence,
+  operationId,
+  ordinaryInput,
+  refused,
+} from '@omne-harness/session-contract/testing'
 import { open, scene } from './scene.ts'
 
 const verdict: FreezeVerdict = { cause: 'tool-shape-lost', evidence: evidence('tool/lost') }
@@ -38,13 +43,15 @@ describe('the freeze verdict of the adoption material', () => {
         residentAdoption,
       },
     })
-    const login = [guard('login', 'login-entry', 'present')]
-    expect(decide(snapshot, command({ ...empty, verdict }), login, null, reads)).toEqual({
+    // The first input came through the login entry: the stored fact the provider reads.
+    const first = snapshot.pending[0]!
+    const login = { ...reads, firstInput: { input: first, origin: ordinaryInput('first').origin } }
+    expect(decide(snapshot, command({ ...empty, verdict }), [], null, login)).toEqual({
       kind: 'rejected',
       failure: { kind: 'frozen', verdict },
     })
     // The same material without the verdict starts the Run: the verdict is the only cause.
-    expect(decide(snapshot, command(empty), login, null, reads).kind).toBe('entries')
+    expect(decide(snapshot, command(empty), [], null, login).kind).toBe('entries')
   })
 
   it('refuses startRun through the port without a commit when the verdict is present', async () => {

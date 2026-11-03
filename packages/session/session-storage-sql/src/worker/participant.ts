@@ -13,6 +13,7 @@ import {
   type HistoryEntry,
   type OperationRecord,
   type ProducerRef,
+  type RoutedInput,
   type RunId,
   type SessionCallLookup,
   type SessionRunLookup,
@@ -808,6 +809,32 @@ function commandStart(
 const isStart = (value: CommandStart | ParticipantReply): value is CommandStart =>
   !('kind' in value)
 
+/**
+ * `startRun`: the stored first pending input with its origin, from `sl_input` in this commit's
+ * transaction, so the login gate of `decide` sees the input the commit starts the Run from. No row
+ * gives no read, and `decide` then confirms no login.
+ */
+function firstInputOf(
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  previous: WorkSnapshot,
+): Pick<Reads, 'firstInput'> {
+  const first = previous.pending[0]
+  if (first === undefined) return {}
+  const row = oneRow(
+    port,
+    'SELECT value FROM sl_input WHERE tenant = ? AND session = ? AND input = ? LIMIT 1',
+    [tenant, session, first],
+  )
+  if (row === undefined) return {}
+  const stored = decodeValue(JSON.parse(text(row['value'])) as JsonValue) as Extract<
+    RoutedInput,
+    { kind: 'ordinary' }
+  >
+  return { firstInput: { input: stored.input, origin: stored.origin } }
+}
+
 /** The reads of `decide` that come from rows: the frozen receipt, the lookups and the receipts. */
 function commandReads(
   port: ParticipantPort,
@@ -843,6 +870,9 @@ function commandReads(
       : {}),
     ...(command.kind === 'stopCall' && previous !== null
       ? { calls: [callLookup(previous, command.input.producer)] }
+      : {}),
+    ...(command.kind === 'startRun' && previous !== null
+      ? firstInputOf(port, tenant, session, previous)
       : {}),
     ...(command.kind === 'completeInitialization'
       ? {
