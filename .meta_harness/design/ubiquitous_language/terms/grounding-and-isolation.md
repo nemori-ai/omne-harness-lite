@@ -626,4 +626,5 @@
 - **⚠️ 别混 ①**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official 还是 customized），
   **也不是[来源层](scope-and-resolution.md#ul-source-layer--来源层--source-layer)**。用哪一层的哪一份，由资产求值与装配决定；包来源只按给定的内容摘要交出字节
 - **别混 ②**：产品正文说方法「来源」时，指的是方法从哪个工作区、哪种格式、哪一层来，是给人看的出处，不是这一方。**正文裸写「来源」不指它**
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
