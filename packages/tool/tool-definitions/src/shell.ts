@@ -53,6 +53,7 @@ export function createShellAuthor(
   return succeed(
     createAuthor<ShellAuthorEnvironment>(
       'Shell',
+      'Run shell commands and manage persistent terminals in the authorized execution environment.',
       shellCommands,
       ['command', 'terminal'],
       maximum,

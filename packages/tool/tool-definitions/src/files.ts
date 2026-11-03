@@ -29,6 +29,7 @@ export function createFilesAuthor(
   return succeed(
     createAuthor<FilesAuthorEnvironment>(
       'Files',
+      'Read, search, and modify files in the authorized execution environment.',
       filesCommands,
       ['files'],
       maximum,
