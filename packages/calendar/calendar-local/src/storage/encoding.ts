@@ -35,7 +35,11 @@ export function acknowledgementIdentity(input: CalendarReactionAcknowledgement):
     transactionDomain: DOMAIN,
     protocolVersion: '2',
     operation: 'calendar.ackReaction',
-    operationKey: digest({ id: input.id, operationRef: input.operationRef }),
+    operationKey: digest({
+      id: input.id,
+      operationRef: input.operationRef,
+      acknowledgementKey: input.acknowledgementKey,
+    }),
   }
 }
 export function authorityBinding(

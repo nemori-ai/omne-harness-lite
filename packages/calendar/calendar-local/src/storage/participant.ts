@@ -146,6 +146,15 @@ export default {
         },
       }
     }
+    if (result.kind === 'conflict' && input.data.action === 'ackReaction') {
+      return {
+        kind: 'conflict',
+        basis: {
+          ...z.record(z.string(), z.json()).parse(result.basis),
+          acknowledgementDigest: digest(input.data.acknowledgement),
+        },
+      }
+    }
     if (result.kind === 'participated') port.provideFact(RESULT_FACT, result.response)
     return result
   },

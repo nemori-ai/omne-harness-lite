@@ -113,6 +113,10 @@ export const candidateRecordSchema = z.strictObject({
   receipt: receiptSchema,
 })
 export const ackSchema: z.ZodType<CalendarReactionAcknowledgement> = z.strictObject({
+  acknowledgementKey: z
+    .string()
+    .min(1)
+    .refine(value => Buffer.byteLength(value, 'utf8') <= 128),
   id: text,
   operationRef: text,
   handoffRef: text,

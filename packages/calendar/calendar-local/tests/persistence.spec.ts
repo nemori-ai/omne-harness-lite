@@ -322,6 +322,7 @@ it('recovers pending reactions across reopen and only acknowledges the original 
   expect(await w.repository.listPendingReactions({ after: null, limit: 1 })).toEqual(pending)
   await w.configure(false, true)
   const ack = {
+    acknowledgementKey: 'ack-1',
     id: published.receipt.outboxId,
     operationRef: published.receipt.operationRef,
     handoffRef: 'consumer:accepted-1',
@@ -347,6 +348,45 @@ it('recovers pending reactions across reopen and only acknowledges the original 
       version: { kind: 'current' },
     }),
   ).toMatchObject({ kind: 'ok', value: { versionId: 'v1', publicationGeneration: 1 } })
+})
+
+it('preserves a denied acknowledgement while a newly authorized intent can finish the same reaction', async () => {
+  const w = await world()
+  const published = await w.persistence.commitDisposition(command())
+  if (published.kind !== 'recorded' || published.receipt.outboxId === null)
+    throw new Error(JSON.stringify(published))
+  const ack = {
+    acknowledgementKey: 'first-ack-intent',
+    id: published.receipt.outboxId,
+    operationRef: published.receipt.operationRef,
+    handoffRef: 'accepted-by-consumer',
+    authorityGuardRefs: ['fixture-current-ack-authority'],
+  }
+  await w.configure(false, false)
+  const denied = { kind: 'rejected', reason: 'authorityRejected' }
+  expect(await w.persistence.acknowledgeReaction(ack)).toEqual(denied)
+  await w.configure(false, true)
+  expect(await w.persistence.acknowledgeReaction(ack)).toEqual(denied)
+  expect(await w.persistence.acknowledgeReaction({ ...ack, handoffRef: 'changed' })).toEqual({
+    kind: 'rejected',
+    reason: 'invalid',
+  })
+  const approved = { ...ack, acknowledgementKey: 'newly-approved-ack-intent' }
+  expect(await w.persistence.acknowledgeReaction(approved)).toEqual({ kind: 'acknowledged' })
+  expect(await w.persistence.acknowledgeReaction(approved)).toEqual({ kind: 'acknowledged' })
+  expect(await w.repository.listPendingReactions({ after: null, limit: 10 })).toEqual({
+    kind: 'ok',
+    value: { items: [], nextCursor: null },
+  })
+  expect(
+    await w.repository.getSnapshot({
+      calendarId: command().address.calendarId,
+      version: { kind: 'current' },
+    }),
+  ).toMatchObject({
+    kind: 'ok',
+    value: { versionId: 'v1', publicationGeneration: 1 },
+  })
 })
 
 it('never reports a failed repository read as an empty result', async () => {

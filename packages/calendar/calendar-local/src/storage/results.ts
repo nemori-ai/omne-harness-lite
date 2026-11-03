@@ -149,15 +149,24 @@ export function acknowledgementResult(
     return { kind: 'rejected', reason: 'invalid' }
   }
   if (receipt.kind === 'unknown') return { kind: 'unknown' }
-  if (receipt.kind === 'rolled_back') return acknowledgementRollback(receipt)
+  if (receipt.kind === 'rolled_back') return acknowledgementRollback(receipt, acknowledgement)
   return { kind: 'rejected', reason: 'providerUnavailable' }
 }
-function acknowledgementRollback(receipt: ReceiptV2): CalendarAcknowledgementResult {
+function acknowledgementRollback(
+  receipt: ReceiptV2,
+  acknowledgement: CalendarReactionAcknowledgement,
+): CalendarAcknowledgementResult {
   const stop = receipt.responses.at(-1)
-  if (
-    stop?.reply.kind === 'conflict' &&
-    z.object({ reason: z.literal('notFound') }).safeParse(stop.reply.basis).success
-  )
-    return { kind: 'rejected', reason: 'notFound' }
-  return { kind: 'rejected', reason: 'providerUnavailable' }
+  if (stop?.participant !== PARTICIPANT || stop.reply.kind !== 'conflict')
+    return { kind: 'unknown' }
+  const basis = z
+    .strictObject({
+      reason: z.enum(['notFound', 'invalid', 'authorityRejected']),
+      acknowledgementDigest: z.string(),
+    })
+    .safeParse(stop.reply.basis)
+  if (!basis.success) return { kind: 'unknown' }
+  if (basis.data.acknowledgementDigest !== digest(acknowledgement))
+    return { kind: 'rejected', reason: 'invalid' }
+  return { kind: 'rejected', reason: basis.data.reason }
 }

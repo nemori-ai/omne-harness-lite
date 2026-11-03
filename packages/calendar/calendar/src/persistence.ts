@@ -126,6 +126,7 @@ export type CalendarPendingReaction = Readonly<{
   publicationGeneration: number
 }>
 export type CalendarReactionAcknowledgement = Readonly<{
+  acknowledgementKey: string
   id: string
   operationRef: string
   handoffRef: string
@@ -134,7 +135,10 @@ export type CalendarReactionAcknowledgement = Readonly<{
 export type CalendarAcknowledgementResult =
   | Readonly<{ kind: 'acknowledged' }>
   | Readonly<{ kind: 'unknown' }>
-  | Readonly<{ kind: 'rejected'; reason: 'notFound' | 'invalid' | 'providerUnavailable' }>
+  | Readonly<{
+      kind: 'rejected'
+      reason: 'notFound' | 'invalid' | 'authorityRejected' | 'providerUnavailable'
+    }>
 
 export interface CalendarRepository {
   listCalendars(
