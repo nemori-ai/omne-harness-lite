@@ -23,6 +23,7 @@ import {
   operationId,
   ordinaryInput,
 } from '@omne-harness/session-contract/testing'
+import { EXECUTION_RECORD_HANDLERS } from '@omne-harness/session-storage-sql/participants'
 import { readExecutionInterpretation } from '../src/cordis/agent-journal.ts'
 import { evidence, ok, operation, submitInput } from './fixtures/common-journal.ts'
 import { handed, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
@@ -273,5 +274,129 @@ describe('an event whose consequences the publication does not decide', () => {
     expect(await handed(s, 'input-2', receipt.evidence)).toMatchObject({
       failure: { kind: 'unavailable' },
     })
+  })
+})
+
+describe('path P: AD-02 reads the events after its progress from the fact rows (C-WORKCACHE)', () => {
+  /** A scene with an input-taken, an observed message, a Model call wait and a control event. */
+  async function eventful(name: string) {
+    const s = await scene(name)
+    await started(s)
+    await committed(s, 'message', () => ({
+      events: [{ kind: 'message', message: assistantMessage('m'), source: evidence('message') }],
+    }))
+    const pending = modelWait(s)
+    const modelWaits: Waiting[] = [{ kind: 'producer', pending }]
+    await committed(s, 'model-wait', loaded => ({
+      checkpoint: { ...loaded.checkpoint, calls: [pending] },
+      state: { kind: 'waiting', waits: modelWaits },
+      events: [{ kind: 'waiting', waits: modelWaits }],
+      effects: [
+        {
+          pending,
+          action: pending.action,
+          authority: loaded.executionAttachment ?? (null as never),
+        },
+      ],
+    }))
+    ok(
+      await s.view.journal.control({
+        ...s.access,
+        execution: s.execution,
+        operation: operation('control-cancel'),
+        command: { kind: 'cancel', reason: evidence('cancel-reason') },
+      }),
+    )
+    return s
+  }
+
+  /** The reads of `handler` the storage served while `run` ran. */
+  async function readsDuring<T>(s: SqlScene, handler: string, run: () => Promise<T>) {
+    if (s.controls === null) throw new Error('the double storage is expected')
+    const from = s.controls.reads.length
+    const value = await run()
+    return { value, reads: s.controls.reads.slice(from).filter(item => item === handler).length }
+  }
+
+  type Facts = { facts: { consequences: unknown; control: unknown; sequence: string }[] }
+  const rewriteFacts = (s: SqlScene, change: (output: Facts) => Facts) => {
+    s.rewriteReads.current = (request, answer) =>
+      request.handler === EXECUTION_RECORD_HANDLERS.executionFacts && answer.kind === 'read'
+        ? { ...answer, output: change(structuredClone(answer.output) as Facts) as never }
+        : answer
+  }
+
+  it('gives what the records of the execution give, from every progress, and reads no part', async () => {
+    const s = await eventful('facts-equal')
+    for (const after of ['0', '1', '2', '3', '4']) {
+      const facts = await readsDuring(s, EXECUTION_RECORD_HANDLERS.parts, () =>
+        interpretation(s, after),
+      )
+      expect(facts.reads).toBe(0)
+      // The same read with every body made absent goes to the records of the execution.
+      rewriteFacts(s, output => ({
+        ...output,
+        facts: output.facts.map(fact => ({ ...fact, consequences: 'absent', control: 'absent' })),
+      }))
+      const records = await readsDuring(s, EXECUTION_RECORD_HANDLERS.parts, () =>
+        interpretation(s, after),
+      )
+      s.rewriteReads.current = null
+      // A read with no event after the progress has no body to miss, so it reads no part either.
+      expect(records.reads > 0).toBe(after !== '4')
+      expect(facts.value).toEqual(records.value)
+      expect(facts.value.events.map(event => event.sequence)).toEqual(
+        ['1', '2', '3', '4'].slice(Number(after)),
+      )
+    }
+  })
+
+  it('reads one fact row per event after the progress, however many came before', async () => {
+    const s = await eventful('facts-rows')
+    if (s.controls === null) throw new Error('the double storage is expected')
+    const rows = (after: string) =>
+      s.controls!.select(
+        `SELECT COUNT(*) FROM er_fact_idx WHERE sequence > ${after} AND execution = '${s.execution}'`,
+      ).rows[0]?.[0]
+    for (const after of ['0', '3']) {
+      let returned = -1
+      rewriteFacts(s, output => {
+        returned = output.facts.length
+        return output
+      })
+      await interpretation(s, after)
+      s.rewriteReads.current = null
+      expect(BigInt(returned)).toBe(BigInt(rows(after) as bigint))
+    }
+  })
+
+  it('a missing fact row is a gap: unavailable, never the events after it', async () => {
+    const s = await eventful('facts-gap')
+    rewriteFacts(s, output => ({
+      ...output,
+      facts: output.facts.filter(fact => fact.sequence !== '2'),
+    }))
+    const read = await readExecutionInterpretation(
+      { storage: s.storage, tenantDomainLookup: lookup(s) },
+      { tenant: s.access.tenant, session: s.access.session, execution: s.execution, after: '0' },
+    )
+    expect(read).toMatchObject({
+      kind: 'unavailable',
+      diagnostic: expect.stringContaining('gap at sequence 2'),
+    })
+  })
+
+  it('an execution of another session reads as none', async () => {
+    const s = await eventful('facts-other-session')
+    const read = await readExecutionInterpretation(
+      { storage: s.storage, tenantDomainLookup: lookup(s) },
+      {
+        tenant: s.access.tenant,
+        session: 'another-session' as never,
+        execution: s.execution,
+        after: '0',
+      },
+    )
+    expect(read).toEqual({ kind: 'read', execution: null })
   })
 })

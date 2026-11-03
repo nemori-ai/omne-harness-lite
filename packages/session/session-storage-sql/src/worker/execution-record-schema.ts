@@ -125,3 +125,24 @@ export const STATE_PART_MIGRATION = Object.freeze({
   owner: 'execution-record',
   id: '004-state-parts',
 })
+
+// The body of each fact row (C-WORKCACHE design §5.2, path P): the normalized consequences and the
+// deferred control evidence the same publication wrote into its interpretation notes, in a table
+// beside `er_fact_idx` with the same key, so an interpreter reads the events after its progress
+// from append-only rows instead of the records of the whole execution. NULL `consequences` means
+// not decided; NULL `control` means not a deferred control fact. A fact row of a writer that
+// writes no body (or of a publication before this table) has no row here. A table, not columns,
+// for the reason `er_admission_attempt_idx` gives.
+export const FACT_BODY_SCHEMA: readonly string[] = [
+  `CREATE TABLE IF NOT EXISTS er_fact_body (
+    tenant TEXT NOT NULL, execution TEXT NOT NULL, sequence INTEGER NOT NULL, session TEXT NOT NULL,
+    consequences TEXT, control TEXT,
+    PRIMARY KEY (tenant, execution, sequence)) STRICT`,
+]
+
+export const FACT_BODY_TABLES: readonly string[] = ['er_fact_body']
+
+export const FACT_BODY_MIGRATION = Object.freeze({
+  owner: 'execution-record',
+  id: '005-fact-body',
+})

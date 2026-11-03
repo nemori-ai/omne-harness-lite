@@ -34,7 +34,14 @@ type Boundary = Readonly<{
   emittedThrough: string
   ended: JsonValue
 }>
-type Fact = Readonly<{ execution: string; sequence: string; source: JsonValue; kinds: JsonValue }>
+type Fact = Readonly<{
+  execution: string
+  sequence: string
+  source: JsonValue
+  kinds: JsonValue
+  /** The body of the fact (`er_fact_body`); undefined when the writer sent none. */
+  body: Readonly<{ consequences: JsonValue; control: JsonValue }> | undefined
+}>
 type Batch = Readonly<{ execution: string; sequence: string; source: JsonValue; batch: JsonValue }>
 type Admission = Readonly<{
   input: string
@@ -111,8 +118,18 @@ function parseBoundary(item: Json): Boundary | null {
 
 function parseFact(item: Json): Fact | null {
   const { execution, sequence, kinds } = item
+  // A writer that names either member writes the body; one that names neither writes none.
+  const bodied = 'consequences' in item || 'control' in item
   return isText(execution) && isInteger(sequence) && Array.isArray(kinds)
-    ? { execution, sequence, source: item['source'] ?? null, kinds }
+    ? {
+        execution,
+        sequence,
+        source: item['source'] ?? null,
+        kinds,
+        body: bodied
+          ? { consequences: item['consequences'] ?? null, control: item['control'] ?? null }
+          : undefined,
+      }
     : null
 }
 
@@ -231,11 +248,24 @@ function writeIndex(port: Executor, write: Write): void {
         boundary.ended === null ? null : json(boundary.ended),
       ],
     )
-  for (const fact of write.facts)
+  for (const fact of write.facts) {
     port.execute(
       'INSERT INTO er_fact_idx (tenant, execution, sequence, session, source, kinds) VALUES (?, ?, ?, ?, ?, ?)',
       [tenant, fact.execution, BigInt(fact.sequence), session, json(fact.source), json(fact.kinds)],
     )
+    if (fact.body !== undefined)
+      port.execute(
+        'INSERT INTO er_fact_body (tenant, execution, sequence, session, consequences, control) VALUES (?, ?, ?, ?, ?, ?)',
+        [
+          tenant,
+          fact.execution,
+          BigInt(fact.sequence),
+          session,
+          fact.body.consequences === null ? null : json(fact.body.consequences),
+          fact.body.control === null ? null : json(fact.body.control),
+        ],
+      )
+  }
   for (const batch of write.batches)
     port.execute(
       'INSERT INTO er_batch_idx (tenant, execution, sequence, session, source, batch) VALUES (?, ?, ?, ?, ?, ?)',

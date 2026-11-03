@@ -114,6 +114,13 @@
     - 不迁移旧数据：0.0.x 不承诺旧字节兼容（[当前演进政策](../../../docs/engineering/publication.md#当前演进与消费者)），已有的整份状态行留在 `er_state`，本成员不把它拆成分区。session-adapters 的提供者只读分区，遇到整份状态答 `unavailable`。
     - 清单摘要：新迁移、新 handler 与参加者模块摘要都改变组合的 `manifestDigest`。只含本成员材料的 `execution-record` 加 `session` 组合，基线 `1d0166605` 为 `adb6a8d5d5ccc00d1a8d16111179e07d51c027d4b945bd46c78ac92fad102bed`，本次为 `1167f04eb532906f195cb4215c50d66a06c1bed8f4d3e2b34021f880155b5794`（删除只读整份状态的 handler `execution-record.state`、拆分 `parseWrite` 与分区读口之后重算）（`combinationManifest` 加 `manifestDigest` 对构建后的 `dist` 材料计算，`combinationVersion` 取 `c1`；读 handler 的 `maxOutputBytes` 不进摘要，放宽到 20 MiB 后摘要不变）。应用的材料目录与 `combinationVersion` 归 Reduce，本成员不改。
     - 验证：`tests/state-parts.spec.ts` 核对迁移的依赖与表的归属、分区替换与删除、`replace`、整份写删除分区、`since` 只读之后写到或删除的分区、八种畸形写入不写任何行、同一提交里 Session 写失败时分区一起回滚、分页的行数与文本预算、超过预算的分区单独成页、只读所列分区、畸形读输入被拒。另一租户读不到：两个租户放在同一个库里，租户 B 的同名会话与同名分区种在租户 A 的库中，读口的 root、整份、分区三条语句与分区写的 `replace` 删整份、全部置空两条语句，去掉任一处的 `tenant` 条件，用例变红；分区写后租户 B 的行不变。
+19. 事实体（C-WORKCACHE 路径 P，R2-D90）。AD-02 解释一个 execution 时只需要它的头行与进度之后的事件，所以每条事实行旁边另存它的正文：表 `er_fact_body (tenant, execution, sequence, session, consequences, control)`，主键与 `er_fact_idx` 相同，STRICT；迁移 `execution-record/005-fact-body`（依赖 001，`CREATE TABLE IF NOT EXISTS`，可重复执行；`verify` 核对表存在）。不加列，理由同 `er_admission_attempt_idx`。
+    - 写入：`ExecutionFactRecord` 带 `consequences` 或 `control` 任一成员（含显式 `null`）时，`writeIndex` 在写这条事实行的同一循环里写一行正文；两个成员都不带的写入方不写正文。两个成员是写入方给的 JSON，原样保存：`consequences` 为 NULL 表示后果未定，`control` 为 NULL 表示不是延后的控制事实。行只追加，与事实行同一事务。
+    - 读取：handler `execution-record.execution-facts`（依赖 001 与 005），输入 `tenant`、`session`、`execution`、`after`（十进制序号）。先按 `(tenant, execution, session)` 点查 `er_execution`，没有行答 `{ kind: 'absent' }`（含别的会话或别的租户的同名 execution）；再按主键范围读 `sequence > after` 的事实行，左连接正文，按序号一页最多 200 行，多一行说明有下一页（`next` 为本页最后一个序号）。输出头行的 `revision`、`receipt`、`emittedThrough`、`ended` 与每条事实的 `sequence`、`source`、`kinds`、`consequences`、`control`；没有正文行的事实，两个成员都是字符串 `'absent'`。读的行数是一行头加进度之后的事实数，与会话长度和该 execution 之前的事实数无关。
+    - 词汇：handler 名为 `EXECUTION_RECORD_HANDLERS.executionFacts`，子路径不另加解码函数，读者自己解析。
+    - 不迁移旧数据：已有事实行没有正文，读者对它们回退到读分区（session-adapters 已知限制）。
+    - 清单摘要：新迁移与新 handler 改变组合的 `manifestDigest`，按 R2-D90 并入 session-composite/2，由负责人统一重算。
+    - 验证：`tests/execution-facts.spec.ts` 在同一个迁移过的库上核对：正文与事实同读、没有正文的事实答 `'absent'`、只读进度之后的事实且行数不随之前的事实增长、另一租户与另一会话读不到、畸形序号被拒。
 
 ### 两个「事务端口」
 

@@ -87,9 +87,13 @@ async function interpreted(
       const result = await base.read(request, readOptions)
       if (result.kind === 'read' && request.handler.startsWith('execution-record.'))
         bytes.read.push(JSON.stringify(result.output).length)
-      return heads.unwritten && result.kind === 'read' && request.handler === STATE_HANDLER
-        ? { ...result, output: withoutHeads(result.output) }
-        : result
+      if (!heads.unwritten || result.kind !== 'read') return result
+      if (request.handler === STATE_HANDLER)
+        return { ...result, output: withoutHeads(result.output) }
+      // The head row as another execution's call leaves it: its receipt is the placeholder.
+      if (request.handler === FACTS_HANDLER)
+        return { ...result, output: withPlaceholderHead(result.output) }
+      return result
     },
   }
   const sent: Sent[] = []
@@ -113,6 +117,7 @@ async function interpreted(
 }
 
 const STATE_HANDLER = EXECUTION_RECORD_HANDLERS.parts
+const FACTS_HANDLER = EXECUTION_RECORD_HANDLERS.executionFacts
 
 /**
  * A page of the Agent records with every head receipt of the notes set to null. A part holds the
@@ -127,9 +132,16 @@ function withoutHeads(output: JsonValue): JsonValue {
   return copy as JsonValue
 }
 
-/** How many times the Agent records of a session were read from the storage. */
+function withPlaceholderHead(output: JsonValue): JsonValue {
+  const copy = structuredClone(output) as { receipt?: { digest: string } | null }
+  if (copy.receipt !== undefined && copy.receipt !== null) copy.receipt.digest = 'unknown'
+  return copy as JsonValue
+}
+
+/** How many times the Agent records or the facts of an execution were read from the storage. */
 const stateReads = (s: SqlScene) =>
-  s.controls?.reads.filter(handler => handler === STATE_HANDLER).length ?? 0
+  s.controls?.reads.filter(handler => handler === STATE_HANDLER || handler === FACTS_HANDLER)
+    .length ?? 0
 
 const work = async (s: SqlScene): Promise<WorkSnapshot> =>
   ok(await s.port.readWork(s.sessionAccess))
