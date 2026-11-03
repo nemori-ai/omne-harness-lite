@@ -133,6 +133,8 @@ export function principalObject(): EntryObjectModule {
 export type HostDoubles = Readonly<{
   spec: RowSpec
   controls: TestAgentControls<string>
+  /** The principal of every Journal `load`, in order. */
+  loads: unknown[]
 }>
 
 /**
@@ -156,8 +158,15 @@ export function hostDoubles(omit: Inject | null): HostDoubles {
     kind: 'allowed',
     evidence: { ...scope, record: `access/${input.operation}` },
   }))
+  const loads: unknown[] = []
   const ports: Readonly<Record<ServiceInject, object>> = {
-    agentJournal: controls.journal.port,
+    agentJournal: {
+      ...controls.journal.port,
+      load(input: Parameters<typeof controls.journal.port.load>[0]) {
+        loads.push(input.principal)
+        return controls.journal.port.load(input)
+      },
+    },
     agentJournalEntries: {},
     agentMaterials: controls.materials.port,
     agentAccessCheck: controls.access.port,
@@ -199,5 +208,5 @@ export function hostDoubles(omit: Inject | null): HostDoubles {
       },
     }),
   )
-  return { spec, controls }
+  return { spec, controls, loads }
 }
