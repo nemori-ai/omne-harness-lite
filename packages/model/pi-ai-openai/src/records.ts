@@ -1,7 +1,9 @@
 // The OpenAI records: one `current` record per exact OpenRouter model, revision `1`. Pure data: a
-// record changes only by a new revision, and the adoption digest covers every member. The models,
-// effort sets, image rules, Pro usage scope, limits and evidence come from the sealed
-// `official-models/openai.ts` and `input-meters/openai-family-policy.ts` (see provenance.json).
+// record changes only by a new revision, and the adoption digest covers every member. The twelve
+// GPT-6 and GPT-5.6 models, their effort sets, image rules, Pro usage scope, limits and evidence
+// come from the sealed `official-models/openai.ts` and `input-meters/openai-family-policy.ts` (see
+// provenance.json). GPT-6.1 Sol and Terra come from the official model pages and the OpenRouter
+// endpoint metadata of 2026-11-03.
 import type { ParameterTable } from '@omne-harness/pi-ai-transport/chat-completions'
 import type { OpenAiRecord } from './record.ts'
 
@@ -66,7 +68,8 @@ const EFFORT = {
 
 /**
  * The parameter table of every record: only the output limit and the reasoning effort pass. Each
- * model publishes `low`, `medium`, `high` and `max`; the standard models also publish `none`.
+ * model publishes `low`, `medium`, `high`, `xhigh` and `max`; all but GPT-6 Astra and GPT-6.1 Sol
+ * also publish `none`. The contract has no `xhigh`, so no record offers it.
  */
 const PARAMETERS = {
   temperature: { support: 'unsupported' },
@@ -129,6 +132,16 @@ const METER = {
   tokenizer: OPENAI_TOKENIZER,
 } as const
 
+/**
+ * The profile of the GPT-6.1 models: the shared limits, with the evidence of their own observation.
+ * The image guide names neither model, so their image rule is the GPT-6 proxy of Sol and Luna.
+ */
+const GPT61_PROFILE = {
+  ...COMMON.profile,
+  evidence:
+    'OpenAI model pages and OpenRouter endpoint metadata observed 2026-11-03 for the selected OpenAI endpoint: a 1050000-token shared window, a 922000-token max prompt and a 128000-token max completion. The 4194304-byte image limit is the offering of this project; no upstream per-image byte limit is established.',
+} as const
+
 /** The OpenAI records. The record list is the only list of models in this package. */
 export const OPENAI_RECORDS = [
   {
@@ -189,6 +202,28 @@ export const OPENAI_RECORDS = [
     ...COMMON,
     parameters: PARAMETERS,
     rules: { ...RULES, usage: 'unknown-scope/1' },
+    meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
+  },
+  {
+    name: 'openai/gpt-6.1-sol',
+    revision: '1',
+    route: { recipient: OPENROUTER, model: 'openai/gpt-6.1-sol' },
+    status: 'current',
+    ...COMMON,
+    profile: GPT61_PROFILE,
+    parameters: PARAMETERS,
+    rules: { ...RULES, usage: 'openai-usage/1' },
+    meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
+  },
+  {
+    name: 'openai/gpt-6.1-terra',
+    revision: '1',
+    route: { recipient: OPENROUTER, model: 'openai/gpt-6.1-terra' },
+    status: 'current',
+    ...COMMON,
+    profile: GPT61_PROFILE,
+    parameters: PARAMETERS,
+    rules: { ...RULES, usage: 'openai-usage/1' },
     meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
   },
   {
