@@ -960,7 +960,7 @@
 > **EN**: An identifiable and selectable body of date-classification knowledge with a stated applicability scope, supplied through traceable versions to answer questions such as whether a date is a working day or holiday.
 
 - **形态**：对象
-- **出处**：[PF-021 §4 业务日历与版本](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#业务日历与版本)（rev 8）
+- **出处**：[日历：身份与不可变版本](../../product/calendars/design.md#calendar-model)（rev 2）
 - **别混**：一个国家可有不同适用范围的日历；美国联邦假日不等于全国统一放假。
 
 ### UL-business-calendar-version · 业务日历版本 · Business Calendar Version
@@ -970,7 +970,7 @@
 > **EN**: An immutable, distinguishable publication of validated business-calendar data, carrying its coverage interval, knowledge-as-of time and authoritative provenance. Corrections are expressed as new versions.
 
 - **形态**：对象
-- **出处**：[PF-021 §4 业务日历与版本](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#业务日历与版本)（rev 8）
+- **出处**：[日历：身份与不可变版本](../../product/calendars/design.md#calendar-model)（rev 2）
 - **别混**：覆盖日期与信息截至时点是两个不同维度，更新失败不产生有效的新版本。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

@@ -53,7 +53,7 @@ JobExecutor 声明 inspect、start、query 和 requestStop 所需语义。inspec
 | 路径           | 外部适配责任                                         | 必须保留的边界                                     |
 | -------------- | ---------------------------------------------------- | -------------------------------------------------- |
 | program        | 核对注册程序、版本、参数和当前资格，按稳定工作键提交 | 无 Session/Agent 也可执行，程序回执才是执行事实    |
-| agent-new      | 按 Job/attempt 幂等创建目标并承接 instruction        | 重试查询原创建与输入结果，不多建会话               |
+| agent-new      | 按 Job 的稳定执行键幂等创建目标并承接 instruction        | 重试与 attempt 恢复查询原创建和输入结果，不多建会话               |
 | agent-existing | 只向指定 sessionRef 承接本次 instruction             | 目标不存在、归档或无权时受阻或拒绝，不能静默改 new |
 
 Session intake/inbound 根据来源及政策将 instruction 解释为合法输入和消息，包括其拥有的 SystemReminderMessage/UserMessage 规则。Job 不选择消息类或 role。existing Session 可承接多个 Job，Session 管理其排队和推进，适配器按本次 executionRef 对账；最近消息、空闲和最近 Run 结束均不足以结算任意 Job。

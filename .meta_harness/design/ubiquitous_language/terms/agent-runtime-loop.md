@@ -1009,13 +1009,13 @@
 
 ### UL-job-session · 作业会话 · Job Session
 
-> **中**：为一个需要 agent 执行的定时作业新建并专属承接其执行部分的会话子类型；沿用会话身份与生命周期，强制附加面向该作业的成果提交或上报工具，以及检查其目标完成情况的 Loop 拓展。
+> **中**：为选择新会话执行的一个定时作业建立并专属承接其执行部分的会话子类型，沿用会话身份与生命周期，并附加该作业的成果上报与目标完成检查能力。
 >
-> **EN**: A session subtype created for the agent-executed part of one scheduled job, whether execution-only or execution with notification; mechanical system jobs do not use this subtype. It retains session identity and lifecycle semantics while requiring a job-result reporting tool and a loop extension that checks objective completion, regardless of the selected agent definition.
+> **EN**: A session subtype created to execute one scheduled job that requests a new session. It retains session identity and lifecycle semantics, with capabilities for reporting that job’s results and checking its objective.
 
 - **形态**：变体（父：[会话](#ul-session--会话--session)）
-- **出处**：[PF-021 §4 作业会话](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#作业会话)（rev 8）
-- **别混**：这不是 PF-015 从 AgentDefinition 推导的用途分类，也不自动表示 parent-child 关系中的子会话。
+- **出处**：[日程与作业：执行意图](../../product/schedules-and-jobs/design.md#execution-modes)（rev 2）
+- **别混**：它只对应 agent-new 路径。向已有会话提交 Job 不把该会话转换为作业会话，也不自动建立 parent-child 关系。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
 

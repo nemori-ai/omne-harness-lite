@@ -982,7 +982,7 @@
 > **EN**: A pluggable capability for creating and managing work arranged over time, scheduling due work, and triggering execution or notification actions, supporting the system’s own mechanical work as well as short-, medium-, and long-term undertakings for harness agents and users.
 
 - **形态**：总称
-- **出处**：[PF-021 §4 日程能力](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#日程能力)（rev 8）
+- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 2）
 - **别混**：能力本身不同于一份 Schedule。
 
 ### UL-routine · 工作例程 · Routine
@@ -992,18 +992,18 @@
 > **EN**: The work-description data held within a schedule, specifying the mechanical action or agent objective and applicable notification content and target tenant for its jobs. It excludes timing rules and per-job progress or results, and has no independent identity or lifecycle. Factory-provided forms are preset descriptions used to populate this data.
 
 - **形态**：属性
-- **出处**：[PF-021 §4 工作例程](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#工作例程)（rev 8）
+- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 2）
 - **别混**：各次 Job 共用工作定义，不共享执行状态；不同 Schedule 不共同引用一个可变 Routine 对象。
 
 ### UL-calendar-service · 日历服务 · Calendar Service
 
-> **中**：支持日历配置、管理、选择切换和数据更新维护，供应业务日历及其版本并提供日期计算的服务统称；作为独立产品应用交付，是日程能力的计算依赖。
+> **中**：供应业务日历及不可变版本、维护数据并提供日期知识与计算的独立能力统称。消费者选择由设置拥有者保存，日历按获授权的选择解析依据。
 >
-> **EN**: The service capability for calendar configuration, management, selection and switching, data maintenance, versioned calendar supply, and date calculations. It is delivered as an independent product application and serves as a computational dependency of scheduling.
+> **EN**: The independent capability that supplies business calendars and immutable versions, maintains their data, and provides date knowledge and calculations. Settings owners retain consumer selections; the calendar resolves authorized selections.
 
 - **形态**：总称
-- **出处**：[PF-021 §4 日历服务](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#日历服务)（rev 8）
-- **别混**：独立产品应用与部署位置是不同维度；“计算器”是日程讨论中的简称。
+- **出处**：[日历：产品需求](../../product/calendars/design.md#产品需求描述)（rev 2）
+- **别混**：独立能力不表示必须独立部署。日历不拥有用户环境设置、Schedule 或 Job。
 
 ### UL-notification-capability · 通知能力 · Notification Capability
 
@@ -1014,5 +1014,16 @@
 - **形态**：总称
 - **出处**：[PF-021 §4 通知能力](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#通知能力)（rev 8）
 - **别混**：不是成果上报、普通会话回复或复制通知邀约本身；目标租户沿既有租户身份，送达不自动等于已读。
+
+
+### UL-system-schedule-definition · 系统日程定义 · System Schedule Definition
+
+> **中**：系统提供的一项定期产品功能的版本化定义，说明工作模板、时间规则、可控性、参数默认值及适用人群。用户通过日程订阅采用它，各次工作按订阅独立展开。
+>
+> **EN**: A versioned definition of a recurring product feature, specifying its work template, timing, controllability, parameter defaults, and applicability. Schedule subscriptions adopt the definition and produce work independently.
+
+- **形态**：对象
+- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 2）
+- **别混**：它不是平台机械维护的系统日程，也不是某份 Schedule 内无独立身份的 Routine 属性。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

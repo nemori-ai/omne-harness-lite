@@ -4,10 +4,10 @@
 > 要引用，引[领域对象条目](../domain_objects/objects.md)、[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。
 
 - derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · `domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `product.0.0.1.legacy/PF-*/{README,design,flows}.md`（sealed provenance，不是当前采用）
-- 生成时间：2026-10-22
+- 生成时间：2026-11-03
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
-对象 **66** 个，变体 **30** 个，形态未定的词条 **0** 个，待裁 **10** 项。
+对象 **68** 个，变体 **30** 个，形态未定的词条 **0** 个，待裁 **10** 项。
 
 **按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。这不是能力边界，也不是限界上下文；那是系统架构设计的事。
 
@@ -33,6 +33,7 @@
 | [资产版本](../domain_objects/objects.md#ul-asset-version--资产版本) | [UL-asset-version](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version) | [资产](../domain_objects/objects.md#ul-asset--资产)——每一份资产有自己独立的一条版本线 | — | PF-002（sealed provenance） | 003（sealed provenance） |
 | [meta 能力](../domain_objects/objects.md#ul-meta-capability--meta-能力) | [UL-meta-capability](../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | 正文未述。已采用并提供的元入口在 Agent 装配后各占一个常驻槽位 | — | PD-meta-capabilities | — |
 | [模型档案](../domain_objects/objects.md#ul-model-profile--模型档案) | [UL-model-profile](../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | —。建在出厂默认、组织或租户自己那一层；它不是资产，「用哪个模型」那项设置记的是路由名，同名的几条在范围链上按层取最具体一格的那一条（租户 > 组织 > 官方） | 官方档案、自建档案 | PF-013（sealed provenance） | — |
+| [系统日程定义](../domain_objects/objects.md#ul-system-schedule-definition--系统日程定义) | [UL-system-schedule-definition](../ubiquitous_language/terms/capabilities-and-composition.md#ul-system-schedule-definition--系统日程定义--system-schedule-definition) | 正文未述 | — | PD-schedules-and-jobs（草稿） | — |
 
 ## 流转与授权
 
@@ -51,8 +52,9 @@
 | [模型响应体](../domain_objects/objects.md#ul-model-response--模型响应体) | [UL-model-response](../ubiquitous_language/terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response) | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——它是一条效力为留痕的[记录条目](../domain_objects/objects.md#ul-record-entry--记录条目)的载荷，随日志留着；试过又失败的那几条不进方程、不进模型的上下文 | — | PF-013（sealed provenance） | 000（sealed provenance） |
 | [附件](../domain_objects/objects.md#ul-attachment--附件) | [UL-attachment](../ubiquitous_language/terms/execution-and-outcome.md#ul-attachment--附件--attachment) | 产出它的那次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)；实际存放在工具定义声明的那个存储里 | — | PF-006（sealed provenance） | — |
 | [被卸载的原始结果](../domain_objects/objects.md#ul-offloaded-result--被卸载的原始结果) | [UL-offloaded-result](../ubiquitous_language/terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 正文未述。它由一次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)产出，却从来没进过[会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——日志里只有那条占位；物理存放归属未述；原始全文持续可回取，不因卸载、压缩、Run 结束或会话归档过期 | — | PF-006（sealed provenance） | 012（sealed provenance） |
-| [日程](../domain_objects/objects.md#ul-schedule--日程) | [UL-schedule](../ubiquitous_language/terms/execution-and-outcome.md#ul-schedule--日程--schedule) | 正文未述；系统或租户归属不等于生命周期宿主 | 系统日程 | PF-021（sealed provenance） | — |
-| [定时作业](../domain_objects/objects.md#ul-scheduled-job--定时作业) | [UL-scheduled-job](../ubiquitous_language/terms/execution-and-outcome.md#ul-scheduled-job--定时作业--scheduled-job) | 正文未述；与来源日程和执行会话的关联不等于随它们消失 | — | PF-021（sealed provenance） | — |
+| [日程](../domain_objects/objects.md#ul-schedule--日程) | [UL-schedule](../ubiquitous_language/terms/execution-and-outcome.md#ul-schedule--日程--schedule) | 正文未述；系统或租户归属不等于生命周期宿主 | 系统日程 | PD-schedules-and-jobs（草稿） | — |
+| [定时作业](../domain_objects/objects.md#ul-scheduled-job--定时作业) | [UL-scheduled-job](../ubiquitous_language/terms/execution-and-outcome.md#ul-scheduled-job--定时作业--scheduled-job) | 正文未述；与来源日程和执行会话的关联不等于随它们消失 | — | PD-schedules-and-jobs（草稿） | — |
+| [日程订阅](../domain_objects/objects.md#ul-schedule-subscription--日程订阅) | [UL-schedule-subscription](../ubiquitous_language/terms/execution-and-outcome.md#ul-schedule-subscription--日程订阅--schedule-subscription) | 正文未述；owner 归属不等于生命周期宿主 | — | PD-schedules-and-jobs（草稿） | — |
 
 ## 落地与隔离
 
@@ -96,8 +98,8 @@
 | [请求候选](../domain_objects/objects.md#ul-request-candidate--请求候选) | [UL-request-candidate](../ubiquitous_language/terms/record-and-context.md#ul-request-candidate--请求候选--request-candidate) | 持有它的调用方（会话路径上是发起请求的协调者）；正文未述它在调用方内的寿命边界 | — | PD-runtime-context（草稿） | — |
 | [提示词贡献](../domain_objects/objects.md#ul-prompt-contribution--提示词贡献) | [UL-prompt-contribution](../ubiquitous_language/terms/record-and-context.md#ul-prompt-contribution--提示词贡献--prompt-contribution) | 登记它的贡献者；贡献者卸载它随之撤销 | — | PD-runtime-context（草稿） | — |
 | [压缩计划](../domain_objects/objects.md#ul-compaction-plan--压缩计划) | [UL-compaction-plan](../ubiquitous_language/terms/record-and-context.md#ul-compaction-plan--压缩计划--compaction-plan) | 它所属的[请求候选](../domain_objects/objects.md#ul-request-candidate--请求候选)；一个候选身份至多一个计划 | — | PD-runtime-context（草稿） | — |
-| [业务日历](../domain_objects/objects.md#ul-business-calendar--业务日历) | [UL-business-calendar](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 正文未述 | — | PF-021（sealed provenance） | — |
-| [业务日历版本](../domain_objects/objects.md#ul-business-calendar-version--业务日历版本) | [UL-business-calendar-version](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar-version--业务日历版本--business-calendar-version) | 正文未述；所属业务日历可追溯，未规定随其退出而删除 | — | PF-021（sealed provenance） | — |
+| [业务日历](../domain_objects/objects.md#ul-business-calendar--业务日历) | [UL-business-calendar](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 正文未述 | — | PD-calendars（草稿） | — |
+| [业务日历版本](../domain_objects/objects.md#ul-business-calendar-version--业务日历版本) | [UL-business-calendar-version](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar-version--业务日历版本--business-calendar-version) | 正文未述；所属日历可追溯，未规定随其退出而删除 | — | PD-calendars（草稿） | — |
 
 ## 作用域与求值
 
@@ -177,4 +179,4 @@
 
 产品正文提到它却没有链到词条，「还有谁在讲」那一列就是空的——这一列的空，多半是链接稀疏，不是没人讲。
 
-会话、运行、agent runtime、Agent 执行、执行挂接、Agent 登记、装配清单、资产、资产版本、模型档案、复制通知、分享邀请、分享关系、工具执行、一次模型调用、模型响应体、附件、被卸载的原始结果、日程、定时作业、执行环境、沙箱实现、无状态沙箱、会话级沙箱、租户级沙箱、沙箱数据、终端会话、设施声明、获取、租约、受管资源、环境提供者、文件批次、会话据点、治理中心、派发报告、决策卡片、授权表达、入站到达、记录条目、会话日志、消息、内容块、待办条目、请求候选、提示词贡献、压缩计划、业务日历、业务日历版本、工作区、工作区实例、运行时 context 注册、runtime context 块、块声明、生产者句柄、绑定读者、步提交、账号、登录状态、组织、邀请、隶属请求、租户、租户—工作区关系。
+会话、运行、agent runtime、Agent 执行、执行挂接、Agent 登记、装配清单、资产、资产版本、模型档案、系统日程定义、复制通知、分享邀请、分享关系、工具执行、一次模型调用、模型响应体、附件、被卸载的原始结果、日程、定时作业、日程订阅、执行环境、沙箱实现、无状态沙箱、会话级沙箱、租户级沙箱、沙箱数据、终端会话、设施声明、获取、租约、受管资源、环境提供者、文件批次、会话据点、治理中心、派发报告、决策卡片、授权表达、入站到达、记录条目、会话日志、消息、内容块、待办条目、请求候选、提示词贡献、压缩计划、业务日历、业务日历版本、工作区、工作区实例、运行时 context 注册、runtime context 块、块声明、生产者句柄、绑定读者、步提交、账号、登录状态、组织、邀请、隶属请求、租户、租户—工作区关系。

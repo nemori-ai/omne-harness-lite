@@ -752,7 +752,7 @@
 > **EN**: An identifiable schedule containing its own routine description together with one-off or recurring timing rules, temporal bounds, and catch-up and overlap declarations. Actual work instances are represented by scheduled jobs.
 
 - **形态**：对象
-- **出处**：[PF-021 §4 日程](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#日程)（rev 8）
+- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 2）
 - **别混**：Routine 是它所包含的工作描述；Scheduled Job 是据它开展的某一次工作，不是日程自身。
 
 ### UL-system-schedule · 系统日程 · System Schedule
@@ -762,28 +762,28 @@
 > **EN**: A schedule owned by the system itself for its own predefined mechanical operations. It belongs to no account, organization, or tenant, retains schedule identity and lifecycle semantics, and does not start an agent session for execution.
 
 - **形态**：变体（父：[日程](#ul-schedule--日程--schedule)）
-- **出处**：[PF-021 §4 系统日程与出厂内容](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#系统日程与出厂内容)（rev 8）
+- **出处**：[日程与作业 J-SJ07](../../product/schedules-and-jobs/design.md#j-sj07-系统按部署条件做机械工作)（rev 2）
 - **别混**：系统出厂提供 Routine，不使采用它的租户日程归系统；系统负责调度一份日程也不决定其所有者。
 
 ### UL-scheduled-job · 定时作业 · Scheduled Job
 
-> **中**：一份日程在某个具体到期时刻对应的单次工作实例，支持执行、通知、执行并通知三种工作类型，有可指认的来源和本次处置结果；agent 执行使用专属新会话，系统自用的机械执行不创建会话，包含通知时按本次声明承担目标租户的通知。
+> **中**：一份日程在具体到期时刻经最终校验并被接受的单次工作实例，有独立身份、冻结要求和本次处置结果。它承担执行、通知或执行并通知；执行意图区分程序调用、agent 新会话和 agent 已有会话。
 >
-> **EN**: An identifiable instance of work due under a schedule at a particular occurrence. Its work type is execution, notification, or execution with notification. Agent execution uses a newly created dedicated session, while mechanical execution for the system itself creates no session; work that includes notification fulfils its declared notification obligations to the target tenant.
+> **EN**: An identifiable work instance accepted for a particular schedule occurrence after final validation. It retains frozen requirements and its own outcome. It performs execution, notification, or both. Execution targets a registered program, a new agent session, or a specified existing agent session.
 
 - **形态**：对象
-- **出处**：[PF-021 §4 定时作业](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#定时作业)（rev 8）
-- **别混**：agent 执行的 Job 关联会话，不以单个 Run 作为直接业务承接单位；机械执行无作业会话，执行并通知仍是同一个 Job。
+- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 2）
+- **别混**：Job 不等于 Session 或 Run。既有会话可承接多个 Job，须分别关联结果；程序执行和纯通知均不要求会话。
 
 ### UL-scheduled-execution · 定时执行 · Scheduled Execution
 
-> **中**：日程到期后履行执行工作的过程；系统自用日程触发机械操作，租户日程为本次作业新建专属会话并装配 agent 来完成工作目标。
+> **中**：履行已接受定时作业中执行部分的过程，按冻结意图调用已注册程序，或将指令交给新建或指定的已有 agent 会话。
 >
-> **EN**: The process of carrying out due work: schedules owned by the system itself trigger mechanical actions, while tenant-owned schedules create a dedicated new session and assemble an agent for the job objective.
+> **EN**: The process of executing an accepted scheduled job according to its frozen intent, by invoking a registered program or delivering instructions to a new or specified existing agent session.
 
 - **形态**：过程
-- **出处**：[PF-021 §4 两种定时动作](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#两种定时动作)（rev 8）
-- **别混**：agent 执行时，成果工具与完成检查不随 AgentDefinition 被省略；系统自用日程不借机械执行之名调用 agent。
+- **出处**：[日程与作业：执行意图](../../product/schedules-and-jobs/design.md#execution-modes)（rev 2）
+- **别混**：谁创建安排不决定执行路径。输入已受理或会话空闲都不等于本次目标已完成。
 
 ### UL-scheduled-notification · 定时通知 · Scheduled Notification
 
@@ -792,7 +792,7 @@
 > **EN**: The process of notifying a target tenant as part of scheduled work, either in a notification-only job or combined with execution in the same job. The notification action does not create an additional agent work session.
 
 - **形态**：过程
-- **出处**：[PF-021 §4 两种定时动作](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#两种定时动作)（rev 8）
+- **出处**：[日程与作业：提醒与事件通知](../../product/schedules-and-jobs/design.md#reminder)（rev 2）
 - **别混**：执行并通知同时承担两部分工作，不等于纯通知，也不拆成两个到期 Job；通知时机与送达判据由产品规则定义。
 
 ### UL-schedule-date-policy · 日程日期处理策略 · Schedule Date Policy
@@ -802,7 +802,7 @@
 > **EN**: A property of a schedule specifying whether a base candidate on a non-working date is retained, skipped, or moved to the preceding or following working date. It is distinct from recurrence rules, explicit excluded dates, and catch-up policy.
 
 - **形态**：属性
-- **出处**：[PF-021 §6.2 线性与非线性表达](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#62-线性与非线性表达)（rev 8）
+- **出处**：[日程与作业：时间与日期规则](../../product/schedules-and-jobs/design.md#time-rules)（rev 2）
 - **别混**：它改变未接受候选的日期，不移动已有 Job，也不把未来候选提前接受为工作。
 
 ### UL-schedule-catch-up-policy · 日程补跑策略 · Schedule Catch-up Policy
@@ -812,7 +812,7 @@
 > **EN**: A schedule property specifying whether missed occurrences that have not produced jobs may be caught up and, when enabled, the maximum number of most recent missed occurrences selected relative to the recovery processing time. It does not rerun existing jobs.
 
 - **形态**：属性
-- **出处**：[PF-021 §6.11 日历重算与补跑](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#611-日历重算与补跑)（rev 8）
+- **出处**：[日程与作业：恢复与补跑](../../product/schedules-and-jobs/design.md#recovery)（rev 2）
 - **别混**：补跑上限不是时间长度，也不是一次分页大小；已经创建但等待执行的 Job 不是漏过时刻。
 
 ### UL-schedule-overlap-policy · 日程重叠策略 · Schedule Overlap Policy
@@ -822,7 +822,7 @@
 > **EN**: A schedule property choosing how new due work interacts with earlier unfinished actions of the same schedule: skip the new occurrence, stop prior work before starting it, run independently in parallel, or wait and execute in order. Job identities and result ownership remain separate.
 
 - **形态**：属性
-- **出处**：[PF-021 §6.12 重叠处理](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#612-重叠处理)（rev 8）
+- **出处**：[日程与作业 J-SJ05](../../product/schedules-and-jobs/design.md#j-sj05-遇到前序尚未结束的动作)（rev 2）
 - **别混**：并行不合并会话或结果；停止是新增控制事实，不回写先前 Job 的工作要求或撤销已发生外部效果。
 
 ### UL-job-notification-policy · 作业通知策略 · Job Notification Policy
@@ -832,7 +832,18 @@
 > **EN**: A property of the routine contained in a schedule that declares which execution events trigger notifications to the target tenant and the content requirements for each event. Each job retains its creation-time declaration; notification delivery failure does not recursively trigger an execution-failure notification.
 
 - **形态**：属性
-- **出处**：[PF-021 §6.13 通知声明与完成](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#613-通知声明与完成)（rev 8）
+- **出处**：[日程与作业：提醒与事件通知](../../product/schedules-and-jobs/design.md#reminder)（rev 2）
 - **别混**：纯通知在到期时发送已定义内容；通知事件、发送尝试、送达与已读是不同事实。此属性不另立可管理对象。
+
+
+### UL-schedule-subscription · 日程订阅 · Schedule Subscription
+
+> **中**：一名 owner 对系统日程定义的独立采用关系，具有可指认身份、所选定义版本、参数、管理状态和接受历史。取消阻止该订阅的新接受，已有 Job 保持各自责任。
+>
+> **EN**: An identifiable adoption of a system schedule definition by one owner, retaining the selected version, parameters, management state, and acceptance history. Cancellation prevents new admissions while existing jobs retain their responsibilities.
+
+- **形态**：对象
+- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 2）
+- **别混**：它不是连接件的事件订阅，也不复制或修改系统功能定义。不同订阅者的同刻工作分别去重。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

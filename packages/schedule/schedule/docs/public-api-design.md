@@ -83,7 +83,7 @@ label 1..200 code points。instruction 1..65,536 UTF-8 bytes，本设计资源�
 
 **执行意图的冻结与解释**：Schedule 中的 Work 是未来安排内容，接受时完整复制进 Job.body.frozenWork。program 与 agent 互斥，program 不携带 instruction/session。agent 必须有非空 instruction 和 session 判别分支，不从 actor、创建来源或 instruction 是否存在猜测类型。
 
-- new：每个已接受 Job 新建一个执行会话。适配器以 jobId/attemptId 幂等认领，重试不能再新建一个会话；agentProfileRef 为实际采用的稳定配置/发布引用。
+- new：每个已接受 Job 新建一个执行会话。适配器以 Job 的稳定执行身份幂等认领，重试及 runtime/attempt 恢复不能新建另一个会话；agentProfileRef 为实际采用的稳定配置/发布引用。
 - existing：向明确的 sessionRef 提交本次 instruction，不再携带 agentProfileRef 去覆盖既有会话的 Agent。目标不存在、终局、跨租户或无准入资格时返回明确拒绝/受阻，绝不改为 new。
 - Session intake / inbound 决定将 instruction 适配为 SystemReminderMessage、UserMessage 或其他获准输入。Work 中不出现消息类、role、Run/turn 对象或 Session 聚合字段。Job 可记录提交来源供其政策使用，但不能通过伪造 message role 取得权限。
 - existing 表示在已有会话中执行本次 Job；是否新建 turn、排队或恢复某个推进点由 Session 拥有者决定。它不自动等同 self-wake，不自动延续旧 Run，也不能只因“消息已入队”把 Job 判为执行成功。
@@ -218,6 +218,8 @@ Calendar 查询的完整形状和默认补全规则归 [Calendar API 设计](../
 SubscriptionView：subscriptionId、owner、featureId、definitionVersion、parameters、control、standing、offsetSeconds、offsetPolicyVersion、createdAt、revision、controllable、controlReason、authorityAssignmentRef或null。FeatureView为featureId、definitionVersion、label、controllable、controlReason、parameterSchemaRef、defaults、windowSeconds、applicabilityRef。parameters 必须按对应 feature 的已注册 StandardSchema 校验，不能传自由脚本；错峰 windowSeconds 来自产品定义。
 
 WakeView：wakeId、sessionRef、generation、dueAt、checkpointRef、reason、state=pending/claimed/resumed/cancelled/expired/blocked、bounds、wakeCount、activeBudgetUsed、runRef、traceRef、progressCheckpointRef、revision。bounds：hardDeadline:Instant、maxWakeCount:positive integer、maxActiveBudgetMs:positive integer、minIntervalMs:positive integer。retime 不能超过 hardDeadline，也不能重置计数或预算。claim/resume 为内部授权方法，不是 Agent 的公开参数。
+
+attemptId 是本次 Job 执行的稳定交接标识，由首次启动准备持久分配。它不是 Session 的 Run attempt 或 runtime 代数；普通恢复、响应丢失和 provider 换代不得重分配。新业务重跑需要显式创建新 Job。
 
 prerequisiteProof：executorKind=program/agent、workFingerprint、owner、targetRef、authorityEvidenceRefs、guardRefs、version、capabilities={query:boolean,stop:boolean}。其中targetRef是opaque值，不嵌入Session/Agent对象。它只陈述受约束的当前可执行性，不成为永久许可。程序不支持真实停止时不得选择依赖停止保证的replace策略。
 
