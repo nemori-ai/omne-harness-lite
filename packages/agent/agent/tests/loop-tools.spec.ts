@@ -284,6 +284,105 @@ describe('tool result round', () => {
     ])
   })
 
+  it('denies the whole batch when the admission answers unavailable, and the run goes on', async () => {
+    const assembly = await toolAssembly()
+    acceptEach(assembly)
+    assembly.controls.admission.admit.always(() => ({
+      ok: { kind: 'unavailable', diagnostic: 'no action rule matches this action' },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    await secondModelCall(assembly)
+    // No later chain calls admit after the unavailable answer, and nothing reaches Tool.
+    expect(assembly.controls.admission.admit.calls).toHaveLength(1)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly)).map(message => message.blocks[0])).toEqual([
+      expect.objectContaining({ callId: 'call-a' }),
+      expect.objectContaining({ callId: 'call-b' }),
+    ])
+  })
+
+  it('does not release an action allowed earlier in a batch whose later admission is unavailable', async () => {
+    const assembly = await toolAssembly()
+    acceptEach(assembly)
+    assembly.controls.admission.admit.once(() => ({
+      ok: { kind: 'allow', evidence: evidence('allowed-first') },
+    }))
+    assembly.controls.admission.admit.always(() => ({
+      ok: { kind: 'unavailable', diagnostic: 'rule source down' },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly))).toHaveLength(2)
+  })
+
+  it('reads a denied Failure of the admission port as unavailable and denies the batch', async () => {
+    const assembly = await toolAssembly()
+    acceptEach(assembly)
+    assembly.controls.admission.admit.always(() => ({
+      failure: { kind: 'denied', action: 'admit-action' },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly))).toHaveLength(1)
+  })
+
+  it('denies the batch when the trusted Tool request source cannot describe the action', async () => {
+    const assembly = await toolAssembly(
+      {},
+      {},
+      {
+        async describe() {
+          return {
+            failure: { kind: 'unavailable', owner: 'agentToolRequests', diagnostic: 'down' },
+          }
+        },
+      },
+    )
+    acceptEach(assembly)
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.admission.admit.calls).toHaveLength(0)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly))).toHaveLength(1)
+  })
+
+  it('denies the batch when the source refuses to prepare an allowed action', async () => {
+    const assembly = await toolAssembly(
+      {},
+      {},
+      {
+        async prepare() {
+          return { failure: { kind: 'denied', action: 'tool-request' } }
+        },
+      },
+    )
+    acceptEach(assembly)
+    assembly.controls.admission.admit.always(() => ({
+      ok: { kind: 'allow', evidence: evidence('allowed') },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly))).toHaveLength(1)
+  })
+
+  it('denies the batch when the assembly gave no trusted Tool request source', async () => {
+    const assembly = await toolAssembly({}, {}, null)
+    acceptEach(assembly)
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly))).toHaveLength(1)
+  })
+
   it('makes a rejected tool message a failure candidate of the execution', async () => {
     const assembly = await toolAssembly()
     acceptEach(assembly)

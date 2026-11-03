@@ -214,6 +214,31 @@ describe('J2: a Tool result enters the next Model request', () => {
     expect(saved).toHaveProperty('ok')
   })
 
+  it('J2 a Tool action whose admission is unavailable is denied, the denial goes to the Model, and the Run completes', async () => {
+    // agent-contract SPEC "整批判断屏障与动作准入" rule 2: an unavailable admission denies the batch.
+    // Before the fix the Run stayed at A0 with no terminal and no further commit.
+    const w = await openW2World({
+      earlier: 'session',
+      model: a =>
+        a.index === 0
+          ? { parts: [toolCallBlock('tc-j2u')], reason: 'tool-suggestions' }
+          : { parts: [replyText(`r${a.index}`, 'could not run it')], reason: 'stop' },
+      toolRequests: {
+        describe: async () => ({
+          failure: { kind: 'unavailable', owner: 'agentToolRequests', diagnostic: 'scenario' },
+        }),
+      },
+    })
+    worlds.push(w)
+    await w.createSession('j2u')
+    await w.runRound(1, 'read the file')
+    expect(await w.lastOutcome()).toBe('completed')
+    expect(w.tools.invoke.calls).toHaveLength(0)
+    // The next Model request of the round carries the denial message of the action.
+    const tools = (w.assembled[1] ?? []).filter(message => message.role === 'tool')
+    expect(tools).toHaveLength(1)
+  })
+
   it('J2 the Tool result enters the next request of the round and the request of round 2', async () => {
     const w = await openW2World({
       earlier: 'session',

@@ -119,6 +119,7 @@ import {
   actionOf,
   admitToolAction,
   deniedCandidate,
+  deniedForUnavailableAdmission,
   deniedSlot,
   preserveToolIntent,
   toolCallOf,
@@ -2020,6 +2021,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       }
       return step('slotted', { checkpoint: { batch: slotted } })
     },
+    /**
+     * A0: each action's admission. An unavailable admission stops the round: no later chain calls
+     * admit and the whole batch is denied, so A1 closes the barrier as all-denied (SPEC rule 2).
+     */
     async A0() {
       const batch = currentBatch()
       const actions: Action[] = []
@@ -2032,7 +2037,14 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           action,
         )
         if ('failure' in admitted) return admitted
-        actions.push(admitted.ok)
+        if (admitted.ok.kind === 'unavailable') {
+          const denied = deniedForUnavailableAdmission(execution, batch, admitted.ok, [
+            ...actions,
+            ...batch.actions.slice(actions.length),
+          ])
+          return step('judged', { checkpoint: { batch: { ...batch, actions: denied } } })
+        }
+        actions.push(admitted.ok.action)
       }
       return step('judged', { checkpoint: { batch: { ...batch, actions } } })
     },

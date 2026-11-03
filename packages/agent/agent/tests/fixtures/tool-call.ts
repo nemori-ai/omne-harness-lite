@@ -91,23 +91,31 @@ export function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolI
   )
 }
 
+type ToolRequests = NonNullable<
+  Parameters<NonNullable<Parameters<typeof controlAssembly>[1]>>[0]['toolRequests']
+>
+
+/**
+ * The assembly of the tool tests. `requests` replaces faces of the trusted Tool request source;
+ * `null` leaves the source out of the dependencies.
+ */
 export async function toolAssembly(
   configuration: Parameters<typeof controlAssembly>[2] = {},
   journal: Parameters<typeof controlAssembly>[0] = {},
+  requests: Partial<ToolRequests> | null = {},
 ) {
+  const source: ToolRequests = {
+    async describe() {
+      return { ok: adoption('read_file') }
+    },
+    async prepare(input) {
+      return { ok: fixedToolRequest(input.consumer) }
+    },
+    ...requests,
+  }
   return controlAssembly(
     journal,
-    dependencies => ({
-      ...dependencies,
-      toolRequests: {
-        async describe() {
-          return { ok: adoption('read_file') }
-        },
-        async prepare(input) {
-          return { ok: fixedToolRequest(input.consumer) }
-        },
-      },
-    }),
+    dependencies => (requests === null ? dependencies : { ...dependencies, toolRequests: source }),
     configuration,
   )
 }

@@ -318,6 +318,8 @@ export type W2Options = Readonly<{
   earlier?: 'double' | 'session'
   /** Parts of other closures: `plugins` mount after the Agent host, `handoff: 'external'` keeps the scripted one out. */
   plugins?: readonly PluginMount[]
+  /** Faces of the Tool request source double to replace, for a scenario where the source refuses. */
+  toolRequests?: Partial<NonNullable<Dependencies['toolRequests']>>
 }>
 
 /**
@@ -365,6 +367,7 @@ export async function openW2World(options: W2Options) {
       toolRequests.push(request)
       return { ok: request }
     },
+    ...options.toolRequests,
   }
   /** The Model call identities in the order they were admitted. */
   const modelCalls: string[] = []
@@ -837,6 +840,12 @@ export async function openW2World(options: W2Options) {
     return run.kind === 'terminal' ? String(run.terminal.run) : null
   }
 
+  /** The outcome of the Run that Session last ended, null before the first end. */
+  async function lastOutcome(): Promise<string | null> {
+    const { run } = ok(await w.probe.readWork(intakeAccess))
+    return run.kind === 'terminal' ? run.terminal.outcome : null
+  }
+
   /**
    * One round: the input goes in through the intake face and the Run goes to its terminal, with the
    * counters and the recorder of the scenario open around it. Returns the counts of the round.
@@ -874,6 +883,7 @@ export async function openW2World(options: W2Options) {
     releases: () => releases,
     roundCompletes: () => roundsComplete,
     lastTerminal,
+    lastOutcome,
     progress,
     modelReferences,
     runRound,
