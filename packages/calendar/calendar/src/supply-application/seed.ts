@@ -355,7 +355,9 @@ async function seedEntry(
       outcome: await finishRun(deps, query, observed, control.now()),
       warnings:
         retained.kind === 'ok' && retained.value
-          ? retained.value.command.candidate.reasons.filter(reason => reason.includes(':warning:'))
+          ? retained.value.command.candidate.reasons.filter(
+              reason => reason.includes(':failed:warning:') || reason.includes(':unknown:warning:'),
+            )
           : ['Seed warning evidence unavailable'],
     }
   }
@@ -369,8 +371,8 @@ async function seedEntry(
         resumed.kind === 'ok'
           ? resumed.value
           : { kind: 'rejected', reason: resumed.error.code, message: resumed.error.message },
-      warnings: previous.value.command.candidate.reasons.filter(reason =>
-        reason.includes(':warning:'),
+      warnings: previous.value.command.candidate.reasons.filter(
+        reason => reason.includes(':failed:warning:') || reason.includes(':unknown:warning:'),
       ),
     }
   }
@@ -411,7 +413,9 @@ async function seedEntry(
       result.kind === 'ok'
         ? result.value
         : { kind: 'rejected', reason: result.error.code, message: result.error.message },
-    warnings: findings.filter(item => item.severity === 'warning').map(describeFinding),
+    warnings: findings
+      .filter(item => item.severity === 'warning' && item.status !== 'passed')
+      .map(describeFinding),
   }
 }
 export async function importSeeds(

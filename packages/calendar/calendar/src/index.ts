@@ -18,3 +18,4 @@ export type {
   CalendarSupplyApplication,
   CalendarSupplyOptions,
 } from './supply-application/index.ts'
+export type { CalendarInitializedSource, CalendarDueResult } from './supply-application/runner.ts'

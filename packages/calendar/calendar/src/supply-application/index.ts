@@ -15,6 +15,12 @@ import { probeSource } from './probes.ts'
 import { supplyHealth } from './health.ts'
 import { authorize, authorityFailed, supplyError } from './access.ts'
 import { recoverRuns, deliverReactions } from './recovery.ts'
+import {
+  initializeSources,
+  runDueSources,
+  type CalendarInitializedSource,
+  type CalendarDueResult,
+} from './runner.ts'
 
 export type CalendarSupplyOptions = Readonly<{ signal?: AbortSignal }>
 export interface CalendarSupplyApplication extends CalendarSupply {
@@ -32,10 +38,14 @@ export interface CalendarSupplyApplication extends CalendarSupply {
     context: CalendarCallContext,
     input: Readonly<{ limit: number }>,
   ): Promise<CalendarQueryResult<readonly CalendarSupplyResult[]>>
+  initialize(
+    context: CalendarCallContext,
+    input: Readonly<{ operationKey: string }>,
+  ): Promise<CalendarQueryResult<readonly CalendarInitializedSource[]>>
   runDue(
     context: CalendarCallContext,
     input: Readonly<{ limit: number }>,
-  ): Promise<CalendarQueryResult<readonly Awaited<ReturnType<CalendarSupply['probe']>>[]>>
+  ): Promise<CalendarQueryResult<readonly CalendarDueResult[]>>
   deliverReactions(
     context: CalendarCallContext,
     input: Readonly<{ limit: number; acknowledgementKey: string }>,
@@ -119,25 +129,14 @@ export function createCalendarSupplyApplication(
               supplyError(context, 'invalid_input', 'Invalid acknowledgement intent'),
             ),
       ),
+    initialize: (context, input) =>
+      boundary(context, () => initializeSources(deps, application, context, input)),
     runDue: (context, input) =>
-      boundary(context, async () => {
-        if (!validLimit(input.limit))
-          return supplyError(context, 'invalid_input', 'Invalid due limit')
-        const guards = await authorize(deps, context, 'probe', null)
-        if (authorityFailed(guards)) return { kind: 'error', error: guards }
-        if (context.owner.kind !== 'system')
-          return supplyError(context, 'forbidden', 'Supply requires system owner')
-        const due = await deps.journal.due({
-          systemScopeRef: context.owner.systemScopeRef,
-          at: now(),
-          limit: input.limit,
-        })
-        if (due.kind !== 'ok')
-          return supplyError(context, 'provider_failure', `Due journal ${due.kind}`)
-        const results: Awaited<ReturnType<CalendarSupply['probe']>>[] = []
-        for (const probe of due.value) results.push(await application.probe(context, probe))
-        return { kind: 'ok', value: results }
-      }),
+      boundary(context, () =>
+        validLimit(input.limit)
+          ? runDueSources(deps, application, context, input, now())
+          : Promise.resolve(supplyError(context, 'invalid_input', 'Invalid due limit')),
+      ),
     stop: () => {
       stopped = true
       abort.abort()
