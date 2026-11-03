@@ -13,3 +13,4 @@
 - [proofs/](proofs/index.md)：论证与证明
 
 - [model-reception/](model-reception/README.md)：Model 结果接收、共同提交与账目重放的有限模型
+- [cancellation/](cancellation/README.md)：Run 取消与单调用中断的有限模型

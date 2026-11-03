@@ -45,7 +45,7 @@ beforeEach(() => {
 })
 
 describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
-  it('the release tree of 22 real and 26 s0-double rows loads, accepts, stops on request and exits 0', async () => {
+  it('the release tree of 25 real and 23 s0-double rows loads, accepts, stops on request and exits 0', async () => {
     // The operator layer gives what the distribution file does not hold: absolute paths and the port.
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
@@ -77,10 +77,13 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         'agent-adoptions:real',
         'adoption-sources:real',
         'agent-model-selection:real',
+        'model-host:real',
         'model-instances:real',
         'model-converters:real',
         'model-profiles:real',
+        'model-request-preparation:real',
         'model-credential:real',
+        'model-records:real',
         'tool-bindings:real',
         'tool-host:real',
         'tool-residency:real',
@@ -95,7 +98,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         outcome: 'ready',
         enabledRows: 48,
         barrierCalls: 1,
-        implementations: { real: 22, 'contract-double': 0, 's0-double': 26 },
+        implementations: { real: 25, 'contract-double': 0, 's0-double': 23 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])

@@ -1,6 +1,6 @@
 import type { WorkSnapshot } from './values.ts'
 import type { SessionLogObservation } from './projection.ts'
-import type { SessionHistoryReads } from './history-values.ts'
+import { isDeferredFact, type SessionHistoryReads } from './history-values.ts'
 import {
   executionBoundary,
   historyContext,
@@ -16,6 +16,22 @@ import {
   unavailableAt,
   inconsistent,
 } from './session-validation.ts'
+
+/**
+ * The revision of the observation is the same-root execution head. One below the head is a read
+ * that another write of the execution overtook: an expired same-root basis answers `changed`, and
+ * the caller reads the head again. One above it was never a head of this root.
+ */
+function sameRootHead(
+  snapshot: WorkSnapshot,
+  observation: SessionLogObservation,
+  boundary: Readonly<{ revision: string }>,
+): void {
+  if (decimal(observation.revision, 'revision') < BigInt(boundary.revision))
+    throw new SessionValidationFailure({ kind: 'changed', revision: snapshot.revision })
+  if (observation.revision !== boundary.revision)
+    invalidAt('revision', 'not the same-root execution head')
+}
 
 export function validateObservation(
   snapshot: WorkSnapshot,
@@ -36,9 +52,7 @@ export function validateObservation(
   const context = historyContext(snapshot, reads)
   const boundary = executionBoundary(context, observation.execution, observation.run)
   evidenceFields(observation.source, 'source')
-  decimal(observation.revision, 'revision')
-  if (observation.revision !== boundary.revision)
-    invalidAt('revision', 'not the same-root execution head')
+  sameRootHead(snapshot, observation, boundary)
   const head =
     observation.executionEvidence ??
     (equalValue(observation.source, boundary.executionEvidence) ? observation.source : undefined)
@@ -54,7 +68,11 @@ export function validateObservation(
     if (fact === undefined) unavailableAt('history.execution.fact')
     if (!equalValue(fact.source, observation.source))
       invalidAt('source', 'not the original event source')
-    if (
+    if (isDeferredFact(fact.kinds)) {
+      if (observation.control === undefined) unavailableAt('control.evidence')
+      if (observation.consequences.length > 0)
+        invalidAt('consequences', 'Session decides the consequences of a deferred control fact')
+    } else if (
       !equalValue(
         fact.kinds,
         observation.consequences.map(item => item.kind),
@@ -72,6 +90,13 @@ export function validateObservation(
         unavailableAt('history.prefix.committedConsequences')
     }
   }
+  const deferred =
+    observation.sequence !== null &&
+    boundary.facts.some(
+      item => item.sequence === observation.sequence && isDeferredFact(item.kinds),
+    )
+  if (observation.control !== undefined && !deferred)
+    invalidAt('control', 'the original fact is not a deferred control fact')
   for (const consequence of observation.consequences) {
     if (consequence.kind === 'input-taken') {
       if (observation.sequence === null)
@@ -109,6 +134,7 @@ export function validateObservation(
     context,
     boundary,
     head,
+    deferred,
     repeated:
       observation.sequence !== null && BigInt(observation.sequence) <= BigInt(boundary.readThrough),
   }

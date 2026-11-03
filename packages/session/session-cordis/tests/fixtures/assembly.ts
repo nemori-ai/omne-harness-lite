@@ -164,6 +164,8 @@ export type AssemblyOptions = Readonly<{
   omit?: readonly PortName[]
   /** Mount the session provider with this configuration; `false` leaves it out. */
   provider?: unknown
+  /** The plugin class to mount in place of `SessionProvider`, for the factory-made plugin cases. */
+  plugin?: typeof SessionProvider
 }>
 
 export async function assemble(options: AssemblyOptions = {}) {
@@ -208,8 +210,21 @@ export async function assemble(options: AssemblyOptions = {}) {
     source: evidence('idle/source'),
   })
   const baseEvidence = createMemorySessionEvidenceBridge()
-  const evidenceBridge: SessionEvidenceBridge = {
-    prepare: async command => {
+  const evidenceAccesses: SessionAccess<string>[] = []
+  const evidenceBridge: SessionEvidenceBridge<string> & {
+    /** The access of every call that reached the bridge, in order. */
+    accesses(): readonly SessionAccess<string>[]
+  } = {
+    accesses: () => [...evidenceAccesses],
+    prepare: async (command, access) => {
+      // The Cordis port hands the access of the original call on as it came; a call without it is a defect.
+      if (access === undefined || access.session !== command.input.session)
+        return fail({
+          kind: 'unavailable',
+          owner: 'evidence',
+          diagnostic: 'the evidence bridge was not given the access of the original call',
+        })
+      evidenceAccesses.push(access)
       if (command.kind === 'create' || command.kind === 'completeInitialization') {
         const guards: readonly GuardCommand[] = await backend.initializationGuards(command)
         return { ok: guards }
@@ -329,7 +344,7 @@ export async function assemble(options: AssemblyOptions = {}) {
 
   let provider: Fiber | undefined
   const load = async (config?: unknown): Promise<Fiber> => {
-    const wrapped = plug(SessionProvider, config)
+    const wrapped = plug(options.plugin ?? SessionProvider, config)
     // The wrapper is a thenable that rejects when the load fails; the fiber under it is not.
     const fiber = Object.getPrototypeOf(wrapped) as Fiber
     mounted.push(fiber)

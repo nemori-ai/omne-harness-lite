@@ -1,10 +1,11 @@
 import type { AgentJournal, ExecutionMutation, Failure } from '@omne-harness/agent-contract'
 import type {
   ConsumptionId,
+  SessionLogCommitObservation,
   SessionLogObservation,
+  SessionLogReceipt,
   SessionOperationId,
   SessionFailure,
-  CommitReceipt,
 } from '@omne-harness/session-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import { canonical, digestOf } from './session-values.ts'
@@ -32,10 +33,9 @@ export function preparationOperation<P>(
 export function resultPreparation<P>(
   cell: JournalCell<P>,
   publications: ReturnType<typeof publicationHooks>,
-  project: (
-    value: SessionLogObservation,
-    operation: SessionOperationId,
-  ) => Promise<Outcome<CommitReceipt | null, SessionFailure>>,
+  commitLog: (
+    input: Readonly<{ observation: SessionLogCommitObservation }>,
+  ) => Promise<Outcome<SessionLogReceipt, SessionFailure>>,
   failureOf: (value: SessionFailure, operation: ExecutionMutation<P>['operation']) => Failure,
 ) {
   return async (
@@ -137,8 +137,8 @@ export function resultPreparation<P>(
             owner: 'session-memory-journal',
             diagnostic: 'before result preparation publication',
           }
-        const result = await project(
-          {
+        const result = await commitLog({
+          observation: {
             tenant: cell.tenant,
             session: cell.session,
             execution: input.execution,
@@ -150,8 +150,7 @@ export function resultPreparation<P>(
             source: boundary.executionEvidence,
             consequences,
           },
-          operation,
-        )
+        })
         if ('failure' in result) return failureOf(result.failure, input.operation)
         if (fault === 'after-publish') return { kind: 'commit-unknown', operation: input.operation }
         // Continue through the same complete binding checks after the awaited publication.

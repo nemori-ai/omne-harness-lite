@@ -13,11 +13,17 @@
 // not hold (Agent SPEC "判定次序与失败映射" 1). Nothing is written for either. A lookup that
 // cannot be read is `unavailable`, never `denied`: a failed read does not prove absence.
 //
-// A material call names no execution. A material source that this provider made names its session
-// (`materialSessionOf`), so `materials.read` goes to that session of the caller's tenant. A
-// `materials.preserve` names neither an execution nor a session, and the storage has no index from
-// its consumer to a session, so it answers `unavailable` and writes nothing (session-adapters SPEC,
-// known limitation K-9).
+// A material source that this provider made names its session (`materialSessionOf`), so
+// `materials.read` goes to that session of the caller's tenant. A `materials.preserve` that names an
+// execution is routed as a Journal call is and saved in the session of that execution. One that
+// names none names no session, and the storage has no index from its consumer to a session, so it
+// answers `unavailable` and writes nothing (session-adapters SPEC, known limitation K-9, for the
+// compatibility period).
+//
+// After each successful write call the provider hands the tenant, the session and the execution to
+// the `published` callback of its options. The plugin turns that into the event
+// `session-adapters/agent-published`: a wake-up only, which carries no fact, so a subscriber reads
+// the log itself (AD-02 trigger).
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
@@ -48,10 +54,14 @@ import type { JournalCombination } from '../journal-commit.ts'
 import {
   createSessionLogJournal,
   materialSessionOf,
+  type SessionLogJournalOptions,
   type SessionLogJournalProvider,
 } from './agent-journal.ts'
 
 const OWNER = 'session-log-journal'
+const LOGGER = 'session-adapters/agent-journal'
+/** The event that names the tenant, the session and the execution of each successful write. */
+const PUBLISHED = 'session-adapters/agent-published'
 /** The initial bound of the route cache; the assembly may set another (IC-14). */
 const ROUTE_CACHE_ENTRIES = 4096
 
@@ -63,6 +73,18 @@ export type ExecutionRoutedJournalOptions<P> = Readonly<{
   combination: JournalCombination
   /** The most execution routes the in-process cache keeps; the oldest goes first. */
   routeCacheEntries?: number
+  /**
+   * The trusted cancellation installation the Journal of every session holds, handed to the
+   * session-log Journal as it is (R2-D35). Absent: the cancellation variants answer `unavailable`.
+   */
+  cancellation?: SessionLogJournalOptions<P>['cancellation']
+  /**
+   * Called once after each successful write call, with the session its route names. A wake-up
+   * only; a throw is swallowed and the call keeps its answer.
+   */
+  published?: (tenant: TenantId, session: SessionId, execution: AgentExecutionId) => void
+  /** Receives a programming error the Journal read past; see `SessionLogJournalOptions.fault`. */
+  fault?: SessionLogJournalOptions<P>['fault']
 }>
 
 type Journal<P> = AgentJournal<P>
@@ -70,6 +92,8 @@ type Materials<P> = AgentMaterials<P, ContentBlock>
 /** The faces of one session's Journal: Journal, entries, materials and received commits. */
 type SessionView<P> = SessionLogJournalProvider<P>
 type Scope = Readonly<{ tenant: TenantId; execution: AgentExecutionId }>
+/** The session that started an execution, and the faces of its Journal. */
+type Route<P> = Readonly<{ session: SessionId; view: SessionView<P> }>
 
 const unavailable = (diagnostic: string): Failure => ({
   kind: 'unavailable',
@@ -89,14 +113,16 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     tenantDomainLookup: options.tenantDomainLookup,
     sessionAccessCheck: options.sessionAccessCheck,
     combination: options.combination,
+    ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
+    ...(options.fault === undefined ? {} : { fault: options.fault }),
   })
   const limit = options.routeCacheEntries ?? ROUTE_CACHE_ENTRIES
-  const routes = new Map<string, SessionView<P>>()
+  const routes = new Map<string, Route<P>>()
   let closed = false
 
-  function remember(key: string, view: SessionView<P>): void {
+  function remember(key: string, route: Route<P>): void {
     routes.delete(key)
-    routes.set(key, view)
+    routes.set(key, route)
     while (routes.size > limit) {
       const oldest = routes.keys().next().value
       if (oldest === undefined) break
@@ -104,8 +130,8 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     }
   }
 
-  /** The faces of the session that started `scope.execution`, or the failure the call answers. */
-  async function viewOf(scope: Scope, action: string): Promise<Outcome<SessionView<P>, Failure>> {
+  /** The route to the session that started `scope.execution`, or the failure the call answers. */
+  async function routeOf(scope: Scope, action: string): Promise<Outcome<Route<P>, Failure>> {
     if (closed) return fail(unavailable('the agentJournal plugin has stopped'))
     const tenant = tenantCodec.encode(scope.tenant)
     if (!tenant.ok) return fail({ kind: 'denied', action })
@@ -142,12 +168,26 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     const indexed = decodeSessionExecution(result.output)
     if (indexed === 'malformed') return fail(unavailable('the execution index row is malformed'))
     if (indexed === null) return fail({ kind: 'denied', action })
-    const view = journals.forSession({
-      tenant: scope.tenant,
-      session: indexed.session as SessionId,
-    })
-    remember(key, view)
-    return succeed(view)
+    const session = indexed.session as SessionId
+    const route = { session, view: journals.forSession({ tenant: scope.tenant, session }) }
+    remember(key, route)
+    return succeed(route)
+  }
+
+  /** The faces of the session that started `scope.execution`, or the failure the call answers. */
+  async function viewOf(scope: Scope, action: string): Promise<Outcome<SessionView<P>, Failure>> {
+    const found = await routeOf(scope, action)
+    return 'failure' in found ? fail<Failure>(found.failure) : succeed(found.ok.view)
+  }
+
+  /** Names a successful write to `published`; nothing it does reaches the answer of the call. */
+  function announce(scope: Scope, session: SessionId): void {
+    if (closed || options.published === undefined) return
+    try {
+      options.published(scope.tenant, session, scope.execution)
+    } catch {
+      // A wake-up that cannot be delivered does not undo the write; the plugin logs its own faults.
+    }
   }
 
   /** One call: route it, then hand it to its session unchanged. */
@@ -161,7 +201,20 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     )
   }
 
-  /** One Journal call: route it, then hand it to the Journal of its session unchanged. */
+  /** One write call: as `routedView`, and a successful answer is named to `published` once. */
+  async function routedWrite<A>(
+    action: string,
+    scope: Scope,
+    call: (view: SessionView<P>) => Promise<Outcome<A, Failure>>,
+  ): Promise<Outcome<A, Failure>> {
+    const found = await routeOf(scope, action)
+    if ('failure' in found) return fail<Failure>(found.failure)
+    const answered = await call(found.ok.view)
+    if ('ok' in answered) announce(scope, found.ok.session)
+    return answered
+  }
+
+  /** One Journal read: route it, then hand it to the Journal of its session unchanged. */
   function routed<A>(
     action: string,
     scope: Scope,
@@ -170,26 +223,43 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     return routedView(action, scope, view => call(view.journal))
   }
 
+  /** One Journal write: as `routed`, and a successful answer is named to `published`. */
+  function written<A>(
+    action: string,
+    scope: Scope,
+    call: (journal: Journal<P>) => Promise<Outcome<A, Failure>>,
+  ): Promise<Outcome<A, Failure>> {
+    return routedWrite(action, scope, view => call(view.journal))
+  }
+
   const journal: Journal<P> = {
     capabilities: {
       coordination: 'coordinated',
       participants: new Set(['message', 'context-transition', 'custody', 'processed']),
     },
-    open: input => routed('open', input, j => j.open(input)),
-    attach: input => routed('attach', input, j => j.attach(input)),
-    detach: input => routed('detach', input, j => j.detach(input)),
-    commit: input => routed('commit', input, j => j.commit(input)),
-    submit: input => routed('submit', input, j => j.submit(input)),
-    control: input => routed('control', input, j => j.control(input)),
-    acknowledge: input => routed('acknowledge', input, j => j.acknowledge(input)),
-    recordResult: input => routed('recordResult', input, j => j.recordResult(input)),
-    recordControl: input => routed('recordControl', input, j => j.recordControl(input)),
-    recordHandoff: input => routed('recordHandoff', input, j => j.recordHandoff(input)),
+    open: input => written('open', input, j => j.open(input)),
+    attach: input => written('attach', input, j => j.attach(input)),
+    detach: input => written('detach', input, j => j.detach(input)),
+    commit: input => written('commit', input, j => j.commit(input)),
+    submit: input => written('submit', input, j => j.submit(input)),
+    control: input => written('control', input, j => j.control(input)),
+    acknowledge: input => written('acknowledge', input, j => j.acknowledge(input)),
+    recordResult: input => written('recordResult', input, j => j.recordResult(input)),
+    recordControl: input => written('recordControl', input, j => j.recordControl(input)),
+    recordHandoff: input => written('recordHandoff', input, j => j.recordHandoff(input)),
     prepareFinish: input => routed('prepareFinish', input, j => j.prepareFinish(input)),
-    tryFinish: input => routed('tryFinish', input, j => j.tryFinish(input)),
-    commitSettlement: input => routed('commitSettlement', input, j => j.commitSettlement(input)),
+    tryFinish: input => written('tryFinish', input, j => j.tryFinish(input)),
+    commitSettlement: input => written('commitSettlement', input, j => j.commitSettlement(input)),
     recordTerminalObservation: input =>
-      routed('recordTerminalObservation', input, j => j.recordTerminalObservation(input)),
+      written('recordTerminalObservation', input, j => j.recordTerminalObservation(input)),
+    readCancellationInstallation: input =>
+      routed(
+        'readCancellationInstallation',
+        input,
+        async j =>
+          (await j.readCancellationInstallation?.(input)) ??
+          fail(unavailable('the session Journal has no cancellation installation read')),
+      ),
     load: input => routed('load', input, j => j.load(input)),
     inputs: input => routed('inputs', input, j => j.inputs(input)),
     readReplyAdmissions: input =>
@@ -210,17 +280,25 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
   }
 
   const entries: AgentJournalEntries<P> = {
-    record: input => routedView('record', input, view => view.entries.record(input)),
+    record: input => routedWrite('record', input, view => view.entries.record(input)),
   }
 
   const stopped = () => fail<Failure>(unavailable('the agentJournal plugin has stopped'))
   const materials: Materials<P> = {
-    preserve: () =>
-      Promise.resolve(
-        closed
-          ? stopped()
-          : fail<Failure>(unavailable('a material to preserve names no session: no route to one')),
-      ),
+    preserve(input) {
+      if (closed) return Promise.resolve(stopped())
+      // Without an execution the call names no session (K-9), and nothing is guessed.
+      const { execution } = input
+      if (execution === undefined)
+        return Promise.resolve(
+          fail<Failure>(unavailable('a material to preserve names no session: no route to one')),
+        )
+      // The session Journal reads the execution of a material only as its route, never as a write
+      // of that execution's records, so the call goes on unchanged.
+      return routedView('preserve', { tenant: input.tenant, execution }, view =>
+        view.materials.preserve(input),
+      )
+    },
     async read(input) {
       if (closed) return stopped()
       const tenant = tenantCodec.encode(input.tenant)
@@ -293,6 +371,27 @@ const configSchema = {
   },
 }
 
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * A write call of the session-log Journal answered successfully. The sender dispatches after
+     * the write and does not wait for listeners; a listener that fails does not change the answer.
+     * It is a wake-up only, not a source of fact: a subscriber reads the log itself, and a missed
+     * event is recovered by its own scan.
+     *
+     * @mode parallel
+     * @param tenant - the tenant that owns the session.
+     * @param session - the session whose log the call wrote.
+     * @param execution - the execution the call named.
+     */
+    'session-adapters/agent-published'(
+      tenant: TenantId,
+      session: SessionId,
+      execution: AgentExecutionId,
+    ): void
+  }
+}
+
 /** `agentJournalEntries`, made by the body of `SessionLogAgentJournalProvider`. */
 class SessionLogJournalEntries extends AgentJournalEntriesService<unknown> {
   readonly record: AgentJournalEntries<unknown>['record']
@@ -321,7 +420,11 @@ class SessionLogMaterials extends AgentMaterialsService<unknown, ContentBlock> {
  * needs `storage`, the trusted `tenantDomainLookup` and `sessionAccessCheck`; with any of them
  * absent the plugin stays pending and provides none of the keys. A new provider of any of them
  * unloads the plugin and runs it again with an empty route cache. Stopping makes every call, also
- * through a reference held from before, answer `unavailable`.
+ * through a reference held from before, answer `unavailable`. After each successful write call it
+ * dispatches `session-adapters/agent-published` (tenant, session, execution), a wake-up only.
+ * Loaded by itself it holds no cancellation installation, so a cancelled settlement answers
+ * `unavailable`; the assembly entry supplies the installation through
+ * `createSessionAgentJournalPlugin` (R2-D35), and the plugin configuration does not carry it.
  */
 export class SessionLogAgentJournalProvider extends AgentJournalService<unknown> {
   static readonly inject = [storageKey, tenantDomainLookupKey, sessionAccessCheckKey]
@@ -342,15 +445,33 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
   readonly tryFinish: AgentJournal<unknown>['tryFinish']
   readonly commitSettlement: AgentJournal<unknown>['commitSettlement']
   readonly recordTerminalObservation: AgentJournal<unknown>['recordTerminalObservation']
+  readonly readCancellationInstallation: AgentJournal<unknown>['readCancellationInstallation']
   readonly load: AgentJournal<unknown>['load']
   readonly inputs: AgentJournal<unknown>['inputs']
   readonly readReplyAdmissions: AgentJournal<unknown>['readReplyAdmissions']
   readonly query: AgentJournal<unknown>['query']
   readonly output: AgentJournal<unknown>['output']
 
-  constructor(ctx: Context, config: AgentJournalProviderConfig) {
+  /** `cancellation` is the trusted installation of R2-D35; only the plugin factory hands it in. */
+  constructor(
+    ctx: Context,
+    config: AgentJournalProviderConfig,
+    cancellation?: SessionLogJournalOptions<unknown>['cancellation'],
+  ) {
     super(ctx)
+    const logger = ctx.logger(LOGGER)
     const routed = createExecutionRoutedJournal<unknown>({
+      published: (tenant, session, execution) => {
+        try {
+          // Not awaited: the write does not wait for listeners. A failure is logged here.
+          ctx.parallel(PUBLISHED, tenant, session, execution).catch((error: unknown) => {
+            logger.warn(`a listener of ${PUBLISHED} failed: ${String(error)}`)
+          })
+        } catch (error) {
+          logger.warn(`dispatching ${PUBLISHED} failed: ${String(error)}`)
+        }
+      },
+      fault: diagnostic => logger.error(diagnostic),
       storage: ctx.storage,
       tenantDomainLookup: ctx.tenantDomainLookup,
       sessionAccessCheck: ctx.sessionAccessCheck,
@@ -361,6 +482,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
       ...(config.routeCacheEntries === undefined
         ? {}
         : { routeCacheEntries: config.routeCacheEntries }),
+      ...(cancellation === undefined ? {} : { cancellation }),
     })
     const journal = routed.journal
     this.capabilities = journal.capabilities
@@ -378,6 +500,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     this.tryFinish = journal.tryFinish
     this.commitSettlement = journal.commitSettlement
     this.recordTerminalObservation = journal.recordTerminalObservation
+    this.readCancellationInstallation = journal.readCancellationInstallation
     this.load = journal.load
     this.inputs = journal.inputs
     this.readReplyAdmissions = journal.readReplyAdmissions
@@ -386,5 +509,33 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     new SessionLogJournalEntries(ctx, routed.entries)
     new SessionLogMaterials(ctx, routed.materials)
     ctx.effect(() => () => routed.close())
+  }
+}
+
+/** What the assembly entry hands to `createSessionAgentJournalPlugin`. */
+export type SessionAgentJournalPluginInput = Readonly<{
+  /**
+   * The trusted cancellation installation of the Journal of every session: the record and the
+   * judging implementation (R2-D35). It is a function holder, so it is not a configuration member.
+   * Absent: the cancellation variants answer `unavailable`, as with the plain provider.
+   */
+  cancellation?: SessionLogJournalOptions<unknown>['cancellation']
+}>
+
+/**
+ * The plugin of `SessionLogAgentJournalProvider` with the trusted cancellation installation that
+ * the assembly entry hands in (R2-D35, R2-D16). The `inject`, the configuration and the provided
+ * keys are those of `SessionLogAgentJournalProvider`; the installation is not a Cordis service and
+ * not a configuration member. The Journal of every session this plugin routes to holds it as it
+ * is. Use the returned class as `ctx.plugin(Plugin, config)` does with the provider class.
+ */
+export function createSessionAgentJournalPlugin(
+  input: SessionAgentJournalPluginInput = {},
+): typeof SessionLogAgentJournalProvider {
+  const { cancellation } = input
+  return class SessionLogAgentJournalPlugin extends SessionLogAgentJournalProvider {
+    constructor(ctx: Context, config: AgentJournalProviderConfig) {
+      super(ctx, config, cancellation)
+    }
   }
 }

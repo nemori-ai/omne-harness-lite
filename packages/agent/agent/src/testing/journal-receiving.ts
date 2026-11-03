@@ -29,6 +29,7 @@ import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ModelReceptionTarget, ModelReceptionTargets } from '../receiving-types.ts'
+import type { ToolReceptionTarget } from '../tool-receiving-types.ts'
 import { canonical } from '../canonical.ts'
 import { jsonTree } from '../receiving-values.ts'
 import type { Attempt, JournalWrite, MemoryExecution, OperationRecord } from './journal.ts'
@@ -140,7 +141,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
   const aliases = new Map<string, Kept>()
   const bindings = new Map<string, { execution: AgentExecutionId; text: string }>()
   const consumerExecutions = new Map<string, AgentExecutionId>()
-  const targets = new Map<string, ModelReceptionTarget>()
+  const targets = new Map<string, ModelReceptionTarget | ToolReceptionTarget>()
   const callTargets = new Map<string, ModelReceptionTarget>()
   const executionTargets = new Map<string, ModelReceptionTarget[]>()
   const qualifications = new Map<string, Map<P, Qualification>>()
@@ -416,18 +417,26 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
   const materialPort: AgentMaterials<P, ContentBlock> = {
     async preserve(input) {
       if (!tenantCodec.encode(input.tenant).ok) return fail(denied())
+      const boundExecution =
+        consumerExecutions.get(canonical([tenantText(input.tenant), input.consumer])) ?? null
+      const execution = input.execution ?? boundExecution
+      if (boundExecution !== null && boundExecution !== execution) return fail(denied())
+      if (execution !== null) {
+        const permission = qualified({ ...input, execution })
+        if ('failure' in permission) return permission
+      }
       const source = journalEvidence(
         canonical(['material', tenantText(input.tenant), input.identity, input.consumer]),
         1,
       )
       const old = materials.get(canonical(source))
-      if (old && canonical(old.value) !== canonical(input.value)) return fail(invalid('identity'))
-      const execution =
-        consumerExecutions.get(canonical([tenantText(input.tenant), input.consumer])) ?? null
-      if (execution !== null) {
-        const permission = qualified({ ...input, execution })
-        if ('failure' in permission) return permission
-      }
+      if (
+        old &&
+        ((input.execution !== undefined && old.execution !== execution) ||
+          (old.execution !== null && old.execution !== execution) ||
+          canonical(old.value) !== canonical(input.value))
+      )
+        return fail(invalid('identity'))
       materials.set(canonical(source), {
         tenant: tenantText(input.tenant),
         execution,
@@ -529,7 +538,21 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     targets: targetPort,
     remember(execution: MemoryExecution, instance: AgentInstanceId) {
       for (const pending of execution.checkpoint.calls) {
-        if (pending.kind !== 'model') continue
+        if (pending.kind === 'tool') {
+          if (pending.association !== 'associated') continue
+          const key = targetKey(execution, pending.reference)
+          if (!targets.has(key))
+            targets.set(key, {
+              execution: execution.id,
+              instance,
+              pending: structuredClone(pending),
+            })
+          consumerExecutions.set(
+            canonical([tenantText(execution.tenant), pending.position]),
+            execution.id,
+          )
+          continue
+        }
         const key = targetKey({ tenant: execution.tenant }, pending.reference)
         if (!targets.has(key)) {
           const target = { execution: execution.id, instance, pending: structuredClone(pending) }

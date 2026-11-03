@@ -3,14 +3,16 @@
 // caller of `applyCommit`; a scope it has not recovered starts a recovery session whose material
 // holds the registrations in log order, the checkpointed blocks that have a step commit (and no
 // other block), and the end; `out-of-order` starts a recovery session that supersedes the current
-// one; `replayFacts.stepCommittedBlocks` reads the same records and makes C18's trust refuse a
-// finish that leaves out a step-committed block; the `runtimeContextReaderEligibility` provider
-// passes the handoff suite, refuses another tenant before it reads anything, and issues per
-// consumer class; both plugins stay absent while a dependency is absent, and a new Runtime Context
-// provider makes the scope recover again before the next eligibility.
+// one; the facts plugin `session-ad03-facts` (R2-D29) reads the same records with the
+// `coordinator` caller class, outside the replay, and its `replayFacts.stepCommittedBlocks` makes
+// C18's trust refuse a finish that leaves out a step-committed block; the
+// `runtimeContextReaderEligibility` provider passes the handoff suite, refuses another tenant
+// before it reads anything, and issues per consumer class; the holder and replay plugins stay
+// absent while a dependency is absent, and a new Runtime Context provider makes the scope recover
+// again before the next eligibility.
 //
 // Runtime Context is the contract's memory double behind a Cordis service, with C18's trust built
-// from the test authority ports and the holder's own `replayFacts`. The translation from a Session
+// from the test authority ports and the facts plugin's `replayFacts`. The translation from a Session
 // entry to a Runtime Context commit input is a scripted double: its real provider is AD-12's
 // translation protocol, which is not delivered yet.
 import { Context, Service } from '@deepseek-ai/cordis'
@@ -208,6 +210,7 @@ const ARCHIVED = 'session.archived'
 // --- the fixture -----------------------------------------------------------------------------------
 
 type Call = Readonly<{ method: string; input: unknown; principal?: unknown }>
+type HistoryCall = Readonly<{ method: string; input: unknown; caller: unknown }>
 
 const sessionKey = (access: { tenant: TenantId; session: SessionId }) =>
   JSON.stringify([textOf(access.tenant), access.session])
@@ -215,7 +218,9 @@ const sessionKey = (access: { tenant: TenantId; session: SessionId }) =>
 /**
  * A real Cordis root with a memory Runtime Context behind its service, a session service that
  * serves the history face from a per-session log (pages of two entries, only to the coordinator
- * principal of that session), and the two AD-03 plugins.
+ * principal of that session), and the three AD-03 plugins. `historyCalls` are the reads of the
+ * replay sub-plugin (class `reader`); `factsCalls` are those of the facts plugin (class
+ * `coordinator`).
  */
 async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}) {
   const ctx = new Context()
@@ -225,8 +230,8 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
   })
   const faults = { outOfOrder: 0, finish: 0, history: false, principal: false, incomplete: false }
   const rcCalls: Call[] = []
-  const historyCalls: Call[] = []
-  const callers: unknown[] = []
+  const historyCalls: HistoryCall[] = []
+  const factsCalls: HistoryCall[] = []
   const principalsAsked: unknown[] = []
 
   // The session log: entries per session and the commit input each entry records.
@@ -345,29 +350,31 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
       annotations: [],
     }
   }
-  const historyFace: SessionFaces<unknown>['history'] = {
-    begin: async input => {
-      historyCalls.push({ method: 'begin', input })
-      if (!owns(input)) return fail({ kind: 'denied', action: 'history.begin' })
-      if (faults.history)
-        return fail({ kind: 'unavailable', owner: 'session', diagnostic: 'history down' })
-      return succeed(page(sessionKey(input), input.kinds, 0))
-    },
-    next: async input => {
-      historyCalls.push({ method: 'next', input })
-      if (!owns(input)) return fail({ kind: 'denied', action: 'history.next' })
-      const [key, kinds, offset] = JSON.parse(input.cursor) as [string, string[], number]
-      if (key !== sessionKey(input)) return fail({ kind: 'denied', action: 'history.next' })
-      return succeed(page(key, kinds, offset))
-    },
-    since: async () => fail({ kind: 'unavailable', owner: 'session', diagnostic: 'not used' }),
-    readModelView: async () =>
-      fail({ kind: 'unavailable', owner: 'session', diagnostic: 'not used' }),
+  const historyFaceFor = (caller: unknown): SessionFaces<unknown>['history'] => {
+    const calls = (caller as { caller?: unknown }).caller === 'reader' ? historyCalls : factsCalls
+    return {
+      begin: async input => {
+        calls.push({ method: 'begin', input, caller })
+        if (!owns(input)) return fail({ kind: 'denied', action: 'history.begin' })
+        if (faults.history)
+          return fail({ kind: 'unavailable', owner: 'session', diagnostic: 'history down' })
+        return succeed(page(sessionKey(input), input.kinds, 0))
+      },
+      next: async input => {
+        calls.push({ method: 'next', input, caller })
+        if (!owns(input)) return fail({ kind: 'denied', action: 'history.next' })
+        const [key, kinds, offset] = JSON.parse(input.cursor) as [string, string[], number]
+        if (key !== sessionKey(input)) return fail({ kind: 'denied', action: 'history.next' })
+        return succeed(page(key, kinds, offset))
+      },
+      since: async () => fail({ kind: 'unavailable', owner: 'session', diagnostic: 'not used' }),
+      readModelView: async () =>
+        fail({ kind: 'unavailable', owner: 'session', diagnostic: 'not used' }),
+    }
   }
   class Session extends SessionService<unknown> {
     get history(): SessionFaces<unknown>['history'] {
-      callers.push(this[Service.resolveConfig]())
-      return historyFace
+      return historyFaceFor(this[Service.resolveConfig]())
     }
     readonly work = {} as SessionFaces<unknown>['work']
     readonly management = {} as SessionFaces<unknown>['management']
@@ -378,6 +385,7 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
   const fibers = new Map<string, Awaited<ReturnType<Context['plugin']>>>()
   for (const name of options.mount ?? (['rc', 'session'] as const))
     fibers.set(name, await mount(ctx, services[name]))
+  const factsFiber = await mount(ctx, holder.facts)
   const replayFiber = await mount(ctx, holder.replay)
   const holderFiber = await mount(ctx, holder.holder)
 
@@ -401,11 +409,12 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
     faults,
     services,
     fibers,
+    factsFiber,
     replayFiber,
     holderFiber,
     rcCalls,
     historyCalls,
-    callers,
+    factsCalls,
     principalsAsked,
     append,
     committed,
@@ -481,12 +490,16 @@ describe('a scope seen for the first time is recovered with the complete materia
     // Every principal on the holder face is the session's coordinator principal.
     const principal = coordinatorOf(A.tenant, A.session)
     expect(f.rcCalls.every(call => call.principal === principal)).toBe(true)
-    // Every read of `session` went through the reader caller class.
-    expect(f.callers.length).toBeGreaterThan(0)
-    expect(f.callers.every(caller => (caller as { caller?: unknown }).caller === 'reader')).toBe(
-      true,
-    )
+    // The replay sub-plugin reads `session` as `reader`; the facts plugin reads it as `coordinator`.
+    expect(f.historyCalls.length).toBeGreaterThan(0)
+    expect(
+      f.historyCalls.every(call => (call.caller as { caller?: unknown }).caller === 'reader'),
+    ).toBe(true)
     expect(f.historyCalls.map(call => call.method)).toContain('next')
+    expect(f.factsCalls.length).toBeGreaterThan(0)
+    expect(
+      f.factsCalls.every(call => (call.caller as { caller?: unknown }).caller === 'coordinator'),
+    ).toBe(true)
   })
 
   it('finishes ready through C18 trust: the facts the replay asks name exactly the step-committed checkpointed blocks', async () => {
@@ -877,14 +890,16 @@ describe('the runtimeContextReaderEligibility provider', () => {
 // --- Cordis lifecycle ------------------------------------------------------------------------------
 
 describe('on real Cordis', () => {
-  it('both plugins stay absent while runtimeContext is absent: no handoff, no recovery', async () => {
+  it('the holder and replay plugins stay absent while runtimeContext is absent: no handoff, no recovery', async () => {
     const f = await assembled({ mount: ['session'] })
     expect(f.handoff()).toBeUndefined()
     seedA(f)
     await f.committed(A, [REGISTRATION, STEP])
     expect(f.historyCalls).toEqual([])
+    // The facts plugin needs `session` alone: it has indexed the scope and answers.
     expect(await f.holder.replayFacts.stepCommittedBlocks(scopeA, null)).toEqual({
-      kind: 'unavailable',
+      kind: 'known',
+      keys: [],
     })
     // The provider arrives: the plugins start, the next notice recovers the scope.
     await mount(f.ctx, f.services.rc)
@@ -893,12 +908,16 @@ describe('on real Cordis', () => {
     expect(f.methods()).toEqual(['beginReplay', 'finishReplay'])
   })
 
-  it('both plugins stay absent while session is absent', async () => {
+  it('the three plugins stay absent while session is absent', async () => {
     const f = await assembled({ mount: ['rc'] })
     expect(f.handoff()).toBeUndefined()
     seedA(f)
     await f.committed(A, [REGISTRATION, STEP])
     expect(f.methods()).toEqual([])
+    expect(f.factsCalls).toEqual([])
+    expect(await f.holder.replayFacts.stepCommittedBlocks(scopeA, null)).toEqual({
+      kind: 'unavailable',
+    })
   })
 
   it('a new Runtime Context provider recovers the scope again before the next eligibility', async () => {
@@ -920,16 +939,30 @@ describe('on real Cordis', () => {
     })
   })
 
-  it('a stopped replay sub-plugin no longer listens and its facts are unavailable', async () => {
+  it('a stopped replay sub-plugin no longer listens, and the replay facts still answer from the facts plugin (R2-D29)', async () => {
     const f = await assembled()
     seedA(f)
     await f.replayFiber.dispose()
     await f.committed(A, [REGISTRATION, STEP])
     expect(f.historyCalls).toEqual([])
-    expect(await f.holder.replayFacts.stepCommittedBlocks(scopeA, null)).toEqual({
-      kind: 'unavailable',
+    expect(await f.holder.replayFacts.stepCommittedBlocks(scopeA, { commit: 's3' })).toEqual({
+      kind: 'known',
+      keys: [NOTES],
     })
     expect((await f.handoff()!.current(modelRequest)).kind).toBe('unavailable')
+  })
+
+  it('a stopped facts plugin no longer listens, and the replay facts and the lookup are unavailable (R2-D29)', async () => {
+    const f = await assembled()
+    seedA(f)
+    await f.committed(A, [REGISTRATION, STEP])
+    const held = f.holder.replayFacts
+    await f.factsFiber.dispose()
+    expect(await held.stepCommittedBlocks(scopeA, null)).toEqual({ kind: 'unavailable' })
+    const before = f.factsCalls.length
+    f.append(A, REGISTRATION, add(atA, 'r4', 'test.later', 3, 'checkpointed'))
+    await f.committed(A, [REGISTRATION])
+    expect(f.factsCalls.length).toBe(before)
   })
 
   it('a stopped holder plugin withdraws the handoff', async () => {

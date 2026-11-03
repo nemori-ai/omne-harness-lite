@@ -10,13 +10,16 @@ export const OWNER = '@omne-harness/session-storage-sql'
 
 /**
  * What a token is bound to. `revision` is the tenant domain directory revision, bound only where
- * the read protocol says so (R10 references); a token without it binds no revision.
+ * the read protocol says so (R10 references); a token without it binds no revision. `key` is the
+ * read subject a continuation belongs to (the resident key of R10); a token without it binds none.
+ * The system reads have no tenant or session, so the key does not travel in those fields.
  */
 export type CursorBinding = Readonly<{
   kind: string
   tenant: string | null
   session: string | null
   revision?: string
+  key?: string
 }>
 export type CursorOptions = Readonly<{
   signing: SessionCursorSigning
@@ -63,6 +66,20 @@ export async function seal(
   return succeed(`${b64(payload)}.${b64(encoder.encode(keyId))}.${b64(signature)}`)
 }
 
+/** Why a payload does not belong to this binding, or null when it does. */
+function bindingMismatch(parsed: Record<string, unknown>, binding: CursorBinding): string | null {
+  if (
+    parsed['kind'] !== binding.kind ||
+    parsed['tenant'] !== binding.tenant ||
+    parsed['session'] !== binding.session
+  )
+    return 'issued for another tenant, session or read'
+  if ((parsed['revision'] ?? null) !== (binding.revision ?? null))
+    return 'issued under another tenant domain directory revision'
+  if ((parsed['key'] ?? null) !== (binding.key ?? null)) return 'issued for another key'
+  return null
+}
+
 export async function open<T>(
   options: CursorOptions,
   binding: CursorBinding,
@@ -89,14 +106,8 @@ export async function open<T>(
   } catch {
     return invalid('malformed')
   }
-  if (
-    parsed['kind'] !== binding.kind ||
-    parsed['tenant'] !== binding.tenant ||
-    parsed['session'] !== binding.session
-  )
-    return invalid('issued for another tenant, session or read')
-  if ((parsed['revision'] ?? null) !== (binding.revision ?? null))
-    return invalid('issued under another tenant domain directory revision')
+  const mismatch = bindingMismatch(parsed, binding)
+  if (mismatch !== null) return invalid(mismatch)
   if (typeof parsed['expires'] !== 'number' || parsed['expires'] < options.now())
     return invalid('expired')
   return succeed(parsed['state'] as T)

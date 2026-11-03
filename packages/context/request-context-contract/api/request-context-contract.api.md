@@ -27,11 +27,13 @@
 - `AssemblyOutcome` · `values.d.ts`
 - `AssemblyPolicies` · `ports.d.ts`
 - `AssemblyResult` · `values.d.ts`
+- `AssemblyReuse` · `reuse.d.ts`
 - `AssemblyUnknown` · `values.d.ts`
 - `BatchRef` · `refs.d.ts`
 - `BlockMaterial` · `values.d.ts`
 - `BudgetBreach` · `values.d.ts`
 - `BudgetInput` · `budget.d.ts`
+- `CachedAssemblyMaterial` · `reuse.d.ts`
 - `CandidateRef` · `refs.d.ts`
 - `CommitOrder` · `refs.d.ts`
 - `CompactionBasis` · `values.d.ts`
@@ -42,6 +44,7 @@
 - `CompactionPolicyPort` · `ports.d.ts`
 - `CompactionSettingsValue` · `blocks.d.ts`
 - `ConditionsEvidence` · `values.d.ts`
+- `ContentControl` · `reuse.d.ts`
 - `ContextAccountingInbox` · `accounting.d.ts`
 - `ContextAccountingInput` · `accounting.d.ts`
 - `ContextBlockKey` · 包 `@omne-harness/runtime-context-contract`
@@ -134,6 +137,7 @@
 - `ScopeRef` · 包 `@omne-harness/runtime-context-contract`
 - `SelectedModel` · `values.d.ts`
 - `SnapshotAnchor` · `values.d.ts`
+- `SnapshotIdentity` · `reuse.d.ts`
 - `SnapshotMaterial` · `values.d.ts`
 - `SnapshotReminder` · `values.d.ts`
 - `SourceDecision` · `sources.d.ts`
@@ -410,6 +414,7 @@ import type { AssemblyFailure } from './values.js';
 import type * as M from '@omne-harness/model-contract';
 import type { Message } from '@omne-harness/message';
 import type { AssemblyInput, RequestLayers } from './values.js';
+import type { SnapshotIdentity, CachedAssemblyMaterial } from './reuse.js';
 import type { AssemblyPolicies } from './ports.js';
 export declare function assembledInput<P>(input: AssemblyInput<P>, policies: AssemblyPolicies, layers: RequestLayers, messages: readonly Message[]): M.AssembledModelInput;
 export type LayeredRequest = Readonly<{
@@ -417,6 +422,10 @@ export type LayeredRequest = Readonly<{
     layers: RequestLayers;
     messages: readonly Message[];
     anchorSource: Placement['anchorSource'];
+    stable: Readonly<{
+        identity: SnapshotIdentity;
+        split: NonNullable<CachedAssemblyMaterial['split']>;
+    }>;
 }>;
 export declare function placeLayers<P>(input: AssemblyInput<P>, prepared: StablePreparation): LayeredRequest | AssemblyFailure;
 ```
@@ -446,7 +455,11 @@ export declare function representLayers<P>(input: AssemblyInput<P>, context: Ope
 import type { AssemblyInput, AssemblyResult, PreparedInputKey } from './values.js';
 import type { HistoryRow } from './ports.js';
 import type { OperationContext } from './operation-context.js';
-export declare function assembleInputs<P>(input: AssemblyInput<P>, key: PreparedInputKey, rows: readonly HistoryRow[], context: OperationContext<P>): Promise<AssemblyResult>;
+import { type ReuseBasis } from './preparation.js';
+import { type AssemblyReuse } from './reuse.js';
+export declare function assembleInputs<P>(input: AssemblyInput<P>, key: PreparedInputKey, rows: readonly HistoryRow[], context: OperationContext<P>, basis?: ReuseBasis & Readonly<{
+    reuse?: AssemblyReuse | undefined;
+}>): Promise<AssemblyResult>;
 ```
 
 ## 声明文件 `blocks.d.ts`
@@ -581,16 +594,23 @@ import type { Access, HistorySequence } from './refs.js';
 import type { AssemblyFailure, AssemblyUnknown, HistoryEvidence } from './values.js';
 import type { HistoryRow, HistorySource } from './ports.js';
 export declare const HISTORY_PAGE_BYTES = 65536;
+export type HistoryReadMode = 'full' | 'same' | 'tail';
+export type HistoryPrefix = Readonly<{
+    evidence: HistoryEvidence;
+    rows: readonly HistoryRow[];
+}>;
 export type HistoryRead = Readonly<{
     kind: 'history';
     rows: readonly HistoryRow[];
     evidence: HistoryEvidence;
+    mode: HistoryReadMode;
+    added: readonly HistoryRow[];
 }> | Readonly<{
     kind: 'epoch-changed';
     current: HistoryEvidence;
 }> | AssemblyFailure | AssemblyUnknown;
 export declare function withinUpper(seq: HistorySequence, evidence: HistoryEvidence): boolean;
-export declare function readHistory<P>(access: Access<P>, evidence: HistoryEvidence, source: HistorySource<P>): Promise<HistoryRead>;
+export declare function readHistory<P>(access: Access<P>, evidence: HistoryEvidence, source: HistorySource<P>, prefix?: HistoryPrefix): Promise<HistoryRead>;
 ```
 
 ## 声明文件 `history-resolution.d.ts`
@@ -630,6 +650,7 @@ export type { AssemblyPolicies, AssemblyOperations } from './ports.js';
 export type { PreparedInputKey } from './values.js';
 export type { AssemblyOperationsInput } from './operations.js';
 export { createAssemblyOperations } from './operations.js';
+export type { AssemblyReuse, CachedAssemblyMaterial, ContentControl, SnapshotIdentity, } from './reuse.js';
 export type { SourceRead, SourceGroupValue, GroupSource, ContextGroupSources, AdoptedRead, AdoptedRequestSource, SourceDecision, ContextReadEligibility, PrincipalBinding, ContextSources, SourceRegistrationAuthority, SourceSettlement, ContextRegistration, RegistrationResult, ContextSourceRegistry, ContextRegistryOptions, } from './sources.js';
 export type { HistoryResolution, HistoryEvidenceResolver } from './history-resolution.js';
 export type { AccountingOrigin, ReceivedAccountFact, ContextAccountingInput, AccountReceipt, ContextAccountingInbox, SystemRecoveryAccess, AccountReplay, RecoveryResult, ContextRecovery, AccountingSourceAuthority, RecoveryAuthority, AccountingLimits, AccountingOptions, } from './accounting.js';
@@ -646,6 +667,8 @@ export type { DeriveInput } from './values.js';
 
 ```ts
 import type { ContextTarget, GroupToken, PrincipalKey } from './refs.js';
+import { type HistoryReadMode } from './history-read.js';
+import { type CachedAssemblyMaterial } from './reuse.js';
 import type { HistoryRow } from './ports.js';
 import type { CompactionContext } from '@omne-harness/message';
 import type { AssemblyCall, AssemblyFailure, AssemblyInput, AssemblyUnknown, PreparedInputKey } from './values.js';
@@ -675,11 +698,17 @@ export type StableInputs<P> = Readonly<{
     tokens: Tokens;
     rows: readonly HistoryRow[];
     window: CompactionContext | null;
+    historyRead: Readonly<{
+        mode: HistoryReadMode | 'carried';
+        added: readonly HistoryRow[];
+        cached: CachedAssemblyMaterial | null;
+    }>;
 }>;
 export type InputReadOptions = Readonly<{
     window?: boolean;
     principal?: PrincipalKey;
     generation?: PreparedInputKey['generation'];
+    cached?: CachedAssemblyMaterial | null;
 }>;
 export declare function readInputs<P>(call: AssemblyCall<P>, target: ContextTarget, sources: ContextSources<P>, options?: InputReadOptions): Promise<StableInputs<P> | Failure>;
 export declare function readModelGroup<P>(call: AssemblyCall<P>, sources: ContextSources<P>): Promise<Readonly<{
@@ -782,12 +811,14 @@ export type OperationContext<P> = Readonly<{
 import type { ContextTarget, SourceGeneration } from './refs.js';
 import type { AssemblyOperations, AssemblyPolicies } from './ports.js';
 import type { ContextSources, PrincipalBinding } from './sources.js';
+import type { AssemblyReuse } from './reuse.js';
 export type AssemblyOperationsInput<P> = Readonly<{
     target: ContextTarget;
     sources: ContextSources<P>;
     principalBinding: PrincipalBinding<P>;
     policies: AssemblyPolicies;
     generation?: SourceGeneration | null;
+    reuse?: AssemblyReuse;
 }>;
 export declare function createAssemblyOperations<P>(input: AssemblyOperationsInput<P>): AssemblyOperations<P>;
 ```
@@ -797,6 +828,7 @@ export declare function createAssemblyOperations<P>(input: AssemblyOperationsInp
 ```ts
 import type { ContextReadGroup, Coverage, TransitionEvidence, NewInputBatch, SnapshotReminder, TailFacts, AssemblyFailure } from './values.js';
 import type { ProjectedHistory } from './projection.js';
+import type { SnapshotIdentity } from './reuse.js';
 export declare const SNAPSHOT_ANCHOR_RULE: Readonly<{
     readonly owner: 'request-context-contract';
     readonly name: 'snapshot-anchor';
@@ -807,6 +839,7 @@ export declare const SNAPSHOT_ANCHOR_RULE: Readonly<{
 }>;
 export type Placement = Readonly<{
     snapshot: SnapshotReminder;
+    identity: SnapshotIdentity;
     tail: TailFacts;
     anchorSource: 'new-full-read' | 'adopted' | 'after-compaction';
 }>;
@@ -817,6 +850,10 @@ export type PlacementInput = Readonly<{
     transition: TransitionEvidence | null;
     view: ProjectedHistory;
     newInputs: NewInputBatch;
+    cachedSnapshot?: Readonly<{
+        identity: SnapshotIdentity;
+        reminder: SnapshotReminder;
+    }> | null;
 }>;
 export declare function placeContext(input: PlacementInput): Placement | Extract<AssemblyFailure, {
     kind: 'invalid';
@@ -992,9 +1029,14 @@ import { type ProjectedHistory } from './projection.js';
 import { type SystemPromptResult } from './prompt.js';
 import { type ToolDeclarationSet } from './declare-tools.js';
 import type { PrincipalKey } from './refs.js';
+import type { StableInputs } from './input-read.js';
+import { type CachedAssemblyMaterial } from './reuse.js';
 import type { AssemblyPolicies, HistoryRow } from './ports.js';
 import type { AssemblyInput, PreparedInputKey, AssemblyFailure, RequestCandidate } from './values.js';
 export declare function preparationKey<P>(input: AssemblyInput<P>, principal: PrincipalKey, tokens: PreparedInputKey['tokens'], policies: AssemblyPolicies, generation?: PreparedInputKey['generation']): PreparedInputKey;
+export type ReuseBasis = Readonly<{
+    historyRead: StableInputs<unknown>['historyRead'];
+}>;
 export type StablePreparation = Readonly<{
     kind: 'prepared';
     key: PreparedInputKey;
@@ -1004,10 +1046,12 @@ export type StablePreparation = Readonly<{
         kind: 'rendered';
     }>;
     declarations: ToolDeclarationSet;
+    layers: CachedAssemblyMaterial | null;
+    viewFrom: 'same' | 'appended' | null;
 }>;
 export declare function reusableCandidate<P>(input: AssemblyInput<P>, key: PreparedInputKey): RequestCandidate | null;
 export declare function contradictoryPreparation<P>(input: AssemblyInput<P>, reusable: RequestCandidate | null): boolean;
-export declare function prepareStable<P>(input: AssemblyInput<P>, key: PreparedInputKey, rows: readonly HistoryRow[]): StablePreparation | AssemblyFailure;
+export declare function prepareStable<P>(input: AssemblyInput<P>, key: PreparedInputKey, rows: readonly HistoryRow[], basis?: ReuseBasis): StablePreparation | AssemblyFailure;
 ```
 
 ## 声明文件 `projection.d.ts`
@@ -1028,6 +1072,7 @@ export type HumanProjection = Readonly<{
 }>;
 export declare function sourced(message: Message, call: TenantModelCall | undefined): SourcedMessage;
 export declare function project(rows: readonly HistoryRow[], epoch: EpochId): ProjectedHistory;
+export declare function appendProjection(previous: ProjectedHistory, addedRows: readonly HistoryRow[], epoch: EpochId): ProjectedHistory | null;
 export declare function projectForHuman(rows: readonly HistoryRow[]): HumanProjection;
 ```
 
@@ -1214,7 +1259,85 @@ export declare function chooseRepresentations(input: RepresentationInput): Repre
 import type { AssemblyInput, AssemblyResult, PreparedInputKey } from './values.js';
 import type { HistoryRow } from './ports.js';
 import type { OperationContext } from './operation-context.js';
-export declare function resumeInputs<P>(input: AssemblyInput<P>, key: PreparedInputKey, rows: readonly HistoryRow[], context: OperationContext<P>): Promise<AssemblyResult>;
+import type { ReuseBasis } from './preparation.js';
+import type { AssemblyReuse } from './reuse.js';
+export declare function resumeInputs<P>(input: AssemblyInput<P>, key: PreparedInputKey, rows: readonly HistoryRow[], context: OperationContext<P>, basis?: ReuseBasis & Readonly<{
+    reuse?: AssemblyReuse | undefined;
+}>): Promise<AssemblyResult>;
+```
+
+## 声明文件 `reuse.d.ts`
+
+```ts
+import type { ToolDeclarationSet } from './declare-tools.js';
+import type { ProjectedHistory } from './projection.js';
+import type { SystemPromptResult } from './prompt.js';
+import type { ContextTarget, GroupToken, PassageRef, PositionRef, PrincipalKey } from './refs.js';
+import type { HistoryRow } from './ports.js';
+import type { AlterationEvidence, AssemblyContext, ConditionsEvidence, HistoryEvidence, PreparedInputKey, ProjectedMessage, RequestPurpose, SnapshotAnchor, SnapshotReminder } from './values.js';
+import type { EligibilityId, ScopeRef, ViewRevision } from '@omne-harness/runtime-context-contract';
+export type CachedAssemblyMaterial = Readonly<{
+    target: ContextTarget;
+    key: PreparedInputKey;
+    history: Readonly<{
+        evidence: HistoryEvidence;
+        token: GroupToken;
+        rows: readonly HistoryRow[];
+        view: ProjectedHistory;
+    }>;
+    prompt: Readonly<{
+        token: GroupToken;
+        context: AssemblyContext;
+        rendered: Extract<SystemPromptResult, {
+            kind: 'rendered';
+        }>;
+    }>;
+    tools: Readonly<{
+        token: GroupToken;
+        declarations: ToolDeclarationSet;
+    }>;
+    snapshot: Readonly<{
+        identity: SnapshotIdentity;
+        reminder: SnapshotReminder;
+    }> | null;
+    split: Readonly<{
+        anchor: SnapshotAnchor;
+        head: readonly ProjectedMessage[];
+        body: readonly ProjectedMessage[];
+    }>;
+    contentControl: ContentControl;
+}>;
+export type SnapshotIdentity = Readonly<{
+    scope: ScopeRef['ref'];
+    eligibility: EligibilityId;
+    viewRevision: ViewRevision;
+    anchor: SnapshotAnchor;
+}>;
+export type ContentControl = Readonly<{
+    conditions: ConditionsEvidence;
+    alterations: readonly AlterationEvidence[];
+    beforeModelCall: readonly PassageRef[] | null;
+}>;
+export interface AssemblyReuse {
+    load(input: Readonly<{
+        principal: PrincipalKey;
+        purpose: RequestPurpose;
+        position: PositionRef;
+    }>): CachedAssemblyMaterial | null;
+    stage(material: CachedAssemblyMaterial): void;
+}
+export declare function contentControlOf(control: {
+    conditions: ConditionsEvidence;
+    alterations: readonly AlterationEvidence[];
+    beforeModelCall: readonly PassageRef[] | null;
+}): ContentControl;
+export declare function sameContentControl(left: ContentControl, right: ContentControl): boolean;
+export declare function materialBelongs(material: CachedAssemblyMaterial, expected: Readonly<{
+    principal: PrincipalKey | undefined;
+    generation: PreparedInputKey['generation'] | undefined;
+    purpose: RequestPurpose;
+    target: ContextTarget;
+}>): boolean;
 ```
 
 ## 声明文件 `schema-primitives.d.ts`

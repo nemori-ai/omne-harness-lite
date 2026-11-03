@@ -27,3 +27,5 @@
 <!-- documentation:placeholder -->
 
 [Model 结果接收模型](model-reception/README.md) 检查共同提交、原操作认回、账目发送时序和实例分离后的责任保留。它是有限安全性模型，不证明产品实现精化、生产耐久或 Model ACK。
+
+[Run 取消与单调用中断模型](cancellation/README.md) 检查取消、单调用中断与模型请求、工具动作和结果接收之间的交错。它是有限模型，不证明产品实现符合模型，也不证明外部服务最终响应。

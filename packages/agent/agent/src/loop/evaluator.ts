@@ -114,13 +114,22 @@ function next(facts: LoopFacts): Outcome<Next, Failure> {
   }
 }
 
-/** Node table I8: a lawful basis to go on opens a new iteration; otherwise completion is proposed. */
-function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
-  const { checkpoint } = facts
-  // Non-empty action batches and extension passages still belong to their own nodes.
-  if (checkpoint.batch !== null && checkpoint.batch.actions.length > 0) return unsupported
-  if (checkpoint.passages.some(passage => passage.progress.kind !== 'applied')) return unsupported
-  const waiting: Waiting[] = checkpoint.calls.map(pending => ({ kind: 'producer', pending }))
+/**
+ * A batch with actions reaches I8 only from T5, after every slot's message was admitted: 'round'.
+ * Its results or denials are new history the model has not seen. A batch in any other state
+ * belongs to its own nodes: 'open'. No batch, or one without actions: 'none'.
+ */
+function toolRound(batch: AgentCheckpoint['batch']): 'none' | 'round' | 'open' {
+  if (batch === null || batch.actions.length === 0) return 'none'
+  const admitted = batch.actions.every(action =>
+    batch.slots.some(slot => slot.action === action.id && slot.handoff !== null),
+  )
+  return admitted ? 'round' : 'open'
+}
+
+/** The producer waits of I8, or null when a ready result needs its later consumption nodes. */
+function producerWaits(facts: LoopFacts): Waiting[] | null {
+  const waiting: Waiting[] = facts.checkpoint.calls.map(pending => ({ kind: 'producer', pending }))
   for (const producer of facts.producers) {
     // Ready results need their later consumption nodes, never an idle producer wait.
     if (
@@ -128,20 +137,31 @@ function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
       producer.kind === 'tool-result' ||
       producer.kind === 'tool-background'
     )
-      return unsupported
-    if (
-      !waiting.some(
-        item =>
-          item.kind === 'producer' && item.pending.consumption === producer.pending.consumption,
-      )
+      return null
+    const known = waiting.some(
+      item => item.kind === 'producer' && item.pending.consumption === producer.pending.consumption,
     )
-      waiting.push({ kind: 'producer', pending: producer.pending })
+    if (!known) waiting.push({ kind: 'producer', pending: producer.pending })
   }
+  return waiting
+}
+
+/** Node table I8: a lawful basis to go on opens a new iteration; otherwise completion is proposed. */
+function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
+  const { checkpoint } = facts
+  const round = toolRound(checkpoint.batch)
+  if (round === 'open') return unsupported
+  if (checkpoint.passages.some(passage => passage.progress.kind !== 'applied')) return unsupported
+  const waiting = producerWaits(facts)
+  if (waiting === null) return unsupported
   if (facts.consumption.some(item => item.custody === null && item.completion === null))
     waiting.push({ kind: 'dependency', owner: 'agentJournal', position: 'I8' })
   if (waiting.length > 0) return succeed({ kind: 'wait', waiting })
-  if (facts.batch.ordered.length > 0 || facts.conditions.progression.kind === 'continue')
-    return succeed({ kind: 'take-inputs', position: 'I0' })
+  const basis =
+    round === 'round' ||
+    facts.batch.ordered.length > 0 ||
+    facts.conditions.progression.kind === 'continue'
+  if (basis) return succeed({ kind: 'take-inputs', position: 'I0' })
   // Neither an action nor an empty queue ends the execution by itself: this is only a candidate,
   // which F1 fixes and F3 commits or refuses.
   return succeed({ kind: 'try-finish', conclusion: { kind: 'complete' }, failure: null })

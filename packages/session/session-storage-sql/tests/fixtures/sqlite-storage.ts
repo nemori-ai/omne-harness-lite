@@ -28,27 +28,39 @@ import type {
   SqlCell,
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
+import admissionAttemptMigration from '../../src/worker/admission-attempt-migration.ts'
 import indexMigration from '../../src/worker/execution-index-migration.ts'
 import recordMigration from '../../src/worker/execution-record-migration.ts'
 import executionRecord from '../../src/worker/execution-record.ts'
+import factBodyMigration from '../../src/worker/fact-body-migration.ts'
 import migration from '../../src/worker/migration.ts'
 import evidenceMigration from '../../src/worker/operation-evidence-migration.ts'
 import participant from '../../src/worker/participant.ts'
+import preadmissionMigration from '../../src/worker/preadmission-migration.ts'
+import readExecutionFacts from '../../src/worker/read-execution-facts.ts'
 import readExecutionOperation from '../../src/worker/read-execution-operation.ts'
+import readExecutionParts from '../../src/worker/read-execution-parts.ts'
 import readExecutionSession from '../../src/worker/read-execution-session.ts'
-import readExecutionState from '../../src/worker/read-execution-state.ts'
 import readHistoryRoot from '../../src/worker/read-history-root.ts'
 import readHistory from '../../src/worker/read-history.ts'
 import readInput from '../../src/worker/read-input.ts'
 import readModelSelection from '../../src/worker/read-model-selection.ts'
 import readModelView from '../../src/worker/read-model-view.ts'
 import readPending from '../../src/worker/read-pending.ts'
+import readPreadmission from '../../src/worker/read-preadmission.ts'
 import readReferences from '../../src/worker/read-references.ts'
 import readReleasedScopes from '../../src/worker/read-released-scopes.ts'
+import readWorkIndex from '../../src/worker/read-work-index.ts'
+import readWorkReads from '../../src/worker/read-work-reads.ts'
+import readWorkVersion from '../../src/worker/read-work-version.ts'
 import readWork from '../../src/worker/read-work.ts'
+import statePartMigration from '../../src/worker/state-part-migration.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
   readWork,
+  readWorkVersion,
+  readWorkIndex,
+  readWorkReads,
   readInput,
   readModelSelection,
   readHistory,
@@ -57,9 +69,11 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readReferences,
   readReleasedScopes,
   readHistoryRoot,
-  readExecutionState,
+  readExecutionParts,
+  readExecutionFacts,
   readExecutionOperation,
   readExecutionSession,
+  readPreadmission,
 ]
 
 /** The participant modules by name; the execution order is the order of the commands. */
@@ -72,6 +86,10 @@ const MIGRATIONS: readonly MigrationModule[] = [
   recordMigration,
   indexMigration,
   evidenceMigration,
+  preadmissionMigration,
+  admissionAttemptMigration,
+  statePartMigration,
+  factBodyMigration,
 ]
 
 export type StorageCall =
@@ -84,6 +102,8 @@ export type SqliteStorage = Readonly<{
   calls: StorageCall[]
   /** Every SQL text that a read handler ran. */
   readSql: string[]
+  /** Every SELECT that a participant ran inside a write transaction, with the rows it returned. */
+  participantReads: { sql: string; rows: number }[]
   /** Domains that exist, by transaction domain name. */
   domains(): readonly string[]
   /** Seeds derived rows that the commands of this test cannot produce (a test set-up, not a path). */
@@ -138,6 +158,7 @@ export function createSqliteStorage(): SqliteStorage {
   const domains = new Map<string, Domain>()
   const calls: StorageCall[] = []
   const readSql: string[] = []
+  const participantReads: { sql: string; rows: number }[] = []
   let failing: string | null = null
   let lose = false
   let writeFault: { pattern: RegExp; left: number } | null = null
@@ -190,7 +211,9 @@ export function createSqliteStorage(): SqliteStorage {
         const port = {
           execute: (sql: string, params: readonly SqlValue[]) => {
             faultAt(sql)
-            return rowsOf(domain.db, sql, params)
+            const result = rowsOf(domain.db, sql, params)
+            if (/^\s*SELECT/i.test(sql)) participantReads.push({ sql, rows: result.rows.length })
+            return result
           },
           requireFact: () => null,
           provideFact: () => undefined,
@@ -313,6 +336,7 @@ export function createSqliteStorage(): SqliteStorage {
     storage,
     calls,
     readSql,
+    participantReads,
     domains: () => [...domains.keys()],
     seed: (name, sql, params = []) => {
       const domain = domains.get(name)

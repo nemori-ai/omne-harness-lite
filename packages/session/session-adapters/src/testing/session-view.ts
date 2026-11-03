@@ -57,6 +57,18 @@ export function sessionView<P>(
         invoke(input, 'journal.recordTerminalObservation', view =>
           view.journal.recordTerminalObservation(input),
         ),
+      readCancellationInstallation: input =>
+        invoke(
+          input,
+          'journal.readCancellationInstallation',
+          async view =>
+            (await view.journal.readCancellationInstallation?.(input)) ??
+            fail({
+              kind: 'unavailable',
+              owner: 'session-log-journal',
+              diagnostic: 'the session Journal has no cancellation installation read',
+            }),
+        ),
       load: input => invoke(input, 'journal.load', view => view.journal.load(input)),
       inputs: input => invoke(input, 'journal.inputs', view => view.journal.inputs(input)),
       readReplyAdmissions: input =>

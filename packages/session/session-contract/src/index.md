@@ -55,6 +55,7 @@
 - [history-values.ts](history-values.ts)、[history-validation.ts](history-validation.ts)：同根原历史及完整目录校验
 - [call-values.ts](call-values.ts)、[call-state.ts](call-state.ts)：调用登记、真实关联及等待
 - [control-state.ts](control-state.ts)：固定控制范围及未交清责任
+- [control-normalization.ts](control-normalization.ts)：延后控制事实的后果判定（`decideControlConsequences`）及其中性证据
 - [frontier-state.ts](frontier-state.ts)、[observation-validation.ts](observation-validation.ts)：最终解除批次及原事件后果
 - [work-entry-values.ts](work-entry-values.ts)、[work-entry-state.ts](work-entry-state.ts)：真实条目引用与压缩下界
 - [session-validation.ts](session-validation.ts)：本域证据、精确十进制及失败值

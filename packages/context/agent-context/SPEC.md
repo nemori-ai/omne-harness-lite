@@ -57,7 +57,7 @@
 
 - 只 `inject` `requestContext` 与 `contextAccountingInbox`。两键由 `request-context` 行在同一 fiber 提供，所以两者同生同灭。任一缺席时插件停在 `PENDING`，不提供键。
 - 配置只有 `sender`（采用身份：`owner`、`name`、`revision`、`digest`，都是文本）。不合的配置使加载失败，不回退默认值。
-- 本波插件传入 `absentAccountTarget`。真实装配里 `deliver` 总是答 `unavailable('scope-unresolved')`，账目不会被收下（[ACCT-INIT](#已知限制)、[ACCT-TARGET](#已知限制)）。
+- 当前插件传入 `absentAccountTarget`。真实装配里 `deliver` 总是答 `unavailable('scope-unresolved')`，账目不会被收下（[ACCT-INIT](#已知限制)、[ACCT-TARGET](#已知限制)）。
 - 插件的 fiber 结束后，仍被持有的旧引用的 `deliver` 答 `unavailable`，诊断 `outlet-closed`，不调用收件口，不答成功。
 
 ### 第二步的共同规则
@@ -149,7 +149,7 @@
 | 组四             | `promptContributions` 为 `null`，由登记面替换。`assembleContext` 的 `scope` 取目标作用域，`definition`、`workspace` 为 `null`，`keys` 为空（[ASSEMBLE-CONTEXT-NULL](#已知限制)） |
 | 组五的收件模型   | `route` 取 `selection.recipient.route`，`model` 取所选档案采用身份的规范文本。组三的 `recipient` 用同一文本，所以收件模型变了，Request Context 会判为不一致                      |
 | 组五的参数       | 每个参数是档案第一个供应方的显式采用，来源是所选档案。`replay` 为 `on`                                                                                                           |
-| 组六             | 第六组读口。本波的 `firstWaveTools`：条件的 `bindings` 为空时没有工具，否则 `unavailable(tools-source-absent)`。没有条件时（`resume`）也是后者                                   |
+| 组六             | 第六组读口。当前的 `firstWaveTools`：条件的 `bindings` 为空时没有工具，否则 `unavailable(tools-source-absent)`。没有条件时（`resume`）也是后者                                   |
 | 组七的条件       | `evidence` 取 `conditions.source`，`revision` 取 `conditions` 的规范摘要                                                                                                         |
 | 组七的上一次准备 | 候选身份取 `previous.id`。`previous` 是 `needs-compaction` 时，进入的计划取它的计划证据指向的计划。计划已丢失时答 `unavailable(compaction-plan-lost)`                            |
 | 组七的改写依据   | 每份依据记为触及已有层（`existing-layers`）                                                                                                                                      |
@@ -209,7 +209,7 @@
 - 配置：`owner`（采用身份）、`resultCapacity`（三项十进制文本）、可选的 `materials`（正安全整数，默认 256）。不合的配置使加载失败。
 - 构造时在本 fiber 上取一次 K-RQ 租借。交给持有者的结算函数是 `agentRequests` 的 `close()`。租借不可得时两个服务都答 `unavailable`，`owner` 为 `context-holder`，诊断是持有者的原因。
 - fiber 结束时，租借结束，持有者拉取结算，本包撤除全部登记。持有者在结算结束之后才关读口。材料库结束全部读者并清空。仍被持有的旧引用答 `unavailable(agent-context-closed)`。
-- 本波插件用 `firstWaveTools`、`absentStepResults` 与 request-context 的 `createAbsentConversionResults`。
+- 当前插件用 `firstWaveTools`、`absentStepResults` 与 request-context 的 `createAbsentConversionResults`。
 
 ## 所有权、失败与生命周期
 
@@ -255,15 +255,29 @@ IC-19 分类（「协议给」不论部署都由契约协议兑现，「装配�
 | 增量读取不消费过期材料            | 装配给 | 材料库在实例内存里，键含执行挂接                |
 | `source`、`coverage` 可解析到材料 | 装配给 | 同一 agent-context 实例。跨重启只保证记录键可读 |
 
+### 测量事件
+
+<a id="测量事件"></a>依据见 [Session SPEC](../../session/session/SPEC.md#测量事件)的测量事件。Context 段由本包发出。参数是两个工厂各自的可选 `measure`（`createAgentRequests` 与 `createAgentModelContext` 的选项），不是服务键，不是插件配置，缺省不建任何事件。两个工厂可以共用同一个观察者，`span` 在进程内唯一，所以起止不会错配。事件形状不是冻结的产品 API。
+
+| 事件 | 何时发出 | 字段 |
+| --- | --- | --- |
+| `segment`，`phase: 'start'`，`segment: 'context'` | Agent 调进本包的一次调用开始：`read`（可读上下文读取）、`prepare`、`derive`、`resume`（请求准备） | `span`、`operation`、`execution`（取自调用的 `advance.execution`） |
+| `segment`，`phase: 'end'` | 同一调用交回答复时，含抛出 | 上列字段加 `outcome`：带 `failure` 的答复与抛出为 `failure`，其余为 `ok` |
+
+- **时间**：事件不带时间。观察者在被同步调用的那一刻读自己的单调时钟，那一刻就是边界时刻。本包不保存时钟，也不读。
+- **段是包含式的**：一次调用包含它等待 Request Context、Runtime Context 与 Model 请求准备的时间。`close` 之后的调用在拒绝之前也算一次调用，会发出起止。
+- **观察者抛出**不改变任何答复，也不留痕。观察者不得回调本包。
+- **插件入口**：`AgentContextProvider` 的配置是可序列化数据，不能携带函数，所以观察者由装配者在构造插件之前交给 `./cordis` 的 `createAgentContextPlugin({ measure })`，仿 Session 日志 Journal 提供者的 `createSessionAgentJournalPlugin({ cancellation })`（R2-D35）。它返回继承 `AgentContextProvider` 的插件类，`inject`、配置与提供的键都不变，不加服务键，不改两个工厂的参数；该类把 `measure` 同时交给 `createAgentRequests` 与 `createAgentModelContext`，两处共用一个观察者，`span` 照旧唯一。不传 `measure` 时与 `AgentContextProvider` 一致。原插件类照旧可用。
+
 ### 已知限制
 
 | 名称                  | 内容                                                                                                                                                                                               | 触发条件（到时重新设计）                                                                                                                                                              |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ACCT-INIT             | 本波没有成员初始化账目投影。真实装配里出站得不到 `received`，接收方待办累积，恢复时从 `received` 条目重放。这与 IP-CX-11 证据栏「每轮 Model 结果接收时账目出站得 `received`」不同，本波不兑现      | 窗口占用块（CX-12）进入装配，或 Journal 重放进入范围。到时一起回答：谁证明空快照完整，系统恢复授权由谁持有，初始化放在出站插件、`request-context` 行还是作用域创建方                  |
+| ACCT-INIT             | 当前没有成员初始化账目投影。真实装配里出站得不到 `received`，接收方待办累积，恢复时从 `received` 条目重放。这与 IP-CX-11 证据栏「每轮 Model 结果接收时账目出站得 `received`」不同，本波不兑现      | 窗口占用块（CX-12）进入装配，或 Journal 重放进入范围。到时一起回答：谁证明空快照完整，系统恢复授权由谁持有，初始化放在出站插件、`request-context` 行还是作用域创建方                  |
 | ACCT-TARGET           | 出站不解析账目目标，答 `scope-unresolved`                                                                                                                                                          | 与 ACCT-INIT 同时。候选：K-RQ 加一个按调用身份解析目标的部件（加性）。备选是给 `AgentAccountHandoff` 加字段，那是改 agent-contract 的公开类型，需契约拥有者裁定                       |
 | ACCT-EVICT-ACTIVE     | 仍在使用的目标可能在两次操作之间被淘汰，之后 `usage` 返回 `uninitialized`，直到再次重建。出站不发起重建                                                                                            | 与 ACCT-INIT 同时，设计 `usage` 路径上的重建发起者。见 [request-context 的淘汰后果](../request-context/SPEC.md#cx-11-observable)                                                      |
 | ASSEMBLE-CONTEXT-NULL | 组四的定义采用与工作区选择交 `null`，`keys` 为空                                                                                                                                                   | 第一个读这两个键的提示词贡献或策略出现，或工具阶段（B-RUN）需要工作区选择。候选：定义采用取 `conditions.configuration`，需契约拥有者确认字段对应。工作区选择归 Execution 域，届时定键 |
-| COMPACTION-PATH       | 压缩路径只在同一实例内走得通。`derive` 要读步骤结果，本波的 `absentStepResults` 总是答不可用。`resume` 的组六答 `tools-source-absent`。计划与计划进度只在材料库里，丢失后答 `compaction-plan-lost` | 压缩进入 M2 范围，与 #859 第 5 项同批。到时定步骤结果的读口（Model 结果读取）、`resume` 的工具来源，以及计划材料是否随 Agent 的 checkpoint 保存                                       |
+| COMPACTION-PATH       | 压缩路径只在同一实例内走得通。`derive` 要读步骤结果，当前的 `absentStepResults` 总是答不可用。`resume` 的组六答 `tools-source-absent`。计划与计划进度只在材料库里，丢失后答 `compaction-plan-lost` | 压缩进入 M2 范围，与 #859 第 5 项同批。到时定步骤结果的读口（Model 结果读取）、`resume` 的工具来源，以及计划材料是否随 Agent 的 checkpoint 保存                                       |
 | STALE-ADVANCE-PORT    | 两个端口不核对 `advance`。旧挂接在被取代之后仍可能做完一次读取、组装与 Model 请求准备，结果记录不下来，浪费一次计算。保护点在 Journal 写入                                                         | 多宿主或分布式部署，或同进程接管频繁到浪费的计算可以测出                                                                                                                              |
 | REG-NO-EVICT          | 作用域结束后登记不清理                                                                                                                                                                             | E9 测得登记数随会话数增长到影响内存                                                                                                                                                   |
 | MATERIAL-SCOPE-END    | 作用域结束后，材料只在下一次读取答 `scope-ended` 时删除，其余靠容量淘汰                                                                                                                            | 同 REG-NO-EVICT                                                                                                                                                                       |
@@ -282,7 +296,9 @@ IC-19 分类（「协议给」不论部署都由契约协议兑现，「装配�
 | 结果映射                                                                                    | 八种收件结果各映射到上表；收件口抛出答 `unknown`；解析器抛出答 `scope-resolver-failed`；不缓存、不重试                                                                                                                                   | 同上                           |
 | 组合                                                                                        | 收账之后 `usage` 为 `actual`；目标未重建时答 `uninitialized`                                                                                                                                                                             | 同上                           |
 | 真实 Cordis 4.0.4                                                                           | 缺依赖停在 `PENDING`，提供者换代或撤除后回到 `PENDING`，停止后键消失、旧引用答 `outlet-closed`，不合的配置加载失败；真实装配上 `deliver` 答 `scope-unresolved`，不得是 `received`                                                        | `tests/cordis-entry.spec.ts`   |
-| 入口                                                                                        | 根入口只导出四个工厂与三个缺席读口，不含 Cordis 值；`./cordis` 导出两个插件类、X-3 键名与材料容量初值                                                                                                                                    | `tests/public-entry.spec.ts`   |
+| 测量事件                                                                                    | 读取、准备、派生、续接各发一对起止，`span` 成对且互异，带 execution；被拒绝的调用以 `failure` 结束；无观察者与观察者抛出时答复不变                                                                                                      | `tests/measure.spec.ts`        |
+| 测量事件的插件入口（真实 Cordis 4.0.4）                                                     | `createAgentContextPlugin({ measure })` 装载后，真实装配上的一次读取与准备让观察者收到成对的起止；`inject` 与配置同 `AgentContextProvider`；不传 `measure` 时服务不变                                                                      | `tests/context-plugin.spec.ts` |
+| 入口                                                                                        | 根入口只导出四个工厂与三个缺席读口，不含 Cordis 值；`./cordis` 导出两个插件类、测量观察者的插件工厂、X-3 键名与材料容量初值                                                                                                                                    | `tests/public-entry.spec.ts`   |
 | 读取：完整与增量                                                                            | 首次完整；同一挂接、同一收件模型、已采用覆盖与固定事实一致时增量；收件模型变、挂接变、覆盖不一致、材料被淘汰时完整；旧挂接的完整读取不改新挂接的材料                                                                                     | `tests/model-context.spec.ts`  |
 | 读取：证据                                                                                  | 记录丢失时 `prepare` 答 `context-material-lost`；新实例读得出 execution，另一 execution 的覆盖答 `invalid`，本 execution 的覆盖做完整读取；别的拥有者的证据答 `invalid`                                                                  | 同上                           |
 | 读取：拒绝                                                                                  | K-RC 缺席答 `eligibility-absent` 且不 `bind`；`unauthorized` 再取一次后答 `denied`；资格换了就绑新资格；别的租户答 `denied` 且 K-RC 与 Runtime Context 零调用                                                                            | 同上                           |

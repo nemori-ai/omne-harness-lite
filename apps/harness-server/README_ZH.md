@@ -14,6 +14,7 @@ Harness Server 的应用装配。它经 Cordis 装载插件树，检查各行装
 - 装载器、受信子树的可见性和就绪报告。
 - 行快照 `src/s0/aa-rows.json`、它的生成脚本和差分检查。
 - 发行内置 Tool 清单 `config/tool-release.json`、生成脚本 `scripts/tool-release.mjs` 与它的核对。见 [docs/rows/tool-release.md](docs/rows/tool-release.md)。
+- Model 生产接线：`model-records`、`model-host` 两行、应用 Model 模块 `src/model/` 与真件 `modelHostAuthority`。见 [docs/rows/model-release.md](docs/rows/model-release.md)。
 - 关闭协调器和进程入口 `dist/bin.js`。
 - `./cordis` 导出，含 S0 替身插件。各行闭包把真实导出加进去。
 - 真实模式的子命令 `serve`、行声明 `defineRow`、入口对象注册表与装载前检查。见 [docs/real-mode.md](docs/real-mode.md)。

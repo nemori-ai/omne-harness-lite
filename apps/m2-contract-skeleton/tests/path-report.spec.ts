@@ -25,7 +25,10 @@ function gapTable(text: string): readonly GapRow[] {
     })
 }
 
-const cardOf = (url: string) => Number(/\/issues\/(\d+)$/.exec(url)?.[1])
+const cardOf = (owner: string) => {
+  const id = /\/issues\/(\d+)$/.exec(owner)?.[1]
+  return id === undefined ? owner : Number(id)
+}
 /** The hops a blocking residual gap names on this track. */
 const BLOCKED: readonly string[] = ['H09', 'H10', 'H11', 'H12', 'H13']
 
@@ -57,7 +60,7 @@ describe('M2 path observations', () => {
       'GAP-AGENT-CONTEXT': [542],
       'GAP-RECEIVE-SURFACE': [502, 795],
       'GAP-SECOND-RUN': [784, 502],
-      'GAP-TOOL-LOOP': [520, 524, 525, 526, 528],
+      'GAP-TOOL-LOOP': ['Reduce B3 (R2-D36)'],
       'GAP-AGENT-REASSEMBLY': [502, 784],
       'GAP-REASONING-REPLAY': [502],
       'GAP-SESSION-LOG-TARGETS': [784],

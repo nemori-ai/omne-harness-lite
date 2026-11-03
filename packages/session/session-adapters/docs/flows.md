@@ -32,7 +32,7 @@ sequenceDiagram
 
 ### FA-02 同日志 Agent 事实解释
 
-对应 [AD-02](../SPEC.md#ad-02)。本流程由 `./testing` 的内存提供者实现，生产插件尚未交付（见 [SPEC](../SPEC.md) 的状态行）。
+对应 [AD-02](../SPEC.md#ad-02)。本流程由 `./testing` 的内存提供者实现，生产插件见 [AD-02 生产插件](../SPEC.md#ad-02-生产插件)。
 
 1. Agent 的首次提交共同发布原事实、适用的四类 CallerCommit 参加事实及 Agent 原操作答案。received、完整材料、消费绑定与 saved 同批。open/attach/submit/tryFinish 的 Session 参加只读核对。
 2. 解释器经同一 AgentJournal 提供者的 output.read / output.events 读取事件正文，经 load 读取 entries/results 等快照。每次读核对当前资格、租户、execution 与原 Run 绑定。readThrough 是事件序号，entries 提交顺序和 results 快照不能替代它。
@@ -97,7 +97,7 @@ flowchart LR
 
 ### FA-05 Model 日志结果与账目
 
-对应 [AD-05](../SPEC.md#ad-05)。本流程由 `./testing` 的内存提供者实现，生产插件尚未交付（见 [SPEC](../SPEC.md) 的状态行）。
+对应 [AD-05](../SPEC.md#ad-05)。本流程由 `./testing` 的内存提供者实现，生产插件见 [AD-05 生产插件](../SPEC.md#ad-05-生产插件)。
 
 1. Agent 宿主结果接收方将 received、完整材料、消费绑定与 saved 共同提交到 Session 日志。
 2. 本插件经同一 AgentJournal 的 `load().entries` 选取 Model 的 received 条目。结果交付从 `delivery.accounts` 读取冻结账目快照，账目交付从 `delivery.account` 读取该 key 修订的账目；完整材料按条目的 material 引用经同提供者 AgentMaterials.read 读取并按 Agent J02 校验。entries 缺席返回 unavailable，材料不可读显式失败。load.results 不代替这条路径。事件正文另经 output.read / output.events 读。核对当前资格、原租户、执行、consumption 及版本，以原事实身份解释 Session 后果。
@@ -117,7 +117,7 @@ flowchart LR
 
 对应 [J06 提供者](../SPEC.md#j06-会话路径的两个-agent-提供者)和[显示适配](../SPEC.md#实时显示适配)。模型选择归应用装配，不是本成员插件。
 
-消息准入按 [J06](../SPEC.md#j06-会话路径的两个-agent-提供者) 核原来源和候选，返回准入证据，不提前写消息。模型回复、工具结果和 Agent 自生消息只因校验或保存失败拒收；外部内容政策在交给 Agent 前执行，本端口不追加业务否决。当前条件从真实 Authority/grant 及已采用事实构造，不补默认条件。显示仅观察 StreamObserver 的 snapshot/delta/gap/ended，缺口重新同步，结束不形成控制、保管、交付解除或 Run 终态。生产插件尚未交付。
+消息准入按 [J06](../SPEC.md#j06-会话路径的两个-agent-提供者) 核原来源和候选，返回准入证据，不提前写消息。模型回复、工具结果和 Agent 自生消息只因校验或保存失败拒收；外部内容政策在交给 Agent 前执行，本端口不追加业务否决。当前条件从真实 Authority/grant 及已采用事实构造，不补默认条件。显示仅观察 StreamObserver 的 snapshot/delta/gap/ended，缺口重新同步，结束不形成控制、保管、交付解除或 Run 终态。消息准入的生产插件见 [J06 消息准入的生产插件](../SPEC.md#j06-消息准入的生产插件)。当前条件与显示的生产插件尚未交付。
 
 ### FA-08 受理拓展点
 

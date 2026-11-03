@@ -41,6 +41,8 @@ export type HopObservation = Readonly<{
   fragments: readonly FragmentObservation[]
 }>
 const card = (id: number) => `https://github.com/nemori-ai/omne-harness-lite/issues/${id}`
+/** The owner of the assembly parts that no card owns: Reduce wires the trusted Tool request source (R2-D36). */
+const REDUCE_B3 = 'Reduce B3 (R2-D36)'
 
 export const HOP_DEFINITIONS = [
   {
@@ -187,8 +189,9 @@ export const HOP_DEFINITIONS = [
 /**
  * What the connected path does not include. A blocking gap names a part that the card requires for
  * the hop, so the hop stays a gap even when every fragment passes. A non-blocking gap names a part
- * that the card lets this application call directly or leave out. `owners` lists open cards only;
- * a gap without an open implementation card names the M2 milestone card (#784).
+ * that the card lets this application call directly or leave out. `owners` lists open cards only,
+ * except an assembly part that Reduce owns, which names that owner; a gap without an open
+ * implementation card names the M2 milestone card (#784).
  */
 export type ResidualGap = Readonly<{
   gapId: string
@@ -244,7 +247,7 @@ export const RESIDUAL_GAPS = [
   {
     gapId: 'GAP-TOOL-LOOP',
     hops: ['H10'],
-    owners: [card(520), card(524), card(525), card(526), card(528)],
+    owners: [REDUCE_B3],
     blocking: true,
     reason: 'SPEC.md#gap-tool-loop',
   },

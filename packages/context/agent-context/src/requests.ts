@@ -37,6 +37,7 @@ import {
   type StepResult,
 } from '@omne-harness/request-context-contract'
 import type { ContextHolderParts } from '@omne-harness/request-context-cordis-contract'
+import { createContextMeasurer, type ContextMeasure } from './measure.ts'
 import type { ModelRequestPreparation } from './translate.ts'
 import type { ContextMaterials, Place, PlanMaterial, ReadMaterial } from './materials.ts'
 import { canonical, digest, tenantText } from './records.ts'
@@ -67,6 +68,8 @@ export type AgentRequestsOptions<P> = Readonly<{
   resultCapacity: M.ResultCapacity
   tools: ToolsSource<P>
   stepResults: StepResultSource<P>
+  /** The observer of the measurement events (SPEC「测量事件」). Absent means no event is built. */
+  measure?: ContextMeasure
 }>
 
 export type AgentRequests<P> = RequestPreparation<P> &
@@ -97,6 +100,7 @@ const settledAll = (settlements: readonly SourceSettlement[]): SourceSettlement 
 
 export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentRequests<P> {
   const { materials, parts, requestContext, model, resultCapacity } = options
+  const measurer = createContextMeasurer(options.measure)
   const owner: Adoption = materials.owner
   const staging = createStaging<P>()
   const registrations = new Map<string, Promise<Answer<ContextRegistration>>>()
@@ -681,10 +685,14 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     return 'ok' in answer ? succeed(answer.ok) : fail(answer.failure)
   }
 
+  const failed = (answer: object): boolean => 'failure' in answer
   return {
-    prepare,
-    derive,
-    resume,
+    prepare: input =>
+      measurer.segment('prepare', input.advance.execution, () => prepare(input), failed),
+    derive: input =>
+      measurer.segment('derive', input.advance.execution, () => derive(input), failed),
+    resume: input =>
+      measurer.segment('resume', input.advance.execution, () => resume(input), failed),
     async close() {
       closed = true
       const pending = [...registrations.values()]
