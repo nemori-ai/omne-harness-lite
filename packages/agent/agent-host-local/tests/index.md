@@ -22,6 +22,8 @@
 - [stage-ports.spec.ts](stage-ports.spec.ts)：局部依赖端口的现取与缺席
 - [line-through/](line-through/)：一条真实 Cordis 根上的线内组合用例与它的世界
   - `world.ts`、`cp3.spec.ts`：CP3，Session 输入到 Model 结果保存
+  - `cp3-rollbacks.ts`、`cp3-rollbacks.spec.ts`：CP3 对只有 Session 参加的回滚的判定（R2-D152）与它的快层用例
+  - `cp3-repro-loop.sh`、`cp3-repro-delay.sh`：CP3 连跑与加宽 AD-02 窗口的复现脚本（KL-146）
   - `w2-world.ts`、`w2-measure.ts`：波 2 的组合世界，每轮计数与测量事件记录器
   - `w2-rounds.spec.ts`：J1 三轮对话与 J2 工具结果进入下一轮请求
   - `w2-control.spec.ts`：J3 取消 Run 与 J4 只中断一个调用

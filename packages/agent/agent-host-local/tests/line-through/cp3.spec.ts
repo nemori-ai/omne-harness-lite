@@ -47,6 +47,7 @@ import {
   strangerAccess,
   type LineWorld,
 } from './world.ts'
+import { sessionOnlyRollbackExplained } from './cp3-rollbacks.ts'
 
 const worlds: LineWorld[] = []
 afterEach(async () => {
@@ -154,14 +155,16 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
     expect(pushed).toHaveLength(1)
     expect(pushed[0]).toMatchObject({ status: 'saved' })
     // With the real AD-02 and handoff, optimistic concurrency is the contract: a commit may roll back
-    // as a conflict and its logical operation commits afterwards. Every rollback is all-conflict;
+    // as a conflict and its logical operation commits afterwards. Whether a rollback happens depends
+    // on the interleaving, so none is required; when there are rollbacks, each one is explained
+    // (R2-D157). Every rollback is all-conflict;
     // an Agent records commit that lost the head commits again under the same operation; a Session
     // commit that found its input no longer pending lost to the path that took it, so the log holds
-    // that one take.
+    // that one take; a Session commitLog that found the execution head moved answered `changed` and
+    // AD-02 committed the event again (R2-D152, ./cp3-rollbacks.ts).
     const rolledBack = w.commits.flatMap((seen, position) =>
       seen.result.kind === 'rolled_back' ? [{ seen, position, result: seen.result }] : [],
     )
-    expect(rolledBack.length).toBeGreaterThan(0)
     for (const { seen, position, result } of rolledBack) {
       expect(result.responses.every(response => response.reply.kind === 'conflict')).toBe(true)
       if (seen.participants.includes('execution-record')) {
@@ -179,8 +182,24 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
       ({ seen }) => !seen.participants.includes('execution-record'),
     )
     if (sessionOnly.length > 0) {
-      for (const { result } of sessionOnly)
-        expect(JSON.stringify(result.responses)).toContain('the input is not pending')
+      // R2-D152: the input was taken by another path, or `changed` whose commitLog committed later
+      // or whose sequence the saved progress reached (sessionOnlyRollbackExplained). AD-02 may still
+      // be committing again, so the judgment waits for it; an unavailable rollback (KL-146) stays red.
+      const unexplained = async (): Promise<unknown[]> => {
+        const held = ok(await w.transactions.readWork(intakeAccess))
+        const readThroughOf = (execution: string): string | null =>
+          held.run.kind === 'active' && held.run.execution.execution === execution
+            ? held.run.execution.readThrough
+            : (held.executions?.find(item => item.execution.execution === execution)?.execution
+                .readThrough ?? null)
+        return sessionOnly
+          .filter(
+            ({ position }) => !sessionOnlyRollbackExplained(w.commits, position, readThroughOf),
+          )
+          .map(({ seen }) => ({ log: seen.log, responses: seen.result }))
+      }
+      await until(async () => (await unexplained()).length === 0, 10_000).catch(() => undefined)
+      expect(await unexplained()).toEqual([])
       const kinds = await historyKinds(w)
       expect(kinds.filter(kind => kind === 'run.batch-taken')).toHaveLength(1)
     }
