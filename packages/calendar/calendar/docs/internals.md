@@ -1,6 +1,6 @@
 # 日历内部设计
 
-本页解释 [SPEC](../SPEC.md) 的完整目标设计，公开值和端口形状归[公开 API 设计](public-api-design.md)。A1 已有本域实现，源码入口见[公开索引](../../calendar-contract/docs/public-api.md)。最终独立验收、父分支合回和 M2 后真实跨域接线未完成，图不替代运行证据。
+本页解释 [SPEC](../SPEC.md) 的完整目标设计，公开值和端口形状归[公开 API 设计](public-api-design.md)。A1 已有本域实现，源码入口见[公开索引](../../calendar-contract/docs/public-api.md)。真实跨域接线留待 M2 之后，图不替代运行证据。
 
 ## 身份、版本与时间
 
