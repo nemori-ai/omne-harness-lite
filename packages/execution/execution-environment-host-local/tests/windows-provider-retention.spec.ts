@@ -34,7 +34,7 @@ it('attaches a retained native shell through a fresh acquisition and inherits it
       await a.terminal.execute({ ...a.call, terminal, script: 'throw "stale"' }),
     ).toMatchObject({ reason: 'closed' })
     const wrong = await f.acquire({ ...f.retention, scope: scope(randomUUID()) })
-    expect(await wrong.terminal.attach?.({ ...wrong.call, terminal })).toMatchObject({
+    expect(await wrong.terminal.retention?.attach({ ...wrong.call, terminal })).toMatchObject({
       reason: 'notFound',
     })
     expect(await wrong.lease.release()).toEqual({ kind: 'released' })
@@ -46,15 +46,19 @@ it('attaches a retained native shell through a fresh acquisition and inherits it
     )
     if (!foreign.ok) throw new Error('foreign tenant fixture')
     const stranger = await f.acquire(f.retention, foreign.value)
-    expect(await stranger.terminal.attach?.({ ...stranger.call, terminal })).toMatchObject({
-      reason: 'notFound',
-    })
+    expect(await stranger.terminal.retention?.attach({ ...stranger.call, terminal })).toMatchObject(
+      {
+        reason: 'notFound',
+      },
+    )
     expect(await stranger.lease.release()).toEqual({ kind: 'released' })
     const b = await f.acquire(f.retention, f.identity.access.tenant, true)
     expect(b.input.acquisition).not.toBe(a.input.acquisition)
     expect(b.input.origin).not.toBe(a.input.origin)
     expect(b.input.ledger).not.toBe(a.input.ledger)
-    expect(await b.terminal.attach?.({ ...b.call, terminal })).toMatchObject({ kind: 'done' })
+    expect(await b.terminal.retention?.attach({ ...b.call, terminal })).toMatchObject({
+      kind: 'done',
+    })
     const second = value(
       await b.terminal.execute({
         ...b.call,

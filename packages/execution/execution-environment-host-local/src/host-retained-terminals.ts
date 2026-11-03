@@ -398,34 +398,36 @@ export function createRetainedTerminalIndex() {
               ...(request.stdin === undefined ? {} : { stdin: request.stdin.slice() }),
             }),
           ),
-        async attach(request) {
-          if (closed()) return reject(request.requestId, 'closed')
-          const entry = find(request.terminal)
-          if (entry === undefined) return reject(request.requestId, 'notFound')
-          if (detached.has(request.terminal.id) || entry.state !== 'live')
-            return reject(request.requestId, 'closed')
-          if (entry.closed()) return reject(request.requestId, 'closed')
-          if (entry.backend.information().state === 'invalid')
-            return reject(request.requestId, 'unavailable')
-          attached.set(request.terminal.id, entry)
-          return {
-            kind: 'done',
-            requestId: request.requestId,
-            value: { terminal: entry.backend.terminal },
-          }
-        },
-        detach(request: TerminalRequest) {
-          if (closed()) return Promise.resolve(reject(request.requestId, 'closed'))
-          const entry = find(request.terminal)
-          if (entry === undefined || !attached.has(request.terminal.id))
-            return Promise.resolve(reject(request.requestId, 'notFound'))
-          return track(
-            detach(entry).then(status => ({
+        retention: {
+          async attach(request) {
+            if (closed()) return reject(request.requestId, 'closed')
+            const entry = find(request.terminal)
+            if (entry === undefined) return reject(request.requestId, 'notFound')
+            if (detached.has(request.terminal.id) || entry.state !== 'live')
+              return reject(request.requestId, 'closed')
+            if (entry.closed()) return reject(request.requestId, 'closed')
+            if (entry.backend.information().state === 'invalid')
+              return reject(request.requestId, 'unavailable')
+            attached.set(request.terminal.id, entry)
+            return {
               kind: 'done',
               requestId: request.requestId,
-              value: { status },
-            })),
-          )
+              value: { terminal: entry.backend.terminal },
+            }
+          },
+          detach(request: TerminalRequest) {
+            if (closed()) return Promise.resolve(reject(request.requestId, 'closed'))
+            const entry = find(request.terminal)
+            if (entry === undefined || !attached.has(request.terminal.id))
+              return Promise.resolve(reject(request.requestId, 'notFound'))
+            return track(
+              detach(entry).then(status => ({
+                kind: 'done',
+                requestId: request.requestId,
+                value: { status },
+              })),
+            )
+          },
         },
         close(request) {
           if (closed()) return Promise.resolve(reject(request.requestId, 'closed'))

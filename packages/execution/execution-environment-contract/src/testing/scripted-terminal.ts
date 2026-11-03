@@ -141,12 +141,6 @@ export function createScriptedTerminalFacility<P = unknown>(
       })
       return { kind: 'done', requestId: request.requestId, value: { terminal: ref } }
     },
-    async attach(request) {
-      return reject(request.requestId, closed ? 'closed' : 'unsupported')
-    },
-    async detach(request) {
-      return reject(request.requestId, closed ? 'closed' : 'unsupported')
-    },
     execute,
     async close(request) {
       if (closed) return reject(request.requestId, 'closed')

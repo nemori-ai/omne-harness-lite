@@ -290,6 +290,16 @@
               "pending": false
             },
             {
+              "name": "TerminalRetention",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "TerminalRetentionOperation",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "TerminalInformation",
               "kind": "type",
               "pending": false

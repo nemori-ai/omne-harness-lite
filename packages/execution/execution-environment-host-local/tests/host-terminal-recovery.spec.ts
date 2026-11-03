@@ -173,7 +173,7 @@ async function retainedFixture(retentionLedger = recorder(), retainedCapacity?: 
     })
     if (result.kind !== 'acquired') throw new Error('retained acquisition')
     const terminal = result.lease.facility('terminal')
-    if (terminal === undefined || terminal.attach === undefined || terminal.detach === undefined)
+    if (terminal === undefined || terminal.retention === undefined)
       throw new Error('retention facility missing')
     return { lease: result.lease, terminal, own, request: { ...base, origin: originRef(origin) } }
   }
@@ -213,7 +213,9 @@ it('retains one real shell across acquisition release and recovers its zero-atta
     reason: 'closed',
   })
   const b = await f.acquire('b')
-  expect(await b.terminal.attach?.({ ...b.request, terminal })).toMatchObject({ kind: 'done' })
+  expect(await b.terminal.retention?.attach({ ...b.request, terminal })).toMatchObject({
+    kind: 'done',
+  })
   expect((await run(b.terminal, terminal, 'pwd', b.request)).bytes.toString()).toBe(
     `${f.cwd}/child\r\n`,
   )
@@ -239,17 +241,19 @@ it('keeps a real retained terminal busy and detaching another acquisition leaves
   const terminal = value(
     await a.terminal.create({ ...a.request, cwd: f.cwd, env, retain: 'session' }),
   ).terminal
-  await b.terminal.attach?.({ ...b.request, terminal })
+  await b.terminal.retention?.attach({ ...b.request, terminal })
   const handle = value(
     await a.terminal.execute({ ...a.request, terminal, script: 'sleep 1; printf survived' }),
   )
   expect(await b.terminal.execute({ ...b.request, terminal, script: 'true' })).toMatchObject({
     reason: 'busy',
   })
-  expect(await b.terminal.detach?.({ ...b.request, terminal })).toMatchObject({
+  expect(await b.terminal.retention?.detach({ ...b.request, terminal })).toMatchObject({
     value: { status: 'confirmed' },
   })
-  expect(await b.terminal.attach?.({ ...b.request, terminal })).toMatchObject({ reason: 'closed' })
+  expect(await b.terminal.retention?.attach({ ...b.request, terminal })).toMatchObject({
+    reason: 'closed',
+  })
   const chunks: Uint8Array[] = []
   for await (const chunk of handle.output) chunks.push(chunk.data)
   expect(await handle.result).toMatchObject({ kind: 'completed', exit: { code: 0 } })

@@ -91,8 +91,8 @@ async function executeShell(
     case 'info':
       return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\n${confirmation(await environment.terminal.list({}), value => value.map(item => `terminal=${JSON.stringify(item.terminal)} state=${item.state} observed_cwd=${JSON.stringify(item.observedCwd)}`).join('\n'))}`
     case 'create_session': {
-      if (!environment.terminal.attach || !environment.terminal.detach)
-        return 'rejected reason=unsupported session retention unavailable zero starts'
+      if (environment.terminal.retention === undefined)
+        return 'rejected reason=unavailable session retention unavailable zero starts'
       if (args.has('columns') !== args.has('rows'))
         return 'rejected reason=invalidInput columns and rows must be supplied together'
       return confirmation(
@@ -166,8 +166,9 @@ async function attachTerminal(
   environment: ShellAuthorEnvironment,
   terminal: Parameters<ShellAuthorEnvironment['terminal']['execute']>[0]['terminal'],
 ): Promise<string | undefined> {
-  if (!environment.terminal.attach)
-    return 'rejected reason=unsupported session attachment unavailable zero starts'
-  const attached = await environment.terminal.attach({ terminal })
+  const retention = environment.terminal.retention
+  if (retention === undefined)
+    return 'rejected reason=unavailable session attachment unavailable zero starts'
+  const attached = await retention.attach({ terminal })
   return attached.kind === 'done' ? undefined : confirmation(attached, () => '')
 }

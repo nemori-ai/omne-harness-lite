@@ -204,10 +204,12 @@ it('retains the shell after acquisition release and never revives the old facade
   expect(await a.stopAll()).toEqual([])
   expect(f.stopped).toEqual([])
   const b = f.facade()
-  expect(await b.facility.attach?.({ ...request, origin: originRef('b'), terminal })).toMatchObject(
-    { kind: 'done' },
-  )
-  expect(await a.facility.attach?.({ ...request, terminal })).toMatchObject({ reason: 'closed' })
+  expect(
+    await b.facility.retention?.attach({ ...request, origin: originRef('b'), terminal }),
+  ).toMatchObject({ kind: 'done' })
+  expect(await a.facility.retention?.attach({ ...request, terminal })).toMatchObject({
+    reason: 'closed',
+  })
   expect(await a.facility.list(request)).toMatchObject({ reason: 'closed' })
   expect(f.index.resources(scope('session'))).toHaveLength(1)
 })
@@ -241,11 +243,14 @@ it('checks retention scope, quota domain, provider generation, instance and term
     f.facade(otherProvider, 4, 'g2'),
     f.facade(normal, 4, 'g', 'other'),
   ])
-    expect(await b.facility.attach?.({ ...request, terminal })).toMatchObject({
+    expect(await b.facility.retention?.attach({ ...request, terminal })).toMatchObject({
       reason: 'notFound',
     })
   expect(
-    await a.facility.attach?.({ ...request, terminal: { ...terminal, generation: 'old' } }),
+    await a.facility.retention?.attach({
+      ...request,
+      terminal: { ...terminal, generation: 'old' },
+    }),
   ).toMatchObject({ reason: 'notFound' })
 })
 
@@ -256,7 +261,7 @@ it('reserves one execution before permit and detach never stops another acquisit
   const a = f.facade({ ...normal, ledger: { ...normal.ledger, permit: () => permission.promise } })
   const b = f.facade()
   const terminal = await f.create(a)
-  await b.facility.attach?.({ ...request, terminal })
+  await b.facility.retention?.attach({ ...request, terminal })
   const running = a.facility.execute({ ...request, terminal, script: 'a' })
   expect(await b.facility.execute({ ...request, terminal, script: 'b' })).toMatchObject({
     reason: 'busy',
@@ -264,11 +269,13 @@ it('reserves one execution before permit and detach never stops another acquisit
   expect(f.executed).toEqual([])
   permission.resolve('confirmed')
   const leg = value(await running)
-  expect(await b.facility.detach?.({ ...request, terminal })).toMatchObject({
+  expect(await b.facility.retention?.detach({ ...request, terminal })).toMatchObject({
     value: { status: 'confirmed' },
   })
   expect(f.stopped).toEqual([])
-  expect(await b.facility.attach?.({ ...request, terminal })).toMatchObject({ reason: 'closed' })
+  expect(await b.facility.retention?.attach({ ...request, terminal })).toMatchObject({
+    reason: 'closed',
+  })
   f.finish(terminal.id)
   await leg.result
   expect(await a.stopAll()).toEqual([])
@@ -282,13 +289,15 @@ it('seals a detached relation while its permit is pending', async () => {
   const terminal = await f.create(a)
   const running = a.facility.execute({ ...request, terminal, script: 'must-not-run' })
   await Promise.resolve()
-  expect(await a.facility.detach?.({ ...request, terminal })).toMatchObject({
+  expect(await a.facility.retention?.detach({ ...request, terminal })).toMatchObject({
     value: { status: 'unconfirmed' },
   })
   permission.resolve('confirmed')
   expect(await running).toMatchObject({ reason: 'closed' })
   expect(f.executed).toEqual([])
-  expect(await a.facility.attach?.({ ...request, terminal })).toMatchObject({ reason: 'closed' })
+  expect(await a.facility.retention?.attach({ ...request, terminal })).toMatchObject({
+    reason: 'closed',
+  })
   expect(await a.stopAll()).toEqual([])
 })
 
@@ -398,7 +407,9 @@ it.each(['plan', 'permit'] as const)(
     expect(await a.stopAll()).toHaveLength(1)
     expect(f.stopped).toEqual([])
     const b = f.facade()
-    expect(await b.facility.attach?.({ ...request, terminal })).toMatchObject({ kind: 'done' })
+    expect(await b.facility.retention?.attach({ ...request, terminal })).toMatchObject({
+      kind: 'done',
+    })
     const leg = value(await b.facility.execute({ ...request, terminal, script: 'survives' }))
     canRecord = true
     expect(await a.stopAll()).toEqual([])
@@ -493,5 +504,7 @@ it('closes the whole terminal independently of attachment and reports a confirme
     value: { status: 'confirmed' },
   })
   expect(value(await a.facility.list(request))).toMatchObject([{ terminal, state: 'closed' }])
-  expect(await a.facility.attach?.({ ...request, terminal })).toMatchObject({ reason: 'closed' })
+  expect(await a.facility.retention?.attach({ ...request, terminal })).toMatchObject({
+    reason: 'closed',
+  })
 })

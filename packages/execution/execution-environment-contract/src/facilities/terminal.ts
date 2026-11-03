@@ -15,7 +15,19 @@ export type TerminalInformation = {
   readonly observedCwd: string
 }
 
+export interface TerminalRetention<P> {
+  attach(
+    request: FacilityRequest<P> & { readonly terminal: TerminalRef },
+  ): Promise<FacilityResult<{ readonly terminal: TerminalRef }>>
+  detach(
+    request: FacilityRequest<P> & { readonly terminal: TerminalRef },
+  ): Promise<FacilityResult<{ readonly status: 'confirmed' | 'unconfirmed' }>>
+}
+
+export type TerminalRetentionOperation = keyof TerminalRetention<unknown>
+
 export interface TerminalFacility<P> {
+  readonly retention?: TerminalRetention<P>
   create(
     request: FacilityRequest<P> & {
       readonly cwd: string
@@ -24,12 +36,6 @@ export interface TerminalFacility<P> {
       readonly retain?: 'session'
     },
   ): Promise<FacilityResult<{ readonly terminal: TerminalRef }>>
-  attach?(
-    request: FacilityRequest<P> & { readonly terminal: TerminalRef },
-  ): Promise<FacilityResult<{ readonly terminal: TerminalRef }>>
-  detach?(
-    request: FacilityRequest<P> & { readonly terminal: TerminalRef },
-  ): Promise<FacilityResult<{ readonly status: 'confirmed' | 'unconfirmed' }>>
   /** One leg of the terminal; its output mode is always `terminal`. */
   execute(
     request: FacilityRequest<P> & {
@@ -54,8 +60,6 @@ declare module '../facility.ts' {
 
 export const terminalFacility: FacilityDescriptor<'terminal'> = describeFacility('terminal', {
   create: 'guarded',
-  attach: 'guarded',
-  detach: 'guarded',
   execute: 'guarded',
   close: 'guarded',
   list: 'guarded',

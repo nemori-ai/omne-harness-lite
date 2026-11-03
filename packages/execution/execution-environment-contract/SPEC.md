@@ -162,7 +162,9 @@
 
 ### 保留终端
 
-`attach` 和 `detach` 是公开类型中的可选方法，保留旧四操作提供者的可赋值性。支持保留终端的提供者实际提供二者。消费者调用前检查能力，不用非空断言假定支持。设施声明仍列出这两个操作并要求守卫，旧对象缺方法时由门返回 `unsupported`。此兼容调整依据 [R2-D18 与 R2-D37 的共同落地裁定](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6583177664)。
+`TerminalFacility.retention` 是可选的 `TerminalRetention` 扩展，扩展内提供 `attach` 和 `detach`。两项操作使用独立的 `TerminalRetentionOperation` 类型。`FacilityOperation<'terminal'>` 与 `terminalFacility.operations` 保持 `create`、`execute`、`close`、`list` 四项，旧四操作提供者、完整操作映射和 `describeFacility` 调用仍然有效。其他设施键继续沿原有 `keyof` 映射。此兼容形状依据 [R2-D77 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/421)。
+
+消费者调用前检查扩展。Shell 缺少扩展时返回 `unavailable`，不创建终端、不执行终端段，也不启动一次性命令。登记表只在获取配置与提供者均支持保留时交出扩展。扩展的每次调用仍经过原获取的门，核对当前设施登记、租户、原调用和绑定，并调用当前 `FacilityGuard`。扩展不缓存授权，也不绕过租约释放。
 
 显式请求 `retain: 'session'` 时，获取必须带受信的保留范围和第二份账本视图，提供者必须支持保留终端。缺少任一项时，创建返回 `unsupported`。集成方不能以普通获取账本代替保留账本，也不能从调用方给的字符串或 parent 链推导 Session 归属。
 

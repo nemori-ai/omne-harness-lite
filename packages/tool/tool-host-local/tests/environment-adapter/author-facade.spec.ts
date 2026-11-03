@@ -89,7 +89,7 @@ describe('current file authorization', () => {
   })
 })
 
-function fixture() {
+function fixture(terminal?: EnvironmentFacilities['terminal']) {
   const files: FileSystemFacility<unknown> = {
     read: vi.fn(),
     write: vi.fn(),
@@ -104,7 +104,7 @@ function fixture() {
     commitBatch: vi.fn(),
     recoverBatch: vi.fn(),
   }
-  const facilities: Partial<EnvironmentFacilities> = { files }
+  const facilities: Partial<EnvironmentFacilities> = { files, ...(terminal ? { terminal } : {}) }
   const lease: EnvironmentLease = {
     placement: {
       kind: 'placement',
@@ -232,25 +232,14 @@ it('fails closed on unknown naming and never replaces terminal operations with c
 })
 
 it('checks optional terminal attachment capabilities and keeps the current acquisition origin', async () => {
-  const f = fixture()
   const terminal: EnvironmentFacilities['terminal'] = {
     create: vi.fn(),
     execute: vi.fn(),
     close: vi.fn(),
     list: vi.fn(),
   }
-  f.facilities.terminal = terminal
+  expect(fixture(terminal).value.terminal.retention).toBeUndefined()
   const target = { terminal: { id: 'retained', generation: '1' } }
-  if (!f.value.terminal.attach || !f.value.terminal.detach)
-    throw new Error('bound attachment methods missing')
-  expect(await f.value.terminal.attach(target)).toMatchObject({
-    kind: 'rejected',
-    reason: 'unsupported',
-  })
-  expect(await f.value.terminal.detach(target)).toMatchObject({
-    kind: 'rejected',
-    reason: 'unsupported',
-  })
   const attach = vi.fn(
     async (input: Parameters<EnvironmentFacilities['terminal']['close']>[0]) => ({
       kind: 'done' as const,
@@ -265,10 +254,18 @@ it('checks optional terminal attachment capabilities and keeps the current acqui
       value: { status: 'unconfirmed' as const },
     }),
   )
-  const attached = { ...terminal, attach, detach }
-  f.facilities.terminal = attached
-  await f.value.terminal.attach(target)
-  expect(await f.value.terminal.detach(target)).toMatchObject({
+  const f = fixture({ ...terminal, retention: { attach, detach } })
+  const retention = f.value.terminal.retention
+  if (retention === undefined) throw new Error('bound retention missing')
+  const forged = {
+    ...target,
+    requestId: 'forged',
+    origin: 'forged',
+    access: { principal: 'forged', tenant: 'forged' },
+    binding: { kind: 'forged' },
+  }
+  await retention.attach(forged)
+  expect(await retention.detach(target)).toMatchObject({
     kind: 'done',
     value: { status: 'unconfirmed' },
   })
@@ -279,5 +276,12 @@ it('checks optional terminal attachment capabilities and keeps the current acqui
       terminal: target.terminal,
     }),
   )
+  expect(detach).toHaveBeenCalledTimes(1)
+  expect(attach.mock.calls[0]?.[0].requestId).not.toBe('forged')
+  expect(attach.mock.calls[0]?.[0].requestId).not.toBe(detach.mock.calls[0]?.[0].requestId)
+  f.facilities.terminal = terminal
+  expect(await retention.attach(target)).toMatchObject({ kind: 'rejected', reason: 'unavailable' })
+  expect(await retention.detach(target)).toMatchObject({ kind: 'rejected', reason: 'unavailable' })
+  expect(attach).toHaveBeenCalledTimes(1)
   expect(detach).toHaveBeenCalledTimes(1)
 })

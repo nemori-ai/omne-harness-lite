@@ -106,20 +106,22 @@
 
 协议规则见内部架构的 [`command`](architecture.md#command命令) 与 [`terminal`](architecture.md#terminal终端)。
 
-| 名称                  | 种类 | 用途                                                                                                                                                           | 条款或对象模型                                                     |
-| --------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `commandFacility`     | 值   | `command` 的设施声明，`start` 须授权                                                                                                                           | [设施协议](../SPEC.md#设施协议)                                    |
-| `CommandFacility`     | 接口 | 命令设施：`start` 启动一个进程                                                                                                                                 | 同上、[INV-EE09](../SPEC.md#inv-ee09-资源和秘密以最小必要条件提供) |
-| `ProcessHandle`       | 接口 | 进程句柄：进程身份加代、输出模式、唯一的输出流、输出策略、终局与停止                                                                                           | [INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)     |
-| `OutputChunk`         | 类型 | 一块原始输出字节，带所属的一路与此前观察到的字节数                                                                                                             | [设施协议](../SPEC.md#设施协议)                                    |
-| `OutputPolicy`        | 类型 | 有界缓冲：缓冲上限、单块上限，溢出时丢弃                                                                                                                       | 同上                                                               |
-| `OutputCount`         | 类型 | 一路输出观察到与丢弃的字节数                                                                                                                                   | 同上                                                               |
-| `OutputSummary`       | 类型 | 按输出模式汇总各路的计数                                                                                                                                       | 同上                                                               |
-| `CommandOutcome`      | 类型 | 进程终局：`completed` 的 `exit` 是带 `kind` 的联合，`code` 带退出码，`signal` 带信号，`unknown` 表示退出方式未知；`failed` 带 `unavailable` 或 `effectUnknown` | [INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)     |
-| `terminalFacility`    | 值   | `terminal` 的设施声明，六项操作全部须授权                                                                                                                      | [设施协议](../SPEC.md#设施协议)                                    |
-| `TerminalFacility`    | 接口 | 终端设施：创建、附着、脱离、分段执行、关闭、列表                                                                                                               | 同上、[INV-EE07](../SPEC.md#inv-ee07-临时状态边界与实际回收明确)   |
-| `TerminalRef`         | 类型 | 终端身份加代                                                                                                                                                   | [INV-EE07](../SPEC.md#inv-ee07-临时状态边界与实际回收明确)         |
-| `TerminalInformation` | 类型 | 列表的条目：终端、状态与最近一次观察到的工作目录                                                                                                               | 同上                                                               |
+| 名称                         | 种类 | 用途                                                                                                                                                           | 条款或对象模型                                                     |
+| ---------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `commandFacility`            | 值   | `command` 的设施声明，`start` 须授权                                                                                                                           | [设施协议](../SPEC.md#设施协议)                                    |
+| `CommandFacility`            | 接口 | 命令设施：`start` 启动一个进程                                                                                                                                 | 同上、[INV-EE09](../SPEC.md#inv-ee09-资源和秘密以最小必要条件提供) |
+| `ProcessHandle`              | 接口 | 进程句柄：进程身份加代、输出模式、唯一的输出流、输出策略、终局与停止                                                                                           | [INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)     |
+| `OutputChunk`                | 类型 | 一块原始输出字节，带所属的一路与此前观察到的字节数                                                                                                             | [设施协议](../SPEC.md#设施协议)                                    |
+| `OutputPolicy`               | 类型 | 有界缓冲：缓冲上限、单块上限，溢出时丢弃                                                                                                                       | 同上                                                               |
+| `OutputCount`                | 类型 | 一路输出观察到与丢弃的字节数                                                                                                                                   | 同上                                                               |
+| `OutputSummary`              | 类型 | 按输出模式汇总各路的计数                                                                                                                                       | 同上                                                               |
+| `CommandOutcome`             | 类型 | 进程终局：`completed` 的 `exit` 是带 `kind` 的联合，`code` 带退出码，`signal` 带信号，`unknown` 表示退出方式未知；`failed` 带 `unavailable` 或 `effectUnknown` | [INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)     |
+| `terminalFacility`           | 值   | `terminal` 的设施声明，创建、分段执行、关闭、列表四项操作全部须授权                                                                                            | [设施协议](../SPEC.md#设施协议)                                    |
+| `TerminalFacility`           | 接口 | 终端四项基础操作，以及可选的 `retention` 保留扩展                                                                                                              | 同上、[INV-EE07](../SPEC.md#inv-ee07-临时状态边界与实际回收明确)   |
+| `TerminalRetention`          | 接口 | 保留终端扩展：附着与脱离，调用时仍核对当前获取资格                                                                                                             | [保留终端](../SPEC.md#保留终端)                                    |
+| `TerminalRetentionOperation` | 类型 | 保留扩展的 `attach`、`detach` 操作名，不进入终端原四操作集合                                                                                                   | 同上                                                               |
+| `TerminalRef`                | 类型 | 终端身份加代                                                                                                                                                   | [INV-EE07](../SPEC.md#inv-ee07-临时状态边界与实际回收明确)         |
+| `TerminalInformation`        | 类型 | 列表的条目：终端、状态与最近一次观察到的工作目录                                                                                                               | 同上                                                               |
 
 ### 端口与恢复授权
 

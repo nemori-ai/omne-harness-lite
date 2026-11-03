@@ -160,8 +160,6 @@ export function createScriptedEnvironmentProvider(script: ProviderScript = {}) {
   const facilities: Partial<EnvironmentFacilities> = script.lease ?? {
     terminal: {
       create: request => (request.retain === undefined ? unknown(request) : unsupported(request)),
-      attach: unsupported,
-      detach: unsupported,
       execute: unknown,
       close: unknown,
       list: unknown,

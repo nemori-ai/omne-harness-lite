@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import {
   createRecoveryAccess,
+  describeFacility,
   filesFacility,
   terminalFacility,
   originRef,
@@ -28,6 +29,91 @@ import {
 } from './doubles.ts'
 import { retainedPeer } from './retained-provider.ts'
 
+it('guards the retained extension even when ordinary operations are open and after declaration removal', async () => {
+  const peer = retainedPeer()
+  const registry = registryWith([peer.provider])
+  const remove = registry.registerFacility(
+    describeFacility('terminal', {
+      create: 'open',
+      execute: 'open',
+      close: 'open',
+      list: 'open',
+    }),
+  )
+  const placement = await placed(registry, requirement([host], ['terminal']))
+  const operations: string[] = []
+  const guard: FacilityGuard<string> = {
+    async authorize(_facility, operation) {
+      operations.push(operation)
+      return 'notAuthorized'
+    },
+  }
+  const acquired = await registry.acquire(accessA, {
+    ...acquireInput(placement, 'a', guard),
+    retention: { scope: scope('session'), ledger },
+  })
+  if (acquired.kind !== 'acquired') throw new Error('expected acquired')
+  const retention = acquired.lease.facility('terminal')?.retention
+  if (retention === undefined) throw new Error('expected retention')
+  const request = {
+    access: accessA,
+    binding: host,
+    origin: originRef('call-1'),
+    requestId: 'attach',
+    terminal: { id: 'unknown', generation: '1' },
+  }
+  for (const operation of ['attach', 'detach'] as const)
+    expect(await retention[operation](request)).toMatchObject({
+      kind: 'rejected',
+      reason: 'notAuthorized',
+    })
+  expect(operations).toEqual(['attach', 'detach'])
+  remove()
+  for (const operation of ['attach', 'detach'] as const)
+    expect(await retention[operation](request)).toMatchObject({
+      kind: 'rejected',
+      reason: 'unsupported',
+    })
+  expect(peer.calls).toEqual([])
+  await acquired.lease.release()
+})
+
+it('rechecks the acquisition ledger after an asynchronous retention authorization', async () => {
+  const peer = retainedPeer()
+  const registry = registryWith([peer.provider])
+  registry.registerFacility(terminalFacility)
+  const placement = await placed(registry, requirement([host], ['terminal']))
+  const closed = new AbortController()
+  const entered = Promise.withResolvers<void>()
+  const authorized = Promise.withResolvers<'authorized'>()
+  const acquired = await registry.acquire(accessA, {
+    ...acquireInput(placement, 'a', {
+      authorize: () => {
+        entered.resolve()
+        return authorized.promise
+      },
+    }),
+    ledger: { ...ledger, closed: closed.signal },
+    retention: { scope: scope('session'), ledger },
+  })
+  if (acquired.kind !== 'acquired') throw new Error('expected acquired')
+  const retention = acquired.lease.facility('terminal')?.retention
+  if (retention === undefined) throw new Error('expected retention')
+  const pending = retention.attach({
+    access: accessA,
+    binding: host,
+    origin: originRef('call-1'),
+    requestId: 'attach',
+    terminal: { id: 'unknown', generation: '1' },
+  })
+  await entered.promise
+  closed.abort()
+  authorized.resolve('authorized')
+  expect(await pending).toMatchObject({ kind: 'rejected', reason: 'closed' })
+  expect(peer.calls).toEqual([])
+  await acquired.lease.release()
+})
+
 it('does not cache attach authorization and still lets the owner release after access is revoked', async () => {
   const peer = retainedPeer()
   const registry = registryWith([peer.provider])
@@ -51,17 +137,33 @@ it('does not cache attach authorization and still lets the owner release after a
   const request = { access: accessA, binding: host, origin: originRef('call-1'), requestId: 'a' }
   const created = await terminal.create({ ...request, cwd: '/', env: {}, retain: 'session' })
   if (created.kind !== 'done') throw new Error('expected terminal creation')
-  if (terminal.attach === undefined) throw new Error('expected attach support')
-  expect(await terminal.attach({ ...request, terminal: created.value.terminal })).toMatchObject({
+  const retention = terminal.retention
+  if (retention === undefined) throw new Error('expected retention support')
+  expect(await retention.attach({ ...request, terminal: created.value.terminal })).toMatchObject({
     kind: 'done',
   })
   authorized = false
+  for (const operation of ['attach', 'detach'] as const)
+    expect(
+      await retention[operation]({ ...request, terminal: created.value.terminal }),
+    ).toMatchObject({
+      kind: 'rejected',
+      reason: 'notAuthorized',
+    })
   expect(
     await terminal.execute({ ...request, terminal: created.value.terminal, script: '/changed' }),
   ).toMatchObject({ kind: 'rejected', reason: 'notAuthorized' })
-  expect(operations).toEqual(['create', 'attach', 'execute'])
+  expect(operations).toEqual(['create', 'attach', 'attach', 'detach', 'execute'])
   expect(peer.calls).toEqual(['attach'])
   expect(await acquired.lease.release()).toEqual({ kind: 'released' })
+  for (const operation of ['attach', 'detach'] as const)
+    expect(
+      await retention[operation]({ ...request, terminal: created.value.terminal }),
+    ).toMatchObject({
+      kind: 'rejected',
+      reason: 'closed',
+    })
+  expect(peer.calls).toEqual(['attach'])
   expect(peer.inputs[0]?.retention?.released.aborted).toBe(false)
 })
 
@@ -93,7 +195,7 @@ it('rejects retained requests without a configured retention or without provider
     if (acquired.kind !== 'acquired') throw new Error('expected acquired')
     const terminal = acquired.lease.facility('terminal')
     if (!terminal) throw new Error('expected terminal')
-    if (terminal.attach === undefined) throw new Error('expected guarded attach entry')
+    expect(terminal.retention).toBeUndefined()
     const request = {
       access: accessA,
       binding: host,
@@ -105,9 +207,6 @@ it('rejects retained requests without a configured retention or without provider
       requestId: request.requestId,
       reason: 'unsupported',
     })
-    expect(
-      await terminal.attach({ ...request, terminal: { id: 'unknown', generation: '1' } }),
-    ).toMatchObject({ kind: 'rejected', reason: 'unsupported' })
     expect(await terminal.list(request)).toMatchObject({ kind: 'done', value: [] })
     expect(await terminal.create({ ...request, cwd: '/', env: {} })).toMatchObject({ kind: 'done' })
   }

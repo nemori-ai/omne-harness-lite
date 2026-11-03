@@ -39,25 +39,27 @@ export function retainedPeer() {
           }
           return created
         },
-        async attach(request) {
-          calls.push('attach')
-          const entry = retained.get(request.terminal.id)
-          if (input.retention === undefined) return refuse(request.requestId, 'unsupported')
-          if (input.retention.released.aborted) return refuse(request.requestId, 'closed')
-          if (
-            entry?.scope !== input.retention.scope.ref ||
-            entry.ref.generation !== request.terminal.generation
-          )
-            return refuse(request.requestId, 'notFound')
-          if (detached.has(entry.ref.id)) return refuse(request.requestId, 'closed')
-          attachments.add(entry.ref.id)
-          return { kind: 'done', requestId: request.requestId, value: { terminal: entry.ref } }
-        },
-        async detach(request) {
-          calls.push('detach')
-          attachments.delete(request.terminal.id)
-          detached.add(request.terminal.id)
-          return { kind: 'done', requestId: request.requestId, value: { status: 'confirmed' } }
+        retention: {
+          async attach(request) {
+            calls.push('attach')
+            const entry = retained.get(request.terminal.id)
+            if (input.retention === undefined) return refuse(request.requestId, 'unsupported')
+            if (input.retention.released.aborted) return refuse(request.requestId, 'closed')
+            if (
+              entry?.scope !== input.retention.scope.ref ||
+              entry.ref.generation !== request.terminal.generation
+            )
+              return refuse(request.requestId, 'notFound')
+            if (detached.has(entry.ref.id)) return refuse(request.requestId, 'closed')
+            attachments.add(entry.ref.id)
+            return { kind: 'done', requestId: request.requestId, value: { terminal: entry.ref } }
+          },
+          async detach(request) {
+            calls.push('detach')
+            attachments.delete(request.terminal.id)
+            detached.add(request.terminal.id)
+            return { kind: 'done', requestId: request.requestId, value: { status: 'confirmed' } }
+          },
         },
         async execute(request) {
           calls.push('execute')

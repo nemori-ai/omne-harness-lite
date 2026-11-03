@@ -63,15 +63,8 @@ it('preserves retention scope in original data and rejects runtime ports or unkn
   }
 })
 
-it('declares attach and detach as guarded terminal operations', () => {
-  expect(terminalFacility.operations).toEqual([
-    'create',
-    'attach',
-    'detach',
-    'execute',
-    'close',
-    'list',
-  ])
+it('preserves the original four guarded terminal operations', () => {
+  expect(terminalFacility.operations).toEqual(['create', 'execute', 'close', 'list'])
   expect(terminalFacility.guarded).toEqual(terminalFacility.operations)
 })
 
@@ -91,17 +84,7 @@ it('refuses retention on the per-acquisition scripted terminal without creating 
     requestId: request.requestId,
     value: [],
   })
-  const ref = { id: 'foreign', generation: '1' }
-  if (terminal.facility.attach === undefined || terminal.facility.detach === undefined)
-    throw new Error('expected explicit unsupported handlers')
-  expect(await terminal.facility.attach({ ...request, terminal: ref })).toMatchObject({
-    kind: 'rejected',
-    reason: 'unsupported',
-  })
-  expect(await terminal.facility.detach({ ...request, terminal: ref })).toMatchObject({
-    kind: 'rejected',
-    reason: 'unsupported',
-  })
+  expect(terminal.facility.retention).toBeUndefined()
 })
 
 it('rejects missing retention methods and extra retention fields', async () => {

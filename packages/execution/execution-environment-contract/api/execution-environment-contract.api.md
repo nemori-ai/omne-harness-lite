@@ -106,6 +106,8 @@
 - `TerminalFacility` · `facilities/terminal.d.ts`
 - `TerminalInformation` · `facilities/terminal.d.ts`
 - `TerminalRef` · `facilities/terminal.d.ts`
+- `TerminalRetention` · `facilities/terminal.d.ts`
+- `TerminalRetentionOperation` · `facilities/terminal.d.ts`
 - `UnknownAcquisition` · `lease.d.ts`
 - `UnsupportedRecovery` · `environment.d.ts`
 - `acquireParamsSchema` · `operation-schemas.d.ts`
@@ -764,7 +766,21 @@ export type TerminalInformation = {
     readonly state: 'idle' | 'running' | 'invalid' | 'closed';
     readonly observedCwd: string;
 };
+export interface TerminalRetention<P> {
+    attach(request: FacilityRequest<P> & {
+        readonly terminal: TerminalRef;
+    }): Promise<FacilityResult<{
+        readonly terminal: TerminalRef;
+    }>>;
+    detach(request: FacilityRequest<P> & {
+        readonly terminal: TerminalRef;
+    }): Promise<FacilityResult<{
+        readonly status: 'confirmed' | 'unconfirmed';
+    }>>;
+}
+export type TerminalRetentionOperation = keyof TerminalRetention<unknown>;
 export interface TerminalFacility<P> {
+    readonly retention?: TerminalRetention<P>;
     create(request: FacilityRequest<P> & {
         readonly cwd: string;
         readonly env: Readonly<Record<string, string>>;
@@ -775,16 +791,6 @@ export interface TerminalFacility<P> {
         readonly retain?: 'session';
     }): Promise<FacilityResult<{
         readonly terminal: TerminalRef;
-    }>>;
-    attach?(request: FacilityRequest<P> & {
-        readonly terminal: TerminalRef;
-    }): Promise<FacilityResult<{
-        readonly terminal: TerminalRef;
-    }>>;
-    detach?(request: FacilityRequest<P> & {
-        readonly terminal: TerminalRef;
-    }): Promise<FacilityResult<{
-        readonly status: 'confirmed' | 'unconfirmed';
     }>>;
     execute(request: FacilityRequest<P> & {
         readonly terminal: TerminalRef;
@@ -816,7 +822,7 @@ import type { Access, OriginRef } from './identity.ts';
 export interface EnvironmentFacilities {
 }
 export type FacilityKey = keyof EnvironmentFacilities & string;
-export type FacilityOperation<K extends FacilityKey> = keyof EnvironmentFacilities[K] & string;
+export type FacilityOperation<K extends FacilityKey> = Exclude<keyof EnvironmentFacilities[K], K extends 'terminal' ? 'retention' : never> & string;
 export interface FacilityDescriptor<K extends FacilityKey> {
     readonly key: K;
     readonly operations: readonly FacilityOperation<K>[];
@@ -878,7 +884,7 @@ export type { FileBatchOutcome, FileBatchRecognition, FileBatchRef, FileEntry, F
 export { commandFacility } from './facilities/command.ts';
 export type { CommandFacility, CommandOutcome, OutputChunk, OutputCount, OutputPolicy, OutputSummary, ProcessHandle, } from './facilities/command.ts';
 export { terminalFacility } from './facilities/terminal.ts';
-export type { TerminalFacility, TerminalInformation, TerminalRef } from './facilities/terminal.ts';
+export type { TerminalFacility, TerminalInformation, TerminalRef, TerminalRetention, TerminalRetentionOperation, } from './facilities/terminal.ts';
 export { createRecoveryAccess } from './ports.ts';
 export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, RetainedTerminalLedger, SessionTerminalRetention, } from './ports.ts';
 export type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationCleanup, AllocationFailed, LookupUnknown, OriginalAcquisition, OriginalInspection, RecoveryInspection, UnknownAcquisition, EnvironmentAdoption, EnvironmentLease, FacilitySet, InstanceIdentity, LeaseInvalidation, LeaseRelease, Pending, Placement, ProviderIdentity, RegistryInvalidationReason, RejectReason, Rejected, } from './lease.ts';

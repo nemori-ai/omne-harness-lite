@@ -46,8 +46,12 @@ it('releases A and lets a new origin B attach and continue the retained peer thr
     if (acquired.kind !== 'acquired') throw new Error('expected acquired')
     const terminal = acquired.lease.facility('terminal')
     if (terminal === undefined) throw new Error('expected terminal')
-    if (terminal.attach === undefined) throw new Error('expected attach support')
-    return { lease: acquired.lease, terminal, attach: terminal.attach.bind(terminal) }
+    if (terminal.retention === undefined) throw new Error('expected attach support')
+    return {
+      lease: acquired.lease,
+      terminal,
+      attach: terminal.retention.attach.bind(terminal.retention),
+    }
   }
   const request = (origin: string) => ({
     access: accessA,
