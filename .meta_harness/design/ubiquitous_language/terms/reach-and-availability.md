@@ -269,22 +269,22 @@
 
 ### UL-mcp-action-catalog · MCP 动作清单 · MCP Action Catalog
 
-> **中**：**一个 MCP 接入点在一个租户、一个对端账号之下最近一次合法取得并采用的对端动作集合，连同此前合法取得过的全部 [MCP 已知动作](#ul-mcp-known-action--mcp-已知动作--mcp-known-action)。**
-> 它按租户、对端账号与接入点分开保存：一个租户看不到按另一个对端账号取得的清单。
+> **中**：**一个 MCP 接入点的一份[持有](circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding)在一个租户、一个对端账号之下最近一次合法取得并采用的对端动作集合，连同此前合法取得过的全部 [MCP 已知动作](#ul-mcp-known-action--mcp-已知动作--mcp-known-action)。**
+> 它按租户、对端账号与接入点持有分开保存：一个租户看不到按另一个对端账号取得的清单。
 > 只有合法发现取得的结果才能把新动作加进来。对端不再提供某个动作时，那个动作留在清单里并标为不可用。
 > 清单整份更新，不出现一半新一半旧的清单。
 >
-> **EN**: **The set of far-side actions that one MCP access point most recently obtained lawfully and
-> adopted for one tenant under one far-side account, together with every MCP known action that it
-> obtained lawfully before.** It is kept separate per tenant, far-side account and access point: one
-> tenant cannot see a catalog obtained under another far-side account. Only a result obtained by
-> lawful discovery can add a new action. When the far side no longer offers an action, that action
+> **EN**: **The set of far-side actions that one holding of an MCP access point most recently obtained
+> lawfully and adopted for one tenant under one far-side account, together with every MCP known action
+> that it obtained lawfully before.** It is kept separate per tenant, far-side account and access point
+> holding: one tenant cannot see a catalog obtained under another far-side account. Only a result
+> obtained by lawful discovery can add a new action. When the far side no longer offers an action, that action
 > stays in the catalog, marked unavailable. The catalog is updated as a whole. A catalog that is
 > part new and part old never occurs.
 
 - **形态**：对象
-- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC02](../../product/mcp/design.md#j-mc02-发现合法动作并理解不可用) · [J-MC03](../../product/mcp/design.md#j-mc03-刷新后续采用且保护原调用)（rev 1）；按租户与凭据账号分开见已接受的 [MCP 领域页 模块角色与事实归属](../../../../docs/domains/mcp/README.md#模块角色与事实归属)
-- **⚠️ 别混 ①**：**不是[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)**。动作空间属于一个会话，从合法纳入这个会话的能力投影得到；MCP 动作清单属于租户、对端账号与接入点，不随会话结束
+- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC02](../../product/mcp/design.md#j-mc02-发现合法动作并理解不可用) · [J-MC03](../../product/mcp/design.md#j-mc03-刷新后续采用且保护原调用)（rev 1）；按租户与凭据账号分开见已接受的 [MCP 领域页 模块角色与事实归属](../../../../docs/domains/mcp/README.md#模块角色与事实归属)。键里的「接入点持有」来自 Skill 与 MCP 领域的候选技术设计，产品正文与已接受的领域页未述
+- **⚠️ 别混 ①**：**不是[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)**。动作空间属于一个会话，从合法纳入这个会话的能力投影得到；MCP 动作清单属于租户、对端账号与接入点持有，不随会话结束
 - **别混 ②**：**不是[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)**，与一次装配无关
 - **注意**：发现或刷新失败时保持原清单并说明原因，不当成空清单。产品正文称它「合法清单」「最近合法清单」时，指的就是它
 
