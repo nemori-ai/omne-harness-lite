@@ -26,11 +26,12 @@ type ProfilesFailure = Extract<
 /** The two things in a `select` call that the Agent does not state and the row must not guess. */
 export type SelectionBindings = Readonly<{
   /**
-   * The session whose saved selection applies to this call. `select` carries an execution and a
-   * scope but no session, and no contract port maps one to the other yet, so the row takes the
-   * mapping as a binding. The default binding names no session (see `index.ts`).
+   * The session whose saved selection applies to this call. `select` carries an execution
+   * (`advance.execution`) but no session. The default binding locates the active Run of the
+   * execution through the execution index of the tenant and the Session snapshot
+   * (`../session-adapters/run-of-execution.ts`, see `index.ts`); a test passes its own.
    */
-  sessionOf(input: SelectInput): Outcome<SessionId, Failure>
+  sessionOf(input: SelectInput): Promise<Outcome<SessionId, Failure>>
   /**
    * The modality the request needs, which the Agent contract says the selection port takes from the
    * history evidence. The default asks for text only, with the history as the source.
@@ -91,7 +92,7 @@ export async function selectModel(
   // modalities. Nothing here can do that, so it is refused and not dropped.
   if (input.alterations.length > 0) return fail({ kind: 'unsupported' })
 
-  const session = ports.bindings.sessionOf(input)
+  const session = await ports.bindings.sessionOf(input)
   if ('failure' in session) return session
 
   const reading = ports.readSelection({

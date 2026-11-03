@@ -319,15 +319,20 @@ describe('what the row depends on', () => {
     })
   })
 
-  test('the default bindings name no session: the call is unavailable before any read', async () => {
-    const { value } = await withLiveRow(
-      { ...happy, bindings: {} },
+  test('the default binding without a visible execution index is unavailable before any Session read', async () => {
+    const { value, run } = await withLiveRow(
+      { ...happy, bindings: {}, index: {}, visible: false },
       async ({ select, session }) => ({
         outcome: await select(selectInput),
-        reads: session.reads.length,
+        reads: session.reads.length + session.works.length,
       }),
     )
-    expect(failureOf(value.outcome)).toMatchObject({ kind: 'unavailable' })
+    expect(run.state('agent-model-selection')).toMatchObject({ state: 'ACTIVE' })
+    expect(failureOf(value.outcome)).toMatchObject({
+      kind: 'unavailable',
+      owner: 'agent-model-selection',
+      diagnostic: 'the tenant domain lookup is not visible to this row',
+    })
     expect(value.reads).toBe(0)
   })
 })
