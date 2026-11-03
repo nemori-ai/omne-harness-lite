@@ -15,6 +15,7 @@ import type {
 import type { FactCommandV2, JsonValue, RecordedReply } from '@omne-harness/sql-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { canonicalText, decodeValue, encodeValue, sha256 } from './codec.ts'
+import { readCachedSessionWork } from './work-cache.ts'
 
 /** The participant that executes the Session commands and the read-only checks. */
 export const SESSION_PARTICIPANT = 'session'
@@ -55,6 +56,11 @@ export const EXECUTION_RECORD_HANDLERS = {
   operation: 'execution-record.operation',
   /** One preadmission record, by tenant and handoff or by tenant and entry (`PreadmissionRead`). */
   preadmission: 'execution-record.preadmission',
+  /**
+   * The head row of one execution and its facts after a sequence, with their bodies, one page at
+   * a time (input: tenant, session, execution, after). See `worker/read-execution-facts.ts`.
+   */
+  executionFacts: 'execution-record.execution-facts',
 } as const
 
 // ---------------------------------------------------------------------------------------------
@@ -201,12 +207,19 @@ export type ExecutionBoundaryRecord = Readonly<{
   ended: Readonly<{ sequence: string; source: DurableEvidence }> | null
 }>
 
-/** One event of an execution: its sequence, original source and Session consequence kinds. */
+/**
+ * One event of an execution: its sequence, original source and Session consequence kinds. A writer
+ * that names `consequences` or `control` also writes the body row of the fact (`er_fact_body`),
+ * which `execution-record.execution-facts` reads back: the JSON of the normalized consequences
+ * (null: not decided) and of the deferred control evidence (null: none). Both pass as given.
+ */
 export type ExecutionFactRecord = Readonly<{
   execution: string
   sequence: string
   source: DurableEvidence
   kinds: readonly string[]
+  consequences?: JsonValue
+  control?: JsonValue
 }>
 
 /** One input-taken batch of an execution, as its event wrote it. */
@@ -272,7 +285,7 @@ export type ExecutionRecordWrite = Readonly<{
 
 /** The opaque members (`state`, each part, `answer`, each `batch`) travel as they are. */
 export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2 {
-  const { state, parts, replace, answer, batches, ...rest } = write
+  const { state, parts, replace, answer, batches, facts, ...rest } = write
   const encoded = encodeValue(rest) as Readonly<Record<string, JsonValue>>
   const opaque: Readonly<Record<string, JsonValue>> =
     parts === undefined
@@ -289,6 +302,12 @@ export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2
         ...encoded,
         ...opaque,
         answer,
+        // The fact bodies are JSON already; they pass as given, as the batches do.
+        facts: facts.map(({ consequences, control, ...index }) => ({
+          ...(encodeValue(index) as Readonly<Record<string, JsonValue>>),
+          ...(consequences === undefined ? {} : { consequences }),
+          ...(control === undefined ? {} : { control }),
+        })),
         batches: batches.map(({ batch, ...index }) => ({
           ...(encodeValue(index) as Readonly<Record<string, JsonValue>>),
           batch,
@@ -635,6 +654,13 @@ export type SessionWorkRead =
   | Readonly<{ kind: 'state'; snapshot: WorkSnapshot }>
   | Readonly<{ kind: 'absent' }>
   | Readonly<{ kind: 'behind' }>
+
+/**
+ * The `session.work` answer through the work cache of `storage` (SPEC RT-04), for a committer that
+ * holds the domain of the tenant: the version of the session is read first, and the snapshot is
+ * read whole only when no cached answer has that version. The snapshot it answers is deeply frozen.
+ */
+export { readCachedSessionWork }
 
 export function decodeSessionWork(output: JsonValue): SessionWorkRead | null {
   const value = recordOf(output)

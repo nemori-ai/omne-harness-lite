@@ -80,7 +80,7 @@
 
 #### CP-03 读操作
 
-`readWork`、`loadRecovery`、`readInput`、`queryOperation`、`inspectIdle`、`pending`、`references`、`releasedScopes` 与四个历史读操作（`begin`、`next`、`since`、`readModelView`）只做核权与读取。单会话的读操作在面操作开头调用一次 `check`，读取经委派视图。`pending`、`references` 与 `releasedScopes` 不属于单会话的面操作，委派视图对它们答 `denied`：面操作不另行调用 `check`，直接调用公开 `SessionTransactionPort` 的同名方法，由端口在实际执行处调用一次 `check`。历史页的 `annotations` 由存储提供者的读路径随页给出（[SessionHistory](../session-contract/SPEC.md#sessionhistory)），本成员不另行拼接。它们不派生操作身份，不写条目，不发通知。`readWork` 不走快照缓存，经视图读权威快照（[CA-3](#ca-3) 的已知限制）。`loadRecovery` 与 `queryOperation` 也不走缓存。
+`readWork`、`loadRecovery`、`readInput`、`queryOperation`、`inspectIdle`、`pending`、`references`、`releasedScopes` 与四个历史读操作（`begin`、`next`、`since`、`readModelView`）只做核权与读取。单会话的读操作在面操作开头调用一次 `check`，读取经委派视图。`pending`、`references` 与 `releasedScopes` 不属于单会话的面操作，委派视图对它们答 `denied`：面操作不另行调用 `check`，直接调用公开 `SessionTransactionPort` 的同名方法，由端口在实际执行处调用一次 `check`。历史页的 `annotations` 由存储提供者的读路径随页给出（[SessionHistory](../session-contract/SPEC.md#sessionhistory)），本成员不另行拼接。它们不派生操作身份，不写条目，不发通知。`readWork` 与 `loadRecovery` 不走 CA-3 快照槽，经视图读权威快照；SQL 存储的端口在这次读里先点查版本，再决定从它的工作缓存回答还是整读（session-storage-sql [RT-04](../session-storage-sql/SPEC.md#rt-04)），所以回答仍是存储在当前版本上的权威快照。`queryOperation` 不走缓存。
 
 ### EX 受理流水线的拓展点编排
 
@@ -347,7 +347,7 @@
 `SessionId` 只在租户内唯一，一个服务实例服务全部租户，所以三层缓存的键都带租户。缓存不是核权点：
 
 - CA-3 的命中与 `changed` 后的权威读都在面操作开头的那一次 `check` 之后（[CP-01](#cp-access)）。核权失败时返回 `denied`、`invalid` 或 `unavailable`，不使用缓存。
-- 已知限制：`SessionTransactionPort` 没有只返回尾部修订的读操作，所以 CA-3 不做尾部比对。在端口提供这项读取之前，CA-3 的命中只用于 CP-01 第 2 步。那里的正确性不依赖快照新鲜度（带 `expected` 的命令由事务内核对兜底，其余命令由事务内的 `decide` 重新裁定）。`readWork` 的回答不走 CA-3，经视图读权威快照。触发条件：事务端口增加尾部修订读取之后，按本表的有效性规则启用 `readWork` 的缓存回答。
+- 已知限制：`SessionTransactionPort` 没有只返回尾部修订的读操作，所以 CA-3 不做尾部比对，命中只用于 CP-01 第 2 步。那里的正确性不依赖快照新鲜度（带 `expected` 的命令由事务内核对兜底，其余命令由事务内的 `decide` 重新裁定）。`readWork` 的回答不走 CA-3。按版本核对的快照缓存由 SQL 存储在端口内部提供（session-storage-sql [RT-04](../session-storage-sql/SPEC.md#rt-04)），契约不变；其他存储提供者没有这项缓存时 `readWork` 每次整读。
 - CA-1 命中只省去载荷读取。分页、逐条披露核对与条目位置仍由事务端口的历史读取完成，缓存只按条目身份为已核权页提供载荷。
 - CA-2 命中同样不代替 `readModelView` 的核权（[session-adapters](../session-adapters/SPEC.md)）。
 

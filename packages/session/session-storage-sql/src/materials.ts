@@ -1,7 +1,7 @@
 // The static materials of the Session storage: two participants (`session` and `execution-record`),
-// their seven migrations (three of `session`: the log, the execution index and the operation
-// evidence table; four of `execution-record`: its records, the preadmission records, the
-// original attempt of an admission and the state parts) and their
+// their eight migrations (three of `session`: the log, the execution index and the operation
+// evidence table; five of `execution-record`: its records, the preadmission records, the
+// original attempt of an admission, the state parts and the fact bodies) and their
 // read handlers, as the SQL storage contract describes them
 // (sql-contract SPEC 4). The `session` participant reads the same-root index tables of
 // `execution-record` (sql-contract SPEC 4.1: a read table of another participant of the same
@@ -24,6 +24,8 @@ import {
 import {
   ADMISSION_ATTEMPT_MIGRATION,
   ADMISSION_ATTEMPT_TABLES,
+  FACT_BODY_MIGRATION,
+  FACT_BODY_TABLES,
   EXECUTION_RECORD_INDEX_TABLES,
   EXECUTION_RECORD_MIGRATION,
   EXECUTION_RECORD_TABLES,
@@ -77,6 +79,10 @@ const statePartMigrationRef = Object.freeze({
   owner: STATE_PART_MIGRATION.owner,
   id: STATE_PART_MIGRATION.id,
 })
+const factBodyMigrationRef = Object.freeze({
+  owner: FACT_BODY_MIGRATION.owner,
+  id: FACT_BODY_MIGRATION.id,
+})
 
 /**
  * What the application decides when it builds the materials. There is no default: the limit is an
@@ -117,6 +123,13 @@ export const HANDLERS: readonly Handler[] = [
     tables: ['sl_journal', 'sl_state', 'sl_entry', ...EXECUTION_RECORD_INDEX_TABLES],
     // It reads `er_admission_attempt_idx`, which the third migration of `execution-record` creates.
     migrations: [migrationRef, recordMigrationRef, admissionAttemptMigrationRef],
+  },
+  {
+    // The version check of the work cache (SPEC RT-04): two point reads, no snapshot row.
+    handler: 'session.work-version',
+    file: 'read-work-version',
+    tables: ['sl_journal', 'er_root'],
+    migrations: [migrationRef, recordMigrationRef],
   },
   { handler: 'session.input', file: 'read-input', tables: ['sl_journal', 'sl_input'] },
   {
@@ -168,6 +181,14 @@ export const HANDLERS: readonly Handler[] = [
     migrations: [recordMigrationRef],
   },
   {
+    // Path P of C-WORKCACHE: the facts of one execution after a sequence, from the append-only rows.
+    handler: 'execution-record.execution-facts',
+    file: 'read-execution-facts',
+    tables: ['er_execution', 'er_fact_idx', ...FACT_BODY_TABLES],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: [recordMigrationRef, factBodyMigrationRef],
+  },
+  {
     handler: 'execution-record.preadmission',
     file: 'read-preadmission',
     tables: PREADMISSION_TABLES,
@@ -199,6 +220,7 @@ export function sessionStorageMaterials(
   const preadmissionMigration = module('preadmission-migration')
   const admissionAttemptMigration = module('admission-attempt-migration')
   const statePartMigration = module('state-part-migration')
+  const factBodyMigration = module('fact-body-migration')
   return {
     participants: [
       {
@@ -211,6 +233,7 @@ export function sessionStorageMaterials(
           ...PREADMISSION_TABLES,
           ...ADMISSION_ATTEMPT_TABLES,
           ...STATE_PART_TABLES,
+          ...FACT_BODY_TABLES,
         ],
         readTables: [],
         requiresFacts: [],
@@ -272,6 +295,12 @@ export function sessionStorageMaterials(
         ...statePartMigrationRef,
         moduleUrl: statePartMigration.moduleUrl,
         checksum: statePartMigration.digest,
+        requires: [recordMigrationRef],
+      },
+      {
+        ...factBodyMigrationRef,
+        moduleUrl: factBodyMigration.moduleUrl,
+        checksum: factBodyMigration.digest,
         requires: [recordMigrationRef],
       },
     ],

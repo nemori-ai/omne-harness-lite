@@ -47,13 +47,12 @@ import {
   EXECUTION_RECORD_PROTOCOL,
   SESSION_HISTORY_ROOT_HANDLER,
   SESSION_PROTOCOL,
-  SESSION_WORK_HANDLER,
   decodeExecutionRecordParts,
   decodeExecutionRecordReply,
   decodeSessionHistoryRoot,
   decodeSessionReply,
-  decodeSessionWork,
   executionRecordFacts,
+  readCachedSessionWork,
   sessionCheckFacts,
   sessionCommandFacts,
   type ExecutionAdmissionRecord,
@@ -110,6 +109,7 @@ import {
   type RebuiltParts,
 } from './journal-parts.ts'
 import {
+  decodeState,
   encodeState,
   eventKey,
   recordsOf,
@@ -417,6 +417,9 @@ function indexOf(
         sequence: event.sequence,
         source: event.cause,
         kinds: control !== null ? ['deferred'] : (consequences?.map(item => item.kind) ?? []),
+        // The body row beside the index row: the same values `notes` takes, read back by AD-02.
+        consequences: encodeState(consequences),
+        control: encodeState(control),
       })
       if (event.body.kind === 'input-taken')
         batches.push({
@@ -637,11 +640,163 @@ export async function readJournalState(
 }
 
 /**
- * Reads the events of one execution after `after` from the durable Agent records of its session,
- * with the consequences and the head the same publication wrote beside its index rows. `null`
+ * Reads the events of one execution after `after` (C-WORKCACHE design §5, path P): the head row of
+ * the execution and its fact rows after `after` with their bodies, from the append-only index rows
+ * the publications wrote, page by page. Only the events after the reader's progress are read, so a
+ * read does not grow with the session or with the records of the execution. Every page must read
+ * the same head, else the read starts again. A fact without a body row (a publication before the
+ * body table) falls back to the records of the execution (`interpretationFromRecords`). `null`
  * execution: the session's records hold no such execution. It reads only; it never writes.
  */
 export async function readExecutionInterpretation(
+  options: JournalStateSource,
+  target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
+): Promise<InterpretationRead> {
+  const unread = (diagnostic: string): InterpretationRead => ({ kind: 'unavailable', diagnostic })
+  const text = tenantCodec.encode(target.tenant)
+  if (!text.ok) return unread('the tenant was not minted by legal-identity')
+  let found
+  try {
+    found = await options.tenantDomainLookup.lookup({ tenant: text.value })
+  } catch (error) {
+    return unread(`the read of the Agent records threw: ${String(error)}`)
+  }
+  if (found.kind !== 'ready')
+    return unread(
+      found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
+    )
+  const domain = found.domain
+  const read = async (after: string): Promise<JsonValue | null> => {
+    try {
+      const result = await options.storage.read({
+        domain,
+        handler: EXECUTION_RECORD_HANDLERS.executionFacts,
+        protocol: EXECUTION_RECORD_PROTOCOL,
+        requestKey: randomUUID(),
+        input: { tenant: text.value, session: target.session, execution: target.execution, after },
+      })
+      return result.kind === 'read' ? result.output : null
+    } catch {
+      return null
+    }
+  }
+  const facts = await readFacts(read, target.after)
+  if (facts.kind === 'absent') return { kind: 'read', execution: null }
+  if (facts.kind === 'unavailable') return facts
+  if (facts.bodiless) return interpretationFromRecords(options, target)
+  return { kind: 'read', execution: facts.execution }
+}
+
+type FactsRead =
+  | Readonly<{ kind: 'read'; execution: ExecutionInterpretation; bodiless: boolean }>
+  | Readonly<{ kind: 'absent' }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+type FactsPage = Readonly<{
+  revision: string
+  receipt: DurableEvidence | null
+  emittedThrough: string
+  facts: readonly Readonly<Record<string, JsonValue>>[]
+  next: string | null
+}>
+
+/** One page of `execution-record.execution-facts`, `'absent'`, or null when it does not parse. */
+function factsPageOf(output: JsonValue): FactsPage | 'absent' | null {
+  if (typeof output !== 'object' || output === null || Array.isArray(output)) return null
+  const page = output as Readonly<Record<string, JsonValue>>
+  if (page['kind'] === 'absent') return 'absent'
+  const revision = page['revision']
+  const emittedThrough = page['emittedThrough']
+  const facts = page['facts']
+  const next = page['next']
+  if (page['kind'] !== 'facts' || typeof revision !== 'string') return null
+  if (typeof emittedThrough !== 'string' || !Array.isArray(facts)) return null
+  if (next !== null && typeof next !== 'string') return null
+  return {
+    revision,
+    receipt: (page['receipt'] ?? null) as DurableEvidence | null,
+    emittedThrough,
+    facts: facts as readonly Readonly<Record<string, JsonValue>>[],
+    next: next ?? null,
+  }
+}
+
+/** A body member of a fact: decoded, or null for a fact without a body row. */
+function bodyOf<T>(value: JsonValue | undefined): T | null {
+  return value === undefined || value === 'absent' ? null : (decodeState(value) as T | null)
+}
+
+/**
+ * The events after `after` from the fact pages. The sequences must follow `after` without a gap:
+ * an interpreter commits the events in order, so a missing row is `unavailable`, never skipped.
+ */
+async function readFacts(
+  read: (after: string) => Promise<JsonValue | null>,
+  after: string,
+): Promise<FactsRead> {
+  const unread = (diagnostic: string): FactsRead => ({ kind: 'unavailable', diagnostic })
+  for (let attempt = 0; attempt < PART_READ_ATTEMPTS; attempt += 1) {
+    let head: FactsPage | null = null
+    let from = after
+    let bodiless = false
+    const events: InterpretableEvent[] = []
+    for (;;) {
+      const output = await read(from)
+      if (output === null) return unread('the facts of the execution are not readable')
+      const page = factsPageOf(output)
+      if (page === 'absent')
+        return head === null
+          ? { kind: 'absent' }
+          : unread('the execution went away while its facts were read')
+      if (page === null) return unread('the facts of the execution do not decode')
+      const moved =
+        head !== null &&
+        (page.revision !== head.revision || page.emittedThrough !== head.emittedThrough)
+      if (moved) break
+      head = page
+      for (const fact of page.facts) {
+        const expected = String(BigInt(after) + BigInt(events.length) + 1n)
+        if (fact['sequence'] !== expected)
+          return unread(`the facts of the execution have a gap at sequence ${expected}`)
+        if (fact['consequences'] === 'absent' || fact['control'] === 'absent') bodiless = true
+        events.push({
+          sequence: expected,
+          source: fact['source'] as unknown as DurableEvidence,
+          consequences: bodyOf<readonly SessionLogConsequence[]>(fact['consequences']),
+          control: bodyOf<SessionControlEvidence>(fact['control']),
+        })
+      }
+      if (page.next === null) {
+        // The last page ends at the head: a missing last row or a cut page is not the end.
+        const through = String(BigInt(after) + BigInt(events.length))
+        if (BigInt(through) < BigInt(head.emittedThrough))
+          return unread(
+            `the facts of the execution end at sequence ${through}, before ${head.emittedThrough}`,
+          )
+        // A placeholder head (digest `unknown`) is no head: the Session side answers unavailable.
+        const receipt = head.receipt
+        return {
+          kind: 'read',
+          bodiless,
+          execution: {
+            revision: head.revision,
+            head: receipt === null || receipt.digest === 'unknown' ? null : receipt,
+            emittedThrough: head.emittedThrough,
+            events,
+          },
+        }
+      }
+      from = page.next
+    }
+  }
+  return unread('the facts of the execution kept changing while they were read')
+}
+
+/**
+ * The events of one execution after `after` from the records of its session (one read of the
+ * execution's part), for facts that a publication wrote without a body row.
+ */
+async function interpretationFromRecords(
   options: JournalStateSource,
   target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
 ): Promise<InterpretationRead> {
@@ -726,14 +881,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return result.kind === 'read' ? result.output : null
   }
 
-  /** The Session snapshot the `advances` check of this call reads. */
+  /**
+   * The Session snapshot the `advances` check of this call reads, through the work cache of the
+   * storage (session-storage-sql RT-04): a version read, and a whole read only after a commit.
+   */
   async function snapshotOf(book: Book<P>, domain: DomainRef): Promise<WorkSnapshot | null> {
-    const output = await read(domain, SESSION_WORK_HANDLER, SESSION_PROTOCOL, {
-      tenant: book.tenantText,
-      session: book.session,
-    })
-    const work = output === null ? null : decodeSessionWork(output)
-    return work?.kind === 'state' ? work.snapshot : null
+    const work = await readCachedSessionWork(options.storage, domain, book.tenantText, book.session)
+    return work.kind === 'state' ? work.snapshot : null
   }
 
   function participation(
