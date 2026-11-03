@@ -1,15 +1,19 @@
 // Real temporary directories for the tests. Each test makes its own scratch directory under the
 // system temporary directory and removes it when the test ends, so no test sees another test's
 // files.
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { onTestFinished } from 'vitest'
 import type { PackageLocator } from '@omne-harness/skill-contract/provider'
 
-/** A new empty directory that is removed when the current test ends. */
+/**
+ * A new empty directory that is removed when the current test ends. It is the physical path: the
+ * system temporary directory can sit below a link (macOS puts it below `/var`), and the source
+ * answers with resolved paths.
+ */
 export async function scratch(): Promise<string> {
-  const path = await mkdtemp(join(tmpdir(), 'skill-host-local-'))
+  const path = await realpath(await mkdtemp(join(tmpdir(), 'skill-host-local-')))
   onTestFinished(() => rm(path, { recursive: true, force: true }))
   return path
 }
