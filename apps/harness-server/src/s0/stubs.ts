@@ -178,10 +178,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'tool-runtime': {
     provides: ['toolRuntime'],
     injects: ['toolCommands', 'toolReads'],
-    phase: 'business',
   },
   'tool-executor': {
-    injects: ['toolCommands', 'toolInstanceHost', 'toolClock'],
+    provides: ['toolInstanceHost'],
+    injects: ['toolCommands', 'toolClock'],
     phase: 'business',
   },
   'tool-host': {

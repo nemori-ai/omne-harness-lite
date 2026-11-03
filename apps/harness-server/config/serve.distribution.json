@@ -97,8 +97,8 @@
       "id": "session-handoff",
       "plugin": "sessionHandoffRow",
       "config": {
-        "combinationVersion": "session-composite/2",
-        "manifestDigest": "093385097224f9b6cf2257c90152d628e6621f2dea6eae5ef4b187e4b872eb91"
+        "combinationVersion": "session-composite/3",
+        "manifestDigest": "c30bc4a0bdb2aa52989486527ece6add25cf6c8d302807f968cd14245d3a2bc0"
       }
     },
     {
@@ -110,8 +110,8 @@
       "id": "agent-journal",
       "plugin": "agentJournalRow",
       "config": {
-        "combinationVersion": "session-composite/2",
-        "manifestDigest": "093385097224f9b6cf2257c90152d628e6621f2dea6eae5ef4b187e4b872eb91"
+        "combinationVersion": "session-composite/3",
+        "manifestDigest": "c30bc4a0bdb2aa52989486527ece6add25cf6c8d302807f968cd14245d3a2bc0"
       }
     },
     {
@@ -330,7 +330,7 @@
     },
     {
       "id": "tool-records",
-      "plugin": "stubPlugin",
+      "plugin": "toolRecordsRow",
       "config": {}
     },
     {
@@ -340,12 +340,12 @@
     },
     {
       "id": "tool-runtime",
-      "plugin": "stubPlugin",
+      "plugin": "toolRuntimeRow",
       "config": {}
     },
     {
       "id": "tool-executor",
-      "plugin": "stubPlugin",
+      "plugin": "toolExecutorRow",
       "config": {}
     },
     {
@@ -362,32 +362,32 @@
     },
     {
       "id": "tool-instances",
-      "plugin": "stubPlugin",
+      "plugin": "toolInstancesRow",
       "config": {}
     },
     {
       "id": "tool-environments",
-      "plugin": "stubPlugin",
+      "plugin": "toolEnvironmentsRow",
       "config": {}
     },
     {
       "id": "execution-environment",
-      "plugin": "stubPlugin",
+      "plugin": "executionEnvironmentRow",
       "config": {}
     },
     {
       "id": "execution-files",
-      "plugin": "stubPlugin",
+      "plugin": "executionFilesRow",
       "config": {}
     },
     {
       "id": "execution-command",
-      "plugin": "stubPlugin",
+      "plugin": "executionCommandRow",
       "config": {}
     },
     {
       "id": "execution-host",
-      "plugin": "stubPlugin",
+      "plugin": "executionHost",
       "config": {}
     },
     {

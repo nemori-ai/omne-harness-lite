@@ -15,7 +15,7 @@
 | `model-host` | `createModelRuntimeLocalPlugin` 加 `createModelRuntime` | `executionChannel`、`releaseExecution`、`qualifyObservation`、`send`（按调用现取 `modelSendBoundary`）、`retry`（恒 `unavailable`）、推送账本 | `host` 四项、`runtime` 八项、`results` 五项，行体自校验 |
 | `model-request-preparation` | `createModelRequestPreparationPlugin` | OpenAI 家族 | `maxCitedCalls`、`openai.limits`、`openai.margin` |
 
-`combinationVersion` 与 `session-storage` 行相等，发行值是 `session-composite/2`（R2-D65）；两行都用 `compositeManifestDigest(storageCatalog())` 的同一摘要。
+`combinationVersion` 与 `session-storage` 行相等，发行值是 `session-composite/3`（R2-D65 换到 `/2`；Tool B 段并入 `tool` 参加者后换到 `/3`）；两行都用 `compositeManifestDigest(storageCatalog())` 的同一摘要。
 换版本不为已登记租户补登记，开发环境清存储根（R2-D98）。
 
 装载时（`serve` 的配置边界，任何插件装载之前）核四条跨行相等，不等即退出 2 并写明哪两行哪一项：

@@ -8,6 +8,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import {
   environmentNeedAdoption,
   environmentNeedSchemaRef,
+  type EnvironmentNeedProjection,
 } from '@omne-harness/execution-environment-contract'
 import { readJsonText, writeJsonText, type JsonRead, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -54,7 +55,7 @@ export type OperatorConstruction = Readonly<Partial<Record<string, unknown>>>
  */
 export type EnvironmentNeedCheck = Readonly<{
   provider: SchemaProvider
-  schema: SchemaRef<unknown>
+  schema: SchemaRef<EnvironmentNeedProjection>
 }>
 
 const unavailable = (diagnostic: string) =>
@@ -78,16 +79,17 @@ function constructionOf(
 }
 
 /**
- * 履行非空 environment 声明的义务（R2-D80）。采用不是 `environmentNeedAdoption` 答 invalid；值读不成 JSON
- * 文本或超出读取上限答 invalid；schema-provider 答 `invalid` 对应 invalid；`refused`、`unavailable`、
- * `cancelled` 或 provider 抛出都答 unavailable。只有 `valid` 才通过。
+ * 履行非空 environment 声明的义务（R2-D80），并给出校验后的声明值。采用不是 `environmentNeedAdoption` 答 invalid；
+ * 值读不成 JSON 文本或超出读取上限答 invalid；schema-provider 答 `invalid` 对应 invalid；`refused`、`unavailable`、
+ * `cancelled` 或 provider 抛出都答 unavailable。只有 `valid` 才通过。声明为 null 时给 null。
+ * Tool 运行时组的环境需求（`rows/tool-runtime/environment.ts`）复用同一条路径取声明值。
  */
-export async function checkEnvironmentNeed(
+export async function readEnvironmentNeed(
   definition: ToolDefinition,
   check: EnvironmentNeedCheck,
-): Promise<Outcome<void, ToolFailure>> {
+): Promise<Outcome<EnvironmentNeedProjection | null, ToolFailure>> {
   const environment = definition.declarations.environment
-  if (environment === null) return succeed(undefined)
+  if (environment === null) return succeed(null)
   if (!sameAdoption(environment.adoption, environmentNeedAdoption))
     return invalid('environment', 'unknown environment declaration adoption')
   let read: JsonRead
@@ -97,7 +99,7 @@ export async function checkEnvironmentNeed(
     return invalid('environment', 'environment need declaration is not JSON')
   }
   if (read.kind !== 'ok') return invalid('environment', 'environment need declaration is not JSON')
-  let verdict: SchemaVerdict<unknown>
+  let verdict: SchemaVerdict<EnvironmentNeedProjection>
   try {
     verdict = await validate(check.provider, check.schema, read)
   } catch {
@@ -105,7 +107,7 @@ export async function checkEnvironmentNeed(
   }
   switch (verdict.kind) {
     case 'valid':
-      return succeed(undefined)
+      return succeed(verdict.value)
     case 'invalid':
       return invalid('environment', 'environment need declaration is invalid')
     default:
@@ -113,11 +115,20 @@ export async function checkEnvironmentNeed(
   }
 }
 
+/** `readEnvironmentNeed` 只取判定、不取值的形式：loader 的 `schemas` 用它。 */
+export async function checkEnvironmentNeed(
+  definition: ToolDefinition,
+  check: EnvironmentNeedCheck,
+): Promise<Outcome<void, ToolFailure>> {
+  const read = await readEnvironmentNeed(definition, check)
+  return 'failure' in read ? read : succeed(undefined)
+}
+
 export type ReleaseAuthorOptions = Readonly<{
   /** 执行域的 schema-provider。生产路径由行在装载时按入口的预算建立，并在行撤除时关闭。 */
   schemaProvider?: SchemaProvider
   /** 只在测试里换：映射到 `environmentNeedAdoption` 的 schema，默认是契约的 `environmentNeedSchemaRef`。 */
-  environmentNeed?: SchemaRef<unknown>
+  environmentNeed?: SchemaRef<EnvironmentNeedProjection>
 }>
 
 /** 行自建的 provider：预算来自入口，行 fiber 撤除时关闭，之后的检查答 `refused`，即不可用。 */

@@ -2,7 +2,10 @@
 // 经 `toolGenerations.ensureLoaded` 观察作者是否进入登记表。environment 检查经执行域的 schema-provider 与
 // 执行环境契约的 `environmentNeedSchemaRef`（R2-D80）；只有「schema 加载失败 / provider 已关闭」两条反例注入别的来源。
 import { afterEach, describe, expect, it } from 'vitest'
-import { environmentNeedSchemaRef } from '@omne-harness/execution-environment-contract'
+import {
+  environmentNeedSchemaRef,
+  type EnvironmentNeedProjection,
+} from '@omne-harness/execution-environment-contract'
 import { fail } from '@omne-harness/operation-result'
 import { defineSchema, type SchemaProvider, type SchemaRef } from '@omne-harness/schema-provider'
 import {
@@ -117,7 +120,7 @@ describe('tool-host: ensureLoaded of the release authors', () => {
     expect(names(app)).toEqual([])
   })
 
-  const unloadable: SchemaRef<unknown> = defineSchema({
+  const unloadable: SchemaRef<EnvironmentNeedProjection> = defineSchema({
     id: 'execution-environment.environment-need',
     load: () => Promise.reject(new Error('schema load failure')),
   })

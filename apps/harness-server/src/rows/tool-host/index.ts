@@ -1,5 +1,9 @@
 // `tool-host` 行（AA 插件树、简报 B3-T2a 第 9 项）：tool-host-local 的换代协调者，发行内置作者来源。
 // 与 `tool-residency` 成对装载。配置只有运维者层的构造值；发行层不写默认值（第 4 项）。
+// B 段（R2-D79 第 4 条、R2-D169 候选 A）：行装好后，用发行登记者 `toolReleaseRegistrant` 作 access，对受信发行快照的
+// 全部条目调用 `ensureLoaded`。首装不用 system 作用域；租户的采用点只读已装的作者。某一条不成功时在行日志
+// （Cordis 记录器 `tool-host`）写一条 warn，写明作者名与失败种类，不放行：这个作者不进登记表，会话 create 的首装
+// 与 Tool 调用都答 unavailable。行的就绪只表示换代协调者在服务，不表示作者已装（理由见行页）。
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import {
@@ -7,8 +11,10 @@ import {
   toolContributionAuthorityKey,
   toolGenerationsKey,
   toolResidencyReaderKey,
+  type ToolGenerations,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { createLocalToolHostPlugin } from '@omne-harness/tool-host-local/cordis'
+import { registrantOf, releaseOf } from '../../entry/tool-release.ts'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
 import { releaseAuthorInput, type ReleaseAuthorOptions } from './release-author.ts'
@@ -35,8 +41,57 @@ export const toolHostConfig = z
   })
   .default({})
 
-/** 建行插件。`options` 只在测试里给。 */
-export function createToolHostPlugin(options: ReleaseAuthorOptions = {}): Plugin.Object {
+const PRELOAD_LOGGER = 'tool-host'
+
+/** 按发行清单预装两个作者；失败只记 warn，原因是固定短语加失败种类，不含正文。 */
+export async function preloadRelease(
+  ctx: Context,
+  host: Pick<ToolGenerations<unknown, unknown, ToolMessageContentBlock>, 'ensureLoaded'>,
+): Promise<readonly Readonly<{ name: string; outcome: string }>[]> {
+  const release = releaseOf(ctx)
+  const logger = ctx.logger(PRELOAD_LOGGER)
+  if (release.kind !== 'trusted') {
+    logger.warn('release tools were not preloaded: the release snapshot is unavailable')
+    return []
+  }
+  const registrant = registrantOf(ctx)
+  if (registrant === undefined) {
+    logger.warn('release tools were not preloaded: the release registrant is absent')
+    return release.manifest.entries.map(entry => ({
+      name: entry.asset.name,
+      outcome: 'unavailable',
+    }))
+  }
+  const results: Readonly<{ name: string; outcome: string }>[] = []
+  for (const entry of release.manifest.entries) {
+    let outcome: string
+    try {
+      const loaded = await host.ensureLoaded({
+        authority: {
+          layer: { kind: 'official' },
+          asset: entry.asset,
+          holding: entry.holding,
+          publication: entry.publication,
+        },
+        access: registrant,
+      })
+      outcome = 'ok' in loaded ? 'loaded' : loaded.failure.kind
+    } catch {
+      outcome = 'threw'
+    }
+    if (outcome !== 'loaded')
+      logger.warn('release tool %s was not preloaded: %s', entry.asset.name, outcome)
+    results.push({ name: entry.asset.name, outcome })
+  }
+  return results
+}
+
+/**
+ * 建行插件。`options` 只在测试里给；`preload` 为 true 时行装好后预装发行作者（发行行是这样建的，测试按需打开）。
+ */
+export function createToolHostPlugin(
+  options: ReleaseAuthorOptions & Readonly<{ preload?: boolean }> = {},
+): Plugin.Object {
   return {
     name: 'tool-host',
     inject: [toolBindingsKey, toolContributionAuthorityKey, toolResidencyReaderKey],
@@ -47,7 +102,9 @@ export function createToolHostPlugin(options: ReleaseAuthorOptions = {}): Plugin
         releaseAuthorInput(ctx, construction ?? {}, options),
       )
       // The service registers itself in this row's fiber (Cordis `Service` constructor).
-      new Host(ctx)
+      const host = new Host(ctx)
+      // After this body returns, so the author plugins load under a live coordinator.
+      if (options.preload === true) setImmediate(() => void preloadRelease(ctx, host))
     },
   }
 }
@@ -61,5 +118,5 @@ export const toolHostRow = defineRow({
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },
-  plugin: createToolHostPlugin(),
+  plugin: createToolHostPlugin({ preload: true }),
 })
