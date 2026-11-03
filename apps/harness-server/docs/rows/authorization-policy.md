@@ -11,7 +11,7 @@
 | 行 id | `authorization`，`implementation` 为 `real`，没有关闭阶段                                                          |
 | 提供  | `sessionAccessCheck`、`agentAccessCheck`、`agentActionAdmission`                                                   |
 | 注入  | `principalVerifier`（入口对象）、`tenantStanding`（`identity` 行）。两项都是必需依赖，缺任一项时本行停在 `PENDING` |
-| 配置  | 可选的 `actionRules` 动作规则快照。政策表和系统授予表仍是源码常量，运维者不能经配置给系统主体授予用途              |
+| 配置  | 可选的 `actionRules` 动作规则快照，可选的 `maintenanceGrants` 收紧项（见[运维者对授予表的收紧](#运维者对授予表的收紧)）。政策表和系统授予表随版本内置，运维者不能经配置给系统主体授予用途 |
 
 三个服务共用同一组依赖，所以放在同一个插件上，一起装载，一起撤除。服务对象只持有闭包。依赖在每次调用时重新读取。每次检查都读当前事实，不缓存任何 `allowed`。
 
@@ -62,9 +62,9 @@
 
 ## 授予表与持有者投影
 
-授予表是源码常量 `MAINTENANCE_GRANTS`。读口只在核验器信任主体、矩阵行匹配之后被调用。它按主体的 `component` 文本在表里找记录。文本只用来定位，不是凭据。手工构造的同名对象在核验一步得到 `untrusted-principal`，到不了读口。
+授予表是随版本内置的源码常量 `MAINTENANCE_GRANTS`，运维者只能收紧它，见下一节。读口只在核验器信任主体、矩阵行匹配之后被调用。它按主体的 `component` 文本在表里找记录。文本只用来定位，不是凭据。手工构造的同名对象在核验一步得到 `untrusted-principal`，到不了读口。
 
-记录是部署级的，不按租户分区，没有撤销，也没有到期。没有记录的系统主体在矩阵格得到 `denied grant-missing`。
+记录是部署级的，不按租户分区。内置记录没有撤销，也没有到期，运维者收紧后才有。没有记录的系统主体在矩阵格得到 `denied grant-missing`。
 
 <!-- policy:grants -->
 
@@ -75,6 +75,37 @@
 | `tenant-domain-scanner`  | `maintenance-grant/tenant-domain-scanner`，修订 2  | `enumerate-tenants`                                                           |
 
 <!-- /policy:grants -->
+
+### 运维者对授予表的收紧
+
+依据是 R2-D204 第 2 条与 IC-18。系统组件的授予表随版本内置。运维者可以收回其中一项，或给其中一项设到期时间。运维者不能新增，也不能改用途、主体或作用域。
+
+行配置 `maintenanceGrants` 是一个对象。键是记录标识，即上表“记录”一列的文字，例如 `maintenance-grant/agent-host`。值只有两个成员，且至少写一个。
+
+| 成员        | 取值                                | 效果                                                                  |
+| ----------- | ----------------------------------- | --------------------------------------------------------------------- |
+| `revoked`   | 只能是 `true`                       | 记录已收回。授权判定答 `denied grant-revoked`，不再问时钟             |
+| `expiresAt` | UTC 时刻，例如 `2027-01-01T00:00:00Z` | 时钟读数不早于它时，答 `denied grant-expired`；早于它时照常放行 |
+
+```json
+{
+  "maintenanceGrants": {
+    "maintenance-grant/agent-host": { "expiresAt": "2027-01-01T00:00:00Z" },
+    "maintenance-grant/tenant-domain-scanner": { "revoked": true }
+  }
+}
+```
+
+边界如下。
+
+- 配置里出现表外的记录标识时，行启动失败，错误写出该标识和表内的全部标识。键只认记录标识，组件名文字（例如 `agent-host`）也算未知。
+- 值里出现 `purposes`、`component`、`principal`、`scope` 或其他成员，`revoked: false`，空对象，或不是 UTC 时刻的 `expiresAt`，配置都被拒绝，行不启动。
+- 空配置或不写 `maintenanceGrants` 时，行为与内置表完全相同。
+- 到期由注入的时钟判定，不读系统时间。行的构造函数 `createAuthorizationRow({ clock })` 接收 `IdentityClock`。时钟答不出时，该记录的动作答 `unavailable`，不放行。
+- 发行装配的 `authorization` 行目前没有安装时钟：清单没有注入 `identityClock`。所以配置了 `expiresAt` 时行启动失败，错误说明没有时钟。`revoked` 不需要时钟，现在可用。接入时钟要改装配页、`stubs.ts` 与可见性，归装配的单写者。
+- 配置只作用于本行的 Session 与 Agent 访问检查。`session-storage` 行的租户枚举读口另有一份授予表实例（`releaseMaintenanceGrants()`），不读本行配置。要让收紧对枚举租户用途生效，那一行要用同一个 `maintenanceGrants` 模式和同一个收紧函数 `tightenMaintenanceGrants`。这一点归装配的单写者。
+- 收紧后记录的 `revision` 与 `generation` 保持内置值。收紧后的 `revoked` 和 `expiresAt` 进入裁定依据和证据摘要。
+- 撤权从下一次检查起生效。一次 `check` 答 `allowed` 之后、提交之前的收回不阻止这次提交（K-5）。
 
 下表由系统列和授予表算出。一个持有者通过一格，当且仅当这一格是矩阵格，并且持有者的记录写了这一格的用途。这是一个渲染视图，不是裁定列。
 
@@ -523,6 +554,7 @@
 - `adapters.spec.ts`：两个访问检查对真实的 `SessionAccessCheck` 与 `AgentAccessCheck` 契约运行，依赖是核验器和 `tenantStanding` 的测试替身，授权判定用的是 `@omne-harness/authorization` 的参考件。含依赖抛错时的 `unavailable`、原型链键、固定绑定、前置裁定、矩阵请求的形状、本页与源码的逐格核对，以及 `serveOnce` 下的活树用例。
 - `policy-golden.spec.ts`、`policy.spec.ts`、`policy.spec-d.ts`：表本身的逐格黄金表、审计和行完整性。
 - `grants.spec.ts`：授予表和读口。
+- `grant-tightening.spec.ts`：运维者收紧。模式的接受与拒绝，真实行上的收回、到期、表外标识、改用途和无时钟，每项都有对照用例。
 - `tool-access.spec-d.ts`：同一个 qualify 对象满足两个 Tool 端口。`adapters.spec.ts` 还运行 Tool 五项符合性套件，包含失败依赖，以及动作规则、严格配置和撤除旧引用用例。
 - `../entry/tenant-domain-scanner.spec.ts`：真实入口签发与核验、精确枚举用途、伪造主体拒绝。
 
@@ -533,4 +565,4 @@
 - 改一个格：改 `session-policy.ts` 或 `agent-policy.ts`，同步黄金表，重新生成本页的表区。
 - 新增一个操作：上游枚举多一项时，成员的类型检查变红。补一行，补出处，补黄金表。
 - 新增一个系统动作：先在 `@omne-harness/authorization` 的矩阵里加行，再加矩阵格和授予记录。
-- 改授予表：改 `grants.ts` 的常量，修订常量随之加一，重新生成本页。
+- 改授予表：改 `grants.ts` 的常量，修订常量随之加一，重新生成本页。运维者收紧的规则在 `grant-tightening.ts`。
