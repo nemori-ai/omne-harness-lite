@@ -42,6 +42,10 @@
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/sqlite-provider": "workspace:*",
     "@omne-harness/tool-definitions": "workspace:*",
-    "@deepseek-ai/cordis": "catalog:"
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/execution-environment-contract": "workspace:*",
+    "@omne-harness/execution-environment-cordis-contract": "workspace:*",
+    "@omne-harness/runtime-context-contract": "workspace:*",
+    "@omne-harness/tool-cordis-contract": "workspace:*"
   }
 }

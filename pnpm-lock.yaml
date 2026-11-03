@@ -2391,6 +2391,12 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/execution-environment-contract':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-contract
+      '@omne-harness/execution-environment-cordis-contract':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-cordis-contract
       '@omne-harness/execution-environment-host-local':
         specifier: workspace:*
         version: link:../../execution/execution-environment-host-local
@@ -2400,9 +2406,15 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
+      '@omne-harness/tool-cordis-contract':
+        specifier: workspace:*
+        version: link:../tool-cordis-contract
       '@omne-harness/tool-definitions':
         specifier: workspace:*
         version: link:../tool-definitions
