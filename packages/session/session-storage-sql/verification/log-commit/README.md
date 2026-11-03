@@ -6,7 +6,7 @@
 
 ## 采用范围
 
-模型版本为 1，采用 #502 revision 3 的 M-LOG 范围。
+模型版本为 1。
 源码映射的基线为 `2e6fa47b1e95b8f0108fbe2032d9f9457f4b54a8`。
 正式行为来源如下。
 
@@ -15,10 +15,10 @@
 - [FR-05](../../../session-contract/SPEC.md#fr-05)区分执行 head、head 回执、事件序号和事件来源。
 - [AD-02](../../../session-adapters/SPEC.md#ad-02)规定 Agent 原事实先提交，Session 随后解释，以及同根索引的发布点。
 - [存储成员 SPEC](../../SPEC.md#实现现状)说明基线能力和 K-5 缺口。
-- #502 波 2 线包 5.0、R1、R3 要求 `commitLog`、同事务 K-5 读取和正负控。R2-D18 要求接口以可加方式进入。
+- `commitLog` 与同事务 K-5 读取须有正控与负控。`commitLog` 以可加方式进入 `SessionTransactionPort`。
 
-基线的 `SessionTransactionPort` 尚无 `commitLog`。
-本模型约束 R1/R3 的目标实现，不把后续实现写成既有事实。
+基线提交的 `SessionTransactionPort` 尚无 `commitLog`。
+本模型约束 `commitLog` 的目标行为。下文「源码映射」另列现在已有的实现，不把尚未核验的部分写成既有事实。
 `reads.prefixes`、authority 主体类别和登记表缺席语义不在模型里取候选值。
 
 ## 状态与观察
@@ -133,14 +133,14 @@
 
 ## 源码映射与实现义务
 
-C-STORAGE（#502 r3 attempt `502-r3-a2`）兑现了下表「已兑现」一列的切点。
+下表「已兑现」一列是现在已有源码实现的切点。
 兑现指源码有对应实现并有 SQL 用例，不指模型与实现的符合性已经证明。
 用例的范围见[存储成员 SPEC](../../SPEC.md#已知限制)第 12、16 条。
 
 | 模型位置 | 来源 | 已兑现 | 尚需核验 |
 | --- | --- | --- | --- |
 | observation 与 `Judge` | [公开 observation](../../../session-contract/src/projection.ts)、[validateObservation](../../../session-contract/src/observation-validation.ts)、[事务端口](../../../session-contract/src/ports.ts)、[log 判定](../../src/worker/log.ts) | `commitLog` 在写事务内先按 operation 认回，再读 K-5 并调用纯层。错 head 答 `invalid(revision)`，跨租户与不存在的会话答相同的 `denied`，委派视图答 `denied`，`sequence ≤ readThrough` 认回覆盖它的原回执。LC-01 至 LC-10 在 `node:sqlite` 夹具与真实 sqlite-provider 上运行 | 模型的 `Refresh` 与 `changed`：SQL 写事务串行，交错的第二个提交在同一事务里读到新进度，按零条目认回，没有实际产生 `changed` 的用例 |
-| `PublishAgent`、K-5 分量 | [execution-record.ts](../../src/worker/execution-record.ts) 的 `publish`、`writeIndex`；[history-index.ts](../../src/worker/history-index.ts) | 原事实与四张 `er_` 索引表同事务写入（既有）。读侧在 Session 的同一写事务里按键点查四张表，占位回执、未知 kinds 与解析不出的行不进入索引 | AD-02 生产发布点的 `kinds` 归一与非当前执行的占位回执归 C-ADAPTERS；`taken` 与已解释批次不进入索引 |
+| `PublishAgent`、K-5 分量 | [execution-record.ts](../../src/worker/execution-record.ts) 的 `publish`、`writeIndex`；[history-index.ts](../../src/worker/history-index.ts) | 原事实与四张 `er_` 索引表同事务写入（既有）。读侧在 Session 的同一写事务里按键点查四张表，占位回执、未知 kinds 与解析不出的行不进入索引 | AD-02 生产发布点的 `kinds` 归一与非当前执行的占位回执归 session-adapters 的 AD-02 生产插件；`taken` 与已解释批次不进入索引 |
 | `Root` 与 `Refresh` | [log-root.ts](../../src/worker/log-root.ts)、[history-index.ts](../../src/worker/history-index.ts) | 共同根与 K-5 分量在同一写事务里读出，根与索引同源 | 用旧根准备、在新根上重判的路径仍只由纯层的 `changed` 规则覆盖 |
 | `Judge`、`PublishSession`、`Abort` | [log 判定](../../src/worker/log.ts)、[参加者](../../src/worker/participant.ts) 的 `publishSameLog` | 后果行、进度行、模型视图、快照、派生行、`log` 操作行与尾部同一事务发布。条目行、快照、操作行、尾部四处写失败注入后全部 `sl_` 表不变（`tests/log.spec.ts`） | 真实提供者上的写失败注入未运行，回滚只在 `node:sqlite` 夹具上观察 |
 | `LoseContact`、`Query`、`Deliver` | [log.ts](../../src/log.ts)、[commit.ts](../../src/commit.ts) 的尝试代次结算；[SL07/08](../../../session-contract/SPEC.md#日志提交与查询结果) | 应答丢失答 `commit-unknown`，同 operation 重试认回原回执。`log` 记录对 `queryOperation` 与 `queryControlOperation` 都答 `conflict`，认回只走重试。认回别的 operation 不保存本身份的记录，查询答 `unknown` | 真实提供者上的杀进程后认回只对 `create` 运行（`tests/real-provider.spec.ts`），没有对 `commitLog` 运行 |
@@ -154,7 +154,7 @@ Agent Finishing 与 model-reception 模型继续拥有动作与结果接收的�
 ## 运行
 
 在 Windows 宿主 Git Bash，从仓库根运行。
-TLC 使用 WSL，是本任务明确采用的工具环境。
+TLC 使用 WSL，是本目录采用的工具环境。
 运行器将本目录的模型、cfg 与自身复制到独立 WSL 临时目录。
 TLC 不在 `/mnt/d` 上运行，临时目录在退出时清理。
 
@@ -164,8 +164,8 @@ unset UV_DEFAULT_INDEX
 export OMNE_TEST_SLOT_DIR="C:/Users/ALIENW~1/AppData/Local/Temp/omne-test-slots-ALIENWARE"
 python packages/session/session-storage-sql/verification/log-commit/run-models.py --help
 python packages/session/session-storage-sql/verification/log-commit/run-models.py --self-test
-python packages/session/session-storage-sql/verification/log-commit/run-models.py --parse-only --output tmp/line-session-run/w2/M-LOG/parse-fixed
-node scripts/with-test-slot.mjs python packages/session/session-storage-sql/verification/log-commit/run-models.py --workers 1 --heap-mb 1024 --timeout 120 --output tmp/line-session-run/w2/M-LOG/tlc-fixed
+python packages/session/session-storage-sql/verification/log-commit/run-models.py --parse-only --output tmp/log-commit-parse
+node scripts/with-test-slot.mjs python packages/session/session-storage-sql/verification/log-commit/run-models.py --workers 1 --heap-mb 1024 --timeout 120 --output tmp/log-commit-tlc
 ```
 
 `--case <名称>` 可以重复，按给出的顺序运行所选配置。
@@ -191,7 +191,7 @@ SANY 静态解析退出 0。运行器的 8 项结果分类自测通过。
 - Java 为 Temurin `21.0.12.1+1-LTS`，Python 为 WSL `3.12.3`。
 - JAR SHA-256 为 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`。
 - 参数为单 worker、`-Xmx1024m -XX:+UseSerialGC -fp 0 -seed 1 -cleanup`，每 cfg 最多 120 秒。
-- 汇总与原始日志写入 `tmp/line-session-run/w2/M-LOG/tlc-fixed/`，属于本次过程证据。
+- 汇总与原始日志写入 `--output` 指定的目录，在工作树 `tmp/` 下，不入库。
 
 | 配置 | 生成状态 | 不同状态 | 退出码 | 日志结论 |
 | --- | ---: | ---: | ---: | --- |

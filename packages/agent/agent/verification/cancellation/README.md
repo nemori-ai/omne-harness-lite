@@ -4,7 +4,7 @@
 
 ## 采用与边界
 
-本资源按 #502 revision 3 的 R2-D15 和 M-CANCEL 闭包维护。采用的源码与契约基线是 `2e6fa47b1e95b8f0108fbe2032d9f9457f4b54a8`。
+本资源采用的源码与契约基线是 `2e6fa47b1e95b8f0108fbe2032d9f9457f4b54a8`。
 
 | 契约拥有者 | 本模型采用的承诺 |
 | --- | --- |
@@ -90,11 +90,11 @@
 
 跨进程消息被抽象成可任意延迟的独立动作。权威撤权与生产者新受理必须在同一排序依据上核对，本模型用 `eligible` 表示该依据。实现应验证远端旧快照、缓存许可、失联和重新挂接时的围栏，本模型没有假定进程内布尔值能够提供这些保证。
 
-本模型没有展开租户身份、后台 Tool、暂停、停用、单调用重复控制、多个 execution、模型重试、工具建议准入、完整取消判断或消息丢失后的重传。不得由本模型推导这些行为。线包待裁的 prefixes、authority 主体类别和登记表缺席语义不进入模型。
+本模型没有展开租户身份、后台 Tool、暂停、停用、单调用重复控制、多个 execution、模型重试、工具建议准入、完整取消判断或消息丢失后的重传。不得由本模型推导这些行为。尚未裁定的 prefixes、authority 主体类别和登记表缺席语义不进入模型。
 
 ## 执行
 
-Windows 宿主从工作树根运行。Python 仅使用标准库。TLC 使用任务指定的 WSL Ubuntu-24.04 与 `/opt/tlaplus/tla2tools.jar`。
+Windows 宿主从工作树根运行。Python 仅使用标准库。TLC 使用 WSL Ubuntu-24.04 与 `/opt/tlaplus/tla2tools.jar`。
 
 ```bash
 export PYTHONUTF8=1
@@ -108,7 +108,7 @@ node scripts/with-test-slot.mjs python packages/agent/agent/verification/cancell
 
 运行器先执行负控，再执行正控。可在命令后追加一个或多个 cfg 名称，不含扩展名。`--timeout` 调整单配置预算，默认 180 秒。`--output` 只能指定本工作树 `tmp/` 下的证据根目录。
 
-Windows 运行器把模型、配置及自身快照通过标准输入复制到 WSL 的独立 `/tmp/omne-cancellation.*`。Java 在该副本运行，TLC 状态文件也留在该副本。证据复制到工作树的 `tmp/line-session-run/w2/M-CANCEL/runs/<UTC 时间>/`。正常结束、失败或超时退出后删除 WSL 副本。没有在 `/mnt/d` 安装依赖或运行仓库构建。
+Windows 运行器把模型、配置及自身快照通过标准输入复制到 WSL 的独立 `/tmp/omne-cancellation.*`。Java 在该副本运行，TLC 状态文件也留在该副本。证据复制到 `--output` 指定的证据根目录下的 `runs/<UTC 时间>/`。该目录在工作树 `tmp/` 下，不入库。正常结束、失败或超时退出后删除 WSL 副本。没有在 `/mnt/d` 安装依赖或运行仓库构建。
 
 每次执行保存输入 SHA-256、源码 HEAD、JAR SHA-256、Java/TLC 版本、完整命令、参数、退出码、状态数和原始日志。HEAD 只定位基线，输入哈希标识未提交候选的实际字节。正控要求退出 0 且出现完整搜索成功标记。安全性负控要求退出 12、指定不变量及轨迹。时序负控要求退出 13 和时序反例。未执行配置与工具失败不能记为通过。
 
@@ -131,4 +131,4 @@ Windows 运行器把模型、配置及自身快照通过标准输入复制到 WS
 
 正控日志均包含 `Model checking completed. No error has been found.`，无剩余队列状态。TLC 报告的指纹碰撞估计为乐观 `1.0E-9`、实际指纹估计 `1.3E-10`。这些仍是有限模型检查结果，不是数学证明。负控在反例处停止，其状态数不代表完整探索。
 
-原始日志与输入快照位于当次工作树 `tmp/line-session-run/w2/M-CANCEL/runs/20261102T121645.502318Z/`，`results.json` 汇总全部十项。上述完整运行入口退出 0。阶段性的模型表达错误和失败输出留在闭包证据目录，不进入长期行为声明。
+每次运行的原始日志与输入快照在证据根目录的 `runs/<UTC 时间>/` 下，不入库。`results.json` 汇总全部十项。上述完整运行入口退出 0。

@@ -36,7 +36,7 @@
 
 [AD-02](../SPEC.md#ad-02)消费 Session 自有的根、历史目录、原批次、原 attempt 与归一调用登记候选值。该成员负责公开 Agent identity decoder、Model/Tool invocation resolver 与原 effect/pending/Authority 的校验；session-contract 负责其语言内的完整性与不变量。
 
-已有 AgentJournal、AgentJournalEntries、AgentReceivedCommits 与 AgentMaterials 形状保持，不新增 Agent 端口。已实现的 `./testing` 内存提供者直接用 Session 的 decide/projectSessionLog/reduce/commandDigest 组合同一个 per-session 根。它不包装第二个独立内存日志。已导出的 Session 值、第三个可选 reads 与 executionEvidence 的导航归 [Session 公开接口页](../../session-contract/docs/public-api.md#同日志历史材料的候选增加)。内存组合的支持与验证入口见下节；生产插件、真实外部来源及耐久、跨进程保证仍未实现或验证，不能由内存组合推得。候选条款的技术接受状态仍归 SPEC。
+已有 AgentJournal、AgentJournalEntries、AgentReceivedCommits 与 AgentMaterials 形状保持，不新增 Agent 端口。已实现的 `./testing` 内存提供者直接用 Session 的 decide/projectSessionLog/reduce/commandDigest 组合同一个 per-session 根。它不包装第二个独立内存日志。已导出的 Session 值、第三个可选 reads 与 executionEvidence 的导航归 [Session 公开接口页](../../session-contract/docs/public-api.md#同日志历史材料的候选增加)。内存组合的支持与验证入口见下节。真实外部来源及耐久、跨进程保证不能由内存组合推得。AD-02 与 AD-05 的生产插件见 SPEC 的 [AD-02 生产插件](../SPEC.md#ad-02-生产插件)与 [AD-05 生产插件](../SPEC.md#ad-05-生产插件)。候选条款的技术接受状态仍归 SPEC。
 
 ## 共同日志内存提供者
 
