@@ -210,6 +210,39 @@ it('replace preserves predecessor history and uses the verified new author', () 
   })
 })
 
+it('adopts confirmed ordinary dependency recovery on resume', () => {
+  const input = decisionInput('resume', 'paused')
+  const current = record('paused')
+  const recovered = { ...input.access.currentStanding, generation: 2 }
+  expect(
+    decide({
+      ...input,
+      current: {
+        ...current,
+        view: {
+          ...current.view,
+          standing: {
+            ...current.view.standing,
+            kind: 'blocked',
+            reasons: ['membership_suspended'],
+          },
+        },
+      },
+      access: { ...input.access, currentStanding: recovered },
+    }),
+  ).toMatchObject({
+    kind: 'save',
+    mutation: { kind: 'update', next: { consentLock: { kind: 'clear' } } },
+    result: {
+      control: 'active',
+      standing: recovered,
+      stateRevision: current.view.stateRevision + 1,
+      definitionRevision: current.view.definitionRevision,
+      timeRuleRevision: current.view.timeRuleRevision,
+    },
+  })
+})
+
 it('consent regrant does not clear a lock on resume; reconfirm keeps unrelated blockers and pause', () => {
   const input = decisionInput('resume', 'paused')
   const current = record('paused')
@@ -223,7 +256,16 @@ it('consent regrant does not clear a lock on resume; reconfirm keeps unrelated b
     consentLock: { kind: 'reconfirmationRequired', grantRef: 'old', revokedGeneration: 1 } as const,
     view: { ...current.view, standing: { ...blocked, reasons: [...blocked.reasons] } },
   }
-  expect(decide({ ...input, current: locked })).toMatchObject({
+  expect(
+    decide({
+      ...input,
+      current: locked,
+      access: {
+        ...input.access,
+        currentStanding: { ...input.access.currentStanding, generation: 2 },
+      },
+    }),
+  ).toMatchObject({
     kind: 'save',
     mutation: { next: { consentLock: locked.consentLock } },
     result: { standing: { kind: 'blocked' } },

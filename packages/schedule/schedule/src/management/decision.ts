@@ -149,16 +149,16 @@ function standingMeaning(standing: ScheduleStanding) {
 
 function observedRecord(input: ManagementDecisionInput, current: ScheduleRecord): ScheduleRecord {
   const observed = input.access.currentStanding
-  const standing =
-    current.view.standing.kind === 'terminallyInvalidated'
-      ? current.view.standing
-      : observed.kind !== 'ready'
-        ? observed
-        : current.view.standing
   const consentLock =
     current.consentLock.kind === 'reconfirmationRequired'
       ? current.consentLock
       : input.access.consentLock
+  const standing =
+    current.view.standing.kind === 'terminallyInvalidated'
+      ? current.view.standing
+      : observed.kind !== 'ready' || consentLock.kind === 'clear'
+        ? observed
+        : current.view.standing
   return { ...current, consentLock, view: { ...current.view, standing } }
 }
 
