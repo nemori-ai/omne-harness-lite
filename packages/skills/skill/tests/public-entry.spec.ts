@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
+import * as skill from '@omne-harness/skill'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
-  const root = (await import('@omne-harness/skill')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+it('exports the two factories on the root entry', () => {
+  expect(Object.keys(skill).sort()).toStrictEqual(['createPackageInspection', 'createSkillAccess'])
 })

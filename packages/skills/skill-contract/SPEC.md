@@ -25,7 +25,7 @@
 | --- | --- | --- |
 | `@omne-harness/skill-contract` | 调用方；端口实现方另读 `./provider` | 值、守卫、失败、`SkillCatalog` 与 `SkillAccess` 的接口及结果值、纯函数、`skillBodyContract` |
 | `@omne-harness/skill-contract/provider` | 来源、资产登记与端口的实现方 | 三个需求端口及其答复类型、`PackageInspection` 接口、`SkillRef`、`PackageLocator`、`sealSnapshot`、`SnapshotDefect` |
-| `@omne-harness/skill-contract/testing` | 端口实现方的测试 | 三个端口的符合性套件、内存替身、`ConformanceCase`、`NotApplicable`、`runConformanceCase`、`isNotApplicable` |
+| `@omne-harness/skill-contract/testing` | 端口实现方的测试；`SkillAccess` 实现方的测试 | 三个端口的符合性套件、内存替身、`SkillAccess` 的符合性套件 `skillAccessConformance` 与它的夹具类型 `AccessFixture`、`ConformanceCase`、`NotApplicable`、`runConformanceCase`、`isNotApplicable` |
 
 - 公开根与 `./provider` 都不导入 `./testing`。三个入口都不导入测试框架。
 - 公开根不导出 `SkillRef`、`PackageLocator`、`PackageInspection` 与 `sealSnapshot`。调用方拿不到包定位。
@@ -66,7 +66,7 @@
 | 控制字节与快照不对应时 `parseSkillPackage` 答 `version-changed` | [前提与版本](#parse-preconditions) | 领域设计裁定 C1（2026-11-03） |
 | 只做检查的值公开守卫 `isX`，`toPackagePath` 仍规范化并答 `Outcome` | [值与守卫](#values) | 领域设计裁定，品牌授予规则（2026-11-03） |
 | `./testing` 的套件是无框架的用例列表 | [符合性套件](#conformance) | 领域设计裁定 C18（2026-11-03） |
-| 本版本的 `./testing` 没有 `SkillAccess` 的套件 | [符合性套件](#conformance) | 不在本成员这次交付的范围内：`SkillAccess` 的套件随 `@omne-harness/skill` 的实现，以可加改动加入 `./testing` |
+| `./testing` 有 `SkillAccess` 的符合性套件 `skillAccessConformance`，随 `@omne-harness/skill` 的实现以可加改动加入 | [符合性套件](#conformance) | 领域设计裁定 C18（2026-11-03）；W2 Skill 线交付 |
 | `description`、`scripts`、`settings` 与 `package` 是 `skill` 资产正文的保留字段 | [`skill` 类别端口](#category-port) | 领域设计裁定 C3（2026-11-03） |
 | `list` 与 `export` 也收 `signal`，也可以答 `aborted`；组页只给 `read` 写了 `signal` | [读取的形状规则](#read-shape) | 领域设计裁定 S3-16（2026-11-03） |
 | `SkillPackageSource.snapshot` 可以答 `outside-package`（包内链接解析后落在根外）。有这种链接的包整包不可读 | [需求端口](#ports) | 领域设计裁定 S3-6（2026-11-03） |
@@ -299,9 +299,10 @@ governance
   - 起点或长度为负数或非整数时，是调用方的错误，读取抛出 `TypeError`。
   - 本版本的每页上限不可配置。
 - 读正文时，内容摘要核对整个 `SKILL.md` 条目。字节范围与总长都相对正文起点，不含头部。
+- 正文起点由 `bodyOffsetOf(bytes)` 给出：字节的第一行逐字为 `---` 且以 LF 或 CRLF 结束，之后第一个逐字为 `---` 的行（以 LF 或 CRLF 结束，或是最后一行）是闭合行，正文起点是闭合行的行终止符之后的字节偏移；闭合行是最后一行且没有行终止符时，正文起点等于字节总长。没有这样的开头行或闭合行时答 `undefined`。它只看定界行，不解码字节，也不判断头部的 YAML。
 - 结果写出实际范围，它这样确定：
   - 实际起点是不小于请求起点的第一个字符边界。二进制条目的每个字节都是边界，所以实际起点就是请求起点。实际起点超过总长时截到总长。
-  - 实际长度是实际交出的字节数。文本条目的终点前移到不大于请求终点的上一个字符边界，所以实际长度可以小于请求长度。
+  - 实际长度是实际交出的字节数。请求终点是请求起点加请求长度，不随实际起点后移而变。文本条目的终点前移到不大于请求终点的上一个字符边界，所以实际长度可以小于请求长度。前移后的终点早于实际起点时，实际范围为空。
   - 请求的长度短于起点处的一个字符时，文本收成空范围：实际范围报为已后移的实际起点与长度 0。调用方从实际范围的终点继续读，实际范围为空时用至少 4 字节的长度重读。
 - 文本条目保留 BOM：BOM 是正文或资源的一部分，文本与字节范围对齐。
 - 读取内容是文本或字节。文本条目交出文本，二进制条目交出字节。Skill 不产出 `ContentBlock`，内容块的组装归接收方。
@@ -436,7 +437,6 @@ prefix-conflict
 ### 不在本成员
 
 - `PackageInspection`、`SkillCatalog` 与 `SkillAccess` 只有接口与结果值，实现在 `@omne-harness/skill`。
-- `SkillAccess` 的符合性套件不在本版本。
 - 目录来源 `DirectorySource` 在 `@omne-harness/skill-host-local`。
 
 ## 组合与验证
@@ -457,6 +457,9 @@ prefix-conflict
 | `skillPackageSourceConformance` | `source`；`present`：来源持有、用例运行期间不变的包；`absent`：不对应任何包的定位；`addressing`：是否按内容摘要存放；`escaping`：可选，有一个链接解析后落在根外的包 | PS1–PS8 |
 | `skillResolutionConformance` | `resolution`；`permitted`、`refused` 两个主体与作用域；`adopted`：对 `permitted` 已采用的身份；`missing`：对谁都不存在的身份；`standIn`：可选，对 `permitted` 合法已知、此刻不可用的身份；`earlier`：可选，`adopted` 的一个早先合法版本的依据；`unlawfulLayer`：可选，`adopted` 对 `permitted` 不合法的来源层 | PR1–PR7 |
 | `skillReadCheckConformance` | `readCheck`；`permitted`、`refused`；`readable`：`permitted` 能读的身份；`missing` | PC1–PC3 |
+| `skillAccessConformance` | `access`；`principals`：`reader`（能读 `adopted`）与 `stranger`（对夹具里的身份都无权）；`capability`：`adopted`（对 `reader` 已采用、有可读的包）、`missing`、`checkedOnly`（读取判定准许、对应端口不认识），可选的 `standIn`、`noPackage`（已采用、资产正文无 `package.digest`）、`large`（正文长于 65536 字节）；`world`：`replaceAdopted`、`changeEntry`、`breakOpen`、`abortAfterSnapshot` 改变端口背后的世界并对之后的调用生效，`calls()` 交出四个端口各被调用的次数 | A1–A11、A12a、A12b、A13、A14 |
+
+`skillAccessConformance()` 核对 `SkillAccess` 的实现，不核对端口。A1–A3 只有在夹具的对应端口对无权主体作答（不自己隐藏身份）时，才能看出读取判定被跳过；对应端口自己隐藏身份的夹具上，漏掉读取判定的实现仍能通过 A1–A3。夹具由实现方的工厂给出，套件自己不构造服务。用例按条款编号：A1–A3 无披露（无权主体对已采用与不存在的身份同答；另一身份的依据、对应端口不认识的身份，都与被拒绝的读取同答）；A4、A5 `basis-unavailable` 与 `adopted-material-changed` 的分野；A6 `version-changed` 不交内容；A7 `aborted` 不交内容，已中止时四个端口都不被调用，快照后中止时不再 `open`；A8 `unsupported`；A9–A11 字节范围的页上限（在 `large` 上）、字符边界与按实际范围分页；A12a `export` 交出全部条目、A12b 任一条目不符时不交任何条目；A13 `describe` 不读字节也不取快照；A14 替换件带安全原因，`describe`、`read`、`list` 同答。夹具没有 `noPackage` 时 A8 不适用，没有 `large` 时 A9 的页上限部分不适用，没有 `standIn` 时 A14 不适用，`adopted` 的包没有含 ASCII 之外字符的文本资源时 A10 不适用。套件通过不证明真实端口的行为。
 
 无披露用例 PR5 与 PC3 的名字都是 `answers a principal without the right the same for an existing and a missing identity`。它们比较 `refused` 问已存在的身份与问 `missing` 的答复，两者必须完全相同。PR5 同时比较带依据的答复，并要求 `refused` 的当前合法集合不含 `adopted` 与 `standIn`。
 
@@ -479,7 +482,7 @@ prefix-conflict
 
 未覆盖：
 
-- 读取的形状规则由 `SkillAccess` 的实现兑现。本成员没有它的实现，也没有它的符合性套件。
+- 读取的形状规则由 `SkillAccess` 的实现兑现。本成员有它的符合性套件 `skillAccessConformance`，没有它的实现。套件在实现成员的测试里运行，本成员的测试不运行它。
 - `entry-unreadable` 与 `bytes-mismatch` 没有替身会答，套件也不核对它们。
 - 替身通过不证明真实来源、读取权、求值或耐久。
 - 仓库没有 JSON Schema 校验器。Schema 与解析的一致性按规则逐条比较，不是完整的等价证明。Schema 表达不了的规则写在它的 `description` 中。

@@ -1,50 +1,59 @@
 # @omne-harness/skill
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
-Draft module package.
+The general implementation of two Skill application services: `createPackageInspection` checks one package through a source, and `createSkillAccess` describes, reads, lists and exports one Skill through the three demand ports of `@omne-harness/skill-contract`.
+
 ## Responsibility and status
 
-<!-- documentation:placeholder -->
+This member implements the interfaces `PackageInspection` and `SkillAccess` of the contract. It holds no state between calls, no cache, and no source of its own: every operation checks the read right, the resolution and the package bytes on the spot. The ports are given by the integrator. `SkillCatalog` is not in this member yet (W3).
 
-Describe actual consumers, platforms, responsibility, and adoption basis. Separate implemented, pending, and unverified behavior.
+Status: candidate, without technical acceptance. The services are verified against the memory doubles of `skill-contract/testing` and against the `SkillAccess` conformance suite. No real read check, resolution or source is verified here. The first real source is `@omne-harness/skill-host-local`.
 
 ## Usage
 
-<!-- documentation:placeholder -->
+```ts
+import { createPackageInspection, createSkillAccess } from '@omne-harness/skill'
+import type { SkillPackageSource, SkillReadCheck, SkillResolution } from '@omne-harness/skill-contract/provider'
 
-Give a working example, dependencies, and initialization and disposal responsibilities. Distinguish independent use from Cordis integration. Check public exports, source value dependencies, generated declarations, runtime startup, and the installation closure separately. A ./cordis entry does not prove independent installation.
+declare const source: SkillPackageSource
+declare const readCheck: SkillReadCheck<Principal, Scope>
+declare const resolution: SkillResolution<Principal, Scope>
+
+const inspection = createPackageInspection(source)
+const checked = await inspection.inspect({ kind: 'directory', root: '/skills/review' })
+
+const skills = createSkillAccess({ readCheck, resolution, source })
+const described = await skills.describe(access, scope, capability)
+if ('ok' in described && described.ok.material.kind === 'pinned') {
+  const page = await skills.read(access, scope, { capability, part: { kind: 'body' } }, {
+    basis: described.ok.material.basis,
+    range: { start: 0, length: 4096 },
+  })
+}
+```
+
+The factories take plain objects and give plain objects. There is nothing to start or to dispose. `read`, `list` and `export` take an `AbortSignal`; `describe` does not. The memory doubles of `@omne-harness/skill-contract/testing` are for tests only.
 
 ## Contracts
 
-<!-- documentation:placeholder -->
-
-Link public types, necessary validation, and the sole behavior owner. SPEC.md owns behavior beyond types, and docs/public-api.md indexes the public definitions. Identify error, lifecycle, and resource responsibilities without copying signatures or state machines.
+The data shapes are the public types of `@omne-harness/skill-contract`. The behavior of the two services is owned by the contract: the rejection order and the control-file rules by [its SPEC "检查 Skill 包"](../skill-contract/SPEC.md#parse), the read shape rules by ["读取的形状规则"](../skill-contract/SPEC.md#read-shape), the eleven read steps and the port mapping by the group page ["读取"](../docs/architecture.md#读取) and ["端口"](../docs/architecture.md#端口). [SPEC.md](SPEC.md) of this member owns only what the implementation adds: how the steps are cut into three stages, where the mapping lives, and the decisions this member had to make. [docs/public-api.md](docs/public-api.md) indexes the public definitions.
 
 ## Design
 
-<!-- documentation:placeholder -->
-
-Summarize internal modules and invariant owners. The full design belongs in docs/architecture.md, docs/flows.md, and docs/object-model.md.
+Three stages, each a function over the ports: `gate` (steps 1 to 3), `pin` (steps 5 and 7), `verifiedBytes` (steps 9 and 10). `describe` ends after `gate`, `list` after `pin`, `read` and `export` go through all three. One table, `mapping.ts`, turns a source answer into a service failure. `range.ts` is the pure byte range function. See [docs/architecture.md](docs/architecture.md).
 
 ## Configuration and operation
 
-<!-- documentation:placeholder -->
-
-Describe configuration owners, defaults, environment requirements, and explicit dependencies. State the caller and package responsibilities during operation.
+There is no configuration. The page limit of 65536 bytes is fixed by the contract. The member needs Node.js 24 or later. Load `@omne-harness/skill-contract` only once in the process: the snapshot credential of the contract is per module instance.
 
 ## Verification
 
-<!-- documentation:placeholder -->
-
-List repeatable commands, properties, assumptions, and uncovered behavior. Add tests with actual assertions. Passing structure checks does not establish business behavior.
+Run `pnpm run build`, `pnpm run typecheck` and `pnpm test` in this directory. The tests run the services over the memory doubles, run each stage directly, and run the `SkillAccess` conformance suite on this implementation. See [tests/README.md](tests/README.md). Not covered: real ports, concurrent writes to a package, a content-store source.
 
 ## Maintenance
 
-<!-- documentation:placeholder -->
-
-Identify consumers and checks that must change with public contracts, resources, or dependencies. Explain inapplicable information. Record named gaps for unknown information.
+When the contract changes a failure kind, a step or a shape rule, change `mapping.ts`, the stage that owns the step, the tests, and [SPEC.md](SPEC.md). Keep the three stages free of each other's steps. The group design is in [../docs/architecture.md](../docs/architecture.md).
 
 ## Directory structure and documentation roles
 

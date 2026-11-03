@@ -5,6 +5,7 @@ export {
   type CaseVerdict,
   type ConformanceCase,
 } from './testing-case.ts'
+export { skillAccessConformance, type AccessFixture } from './testing-access.ts'
 export {
   createMemoryReadCheck,
   skillReadCheckConformance,
