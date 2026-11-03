@@ -524,6 +524,27 @@ describe('the history read translates the Session model view', () => {
       })
     })
 
+    it('a page that does not move past the cursor it was asked from is a defect, not thousands of reads', async () => {
+      const w = await world()
+      const { parts } = await w.borrow()
+      await w.remind(6)
+      const ev = await resolved(w, parts)
+      // Every page is the first row alone with the cursor of the start: the skip never advances.
+      w.faults.page = page => ({ ...page, rows: page.rows.slice(0, 1), next: '0' })
+      const calls = w.sessionCalls()
+      const answer = await parts.history.read({
+        access: w.access,
+        evidence: ev,
+        cursor: { evidence: ev, after: '4' as never },
+        budgetBytes: 1,
+      })
+      expect(answer).toMatchObject({
+        kind: 'unavailable',
+        diagnostic: 'translation defect: the model view page does not move on',
+      })
+      expect(w.sessionCalls() - calls).toBeLessThanOrEqual(3)
+    })
+
     it('a bound of 0 in the basis is the empty history, not a defect', async () => {
       const w = await world()
       const { parts } = await w.borrow()
