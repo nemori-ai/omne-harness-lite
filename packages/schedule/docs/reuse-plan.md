@@ -1,22 +1,36 @@
 # 日程与 Job 实现的复用、依赖和工具边界
 
-本页把功能分配给社区实现、系统公共能力和本域实现。源码盘点基线为 `f6dcb59fa4e2530faf071906f37ae1917e9e5130`，社区来源复核于 2026-11-03。版本与许可元数据不等于行为采用，Schedule 候选尚未安装或运行兼容探针；Calendar A1 的实际采用见其复用规划。已有产品政策与验收仍以[行为契约](../schedule/SPEC.md)为准。
+本页把功能分配给社区实现、系统公共能力和本域实现。Schedule 的规则依赖已锁定为 rrule 2.8.1、cron-parser 5.10.3 和 Temporal 0.5.1。固定 Python 源的判别探针与纯计算公开根用例验证了下列适配方案。纯规则枚举和 DST 物化已实现；worker 隔离、日历条件流水线和端到端调度尚未交付。已有产品政策与验收以[行为契约](../schedule/SPEC.md)为准。Calendar A1 的实际采用见其[复用规划](../../calendar/docs/reuse-plan.md)。
 
 ## 社区与标准库复用
 
-| 功能                        | 首选及状态                                                                     | 本域落点                                                                        | 适配与采用条件                                                                                                                             |
-| --------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| 时区、civil 与 instant 转换 | `@js-temporal/polyfill@0.5.1`，ISC，项目技术基础已采用                         | `schedule` 时间物化                                                             | 显式 gap/fold 政策；Node24、ICU/tzdb 和固定样例验证。复用[Calendar 日期选择](../../calendar/docs/reuse-plan.md)                            |
-| RRULE 解析与候选枚举        | `rrule@2.8.1`，BSD-3-Clause，主候选；`rrule-temporal@2.2.8`，MIT，仅作替代比较 | `schedule` 内部薄适配                                                           | 对照固定 Python dateutil 输入，覆盖全部已接受语法、DTSTART、WKST、BYSETPOS 与边界；不同时长期维护两套生产引擎                              |
-| cron 解析与候选枚举         | `cron-parser@5.10.3`，MIT，主候选                                              | `schedule` 内部薄适配                                                           | 先按产品限制五字段及允许语法，再枚举；验证 DOM/DOW OR、周日 0/7 与窗口边界。库 strict 模式要求六字段并限制 DOM/DOW，不能直接作为产品验证器 |
-| 唤醒与取消等待              | Node `timers/promises`、`AbortSignal`；不额外安装 cron runner                  | `schedule-local` 扫描唤醒                                                       | 定时器只唤醒扫描，持久事实决定到期工作。长等待分段，唤醒后重读墙钟，区分单调耗时与业务时间                                                 |
-| JSON 规范化                 | `canonicalize@2.1.0`，Apache-2.0，新增候选                                     | `schedule-contract` 的版本化指纹适配；Calendar 如有同义需要直接使用同一社区依赖 | 严格 JSON 前置、RFC8785 测试向量、Unicode、数字与整数形键、跨语言 golden；不为共享函数让 Calendar 反向依赖 Schedule                        |
-| SHA-256 与随机身份          | Node `crypto`                                                                  | 实际摘要及操作身份拥有者                                                        | 对已规范化字节计算摘要；恢复复用原操作身份，不因重试生成新键                                                                               |
-| 测试时间与断言              | 仓库已有 Vitest                                                                | 各成员 tests 与 acceptance                                                      | 墙钟、单调钟、等待分别控制；假时钟不代替进程重启与真实存储验证                                                                             |
+| 功能                        | 首选及状态                                                    | 本域落点                                                                        | 适配与采用条件                                                                                                                             |
+| --------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 时区、civil 与 instant 转换 | `@js-temporal/polyfill@0.5.1`，ISC，项目技术基础已采用        | `schedule` 时间物化                                                             | 显式 gap/fold 政策；Node24、ICU/tzdb 和固定样例验证。复用[Calendar 日期选择](../../calendar/docs/reuse-plan.md)                            |
+| RRULE 解析与候选枚举        | `rrule@2.8.1`，BSD-3-Clause，已锁定；不同时采用第二引擎       | `schedule` 内部薄适配                                                           | 对照固定 Python dateutil 输入，覆盖全部已接受语法、DTSTART、WKST、BYSETPOS 与边界；不同时长期维护两套生产引擎                              |
+| cron 解析与候选枚举         | `cron-parser@5.10.3`，MIT，已锁定                             | `schedule` 内部薄适配                                                           | 先按产品限制五字段及允许语法，再枚举；验证 DOM/DOW OR、周日 0/7 与窗口边界。库 strict 模式要求六字段并限制 DOM/DOW，不能直接作为产品验证器 |
+| 唤醒与取消等待              | Node `timers/promises`、`AbortSignal`；不额外安装 cron runner | `schedule-local` 扫描唤醒                                                       | 定时器只唤醒扫描，持久事实决定到期工作。长等待分段，唤醒后重读墙钟，区分单调耗时与业务时间                                                 |
+| JSON 规范化                 | `canonicalize@5.1.0`，Apache-2.0，与现有Calendar采用一致      | `schedule-contract` 的版本化指纹适配；Calendar 如有同义需要直接使用同一社区依赖 | 严格 JSON 前置、RFC8785 测试向量、Unicode、数字与整数形键、跨语言 golden；不为共享函数让 Calendar 反向依赖 Schedule                        |
+| SHA-256 与随机身份          | Node `crypto`                                                 | 实际摘要及操作身份拥有者                                                        | 对已规范化字节计算摘要；恢复复用原操作身份，不因重试生成新键                                                                               |
+| 测试时间与断言              | 仓库已有 Vitest                                               | 各成员 tests 与 acceptance                                                      | 墙钟、单调钟、等待分别控制；假时钟不代替进程重启与真实存储验证                                                                             |
 
 `rrule` 官方说明其行为源于 python-dateutil，并列出 DTSTART 和 RFC 差异，因此先以它对照源系统。选择不是仅凭下载量或库自报性能。`rrule-temporal` 的 includeDtstart、strict、预算及 Temporal 类型同样必须经过目标语义验证。
 
 直接来源：[rrule](https://github.com/jkbrzt/rrule#differences-from-icalendar-rfc)、[rrule-temporal](https://github.com/ggaabe/rrule-temporal)、[cron-parser strict](https://github.com/harrisiirak/cron-parser#strict-mode)、[Node24 timers](https://github.com/nodejs/node/blob/v24.x/doc/api/timers.md)、[canonicalize](https://github.com/erdtman/canonicalize)、[RFC8785 参考实现](https://github.com/cyberphone/json-canonicalization)。版本最终以采用时锁定的发布物为准。
+
+### 规则库的适配责任
+
+固定源为 omne-next `a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0`，对应 dateutil 2.9.0.post0 与 croniter 6.2.2。探针覆盖全部标准RRULE关键字的判别样例，不是组合穷举。合法源表达范围不能缩为常用频率。
+
+- RRULE的DTSTART、COUNT、UNTIL继续由外部字段表达。库只枚举civil，不能自行扣合格次数或处理实际IANA时区。
+- BYEASTER列表按同一锚定年份收集库的子流，先并集去重再统一BYSETPOS，最后筛起算边界。不能对子流分别取位置，也不能先裁起算再把后面的日期提升为第一位。
+- cron的W、L/#、多序数、环绕步进与同端点范围使用有界规范化和库枚举。W是周一至周五的cron条件，不代表法定工作日。W与显式DOW同时受限时按目标DOM/DOW OR并集，固定源忽略DOW的行为是具名适配差异。
+- 随机R/H、非正间隔、越界时间字段按目标确定性和合法值政策拒绝。合法但不存在日期的规则不能因为库提前拒绝而误报语法错误。
+- rrule的内部搜索可能不产生候选回调。外层候选计数不能证明计算有时间上限。local须用可终止worker守住执行deadline；超时明确不完整，不能报完整空集。
+
+rrule 2.8.1 的内部 `Date.UTC` 会把 0–99 年解释成 1900–1999 年，使合法有限规则误报耗尽。工作区通过 `patches/rrule@2.8.1.patch` 修正 CJS 和 ESM 发布物的 UTC 日期构造；规则算法和版本不变，补丁哈希由锁文件固定。公开根回归覆盖 0000、0001、0099、0100 年、零年闰日和 Easter。升级时若上游已修复，须先在无补丁版本通过这些用例，再删除补丁与登记。该补丁属于本域采用责任，不建立第二套规则引擎。
+
+新增传递依赖为rrule使用的tslib及cron-parser使用的luxon，实际版本以锁文件为准。独立探针的tslib版本与工作区可能不同，正式验证必须运行工作区确切发布物。只比较明确反例所需的替代方案，不额外维护cron runner、通用队列或工作流平台。
 
 ## 系统能力与实际状态
 
