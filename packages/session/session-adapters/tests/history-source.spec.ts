@@ -54,7 +54,8 @@ import {
   sessionAdoptedRequestsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionHistorySource } from '../src/cordis/history-source.ts'
-import { m0Checkpoint, type FixedValues } from './fixtures/adopted-request.ts'
+import { agentContextReady } from './fixtures/agent-context-ready.ts'
+import { invocation, m0Checkpoint, type FixedValues } from './fixtures/adopted-request.ts'
 import { ok, scene, type SceneQualification } from './fixtures/common-journal.ts'
 
 // --- the fixture -----------------------------------------------------------------------------------
@@ -309,12 +310,15 @@ function scriptedAdoptedRequests() {
     saved: SessionAdoptedRequest | null
     answer: SessionAdoptedRequestRead | 'throw' | null
     calls: Readonly<{ access: unknown; session: unknown }>[]
-  } = { saved: null, answer: null, calls: [] }
+    /** Runs while a read is in flight, before it answers: what changes meanwhile. */
+    meanwhile: (() => void) | null
+  } = { saved: null, answer: null, calls: [], meanwhile: null }
   class Plugin extends SessionAdoptedRequestsService<unknown> {
     readonly readAdoptedRequest = async (
       input: Parameters<SessionAdoptedRequests<unknown>['readAdoptedRequest']>[0],
     ): Promise<SessionAdoptedRequestRead> => {
       state.calls.push({ access: input.access, session: input.session })
+      state.meanwhile?.()
       if (state.answer === 'throw') throw new Error('the provider read threw')
       return state.answer ?? { kind: 'value', value: state.saved }
     }
@@ -888,6 +892,34 @@ describe('the narrow adoption source reads the a part of the session (RQ-14)', (
     expect(await source()).toEqual({ kind: 'value', value: null })
   })
 
+  it('a target scope retired while the a part was read is unavailable, not null', async () => {
+    const { w, target, source } = await adoptedWorld()
+    const bindings = ok(await w.s.backend.transactions.readWork(w.s.access)).contextScopes ?? []
+    const last = bindings.at(-1)
+    if (last === undefined) throw new Error('the session has no scope')
+    // Between the eligibility check and the answer of the provider, the session archives the
+    // target scope, revokes the archive into a new scope, and the first M0 of the new scope lands.
+    const next = { ...target, scope: { ...target.scope, ref: 'scope:after-archive' } as never }
+    w.provider.state.saved = savedOf(next, '2', '2').saved
+    w.provider.state.meanwhile = () => {
+      w.faults.scopes = [
+        ...bindings.map(binding => ({ ...binding, ended: evidence('archived') })),
+        { ...last, scope: 'scope:after-archive', ended: null },
+      ]
+    }
+    const answer = await source()
+    expect(answer).toMatchObject({ kind: 'unavailable' })
+    expect(JSON.stringify(answer)).toContain('retired')
+  })
+
+  it('a record of another scope is unavailable while the current scope is not readable', async () => {
+    const { w, target, source } = await adoptedWorld()
+    const earlier = { ...target, scope: { ...target.scope, ref: 'scope:earlier' } as never }
+    w.provider.state.saved = savedOf(earlier, '1', '1').saved
+    await w.fibers.get('lowerBound')?.dispose()
+    expect(await source()).toMatchObject({ kind: 'unavailable' })
+  })
+
   it('passes the provider unavailable and denied on as they are, never as null', async () => {
     const { w, source, count } = await adoptedWorld()
     w.provider.state.answer = { kind: 'unavailable', diagnostic: 'the a part is not readable' }
@@ -927,6 +959,34 @@ describe('the narrow adoption source reads the a part of the session (RQ-14)', (
       kind: 'invalid',
       field: 'adopted',
       reason: 'unsupported-format',
+    })
+  })
+
+  it('the coverage evidence that the real agent-context mints for a ready preparation passes the check', async () => {
+    const w = await world()
+    const { ready, target: fixed } = await agentContextReady(w.s.access.tenant)
+    // The current scope of the session is the scope agent-context fixed the request for.
+    const bindings = ok(await w.s.backend.transactions.readWork(w.s.access)).contextScopes ?? []
+    const last = bindings.at(-1)
+    if (last === undefined) throw new Error('the session has no scope')
+    w.faults.scopes = [...bindings.slice(0, -1), { ...last, scope: fixed.scope.ref }]
+    const { parts } = await w.borrow()
+    const { target } = await resolved(w, parts)
+    expect(target.scope.ref).toBe(fixed.scope.ref)
+    // The a part as the provider saves it from the checkpoint of that M0.
+    w.provider.state.saved = {
+      order: '1',
+      execution: 'exe_1',
+      reference: invocation(w.s.access.tenant, 'ready'),
+      fixed: ready.source,
+      coverage: ready.coverage,
+      schema: ready.schema,
+      record: ready.state,
+    }
+    const answer = await parts.adopted.readSource({ access: w.access, target })
+    expect(answer).toMatchObject({
+      kind: 'value',
+      value: { order: '1', committed: ready.source, candidate: 'action-1' },
     })
   })
 
