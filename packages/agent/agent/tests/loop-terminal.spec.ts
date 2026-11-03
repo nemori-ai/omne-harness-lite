@@ -42,7 +42,6 @@ function coordinator(
   return createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
-    jointCommits: options().configuration.jointCommits,
     evaluator,
     access: alice,
     execution: execution(),

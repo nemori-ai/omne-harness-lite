@@ -52,7 +52,6 @@ async function setup() {
   const coordinator = createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
-    jointCommits: options().configuration.jointCommits,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),

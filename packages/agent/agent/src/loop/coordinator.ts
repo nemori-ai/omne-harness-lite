@@ -157,9 +157,11 @@ export type ExecutionEntry<P> = Readonly<{
   /**
    * The joint-commit kinds of the factory configuration, which the factory checked against the
    * participants of the Journal binding (SPEC "提交参加者协议"). The Ja of a source whose kind is
-   * listed carries that CallerCommit; see `historyCaller`.
+   * listed carries that CallerCommit; see `historyCaller`. The runtime always passes the
+   * configured list. Absent is the empty list: no external CallerCommit is requested (SPEC
+   * "真实历史的提交点"), which is what a coordinator built directly by a test or harness gets.
    */
-  jointCommits: AgentConfiguration['jointCommits']
+  jointCommits?: AgentConfiguration['jointCommits']
   evaluator: AgentEvaluator
   /** The Access of the invoke; every operation of the execution runs under it. */
   access: Access<P>
@@ -1863,7 +1865,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         decision.kind === 'prepared'
           ? [{ kind: 'message', message: decision.message, source: decision.admission }]
           : [],
-      caller: historyCaller(entry.jointCommits, fixed),
+      caller: historyCaller(entry.jointCommits ?? [], fixed),
       handoff: { kind: 'resolve', outcome: fixed },
       operation: handoffStage(request.reference.operation, 'resolve'),
     })
