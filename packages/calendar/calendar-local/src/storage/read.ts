@@ -18,6 +18,8 @@ function page(port: ReadPort, sql: string, params: readonly SqlValue[], limit: n
 }
 function read(input: RepositoryRead, port: ReadPort): JsonValue {
   switch (input.kind) {
+    case 'calendar':
+      return one(port, 'SELECT directory FROM ca_current WHERE calendar_id = ?', [input.calendarId])
     case 'snapshot':
       return input.version.kind === 'current'
         ? one(

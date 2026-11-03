@@ -18,10 +18,21 @@ afterEach(async () => {
 it('retains immutable history and commits version, provenance, pointer, receipt and reaction together', async () => {
   const w = await world()
   const first = command()
+  expect(await w.repository.getCalendar({ calendarId: first.address.calendarId })).toEqual({
+    kind: 'ok',
+    value: null,
+  })
   const r1 = await w.persistence.commitDisposition(first)
   expect(r1).toMatchObject({
     kind: 'recorded',
     receipt: { disposition: 'published', current: { versionId: 'v1', publicationGeneration: 1 } },
+  })
+  expect(await w.repository.getCalendar({ calendarId: first.address.calendarId })).toMatchObject({
+    kind: 'ok',
+    value: {
+      calendarId: first.address.calendarId,
+      current: { versionId: 'v1', publicationGeneration: 1 },
+    },
   })
   const old = await w.repository.getSnapshot({
     calendarId: first.address.calendarId,

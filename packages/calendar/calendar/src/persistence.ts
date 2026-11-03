@@ -141,6 +141,9 @@ export type CalendarAcknowledgementResult =
     }>
 
 export interface CalendarRepository {
+  getCalendar(
+    input: Readonly<{ calendarId: CalendarId }>,
+  ): Promise<CalendarReadResult<CalendarDirectoryEntry | null>>
   listCalendars(
     input: CalendarPageRequest,
   ): Promise<CalendarReadResult<CalendarPage<CalendarDirectoryEntry>>>

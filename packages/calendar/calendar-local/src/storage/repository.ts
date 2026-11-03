@@ -50,6 +50,7 @@ function page<T>(item: z.ZodType<T>) {
 export function repository(storage: SqlStorage): CalendarRepository {
   const read = reader(storage)
   return {
+    getCalendar: input => read({ ...input, kind: 'calendar' }, directorySchema.nullable()),
     listCalendars: input => read({ ...input, kind: 'calendars' }, page(directorySchema)),
     listVersions: input => read({ ...input, kind: 'versions' }, page(versionSchema)),
     getSnapshot: input => read({ ...input, kind: 'snapshot' }, calendarSnapshotSchema.nullable()),

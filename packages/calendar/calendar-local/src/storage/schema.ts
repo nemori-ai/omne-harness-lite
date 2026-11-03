@@ -151,6 +151,7 @@ export const pageSchema = z.strictObject({
   limit: z.int().min(1).max(PAGE_LIMIT),
 })
 export const readSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('calendar'), calendarId: calendarIdSchema }),
   pageSchema.extend({ kind: z.literal('calendars') }),
   pageSchema.extend({ kind: z.literal('versions'), calendarId: calendarIdSchema }),
   pageSchema.extend({ kind: z.literal('candidates'), calendarId: calendarIdSchema }),
