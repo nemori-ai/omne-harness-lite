@@ -1,6 +1,6 @@
 # Skill能力组工程设计
 
-状态：工程设计草案。本页的成员、模型、端口、应用服务、失败种类与技术处置都是候选决定，尚未取得技术接受。`@omne-harness/skill-contract` 已有实现（候选，第一波，尚未取得技术接受），它的行为以[成员规格](../skill-contract/SPEC.md)为准。`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 仍是模板草稿。服务与目录来源尚未实现，也尚未验证。新公开承诺在实施交付时走技术接受。
+状态：工程设计草案。本页的成员、模型、端口、应用服务、失败种类与技术处置都是候选决定，尚未取得技术接受。`@omne-harness/skill-contract`、`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 都已有实现（候选，第二波，尚未取得技术接受）。各成员的行为以成员规格为准：[skill-contract](../skill-contract/SPEC.md)、[skill](../skill/SPEC.md)、[skill-host-local](../skill-host-local/SPEC.md)。`@omne-harness/skill` 实现 `PackageInspection` 与 `SkillAccess`。`SkillCatalog` 仍只有接口，没有实现。两个服务只对内存替身与 `SkillAccess` 的符合性套件验证过。`DirectorySource` 在真实临时目录上通过来源的符合性套件。真实的读取判定与对应都还没有验证过。新公开承诺在实施交付时走技术接受。
 
 本页只写组内的分解、模型、端口形状、应用服务、失败种类与技术处置。跨领域交接见[领域交接设计](../../../docs/domains/skills/architecture.md)。成员、具名文档目标与允许依赖见[组入口](../README.md#成员与依赖)。
 
@@ -248,10 +248,12 @@ type Reply<T> = Promise<Outcome<T, 'unknown'>>
 - `SkillPackageSource.snapshot` 交出 `sealSnapshot` 造出的快照，快照带包根目录名，`inspect` 用它核对 name。`snapshot` 分开答找不到包、来源不可达、条目不可读（`entry-unreadable`），以及包内链接解析后落在包根之外（`outside-package`）。有这种链接的包整包不可读，这是包的缺陷。
 - `SkillPackageSource.open` 交出 `path` 所指条目的字节。`digest` 是调用方已经核对过的Skill 包快照内容摘要。`open` 分开答找不到包、条目不在、条目解析后落在包根之外，以及来源自己发现的字节不符。来源不核对字节时，Skill 也会核对，见[读取](#读取)。
 
-`skill-host-local` 还没有成员规格，下面 `DirectorySource` 的行为归本页维护。`DirectorySource` 这样实现两个操作：
+`DirectorySource` 的行为归成员规格 [skill-host-local](../skill-host-local/SPEC.md)。它的失败映射以成员入口[「Behavior」](../skill-host-local/README.md#behavior)（[中文「行为」](../skill-host-local/README_ZH.md#行为)）为准。本页只写摘要。`DirectorySource` 这样实现两个操作：
 
-1. `snapshot` 按 `locator` 的根目录读出全部条目的字节，交给 `sealSnapshot`，由它算出每个条目的事实与Skill 包快照的内容摘要。包根目录名是根目录路径的最后一段。根目录不在时返回 `package-not-found`。遇到设备、管道、套接字，或无法解析、成环的链接时返回 `entry-unreadable`。包内链接解析后落在根目录之外时返回 `outside-package`。
-2. `open` 读出根目录下 `path` 所指文件此刻的字节。文件不在时返回 `entry-not-found`。实际读取时解析后的位置落在根目录之外时返回 `outside-package`。
+1. `snapshot` 先用 `realpath` 解析 `locator` 的根目录，再遍历根下全部目录，读出全部条目的字节，交给 `sealSnapshot`。`sealSnapshot` 算出每个条目的事实与Skill 包快照的内容摘要。包根目录名是解析后根目录的最后一段。根目录不在或不是目录时返回 `package-not-found`。每个条目一律按 `realpath`、根内判定、`lstat` 的次序处理，与列出时报告的种类无关，见成员规格[快照](../skill-host-local/SPEC.md#snapshot)。来源读文件时不跟随最后一段的链接（`O_NOFOLLOW`）。解析后落在根目录之外时返回 `outside-package`。下列情形返回 `entry-unreadable`：名字或解析后的路径不是严格的 UTF-8；设备、管道、套接字；悬空或成环的链接；一次遍历访问超过 65536 个名字，见成员规格[访问预算](../skill-host-local/SPEC.md#budget)。
+2. `open` 读出根目录下 `path` 所指文件此刻的字节。它不读 `digest` 参数，因为本来源不按内容摘要存放字节，见成员规格[读条目](../skill-host-local/SPEC.md#open)。文件不在时返回 `entry-not-found`。解析后的位置落在根目录之外时返回 `outside-package`。
+
+来源不保护包免受读取期间修改包目录的写者影响。核对之后、打开之前仍有一个残余窗口，见成员规格[残余窗口](../skill-host-local/SPEC.md#residual-window)。
 
 `DirectorySource` 只读当前目录，不用内存索引或缓存代替当前目录。所以进程重启不改变判定。目录在内容摘要记下之后被改，当前快照的内容摘要就不等于所钉材料的内容摘要。这时读取带Skill 材料依据，Skill 报 `basis-unavailable`。读取不带Skill 材料依据，Skill 报 `adopted-material-changed`。条目在取快照之后、读字节之前被改，字节就与快照中的条目内容摘要不符，Skill 报 `version-changed`。
 
@@ -266,8 +268,9 @@ type Reply<T> = Promise<Outcome<T, 'unknown'>>
 | `SkillResolution.adopted` 答空集合 | 不是失败。`SkillCatalog` 返回空的摘要列表 |
 | `SkillPackageSource` 的 `package-not-found`，操作带Skill 材料依据 | `basis-unavailable` |
 | `SkillPackageSource` 的 `package-not-found`，操作不带Skill 材料依据 | `source-unavailable` |
-| `SkillPackageSource` 的 `entry-not-found` | `resource-missing` |
-| `SkillPackageSource` 的 `bytes-mismatch` | `version-changed` |
+| `SkillPackageSource.open` 的 `entry-not-found` | `resource-missing` |
+| `SkillPackageSource.open` 的 `bytes-mismatch` | `version-changed` |
+| `SkillPackageSource.snapshot` 的 `entry-not-found` 或 `bytes-mismatch`。快照不对单个条目作答，这样作答的来源不守端口契约 | `read`、`list` 与 `export` 为 `source-unavailable`。`inspect` 为 `source-unavailable`（`entry-not-found`）或 `version-changed`（`bytes-mismatch`），见[检查与发现](#检查与发现)。映射表的唯一实现见成员规格[映射](../skill/SPEC.md#mapping) |
 | `SkillPackageSource.open` 的 `outside-package` | `outside-package` |
 | `SkillPackageSource.snapshot` 的 `outside-package` | `read`、`list` 与 `export` 为 `outside-package`。`inspect` 拒绝为 `outside-package` |
 | `SkillPackageSource.snapshot` 的 `entry-unreadable` | `read`、`list` 与 `export` 为 `source-unavailable`。`inspect` 拒绝为 `malformed` |
@@ -287,7 +290,7 @@ Skill 自己的核对也映射到同一组失败种类，见[读取](#读取)的
 
 本组不为「Skill 取用」新增统一语言词条：领域页已用「方法与资源取用」称呼这一责任，`SkillAccess` 只是服务接口名。
 
-纯函数没有端口，可以穷举测试：`parseSkillPackage`、`toPackagePath`、`computeDigest`、`sealSnapshot`、`inferMediaType`、`projectAssetBody`。`sealSnapshot` 在 `./provider` 入口，其余在公开根，见成员规格[入口](../skill-contract/SPEC.md#entries)。`projectAssetBody` 从 `SkillDefinition` 派生资产正文的声明投影，包括 `package.digest`，见[资产正文与 Skill 包](#资产正文与-skill-包)。
+纯函数没有端口，可以穷举测试：`parseSkillPackage`、`toPackagePath`、`computeDigest`、`sealSnapshot`、`inferMediaType`、`projectAssetBody`、`bodyOffsetOf`。`sealSnapshot` 在 `./provider` 入口，其余在公开根，见成员规格[入口](../skill-contract/SPEC.md#entries)。`projectAssetBody` 从 `SkillDefinition` 派生资产正文的声明投影，包括 `package.digest`，见[资产正文与 Skill 包](#资产正文与-skill-包)。
 
 Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 交出包字节，脚本身份是能力标识加入口的包内路径。本组没有执行脚本的服务，见 [Q-SK04](#q-sk04-脚本桥接的发起控制和原结果协议)。
 
@@ -343,17 +346,17 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 2. 经 `SkillReadCheck.check` 核验该主体此刻能读这个能力标识。历史依据、缓存或此前的成功都不代替这次核验。
 3. 经 `SkillResolution.resolve` 确认对应的材料。`resolve` 的答复次序见[端口](#端口)：先判 `known-unavailable`，再判 `adopted`。带Skill 材料依据时，把依据交给 `resolve` 核对，答 `basis-not-lawful` 时返回 `basis-unavailable`。包定位只取自 `resolve` 交来的 `SkillRef`。
 4. `describe` 到此为止，不读字节。它交出 `resolve` 交来的声明投影。`SkillRef` 没有内容摘要时，`describe` 的结果不带Skill 材料依据，并标明「没有可读的包」。
-5. `read`、`list` 与 `export` 先看 `SkillRef` 有没有内容摘要。没有时（资产正文缺 `package.digest`）返回 `unsupported`，带不带Skill 材料依据都一样。有时定下所钉材料的内容摘要：带Skill 材料依据时是依据中的内容摘要，否则是 `SkillRef` 的内容摘要。
+5. `read`、`list` 与 `export` 先看 `SkillRef` 有没有内容摘要。没有时（资产正文缺 `package.digest`）返回 `unsupported`，带不带Skill 材料依据都一样。有时定下所钉材料的内容摘要：带Skill 材料依据时是依据中的内容摘要，否则是 `SkillRef` 的内容摘要。这一步由成员的 `materialOf` 承担，见成员规格[阶段](../skill/SPEC.md#stages)。带Skill 材料依据时，所钉材料就是依据本身。`describe` 结果的 `material.basis` 用同一规则，见成员规格[依据所指的材料](../skill/SPEC.md#basis)。
 6. `read` 经 `toPackagePath` 校验目标。目标不是合法的包内路径时返回 `bad-path`。
 7. 经 `SkillPackageSource.snapshot(locator)` 取得当前快照。快照的内容摘要不等于所钉材料的内容摘要时：带Skill 材料依据返回 `basis-unavailable`，不带Skill 材料依据返回 `adopted-material-changed`。
 8. `list` 到此为止。只有内容摘要相符后，`list` 才交出快照条目。
 9. `read` 在快照条目里找目标路径。路径不在快照条目里时，返回 `resource-missing`。
 10. 经 `SkillPackageSource.open(locator, digest, path)` 取得条目字节。`digest` 是所钉材料的内容摘要。Skill 算出字节的内容摘要，与快照中该条目的内容摘要比较。不符时返回 `version-changed`，不交新内容。`export` 对快照中的每个条目都做这一步。
-11. 核对通过后，`read` 按请求的字节范围截取内容。读正文时，第 10 步核对整个 `SKILL.md` 条目的内容摘要，字节范围从正文起点算起，不含头部。
+11. 核对通过后，`read` 按请求的字节范围截取内容。请求终点是请求起点加请求长度。读正文时，第 10 步核对整个 `SKILL.md` 条目的内容摘要，字节范围从正文起点算起，不含头部。正文起点由 `bodyOffsetOf` 给出。`SKILL.md` 没有合法的头部定界时，`bodyOffsetOf` 答 `undefined`，这时整个条目是正文，见成员规格[正文与范围](../skill/SPEC.md#body)。字节范围的其余规则见成员规格[读取的形状规则](../skill-contract/SPEC.md#read-shape)。
 
 第 7 步与第 10 步的端口失败按[端口](#端口)的映射表转换。依赖在不在场、脚本有没有所需的设施，都不进入上面的步骤，依据见[负责人的裁定](#q-sk08-依赖或设施不足时的正文读取)。
 
-`read`、`list` 与 `export` 收 `signal`，`describe` 不收。这三个操作在每次调用端口之前与每次端口返回之后各检查一次 `signal`。调用方中止后，操作答 `aborted`，不再调用端口，也不交部分内容，见成员规格[读取的形状规则](../skill-contract/SPEC.md#read-shape)。
+`read`、`list` 与 `export` 收 `signal`，`describe` 不收。这三个操作在每次调用端口之前与每次端口返回之后各检查一次 `signal`，包括第 2、3 步的两个判定端口 `SkillReadCheck` 与 `SkillResolution`。调用方中止后，操作答 `aborted`，不再调用端口，也不交部分内容，见成员规格[读取的形状规则](../skill-contract/SPEC.md#read-shape)。
 
 一次分页读取是一次独立的操作，重走上面全部步骤。带同一Skill 材料依据的各页都对同一Skill 包快照的内容摘要核对，所以各页不会拼成两个版本。不带Skill 材料依据的各页可能读到不同的合法版本。每页结果的Skill 材料依据如实标出它读的版本。
 
@@ -406,11 +409,11 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 | `unavailable-stand-in` | `SkillResolution` 答 `known-unavailable`：身份对该主体合法已知，但此刻不可用，例如禁用、卸载或选入失效。结果带替换件与安全原因。没有已知集合的端口实现不答 `known-unavailable`，这时不出现替换件。 | 产品 J-SK03「对合法已知身份返回替换件及安全原因」；统一语言 [替换件](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-stand-in--替换件--stand-in) |
 | `bad-path` | 目标不是合法的包内路径。 | 产品 J-SK03「错误资源地址」 |
 | `outside-package` | 来源答 `outside-package`：目标条目或包内链接解析后落在包根之外。目标不是合法的包内路径（例如绝对路径或含 `..` 段）是 `bad-path`，不是这一种。 | 产品 J-SK03「包外目标」 |
-| `resource-missing` | 所钉材料的Skill 包快照中没有该条目，或来源答 `entry-not-found`。不用别的包补齐。 | 产品 J-SK03「缺少请求的资源不能用别的同名包补齐」 |
+| `resource-missing` | 所钉材料的Skill 包快照中没有该条目，或 `open` 答 `entry-not-found`。不用别的包补齐。 | 产品 J-SK03「缺少请求的资源不能用别的同名包补齐」 |
 | `basis-unavailable` | 只在带Skill 材料依据时出现：依据所指的材料已经取不到。当前快照的内容摘要不等于依据中的内容摘要，或来源找不到包，或 `SkillResolution` 答 `basis-not-lawful`。 | 产品 J-SK03「不能将旧正文与新资源拼成成功」 |
 | `adopted-material-changed` | 只在不带Skill 材料依据时出现：已采用材料已变。当前快照的内容摘要不等于 `SkillRef` 中记下的内容摘要。不交新内容。 | 产品 [Q-SK02](../../../.meta_harness/design/product/skills/design.md#q-sk02-方法资源寻址与来源版本公开契约)「消费者必须辨认实际版本、范围和缺失」；产品 J-SK03「读取与更新竞争」 |
-| `version-changed` | 来源交出的字节与快照中的条目内容摘要不符，或来源答 `bytes-mismatch`。`inspect` 途中字节不符也是这一种。不交新内容。 | 产品 J-SK03「读取与更新竞争」 |
-| `source-unavailable` | Skill 包来源此刻不可达，或不带Skill 材料依据时来源找不到包。`read`、`list` 或 `export` 途中来源在快照阶段答 `entry-unreadable` 也是这一种。`inspect` 途中来源答 `package-not-found`、`entry-not-found` 或 `unavailable` 也是这一种。 | 产品 [J-SK01](../../../.meta_harness/design/product/skills/design.md#j-sk01-将合法方法来源交给消费者)「来源不可读……不能当作空方法」 |
+| `version-changed` | 来源交出的字节与快照中的条目内容摘要不符，或 `open` 答 `bytes-mismatch`。`inspect` 途中来源答 `bytes-mismatch` 或字节不符也是这一种。不交新内容。 | 产品 J-SK03「读取与更新竞争」 |
+| `source-unavailable` | Skill 包来源此刻不可达，或不带Skill 材料依据时来源找不到包。`read`、`list` 或 `export` 途中来源在快照阶段答 `entry-unreadable`、`entry-not-found` 或 `bytes-mismatch` 也是这一种。`inspect` 途中来源答 `package-not-found`、`entry-not-found` 或 `unavailable` 也是这一种。 | 产品 [J-SK01](../../../.meta_harness/design/product/skills/design.md#j-sk01-将合法方法来源交给消费者)「来源不可读……不能当作空方法」 |
 | `unsupported` | 本版本只有一种不支持之处 `no-readable-package`：资产正文缺 `package.digest` 时的 `read`、`list` 与 `export`。文本与字节都能表示，检查没有方言，所以没有别的情形，见成员规格[读取的形状规则](../skill-contract/SPEC.md#read-shape)。 | 产品 J-SK03「按实际支持能力说明」 |
 | `aborted` | 调用方经 `signal` 中止了 `read`、`list` 或 `export`。不交部分内容。 | 成员规格[读取的形状规则](../skill-contract/SPEC.md#read-shape) |
 | `unknown` | 端口此刻无法判定读取权或对应。`SkillCatalog` 中任一身份的读取权无法判定时，整次操作也是这一种。不压成拒绝，不压成空集合，也不压成成功。 | 架构 [隔离语义，不隐藏责任](../../../docs/architecture/layers-and-dependencies.md#隔离语义不隐藏责任)「不能把未知压成失败」 |
@@ -466,7 +469,7 @@ P1 各项来自独立消费者的需求。版本变化观察的首版范围是�
 第一波的验证候选：
 
 1. 值与纯函数的单元测试。
-2. `SkillPackageSource` 的符合性测试，所有来源共用。`SkillAccess` 的符合性测试随 `@omne-harness/skill` 的实现，以可加改动加入 `./testing`。`SkillReadCheck` 与 `SkillResolution` 的符合性测试，所有端口实现共用：对无权主体，答复不随该身份是否存在而变。`SkillResolution` 的答复次序：先 `known-unavailable`，再 `adopted`，只有身份 `adopted` 且依据版本不合法时才答 `basis-not-lawful`。
+2. `SkillPackageSource` 的符合性测试，所有来源共用。`SkillAccess` 的符合性套件 `skillAccessConformance()` 在 `./testing`，有 15 条用例（A1–A11、A12a、A12b、A13、A14），用两个夹具世界运行：一个世界里对应端口对无权主体隐藏身份，另一个世界里对应端口对所有主体作答。A1–A3 只在后一个世界里能看出读取判定被跳过，见成员规格[符合性套件](../skill-contract/SPEC.md#conformance)。`SkillReadCheck` 与 `SkillResolution` 的符合性测试，所有端口实现共用：对无权主体，答复不随该身份是否存在而变。`SkillResolution` 的答复次序：先 `known-unavailable`，再 `adopted`，只有身份 `adopted` 且依据版本不合法时才答 `basis-not-lawful`。
 3. 真实临时目录上的 `DirectorySource` 测试：软链接、记下内容摘要后改文件（不带Skill 材料依据报 `adopted-material-changed`，带Skill 材料依据报 `basis-unavailable`）、取快照后改条目报 `version-changed`、目录被删时带Skill 材料依据报 `basis-unavailable`、不带Skill 材料依据报 `source-unavailable`、包外路径、进程重启后判定不变。
 4. 读取中来源变化：返回一致版本或失败，不出现混拼的成功。带Skill 材料依据读取时，源已变化则交出旧材料或报 `basis-unavailable`，不改交新材料。
 5. 撤权、跨租户与缓存命中：每次操作的当前核验仍然生效，不泄露内容，也不向无权主体披露身份是否存在。
@@ -478,7 +481,7 @@ P1 各项来自独立消费者的需求。版本变化观察的首版范围是�
 
 第 4、5、7、8 项对应独立消费者的需求列出的 Skill 主验证场景。第 6 项验证Skill 材料依据的核验。第 5 项与第 6 项需要端口的真实实现一起验证。`export` 的逐条核对与「不交部分包」随导出一同验证。`SkillCatalog` 的读取权过滤（`refused` 不出现，`unknown` 时整次 `unknown`）随摘要与检索一同验证。
 
-替身通过不证明真实读取权、真实求值或耐久。当前没有选定的机制，没有行为模型，也没有执行过行为验证。结构自检不授予任何保证。
+替身通过不证明真实读取权、真实求值或耐久。当前没有选定的机制，也没有行为模型。已执行的行为验证只有成员测试：两个服务对内存替身，`DirectorySource` 对真实临时目录，见各成员规格「组合与验证」。结构自检不授予任何保证。
 
 ## 技术后续设计与承接缺项
 
@@ -573,7 +576,7 @@ P1 各项来自独立消费者的需求。版本变化观察的首版范围是�
 
 ## 完整行为候选的正式承接缺口
 
-原任务的完整行为候选尚未采用。下表写明每份候选由哪个成员或拥有者承接。波次只有三种：第一波、第一波之后、Cordis 服务键波。`@omne-harness/skill-contract` 是已实现的 workspace 成员。`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 是 workspace 成员，但只有模板草稿。`skill-cordis-contract` 是具名文档目标，尚非 workspace 成员。逐条不变式与验证义务在实施时随成员规格分配。过程稿不作为正式导航依赖。
+原任务的完整行为候选尚未采用。下表写明每份候选由哪个成员或拥有者承接。波次只有三种：第一波、第一波之后、Cordis 服务键波。`@omne-harness/skill-contract` 是已实现的 workspace 成员。`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 是 workspace 成员，在第一波之后有了实现（候选），`SkillCatalog` 与 Cordis 插件部分还没有实现。`skill-cordis-contract` 是具名文档目标，尚非 workspace 成员。逐条不变式与验证义务在实施时随成员规格分配。过程稿不作为正式导航依赖。
 
 | 原候选 | 承接者 | 承接方式 | 状态 |
 | --- | --- | --- | --- |
