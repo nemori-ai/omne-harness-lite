@@ -198,17 +198,19 @@
 
 ### 工具环境声明
 
-定义：[need-declaration.ts](../src/need-declaration.ts)。
+定义：[need-declaration.ts](../src/need-declaration.ts)、[need-schema-ref.ts](../src/need-schema-ref.ts)。
 
-| 名称                         | 种类 | 用途                                                                | 条款或对象模型                          |
-| ---------------------------- | ---- | ------------------------------------------------------------------- | --------------------------------------- |
-| `EnvironmentNeedDeclaration` | 类型 | 工具包写进工具定义的 JSON：设施键、隔离断言、能工作的绑定层         | [工具环境声明](../SPEC.md#工具环境声明) |
-| `environmentNeedSchema`      | 值   | 声明的 Standard Schema，同时满足 schema-provider 的 `StandardTyped` | 同上                                    |
-| `environmentNeedAdoption`    | 值   | schema 的稳定采用身份                                               | 同上                                    |
+| 名称                         | 种类 | 用途                                                                                                                                                                                             | 条款或对象模型                          |
+| ---------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
+| `EnvironmentNeedDeclaration` | 类型 | 工具包写进工具定义的 JSON：设施键、隔离断言、能工作的绑定层                                                                                                                                      | [工具环境声明](../SPEC.md#工具环境声明) |
+| `environmentNeedSchema`      | 值   | 声明的 Standard Schema，同时满足 schema-provider 的 `StandardTyped`                                                                                                                              | 同上                                    |
+| `environmentNeedAdoption`    | 值   | schema 的稳定采用身份                                                                                                                                                                            | 同上                                    |
+| `environmentNeedSchemaRef`   | 值   | 声明的 schema-provider `SchemaRef`（Zod 定义，id 为 `execution-environment.environment-need`，revision 随 `environmentNeedAdoption`）。执行域用自己的 provider 调 `validate`，经公共模块校验声明 | 同上                                    |
+| `EnvironmentNeedProjection`  | 类型 | `environmentNeedSchemaRef` 校验通过后投影的值：三个字段都是字符串数组，开放词汇不收窄到已登记的键                                                                                                | 同上                                    |
 
 schema 的规则：
 
-1. JSON Schema 文件是 [schema/environment-need.schema.json](../schema/environment-need.schema.json)，`$id` 是 `urn:omne-harness:execution-environment:environment-need:1`。`environmentNeedSchema` 与它同形。
+1. JSON Schema 文件是 [schema/environment-need.schema.json](../schema/environment-need.schema.json)，`$id` 是 `urn:omne-harness:execution-environment:environment-need:1`。`environmentNeedSchema` 与 `environmentNeedSchemaRef` 都与它同形；[need-schema-ref.spec.ts](../tests/need-schema-ref.spec.ts) 用同一组合法与非法样本，核对两者判定一致。
 2. 三个字段都必填，不接受其他字段。
 3. `facilities` 与 `isolation` 是非空字符串的数组。设施键与隔离断言是开放词汇，schema 不判断它们是否已登记。
 4. `layers` 的元素只能是四种绑定层之一。`layers` 是能力兼容性，不是策略。集成方把它与策略允许的层取交集并按偏好排序，得到允许清单。

@@ -600,7 +600,17 @@
               "pending": false
             },
             {
+              "name": "environmentNeedSchemaRef",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "EnvironmentNeedDeclaration",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EnvironmentNeedProjection",
               "kind": "type",
               "pending": false
             }

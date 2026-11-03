@@ -30,6 +30,7 @@
 - `EnvironmentFacilities` · `facility.d.ts`
 - `EnvironmentLease` · `lease.d.ts`
 - `EnvironmentNeedDeclaration` · `need-declaration.d.ts`
+- `EnvironmentNeedProjection` · `need-schema-ref.d.ts`
 - `EnvironmentProvider` · `environment.d.ts`
 - `EnvironmentRequirement` · `requirement.d.ts`
 - `ExecutionEnvironment` · `environment.d.ts`
@@ -122,6 +123,7 @@
 - `describeResultSchema` · `operation-schemas.d.ts`
 - `environmentNeedAdoption` · `need-declaration.d.ts`
 - `environmentNeedSchema` · `need-declaration.d.ts`
+- `environmentNeedSchemaRef` · `need-schema-ref.d.ts`
 - `executionHostFactsBlock` · `blocks.d.ts`
 - `executionPlacementBlock` · `blocks.d.ts`
 - `filesFacility` · `facilities/files.d.ts`
@@ -891,6 +893,8 @@ export type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquire
 export type { AcquireInput, AcquisitionListing, AcquisitionSettlement, EnvironmentAction, EnvironmentAuthority, EnvironmentDescription, EnvironmentProvider, ProviderAcquisitionStatus, ProviderQuota, QuotaAnswer, ExecutionEnvironment, OwnedRecovery, PlacementInput, PlatformFacts, ProviderAcquireInput, ProviderAcquisition, ProviderFacts, ProviderRegistrations, RecoveryListing, ResourceRecovery, Retirement, UnsupportedRecovery, } from './environment.ts';
 export { environmentNeedAdoption, environmentNeedSchema } from './need-declaration.ts';
 export type { EnvironmentNeedDeclaration } from './need-declaration.ts';
+export { environmentNeedSchemaRef } from './need-schema-ref.ts';
+export type { EnvironmentNeedProjection } from './need-schema-ref.ts';
 export { executionHostFactsBlock, executionPlacementBlock } from './blocks.ts';
 export type { ExecutionHostFactsValue, ExecutionPlacementEntry, ExecutionPlacementValue, } from './blocks.ts';
 export { judgeRequirement, matchProviders } from './judge.ts';
@@ -1138,6 +1142,26 @@ export declare const environmentNeedAdoption: Readonly<{
     revision: '1';
     digest: `sha256:${string}`;
 }>;
+```
+
+## 声明文件 `need-schema-ref.d.ts`
+
+```ts
+import { type SchemaRef } from '@omne-harness/schema-provider';
+import { z } from 'zod';
+declare const needShape: z.ZodObject<{
+    facilities: z.ZodArray<z.ZodString>;
+    isolation: z.ZodArray<z.ZodString>;
+    layers: z.ZodArray<z.ZodEnum<{
+        host_machine: "host_machine";
+        session_sandbox: "session_sandbox";
+        stateless_sandbox: "stateless_sandbox";
+        tenant_sandbox: "tenant_sandbox";
+    }>>;
+}, z.core.$strict>;
+export type EnvironmentNeedProjection = z.output<typeof needShape>;
+export declare const environmentNeedSchemaRef: SchemaRef<EnvironmentNeedProjection>;
+export {};
 ```
 
 ## 声明文件 `operation-schemas.d.ts`
