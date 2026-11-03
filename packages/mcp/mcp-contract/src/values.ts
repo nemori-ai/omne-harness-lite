@@ -98,7 +98,8 @@ export type BoundedInstructions = Readonly<{
 export type PeerIdentity = Readonly<{
   protocolVersion: ProtocolVersion
   capabilities: JsonValue
-  serverInfo: Untrusted<JsonValue>
+  /** Absent when the peer gave no `_meta` serverInfo on the discover result. */
+  serverInfo?: Untrusted<JsonValue>
   instructions?: Untrusted<BoundedInstructions & Readonly<{ generation: Generation }>>
 }>
 

@@ -109,7 +109,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 - **V1** 每个品牌只由公开根里的一个守卫授予，例如 `isEndpointName`、`isMillis`、`isConnectionTarget`。守卫不修补输入。持有、采用修订、凭据配值、动作名、关联键、请求状态、任务号、协议版本这八个品牌只要求非空文本：它们按名字区分含义不同的值，不检查内容。这些值原样保存，只比较相等。
 - **V2** `Millis` 是正的安全整数。`Generation` 是非负的安全整数。`CatalogRevision` 是正的安全整数，第一次采用的修订是 1。`DefinitionDigest` 与 `InstructionsDigest` 是 `sha256:` 加 64 位小写十六进制。
 - **V3** `ConnectionTarget` 只做句法检查：小写 `https`，或者主机是回环主机（`localhost`、`127.0.0.1`、`::1`）时的小写 `http`。主机按 WHATWG URL 解析后的写法与回环集合比较，所以 `http://127.1/` 这类简写也算回环；保存的是原文，传输实现须用同一种解析；绝对地址；有主机；没有 fragment；没有 userinfo；整串没有空白、控制字符或反斜杠。其他明文 `http` 地址不合法。不合法时守卫答否，不修补后接收。句法检查不判定对端可信，也不阻止秘密出现在地址里。
-- **V4** 下列对端内容用 `Untrusted<T>` 包住：`serverInfo`、`instructions`、动作定义的 annotations、内容项的 annotations、进度与日志通知、授权发现里的受保护资源元数据、`inputRequired` 结局与任务报告里的 `inputRequests`。读这些值必须经 `untrusted` 字段。其余对端内容原样交出，同样不是身份或授权的依据，例如授权发现的 `issuers` 与 `scopes`、动作定义里的 title、description、icons 与 `_meta`、`fault` 与 `error-answer` 的 `message` 与 `data`、内容与结构化内容。
+- **V4** 下列对端内容用 `Untrusted<T>` 包住：`serverInfo`（2026-07-28 起在应答的 `_meta` 里，可能缺席，所以是可选字段）、`instructions`、动作定义的 annotations、内容项的 annotations、进度与日志通知、授权发现里的受保护资源元数据、`inputRequired` 结局与任务报告里的 `inputRequests`。读这些值必须经 `untrusted` 字段。其余对端内容原样交出，同样不是身份或授权的依据，例如授权发现的 `issuers` 与 `scopes`、动作定义里的 title、description、icons 与 `_meta`、`fault` 与 `error-answer` 的 `message` 与 `data`、内容与结构化内容。
 
 <a id="endpoint"></a>
 
