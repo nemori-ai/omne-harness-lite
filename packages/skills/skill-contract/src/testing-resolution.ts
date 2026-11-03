@@ -14,6 +14,7 @@ import type {
   SkillMaterialBasis,
   SkillName,
   SkillRef,
+  SourceLayer,
 } from './values.ts'
 
 export type MemoryMaterial = Readonly<{ ref: SkillRef; declared: DeclaredProjection }>
@@ -106,6 +107,10 @@ export type ResolutionFixture<P, S> = Readonly<{
   missing: CapabilityId
   /** An identity that `permitted` knows lawfully and that is not available now, if there is one. */
   standIn?: CapabilityId
+  /** A basis of an earlier lawful version of `adopted`, if there is one. */
+  earlier?: SkillMaterialBasis
+  /** A source layer in which `adopted` is not lawful for `permitted`, if there is one. */
+  unlawfulLayer?: SourceLayer
 }>
 
 /** The name of the non-disclosure case. */
@@ -167,6 +172,17 @@ export function skillResolutionConformance<P, S>(): ConformanceCase<ResolutionFi
         },
       )
     }),
+    conformanceCase(
+      'PR2',
+      'answers none for an identity that does not exist, with a basis too',
+      async f => {
+        const basis = { ...basisOf(await adoptedRef(f)), capability: f.missing }
+        assert.deepEqual(
+          await f.resolution.resolve(f.permitted.access, f.permitted.scope, f.missing, { basis }),
+          { kind: 'none' },
+        )
+      },
+    ),
     conformanceCase('PR3', 'resolves a basis of the adopted material to that material', async f => {
       const ref = await adoptedRef(f)
       const answer = await f.resolution.resolve(f.permitted.access, f.permitted.scope, f.adopted, {
@@ -176,6 +192,46 @@ export function skillResolutionConformance<P, S>(): ConformanceCase<ResolutionFi
       assert.equal(answer.ref.layer, ref.layer)
       assert.equal(answer.ref.assetVersion, ref.assetVersion)
     }),
+    conformanceCase(
+      'PR3',
+      'resolves a basis of an earlier lawful version to the earlier material',
+      async f => {
+        const earlier = handle(f.earlier, 'earlier')
+        const answer = await f.resolution.resolve(
+          f.permitted.access,
+          f.permitted.scope,
+          f.adopted,
+          {
+            basis: earlier,
+          },
+        )
+        if (answer.kind !== 'adopted') assert.fail(`expected adopted, got ${answer.kind}`)
+        assert.equal(answer.ref.layer, earlier.layer)
+        assert.equal(answer.ref.assetVersion, earlier.assetVersion)
+        assert.equal(
+          answer.ref.digest,
+          earlier.digest,
+          'the ref does not point at the earlier material',
+        )
+      },
+    ),
+    conformanceCase(
+      'PR4',
+      'answers basis-not-lawful for a basis without asset version from a layer that is not lawful',
+      async f => {
+        const layer = handle(f.unlawfulLayer, 'unlawfulLayer')
+        const { assetVersion: _dropped, ...basis } = basisOf(await adoptedRef(f))
+        const answer = await f.resolution.resolve(
+          f.permitted.access,
+          f.permitted.scope,
+          f.adopted,
+          {
+            basis: { ...basis, layer },
+          },
+        )
+        assert.deepEqual(answer, { kind: 'basis-not-lawful' })
+      },
+    ),
     conformanceCase(
       'PR4',
       'answers basis-not-lawful for a basis whose asset version is not lawful',

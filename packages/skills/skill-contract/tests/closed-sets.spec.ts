@@ -8,6 +8,7 @@ import type {
   SkillFailure,
   UnsupportedWhat,
 } from '@omne-harness/skill-contract'
+import { INSPECT_REJECTIONS } from '../src/failures.ts'
 import type {
   ReadVerdict,
   SnapshotDefect,
@@ -16,15 +17,8 @@ import type {
 
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
 
-const rejections = [
-  'manifest-missing',
-  'name-mismatch',
-  'declaration-format-unsupported',
-  'outside-package',
-  'tool-ref-invalid',
-  'setting-category-unknown',
-  'malformed',
-] as const
+// The rejection order is a constant of the member, not a public export: read it from its module.
+const rejections = INSPECT_REJECTIONS
 const failures = [
   'not-available-to-you',
   'unavailable-stand-in',

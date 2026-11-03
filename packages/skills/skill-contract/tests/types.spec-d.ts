@@ -47,5 +47,6 @@ test('each operation names only the failures that it can give', () => {
   expectTypeOf<'adopted-material-changed'>().not.toExtend<Kind<ExportFailure>>()
   expectTypeOf<'source-unavailable' | 'version-changed'>().not.toExtend<Kind<DescribeFailure>>()
   expectTypeOf<'resource-missing' | 'bad-path'>().not.toExtend<Kind<ListFailure>>()
+  expectTypeOf<'outside-package'>().toExtend<Kind<ListFailure>>()
   expectTypeOf<'aborted' | 'version-changed' | 'unsupported'>().toExtend<Kind<ReadFailure>>()
 })

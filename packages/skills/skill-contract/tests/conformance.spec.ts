@@ -4,9 +4,14 @@
 // the non-disclosure cases.
 import { AssertionError } from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
-import type { SkillReadCheck, SkillResolution } from '@omne-harness/skill-contract/provider'
-import { isPackageDigest } from '@omne-harness/skill-contract'
+import type {
+  PackageLocator,
+  SkillReadCheck,
+  SkillResolution,
+} from '@omne-harness/skill-contract/provider'
+import { isPackageDigest, isPackagePath } from '@omne-harness/skill-contract'
 import {
+  createMemorySource,
   runConformanceCase,
   skillPackageSourceConformance,
   skillReadCheckConformance,
@@ -113,6 +118,32 @@ describe('the suites go red on a double that discloses whether an identity exist
     expect(
       await failing(skillReadCheckConformance<Principal, Scope>(), () => readCheckFixture()),
     ).toEqual([])
+  })
+})
+
+describe('memory source links beyond the suite', () => {
+  const locator: PackageLocator = { kind: 'directory', root: '/skills/linked' }
+  const files = { 'SKILL.md': 'x', 'docs/a.md': 'target' }
+
+  it('reads the bytes of the target of a link inside the root', async () => {
+    const source = createMemorySource([
+      { locator, rootName: 'linked', files, links: { 'docs/b.md': 'a.md' } },
+    ])
+    const snapshot = await source.snapshot(locator)
+    if (!('ok' in snapshot)) throw new Error(snapshot.failure)
+    const opened = await source.open(
+      locator,
+      snapshot.ok.digest,
+      granted(isPackagePath, 'docs/b.md'),
+    )
+    expect(opened).toEqual({ ok: new TextEncoder().encode('target') })
+  })
+
+  it('answers entry-unreadable for a link whose target is not a file of the package', async () => {
+    const source = createMemorySource([
+      { locator, rootName: 'linked', files, links: { 'docs/b.md': 'missing.md' } },
+    ])
+    expect(await source.snapshot(locator)).toEqual({ failure: 'entry-unreadable' })
   })
 })
 

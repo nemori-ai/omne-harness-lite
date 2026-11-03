@@ -9,7 +9,7 @@ export {
   isSkillName,
   toPackagePath,
 } from './names.ts'
-export { parseSkillPackage } from './parse/package.ts'
+export { parseSkillPackage, type ParseFailure, type ParseInput } from './parse/package.ts'
 export { projectAssetBody } from './project.ts'
 export type {
   ByteRange,

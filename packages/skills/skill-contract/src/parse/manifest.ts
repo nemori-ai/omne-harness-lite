@@ -1,9 +1,9 @@
 // Reads SKILL.md: strict UTF-8 without a byte order mark, a `---` frontmatter closed by the first
 // line that is only `---`, and a YAML mapping whose keys are unique in the whole tree.
 import { isMap, parseDocument } from 'yaml'
-import { isSkillName } from '../names.ts'
+import { isBoundedText, isSkillName } from '../names.ts'
 import type { ManifestValue, SkillManifest, SkillName } from '../values.ts'
-import { DESCRIPTION_MAX, isBoundedText } from './shape.ts'
+import { DESCRIPTION_MAX } from './shape.ts'
 import { plainValue } from './yaml-value.ts'
 
 /** What the manifest gives to the package rules. `name` is present when the YAML could be read. */

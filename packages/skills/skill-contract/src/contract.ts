@@ -9,11 +9,11 @@ import {
   type Judgment,
 } from '@omne-harness/assets'
 import { isPackageDigest } from './digest.ts'
+import { isBoundedText, isSkillName } from './names.ts'
 import {
   DESCRIPTION_MAX,
   fieldsOf,
   firstFinding,
-  isBoundedText,
   readScripts,
   readSettings,
   unknownKeys,
@@ -81,6 +81,7 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
   if (name === undefined || name === '') return refusal('incomplete-reference')
   if (context?.capabilityName !== undefined && name !== context.capabilityName)
     return refusal('name-mismatch')
+  if (!isSkillName(name)) return refusal('name-invalid')
   if (toolRefs(body) === undefined) return refusal('incomplete-reference')
   const first = firstFinding(extensionOf(body).findings)
   return first === undefined ? { ok: true } : refusal(first.code)

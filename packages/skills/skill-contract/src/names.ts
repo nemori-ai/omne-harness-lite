@@ -43,10 +43,18 @@ export function toPackagePath(raw: string): Outcome<PackagePath, 'bad-path'> {
   return isPackagePath(normalized) ? succeed(normalized) : fail('bad-path')
 }
 
-function isShortText(value: unknown): value is string {
-  if (typeof value !== 'string' || !value.isWellFormed() || hasControl(value)) return false
+/**
+ * Text of 1 to `max` characters, counted in code points. The manifest description, the asset body
+ * description and the short texts below share it.
+ */
+export function isBoundedText(value: unknown, max: number): value is string {
+  if (typeof value !== 'string') return false
   const length = [...value].length
-  return length >= 1 && length <= SHORT_TEXT_MAX
+  return length >= 1 && length <= max
+}
+
+function isShortText(value: unknown): value is string {
+  return isBoundedText(value, SHORT_TEXT_MAX) && value.isWellFormed() && !hasControl(value)
 }
 
 /** One to 256 characters, no control character. It checks the form only, not what it discloses. */

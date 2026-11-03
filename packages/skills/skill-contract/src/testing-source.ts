@@ -1,12 +1,13 @@
 // The conformance suite of `SkillPackageSource` and its memory double.
 import assert from 'node:assert/strict'
+import { posix } from 'node:path'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { computeDigest, isPackageDigest } from './digest.ts'
 import { encodingOf, inferMediaType } from './media.ts'
 import { toPackagePath } from './names.ts'
 import type { SkillPackageSource } from './ports.ts'
 import { assertSealed, sealSnapshot } from './snapshot.ts'
-import { conformanceCase, NotApplicable, type ConformanceCase } from './testing-case.ts'
+import { conformanceCase, handle, NotApplicable, type ConformanceCase } from './testing-case.ts'
 import type {
   Bytes,
   PackageDigest,
@@ -20,6 +21,13 @@ export type MemoryPackage = Readonly<{
   rootName: string
   /** Package paths and their content; text is written as UTF-8. */
   files: Readonly<Record<string, string | Bytes>>
+  /**
+   * Package paths that are links, and their targets relative to the directory of the link. A link
+   * reads the bytes of its target. A target outside the root makes `snapshot` answer
+   * `outside-package`; a target that is not a file of the package makes it answer
+   * `entry-unreadable`.
+   */
+  links?: Readonly<Record<string, string>>
 }>
 
 function locatorKey(locator: PackageLocator): string {
@@ -30,20 +38,52 @@ function locatorKey(locator: PackageLocator): string {
 
 const encoder = new TextEncoder()
 
-type Held = Readonly<{ snapshot: SkillPackageSnapshot; files: ReadonlyMap<PackagePath, Bytes> }>
+type Held =
+  | Readonly<{
+      kind: 'held'
+      snapshot: SkillPackageSnapshot
+      files: ReadonlyMap<PackagePath, Bytes>
+    }>
+  | Readonly<{ kind: 'fault'; failure: 'outside-package' | 'entry-unreadable' }>
+
+function packagePath(raw: string): PackagePath {
+  const path = toPackagePath(raw)
+  if (!('ok' in path)) throw new TypeError(`not a package path: ${raw}`)
+  return path.ok
+}
+
+/** Where a link points: a package path, or the fault that `snapshot` answers. */
+function linkTarget(
+  link: PackagePath,
+  target: string,
+  files: ReadonlyMap<PackagePath, Bytes>,
+): Bytes | 'outside-package' | 'entry-unreadable' {
+  const joined = posix.normalize(posix.join(posix.dirname(link), target))
+  if (posix.isAbsolute(target) || joined === '..' || joined.startsWith('../'))
+    return 'outside-package'
+  const path = toPackagePath(joined)
+  const bytes = 'ok' in path ? files.get(path.ok) : undefined
+  return bytes ?? 'entry-unreadable'
+}
 
 function hold(item: MemoryPackage): Held {
   const files = new Map<PackagePath, Bytes>()
-  for (const [raw, content] of Object.entries(item.files)) {
-    const path = toPackagePath(raw)
-    if (!('ok' in path)) throw new TypeError(`not a package path: ${raw}`)
-    files.set(path.ok, typeof content === 'string' ? encoder.encode(content) : content.slice())
+  for (const [raw, content] of Object.entries(item.files))
+    files.set(
+      packagePath(raw),
+      typeof content === 'string' ? encoder.encode(content) : content.slice(),
+    )
+  for (const [raw, target] of Object.entries(item.links ?? {})) {
+    const link = packagePath(raw)
+    const bytes = linkTarget(link, target, files)
+    if (typeof bytes === 'string') return { kind: 'fault', failure: bytes }
+    files.set(link, bytes)
   }
   const list = [...files].map(([path, bytes]) => ({ path, bytes }))
   const sealed = sealSnapshot({ rootName: item.rootName, files: list })
   if (!('ok' in sealed))
     throw new TypeError(`the memory package does not seal: ${sealed.failure.kind}`)
-  return { snapshot: sealed.ok, files }
+  return { kind: 'held', snapshot: sealed.ok, files }
 }
 
 /**
@@ -56,11 +96,13 @@ export function createMemorySource(packages: readonly MemoryPackage[]): SkillPac
   return {
     async snapshot(locator) {
       const item = held.get(locatorKey(locator))
-      return item === undefined ? fail('package-not-found') : succeed(item.snapshot)
+      if (item === undefined) return fail('package-not-found')
+      return item.kind === 'fault' ? fail(item.failure) : succeed(item.snapshot)
     },
     async open(locator, digest, path) {
       const item = held.get(locatorKey(locator))
-      if (item === undefined || item.snapshot.digest !== digest) return fail('package-not-found')
+      if (item === undefined || item.kind === 'fault' || item.snapshot.digest !== digest)
+        return fail('package-not-found')
       const bytes = item.files.get(path)
       return bytes === undefined ? fail('entry-not-found') : succeed(bytes.slice())
     },
@@ -76,6 +118,8 @@ export type SourceFixture = Readonly<{
   absent: PackageLocator
   /** `content-digest` when the source keeps bytes by snapshot digest, `locator` otherwise. */
   addressing: 'content-digest' | 'locator'
+  /** A package with a link that resolves outside its root, if the source can hold one. */
+  escaping?: PackageLocator
 }>
 
 async function snapshotOf(fixture: SourceFixture): Promise<SkillPackageSnapshot> {
@@ -174,6 +218,14 @@ export function skillPackageSourceConformance(): ConformanceCase<SourceFixture>[
           await fixture.source.open(fixture.present, otherDigest(snapshot.digest), path),
           { failure: 'package-not-found' },
         )
+      },
+    ),
+    conformanceCase(
+      'PS8',
+      'snapshot of a package with a link that resolves outside the root answers outside-package',
+      async fixture => {
+        const escaping = handle(fixture.escaping, 'escaping')
+        assert.deepEqual(await fixture.source.snapshot(escaping), { failure: 'outside-package' })
       },
     ),
   ]

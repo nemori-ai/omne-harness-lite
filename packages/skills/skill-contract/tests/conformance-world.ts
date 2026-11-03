@@ -90,8 +90,18 @@ function material(digest: SkillRef['digest'], version: string): MemoryMaterial {
 
 const onlyAlice = (who: Access<Principal>) => who.principal === 'alice'
 
+export const escapingLocator: PackageLocator = { kind: 'directory', root: '/skills/escaping' }
+
 export function memorySource() {
-  return createMemorySource([{ locator: reviewLocator, rootName: 'review', files: currentFiles }])
+  return createMemorySource([
+    { locator: reviewLocator, rootName: 'review', files: currentFiles },
+    {
+      locator: escapingLocator,
+      rootName: 'escaping',
+      files: { 'SKILL.md': '---\nname: escaping\ndescription: d\n---\n' },
+      links: { 'scripts/run.sh': '../../outside.sh' },
+    },
+  ])
 }
 
 export function memoryResolution() {
@@ -136,6 +146,8 @@ export function resolutionFixture(
     adopted: reviewCapability,
     missing: missingCapability,
     standIn: retiredCapability,
+    earlier: earlierBasis,
+    unlawfulLayer: 'workspace',
   }
 }
 
@@ -159,6 +171,7 @@ export function sourceFixture(): SourceFixture {
     present: reviewLocator,
     absent: missingLocator,
     addressing: 'content-digest',
+    escaping: escapingLocator,
   }
 }
 

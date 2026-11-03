@@ -1,5 +1,6 @@
-// The type exports of `./provider`. The runtime list of names is checked in public-entry.spec.ts;
-// this file checks that each named type is the one that the source module defines.
+// The type exports of `./provider`: this file checks the shape of each named type and the set of
+// runtime exports at the type level. The full set of names, types included, is checked in
+// public-entry.spec.ts, which reads src/provider.ts and refuses star exports.
 import { expectTypeOf, test } from 'vitest'
 import type * as provider from '@omne-harness/skill-contract/provider'
 import type {

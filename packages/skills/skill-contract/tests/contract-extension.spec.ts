@@ -108,6 +108,30 @@ describe('the extended skill body', () => {
     expect(port.judge(body({ ...full, description }))).toEqual({ ok: true })
   })
 
+  it.each([
+    ['an uppercase letter', 'Review'],
+    ['consecutive hyphens', 're--view'],
+    ['65 characters', 'r'.repeat(65)],
+    ['an underscore', 're_view'],
+  ])('rejects a name with %s as name-invalid', (_case, name) => {
+    const judged = body({ ...full, name })
+    expect(port.judge(judged)).toEqual({ ok: false, rejected: 'name-invalid' })
+    expect(() => port.deriveDeclarations(judged)).toThrow('failed judgment: name-invalid')
+  })
+
+  it('gives name-mismatch before name-invalid, and name-invalid before a bad tool reference', () => {
+    expect(port.judge(body({ ...full, name: 'Other' }), { capabilityName: 'review' })).toEqual({
+      ok: false,
+      rejected: 'name-mismatch',
+    })
+    expect(
+      port.judge(body({ ...full, name: 'Bad', tools: [{ category: 'mcp', name: 'x' }] })),
+    ).toEqual({
+      ok: false,
+      rejected: 'name-invalid',
+    })
+  })
+
   it('gives the original reasons before the reasons of the extension', () => {
     const bad = { settings: [{ name: 'a', category: 'secret' }] }
     expect(port.judge(body({ ...bad, name: 'other' }), { capabilityName: 'review' })).toEqual({

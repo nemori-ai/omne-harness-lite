@@ -31,10 +31,19 @@ export type GateFailure = Kinds<'not-available-to-you' | 'unavailable-stand-in' 
 /** `describe` reads no bytes, so it has no source failure. */
 export type DescribeFailure = GateFailure | Kinds<'basis-unavailable'>
 
-/** Pinning the material and comparing the snapshot: shared by `read`, `list` and `export`. */
+/**
+ * Pinning the material and taking the snapshot: shared by `read`, `list` and `export`. The
+ * snapshot itself can answer `outside-package` when a link of the package leaves its root.
+ */
 export type PinFailure =
   | DescribeFailure
-  | Kinds<'unsupported' | 'adopted-material-changed' | 'source-unavailable' | 'aborted'>
+  | Kinds<
+      | 'unsupported'
+      | 'adopted-material-changed'
+      | 'source-unavailable'
+      | 'aborted'
+      | 'outside-package'
+    >
 
 export type ListFailure = PinFailure
 

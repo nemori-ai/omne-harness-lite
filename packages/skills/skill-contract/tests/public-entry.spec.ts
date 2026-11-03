@@ -60,6 +60,20 @@ it('does not import a test framework from the testing entry', () => {
   expect(reached.bare).toContain('node:assert/strict')
 })
 
+it('writes the provider entry only as type re-exports and the one runtime re-export', () => {
+  const text = readFileSync(join(src, 'provider.ts'), 'utf8')
+  const statements = exportStatements(join(src, 'provider.ts'))
+  for (const statement of statements)
+    expect(statement).toMatch(
+      /^export type \{ [A-Za-z, ]+,? \} from '\.\/[a-z-]+\.ts'$|^export \{ sealSnapshot \} from '\.\/snapshot\.ts'$/,
+    )
+  const rest = statements.reduce(
+    (left, statement) => left.replace(/\s+/g, ' ').replace(statement, ''),
+    text.replace(/\s+/g, ' '),
+  )
+  expect(rest.trim()).toBe('')
+})
+
 it('names on the provider entry exactly the types and values that the SPEC gives it', () => {
   expect(exportedNames(join(src, 'provider.ts'))).toEqual([
     'CatalogResolution',
@@ -103,10 +117,16 @@ function walk(entry: string): { files: Set<string>; bare: Set<string> } {
   return { files, bare }
 }
 
-/** The names that a re-exporting entry file exports, types included, sorted. */
+/**
+ * The names that a re-exporting entry file exports, types included, sorted. A star export
+ * (`export *` or `export type *`) has no list of names, so it appears as `*`. An inline `type`
+ * inside the braces is read too.
+ */
 function exportedNames(entry: string): string[] {
+  const text = readFileSync(entry, 'utf8')
   const names: string[] = []
-  for (const block of readFileSync(entry, 'utf8').matchAll(/export\s+(?:type\s+)?\{([^}]*)\}/g))
+  for (const _star of text.matchAll(/export\s+(?:type\s+)?\*/g)) names.push('*')
+  for (const block of text.matchAll(/export\s+(?:type\s+)?\{([^}]*)\}/g))
     for (const part of (block[1] ?? '').split(','))
       if (part.trim() !== '')
         names.push(
@@ -117,4 +137,12 @@ function exportedNames(entry: string): string[] {
             .pop() ?? '',
         )
   return names.sort()
+}
+
+/** The export statements of an entry file, with their white space collapsed. */
+function exportStatements(entry: string): string[] {
+  const text = readFileSync(entry, 'utf8')
+  return [...text.matchAll(/export\b[^;]*?from\s*(['"])[^'"]+\1/g)].map(match =>
+    match[0].replace(/\s+/g, ' '),
+  )
 }
