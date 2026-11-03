@@ -343,7 +343,7 @@ describe('the absent bindings port', () => {
     })
   })
 
-// The replay facts port is linked to `sessionReplayFacts`: runtime-context-replay-facts.spec.ts.
+  // The replay facts port is linked to `sessionReplayFacts`: runtime-context-replay-facts.spec.ts.
 })
 
 type Installed = Readonly<{

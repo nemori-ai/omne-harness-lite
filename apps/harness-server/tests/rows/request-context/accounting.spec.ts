@@ -45,7 +45,11 @@ function fact(
 ): ReceivedAccountFact {
   return {
     kind: 'account',
-    origin: { producer: 'model', sender: options.sender ?? ACCOUNT_OUTLET_SENDER, resultVersion: null },
+    origin: {
+      producer: 'model',
+      sender: options.sender ?? ACCOUNT_OUTLET_SENDER,
+      resultVersion: null,
+    },
     target: targetOf(options.target ?? tenantA),
     call: { tenant: options.call ?? tenantA, call },
     dispatch,
@@ -264,7 +268,11 @@ describe('the release accounting options on the real inbox', () => {
     const { binding, acting } = principals()
     const options = releaseAccounting(
       { maxTargets: 4, maxFactsPerTarget: 8, maxRevisionsPerDispatch: 4 },
-      { principalBinding: binding, readHolder: () => holderWith(eligibility, { leases: 0, releases: 0 }), diagnose: () => {} },
+      {
+        principalBinding: binding,
+        readHolder: () => holderWith(eligibility, { leases: 0, releases: 0 }),
+        diagnose: () => {},
+      },
     )
     return { inbox: createContextAccounting(options).inbox, acting }
   }

@@ -92,7 +92,9 @@ export function createOutletSourceAuthority(
     try {
       key = await options.principalBinding.key(access)
     } catch {
-      return unavailable('accounting source: the principal binding threw; its message is not reported')
+      return unavailable(
+        'accounting source: the principal binding threw; its message is not reported',
+      )
     }
     if (key.kind === 'unavailable')
       return unavailable(`accounting source: principal binding: ${key.diagnostic}`)

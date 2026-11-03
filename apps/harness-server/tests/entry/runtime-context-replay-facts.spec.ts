@@ -38,7 +38,10 @@ function scopeOf(ref: string): ScopeRef {
 const scope = scopeOf(`session-scope:${'a'.repeat(64)}`)
 
 /** A recovery that finishes; `restored` are the block keys its material carries. */
-function finishReplay(tenant: TenantId, restored: readonly ContextBlockKey[]): HolderAction<unknown> {
+function finishReplay(
+  tenant: TenantId,
+  restored: readonly ContextBlockKey[],
+): HolderAction<unknown> {
   return {
     kind: 'finish-replay',
     scope,
@@ -96,10 +99,12 @@ function factsPlugin(answer: SessionReplayFacts['stepCommittedBlocks'], calls: u
   return { name: 'fixture-session-ad03-facts', apply: (ctx: Context) => void new Facts(ctx) }
 }
 
-const known = (...keys: ContextBlockKey[]) => async (): Promise<StepCommittedBlocks> => ({
-  kind: 'known',
-  keys,
-})
+const known =
+  (...keys: ContextBlockKey[]) =>
+  async (): Promise<StepCommittedBlocks> => ({
+    kind: 'known',
+    keys,
+  })
 
 type World = Readonly<{
   fixture: FixtureEnv
