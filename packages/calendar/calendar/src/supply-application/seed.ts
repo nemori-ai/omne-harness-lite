@@ -380,8 +380,12 @@ async function seedEntry(
     return { calendarId, outcome: { kind: 'cancelled', phase: 'beforeCommit' }, warnings: [] }
   const materials: CalendarStoredMaterial[] = []
   for (const item of entry.materials) {
-    const { contentBase64, rawHash, ...metadata } = item
-    const material = { ...metadata, content: new Uint8Array(Buffer.from(contentBase64, 'base64')) }
+    const { contentBase64, rawHash, transportEvidence, ...metadata } = item
+    const material = {
+      ...metadata,
+      ...(transportEvidence ? { transportEvidence } : {}),
+      content: new Uint8Array(Buffer.from(contentBase64, 'base64')),
+    }
     if (materialHash(material) !== rawHash) return reject('Seed raw material digest mismatch')
     materials.push(await preserveSource(deps.materials, policy, material))
   }
