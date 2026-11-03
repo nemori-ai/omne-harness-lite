@@ -23,6 +23,32 @@ export class NotApplicable extends Error {
   }
 }
 
+export function isNotApplicable(error: unknown): error is NotApplicable {
+  return error instanceof NotApplicable
+}
+
+/** Not applicable is neither a pass nor a failure: a consumer counts it apart. */
+export type CaseVerdict =
+  | Readonly<{ kind: 'passed' }>
+  | Readonly<{ kind: 'not-applicable'; handle: string }>
+
+/**
+ * Runs one case on one fixture. A failed assertion, or any other error, is thrown to the caller;
+ * only a missing handle is reported as a verdict.
+ */
+export async function runConformanceCase<F>(
+  conformance: ConformanceCase<F>,
+  fixture: F,
+): Promise<CaseVerdict> {
+  try {
+    await conformance.run(fixture)
+  } catch (error) {
+    if (isNotApplicable(error)) return { kind: 'not-applicable', handle: error.handle }
+    throw error
+  }
+  return { kind: 'passed' }
+}
+
 export function conformanceCase<F>(
   clause: string,
   name: string,

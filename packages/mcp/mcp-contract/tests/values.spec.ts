@@ -10,6 +10,7 @@ import {
   isEndpointHolding,
   isEndpointName,
   isGeneration,
+  isInstructionsDigest,
   isMillis,
   isProtocolVersion,
   isRequestState,
@@ -20,10 +21,16 @@ describe('isConnectionTarget', () => {
   const accepted = [
     'https://mcp.example.test/v1',
     'http://127.0.0.1:8080/',
+    'http://localhost:3000/mcp',
+    'http://[::1]:9000/mcp',
     'https://[::1]:9000/mcp?tenant=a',
   ]
   const refused = [
     'HTTPS://mcp.example.test/',
+    'http://mcp.example.test/',
+    'http://10.0.0.1/',
+    'http://127.0.0.2/',
+    'http://localhost.example.test/',
     'ftp://mcp.example.test/',
     '/mcp',
     'mcp.example.test/mcp',
@@ -80,12 +87,13 @@ describe('text brands', () => {
     )
   })
 
-  it('takes a definition digest only as a lower-case SHA-256 text', () => {
-    expect(isDefinitionDigest(`sha256:${'0a'.repeat(32)}`)).toBe(true)
-    expect(isDefinitionDigest(`sha256:${'0A'.repeat(32)}`)).toBe(false)
-    expect(isDefinitionDigest(`sha256:${'0a'.repeat(31)}`)).toBe(false)
-    expect(isDefinitionDigest('0a'.repeat(32))).toBe(false)
-  })
+  for (const [name, guard] of Object.entries({ isDefinitionDigest, isInstructionsDigest }))
+    it(`${name} takes only a lower-case SHA-256 text`, () => {
+      expect(guard(`sha256:${'0a'.repeat(32)}`)).toBe(true)
+      expect(guard(`sha256:${'0A'.repeat(32)}`)).toBe(false)
+      expect(guard(`sha256:${'0a'.repeat(31)}`)).toBe(false)
+      expect(guard('0a'.repeat(32))).toBe(false)
+    })
 
   const opaque = {
     isActionName,

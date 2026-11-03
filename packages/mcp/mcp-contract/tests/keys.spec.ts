@@ -45,11 +45,12 @@ function endpoint(adoption: AdoptionRevision): AdoptedEndpoint {
     ref: { name, holding },
     revision: adoption,
     body: json({ name: 'files', transport: 'streamable-http', auth: 'oauth' }),
-    settings: {},
+    settings: { target: absent, credential: absent, connectTimeout: absent },
     processEnv: [],
   }
 }
 
+const absent = { kind: 'absent' } as const
 const first = tenantOf('0123456789abcdefghjkmnpqrs')
 const second = tenantOf('0123456789abcdefghjkmnpqrt')
 const alice: PeerAccount = { kind: 'credential', binding: binding('alice') }

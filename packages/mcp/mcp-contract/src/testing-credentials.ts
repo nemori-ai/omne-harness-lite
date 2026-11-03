@@ -2,9 +2,18 @@
 import assert from 'node:assert/strict'
 import { inspect } from 'node:util'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
-import type { CredentialHandle, CredentialUse } from './ports.ts'
+import type { ConnectionTarget, CredentialBinding, EndpointHolding } from './brands.ts'
+import type { Outcome } from '@omne-harness/operation-result'
+import type {
+  CredentialFailure,
+  CredentialPurpose,
+  CredentialUse,
+  HttpCredentialHandle,
+  HttpPurpose,
+  ProcessCredentialHandle,
+  ProcessPurpose,
+} from './ports.ts'
 import { conformanceCase, handle, tenantText, type ConformanceCase } from './testing-case.ts'
-import type { ConnectionTarget, CredentialBinding, EndpointHolding } from './values.ts'
 
 export type CredentialUseFixture<P> = Readonly<{
   port: CredentialUse<P>
@@ -31,25 +40,26 @@ function revealsNothing(value: unknown, secret: string): void {
   for (const view of views) assert.ok(!view.includes(secret), 'an answer reveals the secret value')
 }
 
-export function describeCredentialUseConformance<P>(): readonly ConformanceCase<
+export function mcpCredentialUseConformance<P>(): readonly ConformanceCase<
   CredentialUseFixture<P>
 >[] {
   return [
-    conformanceCase('CU1', 'gives a handle for each purpose and releases it', async fixture => {
-      const purposes = [
+    conformanceCase('CU1', 'gives a handle of the asked purpose and releases it', async fixture => {
+      const { access, holding, binding } = fixture
+      const forProcess = await fixture.port.acquire(
+        access,
+        holding,
         { kind: 'process-env' },
-        { kind: 'http-authorization', target: fixture.target },
-      ] as const
-      for (const purpose of purposes) {
-        const answer = await fixture.port.acquire(
-          fixture.access,
-          fixture.holding,
-          purpose,
-          fixture.binding,
-        )
-        assert.ok('ok' in answer, `no handle for ${purpose.kind}`)
-        await answer.ok.release()
-      }
+        binding,
+      )
+      assert.ok('ok' in forProcess, 'no handle for process-env')
+      assert.strictEqual(forProcess.ok.purpose, 'process-env')
+      await forProcess.ok.release()
+      const http = { kind: 'http-authorization', target: fixture.target } as const
+      const forHttp = await fixture.port.acquire(access, holding, http, binding)
+      assert.ok('ok' in forHttp, 'no handle for http-authorization')
+      assert.strictEqual(forHttp.ok.purpose, 'http-authorization')
+      await forHttp.ok.release()
     }),
     conformanceCase('CU2', 'answers missing for a binding without a credential', async fixture => {
       const answer = await fixture.port.acquire(
@@ -130,12 +140,13 @@ export function describeCredentialUseConformance<P>(): readonly ConformanceCase<
   ]
 }
 
-// The secret behind each handle of the memory double, kept off the handle itself. The memory
-// process landing reads it to fill the environment, as a real landing would through its store.
-const secrets = new WeakMap<CredentialHandle, string>()
+// The secret behind each process handle of the memory double, kept off the handle itself. The
+// memory process landing reads it to fill the environment. This is the in-memory form of the
+// agreement between a credential provider and a process landing: MCP never reads it.
+const secrets = new WeakMap<ProcessCredentialHandle, string>()
 
-/** The secret behind a handle of the memory double. Not exported from `./testing`. */
-export function memorySecretOf(credential: CredentialHandle): string | undefined {
+/** The secret behind a process handle of the memory double. Not exported from `./testing`. */
+export function memorySecretOf(credential: ProcessCredentialHandle): string | undefined {
   return secrets.get(credential)
 }
 
@@ -153,13 +164,14 @@ export type MemoryCredentialUse<P> = CredentialUse<P> &
     setUnreadable(tenant: TenantId, binding: CredentialBinding, unreadable: boolean): void
   }>
 
-function memoryHandle(secret: string): CredentialHandle {
+function httpHandle(secret: string): HttpCredentialHandle {
   let usable = true
-  const credential: CredentialHandle = {
-    async authorize(headers) {
-      if (!usable) return { failure: 'rejected' }
+  return Object.freeze({
+    purpose: 'http-authorization',
+    async authorize(headers: Headers) {
+      if (!usable) return { failure: 'rejected' as const }
       headers.set('authorization', `Bearer ${secret}`)
-      return { ok: true }
+      return { ok: true as const }
     },
     async reportRejection() {
       usable = false
@@ -167,9 +179,16 @@ function memoryHandle(secret: string): CredentialHandle {
     async release() {
       usable = false
     },
-  }
+  })
+}
+
+function processHandle(secret: string): ProcessCredentialHandle {
+  const credential: ProcessCredentialHandle = Object.freeze({
+    purpose: 'process-env',
+    async release() {},
+  })
   secrets.set(credential, secret)
-  return Object.freeze(credential)
+  return credential
 }
 
 /** Credentials by tenant and binding, each bound to one holding. It keeps nothing durable. */
@@ -182,14 +201,41 @@ export function createMemoryCredentialUse<P>(): MemoryCredentialUse<P> {
     if (entry === undefined) throw new TypeError('no credential is stored for this binding')
     return entry
   }
+  const found = (
+    access: Access<P>,
+    holding: EndpointHolding,
+    binding: CredentialBinding,
+  ): Outcome<string, CredentialFailure> => {
+    const entry = entries.get(keyOf(access.tenant, binding))
+    if (entry === undefined || entry.holding !== holding) return { failure: 'missing' }
+    if (entry.unreadable) return { failure: 'unknown' }
+    if (entry.rejected) return { failure: 'rejected' }
+    return { ok: entry.secret }
+  }
+  function acquire(
+    access: Access<P>,
+    holding: EndpointHolding,
+    purpose: ProcessPurpose,
+    binding: CredentialBinding,
+  ): Promise<Outcome<ProcessCredentialHandle, CredentialFailure>>
+  function acquire(
+    access: Access<P>,
+    holding: EndpointHolding,
+    purpose: HttpPurpose,
+    binding: CredentialBinding,
+  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>>
+  async function acquire(
+    access: Access<P>,
+    holding: EndpointHolding,
+    purpose: CredentialPurpose,
+    binding: CredentialBinding,
+  ): Promise<Outcome<ProcessCredentialHandle | HttpCredentialHandle, CredentialFailure>> {
+    const secret = found(access, holding, binding)
+    if ('failure' in secret) return secret
+    return { ok: purpose.kind === 'process-env' ? processHandle(secret.ok) : httpHandle(secret.ok) }
+  }
   return {
-    async acquire(access, holding, _purpose, binding) {
-      const entry = entries.get(keyOf(access.tenant, binding))
-      if (entry === undefined || entry.holding !== holding) return { failure: 'missing' }
-      if (entry.unreadable) return { failure: 'unknown' }
-      if (entry.rejected) return { failure: 'rejected' }
-      return { ok: memoryHandle(entry.secret) }
-    },
+    acquire,
     store: credential =>
       entries.set(keyOf(credential.tenant, credential.binding), {
         holding: credential.holding,

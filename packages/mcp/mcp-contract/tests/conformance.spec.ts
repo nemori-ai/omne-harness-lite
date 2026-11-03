@@ -30,12 +30,13 @@ import {
   createMemoryCredentialUse,
   createMemoryProcessLanding,
   createMemoryUseEligibility,
-  describeAdoptionViewConformance,
-  describeCatalogStoreConformance,
-  describeCredentialUseConformance,
-  describeProcessLandingConformance,
-  describeUseEligibilityConformance,
+  mcpAdoptionViewConformance,
+  mcpCatalogStoreConformance,
+  mcpCredentialUseConformance,
+  mcpProcessLandingConformance,
+  mcpUseEligibilityConformance,
   mergeListingCases,
+  runConformanceCase,
   type AdoptionViewFixture,
   type CatalogStoreFixture,
   type ConformanceCase,
@@ -80,7 +81,8 @@ const principalKey = (principal: Principal) => principal.id
 function register<F>(suite: readonly ConformanceCase<F>[], fixture: () => F): void {
   for (const conformance of suite)
     it(`${conformance.clause} ${conformance.name}`, async () => {
-      await conformance.run(fixture())
+      // A case that is not applicable fails here: the memory doubles offer every handle.
+      expect(await runConformanceCase(conformance, fixture())).toEqual({ kind: 'passed' })
     })
 }
 
@@ -125,7 +127,11 @@ function adoptionFixture(
     scope: 'workspace-1',
     ref: ref('files'),
     body,
-    settings: { target: target('https://files.example.test/mcp'), credential: binding('main') },
+    settings: {
+      target: { kind: 'value', value: target('https://files.example.test/mcp') },
+      credential: { kind: 'value', value: binding('main') },
+      connectTimeout: { kind: 'absent' },
+    },
   })
   memory.adopt({ tenant: home, scope: 'workspace-2', ref: ref('other'), body })
   memory.adopt({ tenant: home, scope: 'workspace-1', ref: ref('retired'), body })
@@ -139,7 +145,13 @@ function adoptionFixture(
     elsewhere: ref('other'),
     outsider: { access: mallory, missing: ref('nowhere') },
     change: async () => {
-      memory.update(home, ref('files'), { settings: { credential: binding('second') } })
+      memory.update(home, ref('files'), {
+        settings: {
+          target: { kind: 'value', value: target('https://files.example.test/mcp') },
+          credential: { kind: 'value', value: binding('second') },
+          connectTimeout: { kind: 'absent' },
+        },
+      })
     },
     unreadable: async () => memory.setUnreadable(true),
   }
@@ -240,23 +252,23 @@ function storeFixture(
 }
 
 describe('UseEligibility conformance on the memory double', () => {
-  register(describeUseEligibilityConformance<Principal>(), () => eligibilityFixture())
+  register(mcpUseEligibilityConformance<Principal>(), () => eligibilityFixture())
 })
 
 describe('AdoptionView conformance on the memory double', () => {
-  register(describeAdoptionViewConformance<Principal, string>(), () => adoptionFixture())
+  register(mcpAdoptionViewConformance<Principal, string>(), () => adoptionFixture())
 })
 
 describe('CredentialUse conformance on the memory double', () => {
-  register(describeCredentialUseConformance<Principal>(), credentialFixture)
+  register(mcpCredentialUseConformance<Principal>(), credentialFixture)
 })
 
 describe('ProcessLanding conformance on the memory double', () => {
-  register(describeProcessLandingConformance<Principal>(), landingFixture)
+  register(mcpProcessLandingConformance<Principal>(), landingFixture)
 })
 
 describe('CatalogStore conformance on the memory double', () => {
-  register(describeCatalogStoreConformance(), () => storeFixture())
+  register(mcpCatalogStoreConformance(), () => storeFixture())
 })
 
 describe('the suites fail a port that breaks the contract', () => {
@@ -266,9 +278,7 @@ describe('the suites fail a port that breaks the contract', () => {
         endpoint.name === 'nowhere' ? { kind: 'unknown' } : port.check(who, endpoint),
     })
     expect(
-      await failing(describeUseEligibilityConformance<Principal>(), () =>
-        eligibilityFixture(leaky),
-      ),
+      await failing(mcpUseEligibilityConformance<Principal>(), () => eligibilityFixture(leaky)),
     ).toEqual(['answers an ineligible principal the same for an existing and a missing endpoint'])
   })
 
@@ -279,9 +289,7 @@ describe('the suites fail a port that breaks the contract', () => {
         endpoint.name === 'nowhere' ? { failure: 'unknown' } : port.endpoint(who, endpoint),
     })
     expect(
-      await failing(describeAdoptionViewConformance<Principal, string>(), () =>
-        adoptionFixture(leaky),
-      ),
+      await failing(mcpAdoptionViewConformance<Principal, string>(), () => adoptionFixture(leaky)),
     ).toEqual(['answers an outsider the same for an adopted and a missing endpoint'])
   })
 
@@ -294,7 +302,7 @@ describe('the suites fail a port that breaks the contract', () => {
         return store.write(target, record, expected)
       },
     })
-    expect(await failing(describeCatalogStoreConformance(), () => storeFixture(lax))).toEqual([
+    expect(await failing(mcpCatalogStoreConformance(), () => storeFixture(lax))).toEqual([
       'refuses a write that expects a revision for a key never written',
       'refuses a write that expects absent when a record exists, and keeps the record',
       'refuses a write based on an older revision, and keeps the newer record',
@@ -305,6 +313,6 @@ describe('the suites fail a port that breaks the contract', () => {
 describe('mergeListing over the exhaustive case table', () => {
   for (const sample of mergeListingCases)
     it(sample.name, () => {
-      expect(mergeListing(sample.current, sample.listing, sample.basedOn)).toEqual(sample.expected)
+      expect(mergeListing(sample.current, sample.listing)).toEqual(sample.expected)
     })
 })

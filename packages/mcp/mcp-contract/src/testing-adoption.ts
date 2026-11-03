@@ -4,12 +4,8 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import type { AdoptedEndpoint, AdoptionView, ProcessSetting } from './ports.ts'
 import { conformanceCase, handle, tenantText, type ConformanceCase } from './testing-case.ts'
-import {
-  isAdoptionRevision,
-  type AdoptionRevision,
-  type EndpointRef,
-  type EndpointSettings,
-} from './values.ts'
+import { isAdoptionRevision, type AdoptionRevision } from './brands.ts'
+import type { EndpointRef, EndpointSettings } from './values.ts'
 
 export type AdoptionViewFixture<P, S> = Readonly<{
   port: AdoptionView<P, S>
@@ -39,7 +35,7 @@ async function adoptedOf<P, S>(fixture: AdoptionViewFixture<P, S>): Promise<Adop
   return answer.ok
 }
 
-export function describeAdoptionViewConformance<P, S>(): readonly ConformanceCase<
+export function mcpAdoptionViewConformance<P, S>(): readonly ConformanceCase<
   AdoptionViewFixture<P, S>
 >[] {
   return [
@@ -123,6 +119,9 @@ export type MemoryAdoptionView<P, S> = AdoptionView<P, S> &
     setUnreadable(unreadable: boolean): void
   }>
 
+const ABSENT = { kind: 'absent' } as const
+const NO_SETTINGS: EndpointSettings = { target: ABSENT, credential: ABSENT, connectTimeout: ABSENT }
+
 type Stored<S> = Readonly<{ tenant: string; scope: string; endpoint: AdoptedEndpoint; source: S }>
 
 /**
@@ -172,7 +171,7 @@ export function createMemoryAdoptionView<P, S>(
         ref: adoption.ref,
         revision: nextRevision(),
         body: adoption.body,
-        settings: adoption.settings ?? {},
+        settings: adoption.settings ?? NO_SETTINGS,
         processEnv: adoption.processEnv ?? [],
       }),
     update(tenant, ref, change) {

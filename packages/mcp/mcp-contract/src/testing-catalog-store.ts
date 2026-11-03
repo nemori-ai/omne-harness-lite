@@ -1,11 +1,7 @@
 // The conformance suite of `CatalogStore`, and an in-memory double that passes it.
 import assert from 'node:assert/strict'
-import {
-  completeListing,
-  mergeListing,
-  type ActionCatalogRecord,
-  type CatalogState,
-} from './catalog.ts'
+import { mergeListing, type ActionCatalogRecord, type CatalogState } from './catalog.ts'
+import { completeListing } from './listing.ts'
 import type { CatalogStore } from './ports.ts'
 import { conformanceCase, handle, tenantText, type ConformanceCase } from './testing-case.ts'
 import { generationOf, jsonOf, protocolVersionOf, revisionOf } from './testing-values.ts'
@@ -25,7 +21,9 @@ export type CatalogStoreFixture = Readonly<{
 function sampleRecord(revision: number, names: readonly string[]): ActionCatalogRecord {
   let state: CatalogState = { kind: 'not-acquired' }
   for (let round = 1; round <= revision; round += 1) {
+    const basedOn = state.kind === 'acquired' ? state.record.revision : 'absent'
     const listing = completeListing({
+      basedOn,
       pages: [
         {
           ok: {
@@ -44,8 +42,7 @@ function sampleRecord(revision: number, names: readonly string[]): ActionCatalog
       limits: { maxPages: 1, maxActions: names.length },
     })
     if ('failure' in listing) throw new TypeError(listing.failure)
-    const based = state.kind === 'acquired' ? state.record.revision : 'absent'
-    const merged = mergeListing(state, listing.ok, based)
+    const merged = mergeListing(state, listing.ok)
     if ('failure' in merged) throw new TypeError(merged.failure)
     state = { kind: 'acquired', record: merged.ok }
   }
@@ -68,7 +65,7 @@ async function written(
   return record
 }
 
-export function describeCatalogStoreConformance(): readonly ConformanceCase<CatalogStoreFixture>[] {
+export function mcpCatalogStoreConformance(): readonly ConformanceCase<CatalogStoreFixture>[] {
   return [
     conformanceCase('CS1', 'answers absent for a key never written', async fixture => {
       assert.deepStrictEqual(await fixture.store.read(fixture.key), { ok: 'absent' })

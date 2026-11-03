@@ -22,7 +22,7 @@ export type UseEligibilityFixture<P> = Readonly<{
 
 const NOT_ELIGIBLE: EligibilityVerdict = { kind: 'refused', reason: 'not-eligible' }
 
-export function describeUseEligibilityConformance<P>(): readonly ConformanceCase<
+export function mcpUseEligibilityConformance<P>(): readonly ConformanceCase<
   UseEligibilityFixture<P>
 >[] {
   return [

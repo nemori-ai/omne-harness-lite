@@ -6,7 +6,7 @@ import { toContentBlocks } from './content.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CallOutcome, OutputCheck, PeerAnswer } from './outcomes.ts'
 import { generationOf, jsonOf, requestStateOf, taskIdOf } from './testing-values.ts'
-import type { Generation } from './values.ts'
+import type { Generation } from './brands.ts'
 
 export type ClassifyOutcomeCase = Readonly<{
   name: string

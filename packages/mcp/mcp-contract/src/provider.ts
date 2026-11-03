@@ -1,18 +1,21 @@
 // The `./provider` entry: the five requirement ports, the transport port and the transport
-// factory, for their implementers. Callers use the root entry.
+// factory, for their implementers. Types that the root entry already exports are not repeated.
 export type { ExpectedRevision } from './catalog.ts'
-export type { AuthorizationDiscovery, BlockedReason } from './outcomes.ts'
 export type {
   AdoptedEndpoint,
   AdoptionView,
   CatalogStore,
-  CredentialHandle,
+  CredentialFailure,
   CredentialPurpose,
   CredentialUse,
   EligibilityVerdict,
+  HttpCredentialHandle,
+  HttpPurpose,
+  ProcessCredentialHandle,
   ProcessEnvironment,
   ProcessHandle,
   ProcessLanding,
+  ProcessPurpose,
   ProcessSetting,
   StopScope,
   UseEligibility,
@@ -22,7 +25,6 @@ export type {
   ListingPage,
   McpTransport,
   McpTransportFactory,
-  PeerNotification,
   SentCall,
   TaskAnswer,
   TransportFailure,

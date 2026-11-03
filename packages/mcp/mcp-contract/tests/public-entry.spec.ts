@@ -12,6 +12,7 @@ const BRAND_GUARDS = [
   'isEndpointHolding',
   'isEndpointName',
   'isGeneration',
+  'isInstructionsDigest',
   'isMillis',
   'isProtocolVersion',
   'isRequestState',
@@ -21,6 +22,7 @@ const BRAND_GUARDS = [
 const ROOT = [
   ...BRAND_GUARDS,
   'actionPermissionItems',
+  'boundInstructions',
   'catalogKeyOf',
   'classifyOutcome',
   'completeListing',
@@ -43,12 +45,14 @@ const TESTING = [
   'createMemoryCredentialUse',
   'createMemoryProcessLanding',
   'createMemoryUseEligibility',
-  'describeAdoptionViewConformance',
-  'describeCatalogStoreConformance',
-  'describeCredentialUseConformance',
-  'describeProcessLandingConformance',
-  'describeUseEligibilityConformance',
+  'isNotApplicable',
+  'mcpAdoptionViewConformance',
+  'mcpCatalogStoreConformance',
+  'mcpCredentialUseConformance',
+  'mcpProcessLandingConformance',
+  'mcpUseEligibilityConformance',
   'mergeListingCases',
+  'runConformanceCase',
 ].sort()
 
 it('the root entry exports the values and pure functions of the contract', async () => {

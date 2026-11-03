@@ -3,7 +3,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import { toContentBlocks } from './content.ts'
 import { isObject, itemsOf, member, textOf, type JsonObject } from './json.ts'
 import type { CallOutcome, OutputCheck, OutputValidator, PeerAnswer } from './outcomes.ts'
-import { isRequestState, isTaskId, type Generation } from './values.ts'
+import { isRequestState, isTaskId, type Generation } from './brands.ts'
 
 export type ClassifyContext = Readonly<{
   /** The connection generation that the request was sent on. */

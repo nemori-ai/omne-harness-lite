@@ -5,20 +5,25 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type { Access } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
-  ActionCatalogRecord,
-  AdoptionBasis,
-  Freshness,
-  KnownAction,
-  ListingDefect,
-} from './catalog.ts'
+  ActionName,
+  CatalogRevision,
+  CorrelationKey,
+  DefinitionDigest,
+  Generation,
+  Millis,
+  RequestState,
+  TaskId,
+} from './brands.ts'
+import type { AdoptionBasis, Freshness, KnownAction } from './catalog.ts'
+import type { ListingDefect } from './listing.ts'
 import type { EndpointBodyRejection } from './endpoint.ts'
 import type {
   BlockedReason,
   CallOutcome,
-  ConnectionCondition,
   InvokeResult,
+  OperationFailure,
   Refusal,
-  TaskStatus,
+  TaskReport,
 } from './outcomes.ts'
 import type {
   AdoptionView,
@@ -29,20 +34,7 @@ import type {
   UseEligibility,
 } from './ports.ts'
 import type { McpTransportFactory, PeerNotification } from './transport.ts'
-import type {
-  ActionName,
-  CallMode,
-  CatalogRevision,
-  CorrelationKey,
-  DefinitionDigest,
-  EndpointDefinition,
-  EndpointRef,
-  Generation,
-  Millis,
-  PeerIdentity,
-  RequestState,
-  TaskId,
-} from './values.ts'
+import type { EndpointDefinition, EndpointRef, PeerIdentity } from './values.ts'
 
 /** The category port, with the parse and the local-command judgment on a body. No access. */
 export interface EndpointInspection extends BodyContract {
@@ -55,7 +47,7 @@ export type CatalogView =
   | Readonly<{ kind: 'not-acquired' }>
   | Readonly<{
       kind: 'acquired'
-      revision: ActionCatalogRecord['revision']
+      revision: CatalogRevision
       basis: AdoptionBasis
       freshness: Freshness
       basisCurrent: 'matches' | 'differs' | 'no-connection'
@@ -64,10 +56,8 @@ export type CatalogView =
 
 /** Why a refresh kept the earlier adoption. */
 export type KeptReason =
-  | Readonly<{ kind: 'newer-adoption' }>
   | Readonly<{ kind: 'superseded' }>
   | Readonly<{ kind: 'listing-incomplete'; defect: ListingDefect }>
-  | ConnectionCondition
 
 export type RefreshResult =
   | Readonly<{ kind: 'published'; revision: CatalogRevision }>
@@ -75,12 +65,12 @@ export type RefreshResult =
 
 export interface ActionDiscovery<P> {
   /** The catalog as stored. It does not connect and does not discover. */
-  current(access: Access<P>, ref: EndpointRef): Promise<Outcome<CatalogView, Refusal>>
-  /** Discovers and publishes. A store that cannot be written answers `unknown`. */
+  current(access: Access<P>, ref: EndpointRef): Promise<Outcome<CatalogView, OperationFailure>>
+  /** Discovers and publishes. A store that cannot be read or written answers `unknown`. */
   refresh(
     access: Access<P>,
     request: Readonly<{ ref: EndpointRef; connectBound?: Millis }>,
-  ): Promise<Outcome<RefreshResult, Refusal>>
+  ): Promise<Outcome<RefreshResult, OperationFailure>>
   /** The negotiated facts of the current connection. It does not connect to answer. */
   peer(
     access: Access<P>,
@@ -88,7 +78,7 @@ export interface ActionDiscovery<P> {
   ): Promise<
     Outcome<
       Readonly<{ peer: PeerIdentity; generation: Generation }>,
-      Refusal | Readonly<{ kind: 'not-connected' }>
+      OperationFailure | Readonly<{ kind: 'not-connected' }>
     >
   >
 }
@@ -99,7 +89,6 @@ export type InvokeRequest = Readonly<{
   args: JsonValue
   expectedDefinition: DefinitionDigest
   correlationKey: CorrelationKey
-  mode: CallMode
   signal: AbortSignal
   connectBound?: Millis
   observe?: (notification: PeerNotification) => void
@@ -113,7 +102,6 @@ export type ContinueRequest = Readonly<{
   inputResponses: JsonValue
   issuedAt: Generation
   correlationKey: CorrelationKey
-  mode: CallMode
   signal: AbortSignal
   connectBound?: Millis
   observe?: (notification: PeerNotification) => void
@@ -128,19 +116,38 @@ export interface ActionCalls<P> {
   cancel(access: Access<P>, correlationKey: CorrelationKey): Promise<CancelAnswer>
 }
 
-export type TaskRef = Readonly<{ ref: EndpointRef; taskId: TaskId; issuedAt: Generation }>
+export type TaskRef = Readonly<{
+  ref: EndpointRef
+  taskId: TaskId
+  issuedAt: Generation
+  connectBound?: Millis
+}>
 
+/**
+ * The task operations. Each one is open only to the tenant and principal that started the task
+ * in this run; anyone else, and any task not in this run's table, gets `unknown`, whether the task
+ * exists or not.
+ */
 export interface TaskControl<P> {
-  queryTask(access: Access<P>, task: TaskRef): Promise<Outcome<TaskStatus | 'expired', Refusal>>
+  queryTask(
+    access: Access<P>,
+    task: TaskRef,
+  ): Promise<Outcome<TaskReport | 'expired', OperationFailure>>
   taskResult(
     access: Access<P>,
     task: TaskRef,
-  ): Promise<Outcome<CallOutcome | 'not-finished' | 'expired' | 'cancelled', Refusal>>
-  /** Only the tenant and principal that started the task can cancel it. No eligibility check. */
+  ): Promise<Outcome<CallOutcome | 'not-finished' | 'expired' | 'cancelled', OperationFailure>>
+  /** Hands the answers to the input requests of an `input_required` task to the peer. */
+  provideTaskInput(
+    access: Access<P>,
+    task: TaskRef,
+    inputResponses: JsonValue,
+  ): Promise<Outcome<'accepted' | 'already-terminal', OperationFailure>>
+  /** Does not check adoption or eligibility. */
   cancelTask(
     access: Access<P>,
     task: TaskRef,
-  ): Promise<'requested' | 'already-terminal' | 'unknown'>
+  ): Promise<Outcome<'requested' | 'already-terminal', OperationFailure>>
 }
 
 export type ActionInvoker<P> = ActionCalls<P> & TaskControl<P>
@@ -151,15 +158,19 @@ export type DegradedReason = 'discover-failed' | 'list-failed'
 /** Why a connection is lost. */
 export type LostReason =
   | 'preparation-failed'
+  | 'authorization-required'
   | 'process-exited'
   | 'stream-broken'
   | 'negotiation-invalid'
   | 'session-ended'
 
+/** A process that a closed or failed preparation left, and the stop range that was confirmed. */
+export type Residual = Readonly<{ kind: 'process'; confirmed: StopScope }>
+
 export type ConnectionState =
   | Readonly<{ kind: 'none' | 'preparing' | 'ready' }>
   | Readonly<{ kind: 'degraded'; reason: DegradedReason }>
-  | Readonly<{ kind: 'lost'; reason: LostReason }>
+  | Readonly<{ kind: 'lost'; reason: LostReason; residual?: readonly Residual[] }>
 
 /** The status of one endpoint. The credential is only present or absent; no value is shown. */
 export type EndpointStatusView = Readonly<{
@@ -167,13 +178,16 @@ export type EndpointStatusView = Readonly<{
   connection: ConnectionState
   credential: 'present' | 'absent' | 'not-required'
   use: Readonly<{ kind: 'usable' }> | Readonly<{ kind: 'blocked'; reason: BlockedReason }>
+  residual?: readonly Residual[]
 }>
 
 export interface EndpointStatus<P, S> {
   inspect(
     access: Access<P>,
     ref: EndpointRef,
-  ): Promise<Outcome<EndpointStatusView, Exclude<Refusal, Readonly<{ kind: 'blocked' }>>>>
+  ): Promise<
+    Outcome<EndpointStatusView, Extract<Refusal, { kind: 'not-available-to-you' | 'unknown' }>>
+  >
   /** Lists only the endpoints that the principal has use eligibility for. */
   list(access: Access<P>, scope: S): Promise<Outcome<readonly EndpointStatusView[], 'unknown'>>
 }
@@ -184,7 +198,15 @@ export type ReleaseReport =
   | Readonly<{ kind: 'no-connection' }>
 
 export interface Connections<P> {
-  release(access: Access<P>, ref: EndpointRef): Promise<Outcome<ReleaseReport, Refusal>>
+  release(
+    access: Access<P>,
+    ref: EndpointRef,
+  ): Promise<
+    Outcome<
+      ReleaseReport,
+      Extract<Refusal, { kind: 'not-available-to-you' | 'blocked' | 'unknown' }>
+    >
+  >
   /** For the host that holds this instance, at exit. It reports only what was confirmed. */
   closeAll(): Promise<readonly Readonly<{ ref: EndpointRef; process: StopScope | 'no-process' }>[]>
 }
@@ -203,7 +225,7 @@ export type McpPorts<P, S> = Readonly<{
  * bounds are positive safe integers.
  */
 export type McpConfig<P> = Readonly<{
-  /** A stable text for a principal. The in-flight table keys calls by it. */
+  /** A stable text for a principal. The in-flight and task tables key entries by it. */
   principalKey: (principal: P) => string
   /** The most `tools/list` pages that one acquisition reads. */
   maxListingPages: number

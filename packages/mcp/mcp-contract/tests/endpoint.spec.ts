@@ -198,14 +198,37 @@ describe('mcpEndpointBodyContract', () => {
 
   const declarations: readonly (readonly [string, unknown, readonly string[]])[] = [
     [
-      'stdio without authentication',
-      { ...stdio, auth: 'none' },
+      'stdio without authentication or variables',
+      { ...stdio, launch: { command: 'files-server' }, auth: 'none' },
       ['setting:preference:connect-timeout'],
     ],
     [
-      'stdio with a static credential',
+      'stdio with a static credential and a setting variable',
       stdio,
-      ['setting:placement-identity:credential', 'setting:preference:connect-timeout'],
+      [
+        'setting:placement-identity:credential',
+        'setting:placement-identity:env.FILES_MODE',
+        'setting:preference:connect-timeout',
+      ],
+    ],
+    [
+      'stdio with several setting variables, in body order',
+      {
+        ...stdio,
+        launch: {
+          command: 'files-server',
+          env: [
+            { name: 'B_MODE', source: 'setting' },
+            { name: 'A_ROOT', source: 'setting' },
+          ],
+        },
+        auth: 'none',
+      },
+      [
+        'setting:placement-identity:env.B_MODE',
+        'setting:placement-identity:env.A_ROOT',
+        'setting:preference:connect-timeout',
+      ],
     ],
     [
       'Streamable HTTP without authentication',

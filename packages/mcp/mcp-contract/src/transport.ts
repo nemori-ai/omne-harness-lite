@@ -2,18 +2,10 @@
 // protocol; they hand over the answer of the peer and do not classify it. No SDK type is part of
 // this port.
 import type { JsonValue } from '@omne-harness/json-text'
-import type { AuthorizationDiscovery, NoAnswerCause, PeerAnswer, TaskStatus } from './outcomes.ts'
-import type {
-  ActionName,
-  CallMode,
-  ConnectionTarget,
-  Generation,
-  PeerIdentity,
-  RequestState,
-  TaskId,
-  Untrusted,
-} from './values.ts'
-import type { CredentialHandle, ProcessHandle } from './ports.ts'
+import type { ActionName, ConnectionTarget, Generation, RequestState, TaskId } from './brands.ts'
+import type { AuthorizationDiscovery, NoAnswerCause, PeerAnswer, TaskReport } from './outcomes.ts'
+import type { HttpCredentialHandle, ProcessHandle } from './ports.ts'
+import type { PeerIdentity, Untrusted } from './values.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 
 /**
@@ -36,11 +28,13 @@ export type ListingPage = Readonly<{
   ttlMs?: number
 }>
 
-/** A request to call one peer action. A continuation carries the answers to an input request. */
+/**
+ * A request to call one peer action. A continuation carries the answers to an input request.
+ * Whether the peer answers with a task is the peer's decision for each request.
+ */
 export type CallRequest = Readonly<{
   action: ActionName
   args: JsonValue
-  mode: CallMode
   continuation?: Readonly<{ requestState?: RequestState; inputResponses: JsonValue }>
 }>
 
@@ -74,7 +68,13 @@ export interface McpTransport {
   ): Promise<Outcome<SentCall, Extract<TransportFailure, { kind: 'not-sent' }>>>
   /** Sends a cancel notification for a sent request. It does not prove that the peer stopped. */
   cancelRequest(requestId: string): Promise<void>
-  getTask(taskId: TaskId): Promise<Outcome<TaskStatus | 'expired', TransportFailure>>
+  /** `tasks/get`: the task status, with the input requests of an `input_required` task. */
+  getTask(taskId: TaskId): Promise<Outcome<TaskReport | 'expired', TransportFailure>>
+  /** `tasks/update`: hands the answers to the input requests of a task to the peer. */
+  updateTask(
+    taskId: TaskId,
+    inputResponses: JsonValue,
+  ): Promise<Outcome<'accepted' | 'already-terminal', TransportFailure>>
   getTaskResult(taskId: TaskId): Promise<Outcome<TaskAnswer, TransportFailure>>
   cancelTask(taskId: TaskId): Promise<Outcome<'requested' | 'already-terminal', TransportFailure>>
   /** Closes the transport. It does not stop a process; the holder of the process handle does. */
@@ -87,7 +87,7 @@ export type TransportMaterial =
   | Readonly<{
       kind: 'streamable-http'
       target: ConnectionTarget
-      credential?: CredentialHandle
+      credential?: HttpCredentialHandle
       generation: Generation
     }>
 

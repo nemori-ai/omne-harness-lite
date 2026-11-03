@@ -2,7 +2,8 @@
 // that was not sent has no effect at the peer; a sent call with no answer has an unknown effect.
 import type { ContentBlock, TextContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { Generation, RequestState, TaskId, Untrusted } from './values.ts'
+import type { Generation, RequestState, TaskId } from './brands.ts'
+import type { Untrusted } from './values.ts'
 
 /** Why one content item of the peer is not delivered as it is. The set is closed. */
 export type ContentDefect =
@@ -87,37 +88,48 @@ export type CallOutcome =
 
 export type TaskStatus = 'working' | 'input_required' | 'completed' | 'failed' | 'cancelled'
 
+/** The state of a task, and the input requests it waits for when it is `input_required`. */
+export type TaskReport = Readonly<{ status: TaskStatus; inputRequests?: Untrusted<JsonValue> }>
+
 /** A refusal reason that a use-eligibility answer gives only to a principal with eligibility. */
 export type BlockedReason = 'local-command-not-enabled' | 'disabled'
 
 /**
- * What the peer said when it required authorization: the protected resource metadata, the
- * authorization server issuers listed in it, and the scopes the peer asked for. MCP runs no
+ * What the peer said when it required authorization. `metadata` tells whether the protected
+ * resource metadata was fetched; `resourceMetadata` is present only when it was. MCP runs no
  * authorization flow.
  */
 export type AuthorizationDiscovery = Readonly<{
   resourceMetadataUrl: string
-  resourceMetadata: Untrusted<JsonValue>
+  metadata: 'fetched' | 'unavailable'
+  resourceMetadata?: Untrusted<JsonValue>
   issuers: readonly string[]
   scopes: readonly string[]
 }>
 
+/** A setting or a process variable that an operation needs. */
+export type ConfigItem = 'connect-timeout' | 'target' | 'credential' | `env:${string}`
+
 /**
- * The refusal of a read, control or call operation. Not adopted, not eligible and not existing
- * are one answer, `not-available-to-you`, so that no principal can tell them apart.
+ * The refusal of a read, control or call operation before any connection is used. Not adopted,
+ * not eligible and not existing are one answer, `not-available-to-you`.
  */
 export type Refusal =
   | Readonly<{ kind: 'not-available-to-you' }>
   | Readonly<{ kind: 'blocked'; reason: BlockedReason }>
   | Readonly<{ kind: 'unknown' }>
+  | Readonly<{ kind: 'config-missing'; item: ConfigItem }>
+  | Readonly<{ kind: 'config-invalid'; item: ConfigItem }>
 
-/** A connection condition that kept a refresh or a call from reaching the peer. */
-export type ConnectionCondition =
+/** A connection condition that kept an operation from reaching the peer. */
+export type ConnectionFailure =
   | Readonly<{ kind: 'credential-unavailable'; cause: 'missing' | 'rejected' | 'unknown' }>
   | Readonly<{ kind: 'authorization-required'; discovery: AuthorizationDiscovery }>
   | Readonly<{ kind: 'landing-unavailable' }>
   | Readonly<{ kind: 'connection-unavailable' }>
-  | Readonly<{ kind: 'config-missing'; item: 'connect-timeout' | 'target' }>
+
+/** The failure of a read or status operation that may need a connection. */
+export type OperationFailure = Refusal | ConnectionFailure
 
 /** Why a call was not sent. The set is closed. A call that was not sent has no peer effect. */
 export type NotSentReason =
@@ -126,8 +138,7 @@ export type NotSentReason =
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'definition-changed' }>
   | Readonly<{ kind: 'action-unavailable' }>
-  | Readonly<{ kind: 'mode-unsupported' }>
-  | ConnectionCondition
+  | ConnectionFailure
 
 export type InvokeResult =
   | Readonly<{ kind: 'not-sent'; reason: NotSentReason }>

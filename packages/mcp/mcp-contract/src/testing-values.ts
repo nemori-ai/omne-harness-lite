@@ -14,7 +14,7 @@ import {
   type ProtocolVersion,
   type RequestState,
   type TaskId,
-} from './values.ts'
+} from './brands.ts'
 
 const LIMITS = {
   maxBytes: 1_000_000,

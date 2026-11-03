@@ -1,24 +1,22 @@
 // The exhaustive sample table of `mergeListing`. Each case gives the catalog state, a complete
-// listing, the revision the listing is based on, and the result that the merge must give. The
+// listing that carries the revision it is based on, and the result that the merge must give. The
 // expected records are written out from the inputs; they are not computed by `mergeListing`.
 import type { Outcome } from '@omne-harness/operation-result'
-import {
-  completeListing,
-  type ActionCatalogRecord,
-  type AdoptionBasis,
-  type CatalogState,
-  type CompleteListing,
-  type ExpectedRevision,
-  type KnownAction,
-  type MergeRefusal,
+import type {
+  ActionCatalogRecord,
+  AdoptionBasis,
+  CatalogState,
+  ExpectedRevision,
+  KnownAction,
+  MergeRefusal,
 } from './catalog.ts'
+import { completeListing, type CompleteListing } from './listing.ts'
 import { generationOf, jsonOf, protocolVersionOf, revisionOf } from './testing-values.ts'
 
 export type MergeListingCase = Readonly<{
   name: string
   current: CatalogState
   listing: CompleteListing
-  basedOn: ExpectedRevision
   expected: Outcome<ActionCatalogRecord, MergeRefusal>
 }>
 
@@ -32,8 +30,13 @@ function basis(generation: number): AdoptionBasis {
 
 const acquiredAt = '2026-11-03T08:00:00Z'
 
-function listingOf(generation: number, tools: readonly Readonly<Record<string, unknown>>[]) {
+function listingOf(
+  generation: number,
+  basedOn: ExpectedRevision,
+  tools: readonly Readonly<Record<string, unknown>>[],
+) {
   const listing = completeListing({
+    basedOn,
     pages: [
       { ok: { tools: tools.map(tool => jsonOf({ inputSchema: { type: 'object' }, ...tool })) } },
     ],
@@ -71,18 +74,25 @@ function record(
 }
 
 const notAcquired: CatalogState = { kind: 'not-acquired' }
-const first = listingOf(1, [{ name: 'read' }, { name: 'write', description: 'v1' }])
+const v1 = revisionOf(1)
+const v2 = revisionOf(2)
+const first = listingOf(1, 'absent', [{ name: 'read' }, { name: 'write', description: 'v1' }])
 const firstRecord = record(1, first, [offered(first, 0), offered(first, 1)])
 const acquired: CatalogState = { kind: 'acquired', record: firstRecord }
-const writeGone = listingOf(2, [{ name: 'read' }])
-const writeChanged = listingOf(2, [{ name: 'write', description: 'v2' }, { name: 'read' }])
-const empty = listingOf(2, [])
-const unordered = listingOf(1, [{ name: 'zeta' }, { name: 'alpha' }])
+const writeGone = listingOf(2, v1, [{ name: 'read' }])
+const writeChangedTools = [{ name: 'write', description: 'v2' }, { name: 'read' }]
+const writeChanged = listingOf(2, v1, writeChangedTools)
+const writeChangedAfterLoss = listingOf(3, v2, writeChangedTools)
+const emptyFirst = listingOf(1, 'absent', [])
+const empty = listingOf(2, v1, [])
+const unordered = listingOf(1, 'absent', [{ name: 'zeta' }, { name: 'alpha' }])
+const absentBased = listingOf(2, 'absent', [{ name: 'read' }])
+const revisionBased = listingOf(1, v1, [{ name: 'read' }])
 const lost: CatalogState = {
   kind: 'acquired',
   record: {
     ...firstRecord,
-    revision: revisionOf(2),
+    revision: v2,
     actions: firstRecord.actions.map(action => ({
       ...action,
       availability: { kind: 'unavailable', reason: 'connection-unavailable' },
@@ -99,21 +109,18 @@ export const mergeListingCases: readonly MergeListingCase[] = [
     name: 'the first listing becomes revision 1 with every action available',
     current: notAcquired,
     listing: first,
-    basedOn: 'absent',
     expected: { ok: firstRecord },
   },
   {
     name: 'an empty first listing is acquired with zero actions',
     current: notAcquired,
-    listing: empty,
-    basedOn: 'absent',
-    expected: { ok: record(1, empty, []) },
+    listing: emptyFirst,
+    expected: { ok: record(1, emptyFirst, []) },
   },
   {
     name: 'an action no longer offered stays with its last lawful definition, unavailable',
     current: acquired,
     listing: writeGone,
-    basedOn: revisionOf(1),
     expected: {
       ok: record(2, writeGone, [offered(writeGone, 0), gone(offered(first, 1))]),
     },
@@ -122,49 +129,47 @@ export const mergeListingCases: readonly MergeListingCase[] = [
     name: 'an empty listing keeps every known action, unavailable',
     current: acquired,
     listing: empty,
-    basedOn: revisionOf(1),
     expected: { ok: record(2, empty, [gone(offered(first, 0)), gone(offered(first, 1))]) },
   },
   {
     name: 'a changed definition replaces the last lawful definition and its digest',
     current: acquired,
     listing: writeChanged,
-    basedOn: revisionOf(1),
     expected: { ok: record(2, writeChanged, [offered(writeChanged, 1), offered(writeChanged, 0)]) },
   },
   {
     name: 'an action unavailable for a connection reason is available again when offered',
     current: lost,
-    listing: writeChanged,
-    basedOn: revisionOf(2),
-    expected: { ok: record(3, writeChanged, [offered(writeChanged, 1), offered(writeChanged, 0)]) },
+    listing: writeChangedAfterLoss,
+    expected: {
+      ok: record(3, writeChangedAfterLoss, [
+        offered(writeChangedAfterLoss, 1),
+        offered(writeChangedAfterLoss, 0),
+      ]),
+    },
   },
   {
     name: 'actions are kept sorted by name',
     current: notAcquired,
     listing: unordered,
-    basedOn: 'absent',
     expected: { ok: record(1, unordered, [offered(unordered, 1), offered(unordered, 0)]) },
   },
   {
     name: 'a listing based on an older revision is refused',
     current: lost,
     listing: writeGone,
-    basedOn: revisionOf(1),
     expected: { failure: 'stale-revision' },
   },
   {
     name: 'a listing based on absent is refused once a catalog is acquired',
     current: acquired,
-    listing: writeGone,
-    basedOn: 'absent',
+    listing: absentBased,
     expected: { failure: 'stale-revision' },
   },
   {
     name: 'a listing based on a revision is refused while nothing is acquired',
     current: notAcquired,
-    listing: first,
-    basedOn: revisionOf(1),
+    listing: revisionBased,
     expected: { failure: 'stale-revision' },
   },
 ]

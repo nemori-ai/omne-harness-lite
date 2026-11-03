@@ -12,13 +12,8 @@ import { judgeJsonValue, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { ENDPOINT_BODY_SCHEMA } from './endpoint-schema.ts'
 import { hasOnly, isObject, itemsOf, member, textOf, type JsonObject } from './json.ts'
-import {
-  isEndpointName,
-  type AuthKind,
-  type EndpointDefinition,
-  type EnvironmentBinding,
-  type StdioLaunch,
-} from './values.ts'
+import type { AuthKind, EndpointDefinition, EnvironmentBinding, StdioLaunch } from './values.ts'
+import { isEndpointName } from './brands.ts'
 
 /** Why a body is not an endpoint definition. The set is closed. */
 export type EndpointBodyRejection =
@@ -141,15 +136,24 @@ export function launchesLocalCommand(definition: EndpointDefinition): boolean {
 const TARGET = 'setting:placement-identity:target'
 const CREDENTIAL = 'setting:placement-identity:credential'
 const CONNECT_TIMEOUT = 'setting:preference:connect-timeout'
+const ENV_PREFIX = 'setting:placement-identity:env.'
 
 /**
- * The fixed setting declarations of an endpoint: the connection target only for Streamable
- * HTTP, the credential only when authentication is not `none`, and the connect timeout always.
+ * The setting declarations of an endpoint: the connection target only for Streamable HTTP, the
+ * credential only when authentication is not `none`, one item for each environment variable whose
+ * source is `setting`, in body order, and the connect timeout always.
  */
 function declarationsOf(definition: EndpointDefinition): readonly string[] {
+  const env =
+    definition.transport.kind === 'stdio'
+      ? definition.transport.launch.env
+          .filter(binding => binding.source === 'setting')
+          .map(binding => `${ENV_PREFIX}${binding.name}`)
+      : []
   return [
     ...(definition.transport.kind === 'streamable-http' ? [TARGET] : []),
     ...(definition.auth === 'none' ? [] : [CREDENTIAL]),
+    ...env,
     CONNECT_TIMEOUT,
   ]
 }

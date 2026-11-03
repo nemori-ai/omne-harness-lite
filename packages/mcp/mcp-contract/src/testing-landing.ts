@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import type { Access } from '@omne-harness/legal-identity'
 import type {
-  CredentialHandle,
+  ProcessCredentialHandle,
   ProcessEnvironment,
   ProcessHandle,
   ProcessLanding,
@@ -17,7 +17,7 @@ export type ProcessLandingFixture<P> = Readonly<{
   access: Access<P>
   /** A launch that lands. Its credential variables are filled from `credential`. */
   launch: StdioLaunch
-  credential: () => Promise<CredentialHandle>
+  credential: () => Promise<ProcessCredentialHandle>
   /** The secret value behind `credential`, which the process writes to standard error. */
   secret?: string
   missingFacility?: StdioLaunch
@@ -54,7 +54,7 @@ async function textOf(stream: ReadableStream<string>): Promise<string> {
   return text
 }
 
-export function describeProcessLandingConformance<P>(): readonly ConformanceCase<
+export function mcpProcessLandingConformance<P>(): readonly ConformanceCase<
   ProcessLandingFixture<P>
 >[] {
   return [
