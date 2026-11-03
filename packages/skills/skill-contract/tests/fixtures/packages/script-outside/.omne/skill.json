@@ -1,0 +1,4 @@
+{
+  "formatVersion": 1,
+  "scripts": [{ "entry": "../escape.sh", "runKind": "shell", "facilities": [] }]
+}

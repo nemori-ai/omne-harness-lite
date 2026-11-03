@@ -1,0 +1,3 @@
+# Guide
+
+A nested resource.
