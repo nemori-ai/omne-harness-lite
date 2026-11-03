@@ -5,16 +5,21 @@
 // answer as it is: `settled` only when every instance drained, `incomplete` with the member's detail
 // otherwise.
 //
-// `agentHostRow` runs the Agent factory of this release, whose quiesce answers `unavailable` (#502
-// stage 5): with no instance the stop is settled, with a live instance it is incomplete. The cases
-// that drain use `createAgentHostRowOver` with the member's testing plugin and a factory wrapper that
-// stands in for the runtime's quiesce; they prove the row and the host side only, not the runtime.
+// `agentHostRow` runs the Agent factory of this release. Its quiesce drains an idle instance and
+// answers `unresolved` for an execution in its slot, whose handover is #502 stage 5 (agent SPEC
+// "停用", R2-D173): with no instance or an idle one the stop is settled, with an execution in a slot
+// it is incomplete. The other cases use `createAgentHostRowOver` with the member's testing plugin
+// and a factory wrapper that stands in for the runtime's quiesce; they prove the row and the host
+// side only, not the runtime.
 import type { Plugin } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createAgentRuntime } from '@omne-harness/agent'
 import {
   decodeAgentExecutionId,
+  decodeAgentOperationId,
   decodeExecutionAttachmentId,
+  decodeInputId,
+  type AcceptedInput,
   type AgentInstanceId,
   type AgentRegistrationHandle,
 } from '@omne-harness/agent-contract'
@@ -35,7 +40,15 @@ import { agentInstancesRow } from '../../../src/rows/agent-instances/index.ts'
 import { monotonicClock } from '../../../src/shutdown.ts'
 import type { StopResult } from '../../../src/types.ts'
 import { declared, loadTree, makeBase, type LoadedTree } from '../session-fixtures/tree.ts'
-import { caller, definition, hostConfig, hostDoubles, principalObject, scope } from './doubles.ts'
+import {
+  caller,
+  definition,
+  hostConfig,
+  hostDoubles,
+  principalObject,
+  scope,
+  type HostDoubles,
+} from './doubles.ts'
 
 const release: Array<() => Promise<void> | void> = []
 afterEach(async () => {
@@ -82,6 +95,29 @@ function dutiesFactory(duties: Duties): AgentHostRuntimeFactory {
   }
 }
 
+/** An input in its admitted shape; the invoke that carries it never gets past the adoption. */
+function heldInput(): AcceptedInput {
+  return {
+    id: ok(decodeInputId('row-stop-input')),
+    content: {
+      id: `msg_${'e'.repeat(24)}`,
+      role: 'user',
+      blocks: [
+        { kind: 'text', id: 'blk_1', visibility: { toHuman: true, toModel: true }, text: 'go' },
+      ],
+    } as unknown as AcceptedInput['content'],
+    source: { ...scope, record: 'input-source' },
+    priority: 'ordinary',
+  }
+}
+
+/** Waits on later turns of the event loop until `probe` holds, at most 200 turns. */
+async function until(probe: () => boolean): Promise<void> {
+  for (let turn = 0; turn < 200 && !probe(); turn += 1)
+    await new Promise(resolve => setTimeout(resolve, 0))
+  expect(probe()).toBe(true)
+}
+
 function newDuties(): Duties {
   return { scripts: [], handles: new Map(), quiesced: [] }
 }
@@ -90,6 +126,7 @@ type Started = Readonly<{
   tree: LoadedTree
   provision: AgentInstanceProvisionService<string>
   directory: AgentInstancesService<string>
+  doubles: HostDoubles
 }>
 
 /** The three rows together: the stand-ins of the injects, `agent-host` and `agent-instances`. */
@@ -108,6 +145,7 @@ async function start(row: Plugin): Promise<Started> {
     tree,
     provision: tree.service<AgentInstanceProvisionService<string>>(agentInstanceProvisionKey)!,
     directory: tree.service<AgentInstancesService<string>>(agentInstancesKey)!,
+    doubles,
   }
 }
 
@@ -138,17 +176,45 @@ describe('the agent-host row: ordered stop with the Agent factory of this releas
     expect(await shutdownOutcome(tree)).toEqual({ kind: 'settled' })
   })
 
+  // R2-D173: the factory's quiesce drains an idle instance, so the stop is settled and the instance
+  // is withdrawn. Before it the factory answered `unavailable` and this stop was incomplete.
   it(
-    'answers incomplete and names a live instance, whose quiesce is unavailable',
+    'answers settled when a live instance is idle, and the instance is withdrawn',
     { timeout: 60_000 },
     async () => {
       const started = await start(agentHostRow)
       const instance = await acquire(started)
+      ok(await started.directory.resolve({ ...caller, instance }))
+      expect(await shutdownOutcome(started.tree)).toEqual({ kind: 'settled' })
+      expect(await started.directory.resolve({ ...caller, instance })).toHaveProperty('failure')
+    },
+  )
+
+  // R2-D173: an execution in the slot is not handed over (#502 stage 5). The factory answers
+  // `unresolved` with that execution, never drained, so the stop is incomplete and names it. The
+  // invoke holds the slot because the adoption it resolves never answers.
+  it(
+    'answers incomplete and names an instance whose slot an invoke holds',
+    { timeout: 60_000 },
+    async () => {
+      const started = await start(agentHostRow)
+      const instance = await acquire(started)
+      const runtime = ok(await started.directory.resolve({ ...caller, instance }))
+      started.doubles.controls.adoptions.resolve.once(() => new Promise(() => {}))
+      void runtime.invoke({
+        ...caller,
+        execution: ok(decodeAgentExecutionId('row-stop-execution')),
+        operation: ok(decodeAgentOperationId('row-stop-invoke')),
+        initial: heldInput(),
+        grant: null,
+      })
+      await until(() => started.doubles.controls.adoptions.resolve.calls.length > 0)
       const result = await shutdownOutcome(started.tree)
       expect(result).toEqual({
         kind: 'incomplete',
-        detail: expect.stringContaining(`${instance}: quiesce failed with unavailable`),
+        detail: expect.stringContaining(`${instance}: quiesce left 1 execution(s) unresolved`),
       })
+      ok(await started.directory.resolve({ ...caller, instance }))
     },
   )
 })
