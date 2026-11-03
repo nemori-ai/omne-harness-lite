@@ -7,7 +7,7 @@
 // - the attachment of one records activation (its `initial` and its qualification registry);
 // - the one execution channel both the host and the send stage capture;
 // - the host binding: the host fiber's retirement closure and the ordered release of the send child
-//   and the channel;
+//   and the channel (the release ends the attachment; no closed channel is handed out afterwards);
 // - the result push ledger the host keeps across its own reloads.
 // It hands out no issuer, no standing port and no write access to the registry.
 import { randomBytes } from 'node:crypto'
@@ -98,7 +98,12 @@ function keyOf(target: InitialTarget): string | undefined {
 }
 
 type Attached = ModelRecordsAttachment &
-  Readonly<{ channel: ModelInitialHostChannel<unknown>; sendChild: { fiber: Fiber | undefined } }>
+  Readonly<{
+    channel: ModelInitialHostChannel<unknown>
+    sendChild: { fiber: Fiber | undefined }
+    /** Ends this attachment: closes the channel, drops the bindings, forgets the activation. */
+    end(): void
+  }>
 
 export function createModelRunComposition(): ModelRunComposition {
   const grants = new Map<string, number>()
@@ -134,15 +139,19 @@ export function createModelRunComposition(): ModelRunComposition {
     if ('failure' in decoded) return fail(unavailable('instance-identity'))
     const opened = attachment.initial.openHost({ instance: decoded.ok })
     if ('failure' in opened) return opened
-    const current: Attached = { ...attachment, channel: opened.ok, sendChild: { fiber: undefined } }
-    attached = current
-    const end = () => {
-      if (attached !== current) return
-      attached = undefined
-      current.channel.close()
-      current.qualification.dropHostBindings()
+    const current: Attached = {
+      ...attachment,
+      channel: opened.ok,
+      sendChild: { fiber: undefined },
+      end: () => {
+        if (attached !== current) return
+        attached = undefined
+        current.channel.close()
+        current.qualification.dropHostBindings()
+      },
     }
-    ctx.effect(() => end)
+    attached = current
+    ctx.effect(() => current.end)
     return succeed(
       Object.freeze({
         captureSendChild: fiber => {
@@ -152,7 +161,7 @@ export function createModelRunComposition(): ModelRunComposition {
           attached === current
             ? succeed(current.channel)
             : fail(unavailable('records-not-attached')),
-        detach: end,
+        detach: current.end,
       }),
     )
   }
@@ -177,7 +186,8 @@ export function createModelRunComposition(): ModelRunComposition {
         const child = bound.sendChild.fiber
         bound.sendChild.fiber = undefined
         if (child !== undefined) await child.dispose()
-        bound.channel.close()
+        // The channel is closed and the attachment ends: a later channel fetch answers unavailable.
+        bound.end()
       },
       qualify: access => {
         const live = attached

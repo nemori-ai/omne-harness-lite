@@ -98,6 +98,7 @@ type Scripted = {
   prepared: Awaited<ReturnType<ModelInitialHostChannel<unknown>['prepare']>>
   prepares: Parameters<ModelInitialHostChannel<unknown>['prepare']>[0][]
   reads: number
+  closes: number
   standing: TenantStandingReading
   onRead?: (target: Parameters<ModelInitialExecution<unknown>['readAcceptance']>[0]) => void
 }
@@ -119,7 +120,9 @@ function scriptedInitial(script: Scripted): ModelInitialExecution<unknown> {
         qualifyExecution: () => ({ failure: { kind: 'denied', action: 'execution-channel' } }),
         commands: {} as ModelInitialHostChannel<unknown>['commands'],
         coordinator: null,
-        close: () => {},
+        close: () => {
+          script.closes += 1
+        },
       },
     }),
     continuity: () => ({ failure: { kind: 'denied', action: 'continuity' } }),
@@ -147,6 +150,7 @@ async function installed(options: { withIssuer?: boolean; standing?: TenantStand
     },
     prepares: [],
     reads: 0,
+    closes: 0,
     standing: options.standing ?? MEMBER,
   }
   class Standing extends TenantStandingSourceService {
@@ -461,6 +465,22 @@ describe('modelHostAuthority.resolve: read the acceptance, issue M, check the re
         resource: { kind: 'call', call: CALL, consumer: null },
       }),
     ).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+
+  it('releaseExecution ends the attachment: the channel is closed once and no later fetch hands it out (defect: a closed channel handed out)', async () => {
+    const scene = await installed()
+    const bound = await attachedAndBound(scene)
+    expect(bound.binding.executionChannel()).toHaveProperty('ok')
+    await bound.binding.releaseExecution()
+    expect(scene.script.closes).toBe(1)
+    const unavailable = { failure: { kind: 'unavailable', diagnostic: 'records-not-attached' } }
+    expect(bound.binding.executionChannel()).toMatchObject(unavailable)
+    expect(bound.handle.executionChannel()).toMatchObject(unavailable)
+    expect(await scene.host.resolve({ tenant: TENANT, call: CALL })).toMatchObject(unavailable)
+    // The host's own finally and the records row's effect close again idempotently.
+    await bound.binding.releaseExecution()
+    bound.handle.detach()
+    expect(scene.script.closes).toBe(1)
   })
 
   it('a second records attachment is refused while one is attached; after detach the next one is accepted', async () => {
