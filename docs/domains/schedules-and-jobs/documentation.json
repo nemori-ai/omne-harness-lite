@@ -63,7 +63,32 @@
         "anchor": "文档内容与登记"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "事实拥有者与消费者"
+        },
+        {
+          "id": "section-2",
+          "anchor": "公开契约消费与依赖方向"
+        },
+        {
+          "id": "section-3",
+          "anchor": "solid-与替换边界"
+        },
+        {
+          "id": "section-4",
+          "anchor": "跨领域一致性与协调者"
+        },
+        {
+          "id": "section-5",
+          "anchor": "控制撤权与原身份恢复"
+        },
+        {
+          "id": "section-6",
+          "anchor": "外部产品组合"
+        }
+      ]
     },
     {
       "id": "placed-docs#domains#schedules-and-jobs#key-flows",
@@ -78,7 +103,36 @@
         "anchor": "文档内容与登记"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "f-sj01-定义草稿与替换"
+        },
+        {
+          "id": "section-2",
+          "anchor": "f-sj02-对账环境日期与依赖"
+        },
+        {
+          "id": "section-3",
+          "anchor": "f-sj03-准备与最终接受"
+        },
+        {
+          "id": "section-4",
+          "anchor": "f-sj04-周期补跑once-与提醒窗口"
+        },
+        {
+          "id": "section-5",
+          "anchor": "f-sj05-专属执行成果与目标结算"
+        },
+        {
+          "id": "section-6",
+          "anchor": "f-sj06-取消撤权与换代恢复"
+        },
+        {
+          "id": "section-7",
+          "anchor": "f-sj07-结果处分通知与读面"
+        }
+      ]
     }
   ]
 }
