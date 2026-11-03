@@ -1,29 +1,19 @@
 # examples
 
-<!-- documentation:placeholder -->
-
 本目录承载面向真实公开入口的使用示例。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 可运行的示例代码与说明。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
 示例只用公开入口，并写明运行前提。示例不代替测试或规格。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 公开入口变化时，同步示例并确认它仍能运行。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+[inspect-directory.ts](inspect-directory.ts) 对一个目录取快照，读 `SKILL.md` 与 `.omne/skill.json`，再交给 `parseSkillPackage`，打印定义、来源失败或第一个拒绝原因。不给参数时它检查 [sample-skill/](sample-skill/)。在成员目录先运行 `pnpm run build`，再运行 `node --experimental-strip-types examples/inspect-directory.ts [目录]`。成功时退出码为 0，失败或拒绝时为 1。`pnpm run typecheck` 也检查示例。

@@ -1,17 +1,13 @@
 # 使用与定位
 
-<!-- documentation:placeholder -->
-
-本文件说明消费侧怎样使用本包、具名上层消费者、典型调用关系，以及本包在系统与能力组中的位置。它覆盖独立消费与适用的 Harness 接入，引用系统架构与真实消费者，不成为新的架构源。
-
 ## 使用方式
 
-<!-- documentation:placeholder -->
+- 宿主装配 Skill 服务时，建一个目录来源，作为 `SkillPackageSource` 交给 `@omne-harness/skill` 的 `createPackageInspection(source)` 或 `createSkillAccess(ports)`。
+- 测试可以给出自己的 `DirectoryFs`，制造真实环境中难以制造的文件系统拒绝。
+- 包定位由 `SkillResolution` 的实现给出，不取自读取的调用方。
 
-待补：最小有效示例、必要依赖、初始化与释放责任。
+最小示例见 [README.md](../README.md#usage) 与 [examples/](../examples/index.md)。
 
 ## 消费者与定位
 
-<!-- documentation:placeholder -->
-
-待补：具名上层消费者、典型调用关系与定位图。
+本包是 Skill 能力组的本地宿主成员，组内位置见[组入口「成员与依赖」](../../README.md#成员与依赖)。它实现 `@omne-harness/skill-contract` 声明的需求端口 `SkillPackageSource`。消费者是 `@omne-harness/skill`，经端口使用本来源，不认识本包。本包不依赖 `@omne-harness/skill`、Cordis 或任何调用方。

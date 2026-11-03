@@ -1,2 +1,2 @@
-// PACKAGE_TEMPLATE_DRAFT: Export the accepted public functions/types here.
-export {}
+export { createDirectorySource } from './directory-source.ts'
+export type { DirectoryFs, EntryKind, Opened } from './fs.ts'
