@@ -409,7 +409,8 @@ export function buildObligations(
     })
   }
   // calls: a call with a result is settled and the custody is the result item's; a final failure
-  // of the producer settles it on that basis; an association keeps it held (accepted) or unknown
+  // of the producer settles it on that basis, and so does a definite refusal of its admission by
+  // the Model (R2-D237: a refused admission leaves no send); an association keeps it held (accepted) or unknown
   // (commit-unknown); a call with none of these is unknown (SPEC "终结责任清单" call row). Of several
   // associations of one intent the accepted one counts, else the last: a later undecided record
   // does not take a known one back.
@@ -425,8 +426,8 @@ export function buildObligations(
     const received = source.entries.find(
       entry => entry.kind === 'received' && entry.consumption === effect.pending.consumption,
     )
-    // The final failure of the producer is read from every candidate, not only the current one: a
-    // cancelled candidate that replaced the no-reply failure does not undo it.
+    // The final failure of the producer, or the Model's refusal of the admission, is read from every
+    // candidate, not only the current one: a cancelled candidate that replaced it does not undo it.
     const call =
       effect.pending.kind === 'model' ? callOfModel(effect.pending.reference, source) : null
     const finalFailure =
@@ -435,7 +436,7 @@ export function buildObligations(
         : (source.finishing.candidates.find(
             item =>
               item.conclusion.kind === 'fail' &&
-              item.failure?.kind === 'no-reply' &&
+              (item.failure?.kind === 'no-reply' || item.failure?.kind === 'model-refused') &&
               item.failure.call === call,
           )?.failure?.source ?? null)
     const intent =

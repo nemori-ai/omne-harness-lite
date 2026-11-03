@@ -49,6 +49,7 @@ Next 的种类对应 [Loop 完整算法](../../../agent/docs/architecture/loop-a
 - `compaction-invalid` 带计划身份。derive 返回的进度与计划不符时带 `progress`，即期望值与返回值。压缩转换的共同提交判定转换非法时带 `transition`，即判定依据。
 - `request-rejected` 带 Model 请求准备的确定拒绝：`failure` 是 `prepare` 或 `resume` 返回的 invalid（field 为 request），`model` 是 Model 的原结果，`selection` 是选择依据。
 - `no-reply` 带没有有效回复的原调用。
+- `model-refused` 带 Model 在受理时确定拒绝的原调用：`call` 是原 ModelCallId，`failure` 是 `admit` 返回的原拒绝，种类为 denied、invalid、unsupported 或 capacity，`source` 是原调用的固定请求依据。行为见 SPEC 的“[作为 Model 调用方](../../SPEC.md#作为-model-调用方)”第 5 条，依据是 R2-D237。
 - `message-rejected` 的 `from` 为被拒收消息的来源，`evidence` 为拒收依据，两者指向 `ExecutionSnapshot.handoffs` 中同一个原 outcome。它只用于工具结果或被拒绝动作的拒绝消息被拒收，并由 H0 路由到 F1 提出失败候选的情形。压缩转换消息被拒收归 `cannot-fit`。
 - `extension-stop` 带输出 `stop` 且 `terminal` 为 `failed` 的扩展调用。
 - `guard` 带守卫 L3 的依据。`basis` 等于形成该候选时 `AgentCheckpoint.guard` 的 `basis`，候选由 I8 按该守卫事实提出。

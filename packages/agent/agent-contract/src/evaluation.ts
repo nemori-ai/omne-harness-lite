@@ -77,6 +77,14 @@ export type FailureCandidate = Readonly<{
         selection: DurableEvidence
       }>
     | Readonly<{ kind: 'no-reply'; call: M.ModelCallId; result: ProducedResult }>
+    | Readonly<{
+        kind: 'model-refused'
+        call: M.ModelCallId
+        failure: Extract<
+          M.ModelFailure,
+          { kind: 'denied' | 'invalid' | 'unsupported' | 'capacity' }
+        >
+      }>
     | Readonly<{ kind: 'message-rejected'; from: MessageSource; evidence: DurableEvidence }>
     | Readonly<{ kind: 'extension-stop'; passage: PassageId; reason: string }>
     | Readonly<{ kind: 'guard'; level: 3; basis: DurableEvidence }>

@@ -800,7 +800,13 @@ it('revocation after recovery proves not-accepted prevents its first real admiss
   }))
   const first = coordinator(assembly)
   authority = ok(await first.accept())
-  expect(failure(await first.runExecution())).toMatchObject({ node: 'M6' })
+  // R2-D237: the unavailable admission is a dependency wait at M6, saved before the recovery.
+  ok(await first.runExecution())
+  expect((await load(assembly)).checkpoint.position).toBe('M6')
+  expect((await load(assembly)).state).toMatchObject({
+    kind: 'waiting',
+    waits: [{ kind: 'dependency', owner: 'modelRuntime', position: 'M6' }],
+  })
   recovering = true
   expect(failure(await coordinator(assembly).continueExecution(authority)).failure.kind).toBe(
     'stale-advance',
