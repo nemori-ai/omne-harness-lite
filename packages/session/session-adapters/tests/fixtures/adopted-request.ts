@@ -94,7 +94,8 @@ export function fixedRecord(target: ContextTarget, tag = '1', values: FixedValue
     candidate: must(decodeCandidateRef(values.candidate ?? `candidate:${tag}`)),
     coverage: sampleCoverage(target, tag),
     windowTokens: values.windowTokens ?? '128000',
-    forecast: values.forecast === undefined ? { kind: 'estimate', usedTokens: '1200' } : values.forecast,
+    forecast:
+      values.forecast === undefined ? { kind: 'estimate', usedTokens: '1200' } : values.forecast,
     continuation: null,
   }
   const encoded = encodeFixedRequestRecord(record) as JsonValue
@@ -117,7 +118,12 @@ export function invocation(tenant: TenantId, call: string): string {
 /** The `adoptedRequest` and `adoptedContext` that one main-purpose M0 writes into its checkpoint. */
 export function m0Checkpoint(target: ContextTarget, tag: string, values: FixedValues = {}) {
   const { record, encoded } = fixedRecord(target, tag, values)
-  const fixed = { owner: 'agent-context:test', record: `preparation/${tag}`, revision: '1', digest: `p-${tag}` }
+  const fixed = {
+    owner: 'agent-context:test',
+    record: `preparation/${tag}`,
+    revision: '1',
+    digest: `p-${tag}`,
+  }
   const adoptedContext = {
     owner: 'agent-context:test',
     record: `coverage/${tag}`,

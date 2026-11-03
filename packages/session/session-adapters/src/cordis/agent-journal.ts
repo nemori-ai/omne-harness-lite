@@ -1445,7 +1445,10 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     try {
       return { kind: 'value', value: found === undefined ? null : decodeAdopted(found.state) }
     } catch (error) {
-      return { kind: 'unavailable', diagnostic: `the adopted part does not decode: ${String(error)}` }
+      return {
+        kind: 'unavailable',
+        diagnostic: `the adopted part does not decode: ${String(error)}`,
+      }
     }
   }
 

@@ -81,7 +81,9 @@ function partRow(s: SqlScene, part: string): PartRow | undefined {
     `SELECT state, published FROM er_state_part WHERE session = '${s.access.session}' AND part = '${part}'`,
   ).rows
   const row = rows?.[0]
-  return row === undefined ? undefined : { state: row[0] as string | null, published: row[1] as bigint }
+  return row === undefined
+    ? undefined
+    : { state: row[0] as string | null, published: row[1] as bigint }
 }
 
 /** The publication count of the scene's session. */
@@ -173,15 +175,17 @@ describe('the adoption order', () => {
     ok(await commit(s, s.view.journal, authority, 'plain-2', moved('E5')))
     ok(await m0(s, s.view.journal, authority, '1'))
     const first = await adoptedOf(s)
-    const firstRevision = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
-      .revision
+    const firstRevision = ok(
+      await s.view.journal.load({ ...s.access, execution: s.execution }),
+    ).revision
     const t = await nextRun(s, 2)
     const second = ok(await t.view.journal.open(t.openInput))
     ok(await commit(t, t.view.journal, second.authority, 'plain-3', moved('E4')))
     ok(await m0(t, t.view.journal, second.authority, '2'))
     const after = await adoptedOf(t)
-    const secondRevision = ok(await t.view.journal.load({ ...t.access, execution: t.execution }))
-      .revision
+    const secondRevision = ok(
+      await t.view.journal.load({ ...t.access, execution: t.execution }),
+    ).revision
     expect(first?.execution).toBe(s.execution)
     expect(after?.execution).toBe(t.execution)
     expect(BigInt(after?.order ?? '0')).toBe(BigInt(first?.order ?? '0') + 1n)
@@ -259,20 +263,24 @@ describe('a provider that did not write the a part reads it as the writer does',
 })
 
 describe('the a part does not grow with the rounds of a session', () => {
-  it('200 rounds: the bytes of a and the part rows each round writes stay the same', { timeout: 240_000 }, async () => {
-    const { s, authority } = await opened('adopted-rounds')
-    const sizes: number[] = []
-    const rows: number[] = []
-    for (let round = 1; round <= 200; round += 1) {
-      ok(await m0(s, s.view.journal, authority, `r${String(round).padStart(3, '0')}`))
-      sizes.push(partRow(s, ADOPTED_PART)?.state?.length ?? -1)
-      rows.push(partsWritten(s))
-    }
-    // Every round names its request by a tag of the same length; only the order text grows, from
-    // one digit to three.
-    expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(2)
-    expect(sizes.at(-1)! - sizes[19]!).toBeLessThanOrEqual(1)
-    expect(new Set(rows)).toEqual(new Set([rows[0]]))
-    expect((await adoptedOf(s))?.order).toBe('200')
-  })
+  it(
+    '200 rounds: the bytes of a and the part rows each round writes stay the same',
+    { timeout: 240_000 },
+    async () => {
+      const { s, authority } = await opened('adopted-rounds')
+      const sizes: number[] = []
+      const rows: number[] = []
+      for (let round = 1; round <= 200; round += 1) {
+        ok(await m0(s, s.view.journal, authority, `r${String(round).padStart(3, '0')}`))
+        sizes.push(partRow(s, ADOPTED_PART)?.state?.length ?? -1)
+        rows.push(partsWritten(s))
+      }
+      // Every round names its request by a tag of the same length; only the order text grows, from
+      // one digit to three.
+      expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(2)
+      expect(sizes.at(-1)! - sizes[19]!).toBeLessThanOrEqual(1)
+      expect(new Set(rows)).toEqual(new Set([rows[0]]))
+      expect((await adoptedOf(s))?.order).toBe('200')
+    },
+  )
 })

@@ -606,7 +606,9 @@ export async function nextRun(s: SqlScene, n: number): Promise<SqlScene> {
           instance: { owner: 'agent', id: 'instance-1' },
         },
       },
-      guards: [guard('evidence-bridge', 'login-entry', { session: `start-${n}`, operation: `start-${n}` })],
+      guards: [
+        guard('evidence-bridge', 'login-entry', { session: `start-${n}`, operation: `start-${n}` }),
+      ],
     }),
   )
   const next = ok(await s.port.readWork(s.sessionAccess))

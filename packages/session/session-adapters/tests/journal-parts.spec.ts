@@ -265,7 +265,8 @@ function withRequest(id: string, tag: string | null) {
     id,
     revision: 1,
     checkpoint: {
-      adoptedContext: tag === null ? null : { owner: 'c', record: `cov/${tag}`, revision: '1', digest: tag },
+      adoptedContext:
+        tag === null ? null : { owner: 'c', record: `cov/${tag}`, revision: '1', digest: tag },
       adoptedRequest:
         tag === null
           ? null
