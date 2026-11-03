@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Framework-independent schedule domain and application implementation; initialized draft",
+  "description": "Framework-independent schedule calculation, management, prediction and queries",
   "engines": {
     "node": ">=24"
   },

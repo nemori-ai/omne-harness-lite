@@ -1,17 +1,17 @@
-# 对象模型
+# 公共值关系
 
-<!-- documentation:placeholder -->
+ScheduleDefinition描述安排意图，ScheduleView投影已保存安排及当前控制/资格。ScheduleCandidate是日期计算结果，携带全部来源和实际采用依据。候选不是已接受的Job。
 
-本文件描述本包内部对象的职责、身份、状态、关联、组合、继承与生命周期，配类图。它不强迫实现改成 class；纯函数或值包写实际模型与不适用项。
+```mermaid
+classDiagram
+  ScheduleView --> ScheduleDefinition
+  ScheduleView --> ScheduleStanding
+  ScheduleView --> ScheduleCandidate
+  ScheduleDefinition --> ScheduleRecurrence
+  ScheduleDefinition --> ScheduleBinding
+  ScheduleCandidate --> ScheduleAdoptedBasis
+  ScheduleCommand --> ScheduleCommandMeta
+  ScheduleOperationLocator --> ScheduleOperationAddress
+```
 
-## 对象与关系
-
-<!-- documentation:placeholder -->
-
-待补：对象职责、身份、状态与关联，以及类图。
-
-## 生命周期
-
-<!-- documentation:placeholder -->
-
-待补：对象的创建、变化与销毁责任。
+这些对象是可序列化值，没有运行时生命周期。ScheduleId、操作地址、原来源及实际依据分别表达身份，不能相互替代。字段唯一源见[公开索引](public-api.md)。

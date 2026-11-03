@@ -1,6 +1,56 @@
 # 日程与 Job 内部设计
 
-本页是完整目标设计，尚未实现。必要行为归 [SPEC](../SPEC.md)，唯一公开形状与端口归[公开 API 设计](public-api-design.md)。问题轴分为 Schedule 意图与管理、日期计算、Job 接受、实际执行、外部结果、调用入口；各轴拥有者分别负责其事实，Cordis 不定义领域。
+本页包含当前Schedule实现和后续Job目标。规则计算、管理、预测与查询已经实现；Job接受、扫描、执行、通知和结果协调仍未实现。必要行为归 [SPEC](../SPEC.md)，唯一公开形状与端口归[公开 API 设计](public-api-design.md)。问题轴分为 Schedule 意图与管理、日期计算、Job 接受、实际执行、外部结果、调用入口；各轴拥有者分别负责其事实，Cordis 不定义领域。
+
+## 当前实现的模块与消费方向
+
+calculation处理civil规则和DST，不读取当前环境或存储。prediction固定环境及日历版本，组合原边界、日历条件、一次移动、结果边界、DST、碰撞和eligible序位。来源排序前沿封口后才输出候选，预算耗尽只返回已证明前缀。
+
+management分别读取当前权限、同意、额度与日期依据，再提交本域命令。SQL实现重算决定并在同事务核对具名守卫。query通过当前可见范围读取列表、历史和预测，披露前确认观察未变。提供者输入副本冻结，返回值按公开schema校验，避免提供者改变用于响应核验的原请求。
+
+```mermaid
+flowchart LR
+  Caller[独立消费者] --> M[Management application]
+  Caller --> Q[Query application]
+  M --> D[纯管理决定]
+  M --> P[Prediction service]
+  Q --> P
+  Q --> H[History公开消费端口]
+  P --> C[异步规则calculator]
+  P --> K[CalendarQueries]
+  M --> S[Management store/persistence]
+  Q --> S
+  S --> L[schedule-local SQL]
+```
+
+```mermaid
+classDiagram
+  class SchedulePredictionService {
+    preview()
+    definitions
+  }
+  class QueryObservation {
+    context
+    deadline
+    authorize()
+    confirm()
+    predict()
+  }
+  class ScheduleManagementPersistence {
+    commit()
+    query()
+  }
+  class ScheduleManagementStore {
+    readSchedule()
+    listSchedules()
+    readRevisions()
+  }
+  QueryObservation --> SchedulePredictionService
+  QueryObservation --> ScheduleManagementStore
+  ScheduleManagementPersistence --> ManagementDecision
+```
+
+这些是源码当前调用关系。History和Calendar在本域测试中使用符合性提供者；真实外域组合另行验收。源码入口及工厂依赖见[公开索引](public-api-design.md)。
 
 ## 必要身份与分别成立的状态
 
@@ -87,7 +137,7 @@ storage 原结果保持 `committed / rolled_back / unknown / identity_conflict /
 
 ## 实际存储能力与未闭合保证
 
-真实 sql-contract/sqlite-provider 已有实现，调用根为 registerCombination、commit、query、read，不能沿旧文档说存储缺失。领域只发具名、版本化命令，participant 在 Worker 同步执行；不得传 async transaction callback、SQL 或任意主线程闭包。一次 commit 只覆盖同一事务域，跨库不自动原子。各拥有者提供自己的材料/迁移和 guard participant；这些本域材料、guard 与 outbox 尚未实现。
+真实 sql-contract/sqlite-provider 已有实现，调用根为 registerCombination、commit、query、read，不能沿旧文档说存储缺失。领域只发具名、版本化命令，participant 在 Worker 同步执行；不得传 async transaction callback、SQL 或任意主线程闭包。一次 commit 只覆盖同一事务域，跨库不自动原子。各拥有者提供自己的材料/迁移和 guard participant；本地管理材料、guard消费及管理事件outbox已经实现；Job接受材料、扫描和outbox发送仍未实现。
 
 | 实际限制 | 对本设计的影响与闭合义务 |
 | --- | --- |
@@ -207,7 +257,7 @@ ready→blocked、blocked→ready、任意非终局→terminal 各形成一个 t
 
 后台 next-due loop 读持久最早待办，以有上限 timer 等待，收到事件提前唤醒并周期反熵；醒后重读 wall clock 与当前守卫。耗时/lease 用 monotonic，不能跨进程比较单调值。大于2,147,483,647ms 的timer不能直接交Node延迟；不承诺timer精确到点。dispose 停新准入后对账/排空/可靠移交原责任，只清本实例贡献。旧 token 不能删新同名 tool，外部输出不被撤除逆转。
 
-自定义接受/换代/控制协议须行为模型、切点故障/并发和真实介质证据。P0公共值、P1日期、P2日历供应、P3服务、P4耐久接受、P5执行、P6通知结果、P7工具与应用组合都是完整交付范围，不能以纯算法或空服务宣称完成。当前仅有空导出测试，本轮未运行产品验收或Node24。
+自定义接受/换代/控制协议须行为模型、切点故障/并发和真实介质证据。P0公共值、P1日期、P2日历供应、P3服务、P4耐久接受、P5执行、P6通知结果、P7工具与应用组合都是完整交付范围，不能以纯算法或空服务宣称完成。当前成员测试覆盖协议、日期、管理和查询，本地提供者测试覆盖真实SQLite和worker。完整Job与生产外域验收仍待后续波段。
 
 ## 后续技术采用
 

@@ -1,15 +1,14 @@
 # @omne-harness/schedule-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 ## Responsibility and status
 
-Owns public domain values, commands, queries, results, errors and replaceable service ports. Wire requests and receipts must be serializable and contain no runtime objects. This private 0.0.0 package is an initialized draft. Public entries remain empty; no business service is runnable.
+Owns public domain values, commands, queries, results, errors and replaceable service ports. Wire requests and receipts must be serializable and contain no runtime objects. This private 0.0.0 package exports strict schemas, service interfaces, JSON Schema and operation identity functions. It does not run business services.
 
 ## Usage
 
-See the [group architecture](../docs/architecture.md) for consumers and dependency direction. Only skeleton build and checks are available. Consumers must use public entries rather than private source paths.
+See the [group architecture](../docs/architecture.md) for consumers and dependency direction. The public API index links every definition owner. Consumers must use public entries rather than private source paths.
 
 ## Contracts
 
@@ -25,11 +24,11 @@ Node >=24 and ESM. There is no business configuration or startup entry. Local an
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/schedule-contract build`, `typecheck` and `test`. Tests check draft exports only. They do not establish persistence, tenant isolation, network, lifecycle or business guarantees.
+Run `pnpm --filter @omne-harness/schedule-contract build`, `typecheck` and `test`. Tests cover strict unions, encoding, fingerprint golden values and operation locators. They do not establish provider persistence or authorization.
 
 ## Maintenance
 
-Update consumers, necessary behavior and verification when implementing public definitions. Keep draft markers until implementation and verification are complete. Methods, schemas, service classes and providers remain unimplemented.
+Update consumers, necessary behavior and verification when implementing public definitions. Schemas remain the single shape source. Cordis classes and providers belong to their own members.
 
 ## Directory structure and documentation roles
 

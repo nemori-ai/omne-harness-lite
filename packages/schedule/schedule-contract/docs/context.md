@@ -1,17 +1,5 @@
-# 使用与定位
+# 消费关系
 
-<!-- documentation:placeholder -->
+schedule实现本包服务接口，schedule-cordis-contract提供唯一注入定义。schedule-local通过本域应用实现单机服务，schedule-tools派生参数并消费这些服务。独立调用者只需本包公开协议，不需要加载Cordis、本地数据库或Agent runtime。
 
-本文件说明消费侧怎样使用本包、具名上层消费者、典型调用关系，以及本包在系统与能力组中的位置。它覆盖独立消费与适用的 Harness 接入，引用系统架构与真实消费者，不成为新的架构源。
-
-## 使用方式
-
-<!-- documentation:placeholder -->
-
-待补：最小有效示例、必要依赖、初始化与释放责任。
-
-## 消费者与定位
-
-<!-- documentation:placeholder -->
-
-待补：具名上层消费者、典型调用关系与定位图。
+本包拥有数据含义和编码约束，不拥有授权权威、时钟、日历事实或存储生命周期。CalendarSelection是Schedule所需的引用投影，日历内容和版本事实仍归Calendar。

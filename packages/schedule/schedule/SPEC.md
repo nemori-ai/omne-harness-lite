@@ -1,6 +1,6 @@
 # schedule/schedule 长期行为契约
 
-本文件拥有本成员的必要行为。完整复刻范围及 D3、D4、D5、D9、执行意图已由用户于 2026-11-03 确认，源修订为 `a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0`。行为约束后续实现，不表示实现已交付。当前真实 workspace 包为 `0.0.0` private，`src/index.ts` 仍为 `export {}`。产品规则见[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)，公开形状设计见[公开 API 设计](docs/public-api-design.md)，机制见[内部设计](docs/internals.md)。公开形状尚非真实导出，存储及跨域适配须完成具名证据义务。
+本文件拥有本成员的必要行为。完整复刻范围的源修订为 `a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0`。当前private 0.0.0包实现规则计算、Schedule管理、预测和查询。Job接受、执行、扫描、通知及结果协调仍待交付。本文件同时约束这些后续行为，不能把目标条款当作当前能力。产品规则见[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)，实际公开形状与后续设计见[API索引](docs/public-api-design.md)，机制见[内部设计](docs/internals.md)。真实外域组合仍须完成具名证据义务。
 
 公开值与服务端口的源码归 [schedule-contract](../schedule-contract/README.md)，工厂及内部依赖归本成员；本地持久化与绑定归 [schedule-local](../schedule-local/README.md)。本文件保留业务行为，提供者须履行而不复制另一套规则。跨进程与事务边界见[包组织](../../../docs/package-organization.md#日历与日程的安装和部署边界)。
 
