@@ -96,6 +96,16 @@ function recordMissing<T>(result: Outcome<T, ModelFailure>): Outcome<T, ModelFai
     ? { failure: failure('initial-record-missing') }
     : result
 }
+type ContinuityInput = Parameters<ModelCommandsEvidence['continuity']>[0]
+/** The stored call is still the one that the record admitted, for the same consumer and request. */
+function matchesCall(call: CallDocument, record: BoundRecord, input: ContinuityInput): boolean {
+  return (
+    call.admission === record.admission &&
+    digest(call.owner.evidence) === digest(record.evidenceAdoption) &&
+    digest(call.state.consumer) === digest(input.consumer) &&
+    digest(input.request) === call.requestDigest
+  )
+}
 /** The call, operation and binding that one confirmed pass wrote or saw for the record's call. */
 type ConfirmedWrite = Readonly<{
   call: CallDocument
@@ -282,6 +292,15 @@ class InitialRun<P> implements ModelInitialRun<P> {
       return { failure: failure('identity-unavailable') }
     }
   }
+  /** The live binding's own successor, continuing from its own continuity before any execution. */
+  #continues(record: BoundRecord, input: ContinuityInput): boolean {
+    return (
+      this.#bindings.get(record.instance) === record.binding &&
+      input.successor === record.instance &&
+      digest(input.source) === digest(record.continuity) &&
+      input.execution === null
+    )
+  }
   #createExecution(
     core: ModelCommandCore<P>,
     commands: (bound: BoundCommandAccess<P>) => ModelCommands<P>,
@@ -463,25 +482,12 @@ class InitialRun<P> implements ModelInitialRun<P> {
         const found = locate(input)
         if ('failure' in found) return found
         const record = found.ok.record
-        if (
-          record?.kind !== 'bound' ||
-          this.#bindings.get(record.instance) !== record.binding ||
-          input.successor !== record.instance ||
-          digest(input.source) !== digest(record.continuity) ||
-          input.execution !== null
-        )
+        if (record?.kind !== 'bound' || !this.#continues(record, input))
           return { failure: denied() }
         const tenant = tenantKey(input.tenant)
         if (typeof tenant !== 'string' || tenant !== record.tenant) return { failure: denied() }
         const call = core.storage.documents(tenant).calls.get(input.call)
-        if (
-          !call ||
-          call.admission !== record.admission ||
-          digest(call.owner.evidence) !== digest(record.evidenceAdoption) ||
-          digest(call.state.consumer) !== digest(input.consumer) ||
-          digest(input.request) !== call.requestDigest
-        )
-          return { failure: denied() }
+        if (!call || !matchesCall(call, record, input)) return { failure: denied() }
         return { ok: structuredClone(record.continuity) }
       },
     })
