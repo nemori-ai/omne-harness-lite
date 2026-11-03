@@ -16,21 +16,24 @@ function page(port: ReadPort, sql: string, params: readonly SqlValue[], limit: n
     nextCursor: rows.length > limit && last !== undefined ? String(last[0]) : null,
   }
 }
+function snapshot(input: Extract<RepositoryRead, { kind: 'snapshot' }>, port: ReadPort): JsonValue {
+  return input.version.kind === 'current'
+    ? one(
+        port,
+        'SELECT v.snapshot FROM ca_current c JOIN ca_versions v ON v.calendar_id = c.calendar_id AND v.version_id = c.version_id WHERE c.calendar_id = ?',
+        [input.calendarId],
+      )
+    : one(port, 'SELECT snapshot FROM ca_versions WHERE calendar_id = ? AND version_id = ?', [
+        input.calendarId,
+        input.version.versionId,
+      ])
+}
 function read(input: RepositoryRead, port: ReadPort): JsonValue {
   switch (input.kind) {
     case 'calendar':
       return one(port, 'SELECT directory FROM ca_current WHERE calendar_id = ?', [input.calendarId])
     case 'snapshot':
-      return input.version.kind === 'current'
-        ? one(
-            port,
-            'SELECT v.snapshot FROM ca_current c JOIN ca_versions v ON v.calendar_id = c.calendar_id AND v.version_id = c.version_id WHERE c.calendar_id = ?',
-            [input.calendarId],
-          )
-        : one(port, 'SELECT snapshot FROM ca_versions WHERE calendar_id = ? AND version_id = ?', [
-            input.calendarId,
-            input.version.versionId,
-          ])
+      return snapshot(input, port)
     case 'candidate':
       return one(port, 'SELECT record FROM ca_candidates WHERE operation_ref = ?', [
         input.candidateRef,

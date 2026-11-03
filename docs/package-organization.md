@@ -405,7 +405,7 @@ Session 按纯契约、Cordis 定义、通用实现、具体装配、邻域适�
 
 ## 日历与日程的安装和部署边界
 
-Calendar 与 Schedule/Job 分别按纯契约、Cordis 定义、通用实现、单机后端和工具贡献组织为五个 workspace 成员。十个成员均为 private 0.0.0 初始化草稿，公开入口为空。包划分建立安装依赖与维护边界，不表示业务已实现，也不要求每个包单独成为进程。
+Calendar 与 Schedule/Job 分别按纯契约、Cordis 定义、通用实现、单机后端和工具贡献组织为五个 workspace 成员。十个成员均为 private 0.0.0。Calendar 已提供公开契约、计算、查询与供应服务、本地后端、Cordis 绑定和只读工具；Schedule/Job 仍为初始化草稿。具体支持范围见 [Calendar 组](../packages/calendar/README.md)和 [Schedule 组](../packages/schedule/README.md)。包划分建立安装依赖与维护边界，不要求每个包单独成为进程。
 
 公共服务可以部署在与 Session、Agent runtime 不同的机器或进程。`*-contract` 拥有公共数据和可替换服务端口，不包含 Cordis、SQL 后端、工厂配置或运行时对象。线上请求和回执可序列化，使用稳定身份、明确协议版本及授权语义。`calendar` 与 `schedule` 拥有纯领域算法、应用工厂及其内部构造依赖。`*-cordis-contract` 唯一拥有 Service、键和类型增补，不依赖通用实现。`*-tools` 经 inject 消费服务，不能依赖 core 或 `*-local`。服务定义本身不是网络协议。
 

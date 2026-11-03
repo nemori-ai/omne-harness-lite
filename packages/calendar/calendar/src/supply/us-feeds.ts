@@ -29,16 +29,20 @@ function opmDay(
   )
 }
 
+function opmDocument(input: SourceParseInput): InstanceType<typeof ICAL.Component> {
+  if (input.mediaType?.split(';')[0]?.trim().toLowerCase() !== 'text/calendar')
+    throw new Error('OPM response must declare text/calendar')
+  const text = decode(input).trim()
+  if (!text.startsWith('BEGIN:VCALENDAR') || !text.endsWith('END:VCALENDAR'))
+    throw new Error('incomplete or disguised VCALENDAR')
+  const calendar = ICAL.Component.fromString(text)
+  if (calendar.name !== 'vcalendar') throw new Error('not a VCALENDAR')
+  return calendar
+}
 export function parseOpmCalendar(input: SourceParseInput): SourceParseResult {
   const sourceId = 'opm-federal-holidays-ics'
   return sourceParser(sourceId, input, material => {
-    if (input.mediaType?.split(';')[0]?.trim().toLowerCase() !== 'text/calendar')
-      throw new Error('OPM response must declare text/calendar')
-    const text = decode(input).trim()
-    if (!text.startsWith('BEGIN:VCALENDAR') || !text.endsWith('END:VCALENDAR'))
-      throw new Error('incomplete or disguised VCALENDAR')
-    const calendar = ICAL.Component.fromString(text)
-    if (calendar.name !== 'vcalendar') throw new Error('not a VCALENDAR')
+    const calendar = opmDocument(input)
     const days: SupplyDay[] = []
     for (const event of calendar.getAllSubcomponents('vevent')) {
       const day = opmDay(event, material)

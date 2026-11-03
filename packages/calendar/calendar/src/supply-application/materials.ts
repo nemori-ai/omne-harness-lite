@@ -25,6 +25,24 @@ import type {
 import { finding } from '../supply/common.ts'
 
 const computedSchema = z.strictObject({ start: localDateSchema, end: localDateSchema })
+function parseComputedMaterial(stored: CalendarStoredMaterial): SourceParseResult {
+  const { material } = stored
+  const input = { ...material, reference: material.authorityRef }
+  const range = computedSchema.parse(JSON.parse(new TextDecoder().decode(material.content)))
+  const parsed = computeUsFederalCalendar({ ...range, ...input })
+  if (parsed.kind !== 'success') return parsed
+  return {
+    ...parsed,
+    contribution: {
+      ...parsed.contribution,
+      material: { ...parsed.contribution.material, rawSha256: stored.rawHash },
+      days: parsed.contribution.days.map(day => ({
+        ...day,
+        provenance: day.provenance.map(item => ({ ...item, rawSha256: stored.rawHash })),
+      })),
+    },
+  }
+}
 export function parseStoredMaterial(stored: CalendarStoredMaterial): SourceParseResult {
   const { material } = stored
   const input = { ...material, reference: material.authorityRef }
@@ -43,22 +61,8 @@ export function parseStoredMaterial(stored: CalendarStoredMaterial): SourceParse
       return parseOpmCalendar(input)
     case 'federal-register-eo-feed':
       return parseFederalRegisterClosures(input)
-    case 'usc-6103-computed-rules': {
-      const range = computedSchema.parse(JSON.parse(new TextDecoder().decode(material.content)))
-      const parsed = computeUsFederalCalendar({ ...range, ...input })
-      if (parsed.kind !== 'success') return parsed
-      return {
-        ...parsed,
-        contribution: {
-          ...parsed.contribution,
-          material: { ...parsed.contribution.material, rawSha256: stored.rawHash },
-          days: parsed.contribution.days.map(day => ({
-            ...day,
-            provenance: day.provenance.map(item => ({ ...item, rawSha256: stored.rawHash })),
-          })),
-        },
-      }
-    }
+    case 'usc-6103-computed-rules':
+      return parseComputedMaterial(stored)
     default:
       throw new Error(`Unsupported source ${material.sourceId}`)
   }
@@ -66,11 +70,10 @@ export function parseStoredMaterial(stored: CalendarStoredMaterial): SourceParse
 export function materialHash(material: CalendarSourceMaterial): string {
   return createHash('sha256').update(material.content).digest('hex')
 }
-export async function preserveSource(
-  store: CalendarSourceMaterialStore,
+function validateSourceMaterial(
   policy: CalendarSupplyPolicy,
   material: CalendarSourceMaterial,
-): Promise<CalendarStoredMaterial> {
+): void {
   const spec = policy.sources.find(source => source.sourceId === material.sourceId)
   if (!spec || spec.lineage !== material.lineageRef || !material.authorityRef.trim())
     throw new Error('Source lineage or authority does not match the fixed source')
@@ -78,6 +81,13 @@ export async function preserveSource(
   instantSchema.parse(material.acquiredAt)
   if (material.knowledgeAsOf > material.acquiredAt)
     throw new Error('Source knowledge is later than acquisition')
+}
+export async function preserveSource(
+  store: CalendarSourceMaterialStore,
+  policy: CalendarSupplyPolicy,
+  material: CalendarSourceMaterial,
+): Promise<CalendarStoredMaterial> {
+  validateSourceMaterial(policy, material)
   const saved = await store.preserve(material)
   if (saved.kind !== 'ok') throw new Error(`Material preservation: ${saved.kind}`)
   if (saved.value.rawHash !== materialHash(material))

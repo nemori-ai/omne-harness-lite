@@ -142,23 +142,32 @@ export function assembleCandidate(input: {
     ),
     reasons: findings.map(describeFinding),
   }
+  return {
+    candidate,
+    disposition: candidateDisposition(findings, report.kind, snapshot, input.currentSnapshot),
+  }
+}
+function candidateDisposition(
+  findings: readonly SupplyFinding[],
+  reportKind: ReturnType<typeof validateCalendarCandidate>['kind'],
+  snapshot: Omit<CalendarSnapshot, 'publicationGeneration'>,
+  currentSnapshot: CalendarSnapshot | null,
+): CalendarDisposition {
   if (
     findings.some(item => item.severity === 'blocker' && item.status === 'failed') ||
-    report.kind === 'rejected'
+    reportKind === 'rejected'
   )
-    return { candidate, disposition: { kind: 'rejected' } }
+    return { kind: 'rejected' }
   if (
     findings.some(item => item.severity === 'blocker' && item.status === 'unknown') ||
-    report.kind !== 'success'
+    reportKind !== 'success'
   )
-    return { candidate, disposition: { kind: 'withheld' } }
-  if (
-    input.currentSnapshot &&
-    supplyDigest(snapshotContent(input.currentSnapshot)) === snapshot.contentHash
-  )
-    return { candidate, disposition: { kind: 'noChange' } }
-  return { candidate, disposition: { kind: 'publish', snapshot } }
+    return { kind: 'withheld' }
+  if (currentSnapshot && supplyDigest(snapshotContent(currentSnapshot)) === snapshot.contentHash)
+    return { kind: 'noChange' }
+  return { kind: 'publish', snapshot }
 }
+
 export function describeFinding(item: SupplyFinding): string {
   return `${item.code}:${item.status}:${item.severity}:${item.detail}`
 }

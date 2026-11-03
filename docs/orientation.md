@@ -78,7 +78,7 @@ flowchart TB
   class identity,session,agent,model,context,tool,env,storage loaded
 ```
 
-日历负责版本事实与计算，日程与 Job 负责安排、接受和业务结果。Job 的执行意图区分已登记程序调用与携带 instruction 的 agent 工作。agent 工作再区分新建会话和投递指定已有会话。执行适配器实现 Job 端口，并消费 Session 的公开入口；日程核心不依赖 Session 或 Agent。工具入口独立通过 Cordis 注入应用服务。完整关系见[日程领域协作](domains/schedules-and-jobs/architecture.md)与[总体协作图](architecture/structure.md)。这些是设计责任，不表示当前空导出包已经实现。
+日历负责版本事实与计算，日程与 Job 负责安排、接受和业务结果。Job 的执行意图区分已登记程序调用与携带 instruction 的 agent 工作。agent 工作再区分新建会话和投递指定已有会话。执行适配器实现 Job 端口，并消费 Session 的公开入口；日程核心不依赖 Session 或 Agent。工具入口独立通过 Cordis 注入应用服务。完整关系见[日程领域协作](domains/schedules-and-jobs/architecture.md)与[总体协作图](architecture/structure.md)。这些是设计责任，不证明相应能力已经实现；实际支持范围以各能力组和成员说明为准。
 
 分解轴怎样交叉、哪些概念必须分开，读[三条分解轴](architecture/structure.md#三条分解轴)。common 的完整成员清单见[产品包组织的目标目录](package-organization.md#目标目录)。
 

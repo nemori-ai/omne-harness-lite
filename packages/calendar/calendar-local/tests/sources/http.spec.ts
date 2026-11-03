@@ -179,3 +179,41 @@ it('sends the fixed OPM browser User-Agent', async () => {
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
   )
 })
+
+it('follows a permitted redirect without changing bytes, method, or request headers', async () => {
+  const requests: {
+    path: string | undefined
+    method: string | undefined
+    agent: string | undefined
+  }[] = []
+  const origin = await serve((response, request) => {
+    requests.push({
+      path: request.url,
+      method: request.method,
+      agent: request.headers['user-agent'],
+    })
+    if (request.url !== '/calendar.ics') {
+      response.writeHead(302, { location: '/calendar.ics' })
+      response.end()
+      return
+    }
+    response.writeHead(200, {
+      'content-type': 'text/calendar',
+      'last-modified': 'Thu, 01 Oct 2026 00:00:00 GMT',
+    })
+    response.end(ics)
+  })
+  const result = await adapter(origin, { maxRedirects: 1 }).acquire({ acquiredAt })
+  expect(result.kind).toBe('acquired')
+  if (result.kind !== 'acquired') throw new Error(result.reason)
+  expect(Buffer.from(result.material.content).toString()).toBe(ics)
+  expect(result.material.transportEvidence?.[0]?.url).toBe(`${origin}/calendar.ics`)
+  expect(requests).toEqual([
+    {
+      path: '/policy-data-oversight/pay-leave/federal-holidays/holidays.ics',
+      method: 'GET',
+      agent: expect.stringContaining('Chrome/126'),
+    },
+    { path: '/calendar.ics', method: 'GET', agent: requests[0]?.agent },
+  ])
+})

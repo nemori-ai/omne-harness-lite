@@ -17,6 +17,45 @@ const other = {
   publication_date: '2025-12-21',
   signing_date: '2025-12-20',
 }
+it.each(['duplicate', 'body budget'] as const)(
+  'keeps FR %s checks across page boundaries',
+  async failure => {
+    let bodyRequests = 0
+    const origin = await server((request, response) => {
+      const url = new URL(request.url ?? '/', 'https://www.federalregister.gov')
+      if (url.pathname.startsWith('/body/')) {
+        bodyRequests++
+        response.writeHead(200, { 'last-modified': 'Mon, 01 Jun 2026 00:00:00 GMT' })
+        response.end('Executive departments are closed on December 24, 2025.')
+        return
+      }
+      if (url.searchParams.has('page')) {
+        sendJson(response, {
+          results: [
+            { ...hit, document_number: failure === 'duplicate' ? hit.document_number : '2025-003' },
+          ],
+          next_page_url: null,
+        })
+      } else {
+        url.searchParams.set('page', '2')
+        sendJson(response, { results: [hit], next_page_url: url.href })
+      }
+    })
+    const result = await source('federal-register-eo-feed', {
+      usWindow,
+      limits: { maxBodies: 1 },
+      testEndpoints: { origins: { 'https://www.federalregister.gov': origin } },
+    }).acquire({ acquiredAt })
+    expect(result).toEqual({
+      kind: 'unavailable',
+      reason:
+        failure === 'duplicate'
+          ? 'Duplicate Federal Register document'
+          : 'Federal Register body count limit exceeded',
+    })
+    expect(bodyRequests).toBe(1)
+  },
+)
 it('requests explicit FR fields and scan floor, fetches only hits, and preserves half-day text', async () => {
   const requested: string[] = []
   const queries: URLSearchParams[] = []
