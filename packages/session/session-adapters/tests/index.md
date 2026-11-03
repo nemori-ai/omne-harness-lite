@@ -47,6 +47,7 @@
 - [journal-replay.spec.ts](journal-replay.spec.ts)：Session 替身以 coordinated 绑定运行 agent-contract `./testing` 的轨迹回放（AG-23）：收尾协议模型导出的轨迹逐步核对答复与状态投影，三条负控的违规轨迹须在最后一步被报告；夹具在每次首个 submit 成功后记录 Session 一侧的交接
 - [record-fault.spec-d.ts](record-fault.spec-d.ts)：本地 `RecordFault` 与契约测试件的 `RecordFault` 互相可赋值
 - [host-record.spec-d.ts](host-record.spec-d.ts)：本地 `TestHostRecord` 与一致性套件的 `TestHostRecord` 互相可赋值
+- [history-source-cursor.spec.ts](history-source-cursor.spec.ts)：AD-04 在 session-storage-sql 签发的游标上读模型视图：跨页只交出签发游标；多轮读取量不随历史增长（E9）；冷启动、被拒收的游标与另一个 epoch 从开头读，行仍正确
 - [fixtures/](fixtures/index.md)：测试共用的构造与固定输入，有 7 个文件
 
 ## 本绑定不可达的分支
