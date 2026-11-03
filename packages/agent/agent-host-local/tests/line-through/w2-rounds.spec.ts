@@ -26,7 +26,12 @@ const NEW_ROWS_PER_ROUND = 2
  * `src/cordis/history-source.ts`, C-FIX-CURSOR). Measured in rounds 2 and 3: 2 reads, 5 rows.
  */
 const AD04_READS = 2
-/** The page read returns the added rows and the row before them, the mint read returns the added rows. */
+/**
+ * The page read returns the added rows and the row before them (the signed cursor of Session is
+ * usable only one row early); the mint read, which gets that cursor for the next round, reads the rows
+ * of this round again, which are the added rows. So the added rows are read twice, and the formula
+ * is `added + 1 + added`, not `added + constant` (a ruling of Reduce is open on the form).
+ */
 const AD04_ROWS_FOR = (added: number) => added + 1 + added
 
 const worlds: W2World[] = []
@@ -102,6 +107,13 @@ describe('J1: three rounds of one conversation', () => {
     expect(
       historyReadGrowth(w.counters.rounds, NEW_ROWS_PER_ROUND, AD04_ROWS_FOR, AD04_READS),
     ).toEqual([])
+    // The two assertions of the first form of the criterion, for the AD-04 read path alone (the probes
+    // left out): rounds 2 and 3 hand out only the rows the round before added, and nothing handed out
+    // before is handed out again. R2-D74: they stay as they were until Reduce rules on them.
+    for (const count of [two, three]) {
+      expect(count?.ad04ProjectedRows).toBe(2)
+      expect(count?.ad04StableRecompute).toBe(0)
+    }
     // The probes of the qualification check read one row each, and their number is that of round 1.
     expect(two?.probeReadCalls).toBe(w.counters.rounds[0]?.probeReadCalls)
     expect(three?.probeReadCalls).toBe(two?.probeReadCalls)

@@ -26,6 +26,12 @@ export type RoundCount = Readonly<{
   probeReadRows: number
   /** Rows of the model-view projection that the history face handed out in this round. */
   projectedRows: number
+  /**
+   * The two counts above for the AD-04 read path alone (the probes left out): the rows its reads handed
+   * out in this round, and those of them that an earlier AD-04 read had handed out.
+   */
+  ad04ProjectedRows: number
+  ad04StableRecompute: number
   /** Rows handed out in this round that an earlier round had handed out: re-reads of the stable part. */
   stableRecompute: number
   storageCommits: Readonly<Record<string, number>>
@@ -112,8 +118,11 @@ export function createRoundCounters() {
   // The rows the history face has handed out in all earlier rounds, the rows of the projection of
   // this round, and the rows of this round that were handed out before.
   const seen = new Set<string>()
+  const ad04Seen = new Set<string>()
   let projected = 0
   let rereads = 0
+  let ad04Projected = 0
+  let ad04Rereads = 0
 
   const fresh = (round: number): Open => ({
     round,
@@ -151,12 +160,20 @@ export function createRoundCounters() {
       open = fresh(round)
       projected = 0
       rereads = 0
+      ad04Projected = 0
+      ad04Rereads = 0
     },
     end(): RoundCount {
       if (open === null) throw new Error('no round is open')
       const current = open
       open = null
-      const count: RoundCount = { ...current, projectedRows: projected, stableRecompute: rereads }
+      const count: RoundCount = {
+        ...current,
+        projectedRows: projected,
+        stableRecompute: rereads,
+        ad04ProjectedRows: ad04Projected,
+        ad04StableRecompute: ad04Rereads,
+      }
       rounds.push(count)
       return count
     },
@@ -227,6 +244,13 @@ export function createRoundCounters() {
         for (const id of ids) {
           if (seen.has(id)) rereads += 1
           else seen.add(id)
+        }
+        if (projection && !probe) {
+          ad04Projected += ids.length
+          for (const id of ids) {
+            if (ad04Seen.has(id)) ad04Rereads += 1
+            else ad04Seen.add(id)
+          }
         }
       }
       const entries = (answer: Outcome<HistoryPage, unknown>): Outcome<HistoryPage, unknown> => {
