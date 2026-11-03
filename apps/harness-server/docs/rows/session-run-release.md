@@ -30,13 +30,14 @@
 
 | 端口 | 发行做法 | 答复 |
 | --- | --- | --- |
-| 来源核验 `sourceAuthority` | 发行固定的窄放行。先经 `requestContextTrust` 的主体绑定核验主体，再核访问、目标与调用三个租户相同，最后核 `producer` 是 `model`，且 `sender` 的四个字段与 `ACCOUNT_OUTLET_SENDER` 全等。`ACCOUNT_OUTLET_SENDER` 等于发行配置里 `agent-account-outlet` 行的 `sender`，用例核对两者相等 | 全部满足时 `allowed`。其余一律 `denied`，原因写入行日志（契约的 `denied` 不带文字）。主体绑定不可用或抛出时答 `unavailable`，不改写成 `denied` |
-| 读取资格 `readEligibility` | 每次调用现取已登记的 `contextHolderSources`（`session-ad04` 行提供），短租借后转问它的 `eligibility` 部件，返回前结束租借。不 `inject`，所以行清单不变 | 只放行 `accounts` 操作，其他操作答 `denied`。持有者的答复原样返回，`denied` 另写行日志。没有持有者、租借被拒或抛出时答 `unavailable` |
-| 持有者事实 `replayFacts` | 入口对象 `runtimeContextTrust` 每次调用在自己的上下文上现取 `sessionReplayFacts`（`session-ad03` 行的事实子插件提供），不缓存旧引用 | 服务不在场、已停、读取或应答抛出时答 `unavailable`。RC-09 结束恢复时，持有者事实列出的块没有被材料覆盖，答 `invalid`（`replay-incomplete`） |
+| 来源核验 `sourceAuthority` | 发行固定的窄放行。先经 `principalVerifier` 服务核验主体（按调用现取，不 `inject`）：只接受代租户行事主体，且主体的租户等于访问的租户。系统主体答 `denied`，因为系统作用域不代表任何租户（[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。再核访问、目标与调用三个租户相同，最后核 `producer` 是 `model`，且 `sender` 的四个字段与 `ACCOUNT_OUTLET_SENDER` 全等。`ACCOUNT_OUTLET_SENDER` 等于发行配置里 `agent-account-outlet` 行的 `sender`，用例核对两者相等 | 全部满足时 `allowed`。其余一律 `denied`，原因写入行日志的 warn 级（契约的 `denied` 不带文字）。核验器不在场、不可用或抛出时答 `unavailable`，不改写成 `denied` |
+| 读取资格 `readEligibility` | 每次调用现取已登记的 `contextHolderSources`（`session-ad04` 行提供），短租借后转问它的 `eligibility` 部件，返回前结束租借。不 `inject`，所以行清单不变 | 只放行 `accounts` 操作，其他操作答 `denied`，原因写 debug 级日志。持有者的答复原样返回，`denied` 另写 warn 级日志。没有持有者、租借被拒或抛出时答 `unavailable`，吞掉的异常写 debug 级日志 |
+| 持有者事实 `replayFacts` | 入口对象 `runtimeContextTrust` 每次调用在自己的上下文上现取 `sessionReplayFacts`（`session-ad03` 行的事实子插件提供），不缓存旧引用 | 服务不在场、已停、读取或应答抛出时答 `unavailable`，吞掉的异常写 debug 级日志，不带异常消息。RC-09 结束恢复时，持有者事实列出的块没有被材料覆盖，答 `invalid`（`replay-incomplete`） |
 
 已知限制：
 
 - 来源核验不核「原账目、调用、发出与提交证据属于同一已提交的日志事实」，也不核调用方就是出站插件本身。出站插件转交的是 Agent 的访问身份，发行里没有这两项事实的来源。这是 B1-GAP-ACCOUNTING-SOURCE-AUTHORITY 收窄后的余项。现在出站插件没有目标解析器，每次交付在到达收件口之前答 `scope-unresolved`，所以这条放行在发行里还走不到。
+- 来源核验只比较 `target.tenant` 字段，不解析作用域 `target.scope` 的真实归属。账目只写进调用方租户自己的命名空间：账目投影按 `tenant\0scope` 作键，所以写错作用域的账目不会污染别的租户。
 - 读取资格借用的是持有者对目标所属会话的历史读取资格，不区分 `operation`。`session-ad04` 还没有解析到该作用域时答 `unavailable`。
 - 入口的作用域绑定仍答 `unavailable`（`src/entry/execution-wiring.ts` 的 `readOwnership` 缺席），所以在发行树里结束恢复的核对先停在绑定，读不到持有者事实。把 `readOwnership` 接到 `sessionScopeLookup` 不在 SC2 范围内，它会改变 Runtime Context 读者与 Execution 绑定的授权结果。
 - `sessionReplayFacts` 在 session-cordis-contract 里写为受信名，但应用装配页的受信子树没有列它，发行受信表也没有。所以入口从根上解出它，根上别的插件也能按名取得。受信表列入以后，入口改为经 `env.readTrusted` 读取（`readReplayFactsService`）。
