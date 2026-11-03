@@ -145,8 +145,34 @@ export type EffectUnknown = Readonly<{
   cause: NoAnswerCause | 'no-connection'
 }>
 
+/**
+ * A request that left and was answered with something the transport cannot read in the shape that
+ * SPEC names for that request. `what` says which part is wrong.
+ */
+export type AnswerMalformed = Readonly<{
+  kind: 'answer-malformed'
+  what:
+    | 'status-unknown'
+    | 'input-requests-missing'
+    | 'result-missing'
+    | 'error-shape'
+    | 'tools-missing'
+    | 'discover-shape'
+}>
+
 /** The failure of a read, status or task operation that may need a connection. */
-export type OperationFailure = Refusal | ConnectionFailure | EffectUnknown | ErrorAnswer
+export type OperationFailure =
+  | Refusal
+  | ConnectionFailure
+  | EffectUnknown
+  | ErrorAnswer
+  | AnswerMalformed
+
+/** The failure of an operation that does not send a request: `current` and `peer`. */
+export type ReadFailure = Exclude<
+  OperationFailure,
+  Readonly<{ kind: 'effect-unknown' | 'error-answer' | 'answer-malformed' }>
+>
 
 /** Why a call was not sent. The set is closed. A call that was not sent has no peer effect. */
 export type NotSentReason =

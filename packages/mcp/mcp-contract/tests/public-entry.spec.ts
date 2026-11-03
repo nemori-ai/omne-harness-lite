@@ -97,8 +97,21 @@ it('the testing entry exports the conformance facilities', async () => {
   expect(Object.keys(testing).sort()).toEqual(TESTING)
 })
 
+/**
+ * The source text of a module without comments and empty statements. A mutation sandbox adds a
+ * `// @ts-nocheck` header and stray `;` statements; neither is an import or an export.
+ */
 function sourceOf(file: string): string {
-  return readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8')
+  return withoutNoise(readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8'))
+}
+
+function withoutNoise(text: string): string {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//gu, '')
+    .replace(/(^|[^:'"])\/\/[^\n]*/gu, '$1')
+    .split('\n')
+    .filter(line => line.trim() !== '' && line.trim() !== ';')
+    .join('\n')
 }
 
 /**
@@ -186,5 +199,19 @@ it('the provider entry uses only the export type { … } from form', () => {
   const statements = exportStatements(sourceOf('provider.ts'))
   expect(statements.length).toBeGreaterThan(0)
   for (const statement of statements)
-    expect(statement).toMatch(/^export type \{[^}]*\} from '\.\/[^']+'$/u)
+    expect(statement).toMatch(/^export type \{[^}]*\} from (["'])\.\/[^"']+\1;?$/u)
+})
+
+it('reads a module the way a mutation sandbox writes it', () => {
+  const text = withoutNoise(
+    [
+      '// @ts-nocheck',
+      '/* export * from "./hidden.ts" */',
+      ';',
+      "export type { A } from './a.ts'; // export * from './b.ts'",
+      ';',
+    ].join('\n'),
+  )
+  expect(exportedNames(text)).toEqual(['A'])
+  expect(exportStatements(text)).toEqual(["export type { A } from './a.ts'"])
 })

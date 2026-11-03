@@ -41,7 +41,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 19. 五个服务只写接口与结果值，`ActionInvoker` 是 `ActionCalls` 与 `TaskControl` 的交集。见 S。
 20. 配值可以缺失或不合法，两者分别报告 `config-missing` 与 `config-invalid`。见 R1、S4。
 21. 任务的多轮输入经 `provideTaskInput` 交回；任务操作只对发起者开放。见 S2、T6。
-22. 传输失败按对端效果分三种，任务操作在无应答时答 `effect-unknown`。见 T1、T6、S2。
+22. 传输失败按对端效果分四种，读不懂的应答答 `answer-malformed`；任务操作在无应答时答 `effect-unknown`，新建连接前必须核资格。见 T1、T6、T7、S2。
 23. 明文 `http` 只用于回环主机。见 V3。
 
 <a id="entries"></a>
@@ -245,9 +245,10 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
   - `authorization-required`：对端答需要授权，带授权发现。
   - `landing-unavailable`：进程落点或设施不成立，或落点不可读。
   - `connection-unavailable`：传输打不开，协商失败，或请求没有产生对端效果（`not-sent`）。
-- **R7** `OperationFailure` 是读口、状态口与任务操作的失败，由 `Refusal`、`ConnectionFailure` 与下面两项组成：
+- **R7** `OperationFailure` 是读口、状态口与任务操作的失败，由 `Refusal`、`ConnectionFailure` 与下面三项组成。`current` 与 `peer` 不发请求，它们的失败 `ReadFailure` 不含这三项：
   - `effect-unknown`：请求已发出而没有应答，带 `NoAnswerCause` 的子因；或任务操作既没有现有连接、也没有可重建连接的采用材料，子因是 `no-connection`。效果未知，不压成失败，不重发。
   - `error-answer`：请求已发出，对端答 JSON-RPC 错误，带错误码、消息与 `data`（如有），原样交出。
+  - `answer-malformed`：请求已发出，应答不是 T6、T7 为这个请求点名的形状，带 `what`，见 T7。
 
 <a id="services"></a>
 
@@ -261,8 +262,8 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
   - 连接换代之后，`continueWithInput` 在旧代际上的在途状态无法证明时答「未发出：`unknown`」，不在新代际上重发。
   - 服务在本次运行内保存已发出的任务表，键是（租户、主体、持有、任务号）。表项在本次运行内不删除；任务的终态交出之后再查询，仍转发给对端。任务表不跨重启，这是已知限制。
   - `queryTask`、`taskResult`、`provideTaskInput`、`cancelTask` 只对发起者开放：非发起者、重启之后和表里没有的任务一律答 `unknown`，不随任务是否存在而变。`cancelTask` 不核采用与资格。
-  - 任务操作需要现有连接，或者可以用来重建连接的采用材料。两者都没有时答 `effect-unknown`（`no-connection`）。
-  - 传输答 `no-answer` 时，四个任务操作答 `effect-unknown`，带同一子因。传输答 `error-answer` 时原样交出。
+  - 任务操作可以复用现有连接，复用时不核资格。要新建连接时，`UseEligibility` 必须答 `granted`；否则不建连接，答 `effect-unknown`（`no-connection`）。没有现有连接、也没有可以重建连接的采用材料时，同样答 `effect-unknown`（`no-connection`）。`cancelTask` 只减少效果，不为取消启动新进程。`AdoptionView` 答 `unknown` 时，任务操作答 `Refusal` 的 `unknown`。
+  - 传输答 `no-answer` 时，四个任务操作答 `effect-unknown`，带同一子因。传输答 `error-answer` 或 `answer-malformed` 时原样交出。
   - `taskResult` 对已取消、没有结果的任务答 `cancelled`。`provideTaskInput` 把答复交给 `input_required` 的任务，对端确认后答 `accepted`。`cancelTask` 在对端确认取消请求后答 `requested`；任务是否已到终态，经 `queryTask` 得知。
 - **S3** `McpConfig` 的四个字段都必填，没有缺省值：
   - `principalKey`：给出主体的文本。同一租户内不同主体映射到不同文本，同一主体在本次运行内映射到同一文本。违反这一点是装配方的缺陷。
@@ -291,18 +292,18 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
   - `published`：清单已整份发布，带新的修订。
   - `kept`，原因是 `superseded`：`CatalogStore` 写入时答修订冲突，`mergeListing` 答 `stale-revision`，或产出清单的那一代连接在发布前已不是当前连接。原采用不变。
   - `kept`，原因是 `cancelled`：发布边界核对时，本次刷新已被取消。原采用不变。
-  - `kept`，原因是 `listing-incomplete`：`completeListing` 答了缺陷，带这个缺陷。某页的传输答 `no-answer` 或 `error-answer` 时，这一页算失败，缺陷是 `page-failed`，连接转为 `degraded`（`list-failed`）。原采用不变。
-  - 失败：某页的传输答 `not-sent` 时，答对应的 `ConnectionFailure`，连接转为 `degraded`，并用对应原因调用 `markUnavailable`。发布边界核对当前授权失败时，答对应的 `Refusal`，不发布。`CatalogStore` 读取或写入不可用时答 `unknown`，不报告新修订。
+  - `kept`，原因是 `listing-incomplete`：`completeListing` 答了缺陷，带这个缺陷。某页的传输答 `no-answer`、`error-answer` 或 `answer-malformed` 时，这一页算失败，缺陷是 `page-failed`，连接转为 `degraded`（`list-failed`）。原采用不变。
+  - 失败：某页或 `discover` 的传输答 `not-sent`（`authorization-required` 或 `connection-unavailable`）时，答对应的 `ConnectionFailure`，连接按 S7 转为 `lost`，并用对应原因调用 `markUnavailable`。写入这份记录时 `CatalogStore` 答修订冲突，`refresh` 答 `kept`（`superseded`）；答不可用时答 `unknown`。`discover` 答 `no-answer` 时答 `effect-unknown`；答 `error-answer` 或 `answer-malformed` 时答 `connection-unavailable`，连接转为 `lost`（`discover-failed`）。发布边界核对当前授权失败时，答对应的 `Refusal`，不发布。`CatalogStore` 读取或写入不可用时答 `unknown`，不报告新修订。
 - **S6** 进度与日志通知经调用方给出的观察函数交出，标为不可信，不代替结局。观察函数抛出不影响调用的结局。本组不把通知写进自己的日志：对端日志不经过 `ProcessLanding`，MCP 无法按值遮盖其中的秘密。
 - **S7** `EndpointStatusView` 的连接状态：
   - `none`：本次运行没有这个接入点的连接。`preparing`：正在准备。`ready`：协商已成立。
   - `degraded`：最近一次非调用请求暂时失败，原因 `discover-failed`（`server/discover`）或 `list-failed`（`tools/list`）。
-  - `lost`：连接不再成立，原因如下：`preparation-failed`，准备失败且不属于其他几种；`authorization-required`，对端答需要授权；`process-exited`，stdio 进程退出；`stream-broken`，管道或流断开；`negotiation-invalid`，已记录的协商结果不再成立；`session-ended`，旧对端终止了会话。
+  - `lost`：连接不再成立，原因如下：`preparation-failed`，准备失败且不属于其他几种；`discover-failed`，`server/discover` 已发出而应答是 JSON-RPC 错误或读不懂；`close-unconfirmed`，`release`、`closeAll` 或自动关闭时进程的 `stop()` 答 `root-only` 或 `unconfirmed`；`authorization-required`，对端答需要授权；`process-exited`，stdio 进程退出；`stream-broken`，管道或流断开；`negotiation-invalid`，已记录的协商结果不再成立；`session-ended`，旧对端终止了会话。
 
-  准备失败或关闭后留下的进程与它确认的停止范围只记在 `lost` 状态的 `residual` 上，视图原样反映状态。重建成功或 `release` 确认停止之后，`residual` 清除。凭据在视图里报告为：`not-required`，`auth` 是 `none`；`absent`，配值缺失；`invalid`，配值被守卫拒绝；`present`，配值存在。视图不报告凭据值。
+  「确认停止」指 `stop()` 答 `tree-confirmed`。准备失败或关闭后留下的进程与它确认的停止范围只记在 `lost` 状态的 `residual` 上，视图原样反映状态。关闭时确认停止，状态回到 `none`；否则状态是 `lost`（`close-unconfirmed`）并带 `residual`。重建成功或之后确认停止时，`residual` 清除。凭据在视图里报告为：`not-required`，`auth` 是 `none`；`absent`，配值缺失；`invalid`，配值被守卫拒绝；`present`，配值存在。视图不报告凭据值。
 
-- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；没有连接时报告 `no-connection`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
-- **S9** 句柄的取得与释放：每条连接按凭据配值调用一次 `CredentialUse.acquire`，所有 `credential` 来源变量共用这一个进程句柄。进程句柄在 `stop()` 确认停止之后释放。HTTP 句柄随连接关闭释放。
+- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
+- **S9** 凭据句柄的取得与释放：每条连接按凭据配值调用一次 `CredentialUse.acquire`，所有 `credential` 来源变量共用这一个进程凭据句柄。进程凭据句柄在进程的 `stop()` 返回之后释放，不论它答哪种范围；准备失败时立即释放。HTTP 凭据句柄随连接关闭释放。
 
 ## 所有权、失败与生命周期
 
@@ -349,7 +350,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 进程句柄给出标准输入、标准输出、已遮盖秘密的标准错误、根进程退出的信号，以及 `stop()`。`start` 的环境由非秘密配值与按变量名给出的进程凭据句柄组成。
 
-- **PL1** `stop()` 请求停止该进程及其全部后代，答实际确认的范围：`tree-confirmed`、`root-only` 或 `unconfirmed`。确认了停止时，`exited` 会兑现。调用了 `stop()` 不证明进程已停。
+- **PL1** `stop()` 请求停止该进程及其全部后代，答实际确认的范围：`tree-confirmed`、`root-only` 或 `unconfirmed`。答 `tree-confirmed` 或 `root-only` 时，`exited` 会兑现。调用了 `stop()` 不证明进程已停。
 - **PL2** 交出标准错误之前遮盖其中的秘密值。标准错误在进程停止后结束；`stop()` 答 `unconfirmed` 时，套件不读到底，这个用例不适用。
 - **PL3** 设施不成立时答 `facility-missing`，不起进程。
 - **PL4** 落点不成立时答 `landing-invalid`，不静默落到宿主。不能判定时答 `unknown`。
@@ -372,17 +373,25 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 ### `McpTransport` 与 `McpTransportFactory`（T）
 
-- **T1** 传输失败按对端效果分三种：`not-sent`，请求没有对端效果；`no-answer`，请求已离开而没有应答，效果未知；`error-answer`，请求已离开，对端答 JSON-RPC 错误，带错误码、消息与 `data`（如有）。`call` 的失败只会是 `not-sent`；调用已发出后，没有应答经 `answer` 交出 `no-answer`，JSON-RPC 错误经 `answer` 交出 `error`。
-- **T2** 传输交出对端的原样应答，不分类。分类由 `classifyOutcome` 完成。
+- **T1** 传输失败按对端效果分四种：`not-sent`，请求没有对端效果；`no-answer`，请求已离开而没有应答，效果未知；`error-answer`，请求已离开，对端答 JSON-RPC 错误，带错误码、消息与 `data`（如有）；`answer-malformed`，请求已离开，应答读不懂，见 T7。`call` 的失败只会是 `not-sent`；调用已发出后，没有应答经 `answer` 交出 `no-answer`，JSON-RPC 错误经 `answer` 交出 `error`。
+- **T2** 对 `call`，传输交出对端的原样应答，不分类，分类由 `classifyOutcome` 完成。对非调用请求（`discover`、`listActions` 与任务操作），传输把应答解释到 T6、T7 点名的形状为止。
 - **T3** `discover` 在旧对端上回退到 `initialize`。客户端是否在请求上声明任务扩展能力，由传输实现决定。`discover` 按打开材料里的 `instructionsByteLimit` 处理 `instructions`，见 S3。
 - **T4** 对端对一个请求答 HTTP 401 或权限不足的 403 时，请求没有对端效果，失败是 `not-sent`、`authorization-required`，带授权发现。这个请求曾用凭据句柄授权时，传输先调用该句柄的 `reportRejection()`，再报这个失败。
 - **T5** `cancelRequest` 发出取消通知，不证明对端已停止。`close()` 只关闭传输，不停止进程。进程由进程句柄的持有者停止。
 - **T6** 任务操作与协议的对应：
-  - `getTask` 发 `tasks/get`，读应答里的 `status`、`input_required` 时的 `inputRequests`，以及 `completed` 或 `failed` 的内容。
-  - `getTaskResult` 读同一种应答：`completed` 的 `result` 与 `failed` 的错误作为 `finished` 的原样应答交出；`cancelled` 答 `cancelled`；其他状态答 `not-finished`。
+  - `getTask` 发 `tasks/get`，读应答里的 `status` 与 `input_required` 时的 `inputRequests`。它不交出任务的结果。
+  - `getTaskResult` 也发 `tasks/get`，读同一种应答：`completed` 的 `result` 与 `failed` 的错误作为 `finished` 的原样应答交出；`cancelled` 答 `cancelled`；其他状态答 `not-finished`。
   - `updateTask` 发 `tasks/update` 交回答复，对端确认后答 `accepted`。`cancelTask` 发 `tasks/cancel`，对端确认后答 `requested`。两者都只是确认，终态经 `getTask` 得知。
-  - 对端答 JSON-RPC 错误 `-32602`（任务不存在或已过期）时，`getTask` 与 `getTaskResult` 答 `expired`；对端删除过期任务后同样如此，不当作失败或完成。其余 JSON-RPC 错误以 `error-answer` 原样交出。
+  - 对端答 JSON-RPC 错误 `-32602`（任务不存在或已过期）时，`getTask` 与 `getTaskResult` 答 `expired`；对端删除过期任务后同样如此，不当作失败或完成。其余 JSON-RPC 错误以 `error-answer` 原样交出。`updateTask` 与 `cancelTask` 对已过期的任务得到 `error-answer`（`-32602`），原样交出。
   - 请求已发出而没有应答时答 `no-answer`，服务据此答 `effect-unknown`（S2）。
+
+- **T7** 非调用请求的应答读不懂时，答 `answer-malformed`，`what` 的值与条件：
+  - `status-unknown`：`tasks/get` 的 `status` 不在 `TaskStatus` 的五个值里。
+  - `input-requests-missing`：`status` 是 `input_required` 而没有 `inputRequests`。
+  - `result-missing`：`status` 是 `completed` 而没有 `result`。
+  - `error-shape`：错误对象缺整数错误码（词形按 O4）或缺消息。错误码不是整数词形的 JSON-RPC 错误不以 `error-answer` 交出。
+  - `tools-missing`：`tools/list` 的应答没有 `tools` 列表。
+  - `discover-shape`：`server/discover` 的应答不是 T3 要求的形状，例如缺协议版本或能力。
 
 <a id="failure-codes"></a>
 
@@ -396,7 +405,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 | 对端账号               | `peerAccountOf` 的 `credential-missing`                                                                                                                                                            | K1                 |
 | 识别、资格与配置       | `Refusal`、`ConfigItem`                                                                                                                                                                            | R1、S1、S4         |
 | 连接条件               | `ConnectionFailure`                                                                                                                                                                                | R6                 |
-| 读口、状态口与任务操作 | `OperationFailure`、`EffectUnknown`、`ErrorAnswer`；`peer` 另有 `not-connected`                                                                                                                    | R7、S2、S8         |
+| 读口、状态口与任务操作 | `OperationFailure`、`ReadFailure`、`EffectUnknown`、`ErrorAnswer`、`AnswerMalformed`；`peer` 另有 `not-connected`                                                                                  | R7、S2、S8         |
 | 调用发起               | `NotSentReason`                                                                                                                                                                                    | R2                 |
 | 调用控制               | `CancelAnswer`                                                                                                                                                                                     | S2                 |
 | 发现与采用             | `ListingDefect`、`MergeRefusal`、`KeptReason`；修订耗尽的 `RangeError`；伪造清单的 `TypeError`                                                                                                     | C1、C4、C5、C7、S5 |
@@ -407,7 +416,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 | 任务                   | `TaskReport` 与 `expired`；`taskResult` 的 `not-finished`、`cancelled`                                                                                                                             | S2、T6             |
 | 截断与配置             | `boundInstructions` 与 `createMcp` 的 `RangeError`                                                                                                                                                 | S3                 |
 | 端口                   | `AdoptionView` 的 `unknown`；`EligibilityVerdict`；`CredentialFailure`；`ProcessLanding` 的 `landing-invalid`、`facility-missing`、`unknown`；`CatalogStore` 的 `unavailable`、`revision-conflict` | AV、UE、CU、PL、CS |
-| 传输                   | `TransportFailure`、`TaskAnswer`                                                                                                                                                                   | T1、T4、T6         |
+| 传输                   | `TransportFailure`、`AnswerMalformed`、`TaskAnswer`                                                                                                                                                | T1、T4、T6、T7     |
 
 ### 生命周期与所有权
 
@@ -441,7 +450,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 未覆盖：
 
 - 服务条款 S1–S9 没有实现，本成员不能验证它们。它们由服务实现的测试验证。
-- 传输条款 T1–T6 的契约测试与真实服务端夹具不在本成员。
+- 传输条款 T1–T7 的契约测试与真实服务端夹具不在本成员。
 - 真实对端、真实凭据、真实进程落点、耐久存储的行为都没有证据。替身通过不等于真实组合通过。
 
 <a id="open-items"></a>

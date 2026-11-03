@@ -2,6 +2,7 @@
 // `closed-sets.spec-d.ts` pins every list to its type, and `spec-closed-sets.spec.ts` checks that
 // SPEC.md names every member.
 import type {
+  AnswerMalformed,
   ContentDefect,
   DegradedReason,
   EffectUnknown,
@@ -104,7 +105,17 @@ export const OPERATION_FAILURE_KINDS = [
   'connection-unavailable',
   'effect-unknown',
   'error-answer',
+  'answer-malformed',
 ] as const satisfies readonly OperationFailure['kind'][]
+
+export const ANSWER_MALFORMED_WHAT = [
+  'status-unknown',
+  'input-requests-missing',
+  'result-missing',
+  'error-shape',
+  'tools-missing',
+  'discover-shape',
+] as const satisfies readonly AnswerMalformed['what'][]
 
 export const EFFECT_UNKNOWN_CAUSES = [
   'stream-broken',
@@ -117,6 +128,7 @@ export const TRANSPORT_FAILURE_KINDS = [
   'not-sent',
   'no-answer',
   'error-answer',
+  'answer-malformed',
 ] as const satisfies readonly TransportFailure['kind'][]
 
 export const DEGRADED_REASONS = [
@@ -126,6 +138,8 @@ export const DEGRADED_REASONS = [
 
 export const LOST_REASONS = [
   'preparation-failed',
+  'discover-failed',
+  'close-unconfirmed',
   'authorization-required',
   'process-exited',
   'stream-broken',
@@ -151,6 +165,7 @@ export const CLOSED_SETS = {
   KeptReason: KEPT_REASON_KINDS,
   OperationFailure: OPERATION_FAILURE_KINDS,
   EffectUnknown: EFFECT_UNKNOWN_CAUSES,
+  AnswerMalformed: ANSWER_MALFORMED_WHAT,
   TransportFailure: TRANSPORT_FAILURE_KINDS,
   DegradedReason: DEGRADED_REASONS,
   LostReason: LOST_REASONS,

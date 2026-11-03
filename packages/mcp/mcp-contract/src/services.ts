@@ -22,6 +22,7 @@ import type {
   CallOutcome,
   InvokeResult,
   OperationFailure,
+  ReadFailure,
   Refusal,
   TaskReport,
 } from './outcomes.ts'
@@ -66,7 +67,7 @@ export type RefreshResult =
 
 export interface ActionDiscovery<P> {
   /** The catalog as stored. It does not connect and does not discover. */
-  current(access: Access<P>, ref: EndpointRef): Promise<Outcome<CatalogView, OperationFailure>>
+  current(access: Access<P>, ref: EndpointRef): Promise<Outcome<CatalogView, ReadFailure>>
   /** Discovers and publishes. A store that cannot be read or written answers `unknown`. */
   refresh(
     access: Access<P>,
@@ -79,7 +80,7 @@ export interface ActionDiscovery<P> {
   ): Promise<
     Outcome<
       Readonly<{ peer: PeerIdentity; generation: Generation }>,
-      OperationFailure | Readonly<{ kind: 'not-connected' }>
+      ReadFailure | Readonly<{ kind: 'not-connected' }>
     >
   >
 }
@@ -156,6 +157,8 @@ export type DegradedReason = 'discover-failed' | 'list-failed'
 /** Why a connection is lost. */
 export type LostReason =
   | 'preparation-failed'
+  | 'discover-failed'
+  | 'close-unconfirmed'
   | 'authorization-required'
   | 'process-exited'
   | 'stream-broken'

@@ -1,5 +1,6 @@
 import { expectTypeOf, test } from 'vitest'
 import type {
+  AnswerMalformed,
   ContentDefect,
   DegradedReason,
   EffectUnknown,
@@ -31,6 +32,7 @@ test('each code list has exactly the members of its type', () => {
   expectTypeOf<Members<'KeptReason'>>().toEqualTypeOf<KeptReason['kind']>()
   expectTypeOf<Members<'OperationFailure'>>().toEqualTypeOf<OperationFailure['kind']>()
   expectTypeOf<Members<'EffectUnknown'>>().toEqualTypeOf<EffectUnknown['cause']>()
+  expectTypeOf<Members<'AnswerMalformed'>>().toEqualTypeOf<AnswerMalformed['what']>()
   expectTypeOf<Members<'TransportFailure'>>().toEqualTypeOf<TransportFailure['kind']>()
   expectTypeOf<Members<'DegradedReason'>>().toEqualTypeOf<DegradedReason>()
   expectTypeOf<Members<'LostReason'>>().toEqualTypeOf<LostReason>()
