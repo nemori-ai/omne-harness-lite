@@ -34,6 +34,7 @@ import {
 } from './host-domain.ts'
 import type { HostFileDiagnostic, HostFilesLimits } from './host-files.ts'
 import { probeHostFilesPrerequisite } from './host-paths.ts'
+import { probeWindowsFilesPrerequisite } from './windows-files/facility.ts'
 import { type HostCommandPrerequisite, type HostTerminalPrerequisite } from './host-probe.ts'
 import {
   forceStopScope,
@@ -159,7 +160,9 @@ function createFilesPrerequisiteReader(
   let settled: Prerequisite | undefined
   return async () => {
     if (settled !== undefined) return settled
-    const reading = await probeHostFilesPrerequisite(stateDirectory)
+    const reading = await (
+      process.platform === 'win32' ? probeWindowsFilesPrerequisite : probeHostFilesPrerequisite
+    )(stateDirectory)
     if (reading !== 'unknown') settled = reading
     return reading
   }

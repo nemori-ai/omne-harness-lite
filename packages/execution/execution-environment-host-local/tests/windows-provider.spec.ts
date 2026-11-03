@@ -7,7 +7,7 @@ it('runs a native command and ordinary terminal through the provider', async con
   if (process.platform !== 'win32') return context.skip()
   const f = await fixture()
   try {
-    const a = await f.acquire()
+    const a = await f.acquire(f.retention, f.identity.access.tenant, true)
     const command = value(
       await a.command.start({
         ...f.identity,

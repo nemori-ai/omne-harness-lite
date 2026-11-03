@@ -14,7 +14,7 @@ it('attaches a retained native shell through a fresh acquisition and inherits it
   if (process.platform !== 'win32') return context.skip()
   const f = await fixture()
   try {
-    const a = await f.acquire()
+    const a = await f.acquire(f.retention, f.identity.access.tenant, true)
     const directory = join(f.root, 'continued')
     await mkdir(directory)
     const terminal = value(
@@ -50,7 +50,7 @@ it('attaches a retained native shell through a fresh acquisition and inherits it
       reason: 'notFound',
     })
     expect(await stranger.lease.release()).toEqual({ kind: 'released' })
-    const b = await f.acquire()
+    const b = await f.acquire(f.retention, f.identity.access.tenant, true)
     expect(b.input.acquisition).not.toBe(a.input.acquisition)
     expect(b.input.origin).not.toBe(a.input.origin)
     expect(b.input.ledger).not.toBe(a.input.ledger)

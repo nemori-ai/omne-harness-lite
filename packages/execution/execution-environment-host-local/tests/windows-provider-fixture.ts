@@ -6,12 +6,15 @@ import { expect } from 'vitest'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import {
   acquisitionRef,
+  commandFacility,
   originRef,
+  terminalFacility,
   type ProviderAcquireInput,
   type FacilityResult,
   type ManagedResource,
 } from '@omne-harness/execution-environment-contract'
 import { createMemoryResourceLedger } from '@omne-harness/execution-environment-contract/testing'
+import { createEnvironmentRegistry } from '@omne-harness/execution-environment'
 import { createHostFilesDomain } from '../src/host-domain.ts'
 import { createHostFilesProvider } from '../src/host-provider.ts'
 import { commandFixture } from './windows-execution/fixture.ts'
@@ -31,6 +34,7 @@ export async function fixture() {
   const domain = createHostFilesDomain()
   const provider = createHostFilesProvider({
     domain,
+    stateDirectory: root,
     command: { startBoundMs: 20_000 },
     terminal: { startBoundMs: 20_000 },
   })
@@ -53,7 +57,25 @@ export async function fixture() {
     ledger: ledger(),
     released: new AbortController().signal,
   }
-  async function acquire(session = retention, tenant = identity.access.tenant) {
+  const registry = createEnvironmentRegistry<unknown>({
+    recovery: { authorizeRecovery: async () => 'authorized' },
+    authority: {
+      authorize: async caller => ({
+        kind: 'authorized',
+        principal: caller.principal,
+        current: () => true,
+      }),
+    },
+    bindings: { lookup: async () => ({ kind: 'bound', tenant: identity.access.tenant }) },
+  })
+  registry.registerFacility(commandFacility)
+  registry.registerFacility(terminalFacility)
+  registry.registerProvider(provider)
+  async function acquire(
+    session = retention,
+    tenant = identity.access.tenant,
+    throughRegistry = false,
+  ) {
     const id = randomUUID()
     const input: ProviderAcquireInput = {
       acquisition: acquisitionRef(id),
@@ -75,7 +97,22 @@ export async function fixture() {
         },
       },
     }
-    const answer = await provider.acquire(input)
+    const access = { ...identity.access, tenant }
+    const answer = await (async () => {
+      if (!throughRegistry) return provider.acquire(input)
+      expect((await provider.describe()).prerequisites).toBe('satisfied')
+      const placement = await registry.resolvePlacement(access, {
+        scope: input.scope,
+        requirement: input.placement.requirement,
+      })
+      if (placement.kind !== 'placement') throw new Error(JSON.stringify(placement))
+      expect(placement.provider.generation).toBe(provider.generation)
+      return registry.acquire(access, {
+        ...input,
+        placement,
+        guard: { authorize: async () => 'authorized' },
+      })
+    })()
     if (answer.kind !== 'acquired') throw new Error(JSON.stringify(answer))
     const terminal = answer.lease.facility('terminal')
     const command = answer.lease.facility('command')

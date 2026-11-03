@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
-import { lstat } from 'node:fs/promises'
+import { access, lstat, mkdtemp, realpath, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { win32 } from 'node:path'
 import type {
   FileIdentity,
@@ -8,6 +9,7 @@ import type {
   FileSystemFacility,
   HandleGeneration,
   ObjectToken,
+  ProviderFacts,
 } from '@omne-harness/execution-environment-contract'
 import type { HostFilesLimits } from '../host-file-tree.ts'
 import {
@@ -186,7 +188,10 @@ type WriteInput = Pick<NativeInput, 'root' | 'expectedRoot' | 'segments' | 'name
     bytes: string
   }>
 
-function invoke(input: NativeInput | ChangeInput | WriteInput): Promise<SearchReply | Failure> {
+function invoke(
+  input: NativeInput | ChangeInput | WriteInput,
+  timeout?: number,
+): Promise<SearchReply | Failure> {
   return new Promise(resolve => {
     const child = spawn(
       win32.join(
@@ -203,7 +208,11 @@ function invoke(input: NativeInput | ChangeInput | WriteInput): Promise<SearchRe
         '-EncodedCommand',
         Buffer.from(script, 'utf16le').toString('base64'),
       ],
-      { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] },
+      {
+        windowsHide: true,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        ...(timeout === undefined ? {} : { timeout }),
+      },
     )
     const chunks: Buffer[] = []
     child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk))
@@ -220,6 +229,115 @@ function invoke(input: NativeInput | ChangeInput | WriteInput): Promise<SearchRe
     })
     child.stdin.end(JSON.stringify({ ...input, source: nativeSource + nativeTree + nativeWrite }))
   })
+}
+
+/** Checks handle-relative creation, reading, enumeration and removal in an owned temporary directory. */
+export async function probeWindowsFilesPrerequisite(
+  directory = tmpdir(),
+): Promise<ProviderFacts['prerequisites']> {
+  if (process.platform !== 'win32') return 'unsatisfied'
+  try {
+    await access(
+      win32.join(
+        process.env.SystemRoot ?? 'C:\\Windows',
+        'System32',
+        'WindowsPowerShell',
+        'v1.0',
+        'powershell.exe',
+      ),
+    )
+  } catch (error) {
+    return error instanceof Error && 'code' in error && error.code === 'ENOENT'
+      ? 'unsatisfied'
+      : 'unknown'
+  }
+  let made: string
+  try {
+    made = await mkdtemp(win32.join(directory, 'omne-files-probe-'))
+  } catch {
+    return 'unknown'
+  }
+  let reading: ProviderFacts['prerequisites'] = 'unknown'
+  try {
+    const root = await realpath(made)
+    const info = await lstat(root, { bigint: true })
+    const expectedRoot = `${info.dev}:${info.ino}`
+    reading = await probeWindowsDirectory(root, expectedRoot)
+  } catch {
+    reading = 'unknown'
+  } finally {
+    try {
+      await rm(made, { recursive: true, force: true })
+    } catch {
+      reading = 'unknown'
+    }
+  }
+  return reading
+}
+
+async function probeWindowsDirectory(
+  root: string,
+  expectedRoot: string,
+): Promise<ProviderFacts['prerequisites']> {
+  const bytes = Buffer.from('omne-file-probe').toString('base64')
+  const endpoint = { root, expectedRoot, segments: ['probe'], named: expectedRoot }
+  const created = await invoke(
+    { ...endpoint, operation: 'write', create: true, version: null, trailingSlash: false, bytes },
+    10_000,
+  )
+  if (typeof created === 'string') return created === 'unsupported' ? 'unsatisfied' : 'unknown'
+  const query: NativeInput = {
+    ...endpoint,
+    named: created.info.token,
+    operation: 'read',
+    offset: 0,
+    limit: 64,
+    pattern: '',
+    content: false,
+    recursive: false,
+    entryBudget: 4,
+    byteBudget: 64,
+    fileBytes: 64,
+    path: win32.join(root, 'probe'),
+    rooted: true,
+  }
+  const read = await invoke(query, 10_000)
+  if (typeof read === 'string' || read.bytes !== bytes) return 'unknown'
+  const listed = await invoke(
+    { ...query, operation: 'list', segments: [], named: expectedRoot, path: root },
+    10_000,
+  )
+  if (
+    typeof listed === 'string' ||
+    listed.entries.length !== 1 ||
+    listed.entries[0]?.name !== 'probe' ||
+    listed.entries[0].token !== created.info.token
+  )
+    return 'unknown'
+  const removed = await invoke(
+    {
+      ...endpoint,
+      named: created.info.token,
+      operation: 'remove',
+      recursive: false,
+      version: null,
+      targetRoot: root,
+      expectedTargetRoot: expectedRoot,
+      targetSegments: [],
+      targetNamed: '',
+      replace: false,
+    },
+    10_000,
+  )
+  if (typeof removed === 'string') return 'unknown'
+  try {
+    await lstat(win32.join(root, 'probe'))
+    return 'unknown'
+  } catch (error) {
+    return error instanceof Error && 'code' in error && error.code === 'ENOENT'
+      ? 'satisfied'
+      : 'unknown'
+  }
 }
 
 /** Reject special namespaces, alternate streams, ambiguous names, and upward traversal before IO. */

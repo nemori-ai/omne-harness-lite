@@ -8,6 +8,13 @@ import { createHostFilesDomain, domainInternals } from '../src/host-domain.ts'
 import { commandSettings } from '../src/host-command.ts'
 import { terminalSettings } from '../src/host-terminal.ts'
 
+vi.mock('node:os', async importOriginal => ({
+  ...(await importOriginal<typeof import('node:os')>()),
+}))
+vi.mock('node:fs/promises', async importOriginal => ({
+  ...(await importOriginal<typeof import('node:fs/promises')>()),
+}))
+
 const platform = Object.getOwnPropertyDescriptor(process, 'platform')
 afterEach(() => {
   vi.restoreAllMocks()
