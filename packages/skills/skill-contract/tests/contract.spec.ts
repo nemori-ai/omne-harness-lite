@@ -5,7 +5,7 @@ import {
   type JsonLimits,
   type JsonValue,
 } from '@omne-harness/assets'
-import { skillBodyContract } from '@omne-harness/skill'
+import { skillBodyContract } from '@omne-harness/skill-contract'
 
 const limits: JsonLimits = {
   maxBytes: 1_000,

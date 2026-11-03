@@ -1,5 +1,5 @@
 {
-  "name": "@omne-harness/skill",
+  "name": "@omne-harness/skill-contract",
   "version": "0.0.0",
   "private": true,
   "type": "module",

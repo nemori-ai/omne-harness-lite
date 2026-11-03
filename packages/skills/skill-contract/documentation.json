@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "kind": "documentation-bindings",
   "owner": {
-    "id": "package:skills/skill",
+    "id": "package:skills/skill-contract",
     "kind": "member",
     "source": {
       "path": "docs/member-documentation.md",
@@ -12,7 +12,7 @@
   "documents": [
     {
       "id": "overview",
-      "path": "packages/skills/skill/README.md",
+      "path": "packages/skills/skill-contract/README.md",
       "kind": "architecture",
       "required": true,
       "visibility": "internal",
@@ -27,7 +27,7 @@
     },
     {
       "id": "overview-zh",
-      "path": "packages/skills/skill/README_ZH.md",
+      "path": "packages/skills/skill-contract/README_ZH.md",
       "kind": "architecture",
       "required": true,
       "visibility": "internal",

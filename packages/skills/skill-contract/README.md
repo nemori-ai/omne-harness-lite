@@ -1,4 +1,4 @@
-# skill
+# skill-contract
 
 本成员只提供已接受的资产类别端口 `skillBodyContract`。发现、脚本执行和发布不在这个入口。
 
@@ -12,4 +12,4 @@
 
 ## 验证与维护
 
-默认测试责任是单元和契约。命令是 `pnpm --filter @omne-harness/skill test`。集成测试和端到端测试不在本成员。
+默认测试责任是单元和契约。命令是 `pnpm --filter @omne-harness/skill-contract test`。集成测试和端到端测试不在本成员。
