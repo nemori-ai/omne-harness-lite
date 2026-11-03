@@ -94,7 +94,7 @@ sequenceDiagram
 
 这一节是[领域流程 F-MC04](../../../docs/domains/mcp/key-flows.md#f-mc04-动作准入至可靠结果)在本组内的部分。
 
-1. 调用方交来 `endpointRef`、`actionName`、`args`、预期的定义的内容摘要、`correlationKey`、`mode` 与 `signal`，调用 `ActionInvoker.invoke`。
+1. 调用方交来 `endpointRef`、`actionName`、`args`、预期的定义的内容摘要、`correlationKey` 与 `signal`，调用 `ActionInvoker.invoke`。
 2. `ActionInvoker` 用（租户、主体、关联键）在在途表里占位，查重与占位是一步。同一个键已在途时，返回「未发出」，原因是关联键重复。后面任一步返回「未发出」时，撤销这个占位。
 3. `ActionInvoker` 经 `AdoptionView` 核接入点已采用，未采用时返回「未发出」，原因是 `not-available-to-you`。再经 `UseEligibility.check` 核当前使用资格，然后在 `endpointRef` 所指的 MCP 动作清单里核对 `actionName` 仍是可用的 MCP 已知动作，并比较定义的内容摘要。答复不是 `granted`、MCP 已知动作不可用，或定义的内容摘要不符时，返回「未发出」。
 4. `ActionInvoker` 经 `Connections` 取得本租户、本对端账号、当前采用修订的 MCP 连接，记下代际，再把请求号记到第 2 步的占位上。
@@ -111,7 +111,7 @@ sequenceDiagram
     participant K as ActionCatalog
     participant N as Connections
     participant R as McpTransport
-    T->>I: invoke endpointRef actionName args 定义的内容摘要 关联键 mode signal
+    T->>I: invoke endpointRef actionName args 定义的内容摘要 关联键 signal
     I->>I: 在途表按 租户 主体 关联键 占位 已在途则关联键重复
     I->>V: 接入点已采用
     V-->>I: 已采用 或未采用
@@ -134,7 +134,7 @@ sequenceDiagram
     end
 ```
 
-`continueWithInput` 由调用方带回 `endpointRef`、`actionName`、原参数、`requestState`、`inputResponses`、发出代际、`correlationKey`、`mode` 与 `signal`，按上面同样的步骤核对与登记，再发原请求。`cancel(access, correlationKey)` 按（租户、主体、关联键）在在途表里定位请求号，不核采用，也不核当前使用资格，再按传输发出取消信号：Streamable HTTP 关闭该请求的响应流，stdio 发送 `notifications/cancelled`。之后原调用的结局是 `unknown`，子因是本地放弃。取消信号不证明对端已停止。依据层：官方规格 [Cancellation「Transport-Specific Cancellation」](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#transport-specific-cancellation)。
+`continueWithInput` 由调用方带回 `endpointRef`、`actionName`、原参数、`requestState`、`inputResponses`、发出代际、`correlationKey` 与 `signal`，按上面同样的步骤核对与登记，再发原请求。`cancel(access, correlationKey)` 按（租户、主体、关联键）在在途表里定位请求号，不核采用，也不核当前使用资格，再按传输发出取消信号：Streamable HTTP 关闭该请求的响应流，stdio 发送 `notifications/cancelled`。之后原调用的结局是 `unknown`，子因是本地放弃。取消信号不证明对端已停止。依据层：官方规格 [Cancellation「Transport-Specific Cancellation」](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#transport-specific-cancellation)。
 
 任务用状态口的 `queryTask`、`taskResult` 与 `cancelTask`，由调用方带回 `taskId` 与发出代际。这些操作都带 `access`，执行前经 `AdoptionView` 核采用、经 `UseEligibility.check` 核资格。MCP 连接已换代时，处置按传输分开，规则见[工程设计的应用服务](architecture.md#应用服务)。
 

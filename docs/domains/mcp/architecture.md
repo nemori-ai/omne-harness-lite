@@ -1,6 +1,6 @@
 # MCP领域交接设计
 
-状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)。本页只维护事实拥有者、端口的实现方和跨领域交接。成员分解、端口操作、对外接口和失败种类见[组工程设计](../../../packages/mcp/docs/architecture.md)，精确公开行为尚未分配正式成员。
+状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)。本页只维护事实拥有者、端口的实现方和跨领域交接。`@omne-harness/mcp-contract` 已有实现（候选，尚未技术接受），其余成员尚未实现。成员分解、端口操作、对外接口和失败种类见[组工程设计](../../../packages/mcp/docs/architecture.md)，精确公开行为尚未分配正式成员。
 
 用词沿统一语言：[MCP 连接](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-connection--mcp-连接--mcp-connection)、[MCP 动作清单](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog)、[MCP 已知动作](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action)、[凭据保管方](../../../.meta_harness/design/ubiquitous_language/terms/grounding-and-isolation.md#ul-credential-custodian--凭据保管方--credential-custodian)。接入点指 MCP 资产。
 
