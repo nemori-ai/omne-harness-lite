@@ -130,7 +130,7 @@ function parseCgYear(input: {
       input.material,
       row.date,
       row.type === 'public_holiday' ? 'holiday' : 'workingDay',
-      `https://github.com/cg-zhou/holiday-calendar/blob/master/data/CN/${input.year}.json#${row.date}`,
+      `https://github.com/cg-zhou/holiday-calendar/blob/main/data/CN/${input.year}.json#${row.date}`,
       `${row.name_cn} (${row.name_en})`,
     )
   })
