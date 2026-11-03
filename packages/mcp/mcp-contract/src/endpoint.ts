@@ -12,8 +12,14 @@ import { judgeJsonValue, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { ENDPOINT_BODY_SCHEMA } from './endpoint-schema.ts'
 import { hasOnly, isObject, itemsOf, member, textOf, type JsonObject } from './json.ts'
-import type { AuthKind, EndpointDefinition, EnvironmentBinding, StdioLaunch } from './values.ts'
 import { isEndpointName } from './brands.ts'
+import type {
+  AuthKind,
+  EndpointDefinition,
+  EnvironmentBinding,
+  StdioLaunch,
+  TransportDeclaration,
+} from './values.ts'
 
 /** Why a body is not an endpoint definition. The set is closed. */
 export type EndpointBodyRejection =
@@ -44,9 +50,10 @@ function isAuthKind(value: string): value is AuthKind {
 
 /**
  * Reads an endpoint body. The input is a JSON tree of `@omne-harness/json-text`; anything else
- * is `malformed`. A structural defect is reported first, then a name that differs from the given
- * capability name, then an unknown transport, an unknown authentication kind, and last a launch
- * declaration that the transport requires or forbids. The function does not throw.
+ * is `malformed`. The function does not throw. The order of the checks is part of the contract
+ * (SPEC E2), so it stays in this one function: a structural defect first, then a name that
+ * differs from the given capability name, an unknown transport, an unknown authentication kind,
+ * an unlawful combination, and last a launch declaration that the transport requires or forbids.
  */
 export function parseEndpointBody(
   body: unknown,
@@ -67,36 +74,63 @@ export function parseEndpointBody(
   if (capabilityName !== undefined && name !== capabilityName) return fail('name-mismatch')
   if (!isTransport(transport)) return fail('transport-unknown')
   if (!isAuthKind(auth)) return fail('auth-unknown')
-  if (transport === 'stdio' && auth === 'oauth') return fail('malformed')
-  if (auth === 'none' && launch?.env.some(binding => binding.source === 'credential') === true)
-    return fail('malformed')
+  if (!isLawfulCombination(transport, auth, launch)) return fail('malformed')
+  const declaration = transportOf(transport, launch)
+  if (declaration === 'launch-missing' || declaration === 'launch-unexpected')
+    return fail(declaration)
+  return succeed({ name, transport: declaration, auth })
+}
+
+/** OAuth is for HTTP only, and without authentication no variable comes from a credential. */
+function isLawfulCombination(
+  transport: Transport,
+  auth: AuthKind,
+  launch: StdioLaunch | undefined,
+): boolean {
+  if (transport === 'stdio' && auth === 'oauth') return false
+  return auth !== 'none' || launch === undefined || launch.env.every(isSettingSourced)
+}
+
+function isSettingSourced(binding: EnvironmentBinding): boolean {
+  return binding.source === 'setting'
+}
+
+/** stdio needs a launch declaration; Streamable HTTP must not have one. */
+function transportOf(
+  transport: Transport,
+  launch: StdioLaunch | undefined,
+): TransportDeclaration | 'launch-missing' | 'launch-unexpected' {
   if (transport === 'streamable-http')
-    return launch === undefined
-      ? succeed({ name, transport: { kind: 'streamable-http' }, auth })
-      : fail('launch-unexpected')
-  return launch === undefined
-    ? fail('launch-missing')
-    : succeed({ name, transport: { kind: 'stdio', launch }, auth })
+    return launch === undefined ? { kind: 'streamable-http' } : 'launch-unexpected'
+  return launch === undefined ? 'launch-missing' : { kind: 'stdio', launch }
 }
 
 function launchOf(value: JsonValue): StdioLaunch | 'malformed' {
   if (!isObject(value) || !hasOnly(value, LAUNCH_MEMBERS)) return 'malformed'
   const command = textOf(member(value, 'command'))
-  if (command === undefined || command === '') return 'malformed'
   const args = textsOf(member(value, 'args'))
+  const cwd = optionalNonEmptyText(member(value, 'cwd'))
   const env = environmentOf(member(value, 'env'))
-  const facilities = textsOf(member(value, 'facilities'))
+  const facilities = facilitiesOf(member(value, 'facilities'))
+  if (command === undefined || command === '' || cwd === 'malformed') return 'malformed'
   if (args === undefined || env === undefined || facilities === undefined) return 'malformed'
-  if (
-    !facilities.every(name => FACILITY.test(name)) ||
-    new Set(facilities).size !== facilities.length
-  )
-    return 'malformed'
-  const cwdValue = member(value, 'cwd')
-  if (cwdValue === undefined) return { command, args, env, facilities }
-  const cwd = textOf(cwdValue)
-  if (cwd === undefined || cwd === '') return 'malformed'
-  return { command, args, cwd, env, facilities }
+  return cwd === undefined
+    ? { command, args, env, facilities }
+    : { command, args, cwd, env, facilities }
+}
+
+/** An omitted value is undefined; a present value must be non-empty text. */
+function optionalNonEmptyText(value: JsonValue | undefined): string | 'malformed' | undefined {
+  if (value === undefined) return undefined
+  const text = textOf(value)
+  return text === undefined || text === '' ? 'malformed' : text
+}
+
+/** An omitted list reads as empty. Each name follows the facility lexicon and appears once. */
+function facilitiesOf(value: JsonValue | undefined): readonly string[] | undefined {
+  const names = textsOf(value)
+  if (names === undefined || !names.every(name => FACILITY.test(name))) return undefined
+  return new Set(names).size === names.length ? names : undefined
 }
 
 /** An omitted list reads as empty. A list with a member that is not text is undefined. */

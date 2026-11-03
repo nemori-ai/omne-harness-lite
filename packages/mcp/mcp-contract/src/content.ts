@@ -70,6 +70,27 @@ function invalid(index: number, reason: ContentDefect, type?: string): Delivered
     : { kind: 'invalid', type, reason, block: explanation }
 }
 
+type BlockReader = (item: JsonObject, id: string) => Reading
+
+/** The content types that become common blocks. A type not here and not below is unknown. */
+const BLOCK_READERS: Readonly<Record<string, BlockReader>> = {
+  text: textReading,
+  image: (item, id) => mediaReading(item, id, 'image'),
+  audio: (item, id) => mediaReading(item, id, 'voice'),
+}
+
+/** The protocol content types that keep their type, with the check of each. */
+const PROTOCOL_DEFECTS: Readonly<
+  Record<'resource_link' | 'resource', (item: JsonObject) => ContentDefect | undefined>
+> = {
+  resource_link: linkDefect,
+  resource: resourceDefect,
+}
+
+function isProtocolType(type: string): type is keyof typeof PROTOCOL_DEFECTS {
+  return Object.hasOwn(PROTOCOL_DEFECTS, type)
+}
+
 function deliveredItem(item: JsonValue, index: number): DeliveredContent {
   if (!isObject(item)) return invalid(index, 'not-an-object')
   const type = textOf(member(item, 'type'))
@@ -78,20 +99,14 @@ function deliveredItem(item: JsonValue, index: number): DeliveredContent {
   if (annotations !== undefined && !isObject(annotations))
     return invalid(index, 'annotations-invalid', type)
   const untrusted = annotations === undefined ? {} : { annotations: { untrusted: annotations } }
-  const id = `content-${index}`
-  if (type === 'resource_link' || type === 'resource') {
-    const defect = type === 'resource_link' ? linkDefect(item) : resourceDefect(item)
+  if (isProtocolType(type)) {
+    const defect = PROTOCOL_DEFECTS[type](item)
     if (defect !== undefined) return invalid(index, defect, type)
     return { kind: 'protocol', type, item: without(item, 'annotations'), ...untrusted }
   }
-  const reading =
-    type === 'text'
-      ? textReading(item, id)
-      : type === 'image'
-        ? mediaReading(item, id, 'image')
-        : type === 'audio'
-          ? mediaReading(item, id, 'voice')
-          : { defect: 'type-unknown' as const }
+  const reader = Object.hasOwn(BLOCK_READERS, type) ? BLOCK_READERS[type] : undefined
+  if (reader === undefined) return invalid(index, 'type-unknown', type)
+  const reading = reader(item, `content-${index}`)
   if ('defect' in reading) return invalid(index, reading.defect, type)
   const meta = member(item, '_meta')
   return {
