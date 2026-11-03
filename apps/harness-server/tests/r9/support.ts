@@ -317,7 +317,9 @@ export function operatorLayer(options: {
         kind: 'replace',
         id: 'agent-context',
         config: {
-          resultCapacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
+          // The result capacity of one call is at most `maxCallBytes` of model-records (N1): a larger
+          // one is refused at the admission as `capacity` (G-DIALOG layer 9).
+          resultCapacity: { bytes: '524288', blocks: '100', attachmentBytes: '0' },
         },
       },
       {
