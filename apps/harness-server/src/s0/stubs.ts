@@ -20,12 +20,17 @@ const priv = (keys: readonly string[] = []): readonly string[] => keys.map(key =
 const TABLE: Readonly<Record<string, Entry>> = {
   storage: { provides: ['storage'], injects: ['storageHost'], phase: 'storage' },
   identity: {
-    provides: ['identityOperations', 'tenantStanding'],
+    provides: ['identityOperations', 'tenantStanding', 'identityGovernance'],
     injects: ['storage', 'identityClock'],
   },
   authorization: {
-    provides: ['agentAccessCheck', 'sessionAccessCheck', 'agentActionAdmission'],
-    injects: ['tenantStanding', 'principalVerifier'],
+    provides: [
+      'agentAccessCheck',
+      'sessionAccessCheck',
+      'agentActionAdmission',
+      'systemActionAuthorization',
+    ],
+    injects: ['tenantStanding', 'principalVerifier', 'identityClock'],
   },
   'session-storage': {
     provides: [
@@ -35,7 +40,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'tenantDomainLookup',
       'sessionPrincipalBindings',
     ],
-    injects: ['storage', 'sessionAccessCheck', 'principalVerifier'],
+    injects: ['storage', 'sessionAccessCheck'],
     phase: 'composition',
   },
   'session-provider': {
@@ -113,7 +118,14 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['definitionMappings', 'session', 'storage', 'tenantDomainLookup'],
   },
   'agent-journal': {
-    provides: ['agentJournal', 'agentJournalEntries', 'agentMaterials'],
+    provides: [
+      'agentJournal',
+      'agentJournalEntries',
+      'agentMaterials',
+      'agentReceivedCommits',
+      'agentModelReceptionTargets',
+      'sessionAdoptedRequests',
+    ],
     injects: ['sessionAccessCheck', 'storage', 'tenantDomainLookup'],
     group: 'agent-journal',
   },
@@ -131,6 +143,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'agentJournal',
       'agentJournalEntries',
       'agentMaterials',
+      'agentReceivedCommits',
+      'agentModelReceptionTargets',
       'agentAccessCheck',
       'agentAdoptions',
       'agentConditions',

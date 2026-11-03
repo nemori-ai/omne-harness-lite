@@ -694,7 +694,7 @@ export type { RequestPurpose, AssemblyCall, InputGroups, GroupName, HistoryUpper
 export { LAYER_ORDER, PREFIX_BREAK_REASONS } from './values.js';
 export type { DeriveInput } from './values.js';
 export type { FixedRequestRecord, FixedRequestRecordRejection } from './fixed-request.js';
-export { encodeFixedRequestRecord, decodeFixedRequestRecord, forecastOf, } from './fixed-request.js';
+export { encodeFixedRequestRecord, decodeFixedRequestRecord, forecastOf } from './fixed-request.js';
 ```
 
 ## 声明文件 `input-read.d.ts`

@@ -50,7 +50,7 @@
 - `issue-member-invitation` 的 `duration` 是线上文本，接入用 `parseDuration` 读取。读不出 SI 秒时长时，结果是 `denied`，不建立邀请。这一步在第 6 步之后。
 - `query-own-valid-logins` 的端口给出空名单时，结果是 `basis-unavailable`，没有登录数组。
 - `revoke-login` 答 `succeeded` 或 `no-change` 时，目标登录已经失效。接入按[登录失效时结束观察](#登录失效时结束观察)结束它在本实例上的观察。
-- 治理端口没有装配时，18 个治理操作在第 6 步之后答 `basis-unavailable`。没有调用提交，所以这个结果成立。
+- 治理端口是必需依赖，必须与 `identity` 用同一份记录，撤销与切换才对登录识别生效（R2-D235 S1）。装配按调用现取治理服务时，服务缺席由端口答 `basis-unavailable`，18 个治理操作原样对外答 `basis-unavailable`。
 - 治理位置的 `denied` 在各个原因下，响应除 `messageId` 外逐字节相同。原因包括登录缺失、空、无效或已失效，行事租户不符，以及 identity 的业务拒绝。`not-visible` 不区分对象不存在、属于其他账号与看不见。
 - 治理操作不报告成功业务访问，所以不刷新空闲计时。
 
@@ -63,7 +63,7 @@
 
 其他请求都不报告：失败的请求、治理操作、`cancel-observation`、声明不提供的操作和仅完成识别的请求。
 
-接入先写出答复，再报告。`observe-session` 在流附着、连接关闭的监听登记之后再报告。接入不等报告结束，也不给报告设时限。报告永不结束时，答复照常写出，名额照常释放，`stop()` 照常结束。报告答 `basis-unavailable` 或 Promise 被拒绝时，接入记诊断 `identity.fault`，答复不变。治理端口没有装配时，接入不报告。
+接入先写出答复，再报告。`observe-session` 在流附着、连接关闭的监听登记之后再报告。接入不等报告结束，也不给报告设时限。报告永不结束时，答复照常写出，名额照常释放，`stop()` 照常结束。报告答 `basis-unavailable` 或 Promise 被拒绝时，接入记诊断 `identity.fault`，答复不变。
 
 先写答复的代价是一个竞态：调用者收到答复后立刻发出的下一次请求，可能先于这次刷新到达 identity。空闲期限以分钟计，所以这个竞态只在空闲截止时刻前的极短时间内有影响。
 

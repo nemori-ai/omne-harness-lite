@@ -12,7 +12,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6.1-terra",
           "revision": "1",
-          "digest": "f894db8afc97825197d9601455e4347d88f585b523993a3923fd888434ba9e61"
+          "digest": "e882bb7b01ce217120b20afbd1c7e751b0e2be45711949115120dcbdeee4d7a4"
         },
         "recipient": "openrouter",
         "model": "openai/gpt-6.1-terra",
@@ -118,7 +118,7 @@
       "owner": "@omne-harness/pi-ai-openai",
       "name": "openai/gpt-6.1-terra#representation",
       "revision": "1",
-      "digest": "f894db8afc97825197d9601455e4347d88f585b523993a3923fd888434ba9e61"
+      "digest": "e882bb7b01ce217120b20afbd1c7e751b0e2be45711949115120dcbdeee4d7a4"
     },
     "parameterAdoptions": [
       {
@@ -126,7 +126,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6.1-terra",
           "revision": "1",
-          "digest": "f894db8afc97825197d9601455e4347d88f585b523993a3923fd888434ba9e61"
+          "digest": "e882bb7b01ce217120b20afbd1c7e751b0e2be45711949115120dcbdeee4d7a4"
         },
         "applied": {
           "kind": "max-output-tokens",
@@ -151,7 +151,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6.1-terra",
           "revision": "1",
-          "digest": "f894db8afc97825197d9601455e4347d88f585b523993a3923fd888434ba9e61"
+          "digest": "e882bb7b01ce217120b20afbd1c7e751b0e2be45711949115120dcbdeee4d7a4"
         },
         "applied": {
           "kind": "reasoning-effort",

@@ -1,5 +1,5 @@
 {
-  "pending": ["principalVerifier", "tenantStanding", "identityGovernance"],
+  "pending": [],
   "issuerScanRoots": ["apps", "packages", "tools"],
   "issuerCallSites": [
     "apps/harness-server/src/entry/principals.ts",

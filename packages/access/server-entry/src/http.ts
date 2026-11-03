@@ -32,10 +32,12 @@ export const SESSION_PATH = '/session-public/1'
 export type ServerEntryDependencies = Readonly<{
   identity: IdentityOperations
   /**
-   * Identity's governance port over the same records as `identity`. Absent: the eighteen governed
-   * operations answer `basis-unavailable` after the login check, and no business access is reported.
+   * Identity's governance port over the same records as `identity`, so a revocation or a switch is
+   * what the next login recognition reads. The eighteen governed operations and the report of a
+   * successful business access go to it. An assembly that reads the provider per call answers
+   * `basis-unavailable` from the port while the provider is absent (R2-D235 S1).
    */
-  governance?: IdentityGovernance
+  governance: IdentityGovernance
   issuer: PrincipalIssuer
   session: SessionIngressFaces<ActingForTenantPrincipal>
   resolveDefinition: DefinitionResolver

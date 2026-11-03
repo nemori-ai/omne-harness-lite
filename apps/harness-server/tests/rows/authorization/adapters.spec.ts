@@ -30,7 +30,11 @@ import {
   type TenantStandingReading,
   type TenantStandingSource,
 } from '@omne-harness/identity'
-import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
+import {
+  identityClockKey,
+  principalVerifierKey,
+  tenantStandingKey,
+} from '@omne-harness/identity/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { SessionAccessRequest } from '@omne-harness/session-contract'
 import { sessionId } from '@omne-harness/session-contract/testing'
@@ -54,8 +58,10 @@ import {
   createToolAccessGuard,
   type AccessPorts,
 } from '../../../src/rows/authorization/adapters.ts'
+import { identityClock } from '../../../src/entry/identity-clock.ts'
 import { authorization } from '../../../src/rows/authorization/row.ts'
 import { authorizationConfig } from '../../../src/rows/authorization/action-rules.ts'
+import { MODEL_HOST_COMPONENT, MODEL_WORK_OWNER } from '../../../src/model/principals.ts'
 import { serveProfile } from '../../../src/profile.ts'
 import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
@@ -141,6 +147,7 @@ function world(grantTable: typeof MAINTENANCE_GRANTS = MAINTENANCE_GRANTS) {
     session: createSessionAccessCheck(ports),
     agent: createAgentAccessCheck(ports),
     system,
+    issuer: authority.issuer,
     login: (tenant: TenantId = A) => acting(tenant, 'identity-login', 'lgs_x'),
     work: (session = OWN, tenant: TenantId = A) => acting(tenant, 'session', session),
     foreign: (tenant: TenantId = A) => acting(tenant, 'unknown-owner', 'x'),
@@ -619,6 +626,44 @@ describe('agentAccessCheck', () => {
     })
   })
 
+  it('lets the Model host work principal M receive a result for its own tenant only, and nothing else (R2-D248)', async () => {
+    const w = world()
+    const target = { kind: 'execution' as const, execution }
+    const host = w.system(MODEL_HOST_COMPONENT)
+    const model = (tenant: TenantId): ActingForTenantPrincipal =>
+      okOf(
+        w.issuer.issueActingForTenant({
+          actor: host,
+          tenant,
+          work: { owner: MODEL_WORK_OWNER, work: 'call-1' },
+        }),
+        'model work principal',
+      )
+    expect(await w.agent.check(agentRequest(model(A), 'receive-result', target))).toMatchObject({
+      kind: 'allowed',
+    })
+    expect(await w.agent.check(agentRequest(model(B), 'receive-result', target))).toEqual({
+      kind: 'denied',
+    })
+    // The member cells of the work column, which W passes: M passes none of them.
+    for (const operation of ['submit', 'control', 'resume', 'detach', 'invoke'] as const)
+      expect(await w.agent.check(agentRequest(model(A), operation, target)), operation).toEqual({
+        kind: 'denied',
+      })
+    // M's shape with an actor of another component is not M.
+    const forged = okOf(
+      w.issuer.issueActingForTenant({
+        actor: w.system('sessionWorkPrincipals'),
+        tenant: A,
+        work: { owner: MODEL_WORK_OWNER, work: 'call-1' },
+      }),
+      'forged',
+    )
+    expect(await w.agent.check(agentRequest(forged, 'receive-result', target))).toEqual({
+      kind: 'denied',
+    })
+  })
+
   it('lets the agent host publish, quiesce and withdraw an instance, and nobody else', async () => {
     const w = world()
     const target = { kind: 'instance' as const, instance }
@@ -973,6 +1018,9 @@ describe('the row', () => {
       apply(scope: Context) {
         scope.provide(principalVerifierKey, authority.verifier)
         scope.provide(tenantStandingKey, { read: async () => readingOf('member') })
+        scope.provide(identityClockKey, {
+          now: () => Promise.reject(new Error('no grant of this case has an end time')),
+        })
       },
     })
     const row = await ctx.plugin(authorization, {
@@ -1132,7 +1180,7 @@ describe('the row', () => {
         ],
       },
       plugins: { identityRow, authorization, probeRow },
-      entryObjects: [verifierModule],
+      entryObjects: [verifierModule, identityClock],
     })
     await answers['run']
 

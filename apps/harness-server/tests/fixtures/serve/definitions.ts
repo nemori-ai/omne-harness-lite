@@ -41,6 +41,14 @@ export abstract class FixtureTenantStandingSourceService extends Service {
 }
 export const tenantStandingSourceKey = FixtureTenantStandingSourceService.provide
 
+export abstract class FixtureIdentityGovernanceService extends Service {
+  static readonly provide = 'identityGovernance'
+  constructor(ctx: Context) {
+    super(ctx, FixtureIdentityGovernanceService.provide)
+  }
+}
+export const identityGovernanceKey = FixtureIdentityGovernanceService.provide
+
 export abstract class FixtureRuntimeContextService extends Service {
   static readonly provide = 'runtimeContext'
   constructor(ctx: Context) {

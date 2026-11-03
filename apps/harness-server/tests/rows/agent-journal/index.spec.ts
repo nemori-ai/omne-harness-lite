@@ -41,7 +41,7 @@ async function start(): Promise<LoadedTree> {
 }
 
 describe('the agent-journal row: declaration', () => {
-  it('is the real row: provides the three Journal keys, injects the three keys, no shutdown phase, group `agent-journal`', () => {
+  it('is the real row: provides the Journal, receiving and adopted-request keys, injects the three keys, no shutdown phase, group `agent-journal`', () => {
     expect(rowDeclarationOf(agentJournalRow)).toEqual({
       row: 'agent-journal',
       implementation: 'real',
@@ -52,6 +52,7 @@ describe('the agent-journal row: declaration', () => {
           'agentMaterials',
           'agentReceivedCommits',
           'agentModelReceptionTargets',
+          'sessionAdoptedRequests',
         ],
         injects: ['sessionAccessCheck', 'storage', 'tenantDomainLookup'],
         phase: null,

@@ -94,8 +94,7 @@ export type Fixture = Readonly<{
 export type FixtureOptions = Readonly<{
   config?: Partial<ServerEntryConfig>
   identity?: (base: IdentityOperations) => IdentityOperations
-  /** `undefined` leaves the governance port out of the dependencies. */
-  governance?: (base: IdentityGovernance) => IdentityGovernance | undefined
+  governance?: (base: IdentityGovernance) => IdentityGovernance
   issuer?: (base: PrincipalIssuer) => PrincipalIssuer
   dependencies?: Partial<ServerEntryDependencies>
 }>
@@ -151,7 +150,7 @@ export async function startFixture(options: FixtureOptions = {}): Promise<Fixtur
     config: baseConfig(options.config),
     dependencies: {
       identity,
-      ...(governance === undefined ? {} : { governance }),
+      governance,
       issuer,
       session: session.faces,
       resolveDefinition,

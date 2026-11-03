@@ -35,6 +35,7 @@ import {
   type ReleaseToolRequests,
   type ToolRequestPorts,
 } from '../../src/entry/tool-requests.ts'
+import { toolRuntimeHolder } from '../../src/rows/tool-runtime/holder.ts'
 import { RELEASE_TOOL_SCOPE } from '../../src/rows/tool-runtime/scope.ts'
 import { TEST_CONSTRUCTION, entryOf, releaseFixture, tree } from '../rows/tool-host/support.ts'
 import { fixtureTenant, okOf } from './support.ts'
@@ -320,6 +321,8 @@ describe('the release composition releaseToolRequestsOf on a real Cordis root (R
     await fixture.root.plugin(recordingSession(snapshot, callers))
     fixture.root.provide(toolCatalogKey, ports.catalog())
     fixture.root.provide(executionScopeBindingKey, ports.scopeBinding())
+    // What the entry object `toolClock` hands over: its trusted verifier read (R2-D203 P-9).
+    toolRuntimeHolder(fixture.root).verifier = ports.verifier
     const request = okOf(
       await preparedBy(releaseToolRequestsOf(fixture.root), principalA),
       'prepare',

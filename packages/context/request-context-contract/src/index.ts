@@ -194,8 +194,4 @@ export type {
 export { LAYER_ORDER, PREFIX_BREAK_REASONS } from './values.js'
 export type { DeriveInput } from './values.js'
 export type { FixedRequestRecord, FixedRequestRecordRejection } from './fixed-request.js'
-export {
-  encodeFixedRequestRecord,
-  decodeFixedRequestRecord,
-  forecastOf,
-} from './fixed-request.js'
+export { encodeFixedRequestRecord, decodeFixedRequestRecord, forecastOf } from './fixed-request.js'

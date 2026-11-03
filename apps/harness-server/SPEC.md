@@ -76,7 +76,7 @@ node apps/harness-server/dist/bin.js serve --distribution <绝对 JSON 路径> [
 - 根上同名提供者与子树提供者并存，两者都 ACTIVE，子树消费者得到子树实现。
 - 同一作用域内第二个同名提供者 FAILED，错误含 `has been registered`，不静默覆盖。
 
-行 id 与受信成员的唯一源是应用装配页。S0 的行快照 `src/s0/aa-rows.json` 由 `scripts/aa-rows.mjs write` 从该页抽取，只能由脚本再生。`scripts/aa-rows.mjs check` 对快照与该页逐字节比较，`tests/aa-rows.spec.ts` 对正式页运行同一检查。
+行 id 与受信成员的唯一源是应用装配页。S0 的行快照 `src/s0/aa-rows.json` 由 `scripts/aa-rows.mjs write` 从该页抽取，只能由脚本再生。`scripts/aa-rows.mjs check` 对快照与该页逐字节比较，`tests/aa-rows.spec.ts` 对正式页运行同一检查。同一个检查还对源码做两项机读拦截（身份治理 E1、E2，R2-D208）：受信表里的名字只经入口对象的 `env.readTrusted` 读取，或由受信表列为可见的行在自己的行上下文里读取；`issueActingForTenant(` 与 `issueSystem(` 只出现在 `scripts/aa-trust-config.json` 列出的文件里。该文件的 `pending` 名单只报告、不失败，现在为空。规则与局限见 [README](README.md#verification)。
 
 子 fiber 消费的受信名也列入该行的可见集合。这是启动门控的具名例外（N-4）。
 

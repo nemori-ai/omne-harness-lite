@@ -6,6 +6,7 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import {
   IDENTITY_CONTRACT_CASES,
+  adjustableInvitationTerms,
   checkIdentityOperationsContract,
   type IdentityContractFixture,
   type IdentityContractOptions,
@@ -56,6 +57,11 @@ const fixture: IdentityContractFixture = {
       storage: withRecordFaults(storage.storage, faults),
       clock,
       terms,
+      // The operations suite does not issue invitations; the terms only satisfy the factory.
+      invitationTerms: adjustableInvitationTerms({
+        defaultDuration: duration('PT60S'),
+        maxDuration: duration('PT86400S'),
+      }).source,
       scrypt: scrypt.module,
       decoyMaterial: scrypt.decoyMaterial,
     })

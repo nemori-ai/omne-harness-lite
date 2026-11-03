@@ -277,7 +277,8 @@ export const modelHostAuthority: EntryObjectModule = {
     const authority = createModelHostAuthority({
       composition,
       issue,
-      standing: () => scope.get(tenantStandingKey),
+      // The entry reads its trusted name per call; a root provider of the same name is not seen.
+      standing: () => env.readTrusted(tenantStandingKey).get(tenantStandingKey),
     })
     new EntryModelHostAuthority(scope, authority)
   },

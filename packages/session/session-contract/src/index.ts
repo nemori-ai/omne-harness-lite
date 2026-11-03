@@ -179,6 +179,12 @@ export {
 } from './judgments.ts'
 export { decide, commandDigest } from './decide.ts'
 export { batchEvidence, reduce } from './reduce.ts'
+export {
+  CONTEXT_SCOPE_KINDS,
+  contextScopeOf,
+  contextScopesOf,
+  type SessionContextScope,
+} from './context-scopes.ts'
 
 export {
   projectSessionLog,

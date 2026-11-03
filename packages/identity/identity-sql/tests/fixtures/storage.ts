@@ -1,11 +1,17 @@
 // A real SQLite provider over a temporary storage root, with a catalog made of this member's own
-// materials. Every `openSqliteStorage` call is a separate deployment. The caller closes it.
+// materials, or of another build's materials (a mutant, or the published 001 build). Every
+// `openSqliteStorage` call without a root is a separate deployment; a call with the root of a closed
+// one opens the same files again, as after a restart. The caller closes it.
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { SqlMaterialCatalog, SqlStorage, StorageControl } from '@omne-harness/sql-contract'
 import { createSqliteStorage, type SqliteStorageConfig } from '@omne-harness/sqlite-provider'
-import { IDENTITY_DOMAIN, identitySqlMaterials } from '@omne-harness/identity-sql'
+import {
+  IDENTITY_DOMAIN,
+  identitySqlMaterials,
+  type IdentitySqlMaterials,
+} from '@omne-harness/identity-sql'
 
 /** The candidate initial values of sqlite-provider SPEC §12.1, with a short close deadline. */
 export function sqliteConfig(storageRoot: string): SqliteStorageConfig {
@@ -56,8 +62,9 @@ export function sqliteConfig(storageRoot: string): SqliteStorageConfig {
 }
 
 /** A catalog that holds only this member's materials, as an application would aggregate them. */
-export function identityCatalog(): SqlMaterialCatalog {
-  const materials = identitySqlMaterials()
+export function identityCatalog(
+  materials: IdentitySqlMaterials = identitySqlMaterials(),
+): SqlMaterialCatalog {
   return {
     catalogProtocol: 'sql-catalog/1',
     participants: materials.participants,
@@ -76,6 +83,8 @@ export type OpenedStorage = Readonly<{
   storage: SqlStorage
   control: StorageControl
   storageRoot: string
+  /** The temporary root that holds `storageRoot`. Pass it again to open the same files. */
+  base: string
   /** Closes the provider. With `remove`, also deletes the temporary root. */
   close(options?: Readonly<{ remove?: boolean }>): Promise<void>
 }>
@@ -84,12 +93,15 @@ export async function temporaryRoot(): Promise<string> {
   return realpath(await mkdtemp(join(tmpdir(), 'identity-sql-')))
 }
 
-export async function openSqliteStorage(root?: string): Promise<OpenedStorage> {
+export async function openSqliteStorage(
+  root?: string,
+  materials?: IdentitySqlMaterials,
+): Promise<OpenedStorage> {
   const base = root ?? (await temporaryRoot())
   const storageRoot = join(base, 'storage')
   const created = await createSqliteStorage({
     config: sqliteConfig(storageRoot),
-    materials: identityCatalog(),
+    materials: identityCatalog(materials),
     closeLeases: { admit: () => ({}), release: () => undefined },
   })
   if (created.kind !== 'created') throw new Error(`sqlite rejected: ${created.problems.join('; ')}`)
@@ -97,6 +109,7 @@ export async function openSqliteStorage(root?: string): Promise<OpenedStorage> {
     storage: created.storage,
     control: created.control,
     storageRoot,
+    base,
     async close(options = {}) {
       await created.control.close({ initiator: 'disposal' })
       if (options.remove === true) await rm(base, { recursive: true, force: true })

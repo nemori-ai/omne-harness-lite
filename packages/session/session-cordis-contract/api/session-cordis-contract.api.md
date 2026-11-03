@@ -18,6 +18,7 @@
 - `AutoArchivePolicy` · 包 `@omne-harness/session-contract`
 - `BatchId` · 包 `@omne-harness/session-contract`
 - `BoundedClose` · 包 `@omne-harness/session-contract`
+- `CONTEXT_SCOPE_KINDS` · 包 `@omne-harness/session-contract`
 - `CallBinding` · 包 `@omne-harness/session-contract`
 - `ClockSample` · 包 `@omne-harness/session-contract`
 - `CommitReceipt` · 包 `@omne-harness/session-contract`
@@ -145,6 +146,7 @@
 - `SessionClock` · 包 `@omne-harness/session-contract`
 - `SessionCommand` · 包 `@omne-harness/session-contract`
 - `SessionContextInput` · 包 `@omne-harness/session-contract`
+- `SessionContextScope` · 包 `@omne-harness/session-contract`
 - `SessionControlAnswer` · 包 `@omne-harness/session-contract`
 - `SessionControlDecisionInput` · 包 `@omne-harness/session-contract`
 - `SessionControlEntryReferences` · 包 `@omne-harness/session-contract`
@@ -219,6 +221,8 @@
 - `WorkspaceAttachment` · 包 `@omne-harness/session-contract`
 - `batchEvidence` · 包 `@omne-harness/session-contract`
 - `commandDigest` · 包 `@omne-harness/session-contract`
+- `contextScopeOf` · 包 `@omne-harness/session-contract`
+- `contextScopesOf` · 包 `@omne-harness/session-contract`
 - `decide` · 包 `@omne-harness/session-contract`
 - `decideControlConsequences` · 包 `@omne-harness/session-contract`
 - `deriveDriveOperation` · 包 `@omne-harness/session-contract`

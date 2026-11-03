@@ -36,6 +36,7 @@
 | --- | --- | --- |
 | 来源核验 `sourceAuthority` | 发行固定的窄放行。先经 `principalVerifier` 服务核验主体（按调用现取，不 `inject`）：只接受代租户行事主体，且主体的租户等于访问的租户。系统主体答 `denied`，因为系统作用域不代表任何租户（[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。再核访问、目标与调用三个租户相同，最后核 `producer` 是 `model`，且 `sender` 的四个字段与 `ACCOUNT_OUTLET_SENDER` 全等。`ACCOUNT_OUTLET_SENDER` 等于发行配置里 `agent-account-outlet` 行的 `sender`，用例核对两者相等 | 全部满足时 `allowed`。其余一律 `denied`，原因写入行日志的 warn 级（契约的 `denied` 不带文字）。核验器不在场、不可用或抛出时答 `unavailable`，不改写成 `denied` |
 | 读取资格 `readEligibility` | 每次调用现取已登记的 `contextHolderSources`（`session-ad04` 行提供），短租借后转问它的 `eligibility` 部件，返回前结束租借。不 `inject`，所以行清单不变 | 只放行 `accounts` 操作，其他操作答 `denied`，原因写 debug 级日志。持有者的答复原样返回，`denied` 另写 warn 级日志。没有持有者、租借被拒或抛出时答 `unavailable`，吞掉的异常写 debug 级日志 |
+| 窄采用来源 `adoptedSource` | 与读取资格同样，每次 `readCount`、`readSource` 调用各自现取已登记的 `contextHolderSources`，短租借后转问它的 `adopted` 部件，返回前结束租借（FIXED-FACTS F6）。`adopted` 部件读的是会话自己记录的固定请求事实（`sessionAdoptedRequests`，`agent-journal` 行提供） | 持有者的答复原样返回，包括 `null`（目标还没有固定请求）。没有持有者、租借被拒或抛出时答 `unavailable`，吞掉的异常写 debug 级日志，不带异常消息 |
 | 持有者事实 `replayFacts` | 入口对象 `runtimeContextTrust` 每次调用经 `env.readTrusted` 在受信作用域「会话回放事实」里现取 `sessionReplayFacts`（`session-ad03` 行的事实子插件提供），不缓存旧引用；根上的同名提供者读不到（R2-D168） | 服务不在场、已停、读取或应答抛出时答 `unavailable`，吞掉的异常写 debug 级日志，不带异常消息。RC-09 结束恢复时，持有者事实列出的块没有被材料覆盖，答 `invalid`（`replay-incomplete`） |
 
 已知限制：
@@ -49,7 +50,6 @@
 
 | 缺件 | 位置 | 后果 |
 | --- | --- | --- |
-| B1-GAP-ADOPTED-REQUEST-SOURCE | `src/rows/request-context/accounting.ts`，以及 `session-ad04` 的 `adopted` 缺席 | 协调者固定请求事实（CX-08）读不到，窄采用来源答不可用；窗口占用 `usage` 在读取资格放行之后答不可用。Runtime Context 每轮整读，不做增量。SC2 不做：会话日志里没有固定请求的条目，补它要新设计 |
 | B1-GAP-ACCOUNTING-RECOVERY-AUTHORITY | `src/rows/request-context/accounting.ts` | 账目投影不能授权重建，收件口对每个目标答 `unavailable`（`uninitialized`）。SC2 不做，随波 3 的重启恢复 |
 
 ## 还是替身的行与原因

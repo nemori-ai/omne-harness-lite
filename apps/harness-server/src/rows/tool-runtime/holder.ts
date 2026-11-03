@@ -6,6 +6,9 @@
 // - 一个 Tool 时钟。`toolClock` 入口对象与 bundle 用同一个实例，时钟铸的令牌只有铸它的实例认得。
 // - 当前的 SQL 端口与会话工作主体读口。它们由 `tool-records` 行在自己的受信上下文里交来，行撤除时收回；
 //   bundle 拿到的是逐次读这里的窄代理，缺席时答 `unavailable`。
+// - identity 的两个受信读口：核验器 `principalVerifier` 与当前资格 `tenantStanding`。入口对象 `toolClock` 安装时
+//   交来经 `env.readTrusted` 逐次现取的读法（R2-D203 P-9），Tool 运行时组与 Tool 请求来源都从这里读，行不因此
+//   看见受信名；没有交来时答 undefined，读方答 `unavailable`。
 // - 调用见证：记录记录仓读到的原调用与它的来源证据，`toolPublicationAuthority` 只用它同步核对实例发布。
 // - 结清通知：记录仓提交了某个调用的 `settled` 状态后，见证与执行环境的按调用表（origin、账本视图）删掉这个
 //   调用，长跑进程里这些表只随在途调用数增长，不随累计调用数增长（L3 评审 N5）。
@@ -21,6 +24,7 @@ import { createLocalToolClock } from '@omne-harness/tool-host-local'
 import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-local/cordis'
 
 type EnvironmentGuardedHostCommit = LocalToolRuntimeInput['environment']['guarded']
+import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import type { SessionWorkPrincipals } from '@omne-harness/session-contract'
 import type { SchemaProvider } from '@omne-harness/schema-provider'
 import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis'
@@ -44,6 +48,10 @@ export type ToolRuntimeHolder = {
   schemaProvider: SchemaProvider | null
   /** 当前会话工作主体读口；`tool-records` 行不在时为 undefined。 */
   workPrincipals: () => SessionWorkPrincipals<unknown> | undefined
+  /** identity 的核验器，入口逐次现取；入口没有交来时为 undefined。 */
+  verifier: () => PrincipalVerifier | undefined
+  /** identity 的当前资格读口，入口逐次现取；入口没有交来时为 undefined。 */
+  standing: () => TenantStandingSource | undefined
   /** bundle 与建它所用配置的摘要；未建时为 null。 */
   bundle: Readonly<{ value: ToolRuntimeBundle; configDigest: string }> | null
   /** 建好 bundle 时兑现。 */
@@ -89,6 +97,8 @@ export function toolRuntimeHolder(ctx: Context): ToolRuntimeHolder {
     sql: null,
     schemaProvider: null,
     workPrincipals: () => undefined,
+    verifier: () => undefined,
+    standing: () => undefined,
     bundle: null,
     ready,
     resolve,

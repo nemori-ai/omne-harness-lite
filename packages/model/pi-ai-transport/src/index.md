@@ -13,6 +13,7 @@
 - [chat-completions/bind.ts](chat-completions/bind.ts)：`bindChatCompletions`：绑定时的记录检查与完整绑定
 - [chat-completions/request.ts](chat-completions/request.ts)：plan 与 encode 的步骤，改编自 pi
 - [chat-completions/projection.ts](chat-completions/projection.ts)：请求到网关消息的投影、缓存位置与工具，改编自 pi
+- [chat-completions/tool-names.ts](chat-completions/tool-names.ts)：一次请求的工具名表，网关名的写出与还原
 - [chat-completions/parameters.ts](chat-completions/parameters.ts)：按记录表规划与写出参数
 - [chat-completions/gateway.ts](chat-completions/gateway.ts)：网关字段的闭合词表
 - [chat-completions/json.ts](chat-completions/json.ts)：排序键的 json-text 值树构造

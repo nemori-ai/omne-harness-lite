@@ -54,11 +54,6 @@ export const maintenanceGrantsSchema = z
 
 export type MaintenanceGrantsConfig = z.output<typeof maintenanceGrantsSchema>
 
-/** Whether the configuration sets an end time, which needs the injected clock to be judged. */
-export function configuresExpiry(config: MaintenanceGrantsConfig | undefined): boolean {
-  return Object.values(config ?? {}).some(value => value.expiresAt !== undefined)
-}
-
 /**
  * The release table with the operator's tightening: a record named by the configuration gets
  * `revoked: true` and/or `expiresAt`; every other member of every record is the release value. An

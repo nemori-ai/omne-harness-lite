@@ -260,6 +260,42 @@ describe('E1: a trusted name is read through env.readTrusted or inside a row tha
     expect(result.stderr).toMatch(/row-not-visible storage .*rows\/orphan\/x\.ts:1 rows=\(none\)/)
   })
 
+  test('systemActionAuthorization (R2-D245): session-storage reads it; another row that reaches for the same name is refused', () => {
+    const rows = [...ROWS, 'session-storage']
+    const table = {
+      ...TABLE,
+      authorization: ['systemActionAuthorization'],
+      'session-storage': ['systemActionAuthorization'],
+    }
+    const consumer = {
+      [`${SRC}/rows/session-storage/index.ts`]: [
+        "import { systemActionAuthorizationKey } from '../authorization/system-action-service.ts'",
+        'export const sessionStorageRow = defineRow({',
+        "  row: 'session-storage',",
+        '  body: ctx => ctx.get(systemActionAuthorizationKey),',
+        '})',
+      ].join('\n'),
+    }
+    expect(checkTree({ rows, table, files: consumer }).status).toBe(0)
+    const result = checkTree({
+      rows,
+      table,
+      files: {
+        ...consumer,
+        [`${SRC}/rows/identity/index.ts`]: [
+          'export const identityRow = defineRow({',
+          "  row: 'identity',",
+          "  body: ctx => ctx.get('systemActionAuthorization'),",
+          '})',
+        ].join('\n'),
+      },
+    })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toMatch(
+      /row-not-visible systemActionAuthorization apps\/harness-server\/src\/rows\/identity\/index\.ts:3 rows=identity/,
+    )
+  })
+
   test('a row the table does not list sees no trusted name', () => {
     const result = checkTree({ table: { storage: ['storage', 'tenantDomainLookup'] } })
     expect(result.status).toBe(1)

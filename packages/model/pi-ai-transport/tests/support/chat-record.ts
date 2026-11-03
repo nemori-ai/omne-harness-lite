@@ -72,6 +72,7 @@ export function testRecord(overrides: Partial<ChatCompletionsRecord> = {}): Chat
       image: { mediaTypes: ['image/png'], detail: 'auto' },
       fixed: [{ field: 'store', value: false }],
       usageTail: { maxFrames: 2 },
+      toolNames: { rule: 'underscore/1', maxLength: 64 },
     },
     parameters: {
       temperature: {

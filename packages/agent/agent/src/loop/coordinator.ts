@@ -2396,6 +2396,26 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return { owner: AGENT_OWNER, work: `${execution}/${step}`, position: 'I3', purpose: 'main' }
   }
 
+  /**
+   * The `adoptedRequest` member a main-purpose M0 writes, or no member for any other purpose: the
+   * slot survives the call's settlement and the next I1, and only the next main M0 replaces it.
+   * The preparing side's `state` is kept as given; the Agent never reads it (FIXED-FACTS F2).
+   */
+  function adoptedRequestOf(
+    pending: ModelPendingCall,
+    ready: ReadyPreparation,
+  ): Pick<AgentCheckpoint, 'adoptedRequest'> {
+    if (pending.purpose !== 'main' || ready.purpose !== 'main') return {}
+    return {
+      adoptedRequest: {
+        reference: pending.reference,
+        fixed: ready.source,
+        schema: ready.schema,
+        record: ready.state,
+      },
+    }
+  }
+
   function mainPending(step: StepId, ready: ReadyPreparation): ModelPendingCall {
     return {
       kind: 'model',
@@ -2424,11 +2444,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     async M0() {
       const current = required(iteration, 'iteration')
       const pending = required(current.pending, 'pending call')
+      const ready = required(current.ready, 'ready preparation')
       // #558 M04-2: the inherited ready preparation records the final request in this commit.
       return step('recorded', {
         checkpoint: {
           calls: [pending],
-          adoptedContext: required(current.ready, 'ready preparation').coverage,
+          adoptedContext: ready.coverage,
+          ...adoptedRequestOf(pending, ready),
         },
         effects: [{ action: current.action, pending, authority: required(authority, 'authority') }],
       })

@@ -12,24 +12,32 @@
 // - Read eligibility: the `eligibility` part of the holder sources that are already registered
 //   (`contextHolderSources`, row `session-ad04`), read per call under a short lease. Only the
 //   `accounts` operation is admitted.
-// - Adopted source and recovery authority stay named gaps; they answer `unavailable`.
+// - Adopted source: the `adopted` part of the same registered holder sources, read per call under a
+//   short lease (FIXED-FACTS F6). The holder (AD-04) reads the fixed request facts that the session
+//   log keeps for the target; this port only lends the call through.
+// - Recovery authority stays a named gap; it answers `unavailable`.
 import type { PrincipalVerification, PrincipalVerifier } from '@omne-harness/identity'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import type {
   AccountingOptions,
   AccountingSourceAuthority,
   Adoption,
+  AdoptedRead,
+  AdoptedRequestFact,
   AdoptedRequestSource,
   ContextReadEligibility,
+  GroupToken,
   RecoveryAuthority,
   SourceDecision,
+  SourceRead,
 } from '@omne-harness/request-context-contract'
-import type { ContextHolderSources } from '@omne-harness/request-context-cordis-contract'
+import type {
+  ContextHolderParts,
+  ContextHolderSources,
+} from '@omne-harness/request-context-cordis-contract'
 
 /** The gaps that stay, by name. A production source for one of them replaces the entry here. */
 export const ACCOUNTING_GAPS = Object.freeze({
-  adoptedSource:
-    'B1-GAP-ADOPTED-REQUEST-SOURCE: the release has no source of the fixed request facts of the coordinator (CX-08)',
   recoveryAuthority:
     'B1-GAP-ACCOUNTING-RECOVERY-AUTHORITY: the release has no authority for rebuilding accounts',
 })
@@ -181,16 +189,68 @@ export function createHolderReadEligibility(
   return Object.freeze({ check })
 }
 
-export const gapAdoptedSource: AdoptedRequestSource<unknown> = Object.freeze({
-  authority: {
-    owner: '@omne-harness/harness-server',
-    name: 'request-context/adopted-absent',
-    revision: '1',
-    digest: 'harness-server:request-context/adopted-absent/1',
-  },
-  readCount: async () => unavailable(ACCOUNTING_GAPS.adoptedSource),
-  readSource: async () => unavailable(ACCOUNTING_GAPS.adoptedSource),
+export type HolderAdoptedSourceOptions = Readonly<{
+  /** Reads the registered holder sources now; `undefined` when no holder is running. */
+  readHolder: () => ContextHolderSources<unknown> | undefined
+  trace: AccountingTrace
+}>
+
+/** The adoption that names this port: the release adapter that lends the holder's `adopted` part. */
+export const HOLDER_ADOPTED_AUTHORITY: Adoption = Object.freeze({
+  owner: '@omne-harness/harness-server',
+  name: 'request-context/holder-adopted',
+  revision: '1',
+  digest: 'harness-server:request-context/holder-adopted/1',
 })
+
+/**
+ * The narrow adoption source of the accounting inbox: the `adopted` part of the registered holder
+ * sources (FIXED-FACTS F6). Each read takes a lease and ends it before it returns, like the read
+ * eligibility above. No holder, a refused lease or a throw is `unavailable`; the answer of the part
+ * (a fact, `null` before the first main-purpose request, `denied`, `unavailable`) stays as it is.
+ */
+export function createHolderAdoptedSource(
+  options: HolderAdoptedSourceOptions,
+): AdoptedRequestSource<unknown> {
+  const through = async <T>(
+    what: string,
+    read: (adopted: ContextHolderParts<unknown>['adopted']) => Promise<SourceRead<T>>,
+  ): Promise<SourceRead<T>> => {
+    let holder: ContextHolderSources<unknown> | undefined
+    try {
+      holder = options.readHolder()
+    } catch {
+      options.trace(`accounting adopted source: reading the holder threw (${what})`)
+      holder = undefined
+    }
+    if (holder === undefined)
+      return unavailable('accounting adopted source: no contextHolderSources holder is running')
+    let leased: ReturnType<ContextHolderSources<unknown>['lease']>
+    try {
+      leased = holder.lease({ settle: () => Promise.resolve(SETTLED) })
+    } catch {
+      options.trace(`accounting adopted source: the holder lease threw (${what})`)
+      return unavailable('accounting adopted source: the holder lease threw')
+    }
+    if (leased.kind !== 'leased')
+      return unavailable(`accounting adopted source: holder lease: ${leased.diagnostic}`)
+    try {
+      return await read(leased.lease.parts.adopted)
+    } catch {
+      options.trace(`accounting adopted source: the holder adopted part threw (${what})`)
+      return unavailable('accounting adopted source: the holder adopted part threw')
+    } finally {
+      leased.lease.release()
+    }
+  }
+  return Object.freeze({
+    authority: HOLDER_ADOPTED_AUTHORITY,
+    readCount: (input: AdoptedRead<unknown>): Promise<SourceRead<GroupToken>> =>
+      through('readCount', adopted => adopted.readCount(input)),
+    readSource: (input: AdoptedRead<unknown>): Promise<SourceRead<AdoptedRequestFact | null>> =>
+      through('readSource', adopted => adopted.readSource(input)),
+  })
+}
 
 export const gapRecoveryAuthority: RecoveryAuthority<unknown> = Object.freeze({
   check: async () => unavailable(ACCOUNTING_GAPS.recoveryAuthority),
@@ -204,7 +264,7 @@ export type ReleaseAccountingPorts = Readonly<{
   trace: AccountingTrace
 }>
 
-/** The accounting options of the release: the two narrow ports, the two gaps and the limits. */
+/** The accounting options of the release: the source authority, the two holder ports, the recovery gap and the limits. */
 export function releaseAccounting(
   limits: AccountingOptions<unknown>['limits'],
   ports: ReleaseAccountingPorts,
@@ -221,7 +281,10 @@ export function releaseAccounting(
       diagnose: ports.diagnose,
       trace: ports.trace,
     }),
-    adoptedSource: gapAdoptedSource,
+    adoptedSource: createHolderAdoptedSource({
+      readHolder: ports.readHolder,
+      trace: ports.trace,
+    }),
     recoveryAuthority: gapRecoveryAuthority,
     limits,
   }

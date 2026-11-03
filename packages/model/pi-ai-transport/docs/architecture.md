@@ -15,12 +15,13 @@
 | [chat-completions/measurement.ts](../src/chat-completions/measurement.ts) | 两家共用的计量规则与计量器外壳 `createCalibratedMeter`：核对供应商与表示采用，拒绝待定媒体，调用校准算术，组装预算（方法名后缀、`inputDigest`、追加 token）。家族只给自己的采用、内容提取、图片规则、tokenizer、余量、owner、输出组方法名与不可计数时的诊断名 | calibration.ts、json-text、Node `crypto`，model-contract 与 operation-result（类型） |
 | [chat-completions/bind.ts](../src/chat-completions/bind.ts) | 一条记录怎样成为完整绑定：绑定时的记录检查、请求上下文、只包一层的释放 | family-table.ts、limits.ts、request.ts、projection.ts、parameters.ts、gateway.ts、decoder.ts，family.ts、vocabulary.ts 与 model-contract（类型） |
 | [chat-completions/request.ts](../src/chat-completions/request.ts) | plan 与 encode 的步骤：回放声明的展开、请求体、表示与编码诊断 | projection.ts、parameters.ts、gateway.ts、json.ts、payload.ts，model-contract 的 `judgeReplayDeclaration`，family.ts、vocabulary.ts、json-text 与 operation-result（类型）；改编自 pi |
-| [chat-completions/projection.ts](../src/chat-completions/projection.ts) | 请求怎样投影为网关消息：角色、内容、工具调用与结果、回放、缓存位置、工具 | json.ts、json-text、model-contract 的 `projectReplay` 与 `judgeReplayDeclaration`、Node `crypto`，vocabulary.ts、content-block 与 operation-result（类型）；改编自 pi |
+| [chat-completions/tool-names.ts](../src/chat-completions/tool-names.ts) | 一次请求的工具名表：记录规则 `wire.toolNames` 写出的网关名、冲突与超长的 `unsupported`、解码时的还原 | vocabulary.ts、model-contract 与 operation-result（类型） |
+| [chat-completions/projection.ts](../src/chat-completions/projection.ts) | 请求怎样投影为网关消息：角色、内容、工具调用与结果、回放、缓存位置、工具 | tool-names.ts、json.ts、json-text、model-contract 的 `projectReplay` 与 `judgeReplayDeclaration`、Node `crypto`，vocabulary.ts、content-block 与 operation-result（类型）；改编自 pi |
 | [chat-completions/parameters.ts](../src/chat-completions/parameters.ts) | 参数怎样按记录表规划与写出 | gateway.ts，vocabulary.ts、model-contract 与 operation-result（类型） |
 | [chat-completions/gateway.ts](../src/chat-completions/gateway.ts) | 网关字段的闭合词表：写出与扩展值的读取 | json.ts，vocabulary.ts 与 json-text（类型） |
 | [chat-completions/json.ts](../src/chat-completions/json.ts) | 排序键的 json-text 值树构造 | json-text（类型） |
 | [chat-completions/vocabulary.ts](../src/chat-completions/vocabulary.ts) | 记录词表、四个 hook 与计量接缝的类型（`FamilyMeter.instance` 是 `CalibratedInputMeter`，`represent` 写出 `units` 侧表） | family-table.ts、model-contract、json-text、content-block、operation-result（类型） |
-| [chat-completions/decoder.ts](../src/chat-completions/decoder.ts) | 响应流怎样成为事实：阶段联合（`streaming`、`finished`、`faulted`、`ended`）与每帧一个纯归约步，开着的块、工具调用、推理缓存、服务方与尾帧计数都在阶段值里 | chunk.ts、details.ts、decimal.ts、termination.ts、content-block 的 `judgeBlockIdentity`、json-text，family.ts、vocabulary.ts、model-contract 与 operation-result（类型）；改编自 pi |
+| [chat-completions/decoder.ts](../src/chat-completions/decoder.ts) | 响应流怎样成为事实：阶段联合（`streaming`、`finished`、`faulted`、`ended`）与每帧一个纯归约步，开着的块、工具调用、推理缓存、服务方与尾帧计数都在阶段值里 | chunk.ts、details.ts、decimal.ts、termination.ts、tool-names.ts（类型）、content-block 的 `judgeBlockIdentity`、json-text，family.ts、vocabulary.ts、model-contract 与 operation-result（类型）；改编自 pi |
 | [chat-completions/chunk.ts](../src/chat-completions/chunk.ts) | 一个数据帧是不是网关 chunk：边界上读成具名的 chunk，或给出形状失败 | vocabulary.ts 与 json-text（类型）；改编自 pi |
 | [chat-completions/details.ts](../src/chat-completions/details.ts) | 推理片段怎样拼接成项，以及一个片段的可见文本 | json.ts、json-text，chunk.ts 与 vocabulary.ts（类型） |
 | [chat-completions/decimal.ts](../src/chat-completions/decimal.ts) | 网关费用的 JSON 数怎样成为精确的普通十进制词法：只做字符串运算，不经浮点数 | 无 |
@@ -381,7 +382,7 @@ fact-stream.ts 把 http.ts 的结果、sse.ts 与 frames.ts 的失败、家族�
 
 ```mermaid
 stateDiagram-v2
-  [*] --> streaming: createDecoder()
+  [*] --> streaming: createDecoder({ request })
   streaming --> streaming: chunk 给出块事实，结束标记不给事实
   streaming --> finished: finish chunk，终止定为 completed 或 failed
   streaming --> ended: 帧被拒，返回该 fault，没有账目

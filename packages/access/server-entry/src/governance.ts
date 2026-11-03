@@ -58,8 +58,7 @@ type Handled = Exclude<GovernanceProvidedOperation, NotProvided>
 
 export type GovernanceContext = Readonly<{
   identity: IdentityOperations
-  /** Absent: the deployment has not wired the governance port; the governed operations answer `basis-unavailable`. */
-  governance: IdentityGovernance | undefined
+  governance: IdentityGovernance
   steps: IdentitySteps
   /** Ends every observation of one login on this instance with `ended(denied)` (SPEC「登录失效时结束观察」). */
   endObservationsOf: (loginText: string) => void
@@ -213,10 +212,6 @@ async function governed(
   )
     return answer(bare('denied'))
   const port = context.governance
-  if (port === undefined) {
-    emit(context.diagnostics, { code: 'identity.fault', operation: request.operation })
-    return answer(bare('basis-unavailable'))
-  }
   let wire: LooseWire
   try {
     wire = await call(port, caller)
