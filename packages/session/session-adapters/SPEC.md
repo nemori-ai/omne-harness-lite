@@ -559,9 +559,9 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 
 | 命令 | 材料 |
 | --- | --- |
-| `startRun` | 当前定义采用、候选采用与登录确认。登录确认只属于 `startRun`：`sessionAdoptionSource` 从首条输入的 `origin` 取得，交出 `owner` 为 `login-entry` 的材料，本插件只对 `startRun` 放行它；`origin` 不是登录入口证据时不给确认，Session 返回 `login-required`（[契约的证据桥条款](../session-contract/SPEC.md#身份桥证据桥与-context-输入)、[装配页的登录门证据](../../../docs/architecture/runtime/application-assembly.md#桥接责任)）。候选采用材料带新纳入的常驻工具（写 SE36）与登记键（随 SE08），可带冻结判定 |
-| `reload` | 当前定义采用与候选采用，不带登录确认。候选采用材料同 `startRun`，可带冻结判定 |
-| `create` | 真实初始定义采用、入口、资产、声明条件与完整来源计划。不带登录确认，也不带冻结判定 |
+| `startRun` | 当前定义采用与候选采用。登录门不是本插件的材料：Session 的存储参加者在提交事务里读首条输入保存的 `origin`，由 `decide` 核对（R2-D198，[契约的 `decide` 段](../session-contract/SPEC.md#领域服务与归约)）。候选采用材料带新纳入的常驻工具（写 SE36）与登记键（随 SE08），可带冻结判定 |
+| `reload` | 当前定义采用与候选采用。候选采用材料同 `startRun`，可带冻结判定 |
+| `create` | 真实初始定义采用、入口、资产、声明条件与完整来源计划。不带冻结判定 |
 | `completeInitialization` | 按原初始化项核验协议、原绑定、结果及必要成功事实。execution-adoption 纯准备 ready 只写 SE02；确有新增能力实际采用时，材料带完整能力身份/ResidentKey 对和首次纳入的常驻定义，同批写 SE02、SE08 与必要 SE36。沿 [JC-02](../session-contract/SPEC.md#共同提交与共享事务域) 和[初始化守卫编码](../session-contract/SPEC.md#初始化守卫编码)，不补造初始定义采用，不变更原定义版本 |
 | `preserveResult` | 生产来源与耐久保管 |
 | `completeConsumption`、`completeExternalConsumption` | 原消费位置与投递资格 |
@@ -578,12 +578,10 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 - 实现现状：`src/cordis/evidence-bridge.ts` 的 `SessionEvidenceBridgeProvider extends SessionEvidenceBridgeService`，`inject` 三个来源。本插件按上表的命令种类依次问对应来源，按来源顺序交出材料。它自己只做下列边界核对：
   - 命令的租户不是 legal-identity 铸造的值时，返回 `denied`，不问任何来源。
   - 来源交出 `owner` 为 `session-initialization` 的初始化材料时，材料 `binding` 中的租户与 Session 必须等于命令的租户与 Session。不相等时返回 `denied`（[初始化守卫编码](../session-contract/SPEC.md#初始化守卫编码)）。
-  - 登录确认（`owner` 为 `login-entry`）只属于 `startRun`。其他命令收到它时，本插件按来源缺陷返回 `unavailable`，`owner` 为该来源的服务键。
   - 表内命令的全部来源都没有交出材料时，返回 `unavailable`，不交出空成功。一个来源为空而另一个来源有材料时照常交出。
   - 来源答失败时原样交回，并停止询问后续来源。来源抛错或答复形状不对时，返回 `unavailable`，`owner` 为该来源的服务键。
   - 表外命令（`claim` 与非普通输入的 `accept`）不问来源，交出空材料。Session 的判定不读这些命令的证据材料。
-- 登录确认的来源：`startRun` 的命令不带首条输入，本插件也不读 Session 与原事实拥有者，所以登录确认由 `sessionAdoptionSource` 准备。
-- 验证见 `tests/evidence-bridge.spec.ts`：真实 Cordis 4.0.4 的装载、停止、任一来源缺席、换来源；按命令的来源路由；来源失败、抛错、形状错误与空材料；未铸造租户、另一租户或另一 Session 的初始化材料、非 `startRun` 的登录确认。
+- 验证见 `tests/evidence-bridge.spec.ts`：真实 Cordis 4.0.4 的装载、停止、任一来源缺席、换来源；按命令的来源路由；来源失败、抛错、形状错误与空材料；未铸造租户、另一租户或另一 Session 的初始化材料。
 - 已知限制：常驻工具部分（候选采用材料里的常驻工具与登记键，P-8）仍是候选。本插件原样传递来源的材料，不编码常驻键，也不核对冻结判定。真实来源未交付，本插件只对替身验证。
 
 <a id="ad-11"></a>
@@ -877,7 +875,7 @@ Session 契约的明确缺项也约束本成员，其中两项直接影响插件
 | VA-19 | 候选采用带回冻结判定；会话已冻结 | `frozen` 的 `verdict` 等于证据桥交出的判定；会话已冻结时为 null | [AD-10](#ad-10) |
 | VA-20 | 拦截留痕：测试装配里 before-admit 槽拦截一次，再以同一受理标识重试 | `accept` 在原受理标识下只写 SE12，不保管被拦正文，不取得待处理资格；重试认回原拦截。M2 装配为 `admission: 'none'`，本项只在测试装配里核 | [AD-08](#ad-08) |
 | VA-21 | 身份核验答 `verified`、`rejected`、`unavailable` | `rejected` 返回 `denied` 且没有材料；`unavailable` 的 `owner` 为身份来源 | [AD-09](#ad-09) |
-| VA-22 | 证据桥的三个来源逐个缺席、答失败或抛错；`startRun` 首条输入的 `origin` 不是登录入口证据 | 来源失败原样交回并指明拥有者，缺一项不交其余；非登录入口不给登录确认，Session 返回 `login-required`；`reload` 与 `create` 不带登录确认 | [AD-10](#ad-10) |
+| VA-22 | 证据桥的三个来源逐个缺席、答失败或抛错 | 来源失败原样交回并指明拥有者，缺一项不交其余。登录门不经证据桥（R2-D198），由 session-contract 与 session-storage-sql 的用例覆盖 | [AD-10](#ad-10) |
 
 本成员不覆盖：邻域自身的行为、真实存储事务域下的共同提交、跨进程部署，以及上表各具名前提闭合之后的行为。
 

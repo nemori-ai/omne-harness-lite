@@ -25,7 +25,7 @@ export const SESSION_POLICY = Object.freeze({
     deny(OUTSIDE_MATRIX),
   ),
   startRun: row(
-    deny(`${NO_SOURCE}。登录确认经证据桥守卫，不经主体（SS:554）`),
+    deny(`${NO_SOURCE}。登录门由 Session 核对首条输入保存的 origin，不经主体（SS:554，R2-D198）`),
     member('SS:554，DA4 §4.1'),
     deny(OUTSIDE_MATRIX),
   ),

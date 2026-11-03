@@ -153,6 +153,12 @@ export type DecideReads = Readonly<{
   calls?: readonly SessionCallLookup[]
   /** `cancelRun`: the same-root Run lookup. Exactly one item must match the target. */
   runs?: readonly SessionRunLookup[]
+  /**
+   * `startRun`: the stored first input of the new Run, read from the same committed root as the
+   * snapshot. Its `origin` is the login gate of an interactive start; absent, or naming another
+   * input, it confirms no login.
+   */
+  firstInput?: Readonly<{ input: InputId; origin: DurableEvidence }>
 }>
 
 export const OFF_PATH_DIAGNOSTIC =

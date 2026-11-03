@@ -15,7 +15,6 @@ import {
   creation,
   ordinaryInput,
   operationId,
-  guard,
 } from '@omne-harness/session-contract/testing'
 import type { JsonValue } from '@omne-harness/json-text'
 import { emptyHistory } from '../../src/testing/empty-history.ts'
@@ -69,9 +68,13 @@ export async function originalScope(
         instance: { owner: 'agent', id: 'fixture' },
       },
     },
-    [guard('evidence-bridge', 'login-entry', {})],
+    [],
     null,
-    { history: material.reads, compaction: null },
+    {
+      history: material.reads,
+      compaction: null,
+      firstInput: { input: initial.input, origin: initial.origin },
+    },
   )
   if (started.kind !== 'entries') throw new Error(JSON.stringify(started))
   const second: CommittedBatch = {

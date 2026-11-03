@@ -28,6 +28,7 @@ import type {
   SessionOperationId,
   SessionRevision,
   RoutedInput,
+  InputId,
   WorkSnapshot,
   CommitReceipt,
   HistoryEntry,
@@ -325,6 +326,15 @@ const mint = (record: string, content: unknown): DurableEvidence => ({
 })
 
 /** The Run lookup of one snapshot, covering exactly that snapshot. */
+/** The stored first input of a start, or nothing when the store holds none for it. */
+function firstInputOf(
+  inputs: ReadonlyMap<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>,
+  first: InputId | undefined,
+) {
+  const stored = first === undefined ? undefined : inputs.get(first)
+  return stored === undefined ? {} : { firstInput: { input: stored.input, origin: stored.origin } }
+}
+
 function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
   const history = snapshot.executions?.find(item => item.run === run)
   const current =
@@ -495,6 +505,10 @@ export function createSessionTransactions<P>(
         : {}),
       ...(command.kind === 'stopCall' && store !== undefined
         ? { calls: [callLookup(store.snapshot, command.input.producer)] }
+        : {}),
+      // `startRun`: the stored first input with its origin, the login gate of an interactive start.
+      ...(command.kind === 'startRun' && store !== undefined
+        ? firstInputOf(store.inputs, store.snapshot.pending[0])
         : {}),
       initializationReceipts: [
         ...(command.kind === 'completeInitialization' ? (store?.operations.values() ?? []) : []),

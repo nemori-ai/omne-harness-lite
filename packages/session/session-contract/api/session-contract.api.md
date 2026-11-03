@@ -288,6 +288,7 @@
 - `initializationFixtureFacts` · `testing-initialization.d.ts`
 - `initializationFixtureGuard` · `testing-initialization.d.ts`
 - `inputId` · `testing-values.d.ts`
+- `intakeInput` · `testing-values.d.ts`
 - `isNotApplicable` · `testing-case.d.ts`
 - `memoryAccess` · `testing-values.d.ts`
 - `memoryOtherAccess` · `testing-values.d.ts`
@@ -1962,6 +1963,10 @@ export type DecideReads = Readonly<{
     initializationReceipts?: readonly CommitReceipt[];
     calls?: readonly SessionCallLookup[];
     runs?: readonly SessionRunLookup[];
+    firstInput?: Readonly<{
+        input: InputId;
+        origin: DurableEvidence;
+    }>;
 }>;
 export declare const OFF_PATH_DIAGNOSTIC = "not on the M2 first tenant path; the judgment lands with #756 (S-1b)";
 export declare const OFF_PATH_FAILURE: Extract<SessionFailure, {
@@ -2561,8 +2566,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:579032d5582be15deb8d39ba467927fb7edb2e8437efd03385221532065d3515";
-export declare const SESSION_RELEASE_DIGEST = "sha256:579032d5582be15deb8d39ba467927fb7edb2e8437efd03385221532065d3515";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:f4fadc7febc71363a928b14f7a7d6320ba550bbedee53b6ca8ba4a1294ee4bc6";
+export declare const SESSION_RELEASE_DIGEST = "sha256:f4fadc7febc71363a928b14f7a7d6320ba550bbedee53b6ca8ba4a1294ee4bc6";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -2786,11 +2791,9 @@ export interface MemorySessionEvidenceBridge extends SessionEvidenceBridge {
     readonly durability: 'none';
     readonly controls: Readonly<{
         unavailable(down: boolean): void;
-        loginEntry(included: boolean): void;
     }>;
 }
 export declare function createMemorySessionEvidenceBridge(options?: Readonly<{
-    loginEntry?: boolean;
     initialization?: MemoryInitializationSource;
 }>): MemorySessionEvidenceBridge;
 export interface MemorySessionContextInput<P> extends SessionContextInput<P> {
@@ -2877,7 +2880,7 @@ import { type SessionAccessCheck, type SessionDelegatedTransactions } from './ac
 import type { DurableEvidence, EntryId, InputId, SessionAccess, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 import type { SessionCallTerminal } from './control-values.ts';
 import type { BoundedClose, RoutedInput, RunTerminal, SessionCreation, WorkSnapshot, Participation } from './values.ts';
-import type { CommitReceipt, AdmittedMessage, HistoryEntry, PendingReason, SessionFailure } from './faces.ts';
+import type { CommitReceipt, AdmittedMessage, EntryClass, HistoryEntry, PendingReason, SessionFailure } from './faces.ts';
 import type { GuardCommand, MutationName, Mutations, SessionCommand, SessionTransactionPort } from './ports.ts';
 import { type SessionLogObservation } from './projection.ts';
 import { type MemoryInitializationSource } from './testing-initialization-source.ts';
@@ -2979,7 +2982,9 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         receipt: CommitReceipt;
         state: WorkSnapshot;
     }>, SessionFailure>>;
-    accept: (input: string, name?: string) => Promise<Outcome<Readonly<{
+    accept: (input: string, name?: string, value?: Extract<RoutedInput, {
+        kind: 'ordinary';
+    }>) => Promise<Outcome<Readonly<{
         operation: SessionOperationId;
         revision: SessionRevision;
         first: EntryId;
@@ -2987,7 +2992,7 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         recovered: boolean;
         source: DurableEvidence;
     }>, SessionFailure>>;
-    startRun: (name?: string, login?: boolean) => Promise<Outcome<Readonly<{
+    startRun: (name?: string, entry?: EntryClass) => Promise<Outcome<Readonly<{
         receipt: CommitReceipt;
         advance: import("./identity.ts").AdvanceRef;
         adopted: import("@omne-harness/exchange-refs").Adoption;
@@ -3112,6 +3117,9 @@ export declare function assistantMessage(text: string, id?: string): Message;
 export declare function ordinaryInput(input: string, text?: string): Extract<RoutedInput, {
     kind: 'ordinary';
 }>;
+export declare function intakeInput(input: string, text?: string): Extract<RoutedInput, {
+    kind: 'ordinary';
+}>;
 export declare function creation(overrides?: Partial<SessionCreation>): SessionCreation;
 export declare function guard(participant: string, owner: string, facts: unknown): GuardCommand;
 ```
@@ -3125,7 +3133,7 @@ export { sessionEntriesConformance } from './testing-entries.ts';
 export { memorySessionLogFixture, sessionLogConformance, type SessionLogFixture, } from './testing-log.ts';
 export { memorySessionDelegatedTransactionsFixture, sessionDelegatedTransactionsConformance, type SessionDelegatedTransactionsFixture, } from './testing-delegated.ts';
 export { createMemorySessionClock, createMemorySessionContextInput, createMemorySessionEvidenceBridge, createScriptedSessionIdentityBridge, type IdentityScript, type MemorySessionClock, type MemorySessionContextInput, type MemorySessionEvidenceBridge, type ScriptedSessionIdentityBridge, } from './testing-ports.ts';
-export { TESTING_OWNER, adoption, assistantMessage, creation, evidence, guard, inputId, memoryAccess, memoryOtherAccess, mintEvidence, operationId, ordinaryInput, sessionId, testingTenant, testingWorkspace, userMessage, } from './testing-values.ts';
+export { TESTING_OWNER, adoption, assistantMessage, creation, evidence, guard, inputId, memoryAccess, memoryOtherAccess, mintEvidence, operationId, intakeInput, ordinaryInput, sessionId, testingTenant, testingWorkspace, userMessage, } from './testing-values.ts';
 export * from './testing-providers.ts';
 export { createMemoryInitializationSource, type MemoryInitializationSource, } from './testing-initialization-source.ts';
 export { adoptedInitializationFixture, initializationFixtureFacts, initializationFixtureGuard, } from './testing-initialization.ts';

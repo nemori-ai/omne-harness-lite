@@ -63,7 +63,7 @@
 
 [测试](tests)在替身上运行连通路径。它们检查第一轮每跳已连通，会话编解码承载了创建、发送与读历史三种消息，Request Context 取得并释放了 Model 准备租约，历史中的回复带有 Model 回复文本，其他租户读不到该会话。
 
-它们检查 Session 访问检查为 `undefined` 时 H03 保持 pending、不构建 Session 存储，检查拒绝时停在 H03。它们还检查这些情况下路径停在负责的那一跳：identity 拒绝登录、Session 登录门没有登录确认、Session 证据桥不可用、Session 拒绝交接、Model 不结算、历史没有回复。
+它们检查 Session 访问检查为 `undefined` 时 H03 保持 pending、不构建 Session 存储，检查拒绝时停在 H03。它们还检查这些情况下路径停在负责的那一跳：identity 拒绝登录、首条输入不是经登录入口而来、Session 证据桥不可用、Session 拒绝交接、Model 不结算、历史没有回复。
 
 它们检查 H09 至 H13 停在哪里、哪一个公开入口拒绝，并检查证据只在路径观察到拒绝时才写出拒绝。它们固定阻断残余缺口背后的上游事实：Agent 的面尚未实现、同日志提供者没有接收目标、脚本 Model 生产者拒绝密封的 `reasoning_state` 部件。它们还检查 `session-log` 存储连通 H13 并停在 H06，以及 Tool 替身执行一次文件读、一次文件写和一条命令。
 

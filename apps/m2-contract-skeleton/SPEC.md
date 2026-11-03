@@ -202,7 +202,7 @@ Steps:
 
 1. The session codec carries a `send-input` request with the message.
 2. The path commits `accept` for the ordinary request that it read back. The request origin has the owner `login-entry`, as the access layer sets it after a login.
-3. The path builds the Agent of the tenant and commits `startRun`. The Session evidence bridge hands over the login confirmation, a guard material with the owner `login-entry`. Without it, Session `decide` refuses `startRun` with `login-required`.
+3. The path builds the Agent of the tenant and commits `startRun`. Session reads the stored origin of the first input in the commit transaction. When its owner is not `login-entry`, Session `decide` refuses `startRun` with `login-required`.
 4. The path reads the admitted input back with `readInput`. It invokes the Agent runtime with the Session execution and that input. On the `session-log` store the invoke carries the receipt of the Run as the Journal grant.
 5. The Agent message hand-over admits the external input.
 6. The round driver commits `receive(input-handover)`.

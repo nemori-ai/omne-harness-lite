@@ -429,6 +429,10 @@ Session 操作的输入摘要写在 `sl_operation.input_digest`，`decide` 用�
 
 第 1 步在写事务里读 `covers` 内的全部条目，代价是 O(log N + |covers| + |after|) 加这些条目的字节。它的上界是一个具名前提：`covers` 由 Request Context 的压缩计划确定（[RQ-06](../../context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)）。现行条款规定覆盖范围从历史起点开始、到压缩点之前结束，并限定了计划的步数上界与保留预算，但没有给出覆盖范围的条目数上界。所以 `|covers|` 可以随历史长度增长，这是一条[明确缺项](#明确缺项)。SQLite 下同一事务域只有一个写者，长压缩提交持有写连接期间，同一事务域的其他提交等待。PostgreSQL 下只有同一会话的提交在 `sl_journal` 行锁上等待。
 
+<a id="w4b"></a>
+
+**W4b `startRun` 的登录门在同一事务里读。**`startRun` 的参加者在调用 `decide` 之前，按快照第一条待处理输入的身份从 `sl_input` 读出它保存的普通输入，把 `{ input, origin }` 经 `DecideReads.firstInput` 交入（[契约](../session-contract/SPEC.md#领域服务与归约)，R2-D198）。这是一次按主键的点读。没有这一行时不交这一项，`decide` 对 `interactive` 入口返回 `login-required`。读与提交在同一事务里，所以登录门与 Run 开始看到的是同一条首条输入。
+
 <a id="w5"></a>
 
 **W5 解释进度随解释提交保存。**快照内每个执行的 `ExecutionRef.readThrough` 是 Session 对 Agent 事件的解释进度（[EC-02](../session-contract/SPEC.md#ec-02)）。它与同日志解释产生的后果、该次 Session 操作的答案在同一次解释提交中保存。不产生后果的事件不单独提交，持久进度随下一次解释提交前进。`receive` 不接收 Agent 事件，不推进 `readThrough`。序号不大于快照当前 `readThrough` 的事件已经随它的后果提交过，重读时按原 execution 与事实身份认回，`readThrough` 不回退。`readThrough` 与会话状态在 `sl_state` 同一行，没有单独的进度表。
