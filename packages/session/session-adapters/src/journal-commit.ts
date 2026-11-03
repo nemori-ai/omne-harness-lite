@@ -6,7 +6,6 @@
 // this second copy is the known limitation K-6 of session-adapters SPEC.
 import {
   SESSION_PARTICIPANT,
-  decodeSessionReply,
   type SessionWorkReply,
 } from '@omne-harness/session-storage-sql/participants'
 import type {
@@ -14,6 +13,7 @@ import type {
   CommittedV2,
   DomainRef,
   FactCommandV2,
+  JsonValue,
   RolledBackV2,
   SqlIdentity,
   SqlStorage,
@@ -36,17 +36,54 @@ export type JournalCommitResult =
   | Readonly<{ kind: 'unknown'; diagnostic: string; attempt: number }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
+const isCount = (value: unknown): value is string =>
+  typeof value === 'string' && /^\d+$/.test(value)
+
+type JsonRecord = Readonly<{ readonly [key: string]: JsonValue }>
+
+const recordOf = (value: JsonValue | undefined): JsonRecord | undefined =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as JsonRecord)
+    : undefined
+
+/**
+ * The `work` of a fresh Session reply, read field by field: the same reading as `workReplyOf` of
+ * session-storage-sql `participants.ts`, which that package does not export (the second copy is
+ * the known limitation K-6). It reads `digest`, `recovered` and `work` and never the `result`, so
+ * a Session result this provider cannot decode (a tenant value that does not parse) cannot reach
+ * it. It never throws.
+ */
+function freshWorkOf(response: JsonValue): SessionWorkReply | undefined {
+  const reply = recordOf(response)
+  if (reply === undefined || typeof reply['digest'] !== 'string') return undefined
+  if (reply['recovered'] === true) return undefined
+  const work = recordOf(reply['work'])
+  if (work === undefined) return undefined
+  const { tail, published, bytes, first, last, indexed, basis } = work
+  if (![tail, published, first, last].every(isCount)) return undefined
+  if (typeof bytes !== 'number' || typeof indexed !== 'boolean') return undefined
+  return {
+    tail: tail as string,
+    published: published as string,
+    bytes,
+    first: first as string,
+    last: last as string,
+    indexed,
+    ...(basis === undefined ? {} : { basis }),
+  }
+}
+
 /**
  * What the Session participation of a joint commit tells the work cache (session-storage-sql
  * RT-04): only from a commit this call sent and that committed, never from a recall, a recovered
- * Session answer or a rolled back commit.
+ * Session answer or a rolled back commit. Only the `work` of the reply is read, so no content of
+ * its `result` can make this throw.
  */
 export function jointSessionWork(outcome: JournalCommitResult): SessionWorkReply | undefined {
   if (outcome.kind !== 'committed' || outcome.recalled) return undefined
   const entry = outcome.receipt.responses.find(item => item.participant === SESSION_PARTICIPANT)
   if (entry?.reply.kind !== 'participated') return undefined
-  const reply = decodeSessionReply(entry.reply)
-  return reply.kind === 'participated' && !reply.recovered ? reply.work : undefined
+  return freshWorkOf(entry.reply.response)
 }
 
 export type JournalCommitInput = Readonly<{

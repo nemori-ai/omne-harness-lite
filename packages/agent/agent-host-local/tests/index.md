@@ -28,5 +28,6 @@
   - `w2-rounds.spec.ts`：J1 三轮对话与 J2 工具结果进入下一轮请求
   - `w2-control.spec.ts`：J3 取消 Run 与 J4 只中断一个调用
   - `w2-handoff-restart.spec.ts`：J5 杀进程后按原身份读回准入记录
-  - `w2-counts.spec.ts`：J6 固定轮数的读写计数与测量事件
+  - `w2-counts.spec.ts`：J6 固定轮数的读写计数与测量事件；默认 20 轮，`OMNE_J6_ROUNDS=200` 才跑 200 轮与增长判定，何时跑见 [README](README.md#j6-的两种轮数)
+  - `growth.ts`、`growth.spec.ts`：增长判定的纯函数与快层单测（含负控），常量与 `tools/e9/metrics.mjs` 逐项相等
 - [fixtures/](fixtures/index.md)：测试固定输入
