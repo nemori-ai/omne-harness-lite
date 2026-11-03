@@ -14,6 +14,8 @@ import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { test } from 'node:test'
 
+import { parse } from './cli.mjs'
+
 const cli = fileURLToPath(new URL('./cli.mjs', import.meta.url))
 const work = resolve(
   process.env.PLATFORM_CONFORMANCE_TEST_TMP ?? 'tmp/line-m2-toolchain/w2/platform',
@@ -420,4 +422,39 @@ test('stalled runner stage produces an incomplete report with deadline and unkno
   assert.ok(report.probes.pnpm.reason)
   assert.equal(report.slotHeld, null)
   assert.ok(report.slotHeldReason)
+})
+
+test('manifest platformExclusive declarations are validated before any run', () => {
+  const manifest = join(work, `exclusive-${process.pid}.json`)
+  const base = { member: 'members/a', tests: ['frames.spec.ts'] }
+  const good = { file: 'frames.spec.ts', test: 'attach', runsOn: ['linux'], reason: 'Linux only' }
+  const parseWith = platformExclusive => {
+    writeFileSync(manifest, JSON.stringify([{ ...base, platformExclusive }]))
+    return parse([
+      'run',
+      '--root',
+      '.',
+      '--sha',
+      'a'.repeat(40),
+      '--manifest',
+      manifest,
+      '--out',
+      'o',
+    ])
+  }
+  try {
+    assert.deepEqual(parseWith([good]).members[0].platformExclusive, [good])
+    for (const bad of [
+      { platformExclusive: {} },
+      { ...good, file: 'other.spec.ts' },
+      { ...good, test: '' },
+      { ...good, reason: ' ' },
+      { ...good, runsOn: [] },
+      { ...good, runsOn: ['windows'] },
+    ])
+      assert.throws(() => parseWith(bad.platformExclusive ?? [bad]))
+    assert.throws(() => parseWith([good, good]), /Duplicate platformExclusive/)
+  } finally {
+    rmSync(manifest, { force: true })
+  }
 })

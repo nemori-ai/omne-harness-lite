@@ -69,14 +69,44 @@ node tools/platform-conformance/cli.mjs prepare-wsl \
 | `member-N.stdout.log`  | Vitest 标准输出，运行期间持续保存                                                                                                          |
 | `member-N.stderr.log`  | Vitest 标准错误，运行期间持续保存                                                                                                          |
 
-| 退出码 | 结论                                                                           |
-| ------ | ------------------------------------------------------------------------------ |
-| `0`    | `passed`，所有请求用例实际通过且前提满足                                       |
-| `1`    | `failed`，提交核对失败、断言失败或套件进程失败                                 |
-| `2`    | 输入错误，包括非法参数、路径和重复输出目录                                     |
-| `3`    | `incomplete`，缺报告、空集合、漏文件、缺用例、任何跳过、探测不满足或运行被中断 |
+| 退出码 | 结论                                                                               |
+| ------ | ---------------------------------------------------------------------------------- |
+| `0`    | `passed`，所有请求用例实际通过且前提满足                                           |
+| `1`    | `failed`，提交核对失败、断言失败或套件进程失败                                     |
+| `2`    | 输入错误，包括非法参数、路径和重复输出目录                                         |
+| `3`    | `incomplete`，缺报告、空集合、漏文件、缺用例、未声明的跳过、探测不满足或运行被中断 |
 
-失败优先于未完整运行。进程退出 0 不能代替对 JSON 中每条断言的核对。`pending`、`skipped`、`todo` 和其他未通过状态都作为未运行记录。若 Vitest JSON 没暴露跳过原因，报告写明 `unknown: Vitest JSON did not expose a skip reason`，结论仍是未完整运行。
+失败优先于未完整运行。进程退出 0 不能代替对 JSON 中每条断言的核对。`pending`、`skipped`、`todo` 和其他未通过状态都作为未运行记录，下文声明的平台互斥跳过除外。若 Vitest JSON 没暴露跳过原因，报告写明 `unknown: Vitest JSON did not expose a skip reason`，结论仍是未完整运行。
+
+### 平台互斥的跳过
+
+有些用例只在某个平台上有意义，在其他平台上按设计跳过。调用者可以在清单的成员项里声明这类用例（R2-D149 第 3 项）：
+
+```json
+{
+  "member": "packages/execution/execution-environment-host-local",
+  "tests": ["tests/host-command-frames.spec.ts"],
+  "platformExclusive": [
+    {
+      "file": "tests/host-command-frames.spec.ts",
+      "test": "<Vitest JSON 里的 fullName>",
+      "runsOn": ["win32"],
+      "reason": "<为什么只在这些平台上运行>"
+    }
+  ]
+}
+```
+
+`file` 必须是本成员请求的用例文件。`test` 取 Vitest JSON 的 `fullName`，可从上一次报告的 `skipped[].test` 复制。`runsOn` 只接受 `win32`、`linux`、`darwin`。`reason` 不能为空。同一文件与用例只能声明一次。不合格的声明使命令以输入错误退出。
+
+判定规则：
+
+- 声明的用例在 `runsOn` 以外的平台上跳过时，记入该文件的 `platformExcluded`，不算缺测。
+- 声明的用例在 `runsOn` 里的平台上跳过时，仍算未完整运行。
+- 未声明的跳过仍算未完整运行。
+- 声明没有匹配到报告里的任何用例时，算未完整运行。这样声明写错或用例改名不会被静默放过。
+
+声明只能经 `--manifest` 给出。声明随清单保存，报告的成员项也原样保留 `platformExclusive`，供评审核对。声明的用例在另一平台上的证据，要由那个平台的运行给出。
 
 Windows 上现有 Linux 专属用例的跳过是本设施的负控。该报告不能当成 Windows 产品通过。工具测试使用临时 Git 仓库、真实子进程和具名报告 fixture，另有已安装 Vitest 的 JSON 实跑验证。它们只验证设施，不证明真实产品或另一平台已经符合契约。
 
