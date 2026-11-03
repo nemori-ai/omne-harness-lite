@@ -4,9 +4,15 @@
 //
 // The shape of one round of the plain test is one input of a fixed size and one reply. The tool shape
 // adds one Tool call: two Model requests (before and after the Tool), one Tool invoke, one reply each.
-// Both run until a round does not end (a limit of the product) or 200 rounds, and the curve says where
-// that was. The windows are those of R2-D67 and the ruling of 08:15: rounds 11 to 30 against the 20
-// rounds before the limit (plain: rounds 141 to 160, which the ruling of 08:15 names).
+// Both must run the 200 rounds; a round that does not end stops the run, and the curve says where.
+// The windows are the first ones again (R2-D81, the deviations of R2-D64 and R2-D67 withdrawn): rounds
+// 181 to 200 against rounds 11 to 30.
+//
+// The calls of `execution-record.parts` are a named deviation (R2-D85): they are bounded per round, not
+// equal, because a catch-up of the copy of the Agent records takes one page more when the text of its
+// parts passes the page budget. The rows of those reads stay equal per round. The bytes grow with the
+// rounds (the Session snapshot and the Agent records are read and written whole), so they are reported
+// in the curve and in the growth rates, not asserted.
 //
 // The events written to `e9-events-<shape>.jsonl` are those of the `measure` observers of Session,
 // Context and Agent, read with one clock (`performance.now()`); `round-complete` is the explicit event
@@ -16,7 +22,13 @@
 import { writeFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
-import type { RoundCount } from './w2-measure.ts'
+import {
+  PARTS_HANDLER,
+  partsReadsOf,
+  partsTextOf,
+  type PartsRoundReads,
+  type RoundCount,
+} from './w2-measure.ts'
 import { intakeAccess } from './world.ts'
 
 const worlds: W2World[] = []
@@ -27,7 +39,12 @@ afterEach(async () => {
 const OUT = new URL('../../../../../tmp/line-session-run/w2/C-JOINT/', import.meta.url)
 const MAX_ROUNDS = 200
 const WINDOW = 20
-/** The items every round must show alike: all but the number of the round, the retries and the bytes. */
+/** The early window: rounds 11 to 30. The late one is the last `WINDOW` rounds, 181 to 200. */
+const EARLY_FROM = 10
+/**
+ * The items every round must show alike: all but the number of the round, the retries, the bytes and
+ * the number of `execution-record.parts` calls, which `partsOverBound` bounds instead (R2-D85).
+ */
 const stable = ({
   round: _round,
   storageRollbacks: _rollbacks,
@@ -35,10 +52,43 @@ const stable = ({
   maxCommitBytes: _maxCommit,
   maxReadBytes: _maxRead,
   storageCommitBytes: _commitBytes,
+  storageReads: { [PARTS_HANDLER]: _partsCalls, ...reads },
   ...rest
-}: RoundCount) => rest
+}: RoundCount) => ({ ...rest, storageReads: reads })
 
 type Shape = 'tool' | 'plain'
+
+/**
+ * The whole partition reads of AD-02 per round: it reads the partition of the current execution once
+ * for each event it interprets (session-adapters `readExecutionInterpretation`; srun-w2-agent
+ * tmp/line-session-run/w2/C-FIX-ROUNDS-R/parts-growth.md), so the number is that of the events of one
+ * round of the shape. Measured on 953860c78 in rounds 2 to 40 (C-J1-R78 probe-plain.txt and
+ * probe-tool.txt): 19 and 46 in every round. A revision cache of these reads (C-WORKCACHE) gets a
+ * second named item for its point reads beside this one.
+ */
+const AD02_READS: Readonly<Record<Shape, number>> = { plain: 19, tool: 46 }
+
+/**
+ * The rounds from the second on whose `execution-record.parts` calls exceed the named bound of
+ * R2-D85: the whole partition reads of AD-02 and the pages the catch-ups of the round need by the
+ * page rule of the read handler. The first round is left out: it creates the first execution.
+ */
+function partsOverBound(
+  shape: Shape,
+  table: readonly RoundCount[],
+  parts: readonly PartsRoundReads[],
+): string[] {
+  const over: string[] = []
+  for (const count of table.slice(1)) {
+    const calls = count.storageReads[PARTS_HANDLER] ?? 0
+    const { catchUpPages } = partsReadsOf(parts.find(item => item.round === count.round))
+    if (calls > AD02_READS[shape] + catchUpPages)
+      over.push(
+        `round ${count.round}: ${calls} parts calls, bound ${AD02_READS[shape]} + ${catchUpPages}`,
+      )
+  }
+  return over
+}
 
 function scriptOf(shape: Shape) {
   return (a: { index: number }) =>
@@ -52,24 +102,61 @@ const sum = (table: Readonly<Record<string, number>>, prefix: string): number =>
     .filter(([handler]) => handler.startsWith(prefix))
     .reduce((total, [, value]) => total + value, 0)
 
+const CURVE = [
+  'er_read_rows',
+  'session_snapshot_bytes',
+  'write_bytes',
+  'er_read_bytes',
+  'parts_text',
+] as const
+type CurveColumn = (typeof CURVE)[number]
+
 /**
- * The curve of R2-D67, one line per round: the rows the reads of the Agent records handlers returned
+ * The curve of R2-D67, one row per round: the rows the reads of the Agent records handlers returned
  * (`er_read_rows`), the largest single read of the Session snapshot in bytes, the bytes of the
- * commits of the round, and the largest single reads of the Agent records handlers, added up.
+ * commits of the round, the largest single reads of the Agent records handlers added up, and the text
+ * length of the parts the `execution-record.parts` reads returned (R2-D85).
  */
-function curveOf(table: readonly RoundCount[]): string {
-  const lines = ['round,er_read_rows,session_snapshot_bytes,write_bytes,er_read_bytes']
-  for (const count of table)
-    lines.push(
-      [
-        count.round,
-        sum(count.storageReadRows, 'execution-record.'),
-        count.maxReadBytes['session.work'] ?? 0,
-        count.storageCommitBytes,
-        sum(count.maxReadBytes, 'execution-record.'),
-      ].join(','),
+function curveRows(table: readonly RoundCount[], parts: readonly PartsRoundReads[]): number[][] {
+  return table.map(count => [
+    count.round,
+    sum(count.storageReadRows, 'execution-record.'),
+    count.maxReadBytes['session.work'] ?? 0,
+    count.storageCommitBytes,
+    sum(count.maxReadBytes, 'execution-record.'),
+    partsTextOf(parts.find(item => item.round === count.round)),
+  ])
+}
+
+function curveOf(rows: readonly number[][]): string {
+  return `${['round', ...CURVE].join(',')}\n${rows.map(row => row.join(',')).join('\n')}\n`
+}
+
+const mean = (values: readonly number[]): number =>
+  values.reduce((total, value) => total + value, 0) / Math.max(1, values.length)
+
+/**
+ * The growth of each curve column from the second round on: the least-squares slope, in the unit of
+ * the column per round (R2-D85 reports the bytes with their growth rate).
+ */
+function growthOf(rows: readonly number[][]): Record<CurveColumn, number> {
+  const later = rows.slice(1)
+  const x = later.map(row => row[0] ?? 0)
+  const meanX = mean(x)
+  const spread = x.reduce((total, value) => total + (value - meanX) ** 2, 0)
+  const slope = (column: number): number => {
+    const y = later.map(row => row[column] ?? 0)
+    const meanY = mean(y)
+    const joint = x.reduce(
+      (total, value, at) => total + (value - meanX) * ((y[at] ?? 0) - meanY),
+      0,
     )
-  return `${lines.join('\n')}\n`
+    return spread === 0 ? 0 : Math.round((joint / spread) * 10) / 10
+  }
+  return Object.fromEntries(CURVE.map((name, at) => [name, slope(at + 1)])) as Record<
+    CurveColumn,
+    number
+  >
 }
 
 /**
@@ -93,8 +180,13 @@ async function runToLimit(shape: Shape, w: W2World) {
     }
   } finally {
     const table = w.counters.rounds
+    const curve = curveRows(table, w.counters.partsRounds)
+    const growth = growthOf(curve)
     writeFileSync(new URL(`counts-${shape}.json`, OUT), JSON.stringify(table, null, 1))
-    writeFileSync(new URL(`j6-curve-${shape}.csv`, OUT), curveOf(table))
+    writeFileSync(new URL(`j6-curve-${shape}.csv`, OUT), curveOf(curve))
+    writeFileSync(new URL(`j6-growth-${shape}.json`, OUT), JSON.stringify(growth, null, 1))
+    // The log carries the curve, with the Session snapshot bytes of every round, and the growth rates.
+    console.log(`J6-CURVE ${shape}\n${curveOf(curve)}J6-GROWTH ${shape} ${JSON.stringify(growth)}`)
     writeFileSync(new URL(`e9-events-${shape}.jsonl`, OUT), events.lines())
     writeFileSync(
       new URL(`j6-limit-${shape}.json`, OUT),
@@ -135,7 +227,7 @@ async function runToLimit(shape: Shape, w: W2World) {
 
 describe('J6: fixed round counts', () => {
   it(
-    'J6 plain shape: to the limit, the counts of rounds 11-30 equal those of rounds 141-160',
+    'J6 plain shape: 200 rounds, the counts of rounds 181-200 equal those of rounds 11-30',
     { timeout: 3_600_000 },
     async () => {
       const w = await openW2World({
@@ -145,20 +237,22 @@ describe('J6: fixed round counts', () => {
       })
       worlds.push(w)
       const { completed } = await runToLimit('plain', w)
-      expect(completed.length).toBeGreaterThanOrEqual(160)
+      expect(completed.length).toBe(MAX_ROUNDS)
 
       // One Model result is received per round and nothing else.
       for (const count of completed)
         expect(count).toMatchObject({ modelReceives: 1, toolReceives: 0 })
-      // The windows: no item may grow with the number of rounds.
-      const early = completed.slice(10, 30).map(stable)
-      const late = completed.slice(140, 160).map(stable)
+      // The parts calls stay within their named bound (R2-D85).
+      expect(partsOverBound('plain', completed, w.counters.partsRounds)).toEqual([])
+      // The windows: no other item may grow with the number of rounds.
+      const early = completed.slice(EARLY_FROM, EARLY_FROM + WINDOW).map(stable)
+      const late = completed.slice(-WINDOW).map(stable)
       expect(late).toEqual(early)
     },
   )
 
   it(
-    'J6 tool shape: to the limit, two Model results and one Tool result each round, the counts of rounds 11-30 equal those before the limit',
+    'J6 tool shape: 200 rounds, two Model results and one Tool result each round, the counts of rounds 181-200 equal those of rounds 11-30',
     { timeout: 3_600_000 },
     async () => {
       const w = await openW2World({
@@ -168,7 +262,7 @@ describe('J6: fixed round counts', () => {
       })
       worlds.push(w)
       const { completed } = await runToLimit('tool', w)
-      expect(completed.length).toBeGreaterThanOrEqual(30 + WINDOW)
+      expect(completed.length).toBe(MAX_ROUNDS)
       for (const count of completed)
         expect(count).toMatchObject({
           modelRequests: 2,
@@ -176,7 +270,8 @@ describe('J6: fixed round counts', () => {
           modelReceives: 2,
           toolReceives: 1,
         })
-      const early = completed.slice(10, 30).map(stable)
+      expect(partsOverBound('tool', completed, w.counters.partsRounds)).toEqual([])
+      const early = completed.slice(EARLY_FROM, EARLY_FROM + WINDOW).map(stable)
       const late = completed.slice(-WINDOW).map(stable)
       expect(late).toEqual(early)
     },
