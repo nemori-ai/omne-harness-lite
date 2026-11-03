@@ -217,6 +217,8 @@ export type SuccessBodies = {
     readonly issuedAt: Instant
     readonly tenantId: TenantId
     readonly loginProof: string
+    /** Optional: the identifier of the login this response issued, for a later `revoke-login`. */
+    readonly loginId?: LoginStateId
   }
   'revoke-login': EmptyBody
   'replace-credential': EmptyBody
@@ -407,7 +409,8 @@ export type BusinessResponse<O extends GovernanceProvidedOperation> = {
 export type ResponseByOperation = {
   readonly [O in GovernanceOperation]:
     | GovernanceProtocolRejected
-    | (O extends GovernanceProvidedOperation ? BusinessResponse<O> : GovernanceStageNotProvided)
+    | GovernanceStageNotProvided
+    | (O extends GovernanceProvidedOperation ? BusinessResponse<O> : never)
 }
 export type GovernanceResponse<O extends GovernanceOperation = GovernanceOperation> =
   ResponseByOperation[O]

@@ -63,7 +63,7 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 
 1. 严格 JSON 读取。失败则 `protocol-rejected`。不读取账号库。
 2. 版本不是 `governance-public/1` 时，结果是 `protocol-rejected`。这包括操作名是 `disable-subject`、`restore-subject`、`end-subject` 或 `reopen-after-media-loss` 的消息。操作名不是治理操作时，也是 `protocol-rejected`。版本是 `governance-public/1` 且操作名是这四个时，立刻返回 `stage-not-provided` 和空 `body`。忽略其余字段。不核验登录。不读取账号库。
-3. 按信封表和下面的 body 表检查封闭字段。类型不符、表外字段、禁止字段出现、未列入可省略清单的缺字段，都是 `protocol-rejected`。可省略字段可以不出现。这一步仍不读取账号库。必填 `loginProof` 缺失或空字符串不在这一步拒绝。`leave-organization` 的 `body` 若出现目标成员字段，也是 `protocol-rejected`。
+3. 按信封表和下面的 body 表检查封闭字段。类型不符、表外字段、禁止字段出现、未列入可省略清单的缺字段，都是 `protocol-rejected`。可省略字段可以不出现。这一步仍不读取账号库。必填 `loginProof` 缺失或空字符串不在这一步拒绝。`leave-organization` 的 `body` 若出现目标成员字段，也是 `protocol-rejected`。通过本步的请求，若操作名是部署声明不提供的治理操作，立刻返回 `stage-not-provided` 和空 `body`，不进入第 4 步，见[本阶段不提供的操作](#本阶段不提供的操作)。
 4. 上表要求登录证明时，把缺失、空字符串、未签发、已撤销，以及不是本部署签发的证明，交给 identity。对外是同一份 `denied`。时间或权威登录记录不可得时，identity 返回 `basis-unavailable`。服务端接入不改写这两个结果，也不另持一份登录表。传输保护不证明调用者是谁。裸账号标识、证书、地址、旧连接和调用者自报的授权结果都不是当前登录。
 5. 发起者账号只取这份证明核验出的账号。`body` 里的账号、组织和租户都是目标。
 6. 上表要求行事租户时，核对该值等于该登录的当前选择。不等则 `denied`，响应不包含实际选择。行事租户所属组织与目标组织不同，本身不是冲突。
@@ -89,7 +89,7 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 | `unknown` | 提交结果尚未认回 | 效果没有发生，或可以安全地自动再做一次 |
 | `conflict` | 调用者有权看见的预期状态已经变了 | 调用者看不见的对象因此被确认存在 |
 | `protocol-rejected` | 消息不被接受 | 任何业务事实 |
-| `stage-not-provided` | 本阶段不提供该操作 | 主体是否存在，或删除、创建已经代替该操作 |
+| `stage-not-provided` | 本阶段，或本部署不提供该操作 | 主体是否存在，或删除、创建已经代替该操作，以及登录是否有效 |
 
 `need-decision` 的 `body` 只含原决定请求的标识。等待超时、连接断开和实例丢失不产生人的答复，也不写成批准或拒绝。答复的交付仍归人工交互的拥有者。本页不定义答复消息。
 
@@ -109,7 +109,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 | 名单 | 数组名 | 每一项 |
 | --- | --- | --- |
-| 有效登录 | `logins` | `loginId`、`issuedAt`、签发时冻结的 `maxDeadline` 与 `idleDeadline` |
+| 有效登录 | `logins` | `loginId`、`issuedAt`、`maxDeadline`（签发时确定，不再变）与 `idleDeadline`（读取时该登录当前的空闲截止时刻） |
 | 本人成员资格 | `memberships` | `organizationId`、`tenantId`、`role` |
 | 组织成员 | `members` | `accountId`、`role`。`includeRemoved` 为 false 时只有当前有效成员。为 true 时只有已解除成员 |
 | 成员邀请 | `invitations` | `invitationId`、`state`、`expiresAt`、`organizationId`、`invitedAccountId` |
@@ -159,7 +159,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | 结果 | body |
 | --- | --- |
 | `register-and-activate` 的 `succeeded` | `accountId`、`organizationId`、`tenantId`。不含 `loginProof` |
-| `issue-login` 的 `succeeded` | `loginIdentifier`、`issuedAt`、`tenantId`、`loginProof`。`loginProof` 只在这一次响应出现 |
+| `issue-login` 的 `succeeded` | `loginIdentifier`、`issuedAt`、`tenantId`、`loginProof`，以及可选的 `loginId`。`loginProof` 只在这一次响应出现 |
 | `create-organization` 的 `succeeded`，以及该回执查询得到的 `succeeded` | `organizationId`、`tenantId` |
 | `issue-member-invitation` 的 `succeeded` | `invitationId`、`state` 为 `open`、`expiresAt` |
 | 邀请处置的 `succeeded` 或有权看见的 `no-change` | `invitationId`、`state`。`state` 是已经形成的那一个终结 |
@@ -201,7 +201,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 不带既有登录证明。`body` 含 `loginIdentifier` 和 `credential`。
 
-成功时签发一份新的独立登录。`body` 含登录标识、签发时间、该登录的当前租户，以及只返回这一次的登录证明。登录证明是不透明字符串。诊断输出不能包含它。最长有效期和空闲期限在签发时按当时的部署配置冻结。同一账号的另一次成功登录是另一份登录，不合并。
+成功时签发一份新的独立登录。`body` 含登录标识、签发时间、该登录的当前租户，以及只返回这一次的登录证明。`body` 还可以含 `loginId`，即这份新登录自己的标识，调用者之后可以用它作 `revoke-login` 的 `targetLoginId` 退出本登录。它不是登录证明，不能当证明使用。服务端可以省略它。省略时，调用者仍可经 `query-own-valid-logins` 取得这份登录的标识。读取方必须接受它缺席。登录证明是不透明字符串。诊断输出不能包含它。最长有效期和空闲时长在签发时按当时的部署配置冻结。空闲截止时刻从签发时起算，之后随该登录的成功业务访问刷新，冻结的只是空闲时长。同一账号的另一次成功登录是另一份登录，不合并。
 
 时间或期限依据不可得时，直接返回 `basis-unavailable`，不签发。这个选择不经过「凭据已经匹配」的分支。账号不存在、未激活和凭据错误都是 `uniform-auth-failure`。两个结果不同，但 `basis-unavailable` 不能被用来确认凭据是对的。
 
@@ -275,7 +275,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 需要有效登录。`body` 为空对象。不带目标账号。调用者只能查询证明所标识的本账号。
 
-成功时，`body.logins` 含该账号每一份当前有效登录的标识、签发时间，以及签发时冻结的最长期限和空闲期限。`completeness` 为 `complete`。不含登录证明、凭据或历史登录。发起这次查询的有效登录必须出现在名单里。服务端若只能给出空名单，对外是 `basis-unavailable`，没有登录数组。
+成功时，`body.logins` 含该账号每一份当前有效登录的标识、签发时间，以及最长截止时刻 `maxDeadline` 和空闲截止时刻 `idleDeadline`。`maxDeadline` 在签发时确定，之后不变。`idleDeadline` 是读取这一刻该登录当前的空闲截止时刻。该登录的成功业务访问刷新空闲计时之后，它比签发时的值晚。名单不返回签发时的旧值。`completeness` 为 `complete`。不含登录证明、凭据或历史登录。发起这次查询的有效登录必须出现在名单里。服务端若只能给出空名单，对外是 `basis-unavailable`，没有登录数组。
 
 发起登录无效是 `denied`，且没有登录数组。名单无法完整读出时是 `basis-unavailable`，没有登录数组。
 
@@ -430,6 +430,15 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 旧备份中的角色不授予访问。坏的 `body` 和坏的登录证明都不改变 `stage-not-provided`。
 
 在治理位置，任何其他 `operation` 都是 `protocol-rejected`。
+
+### 部署声明不提供的操作
+
+部署可以声明自己不提供某些治理操作。本页只写这个机制，不列清单。清单由部署的服务端接入声明。上表的四个名字不是这样声明的：它们由本页固定。本页对这类声明的要求如下。
+
+- 声明只能取自本页的治理操作名。
+- 请求通过第 3 步的封闭字段检查之后，对声明不提供的操作立刻返回 `stage-not-provided`，`body` 为空对象。不进入第 4 步：不核验登录证明，不读取账号库，也不刷新空闲计时。第 3 步不通过的请求仍是 `protocol-rejected`。
+- 响应带这次请求的 `messageId`。每个治理操作的允许结果里都有 `stage-not-provided`，见[结果闭合与关联](#结果闭合与关联)。SDK 把它读成这次调用的 `response`。它不是 `uncertain`，也不是这个操作的业务结果。
+- 声明不改变其余操作的结果、次序和披露。
 
 ## 会话公开操作
 
@@ -836,16 +845,16 @@ const encoded = encodeGovernanceRequest({
 
 ### 操作集合与函数
 
-正常信封表包含34个不同操作。另有4个本阶段不提供的操作，总共38个。`GovernanceProvidedOperation` 仅包含正常34项。`GovernanceOperation` 包含全部38项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部38个操作分别关联结果和 body，正常行没有 `stage-not-provided`，阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
+正常信封表包含34个不同操作。另有4个本阶段不提供的操作，总共38个。`GovernanceProvidedOperation` 仅包含正常34项。`GovernanceOperation` 包含全部38项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部38个操作分别关联结果和 body。每个正常操作的响应还包含 `stage-not-provided`，因为部署可以声明它不提供，见[部署声明不提供的操作](#部署声明不提供的操作)。阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
 
 主入口导出治理与会话两组纯函数，每组四个，及其公开输入结果类型。本表是治理一组。会话一组见[会话编解码函数](#会话编解码函数)。
 
 | 函数 | 输入与可见结果 |
 | --- | --- |
-| `readGovernanceRequest` | 参数对象包含 `bytes`、`limits`。成功读取正常消息得到 `request`；协议不合规得到 `protocol-rejected` 共同响应和结构诊断；合法版本下的4个阶段操作得到 `stage-not-provided` 共同响应。 |
-| `readGovernanceResponse` | 参数对象包含 `bytes`、本地原 `operation`、`expectedMessageId`、`limits`。先完整核验该操作允许的响应，再匹配关联。匹配得到 `response`；合法但不同关联值或无关联值的协议/阶段响应得到 `unmatched`；其他坏消息得到 `unreadable`。 |
+| `readGovernanceRequest` | 参数对象包含 `bytes`、`limits`。成功读取正常消息得到 `request`；协议不合规得到 `protocol-rejected` 共同响应和结构诊断；合法版本下的4个阶段操作得到 `stage-not-provided` 共同响应。读取不知道部署的声明：合法的正常请求，包括部署声明不提供的操作，都得到 `request`，由服务端接入按声明应答。 |
+| `readGovernanceResponse` | 参数对象包含 `bytes`、本地原 `operation`、`expectedMessageId`、`limits`。先完整核验该操作允许的响应，再匹配关联。匹配得到 `response`；合法但不同关联值或无关联值的协议/阶段响应得到 `unmatched`；其他坏消息得到 `unreadable`。任何治理操作的 `stage-not-provided` 响应只要 `body` 是空对象就读得出。 |
 | `encodeGovernanceRequest` | 参数对象包含本地 `request`、`limits`。合法模型得到 `encoded` 字节，模型字段或值不符得到 `invalid` 和结构诊断。只编码正常操作。 |
-| `encodeGovernanceResponse` | 参数对象包含本地 `operation`、与该操作关联的 `response`、`limits`。合法模型得到 `encoded` 字节，否则得到 `invalid`。本地 `operation` 不写入线上响应。另有共同拒绝重载，只需 response 与 limits，即可编码 protocol-rejected 或 stage-not-provided。无 operation 时只允许这两种共同响应，不能借缺上下文编码任意业务结果。 |
+| `encodeGovernanceResponse` | 参数对象包含本地 `operation`、与该操作关联的 `response`、`limits`。合法模型得到 `encoded` 字节，否则得到 `invalid`。正常操作的 `stage-not-provided` 响应合法，`body` 为空对象。本地 `operation` 不写入线上响应。另有共同拒绝重载，只需 response 与 limits，即可编码 protocol-rejected 或 stage-not-provided。无 operation 时只允许这两种共同响应，不能借缺上下文编码任意业务结果。 |
 
 `GovernanceCodecLimits` 直接别名引用 json-text 的 `JsonLimits`，不添加字段或默认数值。六项预算必须是1至最大安全整数的整数。无效参数容器、非 `Uint8Array` 字节、无效预算、非法本地操作上下文，以及非字符串的 `expectedMessageId` 属于编程错误，抛出固定 `TypeError`，错误不含输入值。参数中的请求或响应模型无效属于 `invalid`，不抛模型内容。messageId只要求字符串，不要求UUID或非空；operation仍必须属于封闭集合。
 
@@ -919,7 +928,7 @@ wire 的 `loginProof` 仍是字符串。需要证明的正常请求在本地将�
 
 所有响应都必须显式有合法body，包括空对象body。成功响应缺body不是成功。protocol-rejected 与 stage-not-provided 的 messageId 可省略；其余响应必须有字符串 messageId。合法版本与阶段操作即使缺messageId，也先返回stage-not-provided和空body。它不能为补齐响应类型而提前字段拒绝。两种无关联响应在本地响应读取时都为unmatched。
 
-下面每行另外允许公共 `protocol-rejected`，其body为空。表内 `unknown` 才是可编码的线上unknown，body为空。超时、失联和回执丢失产生的调用者本地未知不自动增加一项线上outcome。每行的成功body沿上文body表，所有未列字段拒绝。
+下面每个正常操作行另外允许公共 `protocol-rejected` 和 `stage-not-provided`，其body为空。表内 `unknown` 才是可编码的线上unknown，body为空。超时、失联和回执丢失产生的调用者本地未知不自动增加一项线上outcome。每行的成功body沿上文body表，所有未列字段拒绝。
 
 | operation | 线上业务 outcome | 依据与协议细化 |
 | --- | --- | --- |

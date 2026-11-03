@@ -19,7 +19,7 @@
 
 直接依赖仅实际使用的json-text、legal-identity、utc-instant及jsonc-parser。jsonc-parser使用现行catalog 3.3.1。静态Schema仅作为已核输入，不引入provider、引擎或异步生命周期。SDK、server-entry、identity、authorization、Cordis和数据库不进入依赖闭包。
 
-核心不写死版本或操作表。协议族描述给出版本文本、编程错误文本、封闭操作表和阶段操作清单。共同拒绝集合由阶段操作清单推出：每个协议族都有 `protocol-rejected`，只有阶段操作清单非空的协议族才有 `stage-not-provided`。治理协议族有4项阶段操作。会话协议族的清单为空，所以会话一组既不读出也不编码 `stage-not-provided`，读取结果的类型里也没有这一项。
+核心不写死版本或操作表。协议族描述给出版本文本、编程错误文本、封闭操作表和阶段操作清单。共同拒绝集合由阶段操作清单推出：每个协议族都有 `protocol-rejected`，只有阶段操作清单非空的协议族才有 `stage-not-provided`。治理协议族有4项阶段操作。响应一侧，`stage-not-provided` 对该协议族的每个操作都合法，因为部署可以声明一个正常操作不提供。请求一侧只有这4项阶段操作读作 `stage-not-provided`，部署的声明不在本成员。会话协议族的清单为空，所以会话一组既不读出也不编码 `stage-not-provided`，读取结果的类型里也没有这一项。
 
 ```mermaid
 flowchart LR

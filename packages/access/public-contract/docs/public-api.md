@@ -41,7 +41,8 @@
 
 - 编程错误抛出固定 `TypeError`，错误不含输入值。
 - 本地模型无效时，编码函数返回 `invalid` 和有限诊断 code。
-- 请求读取在消息不合规时返回 `protocol-rejected`。只有治理一组在阶段操作上返回 `stage-not-provided`。
+- 请求读取在消息不合规时返回 `protocol-rejected`。只有治理一组在4个阶段操作上返回 `stage-not-provided`。部署声明不提供的操作由服务端接入应答，请求读取不知道这份声明。
+- 治理响应读取接受每个正常操作的 `stage-not-provided`，`body` 为空对象。
 - 响应读取在消息不合规时返回 `unreadable`，在合法响应的关联值不同或没有关联值时返回 `unmatched`。
 - `readSessionRequest` 对 `message` 只核对 JSON 对象与 `role` 为 `user`。完整的消息解码归服务端接入。
 

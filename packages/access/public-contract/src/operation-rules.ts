@@ -315,6 +315,7 @@ const successes = {
       issuedAt: { rule: { kind: 'instant' } },
       tenantId: { rule: { kind: 'tenant' } },
       loginProof: { rule: { kind: 'text' } },
+      loginId: { rule: { kind: 'login' }, optional: true },
     },
   },
   'revoke-login': empty,
