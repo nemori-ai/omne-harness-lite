@@ -151,6 +151,19 @@ describe('the source fails at open', () => {
     expect(sameFailure(answer, expected), JSON.stringify(answer)).toBe(true)
   })
 
+  it.each([
+    ['SKILL.md', '.omne/skill.json'],
+    ['.omne/skill.json', 'SKILL.md'],
+  ])('answers the mapped failure when only %s fails to open', async (failing, _other) => {
+    const memory = demoSource({ 'SKILL.md': manifest, '.omne/skill.json': declaration })
+    const source: SkillPackageSource = {
+      snapshot: target => memory.snapshot(target),
+      open: async (target, digest, path) =>
+        path === failing ? fail('unavailable') : memory.open(target, digest, path),
+    }
+    expect(await failureOf(source)).toEqual({ kind: 'source-unavailable' })
+  })
+
   it('answers version-changed when the bytes of a control file are off the snapshot', async () => {
     const memory = demoSource({ 'SKILL.md': manifest, '.omne/skill.json': declaration })
     const source: SkillPackageSource = {

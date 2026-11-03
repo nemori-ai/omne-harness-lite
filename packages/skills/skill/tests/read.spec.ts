@@ -68,7 +68,7 @@ describe('read gives', () => {
   it('a binary resource as bytes without a media type', async () => {
     const { access } = createWorld()
     const result = okOf(await access.read(alice, scope, resource('assets/blob.bin')))
-    expect(result.mediaType).toBeUndefined()
+    expect(result).not.toHaveProperty('mediaType')
     expect(result.content).toEqual({ kind: 'bytes', bytes: BLOB })
     expect(result.total).toBe(BLOB.length)
   })

@@ -33,6 +33,9 @@ describe('export gives', () => {
     expect(exported.entries.find(entry => entry.path === 'docs/guide.md')?.mediaType).toBe(
       'text/markdown',
     )
+    expect(exported.entries.find(entry => entry.path === 'assets/blob.bin')).not.toHaveProperty(
+      'mediaType',
+    )
   })
 })
 
