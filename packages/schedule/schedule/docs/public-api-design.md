@@ -108,18 +108,49 @@ reminder 的 admissionDeadline 为 min(W+300s,nextEffectiveSlot)，半开右端�
 
 Reminder 并发投递仍由 notification provider 负责各 intent 的真实结果；每次接受形成notification Job，沿target jobLimit计数，但不产生execution预算消耗或空agent工作。
 
-### 2.3 公共读值
+### 2.3 创建来源与直接工作
+
+```ts
+type Author =
+  | { kind: 'human'; actorRef: Ref }
+  | { kind: 'agent'; actorRef: Ref; originatingSessionRef: Ref }
+  | { kind: 'system'; principalRef: Ref }
+type JobOrigin =
+  | { kind: 'human'; actorRef: Ref; requestRef: Ref }
+  | { kind: 'agent'; actorRef: Ref; originatingSessionRef: Ref; requestRef: Ref }
+  | { kind: 'scheduler'; principalRef: Ref; scheduleId: Ref;
+      definitionRevision: number; occurrenceKey: Ref; author: Author }
+type DirectJobDefinition =
+  | { kind: 'execution'; work: Work; scope: Scope;
+      notifications: readonly ExecutionNotification[] }
+  | { kind: 'notification'; content: ReminderContent }
+interface JobCommands {
+  create(ctx: CallContext, input: {definition: DirectJobDefinition; meta: CommandMeta}): Promise<CommandResult<JobView>>
+}
+```
+
+JobCommands.create 只供当前获授权的人或 agent 直接发起。human 的 originatingSessionRef 必须为 null，agent 必须携带可信入口验证的真实 originatingSessionRef。不满足条件时拒绝，不能从 instruction 推断或补造会话。scheduler 只走内部 ScheduleAdmission.prepare/admit，不通过公开 create 伪造 human/agent。系统归属的机械工作沿系统 Schedule 产生，普通系统 principal 不能调用直接入口取得任意工作创建权。
+
+origin 是应用服务根据可信 ctx 和已保存 Schedule 推导的只读值，不是 create 的输入。Schedule 保存 author，createdBy 是 author 的 actorRef 或 principalRef 的兼容读投影，不另存独立真相。scheduler origin 中的 author 是所采用 definitionRevision 的作者快照。后续编辑另记 revision.actor，不改创建作者，replace 的新定义记当前作者并保留 lineage。origin 不授予执行、回传或披露权限。它与 frozenWork.session、returnTo 及 ResultPolicy 分别解释。
+
+直接入口不接受 recurrence、catchUp、overlap、scheduledAt、calendar binding 或 caller-supplied origin。该输入没有未来时间含义，不创建 Schedule。应用服务在一个受保护提交内校验当前授权、同意和资源准入，保存 Job、接受回执、来源与初始 outbox。缺少适用同意返回 consent_required，零 Job，不自动退化为 draft。直接接受不消耗 Schedule 的 eligibleLimit/jobLimit，也不占 standingWork 配额。执行预算及资源配额仍按其拥有者规则核验，不能借直接入口绕过。
+
+直接请求的幂等作用域为 owner+job.create+可信 principalRef+originatingSessionRef或null+operationKey。fingerprint 包含完整 definition 与 consentRef。requestRef 由首次持久准备分配并随原 operation 保存，重试不得重分配。同键异内容拒绝，同内容认回原 Job。参数要求 expectedRevision=null。业务拒绝不留下 Job，提交结果 unknown 时查原 operation，不换键重发。
+
+JobView 对直接来源固定 scheduleId=null、scheduledAt=null、frozenBasis=null、sources=[]。其 acceptedAt 是服务端接受时刻，不伪造成原定时刻。直接接受回执为 `{receiptId,kind:'direct',requestRef,decidedAt,jobId,operationRef}`。定时回执为第 2.4 节 ReceiptView 的既有字段并带 kind='scheduled'。JobView.receiptId 必须引用同一来源分支的接受回执。直接通知没有 reminder 截止窗口，接受后沿原 notification intent 完成交付或取消。非接受的直接请求只有命令错误或原操作状态，不伪造 scheduled receipt。
+
+### 2.4 公共读值
 
 | 类型 | 完整业务字段（所有 optional 以 null 表示） |
 |---|---|
-| ScheduleView | scheduleId、owner、createdBy、createdAt、definition、definitionRevision、stateRevision、timeRuleRevision、control、standing、nextOccurrence、predecessorId、successorId、promotedBy、promotedAt、discardedBy、discardedAt、sourceScheduleKey、consentAdoption、eligibleConsumed、acceptedJobCount、observedAt |
+| ScheduleView | scheduleId、owner、author、createdBy、createdAt、definition、definitionRevision、stateRevision、timeRuleRevision、control、standing、nextOccurrence、predecessorId、successorId、promotedBy、promotedAt、discardedBy、discardedAt、sourceScheduleKey、consentAdoption、eligibleConsumed、acceptedJobCount、observedAt |
 | Standing | kind=ready/blocked/terminallyInvalidated、generation、reasons[]、authorityEvidence[]、since、observedAt；ready 时 reasons 空 |
 | AuthorityEvidence | authorityRef、subjectRef、version、disposition、observedAt、reasonCode；不附凭证 |
 | AdoptedBasis | timezone、tzdbVersion、calendarId/versionId/publicationGeneration 或 null、environmentRevision 或 null、ruleEngineVersion、definitionRevision |
 | Candidate | sourceKeys[]、originalLocals[]、adjustedLocal、scheduledAt、dstDisposition、dateExplanation[]、basis、eligibleOrdinal |
 | PreparationView | preparationId、scheduleId、occurrenceKey、candidate、definitionRevision、preparedAt、frozenDefinition、admissionDeadline或null、fingerprint、sourceFingerprint或null |
 | ReceiptView | receiptId、occurrenceKey、preparationId、admissionDeadline或null、decidedAt、disposition、reasonCode、jobId或null、notificationIntentId或null、notificationId或null、operationRef |
-| JobView | 共同头：jobId、owner、scheduleId或null、receiptId、frozenBasis、sources[]、scheduledAt、acceptedAt、stopState、revision；body是execution/notification联合，见下文 |
+| JobView | 共同头：jobId、owner、origin、scheduleId或null、receiptId、frozenBasis、sources[]、scheduledAt、acceptedAt、stopState、revision；body是execution/notification联合，见下文 |
 | RevisionView | scheduleId、stateRevision、definitionRevision、actor、action、occurredAt、reason、beforeDefinitionRef、afterDefinitionRef、operationRef |
 
 Receipt.disposition 为 acceptedExecution、acceptedReminder、rejected、missed、skipped。acceptedExecution 必须有 jobId；acceptedReminder 必须有 notification Job 的 jobId及notificationIntentId，notificationId 在通知拥有者确认后才可填；其余三种均无 jobId/notificationId。prepared 只存在 Preparation，不伪装 receipt。
@@ -243,8 +274,13 @@ EnvironmentReader、AuthorityReader 属各自拥有者的公共消费契约候�
 ## 6. 结果、通知及事件
 
 ```ts
+type PublicationPlan =
+  | { kind: 'none' }
+  | { kind: 'master' }
+  | { kind: 'provider'; providerRef: Ref }
 interface ResultPolicy {
   audience: {kind: 'masterInternal'} | {kind: 'userDeliverable'; target: {kind: 'owner'} | {kind: 'authorizedTarget'; targetRef: Ref}}
+  publication: PublicationPlan
   resultSeriesId: Ref | null
   attention: 'silent' | 'inbox' | 'notify'
   archive: {kind: 'none'} | {kind: 'provider'; providerRef: Ref; targetRef: Ref}
@@ -258,9 +294,19 @@ type Outcome =
 interface ResultOutcomes { masterReturn: Outcome; publication: Outcome; archive: Outcome }
 ```
 
+ResultPolicy 与 returnTo 联合校验。masterInternal 必须 returnTo 非 null、publication=none、attention=silent。userDeliverable 必须选择 publication.master 或 publication.provider，不能为 none。master 模式要求明确 returnTo，来源会话不自动补成返回目标。provider 模式可以有或没有 returnTo，但始终由指定 provider 形成用户成果；如有返回目标，masterReturn 仍独立执行，不等待它替代 provider 的整理。没有 returnTo 时 masterReturn=notRequested，不创建会话。
+
+接受前须核验所选返回、成果形成、发布和归档能力及当前资格。providerRef 只能指已登记且支持当前结果类型的结果适配器，不能是任意脚本或网络地址。master 模式由外部 master 适配器交回带来源关联的正式 artifact。provider 模式调用 ResultPublication.prepare，依据原执行结果形成正式 artifact。prepare 不代表已发布，不得把 raw report 直接标为可公开成果，也不能隐式启动模型工作。publication 状态另带 phase=preparing/publishing，失败与 unknown 保留原阶段。
+
+ResultPublication.inspect 输入为 `{owner,work,resultPolicy,returnTo}`，输出 ready `{providerRef,guardRefs}`、blocked `{reasonCode}` 或 rejected `{error}`。它通过外部适配检查所选成果路径及支持范围，不向 Job 核心返回 Session 对象。应用服务在 create、日程最终接受及受保护动作处核验适用守卫。
+
+ResultPublication.prepare 输入为 `{jobId,resultEntryId,sourceReportRef,sourceReportVersion,providerRef,audience,operationKey}`。结果为 ready `{artifactRef,artifactVersion,sourceReportRef,preparationReceiptRef}`，或 blocked/failed/unknown 附原 operationRef 和原因。queryPreparation 按原 operationKey 查询。后续 publish 只接受经来源关联和当前披露资格核验的正式 artifact。master 提供的 artifact 同样要核验，不能因返回成功跳过。prepare 与 publish 分别使用稳定 operationKey，unknown 不改用另一 provider、另一 master 或新的执行 Job。准备/发布成功均先保存原回执再推进。
+
+resultEntryId 在首次结果保管时分配并持久关联 jobId+resultVersion，重复事件认回原 entry。resultSeriesId 可 null，直接 Job 不伪造 occurrenceKey。结果读值保留 origin，scheduledAt 可 null，按 scheduledAt 非空否则 acceptedAt，再按 entryId 排序。历史报告、正式 artifact 和归档分别保留，不覆盖原始结果。
+
 | 接缝 | 接受输入 | 查询与结果 |
 |---|---|---|
-| ResultPublication | jobId、resultSeriesId、resultEntryId、artifactRef、artifactVersion、sourceReportRef、audience、attention、operationKey | queryPublication(operationKey) → Outcome；验证当前披露资格 |
+| ResultPublication.publish | jobId、resultSeriesId、resultEntryId、artifactRef、artifactVersion、sourceReportRef、audience、attention、operationKey | queryPublication(operationKey) → Outcome；验证当前披露资格 |
 | ThematicArchive | jobId、artifactRef、providerRef、targetRef、operationKey | queryArchive(operationKey) → Outcome；provider拥有主题模型 |
 | ResultQueries | getEntry(resultEntryId)；listSeries(resultSeriesId,PageRequest) | entryId、seriesId、occurrenceKey、scheduledAt、artifactRef/version、provenance、outcomes；按audience鉴权 |
 | Notification | owner、sourceRef、semanticKey、content、audience、attention、humanRequestRef或null、urgency、safePreview、routePolicyRef、operationKey | acceptIntent→accepted(notificationId)/pending(intentId)/unknown/rejected；queryIntent(intentId) |
@@ -312,6 +358,7 @@ HTTP 为可选 transport adapter；业务 API 不依赖它。v1 base `/api/v1`�
 | GET /schedules/{id}/revisions | revisions | 有界分页 |
 | GET /schedules/{id}/executions | executions | 真实账，不把预测混入 |
 | GET /jobs/{id} | JobControl.get | 原事实组合 |
+| POST /jobs | JobCommands.create | 直接接受，来源由可信 ctx 推导 |
 | POST /jobs/{id}/cancel | JobControl.cancel | 请求停止不返回“已撤销效果” |
 | GET /operations/{id} | queryOperation | owner及动作范围核验 |
 | GET /schedule-features | subscriptions.listFeatures | 含受影响不可控feature及原因 |
@@ -331,6 +378,7 @@ Self-wake 只暴露 runtime 可信工具适配，v1 不提供让任意 HTTP 调�
 | unauthenticated | 401 | false | 身份未证明 |
 | not_found | 404 | false | 对象不存在或该调用者无读取范围，不泄露区别 |
 | forbidden | 403 | false | 已公开动作范围内明确无权限，不额外泄露对象 |
+| consent_required | 403 | false | 当前请求缺少所需同意，不创建 Job；取得同意后作为新批准命令提交 |
 | invalid_input / unsupported_rule / invalid_timezone | 422 | false | 含字段路径，不回传秘密 |
 | missing_environment / environment_incoherent | 422 | false | owner环境可理解失败 |
 | unknown_calendar_version / coverage_insufficient | 422 | false | 不fallback |
@@ -354,6 +402,7 @@ Self-wake 只暴露 runtime 可信工具适配，v1 不提供让任意 HTTP 调�
 | schedule | list/get/preview/agenda/history | scheduleQueries | schedule.read/preview |
 | schedule | create/reviseDraft/update/pause/resume/stop/promote/discard/replace/reconfirmConsent | scheduleCommands | schedule.{action}，按作者同意规则检查适用授权；granular 且无适用 standing blanket 时，对已生效安排变更逐命令确认；草稿及 reconfirmConsent 沿各自规则 |
 | schedule | operation | scheduleCommands | queryOperation；schedule.operation.read |
+| job | create | jobCommands | JobCommands.create；job.create；agent 来源会话来自可信 ctx |
 | job | get/cancel | jobControl | job.read/job.cancel |
 | schedule_subscription | listFeatures/list/enable/updateParameters/pause/resume/cancel | scheduleSubscriptions | subscription.{action} |
 | session_wake | suspendUntil/retime/cancel/get | sessionContinuation | session.selfWake.{action}；Session来自ctx |
@@ -385,7 +434,7 @@ declare module '@deepseek-ai/cordis' {
 }
 ```
 
-其他 seam 按同一形状分别拥有：JobExecutor→jobExecutor、ScheduleCommands→scheduleCommands、ScheduleQueries→scheduleQueries、JobControl→jobControl、CalendarSupply→calendarSupply、ScheduleSubscriptions→scheduleSubscriptions。SessionContinuation 归 Session 的实际成员。tools作者插件声明 `static readonly inject = [scheduleCommandsKey]` 或对应服务key的数组字面量，并通过 `ctx.scheduleCommands` 调用，不能自己new服务/取provider。
+其他 seam 按同一形状分别拥有：JobExecutor→jobExecutor、ScheduleCommands→scheduleCommands、ScheduleQueries→scheduleQueries、JobCommands→jobCommands、JobControl→jobControl、CalendarSupply→calendarSupply、ScheduleSubscriptions→scheduleSubscriptions。SessionContinuation 归 Session 的实际成员。tools作者插件声明 `static readonly inject = [scheduleCommandsKey]` 或对应服务key的数组字面量，并通过 `ctx.scheduleCommands` 调用，不能自己new服务/取provider。
 
 Tool贡献的发布、装载与撤除沿[Tool Cordis已接受设计](../../../tool/tool-cordis-contract/docs/cordis.md)及tool-host-local，使用既有绑定与贡献权限协议，不能在本设计另造registerTool全局表。本组 tools 与执行适配尚未实现，P7须补真实装配验收，不能把有抽象Service当作工具已能运行。
 
@@ -433,7 +482,7 @@ PrerequisiteProof的capabilities.query必须为true才可用于后台执行；�
 
 ## 纯应用工厂与持久端口
 
-目标工厂 createScheduleApplication(dependencies)返回{commands,queries,jobControl,admission,subscriptions}。dependencies为Clock、ScheduleRepository、SchedulePersistence、CalendarQueries与CalendarBasisGuardParticipant、EnvironmentReader/Participant、AuthorityReader/Participant、QuotaParticipant、JobExecutor、Notification、ResultPublication、ThematicArchive以及受管运行器配置。运行器与tools是可选装配，不影响纯API。仅特定操作解析它实际需要的port：program不因缺Session/Agent而失败，查询不因执行/通知未装载而不可读。self-wake/ProgressMonitor/MasterReturn在外部组合中接入，不能进入这个核心工厂的必需依赖。agent的returnTo由外部执行/结果适配承担。
+目标工厂 createScheduleApplication(dependencies)返回{commands,queries,jobCommands,jobControl,admission,subscriptions}。dependencies为Clock、ScheduleRepository、SchedulePersistence、CalendarQueries与CalendarBasisGuardParticipant、EnvironmentReader/Participant、AuthorityReader/Participant、QuotaParticipant、JobExecutor、Notification、ResultPublication、ThematicArchive以及受管运行器配置。运行器与tools是可选装配，不影响纯API。仅特定操作解析它实际需要的port：program不因缺Session/Agent而失败，查询不因执行/通知未装载而不可读。self-wake/ProgressMonitor/MasterReturn在外部组合中接入，不能进入这个核心工厂的必需依赖。agent的returnTo由外部执行/结果适配承担。
 
 ScheduleRepository提供readSchedule、listSchedules、readRevisions、readExecutions、readJob、readPreparation、readReceipt、loadRecovery、scanOutbox；输入为可信owner、稳定引用、声明的筛选/分页/观察revision。返回ok/absent/changed/unavailable，absent只有权威成功读取且不存在时成立；任何I/O故障不转empty。scanOutbox只给受信dispatcher，不能成为普通查询写入。
 
@@ -441,6 +490,7 @@ SchedulePersistence.commit接收完整operationIdentity和以下唯一typed comm
 
 | typed command | 原子写集合与冲突条件 |
 | --- | --- |
+| acceptDirectJob | 原可信来源、完整直接定义、当前授权/同意/资源守卫、Job、direct receipt、原 operation 与初始 outbox 同提交；不写 Schedule 或时隙计数 |
 | saveDefinition | create/reviseDraft/update/control/reconfirm对应完整定义或合法patch、revision、actor、审计、quota变化、事件outbox；错误零部分写入 |
 | replaceDefinition | 原expectedRevision/新定义/新ID；旧superseded、新后继、双向lineage、quota转移与receipt同提交 |
 | savePreparation | preparationKey、完整冻结依据和fingerprint；同键同内容认回，异内容preparation_conflict |

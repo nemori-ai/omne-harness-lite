@@ -4,7 +4,7 @@
 
 ## 必要身份与分别成立的状态
 
-ScheduleId 标识一份安排；sourceScheduleKey 保留 Python 源 job_id，不能当目标 JobId。JobId 标识一次已接受工作，PreparationId 标识耐久计算证明，ReceiptId/occurrenceKey 标识来源窗口判决，operationRef 标识可认回操作。sourceKey 保留原 civil 来源，多个 source 合并的有效时刻、rule revision、attemptId、executionRef、notificationIntentId、notificationId、resultSeriesId、resultEntryId 与 providerGeneration 各自独立。晚到结果只能入原身份，不能按最近 timestamp 猜对象。
+ScheduleId 标识一份安排；sourceScheduleKey 保留 Python 源 job_id，不能当目标 JobId。JobId 标识一次已接受工作，PreparationId 标识耐久计算证明，ReceiptId 标识接受回执，occurrenceKey 仅标识日程时隙判决，operationRef 标识可认回操作。sourceKey 保留原 civil 来源，多个 source 合并的有效时刻、rule revision、attemptId、executionRef、notificationIntentId、notificationId、resultSeriesId、resultEntryId 与 providerGeneration 各自独立。晚到结果只能入原身份，不能按最近 timestamp 猜对象。
 
 Schedule 管理轴为 draft/active/paused/stopped/exhausted/discarded/superseded。standing 为 ready/blocked/terminallyInvalidated，和 paused 可并存。Job 的 execution 与 notification body 是判别分支；stopRequested、executionOutcome、delivery、masterReturn、publication、archive 各自记录，不把一种成功投影成全部成功。unknown 不是 terminal evidence，不释放 replace 等待。
 
@@ -163,7 +163,9 @@ Agent 经已授权 official capability 间接形成未来工作的路径沿该 c
 
 四项结果分别成立：execution、masterReturn、publication、archive。每项都有 state、operationRef、artifactRef 或真实失败。查询不得因执行成功把其余三项标为成功。
 
-ResultPolicy 将 audience、attention、archive 三轴分开。audience=masterInternal 时结果只回 master，默认无用户交付物、普通 feed 或通知；可显式 archive。audience=userDeliverable 时 master 先生成用户可理解的正式 artifact，再由 publication provider 接受。默认站内可见，不自行升级 push。raw child report 只作不可变来源。归档 provider 拥有主题分类、容器及存储语义，schedule 只传稳定目标引用，不把外域 taxonomy 搬入 Routine。
+ResultPolicy 分别声明受众、成果形成方式、打扰程度和归档。masterInternal 必须有明确 returnTo，publication=none，attention=silent，可显式归档。缺少返回目标则拒绝。userDeliverable 必须明确选择 master 或指定结果 provider 形成正式 artifact。master 方式要求明确 returnTo。provider 方式不要求 master，即使有来源会话也不自动让该会话整理成果。
+
+所选成果形成能力及发布、归档资格在接受前核验。能力不存在或不支持结果类型时拒绝，不接受后才寻找默认 master。已接受工作遇到能力失效则保留原结果并显示受阻。没有 returnTo 时 masterReturn=notRequested。provider 准备成果与发布是两个独立步骤，准备成功不等于用户可见。正式 artifact 必须保留原报告引用并通过当前披露校验，不能把 raw report 冒充交付物，也不能擅自启动新的 agent 工作。默认站内可见，不自行升级推送。归档 provider 拥有主题分类、容器及存储语义，本域只传稳定目标引用。
 
 重复工作持有稳定 resultSeriesId，每次 occurrence 的 resultEntryId 独立且不可覆盖前一期。series 查询按 scheduledAt、entryId 稳定排序，保留来源及 artifactVersion。两类 audience 都可归档，internal archive 不因此公开到普通结果中心。
 
@@ -238,3 +240,11 @@ ready→blocked、blocked→ready、任意非终局→terminal 各形成一个 t
 ### Q-SJ06 提供者、配置采用与生命周期符合性
 
 落实IC、独立根入口、装配与真实tools贡献、旧引用、配置生效点、依赖失效和清理残留。社区队列不是首版前置：本地采用现有SQL outbox/inbox方向；未来外接队列只转运已提交意图，enqueue/ack均不当接受或执行成功。新候选库无安装、无性能或Node24验证声明。
+
+## 直接创建与来源保管
+
+纯应用服务的 JobCommands.create 接受人和 agent 的直接请求。可信入口验证作者身份，agent 必须有来源会话，人没有来源会话。调度器继续调用内部 prepare/admit。两种接受路径共用 Job 聚合、执行端口、取消、结果入账和 outbox 恢复，不复制第二套执行器。
+
+直接接受使用 acceptDirectJob 持久命令，同提交保存当前资格守卫、冻结工作、可信来源、direct receipt 和初始交接责任。它不写日程时隙、补跑进度或 standingWork 计数。执行预算与资源限制由其原拥有者保护。存储限制仍适用，缺少所需同提交或授权围栏时不能宣称已经实现接受保证。
+
+Job.origin 与 Schedule.author 是历史事实。日程修订另存实际修改者，替换产生的新日程记其创建者并保留前后继。模型输入、执行目标、master 返回目标都不能改写来源。完整字段、幂等作用域、nullable 限制及结果准备协议由[公开 API](public-api-design.md)唯一维护。

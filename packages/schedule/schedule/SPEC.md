@@ -34,6 +34,10 @@ Job 接受不要求已存在 Session/Run；实际开始必须有相应执行/交
 
 Schedule、已接受 Job、操作发起者、出厂来源及通知目标分别可辨。租户身份为组织/账号共同身份，系统自用明确系统归属，不伪造特殊租户。创建会话结束/归档或运行实例退出不改变 Schedule/Job 身份。Routine 属 Schedule 内容，无独立身份/生命周期或多个 Schedule 共同引用的可变对象；采用预置后内容由 Schedule 持有，后改预置不回写、安排编辑不反改预置。精确操作/定义/来源/运行代际标识由 Q-SJ02 落实。验证义务 V-SJ01。
 
+Job 保存独立创建来源。human 直接创建没有来源会话，agent 直接创建必须有可信来源会话，scheduler 创建必须关联有效日程及本次时隙。定时 Job 另保留安排作者及其来源会话，不能把调度器写成原作者。owner 不由触发者反推。来源会话、执行会话和 master 回传目标分别校验，不相互默认。
+
+人和 agent 直接创建 Job 时不创建 Schedule，也不伪造时隙。应用服务核验同意、授权、资源与所需执行/通知/结果能力，原子保存 Job、来源、回执及初始交接责任。同一批准请求重试只认回原 Job。缺少同意时拒绝，不生成待确认 Job。该路径没有 Schedule 的次数、补跑和重叠策略，仍受执行预算与真实资源限制。纯通知直接工作不创建执行会话。公开入口不得接受调用方伪造的 scheduler 来源。
+
 ### INV-SJ02 当前资格、租户及披露贯穿实际边界
 
 创建、修改、控制、预览/查询、Job接受/启动、取消、资源动作及通知披露分别核验所需当前资格。持有服务、工具可发现、同账号或系统调度不代替授权；默认拒绝未授权跨租户，不改投另一身份、不借组织管理员取得成员私有安排。已保存授权不是未来动作永久许可，单次/本会话授权不复制给新作业会话。后台、缓存、索引、读面和诊断保留同一归属与字段披露；撤权与接受/开始/披露竞争受实际保护边界约束，已发生效果仍如实记录。验证义务 V-SJ02。
@@ -252,7 +256,9 @@ master return 的幂等键为 jobId+resultVersion+masterRef。收到返回不代
 
 四项结果分别成立：execution、masterReturn、publication、archive。每项都有 state、operationRef、artifactRef 或真实失败。查询不得因执行成功把其余三项标为成功。
 
-ResultPolicy 将 audience、attention、archive 三轴分开。audience=masterInternal 时结果只回 master，默认无用户交付物、普通 feed 或通知；可显式 archive。audience=userDeliverable 时 master 先生成用户可理解的正式 artifact，再由 publication provider 接受。默认站内可见，不自行升级 push。raw child report 只作不可变来源。归档 provider 拥有主题分类、容器及存储语义，schedule 只传稳定目标引用，不把外域 taxonomy 搬入 Routine。
+ResultPolicy 分别声明受众、成果形成方式、打扰程度和归档。masterInternal 必须有明确 returnTo，publication=none，attention=silent，可显式归档。缺少返回目标则拒绝。userDeliverable 必须明确选择 master 或指定结果 provider 形成正式 artifact。master 方式要求明确 returnTo。provider 方式不要求 master，即使有来源会话也不自动让该会话整理成果。
+
+所选成果形成能力及发布、归档资格在接受前核验。能力不存在或不支持结果类型时拒绝，不接受后才寻找默认 master。已接受工作遇到能力失效则保留原结果并显示受阻。没有 returnTo 时 masterReturn=notRequested。provider 准备成果与发布是两个独立步骤，准备成功不等于用户可见。正式 artifact 必须保留原报告引用并通过当前披露校验，不能把 raw report 冒充交付物，也不能擅自启动新的 agent 工作。默认站内可见，不自行升级推送。归档 provider 拥有主题分类、容器及存储语义，本域只传稳定目标引用。
 
 重复工作持有稳定 resultSeriesId，每次 occurrence 的 resultEntryId 独立且不可覆盖前一期。series 查询按 scheduledAt、entryId 稳定排序，保留来源及 artifactVersion。两类 audience 都可归档，internal archive 不因此公开到普通结果中心。
 
@@ -463,7 +469,7 @@ UI 流程：查看列表/agenda → 选择/编辑意图 → 预览与同意 → 
 | <a id="s17-t07"></a>S17-T07 [AC-7 · 多 route 重复不制造多个逻辑通知](https://github.com/nemori-ai/omne-next/blob/a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0/omne_harness/requirements/capabilities/agent-initiated-user-notification-durable-truth-and-authorized-delivery.md#L98) | [通知接缝](docs/public-api-design.md#6-结果通知及事件)、[整体结算](#inv-sj17-整份成功不混淆执行与交付) | 通知/授权/应用/本域 |
 | <a id="s17-t08"></a>S17-T08 [AC-8 · 未认证和越权 recipient fail closed](https://github.com/nemori-ai/omne-next/blob/a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0/omne_harness/requirements/capabilities/agent-initiated-user-notification-durable-truth-and-authorized-delivery.md#L105) | [通知接缝](docs/public-api-design.md#6-结果通知及事件)、[整体结算](#inv-sj17-整份成功不混淆执行与交付) | 通知/授权/应用/本域 |
 
-### N01–N25 目标附加验收
+### N01–N27 目标附加验收
 
 | ID | 场景与判定 |
 |---|---|
@@ -493,8 +499,10 @@ UI 流程：查看列表/agenda → 选择/编辑意图 → 预览与同意 → 
 | N24 | draft不扫描且可自主修订/丢弃；promote从严格未来开始并重新核验；active文字原地更新，时间/引擎/目标变化原子replace，失败无半后继，lineage与旧Job保留 |
 | N25 | 单一规范DTO不含dueSelection；真实provider与tools组合全部验收，无双调度路径、占位成功或未声明回退；完整交付覆盖P0–P7而非仅纯算法 |
 
+| N26 | 人直接创建无来源会话，agent 直接创建必须有可信会话，调度器保留安排作者及来源；伪造来源拒绝。直接请求重试只建一份，无 Schedule、无时隙、无日程计数。缺少同意或准入能力零 Job，提交 unknown 按原键恢复，取消和结果沿同一 Job 生命周期。 |
+| N27 | 无 master 的 userDeliverable 经显式 provider 准备并发布，同一成果只发布一次；masterInternal 无 returnTo 拒绝。有来源会话但选 provider 不隐式回传。缺能力接受前拒绝，接受后能力失效受阻；准备或发布 unknown 只查原键，归档/通知失败不重执行。 |
 
-下表为每个目标验收的实际执行承担者；上一表的完整判定不可因拆分而减弱。源154项和N01–N25同时纳入完整交付闸，真实适配/存储/tools未完成时不得以设计检查通过结案。
+下表为每个目标验收的实际执行承担者；上一表的完整判定不可因拆分而减弱。源154项和N01–N27同时纳入完整交付闸，真实适配/存储/tools未完成时不得以设计检查通过结案。
 
 | ID | 主验收入口与参与者 |
 | --- | --- |
@@ -523,3 +531,6 @@ UI 流程：查看列表/agenda → 选择/编辑意图 → 预览与同意 → 
 | N23 | Environment/Calendar依据守卫与Job冻结 |
 | N24 | 作者生命周期、CAS/Quota/lineage原子替换 |
 | N25 | 唯一DTO、全P0–P7真实provider/tools装配验收 |
+
+| N26 | JobCommands、可信 host/Tool、持久接受 participant 与原 operation 恢复 |
+| N27 | 结果准备/发布适配器、MasterReturn、归档/通知与本域聚合 |

@@ -48,6 +48,14 @@ Work 区分 program 与 agent。program 保存已注册 programRef 和合法 inp
 
 JobExecutor 声明 inspect、start、query 和 requestStop 所需语义。inspect 的 proof 描述有范围、有版本的当前条件及 query/stop 能力，不是永久许可。start/query 区分 accepted、pending、unknown、rejected，并保留原 executionRef。程序或会话适配器负责可靠承接、原身份查询和真实停止证明；核心按这些事实推进自己的状态。接口能力不足时在准入拒绝，不能模拟成功。
 
+### 创建来源与结果消费
+
+Job 应用服务接受人、agent 和系统调度器三类来源。人和 agent 经直接创建入口提交，调度器经日程接受入口提交。两条准入路径共用 Job 的执行、取消和结果处理。来源由可信调用与已保存安排导出，核心只保存必要引用，不读取 Session 私有状态。
+
+Schedule.author 保存安排作者。定时 Job 同时保存本次 scheduler 身份、日程修订及作者快照。来源会话只是追踪事实，执行会话按 Work 声明，master 按显式返回关系确定。系统调度租户安排不改变 owner，也不取得租户全部权限。
+
+userDeliverable 明确由 master 或已登记结果适配器形成正式成果。无 master 时使用后者，不创建隐含会话。外部结果适配器负责准备和发布，本域分别保管回执与未完责任。masterInternal 必须有返回目标。查询分别报告执行、回传、发布和归档，未请求的维度不记为成功。
+
 ### 三条执行路径
 
 | 路径           | 外部适配责任                                         | 必须保留的边界                                     |

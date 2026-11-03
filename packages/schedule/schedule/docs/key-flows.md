@@ -127,3 +127,30 @@ flowchart TD
 ## F-SJ09 草稿、转正与原子替换
 
 create(draft)保存零未来接受的意图，reviseDraft/discard保留审计；promote重新核验当前同意/依赖/quota，选择严格未来候选。active的label/instruction/reminder文字可原地改，program/input、时间、purpose、session或绑定变更必须replace。一个同提交单元保存旧superseded、新identity、lineage、quota转移和回执，任一步失败无半后继。原Job不迁移，unknown查原operation，不另建后继。
+
+## F-SJ10 创建来源、执行位置与成果去向
+
+来源、执行位置和成果去向分别声明。下图只展示接受后的 agent 成果路径，program 和纯通知仍沿各自已定义结果处理，不被强加 master。
+
+```mermaid
+flowchart TD
+    H[人直接请求 无来源会话] --> Direct[JobCommands 当前准入]
+    A[Agent直接请求 可信来源会话] --> Direct
+    S[调度器到期触发 保留日程作者] --> Scheduled[ScheduleAdmission 时隙准入]
+    Direct --> J[同一Job模型 冻结来源与工作]
+    Scheduled --> J
+    J --> Exec[按Work选择程序 新会话或已有会话]
+    Exec --> Result[原执行结果与候选成果]
+    Result --> Policy{Agent结果政策}
+    Policy -->|masterInternal| Return[明确master回传 可选内部归档]
+    Policy -->|userDeliverable| Prepare{声明的成果形成者}
+    Prepare -->|master且有返回目标| M[master整理正式成果]
+    Prepare -->|指定provider| P[provider准备正式成果 无须master]
+    M --> Publish[当前披露校验 幂等发布]
+    P --> Publish
+    Publish --> Tail[归档与通知分别保管和结算]
+```
+
+直接入口先核验来源、同意、资源及所需能力，再同提交接受。scheduler 的作者快照来自 Schedule，不来自本次调度 principal。直接请求没有时隙，重复批准请求认回原 Job。来源会话不会自动成为执行或返回目标。
+
+没有 returnTo 时回传状态为 notRequested。有 returnTo 且选择 provider 时，回传与 provider 准备分别进行。准备、发布或归档未知时只查询原 operation，不能换 provider、生成第二份成果或重执行 Job。所选能力在接受前缺失则拒绝，接受后失效则保留结果并受阻。验收归 N26/N27。

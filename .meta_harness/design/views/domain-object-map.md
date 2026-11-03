@@ -7,7 +7,7 @@
 - 生成时间：2026-11-03
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
-对象 **68** 个，变体 **30** 个，形态未定的词条 **0** 个，待裁 **10** 项。
+对象 **68** 个，变体 **31** 个，形态未定的词条 **0** 个，待裁 **10** 项。
 
 **按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。这不是能力边界，也不是限界上下文；那是系统架构设计的事。
 
@@ -53,7 +53,7 @@
 | [附件](../domain_objects/objects.md#ul-attachment--附件) | [UL-attachment](../ubiquitous_language/terms/execution-and-outcome.md#ul-attachment--附件--attachment) | 产出它的那次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)；实际存放在工具定义声明的那个存储里 | — | PF-006（sealed provenance） | — |
 | [被卸载的原始结果](../domain_objects/objects.md#ul-offloaded-result--被卸载的原始结果) | [UL-offloaded-result](../ubiquitous_language/terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 正文未述。它由一次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)产出，却从来没进过[会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——日志里只有那条占位；物理存放归属未述；原始全文持续可回取，不因卸载、压缩、Run 结束或会话归档过期 | — | PF-006（sealed provenance） | 012（sealed provenance） |
 | [日程](../domain_objects/objects.md#ul-schedule--日程) | [UL-schedule](../ubiquitous_language/terms/execution-and-outcome.md#ul-schedule--日程--schedule) | 正文未述；系统或租户归属不等于生命周期宿主 | 系统日程 | PD-schedules-and-jobs（草稿） | — |
-| [定时作业](../domain_objects/objects.md#ul-scheduled-job--定时作业) | [UL-scheduled-job](../ubiquitous_language/terms/execution-and-outcome.md#ul-scheduled-job--定时作业--scheduled-job) | 正文未述；与来源日程和执行会话的关联不等于随它们消失 | — | PD-schedules-and-jobs（草稿） | — |
+| [作业](../domain_objects/objects.md#ul-job--作业) | [UL-job](../ubiquitous_language/terms/execution-and-outcome.md#ul-job--作业--job) | 正文未述；与来源日程和执行会话的关联不等于随它们消失 | 定时作业 | PD-schedules-and-jobs（草稿） | — |
 | [日程订阅](../domain_objects/objects.md#ul-schedule-subscription--日程订阅) | [UL-schedule-subscription](../ubiquitous_language/terms/execution-and-outcome.md#ul-schedule-subscription--日程订阅--schedule-subscription) | 正文未述；owner 归属不等于生命周期宿主 | — | PD-schedules-and-jobs（草稿） | — |
 
 ## 落地与隔离
@@ -179,4 +179,4 @@
 
 产品正文提到它却没有链到词条，「还有谁在讲」那一列就是空的——这一列的空，多半是链接稀疏，不是没人讲。
 
-会话、运行、agent runtime、Agent 执行、执行挂接、Agent 登记、装配清单、资产、资产版本、模型档案、系统日程定义、复制通知、分享邀请、分享关系、工具执行、一次模型调用、模型响应体、附件、被卸载的原始结果、日程、定时作业、日程订阅、执行环境、沙箱实现、无状态沙箱、会话级沙箱、租户级沙箱、沙箱数据、终端会话、设施声明、获取、租约、受管资源、环境提供者、文件批次、会话据点、治理中心、派发报告、决策卡片、授权表达、入站到达、记录条目、会话日志、消息、内容块、待办条目、请求候选、提示词贡献、压缩计划、业务日历、业务日历版本、工作区、工作区实例、运行时 context 注册、runtime context 块、块声明、生产者句柄、绑定读者、步提交、账号、登录状态、组织、邀请、隶属请求、租户、租户—工作区关系。
+会话、运行、agent runtime、Agent 执行、执行挂接、Agent 登记、装配清单、资产、资产版本、模型档案、系统日程定义、复制通知、分享邀请、分享关系、工具执行、一次模型调用、模型响应体、附件、被卸载的原始结果、日程、作业、日程订阅、执行环境、沙箱实现、无状态沙箱、会话级沙箱、租户级沙箱、沙箱数据、终端会话、设施声明、获取、租约、受管资源、环境提供者、文件批次、会话据点、治理中心、派发报告、决策卡片、授权表达、入站到达、记录条目、会话日志、消息、内容块、待办条目、请求候选、提示词贡献、压缩计划、业务日历、业务日历版本、工作区、工作区实例、运行时 context 注册、runtime context 块、块声明、生产者句柄、绑定读者、步提交、账号、登录状态、组织、邀请、隶属请求、租户、租户—工作区关系。

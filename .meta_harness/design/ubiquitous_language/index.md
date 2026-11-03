@@ -238,7 +238,7 @@
 | [UL-cancellation-follows-host](terms/agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host) | 取消跟着宿主走 | Cancellation Follows Host | 三类 runtime 归会话；按 Session／Run／调用目标取消，释放 Agent runtime 句柄不取消执行 |
 | [UL-graceful-cancellation](terms/agent-runtime-loop.md#ul-graceful-cancellation--优雅取消--graceful-cancellation) | 优雅取消 | Graceful Cancellation | 显式动作：先不接新活，等停当，再释放（旧名**实例退役**） |
 | [UL-forced-stop](terms/agent-runtime-loop.md#ul-forced-stop--强制停止--forced-stop) | 强制停止 | Forced Stop | 立刻撤销执行资格，**外部效果收不回来** |
-| [UL-job-session](terms/agent-runtime-loop.md#ul-job-session--作业会话--job-session) | 作业会话 | Job Session | 为选择新会话执行的一个定时作业建立并专属承接其执行部分的会话子类型，沿用会话身份与生命周期，并附加该作业的成果上报与目标完成检查能力。 |
+| [UL-job-session](terms/agent-runtime-loop.md#ul-job-session--作业会话--job-session) | 作业会话 | Job Session | 为选择新会话执行的一个作业建立并专属承接其执行部分的会话子类型，沿用会话身份与生命周期，并附加该作业的成果上报与目标完成检查能力。 |
 
 
 ## [落地与隔离](terms/grounding-and-isolation.md)
@@ -337,14 +337,15 @@
 | [UL-terminal-disposition](terms/execution-and-outcome.md#ul-terminal-disposition--终局--terminal-disposition) | 终局 | Terminal Disposition | 交到头也回不去了；**落终局的是那件事，不是那一层** |
 | [UL-schedule](terms/execution-and-outcome.md#ul-schedule--日程--schedule) | 日程 | Schedule | 包含一份工作例程描述的日程安排，同时持有一次性或重复的时间规则、边界与补跑／重叠声明；每次实际形成的工作以定时作业区分。 |
 | [UL-system-schedule](terms/execution-and-outcome.md#ul-system-schedule--系统日程--system-schedule) | 系统日程 | System Schedule | 系统自身拥有、只触发机械操作的日程；不归账号、组织或租户，不启动 agent 会话。 |
-| [UL-scheduled-job](terms/execution-and-outcome.md#ul-scheduled-job--定时作业--scheduled-job) | 定时作业 | Scheduled Job | 一份日程在具体到期时刻经最终校验并被接受的单次工作实例，有独立身份、冻结要求和本次处置结果。它承担执行、通知或执行并通知；执行意图区分程序调用、agent 新会话和 agent 已有会话。 |
+| [UL-job](terms/execution-and-outcome.md#ul-job--作业--job) | 作业 | Job | 人、agent 或系统调度器发起并经准入接受的单次工作，具有独立身份、冻结要求、来源和结果。 |
+| [UL-scheduled-job](terms/execution-and-outcome.md#ul-scheduled-job--定时作业--scheduled-job) | 定时作业 | Scheduled Job | 系统调度器按日程有效时刻接受的作业变体，保留安排作者及来源，沿用作业身份与生命周期。 |
 | [UL-schedule-subscription](terms/execution-and-outcome.md#ul-schedule-subscription--日程订阅--schedule-subscription) | 日程订阅 | Schedule Subscription | 一名 owner 对系统日程定义的独立采用关系，具有可指认身份、所选定义版本、参数、管理状态和接受历史。取消阻止该订阅的新接受，已有 Job 保持各自责任。 |
 | [UL-scheduled-execution](terms/execution-and-outcome.md#ul-scheduled-execution--定时执行--scheduled-execution) | 定时执行 | Scheduled Execution | 履行已接受定时作业中执行部分的过程，按冻结意图调用已注册程序，或将指令交给新建或指定的已有 agent 会话。 |
 | [UL-scheduled-notification](terms/execution-and-outcome.md#ul-scheduled-notification--定时通知--scheduled-notification) | 定时通知 | Scheduled Notification | 日程到期工作中向目标租户发送通知的过程，可由纯通知作业承担，也可与执行组合在同一个作业中；通知动作本身不另建 agent 工作会话。 |
 | [UL-schedule-date-policy](terms/execution-and-outcome.md#ul-schedule-date-policy--日程日期处理策略--schedule-date-policy) | 日程日期处理策略 | Schedule Date Policy | 基础候选遇非工作日时保持、跳过或向前／向后移到工作日。 |
 | [UL-schedule-catch-up-policy](terms/execution-and-outcome.md#ul-schedule-catch-up-policy--日程补跑策略--schedule-catch-up-policy) | 日程补跑策略 | Schedule Catch-up Policy | 日程声明是否补跑及当前时刻前最近最多补多少次；不重跑已有 Job。 |
 | [UL-schedule-overlap-policy](terms/execution-and-outcome.md#ul-schedule-overlap-policy--日程重叠策略--schedule-overlap-policy) | 日程重叠策略 | Schedule Overlap Policy | 同一日程的新工作遇到先前未结束动作时，选择跳过、停止先前后执行、独立并行或等待执行。 |
-| [UL-job-notification-policy](terms/execution-and-outcome.md#ul-job-notification-policy--作业通知策略--job-notification-policy) | 作业通知策略 | Job Notification Policy | Routine 内声明执行事件与通知内容要求，各 Job 持有自身采用的声明。 |
+| [UL-job-notification-policy](terms/execution-and-outcome.md#ul-job-notification-policy--作业通知策略--job-notification-policy) | 作业通知策略 | Job Notification Policy | 工作意图声明执行事件与通知内容要求，各 Job 持有自身采用的声明。 |
 
 
 ## [交互与派发](terms/interaction-and-dispatch.md)

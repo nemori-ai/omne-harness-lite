@@ -163,7 +163,7 @@
 - **宿主**：正文未述
 - **身份**：可指认的系统定期产品功能及所采用定义版本，不等于平台维护的系统日程
 - **生灭**：由产品提供并可升级定义；订阅采用明确版本，升级不改已接受工作；退出条件正文未述
-- **依据**：[日程与作业：系统功能订阅](../product/schedules-and-jobs/design.md#subscriptions)（rev 2）
+- **依据**：[日程与作业：系统功能订阅](../product/schedules-and-jobs/design.md#subscriptions)（rev 3）
 
 ## 流转与授权
 
@@ -412,21 +412,21 @@
 - **宿主**：正文未述；系统或租户归属不等于生命周期宿主
 - **身份**：可区别的一份完整安排，内含 Routine 工作描述；重要变更新建后继日程，保留前后继关联
 - **生灭**：创建为草稿或启用；草稿可修订、丢弃或转正；活跃安排可暂停恢复；停止、耗尽、被替换或终局失效后不复活；已接受 Job 与历史保留
-- **依据**：[日程与作业：安排与单次工作](../product/schedules-and-jobs/design.md#schedule-job-model)（rev 2）；[J-SJ01](../product/schedules-and-jobs/design.md#schedule-lifecycle)（rev 2）
+- **依据**：[日程与作业：安排与单次工作](../product/schedules-and-jobs/design.md#schedule-job-model)（rev 3）；[J-SJ01](../product/schedules-and-jobs/design.md#schedule-lifecycle)（rev 3）
 
-### UL-scheduled-job · 定时作业
+### UL-job · 作业
 
 - **宿主**：正文未述；与来源日程和执行会话的关联不等于随它们消失
-- **身份**：可区别的某次已接受到期工作，保留来源、冻结要求、实际执行及通知关联
+- **身份**：可区别的一份已接受单次工作，保留人、agent 或调度器的创建来源、冻结要求、实际执行及通知关联
 - **生灭**：最终校验后接受才产生，等待也是已接受；可取消或结算，恢复认回原工作而不另建；保留业务历史
-- **依据**：[日程与作业：安排与单次工作](../product/schedules-and-jobs/design.md#schedule-job-model)（rev 2）；[接受与双限额](../product/schedules-and-jobs/design.md#admission-limits)（rev 2）；[J-SJ09](../product/schedules-and-jobs/design.md#j-sj09-取消这一次已接受工作)（rev 2）
+- **依据**：[日程与作业：安排与单次工作](../product/schedules-and-jobs/design.md#schedule-job-model)（rev 3）；[接受与双限额](../product/schedules-and-jobs/design.md#admission-limits)（rev 3）；[J-SJ09](../product/schedules-and-jobs/design.md#j-sj09-取消这一次已接受工作)（rev 3）
 
 ### UL-schedule-subscription · 日程订阅
 
 - **宿主**：正文未述；owner 归属不等于生命周期宿主
 - **身份**：每份订阅有独立身份，保留 owner、定义版本、参数与接受历史
 - **生灭**：可控功能由用户显式订阅；参数调整只影响自己的未接受未来；取消阻止新接受，已有 Job 继续原控制；不可控功能沿权威适用依据表达
-- **依据**：[日程与作业：系统功能订阅](../product/schedules-and-jobs/design.md#subscriptions)（rev 2）
+- **依据**：[日程与作业：系统功能订阅](../product/schedules-and-jobs/design.md#subscriptions)（rev 3）
 
 ## 交互与派发
 
