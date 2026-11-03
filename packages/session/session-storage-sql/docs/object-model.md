@@ -47,7 +47,7 @@ head 的实际表集由 [src/worker/schema.ts](../src/worker/schema.ts) 定义�
 
 ### 执行记录参加者的表
 
-`execution-record` 参加者的表由 [src/worker/execution-record-schema.ts](../src/worker/execution-record-schema.ts) 定义，迁移是 `execution-record/001-execution-record`；原受理的 attempt 在 `er_admission_attempt_idx`，由 `execution-record/003-admission-attempt` 建表。八张表都是 `STRICT` 表，主键都以 `tenant` 开头。`state`、`answer`、`batch` 是提供者编码的不透明 JSON，本成员不解码。行为见 [SPEC 的 `execution-record` 参加者](../SPEC.md#参加者模块与材料)。
+`execution-record` 参加者的表由 [src/worker/execution-record-schema.ts](../src/worker/execution-record-schema.ts) 定义，迁移是 `execution-record/001-execution-record` 至 `005-fact-body`：001 建 `er_root`、`er_state`、`er_operation`、`er_execution`、`er_fact_idx`、`er_batch_idx` 与 `er_admission_idx`，002 建 `er_preadmission`，003 建 `er_admission_attempt_idx`，004 建 `er_state_part`，005 建 `er_fact_body`。十一张表都是 `STRICT` 表，主键都以 `tenant` 开头。`state`、`answer`、`batch` 是提供者编码的不透明 JSON，本成员不解码。行为见 [SPEC 的 `execution-record` 参加者](../SPEC.md#参加者模块与材料)。
 
 | 表                 | 列                                                                                                       | 主键                                | 说明                                                                                                                              |
 | ------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -60,6 +60,8 @@ head 的实际表集由 [src/worker/schema.ts](../src/worker/schema.ts) 定义�
 | `er_batch_idx`     | `tenant`、`execution`、`sequence`、`session`、`source`、`batch`                                          | `(tenant, execution, sequence)`     | input-taken 事件的完整批次                                                                                                        |
 | `er_admission_idx` | `tenant`、`session`、`input`、`ordinal`、`execution`、`operation`、`accepted`、`grant_ref`、`attachment` | `(tenant, session, input, ordinal)` | 原受理目录：一个输入的全部原受理，按受理顺序                                                                                      |
 | `er_admission_attempt_idx` | `tenant`、`session`、`input`、`ordinal`、`attempt` | `(tenant, session, input, ordinal)` | 原受理的 SE15 attempt，与 `er_admission_idx` 同键；写入方未写时没有行，旧行也没有 |
+| `er_preadmission` | `tenant`、`handoff`、`entry`（可空）、`session`（可空）、`execution`（可空）、`intent`、`intent_digest`、`outcome`（可空）、`outcome_digest`（可空） | `(tenant, handoff)` | 消息准入记录，每个 handoff H 一行，先存意图再存结果；`intent` 与 `outcome` 是不透明的规范 JSON。`entry` 是 Agent 外部入口索引 Ki，存在时在租户内唯一（唯一索引 `er_preadmission_entry_idx`）。首次 invoke 可以还没有 Run，所以 `session` 与 `execution` 可空 |
+| `er_fact_body` | `tenant`、`execution`、`sequence`、`session`、`consequences`（可空）、`control`（可空） | `(tenant, execution, sequence)` | 事实行的正文，与 `er_fact_idx` 同键：已归一的后果与延后控制事实的证据。`consequences` 为空表示未判定，`control` 为空表示不是延后控制事实。写入方不写正文时没有行 |
 
 `session` 参加者在 `readTables` 里声明 `er_root`、`er_execution`、`er_fact_idx`、`er_batch_idx`、`er_admission_idx` 与 `er_admission_attempt_idx`，不读 `er_state` 与 `er_operation`。
 

@@ -4,13 +4,13 @@
 
 ## 采用与边界
 
-本资源按 #502 revision 3 attempt 502-r3-a2 的 M-CONTROL 闭包维护。采用的源码与契约基线是父分支头 `f42da6226`，其中 `control.ts` 最后一次改动是 `2741ebe0a`（控制出站移出会话串行段）。它补 [M-CANCEL](../../../../agent/agent/verification/cancellation/README.md) 没有建的 Session 一侧：M-CANCEL 建 Agent 收到取消之后的围栏、中断与接收，本模型建 Session 把控制送到 Agent 之前的协调与调度。两份模型之间没有证明精化关系。
+采用的源码与契约基线是提交 `f42da6226`，其中 `control.ts` 最后一次改动是 `2741ebe0a`（控制出站移出会话串行段）。下文源码映射里的行号都以该基线为准，当前树的行号可能不同；先按函数名定位。本模型补 [Run 取消与单调用中断模型](../../../../agent/agent/verification/cancellation/README.md) 没有建的 Session 一侧：该模型建 Agent 收到取消之后的围栏、中断与接收，本模型建 Session 把控制送到 Agent 之前的协调与调度。两份模型之间没有证明精化关系。
 
 | 契约拥有者 | 本模型采用的承诺 |
 | --- | --- |
 | [Session 的终态与控制](../../../session-contract/SPEC.md#终态与控制) | 控制先保存意图，随后按持久关联传播。Run 取消关联该 Run，单调用控制关联原调用。未知时按原提交身份查询，不换身份重做 |
 | [PM-13](../../../session-contract/SPEC.md#pm-13) | 控制经出站端口 `control` 送到原执行。控制结果未知时先查原操作，不为取得挂接而重发。超过策略上限时仍保留进度并报告 |
-| [Session C3](../../SPEC.md#c3) | 同一控制 operation 重放认回。不可用与未知保留责任，按原身份接续。受理不等于实际停止。失败分支（SPEC 第 147 行）写明：关闭不等待未应答的出站，迟到应答丢弃，重启后由 S3 以同一操作身份找回重放 |
+| [Session C3](../../SPEC.md#c3) | 同一控制 operation 重放认回。不可用与未知保留责任，按原身份接续。受理不等于实际停止。失败分支写明：关闭不等待未应答的出站，迟到应答丢弃，重启后由 S3 以同一操作身份找回重放 |
 | [Session S5](../../SPEC.md#s5) | 每个控制操作一个在途重放。重放计数在内存，上限是每个进程寿命内的上限 |
 | [SR-2](../../SPEC.md#sr-2) | 进程内每会话一个串行队列，协调器的动作按会话排队 |
 
@@ -107,13 +107,13 @@
 | 5. 关闭时对出站的等待能结束而出站仍未应答 | 成立。`untilClosed` 与 `lifecycle.signal` 竞速。出站 promise 不是 `lifecycle.spawn` 的任务，`close` 不等它。第 104–117 行 |
 | 6. 被放弃出站的迟到应答被丢弃，不改变 `phase`、`attempts`，不再入队 | 成立。`phase` 的赋值都在 `await untilClosed(...)` 返回非 `CLOSED` 之后。迟到应答经 `work.then` 对已完成的 promise 调用 `resolve` 或 `reject`，没有效果，也没有未处理的拒绝 |
 
-第 5 条改变 `lifecycle.ts` 注释里「让在途工作结束」的字面含义：对无应答的外部出站，等待只能在关闭时放弃。这条取舍已经写入 [SPEC C3 失败分支](../../SPEC.md#c3)（SPEC 第 147 行）：关闭不等待未应答的出站，迟到应答丢弃。它不改变 `close` 不回滚、不发送的承诺。
+第 5 条改变 `lifecycle.ts` 注释里「让在途工作结束」的字面含义：对无应答的外部出站，等待只能在关闭时放弃。这条取舍已经写入 [SPEC C3 失败分支](../../SPEC.md#c3)：关闭不等待未应答的出站，迟到应答丢弃。它不改变 `close` 不回滚、不发送的承诺。
 
-S1 的 `openRun` 把 `invoke` 也放在串行段内（`advance.ts` 第 264 行与第 184 行起的 `invoke`）。同类占用在本模型里被抽象掉（`OpenRun` 假定应答）。它不在本次闭包范围，作为清理候选交回。
+S1 的 `openRun` 把 `invoke` 也放在串行段内（`advance.ts` 第 264 行与第 184 行起的 `invoke`）。同类占用在本模型里被抽象掉（`OpenRun` 假定应答）。它不在本模型范围。
 
 ## 执行
 
-Windows 宿主从工作树根运行。Python 仅使用标准库。TLC 使用任务指定的 WSL Ubuntu-24.04 与 `/opt/tlaplus/tla2tools.jar`。
+Windows 宿主从工作树根运行。Python 仅使用标准库。TLC 使用 WSL Ubuntu-24.04 与 `/opt/tlaplus/tla2tools.jar`。
 
 ```bash
 export PYTHONUTF8=1
@@ -124,15 +124,15 @@ python -B packages/session/session/verification/control-propagation/test-runner.
 python packages/session/session/verification/control-propagation/run-models.py
 ```
 
-运行器先执行负控，再执行正控。可在命令后追加一个或多个 cfg 名称，不含扩展名。`--timeout` 调整单配置预算，默认 180 秒。`--output` 只能指定本工作树 `tmp/` 下的证据根目录。TLC 按线内 2026-11-03 的名额规则不经 `with-test-slot` 排队：运行器自身串行执行各配置，一个 worker，堆 1 GiB。同一时间本线最多运行两个模型。
+运行器先执行负控，再执行正控。可在命令后追加一个或多个 cfg 名称，不含扩展名。`--timeout` 调整单配置预算，默认 180 秒。`--output` 只能指定本工作树 `tmp/` 下的证据根目录。TLC 不经 `with-test-slot` 排队：运行器自身串行执行各配置，一个 worker，堆 1 GiB。
 
-Windows 运行器把模型、配置及自身快照通过标准输入复制到 WSL 的独立 `/tmp/omne-m-control.*`。Java 在该副本运行，TLC 状态文件也留在该副本。证据复制到工作树的 `tmp/line-session-run/w2/M-CONTROL/runs/<UTC 时间>/`。正常结束、失败或超时退出后删除 WSL 副本。没有在 `/mnt/d` 安装依赖或运行仓库构建。
+Windows 运行器把模型、配置及自身快照通过标准输入复制到 WSL 的独立 `/tmp/omne-m-control.*`。Java 在该副本运行，TLC 状态文件也留在该副本。证据复制到 `--output` 指定的证据根目录下的 `runs/<UTC 时间>/`。该目录在工作树 `tmp/` 下，不入库。正常结束、失败或超时退出后删除 WSL 副本。没有在 `/mnt/d` 安装依赖或运行仓库构建。
 
 每次执行保存输入 SHA-256、源码 HEAD、JAR SHA-256、Java/TLC 版本、完整命令、参数、退出码、状态数和原始日志。正控要求退出 0 且出现完整搜索成功标记。安全性负控要求退出 12、指定不变量及轨迹。时序负控要求退出 13 和时序反例。未执行配置与工具失败不能记为通过。
 
 ## 实测范围
 
-2026-11-03（UTC 2026-11-02 17:08）在 Windows 11 宿主启动 WSL Ubuntu-24.04，使用 Temurin 21.0.12.1、TLC2 2.19（TLA2Tools 1.7.4，revision `5a47802`）。JAR SHA-256 为 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`。参数为一个 worker、`-Xmx1024m`、ParallelGC、seed 787、fingerprint polynomial 0，每 cfg 180 秒预算。源码 HEAD `f42da6226`，模型与 cfg 为本次提交的字节。SANY（`--parse-only`）通过，`test-runner.py` 七项通过。
+2026-11-03（UTC 2026-11-02 17:08）在 Windows 11 宿主启动 WSL Ubuntu-24.04，使用 Temurin 21.0.12.1、TLC2 2.19（TLA2Tools 1.7.4，revision `5a47802`）。JAR SHA-256 为 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`。参数为一个 worker、`-Xmx1024m`、ParallelGC、seed 787、fingerprint polynomial 0，每 cfg 180 秒预算。源码 HEAD `f42da6226`，模型与 cfg 为该次运行时的字节。SANY（`--parse-only`）通过，`test-runner.py` 七项通过。
 
 | cfg | `Kind` / `MaxReplays` | 生成状态 / 不同状态 | 深度 | 耗时 | TLC 退出码 | 判读 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -151,4 +151,4 @@ Windows 运行器把模型、配置及自身快照通过标准输入复制到 WS
 
 按 [docs/verification.md「分别表述这六种状态」](../../../../../docs/verification.md#分别表述这六种状态)：本模型在上表范围内有限通过。`control.ts` 在 `f42da6226` 的结构与六条约束一致（结构核对，不是机器证明），对应正控的设计，`outbound-in-serial` 开关对应的是修复前的旧实现。实现与模型的精化没有证明，真实 Agent 应答、真实时钟、S1 `invoke` 不应答以及权威读不返回的组合没有验证。
 
-原始日志与输入快照位于当次工作树 `tmp/line-session-run/w2/M-CONTROL/runs/20261102T170802.116667Z/`，`results.json` 汇总全部十项。
+每次运行的原始日志与输入快照在证据根目录的 `runs/<UTC 时间>/` 下，不入库。`results.json` 汇总全部十项。

@@ -24,7 +24,7 @@
 
 `SessionTransactionPortService` 的 `commitLog` 与 `SessionAdoptionSourceService` 的 `plan` 是可选成员，不是抽象成员：不提供它们的提供者照常编译，缺席时对应能力不存在，使用者按 `unavailable` 处理。`SessionEvidenceBridgeService` 与 `SessionAdoptionSourceService` 带类型参数 `<P = unknown>`，`prepare` 的第二个可选参数是本次调用的 `SessionAccess<P>`。
 
-两个新服务的接口是纯类型，在 `src/context-facts.ts`，不导入 Cordis，不导入提供者：
+下列两个服务的接口是纯类型，在 `src/context-facts.ts`，不导入 Cordis，不导入提供者：
 
 - `sessionReplayFacts`（`SessionReplayFactsService`，接口 `SessionReplayFacts`）：持有者自己的耐久事实对某个作用域已检查点块的说法。受信，只由 Runtime Context 的装配入口按调用读取。
 - `sessionScopeLookup`（`SessionScopeLookupService`，接口 `SessionScopeLookup`）：作用域文本属于哪个（租户、会话、代次）。答 `known`、`unknown` 或 `unavailable`。作用域文本是单向摘要，只有铸造它的持有者保存索引。查找缺席按 `unavailable` 处理，不当作放行。受信，只由装配入口按调用读取。

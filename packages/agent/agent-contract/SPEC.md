@@ -758,7 +758,7 @@ RegisteredReads 只路由已登记只读协议，不接受任意 URL、方法或
 
 AgentMaterials 只保管材料及可解释版本，不拥有工作推进。preserve 同 identity/consumer/内容认回，冲突拒绝。Model 结果不走 preserve 后再绑定 custody 的路径，由结果接收方按“[接收共同提交](#接收共同提交)”保存。通用材料端口及 Tool 的既有保管协议保持有效。孤立材料在绑定未知期间保留，不能超时删除可能已经被外部协调者引用的内容；清理须得到原操作排除或全部消费责任终结的证据。read 每次核权，缺内容明确故障，不能把元数据摘要当正文。processed 路径只保存业务所需完成依据，不强制全文第二副本。
 
-`preserve` 的输入可带 `execution`，供提供者按原执行路由材料。调用方提供该字段时，提供者核对原执行的访问资格与已有消费绑定，不从 `consumer.work` 解析或推断会话。当前过渡期保留不带该字段的旧调用和旧保存路径，不据此声明旧提供者已经支持 execution 路由。本次迁移的调用方始终传入 execution；收紧为必填由同波消费者迁移完成后另行采用。
+`preserve` 的输入可带 `execution`，供提供者按原执行路由材料。调用方提供该字段时，提供者核对原执行的访问资格与已有消费绑定，不从 `consumer.work` 解析或推断会话。当前过渡期保留不带该字段的旧调用和旧保存路径，不据此声明旧提供者已经支持 execution 路由。已迁移的调用方始终传入 execution。收紧为必填须在全部消费者迁移完成后由本契约另行采用。
 
 Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.invoke` 发 direct 调用。`ActionJudgment.allowed.request` 使用这个公开请求，不使用受信 `FixedToolRequest`。请求的 `availability` 原样取自请求组装保存的可用性结论，Agent 不重算或改写它。Tool 的受信入口绑定来源、调用方式及内部固定请求。programmatic 子调用由 Tool 原协议拥有，Agent 不另造来源。`acceptDecision` 是 Tool 受信内部端口，普通 Agent 不因持有 ToolRuntime 获得它。
 

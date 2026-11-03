@@ -4,7 +4,7 @@
 
 ## 采用范围
 
-模型版本为 1。输入基线为 `2e6fa47b1e95b8f0108fbe2032d9f9457f4b54a8`，采用 #502 r3 的 R2-D15 与线包 5.0。模型没有改变产品契约。
+模型版本为 1。输入基线为 `2e6fa47b1e95b8f0108fbe2032d9f9457f4b54a8`，模型没有改变产品契约。
 
 | 拥有者                                                                                    | 采用条款                                                                       |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
@@ -105,14 +105,14 @@ Generation 枚举两个读取方，每个最多三代。Handoff 枚举两个调�
 | `Capture`、`Deliver`             | [runtime-context-trust.ts](../../src/runtime-context-trust.ts) 的 `capture`、`bridged` 与三种 authority 方法已存在                                                                                                                       | 首次 await 前捕获，原 current 与桥 current 合取，晚到答复保留原引用                   |
 | `Retire`、`Assemble`             | [应用进程桥](../../../../../apps/harness-server/src/entry/runtime-context-trust.ts) 的 `Generation`、`bridgeOf`、`trustFor` 已存在                                                                                                       | 每个读取方的 effect 撤除使原对象永久退役。应用修改归 Reduce，不属于本资源             |
 | `intents`、`outcomes`            | [Agent 公开类型](../../../../agent/agent-contract/src/passages.ts) 的 `InputHandoff`、`InputOrigin`、`HandoffOutcome`、`HandoffLookup` 已存在                                                                                            | 实际请求、完整原来源、主体稳定身份与结果同原 H 关联；原资格依据不替代当前许可         |
-| `SaveIntent`、`Commit`、`Lookup` | 已兑现（C-ADAPTERS）：[message-handoff.ts](../../src/cordis/message-handoff.ts) 的 `prepare` 先以 `preadmission` 意图阶段保存（`SaveIntent`），存储确认后以结果阶段固定一次（`Commit`，事务内重查由 session-storage-sql 的 `er_preadmission` 承担），`lookup` 只读（`Lookup`） | 已核：完整记录与 Ki 唯一由存储的独立表与 002 迁移承担；同 Ki 认回与杀进程读回见 `tests/message-handoff.spec.ts`、`tests/message-handoff-real.spec.ts`。未核：两个调用方并发交错只由存储层事务与模型覆盖，本成员没有并发用例 |
+| `SaveIntent`、`Commit`、`Lookup` | 已兑现：[message-handoff.ts](../../src/cordis/message-handoff.ts) 的 `prepare` 先以 `preadmission` 意图阶段保存（`SaveIntent`），存储确认后以结果阶段固定一次（`Commit`，事务内重查由 session-storage-sql 的 `er_preadmission` 承担），`lookup` 只读（`Lookup`） | 已核：完整记录与 Ki 唯一由存储的独立表与 002 迁移承担；同 Ki 认回与杀进程读回见 `tests/message-handoff.spec.ts`、`tests/message-handoff-real.spec.ts`。未核：两个调用方并发交错只由存储层事务与模型覆盖，本成员没有并发用例 |
 | `BindExecution`                  | [执行索引迁移](../../../session-storage-sql/src/worker/execution-index-migration.ts)、[路由读取](../../../session-storage-sql/src/worker/read-execution-session.ts) 与 [Journal 路由](../../src/cordis/agent-journal-provider.ts) 已存在 | 路由与原 SE13 同事务，冲突不覆盖；读取按 tenant 与 execution，不从调用连接猜归属      |
 
 既有 Agent `model-reception`、Finishing 与 Session frontier 模型分别覆盖结果接收、终结与日志前沿。本资源不修改它们，也不将它们的通过结论用于 P1～P4。
 
 ## 运行
 
-在 Windows 宿主的 Git Bash 中，从仓库根运行。先取得负责人分配的 TLC 窗口。运行器经 WSL `Ubuntu-24.04` 启动 Java，模型只在新建的 WSL `/tmp/omne-generation-*` 目录运行。Windows 代码树和依赖不会被 WSL 构建。
+在 Windows 宿主的 Git Bash 中，从仓库根运行。运行器经 WSL `Ubuntu-24.04` 启动 Java，模型只在新建的 WSL `/tmp/omne-generation-*` 目录运行。Windows 代码树和依赖不会被 WSL 构建。
 
 ```bash
 export PYTHONUTF8=1
@@ -121,7 +121,7 @@ export OMNE_TEST_SLOT_DIR='C:/Users/ALIENW~1/AppData/Local/Temp/omne-test-slots-
 python packages/session/session-adapters/verification/generation-handoff/run-models.py --help
 python packages/session/session-adapters/verification/generation-handoff/run-models.py --self-test
 node scripts/with-test-slot.mjs python packages/session/session-adapters/verification/generation-handoff/run-models.py \
-  --output tmp/line-session-run/w2/M-GENERATION/tlc-run
+  --output tmp/generation-handoff-run
 ```
 
 `--output` 必须是新目录，避免覆盖证据。`--case` 可重复指定配置。`--syntax-only` 只跑 SANY，不枚举状态，不能作为安全性质通过。原生 Linux 验证可用 `--backend native`，仍须由宿主提供运行名额。默认每例 180 秒、1 worker、1024 MiB heap、seed 502、fingerprint 0。
@@ -130,7 +130,7 @@ node scripts/with-test-slot.mjs python packages/session/session-adapters/verific
 
 ## 当前核验结果
 
-2026-11-02 在 Windows Git Bash 经 WSL Ubuntu-24.04 运行完整配置集。首轮完整结果在 `tmp/line-session-run/w2/M-GENERATION/tlc-corrected`。独立评审后增加原结果认回负控，并在 `tmp/line-session-run/w2/M-GENERATION/parent-tlc` 重跑全部配置，运行器退出 0。8 个正控退出 0，9 个负控和 2 个可达性见证各自退出 12，均命中指定不变量。
+2026-11-02 在 Windows Git Bash 经 WSL Ubuntu-24.04 运行完整配置集，运行器退出 0。证据目录是 `--output` 指定的目录，在工作树 `tmp/` 下，不入库。8 个正控退出 0，9 个负控和 2 个可达性见证各自退出 12，均命中指定不变量。
 
 工具为 TLC2 2.19，2024-08-08，revision `5a47802`。Java 为 Temurin `21.0.12.1+1-LTS`。jar 的 SHA-256 为 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`。参数为 1 worker、1024 MiB heap、每例 180 秒，未发生超时。
 

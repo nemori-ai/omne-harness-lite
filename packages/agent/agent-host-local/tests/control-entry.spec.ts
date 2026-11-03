@@ -1,5 +1,5 @@
 // The control entry (`agentExecutionControl`, AG-05) on an execution whose active attachment belongs
-// to a runtime that this host still runs (K-17, #502). The host is the `agent-host` plugin on real
+// to a runtime that this host still runs (the "accepted control left to recovery" limit in the agent-host-local SPEC, section on control advance). The host is the `agent-host` plugin on real
 // Cordis 4.0.4 with the production factory `createAgentRuntime`; the Journal, Model, access check
 // and the stage ports are the non-durable doubles of `@omne-harness/agent/testing`.
 // What is checked: a cancellation through the entry is advanced as the execution handle advances it
@@ -209,7 +209,7 @@ async function deliverReply(host: World, snapshot: ExecutionSnapshot) {
   return call
 }
 
-describe('the control entry on an execution that a runtime of this host runs (K-17)', () => {
+describe('the control entry on an execution that a runtime of this host runs', () => {
   it('establishes a cancellation before it answers, and the Loop sends no further Model request', async () => {
     const { host, load } = await running()
     expect(host.admits).toHaveLength(1)

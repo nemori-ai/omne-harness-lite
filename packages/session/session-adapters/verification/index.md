@@ -4,6 +4,7 @@
 
 ## 内容
 
-- [README.md](README.md)：验证资源的范围与现状。现在没有资源
-- [models/](models/index.md)：形式模型，现在为空
-- [proofs/](proofs/index.md)：论证与证明，现在为空
+- [README.md](README.md)：验证资源的范围与现状
+- [generation-handoff/](generation-handoff/README.md)：进程代次退役、准入记录保存与执行路由唯一性的有限模型
+- [models/](models/index.md)：形式模型，目前没有资源
+- [proofs/](proofs/index.md)：论证与证明，目前没有资源
