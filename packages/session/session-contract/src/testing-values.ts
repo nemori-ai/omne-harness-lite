@@ -109,9 +109,8 @@ export function assistantMessage(text: string, id = 'msg_c0nf0rmance000000000000
   } as unknown as Message
 }
 
-/** An ordinary routed input of `input` with the text `text`. */
 /**
- * An ordinary input accepted after a login: its origin has the owner `login-entry`, as the server
+ * An ordinary routed input of `input` with the text `text`, accepted after a login: its origin has the owner `login-entry`, as the server
  * entry writes it, so an interactive Run may start from it. `intakeInput` is the same input from
  * another origin.
  */

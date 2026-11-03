@@ -325,7 +325,6 @@ const mint = (record: string, content: unknown): DurableEvidence => ({
   digest: `sha256:${digestOf(content)}`,
 })
 
-/** The Run lookup of one snapshot, covering exactly that snapshot. */
 /** The stored first input of a start, or nothing when the store holds none for it. */
 function firstInputOf(
   inputs: ReadonlyMap<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>,
@@ -335,6 +334,7 @@ function firstInputOf(
   return stored === undefined ? {} : { firstInput: { input: stored.input, origin: stored.origin } }
 }
 
+/** The Run lookup of one snapshot, covering exactly that snapshot. */
 function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
   const history = snapshot.executions?.find(item => item.run === run)
   const current =

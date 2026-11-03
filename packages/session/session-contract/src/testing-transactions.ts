@@ -456,7 +456,6 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | nul
   }
 }
 
-/** The ordinary input that a command admits, if any, for `readInput`. */
 /** `startRun`: the stored first pending input with its origin, from the same store as the snapshot. */
 function firstInputRead(
   command: SessionCommand,
@@ -473,6 +472,7 @@ function firstInputRead(
   return stored === undefined ? {} : { firstInput: { input: stored.input, origin: stored.origin } }
 }
 
+/** The ordinary input that a command admits, if any, for `readInput`. */
 function admittedInput(command: SessionCommand): Extract<RoutedInput, { kind: 'ordinary' }> | null {
   if (command.kind === 'accept' && command.input.value.kind === 'ordinary')
     return command.input.value

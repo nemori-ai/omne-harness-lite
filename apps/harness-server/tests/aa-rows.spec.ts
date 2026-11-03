@@ -20,10 +20,18 @@ const fixture = (name: string): string => member(`tests/fixtures/aa/${name}`)
 
 type Run = { status: number | null; stdout: string; stderr: string }
 
-function run(command: 'check' | 'write', aa: string, rows: string): Run {
-  const result = spawnSync(process.execPath, [SCRIPT, command, '--aa', aa, '--rows', rows], {
-    encoding: 'utf8',
-  })
+/** Fixture runs skip the source rules (`--no-source`); the formal run passes `[]` and scans the real sources. */
+function run(
+  command: 'check' | 'write',
+  aa: string,
+  rows: string,
+  extra: readonly string[] = ['--no-source'],
+): Run {
+  const result = spawnSync(
+    process.execPath,
+    [SCRIPT, command, '--aa', aa, '--rows', rows, ...extra],
+    { encoding: 'utf8' },
+  )
   return { status: result.status, stdout: result.stdout, stderr: result.stderr }
 }
 
@@ -42,10 +50,11 @@ afterAll(() => {
 
 describe('AA row snapshot', () => {
   test('R-P1 the formal AA matches the committed snapshot', () => {
-    const result = run('check', FORMAL_AA, FORMAL_ROWS)
+    const result = run('check', FORMAL_AA, FORMAL_ROWS, [])
     expect(result.stderr).toBe('')
     expect(result.status).toBe(0)
-    expect(result.stdout).toMatch(/^aa-rows: ok rows=\d+ trusted=(\d+|none)\n$/)
+    expect(result.stdout).toMatch(/^aa-rows: ok rows=\d+ trusted=(\d+|none)\n/)
+    expect(result.stdout).toMatch(/\naa-rows: source ok trusted-names=\d+\n$/)
   })
 
   test('R-P2 write then check agrees, and a second write keeps the bytes', () => {

@@ -48,6 +48,10 @@ export type PendingCell = Readonly<{ verdict: 'deny-pending'; item: DecisionItem
  * `member`: the tenant admission check with an empty `requires`. `matrix`: the system action
  * authorization on the named purpose. `deny`: denied with a written basis, no dependency called.
  * `deny-pending`: denied until the D item is decided.
+ *
+ * A `member` cell has no `requires` of its own: the adapters ask the admission with an empty list, so
+ * the tenant role does not decide Session or Agent operations (identity delivery spec D2; PD:33,
+ * ID-16:301-307). `role-neutral-member-cells.spec.ts` proves it for every `member` cell.
  */
 export type PolicyCell = MemberCell | MatrixCell | DenyCell | PendingCell
 
