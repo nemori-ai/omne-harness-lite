@@ -133,6 +133,8 @@
 | [UL-agent-type](terms/capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type) | agent 类型 | Agent Type | 这份定义**具不具备 master 的那一整套机制**：`master` / `non-master`；**不是「子 agent」那个意思** |
 | [UL-master-category](terms/capabilities-and-composition.md#ul-master-category--master-类目--master-category) | master 类目 | Master Category | master 主要干什么的，五类；**只出厂加**，**不是会话类型** |
 | [UL-asset-version](terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version) | 资产版本 | Asset Version | 一个资产某一次发布定下的那份内容，已发布即不可变；已有会话的常驻工具只在采用点跟随同形的新版 |
+| [UL-skill-package](terms/capabilities-and-composition.md#ul-skill-package--skill-包--skill-package) | Skill 包 | Skill Package | 技能一份完整内容的形式：以 `SKILL.md` 为根的目录树；**不是身份，不是插件，也不是代码成员包** |
+| [UL-package-snapshot](terms/capabilities-and-composition.md#ul-package-snapshot--包快照--package-snapshot) | 包快照 | Package Snapshot | Skill 包某一时刻全部条目的不可变清单及其内容摘要；**内容摘要是散列值，不是文字摘要** |
 | [UL-asset-composition](terms/capabilities-and-composition.md#ul-asset-composition--资产组合--asset-composition) | 资产组合 | Asset Composition | 资产之间、资产与 agent 之间的同一种关系 |
 | [UL-agent-constitution](terms/capabilities-and-composition.md#ul-agent-constitution--agent-构成--agent-constitution) | agent 构成 | Agent Constitution | 装配清单里「它是什么」的那部分；旧名 ~~实例构成~~ |
 | [UL-action-space](terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space) | 动作空间 | Action Space | 会话已知能力的动作视图；身份单调保留，可用性与准入另判 |
@@ -277,6 +279,7 @@
 | [UL-deployment-parameter](terms/grounding-and-isolation.md#ul-deployment-parameter--部署参数--deployment-parameter) | 部署参数 | Deployment Parameter | 「按部署配置」那些值的统称，运维者给值、缺一不可、改了只影响此后；**不是范围化对象** |
 | [UL-subprocess-environment-allowlist](terms/grounding-and-isolation.md#ul-subprocess-environment-allowlist--子进程环境变量名单--subprocess-environment-allowlist) | 子进程环境变量名单 | Subprocess Environment Allowlist | 只从父进程复制名单内且存在的变量，不自动继承其余变量 |
 | [UL-credential-custodian](terms/grounding-and-isolation.md#ul-credential-custodian--凭据保管方--credential-custodian) | 凭据保管方 | Credential Custodian | 拿着凭据本体的那一方，**只按条件交出、不拿别的顶上**，落地只以密文；**只保管，不决定配哪一把**；本版只在据点 |
+| [UL-package-source](terms/grounding-and-isolation.md#ul-package-source--包来源--package-source) | 包来源 | Package Source | 按内容摘要交出 Skill 包字节的那一方；**不是资产来源，也不是来源层**，不判定用哪一份、谁能读 |
 
 ## [取用与可用性](terms/reach-and-availability.md)
 
@@ -292,6 +295,9 @@
 | [UL-same-shape](terms/reach-and-availability.md#ul-same-shape--同形--same-shape) | 同形 | Same Shape | 两份工具定义的名字、种类、参数契约与命令表都相等；说明、返回、声明、版本与执行者不参与 |
 | [UL-dependency-declaration](terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration) | 依赖声明 | Dependency Declaration | **一串必需项的抽象名字**，种类不限；**只有且，只有必需** |
 | [UL-session-asset-registry](terms/reach-and-availability.md#ul-session-asset-registry--会话资产注册表--session-asset-registry) | 会话资产注册表 | Session Asset Registry | 会话里一类资产此刻认得的那一批，**经它取**；reload 只重填对应那一张；权限收回不等 reload——**命令即时去掉，装进运行的资产自下一次运行起**；常驻工具的名字与参数形状在会话内不变 |
+| [UL-mcp-connection](terms/reach-and-availability.md#ul-mcp-connection--mcp-连接--mcp-connection) | MCP 连接 | MCP Connection | 接入点为一个租户、以一个对端账号与对端的接通；**按租户与账号分开，不是连接件** |
+| [UL-mcp-action-catalog](terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog) | MCP 动作清单 | MCP Action Catalog | 按租户、对端账号与接入点保存的最近合法动作集合；**整份更新，不是动作空间** |
+| [UL-mcp-known-action](terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action) | MCP 已知动作 | MCP Known Action | 动作清单里合法发现过的一个对端动作；**对端不再提供时标为不可用，不离开清单** |
 | [UL-governance-center-health-check](terms/reach-and-availability.md#ul-governance-center-health-check--治理中心体检--governance-center-health-check) | 治理中心体检 | Governance Center Health Check | 中心「我在不在、能不能答」的自述；公开部分恰三样、登录前可读，**不含治理事实与秘密** |
 | [UL-governance-center-reachability](terms/reach-and-availability.md#ul-governance-center-reachability--治理中心可达性--governance-center-reachability) | 治理中心可达性 | Governance Center Reachability | 据点对所属中心**此刻在不在应答**的观察，答复说什么不影响它；**不作任何准入依据**，不可达时开着的会话照常干活 |
 

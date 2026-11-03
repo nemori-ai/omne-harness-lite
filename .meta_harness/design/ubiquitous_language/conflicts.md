@@ -458,3 +458,12 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **处置**：词条保留引用值的含义，「别混」写明动作用法不是本词。产品正文与其他词条暂不回改。
 - **负责与闭合条件**：工作区契约卡（[#837](https://github.com/nemori-ai/omne-harness-lite/issues/837) 剩余责任）在发布工作区契约成员时收敛两种用法：为动作或值另定说法，或给裸用加限定。产品正文与相关词条按结论回改后闭合。
 - **状态**：待收敛。
+
+### C-73：「摘要」的两种意思
+
+- **类型**：同名不同义。2026-11-03 为 Skill 与 MCP 立词条时发现。
+- **来源**：[包快照](terms/capabilities-and-composition.md#ul-package-snapshot--包快照--package-snapshot)要用「内容摘要」指按内容算出的散列值（digest）。[同形](terms/reach-and-availability.md#ul-same-shape--同形--same-shape)里的「词汇表的拥有者、名称与摘要」也是这个意思。[上下文压缩](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction)、[摘要步](terms/record-and-context.md#ul-summary-step--摘要步--summary-step)与同形里的「命令摘要」用「摘要」指文字摘要（summary）。
+- **差别**：一个是用来判断内容是否相同的散列值，一个是给人或模型读的缩写文字。下游读到「按摘要取内容」时，可能把它读成按一段文字去找内容。
+- **处置**：新词条把散列值写成「内容摘要」，并注明它不是文字摘要。已有词条与正文暂不回改。
+- **负责与闭合条件**：统一语言维护者。散列值的用法统一写成「内容摘要」或另定一个说法，并回改同形词条后闭合。
+- **状态**：待收敛。

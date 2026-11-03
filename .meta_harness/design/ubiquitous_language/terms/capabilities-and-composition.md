@@ -535,6 +535,47 @@
 - **注意**：**发现有新版本不静默替换已选用的那个**——选哪一版是消费方的决定；持有选了「追随当前版」的，新版一发布就用上，那是持有上写明的选择，不算静默替换
 - **例外**：已有会话的[常驻工具](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)只在[采用点](agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)跟随新版本，而且新版本派生的定义必须与会话首次采用的定义[同形](reach-and-availability.md#ul-same-shape--同形--same-shape)。不同形时，原实现仍装载且可用就留在原实现；没有同形可用实现、原实现耐久地不可装载时，会话进入[冻结](agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze)。依据见 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
 
+### UL-skill-package · Skill 包 · Skill Package
+
+> **中**：一个[技能](#ul-skill--技能--skill)的一份完整内容所取的形式：以 `SKILL.md` 为根的一棵目录树。
+> `SKILL.md` 带这个技能的名称、说明与指引正文。可选的 `.omne/skill.json` 带本系统认的声明。
+> 树中其余文件是这个技能的资源，按需读取。
+> 这棵树以外的路径不属于这个包。包内的格式规则归技能这一类别。
+>
+> **EN**: The form that one complete content of a skill takes: a directory tree rooted at
+> `SKILL.md`. `SKILL.md` carries the skill's name, description and guidance text. An optional
+> `.omne/skill.json` carries the declarations that this system reads. The other files in the tree
+> are the skill's resources, read on demand. A path outside the tree is not part of the package.
+> The format rules inside the package belong to the skill kind.
+
+- **形态**：属性
+- **出处**：[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者) · [J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 1） · [工作区产品页 J-WS04](../../product/workspaces/design.md#j-ws04-从共享与实例本地来源取得可解释的材料)（rev 4）
+- **别混 ①**：**不是技能的身份**。身份是[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)（类别 ＋ name）。同一个身份下，不同层、不同版本的内容可以是不同的 Skill 包
+- **别混 ②**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本说的是哪一次发布定下的内容；Skill 包说的是技能内容的形式
+- **别混 ③**：**不是[插件](#ul-plugin--插件--plugin)，也不是代码仓库里的成员包**（例如 `packages/skills` 下的成员）。插件打包分发若干资产；一个 Skill 包只是一个技能的内容
+- **注意**：读取包中的正文不等于运行包中的脚本，也不自动读取包中的全部资源，见[技能](#ul-skill--技能--skill)
+
+### UL-package-snapshot · 包快照 · Package Snapshot
+
+> **中**：一个 [Skill 包](#ul-skill-package--skill-包--skill-package)在某一时刻的全部条目的清单，
+> 以及由这份清单算出的一个内容摘要。每个条目记下它的包内路径、它是文本还是二进制、它的大小，以及它自己的内容摘要。
+> 快照算出之后不再改变。包中任一条目改变后，算出的是另一个快照，内容摘要也不同。
+> 内容摘要相同的两个快照指同一份内容，所以引用一个快照只需要它的内容摘要。
+>
+> **EN**: The list of all entries of a Skill package at one point in time, together with one
+> content digest computed from that list. Each entry records its path inside the package,
+> whether it is text or binary, its size and its own content digest. A snapshot does not change
+> after it is computed. When any entry of the package changes, the result is a different snapshot
+> with a different content digest. Two snapshots with the same content digest denote the same
+> content, so a reference to a snapshot needs only its content digest.
+
+- **形态**：属性
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 1）只要求一次读取对应一个可成立的版本和范围，不把旧正文与新资源拼成成功。条目清单与内容摘要的做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出包快照，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
+- **别混 ①**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本按发布计数，内容摘要按内容计算。工作区目录中的技能没有发布，也有包快照
+- **别混 ②**：**不是[上下文快照提醒](record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)**，与 runtime context 的快照无关
+- **注意 ①**：**这里的「内容摘要」指按内容算出的散列值（digest），不是文字摘要**。不要裸写「摘要」指它，见 [C-73](../conflicts.md#c-73摘要的两种意思)
+- **注意 ②**：[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)与读取结果引用一个 Skill 包时，记的是它的包快照的内容摘要
+
 ## 构成关系
 
 ### UL-asset-composition · 资产组合 · Asset Composition
