@@ -7,6 +7,7 @@ import {
 } from '@omne-harness/calendar-contract'
 import {
   createCalendarQueries,
+  DEFAULT_SCAN_BUDGET,
   classifyDay,
   countWorkingDays,
   shiftWorkingDays,
@@ -54,6 +55,11 @@ describe('calendar queries', () => {
     const { queries, store, environment, clock } = setup()
     environment.read.mockResolvedValue({ kind: 'missing' })
     const result = await queries.list(context)
+    expect(store.listVersions).toHaveBeenLastCalledWith({
+      calendarId: 'cn',
+      after: null,
+      limit: 20,
+    })
     expect(result).toMatchObject({
       kind: 'ok',
       value: {
@@ -275,7 +281,13 @@ describe('calendar queries', () => {
           query: { kind: 'next', after: '0000-01-01', count: 1 },
         }),
       ),
-    ).toMatchObject({ kind: 'error', error: { code: 'search_limit' } })
+    ).toMatchObject({
+      kind: 'error',
+      error: {
+        code: 'search_limit',
+        details: { scanBudget: DEFAULT_SCAN_BUDGET, inspectedDays: DEFAULT_SCAN_BUDGET },
+      },
+    })
   })
   it('rechecks current qualification after an awaited read before disclosing any facts', async () => {
     const { queries, store, authority } = setup()
@@ -638,6 +650,10 @@ it('rejects provider identity, version and page bound violations without leaking
     versionId: 'v-other',
   })
   store.getCalendar.mockResolvedValue({ kind: 'ok', value: directory(other) })
+  store.listVersions.mockResolvedValue({
+    kind: 'ok',
+    value: { items: [entry(other)], nextCursor: null },
+  })
   expect(await queries.get(context, { calendarId: snapshot.calendarId })).toEqual({
     kind: 'error',
     error: {
