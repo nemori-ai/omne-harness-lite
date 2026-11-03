@@ -1,0 +1,11 @@
+{
+  "pending": ["principalVerifier", "tenantStanding", "identityGovernance"],
+  "issuerScanRoots": ["apps", "packages", "tools"],
+  "issuerCallSites": [
+    "apps/harness-server/src/entry/principals.ts",
+    "apps/harness-server/src/entry/agent-host-principal.ts",
+    "apps/harness-server/src/entry/model-authorities.ts",
+    "packages/access/server-entry/src/identity-steps.ts"
+  ],
+  "issuerDefinition": ["packages/identity/identity/src/principal.ts"]
+}

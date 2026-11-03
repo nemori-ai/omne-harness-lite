@@ -6,8 +6,9 @@
 // `modelHostAuthority` 是波 2 的真件（简报 B3-M 第 4 项、`tmp/wire-model/design.md` §3）。它在自己的闭包里持有本运行的
 // Model 组合（`src/model/composition.ts`），服务实例上只有 `resolve`；`model-records` 与 `model-host` 两行各经
 // `src/model/ports.ts` 按根上下文取自己的窄口（附着、宿主绑定），`ctx.get` 拿不到组合的任何部分（R2-D108 B1）。`resolve` 按
-// 固定次序取事实：读原受理（只在本次许可内）→ 用入口受信读取的签发者签 M → 核受理记录与 M 的关系（租户、调用、原发起者就是
-// 本租户账号）→ `channel.prepare`。任一步失败答 `unavailable` 或 `denied`，不补造 ActorRef、operation 或摘要。
+// 固定次序取事实：读原受理（只在本次许可内）→ 核受理记录的关系（租户、调用、原发起者就是本租户账号）→ 用入口受信读取的
+// 签发者签 M → `channel.prepare`。关系核对在签发之前（ID-16：核对失败、依据不可得时不得签发），所以关系不成立的请求不会
+// 让签发者签出任何主体。任一步失败答 `unavailable` 或 `denied`，不补造 ActorRef、operation 或摘要。
 // 签发者只在安装时经受信名 `principalIssuer` 读一次；签发闭包固定 actor 与 `work.owner`，不交给任何行。
 import type { Context } from '@deepseek-ai/cordis'
 import type {
@@ -123,7 +124,7 @@ async function readOrigin(
   return accepted
 }
 
-/** 第 3 步：受理记录的租户与调用等于请求，租户是成员，原发起者就是本租户账号。通过后给出主体引用。 */
+/** 第 2 步：受理记录的租户与调用等于请求，租户是成员，原发起者就是本租户账号。通过后给出主体引用。 */
 async function checkRelation(
   standing: Pick<TenantStandingSource, 'read'>,
   accepted: ModelAcceptedOrigin,
@@ -177,7 +178,7 @@ async function prepareOnChannel(
   return prepared
 }
 
-/** 宿主权威的 `resolve`：前提 → 读原受理 → 签 M → 核关系 → prepare。诊断不回显调用身份。 */
+/** 宿主权威的 `resolve`：前提 → 读原受理 → 核关系 → 签 M → prepare。诊断不回显调用身份。 */
 export function createModelHostAuthority(
   input: ModelHostAuthorityInput,
 ): ModelHostAuthority<unknown> {
@@ -186,11 +187,12 @@ export function createModelHostAuthority(
     if ('failure' in ready) return ready
     const accepted = await readOrigin(input.composition, ready.ok.attached.initial, target)
     if ('failure' in accepted) return accepted
-    // 2. 签 M。
-    const issued = ready.ok.issue({ tenant: accepted.ok.tenant, call: accepted.ok.call })
-    if ('failure' in issued) return fail(unavailable('principal-issue-refused'))
+    // 2. 核关系。核对失败时没有签发过任何主体（ID-16：核对失败、依据不可得不得签发）。
     const actor = await checkRelation(ready.ok.standing, accepted.ok, target)
     if ('failure' in actor) return actor
+    // 3. 关系成立后才签 M。
+    const issued = ready.ok.issue({ tenant: accepted.ok.tenant, call: accepted.ok.call })
+    if ('failure' in issued) return fail(unavailable('principal-issue-refused'))
     return prepareOnChannel(input.composition, ready.ok, {
       principal: issued.ok,
       tenant: accepted.ok.tenant,

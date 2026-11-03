@@ -1,12 +1,13 @@
 // Model 的三个权威入口对象（AA 运行时对象表「Model 与 Tool 的原事实、权威与时钟适配对象」）：`modelHostAuthority`、
 // `modelPublicationAuthority`、`modelConverterAuthority` 在根上 provide，model-host-local 的三个插件静态 inject。
 // 发布与转换器登记一律 `denied`。`modelHostAuthority.resolve` 是波 2 真件（`tmp/wire-model/design.md` §3）：
-// 读原受理 → 签 M → 核关系 → `channel.prepare`，每步失败各答 `unavailable` 或 `denied`。
+// 读原受理 → 核关系 → 签 M → `channel.prepare`，每步失败各答 `unavailable` 或 `denied`；关系不成立时一次也不签发（E3）。
 // 本文件用 model 成员首次执行记录的契约替身（`initial` 与 channel 都是脚本对象），只核入口的步骤与次序；
 // 真实 `createModelInitialRun` 上的组合见 `tests/rows/model/records-host.spec.ts`。
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type {
+  PrincipalIssuer,
   PrincipalVerifier,
   TenantStandingReading,
   TenantStandingSource,
@@ -55,6 +56,7 @@ import { fixtureEnv, fixtureTenant, got, heldValues, okOf } from './support.ts'
 
 const TENANT = fixtureTenant('a')
 const OTHER = fixtureTenant('b')
+const decodedCall = (text: string) => okOf(decodeModelCallId(text), 'call id')
 const CALL = okOf(decodeModelCallId('mcall_one'), 'call id')
 const INSTANCE = okOf(decodeModelInstanceId('minst_one'), 'instance id')
 const OPERATION = okOf(decodeModelOperationId('mop_claim'), 'operation id')
@@ -129,10 +131,32 @@ function scriptedInitial(script: Scripted): ModelInitialExecution<unknown> {
   }
 }
 
+/** 签发计数：包在真签发者的服务实例上，签发闭包按调用现查方法，所以安装前包上就数得到全部签发。 */
+type IssueCounts = { system: number; acting: number }
+
+function countIssues(issuer: PrincipalIssuer): IssueCounts {
+  const counts: IssueCounts = { system: 0, acting: 0 }
+  const target = issuer as { -readonly [K in keyof PrincipalIssuer]: PrincipalIssuer[K] }
+  const { issueSystem, issueActingForTenant } = issuer
+  target.issueSystem = input => {
+    counts.system += 1
+    return issueSystem(input)
+  }
+  target.issueActingForTenant = input => {
+    counts.acting += 1
+    return issueActingForTenant(input)
+  }
+  return counts
+}
+
 async function installed(options: { withIssuer?: boolean; standing?: TenantStandingReading } = {}) {
   const fixture = fixtureEnv([principalIssuerKey])
   await fixture.install(principalVerifier)
-  if (options.withIssuer !== false) await fixture.install(principalIssuer)
+  let issues: IssueCounts = { system: 0, acting: 0 }
+  if (options.withIssuer !== false) {
+    await fixture.install(principalIssuer)
+    issues = countIssues(got(fixture.scopeOf(principalIssuerKey).get(principalIssuerKey), 'issuer'))
+  }
   await fixture.install(modelHostAuthority)
   await fixture.install(modelPublicationAuthority)
   await fixture.install(modelConverterAuthority)
@@ -161,6 +185,7 @@ async function installed(options: { withIssuer?: boolean; standing?: TenantStand
   return {
     fixture,
     script,
+    issues,
     host,
     publication: got(fixture.root.get(modelPublicationAuthorityKey), 'modelPublicationAuthority'),
     converter: got(fixture.root.get(modelConverterAuthorityKey), 'modelConverterAuthority'),
@@ -300,7 +325,7 @@ describe('the three model authorities on a real Cordis context', () => {
   })
 })
 
-describe('modelHostAuthority.resolve: read the acceptance, issue M, check the relation, prepare', () => {
+describe('modelHostAuthority.resolve: read the acceptance, check the relation, issue M, prepare', () => {
   it('resolves a call whose acceptance names this tenant and its account: M is issued, captured, and prepare is called with it', async () => {
     const scene = await installed()
     const bound = await attachedAndBound(scene)
@@ -417,6 +442,53 @@ describe('modelHostAuthority.resolve: read the acceptance, issue M, check the re
       failure: { kind: 'unavailable', dependency: 'modelHostAuthority' },
     })
     expect(scene.script.prepares).toHaveLength(0)
+  })
+
+  it('relation-denied-issues-nothing: every refusal of the relation leaves the issuer with zero acting-for-tenant issues (defect: M signed before the relation is checked)', async () => {
+    const scene = await installed()
+    await attachedAndBound(scene)
+    const target = { tenant: TENANT, call: CALL }
+    // The one system principal of the host is signed when the entry installs; M is signed per call.
+    expect(scene.issues).toEqual({ system: 1, acting: 0 })
+    const denials: readonly (() => void)[] = [
+      () => (scene.script.acceptance = { ok: { ...ACCEPTED, tenant: OTHER } }),
+      () => (scene.script.acceptance = { ok: { ...ACCEPTED, call: decodedCall('mcall_two') } }),
+      () =>
+        (scene.script.acceptance = {
+          ok: { ...ACCEPTED, initiator: { ...ACCEPTED.initiator, subject: 'standing:other' } },
+        }),
+      () =>
+        (scene.script.acceptance = {
+          ok: { ...ACCEPTED, initiator: { ...ACCEPTED.initiator, owner: 'someone-else' } },
+        }),
+      () =>
+        (scene.script.standing = {
+          kind: 'not-member',
+          evidence: { record: 'standing:abc', revision: '0' },
+        }),
+      () => (scene.script.standing = { kind: 'unavailable', diagnostic: 'db' }),
+    ]
+    for (const refuse of denials) {
+      scene.script.acceptance = { ok: ACCEPTED }
+      scene.script.standing = MEMBER
+      refuse()
+      expect(await scene.host.resolve(target)).toHaveProperty('failure')
+    }
+    expect(scene.issues.acting).toBe(0)
+    expect(scene.script.prepares).toHaveLength(0)
+    // The counter is live: a call whose relation holds is signed exactly once.
+    scene.script.acceptance = { ok: ACCEPTED }
+    scene.script.standing = MEMBER
+    expect(await scene.host.resolve(target)).toHaveProperty('ok')
+    expect(scene.issues.acting).toBe(1)
+  })
+
+  it('a missing acceptance record signs nothing either', async () => {
+    const scene = await installed()
+    await attachedAndBound(scene)
+    scene.script.acceptance = { failure: { kind: 'invalid', field: 'call', reason: 'not-found' } }
+    expect(await scene.host.resolve({ tenant: TENANT, call: CALL })).toHaveProperty('failure')
+    expect(scene.issues.acting).toBe(0)
   })
 
   it('without the trusted principal issuer, resolve is unavailable before any read', async () => {
