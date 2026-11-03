@@ -81,11 +81,7 @@ import type {
 } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type {
-  AgentConfiguration,
-  AgentDependencies,
-  AgentRuntimeBinding,
-} from '../construction.ts'
+import type { AgentConfiguration, AgentDependencies, AgentRuntimeBinding } from '../construction.ts'
 import {
   AGENT_OWNER,
   agentEvidence,
