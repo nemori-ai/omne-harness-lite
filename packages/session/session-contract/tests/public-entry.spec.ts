@@ -74,6 +74,7 @@ it('exports the suite, the doubles and the legal values from ./testing', () => {
     'initializationFixtureFacts',
     'initializationFixtureGuard',
     'inputId',
+    'intakeInput',
     'isNotApplicable',
     'memoryAccess',
     'memoryOtherAccess',
