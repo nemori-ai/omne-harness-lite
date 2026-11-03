@@ -65,6 +65,66 @@ export async function open({ root, out, abortSignal }) {
 
 所有收到的事件先按原字段保存为 `events.jsonl`，每行一条。非法事件、重复完成或错轮输入不会静默丢弃，运行记失败。`progress.jsonl` 保存已验证轮次，异常后也保留。`adapter-result.json` 保留首错和关闭诊断。输入必须可用 JSON 表达。
 
+## 成员事件的纯投影（R2-D133）
+
+`projection.mjs` 导出 `projectRound(input)` 和 `projectSegmentInterval(input)`。
+它们不读取时钟、文件或产品状态，不安装观察者，也不实现 `open()`。发行接线仍归 Reduce C1。
+输入是可结构化克隆的数据；原成员事件与 Model 辅助事件的来源以本次基线
+`08dd1c9add2dca5037d8aca5015347fa79e7cfb0` 为准。
+
+`projectRound` 接收下列字段：
+
+| 字段                             | 含义                                                                                                                                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `runId`、`round`                 | 整次测量的非空标识和1～200的轮号。不是 Session 的 Run ID。                                                                                                                                  |
+| `session`、`sessionRun`          | 该轮真实 Session/Run 身份，核对 Session 终态事件。                                                                                                                                          |
+| `roundStart`                     | 调用者在轮开始处实际读取的 `{process, clock, generation, atMs}`，时间为单调毫秒。没有时不从最早的段推算。                                                                                   |
+| `logCount`                       | `{state:'measured',value,unit:'count',source}`，非负安全整数且来源非空；或保留调用者的未测量对象。数值必须来自实际累计 Session 日志条目，不能用 revision、storage commit 数或事件条数代替。 |
+| `memberEvents`                   | `{event,reading}`数组。event是 Session、Context、Agent 的原 `measure` 回调值；reading是同步收到该事件时的单调读数，形状同roundStart。                                                       |
+| `modelEvents`                    | L-MODEL `tests/support/model-measurement.ts` 的原事件数组：`stage-interval/model-request-preparation` 或 `external-wait-interval/model-fixed-delay`。                                       |
+| `requiresToolWait`、`toolEvents` | 本轮实际需要工具等待时声明true；工具源可原样暂存，但形状未采用，不解析。                                                                                                                    |
+
+采集者负责真正分轮、把执行身份关联到该 Run，并保证观察者不重入产品。
+投影只核对给定的事实，不能证明没有漏收其他事件。Session目录读的session可以为null；
+非null的Session段必须匹配输入session。Context/Agent的execution及operation/pass必须在同一span两端一致，
+但本函数不替产品证明一个execution属于哪个Run。
+
+三类成员各有自己的span计数。配对键包含进程、时钟、代次、segment和span，不能只用数字span。
+Session映射为sessionIO，Context映射为projectionInterpretation，Agent映射为agentProgression。
+成功的model-request-preparation区间映射为requestAssembly，只代表该prepare调用的实际范围。
+区间不相加，也不裁剪到轮区间；包含式段可能覆盖终态通知之后的答复收尾。
+区间并集及最终判定继续由现有 `normalizeEvents` 和 `metrics.mjs` 执行。
+
+轮终点取匹配 Session/Run 的真实 `round-complete` 回调时刻。只有 `outcome:'completed'`、
+有效的同钟起点/终点、完整的终态来源和实测logCount齐备，且本次没有投影诊断时，才发 schema 1 的轮完成。
+failed、cancelled、未知终态、缺起点或未测日志数均不补成功。不能以 HTTP 受理、Agent段结束或“已跑200轮”替代。
+
+Model等待只认 `measured-fixed-delay-model` 的成功事件。使用actualStart/actualEnd，
+核对它们与原start/end和elapsedMs一致；definedDelay只作为配置事实保留，不用来制造实际耗时。
+同轮invocationId不得重复，等待必须处于轮的同进程/同钟/同代次区间内。
+Model事件自己的logCount原样保留，但不拿它代替输入的Session累计日志数。
+
+返回值包含：
+
+- `events`：已经可以表达的 schema 1 事件，可能只是部分段或等待。
+- `origins`：输出事件对应的输入索引。
+- `sources`：整个输入的独立快照，保留失败、取消、未测量状态及附加来源字段。
+- `diagnostics`：重复/孤立/未闭合span、身份或时钟冲突、非成功来源和缺件。诊断非空时不输出轮完成。
+- `gaps`：具名的 `L-TOOL-WAIT-BATCH-E` 能力缺口。实际需要工具等待或传入了工具源时，也产生诊断并保留源；不生成工具等待。
+
+空diagnostics不是E9通过：仍可能缺少阶段、真实等待或fsync，现有归一器/判定器会分别记录未测量。
+调用者必须处理diagnostics，不能丢掉它而把部分events直接作为完整轮交给 `nextRound`。
+当前 `nextRound` 仅接收完整数组，不直接接收本模块的结果对象；C1需要负责缺件/失败的归档与接线。
+本模块不改窗口、阈值、fsync来源或原适配器协议。
+
+`projectSegmentInterval` 的输入是 `{runId,round,segment,start,end,outcome,source}`，
+segment只取session/context/agent，start/end形状同reading，成功结局为ok。它只转换已经录制的完整区间。
+它不证明采集器的配对正确，也永不生成轮完成或日志数；可用来有限核对已有StageRecord。
+旧 `w2-measure.ts` 原件只保存合并区间，不能从它恢复丢失的starts，或者把其storage commit计数变成Session日志数。
+
+测试入口：`node --test tools/e9/projection.test.mjs`。负控覆盖跨成员同号span、错时钟/身份、
+失败与取消、日志未测、无真实终态、重复等待、配置延迟冒充实际区间以及工具等待缺口。
+
 ## 测量与判定
 
 轮区间和所有参与扣除的外部等待必须同进程、同 `clockId`、同 `generation`。等待区间必须落在轮区间内。缺失等待记录或时钟不匹配时，`ownOverhead` 未测量。工具先求等待区间并集，再从轮时间扣除，得到非负墙钟余额。该数值不是 CPU 工作量，并行本地计算可能与被扣除的等待重叠。
