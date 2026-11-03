@@ -66,6 +66,22 @@ function facts(tenant: string, call: CallDocument): ObservationFacts | null {
   }
 }
 
+/** The call document that the pass staged, or else the one it saw. */
+function passCall(pass: ModelConfirmationPass): CallDocument | undefined {
+  if (pass.staged?.kind === 'write') return pass.staged.write.call
+  return pass.staged?.kind === 'publish' ? pass.staged.call : pass.seen?.call
+}
+/** A run that threw, or a staged write whose commit is unknown, leaves the call unconfirmed. */
+function unconfirmedWrite(
+  pass: ModelConfirmationPass,
+  completion: Exclude<ModelRunCompletion, { kind: 'confirmed' }>,
+): boolean {
+  return (
+    completion.kind === 'threw' ||
+    (pass.staged?.kind === 'write' && completion.failure.kind === 'commit-unknown')
+  )
+}
+
 export function createModelObservationStorage<P>(
   input: Readonly<{
     storage: ModelCommandStorage
@@ -88,18 +104,10 @@ export function createModelObservationStorage<P>(
   }
   const observe = (pass: ModelConfirmationPass | null, completion: ModelRunCompletion) => {
     if (!source || !pass?.scope?.call) return
-    const call =
-      pass.staged?.kind === 'write'
-        ? pass.staged.write.call
-        : pass.staged?.kind === 'publish'
-          ? pass.staged.call
-          : pass.seen?.call
+    const call = passCall(pass)
     const tenant = call?.execution?.tenant
     if (completion.kind !== 'confirmed') {
-      if (
-        completion.kind === 'threw' ||
-        (pass.staged?.kind === 'write' && completion.failure.kind === 'commit-unknown')
-      ) {
+      if (unconfirmedWrite(pass, completion)) {
         const identity = factsTarget(pass.scope.tenant, pass.scope.call)
         if (identity) source.unavailable(identity)
       }
