@@ -1,4 +1,16 @@
+<h3>W1 合入（2026-11-03，父分支 c247b873a）</h3>
+<p><strong>读数。</strong>29 个源文件、12 个测试文件 298 例，覆盖率 98%。<code>src</code> 里没有 <code>as</code> 类型断言、没有 <code>any</code>；唯一的类是 <code>NotApplicable extends Error</code>（套件用它标记「这个替身不适用此用例」，Error 子类是合理用法）。变更函数超 alert 1 个（<code>parseEndpointBody</code> CC 16）、超 warn 2 个（<code>deliveredItem</code> CC 12、<code>isConnectionTarget</code> CC 11）。差分变异（最终 head 302441beb，基线 21175c9f9）2210 个变异体：被杀 1646，存活 401（其中 352 条在 <code>testing-*</code> 替身与用例表里，产品代码 49 条，散在 10 个文件，最多的 <code>content.ts</code> 9 条），无覆盖 54，超时 13；96 个静态变异把模块加载改坏，工具判「测量无效」，分数不可用——与 Skill 相同的读数形态。</p>
+<p><strong>优雅在哪里。</strong>四层失败联合彼此嵌套而不重复：<code>OperationFailure</code> 用 <code>TransportFailure</code> 做成员，签名里直接能读出「这个操作可能在哪一层失败」。<code>completeListing</code> + <code>WeakSet</code> + <code>assertComplete</code> 与 Skill 的 <code>sealSnapshot</code> 是同一种「只能由构造器造出」的写法，两域一致。调用与任务两条路径共用一个 <code>classifyOutcome</code>，第 3 轮把 <code>tasks/get</code> 的 <code>inputRequests</code> 收进同一函数后，形状分裂的风险消失。五个端口套件各配一个过套件的内存替身，W2 的实现方拿到的不是「参考」，是能直接跑红的判据。</p>
+<p><strong>异味与处置。</strong></p>
+<ul>
+<li><code>parseEndpointBody</code> CC 16 是契约拒绝次序本身（SPEC E2 六格），第 3 轮已抽出 <code>transportOf</code>，剩余分支与次序一一对应。接受为读数，不再拆：再拆会把次序散到两个函数里，读者反而要拼。</li>
+<li><code>listing.ts</code> ↔ <code>catalog.ts</code> 的类型环：<code>AdoptionBasis</code>、<code>ExpectedRevision</code>、<code>Freshness</code> 定义在 <code>catalog</code> 却被 <code>listing</code> 用。它们其实是「清单」的概念，不是「目录」的。W2 实现目录服务时把这三个类型下沉到 <code>listing.ts</code>（或 <code>values.ts</code>），环即消失。登记为 W2 的清理项。</li>
+<li>产品代码的 49 条存活没有热点，但 <code>brands.ts:50–52</code>（控制字符扫描的 <code>&lt;</code>/<code>&lt;=</code> 与 <code>0x9f</code> 上界）和 <code>endpoint.ts:117–153</code>（<code>launchOf</code> 的各字段形状）各一簇，是 W2 补夹具的候选；<code>order.ts</code> 5 条说明码元比较只被间接测到。</li>
+<li><code>./testing</code> 占 1480 行，比产品代码还多。其中两张用例表（<code>testing-outcome-cases.ts</code> 314 行）是数据不是逻辑；但 <code>testing-credentials.ts</code> 243 行里替身要模拟两类句柄与过期，已经接近一个小实现。W2 的真实凭据端口落地后，看能否让替身只做最小合法行为。</li>
+<li>组页与 SPEC 差异 10 处（SPEC「与组页的差异」表），全部本波裁定，最大的两处是删掉 <code>mode</code>/<code>CallMode</code>（任务由对端决定）与凭据句柄按用途分型。波末写回组页。</li>
+<li>一个未封闭项交出去了：资产的 <code>deriveDeclarations</code> 拿不到动作清单，逐动作权限项不能经类别端口派生，本成员只提供 <code>actionPermissionItems</code>。拥有者是资产 SPEC；不在本波的两域范围内。</li>
+</ul>
+<p><strong>与 Skill 的对照。</strong>同一套写法（品牌只由守卫授予、构造器 + WeakSet、三入口、符合性套件无框架化），两边的差别都有理由：Skill 的构造器在 <code>./provider</code> 因为调用方是外部来源，MCP 的在公开根因为调用方是本组服务；Skill 的根是 <code>values.ts</code>，MCP 的根是 <code>brands.ts</code>，因为 MCP 的值大多就是品牌。读两份源码时不会觉得是两个人写的——这是本波最想要的结果。</p>
+<hr>
 <h3>W0 基线（2026-11-03，父分支 21175c9f9）</h3>
-<p><strong>现状。</strong>三个成员 <code>@omne-harness/mcp-contract</code>、<code>@omne-harness/mcp</code>、<code>@omne-harness/mcp-host-local</code> 都是模板草稿，只有占位入口，还没有业务代码。</p>
-<p><strong>健康。</strong>没有可评价的实现。<code>mcp-contract</code> 已声明 <code>assets</code> 与四个公共值成员（W1 准备），尚未被源码导入。</p>
-<p><strong>W1 之后应当看到。</strong>契约成员不依赖任何 MCP SDK；对端自报内容在类图里都经 <code>Untrusted</code>；「未发出」与「已发出」的结局是两个不同的类型；清单记录是不可变值，<code>mergeListing</code> 只接受 <code>CompleteListing</code>；需求端口与组内传输端口只出现在 <code>./provider</code>。</p>
+<p>三个成员都是模板草稿，<code>mcp-contract</code> 只有一个占位导出，没有测试。</p>

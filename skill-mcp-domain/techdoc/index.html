@@ -34,30 +34,36 @@ details details{margin:6px 0}details details>summary{cursor:pointer;color:var(--
 .prose{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 18px 14px}.prose p,.prose li{max-width:74ch}.prose h3{display:block;margin-top:14px}
 </style>
 <div class="wrap">
-<header><span class="muted">由 <code>techdoc/gen.mjs</code> 从实际源码生成 · 父分支 <code>PanQiWei/skill-mcp</code> @ <code>21175c9f9</code> · 2026-11-03T13:58:44Z</span>
+<header><span class="muted">由 <code>techdoc/gen.mjs</code> 从实际源码生成 · 父分支 <code>PanQiWei/skill-mcp</code> @ <code>c247b873a</code> · 2026-11-03T16:53:00Z</span>
 <h1>Skill 与 MCP 实现架构</h1>
 <p class="muted">图与读数只取自 <code>packages/skills/*</code> 与 <code>packages/mcp/*</code> 的 package.json、src、tests。设计正文不是本页的事实来源；讲解与评述由 reduce 读源码后手写，每个闭包合入后更新。</p></header>
 <nav class="tabs" aria-label="领域"><a href="#skill" data-tab="skill">Skill</a><a href="#mcp" data-tab="mcp">MCP</a></nav>
 <div class="panel" id="panel-skill" data-panel="skill" hidden>
-<section><h2>技术讲解</h2><div class="prose"><h3>现在源码里有什么（W0，父分支 21175c9f9）</h3>
-<p>Skill 组有三个 workspace 成员，只有一个有真实代码。读源码时从 <code>packages/skills/skill-contract/src/contract.ts</code> 开始，它是全组唯一的实现文件。</p>
+<section><h2>技术讲解</h2><div class="prose"><h3>W1 之后源码里有什么（父分支 aafc0cdc9）</h3>
+<p>Skill 组仍是三个成员，只有 <code>@omne-harness/skill-contract</code> 有实现：22 个源文件、约 2400 个非空行、13 个测试文件 364 例。另外两个成员仍是模板草稿。读这个成员时按三个入口分开读，三者在 <code>package.json</code> 的 <code>exports</code> 里各占一条。</p>
 <ul>
-<li><code>@omne-harness/skill-contract</code>：纯契约成员。公开根只导出一个工厂 <code>skillBodyContract()</code>。</li>
-<li><code>@omne-harness/skill</code>（通用实现）与 <code>@omne-harness/skill-host-local</code>（本地宿主）：模板草稿，入口是 <code>export {}</code> 加草稿标记。</li>
+<li><strong>公开根 <code>.</code>（给调用方）</strong>：<code>index.ts</code> 只做重导出。值与品牌在 <code>values.ts</code>、<code>names.ts</code>、<code>digest.ts</code>、<code>media.ts</code>；失败联合在 <code>failures.ts</code>；三个应用服务接口在 <code>services.ts</code>；包检查纯函数在 <code>parse/</code>；类别端口在 <code>contract.ts</code>；资产正文投影在 <code>project.ts</code>。</li>
+<li><strong><code>./provider</code>（给端口实现方）</strong>：<code>provider.ts</code> 只重导出 <code>ports.ts</code> 的三个端口类型、<code>PackageInspection</code>、<code>SkillRef</code>、<code>PackageLocator</code>，以及唯一的运行时导出 <code>sealSnapshot</code>。公开根拿不到这些名字，所以调用方无法构造快照、也看不到包定位。</li>
+<li><strong><code>./testing</code>（给实现方自测）</strong>：<code>testing.ts</code> 聚合三个套件与三个内存替身。套件返回 <code>ConformanceCase[]</code>，用例用 <code>node:assert/strict</code> 失败，与 tool-contract 同形，不依赖测试框架。</li>
 </ul>
-<h3><code>skillBodyContract()</code> 怎样工作</h3>
-<p>它返回 assets 的类别端口 <code>BodyContract</code>，类别名是 <code>skill</code>。三个操作共用一个私有判断函数 <code>judge</code>：</p>
+
+<h3>依赖方向</h3>
+<p>模块图是一棵严格的 DAG，根是 <code>values.ts</code>（只有类型，没有导入）。往上一层是品牌授予与纯函数（<code>names</code>、<code>digest</code>、<code>media</code>），再上一层是 <code>snapshot.ts</code>（用这三者算条目事实）和 <code>parse/</code>（<code>shape</code> → <code>declaration</code>/<code>manifest</code> → <code>package</code>）。<code>contract.ts</code> 复用 <code>parse/shape.ts</code> 的读取器，所以资产正文和 <code>.omne/skill.json</code> 对 <code>scripts</code>、<code>settings</code> 的规则只有一份。<code>testing-*</code> 只依赖端口与值，不被任何非测试模块导入——<code>public-entry.spec.ts</code> 沿 <code>src</code> 的导入图核对这一点。</p>
+
+<h3>两条真实的调用路径</h3>
 <ol>
-<li><code>judge(body, context)</code> 先用 assets 的 <code>isReadBody</code> 确认正文是一次真实读取的结果，再取 <code>name</code>（必须是非空字符串，并且在给出能力名时与它相等，否则 <code>name-mismatch</code>），再取 <code>tools</code>。</li>
-<li><code>tools</code> 可以缺省（按空列表）；出现时每一项必须是 <code>{ category: "tool", name }</code>，否则 <code>incomplete-reference</code>。</li>
-<li><code>references</code> 把每一项变成 assets 的 <code>CapabilityId</code>；<code>deriveDeclarations</code> 现在总是返回空声明。判断失败时两者都抛出，这是 assets 的约定。</li>
+<li><strong>检查一个包。</strong>来源把文件字节交给 <code>sealSnapshot(rootName, files)</code>：它逐条算编码、大小、媒体类型与条目摘要，按 UTF-16 码元排序，拒绝重复路径与「文件同时是目录」的前缀冲突，再把快照登记进模块私有的 <code>WeakSet</code> 并以断言式守卫收窄成品牌类型。然后 <code>parseSkillPackage({ snapshot, control, expectedName? })</code>：先 <code>assertSealed</code>（伪造快照抛 <code>TypeError</code>，这是调用方的编程错误），再核对两份控制文件字节的摘要（不符答 <code>version-changed</code>，这是竞争，不是错误），然后 <code>readManifest</code> 解析 <code>SKILL.md</code> 头部（<code>frontmatterOf</code> 逐行找定界，<code>yaml-value.ts</code> 把 YAML 节点转成带预算的纯值）、<code>readDeclaration</code> 解析 <code>.omne/skill.json</code>，所有发现攒进一个列表，最后 <code>firstFinding</code> 按封闭次序（<code>INSPECT_REJECTIONS</code>）取第一条拒绝。名字必须逐字等于包根目录名。</li>
+<li><strong>类别端口。</strong><code>skillBodyContract()</code> 返回 assets 的 <code>BodyContract</code>。<code>judge</code> 的次序是：是真实读取 → 有 name → 等于能力名 → 合 <code>SkillName</code> 词法（<code>name-invalid</code>，本波新增）→ 工具引用合法 → 四个可加字段（<code>description</code>、<code>scripts</code>、<code>settings</code>、<code>package.digest</code>）合形。<code>deriveDeclarations</code> 对每项设置声明产出 <code>setting:&lt;类别&gt;:&lt;名字&gt;</code>。</li>
 </ol>
-<p>字段读取不直接解析 JSON，而是经 assets 的 <code>readSnapshot</code> 读已经无损解析好的 <code>JsonValue</code> 树，所以数字字面量与重复键这类问题在读取时就已处理。</p>
-<h3>W1 之后这里会怎样变</h3>
-<p>本页随每个闭包合入更新。W1 会让 <code>skill-contract</code> 分成公开根、<code>./provider</code>、<code>./testing</code> 三个入口，并加入值、失败、端口与包检查。届时本节改写为实际的模块分工与调用路径。</p>
+
+<h3>怎样保证「只能由构造器造出」</h3>
+<p>两层。类型层：<code>SkillPackageSnapshot</code> 的品牌键是 <code>values.ts</code> 里模块私有的 <code>unique symbol</code>，三个入口都不导出它，不写 <code>as</code> 就造不出这个类型；<code>types.spec-d.ts</code> 证明字面量赋不进去。运行时：<code>{ ...snapshot }</code> 能骗过类型检查，所以 <code>parseSkillPackage</code> 再查 <code>WeakSet</code>。代价写在 SPEC：这是进程内凭证，不可序列化，同一成员被加载成两份实例时互不承认。</p>
+
+<h3>还没有的东西</h3>
+<p>三个应用服务只有接口：<code>PackageInspection</code>（在 <code>./provider</code>，因为它的调用方是来源与资产登记一侧）、<code>SkillCatalog</code>、<code>SkillAccess</code>。它们的实现、读取 11 步、目录来源都在 W2。</p>
 </div></section>
 <section><h2>读数</h2><div class="tiles">
-<div class="tile"><span class="v">3</span><span class="l">成员</span><span class="n">草稿 2</span></div><div class="tile"><span class="v">4</span><span class="l">源文件</span></div><div class="tile"><span class="v">97</span><span class="l">非空源码行</span></div><div class="tile"><span class="v">1</span><span class="l">入口导出</span></div><div class="tile"><span class="v">8</span><span class="l">测试用例</span></div><div class="tile"><span class="v">0</span><span class="l">as 断言</span><span class="n">不含 as const</span></div><div class="tile"><span class="v">0</span><span class="l">any</span></div>
+<div class="tile"><span class="v">3</span><span class="l">成员</span><span class="n">草稿 2</span></div><div class="tile"><span class="v">24</span><span class="l">源文件</span></div><div class="tile"><span class="v">2180</span><span class="l">非空源码行</span></div><div class="tile"><span class="v">91</span><span class="l">入口导出</span></div><div class="tile"><span class="v">110</span><span class="l">测试用例</span></div><div class="tile"><span class="v">0</span><span class="l">as 断言</span><span class="n">不含 as const</span></div><div class="tile"><span class="v">0</span><span class="l">any</span></div>
 </div></section>
 <section><h2>成员依赖</h2><p class="muted">粗框是本组成员，虚线框是组外依赖（来自 package.json 与 import）。</p><div class="diagram"><pre class="mmd">
 flowchart TD
@@ -88,18 +94,580 @@ flowchart TD
   <p class="muted">草稿标记：<code>README.md</code> <code>README_ZH.md</code> <code>src/index.ts</code></p>
 </details>
 <details class="member" open><summary><h3><code>@omne-harness/skill-contract</code> <span class="pill real">有实现</span></h3></summary>
-  <p class="muted">Skill body port for the accepted asset category contract · <code>packages/skills/skill-contract</code> · 源文件 2 · 测试文件 2 · 用例 6</p>
-  <h4>入口与导出</h4><div class="tbl"><table><thead><tr><th>入口</th><th>导出（悬停看种类）</th></tr></thead><tbody><tr><td><code>.</code></td><td><code title="function">skillBodyContract</code></td></tr></tbody></table></div>
-  <p class="muted">没有导出的接口、类、记录或判别联合。</p>
-  
-  <h4>导出的函数与常量</h4><p><code title="src/contract.ts">skillBodyContract</code></p>
+  <p class="muted">Pure Skill contract: values, failures, package inspection, ports, service interfaces, and conformance suites · <code>packages/skills/skill-contract</code> · 源文件 22 · 测试文件 16 · 用例 108</p>
+  <h4>入口与导出</h4><div class="tbl"><table><thead><tr><th>入口</th><th>导出（悬停看种类）</th></tr></thead><tbody><tr><td><code>.</code></td><td><code title="function">skillBodyContract</code> <code title="function">computeDigest</code> <code title="function">isPackageDigest</code> <code title="function">inferMediaType</code> <code title="function">isAssetVersion</code> <code title="function">isControlFile</code> <code title="function">isPackagePath</code> <code title="function">isSafeReason</code> <code title="function">isSkillName</code> <code title="function">toPackagePath</code> <code title="function">parseSkillPackage</code> <code title="alias">ParseFailure</code> <code title="record">ParseInput</code> <code title="function">projectAssetBody</code> <code title="record">ByteRange</code> <code title="union">CatalogEntry</code> <code title="record">CatalogQuery</code> <code title="record">ExportedEntry</code> <code title="union">MaterialState</code> <code title="union">ReadContent</code> <code title="record">ReadResult</code> <code title="record">ReadTarget</code> <code title="record">ResourceListing</code> <code title="interface">SkillAccess</code> <code title="interface">SkillCatalog</code> <code title="record">SkillDescription</code> <code title="record">SkillExport</code> <code title="union">DescribeFailure</code> <code title="union">ExportFailure</code> <code title="alias">GateFailure</code> <code title="union">InspectFailure</code> <code title="alias">InspectRejectionCode</code> <code title="alias">ListFailure</code> <code title="union">PinFailure</code> <code title="union">ReadFailure</code> <code title="union">SkillFailure</code> <code title="alias">UnsupportedWhat</code> <code title="brand">AssetVersion</code> <code title="alias">Bytes</code> <code title="record">DeclaredProjection</code> <code title="brand">EntryDigest</code> <code title="union">ManifestValue</code> <code title="brand">MediaType</code> <code title="brand">PackageDigest</code> <code title="record">PackageEntry</code> <code title="brand">PackagePath</code> <code title="brand">SafeReason</code> <code title="record">ScriptDeclaration</code> <code title="record">ScriptIdentity</code> <code title="enum">SettingCategory</code> <code title="record">SettingDeclaration</code> <code title="record">SkillDeclaration</code> <code title="record">SkillDefinition</code> <code title="record">SkillManifest</code> <code title="record">SkillMaterialBasis</code> <code title="brand">SkillName</code> <code title="brand">SkillPackageSnapshot</code> <code title="enum">SourceLayer</code> <code title="record">StandIn</code></td></tr><tr><td><code>./provider</code></td><td><code title="alias">CatalogResolution</code> <code title="union">ReadVerdict</code> <code title="alias">Reply</code> <code title="union">Resolution</code> <code title="interface">SkillPackageSource</code> <code title="interface">SkillReadCheck</code> <code title="interface">SkillResolution</code> <code title="enum">SourceFailure</code> <code title="interface">PackageInspection</code> <code title="union">SnapshotDefect</code> <code title="?">sealSnapshot</code> <code title="union">PackageLocator</code> <code title="record">SkillRef</code></td></tr><tr><td><code>./testing</code></td><td><code title="function">isNotApplicable</code> <code title="class">NotApplicable</code> <code title="function">runConformanceCase</code> <code title="union">CaseVerdict</code> <code title="record">ConformanceCase</code> <code title="function">createMemoryReadCheck</code> <code title="function">skillReadCheckConformance</code> <code title="record">MemoryReadGrant</code> <code title="record">ReadCheckFixture</code> <code title="function">createMemoryResolution</code> <code title="function">skillResolutionConformance</code> <code title="record">MemoryMaterial</code> <code title="record">MemoryResolutionEntry</code> <code title="record">PrincipalSample</code> <code title="record">ResolutionFixture</code> <code title="function">createMemorySource</code> <code title="function">skillPackageSourceConformance</code> <code title="record">MemoryPackage</code> <code title="record">SourceFixture</code></td></tr></tbody></table></div>
+  <h4>类型与类（UML 类图，每个源文件一张）</h4><details open><summary><code>src/failures.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class SkillFailure {
+    &lt;&lt;union&gt;&gt;
+    not-available-to-you
+    unavailable-stand-in
+    bad-path
+    outside-package
+    resource-missing
+    basis-unavailable
+    adopted-material-changed
+    version-changed
+    …
+  }
+  class DescribeFailure {
+    &lt;&lt;union&gt;&gt;
+    GateFailure
+    Kinds'basis-unavailable'
+  }
+  class PinFailure {
+    &lt;&lt;union&gt;&gt;
+    DescribeFailure
+    Kinds
+      / 'unsupported'
+      / 'ad
+  }
+  class ReadFailure {
+    &lt;&lt;union&gt;&gt;
+    PinFailure
+    Kinds'bad-path' / 'outside-package' / '
+  }
+  class ExportFailure {
+    &lt;&lt;union&gt;&gt;
+    ExcludePinFailure, Kinds'adopted-mater
+    Kinds'outside-package' / 'resource-miss
+  }
+  class InspectFailure {
+    &lt;&lt;union&gt;&gt;
+    rejected
+    source-unavailable
+    version-changed
+  }
+  class StandIn
+  SkillFailure --&gt; StandIn
+  PinFailure --&gt; DescribeFailure
+  ReadFailure --&gt; PinFailure
+  ExportFailure --&gt; PinFailure
+</pre></div></details><details open><summary><code>src/parse/declaration.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class DeclarationRead {
+    &lt;&lt;union&gt;&gt;
+    unsupported
+    read
+  }
+  class SkillDeclaration
+  class Finding
+  DeclarationRead --&gt; SkillDeclaration
+  DeclarationRead --&gt; Finding
+</pre></div></details><details open><summary><code>src/parse/manifest.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class ManifestRead {
+    &lt;&lt;union&gt;&gt;
+    ok
+    malformed
+  }
+  class SkillManifest
+  ManifestRead --&gt; SkillManifest
+</pre></div></details><details open><summary><code>src/parse/package.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class ParseInput {
+    &lt;&lt;value&gt;&gt;
+    +snapshot
+    +control
+    +expectedName?
+    +declarationLimits?
+  }
+</pre></div></details><details open><summary><code>src/parse/shape.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class Finding {
+    &lt;&lt;value&gt;&gt;
+    +code
+    +detail
+  }
+  class Read {
+    &lt;&lt;value&gt;&gt;
+    +value
+    +findings
+  }
+  Read --&gt; Finding
+</pre></div></details><details open><summary><code>src/ports.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class SkillPackageSource {
+    &lt;&lt;interface&gt;&gt;
+    +snapshot()
+    +open()
+  }
+  class Resolution {
+    &lt;&lt;union&gt;&gt;
+    known-unavailable
+    adopted
+    basis-not-lawful
+    none
+    unknown
+  }
+  class SkillResolution {
+    &lt;&lt;interface&gt;&gt;
+    +resolve()
+    +adopted()
+  }
+  class ReadVerdict {
+    &lt;&lt;union&gt;&gt;
+    granted
+    refused
+    unknown
+  }
+  class SkillReadCheck {
+    &lt;&lt;interface&gt;&gt;
+    +check()
+  }
+  class PackageLocator
+  class SkillRef
+  class DeclaredProjection
+  class SkillMaterialBasis
+  SkillPackageSource --&gt; PackageLocator
+  Resolution --&gt; SkillRef
+  Resolution --&gt; DeclaredProjection
+  SkillResolution --&gt; SkillMaterialBasis
+  SkillResolution --&gt; Resolution
+  SkillReadCheck --&gt; ReadVerdict
+</pre></div></details><details open><summary><code>src/services.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class PackageInspection {
+    &lt;&lt;interface&gt;&gt;
+    +inspect()
+  }
+  class CatalogEntry {
+    &lt;&lt;union&gt;&gt;
+    adopted
+    stand-in
+  }
+  class CatalogQuery {
+    &lt;&lt;value&gt;&gt;
+    +text
+  }
+  class SkillCatalog {
+    &lt;&lt;interface&gt;&gt;
+    +summaries()
+    +search()
+  }
+  class MaterialState {
+    &lt;&lt;union&gt;&gt;
+    pinned
+    no-readable-package
+  }
+  class SkillDescription {
+    &lt;&lt;value&gt;&gt;
+    +capability
+    +layer
+    +material
+    +dependencies
+    +scripts
+    +settings
+    +addressing
+  }
+  class ReadTarget {
+    &lt;&lt;value&gt;&gt;
+    +capability
+    +part
+  }
+  class ByteRange {
+    &lt;&lt;value&gt;&gt;
+    +start
+    +length
+  }
+  class ReadContent {
+    &lt;&lt;union&gt;&gt;
+    text
+    bytes
+  }
+  class ReadResult {
+    &lt;&lt;value&gt;&gt;
+    +basis
+    +part
+    +mediaType?
+    +content
+    +range
+    +total
+    +complete
+  }
+  class ResourceListing {
+    &lt;&lt;value&gt;&gt;
+    +basis
+    +resources
+  }
+  class ExportedEntry {
+    &lt;&lt;value&gt;&gt;
+    +path
+    +mediaType?
+    +size
+    +digest
+    +bytes
+  }
+  class SkillExport {
+    &lt;&lt;value&gt;&gt;
+    +basis
+    +digest
+    +entries
+  }
+  class SkillAccess {
+    &lt;&lt;interface&gt;&gt;
+    +describe()
+    +read()
+    +list()
+    +export()
+  }
+  class PackageLocator
+  class SkillDefinition
+  class InspectFailure
+  class SkillMaterialBasis
+  class ScriptDeclaration
+  class SettingDeclaration
+  class PackageEntry
+  class DescribeFailure
+  class ReadFailure
+  class ExportFailure
+  PackageInspection --&gt; PackageLocator
+  PackageInspection --&gt; SkillDefinition
+  PackageInspection --&gt; InspectFailure
+  SkillCatalog --&gt; CatalogEntry
+  SkillCatalog --&gt; CatalogQuery
+  MaterialState --&gt; SkillMaterialBasis
+  SkillDescription --&gt; MaterialState
+  SkillDescription --&gt; ScriptDeclaration
+  SkillDescription --&gt; SettingDeclaration
+  ReadResult --&gt; SkillMaterialBasis
+  ReadResult --&gt; ReadContent
+  ReadResult --&gt; ByteRange
+  ResourceListing --&gt; SkillMaterialBasis
+  ResourceListing --&gt; PackageEntry
+  SkillExport --&gt; SkillMaterialBasis
+  SkillExport --&gt; ExportedEntry
+  SkillAccess --&gt; SkillMaterialBasis
+  SkillAccess --&gt; SkillDescription
+  SkillAccess --&gt; DescribeFailure
+  SkillAccess --&gt; ReadTarget
+  SkillAccess --&gt; ByteRange
+  SkillAccess --&gt; ReadResult
+  SkillAccess --&gt; ReadFailure
+  SkillAccess --&gt; ResourceListing
+  SkillAccess --&gt; SkillExport
+  SkillAccess --&gt; ExportFailure
+</pre></div></details><details open><summary><code>src/snapshot.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class SnapshotDefect {
+    &lt;&lt;union&gt;&gt;
+    invalid-root-name
+    duplicate-path
+    prefix-conflict
+  }
+</pre></div></details><details open><summary><code>src/testing-case.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class ConformanceCase {
+    &lt;&lt;value&gt;&gt;
+    +name
+    +clause
+    +run()
+  }
+  class NotApplicable {
+    +handle
+  }
+  class CaseVerdict {
+    &lt;&lt;union&gt;&gt;
+    passed
+    not-applicable
+  }
+</pre></div></details><details open><summary><code>src/testing-read-check.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class MemoryReadGrant {
+    &lt;&lt;value&gt;&gt;
+    +capability
+    +visible
+  }
+  class ReadCheckFixture {
+    &lt;&lt;value&gt;&gt;
+    +readCheck
+    +permitted
+    +refused
+    +readable
+    +missing
+  }
+  class SkillReadCheck
+  class PrincipalSample
+  ReadCheckFixture --&gt; SkillReadCheck
+  ReadCheckFixture --&gt; PrincipalSample
+</pre></div></details><details open><summary><code>src/testing-resolution.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class MemoryMaterial {
+    &lt;&lt;value&gt;&gt;
+    +ref
+    +declared
+  }
+  class MemoryResolutionEntry {
+    &lt;&lt;value&gt;&gt;
+    +capability
+    +visible
+    +state
+  }
+  class PrincipalSample {
+    &lt;&lt;value&gt;&gt;
+    +access
+    +scope
+  }
+  class ResolutionFixture {
+    &lt;&lt;value&gt;&gt;
+    +resolution
+    +permitted
+    +refused
+    +adopted
+    +missing
+    +standIn?
+    +earlier?
+    +unlawfulLayer?
+  }
+  class SkillRef
+  class DeclaredProjection
+  class SkillResolution
+  class SkillMaterialBasis
+  MemoryMaterial --&gt; SkillRef
+  MemoryMaterial --&gt; DeclaredProjection
+  MemoryResolutionEntry --&gt; MemoryMaterial
+  ResolutionFixture --&gt; SkillResolution
+  ResolutionFixture --&gt; PrincipalSample
+  ResolutionFixture --&gt; SkillMaterialBasis
+</pre></div></details><details open><summary><code>src/testing-source.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class MemoryPackage {
+    &lt;&lt;value&gt;&gt;
+    +locator
+    +rootName
+    +files
+    +links?
+  }
+  class SourceFixture {
+    &lt;&lt;value&gt;&gt;
+    +source
+    +present
+    +absent
+    +addressing
+    +escaping?
+  }
+  class PackageLocator
+  class SkillPackageSource
+  MemoryPackage --&gt; PackageLocator
+  SourceFixture --&gt; SkillPackageSource
+  SourceFixture --&gt; PackageLocator
+</pre></div></details><details open><summary><code>src/values.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class PackageEntry {
+    &lt;&lt;value&gt;&gt;
+    +path
+    +encoding
+    +size
+    +mediaType?
+    +digest
+  }
+  class SnapshotShape {
+    &lt;&lt;value&gt;&gt;
+    +rootName
+    +entries
+    +digest
+  }
+  class PackageLocator {
+    &lt;&lt;union&gt;&gt;
+    directory
+    content-store
+  }
+  class ManifestValue {
+    &lt;&lt;union&gt;&gt;
+    null
+    boolean
+    number
+    string
+    readonly ManifestValue[]
+    …
+  }
+  class SkillManifest {
+    &lt;&lt;value&gt;&gt;
+    +name
+    +description
+    +license?
+    +compatibility?
+    +metadata?
+    +allowedTools?
+    +extra
+  }
+  class ScriptDeclaration {
+    &lt;&lt;value&gt;&gt;
+    +entry
+    +runKind
+    +facilities
+    +parameters?
+  }
+  class SettingDeclaration {
+    &lt;&lt;value&gt;&gt;
+    +name
+    +category
+  }
+  class SkillDeclaration {
+    &lt;&lt;value&gt;&gt;
+    +dependencies
+    +scripts
+    +settings
+  }
+  class SkillDefinition {
+    &lt;&lt;value&gt;&gt;
+    +manifest
+    +declaration
+    +snapshot
+  }
+  class DeclaredProjection {
+    &lt;&lt;value&gt;&gt;
+    +name
+    +description?
+    +tools
+    +scripts
+    +settings
+  }
+  class ScriptIdentity {
+    &lt;&lt;value&gt;&gt;
+    +capability
+    +entry
+  }
+  class SkillMaterialBasis {
+    &lt;&lt;value&gt;&gt;
+    +capability
+    +layer
+    +assetVersion?
+    +digest
+  }
+  class SkillRef {
+    &lt;&lt;value&gt;&gt;
+    +capability
+    +layer
+    +assetVersion?
+    +locator
+    +digest?
+  }
+  class StandIn {
+    &lt;&lt;value&gt;&gt;
+    +capability
+    +name
+    +description?
+    +reason
+  }
+  SnapshotShape --&gt; PackageEntry
+  SkillManifest --&gt; ManifestValue
+  SkillDeclaration --&gt; ScriptDeclaration
+  SkillDeclaration --&gt; SettingDeclaration
+  SkillDefinition --&gt; SkillManifest
+  SkillDefinition --&gt; SkillDeclaration
+  DeclaredProjection --&gt; ScriptDeclaration
+  DeclaredProjection --&gt; SettingDeclaration
+  SkillRef --&gt; PackageLocator
+</pre></div></details>
+  <h4>品牌、字面量集合与别名</h4><div class="tbl"><table><thead><tr><th>名字</th><th>种类</th><th>取值</th><th>文件</th></tr></thead><tbody><tr><td><code>UnsupportedWhat</code></td><td>别名</td><td></td><td><code>src/failures.ts</code></td></tr><tr><td><code>GateFailure</code></td><td>别名</td><td></td><td><code>src/failures.ts</code></td></tr><tr><td><code>ListFailure</code></td><td>别名</td><td></td><td><code>src/failures.ts</code></td></tr><tr><td><code>InspectRejectionCode</code></td><td>别名</td><td></td><td><code>src/failures.ts</code></td></tr><tr><td><code>InspectRejection</code></td><td>别名</td><td></td><td><code>src/failures.ts</code></td></tr><tr><td><code>ParseFailure</code></td><td>别名</td><td></td><td><code>src/parse/package.ts</code></td></tr><tr><td><code>Reply</code></td><td>别名</td><td></td><td><code>src/ports.ts</code></td></tr><tr><td><code>SourceFailure</code></td><td>字面量集合</td><td><code>package-not-found</code> <code>entry-not-found</code> <code>bytes-mismatch</code> <code>outside-package</code> <code>unavailable</code> <code>entry-unreadable</code></td><td><code>src/ports.ts</code></td></tr><tr><td><code>CatalogResolution</code></td><td>别名</td><td></td><td><code>src/ports.ts</code></td></tr><tr><td><code>Brand</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>SkillName</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>PackagePath</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>EntryDigest</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>PackageDigest</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>AssetVersion</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>SafeReason</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>MediaType</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>Bytes</code></td><td>别名</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>SourceLayer</code></td><td>字面量集合</td><td><code>official</code> <code>organization</code> <code>tenant</code> <code>workspace</code></td><td><code>src/values.ts</code></td></tr><tr><td><code>SettingCategory</code></td><td>字面量集合</td><td><code>preference</code> <code>binding</code> <code>placement-identity</code> <code>governance</code></td><td><code>src/values.ts</code></td></tr><tr><td><code>SkillPackageSnapshot</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr></tbody></table></div>
+  <h4>导出的函数与常量</h4><p><code title="src/contract.ts">skillBodyContract</code> <code title="src/digest.ts">isPackageDigest</code> <code title="src/digest.ts">computeDigest</code> <code title="src/digest.ts">digestOfSorted</code> <code title="src/failures.ts">INSPECT_REJECTIONS</code> <code title="src/media.ts">inferMediaType</code> <code title="src/media.ts">encodingOf</code> <code title="src/names.ts">isSkillName</code> <code title="src/names.ts">isPackagePath</code> <code title="src/names.ts">toPackagePath</code> <code title="src/names.ts">isBoundedText</code> <code title="src/names.ts">isSafeReason</code> <code title="src/names.ts">isAssetVersion</code> <code title="src/names.ts">MANIFEST_PATH</code> <code title="src/names.ts">DECLARATION_PATH</code> <code title="src/names.ts">isControlFile</code> <code title="src/parse/declaration.ts">DECLARATION_LIMITS</code> <code title="src/parse/declaration.ts">EMPTY_DECLARATION</code> <code title="src/parse/declaration.ts">readDeclaration</code> <code title="src/parse/manifest.ts">frontmatterOf</code> <code title="src/parse/manifest.ts">readManifest</code> <code title="src/parse/package.ts">parseSkillPackage</code> <code title="src/parse/shape.ts">firstFinding</code> <code title="src/parse/shape.ts">DESCRIPTION_MAX</code> <code title="src/parse/shape.ts">fieldsOf</code> <code title="src/parse/shape.ts">unknownKeys</code> <code title="src/parse/shape.ts">readDependencies</code> <code title="src/parse/shape.ts">readScripts</code> <code title="src/parse/shape.ts">readSettings</code> <code title="src/parse/yaml-value.ts">plainValue</code> <code title="src/parse/yaml-value.ts">textKey</code> <code title="src/project.ts">projectAssetBody</code> <code title="src/snapshot.ts">assertSealed</code> <code title="src/snapshot.ts">sealSnapshot</code> <code title="src/testing-case.ts">isNotApplicable</code> <code title="src/testing-case.ts">runConformanceCase</code> <code title="src/testing-case.ts">conformanceCase</code> <code title="src/testing-case.ts">handle</code> <code title="src/testing-read-check.ts">createMemoryReadCheck</code> <code title="src/testing-read-check.ts">READ_CHECK_NO_DISCLOSURE</code> <code title="src/testing-read-check.ts">skillReadCheckConformance</code> <code title="src/testing-resolution.ts">sameCapability</code> <code title="src/testing-resolution.ts">createMemoryResolution</code> <code title="src/testing-resolution.ts">RESOLUTION_NO_DISCLOSURE</code> <code title="src/testing-resolution.ts">skillResolutionConformance</code> <code title="src/testing-source.ts">createMemorySource</code> <code title="src/testing-source.ts">skillPackageSourceConformance</code></p>
   <h4>模块依赖</h4><div class="diagram"><pre class="mmd">
 flowchart LR
   src_contract_ts["src/contract.ts"]
+  src_digest_ts["src/digest.ts"]
+  src_failures_ts["src/failures.ts"]
   src_index_ts["src/index.ts"]
+  src_media_ts["src/media.ts"]
+  src_names_ts["src/names.ts"]
+  src_parse_declaration_ts["src/parse/declaration.ts"]
+  src_parse_manifest_ts["src/parse/manifest.ts"]
+  src_parse_package_ts["src/parse/package.ts"]
+  src_parse_shape_ts["src/parse/shape.ts"]
+  src_parse_yaml_value_ts["src/parse/yaml-value.ts"]
+  src_ports_ts["src/ports.ts"]
+  src_project_ts["src/project.ts"]
+  src_provider_ts["src/provider.ts"]
+  src_services_ts["src/services.ts"]
+  src_snapshot_ts["src/snapshot.ts"]
+  src_testing_case_ts["src/testing-case.ts"]
+  src_testing_read_check_ts["src/testing-read-check.ts"]
+  src_testing_resolution_ts["src/testing-resolution.ts"]
+  src_testing_source_ts["src/testing-source.ts"]
+  src_testing_ts["src/testing.ts"]
+  src_values_ts["src/values.ts"]
+  src_contract_ts --&gt; src_digest_ts
+  src_contract_ts --&gt; src_names_ts
+  src_contract_ts --&gt; src_parse_shape_ts
+  src_contract_ts --&gt; src_values_ts
+  src_digest_ts --&gt; src_values_ts
+  src_failures_ts --&gt; src_values_ts
   src_index_ts --&gt; src_contract_ts
+  src_index_ts --&gt; src_digest_ts
+  src_index_ts --&gt; src_media_ts
+  src_index_ts --&gt; src_names_ts
+  src_index_ts --&gt; src_parse_package_ts
+  src_index_ts --&gt; src_project_ts
+  src_index_ts --&gt; src_services_ts
+  src_index_ts --&gt; src_failures_ts
+  src_index_ts --&gt; src_values_ts
+  src_media_ts --&gt; src_values_ts
+  src_names_ts --&gt; src_values_ts
+  src_parse_declaration_ts --&gt; src_names_ts
+  src_parse_declaration_ts --&gt; src_values_ts
+  src_parse_declaration_ts --&gt; src_parse_shape_ts
+  src_parse_manifest_ts --&gt; src_names_ts
+  src_parse_manifest_ts --&gt; src_values_ts
+  src_parse_manifest_ts --&gt; src_parse_shape_ts
+  src_parse_manifest_ts --&gt; src_parse_yaml_value_ts
+  src_parse_package_ts --&gt; src_digest_ts
+  src_parse_package_ts --&gt; src_failures_ts
+  src_parse_package_ts --&gt; src_names_ts
+  src_parse_package_ts --&gt; src_snapshot_ts
+  src_parse_package_ts --&gt; src_values_ts
+  src_parse_package_ts --&gt; src_parse_declaration_ts
+  src_parse_package_ts --&gt; src_parse_manifest_ts
+  src_parse_package_ts --&gt; src_parse_shape_ts
+  src_parse_shape_ts --&gt; src_failures_ts
+  src_parse_shape_ts --&gt; src_names_ts
+  src_parse_shape_ts --&gt; src_values_ts
+  src_parse_yaml_value_ts --&gt; src_values_ts
+  src_ports_ts --&gt; src_values_ts
+  src_project_ts --&gt; src_values_ts
+  src_provider_ts --&gt; src_ports_ts
+  src_provider_ts --&gt; src_services_ts
+  src_provider_ts --&gt; src_snapshot_ts
+  src_provider_ts --&gt; src_snapshot_ts
+  src_provider_ts --&gt; src_values_ts
+  src_services_ts --&gt; src_failures_ts
+  src_services_ts --&gt; src_values_ts
+  src_snapshot_ts --&gt; src_digest_ts
+  src_snapshot_ts --&gt; src_media_ts
+  src_snapshot_ts --&gt; src_values_ts
+  src_testing_read_check_ts --&gt; src_ports_ts
+  src_testing_read_check_ts --&gt; src_testing_case_ts
+  src_testing_read_check_ts --&gt; src_testing_resolution_ts
+  src_testing_resolution_ts --&gt; src_digest_ts
+  src_testing_resolution_ts --&gt; src_names_ts
+  src_testing_resolution_ts --&gt; src_ports_ts
+  src_testing_resolution_ts --&gt; src_testing_case_ts
+  src_testing_resolution_ts --&gt; src_values_ts
+  src_testing_source_ts --&gt; src_digest_ts
+  src_testing_source_ts --&gt; src_media_ts
+  src_testing_source_ts --&gt; src_names_ts
+  src_testing_source_ts --&gt; src_ports_ts
+  src_testing_source_ts --&gt; src_snapshot_ts
+  src_testing_source_ts --&gt; src_testing_case_ts
+  src_testing_source_ts --&gt; src_values_ts
+  src_testing_ts --&gt; src_testing_case_ts
+  src_testing_ts --&gt; src_testing_read_check_ts
+  src_testing_ts --&gt; src_testing_resolution_ts
+  src_testing_ts --&gt; src_testing_source_ts
 </pre></div>
-  <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/contract.ts</code></td><td class="num">92</td><td class="num">1</td><td class="num">24 <span class="muted">skillBodyContract</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/index.ts</code></td><td class="num">1</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
+  <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/contract.ts</code></td><td class="num">147</td><td class="num">1</td><td class="num">28 <span class="muted">skillBodyContract</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/digest.ts</code></td><td class="num">35</td><td class="num">3</td><td class="num">8 <span class="muted">digestOfSorted</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/failures.ts</code></td><td class="num">64</td><td class="num">12</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/index.ts</code></td><td class="num">64</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/media.ts</code></td><td class="num">81</td><td class="num">2</td><td class="num">10 <span class="muted">encodingOf</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/names.ts</code></td><td class="num">65</td><td class="num">9</td><td class="num">9 <span class="muted">hasControl</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/declaration.ts</code></td><td class="num">77</td><td class="num">4</td><td class="num">35 <span class="muted">readDeclaration</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/manifest.ts</code></td><td class="num">122</td><td class="num">3</td><td class="num">16 <span class="muted">readManifest</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/package.ts</code></td><td class="num">95</td><td class="num">3</td><td class="num">32 <span class="muted">parseSkillPackage</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/shape.ts</code></td><td class="num">192</td><td class="num">9</td><td class="num">32 <span class="muted">readScripts</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/yaml-value.ts</code></td><td class="num">71</td><td class="num">2</td><td class="num">11 <span class="muted">convert</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/ports.ts</code></td><td class="num">86</td><td class="num">8</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/project.ts</code></td><td class="num">45</td><td class="num">1</td><td class="num">11 <span class="muted">projectAssetBody</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/provider.ts</code></td><td class="num">14</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/services.ts</code></td><td class="num">154</td><td class="num">14</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/snapshot.ts</code></td><td class="num">85</td><td class="num">3</td><td class="num">20 <span class="muted">sealSnapshot</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-case.ts</code></td><td class="num">57</td><td class="num">7</td><td class="num">9 <span class="muted">runConformanceCase</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-read-check.ts</code></td><td class="num">58</td><td class="num">5</td><td class="num">19 <span class="muted">skillReadCheckConformance</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-resolution.ts</code></td><td class="num">286</td><td class="num">8</td><td class="num">150 <span class="muted">skillResolutionConformance</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-source.ts</code></td><td class="num">219</td><td class="num">4</td><td class="num">84 <span class="muted">skillPackageSourceConformance</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing.ts</code></td><td class="num">27</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/values.ts</code></td><td class="num">132</td><td class="num">26</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
   
 </details>
 <details class="member" open><summary><h3><code>@omne-harness/skill-host-local</code> <span class="pill draft">模板草稿</span></h3></summary>
@@ -112,21 +680,49 @@ flowchart LR
   <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/index.ts</code></td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
   <p class="muted">草稿标记：<code>README.md</code> <code>README_ZH.md</code> <code>src/index.ts</code></p>
 </details></section>
-<section><h2>健康评述</h2><div class="prose"><h3>W0 基线（2026-11-03，父分支 21175c9f9）</h3>
-<p><strong>现状。</strong>只有 <code>@omne-harness/skill-contract</code> 有实现：一个文件 <code>src/contract.ts</code>（92 个非空行），导出 <code>skillBodyContract</code>，6 条测试。它还是旧的必选文件形状，没有迁到 3.0.0 完整骨架。<code>@omne-harness/skill</code> 与 <code>@omne-harness/skill-host-local</code> 是模板草稿，只有占位入口。</p>
-<p><strong>健康。</strong>没有 <code>as</code> 断言，没有 <code>any</code>，最长函数 24 行（<code>skillBodyContract</code>）。依赖方向干净：契约成员只依赖 <code>assets</code>、四个公共值成员与 <code>yaml</code>（后几个由 W1 准备声明，尚未被源码导入）。</p>
-<p><strong>W1 之后应当看到。</strong>契约成员分成三个入口；值、失败、端口、服务接口各在自己的模块里，单文件不超过约 300 行；品牌只由校验函数授予，<code>as</code> 只出现在校验之后；类图里 <code>SkillRef</code> 只出现在 <code>./provider</code>，公开根的类型不引用它。</p>
+<section><h2>健康评述</h2><div class="prose"><h3>W1 合入（2026-11-03，父分支 aafc0cdc9）</h3>
+<p><strong>读数。</strong>22 个源文件、13 个测试文件 364 例，覆盖率 97%。<code>src</code> 里没有 <code>as</code> 类型断言（两处 <code>as const</code> 是字面量断言）、没有 <code>any</code>、没有类。变更函数超 alert 的 0 个，超 warn 的 1 个（<code>skillResolutionConformance</code> CC 11，用例表）。差分变异 1595 个变异体，被杀 1244，存活 288，其中 156 条在套件替身代码里；工具因 13 个静态变异把模块加载改坏而判「测量无效」，分数不可用。</p>
+<p><strong>优雅在哪里。</strong>依赖图是一棵干净的 DAG，<code>values.ts</code> 零导入在根。品牌只由八个 <code>isX</code> 守卫授予，守卫与品牌一一对应。失败联合按操作用 <code>Extract</code> 收窄，<code>export</code> 的签名里就没有「已采用材料已变」。<code>parse/shape.ts</code> 的读取器被资产正文与声明文件共用，同一条规则只写一次。套件无框架化后，变红证明在进程内完成，删掉了第 1 轮的子进程方案。</p>
+<p><strong>异味与处置。</strong></p>
+<ul>
+<li>存活变异集中在三处：<code>contract.ts</code> 里内嵌的 schema 文本（断言它的读出值能杀掉，W2 补）；<code>media.ts</code> 的签名表与扩展名表（本波不在热点，W2 的目录来源会真实读文件时补夹具）；<code>parse/manifest.ts:47–55</code> 头部定界扫描的 <code>-1/+1</code> 与 <code>end-1</code> 边界——这是真正的测试缺口，记为 W2 的已知项。</li>
+<li><code>WeakSet</code> 登记是进程内凭证，双份加载互不承认。装配方要保证单实例，SPEC 与 README 都写了；这是可接受的代价，不是异味。</li>
+<li>与 tool-contract 有 25 行通用 read-body 读取器的克隆（<code>field</code>/<code>stringField</code>/<code>isObject</code>）。两组不能互相依赖，唯一去处是 assets；本波保留平行实现，登记为清理候选。</li>
+<li><code>sealSnapshot</code> 收整包字节：算法只有一处，但按内容存放的来源要先取全部字节才能交快照。第一波只有目录来源，不受影响；W3 的内容存储来源要正视这一点。</li>
+</ul>
+<p><strong>偏离设计的地方。</strong>与组页相比有 15 处差异（见 SPEC「与组页的差异」表），全部是本波裁定，波末写回组页。最大的两处：端口要求的现行源改为 SPEC；<code>PackageInspection</code> 从公开根挪到 <code>./provider</code>。</p>
+<hr>
+<h3>W0 基线（2026-11-03，父分支 21175c9f9）</h3>
+<p>只有 <code>skill-contract</code> 有实现：一个文件 92 行，导出 <code>skillBodyContract</code>，6 条测试。无 <code>as</code>、无 <code>any</code>，最长函数 24 行。</p>
 </div></section>
 </div>
 <div class="panel" id="panel-mcp" data-panel="mcp" hidden>
-<section><h2>技术讲解</h2><div class="prose"><h3>现在源码里有什么（W0，父分支 21175c9f9）</h3>
-<p>MCP 组有三个 workspace 成员，都是模板草稿：<code>@omne-harness/mcp-contract</code>（纯契约）、<code>@omne-harness/mcp</code>（通用实现）、<code>@omne-harness/mcp-host-local</code>（本地宿主）。每个成员的 <code>src/index.ts</code> 都只有草稿标记与 <code>export {}</code>，还没有可讲的调用路径。</p>
-<p><code>mcp-contract</code> 已经声明了 assets 与四个公共值成员（<code>operation-result</code>、<code>legal-identity</code>、<code>content-block</code>、<code>json-text</code>）作依赖，源码还没有导入它们。三个成员都不依赖任何 MCP SDK。</p>
-<h3>W1 之后这里会怎样变</h3>
-<p>W1 交付 <code>mcp-contract</code>：接入点正文的类别端口、清单与结局的纯函数、五个需求端口与组内传输端口、符合性套件。合入后本节改写为实际的模块分工、关键类型之间的关系，以及 <code>mergeListing</code>、<code>classifyOutcome</code> 的真实算法路径。</p>
+<section><h2>技术讲解</h2><div class="prose"><h3>W1 之后源码里有什么（父分支 c247b873a）</h3>
+<p>MCP 组三个成员，只有 <code>@omne-harness/mcp-contract</code> 有实现：29 个源文件、约 3700 个非空行、12 个测试文件 298 例（其中两张用例表 <code>classifyOutcomeCases</code>、<code>mergeListingCases</code> 由 <code>./testing</code> 导出，成员自己的测试与未来实现方共用）。比 Skill 大一半，因为它一边要对协议线（2026-07-28 修订）做分类，一边要给五个端口写符合性套件。三个入口：</p>
+<ul>
+<li><strong>公开根 <code>.</code>（给调用方）</strong>：<code>index.ts</code> 从 13 个模块重导出，没有自己的函数。值与品牌在 <code>brands.ts</code>、<code>values.ts</code>；接入点正文在 <code>endpoint.ts</code>（<code>parseEndpointBody</code>、<code>launchesLocalCommand</code>、<code>mcpEndpointBodyContract</code>）；清单在 <code>listing.ts</code>（<code>completeListing</code>、<code>digestDefinition</code>）与 <code>catalog.ts</code>（<code>mergeListing</code>、<code>markUnavailable</code>、<code>actionPermissionItems</code>）；结局在 <code>classify.ts</code>（<code>classifyOutcome</code>）与 <code>content.ts</code>（<code>toContentBlocks</code>）；键在 <code>keys.ts</code>；六个应用服务接口在 <code>services.ts</code>。</li>
+<li><strong><code>./provider</code>（给端口与传输实现方）</strong>：<code>provider.ts</code> 只有类型——五个端口（<code>AdoptionView</code>、<code>UseEligibility</code>、<code>CredentialUse</code>、<code>ProcessLanding</code>、<code>CatalogStore</code>）、两类凭据句柄（Http/Process）与 <code>McpTransport</code>/<code>McpTransportFactory</code>。没有运行时导出：与 Skill 不同，MCP 的唯一构造器 <code>completeListing</code> 留在公开根，因为它的调用方是本组的应用服务而不是外部实现方。</li>
+<li><strong><code>./testing</code>（给实现方自测）</strong>：五个套件 <code>mcp&lt;Port&gt;Conformance()</code> 配五个内存替身 <code>createMemory&lt;Port&gt;()</code>，加 <code>runConformanceCase</code>/<code>NotApplicable</code>。替身自己也要过套件，这是 <code>conformance.spec.ts</code> 做的事。</li>
+</ul>
+
+<h3>依赖方向</h3>
+<p>根是 <code>brands.ts</code>（零导入，15 个 <code>isX</code> 守卫），<code>values.ts</code> 在它之上——与 Skill 相反，因为 MCP 的值类型大多就是品牌本身。<code>json.ts</code>（在 json-text 的 JSON 树上找成员、取文本、算规范字节）与 <code>order.ts</code>（码元比较）是两个无依赖的小工具层。往上：<code>endpoint</code>、<code>listing</code>、<code>classify</code>、<code>content</code> 各自只依赖值与工具；<code>ports</code> 依赖 <code>catalog</code> 与 <code>outcomes</code>；<code>services</code> 与 <code>transport</code> 在最顶上。<code>listing.ts</code> 与 <code>catalog.ts</code> 之间有一条类型环：<code>listing</code> 以 <code>import type</code> 取 <code>catalog</code> 的三个类型，<code>catalog</code> 运行时调用 <code>listing</code> 的 <code>assertComplete</code>。dependency-cruiser 不报，但它说明「清单」与「目录」的切分线还没切干净（见评述）。</p>
+
+<h3>三条真实的调用路径</h3>
+<ol>
+<li><strong>读接入点正文。</strong><code>parseEndpointBody(body, capabilityName?)</code> 在 json-text 的树上按 SPEC E2 的次序拒绝：结构缺陷 → 名字不符 → 传输未知 → 认证方式未知 → 组合不合法 → 启动声明多了或少了。最后一格交给 <code>transportOf(transport, launch)</code>。<code>isConnectionTarget</code> 用 WHATWG <code>URL</code> 解析：只认小写 <code>https</code>，或回环主机上的小写 <code>http</code>（<code>LOOPBACK_HOSTS</code>），带用户名口令的一律拒绝。</li>
+<li><strong>清单从对端到目录。</strong>传输交回的 <code>ListingPage</code> 是 <code>Untrusted</code>；<code>completeListing(pages, basedOn)</code> 逐项核形、算 <code>digestDefinition</code>（规范 JSON 字节的摘要）、按码元排序，然后登记进模块私有 <code>WeakSet</code>。<code>mergeListing(current, listing, expected)</code> 先 <code>assertComplete</code>（伪造抛 <code>TypeError</code>），再只按修订合并：修订不等答 <code>stale</code>，不比内容。<code>markUnavailable</code> 是目录在连接丢失后的降级写法。</li>
+<li><strong>结局分类。</strong><code>classifyOutcome(answer)</code> 把一次 <code>tools/call</code> 的应答收成判别联合：<code>complete</code> / <code>toolError</code>（<code>isError</code> 为真）/ <code>inputRequired</code>（<code>inputRequests</code> 与 <code>requestState</code> 至少一项）/ <code>protocolError</code>（<code>resultType</code> 不认识）。内容由 <code>toContentBlocks</code> 按 <code>type</code> 的读取表转换：text/image/audio 各一函数，resource_link/resource 走协议类型表，不在表里即 <code>type-unknown</code>。任务路径（<code>tasks/get</code>）走同一分类函数，所以两条路径的 <code>inputRequests</code> 形状只有一份。</li>
+</ol>
+
+<h3>失败怎样分层</h3>
+<p>四层，每层一个联合，在 <code>outcomes.ts</code> 与 <code>transport.ts</code>：<code>TransportFailure</code>（not-sent / no-answer / error-answer / answer-malformed）是线上的事实；<code>OperationFailure</code> 在它之上加 <code>Refusal</code>、<code>ConnectionFailure</code> 与 <code>effect-unknown</code>；<code>ReadFailure</code> 只给 <code>current</code>/<code>peer</code> 两个读操作；<code>LostReason</code>/<code>DegradedReason</code> 是连接状态的说明。<code>residual</code> 只在 <code>lost</code> 上出现——这是第 4 轮加进来的：关闭未确认时调用方要知道对端可能还在跑。</p>
+
+<h3>还没有的东西</h3>
+<p>六个应用服务（<code>EndpointInspection</code>、<code>ActionDiscovery</code>、<code>ActionCalls</code>、<code>TaskControl</code>、<code>EndpointStatus</code>、<code>Connections</code>）只有接口，<code>McpServices&lt;P, S&gt;</code> 把它们与 <code>McpPorts</code>/<code>McpConfig</code> 绑在一起。实现、stdio/http 传输、连接表都在 W2。</p>
 </div></section>
 <section><h2>读数</h2><div class="tiles">
-<div class="tile"><span class="v">3</span><span class="l">成员</span><span class="n">草稿 3</span></div><div class="tile"><span class="v">3</span><span class="l">源文件</span></div><div class="tile"><span class="v">6</span><span class="l">非空源码行</span></div><div class="tile"><span class="v">0</span><span class="l">入口导出</span></div><div class="tile"><span class="v">3</span><span class="l">测试用例</span></div><div class="tile"><span class="v">0</span><span class="l">as 断言</span><span class="n">不含 as const</span></div><div class="tile"><span class="v">0</span><span class="l">any</span></div>
+<div class="tile"><span class="v">3</span><span class="l">成员</span><span class="n">草稿 2</span></div><div class="tile"><span class="v">31</span><span class="l">源文件</span></div><div class="tile"><span class="v">3397</span><span class="l">非空源码行</span></div><div class="tile"><span class="v">176</span><span class="l">入口导出</span></div><div class="tile"><span class="v">115</span><span class="l">测试用例</span></div><div class="tile"><span class="v">0</span><span class="l">as 断言</span><span class="n">不含 as const</span></div><div class="tile"><span class="v">0</span><span class="l">any</span></div>
 </div></section>
 <section><h2>成员依赖</h2><p class="muted">粗框是本组成员，虚线框是组外依赖（来自 package.json 与 import）。</p><div class="diagram"><pre class="mmd">
 flowchart TD
@@ -156,15 +752,997 @@ flowchart TD
   <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/index.ts</code></td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
   <p class="muted">草稿标记：<code>README.md</code> <code>README_ZH.md</code> <code>src/index.ts</code></p>
 </details>
-<details class="member" open><summary><h3><code>@omne-harness/mcp-contract</code> <span class="pill draft">模板草稿</span></h3></summary>
-  <p class="muted">Pure MCP contract: value objects, the category port, pure functions, ports, and application service interfaces · <code>packages/mcp/mcp-contract</code> · 源文件 1 · 测试文件 1 · 用例 1</p>
-  <h4>入口与导出</h4><div class="tbl"><table><thead><tr><th>入口</th><th>导出（悬停看种类）</th></tr></thead><tbody><tr><td><code>.</code></td><td><span class="muted">无导出</span></td></tr></tbody></table></div>
-  <p class="muted">没有导出的接口、类、记录或判别联合。</p>
+<details class="member" open><summary><h3><code>@omne-harness/mcp-contract</code> <span class="pill real">有实现</span></h3></summary>
+  <p class="muted">Pure MCP contract: value objects, the category port, pure functions, ports, and application service interfaces · <code>packages/mcp/mcp-contract</code> · 源文件 29 · 测试文件 14 · 用例 113</p>
+  <h4>入口与导出</h4><div class="tbl"><table><thead><tr><th>入口</th><th>导出（悬停看种类）</th></tr></thead><tbody><tr><td><code>.</code></td><td><code title="function">isActionName</code> <code title="function">isAdoptionRevision</code> <code title="function">isCatalogRevision</code> <code title="function">isConnectionTarget</code> <code title="function">isCorrelationKey</code> <code title="function">isCredentialBinding</code> <code title="function">isDefinitionDigest</code> <code title="function">isEndpointHolding</code> <code title="function">isEndpointName</code> <code title="function">isGeneration</code> <code title="function">isInstructionsDigest</code> <code title="function">isMillis</code> <code title="function">isProtocolVersion</code> <code title="function">isRequestState</code> <code title="function">isTaskId</code> <code title="brand">ActionName</code> <code title="brand">AdoptionRevision</code> <code title="brand">CatalogRevision</code> <code title="brand">ConnectionTarget</code> <code title="brand">CorrelationKey</code> <code title="brand">CredentialBinding</code> <code title="brand">DefinitionDigest</code> <code title="brand">EndpointHolding</code> <code title="brand">EndpointName</code> <code title="brand">Generation</code> <code title="brand">InstructionsDigest</code> <code title="brand">Millis</code> <code title="brand">ProtocolVersion</code> <code title="brand">RequestState</code> <code title="brand">TaskId</code> <code title="record">ActionDefinition</code> <code title="enum">AuthKind</code> <code title="record">BoundedInstructions</code> <code title="record">CatalogKey</code> <code title="record">ConnectionKey</code> <code title="record">EndpointDefinition</code> <code title="record">EndpointRef</code> <code title="record">EndpointSettings</code> <code title="record">EnvironmentBinding</code> <code title="record">KnownActionId</code> <code title="union">PeerAccount</code> <code title="record">PeerIdentity</code> <code title="union">SettingValue</code> <code title="record">StdioLaunch</code> <code title="union">TransportDeclaration</code> <code title="record">Untrusted</code> <code title="function">launchesLocalCommand</code> <code title="function">mcpEndpointBodyContract</code> <code title="function">parseEndpointBody</code> <code title="enum">EndpointBodyRejection</code> <code title="function">completeListing</code> <code title="function">digestDefinition</code> <code title="brand">CompleteListing</code> <code title="record">ListedAction</code> <code title="enum">ListingDefect</code> <code title="record">ListingRead</code> <code title="function">actionPermissionItems</code> <code title="function">markUnavailable</code> <code title="function">mergeListing</code> <code title="record">ActionCatalogRecord</code> <code title="record">AdoptionBasis</code> <code title="union">Availability</code> <code title="union">ExpectedRevision</code> <code title="union">CatalogState</code> <code title="record">Freshness</code> <code title="record">KnownAction</code> <code title="alias">MergeRefusal</code> <code title="enum">UnavailableReason</code> <code title="function">classifyOutcome</code> <code title="record">ClassifyContext</code> <code title="function">toContentBlocks</code> <code title="function">boundInstructions</code> <code title="function">catalogKeyOf</code> <code title="function">connectionKeyOf</code> <code title="function">peerAccountOf</code> <code title="record">AuthorizationDiscovery</code> <code title="enum">BlockedReason</code> <code title="union">CallOutcome</code> <code title="union">ConfigItem</code> <code title="union">ConnectionFailure</code> <code title="enum">ContentDefect</code> <code title="record">AnswerMalformed</code> <code title="record">EffectUnknown</code> <code title="record">ErrorAnswer</code> <code title="union">DeliveredContent</code> <code title="union">InvokeResult</code> <code title="enum">NoAnswerCause</code> <code title="union">NotSentReason</code> <code title="union">OperationFailure</code> <code title="union">OutputCheck</code> <code title="alias">OutputValidator</code> <code title="union">PeerAnswer</code> <code title="union">ProtocolFault</code> <code title="alias">ReadFailure</code> <code title="union">Refusal</code> <code title="record">TaskReport</code> <code title="enum">TaskStatus</code> <code title="interface">ActionCalls</code> <code title="interface">ActionDiscovery</code> <code title="brand">ActionInvoker</code> <code title="enum">CancelAnswer</code> <code title="union">CatalogView</code> <code title="union">ConnectionState</code> <code title="interface">Connections</code> <code title="record">ContinueRequest</code> <code title="enum">DegradedReason</code> <code title="interface">EndpointInspection</code> <code title="interface">EndpointStatus</code> <code title="record">EndpointStatusView</code> <code title="record">InvokeRequest</code> <code title="union">KeptReason</code> <code title="enum">LostReason</code> <code title="record">McpConfig</code> <code title="record">McpPorts</code> <code title="record">McpServices</code> <code title="union">RefreshResult</code> <code title="union">ReleaseReport</code> <code title="record">Residual</code> <code title="interface">TaskControl</code> <code title="record">TaskRef</code> <code title="enum">StopScope</code> <code title="record">PeerNotification</code></td></tr><tr><td><code>./provider</code></td><td><code title="record">AdoptedEndpoint</code> <code title="interface">AdoptionView</code> <code title="interface">CatalogStore</code> <code title="enum">CredentialFailure</code> <code title="union">CredentialPurpose</code> <code title="interface">CredentialUse</code> <code title="union">EligibilityVerdict</code> <code title="interface">HttpCredentialHandle</code> <code title="record">HttpPurpose</code> <code title="interface">ProcessCredentialHandle</code> <code title="record">ProcessEnvironment</code> <code title="interface">ProcessHandle</code> <code title="interface">ProcessLanding</code> <code title="record">ProcessPurpose</code> <code title="record">ProcessSetting</code> <code title="interface">UseEligibility</code> <code title="record">CallRequest</code> <code title="record">ListingPage</code> <code title="interface">McpTransport</code> <code title="interface">McpTransportFactory</code> <code title="record">SentCall</code> <code title="union">TaskAnswer</code> <code title="union">TransportFailure</code> <code title="union">TransportMaterial</code></td></tr><tr><td><code>./testing</code></td><td><code title="class">NotApplicable</code> <code title="function">isNotApplicable</code> <code title="function">runConformanceCase</code> <code title="union">CaseVerdict</code> <code title="record">ConformanceCase</code> <code title="function">createMemoryAdoptionView</code> <code title="function">mcpAdoptionViewConformance</code> <code title="record">AdoptionViewFixture</code> <code title="record">MemoryAdoption</code> <code title="brand">MemoryAdoptionView</code> <code title="function">createMemoryUseEligibility</code> <code title="function">mcpUseEligibilityConformance</code> <code title="brand">MemoryUseEligibility</code> <code title="record">UseEligibilityFixture</code> <code title="function">createMemoryCredentialUse</code> <code title="function">mcpCredentialUseConformance</code> <code title="record">CredentialUseFixture</code> <code title="brand">MemoryCredentialUse</code> <code title="function">createMemoryProcessLanding</code> <code title="function">mcpProcessLandingConformance</code> <code title="brand">MemoryProcessLanding</code> <code title="record">ProcessLandingFixture</code> <code title="function">createMemoryCatalogStore</code> <code title="function">mcpCatalogStoreConformance</code> <code title="record">CatalogStoreFixture</code> <code title="brand">MemoryCatalogStore</code> <code title="const">classifyOutcomeCases</code> <code title="record">ClassifyOutcomeCase</code> <code title="const">mergeListingCases</code> <code title="record">MergeListingCase</code></td></tr></tbody></table></div>
+  <h4>类型与类（UML 类图，每个源文件一张）</h4><details open><summary><code>src/catalog.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class Availability {
+    &lt;&lt;union&gt;&gt;
+    available
+    unavailable
+  }
+  class KnownAction {
+    &lt;&lt;value&gt;&gt;
+    +name
+    +lastLawful
+    +definitionDigest
+    +availability
+  }
+  class AdoptionBasis {
+    &lt;&lt;value&gt;&gt;
+    +generation
+    +protocolVersion
+    +capabilities
+  }
+  class Freshness {
+    &lt;&lt;value&gt;&gt;
+    +acquiredAt
+    +ttlMs?
+    +changedNotified
+  }
+  class ActionCatalogRecord {
+    &lt;&lt;value&gt;&gt;
+    +revision
+    +basis
+    +freshness
+    +actions
+  }
+  class CatalogState {
+    &lt;&lt;union&gt;&gt;
+    not-acquired
+    acquired
+  }
+  class ExpectedRevision {
+    &lt;&lt;union&gt;&gt;
+    CatalogRevision
+    absent
+  }
+  class ActionDefinition
+  KnownAction --&gt; ActionDefinition
+  KnownAction --&gt; Availability
+  ActionCatalogRecord --&gt; AdoptionBasis
+  ActionCatalogRecord --&gt; Freshness
+  ActionCatalogRecord --&gt; KnownAction
+  CatalogState --&gt; ActionCatalogRecord
+</pre></div></details><details open><summary><code>src/classify.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class ClassifyContext {
+    &lt;&lt;value&gt;&gt;
+    +issuedAt
+    +outputSchema?
+    +checkOutput
+  }
+</pre></div></details><details open><summary><code>src/listing.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class ListedAction {
+    &lt;&lt;value&gt;&gt;
+    +definition
+    +digest
+  }
+  class ListingRead {
+    &lt;&lt;value&gt;&gt;
+    +pages
+    +basis
+    +acquiredAt
+    +limits
+    +basedOn
+  }
+  class ActionDefinition
+  class ListingPage
+  class TransportFailure
+  class AdoptionBasis
+  class ExpectedRevision
+  ListedAction --&gt; ActionDefinition
+  ListingRead --&gt; ListingPage
+  ListingRead --&gt; TransportFailure
+  ListingRead --&gt; AdoptionBasis
+  ListingRead --&gt; ExpectedRevision
+</pre></div></details><details open><summary><code>src/outcomes.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class DeliveredContent {
+    &lt;&lt;union&gt;&gt;
+    block
+    protocol
+    invalid
+  }
+  class OutputCheck {
+    &lt;&lt;union&gt;&gt;
+    conforms
+    violates
+    no-schema
+  }
+  class PeerAnswer {
+    &lt;&lt;union&gt;&gt;
+    result
+    error
+    no-answer
+  }
+  class ProtocolFault {
+    &lt;&lt;union&gt;&gt;
+    peer-error
+    result-type-unknown
+    result-malformed
+    error-malformed
+  }
+  class CallOutcome {
+    &lt;&lt;union&gt;&gt;
+    complete
+    toolError
+    inputRequired
+    task
+    protocolError
+    unknown
+  }
+  class TaskReport {
+    &lt;&lt;value&gt;&gt;
+    +status
+    +inputRequests?
+  }
+  class AuthorizationDiscovery {
+    &lt;&lt;value&gt;&gt;
+    +resourceMetadataUrl
+    +metadata
+    +resourceMetadata?
+    +issuers
+    +scopes
+  }
+  class ConfigItem {
+    &lt;&lt;union&gt;&gt;
+    connect-timeout
+    target
+    credential
+    env.$string
+  }
+  class Refusal {
+    &lt;&lt;union&gt;&gt;
+    not-available-to-you
+    blocked
+    unknown
+    config-missing
+    config-invalid
+  }
+  class ConnectionFailure {
+    &lt;&lt;union&gt;&gt;
+    credential-unavailable
+    authorization-required
+    landing-unavailable
+    connection-unavailable
+  }
+  class ErrorAnswer {
+    &lt;&lt;value&gt;&gt;
+    +kind
+    +code
+    +message
+    +data?
+  }
+  class EffectUnknown {
+    &lt;&lt;value&gt;&gt;
+    +kind
+    +cause
+  }
+  class AnswerMalformed {
+    &lt;&lt;value&gt;&gt;
+    +kind
+    +what
+  }
+  class OperationFailure {
+    &lt;&lt;union&gt;&gt;
+    Refusal
+    ConnectionFailure
+    EffectUnknown
+    ErrorAnswer
+    AnswerMalformed
+  }
+  class NotSentReason {
+    &lt;&lt;union&gt;&gt;
+    Refusal
+    correlation-key-in-use
+    cancelled
+    definition-changed
+    action-unavailable
+    ConnectionFailure
+  }
+  class InvokeResult {
+    &lt;&lt;union&gt;&gt;
+    not-sent
+    sent
+  }
+  class Untrusted
+  DeliveredContent --&gt; Untrusted
+  CallOutcome --&gt; DeliveredContent
+  CallOutcome --&gt; OutputCheck
+  CallOutcome --&gt; Untrusted
+  CallOutcome --&gt; ProtocolFault
+  TaskReport --&gt; Untrusted
+  AuthorizationDiscovery --&gt; Untrusted
+  Refusal --&gt; ConfigItem
+  ConnectionFailure --&gt; AuthorizationDiscovery
+  OperationFailure --&gt; Refusal
+  OperationFailure --&gt; ConnectionFailure
+  OperationFailure --&gt; EffectUnknown
+  OperationFailure --&gt; ErrorAnswer
+  OperationFailure --&gt; AnswerMalformed
+  NotSentReason --&gt; Refusal
+  NotSentReason --&gt; ConnectionFailure
+  InvokeResult --&gt; NotSentReason
+  InvokeResult --&gt; CallOutcome
+</pre></div></details><details open><summary><code>src/ports.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class ProcessSetting {
+    &lt;&lt;value&gt;&gt;
+    +name
+    +value
+  }
+  class AdoptedEndpoint {
+    &lt;&lt;value&gt;&gt;
+    +ref
+    +revision
+    +body
+    +settings
+    +processEnv
+  }
+  class AdoptionView {
+    &lt;&lt;interface&gt;&gt;
+    +endpoints()
+    +endpoint()
+  }
+  class EligibilityVerdict {
+    &lt;&lt;union&gt;&gt;
+    granted
+    refused
+    unknown
+  }
+  class UseEligibility {
+    &lt;&lt;interface&gt;&gt;
+    +check()
+  }
+  class ProcessPurpose {
+    &lt;&lt;value&gt;&gt;
+    +kind
+  }
+  class HttpPurpose {
+    &lt;&lt;value&gt;&gt;
+    +kind
+    +target
+  }
+  class CredentialPurpose {
+    &lt;&lt;union&gt;&gt;
+    ProcessPurpose
+    HttpPurpose
+  }
+  class HttpCredentialHandle {
+    &lt;&lt;interface&gt;&gt;
+    +purpose
+    +authorize()
+    +reportRejection()
+    +release()
+  }
+  class ProcessCredentialHandle {
+    &lt;&lt;interface&gt;&gt;
+    +purpose
+    +release()
+  }
+  class CredentialUse {
+    &lt;&lt;interface&gt;&gt;
+    +acquire()
+    +acquire()
+  }
+  class ProcessHandle {
+    &lt;&lt;interface&gt;&gt;
+    +stdin
+    +stdout
+    +stderr
+    +exited
+    +stop()
+  }
+  class ProcessEnvironment {
+    &lt;&lt;value&gt;&gt;
+    +values
+    +credentials
+  }
+  class ProcessLanding {
+    &lt;&lt;interface&gt;&gt;
+    +start()
+  }
+  class CatalogStore {
+    &lt;&lt;interface&gt;&gt;
+    +read()
+    +write()
+  }
+  class EndpointRef
+  class EndpointSettings
+  class StdioLaunch
+  class CatalogKey
+  class ActionCatalogRecord
+  class ExpectedRevision
+  AdoptedEndpoint --&gt; EndpointRef
+  AdoptedEndpoint --&gt; EndpointSettings
+  AdoptedEndpoint --&gt; ProcessSetting
+  AdoptionView --&gt; AdoptedEndpoint
+  AdoptionView --&gt; EndpointRef
+  UseEligibility --&gt; EndpointRef
+  UseEligibility --&gt; EligibilityVerdict
+  CredentialPurpose --&gt; ProcessPurpose
+  CredentialPurpose --&gt; HttpPurpose
+  CredentialUse --&gt; ProcessPurpose
+  CredentialUse --&gt; ProcessCredentialHandle
+  CredentialUse --&gt; HttpPurpose
+  CredentialUse --&gt; HttpCredentialHandle
+  ProcessEnvironment --&gt; ProcessSetting
+  ProcessEnvironment --&gt; ProcessCredentialHandle
+  ProcessLanding --&gt; StdioLaunch
+  ProcessLanding --&gt; ProcessEnvironment
+  ProcessLanding --&gt; ProcessHandle
+  CatalogStore --&gt; CatalogKey
+  CatalogStore --&gt; ActionCatalogRecord
+  CatalogStore --&gt; ExpectedRevision
+</pre></div></details><details open><summary><code>src/services.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class EndpointInspection {
+    &lt;&lt;interface&gt;&gt;
+    +inspect()
+    +launchesLocalCommand()
+  }
+  class CatalogView {
+    &lt;&lt;union&gt;&gt;
+    not-acquired
+    acquired
+  }
+  class KeptReason {
+    &lt;&lt;union&gt;&gt;
+    superseded
+    cancelled
+    listing-incomplete
+  }
+  class RefreshResult {
+    &lt;&lt;union&gt;&gt;
+    published
+    kept
+  }
+  class ActionDiscovery {
+    &lt;&lt;interface&gt;&gt;
+    +current()
+    +refresh()
+    +peer()
+  }
+  class InvokeRequest {
+    &lt;&lt;value&gt;&gt;
+    +ref
+    +action
+    +args
+    +expectedDefinition
+    +correlationKey
+    +signal
+    +connectBound?
+    +observe?
+  }
+  class ContinueRequest {
+    &lt;&lt;value&gt;&gt;
+    +ref
+    +action
+    +args
+    +requestState?
+    +inputResponses
+    +issuedAt
+    +correlationKey
+    +signal
+    …
+  }
+  class ActionCalls {
+    &lt;&lt;interface&gt;&gt;
+    +invoke()
+    +continueWithInput()
+    +cancel()
+  }
+  class TaskRef {
+    &lt;&lt;value&gt;&gt;
+    +ref
+    +taskId
+    +issuedAt
+    +connectBound?
+  }
+  class TaskControl {
+    &lt;&lt;interface&gt;&gt;
+    +queryTask()
+    +taskResult()
+    +provideTaskInput()
+    +cancelTask()
+  }
+  class Residual {
+    &lt;&lt;value&gt;&gt;
+    +kind
+    +confirmed
+  }
+  class ConnectionState {
+    &lt;&lt;union&gt;&gt;
+    …
+    degraded
+    lost
+  }
+  class EndpointStatusView {
+    &lt;&lt;value&gt;&gt;
+    +ref
+    +connection
+    +credential
+    +use
+  }
+  class EndpointStatus {
+    &lt;&lt;interface&gt;&gt;
+    +inspect()
+    +list()
+  }
+  class ReleaseReport {
+    &lt;&lt;union&gt;&gt;
+    released
+    no-connection
+  }
+  class Connections {
+    &lt;&lt;interface&gt;&gt;
+    +release()
+    +closeAll()
+  }
+  class McpPorts {
+    &lt;&lt;value&gt;&gt;
+    +adoption
+    +eligibility
+    +credentials
+    +landing
+    +store
+    +transports
+  }
+  class McpConfig {
+    &lt;&lt;value&gt;&gt;
+    +principalKey
+    +maxListingPages
+    +maxActions
+    +instructionsByteLimit
+  }
+  class McpServices {
+    &lt;&lt;value&gt;&gt;
+    +inspection
+    +discovery
+    +invoker
+    +status
+    +connections
+  }
+  class EndpointDefinition
+  class AdoptionBasis
+  class Freshness
+  class KnownAction
+  class EndpointRef
+  class OperationFailure
+  class PeerIdentity
+  class PeerNotification
+  class InvokeResult
+  class TaskReport
+  class CallOutcome
+  class Refusal
+  class AdoptionView
+  class UseEligibility
+  class CredentialUse
+  class ProcessLanding
+  class CatalogStore
+  class McpTransportFactory
+  EndpointInspection --&gt; EndpointDefinition
+  CatalogView --&gt; AdoptionBasis
+  CatalogView --&gt; Freshness
+  CatalogView --&gt; KnownAction
+  RefreshResult --&gt; KeptReason
+  ActionDiscovery --&gt; EndpointRef
+  ActionDiscovery --&gt; CatalogView
+  ActionDiscovery --&gt; RefreshResult
+  ActionDiscovery --&gt; OperationFailure
+  ActionDiscovery --&gt; PeerIdentity
+  InvokeRequest --&gt; EndpointRef
+  InvokeRequest --&gt; PeerNotification
+  ContinueRequest --&gt; EndpointRef
+  ContinueRequest --&gt; PeerNotification
+  ActionCalls --&gt; InvokeRequest
+  ActionCalls --&gt; InvokeResult
+  ActionCalls --&gt; ContinueRequest
+  TaskRef --&gt; EndpointRef
+  TaskControl --&gt; TaskRef
+  TaskControl --&gt; TaskReport
+  TaskControl --&gt; OperationFailure
+  TaskControl --&gt; CallOutcome
+  ConnectionState --&gt; Residual
+  EndpointStatusView --&gt; EndpointRef
+  EndpointStatusView --&gt; ConnectionState
+  EndpointStatus --&gt; EndpointRef
+  EndpointStatus --&gt; EndpointStatusView
+  EndpointStatus --&gt; Refusal
+  Connections --&gt; EndpointRef
+  Connections --&gt; ReleaseReport
+  Connections --&gt; Refusal
+  McpPorts --&gt; AdoptionView
+  McpPorts --&gt; UseEligibility
+  McpPorts --&gt; CredentialUse
+  McpPorts --&gt; ProcessLanding
+  McpPorts --&gt; CatalogStore
+  McpPorts --&gt; McpTransportFactory
+  McpServices --&gt; EndpointInspection
+  McpServices --&gt; ActionDiscovery
+  McpServices --&gt; EndpointStatus
+  McpServices --&gt; Connections
+</pre></div></details><details open><summary><code>src/testing-adoption.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class AdoptionViewFixture {
+    &lt;&lt;value&gt;&gt;
+    +port
+    +scope
+    +reader
+    +adopted
+    +notAdopted
+    +elsewhere?
+    +outsider
+    +change?
+    …
+  }
+  class MemoryAdoption {
+    &lt;&lt;value&gt;&gt;
+    +tenant
+    +scope
+    +ref
+    +body
+    +settings?
+    +processEnv?
+  }
+  class AdoptionView
+  class EndpointRef
+  class EndpointSettings
+  class ProcessSetting
+  AdoptionViewFixture --&gt; AdoptionView
+  AdoptionViewFixture --&gt; EndpointRef
+  MemoryAdoption --&gt; EndpointRef
+  MemoryAdoption --&gt; EndpointSettings
+  MemoryAdoption --&gt; ProcessSetting
+</pre></div></details><details open><summary><code>src/testing-case.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class ConformanceCase {
+    &lt;&lt;value&gt;&gt;
+    +name
+    +clause
+    +run()
+  }
+  class NotApplicable {
+    +handle
+  }
+  class CaseVerdict {
+    &lt;&lt;union&gt;&gt;
+    passed
+    not-applicable
+  }
+</pre></div></details><details open><summary><code>src/testing-catalog-store.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class CatalogStoreFixture {
+    &lt;&lt;value&gt;&gt;
+    +store
+    +key
+    +otherKeys
+    +unavailable?
+  }
+  class CatalogStore
+  class CatalogKey
+  CatalogStoreFixture --&gt; CatalogStore
+  CatalogStoreFixture --&gt; CatalogKey
+</pre></div></details><details open><summary><code>src/testing-credentials.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class CredentialUseFixture {
+    &lt;&lt;value&gt;&gt;
+    +port
+    +access
+    +holding
+    +binding
+    +secret
+    +target
+    +missing
+    +otherTenant
+    …
+  }
+  class CredentialUse
+  CredentialUseFixture --&gt; CredentialUse
+</pre></div></details><details open><summary><code>src/testing-eligibility.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class UseEligibilityFixture {
+    &lt;&lt;value&gt;&gt;
+    +port
+    +eligible
+    +ineligible
+    +blocked?
+    +revoke?
+    +unreadable?
+  }
+  class UseEligibility
+  class EndpointRef
+  UseEligibilityFixture --&gt; UseEligibility
+  UseEligibilityFixture --&gt; EndpointRef
+</pre></div></details><details open><summary><code>src/testing-landing.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class ProcessLandingFixture {
+    &lt;&lt;value&gt;&gt;
+    +port
+    +access
+    +launch
+    +credential
+    +secret?
+    +missingFacility?
+    +invalidLanding?
+  }
+  class ProcessLanding
+  class StdioLaunch
+  class ProcessCredentialHandle
+  ProcessLandingFixture --&gt; ProcessLanding
+  ProcessLandingFixture --&gt; StdioLaunch
+  ProcessLandingFixture --&gt; ProcessCredentialHandle
+</pre></div></details><details open><summary><code>src/testing-listing-cases.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class MergeListingCase {
+    &lt;&lt;value&gt;&gt;
+    +name
+    +current
+    +listing
+    +expected
+  }
+  class CatalogState
+  class ActionCatalogRecord
+  MergeListingCase --&gt; CatalogState
+  MergeListingCase --&gt; ActionCatalogRecord
+</pre></div></details><details open><summary><code>src/testing-outcome-cases.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class ClassifyOutcomeCase {
+    &lt;&lt;value&gt;&gt;
+    +name
+    +answer
+    +issuedAt
+    +outputSchema?
+    +validatorAnswer?
+    +expected
+  }
+  class PeerAnswer
+  class OutputCheck
+  class CallOutcome
+  ClassifyOutcomeCase --&gt; PeerAnswer
+  ClassifyOutcomeCase --&gt; OutputCheck
+  ClassifyOutcomeCase --&gt; CallOutcome
+</pre></div></details><details open><summary><code>src/transport.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class TransportFailure {
+    &lt;&lt;union&gt;&gt;
+    not-sent
+    not-sent
+    no-answer
+    ErrorAnswer
+    AnswerMalformed
+  }
+  class ListingPage {
+    &lt;&lt;value&gt;&gt;
+    +tools
+    +nextCursor?
+    +ttlMs?
+  }
+  class CallRequest {
+    &lt;&lt;value&gt;&gt;
+    +action
+    +args
+    +continuation?
+  }
+  class PeerNotification {
+    &lt;&lt;value&gt;&gt;
+    +kind
+    +notification
+  }
+  class SentCall {
+    &lt;&lt;value&gt;&gt;
+    +requestId
+    +answer
+  }
+  class TaskAnswer {
+    &lt;&lt;union&gt;&gt;
+    finished
+    cancelled
+    not-finished
+    expired
+  }
+  class McpTransport {
+    &lt;&lt;interface&gt;&gt;
+    +generation
+    +discover()
+    +listActions()
+    +call()
+    +cancelRequest()
+    +getTask()
+    +updateTask()
+    +getTaskResult()
+    …
+  }
+  class TransportMaterial {
+    &lt;&lt;union&gt;&gt;
+    stdio
+    streamable-http
+  }
+  class McpTransportFactory {
+    &lt;&lt;interface&gt;&gt;
+    +open()
+  }
+  class AuthorizationDiscovery
+  class ErrorAnswer
+  class AnswerMalformed
+  class Untrusted
+  class PeerAnswer
+  class PeerIdentity
+  class TaskReport
+  class ProcessHandle
+  class HttpCredentialHandle
+  TransportFailure --&gt; AuthorizationDiscovery
+  TransportFailure --&gt; ErrorAnswer
+  TransportFailure --&gt; AnswerMalformed
+  PeerNotification --&gt; Untrusted
+  SentCall --&gt; PeerAnswer
+  TaskAnswer --&gt; PeerAnswer
+  McpTransport --&gt; PeerIdentity
+  McpTransport --&gt; TransportFailure
+  McpTransport --&gt; ListingPage
+  McpTransport --&gt; CallRequest
+  McpTransport --&gt; PeerNotification
+  McpTransport --&gt; SentCall
+  McpTransport --&gt; TaskReport
+  McpTransport --&gt; TaskAnswer
+  TransportMaterial --&gt; ProcessHandle
+  TransportMaterial --&gt; HttpCredentialHandle
+  McpTransportFactory --&gt; TransportMaterial
+  McpTransportFactory --&gt; McpTransport
+  McpTransportFactory --&gt; TransportFailure
+</pre></div></details><details open><summary><code>src/values.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class Untrusted {
+    &lt;&lt;value&gt;&gt;
+    +untrusted
+  }
+  class EndpointRef {
+    &lt;&lt;value&gt;&gt;
+    +name
+    +holding
+  }
+  class EnvironmentBinding {
+    &lt;&lt;value&gt;&gt;
+    +name
+    +source
+  }
+  class StdioLaunch {
+    &lt;&lt;value&gt;&gt;
+    +command
+    +args
+    +cwd?
+    +env
+    +facilities
+  }
+  class TransportDeclaration {
+    &lt;&lt;union&gt;&gt;
+    stdio
+    streamable-http
+  }
+  class EndpointDefinition {
+    &lt;&lt;value&gt;&gt;
+    +name
+    +transport
+    +auth
+  }
+  class SettingValue {
+    &lt;&lt;union&gt;&gt;
+    absent
+    invalid
+    value
+  }
+  class EndpointSettings {
+    &lt;&lt;value&gt;&gt;
+    +target
+    +credential
+    +connectTimeout
+  }
+  class PeerAccount {
+    &lt;&lt;union&gt;&gt;
+    anonymous
+    credential
+  }
+  class ConnectionKey {
+    &lt;&lt;value&gt;&gt;
+    +tenant
+    +holding
+    +adoptionRevision
+    +account
+  }
+  class CatalogKey {
+    &lt;&lt;value&gt;&gt;
+    +tenant
+    +account
+    +holding
+  }
+  class BoundedInstructions {
+    &lt;&lt;value&gt;&gt;
+    +text
+    +truncated
+    +digest
+  }
+  class PeerIdentity {
+    &lt;&lt;value&gt;&gt;
+    +protocolVersion
+    +capabilities
+    +serverInfo
+    +instructions?
+  }
+  class ActionDefinition {
+    &lt;&lt;value&gt;&gt;
+    +name
+    +outputSchema?
+    +definition
+    +annotations?
+  }
+  class KnownActionId {
+    &lt;&lt;value&gt;&gt;
+    +endpoint
+    +action
+  }
+  StdioLaunch --&gt; EnvironmentBinding
+  TransportDeclaration --&gt; StdioLaunch
+  EndpointDefinition --&gt; TransportDeclaration
+  EndpointSettings --&gt; SettingValue
+  ConnectionKey --&gt; PeerAccount
+  CatalogKey --&gt; PeerAccount
+  PeerIdentity --&gt; Untrusted
+  PeerIdentity --&gt; BoundedInstructions
+  ActionDefinition --&gt; Untrusted
+</pre></div></details>
+  <h4>品牌、字面量集合与别名</h4><div class="tbl"><table><thead><tr><th>名字</th><th>种类</th><th>取值</th><th>文件</th></tr></thead><tbody><tr><td><code>EndpointName</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>EndpointHolding</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>AdoptionRevision</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>CredentialBinding</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>ActionName</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>DefinitionDigest</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>InstructionsDigest</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>Generation</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>CatalogRevision</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>CorrelationKey</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>RequestState</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>TaskId</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>ProtocolVersion</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>Millis</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>ConnectionTarget</code></td><td>品牌</td><td></td><td><code>src/brands.ts</code></td></tr><tr><td><code>UnavailableReason</code></td><td>字面量集合</td><td><code>no-longer-offered</code> <code>connection-unavailable</code> <code>authorization-required</code> <code>credential-unavailable</code> <code>landing-unavailable</code></td><td><code>src/catalog.ts</code></td></tr><tr><td><code>MergeRefusal</code></td><td>别名</td><td></td><td><code>src/catalog.ts</code></td></tr><tr><td><code>EndpointBodyRejection</code></td><td>字面量集合</td><td><code>malformed</code> <code>name-mismatch</code> <code>transport-unknown</code> <code>auth-unknown</code> <code>launch-missing</code> <code>launch-unexpected</code></td><td><code>src/endpoint.ts</code></td></tr><tr><td><code>JsonObject</code></td><td>别名</td><td></td><td><code>src/json.ts</code></td></tr><tr><td><code>CompleteListing</code></td><td>品牌</td><td></td><td><code>src/listing.ts</code></td></tr><tr><td><code>ListingDefect</code></td><td>字面量集合</td><td><code>page-failed</code> <code>pages-unfinished</code> <code>page-limit-exceeded</code> <code>action-limit-exceeded</code> <code>action-invalid</code> <code>duplicate-action-name</code></td><td><code>src/listing.ts</code></td></tr><tr><td><code>ContentDefect</code></td><td>字面量集合</td><td><code>not-an-object</code> <code>type-missing</code> <code>type-unknown</code> <code>text-invalid</code> <code>data-invalid</code> <code>mime-type-invalid</code> <code>uri-invalid</code> <code>name-invalid</code> <code>resource-invalid</code> <code>annotations-invalid</code></td><td><code>src/outcomes.ts</code></td></tr><tr><td><code>OutputValidator</code></td><td>别名</td><td></td><td><code>src/outcomes.ts</code></td></tr><tr><td><code>NoAnswerCause</code></td><td>字面量集合</td><td><code>stream-broken</code> <code>process-exited</code> <code>abandoned</code></td><td><code>src/outcomes.ts</code></td></tr><tr><td><code>TaskStatus</code></td><td>字面量集合</td><td><code>working</code> <code>input_required</code> <code>completed</code> <code>failed</code> <code>cancelled</code></td><td><code>src/outcomes.ts</code></td></tr><tr><td><code>BlockedReason</code></td><td>字面量集合</td><td><code>local-command-not-enabled</code> <code>disabled</code></td><td><code>src/outcomes.ts</code></td></tr><tr><td><code>ReadFailure</code></td><td>别名</td><td></td><td><code>src/outcomes.ts</code></td></tr><tr><td><code>CredentialFailure</code></td><td>字面量集合</td><td><code>missing</code> <code>rejected</code> <code>unknown</code></td><td><code>src/ports.ts</code></td></tr><tr><td><code>StopScope</code></td><td>字面量集合</td><td><code>tree-confirmed</code> <code>root-only</code> <code>unconfirmed</code></td><td><code>src/ports.ts</code></td></tr><tr><td><code>CancelAnswer</code></td><td>字面量集合</td><td><code>signalled</code> <code>no-call-in-flight</code> <code>unknown</code></td><td><code>src/services.ts</code></td></tr><tr><td><code>ActionInvoker</code></td><td>品牌</td><td></td><td><code>src/services.ts</code></td></tr><tr><td><code>DegradedReason</code></td><td>字面量集合</td><td><code>discover-failed</code> <code>list-failed</code></td><td><code>src/services.ts</code></td></tr><tr><td><code>LostReason</code></td><td>字面量集合</td><td><code>preparation-failed</code> <code>discover-failed</code> <code>close-unconfirmed</code> <code>authorization-required</code> <code>process-exited</code> <code>stream-broken</code> <code>negotiation-invalid</code> <code>session-ended</code></td><td><code>src/services.ts</code></td></tr><tr><td><code>MemoryAdoptionView</code></td><td>品牌</td><td></td><td><code>src/testing-adoption.ts</code></td></tr><tr><td><code>MemoryCatalogStore</code></td><td>品牌</td><td></td><td><code>src/testing-catalog-store.ts</code></td></tr><tr><td><code>MemoryCredentialUse</code></td><td>品牌</td><td></td><td><code>src/testing-credentials.ts</code></td></tr><tr><td><code>MemoryUseEligibility</code></td><td>品牌</td><td></td><td><code>src/testing-eligibility.ts</code></td></tr><tr><td><code>MemoryProcessLanding</code></td><td>品牌</td><td></td><td><code>src/testing-landing.ts</code></td></tr><tr><td><code>AuthKind</code></td><td>字面量集合</td><td><code>none</code> <code>static</code> <code>oauth</code></td><td><code>src/values.ts</code></td></tr></tbody></table></div>
+  <h4>导出的函数与常量</h4><p><code title="src/brands.ts">isEndpointName</code> <code title="src/brands.ts">isEndpointHolding</code> <code title="src/brands.ts">isAdoptionRevision</code> <code title="src/brands.ts">isCredentialBinding</code> <code title="src/brands.ts">isActionName</code> <code title="src/brands.ts">isDefinitionDigest</code> <code title="src/brands.ts">isInstructionsDigest</code> <code title="src/brands.ts">isGeneration</code> <code title="src/brands.ts">isCatalogRevision</code> <code title="src/brands.ts">isCorrelationKey</code> <code title="src/brands.ts">isRequestState</code> <code title="src/brands.ts">isTaskId</code> <code title="src/brands.ts">isProtocolVersion</code> <code title="src/brands.ts">isMillis</code> <code title="src/brands.ts">isConnectionTarget</code> <code title="src/catalog.ts">mergeListing</code> <code title="src/catalog.ts">markUnavailable</code> <code title="src/catalog.ts">actionPermissionItems</code> <code title="src/classify.ts">classifyOutcome</code> <code title="src/content.ts">toContentBlocks</code> <code title="src/digest.ts">digestOf</code> <code title="src/endpoint-schema.ts">ENDPOINT_BODY_SCHEMA</code> <code title="src/endpoint.ts">parseEndpointBody</code> <code title="src/endpoint.ts">launchesLocalCommand</code> <code title="src/endpoint.ts">mcpEndpointBodyContract</code> <code title="src/instructions.ts">boundInstructions</code> <code title="src/json.ts">isObject</code> <code title="src/json.ts">member</code> <code title="src/json.ts">hasOnly</code> <code title="src/json.ts">textOf</code> <code title="src/json.ts">itemsOf</code> <code title="src/json.ts">without</code> <code title="src/json.ts">canonical</code> <code title="src/keys.ts">peerAccountOf</code> <code title="src/keys.ts">catalogKeyOf</code> <code title="src/keys.ts">connectionKeyOf</code> <code title="src/listing.ts">assertComplete</code> <code title="src/listing.ts">digestDefinition</code> <code title="src/listing.ts">completeListing</code> <code title="src/order.ts">compareCodeUnits</code> <code title="src/testing-adoption.ts">mcpAdoptionViewConformance</code> <code title="src/testing-adoption.ts">createMemoryAdoptionView</code> <code title="src/testing-case.ts">isNotApplicable</code> <code title="src/testing-case.ts">runConformanceCase</code> <code title="src/testing-case.ts">conformanceCase</code> <code title="src/testing-case.ts">handle</code> <code title="src/testing-case.ts">tenantText</code> <code title="src/testing-catalog-store.ts">mcpCatalogStoreConformance</code> <code title="src/testing-catalog-store.ts">createMemoryCatalogStore</code> <code title="src/testing-credentials.ts">mcpCredentialUseConformance</code> <code title="src/testing-credentials.ts">memorySecretOf</code> <code title="src/testing-credentials.ts">createMemoryCredentialUse</code> <code title="src/testing-eligibility.ts">mcpUseEligibilityConformance</code> <code title="src/testing-eligibility.ts">createMemoryUseEligibility</code> <code title="src/testing-landing.ts">mcpProcessLandingConformance</code> <code title="src/testing-landing.ts">createMemoryProcessLanding</code> <code title="src/testing-listing-cases.ts">mergeListingCases</code> <code title="src/testing-outcome-cases.ts">classifyOutcomeCases</code> <code title="src/testing-values.ts">jsonTextOf</code> <code title="src/testing-values.ts">jsonOf</code> <code title="src/testing-values.ts">generationOf</code> <code title="src/testing-values.ts">revisionOf</code> <code title="src/testing-values.ts">actionNameOf</code> <code title="src/testing-values.ts">protocolVersionOf</code> <code title="src/testing-values.ts">requestStateOf</code> <code title="src/testing-values.ts">taskIdOf</code></p>
+  <h4>模块依赖</h4><div class="diagram"><pre class="mmd">
+flowchart LR
+  src_brands_ts["src/brands.ts"]
+  src_catalog_ts["src/catalog.ts"]
+  src_classify_ts["src/classify.ts"]
+  src_content_ts["src/content.ts"]
+  src_digest_ts["src/digest.ts"]
+  src_endpoint_schema_ts["src/endpoint-schema.ts"]
+  src_endpoint_ts["src/endpoint.ts"]
+  src_index_ts["src/index.ts"]
+  src_instructions_ts["src/instructions.ts"]
+  src_json_ts["src/json.ts"]
+  src_keys_ts["src/keys.ts"]
+  src_listing_ts["src/listing.ts"]
+  src_order_ts["src/order.ts"]
+  src_outcomes_ts["src/outcomes.ts"]
+  src_ports_ts["src/ports.ts"]
+  src_provider_ts["src/provider.ts"]
+  src_services_ts["src/services.ts"]
+  src_testing_adoption_ts["src/testing-adoption.ts"]
+  src_testing_case_ts["src/testing-case.ts"]
+  src_testing_catalog_store_ts["src/testing-catalog-store.ts"]
+  src_testing_credentials_ts["src/testing-credentials.ts"]
+  src_testing_eligibility_ts["src/testing-eligibility.ts"]
+  src_testing_landing_ts["src/testing-landing.ts"]
+  src_testing_listing_cases_ts["src/testing-listing-cases.ts"]
+  src_testing_outcome_cases_ts["src/testing-outcome-cases.ts"]
+  src_testing_values_ts["src/testing-values.ts"]
+  src_testing_ts["src/testing.ts"]
+  src_transport_ts["src/transport.ts"]
+  src_values_ts["src/values.ts"]
+  src_catalog_ts --&gt; src_brands_ts
+  src_catalog_ts --&gt; src_listing_ts
+  src_catalog_ts --&gt; src_order_ts
+  src_catalog_ts --&gt; src_values_ts
+  src_classify_ts --&gt; src_content_ts
+  src_classify_ts --&gt; src_json_ts
+  src_classify_ts --&gt; src_outcomes_ts
+  src_classify_ts --&gt; src_brands_ts
+  src_content_ts --&gt; src_json_ts
+  src_content_ts --&gt; src_outcomes_ts
+  src_endpoint_ts --&gt; src_endpoint_schema_ts
+  src_endpoint_ts --&gt; src_json_ts
+  src_endpoint_ts --&gt; src_brands_ts
+  src_endpoint_ts --&gt; src_values_ts
+  src_index_ts --&gt; src_brands_ts
+  src_index_ts --&gt; src_values_ts
+  src_index_ts --&gt; src_endpoint_ts
+  src_index_ts --&gt; src_listing_ts
+  src_index_ts --&gt; src_catalog_ts
+  src_index_ts --&gt; src_classify_ts
+  src_index_ts --&gt; src_content_ts
+  src_index_ts --&gt; src_instructions_ts
+  src_index_ts --&gt; src_keys_ts
+  src_index_ts --&gt; src_outcomes_ts
+  src_index_ts --&gt; src_services_ts
+  src_index_ts --&gt; src_ports_ts
+  src_index_ts --&gt; src_transport_ts
+  src_instructions_ts --&gt; src_brands_ts
+  src_instructions_ts --&gt; src_digest_ts
+  src_instructions_ts --&gt; src_values_ts
+  src_json_ts --&gt; src_order_ts
+  src_keys_ts --&gt; src_ports_ts
+  src_keys_ts --&gt; src_brands_ts
+  src_keys_ts --&gt; src_values_ts
+  src_listing_ts --&gt; src_brands_ts
+  src_listing_ts --&gt; src_catalog_ts
+  src_listing_ts --&gt; src_digest_ts
+  src_listing_ts --&gt; src_json_ts
+  src_listing_ts --&gt; src_transport_ts
+  src_listing_ts --&gt; src_values_ts
+  src_outcomes_ts --&gt; src_brands_ts
+  src_outcomes_ts --&gt; src_values_ts
+  src_ports_ts --&gt; src_brands_ts
+  src_ports_ts --&gt; src_catalog_ts
+  src_ports_ts --&gt; src_outcomes_ts
+  src_ports_ts --&gt; src_values_ts
+  src_provider_ts --&gt; src_ports_ts
+  src_provider_ts --&gt; src_transport_ts
+  src_services_ts --&gt; src_brands_ts
+  src_services_ts --&gt; src_catalog_ts
+  src_services_ts --&gt; src_listing_ts
+  src_services_ts --&gt; src_endpoint_ts
+  src_services_ts --&gt; src_outcomes_ts
+  src_services_ts --&gt; src_ports_ts
+  src_services_ts --&gt; src_transport_ts
+  src_services_ts --&gt; src_values_ts
+  src_testing_adoption_ts --&gt; src_ports_ts
+  src_testing_adoption_ts --&gt; src_testing_case_ts
+  src_testing_adoption_ts --&gt; src_brands_ts
+  src_testing_adoption_ts --&gt; src_values_ts
+  src_testing_catalog_store_ts --&gt; src_catalog_ts
+  src_testing_catalog_store_ts --&gt; src_listing_ts
+  src_testing_catalog_store_ts --&gt; src_ports_ts
+  src_testing_catalog_store_ts --&gt; src_testing_case_ts
+  src_testing_catalog_store_ts --&gt; src_testing_values_ts
+  src_testing_catalog_store_ts --&gt; src_values_ts
+  src_testing_credentials_ts --&gt; src_brands_ts
+  src_testing_credentials_ts --&gt; src_ports_ts
+  src_testing_credentials_ts --&gt; src_testing_case_ts
+  src_testing_eligibility_ts --&gt; src_outcomes_ts
+  src_testing_eligibility_ts --&gt; src_ports_ts
+  src_testing_eligibility_ts --&gt; src_testing_case_ts
+  src_testing_eligibility_ts --&gt; src_values_ts
+  src_testing_landing_ts --&gt; src_ports_ts
+  src_testing_landing_ts --&gt; src_testing_case_ts
+  src_testing_landing_ts --&gt; src_testing_credentials_ts
+  src_testing_landing_ts --&gt; src_values_ts
+  src_testing_listing_cases_ts --&gt; src_catalog_ts
+  src_testing_listing_cases_ts --&gt; src_listing_ts
+  src_testing_listing_cases_ts --&gt; src_testing_values_ts
+  src_testing_outcome_cases_ts --&gt; src_content_ts
+  src_testing_outcome_cases_ts --&gt; src_outcomes_ts
+  src_testing_outcome_cases_ts --&gt; src_testing_values_ts
+  src_testing_outcome_cases_ts --&gt; src_brands_ts
+  src_testing_values_ts --&gt; src_brands_ts
+  src_testing_ts --&gt; src_testing_case_ts
+  src_testing_ts --&gt; src_testing_adoption_ts
+  src_testing_ts --&gt; src_testing_eligibility_ts
+  src_testing_ts --&gt; src_testing_credentials_ts
+  src_testing_ts --&gt; src_testing_landing_ts
+  src_testing_ts --&gt; src_testing_catalog_store_ts
+  src_testing_ts --&gt; src_testing_outcome_cases_ts
+  src_testing_ts --&gt; src_testing_listing_cases_ts
+  src_transport_ts --&gt; src_brands_ts
+  src_transport_ts --&gt; src_outcomes_ts
+  src_transport_ts --&gt; src_ports_ts
+  src_transport_ts --&gt; src_values_ts
+  src_values_ts --&gt; src_brands_ts
+</pre></div>
+  <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/brands.ts</code></td><td class="num">122</td><td class="num">30</td><td class="num">13 <span class="muted">isConnectionTarget</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/catalog.ts</code></td><td class="num">128</td><td class="num">12</td><td class="num">23 <span class="muted">mergeListing</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/classify.ts</code></td><td class="num">109</td><td class="num">2</td><td class="num">18 <span class="muted">classifyResult</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/content.ts</code></td><td class="num">113</td><td class="num">1</td><td class="num">25 <span class="muted">deliveredItem</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/digest.ts</code></td><td class="num">8</td><td class="num">1</td><td class="num">5 <span class="muted">digestOf</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/endpoint-schema.ts</code></td><td class="num">3</td><td class="num">1</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/endpoint.ts</code></td><td class="num">230</td><td class="num">4</td><td class="num">22 <span class="muted">parseEndpointBody</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/index.ts</code></td><td class="num">135</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/instructions.ts</code></td><td class="num">25</td><td class="num">1</td><td class="num">10 <span class="muted">boundInstructions</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/json.ts</code></td><td class="num">57</td><td class="num">8</td><td class="num">22 <span class="muted">canonical</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/keys.ts</code></td><td class="num">35</td><td class="num">3</td><td class="num">5 <span class="muted">peerAccountOf</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/listing.ts</code></td><td class="num">133</td><td class="num">7</td><td class="num">23 <span class="muted">completeListing</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/order.ts</code></td><td class="num">10</td><td class="num">1</td><td class="num">4 <span class="muted">compareCodeUnits</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/outcomes.ts</code></td><td class="num">166</td><td class="num">22</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/ports.ts</code></td><td class="num">125</td><td class="num">17</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/provider.ts</code></td><td class="num">30</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/services.ts</code></td><td class="num">224</td><td class="num">23</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-adoption.ts</code></td><td class="num">184</td><td class="num">5</td><td class="num">61 <span class="muted">createMemoryAdoptionView</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-case.ts</code></td><td class="num">63</td><td class="num">8</td><td class="num">9 <span class="muted">runConformanceCase</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-catalog-store.ts</code></td><td class="num">166</td><td class="num">4</td><td class="num">72 <span class="muted">mcpCatalogStoreConformance</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-credentials.ts</code></td><td class="num">243</td><td class="num">5</td><td class="num">97 <span class="muted">mcpCredentialUseConformance</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-eligibility.ts</code></td><td class="num">107</td><td class="num">4</td><td class="num">41 <span class="muted">mcpUseEligibilityConformance</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-landing.ts</code></td><td class="num">177</td><td class="num">4</td><td class="num">56 <span class="muted">mcpProcessLandingConformance</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-listing-cases.ts</code></td><td class="num">167</td><td class="num">2</td><td class="num">13 <span class="muted">listingOf</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-outcome-cases.ts</code></td><td class="num">314</td><td class="num">2</td><td class="num">11 <span class="muted">peerError</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-values.ts</code></td><td class="num">61</td><td class="num">8</td><td class="num">5 <span class="muted">jsonTextOf</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing.ts</code></td><td class="num">44</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/transport.ts</code></td><td class="num">112</td><td class="num">9</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/values.ts</code></td><td class="num">102</td><td class="num">16</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
   
-  
-  
-  <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/index.ts</code></td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
-  <p class="muted">草稿标记：<code>README.md</code> <code>README_ZH.md</code> <code>src/index.ts</code></p>
 </details>
 <details class="member" open><summary><h3><code>@omne-harness/mcp-host-local</code> <span class="pill draft">模板草稿</span></h3></summary>
   <p class="muted">Local MCP host: the stdio and Streamable HTTP McpTransport implementations and authorization discovery · <code>packages/mcp/mcp-host-local</code> · 源文件 1 · 测试文件 1 · 用例 1</p>
@@ -176,10 +1754,22 @@ flowchart TD
   <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/index.ts</code></td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
   <p class="muted">草稿标记：<code>README.md</code> <code>README_ZH.md</code> <code>src/index.ts</code></p>
 </details></section>
-<section><h2>健康评述</h2><div class="prose"><h3>W0 基线（2026-11-03，父分支 21175c9f9）</h3>
-<p><strong>现状。</strong>三个成员 <code>@omne-harness/mcp-contract</code>、<code>@omne-harness/mcp</code>、<code>@omne-harness/mcp-host-local</code> 都是模板草稿，只有占位入口，还没有业务代码。</p>
-<p><strong>健康。</strong>没有可评价的实现。<code>mcp-contract</code> 已声明 <code>assets</code> 与四个公共值成员（W1 准备），尚未被源码导入。</p>
-<p><strong>W1 之后应当看到。</strong>契约成员不依赖任何 MCP SDK；对端自报内容在类图里都经 <code>Untrusted</code>；「未发出」与「已发出」的结局是两个不同的类型；清单记录是不可变值，<code>mergeListing</code> 只接受 <code>CompleteListing</code>；需求端口与组内传输端口只出现在 <code>./provider</code>。</p>
+<section><h2>健康评述</h2><div class="prose"><h3>W1 合入（2026-11-03，父分支 c247b873a）</h3>
+<p><strong>读数。</strong>29 个源文件、12 个测试文件 298 例，覆盖率 98%。<code>src</code> 里没有 <code>as</code> 类型断言、没有 <code>any</code>；唯一的类是 <code>NotApplicable extends Error</code>（套件用它标记「这个替身不适用此用例」，Error 子类是合理用法）。变更函数超 alert 1 个（<code>parseEndpointBody</code> CC 16）、超 warn 2 个（<code>deliveredItem</code> CC 12、<code>isConnectionTarget</code> CC 11）。差分变异（最终 head 302441beb，基线 21175c9f9）2210 个变异体：被杀 1646，存活 401（其中 352 条在 <code>testing-*</code> 替身与用例表里，产品代码 49 条，散在 10 个文件，最多的 <code>content.ts</code> 9 条），无覆盖 54，超时 13；96 个静态变异把模块加载改坏，工具判「测量无效」，分数不可用——与 Skill 相同的读数形态。</p>
+<p><strong>优雅在哪里。</strong>四层失败联合彼此嵌套而不重复：<code>OperationFailure</code> 用 <code>TransportFailure</code> 做成员，签名里直接能读出「这个操作可能在哪一层失败」。<code>completeListing</code> + <code>WeakSet</code> + <code>assertComplete</code> 与 Skill 的 <code>sealSnapshot</code> 是同一种「只能由构造器造出」的写法，两域一致。调用与任务两条路径共用一个 <code>classifyOutcome</code>，第 3 轮把 <code>tasks/get</code> 的 <code>inputRequests</code> 收进同一函数后，形状分裂的风险消失。五个端口套件各配一个过套件的内存替身，W2 的实现方拿到的不是「参考」，是能直接跑红的判据。</p>
+<p><strong>异味与处置。</strong></p>
+<ul>
+<li><code>parseEndpointBody</code> CC 16 是契约拒绝次序本身（SPEC E2 六格），第 3 轮已抽出 <code>transportOf</code>，剩余分支与次序一一对应。接受为读数，不再拆：再拆会把次序散到两个函数里，读者反而要拼。</li>
+<li><code>listing.ts</code> ↔ <code>catalog.ts</code> 的类型环：<code>AdoptionBasis</code>、<code>ExpectedRevision</code>、<code>Freshness</code> 定义在 <code>catalog</code> 却被 <code>listing</code> 用。它们其实是「清单」的概念，不是「目录」的。W2 实现目录服务时把这三个类型下沉到 <code>listing.ts</code>（或 <code>values.ts</code>），环即消失。登记为 W2 的清理项。</li>
+<li>产品代码的 49 条存活没有热点，但 <code>brands.ts:50–52</code>（控制字符扫描的 <code>&lt;</code>/<code>&lt;=</code> 与 <code>0x9f</code> 上界）和 <code>endpoint.ts:117–153</code>（<code>launchOf</code> 的各字段形状）各一簇，是 W2 补夹具的候选；<code>order.ts</code> 5 条说明码元比较只被间接测到。</li>
+<li><code>./testing</code> 占 1480 行，比产品代码还多。其中两张用例表（<code>testing-outcome-cases.ts</code> 314 行）是数据不是逻辑；但 <code>testing-credentials.ts</code> 243 行里替身要模拟两类句柄与过期，已经接近一个小实现。W2 的真实凭据端口落地后，看能否让替身只做最小合法行为。</li>
+<li>组页与 SPEC 差异 10 处（SPEC「与组页的差异」表），全部本波裁定，最大的两处是删掉 <code>mode</code>/<code>CallMode</code>（任务由对端决定）与凭据句柄按用途分型。波末写回组页。</li>
+<li>一个未封闭项交出去了：资产的 <code>deriveDeclarations</code> 拿不到动作清单，逐动作权限项不能经类别端口派生，本成员只提供 <code>actionPermissionItems</code>。拥有者是资产 SPEC；不在本波的两域范围内。</li>
+</ul>
+<p><strong>与 Skill 的对照。</strong>同一套写法（品牌只由守卫授予、构造器 + WeakSet、三入口、符合性套件无框架化），两边的差别都有理由：Skill 的构造器在 <code>./provider</code> 因为调用方是外部来源，MCP 的在公开根因为调用方是本组服务；Skill 的根是 <code>values.ts</code>，MCP 的根是 <code>brands.ts</code>，因为 MCP 的值大多就是品牌。读两份源码时不会觉得是两个人写的——这是本波最想要的结果。</p>
+<hr>
+<h3>W0 基线（2026-11-03，父分支 21175c9f9）</h3>
+<p>三个成员都是模板草稿，<code>mcp-contract</code> 只有一个占位导出，没有测试。</p>
 </div></section>
 </div>
 </div>

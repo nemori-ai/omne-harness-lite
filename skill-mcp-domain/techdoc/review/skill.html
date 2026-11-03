@@ -1,4 +1,14 @@
+<h3>W1 合入（2026-11-03，父分支 aafc0cdc9）</h3>
+<p><strong>读数。</strong>22 个源文件、13 个测试文件 364 例，覆盖率 97%。<code>src</code> 里没有 <code>as</code> 类型断言（两处 <code>as const</code> 是字面量断言）、没有 <code>any</code>、没有类。变更函数超 alert 的 0 个，超 warn 的 1 个（<code>skillResolutionConformance</code> CC 11，用例表）。差分变异 1595 个变异体，被杀 1244，存活 288，其中 156 条在套件替身代码里；工具因 13 个静态变异把模块加载改坏而判「测量无效」，分数不可用。</p>
+<p><strong>优雅在哪里。</strong>依赖图是一棵干净的 DAG，<code>values.ts</code> 零导入在根。品牌只由八个 <code>isX</code> 守卫授予，守卫与品牌一一对应。失败联合按操作用 <code>Extract</code> 收窄，<code>export</code> 的签名里就没有「已采用材料已变」。<code>parse/shape.ts</code> 的读取器被资产正文与声明文件共用，同一条规则只写一次。套件无框架化后，变红证明在进程内完成，删掉了第 1 轮的子进程方案。</p>
+<p><strong>异味与处置。</strong></p>
+<ul>
+<li>存活变异集中在三处：<code>contract.ts</code> 里内嵌的 schema 文本（断言它的读出值能杀掉，W2 补）；<code>media.ts</code> 的签名表与扩展名表（本波不在热点，W2 的目录来源会真实读文件时补夹具）；<code>parse/manifest.ts:47–55</code> 头部定界扫描的 <code>-1/+1</code> 与 <code>end-1</code> 边界——这是真正的测试缺口，记为 W2 的已知项。</li>
+<li><code>WeakSet</code> 登记是进程内凭证，双份加载互不承认。装配方要保证单实例，SPEC 与 README 都写了；这是可接受的代价，不是异味。</li>
+<li>与 tool-contract 有 25 行通用 read-body 读取器的克隆（<code>field</code>/<code>stringField</code>/<code>isObject</code>）。两组不能互相依赖，唯一去处是 assets；本波保留平行实现，登记为清理候选。</li>
+<li><code>sealSnapshot</code> 收整包字节：算法只有一处，但按内容存放的来源要先取全部字节才能交快照。第一波只有目录来源，不受影响；W3 的内容存储来源要正视这一点。</li>
+</ul>
+<p><strong>偏离设计的地方。</strong>与组页相比有 15 处差异（见 SPEC「与组页的差异」表），全部是本波裁定，波末写回组页。最大的两处：端口要求的现行源改为 SPEC；<code>PackageInspection</code> 从公开根挪到 <code>./provider</code>。</p>
+<hr>
 <h3>W0 基线（2026-11-03，父分支 21175c9f9）</h3>
-<p><strong>现状。</strong>只有 <code>@omne-harness/skill-contract</code> 有实现：一个文件 <code>src/contract.ts</code>（92 个非空行），导出 <code>skillBodyContract</code>，6 条测试。它还是旧的必选文件形状，没有迁到 3.0.0 完整骨架。<code>@omne-harness/skill</code> 与 <code>@omne-harness/skill-host-local</code> 是模板草稿，只有占位入口。</p>
-<p><strong>健康。</strong>没有 <code>as</code> 断言，没有 <code>any</code>，最长函数 24 行（<code>skillBodyContract</code>）。依赖方向干净：契约成员只依赖 <code>assets</code>、四个公共值成员与 <code>yaml</code>（后几个由 W1 准备声明，尚未被源码导入）。</p>
-<p><strong>W1 之后应当看到。</strong>契约成员分成三个入口；值、失败、端口、服务接口各在自己的模块里，单文件不超过约 300 行；品牌只由校验函数授予，<code>as</code> 只出现在校验之后；类图里 <code>SkillRef</code> 只出现在 <code>./provider</code>，公开根的类型不引用它。</p>
+<p>只有 <code>skill-contract</code> 有实现：一个文件 92 行，导出 <code>skillBodyContract</code>，6 条测试。无 <code>as</code>、无 <code>any</code>，最长函数 24 行。</p>

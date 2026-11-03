@@ -42,7 +42,7 @@
   {
     "dir": "packages/skills/skill-contract",
     "name": "@omne-harness/skill-contract",
-    "description": "Skill body port for the accepted asset category contract",
+    "description": "Pure Skill contract: values, failures, package inspection, ports, service interfaces, and conformance suites",
     "deps": [
       "@omne-harness/assets",
       "@omne-harness/json-text",
@@ -64,28 +64,336 @@
           }
         ],
         "imports": [
-          "@omne-harness/assets"
+          "@omne-harness/assets",
+          "./digest.ts",
+          "./names.ts",
+          "./parse/shape.ts",
+          "./values.ts"
         ],
         "reexports": [],
         "asCount": 0,
         "anyCount": 0,
         "longest": {
           "name": "skillBodyContract",
-          "lines": 24
+          "lines": 28
         },
-        "lines": 92
+        "lines": 147
+      },
+      {
+        "file": "src/digest.ts",
+        "decls": [
+          {
+            "name": "isPackageDigest",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PackageDigest"
+            ]
+          },
+          {
+            "name": "computeDigest",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Bytes",
+              "EntryDigest"
+            ]
+          },
+          {
+            "name": "digestOfSorted",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PackageEntry",
+              "PackageDigest"
+            ]
+          }
+        ],
+        "imports": [
+          "node:crypto",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "digestOfSorted",
+          "lines": 8
+        },
+        "lines": 35
+      },
+      {
+        "file": "src/failures.ts",
+        "decls": [
+          {
+            "name": "UnsupportedWhat",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "SkillFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "not-available-to-you",
+              "unavailable-stand-in",
+              "bad-path",
+              "outside-package",
+              "resource-missing",
+              "basis-unavailable",
+              "adopted-material-changed",
+              "version-changed",
+              "source-unavailable",
+              "unsupported",
+              "aborted",
+              "unknown"
+            ],
+            "refs": [
+              "Readonly",
+              "StandIn",
+              "UnsupportedWhat"
+            ]
+          },
+          {
+            "name": "GateFailure",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Kinds"
+            ]
+          },
+          {
+            "name": "DescribeFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "GateFailure",
+              "Kinds<'basis-unavailable'>"
+            ],
+            "refs": [
+              "GateFailure",
+              "Kinds"
+            ]
+          },
+          {
+            "name": "PinFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "DescribeFailure",
+              "Kinds<\n      | 'unsupported'\n      | 'ad"
+            ],
+            "refs": [
+              "DescribeFailure",
+              "Kinds"
+            ]
+          },
+          {
+            "name": "ListFailure",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "PinFailure"
+            ]
+          },
+          {
+            "name": "ReadFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "PinFailure",
+              "Kinds<'bad-path' | 'outside-package' | '"
+            ],
+            "refs": [
+              "PinFailure",
+              "Kinds"
+            ]
+          },
+          {
+            "name": "ExportFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "Exclude<PinFailure, Kinds<'adopted-mater",
+              "Kinds<'outside-package' | 'resource-miss"
+            ],
+            "refs": [
+              "Exclude",
+              "PinFailure",
+              "Kinds"
+            ]
+          },
+          {
+            "name": "INSPECT_REJECTIONS",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "InspectRejectionCode",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "InspectFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "rejected",
+              "source-unavailable",
+              "version-changed"
+            ],
+            "refs": [
+              "Readonly",
+              "InspectRejectionCode"
+            ]
+          },
+          {
+            "name": "InspectRejection",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "InspectFailure"
+            ]
+          }
+        ],
+        "imports": [
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 64
       },
       {
         "file": "src/index.ts",
         "decls": [],
         "imports": [
-          "./contract.ts"
+          "./contract.ts",
+          "./digest.ts",
+          "./media.ts",
+          "./names.ts",
+          "./parse/package.ts",
+          "./project.ts",
+          "./services.ts",
+          "./failures.ts",
+          "./values.ts"
         ],
         "reexports": [
           {
             "from": "./contract.ts",
             "names": [
               "skillBodyContract"
+            ]
+          },
+          {
+            "from": "./digest.ts",
+            "names": [
+              "computeDigest",
+              "isPackageDigest"
+            ]
+          },
+          {
+            "from": "./media.ts",
+            "names": [
+              "inferMediaType"
+            ]
+          },
+          {
+            "from": "./names.ts",
+            "names": [
+              "isAssetVersion",
+              "isControlFile",
+              "isPackagePath",
+              "isSafeReason",
+              "isSkillName",
+              "toPackagePath"
+            ]
+          },
+          {
+            "from": "./parse/package.ts",
+            "names": [
+              "parseSkillPackage",
+              "ParseFailure",
+              "ParseInput"
+            ]
+          },
+          {
+            "from": "./project.ts",
+            "names": [
+              "projectAssetBody"
+            ]
+          },
+          {
+            "from": "./services.ts",
+            "names": [
+              "ByteRange",
+              "CatalogEntry",
+              "CatalogQuery",
+              "ExportedEntry",
+              "MaterialState",
+              "ReadContent",
+              "ReadResult",
+              "ReadTarget",
+              "ResourceListing",
+              "SkillAccess",
+              "SkillCatalog",
+              "SkillDescription",
+              "SkillExport"
+            ]
+          },
+          {
+            "from": "./failures.ts",
+            "names": [
+              "DescribeFailure",
+              "ExportFailure",
+              "GateFailure",
+              "InspectFailure",
+              "InspectRejectionCode",
+              "ListFailure",
+              "PinFailure",
+              "ReadFailure",
+              "SkillFailure",
+              "UnsupportedWhat"
+            ]
+          },
+          {
+            "from": "./values.ts",
+            "names": [
+              "AssetVersion",
+              "Bytes",
+              "DeclaredProjection",
+              "EntryDigest",
+              "ManifestValue",
+              "MediaType",
+              "PackageDigest",
+              "PackageEntry",
+              "PackagePath",
+              "SafeReason",
+              "ScriptDeclaration",
+              "ScriptIdentity",
+              "SettingCategory",
+              "SettingDeclaration",
+              "SkillDeclaration",
+              "SkillDefinition",
+              "SkillManifest",
+              "SkillMaterialBasis",
+              "SkillName",
+              "SkillPackageSnapshot",
+              "SourceLayer",
+              "StandIn"
             ]
           }
         ],
@@ -95,11 +403,2357 @@
           "name": "",
           "lines": 0
         },
-        "lines": 1
+        "lines": 64
+      },
+      {
+        "file": "src/media.ts",
+        "decls": [
+          {
+            "name": "inferMediaType",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PackagePath",
+              "Bytes",
+              "MediaType"
+            ]
+          },
+          {
+            "name": "encodingOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Bytes"
+            ]
+          }
+        ],
+        "imports": [
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "encodingOf",
+          "lines": 10
+        },
+        "lines": 81
+      },
+      {
+        "file": "src/names.ts",
+        "decls": [
+          {
+            "name": "isSkillName",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SkillName"
+            ]
+          },
+          {
+            "name": "isPackagePath",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PackagePath"
+            ]
+          },
+          {
+            "name": "toPackagePath",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Outcome",
+              "PackagePath"
+            ]
+          },
+          {
+            "name": "isBoundedText",
+            "kind": "function",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "isSafeReason",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SafeReason"
+            ]
+          },
+          {
+            "name": "isAssetVersion",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "AssetVersion"
+            ]
+          },
+          {
+            "name": "MANIFEST_PATH",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "DECLARATION_PATH",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "isControlFile",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PackagePath"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/operation-result",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "hasControl",
+          "lines": 9
+        },
+        "lines": 65
+      },
+      {
+        "file": "src/parse/declaration.ts",
+        "decls": [
+          {
+            "name": "DECLARATION_LIMITS",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "EMPTY_DECLARATION",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "DeclarationRead",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "unsupported",
+              "read"
+            ],
+            "refs": [
+              "Readonly",
+              "SkillDeclaration",
+              "Finding"
+            ]
+          },
+          {
+            "name": "readDeclaration",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Uint8Array",
+              "JsonLimits",
+              "PackagePath",
+              "DeclarationRead",
+              "Finding"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/assets",
+          "@omne-harness/json-text",
+          "../names.ts",
+          "../values.ts",
+          "./shape.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "readDeclaration",
+          "lines": 35
+        },
+        "lines": 77
+      },
+      {
+        "file": "src/parse/manifest.ts",
+        "decls": [
+          {
+            "name": "ManifestRead",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "ok",
+              "malformed"
+            ],
+            "refs": [
+              "Readonly",
+              "SkillManifest"
+            ]
+          },
+          {
+            "name": "frontmatterOf",
+            "kind": "function",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "readManifest",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Uint8Array",
+              "ManifestRead"
+            ]
+          }
+        ],
+        "imports": [
+          "yaml",
+          "../names.ts",
+          "../values.ts",
+          "./shape.ts",
+          "./yaml-value.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "readManifest",
+          "lines": 16
+        },
+        "lines": 122
+      },
+      {
+        "file": "src/parse/package.ts",
+        "decls": [
+          {
+            "name": "ParseFailure",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "InspectFailure"
+            ]
+          },
+          {
+            "name": "ParseInput",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillPackageSnapshot"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Bytes"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillName"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonLimits"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillPackageSnapshot",
+              "Readonly",
+              "Bytes",
+              "SkillName",
+              "JsonLimits"
+            ]
+          },
+          {
+            "name": "parseSkillPackage",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ParseInput",
+              "Outcome",
+              "SkillDefinition",
+              "ParseFailure",
+              "Finding"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/assets",
+          "@omne-harness/operation-result",
+          "../digest.ts",
+          "../failures.ts",
+          "../names.ts",
+          "../snapshot.ts",
+          "../values.ts",
+          "./declaration.ts",
+          "./manifest.ts",
+          "./shape.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "parseSkillPackage",
+          "lines": 32
+        },
+        "lines": 95
+      },
+      {
+        "file": "src/parse/shape.ts",
+        "decls": [
+          {
+            "name": "Finding",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "InspectRejectionCode"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "InspectRejectionCode"
+            ]
+          },
+          {
+            "name": "Read",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "T"
+                ]
+              },
+              {
+                "refs": [
+                  "Finding"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "T",
+              "Finding"
+            ]
+          },
+          {
+            "name": "firstFinding",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Finding"
+            ]
+          },
+          {
+            "name": "DESCRIPTION_MAX",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "fieldsOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "ReadonlyMap"
+            ]
+          },
+          {
+            "name": "unknownKeys",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ReadonlyMap",
+              "JsonValue",
+              "Finding"
+            ]
+          },
+          {
+            "name": "readDependencies",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "Read",
+              "CapabilityId",
+              "Finding"
+            ]
+          },
+          {
+            "name": "readScripts",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "Readonly",
+              "Read",
+              "ScriptDeclaration"
+            ]
+          },
+          {
+            "name": "readSettings",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "Read",
+              "SettingDeclaration",
+              "Finding"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/assets",
+          "../failures.ts",
+          "../names.ts",
+          "../values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "readScripts",
+          "lines": 32
+        },
+        "lines": 192
+      },
+      {
+        "file": "src/parse/yaml-value.ts",
+        "decls": [
+          {
+            "name": "plainValue",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Document",
+              "ManifestValue"
+            ]
+          },
+          {
+            "name": "textKey",
+            "kind": "function",
+            "fields": [],
+            "refs": []
+          }
+        ],
+        "imports": [
+          "yaml",
+          "../values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "convert",
+          "lines": 11
+        },
+        "lines": 71
+      },
+      {
+        "file": "src/ports.ts",
+        "decls": [
+          {
+            "name": "Reply",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Promise",
+              "Outcome",
+              "T"
+            ]
+          },
+          {
+            "name": "SourceFailure",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "package-not-found",
+              "entry-not-found",
+              "bytes-mismatch",
+              "outside-package",
+              "unavailable",
+              "entry-unreadable"
+            ],
+            "refs": []
+          },
+          {
+            "name": "SkillPackageSource",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "PackageLocator",
+                  "Promise",
+                  "Outcome",
+                  "SkillPackageSnapshot",
+                  "SourceFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageLocator",
+                  "PackageDigest",
+                  "PackagePath",
+                  "Promise",
+                  "Outcome",
+                  "Bytes",
+                  "SourceFailure"
+                ]
+              }
+            ],
+            "refs": [
+              "PackageLocator",
+              "Promise",
+              "Outcome",
+              "SkillPackageSnapshot",
+              "SourceFailure",
+              "PackageDigest",
+              "PackagePath",
+              "Bytes"
+            ],
+            "extends": []
+          },
+          {
+            "name": "Resolution",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "known-unavailable",
+              "adopted",
+              "basis-not-lawful",
+              "none",
+              "unknown"
+            ],
+            "refs": [
+              "Readonly",
+              "CapabilityId",
+              "SafeReason",
+              "SkillName",
+              "SkillRef",
+              "DeclaredProjection"
+            ]
+          },
+          {
+            "name": "CatalogResolution",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "Resolution"
+            ]
+          },
+          {
+            "name": "SkillResolution",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "CapabilityId",
+                  "Readonly",
+                  "SkillMaterialBasis",
+                  "Promise",
+                  "Resolution"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "Reply",
+                  "CatalogResolution"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "S",
+              "CapabilityId",
+              "Readonly",
+              "SkillMaterialBasis",
+              "Promise",
+              "Resolution",
+              "Reply",
+              "CatalogResolution"
+            ],
+            "extends": []
+          },
+          {
+            "name": "ReadVerdict",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "granted",
+              "refused",
+              "unknown"
+            ],
+            "refs": [
+              "Readonly"
+            ]
+          },
+          {
+            "name": "SkillReadCheck",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "CapabilityId",
+                  "Promise",
+                  "ReadVerdict"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "S",
+              "CapabilityId",
+              "Promise",
+              "ReadVerdict"
+            ],
+            "extends": []
+          }
+        ],
+        "imports": [
+          "@omne-harness/assets",
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 86
+      },
+      {
+        "file": "src/project.ts",
+        "decls": [
+          {
+            "name": "projectAssetBody",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SkillDefinition",
+              "JsonValue"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/assets",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "projectAssetBody",
+          "lines": 11
+        },
+        "lines": 45
+      },
+      {
+        "file": "src/provider.ts",
+        "decls": [],
+        "imports": [
+          "./ports.ts",
+          "./services.ts",
+          "./snapshot.ts",
+          "./snapshot.ts",
+          "./values.ts"
+        ],
+        "reexports": [
+          {
+            "from": "./ports.ts",
+            "names": [
+              "CatalogResolution",
+              "ReadVerdict",
+              "Reply",
+              "Resolution",
+              "SkillPackageSource",
+              "SkillReadCheck",
+              "SkillResolution",
+              "SourceFailure"
+            ]
+          },
+          {
+            "from": "./services.ts",
+            "names": [
+              "PackageInspection"
+            ]
+          },
+          {
+            "from": "./snapshot.ts",
+            "names": [
+              "SnapshotDefect"
+            ]
+          },
+          {
+            "from": "./snapshot.ts",
+            "names": [
+              "sealSnapshot"
+            ]
+          },
+          {
+            "from": "./values.ts",
+            "names": [
+              "PackageLocator",
+              "SkillRef"
+            ]
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 14
+      },
+      {
+        "file": "src/services.ts",
+        "decls": [
+          {
+            "name": "PackageInspection",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "PackageLocator",
+                  "Readonly",
+                  "SkillName",
+                  "Promise",
+                  "Outcome",
+                  "SkillDefinition",
+                  "InspectFailure"
+                ]
+              }
+            ],
+            "refs": [
+              "PackageLocator",
+              "Readonly",
+              "SkillName",
+              "Promise",
+              "Outcome",
+              "SkillDefinition",
+              "InspectFailure"
+            ],
+            "extends": []
+          },
+          {
+            "name": "CatalogEntry",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "adopted",
+              "stand-in"
+            ],
+            "refs": [
+              "Readonly",
+              "CapabilityId",
+              "SkillName",
+              "SafeReason"
+            ]
+          },
+          {
+            "name": "CatalogQuery",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "SkillCatalog",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "CapabilityId",
+                  "Promise",
+                  "Outcome",
+                  "CatalogEntry"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "CatalogQuery",
+                  "Promise",
+                  "Outcome",
+                  "CatalogEntry"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "S",
+              "CapabilityId",
+              "Promise",
+              "Outcome",
+              "CatalogEntry",
+              "CatalogQuery"
+            ],
+            "extends": []
+          },
+          {
+            "name": "MaterialState",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "pinned",
+              "no-readable-package"
+            ],
+            "refs": [
+              "Readonly",
+              "SkillMaterialBasis"
+            ]
+          },
+          {
+            "name": "SkillDescription",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "SourceLayer"
+                ]
+              },
+              {
+                "refs": [
+                  "MaterialState"
+                ]
+              },
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "ScriptDeclaration"
+                ]
+              },
+              {
+                "refs": [
+                  "SettingDeclaration"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "SourceLayer",
+              "MaterialState",
+              "ScriptDeclaration",
+              "SettingDeclaration"
+            ]
+          },
+          {
+            "name": "ReadTarget",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "Readonly"
+            ]
+          },
+          {
+            "name": "ByteRange",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "ReadContent",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "text",
+              "bytes"
+            ],
+            "refs": [
+              "Readonly",
+              "Bytes"
+            ]
+          },
+          {
+            "name": "ReadResult",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillMaterialBasis"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "PackagePath"
+                ]
+              },
+              {
+                "refs": [
+                  "MediaType"
+                ]
+              },
+              {
+                "refs": [
+                  "ReadContent"
+                ]
+              },
+              {
+                "refs": [
+                  "ByteRange"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillMaterialBasis",
+              "Readonly",
+              "PackagePath",
+              "MediaType",
+              "ReadContent",
+              "ByteRange"
+            ]
+          },
+          {
+            "name": "ResourceListing",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillMaterialBasis"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageEntry"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillMaterialBasis",
+              "PackageEntry"
+            ]
+          },
+          {
+            "name": "ExportedEntry",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "PackagePath"
+                ]
+              },
+              {
+                "refs": [
+                  "MediaType"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "EntryDigest"
+                ]
+              },
+              {
+                "refs": [
+                  "Bytes"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "PackagePath",
+              "MediaType",
+              "EntryDigest",
+              "Bytes"
+            ]
+          },
+          {
+            "name": "SkillExport",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillMaterialBasis"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageDigest"
+                ]
+              },
+              {
+                "refs": [
+                  "ExportedEntry"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillMaterialBasis",
+              "PackageDigest",
+              "ExportedEntry"
+            ]
+          },
+          {
+            "name": "SkillAccess",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "CapabilityId",
+                  "Readonly",
+                  "SkillMaterialBasis",
+                  "Promise",
+                  "Outcome",
+                  "SkillDescription",
+                  "DescribeFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "ReadTarget",
+                  "Readonly",
+                  "SkillMaterialBasis",
+                  "ByteRange",
+                  "AbortSignal",
+                  "Promise",
+                  "Outcome",
+                  "ReadResult",
+                  "ReadFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "CapabilityId",
+                  "Readonly",
+                  "SkillMaterialBasis",
+                  "AbortSignal",
+                  "Promise",
+                  "Outcome",
+                  "ResourceListing",
+                  "ListFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "CapabilityId",
+                  "SkillMaterialBasis",
+                  "Readonly",
+                  "AbortSignal",
+                  "Promise",
+                  "Outcome",
+                  "SkillExport",
+                  "ExportFailure"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "S",
+              "CapabilityId",
+              "Readonly",
+              "SkillMaterialBasis",
+              "Promise",
+              "Outcome",
+              "SkillDescription",
+              "DescribeFailure",
+              "ReadTarget",
+              "ByteRange",
+              "AbortSignal",
+              "ReadResult",
+              "ReadFailure",
+              "ResourceListing",
+              "ListFailure",
+              "SkillExport",
+              "ExportFailure"
+            ],
+            "extends": []
+          }
+        ],
+        "imports": [
+          "@omne-harness/assets",
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "./failures.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 154
+      },
+      {
+        "file": "src/snapshot.ts",
+        "decls": [
+          {
+            "name": "SnapshotDefect",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "invalid-root-name",
+              "duplicate-path",
+              "prefix-conflict"
+            ],
+            "refs": [
+              "Readonly",
+              "PackagePath"
+            ]
+          },
+          {
+            "name": "assertSealed",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SkillPackageSnapshot"
+            ]
+          },
+          {
+            "name": "sealSnapshot",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "PackagePath",
+              "Bytes",
+              "Outcome",
+              "SkillPackageSnapshot",
+              "SnapshotDefect",
+              "SnapshotShape"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/operation-result",
+          "./digest.ts",
+          "./media.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "sealSnapshot",
+          "lines": 20
+        },
+        "lines": 85
+      },
+      {
+        "file": "src/testing-case.ts",
+        "decls": [
+          {
+            "name": "ConformanceCase",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "F",
+                  "Promise"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "F",
+              "Promise"
+            ]
+          },
+          {
+            "name": "NotApplicable",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              }
+            ],
+            "refs": [
+              "Error"
+            ],
+            "implements": []
+          },
+          {
+            "name": "isNotApplicable",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "NotApplicable"
+            ]
+          },
+          {
+            "name": "CaseVerdict",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "passed",
+              "not-applicable"
+            ],
+            "refs": [
+              "Readonly"
+            ]
+          },
+          {
+            "name": "runConformanceCase",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConformanceCase",
+              "F",
+              "Promise",
+              "CaseVerdict"
+            ]
+          },
+          {
+            "name": "conformanceCase",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "F",
+              "Promise",
+              "ConformanceCase"
+            ]
+          },
+          {
+            "name": "handle",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "T"
+            ]
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "runConformanceCase",
+          "lines": 9
+        },
+        "lines": 57
+      },
+      {
+        "file": "src/testing-read-check.ts",
+        "decls": [
+          {
+            "name": "MemoryReadGrant",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "Access",
+              "P",
+              "S"
+            ]
+          },
+          {
+            "name": "createMemoryReadCheck",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "MemoryReadGrant",
+              "P",
+              "S",
+              "SkillReadCheck"
+            ]
+          },
+          {
+            "name": "ReadCheckFixture",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillReadCheck",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "PrincipalSample",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "PrincipalSample",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillReadCheck",
+              "P",
+              "S",
+              "PrincipalSample",
+              "CapabilityId"
+            ]
+          },
+          {
+            "name": "READ_CHECK_NO_DISCLOSURE",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "skillReadCheckConformance",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConformanceCase",
+              "ReadCheckFixture",
+              "P",
+              "S"
+            ]
+          }
+        ],
+        "imports": [
+          "node:assert/strict",
+          "@omne-harness/assets",
+          "@omne-harness/legal-identity",
+          "./ports.ts",
+          "./testing-case.ts",
+          "./testing-resolution.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "skillReadCheckConformance",
+          "lines": 19
+        },
+        "lines": 58
+      },
+      {
+        "file": "src/testing-resolution.ts",
+        "decls": [
+          {
+            "name": "MemoryMaterial",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillRef"
+                ]
+              },
+              {
+                "refs": [
+                  "DeclaredProjection"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillRef",
+              "DeclaredProjection"
+            ]
+          },
+          {
+            "name": "MemoryResolutionEntry",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "MemoryMaterial",
+                  "SkillName",
+                  "SafeReason"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "Access",
+              "P",
+              "S",
+              "Readonly",
+              "MemoryMaterial",
+              "SkillName",
+              "SafeReason"
+            ]
+          },
+          {
+            "name": "sameCapability",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CapabilityId"
+            ]
+          },
+          {
+            "name": "createMemoryResolution",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "MemoryResolutionEntry",
+              "P",
+              "S",
+              "SkillResolution",
+              "Access",
+              "Promise",
+              "Resolution"
+            ]
+          },
+          {
+            "name": "PrincipalSample",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "S"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Access",
+              "P",
+              "S"
+            ]
+          },
+          {
+            "name": "ResolutionFixture",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillResolution",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "PrincipalSample",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "PrincipalSample",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillMaterialBasis"
+                ]
+              },
+              {
+                "refs": [
+                  "SourceLayer"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillResolution",
+              "P",
+              "S",
+              "PrincipalSample",
+              "CapabilityId",
+              "SkillMaterialBasis",
+              "SourceLayer"
+            ]
+          },
+          {
+            "name": "RESOLUTION_NO_DISCLOSURE",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "skillResolutionConformance",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConformanceCase",
+              "ResolutionFixture",
+              "P",
+              "S",
+              "CapabilityId",
+              "Readonly",
+              "SkillMaterialBasis"
+            ]
+          }
+        ],
+        "imports": [
+          "node:assert/strict",
+          "@omne-harness/assets",
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "./digest.ts",
+          "./names.ts",
+          "./ports.ts",
+          "./testing-case.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "skillResolutionConformance",
+          "lines": 150
+        },
+        "lines": 286
+      },
+      {
+        "file": "src/testing-source.ts",
+        "decls": [
+          {
+            "name": "MemoryPackage",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "PackageLocator"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Record",
+                  "Bytes"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Record"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "PackageLocator",
+              "Readonly",
+              "Record",
+              "Bytes"
+            ]
+          },
+          {
+            "name": "createMemorySource",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "MemoryPackage",
+              "SkillPackageSource",
+              "Held"
+            ]
+          },
+          {
+            "name": "SourceFixture",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillPackageSource"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageLocator"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageLocator"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "PackageLocator"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillPackageSource",
+              "PackageLocator"
+            ]
+          },
+          {
+            "name": "skillPackageSourceConformance",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConformanceCase",
+              "SourceFixture"
+            ]
+          }
+        ],
+        "imports": [
+          "node:assert/strict",
+          "node:path",
+          "@omne-harness/operation-result",
+          "./digest.ts",
+          "./media.ts",
+          "./names.ts",
+          "./ports.ts",
+          "./snapshot.ts",
+          "./testing-case.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "skillPackageSourceConformance",
+          "lines": 84
+        },
+        "lines": 219
+      },
+      {
+        "file": "src/testing.ts",
+        "decls": [],
+        "imports": [
+          "./testing-case.ts",
+          "./testing-read-check.ts",
+          "./testing-resolution.ts",
+          "./testing-source.ts"
+        ],
+        "reexports": [
+          {
+            "from": "./testing-case.ts",
+            "names": [
+              "isNotApplicable",
+              "NotApplicable",
+              "runConformanceCase",
+              "CaseVerdict",
+              "ConformanceCase"
+            ]
+          },
+          {
+            "from": "./testing-read-check.ts",
+            "names": [
+              "createMemoryReadCheck",
+              "skillReadCheckConformance",
+              "MemoryReadGrant",
+              "ReadCheckFixture"
+            ]
+          },
+          {
+            "from": "./testing-resolution.ts",
+            "names": [
+              "createMemoryResolution",
+              "skillResolutionConformance",
+              "MemoryMaterial",
+              "MemoryResolutionEntry",
+              "PrincipalSample",
+              "ResolutionFixture"
+            ]
+          },
+          {
+            "from": "./testing-source.ts",
+            "names": [
+              "createMemorySource",
+              "skillPackageSourceConformance",
+              "MemoryPackage",
+              "SourceFixture"
+            ]
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 27
+      },
+      {
+        "file": "src/values.ts",
+        "decls": [
+          {
+            "name": "Brand",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "T",
+              "B"
+            ]
+          },
+          {
+            "name": "SkillName",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "PackagePath",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "EntryDigest",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "PackageDigest",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "AssetVersion",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "SafeReason",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "MediaType",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "Bytes",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Uint8Array"
+            ]
+          },
+          {
+            "name": "SourceLayer",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "official",
+              "organization",
+              "tenant",
+              "workspace"
+            ],
+            "refs": []
+          },
+          {
+            "name": "SettingCategory",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "preference",
+              "binding",
+              "placement-identity",
+              "governance"
+            ],
+            "refs": []
+          },
+          {
+            "name": "PackageEntry",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "PackagePath"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "MediaType"
+                ]
+              },
+              {
+                "refs": [
+                  "EntryDigest"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "PackagePath",
+              "MediaType",
+              "EntryDigest"
+            ]
+          },
+          {
+            "name": "SkillPackageSnapshot",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand",
+              "SnapshotShape"
+            ]
+          },
+          {
+            "name": "SnapshotShape",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "PackageEntry"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageDigest"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "PackageEntry",
+              "PackageDigest"
+            ]
+          },
+          {
+            "name": "PackageLocator",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "directory",
+              "content-store"
+            ],
+            "refs": [
+              "Readonly",
+              "PackageDigest"
+            ]
+          },
+          {
+            "name": "ManifestValue",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "null",
+              "boolean",
+              "number",
+              "string",
+              "readonly ManifestValue[]",
+              "{…}"
+            ],
+            "refs": [
+              "ManifestValue",
+              "Readonly"
+            ]
+          },
+          {
+            "name": "SkillManifest",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillName"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Record"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Record",
+                  "ManifestValue"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillName",
+              "Readonly",
+              "Record",
+              "ManifestValue"
+            ]
+          },
+          {
+            "name": "ScriptDeclaration",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "PackagePath"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "PackagePath",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "SettingDeclaration",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "SettingCategory"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SettingCategory"
+            ]
+          },
+          {
+            "name": "SkillDeclaration",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "ScriptDeclaration"
+                ]
+              },
+              {
+                "refs": [
+                  "SettingDeclaration"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "ScriptDeclaration",
+              "SettingDeclaration"
+            ]
+          },
+          {
+            "name": "SkillDefinition",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillManifest"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillDeclaration"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillPackageSnapshot"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillManifest",
+              "SkillDeclaration",
+              "SkillPackageSnapshot"
+            ]
+          },
+          {
+            "name": "DeclaredProjection",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillName"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "ScriptDeclaration"
+                ]
+              },
+              {
+                "refs": [
+                  "SettingDeclaration"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillName",
+              "CapabilityId",
+              "ScriptDeclaration",
+              "SettingDeclaration"
+            ]
+          },
+          {
+            "name": "ScriptIdentity",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "PackagePath"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "PackagePath"
+            ]
+          },
+          {
+            "name": "SkillMaterialBasis",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "SourceLayer"
+                ]
+              },
+              {
+                "refs": [
+                  "AssetVersion"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageDigest"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "SourceLayer",
+              "AssetVersion",
+              "PackageDigest"
+            ]
+          },
+          {
+            "name": "SkillRef",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "SourceLayer"
+                ]
+              },
+              {
+                "refs": [
+                  "AssetVersion"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageLocator"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageDigest"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "SourceLayer",
+              "AssetVersion",
+              "PackageLocator",
+              "PackageDigest"
+            ]
+          },
+          {
+            "name": "StandIn",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillName"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "SafeReason"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "SkillName",
+              "SafeReason"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/assets"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 132
       }
     ],
-    "testFiles": 2,
-    "testCases": 6,
+    "testFiles": 16,
+    "testCases": 108,
     "draft": [],
     "entries": [
       {
@@ -108,18 +2762,659 @@
           {
             "name": "skillBodyContract",
             "kind": "function"
+          },
+          {
+            "name": "computeDigest",
+            "kind": "function"
+          },
+          {
+            "name": "isPackageDigest",
+            "kind": "function"
+          },
+          {
+            "name": "inferMediaType",
+            "kind": "function"
+          },
+          {
+            "name": "isAssetVersion",
+            "kind": "function"
+          },
+          {
+            "name": "isControlFile",
+            "kind": "function"
+          },
+          {
+            "name": "isPackagePath",
+            "kind": "function"
+          },
+          {
+            "name": "isSafeReason",
+            "kind": "function"
+          },
+          {
+            "name": "isSkillName",
+            "kind": "function"
+          },
+          {
+            "name": "toPackagePath",
+            "kind": "function"
+          },
+          {
+            "name": "parseSkillPackage",
+            "kind": "function"
+          },
+          {
+            "name": "ParseFailure",
+            "kind": "alias"
+          },
+          {
+            "name": "ParseInput",
+            "kind": "record"
+          },
+          {
+            "name": "projectAssetBody",
+            "kind": "function"
+          },
+          {
+            "name": "ByteRange",
+            "kind": "record"
+          },
+          {
+            "name": "CatalogEntry",
+            "kind": "union"
+          },
+          {
+            "name": "CatalogQuery",
+            "kind": "record"
+          },
+          {
+            "name": "ExportedEntry",
+            "kind": "record"
+          },
+          {
+            "name": "MaterialState",
+            "kind": "union"
+          },
+          {
+            "name": "ReadContent",
+            "kind": "union"
+          },
+          {
+            "name": "ReadResult",
+            "kind": "record"
+          },
+          {
+            "name": "ReadTarget",
+            "kind": "record"
+          },
+          {
+            "name": "ResourceListing",
+            "kind": "record"
+          },
+          {
+            "name": "SkillAccess",
+            "kind": "interface"
+          },
+          {
+            "name": "SkillCatalog",
+            "kind": "interface"
+          },
+          {
+            "name": "SkillDescription",
+            "kind": "record"
+          },
+          {
+            "name": "SkillExport",
+            "kind": "record"
+          },
+          {
+            "name": "DescribeFailure",
+            "kind": "union"
+          },
+          {
+            "name": "ExportFailure",
+            "kind": "union"
+          },
+          {
+            "name": "GateFailure",
+            "kind": "alias"
+          },
+          {
+            "name": "InspectFailure",
+            "kind": "union"
+          },
+          {
+            "name": "InspectRejectionCode",
+            "kind": "alias"
+          },
+          {
+            "name": "ListFailure",
+            "kind": "alias"
+          },
+          {
+            "name": "PinFailure",
+            "kind": "union"
+          },
+          {
+            "name": "ReadFailure",
+            "kind": "union"
+          },
+          {
+            "name": "SkillFailure",
+            "kind": "union"
+          },
+          {
+            "name": "UnsupportedWhat",
+            "kind": "alias"
+          },
+          {
+            "name": "AssetVersion",
+            "kind": "brand"
+          },
+          {
+            "name": "Bytes",
+            "kind": "alias"
+          },
+          {
+            "name": "DeclaredProjection",
+            "kind": "record"
+          },
+          {
+            "name": "EntryDigest",
+            "kind": "brand"
+          },
+          {
+            "name": "ManifestValue",
+            "kind": "union"
+          },
+          {
+            "name": "MediaType",
+            "kind": "brand"
+          },
+          {
+            "name": "PackageDigest",
+            "kind": "brand"
+          },
+          {
+            "name": "PackageEntry",
+            "kind": "record"
+          },
+          {
+            "name": "PackagePath",
+            "kind": "brand"
+          },
+          {
+            "name": "SafeReason",
+            "kind": "brand"
+          },
+          {
+            "name": "ScriptDeclaration",
+            "kind": "record"
+          },
+          {
+            "name": "ScriptIdentity",
+            "kind": "record"
+          },
+          {
+            "name": "SettingCategory",
+            "kind": "enum"
+          },
+          {
+            "name": "SettingDeclaration",
+            "kind": "record"
+          },
+          {
+            "name": "SkillDeclaration",
+            "kind": "record"
+          },
+          {
+            "name": "SkillDefinition",
+            "kind": "record"
+          },
+          {
+            "name": "SkillManifest",
+            "kind": "record"
+          },
+          {
+            "name": "SkillMaterialBasis",
+            "kind": "record"
+          },
+          {
+            "name": "SkillName",
+            "kind": "brand"
+          },
+          {
+            "name": "SkillPackageSnapshot",
+            "kind": "brand"
+          },
+          {
+            "name": "SourceLayer",
+            "kind": "enum"
+          },
+          {
+            "name": "StandIn",
+            "kind": "record"
+          }
+        ]
+      },
+      {
+        "sub": "./provider",
+        "names": [
+          {
+            "name": "CatalogResolution",
+            "kind": "alias"
+          },
+          {
+            "name": "ReadVerdict",
+            "kind": "union"
+          },
+          {
+            "name": "Reply",
+            "kind": "alias"
+          },
+          {
+            "name": "Resolution",
+            "kind": "union"
+          },
+          {
+            "name": "SkillPackageSource",
+            "kind": "interface"
+          },
+          {
+            "name": "SkillReadCheck",
+            "kind": "interface"
+          },
+          {
+            "name": "SkillResolution",
+            "kind": "interface"
+          },
+          {
+            "name": "SourceFailure",
+            "kind": "enum"
+          },
+          {
+            "name": "PackageInspection",
+            "kind": "interface"
+          },
+          {
+            "name": "SnapshotDefect",
+            "kind": "union"
+          },
+          {
+            "name": "sealSnapshot",
+            "kind": "?"
+          },
+          {
+            "name": "PackageLocator",
+            "kind": "union"
+          },
+          {
+            "name": "SkillRef",
+            "kind": "record"
+          }
+        ]
+      },
+      {
+        "sub": "./testing",
+        "names": [
+          {
+            "name": "isNotApplicable",
+            "kind": "function"
+          },
+          {
+            "name": "NotApplicable",
+            "kind": "class"
+          },
+          {
+            "name": "runConformanceCase",
+            "kind": "function"
+          },
+          {
+            "name": "CaseVerdict",
+            "kind": "union"
+          },
+          {
+            "name": "ConformanceCase",
+            "kind": "record"
+          },
+          {
+            "name": "createMemoryReadCheck",
+            "kind": "function"
+          },
+          {
+            "name": "skillReadCheckConformance",
+            "kind": "function"
+          },
+          {
+            "name": "MemoryReadGrant",
+            "kind": "record"
+          },
+          {
+            "name": "ReadCheckFixture",
+            "kind": "record"
+          },
+          {
+            "name": "createMemoryResolution",
+            "kind": "function"
+          },
+          {
+            "name": "skillResolutionConformance",
+            "kind": "function"
+          },
+          {
+            "name": "MemoryMaterial",
+            "kind": "record"
+          },
+          {
+            "name": "MemoryResolutionEntry",
+            "kind": "record"
+          },
+          {
+            "name": "PrincipalSample",
+            "kind": "record"
+          },
+          {
+            "name": "ResolutionFixture",
+            "kind": "record"
+          },
+          {
+            "name": "createMemorySource",
+            "kind": "function"
+          },
+          {
+            "name": "skillPackageSourceConformance",
+            "kind": "function"
+          },
+          {
+            "name": "MemoryPackage",
+            "kind": "record"
+          },
+          {
+            "name": "SourceFixture",
+            "kind": "record"
           }
         ]
       }
     ],
     "modEdges": [
       [
+        "src/contract.ts",
+        "src/digest.ts"
+      ],
+      [
+        "src/contract.ts",
+        "src/names.ts"
+      ],
+      [
+        "src/contract.ts",
+        "src/parse/shape.ts"
+      ],
+      [
+        "src/contract.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/digest.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/failures.ts",
+        "src/values.ts"
+      ],
+      [
         "src/index.ts",
         "src/contract.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/digest.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/media.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/names.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/parse/package.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/project.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/services.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/failures.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/media.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/names.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/parse/declaration.ts",
+        "src/names.ts"
+      ],
+      [
+        "src/parse/declaration.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/parse/declaration.ts",
+        "src/parse/shape.ts"
+      ],
+      [
+        "src/parse/manifest.ts",
+        "src/names.ts"
+      ],
+      [
+        "src/parse/manifest.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/parse/manifest.ts",
+        "src/parse/shape.ts"
+      ],
+      [
+        "src/parse/manifest.ts",
+        "src/parse/yaml-value.ts"
+      ],
+      [
+        "src/parse/package.ts",
+        "src/digest.ts"
+      ],
+      [
+        "src/parse/package.ts",
+        "src/failures.ts"
+      ],
+      [
+        "src/parse/package.ts",
+        "src/names.ts"
+      ],
+      [
+        "src/parse/package.ts",
+        "src/snapshot.ts"
+      ],
+      [
+        "src/parse/package.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/parse/package.ts",
+        "src/parse/declaration.ts"
+      ],
+      [
+        "src/parse/package.ts",
+        "src/parse/manifest.ts"
+      ],
+      [
+        "src/parse/package.ts",
+        "src/parse/shape.ts"
+      ],
+      [
+        "src/parse/shape.ts",
+        "src/failures.ts"
+      ],
+      [
+        "src/parse/shape.ts",
+        "src/names.ts"
+      ],
+      [
+        "src/parse/shape.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/parse/yaml-value.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/ports.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/project.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/provider.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/provider.ts",
+        "src/services.ts"
+      ],
+      [
+        "src/provider.ts",
+        "src/snapshot.ts"
+      ],
+      [
+        "src/provider.ts",
+        "src/snapshot.ts"
+      ],
+      [
+        "src/provider.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/failures.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/snapshot.ts",
+        "src/digest.ts"
+      ],
+      [
+        "src/snapshot.ts",
+        "src/media.ts"
+      ],
+      [
+        "src/snapshot.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/testing-read-check.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/testing-read-check.ts",
+        "src/testing-case.ts"
+      ],
+      [
+        "src/testing-read-check.ts",
+        "src/testing-resolution.ts"
+      ],
+      [
+        "src/testing-resolution.ts",
+        "src/digest.ts"
+      ],
+      [
+        "src/testing-resolution.ts",
+        "src/names.ts"
+      ],
+      [
+        "src/testing-resolution.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/testing-resolution.ts",
+        "src/testing-case.ts"
+      ],
+      [
+        "src/testing-resolution.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/testing-source.ts",
+        "src/digest.ts"
+      ],
+      [
+        "src/testing-source.ts",
+        "src/media.ts"
+      ],
+      [
+        "src/testing-source.ts",
+        "src/names.ts"
+      ],
+      [
+        "src/testing-source.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/testing-source.ts",
+        "src/snapshot.ts"
+      ],
+      [
+        "src/testing-source.ts",
+        "src/testing-case.ts"
+      ],
+      [
+        "src/testing-source.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-case.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-read-check.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-resolution.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-source.ts"
       ]
     ],
     "pkgEdges": [
-      "@omne-harness/assets"
+      "@omne-harness/assets",
+      "node:crypto",
+      "@omne-harness/operation-result",
+      "@omne-harness/json-text",
+      "yaml",
+      "@omne-harness/legal-identity",
+      "node:assert",
+      "node:path"
     ]
   },
   {

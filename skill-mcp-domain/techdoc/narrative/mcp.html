@@ -1,5 +1,23 @@
-<h3>现在源码里有什么（W0，父分支 21175c9f9）</h3>
-<p>MCP 组有三个 workspace 成员，都是模板草稿：<code>@omne-harness/mcp-contract</code>（纯契约）、<code>@omne-harness/mcp</code>（通用实现）、<code>@omne-harness/mcp-host-local</code>（本地宿主）。每个成员的 <code>src/index.ts</code> 都只有草稿标记与 <code>export {}</code>，还没有可讲的调用路径。</p>
-<p><code>mcp-contract</code> 已经声明了 assets 与四个公共值成员（<code>operation-result</code>、<code>legal-identity</code>、<code>content-block</code>、<code>json-text</code>）作依赖，源码还没有导入它们。三个成员都不依赖任何 MCP SDK。</p>
-<h3>W1 之后这里会怎样变</h3>
-<p>W1 交付 <code>mcp-contract</code>：接入点正文的类别端口、清单与结局的纯函数、五个需求端口与组内传输端口、符合性套件。合入后本节改写为实际的模块分工、关键类型之间的关系，以及 <code>mergeListing</code>、<code>classifyOutcome</code> 的真实算法路径。</p>
+<h3>W1 之后源码里有什么（父分支 c247b873a）</h3>
+<p>MCP 组三个成员，只有 <code>@omne-harness/mcp-contract</code> 有实现：29 个源文件、约 3700 个非空行、12 个测试文件 298 例（其中两张用例表 <code>classifyOutcomeCases</code>、<code>mergeListingCases</code> 由 <code>./testing</code> 导出，成员自己的测试与未来实现方共用）。比 Skill 大一半，因为它一边要对协议线（2026-07-28 修订）做分类，一边要给五个端口写符合性套件。三个入口：</p>
+<ul>
+<li><strong>公开根 <code>.</code>（给调用方）</strong>：<code>index.ts</code> 从 13 个模块重导出，没有自己的函数。值与品牌在 <code>brands.ts</code>、<code>values.ts</code>；接入点正文在 <code>endpoint.ts</code>（<code>parseEndpointBody</code>、<code>launchesLocalCommand</code>、<code>mcpEndpointBodyContract</code>）；清单在 <code>listing.ts</code>（<code>completeListing</code>、<code>digestDefinition</code>）与 <code>catalog.ts</code>（<code>mergeListing</code>、<code>markUnavailable</code>、<code>actionPermissionItems</code>）；结局在 <code>classify.ts</code>（<code>classifyOutcome</code>）与 <code>content.ts</code>（<code>toContentBlocks</code>）；键在 <code>keys.ts</code>；六个应用服务接口在 <code>services.ts</code>。</li>
+<li><strong><code>./provider</code>（给端口与传输实现方）</strong>：<code>provider.ts</code> 只有类型——五个端口（<code>AdoptionView</code>、<code>UseEligibility</code>、<code>CredentialUse</code>、<code>ProcessLanding</code>、<code>CatalogStore</code>）、两类凭据句柄（Http/Process）与 <code>McpTransport</code>/<code>McpTransportFactory</code>。没有运行时导出：与 Skill 不同，MCP 的唯一构造器 <code>completeListing</code> 留在公开根，因为它的调用方是本组的应用服务而不是外部实现方。</li>
+<li><strong><code>./testing</code>（给实现方自测）</strong>：五个套件 <code>mcp&lt;Port&gt;Conformance()</code> 配五个内存替身 <code>createMemory&lt;Port&gt;()</code>，加 <code>runConformanceCase</code>/<code>NotApplicable</code>。替身自己也要过套件，这是 <code>conformance.spec.ts</code> 做的事。</li>
+</ul>
+
+<h3>依赖方向</h3>
+<p>根是 <code>brands.ts</code>（零导入，15 个 <code>isX</code> 守卫），<code>values.ts</code> 在它之上——与 Skill 相反，因为 MCP 的值类型大多就是品牌本身。<code>json.ts</code>（在 json-text 的 JSON 树上找成员、取文本、算规范字节）与 <code>order.ts</code>（码元比较）是两个无依赖的小工具层。往上：<code>endpoint</code>、<code>listing</code>、<code>classify</code>、<code>content</code> 各自只依赖值与工具；<code>ports</code> 依赖 <code>catalog</code> 与 <code>outcomes</code>；<code>services</code> 与 <code>transport</code> 在最顶上。<code>listing.ts</code> 与 <code>catalog.ts</code> 之间有一条类型环：<code>listing</code> 以 <code>import type</code> 取 <code>catalog</code> 的三个类型，<code>catalog</code> 运行时调用 <code>listing</code> 的 <code>assertComplete</code>。dependency-cruiser 不报，但它说明「清单」与「目录」的切分线还没切干净（见评述）。</p>
+
+<h3>三条真实的调用路径</h3>
+<ol>
+<li><strong>读接入点正文。</strong><code>parseEndpointBody(body, capabilityName?)</code> 在 json-text 的树上按 SPEC E2 的次序拒绝：结构缺陷 → 名字不符 → 传输未知 → 认证方式未知 → 组合不合法 → 启动声明多了或少了。最后一格交给 <code>transportOf(transport, launch)</code>。<code>isConnectionTarget</code> 用 WHATWG <code>URL</code> 解析：只认小写 <code>https</code>，或回环主机上的小写 <code>http</code>（<code>LOOPBACK_HOSTS</code>），带用户名口令的一律拒绝。</li>
+<li><strong>清单从对端到目录。</strong>传输交回的 <code>ListingPage</code> 是 <code>Untrusted</code>；<code>completeListing(pages, basedOn)</code> 逐项核形、算 <code>digestDefinition</code>（规范 JSON 字节的摘要）、按码元排序，然后登记进模块私有 <code>WeakSet</code>。<code>mergeListing(current, listing, expected)</code> 先 <code>assertComplete</code>（伪造抛 <code>TypeError</code>），再只按修订合并：修订不等答 <code>stale</code>，不比内容。<code>markUnavailable</code> 是目录在连接丢失后的降级写法。</li>
+<li><strong>结局分类。</strong><code>classifyOutcome(answer)</code> 把一次 <code>tools/call</code> 的应答收成判别联合：<code>complete</code> / <code>toolError</code>（<code>isError</code> 为真）/ <code>inputRequired</code>（<code>inputRequests</code> 与 <code>requestState</code> 至少一项）/ <code>protocolError</code>（<code>resultType</code> 不认识）。内容由 <code>toContentBlocks</code> 按 <code>type</code> 的读取表转换：text/image/audio 各一函数，resource_link/resource 走协议类型表，不在表里即 <code>type-unknown</code>。任务路径（<code>tasks/get</code>）走同一分类函数，所以两条路径的 <code>inputRequests</code> 形状只有一份。</li>
+</ol>
+
+<h3>失败怎样分层</h3>
+<p>四层，每层一个联合，在 <code>outcomes.ts</code> 与 <code>transport.ts</code>：<code>TransportFailure</code>（not-sent / no-answer / error-answer / answer-malformed）是线上的事实；<code>OperationFailure</code> 在它之上加 <code>Refusal</code>、<code>ConnectionFailure</code> 与 <code>effect-unknown</code>；<code>ReadFailure</code> 只给 <code>current</code>/<code>peer</code> 两个读操作；<code>LostReason</code>/<code>DegradedReason</code> 是连接状态的说明。<code>residual</code> 只在 <code>lost</code> 上出现——这是第 4 轮加进来的：关闭未确认时调用方要知道对端可能还在跑。</p>
+
+<h3>还没有的东西</h3>
+<p>六个应用服务（<code>EndpointInspection</code>、<code>ActionDiscovery</code>、<code>ActionCalls</code>、<code>TaskControl</code>、<code>EndpointStatus</code>、<code>Connections</code>）只有接口，<code>McpServices&lt;P, S&gt;</code> 把它们与 <code>McpPorts</code>/<code>McpConfig</code> 绑在一起。实现、stdio/http 传输、连接表都在 W2。</p>

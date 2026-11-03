@@ -52,12 +52,891 @@
     ],
     "files": [
       {
+        "file": "src/brands.ts",
+        "decls": [
+          {
+            "name": "EndpointName",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "EndpointHolding",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "AdoptionRevision",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "CredentialBinding",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "ActionName",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "DefinitionDigest",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "InstructionsDigest",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "Generation",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "CatalogRevision",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "CorrelationKey",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "RequestState",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "TaskId",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "ProtocolVersion",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "Millis",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "ConnectionTarget",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "isEndpointName",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "EndpointName"
+            ]
+          },
+          {
+            "name": "isEndpointHolding",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "EndpointHolding"
+            ]
+          },
+          {
+            "name": "isAdoptionRevision",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "AdoptionRevision"
+            ]
+          },
+          {
+            "name": "isCredentialBinding",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CredentialBinding"
+            ]
+          },
+          {
+            "name": "isActionName",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ActionName"
+            ]
+          },
+          {
+            "name": "isDefinitionDigest",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "DefinitionDigest"
+            ]
+          },
+          {
+            "name": "isInstructionsDigest",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "InstructionsDigest"
+            ]
+          },
+          {
+            "name": "isGeneration",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Generation"
+            ]
+          },
+          {
+            "name": "isCatalogRevision",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CatalogRevision"
+            ]
+          },
+          {
+            "name": "isCorrelationKey",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CorrelationKey"
+            ]
+          },
+          {
+            "name": "isRequestState",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "RequestState"
+            ]
+          },
+          {
+            "name": "isTaskId",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TaskId"
+            ]
+          },
+          {
+            "name": "isProtocolVersion",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ProtocolVersion"
+            ]
+          },
+          {
+            "name": "isMillis",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Millis"
+            ]
+          },
+          {
+            "name": "isConnectionTarget",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConnectionTarget",
+              "URL"
+            ]
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "isConnectionTarget",
+          "lines": 13
+        },
+        "lines": 122
+      },
+      {
+        "file": "src/catalog.ts",
+        "decls": [
+          {
+            "name": "UnavailableReason",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "no-longer-offered",
+              "connection-unavailable",
+              "authorization-required",
+              "credential-unavailable",
+              "landing-unavailable"
+            ],
+            "refs": []
+          },
+          {
+            "name": "Availability",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "available",
+              "unavailable"
+            ],
+            "refs": [
+              "Readonly",
+              "UnavailableReason"
+            ]
+          },
+          {
+            "name": "KnownAction",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ActionName"
+                ]
+              },
+              {
+                "refs": [
+                  "ActionDefinition"
+                ]
+              },
+              {
+                "refs": [
+                  "DefinitionDigest"
+                ]
+              },
+              {
+                "refs": [
+                  "Availability"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ActionName",
+              "ActionDefinition",
+              "DefinitionDigest",
+              "Availability"
+            ]
+          },
+          {
+            "name": "AdoptionBasis",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "ProtocolVersion"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Generation",
+              "ProtocolVersion",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "Freshness",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "ActionCatalogRecord",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CatalogRevision"
+                ]
+              },
+              {
+                "refs": [
+                  "AdoptionBasis"
+                ]
+              },
+              {
+                "refs": [
+                  "Freshness"
+                ]
+              },
+              {
+                "refs": [
+                  "KnownAction"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CatalogRevision",
+              "AdoptionBasis",
+              "Freshness",
+              "KnownAction"
+            ]
+          },
+          {
+            "name": "CatalogState",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "not-acquired",
+              "acquired"
+            ],
+            "refs": [
+              "Readonly",
+              "ActionCatalogRecord"
+            ]
+          },
+          {
+            "name": "ExpectedRevision",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "CatalogRevision",
+              "absent"
+            ],
+            "refs": [
+              "CatalogRevision"
+            ]
+          },
+          {
+            "name": "MergeRefusal",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "mergeListing",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CatalogState",
+              "CompleteListing",
+              "Outcome",
+              "ActionCatalogRecord",
+              "MergeRefusal",
+              "KnownAction"
+            ]
+          },
+          {
+            "name": "markUnavailable",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ActionCatalogRecord",
+              "Exclude",
+              "UnavailableReason"
+            ]
+          },
+          {
+            "name": "actionPermissionItems",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CatalogState"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "@omne-harness/operation-result",
+          "./brands.ts",
+          "./listing.ts",
+          "./order.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "mergeListing",
+          "lines": 23
+        },
+        "lines": 128
+      },
+      {
+        "file": "src/classify.ts",
+        "decls": [
+          {
+            "name": "ClassifyContext",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "OutputValidator"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Generation",
+              "JsonValue",
+              "OutputValidator"
+            ]
+          },
+          {
+            "name": "classifyOutcome",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PeerAnswer",
+              "ClassifyContext",
+              "CallOutcome"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "./content.ts",
+          "./json.ts",
+          "./outcomes.ts",
+          "./brands.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "classifyResult",
+          "lines": 18
+        },
+        "lines": 109
+      },
+      {
+        "file": "src/content.ts",
+        "decls": [
+          {
+            "name": "toContentBlocks",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "DeliveredContent"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/content-block",
+          "@omne-harness/json-text",
+          "./json.ts",
+          "./outcomes.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "deliveredItem",
+          "lines": 25
+        },
+        "lines": 113
+      },
+      {
+        "file": "src/digest.ts",
+        "decls": [
+          {
+            "name": "digestOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "T"
+            ]
+          }
+        ],
+        "imports": [
+          "node:crypto"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "digestOf",
+          "lines": 5
+        },
+        "lines": 8
+      },
+      {
+        "file": "src/endpoint-schema.ts",
+        "decls": [
+          {
+            "name": "ENDPOINT_BODY_SCHEMA",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 3
+      },
+      {
+        "file": "src/endpoint.ts",
+        "decls": [
+          {
+            "name": "EndpointBodyRejection",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "malformed",
+              "name-mismatch",
+              "transport-unknown",
+              "auth-unknown",
+              "launch-missing",
+              "launch-unexpected"
+            ],
+            "refs": []
+          },
+          {
+            "name": "parseEndpointBody",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Outcome",
+              "EndpointDefinition",
+              "EndpointBodyRejection"
+            ]
+          },
+          {
+            "name": "launchesLocalCommand",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "EndpointDefinition"
+            ]
+          },
+          {
+            "name": "mcpEndpointBodyContract",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "BodyContract"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/assets",
+          "@omne-harness/json-text",
+          "@omne-harness/operation-result",
+          "./endpoint-schema.ts",
+          "./json.ts",
+          "./brands.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "parseEndpointBody",
+          "lines": 22
+        },
+        "lines": 230
+      },
+      {
         "file": "src/index.ts",
         "decls": [],
-        "imports": [],
+        "imports": [
+          "./brands.ts",
+          "./values.ts",
+          "./endpoint.ts",
+          "./listing.ts",
+          "./catalog.ts",
+          "./classify.ts",
+          "./content.ts",
+          "./instructions.ts",
+          "./keys.ts",
+          "./outcomes.ts",
+          "./services.ts",
+          "./ports.ts",
+          "./transport.ts"
+        ],
         "reexports": [
           {
-            "names": []
+            "from": "./brands.ts",
+            "names": [
+              "isActionName",
+              "isAdoptionRevision",
+              "isCatalogRevision",
+              "isConnectionTarget",
+              "isCorrelationKey",
+              "isCredentialBinding",
+              "isDefinitionDigest",
+              "isEndpointHolding",
+              "isEndpointName",
+              "isGeneration",
+              "isInstructionsDigest",
+              "isMillis",
+              "isProtocolVersion",
+              "isRequestState",
+              "isTaskId",
+              "ActionName",
+              "AdoptionRevision",
+              "CatalogRevision",
+              "ConnectionTarget",
+              "CorrelationKey",
+              "CredentialBinding",
+              "DefinitionDigest",
+              "EndpointHolding",
+              "EndpointName",
+              "Generation",
+              "InstructionsDigest",
+              "Millis",
+              "ProtocolVersion",
+              "RequestState",
+              "TaskId"
+            ]
+          },
+          {
+            "from": "./values.ts",
+            "names": [
+              "ActionDefinition",
+              "AuthKind",
+              "BoundedInstructions",
+              "CatalogKey",
+              "ConnectionKey",
+              "EndpointDefinition",
+              "EndpointRef",
+              "EndpointSettings",
+              "EnvironmentBinding",
+              "KnownActionId",
+              "PeerAccount",
+              "PeerIdentity",
+              "SettingValue",
+              "StdioLaunch",
+              "TransportDeclaration",
+              "Untrusted"
+            ]
+          },
+          {
+            "from": "./endpoint.ts",
+            "names": [
+              "launchesLocalCommand",
+              "mcpEndpointBodyContract",
+              "parseEndpointBody",
+              "EndpointBodyRejection"
+            ]
+          },
+          {
+            "from": "./listing.ts",
+            "names": [
+              "completeListing",
+              "digestDefinition",
+              "CompleteListing",
+              "ListedAction",
+              "ListingDefect",
+              "ListingRead"
+            ]
+          },
+          {
+            "from": "./catalog.ts",
+            "names": [
+              "actionPermissionItems",
+              "markUnavailable",
+              "mergeListing",
+              "ActionCatalogRecord",
+              "AdoptionBasis",
+              "Availability",
+              "ExpectedRevision",
+              "CatalogState",
+              "Freshness",
+              "KnownAction",
+              "MergeRefusal",
+              "UnavailableReason"
+            ]
+          },
+          {
+            "from": "./classify.ts",
+            "names": [
+              "classifyOutcome",
+              "ClassifyContext"
+            ]
+          },
+          {
+            "from": "./content.ts",
+            "names": [
+              "toContentBlocks"
+            ]
+          },
+          {
+            "from": "./instructions.ts",
+            "names": [
+              "boundInstructions"
+            ]
+          },
+          {
+            "from": "./keys.ts",
+            "names": [
+              "catalogKeyOf",
+              "connectionKeyOf",
+              "peerAccountOf"
+            ]
+          },
+          {
+            "from": "./outcomes.ts",
+            "names": [
+              "AuthorizationDiscovery",
+              "BlockedReason",
+              "CallOutcome",
+              "ConfigItem",
+              "ConnectionFailure",
+              "ContentDefect",
+              "AnswerMalformed",
+              "EffectUnknown",
+              "ErrorAnswer",
+              "DeliveredContent",
+              "InvokeResult",
+              "NoAnswerCause",
+              "NotSentReason",
+              "OperationFailure",
+              "OutputCheck",
+              "OutputValidator",
+              "PeerAnswer",
+              "ProtocolFault",
+              "ReadFailure",
+              "Refusal",
+              "TaskReport",
+              "TaskStatus"
+            ]
+          },
+          {
+            "from": "./services.ts",
+            "names": [
+              "ActionCalls",
+              "ActionDiscovery",
+              "ActionInvoker",
+              "CancelAnswer",
+              "CatalogView",
+              "ConnectionState",
+              "Connections",
+              "ContinueRequest",
+              "DegradedReason",
+              "EndpointInspection",
+              "EndpointStatus",
+              "EndpointStatusView",
+              "InvokeRequest",
+              "KeptReason",
+              "LostReason",
+              "McpConfig",
+              "McpPorts",
+              "McpServices",
+              "RefreshResult",
+              "ReleaseReport",
+              "Residual",
+              "TaskControl",
+              "TaskRef"
+            ]
+          },
+          {
+            "from": "./ports.ts",
+            "names": [
+              "StopScope"
+            ]
+          },
+          {
+            "from": "./transport.ts",
+            "names": [
+              "PeerNotification"
+            ]
           }
         ],
         "asCount": 0,
@@ -66,24 +945,4785 @@
           "name": "",
           "lines": 0
         },
-        "lines": 2
+        "lines": 135
+      },
+      {
+        "file": "src/instructions.ts",
+        "decls": [
+          {
+            "name": "boundInstructions",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "BoundedInstructions"
+            ]
+          }
+        ],
+        "imports": [
+          "./brands.ts",
+          "./digest.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "boundInstructions",
+          "lines": 10
+        },
+        "lines": 25
+      },
+      {
+        "file": "src/json.ts",
+        "decls": [
+          {
+            "name": "JsonObject",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "isObject",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "JsonObject"
+            ]
+          },
+          {
+            "name": "member",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonObject",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "hasOnly",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonObject"
+            ]
+          },
+          {
+            "name": "textOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "itemsOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "without",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonObject"
+            ]
+          },
+          {
+            "name": "canonical",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "./order.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "canonical",
+          "lines": 22
+        },
+        "lines": 57
+      },
+      {
+        "file": "src/keys.ts",
+        "decls": [
+          {
+            "name": "peerAccountOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "AuthKind",
+              "CredentialBinding",
+              "Outcome",
+              "PeerAccount"
+            ]
+          },
+          {
+            "name": "catalogKeyOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TenantId",
+              "AdoptedEndpoint",
+              "PeerAccount",
+              "CatalogKey"
+            ]
+          },
+          {
+            "name": "connectionKeyOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TenantId",
+              "AdoptedEndpoint",
+              "PeerAccount",
+              "ConnectionKey"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "./ports.ts",
+          "./brands.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "peerAccountOf",
+          "lines": 5
+        },
+        "lines": 35
+      },
+      {
+        "file": "src/listing.ts",
+        "decls": [
+          {
+            "name": "ListedAction",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ActionDefinition"
+                ]
+              },
+              {
+                "refs": [
+                  "DefinitionDigest"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ActionDefinition",
+              "DefinitionDigest"
+            ]
+          },
+          {
+            "name": "CompleteListing",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "ListingFields"
+            ]
+          },
+          {
+            "name": "ListingDefect",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "page-failed",
+              "pages-unfinished",
+              "page-limit-exceeded",
+              "action-limit-exceeded",
+              "action-invalid",
+              "duplicate-action-name"
+            ],
+            "refs": []
+          },
+          {
+            "name": "assertComplete",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CompleteListing"
+            ]
+          },
+          {
+            "name": "digestDefinition",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ActionDefinition",
+              "DefinitionDigest",
+              "JsonObject"
+            ]
+          },
+          {
+            "name": "ListingRead",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Outcome",
+                  "ListingPage",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "AdoptionBasis"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Readonly"
+                ]
+              },
+              {
+                "refs": [
+                  "ExpectedRevision"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Outcome",
+              "ListingPage",
+              "TransportFailure",
+              "AdoptionBasis",
+              "Readonly",
+              "ExpectedRevision"
+            ]
+          },
+          {
+            "name": "completeListing",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ListingRead",
+              "Outcome",
+              "CompleteListing",
+              "ListingDefect",
+              "ListedAction"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "@omne-harness/operation-result",
+          "./brands.ts",
+          "./catalog.ts",
+          "./digest.ts",
+          "./json.ts",
+          "./transport.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "completeListing",
+          "lines": 23
+        },
+        "lines": 133
+      },
+      {
+        "file": "src/order.ts",
+        "decls": [
+          {
+            "name": "compareCodeUnits",
+            "kind": "function",
+            "fields": [],
+            "refs": []
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "compareCodeUnits",
+          "lines": 4
+        },
+        "lines": 10
+      },
+      {
+        "file": "src/outcomes.ts",
+        "decls": [
+          {
+            "name": "ContentDefect",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "not-an-object",
+              "type-missing",
+              "type-unknown",
+              "text-invalid",
+              "data-invalid",
+              "mime-type-invalid",
+              "uri-invalid",
+              "name-invalid",
+              "resource-invalid",
+              "annotations-invalid"
+            ],
+            "refs": []
+          },
+          {
+            "name": "DeliveredContent",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "block",
+              "protocol",
+              "invalid"
+            ],
+            "refs": [
+              "Readonly",
+              "ContentBlock",
+              "Untrusted",
+              "JsonValue",
+              "ContentDefect",
+              "TextContentBlock"
+            ]
+          },
+          {
+            "name": "OutputCheck",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "conforms",
+              "violates",
+              "no-schema"
+            ],
+            "refs": [
+              "Readonly"
+            ]
+          },
+          {
+            "name": "OutputValidator",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "JsonValue",
+              "OutputCheck"
+            ]
+          },
+          {
+            "name": "NoAnswerCause",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "stream-broken",
+              "process-exited",
+              "abandoned"
+            ],
+            "refs": []
+          },
+          {
+            "name": "PeerAnswer",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "result",
+              "error",
+              "no-answer"
+            ],
+            "refs": [
+              "Readonly",
+              "JsonValue",
+              "NoAnswerCause"
+            ]
+          },
+          {
+            "name": "ProtocolFault",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "peer-error",
+              "result-type-unknown",
+              "result-malformed",
+              "error-malformed"
+            ],
+            "refs": [
+              "Readonly",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "CallOutcome",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "complete",
+              "toolError",
+              "inputRequired",
+              "task",
+              "protocolError",
+              "unknown"
+            ],
+            "refs": [
+              "Readonly",
+              "DeliveredContent",
+              "JsonValue",
+              "OutputCheck",
+              "Untrusted",
+              "RequestState",
+              "Generation",
+              "TaskId",
+              "ProtocolFault",
+              "NoAnswerCause"
+            ]
+          },
+          {
+            "name": "TaskStatus",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "working",
+              "input_required",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "refs": []
+          },
+          {
+            "name": "TaskReport",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "TaskStatus"
+                ]
+              },
+              {
+                "refs": [
+                  "Untrusted",
+                  "JsonValue"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "TaskStatus",
+              "Untrusted",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "BlockedReason",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "local-command-not-enabled",
+              "disabled"
+            ],
+            "refs": []
+          },
+          {
+            "name": "AuthorizationDiscovery",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Untrusted",
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Untrusted",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "ConfigItem",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "connect-timeout",
+              "target",
+              "credential",
+              "`env.${string}`"
+            ],
+            "refs": []
+          },
+          {
+            "name": "Refusal",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "not-available-to-you",
+              "blocked",
+              "unknown",
+              "config-missing",
+              "config-invalid"
+            ],
+            "refs": [
+              "Readonly",
+              "BlockedReason",
+              "ConfigItem",
+              "Exclude"
+            ]
+          },
+          {
+            "name": "ConnectionFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "credential-unavailable",
+              "authorization-required",
+              "landing-unavailable",
+              "connection-unavailable"
+            ],
+            "refs": [
+              "Readonly",
+              "AuthorizationDiscovery"
+            ]
+          },
+          {
+            "name": "ErrorAnswer",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "EffectUnknown",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "NoAnswerCause"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "NoAnswerCause"
+            ]
+          },
+          {
+            "name": "AnswerMalformed",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "OperationFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "Refusal",
+              "ConnectionFailure",
+              "EffectUnknown",
+              "ErrorAnswer",
+              "AnswerMalformed"
+            ],
+            "refs": [
+              "Refusal",
+              "ConnectionFailure",
+              "EffectUnknown",
+              "ErrorAnswer",
+              "AnswerMalformed"
+            ]
+          },
+          {
+            "name": "ReadFailure",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Exclude",
+              "OperationFailure",
+              "Readonly"
+            ]
+          },
+          {
+            "name": "NotSentReason",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "Refusal",
+              "correlation-key-in-use",
+              "cancelled",
+              "definition-changed",
+              "action-unavailable",
+              "ConnectionFailure"
+            ],
+            "refs": [
+              "Refusal",
+              "Readonly",
+              "ConnectionFailure"
+            ]
+          },
+          {
+            "name": "InvokeResult",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "not-sent",
+              "sent"
+            ],
+            "refs": [
+              "Readonly",
+              "NotSentReason",
+              "CallOutcome"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/content-block",
+          "@omne-harness/json-text",
+          "./brands.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 166
+      },
+      {
+        "file": "src/ports.ts",
+        "decls": [
+          {
+            "name": "ProcessSetting",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "AdoptedEndpoint",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "AdoptionRevision"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointSettings"
+                ]
+              },
+              {
+                "refs": [
+                  "ProcessSetting"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointRef",
+              "AdoptionRevision",
+              "JsonValue",
+              "EndpointSettings",
+              "ProcessSetting"
+            ]
+          },
+          {
+            "name": "AdoptionView",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "Promise",
+                  "Outcome",
+                  "AdoptedEndpoint"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointRef",
+                  "Promise",
+                  "Outcome",
+                  "AdoptedEndpoint"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "S",
+              "Promise",
+              "Outcome",
+              "AdoptedEndpoint",
+              "EndpointRef"
+            ],
+            "extends": []
+          },
+          {
+            "name": "EligibilityVerdict",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "granted",
+              "refused",
+              "unknown"
+            ],
+            "refs": [
+              "Readonly",
+              "BlockedReason"
+            ]
+          },
+          {
+            "name": "UseEligibility",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointRef",
+                  "Promise",
+                  "EligibilityVerdict"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "EndpointRef",
+              "Promise",
+              "EligibilityVerdict"
+            ],
+            "extends": []
+          },
+          {
+            "name": "ProcessPurpose",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "HttpPurpose",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "ConnectionTarget"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ConnectionTarget"
+            ]
+          },
+          {
+            "name": "CredentialPurpose",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "ProcessPurpose",
+              "HttpPurpose"
+            ],
+            "refs": [
+              "ProcessPurpose",
+              "HttpPurpose"
+            ]
+          },
+          {
+            "name": "HttpCredentialHandle",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Headers",
+                  "Promise",
+                  "Ack"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              }
+            ],
+            "refs": [
+              "Headers",
+              "Promise",
+              "Ack"
+            ],
+            "extends": []
+          },
+          {
+            "name": "ProcessCredentialHandle",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              }
+            ],
+            "refs": [
+              "Promise"
+            ],
+            "extends": []
+          },
+          {
+            "name": "CredentialFailure",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "missing",
+              "rejected",
+              "unknown"
+            ],
+            "refs": []
+          },
+          {
+            "name": "CredentialUse",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointHolding",
+                  "ProcessPurpose",
+                  "CredentialBinding",
+                  "Promise",
+                  "Outcome",
+                  "ProcessCredentialHandle",
+                  "CredentialFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointHolding",
+                  "HttpPurpose",
+                  "CredentialBinding",
+                  "Promise",
+                  "Outcome",
+                  "HttpCredentialHandle",
+                  "CredentialFailure"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "EndpointHolding",
+              "ProcessPurpose",
+              "CredentialBinding",
+              "Promise",
+              "Outcome",
+              "ProcessCredentialHandle",
+              "CredentialFailure",
+              "HttpPurpose",
+              "HttpCredentialHandle"
+            ],
+            "extends": []
+          },
+          {
+            "name": "StopScope",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "tree-confirmed",
+              "root-only",
+              "unconfirmed"
+            ],
+            "refs": []
+          },
+          {
+            "name": "ProcessHandle",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "WritableStream",
+                  "Uint8Array"
+                ]
+              },
+              {
+                "refs": [
+                  "ReadableStream",
+                  "Uint8Array"
+                ]
+              },
+              {
+                "refs": [
+                  "ReadableStream"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "StopScope"
+                ]
+              }
+            ],
+            "refs": [
+              "WritableStream",
+              "Uint8Array",
+              "ReadableStream",
+              "Promise",
+              "StopScope"
+            ],
+            "extends": []
+          },
+          {
+            "name": "ProcessEnvironment",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ProcessSetting"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "ProcessCredentialHandle"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ProcessSetting",
+              "Readonly",
+              "ProcessCredentialHandle"
+            ]
+          },
+          {
+            "name": "ProcessLanding",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "StdioLaunch",
+                  "ProcessEnvironment",
+                  "Promise",
+                  "Outcome",
+                  "ProcessHandle"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "StdioLaunch",
+              "ProcessEnvironment",
+              "Promise",
+              "Outcome",
+              "ProcessHandle"
+            ],
+            "extends": []
+          },
+          {
+            "name": "CatalogStore",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "CatalogKey",
+                  "Promise",
+                  "Outcome",
+                  "ActionCatalogRecord"
+                ]
+              },
+              {
+                "refs": [
+                  "CatalogKey",
+                  "ActionCatalogRecord",
+                  "ExpectedRevision",
+                  "Promise",
+                  "Ack"
+                ]
+              }
+            ],
+            "refs": [
+              "CatalogKey",
+              "Promise",
+              "Outcome",
+              "ActionCatalogRecord",
+              "ExpectedRevision",
+              "Ack"
+            ],
+            "extends": []
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "./brands.ts",
+          "./catalog.ts",
+          "./outcomes.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 125
+      },
+      {
+        "file": "src/provider.ts",
+        "decls": [],
+        "imports": [
+          "./ports.ts",
+          "./transport.ts"
+        ],
+        "reexports": [
+          {
+            "from": "./ports.ts",
+            "names": [
+              "AdoptedEndpoint",
+              "AdoptionView",
+              "CatalogStore",
+              "CredentialFailure",
+              "CredentialPurpose",
+              "CredentialUse",
+              "EligibilityVerdict",
+              "HttpCredentialHandle",
+              "HttpPurpose",
+              "ProcessCredentialHandle",
+              "ProcessEnvironment",
+              "ProcessHandle",
+              "ProcessLanding",
+              "ProcessPurpose",
+              "ProcessSetting",
+              "UseEligibility"
+            ]
+          },
+          {
+            "from": "./transport.ts",
+            "names": [
+              "CallRequest",
+              "ListingPage",
+              "McpTransport",
+              "McpTransportFactory",
+              "SentCall",
+              "TaskAnswer",
+              "TransportFailure",
+              "TransportMaterial"
+            ]
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 30
+      },
+      {
+        "file": "src/services.ts",
+        "decls": [
+          {
+            "name": "EndpointInspection",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Outcome",
+                  "EndpointDefinition",
+                  "EndpointBodyRejection"
+                ]
+              },
+              {
+                "refs": [
+                  "Outcome",
+                  "EndpointBodyRejection"
+                ]
+              }
+            ],
+            "refs": [
+              "BodyContract",
+              "Outcome",
+              "EndpointDefinition",
+              "EndpointBodyRejection"
+            ],
+            "extends": [
+              "BodyContract"
+            ]
+          },
+          {
+            "name": "CatalogView",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "not-acquired",
+              "acquired"
+            ],
+            "refs": [
+              "Readonly",
+              "CatalogRevision",
+              "AdoptionBasis",
+              "Freshness",
+              "KnownAction"
+            ]
+          },
+          {
+            "name": "KeptReason",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "superseded",
+              "cancelled",
+              "listing-incomplete"
+            ],
+            "refs": [
+              "Readonly",
+              "ListingDefect"
+            ]
+          },
+          {
+            "name": "RefreshResult",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "published",
+              "kept"
+            ],
+            "refs": [
+              "Readonly",
+              "CatalogRevision",
+              "KeptReason"
+            ]
+          },
+          {
+            "name": "ActionDiscovery",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointRef",
+                  "Promise",
+                  "Outcome",
+                  "CatalogView",
+                  "ReadFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "Readonly",
+                  "EndpointRef",
+                  "Millis",
+                  "Promise",
+                  "Outcome",
+                  "RefreshResult",
+                  "OperationFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointRef",
+                  "Promise",
+                  "Outcome",
+                  "Readonly",
+                  "PeerIdentity",
+                  "Generation",
+                  "ReadFailure"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "EndpointRef",
+              "Promise",
+              "Outcome",
+              "CatalogView",
+              "ReadFailure",
+              "Readonly",
+              "Millis",
+              "RefreshResult",
+              "OperationFailure",
+              "PeerIdentity",
+              "Generation"
+            ],
+            "extends": []
+          },
+          {
+            "name": "InvokeRequest",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "ActionName"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "DefinitionDigest"
+                ]
+              },
+              {
+                "refs": [
+                  "CorrelationKey"
+                ]
+              },
+              {
+                "refs": [
+                  "AbortSignal"
+                ]
+              },
+              {
+                "refs": [
+                  "Millis"
+                ]
+              },
+              {
+                "refs": [
+                  "PeerNotification"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointRef",
+              "ActionName",
+              "JsonValue",
+              "DefinitionDigest",
+              "CorrelationKey",
+              "AbortSignal",
+              "Millis",
+              "PeerNotification"
+            ]
+          },
+          {
+            "name": "ContinueRequest",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "ActionName"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "RequestState"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "CorrelationKey"
+                ]
+              },
+              {
+                "refs": [
+                  "AbortSignal"
+                ]
+              },
+              {
+                "refs": [
+                  "Millis"
+                ]
+              },
+              {
+                "refs": [
+                  "PeerNotification"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointRef",
+              "ActionName",
+              "JsonValue",
+              "RequestState",
+              "Generation",
+              "CorrelationKey",
+              "AbortSignal",
+              "Millis",
+              "PeerNotification"
+            ]
+          },
+          {
+            "name": "CancelAnswer",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "signalled",
+              "no-call-in-flight",
+              "unknown"
+            ],
+            "refs": []
+          },
+          {
+            "name": "ActionCalls",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "InvokeRequest",
+                  "Promise",
+                  "InvokeResult"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "ContinueRequest",
+                  "Promise",
+                  "InvokeResult"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "CorrelationKey",
+                  "Promise",
+                  "CancelAnswer"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "InvokeRequest",
+              "Promise",
+              "InvokeResult",
+              "ContinueRequest",
+              "CorrelationKey",
+              "CancelAnswer"
+            ],
+            "extends": []
+          },
+          {
+            "name": "TaskRef",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskId"
+                ]
+              },
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "Millis"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointRef",
+              "TaskId",
+              "Generation",
+              "Millis"
+            ]
+          },
+          {
+            "name": "TaskControl",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "TaskRef",
+                  "Promise",
+                  "Outcome",
+                  "TaskReport",
+                  "OperationFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "TaskRef",
+                  "Promise",
+                  "Outcome",
+                  "CallOutcome",
+                  "OperationFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "TaskRef",
+                  "JsonValue",
+                  "Promise",
+                  "Outcome",
+                  "OperationFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "TaskRef",
+                  "Promise",
+                  "Outcome",
+                  "OperationFailure"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "TaskRef",
+              "Promise",
+              "Outcome",
+              "TaskReport",
+              "OperationFailure",
+              "CallOutcome",
+              "JsonValue"
+            ],
+            "extends": []
+          },
+          {
+            "name": "ActionInvoker",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "ActionCalls",
+              "P",
+              "TaskControl"
+            ]
+          },
+          {
+            "name": "DegradedReason",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "discover-failed",
+              "list-failed"
+            ],
+            "refs": []
+          },
+          {
+            "name": "LostReason",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "preparation-failed",
+              "discover-failed",
+              "close-unconfirmed",
+              "authorization-required",
+              "process-exited",
+              "stream-broken",
+              "negotiation-invalid",
+              "session-ended"
+            ],
+            "refs": []
+          },
+          {
+            "name": "Residual",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "StopScope"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "StopScope"
+            ]
+          },
+          {
+            "name": "ConnectionState",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "{…}",
+              "degraded",
+              "lost"
+            ],
+            "refs": [
+              "Readonly",
+              "DegradedReason",
+              "LostReason",
+              "Residual"
+            ]
+          },
+          {
+            "name": "EndpointStatusView",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionState"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "BlockedReason"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointRef",
+              "ConnectionState",
+              "Readonly",
+              "BlockedReason"
+            ]
+          },
+          {
+            "name": "EndpointStatus",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointRef",
+                  "Promise",
+                  "Outcome",
+                  "EndpointStatusView",
+                  "Extract",
+                  "Refusal"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "Promise",
+                  "Outcome",
+                  "EndpointStatusView"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "EndpointRef",
+              "Promise",
+              "Outcome",
+              "EndpointStatusView",
+              "Extract",
+              "Refusal",
+              "S"
+            ],
+            "extends": []
+          },
+          {
+            "name": "ReleaseReport",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "released",
+              "no-connection"
+            ],
+            "refs": [
+              "Readonly",
+              "StopScope"
+            ]
+          },
+          {
+            "name": "Connections",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointRef",
+                  "Promise",
+                  "Outcome",
+                  "ReleaseReport",
+                  "Extract",
+                  "Refusal"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "Readonly",
+                  "EndpointRef",
+                  "StopScope"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "EndpointRef",
+              "Promise",
+              "Outcome",
+              "ReleaseReport",
+              "Extract",
+              "Refusal",
+              "Readonly",
+              "StopScope"
+            ],
+            "extends": []
+          },
+          {
+            "name": "McpPorts",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "AdoptionView",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "UseEligibility",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "CredentialUse",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "ProcessLanding",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "CatalogStore"
+                ]
+              },
+              {
+                "refs": [
+                  "McpTransportFactory"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "AdoptionView",
+              "P",
+              "S",
+              "UseEligibility",
+              "CredentialUse",
+              "ProcessLanding",
+              "CatalogStore",
+              "McpTransportFactory"
+            ]
+          },
+          {
+            "name": "McpConfig",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "P"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "P"
+            ]
+          },
+          {
+            "name": "McpServices",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointInspection"
+                ]
+              },
+              {
+                "refs": [
+                  "ActionDiscovery",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "ActionInvoker",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointStatus",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "Connections",
+                  "P"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointInspection",
+              "ActionDiscovery",
+              "P",
+              "ActionInvoker",
+              "EndpointStatus",
+              "S",
+              "Connections"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/assets",
+          "@omne-harness/json-text",
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "./brands.ts",
+          "./catalog.ts",
+          "./listing.ts",
+          "./endpoint.ts",
+          "./outcomes.ts",
+          "./ports.ts",
+          "./transport.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 224
+      },
+      {
+        "file": "src/testing-adoption.ts",
+        "decls": [
+          {
+            "name": "AdoptionViewFixture",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "AdoptionView",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Access",
+                  "P",
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "AdoptionView",
+              "P",
+              "S",
+              "Access",
+              "EndpointRef",
+              "Readonly",
+              "Promise"
+            ]
+          },
+          {
+            "name": "mcpAdoptionViewConformance",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConformanceCase",
+              "AdoptionViewFixture",
+              "P",
+              "S"
+            ]
+          },
+          {
+            "name": "MemoryAdoption",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "TenantId"
+                ]
+              },
+              {
+                "refs": [
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointSettings"
+                ]
+              },
+              {
+                "refs": [
+                  "ProcessSetting"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "TenantId",
+              "S",
+              "EndpointRef",
+              "JsonValue",
+              "EndpointSettings",
+              "ProcessSetting"
+            ]
+          },
+          {
+            "name": "MemoryAdoptionView",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "AdoptionView",
+              "P",
+              "S",
+              "Readonly",
+              "MemoryAdoption",
+              "AdoptedEndpoint",
+              "TenantId",
+              "EndpointRef",
+              "Partial",
+              "Pick"
+            ]
+          },
+          {
+            "name": "createMemoryAdoptionView",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "S",
+              "MemoryAdoptionView",
+              "P",
+              "Stored",
+              "TenantId",
+              "EndpointRef",
+              "AdoptionRevision",
+              "AdoptedEndpoint"
+            ]
+          }
+        ],
+        "imports": [
+          "node:assert/strict",
+          "@omne-harness/json-text",
+          "@omne-harness/legal-identity",
+          "./ports.ts",
+          "./testing-case.ts",
+          "./brands.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createMemoryAdoptionView",
+          "lines": 61
+        },
+        "lines": 184
+      },
+      {
+        "file": "src/testing-case.ts",
+        "decls": [
+          {
+            "name": "ConformanceCase",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "F",
+                  "Promise"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "F",
+              "Promise"
+            ]
+          },
+          {
+            "name": "NotApplicable",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              }
+            ],
+            "refs": [
+              "Error"
+            ],
+            "implements": []
+          },
+          {
+            "name": "isNotApplicable",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "NotApplicable"
+            ]
+          },
+          {
+            "name": "CaseVerdict",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "passed",
+              "not-applicable"
+            ],
+            "refs": [
+              "Readonly"
+            ]
+          },
+          {
+            "name": "runConformanceCase",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConformanceCase",
+              "F",
+              "Promise",
+              "CaseVerdict"
+            ]
+          },
+          {
+            "name": "conformanceCase",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "F",
+              "Promise",
+              "ConformanceCase"
+            ]
+          },
+          {
+            "name": "handle",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "T"
+            ]
+          },
+          {
+            "name": "tenantText",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TenantId"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/legal-identity"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "runConformanceCase",
+          "lines": 9
+        },
+        "lines": 63
+      },
+      {
+        "file": "src/testing-catalog-store.ts",
+        "decls": [
+          {
+            "name": "CatalogStoreFixture",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CatalogStore"
+                ]
+              },
+              {
+                "refs": [
+                  "CatalogKey"
+                ]
+              },
+              {
+                "refs": [
+                  "CatalogKey"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CatalogStore",
+              "CatalogKey",
+              "Promise"
+            ]
+          },
+          {
+            "name": "mcpCatalogStoreConformance",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConformanceCase",
+              "CatalogStoreFixture"
+            ]
+          },
+          {
+            "name": "MemoryCatalogStore",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "CatalogStore",
+              "Readonly"
+            ]
+          },
+          {
+            "name": "createMemoryCatalogStore",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "MemoryCatalogStore",
+              "ActionCatalogRecord",
+              "CatalogKey"
+            ]
+          }
+        ],
+        "imports": [
+          "node:assert/strict",
+          "./catalog.ts",
+          "./listing.ts",
+          "./ports.ts",
+          "./testing-case.ts",
+          "./testing-values.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "mcpCatalogStoreConformance",
+          "lines": 72
+        },
+        "lines": 166
+      },
+      {
+        "file": "src/testing-credentials.ts",
+        "decls": [
+          {
+            "name": "CredentialUseFixture",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CredentialUse",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointHolding"
+                ]
+              },
+              {
+                "refs": [
+                  "CredentialBinding"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "ConnectionTarget"
+                ]
+              },
+              {
+                "refs": [
+                  "CredentialBinding"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointHolding"
+                ]
+              },
+              {
+                "refs": [
+                  "CredentialBinding"
+                ]
+              },
+              {
+                "refs": [
+                  "CredentialBinding"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CredentialUse",
+              "P",
+              "Access",
+              "EndpointHolding",
+              "CredentialBinding",
+              "ConnectionTarget"
+            ]
+          },
+          {
+            "name": "mcpCredentialUseConformance",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConformanceCase",
+              "CredentialUseFixture",
+              "P",
+              "const"
+            ]
+          },
+          {
+            "name": "memorySecretOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ProcessCredentialHandle"
+            ]
+          },
+          {
+            "name": "MemoryCredentialUse",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "CredentialUse",
+              "P",
+              "Readonly",
+              "TenantId",
+              "EndpointHolding",
+              "CredentialBinding"
+            ]
+          },
+          {
+            "name": "createMemoryCredentialUse",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "MemoryCredentialUse",
+              "P",
+              "Entry",
+              "TenantId",
+              "CredentialBinding",
+              "Access",
+              "EndpointHolding",
+              "Outcome",
+              "CredentialFailure",
+              "ProcessPurpose",
+              "Promise",
+              "ProcessCredentialHandle",
+              "HttpPurpose",
+              "HttpCredentialHandle",
+              "CredentialPurpose"
+            ]
+          }
+        ],
+        "imports": [
+          "node:assert/strict",
+          "node:util",
+          "@omne-harness/legal-identity",
+          "./brands.ts",
+          "@omne-harness/operation-result",
+          "./ports.ts",
+          "./testing-case.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "mcpCredentialUseConformance",
+          "lines": 97
+        },
+        "lines": 243
+      },
+      {
+        "file": "src/testing-eligibility.ts",
+        "decls": [
+          {
+            "name": "UseEligibilityFixture",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "UseEligibility",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Access",
+                  "P",
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Access",
+                  "P",
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Access",
+                  "P",
+                  "EndpointRef",
+                  "BlockedReason"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Access",
+                  "P",
+                  "EndpointRef"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "UseEligibility",
+              "P",
+              "Readonly",
+              "Access",
+              "EndpointRef",
+              "BlockedReason",
+              "Promise"
+            ]
+          },
+          {
+            "name": "mcpUseEligibilityConformance",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConformanceCase",
+              "UseEligibilityFixture",
+              "P"
+            ]
+          },
+          {
+            "name": "MemoryUseEligibility",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "UseEligibility",
+              "P",
+              "Readonly",
+              "Access",
+              "EndpointRef",
+              "BlockedReason"
+            ]
+          },
+          {
+            "name": "createMemoryUseEligibility",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "P",
+              "MemoryUseEligibility",
+              "Entry",
+              "Access",
+              "EndpointRef",
+              "Partial"
+            ]
+          }
+        ],
+        "imports": [
+          "node:assert/strict",
+          "@omne-harness/legal-identity",
+          "./outcomes.ts",
+          "./ports.ts",
+          "./testing-case.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "mcpUseEligibilityConformance",
+          "lines": 41
+        },
+        "lines": 107
+      },
+      {
+        "file": "src/testing-landing.ts",
+        "decls": [
+          {
+            "name": "ProcessLandingFixture",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ProcessLanding",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "StdioLaunch"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "ProcessCredentialHandle"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "StdioLaunch"
+                ]
+              },
+              {
+                "refs": [
+                  "StdioLaunch"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ProcessLanding",
+              "P",
+              "Access",
+              "StdioLaunch",
+              "Promise",
+              "ProcessCredentialHandle"
+            ]
+          },
+          {
+            "name": "mcpProcessLandingConformance",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConformanceCase",
+              "ProcessLandingFixture",
+              "P"
+            ]
+          },
+          {
+            "name": "MemoryProcessLanding",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "ProcessLanding",
+              "P",
+              "Readonly",
+              "StdioLaunch",
+              "ProcessEnvironment"
+            ]
+          },
+          {
+            "name": "createMemoryProcessLanding",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "MemoryProcessLanding",
+              "P",
+              "StdioLaunch",
+              "ProcessEnvironment"
+            ]
+          }
+        ],
+        "imports": [
+          "node:assert/strict",
+          "@omne-harness/legal-identity",
+          "./ports.ts",
+          "./testing-case.ts",
+          "./testing-credentials.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "mcpProcessLandingConformance",
+          "lines": 56
+        },
+        "lines": 177
+      },
+      {
+        "file": "src/testing-listing-cases.ts",
+        "decls": [
+          {
+            "name": "MergeListingCase",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "CatalogState"
+                ]
+              },
+              {
+                "refs": [
+                  "CompleteListing"
+                ]
+              },
+              {
+                "refs": [
+                  "Outcome",
+                  "ActionCatalogRecord",
+                  "MergeRefusal"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CatalogState",
+              "CompleteListing",
+              "Outcome",
+              "ActionCatalogRecord",
+              "MergeRefusal"
+            ]
+          },
+          {
+            "name": "mergeListingCases",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          }
+        ],
+        "imports": [
+          "@omne-harness/operation-result",
+          "./catalog.ts",
+          "./listing.ts",
+          "./testing-values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "listingOf",
+          "lines": 13
+        },
+        "lines": 167
+      },
+      {
+        "file": "src/testing-outcome-cases.ts",
+        "decls": [
+          {
+            "name": "ClassifyOutcomeCase",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "PeerAnswer"
+                ]
+              },
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "OutputCheck"
+                ]
+              },
+              {
+                "refs": [
+                  "CallOutcome"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "PeerAnswer",
+              "Generation",
+              "JsonValue",
+              "OutputCheck",
+              "CallOutcome"
+            ]
+          },
+          {
+            "name": "classifyOutcomeCases",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          }
+        ],
+        "imports": [
+          "./content.ts",
+          "@omne-harness/json-text",
+          "./outcomes.ts",
+          "./testing-values.ts",
+          "./brands.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "peerError",
+          "lines": 11
+        },
+        "lines": 314
+      },
+      {
+        "file": "src/testing-values.ts",
+        "decls": [
+          {
+            "name": "jsonTextOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "jsonOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "generationOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Generation"
+            ]
+          },
+          {
+            "name": "revisionOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CatalogRevision"
+            ]
+          },
+          {
+            "name": "actionNameOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ActionName"
+            ]
+          },
+          {
+            "name": "protocolVersionOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ProtocolVersion"
+            ]
+          },
+          {
+            "name": "requestStateOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "RequestState"
+            ]
+          },
+          {
+            "name": "taskIdOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TaskId"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "./brands.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "jsonTextOf",
+          "lines": 5
+        },
+        "lines": 61
+      },
+      {
+        "file": "src/testing.ts",
+        "decls": [],
+        "imports": [
+          "./testing-case.ts",
+          "./testing-adoption.ts",
+          "./testing-eligibility.ts",
+          "./testing-credentials.ts",
+          "./testing-landing.ts",
+          "./testing-catalog-store.ts",
+          "./testing-outcome-cases.ts",
+          "./testing-listing-cases.ts"
+        ],
+        "reexports": [
+          {
+            "from": "./testing-case.ts",
+            "names": [
+              "NotApplicable",
+              "isNotApplicable",
+              "runConformanceCase",
+              "CaseVerdict",
+              "ConformanceCase"
+            ]
+          },
+          {
+            "from": "./testing-adoption.ts",
+            "names": [
+              "createMemoryAdoptionView",
+              "mcpAdoptionViewConformance",
+              "AdoptionViewFixture",
+              "MemoryAdoption",
+              "MemoryAdoptionView"
+            ]
+          },
+          {
+            "from": "./testing-eligibility.ts",
+            "names": [
+              "createMemoryUseEligibility",
+              "mcpUseEligibilityConformance",
+              "MemoryUseEligibility",
+              "UseEligibilityFixture"
+            ]
+          },
+          {
+            "from": "./testing-credentials.ts",
+            "names": [
+              "createMemoryCredentialUse",
+              "mcpCredentialUseConformance",
+              "CredentialUseFixture",
+              "MemoryCredentialUse"
+            ]
+          },
+          {
+            "from": "./testing-landing.ts",
+            "names": [
+              "createMemoryProcessLanding",
+              "mcpProcessLandingConformance",
+              "MemoryProcessLanding",
+              "ProcessLandingFixture"
+            ]
+          },
+          {
+            "from": "./testing-catalog-store.ts",
+            "names": [
+              "createMemoryCatalogStore",
+              "mcpCatalogStoreConformance",
+              "CatalogStoreFixture",
+              "MemoryCatalogStore"
+            ]
+          },
+          {
+            "from": "./testing-outcome-cases.ts",
+            "names": [
+              "classifyOutcomeCases",
+              "ClassifyOutcomeCase"
+            ]
+          },
+          {
+            "from": "./testing-listing-cases.ts",
+            "names": [
+              "mergeListingCases",
+              "MergeListingCase"
+            ]
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 44
+      },
+      {
+        "file": "src/transport.ts",
+        "decls": [
+          {
+            "name": "TransportFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "not-sent",
+              "not-sent",
+              "no-answer",
+              "ErrorAnswer",
+              "AnswerMalformed"
+            ],
+            "refs": [
+              "Readonly",
+              "AuthorizationDiscovery",
+              "NoAnswerCause",
+              "ErrorAnswer",
+              "AnswerMalformed"
+            ]
+          },
+          {
+            "name": "ListingPage",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "CallRequest",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ActionName"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "RequestState",
+                  "JsonValue"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ActionName",
+              "JsonValue",
+              "Readonly",
+              "RequestState"
+            ]
+          },
+          {
+            "name": "PeerNotification",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Untrusted",
+                  "JsonValue"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Untrusted",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "SentCall",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "PeerAnswer"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Promise",
+              "PeerAnswer"
+            ]
+          },
+          {
+            "name": "TaskAnswer",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "finished",
+              "cancelled",
+              "not-finished",
+              "expired"
+            ],
+            "refs": [
+              "Readonly",
+              "PeerAnswer"
+            ]
+          },
+          {
+            "name": "McpTransport",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "Outcome",
+                  "PeerIdentity",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "Outcome",
+                  "ListingPage",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "CallRequest",
+                  "AbortSignal",
+                  "PeerNotification",
+                  "Promise",
+                  "Outcome",
+                  "SentCall",
+                  "Extract",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskId",
+                  "Promise",
+                  "Outcome",
+                  "TaskReport",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskId",
+                  "JsonValue",
+                  "Promise",
+                  "Outcome",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskId",
+                  "Promise",
+                  "Outcome",
+                  "TaskAnswer",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskId",
+                  "Promise",
+                  "Outcome",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              }
+            ],
+            "refs": [
+              "Generation",
+              "Promise",
+              "Outcome",
+              "PeerIdentity",
+              "TransportFailure",
+              "ListingPage",
+              "CallRequest",
+              "AbortSignal",
+              "PeerNotification",
+              "SentCall",
+              "Extract",
+              "TaskId",
+              "TaskReport",
+              "JsonValue",
+              "TaskAnswer"
+            ],
+            "extends": []
+          },
+          {
+            "name": "TransportMaterial",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "stdio",
+              "streamable-http"
+            ],
+            "refs": [
+              "Readonly",
+              "ProcessHandle",
+              "Generation",
+              "ConnectionTarget",
+              "HttpCredentialHandle"
+            ]
+          },
+          {
+            "name": "McpTransportFactory",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "TransportMaterial",
+                  "AbortSignal",
+                  "Promise",
+                  "Outcome",
+                  "McpTransport",
+                  "TransportFailure"
+                ]
+              }
+            ],
+            "refs": [
+              "TransportMaterial",
+              "AbortSignal",
+              "Promise",
+              "Outcome",
+              "McpTransport",
+              "TransportFailure"
+            ],
+            "extends": []
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "./brands.ts",
+          "./outcomes.ts",
+          "./ports.ts",
+          "./values.ts",
+          "@omne-harness/operation-result"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 112
+      },
+      {
+        "file": "src/values.ts",
+        "decls": [
+          {
+            "name": "Untrusted",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "T"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "T"
+            ]
+          },
+          {
+            "name": "EndpointRef",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointName"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointHolding"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointName",
+              "EndpointHolding"
+            ]
+          },
+          {
+            "name": "AuthKind",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "none",
+              "static",
+              "oauth"
+            ],
+            "refs": []
+          },
+          {
+            "name": "EnvironmentBinding",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "StdioLaunch",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "EnvironmentBinding"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EnvironmentBinding"
+            ]
+          },
+          {
+            "name": "TransportDeclaration",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "stdio",
+              "streamable-http"
+            ],
+            "refs": [
+              "Readonly",
+              "StdioLaunch"
+            ]
+          },
+          {
+            "name": "EndpointDefinition",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointName"
+                ]
+              },
+              {
+                "refs": [
+                  "TransportDeclaration"
+                ]
+              },
+              {
+                "refs": [
+                  "AuthKind"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointName",
+              "TransportDeclaration",
+              "AuthKind"
+            ]
+          },
+          {
+            "name": "SettingValue",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "absent",
+              "invalid",
+              "value"
+            ],
+            "refs": [
+              "Readonly",
+              "T"
+            ]
+          },
+          {
+            "name": "EndpointSettings",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SettingValue",
+                  "ConnectionTarget"
+                ]
+              },
+              {
+                "refs": [
+                  "SettingValue",
+                  "CredentialBinding"
+                ]
+              },
+              {
+                "refs": [
+                  "SettingValue",
+                  "Millis"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SettingValue",
+              "ConnectionTarget",
+              "CredentialBinding",
+              "Millis"
+            ]
+          },
+          {
+            "name": "PeerAccount",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "anonymous",
+              "credential"
+            ],
+            "refs": [
+              "Readonly",
+              "CredentialBinding"
+            ]
+          },
+          {
+            "name": "ConnectionKey",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "TenantId"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointHolding"
+                ]
+              },
+              {
+                "refs": [
+                  "AdoptionRevision"
+                ]
+              },
+              {
+                "refs": [
+                  "PeerAccount"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "TenantId",
+              "EndpointHolding",
+              "AdoptionRevision",
+              "PeerAccount"
+            ]
+          },
+          {
+            "name": "CatalogKey",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "TenantId"
+                ]
+              },
+              {
+                "refs": [
+                  "PeerAccount"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointHolding"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "TenantId",
+              "PeerAccount",
+              "EndpointHolding"
+            ]
+          },
+          {
+            "name": "BoundedInstructions",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "InstructionsDigest"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "InstructionsDigest"
+            ]
+          },
+          {
+            "name": "PeerIdentity",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ProtocolVersion"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "Untrusted",
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "Untrusted",
+                  "BoundedInstructions",
+                  "Readonly",
+                  "Generation"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ProtocolVersion",
+              "JsonValue",
+              "Untrusted",
+              "BoundedInstructions",
+              "Readonly",
+              "Generation"
+            ]
+          },
+          {
+            "name": "ActionDefinition",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ActionName"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "Untrusted",
+                  "JsonValue"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ActionName",
+              "JsonValue",
+              "Untrusted"
+            ]
+          },
+          {
+            "name": "KnownActionId",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointName"
+                ]
+              },
+              {
+                "refs": [
+                  "ActionName"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointName",
+              "ActionName"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "@omne-harness/legal-identity",
+          "./brands.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 102
       }
     ],
-    "testFiles": 1,
-    "testCases": 1,
-    "draft": [
-      "README.md",
-      "README_ZH.md",
-      "src/index.ts"
-    ],
+    "testFiles": 14,
+    "testCases": 113,
+    "draft": [],
     "entries": [
       {
         "sub": ".",
-        "names": []
+        "names": [
+          {
+            "name": "isActionName",
+            "kind": "function"
+          },
+          {
+            "name": "isAdoptionRevision",
+            "kind": "function"
+          },
+          {
+            "name": "isCatalogRevision",
+            "kind": "function"
+          },
+          {
+            "name": "isConnectionTarget",
+            "kind": "function"
+          },
+          {
+            "name": "isCorrelationKey",
+            "kind": "function"
+          },
+          {
+            "name": "isCredentialBinding",
+            "kind": "function"
+          },
+          {
+            "name": "isDefinitionDigest",
+            "kind": "function"
+          },
+          {
+            "name": "isEndpointHolding",
+            "kind": "function"
+          },
+          {
+            "name": "isEndpointName",
+            "kind": "function"
+          },
+          {
+            "name": "isGeneration",
+            "kind": "function"
+          },
+          {
+            "name": "isInstructionsDigest",
+            "kind": "function"
+          },
+          {
+            "name": "isMillis",
+            "kind": "function"
+          },
+          {
+            "name": "isProtocolVersion",
+            "kind": "function"
+          },
+          {
+            "name": "isRequestState",
+            "kind": "function"
+          },
+          {
+            "name": "isTaskId",
+            "kind": "function"
+          },
+          {
+            "name": "ActionName",
+            "kind": "brand"
+          },
+          {
+            "name": "AdoptionRevision",
+            "kind": "brand"
+          },
+          {
+            "name": "CatalogRevision",
+            "kind": "brand"
+          },
+          {
+            "name": "ConnectionTarget",
+            "kind": "brand"
+          },
+          {
+            "name": "CorrelationKey",
+            "kind": "brand"
+          },
+          {
+            "name": "CredentialBinding",
+            "kind": "brand"
+          },
+          {
+            "name": "DefinitionDigest",
+            "kind": "brand"
+          },
+          {
+            "name": "EndpointHolding",
+            "kind": "brand"
+          },
+          {
+            "name": "EndpointName",
+            "kind": "brand"
+          },
+          {
+            "name": "Generation",
+            "kind": "brand"
+          },
+          {
+            "name": "InstructionsDigest",
+            "kind": "brand"
+          },
+          {
+            "name": "Millis",
+            "kind": "brand"
+          },
+          {
+            "name": "ProtocolVersion",
+            "kind": "brand"
+          },
+          {
+            "name": "RequestState",
+            "kind": "brand"
+          },
+          {
+            "name": "TaskId",
+            "kind": "brand"
+          },
+          {
+            "name": "ActionDefinition",
+            "kind": "record"
+          },
+          {
+            "name": "AuthKind",
+            "kind": "enum"
+          },
+          {
+            "name": "BoundedInstructions",
+            "kind": "record"
+          },
+          {
+            "name": "CatalogKey",
+            "kind": "record"
+          },
+          {
+            "name": "ConnectionKey",
+            "kind": "record"
+          },
+          {
+            "name": "EndpointDefinition",
+            "kind": "record"
+          },
+          {
+            "name": "EndpointRef",
+            "kind": "record"
+          },
+          {
+            "name": "EndpointSettings",
+            "kind": "record"
+          },
+          {
+            "name": "EnvironmentBinding",
+            "kind": "record"
+          },
+          {
+            "name": "KnownActionId",
+            "kind": "record"
+          },
+          {
+            "name": "PeerAccount",
+            "kind": "union"
+          },
+          {
+            "name": "PeerIdentity",
+            "kind": "record"
+          },
+          {
+            "name": "SettingValue",
+            "kind": "union"
+          },
+          {
+            "name": "StdioLaunch",
+            "kind": "record"
+          },
+          {
+            "name": "TransportDeclaration",
+            "kind": "union"
+          },
+          {
+            "name": "Untrusted",
+            "kind": "record"
+          },
+          {
+            "name": "launchesLocalCommand",
+            "kind": "function"
+          },
+          {
+            "name": "mcpEndpointBodyContract",
+            "kind": "function"
+          },
+          {
+            "name": "parseEndpointBody",
+            "kind": "function"
+          },
+          {
+            "name": "EndpointBodyRejection",
+            "kind": "enum"
+          },
+          {
+            "name": "completeListing",
+            "kind": "function"
+          },
+          {
+            "name": "digestDefinition",
+            "kind": "function"
+          },
+          {
+            "name": "CompleteListing",
+            "kind": "brand"
+          },
+          {
+            "name": "ListedAction",
+            "kind": "record"
+          },
+          {
+            "name": "ListingDefect",
+            "kind": "enum"
+          },
+          {
+            "name": "ListingRead",
+            "kind": "record"
+          },
+          {
+            "name": "actionPermissionItems",
+            "kind": "function"
+          },
+          {
+            "name": "markUnavailable",
+            "kind": "function"
+          },
+          {
+            "name": "mergeListing",
+            "kind": "function"
+          },
+          {
+            "name": "ActionCatalogRecord",
+            "kind": "record"
+          },
+          {
+            "name": "AdoptionBasis",
+            "kind": "record"
+          },
+          {
+            "name": "Availability",
+            "kind": "union"
+          },
+          {
+            "name": "ExpectedRevision",
+            "kind": "union"
+          },
+          {
+            "name": "CatalogState",
+            "kind": "union"
+          },
+          {
+            "name": "Freshness",
+            "kind": "record"
+          },
+          {
+            "name": "KnownAction",
+            "kind": "record"
+          },
+          {
+            "name": "MergeRefusal",
+            "kind": "alias"
+          },
+          {
+            "name": "UnavailableReason",
+            "kind": "enum"
+          },
+          {
+            "name": "classifyOutcome",
+            "kind": "function"
+          },
+          {
+            "name": "ClassifyContext",
+            "kind": "record"
+          },
+          {
+            "name": "toContentBlocks",
+            "kind": "function"
+          },
+          {
+            "name": "boundInstructions",
+            "kind": "function"
+          },
+          {
+            "name": "catalogKeyOf",
+            "kind": "function"
+          },
+          {
+            "name": "connectionKeyOf",
+            "kind": "function"
+          },
+          {
+            "name": "peerAccountOf",
+            "kind": "function"
+          },
+          {
+            "name": "AuthorizationDiscovery",
+            "kind": "record"
+          },
+          {
+            "name": "BlockedReason",
+            "kind": "enum"
+          },
+          {
+            "name": "CallOutcome",
+            "kind": "union"
+          },
+          {
+            "name": "ConfigItem",
+            "kind": "union"
+          },
+          {
+            "name": "ConnectionFailure",
+            "kind": "union"
+          },
+          {
+            "name": "ContentDefect",
+            "kind": "enum"
+          },
+          {
+            "name": "AnswerMalformed",
+            "kind": "record"
+          },
+          {
+            "name": "EffectUnknown",
+            "kind": "record"
+          },
+          {
+            "name": "ErrorAnswer",
+            "kind": "record"
+          },
+          {
+            "name": "DeliveredContent",
+            "kind": "union"
+          },
+          {
+            "name": "InvokeResult",
+            "kind": "union"
+          },
+          {
+            "name": "NoAnswerCause",
+            "kind": "enum"
+          },
+          {
+            "name": "NotSentReason",
+            "kind": "union"
+          },
+          {
+            "name": "OperationFailure",
+            "kind": "union"
+          },
+          {
+            "name": "OutputCheck",
+            "kind": "union"
+          },
+          {
+            "name": "OutputValidator",
+            "kind": "alias"
+          },
+          {
+            "name": "PeerAnswer",
+            "kind": "union"
+          },
+          {
+            "name": "ProtocolFault",
+            "kind": "union"
+          },
+          {
+            "name": "ReadFailure",
+            "kind": "alias"
+          },
+          {
+            "name": "Refusal",
+            "kind": "union"
+          },
+          {
+            "name": "TaskReport",
+            "kind": "record"
+          },
+          {
+            "name": "TaskStatus",
+            "kind": "enum"
+          },
+          {
+            "name": "ActionCalls",
+            "kind": "interface"
+          },
+          {
+            "name": "ActionDiscovery",
+            "kind": "interface"
+          },
+          {
+            "name": "ActionInvoker",
+            "kind": "brand"
+          },
+          {
+            "name": "CancelAnswer",
+            "kind": "enum"
+          },
+          {
+            "name": "CatalogView",
+            "kind": "union"
+          },
+          {
+            "name": "ConnectionState",
+            "kind": "union"
+          },
+          {
+            "name": "Connections",
+            "kind": "interface"
+          },
+          {
+            "name": "ContinueRequest",
+            "kind": "record"
+          },
+          {
+            "name": "DegradedReason",
+            "kind": "enum"
+          },
+          {
+            "name": "EndpointInspection",
+            "kind": "interface"
+          },
+          {
+            "name": "EndpointStatus",
+            "kind": "interface"
+          },
+          {
+            "name": "EndpointStatusView",
+            "kind": "record"
+          },
+          {
+            "name": "InvokeRequest",
+            "kind": "record"
+          },
+          {
+            "name": "KeptReason",
+            "kind": "union"
+          },
+          {
+            "name": "LostReason",
+            "kind": "enum"
+          },
+          {
+            "name": "McpConfig",
+            "kind": "record"
+          },
+          {
+            "name": "McpPorts",
+            "kind": "record"
+          },
+          {
+            "name": "McpServices",
+            "kind": "record"
+          },
+          {
+            "name": "RefreshResult",
+            "kind": "union"
+          },
+          {
+            "name": "ReleaseReport",
+            "kind": "union"
+          },
+          {
+            "name": "Residual",
+            "kind": "record"
+          },
+          {
+            "name": "TaskControl",
+            "kind": "interface"
+          },
+          {
+            "name": "TaskRef",
+            "kind": "record"
+          },
+          {
+            "name": "StopScope",
+            "kind": "enum"
+          },
+          {
+            "name": "PeerNotification",
+            "kind": "record"
+          }
+        ]
+      },
+      {
+        "sub": "./provider",
+        "names": [
+          {
+            "name": "AdoptedEndpoint",
+            "kind": "record"
+          },
+          {
+            "name": "AdoptionView",
+            "kind": "interface"
+          },
+          {
+            "name": "CatalogStore",
+            "kind": "interface"
+          },
+          {
+            "name": "CredentialFailure",
+            "kind": "enum"
+          },
+          {
+            "name": "CredentialPurpose",
+            "kind": "union"
+          },
+          {
+            "name": "CredentialUse",
+            "kind": "interface"
+          },
+          {
+            "name": "EligibilityVerdict",
+            "kind": "union"
+          },
+          {
+            "name": "HttpCredentialHandle",
+            "kind": "interface"
+          },
+          {
+            "name": "HttpPurpose",
+            "kind": "record"
+          },
+          {
+            "name": "ProcessCredentialHandle",
+            "kind": "interface"
+          },
+          {
+            "name": "ProcessEnvironment",
+            "kind": "record"
+          },
+          {
+            "name": "ProcessHandle",
+            "kind": "interface"
+          },
+          {
+            "name": "ProcessLanding",
+            "kind": "interface"
+          },
+          {
+            "name": "ProcessPurpose",
+            "kind": "record"
+          },
+          {
+            "name": "ProcessSetting",
+            "kind": "record"
+          },
+          {
+            "name": "UseEligibility",
+            "kind": "interface"
+          },
+          {
+            "name": "CallRequest",
+            "kind": "record"
+          },
+          {
+            "name": "ListingPage",
+            "kind": "record"
+          },
+          {
+            "name": "McpTransport",
+            "kind": "interface"
+          },
+          {
+            "name": "McpTransportFactory",
+            "kind": "interface"
+          },
+          {
+            "name": "SentCall",
+            "kind": "record"
+          },
+          {
+            "name": "TaskAnswer",
+            "kind": "union"
+          },
+          {
+            "name": "TransportFailure",
+            "kind": "union"
+          },
+          {
+            "name": "TransportMaterial",
+            "kind": "union"
+          }
+        ]
+      },
+      {
+        "sub": "./testing",
+        "names": [
+          {
+            "name": "NotApplicable",
+            "kind": "class"
+          },
+          {
+            "name": "isNotApplicable",
+            "kind": "function"
+          },
+          {
+            "name": "runConformanceCase",
+            "kind": "function"
+          },
+          {
+            "name": "CaseVerdict",
+            "kind": "union"
+          },
+          {
+            "name": "ConformanceCase",
+            "kind": "record"
+          },
+          {
+            "name": "createMemoryAdoptionView",
+            "kind": "function"
+          },
+          {
+            "name": "mcpAdoptionViewConformance",
+            "kind": "function"
+          },
+          {
+            "name": "AdoptionViewFixture",
+            "kind": "record"
+          },
+          {
+            "name": "MemoryAdoption",
+            "kind": "record"
+          },
+          {
+            "name": "MemoryAdoptionView",
+            "kind": "brand"
+          },
+          {
+            "name": "createMemoryUseEligibility",
+            "kind": "function"
+          },
+          {
+            "name": "mcpUseEligibilityConformance",
+            "kind": "function"
+          },
+          {
+            "name": "MemoryUseEligibility",
+            "kind": "brand"
+          },
+          {
+            "name": "UseEligibilityFixture",
+            "kind": "record"
+          },
+          {
+            "name": "createMemoryCredentialUse",
+            "kind": "function"
+          },
+          {
+            "name": "mcpCredentialUseConformance",
+            "kind": "function"
+          },
+          {
+            "name": "CredentialUseFixture",
+            "kind": "record"
+          },
+          {
+            "name": "MemoryCredentialUse",
+            "kind": "brand"
+          },
+          {
+            "name": "createMemoryProcessLanding",
+            "kind": "function"
+          },
+          {
+            "name": "mcpProcessLandingConformance",
+            "kind": "function"
+          },
+          {
+            "name": "MemoryProcessLanding",
+            "kind": "brand"
+          },
+          {
+            "name": "ProcessLandingFixture",
+            "kind": "record"
+          },
+          {
+            "name": "createMemoryCatalogStore",
+            "kind": "function"
+          },
+          {
+            "name": "mcpCatalogStoreConformance",
+            "kind": "function"
+          },
+          {
+            "name": "CatalogStoreFixture",
+            "kind": "record"
+          },
+          {
+            "name": "MemoryCatalogStore",
+            "kind": "brand"
+          },
+          {
+            "name": "classifyOutcomeCases",
+            "kind": "const"
+          },
+          {
+            "name": "ClassifyOutcomeCase",
+            "kind": "record"
+          },
+          {
+            "name": "mergeListingCases",
+            "kind": "const"
+          },
+          {
+            "name": "MergeListingCase",
+            "kind": "record"
+          }
+        ]
       }
     ],
-    "modEdges": [],
-    "pkgEdges": []
+    "modEdges": [
+      [
+        "src/catalog.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/catalog.ts",
+        "src/listing.ts"
+      ],
+      [
+        "src/catalog.ts",
+        "src/order.ts"
+      ],
+      [
+        "src/catalog.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/classify.ts",
+        "src/content.ts"
+      ],
+      [
+        "src/classify.ts",
+        "src/json.ts"
+      ],
+      [
+        "src/classify.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/classify.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/content.ts",
+        "src/json.ts"
+      ],
+      [
+        "src/content.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/endpoint.ts",
+        "src/endpoint-schema.ts"
+      ],
+      [
+        "src/endpoint.ts",
+        "src/json.ts"
+      ],
+      [
+        "src/endpoint.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/endpoint.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/endpoint.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/listing.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/catalog.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/classify.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/content.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/instructions.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/keys.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/services.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/transport.ts"
+      ],
+      [
+        "src/instructions.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/instructions.ts",
+        "src/digest.ts"
+      ],
+      [
+        "src/instructions.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/json.ts",
+        "src/order.ts"
+      ],
+      [
+        "src/keys.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/keys.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/keys.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/listing.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/listing.ts",
+        "src/catalog.ts"
+      ],
+      [
+        "src/listing.ts",
+        "src/digest.ts"
+      ],
+      [
+        "src/listing.ts",
+        "src/json.ts"
+      ],
+      [
+        "src/listing.ts",
+        "src/transport.ts"
+      ],
+      [
+        "src/listing.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/outcomes.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/outcomes.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/ports.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/ports.ts",
+        "src/catalog.ts"
+      ],
+      [
+        "src/ports.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/ports.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/provider.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/provider.ts",
+        "src/transport.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/catalog.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/listing.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/endpoint.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/transport.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/testing-adoption.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/testing-adoption.ts",
+        "src/testing-case.ts"
+      ],
+      [
+        "src/testing-adoption.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/testing-adoption.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/testing-catalog-store.ts",
+        "src/catalog.ts"
+      ],
+      [
+        "src/testing-catalog-store.ts",
+        "src/listing.ts"
+      ],
+      [
+        "src/testing-catalog-store.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/testing-catalog-store.ts",
+        "src/testing-case.ts"
+      ],
+      [
+        "src/testing-catalog-store.ts",
+        "src/testing-values.ts"
+      ],
+      [
+        "src/testing-catalog-store.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/testing-credentials.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/testing-credentials.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/testing-credentials.ts",
+        "src/testing-case.ts"
+      ],
+      [
+        "src/testing-eligibility.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/testing-eligibility.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/testing-eligibility.ts",
+        "src/testing-case.ts"
+      ],
+      [
+        "src/testing-eligibility.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/testing-landing.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/testing-landing.ts",
+        "src/testing-case.ts"
+      ],
+      [
+        "src/testing-landing.ts",
+        "src/testing-credentials.ts"
+      ],
+      [
+        "src/testing-landing.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/testing-listing-cases.ts",
+        "src/catalog.ts"
+      ],
+      [
+        "src/testing-listing-cases.ts",
+        "src/listing.ts"
+      ],
+      [
+        "src/testing-listing-cases.ts",
+        "src/testing-values.ts"
+      ],
+      [
+        "src/testing-outcome-cases.ts",
+        "src/content.ts"
+      ],
+      [
+        "src/testing-outcome-cases.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/testing-outcome-cases.ts",
+        "src/testing-values.ts"
+      ],
+      [
+        "src/testing-outcome-cases.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/testing-values.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-case.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-adoption.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-eligibility.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-credentials.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-landing.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-catalog-store.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-outcome-cases.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-listing-cases.ts"
+      ],
+      [
+        "src/transport.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/transport.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/transport.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/transport.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/values.ts",
+        "src/brands.ts"
+      ]
+    ],
+    "pkgEdges": [
+      "@omne-harness/json-text",
+      "@omne-harness/operation-result",
+      "@omne-harness/content-block",
+      "node:crypto",
+      "@omne-harness/assets",
+      "@omne-harness/legal-identity",
+      "node:assert",
+      "node:util"
+    ]
   },
   {
     "dir": "packages/mcp/mcp-host-local",
