@@ -8,9 +8,9 @@ describe('provider request integrity', () => {
     const f = fixture(2)
     const [authorized, other] = f.records
     if (!authorized || !other) throw new Error('Expected two schedules')
-    f.state.access.visibility = {
-      kind: 'grantedIds',
-      scheduleIds: [authorized.view.scheduleId],
+    f.state.access = {
+      ...f.state.access,
+      visibility: { kind: 'grantedIds', scheduleIds: [authorized.view.scheduleId] },
     }
     const candidate = other.view.nextOccurrence
     if (!candidate) throw new Error('Expected candidate')
@@ -57,7 +57,7 @@ describe('provider request integrity', () => {
       const definition = structuredClone(saved.view.definition)
       const preview = f.dependencies.prediction.preview
       f.dependencies.prediction.preview = async (context, input) => {
-        if (field === 'revision') input.definitionRevision = 99
+        if (field === 'revision') Object.assign(input, { definitionRevision: 99 })
         else input.definition.binding = { kind: 'explicit', timezone: 'Asia/Tokyo', calendar: null }
         return preview(context, input)
       }
