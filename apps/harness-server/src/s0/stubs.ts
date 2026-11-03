@@ -108,7 +108,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'tenantDomainLookup',
     ],
   },
-  'session-conditions': { provides: ['agentConditions'], injects: ['session'] },
+  'session-conditions': {
+    provides: ['agentConditions'],
+    injects: ['definitionMappings', 'session', 'storage', 'tenantDomainLookup'],
+  },
   'agent-journal': {
     provides: ['agentJournal', 'agentJournalEntries', 'agentMaterials'],
     injects: ['sessionAccessCheck', 'storage', 'tenantDomainLookup'],

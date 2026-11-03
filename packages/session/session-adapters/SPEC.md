@@ -59,7 +59,7 @@
 | [AD-12](#ad-12) | Context 输入 | 构造依赖 | `sessionContextInput` | 不调用 | `prepareRegistration`、`NeedBinding` | 生产插件 `createSessionContextInputPlugin` 与翻译协议 `createSessionContextTranslation` 已实现（`src/cordis/context-input.ts`），对 Runtime Context 内存替身在真实 Cordis 上装载与停止已验证；`./cordis` 导出由集成方合入 |
 | [AD-14](#ad-14) | `AgentDrivePort` | 出站 | `sessionAgentDrive` | 不调用；读运行与输入为 `coordinator` | `agentInstanceProvision.acquire`、`agentInstances.resolve`、`invoke`、`resume`、`input.submit`、`agentExecutionControl.control`、`agentExecutionRecovery.query`、`load`、`detach` | 生产插件 `createSessionAgentDrivePlugin` 已实现（`src/cordis/agent-drive.ts`），对 Agent 替身在真实 Cordis 上装载与停止已验证，未对 Agent 宿主真件运行；`./cordis` 与根入口的导出由集成方合入。`recordResult` 待 [NP-04](#np-04)；`prewarm` 不调用 |
 | [AD-15](#ad-15) | `ScopeReleasePort` | 出站 | `sessionScopeRelease` | 端口实现不调用；重新释放子插件为 `maintainer` | `executionEnvironment.releaseScope`；`releasedScopes` | 可登记 |
-| [J06 提供者](#j06-会话路径的两个-agent-提供者) | 消息准入与当前条件 | 入站 | `agentMessageHandoff`、`agentConditions`，各一个插件 | `coordinator`；访问检查见 J06 | MessageHandoff.prepare、lookup、exclude；CurrentConditions.read | 生产插件未交付 |
+| [J06 提供者](#j06-会话路径的两个-agent-提供者) | 消息准入与当前条件 | 入站 | `agentMessageHandoff`、`agentConditions`，各一个插件 | `coordinator`；访问检查见 J06 | MessageHandoff.prepare、lookup、exclude；CurrentConditions.read | 两个生产插件已交付；当前条件是最小实现（R2-D145） |
 | [显示适配](#实时显示适配) | 实时流显示 | 观察 | 无 | 读取关联时为 `reader` | 公共 StreamObserver.observe 与 StreamFrame | 只规定消费行为；生产插件未交付 |
 
 「可登记」只说明邻域一侧的入口已经存在。它不表示已经实现或验证。
@@ -502,6 +502,17 @@ Tool 宿主收到 saved 后自己解除交付责任，结果接收方只返回 s
 - `lookup` 以 `read-message-handoff` 问 `agentAccessCheck`，只读记录：有结果答 `recorded`，只有意图答 `unknown` 并带原记录，没有记录答 `unknown`。`exclude` 尚未交付，答 `unsupported`。
 - 验证：`tests/message-handoff.spec.ts`（node:sqlite 替身）覆盖三个分支、同 Ki 认回且不写、伪造与他租户作用域、无 Run 的 execution、资格拒绝、P 不符、`stale-advance` 与结果先于 advance 认回、lookup 不写、他租户读不到。`tests/message-handoff-real.spec.ts`（真实 sqlite-provider，慢层）在子进程保存后杀进程，新进程按原 Ki 读回完整记录，同一 prepare 认回且不写。
 
+#### J06 当前条件的生产插件
+
+`createSessionConditionsPlugin(input)`（`src/cordis/conditions.ts`，行 `session-conditions`）返回提供 `agentConditions` 的插件。这是 R2-D145 的最小实现：每个字段都从已提交的 Session 事实读取，公开形状与完整设计相同；完整设计（波 4）把 `configuration` 的来源换成采用协调者的读口，不改形状。
+
+- 装载：`inject` 为 `storage`、受信 `tenantDomainLookup` 与 `session: { caller: 'coordinator' }`。缺任一键时停在 `PENDING`，不提供键。没有配置。`input.defaultModes` 是运行时对象：按 `(tenant, session, definition, source)` 解出 `tenant-default` 模式的值与依据，装配者基于部署的定义映射实现它；它只能交出与 `source` 逐字相等的采用所代表的模式，否则答不可用。插件停止后，持有旧引用的调用答 `unavailable`。
+- 定位（以原 Authority）：按 `Access.tenant` 取事务域，租户没有事务域答 `unavailable`；沿执行索引按 (租户, `advance.execution`) 找会话，没有时答 `denied`；以 `coordinator` 面、调用方自己的 `Access` 读快照，Session 执行边界按 `sessionAccessCheck` 核访问，Session 的 `denied` 原样交回，其余失败答 `unavailable`。快照的当前 Run 须活跃、持有该 execution，并且 Journal 记录里该 Authority 的 attempt 等于 Run 的当前 attempt（与消息准入第 3 步同一规则），否则答 `stale-advance`。
+- 字段：`configuration` 是当前 Run 的采用（SE08/SE13）。`progression` 由当前协作模式投影：`co-work` 为 `evaluate-completion`，`auto-drive` 为 `continue`（[系统页](../../../docs/architecture/runtime/session-and-run.md#会话模式)：`auto-drive` 增加目标完成检查）；当前模式取快照 `changes` 里最后一条 `collaboration-mode` 声明，其 `authorization` 为 basis；没有声明时取创建的 `modes`：`explicit` 直接取值，basis 为快照 `declarations`；`tenant-default` 经 `defaultModes` 解出值与 basis。`model` 是 `readModelSelection` 保存的路由的采用依据：`{ owner: basis.owner, name: selection.name, revision: basis.revision, digest: basis.digest }`。`context` 是会话未结束的 Runtime Context 作用域绑定的证据（`owner: 'session'`，`record` 为作用域，`revision` 为代次）。`bindings` 是快照 `residents` 逐条投影的采用（`owner` 与 `digest` 取准入证据，`name` 为能力，`revision` 为版本）。`source` 的 `digest` 是这五项的摘要，同一事实得到同一值。
+- 缺失：`defaultModes` 不可用、尚无模型选择、没有未结束的作用域，都答 `unavailable`，不取任何默认值；`previous` 只供比对，不授予资格，也不跳过任何核对。
+- 已知限制：生产 create 的常驻集恒为空（R2-D136），所以 `bindings` 在常驻填充前恒为 `[]`；Session 保存的模型选择没有采用身份，`model` 按上述投影；`adoptionCoordinator` 读口（#688）到位前 `configuration` 直接取 Run 采用。
+- 验证：`tests/conditions.spec.ts`（node:sqlite 替身、真实 Cordis）覆盖完整来源时各字段与原事实一致且同事实同 `source`、auto-drive 的默认与声明变化、默认模式不可解、无模型选择、未登记 execution、已停止提供者、他租户 Access 读不到快照、被取代 Authority 带 previous 仍答 `stale-advance`。
+
 两个插件的当前来源、合法 Authority、配置/Context 采用和受理前内容政策仍由各原拥有者提供，本规格不发布新的政策端口。真实提供者未交付时不能装一个默认允许或空条件的插件冒充就绪。
 
 ### 实时显示适配
@@ -853,7 +864,7 @@ Session 契约的明确缺项也约束本成员，其中两项直接影响插件
 | VA-06 | 步边界提交与 `session.modes` 发布 | 两个时点都完成补拉；提醒落在上界之内；AD-04 给出历史依据时不等补拉 | [AD-03](#ad-03-1c) |
 | VA-07 | 各类未结工作下界、未关联等待及权威读失败 | 各类都映射为原条目引用；Tool intent 包含原 SE18 与生效 SE22，关联前后去重；失败时报告不可用，不交空集合 | [AD-04](#ad-04) |
 | VA-08 | Tool 原确认、重复、异版本、未知，以及 Model saved 未有 ACK | Tool 只由 AD-05 按 JC-Release 写 confirmed；异版本拒绝；Model 保持 pending | [AD-05](#ad-05)、[AD-06](#ad-06) |
-| VA-09 | 消息准入与当前条件的来源缺失、撤权和重复 | 按 J06 公开类型返回；不默认允许、不补默认条件、不在准入中写消息 | [J06 提供者](#j06-会话路径的两个-agent-提供者) |
+| VA-09 | 消息准入与当前条件的来源缺失、撤权和重复 | 按 J06 公开类型返回；不默认允许、不补默认条件、不在准入中写消息。当前条件见 `tests/conditions.spec.ts` | [J06 提供者](#j06-会话路径的两个-agent-提供者) |
 | VA-10 | `AgentDrivePort` 的每种 Agent 结果 | 按表映射；非准入的 `invalid` 不成为拒收 | [AD-14](#ad-14) |
 | VA-11 | 释放读回的五类处置及其组合、超时与抛出 | 逐项交出；超时以异常结束；未获授权不改用用户身份 | [AD-15](#ad-15) |
 | VA-12 | 无活体控制与交还挂接 | control 走长期入口且逐次核权；detach 带原 Authority；不要求推进资格 | [AD-14](#ad-14) |

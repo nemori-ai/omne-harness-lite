@@ -103,7 +103,7 @@
     },
     {
       "id": "session-conditions",
-      "plugin": "stubPlugin",
+      "plugin": "sessionConditionsRow",
       "config": {}
     },
     {
