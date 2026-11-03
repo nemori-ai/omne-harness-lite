@@ -36,6 +36,55 @@ const lanceliaoEntry = z.object({
 const lanceliaoDocument = z.object({
   Years: z.record(z.string().regex(/^\d{4}$/), z.array(lanceliaoEntry).nonempty()),
 })
+function lanceliaoYear(
+  entries: z.infer<typeof lanceliaoDocument>['Years'][string],
+  years: z.infer<typeof lanceliaoDocument>['Years'],
+  material: SupplyMaterial,
+): { days: SupplyDay[]; interval: SupplyInterval } {
+  const days: SupplyDay[] = []
+  const yearDays: string[] = []
+  for (const entry of entries) {
+    if (
+      entry.StartDate > entry.EndDate ||
+      date(entry.StartDate).until(date(entry.EndDate)).days + 1 !== entry.Duration
+    )
+      throw new Error('Duration must equal the inclusive holiday interval')
+    for (const day of dates({ start: entry.StartDate, end: entry.EndDate }))
+      days.push(
+        sourceDay(
+          'lanceliao-china-holiday-calender',
+          material,
+          day,
+          'holiday',
+          entry.URL,
+          entry.Memo,
+        ),
+      )
+    for (const day of entry.CompDays)
+      days.push(
+        sourceDay(
+          'lanceliao-china-holiday-calender',
+          material,
+          day,
+          'workingDay',
+          entry.URL,
+          entry.Memo,
+        ),
+      )
+    yearDays.push(entry.StartDate, entry.EndDate, ...entry.CompDays)
+  }
+  yearDays.sort()
+  const start = yearDays.at(0)
+  const last = yearDays.at(-1)
+  if (!start || !last) throw new Error('announced year has no entries')
+  return {
+    days,
+    interval: {
+      start,
+      end: years[last.slice(0, 4)] ? `${last.slice(0, 4)}-12-31` : last,
+    },
+  }
+}
 export function parseLanceliaoCalendar(input: SourceParseInput): SourceParseResult {
   const sourceId = 'lanceliao-china-holiday-calender'
   return sourceParser(sourceId, input, material => {
@@ -47,27 +96,9 @@ export function parseLanceliaoCalendar(input: SourceParseInput): SourceParseResu
     const days: SupplyDay[] = []
     const intervals: SupplyInterval[] = []
     for (const entries of Object.values(document.Years)) {
-      const yearDays: string[] = []
-      for (const entry of entries) {
-        if (
-          entry.StartDate > entry.EndDate ||
-          date(entry.StartDate).until(date(entry.EndDate)).days + 1 !== entry.Duration
-        )
-          throw new Error('Duration must equal the inclusive holiday interval')
-        for (const day of dates({ start: entry.StartDate, end: entry.EndDate }))
-          days.push(sourceDay(sourceId, material, day, 'holiday', entry.URL, entry.Memo))
-        for (const day of entry.CompDays)
-          days.push(sourceDay(sourceId, material, day, 'workingDay', entry.URL, entry.Memo))
-        yearDays.push(entry.StartDate, entry.EndDate, ...entry.CompDays)
-      }
-      yearDays.sort()
-      const start = yearDays.at(0)
-      const last = yearDays.at(-1)
-      if (!start || !last) throw new Error('announced year has no entries')
-      intervals.push({
-        start,
-        end: document.Years[last.slice(0, 4)] ? `${last.slice(0, 4)}-12-31` : last,
-      })
+      const year = lanceliaoYear(entries, document.Years, material)
+      days.push(...year.days)
+      intervals.push(year.interval)
     }
     return {
       days,
