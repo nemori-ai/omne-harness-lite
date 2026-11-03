@@ -1,7 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { Access, SourceLayer, Tenant } from '@omne-harness/tool-contract'
+import type { Access, SourceLayer } from '@omne-harness/tool-contract'
 import type {
   ToolAuthority,
   ToolBindingEntry,
@@ -38,6 +38,7 @@ import {
 } from './author-values.ts'
 import { evidence } from './coordinator-values.ts'
 
+type Tenant = Access<unknown>['tenant']
 type Registry = ToolBindingRegistry<string, unknown, ContentBlock>
 type GenerationsInput = LocalToolGenerationsInput<string, unknown, ContentBlock>
 const emptyReader: ToolResidencyReader = {

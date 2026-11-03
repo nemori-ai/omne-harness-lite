@@ -407,8 +407,11 @@ describe('ordinary invocation and saved references', () => {
   it('keeps directory failures separate and never consults it for persistent reads or delivery', async () => {
     const base = testAssembly()
     let connects = 0
+    // `current` reads the route, then the state, then the route again to confirm the publication
+    // did not change during the state read; a successful answer therefore takes two replies.
     const directoryReplies = [
       fail({ kind: 'unavailable' as const, dependency: 'directory', diagnostic: 'offline' }),
+      succeed({ kind: 'no-live-route' as const }),
       succeed({ kind: 'no-live-route' as const }),
       fail({
         kind: 'unsupported' as const,
@@ -447,7 +450,7 @@ describe('ordinary invocation and saved references', () => {
         current: null,
       },
     })
-    expect(await runtime.instances.current(asCurrent)).toEqual(directoryReplies[2])
+    expect(await runtime.instances.current(asCurrent)).toEqual(directoryReplies[3])
     expect(await runtime.queries.lookup(access(invoked.reference))).toMatchObject({
       ok: { kind: 'found' },
     })
@@ -467,7 +470,7 @@ describe('ordinary invocation and saved references', () => {
         evidence: { kind: 'retained', custody: evidence('kept', 'consumer') },
       }),
     ).toMatchObject({ kind: 'released' })
-    expect(connects).toBe(3)
+    expect(connects).toBe(directoryReplies.length)
   })
 
   // The routing of `instances.current` and `observation.observe` is in stream-observation.spec.ts.

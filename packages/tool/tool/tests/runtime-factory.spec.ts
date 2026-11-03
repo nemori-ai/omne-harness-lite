@@ -219,9 +219,14 @@ describe('17 the runtime factory and later increments', () => {
       },
     })
     const parts = readToolInvocationRef(invoked.reference)
-    expect(connected).toEqual([
-      { principal: principalA, tenant: tenantA, call: parts.call, admission: parts.admission },
-    ])
+    const route = {
+      principal: principalA,
+      tenant: tenantA,
+      call: parts.call,
+      admission: parts.admission,
+    }
+    // One read before the state read and one after it, to confirm the publication did not change.
+    expect(connected).toEqual([route, route])
   })
 
   it('17 factory: inspect answers what the Catalog answers, its unavailability included', async () => {

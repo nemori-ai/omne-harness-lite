@@ -666,7 +666,7 @@ describe('G5 tenants and qualification', () => {
   })
 
   it('G5 bound: a turn that never settles expires its caller as unavailable, in time', async () => {
-    const authority = createLocalStartCoordinator<Parameters<typeof access>, ContentBlock>({
+    const authority = createLocalStartCoordinator({
       store: neverSettles(),
       access: access(),
       guardsOf: () => [],
@@ -692,7 +692,7 @@ describe('G5 tenants and qualification', () => {
   })
 
   it('G5 bound: a later caller behind a stuck turn also answers unavailable, in time', async () => {
-    const authority = createLocalStartCoordinator<Parameters<typeof access>, ContentBlock>({
+    const authority = createLocalStartCoordinator({
       store: neverSettles(),
       access: access(),
       guardsOf: () => [],
