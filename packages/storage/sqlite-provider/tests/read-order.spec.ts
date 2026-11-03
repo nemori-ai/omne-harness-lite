@@ -16,11 +16,26 @@ import {
   leases,
   makeWorkspace,
   type Built,
+  type Provider,
   type Workspace,
 } from './support.ts'
 
 let workspace: Workspace
 let built: Built
+
+/**
+ * Two quick snapshot reads side by side, so that both reader Workers of the domain exist before a
+ * case measures time: a read that has to spawn and open its Worker takes longer than the short
+ * delays below, and a case that expects a read to wait at the barrier needs its reader at once.
+ */
+async function warmReaders(storage: Provider['storage']): Promise<void> {
+  const results = await Promise.all([
+    storage.read(readRequest('page')),
+    storage.read(readRequest('page')),
+  ])
+  for (const result of results)
+    if (result.kind !== 'read') throw new Error(`warm-up read is ${result.kind}`)
+}
 
 beforeEach(async () => {
   workspace = await makeWorkspace()
@@ -78,6 +93,7 @@ describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
     // Defect: a write waits while any barrier is queued (the old barrier). Three streams keep a
     // barrier queued at all times, so the commit would wait until the streams end (about 2 s).
     const { storage } = await readyProvider(workspace, built, {}, 1)
+    await warmReaders(storage)
     const stopAt = Date.now() + 2000
     const stream = async (): Promise<void> => {
       while (Date.now() < stopAt) {
@@ -97,6 +113,7 @@ describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
     // Defect: the wait has no bound (the commit would come back `committed` after the read), or
     // the expired write keeps its place (the second serial read would wait behind it for ever).
     const { storage } = await readyProvider(workspace, built, { lockWaitMs: 200 }, 1)
+    await warmReaders(storage)
     const reading = storage.read(readRequest('serial', { sleepMs: 700 }))
     await delay(150)
     const start = Date.now()
@@ -114,6 +131,7 @@ describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
     // Defect: the expired read keeps its place and its reader until the barrier is granted to it
     // (the old code): the snapshot read would wait for the first read to end (about 600 ms).
     const { storage } = await readyProvider(workspace, built, { readQueueTimeoutMs: 100 }, 1)
+    await warmReaders(storage)
     const first = storage.read(readRequest('serial', { sleepMs: 600 }))
     await delay(100)
     const expired = await storage.read(readRequest('serial', { sleepMs: 50 }))
@@ -128,6 +146,7 @@ describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
     // Defect: the abort only detaches the observer and the write is still sent after the read
     // (the old code): the query would find it `committed`.
     const { storage } = await readyProvider(workspace, built, {}, 1)
+    await warmReaders(storage)
     const reading = storage.read(readRequest('serial', { sleepMs: 500 }))
     await delay(150)
     const abort = new AbortController()
@@ -145,6 +164,7 @@ describe('the barrier is held for at most readObservationMs (SPEC 9.3)', () => {
     // Defect: the barrier is held until the SQL of the read ends (the old code): the commit would
     // wait the whole 800 ms sleep.
     const { storage } = await readyProvider(workspace, built, { readObservationMs: 100 }, 1)
+    await warmReaders(storage)
     const start = Date.now()
     const reading = storage.read(readRequest('serial', { sleepMs: 800 }))
     await delay(50)
@@ -158,6 +178,7 @@ describe('the barrier is held for at most readObservationMs (SPEC 9.3)', () => {
     // Defect: the cancel stops the timers of the task and the barrier is held until the SQL ends
     // (the old code): the commit would wait the whole 800 ms sleep.
     const { storage } = await readyProvider(workspace, built, { readObservationMs: 100 }, 1)
+    await warmReaders(storage)
     const start = Date.now()
     const abort = new AbortController()
     const reading = storage.read(readRequest('serial', { sleepMs: 800 }), { signal: abort.signal })
