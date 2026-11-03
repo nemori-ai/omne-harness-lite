@@ -245,7 +245,6 @@ export function operatorLayerB(options) {
     [
       'agent-context',
       {
-        owner: { ...ADOPTION, name: 'agent-context' },
         resultCapacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
       },
     ],

@@ -35,7 +35,7 @@ export const ENTRY_COMPONENTS = Object.freeze({
 })
 
 /** 会话工作主体的原工作：工作拥有者是 Session，工作文本是会话 id（AA 运行时对象表「会话工作主体」）。 */
-const SESSION_WORK_OWNER = 'session'
+export const SESSION_WORK_OWNER = 'session'
 
 type EntryPrincipals = Readonly<{
   issuer: PrincipalIssuer
