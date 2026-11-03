@@ -21,6 +21,8 @@ import {
   type ModelCallId,
   type ModelFailure,
   type ModelInvocationParts,
+  type ModelReferenceFailure,
+  type ModelStreamSelection,
   type ModelStreamSnapshot,
   type OutputCursor,
   type Reply,
@@ -273,6 +275,12 @@ function observedCall(
   }
   const parts = resolveModelInvocationRef(readStreamRef(judged.ok).call, tenant)
   return 'failure' in parts ? { failure: 'unresolved' } : parts
+}
+/** A reference that does not resolve: tenant faults deny, a malformed reference is invalid. */
+function referenceFailure(failure: ModelReferenceFailure): ModelFailure {
+  if (failure.kind === 'invalid-tenant') return { kind: 'denied', action: 'tenant' }
+  if (failure.kind === 'foreign-tenant') return { kind: 'denied', action: 'current' }
+  return { kind: 'invalid', field: 'reference', reason: `reference-${failure.rejection.reason}` }
 }
 /** The storage bridge alone calls confirm; public readers cannot register call facts. */
 export function createModelObservationSource<P>(
@@ -565,6 +573,32 @@ export function createModelObservationSource<P>(
       return { failure: 'stale-stream' }
     return entry.stream ? { ok: entry.stream } : { failure: 'unavailable' }
   }
+  /** The confirmed state of the held record and its public stream; reading it renews its LRU place. */
+  function confirmedCurrent(
+    tenant: TenantId,
+    parts: ModelInvocationParts,
+  ): Outcome<ModelStreamSelection, ModelFailure> {
+    const key = identity(tenant, parts.call)
+    const entry = records.get(key)
+    if (!entry || entry.unavailable) return { failure: unavailable() }
+    if (entry.record.admission !== parts.admission)
+      return { failure: { kind: 'invalid', field: 'admission', reason: 'not-original' } }
+    records.delete(key)
+    records.set(key, entry)
+    const target = entry.record.target
+    return {
+      ok: {
+        state: entry.record.state,
+        current: target
+          ? {
+              ref: target.snapshot.ref,
+              dispatch: target.snapshot.dispatch,
+              projection: 'model-output-v1',
+            }
+          : null,
+      },
+    }
+  }
   const source: ModelObservationSource<P> = {
     openHost() {
       if (closed || activeHost)
@@ -639,21 +673,7 @@ export function createModelObservationSource<P>(
           async current(original) {
             const access = { tenant: original.access.tenant, principal: original.access.principal }
             const parts = resolveModelInvocationRef(original.reference, access.tenant)
-            if ('failure' in parts) {
-              const failure = parts.failure
-              return {
-                failure:
-                  failure.kind === 'invalid-tenant'
-                    ? { kind: 'denied', action: 'tenant' }
-                    : failure.kind === 'foreign-tenant'
-                      ? { kind: 'denied', action: 'current' }
-                      : {
-                          kind: 'invalid',
-                          field: 'reference',
-                          reason: `reference-${failure.rejection.reason}`,
-                        },
-              }
-            }
+            if ('failure' in parts) return { failure: referenceFailure(parts.failure) }
             const denied = authorize(access, parts.ok.call, 'facts')
             if (denied) return { failure: denied }
             if (closed || hostClosed) return { failure: unavailable() }
@@ -666,26 +686,7 @@ export function createModelObservationSource<P>(
             if (revoked) return { failure: revoked }
             if (closed || hostClosed) return { failure: unavailable() }
             if ('failure' in refreshed) return refreshed
-            const key = identity(access.tenant, parts.ok.call)
-            const entry = records.get(key)
-            if (!entry || entry.unavailable) return { failure: unavailable() }
-            if (entry.record.admission !== parts.ok.admission)
-              return { failure: { kind: 'invalid', field: 'admission', reason: 'not-original' } }
-            records.delete(key)
-            records.set(key, entry)
-            const target = entry.record.target
-            return {
-              ok: {
-                state: entry.record.state,
-                current: target
-                  ? {
-                      ref: target.snapshot.ref,
-                      dispatch: target.snapshot.dispatch,
-                      projection: 'model-output-v1',
-                    }
-                  : null,
-              },
-            }
+            return confirmedCurrent(access.tenant, parts.ok)
           },
         },
         attach(original) {
