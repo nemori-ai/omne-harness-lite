@@ -123,6 +123,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'agentJournalEntries',
       'agentMaterials',
       'agentReceivedCommits',
+      'agentReceivedRecords',
       'agentModelReceptionTargets',
       'sessionAdoptedRequests',
     ],

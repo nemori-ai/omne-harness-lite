@@ -1971,9 +1971,13 @@ J08 规定 Agent 作为 Model 调用方时适用的 Model 侧条款。
    - 协调者的记录、计时、决定与保管由 Model 宿主或其独立的持久依赖持有，寿命不取决于发起的 Agent 挂接。Agent 的 Journal 持有原 Passage、卡片、输出与该失败分支的等待。旧 Agent 挂接丢失不使原策略不可用，协调者保留状态并等待合法后继。
 5. M6 的受理结果按种类处置，依据是 R2-D237。Model 对 `admit` 答 denied、invalid、unsupported 或 capacity，是对这次调用的确定拒绝。同一请求再次受理仍被拒绝，所以 Agent 不等待它，以 kind 为 `model-refused` 的失败候选经 F1 结束执行。候选的 `call` 是原 ModelCallId，`failure` 是 Model 的原拒绝，不改写种类与字段，`source` 是原调用的固定请求依据 `PendingCall.fixed`。确定拒绝不留发出，原调用在 F1 退出 checkpoint 的 `calls`，终结责任清单以该拒绝为它的收场依据，见“[终结责任清单](#终结责任清单)”。Model 答 unavailable 时，Agent 在 M6 按依赖等待，等待的 owner 为 `modelRuntime`，检查时刻到后以原 call 与原 admission 再受理。commit-unknown 按原 reference 认回，规则不变。
 6. 下列各点交 Model 拥有者确认。[#682](https://github.com/nemori-ai/omne-harness-lite/issues/682) 已接受的内容没有确认它们，本契约写为未决项。第 4 条的 consumer 编码与来源核验已由 MP1、MP2 的配对确认，不在此列。
-   - 证据适配器的端口形状。Model 契约只有装配声明里的 evidence 采用，没有导出该端口的类型。承接卡未定。
    - replay 被拒之后的再次发出怎样由重试决定表达，以及 resent 从哪里来（PM-05）。这一点与 [#446](https://github.com/nemori-ai/omne-harness-lite/issues/446) 的 5.1 同批确认。
    - J08 原文所说交 Model 确认的其余四点，在具名来源中没有找到，本契约不列出。
+7. Agent consumer owner 的证据适配器按耐久接收记录核验 ACK，依据 R2-D257。
+   - 读口是 `AgentReceivedRecords`：只有 `query`，答复与同一 Journal 提供者的 `AgentReceivedCommits.query` 相同，不写。它的服务键 `agentReceivedRecords` 是受信名，装配只让持有该证据适配器的行看见。
+   - 适配器是 `@omne-harness/agent` 的 `createAgentCustodyEvidence`。它只接受 retained 证据。它从 consumer 的位置取 execution，从调用的 invocation reference 与结果版本组出交付键，按结果接收方的同一规则推出接收 operation，读该 operation 的记录。记录 committed，且交付键、完整 consumer 与 saved 证据都与 ACK 的输入完全一致，才确认这份证据。
+   - 记录不存在、未知、已排除或不一致，读失败或抛出，都答 `unavailable`（`consumer-evidence`），不当作确认。Model 保留结果与份额，以同一 ACK operation 以后再交接。
+   - Model 侧的端口形状（可晚些答复、带 invocation reference 与 principal）归 Model 成员的 `ModelCommandsEvidence.handoff`，见 [Model 实现规格](../../model/model/SPEC.md#结果消费支持)。
 
 #### 执行身份的范围
 

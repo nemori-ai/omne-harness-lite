@@ -33,7 +33,9 @@
 // The same body also provides the two faces of the Model result receiver (R2-D237):
 // `agentReceivedCommits`, the joint commit of a `received` entry with its material, routed by tenant
 // and execution as a Journal write is (so a commit dispatches the wake-up event too), and
-// `agentModelReceptionTargets`, the stable target query. `forExecution` is routed by its
+// `agentModelReceptionTargets`, the stable target query. `agentReceivedRecords` is the `query` of
+// the received commits alone, a read face for the evidence adapter of the Agent consumer owner
+// (R2-D257), which confirms a Model ACK from the record the receiver committed. `forExecution` is routed by its
 // execution. `resolve` has no execution of its own: the storage keeps no index from a call
 // reference to a session, so it reads only the session of the route the receiver names, and the
 // session answers from the bindings its committed PendingCalls established. A binding of another
@@ -46,6 +48,7 @@ import type {
   AgentJournalEntries,
   AgentMaterials,
   AgentReceivedCommits,
+  AgentReceivedRecords,
   Failure,
   ModelReceptionTargets,
 } from '@omne-harness/agent-contract'
@@ -54,6 +57,7 @@ import {
   AgentJournalService,
   AgentMaterialsService,
   AgentReceivedCommitsService,
+  AgentReceivedRecordsService,
   ModelReceptionTargetsService,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -503,6 +507,20 @@ class SessionLogReceivedCommits extends AgentReceivedCommitsService<unknown, Con
   }
 }
 
+/**
+ * `agentReceivedRecords`, made by the body of `SessionLogAgentJournalProvider`: the read face of the
+ * same received records, for the evidence adapter of the Agent consumer owner (R2-D257). It is the
+ * `query` of `agentReceivedCommits` and nothing else; it writes nothing and announces nothing.
+ */
+class SessionLogReceivedRecords extends AgentReceivedRecordsService<unknown> {
+  readonly query: AgentReceivedRecords<unknown>['query']
+
+  constructor(ctx: Context, received: AgentReceivedCommits<unknown, ContentBlock>) {
+    super(ctx)
+    this.query = received.query
+  }
+}
+
 /** `agentModelReceptionTargets`, made by the body of `SessionLogAgentJournalProvider`. */
 class SessionLogReceptionTargets extends ModelReceptionTargetsService<unknown> {
   readonly forExecution: ModelReceptionTargets<unknown>['forExecution']
@@ -527,7 +545,7 @@ class SessionLogAdoptedRequests extends SessionAdoptedRequestsService<unknown> {
 
 /**
  * The provider of `agentJournal`, `agentJournalEntries`, `agentMaterials`, `agentReceivedCommits`,
- * `agentModelReceptionTargets` and `sessionAdoptedRequests`: the six services
+ * `agentReceivedRecords`, `agentModelReceptionTargets` and `sessionAdoptedRequests`: the seven services
  * are made in this one plugin body over one session-log Journal, so they come and go together. It
  * needs `storage`, the trusted `tenantDomainLookup` and `sessionAccessCheck`; with any of them
  * absent the plugin stays pending and provides none of the keys. A new provider of any of them
@@ -621,6 +639,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     new SessionLogJournalEntries(ctx, routed.entries)
     new SessionLogMaterials(ctx, routed.materials)
     new SessionLogReceivedCommits(ctx, routed.received)
+    new SessionLogReceivedRecords(ctx, routed.received)
     new SessionLogReceptionTargets(ctx, routed.targets)
     new SessionLogAdoptedRequests(ctx, routed.adoptedRequests)
     ctx.effect(() => () => routed.close())

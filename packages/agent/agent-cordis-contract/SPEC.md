@@ -1,6 +1,6 @@
 # Agent Cordis 定义的行为边界
 
-公共定义及机制的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。“[生产者接收面的服务](#生产者接收面的服务)”一节依据 [#672](https://github.com/nemori-ai/omne-harness-lite/issues/672)。本包已实现这些定义：`./cordis` 导出 24 个服务键与 Service、`Context` 与 `Events` 增补、目录服务和目录插件，根入口只导出五个类型，`./testing` 导出实例取得的内存替身与符合性套件。具体内容见 [Cordis 协议](docs/cordis.md)。`agentInstances` 的提供者是目录插件 `agentInstancesPlugin`，其他服务键的提供者与宿主插件尚未实现。“[实例的取得](#实例的取得)”一节的 `agentInstanceProvision` 也没有提供者。领域操作沿 [agent-contract SPEC](../agent-contract/SPEC.md)，本包不另定治理语义。
+公共定义及机制的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。“[生产者接收面的服务](#生产者接收面的服务)”一节依据 [#672](https://github.com/nemori-ai/omne-harness-lite/issues/672)。本包已实现这些定义：`./cordis` 导出 25 个服务键与 Service、`Context` 与 `Events` 增补、目录服务和目录插件，根入口只导出五个类型，`./testing` 导出实例取得的内存替身与符合性套件。具体内容见 [Cordis 协议](docs/cordis.md)。`agentInstances` 的提供者是目录插件 `agentInstancesPlugin`，其他服务键的提供者与宿主插件尚未实现。“[实例的取得](#实例的取得)”一节的 `agentInstanceProvision` 也没有提供者。领域操作沿 [agent-contract SPEC](../agent-contract/SPEC.md)，本包不另定治理语义。
 
 ## 唯一性
 

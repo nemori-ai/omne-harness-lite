@@ -117,6 +117,16 @@ export interface AgentReceivedCommits<P, B extends ContentBlock> {
 }
 
 /**
+ * The read face of the same received records, for the evidence adapter of the Agent consumer owner
+ * (J08 item 6): it confirms a producer's ACK from the durable record the receiver committed. It
+ * answers what `AgentReceivedCommits.query` answers for the same input and writes nothing. It is a
+ * trusted face: the assembly gives it only to the holder of that evidence adapter.
+ */
+export interface AgentReceivedRecords<P> {
+  query(input: ExecutionMutation<P>): Reply<ReceivedCommitQuery>
+}
+
+/**
  * The original consumption binding of one Model call (J02 item 1): the execution and the instance
  * that committed the PendingCall, and that PendingCall. The provider keeps it after the checkpoint
  * dropped the call, the attachment ended or the instance went away.

@@ -23,6 +23,7 @@ import {
   type AgentJournalEntries,
   type AgentMaterials,
   type AgentReceivedCommits,
+  type AgentReceivedRecords,
   type AgentRegistrationId,
   type CurrentConditions,
   type DecisionCards,
@@ -317,6 +318,22 @@ export abstract class AgentReceivedCommitsService<P, B extends ContentBlock>
   abstract readonly query: AgentReceivedCommits<P, B>['query']
 }
 export const agentReceivedCommitsKey = AgentReceivedCommitsService.provide
+
+// The read face of the received records (agent-contract J08 item 6), for the evidence adapter of
+// the Agent consumer owner. The provider of `agentJournal` serves it from the same records. A
+// trusted name: the assembly makes it visible only to the holder of that adapter.
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class AgentReceivedRecordsService<P>
+  extends Service
+  implements AgentReceivedRecords<P>
+{
+  static readonly provide = 'agentReceivedRecords'
+  constructor(ctx: Context) {
+    super(ctx, AgentReceivedRecordsService.provide)
+  }
+  abstract readonly query: AgentReceivedRecords<P>['query']
+}
+export const agentReceivedRecordsKey = AgentReceivedRecordsService.provide
 
 // The stable target query of the Model result receiver (agent-contract J02 item 1). The provider
 // that keeps the original consumption bindings, the provider of `agentJournal`, serves it.
@@ -884,6 +901,7 @@ declare module '@deepseek-ai/cordis' {
     agentJournalEntries: AgentJournalEntriesService<unknown>
     agentAccountOutlet: AgentAccountOutletService<unknown>
     agentReceivedCommits: AgentReceivedCommitsService<unknown, ContentBlock>
+    agentReceivedRecords: AgentReceivedRecordsService<unknown>
     agentModelReceptionTargets: ModelReceptionTargetsService<unknown>
     agentExecutionControl: AgentExecutionControlService<unknown>
     agentInstances: AgentInstancesService<unknown>

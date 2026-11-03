@@ -20,6 +20,10 @@
 // log (FIXED-FACTS F4); the `session-ad04` row reads it per call. It is a root name, not in the
 // trusted table (R2-D246; the trusted visibility is wave 3 R3). The table's `sameProviderGroup` is
 // kept, so a second row that takes one of these keys is refused before loading.
+//
+// It also provides `agentReceivedRecords`, the read face of the same received records (R2-D257): a
+// trusted name, visible to this row and to `model-records` only, where the evidence adapter of the
+// Agent consumer owner confirms a Model ACK from the record the receiver committed.
 import {
   createSessionAgentJournalPlugin,
   type SessionAgentJournalPluginInput,
@@ -30,6 +34,7 @@ import {
   agentMaterialsKey,
   agentModelReceptionTargetsKey,
   agentReceivedCommitsKey,
+  agentReceivedRecordsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import {
   sessionAccessCheckKey,
@@ -52,6 +57,7 @@ export function createAgentJournalRow(input: SessionAgentJournalPluginInput = {}
         agentJournalEntriesKey,
         agentMaterialsKey,
         agentReceivedCommitsKey,
+        agentReceivedRecordsKey,
         agentModelReceptionTargetsKey,
         sessionAdoptedRequestsKey,
       ],

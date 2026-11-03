@@ -254,7 +254,7 @@ settle 确认后先固定内部阶段，再安排附带状态刷新。刷新失�
 
 四个方法在异步交接前只保存协议字段。不透明 principal 和已铸造 tenant 保留原身份，业务值及 completion 的 owner、record、revision、digest 断开调用方别名。明确失败与 commit-unknown 原样返回，程序异常继续抛出；facade 不查询、重试或换 operation。
 
-processed 的完成事实须由冻结 consumer 的 owner 提供，经实际 evidence adapter 验证。ACK 成功后仅请求已有观察刷新，不等待投影，辅助故障不改变原 AckReceipt。读取不要求额外 recovery 资格。消费方法不 schedule；自动清理工作者尚未实现，内存测试通过真实 advanceCleanup 命令验证读保护和清理状态。
+processed 的完成事实须由冻结 consumer 的 owner 提供，经实际 evidence adapter 验证。Commands 的 `handoff` 先在写栅栏外读出该调用，按写入同样的检查（结算、结果版本、证据 owner、冻结的证据适配器）问 owner 的适配器，适配器可以晚些答复（它读 owner 自己的耐久记录，需要 await）；写入只在同一适配器、同一调用、consumer、结果版本与证据下采用这份答复，调用在两者之间变了就答 `unavailable`（`consumer-evidence`），消费者以同一 operation 重试。适配器确认的是只增不减的耐久事实（owner 保存的记录），所以栅栏外读到的确认在写入提交时仍成立（[handoff-evidence.ts](src/commands/handoff-evidence.ts)，R2-D257）。适配器还收到调用的 invocation reference 与本次 ACK 的 principal，用来定位它保存的交付。ACK 成功后仅请求已有观察刷新，不等待投影，辅助故障不改变原 AckReceipt。读取不要求额外 recovery 资格。消费方法不 schedule；自动清理工作者尚未实现，内存测试通过真实 advanceCleanup 命令验证读保护和清理状态。
 
 retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的固定 unavailable。保留 operation 先按现行规则返回 invalid。此静态路径不读取资源、不执行 handoff，也不声称已核承接资格。它对存在、不存在、跨租户和伪造主体给同一支持拒绝。
 

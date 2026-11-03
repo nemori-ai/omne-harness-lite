@@ -6,8 +6,8 @@ This package holds the unique Cordis service definitions of the Agent capability
 
 The `./cordis` entry exports these items:
 
-- 23 abstract Services and the concrete `AgentInstancesService`, with 24 key constants.
-- The `Context` augmentation for the 24 keys, and the `agent-cordis-contract/instance-retired` event in `Events`.
+- 24 abstract Services and the concrete `AgentInstancesService`, with 25 key constants.
+- The `Context` augmentation for the 25 keys, and the `agent-cordis-contract/instance-retired` event in `Events`.
 - The interface `AgentPublicationAuthority`.
 - The directory plugin `agentInstancesPlugin`.
 

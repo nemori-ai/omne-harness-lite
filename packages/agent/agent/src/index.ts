@@ -37,6 +37,9 @@ export type {
   ModelReceptionCapacity,
 } from './receiving-types.ts'
 
+export { createAgentCustodyEvidence } from './custody-evidence.ts'
+export type { AgentCustodyEvidence, AgentCustodyQuestion } from './custody-evidence.ts'
+
 export { createAgentToolReceiver } from './tool-receiving.ts'
 export type { AgentToolReceiver } from './tool-receiving.ts'
 export { createToolReceiverState } from './tool-receiving-state.ts'

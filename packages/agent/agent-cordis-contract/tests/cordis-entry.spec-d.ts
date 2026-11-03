@@ -9,6 +9,7 @@ import type {
   AgentJournal,
   AgentJournalEntries,
   AgentReceivedCommits,
+  AgentReceivedRecords,
   AgentInstanceHost,
   AgentInstanceId,
   AgentRegistrationId,
@@ -31,6 +32,7 @@ import {
   type AgentClockService,
   type AgentExecutionControlService,
   type AgentReceivedCommitsService,
+  type AgentReceivedRecordsService,
   type ModelReceptionTargetsService,
   type AgentInstanceHostService,
   type AgentInstancesService,
@@ -85,6 +87,10 @@ it('types the two result receiver faces of the Journal provider with their ports
   >()
   expectTypeOf(ctx.agentModelReceptionTargets).toEqualTypeOf<
     ModelReceptionTargetsService<unknown>
+  >()
+  expectTypeOf(ctx.agentReceivedRecords).toEqualTypeOf<AgentReceivedRecordsService<unknown>>()
+  expectTypeOf<AgentReceivedRecordsService<string>['query']>().toEqualTypeOf<
+    AgentReceivedRecords<string>['query']
   >()
   expectTypeOf<AgentReceivedCommitsService<string, ContentBlock>['commit']>().toEqualTypeOf<
     AgentReceivedCommits<string, ContentBlock>['commit']
