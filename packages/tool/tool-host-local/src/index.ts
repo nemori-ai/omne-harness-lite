@@ -79,3 +79,22 @@ export {
   type LocalStartGuardInput,
 } from './start-guard.ts'
 export { createLocalTextResults } from './text-results.ts'
+export {
+  createEnvironmentStateStore,
+  type EnvironmentAddress,
+  type EnvironmentStorageOptions,
+  type EnvironmentStateStore,
+} from './environment-state.ts'
+export {
+  createEnvironmentResourceLedger,
+  createRetainedTerminalLedger,
+  type EnvironmentResourceLedgerInput,
+  type EnvironmentResourceLedger,
+  type RetainedTerminalLedgerInput,
+  type RetainedTerminalLedgerView,
+} from './environment-resource-ledger.ts'
+export {
+  createLocalToolControlSubjects,
+  type LocalToolControlSubject,
+  type LocalToolControlSubjectsInput,
+} from './control-subject-adapter.ts'

@@ -18,11 +18,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./runtime-cordis": {
-      "source": "./src/runtime-cordis.ts",
-      "types": "./dist/runtime-cordis.d.ts",
-      "import": "./dist/runtime-cordis.js"
-    },
     "./cordis": {
       "source": "./src/cordis.ts",
       "types": "./dist/cordis.d.ts",
