@@ -373,19 +373,19 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     expect(evidenceAt(observed, 'H08')[1]).toContain('message.user,')
   })
 
-  it('records that the Agent loop stops at I4 with the tool-call reply before any Tool invocation', async () => {
+  it('records that the Agent loop stops at A0 with the tool-call action pending before any Tool invocation', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
     expect(kindAt(observed, 'H10')).toBe('refused')
     expect(evidenceAt(observed, 'H10')).toEqual([
       'agent:the tool-call reply was admitted and handed over to Session',
       'caller-reported: Tool runtime invocations 0, execution-environment effects none, Model admissions 1',
-      'agent:journal state advancing at I4',
-      'agent:the loop stopped at I4 with the tool-call reply (GAP-TOOL-LOOP)',
+      'agent:journal state advancing at A0',
+      'agent:the loop stopped at A0 with the tool-call action pending: no trusted Tool request source (GAP-TOOL-LOOP)',
       'agent:no Model request carried a tool result',
     ])
   })
 
-  it('claims no I4 refusal when the tool-call reply never arrives', async () => {
+  it('claims no A0 refusal when the tool-call reply never arrives', async () => {
     const original = agentDouble()
     const observed = await runFirstTenantPath(
       pathDependencies({
@@ -404,10 +404,10 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     expect(evidenceAt(observed, 'H10')).toContain(
       'agent:no second reply within 50 event-loop turns',
     )
-    expect(evidenceAt(observed, 'H10').join(' ')).not.toContain('I4')
+    expect(evidenceAt(observed, 'H10').join(' ')).not.toContain('GAP-TOOL-LOOP')
   })
 
-  it('judges the I4 stop of H10 from the last journal snapshot it read', async () => {
+  it('judges the A0 stop of H10 from the last journal snapshot it read', async () => {
     const original = agentDouble()
     const observed = await runFirstTenantPath(
       pathDependencies({
@@ -420,12 +420,12 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
             ...agent,
             journal: {
               ...agent.journal,
-              // The first read sees the loop before I4; the next one sees it at I4.
+              // The first read sees the loop before A0; the next one sees it at A0.
               async load(request) {
                 const snapshot = await agent.journal.load(request)
                 loads += 1
                 if ('failure' in snapshot || loads > 1) return snapshot
-                const checkpoint = { ...snapshot.ok.checkpoint, position: 'I3' }
+                const checkpoint = { ...snapshot.ok.checkpoint, position: 'I4' }
                 return { ok: { ...snapshot.ok, checkpoint } }
               },
             },
@@ -434,10 +434,51 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
       }),
     )
     expect(kindAt(observed, 'H10')).toBe('refused')
-    expect(evidenceAt(observed, 'H10')).toContain('agent:journal state advancing at I4')
+    expect(evidenceAt(observed, 'H10')).toContain('agent:journal state advancing at A0')
     expect(evidenceAt(observed, 'H10')).toContain(
-      'agent:the loop stopped at I4 with the tool-call reply (GAP-TOOL-LOOP)',
+      'agent:the loop stopped at A0 with the tool-call action pending: no trusted Tool request source (GAP-TOOL-LOOP)',
     )
+  })
+
+  it('does not take an A0 stop with no pending action for the refusal of H10', async () => {
+    const original = agentDouble()
+    const observed = await runFirstTenantPath(
+      pathDependencies({
+        replyTurns: 50,
+        agent: async input => {
+          const agent = await original(input)
+          if (input.scenario !== 'tool-call') return agent
+          return {
+            ...agent,
+            journal: {
+              ...agent.journal,
+              // The loop is at A0, but every action of the batch is already judged.
+              async load(request) {
+                const snapshot = await agent.journal.load(request)
+                if ('failure' in snapshot) return snapshot
+                const { batch } = snapshot.ok.checkpoint
+                if (batch === null) return snapshot
+                const actions = batch.actions.map(action => ({
+                  ...action,
+                  judgment:
+                    action.judgment.kind === 'pending'
+                      ? { kind: 'waiting' as const, passage: action.judgment.passage, cards: [] }
+                      : action.judgment,
+                }))
+                const checkpoint = { ...snapshot.ok.checkpoint, batch: { ...batch, actions } }
+                return { ok: { ...snapshot.ok, checkpoint } }
+              },
+            },
+          }
+        },
+      }),
+    )
+    expect(kindAt(observed, 'H10')).toBe('disconnected')
+    expect(evidenceAt(observed, 'H10')).toContain('agent:journal state advancing at A0')
+    expect(evidenceAt(observed, 'H10')).toContain(
+      'agent:no second reply within 50 event-loop turns',
+    )
+    expect(evidenceAt(observed, 'H10').join(' ')).not.toContain('GAP-TOOL-LOOP')
   })
 
   it('runs one Tool invocation as a file read, a file write and one command in the #791 doubles', async () => {
