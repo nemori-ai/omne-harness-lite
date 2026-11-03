@@ -1,150 +1,336 @@
 # Skill能力组工程设计
 
-状态：工程设计草案。正式成员及公开形状未具名，只有文档，不授予技术采用或运行支持。以下章节描述逻辑责任的机制与协作，不能据此建立统一公开契约、包、进程或数据库。
+状态：工程设计草案。本页的成员、模型、端口、应用服务、失败种类与技术处置都是候选。它们尚未实现，尚未验证，也没有取得技术接受。新公开承诺在实施交付时走技术接受。
 
-## 必要身份与版本依据
+本页只写组内的分解、模型、端口形状、应用服务、失败种类与技术处置。端口由谁实现、跨领域怎样交接，见[领域交接设计](../../../docs/domains/skills/architecture.md#端口与实现方)。具名文档目标与允许依赖见[组入口](../README.md#成员与依赖)。
 
-| 需要辨认的事实 | 必要关联 | 保存或提供责任 |
-|---|---|---|
-| 方法能力 | 类别与 name，合法来源层及替换关系 | 资产定义/选择；发现只投影 |
-| 一次具体材料 | 资产及实现版本，正文/资源范围和可复核依据 | 内容源与读取提供者；不以文件路径等同租户身份 |
-| 当前已知视图 | 最近合法定义、当前选入/治理和依赖判断，常驻引用 | 装配/运行方；瞬时可用性从当前事实重算 |
-| 本次取用 | 原主体、租户、适用工作、操作、目标及实际读取版本 | 取用与原调用；独立消费显式给出自身来源和责任 |
-| 实际采用 | 消费者、工具返回或命令用户块、实际内容/可靠引用及原位置 | 工具、消息、Context 或请求拥有者 |
-| 脚本调用 | 所选包及脚本版本、原参数/设置、准入、环境或直接依赖、控制与结果身份 | 原工具调用、桥接和环境 |
+## 设计守则
 
-这些关联是必要含义，不预造字段名、版本编码或持久 Schema。内容源、读取范围、格式版本和当前采用分别记录。可核验引用只有在其内容和保留条件满足消费责任时才足够；指向会变化或即将消失的文件不能冒充已保存实际内容。长期历史不是公开目录，读取和披露仍核验当前权利。
+本页的决定遵守下面七条守则。各节的决定表写明它守的守则与依据层。
 
-## 定义、发现与取用算法
+| 守则 | 规则 | 依据层 |
+| --- | --- | --- |
+| G1 一个事实一个拥有者 | Skill 不求值，不保存采用，不判定工具准入。Skill 只经端口读取其他拥有者的结论。 | 架构 [外域概念的进入方式](../../../docs/architecture/layers-and-dependencies.md#外域概念的进入方式)；研发品味 [维度分解与正交](../../../.meta_harness/agents/roles/engineering-taste.md#维度分解与正交) |
+| G2 只用自己的词 | 本组契约不出现 Session、Agent、Run，也不点名任何调用方。契约只声明本组提供什么、需要什么。 | 架构 [外域概念的进入方式](../../../docs/architecture/layers-and-dependencies.md#外域概念的进入方式)「集成方知道被集成方」 |
+| G3 按消费者切窄接口 | 每类消费者只取得自己用的接口。Context 取概览，读取入口取读取，资产取类别端口。 | 架构 [外域概念的进入方式](../../../docs/architecture/layers-and-dependencies.md#外域概念的进入方式)第一行 |
+| G4 形态与含义分开 | 字节从哪里来（云端内容存储、本机目录）与字节表示什么（解析、校验）是两条轴。 | 研发品味 [维度分解与正交](../../../.meta_harness/agents/roles/engineering-taste.md#维度分解与正交) |
+| G5 不变式先于机制 | 包快照不可变，资源按包内路径寻址，不拼版本，未知不压成失败，秘密不进上下文。机制可以换，这些不变。 | 产品 [J-SK03](../../../.meta_harness/design/product/skills/design.md#j-sk03-按需读取正文或指定资源)；架构 [隔离语义，不隐藏责任](../../../docs/architecture/layers-and-dependencies.md#隔离语义不隐藏责任)；要求 [SYS-DATA-PROTECTION](../../../docs/requirements.md#数据保护sys-data-protection) |
+| G6 概念最少 | 复用公共值 `Outcome`、`Access<P>`、`ContentBlock`、`JsonValue`，不另包一层。没有不可替代理由的部件不建，或者后放。 | 架构 [隔离语义，不隐藏责任](../../../docs/architecture/layers-and-dependencies.md#隔离语义不隐藏责任)「已有公开契约……直接复用」 |
+| G7 沿用仓库写法 | 契约用接口、纯函数与判别联合。类只用于有状态的聚合，以及 Cordis Service 必需的抽象类。 | 架构 [IC-2](../../../docs/architecture/cordis-integration-conventions.md#ic-2)；成员先例 [Tool 能力组](../../tool/README.md#包与依赖) |
 
-来源接入复用工作区或其他已采用来源契约。来源消费者取得一次一致材料，方法定义核验名称/说明/正文及声明，资产求值过滤不合法候选。完整实现替换不逐文件拼包，也不把 Skill 内部 `.omne/skill.json` 识别成另一个工作区。兼容范围由受支持格式确定，未知内容显式报告，不能把“基础格式相同”推成第三方全部字段兼容。
+## 模型
 
-常驻与可用性独立求值。装配引用决定概览呈现，合法已知集合决定可发现身份，当前选入、治理和必需依赖决定可用性。声明仅含必需抽象名字的合取；候选提供者的选择归其拥有者，可选条件在实际使用时探测。MCP 动作不进入 Skill 的资产能力标识组合；需要对端在场者沿既有外部服务依赖表达。
+Skill 领域没有有状态的聚合。包快照算出后不变。读出去的内容归接收方。持有、选择和采用的状态都在其他拥有者那里（G1）。依据层：领域 [范围与边界](../../../docs/domains/skills/README.md#范围与边界)「定义持有及求值复用资产，实际内容采用归消费者」。
 
-发现读取当前视图，保留已知不可用身份和原因，不为未知身份编造条目。正文/资源读取再核验本次访问与实际采用值；已知身份不是访问凭证。替换件返回不可用解释，不执行原脚本，不读撤权后的新正文。来源查询不可用不同于没有候选；资格判断不能确认时，不依赖旧允许结论，执行必需依赖不足时不发起原执行。
+下表的值都是不可变值。英文名是候选标识，精确类型随 `skill-contract` 的规格确定。
 
-材料读取资格失效与执行依赖不足分别判断。方法仍合法选入且未禁用、卸载，主体读取权及正文来源均正常，仅方法必需依赖或脚本设施不足时，正文加缺项说明与不可用替换件是尚未裁定的两个结果，见 Q-SK08。该缺口只限制这个正文读取分支，不改变发现的不可用解释、撤权拒绝、资源寻址和脚本准入责任。发现视图或 dummy 分类均不替代该产品决定。
+| 值 | 含义与不变式 | 依据层 |
+| --- | --- | --- |
+| `SkillName` | Skill 的 name。长 1 到 64 个字符，只含小写字母、数字与连字符，不以连字符开头或结尾，不含连续的连字符。它等于能力标识里的 name，也等于包根目录名。 | 官方规格 [`name` field](https://agentskills.io/specification#name-field)；成员规格 [skill](../skill/SPEC.md) 的 `name-mismatch` |
+| `PackagePath` | 规范化的包内相对路径。它拒绝绝对路径、`..` 段与反斜杠。 | 产品 [J-SK03](../../../.meta_harness/design/product/skills/design.md#j-sk03-按需读取正文或指定资源)「错误资源地址、包外目标」；官方规格 [File references](https://agentskills.io/specification#file-references) |
+| `PackageEntry` | 包快照里的一个条目：包内路径、文本或二进制、大小，以及它自己的内容摘要。 | 统一语言 [包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--包快照--package-snapshot) |
+| `PackageSnapshot` | 包快照：全部条目，以及按排序后的包内路径与条目内容摘要算出的一个内容摘要。 | 统一语言 [包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--包快照--package-snapshot) |
+| `PackageDigest` | 包快照的内容摘要。它是散列值，不是文字摘要。 | 统一语言 [包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--包快照--package-snapshot)「注意 ①」 |
+| `SkillManifest` | `SKILL.md` 头部字段的解释：name、description、license、compatibility、metadata 与 `allowed-tools`。不认识的字段原样保留，不解释。 | 官方规格 [Frontmatter](https://agentskills.io/specification#frontmatter) |
+| `SkillDeclaration` | `.omne/skill.json` 中本系统认的声明：依赖声明里的必需名字、脚本声明与设置声明。 | 统一语言 [Skill 包](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-skill-package--skill-包--skill-package)、[依赖声明](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration) |
+| `SkillDefinition` | 一次解析的结果：`SkillManifest`、`SkillDeclaration`、Markdown 正文与 `PackageSnapshot`。 | 产品 [J-SK01](../../../.meta_harness/design/product/skills/design.md#j-sk01-将合法方法来源交给消费者) |
+| `SkillRef` | 一份具体材料的引用：能力标识、来源层、资产版本引用、包快照的内容摘要，以及是否常驻。读取以它为依据。 | 统一语言 [包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--包快照--package-snapshot)「注意 ②」；产品 J-SK01「来源、能力身份与具体实现版本分别显示」 |
+| `Availability` | 可用，或者不可用并带缺项列表。 | 统一语言 [当下可用性](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-current-availability--当下可用性--current-availability) |
 
-合法读取固定实际版本与请求范围。资源按所选实现寻址，包外或错误地址沿资源边界拒绝。工作区来源的默认、显式和通配符发现排除软链接及经过软链接的路径；这是来源发现规则，已识别包的正常内部资源不属于禁止的嵌套工作区搜索，不据此新增所有内部资源的公开限制。具体资源编码、内容类型与分页/截断协议待技术设计。若范围内材料并发变化而无法对应一次合法读取，重读或失败；不得宣称混拼内容已校验。成功回执说明实际完成范围，不声称附件全取或脚本已执行。
+### 资产正文与 Skill 包
 
-## 内容采用、提交与并发
+资产正文仍是 JSON 文本，由 `skill` 类别端口 `skillBodyContract` 判断。它是 Skill 包的声明投影：
 
-工具路径由原工具调用保存实际返回和消费位置，命令路径由命令/入站消费者保存本次展开内容和用户消息关联。Context 组装按自身权限与来源规则消费，模型请求一经发起固定原输入；后续正文更新不回写它。两条路径可以引用同一来源，但没有共同日志形状或通用“已加载”状态。
+```text
+资产正文 = { name, description, tools: [{ category: "tool", name }], package: { digest } }
+```
 
-采用成功必须与所用内容、来源、范围和原位置一致。要一起成立的记录由对应消费者提交边界保护；跨存储或跨拥有者时，由具名交接协调者保留已确认阶段、未知及下一责任。读取方在可靠交接前保管材料或可靠引用；接收方按自己的持久确认边界接下后，前方才释放交接责任。成功返回、入队和通知均不代替耐久确认。普通进程/操作系统崩溃或断电后的解释条件沿正式数据契约，介质损毁前提另行声明。
+1. `PackageInspection` 从 Skill 包派生 name、description 与 tools。
+2. `package.digest` 是包快照的内容摘要，它指向包字节。
+3. 云端来源按内容摘要存放包字节。
+4. 工作区来源的包字节就是工作区目录本身。装配时算出内容摘要，并记入采用依据。
 
-当前选择与候选读取分开。读取时取得版本依据不发布为新采用；装配协调者保护候选校验、当前选择、撤权及推进资格之间的竞争，新选择和取消优先于迟到候选。合法新方法完成显式增量装载后当场可用，不改变 Agent Definition，也不因增加该能力重建 Agent runtime。只写工作区文件不算装载；失败保持原采用记录，后续动作仍核验当前权利，不延续撤权。资源变化与采用换代不冻结内部服务数据；真正服务绑定变化只影响实际消费者。具体一致读取、采用校验和最终发起原子边界须由 Q-SK02/Q-SK03/Q-SK04 补齐，不用“将加锁”代替行为承诺。
+`skillBodyContract` 只做可加的扩展：增加 `description` 与 `package.digest`。
 
-## 脚本发起与生命周期
+| 决定 | 守则 | 依据层 |
+| --- | --- | --- |
+| 资产正文是 Skill 包的声明投影，包字节按内容摘要另存 | G1、G4 | 领域 [范围与边界](../../../docs/domains/skills/README.md#范围与边界)；资产规格 [类别提供方](../../assets/assets/SPEC.md#category-provider) |
+| `skillBodyContract` 只做可加扩展 | G6 | 资产规格 [已接受的公开类型](../../assets/assets/SPEC.md#accepted-public-types)；工程 [里程碑内的规则](../../../docs/engineering/integration.md#里程碑内的规则)第 2 条 |
 
-脚本桥接先确认明确请求、所选 Skill 实现和包内脚本，再取得 Skill 使用及原动作准入、匹配参数/设置和必要依赖。实际发起时复核原主体、工作状态、推进资格和资源条件，固定本次真实采用。需要环境者由环境选择及准备满足本次设施/隔离；不能用配置名或装配快照证明宿主可运行。未声明环境需求者只用其明确直接依赖。
+## 端口
 
-脚本经原工具契约拥有执行、等待、结果、控制和前后台，Skill 不定义新的执行状态机。脚本执行权随 Skill 的合法许可，通用文件/Shell 访问走自己的许可；脚本内调用其他工具、文件、网络、凭据及宿主桥接仍按实际主体和用途检查。受限执行域按[执行隔离](../../../docs/architecture/security/execution-isolation.md)承接不可信代码，可达范围、限额和非合作终止有独立责任与证据，同进程共享故障域保持。
+下面的端口由 Skill 作为需求方声明，由集成方实现。签名是候选形状。实现方与失败交接见[领域交接设计](../../../docs/domains/skills/architecture.md#端口与实现方)。所有 `PackageSource` 实现遵守同一套符合性测试。
 
-入口撤除和读句柄释放不停止原执行。停止代码域不停止已准入宿主工作；桥接和原调用拥有者继续保存结果、真实效果及未完成消费，消费者丢失披露权时限制交付而不丢事实。部分准备失败释放读取者自身临时句柄，已经分配的环境资源由原准备/资源拥有者查询和处置；不得误释放其他合法持有者的资源。撤除只撤本实例贡献，不恢复旧全局快照。
+```ts
+// 只交字节。
+interface PackageSource {
+  snapshot(locator: PackageLocator): Promise<Outcome<PackageSnapshot, SourceFailure>>
+  open(digest: PackageDigest, path: PackagePath): Promise<Outcome<Bytes, SourceFailure>>
+}
+// SourceFailure: 'not-found' | 'version-changed' | 'outside-package' | 'unavailable'
 
-## 失败、恢复与验证
+// 这个能力标识此刻对这个主体合法对应哪一份材料。
+interface SkillResolution<P> {
+  resolve(access: Access<P>, scope: Scope, capability: CapabilityId): Reply<SkillRef>
+  adopted(access: Access<P>, scope: Scope): Reply<readonly SkillRef[]> // 概览与检索用
+}
 
-无资格、未知身份、资源地址非法、缺资源、依赖不可用、来源查询故障、采用冲突、执行失败和结果未知分别说明。调用不可用替换件属于 dummy tool execution，沿原调用和消费位置正常取得不可用结果，Session Log 记录逻辑治理事实；真实原脚本未执行，不启动其真实资源、不虚构原执行耗时/效果，替换件处理自身开销按事实记录。精确记录、统计及查询形状仍归工具与逻辑治理拥有者，见 Q-SK06，已定抽象不再列为产品问题。拒绝不回退为另一方法、任意 Shell 或更弱落点。
+// 当前主体此刻能不能读这一份材料。
+interface ReadEligibility<P> {
+  check(access: Access<P>, ref: SkillRef): Reply<'granted' | Refusal>
+}
 
-恢复先定位原读取、采用、工具调用及确认阶段。只丢失 Agent runtime 时认回原执行；工具确认丢失连续性时沿其失联规则报告，不自动重放。控制请求、执行终局、物理停止、资源关闭和结果交接分别查询。已经形成外部效果后不能因取消或 dispose 宣称回滚；答复丢失也不证明未发生。观察原状态不重做业务，记录失败及新鲜度可见，来源位置、内容和秘密按目的裁剪。
+// 依赖声明里的必需名字此刻是否在场。只要名字，不要提供者对象。
+interface RequirementFacts {
+  present(names: readonly string[]): Reply<ReadonlySet<string>>
+}
+```
 
-方法提供者验证定义、资源寻址和一致读取；资产/装配验证过滤、依赖、替换与采用竞争；工具/消息/Context 验证两条内容路径、耐久和旧请求不改写；桥接/工具/环境验证原参数、实际资源、控制及迟到宿主结果。精确组合场景待正式契约拥有者承接；候选 V-SK01 至 V-SK20 的技术采用仍未完成，相关责任见[正式承接缺口](#完整行为候选的正式承接缺口)。自定义并发采用、共享撤除或恢复协议须有相称行为模型；若依赖新共享代数保证省略控制，沿手册完成相应证明。当前未选机制、未建模型、未执行行为验证，结构自检不授予任何保证。
+`ReadEligibility` 只回答「这个主体能不能读这一份 Skill」。它不是统一语言里 Runtime Context 的[读取资格](../../../.meta_harness/design/ubiquitous_language/terms/scope-and-resolution.md#ul-read-eligibility--读取资格--read-eligibility)。
+
+`Reply<T>` 指一个异步的 `Outcome`。它的失败分两类：确定没有结果，或此刻无法判定。`scope` 是调用方给出的求值范围。Skill 不解释它，只原样交给端口（G2）。
+
+| 端口失败 | 映射到的服务失败种类 |
+| --- | --- |
+| `PackageSource` 的 `not-found`：快照取不到 | `basis-unavailable` |
+| `PackageSource` 的 `not-found`：快照中没有该条目 | `resource-missing` |
+| `PackageSource` 的 `version-changed` | `version-changed` |
+| `PackageSource` 的 `outside-package` | `outside-package` |
+| `PackageSource` 的 `unavailable` | `source-unavailable` |
+| `SkillResolution` 确定没有合法对应 | `not-available-to-you` |
+| `ReadEligibility` 拒绝 | 身份对该主体合法已知时为 `unavailable-stand-in`，否则为 `not-available-to-you` |
+| 任一端口此刻无法判定 | `unknown` |
+
+## 应用服务
+
+本组对外提供四个窄接口，按消费者切分（G3）。
+
+| 接口 | 消费者 | 操作 | 关键保证 |
+| --- | --- | --- | --- |
+| `PackageInspection` | 资产候选校验、工作区扫描 | `inspect(locator, expectedName)` 返回 `SkillDefinition` 或拒绝原因 | 来源错误与「没有候选」分开。非法包不当作空包。 |
+| `SkillCatalog` | Context 的常驻概览、`Skills().search` | `overview(access, scope)`、`search(access, scope, query)` | 只在采用集合里找。顺序确定。搜索失败不返回空集合。 |
+| `SkillAccess` | `Skills().read`、Slash Command、独立程序 | `describe(access, reference)`、`read(access, basis, target, range?)`、`list(access, basis)` | 读取绑定调用方给出的 `SkillRef`。每次操作现场核验，不用缓存代替。资源按包内路径寻址。不拼版本。不激活，不执行。 |
+| `ScriptPreparation`（第三波） | `Skills().exec_script` | `prepare(access, ref, script, args)` 返回一份固定的执行请求 | 只认包内声明的脚本。执行交给 Tool。 |
+
+纯函数没有端口，可以穷举测试：`parseSkillPackage`、`toPackagePath`、`computeDigest`、`evaluateAvailability`、`orderOverview`。
+
+### 检查与发现
+
+`PackageInspection` 经 `PackageSource` 取得一次一致的包快照，再解析和校验。完整实现替换不逐文件拼包。Skill 包内的 `.omne/skill.json` 不被识别成另一个工作区。工作区来源在默认、显式与通配符发现中排除软链接及经过软链接的路径。这是来源发现规则。已识别包的内部资源不因此增加公开限制。
+
+`SkillCatalog` 只读 `SkillResolution.adopted` 给出的采用集合。常驻与可用性分别求值：装配引用决定概览呈现，合法已知集合决定可发现的身份，当前选入、治理与必需依赖决定可用性。已知不可用的身份保留，并带替换件与安全原因。从未取得的身份不显示。MCP 动作不进入 Skill 的能力标识组合。可有可无的条件不进依赖声明，在使用时探测。
+
+### 读取
+
+`SkillAccess` 的三个操作都现场核验，顺序如下：
+
+1. 经 `SkillResolution` 确认能力标识此刻对该主体合法对应。`describe` 取得当前的 `SkillRef`。`read` 与 `list` 核对调用方给出的 `SkillRef`。
+2. 经 `ReadEligibility` 核验该主体此刻能读这一份。历史依据、缓存或此前的成功都不代替这次核验。
+3. 经 `RequirementFacts` 取得必需名字是否在场。
+4. `read` 与 `list` 经 `toPackagePath` 校验目标，再经 `PackageSource` 取字节，并逐段按条目内容摘要核验。
+
+`describe` 不加载正文。它返回能力标识、来源层、`SkillRef`、可用性、依赖声明与缺项，以及资源寻址规则。
+
+`read` 返回内容、`SkillRef`、包内路径、媒体类型、实际范围、总长与 `complete` 标记。正文与资源分开读取。依据里的内容摘要可以不同于当前对应的内容摘要。读取仍按依据交出旧材料，或者报 `basis-unavailable`，不改交新材料。
+
+`list` 返回依据所指包快照的条目：包内路径、文本或二进制、大小。
+
+| 决定 | 守则 | 依据层 |
+| --- | --- | --- |
+| 读取绑定调用方给出的 `SkillRef`。字节与条目内容摘要对不上报 `version-changed`。依据所指的包快照取不到报 `basis-unavailable` | G5 | 产品 [J-SK03](../../../.meta_harness/design/product/skills/design.md#j-sk03-按需读取正文或指定资源)「不能将旧正文与新资源拼成成功」；架构 [工作区与能力变化](../../../docs/architecture/runtime/assembly-and-change.md#工作区与能力变化)；资产规格 [Skill 样例](../../assets/assets/SPEC.md#skill-样例) |
+| `SkillResolution` 一个端口承接会话路径与独立路径 | G2、G3 | 产品 [J-SK02](../../../.meta_harness/design/product/skills/design.md#j-sk02-找到方法并理解当下能否使用)「独立读取方法时，每次核验当前访问资格，无须先有会话」 |
+| 每次操作现场核验，不缓存资格 | G5 | 产品 J-SK03「恢复重新核验当前读取权，历史可见性不授予新的访问」 |
+| 对无权主体，「无权」与「身份不存在」不可区分 | G5 | 要求 [SYS-TENANT](../../../docs/requirements.md#从第一天支持隔离sys-tenant)「跨租户访问默认拒绝」 |
+| 包内链接解析后落在包根之外时报 `outside-package` | G5 | 产品 J-SK03「包外目标」 |
+| `scope` 由调用方给出，Skill 不解释 | G2 | 架构 [外域概念的进入方式](../../../docs/architecture/layers-and-dependencies.md#外域概念的进入方式)「只需关联、追溯或交回原位置」一行 |
+
+### Q-SK08 分支
+
+下列条件同时成立时，`read` 与 `list` 返回 `undecided`：
+
+- 能力标识对该主体合法对应，未禁用，未卸载。
+- `ReadEligibility` 给出 `granted`。
+- 包来源正常。
+- `RequirementFacts` 表明必需依赖或脚本设施缺席。
+
+`undecided` 既不交正文，也不交替换件。它说明这一分支等待产品负责人裁定 [Q-SK08](../../../.meta_harness/design/product/skills/design.md#q-sk08-只有依赖或脚本设施不足时正文是否仍可读取)。本组不选默认。`describe` 照常返回缺项。裁定之后，`undecided` 退出，结果改为裁定的那一种。
+
+| 决定 | 守则 | 依据层 |
+| --- | --- | --- |
+| 定案前该分支返回 `undecided`，不交正文，也不交替换件 | G5 | 产品 [J-SK03](../../../.meta_harness/design/product/skills/design.md#j-sk03-按需读取正文或指定资源)「不以默认结果补齐缺口」 |
+| `list` 与 `read` 同样返回 `undecided`。`describe` 只给缺项，不受影响 | G5 | 产品 J-SK03 把正文与资源放在同一个读取结果边界。产品 Q-SK08 已知约束「发现仍保留已知身份并说明缺项」 |
+
+## 失败种类
+
+`SkillFailure` 是下表的判别联合。部分结果不是失败：成功结果用 `complete` 与实际范围标出。
+
+| 种类 | 何时出现 | 依据层 |
+| --- | --- | --- |
+| `not-available-to-you` | 主体对这个身份没有合法对应或没有读取权，或者身份不存在。对该主体，这几种情形不可区分。 | 要求 [SYS-TENANT](../../../docs/requirements.md#从第一天支持隔离sys-tenant) |
+| `unavailable-stand-in` | 身份对该主体合法已知，但选入或读取资格失效、禁用或卸载。结果带替换件与安全原因。 | 产品 J-SK03「对合法已知身份返回替换件及安全原因」；统一语言 [替换件](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-stand-in--替换件--stand-in) |
+| `bad-path` | 目标不是合法的包内路径。 | 产品 J-SK03「错误资源地址」 |
+| `outside-package` | 目标解析后落在包根之外。 | 产品 J-SK03「包外目标」 |
+| `resource-missing` | 依据所指的包快照中没有该条目。不用别的包补齐。 | 产品 J-SK03「缺少请求的资源不能用别的同名包补齐」 |
+| `basis-unavailable` | 依据所指的包快照已经取不到。 | 产品 J-SK03「不能将旧正文与新资源拼成成功」 |
+| `version-changed` | 来源交出的字节与条目内容摘要对不上。不交新内容。 | 产品 J-SK03「读取与更新竞争」 |
+| `source-unavailable` | 包来源此刻不可达。 | 产品 [J-SK01](../../../.meta_harness/design/product/skills/design.md#j-sk01-将合法方法来源交给消费者)「来源不可读……不能当作空方法」 |
+| `unsupported` | 请求超出支持范围，例如无法表示的二进制条目或尚未支持的格式方言。 | 产品 J-SK03「按实际支持能力说明」 |
+| `unknown` | 端口此刻无法判定资格、对应或依赖事实。不压成拒绝，也不压成成功。 | 架构 [隔离语义，不隐藏责任](../../../docs/architecture/layers-and-dependencies.md#隔离语义不隐藏责任)「不能把未知压成失败」 |
+
+拒绝不回退为另一份 Skill、任意 Shell 或更弱的落点。
+
+## SOLID 落点
+
+| 原则 | 落点 |
+| --- | --- |
+| 单一职责 | 来源只取字节。解析只解释。`PackagePath` 只管寻址。`SkillAccess` 只编排核验与范围。 |
+| 开闭 | 增加 marketplace 或 Git 仓库来源，就增加一个 `PackageSource` 实现。增加兼容格式，就增加一种方言。 |
+| 里氏替换 | 所有来源共用一套符合性测试：内容摘要相同则内容相同，失败种类相同。 |
+| 接口隔离 | `PackageInspection`、`SkillCatalog`、`SkillAccess`、`ScriptPreparation` 分开。 |
+| 依赖倒置 | 领域代码只依赖端口。文件系统与内容存储的实现在本地宿主成员。 |
+
+依据层：架构 [方法依据与采用范围](../../../docs/architecture/layers-and-dependencies.md#方法依据与采用范围)。
+
+## 独立消费者的需求承接
+
+独立消费者 DRB 于 2026-11-03 提出对 Skill 的消费需求，核对基线 `24e5ba838`。需求原文在需求方，不在本仓。本组契约不出现 DRB（G2）。下表只说明本组公开契约怎样满足这些需求。Skill 不持有按消费者划分的状态，所以释放一个消费者不会卸载共享的 Skill。
+
+| 需求 | 服务含义 | 失败种类 | 交接边界 |
+| --- | --- | --- | --- |
+| SK-D01 描述明确的 Skill | `describe` 返回能力标识、来源层、`SkillRef`、可用性、依赖声明与缺项、资源寻址规则，不加载正文 | `not-available-to-you`、`unavailable-stand-in`、`source-unavailable`、`unknown` | 描述是当前事实的一次读取，不授予后续读取 |
+| SK-D02 读正文或指定资源 | `read` 返回 `SkillRef`、包内路径、媒体类型、实际范围、总长与 `complete`。正文与资源分开读 | `bad-path`、`outside-package`、`resource-missing`、`unsupported` | 只交请求的内容，不自动读全部资源，不执行脚本 |
+| SK-D03 一致材料 | `read` 绑定调用方给出的 `SkillRef`。每段字节按条目内容摘要核验 | `basis-unavailable`、`version-changed` | 能保留旧材料的来源交出旧材料，保留不了的报失败，不用新材料冒充 |
+| SK-D04 每次核验当前资格 | 三个操作每次都经 `SkillResolution` 与 `ReadEligibility` 现场判定 | `not-available-to-you`、`unavailable-stand-in`、`unknown` | 资格不缓存，历史依据不代替判定 |
+| SK-D05 交接边界 | 内容随成功结果内联交出，交出后归接收方。大内容用范围分页 | 不新增失败种类 | Skill 不做临时保管。`SkillRef` 加包内路径只是重读句柄，不是保管引用：重读重新核验资格，来源不再保留时失败 |
+| SK-D06 可辨的失败 | 见[失败种类](#失败种类) | 全部种类 | 对无权主体不披露身份是否存在。部分结果不是失败 |
+| SK-D07 独立入口与符合性设施 | `skill` 的应用服务不依赖 Session、Agent 与 Cordis。`skill-contract/testing` 导出 `PackageSource` 与 `SkillAccess` 的符合性套件和内存来源 | 不新增失败种类 | 访问上下文由调用方显式传入，依据层：要求 [SYS-OPEN](../../../docs/requirements.md#独立使用与替换sys-open) |
+
+表中各决定的产品与架构依据层，见上文[读取](#读取)、[失败种类](#失败种类)与 [Q-SK03](#q-sk03-两条内容采用路径与可靠交接协议)的决定表。Q-SK08 那一支见 [Q-SK08 分支](#q-sk08-分支)。在裁定之前，独立消费者的首条组合验收只走依赖齐备的路径。
+
+### 剩余义务与拥有者
+
+| 未支持或待做 | 拥有者 | 第一波怎样处理 |
+| --- | --- | --- |
+| 与 DRB `ContentClaim` 的字段与行为映射 | DRB（集成方认识被集成方，依据层：架构[外域概念的进入方式](../../../docs/architecture/layers-and-dependencies.md#外域概念的进入方式)） | Skill 只维护自己的公开契约 |
+| 真实的读取核验（`ReadEligibility`） | 身份与授权 | 只交端口与符合性测试。替身通过不说成资格已验证 |
+| 独立路径上「这个能力标识此刻对应哪一份」的真实解析（`SkillResolution`） | 资产求值，见资产产品 [CAP-AR05](../../../.meta_harness/design/product/assets-and-rules/design.md#cap-ar05-多层合法来源与同标识替换)，尚未实现 | 同上 |
+| 会话路径上采用依据记下 Skill 的内容摘要 | 装配，见采用协调 [已知限制与剩余](../../../docs/domains/assembly-and-handoff/adoption-coordination.md#5-已知限制与剩余) 的 KL-9 | 会话路径的 `SkillResolution` 等它就绪 |
+| 云端内容存储来源，能交出旧版本 | 存储能力组。对象或文件存储契约尚不存在 | 第一波的真实来源只有本机目录。目录变化后报 `basis-unavailable` |
+| 发现与搜索（P1） | 本组 `SkillCatalog`，第一波之后的 1b | 不阻塞已知精确引用的首条旅程 |
+| 合法更新与显式增量装载（P1） | 装配 | Skill 不承担装载 |
+| 版本变化观察（P1） | 装配。变化事件首版不做 | 消费者重新 `describe` 观察变化 |
+| 脚本桥接（P1） | 本组第三波，加上 Tool 与执行环境 | 不在 P0 |
+| 消费适配：`Skills()` 的检索与读取、命令展开 | 成员归属尚未分配，由 Skill 技术拥有者在后接波确定。Context 概览贡献归 Runtime Context | 第一波不交。独立程序直接消费 `SkillAccess` |
+
+拥有者沿[领域交接设计](../../../docs/domains/skills/architecture.md#端口与实现方)的实现方确定。P1 的范围与「首版可明确刷新，不要求新增耐久订阅服务」来自 DRB 消费需求第 5 节。
+
+## 验证
+
+方法提供者验证定义、资源寻址与一致读取。资产与装配验证过滤、依赖、替换与采用竞争。工具、消息与 Context 验证两条内容路径、耐久与旧请求不被改写。桥接、工具与环境验证原参数、实际资源、控制与迟到的宿主结果。
+
+第一波的验证候选：
+
+1. 值与纯函数的单元测试。
+2. `PackageSource` 与 `SkillAccess` 的符合性测试，所有来源共用。
+3. 真实临时目录上的 `DirectorySource` 测试：软链接、改文件后版本已变、包外路径。
+
+替身通过不证明真实资格、真实求值或耐久。当前没有选定的机制，没有行为模型，也没有执行过行为验证。结构自检不授予任何保证。
 
 ## 技术后续设计与承接缺项
 
-以下是具名逻辑责任的技术义务。尚未分配正式成员，组暂时维护缺项与交接，不成为统一公开行为拥有者。实际成员、消费者及技术采用明确后才切换完整行为唯一源。
+以下各节是产品第四章导航到本组的技术义务。每节写技术处置：已定决定、依据层、剩余义务与拥有者。决定都是候选，接受仍归负责人。
 
 ### Q-SK02 方法、资源寻址与来源/版本公开契约
 
-维护责任：方法定义与资源接口拥有者；组维护者登记正式成员承接缺项。
+技术处置（候选）。
 
-分类：技术义务。场景：同名方法由不同层或工作区包提供，正文与资源在读取时变化，消费者必须辨认实际版本、范围和缺失。
+| 已定决定 | 依据层 |
+| --- | --- |
+| 资源按 `PackagePath` 寻址，规则见[模型](#模型) | 产品 J-SK03；官方规格 [File references](https://agentskills.io/specification#file-references) |
+| 读取绑定 `SkillRef` 中的内容摘要，规则见[读取](#读取) | 产品 J-SK03；资产规格 [Skill 样例](../../assets/assets/SPEC.md#skill-样例) |
+| 读取结果带 `SkillRef`、包内路径、媒体类型、实际范围、总长与 `complete` | 产品 J-SK03「不能把遗漏、截断或资源不可取伪装成完整方法」 |
+| 失败种类见[失败种类](#失败种类) | 产品 J-SK03 |
+| 资产正文是声明投影，`skillBodyContract` 只做可加扩展，见[资产正文与 Skill 包](#资产正文与-skill-包) | 资产规格 [类别提供方](../../assets/assets/SPEC.md#category-provider) |
 
-已知约束：读取不激活、不执行、不自动装载全部附件；资源限定所选实现，不能混拼版本或以别包补齐；来源读取成功不同于正式采用；软链接发现限制不扩为所有包内资源限制。
-
-待办：定义拥有者怎样表达方法/资源标识、内容类型、范围/截断、版本复核和明确失败，使现有行为可独立消费？
-
-- 复用适用公开值并补完整语义：沿既有类型/来源契约明确缺项，不复制一套冲突身份。
-- 提出必要的新公开形状候选：只有既有形状不足时定义新形状，并核对实际消费者和采用范围。
-
-处理建议：由方法和资源接口拥有者依据行为补足；不在本稿造 API、Schema 或存储编码。
-
-影响：具体实现与资源支持声明须先有精确公开契约；文本行为候选仍可评审。
+| 剩余义务 | 拥有者 |
+| --- | --- |
+| 精确类型、范围的单位、内容摘要的算法、二进制条目在 `ContentBlock` 中的表示 | `skill-contract` 的规格，第一波随建包写 |
+| `skillBodyContract` 扩展的技术接受，并同步资产规格「已接受的公开类型」中 `skill` 一段与「Skill 样例」的措辞 | `skill-contract` 实施者；资产规格拥有者 |
 
 ### Q-SK03 两条内容采用路径与可靠交接协议
 
-维护责任：工具、消息、Context 与装配的实际协调者；组维护者登记正式成员承接缺项。
+技术处置（候选）。
 
-分类：技术义务。场景：工具已返回正文或命令已展开用户块，但消费位置保存失败、确认丢失或同时选择/reload，必须知道谁仍保管原内容。
+| 已定决定 | 依据层 |
+| --- | --- |
+| Skill 不做临时保管。内容随成功结果内联交出，交出后归接收方 | 领域 [协作与依赖](../../../docs/domains/skills/README.md#协作与依赖)「Context或消息消费者按各自规则保存/组装」 |
+| `SkillRef` 加包内路径只是重读句柄，不是保管引用 | 产品 J-SK03「不能假定 Skill 内藏一份永久激活副本」 |
+| Skill 没有「已加载」状态，也不建统一的读取日志 | 领域 [协作与依赖](../../../docs/domains/skills/README.md#协作与依赖)「不能统一改成一个日志形状」 |
 
-已知约束：工具返回与命令用户块分别保存，不建立统一已加载日志；新采用不回写历史，当前权利不从旧快照恢复；系统已确认事实满足所声明耐久边界，不以通知代提交。
+工具路径由原工具调用保存实际返回和消费位置。命令路径由命令与入站消费者保存本次展开内容和用户消息关联。Context 按自身权限与来源规则消费。模型请求一经发起，就固定原输入。后续正文更新不回写它。采用成功须与所用内容、来源、范围和原位置一致。成功返回、入队和通知都不代替耐久确认。
 
-待办：各消费者用什么完整提交/承接协议保护原内容、来源、位置和采用竞争，并明确无法同提交时的恢复拥有者？
-
-- 复用原消费者完整承接契约：明确来源字段和交接映射，验证真实组合与故障。
-- 补足缺失的组合协调责任：必要范围内提出协调协议及行为模型，不接管消息或 Session 全业务。
-
-处理建议：由工具/消息/Context 与装配的实际协调者共同补足明确保护边界。
-
-影响：可靠采用、并发及恢复的实现接受受限；不需要用户选择锁、事务或 ACK 形状。
+| 剩余义务 | 拥有者 |
+| --- | --- |
+| 各消费者的完整提交与承接协议，以及无法同提交时的恢复拥有者 | 工具、消息、Context 与装配的实际协调者 |
+| 候选校验、当前选择、撤权与推进资格之间的竞争 | 装配协调者 |
 
 ### Q-SK04 脚本桥接的发起、控制和原结果协议
 
-维护责任：原工具、脚本桥接与环境拥有者；组维护者登记正式成员承接缺项。
+技术处置（候选）。
 
-分类：技术义务。场景：包内脚本排队期间发生撤权/更新，或代码域被终止但宿主调用随后完成，原工作和结果不能丢失。
+| 已定决定 | 依据层 |
+| --- | --- |
+| `ScriptPreparation` 只认包内声明的脚本，只产出一份固定的执行请求。执行、等待、结果与控制都交给 Tool | 产品 [J-SK05](../../../.meta_harness/design/product/skills/design.md#j-sk05-显式运行方法携带的脚本)「不由 Skill 新造一套收场」 |
+| 为脚本物化的 Skill 包只进该次执行的私有落点 | 产品 J-SK03 读取权；J-SK05「文件或 Shell 路径……不能借用 Skill 许可」 |
+| `allowed-tools` 与 `compatibility` 只作元数据，不授予任何许可 | 资产产品 [在项目工作区协作，保留每个租户的私有边界](../../../.meta_harness/design/product/assets-and-rules/design.md#在项目工作区协作保留每个租户的私有边界)「不能贡献授权或权限配值」；官方规格 [`allowed-tools` field](https://agentskills.io/specification#allowed-tools-field)「Experimental」 |
 
-已知约束：显式包内脚本，不是任意 Shell；实际发起固定匹配原输入；当前环境/设施准入不能降低所需隔离；域停止与宿主工作停止分开，迟到结果由原拥有者可靠承接。
+脚本执行权随 Skill 的合法许可。通用文件与 Shell 访问走自己的许可。脚本内对其他工具、文件、网络、凭据与宿主桥接的访问，仍按实际主体和用途核验。受限执行域按[执行隔离](../../../docs/architecture/security/execution-isolation.md)承接不可信代码。入口撤除和读句柄释放不停止原执行。停止代码域不停止已准入的宿主工作。
 
-待办：原工具、桥接和环境怎样固定匹配版本及最终发起条件，提供查询/控制并把迟到宿主结果交回原消费者？
-
-- 复用原工具及环境完整协议：桥接仅补 Skill 专有范围和许可映射，验证最终发起与迟到链。
-- 提出缺项的受控桥接协议：补足原身份及责任转移，模型和攻击/故障证据绑定具体机制。
-
-处理建议：由实际原工具、桥接和环境拥有者设计；引擎、配额和 API 保持技术采用事项。
-
-影响：脚本支持和不可信代码运行方式的真实声明需精确采用及证据，能力选择不先裁机械细节。
+| 剩余义务 | 拥有者 |
+| --- | --- |
+| 固定匹配版本与最终发起条件，查询与控制，把迟到的宿主结果交回原消费者 | Tool |
+| 包的私有挂载与落点、设施准备 | 执行环境 |
+| `ScriptPreparation` 的纯部分 | 本组第三波 |
 
 ### Q-SK05 原生及兼容来源格式支持与成员归属
 
-维护责任：Skill 定义、资源、取用与桥接的技术拥有者；组维护者登记正式成员承接缺项。
+技术处置（候选）。
 
-分类：技术义务。场景：工作区合法发现 SKILL.md 与资源，第三方还带专属字段；识别成功不能承诺全部字段、资源或执行兼容。
+| 已定决定 | 依据层 |
+| --- | --- |
+| 原生格式是 `SKILL.md`（头部字段按官方规格）加可选的 `.omne/skill.json` | 产品 J-SK01「已有 `SKILL.md`、可选 `.omne/skill.json` 和按需资源的包形式」；官方规格 [Specification](https://agentskills.io/specification) |
+| 不认识的头部字段原样保留，不解释 | 产品 [Q-SK05](../../../.meta_harness/design/product/skills/design.md#q-sk05-原生及兼容来源格式支持与成员归属)「识别成功不能承诺全部字段……兼容」 |
+| 兼容格式作为解析方言增加，不另造目录协议 | 产品 J-SK01「工作区原生方法使用已有……包形式」；G6 |
+| 成员按四个具名文档目标划分，见[组入口](../README.md#成员与依赖) | 能力组先例 [Tool 能力组](../../tool/README.md#包与依赖) |
 
-已知约束：已有包形式和工作区来源规则继续有效，不造另一目录协议；受支持兼容范围需明确，保留原文件，不导入整体权限政策；Skill 正式成员尚未具名，当前只按逻辑责任保存完整行为候选。
-
-待办：实际定义/资源/取用/桥接成员怎样划分，并给出已采用格式版本、转换限制和真实支持矩阵？
-
-- 沿实际消费者细化责任归属：先明确公开责任与安装/发布闭包，再决定成员边界。
-- 暂保留具名逻辑责任契约：不造空包，真实成员和格式采用作为实施前技术缺项。
-
-处理建议：依据真实消费者与变化责任定归属，不从旧包名或目录预定成员。
-
-影响：安装、发布和兼容实现接受待技术细化，已明确发现/读取规则继续成立。
+| 剩余义务 | 拥有者 |
+| --- | --- |
+| 受支持方言、转换限制与真实支持矩阵 | `skill-contract` 的规格 |
+| marketplace 与 Git 仓库来源 | 各自的 `PackageSource` 实现，后续另定 |
+| 现有 `@omne-harness/skill` 改名为 `skill-contract`。改名改变公开包身份，按[里程碑内的规则](../../../docs/engineering/integration.md#里程碑内的规则)处理破坏性改动，并同步消费者 | 实施波的负责人 |
 
 ### Q-SK06 dummy 逻辑执行的记录、统计和查询形状
 
-维护责任：工具与 Session 逻辑治理拥有者；组维护者登记正式成员承接缺项。
+技术处置（候选）。
 
-分类：技术义务。场景：已知不可用替换件正常返回原因；恢复需知道原结果是否已消费，统计又必须区分逻辑调用、真实原工具未执行及替换件实际开销。
+| 已定决定 | 依据层 |
+| --- | --- |
+| Skill 不持有执行记录。Skill 只给出 `unavailable-stand-in` 及安全原因 | G1；架构 [不可用应答的分类边界](../../../docs/architecture/runtime/tool-runtime.md#不可用应答的分类边界) |
 
-已知约束：dummy tool execution 与真实执行同属一次逻辑调用。归类见架构[不可用应答的分类边界](../../../docs/architecture/runtime/tool-runtime.md#不可用应答的分类边界)。真实原工具未物理执行，不建立其真实资源，不虚构耗时或效果。替换件自身实际开销按事实记录。Session Log 保存逻辑治理。精确字段仍未定。
+dummy tool execution 与真实执行同属一次逻辑调用。真实原工具未物理执行，不建立其真实资源，不虚构耗时或效果。替换件自身的实际开销按事实记录。Session Log 保存逻辑治理事实。
 
-待办：工具及逻辑治理公开记录和查询怎样表达 dummy 原调用、结果消费进度、真实启动与实际计量，采用哪些相称验证？
-
-- 在统一逻辑执行契约内细化：保留同种抽象并区分物理事实，核对恢复和统计消费者。
-- 延后具体形状采用：继续保持已定 dummy 语义，具体实现及查询支持尚不能声明。
-
-处理建议：沿 Q03 已定抽象由工具/Session 逻辑治理拥有者补字段和验证，不列产品投票。
-
-影响：只限制精确记录/统计/查询实现，不阻断不可用行为候选，也不是来源缺口。
+| 剩余义务 | 拥有者 |
+| --- | --- |
+| 记录、统计与查询的精确字段和相称验证 | 工具与 Session 逻辑治理拥有者 |
 
 ## 完整行为候选的正式承接缺口
 
-成员未具名，以下名称记录尚待承接的完整行为范围；原候选仍未分配、未采用。过程稿不作为正式导航依赖。本组不复制或薄化契约，也不创建成员及组根统一 SPEC。实际接口拥有者须确认成员边界、公开形状、接受范围和真实消费者，再完整承接所有条件、INV 与持续验证义务，同步唯一源及导航。
+原任务的完整行为候选尚未采用。下表写明每份候选由哪个成员或拥有者承接。表中的成员都是具名文档目标，尚非 workspace 成员。逐条不变式与验证义务在建包时随成员规格分配。过程稿不作为正式导航依赖。
 
-- `content-adoption-and-evolution.md`。
-- `method-and-resource-access.md`。
-- `script-execution-bridge.md`。
-- 总览、完整不变式及持续验证范围。
+| 原候选 | 承接者 | 承接方式 | 状态 |
+| --- | --- | --- | --- |
+| `method-and-resource-access.md` | `skill-contract`：值、端口、服务接口与符合性设施。`skill`：`PackageInspection`、`SkillCatalog`、`SkillAccess`。`skill-host-local`：`DirectorySource` | 成员规格，第一波随建包写 | 候选，尚未承接 |
+| `content-adoption-and-evolution.md` | 不归本组成员。工具、消息、Context 与装配的实际协调者承接，见 [Q-SK03](#q-sk03-两条内容采用路径与可靠交接协议) | 各拥有者的契约 | 尚未承接 |
+| `script-execution-bridge.md` | `skill` 的 `ScriptPreparation`，纯部分在 `skill-contract`。执行与控制归 Tool 与执行环境，见 [Q-SK04](#q-sk04-脚本桥接的发起控制和原结果协议) | 第三波 | 尚未承接 |
+| 总览、完整不变式及持续验证范围 | 组维护者。各成员规格承接本成员的不变式。`skill-contract/testing` 的符合性套件承接来源与读取的共同验证 | 建包时 | 尚未承接 |
+| Cordis 服务键与抽象 Service | `skill-cordis-contract`，暂不进应用插件树 | 第三波 | 尚未承接 |
