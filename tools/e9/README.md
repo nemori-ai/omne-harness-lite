@@ -48,7 +48,7 @@ export async function open({ root, out, abortSignal }) {
 }
 ```
 
-工具串行等待 `nextRound(round)`，最多 200 轮。`logCount` 达到 10000 后不再请求下一轮。HTTP 受理不能替代完成事件。适配器负责证明四段含义、完成关联、固定延迟实际执行和 fsync 观察来源。`close()` 失败独立进入诊断，不能覆盖更早错误。需要其他资源或外部效果时，由调用方提供授权。
+工具串行等待 `nextRound(round)`，最多 200 轮。`open()` 返回的对象可带 `plannedRounds`，取 1～200 的整数，缺省 200，其他值记失败。它只用于短跑：轮数少于 200 时后窗缺失，中位数门和逐段门记等件，总判定不能是通过。`adapter-result.json` 记录实际采用的计划轮数。`logCount` 达到 10000 后不再请求下一轮。HTTP 受理不能替代完成事件。适配器负责证明四段含义、完成关联、固定延迟实际执行和 fsync 观察来源。`close()` 失败独立进入诊断，不能覆盖更早错误。需要其他资源或外部效果时，由调用方提供授权。
 
 事件 schema 为 1。每个事件包含 `schemaVersion: 1`、非空 `runId`、从 1 连续递增的 `round` 和 `eventKind`。一次运行的 `runId` 必须一致。时间事件使用有限非负 `startMs`、`endMs`，且 `endMs >= startMs`。
 

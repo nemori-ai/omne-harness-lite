@@ -19,6 +19,22 @@ test('driver stops at 200 completed rounds or 10000 actual entries', async () =>
   assert.equal(calls, 5)
 })
 
+test('a planned short run stops at its round count; a count outside 1 to 200 is refused', async () => {
+  const fixtures = syntheticRounds('steady')
+  let calls = 0
+  const next = async round => {
+    calls++
+    return fixtures[round - 1]
+  }
+  assert.equal((await driveRounds(next, () => {}, 20)).length, 20)
+  assert.equal(calls, 20)
+  for (const limit of [0, 201, 2.5, Number.NaN])
+    await assert.rejects(
+      driveRounds(next, () => {}, limit),
+      RangeError,
+    )
+})
+
 test('subprocess failure and timeout preserve their distinct facts', async () => {
   const failed = await runProcess(process.execPath, [
     '-e',
