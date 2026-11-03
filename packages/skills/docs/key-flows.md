@@ -49,7 +49,6 @@ sequenceDiagram
   participant K as SkillCatalog
   participant V as SkillResolution
   participant E as SkillReadCheck
-  participant F as RequirementFacts
   C->>K: summaries(access, scope, capabilities?) 或 search(access, scope, query)
   K->>V: adopted(access, scope)
   V-->>K: 当前合法集合中每个身份的 adopted 或 known-unavailable（可以为空），或 无法判定
@@ -64,22 +63,15 @@ sequenceDiagram
     K-->>C: unknown，不返回空集合
   end
   K->>K: 去掉 refused 的身份，不披露它存在
-  K->>F: present(access, scope, 必需工具名)
-  F-->>K: 在场的名字，或 无法判定
-  alt 无法判定
-    K-->>C: unknown，不返回空集合
-  end
-  K->>K: evaluateAvailability 求出可用性与缺项
-  K-->>C: 摘要条目：能力标识、name、说明、可用性与缺项、替换件原因
+  K-->>C: 摘要条目：能力标识、name、说明。adopted 的身份带依赖声明，known-unavailable 的身份带替换件原因
 ```
 
 1. `SkillCatalog` 只在 `SkillResolution.adopted` 给出的当前合法集合里取身份。集合为空时返回空列表，这不是失败。调用方给出 `capabilities` 时，只交其中属于当前合法集合的身份。其余不交，也不说明原因。
 2. 每个身份先经 `SkillReadCheck` 核验。答 `refused` 的身份不进入结果，不披露它存在。任一身份答 `unknown` 时，整次操作返回 `unknown`，不把未知压成空。
-3. 全部必需项满足才是可用。已知不可用的身份保留，并带替换件原因。从未取得的身份不出现。
+3. 答 `adopted` 的身份带依赖声明。答 `known-unavailable` 的身份保留，并带替换件原因。从未取得的身份不出现。依赖在不在场、一份 Skill 此刻能不能用，由调用方判定。
 4. `search` 按 name 与说明找当前合法集合中该主体可读的身份，返回同样的摘要条目。
 5. 本组不按常驻筛选，条目顺序不承载含义。排序、集合修订与呈现归调用方。
-6. 仅必需工具不足时的正文读取结果由[组内读取](#组内读取)与 Q-SK08 单列，摘要不替它裁定。
-7. 端口无法给出现行判断时，返回 `unknown`，不能以空集合表示「无方法」。
+6. 端口无法给出现行判断时，返回 `unknown`，不能以空集合表示「无方法」。
 
 ## 组内读取
 
@@ -92,7 +84,6 @@ sequenceDiagram
   participant E as SkillReadCheck
   participant V as SkillResolution
   participant S as SkillPackageSource
-  participant F as RequirementFacts
   C->>A: read(access, scope, target, { basis?, range?, signal? })
   opt 带Skill 材料依据
     alt 依据的能力标识不等于目标能力标识
@@ -138,15 +129,6 @@ sequenceDiagram
     A-->>C: version-changed，不交新内容
   end
   A->>A: 按请求的字节范围截取
-  alt 目标是正文
-    A->>F: present(access, scope, 必需工具名)
-    F-->>A: 在场的名字，或 无法判定
-    alt 无法判定
-      A-->>C: unknown
-    else 有必需工具缺席
-      A-->>C: undecided（等待 Q-SK08）
-    end
-  end
   A-->>C: 内容、Skill 材料依据、包内路径、媒体类型、实际字节范围、总长与 complete
 ```
 
@@ -160,10 +142,10 @@ sequenceDiagram
 6. 带Skill 材料依据时，`SkillResolution` 核对依据所指的材料是否合法，并当场给出包定位。只有身份 `adopted` 且依据的版本不合法时，`resolve` 才答 `basis-not-lawful`，`SkillAccess` 返回 `basis-unavailable`。
 7. 资产正文缺 `package.digest` 时，`SkillRef` 没有内容摘要。`read`、`list` 与 `export` 返回 `unsupported`，带不带Skill 材料依据都一样。
 8. 先取快照并比较Skill 包快照的内容摘要，再查条目，再读字节并按条目内容摘要核对。所以一次读取只对应一份Skill 包快照。快照不符时，带Skill 材料依据报 `basis-unavailable`，不带Skill 材料依据报 `adopted-material-changed`。
-9. 只有正文字节核对通过后，才进入 Q-SK08 判断。第一波只核对必需工具名。资源读取不进入这一判断。
+9. 读取不判定依赖在不在场，也不判定脚本有没有所需的设施。正文与资源走同一条路径。
 10. 成功结果交出后归调用方。`SkillAccess` 不保留副本，不记「已加载」状态，也不把 `SkillRef` 或包定位交给调用方。
 
-`list` 走同一条核验与解析路径，再取快照并比较Skill 包快照的内容摘要。只有内容摘要相符后，`list` 才返回快照中的资源条目，不进入 Q-SK08 判断。`describe` 只走核验与解析，再用 `resolve` 交来的声明投影求缺项，交出依赖、脚本与设置声明。它不读包字节，也不交设置值。资产正文缺 `package.digest` 时，`describe` 照常交出声明，结果不带Skill 材料依据，并标明「没有可读的包」。
+`list` 走同一条核验与解析路径，再取快照并比较Skill 包快照的内容摘要。只有内容摘要相符后，`list` 才返回快照中的资源条目。`describe` 只走核验与解析，再交出 `resolve` 交来的声明投影中的依赖、脚本与设置声明。它不读包字节，也不交设置值。资产正文缺 `package.digest` 时，`describe` 照常交出声明，结果不带Skill 材料依据，并标明「没有可读的包」。
 
 ## 组内导出
 
@@ -176,9 +158,8 @@ sequenceDiagram
   participant E as SkillReadCheck
   participant V as SkillResolution
   participant S as SkillPackageSource
-  participant F as RequirementFacts
   C->>A: describe(access, scope, 能力标识)
-  A-->>C: 脚本声明、设置声明、依赖与缺项、Skill 材料依据
+  A-->>C: 脚本声明、设置声明、依赖声明、Skill 材料依据
   C->>A: export(access, scope, 能力标识, Skill 材料依据)
   A->>A: 依据的能力标识须等于目标能力标识，否则 not-available-to-you
   A->>E: check(access, scope, 能力标识)
@@ -201,18 +182,10 @@ sequenceDiagram
   alt 任一条目不符
     A-->>C: version-changed，不交部分包
   end
-  A->>F: present(access, scope, 必需工具名)
-  F-->>A: 在场的名字，或 无法判定
-  alt 无法判定
-    A-->>C: unknown
-  else 有必需工具缺席
-    A-->>C: undecided（等待 Q-SK08）
-  end
   A-->>C: 全部条目（包内路径、媒体类型、大小、内容摘要、字节）、Skill 包快照的内容摘要与Skill 材料依据
 ```
 
 1. `export` 必须带Skill 材料依据。调用方先从 `describe` 取得它。
 2. 核验、解析与端口失败的映射同[组内读取](#组内读取)。`SkillReadCheck` 与 `SkillResolution` 的拒绝分支与读取相同，图中省略。资产正文缺 `package.digest` 时，`describe` 不交Skill 材料依据，`export` 返回 `unsupported`。
 3. 每个条目都按快照中的条目内容摘要核对。任一条目不符时不交部分包。
-4. 导出的条目含正文，所以 Q-SK08 的条件也适用于 `export`。
-5. 物化的落点、之后的使用与脚本执行都不归本组。脚本身份是能力标识加入口的包内路径，见[工程设计「Q-SK04」](architecture.md#q-sk04-脚本桥接的发起控制和原结果协议)。
+4. 物化的落点、之后的使用与脚本执行都不归本组。脚本身份是能力标识加入口的包内路径，见[工程设计「Q-SK04」](architecture.md#q-sk04-脚本桥接的发起控制和原结果协议)。

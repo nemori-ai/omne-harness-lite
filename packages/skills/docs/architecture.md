@@ -41,6 +41,7 @@
 - 本组不知道端口由谁实现。端口只用本组的词提出问题。
 - 本组不解释主体、作用域与来源层。主体是 `Access<P>` 的类型参数 `P`。作用域是类型参数 `S`，由调用方给出。来源层由 `SkillResolution` 交来。本组把三者原样交给端口或交回调用方。
 - 本组不知道脚本怎样执行。准入、执行环境、进程、结果与控制都不在本组。
+- 本组不判定依赖在不在场，也不判定一份 Skill 此刻能不能用、脚本有没有所需的设施。这些归调用方。本组只交依赖声明与脚本声明。
 - 本组不知道常驻、排序、集合修订与呈现规则。
 
 ### 需求端口
@@ -50,13 +51,12 @@
 | `SkillPackageSource` | 按包定位交出包的当前快照。按包定位、内容摘要与包内路径交出一个条目的字节 | Skill 包快照（含包根目录名），或条目字节 | 找不到包、包里没有该条目、字节与条目内容摘要不符、条目落在包根之外、来源此刻不可达 |
 | `SkillResolution` | 这个能力标识此刻对这个主体、在这个作用域合法对应哪一份材料。带Skill 材料依据时，依据所指的材料是否合法。当前合法集合里有哪些身份 | 合法已知但此刻不可用（带原因与最后合法的 name、说明），或对应的材料，或确定没有对应。集合里每个身份各带一个答复。当前合法集合为空时答空集合，这不是失败 | 依据不合法（只在身份合法对应、所带依据的版本不合法时），此刻无法判定 |
 | `SkillReadCheck` | 这个主体此刻能不能读这个能力标识 | 准许 | 拒绝，此刻无法判定 |
-| `RequirementFacts` | 这些必需工具名此刻是否在场 | 在场的名字 | 此刻无法判定 |
 
 精确形状见[端口](#端口)。
 
 ### 对外提供
 
-本组对外只用本领域的词：能力标识、name、说明、Skill 材料依据、包内路径、媒体类型、字节范围、可用性与缺项、替换件原因、依赖声明、脚本声明、设置声明与脚本身份。
+本组对外只用本领域的词：能力标识、name、说明、Skill 材料依据、包内路径、媒体类型、字节范围、替换件原因、依赖声明、脚本声明、设置声明与脚本身份。
 
 - 值：见[模型](#模型)。
 - 纯函数：见[应用服务](#应用服务)末尾。
@@ -83,7 +83,6 @@ Skill 领域没有有状态的聚合。Skill 包快照算出后不变。读出�
 | `SkillDefinition` | 一次检查的结果：清单 `SkillManifest`、声明 `SkillDeclaration` 与Skill 包快照 `SkillPackageSnapshot`（条目与内容摘要）。它不含正文。正文只经 `SkillAccess.read` 取得。 | 产品 [J-SK01](../../../.meta_harness/design/product/skills/design.md#j-sk01-将合法方法来源交给消费者)；产品 J-SK03「恢复重新核验当前读取权」 |
 | `SkillRef` | 一份具体材料的内部引用：能力标识、来源层、资产版本引用、包定位 `locator`，以及Skill 包快照的内容摘要 `digest`。`locator` 与 `digest` 由 `SkillResolution.resolve` 给出。`SkillRef` 只在 Skill 与 `SkillResolution` 之间传递，不交给调用方。`SkillRef` 不带作用域。工作区来源没有发布版本，这时资产版本引用缺席。旧资产正文没有 `package.digest` 时，`digest` 缺席。 | 统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)「注意 ②」；产品 J-SK01「来源、能力身份与具体实现版本分别显示」 |
 | `SkillMaterialBasis` | Skill 材料依据：对外交出的、指明一份具体材料的值。它含能力标识、来源层、资产版本与Skill 包快照的内容摘要，不含包定位。资产版本可以缺省：工作区目录中的 Skill 没有发布版本，所以工作区来源的Skill 材料依据不带资产版本。这时能力标识、来源层与内容摘要确定材料，内容摘要已经钉住字节。`describe`、`read`、`list` 与 `export` 的结果带它。资产正文缺 `package.digest` 时，`describe` 的结果不带它，见[资产正文与 Skill 包](#资产正文与-skill-包)。调用方可以在后续操作中带回它，见[读取](#读取)。它不授予访问。 | 产品 [J-SK03](../../../.meta_harness/design/product/skills/design.md#j-sk03-按需读取正文或指定资源)「历史可见性不授予新的访问」；要求 [SYS-TENANT](../../../docs/requirements.md#从第一天支持隔离sys-tenant)；统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)「内容摘要相同的两个快照指同一份内容」 |
-| `Availability` | 可用，或者不可用并带缺项列表。 | 统一语言 [当下可用性](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-current-availability--当下可用性--current-availability) |
 | `SafeReason` | 安全原因：可以向该主体说明的不可用原因。它不含秘密，也不披露该主体无权知道的内容。精确形状归 `@omne-harness/skill` 的规格。 | 产品 J-SK03「对合法已知身份返回替换件及安全原因」；G5 |
 | `Bytes` | 一段字节，候选表示是 `Uint8Array`。 | G6 |
 
@@ -218,16 +217,11 @@ interface SkillReadCheck<P, S> {
   check(access: Access<P>, scope: S, capability: CapabilityId): Promise<'granted' | 'refused' | 'unknown'>
 }
 
-// 必需工具名此刻是否在场。只要名字，不要提供者对象。
-interface RequirementFacts<P, S> {
-  present(access: Access<P>, scope: S, names: readonly CapabilityId[]): Reply<ReadonlySet<CapabilityId>>
-}
-
 // 唯一的失败是此刻无法判定。
 type Reply<T> = Promise<Outcome<T, 'unknown'>>
 ```
 
-`Reply<T>` 是一个异步的 `Outcome`。它只有一种失败：此刻无法判定，Skill 把它映射为 `unknown`。「确定没有」不是失败：`adopted` 答空集合，表示当前合法集合为空。`present` 答的集合里没有某个名字，表示该名字此刻不在场。作用域 `S` 是类型参数，由调用方给出。Skill 不解释它，只原样交给端口（G2）。
+`Reply<T>` 是一个异步的 `Outcome`。它只有一种失败：此刻无法判定，Skill 把它映射为 `unknown`。「确定没有」不是失败：`adopted` 答空集合，表示当前合法集合为空。作用域 `S` 是类型参数，由调用方给出。Skill 不解释它，只原样交给端口（G2）。
 
 各端口的要求：
 
@@ -240,7 +234,6 @@ type Reply<T> = Promise<Outcome<T, 'unknown'>>
   4. 此刻无法判定：答 `unknown`。
 - 核对依据时，依据带资产版本，就核对该资产版本。依据不带资产版本，就核对该能力在依据的来源层对这个主体合法可读，字节由依据中的内容摘要钉住。只有身份合法对应、所带依据的版本不合法时，端口实现才答 `basis-not-lawful`。包定位总是由端口实现当场给出，不取自调用方。
 - `SkillResolution.adopted` 交出当前合法集合。集合为空时答空集合，不是失败。集合修订号不进入本组契约。需要修订号的调用方从 `SkillResolution` 的实现一侧直接取得。对无权主体，`SkillResolution` 的答复不得随该身份是否存在而变。`./testing` 的符合性套件核对这一要求。
-- `RequirementFacts.present` 只回答必需工具名是否在场。它只有一种失败：此刻无法判定，Skill 映射为 `unknown`。脚本的设施需要随脚本声明交出。设施是否齐备不由 Skill 判定。
 - `SkillPackageSource.snapshot` 按 `locator` 取得包的当前快照。快照带包根目录名，`inspect` 用它核对 name。按 `locator` 找不到包时返回 `package-not-found`。来源此刻不可达时返回 `unavailable`。
 - `SkillPackageSource.open` 按 `locator` 找到包，交出 `path` 所指条目的字节。`digest` 是调用方已经核对过的Skill 包快照内容摘要。按内容摘要存放字节的来源用它取字节。条目不在时返回 `entry-not-found`。条目解析后落在包根之外时返回 `outside-package`。来源自己发现交出的字节与条目内容摘要不符时，返回 `bytes-mismatch`。来源不核对字节时，Skill 也会核对，见[读取](#读取)。
 
@@ -260,7 +253,6 @@ type Reply<T> = Promise<Outcome<T, 'unknown'>>
 | `SkillResolution` 答 `basis-not-lawful` | `basis-unavailable`。该主体对该能力的读取已由 `SkillReadCheck` 准许。没有准许时，`SkillReadCheck` 先挡下，返回 `not-available-to-you` |
 | `SkillResolution` 答 `unknown`，或 `adopted` 此刻无法判定 | `unknown` |
 | `SkillResolution.adopted` 答空集合 | 不是失败。`SkillCatalog` 返回空的摘要列表 |
-| `RequirementFacts` 此刻无法判定 | `unknown` |
 | `SkillPackageSource` 的 `package-not-found`，操作带Skill 材料依据 | `basis-unavailable` |
 | `SkillPackageSource` 的 `package-not-found`，操作不带Skill 材料依据 | `source-unavailable` |
 | `SkillPackageSource` 的 `entry-not-found` | `resource-missing` |
@@ -277,12 +269,12 @@ Skill 自己的核对也映射到同一组失败种类，见[读取](#读取)的
 | 接口 | 用途 | 操作 | 关键保证 |
 | --- | --- | --- | --- |
 | `PackageInspection` | 检查一个包是否是合法的 Skill 包 | `inspect(locator, expectedName?)` 返回 `SkillDefinition`（清单、声明与Skill 包快照），或拒绝原因，或 `source-unavailable`、`version-changed` | 结果不含正文。正文只经 `SkillAccess.read` 取得。失败集合封闭，见[检查与发现](#检查与发现)。来源错误与「没有候选」分开。非法包不当作空包。拒绝原因按[包格式规则](#包格式规则)的次序给出。`inspect` 不带访问上下文，不核验读取权，结果不授予读取。 |
-| `SkillCatalog` | 取得当前合法集合中身份的摘要，或按说明检索 | `summaries(access, scope, capabilities?)`、`search(access, scope, query)`。两者都返回摘要条目：能力标识、name、说明、可用性与缺项、替换件原因 | 只在当前合法集合里取。每个身份先经 `SkillReadCheck` 核验，只有 `granted` 的身份进入结果。`refused` 的身份不出现，也不说明原因。任一身份答 `unknown` 时，整次操作返回 `unknown`。给出 `capabilities` 时，只交其中属于当前合法集合的身份，其余不交，也不说明原因。不按常驻筛选。条目顺序不承载含义。排序、集合修订与呈现归调用方。端口无法判定时返回 `unknown`，不返回空集合。当前合法集合为空时返回空列表。 |
+| `SkillCatalog` | 取得当前合法集合中身份的摘要，或按说明检索 | `summaries(access, scope, capabilities?)`、`search(access, scope, query)`。两者都返回摘要条目：能力标识、name、说明。合法对应材料的身份另带依赖声明，合法已知但此刻不可用的身份另带替换件原因 | 只在当前合法集合里取。每个身份先经 `SkillReadCheck` 核验，只有 `granted` 的身份进入结果。`refused` 的身份不出现，也不说明原因。任一身份答 `unknown` 时，整次操作返回 `unknown`。给出 `capabilities` 时，只交其中属于当前合法集合的身份，其余不交，也不说明原因。不按常驻筛选。条目顺序不承载含义。排序、集合修订与呈现归调用方。端口无法判定时返回 `unknown`，不返回空集合。当前合法集合为空时返回空列表。 |
 | `SkillAccess` | 描述、读取与导出一份 Skill | `describe(access, scope, capability, { basis? })`、`read(access, scope, target, { basis?, range?, signal? })`、`list(access, scope, capability, { basis? })`、`export(access, scope, capability, basis)`。`basis` 是 `SkillMaterialBasis`，`range` 是字节范围 | 每个操作都显式带作用域。每次操作现场核验，不用缓存代替。不带Skill 材料依据时读当时的合法版本，带Skill 材料依据时固定该版本。Skill 材料依据不授予访问，也不指定包的位置。资源按包内路径寻址。不拼版本。不激活，不执行。 |
 
 本组不为「Skill 取用」新增统一语言词条：领域页已用「方法与资源取用」称呼这一责任，`SkillAccess` 只是服务接口名。
 
-纯函数没有端口，可以穷举测试：`parseSkillPackage`、`toPackagePath`、`computeDigest`、`inferMediaType`、`evaluateAvailability`、`projectAssetBody`。`projectAssetBody` 从 `SkillDefinition` 派生资产正文的声明投影，包括 `package.digest`，见[资产正文与 Skill 包](#资产正文与-skill-包)。
+纯函数没有端口，可以穷举测试：`parseSkillPackage`、`toPackagePath`、`computeDigest`、`inferMediaType`、`projectAssetBody`。`projectAssetBody` 从 `SkillDefinition` 派生资产正文的声明投影，包括 `package.digest`，见[资产正文与 Skill 包](#资产正文与-skill-包)。
 
 Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 交出包字节，脚本身份是能力标识加入口的包内路径。本组没有执行脚本的服务，见 [Q-SK04](#q-sk04-脚本桥接的发起控制和原结果协议)。
 
@@ -298,7 +290,7 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 
 `SkillCatalog` 只读 `SkillResolution.adopted` 给出的当前合法集合。集合为空时返回空列表，这不是失败。对集合中的每个身份，`SkillCatalog` 先经 `SkillReadCheck.check` 核验该主体能读它。答 `refused` 的身份不进入结果，不披露它存在。任一身份答 `unknown` 时，整次操作返回 `unknown`，不把未知压成空。
 
-核验之后，`SkillCatalog` 经 `RequirementFacts` 取得必需工具名是否在场，再用 `evaluateAvailability` 求出可用性与缺项。全部必需项满足才是可用。已知不可用的身份保留，并带替换件原因。从未取得的身份不出现。常驻不归本组，本组不按常驻筛选。`search` 按 name 与说明找当前合法集合中该主体可读的身份。MCP 动作不进入 Skill 的能力标识组合。可有可无的条件不进依赖声明，在使用时探测。
+核验之后，`SkillCatalog` 按 `SkillResolution.adopted` 的答复组装摘要条目。答 `adopted` 的身份带资产正文声明投影中的依赖声明。答 `known-unavailable` 的身份保留，带最后合法的 name、说明与替换件原因。从未取得的身份不出现。`SkillCatalog` 不判定依赖在不在场，也不求可用性。这些归调用方。常驻不归本组，本组不按常驻筛选。`search` 按 name 与说明找当前合法集合中该主体可读的身份。MCP 动作不进入 Skill 的能力标识组合。可有可无的条件不进依赖声明，在使用时探测。
 
 | 决定 | 守则 | 依据层 |
 | --- | --- | --- |
@@ -337,7 +329,7 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 1. 调用方带了Skill 材料依据时，Skill 先比较依据中的能力标识与目标能力标识。两者不等时，Skill 在内部判为 `bad-basis`，对外返回 `not-available-to-you`，不披露差异原因。这一步不调用端口。
 2. 经 `SkillReadCheck.check` 核验该主体此刻能读这个能力标识。历史依据、缓存或此前的成功都不代替这次核验。
 3. 经 `SkillResolution.resolve` 确认对应的材料。`resolve` 的答复次序见[端口](#端口)：先判 `known-unavailable`，再判 `adopted`。带Skill 材料依据时，把依据交给 `resolve` 核对，答 `basis-not-lawful` 时返回 `basis-unavailable`。包定位只取自 `resolve` 交来的 `SkillRef`。
-4. `describe` 到此为止，不读字节。它用 `resolve` 交来的声明投影，经 `RequirementFacts` 求出缺项。`SkillRef` 没有内容摘要时，`describe` 的结果不带Skill 材料依据，并标明「没有可读的包」。
+4. `describe` 到此为止，不读字节。它交出 `resolve` 交来的声明投影。`SkillRef` 没有内容摘要时，`describe` 的结果不带Skill 材料依据，并标明「没有可读的包」。
 5. `read`、`list` 与 `export` 先看 `SkillRef` 有没有内容摘要。没有时（资产正文缺 `package.digest`）返回 `unsupported`，带不带Skill 材料依据都一样。有时定下所钉材料的内容摘要：带Skill 材料依据时是依据中的内容摘要，否则是 `SkillRef` 的内容摘要。
 6. `read` 经 `toPackagePath` 校验目标。目标不是合法的包内路径时返回 `bad-path`。
 7. 经 `SkillPackageSource.snapshot(locator)` 取得当前快照。快照的内容摘要不等于所钉材料的内容摘要时：带Skill 材料依据返回 `basis-unavailable`，不带Skill 材料依据返回 `adopted-material-changed`。
@@ -345,15 +337,14 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 9. `read` 在快照条目里找目标路径。路径不在快照条目里时，返回 `resource-missing`。
 10. 经 `SkillPackageSource.open(locator, digest, path)` 取得条目字节。`digest` 是所钉材料的内容摘要。Skill 算出字节的内容摘要，与快照中该条目的内容摘要比较。不符时返回 `version-changed`，不交新内容。`export` 对快照中的每个条目都做这一步。
 11. 核对通过后，`read` 按请求的字节范围截取内容。
-12. 只有 `read` 读正文或 `export` 导出全部条目、正文字节已经核对通过时，才经 `RequirementFacts` 核对必需工具名，见 [Q-SK08 分支](#q-sk08-分支)。
 
-第 7 步与第 10 步的端口失败按[端口](#端口)的映射表转换。
+第 7 步与第 10 步的端口失败按[端口](#端口)的映射表转换。依赖在不在场、脚本有没有所需的设施，都不进入上面的步骤，依据见[负责人的裁定](#q-sk08-依赖或设施不足时的正文读取)。
 
 `read` 在调用每个端口之前检查 `signal`。调用方中止后，`read` 不再调用端口，也不交部分内容。中止结果的表示归 `@omne-harness/skill` 的规格。
 
 一次分页读取是一次独立的操作，重走上面全部步骤。带同一Skill 材料依据的各页都对同一Skill 包快照的内容摘要核对，所以各页不会拼成两个版本。不带Skill 材料依据的各页可能读到不同的合法版本。每页结果的Skill 材料依据如实标出它读的版本。
 
-`describe` 返回能力标识、来源层、Skill 材料依据、可用性、依赖声明与缺项、脚本声明（入口、运行种类、设施需要、参数形状）、设置声明（名字、类别），以及资源寻址规则。这些声明都来自资产正文的声明投影，所以 `describe` 不读包字节，也不报 `source-unavailable`。资产正文缺 `package.digest` 时，`describe` 照常交出声明，结果不带Skill 材料依据，并标明「没有可读的包」。`describe` 带Skill 材料依据时，交出依据所指材料的声明。`describe` 只交设置声明，不交设置值，也不收「用途」参数。设置值的求值与交付、脚本的执行资格都不归本组。
+`describe` 返回能力标识、来源层、Skill 材料依据、依赖声明、脚本声明（入口、运行种类、设施需要、参数形状）、设置声明（名字、类别），以及资源寻址规则。这些声明都来自资产正文的声明投影，所以 `describe` 不读包字节，也不报 `source-unavailable`。资产正文缺 `package.digest` 时，`describe` 照常交出声明，结果不带Skill 材料依据，并标明「没有可读的包」。`describe` 带Skill 材料依据时，交出依据所指材料的声明。`describe` 只交设置声明，不交设置值，也不收「用途」参数。设置值的求值与交付、依赖在不在场、脚本的执行资格都不归本组。
 
 `read` 的 `target` 指明能力标识，以及正文或一个资源的包内路径。`read` 返回内容、Skill 材料依据、包内路径、媒体类型、实际字节范围、总长与 `complete` 标记。正文与资源分开读取。
 
@@ -392,24 +383,6 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 | 包内链接解析后落在包根之外时报 `outside-package` | G5 | 产品 J-SK03「包外目标」 |
 | 作用域是类型参数，由调用方给出，Skill 不解释。`SkillRef` 不带作用域 | G2 | 架构 [外域概念的进入方式](../../../docs/architecture/layers-and-dependencies.md#外域概念的进入方式)「只需关联、追溯或交回原位置」一行 |
 
-### Q-SK08 分支
-
-下列条件同时成立时，读取正文的 `read` 与导出全部条目的 `export` 返回 `undecided`：
-
-- `SkillReadCheck` 给出 `granted`。
-- `SkillResolution` 给出 `adopted`：能力标识对该主体合法对应，未禁用，未卸载。
-- Skill 包来源交出正文，且正文字节已经按条目内容摘要核对通过。
-- `RequirementFacts` 表明有必需工具缺席。
-
-第一波只按必需工具依赖判定这一条件。脚本的设施需要随 `describe` 交出。设施是否齐备不由 Skill 判定，不进入这一判断。`export` 交出的条目含正文，所以同一条件也适用于它。
-
-`undecided` 既不交正文，也不交替换件。它说明这一分支等待产品负责人裁定 [Q-SK08](../../../.meta_harness/design/product/skills/design.md#q-sk08-只有依赖或脚本设施不足时正文是否仍可读取)。本组不选默认。资源读取与 `list` 在同一条件下照常返回。`describe` 照常返回缺项。裁定之后，`undecided` 退出，结果改为裁定的那一种。
-
-| 决定 | 守则 | 依据层 |
-| --- | --- | --- |
-| 定案前该分支返回 `undecided`，不交正文，也不交替换件 | G5 | 产品 [J-SK03](../../../.meta_harness/design/product/skills/design.md#j-sk03-按需读取正文或指定资源)「不以默认结果补齐缺口」 |
-| 只有正文读取与含正文的导出返回 `undecided`。资源读取、`list` 与 `describe` 照常，不扩大待裁范围 | G5 | 产品 Q-SK08 只问正文是否仍可读取；Q-SK08 已知约束「发现仍保留已知身份并说明缺项」「缺项条件下不能发起依赖该项的原脚本执行」 |
-
 ## 失败种类
 
 `SkillFailure` 是下表的判别联合。部分结果不是失败：成功结果用 `complete` 与实际字节范围标出。
@@ -426,8 +399,7 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 | `version-changed` | 来源交出的字节与快照中的条目内容摘要不符，或来源答 `bytes-mismatch`。`inspect` 途中字节不符也是这一种。不交新内容。 | 产品 J-SK03「读取与更新竞争」 |
 | `source-unavailable` | Skill 包来源此刻不可达，或不带Skill 材料依据时来源找不到包。`inspect` 途中来源答 `package-not-found`、`entry-not-found` 或 `unavailable` 也是这一种。 | 产品 [J-SK01](../../../.meta_harness/design/product/skills/design.md#j-sk01-将合法方法来源交给消费者)「来源不可读……不能当作空方法」 |
 | `unsupported` | 请求超出支持范围，例如无法表示的二进制条目、尚未支持的格式方言，或资产正文缺 `package.digest` 时的 `read`、`list` 与 `export`。 | 产品 J-SK03「按实际支持能力说明」 |
-| `undecided` | 只用于正文读取与含正文的导出：满足 [Q-SK08 分支](#q-sk08-分支)的全部条件。等待产品裁定，不交正文，也不交替换件。 | 产品 [Q-SK08](../../../.meta_harness/design/product/skills/design.md#q-sk08-只有依赖或脚本设施不足时正文是否仍可读取) |
-| `unknown` | 端口此刻无法判定读取权、对应或依赖事实。`SkillCatalog` 中任一身份的读取权无法判定时，整次操作也是这一种。不压成拒绝，不压成空集合，也不压成成功。 | 架构 [隔离语义，不隐藏责任](../../../docs/architecture/layers-and-dependencies.md#隔离语义不隐藏责任)「不能把未知压成失败」 |
+| `unknown` | 端口此刻无法判定读取权或对应。`SkillCatalog` 中任一身份的读取权无法判定时，整次操作也是这一种。不压成拒绝，不压成空集合，也不压成成功。 | 架构 [隔离语义，不隐藏责任](../../../docs/architecture/layers-and-dependencies.md#隔离语义不隐藏责任)「不能把未知压成失败」 |
 
 拒绝不回退为另一份 Skill、任意 Shell 或更弱的落点。
 
@@ -449,7 +421,7 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 
 | 需求 | 服务含义 | 失败种类 | 交接边界 |
 | --- | --- | --- | --- |
-| SK-D01 | `describe` 返回能力标识、来源层、Skill 材料依据、可用性、依赖声明与缺项、脚本声明、设置声明、资源寻址规则，不加载正文，不读包字节。资产正文缺 `package.digest` 时，结果不带Skill 材料依据，并标明「没有可读的包」 | `not-available-to-you`、`unavailable-stand-in`、`unknown` | 描述是当前事实的一次读取，不授予后续读取 |
+| SK-D01 | `describe` 返回能力标识、来源层、Skill 材料依据、依赖声明、脚本声明、设置声明、资源寻址规则，不加载正文，不读包字节。资产正文缺 `package.digest` 时，结果不带Skill 材料依据，并标明「没有可读的包」 | `not-available-to-you`、`unavailable-stand-in`、`unknown` | 描述是当前事实的一次读取，不授予后续读取 |
 | SK-D02 | `read` 返回Skill 材料依据、包内路径、媒体类型、实际字节范围、总长与 `complete`。正文与资源分开读。资产正文缺 `package.digest` 时返回 `unsupported` | `bad-path`、`outside-package`、`resource-missing`、`unsupported` | 只交请求的内容，不自动读全部资源，不执行脚本 |
 | SK-D03 | 调用方带上此前结果给出的Skill 材料依据时，`read` 与 `list` 固定该版本。每次读取先比较Skill 包快照的内容摘要，再按条目内容摘要核对字节 | `basis-unavailable`、`adopted-material-changed`、`version-changed`、`not-available-to-you` | 能保留旧材料的来源交出旧材料，保留不了的报失败，不用新材料冒充 |
 | SK-D04 | 每个操作都经 `SkillReadCheck` 与 `SkillResolution` 现场判定。调用方带回的Skill 材料依据也由 `SkillResolution` 核对，包定位由它当场给出 | `not-available-to-you`、`unavailable-stand-in`、`basis-unavailable`、`unknown` | 读取权不缓存，历史依据不代替判定，也不授予访问 |
@@ -457,20 +429,19 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 | SK-D06 | 见[失败种类](#失败种类) | 全部种类 | 对无权主体不披露身份是否存在。部分结果不是失败 |
 | SK-D07 | `skill-access` 的应用服务只依赖本组纯契约与公共值成员，不依赖 Cordis。`@omne-harness/skill/testing` 导出 `SkillPackageSource`、`SkillAccess`、`SkillReadCheck` 与 `SkillResolution` 的符合性套件，以及内存来源 | 不新增失败种类 | 访问上下文与作用域由调用方显式传入，依据层：要求 [SYS-OPEN](../../../docs/requirements.md#独立使用与替换sys-open) |
 
-表中各决定的产品与架构依据层，见上文[读取](#读取)、[失败种类](#失败种类)与 [Q-SK03](#q-sk03-两条内容采用路径与可靠交接协议)的决定表。Q-SK08 那一支见 [Q-SK08 分支](#q-sk08-分支)。在裁定之前，独立消费者的首条组合验收只走依赖齐备的路径。
+表中各决定的产品与架构依据层，见上文[读取](#读取)、[失败种类](#失败种类)与 [Q-SK03](#q-sk03-两条内容采用路径与可靠交接协议)的决定表。
 
 ### 剩余义务与拥有者
 
 | 未支持或待做 | 拥有者 | 第一波怎样处理 |
 | --- | --- | --- |
 | 与独立消费者内容交接类型的字段与行为映射页 | 集成方，即消费者一侧，依据层：架构[外域概念的进入方式](../../../docs/architecture/layers-and-dependencies.md#外域概念的进入方式)「集成方知道被集成方」。候选决定 | Skill 只维护自己的公开契约 |
-| 四个需求端口的真实实现，包括能交出旧版本的内容存储来源 | 端口的实现一侧，由谁实现见[领域交接设计](../../../docs/domains/skills/architecture.md) | 只交端口与符合性测试。替身通过不说成读取权、解析或耐久已验证。第一波的真实来源只有本机目录 |
+| 三个需求端口的真实实现，包括能交出旧版本的内容存储来源 | 端口的实现一侧，由谁实现见[领域交接设计](../../../docs/domains/skills/architecture.md) | 只交端口与符合性测试。替身通过不说成读取权、解析或耐久已验证。第一波的真实来源只有本机目录 |
 | `SkillResolution` 的实现让 `SkillRef` 带Skill 包快照的内容摘要。具名剩余义务，见[领域交接设计「剩余义务」](../../../docs/domains/skills/architecture.md#剩余义务) | 端口的实现一侧 | 没有内容摘要时，`describe` 不带Skill 材料依据，`read`、`list` 与 `export` 返回 `unsupported` |
 | 摘要与检索（P1） | 本组 `SkillCatalog`，第一波之后 | 不阻塞已知精确引用的首条旅程 |
 | 导出（P1） | 本组 `SkillAccess.export`，第一波之后 | 第一波不交 |
 | 摘要怎样排序、怎样进入提示词，集合修订与常驻 | 不归本组，归集成方 | Skill 只交摘要数据 |
 | 合法更新、显式增量装载与版本变化观察（P1） | 不归本组。变化事件首版不做 | 调用方重新 `describe` 观察变化 |
-| Q-SK08 裁定后，若正文读取结果要按脚本设施区分 | 本组技术拥有者，在产品裁定之后另提一个需求端口问题 | 第一波只按必需工具判定 |
 
 P1 各项来自独立消费者的需求。版本变化观察的首版范围是：调用方能明确重读当前依据，不要求新增耐久订阅服务。
 
@@ -576,6 +547,15 @@ P1 各项来自独立消费者的需求。版本变化观察的首版范围是�
 | 剩余义务 | 拥有者 |
 | --- | --- |
 | 记录、统计与查询的精确字段和相称验证 | 记录归 Tool |
+
+### Q-SK08 依赖或设施不足时的正文读取
+
+技术处置：负责人已裁定（2026-11-03），读取与工具、脚本所需的设施无关。产品 Q-SK08 随[产品页](../../../.meta_harness/design/product/skills/design.md)修订关闭。
+
+| 候选决定 | 依据层 |
+| --- | --- |
+| 读取只受读取权、`SkillResolution` 的答复与材料一致性约束。`SkillResolution` 答 `known-unavailable`（禁用、卸载或失去选入）时，Skill 返回 `unavailable-stand-in`。依赖在不在场、脚本有没有所需的设施，不改变读取结果 | 负责人裁定（2026-11-03）；G1 |
+| 本组没有回答依赖在不在场的需求端口，不求可用性，也没有待裁的失败种类。`describe` 与 `SkillCatalog` 只交依赖声明。依赖在不在场、一份 Skill 此刻能不能用，由调用方判定 | 负责人裁定（2026-11-03）；G1、G2 |
 
 ## 完整行为候选的正式承接缺口
 
