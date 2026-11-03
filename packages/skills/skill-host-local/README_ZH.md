@@ -32,30 +32,42 @@ if ('ok' in snapshot)
 
 来源只经 `DirectoryFs` 的四个读操作访问文件系统。它按错误的 `code` 字段分类拒绝，不解析错误消息。表中没有列出的 `code` 答 `unavailable`。不带字符串 `code` 的错误不是文件系统的答复：`snapshot` 或 `open` 以这个错误拒绝。
 
-| 情形                                                                        | `snapshot`          | `open`              |
-| --------------------------------------------------------------------------- | ------------------- | ------------------- |
-| `content-store` 定位                                                        | `package-not-found` | `package-not-found` |
-| 根目录不在或不是目录（`ENOENT`、`ENOTDIR`）                                 | `package-not-found` | `package-not-found` |
-| 根目录解析为文件系统的根 `/`                                                | `package-not-found` | `package-not-found` |
-| 根目录不可读（`EACCES`、`EIO` 与其他 code）                                 | `unavailable`       | `unavailable`       |
-| 条目是设备、管道或套接字                                                    | `entry-unreadable`  | —                   |
-| 链接悬空或成环（`ENOENT`、`ELOOP`），或指向根目录、指向包内位于它之上的目录 | `entry-unreadable`  | —                   |
-| 链接或它解析到的对象不可读（`EACCES`、`EPERM`、`EIO`、`ENOTDIR`）           | `entry-unreadable`  | —                   |
-| 包内的文件或目录不可读（`EACCES`、`EPERM`、`EIO`）                          | `entry-unreadable`  | —                   |
-| 文件名连不成合法的包内路径，或接缝把一个名字列出两次                        | `entry-unreadable`  | —                   |
-| 列出的文件在读之前消失（`ENOENT`）                                          | `unavailable`       | —                   |
-| 链接解析后落在解析后的根目录之外                                            | `outside-package`   | —                   |
-| 路径不在、在文件之下或是目录（`ENOENT`、`ENOTDIR`、`EISDIR`）               | —                   | `entry-not-found`   |
-| 路径解析后落在解析后的根目录之外                                            | —                   | `outside-package`   |
-| 文件不可读（`EACCES`、`EPERM`、`EIO`、管道）                                | —                   | `unavailable`       |
+| 情形                                                                                        | `snapshot`          | `open`              |
+| ------------------------------------------------------------------------------------------- | ------------------- | ------------------- |
+| `content-store` 定位                                                                        | `package-not-found` | `package-not-found` |
+| 根目录不在或不是目录（`ENOENT`、`ENOTDIR`）                                                 | `package-not-found` | `package-not-found` |
+| 根目录解析为文件系统的根 `/`，或解析为不是 UTF-8 的路径                                     | `package-not-found` | `package-not-found` |
+| 根目录不可读（`EACCES`、`EIO` 与其他 code）                                                 | `unavailable`       | `unavailable`       |
+| 条目是设备、管道或套接字                                                                    | `entry-unreadable`  | —                   |
+| 列出的名字或条目解析后的路径不是严格的 UTF-8                                                | `entry-unreadable`  | —                   |
+| 文件名连不成合法的包内路径，或接缝把一个名字列出两次                                        | `entry-unreadable`  | —                   |
+| 链接悬空：所指对象不在，链接自己还在                                                        | `entry-unreadable`  | —                   |
+| 链接成环（`ELOOP`），或指向根目录、指向包内位于它之上的目录                                 | `entry-unreadable`  | —                   |
+| 条目无法解析，或读不出解析结果的种类（`ELOOP`、`ENOTDIR`、`EACCES`、`EPERM`、`EIO`）        | `entry-unreadable`  | —                   |
+| 目录无法列出，或文件无法打开（`EACCES`、`EPERM`、`EIO`、`ENXIO`）                           | `entry-unreadable`  | —                   |
+| 文件在来源核对之后被换成链接（来源打开它时得到 `ELOOP`）                                    | `entry-unreadable`  | —                   |
+| 来源打开文件，得到的既不是普通文件也不是目录                                                | `entry-unreadable`  | —                   |
+| 一次遍历访问的名字超过 65536 个                                                             | `entry-unreadable`  | —                   |
+| 条目、链接或解析结果在列出之后消失（`ENOENT`）                                              | `unavailable`       | —                   |
+| 来源打开文件，得到的是目录：遍历期间目录树变了                                              | `unavailable`       | —                   |
+| 条目解析后落在解析后的根目录之外                                                            | `outside-package`   | —                   |
+| 路径不在或在文件之下（`ENOENT`、`ENOTDIR`），是目录，或解析为不是 UTF-8 的路径              | —                   | `entry-not-found`   |
+| 路径解析后落在解析后的根目录之外                                                            | —                   | `outside-package`   |
+| 文件无法打开（`EACCES`、`EPERM`、`EIO`、`ELOOP` 与其他 code），或是管道等不是普通文件的对象 | —                   | `unavailable`       |
 
 其他规则：
 
 - 根目录自己是链接时，来源以它所指的目录为根。根名是那个目录的最后一段。
+- 名字在文件系统上是字节。来源把每个名字和每个解析后的路径按严格的 UTF-8 解码。名字开头的 BOM 留在名字里。
+- 每个条目都走同样的步骤，与列出时报告的种类无关：来源先解析它，核对解析结果在根内，再读解析结果的种类，然后遍历或读取。
 - 一个路径等于根，或它的各段以根的各段开头时，它在根内。来源比较整段，不比较字符串前缀。
+- 来源打开文件时不跟随最后一段的链接，也不等待写者。文件在核对之后被别的写者换成链接时，来源拒绝它。
+- 一次遍历最多访问 65536 个名字。计数包括每次列出的每个名字，链接多次到达同一目录时也计入。不成环的链接也能使访问次数倍增：每层两个链接指向下一层，深度 n 时访问 2^n 次。字节总量不设上限，因为契约本来就把整个包读进内存。
 - 隐藏文件与 `.omne` 目录是普通内容。目录（包括空目录）不是条目。
-- 来源在每个目录内按名字的 UTF-16 码元序遍历，遇到第一个失败就停止。所以有两处缺陷的包总是得到同一个答复。
+- 遍历是深度优先的。在每个目录内，来源按名字的 UTF-16 码元序访问，遇到第一个失败就停止。列出的名字中有不是 UTF-8 的，这次列出在访问任何名字之前就失败。所以有两处缺陷的包总是得到同一个答复。
 - `open` 读此刻的字节。本来源不按内容摘要存放字节，所以它不使用 `digest` 参数。调用方用条目内容摘要核对字节。文件在取快照之后被改时，`open` 交出新字节。
+
+来源不保护包免受读取期间修改包目录的写者影响。仍有一个窗口：写者在核对之后、打开之前，把解析后路径上的某个目录换成链接，打开会跟随这个链接，因为 Node.js 打开一个路径时无法不跟随中间各段的链接。目录在列出之前变成链接时，来源只得到名字，并在读取任何内容之前逐个核对名字是否在根内。
 
 本行为的其他规则归 [SPEC.md](SPEC.md)。
 
@@ -65,11 +77,11 @@ if ('ok' in snapshot)
 
 ## 设计
 
-三个模块完成工作。`fs.ts` 提供文件系统接缝及其基于 `node:fs/promises` 的默认实现。`walk.ts` 读根目录、遍历目录、解析链接、做根内判定，并分类每种拒绝。`directory-source.ts` 把遍历接到 `sealSnapshot` 与两个端口操作上。见 [docs/architecture.md](docs/architecture.md)。
+三个模块完成工作。`fs.ts` 提供文件系统接缝及其基于 `node:fs/promises` 的默认实现。接缝只做读取：它以字节交出名字与路径，并报告打开的对象是什么种类。`walk.ts` 读根目录、遍历目录、解析每个条目、做根内判定、计数访问，并分类每种答复与拒绝。`directory-source.ts` 把遍历接到 `sealSnapshot` 与两个端口操作上。见 [docs/architecture.md](docs/architecture.md)。
 
 ## 配置与运行
 
-唯一的选项是文件系统接缝 `fs`，默认读真实文件系统。来源只读，没有状态，所以进程重启不改变答复。快照不是原子的：遍历期间别的写者修改目录时，快照可能混合新旧内容。调用方用条目内容摘要发现之后的修改。来源不限制文件大小、条目数量或目录链接展开后的规模。
+唯一的选项是文件系统接缝 `fs`，默认读真实文件系统。来源只读，没有状态，所以进程重启不改变答复。快照不是原子的：遍历期间别的写者修改目录时，快照可能混合新旧内容。调用方用条目内容摘要发现之后的修改。一次遍历最多访问 65536 个名字。来源不限制单个文件的大小或字节总量。
 
 ## 验证
 

@@ -7,14 +7,17 @@
 ```text
 调用方 ──snapshot({kind:'directory', root})──▶ directory-source
   directory-source ──collect(fs, root)──▶ walk
-    walk ──realpath(root)──▶ DirectoryFs          失败：ROOT 表
-    walk：根名为空 ─────────────────────────────▶ package-not-found
-    walk ──readdir(根)──▶ DirectoryFs             失败：ROOT 表
-    对每个名字（码元序）：
-      链接   ──realpath──▶ 根内判定 ──lstat──▶ 文件：readFile；目录：下降
-      目录   ──（不在祖先中）readdir──▶ 下降
-      文件   ──isPackagePath──▶ readFile         失败：READ 表
-      其他   ─────────────────────────────────────▶ entry-unreadable
+    walk ──realpath(root)，UTF-8 解码，lstat──▶ 根     失败：ROOT 表；根名为空或不是目录 → package-not-found
+    walk ──readdir(根)──▶ 名字的字节                   失败：ROOT 表
+    每次列出：先把全部名字严格解码（失败 → entry-unreadable），再按码元序访问每个名字：
+      访问计数 +1，超过 65536 ───────────────────────▶ entry-unreadable
+      realpath(条目)，UTF-8 解码                       失败：RESOLVE 表；ENOENT 时 lstat 条目自己：
+                                                         还在 → entry-unreadable，不在 → unavailable
+      根内判定 ──────────────────────────────────────▶ 不在根内 → outside-package
+      lstat(解析结果)                                   失败：RESOLVE 表
+        目录 ──（不在祖先中，否则 entry-unreadable）readdir──▶ 下降   失败：READ 表
+        文件 ──isPackagePath──▶ readFile（O_NOFOLLOW）  失败：READ 表；打开的是目录 → unavailable，其他 → entry-unreadable
+        其他 ────────────────────────────────────────▶ entry-unreadable
     第一个失败结束遍历
   directory-source ──sealSnapshot(rootName, files)──▶ 快照或缺陷映射
 调用方 ◀── 快照，或一种来源失败
@@ -27,10 +30,10 @@
 ```text
 调用方 ──open({kind:'directory', root}, digest, path)──▶ directory-source
   directory-source ──readEntry(fs, root, path)──▶ walk
-    walk ──realpath(root)──▶ 根                  失败：ROOT 表
-    walk ──realpath(根/path)──▶ 目标              失败：OPEN 表
-    目标不在根内 ─────────────────────────────────▶ outside-package
-    walk ──readFile(目标)──▶ 字节                 失败：OPEN 表
+    walk ──realpath(root)，UTF-8 解码，lstat──▶ 根     失败：ROOT 表
+    walk ──realpath(根/path)，UTF-8 解码──▶ 目标        失败：OPEN 表；不是 UTF-8 → entry-not-found
+    目标不在根内 ─────────────────────────────────────▶ outside-package
+    walk ──readFile(目标，O_NOFOLLOW)──▶ 字节           失败：OPEN 表；打开的是目录 → entry-not-found，其他 → unavailable
 调用方 ◀── 此刻的字节，或一种来源失败
 ```
 

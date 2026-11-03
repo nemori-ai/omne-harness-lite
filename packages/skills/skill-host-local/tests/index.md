@@ -11,8 +11,11 @@
 - [permissions.spec.ts](permissions.spec.ts)：经注入接缝的权限类失败与错误分类
 - [open.spec.ts](open.spec.ts)：`open` 对目录、文件之下的路径与管道的答复
 - [race.spec.ts](race.spec.ts)：取快照后修改，无缓存
+- [swap.spec.ts](swap.spec.ts)：读取期间条目被换成根外链接
+- [encoding.spec.ts](encoding.spec.ts)：不是 UTF-8 的名字与路径，名字开头的 BOM
+- [budget.spec.ts](budget.spec.ts)：一次遍历的访问预算，内存中的目录树
 - [types.spec-d.ts](types.spec-d.ts)：失败类型封闭与运行时导出
 - [public-entry.spec.ts](public-entry.spec.ts)：公开入口的运行时导出
 - [scratch.ts](scratch.ts)：临时目录与目录树的测试辅助
-- [fs-double.ts](fs-double.ts)：可注入拒绝的文件系统接缝
+- [fs-double.ts](fs-double.ts)：包装默认接缝、可注入拒绝的文件系统接缝
 - [fixtures/](fixtures/index.md)：测试固定输入（不适用）

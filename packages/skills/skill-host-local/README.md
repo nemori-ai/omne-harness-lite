@@ -32,30 +32,42 @@ The example [examples/inspect-directory.ts](examples/inspect-directory.ts) takes
 
 The source reads the file system only through the four reads of `DirectoryFs`. It classifies a refusal by the `code` field of the error, not by the message text. A code that the table does not list gives `unavailable`. An error without a string `code` is not a file system answer: `snapshot` or `open` rejects with that error.
 
-| Situation                                                                                                            | `snapshot`          | `open`              |
-| -------------------------------------------------------------------------------------------------------------------- | ------------------- | ------------------- |
-| A `content-store` locator                                                                                            | `package-not-found` | `package-not-found` |
-| The root is absent or is not a directory (`ENOENT`, `ENOTDIR`)                                                       | `package-not-found` | `package-not-found` |
-| The root resolves to the file system root `/`                                                                        | `package-not-found` | `package-not-found` |
-| The root cannot be read (`EACCES`, `EIO`, other codes)                                                               | `unavailable`       | `unavailable`       |
-| An entry is a device, a pipe or a socket                                                                             | `entry-unreadable`  | —                   |
-| A link dangles or forms a cycle (`ENOENT`, `ELOOP`), or points to the root or to a directory above it in the package | `entry-unreadable`  | —                   |
-| A link or the object it resolves to cannot be read (`EACCES`, `EPERM`, `EIO`, `ENOTDIR`)                             | `entry-unreadable`  | —                   |
-| A file or a directory inside the package cannot be read (`EACCES`, `EPERM`, `EIO`)                                   | `entry-unreadable`  | —                   |
-| A file name gives no legal package path, or the seam lists one name twice                                            | `entry-unreadable`  | —                   |
-| A listed file vanished before the source read it (`ENOENT`)                                                          | `unavailable`       | —                   |
-| A link resolves outside the resolved root                                                                            | `outside-package`   | —                   |
-| The path is absent, is below a file, or is a directory (`ENOENT`, `ENOTDIR`, `EISDIR`)                               | —                   | `entry-not-found`   |
-| The path resolves outside the resolved root                                                                          | —                   | `outside-package`   |
-| The file cannot be read (`EACCES`, `EPERM`, `EIO`, a pipe)                                                           | —                   | `unavailable`       |
+| Situation                                                                                                                                | `snapshot`          | `open`              |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | ------------------- |
+| A `content-store` locator                                                                                                                | `package-not-found` | `package-not-found` |
+| The root is absent or is not a directory (`ENOENT`, `ENOTDIR`)                                                                           | `package-not-found` | `package-not-found` |
+| The root resolves to the file system root `/`, or to a path that is not UTF-8                                                            | `package-not-found` | `package-not-found` |
+| The root cannot be read (`EACCES`, `EIO`, other codes)                                                                                   | `unavailable`       | `unavailable`       |
+| An entry is a device, a pipe or a socket                                                                                                 | `entry-unreadable`  | —                   |
+| A name in a listing, or the resolved path of an entry, is not strict UTF-8                                                               | `entry-unreadable`  | —                   |
+| A file name gives no legal package path, or the seam lists one name twice                                                                | `entry-unreadable`  | —                   |
+| A link dangles: its target is missing and the link is still there                                                                        | `entry-unreadable`  | —                   |
+| A link forms a cycle (`ELOOP`), or points to the root or to a directory above it in the package                                          | `entry-unreadable`  | —                   |
+| An entry cannot be resolved, or the kind of what it resolves to cannot be read (`ELOOP`, `ENOTDIR`, `EACCES`, `EPERM`, `EIO`)            | `entry-unreadable`  | —                   |
+| A directory cannot be listed or a file cannot be opened (`EACCES`, `EPERM`, `EIO`, `ENXIO`)                                              | `entry-unreadable`  | —                   |
+| Another writer replaced a file by a link after the source checked it (`ELOOP` when the source opens it)                                  | `entry-unreadable`  | —                   |
+| The source opens a file and finds an object that is not a regular file and not a directory                                               | `entry-unreadable`  | —                   |
+| The walk visits more than 65536 names                                                                                                    | `entry-unreadable`  | —                   |
+| An entry, a link, or what it resolves to vanished after the listing (`ENOENT`)                                                           | `unavailable`       | —                   |
+| The source opens a file and finds a directory, because the tree changed during the walk                                                  | `unavailable`       | —                   |
+| An entry resolves outside the resolved root                                                                                              | `outside-package`   | —                   |
+| The path is absent or is below a file (`ENOENT`, `ENOTDIR`), is a directory, or resolves to a path that is not UTF-8                     | —                   | `entry-not-found`   |
+| The path resolves outside the resolved root                                                                                              | —                   | `outside-package`   |
+| The file cannot be opened (`EACCES`, `EPERM`, `EIO`, `ELOOP`, other codes), or it is a pipe or another object that is not a regular file | —                   | `unavailable`       |
 
 More rules:
 
 - When the root is a link, the source uses the directory that it points to as the root. The root name is the last segment of that directory.
+- Names are bytes on the file system. The source decodes each name and each resolved path as strict UTF-8. A byte order mark at the start of a name stays in the name.
+- Every entry takes the same steps, whatever kind the listing reports. The source resolves the entry and checks that the result is inside the root. Then it reads the kind of the result and walks or reads it.
 - A path is inside the root when it equals the root or when its segments start with the segments of the root. The source compares whole segments, not string prefixes.
+- The source opens a file without following a final link and without waiting for a writer. When another writer replaces a file by a link after the check, the source refuses the file.
+- One walk visits at most 65536 names. The count includes every name of every listing, also when links reach one directory many times. Links without a cycle can multiply the visits: two links per level to the next level give 2^n visits at depth n. The source sets no limit on the total size of the bytes, because the contract reads a whole package into memory.
 - Hidden files and the `.omne` directory are ordinary content. Directories, empty ones included, are not entries.
-- The source walks each directory in UTF-16 code unit order of the names and stops at the first failure. A package with two faults always gives the same answer.
+- The walk is depth first. Inside each directory it takes the names in UTF-16 code unit order and stops at the first failure. A listing with a name that is not UTF-8 fails before the source visits any of its names. A package with two faults always gives the same answer.
 - `open` reads the bytes that are there now. It does not use the `digest` argument, because this source does not keep bytes by digest. The caller compares the bytes with the entry digest. When a file changes after the snapshot, `open` gives the new bytes.
+
+The source does not protect a package against a writer that changes the package directory while the source reads it. One window stays open. After the check and before the open, a writer can replace a directory on a resolved path by a link. The open follows that link. Node.js cannot open a path below a directory without following the links on the way. A directory that becomes a link before the source lists it gives only names. The source checks each name against the root before it reads anything.
 
 [SPEC.md](SPEC.md) owns the other rules of this behavior.
 
@@ -65,11 +77,11 @@ The public types in `src/` own the data shapes. The port requirements belong to 
 
 ## Design
 
-Three modules do the work. `fs.ts` gives the file system seam and its default over `node:fs/promises`. `walk.ts` reads the root, walks the directories, resolves links, makes the inside-the-root decision, and classifies every refusal. `directory-source.ts` connects the walk to `sealSnapshot` and to the two port operations. See [docs/architecture.md](docs/architecture.md).
+Three modules do the work. `fs.ts` gives the file system seam and its default over `node:fs/promises`. The seam only reads: it gives names and paths as bytes and reports the kind of each opened object. `walk.ts` reads the root, walks the directories, resolves every entry, makes the inside-the-root decision, counts the visits, and classifies every answer and refusal. `directory-source.ts` connects the walk to `sealSnapshot` and to the two port operations. See [docs/architecture.md](docs/architecture.md).
 
 ## Configuration and operation
 
-The only option is `fs`, the file system seam. The default reads the real file system. The source reads only. It has no state, so a process restart does not change an answer. A snapshot is not atomic: when another writer changes the directory during the walk, the snapshot can mix old and new contents. The caller detects a later change by the entry digests. The source does not limit file size, entry count, or the size of a directory link expansion.
+The only option is `fs`, the file system seam. The default reads the real file system. The source reads only. It has no state, so a process restart does not change an answer. A snapshot is not atomic: when another writer changes the directory during the walk, the snapshot can mix old and new contents. The caller detects a later change by the entry digests. One walk visits at most 65536 names. The source does not limit the size of a file or the total size of the bytes.
 
 ## Verification
 
