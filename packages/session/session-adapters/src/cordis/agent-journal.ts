@@ -531,6 +531,49 @@ export type JournalStateRead =
   | Readonly<{ kind: 'read'; state: DurableJournalState | null }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
+/** The transaction domain of a tenant, or why there is none. */
+type DomainResolution =
+  | Readonly<{ kind: 'ready'; domain: DomainRef }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+/**
+ * Asks the trusted lookup for the transaction domain of `tenant` (its minted text). A throw and an
+ * unregistered tenant are both `unavailable`: nothing is read or written for a tenant without one.
+ */
+async function resolveDomain(
+  lookup: TenantDomainLookup,
+  tenant: string,
+): Promise<DomainResolution> {
+  let found
+  try {
+    found = await lookup.lookup({ tenant })
+  } catch (error) {
+    return { kind: 'unavailable', diagnostic: `the tenant domain lookup threw: ${String(error)}` }
+  }
+  if (found.kind === 'ready') return { kind: 'ready', domain: found.domain }
+  return {
+    kind: 'unavailable',
+    diagnostic:
+      found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
+  }
+}
+
+/**
+ * One storage read of a handler: its output, or null when the storage did not read it or threw.
+ * The caller words what a missing output means; a read here never throws.
+ */
+async function readOutput(
+  storage: SqlStorage,
+  request: Omit<ReadRequest, 'requestKey'>,
+): Promise<JsonValue | null> {
+  try {
+    const result = await storage.read({ ...request, requestKey: randomUUID() })
+    return result.kind === 'read' ? result.output : null
+  } catch {
+    return null
+  }
+}
+
 /** The storage and the trusted domain lookup that a reader of the Agent records needs. */
 export type JournalStateSource = Readonly<{
   storage: SqlStorage
@@ -607,32 +650,17 @@ export async function readJournalState(
   const unread = (diagnostic: string): JournalStateRead => ({ kind: 'unavailable', diagnostic })
   const text = tenantCodec.encode(target.tenant)
   if (!text.ok) return unread('the tenant was not minted by legal-identity')
-  let found
-  try {
-    found = await options.tenantDomainLookup.lookup({ tenant: text.value })
-  } catch (error) {
-    return unread(`the read of the Agent records threw: ${String(error)}`)
-  }
-  if (found.kind !== 'ready')
-    return unread(
-      found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
-    )
-  const domain = found.domain
+  const resolved = await resolveDomain(options.tenantDomainLookup, text.value)
+  if (resolved.kind === 'unavailable') return unread(resolved.diagnostic)
+  const domain = resolved.domain
   const parts = await readParts(
-    async input => {
-      try {
-        const result = await options.storage.read({
-          domain,
-          handler: EXECUTION_RECORD_HANDLERS.parts,
-          protocol: EXECUTION_RECORD_PROTOCOL,
-          requestKey: randomUUID(),
-          input,
-        })
-        return result.kind === 'read' ? result.output : null
-      } catch {
-        return null
-      }
-    },
+    input =>
+      readOutput(options.storage, {
+        domain,
+        handler: EXECUTION_RECORD_HANDLERS.parts,
+        protocol: EXECUTION_RECORD_PROTOCOL,
+        input,
+      }),
     { tenant: text.value, session: target.session },
     only,
   )
@@ -661,31 +689,16 @@ export async function readExecutionInterpretation(
   const unread = (diagnostic: string): InterpretationRead => ({ kind: 'unavailable', diagnostic })
   const text = tenantCodec.encode(target.tenant)
   if (!text.ok) return unread('the tenant was not minted by legal-identity')
-  let found
-  try {
-    found = await options.tenantDomainLookup.lookup({ tenant: text.value })
-  } catch (error) {
-    return unread(`the read of the Agent records threw: ${String(error)}`)
-  }
-  if (found.kind !== 'ready')
-    return unread(
-      found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
-    )
-  const domain = found.domain
-  const read = async (after: string): Promise<JsonValue | null> => {
-    try {
-      const result = await options.storage.read({
-        domain,
-        handler: EXECUTION_RECORD_HANDLERS.executionFacts,
-        protocol: EXECUTION_RECORD_PROTOCOL,
-        requestKey: randomUUID(),
-        input: { tenant: text.value, session: target.session, execution: target.execution, after },
-      })
-      return result.kind === 'read' ? result.output : null
-    } catch {
-      return null
-    }
-  }
+  const resolved = await resolveDomain(options.tenantDomainLookup, text.value)
+  if (resolved.kind === 'unavailable') return unread(resolved.diagnostic)
+  const domain = resolved.domain
+  const read = (after: string): Promise<JsonValue | null> =>
+    readOutput(options.storage, {
+      domain,
+      handler: EXECUTION_RECORD_HANDLERS.executionFacts,
+      protocol: EXECUTION_RECORD_PROTOCOL,
+      input: { tenant: text.value, session: target.session, execution: target.execution, after },
+    })
   const facts = await readFacts(read, target.after)
   if (facts.kind === 'absent') return { kind: 'read', execution: null }
   if (facts.kind === 'unavailable') return facts
@@ -897,28 +910,15 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   async function domainOf(book: Book<P>): Promise<Outcome<DomainRef, Failure>> {
-    let found
-    try {
-      found = await options.tenantDomainLookup.lookup({ tenant: book.tenantText })
-    } catch (error) {
-      return fail(unavailable(`tenant domain lookup threw: ${String(error)}`))
-    }
     // An unregistered tenant is not registered here; nothing is written (assembly page :307).
-    return found.kind === 'ready'
-      ? succeed(found.domain)
-      : fail(
-          unavailable(
-            found.kind === 'unregistered'
-              ? 'the tenant has no transaction domain'
-              : found.diagnostic,
-          ),
-        )
+    const resolved = await resolveDomain(options.tenantDomainLookup, book.tenantText)
+    return resolved.kind === 'ready'
+      ? succeed(resolved.domain)
+      : fail(unavailable(resolved.diagnostic))
   }
 
-  async function read(domain: DomainRef, handler: string, protocol: string, input: JsonValue) {
-    const request: ReadRequest = { domain, handler, protocol, requestKey: randomUUID(), input }
-    const result = await options.storage.read(request)
-    return result.kind === 'read' ? result.output : null
+  function read(domain: DomainRef, handler: string, protocol: string, input: JsonValue) {
+    return readOutput(options.storage, { domain, handler, protocol, input })
   }
 
   /**
