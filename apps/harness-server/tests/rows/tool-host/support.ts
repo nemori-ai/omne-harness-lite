@@ -1,6 +1,17 @@
 // 发行内置 Tool 用例的共用夹具：真实入口对象（核验器、签发者、两个系统主体、发行登记者与来源权威）装在
 // 一个根上下文上，清单取自正式 `config/tool-release.json`。用例只经服务键、模块 `install` 与公开导出调用。
-import { cpSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  lstatSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -81,19 +92,33 @@ export function tree(value: unknown): JsonValue {
   return read.value
 }
 
-/** 已安装 tool-definitions 的副本（`package.json` 与 `dist`），可选地翻转 `dist/index.js` 的一个字节。 */
+/**
+ * 已安装 tool-definitions 的副本（`package.json` 与 `dist`），可选地翻转 `dist/index.js` 的一个字节。副本的
+ * `node_modules` 是指向原包依赖目录的链接（Windows 上是目录联接），所以从副本 import 能解析它的依赖。
+ * 清理时先单独删掉这个链接本身，确认它已不在，再删副本；不递归进链接目标。
+ */
 export async function packageCopy(tamper: boolean): Promise<{ root: string; remove(): void }> {
   const source = await locateToolDefinitions(MEMBER)
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'tool-release-copy-')))
   cpSync(join(source, 'package.json'), join(root, 'package.json'))
   cpSync(join(source, 'dist'), join(root, 'dist'), { recursive: true })
+  const link = join(root, 'node_modules')
+  symlinkSync(join(source, 'node_modules'), link, 'junction')
   if (tamper) {
     const file = join(root, 'dist', 'index.js')
     const bytes = readFileSync(file)
     bytes[0] = (bytes[0] ?? 0) ^ 0x01
     writeFileSync(file, bytes)
   }
-  return { root, remove: () => rmSync(root, { recursive: true, force: true }) }
+  return {
+    root,
+    remove: () => {
+      if (lstatSync(link, { throwIfNoEntry: false })?.isSymbolicLink()) unlinkSync(link)
+      if (existsSync(link))
+        throw new Error(`fixture: ${link} is still present; not removing ${root}`)
+      rmSync(root, { recursive: true, force: true })
+    },
+  }
 }
 
 /** 换掉包根的生产读法：模块仍从已安装的包导入，只有产物摘要按副本重算。 */

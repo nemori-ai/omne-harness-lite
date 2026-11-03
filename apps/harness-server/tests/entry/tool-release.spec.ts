@@ -14,7 +14,8 @@ import {
   loadProductionRelease,
   productionReleaseInput,
 } from '../../src/entry/tool-release.ts'
-import { loadToolRelease } from '../../src/entry/tool-release-manifest.ts'
+import { RELEASE_ENTRY_FILE, loadToolRelease } from '../../src/entry/tool-release-manifest.ts'
+import { shellToolModule } from '@omne-harness/tool-definitions'
 import { TOOL_RESIDENCY_PRINCIPAL_KEY } from '../../src/entry/tool-residency-principal.ts'
 import {
   authorityOf,
@@ -159,7 +160,12 @@ describe('the startup snapshot', () => {
     const exact = await packageCopy(false)
     const tampered = await packageCopy(true)
     try {
-      expect(await releaseFrom(exact.root)()).toMatchObject({ kind: 'trusted' })
+      const trusted = await releaseFrom(exact.root)()
+      expect(trusted).toMatchObject({ kind: 'trusted' })
+      // The modules come from the checked copy itself, not from a second resolution of the package name.
+      if (trusted.kind !== 'trusted') throw new Error('unreachable')
+      expect(trusted.modules.shellToolModule).not.toBe(shellToolModule)
+      expect(trusted.modules.shellToolModule.executor).toEqual(shellToolModule.executor)
       expect(await releaseFrom(tampered.root)()).toEqual({
         kind: 'unavailable',
         diagnostic: 'artifacts differ from the manifest',
@@ -168,6 +174,23 @@ describe('the startup snapshot', () => {
       exact.remove()
       tampered.remove()
     }
+  })
+
+  it('imports the entry file from the very root whose artifacts it checked', async () => {
+    const input = productionReleaseInput()
+    const checked = await input.packageRoot()
+    const roots: string[] = []
+    const snapshot = await loadToolRelease({
+      ...input,
+      packageRoot: async () => checked,
+      importModules: async root => {
+        roots.push(root)
+        return input.importModules(root)
+      },
+    })
+    expect(snapshot.kind).toBe('trusted')
+    expect(roots).toEqual([checked])
+    expect(formalManifest().artifacts.files.map(file => file.path)).toContain(RELEASE_ENTRY_FILE)
   })
 
   it('is unavailable when the manifest was edited by hand, even with matching artifacts', async () => {
@@ -195,8 +218,8 @@ describe('the startup snapshot', () => {
     const input = productionReleaseInput()
     const drifted = await loadToolRelease({
       ...input,
-      importModules: async () => {
-        const modules = await input.importModules()
+      importModules: async root => {
+        const modules = await input.importModules(root)
         return {
           ...modules,
           filesToolModule: {

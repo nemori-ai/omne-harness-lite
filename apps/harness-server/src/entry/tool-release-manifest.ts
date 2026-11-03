@@ -5,6 +5,7 @@
 import { createHash } from 'node:crypto'
 import { readdir, readFile, realpath } from 'node:fs/promises'
 import { dirname, join, relative, sep } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type { JsonValue } from '@omne-harness/json-text'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { Adoption, DurableEvidence } from '@omne-harness/tool-contract'
@@ -99,6 +100,36 @@ export type ToolReleaseEntry = ToolReleaseManifest['entries'][number]
 export type ToolReleaseArtifacts = ToolReleaseManifest['artifacts']
 
 const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
+
+/** 被 import 的入口文件，相对包根。它必须在包产物清单里（R2-D82 D2）。 */
+export const RELEASE_ENTRY_FILE = 'dist/index.js'
+
+function releaseModuleOf(namespace: object, name: ReleaseToolExport): ReleaseModule {
+  const module: unknown = Reflect.get(namespace, name)
+  if (
+    typeof module !== 'object' ||
+    module === null ||
+    typeof Reflect.get(module, 'executor') !== 'object' ||
+    typeof Reflect.get(module, 'createAuthor') !== 'function'
+  )
+    throw new Error(`tool-release: ${name} is not an implementation module`)
+  // The assembly fixes the environment type; the release table erases it to unknown.
+  return module as ReleaseModule
+}
+
+/**
+ * 从已核对的包根 import 固定模块：直接 import `packageRoot/dist/index.js` 的文件 URL，不经包名解析，
+ * 所以 import 的正是被核对的那份产物，不受 `--conditions` 等解析条件影响（R2-D82 D2）。
+ */
+export async function importReleaseModules(packageRoot: string): Promise<ReleaseModules> {
+  const namespace: unknown = await import(pathToFileURL(join(packageRoot, RELEASE_ENTRY_FILE)).href)
+  if (typeof namespace !== 'object' || namespace === null)
+    throw new Error('tool-release: the release entry has no exports')
+  return Object.freeze({
+    shellToolModule: releaseModuleOf(namespace, 'shellToolModule'),
+    filesToolModule: releaseModuleOf(namespace, 'filesToolModule'),
+  })
+}
 
 /** 包根之下的全部 `dist` 文件加 `package.json`（`exports` 决定实际装载哪个文件），按 POSIX 路径排序。 */
 async function artifactPaths(packageRoot: string): Promise<string[]> {
@@ -269,14 +300,15 @@ export type ToolReleaseSnapshot =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 /**
- * 启动快照：读清单，按包产物清单重算已安装产物，核对通过后才由 `importModules` 取得固定模块，再按同一规则
+ * 启动快照：读清单，按包产物清单重算已安装产物，核对通过后才由 `importModules` 从同一包根取得固定模块，再按同一规则
  * 重建清单，规范化后与磁盘清单全等才返回 `trusted`。任何异常、读不到或不等都返回 `unavailable`，只带固定诊断。
  */
 export async function loadToolRelease(input: {
   manifestPath: string
   packageRoot: () => Promise<string>
   version: () => Promise<string>
-  importModules: () => Promise<ReleaseModules>
+  /** 从同一个已核对的包根取得固定模块。 */
+  importModules: (packageRoot: string) => Promise<ReleaseModules>
 }): Promise<ToolReleaseSnapshot> {
   const unavailable = (diagnostic: string): ToolReleaseSnapshot =>
     Object.freeze({ kind: 'unavailable', diagnostic })
@@ -289,15 +321,20 @@ export async function loadToolRelease(input: {
     return unavailable('manifest unreadable')
   }
   let artifacts: ToolReleaseArtifacts
+  let packageRoot: string
   try {
-    artifacts = await scanArtifacts(await input.packageRoot())
+    packageRoot = await input.packageRoot()
+    artifacts = await scanArtifacts(packageRoot)
   } catch {
     return unavailable('artifacts unreadable')
   }
   if (canonicalDigest(artifacts) !== canonicalDigest(manifest.artifacts))
     return unavailable('artifacts differ from the manifest')
+  if (!artifacts.files.some(file => file.path === RELEASE_ENTRY_FILE))
+    return unavailable('the release entry file is not in the artifacts')
   try {
-    const modules = await input.importModules()
+    // The very root whose artifacts were just checked; never a second resolution.
+    const modules = await input.importModules(packageRoot)
     const definitions = Object.fromEntries(
       manifest.entries.map(entry => [entry.asset.name, entry.definition]),
     )

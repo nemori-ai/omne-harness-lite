@@ -45,12 +45,9 @@ function parseArgs(argv) {
 async function compute() {
   const release = await import('../src/entry/tool-release-manifest.ts')
   const { readJsonText } = await import('@omne-harness/json-text')
-  const definitions = await import('@omne-harness/tool-definitions')
-  const modules = {
-    shellToolModule: definitions.shellToolModule,
-    filesToolModule: definitions.filesToolModule,
-  }
   const root = await release.locateToolDefinitions(memberDir)
+  // The same file the startup snapshot imports: the entry under the scanned root.
+  const modules = await release.importReleaseModules(root)
   const artifacts = await release.scanArtifacts(root)
   const version = JSON.parse(readFileSync(join(memberDir, 'package.json'), 'utf8')).version
   const tree = value => {

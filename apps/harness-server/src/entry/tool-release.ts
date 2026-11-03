@@ -20,9 +20,9 @@ import {
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
 import { issueEntrySystemPrincipal } from './agent-host-principal.ts'
 import {
+  importReleaseModules,
   loadToolRelease,
   locateToolDefinitions,
-  type ReleaseModule,
   type ReleaseModules,
   type ToolReleaseManifest,
   type ToolReleaseSnapshot,
@@ -197,15 +197,8 @@ export function productionReleaseInput(): Parameters<typeof loadToolRelease>[0] 
       if (typeof version !== 'string') throw new Error('harness-server has no version')
       return version
     },
-    importModules: async () => {
-      // A fixed specifier, imported only after the artifacts matched; never a path from a caller.
-      const definitions = await import('@omne-harness/tool-definitions')
-      // The assembly fixes the environment type; the release table erases it to unknown.
-      return Object.freeze({
-        shellToolModule: definitions.shellToolModule as unknown as ReleaseModule,
-        filesToolModule: definitions.filesToolModule as unknown as ReleaseModule,
-      })
-    },
+    // Imported only after the artifacts matched, from the same root; never a path from a caller.
+    importModules: importReleaseModules,
   }
 }
 
