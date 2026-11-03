@@ -1,6 +1,6 @@
 # Skill跨领域关键流程
 
-状态：技术协作草案。图表达责任，不指定线程、进程或寿命；完整 INV 与 V 仍为正式成员承接缺项，责任见[正式承接缺口](../../../packages/skills/docs/architecture.md#完整行为候选的正式承接缺口)。端口的实现方见[领域交接设计](architecture.md#端口与实现方)。服务、端口与结果种类都是候选，尚未实现。各流程只写 Skill 承担的步骤与交出的东西。邻域在自己内部怎样处理，归邻域的契约。
+状态：技术协作草案。图表达责任，不指定线程、进程或寿命；完整 INV 与 V 仍为正式成员承接缺项，责任见[正式承接缺口](../../../packages/skills/docs/architecture.md#完整行为候选的正式承接缺口)。端口的实现方见[领域交接设计](architecture.md#端口与实现方)。服务、端口与结果种类都是候选。`PackageInspection`、`SkillAccess` 与目录来源已有成员实现（候选，第二波，尚未技术接受），`SkillCatalog` 还没有实现。各流程只写 Skill 承担的步骤与交出的东西。邻域在自己内部怎样处理，归邻域的契约。
 
 ## F-SK01 合法来源、定义校验与候选交接
 
@@ -43,12 +43,12 @@ sequenceDiagram
   participant I as 身份与授权
   participant R as 资产求值
   participant S as Skill 包来源
-  P->>A: describe 访问上下文 作用域 能力标识
+  P->>A: describe 访问上下文 作用域 能力标识 可选Skill 材料依据
   A->>I: 该主体能否读这个能力标识
   I-->>A: 准许 或 拒绝 或 无法判定
   A->>R: 此刻合法对应哪一份
   R-->>A: 合法已知但不可用 或 SkillRef 与声明投影 或 确定没有 或 无法判定
-  A-->>P: 描述 Skill 材料依据 依赖 脚本与设置声明 不含正文 不含包定位 旧正文缺内容摘要时不带Skill 材料依据
+  A-->>P: 描述 Skill 材料依据 依赖 脚本与设置声明 不含正文 不含包定位 带依据时Skill 材料依据取依据所指的材料 旧正文缺内容摘要时不带Skill 材料依据
   P->>A: read 访问上下文 作用域 目标 可选Skill 材料依据 字节范围与中止信号
   opt 带Skill 材料依据
     A->>A: 依据的能力标识须等于目标能力标识 否则返回 not-available-to-you
@@ -66,13 +66,14 @@ sequenceDiagram
 ```
 
 1. 集成方显式传入访问上下文与作用域，并实现 `SkillReadCheck` 与 `SkillResolution`。Skill 不要求调用方的运行体系或 Cordis。依赖在不在场、该 Skill 此刻能不能用，由集成方判定。Skill 只交依赖声明。
-2. 每次 `describe`、`read`、`list`、`export` 都现场核验。此前的成功和保存的Skill 材料依据不代替核验。
+2. 每次 `describe`、`read`、`list`、`export` 都现场核验。此前的成功和保存的Skill 材料依据不代替核验。`describe` 带Skill 材料依据且身份合法对应时，结果的Skill 材料依据是依据所指的材料，与 `read`、`list` 所钉的材料相同，见成员规格[依据所指的材料](../../../packages/skills/skill/SPEC.md#basis)。
 3. 拒绝与「确定没有对应」都返回 `not-available-to-you`，对无权主体不披露身份是否存在。实现方先判合法已知但不可用，再判合法对应，所以替换件与是否带Skill 材料依据无关。独立路径的实现方没有已知集合时，通常不出现替换件。
 4. `read` 不带Skill 材料依据时，读当时的合法版本。集成方带上此前结果给出的Skill 材料依据时，`read` 按该依据交出旧材料，或返回 `basis-unavailable`，不改交新材料。Skill 材料依据含能力标识、来源层、资产版本与内容摘要，不含包定位。工作区来源的Skill 材料依据可以不带资产版本。依据的能力标识不等于目标时返回 `not-available-to-you`。身份合法对应、依据所指的版本对该主体不合法时返回 `basis-unavailable`。包定位总是由 `SkillResolution` 的实现方当场给出，所以调用方不能借Skill 材料依据指定包的位置。
 5. 资产正文缺Skill 包快照的内容摘要时，`describe` 照常交出声明，不带Skill 材料依据，并标明「没有可读的包」。`read`、`list` 与 `export` 返回 `unsupported`。
 6. 内容随成功结果交出，交出后归集成方。Skill 不做临时保管。
 7. 撤权后的新读取被拒绝。已经交出的内容归集成方。
 8. 集成方释放自己的路径，不卸载共享的 Skill，也不影响其他消费者。
+9. `read`、`list` 与 `export` 收中止信号，在每次调用端口之前与每次端口返回之后各检查一次。检查点也包括读取判定与对应这两次端口调用。中止后操作答 `aborted`，不再调用端口，也不交部分内容。
 
 失败种类与对独立消费者需求的承接见[组工程设计](../../../packages/skills/docs/architecture.md#独立消费者的需求承接)。独立路径上 `SkillResolution` 与 `SkillReadCheck` 的真实实现尚未交付，替身通过不证明读取权已验证。
 

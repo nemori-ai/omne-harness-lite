@@ -1,6 +1,6 @@
 # Skill组内逻辑责任流程
 
-状态：工程设计草案。流程中的服务与端口都是候选，还没有成员实现它们，成员状态见[组入口](../README.md#成员与依赖)。流程只说明本组服务与端口怎样协作，不能因流程落位认为已采用。服务含义与失败种类见[工程设计](architecture.md)。图中只有本组的步骤，本组以外的参与者都合并成「调用方」。
+状态：工程设计草案。流程中的服务与端口都是候选。`PackageInspection`、`SkillAccess` 与目录来源 `DirectorySource` 已有成员实现（候选，第二波，尚未取得技术接受），`SkillCatalog` 还没有实现。成员状态见[组入口](../README.md#成员与依赖)。流程只说明本组服务与端口怎样协作，不能因流程落位认为已采用。服务含义与失败种类见[工程设计](architecture.md)。图中只有本组的步骤，本组以外的参与者都合并成「调用方」。
 
 ## 组内检查
 
@@ -14,8 +14,10 @@ sequenceDiagram
   C->>I: inspect(locator, { expectedName? })
   I->>S: snapshot(locator)
   S-->>I: Skill 包快照（含包根目录名），或 来源失败
-  alt package-not-found 或 unavailable
+  alt package-not-found、entry-not-found 或 unavailable
     I-->>C: source-unavailable
+  else bytes-mismatch
+    I-->>C: version-changed
   else entry-unreadable（非常规文件，或无法解析、成环的链接）
     I-->>C: 拒绝 malformed，检查到此结束
   else outside-package（包内链接解析后落在包根之外）
@@ -119,7 +121,7 @@ sequenceDiagram
   A->>A: toPackagePath 校验目标，不合法时返回 bad-path
   A->>S: snapshot(SkillRef 的 locator)
   S-->>A: Skill 包快照，或 package-not-found、unavailable、entry-unreadable、outside-package
-  alt entry-unreadable（非常规文件，或无法解析、成环的链接）
+  alt entry-unreadable（非常规文件，或无法解析、成环的链接），或 entry-not-found、bytes-mismatch（来源不守端口契约）
     A-->>C: source-unavailable
   else outside-package（包内链接解析后落在包根之外）
     A-->>C: outside-package
@@ -132,7 +134,7 @@ sequenceDiagram
   end
   A->>S: open(locator, 所钉内容摘要, 包内路径)
   S-->>A: 字节，或 entry-not-found、bytes-mismatch、outside-package、unavailable
-  alt signal 已中止（每次调用端口之前与每次端口返回之后都检查，图中只画这一处）
+  alt signal 已中止（每次调用端口之前与每次端口返回之后都检查，包括 check 与 resolve，图中只画这一处）
     A-->>C: aborted，不交部分内容
   end
   A->>A: 算出字节的内容摘要，与快照中的条目内容摘要比较
@@ -143,7 +145,7 @@ sequenceDiagram
   A-->>C: 内容、Skill 材料依据、包内路径、媒体类型、实际字节范围、总长与 complete
 ```
 
-图中每个 `alt` 分支都在返回后结束本次操作。端口失败按[工程设计「端口」](architecture.md#端口)的映射表转换：`package-not-found` 带Skill 材料依据时为 `basis-unavailable`，不带时为 `source-unavailable`。`entry-not-found` 为 `resource-missing`。`bytes-mismatch` 为 `version-changed`。`outside-package` 照原样。`unavailable` 为 `source-unavailable`。`snapshot` 的 `entry-unreadable` 为 `source-unavailable`。`read`、`list` 与 `export` 在每次调用端口之前与每次端口返回之后各检查一次 `signal`。调用方中止时，操作答 `aborted`，不再调用端口，也不交部分内容。
+图中每个 `alt` 分支都在返回后结束本次操作。端口失败按[工程设计「端口」](architecture.md#端口)的映射表转换：`package-not-found` 带Skill 材料依据时为 `basis-unavailable`，不带时为 `source-unavailable`。`open` 的 `entry-not-found` 为 `resource-missing`。`open` 的 `bytes-mismatch` 为 `version-changed`。`outside-package` 照原样。`unavailable` 为 `source-unavailable`。`snapshot` 的 `entry-unreadable` 为 `source-unavailable`。`snapshot` 不对单个条目作答，它答 `entry-not-found` 或 `bytes-mismatch` 时来源不守端口契约，也为 `source-unavailable`。`read`、`list` 与 `export` 在每次调用端口之前与每次端口返回之后各检查一次 `signal`，四个端口 `check`、`resolve`、`snapshot`、`open` 都在内。调用方中止时，操作答 `aborted`，不再调用端口，也不交部分内容。
 
 1. 调用方可以不带Skill 材料依据，这时 `SkillAccess` 读当时的合法版本。调用方也可以带上此前结果给出的Skill 材料依据，这时读取固定该版本。Skill 材料依据含能力标识、来源层、资产版本与内容摘要，不含包定位。工作区来源的Skill 材料依据可以不带资产版本。
 2. 带Skill 材料依据时，`SkillAccess` 先核对依据的能力标识等于目标能力标识。不等时对外返回 `not-available-to-you`，不披露差异原因。
@@ -156,7 +158,7 @@ sequenceDiagram
 9. 读取不判定依赖在不在场，也不判定脚本有没有所需的设施。正文与资源走同一条路径。
 10. 成功结果交出后归调用方。`SkillAccess` 不保留副本，不记「已加载」状态，也不把 `SkillRef` 或包定位交给调用方。
 
-`list` 走同一条核验与解析路径，再取快照并比较Skill 包快照的内容摘要。只有内容摘要相符后，`list` 才返回快照中的资源条目。`describe` 只走核验与解析，再交出 `resolve` 交来的声明投影中的依赖、脚本与设置声明。它不读包字节，也不交设置值。资产正文缺 `package.digest` 时，`describe` 照常交出声明，结果不带Skill 材料依据，并标明「没有可读的包」。
+`list` 走同一条核验与解析路径，再取快照并比较Skill 包快照的内容摘要。只有内容摘要相符后，`list` 才返回快照中的资源条目。`describe` 只走核验与解析，再交出 `resolve` 交来的声明投影中的依赖、脚本与设置声明。`describe` 带Skill 材料依据、`resolve` 答 `adopted` 时，结果的Skill 材料依据就是调用方交来的依据，也就是依据所指的材料，见[工程设计「读取」](architecture.md#读取)第 5 步。它不读包字节，也不交设置值。资产正文缺 `package.digest` 时，`describe` 照常交出声明，结果不带Skill 材料依据，并标明「没有可读的包」。
 
 ## 组内导出
 

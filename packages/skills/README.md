@@ -1,6 +1,6 @@
 # Skill能力组
 
-状态：本组有三个 workspace 成员。`@omne-harness/skill-contract` 提供已接受的 `skill` 类别端口。它在第一波实现了值、纯函数、包检查、端口与服务接口、端口的符合性套件，以及 `skill` 类别端口的可加扩展（保留字段与 `name-invalid`）。这些是候选，尚未取得技术接受。`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 是模板草稿，没有公开导出或实现。组的分解、模型、端口与服务是工程设计草案，全部为候选决定，尚未取得技术接受。发现、读取、导出和发布仍没有服务实现。脚本执行不归本组。
+状态：本组有三个 workspace 成员。`@omne-harness/skill-contract` 提供已接受的 `skill` 类别端口。它实现了值、纯函数、包检查、端口与服务接口、端口的符合性套件，以及 `skill` 类别端口的可加扩展（保留字段与 `name-invalid`）。这些是候选，尚未取得技术接受。`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 在第二波有了实现（候选，尚未取得技术接受）：`@omne-harness/skill` 实现包检查与描述、读取、列出、导出，`@omne-harness/skill-host-local` 实现本机目录来源。组的分解、模型、端口与服务是工程设计草案，全部为候选决定，尚未取得技术接受。摘要与检索（`SkillCatalog`）和发布仍没有服务实现。脚本执行不归本组。
 
 ## 责任与范围
 
@@ -8,13 +8,13 @@
 
 ## 成员与依赖
 
-本组有三个 workspace 成员。纯契约成员由原 `@omne-harness/skill` 改名为 `@omne-harness/skill-contract`，与 Tool 组的 `tool-contract` 和 MCP 组的 `mcp-contract` 命名一致。通用实现 `@omne-harness/skill` 与本地宿主 `@omne-harness/skill-host-local` 是第一波的模板草稿：它们只有 `typescript-package@3.0.0` 的 `module` 骨架，没有公开导出、实现、成员 SPEC 或采用标识，也不声明生产依赖。职责与允许的生产依赖都是候选决定，尚未取得技术接受，随成员规格确定。
+本组有三个 workspace 成员。纯契约成员由原 `@omne-harness/skill` 改名为 `@omne-harness/skill-contract`，与 Tool 组的 `tool-contract` 和 MCP 组的 `mcp-contract` 命名一致。通用实现 `@omne-harness/skill` 与本地宿主 `@omne-harness/skill-host-local` 已有实现与成员 SPEC（候选），各自的行为以成员 SPEC 为准。职责与允许的生产依赖都是候选决定，尚未取得技术接受。
 
 | 成员 | 当前状态 | 职责 | 允许的生产依赖 | 阅读入口 |
 | --- | --- | --- | --- | --- |
 | `@omne-harness/skill-contract`（`packages/skills/skill-contract`，纯契约） | 已实现已接受的 `skill` 类别端口 `skillBodyContract`。其余已实现（候选），包括类别端口的扩展（保留字段与 `name-invalid`）。行为以成员规格为准。不依赖 Tool。服务只有接口，不提供发现、读取、导出或发布 | 值、纯函数、包检查、端口与服务接口、`skill` 类别端口，以及 `./testing` 符合性设施，见下文 | 见下文 | [成员入口](skill-contract/README.md)与[规格](skill-contract/SPEC.md) |
-| `@omne-harness/skill`（`packages/skills/skill`，通用实现） | 模板草稿，第一波 | 三个应用服务：`PackageInspection`、`SkillCatalog`、`SkillAccess`。名字对应领域的「方法与资源取用」。只依赖本组纯契约与公共值成员，不依赖 Cordis，也不依赖任何调用方的成员 | `@omne-harness/skill-contract`，以及 `@omne-harness/skill-contract` 允许的公共值成员 | [成员入口](skill/README.md) |
-| `@omne-harness/skill-host-local`（`packages/skills/skill-host-local`，本地宿主） | 模板草稿。只建了目录来源部分所在的成员，Cordis 插件部分在 Cordis 服务键波补 `src/cordis.ts` | 两部分。目录来源部分：本机目录来源 `DirectorySource`，在第一波。Cordis 插件部分：本组的 Cordis 插件，在 Cordis 服务键波。内容存储来源等存储契约就绪后再加 | 目录来源部分：`@omne-harness/skill-contract` 与宿主依赖。Cordis 插件部分另加 `@omne-harness/skill` 与 `skill-cordis-contract` | [成员入口](skill-host-local/README.md) |
+| `@omne-harness/skill`（`packages/skills/skill`，通用实现） | 已实现（候选）。公开根交出工厂 `createPackageInspection`、`createSkillAccess` 与类型 `SkillPorts`。`SkillCatalog` 还没有实现。本成员还没有独立的示例文件，可运行的示例要以 `@omne-harness/skill-host-local` 作真实来源，见[成员示例说明](skill/examples/README.md) | 三个应用服务：`PackageInspection`、`SkillCatalog`、`SkillAccess`。名字对应领域的「方法与资源取用」。只依赖本组纯契约与公共值成员，不依赖 Cordis，也不依赖任何调用方的成员 | `@omne-harness/skill-contract`，以及 `@omne-harness/skill-contract` 允许的公共值成员 | [成员入口](skill/README.md)与[规格](skill/SPEC.md) |
+| `@omne-harness/skill-host-local`（`packages/skills/skill-host-local`，本地宿主） | 已实现目录来源部分（候选）。公开根交出工厂 `createDirectorySource` 与接缝类型 `DirectoryFs`、`EntryKind`、`Opened`。失败映射见[成员入口「Behavior」](skill-host-local/README.md#behavior)。Cordis 插件部分在 Cordis 服务键波补 `src/cordis.ts` | 两部分。目录来源部分：本机目录来源 `DirectorySource`。Cordis 插件部分：本组的 Cordis 插件，在 Cordis 服务键波。内容存储来源等存储契约就绪后再加 | 目录来源部分：`@omne-harness/skill-contract` 与宿主依赖。Cordis 插件部分另加 `@omne-harness/skill` 与 `skill-cordis-contract` | [成员入口](skill-host-local/README.md)与[规格](skill-host-local/SPEC.md) |
 
 `@omne-harness/skill-contract` 有三个入口，各入口的内容见成员规格[入口](skill-contract/SPEC.md#entries)：
 
@@ -22,9 +22,9 @@
 | --- | --- | --- |
 | `@omne-harness/skill-contract`（`.`） | 调用方 | 值、守卫、失败、`SkillCatalog` 与 `SkillAccess` 的接口及结果值、纯函数、`skillBodyContract` |
 | `@omne-harness/skill-contract/provider` | 来源、资产登记与端口的实现方 | 三个需求端口及其答复类型、`PackageInspection` 接口、`SkillRef`、`PackageLocator`、`sealSnapshot` 与 `SnapshotDefect` |
-| `@omne-harness/skill-contract/testing` | 端口实现方的测试 | `SkillPackageSource`、`SkillReadCheck` 与 `SkillResolution` 的符合性套件，以及这三个端口的内存替身 |
+| `@omne-harness/skill-contract/testing` | 端口实现方的测试；`SkillAccess` 实现方的测试 | `SkillPackageSource`、`SkillReadCheck` 与 `SkillResolution` 的符合性套件，这三个端口的内存替身，以及 `SkillAccess` 的符合性套件 `skillAccessConformance` 与它的夹具类型 |
 
-公开根不导出 `SkillRef`、包定位、`PackageInspection` 与 `sealSnapshot`，调用方拿不到包定位。`SkillReadCheck` 与 `SkillResolution` 的套件核对：对无权主体，答复不随该身份是否存在而变。`SkillAccess` 的符合性套件随 `@omne-harness/skill` 的实现，以可加改动加入 `./testing`。这些都是候选，尚未取得技术接受。它的生产依赖逐个列出：`@omne-harness/assets`、`@omne-harness/operation-result`、`@omne-harness/legal-identity`、`@omne-harness/json-text`，以及解析 `SKILL.md` 头部的 `yaml`。它不依赖 `@omne-harness/content-block`：读取交出文本或字节。
+公开根不导出 `SkillRef`、包定位、`PackageInspection` 与 `sealSnapshot`，调用方拿不到包定位。`SkillReadCheck` 与 `SkillResolution` 的套件核对：对无权主体，答复不随该身份是否存在而变。`SkillAccess` 的符合性套件 `skillAccessConformance` 已以可加改动加入 `./testing`，见成员规格[符合性套件](skill-contract/SPEC.md#conformance)。这些都是候选，尚未取得技术接受。它的生产依赖逐个列出：`@omne-harness/assets`、`@omne-harness/operation-result`、`@omne-harness/legal-identity`、`@omne-harness/json-text`，以及解析 `SKILL.md` 头部的 `yaml`。它不依赖 `@omne-harness/content-block`：读取交出文本或字节。
 
 组设计另有一个具名文档目标。它尚非 workspace 成员：没有包、源码或运行实例。名字、职责与依赖都是候选决定，尚未取得技术接受。建包时随成员规格确定。分波只有三种：第一波、第一波之后、Cordis 服务键波，见[成员承接表](docs/architecture.md#完整行为候选的正式承接缺口)。
 
