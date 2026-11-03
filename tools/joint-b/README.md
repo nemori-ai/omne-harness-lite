@@ -50,8 +50,8 @@ pnpm --filter @omne-harness/cli... run build
 - `--model-source`：树上模型侧已全是真件时，发消息会触到真实模型或回放，要有授权。不给这个参数，
   相关步骤记等件，不发消息。它只标注证据。树上还有替身行时脚本照常发消息（打不到真实模型），
   观察只作参考写进等件。
-- `--definition`：建会话用的定义，默认 `coding`。`assistant` 没有 `initialModelSelection`，拿不到回复，
-  也没有工具引用，S4 无工具可调，所以不再作默认值。
+- `--definition`：建会话用的定义，默认 `coding`。`assistant` 的映射已带 `initialModelSelection`（R2-D236），
+  能读当前条件、走纯聊天；但它没有工具引用，S4 无工具可调，所以不作默认值。
 - `--platform`：只标注证据，并核对与本机一致，不一致记失败（避免证据标错平台）。跨平台由调用方
   在 Windows 宿主与 WSL 独立检出上各跑一遍，分别报告；没跑的一侧不算通过。
 - 单轮回复等待上限默认 90 秒，用 `OMNE_JOINT_B_REPLY_MS` 调。

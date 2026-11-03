@@ -150,6 +150,15 @@
               },
               "collaboration": "co-work"
             },
+            "initialModelSelection": {
+              "name": "openai/gpt-6.1-sol",
+              "basis": {
+                "owner": "harness-server-release",
+                "record": "serve.distribution.json#agent-adoptions/assistant/initialModelSelection",
+                "revision": "1",
+                "digest": "sha256:752f5b2b80e183167c034e8e4919404d7d8b36db26b941f3cadf4836a245df47"
+              }
+            },
             "definition": {
               "category": "AgentDefinition",
               "name": "assistant",
