@@ -1,35 +1,34 @@
 # @omne-harness/calendar-local
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 ## 职责与状态
 
-本机持久化适配、恢复扫描、来源或执行适配及 Cordis 提供者。领域规则调用通用实现，跨域交接只消费公开协议。 本包为 private 0.0.0 初始化草稿，公开入口仍为空，没有可运行的业务能力。
+本成员提供 Calendar A1 的 SQL 发布持久化、供应材料与运行记录、受限来源获取、发行种子读取、供应运行器和查询/供应 Cordis provider。领域规则复用 calendar，存储仅消费 sql-contract。版本仍为 `0.0.0`、private。真实跨域接线留待 M2 之后，Schedule/Job 留待 A2。
 
 ## 使用
 
-目标消费者和允许依赖见[组架构](../docs/architecture.md)。当前只能构建和检查骨架，不能创建服务或执行业务命令。未来使用者通过公开入口消费，不能导入本包私有源码。
+从根入口构造 createCalendarSqlPersistence、createCalendarSqlSupplyStorage 和 createCalendarSourceAdapters，接入 calendar 的应用工厂。离线发行使用 createShippedCalendarSeedRegistry 与 shippedCalendarSeedRelease，显式接入供应 seed registry；运行器和 provider 见[使用方式](docs/context.md)。
 
 ## 契约
 
-[SPEC](SPEC.md)记录本成员边界，[公开入口](docs/public-api.md)区分现有导出与后续定义。已有[业务行为](../calendar/SPEC.md)和[API 设计](../calendar/docs/public-api-design.md)继续作为实施输入，不因拆包复制类型定义。
+[SPEC](SPEC.md)拥有本成员必要行为，源码定义拥有公开形状。[Calendar 行为](../calendar/SPEC.md)继续约束业务含义。
 
 ## 设计
 
-[架构](docs/architecture.md)说明本成员责任。[Cordis](docs/cordis.md)说明绑定适用性。目录初始化不建立新领域、进程或分布式实现。
+[架构](docs/architecture.md)、[流程](docs/flows.md)和[对象模型](docs/object-model.md)解释本包机制。[Cordis](docs/cordis.md)说明装配责任。
 
 ## 配置与运行
 
-Node >=24，ESM。当前没有业务配置或启动入口。单机后端与未来远程实现必须遵守相同公共语义，不能以同进程调用替代可靠交接。
+Node >=24，ESM。装配选择 SQL 提供者并提供合法 scope 与当前资格。来源配置限定 URL、网络预算、解码和知识 resolver。运行器需要 contextSupplier、seed、稳定操作键、phases、intervalMs、limit 和 observer。provider 的 borrowed/owned、排空和关闭责任见[Cordis](docs/cordis.md)。seed=null 仅是已有库或只读装配模式，不满足发行物离线三历义务。
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/calendar-local build`、`typecheck` 和 `test`。测试只检查草稿导出，不证明持久化、租户隔离、网络、生命周期或业务正确性。
+在工作区运行 `pnpm --filter @omne-harness/calendar-local build`、`pnpm --filter @omne-harness/calendar-local typecheck`、`pnpm --filter @omne-harness/calendar-local test`。[测试入口](tests/README.md)说明现有资源和覆盖边界。本域证据不代表最终独立接受或真实跨域集成。
 
 ## 维护
 
-实现公共定义时同步消费者、必要行为与验证。保留草稿标记，直到公开行为及其验证实际完成。具体方法、schema、服务类和提供者均未实现。
+同步公开源码、必要行为、真实消费者和双语入口，保留 unknown 与提供者限制，不在正文复制第二套类型。
 
 ## 目录结构与文档职责
 

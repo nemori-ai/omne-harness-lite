@@ -1,25 +1,25 @@
 # @omne-harness/calendar
 
-PACKAGE_TEMPLATE_DRAFT
+本成员提供无 Cordis 的 Calendar A1 实现，含五个纯日期函数、三历解析校验、查询与供应应用以及总工厂。版本仍为 `0.0.0`、private。Schedule/Job 属于 A2，真实跨域装配属于 M2 之后。
 
-公开协议由 [calendar-contract](../calendar-contract/README.md) 承接，Cordis 定义由 [calendar-cordis-contract](../calendar-cordis-contract/README.md) 承接。本成员保留无 Cordis 的领域与应用实现及其工厂配置，单机持久化与装配归 [calendar-local](../calendar-local/README.md)，独立工具归 [calendar-tools](../calendar-tools/README.md)。所有成员当前仍是初始化草稿。
-
-本成员是真实 workspace 草稿，版本 `0.0.0`、private。`src/index.ts` 仍为 `export {}`，没有业务 API 或运行服务。2026-11-03 已确认完整目标设计；设计承诺不表示实现或运行验证完成。
+公开协议由 [calendar-contract](../calendar-contract/README.md)拥有，服务定义由 [calendar-cordis-contract](../calendar-cordis-contract/README.md)拥有。SQL、来源获取、种子和运行器归 [calendar-local](../calendar-local/README.md)，工具贡献归 [calendar-tools](../calendar-tools/README.md)。
 
 ## 使用与消费边界
 
-先读[行为契约](SPEC.md)和[公开 API 设计](docs/public-api-design.md)。API 专题明确目标类型、命令、查询、错误、可信上下文和 ports，尚非真实导出，因此没有可运行的业务示例。独立应用调用、HTTP 和 Tool 使用相同授权及耐久操作规则。
+从[根入口](src/index.ts)使用 classifyDay、countWorkingDays、shiftWorkingDays、listWorkingDays、selectNthWorkingDay。输入是通过公开 schema 校验的不可变 snapshot，结果保留失败判别与 CalculationBasis，不需要网络、存储或 Cordis。
 
-目标根入口是纯领域函数与应用服务，不依赖 Cordis。Cordis 绑定与独立 tools 消费应用服务；允许方向见[组架构](../docs/architecture.md)。
+createCalendarQueries 接受本机 repository、authority、environment、clock 和 catalog。createCalendarSupplyApplication 接受本域存储、来源、政策与资格端口。createCalendarApplication 的依赖分为 repository、persistence、queries、supply，返回查询和供应应用。精确依赖以根入口导出的源码定义为准，参见[公开 API 说明](docs/public-api-design.md#应用工厂与供应数据约束)。工厂配置不是服务 DTO。
 
 ## 契约与内部设计
 
-[SPEC](SPEC.md)拥有可观察行为和验证义务，[内部设计](docs/internals.md)解释状态、持久化、恢复与生命周期，[关键流程](docs/key-flows.md)说明参与者、失败分支和责任移交。相邻拥有者从[组入口](../README.md)继续读取。
+[SPEC](SPEC.md)拥有必要行为与持续验证义务。[内部设计](docs/internals.md)解释版本、供应、恢复和实际存储限制。[关键流程](docs/key-flows.md)说明交接、失败和关闭。[组入口](../README.md)导航相邻拥有者。
 
 ## 配置、运行与验证
 
-本包没有已实现的 provider 或业务配置；目标配置不得减弱契约。现有 public-entry 测试只检查空导出。后续须按 SPEC 完成纯领域/契约、真实提供者集成、独立消费及完整装配端到端验证，这些是未验证义务，不能因暂未实现写成不适用。本次文档工作没有 Node24、ICU、真实存储故障、联网供应或工具装配验收结果。
+Node >=24，ESM。纯计算无需配置。查询需要可信资格与同 revision 的有效环境，供应需要合法系统 scope、材料保管和发布端口。外域权限、设置、通知与 Tool 宿主的真实采用尚未完成；夹具符合性不等于系统接入。SQL L-1/L-4、断电耐久和目标运行环境证据继续按提供者契约核对。
+
+在工作区使用 `pnpm --filter @omne-harness/calendar build`、`pnpm --filter @omne-harness/calendar typecheck`、`pnpm --filter @omne-harness/calendar test`。持续用例位于 `tests/public-entry.spec.ts`、`tests/queries/`、`tests/supply/`、`tests/supply-application/` 和 `tests/workload.spec.ts`。这些命令是复跑入口，本页不记录单次通过数量。单次独立验收结论记录在交付报告中。
 
 ## 维护
 
-同步行为、公开设计、流程、登记及双语 README。公开定义实现后成为类型唯一源。保留历史、原操作身份和明确 unknown，全部源验收义务见[完整映射](../../schedule/schedule/SPEC.md#来源与目标验收映射)。
+同步行为、公开定义、流程及双语入口。公开类型/schema 是形状唯一源。保留不可变历史、原操作和 unknown，不把本域通过扩展成系统接受。全部源义务见[完整映射](../../schedule/schedule/SPEC.md#来源与目标验收映射)。

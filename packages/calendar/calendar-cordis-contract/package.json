@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Cordis service definitions for calendar; initialized draft without business exports",
+  "description": "Shared Cordis calendar service identities",
   "engines": {
     "node": ">=24"
   },

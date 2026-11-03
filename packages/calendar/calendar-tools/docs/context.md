@@ -1,17 +1,13 @@
 # 使用与定位
 
-<!-- documentation:placeholder -->
-
-本文件说明消费侧怎样使用本包、具名上层消费者、典型调用关系，以及本包在系统与能力组中的位置。它覆盖独立消费与适用的 Harness 接入，引用系统架构与真实消费者，不成为新的架构源。
-
 ## 使用方式
 
-<!-- documentation:placeholder -->
+独立 Tool 作者宿主把 CalendarQueries 交给 createCalendarToolModule，再用 createCalendarToolEnvironment(base, resolver) 包装真实环境。resolver 依据每次 CallAccess 返回已校验的可信上下文；基础环境继续拥有资源准备与释放。单独创建 module 不会注册运行工具。
 
-待补：最小有效示例、必要依赖、初始化与释放责任。
+Cordis 宿主用 createCalendarToolsPlugin 接入 ToolAuthorContext，并配置真实 Tool 作者协议的环境/输出保管设施。插件依赖 calendarQueryKey、toolBindingsKey、toolGenerationsKey。所需 capability 必须且只能是 calendar.read。
 
 ## 消费者与定位
 
-<!-- documentation:placeholder -->
+本域工具测试通过真实公开 Tool 作者接口装配，验证可信环境和结果传递。最终 harness 与外域 Tool 系统正式接线留待 M2 后，不从 fixture 推定已采用。未来 HTTP/SDK 不由本包提供，Schedule/Job 工具仍是 A2。
 
-待补：具名上层消费者、典型调用关系与定位图。
+依赖方向归[组架构](../../docs/architecture.md)，完整行为归 [SPEC](../SPEC.md)。

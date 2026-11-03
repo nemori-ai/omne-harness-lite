@@ -1,7 +1,15 @@
 # 成员架构
 
-本成员承担单机后端。本机持久化适配、恢复扫描、来源或执行适配及 Cordis 提供者。领域规则调用通用实现，跨域交接只消费公开协议。
+## 模块与依赖
 
-成员关系与依赖方向归[组架构](../../docs/architecture.md)。当前 `src` 只有模板入口，尚无内部实现模块。公共服务协议和提供者构造依赖分别维护，不能把本机句柄、工厂回调或 SQL 参加者写入线上请求与回执。
+[storage](../src/storage/provider.ts)提供发布 repository/persistence、迁移和参加者。[supply-storage](../src/supply-storage/provider.ts)保管材料、probe、运行记录及恢复分页。[sources](../src/sources/index.ts)执行受限 probe/acquire，纯解析与政策在 calendar。根入口还导出 seeds 的发行 registry 与 metadata，以及 runner 的构造器；`./cordis` 提供查询和供应两个 provider。精确入口见[公开索引](public-api.md)。
 
-初始化 manifest 登记已确定的组内依赖与基础契约。后续接入外域时只增加实际消费的公开契约，不预先依赖尚未建立的提供者。
+成员关系见[组架构](../../docs/architecture.md)，公共服务 DTO 与本机工厂配置分开。
+
+## 关键机制与理由
+
+所有 SQL 写入经 sql-contract 具名材料和 participant，不暴露任意事务回调。解析、网络和业务校验在事务外，提交内复核 generation、原操作与适用资格。发布版本原子关联原 candidate，snapshot 来源 authority 与本机 rawReference 分离。已发布版本缺原材料关联或 hash/来源不匹配明确失败，不能降成空贡献。
+
+## 验证与维护
+
+持续资源见[测试](../tests/README.md)。公开形状修改时同步真实消费者，行为修改回 [SPEC](../SPEC.md)。本域验证、独立接受和 M2 后真实跨域装配分别取证。

@@ -1,35 +1,34 @@
 # @omne-harness/calendar-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 ## Responsibility and status
 
-Owns public domain values, commands, queries, results, errors and replaceable service ports. Wire requests and receipts must be serializable and contain no runtime objects. This private 0.0.0 package is an initialized draft. Public entries remain empty; no business service is runnable.
+This member owns immutable Calendar values, query and supply ports, requests, results and Standard Schema definitions. The root exports calculation, queries and supply. It has no Cordis dependency or running service. The package remains private at `0.0.0`. Real cross-domain assembly follows M2. Schedule and Job remain A2 work.
 
 ## Usage
 
-See the [group architecture](../docs/architecture.md) for consumers and dependency direction. Only skeleton build and checks are available. Consumers must use public entries rather than private source paths.
+Import snapshot, input and result schemas, and CalendarQueries/CalendarSupply types from the root. Validate external values before calling an implementation. See [usage](docs/context.md) and the [definition index](docs/public-api.md).
 
 ## Contracts
 
-[SPEC](SPEC.md) states this member's boundary. [Public API](docs/public-api.md) distinguishes actual exports from planned definitions. Existing [business behavior](../calendar/SPEC.md) and [API design](../calendar/docs/public-api-design.md) remain implementation inputs without duplicating type definitions.
+[SPEC](SPEC.md) owns this member's behavior. Source definitions own public shapes. [Calendar behavior](../calendar/SPEC.md) remains the business contract.
 
 ## Design
 
-[Architecture](docs/architecture.md) assigns this member's responsibility. [Cordis](docs/cordis.md) describes binding applicability. Package creation establishes no new domain, process or distributed implementation.
+[Architecture](docs/architecture.md), [flows](docs/flows.md) and [objects](docs/object-model.md) explain this member. [Cordis](docs/cordis.md) states its assembly responsibility.
 
 ## Configuration and operation
 
-Node >=24 and ESM. There is no business configuration or startup entry. Local and future remote implementations must preserve the same public semantics.
+This package needs no business configuration, startup or background task. Schema validation does not establish current authority, source validity or SQL durability. Service DTOs contain no Context, connections or functions.
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/calendar-contract build`, `typecheck` and `test`. Tests check draft exports only. They do not establish persistence, tenant isolation, network, lifecycle or business guarantees.
+Run `pnpm --filter @omne-harness/calendar-contract build`, `pnpm --filter @omne-harness/calendar-contract typecheck` and `pnpm --filter @omne-harness/calendar-contract test` in the workspace. [Tests](tests/README.md) describes the resources and their limits. Local evidence does not establish final acceptance or real cross-domain integration.
 
 ## Maintenance
 
-Update consumers, necessary behavior and verification when implementing public definitions. Keep draft markers until implementation and verification are complete. Methods, schemas, service classes and providers remain unimplemented.
+Keep the public source, behavior, consumer documentation and both entry files consistent. Preserve unknown outcomes and provider limits. Do not copy public type definitions into prose.
 
 ## Directory structure and documentation roles
 

@@ -1,11 +1,10 @@
 # 日历能力组工程关系
 
-本组包含 calendar-contract、calendar-cordis-contract、calendar、calendar-local、calendar-tools 五个成员，均为初始化草稿。完整目标设计已确认，运行实现和验收未完成。本页解释成员与外部工程关系，不重复成员状态机或错误集合。
-
+本组包含 calendar-contract、calendar-cordis-contract、calendar、calendar-local、calendar-tools 五个成员，提供 A1 本域实现。版本仍为 private 0.0.0，M2 后真实跨域接线尚未开展。本页解释成员与外部工程关系，不重复成员状态机或错误集合。
 
 ## 安装边界
 
-`calendar-contract` 拥有可替换服务协议与公共值。`calendar` 拥有无 Cordis 的领域算法和应用服务工厂。`calendar-cordis-contract` 唯一拥有绑定定义。`calendar-local` 承接本机存储、恢复和适配装配，`calendar-tools` 只消费契约与服务定义。
+`calendar-contract` 拥有可替换服务协议与公共值。`calendar` 拥有无 Cordis 的领域算法和应用服务工厂。`calendar-cordis-contract` 唯一拥有绑定定义。`calendar-local` 承接本机存储、恢复和适配装配，`calendar-tools` 消费 Calendar 契约、服务定义和 Tool 公开作者协议，不依赖 core/local。
 
 ```mermaid
 flowchart LR
@@ -19,7 +18,7 @@ flowchart LR
   Local --> SQL["sql-contract"]
 ```
 
-箭头表示允许的安装依赖，不表示当前已经实现运行调用。tools 不依赖 core 或 local，绑定定义不依赖实现。公共消费不能要求同机、同进程或共享数据库；未来远程客户端可实现同一服务定义，本次不建立远程提供者包。
+箭头表示安装依赖，外域采用状态另行核对。tools 不依赖 core 或 local，绑定定义不依赖实现。公共消费不能要求同机、同进程或共享数据库；未来远程客户端可实现同一服务定义，本次不建立远程提供者包。
 
 持久化参加者是 local 内部适配协议，不是服务间 wire 协议。跨域资格和发布版本的强保证仍须由对应拥有者协议兑现；当前快照不能代替动作发生时所需的有效性证明。具体限制见[部署边界](../../../docs/package-organization.md#日历与日程的安装和部署边界)。
 
@@ -45,7 +44,7 @@ flowchart LR
 
 ## 验证与交付限制
 
-[成员SPEC](../calendar/SPEC.md#持续验证义务)分配日期、来源、发布、查询、种子和生命周期场景。[内部存储设计](../calendar/docs/internals.md#持久化与实际限制)记录当前SQL能力与差额；已存在storage不等于本域participant已实现。源S04–S06、环境组合S07及目标N08/N10/N12/N23均保留独立验收。当前没有真实供应、发行闸、断电、Node24或完整工具证据。
+[成员SPEC](../calendar/SPEC.md#持续验证义务)分配日期、来源、发布、查询、种子和生命周期场景。[内部存储设计](../calendar/docs/internals.md#持久化与实际限制)记录当前SQL能力与差额；local 已有本域发布及供应存储参加者，不扩大所选 SQL 提供者保证。源S04–S06、环境组合S07及目标N08/N10/N12/N23均保留独立验收。来源、发行闸、进程故障、目标 Node/ICU 与工具接缝分别保留证据边界；本域源码与夹具不等于真实外域集成或断电耐久接受。
 
 ## 机制与流程导航
 

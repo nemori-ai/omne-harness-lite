@@ -1,0 +1,14 @@
+HTTP/1.1 200 OK
+Content-Type: text/calendar; charset=utf-8
+Access-Control-Expose-Headers: Request-Context
+Request-Context: appId=cid-v1:7fefc9f6-3088-4872-bcf7-6c3fdd6536a8
+x-azure-ref: 20261102T171224Z-r19896767442mp8fhC1SJCwkbc00000009zg0000000043gf
+Cache-Control: private, max-age=14811
+Date: Tue, 03 Nov 2026 13:05:33 GMT
+Content-Length: 44322
+Connection: keep-alive
+Access-Control-Allow-Origin: www.opm.gov
+Strict-Transport-Security: max-age=31536000 ; includeSubDomains ; preload
+x-frame-options: SAMEORIGIN
+X-Content-Type-Options: nosniff
+

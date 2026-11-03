@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Pure public contracts for calendar; initialized draft without business exports",
+  "description": "Serializable calendar values, query and supply service contracts",
   "engines": {
     "node": ">=24"
   },
@@ -24,7 +24,10 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@js-temporal/polyfill": "0.5.1",
+    "zod": "catalog:"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

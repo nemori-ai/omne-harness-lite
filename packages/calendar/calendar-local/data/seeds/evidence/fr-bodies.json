@@ -1,0 +1,42 @@
+[
+  {
+    "file": "fr-2025-23847.txt",
+    "url": "https://www.federalregister.gov/documents/full_text/text/2025/12/23/2025-23847.txt",
+    "acquiredAt": "2026-11-03T13:18:16.887Z",
+    "status": 200,
+    "headers": {
+      "accept-ranges": "bytes",
+      "age": "0",
+      "cache-control": "no-store, no-cache, must-revalidate, private",
+      "content-encoding": "gzip",
+      "content-length": "1458",
+      "content-type": "text/plain",
+      "date": "Tue, 03 Nov 2026 13:18:17 GMT",
+      "last-modified": "Tue, 23 Dec 2025 23:15:56 GMT",
+      "pragma": "no-cache",
+      "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+      "vary": "Accept-Encoding"
+    },
+    "sha256": "50e78139b51ae2493fcbae83381a2bce40dcee4ab895471acfdf7bf3bd67b9ed"
+  },
+  {
+    "file": "fr-2024-31766.txt",
+    "url": "https://www.federalregister.gov/documents/full_text/text/2025/01/03/2024-31766.txt",
+    "acquiredAt": "2026-11-03T13:18:17.635Z",
+    "status": 200,
+    "headers": {
+      "accept-ranges": "bytes",
+      "age": "0",
+      "cache-control": "no-store, no-cache, must-revalidate, private",
+      "content-encoding": "gzip",
+      "content-length": "1384",
+      "content-type": "text/plain",
+      "date": "Tue, 03 Nov 2026 13:18:17 GMT",
+      "last-modified": "Fri, 24 Jan 2025 19:00:50 GMT",
+      "pragma": "no-cache",
+      "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+      "vary": "Accept-Encoding"
+    },
+    "sha256": "df569271ff016e293c9cf2844d0311e6edd6c90c3a6656370c01ea7014634aae"
+  }
+]

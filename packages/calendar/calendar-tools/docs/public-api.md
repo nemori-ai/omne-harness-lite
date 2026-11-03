@@ -1,7 +1,15 @@
 # 公开入口
 
-`@omne-harness/calendar-tools` 的根入口当前没有业务导出。`./cordis` 已登记为独立入口，但尚无绑定导出。
+## 导出入口
 
-目标责任为独立工具适配。工具参数与结果投影、可信调用上下文及工具贡献生命周期。通过 Cordis inject 消费服务定义，不依赖本地后端，也不承担业务规则。 方法及类型以未来实际公开源码为唯一形状源。现有[API 设计](../../calendar/docs/public-api-design.md)是实施输入，不是当前 API。不能从包名或导出路径推断业务已经实现。
+[根入口](../src/index.ts)导出 createCalendarToolModule、createCalendarToolEnvironment、CalendarToolContextResolver/CalendarToolEnvironment、calendarToolArgumentsSchema、calendarToolResultSchema 和 adoption。`./cordis` 导出 createCalendarToolsPlugin 及 CalendarToolConfiguration。
 
-工具动作范围、可信上下文与禁止暴露的系统入口见[工具边界](../../docs/reuse-plan.md#calendar-tools-提供什么)。实际方法和 schema 随实现维护，不把本文目标动作当作已注册能力。
+## 定义索引
+
+[protocol.ts](../src/protocol.ts)拥有动作参数与结果 schema；[environment.ts](../src/environment.ts)拥有可信上下文 resolver；[author.ts](../src/author.ts)拥有作者模块；[cordis.ts](../src/cordis.ts)拥有贡献插件与配置。
+
+动作仅 list/get/effective/resolve，能力仅 calendar.read。resolve 的五类计算沿 Calendar 定义，不复制算法。模型不能填写租户、actor、authContext、SQL、供应配置、seed 或 callback。
+
+输出保留完整 kind、错误、计算依据与 nextCursor，交给现行 ToolOutputCustody/Offloader。Calendar 不定义 detailRef/truncated，也不建设详情仓。超过 16 MiB 编码上限明确失败，不返回裁剪成功。按当前资格读回与长结果托管由 Tool 拥有者负责。
+
+工具边界和复用责任见[复用规划](../../docs/reuse-plan.md#calendar-tools-提供什么)。

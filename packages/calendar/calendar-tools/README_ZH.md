@@ -1,35 +1,34 @@
 # @omne-harness/calendar-tools
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 ## 职责与状态
 
-工具参数与结果投影、可信调用上下文及工具贡献生命周期。通过 Cordis inject 消费服务定义，不依赖本地后端，也不承担业务规则。 本包为 private 0.0.0 初始化草稿，公开入口仍为空，没有可运行的业务能力。
+本成员提供 Calendar A1 的独立 Tool 作者模块、参数/结果 schema、可信上下文环境适配和 Cordis 贡献插件。动作只有 list/get/effective/resolve，能力只有 calendar.read。它不实现 Calendar 规则、存储或 Tool runtime。版本仍为 `0.0.0`、private。真实跨域接线留待 M2 之后，Schedule/Job 留待 A2。
 
 ## 使用
 
-目标消费者和允许依赖见[组架构](../docs/architecture.md)。当前只能构建和检查骨架，不能创建服务或执行业务命令。未来使用者通过公开入口消费，不能导入本包私有源码。
+根入口导出 createCalendarToolModule、createCalendarToolEnvironment 及参数/结果 schema。宿主提供 CalendarQueries、真实 Tool 环境和可信 resolver；Cordis 宿主使用 `./cordis` 的 createCalendarToolsPlugin。详见[使用方式](docs/context.md)。
 
 ## 契约
 
-[SPEC](SPEC.md)记录本成员边界，[公开入口](docs/public-api.md)区分现有导出与后续定义。已有[业务行为](../calendar/SPEC.md)和[API 设计](../calendar/docs/public-api-design.md)继续作为实施输入，不因拆包复制类型定义。
+[SPEC](SPEC.md)拥有本成员必要行为，源码定义拥有公开形状。[Calendar 行为](../calendar/SPEC.md)继续约束业务含义。
 
 ## 设计
 
-[架构](docs/architecture.md)说明本成员责任。[Cordis](docs/cordis.md)说明绑定适用性。目录初始化不建立新领域、进程或分布式实现。
+[架构](docs/architecture.md)、[流程](docs/flows.md)和[对象模型](docs/object-model.md)解释本包机制。[Cordis](docs/cordis.md)说明装配责任。
 
 ## 配置与运行
 
-Node >=24，ESM。当前没有业务配置或启动入口。单机后端与未来远程实现必须遵守相同公共语义，不能以同进程调用替代可靠交接。
+环境 resolver 消费每次 CallAccess，身份不进入模型参数。插件配置沿 Tool 作者协议，inject 查询与 Tool bindings/generations。完整结果交 ToolOutputCustody/Offloader；16 MiB 编码预算耗尽明确失败。
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/calendar-tools build`、`typecheck` 和 `test`。测试只检查草稿导出，不证明持久化、租户隔离、网络、生命周期或业务正确性。
+在工作区运行 `pnpm --filter @omne-harness/calendar-tools build`、`pnpm --filter @omne-harness/calendar-tools typecheck`、`pnpm --filter @omne-harness/calendar-tools test`。[测试入口](tests/README.md)说明现有资源和覆盖边界。本域证据不代表最终独立接受或真实跨域集成。
 
 ## 维护
 
-实现公共定义时同步消费者、必要行为与验证。保留草稿标记，直到公开行为及其验证实际完成。具体方法、schema、服务类和提供者均未实现。
+同步公开源码、必要行为、真实消费者和双语入口，保留 unknown 与提供者限制，不在正文复制第二套类型。
 
 ## 目录结构与文档职责
 

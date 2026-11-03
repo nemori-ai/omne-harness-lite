@@ -2,14 +2,18 @@
 
 ## 范围与依据
 
-本成员承担单机后端。本机持久化适配、恢复扫描、来源或执行适配及 Cordis 提供者。领域规则调用通用实现，跨域交接只消费公开协议。 安装边界归[包组织](../../../docs/package-organization.md#日历与日程的安装和部署边界)，业务目标沿[现有 SPEC](../calendar/SPEC.md)。本文件只确定初始化责任，不把目标接口声明为已有实现。
+本成员提供 Calendar A1 的 SQL 发布持久化、供应材料与运行记录、受限来源获取、发行种子读取、供应运行器和查询/供应 Cordis provider。领域规则复用 calendar，存储仅消费 sql-contract。业务行为归 [Calendar SPEC](../calendar/SPEC.md)，安装边界归[包组织](../../../docs/package-organization.md#日历与日程的安装和部署边界)。本成员仍为 private 0.0.0。
 
-## 必要约束
+## 结果与不变量
 
-公开服务消费不要求与 Session 或 Agent runtime 同机、同进程或同数据库。命令接受、业务完成、结果交付分别观察；超时和断连不能推断为未接受。原操作身份、查询、幂等及 unknown 的细化随契约实现交付。
+版本、出处、pointer/generation、receipt 与 outbox 形成同一发布业务单元。结果未知按原地址和指纹查询。反应确认的 acknowledgementKey 表示一次确认意图，首次发出前保存；同 key 同 payload 认回旧结果，异 payload 拒绝。未知不能自动换 key，重新获准的新确认用新 key，最多更新同一记录一次，不重做发布。
 
-跨子系统不得以共享事务参加者、内存锁或对象引用作为公共协议前提。本地持久化可以在自己的事务域内使用参加者。涉及外部当前资格或版本的强保证必须由具名协议兑现；实现不支持时明确拒绝，不能用旧快照放行。
+snapshot.provenanceRefs 是来源 authority，本机 rawReference 独立保管。version 精确关联原发布 candidate；材料缺失、不匹配或资格不足明确失败。seed 导入跨合法 scope 不以原材料 SQL reference 绑定快照身份。来源事实与知识时点见[资源说明](resources/README.md)。
 
-## 初始化状态与验证
+## 所有权、失败与生命周期
 
-当前根入口为空。绑定变体的 `./cordis` 也为空，没有 Service、后台循环或工具注册。构建、类型检查和导出测试只验证包骨架。业务符合性、故障恢复和真实装配尚未验证。
+owned provider 负责停止其供应应用或 runner；borrowed 不停止借入应用。关闭先拒绝新调用，再有界排空并报告未完调用/失败。未完成持久操作继续保管，退出不撤回已发布内容或外部反应。来源获取与纯解析分离，下载成功不等于发布通过。
+
+## 组合与验证
+
+公开服务不要求 Session/Agent 同机、同进程或同库。外域当前资格、有效环境、通知和 Tool 宿主仍是具名前提，M2 前本域夹具不证明真实采用。SQL L-1/L-4 和介质耐久不因同进程消失。持续入口见[测试](tests/README.md)，独立验收不由作者绿测代替。

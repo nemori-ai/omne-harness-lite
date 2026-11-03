@@ -6,7 +6,49 @@
 
 ## 共同编码与可信上下文
 
-CallContext、OwnerRef、CommandMeta、CommandResult、QueryResult、DomainError、JCS fingerprint 与幂等作用域的字段定义集中在 [Calendar 共同协议](../../../calendar/calendar/docs/public-api-design.md#1-编码版本与调用上下文)。CalendarSelection 同样来自该公开值设计。本域按同样字段验证可信上下文，不接受模型自报 owner/actor/authContext。该文档引用不引入 Calendar 到 Schedule 的源码依赖，也不新建通用包。真实身份定义必须优先复用已接受公共值。
+Calendar 的实际公开值、查询与供应协议由 [calendar-contract](../../../calendar/calendar-contract/docs/public-api.md)拥有。Schedule 的 CalendarSelection 仍表示下述 Binding 消费投影，不冒充 CalendarResolve 的 selection 字段。日期与可信调用原则见 [Calendar 编码说明](../../../calendar/calendar/docs/public-api-design.md#1-编码版本与调用上下文)。本域不接受模型自报 owner/actor/authContext，不引入 Calendar 到 Schedule 的源码依赖。真实身份定义必须优先复用已接受公共值。
+
+以下保留 Schedule 尚未源码化的既定命令设计，原先集中在 Calendar 设计页。它们不是 Calendar 实际导出，也不构成已实现声明。
+
+```ts
+type Ref = string // 具体 schema 分别验证 UUID / authority ref，不互相替代
+type Instant = string
+type Civil = string
+type LocalDate = string
+type OwnerRef =
+  | { kind: 'tenant'; tenantId: Ref; ownerId: Ref }
+  | { kind: 'system'; systemScopeRef: Ref }
+interface CallContext {
+  principalRef: Ref
+  owner: OwnerRef
+  actor: { kind: 'human' | 'agent' | 'system'; actorRef: Ref }
+  authContextRef: Ref
+  requestId: Ref
+  originatingSessionRef: Ref | null
+}
+interface CommandMeta {
+  operationKey: string // 1..128 UTF-8 bytes，由调用方产生并在重试保留
+  expectedRevision: number | null // create 为 null；已有对象命令必填
+  consentRef: Ref | null // 引用，不是授权结论
+}
+type CommandResult<T> =
+  | { kind: 'committed'; operationRef: Ref; value: T; replayed: boolean }
+  | { kind: 'noChange'; operationRef: Ref; value: T; replayed: boolean }
+  | { kind: 'unknown'; operationRef: Ref; retryAfterMs: number }
+  | { kind: 'rejected'; error: DomainError }
+type QueryResult<T> = { kind: 'ok'; value: T } | { kind: 'error'; error: DomainError }
+interface DomainError {
+  code: ErrorCode
+  message: string
+  retryable: boolean
+  requestId: Ref
+  details: Readonly<Record<string, string | number | boolean | null>>
+}
+```
+
+Schedule 命令指纹继续使用 `{protocol,operation,owner,aggregateRef,payload,expectedRevision,consentRef}` 的 RFC 8785 JCS UTF-8 字节与 SHA-256，不含 requestId、operationKey、运行时对象或 retry count。幂等作用域包含 owner、operation、aggregateRef 和 protocol，create 使用 owner 下 create namespace。同 key 同指纹认回原回执，异指纹返回 operation_key_conflict。无默认 TTL 删除历史或去重事实。sourceFingerprint 与 targetFingerprint 分开，旧 proof/receipt 不因 label 修改重写。日期/UUID 先校验，不静默修剪，排序遵循 JCS。跨语言 golden 保留中文、emoji、斜杠、负数、指数、null、空数组和键顺序。
+
+OwnerRef 的 tenant 与 system 分开，source owner 导入 tenant 分支。系统归属必须映射合法 storage 系统命名空间，不能将 systemScopeRef 填进 tenantId。originatingSessionRef 只作可空来源追踪，程序 Job 传 null。civil 为秒精度无 offset 文本，instant 为毫秒 UTC 文本。严格对象拒绝未声明字段，缺失与 null 分开，整数为 safe integer，UUID 为小写，Unicode 保留原值。IANA timezone 必须在固定 tzdb 中可解析。可信 host adapter 构造上下文，应用仍验证当前资格；AbortSignal 不进入 DTO 或指纹。
 
 ## 2. 公共值类型
 
@@ -25,7 +67,8 @@ interface RuleLimits { eligibleLimit: number | null; jobLimit: number | null; ex
 type Binding =
   | { kind: 'followUserEnvironment' }
   | { kind: 'explicit'; timezone: string; calendar: CalendarSelection | null }
-// CalendarSelection 由 Calendar 公开值设计拥有。
+// CalendarSelection 是本域的 Calendar 身份与版本消费投影。
+type CalendarSelection = {calendarId: string; version: {kind: 'latest'} | {kind: 'pinned'; versionId: Ref}}
 type CalendarOverlay = null | {
   predicate: 'workingDay' | 'nonWorkingDay' | 'holiday'
   adjust: 'skip' | 'previousWorkingDay' | 'nextWorkingDay'
@@ -147,7 +190,7 @@ JobView 对直接来源固定 scheduleId=null、scheduledAt=null、frozenBasis=n
 ### 2.4 公共读值
 
 | 类型 | 完整业务字段（所有 optional 以 null 表示） |
-|---|---|
+| --- | --- |
 | ScheduleView | scheduleId、owner、author、createdBy、createdAt、definition、definitionRevision、stateRevision、timeRuleRevision、control、standing、nextOccurrence、predecessorId、successorId、promotedBy、promotedAt、discardedBy、discardedAt、sourceScheduleKey、consentAdoption、eligibleConsumed、acceptedJobCount、observedAt |
 | Standing | kind=ready/blocked/terminallyInvalidated、generation、reasons[]、authorityEvidence[]、since、observedAt；ready 时 reasons 空 |
 | AuthorityEvidence | authorityRef、subjectRef、version、disposition、observedAt、reasonCode；不附凭证 |
@@ -169,7 +212,7 @@ execution.executionOutcome 为 succeeded、failed、cancelled、unknown 的带�
 所有纯操作同步执行或可取消的有界计算，不访问 ports。每个函数返回 `Value | CalculationError` 的判别联合，错误含 invalid、coverageInsufficient、searchLimit，不能 throw 表示普通空结果。
 
 | 根操作 | 输入 | 输出 |
-|---|---|---|
+| --- | --- | --- |
 | validateDefinition | ScheduleDefinition + resolved environmental basis | normalized validated definition 或字段 errors[] |
 | enumerateCivil | Recurrence、after civil、inclusive、scanBudget | civil candidates + scannedThrough + exhausted |
 | resolveCandidates | validated definition、basis、snapshot或null、after、count、budget | candidates[]、excluded[]、complete、observedThrough、reason |
@@ -214,7 +257,7 @@ interface JobControl {
 ```
 
 | 余下 DTO | 字段及约束 |
-|---|---|
+| --- | --- |
 | PageRequest | cursor:string或null、limit:number；limit 沿长期 SPEC各读面上限；cursor绑定queryHash、lastKey及observationRevision，revision变化返回stale_cursor要求重读，不静默跨快照翻页 |
 | Page&lt;T&gt; | items:T[]、nextCursor:string或null、observationRevision:string、complete:boolean、total:{kind:exact,value:非负整数}或{kind:unknown,reason:budgetExceeded或sourceUnavailable}；截断不能伪装结束 |
 | ScheduleFilter | agentRef、control、standing、createdBy、targetDeviceRef、calendarId、purpose 各可 null；无筛选不需日历选择 |
@@ -234,14 +277,10 @@ Calendar 查询的完整形状和默认补全规则归 [Calendar API 设计](../
 
 ### 4.1 内部应用接口
 
-这些不是 Agent tool，也不允许以普通 owner 身份调用。
+这些不是 Agent tool，也不允许以普通 owner 身份调用。CalendarSupply 的真实输入与结果见 [Calendar 供应公开索引](../../../calendar/calendar-contract/docs/public-api.md#定义索引)，不在本页复制。
 
 | 服务/操作 | 输入 | 结果 | 资格/幂等 |
 |---|---|---|---|
-| CalendarSupply.probe | calendarId、sourceId、policyVersion、operationKey | unchanged/changed/failed + observation | supply principal，probe key |
-| CalendarSupply.refresh | calendarId、policyVersion、operationKey | published/noChange/withheld/rejected/unknown + evidenceRef | supply principal，原 key |
-| CalendarSupply.importSeed | packRef、packHash、releaseRef、operationKey | 每历同上结果 | provisioning principal，pack+calendar |
-| CalendarSupply.queryPublication | operationRef | OperationView | 供应范围只读 |
 | ScheduleAdmission.prepare | scheduleId、sourceKeys、scheduledAt、expectedRevision、operationKey | durable PreparationView 或 rejected/unknown | scheduler principal，proof key |
 | ScheduleAdmission.admit | preparationId、fingerprint、operationKey | ReceiptView 或 rejected/unknown | scheduler principal；occurrence 唯一 |
 | ScheduleAdmission.reconcile | scheduleId、authority evidence refs、operationKey | current standing/rebinding result | reconciliation principal；版本单调 |
@@ -253,7 +292,7 @@ Calendar 查询的完整形状和默认补全规则归 [Calendar API 设计](../
 ## 5. Job 执行端口与外部组合接缝
 
 | 服务 | 操作签名（均以可信 ctx 开始） | 稳定结果 |
-|---|---|---|
+| --- | --- | --- |
 | EnvironmentReader | read(ownerRef)；subscribeChanges(scope,observer) | EffectiveEnvironment `{owner,revision,activeTimezone,activeCalendarId,observedAt}`；scope disposer |
 | AuthorityReader | evaluate(action,subjectRefs,payloadHash,consentRef) | allowed + authorityEvidence/guardRefs，或 denied/unknown；不返回可复制凭证 |
 | AuthorityParticipant | verifyGuards(guardRefs,commitContext) | valid / stale / denied / unavailable；必须与撤权语义同边界 |
@@ -319,7 +358,7 @@ ResultPublication.prepare 输入为 `{jobId,resultEntryId,sourceReportRef,source
 resultEntryId 在首次结果保管时分配并持久关联 jobId+resultVersion，重复事件认回原 entry。resultSeriesId 可 null，直接 Job 不伪造 occurrenceKey。结果读值保留 origin，scheduledAt 可 null，按 scheduledAt 非空否则 acceptedAt，再按 entryId 排序。历史报告、正式 artifact 和归档分别保留，不覆盖原始结果。
 
 | 接缝 | 接受输入 | 查询与结果 |
-|---|---|---|
+| --- | --- | --- |
 | ResultPublication.publish | jobId、resultSeriesId、resultEntryId、artifactRef、artifactVersion、sourceReportRef、audience、attention、operationKey | queryPublication(operationKey) → Outcome；验证当前披露资格 |
 | ThematicArchive | jobId、artifactRef、providerRef、targetRef、operationKey | queryArchive(operationKey) → Outcome；provider拥有主题模型 |
 | ResultQueries | getEntry(resultEntryId)；listSeries(resultSeriesId,PageRequest) | entryId、seriesId、occurrenceKey、scheduledAt、artifactRef/version、provenance、outcomes；按audience鉴权 |
@@ -336,7 +375,7 @@ JobControl.cancel 对notification：未交接的outbox在同提交取消并确�
 事件类型与最小 payload：
 
 | 类型 | payload |
-|---|---|
+| --- | --- |
 | calendar/version-published | calendarId、versionId、publicationGeneration、coverage、provenanceRef |
 | schedule/definition-changed | scheduleId、definitionRevision、stateRevision、action、actorRef |
 | schedule/control-changed | scheduleId、from、to、stateRevision、reason |
@@ -354,7 +393,7 @@ JobControl.cancel 对notification：未交接的outbox在同提交取消并确�
 HTTP 为可选 transport adapter；业务 API 不依赖它。v1 base `/api/v1`。`Authorization` 由 host 处理；活动 tenant claim 须与身份和请求范围核验。不能直接信任 `X-Omne-Active-Tenant`。写请求 header `Idempotency-Key` 对应 meta.operationKey；`If-Match` 对应 expectedRevision，不允许 header/body 相互矛盾。consentRef 在 body。
 
 | 方法与路径 | 应用方法 | 说明 |
-|---|---|---|
+| --- | --- | --- |
 | GET /calendars | CalendarQueries.list | 无需先选择日历 |
 | GET /calendars/effective | effective | 必须先于动态 id route 匹配 |
 | GET /calendars/{id} | get | shipped roster身份 |

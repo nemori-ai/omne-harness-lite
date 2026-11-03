@@ -1,14 +1,9 @@
 # tests 索引
 
-<!-- documentation:placeholder -->
-
-本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
+持续资源和覆盖边界见 [README.md](README.md)。
 
 ## 内容
 
-<!-- documentation:placeholder -->
+public-entry/cordis-entry 核对根入口与独立绑定入口；服务定义用例核对 provide/key、Context 与 provider 继承。定义符合性不证明业务资格、存储或生命周期全部兑现。
 
-- [README.md](README.md)：测试范围、真实依赖与替身
-- [public-entry.spec.ts](public-entry.spec.ts)：公开入口的测试
-- [cordis-entry.spec.ts](cordis-entry.spec.ts)：Cordis 绑定入口的测试
-- [fixtures/](fixtures/index.md)：测试固定输入
+从公开入口用例开始，再按所改行为读取专题用例和 [fixtures](fixtures/index.md)。独立验收归 [acceptance](../acceptance/index.md)，单次输出留任务 tmp。

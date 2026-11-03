@@ -764,9 +764,27 @@ importers:
 
   packages/calendar/calendar:
     dependencies:
+      '@js-temporal/polyfill':
+        specifier: 0.5.1
+        version: 0.5.1
       '@omne-harness/calendar-contract':
         specifier: workspace:*
         version: link:../calendar-contract
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      canonicalize:
+        specifier: 5.1.0
+        version: 5.1.0
+      csv-parse:
+        specifier: 7.0.3
+        version: 7.0.3
+      ical.js:
+        specifier: 2.2.1
+        version: 2.2.1
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -779,6 +797,13 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/calendar/calendar-contract:
+    dependencies:
+      '@js-temporal/polyfill':
+        specifier: 0.5.1
+        version: 0.5.1
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -826,7 +851,16 @@ importers:
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../storage/sql-contract
+      canonicalize:
+        specifier: 5.1.0
+        version: 5.1.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -848,13 +882,34 @@ importers:
       '@omne-harness/calendar-cordis-contract':
         specifier: workspace:*
         version: link:../calendar-cordis-contract
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/schema-provider':
+        specifier: workspace:*
+        version: link:../../schema/schema-provider
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
       '@omne-harness/tool-cordis-contract':
         specifier: workspace:*
         version: link:../../tool/tool-cordis-contract
+      '@omne-harness/tool-host-local':
+        specifier: workspace:*
+        version: link:../../tool/tool-host-local
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
+      '@omne-harness/tool':
+        specifier: workspace:*
+        version: link:../../tool/tool
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -3563,6 +3618,10 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
+  '@js-temporal/polyfill@0.5.1':
+    resolution: {integrity: sha512-hloP58zRVCRSpgDxmqCWJNlizAlUgJFqG2ypq79DCvyv9tHjRYMDOcPFjzfl/A1/YxDvRCZz8wvZvmapQnKwFQ==}
+    engines: {node: '>=12'}
+
   '@jscpd/core@4.0.1':
     resolution: {integrity: sha512-6Migc68Z8p7q5xqW1wbF3SfIbYHPQoiLHPbJb1A1Z1H9DwImwopFkYflqRDpuamLd0Jfg2jx3ZBmHQt21NbD1g==}
 
@@ -4829,6 +4888,11 @@ packages:
   caniuse-lite@1.0.30001814:
     resolution: {integrity: sha512-/Uaf1lAzr59XcMpW0o96WoEfr+VXK2OX4U9AgFoiSHsVJ4HppnIFUjtYzsyDH2+tgANaQb2/oxYGwCPapN1FpA==}
 
+  canonicalize@5.1.0:
+    resolution: {integrity: sha512-bab9+WefZljqQ8jT0qRwVmTyzAUU63K97QIQD3agynIBrb6sa5M2eAy8Hv8K3p4V9+ONVYZKtGYl4Dg+/5Gumw==}
+    engines: {node: '>=22'}
+    hasBin: true
+
   chai@6.2.2:
     resolution: {integrity: sha512-NUPRluOfOiTKBKvWPtSD4PhFvWCqOi0BGStNWs57X9js7XGTprSmFoz5F0tWhR4WPjNeR9jXqdC7/UpSJTnlRg==}
     engines: {node: '>=18'}
@@ -4882,6 +4946,9 @@ packages:
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
+
+  csv-parse@7.0.3:
+    resolution: {integrity: sha512-YFd3QM/yo17vH91L1IOZuvl09zM0zEEtdfTcOCKWcMdM++MNaQSyp09slXyFCLaPXvHstQFx/xC8myiFHSMUvw==}
 
   d3-color@3.1.0:
     resolution: {integrity: sha512-zg/chbXyeBtMQ1LbD/WSoW2DpC3I0mpmPdW+ynRTj/x2DAWYrIY7qeZIHidozwV24m4iavr15lNwIwLxRmOxhA==}
@@ -5095,6 +5162,9 @@ packages:
     resolution: {integrity: sha512-eKCa6bwnJhvxj14kZk5NCPc6Hb6BdsU9DZcOnmQKSnO1VKrfV0zCvtttPZUsBvjmNDn8rpcJfpwSYnHBjc95MQ==}
     engines: {node: '>=18.18.0'}
 
+  ical.js@2.2.1:
+    resolution: {integrity: sha512-yK/UlPbEs316igb/tjRgbFA8ZV75rCsBJp/hWOatpyaPNlgw0dGDmU+FoicOcwX4xXkeXOkYiOmCqNPFpNPkQg==}
+
   iconv-lite@0.7.3:
     resolution: {integrity: sha512-IKXpvIzjnC9XTAUbVBcMfGS0EPaIXtW6v+zr+RRp+hqULEpo0owZax6wyRwPOJbWbzjYspQwusTsfVr0ifh4uQ==}
     engines: {node: '>=0.10.0'}
@@ -5171,6 +5241,9 @@ packages:
 
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
+
+  jsbi@4.3.2:
+    resolution: {integrity: sha512-9fqMSQbhJykSeii05nxKl4m6Eqn2P6rOlYiS+C5Dr/HPIU/7yZxu5qzbs40tgaFORiw2Amd0mirjxatXYMkIew==}
 
   jsesc@3.1.0:
     resolution: {integrity: sha512-/sM3dO2FOzXjKQhJuo0Q173wf2KOo8t4I8vHy6lF9poUp7bKT0/NHE8fPX23PwfhnykfqnC2xRxOnVw5XuGIaA==}
@@ -6495,6 +6568,10 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
+  '@js-temporal/polyfill@0.5.1':
+    dependencies:
+      jsbi: 4.3.2
+
   '@jscpd/core@4.0.1':
     dependencies:
       eventemitter3: 5.0.4
@@ -7578,6 +7655,8 @@ snapshots:
 
   caniuse-lite@1.0.30001814: {}
 
+  canonicalize@5.1.0: {}
+
   chai@6.2.2: {}
 
   chalk@4.1.2:
@@ -7616,6 +7695,8 @@ snapshots:
       which: 2.0.2
 
   csstype@3.2.3: {}
+
+  csv-parse@7.0.3: {}
 
   d3-color@3.1.0: {}
 
@@ -7856,6 +7937,8 @@ snapshots:
 
   human-signals@8.0.1: {}
 
+  ical.js@2.2.1: {}
+
   iconv-lite@0.7.3:
     dependencies:
       safer-buffer: 2.1.2
@@ -7913,6 +7996,8 @@ snapshots:
       base64-js: 1.5.1
 
   js-tokens@10.0.0: {}
+
+  jsbi@4.3.2: {}
 
   jsesc@3.1.0: {}
 

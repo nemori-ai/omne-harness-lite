@@ -26,4 +26,4 @@
 
 <!-- documentation:placeholder -->
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+本目录尚无本包专有的可运行形式模型或证明，models/proofs 保持缺项；持续行为用例见[测试](../tests/README.md)。不得把目录存在或源码测试通过当成形式验证完成。适用的机制证明和目标介质证据继续按 SPEC 承担。
