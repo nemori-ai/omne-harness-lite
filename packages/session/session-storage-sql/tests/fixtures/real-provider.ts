@@ -53,7 +53,7 @@ import {
   sessionStorageMaterials,
 } from '../../src/index.ts'
 import {
-  decodeExecutionRecordState,
+  decodeExecutionRecordParts,
   EXECUTION_RECORD_HANDLERS,
   executionRecordFacts,
   type ExecutionRecordWrite,
@@ -444,13 +444,13 @@ export function agentPublisher(input: {
   const published = async (tenant: TenantId, session: string): Promise<string> => {
     const read = await input.storage.read({
       domain: domain(tenant),
-      handler: EXECUTION_RECORD_HANDLERS.state,
+      handler: EXECUTION_RECORD_HANDLERS.parts,
       protocol: '1',
       requestKey: `state-${String(writes)}`,
       input: { tenant: textOf(tenant), session },
     })
     if (read.kind !== 'read') throw new Error(`the Agent state is not readable: ${read.kind}`)
-    return decodeExecutionRecordState(read.output)?.published ?? '0'
+    return decodeExecutionRecordParts(read.output)?.published ?? '0'
   }
   const commit = async (write: ExecutionRecordWrite): Promise<void> => {
     writes += 1

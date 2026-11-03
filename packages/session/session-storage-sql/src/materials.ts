@@ -133,13 +133,6 @@ export const HANDLERS: readonly Handler[] = [
     migrations: [indexMigrationRef],
   },
   {
-    handler: 'execution-record.state',
-    file: 'read-execution-state',
-    tables: ['er_root', 'er_state'],
-    protocol: EXECUTION_RECORD_PROTOCOL,
-    migrations: [recordMigrationRef],
-  },
-  {
     handler: 'execution-record.parts',
     file: 'read-execution-parts',
     tables: ['er_root', 'er_state', ...STATE_PART_TABLES],
