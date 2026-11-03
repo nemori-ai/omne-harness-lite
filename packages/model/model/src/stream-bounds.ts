@@ -33,13 +33,18 @@ export function measureStreamValue(value: unknown, limit: number): StreamMeasure
     if (typeof item !== 'object' || item === null) return false
     containers += 1
     if (!add(2)) return false
-    if (Array.isArray(item)) {
-      for (let index = 0; index < item.length; index += 1) {
-        if (!Object.hasOwn(item, index) || (index > 0 && !add(1)) || !visit(item[index]))
-          return false
-      }
-      return true
+    return Array.isArray(item) ? array(item) : record(item)
+  }
+  /** Arrays must be dense; each element after the first adds its comma. */
+  function array(items: readonly unknown[]): boolean {
+    for (let index = 0; index < items.length; index += 1) {
+      if (!Object.hasOwn(items, index) || (index > 0 && !add(1)) || !visit(items[index]))
+        return false
     }
+    return true
+  }
+  /** Keys in sorted order; only data properties count, an accessor rejects the value. */
+  function record(item: object): boolean {
     let first = true
     for (const key of Object.keys(item).sort()) {
       const descriptor = Object.getOwnPropertyDescriptor(item, key)
