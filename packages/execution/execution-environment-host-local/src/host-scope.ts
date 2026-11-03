@@ -1,6 +1,6 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
+import { lstat, readFile, rmdir, unlink } from 'node:fs/promises'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { ManagedResource, RecoveryListing } from '@omne-harness/execution-environment-contract'
 
@@ -29,6 +29,22 @@ const unitPattern = new RegExp(`^omne-host-(${uuidText})\\.scope$`, 'u')
 const descriptionPrefix = 'omne-host'
 /** Pause between two supervisor readings while a stopped unit is still winding down. */
 const showPollMs = 50
+
+/** Removes only the two known FIFOs after the supervisor confirms this scope stopped. */
+export async function cleanupTerminalScope(unit: string): Promise<void> {
+  if (!unitPattern.test(unit)) return
+  const directory = `/tmp/${unit}.terminal`
+  try {
+    if (!(await lstat(directory)).isDirectory()) return
+    for (const name of ['commands', 'observations']) {
+      const path = `${directory}/${name}`
+      if ((await lstat(path)).isFIFO()) await unlink(path)
+    }
+    await rmdir(directory)
+  } catch {
+    /* Scope shutdown is already confirmed. A surviving private FIFO grants no execution authority. */
+  }
+}
 
 /** Milliseconds on the monotonic clock, for the bound of one stop sequence. */
 const monotonicMs = () =>

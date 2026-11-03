@@ -22,12 +22,14 @@ export type {
   FileBatchOutcome,
   FileBatchRecognition,
   FileBatchRef,
+  FileEntry,
   FileIdentity,
   FileInformation,
   FileRequest,
   FileSystemFacility,
   FileTarget,
   FileVersion,
+  FileWriteResult,
   HandleGeneration,
   ObjectToken,
 } from './facilities/files.ts'
@@ -44,7 +46,13 @@ export type {
 } from './facilities/command.ts'
 
 export { terminalFacility } from './facilities/terminal.ts'
-export type { TerminalFacility, TerminalInformation, TerminalRef } from './facilities/terminal.ts'
+export type {
+  TerminalFacility,
+  TerminalInformation,
+  TerminalRef,
+  TerminalRetention,
+  TerminalRetentionOperation,
+} from './facilities/terminal.ts'
 
 export { createRecoveryAccess } from './ports.ts'
 export type {
@@ -53,6 +61,8 @@ export type {
   RecoveryAccess,
   RecoveryAuthority,
   ResourceLedger,
+  RetainedTerminalLedger,
+  SessionTerminalRetention,
 } from './ports.ts'
 
 export type {

@@ -74,14 +74,16 @@ export function shellFixture(output = 'one-shot output') {
         sessions.set('session', { cwd, closed: false })
         return done({ terminal: { id: 'session', generation: '1' } })
       },
-      attach: async ({ terminal }) => {
-        attachments.push(terminal)
-        const session = sessions.get(terminal.id)
-        if (!session || terminal.generation !== '1') return rejected('notFound')
-        if (session.closed) return rejected('closed')
-        return done({ terminal })
+      retention: {
+        attach: async ({ terminal }) => {
+          attachments.push(terminal)
+          const session = sessions.get(terminal.id)
+          if (!session || terminal.generation !== '1') return rejected('notFound')
+          if (session.closed) return rejected('closed')
+          return done({ terminal })
+        },
+        detach: async () => done({ status: 'confirmed' }),
       },
-      detach: async () => done({ status: 'confirmed' }),
       execute: async request => {
         executions.push(request)
         const session = sessions.get(request.terminal.id)

@@ -184,7 +184,7 @@ export const filesCommands: readonly Command[] = [
 export const shellCommands: readonly Command[] = [
   {
     name: 'create_session',
-    summary: 'Create a terminal in the current authorized acquisition.',
+    summary: 'Create a persistent terminal for subsequent calls in the current session.',
     fields: [
       cwd,
       env,
@@ -228,7 +228,7 @@ export const shellCommands: readonly Command[] = [
   },
   {
     name: 'info',
-    summary: 'Report injected placement facts and current terminal observations.',
+    summary: 'Show the current execution environment and live terminal sessions.',
     fields: [],
   },
   help,

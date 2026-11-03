@@ -1,4 +1,8 @@
 // Independent local host factories. This entry does not import Cordis.
+export type {
+  StartPermitRequirement,
+  StartPermitRequirements,
+} from './start-permit-requirements.ts'
 export { createLocalToolLoader, type LocalToolLoaderInput } from './author-loader.ts'
 export { createLocalToolBindings, type LocalToolBindingsInput } from './executor-binding.ts'
 export type { LocalAuthorExecution } from './live-author-execution.ts'
@@ -75,3 +79,22 @@ export {
   type LocalStartGuardInput,
 } from './start-guard.ts'
 export { createLocalTextResults } from './text-results.ts'
+export {
+  createEnvironmentStateStore,
+  type EnvironmentAddress,
+  type EnvironmentStorageOptions,
+  type EnvironmentStateStore,
+} from './environment-state.ts'
+export {
+  createEnvironmentResourceLedger,
+  createRetainedTerminalLedger,
+  type EnvironmentResourceLedgerInput,
+  type EnvironmentResourceLedger,
+  type RetainedTerminalLedgerInput,
+  type RetainedTerminalLedgerView,
+} from './environment-resource-ledger.ts'
+export {
+  createLocalToolControlSubjects,
+  type LocalToolControlSubject,
+  type LocalToolControlSubjectsInput,
+} from './control-subject-adapter.ts'

@@ -28,6 +28,15 @@ export interface ResourceLedger {
   stopped(key: string, status: 'confirmed' | 'unconfirmed'): Promise<'recorded' | 'unavailable'>
 }
 
+/** A second lifetime: shell ownership remains with this scope after the creating acquisition ends. */
+export type RetainedTerminalLedger = Pick<ResourceLedger, 'closed' | 'plan' | 'permit' | 'stopped'>
+
+/** The integrator supplies a trusted live Session scope and its per-acquisition ledger view. */
+export type SessionTerminalRetention = Readonly<{
+  scope: ScopeRef
+  ledger: RetainedTerminalLedger
+}>
+
 const recoveryAccessMark: unique symbol = Symbol('execution-environment.recovery-access')
 
 /**

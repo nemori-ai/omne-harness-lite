@@ -22,6 +22,14 @@ export type LedgerFacts = DomainAddress &
     writes: readonly LedgerWriteFact[]
   }>
 
+/** A host CAS conditional on a previously checked call snapshot in the same tenant. */
+export type GuardedHostFacts = Readonly<{
+  intent: 'guarded-host'
+  call: DomainAddress
+  callExpected: string
+  hostCommit: LedgerFacts
+}>
+
 /** The key of one original or retained projection: the operation that kept it. */
 export type CustodyAddress = Readonly<{ tenant: string; call: string; operation: string }>
 
@@ -49,11 +57,12 @@ export type ManifestFacts = CustodyAddress &
     holds: Readonly<{ operation: string; seal: string }> | null
   }>
 
-export type ToolFacts = LedgerFacts | ChunkFacts | ManifestFacts
+export type ToolFacts = LedgerFacts | GuardedHostFacts | ChunkFacts | ManifestFacts
 
 /** Why the participant stopped a command; the adapters map each reason to one port answer. */
 export type StopBasis =
   | Readonly<{ reason: 'revision'; current: string }>
+  | Readonly<{ reason: 'call-changed' }>
   | Readonly<{ reason: 'operation' }>
   | Readonly<{ reason: 'chunks' }>
   | Readonly<{ reason: 'holder' }>
@@ -131,6 +140,22 @@ function ledgerOf(value: JsonObject): LedgerFacts | null {
   return { ...domain, intent: 'ledger', expected, revision, writes: parsed }
 }
 
+function guardedHostOf(value: JsonObject): GuardedHostFacts | null {
+  const callValue = value['call']
+  const hostValue = value['hostCommit']
+  const call = isObject(callValue) ? domainOf(callValue) : null
+  const hostCommit = isObject(hostValue) ? ledgerOf(hostValue) : null
+  const callExpected = textOf(value, 'callExpected')
+  if (
+    call?.kind !== 'call' ||
+    hostCommit?.kind !== 'host' ||
+    callExpected === null ||
+    call.tenant !== hostCommit.tenant
+  )
+    return null
+  return { intent: 'guarded-host', call, callExpected, hostCommit }
+}
+
 function chunkOf(value: JsonObject): ChunkFacts | null {
   const address = custodyAddressOf(value)
   const digest = textOf(value, 'digest')
@@ -185,6 +210,8 @@ export function parseFacts(facts: JsonObject): ToolFacts | null {
   switch (facts['intent']) {
     case 'ledger':
       return ledgerOf(facts)
+    case 'guarded-host':
+      return guardedHostOf(facts)
     case 'chunk':
       return chunkOf(facts)
     case 'manifest':
