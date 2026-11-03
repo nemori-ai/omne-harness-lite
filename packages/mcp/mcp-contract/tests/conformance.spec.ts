@@ -176,6 +176,7 @@ function credentialFixture(): CredentialUseFixture<Principal> {
     target: target('https://files.example.test/mcp'),
     missing: binding('absent'),
     otherTenant: mallory,
+    otherHolding: ref('search').holding,
     rejected: binding('old'),
     unreadable: binding('flaky'),
   }

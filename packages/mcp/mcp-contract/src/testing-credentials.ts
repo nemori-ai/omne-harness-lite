@@ -18,6 +18,8 @@ export type CredentialUseFixture<P> = Readonly<{
   missing: CredentialBinding
   /** A principal of another tenant. */
   otherTenant: Access<P>
+  /** Another holding of the same tenant, which `binding` does not belong to. */
+  otherHolding?: EndpointHolding
   /** A binding whose credential is refused. */
   rejected?: CredentialBinding
   /** A binding the port cannot read now. */
@@ -111,6 +113,20 @@ export function describeCredentialUseConformance<P>(): readonly ConformanceCase<
       )
       assert.deepStrictEqual(answer, { failure: 'unknown' })
     }),
+    conformanceCase(
+      'CU7',
+      'does not give the credential of one holding to another holding',
+      async fixture => {
+        const holding = handle(fixture.otherHolding, 'other holding')
+        const answer = await fixture.port.acquire(
+          fixture.access,
+          holding,
+          { kind: 'process-env' },
+          fixture.binding,
+        )
+        assert.deepStrictEqual(answer, { failure: 'missing' })
+      },
+    ),
   ]
 }
 
