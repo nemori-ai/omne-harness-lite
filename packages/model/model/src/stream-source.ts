@@ -9,12 +9,14 @@ import {
   judgeStreamRef,
   readStreamRef,
   type StreamCallCodec,
+  type StreamCursor,
   type StreamRef,
 } from '@omne-harness/stream-arrival'
 import {
   diffModelStream,
   encodeModelInvocationRef,
   resolveModelInvocationRef,
+  type CallState,
   type DispatchId,
   type ModelCallId,
   type ModelFailure,
@@ -35,6 +37,7 @@ import {
   createStreamBudget,
   freezeStreamValue,
   measureStreamValue,
+  type StreamMeasure,
 } from './stream-bounds.ts'
 import {
   createStreamObservation,
@@ -97,6 +100,162 @@ function unavailable(diagnostic = 'source-unavailable'): ModelFailure {
 }
 function readFailure(failure: ModelFailure): StreamEndReason {
   return failure.kind === 'denied' ? 'denied' : 'unavailable'
+}
+
+type Target = NonNullable<ConfirmedObservationRecord['target']>
+type Material = ObservationFacts['material']
+type Delta = ReturnType<typeof diffModelStream> | null
+/** Why confirmed facts install nothing; only a conflict makes the call unavailable. */
+type Refusal = 'older' | 'conflict' | 'unchanged'
+/** Confirmed facts judged against the record already held for their call. */
+type Plan = Readonly<{
+  key: string
+  facts: ObservationFacts
+  old: Entry | undefined
+  dispatch: DispatchId | null
+  outputCursor: OutputCursor | null
+  /** The attached publication, when it still names the execution of the facts. */
+  publication: Publication | null
+  /** The old public target, when the publication and the dispatch continue it. */
+  continued: Target | null
+}>
+type Draft = Readonly<{
+  reuse: Snapshot | null
+  snapshot: Snapshot | null
+  stream: ModelStreamSnapshot | null
+  serial: string
+  cursor: StreamCursor | null
+}>
+type Held = Readonly<{ measured: StreamMeasure; scratch(): void; reservation(): void }>
+type Frozen = Readonly<{ state: CallState; saved: Snapshot | null; target: Target | null }>
+
+/** Facts must carry the call and the admission that their own reference encodes. */
+function checkBinding(facts: ObservationFacts): void {
+  const resolved = resolveModelInvocationRef(facts.reference, facts.tenant)
+  if (
+    'failure' in resolved ||
+    resolved.ok.call !== facts.state.call ||
+    resolved.ok.admission !== facts.admission
+  )
+    throw new TypeError('observation facts binding')
+}
+/** Metadata that contradicts the call itself or the reference already held for it. */
+function contradicts(facts: ObservationFacts, old: Entry | undefined): boolean {
+  if (old && old.record.reference !== facts.reference) return true
+  if (
+    facts.execution &&
+    (facts.execution.call !== facts.state.call ||
+      !tenantEquals(facts.execution.tenant, facts.tenant))
+  )
+    return true
+  return (
+    facts.material.kind === 'retained' &&
+    (facts.material.snapshot.call !== facts.state.call ||
+      canonical(facts.material.snapshot.state) !== canonical(facts.state))
+  )
+}
+function dispatchOf(material: Material): DispatchId | null {
+  return material.kind === 'before-dispatch' ? null : material.dispatch
+}
+function outputCursorOf(material: Material): OutputCursor | null {
+  if (material.kind === 'before-dispatch') return null
+  return material.kind === 'retained' ? material.snapshot.cursor : material.cursor
+}
+/** A same-revision confirmation may only repeat the held one; a forced or unavailable repeat reinstalls. */
+function sameRevision(
+  old: Entry,
+  facts: ObservationFacts,
+  dispatch: DispatchId | null,
+  outputCursor: OutputCursor | null,
+  force: boolean,
+): 'conflict' | 'unchanged' | null {
+  if (
+    !sameExecution(old.execution, facts.execution) ||
+    old.dispatch !== dispatch ||
+    old.outputCursor !== outputCursor ||
+    canonical(old.record.state) !== canonical(facts.state)
+  )
+    return 'conflict'
+  return !force && !old.unavailable ? 'unchanged' : null
+}
+function continuation(
+  found: Publication | undefined,
+  facts: ObservationFacts,
+  old: Entry | undefined,
+  dispatch: DispatchId | null,
+): Pick<Plan, 'publication' | 'continued'> {
+  const publication =
+    found !== undefined && sameExecution(found.execution, facts.execution) ? found : null
+  const target = old?.record.target ?? null
+  const continued =
+    target !== null &&
+    publication !== null &&
+    samePublication(target.publication, publication) &&
+    target.snapshot.dispatch === dispatch
+      ? target
+      : null
+  return { publication, continued }
+}
+/** Blocks are reused only for the same execution, dispatch and content cursor. */
+function reusable(plan: Plan): Snapshot | null {
+  const { old } = plan
+  return old?.saved &&
+    old.dispatch === plan.dispatch &&
+    old.saved.cursor === plan.outputCursor &&
+    sameExecution(old.execution, plan.facts.execution)
+    ? old.saved
+    : null
+}
+/** The private snapshot of the confirmed state, from retained material or from reused blocks. */
+function snapshotOf(facts: ObservationFacts, reuse: Snapshot | null): Snapshot | null {
+  const material = facts.material.kind === 'retained' ? facts.material.snapshot : reuse
+  return material
+    ? {
+        call: facts.state.call,
+        cursor: material.cursor,
+        state: facts.state,
+        blocks: reuse?.blocks ?? material.blocks,
+      }
+    : null
+}
+/** Freezes the drafted values that the record shares with its readers and watchers. */
+function freezeDraft(plan: Plan, draft: Draft): Frozen {
+  const state = freezeStreamValue(plan.facts.state)
+  const raw = draft.snapshot
+  const saved = raw
+    ? Object.freeze({
+        ...raw,
+        state,
+        blocks: draft.reuse ? draft.reuse.blocks : freezeStreamValue(raw.blocks),
+      })
+    : null
+  const snapshot = draft.stream && saved ? Object.freeze({ ...draft.stream, value: saved }) : null
+  const target =
+    snapshot && draft.cursor && plan.publication
+      ? Object.freeze({ publication: plan.publication, snapshot, cursor: draft.cursor })
+      : null
+  return { state, saved, target }
+}
+/** A continued target keeps its live stream and watchers; another target starts a new stream. */
+function liveStream(
+  old: Entry | undefined,
+  continued: Target | null,
+  target: Target | null,
+): StreamTarget | null {
+  if (!target) return null
+  return continued && old?.stream
+    ? old.stream
+    : { snapshot: target.snapshot, cursor: target.cursor, watchers: new Set() }
+}
+/** Moves the live stream to the target; only a delta tells the watchers of the change. */
+function advance(stream: StreamTarget, target: Target, delta: Delta): void {
+  const from = stream.cursor
+  stream.snapshot = target.snapshot
+  stream.cursor = target.cursor
+  if (!delta || !('ok' in delta)) return
+  const value = freezeStreamValue(delta.ok)
+  for (const watcher of stream.watchers)
+    watcher.push({ kind: 'delta', from, cursor: target.cursor, value })
 }
 
 /** The storage bridge alone calls confirm; public readers cannot register call facts. */
@@ -203,200 +362,144 @@ export function createModelObservationSource<P>(
       ),
     )
   }
-  function install(facts: ObservationFacts, force = false): void {
-    if (closed) return
-    const resolved = resolveModelInvocationRef(facts.reference, facts.tenant)
-    if (
-      'failure' in resolved ||
-      resolved.ok.call !== facts.state.call ||
-      resolved.ok.admission !== facts.admission
-    )
-      throw new TypeError('observation facts binding')
-    const key = identity(facts.tenant, facts.state.call)
+  /** Judges confirmed facts against the held record; older, contradictory and unchanged facts install nothing. */
+  function judge(key: string, facts: ObservationFacts, force: boolean): Plan | Refusal {
     const old = records.get(key)
     const relation = old ? compareRevisions(facts.state.revision, old.record.state.revision) : 1
-    if (relation < 0) return
-    if (old && old.record.reference !== facts.reference) {
-      failTarget(key)
-      return
+    if (relation < 0) return 'older'
+    if (contradicts(facts, old)) return 'conflict'
+    const dispatch = dispatchOf(facts.material)
+    const outputCursor = outputCursorOf(facts.material)
+    if (old && relation === 0) {
+      const repeated = sameRevision(old, facts, dispatch, outputCursor, force)
+      if (repeated) return repeated
     }
-    const dispatch = facts.material.kind === 'before-dispatch' ? null : facts.material.dispatch
-    if (
-      facts.execution &&
-      (facts.execution.call !== facts.state.call ||
-        !tenantEquals(facts.execution.tenant, facts.tenant))
-    ) {
-      failTarget(key)
-      return
+    return {
+      key,
+      facts,
+      old,
+      dispatch,
+      outputCursor,
+      ...continuation(publications.get(key), facts, old, dispatch),
     }
-    if (
-      facts.material.kind === 'retained' &&
-      (facts.material.snapshot.call !== facts.state.call ||
-        canonical(facts.material.snapshot.state) !== canonical(facts.state))
-    ) {
-      failTarget(key)
-      return
-    }
-    const publication = publications.get(key)
-    const canPublish =
-      publication !== undefined && sameExecution(publication.execution, facts.execution)
-    const oldTarget = old?.record.target ?? null
-    const sameTarget =
-      oldTarget !== null &&
-      canPublish &&
-      samePublication(oldTarget.publication, publication) &&
-      oldTarget.snapshot.dispatch === dispatch
-    const incomingCursor =
-      facts.material.kind === 'before-dispatch'
-        ? null
-        : facts.material.kind === 'retained'
-          ? facts.material.snapshot.cursor
-          : facts.material.cursor
-    const unchanged =
-      old &&
-      relation === 0 &&
-      sameExecution(old.execution, facts.execution) &&
-      old.dispatch === dispatch &&
-      old.outputCursor === incomingCursor
-    if (
-      old &&
-      relation === 0 &&
-      (!unchanged || canonical(old.record.state) !== canonical(facts.state))
-    ) {
-      failTarget(key)
-      return
-    }
-    if (!force && unchanged && !old.unavailable) return
-    const reuse =
-      old?.saved &&
-      old.dispatch === dispatch &&
-      old.saved.cursor === incomingCursor &&
-      sameExecution(old.execution, facts.execution)
-        ? old.saved
-        : null
-    const material = facts.material.kind === 'retained' ? facts.material.snapshot : reuse
-    const rawSnapshot: Snapshot | null = material
-      ? {
-          call: facts.state.call,
-          cursor: material.cursor,
-          state: facts.state,
-          blocks: reuse?.blocks ?? material.blocks,
-        }
-      : null
-    const ref =
-      canPublish && rawSnapshot && dispatch
-        ? sameTarget
-          ? oldTarget.snapshot.ref
-          : newRef(facts)
-        : null
-    const serial = String(BigInt(old?.record.serial ?? '0') + 1n)
+  }
+  /** The continued stream keeps its reference; a new publication or dispatch mints one. */
+  function publicRef(plan: Plan, snapshot: Snapshot | null): StreamRef | null {
+    if (!plan.publication || !snapshot || !plan.dispatch) return null
+    return plan.continued ? plan.continued.snapshot.ref : newRef(plan.facts)
+  }
+  /** Drafts the next record: its private snapshot, its public stream and the next public position. */
+  function draftRecord(plan: Plan): Draft | null {
+    const reuse = reusable(plan)
+    const snapshot = snapshotOf(plan.facts, reuse)
+    const ref = publicRef(plan, snapshot)
+    const serial = String(BigInt(plan.old?.record.serial ?? '0') + 1n)
     const position = decodeStreamPosition(serial)
-    if ('failure' in position) {
-      failTarget(key)
-      return
-    }
+    if ('failure' in position) return null
     const cursor = ref ? take(encodeStreamCursor({ ref, position: position.ok })) : null
-    const rawStream: ModelStreamSnapshot | null =
-      ref && dispatch && rawSnapshot ? { ref, dispatch, value: rawSnapshot } : null
+    const stream =
+      ref && plan.dispatch && snapshot ? { ref, dispatch: plan.dispatch, value: snapshot } : null
+    return { reuse, snapshot, stream, serial, cursor }
+  }
+  /** Measures the drafted record, makes room for it and reserves its bytes and the diff scratch. */
+  function reserveRecord(plan: Plan, draft: Draft): Held | null {
+    const { facts, old } = plan
     const measured = measureStreamValue(
       {
         reference: facts.reference,
         admission: facts.admission,
-        serial,
-        publication: canPublish ? publication : null,
+        serial: draft.serial,
+        publication: plan.publication,
         execution: facts.execution,
-        value: rawStream ?? rawSnapshot ?? facts.state,
+        value: draft.stream ?? draft.snapshot ?? facts.state,
       },
       limits.maxRetainedBytes,
     )
-    if (!measured || !makeRoom(key, measured.bytes, old)) {
-      failTarget(key)
-      return
-    }
+    if (!measured || !makeRoom(plan.key, measured.bytes, old)) return null
     const scratch = budget.reserve(
-      rawStream ? (old?.bytes ?? 0) + 2 * measured.bytes + 2048 : measured.bytes,
+      draft.stream ? (old?.bytes ?? 0) + 2 * measured.bytes + 2048 : measured.bytes,
     )
     const reservation = scratch ? budget.reserve(measured.bytes) : null
     if (!scratch || !reservation) {
       scratch?.()
-      failTarget(key)
-      return
+      return null
     }
+    return { measured, scratch, reservation }
+  }
+  /** Replaces the held record and moves its live stream to the new target. */
+  function adoptRecord(plan: Plan, draft: Draft, frozen: Frozen, held: Held, delta: Delta): void {
+    const { key, facts, old, continued } = plan
+    const { target } = frozen
+    if (old && !continued) retireTarget(old)
+    const stream = liveStream(old, continued, target)
+    const record: ConfirmedObservationRecord = Object.freeze({
+      tenant: facts.tenant,
+      reference: facts.reference,
+      admission: facts.admission,
+      serial: draft.serial,
+      state: frozen.state,
+      target,
+    })
+    const entry: Entry = {
+      record,
+      execution: facts.execution && Object.freeze({ ...facts.execution }),
+      saved: frozen.saved,
+      outputCursor: plan.outputCursor,
+      dispatch: plan.dispatch,
+      stream,
+      unavailable: false,
+      bytes: held.measured.bytes,
+      nodes: held.measured.nodes,
+      containers: held.measured.containers,
+      release: held.reservation,
+    }
+    records.delete(key)
+    records.set(key, entry)
+    retainedBytes += held.measured.bytes - (old?.bytes ?? 0)
+    old?.release()
+    if (stream && target) advance(stream, target, continued ? delta : null)
+  }
+  /** Installs the drafted record under its reservation; a failed diff or a throw makes the call unavailable. */
+  function commitRecord(plan: Plan, draft: Draft, held: Held): void {
     try {
-      const state = freezeStreamValue(facts.state)
-      const saved = rawSnapshot
-        ? Object.freeze({
-            ...rawSnapshot,
-            state,
-            blocks: reuse ? reuse.blocks : freezeStreamValue(rawSnapshot.blocks),
-          })
-        : null
-      const snapshot = rawStream && saved ? Object.freeze({ ...rawStream, value: saved }) : null
-      const target =
-        snapshot && cursor && publication ? Object.freeze({ publication, snapshot, cursor }) : null
+      const frozen = freezeDraft(plan, draft)
+      const target = frozen.target
       const delta = target
         ? diffModelStream({
-            tenant: facts.tenant,
-            before: sameTarget ? oldTarget.snapshot : target.snapshot,
+            tenant: plan.facts.tenant,
+            before: plan.continued ? plan.continued.snapshot : target.snapshot,
             after: target.snapshot,
           })
         : null
       if (delta && 'failure' in delta) {
-        reservation()
-        failTarget(key)
+        held.reservation()
+        failTarget(plan.key)
         return
       }
-      if (old && !sameTarget) retireTarget(old)
-      const stream: StreamTarget | null = target
-        ? sameTarget && old?.stream
-          ? old.stream
-          : {
-              snapshot: target.snapshot,
-              cursor: target.cursor,
-              watchers: new Set(),
-            }
-        : null
-      const record: ConfirmedObservationRecord = Object.freeze({
-        tenant: facts.tenant,
-        reference: facts.reference,
-        admission: facts.admission,
-        serial,
-        state,
-        target,
-      })
-      const entry: Entry = {
-        record,
-        execution: facts.execution && Object.freeze({ ...facts.execution }),
-        saved,
-        outputCursor: incomingCursor,
-        dispatch,
-        stream,
-        unavailable: false,
-        bytes: measured.bytes,
-        nodes: measured.nodes,
-        containers: measured.containers,
-        release: reservation,
-      }
-      records.delete(key)
-      records.set(key, entry)
-      retainedBytes += measured.bytes - (old?.bytes ?? 0)
-      old?.release()
-      if (stream && target) {
-        const from = stream.cursor
-        stream.snapshot = target.snapshot
-        stream.cursor = target.cursor
-        if (sameTarget && delta && 'ok' in delta) {
-          const value = freezeStreamValue(delta.ok)
-          for (const watcher of stream.watchers)
-            watcher.push({ kind: 'delta', from, cursor: target.cursor, value })
-        }
-      }
+      adoptRecord(plan, draft, frozen, held, delta)
     } catch {
-      reservation()
-      failTarget(key)
+      held.reservation()
+      failTarget(plan.key)
     } finally {
-      scratch()
+      held.scratch()
     }
+  }
+  function install(facts: ObservationFacts, force = false): void {
+    if (closed) return
+    checkBinding(facts)
+    const key = identity(facts.tenant, facts.state.call)
+    const plan = judge(key, facts, force)
+    if (typeof plan === 'string') {
+      if (plan === 'conflict') failTarget(key)
+      return
+    }
+    const draft = draftRecord(plan)
+    const held = draft && reserveRecord(plan, draft)
+    if (!draft || !held) {
+      failTarget(key)
+      return
+    }
+    commitRecord(plan, draft, held)
   }
   function factsOf(entry: Entry): ObservationFacts {
     return {
