@@ -4,6 +4,7 @@ import {
   resolveModelInvocationRef,
   encodeModelInvocationRef,
   type ModelFailure,
+  type ModelInvocationParts,
   type Reply,
 } from '@omne-harness/model-contract'
 import { createModelObservationSource } from '../stream-source.ts'
@@ -198,44 +199,47 @@ export function createModelObservationStorage<P>(
       })
     const tenant = tenantKey(read.access.tenant)
     if (typeof tenant !== 'string') return Promise.resolve({ failure: tenant })
-    return storage.run(
-      () => {
-        const documents = storage.documents(tenant)
-        const call = documents.calls.get(decoded.ok.call)
-        const authorized = checkedActor(
-          input.authority.authorize({
-            action: read.purpose === 'current' ? 'facts' : 'observe',
-            access: read.access,
-            resource: {
-              kind: 'call',
-              call: decoded.ok.call,
-              consumer: call?.state.consumer ?? null,
-            },
-          }),
-        )
-        if ('failure' in authorized) return authorized
-        if (
-          tenantKey(decoded.ok.tenant) !== tenant ||
-          (call && call.admission !== decoded.ok.admission)
-        )
-          return { failure: { kind: 'invalid', field: 'reference', reason: 'binding' } }
-        if (
-          [...documents.operations.values()].some(
-            operation => operation.call === decoded.ok.call && operation.status === 'unknown',
-          )
-        )
-          return {
-            failure: {
-              kind: 'unavailable',
-              dependency: 'stream-references',
-              diagnostic: 'confirmation-unavailable',
-            },
-          }
-        if (!call) return { failure: { kind: 'invalid', field: 'call', reason: 'not-found' } }
-        return { ok: undefined }
-      },
-      { tenant, call: decoded.ok.call },
+    return storage.run(() => checkRead(read, decoded.ok, tenant), {
+      tenant,
+      call: decoded.ok.call,
+    })
+  }
+  /** Inside the storage run: the reader may read the call, the reference binds it, and no write is unknown. */
+  function checkRead(
+    read: ObservationRead<P>,
+    parts: ModelInvocationParts,
+    tenant: string,
+  ): Outcome<void, ModelFailure> {
+    const documents = storage.documents(tenant)
+    const call = documents.calls.get(parts.call)
+    const authorized = checkedActor(
+      input.authority.authorize({
+        action: read.purpose === 'current' ? 'facts' : 'observe',
+        access: read.access,
+        resource: {
+          kind: 'call',
+          call: parts.call,
+          consumer: call?.state.consumer ?? null,
+        },
+      }),
     )
+    if ('failure' in authorized) return authorized
+    if (tenantKey(parts.tenant) !== tenant || (call && call.admission !== parts.admission))
+      return { failure: { kind: 'invalid', field: 'reference', reason: 'binding' } }
+    if (
+      [...documents.operations.values()].some(
+        operation => operation.call === parts.call && operation.status === 'unknown',
+      )
+    )
+      return {
+        failure: {
+          kind: 'unavailable',
+          dependency: 'stream-references',
+          diagnostic: 'confirmation-unavailable',
+        },
+      }
+    if (!call) return { failure: { kind: 'invalid', field: 'call', reason: 'not-found' } }
+    return { ok: undefined }
   }
   const source =
     input.observation === undefined
