@@ -197,6 +197,9 @@ importers:
       '@omne-harness/identity-sql':
         specifier: workspace:*
         version: link:../../packages/identity/identity-sql
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../packages/common/json-text
       '@omne-harness/kernel-basis':
         specifier: workspace:*
         version: link:../../packages/assembly/kernel-basis
@@ -287,6 +290,9 @@ importers:
       '@omne-harness/tool-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/tool/tool-cordis-contract
+      '@omne-harness/tool-definitions':
+        specifier: workspace:*
+        version: link:../../packages/tool/tool-definitions
       '@omne-harness/tool-host-local':
         specifier: workspace:*
         version: link:../../packages/tool/tool-host-local
