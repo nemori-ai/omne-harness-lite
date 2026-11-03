@@ -528,7 +528,12 @@ export type JournalStateSource = Readonly<{
   tenantDomainLookup: TenantDomainLookup
 }>
 
-/** The pages of `execution-record.parts` a reader follows before it gives up on a moving count. */
+/**
+ * How many times a read of the parts starts again when its pages read different publication counts
+ * (a writer committed between two pages). Three is the same fixed bound as `SENDS` of the AD-02
+ * plugin (`journal-interpretation.ts`): enough to ride over a passing writer, not a policy knob. After the last try
+ * the read answers `unavailable` ("kept changing"); it never gives a state mixed of two counts.
+ */
 const PART_READ_ATTEMPTS = 3
 
 type PartsRead =
