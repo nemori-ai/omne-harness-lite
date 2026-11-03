@@ -24,6 +24,12 @@ describe('open of a path that names no file', () => {
     expect(await open(root, 'empty')).toBe('entry-not-found')
   })
 
+  it('answers package-not-found when the root itself is a file', async () => {
+    const root = join(await scratch(), 'pkg')
+    await writeTree(root, SAMPLE)
+    expect(await open(join(root, 'SKILL.md'), 'SKILL.md')).toBe('package-not-found')
+  })
+
   it('answers entry-not-found for a path below a file', async () => {
     const root = join(await scratch(), 'pkg')
     await writeTree(root, SAMPLE)

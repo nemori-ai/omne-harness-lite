@@ -39,12 +39,16 @@ export function isWithin(root: string, target: string): boolean {
 }
 
 /**
- * The root with every link resolved. A root that resolves to the file system root has no name, so
- * no package can be there.
+ * The root with every link resolved, checked to be a directory. A root that resolves to the file
+ * system root has no name, so no package can be there; a root that is a file holds no package.
  */
 async function resolveRoot(fs: DirectoryFs, root: string): Promise<Outcome<string, SourceFailure>> {
   const real = await attempt(() => fs.realpath(root), ROOT)
-  if ('ok' in real && basename(real.ok) === '') return fail('package-not-found')
+  if (!('ok' in real)) return real
+  if (basename(real.ok) === '') return fail('package-not-found')
+  const kind = await attempt(() => fs.lstat(real.ok), ROOT)
+  if (!('ok' in kind)) return kind
+  if (!kind.ok.isDirectory()) return fail('package-not-found')
   return real
 }
 
