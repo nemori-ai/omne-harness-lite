@@ -27,6 +27,7 @@ it(
       files: 'passed',
       shell: 'passed',
       failureClosure: 'passed',
+      parallelClose: 'passed',
       retainedTerminal: 'passed',
       targetStopped: true,
       otherCallContinued: true,

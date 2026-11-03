@@ -7,6 +7,7 @@ import { runFilesScenario } from './files-scenario.ts'
 import { runShellScenario } from './shell-scenario.ts'
 import { runInterruptScenario } from './interrupt-scenario.ts'
 import { runFailureClosureScenario } from './failure-closure-scenario.ts'
+import { runParallelCloseScenario } from './parallel-close-scenario.ts'
 import { failureDetails } from './helpers.ts'
 
 export type WindowsScenario = (assembly: WindowsAssembly) => Promise<ScenarioResult>
@@ -32,6 +33,7 @@ export async function runWindowsToolComposition() {
     results.shell = await runShellScenario(assembly)
     results.interrupt = await runInterruptScenario(assembly)
     results.failureClosure = await runFailureClosureScenario(assembly)
+    results.parallelClose = await runParallelCloseScenario(assembly)
     const beforeDenial = {
       executions: assembly.authorExecutions(),
       acquisitions: assembly.acquisitions(),
@@ -155,8 +157,9 @@ export async function runWindowsToolComposition() {
   const shell = results.shell
   const interrupt = results.interrupt
   const failureClosure = results.failureClosure
+  const parallelClose = results.parallelClose
   assert.ok(
-    files && shell && interrupt && failureClosure,
+    files && shell && interrupt && failureClosure && parallelClose,
     'Every required scenario must have completed',
   )
   const passed = (result: ScenarioResult) =>
@@ -166,12 +169,18 @@ export async function runWindowsToolComposition() {
     files: passed(files) ? 'passed' : 'failed',
     shell: passed(shell) ? 'passed' : 'failed',
     failureClosure: passed(failureClosure) ? 'passed' : 'failed',
+    parallelClose: passed(parallelClose) ? 'passed' : 'failed',
     retainedTerminal:
       shell.checks.retainedCwd && shell.checks.freshAttachment ? 'passed' : 'failed',
     targetStopped: interrupt.checks.aStopConfirmed === true,
     otherCallContinued: interrupt.checks.bContinues === true,
     originalConsumerSaved:
-      saved.length > 0 && passed(files) && passed(shell) && passed(interrupt) && passed(failureClosure),
+      saved.length > 0 &&
+      passed(files) &&
+      passed(shell) &&
+      passed(interrupt) &&
+      passed(failureClosure) &&
+      passed(parallelClose),
     evidenceDirectory,
     observations: summary,
   }
