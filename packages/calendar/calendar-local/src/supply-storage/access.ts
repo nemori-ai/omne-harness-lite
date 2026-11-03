@@ -140,7 +140,10 @@ export async function write<T>(
       identity,
       combinationVersion: options.combination.combinationVersion,
       manifestDigest: options.combination.manifestDigest,
-      commands: [guard, { participant: PARTICIPANT, facts: input }],
+      commands: [
+        guard,
+        { participant: PARTICIPANT, facts: z.record(z.string(), z.json()).parse(input) },
+      ],
     })
     switch (result.kind) {
       case 'committed':

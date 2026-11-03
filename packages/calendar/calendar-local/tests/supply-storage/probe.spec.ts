@@ -121,3 +121,23 @@ it('does not leave source standing or a due entry after rollback', async () => {
     await w.close()
   }
 })
+it('counts distinct probe intents at the same clock instant', async () => {
+  const w = await openWorld(),
+    first = probeInput(),
+    second = probeInput('same-time-second')
+  try {
+    expect(await w.journal.recordProbe(first)).toMatchObject({
+      kind: 'ok',
+      value: { consecutiveFailures: 1 },
+    })
+    expect(await w.journal.recordProbe(second)).toMatchObject({
+      kind: 'ok',
+      value: { consecutiveFailures: 2 },
+    })
+    expect(
+      await w.journal.health({ systemScopeRef: scope, calendarId: first.calendarId }),
+    ).toMatchObject({ kind: 'ok', value: { sources: [{ consecutiveFailures: 2 }] } })
+  } finally {
+    await w.close()
+  }
+})

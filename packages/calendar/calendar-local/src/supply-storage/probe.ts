@@ -37,7 +37,7 @@ export function probe(input: Extract<Write, { action: 'probe.record' }>, port: P
     'INSERT INTO ca_supply_probes(scope,calendar,operation_key,fingerprint,payload,standing) VALUES (?,?,?,?,?,?)',
     [scope, p.calendarId, p.operationKey, p.fingerprint, canonical(p), canonical(standing)],
   )
-  if (old === null || p.observation.observedAt > old.observation.observedAt) {
+  if (old === null || p.observation.observedAt >= old.observation.observedAt) {
     const due = {
       calendarId: p.calendarId,
       policyVersion: p.policyVersion,

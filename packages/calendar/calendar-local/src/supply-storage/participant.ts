@@ -92,7 +92,7 @@ export default {
     const result = execute(input, port)
     if (result.kind === 'conflict')
       return { kind: 'conflict', basis: { reason: result.reason, intent: intent(input) } }
-    const response = { intent: intent(input), value: result.value }
+    const response = z.json().parse({ intent: intent(input), value: result.value })
     port.provideFact(RESULT_FACT, response)
     return { kind: 'participated', response }
   },

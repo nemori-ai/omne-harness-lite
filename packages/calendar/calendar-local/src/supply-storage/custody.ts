@@ -4,7 +4,6 @@ import {
   calendarSeedMaterialSchema,
   calendarSeedPackSchema,
   contentHashSchema,
-  instantSchema,
   type CalendarSeedPack,
 } from '@omne-harness/calendar-contract'
 import type {
@@ -22,15 +21,10 @@ export type CalendarSeedPackSource =
   | Readonly<{ kind: 'file'; path: string }>
   | Readonly<{ kind: 'bytes'; read(): Promise<Uint8Array> }>
 export type CalendarSeedPackRegistry = ReadonlyMap<string, CalendarSeedPackSource>
-const sourceSchema = z.strictObject({
-  sourceId: text,
-  content: z.instanceof(Uint8Array),
-  mediaType: text,
-  acquiredAt: instantSchema,
-  knowledgeAsOf: instantSchema,
-  lineageRef: text,
-  authorityRef: text,
-})
+const sourceSchema = calendarSeedMaterialSchema
+  .unwrap()
+  .omit({ rawHash: true, contentBase64: true })
+  .extend({ content: z.instanceof(Uint8Array) })
 function result<T>(value: CalendarJournalResult<T>): CalendarReadResult<T> {
   return value.kind === 'ok' ? value : { kind: 'unavailable', reason: value.reason }
 }
@@ -48,11 +42,15 @@ function decode(
     stored.reference !== `calendar-material:${digest({ scope, material })}`
   )
     throw new Error('materialIntegrity')
-  const { rawHash, contentBase64: _base64, ...metadata } = material
+  const { rawHash, contentBase64: _base64, transportEvidence, ...metadata } = material
   return {
     reference: stored.reference,
     rawHash,
-    material: { ...metadata, content: new Uint8Array(content) },
+    material: {
+      ...metadata,
+      content: new Uint8Array(content),
+      ...(transportEvidence === undefined ? {} : { transportEvidence }),
+    },
   }
 }
 async function fileBytes(path: string, limit: number): Promise<Uint8Array> {

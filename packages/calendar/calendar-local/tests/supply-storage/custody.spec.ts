@@ -202,3 +202,58 @@ it('requires an explicit authority and a legal system domain at construction', a
     await w.close()
   }
 })
+it('preserves structured transport evidence without rewriting authority or source metadata', async () => {
+  const w = await openWorld()
+  const evidence = {
+    url: 'https://fixture.invalid/calendar.json',
+    method: 'GET' as const,
+    status: 200,
+    etag: 'fixture-etag',
+    lastModified: null,
+    contentLength: 4,
+    bodyHash: hash(material().content),
+    knowledgeBasis: 'fixture authoritative publication date',
+  }
+  const input = { ...material(), transportEvidence: [evidence] }
+  let reference = ''
+  try {
+    const saved = await w.materials.preserve(input)
+    expect(saved).toMatchObject({ kind: 'ok', value: { material: input } })
+    if (saved.kind !== 'ok') throw new Error('Expected retained transport evidence')
+    reference = saved.value.reference
+    expect(await w.materials.read({ reference })).toEqual(saved)
+    const changed = await w.materials.preserve({
+      ...input,
+      transportEvidence: [{ ...evidence, etag: 'later-etag' }],
+    })
+    expect(changed).toMatchObject({ kind: 'ok' })
+    if (changed.kind === 'ok') expect(changed.value.reference).not.toBe(reference)
+    expect(
+      await w.materials.preserve({ ...input, transportEvidence: [{ ...evidence, status: 700 }] }),
+    ).toMatchObject({ kind: 'invalid' })
+    const seed = JSON.parse(seedBytes().toString())
+    seed.calendars[0].materials[0].transportEvidence = [evidence]
+    const bytes = Buffer.from(JSON.stringify(seed))
+    const store = createCalendarSqlSupplyStorage({
+      ...w.options,
+      seedPackRegistry: new Map([
+        ['transport-seed', { kind: 'bytes' as const, read: async () => bytes }],
+      ]),
+    }).materials
+    expect(await store.readSeed({ packRef: 'transport-seed', packHash: hash(bytes) })).toEqual({
+      kind: 'ok',
+      value: seed,
+    })
+  } finally {
+    await w.close()
+  }
+  const restored = await openWorld(w.root)
+  try {
+    expect(await restored.materials.read({ reference })).toMatchObject({
+      kind: 'ok',
+      value: { material: input },
+    })
+  } finally {
+    await restored.close()
+  }
+})

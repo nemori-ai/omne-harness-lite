@@ -52,12 +52,16 @@ function read(input: Read, port: ReadPort): JsonValue {
     case 'health':
       return health(input, port)
     case 'material':
-      return record(
-        port,
-        'SELECT record FROM ca_supply_materials WHERE scope = ? AND reference = ?',
-        [input.systemScopeRef, input.reference],
-        storedSchema,
-      )
+      return z
+        .json()
+        .parse(
+          record(
+            port,
+            'SELECT record FROM ca_supply_materials WHERE scope = ? AND reference = ?',
+            [input.systemScopeRef, input.reference],
+            storedSchema,
+          ),
+        )
     case 'pending':
       return records(
         port,
