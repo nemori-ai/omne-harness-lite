@@ -23,6 +23,7 @@ import type {
   DurableEvidence,
   EffectIntent,
   ExecutionSettlement,
+  FailureCandidate,
   FinishCandidate,
   FinishCandidateContent,
   FinishIntent,
@@ -330,6 +331,12 @@ function recorded<T>(value: T | null | undefined, what: string): T {
   return value
 }
 
+/** The failures that settle the call they name: no reply, or a refused admission (R2-D241). */
+const settlesCall = (
+  failure: FailureCandidate | null | undefined,
+): failure is Extract<FailureCandidate, { kind: 'no-reply' | 'model-refused' }> =>
+  failure?.kind === 'no-reply' || failure?.kind === 'model-refused'
+
 /**
  * The obligations of `candidate` from the Journal's own records at the current revision. An
  * ordinary candidate leaves an input no batch took, an unapplied before-terminal passage and a
@@ -485,7 +492,7 @@ export function buildObligations(
         : (source.finishing.candidates.find(
             item =>
               item.conclusion.kind === 'fail' &&
-              (item.failure?.kind === 'no-reply' || item.failure?.kind === 'model-refused') &&
+              settlesCall(item.failure) &&
               item.failure.call === call,
           )?.failure ?? undefined)
     const custodian =

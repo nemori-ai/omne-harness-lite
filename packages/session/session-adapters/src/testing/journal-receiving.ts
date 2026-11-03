@@ -245,7 +245,10 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
    */
   const recommitted = (
     input: Input<P>,
+    previous: ReturnType<ReturnType<Hooks<P>['operations']>['get']>,
+    text: string,
   ): Outcome<{ kind: 'committed'; value: ReceivedCommitValue }, Failure> | undefined => {
+    if (previous?.kind !== 'committed' || previous.key !== text) return undefined
     const original = hooks.state().aliases.get(operationKey(input))
     if (!original) return undefined
     const value = rich(input, original)
@@ -332,8 +335,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
                   ? succeed({ kind: 'excluded' as const, evidence: previous.evidence })
                   : fail(conflict(input)),
             }
-          const repeated = previous?.kind === 'committed' && previous.key === text
-          const original = repeated ? recommitted(input) : undefined
+          const original = recommitted(input, previous, text)
           if (original) return { kind: 'answer', value: original }
           if (previous?.kind === 'committed' && previous.key !== text) {
             const old = hooks.state().aliases.get(operationKey(input))

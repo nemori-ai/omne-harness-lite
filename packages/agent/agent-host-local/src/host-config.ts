@@ -91,19 +91,29 @@ function receptionIssues(value: unknown): readonly string[] {
   if (value === undefined) return []
   if (typeof value !== 'object' || value === null || Array.isArray(value))
     return ['reception: not an object']
-  const issues: string[] = []
+  const issues = receptionFieldIssues(value)
+  return issues.length > 0 ? issues : receptionOrderIssues(value)
+}
+
+/** Unknown fields, and the items that are not positive safe integers. */
+function receptionFieldIssues(value: object): string[] {
   const allowed: ReadonlySet<string> = new Set(RECEPTION_FIELDS)
-  for (const field of Object.keys(value))
-    if (!allowed.has(field)) issues.push(`reception.${field}: unknown field`)
-  for (const field of RECEPTION_FIELDS)
-    if (!isPositive(Reflect.get(value, field)))
-      issues.push(`reception.${field}: not a positive safe integer`)
-  if (
-    issues.length === 0 &&
-    (Reflect.get(value, 'retryMaxMs') as number) < (Reflect.get(value, 'retryMs') as number)
-  )
-    issues.push('reception.retryMaxMs: below retryMs')
-  return issues
+  return [
+    ...Object.keys(value)
+      .filter(field => !allowed.has(field))
+      .map(field => `reception.${field}: unknown field`),
+    ...RECEPTION_FIELDS.filter(field => !isPositive(Reflect.get(value, field))).map(
+      field => `reception.${field}: not a positive safe integer`,
+    ),
+  ]
+}
+
+/** The longest wait is not below the first one. */
+function receptionOrderIssues(value: object): string[] {
+  const first = Reflect.get(value, 'retryMs') as number
+  return (Reflect.get(value, 'retryMaxMs') as number) < first
+    ? ['reception.retryMaxMs: below retryMs']
+    : []
 }
 
 /** The issues of one value, in the order of the fields. An empty list means a valid value. */
