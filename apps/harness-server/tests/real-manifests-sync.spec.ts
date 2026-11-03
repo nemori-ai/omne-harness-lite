@@ -13,46 +13,7 @@ import { AA_FIXTURE_ROWS } from './fixtures/serve/index.ts'
 /** 具名差额清单：行 → 补丁编号与该补丁落地后 `stubs.ts` 这一行会变成的样子（只写变化的字段）。 */
 const KNOWN_GAPS: Readonly<
   Record<string, Readonly<{ patch: string; manifest: Partial<RowManifest> }>>
-> = {
-  // R2-D237 (MODEL-RECV), by the R2-D41 route: the Journal row provides the two faces of the Model
-  // result receiver and the host row injects them. The assembly page, `aa-rows.json` and `stubs.ts`
-  // have single writers; MODEL-RECV hands them the patch as wiring facts.
-  'agent-journal': {
-    patch: 'R2-D41（Reduce 收件时改装配页、aa-rows、stubs）',
-    manifest: {
-      provides: [
-        'agentJournal',
-        'agentJournalEntries',
-        'agentMaterials',
-        'agentReceivedCommits',
-        'agentModelReceptionTargets',
-      ],
-    },
-  },
-  'agent-host': {
-    patch: 'R2-D41（Reduce 收件时改装配页、aa-rows、stubs）',
-    manifest: {
-      injects: [
-        'agentJournal',
-        'agentJournalEntries',
-        'agentMaterials',
-        'agentReceivedCommits',
-        'agentModelReceptionTargets',
-        'agentAccessCheck',
-        'agentAdoptions',
-        'agentConditions',
-        'agentRequests',
-        'agentModelSelection',
-        'agentModelContext',
-        'agentMessageHandoff',
-        'agentAccountOutlet',
-        'modelRuntime',
-        'agentClock',
-        'agentHostPrincipal',
-      ],
-    },
-  },
-}
+> = {}
 
 const profile = serveProfile()
 
