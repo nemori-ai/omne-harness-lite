@@ -597,7 +597,9 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
               try {
                 const principal = await coordinator({ tenant, session: sessionId })
                 if ('failure' in principal) {
-                  logger.warn(`no coordinator principal for ${execution}: ${principal.failure.kind}`)
+                  logger.warn(
+                    `no coordinator principal for ${execution}: ${principal.failure.kind}`,
+                  )
                   return
                 }
                 const answer = await guarded({
@@ -607,9 +609,7 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
                   execution,
                 })
                 if ('failure' in answer)
-                  logger.warn(
-                    `the consumption of ${execution} answered ${answer.failure.kind}`,
-                  )
+                  logger.warn(`the consumption of ${execution} answered ${answer.failure.kind}`)
               } catch (cause) {
                 logger.error(`trigger: the coordinator threw: ${describe(cause)}`)
               }

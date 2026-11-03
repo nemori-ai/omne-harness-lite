@@ -972,7 +972,11 @@ describe('AD-06 trigger: the event of the Journal plugin wakes the consumption',
     await settle()
     expect(f.commits).toHaveLength(1)
     expect(await progressOf(s)).toMatchObject({ through: '1', execution: s.execution })
-    expect(entriesKinds(s)).toEqual(['call.execution-fact', 'account.linked', 'entries.interpreted'])
+    expect(entriesKinds(s)).toEqual([
+      'call.execution-fact',
+      'account.linked',
+      'entries.interpreted',
+    ])
   })
 
   it('the same event again commits nothing more', async () => {
