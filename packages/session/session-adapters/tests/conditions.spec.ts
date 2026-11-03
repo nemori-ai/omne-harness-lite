@@ -25,7 +25,8 @@ import { ok } from './fixtures/common-journal.ts'
 import { cordisScene, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 const MODES_BASIS = evidence('tenant-defaults/modes')
-const ROUTE_BASIS = evidence('route-a')
+/** Its record differs from the route name, so the projection of `name` is told apart from it. */
+const ROUTE_BASIS = evidence('route-a/saving-commit')
 
 const modesOf = (collaboration: Modes['collaboration']): Modes => ({
   permission: 'never',
