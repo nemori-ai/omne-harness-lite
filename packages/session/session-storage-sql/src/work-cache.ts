@@ -22,6 +22,7 @@ import {
 } from '@omne-harness/session-contract'
 import type { DomainRef, JsonValue, SqlStorage } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue } from './codec.ts'
+import type { HistoryBasis, WorkIndexInput } from './worker/history-index.ts'
 import { PROTOCOL } from './worker/schema.ts'
 
 /** The sessions the cache keeps by default; past it the least recently used session goes. */
@@ -456,7 +457,7 @@ function indexInput(snapshot: WorkSnapshot): JsonValue {
     readThrough: execution.readThrough,
   })
   const { run } = snapshot
-  return encodeValue({
+  const input: WorkIndexInput = {
     tenant: snapshot.tenant,
     session: snapshot.session,
     revision: snapshot.revision,
@@ -469,7 +470,8 @@ function indexInput(snapshot: WorkSnapshot): JsonValue {
       run: item.run,
       execution: reference(item.execution),
     })),
-  })
+  }
+  return encodeValue(input)
 }
 
 type Indexed = Readonly<{ version: WorkVersion; snapshot: WorkSnapshot }>
@@ -547,7 +549,8 @@ async function decisionBasis(
   held: WorkSnapshot,
   fold: WorkFold,
 ): Promise<Readonly<{ index: SessionHistoryIndex; reads: SessionHistoryReads }> | null> {
-  const decided = fold.basis as Readonly<{ scope: JsonValue; focus: JsonValue }>
+  // The basis travels encoded: each member is the JSON of the member of the history basis.
+  const decided = fold.basis as { readonly [member in keyof HistoryBasis]: JsonValue }
   const read = await readOne(reach, WORK_READS_HANDLER, {
     revision: held.revision,
     published: fold.published,

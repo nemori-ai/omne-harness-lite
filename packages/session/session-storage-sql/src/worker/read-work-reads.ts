@@ -5,10 +5,10 @@
 // same count gives what the participant read inside its transaction. Another count, a position whose
 // row is not of the revision before the batch, or a kept index past the position is `stale`, and the
 // work cache then reads the snapshot whole.
-import type { SessionInputScope, WorkSnapshot } from '@omne-harness/session-contract'
+import type { SessionInputScope } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue, isCount } from '../codec.ts'
-import { BelowKept, readHistory, type HistoryFocus } from './history-index.ts'
+import { BelowKept, readHistory, type HistoryFocus, type WorkIndexInput } from './history-index.ts'
 import { handler, oneRow, readVersion, scopeOf, text } from './support.ts'
 
 type Request = Readonly<{
@@ -48,7 +48,7 @@ export default handler('session.work-reads', (input, port) => {
       port,
       scope.tenant,
       scope.session,
-      decodeValue(snapshot) as WorkSnapshot,
+      decodeValue(snapshot) as WorkIndexInput,
       decodeValue(inputs) as SessionInputScope,
       undefined,
       decodeValue(focus) as HistoryFocus,

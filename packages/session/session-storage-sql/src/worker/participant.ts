@@ -31,8 +31,9 @@ import type {
 import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
 import { runChecks } from './check.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
-import { NO_FOCUS, readHistory, type HistoryFocus, type SessionHistory } from './history-index.ts'
+import { NO_FOCUS, readHistory, type HistoryBasis, type SessionHistory } from './history-index.ts'
 import { judgeLog, readCoveringText, type CoveringSnapshot, type LogBatch } from './log.ts'
+import type { SessionWorkReply } from '../participants.ts'
 import { PROTOCOL } from './schema.ts'
 import { assignPositions, big, oneRow, readVersion, rowsOf, text, type Row } from './support.ts'
 
@@ -155,9 +156,6 @@ const participated = (result: unknown, recovered: boolean, work?: JsonValue): Pa
 /** The JSON text the decision of a work reply may take (C-TOPOLOGY §2.9). */
 export const WORK_BASIS_BYTES = 16 * 1024
 
-/** The input range and focus of the history read a batch was judged and reduced on. */
-type Decided = Readonly<{ scope: SessionInputScope; focus: HistoryFocus }>
-
 /**
  * What a published batch tells the work cache of the main thread (C-TOPOLOGY §2.9), so that it can
  * fold the batch onto the snapshot it holds instead of reading the new one whole: the version and
@@ -176,11 +174,11 @@ function workOf(
     revision: string
     stored: string
     entries: readonly HistoryEntry[]
-    decided: Decided | 'none'
+    decided: HistoryBasis | 'none'
   }>,
-): JsonValue {
+): SessionWorkReply {
   const { tenant, session, revision, stored, entries, decided } = input
-  const work = {
+  const work: SessionWorkReply = {
     tail: revision,
     // Read after this transaction moved the journal row to `revision`.
     published: readVersion(port, { tenant, session })?.published ?? '0',

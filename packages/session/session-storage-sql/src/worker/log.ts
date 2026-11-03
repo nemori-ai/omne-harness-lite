@@ -24,6 +24,7 @@ import type { JournalRow } from './entries.ts'
 import {
   entryEvidence,
   readHistory,
+  type HistoryBasis,
   type HistoryFocus,
   type SessionHistory,
 } from './history-index.ts'
@@ -44,7 +45,7 @@ export type LogBatch = Readonly<{
   entries: readonly HistoryEntry[]
   answer: SessionLogReceipt
   /** The input range and focus of the history read the observation was judged and reduced on. */
-  decision: Readonly<{ scope: SessionInputScope; focus: HistoryFocus }>
+  decision: HistoryBasis
 }>
 
 /**

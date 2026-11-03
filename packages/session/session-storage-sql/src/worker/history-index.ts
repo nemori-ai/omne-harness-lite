@@ -84,6 +84,31 @@ export type HistoryFocus = Readonly<{
 
 export const NO_FOCUS: HistoryFocus = { executions: [], event: null }
 
+/**
+ * The input range and focus of the history read a batch was judged and reduced on: a read Worker
+ * reads the same index and reads again from it (C-TOPOLOGY §2.9 H2).
+ */
+export type HistoryBasis = Readonly<{ scope: SessionInputScope; focus: HistoryFocus }>
+
+/** The execution of a Run as the history index reads it. */
+type ExecutionReference = Readonly<{ execution: string; readThrough: string }>
+
+/**
+ * The fields of a snapshot that the history index reads: tenant, session, revision, pending inputs,
+ * and the execution and read-through of the current Run and of the earlier ones. The work cache
+ * sends only these to `session.work-index` and `session.work-reads`; a whole snapshot has them too.
+ */
+export type WorkIndexInput = Readonly<{
+  tenant: WorkSnapshot['tenant']
+  session: WorkSnapshot['session']
+  revision: WorkSnapshot['revision']
+  pending: WorkSnapshot['pending']
+  run:
+    | Readonly<{ kind: 'active'; run: RunId; execution: ExecutionReference }>
+    | Readonly<{ kind: Exclude<WorkSnapshot['run']['kind'], 'active'> }>
+  executions?: readonly Readonly<{ run: RunId; execution: ExecutionReference }>[]
+}>
+
 export type SessionHistory = Readonly<{ index: SessionHistoryIndex; reads: SessionHistoryReads }>
 
 type Planted = Readonly<{
@@ -600,7 +625,7 @@ function endedOf(cell: SqlCell | undefined): ExecutionHistoryBoundary['ended'] |
 type Context = Readonly<{
   read: Reader
   scope: Scope
-  snapshot: WorkSnapshot
+  snapshot: WorkIndexInput
   starts: ReadonlyMap<string, Start>
   focus: HistoryFocus
   /** The last Session position the decision saw; the whole log when absent. */
@@ -633,7 +658,8 @@ function boundaryOf(context: Context, execution: string): ExecutionHistoryBounda
   if (receipt === null || receipt.digest === 'unknown') return null
   const ended = endedOf(row['ended'])
   if (ended === 'malformed') return null
-  const readThrough = executionReadThrough(snapshot, start.run, execution) ?? '0'
+  // It reads only the Run and the executions of the snapshot, which `WorkIndexInput` carries.
+  const readThrough = executionReadThrough(snapshot as WorkSnapshot, start.run, execution) ?? '0'
   const facts = factsOf(
     read(
       `SELECT sequence, source, kinds FROM er_fact_idx
@@ -902,7 +928,7 @@ export function readHistory(
   port: Executor,
   tenant: string,
   session: string,
-  snapshot: WorkSnapshot,
+  snapshot: WorkIndexInput,
   scope: SessionInputScope,
   limit: number = MAX_ROWS,
   focus: HistoryFocus = NO_FOCUS,
@@ -970,7 +996,7 @@ export function workIndexOf(
   port: Executor,
   tenant: string,
   session: string,
-  snapshot: WorkSnapshot,
+  snapshot: WorkIndexInput,
 ): SessionHistory | 'too-many' {
   return readHistory(
     port,

@@ -15,7 +15,7 @@ import type {
 import type { FactCommandV2, JsonValue, RecordedReply } from '@omne-harness/sql-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { canonicalText, decodeValue, encodeValue, isCount, sha256 } from './codec.ts'
-import { readCachedSessionWork, registerSessionWorkIndex } from './work-cache.ts'
+import { readCachedSessionWork, registerSessionWorkIndex, type WorkFold } from './work-cache.ts'
 
 /** The participant that executes the Session commands and the read-only checks. */
 export const SESSION_PARTICIPANT = 'session'
@@ -162,19 +162,9 @@ export type SessionParticipation =
 
 /**
  * What a published Session batch tells the work cache of the main thread (C-TOPOLOGY §2.9): the
- * version and stored text length of the new snapshot, the positions of the batch, whether it was
- * reduced on a history index, and that index with the reads (`basis`, encoded) when they fit the
- * bound of the reply.
+ * fold of the work cache (`WorkFold`), under the name of this vocabulary.
  */
-export type SessionWorkReply = Readonly<{
-  tail: string
-  published: string
-  bytes: number
-  first: string
-  last: string
-  indexed: boolean
-  basis?: JsonValue
-}>
+export type SessionWorkReply = WorkFold
 
 function workReplyOf(value: JsonValue | undefined): SessionWorkReply | undefined {
   const work = recordOf(value)

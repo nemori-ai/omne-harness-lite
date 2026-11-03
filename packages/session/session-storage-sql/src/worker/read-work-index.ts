@@ -9,10 +9,9 @@
 // cache registers. An index over the row bound (`too-many`) names the count too: the whole read at
 // that count answers the snapshot without an index as well. Another tail, or a count below the one
 // asked, is `stale`, and the cache then reads the snapshot whole.
-import type { WorkSnapshot } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue, isCount } from '../codec.ts'
-import { workIndexOf } from './history-index.ts'
+import { workIndexOf, type WorkIndexInput } from './history-index.ts'
 import { handler, readVersion, scopeOf } from './support.ts'
 
 export default handler('session.work-index', (input, port) => {
@@ -28,7 +27,7 @@ export default handler('session.work-index', (input, port) => {
     port,
     scope.tenant,
     scope.session,
-    decodeValue(snapshot) as WorkSnapshot,
+    decodeValue(snapshot) as WorkIndexInput,
   )
   return index === 'too-many'
     ? { kind: 'too-many', published: now }
