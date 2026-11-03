@@ -175,7 +175,7 @@ TB-04 的大载荷保管链路仍是 Session 契约记下的[明确缺项](../se
 1. 按 `(tenant, operation)` 点查原操作答案。这一行已经存在时，响应「冲突」，依据带原摘要与原答案。提供者按摘要认回或答 `conflict`。
 2. 读该会话的发布计数 `er_root.published`，按 `(tenant, execution)` 读执行行的 head 修订号。
 3. 计数不等于 `write.published`、修订号不等于 `write.expected`，或执行行属于另一个会话时，响应「冲突」，依据带当前修订号与当前计数。模块不写任何行。
-4. 写原操作答案与语义摘要，写该会话的不透明状态：整份写替换 `er_state.state` 并删除全部分区；分区写替换或删除所列分区（`er_state_part`），带 `replace` 时先删整份状态与全部分区（第 18 条）。
+4. 写原操作答案与语义摘要，写该会话的不透明状态：整份写替换 `er_state.state` 并把全部分区标为已删除；分区写替换或删除所列分区（`er_state_part`），带 `replace` 时先删整份状态并把其余分区标为已删除（第 18 条）。
 5. 写提供者准备的同根索引行：执行边界（`er_execution`）、事实边界（`er_fact_idx`）、批次（`er_batch_idx`）与原受理目录（`er_admission_idx`）。
 6. 把 `er_root.published` 加 1，响应「参加」。回复带新计数与本次写入的摘要。
 
