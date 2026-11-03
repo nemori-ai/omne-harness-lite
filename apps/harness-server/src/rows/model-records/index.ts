@@ -94,7 +94,7 @@ function evidenceOf(
 }
 
 /** One activation of the row: the plugin class is built for it, so every live object is in its closure. */
-function activate(ctx: Context, config: ModelRecordsConfig): void {
+function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
   const port = modelRecordsPortOf(ctx)
   if (port === undefined)
     throw new Error(
@@ -210,7 +210,7 @@ const recordsPlugin: Plugin.Object = {
   inject: [...INJECT],
   Config: modelRecordsConfig,
   apply(ctx: Context, config: ModelRecordsConfig) {
-    activate(ctx, config)
+    mountRecords(ctx, config)
   },
 }
 
