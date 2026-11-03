@@ -31,3 +31,68 @@
 | 9 | `byName` 比较器「大于分支返回 0」的存活 | 判为等价：TimSort 只用 `compare < 0` 决定左右与归并取数，键唯一时返回 0 与返回正数不可区分。在比较器注释写明，不再追 |
 
 待增量复审（代码、SPEC 表达）与 reduce 复跑结果。
+
+## Skill 第 2 轮代码增量复审（无阻断）→ 第 3 轮小追加（草稿）
+
+| # | 发现 | 裁定 |
+| --- | --- | --- |
+| S3-1 | `./provider` 的类型导出集合没钉住（`export type *` 能绕过三处检查） | 在 spec-d 里用类型层集合相等钉住，或 `exportedNames` 同时匹配 `export *`/`export type *` 并断言其不存在 |
+| S3-2 | SPEC「与组页的差异」表依据栏：L63 引不存在的裁定；L67 错引 C18（实为闭包规格「不在范围内」，是延期不是取消）；L70 无编号 | 改来源：L63 记「reduce 裁定 C22′（2026-11-03）接受该细化」；L67 记「闭包规格 W1 范围外，套件随 `@omne-harness/skill` 的实现在下一波加入 skill-contract/testing（可加改动）」；L70 记「reduce 裁定 S2-6（2026-11-03）」 |
+| S3-3 | PR4 在材料无资产版本时整条不适用，来源层那一支无用例 | 补一例：不带资产版本、依据来源层与采用来源层不同 → `basis-not-lawful`；内存替身按来源层核对 |
+| S3-4 | E10 的 `entry-unreadable` 在快照阶段失败，打破组页 L318 拒绝次序（无快照时判不了 manifest-missing） | 接受为次序例外：SPEC 写明「来源在快照阶段答 `entry-unreadable` 时，检查以 `malformed` 结束，不再按次序判其余原因」；波末写回组页 |
+| S3-5 | `UnsupportedWhat` 封闭成单值 | 接受（组页拥有者确认）；波末写回组页 |
+| S3-6 | 包内链接解析后落在包外：快照收字节后，`snapshot` 阶段没有规定答什么 | `SkillPackageSource.snapshot` 可以答 `outside-package`（链接解析后落在根外），`inspect` 映射为 `rejected: outside-package`，读取映射为 `outside-package`。SPEC 端口要求与映射表补上；波末写回组页 |
+| S3-7 | 建议 1：缺字节/多字节答 `version-changed` 可能把调用方缺陷包装成竞争 | SPEC parse-preconditions 补一句：来源失败由调用方先按映射表处理，再调 `parseSkillPackage`；行为不改 |
+| S3-8 | 建议 3：`isShortText` 与 `isBoundedText` 近似重复 | 合并：`isShortText = isBoundedText(v, 256) && isWellFormed && !hasControl` |
+| S3-9 | 建议 4：`closed-sets` 比的是测试本地列表，没比 `INSPECT_REJECTIONS` 的次序 | 改为比 `failures.ts` 导出的常量 |
+| S3-10 | 建议 2：`rootName` 只拦空与 `/` | 保持；SPEC 写一句理由（根名只用于与 name 比较） |
+| S3-11 | 观察：`docs/public-api.md` 与 SPEC L26 对公开根读者的说法不一致 | 统一为「调用方；端口实现方另读 `./provider`」 |
+
+## MCP 第 2 轮代码增量复审（无阻断）→ 第 3 轮小追加（草稿）
+
+| # | 发现 | 裁定 |
+| --- | --- | --- |
+| M3-1 | `inputRequests` 两条路径信任包装不同（`CallOutcome.inputRequired` 裸 JsonValue；`TaskReport` 包 Untrusted）——reduce 裁定 #2 与 #22 打架 | 两处都用 `Untrusted<JsonValue>`；V4 把它列进「包住」组 |
+| M3-2 | `./provider` 类型导出集合守护有漏洞（`export type *`、`export { type X }` 绕过）；spec-d 注释说错手段 | 同 S3-1：正则补两种写法并反向断言 provider.ts 只有 `export type { … } from` 一种形式；注释改实 |
+| M3-3 | V3 文字窄于实现（按 WHATWG `URL.hostname` 规范化后比较，`http://127.1/` 等通过） | V3 写明：按 WHATWG URL 解析后的主机比较回环集合；保存原文；传输实现须用同一解析 |
+| M3-4 | 根入口类型引用了只在 `./provider` 能命名的 `ExpectedRevision`、`StopScope` | 两个类型挪到根入口，从 `./provider` 去掉 |
+| M3-5 | `config-invalid` 的 `env:<NAME>` 到不了（`ProcessSetting` 无 invalid 态） | S4 写明 env 项只有缺失一种配置失败；`ConfigItem` 的 env 项只出现在 `config-missing` |
+| M3-6 | S5 没写发布边界核对「取消」与「当前授权」时答什么 | `KeptReason` 增加 `cancelled`；当前授权核对失败时操作以 `Refusal` 失败，不发布，S5 写明 |
+| M3-7 | `OutputCheck.violates.reason` 是否契约 | O3 写明：固定值 `structured-content-missing` 是契约；校验函数给出的其他文本不是 |
+| M3-8 | `boundInstructions` 对非法 `byteLimit` 抛 RangeError 只在 JSDoc | S3 补一句 |
+| M3-9 | 重复：`isDefinitionDigest`/`isInstructionsDigest` 同体；两处相同的 SHA-256 断言；`compareKeys` 与 `byName` 同形 | 合成内部 helper |
+| M3-10 | JSDoc「`purpose` is its brand」不实 | 改为「以 `purpose` 字段区分」 |
+| M3-11 | 比较器等价理由注释缺 | 在 `byName` 与 `compareKeys` 旁写明「V8 TimSort 只用 `< 0`；不是语言层等价」 |
+| M3-12 | `completeListing` 冻结的 `basis` 是调用方引用 | 复制后冻结 |
+| M3-13 | 观察：`classifyError` 用 `Number(lexeme)` 判整数，接受 `1e2`、`-32600.0` | 改为词形 `/^-?\d+$/` |
+| M3-14 | `release` 在接入点被禁用时答 `blocked`，连接只能靠 `closeAll` 释放 | 接受：组页不变式 6 要求 `Connections` 在下一次使用边界之前自行关闭被禁用接入点的连接；S 条款写明 |
+
+## Skill 第 2 轮 SPEC 表达复审（无阻断；17 条第 1 轮发现 15 闭合 2 部分）→ 并入第 3 轮
+
+| # | 发现 | 裁定 |
+| --- | --- | --- |
+| S3-12 (M1) | 快照遇出包链接答什么没写；`ListFailure` 无 `outside-package` | 同 S3-6；`PinFailure` 加 `outside-package`（read/list/export 都可能得到）。连带后果写明并接受：有出包链接的包整包不可读，这是包的缺陷 |
+| S3-13 (M2) | 端口要求两处现行源；SPEC 漏「SkillRef 指向依据所指的材料」「无已知集合的实现不答 known-unavailable」 | SPEC 是端口要求的现行源，补这两句；波末组页 L229–241 改为摘要并指向 SPEC。PR3 补一例「带早先版本的依据 → adopted 且 SkillRef 指向早先材料」，内存替身已支持 |
+| S3-14 (M3) | `basis-not-lawful` 少前提 | L371 加「身份对该主体合法对应时」；无对应时带依据也答 `none` |
+| S3-15 (M4) | 实际范围怎样报告未定义 | 定义：实际起点 = 不小于请求起点的第一个字符边界（二进制条目即请求起点），截到总长；实际长度 = 实际交出的字节数；起点 ≥ 总长时报 `{start: 总长, length: 0}`；文本收成空范围时报实际起点（已后移的边界）与 0，调用方按「至少 4 字节」续读 |
+| S3-16 (M5) | 差异表漏 list/export 收 signal；封闭表漏组页 L306 | 补两行 |
+| S3-17 (M6) | 资产事实变不成 Skill 值（name 不合词法、资产版本超长）时 resolve 答什么 | 类别端口 `judge` 收紧：`name` 必须合 `SkillName` 词法，否则拒绝 `name-invalid`（新拒绝码，assets 的 `Judgment.rejected` 是开放字符串；波末同步资产规格「skill 一段」）；资产版本不合 `AssetVersion` 词法时端口答 `known-unavailable`，原因「资产版本不可表示」 |
+| S3-18 (N1–N9) | 索引与措辞：public-api 漏 `PackageInspection`；`ParseInput`/`ParseFailure` 不导出；README 说 acceptance 不存在；schema pattern 的 `.` 不匹配 U+2028/2029；L345「不持有状态」与 WeakSet 矛盾；裁定编号只存在于 tmp；资产正文的入口能否是控制文件；原因列表漏两处来源映射；L363 「必须相符」比组页严；来源层分支无用例 | 全部照改。`ParseInput`、`ParseFailure` 导出到公开根；编号保留并注明「过程标签，决定内容已写全」；资产正文入口同样不得是控制文件；L363 按 PS2 写「包不变时」；来源层用例同 S3-3 |
+
+## MCP 第 2 轮 SPEC 表达复审（1 阻断、10 应修）→ 第 3 轮
+
+| # | 发现 | 裁定 |
+| --- | --- | --- |
+| M3-15 (B1) | 非调用请求发出后的失败无落点；任务操作与协议映射没写 | `TransportFailure` 三分：`not-sent`（无对端效果）、`no-answer`（已发出无应答，效果未知）、`error-answer`（已发出，收到 JSON-RPC 错误：code、message、data?）。`OperationFailure` 增加 `effect-unknown`（带子因），四个任务操作在 `no-answer` 时答它。T6 写映射：`getTask` 读 tasks/get 的 status、inputRequests、completed/failed；`getTaskResult` 读同一应答的 completed/failed；`-32602` 答 `expired`；其余 `error-answer` 原样交出。`updateTask`/`cancelTask` 去掉 `already-terminal`（协议是 ack-only），终态经 `getTask` 得知。T4 的 401/403 归 `not-sent`，T1 用「有无对端效果」定义 |
+| M3-16 (A1) | refresh 里某页传输失败两读 | `not-sent`（连接类）→ `ConnectionFailure`，连接转 degraded，`markUnavailable` 用对应原因；`no-answer`/`error-answer` → 页失败 → `kept(listing-incomplete)`，连接转 degraded |
+| M3-17 (A2) | 撤采用后 cancelTask 取不到连接材料 | 任务操作需要现有连接或可重建的采用材料；两者都没有时答 `effect-unknown(no-connection)`。波末写回组页 L467：取消在途调用不需连接，任务操作需要 |
+| M3-18 (A3) | 配值缺陷的适用面、次序、invalid 凭据视图 | S4 加表：连接类操作需要 target（HTTP）、credential（auth≠none）、connect-timeout、env（stdio）；`current` 只需 credential（组键）；`release`/`inspect` 不需要配值。次序：target → credential → connect-timeout → env 按正文次序，报第一项。`EndpointStatusView.credential` 加 `invalid` |
+| M3-19 (A4) | instructions 由谁截断、上界怎样送达 | `McpTransportFactory.open` 的材料带 `instructionsByteLimit`；传输在 `discover` 时对全文算摘要再调 `boundInstructions` |
+| M3-20 (A5) | `principalKey` 只要求稳定 | 写明：同一租户内不同主体映射不同文本，同一主体本次运行内相同；违反是装配方缺陷 |
+| M3-21 (A6) | 句柄取得次数与释放时点 | 每条连接按凭据配值 acquire 一次，所有 `credential` 变量共用；进程句柄在 `stop()` 确认后释放；HTTP 句柄随连接关闭释放 |
+| M3-22 (A7) | 任务表项寿命 | 本次运行内不删除；终态交出后再查仍转发对端 |
+| M3-23 (A8) | `residual` 两处落点 | 只在 `lost` 状态上；视图原样反映状态；重建成功或 `release` 确认后清除 |
+| M3-24 (A9) | `basisCurrent` 条件 | 比协议版本与能力（规范化 JSON 相等），不比代际；无连接答 `no-connection` |
+| M3-25 (A10) | README 带出 SPEC 没有的行为 | S3 写 RangeError 前提；README 引 SPEC |
+| M3-26 (N1–N14) | 见报告 | 全部照改。N2 统一为 `env.<NAME>`；N14 `createMcp` 对非法 `McpConfig` 抛 RangeError |
+| M3-27 (范围外 1) | 两份 SPEC 把 reduce 的裁定写成「负责人裁定」 | 两边改为「领域设计裁定（2026-11-03）」；不冒称负责人 |

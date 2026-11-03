@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-03T15:35:51Z",
+  "updatedAt": "2026-11-03T15:49:10Z",
   "head": "21175c9f9",
   "links": [
     {
@@ -27,9 +27,9 @@
         {
           "id": "w1-skill-contract",
           "line": "Skill",
-          "state": "待评审",
-          "round": 2,
-          "note": "Skill 第 2 轮交回 c3d693b48（6 提交，349 例，扫描 pass）；reduce 复跑门禁与变异，增量复审两面并行",
+          "state": "修复中",
+          "round": 3,
+          "note": "Skill 第 3 轮：14 条小修（provider 类型导出钉住、出包链接通路、端口要求现行源、实际范围定义、judge 收紧 name 词法）",
           "links": [
             {
               "text": "PR",
@@ -43,9 +43,9 @@
         {
           "id": "w1-mcp-contract",
           "line": "MCP",
-          "state": "待评审",
-          "round": 2,
-          "note": "MCP 第 2 轮交回 a48f6bc09（6 提交，286 例，扫描 pass）；reduce 复跑门禁与变异，增量复审两面并行",
+          "state": "修复中",
+          "round": 3,
+          "note": "MCP 第 3 轮：22 条（TransportFailure 三分与 effect-unknown、inputRequests 统一 Untrusted、任务操作与协议映射、配值缺陷表、句柄寿命）",
           "links": [
             {
               "text": "PR",
@@ -212,6 +212,10 @@
     {
       "at": "2026-11-03T15:35:51Z",
       "text": "MCP 第 2 轮交回（46/46 条有提交与用例对应）；两边增量复审并行，reduce 复跑排队"
+    },
+    {
+      "at": "2026-11-03T15:49:10Z",
+      "text": "第 2 轮增量复审四面收齐：代码面两边无阻断；SPEC 面 Skill 无阻断、MCP 1 阻断（非调用请求的失败落点）。第 3 轮派发（最后一轮），第 2 轮变异复跑已停，改在第 3 轮 head 一次跑完"
     }
   ]
 }

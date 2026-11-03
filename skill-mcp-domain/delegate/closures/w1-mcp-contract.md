@@ -169,3 +169,35 @@ developer，implementation_kind product，Claude Opus 5.5，effort high。理由
 44. `detail`/说明文字的 StringLiteral 存活不追，SPEC 写明 `detail` 不是契约字段。
 45. 11 个超时未复核都在 `testing-landing.ts:111-143`（非热点）：用 `ProcessHandle.stop()` 的替身实现核对一遍没有真正的无限等待；有则修，无则在交回里写明。
 46. 变异使模块顶层（schema 文本读取、套件构造）抛错导致整次无效：不为此改代码。
+
+### 第 3 轮（2026-11-03，reduce 追加；依据 waves/w1/reviews/decisions-r2.md 的 M3-1…M3-27）
+
+第 2 轮增量复审：代码面无阻断，SPEC 表达面 1 项阻断（B1）。下面各条照做，编号对应 decisions-r2.md。在现有分支继续提交，基线不变。
+
+**A. 契约形状（合入前改）**
+47. [M3-15] `TransportFailure` 三分：`not-sent`（无对端效果，含 401/403 的 `authorization-required`）、`no-answer`（已发出无应答，效果未知）、`error-answer`（已发出，收到 JSON-RPC 错误：`code`、`message`、`data?`）。T1 用「有无对端效果」定义。`OperationFailure` 增加 `{kind:'effect-unknown', cause}`（子因同 `unknown` 结局，另加 `no-connection`）。`updateTask`、`cancelTask` 去掉 `already-terminal`，答 `'accepted'`/`'requested'` 或 `TransportFailure`；`TaskControl.cancelTask` 的答复同步。
+48. [M3-1] `CallOutcome.inputRequired.inputRequests` 改为 `Untrusted<JsonValue>`，与 `TaskReport` 一致；V4 列进「包住」组。
+49. [M3-4] `ExpectedRevision`、`StopScope` 挪到根入口，从 `./provider` 去掉。
+50. [M3-2] 钉住 `./provider` 的类型导出集合：正则补 `export *`、`export type *`、`export { type X }`，反向断言 provider.ts 只有 `export type { … } from` 一种形式；spec-d 注释改实。
+51. [M3-18] `EndpointStatusView.credential` 加 `invalid`。
+52. [M3-19] `McpTransportFactory.open` 的材料带 `instructionsByteLimit`；传输在 `discover` 时对全文算摘要再调 `boundInstructions`。
+53. [M3-6] `KeptReason` 加 `cancelled`。
+54. [M3-12] `completeListing` 复制 `basis` 后冻结。
+55. [M3-13] `classifyError` 的错误码用词形 `/^-?\d+$/` 判整数。
+56. [M3-9] 合并重复：digest 守卫同体、两处 SHA-256 断言、`compareKeys` 与 `byName`。
+
+**B. SPEC 与文档**
+57. [M3-15] T6 写映射：`getTask` 读 tasks/get 的 status、inputRequests、completed/failed；`getTaskResult` 读同一应答的 completed/failed；JSON-RPC `-32602` 答 `expired`；其余 `error-answer` 原样交出；四个任务操作在 `no-answer` 时答 `effect-unknown`。
+58. [M3-16] S5 写明：`not-sent` 的连接类原因 → `ConnectionFailure`，连接转 degraded，`markUnavailable` 用对应原因；`no-answer`/`error-answer` 的页 → `kept(listing-incomplete)`，连接转 degraded。
+59. [M3-17] 任务操作需要现有连接或可重建的采用材料；两者都没有时答 `effect-unknown(no-connection)`。
+60. [M3-18] S4 加表：连接类操作需要 target（HTTP）、credential（auth≠none）、connect-timeout、env（stdio）；`current` 只需 credential；`release`、`inspect` 不需要配值；缺陷次序 target → credential → connect-timeout → env（正文次序），报第一项。
+61. [M3-20] `principalKey`：同一租户内不同主体映射不同文本，同一主体本次运行内相同；违反是装配方缺陷。
+62. [M3-21] 句柄：每条连接按凭据配值 acquire 一次，所有 `credential` 变量共用；进程句柄在 `stop()` 确认后释放；HTTP 句柄随连接关闭释放。
+63. [M3-22] 任务表项本次运行内不删除；终态交出后再查仍转发对端。
+64. [M3-23] `residual` 只在 `lost` 状态上，视图原样反映；重建成功或 `release` 确认后清除。
+65. [M3-24] `basisCurrent`：比协议版本与能力（规范化 JSON 相等），不比代际；无连接答 `no-connection`。
+66. [M3-25/M3-8/M3-7/M3-14] S3 写 `boundInstructions` 的 RangeError 前提与 `createMcp` 对非法 `McpConfig` 抛 RangeError；O3 写明 `structured-content-missing` 是契约值、其他文本不是；S 条款写明被禁用接入点的连接由 `Connections` 在下一次使用边界前关闭，`release` 答 `blocked` 可接受；README 引 SPEC，不另列行为。
+67. [M3-26] N2 统一为 `env.<NAME>`；N3 「答」限定 judge；N4 R4 写 `resourceMetadataUrl` 来源（`WWW-Authenticate` 的 `resource_metadata`，缺则 well-known 回退）与取不到时的值；N5 O5 补非文本 requestState/taskId；N6 失败码索引补全；N7 差异表补 G1 涉及的组页 L174/L421/L427/L430、V3 对应 L316、K1 对应 L317/L513；N8 三处类型重抄改为出现条件；N9 README 示例改正；N10 C6 写 UTF-16 码元序；N11 「组合与验证」补 V4、R1–R6；N12 入口表补 `./testing` 四项；N13 换代后 continueWithInput 是「未发出/unknown」。
+68. [M3-27/M3-10/M3-11] 「负责人裁定」改为「领域设计裁定（2026-11-03）」；JSDoc「purpose is its brand」改为「以 purpose 字段区分」；`byName`、`compareKeys` 旁注明「V8 TimSort 只用 < 0；不是语言层等价」。
+
+验收追加：A12：`git grep -n "already-terminal\|负责人裁定" packages/mcp/mcp-contract/src packages/mcp/mcp-contract/SPEC.md` 无命中；A13：`error-answer`、`effect-unknown` 有用例与 SPEC 条款；A14：provider 类型导出集合用例对 `export type *` 注入变红（交回附证据）。收尾门禁照旧。A、B 各至少一个提交。

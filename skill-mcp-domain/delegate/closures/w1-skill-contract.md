@@ -157,3 +157,27 @@ developer，implementation_kind product，Claude Opus 5.5，effort high。理由
 36. 记为等价并在测试或代码注释写明理由：`names.ts:11` `index <= text.length`（`charCodeAt(length)` 是 NaN）；`snapshot.ts:31` 的 `<→<=`（路径唯一）；`digest.ts:25/42` 的 SHA-256 后防御断言；`snapshot.ts:82` 随 C21 删除。
 37. 错误说明文字（`detail`）与 schema 文本的 StringLiteral 存活不追：SPEC 写明 `detail` 是给人看的说明，不是契约字段，调用方不得据它分支。
 38. 变异把 `new TextDecoder('utf-8', …)` 的编码改成 `''` 使模块加载抛错，工具判整次无效。不为此改代码；reduce 在合入后复跑一次确认存活数下降即可。
+
+### 第 3 轮（2026-11-03，reduce 追加；依据 waves/w1/reviews/decisions-r2.md 的 S3-1…S3-18）
+
+第 2 轮增量复审（代码、SPEC 表达）无阻断。下面各条照做，编号对应 decisions-r2.md。在现有分支继续提交，基线不变。
+
+**A. 契约与行为**
+39. [S3-1] 钉住 `./provider` 的类型导出集合：`exportedNames` 同时匹配 `export *`、`export type *`、`export { type X }`，并反向断言 provider.ts 只有 `export type { … } from` 与 `export { sealSnapshot }` 两种形式；spec-d 用类型层集合相等核对。
+40. [S3-6/S3-12] `SkillPackageSource.snapshot` 可以答 `outside-package`（包内链接解析后落在根外）；`inspect` 映射为 `rejected: outside-package`，`read`/`list`/`export` 映射为 `outside-package`（`PinFailure` 加 `outside-package`）。SPEC 写明连带后果：有出包链接的包整包不可读。
+41. [S3-13] SPEC 是端口要求的现行源。补两句：带依据答 `adopted` 时 `SkillRef`（包定位与内容摘要）指向依据所指的材料；没有已知集合的实现不答 `known-unavailable`。PR3 补一例「带早先版本的依据 → adopted 且 SkillRef 指向早先材料」。
+42. [S3-3/S3-14] `basis-not-lawful` 加前提「身份对该主体合法对应时」；无对应时带依据也答 `none`。套件补一例「不带资产版本、依据来源层与采用来源层不同 → basis-not-lawful」；内存替身按来源层核对。
+43. [S3-17] 类别端口 `judge`：`name` 必须合 `SkillName` 词法，否则拒绝码 `name-invalid`；SPEC 写明这是对资产规格「skill 一段」的收紧。端口要求补：资产版本不合 `AssetVersion` 词法时答 `known-unavailable`，原因「资产版本不可表示」。
+44. [S3-8/S3-9] `isShortText` 复用 `isBoundedText`；`closed-sets` 比 `failures.ts` 导出的 `INSPECT_REJECTIONS` 的次序。
+45. [S3-18] `ParseInput`、`ParseFailure` 导出到公开根并进 public-api 索引。
+
+**B. SPEC、schema、README**
+46. [S3-15] 实际范围的定义：实际起点 = 不小于请求起点的第一个字符边界（二进制条目即请求起点），截到总长；实际长度 = 实际交出的字节数；起点 ≥ 总长报 `{start: 总长, length: 0}`；文本收成空范围时报已后移的起点与 0。
+47. [S3-2] 差异表依据栏：L63 记「领域设计裁定 C22′（2026-11-03）」；L67 记「闭包范围外，`SkillAccess` 套件随 `@omne-harness/skill` 的实现以可加改动加入 `./testing`」；L70 记「领域设计裁定 S2-6（2026-11-03）」。所有「负责人裁定」改为「领域设计裁定」。编号保留并注明「过程标签，决定内容已写全」。
+48. [S3-16] 差异表加「list、export 收 signal 并可答 aborted」一行；封闭表加组页 L306 一行（预算指向 L243，诊断编号指向 L166「只有 detail」）。
+49. [S3-4] 写明次序例外：来源在快照阶段答 `entry-unreadable` 或 `outside-package` 时，检查以该原因结束，不再按次序判其余。
+50. [S3-7] parse-preconditions 补一句：来源失败由调用方先按映射表处理，再调 `parseSkillPackage`。
+51. [S3-10] `rootName` 只拦空与 `/`，写一句理由。
+52. [S3-18] 其余：public-api 补 `PackageInspection` 在 `./provider`、`isControlFile` 规则、「值与守卫」标签统一、公开根读者统一为「调用方；端口实现方另读 ./provider」；README L80 改正 acceptance 已存在，Configuration 补单实例义务；schema pattern 的 `.` 改 `[\s\S]`（或 description 补 U+2028/2029），description 补重名键、BOM、非 UTF-8；L345「不持有状态」加 WeakSet 例外并指向 L121；资产正文的入口不得是控制文件（实现与 SPEC 同步）；原因列表补两处来源映射；L363 按 PS2 写「包不变时」。
+
+验收追加：A11：`git grep -n "负责人裁定" packages/skills/skill-contract` 无命中；A12：PR3 早先版本用例、来源层用例、PS 出包链接用例存在且通过；A13：provider 类型导出集合用例对 `export type *` 注入变红（交回附证据）。收尾门禁照旧。A、B 各至少一个提交。
