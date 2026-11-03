@@ -12,10 +12,21 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./provider": {
+      "source": "./src/provider.ts",
+      "types": "./dist/provider.d.ts",
+      "import": "./dist/provider.js"
+    },
+    "./testing": {
+      "source": "./src/testing.ts",
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "schema"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
