@@ -154,7 +154,13 @@ export function readScripts(value: JsonValue | undefined, findings: Findings): S
     const runKind = textOf(fields?.get('runKind'))
     const facilities = wordsOf(fields?.get('facilities'))
     const entry = rawEntry === undefined ? undefined : entryOf(rawEntry, at, findings)
-    if (fields === undefined || runKind === undefined || !WORD.test(runKind) || !facilities) {
+    if (
+      fields === undefined ||
+      rawEntry === undefined ||
+      runKind === undefined ||
+      !WORD.test(runKind) ||
+      !facilities
+    ) {
       findings.push({ code: 'malformed', detail: `${at} is not a script declaration` })
       return undefined
     }

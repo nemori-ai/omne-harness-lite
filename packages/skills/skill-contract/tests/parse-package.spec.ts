@@ -345,6 +345,10 @@ describe('malformed .omne/skill.json', () => {
       }),
     ],
     [
+      'a script without an entry',
+      declaration({ formatVersion: 1, scripts: [{ runKind: 'shell', facilities: [] }] }),
+    ],
+    [
       'a script without facilities',
       declaration({ formatVersion: 1, scripts: [{ entry: 'run.sh', runKind: 'shell' }] }),
     ],

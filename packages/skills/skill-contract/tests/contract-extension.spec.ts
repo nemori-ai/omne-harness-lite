@@ -57,6 +57,7 @@ describe('the extended skill body', () => {
       'outside-package',
     ],
     ['a script entry that is not a path', { scripts: [{ ...script, entry: 'a\\b' }] }, 'malformed'],
+    ['a script without an entry', { scripts: [{ runKind: 'shell', facilities: [] }] }, 'malformed'],
     ['a run kind outside the lexicon', { scripts: [{ ...script, runKind: 'Shell' }] }, 'malformed'],
     ['a script with an unknown field', { scripts: [{ ...script, mode: 'x' }] }, 'malformed'],
     ['settings that are not a list', { settings: 'x' }, 'malformed'],
