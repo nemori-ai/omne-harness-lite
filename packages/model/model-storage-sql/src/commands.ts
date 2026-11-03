@@ -17,7 +17,7 @@ import {
   type ModelSendSource,
 } from '@omne-harness/model/commands'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
-import { createSqlModelStorage } from './commit.ts'
+import { createSqlModelStorage, type SqlModelStorage } from './commit.ts'
 import { createSendMirror, type SendMirrorOptions } from './coordinator.ts'
 import { PENDING_PAGE_MAX } from './reads.ts'
 
@@ -61,6 +61,60 @@ export type SqlModelCommands<P> = Readonly<{
   observations: ModelObservationSource<P> | null
 }>
 
+type ObservedStorage<P> = ReturnType<typeof createModelObservationStorage<P>>
+type MirrorSource = Parameters<typeof createSendMirror>[0]
+type SendOptions<P> = NonNullable<SqlModelCommandsOptions<P>['send']>
+
+/** Rejects a scan page larger than one `model.pending` page. */
+function assertScanPage(limits: ModelCommandsCoreOptions<unknown>['limits']): void {
+  if (!Number.isSafeInteger(limits.scanPageCalls) || limits.scanPageCalls > PENDING_PAGE_MAX)
+    throw new RangeError(`scanPageCalls is above the model.pending page of ${PENDING_PAGE_MAX}`)
+}
+
+/** The SQL storage over the options, with the share of one tenant as the capacity of the core. */
+function createStorage<P>(options: SqlModelCommandsOptions<P>): SqlModelStorage {
+  return createSqlModelStorage({
+    storage: options.storage,
+    domains: options.domains,
+    combination: options.combination,
+    limits: {
+      tenantCapacity: options.limits.capacity,
+      maxCallBytes: options.maxCallBytes,
+      maxCommandBytes: options.maxCommandBytes,
+    },
+    ...(options.attemptLimit === undefined ? {} : { attemptLimit: options.attemptLimit }),
+    ...(options.unresolvedLimit === undefined ? {} : { unresolvedLimit: options.unresolvedLimit }),
+  })
+}
+
+/** The confirming observation layer over the storage; null when the options ask for none. */
+function createObserved<P>(
+  options: SqlModelCommandsOptions<P>,
+  storage: SqlModelStorage,
+): ObservedStorage<P> | null {
+  const { initialRun } = options
+  if (initialRun === undefined && options.observation === undefined) return null
+  return createModelObservationStorage({
+    storage,
+    authority: options.authority,
+    ...(initialRun === undefined ? {} : { initialRun }),
+    ...(options.observation === undefined ? {} : { observation: options.observation }),
+    report: options.reportConfirmation ?? (() => {}),
+  })
+}
+
+/** The send mirror over the confirmed storage; null when the options give no `send`. */
+function createMirror<P>(
+  send: SendOptions<P> | undefined,
+  confirmedStorage: MirrorSource,
+): ReturnType<typeof createSendMirror> | null {
+  if (send === undefined) return null
+  return createSendMirror(confirmedStorage, {
+    mirrorBytes: send.mirrorBytes,
+    ...(send.maxClaims === undefined ? {} : { maxClaims: send.maxClaims }),
+  })
+}
+
 /**
  * Builds the durable ModelCommands. It throws on invalid options: those of the core, those of the
  * storage (N1, the combination), and a scan page larger than one `model.pending` page.
@@ -68,40 +122,12 @@ export type SqlModelCommands<P> = Readonly<{
 export function createSqlModelCommands<P>(
   options: SqlModelCommandsOptions<P>,
 ): SqlModelCommands<P> {
-  const { owners, authority, evidence, clock, limits, initialRun } = options
-  if (!Number.isSafeInteger(limits.scanPageCalls) || limits.scanPageCalls > PENDING_PAGE_MAX)
-    throw new RangeError(`scanPageCalls is above the model.pending page of ${PENDING_PAGE_MAX}`)
-  const storage = createSqlModelStorage({
-    storage: options.storage,
-    domains: options.domains,
-    combination: options.combination,
-    limits: {
-      tenantCapacity: limits.capacity,
-      maxCallBytes: options.maxCallBytes,
-      maxCommandBytes: options.maxCommandBytes,
-    },
-    ...(options.attemptLimit === undefined ? {} : { attemptLimit: options.attemptLimit }),
-    ...(options.unresolvedLimit === undefined ? {} : { unresolvedLimit: options.unresolvedLimit }),
-  })
-  const { send } = options
-  const observed =
-    initialRun === undefined && options.observation === undefined
-      ? null
-      : createModelObservationStorage({
-          storage,
-          authority,
-          ...(initialRun === undefined ? {} : { initialRun }),
-          ...(options.observation === undefined ? {} : { observation: options.observation }),
-          report: options.reportConfirmation ?? (() => {}),
-        })
+  const { owners, authority, evidence, clock, limits, initialRun, send } = options
+  assertScanPage(limits)
+  const storage = createStorage(options)
+  const observed = createObserved(options, storage)
   const confirmedStorage = observed?.storage ?? storage
-  const mirror =
-    send === undefined
-      ? null
-      : createSendMirror(confirmedStorage, {
-          mirrorBytes: send.mirrorBytes,
-          ...(send.maxClaims === undefined ? {} : { maxClaims: send.maxClaims }),
-        })
+  const mirror = createMirror(send, confirmedStorage)
   const core = createModelCommandsCore(
     {
       owners,
