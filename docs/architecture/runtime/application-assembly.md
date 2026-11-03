@@ -253,7 +253,7 @@ flowchart LR
 | <a id="tool-settlement-schema"></a>具名偏离 `TOOL-SETTLEMENT-SCHEMA`：Tool 收场的完整 schema（`terminal`、`actualTerminal`、`effect`）未采用。AD-06 缺少可读的完整材料时返回 `unavailable` 并保留任务 | Agent 契约与宿主拥有者；补采用放在里程碑 M2 |
 | `session-ad10` 行：所 `inject` 的装配采用与保管来源服务的键未定。候选采用材料里的冻结判定由装配协调者在采用点调用 Tool 的 `planAdoption` 得出（[工具运行时](tool-runtime.md#冻结判定只随采用材料到达)） | Session 实现 |
 | `agent-journal` 行：Session 会话日志上的生产 Journal 插件；已接受的同日志角色组只有非耐久 `./testing` 提供者 | Session 实现；按 [#756 的同日志提供者](../../../packages/session/session-adapters/SPEC.md#agent-journal-提供者与非耐久替身)兑现，不另建 Agent 存储 |
-| `agent-host` 行：宿主插件已换真件（SC4，R2-D162）。缺件：有序停止（AH-STOP）；`loopGuardPolicy` 没有生产采用来源，现在只有运维者层的测试值；`toolRequestsOf` 的生产组合归 Tool B 段；`measure` 接 E9 归 C1 | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)；`loopGuardPolicy` 的采用来源归 L-RUN 波 3 |
+| `agent-host` 行：宿主插件已换真件（SC4，R2-D162）。缺件：有序停止（AH-STOP）；`loopGuardPolicy` 没有生产采用来源，现在只有运维者层的测试值；M2 的临时兜底是 Agent 工厂配置 `maxRunSteps`，缺省 50，发行层可以不写（R2-D221）；`toolRequestsOf` 的生产组合归 Tool B 段；`measure` 接 E9 归 C1 | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)；`loopGuardPolicy` 的采用来源与完整的循环判断归 L-RUN 波 3（计划 D-24） |
 | `agent-model-selection` 行：应用侧模型选择适配器已换真件（G-SELECT，R2-D160），以受信 `storage`、`tenantDomainLookup` 读执行索引与会话保存的选择。缺件：模型选择的采用身份 | 采用身份归 L-RUN、L-MODEL 波 3 |
 | `sessionAccessCheck` 的生产提供者（含系统作用域读取所需的系统授权；缺席时 `references` 与 `releasedScopes` 返回 `unavailable`），以及 Session 生产服务与存储工厂对它的必需接线 | 授权适配器的拥有者（authorization 后继）与 Session 实现 |
 | 具名真实提供者：AD-03 的可信绑定与同步 current，AD-04 的完整历史与采用顺序，AD-15 的原获取与目录来源 | Session 实现与 M2 应用装配实现；认领前对应行不宣称可运行 |
