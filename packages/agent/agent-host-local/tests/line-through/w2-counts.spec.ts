@@ -103,6 +103,17 @@ async function runToLimit(shape: Shape, w: W2World) {
           completed: failed === null ? table.length : failed - 1,
           failedRound: failed,
           refusedReads: w.counters.refusedReads.slice(0, 3),
+          // What the world saw of the round that did not end: the failures of the Model result saves,
+          // the errors it logged, and how the last Tool push stood (a pending one is `pending`).
+          receivedFailures: w.receivedFailures.slice(-3),
+          errors: w.errors.slice(-3),
+          lastToolPush: await Promise.race([
+            w.toolPushes.at(-1)?.then(
+              value => value,
+              (error: unknown) => ({ rejected: String(error) }),
+            ) ?? 'none',
+            new Promise(resolve => setTimeout(() => resolve('pending'), 200)),
+          ]),
         },
         null,
         1,
