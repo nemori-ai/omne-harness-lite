@@ -1995,6 +1995,9 @@ importers:
       '@omne-harness/schedule-contract':
         specifier: workspace:*
         version: link:../schedule-contract
+      canonicalize:
+        specifier: 5.1.0
+        version: 5.1.0
       cron-parser:
         specifier: 5.10.3
         version: 5.10.3

@@ -29,7 +29,8 @@
     "@omne-harness/calendar-contract": "workspace:*",
     "@js-temporal/polyfill": "0.5.1",
     "rrule": "2.8.1",
-    "cron-parser": "5.10.3"
+    "cron-parser": "5.10.3",
+    "canonicalize": "5.1.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",
