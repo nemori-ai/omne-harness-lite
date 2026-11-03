@@ -12,7 +12,8 @@
 //   多命令工具是 `<工具>.<命令>`，单函数工具是工具名）拆成工具名与命令。消费者材料是发行清单确认的文本消费者。
 //   不在发行清单里、不是官方层、不是 `available` 的答 unavailable；prepare 时定义采用必须与 describe 给出的相同。
 // - requesterScope：会话的当前 Context 作用域，即会话快照 `contextScopes` 的最新一条，未结束（与 AD-04 历史源
-//   的读法相同）。会话以 `reader` 调用方类读取，访问裁定照常；读不到或作用域已结束答 unavailable。
+//   的读法相同）。会话以 `coordinator` 调用方类读取（见 `sessionWorkReaderOf`），访问裁定照常；读不到或作用域
+//   已结束答 unavailable。
 // - 作用域归属：经执行环境的可信作用域绑定（入口对象 `executionScopeBinding`）核对作用域绑定在这个租户；
 //   绑定缺席或不明答 unavailable，绑定到别的租户或未绑定答 denied。
 // - 设置采用：发行清单里这个作者的固定设置采用。并发作用域：发行唯一的作用域（`rows/tool-runtime/scope.ts`）。
@@ -62,7 +63,7 @@ export const TOOL_REQUESTS_OWNER = 'agentToolRequests'
 export type ToolRequestPorts = Readonly<{
   verifier(): PrincipalVerifier | undefined
   catalog(): ToolCatalog<unknown> | undefined
-  /** 以 `reader` 调用方类读会话快照；会话服务缺席时为 undefined。 */
+  /** 以 `coordinator` 调用方类读会话快照；会话服务缺席时为 undefined。 */
   readWork(
     access: SessionAccess<unknown>,
   ): Promise<Outcome<WorkSnapshot, SessionFailure>> | undefined
@@ -265,16 +266,23 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
 }
 
 /**
- * 交给 `createAgentHostRow({ toolRequestsOf })` 的生产组合：各来源经 `ctx` 逐次现取。会话以 `reader` 调用方类
- * 读（`ctx.intercept`），访问裁定照常。
+ * 来源读会话快照的读口：以 Session 的 `coordinator` 调用方类调用 `work.readWork`（`ctx.intercept`），访问裁定照常。
+ * 依据：来源在 Run 推进中代 Agent 为 Tool 消费准备请求，主体是会话工作主体；Session 的 Cordis 定义把
+ * 「Model 与 Tool 的消费适配插件」列为 `coordinator`，`reader` 只做历史读取。Session 的 `readWork` 只接受
+ * `coordinator` 与 `maintainer`（session `callers.ts`），以 `reader` 调用会被拒绝（R2-D266 第十七层）。
  */
+export function sessionWorkReaderOf(ctx: Context): ToolRequestPorts['readWork'] {
+  const coordinator = ctx.intercept(sessionKey, { caller: 'coordinator' })
+  return access => coordinator.get(sessionKey)?.work.readWork(access)
+}
+
+/** 交给 `createAgentHostRow({ toolRequestsOf })` 的生产组合：各来源经 `ctx` 逐次现取。 */
 export function releaseToolRequestsOf(ctx: Context): ReleaseToolRequests {
-  const reader = ctx.intercept(sessionKey, { caller: 'reader' })
   return createReleaseToolRequests({
     // The entry's trusted verifier read, handed over by the entry object `toolClock` (R2-D203 P-9).
     verifier: () => toolRuntimeHolder(ctx).verifier(),
     catalog: () => ctx.get(toolCatalogKey),
-    readWork: access => reader.get(sessionKey)?.work.readWork(access),
+    readWork: sessionWorkReaderOf(ctx),
     scopeBinding: () => ctx.get(executionScopeBindingKey),
     release: () => releaseOf(ctx),
   })
