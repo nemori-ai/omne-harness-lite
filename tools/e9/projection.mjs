@@ -5,10 +5,11 @@ const STAGES = Object.freeze({
   agent: 'agentProgression',
 })
 
-export const TOOL_WAIT_GAP = Object.freeze({
-  id: 'L-TOOL-WAIT-BATCH-E',
-  owner: 'L-TOOL / Reduce',
-  reason: '工具等待事件形状尚未按批次E采用；本投影不猜测或生成工具等待。',
+// 固定延迟替身的原事件形状：L-MODEL tests/support/model-measurement.ts，
+// L-TOOL packages/tool/tool/tests/support/tool-measurement.ts（批次E e44fea864）。
+const WAITS = Object.freeze({
+  model: Object.freeze({ stage: 'model-fixed-delay', provider: 'measured-fixed-delay-model' }),
+  tool: Object.freeze({ stage: 'tool-fixed-delay', provider: 'measured-fixed-delay-tool' }),
 })
 
 const text = value => typeof value === 'string' && value.trim().length > 0
@@ -41,7 +42,7 @@ function resultFor(input) {
     events: [],
     origins: [],
     diagnostics: [],
-    gaps: [structuredClone(TOOL_WAIT_GAP)],
+    roundEnd: null,
     sources: structuredClone(input),
   }
 }
@@ -165,16 +166,39 @@ function memberEvents(result, input, samples) {
   return completed
 }
 
-function completion(result, input, completed) {
-  if (completed.length !== 1) {
-    issue(
-      result,
-      completed.length ? 'round-completion-duplicate' : 'round-completion-missing',
-      'memberEvents',
-    )
+function logCountMeasured(count) {
+  return (
+    count?.state === 'measured' &&
+    count.unit === 'count' &&
+    Number.isSafeInteger(count.value) &&
+    count.value >= 0 &&
+    text(count.source)
+  )
+}
+
+// R2-D62 D7：AD-02 提交的 Run 终态不发 Session round-complete；本波轮边界改用读到的
+// `lastTerminal()`。观察时刻是终态之后的上界，含轮询延迟；仍须终态身份、结局与证据齐备。
+function observedEnd(result, input, observation) {
+  const source = 'terminalObservation'
+  const terminal = observation?.run?.kind === 'terminal' ? observation.run.terminal : undefined
+  if (!terminal || !text(observation.source)) {
+    issue(result, 'round-terminal-observation-invalid', source)
     return undefined
   }
-  const item = completed[0]
+  if (terminal.outcome !== 'completed')
+    issue(result, 'round-outcome-not-completed', source, { outcome: terminal.outcome })
+  if (
+    !text(input.session) ||
+    !text(input.sessionRun) ||
+    observation.session !== input.session ||
+    terminal.run !== input.sessionRun
+  )
+    issue(result, 'round-identity-mismatch', source)
+  if (terminal.evidence == null) issue(result, 'round-terminal-provenance-missing', source)
+  return { reading: observation.reading, source, basis: 'observed-terminal' }
+}
+
+function memberEnd(result, input, item) {
   const { event } = item
   if (event.outcome !== 'completed')
     issue(result, 'round-outcome-not-completed', item.source, { outcome: event.outcome })
@@ -187,31 +211,102 @@ function completion(result, input, completed) {
     issue(result, 'round-identity-mismatch', item.source)
   if (!['revision', 'entry', 'operation'].every(key => text(event[key])))
     issue(result, 'round-terminal-provenance-missing', item.source)
-  if (!reading(input.roundStart)) issue(result, 'round-start-unmeasured', 'roundStart')
-  else if (!interval(input.roundStart, item.reading))
-    issue(result, 'round-clock-or-time-invalid', item.source)
-  const count = input.logCount
-  if (
-    count?.state !== 'measured' ||
-    count.unit !== 'count' ||
-    !Number.isSafeInteger(count.value) ||
-    count.value < 0 ||
-    !text(count.source)
-  )
-    issue(result, 'log-count-unmeasured', 'logCount')
-  return item
+  return { reading: item.reading, source: item.source, basis: 'session-round-complete' }
 }
 
-function modelEvents(result, input, events, terminal) {
-  const invocations = new Set()
+function completion(result, input, completed) {
+  const observation = input.terminalObservation
+  if (completed.length > 1) {
+    issue(result, 'round-completion-duplicate', 'memberEvents')
+    return undefined
+  }
+  let end
+  if (completed.length === 1) {
+    end = memberEnd(result, input, completed[0])
+    // 两个来源同时给出时，以提交时刻的成员事件为终点，但二者必须指向同一个Run。
+    if (observation !== undefined && observation?.run?.terminal?.run !== completed[0].event.run)
+      issue(result, 'round-end-sources-disagree', 'terminalObservation')
+  } else if (observation !== undefined) end = observedEnd(result, input, observation)
+  else {
+    issue(result, 'round-completion-missing', 'memberEvents')
+    return undefined
+  }
+  if (!end) return undefined
+  if (!reading(input.roundStart)) issue(result, 'round-start-unmeasured', 'roundStart')
+  else if (!interval(input.roundStart, end.reading))
+    issue(result, 'round-clock-or-time-invalid', end.source)
+  if (!logCountMeasured(input.logCount)) issue(result, 'log-count-unmeasured', 'logCount')
+  return end
+}
+
+function waitEvent(result, input, event, provider, source, invocations, terminal) {
+  const shape = WAITS[provider]
+  if (
+    event.eventKind !== 'external-wait-interval' ||
+    event.stage !== shape.stage ||
+    event.provider !== shape.provider
+  ) {
+    issue(result, `unsupported-${provider}-event`, source)
+    return false
+  }
+  if (
+    !interval(event.actualStart, event.actualEnd) ||
+    !sameClock(event.start, event.actualStart) ||
+    event.start.atMs !== event.actualStart.atMs ||
+    event.end.atMs !== event.actualEnd.atMs
+  ) {
+    issue(result, `${provider}-actual-interval-mismatch`, source)
+    return false
+  }
+  if (
+    !text(event.invocationId) ||
+    event.definedDelay?.unit !== 'ms' ||
+    !finiteTime(event.definedDelay.value)
+  ) {
+    issue(result, `${provider}-wait-identity-or-delay-invalid`, source)
+    return false
+  }
+  // 归一器要求整轮的等待调用标识唯一，所以模型与工具共用一个集合。
+  if (invocations.has(event.invocationId)) {
+    issue(result, `${provider}-invocation-duplicate`, source)
+    return false
+  }
+  invocations.add(event.invocationId)
+  if (
+    reading(input.roundStart) &&
+    (!sameClock(input.roundStart, event.actualStart) ||
+      event.actualStart.atMs < input.roundStart.atMs ||
+      (reading(terminal?.reading) && event.actualEnd.atMs > terminal.reading.atMs))
+  ) {
+    issue(result, `${provider}-wait-outside-round-clock-or-range`, source)
+    return false
+  }
+  emit(
+    result,
+    {
+      eventKind: 'external-wait',
+      provider,
+      invocationId: event.invocationId,
+      definedDelayMs: event.definedDelay.value,
+      clock: clockOf(event.actualStart),
+      startMs: event.actualStart.atMs,
+      endMs: event.actualEnd.atMs,
+    },
+    source,
+  )
+  return true
+}
+
+function providerEvents(result, input, provider, events, terminal, invocations) {
+  let waits = 0
   for (const [index, event] of events.entries()) {
-    const source = { stream: 'modelEvents', indices: [index] }
+    const source = { stream: `${provider}Events`, indices: [index] }
     if (!event || event.runId !== input.runId || event.round !== input.round) {
-      issue(result, 'model-round-mismatch', source)
+      issue(result, `${provider}-round-mismatch`, source)
       continue
     }
     if (event.outcome !== 'completed') {
-      issue(result, 'model-outcome-not-completed', source, { outcome: event.outcome })
+      issue(result, `${provider}-outcome-not-completed`, source, { outcome: event.outcome })
       continue
     }
     if (
@@ -219,10 +314,14 @@ function modelEvents(result, input, events, terminal) {
       event.elapsedMs?.state !== 'measured' ||
       event.elapsedMs.value !== event.end.atMs - event.start.atMs
     ) {
-      issue(result, 'model-clock-or-time-invalid', source)
+      issue(result, `${provider}-clock-or-time-invalid`, source)
       continue
     }
-    if (event.eventKind === 'stage-interval' && event.stage === 'model-request-preparation') {
+    if (
+      provider === 'model' &&
+      event.eventKind === 'stage-interval' &&
+      event.stage === 'model-request-preparation'
+    ) {
       emit(
         result,
         {
@@ -236,65 +335,15 @@ function modelEvents(result, input, events, terminal) {
       )
       continue
     }
-    if (
-      event.eventKind !== 'external-wait-interval' ||
-      event.stage !== 'model-fixed-delay' ||
-      event.provider !== 'measured-fixed-delay-model'
-    ) {
-      issue(result, 'unsupported-model-event', source)
-      continue
-    }
-    if (
-      !interval(event.actualStart, event.actualEnd) ||
-      !sameClock(event.start, event.actualStart) ||
-      event.start.atMs !== event.actualStart.atMs ||
-      event.end.atMs !== event.actualEnd.atMs
-    ) {
-      issue(result, 'model-actual-interval-mismatch', source)
-      continue
-    }
-    if (
-      !text(event.invocationId) ||
-      event.definedDelay?.unit !== 'ms' ||
-      !finiteTime(event.definedDelay.value)
-    ) {
-      issue(result, 'model-wait-identity-or-delay-invalid', source)
-      continue
-    }
-    if (invocations.has(event.invocationId)) {
-      issue(result, 'model-invocation-duplicate', source)
-      continue
-    }
-    invocations.add(event.invocationId)
-    if (
-      reading(input.roundStart) &&
-      (!sameClock(input.roundStart, event.actualStart) ||
-        event.actualStart.atMs < input.roundStart.atMs ||
-        (reading(terminal?.reading) && event.actualEnd.atMs > terminal.reading.atMs))
-    ) {
-      issue(result, 'model-wait-outside-round-clock-or-range', source)
-      continue
-    }
-    emit(
-      result,
-      {
-        eventKind: 'external-wait',
-        provider: 'model',
-        invocationId: event.invocationId,
-        definedDelayMs: event.definedDelay.value,
-        clock: clockOf(event.actualStart),
-        startMs: event.actualStart.atMs,
-        endMs: event.actualEnd.atMs,
-      },
-      source,
-    )
+    if (waitEvent(result, input, event, provider, source, invocations, terminal)) waits += 1
   }
+  return waits
 }
 
 /**
  * 纯批投影。memberEvents是同步回调时附reading的原事件；采集者负责分轮与真实身份。
  * diagnostics非空时不发schema1轮完成，原始完成/失败/取消仍在sources保留。
- * gaps只描述工具等待尚未采用；实际有Tool调用时必须声明requiresToolWait。
+ * 本轮实际有Tool调用时声明requiresToolWait，缺工具等待记诊断，不由模型等待顶替。
  */
 export function projectRound(input) {
   const result = resultFor(input)
@@ -305,10 +354,19 @@ export function projectRound(input) {
     throw new TypeError('requiresToolWait must be boolean')
   const completed = memberEvents(result, input, input.memberEvents ?? [])
   const terminal = completion(result, input, completed)
-  modelEvents(result, input, input.modelEvents ?? [], terminal)
-  if (input.requiresToolWait || input.toolEvents?.length)
-    issue(result, 'tool-wait-shape-unavailable', 'toolEvents', { gap: TOOL_WAIT_GAP.id })
+  const invocations = new Set()
+  providerEvents(result, input, 'model', input.modelEvents ?? [], terminal, invocations)
+  const toolWaits = providerEvents(
+    result,
+    input,
+    'tool',
+    input.toolEvents ?? [],
+    terminal,
+    invocations,
+  )
+  if (input.requiresToolWait && toolWaits === 0) issue(result, 'tool-wait-missing', 'toolEvents')
   if (result.diagnostics.length === 0) {
+    result.roundEnd = terminal.basis
     emit(
       result,
       {

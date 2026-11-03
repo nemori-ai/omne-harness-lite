@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { projectRound, projectSegmentInterval, TOOL_WAIT_GAP } from './projection.mjs'
+import { projectRound, projectSegmentInterval } from './projection.mjs'
 import { normalizeEvents } from './events.mjs'
 
 const reading = (atMs, extra = {}) => ({
@@ -109,7 +109,7 @@ test('同号span按成员分开，保留包含式区间并接入现有schema1归
   const result = projectRound(source)
   assert.deepEqual(source, copy)
   assert.deepEqual(result.diagnostics, [])
-  assert.deepEqual(result.gaps, [TOOL_WAIT_GAP])
+  assert.equal(result.roundEnd, 'session-round-complete')
   assert.equal(completions(result).length, 1)
   const row = normalizeEvents(result.events, 1, { kind: 'product' })
   assert.equal(row.endToEnd.value, 50)
@@ -269,18 +269,6 @@ test('等待不落在轮区间、重复调用标识不变成可消费完成轮',
   }
 })
 
-test('工具等待保留具名缺口和原样输入，不能改成model', () => {
-  const source = input({ requiresToolWait: true, toolEvents: [{ opaque: 'batch E not adopted' }] })
-  const r = projectRound(source)
-  assert.ok(codes(r).includes('tool-wait-shape-unavailable'))
-  assert.equal(completions(r).length, 0)
-  assert.equal(
-    r.events.some(x => x.provider === 'tool'),
-    false,
-  )
-  assert.deepEqual(r.sources.toolEvents, source.toolEvents)
-})
-
 test('已聚合真实区间入口不推断round-complete或日志数', () => {
   const source = {
     runId: 'experiment',
@@ -297,4 +285,115 @@ test('已聚合真实区间入口不推断round-complete或日志数', () => {
   assert.equal(completions(r).length, 0)
   assert.deepEqual(r.sources, source)
   assert.ok(projectSegmentInterval({ ...source, outcome: 'failure' }).diagnostics.length)
+})
+
+const tool = (extra = {}) => ({
+  ...model({
+    stage: 'tool-fixed-delay',
+    provider: 'measured-fixed-delay-tool',
+    invocationId: 't1',
+    start: reading(32),
+    end: reading(38),
+    actualStart: reading(32),
+    actualEnd: reading(38),
+    elapsedMs: { state: 'measured', value: 6 },
+  }),
+  ...extra,
+})
+
+test('批次E工具固定延迟等待投成provider:tool，并与模型等待一起扣除', () => {
+  const result = projectRound(input({ requiresToolWait: true, toolEvents: [tool()] }))
+  assert.deepEqual(result.diagnostics, [])
+  const waits = result.events.filter(event => event.eventKind === 'external-wait')
+  assert.deepEqual(
+    waits.map(wait => [wait.provider, wait.startMs, wait.endMs]),
+    [
+      ['model', 20, 30],
+      ['tool', 32, 38],
+    ],
+  )
+  const row = normalizeEvents(result.events, 1, { kind: 'product' })
+  assert.equal(row.ownOverhead.value, 34)
+})
+
+test('声明了工具调用却没有工具等待，不能由模型等待顶替', () => {
+  const result = projectRound(input({ requiresToolWait: true }))
+  assert.ok(codes(result).includes('tool-wait-missing'))
+  assert.equal(completions(result).length, 0)
+})
+
+for (const change of [
+  { outcome: 'failed' },
+  { outcome: 'cancelled' },
+  { provider: 'measured-fixed-delay-model' },
+  { stage: 'model-fixed-delay' },
+  { eventKind: 'stage-interval', stage: 'model-request-preparation' },
+  { invocationId: 'm1' },
+  { round: 2 },
+  { actualEnd: reading(39) },
+  { definedDelay: { value: 6, unit: 's' } },
+])
+  test(`工具负控${JSON.stringify(change)}`, () => {
+    const source = input({ requiresToolWait: true, toolEvents: [tool(change)] })
+    const r = projectRound(source)
+    assert.equal(r.events.filter(x => x.provider === 'tool').length, 0)
+    assert.equal(completions(r).length, 0)
+    assert.ok(r.diagnostics.some(issue => issue.code.startsWith('tool-')))
+    assert.deepEqual(r.sources.toolEvents, source.toolEvents)
+  })
+
+const observed = (extra = {}, terminalExtra = {}) => ({
+  session: 's1',
+  source: 'session.readWork run.terminal (lastTerminal, R2-D62 D7)',
+  reading: reading(55),
+  run: {
+    kind: 'terminal',
+    terminal: { run: 'r1', outcome: 'completed', evidence: { opaque: 1 }, ...terminalExtra },
+  },
+  ...extra,
+})
+const withoutMemberCompletion = extra =>
+  input({
+    memberEvents: input().memberEvents.filter(x => x.event.kind !== 'round-complete'),
+    ...extra,
+  })
+
+test('D7：没有Session round-complete时，以读到的终态时刻作轮终点并标明依据', () => {
+  const result = projectRound(withoutMemberCompletion({ terminalObservation: observed() }))
+  assert.deepEqual(result.diagnostics, [])
+  assert.equal(result.roundEnd, 'observed-terminal')
+  assert.equal(completions(result)[0].endMs, 55)
+  assert.equal(normalizeEvents(result.events, 1, { kind: 'product' }).endToEnd.value, 55)
+})
+
+for (const [name, observation, code] of [
+  ['失败终态', observed({}, { outcome: 'failed' }), 'round-outcome-not-completed'],
+  ['取消终态', observed({}, { outcome: 'cancelled' }), 'round-outcome-not-completed'],
+  ['别的Run', observed({}, { run: 'r0' }), 'round-identity-mismatch'],
+  ['别的会话', observed({ session: 's2' }), 'round-identity-mismatch'],
+  ['缺终态证据', observed({}, { evidence: null }), 'round-terminal-provenance-missing'],
+  [
+    '仍在运行',
+    observed({ run: { kind: 'active', run: 'r1' } }),
+    'round-terminal-observation-invalid',
+  ],
+  ['缺读取来源', observed({ source: '' }), 'round-terminal-observation-invalid'],
+  [
+    '别的时钟代次',
+    observed({ reading: reading(55, { generation: 'g2' }) }),
+    'round-clock-or-time-invalid',
+  ],
+  ['早于轮起点', observed({ reading: reading(0) }), 'model-wait-outside-round-clock-or-range'],
+])
+  test(`D7观察终点负控：${name}`, () => {
+    const result = projectRound(withoutMemberCompletion({ terminalObservation: observation }))
+    assert.ok(codes(result).includes(code), JSON.stringify(codes(result)))
+    assert.equal(completions(result).length, 0)
+    assert.equal(result.roundEnd, null)
+  })
+
+test('成员round-complete与读到的终态指向不同Run时不产完成', () => {
+  const result = projectRound(input({ terminalObservation: observed({}, { run: 'r0' }) }))
+  assert.ok(codes(result).includes('round-end-sources-disagree'))
+  assert.equal(completions(result).length, 0)
 })
