@@ -7,8 +7,12 @@
 // （本目录不导入产品包与测试夹具，所以抄成字面）。它们是测试值，没有度量支撑。
 //
 // 对照来源改了要同步这里；新行要运维层配置时，从 `serve` 的 `row-state` 里 FAILED 的 ValidationError 看出缺哪些。
-import { join } from 'node:path'
+import { mkdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { operatorLayer as baseOperatorLayer } from '../joint-a/support.mjs'
+
+// 会话存储组合的版本：发行层 `session-handoff`、`agent-journal` 与此相同（TOOL-B 起为 /3，R2-D185）。
+const COMBINATION_VERSION = 'session-composite/3'
 
 const ADOPTION = {
   owner: 'joint-b',
@@ -79,7 +83,7 @@ const RECORDS = {
   },
   maxCallBytes: 524_288,
   maxCommandBytes: 1_048_576,
-  combinationVersion: 'session-composite/2',
+  combinationVersion: COMBINATION_VERSION,
   send: { mirrorBytes: 4_194_304, maxClaims: 8 },
   initial: { maxRecords: 1024, maxBindings: 4, maxCallsPerBinding: 1024 },
   sendStage: {
@@ -130,24 +134,75 @@ const AGENT_HOST = {
  * Shell 的构造值：宿主上真实的 shell（R2-D156、R2-D169），按 L-TOOL 已有的执行环境约定。
  * Windows 取系统自带的 Windows PowerShell，参数与环境同 tool-storage-sql 的 Windows 组合用例
  * （`tests/windows-composition/assembly.ts`、`authors.ts`）；其余平台取 `/bin/bash -c`。
+ * 工作目录是执行环境的文件根，临时目录指向宿主状态目录。
  */
-function shellConstruction(storageRoot) {
+function shellConstruction(filesRoot, stateDirectory) {
   if (process.platform === 'win32') {
     const systemRoot = process.env.SystemRoot ?? 'C:\\Windows'
     return {
       resultMaxBytes: 65536,
       executable: join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
       argsPrefix: ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command'],
-      cwd: storageRoot,
-      env: { SystemRoot: systemRoot, WINDIR: systemRoot, TEMP: storageRoot, TMP: storageRoot },
+      cwd: filesRoot,
+      env: {
+        SystemRoot: systemRoot,
+        WINDIR: systemRoot,
+        TEMP: stateDirectory,
+        TMP: stateDirectory,
+      },
     }
   }
   return {
     resultMaxBytes: 65536,
     executable: '/bin/bash',
     argsPrefix: ['-c'],
-    cwd: storageRoot,
-    env: {},
+    cwd: filesRoot,
+    env: { PATH: '/usr/bin:/bin', TMPDIR: stateDirectory },
+  }
+}
+
+/**
+ * Tool 运行时组与执行宿主的运维者值（TOOL-B，R2-D185），抄自 `apps/harness-server/tests/r9/support.ts`
+ * 的 `toolRowsOperatorConfig`，测试值。文件根与宿主状态目录建在存储根的父目录下（绝对路径）；
+ * `tool-records` 的 `maxCommandBytes` 与 `storage` 行相同，`combinationVersion` 与 `session-storage` 行相同。
+ */
+function toolRows(storageRoot) {
+  const base = dirname(storageRoot)
+  const filesRoot = join(base, 'workspace')
+  const stateDirectory = join(base, 'host-files-state')
+  mkdirSync(filesRoot, { recursive: true })
+  mkdirSync(stateDirectory, { recursive: true })
+  return {
+    construction: {
+      Shell: shellConstruction(filesRoot, stateDirectory),
+      Files: { resultMaxBytes: 65536 },
+    },
+    records: {
+      filesRoot,
+      combinationVersion: COMBINATION_VERSION,
+      maxCommandBytes: 1048576,
+      maxChunkBytes: 16384,
+      configuration: {
+        authorBufferBytes: 65536,
+        authorBufferItems: 256,
+        authorWaitHistoryBytes: 65536,
+        authorWaitHistoryItems: 32,
+        processBatchBytes: 65536,
+        processBatchDelayMs: 0,
+        observerBufferBytes: 262144,
+        resultPageBytes: 65536,
+        reconciliationDelayMs: 50,
+        ledgerCommitAttempts: 16,
+        queueCapacity: 64,
+        driverRetryDelayMs: 50,
+        driverStepsPerRun: 32,
+      },
+      capacity: 64,
+      observersPerCall: 4,
+      observerQueueFrames: 16,
+      observerResidenceMs: 5000,
+    },
+    host: { filesRoot, stateDirectory },
   }
 }
 
@@ -158,11 +213,12 @@ function shellConstruction(storageRoot) {
  */
 export function operatorLayerB(options) {
   const base = baseOperatorLayer(options)
+  const tools = toolRows(options.storageRoot)
   const replaced = new Map([
     [
       'session-storage',
       {
-        combinationVersion: 'session-composite/2',
+        combinationVersion: COMBINATION_VERSION,
         directoryFile: join(options.storageRoot, 'tenant-domains.json'),
         domainRule: 'organization-account/1',
       },
@@ -179,15 +235,9 @@ export function operatorLayerB(options) {
     ['model-request-preparation', PREPARATION],
     ['model-host', HOST],
     ['model-records', RECORDS],
-    [
-      'tool-host',
-      {
-        construction: {
-          Shell: shellConstruction(options.storageRoot),
-          Files: { resultMaxBytes: 65536 },
-        },
-      },
-    ],
+    ['tool-host', { construction: tools.construction }],
+    ['tool-records', tools.records],
+    ['execution-host', tools.host],
     [
       'request-context',
       { limits: { maxTargets: 64, maxFactsPerTarget: 64, maxRevisionsPerDispatch: 16 } },
