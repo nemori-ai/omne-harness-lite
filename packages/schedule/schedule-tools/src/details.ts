@@ -99,10 +99,10 @@ function guardFor<P>(
   return {
     async qualify(input) {
       try {
-        const baseVerdict = verdictSchema.parse(await base.qualify(input))
+        const baseVerdict = verdictSchema.parse(await base.qualify(Object.freeze({ ...input })))
         if (baseVerdict.kind !== 'allowed' || !protectedActions.has(input.action))
           return baseVerdict
-        return verdictSchema.parse(await disclosure.qualifyCall(input))
+        return verdictSchema.parse(await disclosure.qualifyCall(Object.freeze({ ...input })))
       } catch {
         return { kind: 'unavailable', diagnostic: 'schedule-disclosure-unavailable' }
       }
@@ -339,13 +339,19 @@ export function createScheduleToolDetails<P>(configuration: ScheduleToolDetailsC
         )
       })
       if ('failure' in qualified) return qualified
-      const observation = await call(() => disclosure.observe({ access: input.access, reference }))
+      const observation = await call(() =>
+        disclosure.observe(
+          Object.freeze({ access: Object.freeze({ ...input.access }), reference }),
+        ),
+      )
       if ('failure' in observation) return observation
       const observed = normalized(observation.ok)
       if (!same(observed.reference, reference))
         return fail(invalid('disclosure', 'reference-mismatch'))
       const first = await call(() =>
-        queries.readResult({ ...input.access, result: reference.result, after: null }),
+        queries.readResult(
+          Object.freeze({ ...input.access, result: reference.result, after: null }),
+        ),
       )
       if ('failure' in first) return first
       const firstPage = freeze(structuredClone(first.ok))
@@ -359,7 +365,9 @@ export function createScheduleToolDetails<P>(configuration: ScheduleToolDetailsC
         if (cursor.baseline !== original || cursor.resultDigest !== observed.resultDigest)
           return fail({ kind: 'invalid-cursor', reason: 'fixed-result-mismatch' })
         const next = await call(() =>
-          queries.readResult({ ...input.access, result: reference.result, after: cursor.after }),
+          queries.readResult(
+            Object.freeze({ ...input.access, result: reference.result, after: cursor.after }),
+          ),
         )
         if ('failure' in next) return next
         const nextPage = freeze(structuredClone(next.ok))
@@ -373,7 +381,9 @@ export function createScheduleToolDetails<P>(configuration: ScheduleToolDetailsC
       const seen = cursor === null ? [] : [...cursor.seen, cursor.after]
       if (page.next !== null && seen.includes(page.next))
         return fail({ kind: 'invalid-cursor', reason: 'provider-cursor-cycle' })
-      const confirmation = await call(() => disclosure.confirm({ access: input.access, observed }))
+      const confirmation = await call(() =>
+        disclosure.confirm(Object.freeze({ access: Object.freeze({ ...input.access }), observed })),
+      )
       if ('failure' in confirmation) return confirmation
       if (!same(observed, normalized(confirmation.ok)))
         return fail(invalid('disclosure', 'changed'))

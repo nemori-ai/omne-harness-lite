@@ -209,7 +209,13 @@ it('rejects substituted request, admission, adapter, missing evidence, and provi
   expect(create).not.toHaveBeenCalled()
   const wrapped = createScheduleToolEnvironment(baseEnvironment(), {
     commands: { loadRecovery: async () => succeed(recovery) },
-    contexts: { restore: async () => succeed(good) },
+    contexts: {
+      restore: async input => {
+        expect(Object.isFrozen(input.recovery.request.arguments)).toBe(true)
+        expect(Object.isFrozen(input)).toBe(true)
+        return succeed(good)
+      },
+    },
   })
   const forged = {
     ...preparation,

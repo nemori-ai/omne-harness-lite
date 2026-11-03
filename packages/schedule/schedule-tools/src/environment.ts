@@ -70,12 +70,22 @@ export type ScheduleToolEnvironmentDependencies<P> = Readonly<{
 }>
 
 async function restore<P>(
-  input: CallAccess<P> & Readonly<{ preparation: PreparationRecord }>,
+  provided: CallAccess<P> & Readonly<{ preparation: PreparationRecord }>,
   dependencies: ScheduleToolEnvironmentDependencies<P>,
 ): Reply<ScheduleToolFixedCall> {
   try {
-    const recovery = await dependencies.commands.loadRecovery(input)
-    if ('failure' in recovery) return recovery
+    const input = Object.freeze({
+      ...provided,
+      preparation: freeze(structuredClone(provided.preparation)),
+    })
+    const access = Object.freeze({
+      principal: input.principal,
+      tenant: input.tenant,
+      call: input.call,
+    })
+    const loaded = await dependencies.commands.loadRecovery(access)
+    if ('failure' in loaded) return loaded
+    const recovery = { ok: freeze(structuredClone(loaded.ok)) }
     if (
       'failure' in decodeToolOperationId(recovery.ok.admission) ||
       'failure' in judgeToolState(recovery.ok.state)
@@ -97,7 +107,9 @@ async function restore<P>(
       return fail(invalid('executor', 'adoption-mismatch'))
     const args = scheduleToolParameterCodec.parse(request.ok.arguments)
     if ('failure' in args) return fail(invalid('arguments', args.failure.reason))
-    const restored = await dependencies.contexts.restore({ access: input, recovery: recovery.ok })
+    const restored = await dependencies.contexts.restore(
+      Object.freeze({ access, recovery: recovery.ok }),
+    )
     if ('failure' in restored) return restored
     const context = ScheduleCallContextSchema.safeParse(restored.ok.context)
     if (

@@ -82,12 +82,12 @@ async function execute(
       failure: invalid('arguments', 'fixed-intent-mismatch'),
       operation: null,
     }
-  const { context, write } = fixed.ok
-  if (args.action === 'create' || args.action === 'execute') {
-    if (write === null || write.intent.kind !== args.action)
+  const { context, write, arguments: parameters } = fixed.ok
+  if (parameters.action === 'create' || parameters.action === 'execute') {
+    if (write === null || write.intent.kind !== parameters.action)
       return {
         kind: 'adapterFailure',
-        action: args.action,
+        action: parameters.action,
         failure: invalid('environment', 'missing-fixed-write'),
         operation: null,
       }
@@ -97,15 +97,15 @@ async function execute(
         : await services.commands.execute(context, write.intent.input)
     return scheduleToolResultSchema.parse({
       kind: 'result',
-      action: args.action,
+      action: parameters.action,
       result: value,
       operation: write.locator,
     })
   }
-  const result = await read(services, args, context)
+  const result = await read(services, parameters, context)
   return scheduleToolResultSchema.parse({
     kind: 'result',
-    action: args.action,
+    action: parameters.action,
     result,
     operation: null,
   })
