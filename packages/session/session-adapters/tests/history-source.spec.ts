@@ -15,16 +15,19 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { judgeMessage } from '@omne-harness/message'
+import { createContextAccounting } from '@omne-harness/request-context'
 import type {
   Access,
-  AdoptedRequestSource,
   ContextHolderParts,
   DurableEvidence,
-  GroupToken,
   HistoryEvidence,
   HistoryReadResult,
 } from '@omne-harness/request-context-cordis-contract'
-import type { HistoryCursor } from '@omne-harness/request-context-contract'
+import {
+  decodeRecoveryGrantRef,
+  type ContextTarget,
+  type HistoryCursor,
+} from '@omne-harness/request-context-contract'
 import {
   ContextHolderSourcesService,
   contextHolderSourcesKey,
@@ -40,8 +43,18 @@ import type {
   WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { evidence, memoryOtherAccess, operationId } from '@omne-harness/session-contract/testing'
-import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
+import type {
+  SessionAdoptedRequest,
+  SessionAdoptedRequestRead,
+  SessionAdoptedRequests,
+} from '@omne-harness/session-cordis-contract'
+import {
+  SessionAdoptedRequestsService,
+  SessionService,
+  sessionAdoptedRequestsKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionHistorySource } from '../src/cordis/history-source.ts'
+import { m0Checkpoint, type FixedValues } from './fixtures/adopted-request.ts'
 import { ok, scene, type SceneQualification } from './fixtures/common-journal.ts'
 
 // --- the fixture -----------------------------------------------------------------------------------
@@ -73,7 +86,8 @@ async function world(
   options: Readonly<{
     ctx?: Context
     mount?: readonly Mounted[]
-    adopted?: AdoptedRequestSource<unknown>
+    /** `absent`: no `sessionAdoptedRequests` is provided. A scripted provider read when absent. */
+    adopted?: 'absent'
   }> = {},
 ) {
   const qualification: { -readonly [K in keyof SceneQualification]: SceneQualification[K] } = {
@@ -145,7 +159,6 @@ async function world(
           ? { tenant: s.access.tenant, session: s.access.session }
           : null,
     },
-    ...(options.adopted === undefined ? {} : { adopted: options.adopted }),
   })
 
   const ctx = options.ctx ?? new Context()
@@ -155,6 +168,12 @@ async function world(
       logged.push({ name: message.name, type: message.type, text: String(message.args[0]) }),
   })
   const fibers = new Map<Mounted, Awaited<ReturnType<Context['plugin']>>>()
+  const provider = scriptedAdoptedRequests()
+  // A second world on the same root keeps the provider the first one mounted.
+  if (options.adopted !== 'absent' && ctx.get(sessionAdoptedRequestsKey) === undefined) {
+    const fiber = await ctx.plugin(provider.Plugin)
+    disposers.push(() => fiber.dispose())
+  }
   const plugins = { session: Session, lowerBound: ad04.lowerBound, source: ad04.source } as const
   for (const name of options.mount ?? (['session', 'lowerBound', 'source'] as const)) {
     const fiber = await ctx.plugin(plugins[name])
@@ -241,6 +260,7 @@ async function world(
     access,
     borrow,
     remind,
+    provider,
     modelViewRows,
     sessionCalls: () => calls.length,
   }
@@ -279,15 +299,27 @@ async function readAll(parts: ContextHolderParts<unknown>, access: unknown, ev: 
 const intruder = memoryOtherAccess<unknown>('intruder')
 const intruderAccess: Access<unknown> = { principal: 'intruder', tenant: intruder.tenant }
 
-const token = 'adopted-1' as GroupToken
-function handedAdopted() {
-  const asked: string[] = []
-  const source: AdoptedRequestSource<unknown> = {
-    authority: { owner: 'test', name: 'fixed-requests', revision: '1', digest: 'test:fixed' },
-    readCount: async () => (asked.push('readCount'), { kind: 'value', value: token }),
-    readSource: async () => (asked.push('readSource'), { kind: 'value', value: null }),
+/**
+ * The scripted read port of the session-log Journal provider: `sessionAdoptedRequests` answers
+ * the request `saved` holds (null before the first M0), or the `answer` a test sets, or throws.
+ * It records the access and the session of every call.
+ */
+function scriptedAdoptedRequests() {
+  const state: {
+    saved: SessionAdoptedRequest | null
+    answer: SessionAdoptedRequestRead | 'throw' | null
+    calls: Readonly<{ access: unknown; session: unknown }>[]
+  } = { saved: null, answer: null, calls: [] }
+  class Plugin extends SessionAdoptedRequestsService<unknown> {
+    readonly readAdoptedRequest = async (
+      input: Parameters<SessionAdoptedRequests<unknown>['readAdoptedRequest']>[0],
+    ): Promise<SessionAdoptedRequestRead> => {
+      state.calls.push({ access: input.access, session: input.session })
+      if (state.answer === 'throw') throw new Error('the provider read threw')
+      return state.answer ?? { kind: 'value', value: state.saved }
+    }
   }
-  return { source, asked }
+  return { state, Plugin }
 }
 
 // --- K-RQ ------------------------------------------------------------------------------------------
@@ -295,7 +327,7 @@ function handedAdopted() {
 describe('contextHolderSources conformance against the AD-04 source sub-plugin', () => {
   const fixture: ContextHolderSourcesFixture<unknown> = {
     async start(ctx) {
-      const w = await world({ ctx, adopted: handedAdopted().source })
+      const w = await world({ ctx })
       const resolve = async (parts: ContextHolderParts<unknown>, access: Access<unknown>) =>
         parts.resolveHistory({ access, evidence: w.head })
       return {
@@ -368,7 +400,7 @@ describe('every Session call carries the access of the part call', () => {
   })
 
   it('denies another tenant in every part before any Session call', async () => {
-    const w = await world({ adopted: handedAdopted().source })
+    const w = await world()
     const { parts } = await w.borrow()
     const ev = await resolved(w, parts)
     const before = w.sessionCalls()
@@ -744,30 +776,199 @@ describe('the read eligibility bridge and the narrow adoption source', () => {
     expect(await check()).toEqual({ kind: 'denied' })
   })
 
-  it('reads the handed fixed request facts only for an admitted access', async () => {
-    const handed = handedAdopted()
-    const w = await world({ adopted: handed.source })
+  it('reads the provider only for an admitted access, with the access of the call and the session of the target', async () => {
+    const w = await world()
     const { parts } = await w.borrow()
     const { target } = await resolved(w, parts)
-    expect(parts.adopted.authority).toEqual(handed.source.authority)
-    expect(await parts.adopted.readCount({ access: w.access, target })).toEqual({
+    expect(parts.adopted.authority).toMatchObject({ owner: '@omne-harness/session-adapters' })
+    expect(await parts.adopted.readSource({ access: w.access, target })).toEqual({
       kind: 'value',
-      value: token,
+      value: null,
     })
+    expect(w.provider.state.calls).toEqual([{ access: w.access, session: w.s.access.session }])
     w.qualification.session = false
     expect(await parts.adopted.readSource({ access: w.access, target })).toEqual({ kind: 'denied' })
-    expect(handed.asked).toEqual(['readCount'])
+    expect(await parts.adopted.readCount({ access: w.access, target })).toEqual({ kind: 'denied' })
+    expect(w.provider.state.calls).toHaveLength(1)
+  })
+})
+
+// --- the narrow adoption source over the a part (FIXED-FACTS F5) -----------------------------------
+
+/** What the provider saved for one main-purpose M0 of `target`, and the record it holds. */
+function savedOf(target: ContextTarget, tag: string, order: string, values: FixedValues = {}) {
+  const { record, adoptedRequest, adoptedContext } = m0Checkpoint(target, tag, values)
+  const saved: SessionAdoptedRequest = {
+    order,
+    execution: `exe_${tag}`,
+    reference: adoptedRequest.reference,
+    fixed: adoptedRequest.fixed,
+    coverage: adoptedContext,
+    schema: adoptedRequest.schema,
+    record: adoptedRequest.record,
+  }
+  return { saved, record }
+}
+
+describe('the narrow adoption source reads the a part of the session (RQ-14)', () => {
+  async function adoptedWorld() {
+    const w = await world()
+    const { parts } = await w.borrow()
+    const { target } = await resolved(w, parts)
+    const source = () => parts.adopted.readSource({ access: w.access, target })
+    const count = () => parts.adopted.readCount({ access: w.access, target })
+    return { w, parts, target, source, count }
+  }
+
+  it('answers null before the first M0, and after one every field of the fact from the a part', async () => {
+    const { w, target, source } = await adoptedWorld()
+    expect(await source()).toEqual({ kind: 'value', value: null })
+    const { saved, record } = savedOf(target, '1', '1')
+    w.provider.state.saved = saved
+    const answer = await source()
+    if (answer.kind !== 'value' || answer.value === null) throw new Error(JSON.stringify(answer))
+    const expected = {
+      coverage: record.coverage,
+      target,
+      call: { tenant: target.tenant, call: 'mcall_1' },
+      candidate: record.candidate,
+      order: '1',
+      committed: saved.fixed,
+      windowTokens: record.windowTokens,
+      accounting: { kind: 'unsettled' },
+      forecast: record.forecast,
+      continuation: null,
+    }
+    expect(Object.keys(answer.value).sort()).toEqual(Object.keys(expected).sort())
+    for (const [field, value] of Object.entries(expected))
+      expect(answer.value[field as keyof typeof answer.value], field).toEqual(value)
   })
 
-  it('answers unavailable after the access check when no fixed request facts are handed in', async () => {
-    const w = await world()
+  it('the token changes when a new M0 is saved, and only then', async () => {
+    const { w, target, count, source } = await adoptedWorld()
+    const none = await count()
+    expect(none.kind).toBe('value')
+    expect(await count()).toEqual(none)
+    w.provider.state.saved = savedOf(target, '1', '1').saved
+    const first = await count()
+    expect(first.kind).toBe('value')
+    expect(first).not.toEqual(none)
+    await source()
+    expect(await count()).toEqual(first)
+    // The next M0, of another execution: a higher order, another token.
+    w.provider.state.saved = savedOf(target, '2', '2').saved
+    const second = await count()
+    expect(second.kind).toBe('value')
+    expect(second).not.toEqual(first)
+  })
+
+  it('the order is the order of the a part: one more for the M0 of the next execution', async () => {
+    const { w, target, source } = await adoptedWorld()
+    const orders: string[] = []
+    // Both M0 evidences are revision 1 of their own record: only the a part orders them.
+    for (const [tag, order] of [
+      ['1', '1'],
+      ['2', '2'],
+    ] as const) {
+      w.provider.state.saved = savedOf(target, tag, order).saved
+      const answer = await source()
+      if (answer.kind !== 'value' || answer.value === null) throw new Error(JSON.stringify(answer))
+      orders.push(answer.value.order)
+    }
+    expect(orders).toEqual(['1', '2'])
+  })
+
+  it('a record of another tenant is denied, a record of another scope is null', async () => {
+    const { w, target, source } = await adoptedWorld()
+    w.provider.state.saved = savedOf({ ...target, tenant: intruder.tenant }, '1', '1').saved
+    expect(await source()).toEqual({ kind: 'denied' })
+    // The last M0 fixed a request of an earlier scope: the target scope has none yet.
+    const earlier = { ...target, scope: { ...target.scope, ref: 'scope:earlier' } as never }
+    w.provider.state.saved = savedOf(earlier, '1', '1').saved
+    expect(await source()).toEqual({ kind: 'value', value: null })
+  })
+
+  it('passes the provider unavailable and denied on as they are, never as null', async () => {
+    const { w, source, count } = await adoptedWorld()
+    w.provider.state.answer = { kind: 'unavailable', diagnostic: 'the a part is not readable' }
+    expect(await source()).toMatchObject({ kind: 'unavailable' })
+    expect(await count()).toMatchObject({ kind: 'unavailable' })
+    w.provider.state.answer = { kind: 'denied' }
+    expect(await source()).toEqual({ kind: 'denied' })
+    w.provider.state.answer = 'throw'
+    expect(await source()).toMatchObject({ kind: 'unavailable' })
+  })
+
+  it('answers unavailable without sessionAdoptedRequests', async () => {
+    const w = await world({ adopted: 'absent' })
     const { parts } = await w.borrow()
     const { target } = await resolved(w, parts)
     const answer = await parts.adopted.readSource({ access: w.access, target })
     expect(answer).toMatchObject({ kind: 'unavailable' })
-    expect(JSON.stringify(answer)).toContain('adopted-facts-absent')
-    w.qualification.session = false
-    expect(await parts.adopted.readSource({ access: w.access, target })).toEqual({ kind: 'denied' })
+    expect(JSON.stringify(answer)).toContain('adopted-requests-absent')
+  })
+
+  it('a record whose coverage is not the coverage of the M0 evidence, or that does not decode, is invalid', async () => {
+    const { w, target, source } = await adoptedWorld()
+    const { saved } = savedOf(target, '1', '1')
+    // The record changed after the M0 evidence was minted: its coverage digest no longer agrees.
+    const tampered = structuredClone(saved.record) as { coverage: { prefixBreak: string } }
+    tampered.coverage.prefixBreak = 'unchanged'
+    w.provider.state.saved = { ...saved, record: tampered }
+    expect(await source()).toEqual({
+      kind: 'invalid',
+      field: 'adopted',
+      reason: 'source-evidence-conflict',
+    })
+    w.provider.state.saved = { ...saved, coverage: null }
+    expect(await source()).toMatchObject({ kind: 'invalid', reason: 'source-evidence-conflict' })
+    w.provider.state.saved = { ...saved, record: { schema: 'other/1' } }
+    expect(await source()).toEqual({
+      kind: 'invalid',
+      field: 'adopted',
+      reason: 'unsupported-format',
+    })
+  })
+
+  it('RQ-14: the window usage of the real accounting is not-fixed before the first M0 and an estimate after it', async () => {
+    const { w, parts, target } = await adoptedWorld()
+    const accounting = createContextAccounting<unknown>({
+      sourceAuthority: { check: async () => ({ kind: 'allowed' }) },
+      readEligibility: parts.eligibility,
+      adoptedSource: parts.adopted,
+      recoveryAuthority: {
+        check: async () => ({ kind: 'allowed' }),
+        checkFact: async () => ({ kind: 'allowed' }),
+      },
+      limits: { maxTargets: 4, maxFactsPerTarget: 16, maxRevisionsPerDispatch: 8 },
+    })
+    const grant = decodeRecoveryGrantRef('grant_1')
+    if ('failure' in grant) throw new Error('the fixture grant is invalid')
+    const rebuilt = await accounting.recovery.rebuildAccounts({
+      access: { scope: 'system', principal: 'host', grant: grant.ok },
+      target,
+      replay: {
+        snapshot: evidence('accounts'),
+        facts: (async function* (): AsyncGenerator<never> {})(),
+      },
+    })
+    expect(rebuilt.kind).toBe('rebuilt')
+    const usage = () => accounting.inbox.usage({ access: w.access, target })
+    expect(await usage()).toEqual({ kind: 'value', value: { kind: 'not-fixed' } })
+    const { saved, record } = savedOf(target, '1', '1', {
+      windowTokens: '128000',
+      forecast: { kind: 'estimate', usedTokens: '1200' },
+    })
+    w.provider.state.saved = saved
+    expect(await usage()).toMatchObject({
+      kind: 'value',
+      value: {
+        kind: 'estimate',
+        candidate: record.candidate,
+        usedTokens: '1200',
+        windowTokens: '128000',
+      },
+    })
   })
 })
 

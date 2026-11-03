@@ -60,6 +60,7 @@
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
+    "@omne-harness/request-context": "workspace:*",
     "@omne-harness/sqlite-provider": "workspace:*"
   }
 }
