@@ -38,7 +38,10 @@ const schemaOf = (field: string): JsonValue => ({
         entries: [
           {
             key: field,
-            value: { kind: 'object', entries: [{ key: 'type', value: { kind: 'string', value: 'string' } }] },
+            value: {
+              kind: 'object',
+              entries: [{ key: 'type', value: { kind: 'string', value: 'string' } }],
+            },
           },
         ],
       },
@@ -72,7 +75,11 @@ function commandTool(
       summary: command.summary,
       parameters: {
         kind: 'declared',
-        value: { schema: schemaOf(command.field), vocabulary: adoption('json-schema'), descriptions: [] },
+        value: {
+          schema: schemaOf(command.field),
+          vocabulary: adoption('json-schema'),
+          descriptions: [],
+        },
       },
       returns: { kind: 'ordinary', program: { kind: 'none' } },
     })),
@@ -100,7 +107,12 @@ function lookupOf(
   const calls: Adoption[] = []
   const lookup = async ({ binding: asked }: Parameters<ToolLookup<string>>[0]) => {
     calls.push(asked)
-    return table[asked.name] ?? { kind: 'unavailable' as const, diagnostic: `tool-unknown: ${asked.name}` }
+    return (
+      table[asked.name] ?? {
+        kind: 'unavailable' as const,
+        diagnostic: `tool-unknown: ${asked.name}`,
+      }
+    )
   }
   return Object.assign(lookup, { calls })
 }
@@ -162,10 +174,12 @@ describe('toolsSourceOf: the sixth group from the bindings of the conditions', (
     const throwing: ToolLookup<string> = async () => {
       throw new Error('broken')
     }
-    expect(await toolsSourceOf(throwing)({ access, conditions: conditionsWith(bindings) })).toEqual({
-      kind: 'unavailable',
-      diagnostic: 'tool-lookup-failed',
-    })
+    expect(await toolsSourceOf(throwing)({ access, conditions: conditionsWith(bindings) })).toEqual(
+      {
+        kind: 'unavailable',
+        diagnostic: 'tool-lookup-failed',
+      },
+    )
   })
 
   it('closes for a tool that is not the one the binding names', async () => {
@@ -191,7 +205,10 @@ describe('toolsSourceOf: the sixth group from the bindings of the conditions', (
       diagnostic: 'tools-source-absent',
     })
     const absent = toolsSourceOf(absentToolLookup)
-    expect(await absent({ access, conditions: conditionsWith([]) })).toEqual({ kind: 'value', value: [] })
+    expect(await absent({ access, conditions: conditionsWith([]) })).toEqual({
+      kind: 'value',
+      value: [],
+    })
     expect(await absent({ access, conditions: conditionsWith([binding('Files')]) })).toEqual({
       kind: 'unavailable',
       diagnostic: 'tool-lookup-absent',
@@ -202,7 +219,9 @@ describe('toolsSourceOf: the sixth group from the bindings of the conditions', (
 describe('the sixth group through the real Request Context', () => {
   async function preparedWith(w: World, bindings: readonly Adoption[]) {
     const context = await w.read()
-    return w.requests.prepare(w.prepareInput(context, { conditions: { ...w.conditions, bindings } }))
+    return w.requests.prepare(
+      w.prepareInput(context, { conditions: { ...w.conditions, bindings } }),
+    )
   }
 
   it('declares to the model exactly the commands of the bound definitions, with their summaries and schemas', async () => {
