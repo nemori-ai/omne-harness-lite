@@ -19,7 +19,7 @@
 // of Session (R2-D17 P2). The counts, the curve and the limit are written before any assertion runs.
 // @module-tag slow
 // Why slow: up to 200 rounds of real Workers and real files.
-import { writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
 import {
@@ -182,6 +182,8 @@ async function runToLimit(shape: Shape, w: W2World) {
     const table = w.counters.rounds
     const curve = curveRows(table, w.counters.partsRounds)
     const growth = growthOf(curve)
+    // The evidence directory is not tracked: create it before the first write.
+    mkdirSync(OUT, { recursive: true })
     writeFileSync(new URL(`counts-${shape}.json`, OUT), JSON.stringify(table, null, 1))
     writeFileSync(new URL(`j6-curve-${shape}.csv`, OUT), curveOf(curve))
     writeFileSync(new URL(`j6-growth-${shape}.json`, OUT), JSON.stringify(growth, null, 1))
