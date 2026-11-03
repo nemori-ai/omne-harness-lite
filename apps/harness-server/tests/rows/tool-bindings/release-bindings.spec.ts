@@ -95,6 +95,13 @@ describe('tool-bindings: availability from verified sources only', () => {
     })
   })
 
+  it('denies qualification for a release definition at a non-official layer', async () => {
+    const { judge, tenant } = await judged()
+    expect(await judge({ layer: { kind: 'tenant', tenant } })).toMatchObject({
+      ok: { qualification: 'denied', outputCompatible: false, attachmentsReadable: false },
+    })
+  })
+
   it('answers unavailable for an unverified principal and for another tenant', async () => {
     const { judge, principal } = await judged()
     expect(await judge({ principal: { ...principal } })).toMatchObject({
