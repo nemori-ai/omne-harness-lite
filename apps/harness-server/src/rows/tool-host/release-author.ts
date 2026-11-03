@@ -25,7 +25,11 @@ import {
 } from '@omne-harness/tool-host-local'
 import type { LocalToolHostPluginInput } from '@omne-harness/tool-host-local/cordis'
 import { registrantOf, releaseOf } from '../../entry/tool-release.ts'
-import { governanceOf, type ToolReleaseEntry } from '../../entry/tool-release-manifest.ts'
+import {
+  governanceOf,
+  type ReleaseToolExport,
+  type ToolReleaseEntry,
+} from '../../entry/tool-release-manifest.ts'
 
 type B = ToolMessageContentBlock
 /** 运维者层给出的构造值，按作者名。发行层不写默认值，缺哪一项哪一个作者就答 `unavailable`。 */
@@ -194,7 +198,7 @@ export function releaseAuthorInput(
     },
   }
 
-  const loaderFor = (authority: ToolAuthority): ToolLoader<unknown, unknown, B> =>
+  const inner = (authority: ToolAuthority): ToolLoader<unknown, unknown, B> =>
     createLocalToolLoader<unknown, unknown, B>({
       authority,
       verifier,
@@ -211,11 +215,33 @@ export function releaseAuthorInput(
       async schemas(_input, loaded) {
         const found = entryFor(ctx, loaded.key.asset.name)
         if (found === undefined) return unavailable('release snapshot or entry unavailable')
+        if (!sameAdoption(loaded.executor, found.entry.module.executor))
+          return invalid('executor', 'loaded executor differs from the release module')
         if (canonicalDigest(loaded.definition) !== found.entry.definition)
           return invalid('definition', 'definition digest differs from the release')
         return checkEnvironmentNeed(loaded.definition, validator)
       },
     })
+
+  /**
+   * 模块绑到清单的固定模块（R2-D82 D1）：调用方交来的模块的 executor 四项必须与清单全等，否则 invalid；
+   * 真正交给 loader 的始终是快照里的固定模块，调用方给的 `createAuthor` 不会运行。contributeTool 会把固定
+   * 模块包一层再交来，所以这里不能要求同一对象，改为按清单换回固定模块。
+   */
+  const loaderFor = (authority: ToolAuthority): ToolLoader<unknown, unknown, B> => {
+    const loader = inner(authority)
+    return {
+      async load(input) {
+        const found = entryFor(ctx, authority.asset.name)
+        if (found === undefined) return unavailable('release snapshot or entry unavailable')
+        const fixed = found.release.modules[found.entry.module.export as ReleaseToolExport]
+        if (fixed === undefined) return unavailable('release module is absent')
+        if (!sameAdoption(input.module.executor, found.entry.module.executor))
+          return invalid('module', 'module executor differs from the release module')
+        return loader.load({ ...input, module: fixed })
+      },
+    }
+  }
 
   return Object.freeze({
     source,

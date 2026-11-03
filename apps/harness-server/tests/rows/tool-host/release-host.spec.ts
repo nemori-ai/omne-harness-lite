@@ -147,7 +147,7 @@ describe('tool-host: ensureLoaded of the release authors', () => {
 describe('tool-host: the release source and loader input', () => {
   async function input(construction: unknown = TEST_CONSTRUCTION) {
     const fixture = await releaseFixture()
-    const app = await host({ fixture })
+    const app = await host({ fixture, construction: TEST_CONSTRUCTION })
     return {
       app,
       parts: releaseAuthorInput(app.root, construction as never),
@@ -201,6 +201,56 @@ describe('tool-host: the release source and loader input', () => {
     expect(await load({ settings: { ...entry.settings, digest: 'x' } })).toMatchObject({
       failure: { kind: 'invalid', field: 'settings' },
     })
+  })
+
+  it('binds the loader to the release module: another executor is invalid and nothing is registered', async () => {
+    const { app, parts } = await input()
+    const entry = entryOf(app.manifest, 'Files')
+    const forged = {
+      ...filesToolModule,
+      executor: {
+        ...filesToolModule.executor,
+        revision: '999',
+        digest: `sha256:${'e'.repeat(64)}`,
+      },
+    }
+    const answer = await parts.loaderFor(authorityOf(app.manifest, 'Files')).load({
+      ...app.registrant,
+      asset: governanceOf(entry),
+      settings: entry.settings,
+      module: forged as never,
+      services: {},
+    })
+    expect(answer).toMatchObject({ failure: { kind: 'invalid', field: 'module' } })
+    expect(names(app)).toEqual([])
+    // The real release author still loads under the official key afterwards.
+    const loaded = await app.generations.ensureLoaded({
+      authority: authorityOf(app.manifest, 'Files'),
+      access: SYSTEM,
+    })
+    expect(loaded).toMatchObject({ ok: { state: 'loaded' } })
+  })
+
+  it('runs the fixed release module, never a createAuthor that the caller hands in', async () => {
+    const { app, parts } = await input()
+    const entry = entryOf(app.manifest, 'Files')
+    let called = 0
+    const impostor = {
+      executor: filesToolModule.executor,
+      createAuthor: (construction: never) => {
+        called += 1
+        return shellToolModule.createAuthor(construction)
+      },
+    }
+    const answer = await parts.loaderFor(authorityOf(app.manifest, 'Files')).load({
+      ...app.registrant,
+      asset: governanceOf(entry),
+      settings: entry.settings,
+      module: impostor as never,
+      services: {},
+    })
+    expect(called).toBe(0)
+    expect(answer).toMatchObject({ ok: { executor: filesToolModule.executor } })
   })
 
   it('records no rejection: the promise rejects, so the coordinator answers unavailable', async () => {
