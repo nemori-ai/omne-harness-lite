@@ -13,6 +13,7 @@ Implemented:
 - The two-layer plugin tree and the boundary schema.
 - The loader, the trusted-subtree visibility, and the readiness report.
 - The row snapshot `src/s0/aa-rows.json`, its generator, and its diff check.
+- The built-in tool release manifest `config/tool-release.json`, its generator `scripts/tool-release.mjs`, and its check. See [docs/rows/tool-release.md](docs/rows/tool-release.md).
 - The shutdown coordinator and the process entry `dist/bin.js`.
 - The `./cordis` export, which holds the S0 stub plugin. Row closures add their real exports to it.
 - The `serve` subcommand, the row declaration `defineRow`, the entry object registry, and the checks before loading in the real mode. See [docs/real-mode.md](docs/real-mode.md).
@@ -21,7 +22,7 @@ The ordered shutdown rules in SPEC.md (the start order, no new `start` after the
 
 The S0 mode does not open HTTP, create a tenant, open a business state root, or read a real secret. A passing S0 run does not show that a tenant can be created or used.
 
-The `serve` mode loads the same rows under formal service keys. In the sample distribution, the storage, identity, authorization, session storage and provider, agent adoption, adoption source, and server entry rows are real, and the remaining rows are still stubs. A passing `serve` run checks the assembly, not a full tenant path.
+The `serve` mode loads the same rows under formal service keys. In the sample distribution, the storage, identity, authorization, session storage and provider, agent adoption, adoption source, tool bindings, tool host, tool residency, and server entry rows are real, and the remaining rows are still stubs. A passing `serve` run checks the assembly, not a full tenant path.
 
 ## Usage
 
@@ -104,9 +105,10 @@ pnpm --filter @omne-harness/harness-server run build
 pnpm --filter @omne-harness/harness-server run test:fast
 pnpm --filter @omne-harness/harness-server run test:slow
 pnpm --filter @omne-harness/harness-server run check:aa-rows
+pnpm --filter @omne-harness/harness-server run check:tool-release
 ```
 
-`test:slow` starts `dist/bin.js`, so run `build` first. `check:aa-rows` compares the snapshot with the application assembly page.
+`test:slow` starts `dist/bin.js`, so run `build` first. `check:aa-rows` compares the snapshot with the application assembly page. `check:tool-release` recomputes the tool release manifest from the built `@omne-harness/tool-definitions`, so build that package first.
 
 The tests use doubles and fixture rows, not a real SQL provider, real identity, or real storage. Doubles do not show durability or real vendor behavior.
 
@@ -122,6 +124,13 @@ Change the behavior in [SPEC.md](SPEC.md) first, then the code and the tests. Do
 ```sh
 cd apps/harness-server
 node scripts/aa-rows.mjs write --aa ../../docs/architecture/runtime/application-assembly.md --rows src/s0/aa-rows.json
+```
+
+When `@omne-harness/tool-definitions` or the version of this app changes, rebuild it and regenerate the tool release manifest in the same change:
+
+```sh
+cd apps/harness-server
+node scripts/tool-release.mjs write
 ```
 
 Then update `src/s0/stubs.ts` by hand to follow the changed rows. `tests/real-manifests-sync.spec.ts` compares every real row export with that table. When an assembly-page patch lands, remove its entry from `KNOWN_GAPS` in the same change.
