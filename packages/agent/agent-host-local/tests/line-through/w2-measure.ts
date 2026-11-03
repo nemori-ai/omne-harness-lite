@@ -107,11 +107,27 @@ function rowsOf(result: ReadResult): number {
   )
 }
 
+/** One model view read of the AD-04 read path: its upper bound and the rows it handed out. */
+export type Ad04Read = Readonly<{ upper: bigint; rows: readonly bigint[] }>
+
+/**
+ * The identities behind `ad04ProjectedRows` and `ad04StableRecompute` of one round (R2-D78): each
+ * AD-04 read with the history sequences of the rows it handed out, and the sequences of the rows an
+ * earlier AD-04 read had handed out, in the order they came again. Kept apart from `RoundCount`,
+ * whose items J6 compares across the rounds.
+ */
+export type Ad04RoundRows = Readonly<{
+  round: number
+  reads: readonly Ad04Read[]
+  rereads: readonly bigint[]
+}>
+
 export type RoundCounters = ReturnType<typeof createRoundCounters>
 
 /** The per-round counters. `begin` opens a round, `end` closes it and keeps its counts. */
 export function createRoundCounters() {
   const rounds: RoundCount[] = []
+  const ad04Rows: Ad04RoundRows[] = []
   /** The reads the storage refused, with the handler and the answer: a long run names its limit here. */
   const refusedReads: { handler: string; answer: unknown }[] = []
   let open: Open | null = null
@@ -123,6 +139,8 @@ export function createRoundCounters() {
   let rereads = 0
   let ad04Projected = 0
   let ad04Rereads = 0
+  let ad04Reads: Ad04Read[] = []
+  let ad04Again: bigint[] = []
 
   const fresh = (round: number): Open => ({
     round,
@@ -154,6 +172,7 @@ export function createRoundCounters() {
 
   const counters = {
     rounds,
+    ad04Rows,
     refusedReads,
     begin(round: number): void {
       if (open !== null) throw new Error(`round ${open.round} is still open`)
@@ -162,6 +181,8 @@ export function createRoundCounters() {
       rereads = 0
       ad04Projected = 0
       ad04Rereads = 0
+      ad04Reads = []
+      ad04Again = []
     },
     end(): RoundCount {
       if (open === null) throw new Error('no round is open')
@@ -175,6 +196,7 @@ export function createRoundCounters() {
         ad04StableRecompute: ad04Rereads,
       }
       rounds.push(count)
+      ad04Rows.push({ round: current.round, reads: ad04Reads, rereads: ad04Again })
       return count
     },
     /** One storage commit: counted once for each participant that has a command in it. */
@@ -227,7 +249,12 @@ export function createRoundCounters() {
      * earlier round already handed out and that comes back is a re-read of the stable part.
      */
     observeHistory(history: SessionHistory<unknown>): SessionHistory<unknown> {
-      const handOut = (ids: readonly string[], projection: boolean, probe = false): void => {
+      const handOut = (
+        ids: readonly string[],
+        projection: boolean,
+        probe = false,
+        view?: Ad04Read,
+      ): void => {
         inRound(current => {
           current.historyReadCalls += 1
           current.historyRows += ids.length
@@ -247,10 +274,16 @@ export function createRoundCounters() {
         }
         if (projection && !probe) {
           ad04Projected += ids.length
-          for (const id of ids) {
-            if (ad04Seen.has(id)) ad04Rereads += 1
-            else ad04Seen.add(id)
-          }
+          if (view !== undefined) ad04Reads.push(view)
+          ids.forEach((id, at) => {
+            if (!ad04Seen.has(id)) {
+              ad04Seen.add(id)
+              return
+            }
+            ad04Rereads += 1
+            const seq = view?.rows[at]
+            if (seq !== undefined) ad04Again.push(seq)
+          })
         }
       }
       const entries = (answer: Outcome<HistoryPage, unknown>): Outcome<HistoryPage, unknown> => {
@@ -263,11 +296,13 @@ export function createRoundCounters() {
         since: async input => entries(await history.since(input)) as never,
         readModelView: async input => {
           const answer = await history.readModelView(input)
-          const rows = 'ok' in answer && answer.ok.kind === 'page' ? answer.ok.rows : []
+          const page = 'ok' in answer && answer.ok.kind === 'page' ? answer.ok : undefined
+          const rows = page?.rows ?? []
           handOut(
             rows.map(row => `row:${row.entry}`),
             true,
             input.pageBytes <= 1,
+            page && { upper: BigInt(page.basis.upper), rows: rows.map(row => BigInt(row.seq)) },
           )
           return answer
         },
@@ -459,4 +494,35 @@ export function historyReadGrowth(
         `round ${count.round}: reads ${count.ad04ReadRows} rows, round ${first.round} read ${first.ad04ReadRows}`,
       )
   return broken
+}
+
+const ascending = (rows: Iterable<bigint>): bigint[] =>
+  [...new Set(rows)].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0))
+
+const upperOf = (round: Ad04RoundRows | undefined): bigint =>
+  (round?.reads ?? []).reduce((top, read) => (read.upper > top ? read.upper : top), 0n)
+
+/**
+ * The rows of one round of the AD-04 read path by identity (history sequences), for the identity
+ * form of S3 item 3 (R2-D78). `added` are the rows the upper bound of the round adds to the upper
+ * bound of the round before. `boundary` is the last row of the round before: the row the cursor of
+ * the Request Context stands after, which the AD-04 page read starts at. `read` are the rows the
+ * AD-04 reads of the round handed out, `reread` those of them an earlier AD-04 read had handed out;
+ * both once each, ascending.
+ */
+export function ad04RowsOf(
+  rows: readonly Ad04RoundRows[],
+  round: number,
+): Readonly<{ added: bigint[]; boundary: bigint; read: bigint[]; reread: bigint[] }> {
+  const at = rows.findIndex(item => item.round === round)
+  const current = rows[at]
+  const boundary = upperOf(rows[at - 1])
+  const added: bigint[] = []
+  for (let row = boundary + 1n; row <= upperOf(current); row++) added.push(row)
+  return {
+    added,
+    boundary,
+    read: ascending((current?.reads ?? []).flatMap(read => read.rows)),
+    reread: ascending(current?.rereads ?? []),
+  }
 }
