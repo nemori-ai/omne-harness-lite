@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest'
+import { retainedReader } from './retained-reader.ts'
 import { createIndependentToolScope } from '@omne-harness/tool'
 import {
   defaultResultPolicy,
@@ -181,7 +182,7 @@ it('preserves complete calculation basis and long output through public custody 
       bytes,
     }),
   )
-  value(
+  const retained = value(
     await content.custody.retainResult({
       ...access(),
       operation: operationId('retain'),
@@ -196,9 +197,30 @@ it('preserves complete calculation basis and long output through public custody 
     after: null,
     maxBytes: bytes.length,
   }
-  const page = value(await content.reader.read(read))
+  const guarded = await retainedReader({
+    access: read,
+    result: read.result,
+    raw,
+    resultValue: rendered,
+    retained,
+    custody: content.custody,
+    content: content.reader,
+  })
+  const page = value(await guarded.reader.read(read))
   expect(value(operation.author.codec.decode(page.bytes))).toEqual(result)
   expect(await content.reader.read({ ...read, ...access('bob') })).toHaveProperty('failure')
+  expect(await guarded.reader.read({ ...read, principal: 'other-subject' })).toHaveProperty(
+    'failure.kind',
+    'denied',
+  )
+  expect(guarded.actions).toContain('read-raw-content')
+  const paused = content.controls.pauseNextRead()
+  const reading = guarded.reader.read(read)
+  await paused.entered
+  guarded.revoke()
+  paused.resume()
+  expect(await reading).toHaveProperty('failure.kind', 'denied')
+  expect(await guarded.reader.read(read)).toHaveProperty('failure.kind', 'denied')
   expect(rendered).not.toHaveProperty('detailRef')
   expect(rendered.original).toEqual({ kind: 'none' })
 })
