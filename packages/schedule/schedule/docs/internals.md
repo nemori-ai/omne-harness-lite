@@ -148,7 +148,7 @@ master return 的幂等键为 jobId+resultVersion+masterRef。收到返回不代
 
 Agent authoring 管理的是自己在当前合法 master/owner 范围内创建的安排意图。人工 owner 保有查看、修改、暂停、终止权。工具可发现与命令被授权是两个判断。
 
-读取、预览不要求写入同意。granular 模式的 Agent create 无需等待用户在场，应用服务直接落 draft，零未来接受；Agent 可自主 reviseDraft/discard 自己的 draft。owner 的 promote 就是逐条确认。对已生效安排的修改、取消、替换仍逐命令确认，覆盖规范 payload hash、动作、owner、target、purpose 及 originating context，批准不得移用于另一份内容。
+读取、预览不要求写入同意。granular 模式的 Agent create 无需等待用户在场，应用服务直接落 draft，零未来接受；Agent 可自主 reviseDraft/discard 自己的 draft。owner 的 promote 就是逐条确认。在 granular 模式且没有适用的 standing blanket 同意时，对已生效安排的修改、取消、替换仍逐命令确认，覆盖规范 payload hash、动作、owner、target、purpose 及 originating context，批准不得移用于另一份内容。
 
 授权包含两轴：粒度 granular/blanket 与范围 session/standing。blanket+standing 跨会话和重启有效，无隐含过期；权威显式设置的到期仍遵守。Schedule 保存 grantRef/generation 和 adoptionKind。撤销 blanket 只阻塞依赖它的安排，独立仍有效的 granular grant 不失效。重授不自动恢复：owner 使用 reconfirmConsent(scheduleId,newConsentRef,expectedRevision) 逐条确认，原子更新 adoption、撤销阻塞锁和审计，再按当前其他依赖重算 standing。它不改变 paused，也不能复活终态。
 

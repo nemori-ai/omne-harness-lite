@@ -50,12 +50,19 @@ calendar-dependent 的 overlay/workingDay selector 必须能从 Binding 解析�
 type JsonValue = null | boolean | number | string | readonly JsonValue[]
   | { readonly [key: string]: JsonValue }
 // 以下均为 Job 契约自己的数据值，不 import Session/Agent 的领域类型。
+type AgentModes = {
+  permission: 'never' | 'auto_permission' | 'bypass-permissions'
+  environmentAdoptionRef: Ref
+  collaboration: 'co-work' | 'auto-drive'
+}
+type WorkspaceInput = { workspaceRef: Ref; instanceRef: Ref; basisRef: Ref }
+type MaterialInput = { resourceRef: Ref; versionRef: Ref }
 type AgentSessionPlan =
-  | { mode: 'new'; agentProfileRef: Ref }
+  | { mode: 'new'; agentProfileRef: Ref; modes: AgentModes; workspace: WorkspaceInput | null }
   | { mode: 'existing'; sessionRef: Ref }
 type Work =
   | { kind: 'program'; programRef: Ref; input: JsonValue }
-  | { kind: 'agent'; instruction: string; session: AgentSessionPlan;
+  | { kind: 'agent'; instruction: string; session: AgentSessionPlan; materials: readonly MaterialInput[];
       returnTo: { kind: 'external'; targetRef: Ref } | null;
       resultPolicy: ResultPolicy }
 interface ReminderContent { title: string | null; body: string }
@@ -82,6 +89,10 @@ type InitialState = { kind: 'active' } | { kind: 'draft'; reason: string }
 label 1..200 code points。instruction 1..65,536 UTF-8 bytes，本设计资源边界，不假称源相同。draft reason 1..1,024 code points。programRef、agentProfileRef、sessionRef、returnTo.targetRef 是 Job 契约拥有的 opaque 引用值，具体执行适配器解析。Job 应用服务只消费自己定义的 JobExecutor port 及其可执行性/资格证明，不调用或 import Session/Agent 领域服务。programRef 必须解析为已注册、已采用版本的程序及输入 schema；input 不允许携带任意可执行脚本。
 
 **执行意图的冻结与解释**：Schedule 中的 Work 是未来安排内容，接受时完整复制进 Job.body.frozenWork。program 与 agent 互斥，program 不携带 instruction/session。agent 必须有非空 instruction 和 session 判别分支，不从 actor、创建来源或 instruction 是否存在猜测类型。
+
+new 必须显式提供 modes 和 workspace；无工作区传 null，无资料传 materials=[]。AgentModes 是 Job 所需的运行意图投影：permission/collaboration 的值对齐 Session 公开 Modes，environmentAdoptionRef 指向环境拥有者可解析的精确采用依据。外部 adapter 将这些值映射为 SessionCreation 的 explicit modes、workspace 和 workspaceAttachment；不复制 SessionCreation，也不从发起者会话、agentProfileRef 或当前租户默认偷偷补值。WorkspaceInput 的 workspaceRef 是合法工作区身份，instanceRef/basisRef 分别引用工作区实例及采用版本，由工作区拥有者校验，不能用本地路径代替。MaterialInput 引用资料拥有者的一份明确资源版本，不嵌入全量历史、凭证或临时运行时对象；版本未知不得退回最新版本。
+
+materials 可用于 new 或 existing 的本次输入。existing 不允许传 modes/workspace/agentProfileRef，也不改变目标会话已采用的运行配置和工作区。inspect 校验所有引用及组合支持，ready 的 workFingerprint 覆盖完整 modes、workspace 和 materials。接受时冻结这些值；start 仍需当前读取、启动及使用资格，冻结不延长授权。解析失败须明确 rejected/blocked，不能忽略资料或改成空工作区。更改运行模式、工作区或资料引用走 replace；已接受 Job 不变。V-SJ13 须覆盖同一 AgentDefinition 的不同运行模式/资料/工作区、明确空值、撤权、未知版本及 existing 禁止覆盖。
 
 - new：每个已接受 Job 新建一个执行会话。适配器以 Job 的稳定执行身份幂等认领，重试及 runtime/attempt 恢复不能新建另一个会话；agentProfileRef 为实际采用的稳定配置/发布引用。
 - existing：向明确的 sessionRef 提交本次 instruction，不再携带 agentProfileRef 去覆盖既有会话的 Agent。目标不存在、终局、跨租户或无准入资格时返回明确拒绝/受阻，绝不改为 new。
@@ -169,7 +180,7 @@ interface JobControl {
 | 余下 DTO | 字段及约束 |
 |---|---|
 | PageRequest | cursor:string或null、limit:number；limit 沿长期 SPEC各读面上限；cursor绑定queryHash、lastKey及observationRevision，revision变化返回stale_cursor要求重读，不静默跨快照翻页 |
-| Page&lt;T&gt; | items:T[]、nextCursor:string或null、observationRevision:string、complete:boolean；截断不能伪装结束 |
+| Page&lt;T&gt; | items:T[]、nextCursor:string或null、observationRevision:string、complete:boolean、total:{kind:exact,value:非负整数}或{kind:unknown,reason:budgetExceeded或sourceUnavailable}；截断不能伪装结束 |
 | ScheduleFilter | agentRef、control、standing、createdBy、targetDeviceRef、calendarId、purpose 各可 null；无筛选不需日历选择 |
 | ExecutionRow | candidate/source explanation、preparation或null、receipt或null、job或null、notification或null、originalScheduledAt；身份明确 |
 | AgendaRequest | from/to:Civil、timezone:IANA、filter、cursor或null、limit；最长92天，to排除 |
@@ -179,7 +190,9 @@ interface JobControl {
 | PreviewView | candidates[]、basis、complete、observedThrough、reason或null、remainingEligible或null、remainingJobs或null；不预测重叠执行结果 |
 | OperationView | operationRef、kind=committed/noChange/rejected/pending/unknown/notCommitted、result或null、error或null、observedAt；notCommitted须storage完整否定证据 |
 
-SchedulePatch.executionText只允许purpose.execution且work.kind=agent。程序引用/输入、会话模式与目标变更走replace；draft可通过reviseDraft完整修订。
+total 计算同一筛选、同一 observationRevision 和当前有权可见集合中的全部匹配行，不是本页长度，也不泄露不可见对象数量。ScheduleQueries.list 成功必须返回 exact 总数；不能完成一致计数时返回明确查询错误，不以 unknown 交付成功列表。其余有界计算读面允许 unknown 并给出原因。分页期间数据或权限观察边界变化使原 cursor 失效，不能沿用旧总数；无法取得一致观察边界时明确查询失败。Repository 的 listSchedules 必须在同一观察边界返回页面与总数，HTTP/Tool/SDK 原样携带。验收覆盖 501 条匹配、50 条首屏、过滤及权限变化、计数不可用和截断，不能通过穷举不稳定页面补算。
+
+SchedulePatch.executionText只允许purpose.execution且work.kind=agent。程序引用/输入、会话模式与目标、运行模式、工作区和资料引用变更走replace；draft可通过reviseDraft完整修订。
 
 Calendar 查询的完整形状和默认补全规则归 [Calendar API 设计](../../../calendar/calendar/docs/public-api-design.md#日历值与查询)。
 
@@ -339,7 +352,7 @@ Self-wake 只暴露 runtime 可信工具适配，v1 不提供让任意 HTTP 调�
 |---|---|---|---|
 | calendar | list/get/effective/resolve | calendarQuery | 对应 CalendarQueries；calendar.read |
 | schedule | list/get/preview/agenda/history | scheduleQueries | schedule.read/preview |
-| schedule | create/reviseDraft/update/pause/resume/stop/promote/discard/replace/reconfirmConsent | scheduleCommands | schedule.{action}，逐命令同意 |
+| schedule | create/reviseDraft/update/pause/resume/stop/promote/discard/replace/reconfirmConsent | scheduleCommands | schedule.{action}，按作者同意规则检查适用授权；granular 且无适用 standing blanket 时，对已生效安排变更逐命令确认；草稿及 reconfirmConsent 沿各自规则 |
 | schedule | operation | scheduleCommands | queryOperation；schedule.operation.read |
 | job | get/cancel | jobControl | job.read/job.cancel |
 | schedule_subscription | listFeatures/list/enable/updateParameters/pause/resume/cancel | scheduleSubscriptions | subscription.{action} |
@@ -393,8 +406,8 @@ Tool贡献的发布、装载与撤除沿[Tool Cordis已接受设计](../../../to
 
 ```text
 program: {kind:program, programRef:registered-backup-v1, input:{resourceRef:workspace-A}}
-agent/new: {kind:agent, instruction:生成本周摘要, session:{mode:new, agentProfileRef:release-42}, returnTo:null, resultPolicy:...}
-agent/existing: {kind:agent, instruction:补充上次问题的分析, session:{mode:existing, sessionRef:session-7}, returnTo:null, resultPolicy:...}
+agent/new: {kind:agent, instruction:生成本周摘要, session:{mode:new, agentProfileRef:release-42, modes:{permission:never, environmentAdoptionRef:env-1, collaboration:auto-drive}, workspace:null}, materials:[], returnTo:null, resultPolicy:...}
+agent/existing: {kind:agent, instruction:补充上次问题的分析, session:{mode:existing, sessionRef:session-7}, materials:[], returnTo:null, resultPolicy:...}
 ```
 
 JobExecutor 是本域端口，inspect/start/query/requestStop 的输入和结果在第 5 节唯一维护。实现它的 program adapter 和 agent adapter 在装配层分离；程序 adapter 不依赖 Session。start 的 accepted 只表示承接，必须带原 executionRef，pending/unknown 不能结算成功。query 返回原执行观察及可核对终态回执，最终结果由 recordOutcome 的原 receipt 引用入账。requestStop 返回 pending/unknown/rejected 或带真实停止依据的 stopped，不将 AbortSignal 当停止证明。目标引用解析失败绝不改变 session.mode。
@@ -403,7 +416,7 @@ JobStore/PreparationStore/OutboxStore 是本域持久消费端口，保存与查
 
 ## JobExecutor 精确结果设计
 
-所有方法先接受可信 CallContext，进程内 options 可含 signal。start/query 的稳定寻址是同一 owner+jobId+attemptId。这里的 attemptId 是执行拥有者认回的一次逻辑执行尝试，unknown 时不得换 attempt。明确允许新尝试必须是原工作自己的恢复决定，并保留旧尝试的结果/效果，不能重新计 Job。
+所有方法先接受可信 CallContext，进程内 options 可含 signal。start/query 的稳定寻址是同一 owner+jobId+attemptId。attemptId 是首次启动准备持久分配的交接身份，unknown、恢复和 provider 换代均不得替换。执行拥有者内部恢复不改变此交接身份；新业务重跑显式创建新 Job，不能借换 attempt 重放已有外部效果。
 
 | 方法 | 完整目标输入 | 输出字段与条件 |
 | --- | --- | --- |
