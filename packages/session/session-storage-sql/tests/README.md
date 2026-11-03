@@ -19,6 +19,7 @@
 现有文件：
 
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口的导出集合是 `SESSION_PARTICIPANT`、`createSessionPrincipalBindings`、`createSessionStorage`、`createSessionStoragePair`、`sessionStorageMaterials`；`exports` 只有 `.` 与 `./participants`；没有 `./cordis`（不在 `exports`、不可导入、源文件不存在）；源码只经 `@omne-harness/sql-contract` 与 `@omne-harness/sql-contract/worker` 导入 SQL 形状，不导入 `packages/storage/**`、sqlite-provider 或 `node:sqlite`，`package.json` 不依赖 sqlite-provider；每个读 handler 是 `snapshot`；每条 SELECT 有 LIMIT。
+- [materials-options.spec.ts](materials-options.spec.ts)：`sessionStorageMaterials` 的 `readOutputLimitBytes`（SPEC K-1、第 19 条）：缺参数、`undefined`、`null`、0、负数、小数、`NaN`、无穷、超出安全范围、数字文本都在构造时抛 `TypeError`；传入的值成为每个读 handler 的 `maxOutputBytes`；两次构建互不共享。
 - [tenant-isolation.spec.ts](tenant-isolation.spec.ts)：访问裁定不放行时每个入口 `denied`，且没有任何调用到达存储；访问指名别的租户或会话的 `commit` 被拒绝；另一租户的会话读为 `denied`，向它提交不改变它；`pending` 只列出本租户的会话；两个租户的同名会话是两个会话；每次调用用本租户的事务域；目录答了别的租户时拒绝，目录不认识该租户时 `unavailable` 而不是空。
 - [delegated.spec.ts](delegated.spec.ts)：session-contract 的委派视图符合性套件在本包上运行。视图不调用访问检查，对另一会话、另一租户或另一命令答 `denied`。夹具的 `decisionOf` 读 `sl_operation_evidence`，所以「a view commit stores the bound evidence with the operation record」对 SQL 提供者通过，没有不适用项。另加租户用例：租户 B 有同名会话时，经租户 A 绑定的视图对 B 的每个会话读与提交都答 `denied`，不调用检查，也没有调用到达存储。
 - [operation-evidence.spec.ts](operation-evidence.spec.ts)：操作记录的访问证据。迁移 `session/003-operation-evidence` 排在执行索引之后并登记模块；视图提交存绑定证据，公开端口提交存本次裁定的证据；认回不改原证据；在操作行之后注入失败时没有证据行，重试只存一次；不带证据的外部提交方没有证据行；畸形证据答「不支持」并回滚；`query` 意图读回证据，另一租户的名字下答 `no-session`。
@@ -35,7 +36,7 @@
 - [admission-attempt-migration.spec.ts](admission-attempt-migration.spec.ts)：迁移 `execution-record/003-admission-attempt` 依赖 001 并登记模块；在有旧行的库上建表，旧行没有 attempt 行，第二次运行不改表定义也不丢已有行，`verify` 在无表时失败。
 - [state-parts.spec.ts](state-parts.spec.ts)：迁移 `execution-record/004-state-parts` 依赖 001、表归 `execution-record`；分区写只替换或删除所列分区，`replace` 先删其余，整份写删除全部分区；八种畸形写入答「不支持」且不写任何行；同一提交里 Session 写失败时分区一起回滚；读口按行数与文本预算分页、超过预算的分区单独成页、只读所列分区、畸形输入被拒；两个租户放在同一个库里，同会话名、同分区名，读口的三条语句与分区写的删整份、全部置空两条语句，去掉任一处的 `tenant` 条件，用例变红。
 - [work-read-limit.spec.ts](work-read-limit.spec.ts)：真实 sqlite-provider 上 Session 快照的读上限（慢层，session SPEC SN-1）：存储行里快照最长的文本加长到超过 20 MiB（形状不变），`session.work` 答 `read_limit`，`readWork` 很快答 `unavailable` 且诊断带 `read_limit`；对照组 20 MiB 以内整份读回，2 MiB 的快照（超过原 1 MiB 上限）也整份读回。快照直接写进关闭的域文件，只验证读路径。
-- [read-output-limit.spec.ts](read-output-limit.spec.ts)：真实 sqlite-provider 上读 handler 的 20 MiB 输出上限落在 Agent 记录上（慢层，session-storage-sql SPEC K-1）：写入上限放大后，经真实提交写入 2 MiB 与离上限一 KiB 的状态，`execution-record.parts` 整份读回；输出超过 20 MiB 时答 `read_limit`，不带任何输出。上限在用例里是字面值，常量改小、改大一 KiB 或改小两 KiB 都使用例变红。
+- [read-output-limit.spec.ts](read-output-limit.spec.ts)：真实 sqlite-provider 上读 handler 的 20 MiB 输出上限落在 Agent 记录上（慢层，session-storage-sql SPEC K-1）：写入上限放大后，经真实提交写入 2 MiB 与离上限一 KiB 的状态，`execution-record.parts` 整份读回；输出超过 20 MiB 时答 `read_limit`，不带任何输出。上限在用例里是字面值，经 `readOutputLimitBytes` 参数传入，参数被忽略、改小、改大一 KiB 或改小两 KiB 都使用例变红。
 - [preadmission.spec.ts](preadmission.spec.ts)：准入记录的两阶段写入、Ki 唯一、结果只固定一次、跨租户读不到，以及真实提供者上杀进程后按原 H 读回（慢层）。
 - [same-domain-tenant.spec.ts](same-domain-tenant.spec.ts)：同一事务域里租户 A 的行，以租户 B 读不到：准入记录按 H 与按 Ki 的点查（`findPreadmission`），以及 `commitLog` 对 `sl_journal` 的读（答 `denied`）。其他规格的夹具把每个租户放在各自的事务域里，语句丢了 `tenant = ?` 也读不到别家的行，所以这里在同一个库里写、再换租户读，并各带一个以租户 A 读的对照。
 - [fixtures/](fixtures/README.md)：测试夹具，见该目录。

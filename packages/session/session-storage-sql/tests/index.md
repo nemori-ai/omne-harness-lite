@@ -6,6 +6,7 @@
 
 - [README.md](README.md)：测试范围、夹具边界、运行方式与缺口
 - [public-entry.spec.ts](public-entry.spec.ts)：导出集合、无 `./cordis`、依赖规则、材料与 LIMIT 检查
+- [materials-options.spec.ts](materials-options.spec.ts)：读口输出上限参数必填且为正安全整数，传入的值成为每个读 handler 的 `maxOutputBytes`
 - [tenant-isolation.spec.ts](tenant-isolation.spec.ts)：租户隔离与事务域目录
 - [delegated.spec.ts](delegated.spec.ts)：委派视图的符合性与跨租户用例
 - [operation-evidence.spec.ts](operation-evidence.spec.ts)：操作记录的访问证据与它的迁移

@@ -25,7 +25,7 @@ Session 的存储成员。它用 SQL 实现 `SessionTransactionPort`，只经 `@
 根入口是唯一入口：
 
 - `createSessionStorage(options)`：返回 `SessionTransactionPort<P>`。`options` 含 `storage`（`SqlStorage`）、`domains`（`TenantDomainAccess`）、`accessCheck`、`cursorSigning`、`combination`（`combinationVersion` 与 `manifestDigest`），以及可选的 `attemptLimit`（初值 8）、`cursorTtlMs`（初值 15 分钟）、`now`。
-- `sessionStorageMaterials()`：返回参加者、迁移与读 handler 三份静态描述，应用把它们并入自己的材料目录。
+- `sessionStorageMaterials({ readOutputLimitBytes })`：返回参加者、迁移与读 handler 三份静态描述，应用把它们并入自己的材料目录。`readOutputLimitBytes` 必填、没有默认值、必须是正安全整数，成为每个读 handler 的 `maxOutputBytes`；装配让提供者的 `maxReadResultBytes` 不小于它（SPEC K-1），推荐 20 MiB。
 - `SESSION_PARTICIPANT`：组合里列给 Session 日志的参加者名，值为 `session`。
 
 应用用这三项完成会话存储组合，再把端口交给 [session](../session/README.md) 工厂的 `transactions` 依赖。每次操作显式传入租户与会话，本成员不从连接、事务域或装配树推断租户，也没有默认权限。装配步骤见[使用与定位](docs/context.md#使用方式)，应用承担的部分见 [装配边界](docs/cordis.md)。
