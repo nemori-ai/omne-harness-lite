@@ -78,7 +78,7 @@ export function operatorLayer(options: {
         kind: 'replace',
         id: 'session-storage',
         config: {
-          combinationVersion: 'session-composite/1',
+          combinationVersion: 'session-composite/2',
           directoryFile: join(options.storageRoot, 'tenant-domains.json'),
           domainRule: 'organization-account/1',
         },
