@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
-
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
-  const root = (await import('@omne-harness/schedule-tools')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+import * as tools from '@omne-harness/schedule-tools'
+it('publishes the schedule author, trusted environment and fixed-result reader', () => {
+  expect(tools).toHaveProperty('createScheduleToolModule', expect.any(Function))
+  expect(tools).toHaveProperty('createScheduleToolEnvironment', expect.any(Function))
+  expect(tools).toHaveProperty('createScheduleToolDetails', expect.any(Function))
 })
