@@ -1,13 +1,18 @@
 # tests 索引
 
-<!-- documentation:placeholder -->
-
 本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
 
 ## 内容
 
-<!-- documentation:placeholder -->
-
 - [README.md](README.md)：测试范围、真实依赖与替身
-- [public-entry.spec.ts](public-entry.spec.ts)：公开入口的测试
-- [fixtures/](fixtures/index.md)：测试固定输入
+- [conformance.spec.ts](conformance.spec.ts)：契约的来源符合性套件
+- [snapshot.spec.ts](snapshot.spec.ts)：条目集合、根名与定位种类
+- [links.spec.ts](links.spec.ts)：链接、根内判定、管道与套接字
+- [permissions.spec.ts](permissions.spec.ts)：经注入接缝的权限类失败与错误分类
+- [open.spec.ts](open.spec.ts)：`open` 对目录、文件之下的路径与管道的答复
+- [race.spec.ts](race.spec.ts)：取快照后修改，无缓存
+- [types.spec-d.ts](types.spec-d.ts)：失败类型封闭与运行时导出
+- [public-entry.spec.ts](public-entry.spec.ts)：公开入口的运行时导出
+- [scratch.ts](scratch.ts)：临时目录与目录树的测试辅助
+- [fs-double.ts](fs-double.ts)：可注入拒绝的文件系统接缝
+- [fixtures/](fixtures/index.md)：测试固定输入（不适用）
