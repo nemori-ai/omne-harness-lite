@@ -102,20 +102,8 @@ function unavailable(diagnostic: string): Verdict {
   return Object.freeze({ kind: 'unavailable', diagnostic })
 }
 
-function fromAdmission(decision: AdmissionDecision): Verdict {
-  switch (decision.kind) {
-    case 'allowed':
-      return Object.freeze({ kind: 'allowed', evidence: decision.evidence })
-    case 'denied':
-      return Object.freeze({ kind: 'denied' })
-    case 'unavailable':
-      return unavailable(decision.diagnostic)
-    default:
-      return unavailable(OUTSIDE_CONTRACT)
-  }
-}
-
-function fromSystemAction(decision: SystemActionDecision): Verdict {
+/** Both authorization ports answer with this shape; every other kind is outside the contract. */
+function fromDecision(decision: AdmissionDecision | SystemActionDecision): Verdict {
   switch (decision.kind) {
     case 'allowed':
       return Object.freeze({ kind: 'allowed', evidence: decision.evidence })
@@ -135,9 +123,9 @@ async function execute(plan: Plan, ports: AccessPorts): Promise<Verdict> {
     case 'unavailable':
       return unavailable(plan.diagnostic)
     case 'member':
-      return fromAdmission(await ports.admission.check(plan.input))
+      return fromDecision(await ports.admission.check(plan.input))
     case 'matrix':
-      return fromSystemAction(await ports.systemActions.check(plan.request))
+      return fromDecision(await ports.systemActions.check(plan.request))
     default:
       return unavailable(OUTSIDE_CONTRACT)
   }
