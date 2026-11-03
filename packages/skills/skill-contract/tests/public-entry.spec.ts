@@ -42,20 +42,51 @@ it('exports the three port suites and their memory doubles on the testing entry'
   ])
 })
 
-it('reaches neither the testing entry nor vitest from the root or the provider entry', () => {
-  for (const entry of ['index.js', 'provider.js']) {
-    const reached = walk(join(dist, entry))
+it('reaches neither the testing modules nor a test framework from the root or the provider entry', () => {
+  for (const entry of ['index.ts', 'provider.ts']) {
+    const reached = walk(join(src, entry))
+    const files = [...reached.files].map(file => relative(src, file))
     expect(
-      [...reached.files].map(file => relative(dist, file)),
+      files.filter(file => file.startsWith('testing')),
       entry,
-    ).not.toContain('testing.js')
-    expect(reached.bare, entry).not.toContain('vitest')
+    ).toEqual([])
+    expect([...reached.bare].filter(isTestFramework), entry).toEqual([])
   }
 })
 
-const dist = fileURLToPath(new URL('../dist/', import.meta.url))
+it('does not import a test framework from the testing entry', () => {
+  const reached = walk(join(src, 'testing.ts'))
+  expect([...reached.bare].filter(isTestFramework)).toEqual([])
+  expect(reached.bare).toContain('node:assert/strict')
+})
 
-/** The dist modules that `entry` reaches by relative imports, and the bare specifiers it names. */
+it('names on the provider entry exactly the types and values that the SPEC gives it', () => {
+  expect(exportedNames(join(src, 'provider.ts'))).toEqual([
+    'CatalogResolution',
+    'PackageInspection',
+    'PackageLocator',
+    'ReadVerdict',
+    'Reply',
+    'Resolution',
+    'SkillPackageSource',
+    'SkillReadCheck',
+    'SkillRef',
+    'SkillResolution',
+    'SnapshotDefect',
+    'SourceFailure',
+    'sealSnapshot',
+  ])
+})
+
+const src = fileURLToPath(new URL('../src/', import.meta.url))
+
+/** Module specifiers in a source text: `import … from`, `export … from`, bare and dynamic imports. */
+const SPECIFIER = /(?:\bfrom|\bimport\s*\(?)\s*(['"])([^'"]+)\1/g
+
+const isTestFramework = (specifier: string): boolean =>
+  /^(?:vitest|jest|mocha|@vitest\/)/.test(specifier)
+
+/** The source modules that `entry` reaches by relative imports, and the bare specifiers it names. */
 function walk(entry: string): { files: Set<string>; bare: Set<string> } {
   const files = new Set<string>()
   const bare = new Set<string>()
@@ -63,12 +94,27 @@ function walk(entry: string): { files: Set<string>; bare: Set<string> } {
   for (let file = pending.pop(); file !== undefined; file = pending.pop()) {
     if (files.has(file)) continue
     files.add(file)
-    const text = readFileSync(file, 'utf8')
-    for (const match of text.matchAll(/(?:\bfrom|\bimport\s*\(?)\s*['"]([^'"]+)['"]/g)) {
-      const specifier = match[1] ?? ''
+    for (const match of readFileSync(file, 'utf8').matchAll(SPECIFIER)) {
+      const specifier = match[2] ?? ''
       if (specifier.startsWith('.')) pending.push(join(dirname(file), specifier))
       else bare.add(specifier)
     }
   }
   return { files, bare }
+}
+
+/** The names that a re-exporting entry file exports, types included, sorted. */
+function exportedNames(entry: string): string[] {
+  const names: string[] = []
+  for (const block of readFileSync(entry, 'utf8').matchAll(/export\s+(?:type\s+)?\{([^}]*)\}/g))
+    for (const part of (block[1] ?? '').split(','))
+      if (part.trim() !== '')
+        names.push(
+          part
+            .trim()
+            .replace(/^type\s+/, '')
+            .split(/\s+as\s+/)
+            .pop() ?? '',
+        )
+  return names.sort()
 }
