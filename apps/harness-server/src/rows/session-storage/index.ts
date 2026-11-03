@@ -205,6 +205,8 @@ class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
   readonly queryControlOperation: SessionTransactionPort<unknown>['queryControlOperation']
   readonly readModelSelection: SessionTransactionPort<unknown>['readModelSelection']
   readonly commitEntries: SessionTransactionPort<unknown>['commitEntries']
+  /** Optional on the port: forwarded when the storage port offers it (AD-02 commits through it). */
+  declare readonly commitLog?: NonNullable<SessionTransactionPort<unknown>['commitLog']>
   readonly history: SessionTransactionPort<unknown>['history']
   readonly pending: SessionTransactionPort<unknown>['pending']
   readonly references: SessionTransactionPort<unknown>['references']
@@ -219,6 +221,7 @@ class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
     this.queryControlOperation = port.queryControlOperation
     this.readModelSelection = port.readModelSelection
     this.commitEntries = port.commitEntries
+    if (port.commitLog !== undefined) this.commitLog = port.commitLog
     this.history = port.history
     this.pending = port.pending
     this.references = port.references
