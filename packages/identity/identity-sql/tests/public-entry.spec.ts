@@ -17,7 +17,6 @@ it('exports the factory, the materials, the names and the configuration helpers 
       'IDENTITY_PARTICIPANT',
       'IDENTITY_SCOPE',
       'IDENTITY_SQL_DEFAULT_CONFIG',
-      'IDENTITY_SQL_INVITATION_DEFAULTS',
       'LOGIN_IDENTIFIER_UTF8_LIMIT',
       'constantInvitationTerms',
       'constantLoginTerms',
@@ -34,14 +33,11 @@ it('exports the factory, the materials, the names and the configuration helpers 
   expect(root.IDENTITY_SCOPE).toEqual({ kind: 'system' })
   expect(root.LOGIN_IDENTIFIER_UTF8_LIMIT).toBe(1024)
   expect(root.CREDENTIAL_UTF8_LIMIT).toBe(4096)
+  // The first values, for a deployment that passes them: P-10 (R2-D204) gives an invitation 7 days
+  // unless the issuer asks for at most 30.
   expect(root.IDENTITY_SQL_DEFAULT_CONFIG).toEqual({
     maxLifetime: 'PT2592000S',
     idlePeriod: 'PT604800S',
-    invitationDefaultDuration: 'PT604800S',
-    invitationMaxDuration: 'PT2592000S',
-  })
-  // P-10 (R2-D204): an invitation lasts 7 days unless the issuer asks for at most 30.
-  expect(root.IDENTITY_SQL_INVITATION_DEFAULTS).toEqual({
     invitationDefaultDuration: 'PT604800S',
     invitationMaxDuration: 'PT2592000S',
   })
@@ -118,33 +114,47 @@ it('keeps the published migration 001 byte for byte', async () => {
   )
 })
 
-it('registers the combination with a version that carries the manifest digest', () => {
+it('registers the combination with the manifest digest and a version of its own', () => {
   const result = combinationManifest({ catalog: identityCatalog(), participants: ['identity'] })
   if (result.kind !== 'manifest') throw new Error(result.kind)
   const digest = manifestDigest(result.manifest)
   const combination = root.identitySqlCombination()
   expect(combination.manifestDigest).toBe(digest)
-  expect(combination.combinationVersion).toBe(`identity-sql/${digest}`)
+  // The version also covers the modules that the participant imports (IS-01), so it is not the
+  // manifest digest; `combination-version.spec.ts` checks what changes it.
+  expect(combination.combinationVersion).toMatch(/^identity-sql\/[0-9a-f]{64}$/u)
+  expect(combination.combinationVersion).not.toBe(`identity-sql/${digest}`)
   expect(root.identitySqlRegistration()).toEqual({
     scope: { kind: 'system' },
     transactionDomain: 'system.identity',
-    combinationVersion: `identity-sql/${digest}`,
+    combinationVersion: combination.combinationVersion,
     manifestDigest: digest,
     participants: ['identity'],
   })
 })
 
+/** Two legal invitation durations, so that each bad configuration below has one problem only. */
+const INVITATIONS = { invitationDefaultDuration: 'PT60S', invitationMaxDuration: 'PT120S' }
+
 it('judges the plugin configuration: positive durations, the default invitation not the longer', () => {
   expect(root.parseIdentitySqlConfig(root.IDENTITY_SQL_DEFAULT_CONFIG).kind).toBe('valid')
+  expect(
+    root.parseIdentitySqlConfig({ ...INVITATIONS, maxLifetime: 'PT1S', idlePeriod: 'PT1S' }).kind,
+  ).toBe('valid')
   for (const bad of [
-    { maxLifetime: 'PT0S', idlePeriod: 'PT1S' },
-    { maxLifetime: 'PT1S', idlePeriod: '-PT1S' },
-    { maxLifetime: 'P1D', idlePeriod: 'PT1S' },
-    { maxLifetime: 'PT1S' },
-    { maxLifetime: 'PT1S', idlePeriod: 'PT1S', extra: 1 },
-    { maxLifetime: 'PT1S', idlePeriod: 'PT1S', invitationDefaultDuration: 'PT0S' },
-    { maxLifetime: 'PT1S', idlePeriod: 'PT1S', invitationMaxDuration: 'P30D' },
-    { maxLifetime: 'PT1S', idlePeriod: 'PT1S', invitationDefaultDuration: 'PT2592001S' },
+    { ...INVITATIONS, maxLifetime: 'PT0S', idlePeriod: 'PT1S' },
+    { ...INVITATIONS, maxLifetime: 'PT1S', idlePeriod: '-PT1S' },
+    { ...INVITATIONS, maxLifetime: 'P1D', idlePeriod: 'PT1S' },
+    { ...INVITATIONS, maxLifetime: 'PT1S' },
+    { ...INVITATIONS, maxLifetime: 'PT1S', idlePeriod: 'PT1S', extra: 1 },
+    { ...INVITATIONS, maxLifetime: 'PT1S', idlePeriod: 'PT1S', invitationDefaultDuration: 'PT0S' },
+    { ...INVITATIONS, maxLifetime: 'PT1S', idlePeriod: 'PT1S', invitationMaxDuration: 'P30D' },
+    {
+      ...INVITATIONS,
+      maxLifetime: 'PT1S',
+      idlePeriod: 'PT1S',
+      invitationDefaultDuration: 'PT2592001S',
+    },
     {
       maxLifetime: 'PT1S',
       idlePeriod: 'PT1S',
@@ -158,15 +168,22 @@ it('judges the plugin configuration: positive durations, the default invitation 
   }
 })
 
-it('fills the invitation durations that the configuration leaves out with their initial values', () => {
+it('requires both invitation durations: the provider has no duration of its own (ID-18)', () => {
   const judged = root.parseIdentitySqlConfig({ maxLifetime: 'PT2592000S', idlePeriod: 'PT604800S' })
-  if (judged.kind !== 'valid') throw new Error(`invalid: ${JSON.stringify(judged.problems)}`)
-  expect(judged.config).toEqual(root.IDENTITY_SQL_DEFAULT_CONFIG)
+  expect(judged).toEqual({
+    kind: 'invalid',
+    problems: [
+      { field: 'invitationDefaultDuration', rule: 'must be PT<seconds>S text' },
+      { field: 'invitationMaxDuration', rule: 'must be PT<seconds>S text' },
+    ],
+  })
   const own = root.parseIdentitySqlConfig({
     maxLifetime: 'PT2592000S',
     idlePeriod: 'PT604800S',
     invitationDefaultDuration: 'PT60S',
     invitationMaxDuration: 'PT60S',
   })
-  expect(own.kind === 'valid' && own.config.invitationDefaultDuration).toBe('PT60S')
+  if (own.kind !== 'valid') throw new Error(`invalid: ${JSON.stringify(own.problems)}`)
+  expect(own.config.invitationDefaultDuration).toBe('PT60S')
+  expect(own.invitationTerms.defaultDuration).toEqual(own.invitationTerms.maxDuration)
 })

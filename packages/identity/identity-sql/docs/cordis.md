@@ -10,7 +10,7 @@
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 注入       | `storage`（[sql-contract](../../../storage/sql-contract/docs/cordis.md)）、`identityClock`（[identity](../../identity/docs/cordis.md)，R1-D27）                  |
 | 提供       | `identityOperations`、`tenantStanding`、`identityGovernance`（[identity](../../identity/docs/cordis.md)）。三个键由同一插件体各 `new` 一个子类实例提供，共用一个提供者，不另写键，不自己 `ctx.provide` |
-| 配置       | `{ maxLifetime, idlePeriod, invitationDefaultDuration?, invitationMaxDuration? }`，初值 `IDENTITY_SQL_DEFAULT_CONFIG`。省略的邀请时长填 7 天与 30 天（SPEC IS-15） |
+| 配置       | `{ maxLifetime, idlePeriod, invitationDefaultDuration, invitationMaxDuration }`，四项必填，缺一项时 fiber 失败。P-10 初值列在 `IDENTITY_SQL_DEFAULT_CONFIG`，部署显式写入（SPEC IS-15） |
 | 事件       | 不声明，不监听                                                                                                                                                   |
 | 运行时对象 | 时钟经 `identityClock` 服务键注入，由装配入口提供（R1-D27）。scrypt 模块与假材料在插件体内产生，不进配置，也不经服务键                                           |
 
@@ -49,6 +49,6 @@
 
 ## 验证资源与限制
 
-`tests/cordis-entry.spec.ts` 在真实 4.0.4 `Context` 上安装一个经真实 sqlite-provider 转发的 `StorageService` 子类，再装入本插件。快层用例核对非法配置使 fiber `FAILED`，缺 `identityClock` 时 fiber 停在 PENDING。慢层用例用 `SCRYPT_PROFILE` 与注入的可控时钟走完注册、签发、识别与读口，签发时刻等于时钟读数。它经治理键撤销第二份登录，再创建团队并发出一份不带时长的邀请，截止时刻是读数加配置初值 7 天。拨过空闲截止时刻后识别答 `invalid`，时钟不可得时答 `basis-unavailable`，然后撤除并核对旧引用的答复。
+`tests/cordis-entry.spec.ts` 在真实 4.0.4 `Context` 上安装一个经真实 sqlite-provider 转发的 `StorageService` 子类，再装入本插件。快层用例核对非法配置与缺邀请时长的配置使 fiber `FAILED`，缺 `identityClock` 时 fiber 停在 PENDING。慢层用例用 `SCRYPT_PROFILE` 与注入的可控时钟走完注册、签发、识别与读口，签发时刻等于时钟读数。它经治理键撤销第二份登录，再创建团队并发出一份不带时长的邀请，截止时刻是读数加配置里的默认时长 7 天。拨过空闲截止时刻后识别答 `invalid`，时钟不可得时答 `basis-unavailable`，然后撤除并核对旧引用的答复。
 
 这些用例不覆盖受信子树的装配、行注册表、材料目录的聚合与应用的有序关闭。那些归 `apps/harness-server`。

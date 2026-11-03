@@ -89,6 +89,13 @@ export const INVITATION_OPEN = 'open'
 export const INVITATION_EXPIRED = 'expired'
 
 /**
+ * The outcome of a governance command or read whose reading is earlier than the issue time of a
+ * login that it judges (IS-05 step 5, IS-10). The provider answers it as `basis-unavailable` with
+ * this text as the diagnostic, the same one that recognition gives.
+ */
+export const CLOCK_EARLIER_THAN_RECORD = 'clock-earlier-than-record'
+
+/**
  * The most entries one governance list holds. A longer list is not cut: the read fails, and the
  * provider answers `basis-unavailable` with no list (identity SPEC ID-18, list completeness).
  */

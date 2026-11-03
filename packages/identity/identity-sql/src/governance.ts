@@ -58,6 +58,7 @@ import {
   type Unavailable,
 } from './result.ts'
 import {
+  CLOCK_EARLIER_THAN_RECORD,
   HANDLERS,
   OPERATIONS,
   instantOrderKey,
@@ -422,7 +423,7 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
 
   // --- Storage: one commit per write, one snapshot per read. ---
 
-  const replyOf = (receipt: CommittedV2): Written => {
+  const replyOf = (receipt: CommittedV2): Written | Unavailable => {
     const response = receipt.responses[0].reply.response
     if (
       !isRecord(response) ||
@@ -430,6 +431,9 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
       !isText(response['outcome'])
     )
       return malformedReply()
+    // The reading is earlier than the issue time of a login that the command judged (IS-10).
+    if (response['outcome'] === CLOCK_EARLIER_THAN_RECORD)
+      return unavailable(CLOCK_EARLIER_THAN_RECORD)
     return Object.freeze({ kind: 'written', reply: response as GovernanceReply })
   }
 
@@ -474,6 +478,8 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     const output = found.output
     if (!isRecord(output) || !isText(output['outcome']))
       return unavailable('governance-read-malformed')
+    if (output['outcome'] === CLOCK_EARLIER_THAN_RECORD)
+      return unavailable(CLOCK_EARLIER_THAN_RECORD)
     return Object.freeze({ kind: 'answered', output: output as GovernanceReadOutput })
   }
 
@@ -534,9 +540,12 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     const governanceModelId = field(request, 'governanceModelId')
     if (!isFilledText(createCallId) || !isText(name) || !isText(governanceModelId)) return DENIED
     const answered = await query({ query: 'create-receipt', ...caller(begun), createCallId })
-    // A receipt that cannot be read now says nothing about the creation.
+    // A receipt that cannot be read now says nothing about the creation. A reading earlier than the
+    // issue time of the initiating login is no basis for the call at all (IS-11).
     if (answered.kind !== 'answered')
-      return Object.freeze({ kind: 'unknown', diagnostic: answered.diagnostic })
+      return answered.diagnostic === CLOCK_EARLIER_THAN_RECORD
+        ? answered
+        : Object.freeze({ kind: 'unknown', diagnostic: answered.diagnostic })
     if (answered.output.outcome === 'denied') return DENIED
     const receipt = answered.output['receipt']
     if (receipt === null)

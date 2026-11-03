@@ -22,7 +22,6 @@ export {
   constantInvitationTerms,
   constantLoginTerms,
   IDENTITY_SQL_DEFAULT_CONFIG,
-  IDENTITY_SQL_INVITATION_DEFAULTS,
   parseIdentitySqlConfig,
 } from './config.ts'
 export type { ConfigProblem, IdentitySqlConfig, IdentitySqlConfigJudgement } from './config.ts'

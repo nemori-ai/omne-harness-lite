@@ -57,6 +57,30 @@ export const CHECKS = {
     from: "if (listed.kind !== 'answered')\n            return listed;",
     to: "if (listed.kind !== 'answered')\n            return Object.freeze({ kind: 'listed', entries: Object.freeze([]) });",
   },
+  /** A revocation finds only a revoked target unchanged: an ended target gets a revocation row. */
+  'ended-target-no-change': {
+    file: 'worker/participant.js',
+    from: "if (standing !== STANDING.live)\n        return reply('no-change');",
+    to: "if (standing === STANDING.revoked)\n        return reply('no-change');",
+  },
+  /** Governance does not take the issue time of a login as the lower bound of the reading (IS-05). */
+  'issued-at-floor': {
+    file: 'worker/support.js',
+    from: 'return `${orderKeySql(`${alias}.issued_at`)} > ?`;',
+    to: "return '(? IS NULL)';",
+  },
+  /** The login checks of the Worker modules do not see a revocation row: a change in `support`. */
+  'support-revocation-sql': {
+    file: 'worker/support.js',
+    from: 'return `EXISTS (SELECT 1 FROM id_login_revocation r WHERE r.login = ${alias}.login)`;',
+    to: "return '0';",
+  },
+  /** The combination version covers the manifest only, not the participant's imports (IS-01). */
+  'version-covers-closure': {
+    file: 'materials.js',
+    from: '.update([`manifest ${digest}`, ...moduleClosure(participantUrl)].join',
+    to: '.update([`manifest ${digest}`].join',
+  },
 } as const satisfies Readonly<Record<string, Mutation>>
 
 export type CheckName = keyof typeof CHECKS

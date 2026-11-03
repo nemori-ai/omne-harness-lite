@@ -21,4 +21,6 @@
 - [list-limit.spec.ts](list-limit.spec.ts)：名单上限
 - [governance-mapping.spec.ts](governance-mapping.spec.ts)：治理提交结果的映射与空闲刷新
 - [order-key.spec.ts](order-key.spec.ts)：时刻排序键
+- [combination-version.spec.ts](combination-version.spec.ts)：组合版本覆盖参加者的导入闭包
+- [governance-login-bounds.spec.ts](governance-login-bounds.spec.ts)：到期目标的撤销与签发时刻下界
 - [fixtures/](fixtures/index.md)：夹具与子进程脚本

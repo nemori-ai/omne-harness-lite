@@ -23,7 +23,7 @@ src/worker/participant.ts、migration*.ts、read-*.ts ──▶ worker/schema.ts
 | `governance.ts`  | 治理端口：输入形状、新标识、邀请时长、预读、提交与读的结果映射。没有自己的状态 | identity、legal-identity、utc-instant、sql-contract（类型）、本包其他主线程模块 |
 | `result.ts`      | `basis-unavailable` 答复、读失败原因、`IdentitySqlResultUnknown`   | sql-contract（类型）、utc-instant（类型）                                                       |
 | `materials.ts`   | 参加者、迁移与读 handler 的描述，事务域与组合版本，各算一次        | sql-contract 的纯函数、`worker/schema.ts`                                                       |
-| `config.ts`      | 配置形状、校验、邀请时长初值与两个常量期限源                       | identity（类型）、utc-instant、`deadline.ts`                                                    |
+| `config.ts`      | 配置形状、校验、四项初值与两个常量期限源                           | identity（类型）、utc-instant、`deadline.ts`                                                    |
 | `deadline.ts`    | 86400 秒天的加法、正数判断与时长比较                               | utc-instant                                                                                     |
 | `identifiers.ts` | 随机标识、操作键、请求键、登录凭证与 SHA-256                       | legal-identity、node:crypto                                                                     |
 | `cordis.ts`      | 插件体与三个服务子类                                               | kernel-basis、identity `./cordis`、sql-contract `./cordis`、scrypt                              |
@@ -39,7 +39,7 @@ Worker 模块由存储提供者在 Worker 线程里按 `file:` URL 加载，不�
 
 **排序键代替时间函数。** 参加者与读 handler 要比较时刻，但不能调用时间函数，编码时刻的文本也不能直接比较（`0.5` 与 `0.500` 相等而文本不同）。排序键是日历部分、一个点、去掉末尾零的小数部分，它的文本次序等于 `compareInstants` 的次序。主线程算本次读数的键，SQL 用 `substr`、`rtrim`、`iif` 算列的键，`tests/order-key.spec.ts` 核对两者一致。
 
-**组合版本跟着核对走。** 参加者的代码摘要只覆盖 `participant` 文件。治理命令的核对与写入全部写在这个文件里，改它们就登记新的组合版本。`support` 里只放共用的 SQL 片段。
+**组合版本跟着参加者的导入闭包走。** 参加者的代码摘要只覆盖 `participant` 文件，而发起登录、成员资格与组织种类的核对 SQL 在 `support` 里，参加者与读 handler 共用。`materials.ts` 沿 `participant` 的相对导入找到全部模块，把它们的文件摘要与清单摘要合成版本摘要（SPEC IS-01）。改其中任一文件就登记新的组合版本。
 
 **预读只给计算用。** 发出邀请要被邀请者的租户文本，空闲刷新要签发时冻结的空闲时长，两者都要先读才能算。提供者先做一次快照读，再提交。参加者在提交里重新核对，预读的值不决定答复。
 
@@ -77,4 +77,4 @@ Worker 模块由存储提供者在 Worker 线程里按 `file:` URL 加载，不�
 | 撤销跨进程、从 001 升级      | `tests/governance-restart.spec.ts`   |
 | 名单上限、提交映射、排序键   | `tests/list-limit.spec.ts`、`tests/governance-mapping.spec.ts`、`tests/order-key.spec.ts` |
 
-设计变化时同步的消费者：改事实形状时同步参加者、`provider.ts` 或 `governance.ts` 与 SPEC IS-02、IS-04、IS-10；改治理核对的写法时同步 `tests/fixtures/mutants.ts` 的锚点；改读输出时同步三个解析函数；改组合版本规则时同步 `materials.ts`、SPEC IS-01 与应用的登记；改停止语义时同步 `cordis.ts`、SPEC IS-07 与 `docs/cordis.md`。
+设计变化时同步的消费者：改事实形状时同步参加者、`provider.ts` 或 `governance.ts` 与 SPEC IS-02、IS-04、IS-10；改治理核对的写法时同步 `tests/fixtures/mutants.ts` 的锚点；改读输出时同步三个解析函数；改组合版本规则时同步 `materials.ts`、SPEC IS-01、`tests/combination-version.spec.ts` 与应用的登记；改停止语义时同步 `cordis.ts`、SPEC IS-07 与 `docs/cordis.md`。

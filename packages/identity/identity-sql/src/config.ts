@@ -1,7 +1,7 @@
 // The configuration of the `identity` row: two login lifetimes and two member invitation durations,
 // all as SI-second text (IC-16, data only). The plugin validates it once; the provider reads the
-// resulting terms at every issue. The invitation durations may be left out: the schema then uses
-// their initial values (P-10, R2-D204: 7 days and 30 days). The deployment writes its own values.
+// resulting terms at every issue. All four fields are required: the provider has no duration of its
+// own (identity ID-18), so the deployment writes every value (R2-D240).
 import type {
   InvitationTerms,
   InvitationTermsSource,
@@ -13,30 +13,25 @@ import { compareDurations, isPositive } from './deadline.ts'
 
 /**
  * `PT<seconds>S` text for every duration. Each must be longer than zero, and the default invitation
- * duration must not be longer than the maximum. The two invitation fields are optional on input;
- * a valid configuration always has them.
+ * duration must not be longer than the maximum.
  */
 export type IdentitySqlConfig = Readonly<{
   maxLifetime: string
   idlePeriod: string
-  invitationDefaultDuration?: string
-  invitationMaxDuration?: string
+  invitationDefaultDuration: string
+  invitationMaxDuration: string
 }>
-
-/** The initial values of the two invitation durations: 7 days and 30 days (P-10, R2-D204). */
-export const IDENTITY_SQL_INVITATION_DEFAULTS = Object.freeze({
-  invitationDefaultDuration: 'PT604800S',
-  invitationMaxDuration: 'PT2592000S',
-})
 
 /**
  * The first value of the configuration: logins of 30 days and 7 days idle (DP3-C15), invitations
- * of 7 days by default and 30 days at most (P-10).
+ * of 7 days by default and 30 days at most (P-10). A deployment that wants these values passes them;
+ * the parser never fills a missing field from here.
  */
-export const IDENTITY_SQL_DEFAULT_CONFIG: Required<IdentitySqlConfig> = Object.freeze({
+export const IDENTITY_SQL_DEFAULT_CONFIG: IdentitySqlConfig = Object.freeze({
   maxLifetime: 'PT2592000S',
   idlePeriod: 'PT604800S',
-  ...IDENTITY_SQL_INVITATION_DEFAULTS,
+  invitationDefaultDuration: 'PT604800S',
+  invitationMaxDuration: 'PT2592000S',
 })
 
 export type ConfigProblem = Readonly<{ field: string; rule: string }>
@@ -44,7 +39,7 @@ export type ConfigProblem = Readonly<{ field: string; rule: string }>
 export type IdentitySqlConfigJudgement =
   | Readonly<{
       kind: 'valid'
-      config: Required<IdentitySqlConfig>
+      config: IdentitySqlConfig
       terms: LoginTerms
       invitationTerms: InvitationTerms
     }>
@@ -71,10 +66,6 @@ function judgeField(field: Field, value: unknown): Judged {
   return { ok: true, duration: parsed.value }
 }
 
-/**
- * Judges a raw configuration. Lists every problem, not only the first. Unknown fields are problems.
- * An absent invitation duration takes its initial value.
- */
 /** One problem for each key that is not a configuration field. */
 function unknownFields(record: Readonly<Record<string, unknown>>): ConfigProblem[] {
   return Object.keys(record)
@@ -95,22 +86,17 @@ function invitationOrderProblem(
   }
 }
 
+/**
+ * Judges a raw configuration. Lists every problem, not only the first. Unknown fields and missing
+ * fields are problems.
+ */
 export function parseIdentitySqlConfig(input: unknown): IdentitySqlConfigJudgement {
   if (typeof input !== 'object' || input === null || Array.isArray(input))
     return { kind: 'invalid', problems: [{ field: 'config', rule: 'must be an object' }] }
   const record = input as Readonly<Record<string, unknown>>
   const problems = unknownFields(record)
-  const filled: Readonly<Record<Field, unknown>> = {
-    maxLifetime: record['maxLifetime'],
-    idlePeriod: record['idlePeriod'],
-    invitationDefaultDuration:
-      record['invitationDefaultDuration'] ??
-      IDENTITY_SQL_INVITATION_DEFAULTS.invitationDefaultDuration,
-    invitationMaxDuration:
-      record['invitationMaxDuration'] ?? IDENTITY_SQL_INVITATION_DEFAULTS.invitationMaxDuration,
-  }
   const judged = Object.fromEntries(
-    FIELDS.map(field => [field, judgeField(field, filled[field])]),
+    FIELDS.map(field => [field, judgeField(field, record[field])]),
   ) as Readonly<Record<Field, Judged>>
   const durations: Partial<Record<Field, Duration>> = {}
   for (const field of FIELDS) {
@@ -132,10 +118,10 @@ export function parseIdentitySqlConfig(input: unknown): IdentitySqlConfigJudgeme
   return {
     kind: 'valid',
     config: {
-      maxLifetime: filled.maxLifetime as string,
-      idlePeriod: filled.idlePeriod as string,
-      invitationDefaultDuration: filled.invitationDefaultDuration as string,
-      invitationMaxDuration: filled.invitationMaxDuration as string,
+      maxLifetime: record['maxLifetime'] as string,
+      idlePeriod: record['idlePeriod'] as string,
+      invitationDefaultDuration: record['invitationDefaultDuration'] as string,
+      invitationMaxDuration: record['invitationMaxDuration'] as string,
     },
     terms: { maxLifetime, idlePeriod },
     invitationTerms: {

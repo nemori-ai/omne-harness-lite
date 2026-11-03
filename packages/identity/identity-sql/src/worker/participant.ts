@@ -14,6 +14,7 @@ import type {
   ParticipantReply,
 } from '@omne-harness/sql-contract/worker'
 import {
+  CLOCK_EARLIER_THAN_RECORD,
   IDENTITY_PARTICIPANT,
   INVITATION_EXPIRED,
   INVITATION_OPEN,
@@ -42,12 +43,13 @@ import {
   holdsActiveRole,
   isTrue,
   liveCaller,
-  liveLoginSql,
+  loginStandingSql,
   membershipOf,
   nullableText,
   oneRow,
   orderKeySql,
   organizationKind,
+  STANDING,
   text,
   type Executor,
 } from './support.ts'
@@ -265,7 +267,7 @@ function leavesNoAdmin(
 
 function createOrganization(facts: CreateOrganizationFacts, port: ParticipantPort) {
   const who = actingCaller(port, facts)
-  if (who === undefined) return DENIED()
+  if (who.kind !== 'caller') return reply(who.outcome)
   const saved = oneRow(
     port,
     `SELECT name, governance_model_id, outcome, organization, tenant_text FROM id_create_receipt
@@ -340,7 +342,7 @@ function createOrganization(facts: CreateOrganizationFacts, port: ParticipantPor
 
 function issueInvitation(facts: IssueInvitationFacts, port: ParticipantPort) {
   const who = actingCaller(port, facts)
-  if (who === undefined) return DENIED()
+  if (who.kind !== 'caller') return reply(who.outcome)
   const organization = facts.actingOrganization
   const kind = organizationKind(port, organization)
   if (kind === undefined || kind === PERSONAL_ORGANIZATION) return DENIED()
@@ -464,7 +466,7 @@ function admit(
 
 function disposeInvitation(facts: DisposeInvitationFacts, port: ParticipantPort) {
   const who = actingCaller(port, facts)
-  if (who === undefined) return DENIED()
+  if (who.kind !== 'caller') return reply(who.outcome)
   const invitation = facts.invitation
   const found = invitation === null ? undefined : invitationRow(port, invitation, facts.nowKey)
   // 1. Not there, or the caller cannot see it.
@@ -490,7 +492,7 @@ function disposeInvitation(facts: DisposeInvitationFacts, port: ParticipantPort)
 
 function leaveOrganization(facts: LeaveOrganizationFacts, port: ParticipantPort) {
   const who = actingCaller(port, facts)
-  if (who === undefined) return DENIED()
+  if (who.kind !== 'caller') return reply(who.outcome)
   const organization = facts.actingOrganization
   const kind = organizationKind(port, organization)
   if (kind === undefined || kind === PERSONAL_ORGANIZATION) return DENIED()
@@ -507,7 +509,7 @@ function leaveOrganization(facts: LeaveOrganizationFacts, port: ParticipantPort)
 
 function changeMember(facts: ChangeMemberFacts, port: ParticipantPort) {
   const who = actingCaller(port, facts)
-  if (who === undefined) return DENIED()
+  if (who.kind !== 'caller') return reply(who.outcome)
   const organization = facts.organization
   // An account that never was a member cannot see the organization; a former one is denied.
   if (organization === null || membershipOf(port, organization, who.account) === undefined)
@@ -539,7 +541,7 @@ function changeMember(facts: ChangeMemberFacts, port: ParticipantPort) {
 
 function switchTenant(facts: SwitchTenantFacts, port: ParticipantPort) {
   const who = actingCaller(port, facts)
-  if (who === undefined) return DENIED()
+  if (who.kind !== 'caller') return reply(who.outcome)
   const { targetTenant, targetOrganization, targetAccount } = facts
   if (targetTenant === null || targetOrganization === null || targetAccount !== who.account)
     return DENIED()
@@ -558,20 +560,23 @@ function switchTenant(facts: SwitchTenantFacts, port: ParticipantPort) {
 
 function revokeLogin(facts: RevokeLoginFacts, port: ParticipantPort) {
   const who = liveCaller(port, facts.login, facts.nowKey)
-  if (who === undefined) return DENIED()
+  if (who.kind !== 'caller') return reply(who.outcome)
   const target =
     facts.target === null
       ? undefined
       : oneRow(
           port,
-          `SELECT l.account AS account, (${liveLoginSql('l')}) AS live
+          `SELECT l.account AS account, ${loginStandingSql('l')} AS standing
             FROM id_login l WHERE l.login = ? LIMIT 1`,
-          [facts.nowKey, facts.nowKey, facts.target],
+          [facts.nowKey, facts.nowKey, facts.nowKey, facts.target],
         )
   // An unknown login and a login of another account give the same answer.
   if (facts.target === null || target === undefined || text(target['account']) !== who.account)
     return NOT_VISIBLE()
-  if (!isTrue(target['live'])) return reply('no-change')
+  // A revoked or ended target stays as it is; a target issued after the reading is not judged.
+  const standing = text(target['standing'])
+  if (standing === STANDING.early) return reply(CLOCK_EARLIER_THAN_RECORD)
+  if (standing !== STANDING.live) return reply('no-change')
   port.execute('INSERT INTO id_login_revocation (login, revoked_at) VALUES (?, ?)', [
     facts.target,
     facts.revokedAt,
@@ -580,7 +585,10 @@ function revokeLogin(facts: RevokeLoginFacts, port: ParticipantPort) {
 }
 
 function reportAccess(facts: ReportAccessFacts, port: ParticipantPort) {
-  if (liveCaller(port, facts.login, facts.nowKey) === undefined) return reply('not-refreshed')
+  const who = liveCaller(port, facts.login, facts.nowKey)
+  // A login that is not valid is not revived; a reading earlier than its issue time is no basis.
+  if (who.kind !== 'caller')
+    return reply(who.outcome === CLOCK_EARLIER_THAN_RECORD ? who.outcome : 'not-refreshed')
   // A new idle deadline earlier than the stored one leaves the stored one.
   port.execute(
     `UPDATE id_login SET idle_deadline = ?
