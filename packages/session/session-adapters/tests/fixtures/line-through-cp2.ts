@@ -106,7 +106,7 @@ const domains: Readonly<Record<'own' | 'other', DomainRef>> = {
 }
 
 function catalogOf(): { catalog: SqlMaterialCatalog; digest: string } {
-  const materials = sessionStorageMaterials()
+  const materials = sessionStorageMaterials({ readOutputLimitBytes: 20971520 })
   const catalog: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
     participants: materials.participants,
