@@ -169,12 +169,16 @@ export async function runShellScenario(assembly: WindowsAssembly): Promise<Scena
     failures.push(error)
     await assembly.record('shell.failed', { error: String(error), resources: assembly.resources() })
   } finally {
-    const cleanup = await Promise.allSettled(
-      terminals.map(async terminal => {
+    const cleanup: PromiseSettledResult<void>[] = []
+    for (const terminal of terminals) {
+      try {
         const closed = await shellCommand(assembly, 'close_session', { terminal })
         assert.ok(closed.text.includes('close=confirmed'), 'terminal close is confirmed')
-      }),
-    )
+        cleanup.push({ status: 'fulfilled', value: undefined })
+      } catch (reason) {
+        cleanup.push({ status: 'rejected', reason })
+      }
+    }
     await assembly.record('shell.cleanup', { terminals, cleanup, resources: assembly.resources() })
     failures.push(...cleanup.flatMap(item => (item.status === 'rejected' ? [item.reason] : [])))
   }
