@@ -9,6 +9,10 @@ export const otherTenantText = JSON.stringify({
   organization: 'org_00000000000000000000000001',
   account: 'acc_00000000000000000000000001',
 })
+export const organizationId = 'org_00000000000000000000000000'
+export const accountId = 'acc_00000000000000000000000001'
+export const ownLoginId = 'lgn_00000000000000000000000002'
+export const otherLoginId = 'lgn_00000000000000000000000003'
 export const sessionId = '0123456789abcdef'.repeat(4)
 export const issuedProof = 'issued-proof-7f3a9c'
 export const credentialText = 'correct horse battery staple'
@@ -38,6 +42,8 @@ const statusOf: Record<string, number> = {
   invalid: 422,
   'uniform-auth-failure': 401,
   denied: 403,
+  'not-visible': 404,
+  'stage-not-provided': 501,
   'not-loginable': 403,
   'not-found': 404,
   conflict: 409,
@@ -84,7 +90,60 @@ export function defaultAnswer(seen: Seen): Answer {
         body: { kind: 'requested', controlId: body['controlId'], producer: body['producer'] },
       }
     default:
-      return { outcome: 'denied', body: {} }
+      return (
+        governanceAnswer(String(seen.wire['operation']), body) ?? { outcome: 'denied', body: {} }
+      )
+  }
+}
+
+const at = '2026-11-01T12:00:00Z'
+const invitation = { invitationId: 'inv-1', state: 'open', expiresAt: at }
+const emptyOperations = new Set([
+  'revoke-login',
+  'leave-organization',
+  'remove-member',
+  'change-member-role',
+])
+
+/** A success for each governance operation that is not an account or session step. */
+function governanceAnswer(operation: string, body: Record<string, unknown>): Answer | undefined {
+  const succeeded = (answer: unknown): Answer => ({ outcome: 'succeeded', body: answer })
+  if (emptyOperations.has(operation)) return succeeded({})
+  switch (operation) {
+    case 'create-organization':
+    case 'query-create-organization':
+      return succeeded({ organizationId, tenantId: otherTenantText })
+    case 'issue-member-invitation':
+      return succeeded(invitation)
+    case 'accept-member-invitation':
+      return succeeded({ invitationId: body['invitationId'], state: 'accepted' })
+    case 'reject-member-invitation':
+      return succeeded({ invitationId: body['invitationId'], state: 'rejected' })
+    case 'withdraw-member-invitation':
+      return succeeded({ invitationId: body['invitationId'], state: 'withdrawn' })
+    case 'query-invitation':
+      return succeeded({ ...invitation, organizationId, invitedAccountId: accountId })
+    case 'query-received-invitations':
+    case 'query-issued-invitations':
+      return succeeded({ invitations: [], completeness: 'complete' })
+    case 'query-own-memberships':
+      return succeeded({
+        memberships: [{ organizationId, tenantId: tenantText, role: 'member' }],
+        completeness: 'complete',
+      })
+    case 'query-organization-members':
+      return succeeded({ members: [{ accountId, role: 'member' }], completeness: 'complete' })
+    case 'switch-current-tenant':
+      return succeeded({ tenantId: body['tenantId'] })
+    case 'query-current-tenant':
+      return succeeded({ tenantId: tenantText })
+    case 'query-own-valid-logins':
+      return succeeded({
+        logins: [{ loginId: ownLoginId, issuedAt: at, maxDeadline: at, idleDeadline: at }],
+        completeness: 'complete',
+      })
+    default:
+      return undefined
   }
 }
 

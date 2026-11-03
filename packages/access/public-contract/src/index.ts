@@ -46,3 +46,14 @@ export type {
   SessionEncodeResult,
   SessionResponseEncodeInput,
 } from './session-messages.ts'
+export {
+  readTenantText,
+  encodeTenantText,
+  readOrganizationIdText,
+  encodeOrganizationIdText,
+  readAccountIdText,
+  encodeAccountIdText,
+  readLoginStateIdText,
+  encodeLoginStateIdText,
+} from './identity-text.ts'
+export type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts'

@@ -6,7 +6,7 @@
 
 `package.json` 的 `exports` 只有入口 `.`。`source` 条件指向 [src/index.ts](../src/index.ts)，供工作区开发使用。独立消费者使用 `types` 与 `import` 条件，它们指向 `dist`。
 
-调用者不需要资格。客户端 SDK 与服务端接入都按包名 `@omne-harness/public-contract` 导入。运行时导出恰为八个函数：治理一组四个，会话一组四个。[tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查这个清单。其余导出都是类型。本包不导出 `./testing`，也不导出业务提供者。
+调用者不需要资格。客户端 SDK 与服务端接入都按包名 `@omne-harness/public-contract` 导入。运行时导出恰为十六个函数：治理一组四个，会话一组四个，身份文本八个。[tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查这个清单。其余导出都是类型。本包不导出 `./testing`，也不导出业务提供者。
 
 ## 定义索引
 
@@ -17,6 +17,8 @@
 | `GovernanceProtocolRejected`、`GovernanceStageNotProvided`、`GovernanceProtocolResult` | 类型 | [src/messages.ts](../src/messages.ts) |
 | `GovernanceCodecLimits`、`GovernanceDiagnostic`、`GovernanceRequestRead`、`GovernanceResponseRead`、`GovernanceEncodeResult`、`GovernanceResponseEncodeInput` | 类型 | [src/messages.ts](../src/messages.ts) |
 | `readSessionRequest`、`readSessionResponse`、`encodeSessionRequest`、`encodeSessionResponse` | 函数 | [src/session-codec.ts](../src/session-codec.ts) |
+| `readTenantText`、`encodeTenantText`、`readOrganizationIdText`、`encodeOrganizationIdText`、`readAccountIdText`、`encodeAccountIdText`、`readLoginStateIdText`、`encodeLoginStateIdText` | 函数 | [src/identity-text.ts](../src/identity-text.ts) |
+| `TenantId`、`OrganizationId`、`AccountId`、`LoginStateId` | 类型 | [src/identity-text.ts](../src/identity-text.ts)，legal-identity 同名类型的转出 |
 | `SessionOperation`、`SessionRequestBodies`、`SessionRequest`、`SessionOutcomes`、`SessionSuccessBodies`、`SessionResponse` | 类型 | [src/session-messages.ts](../src/session-messages.ts) |
 | `SessionProtocolRejected`、`SessionHistoryEntry`、`SessionHistoryPage`、`SessionProducerRef`、`SessionTerminalSource` | 类型 | [src/session-messages.ts](../src/session-messages.ts) |
 | `SessionCodecLimits`、`SessionDiagnostic`、`SessionRequestRead`、`SessionResponseRead`、`SessionEncodeResult`、`SessionResponseEncodeInput` | 类型 | [src/session-messages.ts](../src/session-messages.ts) |
@@ -34,14 +36,16 @@
 | 治理四函数的参数与可见结果、预算与编程错误 | [SPEC.md 操作集合与函数](../SPEC.md#操作集合与函数) |
 | 会话四函数的参数与可见结果，以及与服务端接入的责任划分 | [SPEC.md 会话编解码函数](../SPEC.md#会话编解码函数) |
 | 本地值与线上表示、输入反射与诊断 | [SPEC.md 本地值与线上表示](../SPEC.md#本地值与线上表示) |
+| 身份值与文本互转 | [SPEC.md 身份值的文本](../SPEC.md#身份值的文本) |
 | 响应 body 闭合、`messageId` 关联与重复键补扫 | [SPEC.md 结果闭合与关联](../SPEC.md#结果闭合与关联) |
 | 内部模块、规则表与关联读取的实现 | [内部设计](internals.md) |
 
-八个函数都同步执行，没有外部副作用。下面是非规范的摘要，规则以 [治理函数表](../SPEC.md#操作集合与函数)与[会话函数表](../SPEC.md#会话编解码函数)为准：
+协议八个函数与身份文本八个函数都同步执行，没有外部副作用。下面是非规范的摘要，规则以 [治理函数表](../SPEC.md#操作集合与函数)与[会话函数表](../SPEC.md#会话编解码函数)为准：
 
 - 编程错误抛出固定 `TypeError`，错误不含输入值。
 - 本地模型无效时，编码函数返回 `invalid` 和有限诊断 code。
-- 请求读取在消息不合规时返回 `protocol-rejected`。只有治理一组在阶段操作上返回 `stage-not-provided`。
+- 请求读取在消息不合规时返回 `protocol-rejected`。只有治理一组在4个阶段操作上返回 `stage-not-provided`。部署声明不提供的操作由服务端接入应答，请求读取不知道这份声明。
+- 治理响应读取接受每个正常操作的 `stage-not-provided`，`body` 为空对象。
 - 响应读取在消息不合规时返回 `unreadable`，在合法响应的关联值不同或没有关联值时返回 `unmatched`。
 - `readSessionRequest` 对 `message` 只核对 JSON 对象与 `role` 为 `user`。完整的消息解码归服务端接入。
 
