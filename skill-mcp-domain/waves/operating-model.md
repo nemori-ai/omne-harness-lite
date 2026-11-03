@@ -84,14 +84,15 @@ L3 热点（逐行读）：
 8. **波末。** 按 §6 的波末门槛跑完；写回组页（「归 SPEC」项改指成员 SPEC，或列具名剩余义务）；刷新两份源码技术文档与健康评述；写 `handoff.md`；推送记录分支；对话里向负责人报本波摘要。报告只写两个领域本身。
 9. **下一波预案。** 更新 `wave-queue.md` 的下一波，必要时修订[波段计划](rolling-plan.html)。
 
-## 8. 两份源码技术文档
+## 8. 实现架构页
 
-负责人持续关注实现的优雅、健康与合理。每个闭包合入后与每波末，reduce 运行 `techdoc/gen.mjs`，从**实际源码**生成两份页面并重发布到固定链接：
+负责人持续关注实现的优雅、健康与合理。一个页面，两个领域各一个标签。**每个闭包合入父分支后立即更新**，每波末再核一次：
 
-- Skill 实现技术文档：`packages/skills/*`
-- MCP 实现技术文档：`packages/mcp/*`
+1. reduce 读合入的源码，改写该领域的「技术讲解」（`techdoc/narrative/<领域>.html`）：模块分工、关键类型之间的关系、真实的调用路径与读法。讲解只依据源码。
+2. 写该领域「健康评述」的本次一节（`techdoc/review/<领域>.html`）。
+3. 运行 `node tmp/skill-mcp-domain/techdoc/gen.mjs`，生成 `techdoc/index.html`，重发布到固定链接。
 
-页面内容由源码推出：成员依赖图、成员内模块图、导出类型与类的类图、各入口导出表、健康读数（文件、行数、导出数、测试数、草稿标记、`as` 断言、`any`、最长函数）。页面另有 reduce 手写的「健康评述」，每波一节：哪里优雅、哪里有异味、偏离设计的地方与处置。设计正文与 DDD 草图只作对照，不作为页面的事实来源。
+自动部分由源码推出：成员依赖图、成员内模块图、导出类型与类的类图、各入口导出表、健康读数（文件、行数、导出数、测试数、草稿标记、`as` 断言、`any`、最长函数）。页面另有 reduce 手写的「健康评述」，每波一节：哪里优雅、哪里有异味、偏离设计的地方与处置。设计正文与 DDD 草图只作对照，不作为页面的事实来源。
 
 ## 9. 本会话的输入索引
 
@@ -103,7 +104,7 @@ L3 热点（逐行读）：
 | 波段计划 | `tmp/skill-mcp-domain/waves/rolling-plan.html` | 各波的成果与边界 |
 | 派发流水 | `tmp/skill-mcp-domain/delegate/flow.jsonl` | 每个闭包一行 |
 | 进展页 | 数据 `tmp/skill-mcp-domain/progress/progress.json`，生成 `python3 tmp/skill-mcp-domain/progress/build.py`，发布到 https://claude.ai/artifact/KNYD4VLPdkvyrh433dHRqc | 每次闭包状态变化就改数据、重生成、重发布；没有变化时最长 30 分钟一次 |
-| 源码技术文档 | 生成 `node tmp/skill-mcp-domain/techdoc/gen.mjs`；评述 `techdoc/review/{skill,mcp}.html`；发布到 Skill https://claude.ai/artifact/LvtCUyWWFaYNouuivz9SEz 、MCP https://claude.ai/artifact/9iau1NsiUgo8mG4mYBtqo3 | 每个闭包合入后与每波末 |
+| 实现架构页（两个领域一页，标签切换） | 生成 `node tmp/skill-mcp-domain/techdoc/gen.mjs` → `techdoc/index.html`；讲解 `techdoc/narrative/{skill,mcp}.html`；评述 `techdoc/review/{skill,mcp}.html`；发布到 https://claude.ai/artifact/3Zfm6AtcBczsMTTE6KuhkA | 每个闭包合入后：先读合入的源码改写讲解，再写评述，再生成并重发布；每波末再核一次。旧的两份分领域页面（LvtCU…、9iau1…）已停用 |
 | 波段计划页 | https://claude.ai/artifact/NHNDS7CYaGfrdQKbch4ELh | 波段边界变化时修订 |
 
 ## 修订记录

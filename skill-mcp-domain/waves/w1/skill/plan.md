@@ -4,8 +4,8 @@
 
 ## 进度总览
 
-进度：[□□□□□□□□□□] 0/4 切片已完成 · 更新 2026-11-03T13:40:00Z · head 21175c9f9
-当前：切片 01 第 2 步（写闭包规格）
+进度：[□□□□□□□□□□] 0/4 切片已完成 · 更新 2026-11-03T13:51:09Z · head 21175c9f9
+当前：切片 01 第 3 步（写者实施）
 
 | 切片 | 交付的行为 | 对应判据 | 状态 |
 | --- | --- | --- | --- |
@@ -16,7 +16,7 @@
 
 | 闭包 | 写者模型@档位 | 清晰度 | 工作树 | 分支 | 状态 | 轮次 | 追加 | 验收报告 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| w1-skill-contract | claude-opus-5-5@high | 定 | `.worktrees/w1-skill-contract` | `PanQiWei/skill-mcp-w1-skill-contract` | 待派 | 1 | 0 | — |
+| w1-skill-contract | claude-opus-5-5@high | 定 | `.worktrees/w1-skill-contract` | `PanQiWei/skill-mcp-w1-skill-contract` | 进行中 | 1 | 0 | — |
 
 四个切片写同一成员，合成一个闭包，一个写者按 01→04 顺序做（不能把同一成员拆给并行写者）。
 

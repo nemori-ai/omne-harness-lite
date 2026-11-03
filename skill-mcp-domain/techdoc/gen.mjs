@@ -237,8 +237,13 @@ function memberGraph(members) {
   return lines.join('\n')
 }
 
-function render(domain, members, head, at) {
-  const review = fs.existsSync(path.join(here, 'review', `${domain.id}.html`)) ? fs.readFileSync(path.join(here, 'review', `${domain.id}.html`), 'utf8') : '<p>尚无评述。</p>'
+const readFragment = (dir, id, fallback) => {
+  const p = path.join(here, dir, `${id}.html`)
+  return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : fallback
+}
+const diagram = code => `<div class="diagram"><pre class="mmd">\n${esc(code)}\n</pre></div>`
+
+function renderDomain(domain, members) {
   const tot = members.reduce((a, m) => ({ files: a.files + m.files.length, lines: a.lines + m.files.reduce((n, f) => n + f.lines, 0), exports: a.exports + m.entries.reduce((n, e) => n + e.names.length, 0), cases: a.cases + m.testCases, as: a.as + m.files.reduce((n, f) => n + f.asCount, 0), any: a.any + m.files.reduce((n, f) => n + f.anyCount, 0), drafts: a.drafts + (m.draft.length > 0 ? 1 : 0) }), { files: 0, lines: 0, exports: 0, cases: 0, as: 0, any: 0, drafts: 0 })
   const tile = (label, value, note = '') => `<div class="tile"><span class="v">${value}</span><span class="l">${label}</span>${note ? `<span class="n">${note}</span>` : ''}</div>`
   const memberSections = members.map(m => {
@@ -247,63 +252,102 @@ function render(domain, members, head, at) {
     const cds = classDiagrams(m)
     const mg = moduleGraph(m)
     const fns = m.files.flatMap(f => f.decls.filter(d => d.kind === 'function' || d.kind === 'const').map(d => ({ ...d, file: f.file })))
-    return `<section class="member" id="${esc(m.name.split('/').pop())}">
-  <h3><code>${esc(m.name)}</code> ${m.draft.length ? '<span class="pill draft">模板草稿</span>' : '<span class="pill real">有实现</span>'}</h3>
+    return `<details class="member" open><summary><h3><code>${esc(m.name)}</code> ${m.draft.length ? '<span class="pill draft">模板草稿</span>' : '<span class="pill real">有实现</span>'}</h3></summary>
   <p class="muted">${esc(m.description)} · <code>${esc(m.dir)}</code> · 源文件 ${m.files.length} · 测试文件 ${m.testFiles} · 用例 ${m.testCases}</p>
   <h4>入口与导出</h4><div class="tbl"><table><thead><tr><th>入口</th><th>导出（悬停看种类）</th></tr></thead><tbody>${exportsTable || '<tr><td colspan="2">无 exports</td></tr>'}</tbody></table></div>
-  ${cds.length ? `<h4>类型与类（UML 类图，每个源文件一张）</h4>${cds.map(c => `<details open><summary><code>${esc(c.file)}</code></summary><div class="diagram"><pre class="mermaid">\n${esc(c.code)}\n</pre></div></details>`).join('')}` : '<p class="muted">没有导出的接口、类、记录或判别联合。</p>'}
+  ${cds.length ? `<h4>类型与类（UML 类图，每个源文件一张）</h4>${cds.map(c => `<details open><summary><code>${esc(c.file)}</code></summary>${diagram(c.code)}</details>`).join('')}` : '<p class="muted">没有导出的接口、类、记录或判别联合。</p>'}
   ${valueTable(m)}
   ${fns.length ? `<h4>导出的函数与常量</h4><p>${fns.map(d => `<code title="${esc(d.file)}">${esc(d.name)}</code>`).join(' ')}</p>` : ''}
-  ${mg ? `<h4>模块依赖</h4><div class="diagram"><pre class="mermaid">\n${esc(mg)}\n</pre></div>` : ''}
+  ${mg ? `<h4>模块依赖</h4>${diagram(mg)}` : ''}
   <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody>${fileRows}</tbody></table></div>
   ${m.draft.length ? `<p class="muted">草稿标记：${m.draft.map(d => `<code>${esc(d)}</code>`).join(' ')}</p>` : ''}
-</section>`
+</details>`
   }).join('\n')
-
-  return `<title>${esc(domain.title)}</title>
-<meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&family=JetBrains+Mono:wght@400;500&display=swap">
-<style>
-/* 布局：读数在上，成员依赖图居中，各成员按入口、类图、模块图、健康读数展开，评述在末尾 */
-:root{--bg:#f6f7f9;--card:#fff;--ink:#1b2330;--muted:#5d6878;--line:#d9dee6;--accent:${domain.id === 'skill' ? '#2f6f5e' : '#7a4a8c'};--warn:#9a6b00;--bad:#b23a2e;--good:#2f7a3d;
---display:"Noto Serif SC",serif;--body:"Noto Sans SC",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#13171d;--card:#1b2129;--ink:#e2e7ee;--muted:#9aa5b4;--line:#2d3540;--accent:${domain.id === 'skill' ? '#7cc4ad' : '#c79ad8'};--warn:#e0b44c;--bad:#ef8a7e;--good:#7fcf8c;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#13171d;--card:#1b2129;--ink:#e2e7ee;--muted:#9aa5b4;--line:#2d3540;--accent:${domain.id === 'skill' ? '#7cc4ad' : '#c79ad8'};--warn:#e0b44c;--bad:#ef8a7e;--good:#7fcf8c;color-scheme:dark}
-*{box-sizing:border-box}body{background:var(--bg);color:var(--ink);font:15px/1.7 var(--body);margin:0}
-.wrap{max-width:1120px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
-h1,h2{font-family:var(--display);margin:0;text-wrap:balance}h1{font-size:1.9rem}h2{font-size:1.35rem;border-bottom:2px solid var(--accent);padding-bottom:4px}
-h3{margin:0;font-size:1.05rem}h4{margin:14px 0 6px;font-size:.92rem;color:var(--muted);letter-spacing:.04em}
-code{font-family:var(--mono);font-size:.82em;overflow-wrap:anywhere}.muted{color:var(--muted)}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
-.tile{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column}
-.tile .v{font:600 1.5rem var(--mono);font-variant-numeric:tabular-nums}.tile .l{font-size:.8rem;color:var(--muted)}.tile .n{font-size:.75rem;color:var(--muted)}
-.member{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;padding:16px 18px;display:flex;flex-direction:column;gap:4px;min-width:0}
-.pill{font:500 .72rem var(--body);padding:1px 8px;border-radius:999px;vertical-align:middle;margin-left:6px}.pill.draft{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}.pill.real{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
-.tbl,.diagram{overflow-x:auto}.diagram{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px}
-table{border-collapse:collapse;width:100%;font-size:.85rem}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{background:color-mix(in srgb,var(--line) 40%,transparent)}
-td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}td.warn{color:var(--warn);font-weight:600}td.bad{color:var(--bad);font-weight:600}
-details{margin:6px 0}summary{cursor:pointer;color:var(--muted);font-size:.85rem}
-.review{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px}.review h3{margin-top:8px}.review p,.review li{max-width:72ch}
-</style>
-<div class="wrap">
-<header><span class="muted">由 <code>techdoc/gen.mjs</code> 从实际源码生成 · 父分支 <code>PanQiWei/skill-mcp</code> @ <code>${esc(head)}</code> · ${esc(at)}</span>
-<h1>${esc(domain.title)}</h1>
-<p class="muted">事实只取自 <code>${esc(domain.group)}/*</code> 的 package.json、src 与 tests。设计正文不是本页的事实来源；与设计的偏离写在末尾「健康评述」。</p></header>
+  return `<div class="panel" id="panel-${domain.id}" data-panel="${domain.id}" hidden>
+<section><h2>技术讲解</h2><div class="prose">${readFragment('narrative', domain.id, '<p>尚无讲解。</p>')}</div></section>
 <section><h2>读数</h2><div class="tiles">
 ${tile('成员', members.length, `草稿 ${tot.drafts}`)}${tile('源文件', tot.files)}${tile('非空源码行', tot.lines)}${tile('入口导出', tot.exports)}${tile('测试用例', tot.cases)}${tile('as 断言', tot.as, '不含 as const')}${tile('any', tot.any)}
 </div></section>
-<section><h2>成员依赖</h2><p class="muted">实线框是本组成员，虚线框是组外依赖（来自 package.json 与 import）。</p><div class="diagram"><pre class="mermaid">\n${esc(memberGraph(members))}\n</pre></div></section>
-<section><h2>各成员</h2>${memberSections}</section>
-<section><h2>健康评述</h2><div class="review">${review}</div></section>
+<section><h2>成员依赖</h2><p class="muted">粗框是本组成员，虚线框是组外依赖（来自 package.json 与 import）。</p>${diagram(memberGraph(members))}</section>
+<section><h2>各成员：入口、UML、模块与健康读数</h2>${memberSections}</section>
+<section><h2>健康评述</h2><div class="prose">${readFragment('review', domain.id, '<p>尚无评述。</p>')}</div></section>
 </div>`
+}
+
+function renderPage(domains, head, at) {
+  return `<title>Skill 与 MCP 实现架构</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<style>
+/* 布局：粘顶的标签栏切换两个领域；每个领域依次是讲解、读数、成员依赖、各成员详情、健康评述 */
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1b2330;--muted:#5d6878;--line:#d9dee6;--skill:#2f6f5e;--mcp:#7a4a8c;--warn:#9a6b00;--bad:#b23a2e;--good:#2f7a3d;--accent:var(--skill);
+--display:"Noto Serif SC",serif;--body:"Noto Sans SC",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#13171d;--card:#1b2129;--ink:#e2e7ee;--muted:#9aa5b4;--line:#2d3540;--skill:#7cc4ad;--mcp:#c79ad8;--warn:#e0b44c;--bad:#ef8a7e;--good:#7fcf8c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#13171d;--card:#1b2129;--ink:#e2e7ee;--muted:#9aa5b4;--line:#2d3540;--skill:#7cc4ad;--mcp:#c79ad8;--warn:#e0b44c;--bad:#ef8a7e;--good:#7fcf8c;color-scheme:dark}
+body[data-tab="mcp"]{--accent:var(--mcp)}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--ink);font:15px/1.7 var(--body);margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1120px;margin:0 auto;padding-block:24px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:20px}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance}h1{font-size:1.8rem}h2{font-size:1.3rem;border-bottom:2px solid var(--accent);padding-bottom:4px;margin-bottom:10px}
+h3{margin:0;font-size:1.02rem;display:inline}h4{margin:14px 0 6px;font-size:.9rem;color:var(--muted);letter-spacing:.04em}
+code{font-family:var(--mono);font-size:.82em;overflow-wrap:anywhere}.muted{color:var(--muted)}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:8px;padding-block:8px;border-bottom:1px solid var(--line)}
+nav.tabs a{text-decoration:none;color:var(--muted);border:1px solid var(--line);background:var(--card);border-radius:999px;padding:4px 16px;font-weight:500}
+nav.tabs a[aria-current="true"]{color:#fff;background:var(--accent);border-color:var(--accent)}
+nav.tabs a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.panel{display:flex;flex-direction:column;gap:26px}.panel[hidden]{display:none}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column}
+.tile .v{font:600 1.45rem var(--mono);font-variant-numeric:tabular-nums}.tile .l{font-size:.8rem;color:var(--muted)}.tile .n{font-size:.75rem;color:var(--muted)}
+.member{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;padding:12px 16px;margin-bottom:12px;min-width:0}
+.member>summary{cursor:pointer;list-style-position:outside}
+.pill{font:500 .72rem var(--body);padding:1px 8px;border-radius:999px;vertical-align:middle;margin-left:6px}.pill.draft{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}.pill.real{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
+.tbl,.diagram{overflow-x:auto}.diagram{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;margin:4px 0}
+pre.mmd{margin:0;font-family:var(--mono);font-size:.75rem;color:var(--muted);white-space:pre}
+table{border-collapse:collapse;width:100%;font-size:.85rem;background:var(--card)}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{background:color-mix(in srgb,var(--line) 40%,transparent)}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}td.warn{color:var(--warn);font-weight:600}td.bad{color:var(--bad);font-weight:600}
+details details{margin:6px 0}details details>summary{cursor:pointer;color:var(--muted);font-size:.85rem}
+.prose{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 18px 14px}.prose p,.prose li{max-width:74ch}.prose h3{display:block;margin-top:14px}
+</style>
+<div class="wrap">
+<header><span class="muted">由 <code>techdoc/gen.mjs</code> 从实际源码生成 · 父分支 <code>PanQiWei/skill-mcp</code> @ <code>${esc(head)}</code> · ${esc(at)}</span>
+<h1>Skill 与 MCP 实现架构</h1>
+<p class="muted">图与读数只取自 <code>packages/skills/*</code> 与 <code>packages/mcp/*</code> 的 package.json、src、tests。设计正文不是本页的事实来源；讲解与评述由 reduce 读源码后手写，每个闭包合入后更新。</p></header>
+<nav class="tabs" aria-label="领域">${domains.map(d => `<a href="#${d.id}" data-tab="${d.id}">${esc(d.label)}</a>`).join('')}</nav>
+${domains.map(d => d.html).join('\n')}
+</div>
+<script>
+(function () {
+  var dark = function () { var t = document.documentElement.getAttribute('data-theme'); return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches }
+  if (window.mermaid) mermaid.initialize({ startOnLoad: false, theme: dark() ? 'dark' : 'default', securityLevel: 'strict' })
+  function show() {
+    var id = (location.hash || '').slice(1)
+    if (!document.getElementById('panel-' + id)) id = '${domains[0].id}'
+    document.body.dataset.tab = id
+    document.querySelectorAll('.panel').forEach(function (p) { p.hidden = p.dataset.panel !== id })
+    document.querySelectorAll('nav.tabs a').forEach(function (a) { a.setAttribute('aria-current', String(a.dataset.tab === id)) })
+    if (!window.mermaid) return
+    var nodes = Array.prototype.slice.call(document.querySelectorAll('#panel-' + id + ' pre.mmd:not([data-done])'))
+    nodes.forEach(function (n) { n.setAttribute('data-done', '1') })
+    if (nodes.length) mermaid.run({ nodes: nodes }).catch(function () {})
+  }
+  window.addEventListener('hashchange', show)
+  show()
+})()
+</script>`
 }
 
 const head = execSync('git rev-parse --short HEAD', { cwd: root }).toString().trim()
 const at = new Date().toISOString().replace(/\.\d+Z$/, 'Z')
+const rendered = []
 for (const d of DOMAINS) {
   const groupDir = path.join(root, d.group)
   const members = fs.readdirSync(groupDir, { withFileTypes: true }).filter(e => e.isDirectory() && fs.existsSync(path.join(groupDir, e.name, 'package.json'))).map(e => analyzeMember(path.join(groupDir, e.name)))
   fs.writeFileSync(path.join(here, `${d.id}.facts.json`), JSON.stringify(members, (k, v) => (v instanceof Set ? [...v] : k === 'text' ? undefined : v), 2))
-  fs.writeFileSync(path.join(here, `${d.id}.html`), render(d, members, head, at))
-  console.log(`${d.id}: ${members.length} 个成员 → techdoc/${d.id}.html`)
+  rendered.push({ ...d, html: renderDomain(d, members) })
+  console.log(`${d.id}: ${members.length} 个成员`)
 }
+const out = probe ? 'probe.html' : 'index.html'
+fs.writeFileSync(path.join(here, out), renderPage(rendered, head, at))
+console.log(`→ techdoc/${out}`)

@@ -1,6 +1,6 @@
 # 事前假设表（Skill 与 MCP 交付）
 
-格式沿 `.meta_harness/human/map-reduce-delivery/templates/hypotheses.md`。冻结时刻：W1 第一个闭包派发前。冻结后不改；新假设另起一行并写登记时刻。
+格式沿 `.meta_harness/human/map-reduce-delivery/templates/hypotheses.md`。冻结时刻：W1 第一个闭包派发前。已冻结于 2026-11-03T13:51:09Z。冻结后不改；新假设另起一行并写登记时刻。
 
 | id | change_id | 指标与方向 | 预期幅度 | 对照 | 反向信号 |
 | --- | --- | --- | --- | --- | --- |

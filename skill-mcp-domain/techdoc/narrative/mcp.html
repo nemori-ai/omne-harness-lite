@@ -1,0 +1,5 @@
+<h3>现在源码里有什么（W0，父分支 21175c9f9）</h3>
+<p>MCP 组有三个 workspace 成员，都是模板草稿：<code>@omne-harness/mcp-contract</code>（纯契约）、<code>@omne-harness/mcp</code>（通用实现）、<code>@omne-harness/mcp-host-local</code>（本地宿主）。每个成员的 <code>src/index.ts</code> 都只有草稿标记与 <code>export {}</code>，还没有可讲的调用路径。</p>
+<p><code>mcp-contract</code> 已经声明了 assets 与四个公共值成员（<code>operation-result</code>、<code>legal-identity</code>、<code>content-block</code>、<code>json-text</code>）作依赖，源码还没有导入它们。三个成员都不依赖任何 MCP SDK。</p>
+<h3>W1 之后这里会怎样变</h3>
+<p>W1 交付 <code>mcp-contract</code>：接入点正文的类别端口、清单与结局的纯函数、五个需求端口与组内传输端口、符合性套件。合入后本节改写为实际的模块分工、关键类型之间的关系，以及 <code>mergeListing</code>、<code>classifyOutcome</code> 的真实算法路径。</p>

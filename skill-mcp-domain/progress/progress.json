@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-03T14:05:00Z",
+  "updatedAt": "2026-11-03T13:59:41Z",
   "head": "21175c9f9",
   "links": [
     {
@@ -7,38 +7,34 @@
       "url": "https://claude.ai/artifact/NHNDS7CYaGfrdQKbch4ELh"
     },
     {
-      "text": "Skill 技术文档",
-      "url": "https://claude.ai/artifact/LvtCUyWWFaYNouuivz9SEz"
-    },
-    {
-      "text": "MCP 技术文档",
-      "url": "https://claude.ai/artifact/9iau1NsiUgo8mG4mYBtqo3"
+      "text": "实现架构",
+      "url": "https://claude.ai/artifact/3Zfm6AtcBczsMTTE6KuhkA"
     }
   ],
   "decisions": [
     {
-      "question": "W1 的开工前准备已就绪，是否开工派发？",
-      "context": "范式、波包、两条线的 spec 与 plan、两份闭包规格（brief-check 通过）、两个闭包工作树都已备好。回「开工」即派发。",
-      "status": "open"
+      "question": "W1 是否开工",
+      "status": "answered",
+      "answer": "开工"
     }
   ],
   "waves": [
     {
       "id": "W1",
       "title": "契约地基",
-      "state": "准备中",
+      "state": "进行中",
       "closures": [
         {
           "id": "w1-skill-contract",
           "line": "Skill",
-          "state": "待派",
+          "state": "进行中",
           "round": 1,
           "note": "skill-contract：值、失败、纯函数、./provider、./testing、SPEC"
         },
         {
           "id": "w1-mcp-contract",
           "line": "MCP",
-          "state": "待派",
+          "state": "进行中",
           "round": 1,
           "note": "mcp-contract：值、结局、清单、端口、套件、SPEC"
         }
@@ -158,6 +154,14 @@
     {
       "at": "2026-11-03T14:05:00Z",
       "text": "Skill、MCP 源码技术文档 W0 基线发布"
+    },
+    {
+      "at": "2026-11-03T13:51:09Z",
+      "text": "负责人确认开工；w1-skill-contract 与 w1-mcp-contract 并行派发（Opus 5.5，high）"
+    },
+    {
+      "at": "2026-11-03T13:59:41Z",
+      "text": "实现架构页合并为一页两标签（Skill、MCP），含技术讲解；旧的两份分领域页面停用"
     }
   ]
 }

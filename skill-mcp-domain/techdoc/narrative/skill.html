@@ -1,0 +1,16 @@
+<h3>现在源码里有什么（W0，父分支 21175c9f9）</h3>
+<p>Skill 组有三个 workspace 成员，只有一个有真实代码。读源码时从 <code>packages/skills/skill-contract/src/contract.ts</code> 开始，它是全组唯一的实现文件。</p>
+<ul>
+<li><code>@omne-harness/skill-contract</code>：纯契约成员。公开根只导出一个工厂 <code>skillBodyContract()</code>。</li>
+<li><code>@omne-harness/skill</code>（通用实现）与 <code>@omne-harness/skill-host-local</code>（本地宿主）：模板草稿，入口是 <code>export {}</code> 加草稿标记。</li>
+</ul>
+<h3><code>skillBodyContract()</code> 怎样工作</h3>
+<p>它返回 assets 的类别端口 <code>BodyContract</code>，类别名是 <code>skill</code>。三个操作共用一个私有判断函数 <code>judge</code>：</p>
+<ol>
+<li><code>judge(body, context)</code> 先用 assets 的 <code>isReadBody</code> 确认正文是一次真实读取的结果，再取 <code>name</code>（必须是非空字符串，并且在给出能力名时与它相等，否则 <code>name-mismatch</code>），再取 <code>tools</code>。</li>
+<li><code>tools</code> 可以缺省（按空列表）；出现时每一项必须是 <code>{ category: "tool", name }</code>，否则 <code>incomplete-reference</code>。</li>
+<li><code>references</code> 把每一项变成 assets 的 <code>CapabilityId</code>；<code>deriveDeclarations</code> 现在总是返回空声明。判断失败时两者都抛出，这是 assets 的约定。</li>
+</ol>
+<p>字段读取不直接解析 JSON，而是经 assets 的 <code>readSnapshot</code> 读已经无损解析好的 <code>JsonValue</code> 树，所以数字字面量与重复键这类问题在读取时就已处理。</p>
+<h3>W1 之后这里会怎样变</h3>
+<p>本页随每个闭包合入更新。W1 会让 <code>skill-contract</code> 分成公开根、<code>./provider</code>、<code>./testing</code> 三个入口，并加入值、失败、端口与包检查。届时本节改写为实际的模块分工与调用路径。</p>
