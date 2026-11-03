@@ -34,7 +34,21 @@ const ROOT = [
   'toContentBlocks',
 ].sort()
 
-const TESTING = ['classifyOutcomeCases'].sort()
+const TESTING = [
+  'NotApplicable',
+  'classifyOutcomeCases',
+  'createMemoryAdoptionView',
+  'createMemoryCatalogStore',
+  'createMemoryCredentialUse',
+  'createMemoryProcessLanding',
+  'createMemoryUseEligibility',
+  'describeAdoptionViewConformance',
+  'describeCatalogStoreConformance',
+  'describeCredentialUseConformance',
+  'describeProcessLandingConformance',
+  'describeUseEligibilityConformance',
+  'mergeListingCases',
+].sort()
 
 it('the root entry exports the values and pure functions of the contract', async () => {
   const root = (await import('@omne-harness/mcp-contract')) as Record<string, unknown>

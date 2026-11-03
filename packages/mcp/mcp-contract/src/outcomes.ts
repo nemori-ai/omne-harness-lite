@@ -111,6 +111,14 @@ export type Refusal =
   | Readonly<{ kind: 'blocked'; reason: BlockedReason }>
   | Readonly<{ kind: 'unknown' }>
 
+/** A connection condition that kept a refresh or a call from reaching the peer. */
+export type ConnectionCondition =
+  | Readonly<{ kind: 'credential-unavailable'; cause: 'missing' | 'rejected' | 'unknown' }>
+  | Readonly<{ kind: 'authorization-required'; discovery: AuthorizationDiscovery }>
+  | Readonly<{ kind: 'landing-unavailable' }>
+  | Readonly<{ kind: 'connection-unavailable' }>
+  | Readonly<{ kind: 'config-missing'; item: 'connect-timeout' | 'target' }>
+
 /** Why a call was not sent. The set is closed. A call that was not sent has no peer effect. */
 export type NotSentReason =
   | Refusal
@@ -119,11 +127,7 @@ export type NotSentReason =
   | Readonly<{ kind: 'definition-changed' }>
   | Readonly<{ kind: 'action-unavailable' }>
   | Readonly<{ kind: 'mode-unsupported' }>
-  | Readonly<{ kind: 'credential-unavailable'; cause: 'missing' | 'rejected' | 'unknown' }>
-  | Readonly<{ kind: 'authorization-required'; discovery: AuthorizationDiscovery }>
-  | Readonly<{ kind: 'landing-unavailable' }>
-  | Readonly<{ kind: 'connection-unavailable' }>
-  | Readonly<{ kind: 'config-missing'; item: 'connect-timeout' | 'target' }>
+  | ConnectionCondition
 
 export type InvokeResult =
   | Readonly<{ kind: 'not-sent'; reason: NotSentReason }>
