@@ -18,6 +18,7 @@
 | 存储服务与提供者 | 应用装入 sql-contract 与 sqlite-provider 的插件 | 本包只收 `SqlStorage` 对象，不 inject，不知道提供者 |
 | 游标签名能力 | 应用 | 本包只收 `cursorSigning` |
 | `sessionTransactions` 服务键 | 应用：用 `createSessionStorage` 得到端口，交给服务键 | 键与抽象类归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#端口服务键)，本包不提供 |
+| `sessionPrincipalBindings` 受信服务键 | 应用：用 `createSessionPrincipalBindings({ storage, domains })` 得到会话归属读口，存储与目录和公开端口相同，交给受信服务键 | 读口只答租户与会话归属，不调用访问检查。键与抽象类归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#受信服务键)，本包不提供 |
 | 迁移执行与重启后的迁移 | 提供者（DO-1，见 [sqlite-provider 规格](../../../storage/sqlite-provider/SPEC.md) §5.3） | 迁移模块 `session/001-session-log`、`session/002-execution-index`、`session/003-operation-evidence`（以及 `execution-record/001-execution-record` 至 `execution-record/005-fact-body`）。插件加载时不登记组合，这一步已按 Context r3 删除 |
 | 注册的结果处理（`registerCombination` 的各类拒绝） | 应用 | 无。拒绝规则见 [sql-contract §6](../../../storage/sql-contract/SPEC.md#6-registercombination) |
 
@@ -27,6 +28,6 @@
 
 ## 尚未固定的事项
 
-- 应用的会话存储组合还没有实现。本包只验证自己的材料与端口，不验证完整组合。
+- 应用的会话存储组合是 harness-server 的 `session-storage` 行。本包只验证自己的材料、端口与归属读口，不验证完整组合。
 - 材料的模块 URL 在源码与 `dist` 下后缀不同（`.ts` 与 `.js`），应用把材料交给提供者时，提供者的加载方式须能读到对应文件。这一点没有在真实提供者上验证。
 - sqlite-provider 的 Worker 对本包 participant 与 handler 的实际载入，没有测试覆盖（夹具在 `node:sqlite` 上直接运行模块）。
