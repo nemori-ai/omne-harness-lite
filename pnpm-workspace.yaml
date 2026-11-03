@@ -72,3 +72,6 @@ packageExtensions:
   dependency-cruiser:
     dependencies:
       typescript: 6.0.3
+
+patchedDependencies:
+  rrule@2.8.1: patches/rrule@2.8.1.patch

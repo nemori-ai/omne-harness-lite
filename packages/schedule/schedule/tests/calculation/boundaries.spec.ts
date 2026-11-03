@@ -50,6 +50,47 @@ const position = (
   })
 
 describe('explicit target policy', () => {
+  it.each(['0000', '0001', '0099', '0100'])('preserves the civil year %s in RRULE dates', year => {
+    const recurrence = ScheduleRecurrenceSchema.parse({
+      kind: 'rrule',
+      rule: 'FREQ=DAILY',
+      begin: `${year}-01-01T00:00:00`,
+      until: `${year}-01-03T00:00:00`,
+    })
+    expect(run(recurrence, { inclusive: true, maxYears: 1 })).toMatchObject({
+      kind: 'ok',
+      exhausted: true,
+      limitReason: null,
+      candidates: ['01', '02', '03'].map(day => ({
+        kind: 'civil',
+        local: `${year}-01-${day}T00:00:00`,
+      })),
+    })
+  })
+  it('preserves year-zero leap day and year-one Easter with subday times', () => {
+    for (const [begin, until, rule, expected] of [
+      [
+        '0000-02-28T09:10:11',
+        '0000-03-01T09:10:11',
+        'FREQ=DAILY',
+        ['0000-02-28T09:10:11', '0000-02-29T09:10:11', '0000-03-01T09:10:11'],
+      ],
+      [
+        '0001-01-01T09:10:11',
+        '0001-12-31T23:59:59',
+        'FREQ=YEARLY;BYEASTER=0',
+        ['0001-04-01T09:10:11'],
+      ],
+    ] as const) {
+      const recurrence = ScheduleRecurrenceSchema.parse({ kind: 'rrule', rule, begin, until })
+      expect(run(recurrence, { inclusive: true, maxYears: 1 })).toMatchObject({
+        kind: 'ok',
+        exhausted: true,
+        limitReason: null,
+        candidates: expected.map(local => ({ kind: 'civil', local })),
+      })
+    }
+  })
   it('unions W with restricted DOW after the named OR decision', () => {
     const result = run(recurring('cron', '0 9 15W * MON'), { take: 6 })
     expect(result).toMatchObject({
