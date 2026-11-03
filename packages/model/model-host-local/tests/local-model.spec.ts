@@ -56,8 +56,8 @@ const CASES: readonly Case[] = [
 function recordOf(item: Case) {
   const records =
     item.family === 'pi-ai-openai'
-      ? OPENAI_RECORDS.filter(record => record.name === item.name)
-      : ANTHROPIC_RECORDS.filter(record => record.name === item.name)
+      ? OPENAI_RECORDS.filter(record => record.name === item.name && record.status === 'current')
+      : ANTHROPIC_RECORDS.filter(record => record.name === item.name && record.status === 'current')
   const [record] = records
   if (record === undefined) throw new Error(`no record ${item.name}`)
   return readRecordFixture(item.family, record)
