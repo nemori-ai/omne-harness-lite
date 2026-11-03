@@ -55,7 +55,6 @@ const kindAt = (observed: FirstPathObservation, hop: FirstPathHop) =>
 const evidenceAt = (observed: FirstPathObservation, hop: FirstPathHop) =>
   evidenceOf(observed[hop] ?? NOT_REACHED)
 
-/** A Session store whose transaction port is wrapped by `wrap`; the evidence bridge stays. */
 /**
  * A Session store whose accepted ordinary inputs lose the login-entry origin that the path gives
  * them, as an input that did not come through the login entry: Session refuses to start a Run.
@@ -74,6 +73,7 @@ function withoutLoginOrigin<P>(port: SessionTransactionPort<P>): SessionTransact
   return { ...port, commit: commit as SessionTransactionPort<P>['commit'] }
 }
 
+/** A Session store whose transaction port is wrapped by `wrap`; the evidence bridge stays. */
 function wrappedStore(
   wrap: (assembly: SessionAssembly) => SessionAssembly['transactions'],
 ): Pick<PathDependencies, 'session'> {

@@ -231,9 +231,9 @@ export function routeInput(snapshot: WorkSnapshot, input: RoutedInput): RouteJud
 
 /**
  * Whether a new Run may start (ST06, I-R1, I-F2). The first eligible input is the earliest
- * pending one. `login-required` is decided by `decide` from the presence of the login-entry
- * guard material (ruling R2); the snapshot holds no login state, so this function never returns
- * it.
+ * pending one. `login-required` is decided by `decide` from the origin that the first input was
+ * saved with, read in the same transaction as `DecideReads.firstInput` (R2-D198), not from guard
+ * material; the snapshot holds no login state, so this function never returns it.
  */
 export function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunStartJudgment {
   if (snapshot.lifecycle === 'archived') return { kind: 'archived' }
