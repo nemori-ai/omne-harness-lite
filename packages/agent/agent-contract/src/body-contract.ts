@@ -179,7 +179,10 @@ function decodeInstructions(value: JsonValue | undefined): Step<Record<never, ne
     if (!onlyKeys(members, ['id', 'text'])) return reject('unknown-field')
     sections.push({ id, text })
   }
-  if (sections.length > INSTRUCTION_LIMITS.maxSections || instructionsProblem(sections) !== undefined)
+  if (
+    sections.length > INSTRUCTION_LIMITS.maxSections ||
+    instructionsProblem(sections) !== undefined
+  )
     return reject('invalid-instructions')
   return { ok: true }
 }

@@ -120,7 +120,8 @@ export function definitionSourceOf<P>(
     } catch {
       return { kind: 'unavailable', diagnostic: 'definition-resolution-failed' }
     }
-    if ('ok' in resolved) return { kind: 'value', value: resolved.ok.definition.instructions ?? null }
+    if ('ok' in resolved)
+      return { kind: 'value', value: resolved.ok.definition.instructions ?? null }
     const { failure } = resolved
     switch (failure.kind) {
       case 'denied':

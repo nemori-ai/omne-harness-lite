@@ -57,7 +57,13 @@ const rows: readonly Row[] = [
   },
   {
     label: 'ordered instructions',
-    content: { ...legal, instructions: [{ id: 'role', text: 'A' }, { id: 'tools', text: 'B' }] },
+    content: {
+      ...legal,
+      instructions: [
+        { id: 'role', text: 'A' },
+        { id: 'tools', text: 'B' },
+      ],
+    },
   },
   {
     label: 'empty instructions',
@@ -66,7 +72,13 @@ const rows: readonly Row[] = [
   },
   {
     label: 'repeated instruction id',
-    content: { ...legal, instructions: [{ id: 'role', text: 'A' }, { id: 'role', text: 'B' }] },
+    content: {
+      ...legal,
+      instructions: [
+        { id: 'role', text: 'A' },
+        { id: 'role', text: 'B' },
+      ],
+    },
     rejected: 'invalid-instructions',
   },
   {

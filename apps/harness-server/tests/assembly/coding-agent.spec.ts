@@ -85,9 +85,7 @@ describe('the coding entry of the release mapping (R2-D124)', () => {
     }
     expect(contentDigest(changed)).not.toBe(entry.candidate.digest)
     // The same definition with the same text gives the same digest: the digest is the content.
-    expect(contentDigest(JSON.parse(JSON.stringify(entry.definition)))).toBe(
-      entry.candidate.digest,
-    )
+    expect(contentDigest(JSON.parse(JSON.stringify(entry.definition)))).toBe(entry.candidate.digest)
   })
 
   it('the initial model route names an official OpenAI profile (R2-D125: openai/gpt-6.1-sol)', () => {

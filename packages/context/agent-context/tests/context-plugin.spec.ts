@@ -73,8 +73,8 @@ const CODING_ADOPTION = { owner: 'release', name: 'coding', revision: '1', diges
 class Adoptions extends AgentAdoptionsService<unknown> {
   readonly resolve: AgentAdoptions<unknown>['resolve'] = async input =>
     input.adoption.name === CODING_ADOPTION.name
-      // The evaluator is not read by the fourth group; the double gives none.
-      ? { ok: { definition: CODING, evaluator: {} as never, extensions: [] } }
+      ? // The evaluator is not read by the fourth group; the double gives none.
+        { ok: { definition: CODING, evaluator: {} as never, extensions: [] } }
       : { failure: { kind: 'invalid', field: 'adoption', reason: 'not of this deployment' } }
   readonly handover: AgentAdoptions<unknown>['handover'] = async () => ({
     failure: { kind: 'unsupported' },

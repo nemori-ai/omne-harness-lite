@@ -168,7 +168,10 @@ export async function judgeAgentDefinition(value: unknown): Promise<Judgment<Age
       // can find it; the reason stays `malformed`.
       const detail =
         issue.path[0] === 'instructions'
-          ? `${issue.path.map(segment => (typeof segment === 'number' ? `[${segment}]` : `.${segment}`)).join('').slice(1)}: ${issue.code}`
+          ? `${issue.path
+              .map(segment => (typeof segment === 'number' ? `[${segment}]` : `.${segment}`))
+              .join('')
+              .slice(1)}: ${issue.code}`
           : undefined
       return refused(issueReason(issue.path, copied.value), detail)
     }

@@ -182,7 +182,10 @@ describe('the groups that Request Context reads', () => {
           assembleContext: { scope: w.f.target.scope, workspace: null, keys: {} },
         },
       })
-      expect((prompt as { value: { assembleContext: { definition: unknown } } }).value.assembleContext.definition).toEqual(expect.stringContaining('"name":"coding"'))
+      expect(
+        (prompt as { value: { assembleContext: { definition: unknown } } }).value.assembleContext
+          .definition,
+      ).toEqual(expect.stringContaining('"name":"coding"'))
     })
 
     it('fails closed when the definition cannot be read: no candidate, and no empty prompt is sent', async () => {
@@ -233,7 +236,10 @@ describe('the groups that Request Context reads', () => {
         kind: 'value',
         value: { promptContributions: null, assembleContext: { scope: w.f.target.scope } },
       })
-      expect((prompt as { value: { assembleContext: { definition: unknown } } }).value.assembleContext.definition).toEqual(expect.stringContaining('"name":"coding"'))
+      expect(
+        (prompt as { value: { assembleContext: { definition: unknown } } }).value.assembleContext
+          .definition,
+      ).toEqual(expect.stringContaining('"name":"coding"'))
     })
 
     it('a definition text that differs by one character gives another fourth-group token', async () => {
