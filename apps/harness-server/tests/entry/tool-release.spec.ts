@@ -10,6 +10,7 @@ import { fail } from '@omne-harness/operation-result'
 import type { ToolAuthority } from '@omne-harness/tool-contract/provider'
 import {
   ReleaseToolContributionAuthority,
+  TOOL_RELEASE_LOGGER,
   TOOL_RELEASE_TENANT,
   loadProductionRelease,
   productionReleaseInput,
@@ -103,6 +104,31 @@ describe('toolContributionAuthority.verify', () => {
     expect(authority.admits(registrant, { kind: 'official' })).toMatchObject({
       failure: { kind: 'unavailable' },
     })
+  })
+})
+
+describe('the startup warning', () => {
+  const warnings = (fixture: Awaited<ReturnType<typeof releaseFixture>>) =>
+    fixture.logs.filter(message => message.name === TOOL_RELEASE_LOGGER && message.type === 'warn')
+
+  it('logs one warning that names the reason when the snapshot is unavailable', async () => {
+    const tampered = await packageCopy(true)
+    try {
+      const fixture = await releaseFixture(releaseFrom(tampered.root))
+      const logged = warnings(fixture)
+      expect(logged).toHaveLength(1)
+      expect(logged[0]?.args).toContain('artifacts differ from the manifest')
+      // Still fail closed.
+      expect(fixture.authority.verify(authorityOf(fixture.manifest, 'Shell'))).toMatchObject({
+        failure: { kind: 'unavailable' },
+      })
+    } finally {
+      tampered.remove()
+    }
+  })
+
+  it('logs no warning for a trusted snapshot', async () => {
+    expect(warnings(await releaseFixture())).toEqual([])
   })
 })
 

@@ -50,6 +50,9 @@ export const TOOL_RELEASE_TENANT: TenantId = (() => {
   return parsed.value
 })()
 
+/** 启动快照不可用时 warn 日志的记录器名（Cordis 的 `ctx.logger`）。 */
+export const TOOL_RELEASE_LOGGER = 'tool-release'
+
 export type ToolReleaseRegistrant = Access<unknown>
 
 /** 行读到的发行事实：受信快照与登记者，或不可用。 */
@@ -268,6 +271,14 @@ export function createToolReleaseEntries(
       async install(scope, env) {
         const snapshot = await snapshotOf(env)
         const state = stateOf(env)
+        // Observation only: the authority still fails closed. The diagnostic is a fixed phrase.
+        if (snapshot.kind === 'unavailable')
+          scope
+            .logger(TOOL_RELEASE_LOGGER)
+            .warn(
+              'tool release snapshot unavailable: %s; tool contributions are refused',
+              snapshot.diagnostic,
+            )
         new ReleaseToolContributionAuthority(scope, snapshot, () => state.registrant)
       },
     },

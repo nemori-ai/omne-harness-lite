@@ -44,7 +44,12 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
 启动时，入口读清单，按包产物清单重算已安装 tool-definitions 的摘要。产物全等后才 import 固定说明符
 `@omne-harness/tool-definitions`，再按同一规则重建整份清单。规范化后全等时，快照受信并带当前发行代次。
 读不到、形状不对、产物不等、重建不等，快照都是 `unavailable`。快照不可用不让启动失败，但此后两个方法都答
-`unavailable`。
+`unavailable`。这时入口在 Cordis 记录器 `tool-release` 上打一条 warn，写明固定的原因短语（例如
+`artifacts differ from the manifest`、`manifest differs from its recomputation`、`manifest unreadable`）。日志只是
+观察，不改变失败关闭。Cordis 4.0.4 的导出器默认只导出到 info 级别，要看到这条 warn，导出器的级别要开到 warn。
+
+快照只从刚核对过的包根 import：直接 import `<包根>/dist/index.js` 的文件 URL，不经包名解析，所以解析条件
+（例如 `--conditions=source`）换不成未核对的源码。这个入口文件必须在包产物清单里。
 
 `verify(authority)` 是同步的：
 
@@ -75,7 +80,10 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
 - `source.resolve` 只从受信快照取固定模块、配置与上下文。它不按调用参数 import。资产不在快照里答 `denied`。
   运维者层缺这个作者的值、登记者不在、快照不可用，都答 `unavailable`。`context.access` 是登记者，
   `context.services` 是空对象，因为两个作者没有声明宿主服务。
-- `loaderFor` 用 `createLocalToolLoader`。`settings` 核对设置采用与清单全等，再交运维者层的构造值。
+- `loaderFor` 把模块绑到清单的固定模块：交来的模块 executor 四项与清单不等时答 `invalid`；交给 loader 的始终是
+  快照里的固定模块，调用方给的 `createAuthor` 不会运行。contributeTool 会把固定模块包一层再交来，所以这里按清单
+  换回固定模块，不要求同一对象。`schemas` 另核 `loaded.executor` 与清单全等。
+- 内层 loader 用 `createLocalToolLoader`。`settings` 核对设置采用与清单全等，再交运维者层的构造值。
   `schemas` 先核 `loaded.definition` 的规范化摘要与清单全等，不等答 `invalid`。然后履行非空 environment
   声明的义务（R2-D79）：采用不是 `environmentNeedAdoption` 时答 `invalid`；是时直接调用执行环境契约的
   `environmentNeedSchema['~standard'].validate`，不经 schema-provider。结果有 issues 时答 `invalid`；校验件

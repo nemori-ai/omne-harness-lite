@@ -15,7 +15,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Message } from '@deepseek-ai/cordis'
 import type { JsonValue } from '@omne-harness/json-text'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { succeed } from '@omne-harness/operation-result'
@@ -129,6 +129,8 @@ export type ReleaseFixture = FixtureEnv &
     authority: ToolContributionAuthority<unknown>
     registrant: ToolReleaseRegistrant
     manifest: ToolReleaseManifest
+    /** Cordis 日志：本根上的全部级别（含默认不导出的 warn 与 debug）。 */
+    logs: Message[]
   }>
 
 /** 在一个根上装好入口对象与一个空常驻引用读取器。`load` 默认是生产读法。 */
@@ -136,6 +138,8 @@ export async function releaseFixture(
   load: () => Promise<ToolReleaseSnapshot> = loadProductionRelease,
 ): Promise<ReleaseFixture> {
   const fixture = fixtureEnv([principalIssuerKey])
+  const logs: Message[] = []
+  fixture.root.logger.exporter({ levels: { default: 3 }, export: message => logs.push(message) })
   const entries = createToolReleaseEntries(load)
   await fixture.install(principalVerifier)
   await fixture.install(principalIssuer)
@@ -156,5 +160,5 @@ export async function releaseFixture(
     fixture.root.get(TOOL_RELEASE_REGISTRANT_KEY),
     'toolReleaseRegistrant',
   ) as ToolReleaseRegistrant
-  return { ...fixture, authority, registrant, manifest: formalManifest() }
+  return { ...fixture, authority, registrant, manifest: formalManifest(), logs }
 }
