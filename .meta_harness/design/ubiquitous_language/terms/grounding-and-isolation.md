@@ -622,7 +622,7 @@
 > decide which package from which layer to use, or who may read it.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者)（rev 1）只要求来源不可读时报告具体失败，不当作空方法。按内容摘要交字节的这一方来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出它，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
+- **出处**：缺产品原文。[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者)（rev 2）只要求来源不可读时报告具体失败，不当作空方法。按内容摘要交字节的这一方来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出它，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
 - **⚠️ 别混 ①**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official 还是 customized），
   **也不是[来源层](scope-and-resolution.md#ul-source-layer--来源层--source-layer)**。用哪一层的哪一份，由资产求值与装配决定；Skill 包来源只按给定的内容摘要交出字节
 - **别混 ②**：产品正文说方法「来源」时，指的是方法从哪个工作区、哪种格式、哪一层来，是给人看的出处，不是这一方。**正文裸写「来源」不指它**
