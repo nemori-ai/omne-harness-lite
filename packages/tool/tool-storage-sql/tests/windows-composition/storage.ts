@@ -22,11 +22,12 @@ import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provid
 const maxCommandBytes = 4_194_304
 
 /**
- * Test fixture SQL capacity per R2-D109: 12 concurrent invocations × 2 reads each (source-guard
- * + invocation-source) = 24 peak reserved, plus margin → 128. The production candidate value in
- * sqlite-provider SPEC:321 and apps runtime config will be updated by Reduce in the same batch.
+ * Test fixture SQL capacity per R2-D115: aligned with production candidate (sqlite-provider
+ * SPEC:326). The read handler maxOutputBytes is 4 MiB (worker/schema.ts:37), and each read
+ * reserves that full amount. globalReadResultBytes = 134217728 allows 32 concurrent 4 MiB reads.
+ * The old 16 MiB (readBytes × 4) only allowed 4, causing queue_full on the 5th read.
  */
-const readQueuePerDomain = 32
+const globalReadResultBytes = 134217728
 
 /** Same provider policy dimensions as sqlite-provider/tests/support.ts, over this test's real root. */
 function configuration(storageRoot: string, readBytes: number): SqliteStorageConfig {
@@ -48,12 +49,12 @@ function configuration(storageRoot: string, readBytes: number): SqliteStorageCon
     maxWorkers: 16,
     reservedWriterSlots: 4,
     maxReadWorkersPerDomain: 2,
-    readQueuePerDomain,
+    readQueuePerDomain: 32,
     readQueueGlobal: 256,
     readQueueTimeoutMs: 10_000,
     maxReadInputBytes: 262144,
     maxReadResultBytes: readBytes,
-    globalReadResultBytes: readBytes * 4,
+    globalReadResultBytes,
     readObservationMs: 10_000,
     readerIdleMs: 30_000,
     queryQueuePerDomain: 16,
@@ -96,8 +97,6 @@ export async function openStorage(root: string, tenants: readonly TenantId[]) {
     root,
     Math.max(4_194_304, ...materials.readHandlers.map(item => item.maxOutputBytes)),
   )
-  // Diagnostic: verify readQueuePerDomain value actually used
-  console.log(`[C06 diagnostic] SQLite config readQueuePerDomain=${config.readQueuePerDomain}`)
   const leases = new Set<object>()
   let accepting = true
   const created = await createSqliteStorage({
