@@ -1,8 +1,8 @@
 [
-  {"name":"anthropic/claude-opus-5.5","revision":"2","digest":"b1b2d4839ec5dd4518234c6fec6bf1a69fe941446abea76e60e978808d1fa830"},
-  {"name":"anthropic/claude-sonnet-5.5","revision":"1","digest":"d149450adb642697e4c53ff685c3c40314896d21d3823f7f078a20509e5b2d27"},
-  {"name":"anthropic/claude-haiku-5.5","revision":"1","digest":"35b0c8cfaf07c05a8ca6fdddf8af7157ef7e2db38f212e26501203541dc8cd43"},
-  {"name":"anthropic/claude-opus-5","revision":"2","digest":"8adc13c7c38e7cc02a183a8341f86ff154b0b45851c53ccb4bd656846f60fdea"},
-  {"name":"anthropic/claude-sonnet-5","revision":"2","digest":"298a9bae25f10658b24cfb2d87ebd5dd6ca9bead6bf1216b6f5242af2321a849"},
-  {"name":"anthropic/claude-fable-5.1","revision":"2","digest":"c36641540b8c269ac8022a997e0f214f61060b28108f0717ab7f0f36986b160a"}
+  {"name":"anthropic/claude-opus-5.5","revision":"2","digest":"407f370075b3222ce5db02cff2385a150e44982fa6a1b123c25dae4f49172b69"},
+  {"name":"anthropic/claude-sonnet-5.5","revision":"1","digest":"00fa251924d35c2f3b773b0e58bf452e19f986d4908ddd7e0dbc15a435204b7e"},
+  {"name":"anthropic/claude-haiku-5.5","revision":"1","digest":"38ed4266d5e8d1a79a4d9a010e0850413d2407b8d7542c9afaca8b15a798579b"},
+  {"name":"anthropic/claude-opus-5","revision":"2","digest":"7f023d493b7c8637206adfad5ffc726551ce15595f2db88e8f68a9e2642957cd"},
+  {"name":"anthropic/claude-sonnet-5","revision":"2","digest":"8e5049e1dab64ed1bc383812c37b6a94f6071c07b49184a0e1ab4396168f813d"},
+  {"name":"anthropic/claude-fable-5.1","revision":"2","digest":"b2d1f6993c9f49c97b939a07247cf0f339554073c1b93716844919b241b7de83"}
 ]

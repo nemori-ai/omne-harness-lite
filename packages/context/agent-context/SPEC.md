@@ -171,12 +171,23 @@
 | Request Context 的结局             | 本包的结果                                                                                                                     |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | 候选成立，还要过扩展位置           | `assembled`：`input` 是候选的组装输入，`coverage` 是覆盖证据，`budget` 是预算报告证据，`recipient` 是 `selection.recipient`    |
-| 候选成立，可固定                   | 把候选交 Model 请求准备，得 `ready`：`request` 是 Model 的固定请求，`capacity` 是配置的结果容量。模态依据取候选的历史模态约束  |
+| 候选成立，可固定                   | 把候选交 Model 请求准备，得 `ready`：`request` 是 Model 的固定请求，`capacity` 是配置的结果容量，`state` 是固定那一刻的 `FixedRequestRecord`（`encodeFixedRequestRecord`，取值见下）。模态依据取候选的历史模态约束  |
 | 需要压缩                           | 同一次调用里调用 `planCompaction`。计划成立得 `needs-compaction`：进度是计划证据、计划的步数上界与零步。计划存进材料库         |
 | 计划不成立（保留下限超出预算）     | `cannot-fit`，原因 `after-compaction`                                                                                          |
 | 装不下：固定部分超限、压缩后仍超限 | `cannot-fit`，原因依次为 `fixed`、`after-compaction`                                                                           |
 | 三类失败                           | 按[失败对应](../request-context-contract/docs/context.md#失败对应)映射。未知结局为 `unavailable`，`owner` 为 `request-context` |
 | Model 拒绝                         | 确定拒绝为 `invalid`，`field` 为 `request`，`reason` 为 Model 的原因。暂时不可用仍是 `unavailable`，`owner` 为 Model 的依赖名  |
+
+`ready` 的 `state` 是固定请求记录，格式归 [request-context-contract](../request-context-contract/SPEC.md#rq-14-窗口占用与账目收到)。本包在固定那一刻写入下面的取值，`assembled`、`needs-compaction`、`cannot-fit` 与压缩用途的 `ready` 仍是 `{ kind: 'null' }`。
+
+| 字段 | 取值 |
+| --- | --- |
+| `target` | 历史依据解析出的目标 |
+| `candidate` | `action` 解码的候选身份 |
+| `coverage` | 候选自己的覆盖证据，与 `ready.coverage` 的摘要对应；不用当前读取重算 |
+| `windowTokens` | 固定所用档案的 `context.window.provided` |
+| `forecast` | 候选预算报告里全部 `input-tokens` 计量的最大值（`forecastOf`），没有该项检查时为 `null` |
+| `continuation` | `null`（本波不写延续依据） |
 
 `context.source` 指向的读取记录已丢失时答 `unavailable(context-material-lost)`，不调用 Request Context。
 
@@ -319,6 +330,7 @@ IC-19 分类（「协议给」不论部署都由契约协议兑现，「装配�
 | 读取：证据                                                                                  | 记录丢失时 `prepare` 答 `context-material-lost`；新实例读得出 execution，另一 execution 的覆盖答 `invalid`，本 execution 的覆盖做完整读取；别的拥有者的证据答 `invalid`                                                                  | 同上                           |
 | 读取：拒绝                                                                                  | K-RC 缺席答 `eligibility-absent` 且不 `bind`；`unauthorized` 再取一次后答 `denied`；资格换了就绑新资格；别的租户答 `denied` 且 K-RC 与 Runtime Context 零调用                                                                            | 同上                           |
 | 准备：结局                                                                                  | `assembled`；经 Model 请求准备替身固定得 `ready`；第二轮带 `lineage.continues`；需要压缩时同一次调用进入计划，零步；固定部分超限得 `cannot-fit(fixed)`                                                                                   | `tests/requests.spec.ts`       |
+| 准备：固定请求记录 | `ready` 的 `state` 能解码；覆盖摘要等于 `ready.coverage` 的摘要；窗口取固定所用档案；预测取全部 `input-tokens` 计量的最大值；候选与目标等于期望；`assembled`、`needs-compaction` 的 `state` 仍是 `{ kind: 'null' }` | `tests/requests.spec.ts` |
 | 准备：组与令牌                                                                              | 组四为目标作用域与两个 `null`；组六在没有交入读口时按条件给空数组或 `tool-lookup-absent`；同值同令牌、异值异令牌；同候选并发答 `call-input-busy`，结束后暂存表清空                                                                                      | 同上                           |
 | 准备：登记                                                                                  | 一个目标只登记一次；别人占用答 `source-set-conflict`；授权拒绝答 `source-registration-denied` 且下次再登记；`close` 撤除后目标可被他人登记，之后的调用答 `agent-context-closed`                                                          | 同上                           |
 | 准备：失败                                                                                  | 历史解析的拒绝原样映射且不调用 Request Context；Model 确定拒绝为 `invalid(request)`，暂时不可用仍是 `unavailable`；别的租户的读取证据答 `denied` 且不解析历史                                                                            | 同上                           |

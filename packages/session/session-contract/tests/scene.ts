@@ -158,7 +158,7 @@ export function scene(extra: Partial<MemorySessionTransactionOptions<string>> = 
       throw new Error('expected active Run')
     return { snapshot, run: snapshot.run, advance: snapshot.run.advance }
   }
-  const control = async (kind: 'archive' | 'unarchive', name = kind) =>
+  const control = async (kind: 'archive' | 'unarchive', name: string = kind) =>
     succeeded(
       await commit({
         kind: 'control',

@@ -3,10 +3,6 @@
 // `contextHolderSources`) and calls `session` as `reader`; and the lower-bound sub-plugin, which
 // reads `readWork` as `coordinator`. The heads decoder is `historySessionOf` of session-adapters.
 //
-// Named gap (B1-GAP-ADOPTED-REQUEST-SOURCE): the fixed request facts of the coordinator (CX-08,
-// `adopted`) have no production source in the release; the narrow adoption source then answers
-// `unavailable` after its access check, as the member specifies for an absent `adopted`.
-//
 // Configuration (data only, from the operator layer): `scopeIndexEntries` and `pageBytes`.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { contextHolderSourcesKey } from '@omne-harness/request-context-cordis-contract/cordis'

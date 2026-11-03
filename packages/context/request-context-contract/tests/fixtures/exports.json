@@ -957,6 +957,31 @@
               "name": "HistoryEvidenceResolver",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "FixedRequestRecord",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FixedRequestRecordRejection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "encodeFixedRequestRecord",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeFixedRequestRecord",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "forecastOf",
+              "kind": "value",
+              "pending": false
             }
           ]
         }

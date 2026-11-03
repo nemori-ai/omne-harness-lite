@@ -36,6 +36,7 @@ const documentedPairs = {
   sessionCursorSigningKey: 'SessionCursorSigningService',
   sessionReplayFactsKey: 'SessionReplayFactsService',
   sessionScopeLookupKey: 'SessionScopeLookupService',
+  sessionAdoptedRequestsKey: 'SessionAdoptedRequestsService',
 } as const
 
 const documentedKeys = {
@@ -60,10 +61,11 @@ const documentedKeys = {
   sessionCursorSigningKey: 'sessionCursorSigning',
   sessionReplayFactsKey: 'sessionReplayFacts',
   sessionScopeLookupKey: 'sessionScopeLookup',
+  sessionAdoptedRequestsKey: 'sessionAdoptedRequests',
 } as const
 
 describe('the ./cordis entry', () => {
-  it('exports exactly the twenty-one classes and their keys', () => {
+  it('exports exactly the twenty-two classes and their keys', () => {
     expect(Object.keys(cordis).sort()).toEqual(
       [...Object.keys(documentedPairs), ...Object.values(documentedPairs)].sort(),
     )

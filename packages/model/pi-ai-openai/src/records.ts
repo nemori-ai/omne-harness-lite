@@ -97,6 +97,8 @@ const COMMON = {
     image: { mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], detail: 'auto' },
     fixed: [{ field: 'store', value: false }],
     usageTail: { maxFrames: 2 },
+    // OpenAI takes function names of `[a-zA-Z0-9_-]`, at most 64 long; OpenRouter refused a dotted one with 400.
+    toolNames: { rule: 'underscore/1', maxLength: 64 },
   },
   extensions: [],
   replay: {

@@ -1,12 +1,14 @@
 // R2-D14, R2-D29: the facts plugin `session-ad03-facts` of AD-03 on real Cordis, with the memory
 // session of this member behind a scripted Session service. What is checked: a scope that a
-// committed notice showed and that the session snapshot lists is `known` with the tenant, session
-// and generation of that snapshot; a forged scope text, and a scope that the log of another session
-// names, are `unknown` and never another tenant's; a scope the plugin has not seen since it started
-// is `unknown`; a failed read, a missing coordinator principal, a missing `session` and a stopped
-// plugin are `unavailable`; a scope of an older generation keeps its own generation after the
-// snapshot has moved on; `replayFacts` answers without the replay sub-plugin. The lookup names an
-// owner and grants nothing.
+// committed notice showed and that the session's scope bindings (SE27, SE28 and the creation) list
+// is `known` with the tenant, session and generation of those bindings; a forged scope text, a
+// scope that the log of another session names, and a generation the session has not minted yet are
+// `unknown` and never another tenant's; a scope the plugin has not seen since it started is
+// `unknown`; a failed read, a binding minted for another session, a missing coordinator principal,
+// a missing `session` and a stopped plugin are `unavailable`; a scope of an older generation keeps
+// its own generation after the session has moved on; a known answer is read from the store once;
+// no read goes to the work snapshot (SCOPE-NARROW); `replayFacts` answers without the replay
+// sub-plugin. The lookup names an owner and grants nothing.
 //
 // The translation from a Session entry to a Runtime Context commit input is a scripted double
 // (AD-12's translation protocol is not delivered): an entry of a scripted kind names the scope the
@@ -15,14 +17,18 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { decodeScopeRef, type ScopeRef } from '@omne-harness/runtime-context-contract'
-import type {
-  SessionAccess,
-  SessionFaces,
-  SessionId,
-  SessionRevision,
-  WorkSnapshot,
+import type { JsonValue } from '@omne-harness/json-text'
+import {
+  CONTEXT_SCOPE_KINDS,
+  contextScopeOf,
+  type EntryId,
+  type HistoryEntry,
+  type SessionAccess,
+  type SessionFaces,
+  type SessionId,
+  type SessionRevision,
 } from '@omne-harness/session-contract'
-import { evidence, operationId } from '@omne-harness/session-contract/testing'
+import { adoption, evidence, operationId } from '@omne-harness/session-contract/testing'
 import {
   SessionReplayFactsService,
   SessionScopeLookupService,
@@ -55,18 +61,42 @@ async function mount(ctx: Context, plugin: Parameters<Context['plugin']>[0]) {
   return fiber
 }
 
-type Call = Readonly<{ method: string; caller: unknown; principal: unknown }>
+type Call = Readonly<{
+  method: string
+  caller: unknown
+  principal: unknown
+  kinds?: readonly string[]
+}>
 type Faults = {
-  /** `readWork` answers `unavailable`. */
-  work: boolean
   /** The coordinator principal is not available. */
   principal: boolean
   /** The history read answers `unavailable`. */
   history: boolean
-  /** The `readWork` answer gets this `contextScopes` value. */
-  scopes?: WorkSnapshot['contextScopes']
-  /** The `readWork` answer names another session than the one asked. */
-  answers?: string
+  /** A history read of the scope kinds (SE27, SE28) answers `unavailable`. */
+  scopes: boolean
+  /** An entry that a history read of its kind also answers. */
+  extra?: HistoryEntry
+}
+
+const isScopeRead = (kinds: readonly string[] | undefined) =>
+  kinds !== undefined &&
+  kinds.length > 0 &&
+  kinds.every(kind => (CONTEXT_SCOPE_KINDS as readonly string[]).includes(kind))
+
+/** The json-text tree of a plain value, as Session stores an entry payload. */
+function tree(value: unknown): JsonValue {
+  if (value === null) return { kind: 'null' }
+  if (typeof value === 'string') return { kind: 'string', value }
+  if (typeof value === 'boolean') return { kind: 'boolean', value }
+  if (typeof value === 'number') return { kind: 'number', lexeme: String(value) }
+  if (Array.isArray(value)) return { kind: 'array', items: value.map(tree) }
+  return {
+    kind: 'object',
+    entries: Object.entries(value as Record<string, unknown>).map(([key, item]) => ({
+      key,
+      value: tree(item),
+    })),
+  }
 }
 
 let worlds = 0
@@ -84,7 +114,7 @@ async function world(options: Readonly<{ mount?: readonly 'session'[] }> = {}) {
   if (own === undefined) throw new Error('fixture: the memory session has no scope')
   const ownScope = scopeRef(own.scope)
 
-  const faults: Faults = { work: false, principal: false, history: false }
+  const faults: Faults = { principal: false, history: false, scopes: false }
   const calls: Call[] = []
   const entryScopes: Record<string, ScopeRef> = { [CREATED]: ownScope }
 
@@ -120,10 +150,19 @@ async function world(options: Readonly<{ mount?: readonly 'session'[] }> = {}) {
       return {
         ...faced,
         begin: async input => {
-          calls.push({ method: 'history.begin', caller, principal: input.principal })
-          return faults.history
-            ? fail({ kind: 'unavailable', owner: 'session', diagnostic: 'history down' })
-            : faced.begin(input)
+          calls.push({
+            method: 'history.begin',
+            caller,
+            principal: input.principal,
+            kinds: input.kinds,
+          })
+          if (faults.history || (faults.scopes && isScopeRead(input.kinds)))
+            return fail({ kind: 'unavailable', owner: 'session', diagnostic: 'history down' })
+          const page = await faced.begin(input)
+          const extra = faults.extra
+          if (!('ok' in page) || extra === undefined || !input.kinds.includes(extra.kind))
+            return page
+          return { ok: { ...page.ok, entries: [...page.ok.entries, extra] } }
         },
         next: input => {
           calls.push({ method: 'history.next', caller, principal: input.principal })
@@ -131,22 +170,13 @@ async function world(options: Readonly<{ mount?: readonly 'session'[] }> = {}) {
         },
       }
     }
+    // The work face serves nothing: the facts plugin reads no snapshot. A call is recorded.
     get work(): SessionFaces<unknown>['work'] {
       const caller = this[Service.resolveConfig]()
       return {
         readWork: async (input: SessionAccess<unknown>) => {
           calls.push({ method: 'work.readWork', caller, principal: input.principal })
-          if (faults.work)
-            return fail({ kind: 'unavailable', owner: 'session', diagnostic: 'work down' })
-          const answer = await (port as unknown as SessionFaces<unknown>['work']).readWork(input)
-          if (!('ok' in answer)) return answer
-          return {
-            ok: {
-              ...answer.ok,
-              ...(faults.scopes === undefined ? {} : { contextScopes: faults.scopes }),
-              ...(faults.answers === undefined ? {} : { session: faults.answers as SessionId }),
-            },
-          }
+          return fail({ kind: 'unavailable', owner: 'session', diagnostic: 'no snapshot served' })
         },
       } as unknown as SessionFaces<unknown>['work']
     }
@@ -175,11 +205,51 @@ async function world(options: Readonly<{ mount?: readonly 'session'[] }> = {}) {
   const lookup = (scope: ScopeRef) =>
     ctx[sessionScopeLookupKey]?.lookup(scope) ?? Promise.resolve({ kind: 'unavailable' } as const)
 
-  return { s, ctx, holder, facts, faults, calls, entryScopes, ownScope, own, committed, lookup }
+  /** Archives and unarchives the memory session; answers the scope of the new generation. */
+  const cycle = async (name: string) => {
+    for (const kind of ['archive', 'unarchive'] as const)
+      ok(
+        await port.commit({
+          access: s.access,
+          command: {
+            kind: 'control',
+            input: { ...s.access, operation: operationId(`${kind}-${name}`), intent: { kind } },
+          },
+          guards: [],
+        }),
+      )
+    const latest = ok(await port.readWork(s.access)).contextScopes?.at(-1)
+    if (latest === undefined) throw new Error('fixture: no new generation')
+    return { scope: scopeRef(latest.scope), generation: latest.generation }
+  }
+
+  /** The scope reads among the recorded calls: one `begin` of SE27 alone opens each. */
+  const scopeReads = () =>
+    calls.filter(
+      call =>
+        call.method === 'history.begin' &&
+        JSON.stringify(call.kinds) === JSON.stringify(['session.archived']),
+    ).length
+
+  return {
+    s,
+    ctx,
+    holder,
+    facts,
+    faults,
+    calls,
+    entryScopes,
+    ownScope,
+    own,
+    committed,
+    lookup,
+    cycle,
+    scopeReads,
+  }
 }
 
 describe('R2-D14 the scope lookup of the facts plugin', () => {
-  it('R2-D14 a scope that the notice showed and the snapshot lists is known with the generation of the snapshot', async () => {
+  it('R2-D14 a scope that the notice showed and the bindings list is known with the generation of the bindings', async () => {
     const f = await world()
     await f.committed()
     expect(await f.lookup(f.ownScope)).toEqual({
@@ -190,7 +260,7 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     })
   })
 
-  it('R2-D29 a known answer names an owner and nothing else; the snapshot is read as coordinator, the history as reader, both with the principal of the session', async () => {
+  it('R2-D29 a known answer names an owner and nothing else; every read is a history read as reader with the principal of the session, none reads the snapshot', async () => {
     const f = await world()
     await f.committed()
     const answer = await f.lookup(f.ownScope)
@@ -199,15 +269,13 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     // The history face admits the reader class only, and a plugin uses one class (AD-00 rule 1).
     const classOf = (call: (typeof f.calls)[number]) => (call.caller as { caller?: unknown }).caller
     expect(f.calls.every(call => call.principal === f.s.access.principal)).toBe(true)
-    expect(
-      f.calls.every(call =>
-        call.method === 'work.readWork'
-          ? classOf(call) === 'coordinator'
-          : classOf(call) === 'reader',
-      ),
-    ).toBe(true)
-    expect(f.calls.map(call => call.method)).toContain('work.readWork')
+    expect(f.calls.every(call => classOf(call) === 'reader')).toBe(true)
+    expect(f.calls.map(call => call.method)).not.toContain('work.readWork')
     expect(f.calls.map(call => call.method)).toContain('history.begin')
+    // The scope bindings are read one kind at a time: a read of one kind is an index read.
+    expect(
+      f.calls.filter(call => isScopeRead(call.kinds)).every(call => call.kinds?.length === 1),
+    ).toBe(true)
   })
 
   it('R2-D14 a forged scope text is unknown', async () => {
@@ -235,11 +303,23 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     expect((await f.lookup(f.ownScope)).kind).toBe('known')
   })
 
-  it('R2-D14 a scope that the snapshot no longer lists is unknown', async () => {
+  it('R2-D14 a generation the session has not minted yet is unknown, and known once it is minted', async () => {
     const f = await world()
+    const second = scopeRef(
+      contextScopeOf({ tenant: f.s.access.tenant, session: f.s.access.session, generation: '2' }),
+    )
+    // The records of this session name the scope of a generation that no SE28 has bound yet.
+    f.entryScopes[ADOPTION] = second
     await f.committed()
-    f.faults.scopes = []
-    expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unknown' })
+    expect(await f.lookup(second)).toEqual({ kind: 'unknown' })
+    // An unknown answer is not kept: unarchiving mints the generation, and the lookup reads it.
+    expect(await f.cycle('second')).toEqual({ scope: second, generation: '2' })
+    expect(await f.lookup(second)).toEqual({
+      kind: 'known',
+      tenant: f.s.access.tenant,
+      session: f.s.access.session,
+      generation: '2',
+    })
   })
 
   it('R2-D14 a scope not seen since the plugin started is unknown, not absent from the store', async () => {
@@ -256,25 +336,23 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     expect(answer.kind).toBe('known')
   })
 
-  it('R2-D202 the first notice of a session indexes the open scope of its snapshot without reading the history, and a later one reads nothing', async () => {
+  it('R2-D202 the first notice of a session indexes its open scope without reading the context records, and a later one reads nothing', async () => {
     const f = await world()
     await f.committed(['run.terminal'])
     expect(await f.lookup(f.ownScope)).toMatchObject({ kind: 'known' })
     const before = f.calls.length
-    expect(f.calls.map(call => call.method).every(method => method === 'work.readWork')).toBe(true)
+    expect(f.calls.every(call => isScopeRead(call.kinds) || call.method === 'history.next')).toBe(
+      true,
+    )
     await f.committed(['run.terminal'])
     expect(f.calls).toHaveLength(before)
   })
 
-  it('R2-D14 a scope of an older generation keeps its own generation after the snapshot moved on', async () => {
+  it('R2-D14 a scope of an older generation keeps its own generation after the session moved on', async () => {
     const f = await world()
-    const next = scopeRef('session-scope:second-generation')
-    f.entryScopes[ADOPTION] = next
-    f.faults.scopes = [
-      { ...f.own, ended: evidence('archived') },
-      { generation: '2', scope: next.ref, operation: operationId('unarchive'), ended: null },
-    ]
-    await f.committed()
+    const { scope: next } = await f.cycle('older')
+    // A notice that mints a scope reads the open scopes afresh; the records name the old one.
+    await f.committed([CREATED, ADOPTION, 'session.unarchived'])
 
     const old = await f.lookup(f.ownScope)
     expect(old).toMatchObject({ kind: 'known', generation: f.own.generation })
@@ -287,26 +365,48 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
 })
 
 describe('R2-D14 unknown and unavailable stay apart', () => {
-  it('R2-D14 a failed snapshot read is unavailable, and the same scope is known once the read works', async () => {
+  it('R2-D14 a failed scope read is unavailable, and the same scope is known once the read works', async () => {
     const f = await world()
+    f.faults.scopes = true
     await f.committed()
-    f.faults.work = true
     expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
-    f.faults.work = false
+    f.faults.scopes = false
     expect((await f.lookup(f.ownScope)).kind).toBe('known')
   })
 
   it('R2-D14 a coordinator principal that cannot be had is unavailable', async () => {
     const f = await world()
+    // The records index the scope; its bindings were not read yet, so nothing of it is kept.
+    f.faults.scopes = true
     await f.committed()
+    f.faults.scopes = false
     f.faults.principal = true
     expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
   })
 
-  it('R2-D14 a snapshot that answers another session than the one asked is unavailable, not known', async () => {
+  it('R2-D14 a binding that is not minted for the session asked is unavailable, not known', async () => {
     const f = await world()
+    // A read of SE28 answers a binding of another session: it is not this session's scope.
+    f.faults.extra = {
+      id: 'entry-elsewhere' as EntryId,
+      revision: '9' as SessionRevision,
+      kind: 'session.unarchived',
+      schema: adoption('test-entry'),
+      payload: tree({
+        scope: {
+          generation: '2',
+          scope: contextScopeOf({
+            tenant: f.s.access.tenant,
+            session: 'another-session' as SessionId,
+            generation: '2',
+          }),
+          operation: 'op-elsewhere',
+          ended: null,
+        },
+      }),
+      origin: { owner: 'session', via: null, source: evidence('elsewhere') },
+    }
     await f.committed()
-    f.faults.answers = 'another-session'
     expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
   })
 
@@ -315,6 +415,24 @@ describe('R2-D14 unknown and unavailable stay apart', () => {
     expect(f.ctx[sessionScopeLookupKey]).toBeUndefined()
     expect(f.ctx[sessionReplayFactsKey]).toBeUndefined()
     expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unavailable' })
+  })
+})
+
+describe('SCOPE-NARROW the owner of a scope never changes', () => {
+  it('a known answer is read from the store once, however often it is asked', async () => {
+    const f = await world()
+    await f.committed()
+    for (let at = 0; at < 4; at++)
+      expect(await f.lookup(f.ownScope)).toMatchObject({ kind: 'known', generation: '1' })
+    expect(f.scopeReads()).toBe(1)
+  })
+
+  it('a known answer stays the owner after the scope ended: the end is no part of it', async () => {
+    const f = await world()
+    await f.committed()
+    const before = await f.lookup(f.ownScope)
+    await f.cycle('ended')
+    expect(await f.lookup(f.ownScope)).toEqual(before)
   })
 })
 

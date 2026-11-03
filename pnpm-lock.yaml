@@ -1964,6 +1964,15 @@ importers:
         specifier: workspace:*
         version: link:../../tool/tool-contract
     devDependencies:
+      '@omne-harness/agent-context':
+        specifier: workspace:*
+        version: link:../../context/agent-context
+      '@omne-harness/request-context':
+        specifier: workspace:*
+        version: link:../../context/request-context
+      '@omne-harness/runtime-context':
+        specifier: workspace:*
+        version: link:../../context/runtime-context
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider

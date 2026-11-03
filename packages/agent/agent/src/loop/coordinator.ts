@@ -359,8 +359,8 @@ function notYet(node: LoopNode, what: string, card: string): Failure {
   }
 }
 
-/** A Model failure, kept as what it is: the Model runtime did not give the step its answer. */
-function modelFailure(
+/** The Model answer that the Loop waits on: the Model runtime did not give the step its answer yet. */
+function modelUnavailable(
   node: LoopNode,
   failure: M.ModelFailure,
 ): Extract<Failure, { kind: 'unavailable' }> {
@@ -371,6 +371,44 @@ function modelFailure(
       failure.kind === 'unavailable'
         ? `${node}: ${failure.dependency}: ${failure.diagnostic}`
         : `${node}: the Model runtime answered ${failure.kind}`,
+  }
+}
+
+/**
+ * A definite refusal of one Model call (R2-D237): the same request is refused again, so the Loop
+ * does not wait on it. At M6 it is the `model-refused` failure candidate.
+ */
+type ModelRefusal = Extract<FailureCandidate, { kind: 'model-refused' }>['failure']
+
+function modelRefusal(failure: M.ModelFailure): ModelRefusal | null {
+  switch (failure.kind) {
+    case 'denied':
+    case 'invalid':
+    case 'unsupported':
+    case 'capacity':
+      return failure
+    default:
+      return null
+  }
+}
+
+/**
+ * A Model failure, kept as what it is (R2-D237): a refusal keeps its kind and its fields where the
+ * Agent Failure has them, and a capacity refusal is an invalid capacity; the other answers are the
+ * Model runtime not giving the step its answer.
+ */
+function modelFailure(node: LoopNode, failure: M.ModelFailure): Failure {
+  switch (failure.kind) {
+    case 'denied':
+      return { kind: 'denied', action: failure.action }
+    case 'invalid':
+      return { kind: 'invalid', field: failure.field, reason: failure.reason }
+    case 'unsupported':
+      return { kind: 'unsupported' }
+    case 'capacity':
+      return { kind: 'invalid', field: 'capacity', reason: 'refused by the Model capacity' }
+    default:
+      return modelUnavailable(node, failure)
   }
 }
 
@@ -2358,6 +2396,26 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return { owner: AGENT_OWNER, work: `${execution}/${step}`, position: 'I3', purpose: 'main' }
   }
 
+  /**
+   * The `adoptedRequest` member a main-purpose M0 writes, or no member for any other purpose: the
+   * slot survives the call's settlement and the next I1, and only the next main M0 replaces it.
+   * The preparing side's `state` is kept as given; the Agent never reads it (FIXED-FACTS F2).
+   */
+  function adoptedRequestOf(
+    pending: ModelPendingCall,
+    ready: ReadyPreparation,
+  ): Pick<AgentCheckpoint, 'adoptedRequest'> {
+    if (pending.purpose !== 'main' || ready.purpose !== 'main') return {}
+    return {
+      adoptedRequest: {
+        reference: pending.reference,
+        fixed: ready.source,
+        schema: ready.schema,
+        record: ready.state,
+      },
+    }
+  }
+
   function mainPending(step: StepId, ready: ReadyPreparation): ModelPendingCall {
     return {
       kind: 'model',
@@ -2386,11 +2444,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     async M0() {
       const current = required(iteration, 'iteration')
       const pending = required(current.pending, 'pending call')
+      const ready = required(current.ready, 'ready preparation')
       // #558 M04-2: the inherited ready preparation records the final request in this commit.
       return step('recorded', {
         checkpoint: {
           calls: [pending],
-          adoptedContext: required(current.ready, 'ready preparation').coverage,
+          adoptedContext: ready.coverage,
+          ...adoptedRequestOf(pending, ready),
         },
         effects: [{ action: current.action, pending, authority: required(authority, 'authority') }],
       })
@@ -2426,16 +2486,8 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         capacity: ready.capacity,
       })
       if ('failure' in admitted) {
-        if (admitted.failure.kind !== 'commit-unknown')
-          return fail(modelFailure('M6', admitted.failure))
-        current.admission = 'unknown'
-        const recalled = await ports.models.calls.inspect({
-          ...access,
-          reference: pending.reference,
-        })
-        if ('failure' in recalled) return modelWait('M6', recalled.failure)
-        // An unknown write is never repeated in this turn, even if inspection cannot yet find it.
-        if (recalled.ok.kind !== 'found') return producerWait('M6', pending)
+        const answered = await notAdmitted(current, pending, admitted.failure)
+        if (answered !== null) return answered
       } else if (admitted.ok.reference !== pending.reference) {
         return fail(defect('M6: admission returned another reference'))
       }
@@ -2564,17 +2616,77 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   }
 
   function modelWait(node: LoopNode, failure: M.ModelFailure) {
-    const converted = modelFailure(node, failure)
     return failure.kind === 'unavailable' || failure.kind === 'commit-unknown'
-      ? waitFor(node, converted, async () => {
+      ? waitFor(node, modelUnavailable(node, failure), async () => {
           const pending = required(required(iteration, 'iteration').pending, 'pending call')
           const read = await ports.models.calls.inspect({
             ...access,
             reference: pending.reference,
           })
-          return 'failure' in read ? fail(modelFailure(node, read.failure)) : read
+          return 'failure' in read ? fail(modelUnavailable(node, read.failure)) : read
         })
-      : fail(converted)
+      : fail(modelFailure(node, failure))
+  }
+
+  /**
+   * M6 after `admit` answered a failure: the outcome of the node, or `null` when the inspection of
+   * an unknown admission found the original call, so M6 goes on as admitted. R2-D237: a definite
+   * refusal ends the run as `model-refused`; an unavailable Model is a dependency wait at M6, and
+   * the wake admits the same call again.
+   */
+  async function notAdmitted(
+    current: Iteration,
+    pending: ModelPendingCall,
+    failure: M.ModelFailure,
+  ): Promise<Outcome<Step, Failure> | null> {
+    const refusal = modelRefusal(failure)
+    if (refusal !== null) return refused(current, pending, refusal)
+    if (failure.kind === 'unavailable') return waitFor('M6', modelUnavailable('M6', failure), null)
+    if (failure.kind !== 'commit-unknown') return fail(modelFailure('M6', failure))
+    current.admission = 'unknown'
+    const recalled = await ports.models.calls.inspect({ ...access, reference: pending.reference })
+    if ('failure' in recalled) return modelWait('M6', recalled.failure)
+    // An unknown write is never repeated in this turn, even if inspection cannot yet find it.
+    if (recalled.ok.kind !== 'found') return producerWait('M6', pending)
+    return null
+  }
+
+  /**
+   * M6's definite refusal (R2-D237): the failure candidate `model-refused` names the original call
+   * and the Model's refusal as it is, and F1 ends the run with it. A candidate already formed for
+   * the same call is kept, with its timestamp, when M6 runs again after an excluded F1 commit.
+   */
+  async function refused(
+    current: Iteration,
+    pending: ModelPendingCall,
+    refusal: ModelRefusal,
+  ): Promise<Outcome<Step, Failure>> {
+    const call = invocationParts(pending.reference, access.tenant).call
+    if (
+      decided?.kind !== 'try-finish' ||
+      decided.failure?.kind !== 'model-refused' ||
+      decided.failure.call !== call
+    ) {
+      const instant = await ports.clock.now()
+      if ('failure' in instant) return instant
+      const failure: FailureCandidate = {
+        kind: 'model-refused',
+        step: current.step,
+        at: instant.ok,
+        source: pending.fixed,
+        call,
+        failure: refusal,
+      }
+      decided = {
+        kind: 'try-finish',
+        conclusion: {
+          kind: 'fail',
+          cause: agentEvidence(`${execution}/${current.step}/model-refused`, failure),
+        },
+        failure,
+      }
+    }
+    return step('try-finish', null)
   }
 
   /** E2: the frame takes the position of the latest snapshot; an open state also its kind. */
@@ -2827,7 +2939,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       return step('fixed', {
         state: { kind: 'settling' },
         finish,
-        ...(next.failure?.kind === 'no-reply' ? { checkpoint: { calls: [] } } : {}),
+        // A call that ended without a reply, or that the Model refused, leaves no continuation.
+        ...(next.failure?.kind === 'no-reply' || next.failure?.kind === 'model-refused'
+          ? { checkpoint: { calls: [] } }
+          : {}),
       })
     },
     /**

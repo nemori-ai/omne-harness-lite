@@ -575,6 +575,7 @@ describe('the discriminants of the evaluation chapter', () => {
       | 'compaction-invalid'
       | 'request-rejected'
       | 'no-reply'
+      | 'model-refused'
       | 'message-rejected'
       | 'extension-stop'
       | 'guard'

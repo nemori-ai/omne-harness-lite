@@ -22,6 +22,7 @@ import { GATEWAY_END_MARKER, replayStream } from '../src/testing/fixtures.ts'
 import {
   LIMITS,
   engineProbe,
+  fixedRequest,
   supplierOf,
   testHooks,
   testMeter,
@@ -78,6 +79,9 @@ function chunk(choice?: ChoiceShape, extra: Record<string, unknown> = {}): Recor
 
 const DONE = '[DONE]'
 
+/** The request whose response the decoders of these tests read: no tool. */
+const REQUEST = fixedRequest(testRecord())
+
 function sse(...events: readonly (Record<string, unknown> | string)[]): Uint8Array {
   const text = events
     .map(event => `data: ${typeof event === 'string' ? event : JSON.stringify(event)}\n\n`)
@@ -90,7 +94,7 @@ async function replay(
   binding: PiFamilyBinding,
   ...events: readonly (Record<string, unknown> | string)[]
 ): Promise<readonly TransportFact[]> {
-  const facts = await replayStream(binding, sse(...events))
+  const facts = await replayStream(binding, sse(...events), REQUEST)
   expect(facts.filter(fact => fact.kind === 'ended')).toHaveLength(1)
   expect(facts.at(-1)?.kind).toBe('ended')
   return facts
@@ -480,6 +484,7 @@ describe('reasoning detail identity', () => {
           .map(frame => `data: ${frame}\n\n`)
           .join(''),
       ),
+      REQUEST,
     )
     expect(seen[0]).toHaveLength(2)
   })
@@ -1071,7 +1076,7 @@ describe('account of a response that fails after its finish', () => {
         yield bytes
         throw error
       })(),
-      decoder: bind({ usage: keeping }).createDecoder(),
+      decoder: bind({ usage: keeping }).createDecoder({ request: REQUEST }),
       endMarker: GATEWAY_END_MARKER,
       limits: { maxEventBytes: 65_536, json: LIMITS.toolArguments },
       received: () => false,
@@ -1150,7 +1155,7 @@ describe('account of a response that fails after its finish', () => {
   })
 
   it('the decoder gives the account and the fault from end() after it refused a frame', () => {
-    const decoder = bind({ usage: keeping }).createDecoder()
+    const decoder = bind({ usage: keeping }).createDecoder({ request: REQUEST })
     const frame = (value: Record<string, unknown>) => {
       const read = readJsonText(JSON.stringify(value), LIMITS.toolArguments)
       if (read.kind !== 'ok') throw new Error('not JSON')
@@ -1245,7 +1250,7 @@ describe('end of the stream', () => {
   })
 
   it('an ended decoder refuses every later frame and a second end', () => {
-    const decoder = bind().createDecoder()
+    const decoder = bind().createDecoder({ request: REQUEST })
     expect(decoder.accept({ kind: 'end-marker' })).toEqual({ ok: [] })
     expect(decoder.end()).toMatchObject({ failure: { cause: 'stream-lost' } })
     expect(decoder.accept({ kind: 'data', value: { kind: 'object', entries: [] } })).toEqual({

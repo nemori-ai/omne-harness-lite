@@ -20,6 +20,7 @@
 - `ActionJudgment` · `evaluation.d.ts`
 - `ActionSlot` · `evaluation.d.ts`
 - `AdmissionDecision` · `passages.d.ts`
+- `AdoptedRequest` · `evaluation.d.ts`
 - `Adoption` · 包 `@omne-harness/exchange-refs`
 - `AdvancementFact` · `evaluation.d.ts`
 - `AgentAccessCheck` · `execution.d.ts`
@@ -509,6 +510,12 @@ export type FailureCandidate = Readonly<{
     call: M.ModelCallId;
     result: ProducedResult;
 }> | Readonly<{
+    kind: 'model-refused';
+    call: M.ModelCallId;
+    failure: Extract<M.ModelFailure, {
+        kind: 'denied' | 'invalid' | 'unsupported' | 'capacity';
+    }>;
+}> | Readonly<{
     kind: 'message-rejected';
     from: MessageSource;
     evidence: DurableEvidence;
@@ -715,6 +722,12 @@ export type GuardFact = Readonly<{
     passage: PassageId;
     at: AgentInstant;
 }>;
+export type AdoptedRequest = Readonly<{
+    reference: M.ModelInvocationRef;
+    fixed: DurableEvidence;
+    schema: Adoption;
+    record: JsonValue;
+}>;
 export type AgentCheckpoint = Readonly<{
     schema: Adoption;
     definition: Adoption;
@@ -727,6 +740,7 @@ export type AgentCheckpoint = Readonly<{
     requestPreparation: Preparation | null;
     compaction: CompactionState | null;
     adoptedContext: DurableEvidence | null;
+    adoptedRequest?: AdoptedRequest | null;
     guard: GuardFact | null;
     completedPassages: readonly PassageId[];
     priorConditions: DurableEvidence | null;

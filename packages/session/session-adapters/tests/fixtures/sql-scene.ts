@@ -124,6 +124,8 @@ function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): Que
 export type DoubleControls = Readonly<{
   /** Throws at the next statement of a write transaction that matches `pattern`. */
   failWrite(pattern: RegExp): void
+  /** Throws at the next statement of a write transaction for which `test` holds. */
+  failWriteWhen(test: (sql: string, params: readonly SqlValue[]) => boolean): void
   /** The next commit runs and its reply is lost: the caller sees `unknown`. */
   loseNextReply(): void
   /** The next commit does not run and the caller sees `unknown`. */
@@ -156,7 +158,7 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
   for (const migration of migrations)
     migration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
   const receipts = new Map<string, ReceiptV2>()
-  let fault: RegExp | null = null
+  let fault: ((sql: string, params: readonly SqlValue[]) => boolean) | null = null
   let lose = false
   let drop = false
   const reads: string[] = []
@@ -183,7 +185,7 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
       try {
         const raw = module.execute(structuredClone(command.facts), {
           execute: (sql, params) => {
-            if (fault !== null && fault.test(sql)) {
+            if (fault !== null && fault(sql, params)) {
               fault = null
               throw new Error('injected write failure')
             }
@@ -281,7 +283,10 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
     storage,
     controls: {
       failWrite: pattern => {
-        fault = pattern
+        fault = sql => pattern.test(sql)
+      },
+      failWriteWhen: test => {
+        fault = test
       },
       loseNextReply: () => {
         lose = true
@@ -550,6 +555,86 @@ export function handed(s: SqlScene, id: string, receipt: DurableEvidence) {
     },
     guards: [],
   })
+}
+
+/** Cancels the active Run, accepts input `n` and starts the next Run: the scene of its execution. */
+export async function nextRun(s: SqlScene, n: number): Promise<SqlScene> {
+  const snapshot = ok(await s.port.readWork(s.sessionAccess))
+  if (snapshot.run.kind !== 'active') throw new Error('an active Run is expected')
+  ok(
+    await s.port.commit({
+      access: s.sessionAccess,
+      command: {
+        kind: 'control',
+        input: {
+          tenant: s.access.tenant,
+          session: s.access.session,
+          operation: operationId(`cancel-${n}`),
+          intent: { kind: 'cancel-run', run: snapshot.run.run, urgency: 'force' },
+        },
+      },
+      guards: [],
+    }),
+  )
+  const value = ordinaryInput(`input-${n}`)
+  ok(
+    await s.port.commit({
+      access: s.sessionAccess,
+      command: {
+        kind: 'accept',
+        input: {
+          tenant: s.access.tenant,
+          session: s.access.session,
+          operation: operationId(`accept-${n}`),
+          value,
+        },
+      },
+      guards: [guard('evidence-bridge', 'ordinary-intake', value)],
+    }),
+  )
+  const started = ok(
+    await s.port.commit({
+      access: s.sessionAccess,
+      command: {
+        kind: 'startRun',
+        input: {
+          tenant: s.access.tenant,
+          session: s.access.session,
+          operation: operationId(`start-${n}`),
+          entry: 'interactive',
+          candidate: creation({ initial: ordinaryInput('input-1') }).definition.candidate,
+          instance: { owner: 'agent', id: 'instance-1' },
+        },
+      },
+      guards: [
+        guard('evidence-bridge', 'login-entry', { session: `start-${n}`, operation: `start-${n}` }),
+      ],
+    }),
+  )
+  const next = ok(await s.port.readWork(s.sessionAccess))
+  if (next.run.kind !== 'active') throw new Error('the next Run is not active')
+  const execution = ok(decodeAgentExecutionId(next.run.execution.execution))
+  const admitted = ok(await s.port.readInput({ ...s.access, input: next.run.first }))
+  const initial = {
+    id: ok(decodeInputId(admitted.input)),
+    content: admitted.message,
+    source: started.receipt.source,
+    priority: 'ordinary' as const,
+  }
+  return {
+    ...s,
+    execution,
+    initial,
+    openInput: openInput({
+      access: s.access,
+      execution,
+      operation: operation(`open-${n}`),
+      instance: instance(),
+      grant: initial.source,
+      initial,
+      checkpoint: checkpoint(),
+    }),
+  }
 }
 
 /** What `cordisScene` mounts, and how its Session transactions behave. */

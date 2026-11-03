@@ -215,6 +215,8 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'M0', on: 'recorded', to: 'M6' },
   { from: 'M6', on: 'admitted', to: 'M1' },
   { from: 'M6', on: 'wait', to: 'W0' },
+  // R2-D237: the Model's definite refusal of the admission is the failure candidate model-refused.
+  { from: 'M6', on: 'try-finish', to: 'F1' },
   { from: 'M1', on: 'wait', to: 'W0' },
   { from: 'M1', on: 'settled', to: 'M3' },
   { from: 'M3', on: 'kept', to: 'M4' },

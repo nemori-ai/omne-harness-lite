@@ -19,6 +19,8 @@ import {
   decodeCandidateRef,
   decodePassageRef,
   decodePositionRef,
+  encodeFixedRequestRecord,
+  forecastOf,
   type Access,
   type Adoption,
   type AssemblyCall,
@@ -258,6 +260,8 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     }>
     purpose: Preparation['purpose']
     place: Place
+    /** The target of the history that the call resolved; a fixed request record names it. */
+    target: ContextTarget
   }>
 
   /** The assembled or ready preparation of one candidate. */
@@ -266,7 +270,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     candidate: Candidate,
     fixable: boolean,
   ): Promise<Answer<Preparation>> {
-    const { access, input, purpose, place } = outcome
+    const { access, input, purpose, place, target } = outcome
     const coverage = materials.mint('coverage', place, candidate.coverage)
     const shared = {
       ...common(input, purpose, place, { candidate: candidate.candidate, fixable }),
@@ -284,7 +288,23 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     )
     if ('failure' in request) return request
     return {
-      ok: { ...shared, kind: 'ready', request: request.ok, capacity: resultCapacity },
+      ok: {
+        ...shared,
+        kind: 'ready',
+        request: request.ok,
+        capacity: resultCapacity,
+        // The fixed facts at this moment: the candidate's own coverage, the window of the profile
+        // that fixed it and the forecast of its budget report (RQ-14). Agent keeps the value.
+        state: encodeFixedRequestRecord({
+          schema: 'request-context/fixed-request/1',
+          target,
+          candidate: candidate.candidate,
+          coverage: candidate.coverage,
+          windowTokens: input.selection.resolution.profile.definition.context.window.provided,
+          forecast: forecastOf(candidate.verdict.report),
+          continuation: null,
+        }),
+      },
     }
   }
 
@@ -489,6 +509,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
       input,
       purpose: input.purpose,
       place: placeOf(tenant, target, input.advance),
+      target,
     }
     const original: Original['original'] = {
       input: materials.mint('original', outcome.place, {
@@ -705,6 +726,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
       },
       purpose: input.original.purpose,
       place: entry.ok.place,
+      target,
     }
     const resumed = { ...call, access }
     const answer = await staged(access, target, resumed, groups, async operations =>

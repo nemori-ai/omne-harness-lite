@@ -24,6 +24,11 @@
 // the `published` callback of its options. The plugin turns that into the event
 // `session-adapters/agent-published`: a wake-up only, which carries no fact, so a subscriber reads
 // the log itself (AD-02 trigger).
+//
+// The same plugin body provides `sessionAdoptedRequests`: the request that the last main-purpose
+// M0 of a session recorded, read from the `a` part of that session (FIXED-FACTS F4). The call
+// names a session, not an execution, so it needs no route; it asks `sessionAccessCheck` whether
+// the access may read the history of that session (`history.readModelView`) before it reads.
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
@@ -42,7 +47,14 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SessionAccessCheck, SessionId } from '@omne-harness/session-contract'
-import { sessionAccessCheckKey } from '@omne-harness/session-cordis-contract/cordis'
+import type {
+  SessionAdoptedRequestRead,
+  SessionAdoptedRequests,
+} from '@omne-harness/session-cordis-contract'
+import {
+  SessionAdoptedRequestsService,
+  sessionAccessCheckKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import {
   SESSION_EXECUTION_HANDLER,
   SESSION_PROTOCOL,
@@ -283,6 +295,29 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     record: input => routedWrite('record', input, view => view.entries.record(input)),
   }
 
+  const adoptedRequests: SessionAdoptedRequests<P> = {
+    async readAdoptedRequest(input): Promise<SessionAdoptedRequestRead> {
+      if (closed) return { kind: 'unavailable', diagnostic: 'the agentJournal plugin has stopped' }
+      const { access, session } = input
+      if (!tenantCodec.encode(access.tenant).ok) return { kind: 'denied' }
+      let decision
+      try {
+        decision = await options.sessionAccessCheck.check({
+          access,
+          operation: 'history.readModelView',
+          target: { kind: 'session', session },
+        })
+      } catch (error) {
+        return { kind: 'unavailable', diagnostic: `the access check threw: ${String(error)}` }
+      }
+      if (decision.kind === 'denied') return { kind: 'denied' }
+      if (decision.kind !== 'allowed') return decision
+      const read = await journals.readAdopted({ tenant: access.tenant, session })
+      if (read.kind !== 'value' || read.value === null) return read
+      return { kind: 'value', value: { ...read.value } }
+    },
+  }
+
   const stopped = () => fail<Failure>(unavailable('the agentJournal plugin has stopped'))
   const materials: Materials<P> = {
     preserve(input) {
@@ -317,6 +352,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     journal,
     entries,
     materials,
+    adoptedRequests,
     close(): void {
       closed = true
       routes.clear()
@@ -414,8 +450,18 @@ class SessionLogMaterials extends AgentMaterialsService<unknown, ContentBlock> {
   }
 }
 
+/** `sessionAdoptedRequests`, made by the body of `SessionLogAgentJournalProvider`. */
+class SessionLogAdoptedRequests extends SessionAdoptedRequestsService<unknown> {
+  readonly readAdoptedRequest: SessionAdoptedRequests<unknown>['readAdoptedRequest']
+
+  constructor(ctx: Context, requests: SessionAdoptedRequests<unknown>) {
+    super(ctx)
+    this.readAdoptedRequest = requests.readAdoptedRequest
+  }
+}
+
 /**
- * The provider of `agentJournal`, `agentJournalEntries` and `agentMaterials`: the three services
+ * The provider of `agentJournal`, `agentJournalEntries`, `agentMaterials` and `sessionAdoptedRequests`: the four services
  * are made in this one plugin body over one session-log Journal, so they come and go together. It
  * needs `storage`, the trusted `tenantDomainLookup` and `sessionAccessCheck`; with any of them
  * absent the plugin stays pending and provides none of the keys. A new provider of any of them
@@ -508,6 +554,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     this.output = journal.output
     new SessionLogJournalEntries(ctx, routed.entries)
     new SessionLogMaterials(ctx, routed.materials)
+    new SessionLogAdoptedRequests(ctx, routed.adoptedRequests)
     ctx.effect(() => () => routed.close())
   }
 }

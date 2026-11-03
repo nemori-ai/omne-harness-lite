@@ -16,6 +16,7 @@
 - `loop-coordinator.spec.ts` 直接调用协调者，核对 E1 `found-existing` 返回成功，以及节点抛错时返回的停止节点与 failure 种类。公开观察没有停止原因，不能区分这些协调结果。此测试只读返回值，不读私有状态。
 
 - `loop-intake-prepare.spec.ts` 直接调用协调者，以区分等待完成、提供者违约和阶段不支持的结果。它只读返回值与 Journal 已存事实，不读取私有状态。公开 invoke 用例另核对同一 runtime 的两次输入无重叠。
+- `loop-adopted-request.spec.ts` 经公开 invoke 与工具往返运行，记录每次 Journal 提交的 checkpoint。它核对主用途 M0 与 `calls`、`adoptedContext`、`effects` 同一次提交写 `adoptedRequest`，之后的提交、工具在途和下一步 I1、P1 都保留它，下一次主用途 M0 替换它。非主用途的 M0 用 ready 准备的 `purpose` 为 `compaction` 模拟：协调者还没有压缩用途的 M0 路径。
 - `loop-reply-close.spec.ts` 直接调用协调者，核对公开面未呈现的 I3/I4/I8 提交切点与停止结果。用例只读取 Journal 已存事实及返回值，不读私有帧。
 - `loop-main-call.spec.ts` 直接调用协调者，核对 M0 提交前后丢弃协调者时的原 reference、PendingCall、EffectIntent 和固定请求接续。正常 loop 仅 admit，受理未知或恢复时才 inspect；Model 消费调用保持为零。reply/partial/no-reply 从 Journal 的原 received 与完整材料恢复，producer 事件唯一，不新受理调用。原生产者 pusher 的 ACK 记录与 Agent 调用记录分开核对，不证明进程耐久或公开 resume。
 - 原 Agent ACK/Read/release 矩阵已退休。原绑定、consumer、版本、共同提交失败与材料校验分别由 `model-receiver.spec.ts`、`journal-received.spec.ts` 和材料采用用例覆盖。不能从这些用例推断 Agent 仍执行 Model ACK。

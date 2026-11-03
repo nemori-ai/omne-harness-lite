@@ -103,6 +103,8 @@ SessionCreation.initialization 是可选来源包，包含 sources 和 results�
 
 `batchEvidence(batch, session)` 导出自 [reduce.ts](../src/reduce.ts)，是 `reduce` 给 `WorkSnapshot.source` 用的批次证据函数（owner、`<session>@<revision>`、修订与条目摘要）。只导出，格式不变。存储提供者用它从创建该会话的第一批条目算出建立证据（`SessionPrincipalBindingSource` 的 `source`），不在存储里复制证据格式。
 
+`contextScopeOf`、`contextScopesOf` 与 `CONTEXT_SCOPE_KINDS` 导出自 [context-scopes.ts](../src/context-scopes.ts)（SCOPE-NARROW，可加导出）。`contextScopeOf` 是 [J18](../SPEC.md#j18-作用域引用与结束事实) 铸造作用域引用的规则，`scopeBinding` 也调用它。`contextScopesOf(session, entries)` 只从该会话 `CONTEXT_SCOPE_KINDS`（SE27、SE28）的条目得出全部作用域：创建铸造第 1 代，SE28 铸造新一代，SE27 结束一代。结果与 `WorkSnapshot.contextScopes` 的代次、引用与结束相同，与条目顺序无关。引用不是按本会话与代次铸造的、条目不是这两种或解不开时，整体失败。读者用它代替读整份快照，不复制铸造规则。
+
 调用方在同一个 per-session 发布根内保存 Session 批次、归约快照、解释进度与操作答复。Agent 首次提交和 Session 后续解释是两次提交。两者共享发布根，仍允许取消在两次提交之间先成立。快照读取的 sequence 为 null，不推进公开事件序号。事件序号只接受连续前缀，重复序号不再生成事实。
 
 `createMemorySessionTransactions` 具有自己的内存根，不能注入或共享外部根。`MemorySessionLogTransactions.controls.project` 只供本包测试。组合提供者应直接调用 `decide`、`projectSessionLog`、`reduce`，并在自己的单根里原子发布，不能再包一层独立事务替身。

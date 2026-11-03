@@ -659,7 +659,7 @@ Agent 经 ModelContextReader.read 取得模型可读的 Runtime Context。读取
 3. 模型可读块与工具、扩展的私有块分开读取。ModelContextReader 在装配时绑定到模型这一个消费者，调用方不能用参数改成其他消费者。它只返回标为模型可读、且当前资格允许的块。
 4. 私有块包括权限输入。它们只经工具与扩展各自的注入能力读取，例如动作准入和扩展的 needs 能力，每次读取都核验当前资格。私有块不进入模型请求、事件、失败诊断和遥测。RuntimeConditions 的 context 只是条件依据的引用，不含块内容，也不是模型可读的读取结果。
 5. full 还是 incremental 由 Context 决定，Agent 不要求某一种。Agent 向读取端口传入历史依据、本 execution 已采用的覆盖依据（checkpoint 的 adoptedContext，新 execution 为空）和压缩转换依据（压缩提交之后的读取才有）。Context 按 [Runtime Context 的 RC-04](../../context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料) 返回 full 或 incremental 与覆盖证据。Agent 只记录 Context 返回的种类与覆盖，不改变它们。
-6. 读到不等于采用。ModelContextRead 只说明读到了什么。覆盖在最终请求记录时才成为已采用覆盖，并保存在 checkpoint。记录之前，未采用的读取被新的读取、选择变化或压缩提交取代，直接丢弃，不影响已采用覆盖。
+6. 读到不等于采用。ModelContextRead 只说明读到了什么。覆盖在最终请求记录时才成为已采用覆盖，并保存在 checkpoint。记录之前，未采用的读取被新的读取、选择变化或压缩提交取代，直接丢弃，不影响已采用覆盖。主用途的最终请求记录在同一次提交中还写 checkpoint 的 adoptedRequest：这次调用的引用、固定依据，以及准备方在 ready 中交来的 state 与 schema。Agent 原样保存 state，不解释它。调用收场、calls 清空、工具往返和下一步的请求准备都不改 adoptedRequest，只有下一次主用途的最终请求记录替换它。压缩用途的最终请求记录不写它，新 execution 中它为空。
 7. 空闲期间的变化由新 execution 开始和建立挂接时的拉取承接，不依赖逐条推送。同一 execution 长时间等待后继续推进时，下一次主请求准备前的读取传入 checkpoint 的 adoptedContext，Context 沿提醒链返回 incremental 或 full；Agent 不因等待时长改为要求某一种。
 8. 每次读取都核验当前资格，不用旧日志恢复已撤回的访问权。读取不可用时请求不准备，Agent 不用旧快照冒充当前。
 
@@ -1415,6 +1415,8 @@ prepareFinish 的失败如下。
 | output | custody | 原 execution 的输出区间、emittedThrough、acknowledgedThrough、未确认原事件的读取位置及长期 Journal 保管依据 | 原连续输出区间 |
 | terminal-observation | custody | 完整 TerminalObservation、原终态与精确 Adoption、当前观察与保管责任。终态前覆盖固定观察计划，终态提交固定实际集合 | PassageId |
 
+Model 调用的 call 项以下列事实之一为收场依据，处置为 settled：原调用的结果或 received 条目；失败候选 no-reply 所指原调用的最终失败；失败候选 model-refused 所指原调用的受理确定拒绝。确定拒绝不留发出，所以该调用没有结果、received 条目或保管责任。候选被后来的取消候选替代时，这两种依据仍然有效。model-refused 一条的依据是 R2-D237。
+
 control 项的必需内容与控制受理时的保存义务已由 [#730 DD1](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6443041428) 修订。写回本契约之前，本页不承诺 control 项的公开形状，实现不能按某一种 control 内容声称已兑现本契约。这个缺口登记在开放问题页的 [U-9](../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。
 
 `ObligationDisposition` 有下列四个分支。
@@ -1967,7 +1969,8 @@ J08 规定 Agent 作为 Model 调用方时适用的 Model 侧条款。
    - 决定来源的核验：Model 的受信适配按原 `position.policy` 解析协调者的 inspect，以当前受信 principal 与显式租户读取原 position，核验同一 decided、同一完整 position、同一决定与同一 source，并验证 source 由协调者的耐久记录拥有者签发、摘要与修订对应真实记录。调用者自报 owner 或 digest、指向任意非空 Evidence 都不构成核验。协调者解析不到、来源读权限未知或记录查询不可用时，Model 不保存新的决定。
    - 协调者的 worker 停用而耐久记录 authority 仍可用时，该 authority 依据原 manifest 的确定生命周期事实记录同一协调者的不可用决定，inspect 仍认回它。协调者的采用与记录 authority 整体缺席时的收场没有采用：原调用保持具名未完，禁止新 retry，不声称已收场，见开放问题页的 [U-8](../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。Settlement 的 source 不能冒充协调者的 decided.source。
    - 协调者的记录、计时、决定与保管由 Model 宿主或其独立的持久依赖持有，寿命不取决于发起的 Agent 挂接。Agent 的 Journal 持有原 Passage、卡片、输出与该失败分支的等待。旧 Agent 挂接丢失不使原策略不可用，协调者保留状态并等待合法后继。
-5. 下列各点交 Model 拥有者确认。[#682](https://github.com/nemori-ai/omne-harness-lite/issues/682) 已接受的内容没有确认它们，本契约写为未决项。第 4 条的 consumer 编码与来源核验已由 MP1、MP2 的配对确认，不在此列。
+5. M6 的受理结果按种类处置，依据是 R2-D237。Model 对 `admit` 答 denied、invalid、unsupported 或 capacity，是对这次调用的确定拒绝。同一请求再次受理仍被拒绝，所以 Agent 不等待它，以 kind 为 `model-refused` 的失败候选经 F1 结束执行。候选的 `call` 是原 ModelCallId，`failure` 是 Model 的原拒绝，不改写种类与字段，`source` 是原调用的固定请求依据 `PendingCall.fixed`。确定拒绝不留发出，原调用在 F1 退出 checkpoint 的 `calls`，终结责任清单以该拒绝为它的收场依据，见“[终结责任清单](#终结责任清单)”。Model 答 unavailable 时，Agent 在 M6 按依赖等待，等待的 owner 为 `modelRuntime`，检查时刻到后以原 call 与原 admission 再受理。commit-unknown 按原 reference 认回，规则不变。
+6. 下列各点交 Model 拥有者确认。[#682](https://github.com/nemori-ai/omne-harness-lite/issues/682) 已接受的内容没有确认它们，本契约写为未决项。第 4 条的 consumer 编码与来源核验已由 MP1、MP2 的配对确认，不在此列。
    - 证据适配器的端口形状。Model 契约只有装配声明里的 evidence 采用，没有导出该端口的类型。承接卡未定。
    - replay 被拒之后的再次发出怎样由重试决定表达，以及 resent 从哪里来（PM-05）。这一点与 [#446](https://github.com/nemori-ai/omne-harness-lite/issues/446) 的 5.1 同批确认。
    - J08 原文所说交 Model 确认的其余四点，在具名来源中没有找到，本契约不列出。

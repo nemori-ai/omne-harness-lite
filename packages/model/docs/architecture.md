@@ -245,7 +245,7 @@ export type PiFamilyBinding = Readonly<{
     body: JsonValue; representation: Extract<MeterRepresentation, { kind: 'materialized' }>
     diagnostics: readonly ProviderDiagnostic[]
   }>, TransportFailure>
-  createDecoder(): PiResponseDecoder
+  createDecoder(input: Readonly<{ request: FixedModelRequest }>): PiResponseDecoder
   release(): Promise<void>
 }>
 export interface PiFamilyContributions {
@@ -263,7 +263,7 @@ acquire 核型号、接收方、route 和所有采用相容后，一次交付完
 
 rules、tools 和 encode 是纯计算，不读环境、秘密、网络或文件。encode 使用已固定的表示、合法物化媒体、请求中该供应商的回放声明（`declaration`，取 `request.declarations` 中与该供应商同序的一项）和本次发出的再发略去集合（`resent`，取 `prepare` 的第三个参数），只返回请求 body 的 JsonValue、相应物化计量表示和本次编码的诊断（`diagnostics`：回放略去），不返回 URL、headers 或重定向命令。公共传输在发出之后、解码器的事实之前，把这些诊断逐条作为 `diagnostic` 事实交出。传输侧提供已核验的媒体计量事实；family 形成其固定 schema 的 tokenInput，公共传输以实际序列化字节核 representation.requestBytes。传输与发送路径都不计量预算；预算由请求组装方在请求前计量，最终是否超限以上游响应为准。bytes 由传输暂借，家族不能保留或修改；后续原生库需要复制时，该副本归本次编码操作并受同一配额及清理约束。公共传输核返回体与已固定参数、工具声明和表示相容，完成序列化及摘要后密封发送对象。不得悄悄删工具、改历史或重新压图。
 
-每个物理 dispatch 创建一个 decoder，不共享流状态。HTTP/SSE framing 由公共传输处理，家族解释合法帧中的内容、终止和 usage；decode 不自行重试、读取网络或查其他调用。协议 end-marker 与传输 EOF 分开；end 只结束当前解析，不把缺少合法终局的 EOF 改成成功。finish 后的 usage 尾帧沿固定有界协议收取；已 ended 的 decoder 拒绝后续内容。unknown usage scope 保持未知，不能因家族或型号匹配失败就套用默认口径。decoder 交出的账目是不含调用身份的账目报告（`CallAccountReport`），在 `ended` 之前给出；用量自相矛盾、推理状态载荷超长等情况以 `diagnostic` 事实交出。
+每个物理 dispatch 创建一个 decoder，不共享流状态。createDecoder 的 `request` 是本次 encode 的同一请求：家族按原请求把供应商调用名称映射回工具名（model-contract“ModelToolPayloadAdapter”），解码器不另查其他调用。HTTP/SSE framing 由公共传输处理，家族解释合法帧中的内容、终止和 usage；decode 不自行重试、读取网络或查其他调用。协议 end-marker 与传输 EOF 分开；end 只结束当前解析，不把缺少合法终局的 EOF 改成成功。finish 后的 usage 尾帧沿固定有界协议收取；已 ended 的 decoder 拒绝后续内容。unknown usage scope 保持未知，不能因家族或型号匹配失败就套用默认口径。decoder 交出的账目是不含调用身份的账目报告（`CallAccountReport`），在 `ended` 之前给出；用量自相矛盾、推理状态载荷超长等情况以 `diagnostic` 事实交出。
 
 | 失败位置 | 对外结果及拥有者 |
 | --- | --- |

@@ -1,7 +1,7 @@
 // The accounting ports of the `request-context` row (SC2): the narrow source authority, the read
-// eligibility over the registered holder sources, and the two gaps that stay. The verifier is a real
-// in-process principal authority; the inbox is the real `createContextAccounting` of the member, so
-// the order of its checks is the member's own.
+// eligibility and the adopted source over the registered holder sources, and the one gap that
+// stays. The verifier is a real in-process principal authority; the inbox is the real
+// `createContextAccounting` of the member, so the order of its checks is the member's own.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
@@ -14,9 +14,11 @@ import { decodeDispatchId, decodeModelCallId } from '@omne-harness/model-contrac
 import { createContextAccounting } from '@omne-harness/request-context'
 import type {
   Access,
+  AdoptedRequestSource,
   Adoption,
   ContextReadEligibility,
   ContextTarget,
+  GroupToken,
   ReceivedAccountFact,
 } from '@omne-harness/request-context-contract'
 import type { ContextHolderSources } from '@omne-harness/request-context-cordis-contract'
@@ -24,7 +26,7 @@ import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import {
   ACCOUNT_OUTLET_SENDER,
   ACCOUNTING_DENIALS,
-  ACCOUNTING_GAPS,
+  createHolderAdoptedSource,
   createHolderReadEligibility,
   createOutletSourceAuthority,
   releaseAccounting,
@@ -223,15 +225,27 @@ describe('the source authority: only the configured agent-account-outlet sender'
 
 type Probe = { leases: number; releases: number }
 
-/** A holder that lends one eligibility part and counts its leases. */
-function holderWith(eligibility: ContextReadEligibility<unknown>, probe: Probe) {
+type Adopted = Pick<AdoptedRequestSource<unknown>, 'readCount' | 'readSource'>
+
+/** The adopted part of a Session with no fixed request yet: one stable token and no fact. */
+const noAdoption: Adopted = {
+  readCount: async () => ({ kind: 'value', value: 'token-1' as GroupToken }),
+  readSource: async () => ({ kind: 'value', value: null }),
+}
+
+/** A holder that lends an eligibility and an adopted part and counts its leases. */
+function holderWith(
+  eligibility: ContextReadEligibility<unknown>,
+  probe: Probe,
+  adopted: Adopted = noAdoption,
+) {
   const holder: ContextHolderSources<unknown> = {
     lease: () => {
       probe.leases += 1
       return {
         kind: 'leased',
         lease: {
-          parts: { eligibility } as never,
+          parts: { eligibility, adopted } as never,
           release: () => {
             probe.releases += 1
           },
@@ -361,14 +375,125 @@ describe('the read eligibility: the eligibility part of the registered holder so
   })
 })
 
+describe('the adopted source: the adopted part of the registered holder sources', () => {
+  const access: Access<unknown> = { principal: 'p', tenant: tenantA }
+  const read = { access, target: targetOf(tenantA) }
+  const denying: ContextReadEligibility<unknown> = { check: async () => ({ kind: 'denied' }) }
+
+  it('answers what the holder adopted part answers, one lease per call, each lease ended', async () => {
+    const probe: Probe = { leases: 0, releases: 0 }
+    const seen: unknown[] = []
+    const port = createHolderAdoptedSource({
+      readHolder: () =>
+        holderWith(denying, probe, {
+          readCount: async input => {
+            seen.push(input)
+            return { kind: 'value', value: 'token-7' as GroupToken }
+          },
+          readSource: async input => {
+            seen.push(input)
+            return { kind: 'value', value: null }
+          },
+        }),
+      trace: () => {},
+    })
+    await expect(port.readCount(read)).resolves.toEqual({ kind: 'value', value: 'token-7' })
+    await expect(port.readSource(read)).resolves.toEqual({ kind: 'value', value: null })
+    expect(seen).toEqual([read, read])
+    expect(probe).toEqual({ leases: 2, releases: 2 })
+  })
+
+  it('keeps a denied or unavailable answer of the holder part as it is', async () => {
+    const probe: Probe = { leases: 0, releases: 0 }
+    const port = createHolderAdoptedSource({
+      readHolder: () =>
+        holderWith(denying, probe, {
+          readCount: async () => ({ kind: 'denied' }),
+          readSource: async () => ({ kind: 'unavailable', diagnostic: 'adopted-requests-absent' }),
+        }),
+      trace: () => {},
+    })
+    await expect(port.readCount(read)).resolves.toEqual({ kind: 'denied' })
+    await expect(port.readSource(read)).resolves.toEqual({
+      kind: 'unavailable',
+      diagnostic: 'adopted-requests-absent',
+    })
+    expect(probe).toEqual({ leases: 2, releases: 2 })
+  })
+
+  it('is unavailable with no holder, a refused lease, or a throwing part (the lease still ends)', async () => {
+    const probe: Probe = { leases: 0, releases: 0 }
+    const traces: string[] = []
+    const none = createHolderAdoptedSource({ readHolder: () => undefined, trace: () => {} })
+    const closing = createHolderAdoptedSource({
+      readHolder: () => ({ lease: () => ({ kind: 'unavailable', diagnostic: 'closing' }) }),
+      trace: () => {},
+    })
+    const throwing = createHolderAdoptedSource({
+      readHolder: () =>
+        holderWith(denying, probe, {
+          readCount: () => Promise.reject(new Error('secret')),
+          readSource: () => Promise.reject(new Error('secret')),
+        }),
+      trace: text => traces.push(text),
+    })
+    await expect(none.readCount(read)).resolves.toEqual({
+      kind: 'unavailable',
+      diagnostic: 'accounting adopted source: no contextHolderSources holder is running',
+    })
+    await expect(closing.readSource(read)).resolves.toEqual({
+      kind: 'unavailable',
+      diagnostic: 'accounting adopted source: holder lease: closing',
+    })
+    for (const answer of [await throwing.readCount(read), await throwing.readSource(read)]) {
+      expect(answer).toEqual({
+        kind: 'unavailable',
+        diagnostic: 'accounting adopted source: the holder adopted part threw',
+      })
+      expect(JSON.stringify(answer)).not.toContain('secret')
+    }
+    expect(probe).toEqual({ leases: 2, releases: 2 })
+    expect(traces).toHaveLength(2)
+    expect(traces.join(' ')).not.toContain('secret')
+  })
+
+  it('is unavailable, with a trace, when reading the holder or its lease throws', async () => {
+    const traces: string[] = []
+    const reading = createHolderAdoptedSource({
+      readHolder: () => {
+        throw new Error('secret')
+      },
+      trace: text => traces.push(text),
+    })
+    const leasing = createHolderAdoptedSource({
+      readHolder: () => ({
+        lease: () => {
+          throw new Error('secret')
+        },
+      }),
+      trace: text => traces.push(text),
+    })
+    await expect(reading.readCount(read)).resolves.toEqual({
+      kind: 'unavailable',
+      diagnostic: 'accounting adopted source: no contextHolderSources holder is running',
+    })
+    await expect(leasing.readSource(read)).resolves.toEqual({
+      kind: 'unavailable',
+      diagnostic: 'accounting adopted source: the holder lease threw',
+    })
+    expect(traces).toHaveLength(2)
+    expect(traces.join(' ')).not.toContain('secret')
+  })
+})
+
 describe('the release accounting options on the real inbox', () => {
-  function inbox(eligibility: ContextReadEligibility<unknown>) {
+  function inbox(eligibility: ContextReadEligibility<unknown>, adopted?: Adopted) {
     const { verifier, acting, system } = principals()
     const options = releaseAccounting(
       { maxTargets: 4, maxFactsPerTarget: 8, maxRevisionsPerDispatch: 4 },
       {
         readVerifier: () => verifier,
-        readHolder: () => holderWith(eligibility, { leases: 0, releases: 0 }),
+        readHolder: () => holderWith(eligibility, { leases: 0, releases: 0 }, adopted),
         ...quiet,
       },
     )
@@ -401,7 +526,7 @@ describe('the release accounting options on the real inbox', () => {
     ).resolves.toEqual({ kind: 'denied' })
   })
 
-  it('usage: a denied eligibility is denied; an allowed one reaches the adopted-source gap', async () => {
+  it('usage: a denied eligibility is denied; an allowed one reads the holder adopted part and stops at the uninitialized projection', async () => {
     const access: Access<unknown> = { principal: 'p', tenant: tenantA }
     const denied = inbox({ check: async () => ({ kind: 'denied' }) }).inbox
     await expect(denied.usage({ access, target: targetOf(tenantA) })).resolves.toEqual({
@@ -410,7 +535,22 @@ describe('the release accounting options on the real inbox', () => {
     const open = inbox({ check: async () => allowed }).inbox
     await expect(open.usage({ access, target: targetOf(tenantA) })).resolves.toEqual({
       kind: 'unavailable',
-      diagnostic: ACCOUNTING_GAPS.adoptedSource,
+      diagnostic: 'uninitialized',
+    })
+  })
+
+  it('usage: what the holder adopted part refuses is the usage answer', async () => {
+    const access: Access<unknown> = { principal: 'p', tenant: tenantA }
+    const refusing = inbox(
+      { check: async () => allowed },
+      {
+        readCount: async () => ({ kind: 'unavailable', diagnostic: 'adopted-requests-absent' }),
+        readSource: async () => ({ kind: 'value', value: null }),
+      },
+    ).inbox
+    await expect(refusing.usage({ access, target: targetOf(tenantA) })).resolves.toEqual({
+      kind: 'unavailable',
+      diagnostic: 'adopted-requests-absent',
     })
   })
 })

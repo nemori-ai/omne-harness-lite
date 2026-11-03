@@ -15,24 +15,33 @@
 // has ended (RQ-12). After the reads have closed, every part answers unavailable.
 //
 // The Session log is the authority. The plugins keep only derivatives: the scope-to-session index
-// (process lifetime, bounded) and the lease bookkeeping of one source fiber. Named gaps: the
-// decoding of a history head evidence to its session is handed in as `heads`; the fixed request
-// facts of the narrow adoption source are handed in as `adopted`, and without them that part answers
-// unavailable after its access check (NP-02).
+// (process lifetime, bounded) and the lease bookkeeping of one source fiber. Named gap: the
+// decoding of a history head evidence to its session is handed in as `heads`.
+//
+// The narrow adoption source reads the `a` part of the session (FIXED-FACTS F5): the request the
+// last main-purpose M0 recorded, through `sessionAdoptedRequests` of the session-log Journal
+// provider, taken per call. It decodes the fixed request record of request-context-contract and
+// checks it against the target and the coverage evidence of the same M0.
+import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { parseRecordEntryRef, type CompactionContext } from '@omne-harness/message'
+import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
+  decodeCommitOrder,
   decodeEpochId,
+  decodeFixedRequestRecord,
   decodeGroupToken,
   decodeHistorySequence,
   type Access,
   type AdoptedRead,
+  type AdoptedRequestFact,
   type AdoptedRequestSource,
   type CompactionContextResult,
   type ContextReadEligibility,
   type ContextTarget,
+  type Coverage,
   type DurableEvidence,
   type EpochId,
   type GroupToken,
@@ -66,7 +75,13 @@ import type {
   SessionId,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
-import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
+import type {
+  SessionAdoptedRequest,
+  SessionAdoptedRequestRead,
+  SessionAdoptedRequests,
+} from '@omne-harness/session-cordis-contract'
+import { sessionAdoptedRequestsKey, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
+import { canonical } from '../testing/canonical.ts'
 import { compactionReads } from '../testing/session-values.ts'
 
 const LOGGER = 'session-adapters/history-source'
@@ -102,23 +117,26 @@ export interface SessionHistoryHeads {
 /** What the assembly hands to AD-04. */
 export type SessionHistorySourceInput = Readonly<{
   heads: SessionHistoryHeads
-  /**
-   * The fixed request facts of the coordinator (CX-08). The holder adds the access check of every
-   * call. Absent, the narrow adoption source answers unavailable after its access check.
-   */
-  adopted?: AdoptedRequestSource<unknown>
   /** The most scopes the scope-to-session index keeps; the oldest goes first. */
   scopeIndexEntries?: number
   /** The page size of the full history read of a compaction window. */
   pageBytes?: number
 }>
 
-/** The authority the narrow adoption source names while no fixed request facts are handed in. */
-const ABSENT_ADOPTED: AdoptedRequestSource<unknown>['authority'] = {
+/** The authority the narrow adoption source names: the `a` part of the session log. */
+const ADOPTED_AUTHORITY: AdoptedRequestSource<unknown>['authority'] = {
   owner: '@omne-harness/session-adapters',
-  name: 'session-ad04/adopted-absent',
+  name: 'session-ad04/adopted',
   revision: '1',
-  digest: 'session-ad04:adopted-absent',
+  digest: 'session-ad04:adopted',
+}
+
+/**
+ * The digest that agent-context mints for the coverage evidence of a preparation: SHA-256 of the
+ * canonical text of the `Coverage`, base64url (agent-context SPEC, record evidence table).
+ */
+function coverageDigest(coverage: Coverage): string {
+  return createHash('sha256').update(canonical(coverage)).digest('base64url')
 }
 
 /** The `readWork` of the lower bound sub-plugin, as the source sub-plugin sees it. */
@@ -609,28 +627,139 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
         return admitted.kind === 'invalid' ? DENIED : admitted
       },
     }
-    const handed = this.shared.input.adopted
-    const adoptedRead = async <T>(
-      input: AdoptedRead<unknown>,
-      read: (source: AdoptedRequestSource<unknown>) => Promise<SourceRead<T>>,
-    ): Promise<SourceRead<T>> => {
-      const admitted = await this.admitted(input.access, input.target)
-      if (admitted.kind !== 'located') return admitted
-      if (handed === undefined)
-        return unavailable('adopted-facts-absent: no fixed request facts are handed in (NP-02)')
-      try {
-        return await read(handed)
-      } catch (cause) {
-        return unavailable(`the narrow adoption source threw: ${describe(cause)}`)
-      }
-    }
     const adopted: AdoptedRequestSource<unknown> = {
-      authority: handed?.authority ?? ABSENT_ADOPTED,
-      readCount: input => adoptedRead(input, source => source.readCount(input)),
-      readSource: input => adoptedRead(input, source => source.readSource(input)),
+      authority: ADOPTED_AUTHORITY,
+      readCount: input => this.adoptedCount(input),
+      readSource: input => this.adoptedFact(input),
     }
     const resolveHistory: HistoryEvidenceResolver<unknown> = input => this.resolve(input)
     return { history, adopted, eligibility, resolveHistory }
+  }
+
+  /**
+   * The current fixed adoption of a target (RQ-14): after the same check as `eligibility.check`,
+   * the `a` part of the session of the target, through `sessionAdoptedRequests` with the access of
+   * the call. The provider answers what it saved; this part decodes the fixed request record and
+   * checks it against the target and the coverage evidence of the same M0.
+   */
+  private async adoptedFact(
+    input: AdoptedRead<unknown>,
+  ): Promise<SourceRead<AdoptedRequestFact | null>> {
+    const admitted = await this.admitted(input.access, input.target)
+    if (admitted.kind !== 'located') return admitted
+    const read = await this.savedOf(admitted)
+    switch (read.kind) {
+      case 'denied':
+        return DENIED
+      case 'unavailable':
+        return unavailable(`adopted request: ${read.diagnostic}`)
+      case 'value': {
+        if (read.value === null) return { kind: 'value', value: null }
+        const fact = this.factOf(admitted, read.value)
+        return fact.kind === 'other-scope' ? this.notYetFixed(input) : fact
+      }
+      default:
+        return this.defect('the adopted request read gave an answer of no known kind')
+    }
+  }
+
+  /** What `sessionAdoptedRequests` saved for the session of `located`, read per call. */
+  private async savedOf(located: Located): Promise<SessionAdoptedRequestRead> {
+    let requests: SessionAdoptedRequests<unknown> | undefined
+    try {
+      requests = this.scope.get(sessionAdoptedRequestsKey)
+    } catch (cause) {
+      return unavailable(`the adopted request reads are not readable: ${describe(cause)}`)
+    }
+    if (requests === undefined)
+      return unavailable('adopted-requests-absent: sessionAdoptedRequests is not provided')
+    try {
+      return await requests.readAdoptedRequest({
+        access: located.access,
+        session: located.session.session,
+      })
+    } catch (cause) {
+      return unavailable(`the adopted request read threw: ${describe(cause)}`)
+    }
+  }
+
+  /**
+   * The answer when the last M0 of the session fixed a request of another scope than the target.
+   * It is `null` only while the target is still the current scope of its session, read after the
+   * `a` part was read: a new scope that has not fixed a request yet. A target scope that was
+   * retired fixed a request that can no longer be read, and that is `unavailable`, never `null`
+   * (RQ-14: unknown or unavailable is not null).
+   */
+  private async notYetFixed(input: AdoptedRead<unknown>): Promise<SourceRead<null>> {
+    const admitted = await this.admitted(input.access, input.target)
+    if (admitted.kind !== 'located') return admitted
+    const work = this.shared.link.work
+    if (work === undefined)
+      return unavailable('the lower bound sub-plugin is not running: the current scope is unknown')
+    const head = { tenant: admitted.target.tenant, session: admitted.session.session }
+    const current = await this.currentScope(work, admitted.session, head, admitted.tenant)
+    if (!('scope' in current))
+      return current.kind === 'denied'
+        ? current
+        : unavailable(`the current scope is not readable: ${current.kind}`)
+    return current.scope.ref === admitted.target.scope.ref
+      ? { kind: 'value', value: null }
+      : unavailable('the target scope was retired: the request it fixed is not readable')
+  }
+
+  /**
+   * The `AdoptedRequestFact` of one saved request for the target of `located`, or `other-scope`
+   * when the saved request was fixed for another scope of the session.
+   */
+  private factOf(
+    located: Located,
+    saved: SessionAdoptedRequest,
+  ): SourceRead<AdoptedRequestFact> | Readonly<{ kind: 'other-scope' }> {
+    const decoded = decodeFixedRequestRecord(saved.record)
+    if ('failure' in decoded) return invalid('adopted', 'unsupported-format')
+    const record = decoded.ok
+    if (tenantText(record.target.tenant) !== located.tenant) return DENIED
+    if (record.target.scope.ref !== located.target.scope.ref) return { kind: 'other-scope' }
+    if (saved.coverage === null || coverageDigest(record.coverage) !== saved.coverage.digest)
+      return invalid('adopted', 'source-evidence-conflict')
+    const invocation = resolveModelInvocationRef(saved.reference, located.target.tenant)
+    if ('failure' in invocation) return invalid('adopted', 'source-evidence-conflict')
+    const order = decodeCommitOrder(saved.order)
+    if ('failure' in order) return this.defect('the adoption order is not a commit order')
+    return {
+      kind: 'value',
+      value: {
+        coverage: record.coverage,
+        target: located.target,
+        call: { tenant: located.target.tenant, call: invocation.ok.call },
+        candidate: record.candidate,
+        order: order.ok,
+        committed: saved.fixed,
+        windowTokens: record.windowTokens,
+        accounting: { kind: 'unsettled' },
+        forecast: record.forecast,
+        continuation: record.continuation,
+      },
+    }
+  }
+
+  /**
+   * The token of the current fixed adoption of a target: the generation of this source fiber with
+   * the order and the fixed basis of the fact, or with `none` and the target scope while there is
+   * none. It changes when a new M0 is saved, and only then within one generation.
+   */
+  private async adoptedCount(input: AdoptedRead<unknown>): Promise<SourceRead<GroupToken>> {
+    const fact = await this.adoptedFact(input)
+    if (fact.kind !== 'value') return fact
+    const parts =
+      fact.value === null
+        ? [this.revision, 'none', input.target.scope.ref]
+        : [this.revision, fact.value.order, fact.value.committed.digest]
+    const hash = createHash('sha256').update(canonical(parts)).digest('hex')
+    const token = decodeGroupToken(`session-ad04/adopted/${hash}`)
+    return 'ok' in token
+      ? { kind: 'value', value: token.ok }
+      : this.defect('the adoption token is not a group token')
   }
 
   private async read(

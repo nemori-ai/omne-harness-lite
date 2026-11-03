@@ -119,6 +119,8 @@ flowchart TB
         M0 --> M6["M6 认回原调用意图与准入，发出前核资格"]
         M0 -->|压缩用途被否决：步骤请求不发出| M5
         M6 --> M1["M1 等 Journal 中原绑定的 received result"]
+        M6 -->|Model 确定拒绝：model-refused| F1
+        M6 -->|Model 不可用：按依赖等待| W0
         MR["实例外接收方：共同提交 received 与完整材料"] -. Journal 已提交事实 .-> M1
         M1 -->|interrupt 作用于具名调用| M1
         M2["M2 调模型之后位置：failure 的重试决定（独立触发通道待实现）"]
@@ -220,8 +222,8 @@ flowchart TB
 | T3 | 本批全部槽位与各槽位的 `each` | 不写 | 不提交 | 有槽位缺失、历史尝试未决或单结果经过未结束时转 W0 | 齐备且至少一个槽位曾为 dispatched 转 T4。齐备且没有已发起的动作转 T5 | 等待并发名额的获准动作尚无槽位时不成立 | 条件归[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 4 条 |
 | T4 | 本批全部 outcomes | `batchPass` 的 Passage。合法 inject 经 Q | 随 X 协议提交 | X4 等待 | 转 T5 | 一批只经过一次 | 只 observed、inject、stop、ask。不修改候选 |
 | T5 | 各槽位的 `candidate` 与 `handoff` 进度 | 逐槽位：Q1 以 P 固定候选，`slots[].handoff` 记 H 的引用；Q2 以 Ja 同次提交准入结果与消息。事件 message | 每个槽位的 Ja 提交后随 checkpoint 推进 | 不等待 | 全部完成且无缺槽位或历史未决动作才转 I8。rejected 转 H0 | 按原动作顺序串行 | 恢复时按 H 认回，不重复提交已进入历史的候选 |
-| M0 | 本用途的准备、改写依据、覆盖 | 主请求：FinalRequest 与 adoptedContext 的采用、effects 的效果意图与预编码 PendingCall.model.reference，一次提交。压缩步骤：该用途的调模型之前 Passage 与提交前引用 | 向 Model 受理之前提交 | X4 等待 | 转 M6。压缩用途被否决时步骤请求不发出，转 M5，由 M5 按返回去处回 C1 | 主请求的位置已在 P0 完成时只复用。用途为 extension 时不经过位置 | 记录之后不再改写 |
-| M6 | 原 PendingCall.model.reference 与固定输入；reference 在首次 admit 前已保存 | 不写。Model 保存受理并返回同一 reference | 不提交 | 不等待 | 转 M1 | 真实发出前 Model 核资格与围栏 | 同一原调用只受理一次 |
+| M0 | 本用途的准备、改写依据、覆盖 | 主请求：FinalRequest 与 adoptedContext 的采用、adoptedRequest（调用引用、固定依据与 ready 的 state、schema，替换上一次主请求的值）、effects 的效果意图与预编码 PendingCall.model.reference，一次提交。压缩步骤：该用途的调模型之前 Passage 与提交前引用 | 向 Model 受理之前提交 | X4 等待 | 转 M6。压缩用途被否决时步骤请求不发出，转 M5，由 M5 按返回去处回 C1 | 主请求的位置已在 P0 完成时只复用。用途为 extension 时不经过位置 | 记录之后不再改写 |
+| M6 | 原 PendingCall.model.reference 与固定输入；reference 在首次 admit 前已保存 | 不写。Model 保存受理并返回同一 reference | 不提交 | Model 答 unavailable 时转 W0，按依赖等待，依赖的 owner 为 modelRuntime。检查时刻到后回 M6，以原身份再受理。依据 R2-D237 | 受理成功转 M1。Model 的确定拒绝转 F1：denied、invalid、unsupported 与 capacity 形成失败候选 model-refused，候选带原调用与 Model 的原拒绝。依据 R2-D237。commit-unknown 按原 reference 认回 | 真实发出前 Model 核资格与围栏 | 同一原调用只受理一次。确定拒绝不留发出，同一拒绝不重复形成候选 |
 | M1 | 原 PendingCall 与 Journal received 条目 | 不写接收材料；等待提示由 Journal 及 timer 提供 | 不提交 | 尚无匹配 received 时等待 | 匹配原 reference、consumer、consumption 的 result 转 M3 | 不连接 Model observer 或轮询收场 | entries 缺席返回 unavailable |
 | M2 | 失败事实、Model 的重试请求；独立触发通道待实现，M1 不从 observer 取得 | 该位置 failure 维度的 Passage | 随 X 协议提交 | X4 等待 | 该分支的链由重试策略协调者托管，X5 归约出的策略建议（链序最后一个合法 retry，或停止）交协调者，协调者保存唯一决定后由 Model 核验来源并继续发出或收场，回 M1。没有合法 retry、停止意图成立或强制系统重试扩展不可用时，协调者保存不再重试，Model 按不再重试收场，回 M1 | 只在首内容前 | 不建新调用。规则见扩展作者协议的[输出](../../../agent-contract/docs/public-api/extensions.md#输出)与 SPEC 的[作为 Model 调用方](../../../agent-contract/SPEC.md#作为-model-调用方)第 4 条；协调者的实现位置是[开放问题 U-2](open-questions.md#journal-联合表达的具名缺口) |
 | M3 | 已提交 received 与同提供者的完整材料 | 核 schema 与原关联，解释结果后条件提交 producer 事件 | 原材料可读且 Authority 有效时 | 不等待 Model ACK | 转 M4 | receiver 推进 revision 时重读再提交 | 最终失败不再进入 M2 |
@@ -366,6 +368,8 @@ callModel(preparation, purpose, returnTo):            // M0 至 M5
   若 purpose 为 compaction：runPassages(before_model_call, preparation)   // M0。vetoed 时不发出，经 M5 回 C1
   若 purpose 为 main：journal.commit(FinalRequest 采用、adoptedContext、效果意图)   // M0
   call = models 受理固定请求                          // M6
+  若 models 确定拒绝（denied、invalid、unsupported、capacity）：进入失败候选 model-refused   // F1
+  若 models 不可用：按依赖等待，检查时刻到后以原身份再受理   // W0
   等待 Journal 中原 reference/consumer/consumption 的 received result   // M1
   从同一提供者读取完整材料，核 schema、租户与原关联
   解释结果并在有效 Authority 下提交 producer 事件       // M3
