@@ -1,6 +1,6 @@
 # Skill能力组工程设计
 
-状态：工程设计草案。本页的成员、模型、端口、应用服务、失败种类与技术处置都是候选决定，尚未取得技术接受。`@omne-harness/skill-contract` 已有实现（候选，W1，尚未取得技术接受），它的行为以[成员规格](../skill-contract/SPEC.md)为准。`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 仍是模板草稿。服务与目录来源尚未实现，也尚未验证。新公开承诺在实施交付时走技术接受。
+状态：工程设计草案。本页的成员、模型、端口、应用服务、失败种类与技术处置都是候选决定，尚未取得技术接受。`@omne-harness/skill-contract` 已有实现（候选，第一波，尚未取得技术接受），它的行为以[成员规格](../skill-contract/SPEC.md)为准。`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 仍是模板草稿。服务与目录来源尚未实现，也尚未验证。新公开承诺在实施交付时走技术接受。
 
 本页只写组内的分解、模型、端口形状、应用服务、失败种类与技术处置。跨领域交接见[领域交接设计](../../../docs/domains/skills/architecture.md)。成员、具名文档目标与允许依赖见[组入口](../README.md#成员与依赖)。
 
@@ -63,7 +63,7 @@
 - 纯函数：见[应用服务](#应用服务)末尾。
 - 服务：`PackageInspection`、`SkillCatalog` 与 `SkillAccess`，见[应用服务](#应用服务)。
 - 实现方入口：`@omne-harness/skill-contract/provider` 导出三个需求端口及其答复类型、`PackageInspection` 接口、`SkillRef`、`PackageLocator`、`sealSnapshot` 与 `SnapshotDefect`。公开根不导出这些。调用方用公开根，拿不到 `SkillRef` 与包定位。这沿 `tool-contract` 的先例。各入口的内容见成员规格[入口](../skill-contract/SPEC.md#entries)。
-- 符合性设施：`@omne-harness/skill-contract/testing` 导出 `SkillPackageSource`、`SkillReadCheck` 与 `SkillResolution` 的符合性套件，以及这三个端口的内存替身。`SkillReadCheck` 与 `SkillResolution` 的套件核对：对无权主体，答复不随该身份是否存在而变。`SkillAccess` 的符合性套件随 `@omne-harness/skill` 的实现，以可加改动加入 `./testing`。套件见成员规格[符合性套件](../skill-contract/SPEC.md#conformance)。
+- 符合性设施：`@omne-harness/skill-contract/testing` 导出 `SkillPackageSource`、`SkillReadCheck` 与 `SkillResolution` 的符合性套件，以及这三个端口的内存替身。`SkillReadCheck` 与 `SkillResolution` 的套件核对：对无权主体，答复不随该身份是否存在而变。`SkillAccess` 的符合性套件随 `@omne-harness/skill` 的实现，以可加改动加入 `./testing`。每个套件是不依赖测试框架的用例列表，实现方在自己的测试框架里逐个登记并运行。夹具缺少用例需要的东西时，用例抛出 `NotApplicable`，这不算通过也不算失败，实现方单独计数。套件见成员规格[符合性套件](../skill-contract/SPEC.md#conformance)。
 
 ## 模型
 
@@ -76,7 +76,7 @@ Skill 领域没有有状态的聚合。Skill 包快照算出后不变。读出�
 | `SkillName` | Skill 的 name。长 1 到 64 个字符，只含小写字母、数字与连字符，不以连字符开头或结尾，不含连续的连字符。它等于能力标识里的 name，也等于包根目录名。`inspect` 按[包格式规则](#包格式规则)核对后一条。 | 官方规格 [`name` field](https://agentskills.io/specification#name-field)「Must match the parent directory name」；成员规格 [skill-contract](../skill-contract/SPEC.md) 的 `name-mismatch` |
 | `PackagePath` | 规范化的包内相对路径。它拒绝绝对路径、`..` 段与反斜杠。 | 产品 [J-SK03](../../../.meta_harness/design/product/skills/design.md#j-sk03-按需读取正文或指定资源)「错误资源地址、包外目标」；官方规格 [File references](https://agentskills.io/specification#file-references) |
 | `PackageEntry` | Skill 包快照里的一个条目：包内路径、文本或二进制、大小、媒体类型，以及它自己的内容摘要。媒体类型由检查从扩展名与内容推断（`inferMediaType`），推断规则见成员规格[媒体类型](../skill-contract/SPEC.md#media-type)。媒体类型缺席不表示文本。 | 统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)；产品 J-SK03「资源与版本边界」 |
-| `SkillPackageSnapshot` | Skill 包快照：全部条目、包根目录名，以及按排序后的包内路径与条目内容摘要算出的一个内容摘要。包根目录名由来源交出，不进入内容摘要。快照只能经纯函数 `sealSnapshot` 构造：路径不重复，没有文件与目录的前缀冲突，内容摘要由条目算出。来源实现交出快照时必须用它。 | 统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot) |
+| `SkillPackageSnapshot` | Skill 包快照：全部条目、包根目录名，以及按排序后的包内路径与条目内容摘要算出的一个内容摘要。包根目录名由来源交出，不进入内容摘要。快照只能经纯函数 `sealSnapshot` 构造，来源实现交出快照时必须用它。`sealSnapshot` 收每个文件的全部字节，由它算出每个条目的事实与快照的内容摘要，来源不自己算。代价是来源须把整包读入内存才能交出快照。`sealSnapshot` 核对路径不重复、没有文件与目录的前缀冲突，并拒绝空的或含 `/` 的包根目录名（`invalid-root-name`）。快照凭证只在进程内有效：快照不能序列化后交给另一个进程使用，装配方必须保证本成员在一个进程里只加载一份。规则见成员规格[快照](../skill-contract/SPEC.md#snapshot)。 | 统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot) |
 | `PackageDigest` | Skill 包快照的内容摘要。它是散列值，不是文字摘要。 | 统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)「注意 ①」 |
 | `PackageLocator` | 包定位：一个包在某种来源里的位置。它与来源相关，对 Skill 不透明。判别联合候选是目录 `{ kind: 'directory', root }` 与内容存储 `{ kind: 'content-store', digest }`。 | 统一语言 [Skill 包来源](../../../.meta_harness/design/ubiquitous_language/terms/grounding-and-isolation.md#ul-package-source--skill-包来源--skill-package-source) |
 | `SkillManifest` | `SKILL.md` 头部字段的解释：name、description、license、compatibility、metadata 与 `allowed-tools`。description 长 1 到 1024 个字符。不认识的字段原样保留，不解释。 | 官方规格 [Frontmatter](https://agentskills.io/specification#frontmatter)、[`description` field](https://agentskills.io/specification#description-field) |
@@ -248,9 +248,9 @@ type Reply<T> = Promise<Outcome<T, 'unknown'>>
 - `SkillPackageSource.snapshot` 交出 `sealSnapshot` 造出的快照，快照带包根目录名，`inspect` 用它核对 name。`snapshot` 分开答找不到包、来源不可达、条目不可读（`entry-unreadable`），以及包内链接解析后落在包根之外（`outside-package`）。有这种链接的包整包不可读，这是包的缺陷。
 - `SkillPackageSource.open` 交出 `path` 所指条目的字节。`digest` 是调用方已经核对过的Skill 包快照内容摘要。`open` 分开答找不到包、条目不在、条目解析后落在包根之外，以及来源自己发现的字节不符。来源不核对字节时，Skill 也会核对，见[读取](#读取)。
 
-`skill-host-local` 的 `DirectorySource` 这样实现两个操作：
+`skill-host-local` 还没有成员规格，下面 `DirectorySource` 的行为归本页维护。`DirectorySource` 这样实现两个操作：
 
-1. `snapshot` 按 `locator` 的根目录读出全部条目，算出每个条目的内容摘要与Skill 包快照的内容摘要。包根目录名是根目录路径的最后一段。根目录不在时返回 `package-not-found`。遇到设备、管道、套接字，或无法解析、成环的链接时返回 `entry-unreadable`。包内链接解析后落在根目录之外时返回 `outside-package`。
+1. `snapshot` 按 `locator` 的根目录读出全部条目的字节，交给 `sealSnapshot`，由它算出每个条目的事实与Skill 包快照的内容摘要。包根目录名是根目录路径的最后一段。根目录不在时返回 `package-not-found`。遇到设备、管道、套接字，或无法解析、成环的链接时返回 `entry-unreadable`。包内链接解析后落在根目录之外时返回 `outside-package`。
 2. `open` 读出根目录下 `path` 所指文件此刻的字节。文件不在时返回 `entry-not-found`。实际读取时解析后的位置落在根目录之外时返回 `outside-package`。
 
 `DirectorySource` 只读当前目录，不用内存索引或缓存代替当前目录。所以进程重启不改变判定。目录在内容摘要记下之后被改，当前快照的内容摘要就不等于所钉材料的内容摘要。这时读取带Skill 材料依据，Skill 报 `basis-unavailable`。读取不带Skill 材料依据，Skill 报 `adopted-material-changed`。条目在取快照之后、读字节之前被改，字节就与快照中的条目内容摘要不符，Skill 报 `version-changed`。
@@ -313,7 +313,7 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 
 #### 包格式规则
 
-本小节参考旧材料，按现行架构筛选。旧材料是 `packages.0.0.1.legacy/core/skill-package` 的 `SPEC.md` 与 `README_ZH.md`。它们只作参考，不是依据。下表每一条都写明现行依据层。与现行架构冲突的旧规则不采用。拒绝不设诊断编号，只带拒绝原因与 `detail`。`detail` 是给包作者看的说明，调用方不得据它分支，见成员规格[检查 Skill 包](../skill-contract/SPEC.md#parse)。预算数值见成员规格 [`SKILL.md`](../skill-contract/SPEC.md#manifest) 与 [`.omne/skill.json`](../skill-contract/SPEC.md#declaration)。
+本小节参考旧材料，按现行架构筛选。旧材料是 `packages.0.0.1.legacy/core/skill-package` 的 `SPEC.md` 与 `README_ZH.md`。它们只作参考，不是依据。下表每一条都写明现行依据层。与现行架构冲突的旧规则不采用。拒绝只带原因码与 `detail`。`detail` 是给包作者看的说明，调用方不得据它分支，见成员规格[检查 Skill 包](../skill-contract/SPEC.md#parse)。预算数值见成员规格 [`SKILL.md`](../skill-contract/SPEC.md#manifest) 与 [`.omne/skill.json`](../skill-contract/SPEC.md#declaration)。
 
 | 规则 | 候选决定 | 依据层 |
 | --- | --- | --- |
