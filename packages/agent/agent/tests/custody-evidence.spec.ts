@@ -20,7 +20,7 @@ import {
 } from '@omne-harness/model-contract'
 import type { AgentReceivedRecords } from '@omne-harness/agent-contract'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
-import { acceptedInput, evidence, execution, ok, operation } from './journal-support.ts'
+import { acceptedInput, evidence, execution, ok, operation, tenantB } from './journal-support.ts'
 import { alice, loopAssembly } from './loop-support.ts'
 import { options } from './factory-support.ts'
 
@@ -130,6 +130,17 @@ describe('the Agent custody evidence of a Model ACK', () => {
         result: ok(decodeResultVersion('mrver_another')),
       }),
     ).toMatchObject({ failure: { kind: 'unavailable', dependency: 'consumer-evidence' } })
+  })
+
+  // R2-D262: the record of one tenant confirms nothing for another. Red when the adapter reads the
+  // record without the ACK's own tenant, or confirms it for another tenant.
+  it('confirms nothing for another tenant that presents the saved evidence', async () => {
+    const s = await setup()
+    const saved = await s.push()
+    const adapter = createAgentCustodyEvidence(s.records)
+    expect(await adapter.verify({ ...s.question(saved), tenant: tenantB })).toMatchObject({
+      failure: { kind: 'unavailable', dependency: 'consumer-evidence' },
+    })
   })
 
   it('answers unavailable, never a confirmation, when the record cannot be read', async () => {

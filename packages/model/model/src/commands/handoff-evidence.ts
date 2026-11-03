@@ -15,7 +15,7 @@ import {
 } from '@omne-harness/model-contract'
 import type { ModelCommandCore } from './state.ts'
 import type { CallDocument, HandoffEvidenceInput, ModelCommandsEvidence } from './types.ts'
-import { canonical, checkedEvidence, unavailable } from './value.ts'
+import { canonical, checkedEvidence, invalid, unavailable } from './value.ts'
 
 /** The adapter's answer for one ACK, with what it was asked about. */
 export type HandoffProof = Readonly<{
@@ -30,38 +30,51 @@ function askedOf(context: HandoffEvidenceInput): string {
   return canonical(rest)
 }
 
+/** The adapter of an ACK and what it is asked. */
+export type HandoffQuestion = Readonly<{
+  adapter: ModelCommandsEvidence
+  context: HandoffEvidenceInput
+}>
+
 /**
- * The adapter and the question for `input` on `call`, or null when the write refuses the ACK before
- * it reaches the adapter (the same checks, in the same order).
+ * The one precondition of an ACK on `call`, before its evidence: the call is settled, the ACK names
+ * its result version, the evidence names its frozen consumer owner, and that owner's evidence
+ * adapter is present. Both the read before the fence and the write use it, so they refuse the same
+ * ACKs with the same failures. On success it gives the adapter and the question for it.
  */
 export function handoffQuestion<P>(
   core: ModelCommandCore<P>,
   input: AckInput<P>,
   call: CallDocument,
-): Readonly<{ adapter: ModelCommandsEvidence; context: HandoffEvidenceInput }> | null {
-  if (call.state.phase !== 'settled' || input.result !== call.state.settlement.version) return null
+): Outcome<HandoffQuestion, ModelFailure> {
+  if (call.state.phase !== 'settled') return { failure: { kind: 'not-settled' } }
+  if (input.result !== call.state.settlement.version)
+    return { failure: { kind: 'handoff-invalid', reason: 'result-version' } }
   const source =
     input.evidence.kind === 'processed' ? input.evidence.completion : input.evidence.custody
-  if (source.owner !== call.state.consumer.owner) return null
+  if (source.owner !== call.state.consumer.owner)
+    return { failure: { kind: 'handoff-invalid', reason: 'consumer-owner' } }
   const adapter = core.adapter(call)
-  if ('kind' in adapter) return null
+  if ('kind' in adapter) return { failure: adapter }
   const reference = encodeModelInvocationRef({
     tenant: input.tenant,
     call: input.call,
     admission: call.admission,
   })
-  if ('failure' in reference) return null
+  if ('failure' in reference) return { failure: invalid('call', 'invocation-reference') }
   return {
-    adapter,
-    context: {
-      tenant: input.tenant,
-      call: input.call,
-      consumer: structuredClone(call.state.consumer),
-      execution: call.execution === null ? null : { ...call.execution },
-      result: input.result,
-      evidence: structuredClone(input.evidence),
-      reference: reference.ok,
-      principal: input.principal,
+    ok: {
+      adapter,
+      context: {
+        tenant: input.tenant,
+        call: input.call,
+        consumer: structuredClone(call.state.consumer),
+        execution: call.execution === null ? null : { ...call.execution },
+        result: input.result,
+        evidence: structuredClone(input.evidence),
+        reference: reference.ok,
+        principal: input.principal,
+      },
     },
   }
 }
@@ -72,9 +85,10 @@ export async function readHandoffProof<P>(
   input: AckInput<P>,
 ): Promise<HandoffProof | null> {
   const seen = await core.runRead(input, () =>
-    core.read(input, 'handoff', call => ({ ok: handoffQuestion(core, input, call) })),
+    core.read(input, 'handoff', call => handoffQuestion(core, input, call)),
   )
-  if ('failure' in seen || seen.ok === null) return null
+  // A refusal here is the write's own refusal too: the write gives it.
+  if ('failure' in seen) return null
   const { adapter, context } = seen.ok
   return {
     adapter,
@@ -84,20 +98,17 @@ export async function readHandoffProof<P>(
 }
 
 /**
- * The evidence the write keeps for `input` on `call`: the proof read before the fence when it was
- * read for this very question, a failure of the adapter as it answered, and `unavailable` when the
- * call changed in between or nothing was read.
+ * The evidence the write keeps for `question`, which the write took inside the fence: the proof read
+ * before the fence when it was read for this very question, a failure of the adapter as it
+ * answered, and `unavailable` when the call changed in between or nothing was read. This
+ * comparison is the only guard of the read before the fence (SPEC「ACK 证据在栅栏外读取的证明」).
  */
-export function provenHandoff<P>(
-  core: ModelCommandCore<P>,
-  input: AckInput<P>,
-  call: CallDocument,
+export function provenHandoff(
+  question: HandoffQuestion,
   proof: HandoffProof | null,
 ): Outcome<DurableEvidence, ModelFailure> {
-  const question = handoffQuestion(core, input, call)
   if (
     proof === null ||
-    question === null ||
     question.adapter !== proof.adapter ||
     askedOf(question.context) !== proof.asked
   )
