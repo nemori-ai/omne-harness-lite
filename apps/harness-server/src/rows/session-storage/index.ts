@@ -34,7 +34,11 @@ import {
   sessionPrincipalBindingsKey,
   sessionTransactionsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
-import { createSessionStorage, type SessionStorageOptions } from '@omne-harness/session-storage-sql'
+import {
+  createSessionPrincipalBindings,
+  createSessionStorage,
+  type SessionStorageOptions,
+} from '@omne-harness/session-storage-sql'
 import type {
   CombinationRegistrationV2,
   SqlStorage,
@@ -253,16 +257,17 @@ class TenantDomainLookupImpl extends TenantDomainLookupService {
   }
 }
 
-/** 会话归属读口。session-storage-sql 没有受信的归属读路径（公开读都经访问裁定），所以答 `unavailable`（已知限制）。 */
+/**
+ * 会话归属读口（受信）：session-storage-sql 的 `createSessionPrincipalBindings`，与公开端口同一存储、同一目录快照，
+ * 所以共用工作缓存。它不问访问裁定，只答租户与会话归属；目录没有该租户（未登记）或存储读失败（含关闭中）答
+ * `unavailable`，未知会话与别的租户的会话都答 `not-bound`。读不登记租户。
+ */
 class PrincipalBindingsImpl extends SessionPrincipalBindingsService {
-  readonly read: SessionPrincipalBindingSource['read'] = () =>
-    Promise.resolve(
-      fail<Extract<SessionFailure, { kind: 'unavailable' }>>({
-        kind: 'unavailable',
-        owner: OWNER,
-        diagnostic: 'session ownership read is not implemented in the session storage composite',
-      }),
-    )
+  readonly read: SessionPrincipalBindingSource['read']
+  constructor(ctx: Context, source: SessionPrincipalBindingSource) {
+    super(ctx)
+    this.read = input => source.read(input)
+  }
 }
 
 async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
@@ -298,7 +303,10 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   new DelegatedTransactionsImpl(ctx, checked => delegatedView(base, directory, checked))
   new TenantDomainsImpl(ctx, directory.access)
   new TenantDomainLookupImpl(ctx, directory.lookup)
-  new PrincipalBindingsImpl(ctx)
+  new PrincipalBindingsImpl(
+    ctx,
+    createSessionPrincipalBindings({ storage, domains: directory.access }),
+  )
   return { stop: deadline => directory.close(deadline) }
 }
 
