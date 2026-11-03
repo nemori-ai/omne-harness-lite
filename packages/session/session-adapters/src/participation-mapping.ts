@@ -35,7 +35,8 @@ export function participationFailure(
     // PA-01 item 2: an input Session did not admit is denied; another destination is terminal.
     case 'submit':
       return failure.kind === 'denied' ? { kind: 'denied', action: 'submit' } : { kind: 'terminal' }
-    // PA-02: pending inputs, a cancel under another control or another terminal are changed.
+    // PA-02: pending inputs, a cancel under another control or another terminal are changed. The
+    // provider answers this conflict as FinishResult.changed, not as a failure (Agent SPEC "条件终结").
     case 'tryFinish':
       return { kind: 'changed' }
     case 'commit':

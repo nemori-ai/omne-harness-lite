@@ -22,7 +22,9 @@ import type {
   CommandReceipt,
   DurableEvidence,
   ExecutionMutation,
+  ExecutionRevision,
   Failure,
+  FinishResult,
   ModelReceptionTargets,
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -99,7 +101,7 @@ import {
   type MemoryAgentJournalOptions,
   type MemoryExecution,
 } from '../testing/journal.ts'
-import { JOURNAL_OWNER } from '../testing/journal-values.ts'
+import { JOURNAL_OWNER, revisionOf } from '../testing/journal-values.ts'
 import { controlEventEvidence } from '../testing/control.ts'
 import {
   createCell,
@@ -1633,6 +1635,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         plan,
         adopted: adopted ?? copy.adopted,
         written,
+        prior: prior === undefined ? null : revisionOf(prior.revision),
         scratch,
         answer,
       },
@@ -1666,6 +1669,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     /** The `a` part once the write committed. */
     adopted: AdoptedPart | null
     written: Written
+    /** The revision of the written execution before the write; null when the write opened it. */
+    prior: ExecutionRevision | null
     scratch: Scratch
     answer: Outcome<T, Failure>
   }>
@@ -1736,6 +1741,19 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
+  /**
+   * PA-02: the conflict of the finish check is `FinishResult.changed` at the revision the call was
+   * checked against, never `Failure.changed` (Agent SPEC "条件终结" result table). The caller
+   * reloads and evaluates again; nothing was written.
+   */
+  function finishChanged<T>(job: Settling<T>): Settled<T> {
+    if (job.prior === null)
+      return { kind: 'answer', value: fail(unavailable('a finish check without its execution')) }
+    const changed: FinishResult = { kind: 'changed', revision: job.prior }
+    // The written method is tryFinish, whose answer is a FinishResult.
+    return { kind: 'answer', value: succeed(changed) as Outcome<T, Failure> }
+  }
+
   /** The Session participant stopped the write. */
   function settleSessionStop<T>(
     job: Settling<T>,
@@ -1744,20 +1762,22 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const reply = decodeSessionReply(stop)
     const method = participationOf(job.written.method)
     switch (reply.kind) {
-      case 'stopped':
-        return {
-          kind: 'answer',
-          value: fail(
-            method === null || job.agentOperation === null
-              ? unavailable('a Session stop without a participation')
-              : participationFailure(
-                  method,
-                  reply.failure as SessionFailure,
-                  job.agentOperation,
-                  job.scratch.commands[0]?.kind,
-                ),
-          ),
-        }
+      case 'stopped': {
+        if (method === null || job.agentOperation === null)
+          return {
+            kind: 'answer',
+            value: fail(unavailable('a Session stop without a participation')),
+          }
+        const failure = participationFailure(
+          method,
+          reply.failure as SessionFailure,
+          job.agentOperation,
+          job.scratch.commands[0]?.kind,
+        )
+        return method === 'tryFinish' && failure.kind === 'changed'
+          ? finishChanged(job)
+          : { kind: 'answer', value: fail(failure) }
+      }
       case 'unsupported':
         return { kind: 'answer', value: fail({ kind: 'unsupported' }) }
       default:

@@ -108,7 +108,7 @@ Session 结果到四种参加者响应的对应：
 | 读权威状态失败、存储不可用 | 失败 | 无 |
 | 提交种类不在四种之内，或材料缺项 | 不支持 | 无 |
 
-- `attach` 上的「冲突」译为 Agent 的 `denied`：推进资格依据的共同核对失败，恢复者停止并交恢复协调（[PM-05](../session-contract/SPEC.md#pm-05)），不译为 `changed`。`open` 的来源核对冲突同样译为 `denied`。`submit` 的冲突：输入不是 Session 已受理的输入时译为 `denied`，其他依据译为 `terminal`。`tryFinish` 的冲突译为 `changed`。
+- `attach` 上的「冲突」译为 Agent 的 `denied`：推进资格依据的共同核对失败，恢复者停止并交恢复协调（[PM-05](../session-contract/SPEC.md#pm-05)），不译为 `changed`。`open` 的来源核对冲突同样译为 `denied`。`submit` 的冲突：输入不是 Session 已受理的输入时译为 `denied`，其他依据译为 `terminal`。`tryFinish` 的冲突译为成功答复 `FinishResult.changed`，revision 是这次核对所用的执行修订；不译为 `Failure.changed`（Agent SPEC「条件终结」结果表）。两侧都不写入。
 - 派生 Session 参加的资格核对（`sessionAccessCheck`，装配页 `agent-journal` 行）在写入前进行，不是参加者在事务里的响应。拒绝译为 Agent 的 `denied`，核验不可用译为 `unavailable`。两者都不写入，也不开存储代次。拒绝的 action 是本次 Journal 方法名（`commit` 或 `recordResult`），在 Agent 契约 U-32 写定之前按这个现状实现（P6 决策记录）。
 - 生产提供者的对应表在 `src/participation-mapping.ts`，只有一份。
 - 参加提交成功后，本插件把回执与修订交给 Session 记入 `ExecutionRef`（[PA-04](../session-contract/SPEC.md#pa-04) 第 2 项）。
