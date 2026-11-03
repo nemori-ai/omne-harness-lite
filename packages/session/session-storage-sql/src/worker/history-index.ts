@@ -288,67 +288,89 @@ function fold(index: SessionRowsIndex, scope: Scope, rows: readonly Planted[]): 
   const added: AttemptRow[] = []
   let again = false
   for (const row of rows) {
-    const { data } = row
-    switch (row.entry.kind) {
-      case 'intake.routed':
-        index.routed.set(String(data['input']), Object.freeze(rowEvidence(scope, row)))
-        break
-      case 'run.started': {
-        const run = String(data['run'])
-        const execution = String(data['execution'])
-        index.starts.set(
-          execution,
-          Object.freeze({
-            run: data['run'] as RunId,
-            started: Object.freeze(rowEvidence(scope, row)),
-          }),
-        )
-        if (index.attemptRows.some(item => String(item.run) === run)) again = true
-        index.runs.set(run, execution)
-        index.active = execution
-        break
-      }
-      case 'run.attempt-started': {
-        const attempt: AttemptRow = Object.freeze({
-          run: data['run'],
-          attempt: data['attempt'],
-          ordinal: String(data['ordinal']),
-          started: Object.freeze(rowEvidence(scope, row)),
-        })
-        index.attemptRows.push(attempt)
-        added.push(attempt)
-        break
-      }
-      case 'run.terminal':
-        index.active = null
-        break
-      case 'control.requested': {
-        const progress = data['progress'] as { operation?: unknown } | undefined
-        if (typeof progress?.operation === 'string')
-          index.controls.push(
-            Object.freeze({
-              operation: progress.operation as SessionOperationId,
-              execution: index.active,
-            }),
-          )
-        break
-      }
-    }
+    if (foldRow(index, scope, row, added)) again = true
     index.count += 1
   }
   if (again) {
     index.attempts = []
     index.attemptsByRun = new Map()
-    for (const row of index.attemptRows) {
-      const record = resolved(index, row)
-      if (record !== null) addAttempt(index, record)
-    }
-    return
   }
-  for (const row of added) {
+  for (const row of again ? index.attemptRows : added) {
     const record = resolved(index, row)
     if (record !== null) addAttempt(index, record)
   }
+}
+
+/**
+ * Folds one row into `index`; an SE15 row goes to `added` too. True for an SE13 row of a Run that
+ * already has SE15 rows: those resolve otherwise now.
+ */
+function foldRow(
+  index: SessionRowsIndex,
+  scope: Scope,
+  row: Planted,
+  added: AttemptRow[],
+): boolean {
+  switch (row.entry.kind) {
+    case 'intake.routed':
+      index.routed.set(String(row.data['input']), Object.freeze(rowEvidence(scope, row)))
+      return false
+    case 'run.started':
+      return foldStart(index, scope, row)
+    case 'run.attempt-started': {
+      const attempt = attemptRowOf(scope, row)
+      index.attemptRows.push(attempt)
+      added.push(attempt)
+      return false
+    }
+    case 'run.terminal':
+      index.active = null
+      return false
+    case 'control.requested':
+      foldControl(index, row)
+      return false
+  }
+  return false
+}
+
+/** An SE13 row: the Run starts its execution, which is active from now on. */
+function foldStart(index: SessionRowsIndex, scope: Scope, row: Planted): boolean {
+  const { data } = row
+  const run = String(data['run'])
+  const execution = String(data['execution'])
+  index.starts.set(
+    execution,
+    Object.freeze({
+      run: data['run'] as RunId,
+      started: Object.freeze(rowEvidence(scope, row)),
+    }),
+  )
+  const again = index.attemptRows.some(item => String(item.run) === run)
+  index.runs.set(run, execution)
+  index.active = execution
+  return again
+}
+
+function attemptRowOf(scope: Scope, row: Planted): AttemptRow {
+  const { data } = row
+  return Object.freeze({
+    run: data['run'],
+    attempt: data['attempt'],
+    ordinal: String(data['ordinal']),
+    started: Object.freeze(rowEvidence(scope, row)),
+  })
+}
+
+/** A Session control names the execution active when it was requested. */
+function foldControl(index: SessionRowsIndex, row: Planted): void {
+  const progress = row.data['progress'] as { operation?: unknown } | undefined
+  if (typeof progress?.operation === 'string')
+    index.controls.push(
+      Object.freeze({
+        operation: progress.operation as SessionOperationId,
+        execution: index.active,
+      }),
+    )
 }
 
 /** The fingerprint of the log row at `position`: its revision, kind and the digest of its text. */
@@ -399,16 +421,58 @@ const viewOf = (index: SessionRowsIndex): SessionRowsView => ({
  * the next call builds again. Rows of a revision past the journal tail are rows of the open
  * transaction: they are folded into a copy for this call and never kept, since that transaction
  * may still roll back.
+ *
+ * A row whose revision is not past the journal tail is taken as committed. That holds only because
+ * the `session` participant is `grouping: 'singleton'`: each write transaction carries one
+ * operation, and the participant reads the index before it moves the tail. In a group commit a
+ * later operation would see the tail that an earlier operation of the group moved, and keep rows
+ * that the group can still roll back. A groupable `session` participant needs another design of
+ * this cache first (SPEC 已知限制第 21 条).
  */
 function sessionRows(read: Reader, port: Executor, scope: Scope): SessionRowsView {
   const key = JSON.stringify([scope.tenant, scope.session])
-  let base = kept.get(key)
-  if (base !== undefined && anchorAt(port, scope, base.through) !== base.anchor) {
-    kept.delete(key)
-    base = undefined
-  }
+  const base = provenBase(port, scope, key)
   const from = base?.through ?? 0n
   read.charge(base?.count ?? 0)
+  const after = rowsAfter(read, port, scope, from)
+  if (after.added === 0n) {
+    if (base === undefined) return viewOf(emptyIndex())
+    keep(key, base)
+    return viewOf(base)
+  }
+  if (base !== undefined && after.last - from !== after.added) {
+    kept.delete(key)
+    throw new Error(
+      `the history index found a gap in the Session log after position ${String(from)}: ${String(after.added)} rows up to position ${String(after.last)}`,
+    )
+  }
+  const planted = after.rows.map(plant)
+  const committed = after.top <= journalTail(port, scope)
+  const index = base === undefined ? emptyIndex() : committed ? base : cloneIndex(base)
+  try {
+    fold(index, scope, planted)
+    index.through = after.last
+    index.anchor = anchorAt(port, scope, after.last) ?? ''
+  } catch (error) {
+    if (index === base) kept.delete(key)
+    throw error
+  }
+  if (committed) keep(key, index)
+  return viewOf(index)
+}
+
+/** The kept index of `key` when the log row at its cursor still has its fingerprint; else none. */
+function provenBase(port: Executor, scope: Scope, key: string): SessionRowsIndex | undefined {
+  const base = kept.get(key)
+  if (base === undefined || anchorAt(port, scope, base.through) === base.anchor) return base
+  kept.delete(key)
+  return undefined
+}
+
+/** The rows after `from`: those of the five kinds, and the count, last position and top revision of all. */
+type RowsAfter = Readonly<{ rows: readonly Row[]; added: bigint; last: bigint; top: bigint }>
+
+function rowsAfter(read: Reader, port: Executor, scope: Scope, from: bigint): RowsAfter {
   const rows = read(
     `SELECT position, revision, entry FROM sl_entry
       WHERE tenant = ? AND session = ? AND kind IN ${INDEXED_KINDS} AND position > ?
@@ -422,36 +486,18 @@ function sessionRows(read: Reader, port: Executor, scope: Scope): SessionRowsVie
     [scope.tenant, scope.session, from],
   )
   const added = after === undefined ? 0n : big(after['n'])
-  if (added === 0n) {
-    if (base === undefined) return viewOf(emptyIndex())
-    keep(key, base)
-    return viewOf(base)
-  }
-  const last = big(after?.['last'])
-  if (base !== undefined && last - from !== added) {
-    kept.delete(key)
-    throw new Error(
-      `the history index found a gap in the Session log after position ${String(from)}: ${String(added)} rows up to position ${String(last)}`,
-    )
-  }
-  const planted = rows.map(plant)
+  return added === 0n
+    ? { rows, added, last: from, top: 0n }
+    : { rows, added, last: big(after?.['last']), top: big(after?.['top']) }
+}
+
+function journalTail(port: Executor, scope: Scope): bigint {
   const journal = oneRow(
     port,
     'SELECT tail FROM sl_journal WHERE tenant = ? AND session = ? LIMIT 1',
     [scope.tenant, scope.session],
   )
-  const committed = big(after?.['top']) <= (journal === undefined ? 0n : big(journal['tail']))
-  const index = base === undefined ? emptyIndex() : committed ? base : cloneIndex(base)
-  try {
-    fold(index, scope, planted)
-    index.through = last
-    index.anchor = anchorAt(port, scope, last) ?? ''
-  } catch (error) {
-    if (index === base) kept.delete(key)
-    throw error
-  }
-  if (committed) keep(key, index)
-  return viewOf(index)
+  return journal === undefined ? 0n : big(journal['tail'])
 }
 
 /**
