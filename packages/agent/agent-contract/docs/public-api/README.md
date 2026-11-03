@@ -37,7 +37,7 @@ ProgressionDirective 是 Loop 下一步所需的具体推进要求，不是权�
 
 AdvancementFact 是执行挂接状态、执行状态和控制记录的只读投影，不是独立状态。它与这三者的对应关系见[对象模型](../object-model.md#状态与转移)。
 
-AgentCheckpoint 的 `compaction` 记录 `step` 所标识的那一次请求准备进入的压缩计划及其进度，新 step 开始时清空。`adoptedContext` 记录最近一次最终请求采用的 Runtime Context 覆盖，新 execution 开始时为空。`encode` 与 `decode` 覆盖这两个字段：`compaction` 的进度、`stepRequest`、`initiated` 与 `ended` 逐项编码，`adoptedContext` 按 DurableEvidence 编码，解码时核对它们属于 checkpoint 的 `step` 与本 execution，不属于时返回 invalid。行为见 SPEC 的“[请求准备与压缩](../../SPEC.md#请求准备与压缩)”和“[Runtime Context 的消费](../../SPEC.md#runtime-context-的消费)”。`RuntimeConditions.model` 是设置侧当前选择的采用依据，不是实际收件模型。
+AgentCheckpoint 的 `compaction` 记录 `step` 所标识的那一次请求准备进入的压缩计划及其进度，新 step 开始时清空。`adoptedContext` 记录最近一次最终请求采用的 Runtime Context 覆盖，新 execution 开始时为空。`adoptedRequest`（`AdoptedRequest`）记录最近一次主用途最终请求：`reference` 是调用引用，`fixed` 是 ready 准备的 `source`，`schema` 与 `record` 是 ready 准备的 `schema` 与 `state`。只有主用途的 M0 写它，下一次主用途的 M0 替换它，新 execution 开始时为 null。它先是可选字段，`decode` 在它存在时保留，不存在时不补。`encode` 与 `decode` 覆盖这两个字段：`compaction` 的进度、`stepRequest`、`initiated` 与 `ended` 逐项编码，`adoptedContext` 按 DurableEvidence 编码，解码时核对它们属于 checkpoint 的 `step` 与本 execution，不属于时返回 invalid。行为见 SPEC 的“[请求准备与压缩](../../SPEC.md#请求准备与压缩)”和“[Runtime Context 的消费](../../SPEC.md#runtime-context-的消费)”。`RuntimeConditions.model` 是设置侧当前选择的采用依据，不是实际收件模型。
 
 `AgentCheckpoint.guard` 是 Agent 自持的守卫事实，即循环守卫阶梯的最新判断。`initial` 返回的 checkpoint 中它为 null，表示尚无判断，L0 的观测始终保留。它只由调模型之后位置上的循环判断这一受信系统扩展计算：该扩展经执行历史读取能力读本执行已可靠保存的原始工作事实（模型调用与回复、回复准入结论、动作批与结果、它自己以往卡片轮次的结果、费用、step），不读压缩后的视图，再经守卫判断记录能力把判断记入其 Passage 的 `guard` 操作，效果采纳时 Agent 把它写入本字段。`GuardFact` 的 `level` 是 L0 至 L3 的阶梯级别，L4 不记为守卫事实，它是该扩展的 `ask` 输出，`policy` 是该扩展检测算法与阈值的精确采用，`through` 是判断读到的事实范围，`basis` 是判断依据的记录，`passage` 是形成判断的扩展调用，`at` 是判断时刻。本字段随 checkpoint 持久：压缩、崩溃、换执行挂接与 runtime 换代都不清零，新 step 不清零，runtime 顺序复用不沿用上一执行的值。循环判断不可用时本字段保持上一次的值，Agent 不伪造判断。`encode` 与 `decode` 逐项编码本字段，解码时核对 `passage` 属于本 execution。I8 读本字段决定 L3 的失败候选，L4 的人工等待是该扩展调用的卡片等待，L1、L2 的干预消息由该扩展以 `inject` 给出。承载形状只对受信系统扩展开放，作者协议的输出与位置输出表不变，见扩展作者协议的[输入](extensions.md#输入)。行为见 SPEC 的“[循环守卫](../../SPEC.md#循环守卫)”。
 
@@ -87,6 +87,8 @@ readReplyAdmissions 读固定范围 `(from, through]`：`from` 必填，为 orig
 `beforeModelCall` 为 null 表示调模型之前位置尚未经过，结果的装得下种类是 `assembled`。它是数组时表示该位置已经经过，数组列出该位置这一次经过中的扩展调用，没有适用扩展时为空数组，结果的装得下种类是 `ready`。`purpose` 为 `extension` 时总是传空数组：扩展用途的请求不经过该位置，装得下的结果直接是 `ready`。这类请求返回 `needs-compaction` 时不进入压缩计划，规则见[扩展作者协议](extensions.md#压缩用途与扩展用途的模型调用)。
 
 `needs-compaction` 的 `original` 绑定触发压缩的那次 prepare 的完整输入：`input` 是全部输入的依据，`alterations` 与 `beforeModelCall` 原样记录。`resume` 从 `original` 与压缩转换依据重算，不另接收 `beforeModelCall`。它返回的装得下种类由 `original.beforeModelCall` 决定：null 得 `assembled`，数组得 `ready`。
+
+`Preparation.state` 是准备方的不透明状态，Agent 原样保存与传回：同一步的下一次 `prepare` 经 `previous` 收到它，主用途的最终请求记录把 ready 准备的 `state` 存入 `AgentCheckpoint.adoptedRequest.record`。`schema` 是这份状态的格式采用。Agent 不解码它，也不从它推出任何判断。
 
 `CompactionProgress` 的三项都由 Context 的计划给出，`bound` 与 `completed` 是非负十进制整数编码。压缩的每一步是 `purpose` 为 `compaction` 的 ready 准备，在 `CompactionAdvance.continue` 中是 `stepRequest`。`CompactionState` 保存在 checkpoint 的 `compaction`，它属于 checkpoint 的 `step` 所标识的那一次请求准备，新 step 开始时清空。`CompactionState.initiated` 是 Agent 自持的已发起步数，非负十进制整数编码，每发起一步加一并随 checkpoint 提交，崩溃后用它认回同一步。`stepRequest` 是尚未发起或在途的下一步请求。行为见“[请求准备与压缩](../../SPEC.md#请求准备与压缩)”和“[无法装下](../../SPEC.md#无法装下)”。
 
