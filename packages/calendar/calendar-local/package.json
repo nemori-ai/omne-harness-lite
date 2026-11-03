@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Local service backend for calendar; initialized draft without business exports",
+  "description": "Local SQLite persistence for calendar publication and reaction handoff",
   "engines": {
     "node": ">=24"
   },
@@ -34,11 +34,14 @@
     "@omne-harness/calendar": "workspace:*",
     "@omne-harness/calendar-contract": "workspace:*",
     "@omne-harness/calendar-cordis-contract": "workspace:*",
-    "@omne-harness/sql-contract": "workspace:*"
+    "@omne-harness/sql-contract": "workspace:*",
+    "canonicalize": "5.1.0",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness/sqlite-provider": "workspace:*"
   }
 }
