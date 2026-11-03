@@ -223,6 +223,14 @@ export function createConnectionTable<P, S>(
 ): ConnectionTable<P> {
   const entries = new Map<string, Entry>()
   const byConnection = new WeakMap<Connection, Entry>()
+  // The generation a closed connection of each key reached: a new connection of the key continues
+  // the count, so no generation is used twice in one run (invariant 2).
+  const lastGeneration = new Map<string, Generation>()
+
+  function forget(entry: Entry): void {
+    lastGeneration.set(entry.keyText, entry.connection.generation)
+    entries.delete(entry.keyText)
+  }
 
   const entriesOf = (tenantText: string, holding: EndpointHolding): Entry[] =>
     [...entries.values()].filter(
@@ -276,7 +284,7 @@ export function createConnectionTable<P, S>(
     await closeTransport(entry)
     const scope = await stopProcesses(entry)
     await releaseCredential(entry)
-    if (entry.lingering.length === 0) entries.delete(entry.keyText)
+    if (entry.lingering.length === 0) forget(entry)
     return scope
   }
 
@@ -295,7 +303,7 @@ export function createConnectionTable<P, S>(
       if (other.keyText === keep) continue
       await closeEntry(other)
       lingering.push(...other.lingering)
-      entries.delete(other.keyText)
+      forget(other)
     }
     return lingering
   }
@@ -463,7 +471,7 @@ export function createConnectionTable<P, S>(
       tenantText,
       keyText,
       catalogKey: catalogKeyOf(access.tenant, admitted, account.ok),
-      connection: new Connection(key, policy),
+      connection: new Connection(key, policy, lastGeneration.get(keyText)),
       transport: undefined,
       process: undefined,
       credential: undefined,

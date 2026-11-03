@@ -4,11 +4,13 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   parseEndpointBody,
+  peerAccountOf,
   type ConnectionFailure,
   type ConnectionTarget,
   type CredentialBinding,
   type EndpointDefinition,
   type Millis,
+  type PeerAccount,
   type Refusal,
 } from '@omne-harness/mcp-contract'
 import type { AdoptedEndpoint, ProcessSetting } from '@omne-harness/mcp-contract/provider'
@@ -73,4 +75,23 @@ export function prepareSettings(
       values.push(value)
     }
   return succeed({ definition, binding, target, bound, values, credentialVariables })
+}
+
+export type ReadAccount = Readonly<{ definition: EndpointDefinition; account: PeerAccount }>
+
+/**
+ * The peer account for an operation that does not connect (`current`, `peer`; SPEC S4): only the
+ * credential setting is needed, and a missing one is `config-missing` (K1).
+ */
+export function readAccountOf(adopted: AdoptedEndpoint): Outcome<ReadAccount, Refusal> {
+  const parsed = parseEndpointBody(adopted.body, adopted.ref.name)
+  if ('failure' in parsed) return fail(UNKNOWN)
+  const definition = parsed.ok
+  const { credential } = adopted.settings
+  if (definition.auth !== 'none' && credential.kind === 'invalid')
+    return fail({ kind: 'config-invalid', item: 'credential' })
+  const binding = credential.kind === 'value' ? credential.value : undefined
+  const account = peerAccountOf(definition.auth, binding)
+  if ('failure' in account) return fail({ kind: 'config-missing', item: 'credential' })
+  return succeed({ definition, account: account.ok })
 }
