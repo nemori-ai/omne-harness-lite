@@ -8,7 +8,7 @@
 
 1. `EndpointInspection` 判定接入点正文。存在但非法的来源给出拒绝原因，不当作空来源。
 2. `Connections.ensure` 经 `AdoptionView` 取得已采用的接入点、正文与非秘密配值。
-3. `Connections.ensure` 经 `UseEligibility.check` 核对本次使用资格。只有 `granted` 才继续。本机命令型接入点未由使用租户开启时，答复是 `refused`，原因是 `local-command-not-enabled`。
+3. `Connections.ensure` 经 `UseEligibility.check` 核对本次使用资格。只有 `granted` 才继续。`refused` 的原因分两类：无使用资格（`not-eligible`），或有资格但被设置挡下（`local-command-not-enabled`、`disabled`）。本机命令型接入点未由使用租户开启时，原因是 `local-command-not-enabled`。两类原因怎样交给读面，见[工程设计的 MCP 声明的端口](architecture.md#mcp-声明的端口)。
 4. 需要鉴权时，`Connections` 经 `CredentialUse.acquire` 取得凭据句柄与对端账号。认证方式为 `none` 时，对端账号是 `anonymous`。凭据缺失或被拒时停止，不退回其他凭据。
 5. `Connections` 用对端账号组成 `ConnectionKey`，按它取得或建立 MCP 连接。
 6. stdio 接入点：代际加一，再经 `ProcessLanding.start(access, launch, env)` 取得本机进程。`env` 是非秘密配值加凭据句柄，秘密值由执行环境注入。落点或设施不成立时停止，不静默落到宿主。
@@ -44,6 +44,8 @@ flowchart TD
 
 `ActionDiscovery.refresh` 在当前资格和 MCP 连接条件成立时调用 `McpTransport.listActions`，校验内容与来源后经 `mergeListing` 整份发布。`projectAction` 把每个 MCP 已知动作投影成工具条目形状，保留接入点关联，不建立独立持有。
 
+清单从未取得时报告「尚未取得」，与「已取得、动作有零个」分开。只有全部分页取完、每项合法、对端动作名不重复时才采用。逐动作权限项只在清单已取得后派生，见[设置声明与逐动作权限](architecture.md#设置声明与逐动作权限)。
+
 无法发现不表示动作有零个。MCP 已知动作保留最近合法形状与安全的不可用原因；从未发现过的动作不生成。对已知不可用动作的调用由 Tool 承接为 dummy，不启动原远端动作或真实原工具资源，真实替换开销及消费事实有人记录。
 
 ## F-MC03 刷新竞争与后续采用
@@ -78,7 +80,7 @@ sequenceDiagram
 这一节是[领域流程 F-MC04](../../../docs/domains/mcp/key-flows.md#f-mc04-动作准入至可靠结果)在本组内的部分。Tool 准入与结果保管不在本组。
 
 1. 调用方交来已经准入的固定请求，调用 `ActionInvoker.invoke`。
-2. `ActionInvoker` 核对目标仍是可用的 MCP 已知动作，并经 `UseEligibility.check` 再核当前使用资格。答复不是 `granted`，或 MCP 已知动作不可用时，返回「未发出」失败。
+2. `ActionInvoker` 先经 `UseEligibility.check` 再核当前使用资格，再核对目标仍是可用的 MCP 已知动作。答复不是 `granted`，或 MCP 已知动作不可用时，返回「未发出」失败。
 3. `ActionInvoker` 经 `Connections` 取得本租户、本对端账号的 MCP 连接，记下代际。
 4. `McpTransport.call` 发出 `tools/call`。
 5. `classifyOutcome` 把应答分为六种[调用结果](architecture.md#调用结果)。已发出但无应答时为 `unknown`。

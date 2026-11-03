@@ -28,7 +28,7 @@ MCP 是需求方。它用自己的词声明下面四个跨领域端口，由集�
 | `CredentialUse` | 凭据保管方（settings 的[秘密保管](../../../packages/assets/settings/SPEC.md#failure-and-recovery)）与获准的认证适配 | 凭据句柄与对端账号。句柄是本租户这份持有上的 MCP 凭据的一次受限使用能力。认证方式为 `none` 时，对端账号不由本端口给出，MCP 取固定值 `anonymous` | 秘密值本身；组织、官方或其他租户的凭据 |
 | `ProcessLanding` | [执行环境](../execution-environments/README.md) | 本机命令型接入点的本机进程，落在获准的落点与设施上。执行环境起进程时，用 MCP 交来的凭据句柄把秘密值注入进程环境 | 落点选择权；失败后落到宿主的降级；秘密值（不经过 MCP） |
 | `AdoptionView` | 资产求值与[装配](../assembly-and-handoff/README.md) | 已采用的接入点及其正文，连同设置求值得出的非秘密配值与采用依据 | 求值过程；使用资格；MCP 不保存采用 |
-| `UseEligibility` | [身份与授权](../identity-and-authorization/README.md) | 本次使用这个接入点的当前资格：`granted`、`refused`（带原因）或 `unknown`。本机命令型接入点未由使用租户开启时答 `refused`，原因是 `local-command-not-enabled`。MCP 在 `ProcessLanding.start` 之前必须得到 `granted` | 缓存的结论，撤权在下一次使用时生效；接入点是否存在（对无权主体，答复不随它变） |
+| `UseEligibility` | [身份与授权](../identity-and-authorization/README.md) | 本次使用这个接入点的当前资格：`granted`、`refused`（带原因）或 `unknown`。`refused` 的原因分两类：无使用资格（`not-eligible`）；有资格但被设置挡下（`local-command-not-enabled`，即本机命令型接入点未由使用租户开启；或 `disabled`）。MCP 在 `ProcessLanding.start` 之前必须得到 `granted` | 缓存的结论，撤权在下一次使用时生效；接入点是否存在（对无权主体，答复不随它变）；对无使用资格的主体，被设置挡下的原因 |
 
 `AdoptionView` 只回答采用，`UseEligibility` 只回答使用资格，两者各自交出结论。逐动作的准入不在这两个端口里，归 Tool 的准入。
 
@@ -38,12 +38,14 @@ MCP 是需求方。它用自己的词声明下面四个跨领域端口，由集�
 
 | 能力（候选） | 接收方 | 交接 |
 | --- | --- | --- |
-| `EndpointInspection` | 资产与装配 | 按 assets [类别提供方](../../../packages/assets/assets/SPEC.md#category-provider)接入 MCP 类别。加载期就能判定接入点可能启动本机命令 |
+| `EndpointInspection` | 资产与装配 | 按 assets [类别提供方](../../../packages/assets/assets/SPEC.md#category-provider)接入 MCP 类别。加载期就能判定接入点可能启动本机命令。声明四项固定设置，并在 MCP 动作清单已取得时声明逐动作权限 `execute:<对端动作名>`；权限判定在 Tool 的准入中执行。现行 `deriveDeclarations` 不接收动作清单，见下文剩余义务 |
 | `ActionDiscovery` | 将来的 Tool 工具目录桥接来源；独立程序 | 当前 MCP 动作清单与投影出的工具条目形状。接入 Tool 待新 RFC，见下节 |
 | `ActionInvoker` | 将来的 Tool 实现提供者；独立程序 | 按已准入的固定请求发出协议请求，交回调用结果。原调用、等待和结果由 Tool 保管 |
-| `EndpointStatus` | 管理与查询读面 | 接入点、MCP 连接与 MCP 动作清单的状态，不含秘密值。对无权主体返回 `not-available-to-you`，与「不存在」不可区分 |
+| `EndpointStatus` | 管理与查询读面 | 接入点、MCP 连接与 MCP 动作清单的状态，不含秘密值。对无权主体返回 `not-available-to-you`，与「不存在」不可区分。主体有使用资格、但接入点被设置挡下时，给出该原因 |
 
 MCP 不知道接收方是 Tool 还是独立程序。依据层：同上。
+
+逐动作权限的声明路径有一项剩余义务：资产 SPEC 的 `deriveDeclarations(body, context)` 不接收 MCP 动作清单，须扩展上下文或另立接缝。拥有者：资产 SPEC 的拥有者与 mcp-contract 的维护者。规则见[组工程设计](../../../packages/mcp/docs/architecture.md#设置声明与逐动作权限)。
 
 ## 与 Tool 接入的两项差异
 
@@ -58,8 +60,9 @@ MCP 不知道接收方是 Tool 还是独立程序。依据层：同上。
 
 | 组合保证 | 承担者 | 参与方 | 失败归谁 |
 | --- | --- | --- | --- |
-| MCP 连接与 MCP 动作清单不跨租户、不跨对端账号 | MCP 的连接提供者与发现协调者 | 凭据保管方核实际秘密的租户绑定 | 绑定不符时凭据保管方拒绝；MCP 不发起 |
+| MCP 连接不跨租户、不跨对端账号；MCP 动作清单按租户、对端账号与接入点持有分开 | MCP 的连接提供者与发现协调者 | 凭据保管方核实际秘密的租户绑定 | 绑定不符时凭据保管方拒绝；MCP 不发起 |
 | 断流后效果未知、不自动重发 | Tool 的原调用 | MCP 报 `unknown` 并记录对协议的偏离，见 [Q-MC04](../../../packages/mcp/docs/architecture.md#q-mc04-原调用dummy可靠结果和恢复的组合协议) | 由原调用的合法调用方决定核查、补偿或另起动作 |
 | 需要输入与长任务不丢失 | Tool 的原调用 | MCP 交回 `requestState` 或 `taskId`，见[领域流程 F-MC04](key-flows.md#f-mc04-动作准入至可靠结果) | 保存失败的处置归 Tool 的[内部等待与有效答复](../../../packages/tool/tool-contract/SPEC.md#内部等待与有效答复) |
 | 本机进程不落到未获准的位置 | 执行环境 | MCP 在资格为 `granted` 之后交出启动声明与 `env`（非秘密配值加凭据句柄） | 落点不成立时执行环境拒绝；MCP 不连接 |
 | MCP 动作进入工具目录 | Tool 契约的维护者（新 RFC） | MCP 交出清单与投影 | RFC 采用前不接入 |
+| 逐动作权限生效 | Tool 的准入 | MCP 声明权限项；资产求值给出各层配值 | 清单未取得时没有 MCP 已知动作，也没有权限项；判定失败归 Tool 准入 |

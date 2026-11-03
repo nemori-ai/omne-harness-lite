@@ -37,7 +37,12 @@ MCP 一侧，`ActionInvoker.cancel` 按传输发出取消信号，见[组内调�
 2. 官方规格要求客户端用新请求号重新发出断流的请求。MCP 对 `tools/call` 不这样做，偏离记录见 [Q-MC04](../../../packages/mcp/docs/architecture.md#q-mc04-原调用dummy可靠结果和恢复的组合协议)。
 3. Tool 的原调用保留未知。核查、补偿或另起一次调用由合法调用方决定，见架构[中断与失联](../../architecture/runtime/tool-runtime.md#中断与失联)。
 4. 重连产生新的连接代际。旧代际的迟到响应不改变新状态。
-5. 原调用在新代际上继续时，Streamable HTTP 现代对端可以用保存的 `requestState` 与 `taskId` 继续；stdio 上 MCP 返回 `unknown`，Tool 按未知处理。规则见[组工程设计的应用服务](../../../packages/mcp/docs/architecture.md#应用服务)。
+5. 原调用在新代际上继续时，按传输与对端时代分开处理，见下表。MCP 返回 `unknown` 时，Tool 按未知处理。规则见[组工程设计的应用服务](../../../packages/mcp/docs/architecture.md#应用服务)。
+
+| 操作 | Streamable HTTP 现代对端 | Streamable HTTP 旧对端 | stdio |
+| --- | --- | --- | --- |
+| `continueWithInput`、`queryTask` | 用保存的 `requestState` 与 `taskId` 继续 | 在途状态属于旧会话，返回 `unknown` | 旧进程的在途状态无法证明，返回 `unknown` |
+| `cancel` | 代际已换时返回 `unknown` | 同左 | 同左 |
 
 ## F-MC07 独立消费和有资格的查询
 
