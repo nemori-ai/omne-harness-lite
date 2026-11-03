@@ -8,7 +8,7 @@
 // monotonic clock and does not judge them.
 import type { Outcome } from '@omne-harness/operation-result'
 import type { HistoryPage, SessionHistory } from '@omne-harness/session-contract'
-import type { ReadResult, SqlStorage } from '@omne-harness/sql-contract'
+import type { ReadRequest, ReadResult, SqlStorage } from '@omne-harness/sql-contract'
 
 /** The counts of one round (J6 table). `null` is a count whose source is not built into the world yet. */
 export type RoundCount = Readonly<{
@@ -107,11 +107,44 @@ function rowsOf(result: ReadResult): number {
   )
 }
 
+/** One model view read of the AD-04 read path: its upper bound and the rows it handed out. */
+export type Ad04Read = Readonly<{ upper: bigint; rows: readonly bigint[] }>
+
+/**
+ * The identities behind `ad04ProjectedRows` and `ad04StableRecompute` of one round (R2-D78): each
+ * AD-04 read with the history sequences of the rows it handed out, and the sequences of the rows an
+ * earlier AD-04 read had handed out, in the order they came again. Kept apart from `RoundCount`,
+ * whose items J6 compares across the rounds.
+ */
+export type Ad04RoundRows = Readonly<{
+  round: number
+  reads: readonly Ad04Read[]
+  rereads: readonly bigint[]
+}>
+
+/**
+ * One read of `execution-record.parts` (R2-D81): its `since`, `after` and `parts` input, and the
+ * parts of the page with the text length of each (the length of its state as JSON text, as the read
+ * handler measures it against its page budget; a dropped part is 0).
+ */
+export type PartsRead = Readonly<{
+  since: string | null
+  after: string | null
+  names: readonly string[] | null
+  parts: readonly Readonly<{ part: string; text: number }>[]
+  next: string | null
+}>
+
+/** The `execution-record.parts` reads of one round, in order. Kept apart from `RoundCount`. */
+export type PartsRoundReads = Readonly<{ round: number; reads: readonly PartsRead[] }>
+
 export type RoundCounters = ReturnType<typeof createRoundCounters>
 
 /** The per-round counters. `begin` opens a round, `end` closes it and keeps its counts. */
 export function createRoundCounters() {
   const rounds: RoundCount[] = []
+  const ad04Rows: Ad04RoundRows[] = []
+  const partsRounds: PartsRoundReads[] = []
   /** The reads the storage refused, with the handler and the answer: a long run names its limit here. */
   const refusedReads: { handler: string; answer: unknown }[] = []
   let open: Open | null = null
@@ -123,6 +156,9 @@ export function createRoundCounters() {
   let rereads = 0
   let ad04Projected = 0
   let ad04Rereads = 0
+  let ad04Reads: Ad04Read[] = []
+  let ad04Again: bigint[] = []
+  let partsReads: PartsRead[] = []
 
   const fresh = (round: number): Open => ({
     round,
@@ -154,6 +190,8 @@ export function createRoundCounters() {
 
   const counters = {
     rounds,
+    ad04Rows,
+    partsRounds,
     refusedReads,
     begin(round: number): void {
       if (open !== null) throw new Error(`round ${open.round} is still open`)
@@ -162,6 +200,9 @@ export function createRoundCounters() {
       rereads = 0
       ad04Projected = 0
       ad04Rereads = 0
+      ad04Reads = []
+      ad04Again = []
+      partsReads = []
     },
     end(): RoundCount {
       if (open === null) throw new Error('no round is open')
@@ -175,6 +216,8 @@ export function createRoundCounters() {
         ad04StableRecompute: ad04Rereads,
       }
       rounds.push(count)
+      ad04Rows.push({ round: current.round, reads: ad04Reads, rereads: ad04Again })
+      partsRounds.push({ round: current.round, reads: partsReads })
       return count
     },
     /** One storage commit: counted once for each participant that has a command in it. */
@@ -195,6 +238,10 @@ export function createRoundCounters() {
         current.storageCommitBytes += bytes
         for (const participant of new Set(participants)) bump(current.storageCommits, participant)
       })
+    },
+    /** One read of `execution-record.parts`, with its input and the parts it returned. */
+    partsRead(read: PartsRead): void {
+      if (open !== null) partsReads.push(read)
     },
     read(handler: string, rows: number, bytes = 0): void {
       inRound(current => {
@@ -227,7 +274,12 @@ export function createRoundCounters() {
      * earlier round already handed out and that comes back is a re-read of the stable part.
      */
     observeHistory(history: SessionHistory<unknown>): SessionHistory<unknown> {
-      const handOut = (ids: readonly string[], projection: boolean, probe = false): void => {
+      const handOut = (
+        ids: readonly string[],
+        projection: boolean,
+        probe = false,
+        view?: Ad04Read,
+      ): void => {
         inRound(current => {
           current.historyReadCalls += 1
           current.historyRows += ids.length
@@ -247,10 +299,16 @@ export function createRoundCounters() {
         }
         if (projection && !probe) {
           ad04Projected += ids.length
-          for (const id of ids) {
-            if (ad04Seen.has(id)) ad04Rereads += 1
-            else ad04Seen.add(id)
-          }
+          if (view !== undefined) ad04Reads.push(view)
+          ids.forEach((id, at) => {
+            if (!ad04Seen.has(id)) {
+              ad04Seen.add(id)
+              return
+            }
+            ad04Rereads += 1
+            const seq = view?.rows[at]
+            if (seq !== undefined) ad04Again.push(seq)
+          })
         }
       }
       const entries = (answer: Outcome<HistoryPage, unknown>): Outcome<HistoryPage, unknown> => {
@@ -263,11 +321,13 @@ export function createRoundCounters() {
         since: async input => entries(await history.since(input)) as never,
         readModelView: async input => {
           const answer = await history.readModelView(input)
-          const rows = 'ok' in answer && answer.ok.kind === 'page' ? answer.ok.rows : []
+          const page = 'ok' in answer && answer.ok.kind === 'page' ? answer.ok : undefined
+          const rows = page?.rows ?? []
           handOut(
             rows.map(row => `row:${row.entry}`),
             true,
             input.pageBytes <= 1,
+            page && { upper: BigInt(page.basis.upper), rows: rows.map(row => BigInt(row.seq)) },
           )
           return answer
         },
@@ -275,6 +335,29 @@ export function createRoundCounters() {
     },
   }
   return counters
+}
+
+/** The read handler of the Agent records parts (session-storage-sql `EXECUTION_RECORD_HANDLERS.parts`). */
+export const PARTS_HANDLER = 'execution-record.parts'
+
+const textOrNull = (value: unknown): string | null => (typeof value === 'string' ? value : null)
+
+/** The input and the page of one answered `execution-record.parts` read. */
+function partsReadOf(request: ReadRequest, result: ReadResult): PartsRead {
+  const input = (request.input ?? {}) as Record<string, unknown>
+  const output = (result as { output?: unknown }).output as
+    | { parts?: readonly { part: string; state: unknown }[]; next?: unknown }
+    | undefined
+  return {
+    since: textOrNull(input['since']),
+    after: textOrNull(input['after']),
+    names: Array.isArray(input['parts']) ? (input['parts'] as string[]) : null,
+    parts: (output?.parts ?? []).map(({ part, state }) => ({
+      part,
+      text: state === null ? 0 : JSON.stringify(state).length,
+    })),
+    next: textOrNull(output?.next),
+  }
 }
 
 /** The storage the world shares, with each commit and each read counted. */
@@ -296,6 +379,7 @@ export function countingStorage(storage: SqlStorage, counters: RoundCounters): S
       const result = await storage.read(request, options)
       if (result.kind !== 'read')
         counters.refusedReads.push({ handler: request.handler, answer: result })
+      else if (request.handler === PARTS_HANDLER) counters.partsRead(partsReadOf(request, result))
       counters.read(
         request.handler,
         rowsOf(result),
@@ -459,4 +543,102 @@ export function historyReadGrowth(
         `round ${count.round}: reads ${count.ad04ReadRows} rows, round ${first.round} read ${first.ad04ReadRows}`,
       )
   return broken
+}
+
+const ascending = (rows: Iterable<bigint>): bigint[] =>
+  [...new Set(rows)].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0))
+
+const upperOf = (round: Ad04RoundRows | undefined): bigint =>
+  (round?.reads ?? []).reduce((top, read) => (read.upper > top ? read.upper : top), 0n)
+
+/**
+ * The rows of one round of the AD-04 read path by identity (history sequences), for the identity
+ * form of S3 item 3 (R2-D78). `added` are the rows the upper bound of the round adds to the upper
+ * bound of the round before. `boundary` is the last row of the round before: the row the cursor of
+ * the Request Context stands after, which the AD-04 page read starts at. `read` are the rows the
+ * AD-04 reads of the round handed out, `reread` those of them an earlier AD-04 read had handed out;
+ * both once each, ascending.
+ */
+export function ad04RowsOf(
+  rows: readonly Ad04RoundRows[],
+  round: number,
+): Readonly<{ added: bigint[]; boundary: bigint; read: bigint[]; reread: bigint[] }> {
+  const at = rows.findIndex(item => item.round === round)
+  const current = rows[at]
+  const boundary = upperOf(rows[at - 1])
+  const added: bigint[] = []
+  for (let row = boundary + 1n; row <= upperOf(current); row++) added.push(row)
+  return {
+    added,
+    boundary,
+    read: ascending((current?.reads ?? []).flatMap(read => read.rows)),
+    reread: ascending(current?.rereads ?? []),
+  }
+}
+
+/**
+ * The page budget of the `execution-record.parts` read: `PART_PAGE_TEXT` and `PART_PAGE_ROWS` of
+ * session-storage-sql (`src/worker/read-execution-parts.ts`, not exported). A page stops before the
+ * part that would take its text past the budget, but holds at least one part.
+ */
+export const PART_PAGE_TEXT = 256 * 1024
+export const PART_PAGE_ROWS = 64
+
+/** The pages the parts read needs for parts of these text lengths, in part order; one at least. */
+export function partPages(texts: readonly number[]): number {
+  let pages = 1
+  let used = 0
+  let held = 0
+  for (const text of texts) {
+    if (held === PART_PAGE_ROWS || (held > 0 && used + text > PART_PAGE_TEXT)) {
+      pages += 1
+      used = 0
+      held = 0
+    }
+    used += text
+    held += 1
+  }
+  return pages
+}
+
+/**
+ * The catch-up reads of one round (a read with `since`), one item per catch-up: a first page
+ * (`after` null) and the pages that follow it. Each item holds the distinct parts the catch-up
+ * returned, in part order, with their text lengths.
+ */
+export function catchUpsOf(round: PartsRoundReads | undefined): number[][] {
+  const catchUps: Map<string, number>[] = []
+  for (const read of round?.reads ?? []) {
+    if (read.since === null) continue
+    if (read.after === null || catchUps.length === 0) catchUps.push(new Map())
+    const parts = catchUps.at(-1)!
+    for (const { part, text } of read.parts) if (!parts.has(part)) parts.set(part, text)
+  }
+  return catchUps.map(parts =>
+    [...parts.entries()].sort(([left], [right]) => (left < right ? -1 : 1)).map(([, text]) => text),
+  )
+}
+
+/**
+ * The `execution-record.parts` reads of one round by kind (R2-D85): `whole`, the reads without
+ * `since`, which read a whole partition (AD-02 reads the partition of the current execution once for
+ * each event it interprets); and `catchUpPages`, the pages the catch-ups of the round need by the page
+ * rule of the read handler (`partPages` over the distinct parts of each catch-up, added up).
+ */
+export function partsReadsOf(round: PartsRoundReads | undefined): {
+  whole: number
+  catchUpPages: number
+} {
+  return {
+    whole: (round?.reads ?? []).filter(read => read.since === null).length,
+    catchUpPages: catchUpsOf(round).reduce((sum, texts) => sum + partPages(texts), 0),
+  }
+}
+
+/** The text length of all parts the `execution-record.parts` reads of one round returned. */
+export function partsTextOf(round: PartsRoundReads | undefined): number {
+  return (round?.reads ?? []).reduce(
+    (sum, read) => sum + read.parts.reduce((total, part) => total + part.text, 0),
+    0,
+  )
 }

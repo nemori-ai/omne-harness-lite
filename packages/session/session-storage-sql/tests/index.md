@@ -18,6 +18,7 @@
 - [preadmission.spec.ts](preadmission.spec.ts)：准入记录
 - [admission-attempt-migration.spec.ts](admission-attempt-migration.spec.ts)：受理行原 attempt 列的迁移
 - [state-parts.spec.ts](state-parts.spec.ts)：Agent 记录的分区写入与分页读口
-- [work-read-limit.spec.ts](work-read-limit.spec.ts)：Session 快照超过 1 MiB 时 `session.work` 明确答 `read_limit`
+- [work-read-limit.spec.ts](work-read-limit.spec.ts)：Session 快照超过 20 MiB 时 `session.work` 明确答 `read_limit`，20 MiB 以内整份读回
+- [read-output-limit.spec.ts](read-output-limit.spec.ts)：Agent 记录的整份状态在 20 MiB 以内整份读回，输出超过 20 MiB 时答 `read_limit`
 - [same-domain-tenant.spec.ts](same-domain-tenant.spec.ts)：同一事务域里两个租户的直查隔离
 - [fixtures/](fixtures/index.md)：`node:sqlite` 与真实提供者的测试夹具

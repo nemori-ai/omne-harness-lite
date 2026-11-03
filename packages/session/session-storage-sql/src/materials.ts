@@ -78,6 +78,16 @@ const statePartMigrationRef = Object.freeze({
   id: STATE_PART_MIGRATION.id,
 })
 
+/**
+ * The output limit of every read handler of this member: 20 MiB. A long session must not fail at 1 MiB:
+ * the Session snapshot that `session.work` hands out whole grows with every round (session SPEC SN-1),
+ * and an Agent part of the records can be as large as the command that wrote it. Source: qiwei.pan,
+ * 2026-11-03 ("the limit goes up to 20 MiB"). The provider refuses a handler above its
+ * `maxReadResultBytes`, and every read reserves this amount of `globalReadResultBytes`, so an assembly
+ * sets both to at least this value (sqlite-provider SPEC 12.1).
+ */
+export const READ_OUTPUT_LIMIT_BYTES = 20 * 1024 * 1024
+
 type Handler = Readonly<{
   handler: string
   file: string
@@ -265,7 +275,7 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
         ordering: 'snapshot',
         readTables: item.tables,
         requiresMigrations: item.migrations ?? [migrationRef],
-        maxOutputBytes: 1 << 20,
+        maxOutputBytes: READ_OUTPUT_LIMIT_BYTES,
         maxRowsRead: 2000,
       }
     }),
