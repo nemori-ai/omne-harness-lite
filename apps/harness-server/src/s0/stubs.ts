@@ -20,12 +20,12 @@ const priv = (keys: readonly string[] = []): readonly string[] => keys.map(key =
 const TABLE: Readonly<Record<string, Entry>> = {
   storage: { provides: ['storage'], injects: ['storageHost'], phase: 'storage' },
   identity: {
-    provides: ['identityOperations', 'tenantStanding'],
+    provides: ['identityOperations', 'tenantStanding', 'identityGovernance'],
     injects: ['storage', 'identityClock'],
   },
   authorization: {
     provides: ['agentAccessCheck', 'sessionAccessCheck', 'agentActionAdmission'],
-    injects: ['tenantStanding', 'principalVerifier'],
+    injects: ['tenantStanding', 'principalVerifier', 'identityClock'],
   },
   'session-storage': {
     provides: [

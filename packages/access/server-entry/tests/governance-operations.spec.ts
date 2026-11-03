@@ -776,15 +776,22 @@ describe('the governance port fails', () => {
     expect(expectAnswer(reply, 503, 'basis-unavailable', 'empty list')).toEqual({})
   })
 
-  it('answers basis-unavailable to a governed operation when no governance port is wired', async () => {
-    fixture = await startFixture({ governance: () => undefined })
+  it('passes a basis-unavailable of the port through, after the login check', async () => {
+    // An assembly that reads the provider per call answers this way while the provider is absent.
+    fixture = await startFixture({
+      governance: (base): IdentityGovernance => ({
+        ...base,
+        queryCurrentTenant: () =>
+          Promise.resolve({ kind: 'basis-unavailable', diagnostic: 'provider absent' }),
+      }),
+    })
     const alice = await login(fixture, 'alice')
     expect(
       expectAnswer(
         await call(alice, 'query-current-tenant', {}, null),
         503,
         'basis-unavailable',
-        'no port',
+        'port basis-unavailable',
       ),
     ).toEqual({})
     // The login is still checked first: a bad proof is denied, not basis-unavailable.
@@ -792,7 +799,7 @@ describe('the governance port fails', () => {
       await call({ ...alice, loginProof: 'forged' }, 'query-current-tenant', {}, null),
       403,
       'denied',
-      'no port, bad proof',
+      'port basis-unavailable, bad proof',
     )
   })
 })

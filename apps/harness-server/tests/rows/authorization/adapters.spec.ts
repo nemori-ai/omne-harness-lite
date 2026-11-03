@@ -30,7 +30,11 @@ import {
   type TenantStandingReading,
   type TenantStandingSource,
 } from '@omne-harness/identity'
-import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
+import {
+  identityClockKey,
+  principalVerifierKey,
+  tenantStandingKey,
+} from '@omne-harness/identity/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { SessionAccessRequest } from '@omne-harness/session-contract'
 import { sessionId } from '@omne-harness/session-contract/testing'
@@ -54,6 +58,7 @@ import {
   createToolAccessGuard,
   type AccessPorts,
 } from '../../../src/rows/authorization/adapters.ts'
+import { identityClock } from '../../../src/entry/identity-clock.ts'
 import { authorization } from '../../../src/rows/authorization/row.ts'
 import { authorizationConfig } from '../../../src/rows/authorization/action-rules.ts'
 import { serveProfile } from '../../../src/profile.ts'
@@ -973,6 +978,9 @@ describe('the row', () => {
       apply(scope: Context) {
         scope.provide(principalVerifierKey, authority.verifier)
         scope.provide(tenantStandingKey, { read: async () => readingOf('member') })
+        scope.provide(identityClockKey, {
+          now: () => Promise.reject(new Error('no grant of this case has an end time')),
+        })
       },
     })
     const row = await ctx.plugin(authorization, {
@@ -1132,7 +1140,7 @@ describe('the row', () => {
         ],
       },
       plugins: { identityRow, authorization, probeRow },
-      entryObjects: [verifierModule],
+      entryObjects: [verifierModule, identityClock],
     })
     await answers['run']
 

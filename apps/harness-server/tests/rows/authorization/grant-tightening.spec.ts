@@ -1,8 +1,8 @@
 // The operator's tightening of the maintenance grant table (R2-D204 item 2, IC-18). The table is
 // built into the release; the operator can revoke a record or give it an end time, and cannot add,
 // widen or rename anything. The cases run the real row on a Cordis context with the real reference
-// authorization; the verifier is the in-process authority and the clock is a test clock that the
-// case moves. Each case has a control that must not change: the same request without the
+// authorization; the verifier is the in-process authority and the injected `identityClock` is a test
+// clock that the case moves. Each case has a control that must not change: the same request without the
 // tightening, or the tightening on another record.
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
@@ -13,7 +13,11 @@ import {
   type IdentityClock,
   type SystemPrincipal,
 } from '@omne-harness/identity'
-import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
+import {
+  identityClockKey,
+  principalVerifierKey,
+  tenantStandingKey,
+} from '@omne-harness/identity/cordis'
 import { parseInstant } from '@omne-harness/utc-instant'
 import {
   AGENT_HOST_COMPONENT,
@@ -27,7 +31,7 @@ import {
   maintenanceGrantsSchema,
   tightenMaintenanceGrants,
 } from '../../../src/rows/authorization/grant-tightening.ts'
-import { authorization, createAuthorizationRow } from '../../../src/rows/authorization/row.ts'
+import { authorization } from '../../../src/rows/authorization/row.ts'
 import { fixtureTenant, okOf } from '../../entry/support.ts'
 
 const A = fixtureTenant('a')
@@ -58,8 +62,11 @@ function testClock(initial: string) {
   }
 }
 
+/** A clock for the cases that set no end time: the row asks it only for a record with one. */
+const STILL = testClock('2026-01-01T00:00:00Z').clock
+
 /** Mounts the real row; `publish` asks the row's Agent access check as the named system component. */
-async function mount(config: unknown, clock: IdentityClock | null) {
+async function mount(config: unknown, clock: IdentityClock = STILL) {
   const ctx = new Context()
   const authority = inProcessPrincipalAuthority()
   const provider = await ctx.plugin({
@@ -67,9 +74,10 @@ async function mount(config: unknown, clock: IdentityClock | null) {
     apply(scope: Context) {
       scope.provide(principalVerifierKey, authority.verifier)
       scope.provide(tenantStandingKey, { read: () => Promise.reject(new Error('not asked')) })
+      scope.provide(identityClockKey, clock)
     },
   })
-  const row = await ctx.plugin(createAuthorizationRow({ clock }), config)
+  const row = await ctx.plugin(authorization, config)
   const holders = new Map<string, SystemPrincipal>()
   const holder = (component: string): SystemPrincipal => {
     const existing = holders.get(component)
@@ -228,7 +236,7 @@ describe('the table with the tightening', () => {
 describe('the row with the tightening', () => {
   it('behaves as before with no configuration and with an empty one', async () => {
     for (const config of [{}, { maintenanceGrants: {} }]) {
-      const row = await mount(config, null)
+      const row = await mount(config)
       try {
         expect((await row.publish(AGENT_HOST_COMPONENT)).kind).toBe('allowed')
         expect(await row.publish('someone-else')).toEqual({ kind: 'denied' })
@@ -239,11 +247,8 @@ describe('the row with the tightening', () => {
   })
 
   it('answers denied for the revoked record, and allowed for the control: another record revoked', async () => {
-    const revoked = await mount({ maintenanceGrants: { [HOST_RECORD]: { revoked: true } } }, null)
-    const control = await mount(
-      { maintenanceGrants: { [SCANNER_RECORD]: { revoked: true } } },
-      null,
-    )
+    const revoked = await mount({ maintenanceGrants: { [HOST_RECORD]: { revoked: true } } })
+    const control = await mount({ maintenanceGrants: { [SCANNER_RECORD]: { revoked: true } } })
     try {
       expect(await revoked.publish(AGENT_HOST_COMPONENT)).toEqual({ kind: 'denied' })
       expect((await control.publish(AGENT_HOST_COMPONENT)).kind).toBe('allowed')
@@ -306,10 +311,10 @@ describe('the row with the tightening', () => {
 
   it('does not start with a record id that the table does not hold, and starts with a known one', async () => {
     const bad = { maintenanceGrants: { 'maintenance-grant/nobody': { revoked: true } } }
-    await expect(mount(bad, null)).rejects.toThrow(
+    await expect(mount(bad)).rejects.toThrow(
       /unknown maintenance grant "maintenance-grant\/nobody"/u,
     )
-    const good = await mount({ maintenanceGrants: { [HOST_RECORD]: { revoked: true } } }, null)
+    const good = await mount({ maintenanceGrants: { [HOST_RECORD]: { revoked: true } } })
     await good.dispose()
   })
 
@@ -319,22 +324,16 @@ describe('the row with the tightening', () => {
       { principal: 'restart-scanner' },
       { revoked: true, scope: 'tenant' },
     ])
-      await expect(
-        mount({ maintenanceGrants: { [HOST_RECORD]: widening } }, null),
-      ).rejects.toThrow()
-    const good = await mount({ maintenanceGrants: { [HOST_RECORD]: { revoked: true } } }, null)
+      await expect(mount({ maintenanceGrants: { [HOST_RECORD]: widening } })).rejects.toThrow()
+    const good = await mount({ maintenanceGrants: { [HOST_RECORD]: { revoked: true } } })
     await good.dispose()
   })
 
-  it('does not start with an end time when no clock is installed, so the setting is not silently unusable', async () => {
-    const config = { maintenanceGrants: { [HOST_RECORD]: { expiresAt: END } } }
-    await expect(mount(config, null)).rejects.toThrow(/no clock is installed/u)
-    const time = testClock('2026-01-01T00:00:00Z')
-    const good = await mount(config, time.clock)
-    await good.dispose()
-  })
-
-  it('keeps the release row on the same inject as the row with a clock', () => {
-    expect(authorization.inject).toEqual(createAuthorizationRow({ clock: null }).inject)
+  it('injects identityClock, so an end time is never configured without a clock to judge it', () => {
+    expect(authorization.inject).toEqual([
+      tenantStandingKey,
+      principalVerifierKey,
+      identityClockKey,
+    ])
   })
 })

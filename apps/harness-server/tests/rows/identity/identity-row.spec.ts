@@ -2,7 +2,6 @@
 // `identity` 行（验收 3）：以 `serve` 模式只装本行、它依赖的 `storage` 夹具行与 `identityClock` 入口对象。
 // 慢：插件体用部署的 `SCRYPT_PROFILE` 派生假材料，并在真实 sqlite-provider 上登记组合。
 import { describe, expect, it } from 'vitest'
-import { IDENTITY_SQL_DEFAULT_CONFIG } from '@omne-harness/identity-sql'
 import { stubPlugin } from '../../../src/cordis.ts'
 import { identityClock } from '../../../src/entry/identity-clock.ts'
 import { rowDeclarationOf } from '../../../src/row.ts'
@@ -11,10 +10,17 @@ import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { fixtureSqliteStorage } from './fixtures.ts'
 
 const plugins = { stubPlugin, fixtureSqliteStorage, identityRow }
+/** The identity row of `config/serve.distribution.json`: two login lifetimes, two invitation durations. */
+const IDENTITY_CONFIG = {
+  maxLifetime: 'PT2592000S',
+  idlePeriod: 'PT604800S',
+  invitationDefaultDuration: 'PT604800S',
+  invitationMaxDuration: 'PT2592000S',
+}
 const distribution = {
   rows: [
     { id: 'storage', plugin: 'fixtureSqliteStorage', config: {} },
-    { id: 'identity', plugin: 'identityRow', config: IDENTITY_SQL_DEFAULT_CONFIG },
+    { id: 'identity', plugin: 'identityRow', config: IDENTITY_CONFIG },
   ],
 }
 
@@ -24,7 +30,7 @@ describe('the identity row', () => {
       row: 'identity',
       implementation: 'real',
       manifest: {
-        provides: ['identityOperations', 'tenantStanding'],
+        provides: ['identityOperations', 'tenantStanding', 'identityGovernance'],
         injects: ['storage', 'identityClock'],
         phase: null,
         sameProviderGroup: null,

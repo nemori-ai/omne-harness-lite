@@ -7,10 +7,8 @@
 //   在受信上下文里交来读口；缺席答 unavailable。
 // - 来源资格 `qualify`：调用方是本租户的会话工作主体，consumer 是 Agent 的动作消费位置（Agent `toolConsumer`）。
 //   consumer 指名的执行是否属于该会话本波不核对（具名缺件 TOOL-B-GAP-CONSUMER-SESSION），跨租户仍被拒。
-import type { Context } from '@deepseek-ai/cordis'
 import { referenceAdmissionCheck } from '@omne-harness/authorization'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
-import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { SessionId } from '@omne-harness/session-contract'
@@ -34,11 +32,11 @@ const deniedSubject = () => fail({ kind: 'denied' as const, action: 'tool-subjec
 const unavailableSubject = (diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency: 'principalVerifier', diagnostic })
 
-/** 每次调用现取的核验器与租户存续读口。 */
-function identityPorts(ctx: Context) {
+/** 每次调用现取的核验器与租户存续读口：入口经受信读法交给 `holder` 的两个读口。 */
+function identityPorts(holder: ToolRuntimeHolder) {
   const verifier: PrincipalVerifier = {
     verify: value => {
-      const current = ctx.get(principalVerifierKey)
+      const current = holder.verifier()
       return current === undefined
         ? Promise.resolve({ kind: 'unavailable' as const, diagnostic: 'principal verifier absent' })
         : current.verify(value)
@@ -46,7 +44,7 @@ function identityPorts(ctx: Context) {
   }
   const standing: TenantStandingSource = {
     read: input => {
-      const current = ctx.get(tenantStandingKey)
+      const current = holder.standing()
       if (current === undefined) throw new Error('tenant standing is not installed')
       return current.read(input)
     },
@@ -103,12 +101,9 @@ export type ReleaseToolIdentity = Readonly<{
   sessionOf(principal: unknown, tenant: TenantId): Promise<string | undefined>
 }>
 
-/** `ctx` 是读根上公开服务的任一行上下文；会话工作主体读口来自 `holder`（`tool-records` 交来）。 */
-export function createReleaseToolIdentity(
-  ctx: Context,
-  holder: ToolRuntimeHolder,
-): ReleaseToolIdentity {
-  const { verifier, standing } = identityPorts(ctx)
+/** 核验器、当前资格与会话工作主体读口都来自 `holder`：入口对象 `toolClock` 交来的受信读法。 */
+export function createReleaseToolIdentity(holder: ToolRuntimeHolder): ReleaseToolIdentity {
+  const { verifier, standing } = identityPorts(holder)
   const admission = referenceAdmissionCheck({ verifier, standing, permits: null })
   const guard = createToolAccessGuard(() => admission)
   const project = (principal: unknown) => projectWith(verifier, principal)
