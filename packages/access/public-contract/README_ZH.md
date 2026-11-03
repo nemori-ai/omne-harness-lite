@@ -38,7 +38,7 @@ if (encoded.kind === 'encoded') {
 }
 ```
 
-示例预算由调用者选择，本包没有默认预算。`readGovernanceResponse` 接收原操作与预期 messageId，先完整校验响应，再匹配关联。业务结果用带原操作的 `encodeGovernanceResponse` 编码。共同拒绝的重载不接收 operation，只接受 `protocol-rejected` 或 `stage-not-provided`。
+示例预算由调用者选择，本包没有默认预算。`readGovernanceResponse` 接收原操作与预期 messageId，先完整校验响应，再匹配关联。业务结果用带原操作的 `encodeGovernanceResponse` 编码。共同拒绝的重载不接收 operation，只接受 `protocol-rejected` 或 `stage-not-provided`。每个治理操作的响应也允许空 `body` 的 `stage-not-provided`，因为部署可以声明某个操作不提供。请求读取不知道这份声明。
 
 必填登录证明在本地为 `ProofInput`。缺失和空字符串保留为不同的协议状态，交业务拥有者核验。身份字段使用 legal-identity 铸造的值，时间字段使用 utc-instant 值。租户同时保留组织和账号。parameters 使用 json-text 树，保留数字的原始 lexeme。
 
@@ -72,7 +72,7 @@ pnpm --filter @omne-harness/public-contract typecheck
 ./scripts/with-test-slot.sh pnpm --filter @omne-harness/public-contract test
 ```
 
-测试消费公开导出。`protocol.spec.ts` 验证共同边界与两端演示。`correlation.spec.ts` 覆盖后缀语法、六项预算和深层输入。`operations.spec.ts` 与 `responses.spec.ts` 覆盖所有操作、封闭正文、终结、名单和秘密排除。`public-consumption.spec-d.ts` 验证操作关联的类型。
+测试消费公开导出。`protocol.spec.ts` 验证共同边界与两端演示。`correlation.spec.ts` 覆盖后缀语法、六项预算和深层输入。`operations.spec.ts` 与 `responses.spec.ts` 覆盖所有操作、封闭正文、终结、名单、秘密排除、部署声明不提供的应答，以及 `issue-login` 可选的 `loginId`。`public-consumption.spec-d.ts` 验证操作关联的类型。
 
 `session-protocol.spec.ts` 用正反向量覆盖 `readSessionRequest` 负责的第 1 步规则。其中 `message` 只覆盖对象与 `role` 的检查，不含完整消息解码。它还覆盖两个位置上的跨版本拒绝。`session-responses.spec.ts` 覆盖每个会话操作的每个结果、封闭正文、历史页、`unmatched`、`unreadable` 与共同拒绝的重载。`session-consumption.spec-d.ts` 验证会话操作、正文与结果的类型。`session-control-protocol.spec.ts`、`session-control-responses.spec.ts` 与 `session-control-consumption.spec-d.ts` 覆盖 `cancel-run` 与 `stop-call` 的请求、结果集合、成功正文与类型，每条用例只违反一条规则。本成员不把 Session 结果映射为线上结果，也不派生操作身份，两者归服务端接入。
 

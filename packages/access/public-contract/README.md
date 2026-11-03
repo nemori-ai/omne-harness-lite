@@ -38,7 +38,7 @@ if (encoded.kind === 'encoded') {
 }
 ```
 
-The limits above are caller choices. The package supplies no defaults. Use `readGovernanceResponse` with the original operation and expected message ID. It validates the whole response before it matches the ID. Use `encodeGovernanceResponse` with that operation for business results. Its common-refusal overload accepts `protocol-rejected` or `stage-not-provided` without an operation.
+The limits above are caller choices. The package supplies no defaults. Use `readGovernanceResponse` with the original operation and expected message ID. It validates the whole response before it matches the ID. Use `encodeGovernanceResponse` with that operation for business results. Its common-refusal overload accepts `protocol-rejected` or `stage-not-provided` without an operation. Every governance operation also permits `stage-not-provided` with an empty body, because a deployment can declare an operation it does not provide. The request reader does not know that declaration.
 
 Required login proof becomes a local `ProofInput`. A missing proof and an empty proof remain distinct protocol states for the business owner to check. Identity fields use values minted by legal-identity. Time fields use utc-instant values. Tenant text preserves both the organization and the account. Parameter objects use json-text trees, including their original number lexemes.
 
@@ -72,7 +72,7 @@ pnpm --filter @omne-harness/public-contract typecheck
 ./scripts/with-test-slot.sh pnpm --filter @omne-harness/public-contract test
 ```
 
-The tests exercise the public exports. `protocol.spec.ts` covers common boundaries and the two-end demonstration. `correlation.spec.ts` covers strict suffix grammar, all six budgets, and deep inputs. `operations.spec.ts` and `responses.spec.ts` cover every operation, closed bodies, terminal states, lists, and secret exclusions. `public-consumption.spec-d.ts` checks operation-associated types.
+The tests exercise the public exports. `protocol.spec.ts` covers common boundaries and the two-end demonstration. `correlation.spec.ts` covers strict suffix grammar, all six budgets, and deep inputs. `operations.spec.ts` and `responses.spec.ts` cover every operation, closed bodies, terminal states, lists, secret exclusions, the declared-unprovided answer, and the optional `loginId` of `issue-login`. `public-consumption.spec-d.ts` checks operation-associated types.
 
 `session-protocol.spec.ts` covers, with accepted and rejected vectors, each step-1 rule that `readSessionRequest` owns. For `message`, this is the object and `role` check, not the full message decoding. It also covers the cross-version rejection in both positions. `session-responses.spec.ts` covers every outcome of every session operation, closed bodies, history pages, `unmatched`, `unreadable`, and the common refusal overload. `session-consumption.spec-d.ts` checks the session operation, body, and outcome types. `session-control-protocol.spec.ts`, `session-control-responses.spec.ts`, and `session-control-consumption.spec-d.ts` cover the `cancel-run` and `stop-call` requests, outcome sets, success bodies, and types, with one violated rule per case. The package does not map Session results to wire outcomes, and it does not derive operation identities. The server adapter owns both.
 

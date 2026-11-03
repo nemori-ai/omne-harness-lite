@@ -112,7 +112,7 @@ SDK 持有传输适配和调用者交给它的登录证明。传输适配只见�
 测试经包名导入构建后的 `dist`，所以先在本目录运行 `pnpm run build`，再运行 `pnpm run test`。`pnpm run typecheck` 检查类型。
 
 - `tests/http-transport.spec.ts`：对 `127.0.0.1` 上的真实 HTTP 服务器核对地址限制、路径、状态码与响应体、重定向、连接被拒、中途断开和取消。
-- `tests/session-client.spec.ts`：会话七个操作和一个治理操作的往返、`messageId` 关联（含交叉答复）、零字节再送一次、字节已发出后不再送，以及错误文本不含登录证明。
+- `tests/session-client.spec.ts`：会话七个操作和一个治理操作的往返、部署声明不提供的治理操作所得的 `stage-not-provided`、`issue-login` 成功响应可选的 `loginId`、`messageId` 关联（含交叉答复）、零字节再送一次、字节已发出后不再送，以及错误文本不含登录证明。
 - `tests/public-entry.spec.ts`：核对运行时导出清单。
 
 未覆盖：

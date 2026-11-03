@@ -114,7 +114,7 @@ The install closure holds the public contract only. It holds no server entry and
 The tests import the built `dist` through the package name, so run `pnpm run build` in this directory first, then `pnpm run test`. `pnpm run typecheck` checks the types.
 
 - `tests/http-transport.spec.ts` checks address limits, paths, status codes and response bodies, redirects, a refused connection, a mid-response disconnect, and cancellation against a real HTTP server on `127.0.0.1`.
-- `tests/session-client.spec.ts` covers the round trip of the seven session operations and one governance operation, `messageId` correlation including crossed replies, one zero-byte resend, no resend after bytes were sent, and error text without the login proof.
+- `tests/session-client.spec.ts` covers the round trip of the seven session operations and one governance operation, the declared-unprovided answer (`stage-not-provided`) of governance operations, the optional `loginId` of an `issue-login` success, `messageId` correlation including crossed replies, one zero-byte resend, no resend after bytes were sent, and error text without the login proof.
 - `tests/public-entry.spec.ts` checks the runtime export list.
 
 Not covered:

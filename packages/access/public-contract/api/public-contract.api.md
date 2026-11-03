@@ -340,6 +340,7 @@ export type SuccessBodies = {
         readonly issuedAt: Instant;
         readonly tenantId: TenantId;
         readonly loginProof: string;
+        readonly loginId?: LoginStateId;
     };
     'revoke-login': EmptyBody;
     'replace-credential': EmptyBody;
@@ -516,7 +517,7 @@ export type BusinessResponse<O extends GovernanceProvidedOperation> = {
     readonly [K in BusinessOutcomes[O]]: Correlated<K, BusinessBody<O, K>>;
 }[BusinessOutcomes[O]];
 export type ResponseByOperation = {
-    readonly [O in GovernanceOperation]: GovernanceProtocolRejected | (O extends GovernanceProvidedOperation ? BusinessResponse<O> : GovernanceStageNotProvided);
+    readonly [O in GovernanceOperation]: GovernanceProtocolRejected | GovernanceStageNotProvided | (O extends GovernanceProvidedOperation ? BusinessResponse<O> : never);
 };
 export type GovernanceResponse<O extends GovernanceOperation = GovernanceOperation> = ResponseByOperation[O];
 export type GovernanceDiagnostic = {
