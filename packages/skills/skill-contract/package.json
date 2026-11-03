@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Skill body port for the accepted asset category contract",
+  "description": "Pure Skill contract: values, failures, package inspection, ports, service interfaces, and conformance suites",
   "engines": {
     "node": ">=24"
   },

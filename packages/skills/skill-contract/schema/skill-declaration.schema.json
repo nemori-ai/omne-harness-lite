@@ -2,13 +2,16 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:omne-harness:skill-contract:skill-declaration:1",
   "title": ".omne/skill.json",
-  "description": "The declarations of a Skill package, format version 1. The behavior owner is SPEC.md of @omne-harness/skill-contract. This schema does not express these rules: the JSON budget, that a script entry is a file of the package and not a control file, that script entries are unique after . segments are removed, and that setting names are unique.",
+  "description": "The declarations of a Skill package, format version 1. The behavior owner is SPEC.md of @omne-harness/skill-contract. Lengths count Unicode code points. The parser rejects these documents, and this schema does not express the rule: a formatVersion written as 1.0 or 1e0 (the lexeme must be 1); a script entry made of . segments only; a text with a lone surrogate; a document over the JSON budget; a script entry that is not a file of the package or is a control file; script entries that repeat after . segments are removed; setting names that repeat.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["formatVersion"],
+  "required": [
+    "formatVersion"
+  ],
   "properties": {
     "formatVersion": {
-      "description": "Only the number 1, written as 1. Any other value is declaration-format-unsupported.",
+      "description": "The number 1, written with the lexeme 1. Any other value is declaration-format-unsupported.",
+      "type": "integer",
       "const": 1
     },
     "dependencies": {
@@ -18,10 +21,18 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["category", "name"],
+        "required": [
+          "category",
+          "name"
+        ],
         "properties": {
-          "category": { "const": "tool" },
-          "name": { "type": "string", "minLength": 1 }
+          "category": {
+            "const": "tool"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
@@ -31,7 +42,11 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["entry", "runKind", "facilities"],
+        "required": [
+          "entry",
+          "runKind",
+          "facilities"
+        ],
         "properties": {
           "entry": {
             "description": "A relative path inside the package. No leading slash, no backslash, no empty segment, no .. segment, no control character.",
@@ -47,7 +62,10 @@
             "description": "Facility names. Skill does not check whether a facility is present.",
             "type": "array",
             "uniqueItems": true,
-            "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$" }
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,31}$"
+            }
           },
           "parameters": {
             "description": "The parameter shape. Any JSON value, kept as it was read."
@@ -61,11 +79,22 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "category"],
+        "required": [
+          "name",
+          "category"
+        ],
         "properties": {
-          "name": { "type": "string", "minLength": 1 },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
           "category": {
-            "enum": ["preference", "binding", "placement-identity", "governance"]
+            "enum": [
+              "preference",
+              "binding",
+              "placement-identity",
+              "governance"
+            ]
           }
         }
       }

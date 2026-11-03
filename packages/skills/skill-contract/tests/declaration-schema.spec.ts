@@ -7,11 +7,14 @@ import { parseSkillPackage } from '@omne-harness/skill-contract'
 import { buildPackage, manifestText } from './package-builder.ts'
 
 type Schema = {
+  description: string
   required: string[]
   additionalProperties: boolean
   properties: Record<string, SchemaNode>
 }
 type SchemaNode = {
+  type?: string
+  description?: string
   const?: unknown
   enum?: unknown[]
   pattern?: string
@@ -38,10 +41,14 @@ function node(...path: string[]): SchemaNode {
 
 /** The rejection code of a declaration, or `accepted`. The package holds `run.sh`. */
 function verdict(declaration: unknown): string {
+  return verdictOfText(JSON.stringify(declaration))
+}
+
+function verdictOfText(text: string): string {
   const built = buildPackage('demo', {
     'SKILL.md': manifestText(['name: demo', 'description: d']),
     'run.sh': 'echo',
-    '.omne/skill.json': JSON.stringify(declaration),
+    '.omne/skill.json': text,
   })
   const result = parseSkillPackage({ snapshot: built.snapshot, control: built.control })
   return 'ok' in result
@@ -57,11 +64,23 @@ describe('skill-declaration.schema.json', () => {
   it('fixes the format version to 1 and closes the top-level object', () => {
     expect(schema.required).toEqual(['formatVersion'])
     expect(node('formatVersion').const).toBe(1)
+    expect(node('formatVersion').type).toBe('integer')
     expect(schema.additionalProperties).toBe(false)
     expect(Object.keys(schema.properties).sort()).toEqual(
       ['dependencies', 'formatVersion', 'scripts', 'settings'].sort(),
     )
     expect(verdict({ formatVersion: 1, other: [] })).toBe('malformed')
+  })
+
+  it('names in its description each rule that the parser applies and the schema cannot', () => {
+    for (const lexeme of ['1.0', '1e0']) {
+      expect(schema.description).toContain(lexeme)
+      expect(verdictOfText(`{"formatVersion": ${lexeme}}`)).toBe('declaration-format-unsupported')
+    }
+    expect(schema.description).toContain('. segments only')
+    expect(verdict({ formatVersion: 1, scripts: [{ ...script, entry: './.' }] })).toBe('malformed')
+    expect(schema.description).toContain('lone surrogate')
+    expect(schema.description).toContain('code points')
   })
 
   it('lists exactly the setting categories that the parser accepts', () => {

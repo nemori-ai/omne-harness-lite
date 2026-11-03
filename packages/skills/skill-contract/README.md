@@ -8,7 +8,7 @@ The pure contract member of the Skill group. It gives the Skill values, failures
 
 This member owns the Skill words that other members use: the package rules, the snapshot and its digest, the failure kinds, the port shapes, and the asset body of the `skill` category. It has no service implementation, no source, and no runtime state. The services `PackageInspection`, `SkillCatalog` and `SkillAccess` are interfaces only. Their implementation is in `@omne-harness/skill`. The directory source is in `@omne-harness/skill-host-local`.
 
-Status: the shapes and the rules are candidates of the first Skill wave. They do not have technical acceptance. The pure functions and the memory doubles have tests. No real source, read check or resolution is verified here.
+Status: the shapes and the rules are candidates. They do not have technical acceptance. The pure functions and the memory doubles have tests. No real source, read check or resolution is verified here.
 
 ## Usage
 
@@ -44,7 +44,7 @@ The member is a set of small modules: values, names, digests, media types, the s
 
 ## Configuration and operation
 
-There is no runtime configuration. Two defaults are policy values with an override: the declaration budget of `parseSkillPackage` (`declarationLimits`) and the read page of 65536 bytes that the `SkillAccess` implementation uses. The member needs Node.js 24 or later.
+There is no runtime configuration. A caller of `parseSkillPackage` can give another declaration budget (`declarationLimits`). The read page of 65536 bytes is fixed in this version. The member needs Node.js 24 or later.
 
 ## Verification
 

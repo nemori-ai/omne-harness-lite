@@ -8,7 +8,7 @@ Skill 能力组的纯契约成员。它提供 Skill 的值、失败、服务接�
 
 本成员拥有其他成员共用的 Skill 词汇：包格式规则、快照与内容摘要、失败种类、端口形状，以及 `skill` 类别的资产正文。它没有服务实现，没有来源，也没有运行时状态。`PackageInspection`、`SkillCatalog` 与 `SkillAccess` 只有接口，实现在 `@omne-harness/skill`。目录来源在 `@omne-harness/skill-host-local`。
 
-状态：形状与规则是第一波 Skill 线的候选，尚未取得技术接受。纯函数与内存替身有测试。本成员没有验证任何真实来源、读取权或对应。
+状态：形状与规则是候选，尚未取得技术接受。纯函数与内存替身有测试。本成员没有验证任何真实来源、读取权或对应。
 
 ## 使用
 
@@ -30,7 +30,7 @@ Skill 能力组的纯契约成员。它提供 Skill 的值、失败、服务接�
 
 ## 配置与运行
 
-本成员没有运行时配置。两个默认值是可以覆盖的策略值：`parseSkillPackage` 的声明预算（`declarationLimits`），以及 `SkillAccess` 实现使用的 65536 字节读取页。运行需要 Node.js 24 或更高版本。
+本成员没有运行时配置。`parseSkillPackage` 的调用方可以给出另一份声明预算（`declarationLimits`）。65536 字节的读取页在本版本固定。运行需要 Node.js 24 或更高版本。
 
 ## 验证
 

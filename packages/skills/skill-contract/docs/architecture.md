@@ -18,13 +18,14 @@
 | `project.ts` | `projectAssetBody` |
 | `contract.ts` | `skillBodyContract` |
 | `failures.ts`、`services.ts`、`ports.ts` | 失败联合、服务接口与需求端口。只有类型，另有拒绝次序常量 |
-| `testing-*.ts` | 三个符合性套件与内存替身 |
+| `testing-case.ts` | 用例类型 `ConformanceCase`、`NotApplicable` 与 `runConformanceCase` |
+| `testing-source.ts`、`testing-resolution.ts`、`testing-read-check.ts` | 三个符合性套件与内存替身 |
 
 依赖方向：入口文件 `index.ts`、`provider.ts`、`testing.ts` 只重新导出。`testing-*.ts` 依赖其余模块与 `node:assert`，不依赖测试框架；其余模块不依赖 `testing-*.ts`。外部依赖只有 `@omne-harness/assets`、`@omne-harness/json-text`、`@omne-harness/legal-identity`、`@omne-harness/operation-result` 与 `yaml`。
 
 ## 关键机制与理由
 
-- 品牌只由类型守卫授予。守卫做真实校验，所以源码不用 `as` 授予品牌。快照是对象品牌：`sealSnapshot` 把冻结的快照登记在模块私有的 `WeakSet` 中，类型守卫查这个登记。这样类型与运行时都只认 `sealSnapshot` 造出的快照。
+- 品牌只由守卫授予。守卫做真实校验，所以源码不用 `as` 授予品牌。快照是对象品牌：`sealSnapshot` 用一个断言式的私有守卫把冻结的快照登记在模块私有的 `WeakSet` 中并收窄类型，`assertSealed` 查这个登记。这样类型与运行时都只认 `sealSnapshot` 造出的快照。登记的代价见 [SPEC「快照」](../SPEC.md#snapshot-credential)。
 - `sealSnapshot` 收字节，不收调用方算好的条目事实。条目的大小、内容摘要、媒体类型与 `encoding` 只有一处算法，所以不同来源对同一份字节交出相同的条目。
 - 前缀冲突逐级查祖先。排序后 `a`、`a-b`、`a/b` 中 `a` 与 `a/b` 不相邻，只比较相邻项会漏报。
 - 包解析先收集全部发现，再按拒绝次序取第一个。只有 `manifest-missing`、`name-mismatch` 与 `declaration-format-unsupported` 立即返回，因为它们在次序最前，或者规定停止其余判断。

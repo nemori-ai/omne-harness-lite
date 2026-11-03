@@ -13,6 +13,17 @@ function seal(rootName: string, map: Readonly<Record<string, string | Uint8Array
 }
 
 describe('sealSnapshot', () => {
+  it.each(['', 'a/b', '/'])('rejects the root name %j', rootName => {
+    expect(seal(rootName, { 'SKILL.md': 's' })).toEqual({ failure: { kind: 'invalid-root-name' } })
+  })
+
+  it('checks the root name before the paths', () => {
+    const repeated = [...files({ a: 'x' }), ...files({ a: 'y' })]
+    expect(sealSnapshot({ rootName: '', files: repeated })).toEqual({
+      failure: { kind: 'invalid-root-name' },
+    })
+  })
+
   it('rejects a repeated path', () => {
     const repeated = [...files({ a: 'x' }), ...files({ './a': 'y' })]
     expect(sealSnapshot({ rootName: 'demo', files: repeated })).toEqual({
