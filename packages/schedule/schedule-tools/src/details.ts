@@ -97,7 +97,8 @@ function guardFor<P>(
   disclosure: ScheduleToolDisclosurePolicy<P>,
 ): ToolHostAccess<P>['guard'] {
   return {
-    async qualify(input) {
+    async qualify(provided) {
+      const input = Object.freeze({ ...provided })
       try {
         const baseVerdict = verdictSchema.parse(await base.qualify(Object.freeze({ ...input })))
         if (baseVerdict.kind !== 'allowed' || !protectedActions.has(input.action))
@@ -290,12 +291,13 @@ export function createScheduleToolDetails<P>(configuration: ScheduleToolDetailsC
   const guard = guardFor(baseGuard, disclosure)
   const cursors = cursorCodec(configuration.cursorKey)
   const read = async (
-    input: Readonly<{
+    provided: Readonly<{
       access: InvocationAccess<P>
       reference: ScheduleToolDetailRef
       after: string | null
     }>,
   ): Reply<Page> => {
+    const input = Object.freeze({ ...provided, access: Object.freeze({ ...provided.access }) })
     const parsed = scheduleToolDetailRefSchema.safeParse(input.reference)
     if (
       !parsed.success ||
