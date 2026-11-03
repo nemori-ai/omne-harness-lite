@@ -8,8 +8,19 @@
 // The plugin object also carries `quiesceAll`, the ordered stop of every host its bodies run now
 // (SPEC "有序停止"). It is not a Cordis service: only the assembly that holds the plugin object can
 // call it, so application members still have no way to stop an instance.
+//
+// The same body builds the Model result receiver outside every instance and registers it with the
+// Model runtime under the Agent consumer owner (`reception.ts`, IC-13, R2-D237). Its state is kept
+// per Cordis root, so a body that runs again hands the same state to its new receiver. The
+// registration ends with the fiber; the ordered stop removes it before it quiesces instances.
 import type { Context } from '@deepseek-ai/cordis'
-import { createAgentRuntime, type AgentDependencies, type AgentMeasure } from '@omne-harness/agent'
+import {
+  createAgentRuntime,
+  createModelReceiverState,
+  type AgentDependencies,
+  type AgentMeasure,
+  type ModelReceiverState,
+} from '@omne-harness/agent'
 import type { AgentInstanceId } from '@omne-harness/agent-contract'
 import {
   AgentExecutionControlService,
@@ -18,13 +29,18 @@ import {
   AgentInstanceProvisionService,
   AgentPublicationAuthorityService,
   agentAccessCheckKey,
+  agentAccountOutletKey,
   agentAdoptionsKey,
   agentClockKey,
   agentConditionsKey,
+  agentJournalEntriesKey,
   agentJournalKey,
+  agentMaterialsKey,
   agentMessageHandoffKey,
   agentModelContextKey,
+  agentModelReceptionTargetsKey,
   agentModelSelectionKey,
+  agentReceivedCommitsKey,
   agentRequestsKey,
   type AgentLocalRoute,
 } from '@omne-harness/agent-cordis-contract/cordis'
@@ -41,6 +57,7 @@ import {
   type Host,
   type RuntimeFactory,
 } from './host.ts'
+import { RECEPTION_INITIAL, startReception, type Reception } from './reception.ts'
 
 export type { AgentHostStopInput, AgentHostStopResult, AgentHostUnsettled }
 
@@ -133,6 +150,18 @@ class LocalInstanceProvision extends AgentInstanceProvisionService<unknown> {
  */
 export function createAgentHostPlugin(factory: RuntimeFactory): AgentHostPlugin {
   const live = new Set<Host>()
+  const receptions = new Map<Host, Reception>()
+  // The receiver state of the host, one per Cordis root: it outlives a body that runs again.
+  const states = new WeakMap<object, ModelReceiverState<unknown>>()
+  const stateOf = (ctx: Context): ModelReceiverState<unknown> => {
+    const root = ctx.root as object
+    let state = states.get(root)
+    if (state === undefined) {
+      state = createModelReceiverState<unknown>()
+      states.set(root, state)
+    }
+    return state
+  }
   const plugin = definePlugin<AgentHostConfig>({
     name: 'agent-host',
     Config: agentHostConfig,
@@ -147,6 +176,11 @@ export function createAgentHostPlugin(factory: RuntimeFactory): AgentHostPlugin 
       agentMessageHandoffKey,
       agentClockKey,
       modelRuntimeKey,
+      agentJournalEntriesKey,
+      agentMaterialsKey,
+      agentReceivedCommitsKey,
+      agentModelReceptionTargetsKey,
+      agentAccountOutletKey,
       'agentHostPrincipal',
     ],
     apply(ctx, config) {
@@ -173,9 +207,24 @@ export function createAgentHostPlugin(factory: RuntimeFactory): AgentHostPlugin 
         host.retired(tenant, instance, generation, reason),
       )
       live.add(host)
+      const reception = startReception({
+        ctx,
+        state: stateOf(ctx),
+        settings: config.reception ?? RECEPTION_INITIAL,
+        log: (level, message) => {
+          try {
+            ctx.logger('agent-host')[level](message)
+          } catch {
+            // The context has ended; there is nobody to tell.
+          }
+        },
+      })
+      receptions.set(host, reception)
       ctx.effect(
         () => () => {
           live.delete(host)
+          receptions.delete(host)
+          reception.stop()
           host.stop()
         },
         'agent-host.stop',
@@ -189,6 +238,8 @@ export function createAgentHostPlugin(factory: RuntimeFactory): AgentHostPlugin 
   })
   return Object.assign(plugin, {
     async quiesceAll(input: AgentHostStopInput): Promise<AgentHostStopResult> {
+      // The receiver goes first: from now on the Model keeps a delivery owed, not pushed here.
+      for (const reception of receptions.values()) reception.stop()
       return merged(await Promise.all([...live].map(host => host.quiesceAll(input))))
     },
   })

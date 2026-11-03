@@ -67,6 +67,7 @@ import {
 import {
   ActionAdmissionService,
   AgentAccessCheckService,
+  AgentAccountOutletService,
   AgentAdoptionsService,
   AgentClockService,
   CurrentConditionsService,
@@ -1105,6 +1106,11 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     },
   }
   await mount(serviceOf(ModelRuntimeService, models, 'ModelRuntime'))
+  // The host plugin injects the account outlet for its own receiver (R2-D237); the world's pusher
+  // pushes to the receiver above, so the host's one is registered in the double's private table.
+  await mount(
+    serviceOf(AgentAccountOutletService as unknown as AbstractService, outlet, 'AccountOutlet'),
+  )
 
   // The host: the agent-host plugin, the directory plugin and AD-14 over them.
   ctx.provide('agentHostPrincipal', 'agent-host-maintainer')

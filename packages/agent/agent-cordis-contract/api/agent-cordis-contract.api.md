@@ -30,6 +30,7 @@
 - `AgentMaterialsService` · `cordis.d.ts`
 - `AgentPublicationAuthority` · `cordis.d.ts`
 - `AgentPublicationAuthorityService` · `cordis.d.ts`
+- `AgentReceivedCommitsService` · `cordis.d.ts`
 - `AgentRegistrationInput` · `index.d.ts`
 - `AgentWithdrawalInput` · `index.d.ts`
 - `CurrentConditionsService` · `cordis.d.ts`
@@ -37,6 +38,7 @@
 - `ExtensionImplementationsService` · `cordis.d.ts`
 - `MessageHandoffService` · `cordis.d.ts`
 - `ModelContextReaderService` · `cordis.d.ts`
+- `ModelReceptionTargetsService` · `cordis.d.ts`
 - `ModelSelectionService` · `cordis.d.ts`
 - `RegisteredReadsService` · `cordis.d.ts`
 - `RequestPreparationService` · `cordis.d.ts`
@@ -59,9 +61,11 @@
 - `agentMaterialsKey` · `cordis.d.ts`
 - `agentMessageHandoffKey` · `cordis.d.ts`
 - `agentModelContextKey` · `cordis.d.ts`
+- `agentModelReceptionTargetsKey` · `cordis.d.ts`
 - `agentModelSelectionKey` · `cordis.d.ts`
 - `agentPublicationAuthorityKey` · `cordis.d.ts`
 - `agentReadsKey` · `cordis.d.ts`
+- `agentReceivedCommitsKey` · `cordis.d.ts`
 - `agentRequestsKey` · `cordis.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
@@ -80,7 +84,7 @@
 
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
-import { type ActionAdmission, type AgentAccessCheck, type AgentAccountOutlet, type AgentAdoptions, type AgentClock, type AgentDirectory, type AgentExecutionControl, type AgentExecutionRecovery, type AgentInstanceHost, type AgentInstanceId, type AgentJournal, type AgentJournalEntries, type AgentMaterials, type CurrentConditions, type DecisionCards, type ExtensionImplementations, type Failure, type MessageHandoff, type ModelContextReader, type ModelSelection, type RegisteredReads, type Registration, type RequestPreparation, type Reply } from '@omne-harness/agent-contract';
+import { type ActionAdmission, type AgentAccessCheck, type AgentAccountOutlet, type AgentAdoptions, type AgentClock, type AgentDirectory, type AgentExecutionControl, type AgentExecutionRecovery, type AgentInstanceHost, type AgentInstanceId, type AgentJournal, type AgentJournalEntries, type AgentMaterials, type AgentReceivedCommits, type CurrentConditions, type DecisionCards, type ExtensionImplementations, type Failure, type MessageHandoff, type ModelContextReader, type ModelReceptionTargets, type ModelSelection, type RegisteredReads, type Registration, type RequestPreparation, type Reply } from '@omne-harness/agent-contract';
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type Outcome } from '@omne-harness/operation-result';
@@ -234,6 +238,20 @@ export declare abstract class AgentJournalEntriesService<P> extends Service impl
     abstract readonly record: AgentJournalEntries<P>['record'];
 }
 export declare const agentJournalEntriesKey = "agentJournalEntries";
+export declare abstract class AgentReceivedCommitsService<P, B extends ContentBlock> extends Service implements AgentReceivedCommits<P, B> {
+    static readonly provide = "agentReceivedCommits";
+    constructor(ctx: Context);
+    abstract readonly commit: AgentReceivedCommits<P, B>['commit'];
+    abstract readonly query: AgentReceivedCommits<P, B>['query'];
+}
+export declare const agentReceivedCommitsKey = "agentReceivedCommits";
+export declare abstract class ModelReceptionTargetsService<P> extends Service implements ModelReceptionTargets<P> {
+    static readonly provide = "agentModelReceptionTargets";
+    constructor(ctx: Context);
+    abstract readonly forExecution: ModelReceptionTargets<P>['forExecution'];
+    abstract readonly resolve: ModelReceptionTargets<P>['resolve'];
+}
+export declare const agentModelReceptionTargetsKey = "agentModelReceptionTargets";
 export declare abstract class AgentAccountOutletService<P> extends Service implements AgentAccountOutlet<P> {
     static readonly provide = "agentAccountOutlet";
     constructor(ctx: Context);
@@ -302,6 +320,8 @@ declare module '@deepseek-ai/cordis' {
         agentExecutionRecovery: AgentExecutionRecoveryService<unknown>;
         agentJournalEntries: AgentJournalEntriesService<unknown>;
         agentAccountOutlet: AgentAccountOutletService<unknown>;
+        agentReceivedCommits: AgentReceivedCommitsService<unknown, ContentBlock>;
+        agentModelReceptionTargets: ModelReceptionTargetsService<unknown>;
         agentExecutionControl: AgentExecutionControlService<unknown>;
         agentInstances: AgentInstancesService<unknown>;
         agentInstanceProvision: AgentInstanceProvisionService<unknown>;

@@ -1,7 +1,7 @@
 // @module-tag slow
 // The `agent-host` row: the real local Agent host (the plugin `createAgentHostLocalPlugin` of
 // `@omne-harness/agent-host-local/cordis` makes) on a real Cordis, carried by the row body in the
-// `business` phase. The row is ACTIVE and provides the host faces once all fourteen injects of the
+// `business` phase. The row is ACTIVE and provides the host faces once all sixteen injects of the
 // assembly page are present; with any one absent it stays PENDING and names that key. Its schema
 // is the member's plus the release rule that `jointCommits` lists `message` (R2-D93). The two
 // construction inputs reach every runtime the host builds: the measurement observer, and the Tool
@@ -176,7 +176,7 @@ describe('the agent-host row: declaration and configuration', () => {
   })
 })
 
-describe('the agent-host row: on test stand-ins of its fourteen injects', () => {
+describe('the agent-host row: on test stand-ins of its sixteen injects', () => {
   it('is ACTIVE and provides the faces of the page', { timeout: 60_000 }, async () => {
     const { tree } = await start({ omit: null })
     expect(tree.allActive).toBe(true)

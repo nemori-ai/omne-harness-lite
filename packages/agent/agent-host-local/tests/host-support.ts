@@ -5,6 +5,13 @@
 // `stages` the world also provides the six locally required dependencies from the same doubles, so
 // the Loop of `createAgentRuntime` reaches its Model requests; `admits` records each of them.
 //
+// The world also provides the five services of the Model result receiver: `agentJournalEntries`,
+// `agentMaterials`, `agentReceivedCommits` and `agentModelReceptionTargets` from the same memory
+// Journal, and `agentAccountOutlet` from the memory outlet of agent-contract. The Model runtime has a
+// result receiver table the world holds (`receivers`); with `pushTo: 'host'` the scripted pusher
+// resolves its receiver from that table, as a Model runtime does, so a push reaches only the
+// receiver the host registered.
+//
 // `withRuntimeDuties` wraps the Agent factory with the two runtime duties of XC-AGINST 3.5 as a
 // script: quiesce marks the runtime draining before its first `await` and withdraws through the
 // registration handle, and invoke reports `occupied` in the same step that takes the slot. Since
@@ -23,6 +30,7 @@ import {
   decodeAgentExecutionId,
   decodeExecutionAttachmentId,
   type Access,
+  type AgentAccountOutlet,
   type AgentInstanceId,
   type AgentRegistrationHandle,
   type AgentState,
@@ -32,9 +40,13 @@ import {
   ActionAdmissionService,
   AgentAccessCheckService,
   AgentAdoptionsService,
+  AgentAccountOutletService,
   AgentClockService,
+  AgentJournalEntriesService,
   AgentJournalService,
   AgentMaterialsService,
+  AgentReceivedCommitsService,
+  ModelReceptionTargetsService,
   CurrentConditionsService,
   DecisionCardsService,
   ExtensionImplementationsService,
@@ -52,8 +64,13 @@ import {
   tenant,
   type TenantId,
 } from '@omne-harness/legal-identity'
-import type { Admission, ModelRuntime } from '@omne-harness/model-contract'
-import { ModelRuntimeService } from '@omne-harness/model-cordis-contract/cordis'
+import { createMemoryAgentAccountOutlet } from '@omne-harness/agent-contract/testing'
+import type { Admission, ModelResultReceiver, ModelRuntime } from '@omne-harness/model-contract'
+import {
+  ModelRuntimeService,
+  createModelResultReceiverTable,
+  type ModelResultReceiverTable,
+} from '@omne-harness/model-cordis-contract/cordis'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AgentHostConfig } from '../src/host-config.ts'
 import { createAgentHostPlugin, type AgentHostPlugin } from '../src/host-plugin.ts'
@@ -138,6 +155,11 @@ export const INJECTED = [
   'agentMessageHandoff',
   'agentClock',
   'modelRuntime',
+  'agentJournalEntries',
+  'agentMaterials',
+  'agentReceivedCommits',
+  'agentModelReceptionTargets',
+  'agentAccountOutlet',
   'agentHostPrincipal',
 ] as const
 export type Injected = (typeof INJECTED)[number]
@@ -165,16 +187,29 @@ const services: Readonly<Record<Exclude<Injected, 'agentHostPrincipal'>, unknown
   agentMessageHandoff: MessageHandoffService,
   agentClock: AgentClockService,
   modelRuntime: ModelRuntimeService,
+  agentJournalEntries: AgentJournalEntriesService,
+  agentMaterials: AgentMaterialsService,
+  agentReceivedCommits: AgentReceivedCommitsService,
+  agentModelReceptionTargets: ModelReceptionTargetsService,
+  agentAccountOutlet: AgentAccountOutletService,
 }
 
-/** Provides `port` under the definition class of `key`, on a fiber of its own. */
-export function serve(root: Context, key: keyof typeof services, port: object): Fiber {
+/**
+ * Provides `port` under the definition class of `key`, on a fiber of its own. The Model runtime
+ * gets `receivers` as its result receiver table, so a registration lands where the test can read.
+ */
+export function serve(
+  root: Context,
+  key: keyof typeof services,
+  port: object,
+  receivers?: ModelResultReceiverTable<unknown>,
+): Fiber {
   // The class is abstract only to TypeScript: the double supplies every abstract member.
-  const Definition = services[key] as Constructor
+  const Definition = services[key] as new (ctx: Context, table?: unknown) => object
   return root.plugin({
     name: `${key}-double`,
     apply(ctx: Context) {
-      Object.assign(new Definition(ctx), port)
+      Object.assign(new Definition(ctx, key === 'modelRuntime' ? receivers : undefined), port)
     },
   })
 }
@@ -184,11 +219,10 @@ const stageServices = [
   [ExtensionImplementationsService, 'extensions'],
   [DecisionCardsService, 'cards'],
   [ActionAdmissionService, 'admission'],
-  [AgentMaterialsService, 'materials'],
   [RegisteredReadsService, 'reads'],
 ] as const
 
-/** Provides the six locally required dependencies from the doubles of `controls`. */
+/** Provides the locally required dependencies (`agentMaterials` is always served) from `controls`. */
 async function serveStages(root: Context, controls: TestAgentControls<Principal>): Promise<void> {
   for (const [Definition, name] of stageServices) {
     const port = controls[name].port
@@ -233,6 +267,10 @@ export type World = Readonly<{
   quiesceAnswers: QuiesceScript[]
   /** The plugin the world loaded, with its ordered stop. */
   plugin: AgentHostPlugin
+  /** The result receiver table of the Model runtime double. */
+  receivers: ModelResultReceiverTable<unknown>
+  /** The account outlet double. */
+  outlet: ReturnType<typeof createMemoryAgentAccountOutlet<Principal>>
   /** The next check of `operation`, for `principal` when given, answers denied. */
   refuseNext(operation: string, principal?: Principal): void
   /** Moves the manual clock forward. */
@@ -263,6 +301,13 @@ export type WorldOptions = Readonly<{
    * admission, materials and registered reads) from the same doubles, so the Loop can run.
    */
   stages?: boolean
+  /**
+   * `host`: the scripted pusher resolves the receiver from the Model runtime's table (needs
+   * `dependencies.receivingPrincipal`). Absent: it pushes to the receiver of the test dependencies.
+   */
+  pushTo?: 'host'
+  /** The account outlet to provide instead of the memory outlet. */
+  outlet?: AgentAccountOutlet<Principal>
 }>
 
 export function occupied(instance: AgentInstanceId): AgentState {
@@ -336,9 +381,18 @@ function withRuntimeDuties(
 /** Builds the world. Every injected service is present unless `omit` names one. */
 export async function openWorld(options: WorldOptions = {}): Promise<World> {
   const root = new Context()
-  const { dependencies, controls } = createTestAgentDependencies<Principal>(
-    options.dependencies ?? {},
-  )
+  const receivers = createModelResultReceiverTable<unknown>()
+  const { dependencies, controls } = createTestAgentDependencies<Principal>({
+    ...options.dependencies,
+    ...(options.pushTo === 'host'
+      ? {
+          // The table holds receivers of any principal type; the pusher of this world uses strings.
+          resolveReceiver: (owner: string) =>
+            receivers.resolve(owner) as ModelResultReceiver<Principal> | null,
+        }
+      : {}),
+  })
+  const outlet = createMemoryAgentAccountOutlet<Principal>()
   const admits: Outcome<Admission, unknown>[] = []
   const models: ModelRuntime<Principal> = {
     ...dependencies.models,
@@ -397,11 +451,16 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     agentMessageHandoff: controls.handoff.port,
     agentClock: controls.clock.port,
     modelRuntime: models,
+    agentJournalEntries: controls.journal.provider.entries,
+    agentMaterials: controls.materials.port,
+    agentReceivedCommits: present(controls.journal.provider.received ?? undefined, 'received'),
+    agentModelReceptionTargets: controls.journal.targets,
+    agentAccountOutlet: options.outlet ?? outlet,
   }
   const fibers: Record<string, Fiber> = {}
   for (const key of Object.keys(services) as (keyof typeof services)[]) {
     if (key === options.omit) continue
-    fibers[key] = serve(root, key, ports[key])
+    fibers[key] = serve(root, key, ports[key], receivers)
     await fibers[key]
   }
   if (options.stages === true) await serveStages(root, controls)
@@ -453,6 +512,8 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     quiesced,
     quiesceAnswers,
     plugin,
+    receivers,
+    outlet,
     refuseNext(operation, principal) {
       refusals.push({ operation, principal })
     },

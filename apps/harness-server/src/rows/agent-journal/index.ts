@@ -12,13 +12,14 @@
 // combination, the same two values as the `session-storage` row declares (`config.ts` here computes
 // the digest from the same catalog). `routeCacheEntries` is optional.
 //
-// The row provides `agentJournal`, `agentJournalEntries`, `agentMaterials` and
-// `sessionAdoptedRequests`: the one plugin body makes the four services over one session-log
-// Journal, so they are in one authoritative ordering (agent-cordis-contract SPEC "生产者接收面的服务").
+// The row provides `agentJournal`, `agentJournalEntries`, `agentMaterials`, the two faces of the
+// Model result receiver, `agentReceivedCommits` and `agentModelReceptionTargets` (R2-D237), and
+// `sessionAdoptedRequests`: the one plugin body makes the services over one session-log Journal, so
+// they are in one authoritative ordering (agent-cordis-contract SPEC "生产者接收面的服务").
 // `sessionAdoptedRequests` is the fixed request that the last main-purpose M0 recorded in the session
 // log (FIXED-FACTS F4); the `session-ad04` row reads it per call. It is a root name, not in the
 // trusted table (R2-D246; the trusted visibility is wave 3 R3). The table's `sameProviderGroup` is
-// kept, so a second row that takes one of the four keys is refused before loading.
+// kept, so a second row that takes one of these keys is refused before loading.
 import {
   createSessionAgentJournalPlugin,
   type SessionAgentJournalPluginInput,
@@ -27,6 +28,8 @@ import {
   agentJournalEntriesKey,
   agentJournalKey,
   agentMaterialsKey,
+  agentModelReceptionTargetsKey,
+  agentReceivedCommitsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import {
   sessionAccessCheckKey,
@@ -48,6 +51,8 @@ export function createAgentJournalRow(input: SessionAgentJournalPluginInput = {}
         agentJournalKey,
         agentJournalEntriesKey,
         agentMaterialsKey,
+        agentReceivedCommitsKey,
+        agentModelReceptionTargetsKey,
         sessionAdoptedRequestsKey,
       ],
       injects: [sessionAccessCheckKey, storageKey, tenantDomainLookupKey],

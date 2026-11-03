@@ -22,6 +22,7 @@ import {
   type AgentJournal,
   type AgentJournalEntries,
   type AgentMaterials,
+  type AgentReceivedCommits,
   type AgentRegistrationId,
   type CurrentConditions,
   type DecisionCards,
@@ -29,6 +30,7 @@ import {
   type Failure,
   type MessageHandoff,
   type ModelContextReader,
+  type ModelReceptionTargets,
   type ModelSelection,
   type RegisteredReads,
   type Registration,
@@ -299,6 +301,38 @@ export abstract class AgentJournalEntriesService<P>
   abstract readonly record: AgentJournalEntries<P>['record']
 }
 export const agentJournalEntriesKey = AgentJournalEntriesService.provide
+
+// The joint custody port of the result receiver (agent-contract "接收共同提交"). The provider of
+// `agentJournal` serves it in the same ordering, with `agentJournalEntries` and `agentMaterials`.
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class AgentReceivedCommitsService<P, B extends ContentBlock>
+  extends Service
+  implements AgentReceivedCommits<P, B>
+{
+  static readonly provide = 'agentReceivedCommits'
+  constructor(ctx: Context) {
+    super(ctx, AgentReceivedCommitsService.provide)
+  }
+  abstract readonly commit: AgentReceivedCommits<P, B>['commit']
+  abstract readonly query: AgentReceivedCommits<P, B>['query']
+}
+export const agentReceivedCommitsKey = AgentReceivedCommitsService.provide
+
+// The stable target query of the Model result receiver (agent-contract J02 item 1). The provider
+// that keeps the original consumption bindings, the provider of `agentJournal`, serves it.
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class ModelReceptionTargetsService<P>
+  extends Service
+  implements ModelReceptionTargets<P>
+{
+  static readonly provide = 'agentModelReceptionTargets'
+  constructor(ctx: Context) {
+    super(ctx, ModelReceptionTargetsService.provide)
+  }
+  abstract readonly forExecution: ModelReceptionTargets<P>['forExecution']
+  abstract readonly resolve: ModelReceptionTargets<P>['resolve']
+}
+export const agentModelReceptionTargetsKey = ModelReceptionTargetsService.provide
 
 // The account outlet of Agent. The adapter on the side of Request Context provides it.
 /** @owner packages/agent/agent-cordis-contract */
@@ -849,6 +883,8 @@ declare module '@deepseek-ai/cordis' {
     agentExecutionRecovery: AgentExecutionRecoveryService<unknown>
     agentJournalEntries: AgentJournalEntriesService<unknown>
     agentAccountOutlet: AgentAccountOutletService<unknown>
+    agentReceivedCommits: AgentReceivedCommitsService<unknown, ContentBlock>
+    agentModelReceptionTargets: ModelReceptionTargetsService<unknown>
     agentExecutionControl: AgentExecutionControlService<unknown>
     agentInstances: AgentInstancesService<unknown>
     agentInstanceProvision: AgentInstanceProvisionService<unknown>

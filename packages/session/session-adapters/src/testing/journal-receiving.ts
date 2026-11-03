@@ -237,6 +237,20 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     if (kept.saved === null) return fail({ kind: 'unsupported' })
     return succeed(structuredClone({ entry: kept.entry, receipt: kept.receipt, saved: kept.saved }))
   }
+  /**
+   * The answer of the original commit of `input`'s operation, when it holds an alias. The same
+   * operation with the same input is that commit: it is answered without a write. An alias written
+   * again would change the records, and the session-log provider would publish a change that holds
+   * nothing new.
+   */
+  const recommitted = (
+    input: Input<P>,
+  ): Outcome<{ kind: 'committed'; value: ReceivedCommitValue }, Failure> | undefined => {
+    const original = hooks.state().aliases.get(operationKey(input))
+    if (!original) return undefined
+    const value = rich(input, original)
+    return 'failure' in value ? value : succeed({ kind: 'committed' as const, value: value.ok })
+  }
   const bound = (input: Input<P>): Failure | undefined => {
     const binding = hooks.state().bindings.get(deliveryText(input, input.entry))
     if (binding)
@@ -318,6 +332,9 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
                   ? succeed({ kind: 'excluded' as const, evidence: previous.evidence })
                   : fail(conflict(input)),
             }
+          const repeated = previous?.kind === 'committed' && previous.key === text
+          const original = repeated ? recommitted(input) : undefined
+          if (original) return { kind: 'answer', value: original }
           if (previous?.kind === 'committed' && previous.key !== text) {
             const old = hooks.state().aliases.get(operationKey(input))
             if (
@@ -631,7 +648,9 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       const requested = resolveModelInvocationRef(input.reference, input.access.tenant)
       if ('failure' in requested) return fail(denied())
       const found = hooks.state().callTargets.get(targetKey(input.access, requested.ok.call))
-      if (!found) return fail(denied())
+      // A route names the execution whose records are read; a binding of another one is absent.
+      if (!found || (input.execution !== undefined && input.execution !== found.execution))
+        return fail(denied())
       const permission = qualified({ ...input.access, execution: found.execution })
       return 'failure' in permission ? permission : succeed(structuredClone(found))
     },

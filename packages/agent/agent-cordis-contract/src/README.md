@@ -21,10 +21,10 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 [cordis.ts](cordis.ts) 导出：
 
 - 接口 `AgentPublicationAuthority`（宿主的同步核验，`check` 收调用方的 Cordis `Context`）和前三个类型的再导出。
-- 21 个抽象 Service 和对应的 21 个键常量。`AgentInstanceProvisionService` 实现本包根入口的 `AgentInstanceProvision`，其余实现根契约的端口。每个类在 `static readonly provide` 写键一次，键常量取自它。`AgentInstanceHostService` 另有进程内的 `route`。
+- 23 个抽象 Service 和对应的 23 个键常量。`AgentInstanceProvisionService` 实现本包根入口的 `AgentInstanceProvision`，其余实现根契约的端口。每个类在 `static readonly provide` 写键一次，键常量取自它。`AgentInstanceHostService` 另有进程内的 `route`。
 - 具体的 `AgentInstancesService` 和键常量 `agentInstancesKey`。它是实例目录：`register`、`withdraw`、`resolve`、`connect`。状态放在构造函数的闭包里，不挂在实例属性上，因为任何能读 `ctx.agentInstances` 的插件都能读到实例属性。`register` 与 `withdraw` 是普通函数，使 Cordis 把 `this.ctx` 绑到调用方，登记随调用方 fiber 撤除。
 - 目录插件 `agentInstancesPlugin`：静态 `inject` 为 `agentPublicationAuthority` 与 `agentAccessCheck`，`Config` 是拒绝未知键的空对象。
-- `Context` 增补 22 个键，`Events` 增补 `agent-cordis-contract/instance-retired`。
+- `Context` 增补 24 个键，`Events` 增补 `agent-cordis-contract/instance-retired`。
 
 [testing.ts](testing.ts) 导出 `./testing` 入口。它不导入 Cordis、`agent` 与 `agent-host-local`：
 

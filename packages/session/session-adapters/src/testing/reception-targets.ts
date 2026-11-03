@@ -1,32 +1,3 @@
-import type {
-  Access,
-  AgentExecutionId,
-  AgentInstanceId,
-  ConsumerRef,
-  PendingCall,
-  Reply,
-} from '@omne-harness/agent-contract'
-import type { ModelInvocationRef } from '@omne-harness/model-contract'
-
-export type ModelReceptionTarget = Readonly<{
-  execution: AgentExecutionId
-  instance: AgentInstanceId
-  pending: Extract<PendingCall, { kind: 'model' }>
-}>
-
-/** Resolves the original committed consumption, independently of a live attachment. */
-export interface ModelReceptionTargets<P> {
-  forExecution(
-    input: Readonly<{
-      access: Access<P>
-      execution: AgentExecutionId
-    }>,
-  ): Reply<readonly ModelReceptionTarget[]>
-  resolve(
-    input: Readonly<{
-      access: Access<P>
-      consumer: ConsumerRef
-      reference: ModelInvocationRef
-    }>,
-  ): Reply<ModelReceptionTarget>
-}
+// The target query of the result receiver and its binding are Agent contract types (agent-contract
+// J02 item 1, R2-D237); the testing Journal and the session-log provider name them from here.
+export type { ModelReceptionTarget, ModelReceptionTargets } from '@omne-harness/agent-contract'

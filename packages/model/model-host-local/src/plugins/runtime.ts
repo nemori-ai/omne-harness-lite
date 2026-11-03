@@ -972,7 +972,9 @@ function delegatedCommands(commands: ModelCommands<unknown>): ModelCommands<unkn
 export function reportRuntimeEvent(ctx: Context, event: RuntimeEvent): void {
   switch (event.kind) {
     case 'no-receiver':
-      ctx.logger.info('model result push: no receiver is registered for the consumer owner')
+      // A warning: the delivery stays owed and its consumer waits until a receiver registers
+      // (R2-D237: a missing registration kept every Agent reply from arriving, logged as info).
+      ctx.logger.warn('model result push: no receiver is registered for the consumer owner')
       return
     case 'push-waiting':
       ctx.logger.info(`model result push: a delivery waits (${event.reason})`)

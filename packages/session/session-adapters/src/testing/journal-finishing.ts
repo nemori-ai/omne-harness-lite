@@ -475,8 +475,9 @@ export function buildObligations(
     )
     const association =
       associations.find(item => item.association.kind === 'accepted') ?? associations.at(-1)
-    // A final failure of the producer settles the call; it is read from every candidate, so a
-    // cancelled candidate that replaced the no-reply failure does not undo it.
+    // A final failure of the producer settles the call, and so does the Model's definite refusal
+    // of its admission (R2-D237, R2-D241: a refused admission leaves no send). It is read from every
+    // candidate, so a cancelled candidate that replaced that failure does not undo it.
     const call = source.modelCallOf(effect)
     const finalFailure =
       call === null
@@ -484,7 +485,7 @@ export function buildObligations(
         : (source.finishing.candidates.find(
             item =>
               item.conclusion.kind === 'fail' &&
-              item.failure?.kind === 'no-reply' &&
+              (item.failure?.kind === 'no-reply' || item.failure?.kind === 'model-refused') &&
               item.failure.call === call,
           )?.failure ?? undefined)
     const custodian =
