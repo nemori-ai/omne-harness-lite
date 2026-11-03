@@ -19,7 +19,11 @@ import type {
 import { principalIssuerKey, tenantStandingKey } from '@omne-harness/identity/cordis'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type { ModelCallId, ModelFailure } from '@omne-harness/model-contract'
-import type { ModelHostAuthority } from '@omne-harness/model-contract/provider'
+import type {
+  ActorRef,
+  ModelDriveInput,
+  ModelHostAuthority,
+} from '@omne-harness/model-contract/provider'
 import {
   ModelConverterAuthorityService,
   ModelHostAuthorityService,
@@ -31,8 +35,17 @@ import {
   type ModelPublicationAuthority,
   type ModelRegistrationFailure,
 } from '@omne-harness/model-cordis-contract/cordis'
-import { fail, type Outcome } from '@omne-harness/operation-result'
-import { createModelRunComposition, type ModelRunComposition } from '../model/composition.ts'
+import type {
+  InitialTarget,
+  ModelAcceptedOrigin,
+  ModelInitialExecution,
+} from '@omne-harness/model/commands'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import {
+  createModelRunComposition,
+  type ModelRecordsAttachment,
+  type ModelRunComposition,
+} from '../model/composition.ts'
 import { registerModelRowPorts } from '../model/ports.ts'
 import { MODEL_HOST_COMPONENT, MODEL_WORK_OWNER } from '../model/principals.ts'
 import { ACTOR_OWNER, readSubject } from '../model/qualification.ts'
@@ -74,86 +87,119 @@ function sameTenant(left: TenantId, right: TenantId): boolean {
   return tenantCodec.encode(left).ok && tenantCodec.encode(right).ok && tenantEquals(left, right)
 }
 
-/** 宿主权威的 `resolve`：步骤见文件头。诊断不回显调用身份。 */
+type Ready = Readonly<{
+  attached: ModelRecordsAttachment
+  current: () => boolean
+  issue: ModelWorkIssue
+  standing: Pick<TenantStandingSource, 'read'>
+}>
+
+/** 前提：记录行已附着、宿主已绑定、签发者与 standing 来源在场。缺任一项答 `unavailable`。 */
+function readiness(input: ModelHostAuthorityInput): Outcome<Ready, ModelFailure> {
+  const attached = input.composition.attached()
+  if (attached === undefined) return fail(unavailable('records-not-attached'))
+  const current = input.composition.hostCurrent()
+  if (current === undefined) return fail(unavailable('host-not-bound'))
+  if (input.issue === undefined) return fail(unavailable('principal-issuer-unavailable'))
+  const standing = input.standing()
+  if (standing === undefined) return fail(unavailable('tenant-standing-unavailable'))
+  return succeed({ attached, current, issue: input.issue, standing })
+}
+
+/** 第 1 步：原受理，只在本次许可内读。`commit-unknown` 答 `unavailable`，别的失败原样返回。 */
+async function readOrigin(
+  composition: ModelRunComposition,
+  initial: ModelInitialExecution<unknown>,
+  target: InitialTarget,
+): Promise<Outcome<ModelAcceptedOrigin, ModelFailure>> {
+  const revoke = composition.grantOriginRead(target)
+  let accepted: Awaited<ReturnType<typeof initial.readAcceptance>>
+  try {
+    accepted = await initial.readAcceptance(target)
+  } catch {
+    return fail(unavailable('acceptance-read-threw'))
+  } finally {
+    revoke()
+  }
+  if ('failure' in accepted && accepted.failure.kind === 'commit-unknown')
+    return fail(unavailable('acceptance-commit-unknown'))
+  return accepted
+}
+
+/** 第 3 步：受理记录的租户与调用等于请求，租户是成员，原发起者就是本租户账号。通过后给出主体引用。 */
+async function checkRelation(
+  standing: Pick<TenantStandingSource, 'read'>,
+  accepted: ModelAcceptedOrigin,
+  target: InitialTarget,
+): Promise<Outcome<ActorRef, ModelFailure>> {
+  if (!sameTenant(accepted.tenant, target.tenant) || accepted.call !== target.call)
+    return fail(denied('model-host-resolve'))
+  const subject = await readSubject(standing, accepted.tenant)
+  if (subject.kind === 'unavailable') return fail(unavailable(subject.diagnostic))
+  if (subject.kind === 'not-member') return fail(denied('model-host-resolve'))
+  const { initiator } = accepted
+  if (initiator.owner !== ACTOR_OWNER || initiator.subject !== subject.actor.subject)
+    return fail(denied('model-host-resolve'))
+  return succeed(subject.actor)
+}
+
+/** 第 4 步：通道 prepare，首次生成或认回 operation 与 continuity。失败撤掉 M 的登记并原样返回。 */
+async function prepareOnChannel(
+  composition: ModelRunComposition,
+  ready: Ready,
+  access: Readonly<{ principal: object; tenant: TenantId; call: ModelCallId; actor: ActorRef }>,
+): Promise<Outcome<ModelDriveInput<unknown>, ModelFailure>> {
+  const withdraw = ready.attached.qualification.captureHost({ ...access, current: ready.current })
+  const channel = composition.executionChannel()
+  if ('failure' in channel) {
+    withdraw()
+    return channel
+  }
+  let prepared: Awaited<ReturnType<typeof channel.ok.prepare>>
+  try {
+    prepared = await channel.ok.prepare({
+      tenant: access.tenant,
+      call: access.call,
+      principal: access.principal,
+    })
+  } catch {
+    withdraw()
+    return fail(unavailable('channel-prepare-threw'))
+  }
+  if ('failure' in prepared) {
+    withdraw()
+    return prepared
+  }
+  ready.attached.qualification.recordHostBinding({
+    tenant: access.tenant,
+    call: access.call,
+    instance: prepared.ok.instance,
+    operation: prepared.ok.operation,
+    current: ready.current,
+  })
+  return prepared
+}
+
+/** 宿主权威的 `resolve`：前提 → 读原受理 → 签 M → 核关系 → prepare。诊断不回显调用身份。 */
 export function createModelHostAuthority(
   input: ModelHostAuthorityInput,
 ): ModelHostAuthority<unknown> {
   const resolve: ModelHostAuthority<unknown>['resolve'] = async target => {
-    const { composition } = input
-    const attached = composition.attached()
-    if (attached === undefined) return fail(unavailable('records-not-attached'))
-    const current = composition.hostCurrent()
-    if (current === undefined) return fail(unavailable('host-not-bound'))
-    if (input.issue === undefined) return fail(unavailable('principal-issuer-unavailable'))
-    const standing = input.standing()
-    if (standing === undefined) return fail(unavailable('tenant-standing-unavailable'))
-
-    // 1. 原受理，只在本次许可内读。
-    const revoke = composition.grantOriginRead(target)
-    let accepted: Awaited<ReturnType<typeof attached.initial.readAcceptance>>
-    try {
-      accepted = await attached.initial.readAcceptance(target)
-    } catch {
-      return fail(unavailable('acceptance-read-threw'))
-    } finally {
-      revoke()
-    }
-    if ('failure' in accepted)
-      return accepted.failure.kind === 'commit-unknown'
-        ? fail(unavailable('acceptance-commit-unknown'))
-        : accepted
-
+    const ready = readiness(input)
+    if ('failure' in ready) return ready
+    const accepted = await readOrigin(input.composition, ready.ok.attached.initial, target)
+    if ('failure' in accepted) return accepted
     // 2. 签 M。
-    const issued = input.issue({ tenant: accepted.ok.tenant, call: accepted.ok.call })
+    const issued = ready.ok.issue({ tenant: accepted.ok.tenant, call: accepted.ok.call })
     if ('failure' in issued) return fail(unavailable('principal-issue-refused'))
-    const principal = issued.ok
-
-    // 3. 核关系：租户、调用、原发起者就是本租户账号。
-    if (!sameTenant(accepted.ok.tenant, target.tenant) || accepted.ok.call !== target.call)
-      return fail(denied('model-host-resolve'))
-    const subject = await readSubject(standing, accepted.ok.tenant)
-    if (subject.kind === 'unavailable') return fail(unavailable(subject.diagnostic))
-    if (subject.kind === 'not-member') return fail(denied('model-host-resolve'))
-    const { initiator } = accepted.ok
-    if (initiator.owner !== ACTOR_OWNER || initiator.subject !== subject.actor.subject)
-      return fail(denied('model-host-resolve'))
-    const withdraw = attached.qualification.captureHost({
-      principal,
+    const actor = await checkRelation(ready.ok.standing, accepted.ok, target)
+    if ('failure' in actor) return actor
+    return prepareOnChannel(input.composition, ready.ok, {
+      principal: issued.ok,
       tenant: accepted.ok.tenant,
       call: accepted.ok.call,
-      actor: subject.actor,
-      current,
+      actor: actor.ok,
     })
-
-    // 4. 通道 prepare：首次生成或认回 operation 与 continuity。
-    const channel = composition.executionChannel()
-    if ('failure' in channel) {
-      withdraw()
-      return channel
-    }
-    let prepared: Awaited<ReturnType<typeof channel.ok.prepare>>
-    try {
-      prepared = await channel.ok.prepare({
-        tenant: accepted.ok.tenant,
-        call: accepted.ok.call,
-        principal,
-      })
-    } catch {
-      withdraw()
-      return fail(unavailable('channel-prepare-threw'))
-    }
-    if ('failure' in prepared) {
-      withdraw()
-      return prepared
-    }
-    attached.qualification.recordHostBinding({
-      tenant: accepted.ok.tenant,
-      call: accepted.ok.call,
-      instance: prepared.ok.instance,
-      operation: prepared.ok.operation,
-      current,
-    })
-    return prepared
   }
   return Object.freeze({ resolve })
 }
