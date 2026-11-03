@@ -40,22 +40,22 @@
     },
     {
       "id": "session-ad02",
-      "plugin": "stubPlugin",
+      "plugin": "sessionAd02Row",
       "config": {}
     },
     {
       "id": "session-ad03",
-      "plugin": "stubPlugin",
+      "plugin": "sessionAd03Row",
       "config": {}
     },
     {
       "id": "session-ad04",
-      "plugin": "stubPlugin",
+      "plugin": "sessionAd04Row",
       "config": {}
     },
     {
       "id": "session-ad05",
-      "plugin": "stubPlugin",
+      "plugin": "sessionAd05Row",
       "config": {}
     },
     {
@@ -95,8 +95,11 @@
     },
     {
       "id": "session-handoff",
-      "plugin": "stubPlugin",
-      "config": {}
+      "plugin": "sessionHandoffRow",
+      "config": {
+        "combinationVersion": "session-composite/2",
+        "manifestDigest": "72bd68b95c7418d8c774588164cb66efe37f661e5ba89f7f94cc50df3dee4275"
+      }
     },
     {
       "id": "session-conditions",
@@ -386,18 +389,25 @@
     },
     {
       "id": "request-context",
-      "plugin": "stubPlugin",
+      "plugin": "requestContextRow",
       "config": {}
     },
     {
       "id": "agent-context",
-      "plugin": "stubPlugin",
+      "plugin": "agentContextRow",
       "config": {}
     },
     {
       "id": "agent-account-outlet",
-      "plugin": "stubPlugin",
-      "config": {}
+      "plugin": "agentAccountOutletRow",
+      "config": {
+        "sender": {
+          "owner": "@omne-harness/agent-context",
+          "name": "account-outlet",
+          "revision": "1",
+          "digest": "agent-context:account-outlet/1"
+        }
+      }
     },
     {
       "id": "runtime-context",
