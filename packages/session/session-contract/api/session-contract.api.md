@@ -206,6 +206,7 @@
 - `Waiting` · `values.d.ts`
 - `WorkSnapshot` · `values.d.ts`
 - `WorkspaceAttachment` · `values.d.ts`
+- `batchEvidence` · `reduce.d.ts`
 - `commandDigest` · `decide.d.ts`
 - `decide` · `decide.d.ts`
 - `decideControlConsequences` · `control-normalization.d.ts`
@@ -1601,7 +1602,7 @@ export type { AdoptionEvidenceCommand, AgentDrivePort, CustodyEvidenceCommand, P
 export { sessionModesBlock } from './block.ts';
 export { judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
 export { decide, commandDigest } from './decide.ts';
-export { reduce } from './reduce.ts';
+export { batchEvidence, reduce } from './reduce.ts';
 export { projectSessionLog, type SessionLogObservation, type SessionLogConsequence, } from './projection.ts';
 export { projectSessionEntries, digestSessionEntries } from './entries-interpretation.ts';
 export { digestSessionLog, executionReadThrough } from './log-interpretation.ts';

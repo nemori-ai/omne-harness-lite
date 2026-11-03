@@ -178,7 +178,7 @@ export {
   type RunStartJudgment,
 } from './judgments.ts'
 export { decide, commandDigest } from './decide.ts'
-export { reduce } from './reduce.ts'
+export { batchEvidence, reduce } from './reduce.ts'
 
 export {
   projectSessionLog,

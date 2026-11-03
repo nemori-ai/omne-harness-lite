@@ -8,6 +8,7 @@ it('exports exactly the declared root runtime surface', () => {
   expect(Object.keys(session).sort()).toEqual([
     'INGRESS_FAMILIES',
     'INITIALIZATION_PROTOCOL',
+    'batchEvidence',
     'commandDigest',
     'decide',
     'decideControlConsequences',

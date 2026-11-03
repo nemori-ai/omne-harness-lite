@@ -344,8 +344,11 @@ export interface SessionTransactionPort<P> {
 export type SessionInternalPrincipals<P> = Readonly<{ coordinator: P; maintainer: P }>
 /**
  * The tenant ownership of an established session (D-AUTH r4 4.1). It proves only the tenant and the
- * established identity, and does not ask `SessionAccessCheck`. An unknown session and a session of
- * another tenant both answer `not-bound`. Only the trusted issuing closure of the assembly reads it.
+ * established identity, and does not ask `SessionAccessCheck`. `source` is the evidence of the batch
+ * that established the session (`batchEvidence` of its creating batch). It does not change when later
+ * batches commit, unlike `WorkSnapshot.source`, which is the evidence of the latest batch. An unknown
+ * session and a session of another tenant both answer `not-bound`. Only the trusted issuing closure
+ * of the assembly reads it.
  */
 export interface SessionPrincipalBindingSource {
   read(

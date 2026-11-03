@@ -258,9 +258,10 @@ class TenantDomainLookupImpl extends TenantDomainLookupService {
 }
 
 /**
- * 会话归属读口（受信）：session-storage-sql 的 `createSessionPrincipalBindings`，与公开端口同一存储、同一目录快照，
- * 所以共用工作缓存。它不问访问裁定，只答租户与会话归属；目录没有该租户（未登记）或存储读失败（含关闭中）答
- * `unavailable`，未知会话与别的租户的会话都答 `not-bound`。读不登记租户。
+ * 会话归属读口（受信）：session-storage-sql 的 `createSessionPrincipalBindings`，与公开端口同一存储、同一目录快照。
+ * 它窄读取（不读工作快照，不共用工作缓存），已成立的归属在进程内记住。它不问访问裁定，只答租户、会话与建立证据；
+ * 目录没有该租户（未登记）或存储读失败答 `unavailable`，行停止后一律答 `unavailable`（诊断含 `closing`），
+ * 未知会话与别的租户的会话都答 `not-bound`。读不登记租户。
  */
 class PrincipalBindingsImpl extends SessionPrincipalBindingsService {
   readonly read: SessionPrincipalBindingSource['read']
@@ -303,11 +304,15 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   new DelegatedTransactionsImpl(ctx, checked => delegatedView(base, directory, checked))
   new TenantDomainsImpl(ctx, directory.access)
   new TenantDomainLookupImpl(ctx, directory.lookup)
-  new PrincipalBindingsImpl(
-    ctx,
-    createSessionPrincipalBindings({ storage, domains: directory.access }),
-  )
-  return { stop: deadline => directory.close(deadline) }
+  const bindings = createSessionPrincipalBindings({ storage, domains: directory.access })
+  new PrincipalBindingsImpl(ctx, bindings)
+  return {
+    stop: deadline => {
+      // 读口记住了已成立的归属，不再读存储，所以关闭要显式告诉它：此后一律答 `unavailable`。
+      bindings.stop()
+      return directory.close(deadline)
+    },
+  }
 }
 
 export const sessionStorageRow = defineRow({

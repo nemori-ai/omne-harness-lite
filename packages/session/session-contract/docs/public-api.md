@@ -101,6 +101,8 @@ SessionCreation.initialization 是可选来源包，包含 sources 和 results�
 
 `commandDigest(command)` 导出自 [decide.ts](../src/decide.ts)，提供 `OperationRecord.digest` 的规范摘要。共同日志组合提供者直接使用该函数保存原 Session 操作摘要，避免复制命令归一规则。
 
+`batchEvidence(batch, session)` 导出自 [reduce.ts](../src/reduce.ts)，是 `reduce` 给 `WorkSnapshot.source` 用的批次证据函数（owner、`<session>@<revision>`、修订与条目摘要）。只导出，格式不变。存储提供者用它从创建该会话的第一批条目算出建立证据（`SessionPrincipalBindingSource` 的 `source`），不在存储里复制证据格式。
+
 调用方在同一个 per-session 发布根内保存 Session 批次、归约快照、解释进度与操作答复。Agent 首次提交和 Session 后续解释是两次提交。两者共享发布根，仍允许取消在两次提交之间先成立。快照读取的 sequence 为 null，不推进公开事件序号。事件序号只接受连续前缀，重复序号不再生成事实。
 
 `createMemorySessionTransactions` 具有自己的内存根，不能注入或共享外部根。`MemorySessionLogTransactions.controls.project` 只供本包测试。组合提供者应直接调用 `decide`、`projectSessionLog`、`reduce`，并在自己的单根里原子发布，不能再包一层独立事务替身。
