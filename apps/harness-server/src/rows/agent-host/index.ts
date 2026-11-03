@@ -20,8 +20,9 @@
 // to `settled`, `incomplete` to `incomplete` with the member's detail, which names each instance
 // that did not drain and why. The deadline is the one the shutdown coordinator hands to the stop,
 // on the monotonic clock of the shutdown; the row adds no time of its own. With the Agent factory
-// of this release quiesce answers `unavailable` (#502 stage 5), so a stop with a live instance is
-// `incomplete`; with no instance it is `settled`.
+// of this release quiesce drains an idle instance and answers `unresolved` for an execution in its
+// slot (R2-D173, R2-D185; its handover is #502 stage 5), so a stop is `settled` with no instance or
+// only idle ones, and `incomplete` when an execution holds a slot.
 //
 // Configuration (data only, no default; the operator layer gives every item): the factory items
 // and `instanceIdleMs` that the member's schema judges, and one release rule on top (R2-D93): the

@@ -1981,12 +1981,14 @@ async function awaitToolRound(
   }
 }
 
+// A success that carries a kind is named by it (R2-D173, R2-D185): a quiesce that answers
+// `unresolved` left an execution to hand over and is not written as succeeded.
 const replyLabel = (name: string, reply: { ok: unknown } | { failure: unknown } | null) =>
   reply === null
     ? `agent:${name} not reached`
     : 'failure' in reply
       ? `agent:${name} ${kindOf(reply.failure)}`
-      : `agent:${name} succeeded`
+      : `agent:${name} ${kindOf(reply.ok) === 'unknown' ? 'succeeded' : kindOf(reply.ok)}`
 
 type Withdrawal = Readonly<{
   quiesced: { ok: unknown } | { failure: unknown }

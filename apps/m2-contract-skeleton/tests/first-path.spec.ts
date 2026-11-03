@@ -498,12 +498,14 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     expect(environment.command.calls.map(call => call.executable)).toEqual(['cat'])
   })
 
-  it('records quiesce, detach and resume as unavailable and one Model admission after the Model settled', async () => {
+  // R2-D173, R2-D185: quiesce during the Model call answers `unresolved` (the execution in the slot
+  // is not handed over, #502 stage 5), and the draining runtime refuses the resume. H11 stays refused.
+  it('records quiesce as unresolved, detach and resume as unavailable and one Model admission after the Model settled', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
     expect(kindAt(observed, 'H11')).toBe('refused')
     expect(evidenceAt(observed, 'H11')).toEqual([
       'caller-reported: Model admissions 1 after the Model settled',
-      'agent:control.quiesce unavailable',
+      'agent:control.quiesce unresolved',
       'agent:recovery.detach unavailable',
       'agent:runtime.resume unavailable',
       'agent:the original driver continued from the received entry after the Model settled',
@@ -563,7 +565,9 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     )
   })
 
-  it('answers the withdrawal, the resume and the submit as not implemented by #502, not as an access refusal', async () => {
+  // R2-D173, R2-D185: quiesce has a body now and answers without a diagnostic; the resume after it
+  // meets a draining runtime. Submit and detach stay not implemented by #502.
+  it('answers the submit and the detach as not implemented by #502 and the resume after quiesce as draining, not as an access refusal', async () => {
     const diagnostics: string[] = []
     const note = <T extends { ok: unknown } | { failure: unknown }>(reply: T): T => {
       if ('failure' in reply && typeof reply.failure === 'object' && reply.failure !== null)
@@ -607,9 +611,8 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     )
     expect(diagnostics).toEqual([
       'submit is not implemented yet; #502 assigns it no stage',
-      'quiesce is not implemented until #502 stage 5',
       'detach is not implemented until #502 stage 5',
-      'resume is not implemented until #502 stage 5',
+      'the runtime is draining after quiesce; a new resume is not accepted',
     ])
   })
 

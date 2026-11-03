@@ -5,11 +5,13 @@
 // `stages` the world also provides the six locally required dependencies from the same doubles, so
 // the Loop of `createAgentRuntime` reaches its Model requests; `admits` records each of them.
 //
-// `withRuntimeDuties` wraps the Agent factory with the two runtime duties of XC-AGINST 3.5 that
-// `createAgentRuntime` does not keep yet: quiesce marks the runtime draining before its first
-// `await` and withdraws through the registration handle, and invoke reports `occupied` in the same
-// step that takes the slot. Tests that use it prove the host side only; tests that use the plain
-// factory show what the real runtime answers today.
+// `withRuntimeDuties` wraps the Agent factory with the two runtime duties of XC-AGINST 3.5 as a
+// script: quiesce marks the runtime draining before its first `await` and withdraws through the
+// registration handle, and invoke reports `occupied` in the same step that takes the slot. Since
+// R2-D173 (R2-D185) `createAgentRuntime` keeps the first duty for an idle instance; it does not keep
+// the second (a reservation still shows idle), and an execution in its slot answers `unresolved`.
+// The wrapper scripts the answers that the host must handle. Tests that use it prove the host side
+// only; tests that use the plain factory show what the real runtime answers.
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { createAgentRuntime } from '@omne-harness/agent'
 import {
@@ -272,7 +274,7 @@ export function occupied(instance: AgentInstanceId): AgentState {
   }
 }
 
-/** The Agent factory with the runtime duties that `createAgentRuntime` does not keep yet. */
+/** The Agent factory with both runtime duties kept by a script, and scripted quiesce answers. */
 function withRuntimeDuties(
   world: Pick<World, 'handles' | 'quiesced' | 'quiesceAnswers'>,
 ): RuntimeFactory {

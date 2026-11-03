@@ -4,8 +4,9 @@
 // leaves the Loop to run on until the runtime is idle again. `observe` shows the state of the
 // instance as it changes. Execution control saves its command, advances a Model or Tool
 // interruption and establishes cancellation stages. A failed step goes back to the caller, who
-// retries with the same control operation. The remaining bodies answer a named stage-temporary
-// `unavailable` after `allowed`.
+// retries with the same control operation. `quiesce` drains an instance whose slot is free; an
+// execution in flight stays in its slot and the answer is `unresolved` (its detach and handover are
+// #502 stage 5). The remaining bodies answer a named stage-temporary `unavailable` after `allowed`.
 //
 // The slot and the observed state never disagree: `observe` shows the state that `stateOf` derives
 // from the slot, and every slot change goes through `occupy`. A run that stopped keeps the slot
@@ -24,9 +25,11 @@ import type {
   AgentObservation,
   AgentOperationId,
   AgentState,
+  DurableEvidence,
   EventPage,
   ExecutionAttachmentId,
   Failure,
+  QuiesceResult,
 } from '@omne-harness/agent-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AccessGuard } from './access.ts'
@@ -38,6 +41,7 @@ import type {
 } from './construction.ts'
 import { canonical } from './canonical.ts'
 import { createExecutionCoordinator } from './loop/coordinator.ts'
+import { agentEvidence } from './loop/identities.ts'
 import { advanceControl } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
 
@@ -119,6 +123,34 @@ type Accepted = Readonly<{
 
 type InvokeInput<P> = Parameters<AgentProvider<P>['runtime']['invoke']>[0]
 
+/**
+ * The one quiesce of a runtime, from its acceptance on (SPEC "交接与停用"). A later quiesce with
+ * another operation joins it and does not start a second one. `drained` is the final answer once the
+ * registration is withdrawn. `step` is the drain step in flight, which joined callers share.
+ */
+type Quiescing = {
+  readonly operation: AgentOperationId
+  readonly reason: DurableEvidence
+  /** The canonical text of `reason`: the same operation with another reason conflicts. */
+  readonly reasonText: string
+  drained: QuiesceResult | null
+  step: Promise<Outcome<QuiesceResult, Failure>> | null
+}
+
+/** The answer of an invoke or resume that reaches a draining runtime (SPEC "四种控制", 停用). */
+function drainingRefusal(operation: 'invoke' | 'resume'): Failure {
+  return {
+    kind: 'unavailable',
+    owner: OWNER,
+    diagnostic: `the runtime is draining after quiesce; a new ${operation} is not accepted`,
+  }
+}
+
+/** A registration answer that does not let quiesce say `drained`, as a named `unavailable`. */
+function withdrawalFailure(diagnostic: string): Failure {
+  return { kind: 'unavailable', owner: 'agentRegistration', diagnostic }
+}
+
 /** The input of an invoke that the same operation must repeat to get the original handle back. */
 function inputText<P>(input: InvokeInput<P>): string {
   return canonical({ execution: input.execution, initial: input.initial, grant: input.grant })
@@ -150,6 +182,16 @@ export function createProvider<P, B extends ContentBlock>(
   let slot: Slot = { kind: 'free' }
   let current: AgentState = { kind: 'idle', instance }
   const listeners = new Set<() => void>()
+
+  // SPEC "交接与停用": the accepted quiesce, null before one is accepted.
+  let quiescing: Quiescing | null = null
+  // Quiesce calls still at their access check. Public API "quiesce 与执行槽的同步义务" 1: the runtime
+  // drains before the first await of quiesce, so these count as draining too. A refused call that
+  // leaves no accepted quiesce behind lifts it again; an invoke refused meanwhile was refused closed.
+  let checking = 0
+  // Drained: the registration is withdrawn and every observation has ended `retired`.
+  let retired = false
+  const draining = () => quiescing !== null || checking > 0
 
   /**
    * The state that `observe` shows for a slot: only an execution that exists (S-14 of #558). A
@@ -215,7 +257,7 @@ export function createProvider<P, B extends ContentBlock>(
       return
     }
     let shown: AgentState | null = null
-    while (!input.signal.aborted) {
+    while (!input.signal.aborted && !retired) {
       if (shown !== current) {
         shown = current
         yield { kind: 'state', value: current }
@@ -223,7 +265,7 @@ export function createProvider<P, B extends ContentBlock>(
       }
       await woken(input.signal, listeners)
     }
-    yield { kind: 'ended', reason: 'closed' }
+    yield { kind: 'ended', reason: retired ? 'retired' : 'closed' }
   }
 
   /** The handle of one execution. Reading its events is guarded like every public operation. */
@@ -487,6 +529,9 @@ export function createProvider<P, B extends ContentBlock>(
     if ('failure' in passed) return passed
     const remembered = answerRemembered(input)
     if (remembered !== undefined) return remembered
+    // SPEC "四种控制": after quiesce a new invoke answers unavailable. The R0 item is refused too:
+    // its retry could admit the execution anew, and the quiesce already counts it as remaining.
+    if (draining()) return fail(drainingRefusal('invoke'))
     if (
       slot.kind === 'reserved' &&
       slot.unresolved === input.operation &&
@@ -500,11 +545,123 @@ export function createProvider<P, B extends ContentBlock>(
     return admit(input, { kind: 'free' })
   }
 
+  const resume: AgentProvider<P>['runtime']['resume'] = async input => {
+    const passed = await guard(input, 'resume', onExecution(input.execution))
+    if ('failure' in passed) return passed
+    return fail(draining() ? drainingRefusal('resume') : notImplemented('resume', 'stage 5'))
+  }
+
+  function quiesceResult(
+    held: Quiescing,
+    kind: QuiesceResult['kind'],
+    remaining: QuiesceResult['remaining'],
+  ): QuiesceResult {
+    return {
+      kind,
+      remaining,
+      evidence: agentEvidence(`quiesce/${instance}/${held.operation}`, {
+        kind,
+        remaining,
+        reason: held.reason,
+      }),
+    }
+  }
+
+  /**
+   * Withdraws the registration of this instance through its handle. Without a handle the instance
+   * was never published, and quiesce skips the withdrawal (public API "参数与依赖", registration).
+   * Only `withdrawn`, or no registration left, lets quiesce say drained.
+   */
+  async function withdrawRegistration(
+    held: Quiescing,
+    access: Access<P>,
+  ): Promise<Outcome<null, Failure>> {
+    const handle = dependencies.registration
+    if (handle === null) return succeed(null)
+    let answer: Awaited<ReturnType<typeof handle.withdraw>>
+    try {
+      answer = await handle.withdraw({ ...access, operation: held.operation, reason: held.reason })
+    } catch {
+      return fail(withdrawalFailure('withdraw threw'))
+    }
+    if ('failure' in answer) {
+      const { failure } = answer
+      if (failure.kind === 'denied' || failure.kind === 'unavailable') return answer
+      return fail(withdrawalFailure(`withdraw answered ${failure.kind}`))
+    }
+    if (answer.ok === null || answer.ok.state === 'withdrawn') return succeed(null)
+    return fail(withdrawalFailure(`withdraw left the registration ${answer.ok.state}`))
+  }
+
+  /**
+   * One drain step. An execution in the slot stays there: its detach and handover are #502 stage
+   * 5, so the answer is `unresolved` with that execution and never `drained`. A free slot withdraws
+   * the registration, ends every observation and answers `drained` for good. The slot cannot be
+   * taken while this step waits: the runtime is draining and refuses every new invoke.
+   */
+  async function drainStep(
+    held: Quiescing,
+    access: Access<P>,
+  ): Promise<Outcome<QuiesceResult, Failure>> {
+    if (slot.kind !== 'free') return succeed(quiesceResult(held, 'unresolved', [slot.execution]))
+    const withdrawn = await withdrawRegistration(held, access)
+    if ('failure' in withdrawn) return withdrawn
+    const drained = quiesceResult(held, 'drained', [])
+    held.drained = drained
+    retired = true
+    for (const wake of listeners) wake()
+    return succeed(drained)
+  }
+
+  /**
+   * SPEC "交接与停用": a drained quiesce answers its original result. Otherwise every caller (a
+   * retry, or a new quiesce that joins) goes on with the handover and gets the current remainder;
+   * callers that arrive while a step runs share it.
+   */
+  function continueQuiesce(
+    held: Quiescing,
+    access: Access<P>,
+  ): Promise<Outcome<QuiesceResult, Failure>> {
+    if (held.drained !== null) return Promise.resolve(succeed(held.drained))
+    if (held.step === null) {
+      const step = drainStep(held, access)
+      held.step = step
+      const clear = () => {
+        if (held.step === step) held.step = null
+      }
+      void step.then(clear, clear)
+    }
+    return held.step
+  }
+
+  const quiesce: AgentProvider<P>['control']['quiesce'] = async input => {
+    checking += 1
+    let passed: Awaited<ReturnType<AccessGuard<P>>>
+    try {
+      passed = await guard(input, 'quiesce', onInstance)
+    } finally {
+      checking -= 1
+    }
+    if ('failure' in passed) return passed
+    const reasonText = canonical(input.reason)
+    if (quiescing === null)
+      quiescing = {
+        operation: input.operation,
+        reason: input.reason,
+        reasonText,
+        drained: null,
+        step: null,
+      }
+    else if (quiescing.operation === input.operation && quiescing.reasonText !== reasonText)
+      return fail({ kind: 'conflict', operation: input.operation })
+    return continueQuiesce(quiescing, { principal: input.principal, tenant: input.tenant })
+  }
+
   return {
     runtime: {
       instance,
       invoke,
-      resume: input => guarded(input, 'resume', onExecution(input.execution), 'stage 5'),
+      resume,
     },
     observation: { instance, observe },
     recovery: {
@@ -514,7 +671,7 @@ export function createProvider<P, B extends ContentBlock>(
       detach: input => guarded(input, 'detach', onExecution(input.execution), 'stage 5'),
     },
     control: {
-      quiesce: input => guarded(input, 'quiesce', onInstance, 'stage 5'),
+      quiesce,
     },
   }
 }

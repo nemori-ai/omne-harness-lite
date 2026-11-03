@@ -4,9 +4,10 @@
 // `settled` only when every instance drained before the signal aborted, and otherwise names each
 // instance that did not and why.
 //
-// The cases that drain run with `withRuntimeDuties` (host-support.ts), which stands in for the
-// runtime's quiesce; they prove the host side only. The case "plain factory" shows what the real
-// Agent factory answers today (quiesce is `unavailable` until #502 stage 5): the stop is incomplete.
+// The scripted cases run with `withRuntimeDuties` (host-support.ts), which stands in for the
+// runtime's quiesce; they prove the host side only. The case "plain factory" runs the real Agent
+// factory, whose quiesce drains an idle instance (R2-D173, R2-D185; agent SPEC "停用"): the stop is
+// settled and the instance is withdrawn.
 import type { AgentInstanceId } from '@omne-harness/agent-contract'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AgentHostStopResult } from '../src/host-plugin.ts'
@@ -109,14 +110,14 @@ describe('the ordered stop of the agent-host plugin', () => {
     expect(host.retired.some(entry => entry.instance === left)).toBe(false)
   })
 
-  it('answers incomplete with the plain factory, whose quiesce is unavailable', async () => {
+  // R2-D173, R2-D185: the real factory drains an idle instance through its registration handle.
+  // Before them its quiesce answered the stage-temporary `unavailable` and this stop was incomplete.
+  it('answers settled with the plain factory: the idle instance drains and is withdrawn', async () => {
     const host = await world({ factory: 'plain' })
     const { instance } = ok(await host.provision.acquire(slotOf('a')))
-    const answer = await host.plugin.quiesceAll({ signal: open() })
-    expect(unsettledOf(answer)).toEqual([
-      { instance, reason: expect.stringContaining('quiesce failed with unavailable') },
-    ])
-    ok(await host.directory.resolve({ ...caller('a'), instance }))
+    expect(await host.plugin.quiesceAll({ signal: open() })).toEqual({ kind: 'settled' })
+    expect(await retiredOf(host, instance)).toBe('withdrawn')
+    expect(await host.directory.resolve({ ...caller('a'), instance })).toHaveProperty('failure')
   })
 
   it('answers incomplete for a quiesce that throws', async () => {

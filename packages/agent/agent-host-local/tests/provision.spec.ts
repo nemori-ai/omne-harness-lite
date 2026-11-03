@@ -4,9 +4,9 @@
 // a quiesce that fails or leaves work unresolved, a reserve that grants nothing, an old withdrawal
 // that leaves the successor, and a withdrawal from a fiber that is not the host's.
 //
-// The suite runs with `withRuntimeDuties` (see host-support.ts): the plain factory answers quiesce
-// `unavailable` until #502 stage 5, so its instances are never reclaimed. The cases named "plain
-// factory" show that answer and the host's handling of it.
+// The suite runs with `withRuntimeDuties` (see host-support.ts), which scripts the runtime's quiesce.
+// The cases named "plain factory" run the real Agent factory, whose quiesce drains an idle instance
+// (R2-D173, R2-D185; agent SPEC "停用"), so the host reclaims it.
 import {
   decodeAgentOperationId,
   decodeAgentRegistrationId,
@@ -124,19 +124,16 @@ describe('acquire with the plain factory', () => {
     expect(host.controls.access.check.calls).toHaveLength(0)
   })
 
-  it('keeps an idle instance published when the runtime answers quiesce unavailable', async () => {
+  // R2-D173, R2-D185: the real factory drains an idle instance, so the idle time reclaims it. Before
+  // them its quiesce answered the stage-temporary `unavailable` and the instance stayed published.
+  it('reclaims an idle instance: the runtime drains and the registration is withdrawn', async () => {
     const host = await world('plain')
     const { instance } = ok(await host.provision.acquire(slotOf('a')))
     host.advance(IDLE_MS + 1)
     await turns()
-    expect(host.retired).toEqual([])
-    expect(host.errors.some(line => line.includes(instance) && line.includes('unavailable'))).toBe(
-      true,
-    )
-    ok(await host.directory.resolve({ ...caller('a'), instance }))
-    expect(ok(await host.provision.acquire(slotOf('a'))).instance).toBe(instance)
-    // The next idle time tries again: the host waits on the clock once more.
-    expect(host.controls.clock.pending()).toHaveLength(1)
+    expect(await retiredOf(host, instance)).toBe('withdrawn')
+    expect(await host.directory.resolve({ ...caller('a'), instance })).toHaveProperty('failure')
+    expect(ok(await host.provision.acquire(slotOf('a'))).instance).not.toBe(instance)
   })
 
   it('keeps the instance published when the host principal is refused quiesce', async () => {

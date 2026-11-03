@@ -9,6 +9,7 @@
 - [assembly.spec.ts](assembly.spec.ts)：测试装配的 17 项依赖，以及它交给工厂得到 idle 的 provider（C1）
 - [factory.spec.ts](factory.spec.ts)：工厂的四种创建失败与成功的 idle（C1）
 - [provider-access.spec.ts](provider-access.spec.ts)：四个面每个公开操作的租户核对与 `access.check`（C2）
+- [provider-quiesce.spec.ts](provider-quiesce.spec.ts)：停用：空闲实例 drained 并撤登记、draining 拒绝新的 invoke 与 resume、占槽时 unresolved、操作身份与认回
 - [loop-transitions.spec.ts](loop-transitions.spec.ts)：转移表逐行对节点表（C1）
 - [loop-evaluator.spec.ts](loop-evaluator.spec.ts)：评估器的决定、种子属性测试与导入图纯性（C1）
 - [measure.spec.ts](measure.spec.ts)：测量事件的受理与驱动通过、观察者缺省与抛出
