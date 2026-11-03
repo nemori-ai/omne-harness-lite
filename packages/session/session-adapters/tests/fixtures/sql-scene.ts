@@ -594,7 +594,7 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
     readonly check = (request: SessionAccessRequest<unknown>): Promise<SessionAccessDecision> =>
       Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) })
   }
-  const work = { readWork: s.port.readWork }
+  const work = { readWork: s.port.readWork, readModelSelection: s.port.readModelSelection }
   class Session extends SessionService<unknown> {
     get work(): SessionFaces<unknown>['work'] {
       return work as unknown as SessionFaces<unknown>['work']
