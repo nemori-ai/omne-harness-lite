@@ -159,7 +159,9 @@ export interface CalendarRepository {
     }>,
   ): Promise<CalendarReadResult<CalendarSnapshot | null>>
   getCandidate(
-    input: Readonly<{ candidateRef: string }>,
+    input:
+      | Readonly<{ candidateRef: string }>
+      | Readonly<{ calendarId: CalendarId; versionId: CalendarVersionId }>,
   ): Promise<CalendarReadResult<CalendarCandidateRecord | null>>
   listCandidates(
     input: CalendarPageRequest & { readonly calendarId: CalendarId },

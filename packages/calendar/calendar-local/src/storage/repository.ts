@@ -54,7 +54,13 @@ export function repository(storage: SqlStorage): CalendarRepository {
     listCalendars: input => read({ ...input, kind: 'calendars' }, page(directorySchema)),
     listVersions: input => read({ ...input, kind: 'versions' }, page(versionSchema)),
     getSnapshot: input => read({ ...input, kind: 'snapshot' }, calendarSnapshotSchema.nullable()),
-    getCandidate: input => read({ ...input, kind: 'candidate' }, candidateRecordSchema.nullable()),
+    getCandidate: input =>
+      read(
+        'candidateRef' in input
+          ? { ...input, kind: 'candidate' }
+          : { ...input, kind: 'publishedCandidate' },
+        candidateRecordSchema.nullable(),
+      ),
     listCandidates: input => read({ ...input, kind: 'candidates' }, page(candidateRecordSchema)),
     listPendingReactions: input => read({ ...input, kind: 'reactions' }, page(reactionSchema)),
   }

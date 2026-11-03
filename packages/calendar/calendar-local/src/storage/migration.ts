@@ -9,7 +9,7 @@ export default {
       [],
     )
     port.execute(
-      'CREATE TABLE ca_versions (calendar_id TEXT NOT NULL, version_id TEXT NOT NULL, snapshot TEXT NOT NULL, version_info TEXT NOT NULL, PRIMARY KEY (calendar_id, version_id))',
+      'CREATE TABLE ca_versions (calendar_id TEXT NOT NULL, version_id TEXT NOT NULL, snapshot TEXT NOT NULL, version_info TEXT NOT NULL, operation_ref TEXT NOT NULL, PRIMARY KEY (calendar_id, version_id))',
       [],
     )
     port.execute(

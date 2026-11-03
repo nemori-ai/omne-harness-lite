@@ -80,8 +80,14 @@ export function savePublication(
     ...versionInfo
   } = snapshot
   port.execute(
-    'INSERT INTO ca_versions(calendar_id, version_id, snapshot, version_info) VALUES (?, ?, ?, ?)',
-    [snapshot.calendarId, snapshot.versionId, canonical(snapshot), canonical(versionInfo)],
+    'INSERT INTO ca_versions(calendar_id, version_id, snapshot, version_info, operation_ref) VALUES (?, ?, ?, ?, ?)',
+    [
+      snapshot.calendarId,
+      snapshot.versionId,
+      canonical(snapshot),
+      canonical(versionInfo),
+      receipt.operationRef,
+    ],
   )
   const next = {
     versionId: snapshot.versionId,

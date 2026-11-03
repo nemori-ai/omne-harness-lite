@@ -131,10 +131,33 @@ export async function readCurrent(
   const current = await deps.repository.getSnapshot({ calendarId, version: { kind: 'current' } })
   if (current.kind !== 'ok') throw new Error('Current version unavailable')
   if (!current.value) return { snapshot: null, candidate: null }
+  const published = await deps.repository.getCandidate({
+    calendarId,
+    versionId: current.value.versionId,
+  })
+  if (
+    published.kind !== 'ok' ||
+    !published.value ||
+    published.value.receipt.disposition !== 'published'
+  )
+    throw new Error('Current publication evidence unavailable')
+  const sources = published.value.command.candidate.sources.filter(
+    source => source.role === 'truth' || source.role === 'exceptionFeed',
+  )
   const stored: CalendarStoredMaterial[] = []
-  for (const reference of current.value.provenanceRefs) {
-    const material = await deps.materials.read({ reference })
-    if (material.kind !== 'ok' || !material.value) throw new Error('Current provenance unavailable')
+  for (const source of sources) {
+    const material = await deps.materials.read({ reference: source.rawReference })
+    if (
+      material.kind !== 'ok' ||
+      !material.value ||
+      material.value.rawHash !== source.rawHash ||
+      material.value.material.sourceId !== source.sourceId ||
+      material.value.material.lineageRef !== source.lineageRef ||
+      material.value.material.acquiredAt !== source.acquiredAt ||
+      material.value.material.authorityRef !== source.authorityRef ||
+      material.value.material.knowledgeAsOf !== source.knowledgeAsOf
+    )
+      throw new Error('Current provenance unavailable or inconsistent')
     stored.push(material.value)
   }
   const parsed = parseMaterials(stored)

@@ -284,8 +284,23 @@ export function world() {
       async listVersions() {
         return { kind: 'ok', value: { items: [], nextCursor: null } }
       },
-      async getCandidate() {
-        return { kind: 'ok', value: null }
+      async getCandidate(input) {
+        const receipt = [...receipts.values()].find(item =>
+          'candidateRef' in input
+            ? item.candidateRef === input.candidateRef
+            : item.disposition === 'published' &&
+              item.address.calendarId === input.calendarId &&
+              item.current?.versionId === input.versionId,
+        )
+        const command = receipt
+          ? runs.get(key({ address: receipt.address, expectedFingerprint: receipt.fingerprint }))
+              ?.command
+          : undefined
+        return {
+          kind: 'ok',
+          value:
+            receipt && command ? { candidateRef: receipt.candidateRef, command, receipt } : null,
+        }
       },
       async listCandidates() {
         return { kind: 'ok', value: { items: [], nextCursor: null } }

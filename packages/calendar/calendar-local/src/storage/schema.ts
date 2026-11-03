@@ -165,6 +165,11 @@ export const readSchema = z.discriminatedUnion('kind', [
     ]),
   }),
   z.strictObject({ kind: z.literal('candidate'), candidateRef: text }),
+  z.strictObject({
+    kind: z.literal('publishedCandidate'),
+    calendarId: calendarIdSchema,
+    versionId: calendarVersionIdSchema,
+  }),
   z.strictObject({ kind: z.literal('operation'), operationRef: text }),
 ])
 export type RepositoryRead = z.infer<typeof readSchema>

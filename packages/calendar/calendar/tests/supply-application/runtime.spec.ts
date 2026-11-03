@@ -351,6 +351,18 @@ describe('supply application against controlled ports', () => {
     expect(target.current()?.provenanceRefs).toEqual(source.current()?.provenanceRefs)
     expect(target.current()?.contentHash).toBe(source.current()?.contentHash)
     expect(target.calls.acquire).toBe(0)
+    expect(
+      await target.app().refresh(installedContext, { ...intent, operationKey: 'after-import' }),
+    ).toMatchObject({
+      kind: 'ok',
+      value: { kind: 'recorded', receipt: { disposition: 'noChange' } },
+    })
+    const before = target.current()
+    target.raw.clear()
+    expect(
+      await target.app().refresh(installedContext, { ...intent, operationKey: 'missing-material' }),
+    ).toMatchObject({ kind: 'error', error: { code: 'provider_failure' } })
+    expect(target.current()).toEqual(before)
   })
   it('rejects release-year or known-authority coverage gaps even when an old version is readable', async () => {
     const w = world()

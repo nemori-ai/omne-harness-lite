@@ -156,6 +156,18 @@ it('same-content and retained dispositions preserve evidence without publishing'
       outboxId: null,
     },
   })
+  if (!first.candidate.snapshot) throw new Error('Missing published snapshot')
+  const publishedCandidate = await w.repository.getCandidate({
+    calendarId: first.address.calendarId,
+    versionId: first.candidate.snapshot.versionId,
+  })
+  expect(publishedCandidate).toMatchObject({
+    kind: 'ok',
+    value: {
+      receipt: { disposition: 'published' },
+      command: { address: first.address },
+    },
+  })
   for (const kind of ['noChange', 'withheld', 'rejected'] as const) {
     const candidate = { ...first.candidate, snapshot: null }
     const result = await w.persistence.commitDisposition({
@@ -172,6 +184,12 @@ it('same-content and retained dispositions preserve evidence without publishing'
       await w.repository.getCandidate({ candidateRef: result.receipt.candidateRef }),
     ).toMatchObject({ kind: 'ok', value: { command: { candidate } } })
   }
+  expect(
+    await w.repository.getCandidate({
+      calendarId: first.address.calendarId,
+      versionId: first.candidate.snapshot.versionId,
+    }),
+  ).toEqual(publishedCandidate)
   expect(
     await w.repository.listVersions({
       calendarId: first.address.calendarId,

@@ -35,6 +35,12 @@ function read(input: RepositoryRead, port: ReadPort): JsonValue {
       return one(port, 'SELECT record FROM ca_candidates WHERE operation_ref = ?', [
         input.candidateRef,
       ])
+    case 'publishedCandidate':
+      return one(
+        port,
+        'SELECT c.record FROM ca_versions v LEFT JOIN ca_candidates c ON c.operation_ref = v.operation_ref WHERE v.calendar_id = ? AND v.version_id = ?',
+        [input.calendarId, input.versionId],
+      )
     case 'operation':
       return one(port, 'SELECT record FROM ca_candidates WHERE operation_ref = ?', [
         input.operationRef,
