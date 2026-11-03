@@ -3,7 +3,7 @@ import type { ContextScopeBinding, ControlIntent, ControlProgress, WorkSnapshot 
 import type { Decision, DecideReads, EncodedEntry } from './judgments.ts'
 import { judgeIdle, resolveControlScope, resolveCascade } from './judgments.ts'
 import { encodeEntry } from './entries.ts'
-import { tenantCodec } from '@omne-harness/legal-identity'
+import { contextScopeOf } from './context-scopes.ts'
 import { digestOf } from './operations.ts'
 import {
   completeEvidence,
@@ -20,12 +20,10 @@ export function scopeBinding(
   snapshot: Pick<WorkSnapshot, 'tenant' | 'session' | 'contextScopes'>,
   operation: SessionOperationId,
 ): ContextScopeBinding {
-  const tenant = tenantCodec.encode(snapshot.tenant)
-  if (!tenant.ok) throw new TypeError('scope binding requires a minted tenant')
   const generation = String((snapshot.contextScopes?.length ?? 0) + 1)
   return {
     generation,
-    scope: `session-scope:${digestOf({ tenant: tenant.value, holder: snapshot.session, generation })}`,
+    scope: contextScopeOf({ tenant: snapshot.tenant, session: snapshot.session, generation }),
     operation,
     ended: null,
   }

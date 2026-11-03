@@ -18,6 +18,7 @@
 - `AutoArchivePolicy` · `values.d.ts`
 - `BatchId` · `identity.d.ts`
 - `BoundedClose` · `values.d.ts`
+- `CONTEXT_SCOPE_KINDS` · `context-scopes.d.ts`
 - `CallBinding` · `values.d.ts`
 - `ClockSample` · `values.d.ts`
 - `CommitReceipt` · `faces.d.ts`
@@ -142,6 +143,7 @@
 - `SessionClock` · `ports.d.ts`
 - `SessionCommand` · `ports.d.ts`
 - `SessionContextInput` · `ports.d.ts`
+- `SessionContextScope` · `context-scopes.d.ts`
 - `SessionControlAnswer` · `control-values.d.ts`
 - `SessionControlDecisionInput` · `control-normalization.d.ts`
 - `SessionControlEntryReferences` · `work-entry-values.d.ts`
@@ -208,6 +210,8 @@
 - `WorkspaceAttachment` · `values.d.ts`
 - `batchEvidence` · `reduce.d.ts`
 - `commandDigest` · `decide.d.ts`
+- `contextScopeOf` · `context-scopes.d.ts`
+- `contextScopesOf` · `context-scopes.d.ts`
 - `decide` · `decide.d.ts`
 - `decideControlConsequences` · `control-normalization.d.ts`
 - `deriveDriveOperation` · `operations.d.ts`
@@ -468,6 +472,33 @@ export type SessionCallWait = Readonly<{
     consumption: ConsumptionId;
     position: string;
 }>;
+```
+
+## 声明文件 `context-scopes.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import { type Outcome } from '@omne-harness/operation-result';
+import type { HistoryEntry } from './faces.ts';
+import type { DurableEvidence, SessionId } from './identity.ts';
+export declare const CONTEXT_SCOPE_KINDS: readonly [
+    'session.archived',
+    'session.unarchived'
+];
+export type SessionContextScope = Readonly<{
+    generation: string;
+    scope: string;
+    ended: DurableEvidence | null;
+}>;
+export declare function contextScopeOf(input: Readonly<{
+    tenant: TenantId;
+    session: SessionId;
+    generation: string;
+}>): string;
+export declare function contextScopesOf(session: Readonly<{
+    tenant: TenantId;
+    session: SessionId;
+}>, entries: readonly Pick<HistoryEntry, 'kind' | 'payload'>[]): Outcome<readonly SessionContextScope[], string>;
 ```
 
 ## 声明文件 `control-normalization.d.ts`
@@ -1603,6 +1634,7 @@ export { sessionModesBlock } from './block.ts';
 export { judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
 export { decide, commandDigest } from './decide.ts';
 export { batchEvidence, reduce } from './reduce.ts';
+export { CONTEXT_SCOPE_KINDS, contextScopeOf, contextScopesOf, type SessionContextScope, } from './context-scopes.ts';
 export { projectSessionLog, type SessionLogObservation, type SessionLogConsequence, } from './projection.ts';
 export { projectSessionEntries, digestSessionEntries } from './entries-interpretation.ts';
 export { digestSessionLog, executionReadThrough } from './log-interpretation.ts';
@@ -2567,8 +2599,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:71d23c444fa89607c05e6abcc8a61013147ab1bf31e7e0705f99de71ad32e1f6";
-export declare const SESSION_RELEASE_DIGEST = "sha256:71d23c444fa89607c05e6abcc8a61013147ab1bf31e7e0705f99de71ad32e1f6";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:55feaaed24b40666b3e5cda2f8e5380e62e7c5a0f5430bed46b95ef9fb1b3971";
+export declare const SESSION_RELEASE_DIGEST = "sha256:55feaaed24b40666b3e5cda2f8e5380e62e7c5a0f5430bed46b95ef9fb1b3971";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
