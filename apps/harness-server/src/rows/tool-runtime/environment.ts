@@ -5,8 +5,12 @@
 //   R2-D80）；声明不允许宿主机落点答 denied；provider 不在（`tool-environments` 行未装）答 unavailable。
 // - `binding`：origin 由调用与准备操作铸出并记进本运行的 origin 表；scope 就是固定请求的 requesterScope；
 //   保留终端的账本绑在同一 scope 上。
-// - `guard`：设施请求的主体经核验是本租户的会话工作主体、origin 是本运行铸的、路径与 cwd 在文件根内。命令内容不过滤：
-//   Shell 是发行授予的能力，授权规则在 `authorization` 行，本发行不声称沙盒。
+// - `guard`：设施请求的主体经核验是本租户的会话工作主体、origin 是本运行铸的、请求里的每个路径都在文件根内：
+//   cwd，文件设施的 `path`、`move`/`copy` 的 `target.path`、`commitBatch` 的每个 `entries[].path`；带了这些字段
+//   却不是字符串路径的答 notAuthorized。命令内容不过滤：Shell 是发行授予的能力，授权规则在 `authorization` 行，
+//   本发行不声称沙盒。
+// - origin 表与账本视图按调用存，调用结清时（记录仓提交了 `settled`，见 `holder.ts`）删掉；结清后同一 origin 的
+//   设施请求与命名一律不授权。
 // - `naming`：路径解析到文件根内的宿主对象，取宿主对象令牌；越出文件根答 denied。
 // - `facts`：落点必须是宿主机；系统、版本、架构取本进程所在主机，设施取落点的需求。
 // - `cleanup.settle`：冷获取的原清理不在本波（与 L-TOOL C06 同一做法），答 pending，责任保留。
@@ -35,7 +39,7 @@ import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis
 import { environmentNeedSchemaRef } from '@omne-harness/execution-environment-contract'
 import { readEnvironmentNeed } from '../tool-host/release-author.ts'
 import type { ReleaseToolIdentity } from './access.ts'
-import { lateGuarded, lateStore, type ToolRuntimeHolder } from './holder.ts'
+import { callKeyOf, lateGuarded, lateStore, type ToolRuntimeHolder } from './holder.ts'
 
 type EnvironmentInput = LocalToolRuntimeInput['environment']
 type Preparation = Parameters<EnvironmentInput['plan']['ledger']>[0]
@@ -71,9 +75,58 @@ function textField(request: object, name: string): unknown {
   return Reflect.get(request, name)
 }
 
+/** 记录里 `name` 字段的值；不是对象时答 null（随后被当成不合格的路径）。 */
+function memberOf(value: unknown, name: string): unknown {
+  return typeof value === 'object' && value !== null ? Reflect.get(value, name) : null
+}
+
+/** 文件设施请求里要落在文件根内的值：`path`、`target.path`、`entries[].path`（字段在时）。 */
+function filePathValues(request: object): unknown[] {
+  const values: unknown[] = []
+  const path = textField(request, 'path')
+  if (path !== undefined) values.push(path)
+  const target = textField(request, 'target')
+  if (target !== undefined) values.push(memberOf(target, 'path'))
+  const entries = textField(request, 'entries')
+  if (entries !== undefined) {
+    if (!Array.isArray(entries)) values.push(null)
+    else for (const entry of entries as unknown[]) values.push(memberOf(entry, 'path'))
+  }
+  return values
+}
+
+/** 设施请求里的每个路径值（cwd 与文件设施的路径）都是文件根内的字符串路径。 */
+export function confinedToRoot(root: string, facility: FacilityKey, request: object): boolean {
+  const cwd = textField(request, 'cwd')
+  const values: unknown[] = cwd === undefined ? [] : [cwd]
+  if (facility === 'files') values.push(...filePathValues(request))
+  return values.every(value => typeof value === 'string' && withinRoot(root, value))
+}
+
+type NamingResult = Awaited<ReturnType<LocalToolRuntimeInput['environment']['naming']['name']>>
+
+/** 取 `path` 的宿主对象令牌；`ancestor` 时向上找最近的存在者，不越出文件根。 */
+async function nearestToken(
+  root: string,
+  path: string,
+  role: 'object' | 'parent' | 'ancestor',
+): Promise<NamingResult> {
+  let current = role === 'parent' || role === 'ancestor' ? dirname(path) : path
+  for (;;) {
+    try {
+      return succeed(await hostObjectToken(current))
+    } catch {
+      if (role !== 'ancestor' || current === resolve(root))
+        return unavailable('host-object-naming', 'the exact host object could not be named')
+      current = dirname(current)
+      if (!withinRoot(root, current)) return fail({ kind: 'denied', action: 'name-host-object' })
+    }
+  }
+}
+
 export type ReleaseEnvironment = Readonly<{
   input: EnvironmentInput
-  /** origin → 原调用；只在本运行内，重启后旧 origin 一律不授权。 */
+  /** origin → 原调用（(tenant, call) 的摘要）；只在本运行内，调用结清时删掉，重启后旧 origin 一律不授权。 */
   origins: ReadonlyMap<OriginRef, string>
 }>
 
@@ -106,7 +159,8 @@ export function createReleaseEnvironment(
         : ('unavailable' as const)
   }
 
-  const ledgerViews = new Map<string, ReturnType<typeof openLedgers>>()
+  /** (tenant, call, operation) → 账本视图；`call` 是 (tenant, call) 的摘要，结清时按它删。 */
+  const ledgerViews = new Map<string, { call: string; view: ReturnType<typeof openLedgers> }>()
   function openLedgers(request: Preparation) {
     return (async () => {
       const input = {
@@ -124,30 +178,32 @@ export function createReleaseEnvironment(
   }
   const ledgers = (request: Preparation) => {
     const key = canonicalDigest([request.tenant, request.call, request.preparation.operation])
-    let found = ledgerViews.get(key)
-    if (found === undefined) {
-      found = openLedgers(request)
-      ledgerViews.set(key, found)
-      // A failed open is not kept, so a later preparation tries again.
-      found.catch(() => ledgerViews.delete(key))
-    }
-    return found
+    const found = ledgerViews.get(key)
+    if (found !== undefined) return found.view
+    const view = openLedgers(request)
+    const entry = { call: callKeyOf(request.tenant, request.call), view }
+    ledgerViews.set(key, entry)
+    // A failed open is not kept, so a later preparation tries again.
+    view.catch(() => {
+      if (ledgerViews.get(key) === entry) ledgerViews.delete(key)
+    })
+    return view
   }
+
+  // A settled call forgets its origins and ledger views: the tables hold calls in flight only.
+  holder.settled.add(call => {
+    for (const [origin, owner] of origins) if (owner === call) origins.delete(origin)
+    for (const [key, entry] of ledgerViews) if (entry.call === call) ledgerViews.delete(key)
+  })
+  holder.residents.set('origins', () => origins.size)
+  holder.residents.set('ledgerViews', () => ledgerViews.size)
 
   const guard: FacilityGuard<unknown> = {
     async authorize(facility, _operation, request) {
       try {
         const session = await identity.sessionOf(request.access.principal, request.access.tenant)
         if (session === undefined || !origins.has(request.origin)) return 'notAuthorized'
-        const cwd = textField(request, 'cwd')
-        if (cwd !== undefined && (typeof cwd !== 'string' || !withinRoot(root, cwd)))
-          return 'notAuthorized'
-        if (facility === 'files') {
-          const path = textField(request, 'path')
-          if (path !== undefined && (typeof path !== 'string' || !withinRoot(root, path)))
-            return 'notAuthorized'
-        }
-        return 'authorized'
+        return confinedToRoot(root, facility, request) ? 'authorized' : 'notAuthorized'
       } catch {
         return 'unavailable'
       }
@@ -159,18 +215,7 @@ export function createReleaseEnvironment(
       const session = await identity.sessionOf(input.principal, input.tenant)
       if (session === undefined || !origins.has(input.origin) || !withinRoot(root, input.path))
         return fail({ kind: 'denied', action: 'name-host-object' })
-      let path = resolve(root, input.path)
-      if (input.role === 'parent' || input.role === 'ancestor') path = dirname(path)
-      for (;;) {
-        try {
-          return succeed(await hostObjectToken(path))
-        } catch {
-          if (input.role !== 'ancestor' || path === resolve(root))
-            return unavailable('host-object-naming', 'the exact host object could not be named')
-          path = dirname(path)
-          if (!withinRoot(root, path)) return fail({ kind: 'denied', action: 'name-host-object' })
-        }
-      }
+      return nearestToken(root, resolve(root, input.path), input.role)
     },
   }
 
@@ -197,7 +242,7 @@ export function createReleaseEnvironment(
       if (!tenantCodec.encode(request.tenant).ok)
         return fail({ kind: 'denied', action: 'environment-binding' })
       const origin = originRef(`tool:${request.call}:${request.preparation.operation}`)
-      origins.set(origin, request.call)
+      origins.set(origin, callKeyOf(request.tenant, request.call))
       const view = await ledgers(request)
       const scope = request.preparation.request.requesterScope
       return succeed({ origin, scope, retention: { scope, ledger: view.retained } })

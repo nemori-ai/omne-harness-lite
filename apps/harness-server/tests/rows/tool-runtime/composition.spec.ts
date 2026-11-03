@@ -67,6 +67,7 @@ import { releaseOf } from '../../../src/entry/tool-release.ts'
 import { createReleaseToolRequests } from '../../../src/entry/tool-requests.ts'
 import { toolClock, toolPublicationAuthority } from '../../../src/entry/tool-runtime-objects.ts'
 import { defineRow } from '../../../src/row.ts'
+import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
 import type { EntryObjectModule } from '../../../src/types.ts'
 import { toolRowsOperatorConfig } from '../../r9/support.ts'
 import { withLiveRows } from '../model/support.ts'
@@ -472,6 +473,54 @@ describe('Tool segment B: the release rows in one process composition', () => {
       expect(value.foreign).toMatchObject({ kind: 'rejected', failure: { kind: 'denied' } })
       expect(saved.length).toBeGreaterThanOrEqual(3)
       expect(run.result.exitCode).toBe(0)
+    },
+  )
+
+  it(
+    'the per-call tables (witness, origins, ledger views) hold calls in flight only: after N settled calls they are empty (N5)',
+    { timeout: 180_000 },
+    async () => {
+      const { storageRoot } = workspace()
+      const { rows, tools } = rowsOf(storageRoot)
+      const policy = accessPolicyRow(allowAll)
+      const saved: ToolDelivery<ToolMessageContentBlock>[] = []
+      const calls = 6
+      const { value } = await withLiveRows(
+        {
+          rows,
+          plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+          entryObjects: entryObjects(workPrincipalsOverStandIn),
+          probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
+        },
+        async ctx => {
+          const { runtime, principal } = await ready(ctx, saved)
+          const target = join(tools.filesRoot, 'bounded.txt')
+          await call(
+            runtime,
+            principal,
+            await requestFor(
+              ctx,
+              principal,
+              'Files.write',
+              JSON.stringify({ path: target, text: 'bounded', mode: 'create' }),
+            ),
+          )
+          for (let index = 0; index < calls; index += 1)
+            await call(
+              runtime,
+              principal,
+              await requestFor(ctx, principal, 'Files.read', JSON.stringify({ path: target })),
+            )
+          await until(
+            async () => saved.length,
+            count => count >= calls + 1,
+            10_000,
+          )
+          const residents = toolRuntimeHolder(ctx).residents
+          return Object.fromEntries([...residents].map(([name, size]) => [name, size()]))
+        },
+      )
+      expect(value).toEqual({ witnessed: 0, origins: 0, ledgerViews: 0 })
     },
   )
 
