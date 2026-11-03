@@ -32,13 +32,113 @@ import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../cod
 import { runChecks } from './check.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
 import { readHistory, type SessionHistory } from './history-index.ts'
-import { judgeLog, type LogBatch } from './log.ts'
+import { judgeLog, readCoveringText, type CoveringSnapshot, type LogBatch } from './log.ts'
 import { PROTOCOL } from './schema.ts'
 import { big, oneRow, rowsOf, text, type Row } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_INITIALIZATION_RECEIPTS = 1000
 const MAX_VIEW_ROWS = 100_000
+/** The sessions whose parsed snapshot one write Worker keeps (C-WORKCACHE A2). */
+export const PARTICIPANT_SNAPSHOT_SESSIONS = 256
+/** The snapshot text, in UTF-16 code units, that one write Worker keeps over all sessions. */
+export const PARTICIPANT_SNAPSHOT_TEXT = 64 * 1024 * 1024
+
+/** Freezes a decoded snapshot and every object and array in it. */
+function deepFreeze<T>(value: T): T {
+  if (typeof value !== 'object' || value === null) return value
+  for (const member of Object.values(value)) deepFreeze(member)
+  return Object.freeze(value)
+}
+
+type ParsedEntry = Readonly<{ covered: bigint; text: string; snapshot: WorkSnapshot }>
+
+/**
+ * The parsed `sl_state` snapshot of each session in this write Worker, so a commit that reads the
+ * same snapshot text as an earlier one does not parse it again (C-WORKCACHE A2). Read handlers run
+ * in read Workers and do not use it.
+ *
+ * - Every commit still reads the `sl_state` row of its session and checks `covered == tail`. A
+ *   kept snapshot is reused only when the text of that row is equal to the text it was parsed from.
+ *   This deviates from design v2 §6.1, which reuses on `covered == tail` without reading the row
+ *   (R2-D96): the revision does not tell databases apart (one module instance can serve more than
+ *   one database, as the in-process test provider does), a rolled-back write can leave a revision
+ *   that a later commit writes again with other content, and in a group commit a later operation
+ *   sees the staged row of an earlier one. Equal text gives an equal parse in each of these cases,
+ *   so a hit never answers a snapshot that the row does not hold. The cost: one read of the row and
+ *   one O(|S|) string comparison per commit. What it saves is `JSON.parse` and `decodeValue`.
+ * - Only the snapshot that a transaction read is kept, never the one that the commit computes: the
+ *   participant does not see whether its transaction commits.
+ * - A row that does not cover the tail answers `behind` and drops the entry; a row that does not
+ *   parse throws and keeps nothing for the session.
+ * - A kept snapshot is deep-frozen. A reader that writes into it throws a `TypeError`, so the
+ *   commit fails and rolls back, and the next reader still gets the parsed row.
+ * - Least recently used order, bounded by sessions and by the total text. `sessions: 0` keeps none.
+ */
+export class ParsedSnapshots {
+  private readonly entries = new Map<string, ParsedEntry>()
+  private readonly sessions: number
+  private readonly textLimit: number
+  private held = 0
+
+  constructor(
+    sessions: number = PARTICIPANT_SNAPSHOT_SESSIONS,
+    textLimit: number = PARTICIPANT_SNAPSHOT_TEXT,
+  ) {
+    this.sessions = sessions
+    this.textLimit = textLimit
+  }
+
+  /** The snapshot that covers `tail`: the kept one when the row holds the same text. */
+  readonly covering: CoveringSnapshot = (port, tenant, session, tail) => {
+    const key = JSON.stringify([tenant, session])
+    const kept = this.entries.get(key)
+    if (kept !== undefined) this.forget(key, kept)
+    const read = readCoveringText(port, tenant, session, tail)
+    if (read === 'behind') return read
+    if (kept !== undefined && kept.text === read) {
+      this.keep(key, { ...kept, covered: tail })
+      return kept.snapshot
+    }
+    const snapshot = deepFreeze(decodeValue(JSON.parse(read) as JsonValue) as WorkSnapshot)
+    this.keep(key, { covered: tail, text: read, snapshot })
+    return snapshot
+  }
+
+  /** The kept entry of a session, without changing the order (for tests). */
+  peek(tenant: string, session: string): ParsedEntry | undefined {
+    return this.entries.get(JSON.stringify([tenant, session]))
+  }
+
+  /** The number of kept sessions and their text length. */
+  get size(): Readonly<{ sessions: number; text: number }> {
+    return { sessions: this.entries.size, text: this.held }
+  }
+
+  /** Drops every kept snapshot. Correctness does not depend on it. */
+  clear(): void {
+    this.entries.clear()
+    this.held = 0
+  }
+
+  private forget(key: string, entry: ParsedEntry): void {
+    this.entries.delete(key)
+    this.held -= entry.text.length
+  }
+
+  private keep(key: string, entry: ParsedEntry): void {
+    if (this.sessions <= 0 || entry.text.length > this.textLimit) return
+    this.entries.set(key, entry)
+    this.held += entry.text.length
+    for (const [oldest, old] of this.entries) {
+      if (this.entries.size <= this.sessions && this.held <= this.textLimit) break
+      this.forget(oldest, old)
+    }
+  }
+}
+
+/** The parsed snapshots of this write Worker (see above). */
+export const parsedSnapshots = new ParsedSnapshots()
 
 type Decision = ReturnType<typeof decide>
 type Reads = Parameters<typeof decide>[4]
@@ -596,26 +696,13 @@ function commandStart(
   )
   if (journal === undefined && command.kind !== 'create')
     return stopped({ kind: 'denied', action: command.kind })
-  const previous = journal === undefined ? null : coveringSnapshot(port, tenant, session, journal)
+  const previous =
+    journal === undefined
+      ? null
+      : parsedSnapshots.covering(port, tenant, session, big(journal['tail']))
   if (previous === 'behind')
     return { kind: 'failed', diagnostic: 'sl_state does not cover the tail' }
   return { tenant, session, operation, held, journal, previous }
-}
-
-/** The snapshot row of the session, only when it covers the tail of `journal`. */
-function coveringSnapshot(
-  port: ParticipantPort,
-  tenant: string,
-  session: string,
-  journal: Row,
-): WorkSnapshot | 'behind' {
-  const state = oneRow(
-    port,
-    'SELECT snapshot, covered FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
-    [tenant, session],
-  )
-  if (state === undefined || big(state['covered']) !== big(journal['tail'])) return 'behind'
-  return decodeValue(JSON.parse(text(state['snapshot'])) as JsonValue) as WorkSnapshot
 }
 
 const isStart = (value: CommandStart | ParticipantReply): value is CommandStart =>
@@ -1013,7 +1100,7 @@ function runEntries(facts: Readonly<Record<string, JsonValue>>, port: Participan
  * identity as unknown.
  */
 function runLog(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPort) {
-  const judged = judgeLog(facts, port)
+  const judged = judgeLog(facts, port, parsedSnapshots.covering)
   switch (judged.kind) {
     case 'unsupported':
       return { kind: 'unsupported', basis: { reason: judged.reason } } as const
