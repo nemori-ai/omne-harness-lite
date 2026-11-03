@@ -276,7 +276,7 @@ describe('ordinary invocation and saved references', () => {
     expect(base.host.scheduled).toHaveLength(1)
   })
 
-  it('consumes an operation identity for unsupported control without writing control facts', async () => {
+  it('consumes an operation identity when control subjects are unavailable without writing control facts', async () => {
     const base = runtimeAssembly()
     const invoked = accepted(
       await base.runtime.invoke({
@@ -301,7 +301,10 @@ describe('ordinary invocation and saved references', () => {
     const commits = base.store.commits
     expect(
       await runtime.commands.control({ ...access(invoked.reference), intent: { kind: 'stop' } }),
-    ).toMatchObject({ kind: 'rejected', failure: { kind: 'unsupported' } })
+    ).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'unavailable', dependency: 'control-subjects' },
+    })
     expect(minted).toBe(1)
     expect(base.store.commits).toBe(commits)
   })

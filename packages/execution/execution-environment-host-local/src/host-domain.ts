@@ -1,4 +1,8 @@
 import { randomUUID } from 'node:crypto'
+import {
+  createWindowsTerminalCapacity,
+  type WindowsTerminalCapacity,
+} from './windows-execution/terminal-output.ts'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type {
@@ -11,6 +15,11 @@ import type {
   ProviderQuota,
 } from '@omne-harness/execution-environment-contract'
 import type { HostCommands } from './host-command.ts'
+import type { HostTerminals } from './host-terminal.ts'
+import {
+  createRetainedTerminalIndex,
+  type RetainedTerminalIndex,
+} from './host-retained-terminals.ts'
 import { hostFilesLimits } from './host-file-tree.ts'
 import {
   createHostFilesEngine,
@@ -67,6 +76,7 @@ export type DomainRecord = {
   readonly facade: TrackedFacade
   /** The command side of this acquisition: its admission and the processes it started. */
   readonly commands: HostCommands
+  readonly terminals: HostTerminals
   state: RecordState
   lease: EnvironmentLease | null
   invalidate: (value: LeaseInvalidation) => void
@@ -114,6 +124,8 @@ export type EngineMembership = Readonly<{
 
 /** The domain's internal surface for its providers. It is not part of the package's public entry. */
 export type DomainInternals = Readonly<{
+  retainedTerminals: RetainedTerminalIndex
+  windowsCapacity(): WindowsTerminalCapacity
   /**
    * The engine for `settings`: the first request makes it, every later request with the same
    * settings shares it, so their acquisitions keep handle generations unique across providers.
@@ -137,6 +149,7 @@ export type DomainInternals = Readonly<{
     generation: string,
     engine: HostFilesEngine,
     commands: () => HostCommands,
+    terminals: () => HostTerminals,
   ): AdmitResult
   find(original: OriginalAcquisition): DomainRecord | undefined
   records(): Iterable<DomainRecord>
@@ -269,6 +282,7 @@ export function fingerprintOf(original: OriginalAcquisition): string {
     p.quotaDomain,
     original.origin,
     scopeChain(original.scope),
+    scopeChain(original.retentionScope),
     binding(p.binding),
     [p.provider.name, p.provider.generation, p.provider.version],
     p.continuity,
@@ -339,6 +353,8 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
     options.quota ?? (() => ({ perTenant: defaultPerTenant, global: null }))
   const generations = new Set<string>()
   const records = new Map<string, DomainRecord>()
+  const retainedTerminals = createRetainedTerminalIndex()
+  let windowsCapacity: WindowsTerminalCapacity | undefined
   let nextOwner = 1
 
   const unsettled = (tenant?: string) => {
@@ -365,16 +381,23 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
     if (record.state === 'settled') return settled
     record.facade.seal()
     record.commands.seal()
+    record.terminals.seal()
     record.invalidate({ source: 'provider', reason: 'released' })
     if (record.state === 'open') record.state = 'releasing'
     const quiet = await within(
-      Promise.all([record.facade.settled(), record.commands.settled()]).then(() => undefined),
+      Promise.all([
+        record.facade.settled(),
+        record.commands.settled(),
+        record.terminals.settled(),
+      ]).then(() => undefined),
       boundMs,
     )
     const open = await record.engine.closeOwned(record.owner)
     // A process still running is stopped by force: draining never leaves it to a later generation.
-    const resources = await record.commands.stopAll()
-    const busy = record.facade.inFlight() + record.commands.inFlight()
+    const resources = (
+      await Promise.all([record.commands.stopAll(), record.terminals.stopAll()])
+    ).flat()
+    const busy = record.facade.inFlight() + record.commands.inFlight() + record.terminals.inFlight()
     const pending: DrainResult = { kind: 'pending', resources }
     if (!quiet || open > 0 || busy > 0 || resources.length > 0) return pending
     // Exactly one return of the slot: only the first drain that finds nothing left settles.
@@ -389,7 +412,7 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
     instance: randomUUID(),
     durability: 'process',
     async maintain() {
-      let pending = 0
+      let pending = await retainedTerminals.maintain()
       for (const record of records.values())
         if (record.state === 'releasing' && (await drain(record, 0)).kind === 'pending') pending++
       return { pending }
@@ -397,13 +420,15 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
   }
 
   internals.set(domain, {
+    retainedTerminals,
+    windowsCapacity: () => (windowsCapacity ??= createWindowsTerminalCapacity()),
     joinEngine: createEngineRegistry(),
     quota,
     registerGeneration: generation => {
       generations.add(generation)
     },
     knowsGeneration: generation => generations.has(generation),
-    admit(original, fingerprint, generation, engine, commands) {
+    admit(original, fingerprint, generation, engine, commands, terminals) {
       const key = slotKey(original.tenant, original.acquisition)
       if (key === undefined) return { kind: 'unknown' }
       const existing = records.get(key)
@@ -428,6 +453,7 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
         engine,
         facade: trackedFacade(engine.facilityFor(owner), () => engine.seal(owner)),
         commands: commands(),
+        terminals: terminals(),
         state: 'open',
         lease: null,
         invalidate: () => undefined,

@@ -185,7 +185,17 @@
               "pending": false
             },
             {
+              "name": "FileEntry",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "FileIdentity",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FileWriteResult",
               "kind": "type",
               "pending": false
             },
@@ -280,6 +290,16 @@
               "pending": false
             },
             {
+              "name": "TerminalRetention",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "TerminalRetentionOperation",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "TerminalInformation",
               "kind": "type",
               "pending": false
@@ -321,6 +341,16 @@
             },
             {
               "name": "ResourceLedger",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RetainedTerminalLedger",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SessionTerminalRetention",
               "kind": "type",
               "pending": false
             }
@@ -897,6 +927,46 @@
               "name": "ScriptedCommandAnswer",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "createScriptedTerminalFacility",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "TerminalScript",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedTerminalAnswer",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedTerminalFacility",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "terminalFacilityConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "TerminalConformanceAcquisition",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "TerminalConformanceSubject",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "TerminalConformanceOptions",
+              "kind": "type",
+              "pending": false
             }
           ]
         }
@@ -907,20 +977,13 @@
     {
       "module": "@omne-harness/runtime-context-contract",
       "interface": "ContextBlocks",
-      "members": [
-        "execution.placement",
-        "execution.host-facts"
-      ],
+      "members": ["execution.placement", "execution.host-facts"],
       "pending": false
     },
     {
       "module": "../facility.ts",
       "interface": "EnvironmentFacilities",
-      "members": [
-        "files",
-        "command",
-        "terminal"
-      ],
+      "members": ["files", "command", "terminal"],
       "pending": false
     }
   ]

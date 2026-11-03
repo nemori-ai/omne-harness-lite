@@ -26,6 +26,7 @@ import { bounded } from './text.ts'
 
 export function createAuthor<E>(
   name: string,
+  purpose: string,
   commands: readonly Command[],
   facilities: readonly FacilityKey[],
   maximum: number,
@@ -94,7 +95,11 @@ export function createAuthor<E>(
   }
   const result = defineCommandTool({
     implementation: {
-      description: `${name} commands. Use help for complete parameters and usage.`,
+      description: [
+        purpose,
+        '',
+        ...commands.map(command => `${command.name}: ${command.summary}`),
+      ].join('\n'),
       backgroundAllowed: false,
       declarations: {
         adoption,

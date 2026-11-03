@@ -815,7 +815,9 @@ it('preserves access identity and refuses forged tenants before invoking any run
 it('exercises scripted provider lifecycle and the memory ledger close boundary', async () => {
   const decoded = await contract.acquireParamsSchema['~standard'].validate([access, input])
   if (decoded.issues) throw new Error('valid acquisition refused')
-  const providerInput = { ...decoded.value[1], tenant }
+  const { retention, ...ordinary } = decoded.value[1]
+  expect(retention).toBeUndefined()
+  const providerInput = { ...ordinary, tenant }
   const provider = createScriptedEnvironmentProvider()
   const acquired = await provider.acquire(providerInput)
   if (acquired.kind !== 'acquired') throw new Error('scripted acquisition refused')

@@ -45,6 +45,8 @@
 - [自动原事实与取消恢复组合](driver-facts.spec.ts)。
 
 - [原结果与三域未知](ledger-settlement.spec.ts)。
+- [原控制主体、重建、竞争和丢答](control-subjects.spec.ts)。
+- [可重建的测试主体目录](control-subject-values.ts)。
 - [canonical 环境清理与报告核验](ledger-environment-release.spec.ts)。
 - [多 operation 排除交错](exclusion-interleavings.spec.ts)。
 - [收场、同 slot 后继、ACK 与异常来源组合](driver-settlement.spec.ts)。
