@@ -269,6 +269,8 @@ interface JobControl {
 | PreviewView | candidates[]、basis、complete、observedThrough、reason或null、remainingEligible或null、remainingJobs或null；不预测重叠执行结果 |
 | OperationView | operationRef、kind=committed/noChange/rejected/pending/unknown/notCommitted、result或null、error或null、observedAt；notCommitted须storage完整否定证据 |
 
+agentRef只匹配安排作者为agent且author.actorRef相等，不匹配执行用的AgentDefinition或会话。createdBy匹配作者兼容投影；多个筛选同时给出时取交集。calendarId匹配当前安排绑定：explicit取definition.binding.calendar的calendarId，follow取已保存adoptedBasis.calendarId。尚无可知日历时不匹配，不为列表读取外域或猜测日历。执行历史仍按原采用依据读取。
+
 total 计算同一筛选、同一 observationRevision 和当前有权可见集合中的全部匹配行，不是本页长度，也不泄露不可见对象数量。ScheduleQueries.list 成功必须返回 exact 总数；不能完成一致计数时返回明确查询错误，不以 unknown 交付成功列表。其余有界计算读面允许 unknown 并给出原因。分页期间数据或权限观察边界变化使原 cursor 失效，不能沿用旧总数；无法取得一致观察边界时明确查询失败。Repository 的 listSchedules 必须在同一观察边界返回页面与总数，HTTP/Tool/SDK 原样携带。验收覆盖 501 条匹配、50 条首屏、过滤及权限变化、计数不可用和截断，不能通过穷举不稳定页面补算。
 
 SchedulePatch.executionText只允许purpose.execution且work.kind=agent。程序引用/输入、会话模式与目标、运行模式、工作区和资料引用变更走replace；draft可通过reviseDraft完整修订。
