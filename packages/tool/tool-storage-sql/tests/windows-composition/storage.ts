@@ -21,6 +21,13 @@ import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provid
 // The budget scenario produces a 2,723,278-byte plan command, including retained request copies.
 const maxCommandBytes = 4_194_304
 
+/**
+ * Test fixture SQL capacity per R2-D109: 12 concurrent invocations × 2 reads each (source-guard
+ * + invocation-source) = 24 peak reserved, plus margin → 128. The production candidate value in
+ * sqlite-provider SPEC:321 and apps runtime config will be updated by Reduce in the same batch.
+ */
+const readQueuePerDomain = 128
+
 /** Same provider policy dimensions as sqlite-provider/tests/support.ts, over this test's real root. */
 function configuration(storageRoot: string, readBytes: number): SqliteStorageConfig {
   return {
@@ -41,7 +48,7 @@ function configuration(storageRoot: string, readBytes: number): SqliteStorageCon
     maxWorkers: 16,
     reservedWriterSlots: 4,
     maxReadWorkersPerDomain: 2,
-    readQueuePerDomain: 32,
+    readQueuePerDomain,
     readQueueGlobal: 256,
     readQueueTimeoutMs: 10_000,
     maxReadInputBytes: 262144,
