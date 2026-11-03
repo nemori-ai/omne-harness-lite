@@ -137,7 +137,9 @@ import {
 import { createScriptedReaderEligibility } from '@omne-harness/runtime-context-cordis-contract/testing'
 import {
   createSessionAgentDrivePlugin,
+  createSessionJournalInterpretationPlugin,
   createSessionLogJournal,
+  createSessionMessageHandoffPlugin,
   SessionLogAgentJournalProvider,
 } from '@omne-harness/session-adapters/cordis'
 import type {
@@ -417,6 +419,27 @@ export type PluginWorld = Readonly<{
 }>
 type WorkPrincipals = ReturnType<typeof createMemorySessionWorkPrincipals<string>>
 
+/**
+ * The options that give the world the real AD-02 and the real handoff provider in place of the
+ * scripted handoff double: the way CP3 runs once C-ADAPTERS is in the branch (D1 of the first batch).
+ */
+export function withAd02AndHandoff(): LineWorldOptions {
+  return {
+    handoff: 'external',
+    plugins: ({ combination, coordinator }) => [
+      [createSessionJournalInterpretationPlugin<string>({ coordinator }).plugin],
+      [
+        createSessionMessageHandoffPlugin<string>({
+          coordinator,
+          principalIdentity: principal => `principal:${principal}`,
+          provider: testAdoption('cp3-handoff'),
+        }),
+        combination,
+      ],
+    ],
+  }
+}
+
 /** The Plugin and its configuration, as `ctx.plugin` takes them. */
 export type PluginMount = readonly [plugin: unknown, config?: unknown]
 
@@ -446,6 +469,12 @@ export type LineWorldOptions = Readonly<{
   sessionProvider?: typeof SessionProvider
   /** What happens when a Model call is admitted; default one text reply (CP3). */
   model?: (admission: ModelAdmission) => Promise<unknown>
+  /** Members of the storage configuration to change, for example the limits a long run reaches. */
+  storageLimits?: Partial<SqliteStorageConfig>
+  /** What the Agent does after a reply: finish when it evaluates complete (default), or ask again. */
+  progression?: 'evaluate-completion' | 'continue'
+  /** A storage directory to use and to leave in place, for a scenario that reopens it. */
+  root?: string
   /** Members of the agent-host configuration to change. */
   hostConfig?: Partial<AgentHostConfig>
   /** The agent-host plugin; default the production plugin over `createAgentRuntime`. */
@@ -459,6 +488,8 @@ export type LineWorldOptions = Readonly<{
   plugins?: readonly PluginMount[] | ((world: PluginWorld) => readonly PluginMount[])
   /** Wraps the Session transaction port the plugins reach, for example to count `commitLog`. */
   wrapTransactions?: (port: SessionTransactionPort<string>) => SessionTransactionPort<string>
+  /** Wraps the received-entry provider of the session-log Journal the Model receiver commits through. */
+  wrapProvider?: <T extends object>(provider: T) => T
   /** Wraps the Model receiver the pusher resolves, for example to count what it saves. */
   wrapModelReceiver?: (receiver: AgentModelReceiver<unknown>) => AgentModelReceiver<unknown>
 }>
@@ -510,7 +541,7 @@ const AGENT_HOST_CONFIG: AgentHostConfig = {
 
 /** Builds the world: every plugin mounted and active, no session created yet. */
 export async function openLineWorld(options: LineWorldOptions = {}) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), 'line-through-cp3-')))
+  const root = options.root ?? (await realpath(await mkdtemp(join(tmpdir(), 'line-through-cp3-'))))
   const ctx = new Context()
   const mounted: Fiber[] = []
   const plug = ctx.plugin as unknown as (
@@ -532,7 +563,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   // The real storage, one transaction domain per tenant, the Session log combination registered.
   const { catalog, digest } = catalogOf()
   const created = await createSqliteStorage({
-    config: storageConfig(join(root, 'storage')),
+    config: { ...storageConfig(join(root, 'storage')), ...options.storageLimits },
     materials: catalog,
     closeLeases: { admit: name => ({ name }), release: () => undefined },
   })
@@ -581,30 +612,35 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
 
   // The Session storage pair over the real storage, with the Session access policy.
   const sessionChecks = createPolicySessionAccessCheck<string>(sessionPolicy)
-  const pair = createSessionStoragePair<string>({
-    storage,
-    domains: {
-      resolve: input => {
-        const domain = domains[input.tenant]
-        return Promise.resolve(
-          domain === undefined
-            ? { kind: 'unavailable', diagnostic: 'no domain for the tenant' }
-            : { kind: 'ready', entry: { tenant: input.tenant, domain } },
-        )
+  const pairOver = (over: SqlStorage) =>
+    createSessionStoragePair<string>({
+      storage: over,
+      domains: {
+        resolve: input => {
+          const domain = domains[input.tenant]
+          return Promise.resolve(
+            domain === undefined
+              ? { kind: 'unavailable', diagnostic: 'no domain for the tenant' }
+              : { kind: 'ready', entry: { tenant: input.tenant, domain } },
+          )
+        },
+        snapshot: () =>
+          Promise.resolve({
+            kind: 'ready',
+            value: {
+              revision: '1',
+              entries: Object.entries(domains).map(([tenant, domain]) => ({ tenant, domain })),
+            },
+          }),
       },
-      snapshot: () =>
-        Promise.resolve({
-          kind: 'ready',
-          value: {
-            revision: '1',
-            entries: Object.entries(domains).map(([tenant, domain]) => ({ tenant, domain })),
-          },
-        }),
-    },
-    accessCheck: sessionChecks,
-    cursorSigning: createFixedSessionCursorSigning(),
-    combination,
-  })
+      accessCheck: sessionChecks,
+      cursorSigning: createFixedSessionCursorSigning(),
+      combination,
+    })
+  const pair = pairOver(storage)
+  // The reads of the test and of the doubles go through the storage before the wrapper of
+  // `options.wrapStorage`, so a counting wrapper counts what the product reads and nothing else.
+  const probe = pairOver(seeing)
 
   // Session side doubles.
   const bindings = createMemorySessionPrincipalBindings()
@@ -688,6 +724,14 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     sessionAccessCheck: sessionChecks as never,
     combination,
   }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId })
+
+  // A read-only copy of the session-log Journal over the uncounted storage, for the doubles and the test.
+  const probeLog = createSessionLogJournal<unknown>({
+    storage: seeing,
+    tenantDomainLookup: lookup,
+    sessionAccessCheck: sessionChecks as never,
+    combination,
+  }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId }).journal
 
   // Agent ports: doubles of `@omne-harness/agent/testing`.
   const access = createScriptedAccessCheck<unknown>()
@@ -924,7 +968,10 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   const current: RuntimeConditions = {
     source: evidence('conditions'),
     configuration: run,
-    progression: { kind: 'evaluate-completion', basis: evidence('progression') },
+    progression: {
+      kind: options.progression ?? 'evaluate-completion',
+      basis: evidence('progression'),
+    },
     model: profile.adoption,
     context: evidence('conditions-context'),
     bindings: [],
@@ -947,7 +994,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
    */
   let lastExecution: AgentExecutionId | null = null
   async function runExecution(): Promise<AgentExecutionId | null> {
-    const work = await pair.transactions.readWork({
+    const work = await probe.transactions.readWork({
       principal: 'system:maintainer',
       tenant: TENANT,
       session: sessionId(SESSION),
@@ -959,13 +1006,13 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   }
   const reception = createLocalModelReceiver<unknown>(
     {
-      provider: sessionLog,
+      provider: options.wrapProvider?.(sessionLog) ?? sessionLog,
       access: access.port,
       // The query of the original consumption binding has no product provider yet: the double
       // reads the Journal's public `load` of the execution the Run started.
       targets: {
         async forExecution(input) {
-          const loaded = await journal().load({ ...input.access, execution: input.execution })
+          const loaded = await probeLog.load({ ...input.access, execution: input.execution })
           if ('failure' in loaded) return loaded
           const instance = loaded.ok.executionAttachment?.instance
           return succeed(
@@ -979,7 +1026,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
         async resolve(input) {
           const execution = await runExecution()
           if (execution !== null) {
-            const loaded = await journal().load({ ...input.access, execution })
+            const loaded = await probeLog.load({ ...input.access, execution })
             if ('failure' in loaded) return loaded
             const pending = loaded.ok.effects
               .map(effect => effect.pending)
@@ -1115,6 +1162,9 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     receiverState,
     workPrincipals,
     transactions: pair.transactions,
+    /** The same Session reads, uncounted: for the test and the doubles. */
+    probe: probe.transactions,
+    probeLog,
     intake,
     bindings,
     /** The `agentJournal` the host injects: the plugin. */
@@ -1143,7 +1193,8 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
         }
       }
       await created.control.close({ initiator: 'disposal' }).catch(() => undefined)
-      await rm(root, { recursive: true, force: true })
+      // A directory the caller handed in belongs to the caller: another process may still use it.
+      if (options.root === undefined) await rm(root, { recursive: true, force: true })
     },
   }
 }

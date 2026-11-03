@@ -10,7 +10,11 @@
 // the later events of the execution. The assertions follow the closure specification and are not to
 // be bent around those gaps.
 //
-// J4 interrupts one Model call (`stopCall`) and leaves the Tool call and the Run alone.
+// J4 interrupts one Model call (`stopCall`) and leaves the Tool call and the Run alone. Expected
+// state while defect D5 stays open: red. Session knows a Model call as a producer under its
+// invocation reference (AD-05 writes `key.reference`); AD-14 decodes `producer.call` as a
+// `ModelCallId` and drops a reference, while a call identity is `not-found` in Session. No identity
+// reaches the Agent, whatever the caller sends.
 // @module-tag slow
 // Why slow: real Workers, real files and the whole line on one root.
 import { afterEach, describe, expect, it } from 'vitest'
@@ -53,6 +57,8 @@ describe('J3: cancelling the Run stops new Model requests and Tool actions', () 
     await w.accept('j3-in', 'hello')
     await w.until(() => w.modelCalls.length === 1)
     const run = await activeRun(w)
+    // The world learns the execution of a Run while it is active; the cancel ends the Run quickly.
+    const execution = await w.execution()
 
     const operation = operationId('j3-cancel')
     const cancel = () =>
@@ -64,11 +70,22 @@ describe('J3: cancelling the Run stops new Model requests and Tool actions', () 
       kind: 'terminal',
       terminal: { outcome: 'cancelled' },
     })
-    // The Agent side holds the intent of the cancellation.
-    const execution = await w.execution()
-    const loaded = ok(await w.journal().load({ ...w.agentAccess, execution }))
-    const control = loaded.controls.find(record => record.command.kind === 'cancel')
-    expect(control?.stages['intent-established']).toMatchObject({ state: 'reached' })
+    // The Agent side holds the intent of the cancellation. Session ends the Run through its own
+    // terminal exit and AD-14 delivers the control to the Agent asynchronously: acceptance and
+    // intent are two stages, so the read waits, at most 5 seconds, for the intent stage.
+    const cancelControl = async () =>
+      ok(await w.journal().load({ ...w.agentAccess, execution })).controls.find(
+        record => record.command.kind === 'cancel',
+      )
+    await w
+      .until(
+        async () => (await cancelControl())?.stages['intent-established']?.state === 'reached',
+        5000,
+      )
+      .catch(() => undefined)
+    expect((await cancelControl())?.stages['intent-established']).toMatchObject({
+      state: 'reached',
+    })
 
     // From the confirmed cancel on: no new Model request, no new Tool action, whatever arrives late.
     const requests = w.modelCalls.length
@@ -88,9 +105,15 @@ describe('J3: cancelling the Run stops new Model requests and Tool actions', () 
 })
 
 describe('J4: stopCall interrupts one call and leaves the rest alone', () => {
-  it('J4 interrupts the Model call; the Run goes on with the next request', async () => {
+  it('J4 interrupts the Model call and the Run goes on with the next request', async () => {
+    // Deviation from the closure specification: the Loop sends no Model call while a Tool result is
+    // outstanding, so "a Tool call pending and a Model call interrupted" does not occur. The Run
+    // goes on through a `continue` progression instead: after the interrupted call the Agent asks
+    // the Model again. The Tool call is the case of the next test.
     const stopped = gate()
+    const never = new Promise<void>(() => undefined)
     const w = await openW2World({
+      progression: 'continue',
       model: a =>
         a.index === 0
           ? {
@@ -100,27 +123,59 @@ describe('J4: stopCall interrupts one call and leaves the rest alone', () => {
               cost: '0.25',
               hold: stopped.promise,
             }
-          : { parts: [replyText(`r${a.index}`, 'after the interrupt')], reason: 'stop' },
+          : a.index === 1
+            ? { parts: [replyText('r1', 'after the interrupt')], reason: 'stop' }
+            : // The progression asks again after each reply; the third call is held for good.
+              { parts: [replyText('r2', 'held')], reason: 'stop', hold: never },
     })
     worlds.push(w)
     await w.createSession('j4a')
     await w.accept('j4a-in', 'hello')
     await w.until(() => w.modelCalls.length === 1)
-    const [call] = w.modelCalls
+    // Session knows the call as the producer under its invocation reference, as AD-05 writes it.
+    await w.until(async () => (await w.modelReferences()).length === 1)
+    const [call] = await w.modelReferences()
     if (call === undefined) throw new Error('no Model call')
-    const stop = () =>
+    const execution = await w.execution()
+    const stop = (name = 'j4a-stop') =>
       w.intake.work.stopCall({
         ...intakeAccess,
-        operation: operationId('j4a-stop'),
+        operation: operationId(name),
         producer: { kind: 'model', call },
       })
 
-    const receipt = ok(await stop())
+    // Session binds the call as a producer when AD-02 has interpreted the Agent's event; a stop sent
+    // before that answers `not-found` under its own operation. The scenario sends the stop again,
+    // under a new operation, until Session knows the call (at most 5 seconds).
+    let attempt = 0
+    let first = ok(await stop(`j4a-stop-${attempt}`))
+    const end = Date.now() + 5000
+    while (first.answer.kind === 'not-found' && Date.now() < end) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+      attempt += 1
+      first = ok(await stop(`j4a-stop-${attempt}`))
+    }
+    const receipt = first
+    // Session found the call and requested the interrupt.
+    expect(receipt.answer).toMatchObject({ kind: 'requested' })
+    // 1. The call is interrupted: the Agent holds the control and the producer confirmed it.
+    const interrupt = async () =>
+      ok(await w.journal().load({ ...w.agentAccess, execution })).controls.find(
+        record => record.command.kind === 'interrupt-model',
+      )
+    await w
+      .until(
+        async () => (await interrupt())?.stages['producer-confirmed']?.state === 'reached',
+        5000,
+      )
+      .catch(() => undefined)
+    expect((await interrupt())?.stages['producer-confirmed']).toMatchObject({ state: 'reached' })
     stopped.resolve()
-    // The Run is not over: the Agent asks the Model again.
-    await w.until(() => w.modelCalls.length === 2)
-    expect(await stop()).toEqual({ ok: receipt })
+    // 2. The Run goes on: the Agent asks the Model a second time.
+    await w.until(() => w.modelCalls.length >= 2, 10_000)
     expect(ok(await w.transactions.readWork(intakeAccess)).run.kind).toBe('active')
+    // 3. The same operation again is recognised: the original receipt.
+    expect(await stop(`j4a-stop-${attempt}`)).toEqual({ ok: receipt })
   })
 
   it('J4 answers unsupported for a Tool target and leaves the Run alone', async () => {

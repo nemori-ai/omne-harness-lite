@@ -20,13 +20,19 @@
 // and the handoff provider (`createSessionMessageHandoffPlugin`), mounted after the Agent host. The
 // Session provider and the Context and Agent factories take the products' `measure` observers
 // (R2-D17), whose events go to the recorder of the scenario. `earlier: 'session'` installs AD-04.
-import { createAgentRuntime, type AgentDependencies } from '@omne-harness/agent'
+import {
+  agentToolDeliverySchema,
+  createAgentRuntime,
+  type AgentDependencies,
+} from '@omne-harness/agent'
 import { testAdoption } from '@omne-harness/agent/testing'
 import {
   type Access,
   type AgentExecutionId,
   type DurableEvidence,
+  type EventPage,
   type ExecutionSnapshot,
+  type Material,
   type PendingCall,
 } from '@omne-harness/agent-contract'
 import {
@@ -47,6 +53,8 @@ import {
   createSessionHistorySource,
   createSessionJournalInterpretationPlugin,
   createSessionMessageHandoffPlugin,
+  createSessionModelLogConsumptionPlugin,
+  createSessionToolLogConsumptionPlugin,
 } from '@omne-harness/session-adapters/cordis'
 import { createSessionProviderPlugin } from '@omne-harness/session-cordis/cordis'
 import { createAgentContextPlugin } from '@omne-harness/agent-context/cordis'
@@ -73,8 +81,9 @@ import {
 } from '@omne-harness/session-contract/testing'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { createLocalToolReceiver, createToolReceiverState } from '../../src/index.ts'
-import { createAgentHostPlugin } from '../../src/host-plugin.ts'
+import { createAgentHostLocalPlugin, createAgentHostPlugin } from '../../src/host-plugin.ts'
 import {
+  type LineWorldOptions,
   COORDINATOR,
   SESSION,
   intakeAccess,
@@ -162,6 +171,63 @@ export type ToolStep = Readonly<{
 }>
 export type ToolScript = (index: number, request: ToolInvokeRequest) => ToolStep
 
+/**
+ * The adopted reading of the Tool delivery material for AD-06 (R2-D36, `agent/received-tool-delivery/1`).
+ * The Agent root offers `readToolDeliveryMaterial(access, material, expected)`, which needs the
+ * expected received entry that AD-06 does not hand to its reader; so the world reads the envelope
+ * itself (schema and shape) and AD-06 does the checks against the entry.
+ */
+function readToolDelivery(
+  material: Material<ContentBlock>,
+): { tenant: string; delivery: ToolDelivery<ContentBlock> } | null {
+  if (material.kind !== 'facts') return null
+  const { schema } = material
+  if (
+    schema.owner !== agentToolDeliverySchema.owner ||
+    schema.name !== agentToolDeliverySchema.name ||
+    schema.revision !== agentToolDeliverySchema.revision ||
+    schema.digest !== agentToolDeliverySchema.digest
+  )
+    return null
+  const value = plainJson(material.value) as { tenant?: unknown; delivery?: unknown } | null
+  if (value === null || typeof value !== 'object') return null
+  if (
+    typeof value.tenant !== 'string' ||
+    typeof value.delivery !== 'object' ||
+    value.delivery === null
+  )
+    return null
+  return { tenant: value.tenant, delivery: value.delivery as ToolDelivery<ContentBlock> }
+}
+
+/** The plain value of a stored JSON tree: the material the receiver keeps holds its facts as one. */
+function plainJson(value: unknown): unknown {
+  const tree = value as {
+    kind?: string
+    value?: unknown
+    lexeme?: string
+    items?: unknown[]
+    entries?: { key: string; value: unknown }[]
+  }
+  switch (tree?.kind) {
+    case 'null':
+      return null
+    case 'boolean':
+    case 'string':
+      return tree.value
+    case 'number':
+      return Number(tree.lexeme)
+    case 'array':
+      return (tree.items ?? []).map(plainJson)
+    case 'object':
+      return Object.fromEntries(
+        (tree.entries ?? []).map(entry => [entry.key, plainJson(entry.value)]),
+      )
+    default:
+      return null
+  }
+}
+
 /** The full request of the fixed schema (R2-D36), shaped by the consumer the Agent names. */
 function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeRequest {
   const adoption = (name: string) => testAdoption(`w2-${name}`)
@@ -237,6 +303,14 @@ export type W2Options = Readonly<{
   /** The fixed delay of the Model and Tool doubles when a step names none. */
   defaultDelayMs?: number
   receiverRecords?: number
+  /** A storage directory to use and leave in place, for a scenario that reopens it. */
+  root?: string
+  /** Members of the storage configuration to change. */
+  storageLimits?: LineWorldOptions['storageLimits']
+  /** What the Agent does after a reply; default finish when it evaluates complete. */
+  progression?: 'evaluate-completion' | 'continue'
+  /** Called with each `agentMessageHandoff.prepare` input of the Agent and its answer. */
+  onHandoff?: (input: unknown, answer: unknown) => void
   /**
    * The earlier context: `double` (default) is the history of the K-RQ holder double of CP3;
    * `session` is AD-04, the history source of the Session log.
@@ -246,8 +320,30 @@ export type W2Options = Readonly<{
   plugins?: readonly PluginMount[]
 }>
 
+/**
+ * The storage limits of a run of many rounds. The Agent records of a session are published whole on
+ * each write (session-adapters SPEC K-8), so one commit and one read grow with every round; the limits
+ * of CP3 are sized for one round and are reached at the fourth (`command_limit`, `maxJsonMembers`).
+ * The growth is measured (`maxCommitBytes`), not hidden.
+ */
+const LONG_RUN_LIMITS = {
+  maxJsonMembers: 200_000_000,
+  maxCommandBytes: 1 << 30,
+  maxRequestBytes: 1 << 30,
+  globalInFlightWriteBytes: 2 ** 31,
+  maxResponseBytes: 1 << 28,
+  maxOperationResponseBytes: 1 << 28,
+  globalWriteResponseBytes: 2 ** 31,
+  maxReadResultBytes: 1 << 28,
+  globalReadResultBytes: 2 ** 31,
+  groupMaxInputBytes: 1 << 30,
+  groupMaxResponseReservationBytes: 1 << 30,
+} as const
+
 /** The delay the doubles use when nothing else is said: it also keeps the Agent's own commits ahead of the reply. */
 const DEFAULT_DELAY_MS = 300
+/** How many waits of the Agent one saved result lets the clock release. */
+const RELEASES_PER_SAVE = 3
 
 export async function openW2World(options: W2Options) {
   const counters: RoundCounters = createRoundCounters()
@@ -255,9 +351,19 @@ export async function openW2World(options: W2Options) {
   const delay = options.defaultDelayMs ?? DEFAULT_DELAY_MS
   const replies: ModelReplyRecord[] = []
   const toolRequests: ToolInvokeRequest[] = []
-  const prepared: unknown[] = []
+  // Double (R2-D36): the prepared request of the fixed schema.
+  const toolRequestSource: NonNullable<Dependencies['toolRequests']> = {
+    describe: async () => ({ ok: testAdoption('w2-read_file') }),
+    prepare: async input => {
+      const request = fixedToolRequest(input.consumer)
+      toolRequests.push(request)
+      return { ok: request }
+    },
+  }
   /** The Model call identities in the order they were admitted. */
   const modelCalls: string[] = []
+  /** The failures the received-entry commit of the receivers answered, for a scenario to name. */
+  const receivedFailures: unknown[] = []
   const toolPushes: Promise<unknown>[] = []
   let recorder: StageRecorder | null = null
 
@@ -265,13 +371,29 @@ export async function openW2World(options: W2Options) {
   // The measurement observers are the `measure` parameters of the products (R2-D17): the Session
   // and Context plugin factories, and the factory of the Agent runtime. They call the recorder of
   // the scenario, when there is one, with the clock read at the call.
-  const observe = (event: unknown): void => recorder?.observe(event as MeasureEvent)
+  /** How many Runs Session has ended in this process: the `round-complete` events it gave. */
+  let roundsComplete = 0
+  /**
+   * The receivers write through their own Journal copy, so the plugin's event stream does not wake the
+   * Agent; it picks a saved result up at its reconciliation check (CP3). The doubles move the manual
+   * Agent clock past one check right after each saved result: the trigger is the save, not a timer.
+   */
+  let afterSave: () => void = () => undefined
+  const observe = (event: unknown): void => {
+    if ((event as { kind?: string }).kind === 'round-complete') roundsComplete += 1
+    recorder?.observe(event as MeasureEvent)
+  }
   class ObservedSession extends createSessionProviderPlugin({ measure: observe }) {
     override get history() {
       return counters.observeHistory(super.history)
     }
   }
 
+  // The AD-05 and AD-06 calls, kept so a test can run one consume itself and read the answer.
+  const consumers: {
+    ad05?: (target: never) => Promise<unknown>
+    ad06?: (target: never) => Promise<unknown>
+  } = {}
   const w = await openLineWorld({
     wrapStorage: storage => countingStorage(storage, counters),
     journalPlugin: combination => [
@@ -288,33 +410,15 @@ export async function openW2World(options: W2Options) {
     // The manual clock is moved by `until`, far faster than real time: no instance idles out.
     hostConfig: { instanceIdleMs: 2_000_000_000 },
     ...(options.receiverRecords === undefined ? {} : { receiverRecords: options.receiverRecords }),
-    hostPlugin: createAgentHostPlugin((dependencies: Dependencies, runtimeOptions) =>
-      createAgentRuntime(
-        {
-          ...dependencies,
-          // The answers of the request preparation, kept so a scenario can say why a call was not made.
-          requests: {
-            ...dependencies.requests,
-            prepare: async input => {
-              const answer = await dependencies.requests.prepare(input)
-              prepared.push(answer)
-              return answer
-            },
-          },
-          // Double (R2-D36): the prepared request of the fixed schema.
-          toolRequests: {
-            describe: async () => ({ ok: testAdoption('w2-read_file') }),
-            prepare: async input => {
-              const request = fixedToolRequest(input.consumer)
-              toolRequests.push(request)
-              return { ok: request }
-            },
-          },
-        },
-        runtimeOptions,
-        { measure: observe },
-      ),
-    ),
+    ...(options.root === undefined ? {} : { root: options.root }),
+    ...(options.progression === undefined ? {} : { progression: options.progression }),
+    storageLimits: { ...LONG_RUN_LIMITS, ...options.storageLimits },
+    // Real: the production factory, with the products' `measure` observer and the Tool request
+    // source of R2-D36 (a double: a fixed full request of a fixed schema).
+    hostPlugin:
+      options.onHandoff === undefined
+        ? createAgentHostLocalPlugin({ measure: observe, toolRequests: toolRequestSource })
+        : observedHandoffHost(options.onHandoff, toolRequestSource, observe),
     // `earlier: 'session'` is real (AD-04): the K-RQ holder sources over the Session log replace the
     // holder double. The fixed request facts of the narrow adoption source are those of the world's
     // adopted-request double. By default the earlier context is the history of the holder double.
@@ -337,17 +441,53 @@ export async function openW2World(options: W2Options) {
               return [[ad04.lowerBound], [ad04.source]] as const
             })()
           : []
-      return [...history, [ad02.plugin], [handoff, combination], ...(options.plugins ?? [])]
+      // Real (AD-05): the Model results the Agent received enter the session log, so the replies are
+      // history rows of the next round.
+      const ad05 = createSessionModelLogConsumptionPlugin<string>({ coordinator })
+      // Real (AD-06): the Tool results the Agent received enter the session log; the plugin wakes on
+      // `agent-published` as AD-05 does. The delivery reader is the world's (R2-D36).
+      const ad06 = createSessionToolLogConsumptionPlugin({
+        toolDeliveries: readToolDelivery,
+        coordinator,
+      })
+      consumers.ad05 = ad05.consume as never
+      consumers.ad06 = ad06.consume as never
+      return [
+        ...history,
+        [ad02.plugin],
+        [ad05.plugin],
+        [ad06.plugin],
+        [handoff, combination],
+        ...(options.plugins ?? []),
+      ]
     },
     wrapTransactions: port => ({
       ...port,
       commitLog: async value => {
-        counters.ad02Commit()
         const commit = port.commitLog
         if (commit === undefined) throw new Error('the Session transactions offer no commitLog')
-        return commit.call(port, value)
+        const answer = await commit.call(port, value)
+        counters.ad02Commit('ok' in answer)
+        return answer
       },
     }),
+    wrapProvider: provider => {
+      const received = (provider as { received?: { commit: (input: never) => Promise<unknown> } })
+        .received
+      if (received === undefined) return provider
+      return {
+        ...provider,
+        received: {
+          ...received,
+          commit: async (input: never) => {
+            const answer = await received.commit(input)
+            if (typeof answer === 'object' && answer !== null && 'failure' in answer)
+              receivedFailures.push(answer)
+            return answer
+          },
+        },
+      }
+    },
     wrapModelReceiver: receiver => ({
       ...receiver,
       push: async input => {
@@ -388,6 +528,7 @@ export async function openW2World(options: W2Options) {
           pageTargetBytes: 65536,
         })
         pushed = await pusher.settled(target)
+        afterSave()
       } catch (error) {
         // A call that a control ended while the double held it cannot settle: the late result is
         // the double's, and the scenario reads what became of it from `replies`.
@@ -407,6 +548,44 @@ export async function openW2World(options: W2Options) {
     },
   })
 
+  // The warnings of the products' loggers (the world's `errors` keep the errors only).
+  const warnings: string[] = []
+  w.ctx.logger.exporter({
+    export: message => {
+      if (message.type === 'warn') warnings.push(message.args.map(String).join(' '))
+    },
+  })
+
+  // Each saved result lets the clock release `RELEASES_PER_SAVE` of the reconciliation waits that the
+  // Agent arms after it, each one by moving the clock to its instant. A wait for the idle reclaim is far
+  // away and is never released. Unused releases do not carry into the next round. The number of
+  // releases follows the saves, not the time a test takes.
+  let budget = 0
+  let releases = 0
+  let driving = true
+  afterSave = () => {
+    budget += RELEASES_PER_SAVE
+  }
+  const nearWait = (): number | null => {
+    const horizon = Date.parse(w.clock.now()) + 60_000
+    const instants = w.clock
+      .pending()
+      .map(instant => Date.parse(instant))
+      .filter(at => at <= horizon)
+    return instants.length === 0 ? null : Math.min(...instants)
+  }
+  const driver = (async () => {
+    while (driving) {
+      const at = budget > 0 ? nearWait() : null
+      if (at !== null) {
+        budget -= 1
+        releases += 1
+        w.clock.advanceTo(new Date(at).toISOString())
+      }
+      await sleep(2)
+    }
+  })()
+
   // --- the Tool receiver and the Tool double ---
   const execution = async (): Promise<AgentExecutionId> => {
     const found = await w.runExecution()
@@ -416,7 +595,7 @@ export async function openW2World(options: W2Options) {
   const agentAccess: Access<unknown> = { principal: COORDINATOR, tenant: TENANT }
   const toolState = createToolReceiverState<unknown>()
   const targetsOf = async (access: Access<unknown>, who: AgentExecutionId) => {
-    const loaded = await w.journal().load({ ...access, execution: who })
+    const loaded = await w.probeLog.load({ ...access, execution: who })
     if ('failure' in loaded) return loaded
     const instance = loaded.ok.executionAttachment?.instance
     return {
@@ -520,7 +699,10 @@ export async function openW2World(options: W2Options) {
       if ('ok' in answer) break
       await sleep(20)
     }
-    if (answer !== null && 'ok' in answer) counters.receive('tool')
+    if (answer !== null && 'ok' in answer) {
+      counters.receive('tool')
+      afterSave()
+    }
     const actualEnd = performance.now()
     recorder?.stub({
       kind: 'tool',
@@ -579,7 +761,7 @@ export async function openW2World(options: W2Options) {
     if (earlier !== 'session') return
     // The create bound the context scope of the session; the Runtime Context handoff double has to
     // know it before the Agent reads the readable context (double: K-RC).
-    const work = ok(await w.transactions.readWork(intakeAccess))
+    const work = ok(await w.probe.readWork(intakeAccess))
     for (const binding of work.contextScopes ?? []) {
       const scope = decodeScopeRef({ ref: binding.scope })
       if ('failure' in scope) throw new Error('the context scope of the session is not a scope ref')
@@ -599,22 +781,53 @@ export async function openW2World(options: W2Options) {
   }
 
   /**
-   * Waits for `probe` on later turns, at most `ms` milliseconds. Each turn moves the manual Agent
-   * clock past one reconciliation check: the receivers write through their own Journal copy, so the
-   * plugin's event stream does not wake the Agent, and it picks a saved result up at that check (CP3).
+   * Waits for `probe` on later turns, at most `ms` milliseconds. It does not touch the clock: the
+   * doubles move the manual Agent clock once after each saved result (`afterSave`).
    */
   async function until(probe: () => boolean | Promise<boolean>, ms = 20_000): Promise<void> {
     const end = Date.now() + ms
     while (!(await probe())) {
       if (Date.now() > end) throw new Error('the condition never held')
-      w.clock.advanceTo(new Date(Date.parse(w.clock.now()) + 1100).toISOString())
-      await sleep(100)
+      await sleep(20)
     }
+  }
+
+  /**
+   * The invocation references of the Model calls the Agent saved for the execution: the identity
+   * under which Session knows a Model call as a producer (AD-05 writes `key.reference`).
+   */
+  async function modelReferences(): Promise<string[]> {
+    const loaded = ok(await w.probeLog.load({ ...agentAccess, execution: await execution() }))
+    return loaded.checkpoint.calls.flatMap(call => (call.kind === 'model' ? [call.reference] : []))
+  }
+
+  /**
+   * How far the Agent's events of the execution reach (`emitted`, the last sequence of its output)
+   * and how far AD-02 has interpreted them into the session log (`readThrough`, from Session).
+   */
+  async function progress(
+    who: AgentExecutionId,
+  ): Promise<{ emitted: string; readThrough: string }> {
+    let emitted = '0'
+    const read = async (after: string | null): Promise<EventPage> =>
+      ok(await w.probeLog.output.read({ ...agentAccess, execution: who, after, limit: 100 }))
+    for (
+      let page = await read(null);
+      ;
+      page = await read(page.kind === 'page' ? page.next : null)
+    ) {
+      if (page.kind !== 'page') throw new Error('the output has a gap')
+      emitted = page.events.at(-1)?.sequence ?? emitted
+      if (page.caughtUp || page.events.length === 0) break
+    }
+    const work = ok(await w.probe.readWork(intakeAccess))
+    const held = work.executions?.find(item => item.execution.execution === String(who))
+    return { emitted, readThrough: held?.execution.readThrough ?? '0' }
   }
 
   /** The Run that Session last ended, null before the first end. */
   async function lastTerminal(): Promise<string | null> {
-    const { run } = ok(await w.transactions.readWork(intakeAccess))
+    const { run } = ok(await w.probe.readWork(intakeAccess))
     return run.kind === 'terminal' ? String(run.terminal.run) : null
   }
 
@@ -624,11 +837,13 @@ export async function openW2World(options: W2Options) {
    */
   async function runRound(round: number, body: string, ms = 60_000) {
     counters.begin(round)
+    budget = 0
     recorder?.beginRound(round, `round-${round}`)
     try {
       const before = await lastTerminal()
       await accept(`in-${round}`, body)
-      // The terminal of the earlier Run stays in the snapshot until the next Run starts.
+      // The terminal of the earlier Run stays in the snapshot until the next Run starts. The reads of
+      // the wait are not counted.
       await until(async () => {
         const ended = await lastTerminal()
         return ended !== null && ended !== before
@@ -642,16 +857,27 @@ export async function openW2World(options: W2Options) {
 
   return {
     ...w,
+    async close(): Promise<void> {
+      driving = false
+      await driver
+      await w.close()
+    },
     until,
+    warnings,
+    consumers,
+    releases: () => releases,
+    roundCompletes: () => roundsComplete,
     lastTerminal,
+    progress,
+    modelReferences,
     runRound,
     createSession,
     accept,
     counters,
     replies,
     toolRequests,
-    prepared,
     modelCalls,
+    receivedFailures,
     toolPushes,
     toolReceiver,
     toolState,
@@ -665,6 +891,37 @@ export async function openW2World(options: W2Options) {
     isOwnTenant: (who: Access<unknown>) => tenantEquals(who.tenant, TENANT),
     executionOf,
   }
+}
+
+/**
+ * The agent-host plugin over a wrapped factory that reports every `agentMessageHandoff.prepare` of the
+ * Agent with its answer. A scenario that has to read the Agent's own handoffs again after a kill needs
+ * it; it is the production factory `createAgentRuntime` with one observed dependency, and no scenario
+ * but J5 takes it.
+ */
+function observedHandoffHost(
+  onHandoff: (input: unknown, answer: unknown) => void,
+  toolRequests: NonNullable<Dependencies['toolRequests']>,
+  observe: (event: unknown) => void,
+) {
+  return createAgentHostPlugin((dependencies: Dependencies, runtimeOptions) =>
+    createAgentRuntime(
+      {
+        ...dependencies,
+        toolRequests,
+        handoff: {
+          ...dependencies.handoff,
+          prepare: async input => {
+            const answer = await dependencies.handoff.prepare(input)
+            onHandoff(input, answer)
+            return answer
+          },
+        },
+      },
+      runtimeOptions,
+      { measure: observe },
+    ),
+  )
 }
 
 /** The session that a head evidence of the Journal names (R2-D14, `historySessionOf`). */
