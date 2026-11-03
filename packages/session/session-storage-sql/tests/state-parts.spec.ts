@@ -252,6 +252,8 @@ describe('a write in parts', () => {
     ],
     ['replace that is not a boolean', { parts: [], replace: 'yes' }],
     ['neither state nor parts', {}],
+    ['an operation without a name', { parts: [], operation: '' }],
+    ['a revision that is not a count', { parts: [], revision: 'one' }],
   ] as const)
     it(`${name} is unsupported and writes nothing`, async () => {
       const a = await app()
@@ -409,11 +411,8 @@ function plantTenantB(a: App): void {
     )
 }
 const ofTenantB = (a: App, table: string) =>
-  a.provider.select(
-    'dom_0',
-    `SELECT * FROM ${table} WHERE tenant = ? ORDER BY 1, 2, 3`,
-    [OTHER],
-  ).rows
+  a.provider.select('dom_0', `SELECT * FROM ${table} WHERE tenant = ? ORDER BY 1, 2, 3`, [OTHER])
+    .rows
 
 describe('the tenant condition of the statements, with both tenants in one domain', () => {
   it('a read gives the count, the whole state and the parts of its own tenant only', async () => {
@@ -467,9 +466,9 @@ describe('the tenant condition of the statements, with both tenants in one domai
     }
     expect(planted.parts).toHaveLength(2)
     // A write with replace deletes the whole form and drops every other part of tenant A ...
-    expect((await commit(a, 'aop_2', write(2, [{ part: 'x:exe_3', state: 'a3' }], true))).kind).toBe(
-      'committed',
-    )
+    expect(
+      (await commit(a, 'aop_2', write(2, [{ part: 'x:exe_3', state: 'a3' }], true))).kind,
+    ).toBe('committed')
     // ... and a whole write drops every part of tenant A.
     const { parts: _parts, replace: _replace, ...base } = write(3, [])
     expect((await commit(a, 'aop_3', { ...base, state: 'a-whole' })).kind).toBe('committed')

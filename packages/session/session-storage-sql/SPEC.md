@@ -113,7 +113,7 @@
     - 词汇：子路径导出 `decodeExecutionRecordParts` 与类型 `ExecutionRecordPart`、`ExecutionRecordPartsRead`、`ExecutionRecordPartsPage`，handler 名为 `EXECUTION_RECORD_HANDLERS.parts`。没有只读整份状态的 handler：0.0.x 的当前政策要求迁移调用方后删除替代实现，这个读口在分区写入之后会对该会话答 `state` 为 null，读起来像没有记录，所以已删除；整份状态由 `parts` 的首页给出，调用方只读这一个口。
     - 不迁移旧数据：0.0.x 不承诺旧字节兼容（[当前演进政策](../../../docs/engineering/publication.md#当前演进与消费者)），已有的整份状态行留在 `er_state`，本成员不把它拆成分区。session-adapters 的提供者只读分区，遇到整份状态答 `unavailable`。
     - 清单摘要：新迁移、新 handler 与参加者模块摘要都改变组合的 `manifestDigest`。只含本成员材料的 `execution-record` 加 `session` 组合，基线 `1d0166605` 为 `adb6a8d5d5ccc00d1a8d16111179e07d51c027d4b945bd46c78ac92fad102bed`，本次为 `b543b8c09ccb8a5a7c254a0346b133d40081667c04af6af9b520b57da40597df`（`combinationManifest` 加 `manifestDigest` 对 `src` 材料计算，`combinationVersion` 取 `c1`）。应用的材料目录与 `combinationVersion` 归 Reduce，本成员不改。
-    - 验证：`tests/state-parts.spec.ts` 核对迁移的依赖与表的归属、分区替换与删除、`replace`、整份写删除分区、`since` 只读之后写到或删除的分区、六种畸形写入不写任何行、同一提交里 Session 写失败时分区一起回滚、分页的行数与文本预算、超过预算的分区单独成页、只读所列分区、另一租户读不到、畸形读输入被拒。
+    - 验证：`tests/state-parts.spec.ts` 核对迁移的依赖与表的归属、分区替换与删除、`replace`、整份写删除分区、`since` 只读之后写到或删除的分区、八种畸形写入不写任何行、同一提交里 Session 写失败时分区一起回滚、分页的行数与文本预算、超过预算的分区单独成页、只读所列分区、畸形读输入被拒。另一租户读不到：两个租户放在同一个库里，租户 B 的同名会话与同名分区种在租户 A 的库中，读口的 root、整份、分区三条语句与分区写的 `replace` 删整份、全部置空两条语句，去掉任一处的 `tenant` 条件，用例变红；分区写后租户 B 的行不变。
 
 ### 两个「事务端口」
 

@@ -158,9 +158,21 @@ function parseState(raw: Json): Write['state'] | null {
   return 'state' in raw ? { kind: 'whole', state: raw['state'] ?? null } : null
 }
 
-/** Parses the write at the boundary; a malformed one is unsupported and writes nothing. */
-function parseWrite(raw: JsonValue | undefined): Write | null {
-  if (!isJson(raw)) return null
+type Head = Pick<
+  Write,
+  | 'tenant'
+  | 'session'
+  | 'execution'
+  | 'expected'
+  | 'revision'
+  | 'published'
+  | 'operation'
+  | 'digest'
+  | 'answer'
+>
+
+/** The identity, the expected counts and the original answer of the write. */
+function parseHead(raw: Json): Head | null {
   const tenant = tenantOf(raw['tenant'])
   const { session, execution, expected, revision, published, operation, digest } = raw
   if (
@@ -175,13 +187,6 @@ function parseWrite(raw: JsonValue | undefined): Write | null {
     !('answer' in raw)
   )
     return null
-  const state = parseState(raw)
-  if (state === null) return null
-  const boundaries = listOf(raw['boundaries'], parseBoundary)
-  const facts = listOf(raw['facts'], parseFact)
-  const batches = listOf(raw['batches'], parseBatch)
-  const admissions = listOf(raw['admissions'], parseAdmission)
-  if (boundaries === null || facts === null || batches === null || admissions === null) return null
   return {
     tenant,
     session,
@@ -192,12 +197,21 @@ function parseWrite(raw: JsonValue | undefined): Write | null {
     operation,
     digest,
     answer: raw['answer'] ?? null,
-    state,
-    boundaries,
-    facts,
-    batches,
-    admissions,
   }
+}
+
+/** Parses the write at the boundary; a malformed one is unsupported and writes nothing. */
+function parseWrite(raw: JsonValue | undefined): Write | null {
+  if (!isJson(raw)) return null
+  const head = parseHead(raw)
+  const state = parseState(raw)
+  if (head === null || state === null) return null
+  const boundaries = listOf(raw['boundaries'], parseBoundary)
+  const facts = listOf(raw['facts'], parseFact)
+  const batches = listOf(raw['batches'], parseBatch)
+  const admissions = listOf(raw['admissions'], parseAdmission)
+  if (boundaries === null || facts === null || batches === null || admissions === null) return null
+  return { ...head, state, boundaries, facts, batches, admissions }
 }
 
 const json = (value: JsonValue): string => JSON.stringify(value)

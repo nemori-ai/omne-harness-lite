@@ -6,7 +6,7 @@
 // text budget, but always holds one part when one remains, so a reader that follows `next` reads
 // every part.
 import type { JsonValue } from '@omne-harness/sql-contract'
-import { big, handler, oneRow, rowsOf, scopeOf, text } from './support.ts'
+import { big, handler, oneRow, rowsOf, scopeOf, text, type Executor, type Row } from './support.ts'
 
 /** The most parts one page holds, and the text length after which it holds no further part. */
 export const PART_PAGE_ROWS = 64
@@ -29,34 +29,41 @@ function sinceOf(input: Record<string, unknown>): bigint | null | 'invalid' {
   return typeof since === 'string' && COUNT.test(since) ? BigInt(since) : 'invalid'
 }
 
-export default handler('execution-record.parts', (input, port) => {
+type Scope = { tenant: string; session: string }
+type PartsRead = Readonly<{
+  scope: Scope
+  after: string | null
+  names: readonly string[] | null
+  since: bigint | null
+}>
+
+/** The input of the read, or null when it is not valid. */
+function parseRead(input: unknown): PartsRead | null {
   const scope = scopeOf(input)
-  if (scope === null) throw new Error('invalid input')
+  if (scope === null) return null
   const raw = input as Record<string, unknown>
   const after = raw['after'] ?? null
-  if (after !== null && (typeof after !== 'string' || after === ''))
-    throw new Error('invalid input')
+  if (after !== null && (typeof after !== 'string' || after === '')) return null
   const names = namesOf(raw)
   const since = sinceOf(raw)
-  if (names === 'invalid' || since === 'invalid') throw new Error('invalid input')
-  const root = oneRow(
+  return names === 'invalid' || since === 'invalid' ? null : { scope, after, names, since }
+}
+
+/** The whole state of a writer that does not split it; only the first page gives it. */
+function wholeState(port: Executor, scope: Scope): JsonValue {
+  const whole = oneRow(
     port,
-    'SELECT published FROM er_root WHERE tenant = ? AND session = ? LIMIT 1',
+    'SELECT state FROM er_state WHERE tenant = ? AND session = ? LIMIT 1',
     [scope.tenant, scope.session],
   )
-  if (root === undefined) return { published: '0', state: null, parts: [], next: null }
-  let state: JsonValue = null
-  if (after === null) {
-    const whole = oneRow(
-      port,
-      'SELECT state FROM er_state WHERE tenant = ? AND session = ? LIMIT 1',
-      [scope.tenant, scope.session],
-    )
-    if (whole !== undefined) state = JSON.parse(text(whole['state'])) as JsonValue
-  }
+  return whole === undefined ? null : (JSON.parse(text(whole['state'])) as JsonValue)
+}
+
+/** One row more than a page holds, so that the page knows whether a next one follows. */
+function partRows(port: Executor, { scope, after, names, since }: PartsRead): Row[] {
   const filter = names === null ? '' : ` AND part IN (${names.map(() => '?').join(', ')})`
   const written = since === null ? ' AND state IS NOT NULL' : ' AND published > ?'
-  const rows = rowsOf(
+  return rowsOf(
     port,
     `SELECT part, state FROM er_state_part
       WHERE tenant = ? AND session = ? AND part > ?${written}${filter}
@@ -69,21 +76,39 @@ export default handler('execution-record.parts', (input, port) => {
       ...(names ?? []),
     ],
   )
+}
+
+/** The rows that fit the page, and the `after` of the next page. */
+function pageOf(rows: readonly Row[]): {
+  parts: { part: string; state: JsonValue }[]
+  next: string | null
+} {
   const parts: { part: string; state: JsonValue }[] = []
   let used = 0
-  let next: string | null = null
   for (const row of rows) {
     const body = row['state'] === null ? null : text(row['state'])
     const size = body?.length ?? 0
-    if (parts.length === PART_PAGE_ROWS || (parts.length > 0 && used + size > PART_PAGE_TEXT)) {
-      next = parts.at(-1)!.part
-      break
-    }
+    if (parts.length === PART_PAGE_ROWS || (parts.length > 0 && used + size > PART_PAGE_TEXT))
+      return { parts, next: parts.at(-1)!.part }
     used += size
     parts.push({
       part: text(row['part']),
       state: body === null ? null : (JSON.parse(body) as JsonValue),
     })
   }
-  return { published: String(big(root['published'])), state, parts, next }
+  return { parts, next: null }
+}
+
+export default handler('execution-record.parts', (input, port) => {
+  const read = parseRead(input)
+  if (read === null) throw new Error('invalid input')
+  const { scope, after } = read
+  const root = oneRow(
+    port,
+    'SELECT published FROM er_root WHERE tenant = ? AND session = ? LIMIT 1',
+    [scope.tenant, scope.session],
+  )
+  if (root === undefined) return { published: '0', state: null, parts: [], next: null }
+  const state = after === null ? wholeState(port, scope) : null
+  return { published: String(big(root['published'])), state, ...pageOf(partRows(port, read)) }
 })
