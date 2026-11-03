@@ -9,6 +9,17 @@ import { runInterruptScenario } from './interrupt-scenario.ts'
 
 export type WindowsScenario = (assembly: WindowsAssembly) => Promise<ScenarioResult>
 
+function failureDetails(error: unknown): unknown {
+  if (!(error instanceof Error)) return String(error)
+  return {
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
+    cause: error.cause === undefined ? undefined : failureDetails(error.cause),
+    errors: error instanceof AggregateError ? error.errors.map(failureDetails) : undefined,
+  }
+}
+
 export async function runWindowsToolComposition() {
   assert.equal(process.platform, 'win32')
   const directory = process.env.OMNE_TOOL_E2_ARTIFACTS
@@ -29,6 +40,11 @@ export async function runWindowsToolComposition() {
     results.files = await runFilesScenario(assembly)
     results.shell = await runShellScenario(assembly)
     results.interrupt = await runInterruptScenario(assembly)
+    const beforeDenial = {
+      executions: assembly.authorExecutions(),
+      acquisitions: assembly.acquisitions(),
+      resources: assembly.resources(),
+    }
     const denied = await assembly.attempt(
       'Files',
       'read',
@@ -39,6 +55,21 @@ export async function runWindowsToolComposition() {
     assert.ok(
       denied.outcome.kind === 'rejected' && denied.outcome.failure.kind === 'denied',
       'The foreign tenant must be refused by the real Tool entry',
+    )
+    assert.deepEqual(
+      assembly.authorExecutions(),
+      beforeDenial.executions,
+      'A foreign tenant reached a real author',
+    )
+    assert.deepEqual(
+      assembly.acquisitions(),
+      beforeDenial.acquisitions,
+      'A foreign tenant acquired an environment',
+    )
+    assert.deepEqual(
+      assembly.resources(),
+      beforeDenial.resources,
+      'A foreign tenant changed the known resources',
     )
     await assembly.record('cross-tenant-denied', denied)
     results.identity = {
@@ -98,11 +129,7 @@ export async function runWindowsToolComposition() {
     platform: process.platform,
     results,
     cleanup,
-    failures: failures.map(error =>
-      error instanceof Error
-        ? { name: error.name, message: error.message, stack: error.stack }
-        : String(error),
-    ),
+    failures: failures.map(failureDetails),
   }
   await writeFile(resolve(evidenceDirectory, 'result.json'), JSON.stringify(summary, null, 2))
   if (failures.length > 0)

@@ -90,6 +90,16 @@ const configuration: ToolConfiguration = {
   driverStepsPerRun: 32,
 }
 
+async function cleanupStep<T>(failures: Error[], step: string, operation: () => T | Promise<T>) {
+  try {
+    return await operation()
+  } catch (cause) {
+    const error = new Error(`Cleanup failed: ${step}`, { cause })
+    failures.push(error)
+    return { kind: 'unconfirmed' as const, step, diagnostic: String(cause) }
+  }
+}
+
 export async function openWindowsAssembly(evidenceDirectory: string): Promise<WindowsAssembly> {
   assert.equal(process.platform, 'win32', 'This runner requires the Windows host')
   const run = randomUUID()
@@ -816,37 +826,68 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       authorExecutions: authors.executions,
       record,
       async close() {
-        const coldEnumeration = provider.listRecoveryResources
-          ? await provider.listRecoveryResources(authority.scope)
-          : { kind: 'unavailable' }
-        const providerClose = await provider.retire()
-        const maintained = await domain.maintain()
-        await record('provider-close', { providerClose, maintained, coldEnumeration })
-        await bundle.close()
+        const failures: Error[] = []
+        const coldEnumeration = await cleanupStep(failures, 'cold enumeration', () =>
+          provider.listRecoveryResources
+            ? provider.listRecoveryResources(authority.scope)
+            : { kind: 'unavailable' },
+        )
+        const providerClose = await cleanupStep(failures, 'provider retirement', () =>
+          provider.retire(),
+        )
+        const maintained = await cleanupStep(failures, 'domain maintenance', () =>
+          domain.maintain(),
+        )
+        await cleanupStep(failures, 'provider evidence', () =>
+          record('provider-close', { providerClose, maintained, coldEnumeration }),
+        )
+        await cleanupStep(failures, 'Tool runtime', () => bundle.close())
         authority.retire()
-        await root.fiber.dispose()
-        schemas.close()
-        const storage = await sql.close()
-        await events
-        return {
+        await cleanupStep(failures, 'Cordis root', () => root.fiber.dispose())
+        await cleanupStep(failures, 'schema provider', () => schemas.close())
+        const storage = await cleanupStep(failures, 'SQLite', () => sql.close())
+        await cleanupStep(failures, 'evidence writes', () => events)
+        const result = {
           provider: { result: providerClose, maintained },
           storage,
           knownResources: [...resources.values()],
           coldEnumeration,
         }
+        if (failures.length > 0) {
+          await cleanupStep(failures, 'cleanup failure evidence', () =>
+            record('cleanup-failed', {
+              result,
+              failures: failures.map(error => ({
+                message: error.message,
+                cause: String(error.cause),
+              })),
+            }),
+          )
+          throw new AggregateError(failures, 'Windows composition cleanup was not fully confirmed')
+        }
+        return result
       },
     }
   } catch (error) {
-    const cleanup = await Promise.allSettled([retireProvider(), stopBundle()])
+    const failures: Error[] = []
+    const provider = await cleanupStep(failures, 'setup provider retirement', retireProvider)
+    const runtime = await cleanupStep(failures, 'setup Tool runtime', stopBundle)
     authority.retire()
-    await root.fiber.dispose().catch(() => undefined)
-    schemas.close()
-    const storage = await sql
-      .close()
-      .catch(cause => ({ kind: 'unconfirmed', diagnostic: String(cause) }))
-    await record('setup-failed', { diagnostic: String(error), cleanup, storage }).catch(
-      () => undefined,
+    const cordis = await cleanupStep(failures, 'setup Cordis root', () => root.fiber.dispose())
+    const schema = await cleanupStep(failures, 'setup schema provider', () => schemas.close())
+    const storage = await cleanupStep(failures, 'setup SQLite', () => sql.close())
+    await cleanupStep(failures, 'setup failure evidence', () =>
+      record('setup-failed', {
+        diagnostic: String(error),
+        provider,
+        runtime,
+        cordis,
+        schema,
+        storage,
+      }),
     )
+    if (failures.length > 0)
+      throw new AggregateError([error, ...failures], 'Windows composition setup and cleanup failed')
     throw error
   }
 }
