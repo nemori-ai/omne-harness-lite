@@ -39,6 +39,12 @@ export function fixtureNames(): string[] {
     .map(entry => entry.name)
 }
 
+/** `value` as the type that `guard` proves, or an error naming it. */
+export function granted<T>(guard: (value: unknown) => value is T, value: unknown): T {
+  if (!guard(value)) throw new Error(`${guard.name} refuses ${JSON.stringify(value)}`)
+  return value
+}
+
 export function path(raw: string): PackagePath {
   const checked = toPackagePath(raw)
   if (!('ok' in checked)) throw new Error(`not a package path: ${raw}`)

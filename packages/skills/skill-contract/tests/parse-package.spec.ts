@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   parseSkillPackage,
-  toSkillName,
+  isSkillName,
   type InspectRejectionCode,
   type SkillName,
 } from '@omne-harness/skill-contract'
@@ -15,9 +15,8 @@ import {
 } from './package-builder.ts'
 
 function name(raw: string): SkillName {
-  const checked = toSkillName(raw)
-  if (!('ok' in checked)) throw new Error(raw)
-  return checked.ok
+  if (!isSkillName(raw)) throw new Error(raw)
+  return raw
 }
 
 function parse(rootName: string, files: PackageFiles, expectedName?: SkillName) {

@@ -6,4 +6,3 @@
 
 - [README.md](README.md)：固定输入的范围
 - `packages/`：Skill 包样本，每个子目录一个包
-- `violations/`：故意违反无披露的替身与子运行配置

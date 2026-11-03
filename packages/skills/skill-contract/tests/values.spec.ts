@@ -9,15 +9,16 @@ import {
   parseSkillPackage,
   projectAssetBody,
   skillBodyContract,
-  toAssetVersion,
-  toPackageDigest,
+  isAssetVersion,
+  isPackageDigest,
+  isPackagePath,
+  isSafeReason,
+  isSkillName,
   toPackagePath,
-  toSafeReason,
-  toSkillName,
 } from '@omne-harness/skill-contract'
 import { buildFixture, path } from './package-builder.ts'
 
-describe('toSkillName follows the official name lexicon', () => {
+describe('isSkillName follows the official name lexicon', () => {
   it.each([
     ['a', 'one character'],
     ['pdf-processing', 'words joined by single hyphens'],
@@ -25,7 +26,7 @@ describe('toSkillName follows the official name lexicon', () => {
     ['123', 'digits only'],
     ['a'.repeat(64), '64 characters'],
   ])('accepts %s (%s)', raw => {
-    expect(toSkillName(raw)).toEqual({ ok: raw })
+    expect(isSkillName(raw)).toBe(true)
   })
 
   it.each([
@@ -41,7 +42,7 @@ describe('toSkillName follows the official name lexicon', () => {
     ['café', 'a letter outside a-z'],
     ['-', 'a hyphen only'],
   ])('rejects %j (%s)', raw => {
-    expect(toSkillName(raw)).toEqual({ failure: 'invalid-name' })
+    expect(isSkillName(raw)).toBe(false)
   })
 })
 
@@ -77,20 +78,37 @@ describe('toPackagePath keeps a normalized path inside the package', () => {
   })
 })
 
-describe('toSafeReason and toAssetVersion accept short printable text', () => {
-  const granters = [
-    ['toSafeReason', toSafeReason, 'invalid-reason'],
-    ['toAssetVersion', toAssetVersion, 'invalid-asset-version'],
+describe('the guards refuse values that are not text', () => {
+  it.each([undefined, null, 7, {}, ['a']])('refuses %j', value => {
+    for (const guard of [isSkillName, isPackagePath, isSafeReason, isAssetVersion, isPackageDigest])
+      expect(guard(value)).toBe(false)
+  })
+})
+
+describe('isPackagePath accepts only the normalized form that toPackagePath gives', () => {
+  it.each(['SKILL.md', 'a/b.md', '.omne/skill.json'])('accepts %j', raw => {
+    expect(isPackagePath(raw)).toBe(true)
+  })
+
+  it.each(['./a', 'a/./b', '', '/a', 'a/../b', 'a\\b', 'a//b', 'a/'])('refuses %j', raw => {
+    expect(isPackagePath(raw)).toBe(false)
+  })
+})
+
+describe('isSafeReason and isAssetVersion accept short printable text', () => {
+  const guards = [
+    ['isSafeReason', isSafeReason],
+    ['isAssetVersion', isAssetVersion],
   ] as const
 
-  describe.each(granters)('%s', (_name, grant, failure) => {
+  describe.each(guards)('%s', (_name, guard) => {
     it.each([
       ['x', 'one character'],
       ['Disabled by the organization.', 'a sentence'],
       ['é'.repeat(256), '256 characters outside ASCII'],
       ['😀'.repeat(256), '256 characters outside the basic plane'],
     ])('accepts %j (%s)', text => {
-      expect(grant(text)).toEqual({ ok: text })
+      expect(guard(text)).toBe(true)
     })
 
     it.each([
@@ -103,12 +121,12 @@ describe('toSafeReason and toAssetVersion accept short printable text', () => {
       ['c1\u0085', 'a C1 control character'],
       ['lone\ud800', 'a lone surrogate'],
     ])('rejects %j (%s)', text => {
-      expect(grant(text)).toEqual({ failure })
+      expect(guard(text)).toBe(false)
     })
   })
 })
 
-describe('computeDigest and toPackageDigest', () => {
+describe('computeDigest and isPackageDigest', () => {
   it('names the SHA-256 of the exact bytes in lowercase hexadecimal with a sha256: prefix', () => {
     const bytes = new Uint8Array([0, 1, 2, 255])
     const hex = createHash('sha256').update(bytes).digest('hex')
@@ -124,7 +142,7 @@ describe('computeDigest and toPackageDigest', () => {
 
   it('accepts only the canonical digest text', () => {
     const digest = `sha256:${'a'.repeat(64)}`
-    expect(toPackageDigest(digest)).toEqual({ ok: digest })
+    expect(isPackageDigest(digest)).toBe(true)
     for (const text of [
       '',
       `sha256:${'A'.repeat(64)}`,
@@ -134,7 +152,7 @@ describe('computeDigest and toPackageDigest', () => {
       'a'.repeat(64),
       ` sha256:${'a'.repeat(64)}`,
     ])
-      expect(toPackageDigest(text)).toEqual({ failure: 'invalid-digest' })
+      expect(isPackageDigest(text)).toBe(false)
   })
 })
 

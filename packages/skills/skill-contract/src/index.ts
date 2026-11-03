@@ -1,7 +1,14 @@
 export { skillBodyContract } from './contract.ts'
-export { computeDigest, toPackageDigest } from './digest.ts'
+export { computeDigest, isPackageDigest } from './digest.ts'
 export { inferMediaType } from './media.ts'
-export { isControlFile, toAssetVersion, toPackagePath, toSafeReason, toSkillName } from './names.ts'
+export {
+  isAssetVersion,
+  isControlFile,
+  isPackagePath,
+  isSafeReason,
+  isSkillName,
+  toPackagePath,
+} from './names.ts'
 export { parseSkillPackage } from './parse/package.ts'
 export { projectAssetBody } from './project.ts'
 export type {
@@ -10,7 +17,6 @@ export type {
   CatalogQuery,
   ExportedEntry,
   MaterialState,
-  PackageInspection,
   ReadContent,
   ReadResult,
   ReadTarget,

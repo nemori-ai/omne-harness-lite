@@ -7,17 +7,18 @@ declare const brand: unique symbol
 /** A value that only its validating function grants. */
 export type Brand<T, B extends string> = T & { readonly [brand]: B }
 
-/** One to 64 of a-z, 0-9 and single inner hyphens. Granted by `toSkillName`. */
+/** One to 64 of a-z, 0-9 and single inner hyphens. Granted by `isSkillName`. */
 export type SkillName = Brand<string, 'SkillName'>
-/** A normalized path inside a package. Granted by `toPackagePath`. */
+/** A normalized path inside a package. Granted by `isPackagePath`; `toPackagePath` normalizes. */
 export type PackagePath = Brand<string, 'PackagePath'>
 /** The content digest of the bytes of one entry. Granted by `computeDigest`. */
 export type EntryDigest = Brand<string, 'EntryDigest'>
-/** The content digest of a package snapshot. Granted by `toPackageDigest`. */
+/** The content digest of a package snapshot. Granted by `isPackageDigest`. */
 export type PackageDigest = Brand<string, 'PackageDigest'>
-/** An asset version reference. The asset side gives it; Skill does not interpret it. */
+/** An asset version reference. The asset side gives it; Skill does not interpret it. Granted by
+ * `isAssetVersion`. */
 export type AssetVersion = Brand<string, 'AssetVersion'>
-/** A reason that Skill can show to the principal. Granted by `toSafeReason`. */
+/** A reason that Skill can show to the principal. Granted by `isSafeReason`. */
 export type SafeReason = Brand<string, 'SafeReason'>
 /** A media type. An absent media type does not mean text. Granted by `inferMediaType`. */
 export type MediaType = Brand<string, 'MediaType'>
@@ -44,10 +45,14 @@ export type PackageEntry = Readonly<{
  * ancestor directory of another path, and the digest is computed from the entries. The root name
  * comes from the source and is not part of the digest.
  */
-export type SkillPackageSnapshot = Brand<
-  Readonly<{ rootName: string; entries: readonly PackageEntry[]; digest: PackageDigest }>,
-  'SkillPackageSnapshot'
->
+export type SkillPackageSnapshot = Brand<SnapshotShape, 'SkillPackageSnapshot'>
+
+/** The fields of a snapshot without its brand. Only `sealSnapshot` turns them into a snapshot. */
+export type SnapshotShape = Readonly<{
+  rootName: string
+  entries: readonly PackageEntry[]
+  digest: PackageDigest
+}>
 
 /** Where a package is in one kind of source. Opaque to Skill. */
 export type PackageLocator =

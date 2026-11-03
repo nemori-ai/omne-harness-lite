@@ -1,6 +1,6 @@
 // One small world for the conformance suites: two principals, an adopted Skill with an earlier
 // version, a stand-in, and a capability that exists for nobody. The memory doubles of `./testing`
-// hold it; the violating variants in `fixtures/violations` wrap the same doubles.
+// hold it; the violating variants in `conformance.spec.ts` wrap the same doubles.
 import { capabilityId, type CapabilityId } from '@omne-harness/assets'
 import {
   access,
@@ -10,28 +10,31 @@ import {
   type Access,
 } from '@omne-harness/legal-identity'
 import {
-  toAssetVersion,
-  toSafeReason,
-  toSkillName,
+  isAssetVersion,
+  isSafeReason,
+  isSkillName,
   type DeclaredProjection,
   type SkillMaterialBasis,
 } from '@omne-harness/skill-contract'
-import type { PackageLocator, SkillRef } from '@omne-harness/skill-contract/provider'
+import type {
+  PackageLocator,
+  SkillReadCheck,
+  SkillRef,
+  SkillResolution,
+} from '@omne-harness/skill-contract/provider'
 import {
   createMemoryReadCheck,
   createMemoryResolution,
   createMemorySource,
   type MemoryMaterial,
+  type ReadCheckFixture,
+  type ResolutionFixture,
+  type SourceFixture,
 } from '@omne-harness/skill-contract/testing'
-import { buildPackage } from './package-builder.ts'
+import { buildPackage, granted } from './package-builder.ts'
 
 export type Principal = 'alice' | 'mallory'
 export type Scope = 'workspace-a'
-
-function ok<T>(result: { ok: T } | { failure: unknown }): T {
-  if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
-  return result.ok
-}
 
 function capability(name: string): CapabilityId {
   const id = capabilityId('skill', name)
@@ -67,7 +70,7 @@ const current = buildPackage('review', currentFiles).snapshot
 const earlier = buildPackage('review', earlierFiles).snapshot
 
 const declared: DeclaredProjection = {
-  name: ok(toSkillName('review')),
+  name: granted(isSkillName, 'review'),
   description: 'Reviews a change.',
   tools: [],
   scripts: [],
@@ -78,7 +81,7 @@ function material(digest: SkillRef['digest'], version: string): MemoryMaterial {
   const ref: SkillRef = {
     capability: reviewCapability,
     layer: 'tenant',
-    assetVersion: ok(toAssetVersion(version)),
+    assetVersion: granted(isAssetVersion, version),
     locator: reviewLocator,
     ...(digest === undefined ? {} : { digest }),
   }
@@ -107,9 +110,9 @@ export function memoryResolution() {
       visible: onlyAlice,
       state: {
         kind: 'known-unavailable',
-        name: ok(toSkillName('retired')),
+        name: granted(isSkillName, 'retired'),
         description: 'Was disabled.',
-        reason: ok(toSafeReason('Disabled by the organization.')),
+        reason: granted(isSafeReason, 'Disabled by the organization.'),
       },
     },
   ])
@@ -122,27 +125,47 @@ export function memoryReadCheck() {
   ])
 }
 
-export const resolutionSamples = {
-  permitted: { access: alice, scope },
-  refused: { access: mallory, scope },
-  adopted: reviewCapability,
-  missing: missingCapability,
-  standIn: retiredCapability,
+/** A fresh fixture of the resolution suite; `resolution` replaces the memory double. */
+export function resolutionFixture(
+  resolution: SkillResolution<Principal, Scope> = memoryResolution(),
+): ResolutionFixture<Principal, Scope> {
+  return {
+    resolution,
+    permitted: { access: alice, scope },
+    refused: { access: mallory, scope },
+    adopted: reviewCapability,
+    missing: missingCapability,
+    standIn: retiredCapability,
+  }
 }
 
-export const readCheckSamples = {
-  permitted: { access: alice, scope },
-  refused: { access: mallory, scope },
-  readable: reviewCapability,
-  missing: missingCapability,
+/** A fresh fixture of the read check suite; `readCheck` replaces the memory double. */
+export function readCheckFixture(
+  readCheck: SkillReadCheck<Principal, Scope> = memoryReadCheck(),
+): ReadCheckFixture<Principal, Scope> {
+  return {
+    readCheck,
+    permitted: { access: alice, scope },
+    refused: { access: mallory, scope },
+    readable: reviewCapability,
+    missing: missingCapability,
+  }
 }
 
-export const sourceSamples = { present: reviewLocator, absent: missingLocator }
+/** A fresh fixture of the source suite over the memory source, which keeps bytes by digest. */
+export function sourceFixture(): SourceFixture {
+  return {
+    source: memorySource(),
+    present: reviewLocator,
+    absent: missingLocator,
+    addressing: 'content-digest',
+  }
+}
 
 /** A basis of the earlier, still lawful version of `review`. */
 export const earlierBasis: SkillMaterialBasis = {
   capability: reviewCapability,
   layer: 'tenant',
-  assetVersion: ok(toAssetVersion('v1')),
+  assetVersion: granted(isAssetVersion, 'v1'),
   digest: earlier.digest,
 }

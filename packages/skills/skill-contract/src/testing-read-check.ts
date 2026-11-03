@@ -1,8 +1,9 @@
 // The conformance suite of `SkillReadCheck` and its memory double.
+import assert from 'node:assert/strict'
 import type { CapabilityId } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'
-import { describe, expect, it } from 'vitest'
 import type { SkillReadCheck } from './ports.ts'
+import { conformanceCase, type ConformanceCase } from './testing-case.ts'
 import { sameCapability, type PrincipalSample } from './testing-resolution.ts'
 
 export type MemoryReadGrant<P, S> = Readonly<{
@@ -20,12 +21,14 @@ export function createMemoryReadCheck<P, S>(
       const granted = grants.some(
         grant => sameCapability(grant.capability, capability) && grant.visible(access, scope),
       )
-      return granted ? 'granted' : 'refused'
+      return granted ? { kind: 'granted' } : { kind: 'refused' }
     },
   }
 }
 
-export type ReadCheckSamples<P, S> = Readonly<{
+/** A fresh read check for one case, and the principals and identities that the case asks about. */
+export type ReadCheckFixture<P, S> = Readonly<{
+  readCheck: SkillReadCheck<P, S>
   /** A principal who may read `readable`. */
   permitted: PrincipalSample<P, S>
   /** A principal who may not read `readable`. */
@@ -35,35 +38,26 @@ export type ReadCheckSamples<P, S> = Readonly<{
   missing: CapabilityId
 }>
 
-const READ_CHECK_NO_DISCLOSURE =
+/** The name of the non-disclosure case. */
+export const READ_CHECK_NO_DISCLOSURE =
   'answers a principal without the right the same for an existing and a missing identity'
 
-export function describeSkillReadCheckConformance<P, S>(
-  input: Readonly<{
-    name: string
-    create: () => SkillReadCheck<P, S> | Promise<SkillReadCheck<P, S>>
-    samples: ReadCheckSamples<P, S>
-  }>,
-): void {
-  const { create, samples } = input
-  const { permitted, refused } = samples
-
-  describe(`SkillReadCheck conformance: ${input.name}`, () => {
-    it('grants a principal who may read the identity', async () => {
-      const check = await create()
-      expect(await check.check(permitted.access, permitted.scope, samples.readable)).toBe('granted')
-    })
-
-    it('refuses a principal who may not read the identity', async () => {
-      const check = await create()
-      expect(await check.check(refused.access, refused.scope, samples.readable)).toBe('refused')
-    })
-
-    it(READ_CHECK_NO_DISCLOSURE, async () => {
-      const check = await create()
-      const existing = await check.check(refused.access, refused.scope, samples.readable)
-      const missing = await check.check(refused.access, refused.scope, samples.missing)
-      expect(missing).toBe(existing)
-    })
-  })
+export function skillReadCheckConformance<P, S>(): ConformanceCase<ReadCheckFixture<P, S>>[] {
+  return [
+    conformanceCase('PC1', 'grants a principal who may read the identity', async f => {
+      assert.deepEqual(await f.readCheck.check(f.permitted.access, f.permitted.scope, f.readable), {
+        kind: 'granted',
+      })
+    }),
+    conformanceCase('PC2', 'refuses a principal who may not read the identity', async f => {
+      assert.deepEqual(await f.readCheck.check(f.refused.access, f.refused.scope, f.readable), {
+        kind: 'refused',
+      })
+    }),
+    conformanceCase('PC3', READ_CHECK_NO_DISCLOSURE, async f => {
+      const existing = await f.readCheck.check(f.refused.access, f.refused.scope, f.readable)
+      const missing = await f.readCheck.check(f.refused.access, f.refused.scope, f.missing)
+      assert.deepEqual(missing, existing)
+    }),
+  ]
 }

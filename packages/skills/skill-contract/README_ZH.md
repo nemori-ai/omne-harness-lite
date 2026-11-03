@@ -15,8 +15,8 @@ Skill 能力组的纯契约成员。它提供 Skill 的值、失败、服务接�
 本成员有三个入口：
 
 - `@omne-harness/skill-contract`：给调用方。值、失败、服务接口、纯函数与 `skillBodyContract`。
-- `@omne-harness/skill-contract/provider`：给端口实现方。端口、`SkillRef`、`PackageLocator` 与 `sealSnapshot`。
-- `@omne-harness/skill-contract/testing`：给端口实现方的测试。它在运行时导入 `vitest`，消费者必须自己安装 `vitest`。
+- `@omne-harness/skill-contract/provider`：给端口实现方。端口、`PackageInspection` 接口、`SkillRef`、`PackageLocator` 与 `sealSnapshot`。
+- `@omne-harness/skill-contract/testing`：给端口实现方的测试。套件是用例列表，用例经 `node:assert` 失败，消费者在自己的测试框架里登记它们。
 
 来源只经 `sealSnapshot` 交出快照。检查一个包的最小示例见 [README.md](README.md#usage)。登记类别端口时，把 `skillBodyContract()` 交给 `@omne-harness/assets` 的类别注册表。本成员没有 Cordis 入口。
 
@@ -34,7 +34,7 @@ Skill 能力组的纯契约成员。它提供 Skill 的值、失败、服务接�
 
 ## 验证
 
-在本目录运行 `pnpm run build`、`pnpm run typecheck` 与 `pnpm test`。测试是单元与契约测试。`tests/conformance-red.spec.ts` 属于慢层：它起一个子测试运行，核对套件对泄露身份的替身变红。详见 [tests/README.md](tests/README.md) 与 [SPEC.md](SPEC.md#持续验证)。
+在本目录运行 `pnpm run build`、`pnpm run typecheck` 与 `pnpm test`。测试是单元与契约测试。`tests/conformance.spec.ts` 还在进程内对泄露身份的替身跑套件，核对恰好无披露用例失败。详见 [tests/README.md](tests/README.md) 与 [SPEC.md](SPEC.md#持续验证)。
 
 ## 维护
 

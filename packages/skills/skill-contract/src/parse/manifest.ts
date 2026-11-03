@@ -1,7 +1,7 @@
 // Reads SKILL.md: strict UTF-8 without a byte order mark, a `---` frontmatter closed by the first
 // line that is only `---`, and a YAML mapping whose keys are unique in the whole tree.
 import { isMap, parseDocument } from 'yaml'
-import { toSkillName } from '../names.ts'
+import { isSkillName } from '../names.ts'
 import type { ManifestValue, SkillManifest } from '../values.ts'
 import { plainValue } from './yaml-value.ts'
 
@@ -96,8 +96,7 @@ export function readManifest(bytes: Uint8Array): ManifestRead {
 
 function interpret(fields: FieldMap, rawName: unknown): ManifestRead {
   const fail = (detail: string) => malformed(detail, rawName)
-  const name = typeof rawName === 'string' ? toSkillName(rawName) : undefined
-  if (name === undefined || !('ok' in name)) return fail('name is not a Skill name')
+  if (!isSkillName(rawName)) return fail('name is not a Skill name')
   const { description, license, compatibility, metadata } = fields
   const allowedTools = fields['allowed-tools']
   if (typeof description !== 'string') return fail('description is not text')
@@ -117,7 +116,7 @@ function interpret(fields: FieldMap, rawName: unknown): ManifestRead {
   return {
     kind: 'ok',
     manifest: Object.freeze({
-      name: name.ok,
+      name: rawName,
       description,
       ...(license === undefined ? {} : { license }),
       ...(compatibility === undefined ? {} : { compatibility }),

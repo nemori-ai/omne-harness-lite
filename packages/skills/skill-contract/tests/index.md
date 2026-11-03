@@ -9,7 +9,7 @@
 - [values.spec.ts](values.spec.ts)：值与纯函数的边界
 - [parse-package.spec.ts](parse-package.spec.ts)：检查 Skill 包与拒绝次序
 - [snapshot.spec.ts](snapshot.spec.ts)：快照构造
-- [conformance.spec.ts](conformance.spec.ts)、[conformance-red.spec.ts](conformance-red.spec.ts)：端口套件与变红证明
+- [conformance.spec.ts](conformance.spec.ts)：端口套件、内存替身与进程内的变红证明
 - [contract.spec.ts](contract.spec.ts)、[contract-extension.spec.ts](contract-extension.spec.ts)：`skill` 类别端口
 - [declaration-schema.spec.ts](declaration-schema.spec.ts)：Schema 与解析一致
 - [package-builder.ts](package-builder.ts)、[conformance-world.ts](conformance-world.ts)：测试辅助

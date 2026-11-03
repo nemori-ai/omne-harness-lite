@@ -8,7 +8,7 @@ import {
   type JsonValue,
   type Judgment,
 } from '@omne-harness/assets'
-import { toPackageDigest } from './digest.ts'
+import { isPackageDigest } from './digest.ts'
 import {
   fieldsOf,
   firstFinding,
@@ -111,7 +111,7 @@ function extensionOf(body: unknown): {
     const fields = fieldsOf(pack)
     if (fields !== undefined) onlyKeys(fields, ['digest'], 'package', findings)
     const digest = fields?.get('digest')
-    if (digest?.kind !== 'string' || !('ok' in toPackageDigest(digest.value)))
+    if (digest?.kind !== 'string' || !isPackageDigest(digest.value))
       findings.push({ code: 'malformed', detail: 'package.digest is not a package digest' })
   }
   return { findings, settings }

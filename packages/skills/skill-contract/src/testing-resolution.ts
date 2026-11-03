@@ -1,11 +1,14 @@
 // The conformance suite of `SkillResolution` and its memory double.
+import assert from 'node:assert/strict'
 import type { CapabilityId } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
-import { describe, expect, it } from 'vitest'
-import { toPackageDigest } from './digest.ts'
+import { digestOfSorted } from './digest.ts'
+import { isAssetVersion } from './names.ts'
 import type { CatalogResolution, Resolution, SkillResolution } from './ports.ts'
+import { conformanceCase, handle, type ConformanceCase } from './testing-case.ts'
 import type {
+  AssetVersion,
   DeclaredProjection,
   SafeReason,
   SkillMaterialBasis,
@@ -38,29 +41,32 @@ export function sameCapability(left: CapabilityId, right: CapabilityId): boolean
   return left.category === right.category && left.name === right.name
 }
 
+/**
+ * Whether `basis` names `material`. With an asset version the version decides; without one the
+ * source layer decides. The digest is not compared: Skill compares it with the snapshot itself.
+ */
 function names(material: MemoryMaterial, basis: SkillMaterialBasis): boolean {
   const { ref } = material
-  return (
-    sameCapability(ref.capability, basis.capability) &&
-    ref.layer === basis.layer &&
-    ref.digest === basis.digest &&
-    (basis.assetVersion === undefined || ref.assetVersion === basis.assetVersion)
-  )
+  if (!sameCapability(ref.capability, basis.capability) || ref.layer !== basis.layer) return false
+  return basis.assetVersion === undefined || ref.assetVersion === basis.assetVersion
 }
 
-function answerOf<P, S>(
-  entry: MemoryResolutionEntry<P, S>,
-  basis: SkillMaterialBasis | undefined,
-): CatalogResolution | Readonly<{ kind: 'basis-not-lawful' }> {
+function currentAnswer<P, S>(entry: MemoryResolutionEntry<P, S>): CatalogResolution {
   const { state } = entry
   if (state.kind === 'known-unavailable') {
     const { kind, ...facts } = state
     return { kind, capability: entry.capability, ...facts }
   }
-  const material =
-    basis === undefined
-      ? state.current
-      : [state.current, ...(state.earlier ?? [])].find(item => names(item, basis))
+  return { kind: 'adopted', ref: state.current.ref, declared: state.current.declared }
+}
+
+function answerOf<P, S>(
+  entry: MemoryResolutionEntry<P, S>,
+  basis: SkillMaterialBasis | undefined,
+): Resolution {
+  const { state } = entry
+  if (basis === undefined || state.kind === 'known-unavailable') return currentAnswer(entry)
+  const material = [state.current, ...(state.earlier ?? [])].find(item => names(item, basis))
   if (material === undefined) return { kind: 'basis-not-lawful' }
   return { kind: 'adopted', ref: material.ref, declared: material.declared }
 }
@@ -80,157 +86,160 @@ export function createMemoryResolution<P, S>(
       return entry === undefined ? { kind: 'none' } : answerOf(entry, options?.basis)
     },
     async adopted(access, scope) {
-      return succeed(
-        known(access, scope).map(entry => {
-          const answer = answerOf(entry, undefined)
-          if (answer.kind === 'basis-not-lawful') throw new Error('a current answer has no basis')
-          return answer
-        }),
-      )
+      return succeed(known(access, scope).map(currentAnswer))
     },
   }
 }
 
 export type PrincipalSample<P, S> = Readonly<{ access: Access<P>; scope: S }>
 
-export type ResolutionSamples<P, S> = Readonly<{
+/** A fresh resolution for one case, and the principals and identities that the case asks about. */
+export type ResolutionFixture<P, S> = Readonly<{
+  resolution: SkillResolution<P, S>
   /** A principal who may read `adopted` in the scope. */
   permitted: PrincipalSample<P, S>
   /** A principal who has no right to `adopted` or `standIn`. */
   refused: PrincipalSample<P, S>
-  /** An identity adopted for `permitted`, with a package digest. */
+  /** An identity adopted for `permitted`. */
   adopted: CapabilityId
   /** An identity that exists for nobody. */
   missing: CapabilityId
-  /** An identity that `permitted` knows lawfully and that is not available now, when there is one. */
+  /** An identity that `permitted` knows lawfully and that is not available now, if there is one. */
   standIn?: CapabilityId
 }>
 
-const RESOLUTION_NO_DISCLOSURE =
+/** The name of the non-disclosure case. */
+export const RESOLUTION_NO_DISCLOSURE =
   'answers a principal without the right the same for an existing and a missing identity'
 
-const OTHER_DIGEST = `sha256:${'0'.repeat(64)}`
-
-/** Names `missing` with the same layer, version and digest as `basis`. */
-function rename(basis: SkillMaterialBasis, capability: CapabilityId): SkillMaterialBasis {
-  return { ...basis, capability }
+async function adoptedRef<P, S>(fixture: ResolutionFixture<P, S>): Promise<SkillRef> {
+  const { permitted } = fixture
+  const answer = await fixture.resolution.resolve(
+    permitted.access,
+    permitted.scope,
+    fixture.adopted,
+  )
+  if (answer.kind !== 'adopted') assert.fail(`the adopted sample answered ${answer.kind}`)
+  return answer.ref
 }
 
+/** A basis of the material of `ref`. The port does not compare the digest, so any digest serves. */
 function basisOf(ref: SkillRef): SkillMaterialBasis {
-  if (ref.digest === undefined) throw new Error('the adopted sample has no package digest')
   return {
     capability: ref.capability,
     layer: ref.layer,
     ...(ref.assetVersion === undefined ? {} : { assetVersion: ref.assetVersion }),
-    digest: ref.digest,
+    digest: ref.digest ?? digestOfSorted([]),
   }
 }
 
-export function describeSkillResolutionConformance<P, S>(
-  input: Readonly<{
-    name: string
-    create: () => SkillResolution<P, S> | Promise<SkillResolution<P, S>>
-    samples: ResolutionSamples<P, S>
-  }>,
-): void {
-  const { create, samples } = input
-  const { permitted, refused } = samples
-  const adoptedRef = async (resolution: SkillResolution<P, S>) => {
-    const answer = await resolution.resolve(permitted.access, permitted.scope, samples.adopted)
-    if (answer.kind !== 'adopted') throw new Error(`the adopted sample answered ${answer.kind}`)
-    return answer.ref
-  }
+/** An asset version that differs from `version`. */
+function otherVersion(version: AssetVersion): AssetVersion {
+  for (const text of ['conformance-unlawful-version', 'conformance-unlawful-version-2'])
+    if (isAssetVersion(text) && text !== version) return text
+  throw new Error('unreachable: two different texts cannot both equal one version')
+}
 
-  describe(`SkillResolution conformance: ${input.name}`, () => {
-    it('resolves an adopted identity to its material and declarations', async () => {
-      const resolution = await create()
-      const answer = await resolution.resolve(permitted.access, permitted.scope, samples.adopted)
-      expect(answer.kind).toBe('adopted')
-      if (answer.kind !== 'adopted') return
-      expect(sameCapability(answer.ref.capability, samples.adopted)).toBe(true)
-      expect(answer.declared.name).toBe(samples.adopted.name)
-      expect(answer.ref.digest).toBeDefined()
-    })
+function capabilityOf(answer: CatalogResolution): CapabilityId {
+  return answer.kind === 'adopted' ? answer.ref.capability : answer.capability
+}
 
-    it('answers none for an identity that does not exist', async () => {
-      const resolution = await create()
-      expect(await resolution.resolve(permitted.access, permitted.scope, samples.missing)).toEqual({
-        kind: 'none',
+export function skillResolutionConformance<P, S>(): ConformanceCase<ResolutionFixture<P, S>>[] {
+  return [
+    conformanceCase(
+      'PR1',
+      'resolves an adopted identity to its material and declarations',
+      async f => {
+        const answer = await f.resolution.resolve(f.permitted.access, f.permitted.scope, f.adopted)
+        if (answer.kind !== 'adopted') assert.fail(`expected adopted, got ${answer.kind}`)
+        assert.ok(
+          sameCapability(answer.ref.capability, f.adopted),
+          'the ref names another identity',
+        )
+        assert.equal(answer.declared.name, f.adopted.name)
+      },
+    ),
+    conformanceCase('PR2', 'answers none for an identity that does not exist', async f => {
+      assert.deepEqual(
+        await f.resolution.resolve(f.permitted.access, f.permitted.scope, f.missing),
+        {
+          kind: 'none',
+        },
+      )
+    }),
+    conformanceCase('PR3', 'resolves a basis of the adopted material to that material', async f => {
+      const ref = await adoptedRef(f)
+      const answer = await f.resolution.resolve(f.permitted.access, f.permitted.scope, f.adopted, {
+        basis: basisOf(ref),
       })
-    })
-
-    it('resolves a basis of the adopted material to that material', async () => {
-      const resolution = await create()
-      const basis = basisOf(await adoptedRef(resolution))
-      const answer = await resolution.resolve(permitted.access, permitted.scope, samples.adopted, {
+      if (answer.kind !== 'adopted') assert.fail(`expected adopted, got ${answer.kind}`)
+      assert.equal(answer.ref.layer, ref.layer)
+      assert.equal(answer.ref.assetVersion, ref.assetVersion)
+    }),
+    conformanceCase(
+      'PR4',
+      'answers basis-not-lawful for a basis whose asset version is not lawful',
+      async f => {
+        const ref = await adoptedRef(f)
+        const version = handle(ref.assetVersion, 'asset version of the adopted material')
+        const answer = await f.resolution.resolve(
+          f.permitted.access,
+          f.permitted.scope,
+          f.adopted,
+          {
+            basis: { ...basisOf(ref), assetVersion: otherVersion(version) },
+          },
+        )
+        assert.deepEqual(answer, { kind: 'basis-not-lawful' })
+      },
+    ),
+    conformanceCase('PR5', RESOLUTION_NO_DISCLOSURE, async f => {
+      const basis = basisOf(await adoptedRef(f))
+      const ask = (capability: CapabilityId, options?: Readonly<{ basis: SkillMaterialBasis }>) =>
+        f.resolution.resolve(f.refused.access, f.refused.scope, capability, options)
+      assert.deepEqual(await ask(f.adopted), await ask(f.missing))
+      assert.deepEqual(
+        await ask(f.adopted, { basis }),
+        await ask(f.missing, { basis: { ...basis, capability: f.missing } }),
+      )
+      if (f.standIn !== undefined) assert.deepEqual(await ask(f.standIn), await ask(f.missing))
+      const listed = await f.resolution.adopted(f.refused.access, f.refused.scope)
+      if (!('ok' in listed)) assert.fail('the lawful set of the refused principal answered unknown')
+      const hidden = [f.adopted, ...(f.standIn === undefined ? [] : [f.standIn])]
+      for (const answer of listed.ok)
+        assert.ok(
+          !hidden.some(item => sameCapability(item, capabilityOf(answer))),
+          'the lawful set of the refused principal lists a hidden identity',
+        )
+    }),
+    conformanceCase(
+      'PR6',
+      'lists the current lawful set with adopted and known-unavailable answers only',
+      async f => {
+        const listed = await f.resolution.adopted(f.permitted.access, f.permitted.scope)
+        if (!('ok' in listed)) assert.fail('the lawful set answered unknown')
+        for (const answer of listed.ok)
+          assert.ok(['adopted', 'known-unavailable'].includes(answer.kind), answer.kind)
+        const capabilities = listed.ok.map(capabilityOf)
+        assert.ok(
+          capabilities.some(item => sameCapability(item, f.adopted)),
+          'adopted is missing',
+        )
+        const keys = capabilities.map(item => `${item.category}\0${item.name}`)
+        assert.equal(new Set(keys).size, keys.length, 'an identity is listed twice')
+      },
+    ),
+    conformanceCase('PR7', 'answers known-unavailable before it looks at a basis', async f => {
+      const standIn = handle(f.standIn, 'standIn')
+      const basis = { ...basisOf(await adoptedRef(f)), capability: standIn }
+      const plain = await f.resolution.resolve(f.permitted.access, f.permitted.scope, standIn)
+      const withBasis = await f.resolution.resolve(f.permitted.access, f.permitted.scope, standIn, {
         basis,
       })
-      expect(answer).toMatchObject({
-        kind: 'adopted',
-        ref: { digest: basis.digest, layer: basis.layer },
-      })
-    })
-
-    it('answers basis-not-lawful for a basis whose version is not lawful', async () => {
-      const resolution = await create()
-      const basis = basisOf(await adoptedRef(resolution))
-      const other = toPackageDigest(OTHER_DIGEST)
-      if (!('ok' in other) || other.ok === basis.digest) throw new Error('no other digest')
-      const answer = await resolution.resolve(permitted.access, permitted.scope, samples.adopted, {
-        basis: { ...basis, digest: other.ok },
-      })
-      expect(answer).toEqual({ kind: 'basis-not-lawful' })
-    })
-
-    it(RESOLUTION_NO_DISCLOSURE, async () => {
-      const resolution = await create()
-      const basis = basisOf(await adoptedRef(resolution))
-      const ask = (capability: CapabilityId, options?: Readonly<{ basis: SkillMaterialBasis }>) =>
-        resolution.resolve(refused.access, refused.scope, capability, options)
-      expect(await ask(samples.missing)).toEqual(await ask(samples.adopted))
-      expect(await ask(samples.missing, { basis: rename(basis, samples.missing) })).toEqual(
-        await ask(samples.adopted, { basis }),
-      )
-      if (samples.standIn !== undefined)
-        expect(await ask(samples.missing)).toEqual(await ask(samples.standIn))
-      const listed = await resolution.adopted(refused.access, refused.scope)
-      expect(listed).toHaveProperty('ok')
-      if (!('ok' in listed)) return
-      const hidden = [samples.adopted, ...(samples.standIn === undefined ? [] : [samples.standIn])]
-      for (const answer of listed.ok) {
-        const capability = answer.kind === 'adopted' ? answer.ref.capability : answer.capability
-        expect(hidden.some(item => sameCapability(item, capability))).toBe(false)
-      }
-    })
-
-    it('lists the current lawful set with adopted and known-unavailable answers only', async () => {
-      const resolution = await create()
-      const listed = await resolution.adopted(permitted.access, permitted.scope)
-      if (!('ok' in listed)) throw new Error('the lawful set answered unknown')
-      const capabilities = listed.ok.map(answer =>
-        answer.kind === 'adopted' ? answer.ref.capability : answer.capability,
-      )
-      for (const answer of listed.ok)
-        expect(['adopted', 'known-unavailable']).toContain(answer.kind)
-      expect(capabilities.some(item => sameCapability(item, samples.adopted))).toBe(true)
-      const keys = capabilities.map(item => `${item.category}\0${item.name}`)
-      expect(new Set(keys).size).toBe(keys.length)
-    })
-
-    it.runIf(samples.standIn !== undefined)(
-      'answers known-unavailable before it looks at a basis',
-      async () => {
-        const standIn = samples.standIn
-        if (standIn === undefined) return
-        const resolution = await create()
-        const basis = rename(basisOf(await adoptedRef(resolution)), standIn)
-        const plain = await resolution.resolve(permitted.access, permitted.scope, standIn)
-        const withBasis = await resolution.resolve(permitted.access, permitted.scope, standIn, {
-          basis,
-        })
-        expect(plain).toMatchObject({ kind: 'known-unavailable', capability: standIn })
-        expect(withBasis).toEqual(plain)
-      },
-    )
-  })
+      if (plain.kind !== 'known-unavailable')
+        assert.fail(`expected known-unavailable, got ${plain.kind}`)
+      assert.ok(sameCapability(plain.capability, standIn))
+      assert.deepEqual(withBasis, plain)
+    }),
+  ]
 }

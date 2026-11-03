@@ -1,6 +1,5 @@
 // Content digests: `sha256:` plus the lowercase hexadecimal SHA-256.
 import { createHash } from 'node:crypto'
-import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Bytes, EntryDigest, PackageDigest, PackageEntry } from './values.ts'
 
 const DIGEST = /^sha256:[0-9a-f]{64}$/
@@ -9,8 +8,9 @@ function isEntryDigest(text: string): text is EntryDigest {
   return DIGEST.test(text)
 }
 
-function isPackageDigest(text: string): text is PackageDigest {
-  return DIGEST.test(text)
+/** `sha256:` plus 64 lowercase hexadecimal digits, for example the `package.digest` of a body. */
+export function isPackageDigest(value: unknown): value is PackageDigest {
+  return typeof value === 'string' && DIGEST.test(value)
 }
 
 function sha256(update: (hash: ReturnType<typeof createHash>) => void): string {
@@ -22,13 +22,9 @@ function sha256(update: (hash: ReturnType<typeof createHash>) => void): string {
 /** The digest of the exact bytes of one entry. */
 export function computeDigest(bytes: Bytes): EntryDigest {
   const text = sha256(hash => hash.update(bytes))
+  // Defensive only: a SHA-256 hex digest always matches the form, so the throw is never reached.
   if (!isEntryDigest(text)) throw new Error('SHA-256 did not give a digest text')
   return text
-}
-
-/** Reads a package digest text, for example the `package.digest` of an asset body. */
-export function toPackageDigest(text: string): Outcome<PackageDigest, 'invalid-digest'> {
-  return isPackageDigest(text) ? succeed(text) : fail('invalid-digest')
 }
 
 /**
@@ -39,6 +35,7 @@ export function digestOfSorted(entries: readonly PackageEntry[]): PackageDigest 
   const text = sha256(hash => {
     for (const entry of entries) hash.update(`${entry.path}\0${entry.digest}\n`)
   })
+  // Defensive only, as in computeDigest.
   if (!isPackageDigest(text)) throw new Error('SHA-256 did not give a digest text')
   return text
 }

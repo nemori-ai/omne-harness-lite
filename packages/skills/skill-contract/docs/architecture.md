@@ -20,7 +20,7 @@
 | `failures.ts`、`services.ts`、`ports.ts` | 失败联合、服务接口与需求端口。只有类型，另有拒绝次序常量 |
 | `testing-*.ts` | 三个符合性套件与内存替身 |
 
-依赖方向：入口文件 `index.ts`、`provider.ts`、`testing.ts` 只重新导出。`testing-*.ts` 依赖其余模块与 `vitest`，其余模块不依赖 `testing-*.ts`。外部依赖只有 `@omne-harness/assets`、`@omne-harness/json-text`、`@omne-harness/legal-identity`、`@omne-harness/operation-result` 与 `yaml`。
+依赖方向：入口文件 `index.ts`、`provider.ts`、`testing.ts` 只重新导出。`testing-*.ts` 依赖其余模块与 `node:assert`，不依赖测试框架；其余模块不依赖 `testing-*.ts`。外部依赖只有 `@omne-harness/assets`、`@omne-harness/json-text`、`@omne-harness/legal-identity`、`@omne-harness/operation-result` 与 `yaml`。
 
 ## 关键机制与理由
 

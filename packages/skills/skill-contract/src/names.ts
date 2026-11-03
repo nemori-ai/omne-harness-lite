@@ -1,5 +1,6 @@
-// The validating functions of the text values. Each brand has exactly one type guard here, and
-// the guard is the only place that grants it.
+// The guards of the text values. Each brand has exactly one guard, and the guard is the only
+// place that grants it. A value that is only checked has a public guard `isX`; `toPackagePath`
+// stays a function that gives an outcome, because it also normalizes its input.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AssetVersion, PackagePath, SafeReason, SkillName } from './values.ts'
 
@@ -8,6 +9,8 @@ const SHORT_TEXT_MAX = 256
 
 /** A C0 control character, DEL or a C1 control character. */
 function hasControl(text: string): boolean {
+  // `index <= text.length` would be equivalent: `charCodeAt(text.length)` is NaN, and every
+  // comparison with NaN is false.
   for (let index = 0; index < text.length; index += 1) {
     const code = text.charCodeAt(index)
     if (code <= 0x1f || (code >= 0x7f && code <= 0x9f)) return true
@@ -15,24 +18,23 @@ function hasControl(text: string): boolean {
   return false
 }
 
-function isSkillName(raw: string): raw is SkillName {
-  return raw.length >= 1 && raw.length <= 64 && SKILL_NAME.test(raw)
-}
-
-export function toSkillName(raw: string): Outcome<SkillName, 'invalid-name'> {
-  return isSkillName(raw) ? succeed(raw) : fail('invalid-name')
+/** One to 64 of a-z, 0-9 and single inner hyphens. */
+export function isSkillName(value: unknown): value is SkillName {
+  return (
+    typeof value === 'string' && value.length >= 1 && value.length <= 64 && SKILL_NAME.test(value)
+  )
 }
 
 /** Normalized: relative, no empty, `.` or `..` segment, no backslash or control character. */
-function isPackagePath(raw: string): raw is PackagePath {
-  if (raw === '' || raw.startsWith('/') || raw.includes('\\')) return false
-  if (hasControl(raw) || !raw.isWellFormed()) return false
-  return raw.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
+export function isPackagePath(value: unknown): value is PackagePath {
+  if (typeof value !== 'string' || value === '' || value.startsWith('/')) return false
+  if (value.includes('\\') || hasControl(value) || !value.isWellFormed()) return false
+  return value.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
 }
 
 /**
- * Checks a path inside a package. It rejects an absolute path, a `..` segment, a backslash, an
- * empty segment, a control character and a lone surrogate. It removes `.` segments.
+ * Checks a path inside a package and normalizes it. It rejects an absolute path, a `..` segment,
+ * a backslash, an empty segment, a control character and a lone surrogate. It removes `.` segments.
  */
 export function toPackagePath(raw: string): Outcome<PackagePath, 'bad-path'> {
   const segments = raw.split('/')
@@ -41,28 +43,20 @@ export function toPackagePath(raw: string): Outcome<PackagePath, 'bad-path'> {
   return isPackagePath(normalized) ? succeed(normalized) : fail('bad-path')
 }
 
-function isShortText(text: string): boolean {
-  if (!text.isWellFormed() || hasControl(text)) return false
-  const length = [...text].length
+function isShortText(value: unknown): value is string {
+  if (typeof value !== 'string' || !value.isWellFormed() || hasControl(value)) return false
+  const length = [...value].length
   return length >= 1 && length <= SHORT_TEXT_MAX
 }
 
-function isSafeReason(text: string): text is SafeReason {
-  return isShortText(text)
-}
-
-function isAssetVersion(text: string): text is AssetVersion {
-  return isShortText(text)
-}
-
-/** One to 256 characters, no control character. */
-export function toSafeReason(text: string): Outcome<SafeReason, 'invalid-reason'> {
-  return isSafeReason(text) ? succeed(text) : fail('invalid-reason')
+/** One to 256 characters, no control character. It checks the form only, not what it discloses. */
+export function isSafeReason(value: unknown): value is SafeReason {
+  return isShortText(value)
 }
 
 /** One to 256 characters, no control character. Skill does not interpret the version. */
-export function toAssetVersion(text: string): Outcome<AssetVersion, 'invalid-asset-version'> {
-  return isAssetVersion(text) ? succeed(text) : fail('invalid-asset-version')
+export function isAssetVersion(value: unknown): value is AssetVersion {
+  return isShortText(value)
 }
 
 export const MANIFEST_PATH = 'SKILL.md'

@@ -8,15 +8,16 @@ it('exports the skill body port', () => {
   expect(Object.keys(skill).sort()).toEqual([
     'computeDigest',
     'inferMediaType',
+    'isAssetVersion',
     'isControlFile',
+    'isPackageDigest',
+    'isPackagePath',
+    'isSafeReason',
+    'isSkillName',
     'parseSkillPackage',
     'projectAssetBody',
     'skillBodyContract',
-    'toAssetVersion',
-    'toPackageDigest',
     'toPackagePath',
-    'toSafeReason',
-    'toSkillName',
   ])
 })
 
@@ -29,12 +30,15 @@ it('exports the snapshot constructor on the provider entry only', async () => {
 it('exports the three port suites and their memory doubles on the testing entry', async () => {
   const testing = await import('@omne-harness/skill-contract/testing')
   expect(Object.keys(testing).sort()).toEqual([
+    'NotApplicable',
     'createMemoryReadCheck',
     'createMemoryResolution',
     'createMemorySource',
-    'describeSkillPackageSourceConformance',
-    'describeSkillReadCheckConformance',
-    'describeSkillResolutionConformance',
+    'isNotApplicable',
+    'runConformanceCase',
+    'skillPackageSourceConformance',
+    'skillReadCheckConformance',
+    'skillResolutionConformance',
   ])
 })
 

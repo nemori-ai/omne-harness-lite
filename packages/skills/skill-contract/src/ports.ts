@@ -31,6 +31,9 @@ export type SourceFailure =
   | 'outside-package'
   /** The source cannot be reached now. */
   | 'unavailable'
+  /** At `snapshot`: an entry is a device, a pipe, a socket, or a link that cannot be resolved or
+   * forms a cycle. */
+  | 'entry-unreadable'
 
 /** Gives bytes only. Every implementation passes the same conformance suite. */
 export interface SkillPackageSource {
@@ -79,7 +82,10 @@ export interface SkillResolution<P, S> {
   adopted(access: Access<P>, scope: S): Reply<readonly CatalogResolution[]>
 }
 
-export type ReadVerdict = 'granted' | 'refused' | 'unknown'
+export type ReadVerdict =
+  | Readonly<{ kind: 'granted' }>
+  | Readonly<{ kind: 'refused' }>
+  | Readonly<{ kind: 'unknown' }>
 
 /** Decides by capability identity only. For a principal without the right, the answer does not
  * depend on whether the identity exists. */

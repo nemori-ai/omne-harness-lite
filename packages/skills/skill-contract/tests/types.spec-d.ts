@@ -13,9 +13,15 @@ import type {
   SkillPackageSnapshot,
 } from '@omne-harness/skill-contract'
 import type { PackageLocator, SkillRef } from '@omne-harness/skill-contract/provider'
+// @ts-expect-error the root entry does not name the inspection port
+import type { PackageInspection as InspectionOnRoot } from '@omne-harness/skill-contract'
+// @ts-expect-error the root entry does not name the internal reference
+import type { SkillRef as RefOnRoot } from '@omne-harness/skill-contract'
+// @ts-expect-error the root entry does not name the package locator
+import type { PackageLocator as LocatorOnRoot } from '@omne-harness/skill-contract'
 
 test('a branded value cannot be written as a plain literal', () => {
-  // @ts-expect-error a SkillName comes only from toSkillName
+  // @ts-expect-error a SkillName comes only from isSkillName
   const name: SkillName = 'review'
   // @ts-expect-error a PackagePath comes only from toPackagePath
   const path: PackagePath = 'SKILL.md'
@@ -29,8 +35,11 @@ test('a snapshot cannot be built from its fields', () => {
 })
 
 test('the root entry names neither the internal reference nor the package locator', () => {
-  expectTypeOf<keyof typeof root>().not.toExtend<'SkillRef' | 'PackageLocator' | 'sealSnapshot'>()
+  expectTypeOf<keyof typeof root>().not.toExtend<
+    'SkillRef' | 'PackageLocator' | 'sealSnapshot' | 'PackageInspection'
+  >()
   expectTypeOf<SkillRef>().toHaveProperty('locator').toEqualTypeOf<PackageLocator>()
+  expectTypeOf<InspectionOnRoot | RefOnRoot | LocatorOnRoot>().toBeAny()
 })
 
 test('each operation names only the failures that it can give', () => {

@@ -15,8 +15,8 @@ Status: the shapes and the rules are candidates of the first Skill wave. They do
 There are three entries:
 
 - `@omne-harness/skill-contract`: for callers. Values, failures, service interfaces, pure functions and `skillBodyContract`.
-- `@omne-harness/skill-contract/provider`: for port implementations. The ports, `SkillRef`, `PackageLocator` and `sealSnapshot`.
-- `@omne-harness/skill-contract/testing`: for the tests of port implementations. It imports `vitest` at run time, so the consumer must install `vitest`.
+- `@omne-harness/skill-contract/provider`: for port implementations. The ports, the `PackageInspection` interface, `SkillRef`, `PackageLocator` and `sealSnapshot`.
+- `@omne-harness/skill-contract/testing`: for the tests of port implementations. The suites are lists of cases that fail by `node:assert`, so the consumer registers them in its own test framework.
 
 A source gives a snapshot only through `sealSnapshot`. A check of a package then looks like this:
 
@@ -48,7 +48,7 @@ There is no runtime configuration. Two defaults are policy values with an overri
 
 ## Verification
 
-Run `pnpm run build`, `pnpm run typecheck` and `pnpm test` in this directory. The tests are unit and contract tests. `tests/conformance-red.spec.ts` is in the slow tier: it starts a child test run and checks that the suites fail a double that discloses an identity. See [tests/README.md](tests/README.md) and the verification section of [SPEC.md](SPEC.md).
+Run `pnpm run build`, `pnpm run typecheck` and `pnpm test` in this directory. The tests are unit and contract tests. `tests/conformance.spec.ts` also runs the suites in process on doubles that disclose an identity, and checks that exactly the non-disclosure cases fail. See [tests/README.md](tests/README.md) and the verification section of [SPEC.md](SPEC.md).
 
 ## Maintenance
 

@@ -1,20 +1,27 @@
 export {
-  describeSkillReadCheckConformance,
+  isNotApplicable,
+  NotApplicable,
+  runConformanceCase,
+  type CaseVerdict,
+  type ConformanceCase,
+} from './testing-case.ts'
+export {
   createMemoryReadCheck,
+  skillReadCheckConformance,
   type MemoryReadGrant,
-  type ReadCheckSamples,
+  type ReadCheckFixture,
 } from './testing-read-check.ts'
 export {
-  describeSkillResolutionConformance,
   createMemoryResolution,
+  skillResolutionConformance,
   type MemoryMaterial,
   type MemoryResolutionEntry,
   type PrincipalSample,
-  type ResolutionSamples,
+  type ResolutionFixture,
 } from './testing-resolution.ts'
 export {
-  describeSkillPackageSourceConformance,
   createMemorySource,
+  skillPackageSourceConformance,
   type MemoryPackage,
-  type SourceSamples,
+  type SourceFixture,
 } from './testing-source.ts'
