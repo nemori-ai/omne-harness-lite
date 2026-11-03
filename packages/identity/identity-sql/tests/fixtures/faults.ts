@@ -1,25 +1,71 @@
 // Fault injection at the storage boundary. The product code never sees these wrappers: it only
 // holds a `SqlStorage`. The suite's `RecordStoreFaults` is mapped here onto the reads and the
-// commit that stand for the account store and the login store.
-import type { SqlStorage } from '@omne-harness/sql-contract'
-import type { RecordStoreFaults } from '@omne-harness/identity/testing'
+// commits that stand for the account store, the login store and the organization store (identity
+// SPEC ID-18: organizations, memberships, invitations and creation receipts). Every governance
+// command and every governance query but the identifier pre-read checks the initiating login, so a
+// silent login store fails them all.
+import type { JsonValue, SqlStorage } from '@omne-harness/sql-contract'
+import type { RecordStore, RecordStoreFaults } from '@omne-harness/identity/testing'
 
 const ISSUE_BASIS = 'identity.issue-basis'
 const LOGIN_BY_PROOF = 'identity.login-by-proof'
-const REGISTER = 'identity.register-and-activate'
+const GOVERNANCE = 'identity.governance'
 
-/** `accounts` down: the issue basis read and the registration commit fail. `logins` down: both login reads fail. */
+/** The record stores that each commit operation touches. */
+const COMMIT_STORES: Readonly<Record<string, readonly RecordStore[]>> = {
+  'identity.register-and-activate': ['accounts'],
+  'identity.create-organization': ['logins', 'organizations'],
+  'identity.issue-member-invitation': ['logins', 'organizations', 'accounts'],
+  'identity.dispose-member-invitation': ['logins', 'organizations'],
+  'identity.leave-organization': ['logins', 'organizations'],
+  'identity.change-member': ['logins', 'organizations'],
+  'identity.switch-current-tenant': ['logins', 'organizations'],
+  'identity.revoke-login': ['logins'],
+  'identity.report-business-access': ['logins'],
+}
+
+/** The record stores that each governance query reads. */
+const QUERY_STORES: Readonly<Record<string, readonly RecordStore[]>> = {
+  'create-receipt': ['logins', 'organizations'],
+  invitation: ['logins', 'organizations'],
+  received: ['logins', 'organizations'],
+  issued: ['logins', 'organizations'],
+  'own-memberships': ['logins', 'organizations'],
+  members: ['logins', 'organizations'],
+  'current-tenant': ['logins'],
+  'own-logins': ['logins'],
+  'account-of': ['accounts'],
+  'login-terms': ['logins'],
+}
+
+function queryOf(input: JsonValue): string {
+  if (typeof input !== 'object' || input === null) return ''
+  const query: unknown = Reflect.get(input, 'query')
+  return typeof query === 'string' ? query : ''
+}
+
+function readStores(handler: string, input: JsonValue): readonly RecordStore[] {
+  if (handler === ISSUE_BASIS) return ['accounts', 'logins']
+  if (handler === LOGIN_BY_PROOF) return ['logins']
+  if (handler === GOVERNANCE) return QUERY_STORES[queryOf(input)] ?? []
+  return []
+}
+
+function firstDown(faults: RecordStoreFaults, stores: readonly RecordStore[]): string | undefined {
+  for (const store of stores) {
+    const diagnostic = faults.unavailable(store)
+    if (diagnostic !== undefined) return diagnostic
+  }
+  return undefined
+}
+
+/** A store that is down fails every read and every commit that touches it, before it runs. */
 export function withRecordFaults(storage: SqlStorage, faults: RecordStoreFaults): SqlStorage {
   return {
     registerCombination: input => storage.registerCombination(input),
     query: identity => storage.query(identity),
     read(request, options) {
-      const accounts = faults.unavailable('accounts')
-      const logins = faults.unavailable('logins')
-      let down: string | undefined
-      if (request.handler === ISSUE_BASIS) down = accounts ?? logins
-      if (request.handler === LOGIN_BY_PROOF) down = logins
-      if (down !== undefined)
+      if (firstDown(faults, readStores(request.handler, request.input)) !== undefined)
         return Promise.resolve({
           kind: 'unavailable',
           requestKey: request.requestKey,
@@ -29,8 +75,8 @@ export function withRecordFaults(storage: SqlStorage, faults: RecordStoreFaults)
       return storage.read(request, options)
     },
     commit(request, options) {
-      const accounts = faults.unavailable('accounts')
-      if (accounts !== undefined && request.identity.operation === REGISTER)
+      const stores = COMMIT_STORES[request.identity.operation] ?? []
+      if (firstDown(faults, stores) !== undefined)
         return Promise.resolve({
           kind: 'rejected_before_accept',
           identity: request.identity,

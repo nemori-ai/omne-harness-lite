@@ -1,4 +1,4 @@
-// The static materials of the identity storage: one participant, one migration and three read
+// The static materials of the identity storage: one participant, two migrations and four read
 // handlers, with build-fixed `file:` URLs and file digests (sql-contract SPEC §4). The same file
 // holds the names of the system domain and the combination, so the plugin, the provider and the
 // application register and address one thing.
@@ -16,6 +16,9 @@ import {
   type StorageScope,
 } from '@omne-harness/sql-contract'
 import {
+  GOVERNANCE_LIST_LIMIT,
+  GOVERNANCE_MIGRATION,
+  GOVERNANCE_TABLES,
   HANDLERS,
   IDENTITY_PARTICIPANT,
   IDENTITY_TABLES,
@@ -42,17 +45,57 @@ function module(name: string): Readonly<{ moduleUrl: string; digest: string }> {
 }
 
 const migrationRef = Object.freeze({ owner: MIGRATION.owner, id: MIGRATION.id })
+const governanceRef = Object.freeze({
+  owner: GOVERNANCE_MIGRATION.owner,
+  id: GOVERNANCE_MIGRATION.id,
+})
 
-type Handler = Readonly<{ handler: string; file: string; tables: readonly string[] }>
+/** Every table of the participant: the six of `001-identity` and the four of `002-governance`. */
+const OWNED_TABLES: readonly string[] = Object.freeze([...IDENTITY_TABLES, ...GOVERNANCE_TABLES])
+
+type Handler = Readonly<{
+  handler: string
+  file: string
+  tables: readonly string[]
+  migrations: readonly Readonly<{ owner: string; id: string }>[]
+  maxRowsRead: number
+  maxOutputBytes: number
+}>
+
+// A single-row read reads at most a few rows. A governance list reads up to the list limit, plus
+// the rows of the login and role checks before it.
+const SINGLE = { maxRowsRead: 10, maxOutputBytes: 1 << 16 }
+const LIST = { maxRowsRead: GOVERNANCE_LIST_LIMIT + 16, maxOutputBytes: 1 << 20 }
 
 const READ_HANDLERS: readonly Handler[] = [
   {
     handler: HANDLERS.issueBasis,
     file: 'read-issue-basis',
     tables: ['id_account', 'id_credential', 'id_login'],
+    migrations: [migrationRef],
+    ...SINGLE,
   },
-  { handler: HANDLERS.loginByProof, file: 'read-login-by-proof', tables: ['id_login'] },
-  { handler: HANDLERS.standing, file: 'read-standing', tables: ['id_membership'] },
+  {
+    handler: HANDLERS.loginByProof,
+    file: 'read-login-by-proof',
+    tables: ['id_login', 'id_login_revocation'],
+    migrations: [migrationRef, governanceRef],
+    ...SINGLE,
+  },
+  {
+    handler: HANDLERS.standing,
+    file: 'read-standing',
+    tables: ['id_membership'],
+    migrations: [migrationRef],
+    ...SINGLE,
+  },
+  {
+    handler: HANDLERS.governance,
+    file: 'read-governance',
+    tables: OWNED_TABLES,
+    migrations: [migrationRef, governanceRef],
+    ...LIST,
+  },
 ]
 
 export type IdentitySqlMaterials = Readonly<{
@@ -68,6 +111,7 @@ export function identitySqlMaterials(): IdentitySqlMaterials {
   if (materials !== undefined) return materials
   const participant = module('participant')
   const migration = module('migration')
+  const governanceMigration = module('migration-governance')
   materials = {
     participants: [
       {
@@ -75,7 +119,7 @@ export function identitySqlMaterials(): IdentitySqlMaterials {
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: IDENTITY_TABLES,
+        ownedTables: OWNED_TABLES,
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
@@ -85,6 +129,12 @@ export function identitySqlMaterials(): IdentitySqlMaterials {
     ],
     migrations: [
       { ...migrationRef, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
+      {
+        ...governanceRef,
+        moduleUrl: governanceMigration.moduleUrl,
+        checksum: governanceMigration.digest,
+        requires: [migrationRef],
+      },
     ],
     readHandlers: READ_HANDLERS.map(item => {
       const file = module(item.file)
@@ -95,9 +145,9 @@ export function identitySqlMaterials(): IdentitySqlMaterials {
         codeDigest: file.digest,
         ordering: 'snapshot',
         readTables: item.tables,
-        requiresMigrations: [migrationRef],
-        maxOutputBytes: 1 << 16,
-        maxRowsRead: 10,
+        requiresMigrations: item.migrations,
+        maxOutputBytes: item.maxOutputBytes,
+        maxRowsRead: item.maxRowsRead,
       }
     }),
   }

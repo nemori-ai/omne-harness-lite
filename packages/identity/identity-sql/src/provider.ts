@@ -1,15 +1,19 @@
-// The provider of the three identity operations and the standing read over the SQL storage
-// contract (identity SPEC ID-16, ID-17; DP-3). Every computation that is not SQL happens here, in
-// the main thread: input checks, scrypt, identities, digests, deadlines and result mapping. The
-// participant and the read handlers in `./worker` only run statements. A reply to the caller
-// never carries a credential, a proof or a login identifier in a diagnostic.
+// The provider of the three identity operations, the standing read and the governance port over the
+// SQL storage contract (identity SPEC ID-16, ID-17, ID-18; DP-3). Every computation that is not SQL
+// happens in the main thread: input checks, scrypt, identities, digests, deadlines and result
+// mapping. The participant and the read handlers in `./worker` run statements and the record checks
+// that must share a transaction with them. The governance port is in `governance.ts` and shares this
+// instance's storage, clock and stop flag. A reply to the caller never carries a credential, a proof
+// or a login identifier in a diagnostic.
 import {
   DEFAULT_TEAM_MODEL,
   DEFAULT_TEAM_ROLES,
   DEFAULT_TEAM_ROLE_MAPPING,
   qualificationsOf,
   type IdentityClock,
+  type IdentityGovernance,
   type IdentityOperations,
+  type InvitationTermsSource,
   type IssueLoginOutcome,
   type LoginRecognition,
   type LoginTerms,
@@ -44,6 +48,7 @@ import {
   type Instant,
 } from '@omne-harness/utc-instant'
 import { addDuration, isPositive } from './deadline.ts'
+import { governanceOver } from './governance.ts'
 import {
   newLoginProof,
   operationKey,
@@ -53,6 +58,13 @@ import {
   type IdentifierSource,
 } from './identifiers.ts'
 import { IDENTITY_DOMAIN, IDENTITY_SCOPE, identitySqlCombination } from './materials.ts'
+import {
+  IdentitySqlResultUnknown,
+  readReason,
+  unavailable,
+  type TimeBasis,
+  type Unavailable,
+} from './result.ts'
 import {
   HANDLERS,
   IDENTITY_PARTICIPANT,
@@ -74,6 +86,8 @@ export type IdentitySqlInput = Readonly<{
   storage: SqlStorage
   clock: IdentityClock
   terms: LoginTermsSource
+  /** The member invitation durations, read at every issue (identity SPEC ID-18). */
+  invitationTerms: InvitationTermsSource
   /** An open scrypt module. The caller closes it after `stop()`. */
   scrypt: ScryptModule
   /** Material derived from a random secret at start, compared for an unknown account (DP3-C6). */
@@ -84,17 +98,14 @@ export type IdentitySqlInput = Readonly<{
 export type IdentitySql = Readonly<{
   operations: IdentityOperations
   standing: TenantStandingSource
+  /** Shares the records of `operations`: a revocation or a switch is seen by recognition. */
+  governance: IdentityGovernance
   /** New calls get the stopped answers (DP3-C16). Calls already accepted run to their end. */
   stop(): void
 }>
 
-/** The result of a commit or an issue is not known. The message names no secret. */
-export class IdentitySqlResultUnknown extends Error {
-  override readonly name = 'IdentitySqlResultUnknown'
-}
+export { IdentitySqlResultUnknown }
 
-type Unavailable = Readonly<{ kind: 'basis-unavailable'; diagnostic: string }>
-type TimeBasis = Readonly<{ kind: 'read'; instant: Instant }> | Unavailable
 type TermsBasis = Readonly<{ kind: 'read'; terms: LoginTerms }> | Unavailable
 type Comparison = 'match' | 'mismatch' | Readonly<{ unavailable: string }>
 type Recall = 'committed' | 'not-committed' | 'unknown'
@@ -112,10 +123,6 @@ const PERSONAL_ROLE: RoleRef = Object.freeze({
   model: DEFAULT_TEAM_MODEL,
   role: DEFAULT_TEAM_ROLES.superAdmin,
 })
-
-function unavailable(diagnostic: string): Unavailable {
-  return Object.freeze({ kind: 'basis-unavailable', diagnostic })
-}
 
 function field(input: unknown, name: string): unknown {
   return isRecord(input) ? input[name] : undefined
@@ -144,10 +151,6 @@ function parseCredentialInput(input: unknown): CredentialInput | undefined {
   )
     return undefined
   return { loginIdentifier, credential }
-}
-
-function readReason(result: Exclude<ReadResult, { kind: 'read' }>): string {
-  return result.kind === 'cancelled' ? 'cancelled' : result.reason
 }
 
 function encodeTenant(value: TenantId): string {
@@ -199,7 +202,12 @@ function parseLoginByProof(output: JsonValue): LoginByProofOutput | undefined {
   if (!isRecord(output)) return undefined
   const login = output['login']
   if (login === null) return { login: null }
-  if (!isRecord(login) || !LOGIN_FIELDS.every(name => isText(login[name]))) return undefined
+  if (
+    !isRecord(login) ||
+    !LOGIN_FIELDS.every(name => isText(login[name])) ||
+    typeof login['revoked'] !== 'boolean'
+  )
+    return undefined
   const typed = login as Readonly<Record<(typeof LOGIN_FIELDS)[number], string>>
   return {
     login: {
@@ -209,6 +217,7 @@ function parseLoginByProof(output: JsonValue): LoginByProofOutput | undefined {
       issuedAt: typed.issuedAt,
       maxDeadline: typed.maxDeadline,
       idleDeadline: typed.idleDeadline,
+      revoked: login['revoked'],
     },
   }
 }
@@ -259,7 +268,7 @@ function decodeLogin(row: NonNullable<LoginByProofOutput['login']>): LoginRecord
  * registers the identity combination (`identitySqlRegistration()`) before the first operation.
  */
 export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
-  const { storage, clock, terms, scrypt, decoyMaterial } = input
+  const { storage, clock, terms, invitationTerms, scrypt, decoyMaterial } = input
   const identifiers = input.identifiers ?? randomIdentifiers()
   const combination = identitySqlCombination()
   let stopped = false
@@ -450,7 +459,7 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
     })
   }
 
-  // The steps follow SPEC ID-17 "识别登录" and DP3-C11; an earlier step's answer wins.
+  // The steps follow SPEC ID-17 "识别登录", DP3-C11 and IS-12; an earlier step's answer wins.
   const recognizeLogin: IdentityOperations['recognizeLogin'] = async input => {
     const loginProof = field(input, 'loginProof')
     if (!isText(loginProof) || loginProof === '') return INVALID
@@ -470,6 +479,8 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
       !record.idleDeadline.ok
     )
       return unavailable('login-record-malformed')
+    // A revoked login has ended: after step 3, before the clock is read (ID-18).
+    if (output.login.revoked) return INVALID
     // The lower bound of this reading is the later of the adopted reading and the issue time.
     const time = await readTime(record.issuedAt.value)
     if (time.kind !== 'read') return time
@@ -521,9 +532,21 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
     })
   }
 
+  const governance = governanceOver(
+    {
+      stopped: () => stopped,
+      readTime: () => readTime(),
+      commit,
+      query: identity => storage.query(identity),
+      read,
+    },
+    { invitationTerms, identifiers },
+  )
+
   return Object.freeze({
     operations: Object.freeze({ registerAndActivate, issueLogin, recognizeLogin }),
     standing: Object.freeze({ read: readStanding }),
+    governance,
     stop() {
       stopped = true
     },
