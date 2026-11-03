@@ -1,6 +1,6 @@
 {
- "updatedAt": "2026-11-03T17:16:35Z",
- "head": "c5a49fd46",
+ "updatedAt": "2026-11-03T17:50:19Z",
+ "head": "b0f2ec7fb",
  "links": [
   {
    "text": "波段计划",
@@ -11,13 +11,7 @@
    "url": "https://claude.ai/artifact/3Zfm6AtcBczsMTTE6KuhkA"
   }
  ],
- "decisions": [
-  {
-   "question": "W1 收波；W2 是否开工（预案 w2-skill、w2-skill-host、w2-mcp-core、w2-spike）",
-   "status": "open",
-   "answer": ""
-  }
- ],
+ "decisions": [],
  "waves": [
   {
    "id": "W1",
@@ -319,7 +313,178 @@
   {
    "id": "W2",
    "title": "通用实现与本地来源",
-   "state": "预案"
+   "state": "进行中",
+   "closures": [
+    {
+     "id": "w2-skill",
+     "line": "Skill",
+     "state": "进行中",
+     "round": 1,
+     "note": "createPackageInspection、createSkillAccess（describe/read/list/export）、skillAccessConformance、manifest 夹具；fable@high",
+     "links": [],
+     "started": "2026-11-03T17:50:19Z"
+    },
+    {
+     "id": "w2-skill-host",
+     "line": "Skill",
+     "state": "进行中",
+     "round": 1,
+     "note": "createDirectorySource 过来源套件；链接/非常规文件/权限接缝/竞争；opus@high",
+     "links": [],
+     "started": "2026-11-03T17:50:19Z"
+    },
+    {
+     "id": "w2-mcp-core",
+     "line": "MCP",
+     "state": "进行中",
+     "round": 1,
+     "note": "createMcpCore（inspection/discovery/status/connections）、内存 CatalogStore、Connection/InFlightCalls/admit；fable@high",
+     "links": [],
+     "started": "2026-11-03T17:50:19Z"
+    },
+    {
+     "id": "w2-spike",
+     "line": "Reduce",
+     "state": "待派",
+     "round": 0,
+     "note": "官方 SDK 2.3.1 最小往返，结论进 W3 规格",
+     "links": []
+    }
+   ],
+   "criteria": [
+    {
+     "id": "SK2-1",
+     "text": "inspect 合法包与每种来源失败映射",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "SK2-2",
+     "text": "读取 11 步每个分支有用例",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "SK2-3",
+     "text": "无披露三路径同答",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "SK2-4",
+     "text": "字节范围六条规则与正文起点",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "SK2-5",
+     "text": "skillAccessConformance ≥13 条并能变红",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "SK2-6",
+     "text": "aborted/export 不交部分内容",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "SK2-7",
+     "text": "describe 不读字节",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "SK2-8",
+     "text": "manifest.ts 边界夹具",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "SK2-9",
+     "text": "DirectorySource 过来源套件",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "SK2-10",
+     "text": "链接与非常规文件分类",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "SK2-11",
+     "text": "权限接缝不依赖 root",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "SK2-12",
+     "text": "取快照后改文件 open 交新字节",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "MC2-1",
+     "text": "createMcpCore 校验配置",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "MC2-2",
+     "text": "Connection 状态机穷举",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "MC2-3",
+     "text": "InFlightCalls 五条性质",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "MC2-4",
+     "text": "admit 六答复与能力令牌不可伪造",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "MC2-5",
+     "text": "ensure 复用/重建/单飞/配值/连接失败/句柄释放",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "MC2-6",
+     "text": "refresh 整份发布与并发发布边界",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "MC2-7",
+     "text": "current/peer 不连接",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "MC2-8",
+     "text": "status 四态视图与无披露",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "MC2-9",
+     "text": "release/closeAll 次序与确认范围",
+     "state": "open",
+     "evidence": []
+    },
+    {
+     "id": "MC2-10",
+     "text": "内存 CatalogStore 过 CS 套件",
+     "state": "open",
+     "evidence": []
+    }
+   ]
   },
   {
    "id": "W3",
@@ -416,6 +581,14 @@
   {
    "at": "2026-11-03T17:16:35Z",
    "text": "两份写回合入（5c99476aa、c5a49fd46）；父分支头准入：acceptance、loop:status 绿，admission 的 test 步 3 失败为基线既有（execution-environment-host-local，与两域无关）；W1 收波，handoff.md 五节完成"
+  },
+  {
+   "at": "2026-11-03T17:48:14Z",
+   "text": "W2 开波：开波前八项检查完成（主线合入 e54c974fd；2026-07-28 核对 1 项进 prep2、13 项进 W3；两处 SPEC 裁定；组页四处写回）；F=b0f2ec7fb；波包、两线 spec/plan、三份闭包规格写完；工作树准备中"
+  },
+  {
+   "at": "2026-11-03T17:50:19Z",
+   "text": "W2 三个闭包派出（w2-skill fable@high、w2-skill-host opus@high、w2-mcp-core fable@high），简报检查三份退出 0，工作树 ready；reduce 开始 w2-spike"
   }
  ]
 }
