@@ -324,3 +324,21 @@ test('absent positions do not consume eligibility', async () => {
     eligibleOrdinal: 1,
   })
 })
+
+test('frontier remains inside the wire instant range at year zero', async () => {
+  const { service } = harness()
+  const rule = definition({
+    kind: 'cron',
+    expression: '0 9,10 * * *',
+    begin: '0000-01-01T00:00:00',
+    until: '0000-01-01T23:59:59',
+  })
+  const preview = value(
+    await service.preview(context, input(rule, { after: instant('0000-01-01T00:00:00.000Z') })),
+  )
+  expect(preview.candidates.map(candidate => candidate.scheduledAt)).toEqual([
+    '0000-01-01T09:00:00.000Z',
+    '0000-01-01T10:00:00.000Z',
+  ])
+  expect(preview.complete).toBe(true)
+})

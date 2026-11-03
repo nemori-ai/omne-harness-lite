@@ -31,12 +31,14 @@ function materialize(civil: ScheduleCivil, basis: ScheduleAdoptedBasis) {
     throw new PredictionFailure('invalid_input', 'Civil time cannot be materialized')
   return result
 }
+const minimumInstant = ScheduleInstantSchema.parse('0000-01-01T00:00:00.000Z')
 function conservativeInstant(date: string): ScheduleInstant {
   const value = Temporal.PlainDate.from(date)
     .toPlainDateTime()
     .toZonedDateTime('UTC')
     .toInstant()
     .subtract({ hours: 24 })
+  if (Temporal.Instant.compare(value, minimumInstant) < 0) return minimumInstant
   return ScheduleInstantSchema.parse(value.toString({ smallestUnit: 'millisecond' }))
 }
 export class PredictionPipeline {
@@ -256,7 +258,7 @@ export class PredictionPipeline {
       )
         return true
     }
-    if (frontier !== null) {
+    if (frontier !== null && frontier > minimumInstant) {
       const closed = ScheduleInstantSchema.parse(
         Temporal.Instant.from(frontier)
           .subtract({ milliseconds: 1 })
