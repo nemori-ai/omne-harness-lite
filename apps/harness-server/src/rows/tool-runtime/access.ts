@@ -167,7 +167,7 @@ export function createReleaseToolIdentity(
           : fail({
               kind: 'unavailable',
               dependency: 'sessionWorkPrincipals',
-              diagnostic: `the session work principal was not issued: ${issued.failure.kind}`,
+              diagnostic: `the session work principal was not issued: ${issued.failure.kind}${issued.failure.kind === 'unavailable' ? ` (${issued.failure.owner}: ${issued.failure.diagnostic})` : ''}`,
             })
       } catch {
         return fail({

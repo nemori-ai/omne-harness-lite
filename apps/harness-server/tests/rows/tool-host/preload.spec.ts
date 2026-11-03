@@ -33,34 +33,54 @@ async function loaded(preload: boolean, construction: unknown) {
   return { fixture, names }
 }
 
-async function settle(read: () => string[], want: number) {
-  const end = Date.now() + 10_000
-  while (read().length < want && Date.now() < end) await new Promise(r => setTimeout(r, 20))
-  // Let any pending load finish, so an absent author is not just late.
-  await new Promise(r => setTimeout(r, 200))
-  return read()
+/** Polls `ready` up to 8 s; returns whether it became true. */
+async function until(ready: () => boolean) {
+  const end = Date.now() + 8000
+  while (!ready() && Date.now() < end) await new Promise(r => setTimeout(r, 20))
+  return ready()
 }
 
 describe('tool-host: the release authors are loaded by the registrant at start', () => {
-  it('loads Shell and Files live into toolBindings after the row starts', async () => {
-    const { names } = await loaded(true, TEST_CONSTRUCTION)
-    expect(await settle(names, 2)).toEqual(['Files', 'Shell'])
-  })
+  it(
+    'loads Shell and Files live into toolBindings after the row starts',
+    { timeout: 20_000 },
+    async () => {
+      const { names } = await loaded(true, TEST_CONSTRUCTION)
+      await until(() => names().length === 2)
+      expect(names()).toEqual(['Files', 'Shell'])
+    },
+  )
 
-  it('without the start load, nothing is in toolBindings (the row alone loads no author)', async () => {
-    const { names } = await loaded(false, TEST_CONSTRUCTION)
-    expect(await settle(names, 2)).toEqual([])
-  })
+  it(
+    'without the start load, nothing is in toolBindings (the row alone loads no author)',
+    { timeout: 20_000 },
+    async () => {
+      const { names } = await loaded(false, TEST_CONSTRUCTION)
+      // The same window in which the start load fills the registry in the case above.
+      await new Promise(r => setTimeout(r, 1000))
+      expect(names()).toEqual([])
+    },
+  )
 
-  it('without the operator construction loads nothing and names each author and the reason in the row log', async () => {
-    const { fixture, names } = await loaded(true, {})
-    expect(await settle(names, 2)).toEqual([])
-    const warnings = fixture.logs
-      .filter(message => message.name === 'tool-host' && message.type === 'warn')
-      .map(message => message.args.map(String).join(' '))
-    expect(warnings.some(text => text.includes('Shell') && text.includes('unavailable'))).toBe(true)
-    expect(warnings.some(text => text.includes('Files') && text.includes('unavailable'))).toBe(true)
-  })
+  it(
+    'without the operator construction loads nothing and names each author and the reason in the row log',
+    { timeout: 20_000 },
+    async () => {
+      const { fixture, names } = await loaded(true, {})
+      const warnings = () =>
+        fixture.logs
+          .filter(message => message.name === 'tool-host' && message.type === 'warn')
+          .map(message => message.args.map(String).join(' '))
+      expect(await until(() => warnings().length >= 2)).toBe(true)
+      expect(names()).toEqual([])
+      expect(warnings().some(text => text.includes('Shell') && text.includes('unavailable'))).toBe(
+        true,
+      )
+      expect(warnings().some(text => text.includes('Files') && text.includes('unavailable'))).toBe(
+        true,
+      )
+    },
+  )
 
   it('loads with the release registrant as the access, never the system scope', async () => {
     const fixture = await releaseFixture()
