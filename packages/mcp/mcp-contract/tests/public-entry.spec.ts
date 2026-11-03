@@ -46,7 +46,6 @@ const PROVIDER_TYPES = [
   'CredentialPurpose',
   'CredentialUse',
   'EligibilityVerdict',
-  'ExpectedRevision',
   'HttpCredentialHandle',
   'HttpPurpose',
   'ListingPage',
@@ -59,7 +58,6 @@ const PROVIDER_TYPES = [
   'ProcessPurpose',
   'ProcessSetting',
   'SentCall',
-  'StopScope',
   'TaskAnswer',
   'TransportFailure',
   'TransportMaterial',
@@ -150,11 +148,43 @@ it('reads relative imports in either quote style and form', () => {
   expect(relativeImports(text)).toEqual(['single.ts', 'double.ts', 'bare.ts', 'dynamic.ts'])
 })
 
-it('the provider entry exports exactly the port type names', () => {
-  const names = [...sourceOf('provider.ts').matchAll(/export type \{([^}]*)\}/gu)]
+/**
+ * The names an entry exports. Star exports (`export *`, `export type *`) cannot be listed by
+ * name, so they come back as `*`; `export { type X }` counts as a name too.
+ */
+function exportedNames(text: string): readonly string[] {
+  const stars = [...text.matchAll(/\bexport\s+(?:type\s+)?\*/gu)].map(() => '*')
+  const named = [...text.matchAll(/\bexport\s+(?:type\s+)?\{([^}]*)\}/gu)]
     .flatMap(match => (match[1] ?? '').split(','))
-    .map(name => name.trim())
+    .map(name => name.trim().replace(/^type\s+/u, ''))
     .filter(name => name !== '')
-    .sort()
-  expect(names).toEqual(PROVIDER_TYPES)
+  return [...stars, ...named].sort()
+}
+
+/** Every export statement of an entry, from `export` to the end of the statement. */
+function exportStatements(text: string): readonly string[] {
+  return [...text.matchAll(/\bexport\b[^;]*?from\s*['"][^'"]+['"]|\bexport\b[^\n]*/gu)].map(
+    match => match[0],
+  )
+}
+
+it('reads star exports and inline type names as exports', () => {
+  const text = [
+    "export type * from './a.ts'",
+    "export * from './b.ts'",
+    "export { type C, D } from './c.ts'",
+    "export type { E } from './e.ts'",
+  ].join('\n')
+  expect(exportedNames(text)).toEqual(['*', '*', 'C', 'D', 'E'])
+})
+
+it('the provider entry exports exactly the port type names', () => {
+  expect(exportedNames(sourceOf('provider.ts'))).toEqual(PROVIDER_TYPES)
+})
+
+it('the provider entry uses only the export type { … } from form', () => {
+  const statements = exportStatements(sourceOf('provider.ts'))
+  expect(statements.length).toBeGreaterThan(0)
+  for (const statement of statements)
+    expect(statement).toMatch(/^export type \{[^}]*\} from '\.\/[^']+'$/u)
 })

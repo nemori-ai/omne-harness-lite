@@ -71,6 +71,7 @@ export {
   type ActionCatalogRecord,
   type AdoptionBasis,
   type Availability,
+  type ExpectedRevision,
   type CatalogState,
   type Freshness,
   type KnownAction,
@@ -88,6 +89,8 @@ export type {
   ConfigItem,
   ConnectionFailure,
   ContentDefect,
+  EffectUnknown,
+  ErrorAnswer,
   DeliveredContent,
   InvokeResult,
   NoAnswerCause,
@@ -126,4 +129,5 @@ export type {
   TaskControl,
   TaskRef,
 } from './services.ts'
+export type { StopScope } from './ports.ts'
 export type { PeerNotification } from './transport.ts'

@@ -5,7 +5,7 @@
 import { toContentBlocks } from './content.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CallOutcome, OutputCheck, PeerAnswer } from './outcomes.ts'
-import { generationOf, jsonOf, requestStateOf, taskIdOf } from './testing-values.ts'
+import { generationOf, jsonOf, jsonTextOf, requestStateOf, taskIdOf } from './testing-values.ts'
 import type { Generation } from './brands.ts'
 
 export type ClassifyOutcomeCase = Readonly<{
@@ -139,7 +139,7 @@ const interimCases: readonly ClassifyOutcomeCase[] = [
     issuedAt,
     expected: {
       kind: 'inputRequired',
-      inputRequests: jsonOf({ ask: { method: 'elicitation/create' } }),
+      inputRequests: { untrusted: jsonOf({ ask: { method: 'elicitation/create' } }) },
       requestState: requestStateOf('opaque-1'),
       issuedAt,
     },
@@ -154,7 +154,7 @@ const interimCases: readonly ClassifyOutcomeCase[] = [
     name: 'inputRequired: input requests only',
     answer: result({ resultType: 'input_required', inputRequests: {} }),
     issuedAt,
-    expected: { kind: 'inputRequired', inputRequests: jsonOf({}), issuedAt },
+    expected: { kind: 'inputRequired', inputRequests: { untrusted: jsonOf({}) }, issuedAt },
   },
   {
     name: 'task: a task handle carries the task id and the generation it was issued on',
@@ -275,6 +275,30 @@ const faultCases: readonly ClassifyOutcomeCase[] = [
     answer: error({ code: -32600.5, message: 'odd' }),
     issuedAt,
     expected: errorMalformed,
+  },
+  {
+    name: 'protocolError: an error code with a fraction written in its lexeme',
+    answer: { kind: 'error', error: jsonTextOf('{"code":-32600.0,"message":"m"}') },
+    issuedAt,
+    expected: errorMalformed,
+  },
+  {
+    name: 'protocolError: an error code written with an exponent',
+    answer: { kind: 'error', error: jsonTextOf('{"code":-3e4,"message":"m"}') },
+    issuedAt,
+    expected: errorMalformed,
+  },
+  {
+    name: 'protocolError: input required with a request state that is not text',
+    answer: result({ resultType: 'input_required', requestState: 7 }),
+    issuedAt,
+    expected: malformed,
+  },
+  {
+    name: 'protocolError: a task id that is not text',
+    answer: result({ resultType: 'task', taskId: 9 }),
+    issuedAt,
+    expected: malformed,
   },
   {
     name: 'protocolError: an error without a message',

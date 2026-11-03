@@ -60,7 +60,7 @@ export type CredentialPurpose = ProcessPurpose | HttpPurpose
 
 /**
  * A limited use of one MCP credential for outgoing HTTP requests to one connection target. It is
- * not a secret value, and no member of it reveals one. `purpose` is its brand.
+ * not a secret value, and no member of it reveals one. Handles are told apart by their `purpose` field.
  */
 export interface HttpCredentialHandle {
   readonly purpose: 'http-authorization'
@@ -74,7 +74,7 @@ export interface HttpCredentialHandle {
 /**
  * A limited use of one MCP credential for the environment of one process. MCP does not read it;
  * it passes it to `ProcessLanding`. How the landing turns it into variable values is agreed
- * between the two implementers. `purpose` is its brand.
+ * between the two implementers. Handles are told apart by their `purpose` field.
  */
 export interface ProcessCredentialHandle {
   readonly purpose: 'process-env'

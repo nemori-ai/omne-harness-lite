@@ -82,12 +82,16 @@ export function isActionName(value: unknown): value is ActionName {
   return isText(value)
 }
 
-export function isDefinitionDigest(value: unknown): value is DefinitionDigest {
+function isSha256Text(value: unknown): value is string {
   return typeof value === 'string' && DIGEST.test(value)
 }
 
+export function isDefinitionDigest(value: unknown): value is DefinitionDigest {
+  return isSha256Text(value)
+}
+
 export function isInstructionsDigest(value: unknown): value is InstructionsDigest {
-  return typeof value === 'string' && DIGEST.test(value)
+  return isSha256Text(value)
 }
 
 export function isGeneration(value: unknown): value is Generation {

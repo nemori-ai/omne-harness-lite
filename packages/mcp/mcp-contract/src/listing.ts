@@ -4,7 +4,7 @@ import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { isActionName, isDefinitionDigest, type DefinitionDigest } from './brands.ts'
 import type { AdoptionBasis, ExpectedRevision, Freshness } from './catalog.ts'
-import { sha256Text } from './digest.ts'
+import { digestOf } from './digest.ts'
 import { canonical, isObject, member, textOf, without, type JsonObject } from './json.ts'
 import type { ListingPage, TransportFailure } from './transport.ts'
 import type { ActionDefinition } from './values.ts'
@@ -85,9 +85,7 @@ export function digestDefinition(definition: ActionDefinition): DefinitionDigest
         : [{ key: 'annotations', value: definition.annotations.untrusted }]),
     ],
   }
-  const digest = sha256Text(writeJsonText(canonical(whole)))
-  if (!isDefinitionDigest(digest)) throw new TypeError('SHA-256 did not give 64 hex digits')
-  return digest
+  return digestOf(writeJsonText(canonical(whole)), isDefinitionDigest)
 }
 
 export type ListingRead = Readonly<{
@@ -140,7 +138,7 @@ export function completeListing(read: ListingRead): Outcome<CompleteListing, Lis
   }
   const listing = Object.freeze({
     actions: Object.freeze(actions),
-    basis: read.basis,
+    basis: Object.freeze({ ...read.basis }),
     freshness: freshnessOf(pages, read.acquiredAt),
     basedOn: read.basedOn,
   })

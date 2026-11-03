@@ -3,14 +3,22 @@
 // this port.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ActionName, ConnectionTarget, Generation, RequestState, TaskId } from './brands.ts'
-import type { AuthorizationDiscovery, NoAnswerCause, PeerAnswer, TaskReport } from './outcomes.ts'
+import type {
+  AuthorizationDiscovery,
+  ErrorAnswer,
+  NoAnswerCause,
+  PeerAnswer,
+  TaskReport,
+} from './outcomes.ts'
 import type { HttpCredentialHandle, ProcessHandle } from './ports.ts'
 import type { PeerIdentity, Untrusted } from './values.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 
 /**
- * A transport failure. `not-sent` means the request did not leave, so it had no peer effect.
- * `no-answer` means it left and no answer came, so its effect is unknown.
+ * A transport failure, by its peer effect. `not-sent`: the request did not take effect at the
+ * peer; a refused authorization (HTTP 401 or 403) is one of these. `no-answer`: the request left
+ * and no answer came, so its effect is unknown. `error-answer`: the request left and the peer
+ * answered with a JSON-RPC error.
  */
 export type TransportFailure =
   | Readonly<{ kind: 'not-sent'; cause: 'connection-unavailable' }>
@@ -20,6 +28,7 @@ export type TransportFailure =
       discovery: AuthorizationDiscovery
     }>
   | Readonly<{ kind: 'no-answer'; cause: NoAnswerCause }>
+  | ErrorAnswer
 
 /** One page of `tools/list`, as the peer wrote it. Each tool is the peer object. */
 export type ListingPage = Readonly<{
@@ -74,21 +83,31 @@ export interface McpTransport {
   updateTask(
     taskId: TaskId,
     inputResponses: JsonValue,
-  ): Promise<Outcome<'accepted' | 'already-terminal', TransportFailure>>
+  ): Promise<Outcome<'accepted', TransportFailure>>
   getTaskResult(taskId: TaskId): Promise<Outcome<TaskAnswer, TransportFailure>>
-  cancelTask(taskId: TaskId): Promise<Outcome<'requested' | 'already-terminal', TransportFailure>>
+  /** `tasks/cancel`: an acknowledgement only. A terminal state is learned through `getTask`. */
+  cancelTask(taskId: TaskId): Promise<Outcome<'requested', TransportFailure>>
   /** Closes the transport. It does not stop a process; the holder of the process handle does. */
   close(): Promise<void>
 }
 
-/** The material that one transport opens on. Both kinds carry the connection generation. */
+/**
+ * The material that one transport opens on. Both kinds carry the connection generation and the
+ * byte bound of the peer instructions, which `discover` applies with `boundInstructions`.
+ */
 export type TransportMaterial =
-  | Readonly<{ kind: 'stdio'; process: ProcessHandle; generation: Generation }>
+  | Readonly<{
+      kind: 'stdio'
+      process: ProcessHandle
+      generation: Generation
+      instructionsByteLimit: number
+    }>
   | Readonly<{
       kind: 'streamable-http'
       target: ConnectionTarget
       credential?: HttpCredentialHandle
       generation: Generation
+      instructionsByteLimit: number
     }>
 
 export interface McpTransportFactory {

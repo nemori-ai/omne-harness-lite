@@ -78,7 +78,7 @@ export type CallOutcome =
   | Readonly<{ kind: 'toolError'; content: readonly DeliveredContent[]; structured?: JsonValue }>
   | Readonly<{
       kind: 'inputRequired'
-      inputRequests?: JsonValue
+      inputRequests?: Untrusted<JsonValue>
       requestState?: RequestState
       issuedAt: Generation
     }>
@@ -108,7 +108,7 @@ export type AuthorizationDiscovery = Readonly<{
 }>
 
 /** A setting or a process variable that an operation needs. */
-export type ConfigItem = 'connect-timeout' | 'target' | 'credential' | `env:${string}`
+export type ConfigItem = 'connect-timeout' | 'target' | 'credential' | `env.${string}`
 
 /**
  * The refusal of a read, control or call operation before any connection is used. Not adopted,
@@ -119,7 +119,7 @@ export type Refusal =
   | Readonly<{ kind: 'blocked'; reason: BlockedReason }>
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'config-missing'; item: ConfigItem }>
-  | Readonly<{ kind: 'config-invalid'; item: ConfigItem }>
+  | Readonly<{ kind: 'config-invalid'; item: Exclude<ConfigItem, `env.${string}`> }>
 
 /** A connection condition that kept an operation from reaching the peer. */
 export type ConnectionFailure =
@@ -128,8 +128,25 @@ export type ConnectionFailure =
   | Readonly<{ kind: 'landing-unavailable' }>
   | Readonly<{ kind: 'connection-unavailable' }>
 
-/** The failure of a read or status operation that may need a connection. */
-export type OperationFailure = Refusal | ConnectionFailure
+/** A request that left and was answered with a JSON-RPC error. */
+export type ErrorAnswer = Readonly<{
+  kind: 'error-answer'
+  code: number
+  message: string
+  data?: JsonValue
+}>
+
+/**
+ * A request that left and got no answer, so its effect is unknown, or a task operation that has
+ * neither a connection nor the adopted material to build one (`no-connection`).
+ */
+export type EffectUnknown = Readonly<{
+  kind: 'effect-unknown'
+  cause: NoAnswerCause | 'no-connection'
+}>
+
+/** The failure of a read, status or task operation that may need a connection. */
+export type OperationFailure = Refusal | ConnectionFailure | EffectUnknown | ErrorAnswer
 
 /** Why a call was not sent. The set is closed. A call that was not sent has no peer effect. */
 export type NotSentReason =

@@ -1,5 +1,6 @@
 // Readers over the lossless JSON tree. Internal: the public entries do not export them.
 import type { JsonEntry, JsonValue } from '@omne-harness/json-text'
+import { compareCodeUnits } from './order.ts'
 
 export type JsonObject = Extract<JsonValue, { kind: 'object' }>
 
@@ -59,7 +60,7 @@ export function canonical(value: JsonValue): JsonValue {
   }
 }
 
+/** Orders object members by name in UTF-16 code units. See `compareCodeUnits` on ties. */
 function compareKeys(left: JsonEntry, right: JsonEntry): number {
-  if (left.key < right.key) return -1
-  return left.key > right.key ? 1 : 0
+  return compareCodeUnits(left.key, right.key)
 }

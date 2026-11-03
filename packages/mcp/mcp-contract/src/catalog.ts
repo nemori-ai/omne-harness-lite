@@ -11,6 +11,7 @@ import {
   type ProtocolVersion,
 } from './brands.ts'
 import { assertComplete, type CompleteListing } from './listing.ts'
+import { compareCodeUnits } from './order.ts'
 import type { ActionDefinition } from './values.ts'
 
 /** Why a known action is unavailable. The set is closed. */
@@ -71,9 +72,9 @@ function nextRevision(previous: CatalogRevision | undefined): CatalogRevision {
   return next
 }
 
+/** Orders known actions by name in UTF-16 code units. See `compareCodeUnits` on ties. */
 function byName(left: KnownAction, right: KnownAction): number {
-  if (left.name < right.name) return -1
-  return left.name > right.name ? 1 : 0
+  return compareCodeUnits(left.name, right.name)
 }
 
 /**

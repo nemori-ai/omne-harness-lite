@@ -1,6 +1,5 @@
 // The `./provider` entry: the five requirement ports, the transport port and the transport
 // factory, for their implementers. Types that the root entry already exports are not repeated.
-export type { ExpectedRevision } from './catalog.ts'
 export type {
   AdoptedEndpoint,
   AdoptionView,
@@ -17,7 +16,6 @@ export type {
   ProcessLanding,
   ProcessPurpose,
   ProcessSetting,
-  StopScope,
   UseEligibility,
 } from './ports.ts'
 export type {

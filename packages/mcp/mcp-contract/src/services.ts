@@ -57,6 +57,7 @@ export type CatalogView =
 /** Why a refresh kept the earlier adoption. */
 export type KeptReason =
   | Readonly<{ kind: 'superseded' }>
+  | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'listing-incomplete'; defect: ListingDefect }>
 
 export type RefreshResult =
@@ -142,12 +143,9 @@ export interface TaskControl<P> {
     access: Access<P>,
     task: TaskRef,
     inputResponses: JsonValue,
-  ): Promise<Outcome<'accepted' | 'already-terminal', OperationFailure>>
-  /** Does not check adoption or eligibility. */
-  cancelTask(
-    access: Access<P>,
-    task: TaskRef,
-  ): Promise<Outcome<'requested' | 'already-terminal', OperationFailure>>
+  ): Promise<Outcome<'accepted', OperationFailure>>
+  /** Does not check adoption or eligibility. A terminal state is learned through `queryTask`. */
+  cancelTask(access: Access<P>, task: TaskRef): Promise<Outcome<'requested', OperationFailure>>
 }
 
 export type ActionInvoker<P> = ActionCalls<P> & TaskControl<P>
@@ -172,13 +170,15 @@ export type ConnectionState =
   | Readonly<{ kind: 'degraded'; reason: DegradedReason }>
   | Readonly<{ kind: 'lost'; reason: LostReason; residual?: readonly Residual[] }>
 
-/** The status of one endpoint. The credential is only present or absent; no value is shown. */
+/**
+ * The status of one endpoint. The credential is reported only as present, absent, invalid or not
+ * required; no value is shown. Processes left behind appear on the `lost` connection state.
+ */
 export type EndpointStatusView = Readonly<{
   ref: EndpointRef
   connection: ConnectionState
-  credential: 'present' | 'absent' | 'not-required'
+  credential: 'present' | 'absent' | 'invalid' | 'not-required'
   use: Readonly<{ kind: 'usable' }> | Readonly<{ kind: 'blocked'; reason: BlockedReason }>
-  residual?: readonly Residual[]
 }>
 
 export interface EndpointStatus<P, S> {

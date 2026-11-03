@@ -90,6 +90,7 @@ export const NOT_SENT_REASON_KINDS = [
 
 export const KEPT_REASON_KINDS = [
   'superseded',
+  'cancelled',
   'listing-incomplete',
 ] as const satisfies readonly KeptReason['kind'][]
 

@@ -1,6 +1,6 @@
 // The byte bound of peer instructions.
 import { isInstructionsDigest } from './brands.ts'
-import { sha256Text } from './digest.ts'
+import { digestOf } from './digest.ts'
 import type { BoundedInstructions } from './values.ts'
 
 const encoder = new TextEncoder()
@@ -19,8 +19,7 @@ function isContinuation(byte: number | undefined): boolean {
 export function boundInstructions(text: string, byteLimit: number): BoundedInstructions {
   if (!Number.isSafeInteger(byteLimit) || byteLimit < 1)
     throw new RangeError('byteLimit is a positive safe integer')
-  const digest = sha256Text(text)
-  if (!isInstructionsDigest(digest)) throw new TypeError('SHA-256 did not give 64 hex digits')
+  const digest = digestOf(text, isInstructionsDigest)
   const bytes = encoder.encode(text)
   if (bytes.length <= byteLimit) return { text, truncated: false, digest }
   let cut = byteLimit

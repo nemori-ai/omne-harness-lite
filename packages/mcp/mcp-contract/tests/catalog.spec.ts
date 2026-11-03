@@ -13,8 +13,9 @@ import {
   type AdoptionBasis,
   type CatalogState,
   type CompleteListing,
+  type ExpectedRevision,
 } from '@omne-harness/mcp-contract'
-import type { ExpectedRevision, ListingPage } from '@omne-harness/mcp-contract/provider'
+import type { ListingPage } from '@omne-harness/mcp-contract/provider'
 import { json, jsonText } from './json.ts'
 
 function basis(generation: number): AdoptionBasis {
@@ -294,6 +295,15 @@ describe('mergeListing', () => {
   it('throws for a listing that completeListing did not build, even a copy of one', () => {
     const copy = { ...listing([tool('a')]) }
     expect(() => mergeListing(notAcquired, copy)).toThrow(TypeError)
+  })
+
+  it('keeps a frozen copy of the basis, not the caller object', () => {
+    const given = { ...basis(1) }
+    const complete = completeListing({ ...read, basis: given, pages: [page([tool('a')])] })
+    if ('failure' in complete) throw new Error(complete.failure)
+    expect(complete.ok.basis).toStrictEqual(given)
+    expect(complete.ok.basis).not.toBe(given)
+    expect(Object.isFrozen(complete.ok.basis)).toBe(true)
   })
 
   it('freezes the listing, its action list and each action', () => {

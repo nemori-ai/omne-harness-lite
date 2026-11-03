@@ -13,6 +13,9 @@ export type ClassifyContext = Readonly<{
   checkOutput: OutputValidator
 }>
 
+// An integer as the peer wrote it: no fraction and no exponent.
+const INTEGER = /^-?\d+$/u
+
 const MALFORMED: CallOutcome = { kind: 'protocolError', fault: { kind: 'result-malformed' } }
 
 function outputCheck(structured: JsonValue | undefined, context: ClassifyContext): OutputCheck {
@@ -45,7 +48,7 @@ function inputRequired(result: JsonObject, issuedAt: Generation): CallOutcome {
   if (inputRequests === undefined && requestState === undefined) return MALFORMED
   return {
     kind: 'inputRequired',
-    ...(inputRequests === undefined ? {} : { inputRequests }),
+    ...(inputRequests === undefined ? {} : { inputRequests: { untrusted: inputRequests } }),
     ...(isRequestState(requestState) ? { requestState } : {}),
     issuedAt,
   }
@@ -81,7 +84,10 @@ function classifyError(error: JsonValue): CallOutcome {
   if (!isObject(error)) return malformed
   const codeValue = member(error, 'code')
   const message = textOf(member(error, 'message'))
-  const code = codeValue?.kind === 'number' ? Number(codeValue.lexeme) : Number.NaN
+  const code =
+    codeValue?.kind === 'number' && INTEGER.test(codeValue.lexeme)
+      ? Number(codeValue.lexeme)
+      : Number.NaN
   if (!Number.isSafeInteger(code) || message === undefined) return malformed
   const data = member(error, 'data')
   return {

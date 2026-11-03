@@ -25,6 +25,13 @@ const LIMITS = {
   maxNumberLength: 100,
 } as const
 
+/** The lossless tree of JSON text, so that a number keeps the lexeme as written. */
+export function jsonTextOf(text: string): JsonValue {
+  const read = readJsonText(text, LIMITS)
+  if (read.kind !== 'ok') throw new TypeError(`sample is not JSON: ${read.kind}`)
+  return read.value
+}
+
 /** The lossless tree of a plain JSON value. */
 export function jsonOf(value: unknown): JsonValue {
   const read = readJsonText(JSON.stringify(value), LIMITS)

@@ -11,7 +11,6 @@ type ProviderTypes = {
   CredentialPurpose: Provider.CredentialPurpose
   CredentialUse: Provider.CredentialUse<unknown>
   EligibilityVerdict: Provider.EligibilityVerdict
-  ExpectedRevision: Provider.ExpectedRevision
   HttpCredentialHandle: Provider.HttpCredentialHandle
   HttpPurpose: Provider.HttpPurpose
   ListingPage: Provider.ListingPage
@@ -24,7 +23,6 @@ type ProviderTypes = {
   ProcessPurpose: Provider.ProcessPurpose
   ProcessSetting: Provider.ProcessSetting
   SentCall: Provider.SentCall
-  StopScope: Provider.StopScope
   TaskAnswer: Provider.TaskAnswer
   TransportFailure: Provider.TransportFailure
   TransportMaterial: Provider.TransportMaterial
@@ -32,8 +30,9 @@ type ProviderTypes = {
 }
 
 test('./provider exports the port types and no value', () => {
-  // A removed or renamed type fails to compile above; an added one fails the export-name test in
-  // public-entry.spec.ts, which reads the entry with the TypeScript compiler.
+  // A removed or renamed type fails to compile above. An added one is caught by the export-name
+  // tests in public-entry.spec.ts, which read the entry source with regular expressions: they
+  // list named exports, report star exports, and refuse any form but `export type { … } from`.
   expectTypeOf<ProviderTypes['CredentialUse']>().not.toBeNever()
   expectTypeOf<keyof typeof import('@omne-harness/mcp-contract/provider')>().toEqualTypeOf<never>()
 })
