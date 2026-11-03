@@ -4,6 +4,8 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
+import type { PrincipalIssuer } from '@omne-harness/identity'
+import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import type { ScopeBindingSource } from '@omne-harness/runtime-context-contract'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -190,6 +192,23 @@ describe('the trusted Tool request source', () => {
     expect(await prepared(ports, structuredClone(principalA))).toMatchObject({
       failure: { kind: 'denied' },
     })
+  })
+
+  it('denies a verified principal that names a session but was issued for another component (N3)', async () => {
+    const { fixture, ports } = await world()
+    const issuer = fixture.env
+      .readTrusted(principalIssuerKey)
+      .get(principalIssuerKey) as PrincipalIssuer
+    const actor = okOf(issuer.issueSystem({ component: 'notSessionWork' }), 'actor')
+    const other = okOf(
+      issuer.issueActingForTenant({
+        actor,
+        tenant: TENANT_A,
+        work: { owner: 'session', work: 'ses-a' },
+      }),
+      'principal',
+    )
+    expect(await prepared(ports, other)).toMatchObject({ failure: { kind: 'denied' } })
   })
 
   it('answers unavailable without the catalog', async () => {

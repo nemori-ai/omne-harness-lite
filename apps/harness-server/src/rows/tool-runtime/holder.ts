@@ -7,6 +7,8 @@
 // - 当前的 SQL 端口与会话工作主体读口。它们由 `tool-records` 行在自己的受信上下文里交来，行撤除时收回；
 //   bundle 拿到的是逐次读这里的窄代理，缺席时答 `unavailable`。
 // - 调用见证：记录记录仓读到的原调用与它的来源证据，`toolPublicationAuthority` 只用它同步核对实例发布。
+// - 结清通知：记录仓提交了某个调用的 `settled` 状态后，见证与执行环境的按调用表（origin、账本视图）删掉这个
+//   调用，长跑进程里这些表只随在途调用数增长，不随累计调用数增长（L3 评审 N5）。
 // - bundle 本身：由 `tool-records` 行按运维者配置建一次，其余四行等它建好再装自己的插件。
 import type { Context } from '@deepseek-ai/cordis'
 import { canonicalDigest, type ToolLedgerStore } from '@omne-harness/tool'
@@ -47,8 +49,28 @@ export type ToolRuntimeHolder = {
   /** 建好 bundle 时兑现。 */
   readonly ready: Promise<ToolRuntimeBundle>
   readonly resolve: (bundle: ToolRuntimeBundle) => void
-  /** 记录仓读到的原调用：键是 (tenant, call) 的摘要。只在本进程内，不是耐久事实。 */
+  /** 记录仓读到的、未结清的原调用：键是 (tenant, call) 的摘要。只在本进程内，不是耐久事实。 */
   readonly witnessed: Map<string, Witnessed>
+  /** 调用结清时调用；参数是 (tenant, call) 的摘要。执行环境在这里挂上删除自己按调用表的回调。 */
+  readonly settled: Set<(call: string) => void>
+  /** 本进程按调用表的当前大小（见证、origin、账本视图），诊断与用例读。 */
+  readonly residents: Map<string, () => number>
+}
+
+/** 按调用表的键：(tenant, call) 的摘要。 */
+export function callKeyOf(tenant: unknown, call: unknown): string {
+  return canonicalDigest([tenant, call])
+}
+
+/** 调用已结清：删掉见证，通知各按调用表。一个回调抛出不影响其余的，也不影响提交的答复。 */
+function settleCall(holder: ToolRuntimeHolder, call: string): void {
+  holder.witnessed.delete(call)
+  for (const forget of holder.settled)
+    try {
+      forget(call)
+    } catch {
+      // A table that cannot forget keeps the entry; the commit itself has already succeeded.
+    }
 }
 
 const holders = new WeakMap<Context, ToolRuntimeHolder>()
@@ -71,7 +93,10 @@ export function toolRuntimeHolder(ctx: Context): ToolRuntimeHolder {
     ready,
     resolve,
     witnessed: new Map(),
+    settled: new Set(),
+    residents: new Map(),
   }
+  created.residents.set('witnessed', () => created.witnessed.size)
   holders.set(root, created)
   return created
 }
@@ -79,7 +104,8 @@ export function toolRuntimeHolder(ctx: Context): ToolRuntimeHolder {
 const unavailableRead = (diagnostic: string) => ({ kind: 'unavailable' as const, diagnostic })
 
 /**
- * 交给 bundle 的耐久记录仓：逐次读当前 SQL 端口，缺席答 `unavailable`（不是空记录）。读到的原调用记进见证。
+ * 交给 bundle 的耐久记录仓：逐次读当前 SQL 端口，缺席答 `unavailable`（不是空记录）。读到的未结清原调用记进
+ * 见证；提交成功且写入了调用的 `settled` 状态时，按调用表删掉这个调用。
  * 声明 `durable`：它只转交给 SQL 记录仓，从不在内存里保存记录。
  */
 export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore<ToolMessageContentBlock> {
@@ -91,8 +117,12 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore<ToolMessag
       const answer = await sql.store.read(domain)
       if (answer.kind === 'complete')
         for (const row of answer.records)
-          if (row.kind === 'call' && row.call.execution !== null) {
-            const key = canonicalDigest([row.call.tenant, row.call.call])
+          if (
+            row.kind === 'call' &&
+            row.call.execution !== null &&
+            row.call.state.phase !== 'settled'
+          ) {
+            const key = callKeyOf(row.call.tenant, row.call.call)
             const execution = canonicalDigest(row.call.execution)
             const old = holder.witnessed.get(key)
             const current =
@@ -105,7 +135,16 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore<ToolMessag
     async commit(input) {
       const sql = holder.sql
       if (sql === null) return unavailableRead('tool-records: no SQL ledger store is installed')
-      return sql.store.commit(input)
+      const answer = await sql.store.commit(input)
+      if (answer.kind === 'committed')
+        for (const write of input.writes)
+          if (
+            write.kind === 'put' &&
+            write.record.kind === 'call' &&
+            write.record.call.state.phase === 'settled'
+          )
+            settleCall(holder, callKeyOf(write.record.call.tenant, write.record.call.call))
+      return answer
     },
   } satisfies ToolLedgerStore<ToolMessageContentBlock>)
 }

@@ -43,13 +43,29 @@ export const toolHostConfig = z
 
 const PRELOAD_LOGGER = 'tool-host'
 
-/** 按发行清单预装两个作者；失败只记 warn，原因是固定短语加失败种类，不含正文。 */
-export async function preloadRelease(
-  ctx: Context,
-  host: Pick<ToolGenerations<unknown, unknown, ToolMessageContentBlock>, 'ensureLoaded'>,
-): Promise<readonly Readonly<{ name: string; outcome: string }>[]> {
-  const release = releaseOf(ctx)
+type Preloaded = readonly Readonly<{ name: string; outcome: string }>[]
+type PreloadHost = Pick<ToolGenerations<unknown, unknown, ToolMessageContentBlock>, 'ensureLoaded'>
+
+/**
+ * 按发行清单预装两个作者；失败只记 warn，原因是固定短语加失败种类，不含正文。读快照、登记者或记录器时抛出
+ * 也在这里收住（行体用 `void` 调它，抛出不能成为未处理的 rejection），记一条 warn，答空。
+ */
+export async function preloadRelease(ctx: Context, host: PreloadHost): Promise<Preloaded> {
+  try {
+    return await preloadEntries(ctx, host)
+  } catch {
+    try {
+      ctx.logger(PRELOAD_LOGGER).warn('release tools were not preloaded: the start load threw')
+    } catch {
+      // No logger to tell: the authors stay unloaded and every create or call answers unavailable.
+    }
+    return []
+  }
+}
+
+async function preloadEntries(ctx: Context, host: PreloadHost): Promise<Preloaded> {
   const logger = ctx.logger(PRELOAD_LOGGER)
+  const release = releaseOf(ctx)
   if (release.kind !== 'trusted') {
     logger.warn('release tools were not preloaded: the release snapshot is unavailable')
     return []
