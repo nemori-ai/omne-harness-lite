@@ -642,4 +642,82 @@ describe('G5 tenants and qualification', () => {
         }),
       ).toThrow('commitAttempts: range')
   })
+
+  it('G5 construction: a turn timeout outside its range is an assembly defect', () => {
+    for (const turnTimeoutMs of [0, -1, 1.5])
+      expect(() =>
+        createLocalStartCoordinator({
+          store: createMemoryToolLedgerStore<ContentBlock>(),
+          access: access(),
+          guardsOf: () => [],
+          commitAttempts: 4,
+          turnTimeoutMs,
+        }),
+      ).toThrow('turnTimeoutMs: range')
+  })
+
+  // A store whose read never settles stands for a turn that holds the tenant section without ever
+  // finishing. Every caller of that tenant must still answer within its bound: an answer that never
+  // arrives is a silent failure, whatever holds the store.
+  const neverSettles = (): ToolLedgerStore<ContentBlock> => ({
+    durability: 'none',
+    read: () => new Promise(() => {}),
+    commit: () => new Promise(() => {}),
+  })
+
+  it('G5 bound: a turn that never settles expires its caller as unavailable, in time', async () => {
+    const authority = createLocalStartCoordinator<Parameters<typeof access>, ContentBlock>({
+      store: neverSettles(),
+      access: access(),
+      guardsOf: () => [],
+      commitAttempts: 4,
+      turnTimeoutMs: 60,
+    })
+    const started = Date.now()
+    const first = await authority.prepare({
+      ...callAccess('c1'),
+      start: startOf('c1'),
+      request: request(),
+    })
+    const elapsed = Date.now() - started
+    expect(first).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'start-ledger',
+        diagnostic: expect.stringContaining('did not settle within 60 ms'),
+      },
+    })
+    // The bound is what ends the wait, not a store answer: it must fire near its own value.
+    expect(elapsed).toBeLessThan(2_000)
+  })
+
+  it('G5 bound: a later caller behind a stuck turn also answers unavailable, in time', async () => {
+    const authority = createLocalStartCoordinator<Parameters<typeof access>, ContentBlock>({
+      store: neverSettles(),
+      access: access(),
+      guardsOf: () => [],
+      commitAttempts: 4,
+      turnTimeoutMs: 60,
+    })
+    const first = authority.prepare({
+      ...callAccess('c1'),
+      start: startOf('c1'),
+      request: request(),
+    })
+    const started = Date.now()
+    const second = await authority.prepare({
+      ...callAccess('c2'),
+      start: startOf('c2'),
+      request: request(),
+    })
+    expect(second).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'start-ledger',
+        diagnostic: expect.stringContaining('did not settle within 60 ms'),
+      },
+    })
+    expect(Date.now() - started).toBeLessThan(2_000)
+    expect(await first).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
 })

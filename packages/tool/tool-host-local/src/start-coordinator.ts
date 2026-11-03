@@ -98,7 +98,23 @@ export type LocalStartCoordinatorInput<P, B extends ContentBlock = ContentBlock>
   guardsOf: (request: FixedToolRequest) => readonly GuardResource[]
   /** How many times a revision conflict is re-read and re-decided. */
   commitAttempts: number
+  /**
+   * The longest one caller waits for its turn of the tenant section, in milliseconds. A caller
+   * that reaches it answers `unavailable` instead of waiting further, so a turn that never
+   * settles cannot hold every later call of the same tenant forever.
+   *
+   * The default is derived from the store's own bounds rather than chosen: one turn runs at most
+   * `commitAttempts` rounds, and one round does one read and one commit. The sqlite provider bounds
+   * a read by `readQueueTimeoutMs` (1000) and a write lock by `lockWaitMs` (5000)
+   * (sqlite-provider SPEC:307,323), so one round stays under 6000 ms and a turn under
+   * `commitAttempts × 6000 ms`. An operator that deploys a store with other bounds passes its own
+   * value.
+   */
+  turnTimeoutMs?: number
 }>
+
+/** The store bounds one round of a turn can consume: a read wait plus a write lock wait. */
+const TURN_MS_PER_ATTEMPT = 6_000
 
 // ---------------------------------------------------------------------------------------------
 // The records of the host domain
@@ -650,10 +666,21 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
   const { store, access, guardsOf, commitAttempts, permitRequirements } = input
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
     throw new TypeError('commitAttempts: range')
+  const turnTimeoutMs = input.turnTimeoutMs ?? commitAttempts * TURN_MS_PER_ATTEMPT
+  if (!Number.isSafeInteger(turnTimeoutMs) || turnTimeoutMs <= 0)
+    throw new TypeError('turnTimeoutMs: range')
   const sections = new Map<string, Promise<void>>()
 
-  /** Each tenant keeps one queue; an old tail cannot remove a newer queued turn. */
-  const serial = <T>(tenant: TenantId, work: () => Promise<T>): Promise<T> => {
+  /**
+   * Each tenant keeps one queue; an old tail cannot remove a newer queued turn.
+   *
+   * The wait of one caller is bounded: it answers `expired()` once `turnTimeoutMs` passes, whether
+   * it spent that time behind an earlier turn or inside its own work. A turn that expires this way
+   * keeps its section until its work settles, so two turns never run at once and the domain
+   * revision still orders every write; later callers queue behind it and each answer `expired()`
+   * on their own bound rather than waiting forever.
+   */
+  const serial = <T>(tenant: TenantId, work: () => Promise<T>, expired: () => T): Promise<T> => {
     const key = JSON.stringify([tenant.organization.text, tenant.account.text])
     const turn = (sections.get(key) ?? Promise.resolve()).then(work)
     const release = () => {
@@ -661,7 +688,24 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
     }
     const tail = turn.then(release, release)
     sections.set(key, tail)
-    return turn
+    return new Promise<T>((resolve, reject) => {
+      let settled = false
+      const timer = setTimeout(() => {
+        if (settled) return
+        settled = true
+        resolve(expired())
+      }, turnTimeoutMs)
+      const settle = (act: () => void) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        act()
+      }
+      turn.then(
+        value => settle(() => resolve(value)),
+        reason => settle(() => reject(reason)),
+      )
+    })
   }
 
   const domain = (tenant: TenantId): LedgerDomain => ({
@@ -708,30 +752,37 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
     decide: (snapshot: Snapshot, revision: ToolRevision) => Decision<T> | Promise<Decision<T>>,
     unknown: (diagnostic: string) => Outcome<T, ToolFailure>,
   ): Promise<Outcome<T, ToolFailure>> =>
-    serial(tenant, async () => {
-      for (let attempt = 0; attempt < commitAttempts; attempt += 1) {
-        const snapshot = await read(tenant)
-        if ('failure' in snapshot) return snapshot
-        const revision = nextRevision(snapshot.ok.revision)
-        const decision = await decide(snapshot.ok, revision)
-        if (decision.kind === 'reply') return decision.outcome
-        let committed: Awaited<ReturnType<typeof store.commit>>
-        try {
-          committed = await store.commit({
-            domain: domain(tenant),
-            expected: snapshot.ok.revision,
-            revision,
-            writes: writesOf<B>(decision),
-          })
-        } catch {
-          return unknown('the start ledger threw on commit')
+    serial(
+      tenant,
+      async () => {
+        for (let attempt = 0; attempt < commitAttempts; attempt += 1) {
+          const snapshot = await read(tenant)
+          if ('failure' in snapshot) return snapshot
+          const revision = nextRevision(snapshot.ok.revision)
+          const decision = await decide(snapshot.ok, revision)
+          if (decision.kind === 'reply') return decision.outcome
+          let committed: Awaited<ReturnType<typeof store.commit>>
+          try {
+            committed = await store.commit({
+              domain: domain(tenant),
+              expected: snapshot.ok.revision,
+              revision,
+              writes: writesOf<B>(decision),
+            })
+          } catch {
+            return unknown('the start ledger threw on commit')
+          }
+          if (committed.kind === 'committed') return succeed(decision.value)
+          if (committed.kind === 'unknown') return unknown(committed.diagnostic)
+          if (committed.kind === 'unavailable') return unavailable(committed.diagnostic)
         }
-        if (committed.kind === 'committed') return succeed(decision.value)
-        if (committed.kind === 'unknown') return unknown(committed.diagnostic)
-        if (committed.kind === 'unavailable') return unavailable(committed.diagnostic)
-      }
-      return unavailable(`${commitAttempts} revision conflicts in a row`)
-    })
+        return unavailable(`${commitAttempts} revision conflicts in a row`)
+      },
+      () =>
+        unavailable(
+          `The turn did not settle within ${turnTimeoutMs} ms; earlier work of this tenant may still be running`,
+        ),
+    )
 
   const unknownProgress = (diagnostic: string): Outcome<StartProgress, ToolFailure> =>
     succeed({ kind: 'unknown', diagnostic })
