@@ -27,6 +27,7 @@ import {
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
+  decodeExecutionRecordParts,
   decodeExecutionRecordReply,
   decodeSessionHistoryRoot,
   decodeSessionReply,
@@ -116,8 +117,13 @@ const root = async (a: App) =>
   decodeSessionHistoryRoot(
     await read(a, 'session.history-root', { tenant: textOf(TENANT_A), session: SESSION }),
   )
-const state = async (a: App, tenant: TenantId = TENANT_A) =>
-  read(a, 'execution-record.state', { tenant: textOf(tenant), session: SESSION }, tenant)
+/** The publication count and the whole state of the session (the first page of the parts read). */
+const state = async (a: App, tenant: TenantId = TENANT_A) => {
+  const page = decodeExecutionRecordParts(
+    await read(a, 'execution-record.parts', { tenant: textOf(tenant), session: SESSION }, tenant),
+  )
+  return page === null ? null : { published: page.published, state: page.state }
+}
 const count = (a: App, table: string): number =>
   Number(a.provider.select('dom_0', `SELECT COUNT(*) AS n FROM ${table}`).rows[0]?.[0] ?? 0)
 

@@ -18,6 +18,7 @@
 - [session-log-journal-real.spec.ts](session-log-journal-real.spec.ts)：生产 Journal 提供者在真实 sqlite-provider 上的首次共同发布、核对冲突回滚、清单摘要不符与解释提交（慢层）
 - [session-log-journal-replay.spec.ts](session-log-journal-replay.spec.ts)：AG-23 轨迹回放对生产 Journal 提供者，保留副本与每次重建两种
 - [session-log-journal-complexity.spec.ts](session-log-journal-complexity.spec.ts)：读进度标记之后一页的读次数不随 N 增长，从头读的负控随 N 增长
+- [journal-parts-read.spec.ts](journal-parts-read.spec.ts)：提供者分页读 Agent 记录：一页放不下的会话由全部页重建；各页发布计数不一致时从首页重读，每次都不一致读满 3 次后答 unavailable；首页带整份状态时答 unavailable（夹具把每页改成最多一个分区）
 - [journal-parts.spec.ts](journal-parts.spec.ts)：K-8 分区存储：记录按 execution 归入分区，一次发布只写变了的分区与写入方分区，删除与清空分区，删除后重写的顺序在重建副本里不变，畸形分区不重建
 - [common-journal.spec.ts](common-journal.spec.ts)：共用会话日志上从原资格创建 Session 并打开 Agent；只观察的尾部扫描后可以终结，不单写游标；已记录条件的 `entry` 事件只观察，不产生 Session 后果
 - [journal-ports.spec.ts](journal-ports.spec.ts)：detach 与 attach 围住旧 Authority 并保留原操作答案；答复准入按原决定分页，输出确认不确认 Model；commit 拒绝由 Journal 分配的 `entry` 与 `ended` 事件正文；context 转换与原 Agent 答案共同发布、共同恢复；终态后观察者沿原 passage

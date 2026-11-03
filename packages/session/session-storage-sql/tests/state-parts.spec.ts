@@ -252,6 +252,8 @@ describe('a write in parts', () => {
     ],
     ['replace that is not a boolean', { parts: [], replace: 'yes' }],
     ['neither state nor parts', {}],
+    ['an operation without a name', { parts: [], operation: '' }],
+    ['a revision that is not a count', { parts: [], revision: 'one' }],
   ] as const)
     it(`${name} is unsupported and writes nothing`, async () => {
       const a = await app()
@@ -384,7 +386,102 @@ describe('reading the parts', () => {
     })
     expect(await read(a, { parts: ['x:exe_1'] }, TENANT_B)).toMatchObject({ parts: [] })
   })
+})
 
+// The rows of tenant B are planted in the domain of tenant A, with the session and part names of
+// tenant A, so a statement without its tenant condition reaches them (defence in depth, as in
+// `handler-tenant-filter.spec.ts`): the other test above cannot tell, because tenant B has its own
+// domain there.
+const OTHER = textOf(TENANT_B)
+const OWN = textOf(TENANT_A)
+
+function plantTenantB(a: App): void {
+  const into = (sql: string, params: readonly (string | bigint)[]) =>
+    a.provider.seed('dom_0', sql, params)
+  into('INSERT INTO er_root (tenant, session, published) VALUES (?, ?, ?)', [OTHER, SESSION, 99n])
+  into('INSERT INTO er_state (tenant, session, state) VALUES (?, ?, ?)', [
+    OTHER,
+    SESSION,
+    '"b-whole"',
+  ])
+  for (const part of ['x:exe_1', 'x:exe_2'])
+    into(
+      'INSERT INTO er_state_part (tenant, session, part, state, published) VALUES (?, ?, ?, ?, ?)',
+      [OTHER, SESSION, part, '"b"', 99n],
+    )
+}
+const ofTenantB = (a: App, table: string) =>
+  a.provider.select('dom_0', `SELECT * FROM ${table} WHERE tenant = ? ORDER BY 1, 2, 3`, [OTHER])
+    .rows
+
+describe('the tenant condition of the statements, with both tenants in one domain', () => {
+  it('a read gives the count, the whole state and the parts of its own tenant only', async () => {
+    const a = await app()
+    ok(await a.create(TENANT_A))
+    await commit(a, 'aop_1', write(1, [{ part: 'x:exe_1', state: 'a' }]))
+    plantTenantB(a)
+    // Each tenant reads its own; the one that has no whole state reads none, and the one that has
+    // a part reads only its part, so neither the first page, the part list, nor `after` and
+    // `since` cross over, whichever row the engine reaches first.
+    expect(await read(a, {})).toEqual({
+      published: '1',
+      state: null,
+      parts: [{ part: 'x:exe_1', state: 'a' }],
+      next: null,
+    })
+    expect(await read(a, { parts: ['x:exe_1', 'x:exe_2'] })).toMatchObject({
+      parts: [{ part: 'x:exe_1', state: 'a' }],
+    })
+    expect(await read(a, { after: 'x:exe_1' })).toMatchObject({ published: '1', parts: [] })
+    expect((await read(a, { since: '0' })).parts).toEqual([{ part: 'x:exe_1', state: 'a' }])
+    // Tenant B in the same domain: its own rows, and only those (the input names tenant B).
+    const own = {
+      published: '99',
+      state: 'b-whole',
+      parts: [
+        { part: 'x:exe_1', state: 'b' },
+        { part: 'x:exe_2', state: 'b' },
+      ],
+      next: null,
+    }
+    const other = await a.provider.storage.read({
+      domain: { scope: { kind: 'tenant', tenant: OWN }, transactionDomain: 'dom_0' },
+      handler: 'execution-record.parts',
+      protocol: '1',
+      requestKey: 'r',
+      input: { tenant: OTHER, session: SESSION },
+    })
+    expect(other.kind === 'read' && decodeExecutionRecordParts(other.output)).toEqual(own)
+  })
+
+  it('a write replaces, drops and counts only the rows of its own tenant', async () => {
+    const a = await app()
+    ok(await a.create(TENANT_A))
+    await commit(a, 'aop_1', write(1, [{ part: 'x:exe_1', state: 'a' }]))
+    plantTenantB(a)
+    const planted = {
+      parts: ofTenantB(a, 'er_state_part'),
+      whole: ofTenantB(a, 'er_state'),
+      root: ofTenantB(a, 'er_root'),
+    }
+    expect(planted.parts).toHaveLength(2)
+    // A write with replace deletes the whole form and drops every other part of tenant A ...
+    expect(
+      (await commit(a, 'aop_2', write(2, [{ part: 'x:exe_3', state: 'a3' }], true))).kind,
+    ).toBe('committed')
+    // ... and a whole write drops every part of tenant A.
+    const { parts: _parts, replace: _replace, ...base } = write(3, [])
+    expect((await commit(a, 'aop_3', { ...base, state: 'a-whole' })).kind).toBe('committed')
+    expect({
+      parts: ofTenantB(a, 'er_state_part'),
+      whole: ofTenantB(a, 'er_state'),
+      root: ofTenantB(a, 'er_root'),
+    }).toEqual(planted)
+    expect(await read(a, {})).toMatchObject({ published: '3', state: 'a-whole', parts: [] })
+  })
+})
+
+describe('refused inputs of the parts read', () => {
   it('an input that names no session, an empty part list or an empty after is refused', async () => {
     const a = await app()
     for (const input of [

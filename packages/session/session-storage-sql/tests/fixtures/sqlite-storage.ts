@@ -39,7 +39,6 @@ import preadmissionMigration from '../../src/worker/preadmission-migration.ts'
 import readExecutionOperation from '../../src/worker/read-execution-operation.ts'
 import readExecutionParts from '../../src/worker/read-execution-parts.ts'
 import readExecutionSession from '../../src/worker/read-execution-session.ts'
-import readExecutionState from '../../src/worker/read-execution-state.ts'
 import readHistoryRoot from '../../src/worker/read-history-root.ts'
 import readHistory from '../../src/worker/read-history.ts'
 import readInput from '../../src/worker/read-input.ts'
@@ -62,7 +61,6 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readReferences,
   readReleasedScopes,
   readHistoryRoot,
-  readExecutionState,
   readExecutionParts,
   readExecutionOperation,
   readExecutionSession,
