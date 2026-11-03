@@ -1,5 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
+import { Piscina } from 'piscina'
 import { StorageService } from '@omne-harness/sql-contract/cordis'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import { CalendarQueryService } from '@omne-harness/calendar-cordis-contract/cordis'
@@ -104,3 +105,50 @@ it('waits for injected dependencies, drains on withdrawal and restores without d
     await world.close()
   }
 })
+
+it.each([false, true])(
+  'releases the real application on binding failure, preserving cleanup failure=%s',
+  async cleanupFails => {
+    const world = await openWorld()
+    const ctx = new Context()
+    let bindingFault: ReturnType<typeof vi.spyOn> | undefined
+    let cleanupFault: ReturnType<typeof vi.spyOn> | undefined
+    try {
+      await ctx.plugin(FixtureStorage, world.storage).await()
+      await ctx.plugin(FixtureCalendar).await()
+      const options = localOptions(world)
+      const { storage: _storage, ...sql } = options.sql
+      const { calendar: _calendar, ...prediction } = options.prediction
+      const plugin = createScheduleLocalPlugin()
+      expect(plugin.name).toBe('schedule-local')
+      const binding = new Error('binding unavailable')
+      const cleanup = new Error('reported cleanup failure')
+      if (cleanupFails) {
+        const destroy = Piscina.prototype.destroy
+        cleanupFault = vi.spyOn(Piscina.prototype, 'destroy').mockImplementation(async function (
+          this: Piscina,
+        ) {
+          await destroy.call(this)
+          throw cleanup
+        })
+      }
+      bindingFault = vi.spyOn(ctx, 'plugin').mockImplementation(() => {
+        throw binding
+      })
+      const pending = plugin.apply(ctx, { ...options, sql, prediction })
+      if (cleanupFails) {
+        await expect(pending).rejects.toBeInstanceOf(AggregateError)
+        await expect(pending).rejects.toMatchObject({
+          message: 'Schedule binding and cleanup failed',
+          errors: [binding, cleanup],
+        })
+      } else await expect(pending).rejects.toBe(binding)
+      await world.configure()
+    } finally {
+      bindingFault?.mockRestore()
+      cleanupFault?.mockRestore()
+      await ctx.fiber.dispose()
+      await world.close()
+    }
+  },
+)

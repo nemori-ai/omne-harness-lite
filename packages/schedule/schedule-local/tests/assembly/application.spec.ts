@@ -1,4 +1,5 @@
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
+import { Piscina } from 'piscina'
 import type { Worker } from 'node:worker_threads'
 import { createScheduleLocalApplication } from '@omne-harness/schedule-local'
 import {
@@ -6,6 +7,8 @@ import {
   fingerprintScheduleOperation,
   ScheduleInstantSchema,
   ScheduleCivilSchema,
+  ScheduleDomainErrorSchema,
+  ScheduleIdSchema,
 } from '@omne-harness/schedule-contract'
 import { openWorld } from '../storage/world.ts'
 import { context, definition } from '../storage/data.ts'
@@ -83,6 +86,37 @@ it('composes real SQL, worker, prediction and management with read-only queries'
         limit: 50,
       }),
     ).toMatchObject({ kind: 'ok', value: { complete: true, total: { kind: 'exact', value: 1 } } })
+    expect(
+      await app.queries.list(context, {
+        agentRef: null,
+        control: null,
+        standing: null,
+        createdBy: null,
+        targetDeviceRef: null,
+        calendarId: null,
+        purpose: null,
+        cursor: null,
+        limit: 50,
+      }),
+    ).toMatchObject({
+      kind: 'ok',
+      value: { items: [{ scheduleId: id }], total: { kind: 'exact', value: 1 } },
+    })
+    expect(
+      await app.queries.revisions(context, { scheduleId: id, cursor: null, limit: 50 }),
+    ).toMatchObject({ kind: 'ok', value: { items: [{ scheduleId: id }] } })
+    expect(
+      await app.queries.executions(context, {
+        scheduleId: id,
+        cursor: null,
+        limit: 50,
+        from: null,
+        to: null,
+      }),
+    ).toMatchObject({
+      kind: 'ok',
+      value: { items: [], total: { kind: 'exact', value: 0 }, complete: true },
+    })
     const paused = await app.commands.execute(context, {
       action: 'pause',
       scheduleId: id,
@@ -138,6 +172,15 @@ it('closes admission before draining an accepted call and keeps borrowed storage
         count: 1,
       }),
     ).toMatchObject({ kind: 'error', error: { code: 'dependency_blocked' } })
+    const stopped = await app.queries.get(context, {
+      scheduleId: ScheduleIdSchema.parse('00000000-0000-4000-8000-000000000001'),
+    })
+    expect(stopped).toMatchObject({
+      kind: 'error',
+      error: { code: 'dependency_blocked', retryable: true },
+    })
+    if (stopped.kind !== 'error') throw new Error('Expected a closed admission response')
+    expect(ScheduleDomainErrorSchema.safeParse(stopped.error).success).toBe(true)
     expect(closed).toBe(false)
     release()
     expect((await pending).kind).toBe('ok')
@@ -168,6 +211,33 @@ it('rejects invalid query configuration and cleans the owned worker', async () =
   } finally {
     process.off('worker', observeWorker)
     await Promise.all(threads.map(worker => worker.terminate()))
+    await world.close()
+  }
+})
+
+it('preserves initialization and cleanup failures after the real worker has been stopped', async () => {
+  const world = await openWorld()
+  const cleanup = new Error('reported cleanup failure')
+  const destroy = Piscina.prototype.destroy
+  const fault = vi.spyOn(Piscina.prototype, 'destroy').mockImplementation(async function (
+    this: Piscina,
+  ) {
+    await destroy.call(this)
+    throw cleanup
+  })
+  try {
+    const options = localOptions(world)
+    const pending = createScheduleLocalApplication({
+      ...options,
+      query: { ...options.query, limits: { ...options.query.limits, maxAgendaRows: 5001 } },
+    })
+    await expect(pending).rejects.toBeInstanceOf(AggregateError)
+    await expect(pending).rejects.toMatchObject({
+      message: 'Schedule initialization and cleanup failed',
+      errors: [expect.any(Error), cleanup],
+    })
+  } finally {
+    fault.mockRestore()
     await world.close()
   }
 })
