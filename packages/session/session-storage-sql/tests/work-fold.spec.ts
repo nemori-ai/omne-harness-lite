@@ -14,7 +14,6 @@ import type {
   WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
-  creation,
   evidence,
   guard,
   operationId,
