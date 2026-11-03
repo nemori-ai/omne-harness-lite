@@ -20,7 +20,12 @@ export function readBody(value: unknown): JsonValue {
 
 /** A JSON tree that did not pass through the asset reader. */
 export function json(value: unknown): JsonValue {
-  const read = readJsonText(JSON.stringify(value), LIMITS)
+  return jsonText(JSON.stringify(value))
+}
+
+/** A JSON tree read from text, so that a number keeps the lexeme as written. */
+export function jsonText(text: string): JsonValue {
+  const read = readJsonText(text, LIMITS)
   if (read.kind !== 'ok') throw new TypeError(`test data is not JSON: ${read.kind}`)
   return read.value
 }

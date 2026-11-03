@@ -52,3 +52,40 @@ export {
   parseEndpointBody,
   type EndpointBodyRejection,
 } from './endpoint.ts'
+export {
+  actionPermissionItems,
+  completeListing,
+  digestDefinition,
+  markUnavailable,
+  mergeListing,
+  type ActionCatalogRecord,
+  type AdoptionBasis,
+  type Availability,
+  type CatalogState,
+  type CompleteListing,
+  type Freshness,
+  type KnownAction,
+  type ListingDefect,
+  type ListingRead,
+  type MergeRefusal,
+  type UnavailableReason,
+} from './catalog.ts'
+export { classifyOutcome, type ClassifyContext } from './classify.ts'
+export { toContentBlocks } from './content.ts'
+export { catalogKeyOf, connectionKeyOf, peerAccountOf } from './keys.ts'
+export type {
+  AuthorizationDiscovery,
+  BlockedReason,
+  CallOutcome,
+  ContentDefect,
+  DeliveredContent,
+  InvokeResult,
+  NoAnswerCause,
+  NotSentReason,
+  OutputCheck,
+  OutputValidator,
+  PeerAnswer,
+  ProtocolFault,
+  Refusal,
+  TaskStatus,
+} from './outcomes.ts'
