@@ -26,7 +26,12 @@
   },
   "dependencies": {
     "@omne-harness/calendar-contract": "workspace:*",
-    "@js-temporal/polyfill": "0.5.1"
+    "@js-temporal/polyfill": "0.5.1",
+    "csv-parse": "7.0.3",
+    "ical.js": "2.2.1",
+    "zod": "catalog:",
+    "@omne-harness/json-text": "workspace:*",
+    "canonicalize": "5.1.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",
