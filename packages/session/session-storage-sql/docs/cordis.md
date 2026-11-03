@@ -18,7 +18,7 @@
 | 存储服务与提供者 | 应用装入 sql-contract 与 sqlite-provider 的插件 | 本包只收 `SqlStorage` 对象，不 inject，不知道提供者 |
 | 游标签名能力 | 应用 | 本包只收 `cursorSigning` |
 | `sessionTransactions` 服务键 | 应用：用 `createSessionStorage` 得到端口，交给服务键 | 键与抽象类归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#端口服务键)，本包不提供 |
-| `sessionPrincipalBindings` 受信服务键 | 应用：用 `createSessionPrincipalBindings({ storage, domains })` 得到会话归属读口，存储与目录和公开端口相同，交给受信服务键 | 读口只答租户与会话归属，不调用访问检查。键与抽象类归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#受信服务键)，本包不提供 |
+| `sessionPrincipalBindings` 受信服务键 | 应用：用 `createSessionPrincipalBindings({ storage, domains })` 得到会话归属读口，存储与目录和公开端口相同，交给受信服务键 | 读口只答租户、会话归属与建立该会话那一批的证据，不调用访问检查；它经窄 handler `session.binding` 读，不用工作缓存，`bound` 在进程内记住。应用在行停止时调用读口的 `stop()`，此后一律答 `unavailable`。键与抽象类归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#受信服务键)，本包不提供 |
 | 迁移执行与重启后的迁移 | 提供者（DO-1，见 [sqlite-provider 规格](../../../storage/sqlite-provider/SPEC.md) §5.3） | 迁移模块 `session/001-session-log`、`session/002-execution-index`、`session/003-operation-evidence`（以及 `execution-record/001-execution-record` 至 `execution-record/005-fact-body`）。插件加载时不登记组合，这一步已按 Context r3 删除 |
 | 注册的结果处理（`registerCombination` 的各类拒绝） | 应用 | 无。拒绝规则见 [sql-contract §6](../../../storage/sql-contract/SPEC.md#6-registercombination) |
 

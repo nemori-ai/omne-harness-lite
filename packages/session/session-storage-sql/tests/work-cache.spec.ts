@@ -93,15 +93,15 @@ describe('T-1: readWork at one version', () => {
   })
 })
 
-describe('T-12: the session binding source reads through the cache of the same storage', () => {
-  it('after a readWork of the port, a binding read is a version read only, and it answers bound', async () => {
+describe('T-12: the session binding source does not use the work cache', () => {
+  it('after a readWork of the port, a binding read asks neither the version nor the whole snapshot, and it answers bound', async () => {
     const a = await app()
     await a.create(TENANT_A)
     okOf(await a.port.readWork(a.access(TENANT_A)))
     const from = a.provider.calls.length
     const bound = await a.bindings.read({ tenant: TENANT_A, session: 'session-1' as never })
     expect('ok' in bound && bound.ok.kind).toBe('bound')
-    expect([readsOf(a, WHOLE, from), readsOf(a, VERSION, from)]).toEqual([0, 1])
+    expect([readsOf(a, WHOLE, from), readsOf(a, VERSION, from)]).toEqual([0, 0])
   })
 })
 

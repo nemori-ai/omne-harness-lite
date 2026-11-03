@@ -37,6 +37,7 @@ import migration from '../../src/worker/migration.ts'
 import evidenceMigration from '../../src/worker/operation-evidence-migration.ts'
 import participant from '../../src/worker/participant.ts'
 import preadmissionMigration from '../../src/worker/preadmission-migration.ts'
+import readBinding from '../../src/worker/read-binding.ts'
 import readExecutionFacts from '../../src/worker/read-execution-facts.ts'
 import readExecutionOperation from '../../src/worker/read-execution-operation.ts'
 import readExecutionParts from '../../src/worker/read-execution-parts.ts'
@@ -59,6 +60,7 @@ import statePartMigration from '../../src/worker/state-part-migration.ts'
 const HANDLERS: readonly ReadHandlerModule[] = [
   readWork,
   readWorkVersion,
+  readBinding,
   readWorkIndex,
   readWorkReads,
   readInput,

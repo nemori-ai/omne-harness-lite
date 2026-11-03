@@ -51,7 +51,7 @@
 
 精确形状归 [ports.ts](../src/ports.ts)，根入口导出 `SessionPrincipalBindingSource` 与 `SessionWorkPrincipals`。两者都只在受信作用域内交付，服务键与替身在 [Cordis 定义](../../session-cordis-contract/docs/cordis.md#受信服务键)。
 
-`SessionPrincipalBindingSource.read` 只证明会话的租户归属与已成立身份，不返回输入、历史或快照。它不调用 `SessionAccessCheck`，避免递归依赖。未知 Session 与另一租户的 Session 都答 `not-bound`，两者不可区分。
+`SessionPrincipalBindingSource.read` 只证明会话的租户归属与已成立身份，不返回输入、历史或快照。它不调用 `SessionAccessCheck`，避免递归依赖。`bound` 的 `source` 是建立该会话那一批的证据（该批条目经 `batchEvidence` 算出），之后的提交不改变它；`WorkSnapshot.source` 则是最近一批的证据，二者不同。未知 Session 与另一租户的 Session 都答 `not-bound`，两者不可区分。
 
 `SessionWorkPrincipals.forSession` 为协调器或维护者签发该会话的主体。签发前，实现读取会话归属读口。下表是失败映射，所有失败都不签发主体：
 

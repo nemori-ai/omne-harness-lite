@@ -147,6 +147,13 @@ export const HANDLERS: readonly Handler[] = [
     tables: ['sl_journal', 'sl_entry', ...EXECUTION_RECORD_INDEX_TABLES],
     migrations: [migrationRef, recordMigrationRef, admissionAttemptMigrationRef],
   },
+  {
+    // The ownership of a session and the evidence that created it (D-AUTH r4 4.1): the journal row
+    // and the entries of the first batch, no snapshot row.
+    handler: 'session.binding',
+    file: 'read-binding',
+    tables: ['sl_journal', 'sl_entry'],
+  },
   { handler: 'session.input', file: 'read-input', tables: ['sl_journal', 'sl_input'] },
   {
     handler: 'session.model-selection',
