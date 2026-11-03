@@ -32,6 +32,16 @@ describe('query wire', () => {
       query: { kind: 'next', after: '2026-01-01', count: 5 },
     }
     expect(calendarResolveSchema.parse(JSON.parse(JSON.stringify(request)))).toEqual(request)
+    for (const query of [
+      { kind: 'count', from: '2026-01-01', to: '2026-01-01' },
+      { kind: 'nth', periodStart: '2026-01-01', periodEnd: '2026-01-01', ordinal: 'last' },
+    ])
+      expect(calendarResolveSchema.safeParse({ ...request, query }).success).toBe(true)
+    for (const query of [
+      { kind: 'count', from: '2026-01-02', to: '2026-01-01' },
+      { kind: 'nth', periodStart: '2026-01-02', periodEnd: '2026-01-01', ordinal: 1 },
+    ])
+      expect(calendarResolveSchema.safeParse({ ...request, query }).success).toBe(false)
     for (const invalid of [
       { ...request, version: { kind: 'pinned' } },
       { ...request, selection: {} },

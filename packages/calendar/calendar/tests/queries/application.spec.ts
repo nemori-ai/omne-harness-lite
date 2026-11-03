@@ -444,3 +444,265 @@ it('rejects malformed host context, missing authority, invalid cursors and provi
     error: { code: 'provider_failure', details: {} },
   })
 })
+
+it('keeps system and tenant owners distinct and forwards the exact authorization action', async () => {
+  const { queries, environment, authority, store } = setup()
+  const system = {
+    ...context,
+    owner: { kind: 'system', systemScopeRef: 'maintenance' },
+  } satisfies typeof context
+  environment.read.mockResolvedValue({
+    kind: 'found',
+    value: {
+      owner: system.owner,
+      revision: 'system-r1',
+      timezone: 'UTC',
+      calendarId: snapshot.calendarId,
+    },
+  })
+  expect(await queries.effective(system)).toMatchObject({
+    kind: 'ok',
+    value: { owner: system.owner },
+  })
+  for (const owner of [{ kind: 'system', systemScopeRef: 'other' }, context.owner] as const) {
+    environment.read.mockResolvedValue({
+      kind: 'found',
+      value: { owner, revision: 'r1', timezone: 'UTC', calendarId: snapshot.calendarId },
+    })
+    expect(await queries.effective(system)).toMatchObject({
+      kind: 'error',
+      error: { code: 'environment_incoherent' },
+    })
+  }
+  environment.read.mockResolvedValue({
+    kind: 'found',
+    value: {
+      owner: system.owner,
+      revision: 'r1',
+      timezone: 'UTC',
+      calendarId: snapshot.calendarId,
+    },
+  })
+  expect(await queries.effective(context)).toMatchObject({
+    kind: 'error',
+    error: { code: 'environment_incoherent' },
+  })
+  environment.read.mockResolvedValue({
+    kind: 'found',
+    value: {
+      owner: { kind: 'tenant', tenantId: 'tenant-a', ownerId: 'other' },
+      revision: 'r1',
+      timezone: 'UTC',
+      calendarId: snapshot.calendarId,
+    },
+  })
+  expect(await queries.effective(context)).toMatchObject({
+    kind: 'error',
+    error: { code: 'environment_incoherent' },
+  })
+  authority.check.mockClear()
+  await queries.list(context)
+  expect(
+    authority.check.mock.calls.every(
+      ([input]) => input.action === 'list' && input.context.authContextRef === 'auth-a',
+    ),
+  ).toBe(true)
+  authority.check.mockClear()
+  await queries.get(context, { calendarId: snapshot.calendarId })
+  expect(authority.check.mock.calls.every(([input]) => input.action === 'get')).toBe(true)
+  authority.check.mockClear()
+  await queries.resolve(context, request)
+  expect(authority.check.mock.calls.every(([input]) => input.action === 'resolve')).toBe(true)
+  authority.check.mockClear()
+  environment.read.mockResolvedValue({ kind: 'unavailable' })
+  expect(await queries.effective(context)).toMatchObject({
+    kind: 'error',
+    error: { code: 'provider_failure', retryable: true, requestId: context.requestId },
+  })
+  expect(authority.check.mock.calls.every(([input]) => input.action === 'effective')).toBe(true)
+  environment.read.mockResolvedValue({
+    kind: 'found',
+    value: { owner: context.owner, revision: '', timezone: 'UTC', calendarId: snapshot.calendarId },
+  })
+  expect(await queries.effective(context)).toMatchObject({
+    kind: 'error',
+    error: { code: 'environment_incoherent', retryable: false },
+  })
+  authority.check.mockResolvedValue({ kind: 'denied' })
+  expect(await queries.list(context)).toMatchObject({
+    kind: 'error',
+    error: { code: 'forbidden', retryable: false },
+  })
+  authority.check.mockResolvedValue({ kind: 'allowed' })
+  store.listCalendars.mockImplementation(async () => {
+    authority.check.mockResolvedValue({ kind: 'denied' })
+    return { kind: 'ok', value: { items: [], nextCursor: null } }
+  })
+  expect(await queries.list(context)).toMatchObject({ kind: 'error', error: { code: 'forbidden' } })
+})
+
+it('continues directory and catalog pages without duplicates or unauthorized definitions', async () => {
+  const { store, authority, environment, clock } = setup()
+  const catalog = [
+    { calendarId: snapshot.calendarId, timezone: 'UTC', semanticBoundary: 'must-use-stored' },
+    {
+      calendarId: calendarIdSchema.parse('unpublished-a'),
+      timezone: 'UTC',
+      semanticBoundary: 'configured-a',
+    },
+    {
+      calendarId: calendarIdSchema.parse('unpublished-b'),
+      timezone: 'UTC',
+      semanticBoundary: 'configured-b',
+    },
+  ]
+  const queries = createCalendarQueries({
+    repository: store,
+    authority,
+    environment,
+    clock,
+    catalog,
+  })
+  expect(await queries.list(context, { after: 'r:opaque', limit: 1 })).toMatchObject({ kind: 'ok' })
+  expect(store.listCalendars).toHaveBeenLastCalledWith({ after: 'opaque', limit: 1 })
+  expect(await queries.list(context, { after: 'c:0', limit: 1 })).toMatchObject({
+    kind: 'ok',
+    value: { items: [], nextCursor: 'c:1' },
+  })
+  expect(await queries.list(context, { after: 'c:1', limit: 1 })).toMatchObject({
+    kind: 'ok',
+    value: { items: [{ calendarId: 'unpublished-a' }], nextCursor: 'c:2' },
+  })
+  authority.check.mockImplementation(async ({ calendarId }) => ({
+    kind: calendarId === catalog[2]?.calendarId ? 'denied' : 'allowed',
+  }))
+  expect(await queries.list(context, { after: 'c:2', limit: 1 })).toMatchObject({
+    kind: 'ok',
+    value: { items: [], nextCursor: null },
+  })
+  expect(await queries.list(context, { after: 'c:3', limit: 1 })).toMatchObject({
+    kind: 'ok',
+    value: { items: [], nextCursor: null },
+  })
+  expect(
+    await queries.get(context, { calendarId: calendarIdSchema.parse('unpublished-a') }),
+  ).toMatchObject({
+    kind: 'ok',
+    value: { publishedVersionId: null, semanticBoundary: 'configured-a' },
+  })
+  for (const after of [
+    'r:',
+    'xc:0',
+    'c:0x',
+    'c:00',
+    'c:-1',
+    'c:4',
+    'c:101',
+    'c:9007199254740992',
+  ]) {
+    expect(await queries.list(context, { after })).toMatchObject({
+      kind: 'error',
+      error: { code: 'invalid_input' },
+    })
+  }
+  const withoutCatalog = createCalendarQueries({
+    repository: store,
+    authority,
+    environment,
+    clock,
+    catalog: [],
+  })
+  expect(await withoutCatalog.list(context)).toMatchObject({
+    kind: 'ok',
+    value: { nextCursor: null },
+  })
+  expect(() =>
+    createCalendarQueries({
+      repository: store,
+      authority,
+      environment,
+      clock,
+      catalog: [
+        { calendarId: snapshot.calendarId, timezone: 'UTC', semanticBoundary: 'one' },
+        { calendarId: snapshot.calendarId, timezone: 'UTC', semanticBoundary: 'two' },
+      ],
+    }),
+  ).toThrow()
+})
+
+it('rejects provider identity, version and page bound violations without leaking diagnostics', async () => {
+  const { queries, store, authority } = setup()
+  const other = calendarSnapshotSchema.parse({
+    ...snapshot,
+    calendarId: 'other',
+    versionId: 'v-other',
+  })
+  store.getCalendar.mockResolvedValue({ kind: 'ok', value: directory(other) })
+  expect(await queries.get(context, { calendarId: snapshot.calendarId })).toEqual({
+    kind: 'error',
+    error: {
+      code: 'provider_failure',
+      message: 'provider_failure',
+      retryable: true,
+      requestId: context.requestId,
+      details: {},
+    },
+  })
+  store.getCalendar.mockResolvedValue({ kind: 'ok', value: directory() })
+  store.listVersions.mockResolvedValue({
+    kind: 'ok',
+    value: { items: [entry(other)], nextCursor: null },
+  })
+  expect(await queries.get(context, { calendarId: snapshot.calendarId })).toMatchObject({
+    kind: 'error',
+    error: { code: 'provider_failure' },
+  })
+  store.listVersions.mockResolvedValue({
+    kind: 'ok',
+    value: { items: [entry(), entry()], nextCursor: null },
+  })
+  expect(
+    await queries.get(context, { calendarId: snapshot.calendarId, versionsLimit: 1 }),
+  ).toMatchObject({ kind: 'error', error: { code: 'provider_failure' } })
+  store.listCalendars.mockResolvedValue({
+    kind: 'ok',
+    value: { items: [directory(), directory()], nextCursor: null },
+  })
+  expect(await queries.list(context, { limit: 1 })).toMatchObject({
+    kind: 'error',
+    error: { code: 'provider_failure' },
+  })
+  const newer = calendarSnapshotSchema.parse({ ...snapshot, versionId: 'v2' })
+  store.getSnapshot.mockResolvedValue({ kind: 'ok', value: newer })
+  expect(
+    await queries.resolve(
+      context,
+      calendarResolveSchema.parse({ ...request, version: { kind: 'pinned', versionId: 'v1' } }),
+    ),
+  ).toMatchObject({ kind: 'error', error: { code: 'provider_failure' } })
+  store.listVersions.mockResolvedValue({
+    kind: 'ok',
+    value: { items: [entry(newer), entry()], nextCursor: null },
+  })
+  expect(await queries.get(context, { calendarId: snapshot.calendarId })).toMatchObject({
+    kind: 'ok',
+    value: {
+      versions: {
+        items: [
+          { versionId: 'v2', isPublished: false },
+          { versionId: 'v1', isPublished: true },
+        ],
+      },
+    },
+  })
+  store.getCalendar.mockResolvedValue({ kind: 'unavailable', reason: 'secret-provider-diagnostic' })
+  expect(await queries.get(context, { calendarId: snapshot.calendarId })).toMatchObject({
+    kind: 'error',
+    error: { code: 'provider_failure', details: {} },
+  })
+  authority.check.mockResolvedValue({ kind: 'unavailable' })
+  expect(await queries.resolve(context, request)).toMatchObject({
+    kind: 'error',
+    error: { code: 'authority_unavailable', retryable: true },
+  })
+})
