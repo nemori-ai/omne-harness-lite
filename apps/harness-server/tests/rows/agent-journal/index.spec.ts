@@ -51,6 +51,7 @@ describe('the agent-journal row: declaration', () => {
           'agentJournalEntries',
           'agentMaterials',
           'agentReceivedCommits',
+          'agentReceivedRecords',
           'agentModelReceptionTargets',
           'sessionAdoptedRequests',
         ],
