@@ -39,6 +39,18 @@ export type ScheduleEnumerationPage = {
   limitReason: 'candidateBudget' | 'yearBudget' | null
 }
 export type ScheduleEnumerationResult = ScheduleEnumerationPage | ScheduleRecurrenceInvalid
+export type ScheduleCalculationRunResult =
+  | { kind: 'completed'; value: ScheduleEnumerationResult }
+  | {
+      kind: 'unavailable'
+      reason: 'deadline' | 'aborted' | 'capacity' | 'disposed' | 'workerFailure'
+    }
+export interface ScheduleRecurrenceCalculator {
+  enumerate(
+    input: ScheduleEnumerationInput,
+    options: { timeoutMs: number; signal?: AbortSignal },
+  ): Promise<ScheduleCalculationRunResult>
+}
 export type ScheduleMaterializationResult =
   | {
       kind: 'instant'

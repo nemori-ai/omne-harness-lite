@@ -10,6 +10,7 @@
 | RRULE 解析与候选枚举        | `rrule@2.8.1`，BSD-3-Clause，已锁定；不同时采用第二引擎       | `schedule` 内部薄适配                                                           | 对照固定 Python dateutil 输入，覆盖全部已接受语法、DTSTART、WKST、BYSETPOS 与边界；不同时长期维护两套生产引擎                              |
 | cron 解析与候选枚举         | `cron-parser@5.10.3`，MIT，已锁定                             | `schedule` 内部薄适配                                                           | 先按产品限制五字段及允许语法，再枚举；验证 DOM/DOW OR、周日 0/7 与窗口边界。库 strict 模式要求六字段并限制 DOM/DOW，不能直接作为产品验证器 |
 | 唤醒与取消等待              | Node `timers/promises`、`AbortSignal`；不额外安装 cron runner | `schedule-local` 扫描唤醒                                                       | 定时器只唤醒扫描，持久事实决定到期工作。长等待分段，唤醒后重读墙钟，区分单调耗时与业务时间                                                 |
+| 可终止规则计算 worker | `piscina@5.3.2`，MIT，已锁定并完成取消/队列/退出探针；本域适配待交付 | `schedule-local` 计算隔离 | 显式并发和队列上限；deadline 包含排队；取消中止计算，dispose 等待线程退出；不作为业务队列 |
 | JSON 规范化                 | `canonicalize@5.1.0`，Apache-2.0，与现有Calendar采用一致      | `schedule-contract` 的版本化指纹适配；Calendar 如有同义需要直接使用同一社区依赖 | 严格 JSON 前置、RFC8785 测试向量、Unicode、数字与整数形键、跨语言 golden；不为共享函数让 Calendar 反向依赖 Schedule                        |
 | SHA-256 与随机身份          | Node `crypto`                                                 | 实际摘要及操作身份拥有者                                                        | 对已规范化字节计算摘要；恢复复用原操作身份，不因重试生成新键                                                                               |
 | 测试时间与断言              | 仓库已有 Vitest                                               | 各成员 tests 与 acceptance                                                      | 墙钟、单调钟、等待分别控制；假时钟不代替进程重启与真实存储验证                                                                             |
@@ -30,7 +31,9 @@
 
 rrule 2.8.1 的内部 `Date.UTC` 会把 0–99 年解释成 1900–1999 年，使合法有限规则误报耗尽。工作区通过 `patches/rrule@2.8.1.patch` 修正 CJS 和 ESM 发布物的 UTC 日期构造；规则算法和版本不变，补丁哈希由锁文件固定。公开根回归覆盖 0000、0001、0099、0100 年、零年闰日和 Easter。升级时若上游已修复，须先在无补丁版本通过这些用例，再删除补丁与登记。该补丁属于本域采用责任，不建立第二套规则引擎。
 
-新增传递依赖为rrule使用的tslib及cron-parser使用的luxon，实际版本以锁文件为准。独立探针的tslib版本与工作区可能不同，正式验证必须运行工作区确切发布物。只比较明确反例所需的替代方案，不额外维护cron runner、通用队列或工作流平台。
+Piscina 的线程管理和 AbortSignal 行为以锁定发布物为准，来源见[官方文档](https://github.com/piscinajs/piscina)。外层只补本域容量、截止时间和结果分类。取消结果不宣称线程已经物理退出；dispose 完成才表示池已停止。线程启动或替换期间仍可能需要内部排队，容量必须按本域已接纳任务计算，不能把内部零队列误作零等待保证。
+
+新增传递依赖包括 Piscina 使用的 `@napi-rs/nice` 及平台可选包、rrule使用的tslib及cron-parser使用的luxon，实际版本以锁文件为准。独立探针的tslib版本与工作区可能不同，正式验证必须运行工作区确切发布物。只比较明确反例所需的替代方案，不额外维护cron runner、通用队列或工作流平台。
 
 ## 系统能力与实际状态
 
