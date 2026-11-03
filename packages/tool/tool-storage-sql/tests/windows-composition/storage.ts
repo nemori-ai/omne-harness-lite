@@ -18,6 +18,9 @@ import {
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 
+// The budget scenario produces a 2,723,278-byte plan command, including retained request copies.
+const maxCommandBytes = 4_194_304
+
 /** Same provider policy dimensions as sqlite-provider/tests/support.ts, over this test's real root. */
 function configuration(storageRoot: string, readBytes: number): SqliteStorageConfig {
   return {
@@ -26,7 +29,7 @@ function configuration(storageRoot: string, readBytes: number): SqliteStorageCon
     globalAdmissionLimit: 256,
     lockWaitMs: 5000,
     maxCommandsPerCommit: 16,
-    maxCommandBytes: 1_048_576,
+    maxCommandBytes,
     maxRequestBytes: 4_194_304,
     globalInFlightWriteBytes: 67_108_864,
     maxJsonDepth: 64,
@@ -140,7 +143,7 @@ export async function openStorage(root: string, tenants: readonly TenantId[]) {
       store: createSqlToolLedgerStore<ToolMessageContentBlock>(options),
       custody: createSqlToolOutputCustody<unknown>({
         ...options,
-        maxCommandBytes: 1_048_576,
+        maxCommandBytes,
         maxChunkBytes: 16384,
       }),
       guarded: createSqlToolGuardedHostCommit(options),
