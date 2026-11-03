@@ -12,7 +12,7 @@ import type {
 } from '@omne-harness/session-contract'
 import { OWNER } from './cursor.ts'
 import { domainOf, type SessionStorageOptions } from './context.ts'
-import { readCachedWork } from './work-cache.ts'
+import { readCachedSessionWork } from './work-cache.ts'
 
 export type SessionPrincipalBindingsOptions = Pick<
   SessionStorageOptions<unknown>,
@@ -39,12 +39,12 @@ export function createSessionPrincipalBindings(
     ): Promise<BindingRead> => {
       const domain = await domainOf(reach, input.tenant)
       if ('failure' in domain) return unreadableOf(domain.failure)
-      const read = await readCachedWork({
-        storage: options.storage,
-        domain: domain.ok.domain,
-        tenant: domain.ok.text,
-        session: input.session,
-      })
+      const read = await readCachedSessionWork(
+        options.storage,
+        domain.ok.domain,
+        domain.ok.text,
+        input.session,
+      )
       if (read.kind === 'absent') return succeed({ kind: 'not-bound' })
       if (read.kind === 'unavailable') return unreadable(`session binding: ${read.diagnostic}`)
       if (read.kind === 'behind')

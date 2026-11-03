@@ -15,6 +15,7 @@ import type {
 import type { FactCommandV2, JsonValue, RecordedReply } from '@omne-harness/sql-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { canonicalText, decodeValue, encodeValue, sha256 } from './codec.ts'
+import { readCachedSessionWork } from './work-cache.ts'
 
 /** The participant that executes the Session commands and the read-only checks. */
 export const SESSION_PARTICIPANT = 'session'
@@ -635,6 +636,13 @@ export type SessionWorkRead =
   | Readonly<{ kind: 'state'; snapshot: WorkSnapshot }>
   | Readonly<{ kind: 'absent' }>
   | Readonly<{ kind: 'behind' }>
+
+/**
+ * The `session.work` answer through the work cache of `storage` (SPEC RT-04), for a committer that
+ * holds the domain of the tenant: the version of the session is read first, and the snapshot is
+ * read whole only when no cached answer has that version. The snapshot it answers is deeply frozen.
+ */
+export { readCachedSessionWork }
 
 export function decodeSessionWork(output: JsonValue): SessionWorkRead | null {
   const value = recordOf(output)

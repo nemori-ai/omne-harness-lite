@@ -1,6 +1,6 @@
 // The work cache of `readWork` (SPEC RT-04). The store stays the authority: every read first reads
-// the version of the session (`session.work-version`: the Session tail, the snapshot cover and the
-// Agent publication count, three primary-key point reads), and a cached snapshot is answered only
+// the version of the session (`session.work-version`: the Session tail and the Agent publication
+// count, two primary-key point reads), and a cached snapshot is answered only
 // when that version equals the version it was read at. Each case counts the handler reads the port
 // sent, so a cache that answers without the check, keys without the tenant, ignores the Agent
 // publications, keeps more than its bounds or reads the whole snapshot on every call turns red.
@@ -287,7 +287,7 @@ describe('T-7: a tail that moved backwards', () => {
 })
 
 describe('a snapshot row behind the tail', () => {
-  it('answers unavailable from the version read alone: no whole read, no cached answer', async () => {
+  it('answers unavailable, never the cached snapshot of the earlier tail', async () => {
     const a = await app()
     await a.create(TENANT_A)
     okOf(await a.port.readWork(a.access(TENANT_A)))
@@ -299,7 +299,8 @@ describe('a snapshot row behind the tail', () => {
     const from = a.provider.calls.length
     const behind = await a.port.readWork(a.access(TENANT_A))
     expect('failure' in behind && behind.failure.kind).toBe('unavailable')
-    expect(readsOf(a, WHOLE, from)).toBe(0)
+    expect(JSON.stringify(behind)).toMatch(/does not cover the tail/)
+    expect(readsOf(a, WHOLE, from)).toBe(1)
   })
 })
 
@@ -403,12 +404,12 @@ describe('the version read', () => {
     const large = versionRead(1 << 20)
     expect(small.outcome).toEqual({
       kind: 'read',
-      output: { kind: 'version', tail: '7', covered: '7', published: '3' },
+      output: { kind: 'version', tail: '7', published: '3' },
     })
     expect(large.outcome).toEqual(small.outcome)
     expect(large.statements).toEqual(small.statements)
     expect(small.statements).toHaveLength(1)
     expect(small.statements[0]?.rows).toBe(1)
-    expect(small.statements[0]?.sql).not.toMatch(/snapshot|sl_entry/)
+    expect(small.statements[0]?.sql).not.toMatch(/sl_state|snapshot|sl_entry/)
   })
 })

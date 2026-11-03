@@ -47,13 +47,12 @@ import {
   EXECUTION_RECORD_PROTOCOL,
   SESSION_HISTORY_ROOT_HANDLER,
   SESSION_PROTOCOL,
-  SESSION_WORK_HANDLER,
   decodeExecutionRecordParts,
   decodeExecutionRecordReply,
   decodeSessionHistoryRoot,
   decodeSessionReply,
-  decodeSessionWork,
   executionRecordFacts,
+  readCachedSessionWork,
   sessionCheckFacts,
   sessionCommandFacts,
   type ExecutionAdmissionRecord,
@@ -726,14 +725,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return result.kind === 'read' ? result.output : null
   }
 
-  /** The Session snapshot the `advances` check of this call reads. */
+  /**
+   * The Session snapshot the `advances` check of this call reads, through the work cache of the
+   * storage (session-storage-sql RT-04): a version read, and a whole read only after a commit.
+   */
   async function snapshotOf(book: Book<P>, domain: DomainRef): Promise<WorkSnapshot | null> {
-    const output = await read(domain, SESSION_WORK_HANDLER, SESSION_PROTOCOL, {
-      tenant: book.tenantText,
-      session: book.session,
-    })
-    const work = output === null ? null : decodeSessionWork(output)
-    return work?.kind === 'state' ? work.snapshot : null
+    const work = await readCachedSessionWork(options.storage, domain, book.tenantText, book.session)
+    return work.kind === 'state' ? work.snapshot : null
   }
 
   function participation(

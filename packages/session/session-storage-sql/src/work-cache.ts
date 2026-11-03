@@ -1,7 +1,7 @@
 // The work cache (SPEC RT-04): the decoded `session.work` answer of each session, kept in the
 // process and checked against the store on every read. The store stays the authority. Every read
-// first reads the version of the session (`session.work-version`: the Session tail, the tail the
-// snapshot covers and the Agent publication count); a cached answer is used only when that version
+// first reads the version of the session (`session.work-version`: the Session tail and the Agent
+// publication count); a cached answer is used only when that version
 // equals the version it was read at. Both counts only grow, and the snapshot row and the Agent
 // index rows change only in the transaction that moves them, so an equal version means that no
 // commit came between the two reads. Any other answer reads the whole snapshot again. The cache
@@ -199,8 +199,9 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
     }
     const tail = textOf(current['tail'])
     const published = textOf(current['published'])
+    // The snapshot row is replaced only in the transaction that moves the tail, and an entry is
+    // kept only from a whole read that found it covering its tail: an equal tail is covered still.
     if (current['kind'] === 'version' && tail !== null && published !== null) {
-      if (current['covered'] !== tail) return { kind: 'behind' }
       const version = { tail, published }
       if (held !== undefined) {
         const order = compare(version, held.version)
@@ -245,4 +246,25 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
     cache.set(key, { version: { tail, published }, bytes, snapshot })
   else cache.delete(key)
   return { kind: 'state', snapshot }
+}
+
+/**
+ * The cached `session.work` read for a caller that already holds the domain of the tenant and
+ * decided its own access (the Journal provider, the session binding source). It answers as
+ * `decodeSessionWork` does, plus `unavailable`.
+ */
+export function readCachedSessionWork(
+  storage: SqlStorage,
+  domain: DomainRef,
+  tenantText: string,
+  session: string,
+  options: Readonly<{ workCache?: WorkCacheBounds }> = {},
+): Promise<WorkRead> {
+  return readCachedWork({
+    storage,
+    domain,
+    tenant: tenantText,
+    session,
+    ...(options.workCache === undefined ? {} : { bounds: options.workCache }),
+  })
 }
