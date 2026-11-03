@@ -190,7 +190,7 @@ function readToolDelivery(
     schema.digest !== agentToolDeliverySchema.digest
   )
     return null
-  const value = material.value as { tenant?: unknown; delivery?: unknown } | null
+  const value = plainJson(material.value) as { tenant?: unknown; delivery?: unknown } | null
   if (value === null || typeof value !== 'object') return null
   if (
     typeof value.tenant !== 'string' ||
@@ -199,6 +199,34 @@ function readToolDelivery(
   )
     return null
   return { tenant: value.tenant, delivery: value.delivery as ToolDelivery<ContentBlock> }
+}
+
+/** The plain value of a stored JSON tree: the material the receiver keeps holds its facts as one. */
+function plainJson(value: unknown): unknown {
+  const tree = value as {
+    kind?: string
+    value?: unknown
+    lexeme?: string
+    items?: unknown[]
+    entries?: { key: string; value: unknown }[]
+  }
+  switch (tree?.kind) {
+    case 'null':
+      return null
+    case 'boolean':
+    case 'string':
+      return tree.value
+    case 'number':
+      return Number(tree.lexeme)
+    case 'array':
+      return (tree.items ?? []).map(plainJson)
+    case 'object':
+      return Object.fromEntries(
+        (tree.entries ?? []).map(entry => [entry.key, plainJson(entry.value)]),
+      )
+    default:
+      return null
+  }
 }
 
 /** Wakes AD-06 for every `agent-published` event, one session at a time and in order. */
@@ -395,6 +423,11 @@ export async function openW2World(options: W2Options) {
     }
   }
 
+  // The AD-05 and AD-06 calls, kept so a test can run one consume itself and read the answer.
+  const consumers: {
+    ad05?: (target: never) => Promise<unknown>
+    ad06?: (target: never) => Promise<unknown>
+  } = {}
   const w = await openLineWorld({
     wrapStorage: storage => countingStorage(storage, counters),
     journalPlugin: combination => [
@@ -450,6 +483,8 @@ export async function openW2World(options: W2Options) {
       // `agent-published` event, one session at a time, as AD-05 does.
       const ad06 = createSessionToolLogConsumptionPlugin({ toolDeliveries: readToolDelivery })
       const ad06Trigger = ad06Wake(ad06.consume, coordinator)
+      consumers.ad05 = ad05.consume as never
+      consumers.ad06 = ad06.consume as never
       return [
         ...history,
         [ad02.plugin],
@@ -854,6 +889,7 @@ export async function openW2World(options: W2Options) {
       await w.close()
     },
     until,
+    consumers,
     releases: () => releases,
     roundCompletes: () => roundsComplete,
     lastTerminal,
