@@ -34,7 +34,9 @@ export function unknownView(
   return {
     kind: 'unknown',
     operationRef,
-    observedAt: ScheduleInstantSchema.parse(new Date().toISOString()),
+    observedAt: ScheduleInstantSchema.parse(
+      /* wall-clock: observation-time -- Marks this recovery observation; commit time comes from the guard. */ new Date().toISOString(),
+    ),
     result: null,
     error: null,
     notCommittedProofs: null,
