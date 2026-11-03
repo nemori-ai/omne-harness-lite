@@ -266,8 +266,10 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 - 环境类错误。
 - 关闭时被撤下，或期限到达时尚未收场。
 - Worker 在操作途中退出。
+- 等待 `domain-serial` 屏障超过 `lockWaitMs`（§9.3）：操作被撤下，没有发送，诊断 `barrier_wait_expired`。等待期间观察者中止时同样撤下，诊断仍是 `observer_detached`。
+- 已发送的写在 `lockWaitMs` 内没有答复：调用方停止观察，诊断 `reply_wait_expired`。预留、待决索引项与它在次序中的位置都保持到 Worker 答复或退出（§9.3）。
 
-调用方收到 `unknown` 之后，用原身份调用 `query`。
+调用方收到 `unknown` 之后，用原身份调用 `query`。`query` 与 `registerCombination` 的已发送请求受同一观察期限约束（§8、§9.3）。
 
 ## §8 query 的提供者机制
 
@@ -283,13 +285,30 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 
 受理队列只在内存中。重启后队列为空，旧队列中尚未开始的操作没有回执。读 Worker 不能构造任何一项证明。
 
+已发送的 `query` 在 `lockWaitMs` 内没有答复时，调用方得到 `unknown`（诊断 `reply_wait_expired`）；它的队列位置保持到 Worker 答复或退出。`query` 是 `unknown` 之后的恢复路径，所以它自己的等待也必须有界。
+
+## §9.3 读屏障与写的次序
+
+`domain-serial` 读的屏障与同域的写共用一个到达顺序（sql-contract 规格 §9.3）。提供者的实现是 `src/write-barrier.ts`。
+
+- 写进入的条件：顺序中它前面没有屏障。写与写之间并发，组调度器（§7.3）在 Worker 内合并它们。
+- 屏障持有的条件：顺序中它前面没有任何条目。它等待此前进入的写结束，之后到达的写与屏障排在它后面。
+- 这两条合起来，读不能饿死写，写也不能饿死读。每个条目只等待它前面的有限个条目。
+- 每一处等待都有上界：
+  - 写等待屏障的上界是 `lockWaitMs`。到期撤下，不发送，调用方得到 `unknown`（`barrier_wait_expired`）。等待期间观察者中止也撤下（sql-contract 规格 §7.1 第 3 条）。
+  - 读等待屏障的时间计入 `readQueueTimeoutMs`（sql-contract 规格 §9.2 第 9 步）。到期或取消时，读从顺序中撤下，得到 `queue_timeout` 或 `cancelled`。
+  - 撤下的条目不保留位置。它后面的条目按顺序前进。
+- 已进入的写在次序中的位置、它的预留与待决索引项，保持到 Worker 答复或退出。调用方对已发送写的观察上界是 `lockWaitMs`，到期得到 `unknown`（`reply_wait_expired`）。
+- 屏障持有上界是 `readObservationMs`，从派发起算。屏障在读事务结束、读 Worker 退出被观察到，或持有上界到期时释放，以先到者为准。到期释放时该读已经不交付结果（`read_timeout`，或此前已 `cancelled`），所以之后的写不等它的 SQL 结束。取消只结束观察，不提前释放屏障，也不取消持有上界。
+- 提供者不终止卡住的 Worker（L-5）。一个不答复也不退出的写 Worker 让它持有的预留、待决索引项与次序位置一直保持；排在它后面的屏障按 `readQueueTimeoutMs` 得到 `queue_timeout`，再后面的写按 `lockWaitMs` 得到 `unknown`。调用方可见的等待仍然有界，域的吞吐在 Worker 退出前为零。
+
 ## §9.5 读 Worker 与连接
 
 - 读 Worker 只在域到 `ready` 之后打开连接。每个读 Worker 一个连接。
 - 连接绑定作用域、事务域、绑定行、模式代次与 Worker 代际。任一项不符时隔离该连接。提供者不改标签复用连接。
 - 连接回到空闲的条件：语句已结束，结果已转交或丢弃，事务已结束，端口已撤销，没有未结消息。清理异常时关闭连接，观察到关闭后才替换。
 - 结果消息带 Worker 代际、请求序号与租约令牌。三者都匹配、请求尚未结算时才接收。迟到消息不改结果，不重复释放资源。
-- 读 Worker 崩溃时，在途读取为 `worker_exited`，串行屏障保持到退出被观察。调用方重读得到新快照，提供者不拼接部分结果。
+- 读 Worker 崩溃时，在途读取为 `worker_exited`，串行屏障保持到退出被观察，或持有上界到期（§9.3）。调用方重读得到新快照，提供者不拼接部分结果。
 - 空闲达到 `readerIdleMs` 且没有事务时，读 Worker 关闭。观察到退出后才归还名额。
 - 迁移会改变模式代次时：停止派发新读取，等在途读事务结束，关闭旧连接，然后迁移。旧代次的结果不交给新的读取。
 
@@ -304,7 +323,7 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 | `storageRoot` | 装配给出 | 绝对路径（§5.1） |
 | `admissionQueueLimit` | 64 | S1：每域已预留、尚未确认结束的 `commit` 数 |
 | `globalAdmissionLimit` | 256 | 全局的同一计数 |
-| `lockWaitMs` | 5000 | S1：写锁等待，到期为 `unknown` |
+| `lockWaitMs` | 5000 | S1：写锁等待，到期为 `unknown`。也是写在 `domain-serial` 屏障前的等待上界（到期撤下，`barrier_wait_expired`），以及已发送的 `commit`、`query`、`registerCombination` 的调用方观察上界（到期 `reply_wait_expired`，预留保持到 Worker 答复或退出），见 §9.3 |
 | `maxCommandsPerCommit` | 16 | S1：命令条数 |
 | `maxCommandBytes` | 1048576 | S1：单条命令 |
 | `maxRequestBytes` | 4194304 | 一个 `commit` 请求 |
@@ -320,11 +339,11 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 | `maxReadWorkersPerDomain` | 2 | 每域读 Worker，惰性创建 |
 | `readQueuePerDomain` | 32 | 每域读等待项 |
 | `readQueueGlobal` | 256 | 全局读等待项 |
-| `readQueueTimeoutMs` | 1000 | 读请求等待派发 |
+| `readQueueTimeoutMs` | 1000 | 读请求等待派发，含等待 `domain-serial` 屏障的时间；到期从次序中撤下 |
 | `maxReadInputBytes` | 262144 | 一个读请求的输入 |
 | `maxReadResultBytes` | 20971520 | 一个读结果；每个 handler 的 `maxOutputBytes` 不得超过它。20 MiB 是 Session 日志读所需的上限（R2-D81） |
 | `globalReadResultBytes` | 134217728 | 全局在途读结果预留。每次读按 handler 的 `maxOutputBytes` 预留，所以它至少容纳数个 20 MiB 预留（R2-D81） |
-| `readObservationMs` | 2000 | 读运行的观察期限 |
+| `readObservationMs` | 2000 | 读运行的观察期限，也是 `domain-serial` 屏障的持有上界（§9.3） |
 | `readerIdleMs` | 30000 | 空闲读 Worker 的关闭期限 |
 | `queryQueuePerDomain` | 16 | 每域 `query` 等待项 |
 | `queryQueueGlobal` | 64 | 全局 `query` 等待项 |
@@ -377,7 +396,7 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 1. 停止准入。全部域进入 `draining`，收集窗口关闭。新到的操作按 sql-contract 规格 §5.5 得到结果。
 2. 撤下未开始的工作：控制侧等待列表中的操作直接移出；已发给 Worker 的未开始操作经 Worker 确认后撤下。每个预留归还一次。
 3. 正在执行的写跑完。Worker 在操作之间确认关闭后，不再开始后缀，按 §7.7 提交成功前缀或完成失败处理。Worker 不打断正在执行的语句：`node:sqlite` 把语句同步跑完，所以关闭等待当前语句结束。
-4. 已开始的读事务结束后关闭连接，`domain-serial` 屏障随后释放。
+4. 已开始的读事务结束后关闭连接，`domain-serial` 屏障随后释放（持有上界先到时提前释放，§9.3）。
 5. 全部连接关闭、全部 Worker 退出都已被观察时，返回 `closed`。提供者等待每个仍存活的写 Worker 退出，不按域条目的状态挑选。隔离或打开失败后正在结束的 Worker 也在内。
 6. 期限到达时仍有 Worker 未退出，返回 `incomplete`，附 `residuals`。语句仍在执行时，提供者持有该 Worker 的租约。语句在期限内结束时，提供者调用 `release`。期限到达而语句未结束时，提供者不释放租约，此后语句结束仍不调用 `release`，直到装配报告确定（sql-contract 规格 §13.4）。这条释放限制由存储提供者承担。
 
@@ -464,7 +483,7 @@ S2 中已闭合的项已经从本节删除：事务域绑定配置（P-07，§5.
 | L-2 | 真实单轮中的可合并窗口尚未证实 | V4 的真实轨迹 |
 | L-3 | 写 Worker 不做空闲关闭。同时打开的域数受 `maxWorkers` 限制，超出时打开为 `domain_unavailable` | 部署租户数接近该上限 |
 | L-4 | 跨进程写者排除不在保证内 | 多进程部署 |
-| L-5 | 单条 SQL 的 CPU 与内存没有硬上限；Node 同步语句没有已验证的中断；旧 Worker 卡住时 `recovering` 没有时间上界 | handler 负载验证失败，或出现卡死的原生调用 |
+| L-5 | 单条 SQL 的 CPU 与内存没有硬上限；Node 同步语句没有已验证的中断；旧 Worker 卡住时 `recovering` 没有时间上界。提供者不终止卡住的 Worker：它持有的预留、待决索引项、次序位置与读连接直到退出才归还。调用方的等待有界（§9.3：`lockWaitMs`、`readQueueTimeoutMs`、`readObservationMs`），该域的吞吐在 Worker 退出前为零 | handler 负载验证失败，或出现卡死的原生调用 |
 | L-6 | 慢语句期间持续提交的内存上界没有探针（S1） | V2 |
 | L-7 | 材料摘要不防御能写构建目录的攻击者；核对与加载之间存在竞态 | 构建目录不受受信部署保护 |
 | L-8 | WAL 阈值不是磁盘空间的硬保证 | 磁盘空间告警 |
