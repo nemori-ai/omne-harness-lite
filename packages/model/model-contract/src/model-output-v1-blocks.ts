@@ -71,12 +71,19 @@ function isSealable<T extends { kind: string }>(part: T): part is Extract<T, Mod
   }
 }
 
+type SealedShape = Record<string, unknown> & { index: string; block: Record<string, unknown> }
+
+/** The envelope of a sealed block: its keys on the wire, a string index and a record block. */
+function hasSealedShape(value: Record<string, unknown>, encoding: boolean): value is SealedShape {
+  if (!encoding && !outputFields(value, ['kind', 'index', 'block'])) return false
+  return typeof value.index === 'string' && outputRecord(value.block)
+}
+
 function sealed(
   value: Record<string, unknown>,
   encoding: boolean,
 ): VisibleBlock | null | 'unknown' {
-  if (!encoding && !outputFields(value, ['kind', 'index', 'block'])) return null
-  if (typeof value.index !== 'string' || !outputRecord(value.block)) return null
+  if (!hasSealedShape(value, encoding)) return null
   const selected = publicBlock(value.block)
   if (selected === null) return typeof value.block.kind === 'string' ? 'unknown' : null
   const block = judgePart(encoding ? selected : value.block)
