@@ -1981,12 +1981,21 @@ importers:
 
   packages/schedule/schedule:
     dependencies:
+      '@js-temporal/polyfill':
+        specifier: 0.5.1
+        version: 0.5.1
       '@omne-harness/calendar-contract':
         specifier: workspace:*
         version: link:../../calendar/calendar-contract
       '@omne-harness/schedule-contract':
         specifier: workspace:*
         version: link:../schedule-contract
+      cron-parser:
+        specifier: 5.10.3
+        version: 5.10.3
+      rrule:
+        specifier: 2.8.1
+        version: 2.8.1
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -2000,9 +2009,18 @@ importers:
 
   packages/schedule/schedule-contract:
     dependencies:
+      '@js-temporal/polyfill':
+        specifier: 0.5.1
+        version: 0.5.1
       '@omne-harness/calendar-contract':
         specifier: workspace:*
         version: link:../../calendar/calendar-contract
+      canonicalize:
+        specifier: 5.1.0
+        version: 5.1.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -5933,6 +5951,18 @@ packages:
       react:
         optional: true
 
+  cron-parser@5.10.3:
+    resolution: {integrity: sha512-Fwlmlgiyoj5e7XDCy5T3ueFd3imgt714k7xjAzhkOBUrUgQxWtsjS7kWSEN3efDX34bebxBJAmPoCSisHvjlpw==}
+    engines: {node: '>=18'}
+
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
+    engines: {node: '>=12'}
+
+  rrule@2.8.1:
+    resolution: {integrity: sha512-hM3dHSBMeaJ0Ktp7W38BJZ7O1zOgaFEsn41PDk+yHoEtfLV+PoJt9E9xAlZiWgf/iqEqionN0ebHFZIDAp+iGw==}
+
+
 snapshots:
 
   '@ant-design/colors@8.0.1':
@@ -8655,3 +8685,13 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
       react: 19.3.0
+
+  cron-parser@5.10.3:
+    dependencies:
+      luxon: 3.7.2
+
+  rrule@2.8.1:
+    dependencies:
+      tslib: 2.8.1
+
+  luxon@3.7.2: {}

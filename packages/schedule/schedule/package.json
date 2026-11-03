@@ -26,7 +26,10 @@
   },
   "dependencies": {
     "@omne-harness/schedule-contract": "workspace:*",
-    "@omne-harness/calendar-contract": "workspace:*"
+    "@omne-harness/calendar-contract": "workspace:*",
+    "@js-temporal/polyfill": "0.5.1",
+    "rrule": "2.8.1",
+    "cron-parser": "5.10.3"
   },
   "devDependencies": {
     "@types/node": "catalog:",
