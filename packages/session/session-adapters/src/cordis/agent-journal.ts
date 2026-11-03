@@ -226,7 +226,6 @@ const unavailable = (diagnostic: string): Failure => ({
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
 type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
 
-/** The storage operation of one Agent operation of one execution. */
 /**
  * The hand-over the Session participation of one write derives from (AD-01 table). It is the
  * caller of a `commit` or the transfer of a `recordResult`, except for the main reply: a `commit`
@@ -259,6 +258,7 @@ function historyCaller<P>(input: ExecutionMutation<P>, method: JournalWrite): Ca
   }
 }
 
+/** The storage operation of one Agent operation of one execution. */
 function storageOperation(execution: string, operation: string): string {
   return `aop_${createHash('sha256')
     .update(JSON.stringify([execution, operation]))
