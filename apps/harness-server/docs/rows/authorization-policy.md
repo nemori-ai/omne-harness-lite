@@ -33,7 +33,7 @@
 1. 复制请求，并读取操作、目标和命令。
 2. 按操作查表。查表用自有属性判断，`constructor`、`__proto__` 这类原型链键不是操作，答复是拒绝。
 3. 核对固定绑定。变更请求的命令种类等于操作，命令里的会话等于目标的会话，命令里的租户等于访问的租户。`pending` 的目标租户等于访问的租户。目标种类必须是该操作定义的种类。不符就拒绝。
-4. 按主体的形状分类，得到 L、W、S 三列之一。形状只用来选列，不授予资格。不属于任何一列就拒绝。
+4. 按主体的形状分类，得到 L、W、S 三列之一。形状只用来选列，不授予资格。不属于任何一列就拒绝。Agent 的 `receive-result` 一项另认 Model 宿主签发的工作主体 M（行事者组件 `modelHostAuthority`、`work.owner` 为 `model`，形状判定在 `src/model/principals.ts` 的 `classOf`）：M 按 W 列的成员格判断，只核租户；M 做其他 Agent 操作一律拒绝（R2-D248）。
 5. 核对租户。L 和 W 的主体租户必须等于访问的租户。S 不做这一步。
 6. 核对工作绑定。W 的目标是 Session 时，`work.work` 必须等于目标的会话。目标是租户（`pending`）时，只核租户。Agent 的 `scope` 目标要求 `scope.owner` 为 `session`，并且 `scope.record` 等于 `work.work`。
 7. 取格。`accept` 按输入种类取分支，`receive` 按事实种类取分支。请求不在分支内就拒绝。

@@ -30,6 +30,7 @@ import { resolveCell, type BranchInput, type ResolvedCell, type SystemPurpose } 
 import { AGENT_POLICY } from './agent-policy.ts'
 import { SESSION_POLICY } from './session-policy.ts'
 
+import { classOf } from '../../model/principals.ts'
 import { classify, SESSION_WORK_OWNER } from './principals.ts'
 export { LOGIN_WORK_OWNER, SESSION_WORK_OWNER } from './principals.ts'
 export { createActionAdmission } from './action-admission.ts'
@@ -372,10 +373,23 @@ export function createSessionAccessCheck(ports: AccessPorts): SessionAccessCheck
 
 type AgentRequest = Parameters<AgentAccessCheck<unknown>['check']>[0]
 
+/**
+ * The principal of an Agent request. `receive-result` alone also takes the Model host work
+ * principal M (`src/model/principals.ts`): the Model host pushes a result with the M it resolved
+ * through `ModelHostAuthority.resolve`, and the `receive-result` row admits it by the member cell
+ * of the work column, which checks the tenant only (R2-D248, DP-4 Q-1). M takes no other operation.
+ */
+function agentPrincipalOf(operation: string, principal: unknown): ReturnType<typeof classify> {
+  const who = classify(principal)
+  if (who !== null || operation !== 'receive-result') return who
+  const model = classOf(principal)
+  return model?.kind === 'host' ? { column: 'work', principal: model.principal } : null
+}
+
 function planAgent(input: AgentRequest): Plan {
   const { access, operation, target } = input
   if (typeof operation !== 'string' || !Object.hasOwn(AGENT_POLICY, operation)) return DENIED
-  const who = classify(access.principal)
+  const who = agentPrincipalOf(operation, access.principal)
   if (who === null || !actsFor(who, access.tenant)) return DENIED
   // Policy draft §3 step 5: a `scope` target of a work principal is the scope of its own session.
   if (
