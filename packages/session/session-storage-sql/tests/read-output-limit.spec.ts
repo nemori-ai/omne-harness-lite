@@ -11,6 +11,7 @@ import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { JsonValue } from '@omne-harness/sql-contract'
 import { executionRecordFacts, decodeExecutionRecordParts } from '../src/participants.ts'
 import {
   identityOf,
@@ -52,9 +53,7 @@ async function stateOfSize(pad: number) {
   const committed = await app.storage.commit({
     identity: identityOf(TENANT_A, 'dom_0', operation),
     ...app.combination,
-    commands: [
-      executionRecordFacts(jointWrite({ operation, state: { pad: 'x'.repeat(pad) } })),
-    ],
+    commands: [executionRecordFacts(jointWrite({ operation, state: { pad: 'x'.repeat(pad) } }))],
   })
   expect(committed.kind).toBe('committed')
   return app.storage.read({
@@ -66,15 +65,21 @@ async function stateOfSize(pad: number) {
   })
 }
 
+/** The text length of the whole state that a read gave back. */
+function padLength(output: JsonValue): number {
+  const page = decodeExecutionRecordParts(output)
+  if (page === null) throw new Error('the read output is not a page of the parts read')
+  return (page.state as { pad: string }).pad.length
+}
+
 describe('the output limit of the read handlers on the Agent records', () => {
   it('a state of 2 MiB, past the old bound of 1 MiB, is read whole', async () => {
     const size = 2 * 1024 * 1024
     const result = await stateOfSize(size)
     expect(result.kind).toBe('read')
     if (result.kind !== 'read') return
-    const page = decodeExecutionRecordParts(result.output)
-    expect(page?.published).toBe('1')
-    expect((page?.state as { pad: string }).pad.length).toBe(size)
+    expect(decodeExecutionRecordParts(result.output)?.published).toBe('1')
+    expect(padLength(result.output)).toBe(size)
   })
 
   it('a state that fills the limit but for a few hundred bytes is read whole', async () => {
@@ -82,9 +87,7 @@ describe('the output limit of the read handlers on the Agent records', () => {
     const result = await stateOfSize(size)
     expect(result.kind).toBe('read')
     if (result.kind !== 'read') return
-    expect((decodeExecutionRecordParts(result.output)?.state as { pad: string }).pad.length).toBe(
-      size,
-    )
+    expect(padLength(result.output)).toBe(size)
   })
 
   it('a state whose output is past 20 MiB answers read_limit, and nothing of it', async () => {
