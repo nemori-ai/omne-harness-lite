@@ -6,6 +6,7 @@ import { openWindowsAssembly } from './assembly.ts'
 import { runFilesScenario } from './files-scenario.ts'
 import { runShellScenario } from './shell-scenario.ts'
 import { runInterruptScenario } from './interrupt-scenario.ts'
+import { runFailureClosureScenario } from './failure-closure-scenario.ts'
 import { failureDetails } from './helpers.ts'
 
 export type WindowsScenario = (assembly: WindowsAssembly) => Promise<ScenarioResult>
@@ -30,6 +31,7 @@ export async function runWindowsToolComposition() {
     results.files = await runFilesScenario(assembly)
     results.shell = await runShellScenario(assembly)
     results.interrupt = await runInterruptScenario(assembly)
+    results.failureClosure = await runFailureClosureScenario(assembly)
     const beforeDenial = {
       executions: assembly.authorExecutions(),
       acquisitions: assembly.acquisitions(),
@@ -152,18 +154,24 @@ export async function runWindowsToolComposition() {
   const files = results.files
   const shell = results.shell
   const interrupt = results.interrupt
-  assert.ok(files && shell && interrupt, 'Every required scenario must have completed')
+  const failureClosure = results.failureClosure
+  assert.ok(
+    files && shell && interrupt && failureClosure,
+    'Every required scenario must have completed',
+  )
   const passed = (result: ScenarioResult) =>
     Object.values(result.checks).length > 0 && Object.values(result.checks).every(Boolean)
   return {
     backend: process.platform === 'win32' ? 'windows-real' : 'invalid-platform',
     files: passed(files) ? 'passed' : 'failed',
     shell: passed(shell) ? 'passed' : 'failed',
+    failureClosure: passed(failureClosure) ? 'passed' : 'failed',
     retainedTerminal:
       shell.checks.retainedCwd && shell.checks.freshAttachment ? 'passed' : 'failed',
     targetStopped: interrupt.checks.aStopConfirmed === true,
     otherCallContinued: interrupt.checks.bContinues === true,
-    originalConsumerSaved: saved.length > 0 && passed(files) && passed(shell) && passed(interrupt),
+    originalConsumerSaved:
+      saved.length > 0 && passed(files) && passed(shell) && passed(interrupt) && passed(failureClosure),
     evidenceDirectory,
     observations: summary,
   }

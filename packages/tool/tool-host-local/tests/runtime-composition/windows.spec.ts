@@ -26,6 +26,7 @@ it(
       backend: 'windows-real',
       files: 'passed',
       shell: 'passed',
+      failureClosure: 'passed',
       retainedTerminal: 'passed',
       targetStopped: true,
       otherCallContinued: true,
