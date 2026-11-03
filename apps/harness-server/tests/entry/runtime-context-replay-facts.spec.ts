@@ -1,7 +1,9 @@
 // B1-GAP-REPLAY-FACTS-LINK (SC2): the installed `runtimeContextTrust` reads the holder facts per call
 // from `sessionReplayFacts`, the service of the facts sub-plugin of row `session-ad03`. A recovery
 // that finishes (RC-09) is checked against those facts; with the service absent, stopped or
-// throwing, the answer is `unavailable`, never `authorized`.
+// throwing, the answer is `unavailable`, never `authorized`. The name is trusted (scope 「会话回放事实」
+// of the assembly page, R2-D163, R2-D168): the facts plugin runs in the trusted context of the name,
+// as row `session-ad03` does, and a same-name provider on the root is not read.
 import type { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type { Principal } from '@omne-harness/identity'
@@ -17,7 +19,10 @@ import {
 import { runtimeContextTrustKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import type { SessionId } from '@omne-harness/session-contract'
 import type { SessionReplayFacts, StepCommittedBlocks } from '@omne-harness/session-adapters'
-import { SessionReplayFactsService } from '@omne-harness/session-cordis-contract/cordis'
+import {
+  SessionReplayFactsService,
+  sessionReplayFactsKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import { principalIssuer } from '../../src/entry/principals.ts'
 import {
   createRuntimeContextTrustModule,
@@ -88,7 +93,7 @@ const boundScopes = createSessionScopeSource({
   }),
 })
 
-/** A stand-in of the facts sub-plugin: provides `sessionReplayFacts` on the root while it runs. */
+/** A stand-in of the facts sub-plugin: provides `sessionReplayFacts` in the context it runs in. */
 function factsPlugin(answer: SessionReplayFacts['stepCommittedBlocks'], calls: unknown[] = []) {
   class Facts extends SessionReplayFactsService {
     readonly stepCommittedBlocks: SessionReplayFacts['stepCommittedBlocks'] = (...args) => {
@@ -108,13 +113,15 @@ const known =
 
 type World = Readonly<{
   fixture: FixtureEnv
+  /** The trusted context of `sessionReplayFacts`, where row `session-ad03` provides it. */
+  facts: Context
   acting: (tenant: TenantId) => Principal
   /** Asks one holder decision through the installed service, from a reader fiber. */
   ask(principal: Principal, action: HolderAction<unknown>): Promise<HolderDecision<unknown>>
 }>
 
 async function world(): Promise<World> {
-  const fixture = fixtureEnv([runtimeContextTrustKey, principalIssuerKey])
+  const fixture = fixtureEnv([runtimeContextTrustKey, principalIssuerKey, sessionReplayFactsKey])
   await fixture.install(principalIssuer)
   // The entry is installed before any row, as in `serve`: the facts plugin starts later.
   await fixture.install(createRuntimeContextTrustModule(boundScopes))
@@ -128,6 +135,7 @@ async function world(): Promise<World> {
   const trust = fixture.scopeOf(runtimeContextTrustKey)
   return {
     fixture,
+    facts: fixture.scopeOf(sessionReplayFactsKey),
     acting,
     async ask(principal, action) {
       let asked: Promise<HolderDecision<unknown>> | undefined
@@ -149,9 +157,9 @@ async function world(): Promise<World> {
 
 describe('the replay facts of the installed runtimeContextTrust (B1-GAP-REPLAY-FACTS-LINK)', () => {
   it('reads the facts of a facts plugin that starts after the entry: an uncovered recovery is replay-incomplete', async () => {
-    const { fixture, acting, ask } = await world()
+    const { facts, acting, ask } = await world()
     const calls: unknown[] = []
-    await fixture.root.plugin(factsPlugin(known(KEY), calls))
+    await facts.plugin(factsPlugin(known(KEY), calls))
     const principal = acting(tenantA)
     await expect(ask(principal, finishReplay(tenantA, []))).resolves.toEqual({
       kind: 'invalid',
@@ -161,15 +169,15 @@ describe('the replay facts of the installed runtimeContextTrust (B1-GAP-REPLAY-F
   })
 
   it('authorizes a recovery whose material covers every block the facts name', async () => {
-    const { fixture, acting, ask } = await world()
-    await fixture.root.plugin(factsPlugin(known(KEY)))
+    const { facts, acting, ask } = await world()
+    await facts.plugin(factsPlugin(known(KEY)))
     const decision = await ask(acting(tenantA), finishReplay(tenantA, [KEY]))
     expect(decision.kind).toBe('authorized')
   })
 
   it('passes the unknown answer of the facts through; it is not read as covered', async () => {
-    const { fixture, acting, ask } = await world()
-    await fixture.root.plugin(factsPlugin(async () => ({ kind: 'unknown' })))
+    const { facts, acting, ask } = await world()
+    await facts.plugin(factsPlugin(async () => ({ kind: 'unknown' })))
     await expect(ask(acting(tenantA), finishReplay(tenantA, [KEY]))).resolves.toEqual({
       kind: 'unknown',
     })
@@ -182,9 +190,19 @@ describe('the replay facts of the installed runtimeContextTrust (B1-GAP-REPLAY-F
     })
   })
 
-  it('reads per call: once the facts plugin stops, the next recovery is unavailable', async () => {
+  it('does not read a same-name provider on the root: a forged known stays unavailable (R2-D168 N1)', async () => {
     const { fixture, acting, ask } = await world()
-    const fiber = fixture.root.plugin(factsPlugin(known(KEY)))
+    const calls: unknown[] = []
+    await fixture.root.plugin(factsPlugin(known(), calls))
+    await expect(ask(acting(tenantA), finishReplay(tenantA, []))).resolves.toEqual({
+      kind: 'unavailable',
+    })
+    expect(calls).toEqual([])
+  })
+
+  it('reads per call: once the facts plugin stops, the next recovery is unavailable', async () => {
+    const { facts, acting, ask } = await world()
+    const fiber = facts.plugin(factsPlugin(known(KEY)))
     await fiber
     expect((await ask(acting(tenantA), finishReplay(tenantA, [KEY]))).kind).toBe('authorized')
     await fiber.dispose()
@@ -194,9 +212,9 @@ describe('the replay facts of the installed runtimeContextTrust (B1-GAP-REPLAY-F
   })
 
   it('a principal of another tenant is refused before the facts are read', async () => {
-    const { fixture, acting, ask } = await world()
+    const { facts, acting, ask } = await world()
     const calls: unknown[] = []
-    await fixture.root.plugin(factsPlugin(known(KEY), calls))
+    await facts.plugin(factsPlugin(known(KEY), calls))
     await expect(ask(acting(tenantB), finishReplay(tenantA, [KEY]))).resolves.toEqual({
       kind: 'refused',
     })

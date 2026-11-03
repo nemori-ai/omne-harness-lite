@@ -31,7 +31,7 @@ import {
   type StepCommittedBlocks,
 } from '@omne-harness/session-adapters'
 import { sessionReplayFactsKey } from '@omne-harness/session-cordis-contract/cordis'
-import type { EntryObjectModule } from '../types.ts'
+import type { EntryEnv, EntryObjectModule } from '../types.ts'
 import { verifierOf } from './principals.ts'
 import type { SessionScopeOwnershipSource, SessionScopeSource } from './session-scope-source.ts'
 
@@ -153,12 +153,15 @@ export const unavailableScopeBindings: ScopeBindingSource = Object.freeze({
 export type ReplayFactsReader = () => SessionReplayFacts | undefined
 
 /**
- * 发行读法：在入口自己的上下文上按名现取 `sessionReplayFacts`。该名在发行受信表里不是受信名（应用装配页
- * 「受信子树」未列），所以从根解出 `session-ad03` 事实子插件提供的服务。受信表把它列为受信名时，改为经
- * `env.readTrusted` 读取，见本行交回的接线事实。
+ * 发行读法：每次调用经 `env.readTrusted` 在受信作用域里现取 `sessionReplayFacts`（应用装配页受信子树的
+ * 「会话回放事实」作用域，R2-D163、R2-D168）。提供者是 `session-ad03` 行的事实子插件，它装在对该名可见的
+ * 受信上下文里；根上的同名提供者不在这个作用域，读不到，也替换不了它。不在场是 `undefined`。
  */
-export function readReplayFactsService(scope: Context): SessionReplayFacts | undefined {
-  return scope.get(sessionReplayFactsKey)
+export function readReplayFactsService(env: EntryEnv): SessionReplayFacts | undefined {
+  const facts: SessionReplayFacts | undefined = env
+    .readTrusted(sessionReplayFactsKey)
+    .get(sessionReplayFactsKey)
+  return facts
 }
 
 const FACTS_UNAVAILABLE: StepCommittedBlocks = Object.freeze({ kind: 'unavailable' })
@@ -247,12 +250,12 @@ class EntryRuntimeContextTrust extends RuntimeContextTrustService<unknown> {
 }
 
 /**
- * `readReplayFacts` 默认是发行读法 {@link readReplayFactsService}，读的是本入口对象自己的上下文；
+ * `readReplayFacts` 默认是发行读法 {@link readReplayFactsService}，读的是入口受信的 `sessionReplayFacts`；
  * 用例可换成别的现取读口，缺席时同样答 `unavailable`。
  */
 export function createRuntimeContextTrustModule(
   scopes?: SessionScopeSource,
-  readReplayFacts: (scope: Context) => SessionReplayFacts | undefined = readReplayFactsService,
+  readReplayFacts: (env: EntryEnv) => SessionReplayFacts | undefined = readReplayFactsService,
 ): EntryObjectModule {
   return {
     name: runtimeContextTrustKey,
@@ -260,7 +263,7 @@ export function createRuntimeContextTrustModule(
     install(scope, env) {
       const logger = scope.logger('runtimeContextTrust')
       const replayFacts = entryReplayFacts(
-        () => readReplayFacts(scope),
+        () => readReplayFacts(env),
         diagnostic => logger.debug(diagnostic),
       )
       new EntryRuntimeContextTrust(scope, verifierOf(env), replayFacts, scopes)
