@@ -247,7 +247,8 @@ export function operatorLayerB(options) {
     [
       'agent-context',
       {
-        resultCapacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
+        // 一次调用的结果容量不超过 model-records 的 maxCallBytes（N1），超过时受理答 capacity（G-DIALOG 第九层）。
+        resultCapacity: { bytes: '524288', blocks: '100', attachmentBytes: '0' },
       },
     ],
     ['agent-host', AGENT_HOST],
