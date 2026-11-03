@@ -1,0 +1,201 @@
+{
+  "source": "omne-next@a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0 library semantics",
+  "versions": {
+    "python-dateutil": "2.9.0.post0",
+    "croniter": "6.2.2"
+  },
+  "rows": [
+    {
+      "name": "daily-times",
+      "reference": null,
+      "count": 1000,
+      "sha256": "91fdaf97382b170644805f9debdf5340024a2add049d1f73641ba038545ac249",
+      "first": "2026-01-01T09:00:00",
+      "last": "2027-05-15T17:00:00"
+    },
+    {
+      "name": "daily-times",
+      "reference": null,
+      "count": 2000,
+      "sha256": "35a3cd5af00d5505c6c39c16c77f119f9da29744e09f35fcfae6f53ae9825fe2",
+      "first": "2026-01-01T09:00:00",
+      "last": "2028-09-26T17:00:00"
+    },
+    {
+      "name": "daily-times",
+      "reference": "2027-01-01T00:00:00",
+      "count": 1000,
+      "sha256": "259a210c4050e157db13a1201d3376a1e4e643a680d2b5285a0dd6f9a761f5b6",
+      "first": "2027-01-01T09:00:00",
+      "last": "2028-05-14T17:00:00"
+    },
+    {
+      "name": "daily-times",
+      "reference": "2027-01-01T00:00:00",
+      "count": 2000,
+      "sha256": "bb7b9a0bcdc797b054043315327ed685c3b573ed16b393924eb6edd3e36c83af",
+      "first": "2027-01-01T09:00:00",
+      "last": "2029-09-26T17:00:00"
+    },
+    {
+      "name": "daily-times",
+      "reference": "2036-01-01T00:00:00",
+      "count": 1000,
+      "sha256": "b5a7c2e9e7d40d52fa1bb1f069a72d2244e3a1d8a48daecbfe336e14c92fd0e8",
+      "first": "2036-01-01T09:00:00",
+      "last": "2037-05-14T17:00:00"
+    },
+    {
+      "name": "daily-times",
+      "reference": "2036-01-01T00:00:00",
+      "count": 2000,
+      "sha256": "c5cc3952554c1a6292b5f1fa149ba38573260d4f66217ddcdd82b901a58f64d6",
+      "first": "2036-01-01T09:00:00",
+      "last": "2038-09-26T17:00:00"
+    },
+    {
+      "name": "monthly-position",
+      "reference": null,
+      "count": 1000,
+      "sha256": "a3accc6a69dbcf9cb045b9aaf3dc8181a29175565ae21f63bd735f7b6fe69265",
+      "first": "2026-01-01T09:00:00",
+      "last": "2067-08-31T09:00:00"
+    },
+    {
+      "name": "monthly-position",
+      "reference": null,
+      "count": 2000,
+      "sha256": "ba43fb62c6a8daddf73699574405043db3543b657d62d7acfd748886e63388d7",
+      "first": "2026-01-01T09:00:00",
+      "last": "2109-04-30T09:00:00"
+    },
+    {
+      "name": "monthly-position",
+      "reference": "2027-01-01T00:00:00",
+      "count": 1000,
+      "sha256": "b07cec68991c0b3a815700a13a0090f15615723bdd710e36a0905f0204bbc0d9",
+      "first": "2027-01-01T09:00:00",
+      "last": "2068-08-31T09:00:00"
+    },
+    {
+      "name": "monthly-position",
+      "reference": "2027-01-01T00:00:00",
+      "count": 2000,
+      "sha256": "6848e1331238eb90bbbbd035154c6148ec1677458e8ccdf26c62acef6e2802d5",
+      "first": "2027-01-01T09:00:00",
+      "last": "2110-04-30T09:00:00"
+    },
+    {
+      "name": "monthly-position",
+      "reference": "2036-01-01T00:00:00",
+      "count": 1000,
+      "sha256": "d1a01968a0c70286c7c75a734d1000c5ac68479a9b11fd4c281d982668ead5b3",
+      "first": "2036-01-01T09:00:00",
+      "last": "2077-08-31T09:00:00"
+    },
+    {
+      "name": "monthly-position",
+      "reference": "2036-01-01T00:00:00",
+      "count": 2000,
+      "sha256": "d9f5a15358cba0be3bc75c39fbb7fd3e80ccc4049481fd6e2e9618d9c385322b",
+      "first": "2036-01-01T09:00:00",
+      "last": "2119-04-28T09:00:00"
+    },
+    {
+      "name": "easter-union",
+      "reference": null,
+      "count": 1000,
+      "sha256": "3c7eef4b3d6f5158c79a6723d482b6b64c1483c2250b48f7160671212d380372",
+      "first": "2026-04-03T09:00:00",
+      "last": "2192-04-01T17:00:00"
+    },
+    {
+      "name": "easter-union",
+      "reference": null,
+      "count": 2000,
+      "sha256": "dbbd3813b72f55cae0101dea21d051f6c451fa2b914a637d7a39fd85a4fe492d",
+      "first": "2026-04-03T09:00:00",
+      "last": "2359-04-17T17:00:00"
+    },
+    {
+      "name": "easter-union",
+      "reference": "2027-01-01T00:00:00",
+      "count": 1000,
+      "sha256": "e0e711e707be1277a8af70d3c60945fd74fddb706123ff5426ada9e118224b33",
+      "first": "2027-03-26T09:00:00",
+      "last": "2193-04-21T17:00:00"
+    },
+    {
+      "name": "easter-union",
+      "reference": "2027-01-01T00:00:00",
+      "count": 2000,
+      "sha256": "3b5dd2462a6108048a3c8fc0933b3fba3a089a3293e7155a1423a466486db43f",
+      "first": "2027-03-26T09:00:00",
+      "last": "2360-04-01T17:00:00"
+    },
+    {
+      "name": "easter-union",
+      "reference": "2036-01-01T00:00:00",
+      "count": 1000,
+      "sha256": "5e98f46627d515a6c64b77cf988e5477fc5fd592dd1e44613408ef451a3e654c",
+      "first": "2036-04-11T09:00:00",
+      "last": "2202-04-11T17:00:00"
+    },
+    {
+      "name": "easter-union",
+      "reference": "2036-01-01T00:00:00",
+      "count": 2000,
+      "sha256": "79b5ec03f675cf65e497fc55b212d6c9fd61aacb14dd3b46e02cbd5d720d40c6",
+      "first": "2036-04-11T09:00:00",
+      "last": "2369-03-28T17:00:00"
+    },
+    {
+      "name": "cron-union",
+      "reference": null,
+      "count": 1000,
+      "sha256": "ecfa1a91a6daaca64f74c192c9cbcbd25e577bbe87f6214ddd029dd904623ba8",
+      "first": "2026-01-05T09:00:00",
+      "last": "2067-08-19T09:00:00"
+    },
+    {
+      "name": "cron-union",
+      "reference": null,
+      "count": 2000,
+      "sha256": "fc78ba39e717c185b2a4fc9639196b6720936a154267ab3008669e2c63bddfef",
+      "first": "2026-01-05T09:00:00",
+      "last": "2109-04-19T09:00:00"
+    },
+    {
+      "name": "cron-union",
+      "reference": "2027-01-01T00:00:00",
+      "count": 1000,
+      "sha256": "b9d4abae76e88c8e54c43cc0fbfb585bfb06ec67b6e38fe67b72410328d20655",
+      "first": "2027-01-04T09:00:00",
+      "last": "2068-08-17T09:00:00"
+    },
+    {
+      "name": "cron-union",
+      "reference": "2027-01-01T00:00:00",
+      "count": 2000,
+      "sha256": "4d9708169b56cb6ba08598bdd73c9bfd00ccfa620d9cee368395a24e3d3e6d1a",
+      "first": "2027-01-04T09:00:00",
+      "last": "2110-04-18T09:00:00"
+    },
+    {
+      "name": "cron-union",
+      "reference": "2036-01-01T00:00:00",
+      "count": 1000,
+      "sha256": "ff786be172b09930e658c228337b79f6d662fa43093f4eedfe7e0878f9e3eec9",
+      "first": "2036-01-07T09:00:00",
+      "last": "2077-08-20T09:00:00"
+    },
+    {
+      "name": "cron-union",
+      "reference": "2036-01-01T00:00:00",
+      "count": 2000,
+      "sha256": "bcb0b2b2943e2b6bb9c528c6651749b6481d062477275e1ab0676740f1790ee3",
+      "first": "2036-01-07T09:00:00",
+      "last": "2119-04-21T09:00:00"
+    }
+  ]
+}
