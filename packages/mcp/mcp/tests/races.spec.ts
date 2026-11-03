@@ -3,14 +3,28 @@
 // ensure of the same key both leave their connection with an owner. Steps are ordered with
 // deferred promises; the only timers are the connection bounds under test.
 import { describe, expect, it } from 'vitest'
+import { connectionKeyOf } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
 import { admit } from '../src/internal/gate.ts'
 import { createConnectionTable } from '../src/internal/table.ts'
 import { core } from './doubles/core.ts'
 import { deferred, settled } from './doubles/deferred.ts'
-import { stallingEligibility, stallingLanding } from './doubles/stalls.ts'
+import {
+  stallingAdoption,
+  stallingCredentials,
+  stallingEligibility,
+  stallingLanding,
+} from './doubles/stalls.ts'
 import { alice, millis, peerIdentity, ref } from './doubles/values.ts'
-import { VALUE, adoptStdio, page, usualScript, world, type World } from './doubles/world.ts'
+import {
+  VALUE,
+  adoptHttp,
+  adoptStdio,
+  page,
+  usualScript,
+  world,
+  type World,
+} from './doubles/world.ts'
 
 const files = ref('files')
 const peer = peerIdentity()
@@ -303,5 +317,220 @@ describe('the gate the services walk through (D1)', () => {
     expect(await c.status.inspect(alice, files)).toMatchObject({
       ok: { connection: { kind: 'ready' } },
     })
+  })
+})
+
+const NOT_SENT: TransportFailure = { kind: 'not-sent', cause: 'connection-unavailable' }
+
+describe('lose shares the close (R3-1): one teardown per entry, in the close order', () => {
+  it('a release during the teardown of a lost connection waits for it; the next refresh builds', async () => {
+    const closing = deferred<'closed'>()
+    const w = world({
+      script: [{ discover: peer }, { listActions: NOT_SENT }, { close: closing }, ...usualScript()],
+    })
+    adoptStdio(w, files, { auth: 'static', env: [{ name: 'TOKEN', source: 'credential' }] })
+    const c = core(w)
+    const losing = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    // The transport is closing. Nothing else of the close order has happened yet.
+    expect(w.transports.calls.filter(call => call.kind === 'close')).toHaveLength(1)
+    expect(w.trace).toEqual([])
+    let released = false
+    const releasing = c.connections.release(alice, files).then(report => {
+      released = true
+      return report
+    })
+    await settled()
+    expect(released).toBe(false)
+    expect(w.trace).toEqual([])
+    closing.resolve('closed')
+    expect(await releasing).toEqual({ ok: { kind: 'released', process: 'tree-confirmed' } })
+    expect(await losing).toEqual({ failure: { kind: 'connection-unavailable' } })
+    expect(w.trace).toEqual(['transport.close', 'process.stop', 'credential.release'])
+    expect(await c.status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'none' } },
+    })
+    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
+      ok: { kind: 'published', revision: 1 },
+    })
+    expect(w.landing.processes()).toEqual([{ stops: 1 }, { stops: 0 }])
+    expect(w.credentials.handles()).toEqual([
+      { acquired: 1, released: 1 },
+      { acquired: 1, released: 0 },
+    ])
+  })
+
+  it('a refresh during the teardown of a lost connection waits for it, then builds', async () => {
+    const closing = deferred<'closed'>()
+    const w = world({
+      script: [{ discover: peer }, { listActions: NOT_SENT }, { close: closing }, ...usualScript()],
+    })
+    adoptStdio(w, files)
+    const c = core(w)
+    const losing = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    let answered = false
+    const next = c.discovery.refresh(alice, { ref: files }).then(answer => {
+      answered = true
+      return answer
+    })
+    await settled()
+    expect(answered).toBe(false)
+    expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
+    closing.resolve('closed')
+    expect(await losing).toEqual({ failure: { kind: 'connection-unavailable' } })
+    expect(await next).toEqual({ ok: { kind: 'published', revision: 1 } })
+    expect(w.trace).toEqual(['transport.close', 'process.stop'])
+    expect(await c.status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'ready' } },
+    })
+    expect(w.landing.processes()).toEqual([{ stops: 1 }, { stops: 0 }])
+  })
+})
+
+describe('a process that lands after the bound (R3-2, S9)', () => {
+  function stalledLanding(w: World) {
+    const stalled = stallingLanding(w.landing)
+    return { gate: stalled.gate, c: core({ ...w, ports: { ...w.ports, landing: stalled.port } }) }
+  }
+
+  it('is stopped on arrival; a stop that is not tree-confirmed is a residual that release and closeAll report', async () => {
+    const w = world({ script: usualScript(), stop: 'unconfirmed' })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    const { gate, c } = stalledLanding(w)
+    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
+      failure: { kind: 'connection-unavailable' },
+    })
+    expect(await c.status.inspect(alice, files)).toEqual({
+      ok: {
+        ref: files,
+        connection: { kind: 'lost', reason: 'preparation-failed' },
+        credential: 'not-required',
+        use: { kind: 'usable' },
+      },
+    })
+    gate.resolve()
+    await settled()
+    expect(w.landing.processes()).toEqual([{ stops: 1 }])
+    expect(await c.status.inspect(alice, files)).toMatchObject({
+      ok: {
+        connection: {
+          kind: 'lost',
+          reason: 'preparation-failed',
+          residual: [{ kind: 'process', confirmed: 'unconfirmed' }],
+        },
+      },
+    })
+    expect(await c.connections.release(alice, files)).toEqual({
+      ok: { kind: 'released', process: 'unconfirmed' },
+    })
+    expect(w.landing.processes()).toEqual([{ stops: 2 }])
+    expect(await c.status.inspect(alice, files)).toMatchObject({
+      ok: {
+        connection: {
+          kind: 'lost',
+          reason: 'close-unconfirmed',
+          residual: [{ kind: 'process', confirmed: 'unconfirmed' }],
+        },
+      },
+    })
+    expect(await c.connections.closeAll()).toEqual([{ ref: files, process: 'unconfirmed' }])
+  })
+
+  it('the process credential handle is released after the late stop() returned (S9)', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files, {
+      auth: 'static',
+      env: [{ name: 'TOKEN', source: 'credential' }],
+      settings: { connectTimeout: VALUE(millis(50)) },
+    })
+    const { gate, c } = stalledLanding(w)
+    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
+      failure: { kind: 'connection-unavailable' },
+    })
+    // No process yet, but one may still land with the handle in its environment: the handle waits.
+    expect(w.trace).toEqual([])
+    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 0 }])
+    gate.resolve()
+    await settled()
+    expect(w.trace).toEqual(['process.stop', 'credential.release'])
+    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
+  })
+
+  it('a landing that fails after the bound: no process, the handle released on the answer', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files, {
+      auth: 'static',
+      env: [{ name: 'TOKEN', source: 'credential' }],
+      facilities: ['gpu'],
+      settings: { connectTimeout: VALUE(millis(50)) },
+    })
+    const { gate, c } = stalledLanding(w)
+    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
+      failure: { kind: 'connection-unavailable' },
+    })
+    expect(w.trace).toEqual([])
+    gate.resolve()
+    await settled()
+    expect(w.trace).toEqual(['credential.release'])
+    expect(w.landing.processes()).toEqual([])
+  })
+
+  it('a credential handle that arrives after the bound is released; a release that rejects is dropped, not unhandled', async () => {
+    const w = world({ script: usualScript() })
+    adoptHttp(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    const stalled = stallingCredentials(w.ports.credentials, handle => ({
+      ...handle,
+      release: () => Promise.reject(new Error('release failed')),
+    }))
+    const c = core({ ...w, ports: { ...w.ports, credentials: stalled.port } })
+    const unhandled: unknown[] = []
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason)
+    }
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
+        failure: { kind: 'connection-unavailable' },
+      })
+      stalled.gate.resolve()
+      await settled()
+      await settled()
+      expect(stalled.releases()).toBe(1)
+      expect(unhandled).toEqual([])
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+    }
+  })
+})
+
+describe('two tokens of two revisions at the re-read (observation)', () => {
+  it('leaves one entry, on the newer revision; the older build is closed, the newer one is not', async () => {
+    const w = world({ script: [{ discover: peer }, { discover: peer }] })
+    adoptStdio(w, files)
+    // Call 1 is the gate for the old token; call 2 is the re-read of its ensure, answered at once
+    // (revision 1) but delivered after the adoption moved on and a newer token asked.
+    const stalled = stallingAdoption(w.ports.adoption, 2)
+    const ports = { ...w.ports, adoption: stalled.port }
+    const table = createConnectionTable(ports, w.config)
+    const old = await admit(ports, alice, files)
+    if (old.kind !== 'admitted') throw new Error('not admitted')
+    const first = table.ensure(old.endpoint, alice)
+    await settled()
+    w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
+    const current = await admit(ports, alice, files)
+    if (current.kind !== 'admitted') throw new Error('not admitted')
+    const second = table.ensure(current.endpoint, alice)
+    await settled()
+    stalled.gate.resolve()
+    const [a, b] = await Promise.all([first, second])
+    if (!('ok' in b)) throw new Error('the newer token did not connect')
+    expect(b.ok.connection.isCurrent(b.ok.generation)).toBe(true)
+    if ('ok' in a) expect(a.ok.connection.isCurrent(a.ok.generation)).toBe(false)
+    const anonymous = { kind: 'anonymous' as const }
+    expect(table.current(connectionKeyOf(alice.tenant, current.endpoint, anonymous))).toBeDefined()
+    expect(table.current(connectionKeyOf(alice.tenant, old.endpoint, anonymous))).toBeUndefined()
+    expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'ready' })
+    expect(await table.closeAll()).toHaveLength(1)
   })
 })

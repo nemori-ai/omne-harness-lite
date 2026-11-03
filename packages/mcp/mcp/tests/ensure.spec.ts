@@ -583,3 +583,32 @@ describe('ensure: the connection key (invariant 1)', () => {
     expect(w.landing.started()[0]?.env.credentials.map(item => item.name)).toEqual(['TOKEN'])
   })
 })
+
+describe('ensure: the adoption is read again before a build (MC-5)', () => {
+  it('answers not-available-to-you for a token of an endpoint withdrawn after the gate, and builds nothing', async () => {
+    const w = world({ script: [{ discover: peer }] })
+    adoptStdio(w, files)
+    const table = tableOf(w)
+    const token = await admitted(w, files)
+    w.adoption.withdraw(alice.tenant, files)
+    expect(await table.ensure(token, alice)).toEqual({
+      failure: { stage: 'settings', reason: { kind: 'not-available-to-you' } },
+    })
+    expect(w.transports.calls).toHaveLength(0)
+    expect(w.landing.started()).toHaveLength(0)
+    expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'none' })
+  })
+
+  it('answers unknown when the adoption cannot be read again, and builds nothing', async () => {
+    const w = world({ script: [{ discover: peer }] })
+    adoptStdio(w, files)
+    const table = tableOf(w)
+    const token = await admitted(w, files)
+    w.adoption.setUnreadable(true)
+    expect(await table.ensure(token, alice)).toEqual({
+      failure: { stage: 'settings', reason: { kind: 'unknown' } },
+    })
+    expect(w.transports.calls).toHaveLength(0)
+    expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'none' })
+  })
+})

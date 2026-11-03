@@ -1,8 +1,9 @@
 // The gate (SPEC S1): adoption first, eligibility second, in that order, in one place. The body
 // is parsed here once. Two capability tokens come out: `AdoptedOnly` (adopted, body read,
 // eligibility not decided) and `AdmittedEndpoint` (eligible as well). Only this module grants
-// them; a function that needs a connection takes `AdmittedEndpoint`, so passing the gate is
-// checked by the compiler and, for a forged object, by `assertAdmitted` at run time.
+// them, and only on what the adoption port handed out: `judge` admits no token it did not make.
+// A function that needs a connection takes `AdmittedEndpoint`, so passing the gate is checked by
+// the compiler and, for a forged object, by `assertAdmitted` at run time.
 import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -73,7 +74,7 @@ export function assertAdmitted(endpoint: AdoptedEndpoint): asserts endpoint is A
 }
 
 /** The adopted-only token of an endpoint the adoption port handed out, with its body parsed. */
-export function adoptedOnlyOf(endpoint: AdoptedEndpoint): Outcome<AdoptedOnly, 'body-unreadable'> {
+function tokenOf(endpoint: AdoptedEndpoint): Outcome<AdoptedOnly, 'body-unreadable'> {
   const parsed = parseEndpointBody(endpoint.body, endpoint.ref.name)
   if ('failure' in parsed) return fail('body-unreadable')
   const token = Object.freeze({ ...endpoint, definition: parsed.ok })
@@ -90,15 +91,21 @@ export async function adopted<P, S>(
   const answer = await ports.adoption.endpoint(access, ref)
   if ('failure' in answer) return fail('adoption-unknown')
   if (answer.ok === 'not-adopted') return fail('not-adopted')
-  return adoptedOnlyOf(answer.ok)
+  return tokenOf(answer.ok)
 }
 
-/** Eligibility on an adopted endpoint: the second half of S1, and the only grant of admission. */
+/**
+ * Eligibility on an adopted endpoint: the second half of S1, and the only grant of admission.
+ * The token has to be one this gate made from the adoption port's answer; a copy with another
+ * body or definition is a `TypeError`, so nothing admitted runs on material the port did not give.
+ */
 export async function judge<P, S>(
   ports: GatePorts<P, S>,
   access: Access<P>,
   endpoint: AdoptedOnly,
 ): Promise<GateDecision> {
+  if (!adoptedTokens.has(endpoint))
+    throw new TypeError('the endpoint did not come from the MCP gate')
   const verdict = await ports.eligibility.check(access, endpoint.ref)
   switch (verdict.kind) {
     case 'granted': {
@@ -131,6 +138,27 @@ export async function admit<P, S>(
   const endpoint = await adopted(ports, access, ref)
   if ('failure' in endpoint) return { kind: endpoint.failure }
   return judge(ports, access, endpoint.ok)
+}
+
+/**
+ * The decisions for every endpoint adopted in a scope (S1 for `EndpointStatus.list`): the
+ * adoption asked once, eligibility asked per endpoint, in the order the adoption listed them.
+ */
+export async function admitScope<P, S>(
+  ports: GatePorts<P, S>,
+  access: Access<P>,
+  scope: S,
+): Promise<Outcome<readonly GateDecision[], 'adoption-unknown'>> {
+  const listed = await ports.adoption.endpoints(access, scope)
+  if ('failure' in listed) return fail('adoption-unknown')
+  const decisions: GateDecision[] = []
+  for (const endpoint of listed.ok) {
+    const token = tokenOf(endpoint)
+    decisions.push(
+      'failure' in token ? { kind: token.failure } : await judge(ports, access, token.ok),
+    )
+  }
+  return succeed(decisions)
 }
 
 /** The refusal a decision other than `admitted` is reported as (SPEC R1, S1). */

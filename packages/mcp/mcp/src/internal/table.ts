@@ -3,7 +3,8 @@
 // operations on them: `ensure` (reuse or build, single flight per key), `settle` and `lose` (what
 // a request on an established connection found), `close` (the close order of the group page,
 // single flight per key) and `closeAll`. The table does the I/O; the aggregate does the state;
-// nothing outside the table writes the aggregate.
+// nothing outside the table writes the aggregate. Every entry has one teardown at a time, shared
+// by a lose, a failed build, a rebuild and a close, in the order transport, processes, handle.
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -25,13 +26,13 @@ import {
   type Millis,
   type NoAnswerCause,
   type PeerIdentity,
-  type Refusal,
   type ReleaseReport,
   type Residual,
   type StopScope,
   type UnavailableReason,
 } from '@omne-harness/mcp-contract'
 import type {
+  CredentialFailure,
   HttpCredentialHandle,
   McpTransport,
   ProcessCredentialHandle,
@@ -40,9 +41,9 @@ import type {
   TransportFailure,
   TransportMaterial,
 } from '@omne-harness/mcp-contract/provider'
-import { untilAborted } from './abort.ts'
+import { afterwards, untilAborted } from './abort.ts'
 import { Connection, type GenerationPolicy } from './connection.ts'
-import { assertAdmitted, type AdmittedEndpoint } from './gate.ts'
+import { assertAdmitted, type AdmittedEndpoint, type AdoptionRefusal } from './gate.ts'
 import { prepareSettings, type PreparedSettings, type SettingsFailure } from './settings.ts'
 import { connectionKeyTextOf, tenantTextOf } from './text.ts'
 
@@ -72,7 +73,7 @@ export type Ensured = Readonly<{
 export type CatalogMark = 'marked' | 'revision-conflict' | 'unavailable' | 'not-acquired'
 
 export type EnsureFailure =
-  | Readonly<{ stage: 'settings'; reason: SettingsFailure | Extract<Refusal, { kind: 'unknown' }> }>
+  | Readonly<{ stage: 'settings'; reason: SettingsFailure | AdoptionRefusal }>
   | Readonly<{ stage: 'connect'; reason: ConnectionFailure | EffectUnknown; catalog: CatalogMark }>
 
 export type UnavailableMark = Exclude<UnavailableReason, 'no-longer-offered'>
@@ -113,6 +114,8 @@ export interface ConnectionTable<P> {
 
 type CredentialHandle = ProcessCredentialHandle | HttpCredentialHandle
 
+type Scope = StopScope | 'no-process'
+
 /** A process whose stop was not confirmed for the whole tree. Stopped again at every close. */
 type Lingering = Readonly<{ handle: ProcessHandle; confirmed: StopScope }>
 
@@ -129,12 +132,21 @@ type Entry = {
   process: ProcessHandle | undefined
   credential: CredentialHandle | undefined
   lingering: readonly Lingering[]
+  /** Landings still pending after their bound; each may hand over a process this entry keeps. */
+  landings: number
   pending: Promise<Outcome<Ensured, EnsureFailure>> | undefined
-  closing: Promise<StopScope | 'no-process'> | undefined
+  /** The teardown in flight, shared by a lose, a failed build, a rebuild and a close. */
+  tearing: Promise<Scope> | undefined
+  /** The close in flight: refuse requests, wait for the build, tear down, forget. */
+  closing: Promise<Scope> | undefined
 }
 
+/** What the critical section of a holding started: an answer, or the build it joined or began. */
+type Started = Readonly<{ outcome: Promise<Outcome<Ensured, EnsureFailure>> }>
+
 const CONNECTION_UNAVAILABLE: ConnectionFailure = { kind: 'connection-unavailable' }
-const UNKNOWN: Extract<Refusal, { kind: 'unknown' }> = { kind: 'unknown' }
+const UNKNOWN: AdoptionRefusal = { kind: 'unknown' }
+const NOT_AVAILABLE: AdoptionRefusal = { kind: 'not-available-to-you' }
 
 type Failed = Readonly<{
   reason: ConnectionFailure | EffectUnknown
@@ -197,6 +209,10 @@ function narrower(left: StopScope, right: StopScope): StopScope {
   return STOP_ORDER.indexOf(left) <= STOP_ORDER.indexOf(right) ? left : right
 }
 
+function narrowest(scope: Scope, confirmed: StopScope): StopScope {
+  return scope === 'no-process' ? confirmed : narrower(scope, confirmed)
+}
+
 function viewOf(connection: Connection): ConnectionView {
   return Object.freeze({
     get generation() {
@@ -209,6 +225,16 @@ function viewOf(connection: Connection): ConnectionView {
 function isUsable(entry: Entry): entry is Entry & { transport: McpTransport } {
   const kind = entry.connection.state.kind
   return entry.transport !== undefined && (kind === 'ready' || kind === 'degraded')
+}
+
+/** True when nothing of the entry is in flight and it refuses requests: only leftovers remain. */
+function isSettled(entry: Entry): boolean {
+  return (
+    entry.connection.state.kind === 'closed' &&
+    entry.pending === undefined &&
+    entry.tearing === undefined &&
+    entry.closing === undefined
+  )
 }
 
 function ensuredOf(entry: Entry & { transport: McpTransport }): Ensured | undefined {
@@ -225,13 +251,23 @@ function ensuredOf(entry: Entry & { transport: McpTransport }): Ensured | undefi
   }
 }
 
-function residualOf(entry: Entry): readonly Residual[] | undefined {
-  if (entry.lingering.length === 0) return undefined
-  return entry.lingering.map(({ confirmed }) => ({ kind: 'process', confirmed }))
+/** The processes the entries of one holding left, as the status view reports them. */
+function residualOf(found: readonly Entry[]): readonly Residual[] | undefined {
+  const lingering = found.flatMap(entry => entry.lingering)
+  if (lingering.length === 0) return undefined
+  return lingering.map(({ confirmed }) => ({ kind: 'process', confirmed }))
 }
 
 function policyOf(prepared: PreparedSettings): GenerationPolicy {
   return prepared.transport.kind === 'stdio' ? 'on-attempt' : 'on-negotiation'
+}
+
+function holdingTextOf(tenantText: string, holding: EndpointHolding): string {
+  return JSON.stringify([tenantText, holding])
+}
+
+function later(left: Generation, right: Generation | undefined): Generation {
+  return right !== undefined && right > left ? right : left
 }
 
 export function createConnectionTable<P, S>(
@@ -240,65 +276,100 @@ export function createConnectionTable<P, S>(
 ): ConnectionTable<P> {
   const entries = new Map<string, Entry>()
   const byView = new WeakMap<ConnectionView, Entry>()
-  // The generation a closed connection of each key reached: a new connection of the key continues
-  // the count, so no generation is used twice in one run (invariant 2).
+  // The generation a forgotten connection of each key reached: a new connection of the key
+  // continues the count, so no generation is used twice in one run (invariant 2).
   const lastGeneration = new Map<string, Generation>()
+  // One `ensure` at a time per tenant and holding decides which revision's connection exists.
+  const turns = new Map<string, Promise<void>>()
 
   const entriesOf = (tenantText: string, holding: EndpointHolding): Entry[] =>
     [...entries.values()].filter(
       entry => entry.tenantText === tenantText && entry.ref.holding === holding,
     )
 
-  /** Removes the entry, if it is still the one in the table, and keeps its generation. */
+  /** Runs `run` after every earlier run of the same holding; the result is the section's, not awaited here. */
+  function inTurn<T>(holdingText: string, run: () => Promise<T>): Promise<T> {
+    const previous = turns.get(holdingText) ?? Promise.resolve()
+    const turn = previous.then(run)
+    const done = turn.then(
+      () => undefined,
+      () => undefined,
+    )
+    turns.set(holdingText, done)
+    void done.then(() => {
+      if (turns.get(holdingText) === done) turns.delete(holdingText)
+    })
+    return turn
+  }
+
+  /** Removes a closed entry that holds nothing and expects nothing; keeps its generation. */
   function forget(entry: Entry): void {
-    if (entries.get(entry.keyText) !== entry) return
-    lastGeneration.set(entry.keyText, entry.connection.generation)
+    if (entries.get(entry.keyText) !== entry || entry.connection.state.kind !== 'closed') return
+    if (entry.pending !== undefined || entry.tearing !== undefined) return
+    if (entry.lingering.length > 0 || entry.landings > 0) return
+    lastGeneration.set(
+      entry.keyText,
+      later(entry.connection.generation, lastGeneration.get(entry.keyText)),
+    )
     entries.delete(entry.keyText)
   }
 
+  /** A process confirmed for less than the whole tree stays with the entry, to be stopped again. */
+  function keep(entry: Entry, handle: ProcessHandle, confirmed: StopScope): void {
+    if (confirmed === 'tree-confirmed') return
+    entry.lingering = [...entry.lingering, { handle, confirmed }]
+  }
+
   /** Stops the process and every lingering one; keeps those not confirmed for the whole tree. */
-  async function stopProcesses(entry: Entry): Promise<StopScope | 'no-process'> {
+  async function stopProcesses(entry: Entry): Promise<Scope> {
+    const own = entry.process
+    entry.process = undefined
     const handles = [
-      ...(entry.process === undefined ? [] : [entry.process]),
+      ...(own === undefined ? [] : [own]),
       ...entry.lingering.map(({ handle }) => handle),
     ]
-    entry.process = undefined
-    let scope: StopScope | 'no-process' = 'no-process'
-    const lingering: Lingering[] = []
+    let scope: Scope = 'no-process'
     for (const handle of handles) {
       const confirmed = await handle.stop()
-      scope = scope === 'no-process' ? confirmed : narrower(scope, confirmed)
-      if (confirmed !== 'tree-confirmed') lingering.push({ handle, confirmed })
+      entry.lingering = entry.lingering.filter(lingering => lingering.handle !== handle)
+      keep(entry, handle, confirmed)
+      scope = narrowest(scope, confirmed)
     }
-    entry.lingering = lingering
     return scope
   }
 
   /**
-   * The close order of the group page on the resources of one entry: close the transport, stop
-   * the processes, then release the credential handle (S9: a process handle after `stop()`
-   * returned, an HTTP handle with the close).
+   * The close order of the group page on the resources of one entry, once: a teardown asked while
+   * one is in flight joins it. Close the transport, stop the processes, then release the
+   * credential handle (S9: a process handle after `stop()` returned, an HTTP handle with the close).
    */
-  async function teardown(entry: Entry): Promise<StopScope | 'no-process'> {
-    const transport = entry.transport
-    entry.transport = undefined
-    await transport?.close()
-    const scope = await stopProcesses(entry)
-    const credential = entry.credential
-    entry.credential = undefined
-    await credential?.release()
-    return scope
+  function teardown(entry: Entry): Promise<Scope> {
+    if (entry.tearing !== undefined) return entry.tearing
+    const tearing = (async () => {
+      const transport = entry.transport
+      entry.transport = undefined
+      await transport?.close()
+      const scope = await stopProcesses(entry)
+      const credential = entry.credential
+      entry.credential = undefined
+      await credential?.release()
+      return scope
+    })()
+    entry.tearing = tearing
+    return tearing.finally(() => {
+      if (entry.tearing === tearing) entry.tearing = undefined
+    })
   }
 
   /** Closes one entry, once: a second close of the same entry joins the first. */
-  function closeEntry(entry: Entry): Promise<StopScope | 'no-process'> {
+  function closeEntry(entry: Entry): Promise<Scope> {
     if (entry.closing !== undefined) return entry.closing
     const closing = (async () => {
-      if (entry.pending !== undefined) await entry.pending.catch(() => undefined)
-      const connection = entry.connection
-      if (connection.state.kind !== 'closed') connection.close()
+      // A build in flight ends within its bound; the close takes its connection afterwards.
+      while (entry.pending !== undefined) await entry.pending.catch(() => undefined)
+      if (entry.connection.state.kind !== 'closed') entry.connection.close()
       const scope = await teardown(entry)
-      if (entry.connection === connection && entry.lingering.length === 0) forget(entry)
+      forget(entry)
       return scope
     })()
     entry.closing = closing
@@ -308,22 +379,15 @@ export function createConnectionTable<P, S>(
   }
 
   /**
-   * Invariant 6: a connection of another adoption revision for the same tenant and holding is
-   * closed first. What its processes left is carried to the new entry.
+   * A process that landed after its bound: stopped, and kept by the entry of its key when the
+   * stop confirmed less than the tree, so the status reports it and the next close stops it again.
    */
-  async function closeOthers(
-    tenantText: string,
-    holding: EndpointHolding,
-    revision: AdoptionRevision,
-  ): Promise<readonly Lingering[]> {
-    const lingering: Lingering[] = []
-    for (const other of entriesOf(tenantText, holding)) {
-      if (other.adoptionRevision === revision) continue
-      await closeEntry(other)
-      lingering.push(...other.lingering)
-      forget(other)
-    }
-    return lingering
+  async function stopLate(entry: Entry, process: ProcessHandle): Promise<void> {
+    const confirmed = await process.stop()
+    if (confirmed === 'tree-confirmed') return
+    const home = entries.get(entry.keyText) ?? entry
+    entries.set(entry.keyText, home)
+    keep(home, process, confirmed)
   }
 
   async function markCatalog(key: CatalogKey, reason: UnavailableMark): Promise<CatalogMark> {
@@ -336,10 +400,10 @@ export function createConnectionTable<P, S>(
     return 'marked'
   }
 
-  /** A preparation failed: close what was taken (S9 handle included), mark, report. */
+  /** A preparation failed: refuse requests, close what was taken (S9 handle included), mark, report. */
   async function failed(entry: Entry, how: Failed): Promise<Outcome<never, EnsureFailure>> {
+    entry.connection.lose(how.lost)
     await teardown(entry)
-    entry.connection.lose(how.lost, residualOf(entry))
     const catalog = await markCatalog(entry.catalogKey, how.mark)
     return fail({ stage: 'connect', reason: how.reason, catalog })
   }
@@ -353,34 +417,30 @@ export function createConnectionTable<P, S>(
     const { credential, transport } = prepared
     if (credential.auth === 'none') return succeed(undefined)
     const holding = entry.ref.holding
-    const release = (late: Outcome<CredentialHandle, unknown>) => {
-      if ('ok' in late) void late.ok.release()
-    }
-    const acquired =
+    const asked: Promise<Outcome<CredentialHandle, CredentialFailure>> =
       transport.kind === 'stdio'
-        ? await untilAborted(
-            ports.credentials.acquire(access, holding, { kind: 'process-env' }, credential.binding),
-            bound,
-            release,
+        ? ports.credentials.acquire(access, holding, { kind: 'process-env' }, credential.binding)
+        : ports.credentials.acquire(
+            access,
+            holding,
+            { kind: 'http-authorization', target: transport.target },
+            credential.binding,
           )
-        : await untilAborted(
-            ports.credentials.acquire(
-              access,
-              holding,
-              { kind: 'http-authorization', target: transport.target },
-              credential.binding,
-            ),
-            bound,
-            release,
-          )
-    if (acquired === 'aborted') return fail(PREPARATION_FAILED)
-    if ('failure' in acquired)
+    const acquired = await untilAborted(asked, bound)
+    if (acquired.kind === 'aborted') {
+      // A handle that arrives after the bound belongs to no connection: released on arrival.
+      afterwards(acquired.late, async late => {
+        if ('ok' in late) await late.ok.release()
+      })
+      return fail(PREPARATION_FAILED)
+    }
+    if ('failure' in acquired.value)
       return fail({
-        reason: { kind: 'credential-unavailable', cause: acquired.failure },
+        reason: { kind: 'credential-unavailable', cause: acquired.value.failure },
         lost: 'preparation-failed',
         mark: 'credential-unavailable',
       })
-    return succeed(acquired.ok)
+    return succeed(acquired.value.ok)
   }
 
   async function materialOf(
@@ -408,22 +468,31 @@ export function createConnectionTable<P, S>(
           ? transport.credentialVariables.map(name => ({ name, handle: credential }))
           : [],
     }
-    const started = await untilAborted(
-      ports.landing.start(access, transport.launch, env),
-      bound,
-      late => {
-        if ('ok' in late) void late.ok.stop()
-      },
-    )
-    if (started === 'aborted') return fail(PREPARATION_FAILED)
-    if ('failure' in started)
+    const started = await untilAborted(ports.landing.start(access, transport.launch, env), bound)
+    if (started.kind === 'aborted') {
+      // The process may still land, with the handle in its environment: the handle goes with it
+      // and is released after its `stop()` returned (S9); without a process, on the answer.
+      entry.credential = undefined
+      entry.landings += 1
+      afterwards(started.late, async late => {
+        try {
+          if ('ok' in late) await stopLate(entry, late.ok)
+        } finally {
+          entry.landings -= 1
+          forget(entry)
+          await credential?.release()
+        }
+      })
+      return fail(PREPARATION_FAILED)
+    }
+    if ('failure' in started.value)
       return fail({
         reason: { kind: 'landing-unavailable' },
         lost: 'preparation-failed',
         mark: 'landing-unavailable',
       })
-    entry.process = started.ok
-    return succeed({ kind: 'stdio', process: started.ok, generation, instructionsByteLimit })
+    entry.process = started.value.ok
+    return succeed({ kind: 'stdio', process: started.value.ok, generation, instructionsByteLimit })
   }
 
   /**
@@ -436,6 +505,7 @@ export function createConnectionTable<P, S>(
     access: Access<P>,
     prepared: PreparedSettings,
   ): Promise<Outcome<Ensured, EnsureFailure>> {
+    // What the key's earlier connection left is stopped again before the new attempt.
     await teardown(entry)
     const generation = entry.connection.attempt()
     const bound = AbortSignal.timeout(prepared.bound)
@@ -445,29 +515,33 @@ export function createConnectionTable<P, S>(
       entry.credential = credential.ok
       const material = await materialOf(entry, access, prepared, generation, bound)
       if ('failure' in material) return await failed(entry, material.failure)
-      const opened = await untilAborted(ports.transports.open(material.ok, bound), bound, late => {
-        if ('ok' in late) void late.ok.close()
-      })
-      if (opened === 'aborted') return await failed(entry, PREPARATION_FAILED)
-      if ('failure' in opened) return await failed(entry, failedOf(opened.failure))
-      entry.transport = opened.ok
-      const discovered = await untilAborted(opened.ok.discover(), bound, () => undefined)
-      if (discovered === 'aborted') return await failed(entry, PREPARATION_FAILED)
-      if ('failure' in discovered) return await failed(entry, failedOf(discovered.failure))
-      entry.connection.ready(discovered.ok)
+      const opened = await untilAborted(ports.transports.open(material.ok, bound), bound)
+      if (opened.kind === 'aborted') {
+        afterwards(opened.late, async late => {
+          if ('ok' in late) await late.ok.close()
+        })
+        return await failed(entry, PREPARATION_FAILED)
+      }
+      if ('failure' in opened.value) return await failed(entry, failedOf(opened.value.failure))
+      const transport = opened.value.ok
+      entry.transport = transport
+      const discovered = await untilAborted(transport.discover(), bound)
+      if (discovered.kind === 'aborted') return await failed(entry, PREPARATION_FAILED)
+      if ('failure' in discovered.value)
+        return await failed(entry, failedOf(discovered.value.failure))
+      entry.connection.ready(discovered.value.ok)
       return succeed({
-        transport: opened.ok,
+        transport,
         generation: entry.connection.generation,
         connection: entry.view,
-        peer: discovered.ok,
+        peer: discovered.value.ok,
         catalogKey: entry.catalogKey,
         adoptionRevision: entry.adoptionRevision,
         bound: entry.bound,
       })
     } catch (error: unknown) {
+      if (entry.connection.state.kind === 'preparing') entry.connection.lose('preparation-failed')
       await teardown(entry)
-      if (entry.connection.state.kind === 'preparing')
-        entry.connection.lose('preparation-failed', residualOf(entry))
       throw error
     }
   }
@@ -497,15 +571,82 @@ export function createConnectionTable<P, S>(
         process: undefined,
         credential: undefined,
         lingering: [],
+        landings: 0,
         pending: undefined,
+        tearing: undefined,
         closing: undefined,
       }
     }
     if (existing.connection.state.kind === 'closed') {
-      existing.connection = new Connection(key, policy, existing.connection.generation)
+      const from = later(existing.connection.generation, lastGeneration.get(keyText))
+      existing.connection = new Connection(key, policy, from)
       existing.view = viewOf(existing.connection)
     }
     return existing
+  }
+
+  /**
+   * The critical section of a holding: the adoption read again, the connections of other
+   * revisions closed (invariant 6), the key's close or teardown in flight waited for, then the
+   * connection reused, joined or built. The build itself runs outside the section.
+   */
+  async function begin(
+    admitted: AdmittedEndpoint,
+    access: Access<P>,
+    prepared: PreparedSettings,
+    key: ConnectionKey,
+    keyText: string,
+    tenantText: string,
+  ): Promise<Started> {
+    const answer = (outcome: Outcome<Ensured, EnsureFailure>): Started => ({
+      outcome: Promise.resolve(outcome),
+    })
+    const refused = (reason: AdoptionRefusal): Started =>
+      answer(fail({ stage: 'settings', reason }))
+    // The token is not trusted for the revision: the adoption is read again, and a token of
+    // another revision cannot build a connection or close one (SPEC MC-5).
+    const adoption = await ports.adoption.endpoint(access, admitted.ref)
+    if ('failure' in adoption) return refused(UNKNOWN)
+    if (adoption.ok === 'not-adopted') return refused(NOT_AVAILABLE)
+    if (adoption.ok.revision !== admitted.revision) return refused(UNKNOWN)
+    const { holding } = admitted.ref
+    const ofOtherRevision = (entry: Entry) => entry.adoptionRevision !== admitted.revision
+    for (;;) {
+      const other = entriesOf(tenantText, holding).find(
+        entry => ofOtherRevision(entry) && !isSettled(entry),
+      )
+      if (other !== undefined) {
+        await closeEntry(other)
+        continue
+      }
+      const existing = entries.get(keyText)
+      const inFlight = existing?.closing ?? existing?.tearing
+      if (inFlight !== undefined) {
+        await inFlight
+        continue
+      }
+      if (existing?.pending !== undefined) return { outcome: existing.pending }
+      if (existing !== undefined && isUsable(existing)) {
+        const usable = ensuredOf(existing)
+        if (usable !== undefined) return answer(succeed(usable))
+      }
+      // From here to the start of the build nothing yields: the entry of the holding is this one.
+      const entry = entryOf(existing, admitted, access, prepared, key, keyText)
+      for (const settled of entriesOf(tenantText, holding).filter(ofOtherRevision)) {
+        entry.lingering = [...entry.lingering, ...settled.lingering]
+        settled.lingering = []
+        forget(settled)
+      }
+      entries.set(keyText, entry)
+      byView.set(entry.view, entry)
+      const pending = build(entry, access, prepared)
+      const done = () => {
+        if (entry.pending === pending) entry.pending = undefined
+      }
+      entry.pending = pending
+      void pending.then(done, done)
+      return { outcome: pending }
+    }
   }
 
   async function ensure(
@@ -516,40 +657,13 @@ export function createConnectionTable<P, S>(
     assertAdmitted(admitted)
     const prepared = prepareSettings(admitted, options.connectBound)
     if ('failure' in prepared) return fail({ stage: 'settings', reason: prepared.failure })
-    // The token is not trusted for the revision: the adoption is read again, and a token of
-    // another revision cannot build a connection or close one (SPEC MC-11).
-    const adoption = await ports.adoption.endpoint(access, admitted.ref)
-    if (
-      'failure' in adoption ||
-      adoption.ok === 'not-adopted' ||
-      adoption.ok.revision !== admitted.revision
-    )
-      return fail({ stage: 'settings', reason: UNKNOWN })
     const key = connectionKeyOf(access.tenant, admitted, prepared.ok.account)
     const keyText = connectionKeyTextOf(key)
     const tenantText = tenantTextOf(access.tenant)
-    const inherited = await closeOthers(tenantText, admitted.ref.holding, admitted.revision)
-    let existing = entries.get(keyText)
-    while (existing?.closing !== undefined) {
-      await existing.closing
-      existing = entries.get(keyText)
-    }
-    if (existing?.pending !== undefined) return existing.pending
-    if (existing !== undefined && isUsable(existing)) {
-      const usable = ensuredOf(existing)
-      if (usable !== undefined) return succeed(usable)
-    }
-    const entry = entryOf(existing, admitted, access, prepared.ok, key, keyText)
-    entry.lingering = [...entry.lingering, ...inherited]
-    entries.set(keyText, entry)
-    byView.set(entry.view, entry)
-    const pending = build(entry, access, prepared.ok)
-    entry.pending = pending
-    try {
-      return await pending
-    } finally {
-      if (entry.pending === pending) entry.pending = undefined
-    }
+    const started = await inTurn(holdingTextOf(tenantText, admitted.ref.holding), () =>
+      begin(admitted, access, prepared.ok, key, keyText, tenantText),
+    )
+    return started.outcome
   }
 
   function settle(
@@ -573,8 +687,9 @@ export function createConnectionTable<P, S>(
   ): Promise<CatalogMark | 'not-current'> {
     const entry = byView.get(connection)
     if (entry === undefined || !entry.connection.isCurrent(generation)) return 'not-current'
+    // Requests are refused at once; the teardown is the entry's one teardown.
+    entry.connection.lose(reason)
     await teardown(entry)
-    entry.connection.lose(reason, residualOf(entry))
     return markCatalog(entry.catalogKey, mark)
   }
 
@@ -584,10 +699,11 @@ export function createConnectionTable<P, S>(
   }
 
   function stateOf(tenant: TenantId, holding: EndpointHolding): ConnectionState {
-    const [entry] = entriesOf(tenantTextOf(tenant), holding)
-    if (entry === undefined) return { kind: 'none' }
-    const state = entry.connection.state
-    const residual = residualOf(entry)
+    const found = entriesOf(tenantTextOf(tenant), holding)
+    const live = found.find(entry => entry.connection.state.kind !== 'closed') ?? found[0]
+    if (live === undefined) return { kind: 'none' }
+    const state = live.connection.state
+    const residual = residualOf(found)
     if (state.kind === 'closed')
       return residual === undefined
         ? { kind: 'none' }
@@ -602,11 +718,10 @@ export function createConnectionTable<P, S>(
   async function close(tenant: TenantId, holding: EndpointHolding): Promise<ReleaseReport> {
     const found = entriesOf(tenantTextOf(tenant), holding)
     if (found.length === 0) return { kind: 'no-connection' }
-    let scope: StopScope | 'no-process' = 'no-process'
+    let scope: Scope = 'no-process'
     for (const entry of found) {
       const confirmed = await closeEntry(entry)
-      if (confirmed === 'no-process') continue
-      scope = scope === 'no-process' ? confirmed : narrower(scope, confirmed)
+      if (confirmed !== 'no-process') scope = narrowest(scope, confirmed)
     }
     return { kind: 'released', process: scope }
   }

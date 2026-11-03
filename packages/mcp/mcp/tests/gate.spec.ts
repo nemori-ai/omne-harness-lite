@@ -2,18 +2,22 @@
 // of invariant 6 on the one decision of `admit`; the two tokens that come out cannot be forged.
 import { describe, expect, it } from 'vitest'
 import type { AdoptedEndpoint } from '@omne-harness/mcp-contract/provider'
+import * as gateModule from '../src/internal/gate.ts'
 import {
   admit,
   admitWithoutEligibility,
+  adopted,
   assertAdmitted,
+  judge,
   refusalOf,
   type AdmittedEndpoint,
+  type AdoptedOnly,
 } from '../src/internal/gate.ts'
 import { admitForUse, stillAdmitted } from '../src/internal/guard.ts'
 import { createConnectionTable } from '../src/internal/table.ts'
 import { countedAdoption, countedEligibility } from './doubles/ports.ts'
 import { alice, bob, home, json, mallory, peerIdentity, ref } from './doubles/values.ts'
-import { adoptStdio, world } from './doubles/world.ts'
+import { TIMEOUT, VALUE, adoptStdio, settingsOf, world } from './doubles/world.ts'
 
 const files = ref('files')
 const nowhere = ref('nowhere')
@@ -233,5 +237,39 @@ describe('AdmittedEndpoint', () => {
     const token: AdmittedEndpoint = decision.endpoint
     expect(() => assertAdmitted(token)).not.toThrow()
     expect(() => assertAdmitted({ ...token })).toThrow(TypeError)
+  })
+})
+
+describe('judge: only a token this gate handed out', () => {
+  it('throws TypeError for a copy of an adopted-only token with another definition, and starts nothing', async () => {
+    const w = world({ script: [{ discover: peerIdentity() }] })
+    adoptStdio(w, files)
+    const shell = ref('shell')
+    w.adoption.adopt({
+      tenant: home,
+      scope: 'ws',
+      ref: shell,
+      body: json({
+        name: 'shell',
+        transport: 'stdio',
+        auth: 'none',
+        launch: { command: 'not-the-adopted-command' },
+      }),
+      settings: settingsOf({ connectTimeout: VALUE(TIMEOUT) }),
+    })
+    const own = await adopted(w.ports, alice, files)
+    const other = await adopted(w.ports, alice, shell)
+    if (!('ok' in own) || !('ok' in other)) throw new Error('not adopted')
+    const forged: AdoptedOnly = Object.freeze({
+      ...own.ok,
+      definition: other.ok.definition,
+    }) as AdoptedOnly
+    await expect(judge(w.ports, alice, forged)).rejects.toThrow(TypeError)
+    expect(w.landing.started()).toEqual([])
+    expect(w.eligibility.calls()).toBe(0)
+  })
+
+  it('keeps the token constructor inside the module', () => {
+    expect('adoptedOnlyOf' in gateModule).toBe(false)
   })
 })

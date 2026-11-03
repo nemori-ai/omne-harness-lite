@@ -106,12 +106,13 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     const pages: Outcome<ListingPage, TransportFailure>[] = []
     let cursor: string | undefined
     for (let count = 0; count < config.maxListingPages; count += 1) {
-      const page = await untilAborted(ensured.transport.listActions(cursor), limit, () => undefined)
-      if (page === 'aborted') {
+      const asked = await untilAborted(ensured.transport.listActions(cursor), limit)
+      if (asked.kind === 'aborted') {
         if (signal?.aborted === true) return 'cancelled'
         pages.push({ failure: ABANDONED })
         break
       }
+      const page = asked.value
       pages.push(page)
       if ('failure' in page || page.ok.nextCursor === undefined) break
       cursor = page.ok.nextCursor
@@ -198,12 +199,9 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     // The build is shared by every caller of the key and bounded by the connection bound; the
     // caller's abort ends only this refresh.
     const options = request.connectBound === undefined ? {} : { connectBound: request.connectBound }
-    const ensured = await untilAborted(
-      table.ensure(admitted.ok, access, options),
-      request.signal,
-      () => undefined,
-    )
-    if (ensured === 'aborted') return succeed(CANCELLED)
+    const asked = await untilAborted(table.ensure(admitted.ok, access, options), request.signal)
+    if (asked.kind === 'aborted') return succeed(CANCELLED)
+    const ensured = asked.value
     if ('failure' in ensured)
       return ensured.failure.stage === 'settings'
         ? fail(ensured.failure.reason)

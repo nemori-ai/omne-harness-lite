@@ -1,8 +1,21 @@
 // Test helper: ports that stall one call on a deferred the test settles later. They order the
-// publish boundary and the connection build against other operations.
+// publish boundary and the connection build against other operations, and they let a port
+// answer after the connection bound, so the late arrival is observed.
 import type { Access } from '@omne-harness/legal-identity'
-import type { EndpointRef } from '@omne-harness/mcp-contract'
-import type { ProcessLanding, UseEligibility } from '@omne-harness/mcp-contract/provider'
+import type { Outcome } from '@omne-harness/operation-result'
+import type { CredentialBinding, EndpointHolding, EndpointRef } from '@omne-harness/mcp-contract'
+import type {
+  AdoptionView,
+  CredentialFailure,
+  CredentialPurpose,
+  CredentialUse,
+  HttpCredentialHandle,
+  HttpPurpose,
+  ProcessCredentialHandle,
+  ProcessLanding,
+  ProcessPurpose,
+  UseEligibility,
+} from '@omne-harness/mcp-contract/provider'
 import { deferred, type Deferred } from './deferred.ts'
 import type { Principal } from './values.ts'
 
@@ -37,6 +50,79 @@ export function stallingLanding(
       async start(access, launch, env) {
         await gate.promise
         return port.start(access, launch, env)
+      },
+    },
+  }
+}
+
+type AnyHandle = ProcessCredentialHandle | HttpCredentialHandle
+
+/**
+ * The credential port whose `acquire` waits on `gate` before it answers; `shape` replaces the
+ * handle it hands out (a handle whose `release` rejects, for instance). `releases` counts the
+ * release calls on the shaped handles.
+ */
+export function stallingCredentials(
+  port: CredentialUse<Principal>,
+  shape: (handle: AnyHandle) => AnyHandle = handle => handle,
+): Readonly<{ port: CredentialUse<Principal>; gate: Deferred<void>; releases: () => number }> {
+  const gate = deferred<void>()
+  let releases = 0
+  const counted = (handle: AnyHandle): AnyHandle => ({
+    ...handle,
+    async release() {
+      releases += 1
+      await handle.release()
+    },
+  })
+  function acquire(
+    access: Access<Principal>,
+    holding: EndpointHolding,
+    purpose: ProcessPurpose,
+    binding: CredentialBinding,
+  ): Promise<Outcome<ProcessCredentialHandle, CredentialFailure>>
+  function acquire(
+    access: Access<Principal>,
+    holding: EndpointHolding,
+    purpose: HttpPurpose,
+    binding: CredentialBinding,
+  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>>
+  async function acquire(
+    access: Access<Principal>,
+    holding: EndpointHolding,
+    purpose: CredentialPurpose,
+    binding: CredentialBinding,
+  ): Promise<Outcome<AnyHandle, CredentialFailure>> {
+    await gate.promise
+    const answer =
+      purpose.kind === 'process-env'
+        ? await port.acquire(access, holding, purpose, binding)
+        : await port.acquire(access, holding, purpose, binding)
+    if ('failure' in answer) return answer
+    return { ok: counted(shape(answer.ok)) }
+  }
+  return { gate, releases: () => releases, port: { acquire } }
+}
+
+/**
+ * The adoption view whose `which`-th `endpoint` call asks the port at once but hands the answer
+ * over only after `gate`: a read that answered early and is delivered late.
+ */
+export function stallingAdoption(
+  port: AdoptionView<Principal, string>,
+  which: number,
+): Readonly<{ port: AdoptionView<Principal, string>; gate: Deferred<void> }> {
+  const gate = deferred<void>()
+  let count = 0
+  return {
+    gate,
+    port: {
+      endpoints: (access, scope) => port.endpoints(access, scope),
+      async endpoint(access, ref) {
+        count += 1
+        const answer = await port.endpoint(access, ref)
+        if (count === which) await gate.promise
+        return answer
       },
     },
   }

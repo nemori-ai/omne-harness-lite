@@ -12,8 +12,7 @@ import type {
 } from '@omne-harness/mcp-contract'
 import {
   admit,
-  adoptedOnlyOf,
-  judge,
+  admitScope,
   refusalOf,
   type AdoptedOnly,
   type GateDecision,
@@ -100,13 +99,11 @@ export function createStatus<P, S>(deps: StatusDependencies<P, S>): EndpointStat
     access: Access<P>,
     scope: S,
   ): Promise<Outcome<readonly EndpointStatusView[], 'unknown'>> {
-    const adopted = await ports.adoption.endpoints(access, scope)
-    if ('failure' in adopted) return fail('unknown')
+    const decisions = await admitScope(ports, access, scope)
+    if ('failure' in decisions) return fail('unknown')
     const views: EndpointStatusView[] = []
-    for (const endpoint of adopted.ok) {
-      const token = adoptedOnlyOf(endpoint)
-      if ('failure' in token) return fail('unknown')
-      const use = useOf(await judge(ports, access, token.ok))
+    for (const decision of decisions.ok) {
+      const use = useOf(decision)
       if ('failure' in use) {
         if (use.failure === 'not-eligible') continue
         return fail('unknown')
