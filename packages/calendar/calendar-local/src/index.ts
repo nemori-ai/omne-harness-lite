@@ -48,3 +48,13 @@ export {
   type CalendarVacanzaArtifact,
 } from './sources/index.ts'
 export { createShippedCalendarSeedRegistry, shippedCalendarSeedRelease } from './seeds/index.ts'
+export { createCalendarSupplyRunner } from './runner/index.ts'
+export type {
+  CalendarSupplyRunner,
+  CalendarSupplyRunnerOptions,
+  CalendarRunnerConfiguration,
+  CalendarRunnerCycle,
+  CalendarRunnerEvent,
+  CalendarRunnerStop,
+  CalendarRunnerPhase,
+} from './runner/index.ts'

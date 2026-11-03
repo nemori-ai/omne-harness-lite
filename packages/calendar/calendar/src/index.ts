@@ -19,3 +19,5 @@ export type {
   CalendarSupplyOptions,
 } from './supply-application/index.ts'
 export type { CalendarInitializedSource, CalendarDueResult } from './supply-application/runner.ts'
+export { createCalendarApplication } from './application.ts'
+export type { CalendarApplication, CalendarApplicationDependencies } from './application.ts'

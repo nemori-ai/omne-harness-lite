@@ -1,5 +1,5 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
-import type { CalendarQueries } from '@omne-harness/calendar-contract'
+import type { CalendarQueries, CalendarSupply } from '@omne-harness/calendar-contract'
 
 /**
  * Injection grants assembly access, not calendar.read authorization.
@@ -19,8 +19,25 @@ export abstract class CalendarQueryService extends Service implements CalendarQu
 }
 export const calendarQueryKey = CalendarQueryService.provide
 
+/** @owner packages/calendar/calendar-cordis-contract */
+export abstract class CalendarSupplyService extends Service implements CalendarSupply {
+  static readonly provide = 'calendarSupply'
+
+  constructor(ctx: Context) {
+    super(ctx, CalendarSupplyService.provide)
+  }
+
+  abstract readonly probe: CalendarSupply['probe']
+  abstract readonly refresh: CalendarSupply['refresh']
+  abstract readonly importSeed: CalendarSupply['importSeed']
+  abstract readonly queryPublication: CalendarSupply['queryPublication']
+  abstract readonly health: CalendarSupply['health']
+}
+export const calendarSupplyKey = CalendarSupplyService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     calendarQuery: CalendarQueryService
+    calendarSupply: CalendarSupplyService
   }
 }
