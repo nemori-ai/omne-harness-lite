@@ -87,6 +87,11 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 
 ## 具名缺件与已知限制
 
+- **会话归属读口一律不可用，发行树里的 Tool 调用不会执行**：`session-storage` 行的 `sessionPrincipalBindings.read`
+  一律答 `unavailable`（[行内已知限制](../../src/rows/session-storage/index.ts)：session-storage-sql 没有受信的归属读
+  路径）。入口的会话工作主体因此不签发，Tool 运行时为原调用重签工作主体时答 `unavailable`：调用被受理，但执行
+  一直不开始，不写文件，不交付结果。这是失败关闭，不是放行。补这个读口要在 session-storage-sql 加受信读路径，
+  不在本段写范围。组合用例用一个只认本用例会话的归属替身证明 Tool 链路，另一条用例证明发行读口下调用不执行。
 - **consumer 指名的执行是否属于这个会话不核对**：来源资格只核主体与 consumer 的拥有者和用途。跨租户仍被拒。
 - **设施依赖只核装配在场**：见[发行内置 Tool](tool-release.md#具名缺件与已知限制)。
 - **文件根两行相等不核对**：`tool-records` 与 `execution-host` 的 `filesRoot` 不同时，命名与提供者打开的对象对不上，
@@ -100,7 +105,10 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 - [请求供给者](../../tests/entry/tool-requests.spec.ts)：完整请求经 Tool 公开判定通过；核验器、目录、作用域绑定、
   会话作用域、发行快照任一缺席或不符时答 `unavailable` 或 `denied`；跨租户被拒。
 - [进程内组合](../../tests/rows/tool-runtime/composition.spec.ts)：真实 SQLite、真实五行与执行四行、真实入口对象，
-  Shell 执行一次、Files 写读各一次，读回原结果；外租户的同一调用被拒。替身见文件头。
+  Shell 执行一次、Files 写读各一次，读回原结果，三次结果都交到原消费者；外租户的同一调用被拒。发行的会话归属读口下，
+  调用受理但不执行。替身见文件头。
+- [首装](../../tests/rows/tool-host/preload.spec.ts)：发行行装好后两个作者在 `toolBindings` 里 live；不首装时登记表为空；
+  缺运维者构造值时不装，日志写明作者与原因；首装的 access 是登记者本身。
 - [发行树](../../tests/serve.spec.ts)：发行树里这九行是真件，42 个真实行、6 个替身行。
 
 这些用例不证明 Agent 推进、模型调用或 Session 日志里的 Tool 结果，那些由 SC4 与联调 C1 验收。
