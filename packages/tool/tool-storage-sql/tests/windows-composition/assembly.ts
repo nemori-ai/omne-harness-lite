@@ -712,7 +712,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
           revision: '1',
         }),
         workspace: null,
-        environment: null,
+        environment: availability.ok.definition.declarations.environment,
         requesterScope: authority.scope,
         resources: [],
         scope: scopeGrant,

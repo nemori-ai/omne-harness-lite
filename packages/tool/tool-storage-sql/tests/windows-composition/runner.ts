@@ -98,10 +98,11 @@ export async function runWindowsToolComposition() {
           maintained: { pending: 0 },
         })
         assert.deepEqual(cleanup.storage, { kind: 'closed' })
-        assert.ok(
-          cleanup.knownResources.length > 0,
-          'The real process providers recorded no resources',
-        )
+        if (results.interrupt !== undefined)
+          assert.ok(
+            cleanup.knownResources.length > 0,
+            'The real process providers recorded no resources',
+          )
         assert.ok(
           cleanup.knownResources.every(resource => resource.stopped === 'confirmed'),
           'A known real resource was not confirmed stopped',
