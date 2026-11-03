@@ -116,7 +116,8 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
   const state = createDeliveryState(input.store)
   const shutdown = new AbortController()
   const active = new Map<string, Reply<Readonly<{ pending: number }>>>()
-  const tenants = new Set<string>()
+  /** The last run of each tenant, started or queued. The next run of the tenant waits for it. */
+  const turns = new Map<string, Promise<unknown>>()
 
   async function current(access: CallAccess<P>): Reply<CallAccess<P>> {
     const recovered = await input.position.access({ tenant: access.tenant, call: access.call })
@@ -372,17 +373,26 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
       const existing = active.get(key)
       if (existing !== undefined)
         return (await wait(existing, access.signal)) ?? deliveryUnavailable('delivery-wait')
-      if (active.size >= input.capacity || tenants.has(tenant))
+      if (active.size >= input.capacity)
         return Promise.resolve(deliveryUnavailable('delivery-capacity'))
-      tenants.add(tenant)
+      // One run per tenant at a time, in arrival order: a later call of the tenant waits for its
+      // turn instead of being refused, so a call that is driven more often cannot starve it
+      // (R2-D164). The turn belongs to the worker; a caller that stops observing leaves it.
       const signal = shutdown.signal
-      const running = wait(run(access, signal), signal)
-        .then(answer => answer ?? deliveryUnavailable('delivery-wait'))
+      const start = (): Reply<Readonly<{ pending: number }>> =>
+        signal.aborted
+          ? Promise.resolve(deliveryUnavailable('delivery-wait'))
+          : wait(run(access, signal), signal).then(
+              answer => answer ?? deliveryUnavailable('delivery-wait'),
+            )
+      const running = (turns.get(tenant) ?? Promise.resolve())
+        .then(start, start)
         .catch(() => deliveryUnavailable('delivery-worker'))
         .finally(() => {
           active.delete(key)
-          tenants.delete(tenant)
+          if (turns.get(tenant) === running) turns.delete(tenant)
         })
+      turns.set(tenant, running)
       active.set(key, running)
       return (await wait(running, access.signal)) ?? deliveryUnavailable('delivery-wait')
     },
