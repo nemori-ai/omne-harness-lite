@@ -18,9 +18,17 @@ const SEALED_MODELS = [
   'anthropic/claude-fable-5.1',
 ] as const
 
+/** The models added from the official model list of 2026-11-03. */
+const ADDED_MODELS = ['anthropic/claude-sonnet-5.5', 'anthropic/claude-haiku-5.5'] as const
+
+const isAdded = (record: AnthropicRecord) =>
+  (ADDED_MODELS as readonly string[]).includes(record.name)
+
 describe('the migrated models', () => {
-  it('has one current record at revision 1 per sealed model, and nothing else', () => {
-    expect(RECORDS.map(record => record.name).toSorted()).toEqual([...SEALED_MODELS].toSorted())
+  it('has one current record at revision 1 per sealed or added model, and nothing else', () => {
+    expect(RECORDS.map(record => record.name).toSorted()).toEqual(
+      [...SEALED_MODELS, ...ADDED_MODELS].toSorted(),
+    )
     for (const record of RECORDS) {
       expect(record.revision).toBe('1')
       expect(record.status).toBe('current')
@@ -71,10 +79,14 @@ describe('the migrated models', () => {
     for (const record of RECORDS) {
       expect(record.profile.input).toEqual(['text', 'image'])
       expect(record.profile.output).toEqual(['text'])
+      // The sealed records establish no upstream value; the added ones take the official window
+      // and output. Anthropic publishes no input limit.
+      const official = (amount: string) =>
+        isAdded(record) ? { kind: 'finite', amount } : { kind: 'unknown' }
       expect(record.profile.context).toEqual({
-        window: { provided: '1000000', upstream: { kind: 'unknown' } },
+        window: { provided: '1000000', upstream: official('1000000') },
         input: { provided: '872000', upstream: { kind: 'unknown' } },
-        output: { provided: '128000', upstream: { kind: 'unknown' } },
+        output: { provided: '128000', upstream: official('128000') },
       })
       expect(record.profile.limits).toEqual([
         { metric: 'image-bytes', provided: '4194304', upstream: { kind: 'unknown' } },

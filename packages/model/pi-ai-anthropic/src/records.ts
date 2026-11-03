@@ -1,9 +1,10 @@
 // The Anthropic records: one `current` record per exact OpenRouter model, revision `1`. Pure data:
-// a record changes only by a new revision, and the adoption digest covers every member. The
-// models, the parameter subset, the cache rule, the limits and the group rule come from the sealed
-// `official-models/anthropic.ts` and `input-meters/anthropic-replay.ts` (see provenance.json). The
-// sealed signed-prefix degrade is not migrated: by the project convention a record never turns
-// reasoning off, and the gateway takes a foreign tool turn with reasoning on.
+// a record changes only by a new revision, and the adoption digest covers every member. The four
+// sealed models, the parameter subset, the cache rule, the limits and the group rule come from the
+// sealed `official-models/anthropic.ts` and `input-meters/anthropic-replay.ts` (see
+// provenance.json). The sealed signed-prefix degrade is not migrated: by the project convention a
+// record never turns reasoning off, and the gateway takes a foreign tool turn with reasoning on.
+// Claude Sonnet 5.5 and Claude Haiku 5.5 come from the official model list of 2026-11-03.
 import type { ParameterTable } from '@omne-harness/pi-ai-transport/chat-completions'
 import { IMAGE_MEDIA_TYPES } from './images.ts'
 import type { AnthropicRecord } from './record.ts'
@@ -54,7 +55,8 @@ export const ANTHROPIC_TOKENIZER = {
 
 /**
  * The parameter subset of the sealed route. Reasoning effort `low` to `max` goes out as
- * `reasoning.effort` with the same value; `none` is not offered. The sealed drops of temperature,
+ * `reasoning.effort` with the same value; `none` is not offered. Anthropic also publishes `xhigh`;
+ * the contract has no `xhigh`, so no record offers it. The sealed drops of temperature,
  * top-p, seed and the two penalties are explicit `unsupported` entries.
  */
 const PARAMETERS = {
@@ -136,6 +138,21 @@ const COMMON = {
   },
 } as const
 
+/**
+ * The profile of the models added from the official list of 2026-11-03: the shared provided limits,
+ * with the official window and output as finite upstream values. Anthropic publishes no input limit.
+ */
+const OFFICIAL_2026_11_03_PROFILE = {
+  ...COMMON.profile,
+  context: {
+    window: { provided: '1000000', upstream: { kind: 'finite', amount: '1000000' } },
+    input: { provided: '872000', upstream: { kind: 'unknown' } },
+    output: { provided: '128000', upstream: { kind: 'finite', amount: '128000' } },
+  },
+  evidence:
+    'The Anthropic models overview and model pages observed 2026-11-03: a 1M-token context window and a 128K-token max output on the synchronous Messages API. OpenRouter endpoint metadata of the same day for the Anthropic endpoint agrees: a 1000000-token context and a 128000-token max completion, with no max prompt. No upstream input limit is published; the 872000-token input limit reserves the whole output ceiling. The 4194304-byte image limit and the stop sequence limits are the offering of this project.',
+} as const
+
 /** The Anthropic records. The record list is the only list of models in this package. */
 export const ANTHROPIC_RECORDS = [
   {
@@ -144,6 +161,22 @@ export const ANTHROPIC_RECORDS = [
     route: { recipient: OPENROUTER, model: 'anthropic/claude-opus-5.5' },
     status: 'current',
     ...COMMON,
+  },
+  {
+    name: 'anthropic/claude-sonnet-5.5',
+    revision: '1',
+    route: { recipient: OPENROUTER, model: 'anthropic/claude-sonnet-5.5' },
+    status: 'current',
+    ...COMMON,
+    profile: OFFICIAL_2026_11_03_PROFILE,
+  },
+  {
+    name: 'anthropic/claude-haiku-5.5',
+    revision: '1',
+    route: { recipient: OPENROUTER, model: 'anthropic/claude-haiku-5.5' },
+    status: 'current',
+    ...COMMON,
+    profile: OFFICIAL_2026_11_03_PROFILE,
   },
   {
     name: 'anthropic/claude-opus-5',

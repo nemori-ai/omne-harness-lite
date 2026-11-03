@@ -26,7 +26,7 @@
 
 `ANTHROPIC_RECORDS` 是本包唯一的型号清单。档案、采用、指纹与夹具都从它派生。
 
-1. 每个型号一条 `current` 记录，`revision` 为 `1`。四个型号是 `anthropic/claude-opus-5.5`、`anthropic/claude-opus-5`、`anthropic/claude-sonnet-5` 与 `anthropic/claude-fable-5.1`。记录名等于 OpenRouter 路由名。路由为 `{ recipient: 'openrouter', model: <路由名> }`。
+1. 每个型号一条 `current` 记录，`revision` 为 `1`。封存件迁入的四个型号是 `anthropic/claude-opus-5.5`、`anthropic/claude-opus-5`、`anthropic/claude-sonnet-5` 与 `anthropic/claude-fable-5.1`。`anthropic/claude-sonnet-5.5` 与 `anthropic/claude-haiku-5.5` 取自 2026-11-03 的 Anthropic 官方型号清单，OpenRouter 有同名路由。记录名等于 OpenRouter 路由名。路由为 `{ recipient: 'openrouter', model: <路由名> }`。
 2. 记录是纯 JSON 数据。共用的线数据以常量展开。记录的采用由 `recordAdoption('@omne-harness/pi-ai-anthropic', record)` 算出。
 3. 记录不得原地修改。行为或数据变化时，新增一个修订并把旧记录标为 `frozen`。`tests/fixtures/adoptions.json` 记录每条记录的摘要，原地修改使指纹测试失败。
 4. 线数据：
@@ -38,18 +38,18 @@
 5. 参数：
    - `max-output-tokens` 受支持，上限 128000，写入 `max_tokens`，没有默认值；
    - `stop` 受支持，至多 16 项，每项至多 1024 个字符，写入 `stop`，没有默认值；
-   - `reasoning-effort` 受支持，没有默认值。`low`、`medium`、`high` 与 `max` 原样写入 `reasoning.effort`。四个型号的 `none` 都是 `unsupported`：按[项目约定](../docs/architecture.md#厂商适配的内聚范围)，本包的记录不关闭推理。实测依据见本节末的“依据”；
+   - `reasoning-effort` 受支持，没有默认值。`low`、`medium`、`high` 与 `max` 原样写入 `reasoning.effort`。官方另有 `xhigh`，契约的推理强度没有这一档，所以记录不提供。每个型号的 `none` 都是 `unsupported`：按[项目约定](../docs/architecture.md#厂商适配的内聚范围)，本包的记录不关闭推理。实测依据见本节末的“依据”；
    - `temperature`、`top-p`、`seed` 与两个 penalty 为 `unsupported`。封存件静默丢弃它们，现行行为是发出前明确失败。
 6. 回放：声明取默认值，即 `produces` 为 `openrouter/<路由名>`，`accepts` 只含它自己，`foreignThinking` 为 `omit`。格式 `produces` 与 `accepts` 都是 `anthropic-claude-v1`。
 7. 外来工具轮次：最后一个用过工具的 assistant 消息来自另一来源时，请求保持请求的推理强度，请求体写 `reasoning.effort`，encode 只对略去的外来状态给出 `replay-omitted` 诊断。封存件要求 `claude-opus-5.5` 与 `claude-fable-5.1` 有签名前缀，否则关闭推理。本包不迁入这项要求，因为按[项目约定](../docs/architecture.md#厂商适配的内聚范围)，本包的记录不关闭推理。实测依据见本节末的“依据”。
-8. 档案数据：输入为文本与图片，输出为文本。窗口 1000000，输入 872000，输出 128000，单图 4194304 字节。四项的上游值都是未知：封存件引用的路由报告不在仓库中。
+8. 档案数据：输入为文本与图片，输出为文本。窗口 1000000，输入 872000，输出 128000，单图 4194304 字节。封存的四条记录四项上游值都是未知：封存件引用的路由报告不在仓库中。2026-11-03 新增的两条记录的窗口与输出上游值是官方公布的有限值 1000000 与 128000，证据是记录中的 `profile.evidence`；Anthropic 不公布输入上限，所以输入与单图的上游值仍是未知。
 
 依据：第 5 条的 `none` 与第 7 条的外来工具轮次来自 2026-10-22 经代理对 OpenRouter 的实测，记录在 [#465 的实测记录](https://github.com/nemori-ai/omne-harness-lite/issues/465#issuecomment-6341479528)。实测结果如下：
 
 - `claude-opus-5` 与 `claude-sonnet-5` 接受 `reasoning.enabled: false`（HTTP 200）。`claude-opus-5.5` 与 `claude-fable-5.1` 以 HTTP 400 拒绝它（“Reasoning is mandatory for this endpoint and cannot be disabled.”）。
 - 历史中有未签名的外来工具轮次时，四个型号都在推理开启时接受请求。历史以工具结果结束或以之后的 user 消息结束，结果相同。
 
-这些观察不改变上面的规则。持续验证不覆盖网关的这些行为，见[测试说明](tests/README.md#未覆盖)。
+这些观察只涉及封存的四个型号。`claude-sonnet-5.5` 与 `claude-haiku-5.5` 没有同样的实测。这些观察不改变上面的规则。持续验证不覆盖网关的这些行为，见[测试说明](tests/README.md#未覆盖)。
 
 <a id="规则"></a>
 ### 规则
@@ -119,7 +119,7 @@
 `officialAnthropicProfiles({ retryPolicy, compactionTriggerPercent })` 为每条 `current` 记录给出一份 `ModelProfileDefinition`，按记录顺序。它只做计算，不取得绑定。
 
 - 供应商为记录的采用、路由与回放声明。`fallback` 为 `false`。`parameters` 为空。
-- 三项 token 上限与图片限额来自记录。上游值都是 `unknown`。
+- 三项 token 上限与图片限额来自记录。记录的上游值为有限值时，来源是记录的 `<记录名>#evidence`，否则为 `unknown`。
 - `representation` 与 `meter` 为 `<记录名>#representation` 与 `<记录名>#meter`。
 - `retryPolicy` 是 Model 的策略，`compactionTriggerPercent` 是档案的配置项，二者都由装配传入。百分比不是 1 至 100 的十进制整数时，函数抛出 `RangeError`。
 

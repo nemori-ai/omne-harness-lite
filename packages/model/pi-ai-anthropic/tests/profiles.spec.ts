@@ -26,6 +26,12 @@ describe('officialAnthropicProfiles', () => {
     (_name, record, index) => {
       const supplier = recordAdoption(ANTHROPIC_OWNER, record)
       const unknown = [{ supplier, limit: { kind: 'unknown' } }]
+      const evidence = componentAdoption(record, 'evidence')
+      const upstream = (data: AnthropicRecord['profile']['context']['window']['upstream']) =>
+        data.kind === 'finite'
+          ? [{ supplier, limit: { kind: 'finite', amount: data.amount, source: evidence } }]
+          : unknown
+      const { context } = record.profile
       expect(PROFILES[index]).toEqual({
         suppliers: [
           { adoption: supplier, recipient: 'openrouter', model: record.name, replay: {} },
@@ -34,9 +40,9 @@ describe('officialAnthropicProfiles', () => {
         input: ['text', 'image'],
         output: ['text'],
         context: {
-          window: { provided: '1000000', upstream: unknown },
+          window: { provided: '1000000', upstream: upstream(context.window.upstream) },
           input: { provided: '872000', upstream: unknown },
-          output: { provided: '128000', upstream: unknown },
+          output: { provided: '128000', upstream: upstream(context.output.upstream) },
           compactionTriggerPercent: '80',
         },
         limits: [

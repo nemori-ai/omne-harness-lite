@@ -19,7 +19,7 @@
 本目录有三类固定输入：
 
 - `adoptions.json`：每条记录一行 `{name, revision, digest}`。`pnpm run fingerprints` 只追加新记录的行；已有行的摘要会变时，脚本拒绝写入。`adoptions.spec.ts` 双向核对。
-- `records/<name>/<revision>/`：每条记录一组回放夹具，共 4 组。目录名用 `encodeURIComponent` 编码，例如 `anthropic%2Fclaude-opus-5.5/1`。`checkChatCompletionsFixtures` 以记录表为唯一清单核对它们。
+- `records/<name>/<revision>/`：每条记录一组回放夹具，共 6 组。目录名用 `encodeURIComponent` 编码，例如 `anthropic%2Fclaude-opus-5.5/1`。`checkChatCompletionsFixtures` 以记录表为唯一清单核对它们。
 - `cases/<用例>/<name>/<revision>/`：其余封存用例，每个用例一个根目录，只含一条记录的夹具。`fixtures.spec.ts` 用只含该记录的家族逐个核对。
 
 每组夹具有三个文件，格式归 [pi-ai-transport SPEC“家族测试助手”](../../../pi-ai-transport/SPEC.md)：
@@ -44,6 +44,8 @@
 | 三轮第 2 轮：第 1 轮的签名组带回，回复为加密推理 | `records/anthropic%2Fclaude-opus-5/1` | `CURRENT:468-503`，历史 `:253-306`，回放检查 `:416-430` | 1、2、3、4 |
 | 观察到的无 id 文本片段与单独到达的签名，收场帧重复一次并带 usage | `records/anthropic%2Fclaude-sonnet-5/1` | `LATE:272-390` 的用例“the observed id-less text then signature-only fragments”（`:325-349`），第一轮请求 `:429-434` | 1、2、3、4、6 |
 | 三轮第 3 轮，带工具：两轮的组都带回，回复为两个签名块 | `records/anthropic%2Fclaude-fable-5.1/1` | `CURRENT:468-503`，工具结果 `:308-332`，回放检查 `:416-430` | 1、2、3、4 |
+| 三轮第 1 轮，带工具，2026-11-03 新增的型号 | `records/anthropic%2Fclaude-sonnet-5.5/1` | 同第 1 轮。封存件没有这个型号，夹具沿用同一用例，只换路由名 | 1、2、3、4 |
+| 三轮第 2 轮，2026-11-03 新增的型号 | `records/anthropic%2Fclaude-haiku-5.5/1` | 同第 2 轮，只换路由名 | 1、2、3、4 |
 | 带 id 的片段与迟到签名 | `cases/ls-same-id-late-signature` | `LATE:70-76` | 1、2、3 |
 | 带 id 的片段重复同一签名 | `cases/ls-same-id-repeat-signature` | `LATE:78-84` | 1、2、3 |
 | 两轮用例中带 id 的迟到签名组的第一轮 | `cases/ls-reconstructed-late-signed-group` | `LATE:272-390` 的用例“one reconstructed late-signed group”（`:292-323`） | 1、2、3 |
