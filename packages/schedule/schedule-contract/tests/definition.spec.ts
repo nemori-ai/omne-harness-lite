@@ -255,3 +255,78 @@ it('rejects invented trusted context and invalid command metadata', () => {
     }).success,
   ).toBe(false)
 })
+
+it('accepts each complete management action while rejecting mixed action fields', () => {
+  const common = {
+    scheduleId: '00000000-0000-4000-8000-000000000001',
+    meta: { operationKey: 'original', expectedRevision: 1, consentRef: null },
+  }
+  const actions = [
+    { action: 'update', patch: { kind: 'label', label: 'new' } },
+    { action: 'update', patch: { kind: 'executionText', instruction: '继续', label: null } },
+    {
+      action: 'update',
+      patch: { kind: 'reminderContent', content: { title: null, body: '提醒' }, label: null },
+    },
+    { action: 'reviseDraft', definition, reason: '完整修订' },
+    { action: 'reconfirmConsent', newConsentRef: 'grant:2', reason: '重新确认' },
+    ...['pause', 'resume', 'stop', 'promote', 'discard'].map(action => ({ action, reason: null })),
+    { action: 'replace', successor: definition, reason: '替换定义' },
+  ]
+  for (const action of actions) {
+    expect(ScheduleCommandSchema.parse({ ...common, ...action })).toEqual({ ...common, ...action })
+    expect(
+      ScheduleCommandSchema.safeParse({ ...common, ...action, unexpected: 'other action' }).success,
+    ).toBe(false)
+  }
+  expect(
+    ScheduleCommandSchema.safeParse({ ...common, action: 'remove', reason: null }).success,
+  ).toBe(false)
+  expect(
+    ScheduleCommandSchema.safeParse({
+      ...common,
+      action: 'update',
+      patch: { kind: 'label', label: 'new', instruction: 'extra' },
+    }).success,
+  ).toBe(false)
+  for (const initial of [{ kind: 'active' }, { kind: 'draft', reason: '待同意' }])
+    expect(
+      ScheduleCreateRequestSchema.safeParse({
+        definition,
+        initial,
+        meta: { ...common.meta, expectedRevision: null },
+      }).success,
+    ).toBe(true)
+})
+it('bounds source rule bytes and position list sizes independently of full grammar parsing', () => {
+  const bounded = { begin: '2026-01-01T00:00:00', until: null }
+  expect(
+    ScheduleRecurrenceSchema.safeParse({
+      kind: 'cron',
+      expression: '1'.repeat(65536) + ' * * * *',
+      ...bounded,
+    }).success,
+  ).toBe(false)
+  expect(
+    ScheduleRecurrenceSchema.safeParse({
+      kind: 'rrule',
+      rule: 'FREQ=DAILY;BYDAY=' + 'MO,'.repeat(22000) + 'TU',
+      ...bounded,
+    }).success,
+  ).toBe(false)
+  expect(
+    ScheduleRecurrenceSchema.safeParse({
+      kind: 'position',
+      period: 'year',
+      interval: 1,
+      ordinal: 1,
+      selector: { kind: 'weekday', weekday: 1 },
+      times: Array.from(
+        { length: 101 },
+        (_, index) =>
+          `00:${String(Math.floor(index / 60)).padStart(2, '0')}:${String(index % 60).padStart(2, '0')}`,
+      ),
+      ...bounded,
+    }).success,
+  ).toBe(false)
+})
