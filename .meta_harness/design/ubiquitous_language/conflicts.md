@@ -464,6 +464,15 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **类型**：同名不同义。2026-11-03 为 Skill 与 MCP 立词条时发现。
 - **来源**：[包快照](terms/capabilities-and-composition.md#ul-package-snapshot--包快照--package-snapshot)要用「内容摘要」指按内容算出的散列值（digest）。[同形](terms/reach-and-availability.md#ul-same-shape--同形--same-shape)里的「词汇表的拥有者、名称与摘要」也是这个意思。[上下文压缩](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction)、[摘要步](terms/record-and-context.md#ul-summary-step--摘要步--summary-step)与同形里的「命令摘要」用「摘要」指文字摘要（summary）。
 - **差别**：一个是用来判断内容是否相同的散列值，一个是给人或模型读的缩写文字。下游读到「按摘要取内容」时，可能把它读成按一段文字去找内容。
-- **处置**：新词条把散列值写成「内容摘要」，并注明它不是文字摘要。已有词条与正文暂不回改。
+- **处置**：新词条把散列值写成「内容摘要」，并注明它不是文字摘要。已有词条与正文暂不回改。MCP 已知动作定义的散列值写成「定义的内容摘要」，不另立「定义摘要」词条，也不裸写「定义摘要」。
 - **负责与闭合条件**：统一语言维护者。散列值的用法统一写成「内容摘要」或另定一个说法，并回改同形词条后闭合。
 - **状态**：待收敛。
+
+### C-74：工作区目录技能的材料依据中的资产版本
+
+- **类型**：定义打架。2026-11-03 立[材料依据](terms/capabilities-and-composition.md#ul-material-basis--材料依据--material-basis)词条时发现。
+- **来源**：[材料依据](terms/capabilities-and-composition.md#ul-material-basis--材料依据--material-basis)只含能力标识、资产版本与包快照的内容摘要三项。[包快照](terms/capabilities-and-composition.md#ul-package-snapshot--包快照--package-snapshot)「别混 ①」说工作区目录中的技能没有发布。[资产版本](terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version)是一次发布定下的内容。
+- **差别**：照字面读，工作区目录中的技能没有资产版本，它的材料依据凑不齐三项。下游可能为它补造一个版本号，也可能让这一项缺席，两种做法对「三项都相同指同一份材料」给出不同的结果。
+- **处置**：词条按三项写，并在「待裁决」指向本条。工作区目录技能的材料依据怎样标版本，词表不补。
+- **负责与闭合条件**：Skill 的技术拥有者，涉及产品含义时上交产品负责人。Skill 组设计或 Skill 产品页写明工作区目录技能的材料依据中这一项取什么，词条按结论改写后闭合。
+- **状态**：待裁。
