@@ -25,11 +25,17 @@ Status: candidate contract, without technical acceptance. The behavior is in [SP
 The package has three entries. Callers import the root. Port implementers import `./provider`. Port implementers import `./testing` in their tests only.
 
 ```ts
+import { createCategoryRegistry, readBodyText } from '@omne-harness/assets'
 import { mcpEndpointBodyContract, parseEndpointBody } from '@omne-harness/mcp-contract'
 
-const parsed = parseEndpointBody(body, 'files')
-if ('failure' in parsed) report(parsed.failure)
+const registry = createCategoryRegistry()
 registry.register(mcpEndpointBodyContract())
+
+const read = readBodyText(text, limits)
+if (read.kind === 'ok') {
+  const parsed = parseEndpointBody(read.value, 'files')
+  if ('failure' in parsed) report(parsed.failure)
+}
 ```
 
 A port implementer runs a suite in its own test framework:
@@ -39,6 +45,7 @@ import { mcpCatalogStoreConformance, runConformanceCase } from '@omne-harness/mc
 
 for (const conformance of mcpCatalogStoreConformance())
   it(conformance.name, async () => {
+    // A fresh fixture for every case, built by the implementer.
     expect(await runConformanceCase(conformance, newFixture())).toEqual({ kind: 'passed' })
   })
 ```
@@ -51,7 +58,7 @@ The package has no initialization and holds no resource. It does not need Cordis
 - Behavior beyond the types: [SPEC.md](SPEC.md).
 - Endpoint body schema: [schema/endpoint-body.schema.json](schema/endpoint-body.schema.json).
 
-The pure functions do not throw on peer data. They return a closed failure. Two exceptions are preconditions: `mergeListing` throws `TypeError` for a listing that `completeListing` did not build, and `boundInstructions` throws `RangeError` for a bound that is not a positive safe integer.
+Which failures each function returns, and the preconditions whose violation throws, are in SPEC.md: C4 and C7 for the catalog functions, and S3 for `boundInstructions`.
 
 ## Design
 
@@ -59,7 +66,7 @@ Modules: `brands`, `values`, `endpoint`, `listing`, `catalog`, `classify`, `cont
 
 ## Configuration and operation
 
-The package has no configuration. `McpConfig` is the configuration type of the service implementation. Its four fields are required and have no default (SPEC S3). The connect timeout comes from the adoption or from the `connectBound` of a request (SPEC S4).
+The package has no configuration. `McpConfig` is the configuration type of the service implementation. SPEC S3 and S4 state its fields and how setting values are used.
 
 ## Verification
 

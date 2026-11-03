@@ -4,17 +4,19 @@
 import type {
   ContentDefect,
   DegradedReason,
+  EffectUnknown,
   EndpointBodyRejection,
   KeptReason,
   ListingDefect,
   LostReason,
   NoAnswerCause,
   NotSentReason,
+  OperationFailure,
   ProtocolFault,
   Refusal,
   UnavailableReason,
 } from '@omne-harness/mcp-contract'
-import type { EligibilityVerdict } from '@omne-harness/mcp-contract/provider'
+import type { EligibilityVerdict, TransportFailure } from '@omne-harness/mcp-contract/provider'
 
 export const ENDPOINT_BODY_REJECTIONS = [
   'malformed',
@@ -94,6 +96,29 @@ export const KEPT_REASON_KINDS = [
   'listing-incomplete',
 ] as const satisfies readonly KeptReason['kind'][]
 
+export const OPERATION_FAILURE_KINDS = [
+  ...REFUSAL_KINDS,
+  'credential-unavailable',
+  'authorization-required',
+  'landing-unavailable',
+  'connection-unavailable',
+  'effect-unknown',
+  'error-answer',
+] as const satisfies readonly OperationFailure['kind'][]
+
+export const EFFECT_UNKNOWN_CAUSES = [
+  'stream-broken',
+  'process-exited',
+  'abandoned',
+  'no-connection',
+] as const satisfies readonly EffectUnknown['cause'][]
+
+export const TRANSPORT_FAILURE_KINDS = [
+  'not-sent',
+  'no-answer',
+  'error-answer',
+] as const satisfies readonly TransportFailure['kind'][]
+
 export const DEGRADED_REASONS = [
   'discover-failed',
   'list-failed',
@@ -124,6 +149,9 @@ export const CLOSED_SETS = {
   Refusal: REFUSAL_KINDS,
   NotSentReason: NOT_SENT_REASON_KINDS,
   KeptReason: KEPT_REASON_KINDS,
+  OperationFailure: OPERATION_FAILURE_KINDS,
+  EffectUnknown: EFFECT_UNKNOWN_CAUSES,
+  TransportFailure: TRANSPORT_FAILURE_KINDS,
   DegradedReason: DEGRADED_REASONS,
   LostReason: LOST_REASONS,
   EligibilityVerdict: ELIGIBILITY_REFUSALS,

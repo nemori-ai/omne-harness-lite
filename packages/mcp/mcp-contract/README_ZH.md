@@ -25,11 +25,17 @@ MCP 组的纯契约：值、结局、失败、五个应用服务的接口、纯�
 本包有三个入口。调用方导入公开根。端口实现方导入 `./provider`。端口实现方只在测试里导入 `./testing`。
 
 ```ts
+import { createCategoryRegistry, readBodyText } from '@omne-harness/assets'
 import { mcpEndpointBodyContract, parseEndpointBody } from '@omne-harness/mcp-contract'
 
-const parsed = parseEndpointBody(body, 'files')
-if ('failure' in parsed) report(parsed.failure)
+const registry = createCategoryRegistry()
 registry.register(mcpEndpointBodyContract())
+
+const read = readBodyText(text, limits)
+if (read.kind === 'ok') {
+  const parsed = parseEndpointBody(read.value, 'files')
+  if ('failure' in parsed) report(parsed.failure)
+}
 ```
 
 端口实现方在自己的测试框架里运行套件：
@@ -39,6 +45,7 @@ import { mcpCatalogStoreConformance, runConformanceCase } from '@omne-harness/mc
 
 for (const conformance of mcpCatalogStoreConformance())
   it(conformance.name, async () => {
+    // 每个用例一份新夹具，由实现方构造。
     expect(await runConformanceCase(conformance, newFixture())).toEqual({ kind: 'passed' })
   })
 ```
@@ -51,7 +58,7 @@ for (const conformance of mcpCatalogStoreConformance())
 - 类型以外的行为：[SPEC.md](SPEC.md)。
 - 正文 schema：[schema/endpoint-body.schema.json](schema/endpoint-body.schema.json)。
 
-纯函数对对端数据不抛出，答封闭的失败。有两处是前提违反：`mergeListing` 对不是 `completeListing` 构造的清单抛出 `TypeError`；`boundInstructions` 对不是正安全整数的上界抛出 `RangeError`。
+每个函数答哪些失败、哪些前提违反会抛出，见 SPEC.md：清单函数见 C4 与 C7，`boundInstructions` 见 S3。
 
 ## 设计
 
@@ -59,7 +66,7 @@ for (const conformance of mcpCatalogStoreConformance())
 
 ## 配置与运行
 
-本包没有配置。`McpConfig` 是服务实现的配置类型，四个字段都必填，没有缺省值（SPEC S3）。连接超时取采用交来的配值或请求里的 `connectBound`（SPEC S4）。
+本包没有配置。`McpConfig` 是服务实现的配置类型，它的字段与配值的使用见 SPEC S3、S4。
 
 ## 验证
 
