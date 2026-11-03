@@ -26,9 +26,9 @@
 
 `ANTHROPIC_RECORDS` 是本包唯一的型号清单。档案、采用、指纹与夹具都从它派生。
 
-1. 每个型号一条 `current` 记录，`revision` 为 `1`。封存件迁入的四个型号是 `anthropic/claude-opus-5.5`、`anthropic/claude-opus-5`、`anthropic/claude-sonnet-5` 与 `anthropic/claude-fable-5.1`。`anthropic/claude-sonnet-5.5` 与 `anthropic/claude-haiku-5.5` 取自 2026-11-03 的 Anthropic 官方型号清单，OpenRouter 有同名路由。记录名等于 OpenRouter 路由名。路由为 `{ recipient: 'openrouter', model: <路由名> }`。
+1. 每个型号一条 `current` 记录。封存件迁入的四个型号是 `anthropic/claude-opus-5.5`、`anthropic/claude-opus-5`、`anthropic/claude-sonnet-5` 与 `anthropic/claude-fable-5.1`，`revision` 为 `2`。`anthropic/claude-sonnet-5.5` 与 `anthropic/claude-haiku-5.5` 取自 2026-11-03 的 Anthropic 官方型号清单，OpenRouter 有同名路由，`revision` 为 `1`。记录名等于 OpenRouter 路由名。路由为 `{ recipient: 'openrouter', model: <路由名> }`。
 2. 记录是纯 JSON 数据。共用的线数据以常量展开。记录的采用由 `recordAdoption('@omne-harness/pi-ai-anthropic', record)` 算出。
-3. 记录不得原地修改。行为或数据变化时，新增一个修订并把旧记录标为 `frozen`。`tests/fixtures/adoptions.json` 记录每条记录的摘要，原地修改使指纹测试失败。
+3. 记录不得原地修改。行为或数据变化时，新增一个修订并把旧记录标为 `frozen`。`tests/fixtures/adoptions.json` 记录每条记录的摘要，原地修改使指纹测试失败。`status` 也在摘要中，所以冻结旧修订会改变它的摘要。封存四个型号的修订 `1` 按 Reduce 裁定 R2-D126 删除，没有冻结，它们的指纹行一并删除：0.0.x 不承诺历史兼容，持有修订 `1` 采用的调用方取得时得到 `adoption-not-installed`。
 4. 线数据：
    - `serving.order` 为 `['anthropic']`，`serving.reports` 为 `['Anthropic', 'anthropic']`；
    - 系统指令的角色是 `system`，提醒的角色是 `user`；内容为 `parts`，所有内容都写成部件数组；
@@ -42,7 +42,7 @@
    - `temperature`、`top-p`、`seed` 与两个 penalty 为 `unsupported`。封存件静默丢弃它们，现行行为是发出前明确失败。
 6. 回放：声明取默认值，即 `produces` 为 `openrouter/<路由名>`，`accepts` 只含它自己，`foreignThinking` 为 `omit`。格式 `produces` 与 `accepts` 都是 `anthropic-claude-v1`。
 7. 外来工具轮次：最后一个用过工具的 assistant 消息来自另一来源时，请求保持请求的推理强度，请求体写 `reasoning.effort`，encode 只对略去的外来状态给出 `replay-omitted` 诊断。封存件要求 `claude-opus-5.5` 与 `claude-fable-5.1` 有签名前缀，否则关闭推理。本包不迁入这项要求，因为按[项目约定](../docs/architecture.md#厂商适配的内聚范围)，本包的记录不关闭推理。实测依据见本节末的“依据”。
-8. 档案数据：输入为文本与图片，输出为文本。窗口 1000000，输入 872000，输出 128000，单图 4194304 字节。封存的四条记录四项上游值都是未知：封存件引用的路由报告不在仓库中。2026-11-03 新增的两条记录的窗口与输出上游值是官方公布的有限值 1000000 与 128000，证据是记录中的 `profile.evidence`；Anthropic 不公布输入上限，所以输入与单图的上游值仍是未知。
+8. 档案数据：输入为文本与图片，输出为文本。窗口 1000000，输入 872000，输出 128000，单图 4194304 字节。窗口与输出的上游值是 Anthropic 官方公布的有限值 1000000 与 128000，证据是记录中的 `profile.evidence`，写明 2026-11-03 观察的官方页面与 OpenRouter 端点元数据的 URL。Anthropic 不公布输入上限，所以输入与单图的上游值是未知。封存件引用的 2026-09-28 路由报告不在仓库中，修订 `1` 因此把四项都写成未知。
 
 依据：第 5 条的 `none` 与第 7 条的外来工具轮次来自 2026-10-22 经代理对 OpenRouter 的实测，记录在 [#465 的实测记录](https://github.com/nemori-ai/omne-harness-lite/issues/465#issuecomment-6341479528)。实测结果如下：
 
