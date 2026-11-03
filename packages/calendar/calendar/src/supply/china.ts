@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { cnEvidenceChecks, lanceliaoEvidenceBundleSchema } from './cn-evidence.ts'
 import {
   addDays,
   date,
@@ -38,7 +39,11 @@ const lanceliaoDocument = z.object({
 export function parseLanceliaoCalendar(input: SourceParseInput): SourceParseResult {
   const sourceId = 'lanceliao-china-holiday-calender'
   return sourceParser(sourceId, input, material => {
-    const document = lanceliaoDocument.parse(decodeJson(input))
+    const decoded = decodeJson(input)
+    const bundle = lanceliaoEvidenceBundleSchema.safeParse(decoded)
+    const document = lanceliaoDocument.parse(
+      bundle.success ? parseSupplyJson(bundle.data.primary) : decoded,
+    )
     const days: SupplyDay[] = []
     const intervals: SupplyInterval[] = []
     for (const entries of Object.values(document.Years)) {
@@ -73,21 +78,12 @@ export function parseLanceliaoCalendar(input: SourceParseInput): SourceParseResu
           'passed',
           'Duration checked against every inclusive interval',
         ),
-        finding(
-          'cn.in_lieu_subset_of_holidays',
-          'unknown',
-          'Source has no in-lieu field; no machine proof is available',
-          [],
-          [material.reference],
-        ),
-        finding(
-          'cn.compensatory_in_lieu_near_zero_sum',
-          'unknown',
-          'Source has no in-lieu field',
-          [],
-          [material.reference],
-          'warning',
-        ),
+        ...cnEvidenceChecks({
+          evidence: bundle.success ? bundle.data.supplement : undefined,
+          days,
+          coverage: normalizeCoverageIntervals(intervals),
+          primaryReference: material.reference,
+        }),
       ],
     }
   })

@@ -10,3 +10,5 @@ export {
 export { parseOpmCalendar, parseFederalRegisterClosures } from './us-feeds.ts'
 export { synthesizeCalendarCandidate } from './synthesis.ts'
 export { validateCalendarCandidate } from './validation.ts'
+export { cnValidationEvidenceSchema, lanceliaoEvidenceBundleSchema } from './cn-evidence.ts'
+export type { CnValidationEvidence } from './cn-evidence.ts'

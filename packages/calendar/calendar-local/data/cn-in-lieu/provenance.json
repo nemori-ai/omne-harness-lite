@@ -1,0 +1,16 @@
+{
+  "sourceId": "chinese-days",
+  "version": "1.5.9",
+  "reference": "https://registry.npmjs.org/chinese-days/1.5.9",
+  "repository": "https://github.com/vsme/chinese-days",
+  "gitHead": "a11d68ae849f2b15355dac96bec1115545487686",
+  "artifact": "chinese-days-1.5.9.json",
+  "artifactPathInPackage": "package/dist/chinese-days.json",
+  "sha256": "f3fa629113ef1e3118a12f411ae1307e6dd7d7142dbf39ac6b98ad35091afc54",
+  "coverageStart": "2004-01-01",
+  "coverageEnd": "2026-12-31",
+  "license": "MIT",
+  "role": "supplementary-validation-evidence",
+  "lineage": "chinese-days documents derivation from chinese-calendar; not an independent oracle",
+  "use": "In-lieu subset and compensatory balance checks only. Primary holiday and working-day mappings must agree over the complete primary coverage before this evidence can be used."
+}
