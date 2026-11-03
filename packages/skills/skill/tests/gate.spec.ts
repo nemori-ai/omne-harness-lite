@@ -86,6 +86,7 @@ describe('step 2: the read check', () => {
     ['a kind outside the set', { kind: 'denied' }],
     ['an object without a kind', {}],
     ['no object at all', undefined],
+    ['null', null],
   ])('step-02-outside-the-set: %s answers unknown and does not resolve', async (_case, verdict) => {
     const { ports, controls } = createWorld()
     const check: SkillReadCheck<Principal, Scope>['check'] = async () =>
