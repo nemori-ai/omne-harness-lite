@@ -20,6 +20,7 @@
 - `ActionJudgment` · `evaluation.d.ts`
 - `ActionSlot` · `evaluation.d.ts`
 - `AdmissionDecision` · `passages.d.ts`
+- `AdoptedRequest` · `evaluation.d.ts`
 - `Adoption` · 包 `@omne-harness/exchange-refs`
 - `AdvancementFact` · `evaluation.d.ts`
 - `AgentAccessCheck` · `execution.d.ts`
@@ -715,6 +716,12 @@ export type GuardFact = Readonly<{
     passage: PassageId;
     at: AgentInstant;
 }>;
+export type AdoptedRequest = Readonly<{
+    reference: M.ModelInvocationRef;
+    fixed: DurableEvidence;
+    schema: Adoption;
+    record: JsonValue;
+}>;
 export type AgentCheckpoint = Readonly<{
     schema: Adoption;
     definition: Adoption;
@@ -727,6 +734,7 @@ export type AgentCheckpoint = Readonly<{
     requestPreparation: Preparation | null;
     compaction: CompactionState | null;
     adoptedContext: DurableEvidence | null;
+    adoptedRequest?: AdoptedRequest | null;
     guard: GuardFact | null;
     completedPassages: readonly PassageId[];
     priorConditions: DurableEvidence | null;
