@@ -157,6 +157,48 @@ describe('adoption planner: a capability that was not recorded', () => {
     expect(f.scripted.calls).toEqual([])
   })
 
+  it('counts only live versions among those it finds before any load', async () => {
+    const f = setup()
+    const other = f.fixture.otherAuthority
+    if (other === undefined) throw new Error('fixture has another version')
+    const planner = createAdoptionPlanner(
+      withBindings(f, [
+        entryOf(f, other, 'draining', '2'),
+        entryOf(f, f.fixture.authority, 'live', '1'),
+      ]),
+    )
+    expect(await planner.plan(f.access, { recorded: [], capabilities: [f.capability] })).toEqual(
+      f.expectedMaterial,
+    )
+    expect(f.scripted.calls).toEqual([])
+  })
+
+  it('matches each recorded capability with its own record', async () => {
+    const f = setup()
+    const otherAuthority = renamed(f.fixture.authority, 'other_tool')
+    const otherEntry = entryOf(f, otherAuthority, 'live', '2')
+    const otherFacts = residentToolFacts(otherEntry.key, otherEntry.shape)
+    if ('failure' in otherFacts) throw new Error('fixture facts failed')
+    const planner = createAdoptionPlanner({
+      ...withBindings(f, [entryOf(f, f.fixture.authority, 'live', '1'), otherEntry]),
+      definitionFor: () => undefined,
+    })
+    expect(
+      await planner.plan(f.access, { recorded: [otherFacts.ok, f.recorded], capabilities: [] }),
+    ).toEqual(
+      succeed({
+        material: {
+          residents: [],
+          keys: [
+            { capability: 'other_tool', key: otherFacts.ok.key },
+            { capability: f.capability, key: f.recorded.key },
+          ],
+        },
+        verdict: null,
+      }),
+    )
+  })
+
   it('does not call the loader for a definition that belongs to another capability', async () => {
     const f = setup()
     f.scripted.answer(f.loaded.key, succeed({ key: f.loaded.key, state: 'loaded' }), f.loaded)
