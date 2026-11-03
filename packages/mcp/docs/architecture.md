@@ -389,7 +389,7 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 | 口 | 候选标识 | 操作 | 关键保证 |
 | --- | --- | --- | --- |
 | 类别端口 | `EndpointInspection` | 类别端口 `judge` 与 `deriveDeclarations`；`inspect(body)` 得出 `EndpointDefinition` 或拒绝原因；`launchesLocalCommand(body)` 回答这个接入点是否可能启动本机命令 | 按 assets 的[已接受公开类型](../../assets/assets/SPEC.md#accepted-public-types)实现 `BodyContract`。加载期就能判定「可能启动本机命令」。存在但非法的来源不当作空来源。声明见[设置声明与逐动作权限](#设置声明与逐动作权限) |
-| 读口 | `ActionDiscovery` | `current(access, endpointRef)`、`refresh(access, endpointRef)`、`peer(access, endpointRef)` | 见下文读口。失败时保留原采用并给出原因，不伪装成空清单 |
+| 读口 | `ActionDiscovery` | `current(access, endpointRef)`、`refresh(access, { ref, connectBound? })`、`peer(access, endpointRef)` | 见下文读口。失败时保留原采用并给出原因，不伪装成空清单 |
 | 调用口 | `ActionInvoker` | `invoke`、`continueWithInput`、`cancel` | 见下文调用口。不自动重发。已发出但无应答时报 `unknown`。MCP 不保存原调用 |
 | 状态口 | `ActionInvoker` | `queryTask`、`taskResult`、`provideTaskInput`、`cancelTask` | 见下文状态口 |
 | 状态口 | `EndpointStatus` | `inspect(access, endpointRef)`、`list(access, scope)` | 读面暂不可用（`unknown`）与对无权主体的答复（`not-available-to-you`）分开。接入点未采用时，`inspect` 也答 `not-available-to-you`。有使用资格但被设置挡下时，给出该原因。凭据只报告四态之一：不需要、缺失、不合法、存在（[S7](../mcp-contract/SPEC.md#services)），不给值。不重做连接或动作。`list` 只列出主体有使用资格的接入点 |
@@ -417,7 +417,7 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 不可用原因是封闭集合：对端不再提供、连接不可用、需要授权、凭据不可用、落点不可用。各项的给出条件见 [R3](../mcp-contract/SPEC.md#refusals)。`current` 不连接，也不发现。
 
-`refresh(access, endpointRef)` 交回新的清单修订，或「保留原采用」及原因，或 `unknown`（`CatalogStore` 写入不可用，见 [MCP 动作清单](#mcp-动作清单与-mcp-已知动作)）。首次发现也经 `refresh` 触发。
+`refresh(access, { ref, connectBound? })` 交回新的清单修订，或「保留原采用」及原因，或 `unknown`（`CatalogStore` 写入不可用，见 [MCP 动作清单](#mcp-动作清单与-mcp-已知动作)）。首次发现也经 `refresh` 触发。
 
 候选决定：`refresh` 的发布边界紧挨 `CatalogStore` 写入，核对四项：
 
