@@ -495,10 +495,12 @@ export declare function contextScopeOf(input: Readonly<{
     session: SessionId;
     generation: string;
 }>): string;
-export declare function contextScopesOf(session: Readonly<{
+type Holder = Readonly<{
     tenant: TenantId;
     session: SessionId;
-}>, entries: readonly Pick<HistoryEntry, 'kind' | 'payload'>[]): Outcome<readonly SessionContextScope[], string>;
+}>;
+export declare function contextScopesOf(session: Holder, entries: readonly Pick<HistoryEntry, 'kind' | 'payload'>[]): Outcome<readonly SessionContextScope[], string>;
+export {};
 ```
 
 ## 声明文件 `control-normalization.d.ts`
@@ -2599,8 +2601,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:55feaaed24b40666b3e5cda2f8e5380e62e7c5a0f5430bed46b95ef9fb1b3971";
-export declare const SESSION_RELEASE_DIGEST = "sha256:55feaaed24b40666b3e5cda2f8e5380e62e7c5a0f5430bed46b95ef9fb1b3971";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:e6cd6691320350fb435894993410f1184ca9ab04bc94d896800f118217735ed6";
+export declare const SESSION_RELEASE_DIGEST = "sha256:e6cd6691320350fb435894993410f1184ca9ab04bc94d896800f118217735ed6";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
