@@ -84,7 +84,7 @@ json-text 保留 JSON 表示信息，并不提供 JCS。仓库里的存储和模
 
 tools 不提供 HTTP 服务、业务存储、定时扫描、Job 执行器或 Tool runtime。它通过 Cordis inject 消费服务定义，运行时可注入 local 服务或未来远程客户端。创建和修改的稳定操作键由可信适配器按原调用保管；查询操作不会重新执行命令。输出保留 kind、原操作定位、状态和必要依据，不能为压缩内容删掉 unknown 或失败信息。
 
-工具描述和公开 schema 是声明，不是已经注册。Calendar tools 已有 A1 贡献实现，Schedule tools 仍为空入口；实际提供工具时同步独立入口测试、权限与错误投影用例。
+工具描述和公开 schema 是声明，不是已经注册。Calendar 与 Schedule tools 均有独立贡献实现。Schedule 的原调用恢复、固定结果披露与宿主配置沿 [tools SPEC](../schedule-tools/SPEC.md)；生产宿主仍须接入可信提供者和通用读取 guard。
 
 ## 派发前的依赖决定
 

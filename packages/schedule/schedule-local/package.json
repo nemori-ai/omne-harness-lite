@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Local calculation workers and SQL management persistence for schedule",
+  "description": "Local Schedule application, calculation workers and SQL management persistence",
   "engines": {
     "node": ">=24"
   },

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Independent tool adapters for schedule; initialized draft without business exports",
+  "description": "Schedule tool authors, trusted call recovery and fixed result disclosure",
   "engines": {
     "node": ">=24"
   },

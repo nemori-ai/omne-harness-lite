@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Pure public contracts for schedule; initialized draft without business exports",
+  "description": "Public Schedule value schemas, service protocols and operation identity",
   "engines": {
     "node": ">=24"
   },

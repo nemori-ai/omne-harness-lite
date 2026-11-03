@@ -364,7 +364,7 @@ declare module '@deepseek-ai/cordis' {
 
 其他 seam 按同一形状分别拥有：JobExecutor→jobExecutor、ScheduleCommands→scheduleCommands、ScheduleQueries→scheduleQueries、JobCommands→jobCommands、JobControl→jobControl、ScheduleSubscriptions→scheduleSubscriptions。CalendarSupply→calendarSupply 归 calendar-cordis-contract，SessionContinuation 归 Session 的实际成员。tools作者插件声明 `static readonly inject = [scheduleCommandsKey]` 或对应服务key的数组字面量，并通过 `ctx.scheduleCommands` 调用，不能自己new服务/取provider。
 
-Tool贡献的发布、装载与撤除沿[Tool Cordis已接受设计](../../../tool/tool-cordis-contract/docs/cordis.md)及tool-host-local，使用既有绑定与贡献权限协议，不能在本设计另造registerTool全局表。本组 tools 与执行适配尚未实现，P7须补真实装配验收，不能把有抽象Service当作工具已能运行。
+Tool贡献的发布、装载与撤除沿[Tool Cordis已接受设计](../../../tool/tool-cordis-contract/docs/cordis.md)及tool-host-local，使用既有绑定与贡献权限协议，不能在本设计另造registerTool全局表。本组 tools 已实现作者、可信环境和详情适配，边界见 [tools SPEC](../../schedule-tools/SPEC.md)。Job 执行适配仍待后续波段；完整跨域生产装配须在M2后验收。
 
 依赖消失时停止注册新调用，已接受业务责任由应用/持久化保管。卸载旧 tool 的 disposer 只移除其注册 token，不删新实例同名 tool，也不停止所有 schedule。
 

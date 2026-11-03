@@ -1,17 +1,35 @@
-# 对象模型
+# 工具适配对象
 
-<!-- documentation:placeholder -->
+ScheduleToolFixedCall 表示已经从原耐久调用恢复并校验的上下文、参数和可选写意图。ScheduleToolResult 区分业务结果与适配失败。两者不能用一次 Tool 调用完成来推断业务执行完成。
 
-本文件描述本包内部对象的职责、身份、状态、关联、组合、继承与生命周期，配类图。它不强迫实现改成 class；纯函数或值包写实际模型与不适用项。
+ScheduleToolDetailRef 定位精确 invocation/result/full。DisclosureObservation 把当前资格与结果摘要、owner 和相关安排 ID 绑定。续页还绑定同一观察与页元信息，读取前后不一致即拒绝。
 
-## 对象与关系
-
-<!-- documentation:placeholder -->
-
-待补：对象职责、身份、状态与关联，以及类图。
-
-## 生命周期
-
-<!-- documentation:placeholder -->
-
-待补：对象的创建、变化与销毁责任。
+```mermaid
+classDiagram
+ class ScheduleToolFixedCall {
+ context
+ arguments
+ write
+ }
+ class ScheduleToolResult {
+ action
+ result
+ operation
+ }
+ class ScheduleToolDetailRef {
+ authority
+ invocation
+ result
+ projection full
+ }
+ class ScheduleToolDisclosureObservation {
+ revision
+ resultDigest
+ owner
+ scheduleIds
+ source
+ }
+ ScheduleToolFixedCall --> ScheduleToolResult : execute once
+ ScheduleToolDetailRef --> ScheduleToolResult : fixed version
+ ScheduleToolDisclosureObservation --> ScheduleToolDetailRef : qualifies
+```
