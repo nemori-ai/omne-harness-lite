@@ -12,38 +12,1678 @@
     ],
     "files": [
       {
+        "file": "src/config.ts",
+        "decls": [
+          {
+            "name": "validateConfig",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "McpConfig",
+              "P"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/mcp-contract"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "validateConfig",
+          "lines": 8
+        },
+        "lines": 29
+      },
+      {
+        "file": "src/connections.ts",
+        "decls": [
+          {
+            "name": "ConnectionsDependencies",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "McpPorts",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionTable",
+                  "P"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "McpPorts",
+              "P",
+              "S",
+              "ConnectionTable"
+            ]
+          },
+          {
+            "name": "createConnections",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConnectionsDependencies",
+              "P",
+              "S",
+              "Connections",
+              "UseGate",
+              "Access",
+              "EndpointRef",
+              "Promise",
+              "Outcome",
+              "ReleaseReport",
+              "GateRefusal"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "@omne-harness/mcp-contract",
+          "./internal/gate.ts",
+          "./internal/guard.ts",
+          "./internal/table.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createConnections",
+          "lines": 14
+        },
+        "lines": 27
+      },
+      {
+        "file": "src/discovery.ts",
+        "decls": [
+          {
+            "name": "RefreshRequest",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "Millis"
+                ]
+              },
+              {
+                "refs": [
+                  "AbortSignal"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointRef",
+              "Millis",
+              "AbortSignal"
+            ]
+          },
+          {
+            "name": "McpDiscovery",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "RefreshRequest",
+                  "Promise",
+                  "Outcome",
+                  "RefreshResult",
+                  "OperationFailure"
+                ]
+              }
+            ],
+            "refs": [
+              "ActionDiscovery",
+              "P",
+              "Access",
+              "RefreshRequest",
+              "Promise",
+              "Outcome",
+              "RefreshResult",
+              "OperationFailure"
+            ],
+            "extends": [
+              "ActionDiscovery"
+            ]
+          },
+          {
+            "name": "DiscoveryDependencies",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "McpPorts",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "McpConfig",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionTable",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "Date"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "McpPorts",
+              "P",
+              "S",
+              "McpConfig",
+              "ConnectionTable",
+              "Date"
+            ]
+          },
+          {
+            "name": "createDiscovery",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "DiscoveryDependencies",
+              "P",
+              "S",
+              "McpDiscovery",
+              "UseGate",
+              "Ensured",
+              "AbortSignal",
+              "Promise",
+              "Pages",
+              "Outcome",
+              "ListingPage",
+              "TransportFailure",
+              "Extract",
+              "RefreshResult",
+              "OperationFailure",
+              "Access",
+              "RefreshRequest",
+              "ActionCatalogRecord",
+              "CatalogView",
+              "EndpointRef",
+              "ReadFailure",
+              "Readonly",
+              "PeerIdentity",
+              "Generation"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider",
+          "./internal/abort.ts",
+          "./internal/canonical.ts",
+          "./internal/guard.ts",
+          "./internal/settings.ts",
+          "./internal/table.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createDiscovery",
+          "lines": 175
+        },
+        "lines": 249
+      },
+      {
         "file": "src/index.ts",
-        "decls": [],
-        "imports": [],
+        "decls": [
+          {
+            "name": "McpCore",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointInspection"
+                ]
+              },
+              {
+                "refs": [
+                  "McpDiscovery",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointStatus",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "Connections",
+                  "P"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointInspection",
+              "McpDiscovery",
+              "P",
+              "EndpointStatus",
+              "S",
+              "Connections"
+            ]
+          },
+          {
+            "name": "McpCoreOptions",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Date"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Date"
+            ]
+          },
+          {
+            "name": "createMcpCore",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "McpPorts",
+              "P",
+              "S",
+              "McpConfig",
+              "McpCoreOptions",
+              "McpCore"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/mcp-contract",
+          "./config.ts",
+          "./connections.ts",
+          "./discovery.ts",
+          "./inspection.ts",
+          "./internal/table.ts",
+          "./status.ts",
+          "./store/memory.ts",
+          "./discovery.ts"
+        ],
         "reexports": [
           {
-            "names": []
+            "from": "./store/memory.ts",
+            "names": [
+              "createInMemoryCatalogStore"
+            ]
+          },
+          {
+            "from": "./discovery.ts",
+            "names": [
+              "McpDiscovery",
+              "RefreshRequest"
+            ]
           }
         ],
         "asCount": 0,
         "anyCount": 0,
         "longest": {
-          "name": "",
-          "lines": 0
+          "name": "createMcpCore",
+          "lines": 11
         },
-        "lines": 2
+        "lines": 55
+      },
+      {
+        "file": "src/inspection.ts",
+        "decls": [
+          {
+            "name": "createInspection",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "EndpointInspection",
+              "Outcome",
+              "EndpointBodyRejection"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/operation-result",
+          "@omne-harness/mcp-contract"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createInspection",
+          "lines": 10
+        },
+        "lines": 21
+      },
+      {
+        "file": "src/internal/abort.ts",
+        "decls": [
+          {
+            "name": "Bounded",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "answered",
+              "aborted"
+            ],
+            "refs": [
+              "Readonly",
+              "T",
+              "Promise"
+            ]
+          },
+          {
+            "name": "untilAborted",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Promise",
+              "T",
+              "AbortSignal",
+              "Bounded"
+            ]
+          },
+          {
+            "name": "afterwards",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Promise",
+              "T"
+            ]
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "untilAborted",
+          "lines": 25
+        },
+        "lines": 42
+      },
+      {
+        "file": "src/internal/canonical.ts",
+        "decls": [
+          {
+            "name": "sameJson",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "canonical",
+          "lines": 22
+        },
+        "lines": 33
+      },
+      {
+        "file": "src/internal/connection.ts",
+        "decls": [
+          {
+            "name": "GenerationPolicy",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "on-attempt",
+              "on-negotiation"
+            ],
+            "refs": []
+          },
+          {
+            "name": "AggregateState",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "ConnectionState",
+              "closed"
+            ],
+            "refs": [
+              "ConnectionState",
+              "Readonly"
+            ]
+          },
+          {
+            "name": "Connection",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": [
+                  "ConnectionKey"
+                ]
+              },
+              {
+                "refs": [
+                  "GenerationPolicy"
+                ]
+              },
+              {
+                "refs": [
+                  "AggregateState"
+                ]
+              },
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "PeerIdentity"
+                ]
+              },
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "PeerIdentity",
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "DegradedReason"
+                ]
+              },
+              {
+                "refs": [
+                  "LostReason",
+                  "Residual"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Generation"
+                ]
+              }
+            ],
+            "refs": [
+              "ConnectionKey",
+              "GenerationPolicy",
+              "Generation",
+              "AggregateState",
+              "PeerIdentity",
+              "DegradedReason",
+              "LostReason",
+              "Residual",
+              "Event"
+            ],
+            "implements": []
+          }
+        ],
+        "imports": [
+          "@omne-harness/mcp-contract"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "ready",
+          "lines": 8
+        },
+        "lines": 103
+      },
+      {
+        "file": "src/internal/gate.ts",
+        "decls": [
+          {
+            "name": "AdoptedOnly",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "AdoptedEndpoint",
+              "Readonly",
+              "EndpointDefinition"
+            ]
+          },
+          {
+            "name": "AdmittedEndpoint",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "AdoptedOnly"
+            ]
+          },
+          {
+            "name": "GateRefusal",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "Refusal"
+            ]
+          },
+          {
+            "name": "AdoptionRefusal",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "Refusal"
+            ]
+          },
+          {
+            "name": "GatePorts",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "AdoptionView",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "UseEligibility",
+                  "P"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "AdoptionView",
+              "P",
+              "S",
+              "UseEligibility"
+            ]
+          },
+          {
+            "name": "AdoptionOutcome",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "not-adopted",
+              "adoption-unknown",
+              "body-unreadable"
+            ],
+            "refs": []
+          },
+          {
+            "name": "GateDecision",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "admitted",
+              "{…}",
+              "not-eligible",
+              "blocked",
+              "eligibility-unknown"
+            ],
+            "refs": [
+              "Readonly",
+              "AdmittedEndpoint",
+              "AdoptionOutcome",
+              "AdoptedOnly",
+              "BlockedReason"
+            ]
+          },
+          {
+            "name": "GateRefused",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Exclude",
+              "GateDecision"
+            ]
+          },
+          {
+            "name": "assertAdmitted",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "AdoptedEndpoint",
+              "AdmittedEndpoint"
+            ]
+          },
+          {
+            "name": "adopted",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "AdoptionView",
+              "P",
+              "S",
+              "Access",
+              "EndpointRef",
+              "Promise",
+              "Outcome",
+              "AdoptedOnly",
+              "AdoptionOutcome"
+            ]
+          },
+          {
+            "name": "judge",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "GatePorts",
+              "P",
+              "S",
+              "Access",
+              "AdoptedOnly",
+              "Promise",
+              "GateDecision"
+            ]
+          },
+          {
+            "name": "admit",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "GatePorts",
+              "P",
+              "S",
+              "Access",
+              "EndpointRef",
+              "Promise",
+              "GateDecision"
+            ]
+          },
+          {
+            "name": "admitScope",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "GatePorts",
+              "P",
+              "S",
+              "Access",
+              "Promise",
+              "Outcome",
+              "GateDecision"
+            ]
+          },
+          {
+            "name": "refusalOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "GateRefused",
+              "GateRefusal"
+            ]
+          },
+          {
+            "name": "admitWithoutEligibility",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "AdoptionView",
+              "P",
+              "S",
+              "Access",
+              "EndpointRef",
+              "Promise",
+              "Outcome",
+              "AdoptedOnly",
+              "AdoptionRefusal"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "judge",
+          "lines": 22
+        },
+        "lines": 175
+      },
+      {
+        "file": "src/internal/guard.ts",
+        "decls": [
+          {
+            "name": "UseGate",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "GatePorts",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionTable",
+                  "P"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "GatePorts",
+              "P",
+              "S",
+              "ConnectionTable"
+            ]
+          },
+          {
+            "name": "withdraws",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "GateRefused"
+            ]
+          },
+          {
+            "name": "admitForUse",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "UseGate",
+              "P",
+              "S",
+              "Access",
+              "EndpointRef",
+              "Promise",
+              "Outcome",
+              "AdmittedEndpoint",
+              "GateRefusal"
+            ]
+          },
+          {
+            "name": "stillAdmitted",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "UseGate",
+              "P",
+              "S",
+              "Access",
+              "EndpointRef",
+              "AdoptionRevision",
+              "Promise",
+              "Outcome",
+              "GateRefusal"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "@omne-harness/mcp-contract",
+          "./gate.ts",
+          "./table.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "stillAdmitted",
+          "lines": 7
+        },
+        "lines": 58
+      },
+      {
+        "file": "src/internal/in-flight.ts",
+        "decls": [
+          {
+            "name": "InFlightKey",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "TenantId"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "CorrelationKey"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "TenantId",
+              "CorrelationKey"
+            ]
+          },
+          {
+            "name": "InFlightCalls",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": [
+                  "InFlightKey"
+                ]
+              },
+              {
+                "refs": [
+                  "InFlightKey",
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "InFlightKey"
+                ]
+              },
+              {
+                "refs": [
+                  "InFlightKey"
+                ]
+              },
+              {
+                "refs": [
+                  "InFlightKey",
+                  "Generation",
+                  "CancelAnswer"
+                ]
+              },
+              {
+                "refs": [
+                  "InFlightKey"
+                ]
+              }
+            ],
+            "refs": [
+              "Entry",
+              "InFlightKey",
+              "Generation",
+              "CancelAnswer"
+            ],
+            "implements": []
+          }
+        ],
+        "imports": [
+          "@omne-harness/legal-identity",
+          "@omne-harness/mcp-contract",
+          "./text.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "cancel",
+          "lines": 18
+        },
+        "lines": 83
+      },
+      {
+        "file": "src/internal/settings.ts",
+        "decls": [
+          {
+            "name": "ConfigRefusal",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "Refusal"
+            ]
+          },
+          {
+            "name": "PreparedCredential",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "{…}",
+              "{…}"
+            ],
+            "refs": [
+              "Readonly",
+              "CredentialBinding"
+            ]
+          },
+          {
+            "name": "PreparedTransport",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "stdio",
+              "streamable-http"
+            ],
+            "refs": [
+              "Readonly",
+              "StdioLaunch",
+              "ProcessSetting",
+              "ConnectionTarget"
+            ]
+          },
+          {
+            "name": "PreparedSettings",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointDefinition"
+                ]
+              },
+              {
+                "refs": [
+                  "PreparedCredential"
+                ]
+              },
+              {
+                "refs": [
+                  "PeerAccount"
+                ]
+              },
+              {
+                "refs": [
+                  "PreparedTransport"
+                ]
+              },
+              {
+                "refs": [
+                  "Millis"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointDefinition",
+              "PreparedCredential",
+              "PeerAccount",
+              "PreparedTransport",
+              "Millis"
+            ]
+          },
+          {
+            "name": "SettingsFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "ConfigRefusal",
+              "Extract<ConnectionFailure, { kind: 'cred"
+            ],
+            "refs": [
+              "ConfigRefusal",
+              "Extract",
+              "ConnectionFailure"
+            ]
+          },
+          {
+            "name": "prepareSettings",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "AdoptedOnly",
+              "Millis",
+              "Outcome",
+              "PreparedSettings",
+              "SettingsFailure"
+            ]
+          },
+          {
+            "name": "readAccountOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "AdoptedOnly",
+              "Outcome",
+              "PeerAccount",
+              "ConfigRefusal"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/operation-result",
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider",
+          "./gate.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "prepareSettings",
+          "lines": 27
+        },
+        "lines": 136
+      },
+      {
+        "file": "src/internal/table.ts",
+        "decls": [
+          {
+            "name": "EnsureOptions",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Millis"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Millis"
+            ]
+          },
+          {
+            "name": "ConnectionView",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "Generation"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Generation"
+            ]
+          },
+          {
+            "name": "Ensured",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "McpTransport"
+                ]
+              },
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionView"
+                ]
+              },
+              {
+                "refs": [
+                  "PeerIdentity"
+                ]
+              },
+              {
+                "refs": [
+                  "CatalogKey"
+                ]
+              },
+              {
+                "refs": [
+                  "AdoptionRevision"
+                ]
+              },
+              {
+                "refs": [
+                  "Millis"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "McpTransport",
+              "Generation",
+              "ConnectionView",
+              "PeerIdentity",
+              "CatalogKey",
+              "AdoptionRevision",
+              "Millis"
+            ]
+          },
+          {
+            "name": "CatalogMark",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "marked",
+              "revision-conflict",
+              "unavailable",
+              "not-acquired"
+            ],
+            "refs": []
+          },
+          {
+            "name": "EnsureFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "{…}",
+              "{…}"
+            ],
+            "refs": [
+              "Readonly",
+              "SettingsFailure",
+              "AdoptionRefusal",
+              "ConnectionFailure",
+              "EffectUnknown",
+              "CatalogMark"
+            ]
+          },
+          {
+            "name": "UnavailableMark",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Exclude",
+              "UnavailableReason"
+            ]
+          },
+          {
+            "name": "ClosedEndpoint",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "StopScope"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointRef",
+              "StopScope"
+            ]
+          },
+          {
+            "name": "ConnectionTable",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "AdmittedEndpoint",
+                  "Access",
+                  "P",
+                  "EnsureOptions",
+                  "Promise",
+                  "Outcome",
+                  "Ensured",
+                  "EnsureFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionView",
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionView",
+                  "Generation",
+                  "LostReason",
+                  "UnavailableMark",
+                  "Promise",
+                  "CatalogMark"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionKey",
+                  "Ensured"
+                ]
+              },
+              {
+                "refs": [
+                  "TenantId",
+                  "EndpointHolding",
+                  "ConnectionState"
+                ]
+              },
+              {
+                "refs": [
+                  "TenantId",
+                  "EndpointHolding",
+                  "Promise",
+                  "ReleaseReport"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "ClosedEndpoint"
+                ]
+              }
+            ],
+            "refs": [
+              "AdmittedEndpoint",
+              "Access",
+              "P",
+              "EnsureOptions",
+              "Promise",
+              "Outcome",
+              "Ensured",
+              "EnsureFailure",
+              "ConnectionView",
+              "Generation",
+              "LostReason",
+              "UnavailableMark",
+              "CatalogMark",
+              "ConnectionKey",
+              "TenantId",
+              "EndpointHolding",
+              "ConnectionState",
+              "ReleaseReport",
+              "ClosedEndpoint"
+            ],
+            "extends": []
+          },
+          {
+            "name": "createConnectionTable",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "McpPorts",
+              "P",
+              "S",
+              "McpConfig",
+              "ConnectionTable",
+              "Entry",
+              "ConnectionView",
+              "Generation",
+              "Promise",
+              "EndpointHolding",
+              "T",
+              "ProcessHandle",
+              "StopScope",
+              "Scope",
+              "CatalogKey",
+              "UnavailableMark",
+              "CatalogMark",
+              "Failed",
+              "Outcome",
+              "EnsureFailure",
+              "Access",
+              "PreparedSettings",
+              "AbortSignal",
+              "CredentialHandle",
+              "CredentialFailure",
+              "TransportMaterial",
+              "ProcessEnvironment",
+              "Ensured",
+              "AdmittedEndpoint",
+              "ConnectionKey",
+              "Started",
+              "AdoptionRefusal",
+              "EnsureOptions",
+              "LostReason",
+              "TenantId",
+              "ConnectionState",
+              "ReleaseReport",
+              "ClosedEndpoint"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider",
+          "./abort.ts",
+          "./connection.ts",
+          "./gate.ts",
+          "./settings.ts",
+          "./text.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createConnectionTable",
+          "lines": 462
+        },
+        "lines": 684
+      },
+      {
+        "file": "src/internal/text.ts",
+        "decls": [
+          {
+            "name": "tenantTextOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TenantId"
+            ]
+          },
+          {
+            "name": "catalogKeyTextOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CatalogKey"
+            ]
+          },
+          {
+            "name": "connectionKeyTextOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConnectionKey"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/legal-identity",
+          "@omne-harness/mcp-contract"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "connectionKeyTextOf",
+          "lines": 8
+        },
+        "lines": 24
+      },
+      {
+        "file": "src/status.ts",
+        "decls": [
+          {
+            "name": "StatusDependencies",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "McpPorts",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionTable",
+                  "P"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "McpPorts",
+              "P",
+              "S",
+              "ConnectionTable"
+            ]
+          },
+          {
+            "name": "createStatus",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "StatusDependencies",
+              "P",
+              "S",
+              "EndpointStatus",
+              "Access",
+              "AdoptedOnly",
+              "EndpointStatusView",
+              "EndpointRef",
+              "Promise",
+              "Outcome",
+              "InspectRefusal"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "@omne-harness/mcp-contract",
+          "./internal/gate.ts",
+          "./internal/guard.ts",
+          "./internal/table.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createStatus",
+          "lines": 50
+        },
+        "lines": 108
+      },
+      {
+        "file": "src/store/memory.ts",
+        "decls": [
+          {
+            "name": "createInMemoryCatalogStore",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CatalogStore",
+              "ActionCatalogRecord"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider",
+          "../internal/text.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createInMemoryCatalogStore",
+          "lines": 15
+        },
+        "lines": 21
       }
     ],
-    "testFiles": 1,
-    "testCases": 1,
-    "draft": [
-      "README.md",
-      "README_ZH.md",
-      "src/index.ts"
-    ],
+    "testFiles": 20,
+    "testCases": 156,
+    "draft": [],
     "entries": [
       {
         "sub": ".",
-        "names": []
+        "names": [
+          {
+            "name": "McpCore",
+            "kind": "record"
+          },
+          {
+            "name": "McpCoreOptions",
+            "kind": "record"
+          },
+          {
+            "name": "createMcpCore",
+            "kind": "function"
+          },
+          {
+            "name": "createInMemoryCatalogStore",
+            "kind": "function"
+          },
+          {
+            "name": "McpDiscovery",
+            "kind": "interface"
+          },
+          {
+            "name": "RefreshRequest",
+            "kind": "record"
+          }
+        ]
       }
     ],
-    "modEdges": [],
-    "pkgEdges": []
+    "modEdges": [
+      [
+        "src/connections.ts",
+        "src/internal/gate.ts"
+      ],
+      [
+        "src/connections.ts",
+        "src/internal/guard.ts"
+      ],
+      [
+        "src/connections.ts",
+        "src/internal/table.ts"
+      ],
+      [
+        "src/discovery.ts",
+        "src/internal/abort.ts"
+      ],
+      [
+        "src/discovery.ts",
+        "src/internal/canonical.ts"
+      ],
+      [
+        "src/discovery.ts",
+        "src/internal/guard.ts"
+      ],
+      [
+        "src/discovery.ts",
+        "src/internal/settings.ts"
+      ],
+      [
+        "src/discovery.ts",
+        "src/internal/table.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/config.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/connections.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/discovery.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/inspection.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/internal/table.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/status.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/store/memory.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/discovery.ts"
+      ],
+      [
+        "src/internal/guard.ts",
+        "src/internal/gate.ts"
+      ],
+      [
+        "src/internal/guard.ts",
+        "src/internal/table.ts"
+      ],
+      [
+        "src/internal/in-flight.ts",
+        "src/internal/text.ts"
+      ],
+      [
+        "src/internal/settings.ts",
+        "src/internal/gate.ts"
+      ],
+      [
+        "src/internal/table.ts",
+        "src/internal/abort.ts"
+      ],
+      [
+        "src/internal/table.ts",
+        "src/internal/connection.ts"
+      ],
+      [
+        "src/internal/table.ts",
+        "src/internal/gate.ts"
+      ],
+      [
+        "src/internal/table.ts",
+        "src/internal/settings.ts"
+      ],
+      [
+        "src/internal/table.ts",
+        "src/internal/text.ts"
+      ],
+      [
+        "src/status.ts",
+        "src/internal/gate.ts"
+      ],
+      [
+        "src/status.ts",
+        "src/internal/guard.ts"
+      ],
+      [
+        "src/status.ts",
+        "src/internal/table.ts"
+      ],
+      [
+        "src/store/memory.ts",
+        "src/internal/text.ts"
+      ]
+    ],
+    "pkgEdges": [
+      "@omne-harness/mcp-contract",
+      "@omne-harness/legal-identity",
+      "@omne-harness/operation-result",
+      "@omne-harness/json-text"
+    ]
   },
   {
     "dir": "packages/mcp/mcp-contract",

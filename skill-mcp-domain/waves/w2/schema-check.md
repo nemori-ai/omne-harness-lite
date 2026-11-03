@@ -62,3 +62,17 @@
 - 导出 `MANIFEST_PATH`/`DECLARATION_PATH`、`PAGE_LIMIT`、`sameCapability`（成员 `skill` 删重复定义）。
 - 端口答复畸形值的处置统一：读取判定一侧答 `unknown`，对应端口一侧抛 `TypeError`；契约写明「端口答复不在封闭集合内时实现答 `unknown`」或两侧都抛。
 - 读取「请求长度短于一个字符时不前进」已有重读规则；是否另给前进保证由契约拥有者定。
+
+## w2-mcp-core 收口后留给 W3 `w3-mcp-call`（同成员首项）
+
+- 连接表遗忘谓词改为「条目什么资源也不持有（transport/process/credential 为空 + 无 lingering + 无在途落点）」；`teardown` 每步 `try/finally` 继续往下走；用例：`transport.close()` reject 后换修订，旧进程仍被停、句柄仍被释放。
+- `release`/`closeAll` 在落点在途时答 `unconfirmed`；`closeAll` 强制释放进程凭据句柄（S9 关停例外写进契约）。
+- 临界区内的重读受连接时限约束。
+- 契约：`refresh` 加 `signal?`；`McpConfig.now?`；`canonical`/`sameJson` 与 `testing-values` 导出；`McpTransport.close()`/`ProcessHandle.stop()` 的 reject 语义写明（或改为 Outcome）。
+- `open` 答 `entry-unreadable` 的映射（`source-unavailable`）在契约 SPEC 与组页都没有条款，只有源码（写回写者发现）；读取判定答复不在集合答 `unknown`、范围非法先抛 `TypeError` 也只在成员 SPEC——W3 prep 补契约条款并写回组页。
+
+## W3 写回清单的种子（本波评审建议，未做）
+
+- MCP 组页「模型」改为实现的聚合（`Connection` 的 `attempt()/ready()/lose()`、`InFlightCalls`；`ActionCatalog` 是不可变记录 + 纯函数）。
+- MCP 组页不变式 6 拆成关闭条件、粒度、重读三条；并发段后加时序图；F-MC03 图把发布边界拆成异步核对与写入前同步核对两段。
+- Skill 组页映射表键列只留键；`open` 的 `entry-unreadable` 映射先补契约条款再写回。

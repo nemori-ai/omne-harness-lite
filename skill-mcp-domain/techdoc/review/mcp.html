@@ -1,3 +1,15 @@
+<h3>W2 合入：mcp 核心（2026-11-03，父分支 ff17f7701）</h3>
+<p><strong>读数。</strong>16 源文件 2014 行、254 例。无 <code>as</code>（一处 <code>as const</code>）、无 <code>any</code>、类只有两个聚合。变更函数超 alert 5：<code>discovery.publish</code> CC 17（发布边界四项核对 + 三种 kept）、<code>table.begin</code> CC 13（临界区）、<code>prepareSettings</code> CC 15、<code>afterMarking</code>、<code>lostOfNoAnswer</code>（覆盖 33%）。Stryker 1420 个变异体：被杀 1104、存活 172（<code>table.ts</code> 89）、超时 63、2 个静态变异致「测量无效」。</p>
+<p><strong>三轮评审改掉了什么。</strong>这是本波最难的一块，也是评审最值钱的一块。第 1 轮 L3 逐行用 9 个探针实跑出 5 个并发缺陷：发布边界的核对与写入之间隔着一个 await（迟到的旧代际清单被发布）、旧代际迟到的页把重建后的新连接打成 lost、取页不受时限、close 与 ensure 竞争遗弃活连接、时限不覆盖取凭据与进程启动；设计面又抓到 S1 写了四份、规格点名的 <code>admit</code> 不在生产路径。第 2 轮修完后复审重放探针，原问题全闭合，但同一类问题（条目归属与拆除次序）又出两个：<code>lose</code> 的拆除不在关闭单飞里、迟到进程的 stop 范围被丢。第 3 轮换写者，把拆除收成一份、迟到资源全部收口、加了每持有临界区，复审重放 27 个探针无阻断。</p>
+<p><strong>优雅在哪里。</strong>发布边界现在真的是「紧挨写入」；拆除真的只有一份；迟到资源有统一的收口（<code>Bounded&lt;T&gt;</code> 交回 <code>late</code>，由中止那一刻决定谁收口）；品牌从「类型上赋不进去」升级到「运行时也只能由关口铸出」；替身的失败种类表从契约联合派生，契约加一种失败测试就会红。</p>
+<p><strong>异味与处置（都写进了成员 SPEC「已知限制」）。</strong></p>
+<ul>
+<li>同类问题三次出现的根因是「可以遗忘」没有从「条目什么资源也不持有」推出；端口以 reject 失败时拆除在那一步停下，仍可能遗忘持有进程的条目。按 quality.md 收口而不是派第 4 轮：契约没有建模端口 reject，这是「违反契约的提供者」的情形；W3 同成员闭包的第一项就是把遗忘谓词收成「什么也不持有」并让 teardown 每步 try/finally。</li>
+<li><code>table.ts</code> 684 行、`begin` CC 13：临界区 + 单飞 + 迟到收口三件事叠在一个文件里。W3 接调用口前值得把「条目生命周期」抽成自己的模块。</li>
+<li>临界区等待没有上界的采用重读会挡住同持有的后续 <code>ensure</code>；落点永不答复则句柄不释放且 <code>closeAll</code> 答 <code>no-process</code>；<code>closeAll</code> 不阻止之后的建连（关门归 W4 的 Cordis 生命周期）。</li>
+<li>契约可加调整积了一批（<code>refresh</code> 的 <code>signal</code>、时钟、<code>canonical</code> 导出、端口 reject 语义），W3 prep 一次回写。</li>
+</ul>
+<hr>
 <h3>W1 合入（2026-11-03，父分支 c247b873a）</h3>
 <p><strong>读数。</strong>29 个源文件、12 个测试文件 298 例，覆盖率 98%。<code>src</code> 里没有 <code>as</code> 类型断言、没有 <code>any</code>；唯一的类是 <code>NotApplicable extends Error</code>（套件用它标记「这个替身不适用此用例」，Error 子类是合理用法）。变更函数超 alert 1 个（<code>parseEndpointBody</code> CC 16）、超 warn 2 个（<code>deliveredItem</code> CC 12、<code>isConnectionTarget</code> CC 11）。差分变异（最终 head 302441beb，基线 21175c9f9）2210 个变异体：被杀 1646，存活 401（其中 352 条在 <code>testing-*</code> 替身与用例表里，产品代码 49 条，散在 10 个文件，最多的 <code>content.ts</code> 9 条），无覆盖 54，超时 13；96 个静态变异把模块加载改坏，工具判「测量无效」，分数不可用——与 Skill 相同的读数形态。</p>
 <p><strong>优雅在哪里。</strong>四层失败联合彼此嵌套而不重复：<code>OperationFailure</code> 用 <code>TransportFailure</code> 做成员，签名里直接能读出「这个操作可能在哪一层失败」。<code>completeListing</code> + <code>WeakSet</code> + <code>assertComplete</code> 与 Skill 的 <code>sealSnapshot</code> 是同一种「只能由构造器造出」的写法，两域一致。调用与任务两条路径共用一个 <code>classifyOutcome</code>，第 3 轮把 <code>tasks/get</code> 的 <code>inputRequests</code> 收进同一函数后，形状分裂的风险消失。五个端口套件各配一个过套件的内存替身，W2 的实现方拿到的不是「参考」，是能直接跑红的判据。</p>

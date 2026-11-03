@@ -1,6 +1,6 @@
 {
- "updatedAt": "2026-11-03T22:32:52Z",
- "head": "0956ccf01",
+ "updatedAt": "2026-11-03T23:30:47Z",
+ "head": "78e978ab6",
  "links": [
   {
    "text": "波段计划",
@@ -11,7 +11,13 @@
    "url": "https://claude.ai/artifact/3Zfm6AtcBczsMTTE6KuhkA"
   }
  ],
- "decisions": [],
+ "decisions": [
+  {
+   "question": "W2 收波；W3 是否开工（预案 w3-mcp-call、w3-mcp-host、w3-skill-catalog；开波前 prep 回写两契约 + SDK 进 catalog）",
+   "status": "open",
+   "answer": ""
+  }
+ ],
  "waves": [
   {
    "id": "W1",
@@ -313,7 +319,7 @@
   {
    "id": "W2",
    "title": "通用实现与本地来源",
-   "state": "进行中",
+   "state": "已放行",
    "closures": [
     {
      "id": "w2-skill",
@@ -352,10 +358,18 @@
     {
      "id": "w2-mcp-core",
      "line": "MCP",
-     "state": "修复中",
+     "state": "已合入",
      "round": 3,
-     "note": "第 2 轮复审：原 5 阻断全闭合（探针重放），但新出 2 阻断（lose 的拆除不在关闭单飞里 → refresh 抛 TypeError 且先停进程后关传输；迟到进程的 stop 范围被丢）+ 品牌可绕过采用口铸出 + 两份红灯不实。第 3 轮按派发规则新开写者（fable@xhigh）",
-     "links": [],
+     "note": "第 3 轮复审无阻断（重放 27 个探针）；剩余端口 reject 时的遗忘条件按 quality.md 收口为 SPEC 已知限制 + W3 首项；reduce 补替身表与 SPEC（9f41ad7ee）；链全绿，Stryker 1420/杀 1104/存活 172；开 PR 合入中",
+     "links": [
+      {
+       "text": "PR",
+       "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1116"
+      },
+      {
+       "text": "ff17f7701"
+      }
+     ],
      "started": "2026-11-03T17:50:19Z"
     },
     {
@@ -365,6 +379,32 @@
      "round": 1,
      "note": "四个脚本跑通（stdio、自写流 Transport、HTTP、任务线路）。结论：W3 只用 SDK Transport 层自己发 JSON-RPC；Client 高层拿不到原样应答与请求 id。写进 schema-check.md",
      "links": []
+    },
+    {
+     "id": "w2-writeback-skill",
+     "line": "Skill",
+     "state": "已合入",
+     "round": 1,
+     "note": "PR #1117 → 3248c271a；review-docs 无遗漏，2 处旧说法残留 reduce 自修",
+     "links": [
+      {
+       "text": "PR",
+       "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1117"
+      }
+     ]
+    },
+    {
+     "id": "w2-writeback-mcp",
+     "line": "MCP",
+     "state": "已合入",
+     "round": 1,
+     "note": "PR #1118 → 78e978ab6；同上",
+     "links": [
+      {
+       "text": "PR",
+       "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1118"
+      }
+     ]
     }
    ],
    "criteria": [
@@ -507,62 +547,102 @@
     {
      "id": "MC2-1",
      "text": "createMcpCore 校验配置",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "mcp-core-r1.md 三轮 + 两次增量复审"
+      }
+     ]
     },
     {
      "id": "MC2-2",
      "text": "Connection 状态机穷举",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "mcp-core-r1.md 三轮 + 两次增量复审"
+      }
+     ]
     },
     {
      "id": "MC2-3",
      "text": "InFlightCalls 五条性质",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "mcp-core-r1.md 三轮 + 两次增量复审"
+      }
+     ]
     },
     {
      "id": "MC2-4",
      "text": "admit 六答复与能力令牌不可伪造",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "mcp-core-r1.md 三轮 + 两次增量复审"
+      }
+     ]
     },
     {
      "id": "MC2-5",
      "text": "ensure 复用/重建/单飞/配值/连接失败/句柄释放",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "mcp-core-r1.md 三轮 + 两次增量复审"
+      }
+     ]
     },
     {
      "id": "MC2-6",
      "text": "refresh 整份发布与并发发布边界",
-     "state": "open",
-     "evidence": []
+     "state": "partial",
+     "evidence": [
+      {
+       "text": "mcp-core-r1.md 三轮 + 两次增量复审"
+      }
+     ]
     },
     {
      "id": "MC2-7",
      "text": "current/peer 不连接",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "mcp-core-r1.md 三轮 + 两次增量复审"
+      }
+     ]
     },
     {
      "id": "MC2-8",
      "text": "status 四态视图与无披露",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "mcp-core-r1.md 三轮 + 两次增量复审"
+      }
+     ]
     },
     {
      "id": "MC2-9",
      "text": "release/closeAll 次序与确认范围",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "mcp-core-r1.md 三轮 + 两次增量复审"
+      }
+     ]
     },
     {
      "id": "MC2-10",
      "text": "内存 CatalogStore 过 CS 套件",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "mcp-core-r1.md 三轮 + 两次增量复审"
+      }
+     ]
     }
    ]
   },
@@ -721,6 +801,22 @@
   {
    "at": "2026-11-03T22:32:52Z",
    "text": "w2-skill 合入 PR #1115 → 0956ccf01；Skill 线 W2 两闭包全部合入；实现架构页更新 W2 增量 2"
+  },
+  {
+   "at": "2026-11-03T23:00:02Z",
+   "text": "w2-mcp-core 第 3 轮交回；派 L3 增量复审，reduce 跑链"
+  },
+  {
+   "at": "2026-11-03T23:11:55Z",
+   "text": "w2-mcp-core 第 3 轮复审无阻断，收口并开 PR；MC2-6 部分（stale-revision 来源在 refresh 不可达）"
+  },
+  {
+   "at": "2026-11-03T23:13:06Z",
+   "text": "w2-mcp-core 合入 PR #1116 → ff17f7701；W2 三个闭包全部合入；进入波末核对（写回、准入、交接）"
+  },
+  {
+   "at": "2026-11-03T23:30:47Z",
+   "text": "两份写回合入（3248c271a、78e978ab6）；父分支头准入：acceptance、loop:status 绿，admission 的 test 步 3 失败为基线既有；W2 收波，handoff 五节完成"
   }
  ]
 }

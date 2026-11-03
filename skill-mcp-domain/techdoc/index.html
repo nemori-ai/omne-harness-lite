@@ -34,7 +34,7 @@ details details{margin:6px 0}details details>summary{cursor:pointer;color:var(--
 .prose{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 18px 14px}.prose p,.prose li{max-width:74ch}.prose h3{display:block;margin-top:14px}
 </style>
 <div class="wrap">
-<header><span class="muted">由 <code>techdoc/gen.mjs</code> 从实际源码生成 · 父分支 <code>PanQiWei/skill-mcp</code> @ <code>0956ccf01</code> · 2026-11-03T22:32:52Z</span>
+<header><span class="muted">由 <code>techdoc/gen.mjs</code> 从实际源码生成 · 父分支 <code>PanQiWei/skill-mcp</code> @ <code>ff17f7701</code> · 2026-11-03T23:13:06Z</span>
 <h1>Skill 与 MCP 实现架构</h1>
 <p class="muted">图与读数只取自 <code>packages/skills/*</code> 与 <code>packages/mcp/*</code> 的 package.json、src、tests。设计正文不是本页的事实来源；讲解与评述由 reduce 读源码后手写，每个闭包合入后更新。</p></header>
 <nav class="tabs" aria-label="领域"><a href="#skill" data-tab="skill">Skill</a><a href="#mcp" data-tab="mcp">MCP</a></nav>
@@ -896,7 +896,7 @@ flowchart LR
 </div></section>
 </div>
 <div class="panel" id="panel-mcp" data-panel="mcp" hidden>
-<section><h2>技术讲解</h2><div class="prose"><h3>W1 之后源码里有什么（父分支 c247b873a）</h3>
+<section><h2>技术讲解</h2><div class="prose"><h3>W1 之后源码里有什么（父分支 c247b873a；W2 增量见文末）</h3>
 <p>MCP 组三个成员，只有 <code>@omne-harness/mcp-contract</code> 有实现：29 个源文件、约 3700 个非空行、12 个测试文件 298 例（其中两张用例表 <code>classifyOutcomeCases</code>、<code>mergeListingCases</code> 由 <code>./testing</code> 导出，成员自己的测试与未来实现方共用）。比 Skill 大一半，因为它一边要对协议线（2026-07-28 修订）做分类，一边要给五个端口写符合性套件。三个入口：</p>
 <ul>
 <li><strong>公开根 <code>.</code>（给调用方）</strong>：<code>index.ts</code> 从 13 个模块重导出，没有自己的函数。值与品牌在 <code>brands.ts</code>、<code>values.ts</code>；接入点正文在 <code>endpoint.ts</code>（<code>parseEndpointBody</code>、<code>launchesLocalCommand</code>、<code>mcpEndpointBodyContract</code>）；清单在 <code>listing.ts</code>（<code>completeListing</code>、<code>digestDefinition</code>）与 <code>catalog.ts</code>（<code>mergeListing</code>、<code>markUnavailable</code>、<code>actionPermissionItems</code>）；结局在 <code>classify.ts</code>（<code>classifyOutcome</code>）与 <code>content.ts</code>（<code>toContentBlocks</code>）；键在 <code>keys.ts</code>；六个应用服务接口在 <code>services.ts</code>。</li>
@@ -919,9 +919,19 @@ flowchart LR
 
 <h3>还没有的东西</h3>
 <p>六个应用服务（<code>EndpointInspection</code>、<code>ActionDiscovery</code>、<code>ActionCalls</code>、<code>TaskControl</code>、<code>EndpointStatus</code>、<code>Connections</code>）只有接口，<code>McpServices&lt;P, S&gt;</code> 把它们与 <code>McpPorts</code>/<code>McpConfig</code> 绑在一起。实现、stdio/http 传输、连接表都在 W2。</p>
+
+<h3>W2 增量：<code>@omne-harness/mcp</code> 核心（父分支 ff17f7701）</h3>
+<p>通用实现的下半部分：16 个源文件 2014 行、12 个测试文件 254 例（其中 <code>races.spec.ts</code> 13 条用 deferred 排并发次序）。公开根只有 <code>createMcpCore(ports, config, { now }?)</code>、<code>createInMemoryCatalogStore()</code> 与几个类型；<code>ActionInvoker</code> 与 <code>createMcp</code> 在 W3。四层：</p>
+<ul>
+<li><strong>聚合</strong>（<code>internal/connection.ts</code>、<code>in-flight.ts</code>）：仅有的两个类，只做状态转移不做 IO。<code>Connection</code> 带代际策略（stdio 每次尝试加一，HTTP 协商成功加一），非法转移抛 <code>TypeError</code>；<code>InFlightCalls</code> 的占位查重是一步。</li>
+<li><strong>关口</strong>（<code>internal/gate.ts</code> + <code>guard.ts</code>）：S1 只有一份——<code>admit</code> 先采用后资格，交出 <code>GateDecision</code>；两个品牌 <code>AdoptedOnly</code>（只核过采用）与 <code>AdmittedEndpoint</code>（过了资格），需要连接的函数只收后者，伪造或改过正文的令牌被 <code>judge</code> 用 <code>WeakSet</code> 拒绝。<code>guard.ts</code> 在其上组合 <code>admitForUse</code>（未采用或被挡下时顺手关闭该接入点的连接，不变式 6）与 <code>stillAdmitted</code>（发布边界用）。</li>
+<li><strong>连接表</strong>（<code>internal/table.ts</code>，684 行，整个成员的复杂度都在这里）：键是 <code>JSON.stringify([租户, 持有, 采用修订, 对端账号])</code>。<code>ensure</code> 的次序：每持有一个临界区（<code>inTurn</code>）里重读采用、关掉其他修订的条目、等同键的关闭或拆除、复用或建条目；临界区外建连——取凭据 → 进程落点（stdio）→ 打开传输 → <code>discover</code>，四步都经 <code>untilAborted</code> 受同一个连接时限约束，迟到的句柄/进程/传输由 <code>afterwards</code> 收口（迟到进程先 <code>stop()</code> 再释放句柄，范围不是 <code>tree-confirmed</code> 就进 <code>lingering</code>）。拆除只有一份 <code>teardown</code>（关传输 → 停进程 → 释放句柄），<code>lose</code>、准备失败、重建、关闭都走它；同键同时只有一次关闭、一次拆除、一次建连。</li>
+<li><strong>服务</strong>（<code>discovery.ts</code>、<code>status.ts</code>、<code>connections.ts</code>、<code>inspection.ts</code>）：工厂返回对象字面量。<code>refresh</code> 是最长的一条路：关口 → <code>ensure</code>（调用方的 <code>signal</code> 不进共享建连，中止只让自己答 <code>kept(cancelled)</code>）→ 读存储得 <code>basedOn</code> → 取页（另起同一上界的时限）→ <code>completeListing</code> → <code>mergeListing</code> → 发布边界：<code>await stillAdmitted</code>（资格 + 重读采用修订）之后，同步核对代际仍当前、未中止，紧挨 <code>store.write(expected = basedOn)</code>，写入冲突答 <code>kept(superseded)</code>。<code>current</code>/<code>peer</code> 只读表，替身计数证明它们不碰传输工厂。</li>
+</ul>
+<p>内存存储按清单键文本隔离租户、对端账号、持有；它是生产内存实现，不是 <code>./testing</code> 的替身。</p>
 </div></section>
 <section><h2>读数</h2><div class="tiles">
-<div class="tile"><span class="v">3</span><span class="l">成员</span><span class="n">草稿 2</span></div><div class="tile"><span class="v">31</span><span class="l">源文件</span></div><div class="tile"><span class="v">3398</span><span class="l">非空源码行</span></div><div class="tile"><span class="v">176</span><span class="l">入口导出</span></div><div class="tile"><span class="v">115</span><span class="l">测试用例</span></div><div class="tile"><span class="v">0</span><span class="l">as 断言</span><span class="n">不含 as const</span></div><div class="tile"><span class="v">0</span><span class="l">any</span></div>
+<div class="tile"><span class="v">3</span><span class="l">成员</span><span class="n">草稿 1</span></div><div class="tile"><span class="v">46</span><span class="l">源文件</span></div><div class="tile"><span class="v">5244</span><span class="l">非空源码行</span></div><div class="tile"><span class="v">182</span><span class="l">入口导出</span></div><div class="tile"><span class="v">270</span><span class="l">测试用例</span></div><div class="tile"><span class="v">0</span><span class="l">as 断言</span><span class="n">不含 as const</span></div><div class="tile"><span class="v">0</span><span class="l">any</span></div>
 </div></section>
 <section><h2>成员依赖</h2><p class="muted">粗框是本组成员，虚线框是组外依赖（来自 package.json 与 import）。</p><div class="diagram"><pre class="mmd">
 flowchart TD
@@ -946,15 +956,273 @@ flowchart TD
   classDef own stroke-width:2px
   classDef ext stroke-dasharray: 4 3
 </pre></div></section>
-<section><h2>各成员：入口、UML、模块与健康读数</h2><details class="member" open><summary><h3><code>@omne-harness/mcp</code> <span class="pill draft">模板草稿</span></h3></summary>
-  <p class="muted">General MCP implementation: the Connection and ActionCatalog aggregates, the application services, and the in-memory CatalogStore · <code>packages/mcp/mcp</code> · 源文件 1 · 测试文件 1 · 用例 1</p>
-  <h4>入口与导出</h4><div class="tbl"><table><thead><tr><th>入口</th><th>导出（悬停看种类）</th></tr></thead><tbody><tr><td><code>.</code></td><td><span class="muted">无导出</span></td></tr></tbody></table></div>
-  <p class="muted">没有导出的接口、类、记录或判别联合。</p>
+<section><h2>各成员：入口、UML、模块与健康读数</h2><details class="member" open><summary><h3><code>@omne-harness/mcp</code> <span class="pill real">有实现</span></h3></summary>
+  <p class="muted">General MCP implementation: the Connection and ActionCatalog aggregates, the application services, and the in-memory CatalogStore · <code>packages/mcp/mcp</code> · 源文件 16 · 测试文件 20 · 用例 156</p>
+  <h4>入口与导出</h4><div class="tbl"><table><thead><tr><th>入口</th><th>导出（悬停看种类）</th></tr></thead><tbody><tr><td><code>.</code></td><td><code title="record">McpCore</code> <code title="record">McpCoreOptions</code> <code title="function">createMcpCore</code> <code title="function">createInMemoryCatalogStore</code> <code title="interface">McpDiscovery</code> <code title="record">RefreshRequest</code></td></tr></tbody></table></div>
+  <h4>类型与类（UML 类图，每个源文件一张）</h4><details open><summary><code>src/connections.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class ConnectionsDependencies {
+    &lt;&lt;value&gt;&gt;
+    +ports
+    +table
+  }
+  class ConnectionTable
+  ConnectionsDependencies --&gt; ConnectionTable
+</pre></div></details><details open><summary><code>src/discovery.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class RefreshRequest {
+    &lt;&lt;value&gt;&gt;
+    +ref
+    +connectBound?
+    +signal?
+  }
+  class McpDiscovery {
+    &lt;&lt;interface&gt;&gt;
+    +refresh()
+  }
+  class DiscoveryDependencies {
+    &lt;&lt;value&gt;&gt;
+    +ports
+    +config
+    +table
+    +now
+  }
+  class ConnectionTable
+  McpDiscovery --&gt; RefreshRequest
+  DiscoveryDependencies --&gt; ConnectionTable
+</pre></div></details><details open><summary><code>src/index.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class McpCore {
+    &lt;&lt;value&gt;&gt;
+    +inspection
+    +discovery
+    +status
+    +connections
+  }
+  class McpCoreOptions {
+    &lt;&lt;value&gt;&gt;
+    +now?
+  }
+  class McpDiscovery
+  McpCore --&gt; McpDiscovery
+</pre></div></details><details open><summary><code>src/internal/abort.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class Bounded {
+    &lt;&lt;union&gt;&gt;
+    answered
+    aborted
+  }
+</pre></div></details><details open><summary><code>src/internal/connection.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class AggregateState {
+    &lt;&lt;union&gt;&gt;
+    ConnectionState
+    closed
+  }
+  class Connection {
+    +key()
+    +policy()
+    +state()
+    +generation()
+    +peer()
+    +attempt()
+    +ready()
+    +degrade()
+    …
+  }
+  Connection --&gt; AggregateState
+</pre></div></details><details open><summary><code>src/internal/gate.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class GatePorts {
+    &lt;&lt;value&gt;&gt;
+    +adoption
+    +eligibility
+  }
+  class GateDecision {
+    &lt;&lt;union&gt;&gt;
+    admitted
+    …
+    not-eligible
+    blocked
+    eligibility-unknown
+  }
+</pre></div></details><details open><summary><code>src/internal/guard.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class UseGate {
+    &lt;&lt;value&gt;&gt;
+    +ports
+    +table
+  }
+  class GatePorts
+  class ConnectionTable
+  UseGate --&gt; GatePorts
+  UseGate --&gt; ConnectionTable
+</pre></div></details><details open><summary><code>src/internal/in-flight.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class InFlightKey {
+    &lt;&lt;value&gt;&gt;
+    +tenant
+    +principalKey
+    +correlationKey
+  }
+  class InFlightCalls {
+    +reserve()
+    +markSent()
+    +markEnded()
+    +release()
+    +cancel()
+    +requestIdOf()
+  }
+  InFlightCalls --&gt; InFlightKey
+</pre></div></details><details open><summary><code>src/internal/settings.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class PreparedCredential {
+    &lt;&lt;union&gt;&gt;
+    …
+    …
+  }
+  class PreparedTransport {
+    &lt;&lt;union&gt;&gt;
+    stdio
+    streamable-http
+  }
+  class PreparedSettings {
+    &lt;&lt;value&gt;&gt;
+    +definition
+    +credential
+    +account
+    +transport
+    +bound
+  }
+  class SettingsFailure {
+    &lt;&lt;union&gt;&gt;
+    ConfigRefusal
+    ExtractConnectionFailure,  kind: 'cred
+  }
+  PreparedSettings --&gt; PreparedCredential
+  PreparedSettings --&gt; PreparedTransport
+</pre></div></details><details open><summary><code>src/internal/table.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class EnsureOptions {
+    &lt;&lt;value&gt;&gt;
+    +connectBound?
+  }
+  class ConnectionView {
+    &lt;&lt;value&gt;&gt;
+    +generation
+    +isCurrent()
+  }
+  class Ensured {
+    &lt;&lt;value&gt;&gt;
+    +transport
+    +generation
+    +connection
+    +peer
+    +catalogKey
+    +adoptionRevision
+    +bound
+  }
+  class EnsureFailure {
+    &lt;&lt;union&gt;&gt;
+    …
+    …
+  }
+  class ClosedEndpoint {
+    &lt;&lt;value&gt;&gt;
+    +ref
+    +process
+  }
+  class ConnectionTable {
+    &lt;&lt;interface&gt;&gt;
+    +ensure()
+    +settle()
+    +lose()
+    +current()
+    +stateOf()
+    +close()
+    +closeAll()
+  }
+  class SettingsFailure
+  Ensured --&gt; ConnectionView
+  EnsureFailure --&gt; SettingsFailure
+  ConnectionTable --&gt; EnsureOptions
+  ConnectionTable --&gt; Ensured
+  ConnectionTable --&gt; EnsureFailure
+  ConnectionTable --&gt; ConnectionView
+  ConnectionTable --&gt; ClosedEndpoint
+</pre></div></details><details open><summary><code>src/status.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class StatusDependencies {
+    &lt;&lt;value&gt;&gt;
+    +ports
+    +table
+  }
+  class ConnectionTable
+  StatusDependencies --&gt; ConnectionTable
+</pre></div></details>
+  <h4>品牌、字面量集合与别名</h4><div class="tbl"><table><thead><tr><th>名字</th><th>种类</th><th>取值</th><th>文件</th></tr></thead><tbody><tr><td><code>GenerationPolicy</code></td><td>字面量集合</td><td><code>on-attempt</code> <code>on-negotiation</code></td><td><code>src/internal/connection.ts</code></td></tr><tr><td><code>AdoptedOnly</code></td><td>品牌</td><td></td><td><code>src/internal/gate.ts</code></td></tr><tr><td><code>AdmittedEndpoint</code></td><td>品牌</td><td></td><td><code>src/internal/gate.ts</code></td></tr><tr><td><code>GateRefusal</code></td><td>别名</td><td></td><td><code>src/internal/gate.ts</code></td></tr><tr><td><code>AdoptionRefusal</code></td><td>别名</td><td></td><td><code>src/internal/gate.ts</code></td></tr><tr><td><code>AdoptionOutcome</code></td><td>字面量集合</td><td><code>not-adopted</code> <code>adoption-unknown</code> <code>body-unreadable</code></td><td><code>src/internal/gate.ts</code></td></tr><tr><td><code>GateRefused</code></td><td>别名</td><td></td><td><code>src/internal/gate.ts</code></td></tr><tr><td><code>ConfigRefusal</code></td><td>别名</td><td></td><td><code>src/internal/settings.ts</code></td></tr><tr><td><code>CatalogMark</code></td><td>字面量集合</td><td><code>marked</code> <code>revision-conflict</code> <code>unavailable</code> <code>not-acquired</code></td><td><code>src/internal/table.ts</code></td></tr><tr><td><code>UnavailableMark</code></td><td>别名</td><td></td><td><code>src/internal/table.ts</code></td></tr></tbody></table></div>
+  <h4>导出的函数与常量</h4><p><code title="src/config.ts">validateConfig</code> <code title="src/connections.ts">createConnections</code> <code title="src/discovery.ts">createDiscovery</code> <code title="src/index.ts">createMcpCore</code> <code title="src/inspection.ts">createInspection</code> <code title="src/internal/abort.ts">untilAborted</code> <code title="src/internal/abort.ts">afterwards</code> <code title="src/internal/canonical.ts">sameJson</code> <code title="src/internal/gate.ts">assertAdmitted</code> <code title="src/internal/gate.ts">adopted</code> <code title="src/internal/gate.ts">judge</code> <code title="src/internal/gate.ts">admit</code> <code title="src/internal/gate.ts">admitScope</code> <code title="src/internal/gate.ts">refusalOf</code> <code title="src/internal/gate.ts">admitWithoutEligibility</code> <code title="src/internal/guard.ts">withdraws</code> <code title="src/internal/guard.ts">admitForUse</code> <code title="src/internal/guard.ts">stillAdmitted</code> <code title="src/internal/settings.ts">prepareSettings</code> <code title="src/internal/settings.ts">readAccountOf</code> <code title="src/internal/table.ts">createConnectionTable</code> <code title="src/internal/text.ts">tenantTextOf</code> <code title="src/internal/text.ts">catalogKeyTextOf</code> <code title="src/internal/text.ts">connectionKeyTextOf</code> <code title="src/status.ts">createStatus</code> <code title="src/store/memory.ts">createInMemoryCatalogStore</code></p>
+  <h4>模块依赖</h4><div class="diagram"><pre class="mmd">
+flowchart LR
+  src_config_ts["src/config.ts"]
+  src_connections_ts["src/connections.ts"]
+  src_discovery_ts["src/discovery.ts"]
+  src_index_ts["src/index.ts"]
+  src_inspection_ts["src/inspection.ts"]
+  src_internal_abort_ts["src/internal/abort.ts"]
+  src_internal_canonical_ts["src/internal/canonical.ts"]
+  src_internal_connection_ts["src/internal/connection.ts"]
+  src_internal_gate_ts["src/internal/gate.ts"]
+  src_internal_guard_ts["src/internal/guard.ts"]
+  src_internal_in_flight_ts["src/internal/in-flight.ts"]
+  src_internal_settings_ts["src/internal/settings.ts"]
+  src_internal_table_ts["src/internal/table.ts"]
+  src_internal_text_ts["src/internal/text.ts"]
+  src_status_ts["src/status.ts"]
+  src_store_memory_ts["src/store/memory.ts"]
+  src_connections_ts --&gt; src_internal_gate_ts
+  src_connections_ts --&gt; src_internal_guard_ts
+  src_connections_ts --&gt; src_internal_table_ts
+  src_discovery_ts --&gt; src_internal_abort_ts
+  src_discovery_ts --&gt; src_internal_canonical_ts
+  src_discovery_ts --&gt; src_internal_guard_ts
+  src_discovery_ts --&gt; src_internal_settings_ts
+  src_discovery_ts --&gt; src_internal_table_ts
+  src_index_ts --&gt; src_config_ts
+  src_index_ts --&gt; src_connections_ts
+  src_index_ts --&gt; src_discovery_ts
+  src_index_ts --&gt; src_inspection_ts
+  src_index_ts --&gt; src_internal_table_ts
+  src_index_ts --&gt; src_status_ts
+  src_index_ts --&gt; src_store_memory_ts
+  src_index_ts --&gt; src_discovery_ts
+  src_internal_guard_ts --&gt; src_internal_gate_ts
+  src_internal_guard_ts --&gt; src_internal_table_ts
+  src_internal_in_flight_ts --&gt; src_internal_text_ts
+  src_internal_settings_ts --&gt; src_internal_gate_ts
+  src_internal_table_ts --&gt; src_internal_abort_ts
+  src_internal_table_ts --&gt; src_internal_connection_ts
+  src_internal_table_ts --&gt; src_internal_gate_ts
+  src_internal_table_ts --&gt; src_internal_settings_ts
+  src_internal_table_ts --&gt; src_internal_text_ts
+  src_status_ts --&gt; src_internal_gate_ts
+  src_status_ts --&gt; src_internal_guard_ts
+  src_status_ts --&gt; src_internal_table_ts
+  src_store_memory_ts --&gt; src_internal_text_ts
+</pre></div>
+  <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/config.ts</code></td><td class="num">29</td><td class="num">1</td><td class="num">8 <span class="muted">validateConfig</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/connections.ts</code></td><td class="num">27</td><td class="num">2</td><td class="num">14 <span class="muted">createConnections</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/discovery.ts</code></td><td class="num">249</td><td class="num">4</td><td class="num">175 <span class="muted">createDiscovery</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/index.ts</code></td><td class="num">55</td><td class="num">3</td><td class="num">11 <span class="muted">createMcpCore</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/inspection.ts</code></td><td class="num">21</td><td class="num">1</td><td class="num">10 <span class="muted">createInspection</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/internal/abort.ts</code></td><td class="num">42</td><td class="num">3</td><td class="num">25 <span class="muted">untilAborted</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/internal/canonical.ts</code></td><td class="num">33</td><td class="num">1</td><td class="num">22 <span class="muted">canonical</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/internal/connection.ts</code></td><td class="num">103</td><td class="num">3</td><td class="num">8 <span class="muted">ready</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/internal/gate.ts</code></td><td class="num">175</td><td class="num">15</td><td class="num">22 <span class="muted">judge</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/internal/guard.ts</code></td><td class="num">58</td><td class="num">4</td><td class="num">7 <span class="muted">stillAdmitted</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/internal/in-flight.ts</code></td><td class="num">83</td><td class="num">2</td><td class="num">18 <span class="muted">cancel</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/internal/settings.ts</code></td><td class="num">136</td><td class="num">7</td><td class="num">27 <span class="muted">prepareSettings</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/internal/table.ts</code></td><td class="num">684</td><td class="num">9</td><td class="num">462 <span class="muted">createConnectionTable</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/internal/text.ts</code></td><td class="num">24</td><td class="num">3</td><td class="num">8 <span class="muted">connectionKeyTextOf</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/status.ts</code></td><td class="num">108</td><td class="num">2</td><td class="num">50 <span class="muted">createStatus</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/store/memory.ts</code></td><td class="num">21</td><td class="num">1</td><td class="num">15 <span class="muted">createInMemoryCatalogStore</span></td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
   
-  
-  
-  <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/index.ts</code></td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
-  <p class="muted">草稿标记：<code>README.md</code> <code>README_ZH.md</code> <code>src/index.ts</code></p>
 </details>
 <details class="member" open><summary><h3><code>@omne-harness/mcp-contract</code> <span class="pill real">有实现</span></h3></summary>
   <p class="muted">Pure MCP contract: value objects, the category port, pure functions, ports, and application service interfaces · <code>packages/mcp/mcp-contract</code> · 源文件 29 · 测试文件 14 · 用例 113</p>
@@ -1958,7 +2226,19 @@ flowchart LR
   <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/index.ts</code></td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
   <p class="muted">草稿标记：<code>README.md</code> <code>README_ZH.md</code> <code>src/index.ts</code></p>
 </details></section>
-<section><h2>健康评述</h2><div class="prose"><h3>W1 合入（2026-11-03，父分支 c247b873a）</h3>
+<section><h2>健康评述</h2><div class="prose"><h3>W2 合入：mcp 核心（2026-11-03，父分支 ff17f7701）</h3>
+<p><strong>读数。</strong>16 源文件 2014 行、254 例。无 <code>as</code>（一处 <code>as const</code>）、无 <code>any</code>、类只有两个聚合。变更函数超 alert 5：<code>discovery.publish</code> CC 17（发布边界四项核对 + 三种 kept）、<code>table.begin</code> CC 13（临界区）、<code>prepareSettings</code> CC 15、<code>afterMarking</code>、<code>lostOfNoAnswer</code>（覆盖 33%）。Stryker 1420 个变异体：被杀 1104、存活 172（<code>table.ts</code> 89）、超时 63、2 个静态变异致「测量无效」。</p>
+<p><strong>三轮评审改掉了什么。</strong>这是本波最难的一块，也是评审最值钱的一块。第 1 轮 L3 逐行用 9 个探针实跑出 5 个并发缺陷：发布边界的核对与写入之间隔着一个 await（迟到的旧代际清单被发布）、旧代际迟到的页把重建后的新连接打成 lost、取页不受时限、close 与 ensure 竞争遗弃活连接、时限不覆盖取凭据与进程启动；设计面又抓到 S1 写了四份、规格点名的 <code>admit</code> 不在生产路径。第 2 轮修完后复审重放探针，原问题全闭合，但同一类问题（条目归属与拆除次序）又出两个：<code>lose</code> 的拆除不在关闭单飞里、迟到进程的 stop 范围被丢。第 3 轮换写者，把拆除收成一份、迟到资源全部收口、加了每持有临界区，复审重放 27 个探针无阻断。</p>
+<p><strong>优雅在哪里。</strong>发布边界现在真的是「紧挨写入」；拆除真的只有一份；迟到资源有统一的收口（<code>Bounded&lt;T&gt;</code> 交回 <code>late</code>，由中止那一刻决定谁收口）；品牌从「类型上赋不进去」升级到「运行时也只能由关口铸出」；替身的失败种类表从契约联合派生，契约加一种失败测试就会红。</p>
+<p><strong>异味与处置（都写进了成员 SPEC「已知限制」）。</strong></p>
+<ul>
+<li>同类问题三次出现的根因是「可以遗忘」没有从「条目什么资源也不持有」推出；端口以 reject 失败时拆除在那一步停下，仍可能遗忘持有进程的条目。按 quality.md 收口而不是派第 4 轮：契约没有建模端口 reject，这是「违反契约的提供者」的情形；W3 同成员闭包的第一项就是把遗忘谓词收成「什么也不持有」并让 teardown 每步 try/finally。</li>
+<li><code>table.ts</code> 684 行、`begin` CC 13：临界区 + 单飞 + 迟到收口三件事叠在一个文件里。W3 接调用口前值得把「条目生命周期」抽成自己的模块。</li>
+<li>临界区等待没有上界的采用重读会挡住同持有的后续 <code>ensure</code>；落点永不答复则句柄不释放且 <code>closeAll</code> 答 <code>no-process</code>；<code>closeAll</code> 不阻止之后的建连（关门归 W4 的 Cordis 生命周期）。</li>
+<li>契约可加调整积了一批（<code>refresh</code> 的 <code>signal</code>、时钟、<code>canonical</code> 导出、端口 reject 语义），W3 prep 一次回写。</li>
+</ul>
+<hr>
+<h3>W1 合入（2026-11-03，父分支 c247b873a）</h3>
 <p><strong>读数。</strong>29 个源文件、12 个测试文件 298 例，覆盖率 98%。<code>src</code> 里没有 <code>as</code> 类型断言、没有 <code>any</code>；唯一的类是 <code>NotApplicable extends Error</code>（套件用它标记「这个替身不适用此用例」，Error 子类是合理用法）。变更函数超 alert 1 个（<code>parseEndpointBody</code> CC 16）、超 warn 2 个（<code>deliveredItem</code> CC 12、<code>isConnectionTarget</code> CC 11）。差分变异（最终 head 302441beb，基线 21175c9f9）2210 个变异体：被杀 1646，存活 401（其中 352 条在 <code>testing-*</code> 替身与用例表里，产品代码 49 条，散在 10 个文件，最多的 <code>content.ts</code> 9 条），无覆盖 54，超时 13；96 个静态变异把模块加载改坏，工具判「测量无效」，分数不可用——与 Skill 相同的读数形态。</p>
 <p><strong>优雅在哪里。</strong>四层失败联合彼此嵌套而不重复：<code>OperationFailure</code> 用 <code>TransportFailure</code> 做成员，签名里直接能读出「这个操作可能在哪一层失败」。<code>completeListing</code> + <code>WeakSet</code> + <code>assertComplete</code> 与 Skill 的 <code>sealSnapshot</code> 是同一种「只能由构造器造出」的写法，两域一致。调用与任务两条路径共用一个 <code>classifyOutcome</code>，第 3 轮把 <code>tasks/get</code> 的 <code>inputRequests</code> 收进同一函数后，形状分裂的风险消失。五个端口套件各配一个过套件的内存替身，W2 的实现方拿到的不是「参考」，是能直接跑红的判据。</p>
 <p><strong>异味与处置。</strong></p>

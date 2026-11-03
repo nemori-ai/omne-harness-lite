@@ -67,3 +67,17 @@
 - S9 迟到进程：以「进程凭据句柄在 `stop()` 返回之后释放」为准——准备失败且**已取得进程**（含迟到交来的）时，先 `stop()` 再释放；只有没有进程时才立即释放。迟到回调要 `await stop()`，范围不是 `tree-confirmed` 时并入 `lingering` 并反映到状态；三处 `void late.ok.*()` 改为捕获 reject 并记为 `lost` 的 `residual` 或忽略（不留未处理拒绝）。
 - 非阻断 1 进第 3 轮：`judge` 断言 `adoptedTokens.has`，`adoptedOnlyOf` 不导出。
 - 第 3 轮按 `delegate` 第 7.5 条新开写者（顶档 claude-fable-5-1，effort 升至 xhigh：跨 await 的生命周期竞争属于 hardest 的 cross-module-lifecycle 类）；简报带原规格、追加记录、两轮报告。
+
+## 第 3 轮 L3 增量复审（implementation-reviewer，重放 16 + 新 11 个探针，head 4aaf3ff5a）
+
+- 八条追加全部闭合（Na/Nb 等待拆除完成且次序正确；Nd 带 `residual`；D2 trace `process.stop → credential.release`；H 答 `unknown`；Ne3 伪造令牌抛 `TypeError`；X1t 两修订只剩新条目）；上一轮全部闭合项无回退。
+- **无阻断。**非阻断：(1) 拆除 reject 后其他修订的 ensure 把仍持有进程/句柄的条目当作已结清并遗忘（`isSettled`/`forget` 不看持有的资源；探针 x4b：close reject 后换修订，进程 stops 0、句柄 released 0、无 residual）——只在端口 reject 时触发；(2) D9 的 `satisfies Record<…>` 仍未做，交回两次声称不实；(3) 临界区等待没有上界的重读会挡住同持有的后续 ensure（x8）。
+- 待裁：落点永不答复时句柄永不释放且 `closeAll` 答 `no-process`（X6）；`closeAll` 不阻止之后的建连（X5）；旧令牌在采用口给旧答复时仍会短暂建旧连接。
+- 总体判断：端口按契约答复的前提下并发模型已收敛；同类问题（条目归属与遗忘条件）第三次出现，根因是「可遗忘」没有从「什么也不持有」推出。
+
+## reduce 裁定（收口）
+
+- 按 `quality.md`「三轮未收敛时升级结构诊断」与「够了就收口」：核心保证（契约内答复下的无主资源、关闭次序、代际、发布边界）已有探针证据守住；剩余只在**端口 reject** 时触发。**缩窄承诺**：本波成员 SPEC 写明「端口 reject（违反契约的提供者）时资源归宿不保证」为已知限制，并把「遗忘谓词 = 条目什么资源也不持有 + teardown 每步 try/finally」列为 W3 `w3-mcp-call` 闭包的第一项（同成员、同文件）。不派第 4 轮。
+- D9 由 reduce 自己改（替身一处）。
+- 待裁三项：X6——W3 规则「`release`/`closeAll` 在落点在途时答 `unconfirmed`，并在 `closeAll` 时强制释放进程句柄（S9 的关停例外）」；X5——关停后不再建连归装配与生命周期（W4 Cordis 插件），本成员 SPEC 写明 `closeAll` 不是关门；旧令牌短暂建连——接受代价，写进 SPEC 并发节。
+- 临界区等待无上界的重读：W3 让重读也受连接时限约束；本波 SPEC 并发节写明代价。

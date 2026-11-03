@@ -1,4 +1,4 @@
-<h3>W1 之后源码里有什么（父分支 c247b873a）</h3>
+<h3>W1 之后源码里有什么（父分支 c247b873a；W2 增量见文末）</h3>
 <p>MCP 组三个成员，只有 <code>@omne-harness/mcp-contract</code> 有实现：29 个源文件、约 3700 个非空行、12 个测试文件 298 例（其中两张用例表 <code>classifyOutcomeCases</code>、<code>mergeListingCases</code> 由 <code>./testing</code> 导出，成员自己的测试与未来实现方共用）。比 Skill 大一半，因为它一边要对协议线（2026-07-28 修订）做分类，一边要给五个端口写符合性套件。三个入口：</p>
 <ul>
 <li><strong>公开根 <code>.</code>（给调用方）</strong>：<code>index.ts</code> 从 13 个模块重导出，没有自己的函数。值与品牌在 <code>brands.ts</code>、<code>values.ts</code>；接入点正文在 <code>endpoint.ts</code>（<code>parseEndpointBody</code>、<code>launchesLocalCommand</code>、<code>mcpEndpointBodyContract</code>）；清单在 <code>listing.ts</code>（<code>completeListing</code>、<code>digestDefinition</code>）与 <code>catalog.ts</code>（<code>mergeListing</code>、<code>markUnavailable</code>、<code>actionPermissionItems</code>）；结局在 <code>classify.ts</code>（<code>classifyOutcome</code>）与 <code>content.ts</code>（<code>toContentBlocks</code>）；键在 <code>keys.ts</code>；六个应用服务接口在 <code>services.ts</code>。</li>
@@ -21,3 +21,13 @@
 
 <h3>还没有的东西</h3>
 <p>六个应用服务（<code>EndpointInspection</code>、<code>ActionDiscovery</code>、<code>ActionCalls</code>、<code>TaskControl</code>、<code>EndpointStatus</code>、<code>Connections</code>）只有接口，<code>McpServices&lt;P, S&gt;</code> 把它们与 <code>McpPorts</code>/<code>McpConfig</code> 绑在一起。实现、stdio/http 传输、连接表都在 W2。</p>
+
+<h3>W2 增量：<code>@omne-harness/mcp</code> 核心（父分支 ff17f7701）</h3>
+<p>通用实现的下半部分：16 个源文件 2014 行、12 个测试文件 254 例（其中 <code>races.spec.ts</code> 13 条用 deferred 排并发次序）。公开根只有 <code>createMcpCore(ports, config, { now }?)</code>、<code>createInMemoryCatalogStore()</code> 与几个类型；<code>ActionInvoker</code> 与 <code>createMcp</code> 在 W3。四层：</p>
+<ul>
+<li><strong>聚合</strong>（<code>internal/connection.ts</code>、<code>in-flight.ts</code>）：仅有的两个类，只做状态转移不做 IO。<code>Connection</code> 带代际策略（stdio 每次尝试加一，HTTP 协商成功加一），非法转移抛 <code>TypeError</code>；<code>InFlightCalls</code> 的占位查重是一步。</li>
+<li><strong>关口</strong>（<code>internal/gate.ts</code> + <code>guard.ts</code>）：S1 只有一份——<code>admit</code> 先采用后资格，交出 <code>GateDecision</code>；两个品牌 <code>AdoptedOnly</code>（只核过采用）与 <code>AdmittedEndpoint</code>（过了资格），需要连接的函数只收后者，伪造或改过正文的令牌被 <code>judge</code> 用 <code>WeakSet</code> 拒绝。<code>guard.ts</code> 在其上组合 <code>admitForUse</code>（未采用或被挡下时顺手关闭该接入点的连接，不变式 6）与 <code>stillAdmitted</code>（发布边界用）。</li>
+<li><strong>连接表</strong>（<code>internal/table.ts</code>，684 行，整个成员的复杂度都在这里）：键是 <code>JSON.stringify([租户, 持有, 采用修订, 对端账号])</code>。<code>ensure</code> 的次序：每持有一个临界区（<code>inTurn</code>）里重读采用、关掉其他修订的条目、等同键的关闭或拆除、复用或建条目；临界区外建连——取凭据 → 进程落点（stdio）→ 打开传输 → <code>discover</code>，四步都经 <code>untilAborted</code> 受同一个连接时限约束，迟到的句柄/进程/传输由 <code>afterwards</code> 收口（迟到进程先 <code>stop()</code> 再释放句柄，范围不是 <code>tree-confirmed</code> 就进 <code>lingering</code>）。拆除只有一份 <code>teardown</code>（关传输 → 停进程 → 释放句柄），<code>lose</code>、准备失败、重建、关闭都走它；同键同时只有一次关闭、一次拆除、一次建连。</li>
+<li><strong>服务</strong>（<code>discovery.ts</code>、<code>status.ts</code>、<code>connections.ts</code>、<code>inspection.ts</code>）：工厂返回对象字面量。<code>refresh</code> 是最长的一条路：关口 → <code>ensure</code>（调用方的 <code>signal</code> 不进共享建连，中止只让自己答 <code>kept(cancelled)</code>）→ 读存储得 <code>basedOn</code> → 取页（另起同一上界的时限）→ <code>completeListing</code> → <code>mergeListing</code> → 发布边界：<code>await stillAdmitted</code>（资格 + 重读采用修订）之后，同步核对代际仍当前、未中止，紧挨 <code>store.write(expected = basedOn)</code>，写入冲突答 <code>kept(superseded)</code>。<code>current</code>/<code>peer</code> 只读表，替身计数证明它们不碰传输工厂。</li>
+</ul>
+<p>内存存储按清单键文本隔离租户、对端账号、持有；它是生产内存实现，不是 <code>./testing</code> 的替身。</p>
