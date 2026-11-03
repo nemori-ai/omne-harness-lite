@@ -317,7 +317,6 @@ export function operatorLayer(options: {
         kind: 'replace',
         id: 'agent-context',
         config: {
-          owner: { ...MODEL_TEST_ADOPTION, name: 'agent-context' },
           resultCapacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
         },
       },

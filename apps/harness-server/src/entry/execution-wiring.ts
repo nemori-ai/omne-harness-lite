@@ -56,7 +56,8 @@ export function ownershipFrom(
   }
 }
 
-function scopesOf(env: EntryEnv): SessionScopeSource {
+/** 本次运行共用的一份 Scope 来源（作用域归属与可信绑定）；请求上下文信任的会话放行格也读它。 */
+export function sessionScopesOf(env: EntryEnv): SessionScopeSource {
   const made = scopesByEnv.get(env)
   if (made !== undefined) return made
   const created = createSessionScopeSource({
@@ -72,7 +73,8 @@ function scopesOf(env: EntryEnv): SessionScopeSource {
 export const scopedRuntimeContextTrust: EntryObjectModule = {
   name: runtimeContextTrust.name,
   implementation: 'real',
-  install: (scope, env) => createRuntimeContextTrustModule(scopesOf(env)).install(scope, env),
+  install: (scope, env) =>
+    createRuntimeContextTrustModule(sessionScopesOf(env)).install(scope, env),
 }
 
 /** Execution 的授权、Scope 绑定与恢复授权三个入口模块，`readBindings` 返回同一份共享来源的绑定。 */
@@ -83,7 +85,7 @@ export const executionAuthorities: readonly EntryObjectModule[] =
     install(scope, env) {
       // AD-15 的恢复授权没有生产来源：`readRecovery` 缺席，恢复授权只会答 unavailable。
       const bound = createExecutionAuthorityModules({
-        readBindings: () => scopesOf(env).bindings,
+        readBindings: () => sessionScopesOf(env).bindings,
       })[index]
       if (bound === undefined) throw new Error('execution authority module index out of range')
       return bound.install(scope, env)
