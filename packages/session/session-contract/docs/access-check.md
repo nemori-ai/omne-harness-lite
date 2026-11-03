@@ -67,4 +67,4 @@
 
 ## 尚未接入的部分
 
-[Cordis 定义](../../session-cordis-contract/docs/cordis.md) 已导出检查 Service 与键。独立子类的装卸测试不证明生产 Session 已完成必需注入。会话存储提供者的委派入口与归属读口、装配入口的 `forSession` 以及 Session 服务实例经视图的接线尚未交付，内存替身不证明这些运行保证。生产 Session 服务、生产系统授权、Session 存储组合、持久重启及跨进程资格均未由这些测试验证。
+[Cordis 定义](../../session-cordis-contract/docs/cordis.md) 已导出检查 Service 与键。独立子类的装卸测试不证明生产 Session 已完成必需注入。会话归属读口已由应用的 `session-storage` 行经受信 `sessionPrincipalBindings` 提供（G-OWNERSHIP，R2-D192），读口构造归 [session-storage-sql](../../session-storage-sql/docs/cordis.md)。会话存储提供者的委派入口、装配入口的 `forSession` 以及 Session 服务实例经视图的接线尚未在本成员的测试里验证，内存替身不证明这些运行保证。生产 Session 服务、生产系统授权、Session 存储组合、持久重启及跨进程资格均未由这些测试验证。
