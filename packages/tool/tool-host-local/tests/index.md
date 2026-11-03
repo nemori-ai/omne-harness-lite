@@ -23,6 +23,8 @@
 - [登记表与 Catalog 的测试构造器](binding-values.ts)。
 - [测试构造器](coordinator-values.ts)。
 - [导入图遍历工具](module-graph.ts)。
+- [R2-D164 完成调用的退役与重排](executor-retirement.spec.ts)。
+- [R2-D164 同租户投递的轮次](delivery/turns.spec.ts)。
 - [测试夹具](fixtures/index.md)。
 - [包索引](../index.md)。
 

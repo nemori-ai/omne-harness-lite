@@ -21,6 +21,11 @@ type Entry = {
   started: boolean
   retiring: boolean
   running: boolean
+  /**
+   * Judged from a fresh recovery after a delivery outcome: settled, no pending task, delivery
+   * done. A complete entry is not rescheduled and retires once no run is in progress.
+   */
+  complete: boolean
   progress: string
 }
 
@@ -37,6 +42,7 @@ export function createRuntimeExecutor(
   const { settings, dependencies } = input
   const abort = new AbortController()
   const calls = new Map<string, Entry>()
+  let completed = 0
   let foreignExecutionRuns = 0
   let unownedRuns = 0
   const delivery = createLocalToolResultDelivery({
@@ -73,6 +79,7 @@ export function createRuntimeExecutor(
       started: false,
       retiring: false,
       running: false,
+      complete: false,
       progress: 'not-run',
     })
     return true
@@ -164,6 +171,29 @@ export function createRuntimeExecutor(
       },
     })
   }
+  /**
+   * Retires a complete entry once no run is in progress. The delivery outcome and the end of
+   * every run both call it, so the retirement does not depend on which of the two comes last
+   * (R2-D164). A failed cleanup keeps the entry and lets a later outcome judge it again.
+   */
+  const retire = async (wake: Wake, entry: Entry): Promise<void> => {
+    const key = keyOf(wake)
+    if (!entry.complete || entry.running || entry.retiring || calls.get(key) !== entry) return
+    entry.retiring = true
+    entry.publication?.close('closed')
+    try {
+      await entry.fiber?.dispose()
+    } catch {
+      entry.retiring = false
+      entry.complete = false
+      input.ctx
+        .logger('tool-executor')
+        .warn('Instance observation cleanup is unconfirmed; the local index is retained.')
+      return
+    }
+    if (calls.get(key) === entry) calls.delete(key)
+    completed += 1
+  }
   const advancing: ToolDriver<unknown> = {
     async run(step) {
       const entry = calls.get(keyOf(step))
@@ -210,28 +240,16 @@ export function createRuntimeExecutor(
               !current.ok.tasks.some(task => task.state === 'pending') &&
               (current.ok.state.execution.kind === 'ended' ||
                 current.ok.state.execution.kind === 'not-started') &&
-              calls.get(keyOf(step)) === entry &&
-              !entry.running &&
-              !entry.retiring
+              calls.get(keyOf(step)) === entry
             ) {
-              entry.retiring = true
-              entry.publication?.close('closed')
-              try {
-                await entry.fiber?.dispose()
-              } catch {
-                entry.retiring = false
-                input.ctx
-                  .logger('tool-executor')
-                  .warn('Instance observation cleanup is unconfirmed; the local index is retained.')
-                return
-              }
-              if (calls.get(keyOf(step)) === entry) calls.delete(keyOf(step))
-              completed += 1
+              entry.complete = true
+              await retire(step, entry)
             }
           })
           .catch(() => undefined)
       } finally {
         entry.running = false
+        void retire(step, entry)
       }
     },
   }
@@ -240,11 +258,11 @@ export function createRuntimeExecutor(
       await waitRuntime(() => advancing.run(step), abort.signal)
     },
   })
-  let completed = 0
   const retryMs = settings.configuration.driverRetryDelayMs ?? 1000
+  // Live calls only: a complete call has nothing left to drive and retires on its own.
   const timer = setInterval(() => {
     for (const entry of calls.values()) {
-      if (entry.retiring) continue
+      if (entry.retiring || entry.complete) continue
       void dependencies.instances.schedule(entry.wake).catch(() => undefined)
     }
   }, retryMs)
