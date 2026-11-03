@@ -84,6 +84,12 @@ describe('the cross-row equalities of the model rows', () => {
     const records = structuredClone(base.records)
     records.sendStage.profiles.compactionTriggerPercent = '79'
     violating(rows({ 'model-records': records }), 'compactionTriggerPercent')
+    const retry = structuredClone(base.records)
+    retry.sendStage.profiles.retryPolicy = {
+      ...retry.sendStage.profiles.retryPolicy,
+      revision: '2',
+    }
+    violating(rows({ 'model-records': retry }), 'retryPolicy')
   })
 
   it('a stub in either row of a pair is not checked (a stub has no such field)', () => {
