@@ -7,16 +7,11 @@ import { identityClock } from '../../../src/entry/identity-clock.ts'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import { identityRow } from '../../../src/rows/identity/index.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
-import { fixtureSqliteStorage } from './fixtures.ts'
+import { fixtureSqliteStorage, releaseIdentityConfig } from './fixtures.ts'
 
 const plugins = { stubPlugin, fixtureSqliteStorage, identityRow }
 /** The identity row of `config/serve.distribution.json`: two login lifetimes, two invitation durations. */
-const IDENTITY_CONFIG = {
-  maxLifetime: 'PT2592000S',
-  idlePeriod: 'PT604800S',
-  invitationDefaultDuration: 'PT604800S',
-  invitationMaxDuration: 'PT2592000S',
-}
+const IDENTITY_CONFIG = releaseIdentityConfig()
 const distribution = {
   rows: [
     { id: 'storage', plugin: 'fixtureSqliteStorage', config: {} },
@@ -25,6 +20,11 @@ const distribution = {
 }
 
 describe('the identity row', () => {
+  it('the release gives invitations 7 days by default and 30 days at most (R2-D204 item 7)', () => {
+    expect(IDENTITY_CONFIG.invitationDefaultDuration).toBe('PT604800S')
+    expect(IDENTITY_CONFIG.invitationMaxDuration).toBe('PT2592000S')
+  })
+
   it('declares the identity row: real, no shutdown phase, the formal keys', () => {
     expect(rowDeclarationOf(identityRow)).toEqual({
       row: 'identity',

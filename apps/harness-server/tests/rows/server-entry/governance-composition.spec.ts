@@ -47,14 +47,10 @@ import {
   visibilityWithSessionDouble,
   type Reply,
 } from './support.ts'
+import { releaseIdentityConfig } from '../identity/fixtures.ts'
 
-/** The release initial values of the identity row (`config/serve.distribution.json`). */
-const IDENTITY_CONFIG = {
-  maxLifetime: 'PT2592000S',
-  idlePeriod: 'PT604800S',
-  invitationDefaultDuration: 'PT604800S',
-  invitationMaxDuration: 'PT2592000S',
-}
+/** The release initial values of the identity row, read from `config/serve.distribution.json`. */
+const IDENTITY_CONFIG = releaseIdentityConfig()
 
 // --- the tree ----------------------------------------------------------------------------------
 
