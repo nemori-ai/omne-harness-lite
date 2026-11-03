@@ -76,6 +76,11 @@ export function workKey(domain: string, tenant: string, session: string): string
   return JSON.stringify([domain, tenant, session])
 }
 
+/** The key of the reads and folds in flight of one session at one version. */
+function flightKey(key: string, version: Readonly<{ tail: string; published: string }>): string {
+  return `${key}|${version.tail}|${version.published}`
+}
+
 const count = (text: string): bigint => BigInt(text)
 
 /** -1, 0 or 1 as `left` is older than, equal to or newer than `right`, by the tail first. */
@@ -265,29 +270,20 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
   // Taken before the version read: its version can then be no newer than the version read, so a
   // version below it means the store went back, never a commit that came in between.
   const held = cache.get(key)
-  const versionRead = await readOne(reach, WORK_VERSION_HANDLER)
-  let version: WorkVersion | null = null
-  if ('output' in versionRead) {
-    const current = versionRead.output
-    if (current['kind'] === 'absent') {
+  const version = await readVersionOf(reach)
+  if (version === 'absent') {
+    cache.delete(key)
+    return { kind: 'absent' }
+  }
+  // The snapshot row is replaced only in the transaction that moves the tail, and an entry is
+  // kept only from a whole read that found it covering its tail: an equal tail is covered still.
+  if (version !== null && held !== undefined) {
+    if (sameVersion(version, held.version)) return { kind: 'state', snapshot: held.snapshot }
+    if (movedBack(version, held.version)) {
       cache.delete(key)
-      return { kind: 'absent' }
-    }
-    const tail = textOf(current['tail'])
-    const published = textOf(current['published'])
-    // The snapshot row is replaced only in the transaction that moves the tail, and an entry is
-    // kept only from a whole read that found it covering its tail: an equal tail is covered still.
-    if (current['kind'] === 'version' && tail !== null && published !== null) {
-      version = { tail, published }
-      if (held !== undefined) {
-        if (sameVersion(version, held.version)) return { kind: 'state', snapshot: held.snapshot }
-        if (movedBack(version, held.version)) {
-          cache.delete(key)
-          return {
-            kind: 'unavailable',
-            diagnostic: `the session log moved backwards from tail ${held.version.tail} published ${held.version.published} to tail ${tail} published ${published}`,
-          }
-        }
+      return {
+        kind: 'unavailable',
+        diagnostic: `the session log moved backwards from tail ${held.version.tail} published ${held.version.published} to tail ${version.tail} published ${version.published}`,
       }
     }
   }
@@ -295,7 +291,7 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
   // Concurrent readers of one key that read one version share that whole read; a reader whose
   // version read failed reads alone.
   if (version === null) return readWhole(reach, cache, key)
-  const flight = `${key}|${version.tail}|${version.published}`
+  const flight = flightKey(key, version)
   const folded = await afterFold(cache, key, flight, version)
   if (folded !== undefined) return { kind: 'state', snapshot: folded }
   const running = cache.flights.get(flight)
@@ -303,6 +299,22 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
   const started = readWhole(reach, cache, key).finally(() => cache.flights.delete(flight))
   cache.flights.set(flight, started)
   return started
+}
+
+/**
+ * The version of the session in the store (`session.work-version`): `absent` when no session of
+ * the tenant has the name, null when the read failed or answered no version.
+ */
+async function readVersionOf(reach: WorkReach): Promise<WorkVersion | 'absent' | null> {
+  const read = await readOne(reach, WORK_VERSION_HANDLER)
+  if (!('output' in read)) return null
+  const current = read.output
+  if (current['kind'] === 'absent') return 'absent'
+  const tail = textOf(current['tail'])
+  const published = textOf(current['published'])
+  return current['kind'] === 'version' && tail !== null && published !== null
+    ? { tail, published }
+    : null
 }
 
 /**
@@ -602,6 +614,47 @@ function settled(counts: WorkFoldCounts): void {
   counts.stale += 1
 }
 
+/**
+ * What a fold or an index replacement registers: the snapshot with its index and the version the
+ * store answered, its stored text length, and the publication count the index was asked at.
+ */
+type Registration = Readonly<{ indexed: Indexed; bytes: number; asked: string }>
+
+/**
+ * Runs one fold or index replacement under `flight`, so that readers of that version wait for it
+ * (`afterFold`): registers what `produce` answers, and counts it in `counter` (and `republished`
+ * when the count moved past the one asked) only when the cache keeps it. Null registers nothing;
+ * `produce` counts why. It never rejects (`settled`).
+ */
+async function runFlight(
+  cache: WorkCache,
+  key: string,
+  flight: string,
+  counter: 'folded' | 'indexed',
+  produce: () => Promise<Registration | null>,
+): Promise<void> {
+  const { counts } = cache
+  const running = produce()
+    .then(made => {
+      if (made === null) return
+      const kept = cache.set(key, {
+        version: made.indexed.version,
+        bytes: made.bytes,
+        snapshot: frozen(made.indexed.snapshot),
+      })
+      if (!kept) return
+      counts[counter] += 1
+      if (made.indexed.version.published !== made.asked) counts.republished += 1
+    })
+    .catch(() => settled(counts))
+  cache.folds.set(flight, running)
+  try {
+    await running
+  } finally {
+    cache.folds.delete(flight)
+  }
+}
+
 /** True when `before` is the version just below the fold: one tail lower, the count as `published` says. */
 const follows = (before: WorkVersion, fold: WorkFold, published: FoldPublished): boolean =>
   count(before.tail) + 1n === count(fold.tail) &&
@@ -625,7 +678,7 @@ export async function foldCommitted(
     const { counts } = cache
     const key = workKey(reach.domain.transactionDomain, reach.tenant, reach.session)
     const held = cache.get(key)
-    const flight = `${key}|${fold.tail}|${fold.published}`
+    const flight = flightKey(key, fold)
     if (
       held === undefined ||
       !follows(held.version, fold, published) ||
@@ -636,26 +689,10 @@ export async function foldCommitted(
       counts.skipped += 1
       return
     }
-    const into = cache
-    const running = folded(reach, counts, held.snapshot, fold)
-      .then(indexed => {
-        if (indexed === null) return
-        const kept = into.set(key, {
-          version: indexed.version,
-          bytes: fold.bytes,
-          snapshot: frozen(indexed.snapshot),
-        })
-        if (!kept) return
-        counts.folded += 1
-        if (indexed.version.published !== fold.published) counts.republished += 1
-      })
-      .catch(() => settled(counts))
-    cache.folds.set(flight, running)
-    try {
-      await running
-    } finally {
-      cache.folds.delete(flight)
-    }
+    await runFlight(cache, key, flight, 'folded', async () => {
+      const indexed = await folded(reach, counts, held.snapshot, fold)
+      return indexed === null ? null : { indexed, bytes: fold.bytes, asked: fold.published }
+    })
   } catch {
     if (cache !== undefined) cache.counts.stale += 1
   }
@@ -680,34 +717,17 @@ export async function refreshWorkIndex(reach: WorkReach, published: string): Pro
       return
     }
     const version = { tail: held.version.tail, published }
-    const flight = `${key}|${version.tail}|${version.published}`
+    const flight = flightKey(key, version)
     if (cache.flights.has(flight) || cache.folds.has(flight)) {
       counts.skipped += 1
       return
     }
-    const into = cache
-    const running = withIndex(reach, version, unindexed(held.snapshot))
-      .then(indexed => {
-        if (indexed === null) {
-          counts.stale += 1
-          return
-        }
-        const kept = into.set(key, {
-          version: indexed.version,
-          bytes: held.bytes,
-          snapshot: frozen(indexed.snapshot),
-        })
-        if (!kept) return
-        counts.indexed += 1
-        if (indexed.version.published !== published) counts.republished += 1
-      })
-      .catch(() => settled(counts))
-    cache.folds.set(flight, running)
-    try {
-      await running
-    } finally {
-      cache.folds.delete(flight)
-    }
+    await runFlight(cache, key, flight, 'indexed', async () => {
+      const indexed = await withIndex(reach, version, unindexed(held.snapshot))
+      if (indexed !== null) return { indexed, bytes: held.bytes, asked: published }
+      counts.stale += 1
+      return null
+    })
   } catch {
     if (cache !== undefined) cache.counts.stale += 1
   }
