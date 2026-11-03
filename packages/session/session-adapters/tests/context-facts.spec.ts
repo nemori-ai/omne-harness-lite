@@ -190,20 +190,24 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     })
   })
 
-  it('R2-D29 a known answer names an owner and nothing else, and its reads come from the coordinator class with the principal of the session', async () => {
+  it('R2-D29 a known answer names an owner and nothing else; the snapshot is read as coordinator, the history as reader, both with the principal of the session', async () => {
     const f = await world()
     await f.committed()
     const answer = await f.lookup(f.ownScope)
     expect(Object.keys(answer).sort()).toEqual(['generation', 'kind', 'session', 'tenant'])
     expect(f.calls.length).toBeGreaterThan(0)
+    // The history face admits the reader class only, and a plugin uses one class (AD-00 rule 1).
+    const classOf = (call: (typeof f.calls)[number]) => (call.caller as { caller?: unknown }).caller
+    expect(f.calls.every(call => call.principal === f.s.access.principal)).toBe(true)
     expect(
-      f.calls.every(
-        call =>
-          (call.caller as { caller?: unknown }).caller === 'coordinator' &&
-          call.principal === f.s.access.principal,
+      f.calls.every(call =>
+        call.method === 'work.readWork'
+          ? classOf(call) === 'coordinator'
+          : classOf(call) === 'reader',
       ),
     ).toBe(true)
     expect(f.calls.map(call => call.method)).toContain('work.readWork')
+    expect(f.calls.map(call => call.method)).toContain('history.begin')
   })
 
   it('R2-D14 a forged scope text is unknown', async () => {
@@ -252,11 +256,14 @@ describe('R2-D14 the scope lookup of the facts plugin', () => {
     expect(answer.kind).toBe('known')
   })
 
-  it('R2-D14 a notice whose kinds hold no context record indexes nothing', async () => {
+  it('R2-D202 the first notice of a session indexes the open scope of its snapshot without reading the history, and a later one reads nothing', async () => {
     const f = await world()
     await f.committed(['run.terminal'])
-    expect(await f.lookup(f.ownScope)).toEqual({ kind: 'unknown' })
-    expect(f.calls).toEqual([])
+    expect(await f.lookup(f.ownScope)).toMatchObject({ kind: 'known' })
+    const before = f.calls.length
+    expect(f.calls.map(call => call.method).every(method => method === 'work.readWork')).toBe(true)
+    await f.committed(['run.terminal'])
+    expect(f.calls).toHaveLength(before)
   })
 
   it('R2-D14 a scope of an older generation keeps its own generation after the snapshot moved on', async () => {
