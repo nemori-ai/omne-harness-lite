@@ -19,13 +19,7 @@ import { buildTable } from '../../../src/rows/agent-adoptions/table.ts'
 import { toolBindingsRow } from '../../../src/rows/tool-bindings/index.ts'
 import { createToolHostPlugin } from '../../../src/rows/tool-host/index.ts'
 import { got } from '../../entry/support.ts'
-import {
-  access,
-  createCommand,
-  entryConfig,
-  factsOf,
-  mappingConfig,
-} from '../adoptions/support.ts'
+import { access, createCommand, entryConfig, factsOf, mappingConfig } from '../adoptions/support.ts'
 import {
   TEST_CONSTRUCTION,
   authorityOf,
