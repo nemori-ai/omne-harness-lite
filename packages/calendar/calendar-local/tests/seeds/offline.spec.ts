@@ -1,8 +1,11 @@
+// @module-tag slow
+// Runs a child process with macOS network denial and real SQLite.
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 
-it('installs fixed seeds through the real SQL combination with OS network denial', () => {
+it('installs fixed seeds through real SQL with macOS network denial', context => {
+  if (process.platform !== 'darwin') context.skip('OS network denial requires macOS sandbox-exec')
   const script = fileURLToPath(new URL('./integration.mjs', import.meta.url))
   const output = execFileSync(
     '/usr/bin/sandbox-exec',
