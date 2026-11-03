@@ -1,11 +1,13 @@
 // The read bound of the Session snapshot (session SPEC 已知限制 SN-1): `session.work` hands the whole
-// stored snapshot out, and its handler has the fixed output limit of 1 MiB (`materials.ts`). A
-// snapshot past it is not read: the real provider answers `read_limit`, and `readWork` answers a
-// prompt `unavailable` that names it, never a hang and never a part of the snapshot. In the C-JOINT
-// world the snapshot of one session passes 1 MiB at about round 169 of the plain shape; here the
-// stored row is made that large directly: the longest text member of the stored snapshot is
-// lengthened, so the snapshot keeps its shape. The row is written into the closed domain file, as
-// the system reads do; this verifies the read path only.
+// stored snapshot out, and its handler has the fixed output limit of 20 MiB (`materials.ts`,
+// `READ_OUTPUT_LIMIT_BYTES`). A snapshot past it is not read: the real provider answers `read_limit`,
+// and `readWork` answers a prompt `unavailable` that names it, never a hang and never a part of the
+// snapshot. A snapshot between the old bound of 1 MiB and the new one reads whole. The limit is a
+// literal here, not the constant of the source, so that a changed constant turns the cases red. In
+// the C-JOINT world the snapshot of one session passes 1 MiB at about round 169 of the plain shape;
+// here the stored row is made that large directly: the longest text member of the stored snapshot is
+// lengthened, so the snapshot keeps its shape. The row is written into the closed domain file, as the
+// system reads do; this verifies the read path only.
 // @module-tag slow
 // Why slow: real Workers and real files; every case opens the provider twice.
 import { realpath, mkdtemp, rm } from 'node:fs/promises'
@@ -15,7 +17,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
 import { openRealApp, TENANT_A, textOf, type RealApp } from './fixtures/real-provider.ts'
 
-const LIMIT = 1 << 20
+const LIMIT = 20 * 1024 * 1024
 const roots: string[] = []
 const apps: RealApp[] = []
 afterEach(async () => {
@@ -91,7 +93,7 @@ async function sessionOfSize(bytes: number) {
 }
 
 describe('the read bound of the Session snapshot', () => {
-  it('a snapshot past 1 MiB answers read_limit, and readWork answers unavailable naming it, promptly', async () => {
+  it('a snapshot past 20 MiB answers read_limit, and readWork answers unavailable naming it, promptly', async () => {
     const { app, read } = await sessionOfSize(LIMIT + 64 * 1024)
     const started = Date.now()
     expect(await read()).toMatchObject({ kind: 'unavailable', reason: 'read_limit' })
@@ -113,5 +115,14 @@ describe('the read bound of the Session snapshot', () => {
     const answer = await app.port.readWork(app.access(TENANT_A))
     expect(answer).toHaveProperty('ok')
     expect(JSON.stringify(answer).length).toBeGreaterThan(LIMIT - 256 * 1024)
+  })
+
+  it('a snapshot between 1 MiB and 20 MiB reads whole: the old bound no longer stops it', async () => {
+    const { app, read, padded } = await sessionOfSize(2 * 1024 * 1024)
+    expect(padded).toBeGreaterThan(1024 * 1024)
+    expect(await read()).toMatchObject({ kind: 'read' })
+    const answer = await app.port.readWork(app.access(TENANT_A))
+    expect(answer).toHaveProperty('ok')
+    expect(JSON.stringify(answer).length).toBeGreaterThan(2 * 1024 * 1024)
   })
 })
