@@ -1,9 +1,9 @@
 import { expect, it } from 'vitest'
-
-it('draft cordis entry exports nothing until the accepted binding replaces it', async () => {
-  const cordis = (await import('@omne-harness/calendar-cordis-contract/cordis')) as Record<
-    string,
-    unknown
-  >
-  expect(Object.keys(cordis)).toEqual([])
+import {
+  CalendarQueryService,
+  calendarQueryKey,
+} from '@omne-harness/calendar-cordis-contract/cordis'
+it('publishes the query service key from its owning definition', () => {
+  expect(CalendarQueryService.provide).toBe('calendarQuery')
+  expect(calendarQueryKey).toBe(CalendarQueryService.provide)
 })
