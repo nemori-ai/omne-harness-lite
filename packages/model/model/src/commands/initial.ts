@@ -20,7 +20,10 @@ import type {
 } from '@omne-harness/model-contract/provider'
 import type { SendCoordinator } from '../send.ts'
 import type { ModelCommandCore } from './state.ts'
+import type { RunScope } from './storage.ts'
 import type {
+  Binding,
+  BindingBase,
   CallDocument,
   ModelCommandsEvidence,
   ModelConfirmationPass,
@@ -82,6 +85,60 @@ const failure = (diagnostic: string) => unavailable('model-initial-execution', d
 const denied = (): ModelFailure => ({ kind: 'denied', action: 'execution-channel' })
 const keyOf = (tenant: string, call: InitialTarget['call']) => JSON.stringify([tenant, call])
 const initialRunAccess = Object.freeze({})
+
+/** The call, operation and binding that one confirmed pass wrote or saw for the record's call. */
+type ConfirmedWrite = Readonly<{
+  call: CallDocument
+  operation: ModelOperationId | undefined
+  binding: BindingBase | Binding
+}>
+function passWrite(pass: ModelConfirmationPass, scope: RunScope) {
+  const staged = pass.staged?.kind === 'write' ? pass.staged.write : undefined
+  return {
+    call: staged?.call ?? (pass.staged?.kind === 'publish' ? pass.staged.call : pass.seen?.call),
+    operation: staged ? staged.operation : scope.operation,
+    binding: staged?.binding ?? pass.seen?.operation,
+  }
+}
+/** The write of the pass, when it names the record's call and admission under a committed binding. */
+function confirmedWrite(
+  pass: ModelConfirmationPass,
+  scope: RunScope,
+  record: LocalAdmission,
+): ConfirmedWrite | null {
+  const { call, operation, binding } = passWrite(pass, scope)
+  if (
+    !call ||
+    call.state.call !== record.call ||
+    call.admission !== record.admission ||
+    !binding ||
+    ('status' in binding && binding.status !== 'committed')
+  )
+    return null
+  return { call, operation, binding }
+}
+/** The pending record's own admit, under its admission operation and fingerprint. */
+function admitsPending(record: LocalAdmission, write: ConfirmedWrite): boolean {
+  const { binding } = write
+  return (
+    write.operation === record.admission &&
+    binding.call === record.call &&
+    binding.method === 'admit' &&
+    binding.fingerprint === record.admissionFingerprint
+  )
+}
+/** The execution of the bound record's own claim, for its instance and the claimed generation. */
+function claimedExecution(record: BoundRecord, write: ConfirmedWrite): ExecutionRef | null {
+  const { binding, call } = write
+  return write.operation === record.operation &&
+    binding.call === record.call &&
+    binding.method === 'claim' &&
+    binding.receipt.kind === 'claim' &&
+    call.execution?.instance === record.instance &&
+    call.execution.generation === binding.receipt.generation
+    ? call.execution
+    : null
+}
 
 type InitialRunPort<P> = Readonly<{
   beginAdmission(input: LocalAdmission): Outcome<void, ModelFailure>
@@ -156,41 +213,20 @@ class InitialRun<P> implements ModelInitialRun<P> {
       const key = keyOf(pass.scope.tenant, pass.scope.call)
       const record = this.#records.get(key)
       if (!record || this.#unavailable.has(key)) return
-      const staged = pass.staged?.kind === 'write' ? pass.staged.write : undefined
-      const call =
-        staged?.call ?? (pass.staged?.kind === 'publish' ? pass.staged.call : pass.seen?.call)
-      const operation = staged ? staged.operation : pass.scope.operation
-      const binding = staged?.binding ?? pass.seen?.operation
-      if (
-        !call ||
-        call.state.call !== record.call ||
-        call.admission !== record.admission ||
-        !binding ||
-        ('status' in binding && binding.status !== 'committed')
-      )
-        return
-      if (
-        record.kind === 'admission-pending' &&
-        operation === record.admission &&
-        binding.call === record.call &&
-        binding.method === 'admit' &&
-        binding.fingerprint === record.admissionFingerprint
-      )
-        this.#records.set(key, { ...record, kind: 'admitted' })
-      if (
-        record.kind === 'bound' &&
-        operation === record.operation &&
-        binding.call === record.call &&
-        binding.method === 'claim' &&
-        binding.receipt.kind === 'claim' &&
-        call.execution?.instance === record.instance &&
-        call.execution.generation === binding.receipt.generation
-      )
-        this.#records.set(key, { ...record, execution: { ...call.execution } })
+      const write = confirmedWrite(pass, pass.scope, record)
+      if (write) this.#confirmRecord(key, record, write)
     } catch (error) {
       this.#disable(pass)
       throw error
     }
+  }
+  /** A confirmed admit makes the pending record admitted; a confirmed claim gives the bound one its execution. */
+  #confirmRecord(key: string, record: InitialRecord, write: ConfirmedWrite): void {
+    if (record.kind === 'admission-pending' && admitsPending(record, write))
+      this.#records.set(key, { ...record, kind: 'admitted' })
+    if (record.kind !== 'bound') return
+    const execution = claimedExecution(record, write)
+    if (execution) this.#records.set(key, { ...record, execution: { ...execution } })
   }
   #disable(pass: ModelConfirmationPass | null): void {
     if (pass?.scope?.call === undefined) this.#closed = true
