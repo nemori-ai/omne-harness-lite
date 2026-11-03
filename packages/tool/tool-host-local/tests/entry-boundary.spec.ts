@@ -3,18 +3,26 @@ import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 import { memberPath } from './module-graph.ts'
 
-it('does not expose an undelivered Cordis entry through the manifest or Node imports', () => {
+it('exposes only the delivered Cordis factories and refuses undeclared subpaths', () => {
   const manifest: { exports: Record<string, unknown> } = JSON.parse(
     readFileSync(memberPath('package.json'), 'utf8'),
   )
-  expect(Object.keys(manifest.exports)).not.toContain('./cordis')
+  expect(manifest.exports['./cordis']).toEqual({
+    source: './src/cordis.ts',
+    types: './dist/cordis.d.ts',
+    import: './dist/cordis.js',
+  })
   execFileSync(
     process.execPath,
     [
       '--input-type=module',
       '--eval',
-      `import { rejects } from 'node:assert/strict'
-await rejects(import('@omne-harness/tool-host-local/cordis'), {
+      `import { deepEqual, equal, rejects } from 'node:assert/strict'
+const entry = await import('@omne-harness/tool-host-local/cordis')
+deepEqual(Object.keys(entry).sort(), ['createLocalToolBindingsPlugin', 'createLocalToolHostPlugin'])
+equal(typeof entry.createLocalToolBindingsPlugin, 'function')
+equal(typeof entry.createLocalToolHostPlugin, 'function')
+await rejects(import('@omne-harness/tool-host-local/undeclared'), {
   code: 'ERR_PACKAGE_PATH_NOT_EXPORTED',
 })`,
     ],

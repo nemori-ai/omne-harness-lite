@@ -11,6 +11,7 @@
 - [协调器对启动围栏套件的一致性测试](start-authority-conformance.spec.ts)。
 - [宿主时钟的契约一致性](clock-conformance.spec.ts)、[时钟规则](clock.spec.ts)与[手动时间源](clock-values.ts)。
 - [登记表的契约一致性与登记规则](bindings-conformance.spec.ts)。
+- [作者绑定的注册化身、命令分派及拒绝清理](author-binding-regressions.spec.ts)。
 - [Catalog 测试](catalog.spec.ts)。
 - [缺席端口测试](absent-ports.spec.ts)。
 - [部件对 createToolRuntime 的组合测试](runtime-composition.spec.ts)。
