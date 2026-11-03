@@ -34,11 +34,21 @@
     "@omne-harness/schedule-contract": "workspace:*",
     "@omne-harness/schedule-cordis-contract": "workspace:*",
     "@omne-harness/tool-contract": "workspace:*",
-    "@omne-harness/tool-cordis-contract": "workspace:*"
+    "@omne-harness/tool-cordis-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/schema-provider": "workspace:*",
+    "@omne-harness/tool-host-local": "workspace:*",
+    "zod": "catalog:",
+    "canonicalize": "5.1.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness/tool": "workspace:*",
+    "@omne-harness/runtime-context-contract": "workspace:*",
+    "@omne-harness/sql-contract": "workspace:*",
+    "@omne-harness/sqlite-provider": "workspace:*"
   }
 }
