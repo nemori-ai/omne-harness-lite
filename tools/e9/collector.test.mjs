@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -177,7 +177,7 @@ test('观察者对任意输入都不抛出', () => {
 })
 
 test('给出 out 时逐轮写 projection.jsonl 与轮外记录，fsync 只附在合格轮上', async () => {
-  const out = mkdtempSync(join(tmpdir(), 'e9-collector-'))
+  const out = realpathSync(mkdtempSync(join(tmpdir(), 'e9-collector-')))
   try {
     const collector = createRoundCollector({ runId: 'x', clock: fakeClock(), out })
     collector.measure(seg('session', 1, 'start'))
