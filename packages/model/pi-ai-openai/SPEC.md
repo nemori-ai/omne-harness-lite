@@ -147,3 +147,9 @@
 - 真实路由的发送只经 model-host-local 的手动录制器验证。持续验证只回放录下的[pi-ai-transport 的回放件](../pi-ai-transport/tests/fixtures/README.md)，不发出真实请求。示例的实跑只在手动设置开关时有证据。
 - 夹具中没有余量为负的 usage，所以 `usage-inconsistent` 诊断只经直接调用验证。
 - 网关对 `max` 的接受只有一次经代理的手工确认，不在持续验证中。
+
+已知限制：
+
+- 6 条 Pro 记录（`openai/gpt-6-astra-pro`、`openai/gpt-6-sol-pro`、`openai/gpt-6-luna-pro`、`openai/gpt-5.6-sol-pro`、`openai/gpt-5.6-terra-pro`、`openai/gpt-5.6-luna-pro`）在 2026-11-03 的 OpenAI 官方型号页、全部型号页与价格页中都查不到，只在 OpenRouter 的公开型号列表中存在。这 6 条按 Reduce 裁定 R2-D125 保留，状态仍为 `current`。OpenRouter 上同样查不到官方来源的 `openai/gpt-6.1-sol-pro` 与 `openai/gpt-6.1-terra-pro` 不收。
+- `openai/gpt-6.1-terra` 的图片规则 `sol-luna-auto-proxy/1` 是推断。官方视觉指南不列这个型号，GPT-6 也没有 Terra 型号可以对照，所以记录取同代 Sol 与 Luna 的代理规则。记录的 `profile.evidence` 写明这一点。
+- 官方各型号公布推理强度 `xhigh`，契约的推理强度没有这一档，所以记录不提供。

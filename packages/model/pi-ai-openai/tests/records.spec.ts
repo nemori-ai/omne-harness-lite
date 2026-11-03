@@ -84,6 +84,15 @@ describe('the migrated models', () => {
     },
   )
 
+  it('says in the evidence of GPT-6.1 Terra that its image rule is an inference', () => {
+    const terra = RECORDS.find(record => record.name === 'openai/gpt-6.1-terra')
+    expect(terra?.profile.evidence).toContain(
+      'The image rule sol-luna-auto-proxy/1 is an inference',
+    )
+    const sol = RECORDS.find(record => record.name === 'openai/gpt-6.1-sol')
+    expect(sol?.profile.evidence).not.toContain('inference')
+  })
+
   it('turns the sealed parameter drops into explicit unsupported entries', () => {
     for (const record of RECORDS) {
       for (const kind of [

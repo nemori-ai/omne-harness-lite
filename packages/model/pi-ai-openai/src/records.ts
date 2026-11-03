@@ -132,14 +132,23 @@ const METER = {
   tokenizer: OPENAI_TOKENIZER,
 } as const
 
+/** The observation of the GPT-6.1 limits, shared by the evidence of both models. */
+const GPT61_LIMITS =
+  'OpenAI model pages and OpenRouter endpoint metadata observed 2026-11-03 for the selected OpenAI endpoint: a 1050000-token shared window, a 922000-token max prompt and a 128000-token max completion. The 4194304-byte image limit is the offering of this project; no upstream per-image byte limit is established.'
+
 /**
- * The profile of the GPT-6.1 models: the shared limits, with the evidence of their own observation.
- * The image guide names neither model, so their image rule is the GPT-6 proxy of Sol and Luna.
+ * The profile of GPT-6.1 Sol: the shared limits, with the evidence of their own observation. The
+ * image guide does not name the model, so its image rule is the GPT-6 proxy of Sol and Luna.
  */
-const GPT61_PROFILE = {
+const GPT61_SOL_PROFILE = { ...COMMON.profile, evidence: GPT61_LIMITS } as const
+
+/**
+ * The profile of GPT-6.1 Terra. GPT-6 has no Terra model, so the image rule is an inference, and
+ * the evidence says so.
+ */
+const GPT61_TERRA_PROFILE = {
   ...COMMON.profile,
-  evidence:
-    'OpenAI model pages and OpenRouter endpoint metadata observed 2026-11-03 for the selected OpenAI endpoint: a 1050000-token shared window, a 922000-token max prompt and a 128000-token max completion. The 4194304-byte image limit is the offering of this project; no upstream per-image byte limit is established.',
+  evidence: `${GPT61_LIMITS} The image rule sol-luna-auto-proxy/1 is an inference: the OpenAI image guide of 2026-11-03 does not name gpt-6.1-terra and GPT-6 has no Terra model, so the rule of GPT-6 Sol and Luna stands in.`,
 } as const
 
 /** The OpenAI records. The record list is the only list of models in this package. */
@@ -210,7 +219,7 @@ export const OPENAI_RECORDS = [
     route: { recipient: OPENROUTER, model: 'openai/gpt-6.1-sol' },
     status: 'current',
     ...COMMON,
-    profile: GPT61_PROFILE,
+    profile: GPT61_SOL_PROFILE,
     parameters: PARAMETERS,
     rules: { ...RULES, usage: 'openai-usage/1' },
     meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
@@ -221,7 +230,7 @@ export const OPENAI_RECORDS = [
     route: { recipient: OPENROUTER, model: 'openai/gpt-6.1-terra' },
     status: 'current',
     ...COMMON,
-    profile: GPT61_PROFILE,
+    profile: GPT61_TERRA_PROFILE,
     parameters: PARAMETERS,
     rules: { ...RULES, usage: 'openai-usage/1' },
     meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
