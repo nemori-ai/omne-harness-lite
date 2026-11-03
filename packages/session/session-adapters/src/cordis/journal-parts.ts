@@ -57,16 +57,30 @@ export type AdoptedPart = Readonly<{
 type AdoptedRequest = NonNullable<AgentCheckpoint['adoptedRequest']>
 
 const ORDER = /^[1-9][0-9]*$/
-const ADOPTED_KEYS = ['order', 'execution', 'reference', 'fixed', 'coverage', 'schema', 'record']
 const EVIDENCE_KEYS = ['owner', 'record', 'revision', 'digest']
 const ADOPTION_KEYS = ['owner', 'name', 'revision', 'digest']
 const isText = (value: unknown): value is string => typeof value === 'string'
+const isObject = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 /** An object with exactly `names` as members, each one text. */
 function texts(value: unknown, names: readonly string[]): boolean {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const record = value as Readonly<Record<string, unknown>>
-  return Object.keys(record).length === names.length && names.every(name => isText(record[name]))
+  return (
+    isObject(value) &&
+    Object.keys(value).length === names.length &&
+    names.every(name => isText(value[name]))
+  )
+}
+
+/** Each member of the stored `a` part, and what its value must be. */
+const ADOPTED_MEMBERS: Readonly<Record<keyof AdoptedPart, (value: unknown) => boolean>> = {
+  order: value => isText(value) && ORDER.test(value),
+  execution: isText,
+  reference: isText,
+  fixed: value => texts(value, EVIDENCE_KEYS),
+  coverage: value => value === null || texts(value, EVIDENCE_KEYS),
+  schema: value => texts(value, ADOPTION_KEYS),
+  record: value => value !== undefined,
 }
 
 /** The stored form of the `a` part: plain JSON, without the marks of `journal-state.ts`. */
@@ -84,30 +98,22 @@ export function encodeAdopted(adopted: AdoptedPart): JsonValue {
 
 /** The `a` part as stored. It throws a TypeError on a part that this provider did not write. */
 export function decodeAdopted(state: JsonValue): AdoptedPart {
-  if (typeof state !== 'object' || state === null || Array.isArray(state))
-    throw new TypeError('the adopted part is not an object')
-  const value = state as Readonly<Record<string, JsonValue>>
-  if (
-    Object.keys(value).length !== ADOPTED_KEYS.length ||
-    !ADOPTED_KEYS.every(key => Object.hasOwn(value, key))
-  )
+  if (!isObject(state)) throw new TypeError('the adopted part is not an object')
+  const names = Object.keys(ADOPTED_MEMBERS) as (keyof AdoptedPart)[]
+  if (Object.keys(state).length !== names.length)
     throw new TypeError('the adopted part does not hold its members')
-  const { order, execution, reference, fixed, coverage, schema, record } = value
-  if (!isText(order) || !ORDER.test(order)) throw new TypeError('the adopted order is malformed')
-  if (!isText(execution) || !isText(reference) || record === undefined)
-    throw new TypeError('the adopted part is malformed')
-  if (!texts(fixed, EVIDENCE_KEYS) || !texts(schema, ADOPTION_KEYS))
-    throw new TypeError('the adopted evidence is malformed')
-  if (coverage !== null && !texts(coverage, EVIDENCE_KEYS))
-    throw new TypeError('the adopted coverage is malformed')
+  for (const name of names)
+    if (!Object.hasOwn(state, name) || !ADOPTED_MEMBERS[name](state[name]))
+      throw new TypeError(`the adopted ${name} is malformed`)
+  const value = state as unknown as AdoptedPart
   return {
-    order,
-    execution,
-    reference,
-    fixed: fixed as unknown as DurableEvidence,
-    coverage: coverage as unknown as DurableEvidence | null,
-    schema: schema as unknown as Adoption,
-    record,
+    order: value.order,
+    execution: value.execution,
+    reference: value.reference,
+    fixed: value.fixed,
+    coverage: value.coverage,
+    schema: value.schema,
+    record: value.record,
   }
 }
 
