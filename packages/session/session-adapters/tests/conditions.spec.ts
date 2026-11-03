@@ -164,7 +164,10 @@ describe('the conditions of a current Authority', () => {
       }),
     )
     const back = ok(await f.read(f.advance, read.source))
-    expect(back.progression).toEqual({ kind: 'evaluate-completion', basis: evidence('hitl/co-work') })
+    expect(back.progression).toEqual({
+      kind: 'evaluate-completion',
+      basis: evidence('hitl/co-work'),
+    })
     expect(back.source).not.toEqual(read.source)
   })
 })
@@ -209,9 +212,12 @@ describe('tenant and advance', () => {
     const f = await provided('conditions-other-tenant')
     const other = memoryOtherAccess('conditions-other-tenant')
     const before = f.s.controls?.reads.length ?? 0
-    const answer = await f.c.ctx
-      .get(agentConditionsKey)
-      ?.read({ principal: other.principal, tenant: other.tenant, advance: f.advance, previous: null })
+    const answer = await f.c.ctx.get(agentConditionsKey)?.read({
+      principal: other.principal,
+      tenant: other.tenant,
+      advance: f.advance,
+      previous: null,
+    })
     expect(answer).toMatchObject({ failure: { kind: 'unavailable' } })
     expect(f.s.controls?.reads.length ?? 0).toBe(before)
   })

@@ -103,11 +103,16 @@ function sha256(text: string): string {
 
 /** A Session read failure in the Agent's words: a refusal stays a refusal, the rest is unavailable. */
 function fromSession(failure: SessionFailure, what: string): Failure {
-  return failure.kind === 'denied' ? denied : unavailable(`${what} is not readable (${failure.kind})`)
+  return failure.kind === 'denied'
+    ? denied
+    : unavailable(`${what} is not readable (${failure.kind})`)
 }
 
 /** The collaboration mode as the progression directive (session-and-run.md「协作」, mechanisms.md). */
-function directiveOf(collaboration: Modes['collaboration'], basis: DurableEvidence): ProgressionDirective {
+function directiveOf(
+  collaboration: Modes['collaboration'],
+  basis: DurableEvidence,
+): ProgressionDirective {
   return { kind: collaboration === 'auto-drive' ? 'continue' : 'evaluate-completion', basis }
 }
 
@@ -118,7 +123,11 @@ function openScope(work: WorkSnapshot): ContextScopeBinding | null {
 }
 
 /** The evidence of one open scope binding: it names the scope, its generation and the commit. */
-function scopeEvidence(tenantText: string, work: WorkSnapshot, binding: ContextScopeBinding): DurableEvidence {
+function scopeEvidence(
+  tenantText: string,
+  work: WorkSnapshot,
+  binding: ContextScopeBinding,
+): DurableEvidence {
   return {
     owner: 'session',
     record: binding.scope,
@@ -187,9 +196,17 @@ function createConditions<P>(given: SessionConditionsInput, ports: Ports<P>): Cu
     advance: Authority,
   ): Promise<Outcome<Extract<WorkSnapshot['run'], { kind: 'active' }>, Failure>> {
     const run = work.run
-    if (run.kind !== 'active' || run.execution.execution !== advance.execution || run.advance === null)
+    if (
+      run.kind !== 'active' ||
+      run.execution.execution !== advance.execution ||
+      run.advance === null
+    )
       return fail(stale)
-    const records = await readJournalState(ports, { tenant, session }, recordsPart(advance.execution))
+    const records = await readJournalState(
+      ports,
+      { tenant, session },
+      recordsPart(advance.execution),
+    )
     if (records.kind === 'unavailable') return fail(unavailable(records.diagnostic))
     const attempt = records.state?.authorities.get(
       `${advance.execution}\0${canonical(advance)}`,
@@ -218,7 +235,9 @@ function createConditions<P>(given: SessionConditionsInput, ports: Ports<P>): Cu
       source: modes.source,
     })
     if ('failure' in resolved)
-      return fail(unavailable(`the tenant-default modes are not readable: ${resolved.failure.diagnostic}`))
+      return fail(
+        unavailable(`the tenant-default modes are not readable: ${resolved.failure.diagnostic}`),
+      )
     return succeed(directiveOf(resolved.ok.modes.collaboration, resolved.ok.basis))
   }
 

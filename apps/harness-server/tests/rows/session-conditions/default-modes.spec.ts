@@ -8,7 +8,7 @@ import {
   type DefinitionMappingEntry,
   type DefinitionMappings,
 } from '@omne-harness/server-entry/cordis'
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { memoryAccess } from '@omne-harness/session-contract/testing'
 import { describe, expect, test } from 'vitest'
 import { defaultModesOf, sessionConditionsRow } from '../../../src/rows/session-conditions/index.ts'
 import { rowDeclarationOf } from '../../../src/row.ts'
@@ -41,11 +41,7 @@ function tableOf(entries: readonly DefinitionMappingEntry[]): DefinitionMappings
   }
 }
 
-const tenant = (() => {
-  const minted = tenantCodec.decode('tenant-a')
-  if (!minted.ok) throw new Error('fixture tenant')
-  return minted.value as TenantId
-})()
+const tenant = memoryAccess('tester').tenant
 
 const ask = (table: DefinitionMappings, source = modesAdoptionOf(coding), name = 'coding') =>
   defaultModesOf(table)({

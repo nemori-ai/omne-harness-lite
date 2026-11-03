@@ -29,7 +29,9 @@ import { defineRow } from '../../row.ts'
  * adoption; a renamed, removed or changed default is `unavailable`, never the current default. The
  * basis is the same adoption as evidence.
  */
-export function defaultModesOf(mappings: DefinitionMappings): SessionConditionsInput['defaultModes'] {
+export function defaultModesOf(
+  mappings: DefinitionMappings,
+): SessionConditionsInput['defaultModes'] {
   return input => {
     const entry = mappings.byName(input.definition.name)
     if (entry === undefined)
