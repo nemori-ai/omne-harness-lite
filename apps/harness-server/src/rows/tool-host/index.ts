@@ -1,8 +1,9 @@
 // `tool-host` 行（AA 插件树、简报 B3-T2a 第 9 项）：tool-host-local 的换代协调者，发行内置作者来源。
 // 与 `tool-residency` 成对装载。配置只有运维者层的构造值；发行层不写默认值（第 4 项）。
-// B 段（R2-D79 第 4 条）：行装好后按发行清单预装 Shell 与 Files（系统作用域的 `ensureLoaded`，作者闭包的登记者是
-// `toolReleaseRegistrant`）。租户的采用点只读已装的作者，不用租户 access 首装官方作者。预装不成功只记 warn
-// （例如运维者层缺构造值、快照不可用），不放行：Catalog 里没有这个作者，调用答不可用。
+// B 段（R2-D79 第 4 条、R2-D169 候选 A）：行装好后，用发行登记者 `toolReleaseRegistrant` 作 access，对受信发行快照的
+// 全部条目调用 `ensureLoaded`。首装不用 system 作用域；租户的采用点只读已装的作者。某一条不成功时在行日志
+// （Cordis 记录器 `tool-host`）写一条 warn，写明作者名与失败种类，不放行：这个作者不进登记表，会话 create 的首装
+// 与 Tool 调用都答 unavailable。行的就绪只表示换代协调者在服务，不表示作者已装（理由见行页）。
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import {
@@ -13,7 +14,7 @@ import {
   type ToolGenerations,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { createLocalToolHostPlugin } from '@omne-harness/tool-host-local/cordis'
-import { releaseOf } from '../../entry/tool-release.ts'
+import { registrantOf, releaseOf } from '../../entry/tool-release.ts'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
 import { releaseAuthorInput, type ReleaseAuthorOptions } from './release-author.ts'
@@ -53,6 +54,14 @@ export async function preloadRelease(
     logger.warn('release tools were not preloaded: the release snapshot is unavailable')
     return []
   }
+  const registrant = registrantOf(ctx)
+  if (registrant === undefined) {
+    logger.warn('release tools were not preloaded: the release registrant is absent')
+    return release.manifest.entries.map(entry => ({
+      name: entry.asset.name,
+      outcome: 'unavailable',
+    }))
+  }
   const results: Readonly<{ name: string; outcome: string }>[] = []
   for (const entry of release.manifest.entries) {
     let outcome: string
@@ -64,7 +73,7 @@ export async function preloadRelease(
           holding: entry.holding,
           publication: entry.publication,
         },
-        access: { scope: 'system' },
+        access: registrant,
       })
       outcome = 'ok' in loaded ? 'loaded' : loaded.failure.kind
     } catch {
