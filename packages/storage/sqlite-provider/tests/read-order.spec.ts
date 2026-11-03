@@ -110,6 +110,20 @@ describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
     expect((await storage.query(identity({ operationKey: 'expired' }))).kind).toBe('not_committed')
   })
 
+  it('withdraws a domain-serial read that times out while it waits at the barrier: its reader serves the next read at once', async () => {
+    // Defect: the expired read keeps its place and its reader until the barrier is granted to it
+    // (the old code): the snapshot read would wait for the first read to end (about 600 ms).
+    const { storage } = await readyProvider(workspace, built, { readQueueTimeoutMs: 100 }, 1)
+    const first = storage.read(readRequest('serial', { sleepMs: 600 }))
+    await delay(100)
+    const expired = await storage.read(readRequest('serial', { sleepMs: 50 }))
+    expect(expired).toMatchObject({ kind: 'unavailable', reason: 'queue_timeout' })
+    const start = Date.now()
+    expect((await storage.read(readRequest('page'))).kind).toBe('read')
+    expect(Date.now() - start).toBeLessThan(300)
+    expect((await first).kind).toBe('read')
+  })
+
   it('withdraws a write whose observer aborts while it waits at the barrier: the write never runs', async () => {
     // Defect: the abort only detaches the observer and the write is still sent after the read
     // (the old code): the query would find it `committed`.
