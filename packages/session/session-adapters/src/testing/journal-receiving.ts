@@ -237,6 +237,20 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     if (kept.saved === null) return fail({ kind: 'unsupported' })
     return succeed(structuredClone({ entry: kept.entry, receipt: kept.receipt, saved: kept.saved }))
   }
+  /**
+   * The answer of the original commit of `input`'s operation, when it holds an alias. The same
+   * operation with the same input is that commit: it is answered without a write. An alias written
+   * again would change the records, and the session-log provider would publish a change that holds
+   * nothing new.
+   */
+  const recommitted = (
+    input: Input<P>,
+  ): Outcome<{ kind: 'committed'; value: ReceivedCommitValue }, Failure> | undefined => {
+    const original = hooks.state().aliases.get(operationKey(input))
+    if (!original) return undefined
+    const value = rich(input, original)
+    return 'failure' in value ? value : succeed({ kind: 'committed' as const, value: value.ok })
+  }
   const bound = (input: Input<P>): Failure | undefined => {
     const binding = hooks.state().bindings.get(deliveryText(input, input.entry))
     if (binding)
@@ -318,20 +332,9 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
                   ? succeed({ kind: 'excluded' as const, evidence: previous.evidence })
                   : fail(conflict(input)),
             }
-          // The same operation with the same input is the original commit: answer it without a
-          // write. An alias here would change the records and make the session-log provider publish
-          // a change that holds nothing new.
-          if (previous?.kind === 'committed' && previous.key === text) {
-            const original = hooks.state().aliases.get(operationKey(input))
-            if (original) {
-              const value = rich(input, original)
-              if ('failure' in value) return { kind: 'answer', value }
-              return {
-                kind: 'answer',
-                value: succeed({ kind: 'committed' as const, value: value.ok }),
-              }
-            }
-          }
+          const repeated = previous?.kind === 'committed' && previous.key === text
+          const original = repeated ? recommitted(input) : undefined
+          if (original) return { kind: 'answer', value: original }
           if (previous?.kind === 'committed' && previous.key !== text) {
             const old = hooks.state().aliases.get(operationKey(input))
             if (
