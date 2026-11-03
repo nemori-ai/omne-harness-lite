@@ -128,6 +128,7 @@ describe('C1 the transition table follows the node table on the normal path', ()
       ['Q1', 'rejected', 'Q5'],
       ['Q5', 'disposed', 'Q4'],
       ['M6', 'wait', 'W0'],
+      ['M6', 'try-finish', 'F1'],
       ['M1', 'wait', 'W0'],
       ['E1', 'cancel', 'F0'],
       ['E4', 'cancel', 'F0'],
@@ -201,6 +202,13 @@ describe('C1 the transition table follows the node table on the normal path', ()
     expect(cell('I1', '何时等待')).toContain('读取端口不可用时转 W0')
     expect(successor('I1', 'try-finish')).toBe('F1')
     expect(cell('I1', '如何返回')).toContain('cannot-fit 或已进入计划后再次 needs-compaction 转 F1')
+  })
+
+  it('M6 waits on an unavailable Model and takes a definite refusal to F1 (R2-D237)', () => {
+    expect(successor('M6', 'wait')).toBe('W0')
+    expect(cell('M6', '何时等待')).toContain('Model 答 unavailable 时转 W0')
+    expect(successor('M6', 'try-finish')).toBe('F1')
+    expect(cell('M6', '如何返回')).toContain('确定拒绝转 F1')
   })
 
   it('a rejected prepare goes to Q5, which returns through Q4; a rejected reply goes from I3 to I8', () => {

@@ -509,6 +509,12 @@ export type FailureCandidate = Readonly<{
     call: M.ModelCallId;
     result: ProducedResult;
 }> | Readonly<{
+    kind: 'model-refused';
+    call: M.ModelCallId;
+    failure: Extract<M.ModelFailure, {
+        kind: 'denied' | 'invalid' | 'unsupported' | 'capacity';
+    }>;
+}> | Readonly<{
     kind: 'message-rejected';
     from: MessageSource;
     evidence: DurableEvidence;
