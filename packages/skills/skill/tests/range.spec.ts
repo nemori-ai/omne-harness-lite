@@ -35,7 +35,7 @@ describe('character boundaries of text', () => {
   const mixed = text('aé中')
 
   it('moves the start forward to the next character boundary', () => {
-    const page = sliceRange(mixed, 'text', { start: 2, length: 10 })
+    const page = sliceRange(mixed, 'text', { start: 2, length: 4 })
     expect(page.range).toEqual({ start: 3, length: 3 })
     expect(page.content).toEqual({ kind: 'text', text: '中' })
     expect(page.complete).toBe(true)
@@ -70,6 +70,23 @@ describe('character boundaries of text', () => {
     const page = sliceRange(mixed, 'binary', { start: 2, length: 2 })
     expect(page.range).toEqual({ start: 2, length: 2 })
     expect(page.content).toEqual({ kind: 'bytes', bytes: new Uint8Array([0xa9, 0xe4]) })
+  })
+})
+
+describe('the requested end is the requested start plus the length', () => {
+  // a | C3 A9 | b | c
+  const sample = text('aébc')
+
+  it('P5: a start inside a character and a length of 2 gives one byte after the boundary', () => {
+    const page = sliceRange(sample, 'text', { start: 2, length: 2 })
+    expect(page.range).toStrictEqual({ start: 3, length: 1 })
+    expect(page.content).toStrictEqual({ kind: 'text', text: 'b' })
+  })
+
+  it('gives an empty range at the moved start when the requested end is before it', () => {
+    const page = sliceRange(sample, 'text', { start: 2, length: 0 })
+    expect(page.range).toStrictEqual({ start: 3, length: 0 })
+    expect(page.complete).toBe(false)
   })
 })
 

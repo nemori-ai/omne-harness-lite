@@ -1,68 +1,76 @@
-// Steps 5 and 7: the digest of the pinned material, then the current snapshot, which must carry
-// that digest. A snapshot with another digest means the material moved: `basis-unavailable` when
-// the caller named it, `adopted-material-changed` when it read the adopted one.
+// Step 5, `materialOf`: the material to pin, written like a Skill material basis: the basis the caller
+// gave, or the adopted material of the reference. Step 7, `pin`: the current snapshot, which
+// must carry the digest of that material. A snapshot with another digest means the material
+// moved; the caller says what that is for its operation (`adopted-material-changed` when it
+// read the adopted material, `basis-unavailable` when it named one).
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { PackageDigest, PinFailure, SkillPackageSnapshot } from '@omne-harness/skill-contract'
-import type { PackageLocator, SourceFailure } from '@omne-harness/skill-contract/provider'
+import type {
+  GateFailure,
+  PinFailure,
+  SkillMaterialBasis,
+  SkillPackageSnapshot,
+} from '@omne-harness/skill-contract'
+import type { PackageLocator } from '@omne-harness/skill-contract/provider'
 import { sourceFailureTo } from '../mapping.ts'
 import type { SkillPorts } from '../ports.ts'
 import { checkpoint } from './checkpoint.ts'
-import type { Gated, GatedWithBasis } from './gate.ts'
+import type { Gated } from './gate.ts'
 
-export type Pinned = Readonly<{
-  gated: Gated
-  /** The digest of the pinned material: the basis digest, or the digest of the reference. */
-  digest: PackageDigest
-  snapshot: SkillPackageSnapshot
-  locator: PackageLocator
-}>
+/** The failures of steps 5 and 7: the pin failures of the contract without the gate's. */
+export type PinStageFailure = Exclude<PinFailure, GateFailure>
+export type Unsupported = Extract<PinStageFailure, { kind: 'unsupported' }>
 
-export type PinnedWithBasis = Pinned & Readonly<{ gated: GatedWithBasis }>
+export const ADOPTED_MATERIAL_CHANGED = Object.freeze({ kind: 'adopted-material-changed' } as const)
+export const BASIS_UNAVAILABLE = Object.freeze({ kind: 'basis-unavailable' } as const)
+const ABORTED = Object.freeze({ kind: 'aborted' } as const)
+const UNSUPPORTED = Object.freeze({ kind: 'unsupported', what: 'no-readable-package' } as const)
 
-type SnapshotFailure = Extract<
-  PinFailure,
-  { kind: 'basis-unavailable' | 'source-unavailable' | 'outside-package' }
+/** What a moved material is for the operation: the caller gives one of these to `pin`. */
+export type MovedFailure = typeof ADOPTED_MATERIAL_CHANGED | typeof BASIS_UNAVAILABLE
+
+/** The failures of step 7 alone: the snapshot mapping and the abort. `basis-unavailable` stays:
+ * the snapshot mapping gives it for a missing package when the caller named the material. */
+export type SnapshotStageFailure = Exclude<
+  PinStageFailure,
+  Unsupported | { kind: 'adopted-material-changed' }
 >
 
-const ABORTED = Object.freeze({ kind: 'aborted' } as const)
-const SOURCE_UNAVAILABLE = Object.freeze({ kind: 'source-unavailable' } as const)
+export type Pinned = Readonly<{
+  locator: PackageLocator
+  /** The pinned material; its digest is the one the snapshot carries. */
+  basis: SkillMaterialBasis
+  /** Whether the caller named the material with a basis. */
+  byBasis: boolean
+  snapshot: SkillPackageSnapshot
+}>
 
-/** A source failure at `snapshot`, mapped. A snapshot that answers about one entry breaks the
- * port contract, so the source is not usable: `source-unavailable`. */
-function snapshotFailure(failure: SourceFailure, basis: boolean): SnapshotFailure {
-  const mapped = sourceFailureTo('access', failure, basis)
-  return mapped.kind === 'resource-missing' || mapped.kind === 'version-changed'
-    ? SOURCE_UNAVAILABLE
-    : mapped
+/** Step 5: the material to pin. A reference without a digest has no readable package. */
+export function materialOf(gated: Gated): Outcome<SkillMaterialBasis, Unsupported> {
+  const { ref, basis } = gated
+  if (ref.digest === undefined) return fail(UNSUPPORTED)
+  if (basis !== undefined) return succeed(basis)
+  return succeed({
+    capability: ref.capability,
+    layer: ref.layer,
+    ...(ref.assetVersion === undefined ? {} : { assetVersion: ref.assetVersion }),
+    digest: ref.digest,
+  })
 }
 
-export function pin<P, S>(
-  ports: SkillPorts<P, S>,
-  gated: GatedWithBasis,
-  signal?: AbortSignal,
-): Promise<Outcome<PinnedWithBasis, Exclude<PinFailure, { kind: 'adopted-material-changed' }>>>
-export function pin<P, S>(
+/** Step 7: the current snapshot, which must carry the digest of `material`. */
+export async function pin<P, S, F extends MovedFailure>(
   ports: SkillPorts<P, S>,
   gated: Gated,
+  material: SkillMaterialBasis,
+  moved: F,
   signal?: AbortSignal,
-): Promise<Outcome<Pinned, PinFailure>>
-export async function pin<P, S>(
-  ports: SkillPorts<P, S>,
-  gated: Gated,
-  signal?: AbortSignal,
-): Promise<Outcome<Pinned, PinFailure>> {
-  const { ref, basis } = gated
-  // Step 5: no digest in the reference means the asset body has no readable package.
-  if (ref.digest === undefined) return fail({ kind: 'unsupported', what: 'no-readable-package' })
-  const digest = basis?.digest ?? ref.digest
-  // Step 7: the current snapshot must carry the pinned digest.
+): Promise<Outcome<Pinned, SnapshotStageFailure | F>> {
+  const byBasis = gated.basis !== undefined
+  const { locator } = gated.ref
   if (checkpoint(signal) === 'aborted') return fail(ABORTED)
-  const taken = await ports.source.snapshot(ref.locator)
+  const taken = await ports.source.snapshot(locator)
   if (checkpoint(signal) === 'aborted') return fail(ABORTED)
-  if (!('ok' in taken)) return fail(snapshotFailure(taken.failure, basis !== undefined))
-  if (taken.ok.digest !== digest)
-    return fail(
-      basis === undefined ? { kind: 'adopted-material-changed' } : { kind: 'basis-unavailable' },
-    )
-  return succeed({ gated, digest, snapshot: taken.ok, locator: ref.locator })
+  if (!('ok' in taken)) return fail(sourceFailureTo('snapshot', taken.failure, byBasis))
+  if (taken.ok.digest !== material.digest) return fail(moved)
+  return succeed({ locator, basis: material, byBasis, snapshot: taken.ok })
 }

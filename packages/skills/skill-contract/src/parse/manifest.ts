@@ -42,7 +42,6 @@ function decode(bytes: Uint8Array): string | undefined {
 const DASH = 0x2d
 const CR = 0x0d
 const LF = 0x0a
-const encoder = new TextEncoder()
 
 /** One line of `bytes` from `start`: where its text ends, and where the next line starts. A line
  * ends with LF or CRLF; `next` is `undefined` for the last line, which has no line end. */
@@ -88,18 +87,6 @@ export function bodyOffsetOf(bytes: Uint8Array): number | undefined {
   return frontmatterBounds(bytes)?.bodyStart
 }
 
-/**
- * The YAML text between the opening `---` line and the first line that is only `---`. A line ends
- * with LF or CRLF; the closing line can also end the file.
- */
-export function frontmatterOf(text: string): string | undefined {
-  const bytes = encoder.encode(text)
-  const bounds = frontmatterBounds(bytes)
-  return bounds === undefined
-    ? undefined
-    : utf8.decode(bytes.subarray(bounds.yamlStart, bounds.yamlEnd))
-}
-
 function malformed(detail: string, name?: unknown): ManifestRead {
   return typeof name === 'string'
     ? { kind: 'malformed', detail, name }
@@ -120,8 +107,9 @@ export function readManifest(bytes: Uint8Array): ManifestRead {
   const text = decode(bytes)
   if (text === undefined) return malformed('SKILL.md is not UTF-8')
   if (text.startsWith('﻿')) return malformed('SKILL.md starts with a byte order mark')
-  const yaml = frontmatterOf(text)
-  if (yaml === undefined) return malformed('SKILL.md has no closed frontmatter')
+  const bounds = frontmatterBounds(bytes)
+  if (bounds === undefined) return malformed('SKILL.md has no closed frontmatter')
+  const yaml = utf8.decode(bytes.subarray(bounds.yamlStart, bounds.yamlEnd))
   const document = parseDocument(yaml, YAML_OPTIONS)
   if (document.errors.length > 0 || document.warnings.length > 0)
     return malformed('the frontmatter is not valid YAML')

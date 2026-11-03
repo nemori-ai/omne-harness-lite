@@ -1,17 +1,16 @@
 // `describe` through the public service: the two material states, the basis of a described
-// material, the three non-disclosure paths, and that `describe` reads no bytes.
-import assert from 'node:assert/strict'
+// material, and that `describe` reads no bytes. The non-disclosure paths are checked by the
+// conformance suite in `conformance.spec.ts` on two worlds.
 import { describe, expect, it } from 'vitest'
+import { isPackageDigest } from '@omne-harness/skill-contract'
 import {
   alice,
-  checkedOnly,
   createWorld,
   currentBasis,
   currentDigest,
   earlierBasis,
-  failureOf,
+  granted,
   mallory,
-  missing,
   noPackage,
   okOf,
   review,
@@ -23,7 +22,7 @@ describe('the description', () => {
   it('pins the adopted material and gives the declared projection', async () => {
     const { access } = createWorld()
     const description = okOf(await access.describe(alice, scope, review))
-    expect(description).toEqual({
+    expect(description).toStrictEqual({
       capability: review,
       layer: 'tenant',
       material: { kind: 'pinned', basis: currentBasis },
@@ -34,10 +33,18 @@ describe('the description', () => {
     })
   })
 
-  it('describes the material that a basis names', async () => {
+  it('describes the material that a basis names, with the basis itself', async () => {
     const { access } = createWorld()
     const description = okOf(await access.describe(alice, scope, review, { basis: earlierBasis }))
-    expect(description.material).toEqual({ kind: 'pinned', basis: earlierBasis })
+    expect(description.material).toStrictEqual({ kind: 'pinned', basis: earlierBasis })
+  })
+
+  it('gives back the digest of the basis, not the digest the resolution names', async () => {
+    const { access } = createWorld()
+    const other = granted(isPackageDigest, `sha256:${'e'.repeat(64)}`)
+    const basis = { ...currentBasis, digest: other }
+    const description = okOf(await access.describe(alice, scope, review, { basis }))
+    expect(description.material).toStrictEqual({ kind: 'pinned', basis })
   })
 
   it('pins a workspace material without an asset version key', async () => {
@@ -52,63 +59,25 @@ describe('the description', () => {
   it('states no-readable-package when the reference has no digest', async () => {
     const { access } = createWorld()
     const description = okOf(await access.describe(alice, scope, noPackage))
-    expect(description.material).toEqual({ kind: 'no-readable-package' })
+    expect(description.material).toStrictEqual({ kind: 'no-readable-package' })
     expect(description.layer).toBe('workspace')
   })
 })
 
-describe('no disclosure', () => {
-  it('A1 answers a stranger the same for an adopted and a missing identity', async () => {
-    const { access } = createWorld()
-    const existing = await access.describe(mallory, scope, review)
-    const absent = await access.describe(mallory, scope, missing)
-    assert.deepStrictEqual(existing, absent)
-    assert.deepStrictEqual(existing, { failure: { kind: 'not-available-to-you' } })
-  })
-
-  it('A2 answers a basis of another identity the same as a refused read', async () => {
-    const { access } = createWorld()
-    const badBasis = await access.describe(alice, scope, review, {
-      basis: { ...currentBasis, capability: missing },
-    })
-    const refused = await access.describe(mallory, scope, review)
-    assert.deepStrictEqual(badBasis, refused)
-  })
-
-  it('A3 answers an identity that the resolution does not know the same as a refused read', async () => {
-    const { access } = createWorld()
-    const none = await access.describe(alice, scope, checkedOnly)
-    const refused = await access.describe(mallory, scope, review)
-    assert.deepStrictEqual(none, refused)
-  })
-})
-
 describe('describe reads no bytes', () => {
-  it('A13 succeeds when the source throws at open', async () => {
+  it('succeeds when the source throws at open, and takes no snapshot either', async () => {
     const { access, controls } = createWorld()
     controls.breakOpen()
     const description = okOf(await access.describe(alice, scope, review))
     expect(description.material.kind).toBe('pinned')
-    expect(controls.opens()).toBe(0)
+    expect(controls.calls()).toStrictEqual({ check: 1, resolve: 1, snapshot: 0, open: 0 })
   })
 
-  it('does not answer source-unavailable: the snapshot is not taken either', async () => {
-    const { ports } = createWorld()
-    const { createSkillAccess } = await import('@omne-harness/skill')
-    const access = createSkillAccess({
-      ...ports,
-      source: {
-        snapshot: async () => {
-          throw new Error('snapshot must not be called by describe')
-        },
-        open: async () => {
-          throw new Error('open must not be called by describe')
-        },
-      },
+  it('refuses a stranger before any source call', async () => {
+    const { access, controls } = createWorld()
+    expect(await access.describe(mallory, scope, review)).toStrictEqual({
+      failure: { kind: 'not-available-to-you' },
     })
-    expect(await access.describe(alice, scope, review)).toHaveProperty('ok')
-    expect(failureOf(await access.describe(mallory, scope, review))).toEqual({
-      kind: 'not-available-to-you',
-    })
+    expect(controls.calls()).toStrictEqual({ check: 1, resolve: 0, snapshot: 0, open: 0 })
   })
 })

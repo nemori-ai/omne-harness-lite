@@ -1,8 +1,13 @@
 // One small world behind the three ports: a reader and a stranger, an adopted Skill `review`
 // with an earlier version, a stand-in `retired`, an adopted identity without a readable package,
-// an identity that the read check grants but the resolution does not know, and an identity that
-// exists for nobody. The memory doubles of `skill-contract/testing` hold it. `controls` change
-// the world between calls, so a test can show what the service does when the material moves.
+// an identity that the read check grants but the resolution does not know, an identity with a
+// body of more than one page, and an identity that exists for nobody. The memory doubles of
+// `skill-contract/testing` hold it. `controls` change the world between calls, so a test can
+// show what the service does when the material moves.
+//
+// Two shapes of the resolution double: `hiding: false` (default) answers every principal, so
+// the read check is the one guard and a service that skips step 2 shows in the tests;
+// `hiding: true` answers only the reader, as the resolution suite (PR5) requires of a real port.
 import { capabilityId, type CapabilityId } from '@omne-harness/assets'
 import {
   access,
@@ -11,7 +16,7 @@ import {
   tenant,
   type Access,
 } from '@omne-harness/legal-identity'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { succeed } from '@omne-harness/operation-result'
 import { createSkillAccess, type SkillPorts } from '@omne-harness/skill'
 import {
   isAssetVersion,
@@ -83,9 +88,12 @@ export const noPackage = capability('no-package')
 export const checkedOnly = capability('checked-only')
 /** Adopted from a workspace source: a reference without an asset version. */
 export const workspaceNote = capability('workspace-note')
+/** Adopted, with a body of more than one page. */
+export const large = capability('large')
 export const missing = capability('nobody-has-this')
 
 export const reviewLocator: PackageLocator = { kind: 'directory', root: '/skills/review' }
+export const largeLocator: PackageLocator = { kind: 'directory', root: '/skills/large' }
 
 const encoder = new TextEncoder()
 export const BODY = 'Read the diff.\n仔细看每一处改动。\n'
@@ -94,6 +102,8 @@ export const GUIDE = 'héllo 中文 guide\n'
 /** A resource whose text looks like a frontmatter: a resource has no header to leave out. */
 export const FRONT = '---\nx: 1\n---\nnot a body\n'
 export const BLOB = new Uint8Array([0, 1, 2, 0xff, 0xfe, 3])
+/** A body of 70000 bytes: more than one page. */
+export const LARGE_BODY = `${'a'.repeat(69_990)}中文中文\n`
 
 /** The files of the adopted material of `review`. */
 export const currentFiles: MemoryPackage['files'] = {
@@ -112,19 +122,23 @@ const replacedFiles: MemoryPackage['files'] = {
   'SKILL.md': '---\nname: review\ndescription: Reviews a change.\n---\nReplaced.\n',
   'docs/guide.md': GUIDE,
 }
+const largeFiles: MemoryPackage['files'] = {
+  'SKILL.md': `---\nname: large\ndescription: A long one.\n---\n${LARGE_BODY}`,
+}
 
-export function digestOf(files: MemoryPackage['files']): PackageDigest {
+export function digestOf(rootName: string, files: MemoryPackage['files']): PackageDigest {
   const list = Object.entries(files).map(([raw, content]) => ({
     path: path(raw),
     bytes: typeof content === 'string' ? encoder.encode(content) : content,
   }))
-  const sealed = sealSnapshot({ rootName: 'review', files: list })
+  const sealed = sealSnapshot({ rootName, files: list })
   if (!('ok' in sealed)) throw new Error(`does not seal: ${sealed.failure.kind}`)
   return sealed.ok.digest
 }
 
-export const currentDigest = digestOf(currentFiles)
-export const earlierDigest = digestOf(earlierFiles)
+export const currentDigest = digestOf('review', currentFiles)
+export const earlierDigest = digestOf('review', earlierFiles)
+export const largeDigest = digestOf('large', largeFiles)
 
 const declared: DeclaredProjection = {
   name: granted(isSkillName, 'review'),
@@ -160,9 +174,10 @@ export const currentBasis: SkillMaterialBasis = {
 }
 
 const onlyAlice = (who: Access<Principal>) => who.principal === 'alice'
-/** The resolution of this world hides nothing: the read check is the one guard, so a service
- * that skips step 2 shows in the tests. The resolution suite tests the resolution's own hiding. */
 const everyone = () => true
+
+/** How many times each port was called since the world was made. */
+export type PortCalls = Readonly<{ check: number; resolve: number; snapshot: number; open: number }>
 
 export type Controls = Readonly<{
   /** The source now holds other content at the locator of `review`; the resolution still names the old digest. */
@@ -175,8 +190,9 @@ export type Controls = Readonly<{
   refuseAll(): void
   /** A signal that the source aborts right after it answers the next `snapshot`. */
   abortAfterSnapshot(): AbortSignal
-  /** How many times `open` was called. */
-  opens(): number
+  /** A signal that the read check aborts right after it answers the next `check`. */
+  abortAfterCheck(): AbortSignal
+  calls(): PortCalls
 }>
 
 export type World = Readonly<{
@@ -185,25 +201,34 @@ export type World = Readonly<{
   controls: Controls
 }>
 
+export type WorldOptions = Readonly<{
+  /** Whether the resolution hides every identity from the stranger, as a real port must. */
+  hiding?: boolean
+}>
+
 /** A fresh world. Each test builds its own, so the controls of one test do not reach another. */
-export function createWorld(): World {
+export function createWorld(options: WorldOptions = {}): World {
+  const visible = options.hiding === true ? onlyAlice : everyone
   let inner = createMemorySource([
     { locator: reviewLocator, rootName: 'review', files: currentFiles },
+    { locator: largeLocator, rootName: 'large', files: largeFiles },
   ])
   const tampered = new Set<PackagePath>()
   let broken = false
   let refused = false
-  let aborter: AbortController | undefined
-  let opens = 0
+  let snapshotAborter: AbortController | undefined
+  let checkAborter: AbortController | undefined
+  const calls = { check: 0, resolve: 0, snapshot: 0, open: 0 }
   const source: SkillPackageSource = {
     async snapshot(locator) {
+      calls.snapshot += 1
       const answer = await inner.snapshot(locator)
-      aborter?.abort()
-      aborter = undefined
+      snapshotAborter?.abort()
+      snapshotAborter = undefined
       return answer
     },
     async open(locator, digest, entryPath) {
-      opens += 1
+      calls.open += 1
       if (broken) throw new Error('the source broke at open')
       const answer = await inner.open(locator, digest, entryPath)
       if ('ok' in answer && tampered.has(entryPath)) return succeed(encoder.encode('tampered'))
@@ -211,7 +236,7 @@ export function createWorld(): World {
     },
   }
   const readCheck = createMemoryReadCheck<Principal, Scope>(
-    [review, retired, noPackage, checkedOnly, workspaceNote].map(item => ({
+    [review, retired, noPackage, checkedOnly, workspaceNote, large].map(item => ({
       capability: item,
       visible: onlyAlice,
     })),
@@ -219,7 +244,7 @@ export function createWorld(): World {
   const resolution = createMemoryResolution<Principal, Scope>([
     {
       capability: review,
-      visible: everyone,
+      visible,
       state: {
         kind: 'adopted',
         current: material(currentDigest, 'v2'),
@@ -228,7 +253,7 @@ export function createWorld(): World {
     },
     {
       capability: retired,
-      visible: everyone,
+      visible,
       state: {
         kind: 'known-unavailable',
         name: granted(isSkillName, 'retired'),
@@ -238,7 +263,7 @@ export function createWorld(): World {
     },
     {
       capability: workspaceNote,
-      visible: everyone,
+      visible,
       state: {
         kind: 'adopted',
         current: {
@@ -253,8 +278,24 @@ export function createWorld(): World {
       },
     },
     {
+      capability: large,
+      visible,
+      state: {
+        kind: 'adopted',
+        current: {
+          ref: {
+            capability: large,
+            layer: 'workspace',
+            locator: largeLocator,
+            digest: largeDigest,
+          },
+          declared: { ...declared, name: granted(isSkillName, 'large') },
+        },
+      },
+    },
+    {
       capability: noPackage,
-      visible: everyone,
+      visible,
       state: {
         kind: 'adopted',
         current: {
@@ -266,10 +307,23 @@ export function createWorld(): World {
   ])
   const ports: SkillPorts<Principal, Scope> = {
     readCheck: {
-      check: (who, at, item) =>
-        refused ? Promise.resolve({ kind: 'refused' }) : readCheck.check(who, at, item),
+      async check(who, at, item) {
+        calls.check += 1
+        const verdict = refused
+          ? { kind: 'refused' as const }
+          : await readCheck.check(who, at, item)
+        checkAborter?.abort()
+        checkAborter = undefined
+        return verdict
+      },
     },
-    resolution,
+    resolution: {
+      resolve(who, at, item, resolveOptions) {
+        calls.resolve += 1
+        return resolution.resolve(who, at, item, resolveOptions)
+      },
+      adopted: (who, at) => resolution.adopted(who, at),
+    },
     source,
   }
   return {
@@ -279,6 +333,7 @@ export function createWorld(): World {
       replaceAdopted() {
         inner = createMemorySource([
           { locator: reviewLocator, rootName: 'review', files: replacedFiles },
+          { locator: largeLocator, rootName: 'large', files: largeFiles },
         ])
       },
       tamper(entryPath) {
@@ -291,23 +346,35 @@ export function createWorld(): World {
         refused = true
       },
       abortAfterSnapshot() {
-        aborter = new AbortController()
-        return aborter.signal
+        snapshotAborter = new AbortController()
+        return snapshotAborter.signal
       },
-      opens: () => opens,
+      abortAfterCheck() {
+        checkAborter = new AbortController()
+        return checkAborter.signal
+      },
+      calls: () => ({ ...calls }),
     },
   }
 }
 
 /** A fresh fixture of the access suite over a fresh world. */
-export function accessFixture(): AccessFixture<Principal, Scope> &
-  Readonly<{ ports: SkillPorts<Principal, Scope> }> {
-  const { ports, access: service, controls } = createWorld()
+export function accessFixture(
+  options: WorldOptions = {},
+): AccessFixture<Principal, Scope> & Readonly<{ ports: SkillPorts<Principal, Scope> }> {
+  const { ports, access: service, controls } = createWorld(options)
   return {
     ports,
     access: service,
     principals: { reader: { access: alice, scope }, stranger: { access: mallory, scope } },
-    capability: { adopted: review, missing, checkedOnly, standIn: retired, noPackage },
+    capability: {
+      adopted: review,
+      missing,
+      checkedOnly,
+      standIn: retired,
+      noPackage,
+      large,
+    },
     world: {
       replaceAdopted: controls.replaceAdopted,
       changeEntry() {
@@ -316,7 +383,8 @@ export function accessFixture(): AccessFixture<Principal, Scope> &
         return guide
       },
       breakOpen: controls.breakOpen,
-      abortAfterSnapshot: () => ({ signal: controls.abortAfterSnapshot(), opens: controls.opens }),
+      abortAfterSnapshot: controls.abortAfterSnapshot,
+      calls: controls.calls,
     },
   }
 }
@@ -336,5 +404,3 @@ export function okOf<T, F>(outcome: { ok: T } | { failure: F }): T {
 export function bytesOf(content: string | Bytes): Bytes {
   return typeof content === 'string' ? encoder.encode(content) : content
 }
-
-export { fail }

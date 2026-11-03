@@ -1,5 +1,6 @@
-// Steps 9 and 10: the entry of the pinned snapshot, then its bytes from the source, checked
-// against the entry digest. Bytes that do not match are not given: `version-changed`.
+// Step 10: the bytes of one entry of the pinned snapshot from the source, checked against the
+// entry digest. Bytes that do not match are not given: `version-changed`. The entry comes from
+// the caller, which did step 9 (the lookup) itself.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   computeDigest,
@@ -25,25 +26,19 @@ export type ByteFailure = Extract<
   }
 >
 
-export type Verified = Readonly<{ entry: PackageEntry; bytes: Bytes }>
-
 const ABORTED = Object.freeze({ kind: 'aborted' } as const)
+const VERSION_CHANGED = Object.freeze({ kind: 'version-changed' } as const)
 
 export async function verifiedBytes<P, S>(
   ports: SkillPorts<P, S>,
   pinned: Pinned,
-  path: string,
+  entry: PackageEntry,
   signal?: AbortSignal,
-): Promise<Outcome<Verified, ByteFailure>> {
-  // Step 9: the entry must be in the pinned snapshot. No other package fills in for it.
-  const entry = pinned.snapshot.entries.find(item => item.path === path)
-  if (entry === undefined) return fail({ kind: 'resource-missing' })
-  // Step 10: the bytes, from the source, checked against the entry digest.
+): Promise<Outcome<Bytes, ByteFailure>> {
   if (checkpoint(signal) === 'aborted') return fail(ABORTED)
-  const opened = await ports.source.open(pinned.locator, pinned.digest, entry.path)
+  const opened = await ports.source.open(pinned.locator, pinned.basis.digest, entry.path)
   if (checkpoint(signal) === 'aborted') return fail(ABORTED)
-  if (!('ok' in opened))
-    return fail(sourceFailureTo('access', opened.failure, pinned.gated.basis !== undefined))
-  if (computeDigest(opened.ok) !== entry.digest) return fail({ kind: 'version-changed' })
-  return succeed({ entry, bytes: opened.ok })
+  if (!('ok' in opened)) return fail(sourceFailureTo('open', opened.failure, pinned.byBasis))
+  if (computeDigest(opened.ok) !== entry.digest) return fail(VERSION_CHANGED)
+  return succeed(opened.ok)
 }

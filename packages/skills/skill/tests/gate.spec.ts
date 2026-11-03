@@ -1,8 +1,14 @@
-// Steps 1 to 3 of a read, through `gate` directly: the basis identity, the read check, and the
-// resolution. Each branch has one case named by its step.
+// Steps 1 to 3 of a read, through `gate` directly: the basis identity, the read check, the
+// resolution, and the abort checkpoints around the two port calls. Each branch has one case
+// named by its step.
 import { describe, expect, it } from 'vitest'
 import { isSafeReason, isSkillName } from '@omne-harness/skill-contract'
-import type { SkillReadCheck, SkillResolution } from '@omne-harness/skill-contract/provider'
+import type {
+  ReadVerdict,
+  Resolution,
+  SkillReadCheck,
+  SkillResolution,
+} from '@omne-harness/skill-contract/provider'
 import { gate } from '../src/access/gate.ts'
 import {
   alice,
@@ -28,28 +34,18 @@ import {
 
 describe('step 1: the basis names the target', () => {
   it('step-01-bad-basis answers not-available-to-you without calling a port', async () => {
-    const { ports } = createWorld()
-    let called = 0
-    const counting = {
-      ...ports,
-      readCheck: {
-        check: (...args: Parameters<SkillReadCheck<Principal, Scope>['check']>) => {
-          called += 1
-          return ports.readCheck.check(...args)
-        },
-      },
-    }
+    const { ports, controls } = createWorld()
     const basis = { ...currentBasis, capability: missing }
-    expect(failureOf(await gate(counting, alice, scope, review, basis))).toEqual({
+    expect(failureOf(await gate(ports, alice, scope, review, basis))).toStrictEqual({
       kind: 'not-available-to-you',
     })
-    expect(called).toBe(0)
+    expect(controls.calls()).toStrictEqual({ check: 0, resolve: 0, snapshot: 0, open: 0 })
   })
 
   it('step-01-bad-basis also for the same name in another category', async () => {
     const { ports } = createWorld()
     const basis = { ...currentBasis, capability: tool('review') }
-    expect(failureOf(await gate(ports, alice, scope, review, basis))).toEqual({
+    expect(failureOf(await gate(ports, alice, scope, review, basis))).toStrictEqual({
       kind: 'not-available-to-you',
     })
   })
@@ -57,7 +53,7 @@ describe('step 1: the basis names the target', () => {
   it('step-01-same-basis passes a basis that names the target', async () => {
     const { ports } = createWorld()
     const gated = okOf(await gate(ports, alice, scope, review, currentBasis))
-    expect(gated.basis).toEqual(currentBasis)
+    expect(gated.basis).toStrictEqual(currentBasis)
     expect(gated.ref.digest).toBe(currentDigest)
   })
 })
@@ -71,28 +67,33 @@ describe('step 2: the read check', () => {
   })
 
   it('step-02-refused answers not-available-to-you without calling the resolution', async () => {
-    const { ports } = createWorld()
-    let resolved = 0
-    const counting = {
-      ...ports,
-      resolution: {
-        ...ports.resolution,
-        resolve: (...args: Parameters<SkillResolution<Principal, Scope>['resolve']>) => {
-          resolved += 1
-          return ports.resolution.resolve(...args)
-        },
-      },
-    }
-    expect(failureOf(await gate(counting, mallory, scope, review))).toEqual({
+    const { ports, controls } = createWorld()
+    expect(failureOf(await gate(ports, mallory, scope, review))).toStrictEqual({
       kind: 'not-available-to-you',
     })
-    expect(resolved).toBe(0)
+    expect(controls.calls().resolve).toBe(0)
   })
 
   it('step-02-unknown answers unknown', async () => {
     const { ports } = createWorld()
     const undecided = { ...ports, readCheck: { check: async () => ({ kind: 'unknown' }) as const } }
-    expect(failureOf(await gate(undecided, alice, scope, review))).toEqual({ kind: 'unknown' })
+    expect(failureOf(await gate(undecided, alice, scope, review))).toStrictEqual({
+      kind: 'unknown',
+    })
+  })
+
+  it.each([
+    ['a kind outside the set', { kind: 'denied' }],
+    ['an object without a kind', {}],
+    ['no object at all', undefined],
+  ])('step-02-outside-the-set: %s answers unknown and does not resolve', async (_case, verdict) => {
+    const { ports, controls } = createWorld()
+    const check: SkillReadCheck<Principal, Scope>['check'] = async () =>
+      verdict as unknown as ReadVerdict
+    expect(
+      failureOf(await gate({ ...ports, readCheck: { check } }, alice, scope, review)),
+    ).toStrictEqual({ kind: 'unknown' })
+    expect(controls.calls().resolve).toBe(0)
   })
 })
 
@@ -100,8 +101,8 @@ describe('step 3: the resolution', () => {
   it('step-03-adopted gives the reference and the declared projection', async () => {
     const { ports } = createWorld()
     const gated = okOf(await gate(ports, alice, scope, review))
-    expect(gated.ref.locator).toEqual({ kind: 'directory', root: '/skills/review' })
-    expect(gated.declared.tools.map(item => item.name)).toEqual(['read-file'])
+    expect(gated.ref.locator).toStrictEqual({ kind: 'directory', root: '/skills/review' })
+    expect(gated.declared.tools.map(item => item.name)).toStrictEqual(['read-file'])
     expect(gated).not.toHaveProperty('basis')
   })
 
@@ -130,7 +131,7 @@ describe('step 3: the resolution', () => {
 
   it('step-03-known-unavailable answers the stand-in from the last lawful facts', async () => {
     const { ports } = createWorld()
-    expect(failureOf(await gate(ports, alice, scope, retired))).toEqual({
+    expect(failureOf(await gate(ports, alice, scope, retired))).toStrictEqual({
       kind: 'unavailable-stand-in',
       standIn: {
         capability: retired,
@@ -162,14 +163,14 @@ describe('step 3: the resolution', () => {
   it('step-03-basis-not-lawful answers basis-unavailable', async () => {
     const { ports } = createWorld()
     const unlawful = { ...earlierBasis, layer: 'workspace' as const }
-    expect(failureOf(await gate(ports, alice, scope, review, unlawful))).toEqual({
+    expect(failureOf(await gate(ports, alice, scope, review, unlawful))).toStrictEqual({
       kind: 'basis-unavailable',
     })
   })
 
   it('step-03-none answers not-available-to-you', async () => {
     const { ports } = createWorld()
-    expect(failureOf(await gate(ports, alice, scope, checkedOnly))).toEqual({
+    expect(failureOf(await gate(ports, alice, scope, checkedOnly))).toStrictEqual({
       kind: 'not-available-to-you',
     })
   })
@@ -182,12 +183,68 @@ describe('step 3: the resolution', () => {
     }
     expect(
       failureOf(await gate({ ...ports, resolution: undecided }, alice, scope, review)),
-    ).toEqual({ kind: 'unknown' })
+    ).toStrictEqual({ kind: 'unknown' })
+  })
+
+  it('step-03-outside-the-set: an answer with a kind outside the set is unknown', async () => {
+    const { ports } = createWorld()
+    const odd: SkillResolution<Principal, Scope> = {
+      ...ports.resolution,
+      resolve: async () => ({ kind: 'granted' }) as unknown as Resolution,
+    }
+    expect(
+      failureOf(await gate({ ...ports, resolution: odd }, alice, scope, review)),
+    ).toStrictEqual({ kind: 'unknown' })
   })
 
   it('step-03-no-digest passes a reference without a digest on', async () => {
     const { ports } = createWorld()
     const gated = okOf(await gate(ports, alice, scope, noPackage))
     expect(gated.ref.digest).toBeUndefined()
+  })
+})
+
+describe('the abort checkpoints around the two port calls', () => {
+  it('answers aborted before the read check when the signal is already aborted', async () => {
+    const { ports, controls } = createWorld()
+    const answer = await gate(ports, alice, scope, review, undefined, AbortSignal.abort())
+    expect(answer).toStrictEqual({ failure: { kind: 'aborted' } })
+    expect(controls.calls()).toStrictEqual({ check: 0, resolve: 0, snapshot: 0, open: 0 })
+  })
+
+  it('answers aborted after the read check when the signal was aborted meanwhile', async () => {
+    const { ports, controls } = createWorld()
+    const signal = controls.abortAfterCheck()
+    expect(await gate(ports, alice, scope, review, undefined, signal)).toStrictEqual({
+      failure: { kind: 'aborted' },
+    })
+    expect(controls.calls()).toStrictEqual({ check: 1, resolve: 0, snapshot: 0, open: 0 })
+  })
+
+  it('answers aborted after the resolution when the signal was aborted meanwhile', async () => {
+    const { ports } = createWorld()
+    const aborter = new AbortController()
+    const aborting: SkillResolution<Principal, Scope> = {
+      ...ports.resolution,
+      resolve: async (who, at, item, options) => {
+        const answer = await ports.resolution.resolve(who, at, item, options)
+        aborter.abort()
+        return answer
+      },
+    }
+    const answer = await gate(
+      { ...ports, resolution: aborting },
+      alice,
+      scope,
+      review,
+      undefined,
+      aborter.signal,
+    )
+    expect(answer).toStrictEqual({ failure: { kind: 'aborted' } })
+  })
+
+  it('does not look at the signal when none is given', async () => {
+    const { ports } = createWorld()
+    expect(await gate(ports, alice, scope, review)).toHaveProperty('ok')
   })
 })

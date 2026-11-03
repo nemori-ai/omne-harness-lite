@@ -1,13 +1,18 @@
 // The one table from a source answer to a service failure. Nothing else in this member knows
-// this mapping. Rows follow the group page "端口" table and the SPEC "需求端口" additions.
+// this mapping. Three columns: `inspect`, and the `snapshot` and `open` calls of the
+// byte-reading operations `read`, `list` and `export`. Rows follow the group page "端口" table
+// and the SPEC "需求端口" additions.
 import type { InspectFailure, SkillFailure } from '@omne-harness/skill-contract'
 import type { SourceFailure } from '@omne-harness/skill-contract/provider'
 
-/** `inspect`, or the byte-reading operations `read`, `list` and `export`, which share one row. */
-export type SourceOp = 'inspect' | 'access'
+/** What a source answer at `snapshot` becomes for `read`, `list` and `export`. */
+export type SnapshotSourceFailure = Extract<
+  SkillFailure,
+  { kind: 'basis-unavailable' | 'source-unavailable' | 'outside-package' }
+>
 
-/** What a source answer becomes for `read`, `list` and `export`. */
-export type AccessSourceFailure = Extract<
+/** What a source answer at `open` becomes for `read` and `export`. */
+export type OpenSourceFailure = Extract<
   SkillFailure,
   {
     kind:
@@ -19,63 +24,81 @@ export type AccessSourceFailure = Extract<
   }
 >
 
-/** Both columns take `basis`: whether the operation carries a Skill material basis. */
+/** `basis` says whether the operation carries a Skill material basis. `inspect` has none. */
 type Row = Readonly<{
-  inspect: (basis: boolean) => InspectFailure
-  access: (basis: boolean) => AccessSourceFailure
+  inspect: InspectFailure
+  snapshot: (basis: boolean) => SnapshotSourceFailure
+  open: (basis: boolean) => OpenSourceFailure
 }>
 
 const SOURCE_UNAVAILABLE = Object.freeze({ kind: 'source-unavailable' } as const)
 const VERSION_CHANGED = Object.freeze({ kind: 'version-changed' } as const)
+const OUTSIDE_PACKAGE = Object.freeze({ kind: 'outside-package' } as const)
+const RESOURCE_MISSING = Object.freeze({ kind: 'resource-missing' } as const)
+const BASIS_UNAVAILABLE = Object.freeze({ kind: 'basis-unavailable' } as const)
 
 const always =
   <F>(failure: F): ((basis: boolean) => F) =>
   () =>
     failure
 
+/** The package is not there: with a basis the named material is gone, without one the source is. */
+const packageGone = (basis: boolean) => (basis ? BASIS_UNAVAILABLE : SOURCE_UNAVAILABLE)
+
 const TABLE: Readonly<Record<SourceFailure, Row>> = {
-  'package-not-found': {
-    inspect: always(SOURCE_UNAVAILABLE),
-    access: basis => (basis ? { kind: 'basis-unavailable' } : SOURCE_UNAVAILABLE),
-  },
+  'package-not-found': { inspect: SOURCE_UNAVAILABLE, snapshot: packageGone, open: packageGone },
+  // A snapshot does not answer about one entry. A source that does is not usable.
   'entry-not-found': {
-    inspect: always(SOURCE_UNAVAILABLE),
-    access: always({ kind: 'resource-missing' }),
+    inspect: SOURCE_UNAVAILABLE,
+    snapshot: always(SOURCE_UNAVAILABLE),
+    open: always(RESOURCE_MISSING),
   },
-  'bytes-mismatch': { inspect: always(VERSION_CHANGED), access: always(VERSION_CHANGED) },
+  'bytes-mismatch': {
+    inspect: VERSION_CHANGED,
+    snapshot: always(SOURCE_UNAVAILABLE),
+    open: always(VERSION_CHANGED),
+  },
   'outside-package': {
-    inspect: always({
+    inspect: {
       kind: 'rejected',
       code: 'outside-package',
       detail: 'an entry or a link of the package resolves outside its root',
-    }),
-    access: always({ kind: 'outside-package' }),
+    },
+    snapshot: always(OUTSIDE_PACKAGE),
+    open: always(OUTSIDE_PACKAGE),
   },
-  unavailable: { inspect: always(SOURCE_UNAVAILABLE), access: always(SOURCE_UNAVAILABLE) },
+  unavailable: {
+    inspect: SOURCE_UNAVAILABLE,
+    snapshot: always(SOURCE_UNAVAILABLE),
+    open: always(SOURCE_UNAVAILABLE),
+  },
   'entry-unreadable': {
-    inspect: always({
+    inspect: {
       kind: 'rejected',
       code: 'malformed',
       detail: 'the source cannot read an entry of the package',
-    }),
-    access: always(SOURCE_UNAVAILABLE),
+    },
+    snapshot: always(SOURCE_UNAVAILABLE),
+    open: always(SOURCE_UNAVAILABLE),
   },
 }
 
+export function sourceFailureTo(op: 'inspect', failure: SourceFailure): InspectFailure
 export function sourceFailureTo(
-  op: 'inspect',
+  op: 'snapshot',
   failure: SourceFailure,
   basis: boolean,
-): InspectFailure
+): SnapshotSourceFailure
 export function sourceFailureTo(
-  op: 'access',
+  op: 'open',
   failure: SourceFailure,
   basis: boolean,
-): AccessSourceFailure
+): OpenSourceFailure
 export function sourceFailureTo(
-  op: SourceOp,
+  op: 'inspect' | 'snapshot' | 'open',
   failure: SourceFailure,
-  basis: boolean,
-): InspectFailure | AccessSourceFailure {
-  return TABLE[failure][op](basis)
+  basis = false,
+): InspectFailure | SnapshotSourceFailure | OpenSourceFailure {
+  const row = TABLE[failure]
+  return op === 'inspect' ? row.inspect : row[op](basis)
 }
