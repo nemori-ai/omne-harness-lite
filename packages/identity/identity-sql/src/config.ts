@@ -75,14 +75,31 @@ function judgeField(field: Field, value: unknown): Judged {
  * Judges a raw configuration. Lists every problem, not only the first. Unknown fields are problems.
  * An absent invitation duration takes its initial value.
  */
+/** One problem for each key that is not a configuration field. */
+function unknownFields(record: Readonly<Record<string, unknown>>): ConfigProblem[] {
+  return Object.keys(record)
+    .filter(key => !(FIELDS as readonly string[]).includes(key))
+    .map(key => ({ field: key, rule: 'is not a configuration field' }))
+}
+
+/** The problem of a default invitation duration that is longer than the upper bound, if any. */
+function invitationOrderProblem(
+  durations: Partial<Record<Field, Duration>>,
+): ConfigProblem | undefined {
+  const { invitationDefaultDuration, invitationMaxDuration } = durations
+  if (invitationDefaultDuration === undefined || invitationMaxDuration === undefined) return
+  if (compareDurations(invitationDefaultDuration, invitationMaxDuration) <= 0) return
+  return {
+    field: 'invitationDefaultDuration',
+    rule: 'must not be longer than invitationMaxDuration',
+  }
+}
+
 export function parseIdentitySqlConfig(input: unknown): IdentitySqlConfigJudgement {
   if (typeof input !== 'object' || input === null || Array.isArray(input))
     return { kind: 'invalid', problems: [{ field: 'config', rule: 'must be an object' }] }
   const record = input as Readonly<Record<string, unknown>>
-  const problems: ConfigProblem[] = []
-  for (const key of Object.keys(record))
-    if (!(FIELDS as readonly string[]).includes(key))
-      problems.push({ field: key, rule: 'is not a configuration field' })
+  const problems = unknownFields(record)
   const filled: Readonly<Record<Field, unknown>> = {
     maxLifetime: record['maxLifetime'],
     idlePeriod: record['idlePeriod'],
@@ -102,15 +119,8 @@ export function parseIdentitySqlConfig(input: unknown): IdentitySqlConfigJudgeme
     else problems.push(entry.problem)
   }
   const { maxLifetime, idlePeriod, invitationDefaultDuration, invitationMaxDuration } = durations
-  if (
-    invitationDefaultDuration !== undefined &&
-    invitationMaxDuration !== undefined &&
-    compareDurations(invitationDefaultDuration, invitationMaxDuration) > 0
-  )
-    problems.push({
-      field: 'invitationDefaultDuration',
-      rule: 'must not be longer than invitationMaxDuration',
-    })
+  const order = invitationOrderProblem(durations)
+  if (order !== undefined) problems.push(order)
   if (
     maxLifetime === undefined ||
     idlePeriod === undefined ||

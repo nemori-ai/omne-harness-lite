@@ -11,12 +11,14 @@ import {
   type CreateOrganizationOutcome,
   type IdentityGovernance,
   type InvitationDispositionOutcome,
+  type IssueMemberInvitationOutcome,
   type InvitationTerminal,
   type InvitationTerms,
   type InvitationTermsSource,
   type MemberInvitation,
   type OrganizationMember,
   type OwnMembership,
+  type QueryCreateOrganizationOutcome,
   type ValidLogin,
 } from '@omne-harness/identity'
 import {
@@ -303,6 +305,69 @@ function dispositionOf(reply: GovernanceReply): InvitationDispositionOutcome {
   }
 }
 
+/**
+ * The outcome that a saved create receipt gives a recall with `name` and `governanceModelId`:
+ * the saved outcome for the same input, `conflict` for another, `unknown` for a receipt that does
+ * not parse (ID-18 `queryCreateOrganization`).
+ */
+function recalledOf(
+  receipt: unknown,
+  name: string,
+  governanceModelId: string,
+): QueryCreateOrganizationOutcome {
+  const malformed = Object.freeze({ kind: 'unknown' as const, diagnostic: 'receipt-malformed' })
+  if (!isRecord(receipt) || !isText(receipt['name']) || !isText(receipt['governanceModelId']))
+    return malformed
+  if (receipt['name'] !== name || receipt['governanceModelId'] !== governanceModelId)
+    return CONFLICT
+  if (receipt['outcome'] === 'denied') return DENIED
+  const organization = parsed(organizationCodec, receipt['organization'])
+  const created = parsed(tenantCodec, receipt['tenantText'])
+  if (receipt['outcome'] !== 'succeeded' || organization === undefined || created === undefined)
+    return malformed
+  return Object.freeze({ kind: 'succeeded', organization, tenant: created })
+}
+
+/** The outcome of an issue commit. `bounds` is the unavailable basis the participant reported. */
+function issuedOf(
+  reply: GovernanceReply,
+  bounds: Unavailable | undefined,
+): IssueMemberInvitationOutcome {
+  switch (reply.outcome) {
+    case 'succeeded': {
+      const expiresAt = instantOf(reply['expiresAt'])
+      if (!isFilledText(reply['invitation']) || expiresAt === undefined) return malformedReply()
+      return Object.freeze({
+        kind: 'succeeded',
+        invitation: reply['invitation'],
+        state: 'open',
+        expiresAt,
+      })
+    }
+    case 'unavailable':
+      return bounds ?? malformedReply()
+    case 'denied':
+      return DENIED
+    case 'not-visible':
+      return NOT_VISIBLE
+    default:
+      return malformedReply()
+  }
+}
+
+/**
+ * The new idle deadline of a report from the `login-terms` pre-read: the reading plus the idle
+ * period frozen at issue, `not-refreshed` for an unknown or ended login, or no basis.
+ */
+function nextIdleDeadline(record: unknown, now: Instant) {
+  if (record === null || !isRecord(record) || record['live'] !== true) return NOT_REFRESHED
+  const idlePeriod = isText(record['idlePeriod']) ? parseDuration(record['idlePeriod']) : undefined
+  if (idlePeriod === undefined || !idlePeriod.ok) return unavailable('login-record-malformed')
+  const next = addDuration(now, idlePeriod.value)
+  if (next === undefined) return unavailable('idle-deadline-out-of-range')
+  return Object.freeze({ kind: 'next' as const, idleDeadline: encodeInstant(next) })
+}
+
 function createdOf(reply: GovernanceReply): CreateOrganizationOutcome {
   switch (reply.outcome) {
     case 'succeeded': {
@@ -476,16 +541,7 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     const receipt = answered.output['receipt']
     if (receipt === null)
       return Object.freeze({ kind: 'unknown', diagnostic: 'no-receipt-of-this-account' })
-    if (!isRecord(receipt) || !isText(receipt['name']) || !isText(receipt['governanceModelId']))
-      return Object.freeze({ kind: 'unknown', diagnostic: 'receipt-malformed' })
-    if (receipt['name'] !== name || receipt['governanceModelId'] !== governanceModelId)
-      return CONFLICT
-    if (receipt['outcome'] === 'denied') return DENIED
-    const organization = parsed(organizationCodec, receipt['organization'])
-    const created = parsed(tenantCodec, receipt['tenantText'])
-    if (receipt['outcome'] !== 'succeeded' || organization === undefined || created === undefined)
-      return Object.freeze({ kind: 'unknown', diagnostic: 'receipt-malformed' })
-    return Object.freeze({ kind: 'succeeded', organization, tenant: created })
+    return recalledOf(receipt, name, governanceModelId)
   }
 
   /** The terms and the duration of one issue: the expiry, a denial, or no basis. */
@@ -508,60 +564,50 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     return Object.freeze({ kind: 'ok' as const, expiresAt })
   }
 
+  /**
+   * The account of an identifier and its tenant in `organization`, read before the commit. The
+   * commit reads the identifier again after the qualification check, so this read does not decide
+   * what the caller is told. `null` fields: no account has the identifier.
+   */
+  const invitedOf = async (identifier: string, organization: OrganizationId) => {
+    const found = await query({ query: 'account-of', loginIdentifier: identifier })
+    if (found.kind !== 'answered') return found
+    const account = found.output['account']
+    if (account === null)
+      return Object.freeze({ kind: 'invited' as const, account: null, tenantText: null })
+    const invited = parsed(accountCodec, account)
+    if (invited === undefined) return unavailable('governance-read-malformed')
+    return Object.freeze({
+      kind: 'invited' as const,
+      account: invited.text,
+      tenantText: tenantText(tenant(organization, invited)),
+    })
+  }
+
   const issueMemberInvitation: IdentityGovernance['issueMemberInvitation'] = async request => {
     const begun = await beginActing(request)
     if (begun.kind !== 'begun') return begun
     const bounds = await invitationBounds(begun.now, field(request, 'duration'))
     const identifier = field(request, 'invitedLoginIdentifier')
-    let invitedAccount: string | null = null
-    let invitedTenantText: string | null = null
-    // The account of the identifier, read before the commit; the commit reads it again after the
-    // qualification check, so this read does not decide what the caller is told.
-    if (bounds.kind === 'ok' && isFilledText(identifier)) {
-      const found = await query({ query: 'account-of', loginIdentifier: identifier })
-      if (found.kind !== 'answered') return found
-      const account = found.output['account']
-      if (account !== null) {
-        const invited = parsed(accountCodec, account)
-        if (invited === undefined) return unavailable('governance-read-malformed')
-        invitedAccount = invited.text
-        invitedTenantText = tenantText(tenant(begun.acting.organization, invited))
-      }
-    }
-    const expiresAt = bounds.kind === 'ok' ? encodeInstant(bounds.expiresAt) : null
+    const filled = isFilledText(identifier) ? identifier : null
+    const invited =
+      bounds.kind === 'ok' && filled !== null
+        ? await invitedOf(filled, begun.acting.organization)
+        : undefined
+    if (invited?.kind === 'basis-unavailable') return invited
     const written = await write(OPERATIONS.issueInvitation, {
       kind: 'issue-invitation',
       ...acting(begun),
       ...MODEL,
       bounds: bounds.kind === 'basis-unavailable' ? 'unavailable' : bounds.kind,
       invitation: newInvitationId(),
-      expiresAt,
-      invitedLoginIdentifier: isFilledText(identifier) ? identifier : null,
-      invitedAccount,
-      invitedTenantText,
+      expiresAt: bounds.kind === 'ok' ? encodeInstant(bounds.expiresAt) : null,
+      invitedLoginIdentifier: filled,
+      invitedAccount: invited?.account ?? null,
+      invitedTenantText: invited?.tenantText ?? null,
     })
     if (written.kind !== 'written') return written
-    const { reply } = written
-    switch (reply.outcome) {
-      case 'succeeded': {
-        const issued = instantOf(reply['expiresAt'])
-        if (!isFilledText(reply['invitation']) || issued === undefined) return malformedReply()
-        return Object.freeze({
-          kind: 'succeeded',
-          invitation: reply['invitation'],
-          state: 'open',
-          expiresAt: issued,
-        })
-      }
-      case 'unavailable':
-        return bounds.kind === 'basis-unavailable' ? bounds : malformedReply()
-      case 'denied':
-        return DENIED
-      case 'not-visible':
-        return NOT_VISIBLE
-      default:
-        return malformedReply()
-    }
+    return issuedOf(written.reply, bounds.kind === 'basis-unavailable' ? bounds : undefined)
   }
 
   const dispose =
@@ -807,15 +853,9 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     // The idle period frozen at issue, read before the commit; the commit checks validity again.
     const found = await query({ query: 'login-terms', login, nowKey })
     if (found.kind !== 'answered') return found
-    const record = found.output['login']
-    if (record === null || !isRecord(record) || record['live'] !== true) return NOT_REFRESHED
-    const idlePeriod = isText(record['idlePeriod'])
-      ? parseDuration(record['idlePeriod'])
-      : undefined
-    if (idlePeriod === undefined || !idlePeriod.ok) return unavailable('login-record-malformed')
-    const next = addDuration(time.instant, idlePeriod.value)
-    if (next === undefined) return unavailable('idle-deadline-out-of-range')
-    const idleDeadline = encodeInstant(next)
+    const next = nextIdleDeadline(found.output['login'], time.instant)
+    if (next.kind !== 'next') return next
+    const { idleDeadline } = next
     const written = await write(OPERATIONS.reportAccess, {
       kind: 'report-access',
       login,
