@@ -6,3 +6,4 @@ export {
   createScheduleDefinitionRef,
   createScheduleRecordRef,
 } from './references.ts'
+export { createScheduleManagementApplication } from './application.ts'

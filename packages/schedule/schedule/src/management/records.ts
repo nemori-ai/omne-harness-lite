@@ -56,7 +56,7 @@ function revisionRecord(
       action,
       occurredAt: input.now,
       reason,
-      beforeDefinitionRef: before?.definitionRef ?? null,
+      beforeDefinitionRef: before === null ? null : createScheduleDefinitionRef(before.view),
       afterDefinitionRef: after.definitionRef,
       operationRef: input.operation.operationRef,
     },
