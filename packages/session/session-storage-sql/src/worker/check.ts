@@ -16,7 +16,7 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort, ParticipantReply } from '@omne-harness/sql-contract/worker'
 import type { SessionAdmittedInput, SessionCheck } from '../participants.ts'
-import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
+import { canonicalText, decodeValue, encodeValue, isCount, plainOf, sha256 } from '../codec.ts'
 import { big, oneRow, rowsOf, text, type Row } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
@@ -168,7 +168,7 @@ function sourceHolds(
   const source = value.origin
   // The facts come from the committer: a source without a decimal revision names no entry.
   const revision = (source as Partial<DurableEvidence> | null)?.revision
-  if (typeof revision !== 'string' || !/^\d+$/.test(revision)) return false
+  if (!isCount(revision)) return false
   const kind = check.kind === 'open' ? 'run.started' : 'intake.routed'
   const records = (row: Planted) =>
     check.kind === 'open'

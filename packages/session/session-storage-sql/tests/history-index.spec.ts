@@ -92,10 +92,11 @@ function indexOf(a: App, work: WorkSnapshot, execution: string) {
     SESSION,
     work,
     { kind: 'pending', inputs: work.pending },
-    undefined,
     {
-      executions: [execution],
-      event: null,
+      focus: {
+        executions: [execution],
+        event: null,
+      },
     },
   )
   if (history === 'too-many') throw new Error('too many rows')

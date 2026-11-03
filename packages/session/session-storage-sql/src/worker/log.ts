@@ -24,10 +24,11 @@ import type { JournalRow } from './entries.ts'
 import {
   entryEvidence,
   readHistory,
+  type HistoryBasis,
   type HistoryFocus,
   type SessionHistory,
 } from './history-index.ts'
-import { big, oneRow, rowsOf, text } from './support.ts'
+import { assignPositions, big, oneRow, rowsOf, text } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_LOG_RECORDS = 100_000
@@ -44,7 +45,7 @@ export type LogBatch = Readonly<{
   entries: readonly HistoryEntry[]
   answer: SessionLogReceipt
   /** The input range and focus of the history read the observation was judged and reduced on. */
-  decision: Readonly<{ scope: SessionInputScope; focus: HistoryFocus }>
+  decision: HistoryBasis
 }>
 
 /**
@@ -245,17 +246,7 @@ function batchOf(
   const { tenant, journal } = start
   const { session } = observation
   const revision = String(journal.tail + 1n)
-  const last = oneRow(
-    port,
-    'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ? LIMIT 1',
-    [tenant, session],
-  )
-  const first = big(last?.['p'] ?? 0n) + 1n
-  const entries = projected.entries.map((entry, index) => ({
-    ...entry,
-    id: String(first + BigInt(index)),
-    revision,
-  })) as HistoryEntry[]
+  const entries = assignPositions(port, { tenant, session }, revision, projected.entries)
   const reduced = reduce(
     projected.prepared,
     { revision, entries } as never,
@@ -327,8 +318,7 @@ export function judgeLog(
     observation.session,
     previous,
     scopeOf(previous, observation),
-    undefined,
-    focus,
+    { focus },
   )
   if (history === 'too-many')
     return { kind: 'failed', diagnostic: 'the history index of the session exceeds the read bound' }

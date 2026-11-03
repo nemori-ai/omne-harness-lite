@@ -31,10 +31,11 @@ import type {
 import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
 import { runChecks } from './check.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
-import { NO_FOCUS, readHistory, type HistoryFocus, type SessionHistory } from './history-index.ts'
+import { NO_FOCUS, readHistory, type HistoryBasis, type SessionHistory } from './history-index.ts'
 import { judgeLog, readCoveringText, type CoveringSnapshot, type LogBatch } from './log.ts'
+import type { SessionWorkReply } from '../participants.ts'
 import { PROTOCOL } from './schema.ts'
-import { big, oneRow, rowsOf, text, type Row } from './support.ts'
+import { assignPositions, big, oneRow, readVersion, rowsOf, text, type Row } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_INITIALIZATION_RECEIPTS = 1000
@@ -155,9 +156,6 @@ const participated = (result: unknown, recovered: boolean, work?: JsonValue): Pa
 /** The JSON text the decision of a work reply may take (C-TOPOLOGY §2.9). */
 export const WORK_BASIS_BYTES = 16 * 1024
 
-/** The input range and focus of the history read a batch was judged and reduced on. */
-type Decided = Readonly<{ scope: SessionInputScope; focus: HistoryFocus }>
-
 /**
  * What a published batch tells the work cache of the main thread (C-TOPOLOGY §2.9), so that it can
  * fold the batch onto the snapshot it holds instead of reading the new one whole: the version and
@@ -176,18 +174,14 @@ function workOf(
     revision: string
     stored: string
     entries: readonly HistoryEntry[]
-    decided: Decided | 'none'
+    decided: HistoryBasis | 'none'
   }>,
-): JsonValue {
+): SessionWorkReply {
   const { tenant, session, revision, stored, entries, decided } = input
-  const root = oneRow(
-    port,
-    'SELECT published FROM er_root WHERE tenant = ? AND session = ? LIMIT 1',
-    [tenant, session],
-  )
-  const work = {
+  const work: SessionWorkReply = {
     tail: revision,
-    published: root === undefined ? '0' : text(root['published']),
+    // Read after this transaction moved the journal row to `revision`.
+    published: readVersion(port, { tenant, session })?.published ?? '0',
     bytes: stored.length,
     first: (entries[0] as HistoryEntry).id,
     last: (entries[entries.length - 1] as HistoryEntry).id,
@@ -636,6 +630,65 @@ function advanceTail(
     : { kind: 'failed', diagnostic: 'the conditional tail update changed no row' }
 }
 
+/** The record of one operation under its identity; a control answer has no revision. */
+function insertOperation(
+  port: ParticipantPort,
+  record: Readonly<{
+    tenant: string
+    session: string
+    operation: string
+    digest: string
+    form: string
+    revision: bigint | null
+    receipt: string
+    result: string
+  }>,
+): void {
+  const { tenant, session, operation, digest, form, revision, receipt, result } = record
+  port.execute(
+    'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [tenant, session, operation, digest, form, revision, receipt, result],
+  )
+}
+
+/** What a batch wrote before its operation record: the new model view epoch and snapshot text. */
+type Written = Readonly<{ kind: 'written'; epoch: string; stored: string }>
+
+/**
+ * The rows every published batch writes before its operation record (W1 step 7): the entries and
+ * their indexes, the model view, the snapshot row and the derived rows. A failure rolls back the
+ * whole transaction, and its reply is answered instead.
+ */
+function writeBatch(
+  port: ParticipantPort,
+  batch: Readonly<{
+    tenant: string
+    session: string
+    revision: string
+    epoch: string
+    previous: WorkSnapshot | null
+    snapshot: WorkSnapshot
+    entries: readonly HistoryEntry[]
+  }>,
+): Written | ParticipantReply {
+  const { tenant, session, revision, previous, snapshot, entries } = batch
+  const unindexed = writeEntries(port, tenant, session, entries)
+  if (unindexed !== null) return unindexed
+  const epoch = maintainModelView(port, tenant, session, batch.epoch, entries)
+  if (epoch === null)
+    return {
+      kind: 'failed',
+      diagnostic: 'the model view epoch exceeds the read bound of a compaction',
+    }
+  const stored = JSON.stringify(encodeValue(snapshot))
+  port.execute(
+    'INSERT OR REPLACE INTO sl_state (tenant, session, snapshot, covered) VALUES (?, ?, ?, ?)',
+    [tenant, session, stored, BigInt(revision)],
+  )
+  maintainDerived(port, tenant, session, previous, snapshot)
+  return { kind: 'written', epoch, stored }
+}
+
 function runQuery(
   port: ParticipantPort,
   tenant: string,
@@ -817,18 +870,16 @@ function saveControlAnswer(
 ): ParticipantReply {
   const { tenant, session, operation } = start
   const receipt = { operation, source: decision.source, answer: decision.answer }
-  port.execute(
-    'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)',
-    [
-      tenant,
-      session,
-      operation,
-      commandDigest(received.command),
-      'answer',
-      JSON.stringify(encodeValue(receipt)),
-      JSON.stringify(encodeValue(receipt)),
-    ],
-  )
+  insertOperation(port, {
+    tenant,
+    session,
+    operation,
+    digest: commandDigest(received.command),
+    form: 'answer',
+    revision: null,
+    receipt: JSON.stringify(encodeValue(receipt)),
+    result: JSON.stringify(encodeValue(receipt)),
+  })
   storeEvidence(port, { tenant, session, operation }, received.evidence)
   return participated(receipt, false)
 }
@@ -853,19 +904,16 @@ function recallOriginal(
   if (original === undefined)
     return { kind: 'failed', diagnostic: 'a recalled operation without a record' }
   if (held === undefined && command.kind === 'completeInitialization') {
-    port.execute(
-      'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [
-        tenant,
-        session,
-        operation,
-        commandDigest(command),
-        'batch',
-        BigInt((JSON.parse(text(original['receipt'])) as CommitReceipt).revision),
-        text(original['receipt']),
-        text(original['receipt']),
-      ],
-    )
+    insertOperation(port, {
+      tenant,
+      session,
+      operation,
+      digest: commandDigest(command),
+      form: 'batch',
+      revision: BigInt((JSON.parse(text(original['receipt'])) as CommitReceipt).revision),
+      receipt: text(original['receipt']),
+      result: text(original['receipt']),
+    })
     storeEvidence(port, { tenant, session, operation }, evidence)
   }
   const value =
@@ -903,51 +951,39 @@ function publishCommand(
   const { historyIndex: _index, ...snapshot } = reduced.snapshot
   const receipt = batchReceipt({ tenant, session, operation, seq, revision, entries })
 
-  const unindexed = writeEntries(port, tenant, session, entries)
-  if (unindexed !== null) return unindexed
-  const epoch = maintainModelView(
-    port,
+  const written = writeBatch(port, {
     tenant,
     session,
-    journal === undefined ? 'epoch:0' : text(journal['epoch']),
+    revision,
+    epoch: journal === undefined ? 'epoch:0' : text(journal['epoch']),
+    previous,
+    snapshot,
     entries,
-  )
-  if (epoch === null)
-    return {
-      kind: 'failed',
-      diagnostic: 'the model view epoch exceeds the read bound of a compaction',
-    }
+  })
+  if (written.kind !== 'written') return written
+  const { epoch, stored } = written
   const admitted = admittedInput(command)
   if (admitted !== null)
     port.execute(
       'INSERT OR REPLACE INTO sl_input (tenant, session, input, value) VALUES (?, ?, ?, ?)',
       [tenant, session, admitted.input, JSON.stringify(encodeValue(admitted))],
     )
-  const stored = JSON.stringify(encodeValue(snapshot))
-  port.execute(
-    'INSERT OR REPLACE INTO sl_state (tenant, session, snapshot, covered) VALUES (?, ?, ?, ?)',
-    [tenant, session, stored, BigInt(revision)],
-  )
-  maintainDerived(port, tenant, session, previous, snapshot)
   const result = resultOf(command, withIndex(port, command, snapshot), receipt)
   if (result === null)
     return {
       kind: 'failed',
       diagnostic: `${command.kind} committed without a control progress item`,
     }
-  port.execute(
-    'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [
-      tenant,
-      session,
-      operation,
-      commandDigest(command),
-      isControl(command) ? 'control' : 'batch',
-      BigInt(revision),
-      JSON.stringify(encodeValue(receipt)),
-      JSON.stringify(encodeValue(result)),
-    ],
-  )
+  insertOperation(port, {
+    tenant,
+    session,
+    operation,
+    digest: commandDigest(command),
+    form: isControl(command) ? 'control' : 'batch',
+    revision: BigInt(revision),
+    receipt: JSON.stringify(encodeValue(receipt)),
+    result: JSON.stringify(encodeValue(result)),
+  })
   storeEvidence(port, { tenant, session, operation }, evidence)
   const moved = moveJournal(port, start, { tail, revision, seq, epoch })
   if (moved !== null) return moved
@@ -971,17 +1007,7 @@ function positioned(port: ParticipantPort, start: CommandStart, batch: CommandBa
   const tail = journal === undefined ? 0n : big(journal['tail'])
   const seq = journal === undefined ? 1n : big(journal['commit_seq']) + 1n
   const revision = String(tail + 1n)
-  const last = oneRow(
-    port,
-    'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ?',
-    [tenant, session],
-  )
-  const first = big(last?.['p'] ?? 0n) + 1n
-  const entries: HistoryEntry[] = batch.entries.map((entry, index) => ({
-    ...entry,
-    id: String(first + BigInt(index)),
-    revision,
-  })) as HistoryEntry[]
+  const entries = assignPositions(port, { tenant, session }, revision, batch.entries)
   return { tail, seq, revision, entries }
 }
 
@@ -1084,34 +1110,28 @@ function publishSameLog(
   const { tenant, session, operation, journal, previous, snapshot, entries } = batch
   const revision = String(journal.tail + 1n)
   const receipt = batchReceipt({ tenant, session, operation, seq: journal.seq, revision, entries })
-  const unindexed = writeEntries(port, tenant, session, entries)
-  if (unindexed !== null) return unindexed
-  const epoch = maintainModelView(port, tenant, session, journal.epoch, entries)
-  if (epoch === null)
-    return {
-      kind: 'failed',
-      diagnostic: 'the model view epoch exceeds the read bound of a compaction',
-    }
-  const stored = JSON.stringify(encodeValue(snapshot))
-  port.execute(
-    'INSERT OR REPLACE INTO sl_state (tenant, session, snapshot, covered) VALUES (?, ?, ?, ?)',
-    [tenant, session, stored, BigInt(revision)],
-  )
-  maintainDerived(port, tenant, session, previous, snapshot)
+  const written = writeBatch(port, {
+    tenant,
+    session,
+    revision,
+    epoch: journal.epoch,
+    previous,
+    snapshot,
+    entries,
+  })
+  if (written.kind !== 'written') return written
+  const { epoch, stored } = written
   const saved = record(receipt)
-  port.execute(
-    'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [
-      tenant,
-      session,
-      operation,
-      batch.digest,
-      saved.form,
-      BigInt(revision),
-      JSON.stringify(encodeValue(saved.receipt)),
-      JSON.stringify(encodeValue(saved.result)),
-    ],
-  )
+  insertOperation(port, {
+    tenant,
+    session,
+    operation,
+    digest: batch.digest,
+    form: saved.form,
+    revision: BigInt(revision),
+    receipt: JSON.stringify(encodeValue(saved.receipt)),
+    result: JSON.stringify(encodeValue(saved.result)),
+  })
   const moved = advanceTail(port, {
     tenant,
     session,

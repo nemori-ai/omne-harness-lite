@@ -20,7 +20,7 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { decodeValue } from '../codec.ts'
-import { big, oneRow, text } from './support.ts'
+import { assignPositions, big, oneRow, text } from './support.ts'
 
 /** The journal row of the session before the batch. */
 export type JournalRow = Readonly<{ tail: bigint; seq: bigint; epoch: string }>
@@ -133,17 +133,7 @@ export function judgeEntries(
     return { kind: 'failed', diagnostic: 'an entries decision without its progress' }
 
   const revision = String(journal.tail + 1n)
-  const last = oneRow(
-    port,
-    'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ? LIMIT 1',
-    [tenant, session],
-  )
-  const first = big(last?.['p'] ?? 0n) + 1n
-  const entries = decision.entries.map((entry, index) => ({
-    ...entry,
-    id: String(first + BigInt(index)),
-    revision,
-  })) as HistoryEntry[]
+  const entries = assignPositions(port, { tenant, session }, revision, decision.entries)
   const reduced = reduce(previous, { revision, entries } as never)
   // RD-1 to RD-3 and every other contradiction: nothing is written.
   if (reduced.kind === 'quarantined')

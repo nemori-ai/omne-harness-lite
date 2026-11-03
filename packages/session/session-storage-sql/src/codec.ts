@@ -73,6 +73,10 @@ export function canonicalText(value: unknown): string {
   return JSON.stringify(value) ?? 'null'
 }
 
+/** A count of the store (a position, a revision, a publication count): it travels as decimal text. */
+export const isCount = (value: unknown): value is string =>
+  typeof value === 'string' && /^\d+$/.test(value)
+
 export const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')
 
 /** The plain value of a json-text tree, as the Session entries store their payloads. */

@@ -7,22 +7,19 @@ import type { WorkSnapshot } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue } from '../codec.ts'
 import { workIndexOf } from './history-index.ts'
-import { big, handler, oneRow, scopeOf, text } from './support.ts'
+import { big, handler, oneRow, readVersion, scopeOf, text } from './support.ts'
 
 export default handler('session.work', (input, port) => {
   const scope = scopeOf(input)
   if (scope === null) throw new Error('invalid input')
+  const version = readVersion(port, scope)
+  if (version === undefined) return { kind: 'absent' }
   const row = oneRow(
     port,
-    `SELECT s.snapshot AS snapshot, s.covered AS covered, j.tail AS tail, r.published AS published
-       FROM sl_journal j
-       LEFT JOIN sl_state s ON s.tenant = j.tenant AND s.session = j.session
-       LEFT JOIN er_root r ON r.tenant = j.tenant AND r.session = j.session
-      WHERE j.tenant = ? AND j.session = ? LIMIT 1`,
+    'SELECT snapshot, covered FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
     [scope.tenant, scope.session],
   )
-  if (row === undefined) return { kind: 'absent' }
-  if (row['snapshot'] === null || big(row['covered']) !== big(row['tail']))
+  if (row === undefined || row['snapshot'] === null || big(row['covered']) !== big(version.tail))
     return { kind: 'behind' }
   const body = text(row['snapshot'])
   const stored = JSON.parse(body) as JsonValue
@@ -32,9 +29,9 @@ export default handler('session.work', (input, port) => {
     kind: 'state',
     // The version this answer was read at, from the same snapshot (SPEC RT-04), and the length of
     // the stored text, which the work cache counts against its byte bound.
-    tail: text(row['tail']),
+    tail: version.tail,
     covered: text(row['covered']),
-    published: row['published'] === null ? '0' : text(row['published']),
+    published: version.published,
     bytes: body.length,
     snapshot:
       history === 'too-many' ? stored : encodeValue({ ...snapshot, historyIndex: history.index }),
