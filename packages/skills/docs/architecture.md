@@ -61,6 +61,7 @@
 - 值：见[模型](#模型)。
 - 纯函数：见[应用服务](#应用服务)末尾。
 - 服务：`PackageInspection`、`SkillCatalog` 与 `SkillAccess`，见[应用服务](#应用服务)。
+- 实现方入口：`@omne-harness/skill-contract/provider` 导出三个需求端口、`SkillRef` 与 `sealSnapshot`。调用方用公开根，拿不到 `SkillRef` 与包定位。这沿 `tool-contract` 的先例。
 - 符合性设施：`@omne-harness/skill-contract/testing` 导出 `SkillPackageSource`、`SkillAccess`、`SkillReadCheck` 与 `SkillResolution` 的符合性套件，以及内存来源。`SkillReadCheck` 与 `SkillResolution` 的套件核对：对无权主体，答复不随该身份是否存在而变。
 
 ## 模型
@@ -74,7 +75,7 @@ Skill 领域没有有状态的聚合。Skill 包快照算出后不变。读出�
 | `SkillName` | Skill 的 name。长 1 到 64 个字符，只含小写字母、数字与连字符，不以连字符开头或结尾，不含连续的连字符。它等于能力标识里的 name，也等于包根目录名。`inspect` 按[包格式规则](#包格式规则)核对后一条。 | 官方规格 [`name` field](https://agentskills.io/specification#name-field)「Must match the parent directory name」；成员规格 [skill-contract](../skill-contract/SPEC.md) 的 `name-mismatch` |
 | `PackagePath` | 规范化的包内相对路径。它拒绝绝对路径、`..` 段与反斜杠。 | 产品 [J-SK03](../../../.meta_harness/design/product/skills/design.md#j-sk03-按需读取正文或指定资源)「错误资源地址、包外目标」；官方规格 [File references](https://agentskills.io/specification#file-references) |
 | `PackageEntry` | Skill 包快照里的一个条目：包内路径、文本或二进制、大小、媒体类型，以及它自己的内容摘要。媒体类型由检查从扩展名与内容推断（`inferMediaType`）。这是候选规则，精确规则归 `@omne-harness/skill-contract` 的规格。媒体类型缺席不表示文本。 | 统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)；产品 J-SK03「资源与版本边界」 |
-| `SkillPackageSnapshot` | Skill 包快照：全部条目、包根目录名，以及按排序后的包内路径与条目内容摘要算出的一个内容摘要。包根目录名由来源交出，不进入内容摘要。 | 统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot) |
+| `SkillPackageSnapshot` | Skill 包快照：全部条目、包根目录名，以及按排序后的包内路径与条目内容摘要算出的一个内容摘要。包根目录名由来源交出，不进入内容摘要。快照只能经纯函数 `sealSnapshot` 构造：路径不重复，没有文件与目录的前缀冲突，内容摘要由条目算出。来源实现交出快照时必须用它。 | 统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot) |
 | `PackageDigest` | Skill 包快照的内容摘要。它是散列值，不是文字摘要。 | 统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)「注意 ①」 |
 | `PackageLocator` | 包定位：一个包在某种来源里的位置。它与来源相关，对 Skill 不透明。判别联合候选是目录 `{ kind: 'directory', root }` 与内容存储 `{ kind: 'content-store', digest }`。 | 统一语言 [Skill 包来源](../../../.meta_harness/design/ubiquitous_language/terms/grounding-and-isolation.md#ul-package-source--skill-包来源--skill-package-source) |
 | `SkillManifest` | `SKILL.md` 头部字段的解释：name、description、license、compatibility、metadata 与 `allowed-tools`。description 长 1 到 1024 个字符。不认识的字段原样保留，不解释。 | 官方规格 [Frontmatter](https://agentskills.io/specification#frontmatter)、[`description` field](https://agentskills.io/specification#description-field) |
@@ -193,7 +194,7 @@ type SourceFailure =
 interface SkillResolution<P, S> {
   resolve(access: Access<P>, scope: S, capability: CapabilityId, options?: { basis?: SkillMaterialBasis }): Promise<Resolution>
   // 摘要与检索用：当前合法集合中每个身份的 adopted 或 known-unavailable 答复。集合为空时答空数组，不是失败。
-  adopted(access: Access<P>, scope: S): Reply<readonly Resolution[]>
+  adopted(access: Access<P>, scope: S): Reply<readonly CatalogResolution[]>
 }
 // resolve 的答复次序：先判 known-unavailable，再判 adopted，见下文「各端口的要求」。
 type Resolution =
@@ -202,6 +203,8 @@ type Resolution =
   | { kind: 'basis-not-lawful' } // 只在身份 adopted 且所带依据的版本不合法时出现
   | { kind: 'none' }
   | { kind: 'unknown' }
+// 当前合法集合里只有这两种答复。
+type CatalogResolution = Extract<Resolution, { kind: 'adopted' | 'known-unavailable' }>
 // 资产正文的声明投影。tools 是类别为 tool 的能力标识。
 type DeclaredProjection = {
   name: SkillName
@@ -274,7 +277,7 @@ Skill 自己的核对也映射到同一组失败种类，见[读取](#读取)的
 
 本组不为「Skill 取用」新增统一语言词条：领域页已用「方法与资源取用」称呼这一责任，`SkillAccess` 只是服务接口名。
 
-纯函数没有端口，可以穷举测试：`parseSkillPackage`、`toPackagePath`、`computeDigest`、`inferMediaType`、`projectAssetBody`。`projectAssetBody` 从 `SkillDefinition` 派生资产正文的声明投影，包括 `package.digest`，见[资产正文与 Skill 包](#资产正文与-skill-包)。
+纯函数没有端口，可以穷举测试：`parseSkillPackage`、`toPackagePath`、`computeDigest`、`sealSnapshot`、`inferMediaType`、`projectAssetBody`。`projectAssetBody` 从 `SkillDefinition` 派生资产正文的声明投影，包括 `package.digest`，见[资产正文与 Skill 包](#资产正文与-skill-包)。
 
 Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 交出包字节，脚本身份是能力标识加入口的包内路径。本组没有执行脚本的服务，见 [Q-SK04](#q-sk04-脚本桥接的发起控制和原结果协议)。
 
@@ -336,7 +339,7 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 8. `list` 到此为止。只有内容摘要相符后，`list` 才交出快照条目。
 9. `read` 在快照条目里找目标路径。路径不在快照条目里时，返回 `resource-missing`。
 10. 经 `SkillPackageSource.open(locator, digest, path)` 取得条目字节。`digest` 是所钉材料的内容摘要。Skill 算出字节的内容摘要，与快照中该条目的内容摘要比较。不符时返回 `version-changed`，不交新内容。`export` 对快照中的每个条目都做这一步。
-11. 核对通过后，`read` 按请求的字节范围截取内容。
+11. 核对通过后，`read` 按请求的字节范围截取内容。读正文时，第 10 步核对整个 `SKILL.md` 条目的内容摘要，字节范围从正文起点算起，不含头部。
 
 第 7 步与第 10 步的端口失败按[端口](#端口)的映射表转换。依赖在不在场、脚本有没有所需的设施，都不进入上面的步骤，依据见[负责人的裁定](#q-sk08-依赖或设施不足时的正文读取)。
 

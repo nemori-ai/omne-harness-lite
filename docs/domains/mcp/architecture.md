@@ -25,9 +25,9 @@ MCP 是需求方。它用自己的词声明下面四个跨领域端口，由集�
 
 | 端口（候选） | 实现方 | 交给 MCP 什么 | 不交什么 |
 | --- | --- | --- | --- |
-| `CredentialUse` | 凭据保管方（settings 的[秘密保管](../../../packages/assets/settings/SPEC.md#failure-and-recovery)）与获准的认证适配 | MCP 交来凭据配值，Streamable HTTP 时另交连接目标。本端口交回凭据句柄与对端账号。句柄是本租户这份持有上的 MCP 凭据的一次受限使用能力，Streamable HTTP 时只对这个连接目标有效。句柄能为出站 HTTP 请求授权，能接收对端拒绝的回报，能释放。认证方式为 `none` 时，MCP 不调用本端口，对端账号取固定值 `anonymous`，凭据缺值不是失败 | 秘密值本身；组织、官方或其他租户的凭据；授权流程与续期的步骤 |
+| `CredentialUse` | 凭据保管方（settings 的[秘密保管](../../../packages/assets/settings/SPEC.md#failure-and-recovery)）与获准的认证适配 | MCP 交来凭据配值，Streamable HTTP 时另交连接目标。本端口交回凭据句柄。对端账号由凭据配值确定，不由本端口答复。句柄是本租户这份持有上的 MCP 凭据的一次受限使用能力，Streamable HTTP 时只对这个连接目标有效。句柄能为出站 HTTP 请求授权，能接收对端拒绝的回报，能释放。认证方式为 `none` 时，MCP 不调用本端口，对端账号取固定值 `anonymous`，凭据缺值不是失败 | 秘密值本身；组织、官方或其他租户的凭据；授权流程与续期的步骤 |
 | `ProcessLanding` | [执行环境](../execution-environments/README.md) | 本机命令型接入点的本机进程，按启动声明（命令、参数、工作目录、所需设施）落在获准的落点与设施上。起进程时，用 MCP 交来的凭据句柄把秘密值注入进程环境。交回的进程句柄能停止整棵进程树，并报告实际确认的停止范围。stderr 交给 MCP 之前，由本端口遮盖其中的秘密值 | 落点选择权；失败后落到宿主的降级；秘密值（不经过 MCP） |
-| `AdoptionView` | 资产求值与[装配](../assembly-and-handoff/README.md) | 已采用的接入点列表。每项是持有身份、采用修订、正文、三项固定设置（连接目标、凭据、连接超时）的配值，以及 stdio 进程环境所需的非秘密配值。未配的项如实交出缺值。正文或任一配值变化时，采用修订随之变化，MCP 据此换用新的 MCP 连接 | 求值过程；使用资格；MCP 不保存采用 |
+| `AdoptionView` | 资产求值与[装配](../assembly-and-handoff/README.md) | 已采用的接入点列表，以及按接入点引用取得的单项。每项是持有身份、采用修订、正文、三项固定设置（连接目标、凭据、连接超时）的配值，以及 stdio 进程环境所需的非秘密配值。未配的项如实交出缺值。正文或任一配值变化时，采用修订随之变化，MCP 据此换用新的 MCP 连接 | 求值过程；使用资格；MCP 不保存采用 |
 | `UseEligibility` | [身份与授权](../identity-and-authorization/README.md) | 本次使用这个接入点的当前资格：`granted`、`refused`（带原因）或 `unknown`。`refused` 的原因分两类：无使用资格（`not-eligible`）；有资格但被设置挡下（`local-command-not-enabled`，即本机命令型接入点未由使用租户开启；或 `disabled`）。MCP 在 `ProcessLanding.start` 之前必须得到 `granted` | 缓存的结论，撤权在下一次使用时生效；接入点是否存在（对无权主体，答复不随它变）；对无使用资格的主体，被设置挡下的原因 |
 
 `AdoptionView` 只回答采用，`UseEligibility` 只回答接入点这一级的使用资格，两者各自交出结论。逐动作的权限项由 MCP 声明，判定不在 MCP。

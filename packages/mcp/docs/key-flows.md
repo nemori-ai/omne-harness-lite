@@ -6,10 +6,10 @@
 
 对应 J-MC01，INV-MC01–07。
 
-1. `Connections.ensure` 经 `AdoptionView` 取得已采用的接入点、采用修订、正文与配值。接入点不在其中（未采用）时，答 `not-available-to-you`，与无权、不存在不可区分。它原有的 MCP 连接在这之前关闭。`AdoptionView` 不可读时答 `unknown`。
+1. `Connections.ensure` 经 `AdoptionView.endpoint` 按接入点引用取得已采用的接入点、采用修订、正文与配值。接入点不在其中（未采用）时，答 `not-available-to-you`，与无权、不存在不可区分。它原有的 MCP 连接在这之前关闭。`AdoptionView` 不可读时答 `unknown`。
 2. `EndpointInspection` 判定 `AdoptionView` 交来的正文。存在但非法的来源给出拒绝原因，不当作空来源。
 3. `Connections.ensure` 经 `UseEligibility.check` 核对本次使用资格。只有 `granted` 才继续。`refused` 的原因分两类：无使用资格（`not-eligible`），或有资格但被设置挡下（`local-command-not-enabled`、`disabled`）。被设置挡下时，也先关闭原有的 MCP 连接。两类原因怎样交给读面，见[工程设计的 MCP 声明的端口](architecture.md#mcp-声明的端口)。
-4. 认证方式不是 `none` 时，`Connections` 经 `CredentialUse.acquire` 取得凭据句柄与对端账号。认证方式为 `none` 时，不调用这个端口，对端账号是 `anonymous`，凭据缺值不是失败。凭据缺失或被拒时停止，不退回其他凭据。
+4. `Connections` 用 `peerAccountOf` 从认证方式与凭据配值得出对端账号。认证方式为 `none` 时，对端账号是 `anonymous`，凭据缺值不是失败。认证方式不是 `none` 时，需要新建 MCP 连接才经 `CredentialUse.acquire` 取得凭据句柄。凭据缺失或被拒时停止，不退回其他凭据。
 5. `Connections` 用租户、接入点持有、采用修订与对端账号组成 `ConnectionKey`，按它取得或建立 MCP 连接。采用修订变了，键就变，于是建立新的 MCP 连接。
 6. stdio 接入点：代际加一，再经 `ProcessLanding.start(access, launch, env)` 取得本机进程。`launch` 是正文里的启动声明，stdio 不读连接目标。`env` 是非秘密配值加凭据句柄，秘密值由 `ProcessLanding` 注入。落点或设施不成立时停止，不静默落到宿主。
 7. `McpTransport.discover` 判定对端时代并协商。成功后 MCP 连接进入 `ready`，不等 MCP 动作清单。Streamable HTTP 在这时代际加一。首次发现由调用方经 `ActionDiscovery.refresh` 触发，见 F-MC02。
