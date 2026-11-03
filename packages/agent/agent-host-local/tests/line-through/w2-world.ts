@@ -45,6 +45,7 @@ import {
   decodeDispatchId,
   decodeResultVersion,
   type DispatchId,
+  type ModelDelivery,
   type ResultPart,
 } from '@omne-harness/model-contract'
 import { historySessionOf } from '@omne-harness/session-adapters'
@@ -129,6 +130,19 @@ export function toolCallBlock(callId: string, name = 'read_file'): Original {
     name,
     arguments: { kind: 'object', entries: [] },
   } as unknown as Original
+}
+
+/**
+ * A reply block of the Model double: an opaque reasoning state without pairs, as a real provider
+ * returns encrypted reasoning. The delivery carries no scope/format for it (R2-D70).
+ */
+export function reasoningStateBlock(id: string, payload = 'opaque'): Original {
+  const identity = judgeBlockIdentity({
+    id: `blk_${id}`,
+    visibility: { toHuman: false, toModel: true },
+  })
+  if ('rejected' in identity) throw new Error(identity.rejected)
+  return { ...identity.ok, kind: 'reasoning_state', payload, pairs: [] } as unknown as Original
 }
 
 // --- the Model double -------------------------------------------------------------------------------
@@ -299,6 +313,12 @@ function associatedOf(snapshot: ExecutionSnapshot): AssociatedTool[] {
 
 export type W2Options = Readonly<{
   model: ModelScript
+  /**
+   * Changes a Model delivery before the real receiver saves it. The scripted producer seals only
+   * the block kinds of its allowlist (no `reasoning_state`), so a scenario that needs the delivery
+   * a real provider makes adds the other parts here. The Model double still settles the call.
+   */
+  modelDelivery?: (delivery: ModelDelivery) => ModelDelivery
   tool?: ToolScript
   /** The fixed delay of the Model and Tool doubles when a step names none. */
   defaultDelayMs?: number
@@ -500,7 +520,8 @@ export async function openW2World(options: W2Options) {
     wrapModelReceiver: receiver => ({
       ...receiver,
       push: async input => {
-        const answer = await receiver.push(input)
+        const delivery = options.modelDelivery?.(input.delivery) ?? input.delivery
+        const answer = await receiver.push({ ...input, delivery })
         if ('ok' in answer) counters.receive('model')
         return answer
       },

@@ -14,6 +14,7 @@ import { fail } from '@omne-harness/operation-result'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import {
   acceptedInput,
+  message,
   evidence,
   execution,
   failure,
@@ -34,6 +35,9 @@ import {
 } from './loop-support.ts'
 
 type Dependencies = AgentDependencies<Principal, ContentBlock>
+type SealedPart = Extract<ResultPart, { kind: 'sealed' }>
+/** The block identity of the sealed reasoning parts of the R2-D268 cases. */
+const REASONING_ID = acceptedInput('replay').content.blocks[0].id
 const FINAL_FAILURE: Termination = {
   kind: 'failed',
   fault: { cause: 'upstream-unavailable', diagnostic: 'final', upstreamStatus: null },
@@ -400,6 +404,29 @@ describe('received Model result adoption', () => {
   it.each([
     ['failed', [], 'fail'],
     ['partial-text', [{ kind: 'partial', content: 'text', value: 'half', trims: [] }], 'complete'],
+    // R2-D268: an unsealed thinking part is a partial part as any other.
+    [
+      'partial-thinking',
+      [{ kind: 'partial', content: 'thinking', value: 'reason', trims: [] }],
+      'complete',
+    ],
+    // R2-D268: sealed reasoning is not content; a failed call that produced only it has no reply.
+    [
+      'thinking-only',
+      [
+        {
+          kind: 'sealed',
+          trims: [],
+          block: {
+            kind: 'thinking',
+            id: REASONING_ID,
+            visibility: { toHuman: false, toModel: true },
+            text: 'reason',
+          },
+        },
+      ],
+      'fail',
+    ],
     [
       'partial-tool',
       [{ kind: 'partial', content: 'tool-arguments', value: '{', trims: [] }],
@@ -569,7 +596,23 @@ it('no-reply waits for injected time and retains one candidate after an excluded
   })
 })
 
-it.each<readonly [string, ResultPart]>([
+// R2-D268 (corrects R2-D70): the delivery carries no original scope/format, so a sealed
+// reasoning_state or thinking part cannot enter the reply with a `replay`. The reply leaves them out
+// and is formed from the other blocks; the received material keeps them. Before R2-D268 such a
+// result answered `unsupported` at M3 and the run stopped there without a terminal.
+const COMPLETED: Termination = { kind: 'completed', reason: 'tool-suggestions' }
+const answerText: SealedPart = {
+  kind: 'sealed',
+  trims: [],
+  block: {
+    kind: 'text',
+    id: message('the answer', '02').blocks[0].id,
+    visibility: { toHuman: true, toModel: true },
+    text: 'the answer',
+  },
+}
+
+it.each<readonly [string, SealedPart]>([
   [
     'reasoning state',
     {
@@ -577,7 +620,7 @@ it.each<readonly [string, ResultPart]>([
       trims: [],
       block: {
         kind: 'reasoning_state',
-        id: acceptedInput('replay').content.blocks[0].id,
+        id: REASONING_ID,
         visibility: { toHuman: false, toModel: true },
         payload: 'opaque',
         pairs: [],
@@ -585,26 +628,28 @@ it.each<readonly [string, ResultPart]>([
     },
   ],
   [
-    'sealed thinking',
+    'thinking',
     {
       kind: 'sealed',
       trims: [],
       block: {
         kind: 'thinking',
-        id: acceptedInput('replay').content.blocks[0].id,
+        id: REASONING_ID,
         visibility: { toHuman: false, toModel: true },
         text: 'reason',
       },
     },
   ],
-  ['partial thinking', { kind: 'partial', content: 'thinking', value: 'reason', trims: [] }],
 ])(
-  'unsupported replay interpretation preserves the received %s without publishing a reply',
+  'the reply leaves out the sealed %s, keeps the other blocks and the received material (R2-D268)',
   async (_name, part) => {
+    const parts: readonly ResultPart[] = [part, answerText]
     // The public scripted producer rejects reasoning_state in its sealed-result allowlist.
     // This one case therefore tests a direct typed delivery to the actual receiver, not producer ACK.
     const direct = part.kind === 'sealed' && part.block.kind === 'reasoning_state'
-    const assembly = direct ? await loopAssembly([execution()]) : await settledAssembly([part])
+    const assembly = direct
+      ? await loopAssembly([execution()])
+      : await settledAssembly(parts, COMPLETED)
     const c = coordinator(assembly)
     ok(await c.accept())
     if (direct) {
@@ -622,33 +667,42 @@ it.each<readonly [string, ResultPart]>([
             kind: 'result',
             key: { kind: 'result', reference: pending.reference, result: version },
             consumer: pending.position,
-            parts: [part],
+            parts,
             accounts: [],
             settlement: {
               version,
-              cursor: ok(decodeOutputCursor('1')),
+              cursor: ok(decodeOutputCursor('2')),
               source: evidence('direct-delivery'),
-              termination: FINAL_FAILURE,
+              termination: COMPLETED,
             },
           },
         }),
       )
     }
-    const observed = failure(await c.runExecution())
-    expect(observed, JSON.stringify(observed)).toMatchObject({
-      node: 'M3',
-      failure: { kind: 'unsupported' },
-    })
+    ok(await c.runExecution())
     const snapshot = await load(assembly),
       entry = snapshot.entries?.[0]
     if (!entry || entry.kind !== 'received') throw new Error('received entry required')
-    expect(snapshot.checkpoint.calls).toHaveLength(1)
-    expect((await eventKinds(assembly)).filter(kind => kind === 'message')).toEqual([])
+    expect(snapshot.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
+    const page = ok(
+      await assembly.dependencies.journal.output.read({
+        ...alice,
+        execution: execution(),
+        after: null,
+        limit: 100,
+      }),
+    )
+    if (page.kind !== 'page') throw new Error('new execution must have contiguous events')
+    const replies = page.events.flatMap(event =>
+      event.body.kind === 'message' ? [event.body.message] : [],
+    )
+    expect(replies).toHaveLength(1)
+    expect(replies[0]?.blocks).toEqual([answerText.block])
     expect(
       JSON.stringify(
         ok(await assembly.dependencies.materials.read({ ...alice, source: entry.material })),
       ),
-    ).toContain(part.kind === 'partial' ? part.value : part.block.kind)
+    ).toContain(part.block.kind)
     expect(assembly.controls.pusher?.acknowledgements()).toHaveLength(direct ? 0 : 1)
   },
 )
