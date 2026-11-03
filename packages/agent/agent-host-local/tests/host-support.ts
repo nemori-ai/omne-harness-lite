@@ -31,6 +31,7 @@ import {
   decodeExecutionAttachmentId,
   type Access,
   type AgentAccountOutlet,
+  type AgentClock,
   type AgentInstanceId,
   type AgentRegistrationHandle,
   type AgentState,
@@ -255,6 +256,8 @@ export type World = Readonly<{
   control: Context['agentExecutionControl']
   retired: Retirement[]
   errors: string[]
+  /** Every warning the root logger exported, in order. */
+  warnings: string[]
   /** Every answer of the Model's admit, in order: one per Model request that the Loop sent. */
   admits: Outcome<Admission, unknown>[]
   /** Every `load` and `recordControl` the Journal served, with the principal that asked. */
@@ -308,6 +311,8 @@ export type WorldOptions = Readonly<{
   pushTo?: 'host'
   /** The account outlet to provide instead of the memory outlet. */
   outlet?: AgentAccountOutlet<Principal>
+  /** Wraps the manual clock port that the world provides as `agentClock`. */
+  clock?: (port: AgentClock) => AgentClock
 }>
 
 export function occupied(instance: AgentInstanceId): AgentState {
@@ -431,9 +436,13 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     return { kind: 'denied' }
   })
   const errors: string[] = []
+  const warnings: string[] = []
+  // Cordis 4.0.4 orders WARN (2) above INFO (1): a warning reaches only an exporter at level 2 or more.
   root.logger.exporter({
+    levels: { default: 2 },
     export: message => {
       if (message.type === 'error') errors.push(String(message.args[0]))
+      if (message.type === 'warn') warnings.push(String(message.args[0]))
     },
   })
   const retired: Retirement[] = []
@@ -449,7 +458,7 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     agentModelSelection: controls.selection.port,
     agentModelContext: controls.modelContext.port,
     agentMessageHandoff: controls.handoff.port,
-    agentClock: controls.clock.port,
+    agentClock: options.clock?.(controls.clock.port) ?? controls.clock.port,
     modelRuntime: models,
     agentJournalEntries: controls.journal.provider.entries,
     agentMaterials: controls.materials.port,
@@ -506,6 +515,7 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     },
     retired,
     errors,
+    warnings,
     admits,
     journalCalls,
     handles,

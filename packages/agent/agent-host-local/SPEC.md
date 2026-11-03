@@ -31,11 +31,16 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 - 状态。接收状态按 Cordis 根保存一份，不随插件体结束。插件体因换提供者重跑时，新接收方得到同一状态。
 - 登记的寿命。登记是插件 fiber 的 effect，插件体结束时随之撤除。同一 owner 已有另一条存活 fiber 的登记时，登记抛出冲突，插件 fiber 进入 FAILED（装配错误）。
 - 有序停止。`quiesceAll` 先撤销登记，再停止准入、停用实例。此后 Model 的推送找不到接收方，交付保持待推（`waiting`、`no-receiver`），不推进正在停止的宿主。已受理的共同提交不撤回。
-- 维护驱动。一次推送解析出目标后，宿主记住这个 execution 和该次推送的 Access。本进程第一次见到它时调用 `recover`，之后调用 `retry`，直到报告的 pending 为 0。两次之间的等待从 `reception.retryMs` 开始，每次加倍，不超过 `reception.retryMaxMs`，计时用 `agentClock`。答 denied 时停止驱动这个 execution 并记 warn。停止时中止在途的维护，不撤销已开始的交接。
+- 维护驱动。依据 R2-D250。
+  - 记录。一次推送在接收方对原 execution 的 `receive-result` 核验答 allowed 之后，宿主记住这个 execution 和该次推送的 Access。核验被拒的推送不覆盖已记的 Access。
+  - 接续。插件体重跑时，新接收方从接收状态里取出仍有待办的 execution（待出站的账目、提交未知的接收），用各自接收时的 Access 继续驱动。
+  - 运行。本接收方第一次驱动某个 execution 时调用 `recover`，之后调用 `retry`，直到报告的 pending 为 0。两次之间的等待从 `reception.retryMs` 开始，每次加倍，不超过 `reception.retryMaxMs`，计时用 `agentClock`。
+  - 失败。`agentClock` 读不到时刻或不能等待，或者一次运行抛出时，宿主记 error，按同样的退避加倍等待后再排期。这次等待用进程计时器，因为时钟本身不可用。条目保留在驱动集合里。
+  - 拒绝与停止。答 denied 时停止驱动这个 execution 并记 warn。停止时中止在途的维护，不撤销已开始的交接。
 - 账目出站与 saved。共同提交、材料核对和入队之后就答 saved，不等待 outlet。发行的账目出站在没有目标解析器时答 `unavailable`（`scope-unresolved`），这只让账目留在待办里由维护驱动重试，不挡住 saved。
 - 配置。`reception` 可选，六项都是正整数：`records`、`bytes`、`attachments`、`inFlight`、`retryMs`、`retryMaxMs`，且 `retryMaxMs` 不小于 `retryMs`。缺省时取 `src/reception.ts` 的 `RECEPTION_INITIAL`，它们是配置初值，不是本成员的上限。
 
-用例在 `tests/reception.spec.ts`：登记后推送的回复让 execution 越过 M1 并结束；供应方答 400 的失败结果同样保存，execution 以 no-reply 失败结束；有序停止撤销登记，之后的推送是 `no-receiver`；宿主停机期间推送失败的结果在插件体恢复后重投，只保存一次；outlet 答 `scope-unresolved` 时仍答 saved，驱动的重试稍后送达账目。Model 是 model-contract 的脚本化推送器，从 Model runtime 的登记表解析接收方。这些用例不证明真实 Model 宿主、会话日志 Journal 或进程重启。
+用例在 `tests/reception.spec.ts`：登记后推送的回复让 execution 越过 M1 并结束；供应方答 400 的失败结果同样保存，execution 以 no-reply 失败结束；有序停止撤销登记，之后的推送是 `no-receiver`；宿主停机期间推送失败的结果在插件体恢复后重投，只保存一次；outlet 答 `scope-unresolved` 时仍答 saved，驱动的重试稍后送达账目；`agentClock` 读不到一次之后驱动照常继续；等待按次加倍并在 `retryMaxMs` 封顶；答 denied 时停止并记 warn；插件体重跑后待办账目照样送达；被拒推送不覆盖获准推送的 Access。Model 是 model-contract 的脚本化推送器，从 Model runtime 的登记表解析接收方。这些用例不证明真实 Model 宿主、会话日志 Journal 或进程重启。
 
 ### 测量事件
 
@@ -61,6 +66,13 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 4. 局部依赖在每次调用时经 `ctx.get` 现取，缺席时立即答 unavailable。设计中的阶段子 fiber（`ctx.inject`）尚未实现。`ToolRuntime` 中不返回 Reply 的成员在缺席时也得到 Reply 形状的失败；本版不装配 Tool 阶段。
 5. 恢复入口的 reconcile 在核验之后答具名 unavailable。
 6. 宿主的预约表与槽表只在内存，只在本进程有效。已结束实例的记录保留到插件体结束。
+7. warn 级别的诊断在默认导出级别下看不到。Cordis 4.0.4 的级别顺序是 ERROR 0、INFO 1、WARN 2、DEBUG 3，导出器缺省目标级别是 INFO，所以 `warn` 只到达级别不低于 2 的导出器。维护驱动的 denied 诊断用 warn，Model 宿主的 `no-receiver` 诊断也用 warn（R2-D237）。发行树没有设置更高级别的导出器时，这两条都看不到。触发条件：装配给出日志导出器及其级别。
+8. MODEL-RECV 改到的函数里有几个圈复杂度超过 alert（12）。数字取自 `scripts/metrics.sh --base 75001c0f9`，基线取自 FF-SESSION efb902da9 的度量：
+   - agent `createAgentModelReceiver.admit` 是 28，与基线相同。路由查询已拆到 `targetQuery`。28 来自原有的逐步核验，每一步都有拒绝、不可用与取消三个出口，见 J02 第 9、10 条。
+   - session-adapters `createJournalReceiving.received.commit` 是 22，基线 21。多出的 1 是同操作认回的出口，判断本身在 `recommitted` 里。
+   - session-adapters `buildObligations` 是 44，与基线相同。收场失败的判断已拆到 `settlesCall`。agent 的同名函数是 43，基线 42，多出的 1 来自 L11-FAIL 的 1624f49f2（`model-refused`），不是本成员的改动。
+   - agent-host-local `issuesOf` 是 13，与基线相同。新的 `receptionIssues` 是 6，低于 warn（10）。
+   触发条件：这些函数再增加分支时，先按核验步骤拆分。
 
 ## 独立结果接收组件
 
