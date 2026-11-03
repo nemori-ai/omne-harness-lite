@@ -5,7 +5,8 @@
 // test, the progress reaches the head and the Session command that reads the history passes (it
 // answers unavailable without the plugin); a lost reply is sent again under the same operation and
 // recalls; the same event twice commits once; a head that another writer moved after the read
-// answers changed and the call reads again once, then commits; a stopped plugin and a plugin without
+// answers changed and the call reads again once, then commits; a call of the event queue that still
+// ends in changed is made again once and no more (R2-D157); a stopped plugin and a plugin without
 // `sessionTransactions` commit nothing; another tenant's event and a refusing view commit nothing;
 // the R2-D28 counterexample passes once the plugin committed the non-observed tail; the commits of
 // one round do not grow with the rounds before it. The storage is the node:sqlite double of the
@@ -408,6 +409,41 @@ describe('AD-02: the execution head moves between the read and the commit', () =
     expect(await readThrough(f.s)).toBe('0')
     // The head stays still now: the next call commits.
     expect(ok(await f.interpretation.interpret(f.target))).toMatchObject({ readThrough: '1' })
+  })
+
+  // R2-D157, a patch of this line: the head moves twice and no later event comes, because the
+  // receivers write through their own Journal copy, which sends no `agent-published`. The event
+  // queue calls the same execution again once. The real gap is that wake contract, recorded for
+  // wave 3 and owned by L-RUN.
+  it('a call of the event queue that ends in changed is made again once, and the event commits', async () => {
+    const f = await interpreted('ad02-requeued')
+    for (const label of ['requeued-1', 'requeued-2'])
+      f.script.push(async (inner, input) => {
+        await moveHead(f, label)
+        return inner(input)
+      })
+    await started(f.s, f.c.journal())
+    await reaches(f.s, '1')
+    // Two sends of the first call answered changed; the call made again sent once and committed.
+    expect(f.sent).toHaveLength(3)
+    expect(new Set(f.sent.map(item => item.observation.sequence))).toEqual(new Set(['1']))
+    expect(logOperations(f.s)).toEqual([f.sent[2]?.observation.operation])
+  })
+
+  it('the call is made again at most once: a head that keeps moving stops after 2 x 2 sends', async () => {
+    const f = await interpreted('ad02-requeue-bound')
+    for (const label of ['bound-1', 'bound-2', 'bound-3', 'bound-4', 'bound-5'])
+      f.script.push(async (inner, input) => {
+        await moveHead(f, label)
+        return inner(input)
+      })
+    await started(f.s, f.c.journal())
+    await vi.waitFor(() => expect(f.sent).toHaveLength(4), { timeout: 5000 })
+    await settle()
+    // ROUNDS (2) sends per call, for the call and the one call made again (REQUEUES = 1).
+    expect(f.sent).toHaveLength(4)
+    expect(await readThrough(f.s)).toBe('0')
+    expect(logOperations(f.s)).toEqual([])
   })
 })
 

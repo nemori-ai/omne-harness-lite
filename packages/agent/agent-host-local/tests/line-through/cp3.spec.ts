@@ -155,7 +155,9 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
     expect(pushed).toHaveLength(1)
     expect(pushed[0]).toMatchObject({ status: 'saved' })
     // With the real AD-02 and handoff, optimistic concurrency is the contract: a commit may roll back
-    // as a conflict and its logical operation commits afterwards. Every rollback is all-conflict;
+    // as a conflict and its logical operation commits afterwards. Whether a rollback happens depends
+    // on the interleaving, so none is required; when there are rollbacks, each one is explained
+    // (R2-D157). Every rollback is all-conflict;
     // an Agent records commit that lost the head commits again under the same operation; a Session
     // commit that found its input no longer pending lost to the path that took it, so the log holds
     // that one take; a Session commitLog that found the execution head moved answered `changed` and
@@ -163,7 +165,6 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
     const rolledBack = w.commits.flatMap((seen, position) =>
       seen.result.kind === 'rolled_back' ? [{ seen, position, result: seen.result }] : [],
     )
-    expect(rolledBack.length).toBeGreaterThan(0)
     for (const { seen, position, result } of rolledBack) {
       expect(result.responses.every(response => response.reply.kind === 'conflict')).toBe(true)
       if (seen.participants.includes('execution-record')) {

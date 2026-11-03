@@ -12,8 +12,9 @@
 // covered by the next committed event; the operation identity is derived from the observation, so
 // the same read of the same event is the same operation. A lost reply is sent again under the same operation and
 // recalls the original receipt (C-STORAGE answers `conflict` to `queryOperation` for this form, so
-// it is not asked). A `changed` answer reads again once. Any refusal is logged and not retried. A
-// control event is a deferred fact: it is sent with the Agent evidence the Journal kept and no
+// it is not asked). A `changed` answer reads again once; a call of the event queue that still ends
+// in `changed` is made again once (R2-D157). Any refusal is logged and not retried. A control
+// event is a deferred fact: it is sent with the Agent evidence the Journal kept and no
 // consequences, and Session decides them in the commit. An event whose consequences were not
 // decided otherwise (an original the Journal did not keep) stops the call there: it is not
 // committed as anything else.
@@ -51,6 +52,13 @@ const OWNER = 'session-adapters/journal-interpretation'
 const ROUNDS = 2
 /** The sends of one observation whose outcome stays unknown, all under the same operation. */
 const SENDS = 3
+/**
+ * The calls of one execution that the event queue makes again after a call ended in `changed`
+ * with its rounds used up (R2-D157). This is a patch of this line: the real gap is the wake
+ * contract, because the receivers write through their own Journal copy, which sends no
+ * `agent-published`, so no later event may come. That gap is recorded for wave 3 and L-RUN owns it.
+ */
+const REQUEUES = 1
 
 /** One call: the execution of one Session whose events are interpreted. */
 export type JournalInterpretationTarget = Readonly<{
@@ -266,7 +274,16 @@ export function createSessionJournalInterpretationPlugin<P>(
           ctx,
           () => stopped,
           async target => {
-            const answer = await guarded(target)
+            let answer = await guarded(target)
+            // R2-D157: a call that ended in `changed` runs again in the same queue slot, so later
+            // events of the session still wait behind it, at most REQUEUES times. A later event of
+            // the same execution reads from the saved progress, so it commits nothing twice.
+            for (
+              let left = REQUEUES;
+              left > 0 && !stopped && 'failure' in answer && answer.failure.kind === 'changed';
+              left -= 1
+            )
+              answer = await guarded(target)
             if ('failure' in answer)
               logger.warn(
                 `the interpretation of ${target.execution} answered ${answer.failure.kind}`,
