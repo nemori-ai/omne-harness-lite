@@ -1,0 +1,128 @@
+[
+  {
+    "dir": "packages/mcp/mcp",
+    "name": "@omne-harness/mcp",
+    "description": "General MCP implementation: the Connection and ActionCatalog aggregates, the application services, and the in-memory CatalogStore",
+    "deps": [],
+    "files": [
+      {
+        "file": "src/index.ts",
+        "decls": [],
+        "imports": [],
+        "reexports": [
+          {
+            "names": []
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 2
+      }
+    ],
+    "testFiles": 1,
+    "testCases": 1,
+    "draft": [
+      "README.md",
+      "README_ZH.md",
+      "src/index.ts"
+    ],
+    "entries": [
+      {
+        "sub": ".",
+        "names": []
+      }
+    ],
+    "modEdges": [],
+    "pkgEdges": []
+  },
+  {
+    "dir": "packages/mcp/mcp-contract",
+    "name": "@omne-harness/mcp-contract",
+    "description": "Pure MCP contract: value objects, the category port, pure functions, ports, and application service interfaces",
+    "deps": [
+      "@omne-harness/assets",
+      "@omne-harness/content-block",
+      "@omne-harness/json-text",
+      "@omne-harness/legal-identity",
+      "@omne-harness/operation-result"
+    ],
+    "files": [
+      {
+        "file": "src/index.ts",
+        "decls": [],
+        "imports": [],
+        "reexports": [
+          {
+            "names": []
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 2
+      }
+    ],
+    "testFiles": 1,
+    "testCases": 1,
+    "draft": [
+      "README.md",
+      "README_ZH.md",
+      "src/index.ts"
+    ],
+    "entries": [
+      {
+        "sub": ".",
+        "names": []
+      }
+    ],
+    "modEdges": [],
+    "pkgEdges": []
+  },
+  {
+    "dir": "packages/mcp/mcp-host-local",
+    "name": "@omne-harness/mcp-host-local",
+    "description": "Local MCP host: the stdio and Streamable HTTP McpTransport implementations and authorization discovery",
+    "deps": [],
+    "files": [
+      {
+        "file": "src/index.ts",
+        "decls": [],
+        "imports": [],
+        "reexports": [
+          {
+            "names": []
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 2
+      }
+    ],
+    "testFiles": 1,
+    "testCases": 1,
+    "draft": [
+      "README.md",
+      "README_ZH.md",
+      "src/index.ts"
+    ],
+    "entries": [
+      {
+        "sub": ".",
+        "names": []
+      }
+    ],
+    "modEdges": [],
+    "pkgEdges": []
+  }
+]

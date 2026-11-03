@@ -1,0 +1,4 @@
+<h3>W0 基线（2026-11-03，父分支 21175c9f9）</h3>
+<p><strong>现状。</strong>只有 <code>@omne-harness/skill-contract</code> 有实现：一个文件 <code>src/contract.ts</code>（92 个非空行），导出 <code>skillBodyContract</code>，6 条测试。它还是旧的必选文件形状，没有迁到 3.0.0 完整骨架。<code>@omne-harness/skill</code> 与 <code>@omne-harness/skill-host-local</code> 是模板草稿，只有占位入口。</p>
+<p><strong>健康。</strong>没有 <code>as</code> 断言，没有 <code>any</code>，最长函数 24 行（<code>skillBodyContract</code>）。依赖方向干净：契约成员只依赖 <code>assets</code>、四个公共值成员与 <code>yaml</code>（后几个由 W1 准备声明，尚未被源码导入）。</p>
+<p><strong>W1 之后应当看到。</strong>契约成员分成三个入口；值、失败、端口、服务接口各在自己的模块里，单文件不超过约 300 行；品牌只由校验函数授予，<code>as</code> 只出现在校验之后；类图里 <code>SkillRef</code> 只出现在 <code>./provider</code>，公开根的类型不引用它。</p>

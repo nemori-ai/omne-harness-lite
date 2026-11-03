@@ -1,0 +1,308 @@
+<title>Skill 与 MCP 波段计划</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* 布局：一张泳道总图（波段为列、领域为行，M2 边界是一条竖线），下接按波段展开的细节，越远越粗 */
+:root{
+  --paper:#f5f7f6; --card:#ffffff; --ink:#18242a; --muted:#56656c; --line:#d5dddd;
+  --skill:#2f6f5e; --skill-soft:#e2efe9; --mcp:#7a4a8c; --mcp-soft:#efe6f3;
+  --reduce:#8a6a1f; --reduce-soft:#f4ecd8; --edge:#b23a2e; --edge-soft:#f7e3e0;
+  --display:"Noto Serif SC","Songti SC",serif; --body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#12181b; --card:#1a2226; --ink:#e3ebea; --muted:#9aaaae; --line:#2e3a3f;
+  --skill:#7cc4ad; --skill-soft:#1e3730; --mcp:#c79ad8; --mcp-soft:#33263a;
+  --reduce:#d8b765; --reduce-soft:#3a3120; --edge:#ef8a7e; --edge-soft:#3d2422; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#12181b; --card:#1a2226; --ink:#e3ebea; --muted:#9aaaae; --line:#2e3a3f;
+  --skill:#7cc4ad; --skill-soft:#1e3730; --mcp:#c79ad8; --mcp-soft:#33263a;
+  --reduce:#d8b765; --reduce-soft:#3a3120; --edge:#ef8a7e; --edge-soft:#3d2422; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.7;margin:0}
+.wrap{max-width:1080px;margin:0 auto;padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.3;margin:0}
+h1{font-size:2rem}
+h2{font-size:1.45rem;padding-bottom:6px;border-bottom:2px solid var(--line)}
+h3{font-size:1.1rem}
+p{margin:0;max-width:68ch}
+code{font-family:var(--mono);font-size:.86em;background:color-mix(in srgb,var(--line) 45%,transparent);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+section{display:flex;flex-direction:column;gap:16px}
+.lede{display:flex;flex-direction:column;gap:10px}
+.meta{color:var(--muted);font-size:.9rem}
+.tag{display:inline-block;font-size:.75rem;letter-spacing:.06em;padding:1px 8px;border-radius:999px;font-weight:500;white-space:nowrap}
+.t-skill{background:var(--skill-soft);color:var(--skill)}
+.t-mcp{background:var(--mcp-soft);color:var(--mcp)}
+.t-reduce{background:var(--reduce-soft);color:var(--reduce)}
+.t-edge{background:var(--edge-soft);color:var(--edge)}
+/* 泳道总图 */
+.lanes-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.lanes{display:grid;grid-template-columns:88px repeat(4,minmax(150px,1fr)) 10px minmax(170px,1.1fr);min-width:960px}
+.lanes>div{padding:10px 10px;border-bottom:1px solid var(--line);font-size:.84rem;line-height:1.5}
+.lanes .hd{font-weight:700;font-family:var(--display);font-size:.95rem;background:color-mix(in srgb,var(--line) 30%,transparent)}
+.lanes .hd small{display:block;font-family:var(--body);font-weight:400;color:var(--muted);font-size:.75rem}
+.lanes .row{font-weight:700;display:flex;align-items:center}
+.lanes .boundary{padding:0;background:repeating-linear-gradient(180deg,var(--edge) 0 6px,transparent 6px 10px);border-bottom:none}
+.lanes .boundary.top{background:var(--edge)}
+.cell{display:flex;flex-direction:column;gap:6px}
+.chip{border-radius:6px;padding:5px 8px;border-left:3px solid}
+.chip b{font-family:var(--mono);font-weight:500;font-size:.78rem;display:block}
+.c-skill{background:var(--skill-soft);border-color:var(--skill)}
+.c-mcp{background:var(--mcp-soft);border-color:var(--mcp)}
+.c-reduce{background:var(--reduce-soft);border-color:var(--reduce)}
+.c-edge{background:var(--edge-soft);border-color:var(--edge)}
+.fine{opacity:1}.mid{opacity:.92}.coarse{opacity:.8}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:.82rem;color:var(--muted)}
+/* 表格 */
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem;background:var(--card)}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:color-mix(in srgb,var(--line) 35%,transparent);font-weight:700;white-space:nowrap}
+td ul{margin:0;padding-left:18px}
+/* 波段卡 */
+.wave{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.wave-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px}
+.grain{font-size:.78rem;color:var(--muted)}
+.closures{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.closure{border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.closure.sk{border-top:3px solid var(--skill)} .closure.mc{border-top:3px solid var(--mcp)} .closure.rd{border-top:3px solid var(--reduce)}
+.closure h4{margin:0;font-family:var(--mono);font-size:.9rem;font-weight:500}
+.closure dl{margin:0;display:grid;grid-template-columns:4.6em 1fr;gap:4px 10px;font-size:.85rem}
+.closure dt{color:var(--muted)} .closure dd{margin:0;min-width:0}
+.closure ul{margin:0;padding-left:18px}
+.exit{background:color-mix(in srgb,var(--line) 25%,transparent);border-radius:8px;padding:10px 14px;font-size:.88rem}
+.exit strong{display:block;margin-bottom:2px}
+ul.plain{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.steps{counter-reset:s;list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.steps li{counter-increment:s;display:grid;grid-template-columns:2em 1fr;gap:8px}
+.steps li::before{content:counter(s);font-family:var(--mono);color:var(--reduce);font-weight:500;text-align:right}
+:focus-visible{outline:2px solid var(--reduce);outline-offset:2px}
+</style>
+
+<div class="wrap">
+
+<header class="lede">
+  <span class="meta">2026-11-03 · 父分支 <code>PanQiWei/skill-mcp</code>（普通开发分支）· reduce 兼两条线的线负责人</span>
+  <h1>Skill 与 MCP 波段计划</h1>
+  <p>边界是 M2「端到端多轮闭合」完结。M2 完结之前，两个领域只做领域内实现：需求端口一律用本组导出的符合性替身，不接真实提供者。M2 完结之后，再做跨领域的集成联调。越近的波段越细，W1、W2 写到闭包、写范围与验收；W3 写到闭包与出口；W4 和 M2 之后只写预期成果与目标边界。</p>
+</header>
+
+<section>
+  <h2>总图</h2>
+  <div class="lanes-scroll" role="region" aria-label="波段泳道图" tabindex="0">
+    <div class="lanes">
+      <div class="hd"></div>
+      <div class="hd">W1 契约地基<small>细粒度</small></div>
+      <div class="hd">W2 通用实现与本地来源<small>细粒度</small></div>
+      <div class="hd">W3 调用、传输与目录<small>中粒度</small></div>
+      <div class="hd">W4 Cordis 服务键与加固<small>粗粒度</small></div>
+      <div class="boundary top" aria-hidden="true"></div>
+      <div class="hd">M2 完结之后<small>粗粒度：集成联调</small></div>
+
+      <div class="row"><span class="tag t-skill">Skill</span></div>
+      <div class="cell fine"><div class="chip c-skill"><b>w1-skill-contract</b>值、失败、服务接口、纯函数、<code>./provider</code>、端口套件、SPEC</div></div>
+      <div class="cell fine"><div class="chip c-skill"><b>w2-skill</b>检查、描述、读取、列举</div><div class="chip c-skill"><b>w2-skill-host</b>DirectorySource</div></div>
+      <div class="cell mid"><div class="chip c-skill"><b>w3-skill-catalog</b>摘要、检索、导出</div></div>
+      <div class="cell coarse"><div class="chip c-skill"><b>skill-cordis-contract</b>服务键与插件部分</div></div>
+      <div class="boundary" aria-hidden="true"></div>
+      <div class="cell coarse"><div class="chip c-edge"><b>真实提供者</b>对应与读取权、内容存储来源；#322 内容读取</div></div>
+
+      <div class="row"><span class="tag t-mcp">MCP</span></div>
+      <div class="cell fine"><div class="chip c-mcp"><b>w1-mcp-contract</b>值、结局、端口、纯函数、类别端口、端口套件、SPEC</div></div>
+      <div class="cell fine"><div class="chip c-mcp"><b>w2-mcp-core</b>连接、关口、清单存储、发现、状态</div></div>
+      <div class="cell mid"><div class="chip c-mcp"><b>w3-mcp-call</b>调用口与任务</div><div class="chip c-mcp"><b>w3-mcp-host</b>两种传输与授权发现</div></div>
+      <div class="cell coarse"><div class="chip c-mcp"><b>mcp-cordis-contract</b>服务键与插件部分；耐久清单（候选）</div></div>
+      <div class="boundary" aria-hidden="true"></div>
+      <div class="cell coarse"><div class="chip c-edge"><b>真实提供者</b>采用、资格、凭据、进程落点、耐久清单；工具派生</div></div>
+
+      <div class="row"><span class="tag t-reduce">Reduce</span></div>
+      <div class="cell fine"><div class="chip c-reduce"><b>w1-prep</b>声明依赖、锁文件</div></div>
+      <div class="cell fine"><div class="chip c-reduce"><b>w2-spike</b>官方 SDK 2.3.1 探路（tmp）</div></div>
+      <div class="cell mid"><div class="chip c-reduce"><b>w3-prep</b>SDK 进 catalog 与锁文件</div></div>
+      <div class="cell coarse"><div class="chip c-reduce"><b>w4</b>采用标识、技术接受准备</div></div>
+      <div class="boundary" aria-hidden="true"></div>
+      <div class="cell coarse"><div class="chip c-reduce"><b>联合验收</b>按 M3 的排程</div></div>
+    </div>
+  </div>
+  <div class="legend"><span><span class="tag t-skill">Skill</span> Skill 线</span><span><span class="tag t-mcp">MCP</span> MCP 线</span><span><span class="tag t-reduce">Reduce</span> 本会话 reduce 自己做</span><span><span class="tag t-edge">红竖线</span> M2 完结</span></div>
+</section>
+
+<section>
+  <h2>单会话 map-reduce 怎样转</h2>
+  <p>本会话同时是 reduce 和两条线（Skill、MCP）的线负责人。map 是每个闭包一个子代理，在各自的工作树里写；reduce 是本会话读交回、评审、合入父分支，并在波末统一核对与写回。</p>
+  <ol class="steps">
+    <li>开波：父分支合并 <code>origin/integration/mainline</code> 的最新头，让依赖的公共成员与 assets 保持最新。冲突在父分支上解决。</li>
+    <li>reduce 先做共享写：依赖声明、<code>pnpm-lock.yaml</code>、<code>pnpm-workspace.yaml</code> 的 catalog。闭包不碰这些文件。</li>
+    <li>写本波每个闭包的规格，跑 <code>brief-check</code>，用 <code>prepare-closures</code> 从父分支头建工作树。</li>
+    <li>并行派发。写范围互不相交，一个成员目录同一波只给一个闭包。</li>
+    <li>闭包交回后推送闭包分支，开 PR，base 是 <code>PanQiWei/skill-mcp</code>。reduce 读差异、按风险派独立评审，然后在 GitHub 上用 merge commit 合入。不走 gate，不进集成轨道。</li>
+    <li>波末：在父分支头跑 <code>preflight</code>、受影响成员的 build、typecheck、test，以及本波成员的差分变异。整波跑一次 <code>admission</code>，基线已知失败单独列出。</li>
+    <li>写回：组页的「归 SPEC」项改指成员 SPEC，记派发流水，向你交本波报告。报告只写两个领域本身。</li>
+  </ol>
+  <div class="tbl"><table>
+    <thead><tr><th>规则</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>共享单写</td><td>锁文件、catalog、组页、领域页、统一语言只由 reduce 写。闭包需要时在交回里提出，reduce 在下一个合入点处理。</td></tr>
+      <tr><td>契约稳定</td><td>契约成员合入后，后续波段只做可加改动。必须破坏时，由 reduce 裁定，并在同一波迁移全部消费者、删除旧入口。</td></tr>
+      <tr><td>接受级别</td><td>默认 L2：实现评审。L3 热点逐行读：Skill 的读取关口（对无权主体不披露身份是否存在）；MCP 的连接键隔离、凭据句柄、在途表、stderr 中秘密值的遮盖。</td></tr>
+      <tr><td>替身边界</td><td>M2 完结前只用本组 <code>./testing</code> 的符合性替身。替身通过不说成读取权、资格、凭据或耐久已验证。</td></tr>
+      <tr><td>已知环境限制</td><td>容器以 root 运行，「权限被拒」类用例不可靠。基线上 <code>execution-environment-host-local</code> 有 3 处既有失败。本组的权限类用例用注入的文件系统接缝，不依赖真实权限。</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>W1 契约地基 <span class="grain">细粒度 · 2 个闭包并行</span></h2>
+  <div class="wave">
+    <div class="wave-head"><h3>目标</h3><span class="meta">把两个纯契约成员做成后续波段能直接依赖的形状：值、失败、服务接口、纯函数、端口与符合性套件，加上封闭「归 SPEC」各项的成员规格。</span></div>
+    <div class="closures">
+      <div class="closure rd">
+        <h4>w1-prep（reduce）</h4>
+        <dl>
+          <dt>做什么</dt><dd>给两个契约成员声明生产依赖：<code>assets</code>、<code>operation-result</code>、<code>legal-identity</code>、<code>content-block</code>、<code>json-text</code>。重生锁文件，只动 importers。</dd>
+          <dt>为什么</dt><dd>两个闭包都要加依赖。锁文件是共享文件，先由 reduce 一次写好。</dd>
+        </dl>
+      </div>
+      <div class="closure sk">
+        <h4>w1-skill-contract</h4>
+        <dl>
+          <dt>写范围</dt><dd><code>packages/skills/skill-contract</code></dd>
+          <dt>交付</dt><dd><ul>
+            <li>迁到 <code>typescript-package@3.0.0</code> 完整骨架，不覆盖现有正文</li>
+            <li>公开根：值与品牌、<code>SkillFailure</code> 及按操作收窄的失败、三个服务接口与结果值、纯函数 <code>toSkillName</code>、<code>toPackagePath</code>、<code>computeDigest</code>、<code>sealSnapshot</code>、<code>inferMediaType</code>、<code>parseSkillPackage</code>、<code>projectAssetBody</code></li>
+            <li><code>skillBodyContract</code> 的可加扩展：<code>description</code>、<code>scripts</code>、<code>settings</code>、<code>package.digest</code>；旧正文仍合法</li>
+            <li><code>./provider</code>：三个需求端口、<code>SkillRef</code>、<code>CatalogResolution</code></li>
+            <li><code>./testing</code>：三个端口的符合性套件与内存替身（来源、对应、读取权）</li>
+            <li><code>schema/</code>：<code>.omne/skill.json</code> 的 JSON Schema</li>
+            <li>SPEC：包格式规则与拒绝次序、内容摘要算法、<code>SafeReason</code> 形状、字节范围单位与 UTF-8 切页、正文起点、默认读取上限、中止结果、声明的 JSON 预算</li>
+          </ul></dd>
+          <dt>验收</dt><dd>每个拒绝原因各有一份包样本；纯函数穷举测试；符合性套件对内存替身全绿；实现评审 L2；成员 SPEC 用 design-reviewer 的表达评审</dd>
+        </dl>
+      </div>
+      <div class="closure mc">
+        <h4>w1-mcp-contract</h4>
+        <dl>
+          <dt>写范围</dt><dd><code>packages/mcp/mcp-contract</code></dd>
+          <dt>交付</dt><dd><ul>
+            <li>公开根：值与品牌、<code>Untrusted</code>、<code>CallOutcome</code>、<code>Refusal</code>、<code>NotSentReason</code>、清单记录与 <code>KnownAction</code>、五个服务接口</li>
+            <li>纯函数：<code>parseEndpointBody</code>、<code>digestDefinition</code>、<code>toContentBlocks</code>、<code>classifyOutcome</code>、<code>completeListing</code>、<code>mergeListing</code>、<code>markUnavailable</code>、<code>actionPermissionItems</code>、<code>peerAccountOf</code>、两个键函数、<code>launchesLocalCommand</code></li>
+            <li>类别端口：接入点正文的 <code>BodyContract</code>，派生三项固定设置</li>
+            <li><code>./provider</code>：五个需求端口、<code>McpTransport</code>、<code>McpTransportFactory</code></li>
+            <li><code>./testing</code>：五个需求端口的符合性套件与内存替身；<code>classifyOutcome</code>、<code>mergeListing</code> 的穷举入口</li>
+            <li><code>schema/</code>：接入点正文的 JSON Schema</li>
+            <li>SPEC：拒绝原因、未发出原因、不可用原因的封闭集合；凭据用途值域；连接时限缺值规则与失败码；授权发现三项的字段；<code>instructions</code> 的字节上界；内容交付与结局分类表</li>
+          </ul></dd>
+          <dt>验收</dt><dd>按协议 2026-07-28 的结果形状做 <code>classifyOutcome</code> 的穷举表；<code>mergeListing</code> 性质测试（不静默消失、旧修订被拒、整份产出）；实现评审 L2；SPEC 表达评审</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="exit"><strong>出口</strong>两个契约成员合入父分支；组页里这两个成员的「归 SPEC」项全部改指成员 SPEC，或列为具名剩余义务；之后对这两个成员只做可加改动。</div>
+  </div>
+</section>
+
+<section>
+  <h2>W2 通用实现与本地来源 <span class="grain">细粒度 · 3 个闭包并行</span></h2>
+  <div class="wave">
+    <div class="wave-head"><h3>目标</h3><span class="meta">Skill 的首条旅程（已知精确能力 → 描述 → 读正文与资源）在本机目录上跑通；MCP 的连接、关口与清单发现在脚本化的替身传输上跑通。</span></div>
+    <div class="closures">
+      <div class="closure sk">
+        <h4>w2-skill</h4>
+        <dl>
+          <dt>写范围</dt><dd><code>packages/skills/skill</code>；<code>skill-contract/testing</code> 只做可加改动</dd>
+          <dt>交付</dt><dd><ul>
+            <li><code>createPackageInspection</code>：经来源取一致快照，按拒绝次序给第一个原因</li>
+            <li><code>createSkillAccess</code> 的 <code>describe</code>、<code>read</code>、<code>list</code>：读取 11 步、分页、中止</li>
+            <li><code>SkillAccess</code> 符合性套件加进 <code>skill-contract/testing</code></li>
+          </ul></dd>
+          <dt>验收</dt><dd>读取 11 步每个分支都有用例，覆盖材料依据与快照竞争；读取关口按 L3 逐行读；差分变异</dd>
+        </dl>
+      </div>
+      <div class="closure sk">
+        <h4>w2-skill-host</h4>
+        <dl>
+          <dt>写范围</dt><dd><code>packages/skills/skill-host-local</code></dd>
+          <dt>交付</dt><dd><ul>
+            <li><code>DirectorySource</code>：<code>snapshot</code> 与 <code>open</code> 只读当前目录，不缓存</li>
+            <li>包内链接、落到包外的链接、成环链接、非常规文件</li>
+            <li>文件在取快照之后被改的竞争</li>
+            <li>一个示例：对样本目录做检查、描述与读取</li>
+          </ul></dd>
+          <dt>验收</dt><dd>通过 <code>SkillPackageSource</code> 符合性套件；权限类失败用注入的文件系统接缝；L2</dd>
+        </dl>
+      </div>
+      <div class="closure mc">
+        <h4>w2-mcp-core</h4>
+        <dl>
+          <dt>写范围</dt><dd><code>packages/mcp/mcp</code></dd>
+          <dt>交付</dt><dd><ul>
+            <li>聚合：<code>Connection</code>（两种代际策略）、<code>InFlightCalls</code></li>
+            <li>关口 <code>admit</code>，能力令牌 <code>AdmittedEndpoint</code></li>
+            <li>内存 <code>CatalogStore</code>，通过它的符合性套件</li>
+            <li><code>Connections</code>：<code>ensure</code>、<code>release</code>、<code>closeAll</code>，采用修订变化时换连接</li>
+            <li><code>ActionDiscovery</code>：<code>current</code>、<code>refresh</code>（含发布边界核对）、<code>peer</code></li>
+            <li><code>EndpointStatus</code></li>
+          </ul></dd>
+          <dt>验收</dt><dd>用脚本化的替身传输与替身工厂测；并发 <code>refresh</code> 的竞争用例；连接键隔离按 L3 逐行读；差分变异</dd>
+        </dl>
+      </div>
+      <div class="closure rd">
+        <h4>w2-spike（reduce，tmp）</h4>
+        <dl>
+          <dt>做什么</dt><dd>在任务 tmp 里用官方 client 2.3.1 与 server 2.3.1 写最小往返：协商、<code>tools/list</code>、<code>tools/call</code>、多轮输入、任务，以及 stdio 走外部给的管道。</dd>
+          <dt>为什么</dt><dd>确认 SDK 能套进 <code>McpTransport</code> 与 <code>McpTransportFactory</code>。不合的地方带事实回设计，W3 之前改契约（只做可加改动）。</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="exit"><strong>出口</strong>Skill 首条旅程用 <code>DirectorySource</code> 加内存的对应与读取权替身跑通；MCP 的 <code>refresh</code> 在替身传输上整份发布清单，迟到结果不覆盖较新的采用；SDK 适配结论写进 W3 规格。</div>
+  </div>
+</section>
+
+<section>
+  <h2>W3 调用、传输与目录 <span class="grain">中粒度 · 3 个闭包</span></h2>
+  <div class="wave">
+    <div class="closures">
+      <div class="closure mc"><h4>w3-mcp-call</h4><dl><dt>成果</dt><dd><code>ActionInvoker</code>：<code>invoke</code>、<code>continueWithInput</code>、<code>cancel</code>、三个任务操作；方式与 <code>taskSupport</code> 核对；截止转本地放弃；换代后的处理按传输区分。并发发布与取消有行为模型和关键性质检查。</dd><dt>边界</dt><dd>不自动重发；只用替身传输</dd></dl></div>
+      <div class="closure mc"><h4>w3-mcp-host</h4><dl><dt>成果</dt><dd>两种传输的 <code>McpTransportFactory</code>：Streamable HTTP（现代对端，旧对端回退）与 stdio（走 <code>ProcessHandle</code>）；授权发现；本地真实服务端夹具；两种传输共用同一份契约测试。</dd><dt>边界</dt><dd>官方 SDK 只在本成员；进程落点用测试替身；L3</dd></dl></div>
+      <div class="closure sk"><h4>w3-skill-catalog</h4><dl><dt>成果</dt><dd><code>SkillCatalog</code> 的 <code>summaries</code> 与 <code>search</code>；<code>SkillAccess.export</code>，逐条核对，不交部分包。</dd><dt>边界</dt><dd>不排序、不按常驻筛选、不求可用性</dd></dl></div>
+    </div>
+    <div class="exit"><strong>出口</strong>本地真实 MCP 服务端上端到端：协商 → 刷新 → 调用（完成、动作错误、多轮输入、任务）→ 取消，两种传输读数一致；Skill 摘要、检索与导出可用。reduce 先把 SDK 加进 catalog 与锁文件。</div>
+  </div>
+</section>
+
+<section>
+  <h2>W4 Cordis 服务键与加固 <span class="grain">粗粒度 · 只定成果与边界</span></h2>
+  <div class="wave">
+    <ul class="plain">
+      <li><strong>预期成果：</strong>建 <code>skill-cordis-contract</code> 与 <code>mcp-cordis-contract</code>（服务键与抽象 Service），两个 host-local 的 Cordis 插件部分；五个草稿成员贴采用标识；按风险补 profiling（分页读取、清单刷新）；收齐组页剩余的「归 SPEC」项，请你做候选决定的技术接受。</li>
+      <li><strong>候选：</strong>在 <code>sql-contract</code> 上做耐久的 <code>CatalogStore</code>。只在它不需要跨领域决定时进本波，否则移到 M2 之后。</li>
+      <li><strong>目标边界：</strong>插件不进应用插件树；不接任何真实提供者。</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>M2 完结之后 <span class="grain">粗粒度 · 集成联调</span></h2>
+  <div class="wave">
+    <ul class="plain">
+      <li><strong>预期成果：</strong>两组的需求端口接上真实提供者，并用本组的符合性套件验收提供者；Cordis 插件进应用插件树；与消费者联调：工具一侧从 MCP 已知动作派生工具，会话与 Agent 一侧读取 Skill（#322 Skill 内容读取）；联合验收与端到端。</li>
+      <li><strong>依赖的外部决定：</strong>assets 扩展 <code>deriveDeclarations</code> 的上下文，以派生逐动作权限项；内容存储来源接对象存储契约。</li>
+      <li><strong>目标边界：</strong>本领域仍只交付自己一侧的契约、实现与符合性设施。集成的排程随 M3 规划。</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>风险与对策</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>风险</th><th>影响</th><th>对策</th></tr></thead>
+    <tbody>
+      <tr><td>官方 SDK 2.3.1 与 <code>McpTransport</code> 的形状不合</td><td>W3 返工契约</td><td>W2 的 reduce 探路先摸清；契约只做可加调整</td></tr>
+      <tr><td><code>mcp</code> 类别名与资产类别注册</td><td>类别端口登记不上</td><td>W1 在 SPEC 写明类别名，按 assets 的注册表规则登记；需要 assets 改动时列为 M2 之后的外部决定</td></tr>
+      <tr><td>root 容器与基线既有失败</td><td>波末 admission 不能全绿</td><td>报告分开列「本波引入」与「基线既有」，每次在基线上复跑确认</td></tr>
+      <tr><td>集成轨道持续前进</td><td>M2 之后合入时冲突</td><td>每波开波先合并 <code>integration/mainline</code></td></tr>
+      <tr><td>契约在后续波段需要破坏性改动</td><td>已合入的实现要跟改</td><td>reduce 裁定后同波迁移并删除旧入口</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+</div>

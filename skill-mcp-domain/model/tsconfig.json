@@ -1,0 +1,13 @@
+{
+  "extends": "../../../node_modules/@omne-harness/repo-config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "types": ["node"],
+    "typeRoots": ["../../../packages/skills/skill-contract/node_modules/@types"]
+  },
+  "include": ["shared.ts", "skill/**/*.ts", "mcp/**/*.ts", "checks/**/*.ts"]
+}

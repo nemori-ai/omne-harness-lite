@@ -1,0 +1,165 @@
+[
+  {
+    "dir": "packages/skills/skill",
+    "name": "@omne-harness/skill",
+    "description": "General Skill implementation: the PackageInspection, SkillCatalog, and SkillAccess application services",
+    "deps": [],
+    "files": [
+      {
+        "file": "src/index.ts",
+        "decls": [],
+        "imports": [],
+        "reexports": [
+          {
+            "names": []
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 2
+      }
+    ],
+    "testFiles": 1,
+    "testCases": 1,
+    "draft": [
+      "README.md",
+      "README_ZH.md",
+      "src/index.ts"
+    ],
+    "entries": [
+      {
+        "sub": ".",
+        "names": []
+      }
+    ],
+    "modEdges": [],
+    "pkgEdges": []
+  },
+  {
+    "dir": "packages/skills/skill-contract",
+    "name": "@omne-harness/skill-contract",
+    "description": "Skill body port for the accepted asset category contract",
+    "deps": [
+      "@omne-harness/assets",
+      "@omne-harness/json-text",
+      "@omne-harness/legal-identity",
+      "@omne-harness/operation-result",
+      "yaml"
+    ],
+    "files": [
+      {
+        "file": "src/contract.ts",
+        "decls": [
+          {
+            "name": "skillBodyContract",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "BodyContract"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/assets"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "skillBodyContract",
+          "lines": 24
+        },
+        "lines": 92
+      },
+      {
+        "file": "src/index.ts",
+        "decls": [],
+        "imports": [
+          "./contract.ts"
+        ],
+        "reexports": [
+          {
+            "from": "./contract.ts",
+            "names": [
+              "skillBodyContract"
+            ]
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 1
+      }
+    ],
+    "testFiles": 2,
+    "testCases": 6,
+    "draft": [],
+    "entries": [
+      {
+        "sub": ".",
+        "names": [
+          {
+            "name": "skillBodyContract",
+            "kind": "function"
+          }
+        ]
+      }
+    ],
+    "modEdges": [
+      [
+        "src/index.ts",
+        "src/contract.ts"
+      ]
+    ],
+    "pkgEdges": [
+      "@omne-harness/assets"
+    ]
+  },
+  {
+    "dir": "packages/skills/skill-host-local",
+    "name": "@omne-harness/skill-host-local",
+    "description": "Local Skill host: the DirectorySource local directory source",
+    "deps": [],
+    "files": [
+      {
+        "file": "src/index.ts",
+        "decls": [],
+        "imports": [],
+        "reexports": [
+          {
+            "names": []
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 2
+      }
+    ],
+    "testFiles": 1,
+    "testCases": 1,
+    "draft": [
+      "README.md",
+      "README_ZH.md",
+      "src/index.ts"
+    ],
+    "entries": [
+      {
+        "sub": ".",
+        "names": []
+      }
+    ],
+    "modEdges": [],
+    "pkgEdges": []
+  }
+]

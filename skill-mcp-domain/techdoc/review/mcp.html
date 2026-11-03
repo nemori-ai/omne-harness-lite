@@ -1,0 +1,4 @@
+<h3>W0 基线（2026-11-03，父分支 21175c9f9）</h3>
+<p><strong>现状。</strong>三个成员 <code>@omne-harness/mcp-contract</code>、<code>@omne-harness/mcp</code>、<code>@omne-harness/mcp-host-local</code> 都是模板草稿，只有占位入口，还没有业务代码。</p>
+<p><strong>健康。</strong>没有可评价的实现。<code>mcp-contract</code> 已声明 <code>assets</code> 与四个公共值成员（W1 准备），尚未被源码导入。</p>
+<p><strong>W1 之后应当看到。</strong>契约成员不依赖任何 MCP SDK；对端自报内容在类图里都经 <code>Untrusted</code>；「未发出」与「已发出」的结局是两个不同的类型；清单记录是不可变值，<code>mergeListing</code> 只接受 <code>CompleteListing</code>；需求端口与组内传输端口只出现在 <code>./provider</code>。</p>

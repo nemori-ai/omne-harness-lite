@@ -1,0 +1,163 @@
+{
+  "updatedAt": "2026-11-03T14:05:00Z",
+  "head": "21175c9f9",
+  "links": [
+    {
+      "text": "波段计划",
+      "url": "https://claude.ai/artifact/NHNDS7CYaGfrdQKbch4ELh"
+    },
+    {
+      "text": "Skill 技术文档",
+      "url": "https://claude.ai/artifact/LvtCUyWWFaYNouuivz9SEz"
+    },
+    {
+      "text": "MCP 技术文档",
+      "url": "https://claude.ai/artifact/9iau1NsiUgo8mG4mYBtqo3"
+    }
+  ],
+  "decisions": [
+    {
+      "question": "W1 的开工前准备已就绪，是否开工派发？",
+      "context": "范式、波包、两条线的 spec 与 plan、两份闭包规格（brief-check 通过）、两个闭包工作树都已备好。回「开工」即派发。",
+      "status": "open"
+    }
+  ],
+  "waves": [
+    {
+      "id": "W1",
+      "title": "契约地基",
+      "state": "准备中",
+      "closures": [
+        {
+          "id": "w1-skill-contract",
+          "line": "Skill",
+          "state": "待派",
+          "round": 1,
+          "note": "skill-contract：值、失败、纯函数、./provider、./testing、SPEC"
+        },
+        {
+          "id": "w1-mcp-contract",
+          "line": "MCP",
+          "state": "待派",
+          "round": 1,
+          "note": "mcp-contract：值、结局、清单、端口、套件、SPEC"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "SC1",
+          "text": "三个入口与导出键集合；公开根不导入 ./testing",
+          "state": "open"
+        },
+        {
+          "id": "SC2",
+          "text": "每个拒绝原因有包样本；按次序给第一个原因",
+          "state": "open"
+        },
+        {
+          "id": "SC3",
+          "text": "纯函数边界穷举",
+          "state": "open"
+        },
+        {
+          "id": "SC4",
+          "text": "sealSnapshot 拒绝重复与前缀冲突；摘要与次序、包根名无关",
+          "state": "open"
+        },
+        {
+          "id": "SC5",
+          "text": "三个端口套件全绿；违反无披露的替身使套件变红",
+          "state": "open"
+        },
+        {
+          "id": "SC6",
+          "text": "skillBodyContract 可加扩展；旧测试原样通过；设置声明项",
+          "state": "open"
+        },
+        {
+          "id": "SC7",
+          "text": "迁到 3.0.0 完整骨架",
+          "state": "open"
+        },
+        {
+          "id": "SC8",
+          "text": "SPEC 封闭全部未定项；声明 schema",
+          "state": "open"
+        },
+        {
+          "id": "MC1",
+          "text": "三个入口；不依赖 MCP SDK",
+          "state": "open"
+        },
+        {
+          "id": "MC2",
+          "text": "接入点正文拒绝原因；本机命令判定；设置声明项",
+          "state": "open"
+        },
+        {
+          "id": "MC3",
+          "text": "completeListing 与 mergeListing 性质测试",
+          "state": "open"
+        },
+        {
+          "id": "MC4",
+          "text": "classifyOutcome 穷举六种结局",
+          "state": "open"
+        },
+        {
+          "id": "MC5",
+          "text": "toContentBlocks 不丢内容",
+          "state": "open"
+        },
+        {
+          "id": "MC6",
+          "text": "五个端口套件全绿；违反无披露的替身使套件变红",
+          "state": "open"
+        },
+        {
+          "id": "MC7",
+          "text": "结构扫描无缺项",
+          "state": "open"
+        },
+        {
+          "id": "MC8",
+          "text": "SPEC 封闭全部未定项；接入点正文 schema",
+          "state": "open"
+        }
+      ]
+    },
+    {
+      "id": "W2",
+      "title": "通用实现与本地来源",
+      "state": "预案"
+    },
+    {
+      "id": "W3",
+      "title": "调用、传输与目录",
+      "state": "预案"
+    },
+    {
+      "id": "W4",
+      "title": "Cordis 服务键与加固",
+      "state": "预案"
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-11-03T13:20:00Z",
+      "text": "w1-prep：两个契约成员声明公共依赖，锁文件只动 importers（d0001e1cf）"
+    },
+    {
+      "at": "2026-11-03T13:35:00Z",
+      "text": "w1-prep：skill-contract 声明 yaml 2.9.1（21175c9f9），F 定为该提交"
+    },
+    {
+      "at": "2026-11-03T13:55:00Z",
+      "text": "两份闭包规格 brief-check 通过；两个闭包工作树已备好"
+    },
+    {
+      "at": "2026-11-03T14:05:00Z",
+      "text": "Skill、MCP 源码技术文档 W0 基线发布"
+    }
+  ]
+}

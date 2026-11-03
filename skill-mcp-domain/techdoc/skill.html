@@ -1,0 +1,94 @@
+<title>Skill 实现技术文档</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* 布局：读数在上，成员依赖图居中，各成员按入口、类图、模块图、健康读数展开，评述在末尾 */
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1b2330;--muted:#5d6878;--line:#d9dee6;--accent:#2f6f5e;--warn:#9a6b00;--bad:#b23a2e;--good:#2f7a3d;
+--display:"Noto Serif SC",serif;--body:"Noto Sans SC",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#13171d;--card:#1b2129;--ink:#e2e7ee;--muted:#9aa5b4;--line:#2d3540;--accent:#7cc4ad;--warn:#e0b44c;--bad:#ef8a7e;--good:#7fcf8c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#13171d;--card:#1b2129;--ink:#e2e7ee;--muted:#9aa5b4;--line:#2d3540;--accent:#7cc4ad;--warn:#e0b44c;--bad:#ef8a7e;--good:#7fcf8c;color-scheme:dark}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--ink);font:15px/1.7 var(--body);margin:0}
+.wrap{max-width:1120px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance}h1{font-size:1.9rem}h2{font-size:1.35rem;border-bottom:2px solid var(--accent);padding-bottom:4px}
+h3{margin:0;font-size:1.05rem}h4{margin:14px 0 6px;font-size:.92rem;color:var(--muted);letter-spacing:.04em}
+code{font-family:var(--mono);font-size:.82em;overflow-wrap:anywhere}.muted{color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column}
+.tile .v{font:600 1.5rem var(--mono);font-variant-numeric:tabular-nums}.tile .l{font-size:.8rem;color:var(--muted)}.tile .n{font-size:.75rem;color:var(--muted)}
+.member{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;padding:16px 18px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.pill{font:500 .72rem var(--body);padding:1px 8px;border-radius:999px;vertical-align:middle;margin-left:6px}.pill.draft{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}.pill.real{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
+.tbl,.diagram{overflow-x:auto}.diagram{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px}
+table{border-collapse:collapse;width:100%;font-size:.85rem}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{background:color-mix(in srgb,var(--line) 40%,transparent)}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}td.warn{color:var(--warn);font-weight:600}td.bad{color:var(--bad);font-weight:600}
+details{margin:6px 0}summary{cursor:pointer;color:var(--muted);font-size:.85rem}
+.review{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px}.review h3{margin-top:8px}.review p,.review li{max-width:72ch}
+</style>
+<div class="wrap">
+<header><span class="muted">由 <code>techdoc/gen.mjs</code> 从实际源码生成 · 父分支 <code>PanQiWei/skill-mcp</code> @ <code>21175c9f9</code> · 2026-11-03T13:42:57Z</span>
+<h1>Skill 实现技术文档</h1>
+<p class="muted">事实只取自 <code>packages/skills/*</code> 的 package.json、src 与 tests。设计正文不是本页的事实来源；与设计的偏离写在末尾「健康评述」。</p></header>
+<section><h2>读数</h2><div class="tiles">
+<div class="tile"><span class="v">3</span><span class="l">成员</span><span class="n">草稿 2</span></div><div class="tile"><span class="v">4</span><span class="l">源文件</span></div><div class="tile"><span class="v">97</span><span class="l">非空源码行</span></div><div class="tile"><span class="v">1</span><span class="l">入口导出</span></div><div class="tile"><span class="v">8</span><span class="l">测试用例</span></div><div class="tile"><span class="v">0</span><span class="l">as 断言</span><span class="n">不含 as const</span></div><div class="tile"><span class="v">0</span><span class="l">any</span></div>
+</div></section>
+<section><h2>成员依赖</h2><p class="muted">实线框是本组成员，虚线框是组外依赖（来自 package.json 与 import）。</p><div class="diagram"><pre class="mermaid">
+flowchart TD
+  _omne_harness_skill["@omne-harness/skill"]:::own
+  _omne_harness_skill_contract["@omne-harness/skill-contract"]:::own
+  _omne_harness_skill_host_local["@omne-harness/skill-host-local"]:::own
+  _omne_harness_skill_contract --&gt; _omne_harness_assets
+  _omne_harness_skill_contract --&gt; _omne_harness_json_text
+  _omne_harness_skill_contract --&gt; _omne_harness_legal_identity
+  _omne_harness_skill_contract --&gt; _omne_harness_operation_result
+  _omne_harness_skill_contract --&gt; yaml
+  _omne_harness_assets["@omne-harness/assets"]:::ext
+  _omne_harness_json_text["@omne-harness/json-text"]:::ext
+  _omne_harness_legal_identity["@omne-harness/legal-identity"]:::ext
+  _omne_harness_operation_result["@omne-harness/operation-result"]:::ext
+  yaml["yaml"]:::ext
+  classDef own stroke-width:2px
+  classDef ext stroke-dasharray: 4 3
+</pre></div></section>
+<section><h2>各成员</h2><section class="member" id="skill">
+  <h3><code>@omne-harness/skill</code> <span class="pill draft">模板草稿</span></h3>
+  <p class="muted">General Skill implementation: the PackageInspection, SkillCatalog, and SkillAccess application services · <code>packages/skills/skill</code> · 源文件 1 · 测试文件 1 · 用例 1</p>
+  <h4>入口与导出</h4><div class="tbl"><table><thead><tr><th>入口</th><th>导出（悬停看种类）</th></tr></thead><tbody><tr><td><code>.</code></td><td><span class="muted">无导出</span></td></tr></tbody></table></div>
+  <p class="muted">没有导出的接口、类、记录或判别联合。</p>
+  
+  
+  
+  <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/index.ts</code></td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
+  <p class="muted">草稿标记：<code>README.md</code> <code>README_ZH.md</code> <code>src/index.ts</code></p>
+</section>
+<section class="member" id="skill-contract">
+  <h3><code>@omne-harness/skill-contract</code> <span class="pill real">有实现</span></h3>
+  <p class="muted">Skill body port for the accepted asset category contract · <code>packages/skills/skill-contract</code> · 源文件 2 · 测试文件 2 · 用例 6</p>
+  <h4>入口与导出</h4><div class="tbl"><table><thead><tr><th>入口</th><th>导出（悬停看种类）</th></tr></thead><tbody><tr><td><code>.</code></td><td><code title="function">skillBodyContract</code></td></tr></tbody></table></div>
+  <p class="muted">没有导出的接口、类、记录或判别联合。</p>
+  
+  <h4>导出的函数与常量</h4><p><code title="src/contract.ts">skillBodyContract</code></p>
+  <h4>模块依赖</h4><div class="diagram"><pre class="mermaid">
+flowchart LR
+  src_contract_ts["src/contract.ts"]
+  src_index_ts["src/index.ts"]
+  src_index_ts --&gt; src_contract_ts
+</pre></div>
+  <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/contract.ts</code></td><td class="num">92</td><td class="num">1</td><td class="num">24 <span class="muted">skillBodyContract</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/index.ts</code></td><td class="num">1</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
+  
+</section>
+<section class="member" id="skill-host-local">
+  <h3><code>@omne-harness/skill-host-local</code> <span class="pill draft">模板草稿</span></h3>
+  <p class="muted">Local Skill host: the DirectorySource local directory source · <code>packages/skills/skill-host-local</code> · 源文件 1 · 测试文件 1 · 用例 1</p>
+  <h4>入口与导出</h4><div class="tbl"><table><thead><tr><th>入口</th><th>导出（悬停看种类）</th></tr></thead><tbody><tr><td><code>.</code></td><td><span class="muted">无导出</span></td></tr></tbody></table></div>
+  <p class="muted">没有导出的接口、类、记录或判别联合。</p>
+  
+  
+  
+  <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/index.ts</code></td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
+  <p class="muted">草稿标记：<code>README.md</code> <code>README_ZH.md</code> <code>src/index.ts</code></p>
+</section></section>
+<section><h2>健康评述</h2><div class="review"><h3>W0 基线（2026-11-03，父分支 21175c9f9）</h3>
+<p><strong>现状。</strong>只有 <code>@omne-harness/skill-contract</code> 有实现：一个文件 <code>src/contract.ts</code>（92 个非空行），导出 <code>skillBodyContract</code>，6 条测试。它还是旧的必选文件形状，没有迁到 3.0.0 完整骨架。<code>@omne-harness/skill</code> 与 <code>@omne-harness/skill-host-local</code> 是模板草稿，只有占位入口。</p>
+<p><strong>健康。</strong>没有 <code>as</code> 断言，没有 <code>any</code>，最长函数 24 行（<code>skillBodyContract</code>）。依赖方向干净：契约成员只依赖 <code>assets</code>、四个公共值成员与 <code>yaml</code>（后几个由 W1 准备声明，尚未被源码导入）。</p>
+<p><strong>W1 之后应当看到。</strong>契约成员分成三个入口；值、失败、端口、服务接口各在自己的模块里，单文件不超过约 300 行；品牌只由校验函数授予，<code>as</code> 只出现在校验之后；类图里 <code>SkillRef</code> 只出现在 <code>./provider</code>，公开根的类型不引用它。</p>
+</div></section>
+</div>

@@ -1,0 +1,4166 @@
+[
+  {
+    "dir": "tmp/probe/mcpx",
+    "name": "mcpx",
+    "description": "",
+    "deps": [],
+    "files": [
+      {
+        "file": "src/catalog.ts",
+        "decls": [
+          {
+            "name": "UnavailableReason",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "no-longer-offered",
+              "connection-unavailable",
+              "authorization-required",
+              "credential-unavailable",
+              "landing-unavailable"
+            ],
+            "refs": []
+          },
+          {
+            "name": "KnownAction",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ActionName"
+                ]
+              },
+              {
+                "refs": [
+                  "ActionDefinition"
+                ]
+              },
+              {
+                "refs": [
+                  "DefinitionDigest"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "UnavailableReason"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ActionName",
+              "ActionDefinition",
+              "DefinitionDigest",
+              "Readonly",
+              "UnavailableReason"
+            ]
+          },
+          {
+            "name": "AdoptionBasis",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "ProtocolVersion"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Generation",
+              "ProtocolVersion"
+            ]
+          },
+          {
+            "name": "Freshness",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "ActionCatalogRecord",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CatalogRevision"
+                ]
+              },
+              {
+                "refs": [
+                  "AdoptionBasis"
+                ]
+              },
+              {
+                "refs": [
+                  "Freshness"
+                ]
+              },
+              {
+                "refs": [
+                  "ReadonlyMap",
+                  "ActionName",
+                  "KnownAction"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CatalogRevision",
+              "AdoptionBasis",
+              "Freshness",
+              "ReadonlyMap",
+              "ActionName",
+              "KnownAction"
+            ]
+          },
+          {
+            "name": "CatalogState",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "not-acquired",
+              "acquired"
+            ],
+            "refs": [
+              "Readonly",
+              "ActionCatalogRecord"
+            ]
+          },
+          {
+            "name": "CompleteListing",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Readonly",
+              "ActionDefinition",
+              "DefinitionDigest",
+              "AdoptionBasis",
+              "Freshness"
+            ]
+          },
+          {
+            "name": "ListingDefect",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "duplicate-action-name",
+              "page-failed"
+            ],
+            "refs": []
+          },
+          {
+            "name": "completeListing",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "ActionDefinition",
+              "DefinitionDigest",
+              "AdoptionBasis",
+              "Freshness",
+              "Outcome",
+              "CompleteListing",
+              "ListingDefect",
+              "const"
+            ]
+          },
+          {
+            "name": "MergeRefusal",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "mergeListing",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CatalogState",
+              "CompleteListing",
+              "Readonly",
+              "CatalogRevision",
+              "Outcome",
+              "ActionCatalogRecord",
+              "MergeRefusal",
+              "ActionName",
+              "KnownAction"
+            ]
+          },
+          {
+            "name": "markUnavailable",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ActionCatalogRecord",
+              "Exclude",
+              "UnavailableReason",
+              "ActionName",
+              "KnownAction",
+              "CatalogRevision"
+            ]
+          },
+          {
+            "name": "actionPermissionItems",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CatalogState"
+            ]
+          }
+        ],
+        "imports": [
+          "../shared.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 2,
+        "anyCount": 0,
+        "longest": {
+          "name": "mergeListing",
+          "lines": 15
+        },
+        "lines": 110
+      },
+      {
+        "file": "src/connection.ts",
+        "decls": [
+          {
+            "name": "GenerationPolicy",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "on-attempt",
+              "on-negotiation"
+            ],
+            "refs": []
+          },
+          {
+            "name": "LostReason",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "prepare-failed",
+              "process-exited",
+              "pipe-broken",
+              "no-common-version",
+              "authorization-required",
+              "negotiation-invalidated",
+              "session-terminated"
+            ],
+            "refs": []
+          },
+          {
+            "name": "ConnectionState",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "preparing",
+              "ready",
+              "degraded",
+              "lost",
+              "closed"
+            ],
+            "refs": [
+              "Readonly",
+              "PeerIdentity",
+              "LostReason",
+              "StopScope"
+            ]
+          },
+          {
+            "name": "IllegalTransition",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "ConnectionState"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ConnectionState"
+            ]
+          },
+          {
+            "name": "Connection",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": [
+                  "ConnectionKey",
+                  "GenerationPolicy",
+                  "Connection"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionKey"
+                ]
+              },
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionState"
+                ]
+              },
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "PeerIdentity",
+                  "Outcome",
+                  "Generation",
+                  "IllegalTransition"
+                ]
+              },
+              {
+                "refs": [
+                  "Outcome",
+                  "IllegalTransition"
+                ]
+              },
+              {
+                "refs": [
+                  "Outcome",
+                  "IllegalTransition"
+                ]
+              },
+              {
+                "refs": [
+                  "LostReason",
+                  "Outcome",
+                  "IllegalTransition"
+                ]
+              },
+              {
+                "refs": [
+                  "Outcome",
+                  "IllegalTransition"
+                ]
+              },
+              {
+                "refs": [
+                  "StopScope",
+                  "Outcome",
+                  "IllegalTransition"
+                ]
+              }
+            ],
+            "refs": [
+              "ConnectionKey",
+              "GenerationPolicy",
+              "Generation",
+              "ConnectionState",
+              "Connection",
+              "PeerIdentity",
+              "Outcome",
+              "IllegalTransition",
+              "LostReason",
+              "StopScope"
+            ],
+            "implements": []
+          }
+        ],
+        "imports": [
+          "../shared.ts",
+          "./ports.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 2,
+        "anyCount": 0,
+        "longest": {
+          "name": "markLost",
+          "lines": 14
+        },
+        "lines": 115
+      },
+      {
+        "file": "src/functions.ts",
+        "decls": [
+          {
+            "name": "EndpointBodyRejection",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "malformed",
+              "transport-unknown",
+              "auth-unknown",
+              "name-mismatch"
+            ],
+            "refs": []
+          },
+          {
+            "name": "parseEndpointBody",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Outcome",
+              "EndpointDefinition",
+              "EndpointBodyRejection"
+            ]
+          },
+          {
+            "name": "digestDefinition",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ActionDefinition",
+              "DefinitionDigest"
+            ]
+          },
+          {
+            "name": "toContentBlocks",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "DeliveredContent"
+            ]
+          },
+          {
+            "name": "classifyOutcome",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "CallOutcome"
+            ]
+          },
+          {
+            "name": "peerAccountOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "AuthKind",
+              "CredentialBinding",
+              "Outcome",
+              "PeerAccount"
+            ]
+          },
+          {
+            "name": "catalogKeyOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TenantId",
+              "AdoptedEndpoint",
+              "PeerAccount",
+              "CatalogKey"
+            ]
+          },
+          {
+            "name": "connectionKeyOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TenantId",
+              "AdoptedEndpoint",
+              "PeerAccount",
+              "ConnectionKey"
+            ]
+          },
+          {
+            "name": "launchesLocalCommand",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "EndpointDefinition"
+            ]
+          }
+        ],
+        "imports": [
+          "../shared.ts",
+          "./outcomes.ts",
+          "./ports.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "peerAccountOf",
+          "lines": 5
+        },
+        "lines": 37
+      },
+      {
+        "file": "src/gate.ts",
+        "decls": [
+          {
+            "name": "AdmittedEndpoint",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "AdoptedEndpoint"
+            ]
+          },
+          {
+            "name": "admit",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "AdoptionView",
+              "P",
+              "S",
+              "UseEligibility",
+              "Access",
+              "EndpointRef",
+              "Promise",
+              "Outcome",
+              "AdmittedEndpoint",
+              "Refusal"
+            ]
+          }
+        ],
+        "imports": [
+          "../shared.ts",
+          "./outcomes.ts",
+          "./ports.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 1,
+        "anyCount": 0,
+        "longest": {
+          "name": "admit",
+          "lines": 17
+        },
+        "lines": 31
+      },
+      {
+        "file": "src/in-flight.ts",
+        "decls": [
+          {
+            "name": "CancelAnswer",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "signalled",
+              "no-call-in-flight",
+              "unknown"
+            ],
+            "refs": []
+          },
+          {
+            "name": "InFlightCalls",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": [
+                  "TenantId",
+                  "P",
+                  "CorrelationKey",
+                  "Outcome"
+                ]
+              },
+              {
+                "refs": [
+                  "TenantId",
+                  "P",
+                  "CorrelationKey"
+                ]
+              },
+              {
+                "refs": [
+                  "TenantId",
+                  "P",
+                  "CorrelationKey",
+                  "Omit",
+                  "Extract",
+                  "Entry",
+                  "Outcome"
+                ]
+              },
+              {
+                "refs": [
+                  "TenantId",
+                  "P",
+                  "CorrelationKey"
+                ]
+              },
+              {
+                "refs": [
+                  "TenantId",
+                  "P",
+                  "CorrelationKey",
+                  "Generation",
+                  "Readonly",
+                  "CancelAnswer"
+                ]
+              }
+            ],
+            "refs": [
+              "Entry",
+              "P",
+              "TenantId",
+              "Readonly",
+              "CorrelationKey",
+              "Outcome",
+              "Omit",
+              "Extract",
+              "Generation",
+              "CancelAnswer"
+            ],
+            "implements": []
+          }
+        ],
+        "imports": [
+          "../shared.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "cancel",
+          "lines": 12
+        },
+        "lines": 76
+      },
+      {
+        "file": "src/outcomes.ts",
+        "decls": [
+          {
+            "name": "DeliveredContent",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "block",
+              "protocol"
+            ],
+            "refs": [
+              "Readonly",
+              "ContentBlock",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "OutputCheck",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "conforms",
+              "violates",
+              "no-schema"
+            ],
+            "refs": [
+              "Readonly"
+            ]
+          },
+          {
+            "name": "CallOutcome",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "complete",
+              "toolError",
+              "inputRequired",
+              "task",
+              "protocolError",
+              "unknown"
+            ],
+            "refs": [
+              "Readonly",
+              "DeliveredContent",
+              "JsonValue",
+              "OutputCheck",
+              "RequestState",
+              "Generation",
+              "TaskId"
+            ]
+          },
+          {
+            "name": "TaskStatus",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "working",
+              "input_required",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "refs": []
+          },
+          {
+            "name": "Refusal",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "not-available-to-you",
+              "blocked",
+              "unknown"
+            ],
+            "refs": [
+              "Readonly",
+              "BlockedReason"
+            ]
+          },
+          {
+            "name": "NotSentReason",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "Refusal",
+              "correlation-key-in-use",
+              "cancelled",
+              "definition-changed",
+              "action-unavailable",
+              "mode-unsupported",
+              "credential-unavailable",
+              "authorization-required",
+              "landing-unavailable",
+              "connection-unavailable",
+              "config-missing"
+            ],
+            "refs": [
+              "Refusal",
+              "Readonly",
+              "AuthorizationDiscovery"
+            ]
+          },
+          {
+            "name": "InvokeResult",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "not-sent",
+              "sent"
+            ],
+            "refs": [
+              "Readonly",
+              "NotSentReason",
+              "CallOutcome"
+            ]
+          }
+        ],
+        "imports": [
+          "../shared.ts",
+          "./ports.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 41
+      },
+      {
+        "file": "src/ports.ts",
+        "decls": [
+          {
+            "name": "AdoptedEndpoint",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "AdoptionRevision"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointSettings"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Record"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointRef",
+              "AdoptionRevision",
+              "JsonValue",
+              "EndpointSettings",
+              "Readonly",
+              "Record"
+            ]
+          },
+          {
+            "name": "AdoptionView",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "Promise",
+                  "Outcome",
+                  "AdoptedEndpoint"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointRef",
+                  "Promise",
+                  "Outcome",
+                  "AdoptedEndpoint"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "S",
+              "Promise",
+              "Outcome",
+              "AdoptedEndpoint",
+              "EndpointRef"
+            ],
+            "extends": []
+          },
+          {
+            "name": "BlockedReason",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "local-command-not-enabled",
+              "disabled"
+            ],
+            "refs": []
+          },
+          {
+            "name": "EligibilityVerdict",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "granted",
+              "refused",
+              "refused",
+              "unknown"
+            ],
+            "refs": [
+              "Readonly",
+              "BlockedReason"
+            ]
+          },
+          {
+            "name": "UseEligibility",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointRef",
+                  "Promise",
+                  "EligibilityVerdict"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "EndpointRef",
+              "Promise",
+              "EligibilityVerdict"
+            ],
+            "extends": []
+          },
+          {
+            "name": "CredentialPurpose",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "process-env",
+              "http-authorization"
+            ],
+            "refs": [
+              "Readonly",
+              "ConnectionTarget"
+            ]
+          },
+          {
+            "name": "CredentialHandle",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Readonly",
+                  "Headers",
+                  "Promise",
+                  "Outcome"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              }
+            ],
+            "refs": [
+              "Readonly",
+              "Headers",
+              "Promise",
+              "Outcome"
+            ],
+            "extends": []
+          },
+          {
+            "name": "CredentialUse",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointHolding",
+                  "CredentialPurpose",
+                  "CredentialBinding",
+                  "Promise",
+                  "Outcome",
+                  "CredentialHandle"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "EndpointHolding",
+              "CredentialPurpose",
+              "CredentialBinding",
+              "Promise",
+              "Outcome",
+              "CredentialHandle"
+            ],
+            "extends": []
+          },
+          {
+            "name": "StopScope",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "tree-confirmed",
+              "root-only",
+              "unconfirmed"
+            ],
+            "refs": []
+          },
+          {
+            "name": "ProcessHandle",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "WritableStream",
+                  "Uint8Array"
+                ]
+              },
+              {
+                "refs": [
+                  "ReadableStream",
+                  "Uint8Array"
+                ]
+              },
+              {
+                "refs": [
+                  "ReadableStream"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "StopScope"
+                ]
+              }
+            ],
+            "refs": [
+              "WritableStream",
+              "Uint8Array",
+              "ReadableStream",
+              "Promise",
+              "StopScope"
+            ],
+            "extends": []
+          },
+          {
+            "name": "ProcessLanding",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "StdioLaunch",
+                  "Readonly",
+                  "Record",
+                  "CredentialHandle",
+                  "Promise",
+                  "Outcome",
+                  "ProcessHandle"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "StdioLaunch",
+              "Readonly",
+              "Record",
+              "CredentialHandle",
+              "Promise",
+              "Outcome",
+              "ProcessHandle"
+            ],
+            "extends": []
+          },
+          {
+            "name": "ExpectedRevision",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "CatalogRevision",
+              "absent"
+            ],
+            "refs": [
+              "CatalogRevision"
+            ]
+          },
+          {
+            "name": "CatalogStore",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "CatalogKey",
+                  "Promise",
+                  "Outcome",
+                  "ActionCatalogRecord"
+                ]
+              },
+              {
+                "refs": [
+                  "CatalogKey",
+                  "ActionCatalogRecord",
+                  "ExpectedRevision",
+                  "Promise",
+                  "Outcome"
+                ]
+              }
+            ],
+            "refs": [
+              "CatalogKey",
+              "Promise",
+              "Outcome",
+              "ActionCatalogRecord",
+              "ExpectedRevision"
+            ],
+            "extends": []
+          },
+          {
+            "name": "TransportFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "not-sent",
+              "no-answer"
+            ],
+            "refs": [
+              "Readonly",
+              "AuthorizationDiscovery"
+            ]
+          },
+          {
+            "name": "AuthorizationDiscovery",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "ListingPage",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ActionDefinition"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ActionDefinition"
+            ]
+          },
+          {
+            "name": "CallRequest",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ActionName"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "RequestState",
+                  "JsonValue"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ActionName",
+              "JsonValue",
+              "Readonly",
+              "RequestState"
+            ]
+          },
+          {
+            "name": "McpTransport",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "Outcome",
+                  "PeerIdentity",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "Outcome",
+                  "ListingPage",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "CallRequest",
+                  "AbortSignal",
+                  "Readonly",
+                  "JsonValue",
+                  "Promise",
+                  "Outcome",
+                  "CallOutcome",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskId",
+                  "Promise",
+                  "Outcome",
+                  "TaskStatus",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskId",
+                  "Promise",
+                  "Outcome",
+                  "CallOutcome",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskId",
+                  "Promise",
+                  "Outcome",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "StopScope"
+                ]
+              }
+            ],
+            "refs": [
+              "Generation",
+              "Promise",
+              "Outcome",
+              "PeerIdentity",
+              "TransportFailure",
+              "ListingPage",
+              "CallRequest",
+              "AbortSignal",
+              "Readonly",
+              "JsonValue",
+              "CallOutcome",
+              "TaskId",
+              "TaskStatus",
+              "StopScope"
+            ],
+            "extends": []
+          },
+          {
+            "name": "McpTransportFactory",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Readonly",
+                  "ProcessHandle",
+                  "Generation",
+                  "ConnectionTarget",
+                  "CredentialHandle",
+                  "AbortSignal",
+                  "Promise",
+                  "Outcome",
+                  "McpTransport",
+                  "TransportFailure"
+                ]
+              }
+            ],
+            "refs": [
+              "Readonly",
+              "ProcessHandle",
+              "Generation",
+              "ConnectionTarget",
+              "CredentialHandle",
+              "AbortSignal",
+              "Promise",
+              "Outcome",
+              "McpTransport",
+              "TransportFailure"
+            ],
+            "extends": []
+          }
+        ],
+        "imports": [
+          "../shared.ts",
+          "./catalog.ts",
+          "./outcomes.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 139
+      },
+      {
+        "file": "src/services.ts",
+        "decls": [
+          {
+            "name": "EndpointInspection",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Outcome",
+                  "EndpointDefinition",
+                  "EndpointBodyRejection"
+                ]
+              },
+              {
+                "refs": [
+                  "Outcome",
+                  "EndpointBodyRejection"
+                ]
+              }
+            ],
+            "refs": [
+              "BodyContract",
+              "Outcome",
+              "EndpointDefinition",
+              "EndpointBodyRejection"
+            ],
+            "extends": [
+              "BodyContract"
+            ]
+          },
+          {
+            "name": "CatalogView",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "not-acquired",
+              "acquired"
+            ],
+            "refs": [
+              "Readonly",
+              "ActionCatalogRecord",
+              "KnownAction"
+            ]
+          },
+          {
+            "name": "RefreshResult",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "published",
+              "kept"
+            ],
+            "refs": [
+              "Readonly",
+              "ActionCatalogRecord"
+            ]
+          },
+          {
+            "name": "ActionDiscovery",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointRef",
+                  "Promise",
+                  "Outcome",
+                  "CatalogView",
+                  "Refusal"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointRef",
+                  "Promise",
+                  "Outcome",
+                  "RefreshResult",
+                  "Refusal"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointRef",
+                  "Promise",
+                  "Outcome",
+                  "Readonly",
+                  "PeerIdentity",
+                  "Generation",
+                  "Refusal"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "EndpointRef",
+              "Promise",
+              "Outcome",
+              "CatalogView",
+              "Refusal",
+              "RefreshResult",
+              "Readonly",
+              "PeerIdentity",
+              "Generation"
+            ],
+            "extends": []
+          },
+          {
+            "name": "InvokeRequest",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": [
+                  "ActionName"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "DefinitionDigest"
+                ]
+              },
+              {
+                "refs": [
+                  "CorrelationKey"
+                ]
+              },
+              {
+                "refs": [
+                  "CallMode"
+                ]
+              },
+              {
+                "refs": [
+                  "AbortSignal"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "JsonValue"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointRef",
+              "ActionName",
+              "JsonValue",
+              "DefinitionDigest",
+              "CorrelationKey",
+              "CallMode",
+              "AbortSignal",
+              "Readonly"
+            ]
+          },
+          {
+            "name": "ContinueRequest",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Omit",
+              "InvokeRequest",
+              "Readonly",
+              "RequestState",
+              "JsonValue",
+              "Generation"
+            ]
+          },
+          {
+            "name": "ActionCalls",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "InvokeRequest",
+                  "Promise",
+                  "InvokeResult"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "ContinueRequest",
+                  "Promise",
+                  "InvokeResult"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "CorrelationKey",
+                  "Promise",
+                  "CancelAnswer"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "InvokeRequest",
+              "Promise",
+              "InvokeResult",
+              "ContinueRequest",
+              "CorrelationKey",
+              "CancelAnswer"
+            ],
+            "extends": []
+          },
+          {
+            "name": "TaskControl",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "TaskRef",
+                  "Promise",
+                  "Outcome",
+                  "TaskStatus",
+                  "Refusal"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "TaskRef",
+                  "Promise",
+                  "Outcome",
+                  "CallOutcome",
+                  "Refusal"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "TaskRef",
+                  "Promise"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "TaskRef",
+              "Promise",
+              "Outcome",
+              "TaskStatus",
+              "Refusal",
+              "CallOutcome"
+            ],
+            "extends": []
+          },
+          {
+            "name": "ActionInvoker",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "ActionCalls",
+              "P",
+              "TaskControl"
+            ]
+          },
+          {
+            "name": "EndpointStatusView",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointRef"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Refusal"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointRef",
+              "Refusal"
+            ]
+          },
+          {
+            "name": "EndpointStatus",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointRef",
+                  "Promise",
+                  "Outcome",
+                  "EndpointStatusView",
+                  "Refusal"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "Promise",
+                  "Outcome",
+                  "EndpointStatusView"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "EndpointRef",
+              "Promise",
+              "Outcome",
+              "EndpointStatusView",
+              "Refusal",
+              "S"
+            ],
+            "extends": []
+          },
+          {
+            "name": "Connections",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "EndpointRef",
+                  "Promise",
+                  "Outcome",
+                  "StopScope",
+                  "Refusal"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "Readonly",
+                  "EndpointRef",
+                  "StopScope"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "EndpointRef",
+              "Promise",
+              "Outcome",
+              "StopScope",
+              "Refusal",
+              "Readonly"
+            ],
+            "extends": []
+          },
+          {
+            "name": "McpPorts",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "AdoptionView",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "UseEligibility",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "CredentialUse",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "ProcessLanding",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "CatalogStore"
+                ]
+              },
+              {
+                "refs": [
+                  "McpTransportFactory"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "AdoptionView",
+              "P",
+              "S",
+              "UseEligibility",
+              "CredentialUse",
+              "ProcessLanding",
+              "CatalogStore",
+              "McpTransportFactory"
+            ]
+          },
+          {
+            "name": "McpConfig",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "Millis"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "P",
+              "Millis"
+            ]
+          },
+          {
+            "name": "McpServices",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointInspection"
+                ]
+              },
+              {
+                "refs": [
+                  "ActionDiscovery",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "ActionInvoker",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointStatus",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "Connections",
+                  "P"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointInspection",
+              "ActionDiscovery",
+              "P",
+              "ActionInvoker",
+              "EndpointStatus",
+              "S",
+              "Connections"
+            ]
+          },
+          {
+            "name": "createMcp",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "McpPorts",
+              "P",
+              "S",
+              "McpConfig",
+              "McpServices"
+            ]
+          },
+          {
+            "name": "createInMemoryCatalogStore",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CatalogStore"
+            ]
+          }
+        ],
+        "imports": [
+          "../shared.ts",
+          "./catalog.ts",
+          "./outcomes.ts",
+          "./ports.ts",
+          "./functions.ts",
+          "./values.ts",
+          "./in-flight.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 123
+      },
+      {
+        "file": "src/values.ts",
+        "decls": [
+          {
+            "name": "EndpointName",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "EndpointHolding",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "AdoptionRevision",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "CredentialBinding",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "ActionName",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "DefinitionDigest",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "Generation",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "CatalogRevision",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "CorrelationKey",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "RequestState",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "TaskId",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "ProtocolVersion",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "Millis",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "Untrusted",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "T"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "T"
+            ]
+          },
+          {
+            "name": "EndpointRef",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointName"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointHolding"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointName",
+              "EndpointHolding"
+            ]
+          },
+          {
+            "name": "AuthKind",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "none",
+              "static",
+              "oauth"
+            ],
+            "refs": []
+          },
+          {
+            "name": "StdioLaunch",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "TransportDeclaration",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "stdio",
+              "streamable-http"
+            ],
+            "refs": [
+              "Readonly",
+              "StdioLaunch"
+            ]
+          },
+          {
+            "name": "EndpointDefinition",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointName"
+                ]
+              },
+              {
+                "refs": [
+                  "TransportDeclaration"
+                ]
+              },
+              {
+                "refs": [
+                  "AuthKind"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointName",
+              "TransportDeclaration",
+              "AuthKind"
+            ]
+          },
+          {
+            "name": "ConnectionTarget",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "EndpointSettings",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ConnectionTarget"
+                ]
+              },
+              {
+                "refs": [
+                  "CredentialBinding"
+                ]
+              },
+              {
+                "refs": [
+                  "Millis"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ConnectionTarget",
+              "CredentialBinding",
+              "Millis"
+            ]
+          },
+          {
+            "name": "PeerAccount",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "anonymous",
+              "credential"
+            ],
+            "refs": [
+              "Readonly",
+              "CredentialBinding"
+            ]
+          },
+          {
+            "name": "ConnectionKey",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "TenantId"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointHolding"
+                ]
+              },
+              {
+                "refs": [
+                  "AdoptionRevision"
+                ]
+              },
+              {
+                "refs": [
+                  "PeerAccount"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "TenantId",
+              "EndpointHolding",
+              "AdoptionRevision",
+              "PeerAccount"
+            ]
+          },
+          {
+            "name": "CatalogKey",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "TenantId"
+                ]
+              },
+              {
+                "refs": [
+                  "PeerAccount"
+                ]
+              },
+              {
+                "refs": [
+                  "EndpointHolding"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "TenantId",
+              "PeerAccount",
+              "EndpointHolding"
+            ]
+          },
+          {
+            "name": "PeerIdentity",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ProtocolVersion"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "Untrusted",
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "Untrusted",
+                  "Readonly"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ProtocolVersion",
+              "JsonValue",
+              "Untrusted",
+              "Readonly"
+            ]
+          },
+          {
+            "name": "ActionDefinition",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ActionName"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ActionName",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "KnownActionId",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "EndpointName"
+                ]
+              },
+              {
+                "refs": [
+                  "ActionName"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "EndpointName",
+              "ActionName"
+            ]
+          },
+          {
+            "name": "CallMode",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "direct",
+              "task"
+            ],
+            "refs": []
+          }
+        ],
+        "imports": [
+          "../shared.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 91
+      }
+    ],
+    "testFiles": 0,
+    "testCases": 0,
+    "draft": [],
+    "entries": [
+      {
+        "sub": ".",
+        "names": [
+          {
+            "name": "EndpointInspection",
+            "kind": "interface"
+          },
+          {
+            "name": "CatalogView",
+            "kind": "union"
+          },
+          {
+            "name": "RefreshResult",
+            "kind": "union"
+          },
+          {
+            "name": "ActionDiscovery",
+            "kind": "interface"
+          },
+          {
+            "name": "InvokeRequest",
+            "kind": "record"
+          },
+          {
+            "name": "ContinueRequest",
+            "kind": "brand"
+          },
+          {
+            "name": "ActionCalls",
+            "kind": "interface"
+          },
+          {
+            "name": "TaskControl",
+            "kind": "interface"
+          },
+          {
+            "name": "ActionInvoker",
+            "kind": "brand"
+          },
+          {
+            "name": "EndpointStatusView",
+            "kind": "record"
+          },
+          {
+            "name": "EndpointStatus",
+            "kind": "interface"
+          },
+          {
+            "name": "Connections",
+            "kind": "interface"
+          },
+          {
+            "name": "McpPorts",
+            "kind": "record"
+          },
+          {
+            "name": "McpConfig",
+            "kind": "record"
+          },
+          {
+            "name": "McpServices",
+            "kind": "record"
+          },
+          {
+            "name": "createMcp",
+            "kind": "function"
+          },
+          {
+            "name": "createInMemoryCatalogStore",
+            "kind": "function"
+          }
+        ]
+      }
+    ],
+    "modEdges": [
+      [
+        "src/catalog.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/connection.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/connection.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/functions.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/functions.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/functions.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/gate.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/gate.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/gate.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/in-flight.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/outcomes.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/outcomes.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/ports.ts",
+        "src/catalog.ts"
+      ],
+      [
+        "src/ports.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/ports.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/catalog.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/functions.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/in-flight.ts"
+      ]
+    ],
+    "pkgEdges": []
+  },
+  {
+    "dir": "tmp/probe/skillx",
+    "name": "skillx",
+    "description": "",
+    "deps": [],
+    "files": [
+      {
+        "file": "src/access.ts",
+        "decls": [
+          {
+            "name": "mapResolution",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Resolution",
+              "Outcome",
+              "Extract",
+              "DescribeFailure"
+            ]
+          },
+          {
+            "name": "ByteFailure",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "ReadFailure"
+            ]
+          },
+          {
+            "name": "mapSourceFailure",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SourceFailure",
+              "ByteFailure"
+            ]
+          },
+          {
+            "name": "createSkillAccess",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SkillPorts",
+              "P",
+              "S",
+              "AccessConfig",
+              "SkillAccess",
+              "Access",
+              "CapabilityId",
+              "SkillMaterialBasis",
+              "Promise",
+              "Outcome",
+              "Extract",
+              "Resolution",
+              "DescribeFailure",
+              "AbortSignal",
+              "Pinned",
+              "PinFailure",
+              "SkillRef",
+              "PackageDigest",
+              "PackageEntry",
+              "Uint8Array",
+              "ByteFailure",
+              "SkillDescription",
+              "ReadResult",
+              "ReadFailure",
+              "const",
+              "ListFailure"
+            ]
+          }
+        ],
+        "imports": [
+          "../shared.ts",
+          "./failures.ts",
+          "./functions.ts",
+          "./ports.ts",
+          "./services.ts",
+          "./values.ts"
+        ],
+        "reexports": [
+          {
+            "names": [
+              "GateFailure"
+            ]
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createSkillAccess",
+          "lines": 132
+        },
+        "lines": 186
+      },
+      {
+        "file": "src/failures.ts",
+        "decls": [
+          {
+            "name": "SkillFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "not-available-to-you",
+              "unavailable-stand-in",
+              "bad-path",
+              "outside-package",
+              "resource-missing",
+              "basis-unavailable",
+              "adopted-material-changed",
+              "version-changed",
+              "source-unavailable",
+              "unsupported",
+              "aborted",
+              "unknown"
+            ],
+            "refs": [
+              "Readonly",
+              "StandIn",
+              "UnsupportedWhat"
+            ]
+          },
+          {
+            "name": "UnsupportedWhat",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "no-readable-package",
+              "binary-not-representable",
+              "dialect"
+            ],
+            "refs": []
+          },
+          {
+            "name": "GateFailure",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Pick"
+            ]
+          },
+          {
+            "name": "DescribeFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "GateFailure",
+              "Pick<'basis-unavailable'>"
+            ],
+            "refs": [
+              "GateFailure",
+              "Pick"
+            ]
+          },
+          {
+            "name": "PinFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "DescribeFailure",
+              "Pick<'unsupported' | 'adopted-material-c"
+            ],
+            "refs": [
+              "DescribeFailure",
+              "Pick"
+            ]
+          },
+          {
+            "name": "ListFailure",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "PinFailure"
+            ]
+          },
+          {
+            "name": "ReadFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "PinFailure",
+              "Pick<'bad-path' | 'outside-package' | 'r"
+            ],
+            "refs": [
+              "PinFailure",
+              "Pick"
+            ]
+          },
+          {
+            "name": "ExportFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "Exclude<PinFailure, Pick<'adopted-materi",
+              "Pick<'outside-package' | 'resource-missi"
+            ],
+            "refs": [
+              "Exclude",
+              "PinFailure",
+              "Pick"
+            ]
+          },
+          {
+            "name": "INSPECT_REJECTIONS",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "InspectRejectionCode",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "InspectFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "rejected",
+              "source-unavailable",
+              "version-changed"
+            ],
+            "refs": [
+              "Readonly",
+              "InspectRejectionCode"
+            ]
+          }
+        ],
+        "imports": [
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 49
+      },
+      {
+        "file": "src/functions.ts",
+        "decls": [
+          {
+            "name": "toSkillName",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Outcome",
+              "SkillName"
+            ]
+          },
+          {
+            "name": "toPackagePath",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Outcome",
+              "PackagePath"
+            ]
+          },
+          {
+            "name": "computeDigest",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Bytes",
+              "EntryDigest"
+            ]
+          },
+          {
+            "name": "SnapshotDefect",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "duplicate-path",
+              "prefix-conflict"
+            ],
+            "refs": [
+              "Readonly",
+              "PackagePath"
+            ]
+          },
+          {
+            "name": "sealSnapshot",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PackageEntry",
+              "Outcome",
+              "SkillPackageSnapshot",
+              "SnapshotDefect",
+              "PackagePath",
+              "PackageDigest"
+            ]
+          },
+          {
+            "name": "inferMediaType",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PackagePath",
+              "Bytes",
+              "MediaType"
+            ]
+          },
+          {
+            "name": "CONTROL_FILES",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "isControlFile",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PackagePath"
+            ]
+          },
+          {
+            "name": "parseSkillPackage",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "SkillPackageSnapshot",
+              "Bytes",
+              "SkillName",
+              "JsonLimits",
+              "CapabilityId",
+              "Outcome",
+              "SkillDefinition",
+              "InspectRejectionCode"
+            ]
+          },
+          {
+            "name": "projectAssetBody",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SkillDefinition",
+              "DeclaredProjection"
+            ]
+          }
+        ],
+        "imports": [
+          "node:crypto",
+          "../shared.ts",
+          "./failures.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 7,
+        "anyCount": 0,
+        "longest": {
+          "name": "sealSnapshot",
+          "lines": 21
+        },
+        "lines": 100
+      },
+      {
+        "file": "src/ports.ts",
+        "decls": [
+          {
+            "name": "Reply",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Promise",
+              "Outcome",
+              "T"
+            ]
+          },
+          {
+            "name": "SourceFailure",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "package-not-found",
+              "entry-not-found",
+              "bytes-mismatch",
+              "outside-package",
+              "unavailable"
+            ],
+            "refs": []
+          },
+          {
+            "name": "SkillPackageSource",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "PackageLocator",
+                  "Promise",
+                  "Outcome",
+                  "SkillPackageSnapshot",
+                  "SourceFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageLocator",
+                  "PackageDigest",
+                  "PackagePath",
+                  "Promise",
+                  "Outcome",
+                  "Bytes",
+                  "SourceFailure"
+                ]
+              }
+            ],
+            "refs": [
+              "PackageLocator",
+              "Promise",
+              "Outcome",
+              "SkillPackageSnapshot",
+              "SourceFailure",
+              "PackageDigest",
+              "PackagePath",
+              "Bytes"
+            ],
+            "extends": []
+          },
+          {
+            "name": "Resolution",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "known-unavailable",
+              "adopted",
+              "basis-not-lawful",
+              "none",
+              "unknown"
+            ],
+            "refs": [
+              "Readonly",
+              "CapabilityId",
+              "SafeReason",
+              "SkillName",
+              "SkillRef",
+              "DeclaredProjection"
+            ]
+          },
+          {
+            "name": "CatalogResolution",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "Resolution"
+            ]
+          },
+          {
+            "name": "SkillResolution",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "CapabilityId",
+                  "Readonly",
+                  "SkillMaterialBasis",
+                  "Promise",
+                  "Resolution"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "Reply",
+                  "CatalogResolution"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "S",
+              "CapabilityId",
+              "Readonly",
+              "SkillMaterialBasis",
+              "Promise",
+              "Resolution",
+              "Reply",
+              "CatalogResolution"
+            ],
+            "extends": []
+          },
+          {
+            "name": "ReadVerdict",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "granted",
+              "refused",
+              "unknown"
+            ],
+            "refs": []
+          },
+          {
+            "name": "SkillReadCheck",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "CapabilityId",
+                  "Promise",
+                  "ReadVerdict"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "S",
+              "CapabilityId",
+              "Promise",
+              "ReadVerdict"
+            ],
+            "extends": []
+          },
+          {
+            "name": "SkillPorts",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillPackageSource"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillResolution",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillReadCheck",
+                  "P",
+                  "S"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillPackageSource",
+              "SkillResolution",
+              "P",
+              "S",
+              "SkillReadCheck"
+            ]
+          }
+        ],
+        "imports": [
+          "../shared.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 75
+      },
+      {
+        "file": "src/services.ts",
+        "decls": [
+          {
+            "name": "PackageInspection",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "PackageLocator",
+                  "Readonly",
+                  "SkillName",
+                  "Promise",
+                  "Outcome",
+                  "SkillDefinition",
+                  "InspectFailure"
+                ]
+              }
+            ],
+            "refs": [
+              "PackageLocator",
+              "Readonly",
+              "SkillName",
+              "Promise",
+              "Outcome",
+              "SkillDefinition",
+              "InspectFailure"
+            ],
+            "extends": []
+          },
+          {
+            "name": "CatalogEntry",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "adopted",
+              "stand-in"
+            ],
+            "refs": [
+              "Readonly",
+              "CapabilityId",
+              "SkillName",
+              "SafeReason"
+            ]
+          },
+          {
+            "name": "CatalogQuery",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "SkillCatalog",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "CapabilityId",
+                  "Promise",
+                  "Outcome",
+                  "CatalogEntry"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "CatalogQuery",
+                  "Promise",
+                  "Outcome",
+                  "CatalogEntry"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "S",
+              "CapabilityId",
+              "Promise",
+              "Outcome",
+              "CatalogEntry",
+              "CatalogQuery"
+            ],
+            "extends": []
+          },
+          {
+            "name": "MaterialState",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "pinned",
+              "no-readable-package"
+            ],
+            "refs": [
+              "Readonly",
+              "SkillMaterialBasis"
+            ]
+          },
+          {
+            "name": "SkillDescription",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "SourceLayer"
+                ]
+              },
+              {
+                "refs": [
+                  "MaterialState"
+                ]
+              },
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "ScriptDeclaration"
+                ]
+              },
+              {
+                "refs": [
+                  "SettingDeclaration"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "SourceLayer",
+              "MaterialState",
+              "ScriptDeclaration",
+              "SettingDeclaration"
+            ]
+          },
+          {
+            "name": "ReadTarget",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "Readonly"
+            ]
+          },
+          {
+            "name": "ByteRange",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "ReadContent",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "text",
+              "bytes"
+            ],
+            "refs": [
+              "Readonly",
+              "Bytes"
+            ]
+          },
+          {
+            "name": "ReadResult",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillMaterialBasis"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "PackagePath"
+                ]
+              },
+              {
+                "refs": [
+                  "MediaType"
+                ]
+              },
+              {
+                "refs": [
+                  "ReadContent"
+                ]
+              },
+              {
+                "refs": [
+                  "ByteRange"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillMaterialBasis",
+              "Readonly",
+              "PackagePath",
+              "MediaType",
+              "ReadContent",
+              "ByteRange"
+            ]
+          },
+          {
+            "name": "ResourceListing",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillMaterialBasis"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageEntry"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillMaterialBasis",
+              "PackageEntry"
+            ]
+          },
+          {
+            "name": "ExportedEntry",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "PackagePath"
+                ]
+              },
+              {
+                "refs": [
+                  "MediaType"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "EntryDigest"
+                ]
+              },
+              {
+                "refs": [
+                  "Bytes"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "PackagePath",
+              "MediaType",
+              "EntryDigest",
+              "Bytes"
+            ]
+          },
+          {
+            "name": "SkillExport",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillMaterialBasis"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageDigest"
+                ]
+              },
+              {
+                "refs": [
+                  "ExportedEntry"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillMaterialBasis",
+              "PackageDigest",
+              "ExportedEntry"
+            ]
+          },
+          {
+            "name": "SkillAccess",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "CapabilityId",
+                  "Readonly",
+                  "SkillMaterialBasis",
+                  "Promise",
+                  "Outcome",
+                  "SkillDescription",
+                  "DescribeFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "ReadTarget",
+                  "ReadOptions",
+                  "Promise",
+                  "Outcome",
+                  "ReadResult",
+                  "ReadFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "CapabilityId",
+                  "Readonly",
+                  "SkillMaterialBasis",
+                  "AbortSignal",
+                  "Promise",
+                  "Outcome",
+                  "ResourceListing",
+                  "ListFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Access",
+                  "P",
+                  "S",
+                  "CapabilityId",
+                  "SkillMaterialBasis",
+                  "Readonly",
+                  "AbortSignal",
+                  "Promise",
+                  "Outcome",
+                  "SkillExport",
+                  "ExportFailure"
+                ]
+              }
+            ],
+            "refs": [
+              "Access",
+              "P",
+              "S",
+              "CapabilityId",
+              "Readonly",
+              "SkillMaterialBasis",
+              "Promise",
+              "Outcome",
+              "SkillDescription",
+              "DescribeFailure",
+              "ReadTarget",
+              "ReadOptions",
+              "ReadResult",
+              "ReadFailure",
+              "AbortSignal",
+              "ResourceListing",
+              "ListFailure",
+              "SkillExport",
+              "ExportFailure"
+            ],
+            "extends": []
+          },
+          {
+            "name": "InspectionConfig",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillPackageSource"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonLimits"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillPackageSource",
+              "JsonLimits"
+            ]
+          },
+          {
+            "name": "AccessConfig",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "createPackageInspection",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "InspectionConfig",
+              "PackageInspection"
+            ]
+          },
+          {
+            "name": "createSkillCatalog",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SkillPorts",
+              "P",
+              "S",
+              "SkillCatalog"
+            ]
+          },
+          {
+            "name": "createSkillAccess",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SkillPorts",
+              "P",
+              "S",
+              "AccessConfig",
+              "SkillAccess"
+            ]
+          }
+        ],
+        "imports": [
+          "../shared.ts",
+          "./failures.ts",
+          "./ports.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 157
+      },
+      {
+        "file": "src/values.ts",
+        "decls": [
+          {
+            "name": "SkillName",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "PackagePath",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "EntryDigest",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "PackageDigest",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "AssetVersion",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "SafeReason",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "MediaType",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand"
+            ]
+          },
+          {
+            "name": "PackageEntry",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "PackagePath"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "MediaType"
+                ]
+              },
+              {
+                "refs": [
+                  "EntryDigest"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "PackagePath",
+              "MediaType",
+              "EntryDigest"
+            ]
+          },
+          {
+            "name": "SkillPackageSnapshot",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Brand",
+              "Readonly",
+              "PackageEntry",
+              "PackageDigest"
+            ]
+          },
+          {
+            "name": "PackageLocator",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "directory",
+              "content-store"
+            ],
+            "refs": [
+              "Readonly",
+              "PackageDigest"
+            ]
+          },
+          {
+            "name": "SkillManifest",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillName"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Record"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Record"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillName",
+              "Readonly",
+              "Record"
+            ]
+          },
+          {
+            "name": "ScriptDeclaration",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "PackagePath"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "PackagePath"
+            ]
+          },
+          {
+            "name": "SettingDeclaration",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "SkillDeclaration",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "ScriptDeclaration"
+                ]
+              },
+              {
+                "refs": [
+                  "SettingDeclaration"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "ScriptDeclaration",
+              "SettingDeclaration"
+            ]
+          },
+          {
+            "name": "SkillDefinition",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillManifest"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillDeclaration"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillPackageSnapshot"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillManifest",
+              "SkillDeclaration",
+              "SkillPackageSnapshot"
+            ]
+          },
+          {
+            "name": "DeclaredProjection",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillName"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "ScriptDeclaration"
+                ]
+              },
+              {
+                "refs": [
+                  "SettingDeclaration"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageDigest"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillName",
+              "CapabilityId",
+              "ScriptDeclaration",
+              "SettingDeclaration",
+              "PackageDigest"
+            ]
+          },
+          {
+            "name": "ScriptIdentity",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "PackagePath"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "PackagePath"
+            ]
+          },
+          {
+            "name": "SkillMaterialBasis",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "SourceLayer"
+                ]
+              },
+              {
+                "refs": [
+                  "AssetVersion"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageDigest"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "SourceLayer",
+              "AssetVersion",
+              "PackageDigest"
+            ]
+          },
+          {
+            "name": "SkillRef",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "SourceLayer"
+                ]
+              },
+              {
+                "refs": [
+                  "AssetVersion"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageLocator"
+                ]
+              },
+              {
+                "refs": [
+                  "PackageDigest"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "SourceLayer",
+              "AssetVersion",
+              "PackageLocator",
+              "PackageDigest"
+            ]
+          },
+          {
+            "name": "StandIn",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillName"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "SafeReason"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "SkillName",
+              "SafeReason"
+            ]
+          }
+        ],
+        "imports": [
+          "../shared.ts"
+        ],
+        "reexports": [
+          {
+            "names": [
+              "Bytes"
+            ]
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 116
+      }
+    ],
+    "testFiles": 0,
+    "testCases": 0,
+    "draft": [],
+    "entries": [
+      {
+        "sub": ".",
+        "names": [
+          {
+            "name": "PackageInspection",
+            "kind": "interface"
+          },
+          {
+            "name": "CatalogEntry",
+            "kind": "union"
+          },
+          {
+            "name": "CatalogQuery",
+            "kind": "record"
+          },
+          {
+            "name": "SkillCatalog",
+            "kind": "interface"
+          },
+          {
+            "name": "MaterialState",
+            "kind": "union"
+          },
+          {
+            "name": "SkillDescription",
+            "kind": "record"
+          },
+          {
+            "name": "ReadTarget",
+            "kind": "record"
+          },
+          {
+            "name": "ByteRange",
+            "kind": "record"
+          },
+          {
+            "name": "ReadContent",
+            "kind": "union"
+          },
+          {
+            "name": "ReadResult",
+            "kind": "record"
+          },
+          {
+            "name": "ResourceListing",
+            "kind": "record"
+          },
+          {
+            "name": "ExportedEntry",
+            "kind": "record"
+          },
+          {
+            "name": "SkillExport",
+            "kind": "record"
+          },
+          {
+            "name": "SkillAccess",
+            "kind": "interface"
+          },
+          {
+            "name": "InspectionConfig",
+            "kind": "record"
+          },
+          {
+            "name": "AccessConfig",
+            "kind": "record"
+          },
+          {
+            "name": "createPackageInspection",
+            "kind": "function"
+          },
+          {
+            "name": "createSkillCatalog",
+            "kind": "function"
+          },
+          {
+            "name": "createSkillAccess",
+            "kind": "function"
+          }
+        ]
+      }
+    ],
+    "modEdges": [
+      [
+        "src/access.ts",
+        "src/failures.ts"
+      ],
+      [
+        "src/access.ts",
+        "src/functions.ts"
+      ],
+      [
+        "src/access.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/access.ts",
+        "src/services.ts"
+      ],
+      [
+        "src/access.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/failures.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/functions.ts",
+        "src/failures.ts"
+      ],
+      [
+        "src/functions.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/ports.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/failures.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/services.ts",
+        "src/values.ts"
+      ]
+    ],
+    "pkgEdges": [
+      "node:crypto"
+    ]
+  }
+]
