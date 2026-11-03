@@ -199,7 +199,7 @@ import {
   SESSION_HISTORY_ROOT_HANDLER,
   SESSION_LOG_PARTICIPANTS,
   SESSION_PROTOCOL,
-  decodeExecutionRecordState,
+  decodeExecutionRecordParts,
   decodeSessionHistoryRoot,
 } from '@omne-harness/session-storage-sql/participants'
 import {
@@ -1136,8 +1136,8 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       if (result.kind !== 'read') throw new Error(`${handler}: ${result.kind}`)
       return result.output
     }
-    const agent = decodeExecutionRecordState(
-      await read(EXECUTION_RECORD_HANDLERS.state, EXECUTION_RECORD_PROTOCOL),
+    const agent = decodeExecutionRecordParts(
+      await read(EXECUTION_RECORD_HANDLERS.parts, EXECUTION_RECORD_PROTOCOL),
     )
     const root = decodeSessionHistoryRoot(
       await read(SESSION_HISTORY_ROOT_HANDLER, SESSION_PROTOCOL),
