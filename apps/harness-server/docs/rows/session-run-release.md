@@ -14,7 +14,7 @@
 | 行 | 成员工厂 | 构造时交入的运行时对象 | 配置 |
 | --- | --- | --- | --- |
 | `request-context` | `RequestContextProvider`，行体以子 fiber 装载 | 账目四个端口（见下节的具名缺件） | `limits`（运维者层）；可选 `selection` |
-| `agent-context` | `createAgentContextPlugin()` | 无（不带测量观察者；C1 采集时交入） | `owner`、`resultCapacity`、可选 `materials`（运维者层） |
+| `agent-context` | `createAgentContextPlugin(agentContextPluginInput)` | 组六的工具读口 `catalogToolLookup`（`rows/agent-context/tools.ts`）：逐次现取 `toolCatalog` 与发行确认的文本消费者材料，经 `toolCatalog.inspect` 读常驻绑定所指工具的完整定义，读不到时组六失败关闭（G-TOOLS6）。不带测量观察者，C1 采集时交入 | `owner`、`resultCapacity`、可选 `materials`（运维者层） |
 | `agent-account-outlet` | `AgentAccountOutletProvider` | 无 | `sender`：出站插件的采用身份（发行数据） |
 | `session-ad02` | `createSessionJournalInterpretationPlugin({ coordinator })` | 协调者主体来源 | 无 |
 | `session-ad03` | `createSessionContextHolder({ coordinator, translation, … })`，三个子插件来自同一次调用 | 协调者主体来源；`createSessionContextTranslation(adoptedContextDefinitions)` | `scopeIndexEntries`、`pageBytes`（运维者层） |
