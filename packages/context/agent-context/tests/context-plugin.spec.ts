@@ -13,7 +13,7 @@ import {
   agentRequestsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { AgentAdoptions, AgentDefinition } from '@omne-harness/agent-contract'
-import type { ContextMeasureEvent } from '@omne-harness/agent-context'
+import type { ContextMeasureEvent, ToolLookup } from '@omne-harness/agent-context'
 import {
   AgentContextProvider,
   MODEL_PREPARATION_RESOURCES,
@@ -382,6 +382,40 @@ describe('createAgentContextPlugin on real Cordis (SPEC「测量事件」)', () 
       'prepare:start',
       'prepare:end',
     ])
+  })
+
+  it('makes the tool lookup once from the context of the plugin and reads the sixth group through it', async () => {
+    const made: Context[] = []
+    const asked: string[] = []
+    const lookup: ToolLookup<unknown> = async ({ binding }) => {
+      asked.push(binding.name)
+      return { kind: 'unavailable', diagnostic: `scripted: ${binding.name}` }
+    }
+    const Plugin = createAgentContextPlugin({
+      toolLookup: ctx => {
+        made.push(ctx)
+        return lookup
+      },
+    })
+    const { ctx, plugin, w } = await assembled(null, Plugin)
+    expect(plugin.state).toBe(ACTIVE)
+    expect(made).toHaveLength(1)
+    expect(made[0]?.fiber).toBe(plugin)
+    const reader = ctx.get(agentModelContextKey)
+    const requests = ctx.get(agentRequestsKey)
+    if (reader === undefined || requests === undefined) throw new Error('services absent')
+    const read = await reader.read(w.readInput())
+    if (!('ok' in read)) throw new Error(`read refused: ${JSON.stringify(read.failure)}`)
+    const bindings = [{ owner: 'session', name: 'Files', revision: '0.0.0', digest: 'sha256:f' }]
+    const prepared = await requests.prepare(
+      w.prepareInput(read.ok, { conditions: { ...w.conditions, bindings } }),
+    )
+    expect(asked).toEqual(['Files'])
+    expect('failure' in prepared && prepared.failure).toMatchObject({
+      kind: 'unavailable',
+      diagnostic: expect.stringContaining('scripted: Files'),
+    })
+    expect(made).toHaveLength(1)
   })
 
   it('has the inject and the configuration of the provider, and no event without an observer', async () => {
