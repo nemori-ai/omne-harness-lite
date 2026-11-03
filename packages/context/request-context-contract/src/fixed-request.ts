@@ -63,6 +63,15 @@ function decodeForecast(value: unknown): FixedRequestRecord['forecast'] | undefi
   return undefined
 }
 
+/** `undefined` marks a value that is not a target. */
+function decodeTarget(value: unknown): ContextTarget | undefined {
+  if (!record(value) || !exactKeys(value, ['tenant', 'scope']) || typeof value.tenant !== 'string')
+    return undefined
+  const tenant = tenantCodec.parse(value.tenant)
+  const scope = decodeScopeRef(value.scope)
+  return tenant.ok && 'ok' in scope ? { tenant: tenant.value, scope: scope.ok } : undefined
+}
+
 /**
  * The forecast of one request: the largest `input-tokens` measurement of the report, each one at
  * its upper bound (an estimate carries its margin). Null when the report has no such check.
@@ -100,12 +109,8 @@ export function decodeFixedRequestRecord(
 ): Outcome<FixedRequestRecord, FixedRequestRecordRejection> {
   if (!record(value) || !exactKeys(value, KEYS)) return bad('record')
   if (value.schema !== SCHEMA) return bad('schema')
-  const target = value.target
-  if (!record(target) || !exactKeys(target, ['tenant', 'scope']) || typeof target.tenant !== 'string')
-    return bad('target')
-  const tenant = tenantCodec.parse(target.tenant)
-  const scope = decodeScopeRef(target.scope)
-  if (!tenant.ok || 'failure' in scope) return bad('target')
+  const target = decodeTarget(value.target)
+  if (target === undefined) return bad('target')
   const candidate = decodeCandidateRef(value.candidate)
   if ('failure' in candidate) return bad('candidate')
   if (!isCoverage(value.coverage)) return bad('coverage')
@@ -117,7 +122,7 @@ export function decodeFixedRequestRecord(
   return {
     ok: {
       schema: SCHEMA,
-      target: { tenant: tenant.value, scope: scope.ok },
+      target,
       candidate: candidate.ok,
       coverage: structuredClone(value.coverage),
       windowTokens: value.windowTokens,
