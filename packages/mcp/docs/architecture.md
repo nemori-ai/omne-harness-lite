@@ -258,6 +258,8 @@ MCP 动作清单的候选聚合是 `ActionCatalog`。它带键（租户、对端
 
 候选决定：清单按租户、对端账号与接入点持有分开保存。接入点持有本身带层与作用域，所以同一接入点在不同层或不同作用域上的持有各有一份清单。依据层：统一语言 MCP 动作清单「按租户、对端账号与接入点分开保存」，持有一词沿统一语言[资产持有](../../../.meta_harness/design/ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding)。旧材料的动作快照按（租户、接入点、作用域）隔离，与此一致（参考旧材料，按现行架构筛选）。
 
+候选决定：确定清单的键不需要连接。凭据配值唯一确定对端账号（产品「换账号属于配值变更」），所以 `current` 用 `AdoptionView` 交来的凭据配值引用组成键里的对端账号；认证方式为 `none` 时对端账号为 `anonymous`。依据层：产品 [J-MC01](../../../.meta_harness/design/product/mcp/design.md#j-mc01-采用端点并取得合法连接条件) 与产品需求描述「续期只维持同一对端账号，换账号属于配值变更」。
+
 候选决定：清单的取得状态分两种，两者不混同。
 
 - 未取得：从来没有合法取得过完整清单。读面报告「尚未取得」，不报告零个动作。
@@ -436,7 +438,7 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 | --- | --- | --- |
 | `queryTask` | `access`、`endpointRef`、`taskId`、发出代际 | 任务状态：`working`、`input_required`、`completed`、`failed`、`cancelled`；或已过期；或 `unknown` |
 | `taskResult` | `access`、`endpointRef`、`taskId`、发出代际 | 任务终态的 `CallOutcome`；或尚未结束；或已过期；或 `unknown` |
-| `cancelTask` | `access`、`endpointRef`、`taskId`、发出代际 | 已请求取消；任务已在终态；或 `unknown` |
+| `cancelTask` | `access`、`endpointRef`、`taskId`、发出代际 | 已请求取消；任务已在终态；或 `unknown`。不核采用与当前使用资格，见「资格与换代」 |
 
 对端按任务的保留时长删除任务后，查询报已过期，不当作失败或完成。已过期的任务结果不再可得。任务处于 `input_required` 时，怎样取得输入请求并带回答复，随协议线由 mcp-contract 的 SPEC 封闭。
 
@@ -460,6 +462,7 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 - `UseEligibility` 答 `unknown` 时，读面返回 `unknown`。
 - 控制操作在资格不是 `granted` 时不执行。它的失败码由 mcp-contract 的 SPEC 封闭。
 - `ActionInvoker.cancel` 例外。它不核采用，也不核当前使用资格，只按（租户、主体、关联键）在在途表里定位，所以只能取消同一租户与同一主体发出的调用。取消只减少效果，主体失去资格之后仍能取消自己发出的调用。
+- `ActionInvoker.cancelTask` 同样例外：只有发起该任务的同一租户与同一主体能取消它，不核采用，也不核当前使用资格。理由同 `cancel`：取消只减少效果。
 
 依据层：领域[事实与责任](../../../docs/domains/mcp/architecture.md#事实与责任)读面一行「不以缓存授权」；产品 [J-MC02](../../../.meta_harness/design/product/mcp/design.md#j-mc02-发现合法动作并理解不可用)「理解不可用」、[J-MC08](../../../.meta_harness/design/product/mcp/design.md#j-mc08-查询状态而不泄露秘密)。
 
