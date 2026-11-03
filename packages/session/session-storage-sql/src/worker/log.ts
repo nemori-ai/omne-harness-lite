@@ -318,8 +318,7 @@ export function judgeLog(
     observation.session,
     previous,
     scopeOf(previous, observation),
-    undefined,
-    focus,
+    { focus },
   )
   if (history === 'too-many')
     return { kind: 'failed', diagnostic: 'the history index of the session exceeds the read bound' }

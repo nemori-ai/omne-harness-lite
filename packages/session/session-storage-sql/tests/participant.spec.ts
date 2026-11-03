@@ -70,7 +70,7 @@ describe('a bounded read inside the commit', () => {
   const scope = { kind: 'pending', inputs: [] } as const
 
   it('the history index with exactly the bound of rows lists every routed input', () => {
-    const history = readHistory(routed(LIMIT), 't', 's', snapshot, scope, LIMIT)
+    const history = readHistory(routed(LIMIT), 't', 's', snapshot, scope, { limit: LIMIT })
     expect(history).not.toBe('too-many')
     expect(history === 'too-many' ? [] : history.index.inputs.map(item => item.input)).toEqual([
       'in-1',
@@ -79,7 +79,9 @@ describe('a bounded read inside the commit', () => {
   })
 
   it('the history index over the bound is too-many, not the first rows', () => {
-    expect(readHistory(routed(LIMIT + 1), 't', 's', snapshot, scope, LIMIT)).toBe('too-many')
+    expect(readHistory(routed(LIMIT + 1), 't', 's', snapshot, scope, { limit: LIMIT })).toBe(
+      'too-many',
+    )
   })
 
   function receipts(rows: number) {

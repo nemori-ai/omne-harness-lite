@@ -50,9 +50,7 @@ export default handler('session.work-reads', (input, port) => {
       scope.session,
       decodeValue(snapshot) as WorkIndexInput,
       decodeValue(inputs) as SessionInputScope,
-      undefined,
-      decodeValue(focus) as HistoryFocus,
-      BigInt(upto),
+      { focus: decodeValue(focus) as HistoryFocus, upto: BigInt(upto) },
     )
     return history === 'too-many'
       ? { kind: 'stale' }

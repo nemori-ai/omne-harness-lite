@@ -412,13 +412,13 @@ describe('what is kept', () => {
     tail(db, 'bound', 1)
     read(db, 'bound')
     const counted = counting(db as Port)
-    expect(readHistory(counted.port, 't', 'bound', snapshotOf('bound'), pending(), 2)).toBe(
-      'too-many',
-    )
+    expect(
+      readHistory(counted.port, 't', 'bound', snapshotOf('bound'), pending(), { limit: 2 }),
+    ).toBe('too-many')
     expect(counted.indexed()).toBe(0)
-    expect(readHistory(db as Port, 't', 'bound', snapshotOf('bound'), pending(), 3)).not.toBe(
-      'too-many',
-    )
+    expect(
+      readHistory(db as Port, 't', 'bound', snapshotOf('bound'), pending(), { limit: 3 }),
+    ).not.toBe('too-many')
   })
 
   it('at most 256 sessions are kept: the least recently used one is read whole again', () => {
