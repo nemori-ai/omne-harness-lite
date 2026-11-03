@@ -16,7 +16,7 @@
 
 [queries.ts](../../calendar-contract/src/queries.ts)拥有 CalendarQueries、CalendarResolve、CalendarResolution 和分页定义。list 接受目录分页输入，成功值保留 items、nextCursor 和 observedAt。get 接受版本分页输入，versions 本身是分页值。消费者保留 cursor，不把一页当全部目录或完整历史。
 
-resolve 明确指定 selection、version、query。selection 区分 effective 与 explicit，version 区分 latest 与 pinned。query 有 day、count、shift、next、nth 五类，每类结果以 value 包装对应纯计算判别结果。next 的数量在公开 schema 内有界，根 API 不隐含默认数量或版本。transport 如补默认值，须显式投影到合法请求。
+resolve 明确指定 selection、version、query。selection 区分 effective 与 explicit，version 区分 latest 与 pinned。query 有 day、count、shift、next、nth 五类，每类成功结果以 value 包装对应纯计算的成功值，包括 nth 的合法 empty。next 的数量在公开 schema 内有界，根 API 不隐含默认数量或版本。transport 如补默认值，须显式投影到合法请求。
 
 list 不要求消费者已经设置日历。effective 读取同一个原子环境 revision 的 timezone/calendar，Calendar 不保存偏好。latest 一次捕获当前 versionId/generation，pinned 不回退新版。CalendarInfo 的 supplyStanding 当前为 null，表示未提供供应健康投影，不能当健康通过。缺环境、无版本、缺覆盖、合法 empty 和提供者故障各自保留。
 
@@ -42,7 +42,7 @@ list 不要求消费者已经设置日历。effective 读取同一个原子环�
 
 ## 错误与使用边界
 
-精确错误码由公开 schema 拥有。跨范围不存在与无权读取统一 not_found，诊断不泄露其他租户对象。应用查询的 error 与 resolve 内的纯计算失败分别保留，消费者须穷尽 kind，不能把未知分支当成功。重试只允许再观察或按原操作认回。取消观察不回滚已提交事实。
+精确错误码由公开 schema 拥有。跨范围不存在与无权读取统一 not_found，诊断不泄露其他租户对象。resolve 的 value 只承载计算成功值。纯计算 invalid、searchLimit、coverageInsufficient 分别映射为外层 error.code 的 invalid_input、search_limit、coverage_insufficient。搜索错误的 details 保留 scanBudget 和 inspectedDays；覆盖错误的 details 保留 date、coverageStart、coverageEnd，以及存在时的 boundary。合法四位日期域耗尽因此返回外层 coverage_insufficient，details.date 为 null，details.boundary 指明边界。消费者须穷尽外层 kind 与 error.code，不能把未知分支当成功。重试只允许再观察或按原操作认回。取消观察不回滚已提交事实。
 
 独立宿主可直接调用纯计算，或构造 createCalendarQueries 和 createCalendarSupplyApplication。构造依赖是本机端口，不是远程 DTO。纯计算、独立查询无需供应运行器或 Cordis。SQL 前提见[持久化与实际限制](internals.md#持久化与实际限制)。
 

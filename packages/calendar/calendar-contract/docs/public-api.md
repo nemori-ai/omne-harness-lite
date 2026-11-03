@@ -12,6 +12,6 @@
 | 上下文、Owner、错误、分页、list/get/effective/resolve       | [queries.ts](../src/queries.ts)         |
 | probe/refresh/importSeed/queryPublication/health、seed 封套 | [supply.ts](../src/supply.ts)           |
 
-list/get 保留 observedAt 与分页位置，get 的 versions 单独分页。resolve 支持 day/count/shift/next/nth，结果分支使用 value 包装纯计算结果。queryPublication 要求 address 与 expectedFingerprint，不能只给 operationRef。CalendarSupply 指纹中的 expectedRevision/consentRef 固定为 null。
+list/get 保留 observedAt 与分页位置，get 的 versions 单独分页。resolve 支持 day/count/shift/next/nth，成功分支使用 value 包装纯计算成功值，计算失败映射为外层 error.code，边界与预算证据保留在 error.details。queryPublication 要求 address 与 expectedFingerprint，不能只给 operationRef。CalendarSupply 指纹中的 expectedRevision/consentRef 固定为 null。
 
 合法日期推进越过四位日期域使用 coverageInsufficient、date=null 和必填 boundary；普通覆盖不足保留缺失日期，预算先耗尽仍 searchLimit。供应 unknown 按原地址和指纹认回。supplyStanding=null 不表示健康通过。
