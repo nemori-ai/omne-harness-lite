@@ -18,6 +18,7 @@
 - [fixtures/](fixtures/index.md)：测试固定输入，现在为空
 
 - [extended-behavior.spec.ts](extended-behavior.spec.ts)：冻结、执行历史、结果与作用域
+- [context-scopes.spec.ts](context-scopes.spec.ts)：`contextScopesOf` 只从 SE27、SE28 得出与归约快照相同的作用域，与条目顺序无关；他会话的绑定、他种条目与解不开的载荷整体失败；`contextScopeOf` 与归约铸造同一引用
 - [management-behavior.spec.ts](management-behavior.spec.ts)：管理命令、生产者事实与压缩
 - [providers-conformance.spec.ts](providers-conformance.spec.ts)：提供者套件自证
 - [scene.ts](scene.ts)：测试中的会话操作辅助

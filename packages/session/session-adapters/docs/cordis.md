@@ -18,10 +18,10 @@
 | --- | --- | --- | --- |
 | AD-01 Agent 提交参加者 | `session: { caller: 'coordinator' }` | 无 | 向执行记录提供者登记 Session 参加者，形状待 P-1 |
 | AD-02 Agent 同日志解释（`createSessionJournalInterpretationPlugin`，名 `session-ad02`） | `session: { caller: 'coordinator' }`、`sessionTransactions`、`storage`、受信 `tenantDomainLookup` | 无 | 订阅 `session-adapters/agent-published`，按会话排队。经 `execution-record.parts` 只读该 execution 的分区，取 Agent 记录与发布点归一的后果，每个事件一次 `commitLog`。不配置；启动不扫描存储 |
-| AD-03 持有者与生产者（名 `session-ad03`） | `runtimeContext`（数组形式）；`session: { caller: 'coordinator' }` | `runtimeContextReaderEligibility` | `registerProducer` 的生产者登记，每个租户一份（未交付）。新作用域以空材料恢复之前，以 `coordinator` 经 `readWork` 核快照仍列出它且未结束 |
-| AD-03 回放子插件（名 `session-ad03-replay`） | `runtimeContext`（数组形式，持有者面，与主插件分开换代）；`session: { caller: 'reader' }` | 无 | 无 |
-| AD-03 事实插件（名 `session-ad03-facts`） | `session: { caller: 'coordinator' }`（经 `readWork` 读快照） | `sessionReplayFacts`、`sessionScopeLookup` | 无；不依赖 `runtimeContext` |
-| AD-03 事实插件的历史子插件（名 `session-ad03-facts-history`） | `session: { caller: 'reader' }`（读上下文记录） | 无 | 无；不在时事实插件的记录读取答 `unavailable` |
+| AD-03 持有者与生产者（名 `session-ad03`） | `runtimeContext`（数组形式）；`session`（不带 intercept 配置，不调用） | `runtimeContextReaderEligibility` | `registerProducer` 的生产者登记，每个租户一份（未交付） |
+| AD-03 回放子插件（名 `session-ad03-replay`） | `runtimeContext`（数组形式，持有者面，与主插件分开换代）；`session: { caller: 'reader' }` | 无 | 无。新作用域以空材料恢复之前，以 `reader` 重读 SE27、SE28 得出的作用域绑定，核对它仍列出且未结束；结果不记住 |
+| AD-03 事实插件（名 `session-ad03-facts`） | `session`（不带 intercept 配置，自己不调用） | `sessionReplayFacts`、`sessionScopeLookup` | 无；不依赖 `runtimeContext` |
+| AD-03 事实插件的历史子插件（名 `session-ad03-facts-history`） | `session: { caller: 'reader' }`（读上下文记录与 SE27、SE28 的作用域绑定） | 无 | 无；不在时事实插件的两种读取都答 `unavailable` |
 | AD-03 变化提醒子插件 | `runtimeContext: { consumer: 'model' }` | 无 | 模型类绑定读者 |
 | AD-04 历史源 | 两个子插件：历史源子插件 `session: { caller: 'reader' }`；下界子插件 `session: { caller: 'coordinator' }`；RQ 来源登记服务 | 无 | 仅在完整 ContextSources 及当前资格可兑现时整组 register/replace；撤除等待在途与租约结清 |
 | AD-05 Model 日志消费适配（`createSessionModelLogConsumptionPlugin`，名 `session-ad05`） | `session: { caller: 'coordinator' }`、`agentJournal`、`agentMaterials`、`sessionTransactions`。不注入 `modelRuntime`（[AD-05](../SPEC.md#ad-05)） | 无 | 订阅 `session-adapters/agent-published`，按会话排队调用 `consume`。经本成员 Journal 提供者读 `received` 条目与材料 |
