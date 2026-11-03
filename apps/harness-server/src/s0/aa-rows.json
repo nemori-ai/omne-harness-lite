@@ -91,7 +91,9 @@
     {
       "row": "session-ad03",
       "names": [
-        "sessionWorkPrincipals"
+        "sessionWorkPrincipals",
+        "sessionReplayFacts",
+        "sessionScopeLookup"
       ]
     },
     {
@@ -165,6 +167,13 @@
       "row": "adoption-sources",
       "names": [
         "definitionMappings"
+      ]
+    },
+    {
+      "row": "agent-model-selection",
+      "names": [
+        "storage",
+        "tenantDomainLookup"
       ]
     },
     {
