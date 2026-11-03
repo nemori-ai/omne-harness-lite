@@ -16,7 +16,7 @@
 8. `McpTransport.discover` 判定对端时代并协商。成功后 MCP 连接进入 `ready`，不等 MCP 动作清单。Streamable HTTP 在这时代际加一。首次发现由调用方经 `ActionDiscovery.refresh` 触发，见 F-MC02。
 9. Streamable HTTP 上对端答需要授权时，MCP 读取受保护资源元数据，交出签发者与 scope，结局是 `authorization-required`。MCP 不发起授权流程。
 
-连接时限从第 6 步开始计时，覆盖第 6 至第 8 步。端口不理会中止信号时，`Connections` 自己停止等待，并收口迟到交来的结果，见[工程设计的 MCP 连接](architecture.md#mcp-连接)不变式 5。部分创建或取消后，依原准备身份查询及清理。资源关闭失败时保留下一处置者。首次失败不造合法清单。代际何时加一与状态转移见[工程设计](architecture.md#mcp-连接)。
+连接时限从取凭据开始计时（认证方式为 `none` 时从第 7 步开始），覆盖到第 8 步。端口不理会中止信号时，`Connections` 自己停止等待，并收口迟到交来的结果，见[工程设计的 MCP 连接](architecture.md#mcp-连接)不变式 5。部分创建或取消后，依原准备身份查询及清理。资源关闭失败时保留下一处置者。首次失败不造合法清单。代际何时加一与状态转移见[工程设计](architecture.md#mcp-连接)。
 
 ```mermaid
 flowchart TD

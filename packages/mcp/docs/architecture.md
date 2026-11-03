@@ -30,7 +30,7 @@
 
 ### 需求端口
 
-本组声明五个需求端口，每个只写问题、答复与失败。前四个由组外提供。`CatalogStore` 保存本组自己的 MCP 动作清单，第一波由本组的内存实现提供。操作形状见 [MCP 声明的端口](#mcp-声明的端口)。
+本组声明五个需求端口，每个只写问题、答复与失败。前四个由组外提供。`CatalogStore` 保存本组自己的 MCP 动作清单，由本组的内存实现提供。操作形状见 [MCP 声明的端口](#mcp-声明的端口)。
 
 | 端口 | 问题 | 答复 | 失败 |
 | --- | --- | --- | --- |
@@ -257,6 +257,7 @@ stateDiagram-v2
 2. 关闭传输。
 3. stdio：经 `ProcessLanding` 交回的进程句柄，请求停止该进程及其全部后代。宽限期过后仍在运行的，强制终止。
 4. stdio：在有界的期限内排空 stderr。进程运行期间，stderr 一直持续排空。
+5. 释放这条连接取得的凭据句柄：进程凭据句柄在 `stop()` 返回之后，HTTP 凭据句柄随传输关闭。
 
 `close()` 只报告实际确认的范围。关闭传输或调用了关闭操作，不证明进程及其后代已经停止。这个次序沿架构[有序退出与清理失败](../../../docs/architecture/deployment/cordis-and-lifecycle.md#有序退出与清理失败)的关闭次序：先停相关新准入，再结束或交接在途责任，随后关闭网络、MCP 与执行环境。宽限期的值来自合法配置。
 
@@ -296,7 +297,7 @@ MCP 动作清单的候选聚合是 `ActionCatalog`。它带键（租户、对端
 - 读取答「不存在」时，清单处于「未取得」。读取答不可用时，`current` 答 `unknown`，不当作「未取得」。
 - 发布是一次按修订条件的写入：只有存储里的修订仍是本次采用所基于的修订时，写入才成立。答修订冲突时，表示已有较新的采用，本次结果不覆盖它，`refresh` 交回「保留原采用」与原因。
 - 写入答不可用时，`refresh` 不报告新修订，答 `unknown`。清单的实际修订以下一次读取为准。
-- 第一波由 mcp 提供内存实现。它只在一次运行内保存清单。进程重启后清单回到「未取得」，MCP 已知动作不跨重启保留。这是第一波的已知限制。
+- 由 mcp 提供内存实现。它只在一次运行内保存清单。进程重启后清单回到「未取得」，MCP 已知动作不跨重启保留。这是第一波的已知限制。
 - 耐久实现接存储契约（[sql-contract](../../storage/sql-contract/README.md)），是剩余义务，见 [Q-MC03](#q-mc03-客户端认证清单一致采用及配置机制)。
 
 依据层：统一语言 MCP 动作清单「按租户、对端账号与接入点持有分开保存」「整份更新」；产品 [J-MC03](../../../.meta_harness/design/product/mcp/design.md#j-mc03-刷新后续采用且保护原调用)「迟到刷新不能覆盖较新选择」。
@@ -352,7 +353,7 @@ MCP 动作清单的候选聚合是 `ActionCatalog`。它带键（租户、对端
 | `ProcessLanding` | `start(access, launch, env)` | 只用于 stdio 接入点。MCP 调用前必须已从 `UseEligibility` 得到 `granted`。`launch` 带命令、参数、工作目录与所需设施。`env` 的组成与秘密注入见下文。MCP 不选落点。答复是进程句柄：句柄给出标准输入输出与 stderr，能停止该进程及其全部后代，并报告实际确认的停止范围，供 `close()` 使用。本端口须在交出 stderr 之前遮盖其中的秘密值，因为秘密值不经过 MCP，MCP 无法按值遮盖。失败：落点不成立、设施不成立、`unknown`。失败时不静默落到宿主。本机命令型接入点是否开启不归本端口。句柄的形状与停止范围见 [PL](../mcp-contract/SPEC.md#port-landing) |
 | `AdoptionView` | `endpoints(access, scope)`、`endpoint(access, endpointRef)` | `endpoints` 答复已采用接入点的列表。`endpoint` 按接入点引用答复一项，接入点未采用时答 `not-adopted`。读口、调用口与状态口只收接入点引用，不收作用域，所以它们用 `endpoint` 核采用。持有本身带层与作用域，由端口实现方解析。每项是持有身份、采用修订、正文、三项固定设置的配值，以及 stdio 进程环境所需的非秘密配值。每项配值是三种状态之一：缺失、不合法（带原文）、有值，不补缺省值，见 [AV1](../mcp-contract/SPEC.md#port-adoption)。正文或任一配值变化时，采用修订随之变化，MCP 据此换用新的 MCP 连接，见 `ConnectionKey`。它不判使用资格。MCP 不求值，也不保存采用。失败：不可读（`unknown`） |
 | `UseEligibility` | `check(access, endpoint)` | 答复 `granted`、`refused`（带原因）或 `unknown`。`refused` 的原因分两类，见下文。本机命令型接入点未由使用租户开启时，答 `refused`，原因是 `local-command-not-enabled`。每次使用都现场判定，不缓存。撤权在下一次使用时生效 |
-| `CatalogStore` | `read(key)`、`write(key, catalog, expectedRevision)` | `key` 是（租户、对端账号、接入点持有）。`read` 答这份 MCP 动作清单，或不存在。`write` 只在存储里的修订等于 `expectedRevision` 时写入整份清单；从未写入过的键，以「不存在」作为期望修订。答复是已写入。失败：不可用；修订冲突。写入不留下半份清单。清单里没有秘密值。第一波由 mcp 提供内存实现，耐久实现是剩余义务，见 [MCP 动作清单](#mcp-动作清单与-mcp-已知动作) |
+| `CatalogStore` | `read(key)`、`write(key, catalog, expectedRevision)` | `key` 是（租户、对端账号、接入点持有）。`read` 答这份 MCP 动作清单，或不存在。`write` 只在存储里的修订等于 `expectedRevision` 时写入整份清单；从未写入过的键，以「不存在」作为期望修订。答复是已写入。失败：不可用；修订冲突。写入不留下半份清单。清单里没有秘密值。由 mcp 提供内存实现，耐久实现是剩余义务，见 [MCP 动作清单](#mcp-动作清单与-mcp-已知动作) |
 
 候选决定：`AdoptionView` 与 `UseEligibility` 各管一件事。`AdoptionView` 回答「哪些接入点已采用、正文是什么」。`UseEligibility` 回答「这个主体此刻能不能使用这个接入点」，本机命令型接入点的开启检查也由它回答。MCP 先读采用，再核资格，两个结论不合并成一次判定。
 
@@ -493,7 +494,7 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 #### 资格与换代
 
-候选决定：读与控制操作都带 `access`。除 `ActionInvoker.cancel`、`ActionInvoker.cancelTask` 与 `Connections.closeAll` 以外，每次都先经 `AdoptionView` 核接入点已采用，再经 `UseEligibility.check` 核资格。这包括 `Connections.release`、`ActionDiscovery` 的三个操作、`EndpointStatus` 的两个操作，以及 `ActionInvoker` 的 `invoke`、`continueWithInput`、`queryTask`、`taskResult`、`provideTaskInput`。见 [S1](../mcp-contract/SPEC.md#services)。`queryTask`、`taskResult` 与 `provideTaskInput` 例外：它们核采用，但只在要新建连接时核资格，复用现有连接时不核，见[状态口](#状态口)。
+候选决定：读与控制操作都带 `access`。除 `ActionInvoker.cancel`、`ActionInvoker.cancelTask` 与 `Connections.closeAll` 以外，每次都先经 `AdoptionView` 核接入点已采用，再经 `UseEligibility.check` 核资格。这包括 `Connections.release`、`ActionDiscovery` 的三个操作、`EndpointStatus` 的两个操作，以及 `ActionInvoker` 的 `invoke` 与 `continueWithInput`。见 [S1](../mcp-contract/SPEC.md#services)。`queryTask`、`taskResult` 与 `provideTaskInput` 例外：它们核采用，但只在要新建连接时核资格，复用现有连接时不核，见[状态口](#状态口)。
 
 - 接入点不在 `AdoptionView` 的答复里（未采用）时，读口与调用口一律返回 `not-available-to-you`，不再问 `UseEligibility`。所以对任一主体，「未采用」与「无权」「不存在」不可区分。`AdoptionView` 不可读时返回 `unknown`。
 - `UseEligibility` 答 `refused`、原因是 `not-eligible` 时，读面返回 `not-available-to-you`。接入点不存在时，读面也返回 `not-available-to-you`。所以对无权主体，「无权」与「不存在」不可区分。
@@ -574,7 +575,7 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 ## 同提交与可靠交接
 
-系统确认接入点采用时，完整材料或可靠引用、采用依据和生效事实须在同一拥有者的保护范围内一致。合法清单发布也须保证内容、来源、范围与可用性对应同一次可成立的观察，避免混拼。MCP 动作清单经需求端口 `CatalogStore` 按修订条件整份写入，见 [MCP 声明的端口](#mcp-声明的端口)。第一波的内存实现不耐久，不从一次内存赋值推导全链原子。耐久实现接存储契约，是剩余义务。
+系统确认接入点采用时，完整材料或可靠引用、采用依据和生效事实须在同一拥有者的保护范围内一致。合法清单发布也须保证内容、来源、范围与可用性对应同一次可成立的观察，避免混拼。MCP 动作清单经需求端口 `CatalogStore` 按修订条件整份写入，见 [MCP 声明的端口](#mcp-声明的端口)。当前的内存实现不耐久，不从一次内存赋值推导全链原子。耐久实现接存储契约，是剩余义务。
 
 本组不保存原调用。结局交回调用方之后，怎样保存与交接归调用方。
 
@@ -624,7 +625,7 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 | MCP 凭据走本组声明的专用端口 `CredentialUse`，只用本租户这份持有上的凭据，不退回组织、官方或其他租户 | 领域 [模块角色与事实归属](../../../docs/domains/mcp/README.md#模块角色与事实归属)；统一语言 MCP 凭据 |
 | MCP 只做授权发现：对端答需要授权时，交出受保护资源元数据、签发者与 scope，作为结局 `authorization-required`。授权流程、令牌保管与续期不归本组。见 [MCP 声明的端口](#mcp-声明的端口) | 官方规格 Authorization；领域 [模块角色与事实归属](../../../docs/domains/mcp/README.md#模块角色与事实归属) |
 | 清单采用只按清单修订做条件判断，整份发布，迟到较旧的结果被拒绝。产出清单的那一代连接是否仍是当前连接，在发布边界核对。见 [MCP 动作清单](#mcp-动作清单与-mcp-已知动作) | 统一语言；产品 J-MC03 |
-| MCP 动作清单经需求端口 `CatalogStore` 保存：按（租户、对端账号、接入点持有）读取，按修订条件整份写入。第一波由 mcp 提供内存实现，mcp-contract 导出它的符合性套件 | 统一语言 MCP 动作清单「分开保存」「整份更新」；产品 J-MC03 |
+| MCP 动作清单经需求端口 `CatalogStore` 保存：按（租户、对端账号、接入点持有）读取，按修订条件整份写入。由 mcp 提供内存实现，mcp-contract 导出它的符合性套件 | 统一语言 MCP 动作清单「分开保存」「整份更新」；产品 J-MC03 |
 | 首次发现由调用方经 `refresh` 触发。MCP 连接在协商成功时进入 `ready`，不等清单 | 本页 [MCP 动作清单](#mcp-动作清单与-mcp-已知动作) |
 | 传输种类与 stdio 启动声明写进接入点正文。远端地址与覆盖值是连接目标设置。stdio 进程环境里的非秘密配值经 `AdoptionView` 交来，秘密值由 `ProcessLanding` 用凭据句柄注入，见 [MCP 声明的端口](#mcp-声明的端口) | 产品 [产品需求描述](../../../.meta_harness/design/product/mcp/design.md#产品需求描述)「身份和落点设置不从工作区取得」「本机命令型 MCP 默认禁用」；统一语言连接目标 |
 | 连接时限是本组的设置，发现受它约束。调用的截止由调用方经 `signal` 给出，本组不设调用时限。值来自合法配置，不补默认。连接目标只对 Streamable HTTP 适用；凭据只在认证方式不是 `none` 时必需。见[设置声明与逐动作权限](#设置声明与逐动作权限) | 产品 [阶段与版本支持承诺](../../../.meta_harness/design/product/mcp/design.md#阶段与版本支持承诺)；领域[协作与依赖](../../../docs/domains/mcp/README.md#协作与依赖) |
