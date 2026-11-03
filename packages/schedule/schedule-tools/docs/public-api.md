@@ -1,7 +1,13 @@
 # 公开入口
 
-`@omne-harness/schedule-tools` 的根入口当前没有业务导出。`./cordis` 已登记为独立入口，但尚无绑定导出。
+根入口 [index.ts](../src/index.ts)导出工具作者、环境适配、详情工厂及公开 schema。类型与方法只在源码定义。
 
-目标责任为独立工具适配。工具参数与结果投影、可信调用上下文及工具贡献生命周期。通过 Cordis inject 消费服务定义，不依赖本地后端，也不承担业务规则。 方法及类型以未来实际公开源码为唯一形状源。现有[API 设计](../../schedule/docs/public-api-design.md)是实施输入，不是当前 API。不能从包名或导出路径推断业务已经实现。
+| 入口                             | 责任                                       | 定义                                    |
+| -------------------------------- | ------------------------------------------ | --------------------------------------- |
+| createScheduleToolModule         | 消费 commands/queries，构造九动作工具作者  | [author.ts](../src/author.ts)           |
+| createScheduleToolEnvironment    | 从原 Tool 耐久记录恢复可信上下文和固定意图 | [environment.ts](../src/environment.ts) |
+| createScheduleToolDetails        | 返回 guard、固定引用构造和分页读取         | [details.ts](../src/details.ts)         |
+| 参数、结果、采用身份与参数 codec | 严格动作联合和版本化采用                   | [protocol.ts](../src/protocol.ts)       |
+| createScheduleToolsPlugin        | 注入公开服务，注册和撤除贡献               | [cordis.ts](../src/cordis.ts)           |
 
-工具动作范围、可信上下文与禁止暴露的系统入口见[工具边界](../../docs/reuse-plan.md#schedule-tools-提供什么)。实际方法和 schema 随实现维护，不把本文目标动作当作已注册能力。
+工厂依赖是本地宿主端口，不是线上 DTO。Schedule 业务协议归 schedule-contract；Tool 耐久调用及结果协议归 tool-contract。不要导入私有模块，或把进程对象写入公共请求。

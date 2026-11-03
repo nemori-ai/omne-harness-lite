@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Pure public contracts for schedule; initialized draft without business exports",
+  "description": "Public Schedule value schemas, service protocols and operation identity",
   "engines": {
     "node": ">=24"
   },
@@ -25,7 +25,10 @@
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
-    "@omne-harness/calendar-contract": "workspace:*"
+    "@omne-harness/calendar-contract": "workspace:*",
+    "zod": "catalog:",
+    "@js-temporal/polyfill": "0.5.1",
+    "canonicalize": "5.1.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",

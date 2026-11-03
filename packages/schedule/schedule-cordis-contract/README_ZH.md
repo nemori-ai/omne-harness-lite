@@ -1,15 +1,14 @@
 # @omne-harness/schedule-cordis-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 ## 职责与状态
 
-唯一 Service 定义、服务键与 Context 类型增补。服务方法消费纯契约，不引入业务实现或本地后端。 本包为 private 0.0.0 初始化草稿，公开入口仍为空，没有可运行的业务能力。
+唯一 Service 定义、服务键与 Context 类型增补。服务方法消费纯契约，不引入业务实现或本地后端。 本包为private 0.0.0。./cordis提供管理及查询抽象Service，根入口保持空，具体提供者另行装配。
 
 ## 使用
 
-目标消费者和允许依赖见[组架构](../docs/architecture.md)。当前只能构建和检查骨架，不能创建服务或执行业务命令。未来使用者通过公开入口消费，不能导入本包私有源码。
+目标消费者和允许依赖见[组架构](../docs/architecture.md)。提供者继承服务定义，消费者在inject中声明导出key。使用公开入口，不导入私有源码。
 
 ## 契约
 
@@ -25,11 +24,11 @@ Node >=24，ESM。当前没有业务配置或启动入口。单机后端与未�
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/schedule-cordis-contract build`、`typecheck` 和 `test`。测试只检查草稿导出，不证明持久化、租户隔离、网络、生命周期或业务正确性。
+运行 `pnpm --filter @omne-harness/schedule-cordis-contract build`、`typecheck` 和 `test`。构建及类型检查验证与纯契约一致。提供者生命周期及业务正确性由实际实现另验。
 
 ## 维护
 
-实现公共定义时同步消费者、必要行为与验证。保留草稿标记，直到公开行为及其验证实际完成。具体方法、schema、服务类和提供者均未实现。
+实现公共定义时同步消费者、必要行为与验证。服务key只在本包定义。Job及Subscriptions绑定尚未实现。
 
 ## 目录结构与文档职责
 

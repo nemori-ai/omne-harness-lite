@@ -1,6 +1,6 @@
 # Schedule 与 Job 公开 API 设计
 
-本页承接 2026-11-03 用户确认的终态，协议设计为 `omne.calendar-schedule/1`，尚非真实公开导出。当前源码仍为 `export {}`。行为归 [SPEC](../SPEC.md)，纯服务/参加者/生命周期归[内部设计](internals.md)。下列 TypeScript 是设计说明，实施时由 schedule-contract 的公开类型与 Standard Schema 唯一拥有，派生 Tool/HTTP/SDK，不手写多套字段。
+本页索引已经实现的Schedule协议及应用工厂，并保留尚未实现的Job目标接口。协议为 `omne.calendar-schedule/1`。实际类型和Standard Schema由[schedule-contract源码](../../schedule-contract/src/index.ts)唯一拥有，工厂依赖由[本成员源码](../src/index.ts)拥有。行为归[SPEC](../SPEC.md)，机制归[内部设计](internals.md)。
 
 公共服务协议与本机工厂配置分开维护。可替换服务端口归 schedule-contract，工厂 Dependencies/Configuration 归 schedule，SQL 参加者与具体存储映射归 schedule-local。下文进程内依赖对象不属于 HTTP/远程请求或回执。根公共协议不携带 Context、数据库句柄、函数或运行时实例；取消观察的 signal 由客户端本地处理，不直接序列化。分布式交接与强保证的前提归[安装和部署边界](../../../../docs/package-organization.md#日历与日程的安装和部署边界)。
 
@@ -8,43 +8,9 @@
 
 Calendar 的实际公开值、查询与供应协议由 [calendar-contract](../../../calendar/calendar-contract/docs/public-api.md)拥有。Schedule 的 CalendarSelection 仍表示下述 Binding 消费投影，不冒充 CalendarResolve 的 selection 字段。日期与可信调用原则见 [Calendar 编码说明](../../../calendar/calendar/docs/public-api-design.md#1-编码版本与调用上下文)。本域不接受模型自报 owner/actor/authContext，不引入 Calendar 到 Schedule 的源码依赖。真实身份定义必须优先复用已接受公共值。
 
-以下保留 Schedule 尚未源码化的既定命令设计，原先集中在 Calendar 设计页。它们不是 Calendar 实际导出，也不构成已实现声明。
+Schedule共同值、管理命令及查询已经源码化。以下Job、Admission、Subscriptions和外部执行设计仍未实现，不是当前可调用接口。
 
-```ts
-type Ref = string // 具体 schema 分别验证 UUID / authority ref，不互相替代
-type Instant = string
-type Civil = string
-type LocalDate = string
-type OwnerRef =
-  | { kind: 'tenant'; tenantId: Ref; ownerId: Ref }
-  | { kind: 'system'; systemScopeRef: Ref }
-interface CallContext {
-  principalRef: Ref
-  owner: OwnerRef
-  actor: { kind: 'human' | 'agent' | 'system'; actorRef: Ref }
-  authContextRef: Ref
-  requestId: Ref
-  originatingSessionRef: Ref | null
-}
-interface CommandMeta {
-  operationKey: string // 1..128 UTF-8 bytes，由调用方产生并在重试保留
-  expectedRevision: number | null // create 为 null；已有对象命令必填
-  consentRef: Ref | null // 引用，不是授权结论
-}
-type CommandResult<T> =
-  | { kind: 'committed'; operationRef: Ref; value: T; replayed: boolean }
-  | { kind: 'noChange'; operationRef: Ref; value: T; replayed: boolean }
-  | { kind: 'unknown'; operationRef: Ref; retryAfterMs: number }
-  | { kind: 'rejected'; error: DomainError }
-type QueryResult<T> = { kind: 'ok'; value: T } | { kind: 'error'; error: DomainError }
-interface DomainError {
-  code: ErrorCode
-  message: string
-  retryable: boolean
-  requestId: Ref
-  details: Readonly<Record<string, string | number | boolean | null>>
-}
-```
+共同值与可信上下文见[values.ts](../../schedule-contract/src/values.ts)，命令元数据见[commands.ts](../../schedule-contract/src/commands.ts)，错误及结果联合见[results.ts](../../schedule-contract/src/results.ts)。这些schema直接派生Tool/SDK参数，不在此重抄字段。
 
 Schedule 命令指纹继续使用 `{protocol,operation,owner,aggregateRef,payload,expectedRevision,consentRef}` 的 RFC 8785 JCS UTF-8 字节与 SHA-256，不含 requestId、operationKey、运行时对象或 retry count。幂等作用域包含 owner、operation、aggregateRef 和 protocol，create 使用 owner 下 create namespace。同 key 同指纹认回原回执，异指纹返回 operation_key_conflict。无默认 TTL 删除历史或去重事实。sourceFingerprint 与 targetFingerprint 分开，旧 proof/receipt 不因 label 修改重写。日期/UUID 先校验，不静默修剪，排序遵循 JCS。跨语言 golden 保留中文、emoji、斜杠、负数、指数、null、空数组和键顺序。
 
@@ -54,30 +20,7 @@ OwnerRef 的 tenant 与 system 分开，source owner 导入 tenant 分支。系�
 
 ### 2.1 规则、日期及预算
 
-```ts
-type Recurrence =
-  | { kind: 'once'; localAt: Civil }
-  | { kind: 'cron'; expression: string; begin: Civil; until: Civil | null }
-  | { kind: 'rrule'; rule: string; begin: Civil; until: Civil | null }
-  | { kind: 'position'; period: 'month' | 'quarter' | 'year'; interval: number;
-      begin: Civil; until: Civil | null; ordinal: number | 'last';
-      selector: { kind: 'weekday'; weekday: 1|2|3|4|5|6|7 } | { kind: 'workingDay' };
-      times: readonly string[] }
-interface RuleLimits { eligibleLimit: number | null; jobLimit: number | null; excludeDates: readonly LocalDate[] }
-type Binding =
-  | { kind: 'followUserEnvironment' }
-  | { kind: 'explicit'; timezone: string; calendar: CalendarSelection | null }
-// CalendarSelection 是本域的 Calendar 身份与版本消费投影。
-type CalendarSelection = {calendarId: string; version: {kind: 'latest'} | {kind: 'pinned'; versionId: Ref}}
-type CalendarOverlay = null | {
-  predicate: 'workingDay' | 'nonWorkingDay' | 'holiday'
-  adjust: 'skip' | 'previousWorkingDay' | 'nextWorkingDay'
-}
-type CatchUp = { kind: 'none' } | { kind: 'latest'; maximum: number }
-type Scope = { kind: 'fleet' } | { kind: 'device'; deviceRef: Ref }
-type Overlap = 'skip' | 'wait' | 'replace' | 'parallel'
-type Misfire = { kind: 'lapse' } | { kind: 'awaitRecovery' }
-```
+规则及位置定义见[recurrence.ts](../../schedule-contract/src/recurrence.ts)，Binding与完整定义见[definition.ts](../../schedule-contract/src/definition.ts)，工作范围、补跑与重叠声明见[work.ts](../../schedule-contract/src/work.ts)。此处说明约束和用途，字段形状以源码为准。
 
 position.times 是去重升序 `HH:mm:ss` 数组，1..100 项；interval、ordinal、maximum、非空 limit 均正整数。period=quarter 使用 1/4/7/10 月自然季度，周从周一开始。RRULE 内容不含 DTSTART/COUNT/UNTIL，不允许重复参数。包含 BYYEARDAY、BYWEEKNO 的源合法规则必须支持；源验证器接受的其他合法语法以固定基线 golden 逐项验证，未支持不能通过完整复刻验收。源完整合法语法的 parser 对照属于 P1 硬验收，不能只测本文示例。
 
@@ -91,45 +34,7 @@ calendar-dependent 的 overlay/workingDay selector 必须能从 Binding 解析�
 
 ### 2.2 工作与完整 Schedule 定义
 
-```ts
-type JsonValue = null | boolean | number | string | readonly JsonValue[]
-  | { readonly [key: string]: JsonValue }
-// 以下均为 Job 契约自己的数据值，不 import Session/Agent 的领域类型。
-type AgentModes = {
-  permission: 'never' | 'auto_permission' | 'bypass-permissions'
-  environmentAdoptionRef: Ref
-  collaboration: 'co-work' | 'auto-drive'
-}
-type WorkspaceInput = { workspaceRef: Ref; instanceRef: Ref; basisRef: Ref }
-type MaterialInput = { resourceRef: Ref; versionRef: Ref }
-type AgentSessionPlan =
-  | { mode: 'new'; agentDefinitionRef: Ref; modes: AgentModes; workspace: WorkspaceInput | null }
-  | { mode: 'existing'; sessionRef: Ref }
-type Work =
-  | { kind: 'program'; programRef: Ref; input: JsonValue }
-  | { kind: 'agent'; instruction: string; session: AgentSessionPlan; materials: readonly MaterialInput[];
-      returnTo: { kind: 'external'; targetRef: Ref } | null;
-      resultPolicy: ResultPolicy }
-interface ReminderContent { title: string | null; body: string }
-type ExecutionNotification = {
-  event: 'started' | 'succeeded' | 'failed' | 'cancelled'
-  content: { title: string | null; body: string }
-  target: { kind: 'owner' } | { kind: 'authorizedTarget'; targetRef: Ref }
-}
-type Purpose =
-  | { kind: 'execution'; work: Work; scope: Scope; catchUp: CatchUp;
-      overlap: Overlap; misfire: Misfire | null; notifications: readonly ExecutionNotification[] }
-  | { kind: 'reminder'; content: ReminderContent; admissionPolicy: 'reminder-window-v1'; overlap: Overlap }
-interface ScheduleDefinition {
-  label: string
-  recurrence: Recurrence
-  limits: RuleLimits
-  binding: Binding
-  calendarOverlay: CalendarOverlay
-  purpose: Purpose
-}
-type InitialState = { kind: 'active' } | { kind: 'draft'; reason: string }
-```
+执行意图、提醒和完整Schedule定义分别由[work.ts](../../schedule-contract/src/work.ts)及[definition.ts](../../schedule-contract/src/definition.ts)拥有。其声明已可保存和查询，不表示Job执行器已经实现。
 
 label 1..200 code points。instruction 1..65,536 UTF-8 bytes，本设计资源边界，不假称源相同。draft reason 1..1,024 code points。programRef、agentDefinitionRef、sessionRef、returnTo.targetRef 是 Job 契约拥有的 opaque 引用值，具体执行适配器解析。Job 应用服务只消费自己定义的 JobExecutor port 及其可执行性/资格证明，不调用或 import Session/Agent 领域服务。programRef 必须解析为已注册、已采用版本的程序及输入 schema；input 不允许携带任意可执行脚本。
 
@@ -156,10 +61,7 @@ Reminder 并发投递仍由 notification provider 负责各 intent 的真实结�
 ### 2.3 创建来源与直接工作
 
 ```ts
-type Author =
-  | { kind: 'human'; actorRef: Ref }
-  | { kind: 'agent'; actorRef: Ref; originatingSessionRef: Ref }
-  | { kind: 'system'; principalRef: Ref }
+type Author = ScheduleAuthor // 已有类型从schedule-contract导入
 type JobOrigin =
   | { kind: 'human'; actorRef: Ref; requestRef: Ref }
   | { kind: 'agent'; actorRef: Ref; originatingSessionRef: Ref; requestRef: Ref }
@@ -189,13 +91,10 @@ JobView 对直接来源固定 scheduleId=null、scheduledAt=null、frozenBasis=n
 
 ### 2.4 公共读值
 
+实际ScheduleView及standing见[views.ts](../../schedule-contract/src/views.ts)，候选和实际依据见[candidates.ts](../../schedule-contract/src/candidates.ts)。下表仅保留后续Job/Preparation/Receipt设计。
+
 | 类型 | 完整业务字段（所有 optional 以 null 表示） |
 | --- | --- |
-| ScheduleView | scheduleId、owner、author、createdBy、createdAt、definition、definitionRevision、stateRevision、timeRuleRevision、control、standing、nextOccurrence、predecessorId、successorId、promotedBy、promotedAt、discardedBy、discardedAt、sourceScheduleKey、consentAdoption、eligibleConsumed、acceptedJobCount、observedAt |
-| Standing | kind=ready/blocked/terminallyInvalidated、generation、reasons[]、authorityEvidence[]、since、observedAt；ready 时 reasons 空 |
-| AuthorityEvidence | authorityRef、subjectRef、version、disposition、observedAt、reasonCode；不附凭证 |
-| AdoptedBasis | timezone、tzdbVersion、calendarId/versionId/publicationGeneration 或 null、environmentRevision 或 null、ruleEngineVersion、definitionRevision |
-| Candidate | sourceKeys[]、originalLocals[]、adjustedLocal、scheduledAt、dstDisposition、dateExplanation[]、basis、eligibleOrdinal |
 | PreparationView | preparationId、scheduleId、occurrenceKey、candidate、definitionRevision、preparedAt、frozenDefinition、admissionDeadline或null、fingerprint、sourceFingerprint或null |
 | ReceiptView | receiptId、occurrenceKey、preparationId、admissionDeadline或null、decidedAt、disposition、reasonCode、jobId或null、notificationIntentId或null、notificationId或null、operationRef |
 | JobView | 共同头：jobId、owner、origin、scheduleId或null、receiptId、frozenBasis、sources[]、scheduledAt、acceptedAt、stopState、revision；body是execution/notification联合，见下文 |
@@ -208,6 +107,8 @@ JobView.body 为判别联合：execution 分支含 frozenWork、frozenNotificati
 execution.executionOutcome 为 succeeded、failed、cancelled、unknown 的带原因/原回执联合。unknown 不是终态证据，不能解除 replace 的停止等待。ResultOutcomes 的精确 shape 见第 6 节。notificationObligations 每项含 obligationId、event、eventReceiptRef、semanticKey、frozenContent、target、intentId、notificationId或null、handoffState、durableAvailableReceiptRef或null、outcome。obligationId/semanticKey按jobId+event唯一，同提交保存事件与义务；handoffState为retained/accepted/unknown，unknown保持本域责任。
 
 ## 3. 纯领域操作
+
+当前纯计算导出validateScheduleRecurrence、enumerateScheduleRecurrence、materializeScheduleCivil，见[calculation/index.ts](../src/calculation/index.ts)。管理状态决定为decideScheduleManagement。下列完整Job算法设计中的未对应函数尚未实现。
 
 所有纯操作同步执行或可取消的有界计算，不访问 ports。每个函数返回 `Value | CalculationError` 的判别联合，错误含 invalid、coverageInsufficient、searchLimit，不能 throw 表示普通空结果。
 
@@ -225,49 +126,22 @@ execution.executionOutcome 为 succeeded、failed、cancelled、unknown 的带�
 
 ## 4. 应用服务根接口
 
-公共 Promise 返回明确业务联合。进程故障或程序缺陷可抛异常，host 记录真实失败。adapter 不转为空页或成功。查询可接收进程内 signal，DTO、哈希、持久命令不包含 AbortSignal。
+公共 Promise 返回明确业务联合。进程故障或程序缺陷可抛异常，host 记录真实失败。adapter 不转为空页或成功。当前公共查询方法没有signal参数。计算提供者在进程内支持取消观察，DTO、哈希和持久命令不包含AbortSignal。
+
+ScheduleCommands与ScheduleQueries的真实方法见[services.ts](../../schedule-contract/src/services.ts)。queryOperation接受原业务identity与expectedFingerprint，或已保存operationRef；精确联合见[operation.ts](../../schedule-contract/src/operation.ts)。
+
+下列JobControl仍为后续目标。
 
 ```ts
-interface ScheduleCommands {
-  create(ctx: CallContext, input: {definition: ScheduleDefinition; initial: InitialState; meta: CommandMeta}): Promise<CommandResult<ScheduleView>>
-  execute(ctx: CallContext, input: ScheduleCommand): Promise<CommandResult<ScheduleView>>
-  queryOperation(ctx: CallContext, input: {operationRef: Ref}): Promise<QueryResult<OperationView>>
-}
-type ScheduleCommand = {scheduleId: Ref; meta: CommandMeta} & (
-  | {action: 'update'; patch: SchedulePatch}
-  | {action: 'reviseDraft'; definition: ScheduleDefinition; reason: string}
-  | {action: 'reconfirmConsent'; newConsentRef: Ref; reason: string}
-  | {action: 'pause' | 'resume' | 'stop' | 'promote' | 'discard'; reason: string | null}
-  | {action: 'replace'; successor: ScheduleDefinition; reason: string})
-type SchedulePatch = {kind: 'label'; label: string}
-  | {kind: 'executionText'; instruction: string; label: string | null}
-  | {kind: 'reminderContent'; content: ReminderContent; label: string | null}
-interface ScheduleQueries {
-  list(ctx: CallContext, input: ScheduleFilter & PageRequest): Promise<QueryResult<Page<ScheduleView>>>
-  get(ctx: CallContext, input: {scheduleId: Ref}): Promise<QueryResult<ScheduleView>>
-  revisions(ctx: CallContext, input: {scheduleId: Ref} & PageRequest): Promise<QueryResult<Page<RevisionView>>>
-  executions(ctx: CallContext, input: {scheduleId: Ref; from: Instant | null; to: Instant | null} & PageRequest): Promise<QueryResult<Page<ExecutionRow>>>
-  agenda(ctx: CallContext, input: AgendaRequest): Promise<QueryResult<AgendaView>>
-  preview(ctx: CallContext, input: PreviewRequest): Promise<QueryResult<PreviewView>>
-}
 interface JobControl {
   get(ctx: CallContext, input: {jobId: Ref}): Promise<QueryResult<JobView>>
   cancel(ctx: CallContext, input: {jobId: Ref; reason: string; meta: CommandMeta}): Promise<CommandResult<JobView>>
 }
 ```
 
-| 余下 DTO | 字段及约束 |
-| --- | --- |
-| PageRequest | cursor:string或null、limit:number；limit 沿长期 SPEC各读面上限；cursor绑定queryHash、lastKey及observationRevision，revision变化返回stale_cursor要求重读，不静默跨快照翻页 |
-| Page&lt;T&gt; | items:T[]、nextCursor:string或null、observationRevision:string、complete:boolean、total:{kind:exact,value:非负整数}或{kind:unknown,reason:budgetExceeded或sourceUnavailable}；截断不能伪装结束 |
-| ScheduleFilter | agentRef、control、standing、createdBy、targetDeviceRef、calendarId、purpose 各可 null；无筛选不需日历选择 |
-| ExecutionRow | candidate/source explanation、preparation或null、receipt或null、job或null、notification或null、originalScheduledAt；身份明确 |
-| AgendaRequest | from/to:Civil、timezone:IANA、filter、cursor或null、limit；最长92天，to排除 |
-| AgendaView | Page&lt;AgendaRow&gt; + range、timezone、scannedScheduleCount、incompleteReason或null |
-| AgendaRow | kind=history/prediction、scheduleId、owner、purpose、scheduledAt、displayLocal、basis、control、standing、receiptRef或null、jobRef或null、explanation[] |
-| PreviewRequest | source 为 scheduleId 引用 XOR inline ScheduleDefinition；after:Instant；count:1..100 |
-| PreviewView | candidates[]、basis、complete、observedThrough、reason或null、remainingEligible或null、remainingJobs或null；不预测重叠执行结果 |
-| OperationView | operationRef、kind=committed/noChange/rejected/pending/unknown/notCommitted、result或null、error或null、observedAt；notCommitted须storage完整否定证据 |
+分页、筛选、预览及agenda DTO见[queries.ts](../../schedule-contract/src/queries.ts)，执行历史行见[history.ts](../../schedule-contract/src/history.ts)，操作观察联合见[results.ts](../../schedule-contract/src/results.ts)。不从此页复制另一份字段表。
+
+agentRef只匹配安排作者为agent且author.actorRef相等，不匹配执行用的AgentDefinition或会话。createdBy匹配作者兼容投影；多个筛选同时给出时取交集。calendarId匹配当前安排绑定：explicit取definition.binding.calendar的calendarId，follow取已保存adoptedBasis.calendarId。尚无可知日历时不匹配，不为列表读取外域或猜测日历。执行历史仍按原采用依据读取。
 
 total 计算同一筛选、同一 observationRevision 和当前有权可见集合中的全部匹配行，不是本页长度，也不泄露不可见对象数量。ScheduleQueries.list 成功必须返回 exact 总数；不能完成一致计数时返回明确查询错误，不以 unknown 交付成功列表。其余有界计算读面允许 unknown 并给出原因。分页期间数据或权限观察边界变化使原 cursor 失效，不能沿用旧总数；无法取得一致观察边界时明确查询失败。Repository 的 listSchedules 必须在同一观察边界返回页面与总数，HTTP/Tool/SDK 原样携带。验收覆盖 501 条匹配、50 条首屏、过滤及权限变化、计数不可用和截断，不能通过穷举不稳定页面补算。
 
@@ -490,7 +364,7 @@ declare module '@deepseek-ai/cordis' {
 
 其他 seam 按同一形状分别拥有：JobExecutor→jobExecutor、ScheduleCommands→scheduleCommands、ScheduleQueries→scheduleQueries、JobCommands→jobCommands、JobControl→jobControl、ScheduleSubscriptions→scheduleSubscriptions。CalendarSupply→calendarSupply 归 calendar-cordis-contract，SessionContinuation 归 Session 的实际成员。tools作者插件声明 `static readonly inject = [scheduleCommandsKey]` 或对应服务key的数组字面量，并通过 `ctx.scheduleCommands` 调用，不能自己new服务/取provider。
 
-Tool贡献的发布、装载与撤除沿[Tool Cordis已接受设计](../../../tool/tool-cordis-contract/docs/cordis.md)及tool-host-local，使用既有绑定与贡献权限协议，不能在本设计另造registerTool全局表。本组 tools 与执行适配尚未实现，P7须补真实装配验收，不能把有抽象Service当作工具已能运行。
+Tool贡献的发布、装载与撤除沿[Tool Cordis已接受设计](../../../tool/tool-cordis-contract/docs/cordis.md)及tool-host-local，使用既有绑定与贡献权限协议，不能在本设计另造registerTool全局表。本组 tools 已实现作者、可信环境和详情适配，边界见 [tools SPEC](../../schedule-tools/SPEC.md)。Job 执行适配仍待后续波段；完整跨域生产装配须在M2后验收。
 
 依赖消失时停止注册新调用，已接受业务责任由应用/持久化保管。卸载旧 tool 的 disposer 只移除其注册 token，不删新实例同名 tool，也不停止所有 schedule。
 
@@ -536,6 +410,8 @@ PrerequisiteProof的capabilities.query必须为true才可用于后台执行；�
 
 ## 纯应用工厂与持久端口
 
+当前实现分别导出createScheduleManagementApplication、createSchedulePredictionService和createScheduleQueryApplication。其依赖形状见[management/types.ts](../src/management/types.ts)、[prediction/types.ts](../src/prediction/types.ts)、[queries/types.ts](../src/queries/types.ts)。管理持久命令只实现saveDefinition和replaceDefinition。以下包含Job、扫描和outbox执行的统一工厂及其他命令仍是后续目标，不是当前导出。
+
 目标工厂 createScheduleApplication(dependencies)返回{commands,queries,jobCommands,jobControl,admission,subscriptions}。dependencies为Clock、ScheduleRepository、SchedulePersistence、CalendarQueries与CalendarBasisGuardParticipant、EnvironmentReader/Participant、AuthorityReader/Participant、QuotaParticipant、JobExecutor、Notification、ResultPublication、ThematicArchive以及受管运行器配置。运行器与tools是可选装配，不影响纯API。仅特定操作解析它实际需要的port：program不因缺Session/Agent而失败，查询不因执行/通知未装载而不可读。self-wake/ProgressMonitor/MasterReturn在外部组合中接入，不能进入这个核心工厂的必需依赖。agent的returnTo由外部执行/结果适配承担。
 
 ScheduleRepository提供readSchedule、listSchedules、readRevisions、readExecutions、readJob、readPreparation、readReceipt、loadRecovery、scanOutbox；输入为可信owner、稳定引用、声明的筛选/分页/观察revision。返回ok/absent/changed/unavailable，absent只有权威成功读取且不存在时成立；任何I/O故障不转empty。scanOutbox只给受信dispatcher，不能成为普通查询写入。
@@ -560,7 +436,7 @@ SchedulePersistence.commit接收完整operationIdentity和以下唯一typed comm
 
 CalendarId是明确业务日历身份，首批三历为cn-legal-holidays、jp-legal-holidays、us-federal-holidays。CalendarVersionId及外域program/profile/session/returnTo/provider/authority refs是不透明的非空稳定引用，schema校验各自语法，不相互替代。目标ScheduleId、JobId、PreparationId、ReceiptId、AttemptId、SubscriptionId、resultSeriesId/resultEntryId分别使用独立的规范小写UUID；导入保留原sourceScheduleKey和映射，不把源job_id直接变成JobId。operationRef指向本域保存的完整storage操作身份，不仅是时间戳；operationKey是调用方提供并在重试保留的稳定字符串。
 
-sourceKey由owner、scheduleId、timeRuleRevision与原civil候选身份确定，环境/日历平移和不同Preparation不能改变它。occurrenceKey按owner、scheduleId、timeRuleRevision和合并后的有效scheduledAt确定，多个sourceKey可映射一个occurrence；subscriber另包含subscriptionId。哈希输入使用带协议/类别标签的规范tuple，按共同JCS/SHA-256规则编码。去重同时保护sourceKey和有效occurrence，重算换日期不能再次执行已处理来源。
+后续耐久来源去重身份由owner、scheduleId、timeRuleRevision与原civil候选身份确定。当前只读预测的sourceKeys标识规则内原来源，尚未包含Schedule持久去重身份；Admission须在接受时加上该业务作用域。环境/日历平移和不同Preparation不能改变它。occurrenceKey按owner、scheduleId、timeRuleRevision和合并后的有效scheduledAt确定，多个sourceKey可映射一个occurrence；subscriber另包含subscriptionId。哈希输入使用带协议/类别标签的规范tuple，按共同JCS/SHA-256规则编码。去重同时保护sourceKey和有效occurrence，重算换日期不能再次执行已处理来源。
 
 ScheduleView.control枚举draft/active/paused/stopped/exhausted/discarded/superseded；standing为ready/blocked/terminallyInvalidated。revision为正safe integer，每次有效变更单调增加；definitionRevision只随定义变更，timeRuleRevision只随时间意图改变，stateRevision随管理/standing变更。重要变更新建Schedule，不复用旧identity重置序位。当前eligibleConsumed与acceptedJobCount在只读预算/详情中可见，Job计数不退款。
 

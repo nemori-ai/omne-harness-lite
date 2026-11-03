@@ -1,15 +1,14 @@
 # @omne-harness/schedule-cordis-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 ## Responsibility and status
 
-Owns the sole Service definitions, service keys and Context augmentation. Definitions consume the pure contract without importing implementations or local backends. This private 0.0.0 package is an initialized draft. Public entries remain empty; no business service is runnable.
+Owns the sole Service definitions, service keys and Context augmentation. Definitions consume the pure contract without importing implementations or local backends. This private 0.0.0 package exports abstract management and query services from ./cordis. Its root remains empty. Concrete providers are separate.
 
 ## Usage
 
-See the [group architecture](../docs/architecture.md) for consumers and dependency direction. Only skeleton build and checks are available. Consumers must use public entries rather than private source paths.
+See the [group architecture](../docs/architecture.md) for consumers and dependency direction. Providers inherit the service definitions. Consumers use the exported keys in inject. Consumers must use public entries rather than private source paths.
 
 ## Contracts
 
@@ -25,11 +24,11 @@ Node >=24 and ESM. There is no business configuration or startup entry. Local an
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/schedule-cordis-contract build`, `typecheck` and `test`. Tests check draft exports only. They do not establish persistence, tenant isolation, network, lifecycle or business guarantees.
+Run `pnpm --filter @omne-harness/schedule-cordis-contract build`, `typecheck` and `test`. Build and type checks verify agreement with the pure contract. Provider lifecycle and business behavior require their own checks.
 
 ## Maintenance
 
-Update consumers, necessary behavior and verification when implementing public definitions. Keep draft markers until implementation and verification are complete. Methods, schemas, service classes and providers remain unimplemented.
+Update consumers, necessary behavior and verification when implementing public definitions. Keep each service key unique. Job and subscription bindings remain unimplemented.
 
 ## Directory structure and documentation roles
 

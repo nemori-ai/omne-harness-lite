@@ -1,6 +1,9 @@
 import { expect, it } from 'vitest'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
+it('exports calculation and management storage factories', async () => {
   const root = (await import('@omne-harness/schedule-local')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+  expect(typeof root['createScheduleCalculationWorker']).toBe('function')
+  expect(typeof root['createScheduleManagementSqlBackend']).toBe('function')
+  expect(typeof root['scheduleManagementSqlMaterials']).toBe('function')
+  expect(typeof root['createScheduleLocalApplication']).toBe('function')
 })

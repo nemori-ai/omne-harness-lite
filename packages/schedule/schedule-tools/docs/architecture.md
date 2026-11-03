@@ -1,7 +1,18 @@
-# 成员架构
+# 工具适配架构
 
-本成员承担独立工具适配。工具参数与结果投影、可信调用上下文及工具贡献生命周期。通过 Cordis inject 消费服务定义，不依赖本地后端，也不承担业务规则。
+本包独立于 Schedule 核心和 -local 后端。author 消费业务服务，environment 恢复原 Tool 调用，details 守住固定结果披露。protocol 组合公开 schema 和采用身份。detail-metadata 校验 Tool 页元信息，不重定义业务模型。
 
-成员关系与依赖方向归[组架构](../../docs/architecture.md)。当前 `src` 只有模板入口，尚无内部实现模块。公共服务协议和提供者构造依赖分别维护，不能把本机句柄、工厂回调或 SQL 参加者写入线上请求与回执。
+```mermaid
+flowchart LR
+ Host[可信宿主] --> E[environment]
+ Durable[Tool 原调用记录] --> E
+ E --> A[author]
+ A --> S[ScheduleCommands / ScheduleQueries]
+ A --> R[Tool 固定结果]
+ R --> D[details]
+ Policy[当前披露策略] --> D
+ Guard[基础读取 guard] --> D
+ D --> Reader[获准读取者]
+```
 
-初始化 manifest 登记已确定的组内依赖与基础契约。后续接入外域时只增加实际消费的公开契约，不预先依赖尚未建立的提供者。
+写操作由业务服务承担幂等和恢复。工具只固定原意图并返回 locator，不再建第二份业务日志。详情从已产生的精确结果读取，不再执行命令或用最新结果替代原结果。资源和贡献生命周期归宿主与 Cordis 贡献协议。

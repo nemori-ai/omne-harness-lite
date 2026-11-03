@@ -1,15 +1,14 @@
 # @omne-harness/schedule-local
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 ## Responsibility and status
 
-Owns local persistence adapters, recovery scans, supply or execution adapters and Cordis providers. Domain rules use the generic implementation; cross-domain handoffs use public protocols. This private 0.0.0 package is an initialized draft. Public entries remain empty; no business service is runnable.
+Provides bounded rule calculation in workers and SQL persistence for Schedule management. The local application composes management, prediction and queries. Its Cordis plugin injects storage and Calendar services. This private 0.0.0 package does not provide Job execution or recovery scanning.
 
 ## Usage
 
-See the [group architecture](../docs/architecture.md) for consumers and dependency direction. Only skeleton build and checks are available. Consumers must use public entries rather than private source paths.
+See the [group architecture](../docs/architecture.md) for consumers and dependency direction. Build the package before creating a calculation worker. Register SQL materials and supply a named guard before constructing the management backend. Consumers must use public entries rather than private source paths.
 
 ## Contracts
 
@@ -21,15 +20,15 @@ See the [group architecture](../docs/architecture.md) for consumers and dependen
 
 ## Configuration and operation
 
-Node >=24 and ESM. There is no business configuration or startup entry. Local and future remote implementations must preserve the same public semantics.
+Node >=24 and ESM. The host supplies worker capacity, SqlStorage, a fixed scope, combination identity and guard adapter. It owns storage shutdown. Await application.close() when using the combined application, or worker.dispose() when using the standalone worker. Local and future remote implementations must preserve the same public semantics.
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/schedule-local build`, `typecheck` and `test`. Tests check draft exports only. They do not establish persistence, tenant isolation, network, lifecycle or business guarantees.
+Run `pnpm --filter @omne-harness/schedule-local build`, `typecheck` and `test`. Fast tests cover public boundaries and real SQLite behavior. Slow tests exercise worker termination and process crashes. Authority, consent, Calendar and quota use conformance fixtures; production cross-domain integration remains unverified.
 
 ## Maintenance
 
-Update consumers, necessary behavior and verification when implementing public definitions. Keep draft markers until implementation and verification are complete. Methods, schemas, service classes and providers remain unimplemented.
+Update consumers, necessary behavior and verification when implementing public definitions. Keep planned behavior distinct from actual exports. The Cordis plugin requires explicit dependencies and preserves stored facts across dependency replacement.
 
 ## Directory structure and documentation roles
 

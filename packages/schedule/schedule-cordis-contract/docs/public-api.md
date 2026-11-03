@@ -1,5 +1,7 @@
 # 公开入口
 
-`@omne-harness/schedule-cordis-contract` 的根入口当前没有业务导出。`./cordis` 已登记为独立入口，但尚无绑定导出。
+根入口保持空。`@omne-harness/schedule-cordis-contract/cordis`导出ScheduleCommandsService、ScheduleQueriesService、scheduleCommandsKey和scheduleQueriesKey。完整形状归[src/cordis.ts](../src/cordis.ts)。
 
-目标责任为Cordis 服务定义。唯一 Service 定义、服务键与 Context 类型增补。服务方法消费纯契约，不引入业务实现或本地后端。 方法及类型以未来实际公开源码为唯一形状源。现有[API 设计](../../schedule/docs/public-api-design.md)是实施输入，不是当前 API。不能从包名或导出路径推断业务已经实现。
+两个抽象Service分别实现纯契约的管理和查询接口，并扩充ctx.scheduleCommands及ctx.scheduleQueries。提供者继承本定义，消费者声明inject并调用ctx上的服务。注入只解决装配访问，业务授权仍由应用服务执行。
+
+本包不创建SQL、worker或业务服务。Job与Subscriptions绑定尚未实现。方法签名沿schedule-contract，不复制本地后端对象；未来远端客户端也可以实现同一服务定义。

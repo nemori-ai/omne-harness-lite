@@ -1,6 +1,6 @@
 # 日程与 Job 能力组工程关系
 
-本组包含 schedule-contract、schedule-cordis-contract、schedule、schedule-local、schedule-tools 五个成员，均为初始化草稿。完整目标设计已确认，运行实现和验收未完成。本组根不是统一服务或统一SPEC，不因图中角色创建新包。
+本组包含 schedule-contract、schedule-cordis-contract、schedule、schedule-local、schedule-tools 五个成员，当前已实现Schedule协议、管理、预测、查询及本地组合。Job、扫描、执行和结果协调仍为后续目标，生产跨域组合未验收。本组根不是统一服务或统一SPEC，不因图中角色创建新包。
 
 
 ## 安装边界
@@ -17,9 +17,11 @@ flowchart LR
   Local --> Binding
   Local --> Contract
   Local --> SQL["sql-contract"]
+  Local --> CalendarBinding["calendar-cordis-contract"]
+  Core --> CalendarContract["calendar-contract"]
 ```
 
-箭头表示允许的安装依赖，不表示当前已经实现运行调用。tools 不依赖 core 或 local，绑定定义不依赖实现。公共消费不能要求同机、同进程或共享数据库；未来远程客户端可实现同一服务定义，本次不建立远程提供者包。
+箭头表示安装依赖。当前运行调用包括Schedule管理/查询、本地SQL和规则计算，Job执行相关图仍为目标。tools 不依赖 core 或 local，绑定定义不依赖实现。公共消费不能要求同机、同进程或共享数据库；未来远程客户端可实现同一服务定义，本次不建立远程提供者包。
 
 持久化参加者是 local 内部适配协议，不是服务间 wire 协议。跨域资格和发布版本的强保证仍须由对应拥有者协议兑现；当前快照不能代替动作发生时所需的有效性证明。具体限制见[部署边界](../../../docs/package-organization.md#日历与日程的安装和部署边界)。
 

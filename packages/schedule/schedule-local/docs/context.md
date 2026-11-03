@@ -1,17 +1,7 @@
 # 使用与定位
 
-<!-- documentation:placeholder -->
+独立宿主先登记scheduleManagementSqlMaterials及具名守卫，再提供SqlStorage、组合身份、固定scope和当前资格等端口。createScheduleLocalApplication组合管理、预测和查询，返回commands、queries、close。工厂不替宿主创建授权或空历史。
 
-本文件说明消费侧怎样使用本包、具名上层消费者、典型调用关系，以及本包在系统与能力组中的位置。它覆盖独立消费与适用的 Harness 接入，引用系统架构与真实消费者，不成为新的架构源。
+Cordis宿主使用createScheduleLocalPlugin，显式注入storage与calendarQuery。方法和配置唯一形状见[公开入口](public-api.md)。schedule-tools只消费Schedule服务，不依赖此提供者。
 
-## 使用方式
-
-<!-- documentation:placeholder -->
-
-待补：最小有效示例、必要依赖、初始化与释放责任。
-
-## 消费者与定位
-
-<!-- documentation:placeholder -->
-
-待补：具名上层消费者、典型调用关系与定位图。
+应用拥有计算worker，借用SQL和Calendar。宿主先等待application.close，再关闭自己拥有的SQL。尚未完成的调用不能因卸载被记为取消；原业务操作可按C01恢复。

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Local service backend for schedule; initialized draft without business exports",
+  "description": "Local Schedule application, calculation workers and SQL management persistence",
   "engines": {
     "node": ">=24"
   },
@@ -34,9 +34,14 @@
     "@omne-harness/schedule": "workspace:*",
     "@omne-harness/schedule-contract": "workspace:*",
     "@omne-harness/schedule-cordis-contract": "workspace:*",
-    "@omne-harness/sql-contract": "workspace:*"
+    "@omne-harness/sql-contract": "workspace:*",
+    "canonicalize": "5.1.0",
+    "piscina": "5.3.2",
+    "zod": "catalog:",
+    "@omne-harness/calendar-cordis-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/sqlite-provider": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

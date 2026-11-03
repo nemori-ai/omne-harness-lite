@@ -1,7 +1,5 @@
 # 成员架构
 
-本成员承担纯公开契约。公共领域值、命令、查询、结果、错误和可替换服务端口。公共请求与回执必须可序列化，不携带 Context、连接、回调或运行时实例。
+本成员拥有可序列化公开契约。values、recurrence、work和definition组成声明模型；commands、queries、results和services组成服务边界。operation规范化业务意图并生成指纹，json-schema从同一schema派生。
 
-成员关系与依赖方向归[组架构](../../docs/architecture.md)。当前 `src` 只有模板入口，尚无内部实现模块。公共服务协议和提供者构造依赖分别维护，不能把本机句柄、工厂回调或 SQL 参加者写入线上请求与回执。
-
-初始化 manifest 登记已确定的组内依赖与基础契约。后续接入外域时只增加实际消费的公开契约，不预先依赖尚未建立的提供者。
+成员关系与依赖方向归[组架构](../../docs/architecture.md)。本包依赖schema与规范JSON机制，不依赖Schedule实现、Tool、Session或Agent runtime。公共协议不包含工厂回调、SQL参加者或本机句柄。服务接口可由本地应用或未来远程客户端实现。

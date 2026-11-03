@@ -1,16 +1,14 @@
 # @omne-harness/schedule
 
-PACKAGE_TEMPLATE_DRAFT
+Public protocols belong to [schedule-contract](../schedule-contract/README.md), and Cordis definitions belong to [schedule-cordis-contract](../schedule-cordis-contract/README.md). This member implements recurrence calculation, Schedule management, prediction and queries without Cordis. Local persistence and assembly belong to [schedule-local](../schedule-local/README.md); tools belong to [schedule-tools](../schedule-tools/README.md).
 
-Public protocols belong to [schedule-contract](../schedule-contract/README.md), and Cordis definitions belong to [schedule-cordis-contract](../schedule-cordis-contract/README.md). This member retains framework-independent domain and application implementations and factory configuration. Local persistence and assembly belong to [schedule-local](../schedule-local/README.md); tools belong to [schedule-tools](../schedule-tools/README.md). All members remain initialized drafts.
-
-This workspace package is a private `0.0.0` draft. `src/index.ts` contains `export {}`. It exposes no business API or runtime service. The complete target design was confirmed on 2026-11-03. Design commitments do not establish implementation or verification.
+This private `0.0.0` package exports three application factories and pure calculation functions from [src/index.ts](src/index.ts). Job admission, execution, scanning, notification and result coordination remain target behavior. Their presence in the full design does not establish implementation.
 
 ## Use and boundaries
 
-Read the [behavior contract](SPEC.md) and [public API design](docs/public-api-design.md). The API document describes target types, commands, queries, errors, trusted context, and ports. These definitions are not current exports. There is no runnable business example yet. Direct application calls use the same authorization and durable-operation rules as HTTP and tools.
+Read the [behavior contract](SPEC.md) and [public API index](docs/public-api-design.md). The index separates current exports from future Job interfaces. Direct application calls use the same authorization and durable-operation rules as adapters.
 
-The root target contains pure domain functions and application services. It does not require Cordis. Cordis bindings and independent tool adapters consume those services. The [group architecture](../docs/architecture.md) defines dependency direction.
+Use createScheduleManagementApplication for commands, createSchedulePredictionService for date calculation and definition resolution, and createScheduleQueryApplication for read services. Each factory takes explicit dependencies. Cordis bindings and independent tool adapters consume those services. The [group architecture](../docs/architecture.md) defines dependency direction.
 
 ## Contract and internal design
 
@@ -18,7 +16,7 @@ The root target contains pure domain functions and application services. It does
 
 ## Configuration, operation, and verification
 
-There is no implemented provider or business configuration in this package. Target configuration must preserve the contract. The existing public-entry test checks empty exports only. Future domain and contract tests, real-provider integration, independent consumer tests, and end-to-end assembly are required where the SPEC assigns them. They are unverified, rather than inapplicable. Node24, ICU, real storage faults, network supply, and tool assembly have no acceptance result from this documentation work.
+Node >=24 and ESM. Factory dependency types are exported from the root. Prediction and queries require explicit budgets and clocks. Management requires current authorization, quota observations and durable persistence. No factory supplies default authority or an empty history provider. Tests cover public behavior and failure cases with conformance dependencies. Real SQLite and worker composition belongs to schedule-local. Production cross-domain integration remains separate.
 
 ## Maintenance
 
