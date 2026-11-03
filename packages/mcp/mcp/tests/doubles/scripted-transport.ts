@@ -1,8 +1,9 @@
-// Test double: a transport factory that answers from a script. Every `open` gives a transport;
-// `open`, `discover` and `listActions` consume the next step of their kind, in order. A step is
-// an immediate value, a `TransportFailure`, or a deferred that the test settles later. The double
-// records every call. It does not read the abort signal: the table under test has to keep its
-// own time, which is what the connection-bound case checks.
+// Test double: a transport factory that answers from a script. `discover` and `listActions`
+// consume the next step, which has to be of their kind. `open` and `close` consume the next step
+// only when it is of their kind; otherwise they succeed at once. A step is an immediate value, a
+// `TransportFailure`, or a deferred that the test settles later. The double records every call.
+// It does not read the abort signal: the table under test has to keep its own time, which is
+// what the connection-bound cases check.
 import type {
   ListingPage,
   McpTransport,
@@ -20,6 +21,7 @@ export type Step =
   | Readonly<{ open: Scripted<'opened'> }>
   | Readonly<{ discover: Scripted<PeerIdentity> }>
   | Readonly<{ listActions: Scripted<ListingPage> }>
+  | Readonly<{ close: Deferred<'closed'> }>
 
 export type Call =
   | Readonly<{ kind: 'open'; material: TransportMaterial }>
@@ -97,6 +99,11 @@ export function scriptedTransports(
     cancelTask: () => notScripted('cancelTask'),
     async close() {
       calls.push({ kind: 'close', generation })
+      const head = queue[0]
+      if (head !== undefined && 'close' in head) {
+        queue.shift()
+        await head.close.promise
+      }
       trace('transport.close')
     },
   })

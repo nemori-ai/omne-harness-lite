@@ -1,8 +1,9 @@
 // The in-flight table of calls (SPEC S2): keyed by tenant, principal and correlation key. The
 // reservation is the duplicate check and the placeholder in one step. Entries stay for the run;
 // an ended key is not deleted. This wave builds the table; the call port of the next wave uses it.
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import type { TenantId } from '@omne-harness/legal-identity'
 import type { CancelAnswer, CorrelationKey, Generation } from '@omne-harness/mcp-contract'
+import { tenantTextOf } from './text.ts'
 
 export type InFlightKey = Readonly<{
   tenant: TenantId
@@ -17,9 +18,7 @@ type Entry =
   | Readonly<{ phase: 'ended' }>
 
 function textOf(key: InFlightKey): string {
-  const tenant = tenantCodec.encode(key.tenant)
-  if (!tenant.ok) throw new TypeError('the tenant did not come from legal-identity')
-  return JSON.stringify([tenant.value, key.principalKey, key.correlationKey])
+  return JSON.stringify([tenantTextOf(key.tenant), key.principalKey, key.correlationKey])
 }
 
 export class InFlightCalls {

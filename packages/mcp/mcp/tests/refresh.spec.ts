@@ -3,11 +3,10 @@
 import { describe, expect, it } from 'vitest'
 import type { AuthorizationDiscovery, CatalogKey } from '@omne-harness/mcp-contract'
 import type { ListingPage } from '@omne-harness/mcp-contract/provider'
-import { createDiscovery, type McpDiscovery } from '../src/discovery.ts'
-import { createConnectionTable, type ConnectionTable } from '../src/internal/table.ts'
+import { core } from './doubles/core.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import type { Step } from './doubles/scripted-transport.ts'
-import { alice, bob, json, mallory, peerIdentity, ref, type Principal } from './doubles/values.ts'
+import { alice, bob, json, mallory, peerIdentity, ref } from './doubles/values.ts'
 import {
   MAIN,
   adoptHttp,
@@ -30,23 +29,6 @@ const credentialKey: CatalogKey = {
   tenant: alice.tenant,
   account: { kind: 'credential', binding: MAIN },
   holding: files.holding,
-}
-
-type Core = Readonly<{
-  w: World
-  table: ConnectionTable<Principal>
-  discovery: McpDiscovery<Principal>
-}>
-
-function core(w: World): Core {
-  const table = createConnectionTable(w.ports, w.config)
-  const discovery = createDiscovery({
-    ports: w.ports,
-    config: w.config,
-    table,
-    now: () => new Date('2026-11-03T12:00:00Z'),
-  })
-  return { w, table, discovery }
 }
 
 async function record(w: World, key: CatalogKey = anonymousKey) {
@@ -147,7 +129,7 @@ describe('refresh keeps the earlier adoption', () => {
   it('superseded: the connection that produced the listing is no longer the current one (invariant 2)', async () => {
     const listing = deferred<ListingPage>()
     const second = deferred<ListingPage>()
-    const { w, discovery, table } = core(
+    const { w, discovery, connections } = core(
       world({
         script: [
           { discover: peer },
@@ -160,9 +142,8 @@ describe('refresh keeps the earlier adoption', () => {
     adoptStdio(w, files)
     const late = discovery.refresh(alice, { ref: files })
     await settled()
-    expect(await table.close(alice.tenant, files.holding)).toEqual({
-      kind: 'released',
-      process: 'tree-confirmed',
+    expect(await connections.release(alice, files)).toEqual({
+      ok: { kind: 'released', process: 'tree-confirmed' },
     })
     const next = discovery.refresh(alice, { ref: files })
     await settled()
@@ -205,7 +186,7 @@ describe('refresh keeps the earlier adoption', () => {
   ] as const)(
     'listing-incomplete (%s): the listing is not adopted',
     async (defect, steps: readonly Step[]) => {
-      const { w, discovery, table } = core(
+      const { w, discovery, status } = core(
         world({ script: [{ discover: peer }, ...steps], config: { maxActions: 2 } }),
       )
       adoptStdio(w, files)
@@ -213,7 +194,9 @@ describe('refresh keeps the earlier adoption', () => {
         ok: { kind: 'kept', reason: { kind: 'listing-incomplete', defect } },
       })
       expect(await record(w)).toBe('absent')
-      expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'ready' })
+      expect(await status.inspect(alice, files)).toMatchObject({
+        ok: { connection: { kind: 'ready' } },
+      })
     },
   )
 
@@ -224,7 +207,7 @@ describe('refresh keeps the earlier adoption', () => {
   ] as const)(
     'listing-incomplete (page-failed) on %o: the connection is degraded, the record kept',
     async failure => {
-      const { w, discovery, table } = core(
+      const { w, discovery, status } = core(
         world({
           script: [
             { discover: peer },
@@ -240,21 +223,22 @@ describe('refresh keeps the earlier adoption', () => {
         ok: { kind: 'kept', reason: { kind: 'listing-incomplete', defect: 'page-failed' } },
       })
       expect(await record(w)).toEqual(before)
-      expect(table.stateOf(alice.tenant, files.holding)).toEqual({
-        kind: 'degraded',
-        reason: 'list-failed',
+      expect(await status.inspect(alice, files)).toMatchObject({
+        ok: { connection: { kind: 'degraded', reason: 'list-failed' } },
       })
       expect(await discovery.refresh(alice, { ref: files })).toEqual({
         ok: { kind: 'published', revision: 2 },
       })
-      expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'ready' })
+      expect(await status.inspect(alice, files)).toMatchObject({
+        ok: { connection: { kind: 'ready' } },
+      })
     },
   )
 })
 
 describe('refresh fails', () => {
   it('a page not sent: connection-unavailable, the connection lost and the record marked', async () => {
-    const { w, discovery, table } = core(
+    const { w, discovery, status } = core(
       world({
         script: [
           { discover: peer },
@@ -267,9 +251,8 @@ describe('refresh fails', () => {
     expect(await discovery.refresh(alice, { ref: files })).toEqual({
       failure: { kind: 'connection-unavailable' },
     })
-    expect(table.stateOf(alice.tenant, files.holding)).toEqual({
-      kind: 'lost',
-      reason: 'stream-broken',
+    expect(await status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'lost', reason: 'stream-broken' } },
     })
     const after = await record(w)
     if (after === 'absent') throw new Error('record missing')
@@ -288,7 +271,7 @@ describe('refresh fails', () => {
   })
 
   it('a page refused with authorization-required: the discovery is carried', async () => {
-    const { w, discovery, table } = core(
+    const { w, discovery, status } = core(
       world({
         script: [
           { discover: peer },
@@ -306,9 +289,8 @@ describe('refresh fails', () => {
     expect(await discovery.refresh(alice, { ref: files })).toEqual({
       failure: { kind: 'authorization-required', discovery: DISCOVERY },
     })
-    expect(table.stateOf(alice.tenant, files.holding)).toEqual({
-      kind: 'lost',
-      reason: 'authorization-required',
+    expect(await status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'lost', reason: 'authorization-required' } },
     })
   })
 
@@ -424,7 +406,7 @@ describe('refresh publish boundary: eligibility', () => {
 
   it('blocked while listing: blocked, nothing published, the connection closed', async () => {
     const listing = deferred<ListingPage>()
-    const { w, discovery, table } = core(
+    const { w, discovery, status } = core(
       world({ script: [{ discover: peer }, { listActions: listing }] }),
     )
     adoptStdio(w, files)
@@ -434,7 +416,9 @@ describe('refresh publish boundary: eligibility', () => {
     listing.resolve(page(['read']))
     expect(await pending).toEqual({ failure: { kind: 'blocked', reason: 'disabled' } })
     expect(await record(w)).toBe('absent')
-    expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'none' })
+    expect(await status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'none' } },
+    })
   })
 })
 
@@ -489,7 +473,7 @@ describe('current and peer do not connect', () => {
   })
 
   it('current: basisCurrent is no-connection, then matches, then differs', async () => {
-    const { w, discovery, table } = core(world({ script: usualScript(['read']) }))
+    const { w, discovery } = core(world({ script: usualScript(['read']) }))
     adoptStdio(w, files)
     await storedRecord(w, anonymousKey, ['read'])
     expect(await discovery.current(alice, files)).toMatchObject({
@@ -525,7 +509,6 @@ describe('current and peer do not connect', () => {
       ok: { kind: 'acquired', basisCurrent: 'matches' },
     })
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
-    void table
   })
 
   it('peer: the negotiated facts and the generation once connected', async () => {

@@ -23,20 +23,17 @@ import {
   type RefreshResult,
   type Refusal,
 } from '@omne-harness/mcp-contract'
-import type {
-  ListingPage,
-  McpTransport,
-  TransportFailure,
-} from '@omne-harness/mcp-contract/provider'
+import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
+import { untilAborted } from './internal/abort.ts'
 import { sameJson } from './internal/canonical.ts'
-import type { Connection } from './internal/connection.ts'
-import { admitForUse, stillEligible, type UseGate } from './internal/guard.ts'
+import { admitForUse, stillAdmitted, type UseGate } from './internal/guard.ts'
 import { readAccountOf } from './internal/settings.ts'
 import type { CatalogMark, ConnectionTable, Ensured } from './internal/table.ts'
 
 /**
- * The refresh request, with the abort signal that the publish boundary checks (S5 `cancelled`).
- * The contract's request has no signal; this member accepts one in addition.
+ * The refresh request, with the abort signal of the caller. The contract's request has no
+ * signal; this member accepts one in addition (SPEC deviation table). An abort makes the refresh
+ * answer `kept` (`cancelled`); it does not stop a build that other callers share.
  */
 export type RefreshRequest = Readonly<{
   ref: EndpointRef
@@ -62,33 +59,59 @@ export type DiscoveryDependencies<P, S> = Readonly<{
 const SUPERSEDED: RefreshResult = { kind: 'kept', reason: { kind: 'superseded' } }
 const CANCELLED: RefreshResult = { kind: 'kept', reason: { kind: 'cancelled' } }
 const UNKNOWN: Refusal = { kind: 'unknown' }
+const ABANDONED: TransportFailure = { kind: 'no-answer', cause: 'abandoned' }
 
 /** What a connection failure's catalog marking means for `refresh` (SPEC S5). */
 function afterMarking(
   reason: OperationFailure,
-  catalog: CatalogMark,
+  catalog: CatalogMark | 'not-current',
 ): Outcome<RefreshResult, OperationFailure> {
-  if (catalog === 'revision-conflict') return succeed(SUPERSEDED)
-  if (catalog === 'unavailable') return fail(UNKNOWN)
-  return fail(reason)
+  switch (catalog) {
+    case 'revision-conflict':
+    case 'not-current':
+      return succeed(SUPERSEDED)
+    case 'unavailable':
+      return fail(UNKNOWN)
+    case 'marked':
+    case 'not-acquired':
+      return fail(reason)
+    default: {
+      const exhaustive: never = catalog
+      return exhaustive
+    }
+  }
 }
 
 function stateOf(record: ActionCatalogRecord | 'absent'): CatalogState {
   return record === 'absent' ? { kind: 'not-acquired' } : { kind: 'acquired', record }
 }
 
+type Pages = readonly Outcome<ListingPage, TransportFailure>[]
+
 export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDiscovery<P> {
   const { ports, config, table } = deps
   const gate: UseGate<P, S> = { ports, table }
 
-  /** Reads pages until the last one, a failed one, or the page bound. */
+  /**
+   * Reads pages until the last one, a failed one, or the page bound, under the listing bound of
+   * invariant 5. A page the bound cuts off is a page without an answer; an abort of the caller
+   * ends the listing as cancelled.
+   */
   async function listPages(
-    transport: McpTransport,
-  ): Promise<readonly Outcome<ListingPage, TransportFailure>[]> {
+    ensured: Ensured,
+    signal: AbortSignal | undefined,
+  ): Promise<Pages | 'cancelled'> {
+    const bound = AbortSignal.timeout(ensured.bound)
+    const limit = signal === undefined ? bound : AbortSignal.any([signal, bound])
     const pages: Outcome<ListingPage, TransportFailure>[] = []
     let cursor: string | undefined
     for (let count = 0; count < config.maxListingPages; count += 1) {
-      const page = await transport.listActions(cursor)
+      const page = await untilAborted(ensured.transport.listActions(cursor), limit, () => undefined)
+      if (page === 'aborted') {
+        if (signal?.aborted === true) return 'cancelled'
+        pages.push({ failure: ABANDONED })
+        break
+      }
       pages.push(page)
       if ('failure' in page || page.ok.nextCursor === undefined) break
       cursor = page.ok.nextCursor
@@ -98,32 +121,26 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
 
   /** A page the transport could not send: the connection is gone (S5). */
   async function pageNotSent(
-    connection: Connection,
+    ensured: Ensured,
     failure: Extract<TransportFailure, { kind: 'not-sent' }>,
   ): Promise<Outcome<RefreshResult, OperationFailure>> {
+    const { connection, generation } = ensured
     if (failure.cause === 'authorization-required') {
       const catalog = await table.lose(
         connection,
+        generation,
         'authorization-required',
         'authorization-required',
       )
       return afterMarking({ kind: 'authorization-required', discovery: failure.discovery }, catalog)
     }
-    const catalog = await table.lose(connection, 'stream-broken', 'connection-unavailable')
+    const catalog = await table.lose(
+      connection,
+      generation,
+      'stream-broken',
+      'connection-unavailable',
+    )
     return afterMarking({ kind: 'connection-unavailable' }, catalog)
-  }
-
-  /** The non-call request outcome on the connection state: degrade on a failed page, else recover. */
-  function settleConnection(
-    connection: Connection,
-    generation: Generation,
-    pageFailed: boolean,
-  ): void {
-    if (!connection.isCurrent(generation)) return
-    const peer = connection.peer
-    if (pageFailed && connection.state.kind === 'ready') connection.degrade('list-failed')
-    if (!pageFailed && connection.state.kind === 'degraded' && peer !== undefined)
-      connection.ready(peer)
   }
 
   async function publish(
@@ -131,17 +148,17 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     request: RefreshRequest,
     ensured: Ensured,
   ): Promise<Outcome<RefreshResult, OperationFailure>> {
-    const { transport, generation, connection, peer, catalogKey } = ensured
+    const { generation, connection, peer, catalogKey } = ensured
     const read = await ports.store.read(catalogKey)
     if ('failure' in read) return fail(UNKNOWN)
     const current = stateOf(read.ok)
     const basedOn = read.ok === 'absent' ? 'absent' : read.ok.revision
-    const pages = await listPages(transport)
-    const notSent = pages.flatMap(page =>
+    const pages = await listPages(ensured, request.signal)
+    if (pages === 'cancelled') return succeed(CANCELLED)
+    const [notSent] = pages.flatMap(page =>
       'failure' in page && page.failure.kind === 'not-sent' ? [page.failure] : [],
     )
-    const [first] = notSent
-    if (first !== undefined) return pageNotSent(connection, first)
+    if (notSent !== undefined) return pageNotSent(ensured, notSent)
     const listing = completeListing({
       pages,
       basis: { generation, protocolVersion: peer.protocolVersion, capabilities: peer.capabilities },
@@ -149,11 +166,8 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
       limits: { maxPages: config.maxListingPages, maxActions: config.maxActions },
       basedOn,
     })
-    settleConnection(
-      connection,
-      generation,
-      'failure' in listing && listing.failure === 'page-failed',
-    )
+    const pageFailed = 'failure' in listing && listing.failure === 'page-failed'
+    table.settle(connection, generation, pageFailed ? 'page-failed' : 'listed')
     if ('failure' in listing)
       return succeed({
         kind: 'kept',
@@ -161,12 +175,14 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
       })
     const merged = mergeListing(current, listing.ok)
     if ('failure' in merged) return succeed(SUPERSEDED)
-    // The publish boundary: the producing connection is still current, the refresh was not
-    // cancelled, and the principal is still eligible. Only then is the record written.
+    // The publish boundary. The asynchronous check (eligibility and adoption revision) comes
+    // first; the synchronous checks (producing connection still current, not cancelled) sit
+    // right before the write, so nothing can slip between them and it.
+    const admitted = await stillAdmitted(gate, access, request.ref, ensured.adoptionRevision)
+    if ('failure' in admitted) return admitted
+    if (admitted.ok === 'superseded') return succeed(SUPERSEDED)
     if (!connection.isCurrent(generation)) return succeed(SUPERSEDED)
     if (request.signal?.aborted === true) return succeed(CANCELLED)
-    const eligible = await stillEligible(gate, access, request.ref)
-    if ('failure' in eligible) return eligible
     const written = await ports.store.write(catalogKey, merged.ok, basedOn)
     if ('failure' in written)
       return written.failure === 'revision-conflict' ? succeed(SUPERSEDED) : fail(UNKNOWN)
@@ -179,11 +195,19 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
   ): Promise<Outcome<RefreshResult, OperationFailure>> {
     const admitted = await admitForUse(gate, access, request.ref)
     if ('failure' in admitted) return admitted
-    const ensured = await table.ensure(admitted.ok, access, {
-      ...(request.signal === undefined ? {} : { signal: request.signal }),
-      ...(request.connectBound === undefined ? {} : { connectBound: request.connectBound }),
-    })
-    if ('failure' in ensured) return afterMarking(ensured.failure.reason, ensured.failure.catalog)
+    // The build is shared by every caller of the key and bounded by the connection bound; the
+    // caller's abort ends only this refresh.
+    const options = request.connectBound === undefined ? {} : { connectBound: request.connectBound }
+    const ensured = await untilAborted(
+      table.ensure(admitted.ok, access, options),
+      request.signal,
+      () => undefined,
+    )
+    if (ensured === 'aborted') return succeed(CANCELLED)
+    if ('failure' in ensured)
+      return ensured.failure.stage === 'settings'
+        ? fail(ensured.failure.reason)
+        : afterMarking(ensured.failure.reason, ensured.failure.catalog)
     return publish(access, request, ensured.ok)
   }
 
@@ -206,13 +230,11 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     if ('failure' in admitted) return admitted
     const account = readAccountOf(admitted.ok)
     if ('failure' in account) return account
-    const read = await ports.store.read(
-      catalogKeyOf(access.tenant, admitted.ok, account.ok.account),
-    )
+    const read = await ports.store.read(catalogKeyOf(access.tenant, admitted.ok, account.ok))
     if ('failure' in read) return fail(UNKNOWN)
     if (read.ok === 'absent') return succeed({ kind: 'not-acquired' })
     const record = read.ok
-    const connected = table.current(connectionKeyOf(access.tenant, admitted.ok, account.ok.account))
+    const connected = table.current(connectionKeyOf(access.tenant, admitted.ok, account.ok))
     return succeed({
       kind: 'acquired',
       revision: record.revision,
@@ -236,7 +258,7 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     if ('failure' in admitted) return admitted
     const account = readAccountOf(admitted.ok)
     if ('failure' in account) return account
-    const connected = table.current(connectionKeyOf(access.tenant, admitted.ok, account.ok.account))
+    const connected = table.current(connectionKeyOf(access.tenant, admitted.ok, account.ok))
     if (connected === undefined) return fail({ kind: 'not-connected' })
     return succeed({ peer: connected.peer, generation: connected.generation })
   }

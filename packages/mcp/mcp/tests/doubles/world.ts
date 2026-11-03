@@ -53,7 +53,7 @@ export type World = Readonly<{
   landing: ScriptedLanding
   store: MemoryCatalogStore
   transports: ScriptedTransports
-  /** The close-order events of the transports and the processes, in the order they happened. */
+  /** The close-order events of transports, processes and credential handles, in order. */
   trace: readonly string[]
 }>
 
@@ -82,7 +82,7 @@ export function world(
   }
   const adoption = countedAdoption()
   const eligibility = countedEligibility()
-  const credentials = countedCredentials()
+  const credentials = countedCredentials(record)
   const landing = scriptedLanding({
     facilities: options.facilities ?? [],
     trace: record,

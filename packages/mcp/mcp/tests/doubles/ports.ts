@@ -63,14 +63,18 @@ export type HandleCount = { acquired: number; released: number }
 export type CountedCredentials = MemoryCredentialUse<Principal> &
   Readonly<{ handles: () => readonly HandleCount[] }>
 
+type Trace = (event: string) => void
+
 function countingProcessHandle(
   handle: ProcessCredentialHandle,
   count: HandleCount,
+  trace: Trace,
 ): ProcessCredentialHandle {
   return {
     purpose: 'process-env',
     async release() {
       count.released += 1
+      trace('credential.release')
       await handle.release()
     },
   }
@@ -79,6 +83,7 @@ function countingProcessHandle(
 function countingHttpHandle(
   handle: HttpCredentialHandle,
   count: HandleCount,
+  trace: Trace,
 ): HttpCredentialHandle {
   return {
     purpose: 'http-authorization',
@@ -86,13 +91,14 @@ function countingHttpHandle(
     reportRejection: () => handle.reportRejection(),
     async release() {
       count.released += 1
+      trace('credential.release')
       await handle.release()
     },
   }
 }
 
-/** The memory credential double; every handle it gives out is counted. */
-export function countedCredentials(): CountedCredentials {
+/** The memory credential double; every handle it gives out is counted and its release traced. */
+export function countedCredentials(trace: Trace = () => undefined): CountedCredentials {
   const memory = createMemoryCredentialUse<Principal>()
   const handles: HandleCount[] = []
   function acquire(
@@ -118,12 +124,12 @@ export function countedCredentials(): CountedCredentials {
       const answer = await memory.acquire(access, holding, purpose, binding)
       if ('failure' in answer) return answer
       handles.push(count)
-      return { ok: countingProcessHandle(answer.ok, count) }
+      return { ok: countingProcessHandle(answer.ok, count, trace) }
     }
     const answer = await memory.acquire(access, holding, purpose, binding)
     if ('failure' in answer) return answer
     handles.push(count)
-    return { ok: countingHttpHandle(answer.ok, count) }
+    return { ok: countingHttpHandle(answer.ok, count, trace) }
   }
   return { ...memory, acquire, handles: () => handles.map(count => ({ ...count })) }
 }

@@ -10,7 +10,7 @@ import {
   type PeerAccount,
 } from '@omne-harness/mcp-contract'
 import type { AdoptedEndpoint, AdoptionView } from '@omne-harness/mcp-contract/provider'
-import { admit, type AdmittedEndpoint } from '../src/internal/gate.ts'
+import { admit, admitWithoutEligibility, type AdmittedEndpoint } from '../src/internal/gate.ts'
 import { createConnectionTable, type ConnectionTable } from '../src/internal/table.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import { alice, binding, json, mallory, millis, peerIdentity, ref, away } from './doubles/values.ts'
@@ -30,9 +30,9 @@ const files = ref('files')
 const peer = peerIdentity()
 
 async function admitted(w: World, endpoint: EndpointRef, access: Access<Principal> = alice) {
-  const answer = await admit(w.ports, access, endpoint)
-  if (!('ok' in answer)) throw new Error(`not admitted: ${answer.failure.kind}`)
-  return answer.ok
+  const decision = await admit(w.ports, access, endpoint)
+  if (decision.kind !== 'admitted') throw new Error(`not admitted: ${decision.kind}`)
+  return decision.endpoint
 }
 
 type Principal = Readonly<{ id: string }>
@@ -70,13 +70,21 @@ describe('ensure: reuse, rebuild and single flight', () => {
     const token = await admitted(w, files)
     const first = await table.ensure(token, alice)
     if (!('ok' in first)) throw new Error('first ensure failed')
-    first.ok.connection.lose('process-exited')
+    expect(
+      await table.lose(
+        first.ok.connection,
+        first.ok.generation,
+        'process-exited',
+        'connection-unavailable',
+      ),
+    ).toBe('not-acquired')
+    expect(first.ok.connection.isCurrent(first.ok.generation)).toBe(false)
     const second = await table.ensure(token, alice)
     if (!('ok' in second)) throw new Error('second ensure failed')
     expect(first.ok.generation).toBe(1)
     expect(second.ok.generation).toBe(2)
     expect(second.ok.transport).not.toBe(first.ok.transport)
-    expect(second.ok.connection).toBe(first.ok.connection)
+    expect(second.ok.connection.isCurrent(second.ok.generation)).toBe(true)
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
     expect(w.landing.processes()[0]?.stops).toBe(1)
   })
@@ -99,12 +107,14 @@ describe('ensure: reuse, rebuild and single flight', () => {
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
   })
 
-  it('refuses a token that did not come from the gate', async () => {
+  it('refuses a token that did not pass eligibility at the gate', async () => {
     const w = world()
-    const adopted = adoptStdio(w, files)
+    adoptStdio(w, files)
     const table = tableOf(w)
-    const forged: AdoptedEndpoint = { ...adopted }
-    await expect(table.ensure(forged as AdmittedEndpoint, alice)).rejects.toThrow(TypeError)
+    const adoptedOnly = await admitWithoutEligibility(w.ports, alice, files)
+    if (!('ok' in adoptedOnly)) throw new Error('not adopted')
+    const forged: AdmittedEndpoint = adoptedOnly.ok as AdmittedEndpoint
+    await expect(table.ensure(forged, alice)).rejects.toThrow(TypeError)
   })
 })
 
@@ -147,7 +157,7 @@ describe('ensure: setting defects (S4)', () => {
     adopt(w)
     const table = tableOf(w)
     const answer = await table.ensure(await admitted(w, files), alice)
-    expect(answer).toEqual({ failure: { reason, catalog: 'untouched' } })
+    expect(answer).toEqual({ failure: { stage: 'settings', reason } })
     expect(w.transports.calls).toHaveLength(0)
     expect(w.credentials.handles()).toHaveLength(0)
   })
@@ -160,7 +170,7 @@ describe('ensure: setting defects (S4)', () => {
     const table = tableOf(w)
     const answer = await table.ensure(await admitted(w, files), alice)
     expect(answer).toEqual({
-      failure: { reason: { kind: 'config-invalid', item: 'target' }, catalog: 'untouched' },
+      failure: { stage: 'settings', reason: { kind: 'config-invalid', item: 'target' } },
     })
   })
 
@@ -182,10 +192,7 @@ describe('ensure: setting defects (S4)', () => {
       connectBound: millis(5_000),
     })
     expect(answer).toEqual({
-      failure: {
-        reason: { kind: 'config-invalid', item: 'connect-timeout' },
-        catalog: 'untouched',
-      },
+      failure: { stage: 'settings', reason: { kind: 'config-invalid', item: 'connect-timeout' } },
     })
   })
 
@@ -195,20 +202,16 @@ describe('ensure: setting defects (S4)', () => {
     const table = tableOf(w)
     const answer = await table.ensure(await admitted(w, files), alice)
     expect(answer).toEqual({
-      failure: {
-        reason: { kind: 'credential-unavailable', cause: 'missing' },
-        catalog: 'untouched',
-      },
+      failure: { stage: 'settings', reason: { kind: 'credential-unavailable', cause: 'missing' } },
     })
   })
 
-  it('answers unknown for an adopted body it cannot read', async () => {
+  it('an adopted body it cannot read is refused at the gate: no token, nothing to ensure', async () => {
     const w = world()
     w.adoption.adopt({ tenant: alice.tenant, scope: 'ws', ref: files, body: json({ nonsense: 1 }) })
     w.eligibility.grant(alice, files)
-    const table = tableOf(w)
-    const answer = await table.ensure(await admitted(w, files), alice)
-    expect(answer).toEqual({ failure: { reason: { kind: 'unknown' }, catalog: 'untouched' } })
+    expect(await admit(w.ports, alice, files)).toEqual({ kind: 'body-unreadable' })
+    expect(w.eligibility.calls()).toBe(0)
   })
 })
 
@@ -230,7 +233,11 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     const table = tableOf(w)
     const answer = await table.ensure(await admitted(w, files), alice)
     expect(answer).toEqual({
-      failure: { reason: { kind: 'credential-unavailable', cause: 'rejected' }, catalog: 'marked' },
+      failure: {
+        stage: 'connect',
+        reason: { kind: 'credential-unavailable', cause: 'rejected' },
+        catalog: 'marked',
+      },
     })
     const after = await w.store.read(key)
     if (!('ok' in after) || after.ok === 'absent') throw new Error('record missing')
@@ -249,6 +256,7 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     const answer = await table.ensure(await admitted(w, files), alice)
     expect(answer).toEqual({
       failure: {
+        stage: 'connect',
         reason: { kind: 'credential-unavailable', cause: 'unknown' },
         catalog: 'not-acquired',
       },
@@ -268,7 +276,7 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     const table = tableOf(w)
     const answer = await table.ensure(await admitted(w, files), alice)
     expect(answer).toEqual({
-      failure: { reason: { kind: 'landing-unavailable' }, catalog: 'marked' },
+      failure: { stage: 'connect', reason: { kind: 'landing-unavailable' }, catalog: 'marked' },
     })
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
     const after = await w.store.read(key)
@@ -297,6 +305,7 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     const answer = await table.ensure(await admitted(w, files), alice)
     expect(answer).toEqual({
       failure: {
+        stage: 'connect',
         reason: { kind: 'authorization-required', discovery: DISCOVERY },
         catalog: 'marked',
       },
@@ -328,7 +337,7 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     const table = tableOf(w)
     const answer = await table.ensure(await admitted(w, files), alice)
     expect(answer).toEqual({
-      failure: { reason: { kind: 'connection-unavailable' }, catalog: 'marked' },
+      failure: { stage: 'connect', reason: { kind: 'connection-unavailable' }, catalog: 'marked' },
     })
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
@@ -350,7 +359,11 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     const token = await admitted(w, files)
     const answer = await table.ensure(token, alice)
     expect(answer).toEqual({
-      failure: { reason: { kind: 'connection-unavailable' }, catalog: 'not-acquired' },
+      failure: {
+        stage: 'connect',
+        reason: { kind: 'connection-unavailable' },
+        catalog: 'not-acquired',
+      },
     })
     expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({
       kind: 'lost',
@@ -366,6 +379,7 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     const answer = await table.ensure(token, alice)
     expect(answer).toEqual({
       failure: {
+        stage: 'connect',
         reason: { kind: 'effect-unknown', cause: 'process-exited' },
         catalog: 'not-acquired',
       },
@@ -442,28 +456,17 @@ describe('ensure: the connection bound', () => {
     const token = await admitted(w, files)
     const answer = await table.ensure(token, alice)
     expect(answer).toEqual({
-      failure: { reason: { kind: 'connection-unavailable' }, catalog: 'not-acquired' },
+      failure: {
+        stage: 'connect',
+        reason: { kind: 'connection-unavailable' },
+        catalog: 'not-acquired',
+      },
     })
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({
       kind: 'lost',
       reason: 'preparation-failed',
     })
-  })
-
-  it('answers connection-unavailable when the caller aborts during discovery', async () => {
-    const discover = deferred<typeof peer>()
-    const w = world({ script: [{ discover }] })
-    adoptStdio(w, files)
-    const table = tableOf(w)
-    const controller = new AbortController()
-    const pending = table.ensure(await admitted(w, files), alice, { signal: controller.signal })
-    await settled()
-    controller.abort()
-    expect(await pending).toEqual({
-      failure: { reason: { kind: 'connection-unavailable' }, catalog: 'not-acquired' },
-    })
-    expect(w.landing.processes()).toEqual([{ stops: 1 }])
   })
 
   it('records a residual when the stopped process confirms only the root', async () => {
@@ -502,7 +505,6 @@ describe('ensure: the connection key (invariant 1)', () => {
     const theirs = await table.ensure(await admitted(w, files, mallory), mallory)
     if (!('ok' in ours) || !('ok' in theirs)) throw new Error('ensure failed')
     expect(theirs.ok.transport).not.toBe(ours.ok.transport)
-    expect(theirs.ok.connection).not.toBe(ours.ok.connection)
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
   })
 
@@ -525,16 +527,16 @@ describe('ensure: the connection key (invariant 1)', () => {
     const ports = { ...w.ports, adoption }
     const table = createConnectionTable(ports, w.config)
     const first = await admit(ports, alice, files)
-    if (!('ok' in first)) throw new Error('not admitted')
-    const ours = await table.ensure(first.ok, alice)
+    if (first.kind !== 'admitted') throw new Error('not admitted')
+    const ours = await table.ensure(first.endpoint, alice)
     current = { ...base, settings: { ...base.settings, credential: VALUE(binding('other')) } }
     const second = await admit(ports, alice, files)
-    if (!('ok' in second)) throw new Error('not admitted')
-    const theirs = await table.ensure(second.ok, alice)
+    if (second.kind !== 'admitted') throw new Error('not admitted')
+    const theirs = await table.ensure(second.endpoint, alice)
     if (!('ok' in ours) || !('ok' in theirs)) throw new Error('ensure failed')
-    expect(theirs.ok.connection).not.toBe(ours.ok.connection)
-    expect(theirs.ok.connection.key.account).toEqual({ kind: 'credential', binding: 'other' })
-    expect(ours.ok.connection.key.account).toEqual({ kind: 'credential', binding: 'main' })
+    expect(theirs.ok.transport).not.toBe(ours.ok.transport)
+    expect(theirs.ok.catalogKey.account).toEqual({ kind: 'credential', binding: 'other' })
+    expect(ours.ok.catalogKey.account).toEqual({ kind: 'credential', binding: 'main' })
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
   })
 
@@ -547,8 +549,8 @@ describe('ensure: the connection key (invariant 1)', () => {
     w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
     const second = await table.ensure(await admitted(w, files), alice)
     if (!('ok' in second)) throw new Error('ensure failed')
-    expect(first.ok.connection.state).toEqual({ kind: 'closed' })
-    expect(second.ok.connection).not.toBe(first.ok.connection)
+    expect(first.ok.connection.isCurrent(first.ok.generation)).toBe(false)
+    expect(second.ok.transport).not.toBe(first.ok.transport)
     expect(w.transports.calls.map(call => call.kind)).toEqual([
       'open',
       'discover',

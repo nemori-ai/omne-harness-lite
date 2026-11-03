@@ -9,30 +9,36 @@ const files = ref('files')
 
 describe('connections.release', () => {
   it('closes the transport before it stops the process, and reports the confirmed range', async () => {
-    const { w, discovery, connections, table } = core(world({ script: usualScript() }))
+    const { w, discovery, connections, status } = core(world({ script: usualScript() }))
     adoptStdio(w, files)
     await discovery.refresh(alice, { ref: files })
     expect(await connections.release(alice, files)).toEqual({
       ok: { kind: 'released', process: 'tree-confirmed' },
     })
     expect(w.trace).toEqual(['transport.close', 'process.stop'])
-    expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'none' })
+    expect(await status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'none' } },
+    })
     expect(await connections.release(alice, files)).toEqual({ ok: { kind: 'no-connection' } })
   })
 
   it.each(['root-only', 'unconfirmed'] as const)(
     'reports %s and keeps the state lost (close-unconfirmed) with the residual',
     async stop => {
-      const { w, discovery, connections, table } = core(world({ script: usualScript(), stop }))
+      const { w, discovery, connections, status } = core(world({ script: usualScript(), stop }))
       adoptStdio(w, files)
       await discovery.refresh(alice, { ref: files })
       expect(await connections.release(alice, files)).toEqual({
         ok: { kind: 'released', process: stop },
       })
-      expect(table.stateOf(alice.tenant, files.holding)).toEqual({
-        kind: 'lost',
-        reason: 'close-unconfirmed',
-        residual: [{ kind: 'process', confirmed: stop }],
+      expect(await status.inspect(alice, files)).toMatchObject({
+        ok: {
+          connection: {
+            kind: 'lost',
+            reason: 'close-unconfirmed',
+            residual: [{ kind: 'process', confirmed: stop }],
+          },
+        },
       })
       // A second release asks the process to stop again and reports what it confirms now.
       expect(await connections.release(alice, files)).toEqual({
@@ -43,7 +49,7 @@ describe('connections.release', () => {
   )
 
   it('rebuilds after an unconfirmed close with the next generation and no residual', async () => {
-    const { w, discovery, connections, table } = core(
+    const { w, discovery, connections, status } = core(
       world({ script: [...usualScript(), ...usualScript()], stop: 'root-only' }),
     )
     adoptStdio(w, files)
@@ -52,7 +58,9 @@ describe('connections.release', () => {
     expect(await discovery.refresh(alice, { ref: files })).toEqual({
       ok: { kind: 'published', revision: 2 },
     })
-    expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'ready' })
+    expect(await status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'ready' } },
+    })
     expect(await discovery.peer(alice, files)).toMatchObject({ ok: { generation: 2 } })
   })
 
@@ -65,7 +73,7 @@ describe('connections.release', () => {
       ok: { kind: 'released', process: 'no-process' },
     })
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
-    expect(w.trace).toEqual(['transport.close'])
+    expect(w.trace).toEqual(['transport.close', 'credential.release'])
   })
 
   it('releases the process credential handle once, after the process stopped', async () => {
@@ -74,6 +82,7 @@ describe('connections.release', () => {
     await discovery.refresh(alice, { ref: files })
     await connections.release(alice, files)
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
+    expect(w.trace).toEqual(['transport.close', 'process.stop', 'credential.release'])
   })
 
   it('answers no-connection when nothing was connected', async () => {
@@ -83,14 +92,16 @@ describe('connections.release', () => {
   })
 
   it('answers the gate refusal; a blocked endpoint is closed all the same', async () => {
-    const { w, discovery, connections, table } = core(world({ script: usualScript() }))
+    const { w, discovery, connections, status } = core(world({ script: usualScript() }))
     adoptStdio(w, files)
     await discovery.refresh(alice, { ref: files })
     w.eligibility.block(alice, files, 'disabled')
     expect(await connections.release(alice, files)).toEqual({
       failure: { kind: 'blocked', reason: 'disabled' },
     })
-    expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'none' })
+    expect(await status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'none' } },
+    })
     expect(await connections.release(bob, files)).toEqual({
       failure: { kind: 'not-available-to-you' },
     })
@@ -102,7 +113,7 @@ describe('connections.release', () => {
 
 describe('connections.closeAll', () => {
   it('closes every connection without asking adoption or eligibility', async () => {
-    const { w, discovery, connections, table } = core(
+    const { w, discovery, connections, status } = core(
       world({ script: [...usualScript(), ...usualScript()] }),
     )
     const shell = ref('shell')
@@ -118,8 +129,12 @@ describe('connections.closeAll', () => {
     ])
     expect(w.adoption.calls()).toBe(adoptionCalls)
     expect(w.eligibility.calls()).toBe(eligibilityCalls)
-    expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'none' })
-    expect(table.stateOf(alice.tenant, shell.holding)).toEqual({ kind: 'none' })
+    expect(await status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'none' } },
+    })
+    expect(await status.inspect(alice, shell)).toMatchObject({
+      ok: { connection: { kind: 'none' } },
+    })
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
     expect(await connections.closeAll()).toEqual([])
   })

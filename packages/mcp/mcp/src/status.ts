@@ -1,19 +1,24 @@
-// The status port `EndpointStatus` (SPEC S1, S7). It reads adoption, eligibility and the
-// connection table; it connects to nothing. The credential is reported in four states, never by
-// value.
+// The status port `EndpointStatus` (SPEC S1, S7), composed on the gate. It reads adoption,
+// eligibility and the connection table; it connects to nothing. The credential is reported in
+// four states, never by value.
 import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import {
-  parseEndpointBody,
-  type EndpointRef,
-  type EndpointStatus,
-  type EndpointStatusView,
-  type McpPorts,
-  type Refusal,
+import type {
+  EndpointRef,
+  EndpointStatus,
+  EndpointStatusView,
+  McpPorts,
+  Refusal,
 } from '@omne-harness/mcp-contract'
-import type { AdoptedEndpoint } from '@omne-harness/mcp-contract/provider'
-import { admitWithoutEligibility } from './internal/gate.ts'
-import { refusalOf } from './internal/guard.ts'
+import {
+  admit,
+  adoptedOnlyOf,
+  judge,
+  refusalOf,
+  type AdoptedOnly,
+  type GateDecision,
+} from './internal/gate.ts'
+import { withdraws } from './internal/guard.ts'
 import type { ConnectionTable } from './internal/table.ts'
 
 export type StatusDependencies<P, S> = Readonly<{
@@ -23,15 +28,42 @@ export type StatusDependencies<P, S> = Readonly<{
 
 type InspectRefusal = Extract<Refusal, { kind: 'not-available-to-you' | 'unknown' }>
 
-const UNKNOWN: InspectRefusal = { kind: 'unknown' }
-
-/** The credential in four states (S7). `unknown` when the body is not one MCP can read. */
-function credentialOf(adopted: AdoptedEndpoint): EndpointStatusView['credential'] | 'unknown' {
-  const parsed = parseEndpointBody(adopted.body, adopted.ref.name)
-  if ('failure' in parsed) return 'unknown'
-  if (parsed.ok.auth === 'none') return 'not-required'
+/** The credential in four states (S7), from the parsed body and the setting value. */
+function credentialOf(adopted: AdoptedOnly): EndpointStatusView['credential'] {
+  if (adopted.definition.auth === 'none') return 'not-required'
   const { credential } = adopted.settings
   return credential.kind === 'value' ? 'present' : credential.kind
+}
+
+/** The use of a decided endpoint: usable, blocked, or a refusal of inspect. */
+function useOf(
+  decision: GateDecision,
+): Outcome<
+  Readonly<{ endpoint: AdoptedOnly; use: EndpointStatusView['use'] }>,
+  InspectRefusal | 'not-eligible'
+> {
+  switch (decision.kind) {
+    case 'admitted':
+      return succeed({ endpoint: decision.endpoint, use: { kind: 'usable' } })
+    case 'blocked':
+      return succeed({
+        endpoint: decision.endpoint,
+        use: { kind: 'blocked', reason: decision.reason },
+      })
+    case 'not-eligible':
+      return fail('not-eligible')
+    case 'not-adopted':
+    case 'adoption-unknown':
+    case 'body-unreadable':
+    case 'eligibility-unknown': {
+      const refusal = refusalOf(decision)
+      return fail(refusal.kind === 'blocked' ? { kind: 'unknown' } : refusal)
+    }
+    default: {
+      const exhaustive: never = decision
+      return exhaustive
+    }
+  }
 }
 
 export function createStatus<P, S>(deps: StatusDependencies<P, S>): EndpointStatus<P, S> {
@@ -39,15 +71,13 @@ export function createStatus<P, S>(deps: StatusDependencies<P, S>): EndpointStat
 
   function viewOf(
     access: Access<P>,
-    adopted: AdoptedEndpoint,
+    endpoint: AdoptedOnly,
     use: EndpointStatusView['use'],
-  ): EndpointStatusView | 'unknown' {
-    const credential = credentialOf(adopted)
-    if (credential === 'unknown') return 'unknown'
+  ): EndpointStatusView {
     return {
-      ref: adopted.ref,
-      connection: table.stateOf(access.tenant, adopted.ref.holding),
-      credential,
+      ref: endpoint.ref,
+      connection: table.stateOf(access.tenant, endpoint.ref.holding),
+      credential: credentialOf(endpoint),
       use,
     }
   }
@@ -56,23 +86,14 @@ export function createStatus<P, S>(deps: StatusDependencies<P, S>): EndpointStat
     access: Access<P>,
     ref: EndpointRef,
   ): Promise<Outcome<EndpointStatusView, InspectRefusal>> {
-    const adopted = await admitWithoutEligibility(ports, access, ref)
-    if ('failure' in adopted) {
-      if (adopted.failure.kind === 'not-available-to-you')
-        await table.close(access.tenant, ref.holding)
-      return adopted
-    }
-    const verdict = await ports.eligibility.check(access, ref)
-    let use: EndpointStatusView['use'] = { kind: 'usable' }
-    if (verdict.kind !== 'granted') {
-      const refusal = refusalOf(verdict)
-      if (refusal.kind !== 'blocked') return fail(refusal)
-      // A blocked endpoint is not a failure of inspect, but its connection does not stay open.
+    const decision = await admit(ports, access, ref)
+    // Invariant 6 at this use: a withdrawn or blocked endpoint does not keep its connection.
+    if (decision.kind !== 'admitted' && withdraws(decision))
       await table.close(access.tenant, ref.holding)
-      use = { kind: 'blocked', reason: refusal.reason }
-    }
-    const view = viewOf(access, adopted.ok, use)
-    return view === 'unknown' ? fail(UNKNOWN) : succeed(view)
+    const use = useOf(decision)
+    if ('failure' in use)
+      return fail(use.failure === 'not-eligible' ? { kind: 'not-available-to-you' } : use.failure)
+    return succeed(viewOf(access, use.ok.endpoint, use.ok.use))
   }
 
   async function list(
@@ -83,16 +104,14 @@ export function createStatus<P, S>(deps: StatusDependencies<P, S>): EndpointStat
     if ('failure' in adopted) return fail('unknown')
     const views: EndpointStatusView[] = []
     for (const endpoint of adopted.ok) {
-      const verdict = await ports.eligibility.check(access, endpoint.ref)
-      if (verdict.kind === 'unknown') return fail('unknown')
-      let use: EndpointStatusView['use'] = { kind: 'usable' }
-      if (verdict.kind === 'refused') {
-        if (verdict.reason === 'not-eligible') continue
-        use = { kind: 'blocked', reason: verdict.reason }
+      const token = adoptedOnlyOf(endpoint)
+      if ('failure' in token) return fail('unknown')
+      const use = useOf(await judge(ports, access, token.ok))
+      if ('failure' in use) {
+        if (use.failure === 'not-eligible') continue
+        return fail('unknown')
       }
-      const view = viewOf(access, endpoint, use)
-      if (view === 'unknown') return fail('unknown')
-      views.push(view)
+      views.push(viewOf(access, use.ok.endpoint, use.ok.use))
     }
     return succeed(views)
   }

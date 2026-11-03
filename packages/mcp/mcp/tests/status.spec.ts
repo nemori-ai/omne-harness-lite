@@ -111,14 +111,16 @@ describe('status.inspect', () => {
   })
 
   it('closes the connection of an endpoint that is now blocked (invariant 6)', async () => {
-    const { w, status, discovery, table } = core(world({ script: usualScript() }))
+    const { w, status, discovery } = core(world({ script: usualScript() }))
     adoptStdio(w, files)
     await discovery.refresh(alice, { ref: files })
     w.eligibility.block(alice, files, 'disabled')
     expect(await status.inspect(alice, files)).toMatchObject({
       ok: { connection: { kind: 'none' }, use: { kind: 'blocked', reason: 'disabled' } },
     })
-    expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'none' })
+    expect(await status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'none' } },
+    })
     expect(w.trace).toEqual(['transport.close', 'process.stop'])
   })
 })
