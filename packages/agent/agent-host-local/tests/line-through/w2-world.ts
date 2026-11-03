@@ -802,7 +802,7 @@ export async function openW2World(options: W2Options) {
   ): Promise<{ emitted: string; readThrough: string }> {
     let emitted = '0'
     const read = async (after: string | null): Promise<EventPage> =>
-      ok(await w.probeLog.output.read({ ...agentAccess, execution: who, after, limit: 1000 }))
+      ok(await w.probeLog.output.read({ ...agentAccess, execution: who, after, limit: 100 }))
     for (
       let page = await read(null);
       ;
