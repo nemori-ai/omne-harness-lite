@@ -26,7 +26,7 @@ const maxCommandBytes = 4_194_304
  * + invocation-source) = 24 peak reserved, plus margin → 128. The production candidate value in
  * sqlite-provider SPEC:321 and apps runtime config will be updated by Reduce in the same batch.
  */
-const readQueuePerDomain = 128
+const readQueuePerDomain = 32
 
 /** Same provider policy dimensions as sqlite-provider/tests/support.ts, over this test's real root. */
 function configuration(storageRoot: string, readBytes: number): SqliteStorageConfig {

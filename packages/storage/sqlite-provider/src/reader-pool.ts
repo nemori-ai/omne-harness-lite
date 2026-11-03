@@ -1,4 +1,4 @@
-// The read pool (SPEC 9.5, 12.2): the control side of all read Workers of one provider generation.
+﻿// The read pool (SPEC 9.5, 12.2): the control side of all read Workers of one provider generation.
 // It owns the read reservations, the per-domain read queue, the readers and their connections, and
 // the result of every read. A reader is one read Worker with one connection. The pool opens one
 // only after its domain is ready, hands a reader to one request at a time, and never reuses a
@@ -243,11 +243,15 @@ export class ReaderPool {
       this.reservedBytes + bytes > globalReadResultBytes
     )
       return null
-    this.perDomainReserved.set(domain, (this.perDomainReserved.get(domain) ?? 0) + 1)
+    const before = this.perDomainReserved.get(domain) ?? 0
+    this.perDomainReserved.set(domain, before + 1)
     this.reserved += 1
     this.reservedBytes += bytes
+    console.log(`[reader-pool] domain=${domain} reserve: reserved=${before} -> ${before + 1}, at=${Date.now()}`)
     return () => {
-      const left = (this.perDomainReserved.get(domain) ?? 1) - 1
+      const current = this.perDomainReserved.get(domain) ?? 1
+      const left = current - 1
+      console.log(`[reader-pool] domain=${domain} release: reserved=${current} -> ${left}, at=${Date.now()}`)
       if (left <= 0) this.perDomainReserved.delete(domain)
       else this.perDomainReserved.set(domain, left)
       this.reserved -= 1
@@ -433,6 +437,9 @@ export class ReaderPool {
 
   private async run(d: DomainReaders, task: Task, reader: PoolReader): Promise<void> {
     const { job } = task
+    const reserved = this.perDomainReserved.get(job.domain) ?? 0
+    const workerStartAt = Date.now()
+    console.log(`[reader-pool] domain=${job.domain} worker-start: reserved=${reserved}, at=${workerStartAt}`)
     if (reader.state === 'starting' && !(await this.openConnection(reader))) {
       void this.retire(reader)
       task.settle(unavailable(this.closing ? 'closing' : 'domain_unavailable'))
@@ -487,6 +494,9 @@ export class ReaderPool {
     }
     // The transaction has ended, or the exit of the Worker is observed: the barrier goes.
     leave?.()
+    const workerEndAt = Date.now()
+    const reservedNow = this.perDomainReserved.get(job.domain) ?? 0
+    console.log(`[reader-pool] domain=${job.domain} worker-end: reserved=${reservedNow}, duration=${workerEndAt - workerStartAt}ms, at=${workerEndAt}`)
     if (reusable) this.release(reader)
     else void this.retire(reader)
     task.settle(outcome)
