@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
-import { readJsonText, type JsonValue } from '@omne-harness/json-text'
+import type { JsonValue } from '@omne-harness/json-text'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { succeed } from '@omne-harness/operation-result'
 import type { ToolAuthority } from '@omne-harness/tool-contract/provider'
@@ -34,6 +34,7 @@ import {
   type ToolReleaseRegistrant,
 } from '../../../src/entry/tool-release.ts'
 import {
+  constructionTree,
   locateToolDefinitions,
   loadToolRelease,
   type ToolReleaseManifest,
@@ -80,16 +81,9 @@ export const TEST_CONSTRUCTION = Object.freeze({
 })
 
 export function tree(value: unknown): JsonValue {
-  const read = readJsonText(JSON.stringify(value), {
-    maxBytes: 65536,
-    maxDepth: 8,
-    maxItems: 4096,
-    maxMembers: 1024,
-    maxStringLength: 32768,
-    maxNumberLength: 32,
-  })
-  if (read.kind !== 'ok') throw new Error('fixture: not JSON')
-  return read.value
+  const read = constructionTree(value)
+  if (read === undefined) throw new Error('fixture: not JSON')
+  return read
 }
 
 /**

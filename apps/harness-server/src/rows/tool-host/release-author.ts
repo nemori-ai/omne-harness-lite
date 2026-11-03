@@ -9,7 +9,7 @@ import {
   environmentNeedAdoption,
   environmentNeedSchema,
 } from '@omne-harness/execution-environment-contract'
-import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
+import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { DurableEvidence, ToolDefinition, ToolFailure } from '@omne-harness/tool-contract'
@@ -26,7 +26,9 @@ import {
 import type { LocalToolHostPluginInput } from '@omne-harness/tool-host-local/cordis'
 import { registrantOf, releaseOf } from '../../entry/tool-release.ts'
 import {
+  constructionTree,
   governanceOf,
+  sameAdoption,
   type ReleaseToolExport,
   type ToolReleaseEntry,
 } from '../../entry/tool-release-manifest.ts'
@@ -34,16 +36,6 @@ import {
 type B = ToolMessageContentBlock
 /** 运维者层给出的构造值，按作者名。发行层不写默认值，缺哪一项哪一个作者就答 `unavailable`。 */
 export type OperatorConstruction = Readonly<Partial<Record<string, unknown>>>
-
-/** 构造值转成 JSON 树的上限。值来自运维者配置，上限只防误配，不是发行默认值。 */
-const CONSTRUCTION_LIMITS = {
-  maxBytes: 65536,
-  maxDepth: 8,
-  maxItems: 4096,
-  maxMembers: 1024,
-  maxStringLength: 32768,
-  maxNumberLength: 32,
-}
 
 /**
  * `environmentNeedAdoption` 映射到的校验件（R2-D79）：执行环境契约自带的 Standard Schema
@@ -56,13 +48,6 @@ export type EnvironmentNeedValidator = Readonly<{
 const unavailable = (diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency: 'tool-host', diagnostic })
 const invalid = (field: string, reason: string) => fail({ kind: 'invalid' as const, field, reason })
-
-const sameAdoption = (left: unknown, right: object): boolean =>
-  typeof left === 'object' &&
-  left !== null &&
-  (['owner', 'name', 'revision', 'digest'] as const).every(
-    field => Reflect.get(left, field) === Reflect.get(right, field),
-  )
 
 function entryFor(ctx: Context, name: string) {
   const release = releaseOf(ctx)
@@ -77,9 +62,7 @@ function constructionOf(
   entry: ToolReleaseEntry,
 ): JsonValue | undefined {
   const value = operator[entry.asset.name]
-  if (value === undefined) return undefined
-  const read = readJsonText(JSON.stringify(value), CONSTRUCTION_LIMITS)
-  return read.kind === 'ok' ? read.value : undefined
+  return value === undefined ? undefined : constructionTree(value)
 }
 
 /**

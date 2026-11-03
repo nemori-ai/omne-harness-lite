@@ -22,6 +22,8 @@ import { issueEntrySystemPrincipal } from './agent-host-principal.ts'
 import {
   importReleaseModules,
   loadToolRelease,
+  sameAdoption,
+  sameEvidence,
   locateToolDefinitions,
   type ReleaseModules,
   type ToolReleaseManifest,
@@ -76,17 +78,6 @@ function isOfficial(layer: unknown): boolean {
   )
 }
 
-const FOUR = ['owner', 'name', 'revision', 'digest'] as const
-const EVIDENCE = ['owner', 'record', 'revision', 'digest'] as const
-
-function sameFields(left: unknown, right: object, fields: readonly string[]): boolean {
-  return (
-    typeof left === 'object' &&
-    left !== null &&
-    fields.every(field => Reflect.get(left, field) === Reflect.get(right, field))
-  )
-}
-
 /** 同步核验（G7）。`release` 是行读快照的唯一入口；类里不用 `#` 私有字段（经调用方代理时 `this` 不是实例本身）。 */
 export class ReleaseToolContributionAuthority extends ToolContributionAuthorityService<unknown> {
   readonly verify: ToolContributionAuthority<unknown>['verify']
@@ -114,11 +105,11 @@ export class ReleaseToolContributionAuthority extends ToolContributionAuthorityS
         const name = typeof asset === 'object' && asset !== null ? Reflect.get(asset, 'name') : null
         const entry = release.manifest.entries.find(candidate => candidate.asset.name === name)
         if (entry === undefined) return fail({ kind: 'denied' })
-        if (!sameFields(Reflect.get(asset as object, 'adoption'), entry.asset.adoption, FOUR))
+        if (!sameAdoption(Reflect.get(asset as object, 'adoption'), entry.asset.adoption))
           return fail({ kind: 'invalid', reason: 'asset adoption differs from the release' })
-        if (!sameFields(authority.holding, entry.holding, EVIDENCE))
+        if (!sameEvidence(authority.holding, entry.holding))
           return fail({ kind: 'invalid', reason: 'holding differs from the release' })
-        if (!sameFields(authority.publication, entry.publication, EVIDENCE))
+        if (!sameEvidence(authority.publication, entry.publication))
           return fail({ kind: 'invalid', reason: 'publication differs from the release' })
         if (
           authority.holding.revision !== release.generation ||

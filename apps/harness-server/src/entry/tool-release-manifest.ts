@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto'
 import { readdir, readFile, realpath } from 'node:fs/promises'
 import { dirname, join, relative, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { JsonValue } from '@omne-harness/json-text'
+import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { Adoption, DurableEvidence } from '@omne-harness/tool-contract'
 import {
@@ -100,6 +100,43 @@ export type ToolReleaseEntry = ToolReleaseManifest['entries'][number]
 export type ToolReleaseArtifacts = ToolReleaseManifest['artifacts']
 
 const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
+
+/** 采用（`Adoption`）的四个字段。 */
+export const ADOPTION_FIELDS = Object.freeze(['owner', 'name', 'revision', 'digest'] as const)
+/** 耐久证据（`DurableEvidence`）的四个字段。 */
+export const EVIDENCE_FIELDS = Object.freeze(['owner', 'record', 'revision', 'digest'] as const)
+
+/** `left` 是对象，且给定字段与 `right` 逐个严格相等。别的字段不看。 */
+export function sameFields(left: unknown, right: object, fields: readonly string[]): boolean {
+  return (
+    typeof left === 'object' &&
+    left !== null &&
+    fields.every(field => Reflect.get(left, field) === Reflect.get(right, field))
+  )
+}
+
+export const sameAdoption = (left: unknown, right: object): boolean =>
+  sameFields(left, right, ADOPTION_FIELDS)
+export const sameEvidence = (left: unknown, right: object): boolean =>
+  sameFields(left, right, EVIDENCE_FIELDS)
+
+/** 构造值转成 JSON 树的上限。值来自运维者配置，上限只防误配，不是发行默认值。 */
+export const CONSTRUCTION_LIMITS = Object.freeze({
+  maxBytes: 65536,
+  maxDepth: 8,
+  maxItems: 4096,
+  maxMembers: 1024,
+  maxStringLength: 32768,
+  maxNumberLength: 32,
+})
+
+/** 构造值转成作者要的 JSON 树；不能表示为 JSON 或超上限时为 undefined。 */
+export function constructionTree(value: unknown): JsonValue | undefined {
+  const text = JSON.stringify(value)
+  if (typeof text !== 'string') return undefined
+  const read = readJsonText(text, CONSTRUCTION_LIMITS)
+  return read.kind === 'ok' ? read.value : undefined
+}
 
 /** 被 import 的入口文件，相对包根。它必须在包产物清单里（R2-D82 D2）。 */
 export const RELEASE_ENTRY_FILE = 'dist/index.js'

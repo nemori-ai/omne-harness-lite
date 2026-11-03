@@ -44,23 +44,15 @@ function parseArgs(argv) {
 
 async function compute() {
   const release = await import('../src/entry/tool-release-manifest.ts')
-  const { readJsonText } = await import('@omne-harness/json-text')
   const root = await release.locateToolDefinitions(memberDir)
   // The same file the startup snapshot imports: the entry under the scanned root.
   const modules = await release.importReleaseModules(root)
   const artifacts = await release.scanArtifacts(root)
   const version = JSON.parse(readFileSync(join(memberDir, 'package.json'), 'utf8')).version
   const tree = value => {
-    const read = readJsonText(JSON.stringify(value), {
-      maxBytes: 65536,
-      maxDepth: 8,
-      maxItems: 4096,
-      maxMembers: 1024,
-      maxStringLength: 32768,
-      maxNumberLength: 32,
-    })
-    if (read.kind !== 'ok') throw new Error(`probe construction is not JSON (${read.kind})`)
-    return read.value
+    const read = release.constructionTree(value)
+    if (read === undefined) throw new Error('probe construction is not JSON')
+    return read
   }
   const draft = release.composeManifest({
     version,
