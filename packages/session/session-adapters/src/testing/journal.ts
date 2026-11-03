@@ -201,6 +201,14 @@ export type MemoryAgentJournalOptions<P> = Readonly<{
     receipt: CommandReceipt,
   ) => Promise<Outcome<JointDecision, Failure>>
 
+  /**
+   * Whether one public `commit` or `recordResult` derives a Session participation, so that
+   * `qualifyParticipation` decides it. Absent: the call participates when its caller is not none.
+   * A binding whose fixed history combination also writes the main reply of a caller-none Ja
+   * (Agent SPEC "真实历史的提交点") says so here.
+   */
+  participates?: (input: ExecutionMutation<P>, method: 'commit' | 'recordResult') => boolean
+
   retainedToolInvocationFaults?: boolean
 
   participants?: Iterable<JointCommitKind>
@@ -1662,7 +1670,8 @@ export function createJournal<P>(
         method === 'commit'
           ? (input as Parameters<AgentJournal<P>['commit']>[0]).caller
           : (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
-      if (caller.kind !== 'none' && options.qualifyParticipation) {
+      const participates = options.participates?.(input, method) ?? caller.kind !== 'none'
+      if (participates && options.qualifyParticipation) {
         // The Session decision of the derived participation: once per public call, before any
         // Session preparation, the pause point and the joint publication; a recognized operation
         // is decided again with its original receipt.

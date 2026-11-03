@@ -227,6 +227,38 @@ type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
 type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
 
 /** The storage operation of one Agent operation of one execution. */
+/**
+ * The hand-over the Session participation of one write derives from (AD-01 table). It is the
+ * caller of a `commit` or the transfer of a `recordResult`, except for the main reply: a `commit`
+ * whose caller is none and that applies the prepared outcome of a model-reply H (the Ja of
+ * `handoff.resolve` with its `replyAdmission`) writes the reply into the Session history in the same
+ * storage commit, through the same `recordMessage` writer as the `message` hand-over. Its source is
+ * the original handoff record and its admission the prepared result (Agent SPEC "真实历史的提交点":
+ * the main reply is a core history duty of the Journal and never a CallerCommit.message).
+ */
+function historyCaller<P>(input: ExecutionMutation<P>, method: JournalWrite): CallerCommit {
+  if (method === 'recordResult')
+    return (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
+  if (method !== 'commit') return { kind: 'none' }
+  const commit = input as Parameters<AgentJournal<P>['commit']>[0]
+  if (commit.caller.kind !== 'none') return commit.caller
+  const handoff = commit.handoff
+  if (handoff?.kind !== 'resolve') return commit.caller
+  const { request, decision, record } = handoff.outcome
+  if (
+    request.kind !== 'execution' ||
+    request.source.kind !== 'model-reply' ||
+    decision.kind !== 'prepared'
+  )
+    return commit.caller
+  return {
+    kind: 'message',
+    message: decision.message,
+    source: record,
+    admission: decision.admission,
+  }
+}
+
 function storageOperation(execution: string, operation: string): string {
   return `aop_${createHash('sha256')
     .update(JSON.stringify([execution, operation]))
@@ -781,10 +813,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     method: JournalWrite,
     receipt: CommandReceipt,
   ): Outcome<SessionCommand, Failure> | undefined {
-    let caller: CallerCommit = { kind: 'none' }
-    if (method === 'commit') caller = (input as Parameters<AgentJournal<P>['commit']>[0]).caller
-    if (method === 'recordResult')
-      caller = (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
+    const caller = historyCaller(input, method)
     if (caller.kind === 'none') return undefined
     const operation = deriveSessionOperation({
       kind: 'participation',
@@ -1024,6 +1053,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const core = createJournal<P>(cell, {
       participants: PARTICIPANTS,
       grant: () => true,
+      participates: (input, method) => historyCaller(input, method).kind !== 'none',
       qualifyParticipation: (input, method, receipt) => qualify(book, cell, input, method, receipt),
       terminalParticipant: input => terminalParticipant(book, cell, input.execution, input.control),
       ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
