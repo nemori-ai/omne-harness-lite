@@ -1,0 +1,132 @@
+
+## era/version
+{
+  "era": "modern",
+  "v": "2026-07-28"
+}
+
+## discover request headers
+{
+  "method": "POST",
+  "headers": {
+    "accept": "application/json, text/event-stream",
+    "content-type": "application/json",
+    "mcp-method": "server/discover",
+    "mcp-protocol-version": "2026-07-28"
+  },
+  "body": {
+    "jsonrpc": "2.0",
+    "id": "server-discover-probe-1",
+    "method": "server/discover",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "http-client",
+          "version": "0.0.1"
+        },
+        "io.modelcontextprotocol/clientCapabilities": {
+          "elicitation": {
+            "form": {}
+          },
+          "extensions": {
+            "io.modelcontextprotocol/tasks": {}
+          }
+        }
+      }
+    }
+  },
+  "status": 200,
+  "ctype": "application/json"
+}
+
+## tools/call echo request headers
+{
+  "accept": "application/json, text/event-stream",
+  "content-type": "application/json",
+  "mcp-method": "tools/call",
+  "mcp-name": "echo",
+  "mcp-protocol-version": "2026-07-28"
+}
+[server] ask round { state: undefined, inputResponses: undefined }
+[server] ask round {
+  state: 'ask-round-1',
+  inputResponses: { who: { action: 'accept', content: [Object] } }
+}
+
+## ask auto-fulfilled over http
+[
+  {
+    "type": "text",
+    "text": "hello Http"
+  }
+]
+[server] slow: client tasks extension declared = true envelope keys [
+  'io.modelcontextprotocol/protocolVersion',
+  'io.modelcontextprotocol/clientInfo',
+  'io.modelcontextprotocol/clientCapabilities'
+]
+
+## slow (task) over http threw
+{
+  "class": "SdkError",
+  "code": "UNSUPPORTED_RESULT_TYPE",
+  "message": "Unsupported result type 'task' for tools/call",
+  "data": {
+    "resultType": "task",
+    "method": "tools/call"
+  }
+}
+
+## tasks/get over http
+{
+  "status": "completed",
+  "headers": {
+    "accept": "application/json, text/event-stream",
+    "content-type": "application/json",
+    "mcp-method": "tasks/get",
+    "mcp-name": "task-1",
+    "mcp-protocol-version": "2026-07-28"
+  }
+}
+[server] slow: client tasks extension declared = true envelope keys [
+  'io.modelcontextprotocol/protocolVersion',
+  'io.modelcontextprotocol/clientInfo',
+  'io.modelcontextprotocol/clientCapabilities'
+]
+
+## aborted http call threw
+{
+  "class": "SdkError",
+  "code": "REQUEST_TIMEOUT",
+  "message": "http-cancel"
+}
+[server] slow inline: ctx.mcpReq.signal aborted, reason = SdkError: Connection closed
+
+## requests sent for the aborted call (methods)
+[
+  "tools/call"
+]
+
+## 401 connect threw
+{
+  "class": "SdkHttpError",
+  "code": "CLIENT_HTTP_AUTHENTICATION",
+  "message": "Version negotiation failed: the server requires authorization (HTTP 401)",
+  "data": {
+    "status": 401,
+    "statusText": "Unauthorized",
+    "text": ""
+  },
+  "seenByFetch": [
+    {
+      "status": 401,
+      "wwwAuthenticate": "Bearer resource_metadata=\"http://127.0.0.1/.well-known/oauth-protected-resource\", scope=\"mcp:tools\""
+    }
+  ]
+}
+
+## authorized connect via fetch hook
+{
+  "era": "modern"
+}

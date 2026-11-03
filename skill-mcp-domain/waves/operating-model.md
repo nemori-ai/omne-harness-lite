@@ -58,6 +58,10 @@ tmp 在容器回收后会丢失。每波末，reduce 把本波记录（`waves/` 
 
 存档只用脚本：`bash /home/user/omne-harness-lite/.worktrees/skill-mcp/tmp/skill-mcp-domain/records-sync.sh "<提交说明>"`。脚本全用绝对路径，先核对记录工作树的分支再写入。不要手写 `git -C … worktree add` 一类的命令：2026-11-03 首次建记录分支时，相对路径让工作树建错了位置，随后的命令落到主检出，在本地 `integration/mainline` 上提交了一次（推送被拒，已用 `git reset --keep` 恢复）。
 
+事故记录（2026-11-03，W2）：探路件在 tmp 里装了 node_modules，`records-sync.sh` 把 758 个文件同步进记录分支并已推送。处置：脚本加 `--exclude node_modules --exclude .stryker-tmp`，记录分支用新提交移除（不改写历史，blob 留在历史里）。规则：tmp 里任何会产生依赖目录或构建产物的探路件，先在脚本的排除表登记。
+
+教训（2026-11-03，W2 w2-skill-host）：成员测试 import 的是 `dist`，证明用例变红时必须先还原源码并重新构建，再跑用例；只还原源码不重建，用例仍是绿的，证据无效。
+
 ## 6. 质量门槛
 
 | 时点 | 必须有 |

@@ -1,3 +1,14 @@
+<h3>W2 增量 1：skill-host-local 合入（2026-11-03，父分支 478e56381）</h3>
+<p><strong>读数。</strong>4 源文件 341 行，10 测试文件 54 例（写者报 84，含类型用例与 it.each 展开）。无 <code>as</code>（两处 <code>as const satisfies</code>）、无 <code>any</code>、无类。变更函数超 warn 0。写者两轮共 48 + 33 个手工变异全部被杀；Stryker 280 个变异体：被杀 248、存活 21（集中在 <code>walk.ts:52</code> 的解码分支与 <code>:145</code> 的表查找）、5 个静态变异致「测量无效」。</p>
+<p><strong>两轮评审改掉了什么。</strong>第 1 轮三处阻断都是真缺陷：根是普通文件时 <code>open</code> 答成 <code>entry-not-found</code>（reduce 自修，<code>resolveRoot</code> 合并「是目录」核对）；非 UTF-8 文件名被有损解码后报成瞬时的 <code>unavailable</code>，登记方会无限重试；<code>readdir</code> 之后、<code>readFile</code> 之前条目被换成根外链接，根外字节进了快照（confused deputy，探针算出的摘要正是根外 <code>secret</code> 的 sha256）。第 2 轮把「按列出时的种类分叉」改成「每个条目同一条路」，接缝改为字节级并把全部分类收拢进 <code>walk.ts</code>，这是这个成员现在最值得看的地方：<strong>接缝只做 IO，判定只在一处</strong>。</p>
+<p><strong>异味与处置。</strong></p>
+<ul>
+<li>残余窗口：核对之后、打开之前，解析路径上的某个<em>中间</em>目录被换成链接，<code>open</code> 会跟随它。Node 没有 <code>openat2/RESOLVE_BENEATH</code>，只能写进文档。可接受，但 M2 之后接真实多写者的目录时要重新评估。</li>
+<li>经 2^k 条链接路径到达的同一文件会在预算内被读 2^k 次；字节总量不设上限（契约本来就整包读入内存）。W3 若做内容存储来源，应在那一侧设上限。</li>
+<li><code>DirectoryFs.readFile</code> 的语义已是「不跟随链接地打开并报种类」，名字还叫 <code>readFile</code>，注入方容易误用普通读取而丢掉 <code>O_NOFOLLOW</code> 义务；改名留 W3（公开形状）。</li>
+<li>基线既有的两项门禁红（主线合入带来的 7 个验收锁违规提交；legacy 目录两份 LICENSE 是 CRLF）与本成员无关，记在波末。</li>
+</ul>
+<hr>
 <h3>W1 合入（2026-11-03，父分支 aafc0cdc9）</h3>
 <p><strong>读数。</strong>22 个源文件、13 个测试文件 364 例，覆盖率 97%。<code>src</code> 里没有 <code>as</code> 类型断言（两处 <code>as const</code> 是字面量断言）、没有 <code>any</code>、没有类。变更函数超 alert 的 0 个，超 warn 的 1 个（<code>skillResolutionConformance</code> CC 11，用例表）。差分变异 1595 个变异体，被杀 1244，存活 288，其中 156 条在套件替身代码里；工具因 13 个静态变异把模块加载改坏而判「测量无效」，分数不可用。</p>
 <p><strong>优雅在哪里。</strong>依赖图是一棵干净的 DAG，<code>values.ts</code> 零导入在根。品牌只由八个 <code>isX</code> 守卫授予，守卫与品牌一一对应。失败联合按操作用 <code>Extract</code> 收窄，<code>export</code> 的签名里就没有「已采用材料已变」。<code>parse/shape.ts</code> 的读取器被资产正文与声明文件共用，同一条规则只写一次。套件无框架化后，变红证明在进程内完成，删掉了第 1 轮的子进程方案。</p>

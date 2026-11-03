@@ -3,7 +3,13 @@
     "dir": "packages/mcp/mcp",
     "name": "@omne-harness/mcp",
     "description": "General MCP implementation: the Connection and ActionCatalog aggregates, the application services, and the in-memory CatalogStore",
-    "deps": [],
+    "deps": [
+      "@omne-harness/assets",
+      "@omne-harness/json-text",
+      "@omne-harness/legal-identity",
+      "@omne-harness/mcp-contract",
+      "@omne-harness/operation-result"
+    ],
     "files": [
       {
         "file": "src/index.ts",
@@ -4593,7 +4599,7 @@
           "name": "",
           "lines": 0
         },
-        "lines": 102
+        "lines": 103
       }
     ],
     "testFiles": 14,

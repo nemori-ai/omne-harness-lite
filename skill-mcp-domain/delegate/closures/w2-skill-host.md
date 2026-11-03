@@ -81,4 +81,11 @@ developer，implementation_kind product，Claude Opus 5.5（claude-opus-5-5）�
 - 契约套件对本来源有不可满足的用例（例如要求按内容摘要查找）时，不改套件，停下交回并写明用例编号。
 
 ## 追加记录
-（无）
+- 2026-11-03T18:20Z 第 1 轮评审（reviews/skill-host-r1.md）：reduce 已在分支上提交 786c4a70b 修 B1（根是普通文件时 open 答 package-not-found，`resolveRoot` 合并「是目录」核对）。写者在它之上继续。
+- 2026-11-03T18:20Z 正确性 C1（阻断）：非 UTF-8 文件名被有损解码成 U+FFFD，`readFile` ENOENT → `unavailable`，永久缺陷被报成瞬时失败。要求：`readdir` 用 `encoding: 'buffer'`，严格 UTF-8 解码（`TextDecoder('utf-8', { fatal: true })`）；解码失败答 `entry-unreadable`；用例用 `Buffer.from([0x62,0x61,0x64,0xff])` 建文件名。
+- 2026-11-03T18:20Z 正确性 C2（阻断，安全）：readdir 之后、readFile 之前条目被换成指向根外的链接，根外字节进入快照（confused deputy）。要求：每个条目一律走「`realpath` → `isWithin` → `lstat` 判种类」的同一路径（不再按 dirent 种类分叉），文件用 `O_RDONLY|O_NOFOLLOW|O_NONBLOCK` 打开（ELOOP → `entry-unreadable`），打开后 `fstat` 核对是普通文件；`open` 同样 `O_NOFOLLOW` 打开解析后的目标。用例：注入接缝在 readdir 之后把条目换成根外链接，答 `outside-package`（或 `entry-unreadable`），绝不交出根外字节。残余窗口写进 README「行为」。
+- 2026-11-03T18:20Z 正确性 C3（reduce 裁定）：链接扇出没有上限，N=14 层两链接即 32768 次访问。裁定：遍历预算 65536 次条目访问（含经链接重复到达的），超出答 `entry-unreadable`；README 写明预算与原因；用例用注入接缝构造超预算的扇出。字节总量不设上限（契约已写明整包读入内存）。
+- 2026-11-03T18:20Z 正确性 C4：链接在列出后消失时 `realpath` ENOENT 被判成悬空（`entry-unreadable`）。要求：ENOENT 时 `lstat` 链接本身，仍在则悬空 `entry-unreadable`，已不在则 `unavailable`；用例各一。
+- 2026-11-03T18:20Z 设计 D1：分类表收拢到一处（默认 `unavailable` 与 EISDIR/EINVAL 的合成都放进 `walk.ts` 的表侧）；根名为空的核对只留一处。D2：`tests/fs-double.ts` 的 `readFile` 也要拒绝非普通文件（与 `nodeFs` 同契约），或把「拒绝非普通文件」移到 `walk.ts` 用 `fstat` 做，让接缝只做 IO。D3：READ 表的 EINVAL/ENXIO、LINK 表的 EPERM/EIO/ENOTDIR、`lstat` 失败各要有一条用例，删掉表项即变红。D5：成员 SPEC「组合与验证」先写判据、反例与变红证据（含 M1 使 PS1/PS2 变红）。D6：`read`/`follow`/`walkEntry` 写显式返回类型 `Promise<SourceFailure | undefined>`；`Walk.files` 改为返回值累积或写明是遍历私有状态。
+- 2026-11-03T18:20Z 交付边界建议：README 映射表补 EINVAL/ENXIO 与 C3 预算。
+

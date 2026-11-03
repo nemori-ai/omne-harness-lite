@@ -105,4 +105,23 @@ developer，implementation_kind product，Claude Fable 5.1（claude-fable-5-1）
 - 同一用例连试三种做法仍红时停下。
 
 ## 追加记录
-（无）
+- 2026-11-03T22:00Z 第 1 轮评审（reviews/mcp-core-r1.md，三面：交付边界、设计与实践、L3 逐行 9 个探针）。下列每条都要先写会红的用例（证明变红时先还原源码并重新构建 dist）并把红灯存 tmp/closures/w2-mcp-core/red/r2-*.txt。
+- 2026-11-03T22:00Z **B1（阻断）**：发布边界的三项核对必须紧挨 `store.write`：`await stillEligible` 之后再同步核一次 `isCurrent(generation)` 与 `signal.aborted`（或把资格核对挪到前面），加第四项核对「清单所在连接的采用修订仍等于当前采用修订」（O2），任一不成立答 `kept(superseded)`/`kept(cancelled)`。用例：资格核对期间换代；资格核对期间中止；资格核对期间采用修订变化。
+- 2026-11-03T22:00Z **B2（阻断）**：`table.lose(connection, generation, reason, mark)` 带产出它的代际，不是当前代际时不动作（与 `settleConnection` 的 `isCurrent` 守卫一致）。用例：旧代际迟到的 `not-sent` 页不改变重建后连接的状态、不关传输、不停进程、不标记清单。
+- 2026-11-03T22:00Z **B3（阻断）**：取页阶段按组页不变式 5 受连接时限约束：listing 阶段另起同一上界的 `AbortSignal.timeout`，并组合调用方 `signal`；超时按该页 `no-answer` → `kept(listing-incomplete, page-failed)` + `degraded(list-failed)`；调用方中止 → `kept(cancelled)`，不标记清单。用例各一。
+- 2026-11-03T22:00Z **B4（阻断）**：`close` 与同键 `ensure` 竞争。关闭也做成同键单飞（`entry.closing: Promise`），`ensure` 看到 `closed` 或 `closing` 时先 await 关闭完成再建新条目；`forget` 只删除仍属于本次关闭的条目（用条目令牌或代际比对）；`build` 开头不释放旧句柄，旧句柄只在旧进程 `stop()` 返回后释放（S9）。用例：并发 `release` + `refresh`，两条连接都有归宿（第二条进程可停、句柄释放一次、`closeAll` 列出它）。
+- 2026-11-03T22:00Z **B5（阻断）**：连接时限覆盖 `credentials.acquire` 与 `landing.start`（都经 `untilAborted`）；迟到交来的进程 `stop()`，迟到的句柄 `release()`；`release`/`closeAll` 不被挂起的准备拖住。用例：落点永不返回 + 50 ms 时限 → `connection-unavailable` 且 `release` 能返回。
+- 2026-11-03T22:00Z **O3（裁定）**：调用方 `signal` 不进单飞建连的 `AbortSignal.any`；单飞只受连接时限约束；调用方中止时 `refresh` 答 `kept(cancelled)`，不标记清单，不影响同键并发调用方。现有用例 `ensure.spec.ts:454`（中止答 `connection-unavailable`）改写为新语义（简报要求的改写不算放宽）。成员 SPEC MC-5 同步。
+- 2026-11-03T22:00Z **O2（裁定）**：`ensure` 建连前重读 `AdoptionView.endpoint`：修订与令牌不同 → 答 `Refusal unknown`，不建连、不关别的连接；`closeOthers` 只关修订不等于当前读到的修订的键。用例：旧修订令牌在新修订已连接时 `ensure` → `unknown`，新连接不动。
+- 2026-11-03T22:00Z **O1（裁定）**：自动关闭的粒度：被挡下（`disabled`、`local-command-not-enabled`）是接入点级，关闭该接入点连接是对的；`not-eligible`/`unknown` 主体级，不关闭。用例改用接入点级设置触发关闭（替身按主体 block 只是近似）；成员 SPEC 写明粒度。
+- 2026-11-03T22:00Z N1：端口 reject/抛出时走 `failed()` 收场（关传输、停进程、释放句柄、转 `lost(preparation-failed)`）再把错误抛出；用例：`discover()` reject 后再次 `ensure` 不抛 `TypeError`。
+- 2026-11-03T22:00Z **D1（阻断）**：S1 只留一份实现：`admit` 返回带裁决的结果，`admitForUse`、`stillEligible`、`status.inspect`、`status.list` 都在它之上组合，删 `refusalOf` 与各处内联映射；`gate.spec` 改测生产实际走的入口（`admitForUse`），并在服务层加「未采用时资格替身调用 0 次」用例；README「给下一波」改写 `admitForUse`/`stillEligible` 的签名与不变式 6 的关闭。过资格与未过资格的令牌用不同品牌（`AdmittedEndpoint` vs `AdoptedOnly`），需要连接的函数只收前者。
+- 2026-11-03T22:00Z D2：`Connection` 单写者——连接表提供 `settle(connection, generation, ok)`/`degrade`/`recover`；`Ensured` 只交只读视图（`generation`、`isCurrent`）；用例不直接驱动聚合。
+- 2026-11-03T22:00Z D3、D4：`PreparedSettings` 按 `transport.kind` 分两变体、凭据按 `auth` 分两变体，删同义判断与不可达分支；`SettingsRefusal` 收窄为 `config-missing | config-invalid | unknown`；`EnsureFailure` 改为 `{ stage: 'settings', reason } | { stage: 'connect', reason: ConnectionFailure | EffectUnknown, catalog }`；README 写明 `Ensured` 是 `ensure` 当时的快照。
+- 2026-11-03T22:00Z D5：`Entry.lingering: { handle, confirmed }[]`，删 `residuals` WeakMap；抽 `teardown(entry)` 收拢四处重复的关传输/停进程/释放句柄；`stateOf` 一次 `entriesOf`。
+- 2026-11-03T22:00Z D6、D7：`in-flight.ts` 复用 `tenantTextOf`；`connections.ts` 用 `GateRefusal`；正文在关口解析一次，`AdmittedEndpoint` 带 `definition`，删 `settings.ts`/`status.ts` 的重复解析；`internal/canonical.ts` 保留但 SPEC 写成偏离（退出条件：契约导出 `canonical`）。
+- 2026-11-03T22:00Z D8：成员 SPEC 把公开根的三处偏离（`McpDiscovery`/`RefreshRequest`、`McpCoreOptions`/`{ now }`、`canonical.ts`）写成偏离表，各给退出条件（W3 契约回写后删除）。
+- 2026-11-03T22:00Z D9：服务级用例改走公开状态口（`status.inspect`）断言连接状态，`tests/doubles/core.ts` 不再暴露 `table`（`ensure.spec` 测 W3 接缝可继续直接测表）；`scripted-transport` 的失败种类表用 `satisfies Record<TransportFailure['kind'], true>`；`open` 步缺席时的行为写进文件头或改为报错；释放次序进 trace（`credential.release` 事件），`release.spec` 断言在 `process.stop` 之后。
+- 2026-11-03T22:00Z D10、D11：成员 SPEC 的 MC-1、2、4、8–13 补反例与变红（含 MC-2 指向生产入口）；README「给下一波」补 `ConnectionKey` 的算法入口（`readAccountOf`）、聚合状态转移只经连接表、`UnavailableMark`/`CatalogMark` 的取值与含义。
+- 2026-11-03T22:00Z 已定事项修正：6.5 改为「从取凭据开始计时，覆盖取凭据、进程启动、打开传输、协商；取页阶段另起同一上界」；11 改为「未采用或被挡下时关闭；`not-eligible`/`unknown` 不关闭」；6.4「不可用 → 不报」改为按 S5「答 `unknown`」。
+

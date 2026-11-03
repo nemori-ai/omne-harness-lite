@@ -3,7 +3,12 @@
     "dir": "packages/skills/skill",
     "name": "@omne-harness/skill",
     "description": "General Skill implementation: the PackageInspection, SkillCatalog, and SkillAccess application services",
-    "deps": [],
+    "deps": [
+      "@omne-harness/assets",
+      "@omne-harness/legal-identity",
+      "@omne-harness/operation-result",
+      "@omne-harness/skill-contract"
+    ],
     "files": [
       {
         "file": "src/index.ts",
@@ -3421,15 +3426,149 @@
     "dir": "packages/skills/skill-host-local",
     "name": "@omne-harness/skill-host-local",
     "description": "Local Skill host: the DirectorySource local directory source",
-    "deps": [],
+    "deps": [
+      "@omne-harness/operation-result",
+      "@omne-harness/skill-contract"
+    ],
     "files": [
+      {
+        "file": "src/directory-source.ts",
+        "decls": [
+          {
+            "name": "createDirectorySource",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "DirectoryFs",
+              "SkillPackageSource"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/operation-result",
+          "@omne-harness/skill-contract/provider",
+          "./fs.ts",
+          "./walk.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createDirectorySource",
+          "lines": 16
+        },
+        "lines": 49
+      },
+      {
+        "file": "src/fs.ts",
+        "decls": [
+          {
+            "name": "EntryKind",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "Opened",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "file",
+              "{…}"
+            ],
+            "refs": [
+              "Readonly",
+              "Uint8Array"
+            ]
+          },
+          {
+            "name": "DirectoryFs",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Promise",
+                  "Uint8Array"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "EntryKind"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "Uint8Array"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "Opened"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Promise",
+              "Uint8Array",
+              "EntryKind",
+              "Opened"
+            ]
+          },
+          {
+            "name": "nodeFs",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "DirectoryFs"
+            ]
+          }
+        ],
+        "imports": [
+          "node:fs/promises"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "openRegular",
+          "lines": 12
+        },
+        "lines": 56
+      },
       {
         "file": "src/index.ts",
         "decls": [],
-        "imports": [],
+        "imports": [
+          "./directory-source.ts",
+          "./fs.ts"
+        ],
         "reexports": [
           {
-            "names": []
+            "from": "./directory-source.ts",
+            "names": [
+              "createDirectorySource"
+            ]
+          },
+          {
+            "from": "./fs.ts",
+            "names": [
+              "DirectoryFs",
+              "EntryKind",
+              "Opened"
+            ]
           }
         ],
         "asCount": 0,
@@ -3439,22 +3578,153 @@
           "lines": 0
         },
         "lines": 2
+      },
+      {
+        "file": "src/walk.ts",
+        "decls": [
+          {
+            "name": "PackageFile",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "PackagePath"
+                ]
+              },
+              {
+                "refs": [
+                  "Bytes"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "PackagePath",
+              "Bytes"
+            ]
+          },
+          {
+            "name": "Collected",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "PackageFile"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "PackageFile"
+            ]
+          },
+          {
+            "name": "isWithin",
+            "kind": "function",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "collect",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "DirectoryFs",
+              "Promise",
+              "Outcome",
+              "Collected",
+              "SourceFailure",
+              "Walk",
+              "Place"
+            ]
+          },
+          {
+            "name": "readEntry",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "DirectoryFs",
+              "PackagePath",
+              "Promise",
+              "Outcome",
+              "Bytes",
+              "SourceFailure"
+            ]
+          }
+        ],
+        "imports": [
+          "node:path",
+          "@omne-harness/operation-result",
+          "@omne-harness/skill-contract",
+          "@omne-harness/skill-contract/provider",
+          "./fs.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "visit",
+          "lines": 14
+        },
+        "lines": 234
       }
     ],
-    "testFiles": 1,
-    "testCases": 1,
-    "draft": [
-      "README.md",
-      "README_ZH.md",
-      "src/index.ts"
-    ],
+    "testFiles": 13,
+    "testCases": 57,
+    "draft": [],
     "entries": [
       {
         "sub": ".",
-        "names": []
+        "names": [
+          {
+            "name": "createDirectorySource",
+            "kind": "function"
+          },
+          {
+            "name": "DirectoryFs",
+            "kind": "record"
+          },
+          {
+            "name": "EntryKind",
+            "kind": "record"
+          },
+          {
+            "name": "Opened",
+            "kind": "union"
+          }
+        ]
       }
     ],
-    "modEdges": [],
-    "pkgEdges": []
+    "modEdges": [
+      [
+        "src/directory-source.ts",
+        "src/fs.ts"
+      ],
+      [
+        "src/directory-source.ts",
+        "src/walk.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/directory-source.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/fs.ts"
+      ],
+      [
+        "src/walk.ts",
+        "src/fs.ts"
+      ]
+    ],
+    "pkgEdges": [
+      "@omne-harness/operation-result",
+      "@omne-harness/skill-contract",
+      "node:fs",
+      "node:path"
+    ]
   }
 ]

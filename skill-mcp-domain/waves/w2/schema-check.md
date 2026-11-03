@@ -38,3 +38,21 @@
 | 11 | 进度要 `progressToken`，日志要 `_meta.logLevel`（已弃用） | 传输在 `call` 上带 `progressToken`；日志不开 |
 | 12 | `continuation.inputResponses` 必填，但只带 `requestState` 的重试不需要；`args` 未限定为对象 | 改为可选；`args` 守卫限定对象 |
 | 措辞 | S7 的「协商」「会话」只对旧对端成立；空串 `requestState` 合法但 V1 判 malformed；`inputSchema` 不核 `type:"object"`；stdio 关闭次序 | W3 写回 SPEC 措辞 |
+
+## w2-spike 结论（2026-11-03，官方 SDK 2.3.1，实测脚本在 `waves/w2/spike/`）
+
+**W3 决定：`mcp-host-local` 只用 SDK 的 `Transport` 层，自己发 JSON-RPC。**stdio 用自写的 `StreamTransport` 跑在 `ProcessHandle` 的流上（`StdioClientTransport` 自己 spawn、auto 模式多起一个探测进程、`close()` 会 kill 进程，违反 T5 并绕过 `ProcessLanding`）；HTTP 用 `StreamableHTTPClientTransport` 加 `fetch` 钩子（在钩子里 `credential.authorize(headers)`、读 `WWW-Authenticate`、调 `reportRejection()`；不传 `authProvider`）。`Client` 高层 API 只在测试里做对照客户端。
+
+理由（实测）：`Client` 拿不到请求 id、原始应答（`resultType` 被剥、`task` 结果直接抛 `UNSUPPORTED_RESULT_TYPE`、整页 schema 失败丢原文）、`WWW-Authenticate`、no-answer 原因；它还会本地校验 outputSchema 并以 `-32602` 抛出、遇 `-32020` 自动重发一次、默认 60 s 自动取消、`input_required` 默认自动完成——每一种都改变对端效果或结局分类。
+
+自己要写的协议条文（体量小，进契约测试）：`server/discover` → `-32601`/legacy 信号/stdio 超时时回退 `initialize` + `notifications/initialized`；`-32022` 续接；每请求 `_meta` 三个键（SDK 导出常量 `PROTOCOL_VERSION_META_KEY`、`CLIENT_CAPABILITIES_META_KEY`、`SERVER_INFO_META_KEY`）；HTTP 的 `Mcp-Method`/`Mcp-Name`；HTTP 取消 = 中止该请求的流（每请求一个 `AbortController`）；stdio 取消 = `notifications/cancelled` 带信封；stdio 帧按行切但**不用** SDK `ReadBuffer`（它静默丢非 JSON 行，与 T7 不符）；legacy 修订下服务端发来的请求一律拒绝。
+
+其他事实：`serveStdio` 在 discover 之后的第一个真实请求上钉定修订，不带信封就钉成 2025；SDK 服务端没有任务 API（只能手写 `resultType:'task'` 且须带 `content: []`），所以 W3 的真实服务端夹具要自写 `tasks/*` 处理器，任务形状按 SEP-2663 原文核实后定（spike 未核）；`McpServer` 不分页，多页测试要自写夹具。
+
+未跑通、留 W3 夹具验证：input_required 任务的流转；T7 各种读不懂应答；403 `insufficient_scope`；HTTP 上 POST `notifications/cancelled` 是否被接受；auto 探测超时回退。
+
+## w2-mcp-core 带回的契约可加调整（W3 prep 回写 mcp-contract）
+
+- `ActionDiscovery.refresh` 的请求加 `signal?: AbortSignal`（S5 的 `kept(cancelled)` 需要它；成员内已用 `McpDiscovery` 扩展形状绕过）。
+- 领域时间：`acquiredAt` 的时钟进 `McpConfig`（`now?: () => number`，默认本机时钟）或 `McpPorts`；成员内已用 `createMcpCore` 第三参 `{ now }` 绕过。
+- 契约 `json.ts` 的 `canonical`/`sameJson` 从公开根导出，成员删自己的 `internal/canonical.ts`；`testing-values.ts` 的样本构造器从 `./testing` 导出，成员删 `tests/doubles/values.ts`。

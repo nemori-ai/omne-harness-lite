@@ -1,0 +1,599 @@
+
+## connect ms
+282
+
+## era / negotiated version
+{
+  "era": "modern",
+  "version": "2026-07-28",
+  "pid": 24173
+}
+
+## getDiscoverResult()
+{
+  "_meta": {
+    "io.modelcontextprotocol/serverInfo": {
+      "name": "w2-spike-server",
+      "version": "0.0.1"
+    }
+  },
+  "ttlMs": 0,
+  "cacheScope": "private",
+  "supportedVersions": [
+    "2026-07-28"
+  ],
+  "capabilities": {
+    "tools": {
+      "listChanged": true
+    },
+    "extensions": {
+      "io.modelcontextprotocol/tasks": {}
+    }
+  },
+  "instructions": "Spike server. echo, ask, slow.",
+  "resultType": "complete"
+}
+
+## getServerCapabilities()
+{
+  "tools": {
+    "listChanged": true
+  },
+  "extensions": {
+    "io.modelcontextprotocol/tasks": {}
+  }
+}
+
+## getServerVersion()
+{
+  "name": "w2-spike-server",
+  "version": "0.0.1"
+}
+
+## getInstructions()
+"Spike server. echo, ask, slow."
+    | [server] starting pid 24173
+    | 
+## listTools({cursor:undefined}) keys / nextCursor / ttlMs
+{
+  "keys": [
+    "_meta",
+    "ttlMs",
+    "cacheScope",
+    "tools"
+  ],
+  "ttlMs": 0,
+  "n": 3
+}
+
+## listTools() aggregate
+{
+  "names": [
+    "echo",
+    "ask",
+    "slow"
+  ],
+  "keys": [
+    "_meta",
+    "ttlMs",
+    "cacheScope",
+    "tools"
+  ],
+  "echo": {
+    "name": "echo",
+    "description": "Echo the text back",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ]
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "echoed": {
+          "type": "string"
+        },
+        "length": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "echoed",
+        "length"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
+
+## listTools({cursor:"bogus"})
+{
+  "_meta": {
+    "io.modelcontextprotocol/serverInfo": {
+      "name": "w2-spike-server",
+      "version": "0.0.1"
+    }
+  },
+  "ttlMs": 0,
+  "cacheScope": "private",
+  "tools": [
+    {
+      "name": "echo",
+      "description": "Echo the text back",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "echoed": {
+            "type": "string"
+          },
+          "length": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "echoed",
+          "length"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "ask",
+      "description": "Ask for a name via form elicitation",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "slow",
+      "description": "Runs as a task",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ms": {
+            "type": "number"
+          },
+          "inline": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ms"
+        ]
+      }
+    }
+  ]
+}
+
+## callTool(echo)
+{
+  "result": {
+    "_meta": {
+      "io.modelcontextprotocol/serverInfo": {
+        "name": "w2-spike-server",
+        "version": "0.0.1"
+      }
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"echoed\":\"hi\",\"length\":2}"
+      }
+    ],
+    "structuredContent": {
+      "echoed": "hi",
+      "length": 2
+    }
+  },
+  "progress": [
+    {
+      "progress": 1,
+      "total": 1,
+      "message": "echoing"
+    }
+  ]
+}
+    | [server] ask round { state: undefined, inputResponses: undefined }
+    | 
+## elicitation handler got
+{
+  "mode": "form",
+  "message": "Your name?",
+  "requestedSchema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+  }
+}
+    | [server] ask round {
+    |   state: 'ask-round-1',
+    |   inputResponses: { who: { action: 'accept', content: [Object] } }
+    | }
+    | 
+## callTool(ask) auto-fulfil
+{
+  "result": {
+    "_meta": {
+      "io.modelcontextprotocol/serverInfo": {
+        "name": "w2-spike-server",
+        "version": "0.0.1"
+      }
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "hello Ada"
+      }
+    ]
+  },
+  "elicitCalls": 1
+}
+    | [server] ask round { state: undefined, inputResponses: undefined }
+    | 
+## callTool(ask, allowInputRequired) first round
+{
+  "resultType": "input_required",
+  "inputRequests": {
+    "who": {
+      "method": "elicitation/create",
+      "params": {
+        "message": "Your name?",
+        "requestedSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "$schema": "https://json-schema.org/draft/2020-12/schema"
+        },
+        "mode": "form"
+      }
+    }
+  },
+  "requestState": "ask-round-1",
+  "_meta": {
+    "io.modelcontextprotocol/serverInfo": {
+      "name": "w2-spike-server",
+      "version": "0.0.1"
+    }
+  }
+}
+    | [server] ask round {
+    |   state: 'ask-round-1',
+    |   inputResponses: { who: { action: 'accept', content: [Object] } }
+    | }
+    | 
+## callTool(ask) manual retry
+{
+  "_meta": {
+    "io.modelcontextprotocol/serverInfo": {
+      "name": "w2-spike-server",
+      "version": "0.0.1"
+    }
+  },
+  "content": [
+    {
+      "type": "text",
+      "text": "hello Bob"
+    }
+  ]
+}
+    | [server] slow: client tasks extension declared = true envelope keys [
+    |   'io.modelcontextprotocol/protocolVersion',
+    |   'io.modelcontextprotocol/clientInfo',
+    |   'io.modelcontextprotocol/clientCapabilities'
+    | ]
+    | 
+## callTool(slow) threw
+{
+  "class": "SdkError",
+  "code": "UNSUPPORTED_RESULT_TYPE",
+  "message": "Unsupported result type 'task' for tools/call",
+  "data": {
+    "resultType": "task",
+    "method": "tools/call"
+  }
+}
+
+## raw CreateTaskResult from tap
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "result": {
+    "_meta": {
+      "io.modelcontextprotocol/serverInfo": {
+        "name": "w2-spike-server",
+        "version": "0.0.1"
+      }
+    },
+    "content": [],
+    "resultType": "task",
+    "task": {
+      "taskId": "task-1",
+      "status": "working",
+      "createdAt": "2026-11-03T17:58:41.756Z",
+      "lastUpdatedAt": "2026-11-03T17:58:41.757Z",
+      "ttl": 60000,
+      "pollInterval": 50
+    }
+  }
+}
+
+## tasks/get #0
+{
+  "taskId": "task-1",
+  "status": "working",
+  "_meta": {
+    "io.modelcontextprotocol/serverInfo": {
+      "name": "w2-spike-server",
+      "version": "0.0.1"
+    }
+  },
+  "createdAt": "2026-11-03T17:58:41.756Z",
+  "lastUpdatedAt": "2026-11-03T17:58:41.757Z",
+  "ttl": 60000,
+  "pollInterval": 50
+}
+
+## tasks/get #6
+{
+  "taskId": "task-1",
+  "status": "completed",
+  "_meta": {
+    "io.modelcontextprotocol/serverInfo": {
+      "name": "w2-spike-server",
+      "version": "0.0.1"
+    }
+  },
+  "createdAt": "2026-11-03T17:58:41.756Z",
+  "lastUpdatedAt": "2026-11-03T17:58:42.057Z",
+  "ttl": 60000,
+  "pollInterval": 50,
+  "result": {
+    "resultType": "complete",
+    "content": [
+      {
+        "type": "text",
+        "text": "slept 300"
+      }
+    ]
+  }
+}
+    | [server] slow: client tasks extension declared = true envelope keys [
+    |   'io.modelcontextprotocol/protocolVersion',
+    |   'io.modelcontextprotocol/clientInfo',
+    |   'io.modelcontextprotocol/clientCapabilities'
+    | ]
+    | 
+## tasks/cancel ack
+{
+  "_meta": {
+    "io.modelcontextprotocol/serverInfo": {
+      "name": "w2-spike-server",
+      "version": "0.0.1"
+    }
+  }
+}
+
+## tasks/get after cancel
+{
+  "taskId": "task-2",
+  "status": "cancelled",
+  "_meta": {
+    "io.modelcontextprotocol/serverInfo": {
+      "name": "w2-spike-server",
+      "version": "0.0.1"
+    }
+  },
+  "createdAt": "2026-11-03T17:58:42.077Z",
+  "lastUpdatedAt": "2026-11-03T17:58:42.079Z",
+  "ttl": 60000,
+  "pollInterval": 50
+}
+    | [server] tasks/update params = {"taskId":"task-2"} ctx.mcpReq.inputResponses = {"q1":{"action":"accept","content":{"x":1}}}
+    | 
+## tasks/update ack
+{
+  "_meta": {
+    "io.modelcontextprotocol/serverInfo": {
+      "name": "w2-spike-server",
+      "version": "0.0.1"
+    }
+  }
+}
+
+## tasks/update outbound frame
+{
+  "method": "tasks/update",
+  "params": {
+    "taskId": "task-2",
+    "inputResponses": {
+      "q1": {
+        "action": "accept",
+        "content": {
+          "x": 1
+        }
+      }
+    },
+    "_meta": {
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientInfo": {
+        "name": "w2-spike-client",
+        "version": "0.0.1"
+      },
+      "io.modelcontextprotocol/clientCapabilities": {
+        "elicitation": {
+          "form": {}
+        },
+        "extensions": {
+          "io.modelcontextprotocol/tasks": {}
+        }
+      }
+    }
+  },
+  "jsonrpc": "2.0",
+  "id": 19
+}
+
+## tasks/get unknown task threw
+{
+  "class": "ProtocolError",
+  "code": -32602,
+  "message": "Task not found or expired: nope",
+  "data": {
+    "taskId": "nope"
+  }
+}
+
+## tasks/result on modern era threw
+{
+  "class": "SdkError",
+  "code": "METHOD_NOT_SUPPORTED_BY_PROTOCOL_VERSION",
+  "message": "Method 'tasks/result' is not supported by the negotiated protocol version (wire era 2026-07-28)",
+  "data": {
+    "method": "tasks/result",
+    "era": "2026-07-28"
+  }
+}
+    | [server] slow: client tasks extension declared = true envelope keys [
+    |   'io.modelcontextprotocol/protocolVersion',
+    |   'io.modelcontextprotocol/clientInfo',
+    |   'io.modelcontextprotocol/clientCapabilities'
+    | ]
+    | 
+## aborted call threw
+{
+  "class": "SdkError",
+  "code": "REQUEST_TIMEOUT",
+  "message": "user-cancel"
+}
+    | [server] slow inline: ctx.mcpReq.signal aborted, reason = user-cancel
+    | 
+## wire frames for aborted call (out)
+[
+  {
+    "method": "tools/call",
+    "params": {
+      "name": "slow",
+      "arguments": {
+        "ms": 500,
+        "inline": true
+      },
+      "_meta": {
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "w2-spike-client",
+          "version": "0.0.1"
+        },
+        "io.modelcontextprotocol/clientCapabilities": {
+          "elicitation": {
+            "form": {}
+          },
+          "extensions": {
+            "io.modelcontextprotocol/tasks": {}
+          }
+        }
+      }
+    },
+    "jsonrpc": "2.0",
+    "id": 21
+  },
+  {
+    "jsonrpc": "2.0",
+    "method": "notifications/cancelled",
+    "params": {
+      "requestId": 21,
+      "reason": "user-cancel",
+      "_meta": {
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "w2-spike-client",
+          "version": "0.0.1"
+        },
+        "io.modelcontextprotocol/clientCapabilities": {
+          "elicitation": {
+            "form": {}
+          },
+          "extensions": {
+            "io.modelcontextprotocol/tasks": {}
+          }
+        }
+      }
+    }
+  }
+]
+
+## sample outbound request with auto _meta envelope
+{
+  "method": "tools/call",
+  "params": {
+    "name": "echo",
+    "arguments": {
+      "text": "hi"
+    },
+    "_meta": {
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientInfo": {
+        "name": "w2-spike-client",
+        "version": "0.0.1"
+      },
+      "io.modelcontextprotocol/clientCapabilities": {
+        "elicitation": {
+          "form": {}
+        },
+        "extensions": {
+          "io.modelcontextprotocol/tasks": {}
+        }
+      },
+      "progressToken": 3
+    }
+  },
+  "jsonrpc": "2.0",
+  "id": 3
+}
+
+## sample inbound result _meta
+{
+  "io.modelcontextprotocol/serverInfo": {
+    "name": "w2-spike-server",
+    "version": "0.0.1"
+  }
+}
+
+## closed; child pid was
+null

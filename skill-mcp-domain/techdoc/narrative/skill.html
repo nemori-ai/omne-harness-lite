@@ -1,4 +1,4 @@
-<h3>W1 之后源码里有什么（父分支 aafc0cdc9）</h3>
+<h3>W1 之后源码里有什么（父分支 aafc0cdc9；W2 增量见文末）</h3>
 <p>Skill 组仍是三个成员，只有 <code>@omne-harness/skill-contract</code> 有实现：22 个源文件、约 2400 个非空行、13 个测试文件 364 例。另外两个成员仍是模板草稿。读这个成员时按三个入口分开读，三者在 <code>package.json</code> 的 <code>exports</code> 里各占一条。</p>
 <ul>
 <li><strong>公开根 <code>.</code>（给调用方）</strong>：<code>index.ts</code> 只做重导出。值与品牌在 <code>values.ts</code>、<code>names.ts</code>、<code>digest.ts</code>、<code>media.ts</code>；失败联合在 <code>failures.ts</code>；三个应用服务接口在 <code>services.ts</code>；包检查纯函数在 <code>parse/</code>；类别端口在 <code>contract.ts</code>；资产正文投影在 <code>project.ts</code>。</li>
@@ -20,3 +20,12 @@
 
 <h3>还没有的东西</h3>
 <p>三个应用服务只有接口：<code>PackageInspection</code>（在 <code>./provider</code>，因为它的调用方是来源与资产登记一侧）、<code>SkillCatalog</code>、<code>SkillAccess</code>。它们的实现、读取 11 步、目录来源都在 W2。</p>
+
+<h3>W2 增量 1：<code>@omne-harness/skill-host-local</code>（父分支 478e56381）</h3>
+<p>第一个真实的端口实现方。4 个源文件 341 行、10 个测试文件 54 例，公开根只有 <code>createDirectorySource(options?)</code> 与三个类型（<code>DirectoryFs</code>、<code>Opened</code>、<code>EntryKind</code>）。三层：</p>
+<ul>
+<li><strong><code>fs.ts</code></strong> 是文件系统接缝：四个方法（<code>readdir</code>、<code>lstat</code>、<code>realpath</code>、<code>readFile</code>），名字以<em>字节</em>交出（不是字符串），<code>readFile</code> 交出「打开结果」——普通文件的字节，或「这是目录」「这是别的对象」两种种类。默认实现 <code>nodeFs()</code> 用 <code>O_RDONLY|O_NOFOLLOW|O_NONBLOCK</code> 打开再 <code>fstat</code>，所以最后一段链接不被跟随、FIFO 不会卡住。接缝只做 IO，不分类错误。</li>
+<li><strong><code>walk.ts</code></strong> 拥有全部判定：四张错误码表（ROOT/RESOLVE/READ/OPEN，表外一律 <code>unavailable</code>，不带 code 的错误原样抛出）；<code>resolveRoot</code>（<code>realpath</code> + 必须是目录）；<code>collect</code> 的遍历——每个条目一律走同一条路 <code>realpath → isWithin（按路径段比较解析后的根）→ lstat 判种类</code>，不再按 <code>readdir</code> 报告的种类分叉，所以列出之后被换成根外链接的条目拿不到根外字节；目录按祖先集合查环；每次列出先把全部名字严格 UTF-8 解码再按码元序排，所以多处缺陷时答复不随文件系统的列出次序而变；遍历预算 <code>VISIT_BUDGET = 65536</code> 次名字访问，超出按包缺陷答 <code>entry-unreadable</code>。<code>readEntry</code> 给 <code>open</code> 用：同一个 <code>resolveRoot</code>，解析目标后再判根内。</li>
+<li><strong><code>directory-source.ts</code></strong> 只把 <code>collect</code> 的结果交给契约的 <code>sealSnapshot</code>，把 <code>readEntry</code> 包成 <code>open</code>；<code>content-store</code> 定位答 <code>package-not-found</code>；<code>open</code> 忽略 <code>digest</code>（本来源不按内容存放，字节是否变了由 Skill 核对）。</li>
+</ul>
+<p>它通过契约 <code>./testing</code> 的 <code>skillPackageSourceConformance()</code>（PS7「按摘要找包」不适用）。权限类失败全部经注入的 <code>DirectoryFs</code> 制造，因为容器以 root 运行，<code>chmod</code> 造不出 EACCES。</p>

@@ -1,6 +1,6 @@
 {
- "updatedAt": "2026-11-03T17:50:19Z",
- "head": "b0f2ec7fb",
+ "updatedAt": "2026-11-03T22:01:09Z",
+ "head": "478e56381",
  "links": [
   {
    "text": "波段计划",
@@ -318,36 +318,44 @@
     {
      "id": "w2-skill",
      "line": "Skill",
-     "state": "进行中",
-     "round": 1,
-     "note": "createPackageInspection、createSkillAccess（describe/read/list/export）、skillAccessConformance、manifest 夹具；fable@high",
+     "state": "修复中",
+     "round": 2,
+     "note": "第 1 轮三面收齐：3 阻断（读取次序第 5 步、gate 无中止检查点、映射两处）+ 4 裁定（答复不在集合答 unknown；请求终点字面；describe 带依据取依据 digest；合规夹具世界与计数钩子）+ 设计建议；续用原写者修第 2 轮",
      "links": [],
      "started": "2026-11-03T17:50:19Z"
     },
     {
      "id": "w2-skill-host",
      "line": "Skill",
-     "state": "进行中",
-     "round": 1,
-     "note": "createDirectorySource 过来源套件；链接/非常规文件/权限接缝/竞争；opus@high",
-     "links": [],
+     "state": "已合入",
+     "round": 2,
+     "note": "第 2 轮增量复审放行；reduce 补导出与 README 句（e86875893）；链全绿，变异 280/杀 248/存活 21（测量无效为读数）；开 PR 合入中",
+     "links": [
+      {
+       "text": "PR",
+       "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1114"
+      },
+      {
+       "text": "478e56381"
+      }
+     ],
      "started": "2026-11-03T17:50:19Z"
     },
     {
      "id": "w2-mcp-core",
      "line": "MCP",
-     "state": "进行中",
-     "round": 1,
-     "note": "createMcpCore（inspection/discovery/status/connections）、内存 CatalogStore、Connection/InFlightCalls/admit；fable@high",
+     "state": "修复中",
+     "round": 2,
+     "note": "第 1 轮三面收齐：L3 探针实跑出 5 阻断（发布边界不紧挨写入、旧代际迟到页、取页无时限、close/ensure 竞争、时限不覆盖取凭据与启动）+ 设计 1 阻断（关口四份实现）；三项裁定（挡下粒度接入点级、旧修订令牌 ensure 答 unknown、调用方中止不标记清单）；续用原写者修第 2 轮",
      "links": [],
      "started": "2026-11-03T17:50:19Z"
     },
     {
      "id": "w2-spike",
      "line": "Reduce",
-     "state": "待派",
-     "round": 0,
-     "note": "官方 SDK 2.3.1 最小往返，结论进 W3 规格",
+     "state": "已合入",
+     "round": 1,
+     "note": "四个脚本跑通（stdio、自写流 Transport、HTTP、任务线路）。结论：W3 只用 SDK Transport 层自己发 JSON-RPC；Client 高层拿不到原样应答与请求 id。写进 schema-check.md",
      "links": []
     }
    ],
@@ -403,26 +411,58 @@
     {
      "id": "SK2-9",
      "text": "DirectorySource 过来源套件",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "PR #1114",
+       "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1114"
+      },
+      {
+       "text": "skill-host-r1.md 两轮 + 增量复审"
+      }
+     ]
     },
     {
      "id": "SK2-10",
      "text": "链接与非常规文件分类",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "PR #1114",
+       "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1114"
+      },
+      {
+       "text": "skill-host-r1.md 两轮 + 增量复审"
+      }
+     ]
     },
     {
      "id": "SK2-11",
      "text": "权限接缝不依赖 root",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "PR #1114",
+       "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1114"
+      },
+      {
+       "text": "skill-host-r1.md 两轮 + 增量复审"
+      }
+     ]
     },
     {
      "id": "SK2-12",
      "text": "取快照后改文件 open 交新字节",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "PR #1114",
+       "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1114"
+      },
+      {
+       "text": "skill-host-r1.md 两轮 + 增量复审"
+      }
+     ]
     },
     {
      "id": "MC2-1",
@@ -589,6 +629,38 @@
   {
    "at": "2026-11-03T17:50:19Z",
    "text": "W2 三个闭包派出（w2-skill fable@high、w2-skill-host opus@high、w2-mcp-core fable@high），简报检查三份退出 0，工作树 ready；reduce 开始 w2-spike"
+  },
+  {
+   "at": "2026-11-03T18:01:48Z",
+   "text": "w2-spike 交回：SDK 2.3.1 的 Client 高层不能忠实实现 McpTransport（丢原样应答、无请求 id、自动重发/取消/校验）；W3 决定只用 Transport 层。三个写者进行中"
+  },
+  {
+   "at": "2026-11-03T18:11:54Z",
+   "text": "w2-skill-host 交回；派 2 个只读评审（交付边界；正确性+设计），reduce 跑门禁、读数与变异"
+  },
+  {
+   "at": "2026-11-03T18:19:01Z",
+   "text": "w2-skill-host 第 1 轮评审收齐：3 阻断（1 处 reduce 自修，2 处进修复轮）、扇出预算裁定 65536 次访问；第 2 轮派出"
+  },
+  {
+   "at": "2026-11-03T18:35:13Z",
+   "text": "w2-mcp-core 交回；派 3 个只读评审（交付边界；L3 逐行 implementation-reviewer；设计与实践），reduce 跑门禁、读数与变异"
+  },
+  {
+   "at": "2026-11-03T18:37:09Z",
+   "text": "w2-skill-host 第 2 轮交回；派增量复审，reduce 在最终 head 跑链。w2-skill 已 8 个提交（切片全完成，自己跑了差分变异并补用例），在收尾"
+  },
+  {
+   "at": "2026-11-03T21:54:48Z",
+   "text": "Opus 5 小时用量上限 21:50 重置；四个评审者续跑。w2-skill-host 放行并开 PR；w2-mcp-core 第 1 轮两面收齐（2 阻断），等 L3 后派修复轮"
+  },
+  {
+   "at": "2026-11-03T21:56:23Z",
+   "text": "w2-mcp-core 第 2 轮派出（L3 探针 5 阻断 + 设计 1 阻断 + 3 裁定）；w2-skill-host 合入 PR #1114"
+  },
+  {
+   "at": "2026-11-03T22:01:09Z",
+   "text": "w2-skill 三面评审收齐（L3 探针 7 个），第 2 轮派出；w2-skill-host 合入 478e56381，实现架构页更新 W2 增量 1"
   }
  ]
 }

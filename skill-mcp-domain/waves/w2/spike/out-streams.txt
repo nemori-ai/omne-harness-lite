@@ -1,0 +1,244 @@
+    | [server] starting pid 24216
+    | 
+## A) Client over StreamTransport: era/version
+{
+  "era": "modern",
+  "v": "2026-07-28"
+}
+
+## A) echo structuredContent
+{
+  "echoed": "via streams",
+  "length": 11
+}
+
+## A) first 2 raw frames (out, in) — note the trailing \n
+[
+  {
+    "dir": "out",
+    "raw": "{\"jsonrpc\":\"2.0\",\"id\":\"server-discover-probe-1\",\"method\":\"server/discover\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientInfo\":{\"name\":\"streams-client\",\"version\":\"0.0.1\"},\"io.modelcontextprotocol/clientCapabilities\":{}}}}\n"
+  },
+  {
+    "dir": "in",
+    "raw": "{\"result\":{\"supportedVersions\":[\"2026-07-28\"],\"capabilities\":{\"tools\":{\"listChanged\":true},\"extensions\":{\"io.modelcontextprotocol/tasks\":{}}},\"instructions\":\"Spike server. echo, ask, slow.\",\"resultType\":\"complete\",\"ttlMs\":0,\"cacheScope\":\"private\",\"_meta\":{\"io.modelcontextprotocol/serverInfo\":{\"name\":\"w2-spike-server\",\"version\":\"0.0.1\"}}},\"jsonrpc\":\"2.0\",\"id\":\"server-discover-probe-1\"}\n"
+  }
+]
+
+## A) process alive after transport close? (stdin EOF makes this server exit by itself)
+"exited"
+
+## A) spawn-log (one line per server process)
+"24216 \n"
+    | [server] starting pid 24223
+    | 
+## B) server/discover raw answer
+{
+  "jsonrpc": "2.0",
+  "id": "r1",
+  "result": {
+    "_meta": {
+      "io.modelcontextprotocol/serverInfo": {
+        "name": "w2-spike-server",
+        "version": "0.0.1"
+      }
+    },
+    "supportedVersions": [
+      "2026-07-28"
+    ],
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      },
+      "extensions": {
+        "io.modelcontextprotocol/tasks": {}
+      }
+    },
+    "instructions": "Spike server. echo, ask, slow.",
+    "resultType": "complete",
+    "ttlMs": 0,
+    "cacheScope": "private"
+  }
+}
+    | [server] onerror Unsupported protocol version: 2099-01-01
+    | 
+## B) -32022: unsupported version in envelope
+{
+  "jsonrpc": "2.0",
+  "id": "r2",
+  "error": {
+    "code": -32022,
+    "message": "Unsupported protocol version: 2099-01-01",
+    "data": {
+      "supported": [
+        "2026-07-28"
+      ],
+      "requested": "2099-01-01"
+    }
+  }
+}
+    | [server] ask round { state: undefined, inputResponses: undefined }
+    | 
+## B) -32021: ask without elicitation capability
+{
+  "jsonrpc": "2.0",
+  "id": "r3",
+  "error": {
+    "code": -32021,
+    "message": "Cannot request input 'who' (elicitation/create): the request's client capabilities do not declare the required capability",
+    "data": {
+      "requiredCapabilities": {
+        "elicitation": {
+          "form": {}
+        }
+      }
+    }
+  }
+}
+
+## B) tools/list raw page
+[
+  "echo",
+  "ask",
+  "slow"
+]
+    | [server] slow: client tasks extension declared = true envelope keys [
+    |   'io.modelcontextprotocol/protocolVersion',
+    |   'io.modelcontextprotocol/clientInfo',
+    |   'io.modelcontextprotocol/clientCapabilities'
+    | ]
+    | 
+## B) tools/call slow -> CreateTaskResult raw
+{
+  "jsonrpc": "2.0",
+  "id": "r5",
+  "result": {
+    "_meta": {
+      "io.modelcontextprotocol/serverInfo": {
+        "name": "w2-spike-server",
+        "version": "0.0.1"
+      }
+    },
+    "content": [],
+    "resultType": "task",
+    "task": {
+      "taskId": "task-1",
+      "status": "working",
+      "createdAt": "2026-11-03T17:58:43.533Z",
+      "lastUpdatedAt": "2026-11-03T17:58:43.534Z",
+      "ttl": 60000,
+      "pollInterval": 50
+    }
+  }
+}
+    | [server] slow: client tasks extension declared = true envelope keys [
+    |   'io.modelcontextprotocol/protocolVersion',
+    |   'io.modelcontextprotocol/clientInfo',
+    |   'io.modelcontextprotocol/clientCapabilities'
+    | ]
+    |     | [server] slow inline: ctx.mcpReq.signal aborted, reason = raw cancel
+    | 
+## B) cancelled inline call: answer?
+"no answer within 1.5s"
+
+## B) notifications seen
+[]
+
+## B) no envelope at all after modern opening (sent last on purpose)
+{
+  "jsonrpc": "2.0",
+  "id": "r7",
+  "error": {
+    "code": -32602,
+    "message": "Request is missing the required _meta envelope for protocol revision 2026-07-28 (io.modelcontextprotocol/protocolVersion, io.modelcontextprotocol/clientCapabilities)"
+  }
+}
+
+## B) envelope again after that: is serverInfo stamped (modern) or not (legacy)?
+{
+  "jsonrpc": "2.0",
+  "id": "r8",
+  "result": {
+    "_meta": {
+      "io.modelcontextprotocol/serverInfo": {
+        "name": "w2-spike-server",
+        "version": "0.0.1"
+      }
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"echoed\":\"x\",\"length\":1}"
+      }
+    ],
+    "structuredContent": {
+      "echoed": "x",
+      "length": 1
+    },
+    "resultType": "complete"
+  }
+}
+
+## B) a bad-shaped line from us -> server reply
+{
+  "jsonrpc": "2.0",
+  "id": "bad1",
+  "error": {
+    "code": -32602,
+    "message": "Invalid params for tasks/get: taskId: Invalid input: expected string, received undefined"
+  }
+}
+
+## B) onclose
+
+    | [server] starting pid 24230
+    | 
+## C) legacy server: era/version/discover/serverVersion/caps
+{
+  "ms": 227,
+  "era": "legacy",
+  "v": "2025-11-25",
+  "serverVersion": {
+    "name": "w2-spike-server",
+    "version": "0.0.1"
+  },
+  "caps": {
+    "tools": {
+      "listChanged": true
+    },
+    "extensions": {
+      "io.modelcontextprotocol/tasks": {}
+    }
+  }
+}
+
+## C) frames on the wire (out methods)
+[
+  "server/discover",
+  "initialize",
+  "notifications/initialized"
+]
+
+## C) first inbound frame (answer to the probe)
+"{\"jsonrpc\":\"2.0\",\"id\":\"server-discover-probe-1\",\"error\":{\"code\":-32601,\"message\":\"Method not found\"}}\n"
+    | [server] starting pid 24237
+    |     | [server] slow: client tasks extension declared = false envelope keys [
+    |   'io.modelcontextprotocol/protocolVersion',
+    |   'io.modelcontextprotocol/clientInfo',
+    |   'io.modelcontextprotocol/clientCapabilities'
+    | ]
+    | 
+## D) client.onclose fired
+
+
+## D) in-flight call after SIGKILL threw
+{
+  "class": "SdkError",
+  "code": "CONNECTION_CLOSED",
+  "message": "Connection closed"
+}
+
+## D) call after close threw
+{
+  "class": "Error",
+  "message": "Not connected"
+}

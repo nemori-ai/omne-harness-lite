@@ -111,4 +111,15 @@ developer，implementation_kind product，Claude Fable 5.1（claude-fable-5-1）
 - 同一用例连试三种做法仍红时停下。
 
 ## 追加记录
-（无）
+- 2026-11-03T22:10Z 第 1 轮评审（reviews/skill-r1.md，三面：设计与实践、交付边界、L3 逐行 7 个探针）。下列每条先写会红的用例（证明变红时先还原源码并重新构建 dist）并把红灯存 tmp/closures/w2-skill/red/r2-*.txt。
+- 2026-11-03T22:10Z **阻断 1（读取次序）**：第 5 步（`SkillRef` 无内容摘要 → `unsupported`）必须在第 6 步（`toPackagePath` → `bad-path`）之前；把第 5 步从 `pin` 拆到 `service.read` 的 `partOf` 之前（或 `partOf` 前先判 `ref.digest`）；用例：`noPackage` 能力带坏路径 → `unsupported`；删成员 SPEC「三段」节的偏离句。
+- 2026-11-03T22:10Z **阻断 2（gate 的检查点）**：已定事项 3 签名修正为 `gate(ports, access, scope, capability, basis?, signal?)`；`describe` 不传；`readCheck.check` 与 `resolution.resolve` 前后各 `checkpoint`。用例：已中止的 signal 下 `read`/`list`/`export` 答 `aborted` 且 `check`/`resolve`/`snapshot`/`open` 调用 0 次；`check` 期间中止答 `aborted`。成员 SPEC:65 与 docs/architecture.md:43 的自述随之成立。
+- 2026-11-03T22:10Z **阻断 3（映射一处）**：`sourceFailureTo` 的列改为 `'inspect' | 'snapshot' | 'open'`，删 `pin.ts` 的 `snapshotFailure`；`inspect` 列不收 `basis`。快照阶段的 `entry-not-found`/`bytes-mismatch` 在 `snapshot` 列映射为 `source-unavailable`（reduce 裁定，组页波末补行）。
+- 2026-11-03T22:10Z N1（裁定）：读取判定答复不是 `granted`/`refused`/`unknown` 之一时答 `unknown`，不放行；`gatedOf` 的 default 分支同样收口为 `unknown`。用例：替身答 `{kind:'denied'}` 与 `{}` 都不交正文。
+- 2026-11-03T22:10Z X3（裁定）：「请求终点」= 请求起点 + 请求长度；实际终点前移到不大于它的上一个字符边界。P5（字节 `61 C3 A9 62 63`，`{start:2,length:2}`）应答 `"b"`、`{start:3,length:1}`；改 `range.ts` 与用例，并在成员 SPEC「正文与范围」加一句消歧（契约 SPEC 的措辞由 reduce 波末处理）。
+- 2026-11-03T22:10Z 裁定 5：`describe` 带依据且依据合法时，`material.basis` 的 digest 与资产版本取**依据**的（依据所指材料），与 `read`/`list` 的 `basis?.digest ?? ref.digest` 一致；用例：依据 digest 与 `ref.digest` 不同时 `describe` 交回依据的 digest。
+- 2026-11-03T22:10Z 套件（`skill-contract/src/testing-access.ts`，可加）：`capability.checkedOnly` 改为必需（A3 必跑）；删无用例的 `capability.standIn` 或补 A14 `unavailable-stand-in`；A9 要求夹具可选提供 `capability.large`（>65536 字节的文本资源），没有则该条 `NotApplicable`；A7 加「已中止时四个端口调用 0 次」，夹具加 `world.calls(): { check, resolve, snapshot, open }`；`abortAfterSnapshot().opens` 的文档与实现对齐；A12 两条编号分开（A12a/A12b）；`readAll` 的重复 `read` 去掉。新增第二个夹具世界（对应端口只对 reader 可见、满足 PR5），`conformance.spec.ts` 在两个世界各跑一遍套件，都要全绿。
+- 2026-11-03T22:10Z 契约 SPEC（扩大写范围）：删/改三处过时句（「与组页的差异」表「本版本的 ./testing 没有 SkillAccess 的套件」、「不在本成员」第 439 行、「持续验证」未覆盖句）；在「读取的形状规则」加 `bodyOffsetOf` 一句条款（定义、`undefined` 的条件、LF/CRLF）；「请求终点」消歧一句。
+- 2026-11-03T22:10Z 设计建议一并做：S1 `PinFailure` 用 `Exclude<PinFailure, GateFailure>` 并修 spec-d；S2 去掉 `gate`/`pin` 的重载，`pin(ports, gated, moved: F, signal?)` 由调用方给「材料已变」失败值；S3 `verifiedBytes` 收 `PackageEntry`，`read` 自己做第 9 步，`export` 不再 O(n²)；S6 `Pinned` 带 `basis`，去掉三处 `basisOf` 与 `mediaType` 重复展开；S7 范围非法在操作开头抛 `TypeError`；S8 `readManifest` 直接用 `frontmatterBounds(bytes)`，`frontmatterOf` 并入；S10 `toEqual` → `toStrictEqual`（已定事项 9），删重复用例（`describe.spec` 的 A1–A3 副本、`mapping.spec` 的 `toBeDefined`）、死导出 `Registered`、`export { fail }`、动态 import；S11 成员 SPEC 验证表加「反例/变红」列。
+- 2026-11-03T22:10Z 不做：S4（契约导出 `MANIFEST_PATH`/`PAGE_LIMIT`/`sameCapability`）进 W3 prep；`op` 两列不追认（按阻断 3 改三列）。
+
