@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest'
+import type { Worker } from 'node:worker_threads'
 import { createScheduleLocalApplication } from '@omne-harness/schedule-local'
 import {
   createScheduleOperationIntent,
@@ -151,6 +152,9 @@ it('closes admission before draining an accepted call and keeps borrowed storage
 
 it('rejects invalid query configuration and cleans the owned worker', async () => {
   const world = await openWorld()
+  const threads: Worker[] = []
+  const observeWorker = (worker: Worker) => threads.push(worker)
+  process.on('worker', observeWorker)
   try {
     const options = localOptions(world)
     const invalid = {
@@ -158,8 +162,12 @@ it('rejects invalid query configuration and cleans the owned worker', async () =
       query: { ...options.query, limits: { ...options.query.limits, maxAgendaRows: 5001 } },
     }
     await expect(createScheduleLocalApplication(invalid)).rejects.toThrow()
+    expect(threads.length).toBeGreaterThan(0)
+    expect(threads.every(worker => worker.threadId === -1)).toBe(true)
     await world.configure()
   } finally {
+    process.off('worker', observeWorker)
+    await Promise.all(threads.map(worker => worker.terminate()))
     await world.close()
   }
 })
