@@ -237,7 +237,19 @@ type Hooks = {
  * The services the plugin injects, the in-memory commands under them, and a plugin class whose
  * provider is the real Model runtime over the plugin's commands.
  */
-function world(input: Readonly<{ limits?: ResultPushLimits; ledger?: ResultPushLedger }> = {}) {
+function world(
+  input: Readonly<{
+    limits?: ResultPushLimits
+    ledger?: ResultPushLedger
+    /**
+     * `unavailable`: the consumer owner's evidence adapter cannot be read, as the release's
+     * `handoff` evidence answers before it has a source (`apps/harness-server/src/model/evidence.ts`).
+     */
+    custodyEvidence?: 'verified' | 'unavailable'
+    /** The share of the whole assembly; the memory commands sum every tenant against it. */
+    capacity?: Readonly<{ bytes: string; blocks: string; attachmentBytes: string }>
+  }> = {},
+) {
   const ledger = input.ledger ?? createMemoryResultPushLedger()
   const hooks: Hooks = {}
   const handoffs: Parameters<ModelCommands<unknown>['handoff']>[0][] = []
@@ -283,12 +295,20 @@ function world(input: Readonly<{ limits?: ResultPushLimits; ledger?: ResultPushL
         }),
         // The custody evidence is the scripted receiver's own, for this call's frozen key only.
         handoff: given =>
-          given.evidence.kind === 'retained' &&
-          given.evidence.custody.owner === CONSUMER &&
-          given.evidence.custody.record.startsWith('saved/') &&
-          given.evidence.custody.record.includes(given.call)
-            ? { ok: given.evidence.custody }
-            : { failure: { kind: 'handoff-invalid', reason: 'evidence' } },
+          input.custodyEvidence === 'unavailable'
+            ? {
+                failure: {
+                  kind: 'unavailable',
+                  dependency: 'consumer-evidence',
+                  diagnostic: 'handoff-source-not-wired',
+                },
+              }
+            : given.evidence.kind === 'retained' &&
+                given.evidence.custody.owner === CONSUMER &&
+                given.evidence.custody.record.startsWith('saved/') &&
+                given.evidence.custody.record.includes(given.call)
+              ? { ok: given.evidence.custody }
+              : { failure: { kind: 'handoff-invalid', reason: 'evidence' } },
       },
     ],
     limits: {
@@ -296,7 +316,7 @@ function world(input: Readonly<{ limits?: ResultPushLimits; ledger?: ResultPushL
       resultPageParts: 4,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '200', attachmentBytes: '0' },
+      capacity: input.capacity ?? { bytes: '1000000', blocks: '200', attachmentBytes: '0' },
     },
     sending: {
       maxRetainedAttempts: 8,
@@ -484,19 +504,20 @@ function world(input: Readonly<{ limits?: ResultPushLimits; ledger?: ResultPushL
         },
       })
     },
-    async admit(name: string) {
-      const call = callOf(name)
-      return unbox(
-        await ctx.modelRuntime.calls.admit({
-          principal: PRINCIPAL,
-          tenant: TENANT,
-          call,
-          operation: op(`admit-${name}`),
-          request,
-          consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' },
-          capacity: CAPACITY,
-        }),
-      )
+    async admit(name: string, capacity = CAPACITY) {
+      return unbox(await this.tryAdmit(name, capacity))
+    },
+    /** The admission answer as it is, a refusal included. */
+    tryAdmit(name: string, capacity = CAPACITY) {
+      return ctx.modelRuntime.calls.admit({
+        principal: PRINCIPAL,
+        tenant: TENANT,
+        call: callOf(name),
+        operation: op(`admit-${name}`),
+        request,
+        consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' },
+        capacity,
+      })
     },
     async custody(name: string) {
       const lookup = unbox(
@@ -568,6 +589,50 @@ it('pushes the frozen result to the registered receiver and then acknowledges it
   expect(w.handoffs[0]?.evidence).toMatchObject({ kind: 'retained', custody: { owner: CONSUMER } })
   const custody = await w.custody('one')
   expect(custody).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
+})
+
+// R2-D256: the release reserves 524288 bytes of a 1000000-byte share for each call. The share of a
+// call comes back only when the Model's own ACK and the cleanup are done; a second call of the same
+// tenant fits only then.
+const HALF_SHARE = { bytes: '524288', blocks: '20', attachmentBytes: '0' }
+const SHARE = { bytes: '1000000', blocks: '200', attachmentBytes: '0' }
+
+it('gives the share of a call back after the ACK and the cleanup, so the same tenant admits its next call', async () => {
+  const w = world({ capacity: SHARE })
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('first', HALF_SHARE)
+
+  await until(() => w.record('first')?.cleanup === 'released', 'the push, ACK and cleanup')
+  expect(await w.custody('first')).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
+  const second = await w.tryAdmit('second', HALF_SHARE)
+  expect(second).toMatchObject({ ok: { call: callOf('second'), recovered: false } })
+  await until(() => w.record('second')?.cleanup === 'released', 'the second call to its cleanup')
+  expect(w.handoffs).toHaveLength(2)
+})
+
+it('keeps the custody and the share of a saved call while the consumer evidence is unavailable', async () => {
+  const w = world({ capacity: SHARE, custodyEvidence: 'unavailable' })
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('first', HALF_SHARE)
+
+  await until(() => w.handoffs.length > 0, 'the ACK attempt after saved')
+  await quiet()
+  // Saved is not an ACK: the producer keeps the result and its share (SPEC: no capacity is won back
+  // by dropping a delivered result before the ACK).
+  expect(w.record('first')?.result?.standing.status).toBe('saved')
+  expect(await w.custody('first')).toEqual({ kind: 'producer' })
+  expect(
+    w.warnings.some(text => text.includes('acknowledgement did not complete (unavailable)')),
+  ).toBe(true)
+  expect(await w.tryAdmit('second', HALF_SHARE)).toMatchObject({
+    failure: { kind: 'capacity', required: HALF_SHARE },
+  })
 })
 
 it.each(['material', 'responsibility', 'deduplication', 'retention'] as const)(
