@@ -15,6 +15,15 @@ export type RoundCount = Readonly<{
   round: number
   historyReadCalls: number
   historyRows: number
+  /**
+   * The model view reads of the AD-04 read path (a page size above 1) and the reads of the
+   * qualification probes (the page size 1 that resolveHistory and the admission check use). The two
+   * add up to `historyReadCalls` and `historyRows` less the reads of the history entries face.
+   */
+  ad04ReadCalls: number
+  ad04ReadRows: number
+  probeReadCalls: number
+  probeReadRows: number
   /** Rows of the model-view projection that the history face handed out in this round. */
   projectedRows: number
   /** Rows handed out in this round that an earlier round had handed out: re-reads of the stable part. */
@@ -43,6 +52,10 @@ type Open = {
   round: number
   historyReadCalls: number
   historyRows: number
+  ad04ReadCalls: number
+  ad04ReadRows: number
+  probeReadCalls: number
+  probeReadRows: number
   storageCommits: Record<string, number>
   storageCommitTotal: number
   storageRollbacks: number
@@ -91,6 +104,10 @@ export function createRoundCounters() {
     round,
     historyReadCalls: 0,
     historyRows: 0,
+    ad04ReadCalls: 0,
+    ad04ReadRows: 0,
+    probeReadCalls: 0,
+    probeReadRows: 0,
     storageCommits: {},
     storageCommitTotal: 0,
     storageRollbacks: 0,
@@ -174,10 +191,17 @@ export function createRoundCounters() {
      * earlier round already handed out and that comes back is a re-read of the stable part.
      */
     observeHistory(history: SessionHistory<unknown>): SessionHistory<unknown> {
-      const handOut = (ids: readonly string[], projection: boolean): void => {
+      const handOut = (ids: readonly string[], projection: boolean, probe = false): void => {
         inRound(current => {
           current.historyReadCalls += 1
           current.historyRows += ids.length
+          if (projection && probe) {
+            current.probeReadCalls += 1
+            current.probeReadRows += ids.length
+          } else if (projection) {
+            current.ad04ReadCalls += 1
+            current.ad04ReadRows += ids.length
+          }
         })
         if (open === null) return
         if (projection) projected += ids.length
@@ -200,6 +224,7 @@ export function createRoundCounters() {
           handOut(
             rows.map(row => `row:${row.entry}`),
             true,
+            input.pageBytes <= 1,
           )
           return answer
         },
@@ -355,4 +380,36 @@ export function recordStage(options: Readonly<{ logCount: () => number }>) {
       return records.map(record => JSON.stringify(record)).join('\n') + '\n'
     },
   }
+}
+
+/**
+ * The criterion of S3 item 3 on the counts of the rounds from the second on: the model view reads
+ * of the AD-04 read path depend on the rows the round added, not on the length of the history. For
+ * each round after the first it lists what breaks that: a round that reads more calls or more rows
+ * than the one before it, or than `rows(added)`, the rows the read path needs for `added` new rows.
+ * An empty list is a pass.
+ */
+export function historyReadGrowth(
+  rounds: readonly RoundCount[],
+  added: number,
+  rowsFor: (added: number) => number,
+  calls: number,
+): string[] {
+  const broken: string[] = []
+  const later = rounds.slice(1)
+  for (const count of later) {
+    if (count.ad04ReadCalls !== calls)
+      broken.push(`round ${count.round}: ${count.ad04ReadCalls} AD-04 reads, ${calls} expected`)
+    if (count.ad04ReadRows !== rowsFor(added))
+      broken.push(
+        `round ${count.round}: ${count.ad04ReadRows} AD-04 rows, ${rowsFor(added)} expected`,
+      )
+  }
+  const [first, ...rest] = later
+  for (const count of rest)
+    if (first !== undefined && count.ad04ReadRows > first.ad04ReadRows)
+      broken.push(
+        `round ${count.round}: reads ${count.ad04ReadRows} rows, round ${first.round} read ${first.ad04ReadRows}`,
+      )
+  return broken
 }

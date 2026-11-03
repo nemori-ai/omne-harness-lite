@@ -14,7 +14,20 @@
 // Why slow: real Workers, real files and the whole line on one root.
 import { afterEach, describe, expect, it } from 'vitest'
 import { EARLIER, intakeAccess, ok, strangerAccess } from './world.ts'
+import { historyReadGrowth, type RoundCount } from './w2-measure.ts'
 import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
+
+/** The rows a round adds to the session log: its input and its reply. */
+const NEW_ROWS_PER_ROUND = 2
+/**
+ * The AD-04 read path per round from the second on: one page read of the rows after the kept cursor
+ * and, because the cursors Session issues are signed and only one row early is usable, one more read
+ * of the rows up to the row before the upper bound to get that cursor (`mint` in session-adapters
+ * `src/cordis/history-source.ts`, C-FIX-CURSOR). Measured in rounds 2 and 3: 2 reads, 5 rows.
+ */
+const AD04_READS = 2
+/** The page read returns the added rows and the row before them, the mint read returns the added rows. */
+const AD04_ROWS_FOR = (added: number) => added + 1 + added
 
 const worlds: W2World[] = []
 afterEach(async () => {
@@ -80,14 +93,43 @@ describe('J1: three rounds of one conversation', () => {
     expect(sizes[2]).toBeGreaterThan(sizes[1] ?? 0)
     const second = w.assembled[1]?.map(textOf) ?? []
     expect(second).toEqual(expect.arrayContaining(['question 1', 'answer 0']))
-    // Rounds 2 and 3 read only what the round before added to the session log: its input and its
-    // reply, whatever the length of round 1; nothing already read is read again.
+    // S3 item 3: the history page reads of rounds 2 and 3 depend on the rows the round before added,
+    // not on the length of the history (R2-D72). Rounds 2 and 3 read the same, and the read is the
+    // bound for the rows that were added.
     const [, two, three] = w.counters.rounds
-    for (const count of [two, three]) {
-      expect(count?.historyRows).toBe(2)
-      expect(count?.projectedRows).toBe(2)
-      expect(count?.stableRecompute).toBe(0)
-    }
+    expect(two?.ad04ReadCalls).toBe(three?.ad04ReadCalls)
+    expect(two?.ad04ReadRows).toBe(three?.ad04ReadRows)
+    expect(
+      historyReadGrowth(w.counters.rounds, NEW_ROWS_PER_ROUND, AD04_ROWS_FOR, AD04_READS),
+    ).toEqual([])
+    // The probes of the qualification check read one row each, and their number is that of round 1.
+    expect(two?.probeReadCalls).toBe(w.counters.rounds[0]?.probeReadCalls)
+    expect(three?.probeReadCalls).toBe(two?.probeReadCalls)
+  })
+})
+
+describe('J1 negative control of the history read criterion', () => {
+  // The criterion must turn red when the reads grow with the history: the counts of the real rounds
+  // with the rows of the earlier rounds read again in round 3 (a source that reads from the start).
+  it('J1 a round that reads the earlier rows again breaks the criterion', async () => {
+    const w = await openW2World({
+      earlier: 'session',
+      model: a => ({ parts: [replyText(`r${a.index}`, `answer ${a.index}`)], reason: 'stop' }),
+    })
+    worlds.push(w)
+    await w.createSession('j1n')
+    for (const round of [1, 2, 3]) await w.runRound(round, `question ${round}`)
+    const real = w.counters.rounds
+    expect(historyReadGrowth(real, NEW_ROWS_PER_ROUND, AD04_ROWS_FOR, AD04_READS)).toEqual([])
+    const [one, two, three] = real as [RoundCount, RoundCount, RoundCount]
+    const fromStart: RoundCount[] = [
+      one,
+      two,
+      { ...three, ad04ReadRows: three.ad04ReadRows + one.ad04ReadRows + two.ad04ReadRows },
+    ]
+    const broken = historyReadGrowth(fromStart, NEW_ROWS_PER_ROUND, AD04_ROWS_FOR, AD04_READS)
+    expect(broken.length).toBeGreaterThan(0)
+    expect(broken.join(' ')).toContain('round 3')
   })
 })
 
