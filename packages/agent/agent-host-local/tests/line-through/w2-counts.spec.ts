@@ -56,7 +56,11 @@ const stable = ({
   storageReads: { [PARTS_HANDLER]: _partsCalls, ...reads },
   storageReadRows,
   ...rest
-}: RoundCount) => ({ ...rest, storageReads: untimed(reads), storageReadRows: untimed(storageReadRows) })
+}: RoundCount) => ({
+  ...rest,
+  storageReads: untimed(reads),
+  storageReadRows: untimed(storageReadRows),
+})
 
 /**
  * The reads whose counts depend on how the Agent publications and the Session commits interleave:
@@ -72,7 +76,9 @@ const TIMED_HANDLERS: readonly string[] = [
 ]
 
 const untimed = (counts: Readonly<Record<string, number>>): Record<string, number> =>
-  Object.fromEntries(Object.entries(counts).filter(([handler]) => !TIMED_HANDLERS.includes(handler)))
+  Object.fromEntries(
+    Object.entries(counts).filter(([handler]) => !TIMED_HANDLERS.includes(handler)),
+  )
 
 /** The timed counts of one round, by name. */
 function timedOf(count: RoundCount): Record<string, number> {
@@ -90,7 +96,14 @@ function timedOf(count: RoundCount): Record<string, number> {
  * medians. The count grows when the slope is positive, R² is at least 0.95 and the growth over 180
  * rounds exceeds three times the median absolute deviation of the residuals.
  */
-const GROWTH = { firstRound: 11, lastRound: 200, blockSize: 10, minR2: 0.95, madFactor: 3, span: 180 }
+const GROWTH = {
+  firstRound: 11,
+  lastRound: 200,
+  blockSize: 10,
+  minR2: 0.95,
+  madFactor: 3,
+  span: 180,
+}
 /** The negative control of R2-D118: this much per round added to a count must be judged growth. */
 const CONTROL_PER_ROUND = 0.1
 
@@ -121,7 +134,8 @@ function roundGrowthOf(values: readonly number[]): Growth {
   const r2 = variance === 0 ? 0 : 1 - residuals.reduce((sum, r) => sum + r * r, 0) / variance
   const center = median(residuals)
   const residualMAD = median(residuals.map(r => Math.abs(r - center)))
-  const grows = slope > 0 && r2 >= GROWTH.minR2 && slope * GROWTH.span > GROWTH.madFactor * residualMAD
+  const grows =
+    slope > 0 && r2 >= GROWTH.minR2 && slope * GROWTH.span > GROWTH.madFactor * residualMAD
   return { grows, slope, r2, residualMAD }
 }
 
