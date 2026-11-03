@@ -39,7 +39,9 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 
 - 记录仓、输出保管、守护提交：逐次读 `tool-records` 行交来的 SQL 端口。
 - 资格：`authorization` 行已有的 `createToolAccessGuard`，底下是 identity 的参考准入核验。
-- 控制主体投影：主体经 `principalVerifier` 核验，是会话工作主体才投影。其余答 `denied`。
+- 控制主体投影：主体经 `principalVerifier` 核验，是会话工作主体才投影。其余答 `denied`。会话工作主体的判定只有
+  [session-work.ts](../../src/rows/tool-runtime/session-work.ts) 一份，请求供给者用同一份：`kind` 是
+  `acting-for-tenant`，签发组件是 `sessionWorkPrincipals`，工作拥有者是 `session`，租户可编码且与请求的租户相同。
 - 会话工作主体重签：入口对象 `toolClock` 安装时，把入口自己的 `sessionWorkPrincipals` 受信读口交给共享状态。
   `tool-records` 的可见集合不变。
 - 来源资格：调用方是本租户的会话工作主体，consumer 是 Agent 的动作位置（`@omne-harness/agent`，`action`）。
@@ -48,7 +50,11 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 - 启动许可需求：发行清单里的官方 Shell、Files，调用方是本租户的会话工作主体时不需要另取许可。其余答
   `unavailable`。
 - 环境：只有宿主机落点。需求经执行域的 schema-provider 校验 environment 声明并取值。绑定的 origin 由调用与
-  准备操作铸出。设施守卫与对象命名都核主体、origin 与文件根。冷获取的原清理答 `pending`，责任保留。
+  准备操作铸出。设施守卫与对象命名都核主体、origin 与文件根。守卫核请求里的每个路径：`cwd`、`path`、`move` 与
+  `copy` 的 `target.path`、`commitBatch` 的每个 `entries[].path`。带了这些字段但值不是路径时答 `notAuthorized`。
+  冷获取的原清理答 `pending`，责任保留。
+- 按调用的表：调用见证、origin 表与账本视图都按调用存。记录仓提交了调用的 `settled` 状态后，三张表删掉这个调用。
+  表的大小随在途调用数变化，不随累计调用数增长。
 
 ## 执行环境三行
 
@@ -96,7 +102,9 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 - **设施依赖只核装配在场**：见[发行内置 Tool](tool-release.md#具名缺件与已知限制)。
 - **文件根两行相等不核对**：`tool-records` 与 `execution-host` 的 `filesRoot` 不同时，命名与提供者打开的对象对不上，
   调用答冲突或不可用。
-- **调用见证只在本进程**：进程重启后，先由记录仓读回再见证。见证不到就不发布实例。
+- **调用见证只在本进程**：进程重启后，先由记录仓读回再见证。见证不到就不发布实例。已结清的调用不见证。
+- **结清后 origin 失效**：调用结清后，同一 origin 的设施请求与对象命名都不授权。调用一直不结清时，它的表项留到
+  进程结束。
 - **bundle 每次运行只建一次**：实例宿主与执行宿主不能在同一次运行里重装，重装时成员抛出，行 `FAILED`。
 - **冷获取的原清理不在本波**：答 `pending`，责任保留。
 
@@ -108,7 +116,13 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
   Shell 执行一次、Files 写读各一次，读回原结果，三次结果都交到原消费者；外租户的同一调用被拒。发行的会话归属读口下，
   调用受理但不执行。替身见文件头。
 - [首装](../../tests/rows/tool-host/preload.spec.ts)：发行行装好后两个作者在 `toolBindings` 里 live；不首装时登记表为空；
-  缺运维者构造值时不装，日志写明作者与原因；首装的 access 是登记者本身。
+  缺运维者构造值时不装，日志写明作者与原因；首装的 access 是登记者本身；读快照时抛出只记日志，不成为未处理的拒绝。
+- [首装与常驻规划](../../tests/rows/tool-host/residents-preload.spec.ts)：首装成功时，create 用的采用规划器给出
+  Files、Shell 两个常驻；首装失败或还没开始时答 `unavailable`。
+- [来源资格](../../tests/rows/tool-runtime/access.spec.ts)、[发布核验](../../tests/entry/tool-publication-authority.spec.ts)、
+  [文件根与路径守卫](../../tests/rows/tool-runtime/within-root.spec.ts)：外租户、别的签发组件、别的 consumer、
+  没见证的发布、根外的 `target.path` 与 `entries[].path` 都被拒。
+- 进程内组合的第二条用例：N 次调用结清后，见证、origin 表与账本视图都是空的。
 - [发行树](../../tests/serve.spec.ts)：发行树里这九行是真件，42 个真实行、6 个替身行。
 
 这些用例不证明 Agent 推进、模型调用或 Session 日志里的 Tool 结果，那些由 SC4 与联调 C1 验收。
