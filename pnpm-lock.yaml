@@ -2268,15 +2268,30 @@ importers:
 
   packages/tool/tool-host-local:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness/call-account':
+        specifier: workspace:*
+        version: link:../../common/call-account
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
+      '@omne-harness/execution-environment-contract':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-contract
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
+      '@omne-harness/schema-provider':
+        specifier: workspace:*
+        version: link:../../schema/schema-provider
       '@omne-harness/tool':
         specifier: workspace:*
         version: link:../tool
@@ -2287,9 +2302,6 @@ importers:
         specifier: workspace:*
         version: link:../tool-cordis-contract
     devDependencies:
-      '@omne-harness/runtime-context-contract':
-        specifier: workspace:*
-        version: link:../../context/runtime-context-contract
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
