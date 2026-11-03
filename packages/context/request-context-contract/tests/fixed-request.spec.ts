@@ -87,7 +87,10 @@ describe('FixedRequestRecord format (RQ-14)', () => {
     expect(decodeFixedRequestRecord({ ...value, coverage: null })).toEqual(refused('coverage'))
     expect(decodeFixedRequestRecord({ ...value, candidate: '' })).toEqual(refused('candidate'))
     expect(
-      decodeFixedRequestRecord({ ...value, target: { tenant: 'not-a-tenant', scope: { ref: 's' } } }),
+      decodeFixedRequestRecord({
+        ...value,
+        target: { tenant: 'not-a-tenant', scope: { ref: 's' } },
+      }),
     ).toEqual(refused('target'))
   })
 
