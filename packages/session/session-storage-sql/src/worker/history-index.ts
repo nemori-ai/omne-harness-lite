@@ -12,6 +12,11 @@
 // executions, to closure. Every Agent row is read by a point or range lookup on its key; no
 // statement reads every execution of the session. A relation that cannot be proved is left out,
 // so the pure layer answers `unavailable` for it; nothing is guessed from the current advance.
+//
+// The Session side is kept per session in this Worker module and grows by the rows after its
+// cursor only (C-WORKCACHE A3): the Session log is append-only and a stored row does not change,
+// so the rows folded once stay true. Each use proves the cursor first, and a fold never keeps rows
+// of a transaction that has not committed. See `sessionRows`.
 import {
   executionReadThrough,
   type DurableEvidence,
@@ -39,7 +44,7 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import type { SqlCell, SqlValue } from '@omne-harness/sql-contract/worker'
 import { canonicalText, decodeValue, plainOf, sha256 } from '../codec.ts'
 import { logRoot } from './log-root.ts'
-import { rowsOf, text, type Executor, type Row } from './support.ts'
+import { big, oneRow, rowsOf, text, type Executor, type Row } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_ROWS = 100_000
@@ -96,19 +101,27 @@ class TooMany extends Error {}
 /**
  * Every statement reads at most what is left of one shared row bound, and counts against it. A
  * statement with its own `page` reads at most that many rows and is complete at fewer. Each
- * statement ends with `LIMIT ?`, and the reader binds that last parameter.
+ * statement ends with `LIMIT ?`, and the reader binds that last parameter. `charge` counts rows
+ * that the index holds already as if this call read them, so the bound answers as a whole read.
  */
-type Reader = (sql: string, params: readonly SqlValue[], page?: number) => Row[]
+type Reader = ((sql: string, params: readonly SqlValue[], page?: number) => Row[]) &
+  Readonly<{ charge(rows: number): void }>
 
 function boundedReader(port: Executor, limit: number): Reader {
   let left = limit
-  return (sql, params, page) => {
+  const read = (sql: string, params: readonly SqlValue[], page?: number): Row[] => {
     const cap = page === undefined || page > left ? left + 1 : page
     const rows = rowsOf(port, sql, [...params, BigInt(cap)])
     if (rows.length > left) throw new TooMany()
     left -= rows.length
     return rows
   }
+  return Object.assign(read, {
+    charge(rows: number) {
+      if (rows > left) throw new TooMany()
+      left -= rows
+    },
+  })
 }
 
 const parsed = (cell: SqlCell | undefined): unknown =>
@@ -167,64 +180,278 @@ function plant(row: Row): Planted {
   }
 }
 
+/** One SE15 row as folded: its Run is resolved against the SE13 rows when the index is answered. */
+type AttemptRow = Readonly<{
+  run: unknown
+  attempt: unknown
+  ordinal: string
+  started: DurableEvidence
+}>
+
 /**
- * The original execution of each Session control (SE24): the execution of the Run that was active
- * when it was requested, null when none was. The rows come in log order.
+ * The Session rows of the index of one session, folded in log order up to `through` (C-WORKCACHE
+ * A3). `anchor` is the fingerprint of the log row at `through`; `count` is the number of rows of
+ * the five kinds folded in, which the row bound of a call counts as if it read them again.
+ * `active` is the execution of the Run active after the last folded row (SE24). An SE15 row whose
+ * Run has no SE13 is kept in `attemptRows` and left out of `attempts`, as a whole read leaves it
+ * out; an SE13 row that comes later resolves it.
  */
-function controlOrigins(rows: readonly Planted[]): SessionControlOrigin[] {
-  const origins: SessionControlOrigin[] = []
-  let active: string | null = null
-  for (const row of rows) {
-    if (row.entry.kind === 'run.started') active = String(row.data['execution'])
-    if (row.entry.kind === 'run.terminal') active = null
-    if (row.entry.kind !== 'control.requested') continue
-    const progress = row.data['progress'] as { operation?: unknown } | undefined
-    if (typeof progress?.operation === 'string')
-      origins.push({ operation: progress.operation as SessionOperationId, execution: active })
+type SessionRowsIndex = {
+  through: bigint
+  anchor: string
+  count: number
+  routed: Map<string, DurableEvidence>
+  starts: Map<string, Start>
+  runs: Map<string, string>
+  attemptRows: AttemptRow[]
+  attempts: SessionAttemptRecord[]
+  attemptsByRun: Map<unknown, SessionAttemptRecord[]>
+  controls: SessionControlOrigin[]
+  active: string | null
+}
+
+/** What one decision reads of the Session rows. The maps are read only; the arrays are its own. */
+type SessionRowsView = Readonly<{
+  routed: ReadonlyMap<string, DurableEvidence>
+  starts: ReadonlyMap<string, Start>
+  attempts: SessionAttemptRecord[]
+  attemptsByRun: ReadonlyMap<unknown, readonly SessionAttemptRecord[]>
+  controls: SessionControlOrigin[]
+}>
+
+/** The sessions whose Session rows this Worker keeps. Over the bound the least recently used goes. */
+const INDEX_CACHE_SESSIONS = 256
+/** The rows of the five kinds that this Worker keeps over all sessions. */
+const INDEX_CACHE_ROWS = 262_144
+
+/** The kept Session rows by `[tenant, session]`, in least recently used order (C-WORKCACHE A3). */
+const kept = new Map<string, SessionRowsIndex>()
+
+const INDEXED_KINDS =
+  "('intake.routed', 'run.started', 'run.attempt-started', 'run.terminal', 'control.requested')"
+
+function emptyIndex(): SessionRowsIndex {
+  return {
+    through: 0n,
+    anchor: '',
+    count: 0,
+    routed: new Map(),
+    starts: new Map(),
+    runs: new Map(),
+    attemptRows: [],
+    attempts: [],
+    attemptsByRun: new Map(),
+    controls: [],
+    active: null,
   }
-  return origins
+}
+
+function cloneIndex(index: SessionRowsIndex): SessionRowsIndex {
+  return {
+    ...index,
+    routed: new Map(index.routed),
+    starts: new Map(index.starts),
+    runs: new Map(index.runs),
+    attemptRows: [...index.attemptRows],
+    attempts: [...index.attempts],
+    attemptsByRun: new Map([...index.attemptsByRun].map(([run, list]) => [run, [...list]])),
+    controls: [...index.controls],
+  }
+}
+
+/** Resolves one SE15 row against the SE13 rows folded so far; null while its Run has none. */
+function resolved(index: SessionRowsIndex, row: AttemptRow): SessionAttemptRecord | null {
+  const execution = index.runs.get(String(row.run))
+  return execution === undefined
+    ? null
+    : Object.freeze({
+        run: row.run as never,
+        attempt: row.attempt as never,
+        execution,
+        ordinal: row.ordinal,
+        started: row.started,
+      })
+}
+
+function addAttempt(index: SessionRowsIndex, record: SessionAttemptRecord): void {
+  index.attempts.push(record)
+  const list = index.attemptsByRun.get(record.run)
+  if (list === undefined) index.attemptsByRun.set(record.run, [record])
+  else list.push(record)
 }
 
 /**
- * The Session rows of the index: the routed inputs, the SE13 of each execution, the SE15 rows, and
- * the original execution of each Session control.
+ * Folds `rows` (after `index.through`, in log order) into `index`. An SE13 row of a Run that
+ * already has SE15 rows changes how those resolve, so every SE15 row is resolved again then.
  */
-function sessionRows(read: Reader, scope: Scope) {
+function fold(index: SessionRowsIndex, scope: Scope, rows: readonly Planted[]): void {
+  const added: AttemptRow[] = []
+  let again = false
+  for (const row of rows) {
+    const { data } = row
+    switch (row.entry.kind) {
+      case 'intake.routed':
+        index.routed.set(String(data['input']), Object.freeze(rowEvidence(scope, row)))
+        break
+      case 'run.started': {
+        const run = String(data['run'])
+        const execution = String(data['execution'])
+        index.starts.set(
+          execution,
+          Object.freeze({
+            run: data['run'] as RunId,
+            started: Object.freeze(rowEvidence(scope, row)),
+          }),
+        )
+        if (index.attemptRows.some(item => String(item.run) === run)) again = true
+        index.runs.set(run, execution)
+        index.active = execution
+        break
+      }
+      case 'run.attempt-started': {
+        const attempt: AttemptRow = Object.freeze({
+          run: data['run'],
+          attempt: data['attempt'],
+          ordinal: String(data['ordinal']),
+          started: Object.freeze(rowEvidence(scope, row)),
+        })
+        index.attemptRows.push(attempt)
+        added.push(attempt)
+        break
+      }
+      case 'run.terminal':
+        index.active = null
+        break
+      case 'control.requested': {
+        const progress = data['progress'] as { operation?: unknown } | undefined
+        if (typeof progress?.operation === 'string')
+          index.controls.push(
+            Object.freeze({
+              operation: progress.operation as SessionOperationId,
+              execution: index.active,
+            }),
+          )
+        break
+      }
+    }
+    index.count += 1
+  }
+  if (again) {
+    index.attempts = []
+    index.attemptsByRun = new Map()
+    for (const row of index.attemptRows) {
+      const record = resolved(index, row)
+      if (record !== null) addAttempt(index, record)
+    }
+    return
+  }
+  for (const row of added) {
+    const record = resolved(index, row)
+    if (record !== null) addAttempt(index, record)
+  }
+}
+
+/** The fingerprint of the log row at `position`: its revision, kind and the digest of its text. */
+function anchorAt(port: Executor, scope: Scope, position: bigint): string | null {
+  const row = oneRow(
+    port,
+    'SELECT revision, kind, entry FROM sl_entry WHERE tenant = ? AND session = ? AND position = ? LIMIT 1',
+    [scope.tenant, scope.session, position],
+  )
+  return row === undefined
+    ? null
+    : `${text(row['revision'])}/${text(row['kind'])}/${sha256(text(row['entry']))}`
+}
+
+/** Keeps `index` as the most recently used, then drops the least recently used over the bounds. */
+function keep(key: string, index: SessionRowsIndex): void {
+  kept.delete(key)
+  if (index.count > INDEX_CACHE_ROWS) return
+  kept.set(key, index)
+  let rows = 0
+  for (const item of kept.values()) rows += item.count
+  for (const [oldest, item] of kept) {
+    if (kept.size <= INDEX_CACHE_SESSIONS && rows <= INDEX_CACHE_ROWS) break
+    kept.delete(oldest)
+    rows -= item.count
+  }
+}
+
+const viewOf = (index: SessionRowsIndex): SessionRowsView => ({
+  routed: index.routed,
+  starts: index.starts,
+  attempts: [...index.attempts],
+  attemptsByRun: index.attemptsByRun,
+  controls: [...index.controls],
+})
+
+/**
+ * The Session rows of the index: the routed inputs, the SE13 of each execution, the SE15 rows, and
+ * the original execution of each Session control (C-WORKCACHE A3, R2-D90).
+ *
+ * The rows of the five kinds after the kept cursor are read and folded into the kept index; the
+ * answer is the one a read of every row gives (the row bound counts the kept rows too). The kept
+ * index is used only when the log row at its cursor still has the fingerprint it had: otherwise
+ * this Worker sees another log than it folded (a database replaced or rolled back, or one module
+ * that serves several databases), and the index is built again from the first row. The log rows
+ * after the cursor must continue it without a gap; a gap is a log that was not only appended to,
+ * so the kept index is dropped and the call fails (a commit rolls back, a read is unavailable);
+ * the next call builds again. Rows of a revision past the journal tail are rows of the open
+ * transaction: they are folded into a copy for this call and never kept, since that transaction
+ * may still roll back.
+ */
+function sessionRows(read: Reader, port: Executor, scope: Scope): SessionRowsView {
+  const key = JSON.stringify([scope.tenant, scope.session])
+  let base = kept.get(key)
+  if (base !== undefined && anchorAt(port, scope, base.through) !== base.anchor) {
+    kept.delete(key)
+    base = undefined
+  }
+  const from = base?.through ?? 0n
+  read.charge(base?.count ?? 0)
   const rows = read(
     `SELECT position, revision, entry FROM sl_entry
-      WHERE tenant = ? AND session = ?
-        AND kind IN ('intake.routed', 'run.started', 'run.attempt-started', 'run.terminal', 'control.requested')
+      WHERE tenant = ? AND session = ? AND kind IN ${INDEXED_KINDS} AND position > ?
       ORDER BY position LIMIT ?`,
-    [scope.tenant, scope.session],
-  ).map(plant)
-  const of = (kind: string): Planted[] => rows.filter(row => row.entry.kind === kind)
-  const routed = new Map<string, DurableEvidence>()
-  for (const row of of('intake.routed'))
-    routed.set(String(row.data['input']), rowEvidence(scope, row))
-  const starts = new Map<string, Start>()
-  const runs = new Map<string, string>()
-  for (const row of of('run.started')) {
-    starts.set(String(row.data['execution']), {
-      run: row.data['run'] as RunId,
-      started: rowEvidence(scope, row),
-    })
-    runs.set(String(row.data['run']), String(row.data['execution']))
+    [scope.tenant, scope.session, from],
+  )
+  const after = oneRow(
+    port,
+    `SELECT COUNT(*) AS n, MAX(position) AS last, MAX(revision) AS top FROM sl_entry
+      WHERE tenant = ? AND session = ? AND position > ? LIMIT 1`,
+    [scope.tenant, scope.session, from],
+  )
+  const added = after === undefined ? 0n : big(after['n'])
+  if (added === 0n) {
+    if (base === undefined) return viewOf(emptyIndex())
+    keep(key, base)
+    return viewOf(base)
   }
-  const attempts: SessionAttemptRecord[] = of('run.attempt-started').flatMap(row => {
-    const execution = runs.get(String(row.data['run']))
-    return execution === undefined
-      ? []
-      : [
-          {
-            run: row.data['run'] as never,
-            attempt: row.data['attempt'] as never,
-            execution,
-            ordinal: String(row.data['ordinal']),
-            started: rowEvidence(scope, row),
-          },
-        ]
-  })
-  return { routed, starts, attempts, controls: controlOrigins(rows) }
+  const last = big(after?.['last'])
+  if (base !== undefined && last - from !== added) {
+    kept.delete(key)
+    throw new Error(
+      `the history index found a gap in the Session log after position ${String(from)}: ${String(added)} rows up to position ${String(last)}`,
+    )
+  }
+  const planted = rows.map(plant)
+  const journal = oneRow(
+    port,
+    'SELECT tail FROM sl_journal WHERE tenant = ? AND session = ? LIMIT 1',
+    [scope.tenant, scope.session],
+  )
+  const committed = big(after?.['top']) <= (journal === undefined ? 0n : big(journal['tail']))
+  const index = base === undefined ? emptyIndex() : committed ? base : cloneIndex(base)
+  try {
+    fold(index, scope, planted)
+    index.through = last
+    index.anchor = anchorAt(port, scope, last) ?? ''
+  } catch (error) {
+    if (index === base) kept.delete(key)
+    throw error
+  }
+  if (committed) keep(key, index)
+  return viewOf(index)
 }
 
 /**
@@ -429,12 +656,12 @@ function closeOver(context: Context, inputs: readonly string[]): Closure {
  * so a Run with one SE15 had that one when the admission was granted.
  */
 function attemptOf(
-  attempts: readonly SessionAttemptRecord[],
+  attemptsByRun: ReadonlyMap<unknown, readonly SessionAttemptRecord[]>,
   run: RunId,
   grant: DurableEvidence | null,
   recorded: string | null,
 ): SessionAttemptRecord | null {
-  const ofRun = attempts.filter(item => item.run === run)
+  const ofRun = attemptsByRun.get(run) ?? []
   if (recorded !== null) return ofRun.find(item => item.attempt === recorded) ?? null
   const named =
     grant === null
@@ -447,7 +674,7 @@ function attemptOf(
 function admissionsOf(
   rows: readonly Row[],
   starts: ReadonlyMap<string, Start>,
-  attempts: readonly SessionAttemptRecord[],
+  attemptsByRun: ReadonlyMap<unknown, readonly SessionAttemptRecord[]>,
 ): SessionInputAdmission[] | null {
   const records: SessionInputAdmission[] = []
   for (const row of rows) {
@@ -456,7 +683,7 @@ function admissionsOf(
     if (start === undefined) return null
     const accepted = evidenceOf(readable(row['accepted']))
     const grant = evidenceOf(readable(row['grant_ref']))
-    const attempt = attemptOf(attempts, start.run, grant, optionalText(row['attempt']))
+    const attempt = attemptOf(attemptsByRun, start.run, grant, optionalText(row['attempt']))
     if (attempt === null || accepted === null || grant === null) return null
     records.push({
       ordinal: text(row['ordinal']),
@@ -490,7 +717,7 @@ function directoriesOf(
   }>,
   relations: Readonly<{
     starts: ReadonlyMap<string, Start>
-    attempts: readonly SessionAttemptRecord[]
+    attemptsByRun: ReadonlyMap<unknown, readonly SessionAttemptRecord[]>
   }>,
 ) {
   const inputs: InputAdmissionBoundary[] = []
@@ -499,7 +726,7 @@ function directoriesOf(
   if (sources.unadmitted) for (const input of sources.routed.keys()) listed.set(input, [])
   for (const [input, rows] of closure.admissions) listed.set(input, rows)
   for (const [input, rows] of listed) {
-    const records = admissionsOf(rows, relations.starts, relations.attempts)
+    const records = admissionsOf(rows, relations.starts, relations.attemptsByRun)
     if (records === null) continue
     const directory = `${scope.tenant}/${scope.session}/${input}`
     const version = String(records.length)
@@ -586,7 +813,7 @@ export function readHistory(
   const where: Scope = { tenant, session }
   const read = boundedReader(port, limit)
   try {
-    const { routed, starts, attempts, controls } = sessionRows(read, where)
+    const { routed, starts, attempts, attemptsByRun, controls } = sessionRows(read, port, where)
     const common = logRoot(port, tenant, session, snapshot.revision)
     const root: SessionLogRoot = {
       tenant: snapshot.tenant,
@@ -605,7 +832,7 @@ export function readHistory(
       where,
       closure,
       { routed, root: root.source, unadmitted },
-      { starts, attempts },
+      { starts, attemptsByRun },
     )
     const executions = [...closure.executions.values()].filter(
       (boundary): boundary is ExecutionHistoryBoundary => boundary !== null,
