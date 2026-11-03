@@ -5,9 +5,21 @@ import { identitySqlMaterials } from '@omne-harness/identity-sql'
 import { sessionStorageMaterials } from '@omne-harness/session-storage-sql'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 
+/**
+ * 发行层写明的会话读口输出上限：20 MiB（qiwei.pan 2026-11-03）。session-storage-sql 没有默认值，由本构建显式传入。
+ * 装配要让 `storage` 行的 `maxReadResultBytes` 不小于它，`globalReadResultBytes` 不小于同时在途读数乘它
+ * （sqlite-provider 规格 §12.1）。它还不在 `serve.distribution.json` 里：配置通道由 Reduce B3 承接（R2-D89，R2-D81 后续）。
+ */
+export const DISTRIBUTION_SESSION_READ_OUTPUT_LIMIT_BYTES = 20971520
+
 /** 读一次材料文件，返回带摘要的目录。 */
 export function storageCatalog(): SqlMaterialCatalog {
-  const owners = [sessionStorageMaterials(), identitySqlMaterials()]
+  const owners = [
+    sessionStorageMaterials({
+      readOutputLimitBytes: DISTRIBUTION_SESSION_READ_OUTPUT_LIMIT_BYTES,
+    }),
+    identitySqlMaterials(),
+  ]
   return {
     catalogProtocol: 'sql-catalog/1',
     participants: owners.flatMap(owner => owner.participants),
