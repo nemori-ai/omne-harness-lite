@@ -190,11 +190,11 @@ export async function runR9Flow(): Promise<FlowRecord> {
     checks.push(
       check(
         1,
-        'the real tree is accepting with 22 real and 26 s0-double rows',
+        'the real tree is accepting with 42 real and 6 s0-double rows',
         first?.startup?.['accepting'] === true &&
           first.startup['outcome'] === 'ready' &&
           JSON.stringify(first.startup['implementations']) ===
-            JSON.stringify({ real: 33, 'contract-double': 0, 's0-double': 15 }) &&
+            JSON.stringify({ real: 42, 'contract-double': 0, 's0-double': 6 }) &&
           first.pending.length === 0,
         `startup ${shortJson(first?.startup)}, not ACTIVE: ${(first?.pending ?? []).join(', ')}`,
       ),

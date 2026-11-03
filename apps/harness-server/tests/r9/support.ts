@@ -5,7 +5,7 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
@@ -182,6 +182,68 @@ export function modelRowsOperatorConfig(options: { storageRoot: string }) {
   }
 }
 
+/** 本机的 shell：可执行文件与把脚本作为最后一个参数传入的前缀参数。 */
+export function hostShell(): Readonly<{ executable: string; argsPrefix: string[] }> {
+  if (process.platform !== 'win32') return { executable: '/bin/sh', argsPrefix: ['-c'] }
+  const systemRoot = process.env['SystemRoot'] ?? 'C:\\Windows'
+  return {
+    executable: join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+    argsPrefix: ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command'],
+  }
+}
+
+/**
+ * Tool 运行时组、宿主提供者与两个作者的运维者值（测试值）。文件根与宿主状态目录在存储根的父目录下新建；
+ * `tool-records` 的 `maxCommandBytes` 与 `storage` 行相同（`providerConfig` 的 1048576），`combinationVersion`
+ * 与 `session-storage` 行相同。
+ */
+export function toolRowsOperatorConfig(options: { storageRoot: string }) {
+  const base = dirname(options.storageRoot)
+  const filesRoot = join(base, 'workspace')
+  const stateDirectory = join(base, 'host-files-state')
+  mkdirSync(filesRoot, { recursive: true })
+  mkdirSync(stateDirectory, { recursive: true })
+  const shell = hostShell()
+  const systemRoot = process.env['SystemRoot']
+  const env =
+    process.platform === 'win32' && systemRoot !== undefined
+      ? { SystemRoot: systemRoot, WINDIR: systemRoot, TEMP: stateDirectory, TMP: stateDirectory }
+      : { PATH: '/usr/bin:/bin', TMPDIR: stateDirectory }
+  return {
+    filesRoot,
+    construction: {
+      Shell: { resultMaxBytes: 32768, ...shell, cwd: filesRoot, env },
+      Files: { resultMaxBytes: 32768 },
+    },
+    records: {
+      filesRoot,
+      combinationVersion: 'session-composite/3',
+      maxCommandBytes: 1048576,
+      maxChunkBytes: 16384,
+      configuration: {
+        authorBufferBytes: 65536,
+        authorBufferItems: 256,
+        authorWaitHistoryBytes: 65536,
+        authorWaitHistoryItems: 32,
+        processBatchBytes: 65536,
+        processBatchDelayMs: 0,
+        observerBufferBytes: 262144,
+        resultPageBytes: 65536,
+        reconciliationDelayMs: 50,
+        ledgerCommitAttempts: 16,
+        queueCapacity: 64,
+        driverRetryDelayMs: 50,
+        driverStepsPerRun: 32,
+      },
+      capacity: 64,
+      observersPerCall: 4,
+      observerQueueFrames: 16,
+      observerResidenceMs: 5000,
+    },
+    host: { filesRoot, stateDirectory },
+  }
+}
+
 export function operatorLayer(options: {
   storageRoot: string
   port: number
@@ -189,6 +251,7 @@ export function operatorLayer(options: {
 }): unknown {
   const deadline = options.shutdownDeadlineMs ?? SHUTDOWN_DEADLINE_MS
   const model = modelRowsOperatorConfig(options)
+  const tools = toolRowsOperatorConfig(options)
   return {
     ops: [
       {
@@ -212,24 +275,12 @@ export function operatorLayer(options: {
       { kind: 'replace', id: 'model-request-preparation', config: model.preparation },
       { kind: 'replace', id: 'model-host', config: model.host },
       { kind: 'replace', id: 'model-records', config: model.records },
-      // tool-host 的构造值归运维者层，发行层不写默认值（B3-T2a 第 4 项）。这里是测试值：r9 与 serve 测试不执行
-      // Shell 或 Files（execution-* 行仍是替身），值只满足两个作者的构造字段。cwd 取本次的存储根，执行文件取当前 Node。
-      {
-        kind: 'replace',
-        id: 'tool-host',
-        config: {
-          construction: {
-            Shell: {
-              resultMaxBytes: 65536,
-              executable: process.execPath,
-              argsPrefix: [],
-              cwd: options.storageRoot,
-              env: {},
-            },
-            Files: { resultMaxBytes: 65536 },
-          },
-        },
-      },
+      // Tool 与执行环境各行的数值与路径归运维者层，发行层不写默认值（B3-T2a 第 4 项、Tool B 段）。这里是测试值：
+      // 文件根与宿主状态目录在存储根旁边新建；Shell 用本机的 shell（Windows 是 powershell，其余是 /bin/sh）；
+      // 运行时组的数值取 L-TOOL C06 组合用例的同一组值（tool-storage-sql windows-composition/assembly.ts）。
+      { kind: 'replace', id: 'tool-host', config: { construction: tools.construction } },
+      { kind: 'replace', id: 'tool-records', config: tools.records },
+      { kind: 'replace', id: 'execution-host', config: tools.host },
       // B1（R2-D136）：Context 侧与 Session 适配行的数值归运维者层，发行层不写。这里是测试值：
       // 账目收件口的上限、agent-context 的采用身份与结果容量、AD-03/AD-04 的索引上界与页大小（成员初值）。
       {
