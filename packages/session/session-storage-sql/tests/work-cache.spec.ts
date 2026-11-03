@@ -105,6 +105,93 @@ describe('T-12: the session binding source reads through the cache of the same s
   })
 })
 
+describe('one cache per database, never across databases', () => {
+  /** A proxy as Cordis hands a service to a plugin: methods rebound on every access. */
+  const cordisProxy = (target: SqlStorage): SqlStorage =>
+    new Proxy(target, {
+      get: (inner, prop, receiver) => {
+        if (prop === Symbol.for('cordis.original')) return inner
+        const value: unknown = Reflect.get(inner, prop, receiver)
+        return typeof value === 'function'
+          ? (...args: unknown[]) => (value as (...a: unknown[]) => unknown).apply(inner, args)
+          : value
+      },
+    })
+
+  it('two Cordis proxies and a copy of the methods over one database share one cache', async () => {
+    const a = await app()
+    await a.create(TENANT_A)
+    okOf(await a.port.readWork(a.access(TENANT_A)))
+    const copy = { ...a.provider.storage }
+    const from = a.provider.calls.length
+    for (const storage of [cordisProxy(a.provider.storage), cordisProxy(a.provider.storage), copy])
+      okOf(
+        await createSessionStorage<string>({ ...a.storageOptions, storage }).readWork(
+          a.access(TENANT_A),
+        ),
+      )
+    expect([readsOf(a, WHOLE, from), readsOf(a, VERSION, from)]).toEqual([0, 3])
+  })
+
+  it('two Cordis proxies of one service whose read is a class method share one cache', async () => {
+    const a = await app()
+    await a.create(TENANT_A)
+    class Service {
+      constructor(private readonly inner: SqlStorage) {}
+      registerCombination(input: never) {
+        return this.inner.registerCombination(input)
+      }
+      commit(input: never) {
+        return this.inner.commit(input)
+      }
+      query(input: never) {
+        return this.inner.query(input)
+      }
+      read(input: never) {
+        return this.inner.read(input)
+      }
+    }
+    const service = new Service(a.provider.storage) as unknown as SqlStorage
+    const port = (storage: SqlStorage) =>
+      createSessionStorage<string>({ ...a.storageOptions, storage })
+    okOf(await port(cordisProxy(service)).readWork(a.access(TENANT_A)))
+    const from = a.provider.calls.length
+    okOf(await port(cordisProxy(service)).readWork(a.access(TENANT_A)))
+    expect(readsOf(a, WHOLE, from)).toBe(0)
+    // Another instance of the same class is another identity: its read is not its own.
+    okOf(
+      await port(new Service(a.provider.storage) as unknown as SqlStorage).readWork(
+        a.access(TENANT_A),
+      ),
+    )
+    expect(readsOf(a, WHOLE, from)).toBe(1)
+  })
+
+  it('two databases with the same domain, tenant, session and version do not share an answer', async () => {
+    const a = await app()
+    const b = await app()
+    await a.create(TENANT_A)
+    await b.create(TENANT_A)
+    const own = okOf(await a.port.readWork(a.access(TENANT_A)))
+    const row = b.provider.select(
+      'dom_0',
+      'SELECT snapshot FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
+      [textOf(TENANT_A), 'session-1'],
+    ).rows[0]?.[0] as string
+    const changed = JSON.parse(row) as Record<string, unknown>
+    changed['idleSince'] = 'only-in-b'
+    b.provider.seed('dom_0', 'UPDATE sl_state SET snapshot = ? WHERE tenant = ? AND session = ?', [
+      JSON.stringify(changed),
+      textOf(TENANT_A),
+      'session-1',
+    ])
+    const other = okOf(await b.port.readWork(b.access(TENANT_A)))
+    expect(other.revision).toBe(own.revision)
+    expect((other as unknown as Record<string, unknown>)['idleSince']).toBe('only-in-b')
+    expect(okOf(await a.port.readWork(a.access(TENANT_A)))).toEqual(own)
+  })
+})
+
 describe('T-2: readWork after a commit', () => {
   it('a commit of this port: the next read is whole and gives the new revision', async () => {
     const a = await app()

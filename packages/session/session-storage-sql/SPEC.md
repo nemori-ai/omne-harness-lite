@@ -651,7 +651,8 @@ releasedScopes(principal, scope = system, after, limit):
 
 工作缓存（`src/work-cache.ts`）。R1 的回答可以由端口从进程内缓存给出，但每次都先核对存储，缓存永远不是权威：
 
-- 范围：每个 `SqlStorage` 对象一份，同一存储对象上的公开端口、委派视图、会话归属读口与经 `./participants` 的 `readCachedSessionWork` 读的调用方（session-adapters 的 Journal 提供者在每次写入前读快照）共用。键是事务域、租户文本与会话；`SessionId` 只在租户内唯一，所以两个租户的同名会话是两个键。缓存不是核权点：端口先取访问裁定、再按调用指名的租户取事务域，之后才查缓存。
+- 范围：每个数据库一份。身份由 `storeOf` 取：先穿过 Cordis 服务代理（`Symbol.for('cordis.original')`）到被包装的对象，再取它自有的 `read` 函数；`read` 不是自有函数（类方法，各实例共用）时取对象本身。提供者为自己的库建一个 `read` 闭包，复制方法的包装（把端口登记为服务）复制的是同一个闭包，所以同一个库的公开端口、委派视图、会话归属读口、经 `./participants` 的 `readCachedSessionWork` 读的调用方（session-adapters 的 Journal 提供者）与各插件拿到的代理共用一份缓存；不同的库没有相同的自有 `read`，绝不共用，即使事务域名、租户、会话与版本都相同。键是事务域、租户文本与会话；`SessionId` 只在租户内唯一，所以两个租户的同名会话是两个键。缓存不是核权点：端口先取访问裁定、再按调用指名的租户取事务域，之后才查缓存。
+- 单飞：读到同一版本的并发读共用一次整读（以键与版本登记进行中的整读，结束即清除）；整读失败时所有等待者拿到同一个 `unavailable`，下一次读重新回源。版本点查失败的读不合并。
 - 版本：`(sl_journal.tail, er_root.published)`。`session.work` 的回答依赖这两个计数：快照行只在推进 `tail` 的事务里替换，`historyIndex` 读的 `er_` 行只在推进 `published` 的事务里写。两者只增不减。
 - 读：先经 `session.work-version` 点查当前版本（`sl_journal` 与 `er_root` 各一次主键点查，只读 `tail` 与 `published`，不读 `sl_state`：SQLite 取 `covered` 要走完快照正文的溢出页，代价随快照增长。行数与字节与会话大小无关）。会话不存在答 `denied`；版本与缓存项相等时返回缓存的已解析快照（缓存项只从核对过 `covered == tail` 的整读登记，快照行只在推进 `tail` 的事务里替换，所以 `tail` 相等时仍覆盖它）；不相等、没有缓存项、点查失败或回答不可解析时整读 `session.work`，按它在同一读快照里给出的版本登记。整读失败或解码失败时删除该项并返回失败。版本小于缓存项时删除该项并答 `unavailable`（日志倒退，例如库被换），不当作一次普通读。
 - 返回的快照是深冻结的同一对象：调用方写入会抛 `TypeError`，不会改变下一位读者所见。
