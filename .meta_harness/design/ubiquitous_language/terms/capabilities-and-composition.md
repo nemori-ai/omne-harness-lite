@@ -549,7 +549,7 @@
 > The format rules inside the package belong to the skill kind.
 
 - **形态**：属性
-- **出处**：[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者) · [J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 1） · [工作区产品页 J-WS04](../../product/workspaces/design.md#j-ws04-从共享与实例本地来源取得可解释的材料)（rev 4）
+- **出处**：[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者) · [J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 2） · [工作区产品页 J-WS04](../../product/workspaces/design.md#j-ws04-从共享与实例本地来源取得可解释的材料)（rev 4）
 - **别混 ①**：**不是技能的身份**。身份是[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)（类别 ＋ name）。同一个身份下，不同层、不同版本的内容可以是不同的 Skill 包
 - **别混 ②**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本说的是哪一次发布定下的内容；Skill 包说的是技能内容的形式
 - **别混 ③**：**不是[插件](#ul-plugin--插件--plugin)，也不是代码仓库里的成员包**（例如 `packages/skills` 下的成员）。插件打包分发若干资产；一个 Skill 包只是一个技能的内容
@@ -570,7 +570,7 @@
 > content, so a reference to a snapshot needs only its content digest.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 1）只要求一次读取对应一个可成立的版本和范围，不把旧正文与新资源拼成成功。条目清单与内容摘要的做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出Skill 包快照，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 2）只要求一次读取对应一个可成立的版本和范围，不把旧正文与新资源拼成成功。条目清单与内容摘要的做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出Skill 包快照，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
 - **别混 ①**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本按发布计数，内容摘要按内容计算。工作区目录中的技能没有发布，也有Skill 包快照
 - **别混 ②**：**不是[上下文快照提醒](record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)**，与 runtime context 的快照无关
 - **注意 ①**：**这里的「内容摘要」指按内容算出的散列值（digest），不是文字摘要**。不要裸写「摘要」指它，见 [C-73](../conflicts.md#c-73摘要的两种意思)
@@ -598,7 +598,7 @@
 > source layer and content digest identify the same material.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 1）只要求读取返回实际取得内容的来源、版本及范围，并要求「历史可见性不授予新的访问」。把版本写成能力标识、来源层、资产版本与内容摘要四项，并交给调用方带回，这一做法来自 Skill 组的技术设计，那不是本词表的合法出处。工作区来源的资产版本可以缺省，这一点是负责人对 [C-74](../conflicts.md#c-74工作区目录技能的Skill 材料依据中的资产版本) 的裁定（2026-11-03）。出处缺口由产品负责人闭合：在 Skill 产品页写出Skill 材料依据，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 2）只要求读取返回实际取得内容的来源、版本及范围，并要求「历史可见性不授予新的访问」。把版本写成能力标识、来源层、资产版本与内容摘要四项，并交给调用方带回，这一做法来自 Skill 组的技术设计，那不是本词表的合法出处。工作区来源的资产版本可以缺省，这一点是负责人对 [C-74](../conflicts.md#c-74工作区目录技能的Skill 材料依据中的资产版本) 的裁定（2026-11-03）。出处缺口由产品负责人闭合：在 Skill 产品页写出Skill 材料依据，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
 - **⚠️ 别混 ①**：**不是[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)**。采用依据是一次执行在采用时实际取用了什么的记录，由系统保留。Skill 材料依据是一次读取交给调用方的值，由调用方保管与带回
 - **别混 ②**：**不是[Skill 包快照](#ul-package-snapshot--skill-包快照--skill-package-snapshot)本身**。Skill 包快照是全部条目的清单；Skill 材料依据只带它的内容摘要，另带能力标识、来源层与资产版本
 - **别混 ③**：**不是 Skill 包的位置**。位置不在Skill 材料依据里，调用方不能用它指定从哪里读取
