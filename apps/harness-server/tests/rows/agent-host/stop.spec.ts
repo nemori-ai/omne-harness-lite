@@ -35,14 +35,7 @@ import { agentInstancesRow } from '../../../src/rows/agent-instances/index.ts'
 import { monotonicClock } from '../../../src/shutdown.ts'
 import type { StopResult } from '../../../src/types.ts'
 import { declared, loadTree, makeBase, type LoadedTree } from '../session-fixtures/tree.ts'
-import {
-  caller,
-  definition,
-  hostConfig,
-  hostDoubles,
-  principalObject,
-  scope,
-} from './doubles.ts'
+import { caller, definition, hostConfig, hostDoubles, principalObject, scope } from './doubles.ts'
 
 const release: Array<() => Promise<void> | void> = []
 afterEach(async () => {

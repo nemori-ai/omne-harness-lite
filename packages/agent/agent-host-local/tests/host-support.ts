@@ -413,10 +413,7 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
       : (deps, opts) => createAgentRuntime(deps, opts)
   const configured = 'config' in options
   const plugin = options.plugin ?? createAgentHostPlugin(factory)
-  const host = root.plugin(
-    plugin,
-    (configured ? options.config : hostConfig) as AgentHostConfig,
-  )
+  const host = root.plugin(plugin, (configured ? options.config : hostConfig) as AgentHostConfig)
   // A refused configuration rejects the fiber; the test that expects it awaits the fiber itself.
   host.then(undefined, () => undefined)
   const directoryFiber = root.plugin(agentInstancesPlugin)

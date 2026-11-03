@@ -995,7 +995,7 @@ export function createHost(input: HostInput): Host {
           })
       }
       const waits: Promise<void>[] = []
-      for (const entry of [...records.values()]) {
+      for (const entry of records.values()) {
         const note = (reason: string | undefined) => {
           if (reason !== undefined) unsettled.push({ instance: entry.instance, reason })
         }

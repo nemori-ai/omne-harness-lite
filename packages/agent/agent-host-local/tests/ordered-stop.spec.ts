@@ -99,7 +99,9 @@ describe('the ordered stop of the agent-host plugin', () => {
     host.quiesceAnswers.push('unresolved', 'drained')
     const answer = await host.plugin.quiesceAll({ signal: open() })
     expect(answer.kind).toBe('incomplete')
-    expect(unsettledOf(answer)).toEqual([{ instance: left, reason: expect.stringContaining('unresolved') }])
+    expect(unsettledOf(answer)).toEqual([
+      { instance: left, reason: expect.stringContaining('unresolved') },
+    ])
     expect(answer.kind === 'incomplete' && answer.detail).toContain(left)
     // The unresolved instance stays published for the fiber unload; the drained one ended.
     ok(await host.directory.resolve({ ...caller('a'), instance: left }))
