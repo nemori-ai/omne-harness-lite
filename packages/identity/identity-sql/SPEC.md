@@ -309,7 +309,12 @@ handler 另有两个预读，它们不核对发起登录：
 8. **个人组织的治理模型钉在 `default-team` revision `'1'`。** 换模型或升 revision 时，须同批迁移 `id_membership` 的 `role_model` 与 `role_model_revision`。迁移完成之前，个人租户的读口答 `unavailable`。
 9. **截止时刻的加法不计闰秒。** 跨过插入闰秒的期限提前一秒结束。
 10. **唯一约束写成列内约束。** sqlite-provider 的迁移 authorizer 拒绝显式 `CREATE INDEX` 的 REINDEX 步骤，所以三个唯一约束都写在 `CREATE TABLE` 里。新增独立索引要等提供者放开这一项。
-11. **三项操作的圈复杂度超过度量阈值。** `metrics` 报 `issueLogin` CC 18、`recognizeLogin` CC 16、`registerAndActivate` CC 12，超过 alert 阈值 12。分支来自 ID-17 各操作的固定步骤次序与结果映射，每个分支对应一种契约结果，拆分不改变次序。退出条件：把结果映射提成 `provider.ts` 里的独立函数后重新度量。
+11. **几个函数的圈复杂度超过度量阈值。** 阈值是 warn 10、alert 12。`metrics` 报的超 alert 函数如下：
+    - `provider.ts` 的 `issueLogin` CC 18、`recognizeLogin` CC 17。分支来自 ID-17 各操作的固定步骤次序与结果映射。`recognizeLogin` 比 001 多一步撤销判定（IS-05 第 4 步）。
+    - 参加者的 `changeMember` CC 16、`disposeInvitation` CC 15、`issueInvitation` CC 13。每个分支是一项有序核对：发起登录、可见性、行动者角色、预期状态、最后管理员。这些核对必须在同一条参加者命令里按次序完成（IS-10），次序本身就是保证。拆成几个函数不减少分支，只把次序分到几处。
+    - `governance.ts` 的 `governanceOver.write` CC 13。每个分支对应 IS-10 映射表里的一种提交结果。
+
+    `registerAndActivate`、`parseIdentitySqlConfig`、`governanceOver.changeMember` 与治理读 handler 的 `answer` 都是 CC 12，超 warn，未超 alert。退出条件：把 `provider.ts` 的结果映射提成独立函数后重新度量。参加者的核对次序仍留在一个函数里。
 12. **「登录表可读」的探读没有独立用例。** `read-issue-basis.ts` 的探读与账号表的读取在同一个读 handler、同一个 SQLite 文件里，不能独立于账号表失败。现有用例只让整个 `identity.issue-basis` 读失败，没有「账号表可读、登录表不可读」的用例。本提供者答 `basis-unavailable` 的条件因此是 ID-17 条件的子集。
 13. **治理名单最多 1000 项。** 收到的邀请、发出的邀请、本人成员资格、组织成员与本人有效登录，任一份超过 1000 项时答 `basis-unavailable`，直到项数回落。本阶段没有分页。邀请的终结不删除，所以一个账号收到或一个组织发出的邀请累计超过 1000 份之后，对应名单一直答 `basis-unavailable`。退出条件：identity 契约定义分页或留存期之后，按它修订 IS-13。
 14. **发出邀请与注册并发时可能答 `not-visible`。** 预读没有找到被邀请标识，而提交之前该标识注册成功时，参加者答 `not-visible`，不发出邀请。调用方再发一次即可。
