@@ -62,7 +62,10 @@ function notScripted(method: string): never {
   throw new Error(`scripted transport: ${method} is not scripted in this wave`)
 }
 
-export function scriptedTransports(script: readonly Step[]): ScriptedTransports {
+export function scriptedTransports(
+  script: readonly Step[],
+  trace: (event: string) => void = () => undefined,
+): ScriptedTransports {
   const queue = [...script]
   const calls: Call[] = []
   /** Takes the next step; it has to be of `kind`, or the script does not fit the test. */
@@ -94,6 +97,7 @@ export function scriptedTransports(script: readonly Step[]): ScriptedTransports 
     cancelTask: () => notScripted('cancelTask'),
     async close() {
       calls.push({ kind: 'close', generation })
+      trace('transport.close')
     },
   })
   return {

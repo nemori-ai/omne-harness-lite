@@ -139,7 +139,11 @@ export type ScriptedLanding = MemoryProcessLanding<Principal> &
  * answers `tree-confirmed`; the script overrides the answer and counts the calls.
  */
 export function scriptedLanding(
-  options: Readonly<{ facilities?: readonly string[]; stop?: StopScope }> = {},
+  options: Readonly<{
+    facilities?: readonly string[]
+    stop?: StopScope
+    trace?: (event: string) => void
+  }> = {},
 ): ScriptedLanding {
   const memory = createMemoryProcessLanding<Principal>({ facilities: options.facilities ?? [] })
   const processes: { stops: number }[] = []
@@ -157,6 +161,7 @@ export function scriptedLanding(
         exited: inner.exited,
         async stop() {
           record.stops += 1
+          options.trace?.('process.stop')
           const confirmed = await inner.stop()
           return options.stop ?? confirmed
         },

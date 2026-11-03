@@ -53,6 +53,8 @@ export type World = Readonly<{
   landing: ScriptedLanding
   store: MemoryCatalogStore
   transports: ScriptedTransports
+  /** The close-order events of the transports and the processes, in the order they happened. */
+  trace: readonly string[]
 }>
 
 export const TARGET: ConnectionTarget = target('https://files.example.test/mcp')
@@ -74,15 +76,20 @@ export function world(
     config?: Partial<McpConfig<Principal>>
   }> = {},
 ): World {
+  const trace: string[] = []
+  const record = (event: string) => {
+    trace.push(event)
+  }
   const adoption = countedAdoption()
   const eligibility = countedEligibility()
   const credentials = countedCredentials()
   const landing = scriptedLanding({
     facilities: options.facilities ?? [],
+    trace: record,
     ...(options.stop === undefined ? {} : { stop: options.stop }),
   })
   const store = createMemoryCatalogStore()
-  const transports = scriptedTransports(options.script ?? [])
+  const transports = scriptedTransports(options.script ?? [], record)
   return {
     ports: { adoption, eligibility, credentials, landing, store, transports },
     config: { ...CONFIG, ...options.config },
@@ -92,6 +99,7 @@ export function world(
     landing,
     store,
     transports,
+    trace,
   }
 }
 
