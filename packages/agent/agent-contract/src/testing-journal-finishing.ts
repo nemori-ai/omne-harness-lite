@@ -202,6 +202,21 @@ function noReplyContent(name: string, call: M.ModelCallId): Partial<FinishCandid
   }
 }
 
+/** The content of a candidate that fails because the Model refused the admission of `call`. */
+function refusedContent(name: string, call: M.ModelCallId): Partial<FinishCandidateContent> {
+  return {
+    conclusion: { kind: 'fail', cause: evidence(`cause/${name}`) },
+    failure: {
+      step: null,
+      at: '2026-10-30T00:00:00Z',
+      source: evidence(`failure/${name}`),
+      kind: 'model-refused',
+      call,
+      failure: { kind: 'capacity', required: { bytes: '1', blocks: '1', attachmentBytes: '0' } },
+    },
+  }
+}
+
 function itemsOf(snapshot: ExecutionSnapshot): readonly FinishObligation[] {
   assert.ok(snapshot.finishObligations !== null, 'the obligations should be issued')
   return snapshot.finishObligations.items
@@ -2632,6 +2647,50 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'prepareFinish',
         )
         assert.equal(itemOf(await load(opened), 'call').disposition.kind, 'settled')
+      },
+    },
+    {
+      // R2-D241: a refused admission leaves no send, so the call it names is settled; a provider
+      // that reads only no-reply keeps it unknown and the Run never finishes.
+      name: 'a call that the Model refused to admit is settled on that basis: the model-refused failure of the current failed candidate names the call',
+      run: async () => {
+        const opened = await fixture.open('final-failure-refused')
+        const { journal } = opened
+        await takeInputs(opened)
+        const { pending, call } = modelIntent(opened, 'call-r')
+        await ok(
+          journal.commit(
+            commitAt(opened, await load(opened), 'effect', opened.authority, {
+              effects: [{ action: pending.action, pending, authority: opened.authority }],
+            }),
+          ),
+          'the effect intent',
+        )
+        const at = await load(opened)
+        await ok(
+          journal.commit(
+            f1Commit(
+              opened,
+              at,
+              'f1',
+              opened.authority,
+              candidateContent(at, 'f1', refusedContent('f1', call)),
+            ),
+          ),
+          'F1 of the model-refused failure',
+        )
+        await ok(journal.commit(f2Commit(opened, await load(opened), 'f2')), 'F2')
+        await ok(
+          journal.prepareFinish(prepareInput(opened, await load(opened), 'prepare')),
+          'prepareFinish',
+        )
+        const item = itemOf(await load(opened), 'call')
+        assert.equal(item.disposition.kind, 'settled')
+        assert.deepEqual(
+          item.disposition.kind === 'settled' ? item.disposition.completion : null,
+          evidence('failure/f1'),
+          'the refusal is the basis of the settlement',
+        )
       },
     },
     {

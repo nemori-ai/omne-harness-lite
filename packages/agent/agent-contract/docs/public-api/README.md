@@ -214,6 +214,7 @@ commit、open、attach、load、recordResult、recordControl、prepareFinish、t
 
 - [receiving.ts](../../src/receiving.ts)：两类接收面条目 `StartFenceEntry` 与 `ReceivedEntry`，它们的开放联合 `AgentJournalEntry`，`received` 条目的交付 `ReceivedDelivery`（按交付键的 kind 分支，账目交付必带该修订的 `CallAccount`），记录输入 `JournalEntryRecord` 与记录端口 `AgentJournalEntries`，账目出站的交接元组 `AgentAccountHandoff`、结果 `AgentAccountOutcome` 与端口 `AgentAccountOutlet`。
 - [receiving.ts](../../src/receiving.ts) 还导出独立的 `AgentReceivedCommits`。`ReceivedCommitInput` 携带条目草稿与完整材料。`ReceivedCommitValue` 保留原命令回执、完整条目与原 saved 依据。`ReceivedCommitResult` 区分 committed 与 excluded，`ReceivedCommitQuery` 另含 unknown。`AgentReceivedProvider` 描述同一提供者的 journal、entries、materials 与固定 received 能力。类型没有增加旧端口的必需成员。
+- [receiving.ts](../../src/receiving.ts) 还导出结果接收方的稳定目标查询 `ModelReceptionTargets` 与它答复的原消费绑定 `ModelReceptionTarget`（原 execution、原 instance 与 model PendingCall）。规则见 SPEC 的“[结果接收](../../SPEC.md#结果接收)”第 1 条。这两个类型从 `@omne-harness/agent` 提升到本包，`@omne-harness/agent` 以同名再导出（R2-D237）。
 - [execution.ts](../../src/execution.ts)：`ExecutionSnapshot.entries` 是可选字段，提供者支持接收面条目时按提交顺序列出全部已提交条目。
 
 接收面类型直接引用原拥有者的定义，不另定回执类型：`ReceivedDelivery` 的键是 `M.ModelDeliveryKey` 与 `T.ToolDeliveryKey`，Model 的账目快照是 `M.ModelAccountSnapshot`，账目是 call-account 的 `CallAccount`，流引用是 stream-arrival 的 `StreamRef` 与 `StreamProducer`，围栏操作号是 Tool 根入口的 `T.ToolOperationId`。Tool 的 `StartGuard` 与 `ToolStartFence` 在 Tool 的 `./provider` 入口，本包不导入，`StartFenceEntry.guard` 只记 Agent 自己拥有的守卫字段。

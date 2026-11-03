@@ -19,7 +19,11 @@ export type {
 
 export { agentModelDeliverySchema, readModelDeliveryMaterial } from './receiving-material.ts'
 
-export { createAgentModelReceiver, createModelReceiverState } from './receiving.ts'
+export {
+  AGENT_CONSUMER_OWNER,
+  createAgentModelReceiver,
+  createModelReceiverState,
+} from './receiving.ts'
 export type {
   AgentModelReceiver,
   ModelReceiverState,

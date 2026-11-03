@@ -10,6 +10,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { createTestAgentDependencies, type TestAgentControls } from '@omne-harness/agent/testing'
 import type { Access } from '@omne-harness/agent-contract'
 import {
+  createMemoryAgentAccountOutlet,
   createTestCancellationPolicy,
   testCancellationPolicyInstallation,
 } from '@omne-harness/agent-contract/testing'
@@ -22,11 +23,13 @@ import {
   AgentJournalEntriesService,
   AgentJournalService,
   AgentMaterialsService,
+  AgentReceivedCommitsService,
   CurrentConditionsService,
   DecisionCardsService,
   ExtensionImplementationsService,
   MessageHandoffService,
   ModelContextReaderService,
+  ModelReceptionTargetsService,
   ModelSelectionService,
   RegisteredReadsService,
   RequestPreparationService,
@@ -73,11 +76,16 @@ export const hostConfig = {
   instanceIdleMs: 60_000,
 }
 
-/** The fourteen injects of the row, in the order of the assembly page. */
+/**
+ * The sixteen injects of the row: the fourteen of the assembly page, in its order, with the two
+ * faces of the Model result receiver after `agentMaterials` (R2-D237).
+ */
 export const INJECTS = [
   'agentJournal',
   'agentJournalEntries',
   'agentMaterials',
+  'agentReceivedCommits',
+  'agentModelReceptionTargets',
   'agentAccessCheck',
   'agentAdoptions',
   'agentConditions',
@@ -99,6 +107,8 @@ const definitions: Readonly<Record<ServiceInject, unknown>> = {
   agentJournal: AgentJournalService,
   agentJournalEntries: AgentJournalEntriesService,
   agentMaterials: AgentMaterialsService,
+  agentReceivedCommits: AgentReceivedCommitsService,
+  agentModelReceptionTargets: ModelReceptionTargetsService,
   agentAccessCheck: AgentAccessCheckService,
   agentAdoptions: AgentAdoptionsService,
   agentConditions: CurrentConditionsService,
@@ -167,8 +177,10 @@ export function hostDoubles(omit: Inject | null): HostDoubles {
         return controls.journal.port.load(input)
       },
     },
-    agentJournalEntries: {},
+    agentJournalEntries: controls.journal.provider.entries,
     agentMaterials: controls.materials.port,
+    agentReceivedCommits: controls.journal.provider.received ?? {},
+    agentModelReceptionTargets: controls.journal.targets,
     agentAccessCheck: controls.access.port,
     agentAdoptions: controls.adoptions.port,
     agentConditions: controls.conditions.port,
@@ -176,7 +188,7 @@ export function hostDoubles(omit: Inject | null): HostDoubles {
     agentModelSelection: controls.selection.port,
     agentModelContext: controls.modelContext.port,
     agentMessageHandoff: controls.handoff.port,
-    agentAccountOutlet: {},
+    agentAccountOutlet: createMemoryAgentAccountOutlet<string>(),
     modelRuntime: dependencies.models,
     agentClock: controls.clock.port,
   }

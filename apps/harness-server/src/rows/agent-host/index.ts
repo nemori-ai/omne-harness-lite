@@ -1,10 +1,12 @@
 // The `agent-host` row: the local Agent host. The plugin is the one `createAgentHostLocalPlugin` of
 // `@omne-harness/agent-host-local/cordis` makes from the two construction inputs of the row; the row
 // body runs it in the row fiber, so its five faces (`agentInstanceHost` as well as the four the page
-// lists) appear and end with the row. The row declares the fourteen injects of the assembly page.
-// The plugin's own `inject` array holds eleven of them; `agentJournalEntries`, `agentMaterials` and
-// `agentAccountOutlet` are the receiving keys that the page lists and the member does not inject
-// yet, so the row keeps them as row injects and the host stays `PENDING` until they have providers.
+// lists) appear and end with the row. The row declares the sixteen injects of the plugin's own
+// `inject` array: the fourteen of the assembly page and the two faces of the Model result receiver
+// that the `agent-journal` row provides, `agentReceivedCommits` and `agentModelReceptionTargets`
+// (R2-D237). The plugin body builds the receiver from them and registers it with `modelRuntime`
+// under the Agent consumer owner; the registration ends with the row fiber, and the ordered stop
+// below removes it first.
 //
 // Construction inputs (runtime objects, never configuration, both optional):
 // - `toolRequestsOf`: builds the trusted Tool request source (R2-D36) from the row context, so the
@@ -15,7 +17,8 @@
 //   Absent: no event is built.
 //
 // Phase `business`, carried by the row body. The handle's stop calls the member's ordered stop,
-// `quiesceAll` of the plugin object (agent-host-local SPEC "有序停止"): admission closes, every
+// `quiesceAll` of the plugin object (agent-host-local SPEC "有序停止"): the result receiver's
+// registration is removed, admission closes, every
 // instance is quiesced, and only drained ones unload. The member's answer maps as it is: `settled`
 // to `settled`, `incomplete` to `incomplete` with the member's detail, which names each instance
 // that did not drain and why. The deadline is the one the shutdown coordinator hands to the stop,
@@ -54,6 +57,8 @@ import {
   agentModelContextKey,
   agentModelSelectionKey,
   agentPublicationAuthorityKey,
+  agentReceivedCommitsKey,
+  agentModelReceptionTargetsKey,
   agentRequestsKey,
   agentAccountOutletKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
@@ -156,6 +161,8 @@ export function createAgentHostRowOver(pluginOf: (ctx: Context) => AgentHostPlug
         agentJournalKey,
         agentJournalEntriesKey,
         agentMaterialsKey,
+        agentReceivedCommitsKey,
+        agentModelReceptionTargetsKey,
         agentAccessCheckKey,
         agentAdoptionsKey,
         agentConditionsKey,

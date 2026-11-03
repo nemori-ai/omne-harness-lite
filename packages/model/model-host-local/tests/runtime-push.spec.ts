@@ -445,11 +445,14 @@ function world(input: Readonly<{ limits?: ResultPushLimits; ledger?: ResultPushL
   })
   const ctx = new Context()
   const messages: string[] = []
+  const warnings: string[] = []
   ctx.logger.exporter({
     colors: 0,
     levels: { default: 3 },
     export: message => {
-      messages.push(message.args.map(String).join(' '))
+      const text = message.args.map(String).join(' ')
+      messages.push(text)
+      if (message.type === 'warn') warnings.push(text)
     },
   })
   return {
@@ -458,6 +461,7 @@ function world(input: Readonly<{ limits?: ResultPushLimits; ledger?: ResultPushL
     hooks,
     handoffs,
     messages,
+    warnings,
     raw,
     controls: memory.controls,
     Plugin,
@@ -703,6 +707,8 @@ it('keeps a result without a receiver waiting and pushes it when the consumer ow
   await until(() => w.record('one')?.result?.standing.status === 'waiting', 'the waiting result')
   expect(w.record('one')?.result?.standing).toEqual({ status: 'waiting', reason: 'no-receiver' })
   expect(w.messages.some(text => text.includes('no receiver'))).toBe(true)
+  // A warning, not info: the consumer waits until a receiver registers (R2-D237).
+  expect(w.warnings.some(text => text.includes('no receiver'))).toBe(true)
 
   const scripted = scriptedReceiver()
   await w.register(scripted.receiver)

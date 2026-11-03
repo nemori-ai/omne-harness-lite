@@ -22,8 +22,10 @@ import {
   type AgentJournal,
   type AgentJournalEntries,
   type AgentMaterials,
+  type AgentReceivedCommits,
   type DurableEvidence,
   type Material,
+  type ModelReceptionTargets,
   type PendingCall,
   type ReceivedEntry,
 } from '@omne-harness/agent-contract'
@@ -39,6 +41,8 @@ import {
   agentJournalEntriesKey,
   agentJournalKey,
   agentMaterialsKey,
+  agentModelReceptionTargetsKey,
+  agentReceivedCommitsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -248,7 +252,19 @@ async function assembled(
   const entries = () => face<AgentJournalEntries<string>>(agentJournalEntriesKey)
   const materials = () => face<AgentMaterials<string, ContentBlock>>(agentMaterialsKey)
   const adopted = () => face<SessionAdoptedRequests<unknown>>(sessionAdoptedRequestsKey)
-  return { ctx, plugin, journal, entries, materials, adopted, wiring: services.wiring }
+  const received = () => face<AgentReceivedCommits<string, ContentBlock>>(agentReceivedCommitsKey)
+  const targets = () => face<ModelReceptionTargets<string>>(agentModelReceptionTargetsKey)
+  return {
+    ctx,
+    plugin,
+    journal,
+    entries,
+    materials,
+    adopted,
+    received,
+    targets,
+    wiring: services.wiring,
+  }
 }
 
 /** The trusted cancellation installation of the test policy, as the assembly entry hands it in. */
@@ -674,6 +690,111 @@ async function waitingOnModel(
   const { material: _material, ...draft } = result
   return draft
 }
+
+// R2-D237: the two faces the host's Model result receiver needs. Each case is red when the plugin
+// stops providing the face, routes it to the wrong session, or answers from the live checkpoint.
+describe('agentReceivedCommits and agentModelReceptionTargets: the result receiver faces', () => {
+  it('commits a received delivery routed by its execution, as one fact the Journal reads', async () => {
+    const s = await scene('recv-commit')
+    const { plugin, journal, received } = await assembled(s)
+    for (const key of [agentReceivedCommitsKey, agentModelReceptionTargetsKey])
+      expect(plugin.store?.[key]?.fiber === plugin, key).toBe(true)
+    const draft = await waitingOnModel(s, journal(), 'recv-commit')
+    const input = {
+      ...s.access,
+      execution: s.execution,
+      operation: operation('receive'),
+      entry: draft,
+      material: factsMaterial('recv-commit'),
+    }
+    const saved = ok(await received().commit(input))
+    if (saved.kind !== 'committed') throw new Error(`received ${saved.kind}`)
+    const loaded = ok(await journal().load({ ...s.access, execution: s.execution }))
+    expect(loaded.entries).toContainEqual(saved.value.entry)
+    // The same operation is recognized: the original commit, no second fact.
+    expect(ok(await received().commit(input))).toEqual(saved)
+    expect(ok(await received().query(input))).toEqual(saved)
+    expect(ok(await journal().load({ ...s.access, execution: s.execution })).revision).toBe(
+      loaded.revision,
+    )
+    // An execution no Run started: denied, nothing written.
+    const unknown = ok(decodeAgentExecutionId('recv-nobody'))
+    expect(await received().commit({ ...input, execution: unknown })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+  })
+
+  it('answers the binding the committed PendingCall made, after the call left the checkpoint and in a new instance', async () => {
+    const s = await scene('recv-targets')
+    const first = await assembled(s)
+    const draft = await waitingOnModel(s, first.journal(), 'recv-targets')
+    const pending = draft.delivery.producer === 'model' ? draft.delivery.key.reference : null
+    if (pending === null) throw new Error('fixture: a Model entry')
+    const all = ok(await first.targets().forExecution({ access: s.access, execution: s.execution }))
+    expect(all).toHaveLength(1)
+    const [target] = all
+    expect(target?.execution).toBe(s.execution)
+    expect(target?.pending.reference).toBe(pending)
+    const attached = ok(await first.journal().load({ ...s.access, execution: s.execution }))
+    expect(target?.instance).toBe(attached.executionAttachment?.instance)
+    const query = { access: s.access, consumer: draft.consumer, reference: pending }
+    expect(ok(await first.targets().resolve({ ...query, execution: s.execution }))).toEqual(target)
+
+    // The checkpoint drops the call; the binding stays.
+    const loaded = ok(await first.journal().load({ ...s.access, execution: s.execution }))
+    const attach = loaded.executionAttachment
+    if (attach === null) throw new Error('fixture: attached')
+    ok(
+      await first.journal().commit({
+        ...s.access,
+        execution: s.execution,
+        operation: operation('drop-call'),
+        authority: attach,
+        expected: loaded.revision,
+        checkpoint: { ...loaded.checkpoint, calls: [] },
+        state: { kind: 'advancing' },
+        events: [],
+        effects: [],
+        caller: { kind: 'none' },
+        replyAdmission: null,
+        handoff: null,
+        finish: null,
+      }),
+    )
+    expect(ok(await first.targets().resolve({ ...query, execution: s.execution }))).toEqual(target)
+
+    // A new plugin instance on the same storage reads the binding from the session's records.
+    await first.plugin.dispose()
+    const second = await assembled(s)
+    expect(ok(await second.targets().resolve({ ...query, execution: s.execution }))).toEqual(target)
+    expect(
+      ok(await second.targets().forExecution({ access: s.access, execution: s.execution })),
+    ).toEqual([target])
+  })
+
+  it('a resolve without a route, or routed to an execution that holds no such binding, is denied', async () => {
+    const s = await scene('recv-route')
+    const { journal, targets } = await assembled(s)
+    const draft = await waitingOnModel(s, journal(), 'recv-route')
+    if (draft.delivery.producer !== 'model') throw new Error('fixture: a Model entry')
+    const query = {
+      access: s.access,
+      consumer: draft.consumer,
+      reference: draft.delivery.key.reference,
+    }
+    expect(await targets().resolve(query)).toHaveProperty('failure.kind', 'denied')
+    const nobody = ok(decodeAgentExecutionId('recv-route-nobody'))
+    expect(await targets().resolve({ ...query, execution: nobody })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+    expect(await targets().forExecution({ access: other, execution: s.execution })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+  })
+})
 
 describe('sessionAdoptedRequests: the a part of a session, from the same plugin body', () => {
   /** One main-purpose M0 of the scene's execution through `journal`. */

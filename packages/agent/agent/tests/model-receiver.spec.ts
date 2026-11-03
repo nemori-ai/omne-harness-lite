@@ -17,7 +17,11 @@ import {
   resolveModelInvocationRef,
   type ModelDelivery,
 } from '@omne-harness/model-contract'
-import type { AgentAccountHandoff, AgentAccountOutcome } from '@omne-harness/agent-contract'
+import {
+  decodeAgentExecutionId,
+  type AgentAccountHandoff,
+  type AgentAccountOutcome,
+} from '@omne-harness/agent-contract'
 import { modelDeliveryMaterial, modelReceivedDraft } from '../src/receiving-material.ts'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import {
@@ -244,6 +248,43 @@ describe('host Model receiver', () => {
     expect(await s.receiver.push({ ...input, delivery: { ...s.delivery, accounts: [] } })).toEqual({
       failure: { kind: 'invalid', field: 'accounts', reason: 'dispatch-set-mismatch' },
     })
+  })
+  // Red when the receiver stops routing the target query, or reads the route from text that its own
+  // owner did not register: a provider that keeps bindings per execution then finds none.
+  it('routes the target query to the execution its own consumer position names', async () => {
+    const s = await setup()
+    const routes: unknown[] = []
+    const receiver = createAgentModelReceiver(
+      {
+        ...s.dependencies,
+        targets: {
+          forExecution: input => s.dependencies.targets.forExecution(input),
+          resolve(input) {
+            routes.push(input.execution)
+            return s.dependencies.targets.resolve(input)
+          },
+        },
+      },
+      createModelReceiverState<string>(),
+    )
+    const signal = new AbortController().signal
+    expect(await receiver.push({ access: alice, delivery: s.delivery, signal })).toHaveProperty(
+      'ok',
+    )
+    expect(routes).toEqual([execution()])
+    // Another owner's position names no route; the target query gets none.
+    const foreign = { ...s.delivery.consumer, owner: 'another-owner' }
+    await receiver.push({ access: alice, delivery: { ...s.delivery, consumer: foreign }, signal })
+    expect(routes).toEqual([execution(), undefined])
+    // A route to another execution reads no binding there: the provider answers as for none.
+    expect(
+      await s.dependencies.targets.resolve({
+        access: alice,
+        consumer: s.delivery.consumer,
+        reference: s.delivery.key.reference,
+        execution: ok(decodeAgentExecutionId('another-execution')),
+      }),
+    ).toHaveProperty('failure.kind', 'denied')
   })
   it('takes a frozen input before asynchronous authorization', async () => {
     const s = await setup(),

@@ -1,13 +1,15 @@
 // @module-tag slow
 // The `agent-journal` row: the real Session-log Journal provider over the real storage rows. The row
-// is ACTIVE and provides `agentJournal`, `agentJournalEntries` and `agentMaterials` from the one
-// provider, as the assembly page asks; the provider serves the coordination its SPEC declares.
+// is ACTIVE and provides `agentJournal`, `agentJournalEntries`, `agentMaterials` and the two Model
+// result receiver faces (R2-D237) from the one provider, as the assembly page asks; the provider serves the coordination its SPEC declares.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AgentJournal } from '@omne-harness/agent-contract'
 import {
   agentJournalEntriesKey,
   agentJournalKey,
   agentMaterialsKey,
+  agentModelReceptionTargetsKey,
+  agentReceivedCommitsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import { agentJournalRow, agentJournalCombination } from '../../../src/rows/agent-journal/index.ts'
@@ -44,7 +46,13 @@ describe('the agent-journal row: declaration', () => {
       row: 'agent-journal',
       implementation: 'real',
       manifest: {
-        provides: ['agentJournal', 'agentJournalEntries', 'agentMaterials'],
+        provides: [
+          'agentJournal',
+          'agentJournalEntries',
+          'agentMaterials',
+          'agentReceivedCommits',
+          'agentModelReceptionTargets',
+        ],
         injects: ['sessionAccessCheck', 'storage', 'tenantDomainLookup'],
         phase: null,
         sameProviderGroup: 'agent-journal',
@@ -68,7 +76,13 @@ describe('the agent-journal row: on the real storage rows', () => {
     const tree = await start()
     expect(tree.allActive).toBe(true)
     expect(tree.state('agent-journal')).toMatchObject({ state: 'ACTIVE', missing: [] })
-    for (const key of [agentJournalKey, agentJournalEntriesKey, agentMaterialsKey])
+    for (const key of [
+      agentJournalKey,
+      agentJournalEntriesKey,
+      agentMaterialsKey,
+      agentReceivedCommitsKey,
+      agentModelReceptionTargetsKey,
+    ])
       expect(tree.service(key), key).toBeDefined()
   })
 

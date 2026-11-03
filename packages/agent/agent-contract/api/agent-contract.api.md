@@ -190,6 +190,8 @@
 - `ModelContextRead` · `request.d.ts`
 - `ModelContextReader` · `request.d.ts`
 - `ModelPurpose` · `evaluation.d.ts`
+- `ModelReceptionTarget` · `receiving.d.ts`
+- `ModelReceptionTargets` · `receiving.d.ts`
 - `ModelRecipient` · `request.d.ts`
 - `ModelReplyAdmission` · `evaluation.d.ts`
 - `ModelSelection` · `request.d.ts`
@@ -3075,9 +3077,9 @@ import type { CallAccount } from '@omne-harness/call-account';
 import type { ContentBlock } from '@omne-harness/content-block';
 import type * as M from '@omne-harness/model-contract';
 import type * as T from '@omne-harness/tool-contract';
-import type { Reply } from './evaluation.ts';
+import type { PendingCall, Reply } from './evaluation.ts';
 import type { CommandReceipt, ExecutionMutation } from './execution.ts';
-import type { Access, Authority, ConsumerRef, ConsumptionId, DurableEvidence } from './identity.ts';
+import type { Access, AgentExecutionId, AgentInstanceId, Authority, ConsumerRef, ConsumptionId, DurableEvidence } from './identity.ts';
 import type { AgentJournal } from './journal.ts';
 import type { AgentMaterials, Material } from './passages.ts';
 export type StartFenceEntry = Readonly<{
@@ -3156,6 +3158,25 @@ export type ReceivedCommitQuery = ReceivedCommitResult | Readonly<{
 export interface AgentReceivedCommits<P, B extends ContentBlock> {
     commit(input: ReceivedCommitInput<P, B>): Reply<ReceivedCommitResult>;
     query(input: ExecutionMutation<P>): Reply<ReceivedCommitQuery>;
+}
+export type ModelReceptionTarget = Readonly<{
+    execution: AgentExecutionId;
+    instance: AgentInstanceId;
+    pending: Extract<PendingCall, {
+        kind: 'model';
+    }>;
+}>;
+export interface ModelReceptionTargets<P> {
+    forExecution(input: Readonly<{
+        access: Access<P>;
+        execution: AgentExecutionId;
+    }>): Reply<readonly ModelReceptionTarget[]>;
+    resolve(input: Readonly<{
+        access: Access<P>;
+        consumer: ConsumerRef;
+        reference: M.ModelInvocationRef;
+        execution?: AgentExecutionId;
+    }>): Reply<ModelReceptionTarget>;
 }
 export type AgentReceivedProvider<P, B extends ContentBlock> = Readonly<{
     journal: AgentJournal<P>;

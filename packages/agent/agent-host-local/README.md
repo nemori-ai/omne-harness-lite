@@ -4,7 +4,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## Responsibility and status
 
-Concrete Cordis integration and ownership of binding resources. The root entry provides an independent Model receiver. Implemented: the `./cordis` entry exports the `agent-host` plugin `agentHostPlugin` (instance provision, reservation and publication, idle reclaim, recovery and control entries); it does not yet register the result receiver. Scope and known gaps are in the [SPEC](SPEC.md#宿主插件). The design is [accepted](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204).
+Concrete Cordis integration and ownership of binding resources. The root entry provides an independent Model receiver. Implemented: the `./cordis` entry exports the `agent-host` plugin `agentHostPlugin` (instance provision, reservation and publication, idle reclaim, recovery and control entries, and the Model result receiver that it registers with the Model runtime). Scope and known gaps are in the [SPEC](SPEC.md#宿主插件). The design is [accepted](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204).
 
 ## Usage
 
