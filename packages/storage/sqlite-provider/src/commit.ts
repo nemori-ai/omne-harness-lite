@@ -16,7 +16,7 @@ import { type Core, identityKey, sameScope } from './core.ts'
 import { decodeIdentity, isDigest, isName } from './fields.ts'
 import { canonicalJson, isStrictJson, jsonShape, utf8Length } from './json.ts'
 import type { CommitReply } from './worker/protocol.ts'
-import { WorkerExited } from './writer-client.ts'
+import { observeReply, WorkerExited } from './writer-client.ts'
 
 type Judged =
   | Readonly<{ kind: 'rejected'; reason: CommitRejectReason }>
@@ -164,20 +164,16 @@ export function createCommit(core: Core): SqlStorage['commit'] {
         }
         // The caller observes the reply for a bounded time. What the write holds (reservation,
         // pending entry, its place in the order) stays with the Worker until the reply or the exit.
-        const observation = setTimeout(
-          () => settle(unknown('reply_wait_expired')),
-          core.replyObservationMs,
-        )
         try {
-          reply = await ready.client.request<CommitReply>({
-            kind: 'commit',
-            request: input,
-            inputDigest,
-          })
+          reply = await observeReply(
+            () =>
+              ready.client.request<CommitReply>({ kind: 'commit', request: input, inputDigest }),
+            core.replyObservationMs,
+            () => settle(unknown('reply_wait_expired')),
+          )
         } catch (error) {
           return unknown(error instanceof WorkerExited ? 'worker_exited' : 'provider_error')
         } finally {
-          clearTimeout(observation)
           admission.release()
         }
         switch (reply.kind) {

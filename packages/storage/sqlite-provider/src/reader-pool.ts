@@ -449,14 +449,7 @@ export class ReaderPool {
       this.pump(job.domain)
       return
     }
-    // domain-serial: the connection first, then the barrier (SPEC 9.3). The wait counts in the
-    // queue timeout of the task; a task that settles meanwhile (expiry, abort) is withdrawn from
-    // the order and keeps no place in it.
-    let release: (() => void) | null = null
-    if (job.handler.ordering === 'domain-serial') {
-      const hold = await this.barrier.acquire(job.domain, { signal: task.withdraw.signal })
-      if (hold.kind === 'granted') release = hold.release
-    }
+    const release = await this.holdBarrier(task)
     if (task.settled || reader.state === 'closing') {
       release?.()
       if (task.settled) {
@@ -471,11 +464,7 @@ export class ReaderPool {
     }
     task.phase = 'dispatched'
     task.startTimer(this.config.readObservationMs, () => task.settle(unavailable('read_timeout')))
-    // The barrier is held for at most readObservationMs (SPEC 9.3): a read that outlives its
-    // observation delivers no result, so later writes do not wait for its SQL to end. A cancelled
-    // observation does not stop this deadline.
-    const holdDeadline =
-      release === null ? null : setTimeout(release, this.config.readObservationMs)
+    const releaseBarrier = this.boundedHold(release)
     const spec: HandlerSpec = {
       moduleUrl: job.handler.moduleUrl,
       codeDigest: job.handler.codeDigest,
@@ -500,13 +489,38 @@ export class ReaderPool {
       outcome = unavailable(error instanceof WorkerExited ? 'worker_exited' : 'read_failed')
     }
     // The transaction has ended, or the exit of the Worker is observed: the barrier goes.
-    if (holdDeadline !== null) clearTimeout(holdDeadline)
-    release?.()
+    releaseBarrier()
     if (reusable) this.release(reader)
     else void this.retire(reader)
     task.settle(outcome)
     task.finish()
     this.pump(job.domain)
+  }
+
+  /**
+   * domain-serial: the barrier of the domain, after the connection (SPEC 9.3). The wait counts in
+   * the queue timeout of the task; a task that settles meanwhile (expiry, abort) is withdrawn
+   * from the order and keeps no place in it. Null for a snapshot read or a withdrawn task.
+   */
+  private async holdBarrier(task: Task): Promise<(() => void) | null> {
+    if (task.job.handler.ordering !== 'domain-serial') return null
+    const hold = await this.barrier.acquire(task.job.domain, { signal: task.withdraw.signal })
+    return hold.kind === 'granted' ? hold.release : null
+  }
+
+  /**
+   * The barrier is held for at most readObservationMs (SPEC 9.3): a read that outlives its
+   * observation delivers no result, so later writes do not wait for its SQL to end. A cancelled
+   * observation does not stop this deadline. The returned function releases earlier, at the reply
+   * or at the exit of the Worker.
+   */
+  private boundedHold(release: (() => void) | null): () => void {
+    if (release === null) return () => undefined
+    const deadline = setTimeout(release, this.config.readObservationMs)
+    return () => {
+      clearTimeout(deadline)
+      release()
+    }
   }
 
   private outcomeOf(reply: ReaderReply): ReadOutcome {

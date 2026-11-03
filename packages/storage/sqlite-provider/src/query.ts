@@ -7,6 +7,7 @@ import type { QueryResultV2, SqlIdentity, SqlStorage } from '@omne-harness/sql-c
 import { type Core, identityKey, sameScope } from './core.ts'
 import { decodeIdentity } from './fields.ts'
 import type { QueryReply } from './worker/protocol.ts'
+import { observeReply } from './writer-client.ts'
 
 const PROOFS = {
   writerGenerationExcluded: true,
@@ -43,16 +44,11 @@ export function createQuery(core: Core): SqlStorage['query'] {
           return unknown('domain_unavailable')
         const key = identityKey(valid)
         const pendingBefore = core.pending.has(key)
-        const observation = setTimeout(expire, core.replyObservationMs)
-        let reply: QueryReply
-        try {
-          reply = await outcome.entry.client.request<QueryReply>({
-            kind: 'query',
-            identity: valid,
-          })
-        } finally {
-          clearTimeout(observation)
-        }
+        const reply = await observeReply(
+          () => outcome.entry.client.request<QueryReply>({ kind: 'query', identity: valid }),
+          core.replyObservationMs,
+          expire,
+        )
         if (reply.kind === 'receipt') return reply.receipt
         if (reply.kind === 'withdrawn') return unknown('closing')
         if (reply.kind !== 'none') return unknown('provider_error')

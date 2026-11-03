@@ -13,7 +13,7 @@ import {
 import { type Core, sameScope } from './core.ts'
 import { DOMAIN_BYTES, decodeScope, isDigest, isName } from './fields.ts'
 import type { RegisterReply, RegistrationSpec } from './worker/protocol.ts'
-import { WorkerExited } from './writer-client.ts'
+import { observeReply, WorkerExited } from './writer-client.ts'
 
 type Judged =
   | Readonly<{ kind: 'rejected'; reason: RegisterRejectReason }>
@@ -111,16 +111,15 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
           resume()
           return unknown('withdrawn_before_start')
         }
-        const observation = setTimeout(() => expire('reply_wait_expired'), core.replyObservationMs)
         try {
-          reply = await entry.client.request<RegisterReply>({
-            kind: 'register',
-            registration: spec,
-          })
+          reply = await observeReply(
+            () => entry.client.request<RegisterReply>({ kind: 'register', registration: spec }),
+            core.replyObservationMs,
+            () => expire('reply_wait_expired'),
+          )
         } catch (error) {
           return unknown(error instanceof WorkerExited ? 'worker_exited' : 'provider_error')
         } finally {
-          clearTimeout(observation)
           resume()
         }
         switch (reply.kind) {
