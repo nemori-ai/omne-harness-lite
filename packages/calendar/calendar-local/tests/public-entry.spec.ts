@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
+import * as local from '@omne-harness/calendar-local'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
-  const root = (await import('@omne-harness/calendar-local')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+it('exports independent storage factory and build-fixed materials', () => {
+  expect(local).toHaveProperty('createCalendarSqlPersistence', expect.any(Function))
+  expect(local).toHaveProperty('calendarSqlMaterials', expect.any(Function))
 })

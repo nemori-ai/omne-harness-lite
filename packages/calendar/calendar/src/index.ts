@@ -6,3 +6,4 @@ export {
   listWorkingDays,
   selectNthWorkingDay,
 } from './calculation.ts'
+export type * from './persistence.ts'
