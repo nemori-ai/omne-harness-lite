@@ -4,6 +4,7 @@ import {
   decodePassageId,
   type Access,
   type Action,
+  type ActionBatch,
   type AdmissionDecision,
   type Adoption,
   type AgentExecutionId,
@@ -29,7 +30,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AgentDependencies } from '../construction.ts'
 import { canonical } from '../canonical.ts'
 import { json } from '../receiving-values.ts'
-import { toolConsumption, type Message } from './identities.ts'
+import { agentEvidence, toolConsumption, type Message } from './identities.ts'
 
 type Ports<P> = Pick<AgentDependencies<P, ContentBlock>, 'admission' | 'toolRequests' | 'materials'>
 
@@ -77,19 +78,42 @@ export function toolConsumer(execution: AgentExecutionId, action: Action): Consu
   return { owner: '@omne-harness/agent', work: execution, position: action.id, purpose: 'action' }
 }
 
-/** An admission that did not allow the action: a denial, or the failure it stands for. */
+/**
+ * The judgment of one action at A0: judged (allowed or denied), or the admission was unavailable.
+ * An unavailable admission denies the whole batch (agent-contract SPEC "整批判断屏障与动作准入"
+ * rule 2), so it is an answer of the judgment, not a failure of the step.
+ */
+export type ToolAdmission =
+  | Readonly<{ kind: 'judged'; action: Action }>
+  | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
+
+const judged = (action: Action): Outcome<ToolAdmission, Failure> =>
+  succeed({ kind: 'judged', action })
+
+const unavailableAdmission = (owner: string, diagnostic: string): Outcome<ToolAdmission, Failure> =>
+  succeed({ kind: 'unavailable', owner, diagnostic })
+
+/**
+ * A port Failure that stands for an unavailable admission. Rule 2 reads a `denied` or `unavailable`
+ * Failure of the admission port as unavailable; the trusted Tool request source is part of the same
+ * admission (R2-D36, agent-host-local SPEC "Tool 请求来源"), so its two refusals read the same way.
+ * Every other Failure (a stale advance, a defect, an invalid request) stays a failure of the step.
+ */
+function asUnavailable(owner: string, failure: Failure): Outcome<ToolAdmission, Failure> {
+  if (failure.kind === 'unavailable') return unavailableAdmission(failure.owner, failure.diagnostic)
+  if (failure.kind === 'denied') return unavailableAdmission(owner, `denied ${failure.action}`)
+  return fail(failure)
+}
+
+/** An admission that did not allow the action: a denial, an unavailable admission, or a failure. */
 function notAllowed(
   action: Action,
   decision: Exclude<AdmissionDecision, { kind: 'allow' }>,
-): Outcome<Action, Failure> {
+): Outcome<ToolAdmission, Failure> {
   if (decision.kind === 'deny')
-    return succeed({ ...action, judgment: { kind: 'denied', evidence: decision.evidence } })
+    return judged({ ...action, judgment: { kind: 'denied', evidence: decision.evidence } })
   if (decision.kind === 'unavailable')
-    return fail({
-      kind: 'unavailable',
-      owner: 'agentActionAdmission',
-      diagnostic: decision.diagnostic,
-    })
+    return unavailableAdmission('agentActionAdmission', decision.diagnostic)
   // need-decision: the decision card round is not implemented yet.
   return fail({ kind: 'unsupported' })
 }
@@ -100,14 +124,10 @@ export async function admitToolAction<P>(
   execution: AgentExecutionId,
   advance: Authority,
   action: Action,
-): Promise<Outcome<Action, Failure>> {
-  if (action.judgment.kind !== 'pending') return succeed(action)
+): Promise<Outcome<ToolAdmission, Failure>> {
+  if (action.judgment.kind !== 'pending') return judged(action)
   if (ports.toolRequests === undefined)
-    return fail({
-      kind: 'unavailable',
-      owner: 'agentToolRequests',
-      diagnostic: 'trusted Tool request source is unavailable',
-    })
+    return unavailableAdmission('agentToolRequests', 'trusted Tool request source is unavailable')
   const input = {
     ...access,
     execution,
@@ -117,7 +137,7 @@ export async function admitToolAction<P>(
     consumer: toolConsumer(execution, action),
   }
   const described = await ports.toolRequests.describe(input)
-  if ('failure' in described) return described
+  if ('failure' in described) return asUnavailable('agentToolRequests', described.failure)
   const admitted = await ports.admission.admit({
     ...input,
     advance,
@@ -126,20 +146,42 @@ export async function admitToolAction<P>(
     permissions: [],
     decision: null,
   })
-  if ('failure' in admitted) return admitted
+  if ('failure' in admitted) return asUnavailable('agentActionAdmission', admitted.failure)
   if (admitted.ok.kind !== 'allow') return notAllowed(action, admitted.ok)
   const prepared = await ports.toolRequests.prepare({
     ...input,
     definition: described.ok,
     admission: admitted.ok.evidence,
   })
-  if ('failure' in prepared) return prepared
+  if ('failure' in prepared) return asUnavailable('agentToolRequests', prepared.failure)
   const request = checkedRequest(prepared.ok, described.ok, input.consumer, action)
   if ('failure' in request) return request
-  return succeed({
+  return judged({
     ...action,
     judgment: { kind: 'allowed', evidence: admitted.ok.evidence, request: request.ok },
   })
+}
+
+/**
+ * Rule 2 for an unavailable admission: no action of the batch is released. Every action that is
+ * not denied already, allowed or still pending, is denied with the evidence of the unavailable
+ * admission; A1 then closes the barrier as all-denied and no later chain calls admit.
+ */
+export function deniedForUnavailableAdmission(
+  execution: AgentExecutionId,
+  batch: ActionBatch,
+  cause: Extract<ToolAdmission, { kind: 'unavailable' }>,
+  actions: readonly Action[],
+): readonly Action[] {
+  const evidence = agentEvidence(`${execution}/${batch.id}/admission-unavailable`, {
+    owner: cause.owner,
+    diagnostic: cause.diagnostic,
+  })
+  return actions.map(action =>
+    action.judgment.kind === 'denied'
+      ? action
+      : { ...action, judgment: { kind: 'denied', evidence } },
+  )
 }
 
 /**
