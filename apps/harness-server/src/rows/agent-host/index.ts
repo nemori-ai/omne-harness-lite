@@ -14,10 +14,14 @@
 // - `measure`: the observer of the Agent measurement events (R2-D49), handed to every runtime.
 //   Absent: no event is built.
 //
-// Phase `business`, carried by the row body. The member has no ordered stop yet: it exposes no
-// quiesce-all entry and does not inject `assemblyLifecycle`, and instances are released only when the
-// fiber unloads. The handle therefore answers `incomplete` with that reason. It never answers
-// `settled`, so the shutdown report stays honest until the member offers the entry.
+// Phase `business`, carried by the row body. The handle's stop calls the member's ordered stop,
+// `quiesceAll` of the plugin object (agent-host-local SPEC "有序停止"): admission closes, every
+// instance is quiesced, and only drained ones unload. The member's answer maps as it is: `settled`
+// to `settled`, `incomplete` to `incomplete` with the member's detail, which names each instance
+// that did not drain and why. The deadline is the one the shutdown coordinator hands to the stop,
+// on the monotonic clock of the shutdown; the row adds no time of its own. With the Agent factory
+// of this release quiesce answers `unavailable` (#502 stage 5), so a stop with a live instance is
+// `incomplete`; with no instance it is `settled`.
 //
 // Configuration (data only, no default; the operator layer gives every item): the factory items
 // and `instanceIdleMs` that the member's schema judges, and one release rule on top (R2-D93): the
@@ -32,6 +36,7 @@ import {
   createAgentHostLocalPlugin,
   type AgentHostConfig,
   type AgentHostLocalPluginInput,
+  type AgentHostPlugin,
 } from '@omne-harness/agent-host-local/cordis'
 import {
   agentAccessCheckKey,
@@ -52,7 +57,8 @@ import {
   agentAccountOutletKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
-import { defineRow, type RowBody } from '../../row.ts'
+import { defineRow, type RowBody, type RowHandle } from '../../row.ts'
+import { monotonicClock } from '../../shutdown.ts'
 
 /** The host maintenance principal: a root object of the assembly entry with no service definition. */
 const AGENT_HOST_PRINCIPAL = 'agentHostPrincipal'
@@ -103,26 +109,38 @@ export const agentHostRowConfig = {
   },
 }
 
-function bodyOf(input: AgentHostRowInput): RowBody {
-  return async (ctx, config) => {
-    const plugin = createAgentHostLocalPlugin({
-      ...(input.toolRequestsOf === undefined ? {} : { toolRequests: input.toolRequestsOf(ctx) }),
-      ...(input.measure === undefined ? {} : { measure: input.measure }),
-    })
-    await plugin.apply(ctx, config as AgentHostConfig)
-    return {
-      stop: () =>
-        Promise.resolve({
-          kind: 'incomplete',
-          detail:
-            'agent-host-local has no ordered stop: instances are released when the host fiber unloads',
-        }),
-    }
+/** A signal that aborts at `deadline` on the shutdown's monotonic clock (whole ms, rounded up). */
+function signalAt(deadline: number): AbortSignal {
+  const left = Math.ceil(deadline - monotonicClock.now())
+  return left > 0 ? AbortSignal.timeout(left) : AbortSignal.abort()
+}
+
+/** The row handle over the plugin the body runs: its stop is the member's ordered stop. */
+function handleOf(plugin: AgentHostPlugin): RowHandle {
+  return {
+    async stop(deadline) {
+      const answer = await plugin.quiesceAll({ signal: signalAt(deadline) })
+      return answer.kind === 'settled'
+        ? { kind: 'settled' }
+        : { kind: 'incomplete', detail: answer.detail }
+    },
   }
 }
 
-/** The `agent-host` row over the given construction inputs. */
-export function createAgentHostRow(input: AgentHostRowInput = {}) {
+function bodyOver(pluginOf: (ctx: Context) => AgentHostPlugin): RowBody {
+  return async (ctx, config) => {
+    const plugin = pluginOf(ctx)
+    await plugin.apply(ctx, config as AgentHostConfig)
+    return handleOf(plugin)
+  }
+}
+
+/**
+ * The `agent-host` row over any plugin with the member's ordered stop. `createAgentHostRow` gives it
+ * the member's local plugin; a test gives it the plugin of `@omne-harness/agent-host-local/testing`
+ * to stand in for runtime duties the Agent factory does not keep yet.
+ */
+export function createAgentHostRowOver(pluginOf: (ctx: Context) => AgentHostPlugin) {
   return defineRow({
     row: 'agent-host',
     implementation: 'real',
@@ -153,8 +171,18 @@ export function createAgentHostRow(input: AgentHostRowInput = {}) {
     },
     lifecycle: { kind: 'body', phase: 'business' },
     Config: agentHostRowConfig,
-    body: bodyOf(input),
+    body: bodyOver(pluginOf),
   })
+}
+
+/** The `agent-host` row over the given construction inputs. */
+export function createAgentHostRow(input: AgentHostRowInput = {}) {
+  return createAgentHostRowOver(ctx =>
+    createAgentHostLocalPlugin({
+      ...(input.toolRequestsOf === undefined ? {} : { toolRequests: input.toolRequestsOf(ctx) }),
+      ...(input.measure === undefined ? {} : { measure: input.measure }),
+    }),
+  )
 }
 
 /** The row without construction inputs: no Tool request source and no measurement observer. */

@@ -102,7 +102,7 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
 - 空闲计时：实例经登记句柄 `report` 为 `idle` 后，宿主用 `agentClock.waitUntil` 计时 `instanceIdleMs`。转为 `occupied` 就取消计时。
 - 回收的保护点：计时到期的回调里，宿主不经 `await`，依次读该实例最近一次 `report`，不是 `idle` 就放弃本次回收，是 `idle` 就在槽表标记“回收中”，然后同步调用 quiesce。回收标记使后到的 `acquire` 不再返回旧实例。runtime 一侧的两条同步义务见[通用工厂](../../agent/docs/public-api.md#quiesce-与执行槽的同步义务)。
 - 回收的结果：quiesce 返回 drained 后，宿主卸载贡献 fiber，从槽表删除该实例，并以原因证据（owner `agent-host`，record 写 `idle-reclaim`）记录。返回 unresolved 时，登记保持 published，撤销回收标记，槽表恢复。
-- 有序关闭：`assemblyLifecycle` 停止时，宿主以宿主主体对全部实例调用 quiesce。unresolved 的实例留给 fiber 卸载，按“非计划卸载”处置。
+- 有序关闭：装配关闭时，行句柄调用插件对象的 `quiesceAll({ signal })`。宿主先停止准入，再以宿主主体对全部实例调用 quiesce。unresolved 的实例留给 fiber 卸载，按“非计划卸载”处置。结果与截止规则见 SPEC 的“[有序停止](../SPEC.md#有序停止)”。
 
 ### 在途责任
 
@@ -161,4 +161,4 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
 
 外部协调者的装配须验证：协调者已可靠受理而通知尚未到达时，Agent 不能越过原输入完成；不能先提交一域再提交另一域。独立装配须验证消费者不回复终态批准也能完成。两者均核原输入身份、共同事件保存、查询未知与旧挂接失权；加载成功不证明这些性质。
 
-实现时验证静态 inject、局部依赖撤除、旧引用拒绝和先业务交接后 dispose。另须验证：Journal 提供者没有声明装配所需的共同提交时工厂返回 unsupported；贡献 fiber 卸载后登记消失；旧登记身份的晚到撤除不撤后继；quiesce 返回 unresolved 时宿主不撤登记。宿主插件的测试在真实 Cordis 4.0.4 上验证静态 inject、配置错误、换提供者重跑、实例取得的符合性套件、回收保护点、quiesce 未交清时不撤登记、旧登记的晚到撤除不撤后继，以及恢复与控制入口。测试清单见[测试说明](../tests/index.md)。局部依赖的子 fiber 撤除、有序关闭与接收方登记尚未验证。根入口另以真实工厂和同源内存 Journal 验证 supported/unsupported、共同保存及原 handoff 重试。
+实现时验证静态 inject、局部依赖撤除、旧引用拒绝和先业务交接后 dispose。另须验证：Journal 提供者没有声明装配所需的共同提交时工厂返回 unsupported；贡献 fiber 卸载后登记消失；旧登记身份的晚到撤除不撤后继；quiesce 返回 unresolved 时宿主不撤登记。宿主插件的测试在真实 Cordis 4.0.4 上验证静态 inject、配置错误、换提供者重跑、实例取得的符合性套件、回收保护点、quiesce 未交清时不撤登记、旧登记的晚到撤除不撤后继，以及恢复与控制入口。测试清单见[测试说明](../tests/index.md)。有序关闭用测试包装的 runtime 停用义务验证宿主一侧。局部依赖的子 fiber 撤除与接收方登记尚未验证。根入口另以真实工厂和同源内存 Journal 验证 supported/unsupported、共同保存及原 handoff 重试。

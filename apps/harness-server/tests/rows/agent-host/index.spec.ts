@@ -6,8 +6,8 @@
 // is the member's plus the release rule that `jointCommits` lists `message` (R2-D93). The two
 // construction inputs reach every runtime the host builds: the measurement observer, and the Tool
 // request source, without which a Tool action is not admitted. The injects are the stand-ins of
-// `doubles.ts`; the real providers are other rows and the assembly entry. The host has no ordered
-// stop yet: its handle answers `incomplete` and says so; it never claims `settled`.
+// `doubles.ts`; the real providers are other rows and the assembly entry. The handle's stop is the
+// member's ordered stop; its cases are in `stop.spec.ts`.
 import { afterEach, describe, expect, it } from 'vitest'
 import { agentEvaluator, type AgentMeasureEvent } from '@omne-harness/agent'
 import { testAdoption } from '@omne-harness/agent/testing'
@@ -218,15 +218,14 @@ describe('the agent-host row: on test stand-ins of its fourteen injects', () => 
   })
 
   it(
-    'registers a business-phase handle that does not claim an ordered stop it lacks',
+    'registers a business-phase handle whose stop is settled with no instance',
     { timeout: 60_000 },
     async () => {
       const { tree } = await start({ omit: null })
       const report = await tree.shutdown()
       const outcome = report.outcomes.find(entry => entry.row === 'agent-host')
       expect(outcome?.phase).toBe('business')
-      expect(outcome?.result.kind).toBe('incomplete')
-      expect(report.overall).toBe('incomplete')
+      expect(outcome?.result).toEqual({ kind: 'settled' })
     },
   )
 })

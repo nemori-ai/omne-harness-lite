@@ -20,6 +20,7 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 - 空闲回收。实例报告 idle 后，宿主用 `agentClock` 计时 `instanceIdleMs`。到期回调不经 await，先读最近一次报告，再标记回收，然后调用 quiesce。只有 drained 才卸载贡献 fiber。unresolved 或失败时，实例保持 published，宿主记录 error 级诊断，下一次空闲到期再试。
 - 恢复入口与控制入口。每个操作先以 `agentAccessCheck` 核验本操作名，目标是原 execution，然后调用 Journal。两个入口不要求活体 runtime，也不要求执行句柄。它们保留 Journal 的答复，包括未知。目标挂接属于本宿主仍在运行的 runtime 时，detach 另核 takeover。
 - <a id="恢复路径的未推进控制"></a>控制的推进。Journal 受理控制之后，宿主读原 execution 的当前挂接。挂接属于本宿主仍在运行的 runtime 时，宿主用该 runtime 的依赖经 `@omne-harness/agent` 的 `advanceControl` 推进这项控制，与执行句柄的 control 相同：取消建立意图并撤销推进资格，Model 或 Tool 中断只作用于原调用。推进在答复之前完成。推进失败时返回该失败，调用方以同一 control operation 重试，已保存的阶段按派生 operation 认回，不重复写。没有挂接，或挂接不属于本宿主仍在运行的 runtime 时，控制只保存为 accepted，由恢复路径推进，宿主不另造推进。已知限制：当前恢复路径（Agent 协调器的 R0）遇到未推进的 accepted 控制仍答 `#502 stage 5` 未实现，所以挂接属于别的进程或已退役实例时，这项控制停在 accepted，不建立意图。触发条件：跨进程宿主或恢复后取消进入验收。
+- <a id="有序停止"></a>有序停止。依据 R2-D162：插件对象带 `quiesceAll({ signal })`，由持有插件对象的装配在关闭时调用。它不是 Cordis 服务，应用成员拿不到它。调用后宿主先停止准入：之后的 `acquire` 与 `reserve` 答 unavailable（owner 为 `agent-host`），不再建立实例，也不再开始空闲回收。准入停止前已开始的建立，宿主等它发布或撤销。然后宿主对每个已发布、由本宿主运行的实例调用 quiesce，与空闲回收用同一条路径，不看最近一次报告。只有 drained 的实例才 retire 并卸载贡献 fiber。全部实例都在 `signal` 中止前答 drained 时，结果是 settled。有实例答 unresolved、quiesce 失败或抛出、`signal` 中止时仍没有答复，或有建立没有结束时，结果是 incomplete，`instances` 逐个列出实例与原因，`detail` 是同一内容的文字。没有答 drained 的实例保持 published，留给 fiber 卸载，按“突然失去依赖”处置。截止时间由调用方经 `signal` 给出，本成员不设默认值。插件体没有运行时，结果是 settled，因为没有实例。
 - 突然失去依赖。插件体卸载时，宿主停止计时，不再建立实例，也不调用 detach。挂接与在途责任保留在 Journal，宿主不声称外部效果已撤回。
 
 ### 测量事件
@@ -42,7 +43,7 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 
 1. Runtime 一侧的停用义务尚未实现。Agent 工厂的 quiesce 现在答 unavailable（#502 阶段 5），invoke 取执行槽时也不同步报告 occupied（XC-AGINST 第 3.5 节第 2 条）。所以用生产工厂时，空闲实例不会被回收；宿主只记录诊断，并按期重试。宿主一侧的回收与保护点只用测试包装验证。
 2. 接收组件尚未接入插件。Cordis 定义没有提供 `AgentReceivedCommits` 与原消费绑定目标查询的服务键，所以插件不能从注入的服务组装接收组件，也没有经 `modelRuntime.registerResultReceiver` 登记。应用装配页为接收组件列出的 `agentJournalEntries`、`agentMaterials` 与 `agentAccountOutlet` 因此暂未写进 inject。
-3. 有序关闭尚未接线，因为 `assemblyLifecycle` 还没有 kernel-basis 的定义。
+3. 本成员不注入 `assemblyLifecycle`，因为它还没有 kernel-basis 的定义。有序停止由装配的行句柄调用插件对象的 `quiesceAll`，见“[有序停止](#有序停止)”。用生产工厂时 quiesce 答 unavailable（缺口 1），所以有活实例时有序停止答 incomplete。
 4. 局部依赖在每次调用时经 `ctx.get` 现取，缺席时立即答 unavailable。设计中的阶段子 fiber（`ctx.inject`）尚未实现。`ToolRuntime` 中不返回 Reply 的成员在缺席时也得到 Reply 形状的失败；本版不装配 Tool 阶段。
 5. 恢复入口的 reconcile 在核验之后答具名 unavailable。
 6. 宿主的预约表与槽表只在内存，只在本进程有效。已结束实例的记录保留到插件体结束。
@@ -69,4 +70,4 @@ Tool 工厂沿 [Tool 接收入口](../agent/docs/public-api.md#独立-tool-接�
 
 根入口测试实际装配接收工厂，验证 supported/unsupported、共同保存与原 handoff 重试。Agent 成员另验证接收算法、隔离、取消与换代。
 
-宿主插件的测试在真实 Cordis 4.0.4 上运行。它们验证装载、逐项缺席时的 PENDING、配置错误时的 FAILED、换提供者后插件体重跑、`agentInstanceProvisionConformance` 对宿主真件通过、回收保护点、quiesce 失败或 unresolved 时保持 published、宿主主体被拒、旧登记撤除不撤后继、非宿主 fiber 的撤除被拒，以及恢复入口与控制入口的读回、核验与跨租户拒绝。控制入口对本宿主仍在运行的 runtime 的执行推进取消、同一 control operation 的重试不再写入、守卫拒绝时一次都不推进，用例在 `tests/control-entry.spec.ts`，Loop 由 `createAgentRuntime` 真件在替身依赖上运行。Journal、Model、授权与会话条件用 agent 的 `./testing` 替身。Runtime 一侧的停用义务用测试包装。`createAgentHostLocalPlugin({ measure })` 的用例在同一个真实宿主上经一次 invoke 取受理段，并核对它与 `agentHostPlugin` 同名、同 inject、同配置，不传观察者时照常服务（`tests/measure-plugin.spec.ts`）。`createAgentHostLocalPlugin({ toolRequests })` 的用例在同一个真实宿主上让 Model 建议一个 Tool 调用，核对 `describe` 与 `prepare` 各一次、Tool 替身 invoke 一次；不传时同一动作不调用 Tool（`tests/tool-requests-plugin.spec.ts`）。这些测试不证明生产 Journal、真实授权、跨进程行为或接收方登记。文件清单见[测试说明](tests/index.md)。
+宿主插件的测试在真实 Cordis 4.0.4 上运行。它们验证装载、逐项缺席时的 PENDING、配置错误时的 FAILED、换提供者后插件体重跑、`agentInstanceProvisionConformance` 对宿主真件通过、回收保护点、quiesce 失败或 unresolved 时保持 published、宿主主体被拒、旧登记撤除不撤后继、非宿主 fiber 的撤除被拒，以及恢复入口与控制入口的读回、核验与跨租户拒绝。控制入口对本宿主仍在运行的 runtime 的执行推进取消、同一 control operation 的重试不再写入、守卫拒绝时一次都不推进，用例在 `tests/control-entry.spec.ts`，Loop 由 `createAgentRuntime` 真件在替身依赖上运行。Journal、Model、授权与会话条件用 agent 的 `./testing` 替身。Runtime 一侧的停用义务用测试包装。有序停止的用例在 `tests/ordered-stop.spec.ts`：无实例时 settled，空闲与占用的实例 drained 后卸载贡献 fiber，unresolved、quiesce 抛出、生产工厂的 unavailable 与超过截止时 incomplete 并点名实例，停止开始后 `acquire` 被拒。`createAgentHostLocalPlugin({ measure })` 的用例在同一个真实宿主上经一次 invoke 取受理段，并核对它与 `agentHostPlugin` 同名、同 inject、同配置，不传观察者时照常服务（`tests/measure-plugin.spec.ts`）。`createAgentHostLocalPlugin({ toolRequests })` 的用例在同一个真实宿主上让 Model 建议一个 Tool 调用，核对 `describe` 与 `prepare` 各一次、Tool 替身 invoke 一次；不传时同一动作不调用 Tool（`tests/tool-requests-plugin.spec.ts`）。这些测试不证明生产 Journal、真实授权、跨进程行为或接收方登记。文件清单见[测试说明](tests/index.md)。
