@@ -14,7 +14,13 @@
 // Why slow: real Workers, real files and the whole line on one root.
 import { afterEach, describe, expect, it } from 'vitest'
 import { EARLIER, intakeAccess, ok, strangerAccess } from './world.ts'
-import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
+import {
+  replyText,
+  toolCallBlock,
+  openW2World,
+  type W2World,
+  reasoningStateBlock,
+} from './w2-world.ts'
 
 const worlds: W2World[] = []
 afterEach(async () => {
@@ -58,13 +64,9 @@ describe('J1: three rounds of one conversation', () => {
   it('J1 three rounds: the request grows and the history read returns only the new rows', async () => {
     // The encrypted reasoning block of round 1 (`reasoning_state` of the message model), paired with
     // its reply text.
-    const reasoning = {
-      kind: 'reasoning_state',
-      id: 'blk_reasoning_state',
-      visibility: { toHuman: false, toModel: true },
-      payload: 'opaque-state-of-round-1',
-      pairs: ['blk_r0'],
-    } as unknown as ReturnType<typeof replyText>
+    const reasoning = reasoningStateBlock('blk_reasoning_state', 'opaque-state-of-round-1', [
+      'blk_r0',
+    ])
     const w = await openW2World({
       earlier: 'session',
       model: a => ({
