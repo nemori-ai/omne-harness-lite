@@ -11,6 +11,7 @@
 - [delegated.spec.ts](delegated.spec.ts)：委派视图的符合性与跨租户用例
 - [operation-evidence.spec.ts](operation-evidence.spec.ts)：操作记录的访问证据与它的迁移
 - [binding-narrow.spec.ts](binding-narrow.spec.ts)：归属读口的窄读取、记忆与停止
+- [scope-kinds-narrow.spec.ts](scope-kinds-narrow.spec.ts)：AD-03 作用域绑定的读法走种类索引、不读快照
 - [principal-bindings.spec.ts](principal-bindings.spec.ts)：会话归属读口的符合性与跨租户用例
 - [real-provider.spec.ts](real-provider.spec.ts)：真实 sqlite-provider 上的组合用例
 - [real-system-reads.spec.ts](real-system-reads.spec.ts)：真实 sqlite-provider 上的 R10、R11 系统读
