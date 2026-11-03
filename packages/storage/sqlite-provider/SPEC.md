@@ -59,7 +59,7 @@
 
 ### §5.3 DO-1：构造与域打开
 
-构造期只装载并验证静态材料【提案 P-08】。工厂核对配置（§12.1）、材料摘要（sql-contract 规格 §4.1）、声明组合与迁移图（sql-contract 规格 §4.2、§4.3）。工厂不打开数据库，不启动 Worker。不通过时工厂返回 `rejected`，插件抛错，fiber 进入 `FAILED`。
+构造期只装载并验证静态材料【提案 P-08】。工厂核对配置（§12.1）、材料摘要（sql-contract 规格 §4.1）、每个读 handler 的 `maxOutputBytes` 不超过 `maxReadResultBytes`（§12.1 规则 6，以 `material_invalid` 拒绝，原因写出 handler 名与两个数值）、声明组合与迁移图（sql-contract 规格 §4.2、§4.3）。工厂不打开数据库，不启动 Worker。不通过时工厂返回 `rejected`，插件抛错，fiber 进入 `FAILED`。
 
 **规则 DO-1。**事务域的打开、恢复、写代际加一、迁移与组合版本升级，只在该域被操作触及时由 SQL 提供者执行。全部成功后，提供者才放行写准入，才持久保存新的登记。DO-1 合并了 Reduce 的 B8 裁定与第二条追加要求。
 
@@ -322,8 +322,8 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 | `readQueueGlobal` | 256 | 全局读等待项 |
 | `readQueueTimeoutMs` | 1000 | 读请求等待派发 |
 | `maxReadInputBytes` | 262144 | 一个读请求的输入 |
-| `maxReadResultBytes` | 4194304 | 一个读结果；每个 handler 的 `maxOutputBytes` 不得超过它 |
-| `globalReadResultBytes` | 33554432 | 全局在途读结果预留 |
+| `maxReadResultBytes` | 20971520 | 一个读结果；每个 handler 的 `maxOutputBytes` 不得超过它。20 MiB 是 Session 日志读所需的上限（R2-D81） |
+| `globalReadResultBytes` | 134217728 | 全局在途读结果预留。每次读按 handler 的 `maxOutputBytes` 预留，所以它至少容纳数个 20 MiB 预留（R2-D81） |
 | `readObservationMs` | 2000 | 读运行的观察期限 |
 | `readerIdleMs` | 30000 | 空闲读 Worker 的关闭期限 |
 | `queryQueuePerDomain` | 16 | 每域 `query` 等待项 |
@@ -351,7 +351,7 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 3. `groupMaxOperations ≤ admissionQueueLimit ≤ globalAdmissionLimit`。
 4. 每对「每域、全局」队列字段中，每域值不大于全局值。
 5. `reservedWriterSlots < maxWorkers`，并且 `maxReadWorkersPerDomain ≤ maxWorkers − reservedWriterSlots`。
-6. `maxReadResultBytes ≤ globalReadResultBytes`。
+6. `maxReadResultBytes ≤ globalReadResultBytes`。另外，每个读 handler 的 `maxOutputBytes ≤ maxReadResultBytes`。后一条在工厂构造期核对，配错在启动时失败；读时的同一检查（`handler_unavailable`）只作兜底。
 7. `journalSizeLimitBytes ≤ walReadPauseBytes`，并且 `checkpointWalBytes ≤ walReadPauseBytes < walWriteStopBytes`。
 
 ### §12.2 资源
