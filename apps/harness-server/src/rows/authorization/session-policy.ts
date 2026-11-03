@@ -1,6 +1,12 @@
 // The Session policy table (DP-4, policy draft §5): one row per SessionAccessOperation, one cell
 // per principal class. The citations use the abbreviations of policy draft §1 (SS, SAC, SCC, AD,
 // SW, IA, AU, ID, PC, AA, DA4, AGI, LP). `satisfies` makes a missing or extra row a type error.
+//
+// Role neutrality (identity delivery spec D2): every `member` cell asks the tenant admission with an
+// empty `requires`, so tenant role never decides a Session or Agent operation. Basis: no accepted
+// text makes a Session or Agent operation conditional on a tenant role; a Session is the private
+// work of the tenant (PD:33); the only named qualification, `organization-cost-ledger-read`, has no
+// Session consumer (ID-16:301-307). Proof: tests/rows/authorization/role-neutral-member-cells.spec.ts.
 import type { SessionAccessOperation } from '@omne-harness/session-contract'
 import { cell, row, type PolicyRow } from './cells.ts'
 
