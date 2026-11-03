@@ -1,7 +1,8 @@
 // commit, control side (SPEC 7.1, 7.2 steps 1 to 8, result mapping). The Worker side is
 // worker/execute.ts. Steps 1 to 7 run before anything is reserved. Step 8 reserves, and from
 // then on the reservation and the pending index entry are returned once, when the result owner
-// has the Worker reply, never when the caller stops observing.
+// has the Worker reply, never when the caller stops observing. The caller stops observing at the
+// close deadline, at an abort, or when a sent write has no reply within lockWaitMs.
 import {
   inputDigestV2,
   type CommitOptions,
@@ -108,6 +109,8 @@ export function createCommit(core: Core): SqlStorage['commit'] {
     return new Promise<CommitResultV2>(resolve => {
       let settled = false
       let detached = false
+      // Withdraws the write while it waits for the barrier (SPEC 7.1 item 3): nothing was sent.
+      const withdraw = new AbortController()
       const settle = (result: CommitResultV2): void => {
         if (settled) return
         settled = true
@@ -117,6 +120,7 @@ export function createCommit(core: Core): SqlStorage['commit'] {
       // Abort releases the observer only. The reservation stays until the owner has the result.
       const onAbort = (): void => {
         detached = true
+        withdraw.abort()
         settle(unknown('observer_detached'))
       }
       signal?.addEventListener('abort', onAbort, { once: true })
@@ -144,13 +148,26 @@ export function createCommit(core: Core): SqlStorage['commit'] {
         if (!sameScope(ready.scope, identity.scope)) return reject('combination_unregistered')
         if (ready.wal.state === 'write-stopped') return reject('domain_unavailable')
         let reply: CommitReply
-        // A domain-serial read holds the barrier: this write enters after it (SPEC 9.3).
-        const leave = await core.barrier.enterWrite(identity.transactionDomain)
+        // Writes and domain-serial barriers share one arrival order (SPEC 9.3). The wait is bounded
+        // by lockWaitMs; a write that expires or is aborted while it waits is withdrawn: nothing
+        // was sent, so the caller can query and retry.
+        const admission = await core.barrier.enterWrite(identity.transactionDomain, {
+          signal: withdraw.signal,
+          timeoutMs: core.config.lockWaitMs,
+        })
+        if (admission.kind === 'withdrawn')
+          return unknown(detached ? 'withdrawn_before_start' : 'barrier_wait_expired')
         // Nothing was sent while the barrier made this write wait: it is withdrawn (SPEC 13.3 step 2).
         if (core.lifecycle.closing) {
-          leave()
+          admission.release()
           return unknown('withdrawn_before_start')
         }
+        // The caller observes the reply for lockWaitMs. What the write holds (reservation, pending
+        // entry, its place in the order) stays with the Worker until the reply or the exit.
+        const observation = setTimeout(
+          () => settle(unknown('reply_wait_expired')),
+          core.config.lockWaitMs,
+        )
         try {
           reply = await ready.client.request<CommitReply>({
             kind: 'commit',
@@ -160,7 +177,8 @@ export function createCommit(core: Core): SqlStorage['commit'] {
         } catch (error) {
           return unknown(error instanceof WorkerExited ? 'worker_exited' : 'provider_error')
         } finally {
-          leave()
+          clearTimeout(observation)
+          admission.release()
         }
         switch (reply.kind) {
           case 'receipt':

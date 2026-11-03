@@ -4,7 +4,8 @@
 // only after its domain is ready, hands a reader to one request at a time, and never reuses a
 // connection whose tag no longer fits (scope, domain, binding row, schema generation, Worker
 // generation). A cancelled or timed-out request stops being observed, but its reader stays busy
-// until the Worker has answered or exited.
+// until the Worker has answered or exited. The domain-serial barrier it holds goes at the reply,
+// at the exit, or at the observation deadline, whichever comes first.
 import type {
   JsonValue,
   ReadHandlerDescriptor,
@@ -59,6 +60,8 @@ class Task {
   settled = false
   /** Takes the task out of the queue it waits in, if any. */
   leaveQueue: (() => void) | null = null
+  /** Aborts when the task settles: a wait made on its behalf (the barrier) is withdrawn. */
+  readonly withdraw = new AbortController()
   private timer: NodeJS.Timeout | null = null
   private finished = false
   private readonly onSettled: (outcome: ReadOutcome) => void
@@ -86,6 +89,7 @@ class Task {
     this.settled = true
     this.stopTimer()
     this.signal?.removeEventListener('abort', this.onAbort)
+    this.withdraw.abort()
     this.onSettled(outcome)
   }
 
@@ -445,11 +449,16 @@ export class ReaderPool {
       this.pump(job.domain)
       return
     }
-    // domain-serial: the connection first, then the barrier (SPEC 9.3).
-    const leave =
-      job.handler.ordering === 'domain-serial' ? await this.barrier.acquire(job.domain) : null
+    // domain-serial: the connection first, then the barrier (SPEC 9.3). The wait counts in the
+    // queue timeout of the task; a task that settles meanwhile (expiry, abort) is withdrawn from
+    // the order and keeps no place in it.
+    let release: (() => void) | null = null
+    if (job.handler.ordering === 'domain-serial') {
+      const hold = await this.barrier.acquire(job.domain, { signal: task.withdraw.signal })
+      if (hold.kind === 'granted') release = hold.release
+    }
     if (task.settled || reader.state === 'closing') {
-      leave?.()
+      release?.()
       if (task.settled) {
         // Withdrawn before anything was sent: the connection is clean and goes back.
         this.release(reader)
@@ -462,6 +471,11 @@ export class ReaderPool {
     }
     task.phase = 'dispatched'
     task.startTimer(this.config.readObservationMs, () => task.settle(unavailable('read_timeout')))
+    // The barrier is held for at most readObservationMs (SPEC 9.3): a read that outlives its
+    // observation delivers no result, so later writes do not wait for its SQL to end. A cancelled
+    // observation does not stop this deadline.
+    const holdDeadline =
+      release === null ? null : setTimeout(release, this.config.readObservationMs)
     const spec: HandlerSpec = {
       moduleUrl: job.handler.moduleUrl,
       codeDigest: job.handler.codeDigest,
@@ -486,7 +500,8 @@ export class ReaderPool {
       outcome = unavailable(error instanceof WorkerExited ? 'worker_exited' : 'read_failed')
     }
     // The transaction has ended, or the exit of the Worker is observed: the barrier goes.
-    leave?.()
+    if (holdDeadline !== null) clearTimeout(holdDeadline)
+    release?.()
     if (reusable) this.release(reader)
     else void this.retire(reader)
     task.settle(outcome)

@@ -29,27 +29,41 @@ export function createQuery(core: Core): SqlStorage['query'] {
     const valid = decoded.identity
     const grant = core.admission.reserveQuery(valid.transactionDomain)
     if (grant === null) return unknown('queue_full')
-    try {
-      const outcome = await core.domains.ensure(valid.transactionDomain, null)
-      if (outcome.kind === 'closing' || core.lifecycle.closing) return unknown('closing')
-      // Absent, another scope, failed and quarantined domains give the same answer (SPEC 5.5).
-      if (outcome.kind !== 'ready' || !sameScope(outcome.entry.scope, valid.scope))
-        return unknown('domain_unavailable')
-      const key = identityKey(valid)
-      const pendingBefore = core.pending.has(key)
-      const reply = await outcome.entry.client.request<QueryReply>({
-        kind: 'query',
-        identity: valid,
-      })
-      if (reply.kind === 'receipt') return reply.receipt
-      if (reply.kind === 'withdrawn') return unknown('closing')
-      if (reply.kind !== 'none') return unknown('provider_error')
-      if (pendingBefore || core.pending.has(key)) return unknown('operation_pending')
-      return { kind: 'not_committed', identity: valid, proofs: PROOFS }
-    } catch {
-      return unknown('provider_error')
-    } finally {
-      grant.release()
+    // The caller observes a sent query for lockWaitMs. The queue place goes back with the reply.
+    let expire: () => void = () => undefined
+    const expired = new Promise<QueryResultV2>(resolve => {
+      expire = () => resolve(unknown('reply_wait_expired'))
+    })
+    const work = async (): Promise<QueryResultV2> => {
+      try {
+        const outcome = await core.domains.ensure(valid.transactionDomain, null)
+        if (outcome.kind === 'closing' || core.lifecycle.closing) return unknown('closing')
+        // Absent, another scope, failed and quarantined domains give the same answer (SPEC 5.5).
+        if (outcome.kind !== 'ready' || !sameScope(outcome.entry.scope, valid.scope))
+          return unknown('domain_unavailable')
+        const key = identityKey(valid)
+        const pendingBefore = core.pending.has(key)
+        const observation = setTimeout(expire, core.config.lockWaitMs)
+        let reply: QueryReply
+        try {
+          reply = await outcome.entry.client.request<QueryReply>({
+            kind: 'query',
+            identity: valid,
+          })
+        } finally {
+          clearTimeout(observation)
+        }
+        if (reply.kind === 'receipt') return reply.receipt
+        if (reply.kind === 'withdrawn') return unknown('closing')
+        if (reply.kind !== 'none') return unknown('provider_error')
+        if (pendingBefore || core.pending.has(key)) return unknown('operation_pending')
+        return { kind: 'not_committed', identity: valid, proofs: PROOFS }
+      } catch {
+        return unknown('provider_error')
+      } finally {
+        grant.release()
+      }
     }
+    return Promise.race([work(), expired])
   }
 }
