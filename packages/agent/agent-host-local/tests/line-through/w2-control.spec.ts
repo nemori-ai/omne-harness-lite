@@ -95,7 +95,14 @@ describe('J3: cancelling the Run stops new Model requests and Tool actions', () 
     for (let check = 0; check < 3; check += 1) await w.until(async () => true)
     expect(w.modelCalls).toHaveLength(requests)
     expect(w.tools.invoke.calls).toHaveLength(0)
-    // The cost the call reported is readable from the account outlet.
+    // The cost the call reported is readable from the account outlet. The account reaches the outlet
+    // asynchronously after the late result, so the read waits, at most 5 seconds, as the intent stage
+    // above does (R2-D127).
+    const reported = () =>
+      w.outlet
+        .received(TENANT)
+        .some(kept => kept.account.cost.some(cost => 'lexeme' in cost && cost.lexeme === '0.25'))
+    await w.until(reported, 5000).catch(() => undefined)
     const accounts = w.outlet.received(TENANT)
     expect(accounts.map(kept => kept.account.cost)).toContainEqual([
       expect.objectContaining({ lexeme: '0.25' }),
