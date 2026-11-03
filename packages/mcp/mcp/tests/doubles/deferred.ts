@@ -11,7 +11,10 @@ export function deferred<T>(): Deferred<T> {
   return { promise, resolve, reject }
 }
 
-/** Lets every pending microtask and promise continuation run once. */
-export async function settled(): Promise<void> {
-  for (let round = 0; round < 8; round += 1) await Promise.resolve()
+/**
+ * Lets every pending promise continuation run: one turn of the event loop, after which the
+ * microtask queue is empty. It orders steps; it is not a wait for time.
+ */
+export function settled(): Promise<void> {
+  return new Promise(resolve => setImmediate(resolve))
 }
