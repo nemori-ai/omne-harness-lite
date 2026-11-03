@@ -89,7 +89,7 @@ export function createRoundCollector(options) {
         bucket = buckets.get(spanRound.get(key))
         spanRound.delete(key)
       }
-      if (!bucket || bucket.sealed) {
+      if (!bucket) {
         stray('memberEvents', event, at)
         return
       }
@@ -110,7 +110,7 @@ export function createRoundCollector(options) {
     clock,
     emit(event) {
       const bucket = buckets.get(event?.round)
-      if (!bucket || bucket.sealed || event?.runId !== runId) stray(stream, event, read())
+      if (!bucket || event?.runId !== runId) stray(stream, event, read())
       else bucket[stream].push(structuredClone(event))
     },
   })
@@ -134,7 +134,6 @@ export function createRoundCollector(options) {
         pending: new Set(),
         terminalObservation: undefined,
         drained: null,
-        sealed: false,
       })
       current = round
     },
@@ -173,7 +172,8 @@ export function createRoundCollector(options) {
           })
           clearTimeout(timer)
         }
-        bucket.sealed = true
+        // 封轮：此后到达的本轮事件只进轮外记录。
+        buckets.delete(round)
         for (const [key, owner] of spanRound) if (owner === round) spanRound.delete(key)
         const result = projectRound({
           runId,
@@ -196,7 +196,6 @@ export function createRoundCollector(options) {
           result.events.push(fsyncEvent(result, fsync))
         }
         if (out) appendFileSync(join(out, 'projection.jsonl'), JSON.stringify(result) + '\n')
-        buckets.delete(round)
         last = round
         return result
       } finally {
