@@ -17,6 +17,7 @@
 - [loop-terminal.spec.ts](loop-terminal.spec.ts)：完成竞争、原终结查询、非空观察台账、O0 原责任认回与 idle 复用
 - [loop-reply-close.spec.ts](loop-reply-close.spec.ts)：I3 同 revision 准入、I4 空批、I8 三种去向与 ordinary limit/partial 边界
 - [loop-main-call.spec.ts](loop-main-call.spec.ts)：主调用的一次提交、原身份认回、结果责任、最终失败、部分结果、窄接续与推理回放限制
+- [loop-adopted-request.spec.ts](loop-adopted-request.spec.ts)：主用途 M0 写 `adoptedRequest`，它撑过调用收场、工具往返与下一步 I1，只由下一次主用途 M0 替换（FIXED-FACTS F2）
 - [loop-intake-prepare.spec.ts](loop-intake-prepare.spec.ts)：I0 完整输入批、新 step 与 I1 顺序准备、W0、真实不能装下和阶段压缩限制
 - [loop-admission.spec.ts](loop-admission.spec.ts)：受理幂等、输入冲突、busy、commit-unknown 与 R0 重试路由
 - [loop-wait-reconcile.spec.ts](loop-wait-reconcile.spec.ts)：W0 失通知、观察窗口、检查时刻、原操作对账、窄接续的未知保护、依赖重查与严格 Node 清理失败

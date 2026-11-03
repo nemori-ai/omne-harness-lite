@@ -66,6 +66,7 @@ function initial(
     requestPreparation: null,
     compaction: null,
     adoptedContext: null,
+    adoptedRequest: null,
     guard: null,
     completedPassages: [],
     priorConditions: null,
@@ -206,7 +207,7 @@ function encode(value: AgentCheckpoint): Continuation {
   }
 }
 
-/** Every member of the checkpoint this evaluator writes; each one is required. */
+/** The members of the checkpoint this evaluator writes and always requires on decode. */
 const CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = [
   'schema',
   'definition',
@@ -224,6 +225,18 @@ const CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = [
   'priorConditions',
   'currentHandoff',
   'replyAdmissionRead',
+]
+
+/**
+ * The members the contract declares optional: `initial` writes them, and decode keeps them when
+ * present and leaves them out when absent (R2-D18: optional until Reduce makes them required).
+ */
+const OPTIONAL_CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = ['adoptedRequest']
+
+/** Every member a decoded checkpoint may hold; any other member is unknown. */
+const KNOWN_CHECKPOINT_MEMBERS: readonly string[] = [
+  ...CHECKPOINT_MEMBERS,
+  ...OPTIONAL_CHECKPOINT_MEMBERS,
 ]
 
 /** The plain value of a JSON value tree: the inverse of `toJson`. */
@@ -286,10 +299,10 @@ function readPositionOf(value: unknown): Outcome<ReplyAdmissionRead, Failure> {
 }
 
 /**
- * Decodes a continuation this evaluator encoded: the exact schema adoption, every member present
- * and no other, the definition, step and position of the continuation, and the read position of
- * the reply admission facts exactly (D5: a missing member or an unknown schema is refused, never
- * taken as `unverified` or as zero). There is no named migration of an older schema. The other
+ * Decodes a continuation this evaluator encoded: the exact schema adoption, every required member
+ * present, an optional one kept only when present, and no other member, the definition, step and
+ * position of the continuation, and the read position of the reply admission facts exactly (D5: a
+ * missing required member or an unknown schema is refused, never taken as `unverified` or as zero). There is no named migration of an older schema. The other
  * facets keep their encoded shape: judging their identity relations is #502 stage 5 (resume).
  */
 function decode(value: Continuation): Outcome<AgentCheckpoint, Failure> {
@@ -300,7 +313,7 @@ function decode(value: Continuation): Outcome<AgentCheckpoint, Failure> {
   for (const member of CHECKPOINT_MEMBERS)
     if (!Object.hasOwn(tree, member)) return refused(`checkpoint.${member}`, 'missing')
   for (const member of Object.keys(tree))
-    if (!(CHECKPOINT_MEMBERS as readonly string[]).includes(member))
+    if (!KNOWN_CHECKPOINT_MEMBERS.includes(member))
       return refused(`checkpoint.${member}`, 'unknown-field')
   if (!sameAdoption(tree['schema'], value.schema))
     return refused('checkpoint.schema', 'not the schema of the continuation')
