@@ -3,16 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Single-machine Tool host: the local start coordinator (G5) over the ledger store\u0027s host domain",
+  "description": "Single-machine Tool host: the local start coordinator (G5) over the ledger store's host domain",
   "engines": {
-    "node": "\u003e=24"
+    "node": ">=24"
   },
   "exports": {
-    "./cordis": {
-      "source": "./src/cordis.ts",
-      "types": "./dist/cordis.d.ts",
-      "import": "./dist/cordis.js"
-    },
     "./author": {
       "source": "./src/author.ts",
       "types": "./dist/author.d.ts",
@@ -22,13 +17,18 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "rm -rf dist \u0026\u0026 tsc -p tsconfig.build.json",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",

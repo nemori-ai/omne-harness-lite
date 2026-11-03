@@ -224,7 +224,7 @@ it.each(entries.filter(entry => entry.name === 'control' || entry.name === 'cont
     const result = await entry.run(createRuntime(base), access)
     expect(result).toMatchObject(
       entry.command
-        ? { kind: 'rejected', failure: { kind: 'unsupported' } }
+        ? { kind: 'rejected', failure: { kind: 'invalid', field: 'call', reason: 'unknown-call' } }
         : { failure: { kind: 'invalid', field: 'call', reason: 'unknown-call' } },
     )
     expect(mint).toHaveBeenCalledTimes(entry.name === 'control' ? 1 : 0)

@@ -1,17 +1,17 @@
 # @omne-harness/execution-environment-host-local 行为规格
 
-状态：Service 实现与宿主提供者成员，`draft`。本成员做两件事：把 [execution-environment](../execution-environment/SPEC.md) 的登记表装进 [execution-environment-cordis-contract](../execution-environment-cordis-contract/SPEC.md) 定义的服务 `executionEnvironment`，并在宿主机上提供 `files` 与 `command` 设施。领域行为归 [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md)，登记表行为归 execution-environment，都不在本页。本页的[宿主文件使用](#宿主文件使用)一节已被接受，其余是草案。[宿主文件责任域](#宿主文件责任域)与提供者的获取路径依据[本域目标协议](https://github.com/nemori-ai/omne-harness-lite/issues/678#issuecomment-6371505744)的 host-files 迁移语义写入，由 [#678 修订决定](https://github.com/nemori-ai/omne-harness-lite/issues/678#issuecomment-6398383578)具名采用，未经独立技术接受；责任域在真实装配中的保管点、跨进程退出证据与冷恢复结清不在本页兑现（[明确缺项](#明确缺项)）。
+状态：Service 实现与宿主提供者成员，`draft`。本成员做两件事：把 [execution-environment](../execution-environment/SPEC.md) 的登记表装进 [execution-environment-cordis-contract](../execution-environment-cordis-contract/SPEC.md) 定义的服务 `executionEnvironment`，并在宿主机上提供 `files`、`command` 与 `terminal` 设施。领域行为归 [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md)，登记表行为归 execution-environment，都不在本页。本页的[宿主文件使用](#宿主文件使用)一节已被接受，其余是草案。[宿主文件责任域](#宿主文件责任域)与提供者的获取路径依据[本域目标协议](https://github.com/nemori-ai/omne-harness-lite/issues/678#issuecomment-6371505744)的 host-files 迁移语义写入，由 [#678 修订决定](https://github.com/nemori-ai/omne-harness-lite/issues/678#issuecomment-6398383578)具名采用，未经独立技术接受；责任域在真实装配中的保管点、跨进程退出证据与冷恢复结清不在本页兑现（[明确缺项](#明确缺项)）。
 
 ## 范围与依据
 
 本成员有两个入口：
 
-- 根入口与 Cordis 无关（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4)），导出 `createHostFiles`、`hostObjectToken`、`createHostFilesDomain` 与 `createHostFilesProvider`，以及类型 `HostFilesDomain`、`HostFilesDomainOptions`、`HostFilesQuotaPolicy`、`HostFilesProviderOptions`、`HostFilesDiagnostic`、`HostFilesLimits`（列表与搜索的上界）、`HostCommandOptions`（`command` 的上界）与 `HostCommandPrerequisite`（`command` 的平台前提项名）。
-- `./cordis` 导出 Service 子类 `ExecutionEnvironmentRegistry`、登记 `files` 设施声明的插件 `filesFacilityPlugin`、登记 `command` 设施声明的插件 `commandFacilityPlugin`，以及插件工厂 `createHostFilesPlugin(domain)`：它返回登记一代宿主文件提供者的插件。配置类型 `HostFilesConfig` 也从这里导出。
+- 根入口与 Cordis 无关（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4)），导出 `createHostFiles`、`hostObjectToken`、`createHostFilesDomain` 与 `createHostFilesProvider`，以及类型 `HostFilesDomain`、`HostFilesDomainOptions`、`HostFilesQuotaPolicy`、`HostFilesProviderOptions`、`HostFilesDiagnostic`、`HostFilesLimits`（列表与搜索的上界）、`HostCommandOptions`（`command` 的上界）、`HostTerminalOptions`（`terminal` 的上界）、`HostCommandPrerequisite` 与 `HostTerminalPrerequisite`（平台前提项名）。
+- `./cordis` 导出 Service 子类 `ExecutionEnvironmentRegistry`、登记 `files` 设施声明的插件 `filesFacilityPlugin`、登记 `command` 设施声明的插件 `commandFacilityPlugin`、登记 `terminal` 设施声明的插件 `terminalFacilityPlugin`，以及插件工厂 `createHostFilesPlugin(domain)`：它返回登记一代宿主文件提供者的插件。配置类型 `HostFilesConfig` 也从这里导出。
 
 上层依据：系统页[执行环境](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备)的成员分工，领域页[文件使用的交接](../../../docs/domains/execution-environments/architecture.md#文件使用的交接)，契约的[设施协议](../execution-environment-contract/SPEC.md#设施协议)、[INV-EE04](../execution-environment-contract/SPEC.md#inv-ee04-原主体在实际边界继续受约束)、[INV-EE09](../execution-environment-contract/SPEC.md#inv-ee09-资源和秘密以最小必要条件提供)、[INV-EE13](../execution-environment-contract/SPEC.md#inv-ee13-控制请求与实际停止释放分别确认) 与 [INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)。
 
-两个入口的模板标记写明还没有接受的部分：`terminal` 的提供者、Runtime Context 生产者插件、调用方类的核对。`files` 的十二项操作、宿主文件根、`command`（只在 Linux 上）与平台前提的探测已经实现，但本页除[宿主文件使用](#宿主文件使用)外都没有经过独立技术接受。`terminal` 未实现，见[宿主命令与终端](#宿主命令与终端未实现)。本成员不导入任何上层领域的契约。租户、作用域、原调用与恢复授权都随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
+两个入口的模板标记写明还没有接受的部分：`terminal` 的提供者、Runtime Context 生产者插件、调用方类的核对。`files` 的十二项操作、宿主文件根、`command`（只在 Linux 上）与平台前提的探测已经实现，但本页除[宿主文件使用](#宿主文件使用)外都没有经过独立技术接受。`terminal` 的 Linux 实现与验证前提见[持久终端](#持久终端)。实现与独立接受分别报告。本成员不导入任何上层领域的契约。租户、作用域、原调用与恢复授权都随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
 
 ## 结果与不变量
 
@@ -27,7 +27,7 @@
 | 配额域                 | 责任域的配额域，缺省 `host-files`                                                                                                                   |
 | 绑定层                 | 只有 `host_machine`                                                                                                                                 |
 | 连续性                 | `not_guaranteed`                                                                                                                                    |
-| 设施键                 | `files` 与 `command`。`terminal` 不在其中                                                                                                           |
+| 设施键                 | `files`、`command` 与 `terminal`                                                                                                                    |
 | 隔离断言               | 空。本提供者不确认任何隔离                                                                                                                          |
 | 宿主文件根             | 提供者选项 `filesRoot`，绝对路径，可选。配置了它，这一代全部 `files` 请求受它限制，见[宿主文件根](#宿主文件根未接受)                                |
 | 状态目录               | 提供者选项 `stateDirectory`，绝对路径，可选。批次清单放在其中；前提 P2 的探测在其中建、删临时目录；没有它时批次答 `unavailable`，探测用系统临时目录 |
@@ -35,13 +35,13 @@
 | 宿主事实（`describe`） | 名称、代、版本、平台（`process.platform` 加 `os.release()`）、设施键、空隔离断言，以及合并后的前提（见下文）                                        |
 
 - `quota(租户)` 读责任域的配额策略，答已声明（单位是一个未结清的获取）；策略抛出或给出的上界不是非负安全整数（全局上界可以为空）时答未知。它不保留名额。
-- `acquire` 在提供者退役后返回 `providerUnavailable`。落点的绑定层不是 `host_machine` 时返回 `noMatchingEnvironment`。其余情况交给责任域接纳（见[宿主文件责任域](#宿主文件责任域)）：新接纳的获取交回一个租约原件，实例身份是 `host` 加提供者的代，`facility('files')` 返回这份获取的文件门面，`facility('command')` 返回这份获取的命令门面；证据记录提供者名称、代与版本，配置了宿主文件根时另有一个条目 `filesRoot`，值为字符串 `configured`（不写路径）。同一租户、同一获取键、相同指纹的重复由原记录认回：原租约仍打开时交回同一租约，否则答未知并带原获取键，不造第二个门面。指纹不同为 `acquisitionConflict`。超过按租户上界为 `quotaExceeded`，超过全局上界为 `globalCapacityExceeded`，两者都不留下记录。`acquire` 不分配外部资源，立即返回。
+- `acquire` 在提供者退役后返回 `providerUnavailable`。落点的绑定层不是 `host_machine` 时返回 `noMatchingEnvironment`。其余情况交给责任域接纳（见[宿主文件责任域](#宿主文件责任域)）：新接纳的获取交回一个租约原件，实例身份是 `host` 加提供者的代，`facility('files')` 返回这份获取的文件门面，`facility('command')` 返回这份获取的命令门面，`facility('terminal')` 返回这份获取的终端门面；证据记录提供者名称、代与版本，配置了宿主文件根时另有一个条目 `filesRoot`，值为字符串 `configured`（不写路径）。同一租户、同一获取键、相同指纹的重复由原记录认回：原租约仍打开时交回同一租约，否则答未知并带原获取键，不造第二个门面。指纹不同为 `acquisitionConflict`。超过按租户上界为 `quotaExceeded`，超过全局上界为 `globalCapacityExceeded`，两者都不留下记录。`acquire` 不分配外部资源，立即返回。
 - 租约原件的释放：先撤掉这份租约的失效通知，再排空这份获取（封门面，最多等 `drainBoundMs`，重试失败的关闭）。什么都不剩时答已释放，名额只返还一次；否则答待处置，资源清单列出停止未确认的命令进程（没有命令时为空），名额仍占用。待处置之后可以重试释放。
 - `inspectAcquisition(原描述)` 读责任域的原记录：打开的答已获取（带原租约与证据），释放中的答待定（阶段 `releasing`，资源列出停止未确认的命令进程），已结清的答已结清，指纹不同的答冲突。没有记录时，原描述的提供者代是本责任域签发过的代则答未分配，否则答未知：新进程的责任域没有证据说明旧容量已经结清。配额域与本责任域不同的原描述按没有记录处理。
 - `listAcquisitions(作用域)` 列出请求方作用域是该作用域、尚未结清的全部获取的原描述，包括没有受管资源的获取。
 - `settleAcquisition(原描述)` 与查询做同样的定位，然后排空这份获取：封门面、使原租约以来源 `provider`、原因 `released` 失效、等在途操作、重试失败的关闭。什么都不剩时答已结清，否则答待处置（资源列出停止未确认的命令进程）。结清不重做文件写入，也不回滚已写入的字节。重复结清答已结清，不再返还名额。
-- 本提供者的文件操作不留下受管资源；命令的 scope 单元是受管资源。`listRecoveryResources` 与 `recover` 只处理这些单元，见[宿主命令与终端](#宿主命令与终端未实现)的资源级冷恢复。不是 Linux 的宿主答完整的空列表。Linux 上没有可达的用户管理器时答 `unavailable`，不答空列表。描述符、在途操作与失败关闭由获取路径（枚举与结清）覆盖，空的资源列表不证明没有这些责任。
-- 本提供者不读账本：账本关闭后的拒绝由登记表的门在调用设施之前做（[INV-EE15](../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。直接调用 `createHostFilesProvider` 得到的租约原件不经过门，不查账本。请求方作用域随 `ProviderAcquireInput.scope` 到达，进入原描述与获取枚举。
+- 本提供者的文件操作不留下受管资源；命令与终端的 scope 单元是受管资源。`listRecoveryResources` 与 `recover` 只处理这些单元，见[宿主命令与终端](#宿主命令与终端未实现)的资源级冷恢复。不是 Linux 的宿主答完整的空列表。Linux 上没有可达的用户管理器时答 `unavailable`，不答空列表。描述符、在途操作与失败关闭由获取路径（枚举与结清）覆盖，空的资源列表不证明没有这些责任。
+- 本提供者不读账本：账本关闭后的拒绝由登记表的门在调用设施之前做（[INV-EE15](../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。直接调用 `createHostFilesProvider` 得到的租约原件不经过门。终端额外读取原账本的关闭信号，阻止关闭之后的创建与执行。请求方作用域随 `ProviderAcquireInput.scope` 到达，进入原描述与获取枚举。
 - `retire()` 先把提供者标为已退役，之后新的获取返回 `providerUnavailable`。然后它封住这一代全部尚未结清的获取的门面，使它们的租约原件以来源 `provider`、原因 `providerRetired` 失效，再逐份排空。每份都结清时返回已排空，并结束这一代对引擎诊断的订阅；否则返回待处置，资源列出停止未确认的命令进程，并给 `diagnose` 一条诊断。原记录与仍打开的描述符留在责任域，新的代经同一责任域查询与结清它们。待处置之后再调用 `retire()` 会再排空一次。
 - `drainBoundMs` 的初值是 10000，用于释放、结清与退役。它必须是有限的非负数，否则 `createHostFilesProvider` 抛出 `RangeError`。
 - 诊断 `HostFilesDiagnostic` 有四类，`diagnose` 抛出都不改变结果。结果为待处置时：仍有在途操作时 `kind` 为 `drainBoundExceeded`，只剩关闭失败的描述符时为 `closePending`；带提供者名与代、在途操作数（文件操作与命令启动）、打开的描述符数与上界，释放或结清时另带获取键。命令进程的停止没有确认时为 `stopUnconfirmed`，缺平台前提而拒绝命令启动时为 `commandUnavailable`，两者见[宿主命令与终端](#宿主命令与终端未实现)。批次发布后删不掉临时文件时为 `temporaryFileRemains`：带提供者名与代、批次 id、已发布的路径、临时文件名与可选的错误码。第四类来自文件引擎，不属于某一份获取，所以不带获取键。
@@ -189,12 +189,12 @@
 
 <a id="宿主命令与终端未实现"></a>
 
-本节写宿主提供者承担的 `command`。`command` 只在 Linux 上实现（Q-9）。`terminal` 未实现，不在 M2（D-05）。机制见[架构的宿主命令机制](docs/architecture.md#宿主命令机制)。依据是 GATE-EE 候选第 3、4 节与 [D1 决策记录](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561322330)。本节没有经过独立技术接受。
+本节写宿主提供者承担的 `command`，其平台范围仍为 Linux（Q-9）。#421 修订 6 的波 2 派发增加普通每获取的 Linux `terminal`，见下文[持久终端](#持久终端)。机制见[架构的宿主命令机制](docs/architecture.md#宿主命令机制)。依据是 GATE-EE 候选第 3、4 节与 [D1 决策记录](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561322330)。本节没有经过独立技术接受。
 
 提供者与终端：
 
 - `command` 加在已有的宿主提供者上，与 `files` 由同一个提供者声明，不另立宿主提供者。所以需要 `files` 加 `command` 的工具在宿主层不会得到 `missingFacility` 或 `ambiguousEnvironment`。
-- 宿主提供者不声明 `terminal`。`outputMode` 为 `terminal` 的启动，以及带 `geometry` 的启动，答 `rejected`，原因 `unsupported`。本成员不引入 node-pty。
+- `command.start` 的 `outputMode` 为 `terminal`，或带 `geometry` 时仍答 `rejected`，原因 `unsupported`。持久 PTY 由独立的 `terminal` 设施提供，使用已采用的 node-pty 1.1.0。
 - 宿主提供者不声称任何隔离断言。命令能碰到的文件不受宿主文件根限制，也不经过[宿主文件使用](#宿主文件使用)的确认。
 
 启动前的检查不起进程，也不调用账本。检查按下面的顺序：
@@ -281,6 +281,42 @@
 | `probeRetryMs`     | 60000  | 不满足的探测结果保留多久                         |
 
 时间项必须是有限的非负数。值不合法时 `createHostFilesProvider` 抛出 `RangeError`，插件配置校验失败。提供者选项另有 `filesRoot` 与 `stateDirectory` 两个字符串，插件配置要求它们是绝对路径。命令一侧只保存它们，不使用。
+
+### 持久终端
+
+采用范围是 #421 修订 6 的 TerminalFacility，包括普通每获取终端，以及 [R2-D37](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6579990443) 批准的 Session 保留终端。终端只在 Linux、systemd 用户管理器与 cgroup v2 可用时启动，另需 `/bin/bash`、`/usr/bin/mkfifo` 和可加载的 node-pty 1.1.0。前提缺少时 `create` 返回 `unavailable`，`terminalUnavailable` 诊断给出具体项。`describe` 合并这些前提与原文件、命令前提。
+
+每次获取有独立的终端表。`create` 在账本 `plan` 记录后准备 scope 与 gate，在 `permit` 确认后才发送 GO 创建 shell。创建结果丢失或超时保持 `unknown`，原 scope 仍由原获取承担。引用包含随机身份与代。其他获取的引用或错误代返回 `notFound`。
+
+一个终端只有一段运行中。同终端的重叠 `execute` 返回 `busy`，另一个终端仍可运行。普通 `cd` 留在持久 shell 中。临时 `cwd` 执行后恢复原物理目录，恢复失败使终端失效。临时环境变量在 shell 函数内局部导出，函数返回后恢复。环境变量名采用 Bash 标识符，`__omne_` 前缀留给驱动。路径、脚本与环境变量值不能含空字节。单次输入字节写进 PTY，按该终端当前的行规处理。
+
+控制观察走独立 FIFO，带终端代与执行段身份。用户 PTY 输出从不用于识别完成。驱动完成后，gate 核对原 scope 的进程集合只剩 gate 与 shell，再将独占的非阻塞 PTY 描述符读到 `EAGAIN`，最后交出终局。额外后台写者、控制格式错误、错误代或失联均使结果为 `failed(effectUnknown)`，终端转为 `invalid`。不使用静默时长作为输出完成证据，不自动重放脚本或重建 shell。
+
+node-pty 只提供 PTY fork 和原始描述符。门采用 1.1.0 的原生接口，运行时核验接口与返回形状。这一接口没有公共 TypeScript 声明，升级 node-pty 时必须复跑真实 PTY 用例。字节不经过文本解码，保留内核交出的 ANSI、CRLF 和任意非 UTF-8 字节。输出只允许一个读者，缓冲溢出与读者放弃都计入丢弃数。
+
+`stop('forced')` 停止该终端的原 scope，不影响其他终端或命令。该 shell 随之失效，列表状态为 `invalid`，后续执行返回 `closed`。`stop('graceful')` 请求 shell 接收 SIGTERM，在 `graceMs` 内没有退出则返回 `unconfirmed`，不自动升级。关闭成功的状态为 `closed`。旧执行段的停止不能终止后续执行段。
+
+停止确认仍只来自 systemd 原 scope 的监督读数。调用 `node-pty.kill`、取得进程集合或控制回执都不等于停止。确认且原账本已记录 `stopped` 后，资源才离开待清理集合。原获取的释放、结清与提供者退役同时封终端门面，等待在途创建和执行接纳，再停止原 scope。未确认资源留在待处置结果。
+
+资源级冷恢复复用命令的 `{ unit, bootId }` 坐标与作用域描述。新进程只枚举、停止和结清原 scope，不执行旧脚本，不恢复交互 shell。监督者确认停止后尝试清除 gate 的两个私有 FIFO。清理不会递归遍历用户目录。
+
+提供者选项 `terminal` 与插件配置 `terminal` 同形。命令已有的六个界值也适用于终端，初值相同。另有 `maxControlBytes`，初值 1 MiB，约束控制帧大小；`columns` 与 `rows` 的初值为 80 和 24。请求的 `geometry` 覆盖尺寸初值。控制上界必须容纳一块 base64 输出及 256 字节帧头。所有数值为可覆盖的实现配置，不是工具结果的产品上限。
+
+本实现是有权限的 `host_machine`，不承诺同 UID 恶意程序隔离。Bash 驱动与 scope 观察的真实覆盖见[终端测试](tests/host-terminal-recovery.spec.ts)。Windows 的协议测试通过不能证明此 Linux 路径。
+
+#### Session 保留终端
+
+`create({ retain: 'session' })` 要求获取时已经给出真实的 retention scope、独立 retention ledger 与封闭信号。缺绑定时答 `unsupported`，不使用普通获取账本替代。可信 Session 绑定与耐久账本由装配方供给，本成员不合成这些事实。
+
+责任域保存保留索引。索引区分租户、完整保留范围、配额域、提供者名称/代/版本与宿主进程实例。创建在首个异步之前保留恢复坐标和容量。Linux 在 retention ledger 的 plan/permit 确认后才启动 scope gate，启动准备、GO 及完成后都复核封闭状态。零附着、启动未知和停止未确认的资源继续可枚举。`terminal.retainedCapacity` 显式配置该责任域的保留容量，初值 64，必须是正安全整数。未确认的预留仍占容量，满额答 `busy`。
+
+创建获取自动附着。另一次获取通过 `attach` 使用同一 shell，逐次操作仍经登记表当前授权与原 origin 门。附着不授予后续许可。普通终端继续只归原获取。跨范围、跨环境代和错误终端代统一答 `notFound`。`detach` 永久封闭当前获取与该终端的关系，重复 attach 答 `closed`。列表只包含当前获取创建或仍附着的终端。
+
+同一保留终端一次只接纳一段执行。占位发生在首个 await 前，竞争答 `busy`。每段用当前获取账本 plan/permit，在许可前不发送脚本。段完成后的 stopped 记账失败仍是当前获取的清理责任。detach 与获取释放只收尾自己的段，不能停止别的获取的段。强停需要结束 shell 时保留其 invalid 状态，不重建 shell。
+
+获取释放永久封住原门面，并解除本获取附着。空闲保留 shell 继续由 retention ledger 持有。scope 回收与提供者退役封住整个终端并停止所有所属资源。监督停止与 stopped 记账均确认后才移除待处置责任；否则资源继续枚举，返回 pending。跨进程恢复只停止原资源，不恢复附着、输出或执行权。
+
+共享索引与交错验证见 [host-terminal-retention.spec.ts](tests/host-terminal-retention.spec.ts)。Linux 真件验证见 [host-terminal-recovery.spec.ts](tests/host-terminal-recovery.spec.ts)。两种证据分别报告，Windows 平台接口接线不代表真实 ConPTY 已验证。
 
 ### 撤除顺序
 

@@ -23,3 +23,6 @@
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：服务、端口服务、两个声明插件与宿主文件插件的装载、卸载与恢复，以及插件配置
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口的导出集合与 Cordis 边界
 - [fixtures/](fixtures/index.md)：测试固定输入，现在为空
+
+- [host-terminal.spec.ts](host-terminal.spec.ts)：原始字节、控制协议与 Cordis 增量
+- [host-terminal-recovery.spec.ts](host-terminal-recovery.spec.ts)：真实 Linux PTY、分段与新进程资源恢复

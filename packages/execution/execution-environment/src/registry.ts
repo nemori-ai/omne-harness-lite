@@ -31,6 +31,7 @@ import {
   type Placement,
   type ProviderAcquisition,
   type ProviderAcquisitionStatus,
+  type ProviderAcquireInput,
   type ProviderCapabilities,
   type ProviderIdentity,
   type ProviderRegistrations,
@@ -123,6 +124,7 @@ type AcquisitionRecord<P> = {
   /** The ports the first call captured. A retry that replaces them is a conflict. */
   readonly ledger: ResourceLedger
   readonly guard: FacilityGuard<P>
+  readonly retention: ProviderAcquireInput['retention']
   readonly entry: ProviderEntry | null
   state: AcquisitionState
   /** Bumped on every transition; a query response older than the current version is dropped. */
@@ -275,12 +277,27 @@ export function createEnvironmentRegistry<P>(
   // The slot is tenant plus acquisition key; another tenant reusing a key never sees this slot.
   const records = new Map<string, AcquisitionRecord<P>>()
   const releasedScopes = new Set<string>()
+  const retentionScopes = new Map<string, AbortController>()
   let closed = false
   let closing: Promise<Retirement> | undefined
 
   const slotKey = (tenant: TenantId, acquisition: string) =>
     JSON.stringify([tenantText(tenant) ?? null, acquisition])
   const scopeReleased = (scope: ScopeRef) => releasedScopes.has(scope.ref)
+  const originalReleased = (original: OriginalAcquisition) =>
+    scopeReleased(original.scope) ||
+    (original.retentionScope !== undefined && scopeReleased(original.retentionScope))
+  const ownsScope = (original: OriginalAcquisition, scope: ScopeRef) =>
+    sameScope(original.scope, scope) || sameScope(original.retentionScope, scope)
+  const retentionSignal = (scope: ScopeRef) => {
+    let controller = retentionScopes.get(scope.ref)
+    if (controller === undefined) {
+      controller = new AbortController()
+      if (scopeReleased(scope)) controller.abort()
+      retentionScopes.set(scope.ref, controller)
+    }
+    return controller.signal
+  }
   const foreignTenantBinding = (binding: EnvironmentBinding, tenant: TenantId) =>
     binding.kind === 'tenant_sandbox' && !tenantEquals(binding.tenant, tenant)
   const ports = { authority: deps.authority, bindings: deps.bindings }
@@ -390,7 +407,7 @@ export function createEnvironmentRegistry<P>(
     const placement = original.placement
     if (entry === undefined || entry.provider.quotaDomain !== placement.quotaDomain)
       return 'providerUnavailable'
-    if (scopeReleased(original.scope)) return 'referenceExpired'
+    if (originalReleased(original)) return 'referenceExpired'
     const offered = capabilities(entry)
     const listed = placement.requirement.allowedBindings.some(binding =>
       sameBinding(binding, placement.binding),
@@ -413,7 +430,7 @@ export function createEnvironmentRegistry<P>(
     const entry = record.entry
     if (closed) return 'ownerStopped'
     if (entry === null || !entry.active || !providers.includes(entry)) return 'providerUnavailable'
-    if (scopeReleased(record.original.scope)) return 'referenceExpired'
+    if (originalReleased(record.original)) return 'referenceExpired'
     if (!sameBinding(record.original.placement.binding, receipt.lease.placement.binding))
       return 'unavailable'
     const missing = record.original.placement.requirement.facilities.some(
@@ -442,6 +459,7 @@ export function createEnvironmentRegistry<P>(
       origin: original.origin,
       placement: original.placement,
       ledgerClosed: record.ledger.closed,
+      retentionEnabled: record.retention !== undefined,
       descriptor: key => facilities.get(key),
       invalidated: invalidation => {
         if (record.state.kind === 'acquired')
@@ -505,6 +523,7 @@ export function createEnvironmentRegistry<P>(
         placement: original.placement,
         tenant: original.tenant,
         ledger: record.ledger,
+        ...(record.retention === undefined ? {} : { retention: record.retention }),
       })
     } catch {
       diagnose({ event: 'providerThrew', acquisition: original.acquisition })
@@ -713,7 +732,7 @@ export function createEnvironmentRegistry<P>(
   ): Promise<RecoveryDecision> => {
     const known: ManagedResource[] = []
     for (const record of records.values())
-      if (record.state.kind === 'pendingRelease' && sameScope(record.original.scope, scope))
+      if (record.state.kind === 'pendingRelease' && ownsScope(record.original, scope))
         known.push(...record.state.resources)
     try {
       const answer = await deps.recovery.authorizeRecovery(access, scope, known)
@@ -737,7 +756,7 @@ export function createEnvironmentRegistry<P>(
           typeof original.acquisition === 'string' &&
           original.acquisition !== '' &&
           typeof original.placement?.quotaDomain === 'string' &&
-          sameScope(original.scope, scope),
+          ownsScope(original, scope),
       ))
 
   /** Updates the local copy after a settlement. It never returns quota itself. */
@@ -777,8 +796,9 @@ export function createEnvironmentRegistry<P>(
     if (decision !== 'authorized') return rejected(decision)
     if (release) {
       releasedScopes.add(target.ref)
+      retentionScopes.get(target.ref)?.abort()
       for (const record of records.values())
-        if (sameScope(record.original.scope, target)) {
+        if (ownsScope(record.original, target)) {
           record.invalidate(byRegistry('scopeReleased'))
           failProvisional(record, 'referenceExpired')
         }
@@ -824,8 +844,12 @@ export function createEnvironmentRegistry<P>(
         origin: input.origin,
         scope: copyScope(input.scope),
         placement: copyPlacement(input.placement),
+        ...(input.retention === undefined
+          ? {}
+          : { retentionScope: copyScope(input.retention.scope) }),
       })
       const { ledger, guard } = input
+      const retentionLedger = input.retention?.ledger
       if (!fitsScope(original.placement.binding, original.scope)) return rejected('invalidInput')
       const checked = await checkAccess(
         ports,
@@ -844,7 +868,8 @@ export function createEnvironmentRegistry<P>(
         if (
           existing.fingerprint !== print ||
           existing.ledger !== ledger ||
-          existing.guard !== guard
+          existing.guard !== guard ||
+          existing.retention?.ledger !== retentionLedger
         )
           return rejected('acquisitionConflict')
         if (existing.state.kind === 'provisional' && existing.receipt !== null)
@@ -861,6 +886,14 @@ export function createEnvironmentRegistry<P>(
         fingerprint: print,
         ledger,
         guard,
+        retention:
+          original.retentionScope === undefined || retentionLedger === undefined
+            ? undefined
+            : Object.freeze({
+                scope: original.retentionScope,
+                ledger: retentionLedger,
+                released: retentionSignal(original.retentionScope),
+              }),
         entry: entry ?? null,
         state: { kind: 'acquiring' },
         version: 0,
@@ -884,6 +917,18 @@ export function createEnvironmentRegistry<P>(
         if (quota === 'unavailable') return rejected('unavailable')
         if (quota === 'unknown') return unknownAcquisition(original.acquisition, 'preflight')
         return rejected('notAuthorized')
+      }
+      const lateFailure = closed
+        ? 'ownerStopped'
+        : !placed.active
+          ? 'providerUnavailable'
+          : originalReleased(original)
+            ? 'referenceExpired'
+            : undefined
+      if (lateFailure !== undefined) {
+        record.inFlight = false
+        transition(record, { kind: 'rejected', reason: lateFailure })
+        return rejected(lateFailure)
       }
       return allocate(record, placed, checked.current)
     },

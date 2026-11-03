@@ -155,7 +155,7 @@ it('declares the host layer, the files and command keys, no isolation, and an em
     name: 'host-files',
     bindingKinds: ['host_machine'],
     continuity: { kind: 'not_guaranteed' },
-    facilities: ['files', 'command'],
+    facilities: ['files', 'command', 'terminal'],
     isolation: [],
   })
   expect(provider.generation).toMatch(/^[0-9a-f-]{36}$/)
@@ -179,7 +179,7 @@ it('declares the host layer, the files and command keys, no isolation, and an em
     generation: provider.generation,
     version: packageVersion,
     platform: { os: process.platform, release: release() },
-    facilities: ['files', 'command'],
+    facilities: ['files', 'command', 'terminal'],
     isolation: [],
     prerequisites: facts.prerequisites,
   })
@@ -208,7 +208,7 @@ it('hands out a host lease with its own identity and evidence, and the files and
   expect(acquired.lease.continuity).toEqual({ kind: 'not_guaranteed' })
   expect(acquired.lease.facility('files')).toBeDefined()
   expect(acquired.lease.facility('command')).toBeDefined()
-  expect(acquired.lease.facility('terminal')).toBeUndefined()
+  expect(acquired.lease.facility('terminal')).toBeDefined()
   expect(await acquired.lease.release()).toEqual({ kind: 'released' })
 })
 

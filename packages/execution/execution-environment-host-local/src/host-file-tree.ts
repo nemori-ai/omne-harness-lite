@@ -6,6 +6,7 @@ import type {
   EnvironmentBinding,
   FacilityResult,
   FileIdentity,
+  FileEntry,
   FileInformation,
   FileRequest,
   FileSystemFacility,
@@ -214,9 +215,12 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       if (tokenOf(stat).token !== request.named?.token) return reject(requestId, 'conflict')
       const { names } = await entryNames(directory)
       const slice = names.slice(page.offset, page.offset + page.limit)
-      const entries: FileInformation[] = []
+      const entries: FileEntry[] = []
       for (const name of slice)
-        entries.push(informationOf(await lstat(fdPath(directory, name), { bigint: true })))
+        entries.push({
+          ...informationOf(await lstat(fdPath(directory, name), { bigint: true })),
+          name,
+        })
       const next = page.offset + slice.length
       return {
         kind: 'done',

@@ -276,7 +276,12 @@ export function scriptedProvider(script: Script = {}): Scripted {
       calls.listAcquisitions += 1
       if (script.listAcquisitions !== undefined) return script.listAcquisitions(scopeRef)
       const acquisitions = [...held.values()]
-        .filter(record => record.open && record.original.scope.ref === scopeRef.ref)
+        .filter(
+          record =>
+            record.open &&
+            (record.original.scope.ref === scopeRef.ref ||
+              record.original.retentionScope?.ref === scopeRef.ref),
+        )
         .map(record => record.original)
       return { kind: 'listed', acquisitions }
     },
@@ -326,6 +331,7 @@ export function scriptedProvider(script: Script = {}): Scripted {
           origin: input.origin,
           scope: input.scope,
           placement: input.placement,
+          ...(input.retention === undefined ? {} : { retentionScope: input.retention.scope }),
         },
         lease,
         open: true,

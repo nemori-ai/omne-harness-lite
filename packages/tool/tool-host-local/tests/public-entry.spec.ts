@@ -88,13 +88,7 @@ describe('production sources import no testing entry', () => {
 
   it.each(sources)('src/%s imports no testing entry and keeps Cordis in author adapters', file => {
     const text = readFileSync(memberPath(`src/${file}`), 'utf8')
-    const authorAdapter = [
-      'contribute-tool.ts',
-      'author-generations.ts',
-      'cordis.ts',
-      'cordis-host.ts',
-      'cordis-bindings.ts',
-    ].includes(file)
+    const authorAdapter = ['contribute-tool.ts', 'author-generations.ts', 'cordis.ts', 'cordis-host.ts', 'cordis-bindings.ts'].includes(file)
     expect(
       specifiersOf(text).filter(
         specifier =>

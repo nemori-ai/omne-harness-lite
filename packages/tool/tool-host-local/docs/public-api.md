@@ -14,6 +14,8 @@
 
 根入口 `.` 由 [src/index.ts](../src/index.ts) 定义，源码是唯一定义，本页不手写签名。
 
+[start-permit-requirements.ts](../src/start-permit-requirements.ts) 拥有 `StartPermitRequirements<P>` 与 `StartPermitRequirement`，根入口只再导出类型。协调器的可选构造输入 `permitRequirements` 接收可信来源，问题包含原主体、租户、调用、完整启动与固定请求。明确无需许可的答复必须附完整依据。需许可在 prepare 映射为 `unsupported`，在 consume 映射为永久 `rejected`。来源缺席或不可判断在 prepare 映射为 `unavailable`，在待决 consume 映射为 `unknown`。生产来源由装配提供，本包没有默认放行实现。行为及波 3 边界见 [本地启动协调器](../SPEC.md#本地启动协调器g5)。
+
 - [start-coordinator.ts](../src/start-coordinator.ts)：`createLocalStartCoordinator`（G5）返回契约的 `ToolStartAuthority`。输入类型是 `LocalStartCoordinatorInput`：记录仓、资格守卫 `StartCoordinatorAccess`、按请求给出守卫资源的 `guardsOf`（资源类型 `GuardResource`）与修订冲突的重试上限。`startCoordinatorAdoption` 是它在许可里的采用，`START_COORDINATOR_OWNER` 是它铸造的证据的拥有者，`START_COORDINATOR_DOMAIN_KEY` 是它在 `host` 域的键。行为见 [SPEC](../SPEC.md#本地启动协调器g5)。
 
 调用者是应用装配：它构造协调器并交给 `createToolRuntime`。`consume` 只能由受信执行边界（执行绑定）调用。`invalidate` 由守卫资源的拥有者调用。独立的 `./cordis` 入口由 [src/cordis.ts](../src/cordis.ts) 导出 `createLocalToolHostPlugin`、`createLocalToolBindingsPlugin` 及其输入类型；普通根入口仍不加载 Cordis。插件依赖、配置及生命周期见 [Cordis 装配](cordis.md)。公共行为归契约包的 [SPEC](../../tool-contract/SPEC.md)。目录职责见 [README](README.md)。

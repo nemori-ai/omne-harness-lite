@@ -21,8 +21,15 @@ export interface TerminalFacility<P> {
       readonly cwd: string
       readonly env: Readonly<Record<string, string>>
       readonly geometry?: { readonly columns: number; readonly rows: number }
+      readonly retain?: 'session'
     },
   ): Promise<FacilityResult<{ readonly terminal: TerminalRef }>>
+  attach?(
+    request: FacilityRequest<P> & { readonly terminal: TerminalRef },
+  ): Promise<FacilityResult<{ readonly terminal: TerminalRef }>>
+  detach?(
+    request: FacilityRequest<P> & { readonly terminal: TerminalRef },
+  ): Promise<FacilityResult<{ readonly status: 'confirmed' | 'unconfirmed' }>>
   /** One leg of the terminal; its output mode is always `terminal`. */
   execute(
     request: FacilityRequest<P> & {
@@ -47,6 +54,8 @@ declare module '../facility.ts' {
 
 export const terminalFacility: FacilityDescriptor<'terminal'> = describeFacility('terminal', {
   create: 'guarded',
+  attach: 'guarded',
+  detach: 'guarded',
   execute: 'guarded',
   close: 'guarded',
   list: 'guarded',
