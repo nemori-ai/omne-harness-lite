@@ -1,100 +1,35 @@
 import {
-  RequestInvalidError,
   createGovernanceClient,
   createSessionClient,
   parseTenantText,
   tenantText,
   userTextMessage,
-  type CallerResult,
-  type GovernanceTransport,
   type SessionRequest,
   type TenantId,
 } from '@omne-harness/sdk'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
-import { readLoginState, writeLoginState, type LoginState } from './login-state.ts'
+import {
+  attempt,
+  defaultServer,
+  givenServer,
+  loadLogin,
+  localFailure,
+  missingOption,
+  openTransport,
+  refusedServer,
+  serverOption,
+  stateDirectory,
+  text,
+  unrecognized,
+  usageError,
+  withoutProof,
+  type Option,
+} from './command-support.ts'
+import { governanceCommands } from './governance-commands.ts'
+import { writeLoginState, type LoginState } from './login-state.ts'
 import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
-import { ensureStateDirectory, resolveStateDirectory } from './state-directory.ts'
-
-const defaultServer = 'http://127.0.0.1:8787'
-const serverOption = '--server'
-const hint = 'Run omne --help for usage.\n'
-const serverRefused = 'omne: --server must be a loopback http address\n'
-
-function unrecognized(command: string): string {
-  return `omne ${command}: unrecognized arguments\n${hint}`
-}
-
-function usageError(output: CliOutput, message: string): ExitCode {
-  output.stderr(message)
-  return 2
-}
-
-function localFailure(output: CliOutput, message: string): ExitCode {
-  output.stderr(message)
-  return 1
-}
-
-type Option = ReadonlyMap<string, string>
-
-/** The server a command was told about on its command line or in its environment, if any. */
-function givenServer(values: Option, environment: CommandEnvironment): string | undefined {
-  const fromEnvironment = environment.environmentServer
-  return values.get(serverOption) ?? (fromEnvironment === '' ? undefined : fromEnvironment)
-}
-
-type Transport =
-  | { readonly kind: 'transport'; readonly origin: string; readonly transport: GovernanceTransport }
-  | { readonly kind: 'refused' }
-
-function openTransport(
-  environment: CommandEnvironment,
-  origin: string,
-  location: 'governance' | 'session',
-): Transport {
-  try {
-    const transport = environment.services.createTransport(origin, location)
-    return { kind: 'transport', origin: new URL(origin).origin, transport }
-  } catch {
-    return { kind: 'refused' }
-  }
-}
-
-/** Runs the submit and turns a request the contract refuses into `undefined`, a usage error. */
-async function attempt(submit: () => Promise<CallerResult>): Promise<CallerResult | undefined> {
-  try {
-    return await submit()
-  } catch (error) {
-    if (error instanceof RequestInvalidError) return undefined
-    throw error
-  }
-}
-
-function withoutProof(body: unknown): unknown {
-  if (typeof body !== 'object' || body === null) return body
-  return Object.fromEntries(Object.entries(body).filter(([key]) => key !== 'loginProof'))
-}
-
-function text(body: unknown, key: string): string {
-  const value =
-    typeof body === 'object' && body !== null
-      ? Object.entries(body).find(([name]) => name === key)?.[1]
-      : undefined
-  return typeof value === 'string' ? value : ''
-}
-
-function stateDirectory(environment: CommandEnvironment, create: boolean) {
-  const resolved = resolveStateDirectory({
-    flag: environment.homeFlag,
-    environment: environment.environmentHome,
-    home: environment.homeDirectory,
-  })
-  if (resolved.kind === 'error') return resolved
-  return create
-    ? ensureStateDirectory(resolved.path)
-    : { kind: 'ready' as const, path: resolved.path }
-}
 
 async function runAccount(
   name: 'register' | 'login',
@@ -110,14 +45,13 @@ async function runAccount(
   // `register` never touches the state directory, so it takes no `--home`.
   if (name === 'register' && environment.homeFlag !== undefined)
     return usageError(output, unrecognized(name))
-  if (read.kind === 'missing')
-    return usageError(output, `omne ${name}: missing ${read.option}\n${hint}`)
+  if (read.kind === 'missing') return usageError(output, missingOption(name, read.option))
   const opened = openTransport(
     environment,
     givenServer(read.values, environment) ?? defaultServer,
     'governance',
   )
-  if (opened.kind === 'refused') return usageError(output, serverRefused)
+  if (opened.kind === 'refused') return refusedServer(output)
 
   const credential = await environment.services.readCredential(output.stderr)
   if (credential.kind === 'failure') return localFailure(output, credential.message)
@@ -153,6 +87,7 @@ async function runAccount(
   if (name === 'register') return report(name, result, echo, output)
 
   const issued = result.kind === 'response' && result.message.outcome === 'succeeded'
+  const loginId = issued ? text(result.message.body, 'loginId') : ''
   const saved = issued
     ? writeLoginState(directory, {
         version: 1,
@@ -161,6 +96,7 @@ async function runAccount(
         issuedAt: text(result.message.body, 'issuedAt'),
         tenantId: text(result.message.body, 'tenantId'),
         loginProof: text(result.message.body, 'loginProof'),
+        ...(loginId === '' ? {} : { loginId }),
       })
     : undefined
   const code = report(name, result, echo, output, withoutProof)
@@ -224,31 +160,21 @@ async function runSession<Parsed>(
   const { name } = command
   const read = readOptions(args, { accepted: command.accepted, required: command.required })
   if (read.kind === 'unrecognized') return usageError(output, unrecognized(name))
-  if (read.kind === 'missing')
-    return usageError(output, `omne ${name}: missing ${read.option}\n${hint}`)
+  if (read.kind === 'missing') return usageError(output, missingOption(name, read.option))
   const parsed = command.parse(read.values)
   if (parsed === undefined) return usageError(output, unrecognized(name))
 
-  const given = givenServer(read.values, environment)
-  const early = given === undefined ? undefined : openTransport(environment, given, 'session')
-  if (early?.kind === 'refused') return usageError(output, serverRefused)
+  const loaded = loadLogin(read.values, output, environment, 'session')
+  if (loaded.kind === 'exit') return loaded.code
+  const { directory, opened, tenant: loginTenant } = loaded
 
-  const directory = stateDirectory(environment, false)
-  if (directory.kind === 'error') return localFailure(output, directory.message)
-  const login = readLoginState(directory.path)
-  if (login.kind === 'failure') return localFailure(output, login.message)
-  const loginTenant = parseTenantText(login.state.tenantId)
-  const opened = early ?? openTransport(environment, login.state.server, 'session')
-  if (opened.kind === 'refused' || loginTenant === undefined)
-    return localFailure(output, `omne: login state is invalid\n`)
-
-  const context = { state: login.state, newId: environment.services.newId }
+  const context = { state: loaded.state, newId: environment.services.newId }
   let built: Built
   let owners: ReadonlyMap<string, string> = new Map()
   if (command.kind === 'creating') {
     // The records are read before anything is sent, so a damaged file stops the command before a
     // session exists that the file cannot take.
-    const records = readSessionOwners(directory.path)
+    const records = readSessionOwners(directory)
     if (records.kind === 'failure') return localFailure(output, records.message)
     owners = records.owners
     built = command.build(parsed, { ...context, loginTenant })
@@ -256,7 +182,7 @@ async function runSession<Parsed>(
     const { session, tenant: given } = command.target(parsed)
     let owner = given
     if (owner === undefined) {
-      const records = readSessionOwners(directory.path)
+      const records = readSessionOwners(directory)
       if (records.kind === 'failure') return localFailure(output, records.message)
       owner = parseTenantText(records.owners.get(session) ?? '')
     }
@@ -280,10 +206,7 @@ Add --tenant <tenant>.
       ? text(result.message.body, 'session')
       : ''
   if (session === '') return code
-  const saved = writeSessionOwners(
-    directory.path,
-    new Map(owners).set(session, tenantText(loginTenant)),
-  )
+  const saved = writeSessionOwners(directory, new Map(owners).set(session, tenantText(loginTenant)))
   if (saved.kind === 'written') return code
   const reason = saved.code === undefined ? '' : `: ${saved.code}`
   output.stderr(`omne ${name}: cannot write session records ${saved.path}${reason}
@@ -451,7 +374,7 @@ const stopCall: ExistingCommand<Targeted & { kind: 'model' | 'tool'; call: strin
   },
 }
 
-/** The six commands of the minimal command surface, in the order the help lists them. */
+/** The commands of the command surface, in the order the help lists them. */
 export const productionCommands: readonly CommandSpec[] = [
   {
     name: 'register',
@@ -489,4 +412,5 @@ export const productionCommands: readonly CommandSpec[] = [
     summary: 'Stop a model or tool call.',
     run: (args, output, environment) => runSession(stopCall, args, output, environment),
   },
+  ...governanceCommands,
 ]

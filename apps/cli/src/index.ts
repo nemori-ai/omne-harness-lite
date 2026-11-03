@@ -19,10 +19,12 @@ export {
   loginStatePath,
   otherUsersCanRead,
   readLoginState,
+  removeLoginState,
   writeLoginState,
   type LoginState,
   type LoginStateRead,
   type LoginStateReadOptions,
+  type LoginStateRemove,
   type LoginStateWrite,
 } from './login-state.ts'
 export { run } from './run.ts'

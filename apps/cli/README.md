@@ -2,16 +2,17 @@
 
 [中文](README_ZH.md)
 
-The `omne` command line client for the Harness Server. It prints help or the build version. It also sends six operations to the server through the SDK: `register`, `login`, `create-session`, `send-input`, `cancel-run`, and `stop-call`. Use it to drive a Harness Server from a shell, a script, or a CI job without writing TypeScript against the SDK.
+The `omne` command line client for the Harness Server. It prints help or the build version. It also sends operations to the server through the SDK: `register`, `login`, `create-session`, `send-input`, `cancel-run`, `stop-call`, and 18 governance operations, one command for each (for example `create-organization`, `switch-current-tenant`, and `revoke-login`). Use it to drive a Harness Server from a shell, a script, or a CI job without writing TypeScript against the SDK.
 
 ## Responsibility and status
 
-This app owns the process entry `omne`, argument parsing, the six commands, the credential reader, the login state file, the build identity, and two public functions that resolve and create the state directory. The package organization page sets the boundary at [The access boundary of the minimal CLI](../../docs/package-organization.md#最小-cli-的接入边界). [SPEC.md](SPEC.md) owns the accepted behavior for help, version, usage errors, and the default state directory.
+This app owns the process entry `omne`, argument parsing, the 24 commands, the credential reader, the login state file, the build identity, and two public functions that resolve and create the state directory. The package organization page sets the boundary at [The access boundary of the minimal CLI](../../docs/package-organization.md#最小-cli-的接入边界). [SPEC.md](SPEC.md) owns the accepted behavior for help, version, usage errors, and the default state directory.
 
 Implemented:
 
 - `omne --help` and `omne --version`.
-- The six commands. Each command sends one public operation through the SDK and prints one JSON object.
+- The 24 commands. Each command sends one public operation through the SDK and prints one JSON object. The 18 governance commands are named for their operations and act for the tenant that `login.json` holds. [SPEC.md](SPEC.md#治理命令) lists them.
+- `login.json` follows the governance results: `login` saves the `loginId` of the response, `switch-current-tenant` updates the tenant, and `revoke-login` deletes the file when it ends this login.
 - Credential entry without echo on a terminal, and from a pipe.
 - `login.json` in the state directory, written through a temporary file and a rename.
 - `sessions.json` in the state directory: for each session `create-session` made, the tenant that owns it. The same write method.
@@ -22,7 +23,7 @@ Not implemented:
 
 - `read-history`, session observation, and a subscription command.
 - A TTY presentation through pi-tui. Output is the same on a terminal and on a pipe.
-- `revoke-login`. The server does not provide it. To forget the login proof on this machine, delete `login.json`.
+- Governance operations on affiliation requests, authorization expressions, and admission judgments, and the commands for the operations that the stage does not provide.
 
 This app imports the SDK and nothing else. It does not import the public contract, a server package, Cordis, or pi-tui. The SDK re-exports the message types and encoding entries that the commands need.
 
@@ -108,13 +109,15 @@ Implementation details are free to change: the module layout, the help text word
 
 Each module has one job:
 
-- `src/catalog.ts` holds `defineCatalog`, the production catalog, and `renderHelp`. The production catalog lists the six commands from `src/commands.ts`.
+- `src/catalog.ts` holds `defineCatalog`, the production catalog, and `renderHelp`. The production catalog lists the commands from `src/commands.ts`.
 - `src/argv.ts` holds `parseArgv`, a pure function over `string[]` and a catalog.
-- `src/commands.ts` holds the six commands. `register` and `login` share one runner. The four session commands share another. Each session command is a small table: which options it accepts, how it checks them, and how it builds the request.
+- `src/command-support.ts` holds what the runners share: the transport, the usage-error messages, and `loadLogin`, which reads the login file and opens the transport.
+- `src/governance-commands.ts` holds the 18 governance commands. Each is a small table: which options it accepts, how it checks them without the login, how it builds the request with it, and which local change follows the response.
+- `src/commands.ts` holds the six account and session commands and puts the governance commands after them. `register` and `login` share one runner. The four session commands share another. Each session command is a small table: which options it accepts, how it checks them, and how it builds the request.
 - `src/options.ts` reads `--name value` pairs against a command's option list.
 - `src/report.ts` prints the result object and maps `result` and `outcome` to an exit code.
 - `src/credential.ts` reads the credential. `editCredential` is the pure line editor for a terminal.
-- `src/login-state.ts` reads and writes `login.json`.
+- `src/login-state.ts` reads, writes, and removes `login.json`.
 - `src/session-owners.ts` reads and writes `sessions.json`.
 - `src/services.ts` holds the real services: the SDK HTTP transport, process stdin, and random identifiers.
 - `src/identity.ts` reads `cli-identity.json` beside the build module through `import.meta.url`.
@@ -160,7 +163,7 @@ The test task builds this app and its dependencies first, so the SDK `dist` is c
 
 The test kinds follow [package test responsibilities](../../docs/verification.md#包级测试责任与边界):
 
-- Command tests run in this process. `tests/commands.spec.ts` drives the production catalog with the real SDK HTTP transport against a real HTTP server on `127.0.0.1` (`tests/support/fake-service.ts`). The server answers each operation in the wire form of the public contract. Cases cover each command, the exit-code table, usage errors, the state directory rules, the server precedence, and the no-echo rule.
+- Command tests run in this process. `tests/governance-commands.spec.ts` covers the 18 governance commands: one machine-readable result case for each, the `stage-not-provided` answer, the usage errors, the `loginId` that `login` saves, the login file after `switch-current-tenant`, and the deletion by `revoke-login`. `tests/commands.spec.ts` drives the production catalog with the real SDK HTTP transport against a real HTTP server on `127.0.0.1` (`tests/support/fake-service.ts`). The server answers each operation in the wire form of the public contract. Cases cover each command, the exit-code table, usage errors, the state directory rules, the server precedence, and the no-echo rule.
 - Process tests spawn `node dist/bin.js` from a temporary directory outside the repository. Each child gets a new environment with `PATH`, a temporary `HOME`, and optional `OMNE_HOME` and `OMNE_SERVER`. They are in the slow tier because every case starts a process.
 - Unit tests cover the credential reader and its line editor, the login state file, `parseArgv`, the catalog, and the state directory functions.
 - `tests/support/expected.ts` reads both help texts from SPEC.md, so the tests compare the build with the spec's own words.

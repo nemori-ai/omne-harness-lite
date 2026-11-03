@@ -11,11 +11,17 @@ export interface LoginState {
   readonly issuedAt: string
   readonly tenantId: string
   readonly loginProof: string
+  /** The identifier of this login, kept so `revoke-login` can end it. Absent when the server sent none. */
+  readonly loginId?: string
 }
 
 export type LoginStateRead =
   | { readonly kind: 'state'; readonly state: LoginState }
   | { readonly kind: 'failure'; readonly message: string }
+
+export type LoginStateRemove =
+  | { readonly kind: 'removed'; readonly path: string }
+  | { readonly kind: 'failed'; readonly path: string; readonly code: string | undefined }
 
 export type LoginStateWrite =
   | { readonly kind: 'written'; readonly path: string }
@@ -23,6 +29,7 @@ export type LoginStateWrite =
 
 const fileName = 'login.json'
 const keys = ['version', 'server', 'loginIdentifier', 'issuedAt', 'tenantId', 'loginProof'] as const
+const optionalKeys = ['loginId'] as const
 
 export function loginStatePath(directory: string): string {
   return join(directory, fileName)
@@ -56,13 +63,28 @@ export function writeLoginState(directory: string, state: LoginState): LoginStat
   }
 }
 
+/** Deletes the file. A file that is already gone counts as removed. */
+export function removeLoginState(directory: string): LoginStateRemove {
+  const path = loginStatePath(directory)
+  try {
+    rmSync(path, { force: true })
+    return { kind: 'removed', path }
+  } catch (error) {
+    return { kind: 'failed', path, code: errorCode(error) }
+  }
+}
+
 function shapeOf(value: unknown): LoginState | undefined {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
   const record = value as Record<string, unknown>
-  if (Object.keys(record).length !== keys.length || !keys.every(key => key in record))
+  const present = optionalKeys.filter(key => key in record)
+  if (
+    Object.keys(record).length !== keys.length + present.length ||
+    !keys.every(key => key in record)
+  )
     return undefined
   if (record['version'] !== 1) return undefined
-  const texts = keys.slice(1).map(key => record[key])
+  const texts = [...keys.slice(1), ...present].map(key => record[key])
   if (!texts.every(text => typeof text === 'string' && text !== '')) return undefined
   if (parseTenantText(record['tenantId'] as string) === undefined) return undefined
   return record as unknown as LoginState
