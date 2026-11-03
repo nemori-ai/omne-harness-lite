@@ -173,7 +173,15 @@ function registeringAccess(directory: TenantDirectory, tenantText: string): Tena
   }
 }
 
-const DENIED_IN_VIEW = ['commitEntries', 'pending', 'references', 'releasedScopes'] as const
+// Like the member's own delegated view (session-storage-sql `delegated.ts`): `commitEntries` and
+// `commitLog` ask no access on the port, and the other three name no session (R2-D256).
+const DENIED_IN_VIEW = [
+  'commitEntries',
+  'commitLog',
+  'pending',
+  'references',
+  'releasedScopes',
+] as const
 
 function delegatedView<P>(
   base: SessionStorageOptions<P>,
@@ -191,6 +199,7 @@ function delegatedView<P>(
   return {
     ...view,
     commitEntries: denied('commitEntries'),
+    commitLog: denied('commitLog'),
     pending: denied('pending'),
     references: denied('references'),
     releasedScopes: denied('releasedScopes'),

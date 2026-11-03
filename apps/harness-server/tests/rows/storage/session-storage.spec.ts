@@ -384,6 +384,27 @@ describe('the delegated entry and the trusted reads', () => {
     expect('ok' in (await bound.readWork(access(TENANT_A, 's1')))).toBe(true)
   })
 
+  test('a bound view refuses the two writes that ask no access on the port: commitEntries and commitLog (R2-D256)', async () => {
+    const tree = await load(workspace())
+    started(tree)
+    const command = createCommand(TENANT_A, 's1')
+    const view = tree
+      .trusted<SessionDelegatedTransactionsService<string>>(sessionDelegatedTransactionsKey)
+      .bind({
+        request: mutationAccessRequest(access(TENANT_A, 's1'), command),
+        evidence: evidence('bound/create'),
+      })
+    const commitLog = view.commitLog
+    if (commitLog === undefined) throw new Error('the view offers no commitLog')
+    expect(await commitLog({} as never)).toEqual({
+      failure: { kind: 'denied', action: 'commitLog' },
+    })
+    expect(await view.commitEntries({} as never)).toEqual({
+      failure: { kind: 'denied', action: 'commitEntries' },
+    })
+    expect(tree.check.controls.asked()).toEqual([])
+  })
+
   test('tenantDomains denies an unissued principal and sessionPrincipalBindings answers unavailable for a tenant the directory has not registered', async () => {
     const tree = await load(workspace())
     started(tree)
