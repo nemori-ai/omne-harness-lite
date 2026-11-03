@@ -123,6 +123,7 @@
     - 不迁移旧数据：已有事实行没有正文，读者对它们回退到读分区（session-adapters 已知限制）。
     - 清单摘要：新迁移与新 handler 改变组合的 `manifestDigest`，按 R2-D90 并入 session-composite/2，由负责人统一重算。
     - 验证：`tests/execution-facts.spec.ts` 在同一个迁移过的库上核对：正文与事实同读、没有正文的事实答 `'absent'`、只读进度之后的事实且行数不随之前的事实增长、另一租户与另一会话读不到、畸形序号被拒。
+21. 历史索引的 Session 行在 Worker 模块里增量保留（C-WORKCACHE A3，R2-D90、R2-D103）。`src/worker/history-index.ts` 的 `sessionRows` 按会话保留五种行（`intake.routed`、`run.started`、`run.attempt-started`、`run.terminal`、`control.requested`）折出的索引，下次只读游标之后的行；游标处的行指纹不符就从第一行重建，游标之后有空洞就丢掉保留的索引并让本次调用失败。修订大于日志尾部的行是未提交事务的行，只折进本次调用的副本，从不保留。修订不大于尾部就当作已提交，这只在 `session` 参加者是 `grouping: 'singleton'` 时成立：每个写事务只有一个操作，参加者在推进尾部之前读索引。组提交里后一个操作会看到同组前一个操作推进的尾部，从而保留同组仍可能回滚的行。把 `session` 改成 `groupable` 之前，必须先重新设计这份保留。验证：`tests/history-index-incremental.spec.ts`（其中「rows of an open transaction folded over a kept index are folded into a copy」覆盖副本分支：保留索引之上读到未提交的第 2、3 行，回滚后另一事务提交不同的第 2 行与相同的第 3 行，得到 `in-1`、`in-X`、`in-3`；把副本改成直接用保留的索引时这条用例变红）。
 
 ### 两个「事务端口」
 

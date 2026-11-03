@@ -353,6 +353,26 @@ describe('what is kept', () => {
     expect(inputsOf(read(db, 'open'))).toEqual(['in-x', 'in-2'])
   })
 
+  it('rows of an open transaction folded over a kept index are folded into a copy: the kept index does not take them', () => {
+    const { port: db } = migratedPort()
+    insert(db, 'clone', 1, 1, 'intake.routed', { input: 'in-1' })
+    tail(db, 'clone', 1)
+    expect(inputsOf(read(db, 'clone'))).toEqual(['in-1'])
+    // An open transaction past the kept cursor: rows 2 and 3 of revision 2, read over the kept index.
+    insert(db, 'clone', 2, 2, 'intake.routed', { input: 'in-2' })
+    insert(db, 'clone', 3, 2, 'intake.routed', { input: 'in-3' })
+    expect(inputsOf(read(db, 'clone'))).toEqual(['in-1', 'in-2', 'in-3'])
+    // It rolled back; another transaction committed a different row 2 and the same row 3.
+    db.execute('DELETE FROM sl_entry WHERE tenant = ? AND session = ? AND position > 1', [
+      't',
+      'clone',
+    ])
+    insert(db, 'clone', 2, 2, 'intake.routed', { input: 'in-X' })
+    insert(db, 'clone', 3, 2, 'intake.routed', { input: 'in-3' })
+    tail(db, 'clone', 2)
+    expect(inputsOf(read(db, 'clone'))).toEqual(['in-1', 'in-X', 'in-3'])
+  })
+
   it('another log under the same tenant and session (another database of this module) is read whole', () => {
     const first = migratedPort().port
     insert(first, 'shared', 1, 1, 'intake.routed', { input: 'in-a' })
