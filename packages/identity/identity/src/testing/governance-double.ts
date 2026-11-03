@@ -192,6 +192,57 @@ export function governanceOver(
     nextRole !== DEFAULT_TEAM_ROLES.superAdmin &&
     superAdminCount(target.organization) <= 1
 
+  /** The organization of `actingTenant`, when the caller is its current super administrator. */
+  const actingAdmin = (who: Caller) => {
+    const organization = who.record.selection.organization
+    const found = records.organizations.get(organization.text)
+    if (found === undefined) return DENIED
+    if (found.kind === 'personal' && !off('personal-organization')) return DENIED
+    if (!isSuperAdmin(organization, who.account) && !off('super-admin')) return DENIED
+    return Object.freeze({ kind: 'admin' as const, organization })
+  }
+
+  /** The requested duration within the terms, the default when absent, or `undefined` when out of range. */
+  const invitationDuration = (requested: unknown, terms: InvitationTerms): Duration | undefined => {
+    if (requested === undefined) return terms.defaultDuration
+    let legal: boolean
+    try {
+      const duration = requested as Duration
+      legal = isPositive(duration) && compareDurations(duration, terms.maxDuration) <= 0
+    } catch {
+      legal = false
+    }
+    return legal || off('duration-range') ? (requested as Duration) : undefined
+  }
+
+  /** Which members a read lists: active by default, removed for a super administrator only. */
+  const memberState = (
+    includeRemoved: unknown,
+    organization: OrganizationId,
+    account: AccountId,
+  ) => {
+    if (activeMembership(organization, account) === undefined) return undefined
+    if (includeRemoved === undefined || includeRemoved === false) return 'active' as const
+    if (includeRemoved !== true) return undefined
+    const allowed = isSuperAdmin(organization, account) || off('removed-requires-admin')
+    return allowed ? ('removed' as const) : undefined
+  }
+
+  /**
+   * The active member that a removal or role change targets. A caller that never was a member
+   * cannot see the organization; one that is not a super administrator is denied.
+   */
+  const memberTarget = (input: unknown, who: Caller) => {
+    const organization = field(input, 'organization')
+    if (!isOrganization(organization) || !seesOrganization(organization, who.account))
+      return NOT_VISIBLE
+    if (!isSuperAdmin(organization, who.account) && !off('super-admin')) return DENIED
+    const account = field(input, 'account')
+    const held = isAccount(account) ? activeMembership(organization, account) : undefined
+    if (held === undefined) return NOT_VISIBLE
+    return Object.freeze({ kind: 'target' as const, membership: held })
+  }
+
   /** The state of an invitation at `now`. The first time it is found expired, that is written. */
   const settle = (invitation: InvitationRecord, now: Instant, write: boolean): InvitationState => {
     if (invitation.state !== 'open') return invitation.state
@@ -291,28 +342,15 @@ export function governanceOver(
     if (who.kind !== 'caller') return who
     const down = storeDown(instance, 'organizations') ?? storeDown(instance, 'accounts')
     if (down !== undefined) return down
-    const organization = who.record.selection.organization
-    const issuing = records.organizations.get(organization.text)
-    if (issuing === undefined) return DENIED
-    if (issuing.kind === 'personal' && !off('personal-organization')) return DENIED
-    if (!isSuperAdmin(organization, who.account) && !off('super-admin')) return DENIED
+    const admin = actingAdmin(who)
+    if (admin.kind !== 'admin') return admin
     if (terms.kind !== 'read') return terms
     if (!legalTerms(terms.terms))
       return unavailable(
         'the invitation terms are not legal: a duration is not positive or the default is longer than the maximum',
       )
-    const requested = field(input, 'duration')
-    let duration: Duration = terms.terms.defaultDuration
-    if (requested !== undefined) {
-      duration = requested as Duration
-      let legal: boolean
-      try {
-        legal = isPositive(duration) && compareDurations(duration, terms.terms.maxDuration) <= 0
-      } catch {
-        legal = false
-      }
-      if (!legal && !off('duration-range')) return DENIED
-    }
+    const duration = invitationDuration(field(input, 'duration'), terms.terms)
+    if (duration === undefined) return DENIED
     // Authorization is decided before the identifier is looked up.
     const invitedLoginIdentifier = field(input, 'invitedLoginIdentifier')
     const invited = isFilledText(invitedLoginIdentifier)
@@ -324,12 +362,53 @@ export function governanceOver(
     const invitation = `inv_${randomBody()}`
     records.invitations.set(invitation, {
       invitation,
-      organization,
+      organization: admin.organization,
       invitedAccount: invited.account,
       expiresAt,
       state: 'open',
     })
     return Object.freeze({ kind: 'succeeded', invitation, state: 'open', expiresAt })
+  }
+
+  /**
+   * Steps 1 and 2 of a disposition: the caller must see the invitation, then be the party the
+   * disposition belongs to. `undefined` lets the disposition go on.
+   */
+  const dispositionRefusal = (
+    found: InvitationRecord | undefined,
+    who: Caller,
+    action: 'accept' | 'reject' | 'withdraw',
+  ) => {
+    if (found === undefined) return NOT_VISIBLE
+    const isInvitee = accountEquals(found.invitedAccount, who.account)
+    const isIssuer = isSuperAdmin(found.organization, who.account)
+    if (!isInvitee && !isIssuer && !off('invitation-visibility')) return NOT_VISIBLE
+    const isParty = action === 'withdraw' ? isIssuer : isInvitee
+    if (!isParty && !off('invitee-only')) return DENIED
+    return undefined
+  }
+
+  /** Steps 4 and 5 of an acceptance, written with the acceptance terminal. */
+  const admit = (found: InvitationRecord): InvitationDispositionOutcome => {
+    const current = membership(found.organization, found.invitedAccount)
+    found.state = 'accepted'
+    const outcome = { invitation: found.invitation, state: 'accepted' as const }
+    // 4. Already an active member: no member change.
+    if (current?.state === 'active') return Object.freeze({ kind: 'no-change', ...outcome })
+    // 5. A first join or a rejoin: a plain member in the stable tenant.
+    if (current === undefined)
+      records.memberships.set(memberKey(found.organization, found.invitedAccount), {
+        organization: found.organization,
+        account: found.invitedAccount,
+        tenant: tenant(found.organization, found.invitedAccount),
+        state: 'active',
+        role: DEFAULT_TEAM_ROLES.member,
+      })
+    else {
+      current.state = 'active'
+      current.role = DEFAULT_TEAM_ROLES.member
+    }
+    return Object.freeze({ kind: 'succeeded', ...outcome })
   }
 
   const dispose =
@@ -343,55 +422,17 @@ export function governanceOver(
       if (down !== undefined) return down
       const id = field(input, 'invitation')
       const found = typeof id === 'string' ? records.invitations.get(id) : undefined
-      // 1. Not found, or the caller cannot see it: the invitee and the issuing super administrators can.
-      if (found === undefined) return NOT_VISIBLE
-      const isInvitee = accountEquals(found.invitedAccount, who.account)
-      const isIssuer = isSuperAdmin(found.organization, who.account)
-      if (!isInvitee && !isIssuer && !off('invitation-visibility')) return NOT_VISIBLE
-      // 2. The actor is not the one this disposition belongs to.
-      if (!off('invitee-only')) {
-        if (action === 'withdraw' ? !isIssuer : !isInvitee) return DENIED
-      }
+      // 1 and 2: not visible, or not the party of this disposition.
+      const refusal = dispositionRefusal(found, who, action)
+      if (refusal !== undefined || found === undefined) return refusal ?? NOT_VISIBLE
       if (field(input, 'expectedState') !== 'open') return DENIED
       // 3. Already expired or terminal: the one terminal that was formed.
       const state = settle(found, time.instant, true)
       if (state !== 'open' && !off('single-terminal'))
-        return Object.freeze({
-          kind: 'no-change',
-          invitation: found.invitation,
-          state,
-        }) as InvitationDispositionOutcome
-      if (action === 'accept') {
-        const current = membership(found.organization, found.invitedAccount)
-        // 4. Already an active member: the acceptance terminal, no member change.
-        if (current !== undefined && current.state === 'active') {
-          found.state = 'accepted'
-          return Object.freeze({
-            kind: 'no-change',
-            invitation: found.invitation,
-            state: 'accepted',
-          })
-        }
-        // 5. A first join or a rejoin: a plain member in the stable tenant, with the terminal.
-        if (current !== undefined) {
-          current.state = 'active'
-          current.role = DEFAULT_TEAM_ROLES.member
-        } else {
-          records.memberships.set(memberKey(found.organization, found.invitedAccount), {
-            organization: found.organization,
-            account: found.invitedAccount,
-            tenant: tenant(found.organization, found.invitedAccount),
-            state: 'active',
-            role: DEFAULT_TEAM_ROLES.member,
-          })
-        }
-        found.state = 'accepted'
-      } else found.state = action === 'reject' ? 'rejected' : 'withdrawn'
-      return Object.freeze({
-        kind: 'succeeded',
-        invitation: found.invitation,
-        state: found.state,
-      }) as InvitationDispositionOutcome
+        return Object.freeze({ kind: 'no-change', invitation: found.invitation, state })
+      if (action === 'accept') return admit(found)
+      found.state = action === 'reject' ? 'rejected' : 'withdrawn'
+      return Object.freeze({ kind: 'succeeded', invitation: found.invitation, state: found.state })
     }
 
   const queryInvitation: IdentityGovernance['queryInvitation'] = async input => {
@@ -431,13 +472,10 @@ export function governanceOver(
     if (who.kind !== 'caller') return who
     const down = off('list-completeness') ? undefined : storeDown(instance, 'organizations')
     if (down !== undefined) return down
-    const organization = who.record.selection.organization
-    const issuing = records.organizations.get(organization.text)
-    if (issuing === undefined) return DENIED
-    if (issuing.kind === 'personal' && !off('personal-organization')) return DENIED
-    if (!isSuperAdmin(organization, who.account) && !off('super-admin')) return DENIED
+    const admin = actingAdmin(who)
+    if (admin.kind !== 'admin') return admin
     const invitations = [...records.invitations.values()]
-      .filter(entry => organizationEquals(entry.organization, organization))
+      .filter(entry => organizationEquals(entry.organization, admin.organization))
       .map(entry => view(entry, time.instant))
     return Object.freeze({ kind: 'succeeded', invitations: Object.freeze(invitations) })
   }
@@ -471,16 +509,8 @@ export function governanceOver(
     const organization = field(input, 'organization')
     if (!isOrganization(organization) || !seesOrganization(organization, who.account))
       return NOT_VISIBLE
-    if (activeMembership(organization, who.account) === undefined) return DENIED
-    const includeRemoved = field(input, 'includeRemoved')
-    if (includeRemoved !== undefined && typeof includeRemoved !== 'boolean') return DENIED
-    if (
-      includeRemoved === true &&
-      !isSuperAdmin(organization, who.account) &&
-      !off('removed-requires-admin')
-    )
-      return DENIED
-    const wanted = includeRemoved === true ? 'removed' : 'active'
+    const wanted = memberState(field(input, 'includeRemoved'), organization, who.account)
+    if (wanted === undefined) return DENIED
     const members = [...records.memberships.values()]
       .filter(
         entry => organizationEquals(entry.organization, organization) && entry.state === wanted,
@@ -516,24 +546,18 @@ export function governanceOver(
       if (who.kind !== 'caller') return who
       const down = storeDown(instance, 'organizations')
       if (down !== undefined) return down
-      const organization = field(input, 'organization')
-      const account = field(input, 'account')
-      // An account that never was a member cannot see the organization or its members.
-      if (!isOrganization(organization) || !seesOrganization(organization, who.account))
-        return NOT_VISIBLE
-      if (!isSuperAdmin(organization, who.account) && !off('super-admin')) return DENIED
-      const target = isAccount(account) ? activeMembership(organization, account) : undefined
-      if (target === undefined) return NOT_VISIBLE
+      const target = memberTarget(input, who)
+      if (target.kind !== 'target') return target
       const targetRole = change === 'role' ? field(input, 'targetRole') : undefined
       if (change === 'role' && (typeof targetRole !== 'string' || !ROLES.includes(targetRole)))
         return DENIED
-      const expectedRole = field(input, 'expectedRole')
-      if (expectedRole !== target.role && !off('expected-role')) return CONFLICT
-      if (leavesNoAdmin(target, targetRole as string | undefined)) return DENIED
+      const held = target.membership
+      if (field(input, 'expectedRole') !== held.role && !off('expected-role')) return CONFLICT
+      if (leavesNoAdmin(held, targetRole as string | undefined)) return DENIED
       // A negative control only: a provider that lets another call in between check and write.
       if (off('atomic-commit')) await Promise.resolve()
-      if (change === 'remove') target.state = 'removed'
-      else target.role = targetRole as string
+      if (change === 'remove') held.state = 'removed'
+      else held.role = targetRole as string
       return SUCCEEDED
     }
 
