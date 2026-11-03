@@ -1,7 +1,9 @@
 // The translation between the Agent ports and the Request Context call, by the field and failure
 // tables of request-context-contract docs/context.md. Pure functions: no reads, no state.
 import type {
+  AgentAdoptions,
   Failure,
+  InstructionSection,
   ModelRecipient,
   ProducedResult,
   RuntimeConditions,
@@ -11,14 +13,18 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type { ModelRequestPreparation } from '@omne-harness/model-contract/provider'
 import type {
   Access,
+  Adoption,
   AssemblyFailure,
   AssemblyUnknown,
+  PromptContributionSet,
+  PromptSection,
+  ScopeRef,
   SelectedModel,
   SourceRead,
   StepInput,
   ToolAdoption,
 } from '@omne-harness/request-context-contract'
-import { canonical } from './records.ts'
+import { canonical, digest } from './records.ts'
 
 /** The request preparation port of Model. */
 export type { ModelRequestPreparation }
@@ -82,6 +88,85 @@ export const firstWaveTools: ToolsSource<unknown> = async ({ conditions }) =>
   conditions !== null && conditions.bindings.length === 0
     ? { kind: 'value', value: [] }
     : { kind: 'unavailable', diagnostic: 'tools-source-absent' }
+
+/**
+ * The instructions of one adopted definition, read for the fourth group (SPEC「请求准备的取法」, 组四).
+ * `null` is the definition that carries no `instructions`: that is a value, not a failure. A read
+ * that gives no value closes the group: a definition that may carry a prompt and cannot be read is
+ * never sent with an empty prompt (R2-D124).
+ */
+export type DefinitionSource<P> = (
+  input: Readonly<{ access: Access<P>; definition: Adoption }>,
+) => Promise<SourceRead<readonly InstructionSection[] | null>>
+
+/** The reader when no definition source was given: every definition is unreadable. */
+export const absentDefinitions: DefinitionSource<unknown> = async () => ({
+  kind: 'unavailable',
+  diagnostic: 'definition-source-absent',
+})
+
+/**
+ * The production reader over `AgentAdoptions.resolve`: the exact adoption resolves to the judged
+ * definition, whose `instructions` are the value. The three failure classes of `resolve` pass
+ * through as the matching reads; a thrown resolver is unavailable.
+ */
+export function definitionSourceOf<P>(
+  adoptions: Pick<AgentAdoptions<P>, 'resolve'>,
+): DefinitionSource<P> {
+  return async ({ access, definition }) => {
+    let resolved
+    try {
+      resolved = await adoptions.resolve({ ...access, adoption: definition })
+    } catch {
+      return { kind: 'unavailable', diagnostic: 'definition-resolution-failed' }
+    }
+    if ('ok' in resolved) return { kind: 'value', value: resolved.ok.definition.instructions ?? null }
+    const { failure } = resolved
+    switch (failure.kind) {
+      case 'denied':
+        return { kind: 'denied' }
+      case 'invalid':
+        // The invalid vocabulary of Request Context names its own inputs, not a definition: an
+        // adoption that the deployment does not hold is a source that cannot be read.
+        return {
+          kind: 'unavailable',
+          diagnostic: `definition-invalid: ${failure.field}: ${failure.reason}`,
+        }
+      case 'unavailable':
+        return { kind: 'unavailable', diagnostic: `definition-unavailable: ${failure.diagnostic}` }
+      default:
+        return { kind: 'unavailable', diagnostic: `definition-resolution: ${failure.kind}` }
+    }
+  }
+}
+
+/** The order prefix of a definition section: it sorts before every registered contribution. */
+const DEFINITION_ORDER = '0-definition-'
+/** The name prefix of a definition section: `definition/<id>`. */
+export const DEFINITION_SECTION_PREFIX = 'definition/'
+
+/**
+ * The instructions of a definition as the fourth-group contribution set: one section per
+ * instruction, in order, named `definition/<id>`, in the layer of the target scope, with the
+ * definition adoption as the source. Sections carry no variables. The set digest covers the texts.
+ */
+export function definitionContributions(
+  definition: Adoption,
+  scope: ScopeRef,
+  sections: readonly InstructionSection[],
+): PromptContributionSet {
+  const contributions: PromptSection[] = sections.map((section, index) => ({
+    kind: 'section',
+    name: `${DEFINITION_SECTION_PREFIX}${section.id}`,
+    scope,
+    source: definition,
+    revision: digest(section.text),
+    order: `${DEFINITION_ORDER}${String(index).padStart(3, '0')}`,
+    template: section.text,
+    uses: [],
+  }))
+  return { contributions, digest: digest(sections), generation: null }
+}
 
 /** The summary blocks of one produced step result. */
 export type StepSummary = Extract<StepInput, { kind: 'summary' }>['produced']

@@ -6,7 +6,13 @@
 // the settlement it pulled has ended.
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { agentModelContextKey, agentRequestsKey } from '@omne-harness/agent-cordis-contract/cordis'
+import {
+  AgentAdoptionsService,
+  agentAdoptionsKey,
+  agentModelContextKey,
+  agentRequestsKey,
+} from '@omne-harness/agent-cordis-contract/cordis'
+import type { AgentAdoptions, AgentDefinition } from '@omne-harness/agent-contract'
 import type { ContextMeasureEvent } from '@omne-harness/agent-context'
 import {
   AgentContextProvider,
@@ -51,6 +57,29 @@ const PENDING = 0
 const ACTIVE = 2
 const FAILED = 3
 const config = { owner, resultCapacity: RESULT_CAPACITY }
+
+/** The adoptions double: one definition, `coding`, with two instruction sections; others invalid. */
+const CODING: AgentDefinition = {
+  category: 'AgentDefinition',
+  name: 'coding',
+  references: [],
+  attributes: [],
+  instructions: [
+    { id: 'role', text: '# Role\n\nYou are the coding agent.' },
+    { id: 'tools', text: '# Tools\n\nUse help first.' },
+  ],
+}
+const CODING_ADOPTION = { owner: 'release', name: 'coding', revision: '1', digest: 'sha256:coding' }
+class Adoptions extends AgentAdoptionsService<unknown> {
+  readonly resolve: AgentAdoptions<unknown>['resolve'] = async input =>
+    input.adoption.name === CODING_ADOPTION.name
+      // The evaluator is not read by the fourth group; the double gives none.
+      ? { ok: { definition: CODING, evaluator: {} as never, extensions: [] } }
+      : { failure: { kind: 'invalid', field: 'adoption', reason: 'not of this deployment' } }
+  readonly handover: AgentAdoptions<unknown>['handover'] = async () => ({
+    failure: { kind: 'unsupported' },
+  })
+}
 
 class ProbeTrust extends RequestContextTrustService<unknown> {
   readonly principalBinding = createTestingPrincipalBinding<unknown>()
@@ -149,6 +178,7 @@ async function providers(w: World) {
           inner.provide(MODEL_PREPARATION_RESOURCES, w.f.preparation)
         },
       }),
+    agentAdoptions: (ctx: Context) => ctx.plugin(Adoptions),
   }
   return { plugins, holder }
 }
@@ -160,6 +190,7 @@ const KEYS: readonly Key[] = [
   'runtimeContext',
   'modelRequestPreparation',
   'modelPreparationResources',
+  'agentAdoptions',
 ]
 
 async function assembled(
@@ -200,7 +231,7 @@ describe('AgentContextProvider on real Cordis', () => {
       expect(ctx.get(agentModelContextKey)).toBeUndefined()
     })
 
-  it('injects no key of model selection, the journal or the extensions', () => {
+  it('injects the adoptions of Agent and no key of model selection, the journal or the extensions', () => {
     expect(Object.keys(AgentContextProvider.inject).sort()).toEqual(
       [
         contextHolderSourcesKey,
@@ -209,6 +240,7 @@ describe('AgentContextProvider on real Cordis', () => {
         requestContextKey,
         runtimeContextKey,
         runtimeContextReaderEligibilityKey,
+        agentAdoptionsKey,
       ].sort(),
     )
     expect(AgentContextProvider.inject[runtimeContextKey]).toEqual({ consumer: 'model' })
@@ -268,6 +300,60 @@ describe('AgentContextProvider on real Cordis', () => {
     expect(holder.settlements()).toEqual([{ kind: 'settled' }])
     expect(holder.readsClosed).toBe(true)
     expect(ctx.get(agentRequestsKey)).toBeUndefined()
+  })
+
+  it('reads the instructions of the adopted definition through agentAdoptions, ahead of the registered sections', async () => {
+    const { ctx, w } = await assembled()
+    const reader = ctx.get(agentModelContextKey)
+    const requests = ctx.get(agentRequestsKey)
+    const face = ctx.get(requestContextKey)
+    if (reader === undefined || requests === undefined || face === undefined)
+      throw new Error('services absent')
+    // A registered contributor of the same scope: it must follow the definition sections.
+    await ctx.plugin({
+      name: 'contributor',
+      inject: { [requestContextKey]: { scope: w.f.target.scope } },
+      apply(inner: Context) {
+        const registered = inner.requestContext.contributeSection({
+          kind: 'section',
+          name: 'workspace/guide',
+          source: owner,
+          order: '1',
+          template: '# Workspace guide',
+          uses: [],
+        })
+        if (registered.kind !== 'registered') throw new Error(registered.reason)
+      },
+    })
+    const read = await reader.read(w.readInput())
+    if (!('ok' in read)) throw new Error('read refused')
+    const prepared = await requests.prepare(
+      w.prepareInput(read.ok, { definition: CODING_ADOPTION }),
+    )
+    if (!('ok' in prepared) || prepared.ok.kind !== 'assembled')
+      throw new Error(`expected assembled, got ${JSON.stringify(prepared)}`)
+    const [system] = prepared.ok.input.system
+    expect(system?.kind).toBe('text')
+    const text = system?.kind === 'text' ? system.text : ''
+    expect(text.indexOf('# Role')).toBe(0)
+    expect(text.indexOf('# Tools')).toBeGreaterThan(text.indexOf('# Role'))
+    expect(text.indexOf('# Workspace guide')).toBeGreaterThan(text.indexOf('# Tools'))
+  })
+
+  it('fails closed when the adopted definition cannot be resolved: no candidate, no empty prompt', async () => {
+    const { ctx, w } = await assembled()
+    const reader = ctx.get(agentModelContextKey)
+    const requests = ctx.get(agentRequestsKey)
+    if (reader === undefined || requests === undefined) throw new Error('services absent')
+    const read = await reader.read(w.readInput())
+    if (!('ok' in read)) throw new Error('read refused')
+    const prepared = await requests.prepare(
+      w.prepareInput(read.ok, { definition: { ...CODING_ADOPTION, name: 'unknown' } }),
+    )
+    expect('failure' in prepared && prepared.failure).toMatchObject({
+      kind: 'unavailable',
+      diagnostic: expect.stringContaining('definition-invalid'),
+    })
   })
 
   it('fails to load a configuration without a result capacity', async () => {
