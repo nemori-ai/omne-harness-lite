@@ -12,7 +12,6 @@
 // It hands out no issuer, no standing port and no write access to the registry.
 import { randomBytes } from 'node:crypto'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
-import { tenantCodec } from '@omne-harness/legal-identity'
 import { decodeModelInstanceId, type ModelFailure } from '@omne-harness/model-contract'
 import {
   createMemoryResultPushLedger,
@@ -26,6 +25,7 @@ import type {
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { currentForReader } from '../entry/runtime-context-trust.ts'
 import type { ModelQualification } from './qualification.ts'
+import { callKey } from './tenant-call.ts'
 
 const COMPOSITION = 'model-run-composition'
 
@@ -92,11 +92,6 @@ export type ModelRunComposition = Readonly<{
   hostCurrent(): (() => boolean) | undefined
 }>
 
-function keyOf(target: InitialTarget): string | undefined {
-  const text = tenantCodec.encode(target.tenant)
-  return text.ok ? JSON.stringify([text.value, target.call]) : undefined
-}
-
 type Attached = ModelRecordsAttachment &
   Readonly<{
     channel: ModelInitialHostChannel<unknown>
@@ -113,14 +108,14 @@ export function createModelRunComposition(): ModelRunComposition {
   let hostCurrent: (() => boolean) | undefined
 
   const checkOriginRead: ModelRecordsPort['checkOriginRead'] = target => {
-    const key = keyOf(target)
+    const key = callKey(target.tenant, target.call)
     return key !== undefined && (grants.get(key) ?? 0) > 0
       ? succeed(undefined)
       : fail({ kind: 'denied', action: 'origin-read' })
   }
 
   const grantOriginRead: ModelRunComposition['grantOriginRead'] = target => {
-    const key = keyOf(target)
+    const key = callKey(target.tenant, target.call)
     if (key === undefined) return () => {}
     grants.set(key, (grants.get(key) ?? 0) + 1)
     let revoked = false

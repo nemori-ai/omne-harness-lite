@@ -17,7 +17,7 @@ import type {
   TenantStandingSource,
 } from '@omne-harness/identity'
 import { principalIssuerKey, tenantStandingKey } from '@omne-harness/identity/cordis'
-import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import type { TenantId } from '@omne-harness/legal-identity'
 import type { ModelCallId, ModelFailure } from '@omne-harness/model-contract'
 import type {
   ActorRef,
@@ -49,6 +49,7 @@ import {
 import { registerModelRowPorts } from '../model/ports.ts'
 import { MODEL_HOST_COMPONENT, MODEL_WORK_OWNER } from '../model/principals.ts'
 import { ACTOR_OWNER, readSubject } from '../model/qualification.ts'
+import { sameTenant } from '../model/tenant-call.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
 
 const DENIED: ModelRegistrationFailure = Object.freeze({ kind: 'denied' })
@@ -82,10 +83,6 @@ const unavailable = (diagnostic: string): ModelFailure => ({
   diagnostic,
 })
 const denied = (action: string): ModelFailure => ({ kind: 'denied', action })
-
-function sameTenant(left: TenantId, right: TenantId): boolean {
-  return tenantCodec.encode(left).ok && tenantCodec.encode(right).ok && tenantEquals(left, right)
-}
 
 type Ready = Readonly<{
   attached: ModelRecordsAttachment

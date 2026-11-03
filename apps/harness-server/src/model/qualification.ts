@@ -15,7 +15,7 @@
 // host binding the channel already verified: the instance and its generation.
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import { tenantStandingKey } from '@omne-harness/identity/cordis'
-import { tenantCodec, tenantEquals, type Access, type TenantId } from '@omne-harness/legal-identity'
+import type { Access, TenantId } from '@omne-harness/legal-identity'
 import type {
   CallAccess,
   ModelCallId,
@@ -32,6 +32,7 @@ import type {
 } from '@omne-harness/model/commands'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { MODEL_HOST_COMPONENT, classOf, type PrincipalClass } from './principals.ts'
+import { callKey, sameTenant } from './tenant-call.ts'
 
 /** The owner of every subject reference: the standing source that can read the record again. */
 export const ACTOR_OWNER = tenantStandingKey
@@ -95,15 +96,6 @@ const unavailable = (dependency: string, diagnostic: string): ModelFailure => ({
   diagnostic,
 })
 const denied = (action: string): ModelFailure => ({ kind: 'denied', action })
-
-function keyOf(tenant: TenantId, call: ModelCallId): string | undefined {
-  const text = tenantCodec.encode(tenant)
-  return text.ok ? JSON.stringify([text.value, call]) : undefined
-}
-
-function sameTenant(left: TenantId, right: TenantId): boolean {
-  return tenantCodec.encode(left).ok && tenantCodec.encode(right).ok && tenantEquals(left, right)
-}
 
 /**
  * The subject reference of a tenant: the standing record of its account, read now. `unavailable`
@@ -258,7 +250,7 @@ export function createModelQualification(
 
   const recordHostBinding: ModelQualification['recordHostBinding'] = binding => {
     for (const [key, bound] of bindings) if (!bound.current()) bindings.delete(key)
-    const key = keyOf(binding.tenant, binding.call)
+    const key = callKey(binding.tenant, binding.call)
     if (key !== undefined) bindings.set(key, binding)
   }
 
@@ -290,7 +282,7 @@ export function createModelQualification(
   const execution: ModelCommandsAuthority<unknown>['execution'] = (
     given: ExecutionRef,
   ): Outcome<ActorRef, ModelFailure> => {
-    const key = keyOf(given.tenant, given.call)
+    const key = callKey(given.tenant, given.call)
     const bound = key === undefined ? undefined : bindings.get(key)
     if (bound === undefined || bound.instance !== given.instance || !bound.current())
       return fail(denied('execution-channel'))
