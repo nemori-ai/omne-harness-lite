@@ -1,6 +1,6 @@
 # MCP能力组工程设计
 
-状态：工程设计草案。本页的模型、端口、服务、成员和决定都是候选。mcp-contract、mcp 与 mcp-host-local 只有模板草稿，mcp-cordis-contract 尚未建立。公开形状没有取得技术接受，没有实现，也没有验证。本页不授予技术采用或运行支持，不能据此建立包、进程或数据库。
+状态：工程设计草案。本页的模型、端口、服务、成员和决定都是候选。mcp-contract 已有实现（候选，第一波，尚未取得技术接受），行为正文是它的 [SPEC](../mcp-contract/SPEC.md)。mcp 与 mcp-host-local 仍是模板草稿，mcp-cordis-contract 尚未建立。公开形状都没有取得技术接受。mcp-contract 以外的成员没有实现，组合行为没有验证。本页不授予技术采用或运行支持，不能据此建立包、进程或数据库。
 
 本页拥有组内的边界、成员分解、模型、端口操作、对外接口、失败种类和技术处置。跨领域交接与端口的实现方归[领域交接设计](../../../docs/domains/mcp/architecture.md)，本页只链接，不重写。组内流程见[组内流程](key-flows.md)。
 
@@ -34,9 +34,9 @@
 
 | 端口 | 问题 | 答复 | 失败 |
 | --- | --- | --- | --- |
-| `AdoptionView` | 在这个作用域里，哪些接入点已采用？正文与配值是什么？ | 每项：持有身份、采用修订、正文、三项固定设置的配值、stdio 进程环境所需的非秘密配值。正文或任一配值变化时，采用修订随之变化 | 不可读（`unknown`） |
+| `AdoptionView` | 在这个作用域里，哪些接入点已采用？正文与配值是什么？ | 每项：持有身份、采用修订、正文、三项固定设置的配值、stdio 进程环境所需的非秘密配值。配值缺失或不合法时如实交出。正文或任一配值变化时，采用修订随之变化 | 不可读（`unknown`） |
 | `UseEligibility` | 这个主体此刻能不能使用这个接入点？ | `granted`；`refused` 带原因；`unknown` | 只有 `unknown`。拒绝是答复，不是失败 |
-| `CredentialUse` | 为这份持有取得一次凭据的受限使用。Streamable HTTP 时另限这个连接目标 | 凭据句柄。句柄能为出站请求授权、回报对端的拒绝、释放。对端账号不由本端口答复 | 缺凭据；凭据被拒；不可读 |
+| `CredentialUse` | 为这份持有取得一次凭据的受限使用。Streamable HTTP 时另限这个连接目标 | 按用途分型的凭据句柄。HTTP 句柄能为出站请求授权、回报对端的拒绝、释放。进程凭据句柄只交给 `ProcessLanding`，能释放。对端账号不由本端口答复 | 缺凭据；凭据被拒；不可读 |
 | `ProcessLanding` | 按这份启动声明与环境，起一个本机进程 | 进程句柄。句柄给出标准输入输出，能停止整棵进程树并报告实际确认的停止范围 | 落点不成立；设施不成立；`unknown` |
 | `CatalogStore` | 按键读取一份 MCP 动作清单；按修订条件写入一份 MCP 动作清单 | 读取：这份清单，或不存在。写入：已写入 | 不可用；修订冲突 |
 
@@ -46,7 +46,7 @@
 
 - 读口：MCP 动作清单视图、刷新结论、对端视图。
 - 调用口：发出调用、带回输入答复、取消在途调用。结局是 `CallOutcome` 或「未发出」。
-- 状态口：任务的查询、取结果与取消；接入点状态的查询与列举；释放与全部关闭。
+- 状态口：任务的查询、取结果、交回输入答复与取消；接入点状态的查询与列举；释放与全部关闭。
 - 类别端口：接入点正文的判定、设置与权限项的声明、本机命令判定。
 - 可作稳定键的数据：MCP 已知动作身份与定义的内容摘要。调用方可以用它们作自己体系里的键。
 - 符合性设施：五个需求端口的符合性套件、本地真实服务端夹具、`classifyOutcome` 与 `mergeListing` 的穷举测试入口，见 [Q-MC06](#q-mc06-持续验证与真实部署前提)。
@@ -147,9 +147,8 @@ classDiagram
         可用性与封闭原因
     }
     class ActionDefinition {
-        对端原样定义
-        execution _meta icons
-        annotations 不可信
+        对端原样定义 _meta icons
+        annotations 另存 不可信
     }
     class CallOutcome {
         complete toolError inputRequired
@@ -167,18 +166,18 @@ classDiagram
 | 候选标识 | 含义 | 规则 |
 | --- | --- | --- |
 | `EndpointDefinition` | 接入点正文的解析结果：name、传输种类（stdio 或 Streamable HTTP）、认证方式声明（none、static、oauth）、设置声明 | 由 `parseEndpointBody` 得出。传输种类写在正文里，加载期就能判定「这个接入点可能启动本机命令」 |
-| `StdioLaunch` | stdio 接入点的启动声明：命令、参数、工作目录、所需环境变量名、所需设施 | 写在接入点正文里。只写变量名，不写值。变量的值经 `ProcessLanding.start` 的 `env` 交出，见 [MCP 声明的端口](#mcp-声明的端口)。命令是一个程序，不经 shell 解释。参数原样传递，不插值，不展开。正文没有列出的变量不隐式补入（参考旧材料，按现行架构筛选）。每个变量名绑定到非秘密配值还是凭据句柄，由 mcp-contract 的 SPEC 封闭。工作目录的写法与缺省由同一 SPEC 封闭 |
-| `ConnectionKey` | 租户、接入点持有、采用修订、对端账号 | 采用修订由 `AdoptionView` 交出。设置的变化体现在采用修订上，所以键里只用采用修订。采用修订一变，键就变，`Connections` 为新键建立新的 MCP 连接。对端账号由 `CredentialUse.acquire` 随凭据句柄交回，所以 `ConnectionKey` 在取得句柄之后才组成。认证方式为 `none` 时，对端账号取固定值 `anonymous`。它是组内的键，不交给调用方。见下文 MCP 连接 |
+| `StdioLaunch` | stdio 接入点的启动声明：命令、参数、工作目录、所需环境变量名、所需设施 | 写在接入点正文里。只写变量名，不写值。变量的值经 `ProcessLanding.start` 的 `env` 交出，见 [MCP 声明的端口](#mcp-声明的端口)。命令是一个程序，不经 shell 解释。参数原样传递，不插值，不展开。正文没有列出的变量不隐式补入（参考旧材料，按现行架构筛选）。每个变量写来源 `setting` 或 `credential`，正文不写值，见 [E3](../mcp-contract/SPEC.md#endpoint)。工作目录的写法与缺省见 [E4](../mcp-contract/SPEC.md#endpoint) |
+| `ConnectionKey` | 租户、接入点持有、采用修订、对端账号 | 采用修订由 `AdoptionView` 交出。设置的变化体现在采用修订上，所以键里只用采用修订。采用修订一变，键就变，`Connections` 为新键建立新的 MCP 连接。对端账号只由纯函数 `peerAccountOf(认证方式, 凭据配值)` 得出，`CredentialUse.acquire` 只答句柄，见 [K1](../mcp-contract/SPEC.md#keys)。所以 `ConnectionKey` 在取得句柄之前就能组成。认证方式为 `none` 时，对端账号取固定值 `anonymous`。它是组内的键，不交给调用方。见下文 MCP 连接 |
 | `EndpointRef` | 接入点引用：接入点 name 与持有 | 调用方用它指定接入点。它不含租户与对端账号，这两项由 `access` 与凭据得出 |
 | `PeerIdentity` | 协商结果：协议版本、对端能力、对端自报的 `serverInfo` 与 `instructions` | `serverInfo` 与 `instructions` 是对端自报，不可信，不作为身份或授权依据。`instructions` 按合法配置的字节上界截断，带内容摘要与取得时的连接代际 |
-| `ActionDefinition` | 一个对端动作的最近合法定义，按对端原样保存：name、title、description、inputSchema、outputSchema、annotations、`execution`（含 `taskSupport`）、`_meta`、icons | 本组不改写定义。annotations 不可信 |
+| `ActionDefinition` | 一个对端动作的最近合法定义：对端对象去掉 annotations 后的原样内容，例如 name、title、description、inputSchema、outputSchema、`_meta`、icons | 本组不改写定义。annotations 另存为不可信值。定义的内容摘要按含 annotations 的对端原对象计算，见 [C3](../mcp-contract/SPEC.md#catalog)。是否建任务由对端对每个请求决定，本组不从定义推断 |
 | `CallOutcome` | 一次已发出调用的结局种类 | 见[调用结果](#调用结果) |
 
 远端地址与覆盖值是连接目标设置，不写进接入点正文。决定与依据见 [Q-MC03](#q-mc03-客户端认证清单一致采用及配置机制)。
 
 ### MCP 连接
 
-MCP 连接的候选聚合是 `Connection`。它带 `key: ConnectionKey`、`generation`（连接代际）、`state` 和 `peer: PeerIdentity`。操作是 `open()`、`markLost()` 和 `close()`。状态候选为 `preparing`、`ready`、`degraded`（带原因）、`lost`（带原因）和 `closed`。`degraded` 的原因集合由 mcp-contract 的 SPEC 封闭。
+MCP 连接的候选聚合是 `Connection`。它带 `key: ConnectionKey`、`generation`（连接代际）、`state` 和 `peer: PeerIdentity`。操作是 `open()`、`markLost()` 和 `close()`。状态候选为 `preparing`、`ready`、`degraded`（带原因）、`lost`（带原因）和 `closed`。`degraded` 与 `lost` 的原因集合见 [S7](../mcp-contract/SPEC.md#services)。
 
 候选决定：`degraded` 的进入与离开条件如下，两种传输相同。
 
@@ -309,27 +308,28 @@ MCP 动作清单的候选聚合是 `ActionCatalog`。它带键（租户、对端
 
 ### 设置声明与逐动作权限
 
-候选决定：`EndpointInspection` 实现类别端口时，`deriveDeclarations` 产生两组声明。第一组是固定的三项设置：
+候选决定：本组声明两组项。第一组是设置，由 `EndpointInspection` 实现类别端口时的 `deriveDeclarations` 产出：三项固定设置，加上 stdio 进程环境的每个 `setting` 来源变量一项。产出次序与值域见 [E5](../mcp-contract/SPEC.md#endpoint)。
 
 | 项 | 种类与类别 | 规则 |
 | --- | --- | --- |
-| 连接目标 | 设置，落点与身份类 | 这个接入点连到对端的哪里。只对 Streamable HTTP 适用。stdio 接入点用正文里的启动声明（`StdioLaunch`），不读这一项。Streamable HTTP 的地址只做句法检查：小写的 `http` 或 `https`，绝对地址，主机合法，没有 fragment，没有 userinfo，整串没有空白或控制字符。不合法时拒绝，不修补后接收。句法检查不判定对端可信，也不阻止秘密出现在地址里。是否允许明文 `http` 是政策，不在本页定（参考旧材料，按现行架构筛选） |
-| 凭据 | 设置，落点与身份类 | 用本租户哪一份 MCP 凭据。没有缺省值。认证方式不是 `none` 时，缺值按缺凭据失败，不退回其他凭据。认证方式是 `none` 时不读这一项，缺值不是失败 |
-| 连接超时 | 设置，偏好类 | 正的时长。覆盖范围见上文 MCP 连接的不变式 5。没有缺省值。缺值时，调用方为本次操作给出了上界就用这个上界，没有给出就报配置缺项。上界怎样给出与失败码由 mcp-contract 的 SPEC 封闭 |
+| 连接目标 | 设置，落点与身份类 | 这个接入点连到对端的哪里。只对 Streamable HTTP 适用。stdio 接入点用正文里的启动声明（`StdioLaunch`），不读这一项。Streamable HTTP 的地址只做句法检查：小写的 `https`，或者主机是回环主机时的小写 `http`；绝对地址，主机合法，没有 fragment，没有 userinfo，整串没有空白或控制字符。不合法时拒绝，不修补后接收（参考旧材料，按现行架构筛选）。句法检查不判定对端可信，也不阻止秘密出现在地址里。明文 `http` 只用于回环主机（`localhost`、`127.0.0.1`、`::1`），其他明文 `http` 地址不合法。精确规则见 [V3](../mcp-contract/SPEC.md#values) |
+| 凭据 | 设置，落点与身份类 | 用本租户哪一份 MCP 凭据。没有缺省值。认证方式不是 `none` 时，缺值不退回其他凭据：要连接的操作答 `credential-unavailable`（`missing`），不连接的 `current` 与 `peer` 答 `config-missing`（`credential`），见 [K1](../mcp-contract/SPEC.md#keys)。配值不合法时答 `config-invalid`（`credential`）。认证方式是 `none` 时不读这一项，缺值不是失败 |
+| 进程环境变量 | 设置，落点与身份类 | 只对 stdio。正文 `launch.env` 里来源为 `setting` 的每个变量一项，项名是 `setting:placement-identity:env.<NAME>`。值是文本，没有缺省值。缺值时答 `config-missing`（`env.<NAME>`）。变量值只有缺失一种配置失败。来源为 `credential` 的变量不产出设置项，由进程凭据句柄注入 |
+| 连接超时 | 设置，偏好类 | 正的时长。覆盖范围见上文 MCP 连接的不变式 5。没有缺省值。缺值时用请求或任务引用里的可选上界 `connectBound`，两者都没有时答 `config-missing`（`connect-timeout`）。配值不合法时答 `config-invalid`（`connect-timeout`），不改用 `connectBound`。见 [S4](../mcp-contract/SPEC.md#services) |
 
-候选决定：三项固定设置都不补缺省值。`AdoptionView` 交来的配值缺哪一项，就按上表处置这一项。
+候选决定：设置项都不补缺省值。`AdoptionView` 交来的每项配值是三种状态之一：缺失、不合法（带原文）、有值。缺失答 `config-missing`，存在但守卫拒绝答 `config-invalid`，两者都带配置项。各操作需要哪些配值、按什么次序检查，见 [S4](../mcp-contract/SPEC.md#services)。
 
 候选决定：调用超时不是本组的设置。调用的截止只由调用方经 `signal` 给出，见上文 MCP 连接的不变式 5。
 
-第二组是逐动作权限。每个 MCP 已知动作一项，项名是 `execute:<对端动作名>`，取值是禁止、自动、询问（`forbid`、`auto`、`ask`）。规则如下：
+第二组是逐动作权限。每个 MCP 已知动作一项，项名是 `execute:<对端动作名>`，取值是禁止、自动、询问（`forbid`、`auto`、`ask`）。这一组不经类别端口产出，由纯函数 `actionPermissionItems` 产出，见 [C8](../mcp-contract/SPEC.md#catalog)。规则如下：
 
 - 只在 MCP 动作清单处于「已取得」时派生。清单「未取得」时不派生，也不据此推断动作有零个。
 - 项名只由对端动作名决定，不随动作定义的内容变化。MCP 已知动作不离开清单，所以动作变为不可用时，它的权限项仍在，各层的配值也仍在。动作重新可用时，沿用原配值（参考旧材料，按现行架构筛选）。
 - MCP 只声明权限项，不判定权限。
 
-依据层：统一语言[设置项类别](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)、[权限](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-permission--权限--permission)注意 ④「权限项有哪几项由资产的类别定，作者不能自加」；产品 [J-MC04](../../../.meta_harness/design/product/mcp/design.md#j-mc04-发起一个-mcp-动作)「经端点使用和逐动作准入」。各层能否给某一项配值，沿设置项类别与权限的来源规则，本页不另定。各项值域的精确形状由 mcp-contract 的 SPEC 封闭。三项固定设置不补缺省值，见上文。
+依据层：统一语言[设置项类别](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)、[权限](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-permission--权限--permission)注意 ④「权限项有哪几项由资产的类别定，作者不能自加」；产品 [J-MC04](../../../.meta_harness/design/product/mcp/design.md#j-mc04-发起一个-mcp-动作)「经端点使用和逐动作准入」。各层能否给某一项配值，沿设置项类别与权限的来源规则，本页不另定。各项值域见 [E5](../mcp-contract/SPEC.md#endpoint) 与 [C8](../mcp-contract/SPEC.md#catalog)。设置项不补缺省值，见上文。
 
-剩余义务：现行资产 SPEC 的[已接受公开类型](../../assets/assets/SPEC.md#accepted-public-types)中，`deriveDeclarations(body, context)` 不接收 MCP 动作清单，所以逐动作权限现在无法经类别端口派生。须由资产 SPEC 的拥有者扩展它的上下文，或另立一个接缝。拥有者：资产 SPEC 的拥有者与 mcp-contract 的维护者。
+剩余义务：现行资产 SPEC 的[已接受公开类型](../../assets/assets/SPEC.md#accepted-public-types)中，`deriveDeclarations(body, context)` 不接收 MCP 动作清单，所以逐动作权限现在无法经类别端口派生。须扩展它的上下文，或另立一个接缝。拥有者：资产 SPEC。mcp-contract 的[未封闭项](../mcp-contract/SPEC.md#open-items)记录同一项。
 
 ### MCP 声明的端口
 
@@ -337,11 +337,11 @@ MCP 动作清单的候选聚合是 `ActionCatalog`。它带键（租户、对端
 
 | 候选标识 | 操作 | 答复与规则 |
 | --- | --- | --- |
-| `McpTransport` | `discover()`、`listActions(cursor?)`、`call(request, signal, observe?)`、`cancelRequest(requestId)`、`getTask(taskId)`、`getTaskResult(taskId)`、`cancelTask(taskId)`、`close()` | 官方 SDK 只出现在实现里。失败区分「未发出」和「已发出但无应答」，后者表示效果未知。`discover` 在旧对端上回退到 `initialize`。对端答需要授权时，交出授权发现的结果，见下文 |
-| `McpTransportFactory` | `open(material, signal)` | 按准备好的材料打开一条传输。stdio 的材料是 `ProcessLanding` 交来的进程句柄，Streamable HTTP 的材料是连接目标与凭据句柄（认证方式为 `none` 时没有句柄）。两种材料都带本次的连接代际。答复是一个 `McpTransport`，失败与 `McpTransport` 相同。`Connections` 经它创建传输，所以本组的通用实现不认识官方 SDK |
-| `CredentialUse` | `acquire(access, endpointHolding, purpose, binding)` | `binding` 是凭据配值。Streamable HTTP 时另带连接目标，stdio 时没有连接目标。`purpose` 是用途：为 stdio 进程环境注入，或为 HTTP 出站请求授权；值域由 mcp-contract 的 SPEC 封闭。答复是凭据句柄。对端账号不由本端口答复：凭据配值唯一确定对端账号，本组用纯函数 `peerAccountOf` 从认证方式与凭据配值得出它，`current` 与 `Connections` 用同一个来源。句柄只对这份持有有效，Streamable HTTP 时只对这个连接目标有效。句柄能为一个出站 HTTP 请求授权，能回报对端拒绝了它，能释放。句柄是本租户这份持有上的 MCP 凭据的一次受限使用能力，不是秘密值。答复不退回组织、官方或其他租户的凭据。认证方式为 `none` 时不调用本端口，对端账号取固定值 `anonymous`。失败：缺凭据、凭据被拒、不可读。句柄和秘密值不进入 MCP 动作清单、日志、错误文本或交出的数据 |
-| `ProcessLanding` | `start(access, launch, env)` | 只用于 stdio 接入点。MCP 调用前必须已从 `UseEligibility` 得到 `granted`。`launch` 带命令、参数、工作目录与所需设施。`env` 的组成与秘密注入见下文。MCP 不选落点。答复是进程句柄：句柄给出标准输入输出与 stderr，能停止该进程及其全部后代，并报告实际确认的停止范围，供 `close()` 使用。本端口须在交出 stderr 之前遮盖其中的秘密值，因为秘密值不经过 MCP，MCP 无法按值遮盖。失败：落点不成立、设施不成立、`unknown`。失败时不静默落到宿主。本机命令型接入点是否开启不归本端口。句柄的精确形状由 mcp-contract 的 SPEC 封闭 |
-| `AdoptionView` | `endpoints(access, scope)`、`endpoint(access, endpointRef)` | `endpoints` 答复已采用接入点的列表。`endpoint` 按接入点引用答复一项，接入点未采用时答不存在。读口、调用口与状态口只收接入点引用，不收作用域，所以它们用 `endpoint` 核采用。持有本身带层与作用域，由端口实现方解析。每项是持有身份、采用修订、正文、三项固定设置的配值，以及 stdio 进程环境所需的非秘密配值。未配的设置项如实交出缺值，不补缺省值。正文或任一配值变化时，采用修订随之变化，MCP 据此换用新的 MCP 连接，见 `ConnectionKey`。它不判使用资格。MCP 不求值，也不保存采用。失败：不可读（`unknown`） |
+| `McpTransport` | `discover()`、`listActions(cursor?)`、`call(request, signal, observe?)`、`cancelRequest(requestId)`、`getTask(taskId)`、`updateTask(taskId, inputResponses)`、`getTaskResult(taskId)`、`cancelTask(taskId)`、`close()` | 官方 SDK 只出现在实现里。失败按对端效果分四种：未发出、已发出但无应答（效果未知）、对端答 JSON-RPC 错误、应答读不懂，见 [T1](../mcp-contract/SPEC.md#port-transport)。`discover` 在旧对端上回退到 `initialize`。对端答需要授权时，请求没有对端效果，交出授权发现的结果，见下文。任务操作与协议的对应见 [T6](../mcp-contract/SPEC.md#port-transport) |
+| `McpTransportFactory` | `open(material, signal)` | 按准备好的材料打开一条传输。stdio 的材料是 `ProcessLanding` 交来的进程句柄，Streamable HTTP 的材料是连接目标与凭据句柄（认证方式为 `none` 时没有句柄）。两种材料都带本次的连接代际与 `instructions` 的字节上界 `instructionsByteLimit`，传输在 `discover` 时按它截断 `instructions`，见 [S3](../mcp-contract/SPEC.md#services)。答复是一个 `McpTransport`，失败与 `McpTransport` 相同。`Connections` 经它创建传输，所以本组的通用实现不认识官方 SDK |
+| `CredentialUse` | `acquire(access, endpointHolding, purpose, binding)` | `binding` 是凭据配值。Streamable HTTP 时另带连接目标，stdio 时没有连接目标。`purpose` 是用途：为 stdio 进程环境注入（`process-env`），或为 HTTP 出站请求授权（`http-authorization`）。答复是按用途分型的凭据句柄，见 [CU1](../mcp-contract/SPEC.md#port-credentials)：进程凭据句柄由 MCP 原样交给 `ProcessLanding`，MCP 不读它，用完释放；它怎样变成变量值，由 `CredentialUse` 与 `ProcessLanding` 两个实现方约定。HTTP 凭据句柄能为一个出站 HTTP 请求授权，能回报对端拒绝了它，能释放。对端账号不由本端口答复：凭据配值唯一确定对端账号，本组用纯函数 `peerAccountOf` 从认证方式与凭据配值得出它，`current` 与 `Connections` 用同一个来源。句柄只对这份持有有效，HTTP 凭据句柄只对这个连接目标有效。句柄是本租户这份持有上的 MCP 凭据的一次受限使用能力，不是秘密值。答复不退回组织、官方或其他租户的凭据。认证方式为 `none` 时不调用本端口，对端账号取固定值 `anonymous`。失败：缺凭据（`missing`）、凭据被拒（`rejected`）、不可读（`unknown`）。句柄和秘密值不进入 MCP 动作清单、日志、错误文本或交出的数据 |
+| `ProcessLanding` | `start(access, launch, env)` | 只用于 stdio 接入点。MCP 调用前必须已从 `UseEligibility` 得到 `granted`。`launch` 带命令、参数、工作目录与所需设施。`env` 的组成与秘密注入见下文。MCP 不选落点。答复是进程句柄：句柄给出标准输入输出与 stderr，能停止该进程及其全部后代，并报告实际确认的停止范围，供 `close()` 使用。本端口须在交出 stderr 之前遮盖其中的秘密值，因为秘密值不经过 MCP，MCP 无法按值遮盖。失败：落点不成立、设施不成立、`unknown`。失败时不静默落到宿主。本机命令型接入点是否开启不归本端口。句柄的形状与停止范围见 [PL](../mcp-contract/SPEC.md#port-landing) |
+| `AdoptionView` | `endpoints(access, scope)`、`endpoint(access, endpointRef)` | `endpoints` 答复已采用接入点的列表。`endpoint` 按接入点引用答复一项，接入点未采用时答 `not-adopted`。读口、调用口与状态口只收接入点引用，不收作用域，所以它们用 `endpoint` 核采用。持有本身带层与作用域，由端口实现方解析。每项是持有身份、采用修订、正文、三项固定设置的配值，以及 stdio 进程环境所需的非秘密配值。每项配值是三种状态之一：缺失、不合法（带原文）、有值，不补缺省值，见 [AV1](../mcp-contract/SPEC.md#port-adoption)。正文或任一配值变化时，采用修订随之变化，MCP 据此换用新的 MCP 连接，见 `ConnectionKey`。它不判使用资格。MCP 不求值，也不保存采用。失败：不可读（`unknown`） |
 | `UseEligibility` | `check(access, endpoint)` | 答复 `granted`、`refused`（带原因）或 `unknown`。`refused` 的原因分两类，见下文。本机命令型接入点未由使用租户开启时，答 `refused`，原因是 `local-command-not-enabled`。每次使用都现场判定，不缓存。撤权在下一次使用时生效 |
 | `CatalogStore` | `read(key)`、`write(key, catalog, expectedRevision)` | `key` 是（租户、对端账号、接入点持有）。`read` 答这份 MCP 动作清单，或不存在。`write` 只在存储里的修订等于 `expectedRevision` 时写入整份清单；从未写入过的键，以「不存在」作为期望修订。答复是已写入。失败：不可用；修订冲突。写入不留下半份清单。清单里没有秘密值。第一波由 mcp 提供内存实现，耐久实现是剩余义务，见 [MCP 动作清单](#mcp-动作清单与-mcp-已知动作) |
 
@@ -352,14 +352,14 @@ MCP 动作清单的候选聚合是 `ActionCatalog`。它带键（租户、对端
 - 无使用资格：原因是 `not-eligible`。接入点不存在时也答这个原因。对无权主体，答复不随接入点是否存在而变。这是对本端口答复的要求。
 - 有使用资格，但被设置挡下：原因是 `local-command-not-enabled`（本机命令型接入点未由使用租户开启），或 `disabled`（接入点被禁用）。只有主体对这个接入点有使用资格时，才答这一类原因。
 
-依据层：产品 [J-MC02](../../../.meta_harness/design/product/mcp/design.md#j-mc02-发现合法动作并理解不可用)「理解不可用」、[J-MC08](../../../.meta_harness/design/product/mcp/design.md#j-mc08-查询状态而不泄露秘密)。原因的完整集合由 mcp-contract 的 SPEC 封闭。
+依据层：产品 [J-MC02](../../../.meta_harness/design/product/mcp/design.md#j-mc02-发现合法动作并理解不可用)「理解不可用」、[J-MC08](../../../.meta_harness/design/product/mcp/design.md#j-mc08-查询状态而不泄露秘密)。原因的完整集合见 [UE](../mcp-contract/SPEC.md#port-eligibility)。
 
 `UseEligibility` 只回答接入点这一级。逐动作的权限项由 MCP 声明，判定不在 MCP，见[设置声明与逐动作权限](#设置声明与逐动作权限)。
 
-候选决定：`ProcessLanding.start` 的 `env` 由两部分组成。
+候选决定：`ProcessLanding.start` 的 `env` 只含正文 `launch.env` 列出的变量。每个变量按来源分两种。
 
-- 非秘密配值。它们来自设置求值，经 `AdoptionView` 交来。
-- 凭据句柄。它们是 `CredentialUse.acquire` 交回的受限使用能力，不是秘密值。
+- `setting` 来源：非秘密配值。它们来自设置求值，经 `AdoptionView` 交来。类别端口为每个这样的变量声明设置项 `setting:placement-identity:env.<NAME>`，见[设置声明与逐动作权限](#设置声明与逐动作权限)。
+- `credential` 来源：进程凭据句柄。它是 `CredentialUse.acquire` 交回的受限使用能力，不是秘密值。每条连接按凭据配值取得一次句柄，所有 `credential` 来源变量共用它，见 [S9](../mcp-contract/SPEC.md#services)。
 
 起进程时，`ProcessLanding` 用句柄把秘密值注入进程环境。秘密值不经过 MCP 的内存表示，也不进日志。
 
@@ -368,10 +368,10 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 候选决定：MCP 只做授权发现，不做授权流程。规则如下。
 
 - 适用于 Streamable HTTP。对端答需要授权（HTTP `401`，或权限不足的 `403`）时，MCP 按 MCP 授权规范读取受保护资源元数据，取得其中列出的授权服务器签发者，以及对端要求的 scope。
-- MCP 把这三项作为一种结局 `authorization-required` 报给调用方。凭据句柄在用时，MCP 先经句柄回报对端的拒绝。
+- MCP 把这次授权发现作为一种结局 `authorization-required` 报给调用方。这个请求没有对端效果。凭据句柄在用时，MCP 先经句柄回报对端的拒绝。
 - 交互流程、令牌的取得、保管与续期都不归 MCP。它们归凭据设置入口与凭据保管方。本组不写它们的步骤。
 
-依据层：官方规格 [Authorization](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)；领域[模块角色与事实归属](../../../docs/domains/mcp/README.md#模块角色与事实归属)「凭据属于获准租户持有和秘密使用边界」。三项的精确字段由 mcp-contract 的 SPEC 封闭。
+依据层：官方规格 [Authorization](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)；领域[模块角色与事实归属](../../../docs/domains/mcp/README.md#模块角色与事实归属)「凭据属于获准租户持有和秘密使用边界」。授权发现的四个字段与取值来源见 [R4](../mcp-contract/SPEC.md#refusals)。
 
 ### 应用服务
 
@@ -382,7 +382,7 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 | 类别端口 | `EndpointInspection` | 类别端口 `judge` 与 `deriveDeclarations`；`inspect(body)` 得出 `EndpointDefinition` 或拒绝原因；`launchesLocalCommand(body)` 回答这个接入点是否可能启动本机命令 | 按 assets 的[已接受公开类型](../../assets/assets/SPEC.md#accepted-public-types)实现 `BodyContract`。加载期就能判定「可能启动本机命令」。存在但非法的来源不当作空来源。声明见[设置声明与逐动作权限](#设置声明与逐动作权限) |
 | 读口 | `ActionDiscovery` | `current(access, endpointRef)`、`refresh(access, endpointRef)`、`peer(access, endpointRef)` | 见下文读口。失败时保留原采用并给出原因，不伪装成空清单 |
 | 调用口 | `ActionInvoker` | `invoke`、`continueWithInput`、`cancel` | 见下文调用口。不自动重发。已发出但无应答时报 `unknown`。MCP 不保存原调用 |
-| 状态口 | `ActionInvoker` | `queryTask`、`taskResult`、`cancelTask` | 见下文状态口 |
+| 状态口 | `ActionInvoker` | `queryTask`、`taskResult`、`provideTaskInput`、`cancelTask` | 见下文状态口 |
 | 状态口 | `EndpointStatus` | `inspect(access, endpointRef)`、`list(access, scope)` | 读面暂不可用（`unknown`）与对无权主体的答复（`not-available-to-you`）分开。接入点未采用时，`inspect` 也答 `not-available-to-you`。有使用资格但被设置挡下时，给出该原因。凭据只给有无与归属。不重做连接或动作。`list` 只列出主体有使用资格的接入点 |
 | 状态口 | `Connections` | `release(access, endpointRef)`、`closeAll()`；组内另有 `ensure(access, endpointRef)` | 先用 `peerAccountOf` 得出对端账号，组成 `ConnectionKey` 取连接。需要新建连接时，再取凭据句柄，并经 `McpTransportFactory` 创建传输。连接不跨租户、不跨对端账号共用。连接时限独立于调用的截止。`release` 与 `closeAll` 只报告实际确认的范围。`closeAll` 只供持有本组实例的宿主在退出时调用 |
 
@@ -396,9 +396,9 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 | 清单修订 | `revision` |
 | 采用依据 | 连接代际、协议版本、对端能力 |
 | 新鲜度 | 取得时刻；对端给出的 `ttlMs`（如有）；取得后是否收到清单变化通知；依据是否与当前连接不符 |
-| 每个 MCP 已知动作 | 身份；原样的最近合法定义，含 `execution`、`_meta` 与 icons，annotations 标为不可信；定义的内容摘要；可用性与不可用原因 |
+| 每个 MCP 已知动作 | 身份；原样的最近合法定义，含 `_meta` 与 icons；annotations 另交，标为不可信；定义的内容摘要；可用性与不可用原因 |
 
-不可用原因是封闭集合。候选成员：对端不再提供、连接不可用、需要授权、凭据不可用、落点不可用。精确集合由 mcp-contract 的 SPEC 封闭。`current` 不连接，也不发现。
+不可用原因是封闭集合：对端不再提供、连接不可用、需要授权、凭据不可用、落点不可用。各项的给出条件见 [R3](../mcp-contract/SPEC.md#refusals)。`current` 不连接，也不发现。
 
 `refresh(access, endpointRef)` 交回新的清单修订，或「保留原采用」及原因，或 `unknown`（`CatalogStore` 写入不可用，见 [MCP 动作清单](#mcp-动作清单与-mcp-已知动作)）。首次发现也经 `refresh` 触发。
 
@@ -408,8 +408,8 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 | 操作 | 参数 | 答复 |
 | --- | --- | --- |
-| `invoke` | `access`、`endpointRef`、`actionName`、`args`、定义的内容摘要、`correlationKey`、`mode`、`signal` | 「未发出」带原因，或 `CallOutcome` |
-| `continueWithInput` | `access`、`endpointRef`、`actionName`、`args`、`requestState`、`inputResponses`、发出代际、`correlationKey`、`mode`、`signal` | 同 `invoke` |
+| `invoke` | `access`、`endpointRef`、`actionName`、`args`、定义的内容摘要、`correlationKey`、`signal`、可选的 `connectBound` | 「未发出」带原因，或 `CallOutcome` |
+| `continueWithInput` | `access`、`endpointRef`、`actionName`、`args`、`requestState`（如有）、`inputResponses`、发出代际、`correlationKey`、`signal`、可选的 `connectBound` | 同 `invoke` |
 | `cancel` | `access`、`correlationKey` | 已发出取消信号；没有在途调用；`unknown` |
 
 参数的含义：
@@ -418,16 +418,18 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 - `args` 是调用参数。`continueWithInput` 带回原参数。
 - 定义的内容摘要是调用方预期的那份定义的内容摘要。
 - 发出代际是 `inputRequired` 结局交出的连接代际。
-- `correlationKey` 是调用方给出的关联键，`mode` 是方式，`signal` 是调用方给出的截止。
+- `correlationKey` 是调用方给出的关联键，`signal` 是调用方给出的截止。
+- `connectBound` 是连接超时缺值时使用的上界，见[设置声明与逐动作权限](#设置声明与逐动作权限)的连接超时一行。
 
 规则：
 
 - 关联键由调用方给出。它不是本组的身份。本组在在途表里用它定位请求号。
 - 在途表的键是（租户、主体、关联键）。租户与主体取自 `access`。`invoke` 与 `continueWithInput` 在核对之前先用这个键在在途表里占位，查重与占位是一步。同一个键已在途时，返回「未发出」，原因是关联键重复。之后任一核对返回「未发出」时，撤销这个占位。关联键已标为已结束时，不算重复。
-- 方式是直接调用或任务调用。对端动作的 `execution.taskSupport` 不支持所选方式时，返回「未发出」。`continueWithInput` 同样带方式。
+- 结局是否为 `task` 只由对端应答决定，见 [O2](../mcp-contract/SPEC.md#outcomes)。
 - 调用的截止由调用方经 `signal` 给出。本组不自设调用时限。`signal` 在请求发出后触发时，本组发出取消信号，结局是 `unknown`，子因是本地放弃。
 - 发起前，本组再核当前使用资格、MCP 已知动作的可用性，以及调用方预期的定义的内容摘要。它与当前定义的内容摘要不符时，返回「未发出」，原因是定义已变。
-- 「未发出」的原因：无权（`not-available-to-you`，接入点未采用时也答这个原因）、被设置挡下、`unknown` 资格、关联键重复、已取消、定义已变、MCP 已知动作不可用、方式不支持、凭据不可用、需要授权（带授权发现的三项）、落点不可用、连接不可用。精确集合由 mcp-contract 的 SPEC 封闭。「未发出」没有对端效果。
+- 「未发出」的原因：无权（`not-available-to-you`，接入点未采用时也答这个原因）、被设置挡下、`unknown`、配值缺失或不合法、关联键重复、已取消、定义已变、MCP 已知动作不可用、凭据不可用、需要授权（带授权发现）、落点不可用、连接不可用。封闭集合与给出条件见 [R2](../mcp-contract/SPEC.md#refusals)。「未发出」没有对端效果。
+- 连接换代之后，`continueWithInput` 在旧代际上的在途状态无法证明时，答「未发出」，原因是 `unknown`。本组不在新代际上重发，见 [S2](../mcp-contract/SPEC.md#services)。
 - `invoke` 另可带一个可选的观察者，接收对端的进度与日志通知。通知是不可信的过程信息，不代替结局。
 - `cancel` 只在本次运行的在途表里，按（租户、主体、关联键）定位。所以只有发出这次调用的同一租户与同一主体能取消它。`cancel` 不要求当前使用资格，因为取消只减少效果，不产生新的效果。
 - 在途表在本次运行内保留关联键，调用交回结局后标为已结束。关联键标为已结束时，`cancel` 答没有在途调用。关联键不在表里时答 `unknown`，因为本组无法区分「从未发出」与「重启前发出」。
@@ -438,11 +440,20 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 | 操作 | 参数 | 答复 |
 | --- | --- | --- |
-| `queryTask` | `access`、`endpointRef`、`taskId`、发出代际 | 任务状态：`working`、`input_required`、`completed`、`failed`、`cancelled`；或已过期；或 `unknown` |
-| `taskResult` | `access`、`endpointRef`、`taskId`、发出代际 | 任务终态的 `CallOutcome`；或尚未结束；或已过期；或 `unknown` |
-| `cancelTask` | `access`、`endpointRef`、`taskId`、发出代际 | 已请求取消；任务已在终态；或 `unknown`。不核采用与当前使用资格，见「资格与换代」 |
+| `queryTask` | `access`、`endpointRef`、`taskId`、发出代际、可选的 `connectBound` | 任务状态：`working`、`input_required`（带不可信的输入请求）、`completed`、`failed`、`cancelled`；或已过期；或失败 |
+| `taskResult` | 同 `queryTask` | 任务终态的 `CallOutcome`；或尚未结束；或已取消、没有结果（`cancelled`）；或已过期；或失败 |
+| `provideTaskInput` | 同 `queryTask`，另带 `inputResponses` | 对端确认收到答复（`accepted`）；或失败 |
+| `cancelTask` | 同 `queryTask` | 对端确认收到取消请求（`requested`）；或失败。任务是否已到终态，经 `queryTask` 得知。不核采用与当前使用资格，见「资格与换代」 |
 
-对端按任务的保留时长删除任务后，查询报已过期，不当作失败或完成。已过期的任务结果不再可得。任务处于 `input_required` 时，怎样取得输入请求并带回答复，随协议线由 mcp-contract 的 SPEC 封闭。
+规则：
+
+- 四个任务操作只对发起者开放。服务在本次运行内保存已发出的任务表，键是（租户、主体、持有、任务号）。非发起者、重启之后和表里没有的任务一律答 `unknown`，不随任务是否存在而变。任务表不跨重启，这是已知限制。
+- 任务操作要发协议请求，所以需要现有连接或可以重建连接的采用材料。复用现有连接时不核资格。要新建连接时，`UseEligibility` 必须答 `granted`，否则不建连接，答 `effect-unknown`（`no-connection`）。两者都没有时同样答 `effect-unknown`（`no-connection`），例如接入点已撤采用。`cancelTask` 不为取消启动新进程。
+- 请求已发出而没有应答时，答 `effect-unknown`，带子因。对端答 JSON-RPC 错误或应答读不懂时，原样交出。
+- 任务处于 `input_required` 时，调用方从 `queryTask` 取得输入请求，再经 `provideTaskInput` 交回答复。
+- 对端按任务的保留时长删除任务后，查询报已过期，不当作失败或完成。已过期的任务结果不再可得。
+
+各操作的答复与失败见 [S2](../mcp-contract/SPEC.md#services)，与协议请求的对应见 [T6](../mcp-contract/SPEC.md#port-transport)。
 
 #### 纯函数
 
@@ -456,15 +467,15 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 #### 资格与换代
 
-候选决定：读与控制操作都带 `access`。除 `ActionInvoker.cancel` 以外，每次都先经 `AdoptionView` 核接入点已采用，再经 `UseEligibility.check` 核资格。这包括 `Connections.release`、`ActionDiscovery` 的三个操作、`EndpointStatus` 的两个操作，以及 `ActionInvoker` 除 `cancel` 以外的五个操作。
+候选决定：读与控制操作都带 `access`。除 `ActionInvoker.cancel`、`ActionInvoker.cancelTask` 与 `Connections.closeAll` 以外，每次都先经 `AdoptionView` 核接入点已采用，再经 `UseEligibility.check` 核资格。这包括 `Connections.release`、`ActionDiscovery` 的三个操作、`EndpointStatus` 的两个操作，以及 `ActionInvoker` 的 `invoke`、`continueWithInput`、`queryTask`、`taskResult`、`provideTaskInput`。见 [S1](../mcp-contract/SPEC.md#services)。
 
 - 接入点不在 `AdoptionView` 的答复里（未采用）时，读口与调用口一律返回 `not-available-to-you`，不再问 `UseEligibility`。所以对任一主体，「未采用」与「无权」「不存在」不可区分。`AdoptionView` 不可读时返回 `unknown`。
 - `UseEligibility` 答 `refused`、原因是 `not-eligible` 时，读面返回 `not-available-to-you`。接入点不存在时，读面也返回 `not-available-to-you`。所以对无权主体，「无权」与「不存在」不可区分。
 - `UseEligibility` 答 `refused`、原因是被设置挡下（`local-command-not-enabled` 或 `disabled`）时，读面给出这个原因。读面不因此连接或发现。
 - `UseEligibility` 答 `unknown` 时，读面返回 `unknown`。
-- 控制操作在资格不是 `granted` 时不执行。它的失败码由 mcp-contract 的 SPEC 封闭。
-- `ActionInvoker.cancel` 例外。它不核采用，也不核当前使用资格，只按（租户、主体、关联键）在在途表里定位，所以只能取消同一租户与同一主体发出的调用。取消只减少效果，主体失去资格之后仍能取消自己发出的调用。
-- `ActionInvoker.cancelTask` 同样例外：只有发起该任务的同一租户与同一主体能取消它，不核采用，也不核当前使用资格。理由同 `cancel`：取消只减少效果。
+- 控制操作在资格不是 `granted` 时不执行，只答拒绝，见 [R1](../mcp-contract/SPEC.md#refusals)。
+- `ActionInvoker.cancel` 例外。它不核采用，也不核当前使用资格，只按（租户、主体、关联键）在在途表里定位，所以只能取消同一租户与同一主体发出的调用。取消只减少效果，主体失去资格之后仍能取消自己发出的调用。取消在途调用不需要连接。
+- `ActionInvoker.cancelTask` 同样例外：只有发起该任务的同一租户与同一主体能取消它，不核采用，也不核当前使用资格。理由同 `cancel`：取消只减少效果。但它与 `cancel` 不同，它要发协议请求，所以需要现有连接或可以重建连接的采用材料。接入点撤采用后两者都没有时，答 `effect-unknown`（`no-connection`），见[状态口](#状态口)。
 
 依据层：领域[事实与责任](../../../docs/domains/mcp/architecture.md#事实与责任)读面一行「不以缓存授权」；产品 [J-MC02](../../../.meta_harness/design/product/mcp/design.md#j-mc02-发现合法动作并理解不可用)「理解不可用」、[J-MC08](../../../.meta_harness/design/product/mcp/design.md#j-mc08-查询状态而不泄露秘密)。
 
@@ -472,10 +483,10 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 | 操作 | Streamable HTTP 现代对端 | Streamable HTTP 旧对端 | stdio |
 | --- | --- | --- | --- |
-| `continueWithInput`、`queryTask`、`taskResult`、`cancelTask` | 没有协议会话。`requestState` 与 `taskId` 不依赖 MCP 连接，可以在新代际上继续 | 在途状态属于旧会话；会话换代后无法证明，返回 `unknown` | 旧进程的在途状态无法证明，返回 `unknown` |
+| `continueWithInput`、`queryTask`、`taskResult`、`provideTaskInput`、`cancelTask` | 没有协议会话。`requestState` 与 `taskId` 不依赖 MCP 连接，可以在新代际上继续 | 在途状态属于旧会话；会话换代后无法证明，返回 `unknown` | 旧进程的在途状态无法证明，返回 `unknown` |
 | `cancel` | 按关联键到请求号的在途表定位请求。代际已换时返回 `unknown` | 同左 | 同左 |
 
-为了判断「代际已换」，`inputRequired` 与 `task` 结局带上发出时的连接代际。调用方与 `requestState`、`taskId` 一起保存它，后续操作再带回。旧对端一列的依据与 stdio 相同：在途状态依附一个已经结束的会话或进程，无法证明时不当作仍然有效。
+`continueWithInput` 的 `unknown` 是「未发出」的原因，本组不在新代际上重发。为了判断「代际已换」，`inputRequired` 与 `task` 结局带上发出时的连接代际。调用方与 `requestState`、`taskId` 一起保存它，后续操作再带回。旧对端一列的依据与 stdio 相同：在途状态依附一个已经结束的会话或进程，无法证明时不当作仍然有效。
 
 ### 调用结果
 
@@ -485,12 +496,12 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 | --- | --- | --- |
 | `complete` | 正常结果，`resultType` 为 `complete`，`isError` 不为 true | 经 `toContentBlocks` 交出的内容、原样的结构化内容，以及 outputSchema 的校验结论：符合、不符（带原因）或对端没有声明 outputSchema |
 | `toolError` | 结果的 `isError` 为 true | 对端给出的错误内容。它是动作自己的失败，不是协议失败 |
-| `inputRequired` | `InputRequiredResult`（多轮请求） | `inputRequests`（只有 elicitation 一种）、`requestState` 与发出代际。调用方保存它们，再经 `continueWithInput` 带回答复 |
-| `task` | 对端交回任务句柄（tasks 扩展） | `taskId` 与发出代际。调用方保存它们，再经状态口查询 |
-| `protocolError` | JSON-RPC 错误 | 错误码与原因。协议错误不证明没有效果 |
+| `inputRequired` | `InputRequiredResult`（多轮请求） | `inputRequests`（不可信值，只有 elicitation 一种）与 `requestState` 各自可选，至少有一项；另带发出代际。调用方保存它们，再经 `continueWithInput` 带回答复 |
+| `task` | 对端交回任务句柄（tasks 扩展）。是否建任务由对端对每个请求决定 | `taskId` 与发出代际。调用方保存它们，再经状态口查询 |
+| `protocolError` | JSON-RPC 错误；或读不懂的应答，例如未知的 `resultType` | 错误码与原因，或读不懂的种类。不猜测成功。协议错误不证明没有效果 |
 | `unknown` | 请求已发出，但没有应答 | 效果未知，带子因：断流、进程退出、本地放弃。不压成失败，不重发 |
 
-依据层：官方规格 Key Changes「Major changes」第 6、7、8 项；产品 [J-MC04](../../../.meta_harness/design/product/mcp/design.md#j-mc04-发起一个-mcp-动作)「成功、失败、不可用、中断或效果未知各给出真实含义」。
+各种类的给出条件见 [O2–O6](../mcp-contract/SPEC.md#outcomes)。依据层：官方规格 Key Changes「Major changes」第 6、7、8 项；产品 [J-MC04](../../../.meta_harness/design/product/mcp/design.md#j-mc04-发起一个-mcp-动作)「成功、失败、不可用、中断或效果未知各给出真实含义」。
 
 ### 内容交付
 
@@ -510,19 +521,19 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 | 正文与来源 | 正文格式错误，来源非法 | `EndpointInspection` 给出拒绝原因，不当成空来源 | 产品 J-MC01 |
 | 采用 | 接入点不在 `AdoptionView` 的答复里；`AdoptionView` 不可读 | 不连接，不发起。读口与调用口答 `not-available-to-you`，与无权、不存在不可区分。不可读时答 `unknown` | 产品 J-MC08 |
 | 资格 | `UseEligibility` 答 `refused`：原因 `not-eligible`（无使用资格），或被设置挡下的原因 `local-command-not-enabled`（本机命令型接入点未由使用租户开启）、`disabled`；或答 `unknown` | 不连接，不发起。读面按上文返回：无使用资格时 `not-available-to-you`；被设置挡下时给出该原因；`unknown` 时 `unknown` | 产品 J-MC02、J-MC04、J-MC08；产品 [产品需求描述](../../../.meta_harness/design/product/mcp/design.md#产品需求描述)「本机命令型 MCP 默认禁用」 |
-| 凭据 | 认证方式不是 `none` 时：缺凭据、凭据被拒、凭据端口不可读 | 按缺凭据或不可用失败，不退回其他凭据。认证方式是 `none` 时不取凭据，凭据缺值不是失败 | 领域 [模块角色与事实归属](../../../docs/domains/mcp/README.md#模块角色与事实归属) |
-| 授权 | 对端答需要授权 | 结局 `authorization-required`，带受保护资源元数据、签发者与 scope。不发起授权流程 | 官方规格 Authorization |
+| 凭据 | 认证方式不是 `none` 时：缺凭据、凭据配值不合法、凭据被拒、凭据端口不可读 | 不退回其他凭据。缺凭据时，要连接的操作答 `credential-unavailable`（`missing`），`current` 与 `peer` 答 `config-missing`（`credential`）。配值不合法时答 `config-invalid`（`credential`）。被拒与不可读时答 `credential-unavailable`（`rejected` 或 `unknown`）。认证方式是 `none` 时不取凭据，凭据缺值不是失败 | 领域 [模块角色与事实归属](../../../docs/domains/mcp/README.md#模块角色与事实归属) |
+| 授权 | 对端答需要授权 | 结局 `authorization-required`，带授权发现。不发起授权流程 | 官方规格 Authorization |
 | 落点 | 落点或设施不成立 | 不建立 MCP 连接，不静默落到宿主 | 产品 [产品需求描述](../../../.meta_harness/design/product/mcp/design.md#产品需求描述)「不能失败后静默降到宿主」 |
 | 协商 | 没有共同的协议版本；回退也失败 | 连接不可用并给出原因 | 官方规格 Versioning |
-| 设置 | 连接超时缺值，调用方也没有给出上界 | 报配置缺项，不补缺省值 | 本页[设置声明与逐动作权限](#设置声明与逐动作权限) |
+| 设置 | 操作需要的配值缺失或不合法 | 答 `config-missing` 或 `config-invalid`，带配置项，不补缺省值 | 本页[设置声明与逐动作权限](#设置声明与逐动作权限) |
 | 发现 | 刷新失败；分页未取完 | 保留原采用与原因，不伪装成空清单。已取的部分分页不采用。清单从未取得时报告「尚未取得」 | 产品 J-MC02 |
 | 清单保存 | `CatalogStore` 读取不可用；写入修订冲突；写入不可用 | 读取不可用时 `current` 报 `unknown`。修订冲突时保留较新的采用，`refresh` 报「保留原采用」与原因。写入不可用时 `refresh` 报 `unknown`，不报新修订 | 本页 [MCP 动作清单](#mcp-动作清单与-mcp-已知动作) |
 | 调用 | 未发出（含定义已变、关联键重复）或已发出 | 见[调用结果](#调用结果) | 产品 J-MC04 |
-| 任务 | 任务已过期；代际已换 | 报已过期或 `unknown`，不当作失败或完成 | 本页状态口 |
+| 任务 | 任务已过期；代际已换；不是发起者；没有连接材料；已发出无应答 | 报已过期、`unknown` 或 `effect-unknown`，不当作失败或完成 | 本页状态口 |
 | 查询 | 读面暂不可用；主体无权；对象不存在 | 读面暂不可用报 `unknown`。主体无权与对象不存在都报 `not-available-to-you`，两者不可区分 | 产品 [J-MC08](../../../.meta_harness/design/product/mcp/design.md#j-mc08-查询状态而不泄露秘密) |
 | 释放 | 关闭失败；进程未确认停止 | 保留真实资源与下一处置者 | 产品 J-MC01 |
 
-精确的失败码由 mcp-contract 的 SPEC 封闭，本页不定。
+精确的失败码以 mcp-contract 的类型为准。各类型与给出条件的条款见 SPEC 的[失败码索引](../mcp-contract/SPEC.md#failure-codes)。
 
 ### SOLID 落点
 
@@ -560,20 +571,20 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 ### Q-MC02 成员与公开身份/操作形状的技术归属
 
-处置：成员与身份有候选决定；公开形状待成员 SPEC。
+处置：成员与身份有候选决定。mcp-contract 的公开形状由它的候选 [SPEC](../mcp-contract/SPEC.md) 与公开类型给出，尚未取得技术接受。其余成员的公开形状待成员 SPEC。
 
 | 候选决定 | 依据层 |
 | --- | --- |
-| 本组分成四个成员：mcp-contract、mcp、mcp-cordis-contract、mcp-host-local。其中三个已是 workspace 模板草稿成员，mcp-cordis-contract 仍是具名文档目标。职责、允许依赖与状态见[组入口](../README.md#成员与依赖) | 成员规格：Tool、Model、Agent 组的四成员先例，见[产品包组织](../../../docs/package-organization.md) |
+| 本组分成四个成员：mcp-contract、mcp、mcp-cordis-contract、mcp-host-local。mcp-contract 已有候选实现，mcp 与 mcp-host-local 是 workspace 模板草稿成员，mcp-cordis-contract 仍是具名文档目标。职责、允许依赖与状态见[组入口](../README.md#成员与依赖) | 成员规格：Tool、Model、Agent 组的四成员先例，见[产品包组织](../../../docs/package-organization.md) |
 | 公开身份分开：租户；接入点 name 与持有（`EndpointRef`）；采用修订；连接代际；MCP 已知动作身份（接入点 name 加对端动作名）与定义的内容摘要；调用方给出的关联键。`ConnectionKey` 是组内的键，不公开 | 产品 Q-MC02 场景「两个端点可能提供同名动作」；领域 [事实与责任](../../../docs/domains/mcp/architecture.md#事实与责任) |
 | MCP 交出可作稳定键的身份与定义的内容摘要。动作在调用方体系里的名字与条目形状不归本组 | 本页[边界](#边界) |
 | 公开操作是五个应用服务，按读口、调用口、状态口与类别端口分开，见[应用服务](#应用服务) | 本页设计守则 G3 |
-| 契约成员分三个入口：公开根给调用方；`./provider` 给端口的实现方，导出五个需求端口、`McpTransport` 与 `McpTransportFactory`；`./testing` 导出符合性设施。这沿 `tool-contract` 的先例 | 本页 SOLID「I」 |
+| 契约成员分三个入口：公开根给调用方；`./provider` 给端口的实现方，导出五个需求端口、`McpTransport` 与 `McpTransportFactory`；`./testing` 导出符合性设施。这沿 `tool-contract` 的先例。各入口的内容见 mcp-contract 的[三个入口](../mcp-contract/SPEC.md#entries) | 本页 SOLID「I」 |
 | 纯入口与 Cordis 集成分在不同成员 | 架构：[产品包组织](../../../docs/package-organization.md)「`src/index.ts` 不导入 `@deepseek-ai/cordis`」 |
 
 剩余义务：
 
-- 各成员 SPEC 封闭公开类型、失败码和行为条款。拥有者：各成员的维护者，随建包写。
+- 各成员 SPEC 封闭公开类型、失败码和行为条款。mcp-contract 已有候选 SPEC。其余拥有者：各成员的维护者，随建包写。
 - 技术接受。拥有者：负责人。
 
 ### Q-MC03 客户端、认证、清单一致采用及配置机制
@@ -585,24 +596,27 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 | 客户端用官方 `@modelcontextprotocol/client` 2.3.1，显式钉住协议线 2026-07-28；兼容更早修订，不支持 HTTP+SSE。见[协议基线与兼容](#协议基线与兼容) | 架构：[技术基础](../../../docs/architecture/technical-foundations.md#共同技术选择)「MCP连接与动作桥接」（RFC-0001 revision 4 已接受）；协议事实出自官方规格 |
 | MCP 凭据走本组声明的专用端口 `CredentialUse`，只用本租户这份持有上的凭据，不退回组织、官方或其他租户 | 领域 [模块角色与事实归属](../../../docs/domains/mcp/README.md#模块角色与事实归属)；统一语言 MCP 凭据 |
 | MCP 只做授权发现：对端答需要授权时，交出受保护资源元数据、签发者与 scope，作为结局 `authorization-required`。授权流程、令牌保管与续期不归本组。见 [MCP 声明的端口](#mcp-声明的端口) | 官方规格 Authorization；领域 [模块角色与事实归属](../../../docs/domains/mcp/README.md#模块角色与事实归属) |
-| 清单采用带连接代际和修订，整份发布，迟到较旧的结果被拒绝。见 [MCP 动作清单](#mcp-动作清单与-mcp-已知动作) | 统一语言；产品 J-MC03 |
+| 清单采用只按清单修订做条件判断，整份发布，迟到较旧的结果被拒绝。产出清单的那一代连接是否仍是当前连接，在发布边界核对。见 [MCP 动作清单](#mcp-动作清单与-mcp-已知动作) | 统一语言；产品 J-MC03 |
 | MCP 动作清单经需求端口 `CatalogStore` 保存：按（租户、对端账号、接入点持有）读取，按修订条件整份写入。第一波由 mcp 提供内存实现，mcp-contract 导出它的符合性套件 | 统一语言 MCP 动作清单「分开保存」「整份更新」；产品 J-MC03 |
 | 首次发现由调用方经 `refresh` 触发。MCP 连接在协商成功时进入 `ready`，不等清单 | 本页 [MCP 动作清单](#mcp-动作清单与-mcp-已知动作) |
 | 传输种类与 stdio 启动声明写进接入点正文。远端地址与覆盖值是连接目标设置。stdio 进程环境里的非秘密配值经 `AdoptionView` 交来，秘密值由 `ProcessLanding` 用凭据句柄注入，见 [MCP 声明的端口](#mcp-声明的端口) | 产品 [产品需求描述](../../../.meta_harness/design/product/mcp/design.md#产品需求描述)「身份和落点设置不从工作区取得」「本机命令型 MCP 默认禁用」；统一语言连接目标 |
 | 连接时限是本组的设置，发现受它约束。调用的截止由调用方经 `signal` 给出，本组不设调用时限。值来自合法配置，不补默认。连接目标只对 Streamable HTTP 适用；凭据只在认证方式不是 `none` 时必需。见[设置声明与逐动作权限](#设置声明与逐动作权限) | 产品 [阶段与版本支持承诺](../../../.meta_harness/design/product/mcp/design.md#阶段与版本支持承诺)；领域[协作与依赖](../../../docs/domains/mcp/README.md#协作与依赖) |
-| 类别端口声明三项固定设置与逐动作权限 `execute:<对端动作名>`。见[设置声明与逐动作权限](#设置声明与逐动作权限) | 统一语言设置项类别与权限；产品 J-MC04 |
+| 类别端口声明三项固定设置与 stdio 进程环境的每个 `setting` 来源变量。逐动作权限 `execute:<对端动作名>` 由纯函数 `actionPermissionItems` 产出，不经类别端口。见[设置声明与逐动作权限](#设置声明与逐动作权限) | 统一语言设置项类别与权限；产品 J-MC04 |
 | stderr 里的秘密由 `ProcessLanding` 在交出前遮盖 | 本页 `ProcessLanding` 一行：秘密值不经过 MCP |
 
 剩余义务：
 
 - MCP 接缝验证协商、旧协议兼容与认证。拥有者：mcp-host-local 的维护者。依据层：技术基础该行的实施准入。
-- 授权发现三项的精确字段，以及 `CredentialUse` 的 `purpose` 值域。拥有者：mcp-contract 的 SPEC。
-- `StdioLaunch` 的每个变量名绑定到非秘密配值还是凭据句柄，以及绑定的写法。拥有者：mcp-contract 的 SPEC。
-- `deriveDeclarations` 取得 MCP 动作清单的上下文或另立接缝，见[设置声明与逐动作权限](#设置声明与逐动作权限)。拥有者：资产 SPEC 的拥有者与 mcp-contract 的维护者。
-- 对端日志通知里的秘密。对端日志不经过 `ProcessLanding`，MCP 无法按值遮盖。所以日志通知按不可信内容交出，不写进本组日志。精确规则由 mcp-contract 的 SPEC 封闭。
-- 一次取得的分页数、清单大小与 `instructions` 的上界，值来自合法配置。拥有者：mcp-contract 的 SPEC。依据层：架构[能力自有资源池与租户调度](../../../docs/architecture/deployment/execution-and-communication.md#能力自有资源池与租户调度)要求各项资源预算是有限正值。
-- 部分准备与配置错误的报告形状，含连接超时缺值时的配置缺项。拥有者：mcp-contract 的 SPEC。
+- `deriveDeclarations` 取得 MCP 动作清单的上下文或另立接缝，见[设置声明与逐动作权限](#设置声明与逐动作权限)。拥有者：资产 SPEC。
 - `CatalogStore` 的耐久实现，接存储契约 [sql-contract](../../storage/sql-contract/README.md)，并通过同一份符合性套件。在它交付之前，MCP 已知动作不跨进程重启保留。承载它的成员在建立时决定。拥有者：mcp 的维护者。
+
+下列事项已由 mcp-contract 的 SPEC 封闭：
+
+- 授权发现的字段，见 [R4](../mcp-contract/SPEC.md#refusals)。`CredentialUse` 的用途值域，见 [CU1](../mcp-contract/SPEC.md#port-credentials)。
+- `StdioLaunch` 的每个变量绑定到非秘密配值还是凭据句柄，以及绑定的写法，见 [E3](../mcp-contract/SPEC.md#endpoint)。
+- 对端日志通知里的秘密。对端日志不经过 `ProcessLanding`，MCP 无法按值遮盖。所以通知按不可信内容交给调用方的观察函数，不写进本组日志，见 [S6](../mcp-contract/SPEC.md#services)。
+- 一次取得的分页数、清单大小与 `instructions` 的上界。三者都是 `McpConfig` 的必填正整数，见 [C1](../mcp-contract/SPEC.md#catalog) 与 [S3](../mcp-contract/SPEC.md#services)。依据层：架构[能力自有资源池与租户调度](../../../docs/architecture/deployment/execution-and-communication.md#能力自有资源池与租户调度)要求各项资源预算是有限正值。
+- 部分准备与配置错误的报告形状，含配值缺失与不合法，见 [R1](../mcp-contract/SPEC.md#refusals)、[S4](../mcp-contract/SPEC.md#services) 与 [S7](../mcp-contract/SPEC.md#services)。
 
 ### Q-MC04 原调用、dummy、可靠结果和恢复的组合协议
 
@@ -660,11 +674,11 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 ## 完整行为候选的正式承接缺口
 
-原任务的完整行为候选仍未分配、未采用。下表写明每份候选由哪个成员候选承接，以及经哪些端口与组外交接。mcp-contract、mcp 与 mcp-host-local 只有模板草稿，mcp-cordis-contract 尚未建立；承接在成员 SPEC 写成并取得技术接受后才成立，成立后同步唯一源与导航。本组不复制或薄化契约，也不在组根建立统一 SPEC。
+原任务的完整行为候选仍未分配、未采用。下表写明每份候选由哪个成员候选承接，以及经哪些端口与组外交接。mcp-contract 已有候选 SPEC 与实现，尚未取得技术接受。mcp 与 mcp-host-local 仍是模板草稿，mcp-cordis-contract 尚未建立。承接在成员 SPEC 写成并取得技术接受后才成立，成立后同步唯一源与导航。本组不复制或薄化契约，也不在组根建立统一 SPEC。
 
 | 原候选范围 | 承接成员（候选） | 组外交接 | 状态 |
 | --- | --- | --- | --- |
 | `discovery-and-adoption.md` | mcp-contract：`ActionCatalog` 的类型、`mergeListing`、`digestDefinition`、`AdoptionView`、`UseEligibility` 与 `CatalogStore` 端口及其符合性套件。mcp：`ActionDiscovery`、`ActionCatalog` 聚合与 `CatalogStore` 的内存实现 | 经 `AdoptionView` 与 `UseEligibility`；`CatalogStore` 的耐久实现接存储契约（剩余义务） | 未承接 |
-| `endpoint-and-connection.md` | mcp-contract：`EndpointDefinition`、`parseEndpointBody`、类别端口（含设置声明与逐动作权限）、`McpTransport`、`CredentialUse`、`ProcessLanding` 端口。mcp：`EndpointInspection`、`Connections`、`EndpointStatus` 与 `Connection` 聚合。mcp-host-local：两种传输与授权发现。mcp-cordis-contract：服务定义 | 经 `CredentialUse` 与 `ProcessLanding`；资产 SPEC 的拥有者（`deriveDeclarations` 的上下文） | 未承接 |
+| `endpoint-and-connection.md` | mcp-contract：`EndpointDefinition`、`parseEndpointBody`、类别端口（含设置声明）、逐动作权限项的 `actionPermissionItems`、`McpTransport`、`CredentialUse`、`ProcessLanding` 端口。mcp：`EndpointInspection`、`Connections`、`EndpointStatus` 与 `Connection` 聚合。mcp-host-local：两种传输与授权发现。mcp-cordis-contract：服务定义 | 经 `CredentialUse` 与 `ProcessLanding`；资产 SPEC 的拥有者（`deriveDeclarations` 的上下文） | 未承接 |
 | `action-bridge-and-recovery.md` | mcp-contract：`toContentBlocks`、`classifyOutcome`、`CallOutcome`。mcp：`ActionInvoker` 的调用口与任务操作 | 原调用、等待、结果、dummy 与恢复不在本组 | 未承接 |
 | 总览、完整不变式及持续验证范围 | 组合部分归本组 README「组合验证」；各成员的不变式归各自 SPEC；传输契约测试与符合性设施归 mcp-contract | 组合验证拥有者 | 未承接 |

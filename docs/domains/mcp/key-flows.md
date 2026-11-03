@@ -4,7 +4,7 @@
 
 ## F-MC04 动作准入至可靠结果
 
-对应 J-MC04，INV-MC14–17。调用方携带可信主体、接入点引用、对端动作名、参数、预期的定义的内容摘要、关联键、方式与 `signal`，`continueWithInput` 另带 `requestState`、输入答复与发出代际。MCP 按（租户、主体、关联键）登记在途调用，同一个键已在途时返回「未发出」，原因是关联键重复。MCP 复核接入点仍已采用、当前使用资格、MCP 已知动作的可用性与定义的内容摘要。接入点未采用时答 `not-available-to-you`，与无权、不存在不可区分。条件不成立时，MCP 返回「未发出」与原因，不发起原动作。逐动作的准入与参数校验在调用方一侧，见领域[主路径与交接](README.md#主路径与交接)第 3 步。
+对应 J-MC04，INV-MC14–17。调用方携带可信主体、接入点引用、对端动作名、参数、预期的定义的内容摘要、关联键与 `signal`，`continueWithInput` 另带 `requestState`、输入答复与发出代际。MCP 按（租户、主体、关联键）登记在途调用，同一个键已在途时返回「未发出」，原因是关联键重复。MCP 复核接入点仍已采用、当前使用资格、MCP 已知动作的可用性与定义的内容摘要。接入点未采用时答 `not-available-to-you`，与无权、不存在不可区分。条件不成立时，MCP 返回「未发出」与原因，不发起原动作。逐动作的准入与参数校验在调用方一侧，见领域[主路径与交接](README.md#主路径与交接)第 3 步。
 
 条件成立时，MCP 发出协议请求，交回[调用结果](../../../packages/mcp/docs/architecture.md#调用结果)。后端已发生而本地承接不明时，MCP 报 `unknown`，不把响应错误改成无副作用失败。MCP 交回的东西与 MCP 一侧的后续如下（技术草案）：
 
@@ -12,8 +12,8 @@
 | --- | --- | --- |
 | 未发出 | 请求没有发出，没有对端效果。原因含定义已变、关联键重复与需要授权 | 无 |
 | `complete`、`toolError` | 对端的结果。`toolError` 是动作自己的失败。`complete` 带 outputSchema 的校验结论 | 无 |
-| `inputRequired` | 对端要求输入。交出 `inputRequests`（只有 elicitation）、`requestState` 与发出代际 | 调用方经 `continueWithInput` 带回答复时，带 `requestState` 再发原请求。这是协议的多轮请求，不是重发 |
-| `task` | 对端转为任务执行。交出 `taskId` 与发出代际 | 调用方经状态口查询、取结果或取消，不重新发起 |
+| `inputRequired` | 对端要求输入。`inputRequests`（不可信值，只有 elicitation）与 `requestState` 各自可选，至少有一项；另交出发出代际 | 调用方经 `continueWithInput` 带回答复时，带上 `requestState`（如有）再发原请求。这是协议的多轮请求，不是重发 |
+| `task` | 对端转为任务执行。交出 `taskId` 与发出代际 | 调用方经状态口查询、取结果、交回输入答复或取消，不重新发起 |
 | `protocolError` | 错误码与原因。不证明没有效果 | 无 |
 | `unknown` | 效果未知，带子因：断流、进程退出、本地放弃。`signal` 触发或 `cancel` 之后，子因是本地放弃 | 不重发，见 F-MC06 |
 
