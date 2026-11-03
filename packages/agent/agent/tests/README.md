@@ -52,6 +52,7 @@
 - `canonical.spec.ts` 核对对象键顺序与缺席成员不改变输入。它保留 null、数组顺序与元素边界。字节视图只使用其偏移与长度范围内的字节。
 - `loop-port-failures.spec.ts` 记录 #502 1.2 只走正常路径这一限制：对路径上每个调用端口的节点注入一次端口的 `unavailable`。E1/E2/I1/M1 保存等待，F3 的 `tryFinish` unavailable 经 R0 在内存等待，不提交 waiting（`position` 仍是 F3），其余受测节点停止，Journal 的 `position` 停在最后一次提交写下的节点并保持 20 轮，F3 之前 execution 不终结，`observe` 显示 occupied。停止的 `owner` 只保留在协调者内部（#558 S-14）。公开测试不核对停止原因。`open` 之前的端口失败（`adoptions.resolve`、Q1 `handoff.prepare`、E0 `open`）是 `invoke` 的回答，并释放槽。
 - `loop-slot.spec.ts` 核对单执行槽：扩展拒绝在 `open` 之前释放槽；登记句柄的 `report` 抛出不影响 `invoke` 与回 idle；在 `invoke` 之前打开的观察先见 idle、再被唤醒见 occupied；E4 的 stop 与缺少转移行的结果都使运行停在 E4、未终结且仍占槽，后者走协调者的 `#defect` 路径；P1 再选择与第一次不一致时运行停在 P1（#502 1.2 的替代做法；P0/P1 与一致性重试尚未交付）。
+- `provider-quiesce.spec.ts` 核对停用（[SPEC](../SPEC.md#停用)）：空闲实例 drained、撤登记一次、观察以 retired 结束；draining 之后新的 invoke 与 resume 返回 unavailable，已受理的 invoke 重试仍取回原句柄；第一个 `await` 之前已 draining，核验拒绝解除 draining；占槽时 unresolved 并列出该 execution，运行照常结束、无控制记录，结束后重试 drained；撤登记失败、未到 withdrawn 或抛出都不报 drained；同一操作认回原结果，另一原因 conflict；停用进行中或之后的新 quiesce 认回原停用，只撤登记一次。登记句柄是替身。
 - `provider-access.spec.ts` 对四个面的每个公开操作核对：跨租户 `denied`，缺租户或租户非法 `invalid`（`observe` 以 `denied` 结束），都不调用 `access.check`。`access.check` 的 denied、unavailable、reject 与契约之外的回答都不放行。每次操作恰好调用一次，不缓存 allowed。
 
 测试通过不代替规格或验收。
@@ -75,7 +76,7 @@
 
 `fact 10` 固定 `tryFinish` 的五类 blocked（inputs、controls、operations、passages、custody）及其次序、有效取消对普通终结的优先（有效取消下带 complete 或 failed 候选的 F1 为 changed）、取消授权只能结束取消候选、未定写入为清单的 unknown 项而 tryFinish 为 unavailable、判断 unknown 为 unavailable、无安装时候选变体为 unavailable。ended 之后的迟到阶段事实只记录、不投影事件是 SPEC 六个阶段的正式条款。`journal-support.ts` 的 `finishInput` 先提交 F1 与 F2 再 `prepareFinish`，以读到的投影组成 tryFinish 输入；`finish` 先经 `takeInputs` 取走受理输入；`finishCancelled` 以 establish、judge、prepareFinish 结束取消候选。
 
-`provider-access.spec.ts` 中名称以「stage-temporary (#502)」开头的用例固定阶段性临时做法：放行之后，`invoke` 与 `observe` 之外的操作本体返回具名的 `unavailable`。`invoke` 放行之后先经 `adoptions.resolve` 取评估器，没有采用时返回其 `unavailable`、不 open。`loop-invoke.spec.ts` 的同名用例固定句柄的 `submit`、`control`、`acknowledge`。实现对应阶段的卡改写这些用例。
+`provider-access.spec.ts` 中名称以「stage-temporary (#502)」开头的用例固定阶段性临时做法：放行之后，`invoke`、`observe` 与 `quiesce` 之外的操作本体返回具名的 `unavailable`。`invoke` 放行之后先经 `adoptions.resolve` 取评估器，没有采用时返回其 `unavailable`、不 open。`loop-invoke.spec.ts` 的同名用例固定句柄的 `submit`、`control`、`acknowledge`。实现对应阶段的卡改写这些用例。
 
 ### 终态出口（#516）
 
