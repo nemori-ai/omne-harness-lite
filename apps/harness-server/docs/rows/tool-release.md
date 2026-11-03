@@ -30,7 +30,8 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
 
 - `artifacts`：tool-definitions 的 `package.json` 与 `dist` 下全部文件，各自的 sha256，加一个总摘要。
 - `consumer`：发行确认的文本消费者材料。它声明消费者只读写文本、不读附件，`capabilities` 与
-  `attachmentAccess` 两项证据定位清单内的这份声明，`conversion` 为 null。
+  `attachmentAccess` 两项证据定位清单内的这份声明，`conversion` 为 null。全仓还没有生产的
+  `ToolConsumerProfile` 来源，所以由发行清单声明这份材料（R2-D79 认可）。
 - `generation`：发行代次，是除证据外全部内容的规范化摘要。
 
 `check` 重新计算整份清单，再与磁盘文本逐字节比较。产物变了、条目被手改、只改了格式，都退出 1，并逐项写出
@@ -60,8 +61,10 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
   包括 `toolResidencyPrincipal` 与登记者主体的副本，都答 `denied`。
 
 `toolReleaseRegistrant` 是入口签发的系统主体，组件名 `toolReleaseRegistrant`，签发方式与
-`toolResidencyPrincipal` 相同。`Access` 需要租户，所以登记者带一个发行登记租户：组织与账户标识的时间戳都是零，
-真实标识不会生成它。它不在维护授予表里，登记官方贡献只经 `admits` 放行。
+`toolResidencyPrincipal` 相同。登记者的登记是系统作用域登记，不属于任何用户租户。`Access` 的形状需要租户，
+所以登记者带一个发行登记租户：组织与账户标识全为零，真实标识不会生成它。这个租户只为满足形状，不代表任何用户，
+也不授予任何租户资格；`admits` 同时核主体对象本身，所以同名租户也冒充不了登记者（R2-D79 认可）。登记者不在
+维护授予表里，登记官方贡献只经 `admits` 放行。
 
 ## `tool-host` 行
 
@@ -103,11 +106,17 @@ A 段的运行时三项：
 ## 具名缺件与已知限制
 
 - **耐久拒绝记录，波 3**：本波没有拒绝记录仓。
-- **官方作者只能由登记者装载**：租户访问调 `ensureLoaded` 时 `admits` 答 `denied`。采用点的首装需要系统作用域
-  或登记者路径，接线归后续 B 段与 `adoption-sources`。
-- 产物核对只覆盖 tool-definitions 本身，不覆盖它的依赖包。核对与 import 之间的改写不在保护范围内。
-  检出把 `package.json` 换成 CRLF 时，快照不可用。
-- 可用性的 `dependencies` 在 B 段接入执行环境行之前恒为 `false`。
+- **生产的消费者档案来源，波 3**：全仓没有生产的 `ToolConsumerProfile` 来源，「已确认的文本消费者」暂由发行
+  清单声明。生产来源由 L-TOOL 在波 3 给出（R2-D79）。
+- **官方作者只能由登记者装载**：租户访问调 `ensureLoaded` 时 `admits` 答 `denied`。B 段的必做项：发行入口在
+  启动时用 `toolReleaseRegistrant` 预装 Shell 与 Files，`adoption-sources` 只读已装的作者，不用租户访问首装
+  官方作者（R2-D79）。
+- **可用性的 `dependencies` 在 A 段恒为 `false`**：A 段没有落点与设施的可用性来源。B 段的必做项：接上执行环境
+  行的真实可用性，否则 Shell、Files 不可用（R2-D79）。
+- **产物核对不覆盖依赖包**：只核 tool-definitions 自己的 `package.json` 与 `dist`，不核它依赖的包。
+- **核对与 import 之间有改写窗口**：快照先核产物摘要，再 import 模块。两步之间磁盘上的改写不在保护范围内。
+- **CRLF 的 `package.json` 让快照不可用**：检出把 tool-definitions 的 `package.json` 换成 CRLF 时，摘要与清单
+  不等，快照不可用，所有核验答 `unavailable`。
 
 ## 持续验证
 
