@@ -484,6 +484,52 @@ describe('T-F3: a publication between the commit and its fold', () => {
   })
 })
 
+describe('T-F3: a publication takes the index of the folded tail over the row bound', () => {
+  it('the fold registers at the answered count; readers that waited for it answer as a whole read', async () => {
+    const a = await app()
+    const { port, hooks } = portOver(a)
+    ok(await a.create(TENANT_A))
+    const held = await readWork(port, a)
+    let readers: Promise<WorkSnapshot>[] = []
+    hooks.set('session.work-index', async () => {
+      readers = Array.from({ length: 3 }, () => readWork(port, a))
+      // The readers read the folded version, the count before the publication, and wait.
+      await new Promise(resolve => setTimeout(resolve, 20))
+      // One publication: the count moves on, and the pending input gets more admission rows than
+      // the index of a work answer may read (`WORK_INDEX_ROWS`), so the index read is `too-many`.
+      a.provider.seed(
+        'dom_0',
+        `INSERT INTO er_admission_idx
+           (tenant, session, input, ordinal, execution, operation, accepted, grant_ref, attachment)
+         WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 1001)
+         SELECT ?, ?, 'input-1', i, 'execution-x', 'aop-' || i, '{}', '{}', 'attachment-x' FROM n`,
+        [textOf(TENANT_A), 'session-1'],
+      )
+      a.provider.seed(
+        'dom_0',
+        `INSERT INTO er_root (tenant, session, published) VALUES (?, ?, 1)
+           ON CONFLICT (tenant, session) DO UPDATE SET published = published + 1`,
+        [textOf(TENANT_A), 'session-1'],
+      )
+    })
+    const before = workFoldCounts()
+    ok(await accept(a, port, 'input-1'))
+    expect(since(before)).toEqual({ ...none, folded: 1, republished: 1 })
+    const answers = await Promise.all(readers)
+    expect(answers.length).toBe(3)
+    const whole = await wholeRead(a)
+    expect(whole.revision).toBe(String(BigInt(held.revision) + 1n))
+    expect(whole.historyIndex).toBeUndefined()
+    for (const answer of answers)
+      expect(canonicalText(encodeValue(answer))).toBe(canonicalText(encodeValue(whole)))
+    // The cache holds the version the store is at: the next read reads no whole snapshot.
+    const from = a.provider.calls.length
+    const after = await readWork(port, a)
+    expect(readsOf(a, WHOLE, from)).toBe(0)
+    expect(canonicalText(encodeValue(after))).toBe(canonicalText(encodeValue(whole)))
+  })
+})
+
 describe('T-F3 (H2): a publication before the basis of the batch is read again', () => {
   it('the basis read finds another count: nothing is registered, and the next read is whole', async () => {
     const a = await app()

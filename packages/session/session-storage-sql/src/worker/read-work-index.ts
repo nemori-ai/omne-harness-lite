@@ -6,8 +6,9 @@
 // The index is answered only at the tail the cache folded to. The snapshot row moves only with the
 // tail (C-TOPOLOGY §3.1 P-4), so a publication count that moved on since does not change the
 // snapshot: the index is read at the current count, and the answer names that count, which the
-// cache registers. Another tail, or a count below the one asked, is `stale`, and the cache then
-// reads the snapshot whole.
+// cache registers. An index over the row bound (`too-many`) names the count too: the whole read at
+// that count answers the snapshot without an index as well. Another tail, or a count below the one
+// asked, is `stale`, and the cache then reads the snapshot whole.
 import type { WorkSnapshot } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue } from '../codec.ts'
@@ -46,6 +47,6 @@ export default handler('session.work-index', (input, port) => {
     decodeValue(snapshot) as WorkSnapshot,
   )
   return index === 'too-many'
-    ? { kind: 'too-many' }
+    ? { kind: 'too-many', published: now }
     : { kind: 'index', published: now, index: encodeValue(index.index) }
 })

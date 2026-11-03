@@ -474,11 +474,11 @@ async function withIndex(
   })
   if (!('output' in read)) return null
   const out = read.output
-  // Over the row bound the whole read answers without an index too, at the version asked.
-  if (out['kind'] === 'too-many') return { version, snapshot }
   const published = textOf(out['published'])
-  if (out['kind'] !== 'index' || published === null) return null
+  if ((out['kind'] !== 'index' && out['kind'] !== 'too-many') || published === null) return null
   if (published !== version.published) counts.republished += 1
+  // Over the row bound the whole read at the answered count answers without an index too.
+  if (out['kind'] === 'too-many') return { version: { tail: version.tail, published }, snapshot }
   return {
     version: { tail: version.tail, published },
     snapshot: {
