@@ -24,10 +24,11 @@ import {
   createAgentModelContext,
   createAgentRequests,
   createContextMaterials,
-  firstWaveTools,
+  absentToolLookup,
   type ContextMeasure,
   type DefinitionSource,
   type StepResultSource,
+  toolsSourceOf,
   type ToolsSource,
 } from '@omne-harness/agent-context'
 import {
@@ -467,7 +468,7 @@ export async function createWorld(options: WorldOptions = {}) {
     conversions: createAbsentConversionResults<string>(),
     model,
     resultCapacity: RESULT_CAPACITY,
-    tools: options.tools ?? firstWaveTools,
+    tools: options.tools ?? toolsSourceOf(absentToolLookup),
     stepResults: options.stepResults ?? (async () => ({ kind: 'unavailable', diagnostic: 'none' })),
     ...(options.definitions === undefined ? {} : { definitions: options.definitions }),
     ...(options.measure === undefined ? {} : { measure: options.measure }),

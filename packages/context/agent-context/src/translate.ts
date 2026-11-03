@@ -75,19 +75,13 @@ export function selectedModel(selection: AgentSelectedModel): SelectedModel {
   }
 }
 
-/** Reads the tools that one call may use; the sixth group has no source contract yet. */
+/**
+ * Reads the tools that one call may use (the sixth group). The production source is
+ * `toolsSourceOf(lookup)` in `tools.ts`; `conditions` is `null` for `derive` and `resume`.
+ */
 export type ToolsSource<P> = (
   input: Readonly<{ access: Access<P>; conditions: RuntimeConditions | null }>,
 ) => Promise<SourceRead<readonly ToolAdoption[]>>
-
-/**
- * The first-wave rule of the sixth group: no tool when the conditions name no binding, and
- * `tools-source-absent` otherwise. Without conditions (`derive`, `resume`) the source is absent.
- */
-export const firstWaveTools: ToolsSource<unknown> = async ({ conditions }) =>
-  conditions !== null && conditions.bindings.length === 0
-    ? { kind: 'value', value: [] }
-    : { kind: 'unavailable', diagnostic: 'tools-source-absent' }
 
 /**
  * The instructions of one adopted definition, read for the fourth group (SPEC「请求准备的取法」, 组四).

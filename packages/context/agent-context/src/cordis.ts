@@ -29,7 +29,8 @@ import { createContextMaterials } from './materials.ts'
 import type { ContextMeasure } from './measure.ts'
 import { createAgentModelContext } from './model-context.ts'
 import { createAgentRequests, type AgentRequests } from './requests.ts'
-import { absentStepResults, definitionSourceOf, firstWaveTools, unavailable } from './translate.ts'
+import { absentToolLookup, toolsSourceOf, type ToolLookup } from './tools.ts'
+import { absentStepResults, definitionSourceOf, unavailable } from './translate.ts'
 
 /**
  * The key of the Model preparation resources (X-3). Its Cordis definition belongs to
@@ -169,9 +170,15 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
   readonly derive: RequestPreparationService<unknown>['derive']
   readonly resume: RequestPreparationService<unknown>['resume']
 
-  /** `measure` is the observer of the measurement events; only the plugin factory hands it in. */
-  constructor(ctx: Context, config: AgentContextConfig, measure?: ContextMeasure) {
+  /**
+   * `input` is what the plugin factory hands in: the measurement observer and the tool lookup of
+   * the sixth group. Loaded as is, the plugin has neither: no event is built, and every non-empty
+   * set of bindings answers `tool-lookup-absent`.
+   */
+  constructor(ctx: Context, config: AgentContextConfig, input: AgentContextPluginInput = {}) {
     super(ctx)
+    const { measure } = input
+    const toolLookup = input.toolLookup?.(ctx) ?? absentToolLookup
     const materials = createContextMaterials<unknown>({
       owner: config.owner,
       capacity: config.materials ?? DEFAULT_MATERIAL_CAPACITY,
@@ -198,7 +205,8 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
         conversions: createAbsentConversionResults(),
         model: ctx.modelRequestPreparation,
         resultCapacity: config.resultCapacity,
-        tools: firstWaveTools,
+        // The sixth group: the resident bindings of the conditions, read through the tool lookup.
+        tools: toolsSourceOf(toolLookup),
         stepResults: absentStepResults,
         // The definition sections of the fourth group come from the adoptions service of Agent.
         definitions: definitionSourceOf(ctx.agentAdoptions),
@@ -237,21 +245,27 @@ export type AgentContextPluginInput = Readonly<{
    * Absent: no event is built, as with `AgentContextProvider` itself.
    */
   measure?: ContextMeasure
+  /**
+   * The tool lookup of the sixth group (SPEC「组六」), made from the context of the plugin: the
+   * constructor calls it once, and the lookup it returns serves every call. It is a function of the
+   * context, so it is not a configuration member and adds no service key. Absent: `absentToolLookup`.
+   */
+  toolLookup?: (ctx: Context) => ToolLookup<unknown>
 }>
 
 /**
- * The plugin of `AgentContextProvider` with the measurement observer that the assembly entry hands
- * in. The `inject`, the configuration and the provided keys are those of `AgentContextProvider`;
- * the observer is not a Cordis service and not a configuration member. Use the returned class as
- * `ctx.plugin(Plugin, config)` does with the provider class.
+ * The plugin of `AgentContextProvider` with the measurement observer and the tool lookup that the
+ * assembly entry hands in. The `inject`, the configuration and the provided keys are those of
+ * `AgentContextProvider`; neither input is a Cordis service or a configuration member. Use the
+ * returned class as `ctx.plugin(Plugin, config)` does with the provider class.
  */
 export function createAgentContextPlugin(
   input: AgentContextPluginInput = {},
 ): typeof AgentContextProvider {
-  const { measure } = input
-  return class AgentContextMeasuredPlugin extends AgentContextProvider {
+  const given = { ...input }
+  return class AgentContextAssembledPlugin extends AgentContextProvider {
     constructor(ctx: Context, config: AgentContextConfig) {
-      super(ctx, config, measure)
+      super(ctx, config, given)
     }
   }
 }

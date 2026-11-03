@@ -267,14 +267,14 @@ describe('the groups that Request Context reads', () => {
     })
   })
 
-  it('gives no tool when the conditions name no binding, and tools-source-absent otherwise', async () => {
+  it('gives no tool when the conditions name no binding, and tool-lookup-absent without a lookup otherwise', async () => {
     const w = await createWorld()
     expect(kindOf(await prepared(w))).toBe('assembled')
     const bound = { ...w.conditions, bindings: [owner] }
     const refused = await prepared(w, { conditions: bound })
     expect('failure' in refused && refused.failure).toMatchObject({
       kind: 'unavailable',
-      diagnostic: expect.stringContaining('tools-source-absent'),
+      diagnostic: expect.stringContaining('tool-lookup-absent'),
     })
   })
 

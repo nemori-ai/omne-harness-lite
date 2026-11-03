@@ -23,7 +23,7 @@ import {
   createAgentModelContext,
   createAgentRequests,
   createContextMaterials,
-  firstWaveTools,
+  toolsSourceOf,
 } from '@omne-harness/agent-context'
 
 const materials = createContextMaterials({ owner, capacity: 256 })
@@ -36,7 +36,7 @@ const requests = createAgentRequests({
   conversions,
   model,
   resultCapacity,
-  tools: firstWaveTools,
+  tools: toolsSourceOf(toolLookup),
   stepResults: absentStepResults,
 })
 // 停止时：交回结算，再清空材料库。
