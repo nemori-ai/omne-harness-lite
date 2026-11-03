@@ -1,17 +1,72 @@
 # 对象模型
 
-<!-- documentation:placeholder -->
-
-本文件描述本包内部对象的职责、身份、状态、关联、组合、继承与生命周期，配类图。它不强迫实现改成 class；纯函数或值包写实际模型与不适用项。
+本包有两个有状态的聚合（`Connection`、`InFlightCalls`，都是 `class`）、一张连接表（闭包里的 `Map`）和一个内存存储（闭包里的 `Map`）。服务是无状态的对象字面量。
 
 ## 对象与关系
 
-<!-- documentation:placeholder -->
+```mermaid
+classDiagram
+    class McpCore {
+        inspection
+        discovery
+        status
+        connections
+    }
+    class ConnectionTable {
+        ensure()
+        lose()
+        current()
+        stateOf()
+        close()
+        closeAll()
+    }
+    class Entry {
+        keyText
+        catalogKey
+        transport
+        process
+        credential
+        lingering
+        pending
+    }
+    class Connection {
+        key
+        policy
+        state
+        generation
+        peer
+        attempt()
+        ready()
+        degrade()
+        lose()
+        close()
+        isCurrent()
+    }
+    class InFlightCalls {
+        reserve()
+        markSent()
+        markEnded()
+        release()
+        cancel()
+        requestIdOf()
+    }
+    class AdmittedEndpoint {
+        冻结的 AdoptedEndpoint 副本
+        模块私有品牌
+    }
+    McpCore --> ConnectionTable : 四个服务共享
+    ConnectionTable "1" *-- "0..n" Entry : 按连接键文本
+    Entry --> Connection : 一个
+    ConnectionTable ..> AdmittedEndpoint : ensure 只收
+    McpCore ..> InFlightCalls : 下一波接入
+```
 
-待补：对象职责、身份、状态与关联，以及类图。
+`Connection` 的状态是 `none`、`preparing`、`ready`、`degraded`、`lost`、`closed`；转移表与代际规则见 SPEC MC-6 与 `tests/connection.spec.ts` 的合法转移表。`Entry` 的身份是连接键文本；一个租户与持有在任一时刻至多有一个条目。`AdmittedEndpoint` 是值，不是实体：它只证明一次关口通过。
 
 ## 生命周期
 
-<!-- documentation:placeholder -->
-
-待补：对象的创建、变化与销毁责任。
+- `Connection` 由连接表在第一次 `ensure` 时创建，`lost` 后在同一对象上重建，`closed` 后由新对象延续代际。
+- `Entry` 随第一次 `ensure` 创建；关闭且进程确认停止后删除；进程未确认停止时保留，带未确认的进程句柄。
+- 传输、进程句柄、凭据句柄由条目持有，在关闭次序里释放；准备失败时在同一次调用里释放。
+- `InFlightCalls` 的表项在一次运行内保留，`ended` 不删除。
+- 内存存储的记录在一次运行内保留。

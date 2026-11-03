@@ -24,6 +24,4 @@
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+替身：契约 `./testing` 的五个内存替身（经 `doubles/ports.ts` 加计数与脚本化的 `stop()` 范围）、`doubles/scripted-transport.ts` 的传输工厂。并发用例用 `doubles/deferred.ts` 排次序，不用计时器。真实依赖：无。`public-entry.spec.ts` 经构建产物导入包名，其余用例经相对路径导入 `src/`。缺口：没有真实传输、进程与对端；调用口的用例在下一波。

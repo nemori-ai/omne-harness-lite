@@ -24,6 +24,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+公开根只导出两个工厂与它们的类型；`internal/` 是聚合、关口与连接表，下一波的调用口在成员内接入。`class` 只出现在两个聚合里；源码没有类型断言。缺口：调用口与任务表。

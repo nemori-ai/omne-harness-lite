@@ -24,6 +24,4 @@
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+六个专题都已写成：`architecture.md`、`flows.md`、`object-model.md`、`public-api.md`、`context.md`；`cordis.md` 写明不适用并在 `documentation.json` 记为 `not-applicable`。缺口：下一波加调用口后，`flows.md` 的 `invoke` 次序从「不实现」改为实际流程。
