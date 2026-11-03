@@ -107,8 +107,8 @@
       "id": "agent-journal",
       "plugin": "agentJournalRow",
       "config": {
-        "combinationVersion": "session-composite/1",
-        "manifestDigest": "ecdc693595dbfffb2423aa6e985a36994ab057819cda953fb4c37232dc92d2a7"
+        "combinationVersion": "session-composite/2",
+        "manifestDigest": "3e710671c4eee4303a01ef57fbf08b90a7bb76887f9acf97416960299ced6614"
       }
     },
     {
@@ -180,7 +180,7 @@
     },
     {
       "id": "model-host",
-      "plugin": "stubPlugin",
+      "plugin": "modelHostRow",
       "config": {}
     },
     {
@@ -200,7 +200,7 @@
     },
     {
       "id": "model-request-preparation",
-      "plugin": "stubPlugin",
+      "plugin": "modelRequestPreparationRow",
       "config": {}
     },
     {
@@ -210,7 +210,7 @@
     },
     {
       "id": "model-records",
-      "plugin": "stubPlugin",
+      "plugin": "modelRecordsRow",
       "config": {}
     },
     {

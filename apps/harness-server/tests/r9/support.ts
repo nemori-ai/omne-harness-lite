@@ -61,12 +61,134 @@ export function newScratch(prefix = 'r9-'): Scratch {
  * The operator layer for the release tree: the three rows whose configuration holds an absolute
  * path or a port. The distribution file keeps neither (decision L1-12).
  */
+/** The adoption every test value of the model rows names; a test parameter, not a release value. */
+const MODEL_TEST_ADOPTION = {
+  owner: 'harness-server-test',
+  name: 'model-rows',
+  revision: '1',
+  digest: '0'.repeat(64),
+}
+
+/**
+ * The operator values of the model rows whose numbers the release layer does not write (R2-D6:
+ * the first production values follow "E9 initial value times 1.5, then the curve of the first
+ * measurement"; there is no E9 table yet). These are test values: they let the release tree load
+ * and the rows construct; no measurement backs them. `records` and `host` share
+ * `resultPageTargetBytes` and `readIdleMs`, `records.sendStage.preparation` equals `preparation`,
+ * and `records.sendStage.profiles` equals `profiles` (the load-time cross-row checks).
+ */
+export function modelRowsOperatorConfig(options: { storageRoot: string }) {
+  const profiles = {
+    retryPolicy: { owner: 'r9', name: 'retry', revision: '1', digest: '0'.repeat(64) },
+    compactionTriggerPercent: '80',
+    updatedAt: '2026-11-02T00:00:00Z',
+  }
+  const preparation = {
+    maxCitedCalls: 8,
+    openai: {
+      limits: {
+        toolArguments: {
+          maxBytes: 65_536,
+          maxDepth: 32,
+          maxItems: 1_024,
+          maxMembers: 256,
+          maxStringLength: 65_536,
+          maxNumberLength: 64,
+        },
+        maxReasoningText: 65_536,
+      },
+      margin: { percent: '10', source: MODEL_TEST_ADOPTION },
+    },
+  }
+  const host = {
+    host: { concurrencyLimit: 4, wakeCapacity: 64, scanBatchSize: 10, scanIntervalMs: 1000 },
+    runtime: {
+      outputBatchBytes: 16_384,
+      outputBatchDelayMs: 100,
+      observerBufferBytes: 65_536,
+      observerCheckIntervalMs: 25,
+      readIdleMs: 1000,
+      resultPageTargetBytes: 4096,
+      retryBackoffMs: 0,
+      cleanupRetryMs: 1000,
+    },
+    results: {
+      maxConcurrentCalls: 4,
+      maxRedeliveries: 2,
+      maxCleanupSteps: 8,
+      maxPendingAccountsPerTenant: 4,
+      maxPendingAccounts: 16,
+    },
+  }
+  const records = {
+    // The consumer owner of every Agent call (`@omne-harness/agent`, loop/identities.ts AGENT_OWNER).
+    owners: [
+      {
+        consumerOwner: '@omne-harness/agent',
+        evidence: { ...MODEL_TEST_ADOPTION, name: 'agent-consumer-evidence' },
+        work: { kind: 'exempt' },
+      },
+    ],
+    limits: {
+      scanPageCalls: 100,
+      resultPageParts: 16,
+      resultPageTargetBytes: 4096,
+      readIdleMs: 1000,
+      capacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
+    },
+    // `maxCommandBytes` is the storage provider's (`providerConfig`); `maxCallBytes` leaves the reserve.
+    maxCallBytes: 524_288,
+    maxCommandBytes: 1_048_576,
+    combinationVersion: 'session-composite/2',
+    send: { mirrorBytes: 4_194_304, maxClaims: 8 },
+    initial: { maxRecords: 1024, maxBindings: 4, maxCallsPerBinding: 1024 },
+    sendStage: {
+      maxRetainedAttempts: 16,
+      materialization: { maxRecords: 16 },
+      factoryQueryId: 'factory-openrouter',
+      profiles: {
+        retryPolicy: profiles.retryPolicy,
+        compactionTriggerPercent: profiles.compactionTriggerPercent,
+      },
+      preparation,
+      network: { maxConnections: 4, idleConnectionTimeoutMs: 60_000 },
+      routes: {
+        openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions', endMarker: '[DONE]' },
+      },
+      transportLimits: {
+        connectTimeoutMs: 5000,
+        maxErrorBodyBytes: 4096,
+        maxEventBytes: 1_048_576,
+        json: {
+          maxBytes: 1_048_576,
+          maxDepth: 64,
+          maxItems: 4096,
+          maxMembers: 1024,
+          maxStringLength: 1_048_576,
+          maxNumberLength: 64,
+        },
+      },
+    },
+  }
+  return {
+    profiles,
+    preparation,
+    host,
+    records,
+    credential: {
+      path: join(options.storageRoot, 'model-vault.json'),
+      factorySecret: 'r9-test-factory-secret',
+    },
+  }
+}
+
 export function operatorLayer(options: {
   storageRoot: string
   port: number
   shutdownDeadlineMs?: number
 }): unknown {
   const deadline = options.shutdownDeadlineMs ?? SHUTDOWN_DEADLINE_MS
+  const model = modelRowsOperatorConfig(options)
   return {
     ops: [
       {
@@ -78,29 +200,18 @@ export function operatorLayer(options: {
         kind: 'replace',
         id: 'session-storage',
         config: {
-          combinationVersion: 'session-composite/1',
+          combinationVersion: 'session-composite/2',
           directoryFile: join(options.storageRoot, 'tenant-domains.json'),
           domainRule: 'organization-account/1',
         },
       },
-      // 模型侧两行的配置是机器级参数：保管库路径与官方档案快照。写进运维层，不写进发行配置。
-      {
-        kind: 'replace',
-        id: 'model-credential',
-        config: {
-          path: join(options.storageRoot, 'model-vault.json'),
-          factorySecret: 'r9-test-factory-secret',
-        },
-      },
-      {
-        kind: 'replace',
-        id: 'model-profiles',
-        config: {
-          retryPolicy: { owner: 'r9', name: 'retry', revision: '1', digest: '0'.repeat(64) },
-          compactionTriggerPercent: '80',
-          updatedAt: '2026-11-02T00:00:00Z',
-        },
-      },
+      // 模型侧五行的配置是机器级参数与运维者的数值：保管库路径、官方档案快照、宿主与记录仓的上限、准备行的家族配置。
+      // 写进运维层，不写进发行配置（R2-D6：发行层不写数值默认值）。
+      { kind: 'replace', id: 'model-credential', config: model.credential },
+      { kind: 'replace', id: 'model-profiles', config: model.profiles },
+      { kind: 'replace', id: 'model-request-preparation', config: model.preparation },
+      { kind: 'replace', id: 'model-host', config: model.host },
+      { kind: 'replace', id: 'model-records', config: model.records },
       // tool-host 的构造值归运维者层，发行层不写默认值（B3-T2a 第 4 项）。这里是测试值：r9 与 serve 测试不执行
       // Shell 或 Files（execution-* 行仍是替身），值只满足两个作者的构造字段。cwd 取本次的存储根，执行文件取当前 Node。
       {

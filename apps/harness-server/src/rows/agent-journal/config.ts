@@ -5,8 +5,13 @@
 import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 
-/** The initial `combinationVersion` the release gives both rows. */
-export const COMBINATION_VERSION = 'session-composite/1'
+/**
+ * The `combinationVersion` the release gives the rows of the session log combination. Wave 2 moved
+ * it from `session-composite/1` to `session-composite/2` once (R2-D65): the `model` participant
+ * joined and the session log gained a migration. A version change does not re-register the tenants
+ * that the old version registered; a development environment clears its storage root (R2-D98).
+ */
+export const COMBINATION_VERSION = 'session-composite/2'
 
 export type AgentJournalCombination = Readonly<{
   combinationVersion: string
