@@ -725,6 +725,27 @@ export async function custodyWorld(names: readonly string[], open = true) {
     records,
     custody,
     admit: (name: string) => host.admit(access, execution, name),
+    /** An ACK of call `name` under `operation` with the retained evidence `custody`. */
+    async acknowledge(name: string, operation: string, custody: DurableEvidence) {
+      const found = ok(
+        await records.raw.recall({
+          principal: PRINCIPAL,
+          tenant: access.tenant,
+          call: callOf(name),
+          admission: modelOp(`admit-${name}`),
+        }),
+      )
+      if (found.kind !== 'found' || found.state.phase !== 'settled')
+        throw new Error(`call ${name} is not settled`)
+      return records.commands.handoff({
+        principal: PRINCIPAL,
+        tenant: access.tenant,
+        call: callOf(name),
+        operation: modelOp(operation),
+        result: found.state.settlement.version,
+        evidence: { kind: 'retained', custody },
+      })
+    },
     tree: (): LoadedTree => t.tree,
     async reload(openAfter: boolean) {
       await host.stop()

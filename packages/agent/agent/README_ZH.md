@@ -97,7 +97,7 @@ I2 建立原 PendingCall，M0 在受理之前共同提交固定请求与效果�
 
 M1 等待同一 Journal 已提交的 received result。M3 读取完整 facts 材料，核对 schema、原租户、reference、consumer 和 consumption，解释回复、部分结果或无回复，再条件提交 producer 事件。I3 及恢复后的协调者继续读取这份材料。loop 不连接 Model observer、不分页读 Model 结果、不调用 Model consumption，也不以 recordResult 保存 Model 责任。只有接收方推进 revision 时，仍有效的 attachment 重新 load 并继续条件提交；真实撤权仍停止推进。
 
-独立的 `createAgentModelReceiver` 显式消费同一 `AgentReceivedProvider`、主体资格核验、原目标查询、Model inspect/dispatches、账目出口、租户容量与宿主持有状态。每次 push 在首次 await 前复制冻结完整 typed delivery，核当前资格与原 Model 事实，再共同提交条目、材料和 saved。未知只查原 operation，排除不换身份复活。材料采用 `agentModelDeliverySchema`，`readModelDeliveryMaterial` 核验编码与原绑定；读取器本身不证明耐久保存。`createAgentCustodyEvidence` 是本 consumer owner 对 Model ACK 的证据适配器：经 `AgentReceivedRecords` 读接收方提交的接收记录，saved 证据等完全一致才确认，其余一律答 `unavailable`。
+独立的 `createAgentModelReceiver` 显式消费同一 `AgentReceivedProvider`、主体资格核验、原目标查询、Model inspect/dispatches、账目出口、租户容量与宿主持有状态。每次 push 在首次 await 前复制冻结完整 typed delivery，核当前资格与原 Model 事实，再共同提交条目、材料和 saved。未知只查原 operation，排除不换身份复活。材料采用 `agentModelDeliverySchema`，`readModelDeliveryMaterial` 核验编码与原绑定；读取器本身不证明耐久保存。`createAgentCustodyEvidence` 是本 consumer owner 对 Model ACK 的证据适配器：经 `AgentReceivedRecords` 读接收方提交的接收记录，saved 证据等完全一致才确认；与已提交记录不一致的证据按伪证据答 `handoff-invalid`，记录不存在或读不到答 `unavailable`。
 
 宿主在重装配时保留 `createModelReceiverState()`。`recover` 与 `retry` 返回 Agent Reply，先核当前 receive-result 资格，再限制到一次捕获的原绑定集合；无对象或无权统一 denied。`recover` 读取集合内已保存条目和材料，`retry` 驱动未决提交与账目待办。inspect 只供宿主管理。共同提交之后才把每个非 null dispatch 账目放入出口待办。unknown/unavailable 保留原 handoff 重试；denied/invalid/conflict 保留 blocked 与诊断。saved 在共同保存、材料核对及入队后返回，不等待 outlet。宿主保留实际出站任务及驱动代，重装配不双发，旧代不发后继。saved 不等于生产者 ACK，测试由 Model 公开 pusher 独立取得 ACK。
 

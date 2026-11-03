@@ -60,3 +60,32 @@ it('acknowledges after the tree is reloaded on the same storage, from the record
   })
   expect(await w.admit('second')).toHaveProperty('ok')
 }, 30_000)
+
+// R2-D260: evidence that differs from the committed record is refused as forged; the Model keeps
+// the result and its share, and the evidence the receiver really saved still acknowledges. Red when
+// a forged ACK is taken, answered `unavailable`, or drops the result or the share.
+it('refuses a forged ACK as handoff-invalid and keeps the result and its share', async () => {
+  const w = await custodyWorld(['first', 'second'], false)
+  worlds.push(w)
+  expect(await w.admit('first')).toHaveProperty('ok')
+  await until(
+    () => pushRecord(w.records, w.access, 'first')?.result?.standing.status === 'saved',
+    'the saved result',
+  )
+  const standing = pushRecord(w.records, w.access, 'first')?.result?.standing
+  if (standing?.status !== 'saved') throw new Error('saved expected')
+  const saved = standing.receipt.evidence
+  w.custody.open = true
+
+  const forged = { ...saved, digest: 'f'.repeat(64) }
+  expect(await w.acknowledge('first', 'ack-forged', forged)).toMatchObject({
+    failure: { kind: 'handoff-invalid' },
+  })
+  expect(await custodyOf(w.records, w.access, 'first')).toEqual({ kind: 'producer' })
+  expect(pushRecord(w.records, w.access, 'first')?.result?.delivery.parts.length).toBeGreaterThan(0)
+  expect(await w.admit('second')).toMatchObject({ failure: { kind: 'capacity' } })
+
+  expect(await w.acknowledge('first', 'ack-genuine', saved)).toMatchObject({
+    ok: { custody: { kind: 'acknowledged' } },
+  })
+}, 30_000)

@@ -1976,7 +1976,9 @@ J08 规定 Agent 作为 Model 调用方时适用的 Model 侧条款。
 7. Agent consumer owner 的证据适配器按耐久接收记录核验 ACK，依据 R2-D257。
    - 读口是 `AgentReceivedRecords`：只有 `query`，答复与同一 Journal 提供者的 `AgentReceivedCommits.query` 相同，不写。它的服务键 `agentReceivedRecords` 是受信名，装配只让持有该证据适配器的行看见。
    - 适配器是 `@omne-harness/agent` 的 `createAgentCustodyEvidence`。它只接受 retained 证据。它从 consumer 的位置取 execution，从调用的 invocation reference 与结果版本组出交付键，按结果接收方的同一规则推出接收 operation，读该 operation 的记录。记录 committed，且交付键、完整 consumer 与 saved 证据都与 ACK 的输入完全一致，才确认这份证据。
-   - 记录不存在、未知、已排除或不一致，读失败或抛出，都答 `unavailable`（`consumer-evidence`），不当作确认。Model 保留结果与份额，以同一 ACK operation 以后再交接。
+   - 记录已 committed，但交付键、完整 consumer 或 saved 证据有一项不一致，或证据不是 Agent 位置的 retained 证据：这份证据不是本 owner 保存的，按 Model 契约的「伪证据拒绝」答 `handoff-invalid`（R2-D260）。
+   - 记录不存在、未知或已排除，读失败或抛出：答 `unavailable`（`consumer-evidence`），不当作确认，可以重试。
+   - 两种失败 Model 都不写：结果、保管与份额不变，以同一 ACK operation 以后再交接。
    - Model 侧的端口形状（可晚些答复、带 invocation reference 与 principal）归 Model 成员的 `ModelCommandsEvidence.handoff`，见 [Model 实现规格](../../model/model/SPEC.md#结果消费支持)。
 
 #### 执行身份的范围
