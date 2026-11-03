@@ -24,9 +24,9 @@ sequenceDiagram
     loop 至多 maxListingPages 页
         D->>X: listActions(cursor)
     end
-    D->>D: completeListing → mergeListing
-    D->>D: 发布边界：isCurrent(generation)、signal 未中止
-    D->>G: stillEligible
+    D->>D: completeListing → table.settle → mergeListing
+    D->>G: stillAdmitted（资格仍 granted、采用修订仍相同）
+    D->>D: 紧挨写入：isCurrent(generation)、signal 未中止
     D->>S: write(catalogKey, record, basedOn)
     S-->>D: ok、revision-conflict 或 unavailable
     D-->>C: published / kept / 失败
@@ -42,24 +42,27 @@ sequenceDiagram
     participant L as ProcessLanding
     participant F as McpTransportFactory
     T->>T: prepareSettings（S4）、peerAccountOf、键
-    T->>T: 关闭同持有下键不同的连接（不变式 6）
+    T->>T: 重读采用修订；关闭同持有下其他修订的连接（不变式 6）
+    T->>T: 等同键在途的关闭完成
     T->>A: attempt()
+    note over T: 连接时限从这里起，每一步经 untilAborted
     T->>U: acquire(purpose)（auth 不是 none）
     T->>L: start(launch, env)（stdio）
-    T->>F: open(material, signal)
+    T->>F: open(material, bound)
     T->>F: transport.discover()
     T->>A: ready(peer)
 ```
 
-关闭（`connections.release` 与 `closeAll`，SPEC MC-10）：拒新请求（`Connection.close()`）→ `transport.close()` → `process.stop()` → 释放凭据句柄 → 报告确认范围。
+关闭（`connections.release` 与 `closeAll`，SPEC MC-10）：一个键同时只有一次关闭：拒新请求（`Connection.close()`）→ 等在途的建连结束 → `transport.close()` → `process.stop()`（含上次未确认停止的）→ 释放凭据句柄 → 报告确认范围。
 
 下一波 `invoke` 的次序（本波不实现）：`InFlightCalls.reserve` → `admit` → 读清单核动作与摘要 → `table.ensure` → `transport.call` → `markSent` → 等结局 → `markEnded`。
 
 ## 失败与生命周期
 
 - 关口拒绝或配值缺陷时没有连接、没有外部效果。
-- 建立连接的任一步失败：传输关闭、已起的进程 `stop()`、凭据句柄释放、连接转 `lost`、清单 `markUnavailable`。答复与原因表见 SPEC MC-5。
-- 页取得失败：`not-sent` 使连接 `lost` 并标记清单；其他失败使连接 `degraded`，刷新答 `kept(listing-incomplete)`，原采用不变。
+- 建立连接的任一步失败、超时或端口抛出：传输关闭、已起的进程 `stop()`、凭据句柄释放、连接转 `lost`、清单 `markUnavailable`；迟到交来的句柄、进程与传输同样收口。答复与原因表见 SPEC MC-5。
+- 调用方中止：等建连时答 `kept(cancelled)`（建连留给其他调用方），取页时答 `kept(cancelled)`，发布边界上答 `kept(cancelled)`；都不标记清单。
+- 页取得失败：`not-sent` 使连接 `lost` 并标记清单；其他失败与取页超时使连接 `degraded`，刷新答 `kept(listing-incomplete)`，原采用不变。旧代际迟到的页不改变重建后的连接，刷新答 `kept(superseded)`。
 - 发布边界不成立时不写入：迟到的连接 `kept(superseded)`，取消 `kept(cancelled)`，资格不再 `granted` 答对应 `Refusal`。
 - 关闭只报告 `stop()` 确认的范围。未确认的进程留在条目里作为 `residual`，下一次关闭或重建前再次请求停止。
 - 宿主退出时调用 `closeAll()`；本包没有后台任务，也不重连。

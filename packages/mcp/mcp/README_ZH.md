@@ -53,25 +53,27 @@ const closed = await mcp.connections.closeAll()
 
 ## 设计
 
-模块：`config`、`inspection`、`discovery`、`status`、`connections`、`store/memory`，以及内部的 `internal/connection`（聚合）、`internal/in-flight`（聚合）、`internal/gate`（能力令牌）、`internal/table`（连接表）、`internal/settings`、`internal/guard`、`internal/text`、`internal/canonical`。见 [docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md) 与 [docs/object-model.md](docs/object-model.md)。
+模块：`config`、`inspection`、`discovery`、`status`、`connections`、`store/memory`，以及内部的 `internal/connection`（聚合）、`internal/in-flight`（聚合）、`internal/gate`（S1 唯一的裁决与两个令牌）、`internal/guard`（使用边界与发布边界上的关口）、`internal/table`（连接表）、`internal/settings`、`internal/abort`、`internal/text`、`internal/canonical`。见 [docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md) 与 [docs/object-model.md](docs/object-model.md)。
 
 ### 给下一波
 
-调用口接在三个内部模块上。它们的签名：
+调用口接在下面的内部模块上。约定：需要连接的函数只收 `AdmittedEndpoint`，它只由关口授予；服务不直接写 `Connection` 聚合，只向连接表报告结果。
 
-- `internal/table.ts`：`ensure(admitted: AdmittedEndpoint, access: Access<P>, options?: { signal?: AbortSignal; connectBound?: Millis }): Promise<Outcome<Ensured, EnsureFailure>>`。`Ensured` 是 `{ transport, generation, connection, peer, catalogKey }`。`EnsureFailure` 是 `{ reason: ConnectionFailure | Refusal | EffectUnknown; catalog: CatalogMark }`，`catalog` 说明清单标记的结果（`marked`、`revision-conflict`、`unavailable`、`not-acquired`、`untouched`）。连接表另有 `lose(connection, reason, mark)`（已建立的连接上的请求发现连接已失效）、`current(key)`、`stateOf(tenant, holding)`、`close(tenant, holding)` 与 `closeAll()`。
+- `internal/guard.ts`，服务实际走的关口：`admitForUse(gate, access, ref): Promise<Outcome<AdmittedEndpoint, GateRefusal>>`，`gate = { ports, table }`。它在 `admit` 上组合（先采用后资格，SPEC MC-2），接入点被撤采用或被设置挡下时关闭它的连接（不变式 6，接入点级）；`not-eligible` 与 `unknown` 不关闭。`stillAdmitted(gate, access, ref, revision): Promise<Outcome<'admitted' | 'superseded', GateRefusal>>` 是发布边界上的同一关口：采用修订已不是 `revision` 时答 `superseded`。
+- `internal/gate.ts`：`admit(ports, access, ref): Promise<GateDecision>`（S1 唯一的裁决，`refusalOf(decision)` 给 R1 的拒绝）与 `admitWithoutEligibility(ports, access, ref): Promise<Outcome<AdoptedOnly, not-available-to-you | unknown>>`（给复用连接的任务操作，SPEC S2）。`AdoptedOnly` 带解析过的 `definition`；`AdmittedEndpoint` 是 `AdoptedOnly` 加资格。`assertAdmitted(value)` 对其他对象抛出 `TypeError`，`ensure` 也这样核对。
+- `internal/table.ts`：`ensure(admitted: AdmittedEndpoint, access: Access<P>, options?: { connectBound?: Millis }): Promise<Outcome<Ensured, EnsureFailure>>`。`Ensured` 是 `ensure` 答复那一刻的快照：`{ transport, generation, connection, peer, catalogKey, adoptionRevision, bound }`，`connection` 是只读视图 `{ generation, isCurrent(generation) }`。`EnsureFailure` 是 `{ stage: 'settings', reason }`（S4 的拒绝、K1 的 `credential-unavailable(missing)`、令牌修订不是当前修订时的 `unknown`）或 `{ stage: 'connect', reason: ConnectionFailure | EffectUnknown, catalog }`。`catalog` 说明清单标记的结果：`marked`（已写入）、`revision-conflict`（已有更新的采用）、`unavailable`（存储不能读或写）、`not-acquired`（尚无清单）。`markUnavailable` 的原因（`UnavailableMark`）是 `connection-unavailable`、`authorization-required`、`credential-unavailable`、`landing-unavailable`。已建立连接上的请求用 `settle(connection, generation, 'page-failed' | 'listed')` 与 `lose(connection, generation, reason, mark): Promise<CatalogMark | 'not-current'>` 报告结果；代际已不是当前时不动作。调用方的 `signal` 不进 `ensure`：建连由同键的所有调用方共享，只受连接时限约束，时限从取凭据起覆盖进程启动、打开传输与协商。另有 `current(key)`、`stateOf(tenant, holding)`、`close(tenant, holding)`、`closeAll()`。
+- 连接键：`internal/settings.ts` 的 `prepareSettings(adopted, connectBound)` 给要连接的操作的 `account`（经 `peerAccountOf`）与时限；`readAccountOf(adopted)` 给不连接的操作（`current`、`peer`）的账号。`connectionKeyOf(tenant, endpoint, account)` 与 `catalogKeyOf` 是契约的；`internal/text.ts` 给它们的规范文本。
 - `internal/in-flight.ts`：`class InFlightCalls`，方法 `reserve(key): 'reserved' | 'in-use'`、`markSent(key, requestId, generation): 'sent' | 'cancelled'`、`markEnded(key)`、`release(key)`、`cancel(key, currentGeneration): CancelAnswer`、`requestIdOf(key)`。键是 `{ tenant, principalKey, correlationKey }`，`principalKey` 是 `McpConfig.principalKey` 给出的文本。占位后、发出前收到取消时，`markSent` 答 `cancelled`：调用方答「未发出」，键转为已结束。对未占位的键调用 `markSent` 抛出 `TypeError`。
-- `internal/gate.ts`：`admitWithoutEligibility(ports, access, ref): Promise<Outcome<AdmittedEndpoint, not-available-to-you | unknown>>` 给复用连接的任务操作（SPEC S2），与 `admit(ports, access, ref)` 并列。只有这两个函数授予 `AdmittedEndpoint`；`assertAdmitted(value)` 对其他对象抛出 `TypeError`，`ensure` 也这样核对。
 
-约定：需要连接的函数只收 `AdmittedEndpoint`，所以「先过关口再连接」由类型与运行时同时保证。下一波的 `invoke` 次序见 [docs/flows.md](docs/flows.md)。
+下一波的 `invoke` 次序见 [docs/flows.md](docs/flows.md)。
 
 ## 配置与运行
 
-`McpConfig` 四个字段必填，没有缺省值（契约 SPEC S3）。连接时限来自采用的 `connect-timeout` 配值；配值缺失时用请求的 `connectBound`（S4）。`createMcpCore` 接受可选的第三个参数 `{ now }`，它给出清单取得时刻的时钟；不给时读本机时钟。其余输入都来自五个端口。本包不保存耐久状态；内存存储只在一次运行内有效。
+`McpConfig` 四个字段必填，没有缺省值（契约 SPEC S3）。连接时限来自采用的 `connect-timeout` 配值；配值缺失时用请求的 `connectBound`（S4）。`createMcpCore` 接受可选的第三个参数 `{ now }`，它给出清单取得时刻的时钟；不给时读本机时钟。与本波已定事项的三处偏离（`refresh` 的 `signal`、`{ now }`、复制的 JSON 规范化）及退出条件见 SPEC.md。其余输入都来自五个端口。本包不保存耐久状态；内存存储只在一次运行内有效。
 
 ## 验证
 
-运行 `pnpm turbo run build typecheck test --filter=@omne-harness/mcp`。测试运行在契约的内存替身与脚本化传输工厂（`tests/doubles/`）上。它们穷举两个聚合，覆盖关口的六种答复、`ensure` 的每种配值缺陷与连接失败、`refresh` 的发布边界（并发与迟到结果用 deferred 排次序）、状态视图、关闭次序，以及存储的符合性套件。三条性质各有一处具名变异让用例变红：连接键含对端账号、凭据句柄取一次释放一次、迟到的清单不发布。SPEC.md 列出未覆盖项：没有真实传输、进程、对端与耐久存储。
+运行 `pnpm turbo run build typecheck test --filter=@omne-harness/mcp`。测试运行在契约的内存替身与脚本化传输工厂（`tests/doubles/`）上。它们穷举两个聚合，覆盖服务实际走的关口的六种答复、`ensure` 的每种配值缺陷与连接失败、`refresh` 的发布边界（并发与迟到结果用 deferred 排次序）、`tests/races.spec.ts` 的交错（旧代际迟到的页、关闭对建连、永不返回或抛出的端口、建连与取页期间的中止）、状态视图、关闭次序，以及存储的符合性套件。三条性质各有一处具名变异让用例变红：连接键含对端账号、凭据句柄取一次释放一次、迟到的清单不发布。SPEC.md 列出未覆盖项：没有真实传输、进程、对端与耐久存储。
 
 ## 维护
 

@@ -19,4 +19,4 @@
 | `createInMemoryCatalogStore`                 | [store/memory.ts](../src/store/memory.ts) | MC-13               |
 | 四个服务的接口与结果值                       | 契约成员 `services.ts`                    | 契约 S1、S5、S7、S8 |
 
-`McpDiscovery.refresh` 的请求比契约的多一个可选的 `signal`；`McpCore` 可赋给契约的 `Omit<McpServices, 'invoker'>`，`tests/core.spec.ts` 核对这一点。
+`McpDiscovery.refresh` 的请求比契约的多一个可选的 `signal`；`McpCore` 可赋给契约的 `Omit<McpServices, 'invoker'>`，`tests/core.spec.ts` 核对这一点。这两处与 `{ now }` 都是对已定事项的偏离，退出条件见 [SPEC「与已定事项的偏离」](../SPEC.md#deviations)。

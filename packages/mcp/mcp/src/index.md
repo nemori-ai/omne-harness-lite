@@ -18,8 +18,9 @@
 - [store/memory.ts](store/memory.ts)：内存清单存储
 - [internal/connection.ts](internal/connection.ts)：`Connection` 聚合
 - [internal/in-flight.ts](internal/in-flight.ts)：`InFlightCalls` 聚合
-- [internal/gate.ts](internal/gate.ts)：关口与 `AdmittedEndpoint`
-- [internal/guard.ts](internal/guard.ts)：使用边界与自动关闭
+- [internal/gate.ts](internal/gate.ts)：S1 唯一的裁决、`AdoptedOnly` 与 `AdmittedEndpoint`
+- [internal/guard.ts](internal/guard.ts)：使用边界与发布边界上的关口，不变式 6 的关闭
+- [internal/abort.ts](internal/abort.ts)：在时限下等端口
 - [internal/table.ts](internal/table.ts)：连接表
 - [internal/settings.ts](internal/settings.ts)：S4 配值检查
 - [internal/text.ts](internal/text.ts)、[internal/canonical.ts](internal/canonical.ts)：键文本与 JSON 规范化
