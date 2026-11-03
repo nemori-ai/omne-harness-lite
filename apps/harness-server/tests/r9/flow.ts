@@ -282,12 +282,16 @@ export async function runR9Flow(): Promise<FlowRecord> {
       'bob',
       ['send-input', '--session', UNKNOWN_SESSION, '--text', 'x', '--tenant', aliceTenant],
     )
+    // Bob's own tenant is named with --tenant: the session is not Bob's, so his CLI has no record
+    // of its owner and the current selection is no longer used for an existing session.
     const bobOnReal = await cli('bob sends to the session with his own tenant', 'bob', [
       'send-input',
       '--session',
       session,
       '--text',
       'x',
+      '--tenant',
+      bobTenant,
     ])
     const bobOnUnknown = await cli('bob sends to an unknown session with his own tenant', 'bob', [
       'send-input',
@@ -295,6 +299,8 @@ export async function runR9Flow(): Promise<FlowRecord> {
       UNKNOWN_SESSION,
       '--text',
       'x',
+      '--tenant',
+      bobTenant,
     ])
     const refusals = [bobOnRealWithAlice, bobOnUnknownWithAlice, bobOnReal, bobOnUnknown]
     // With the owner's tenant text the answer is denied. Bob's own tenant has no transaction

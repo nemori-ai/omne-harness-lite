@@ -54,20 +54,20 @@ PanQiWei 于 2026-10-14 接受本页对 #246 revision 1 的行为。依据是他
 
 用法错误的消息原文如下。每条都以换行结尾：
 
-| 情况 | 消息 |
-| --- | --- |
-| 缺少命令 | `omne: missing command\nRun omne --help for usage.\n` |
-| 缺少目录 | `omne: --home requires a directory\n` |
+| 情况           | 消息                                                         |
+| -------------- | ------------------------------------------------------------ |
+| 缺少命令       | `omne: missing command\nRun omne --help for usage.\n`        |
+| 缺少目录       | `omne: --home requires a directory\n`                        |
 | 无法识别的参数 | `omne: unrecognized arguments\nRun omne --help for usage.\n` |
 
 ## 输出与退出码
 
-| 结果 | stdout | stderr | 退出码 |
-| --- | --- | --- | --- |
-| help | 帮助文本 | 空 | `0` |
-| version | 身份文件中的 `version` 加一个换行，不带前缀 | 空 | `0` |
-| 身份文件无效 | 空 | `omne: build identity is missing or invalid\n` | `1` |
-| 用法错误 | 空 | 上表中的一条消息 | `2` |
+| 结果         | stdout                                      | stderr                                         | 退出码 |
+| ------------ | ------------------------------------------- | ---------------------------------------------- | ------ |
+| help         | 帮助文本                                    | 空                                             | `0`    |
+| version      | 身份文件中的 `version` 加一个换行，不带前缀 | 空                                             | `0`    |
+| 身份文件无效 | 空                                          | `omne: build identity is missing or invalid\n` | `1`    |
+| 用法错误     | 空                                          | 上表中的一条消息                               | `2`    |
 
 进程设置 `process.exitCode`，不调用 `process.exit()`。这样管道上的 stdout 在进程退出前写完。
 
@@ -159,13 +159,13 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 
 `ensureStateDirectory(path)` 返回 `{ kind: 'ready', path }` 或 `{ kind: 'error', message }`。下列情况都返回结果，不抛出异常：
 
-| 路径状态 | 结果 | 文件系统效果 |
-| --- | --- | --- |
-| 已是目录 | `ready` | 不改动目录中的条目 |
-| 不存在 | `ready` | 创建该目录和缺失的上级目录，目录中没有本函数创建的文件 |
-| 已被普通文件或其他非目录占用 | `error`，消息为 `omne: state directory <path> is not a directory\n` | 不删除占用的文件 |
-| 上级是普通文件 | `error`，消息为 `omne: cannot create state directory <path>: ENOTDIR\n` | 不删除该文件 |
-| 没有权限 | `error`，消息为 `omne: cannot create state directory <path>: EACCES\n` | 不创建目录 |
+| 路径状态                     | 结果                                                                    | 文件系统效果                                           |
+| ---------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------ |
+| 已是目录                     | `ready`                                                                 | 不改动目录中的条目                                     |
+| 不存在                       | `ready`                                                                 | 创建该目录和缺失的上级目录，目录中没有本函数创建的文件 |
+| 已被普通文件或其他非目录占用 | `error`，消息为 `omne: state directory <path> is not a directory\n`     | 不删除占用的文件                                       |
+| 上级是普通文件               | `error`，消息为 `omne: cannot create state directory <path>: ENOTDIR\n` | 不删除该文件                                           |
+| 没有权限                     | `error`，消息为 `omne: cannot create state directory <path>: EACCES\n`  | 不创建目录                                             |
 
 其他系统错误使用同一格式。消息带上系统错误码。拿不到错误码时，消息去掉 `: <code>` 部分。
 
@@ -175,18 +175,24 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 
 所有选项都写成 `--名字 值`。不支持 `--名字=值`。选项可以出现在命令名之后的任意位置。`--home` 的规则同[参数解析](#参数解析)。
 
-| 命令 | 公开操作 | 必需选项 | 可选选项 | 说明 |
-| --- | --- | --- | --- | --- |
-| `register` | `register-and-activate` | `--login-identifier` | `--server` | 凭据按[凭据读取](#凭据读取)读取。不读写状态目录 |
-| `login` | `issue-login` | `--login-identifier` | `--server` | 凭据按[凭据读取](#凭据读取)读取。成功后写登录状态文件 |
-| `create-session` | `create-session` | `--definition` | `--purpose`、`--create-call-id`、`--server` | `actingTenant` 取登录状态里的租户 |
-| `send-input` | `send-input` | `--session`、`--text` | `--tenant`、`--accept-id`、`--input-id`、`--server` | `--text` 包成一条用户消息，形状归 message 包 |
-| `cancel-run` | `cancel-run` | `--session`、`--run` | `--urgency`、`--tenant`、`--control-id`、`--server` | `--urgency` 取 `graceful` 或 `force`，默认 `graceful` |
-| `stop-call` | `stop-call` | `--session`、`--producer-kind`、`--call` | `--tenant`、`--control-id`、`--server` | `--producer-kind` 取 `model` 或 `tool` |
+| 命令             | 公开操作                | 必需选项                                 | 可选选项                                            | 说明                                                                                         |
+| ---------------- | ----------------------- | ---------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `register`       | `register-and-activate` | `--login-identifier`                     | `--server`                                          | 凭据按[凭据读取](#凭据读取)读取。不读写状态目录                                              |
+| `login`          | `issue-login`           | `--login-identifier`                     | `--server`                                          | 凭据按[凭据读取](#凭据读取)读取。成功后写登录状态文件                                        |
+| `create-session` | `create-session`        | `--definition`                           | `--purpose`、`--create-call-id`、`--server`         | `actingTenant` 取登录状态里的租户。成功后记下会话的归属租户，见[会话归属记录](#会话归属记录) |
+| `send-input`     | `send-input`            | `--session`、`--text`                    | `--tenant`、`--accept-id`、`--input-id`、`--server` | `--text` 包成一条用户消息，形状归 message 包                                                 |
+| `cancel-run`     | `cancel-run`            | `--session`、`--run`                     | `--urgency`、`--tenant`、`--control-id`、`--server` | `--urgency` 取 `graceful` 或 `force`，默认 `graceful`                                        |
+| `stop-call`      | `stop-call`             | `--session`、`--producer-kind`、`--call` | `--tenant`、`--control-id`、`--server`              | `--producer-kind` 取 `model` 或 `tool`                                                       |
 
 补充规则如下。
 
-- `--tenant` 的默认值是登录状态里的租户。会话命令中，除 `create-session` 外都用它作 body 的 `tenant`。这是客户端填充：线上的 `tenant` 仍是必填字段，服务端仍核对它的账号。结果对象的 `request.tenant` 回显实际发送的租户文本，见[命令结果与退出码](#命令结果与退出码)。
+- 当前选择的租户（登录状态里的租户）只用于新建会话：`create-session` 的 `actingTenant`。对已有会话的 `send-input`、`cancel-run`、`stop-call`，body 的 `tenant` 取会话的归属租户，不取当前选择。会话的归属在创建时定下，之后不变。`tenant` 的来源按下列次序，没有可用来源时不回落到当前选择：
+  1. `--tenant` 的值。
+  2. [会话归属记录](#会话归属记录)里该会话的租户。
+  3. 两者都没有：用法错误，退出 `2`，不发送请求。消息为 `omne <command>: the owner tenant of this session is unknown\nAdd --tenant <tenant>.\n`。
+
+  给了 `--tenant` 时不读取归属记录。这是客户端填充：线上的 `tenant` 仍是必填字段，服务端仍核对它的账号。结果对象的 `request.tenant` 回显实际发送的租户文本，见[命令结果与退出码](#命令结果与退出码)。
+
 - 命令生成缺省的标识。每次执行命令生成新的 `messageId`。SDK 的零字节再送沿用同一个 `messageId`。`--create-call-id`、`--accept-id`、`--input-id` 和 `--control-id` 缺省时也各生成一个新值。生成值用 `crypto.randomUUID()`。调用者要重试同一次操作时，必须用这些选项传入原来的值。
 - 命令不提供 `query-create-session`、`query-send-input`、`read-history`、`observe-session` 和 `cancel-observation` 的入口。读历史与观察命令在后续波。
 - 命令不提供其余治理操作的入口。M2 部署的治理范围见服务端接入规格的[治理位置](../../packages/access/server-entry/SPEC.md#治理位置)。
@@ -207,9 +213,9 @@ CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令�
 
 命令的用法错误使用下面两条消息。退出码为 `2`。每条以换行结尾。
 
-| 情况 | 消息 |
-| --- | --- |
-| 缺少必需选项 | `omne <command>: missing <option>\nRun omne --help for usage.\n` |
+| 情况                                                                   | 消息                                                                   |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 缺少必需选项                                                           | `omne <command>: missing <option>\nRun omne --help for usage.\n`       |
 | 选项缺值、选项重复、选项不属于该命令、取值不合法、或出现多余的位置参数 | `omne <command>: unrecognized arguments\nRun omne --help for usage.\n` |
 
 ## 凭据与登录状态
@@ -234,16 +240,26 @@ CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令�
 - 文件不存在时，会话命令退出 `1`，消息为 `omne: not logged in\nRun omne login first.\n`。文件内容不是预期形状时，消息为 `omne: login state is invalid\n`。两种情况都不创建状态目录。
 - 登录证明有期限。过期或被撤销后，服务端答 `denied`，命令照常输出结果。用户重新执行 `login`。
 
+### 会话归属记录
+
+会话的归属租户在创建时定下，之后不变。会话标识是摘要，推不出租户，所以客户端自己记。`create-session` 的结果是 `succeeded`（含 `recovered` 为真）且带 `session` 时，命令在状态目录的 `sessions.json` 里记下「会话标识 → `actingTenant` 文本」。文件内容是一个 JSON 对象，含 `version`（值为 `1`）和 `sessions`（会话标识到租户文本的对象）。除此之外不存任何内容。
+
+- 写入方式和权限同[登录状态](#登录状态)：临时文件加改名，权限 `0600`，同一个状态目录。
+- 文件不存在是「没有记录」。读不了（目录、权限等）、不是 JSON、形状不对、含不是租户文本的值，都是本地失败，退出 `1`，消息为 `omne: cannot read session records <path>[: <code>]\n` 或 `omne: session records <path> are invalid\n`。命令不把它当作「没有记录」，也不回落到当前选择的租户。用户删除该文件，或对命令加 `--tenant`，可以继续。
+- `create-session` 在发送请求之前先读该文件。文件损坏时退出 `1`，不发送请求，也就不会建出一个记不下的会话。
+- 会话已创建但写不下记录时，命令照常输出结果对象，标准错误写 `omne create-session: cannot write session records <path>[: <code>]\n`，退出 `1`。之后对该会话的命令需要 `--tenant`。
+- 已知限制：记录只覆盖本机状态目录里用 `create-session` 建的会话。别处建的会话、换了状态目录、或删了文件后，用 `--tenant` 指明。两个 `create-session` 同时在同一状态目录里写，后写的可能覆盖先写的那条记录。
+
 ### 状态目录的创建时机
 
 候选命令面里只有 `login` 创建状态目录。
 
-| 命令 | 状态目录 |
-| --- | --- |
-| `--help`、`--version`、用法错误 | 不解析，不创建，规则见[输出与退出码](#输出与退出码) |
-| `register` | 不解析，不创建，也不读 `OMNE_HOME`。带 `--home` 是用法错误，使用[命令的用法错误](#命令的用法错误)中「选项不属于该命令」那一条消息 |
-| `login` | 在发送任何请求之前解析并创建。创建失败则退出 `1`，不发送凭据。凭据错误等非成功结果不删除已创建的空目录 |
-| `create-session`、`send-input`、`cancel-run`、`stop-call` | 只读取。不存在时不创建，退出 `1` |
+| 命令                                                      | 状态目录                                                                                                                            |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `--help`、`--version`、用法错误                           | 不解析，不创建，规则见[输出与退出码](#输出与退出码)                                                                                 |
+| `register`                                                | 不解析，不创建，也不读 `OMNE_HOME`。带 `--home` 是用法错误，使用[命令的用法错误](#命令的用法错误)中「选项不属于该命令」那一条消息   |
+| `login`                                                   | 在发送任何请求之前解析并创建。创建失败则退出 `1`，不发送凭据。凭据错误等非成功结果不删除已创建的空目录                              |
+| `create-session`、`send-input`、`cancel-run`、`stop-call` | 只读取目录。不存在时不创建，退出 `1`。`create-session` 成功后在其中写 `sessions.json`，`send-input`、`cancel-run`、`stop-call` 读它 |
 
 `login` 先创建目录再发送请求。这样可以降低签发成功后写不下登录证明的可能，但不能排除它。
 
@@ -255,21 +271,21 @@ CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令�
 
 对象的键如下。
 
-| 键 | 出现条件 | 内容 |
-| --- | --- | --- |
-| `result` | 总是 | `response` 或 `uncertain` |
-| `outcome` | `result` 为 `response` | 公开契约的 `outcome` |
-| `body` | `result` 为 `response` | 响应的 `body`。`login` 的 `body` 去掉 `loginProof` |
-| `request` | 总是 | 一个对象，见下表 |
+| 键        | 出现条件               | 内容                                               |
+| --------- | ---------------------- | -------------------------------------------------- |
+| `result`  | 总是                   | `response` 或 `uncertain`                          |
+| `outcome` | `result` 为 `response` | 公开契约的 `outcome`                               |
+| `body`    | `result` 为 `response` | 响应的 `body`。`login` 的 `body` 去掉 `loginProof` |
+| `request` | 总是                   | 一个对象，见下表                                   |
 
 `request` 对象的键随命令而定。每个值都是本次发送使用的原文，包括命令生成的值和用户给出的值。
 
-| 命令 | `request` 的键 |
-| --- | --- |
-| `register`、`login` | `messageId` |
-| `create-session` | `messageId`、`createCallId`、`tenant`（取 `actingTenant`） |
-| `send-input` | `messageId`、`acceptId`、`inputId`、`tenant` |
-| `cancel-run`、`stop-call` | `messageId`、`controlId`、`tenant` |
+| 命令                      | `request` 的键                                             |
+| ------------------------- | ---------------------------------------------------------- |
+| `register`、`login`       | `messageId`                                                |
+| `create-session`          | `messageId`、`createCallId`、`tenant`（取 `actingTenant`） |
+| `send-input`              | `messageId`、`acceptId`、`inputId`、`tenant`               |
+| `cancel-run`、`stop-call` | `messageId`、`controlId`、`tenant`                         |
 
 `result` 的含义如下。`response` 表示收到可信答复。`uncertain` 表示调用者没有可信答复，结果不确定。请求字节可能已经发出，也可能两次都没有发出，例如服务没有启动。SDK 只给出 `uncertain`，所以 CLI 不区分这两种情况。`uncertain` 不是成功，也不是没有发生。`request` 让用户可以用原标识重试同一意图。`messageId` 不必沿用。
 
@@ -279,14 +295,14 @@ CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令�
 
 退出码如下。已接受的 `0`、`1`、`2` 含义不变。
 
-| 退出码 | 条件 |
-| --- | --- |
-| `0` | `result` 为 `response`，`outcome` 是 `succeeded` 或 `no-change` |
-| `1` | 本地失败：身份文件无效、状态目录或登录状态文件的错误、凭据读取失败、标准输出写入失败。`login` 签发成功后写不下登录状态文件也是 `1`，它优先于 `0` |
-| `2` | 用法错误，包括服务地址不合法 |
-| `3` | `result` 为 `response`，`outcome` 是其余的非成功结果：`denied`、`not-visible`、`uniform-auth-failure`、`not-loginable`、`protocol-rejected`、`stage-not-provided`、`invalid`、`archived`、`frozen`、`conflict`、`not-found`、`not-committed`、`unsupported`、`need-decision` |
-| `4` | `result` 为 `response`，`outcome` 是 `basis-unavailable`。稍后可再试 |
-| `5` | `result` 为 `uncertain`，或 `outcome` 是 `unknown`。结果不确定 |
+| 退出码 | 条件                                                                                                                                                                                                                                                                         |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`    | `result` 为 `response`，`outcome` 是 `succeeded` 或 `no-change`                                                                                                                                                                                                              |
+| `1`    | 本地失败：身份文件无效、状态目录、登录状态文件或会话归属记录的错误、凭据读取失败、标准输出写入失败。`login` 签发成功后写不下登录状态文件、`create-session` 成功后写不下会话归属记录也是 `1`，它优先于 `0`                                                                    |
+| `2`    | 用法错误，包括服务地址不合法                                                                                                                                                                                                                                                 |
+| `3`    | `result` 为 `response`，`outcome` 是其余的非成功结果：`denied`、`not-visible`、`uniform-auth-failure`、`not-loginable`、`protocol-rejected`、`stage-not-provided`、`invalid`、`archived`、`frozen`、`conflict`、`not-found`、`not-committed`、`unsupported`、`need-decision` |
+| `4`    | `result` 为 `response`，`outcome` 是 `basis-unavailable`。稍后可再试                                                                                                                                                                                                         |
+| `5`    | `result` 为 `uncertain`，或 `outcome` 是 `unknown`。结果不确定                                                                                                                                                                                                               |
 
 退出码 `3` 到 `5` 只由 `result` 与 `outcome` 决定，不由 HTTP 状态码决定。退出码共有 `0` 到 `5` 六个。
 

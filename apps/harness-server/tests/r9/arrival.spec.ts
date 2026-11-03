@@ -205,21 +205,17 @@ describe('R9 release tree, in process: the principal that reaches the Session fa
       const created = await tools.cli('alice', ['create-session', '--definition', 'assistant'])
       const session = String(bodyOf(created)['session'])
       const aliceTenant = savedTenant(tools.homes.alice)
+      const bobTenant = savedTenant(tools.homes.bob)
       const mark = tools.arrivals.length
-      const send = (session: string, tenant?: string) =>
-        tools.cli('bob', [
-          'send-input',
-          '--session',
-          session,
-          '--text',
-          'x',
-          ...(tenant === undefined ? [] : ['--tenant', tenant]),
-        ])
+      // --tenant is always given: an existing session needs its tenant named, and Bob has no
+      // record of this one.
+      const send = (session: string, tenant: string) =>
+        tools.cli('bob', ['send-input', '--session', session, '--text', 'x', '--tenant', tenant])
       const runs = {
         ownerTenantReal: await send(session, aliceTenant),
         ownerTenantUnknown: await send(UNKNOWN_SESSION, aliceTenant),
-        ownTenantReal: await send(session),
-        ownTenantUnknown: await send(UNKNOWN_SESSION),
+        ownTenantReal: await send(session, bobTenant),
+        ownTenantUnknown: await send(UNKNOWN_SESSION, bobTenant),
       }
       return { runs, arrivals: tools.arrivals.slice(mark) }
     })
