@@ -12,7 +12,7 @@ Implemented:
 
 - `createGovernanceClient` and `createSessionClient`. `submit` encodes the request, sends it, reads the response, and returns only the one with the same `messageId`.
 - `createHttpTransport`, a `fetch` based adapter bound to one location and one `http:` origin on `127.0.0.1` or `localhost`.
-- `parseTenantText`, `tenantText`, and `userTextMessage`.
+- `parseTenantText`, `tenantText`, the identity text functions for organization, account, and login, and `userTextMessage`.
 - Automatic resend, once, only when the transport proves that no request byte was sent.
 
 Not implemented:
@@ -62,7 +62,8 @@ The exports are:
 | `createSessionClient`, `createGovernanceClient` | A client built from one transport adapter. `submit` encodes, sends, reads the response, and returns only the one with the same `messageId`. |
 | `createHttpTransport` | A `fetch` based adapter bound to one location and one `http:` origin on `127.0.0.1` or `localhost`. |
 | `RequestInvalidError` | The local request model breaks the public contract. No byte was sent. |
-| `parseTenantText`, `tenantText` | Convert between tenant text and tenant identity. The public contract exports no identity codec, so these two functions borrow its request codec. |
+| `parseTenantText`, `tenantText` | Convert between tenant text and tenant identity. They call the identity text functions of the public contract. |
+| `readOrganizationIdText`, `encodeOrganizationIdText`, `readAccountIdText`, `encodeAccountIdText`, `readLoginStateIdText`, `encodeLoginStateIdText` | The identity text functions of the public contract, passed through. A caller reads a text into an identity value, for example to build `targetLoginId`, and writes it back. A text that is not valid reads as `undefined`. Writing a value that the identity package did not mint throws `TypeError`. |
 | `userTextMessage` | Build the user message for `send-input`. The message identity derives from `inputId`, so a retry with the same `inputId` and text sends the same content. |
 
 The caller generates `createCallId`, `acceptId`, `inputId`, and `controlId` before the first send, and keeps them unchanged when it retries the same intent. The SDK never swaps them. A `messageId` correlates one send only, so the caller may generate a new one on each call.
@@ -91,7 +92,7 @@ The SDK holds a transport adapter and the login proof the caller gives it. The a
 
 The resend rule lives in one `deliver` function that both clients share. Failure classification leans one way: only a failure before the first request byte leaves reports `not-sent`, and every other failure reports `uncertain`. The cautious side is `uncertain`, because it blocks the resend.
 
-`parseTenantText` and `tenantText` put the text into a probe request and hand it to the public contract codec functions, so the tenant read and write rules exist once, in the public contract.
+`parseTenantText` and `tenantText` call the identity text functions of the public contract, so the identity text rules exist once, in the public contract.
 
 This package does not depend on the server entry.
 

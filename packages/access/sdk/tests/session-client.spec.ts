@@ -4,7 +4,11 @@ import {
   createGovernanceClient,
   createHttpTransport,
   createSessionClient,
+  encodeLoginStateIdText,
   parseTenantText,
+  readAccountIdText,
+  readLoginStateIdText,
+  readOrganizationIdText,
   tenantText as renderTenant,
   userTextMessage,
 } from '@omne-harness/sdk'
@@ -474,6 +478,18 @@ describe('tenant text and user messages', () => {
     expect(parseTenantText('{"organization":"x"}')).toBeUndefined()
     expect(parseTenantText('')).toBeUndefined()
     expect(parseTenantText('plain')).toBeUndefined()
+  })
+
+  it('passes the identity text functions of the contract through', () => {
+    const login = readLoginStateIdText('lgn_00000000000000000000000002')
+    expect(login).toBeDefined()
+    expect(encodeLoginStateIdText(login as NonNullable<typeof login>)).toBe(
+      'lgn_00000000000000000000000002',
+    )
+    expect(readLoginStateIdText('org_00000000000000000000000000')).toBeUndefined()
+    expect(readOrganizationIdText('org_00000000000000000000000000')).toBeDefined()
+    expect(readAccountIdText('acc_00000000000000000000000001')).toBeDefined()
+    expect(readAccountIdText('')).toBeUndefined()
   })
 
   it('builds the same user message for the same input id and a different one for another', () => {

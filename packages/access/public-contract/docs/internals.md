@@ -8,11 +8,12 @@
 
 | 文件 | 唯一责任 |
 | --- | --- |
-| src/index.ts | 仅治理与会话两组共八个纯函数和公共类型的主exports，不加correlation或业务provider出口 |
+| src/index.ts | 治理与会话两组共八个纯函数、身份文本八个纯函数和公共类型的主exports，不加correlation或业务provider出口 |
 | src/messages.ts | 治理的正常/阶段操作、请求、按操作/结果关联响应、本地proof与codec结果类型 |
 | src/session-messages.ts | 会话的7个操作、请求、按操作/结果关联响应、历史页、中断成功正文与codec结果类型 |
 | src/operation-rules.ts | 规则种类、协议族描述，以及完整34正常/4阶段封闭规则、信封/body字段和outcome映射 |
 | src/session-rules.ts | 会话协议族：7个操作的封闭规则、信封/body字段和outcome映射；中断成功正文用`kind`字面量区分互斥分支 |
+| src/identity-text.ts | 租户、组织、账号、登录状态的文本读写：直接委托legal-identity的铸造与输出函数，租户另加严格JSON与小预算门 |
 | src/codec.ts | 按协议族参数化的核心与治理四函数：公开参数防护、模型与wire转换、响应验证后匹配 |
 | src/session-codec.ts | 会话四函数，各是核心对会话协议族的一次实例化 |
 | src/correlation.ts | readRequestDocument和recoverCorrelation，私有严格读取门与迭代metadata自动机 |

@@ -847,7 +847,7 @@ const encoded = encodeGovernanceRequest({
 
 正常信封表包含34个不同操作。另有4个本阶段不提供的操作，总共38个。`GovernanceProvidedOperation` 仅包含正常34项。`GovernanceOperation` 包含全部38项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部38个操作分别关联结果和 body。每个正常操作的响应还包含 `stage-not-provided`，因为部署可以声明它不提供，见[部署声明不提供的操作](#部署声明不提供的操作)。阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
 
-主入口导出治理与会话两组纯函数，每组四个，及其公开输入结果类型。本表是治理一组。会话一组见[会话编解码函数](#会话编解码函数)。
+主入口导出治理与会话两组纯函数，每组四个，及其公开输入结果类型。另有[身份值的文本](#身份值的文本)的八个函数。本表是治理一组。会话一组见[会话编解码函数](#会话编解码函数)。
 
 | 函数 | 输入与可见结果 |
 | --- | --- |
@@ -923,6 +923,26 @@ wire 的 `loginProof` 仍是字符串。需要证明的正常请求在本地将�
 外层六预算按外层JSON计算。租户文本内层只允许深度1、3个值、2个成员，内层整体字节和每个字符串继续受同次调用的 maxBytes/maxStringLength 限制。内层不引入额外默认部署预算，不以每字段重置外层总预算。parameters 在本地使用 json-text 的 object 变体，数字保留原 lexeme，不经 JS Number 缩精度。合法 `__proto__`、`constructor` 等键是 parameters 数据，不改变对象原型。
 
 编码器核验 plain 数据对象的自有、可枚举、数据属性。参数容器和预算也在不执行访问器的前提下核验；这些编程参数的反射失败抛固定TypeError，不携原异常或输入。进入request或response模型后，非法数据属性、访问器和模型代理反射失败返回invalid，诊断code为field。只在局部输入反射边界捕获用户trap错误；意外内部编程故障不能被catch-all改写成预期拒绝。信封、body及本地判别对象都按封闭形状核验。它不调用输入 getter 或 toJSON，不将代理异常、凭据或证明抛给调用者。公开诊断只包含有限 code `json`、`version`、`operation`、`field`、`budget`，没有任意字段名、路径、键、值、原输入或原bytes。
+
+### 身份值的文本
+
+身份值在线上是字符串。这些字符串的序列化表示由本成员拥有，调用者不自己拼文本，也不借别的消息的编解码铸造值。本成员导出四种身份的文本函数，每种一对：
+
+| 身份 | 读：文本得值 | 写：值得文本 |
+| --- | --- | --- |
+| 租户 `TenantId` | `readTenantText` | `encodeTenantText` |
+| 组织 `OrganizationId` | `readOrganizationIdText` | `encodeOrganizationIdText` |
+| 账号 `AccountId` | `readAccountIdText` | `encodeAccountIdText` |
+| 登录状态 `LoginStateId` | `readLoginStateIdText` | `encodeLoginStateIdText` |
+
+- 读函数同步执行，没有外部副作用。文本不合法，或不是字符串，读出 `undefined`，不抛异常。读出的值是 legal-identity 铸造的值，可直接放进请求模型。
+- 写函数对 legal-identity 没有铸造的值抛固定 `TypeError`，错误不含输入值。
+- 组织、账号、登录状态的文本规则是 legal-identity 对应 codec 的规则：带 `org_`、`acc_`、`lgn_` 前缀加 26 位小写字符，不裁剪空白，不折叠大小写。
+- 租户文本的外层规则同[本地值与线上表示](#本地值与线上表示)里的 `actingTenant` 与 `tenantId`：合法的 UTF-8，严格 JSON，不许重复键，恰好 `organization` 与 `account` 两个字符串成员，再交 tenantCodec。`readTenantText` 不接收预算参数，用固定的小预算：整体至多 1024 字节，深度 1，3 个值，2 个成员，字符串至多 256 个字符。
+- 这些函数读写的文本与请求、响应里同一字段的线上文本逐字节相同。
+- 本成员同时导出四个类型 `TenantId`、`OrganizationId`、`AccountId`、`LoginStateId`，它们就是 legal-identity 的同名类型。
+
+这是可加的变更。已有的八个协议函数及其行为不变。
 
 ### 结果闭合与关联
 

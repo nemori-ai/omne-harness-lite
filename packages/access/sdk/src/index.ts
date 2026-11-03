@@ -10,6 +10,19 @@ export {
 } from './client.ts'
 export { createHttpTransport, type HttpTransportOptions } from './http-transport.ts'
 export { parseTenantText, tenantText, type TenantId } from './tenant.ts'
+// The identity text codecs of the public contract, passed through. A caller needs them to build
+// the identity fields of a request, for example `targetLoginId`.
+export {
+  encodeAccountIdText,
+  encodeLoginStateIdText,
+  encodeOrganizationIdText,
+  readAccountIdText,
+  readLoginStateIdText,
+  readOrganizationIdText,
+  type AccountId,
+  type LoginStateId,
+  type OrganizationId,
+} from '@omne-harness/public-contract'
 export type { GovernanceTransport, TransportReport } from './transport.ts'
 export { userTextMessage, type UserMessage } from './user-message.ts'
 // The request shapes a caller builds. The SDK encodes and reads them, so the caller needs no codec.
