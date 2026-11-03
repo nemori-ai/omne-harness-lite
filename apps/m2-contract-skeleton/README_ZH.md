@@ -50,7 +50,7 @@
 | GAP-AGENT-CONTEXT | 否 | H05 | 没有 Agent 一侧的 Context 适配。Request Context 取得租约后，由本应用的桥固定请求。 |
 | GAP-RECEIVE-SURFACE | 否 | H06 | H06 经 pusher 与宿主接收方连通。Model ACK 在 Session 一侧的记账仍是具名偏离 `MODEL-ACK-ARRIVAL`。 |
 | GAP-SECOND-RUN | 是 | H09 | Session 以 `run-active` 拒绝第二个 Run，Agent 对 `input.submit` 答 `unavailable`。 |
-| GAP-TOOL-LOOP | 是 | H10 | Agent loop 带着工具调用回复停在 I4，没有发起 Tool 调用。 |
+| GAP-TOOL-LOOP | 是 | H10 | Agent loop 带着待判的工具调用动作停在 A0，因为装配缺 `toolRequests`，没有发起 Tool 调用。owner 是 Reduce B3（R2-D36）。 |
 | GAP-AGENT-REASSEMBLY | 是 | H11 | `quiesce`、`detach` 与 `resume` 返回 `unavailable`。没有公开入口提供 server entry 的观察路径，重装配后观察是否连续无法观察。 |
 | GAP-REASONING-REPLAY | 是 | H12 | Agent loop 在 M6 持有带推理部件的已接收结果，不交出回复。 |
 | GAP-SESSION-LOG-TARGETS | 是 | H13 | 同日志提供者不暴露 Model 接收目标，无法在 Session 日志上建立接收方。 |

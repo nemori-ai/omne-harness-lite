@@ -1,4 +1,4 @@
-// M4-6, an early guard only: `modelStorageMaterials()` and `sessionStorageMaterials()` form a valid
+// M4-6, an early guard only: `modelStorageMaterials()` and `sessionStorageMaterials(options)` form a valid
 // combination for one tenant domain, and a construction that checks materials verifies the code
 // digests of both. The combination guarantee itself belongs to the session storage combination row
 // of the application (L-APP).
@@ -25,7 +25,7 @@ import { createMemorySqlStorage } from '@omne-harness/sql-contract/testing'
 import { coreOptions, lookup, sqliteStorage, tenantOf, textOf } from './fixture.ts'
 
 function catalogOf(model: ModelStorageMaterials): SqlMaterialCatalog {
-  const session = sessionStorageMaterials()
+  const session = sessionStorageMaterials({ readOutputLimitBytes: 20971520 })
   return {
     catalogProtocol: 'sql-catalog/1',
     participants: [...session.participants, ...model.participants],

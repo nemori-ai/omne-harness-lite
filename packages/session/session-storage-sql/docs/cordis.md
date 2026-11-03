@@ -12,13 +12,13 @@
 
 | 事项 | 承担者 | 本包给什么 |
 | --- | --- | --- |
-| 材料目录：把本包材料与其他拥有者的材料合成一个目录 | 应用 | `sessionStorageMaterials()` 的参加者、迁移与读 handler 描述，各带模块 URL 与文件摘要 |
+| 材料目录：把本包材料与其他拥有者的材料合成一个目录 | 应用 | `sessionStorageMaterials({ readOutputLimitBytes })` 的参加者、迁移与读 handler 描述，各带模块 URL 与文件摘要；读口输出上限由应用传入，本包没有默认值 |
 | 组合声明与登记：`registerCombination`、清单摘要、参加者列表（`session` 加执行记录提供者的参加者名） | 应用 | 参加者名 `SESSION_PARTICIPANT`；本包不登记，也不计算清单摘要 |
 | 租户事务域目录 | 应用，实现 sql-contract 的 `TenantDomainAccess` | 本包每次调用按租户 `resolve`，系统读用 `snapshot` 枚举；目录答了别的租户时拒绝使用 |
 | 存储服务与提供者 | 应用装入 sql-contract 与 sqlite-provider 的插件 | 本包只收 `SqlStorage` 对象，不 inject，不知道提供者 |
 | 游标签名能力 | 应用 | 本包只收 `cursorSigning` |
 | `sessionTransactions` 服务键 | 应用：用 `createSessionStorage` 得到端口，交给服务键 | 键与抽象类归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#端口服务键)，本包不提供 |
-| 迁移执行与重启后的迁移 | 提供者（DO-1，见 [sqlite-provider 规格](../../../storage/sqlite-provider/SPEC.md) §5.3） | 迁移模块 `session/001-session-log`、`session/002-execution-index`、`session/003-operation-evidence`（以及 `execution-record/001-execution-record`）。插件加载时不登记组合，这一步已按 Context r3 删除 |
+| 迁移执行与重启后的迁移 | 提供者（DO-1，见 [sqlite-provider 规格](../../../storage/sqlite-provider/SPEC.md) §5.3） | 迁移模块 `session/001-session-log`、`session/002-execution-index`、`session/003-operation-evidence`（以及 `execution-record/001-execution-record` 至 `execution-record/005-fact-body`）。插件加载时不登记组合，这一步已按 Context r3 删除 |
 | 注册的结果处理（`registerCombination` 的各类拒绝） | 应用 | 无。拒绝规则见 [sql-contract §6](../../../storage/sql-contract/SPEC.md#6-registercombination) |
 
 ## 撤除与资源

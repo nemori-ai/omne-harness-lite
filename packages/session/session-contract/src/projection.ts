@@ -1,6 +1,7 @@
 import { tenantEquals } from '@omne-harness/legal-identity'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
-import type { SessionHistoryReads } from './history-values.ts'
+import type { SessionAttemptRecord, SessionHistoryReads } from './history-values.ts'
+import { decideControlConsequences, type SessionControlEvidence } from './control-normalization.ts'
 import type {
   DurableEvidence,
   RunId,
@@ -88,6 +89,11 @@ export type SessionLogObservation = Omit<SessionAccess<never>, 'principal'> &
     operation?: SessionOperationId
     source: DurableEvidence
     consequences: readonly SessionLogConsequence[]
+    /**
+     * The Agent evidence of a deferred control fact. Its consequences are then empty: Session
+     * decides them on the snapshot of the commit.
+     */
+    control?: SessionControlEvidence
   }>
 
 /** Pure preparation for one atomic Session interpretation commit. */
@@ -136,6 +142,9 @@ function projectObservation(
     validateReplayedConsequences(snapshot, observation)
     return entries([])
   }
+  const consequences = checked.deferred
+    ? deferredConsequences(snapshot, observation, checked.context.index.attempts, reads)
+    : observation.consequences
   const draft = { ...snapshot }
   const out: EncodedEntry[] = []
   const origin = { ...originOf(observation.source), owner: 'agent', via: 'same-log' }
@@ -144,7 +153,7 @@ function projectObservation(
     if (diagnostic !== null) invalidAt(entry.kind, diagnostic)
     out.push(encodeEntry(entry, origin))
   }
-  for (const consequence of observation.consequences) {
+  for (const consequence of consequences) {
     switch (consequence.kind) {
       case 'observed':
         break
@@ -273,7 +282,9 @@ function projectObservation(
       }
     }
   }
-  if (out.length === 0) return entries([])
+  // A deferred control fact decided as observed still saves its progress: no later commit could
+  // name it in a gap, because a gap may hold only facts whose kinds are `observed`.
+  if (out.length === 0 && !checked.deferred) return entries([])
   out.push(
     encodeEntry(
       {
@@ -290,6 +301,28 @@ function projectObservation(
     ),
   )
   return entries(out)
+}
+
+/** The consequences Session decides for a deferred control fact on the snapshot of this commit. */
+function deferredConsequences(
+  snapshot: WorkSnapshot,
+  observation: SessionLogObservation,
+  attempts: readonly SessionAttemptRecord[],
+  reads?: SessionHistoryReads,
+): readonly SessionLogConsequence[] {
+  const evidence = observation.control
+  if (evidence === undefined) return unavailableAt('control.evidence')
+  if (reads?.controls === undefined) return unavailableAt('history.controls')
+  const decided = decideControlConsequences({
+    snapshot,
+    execution: observation.execution,
+    run: observation.run,
+    attempts: attempts.filter(item => item.execution === observation.execution),
+    origins: reads.controls,
+    evidence,
+  })
+  if ('failure' in decided) throw new SessionValidationFailure(decided.failure)
+  return decided.ok
 }
 
 function requireSessionCancellation(

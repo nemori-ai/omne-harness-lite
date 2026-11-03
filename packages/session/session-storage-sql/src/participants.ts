@@ -15,6 +15,7 @@ import type {
 import type { FactCommandV2, JsonValue, RecordedReply } from '@omne-harness/sql-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { canonicalText, decodeValue, encodeValue, sha256 } from './codec.ts'
+import { readCachedSessionWork, registerSessionWorkIndex } from './work-cache.ts'
 
 /** The participant that executes the Session commands and the read-only checks. */
 export const SESSION_PARTICIPANT = 'session'
@@ -46,10 +47,20 @@ export const SESSION_INPUT_HANDLER = 'session.input'
 export const SESSION_EXECUTION_HANDLER = 'session.execution'
 /** The read handlers of the execution record participant. */
 export const EXECUTION_RECORD_HANDLERS = {
-  /** The publication count and the opaque state of the records of one session. */
-  state: 'execution-record.state',
+  /**
+   * The publication count and the records of one session page by page: the whole state of a writer
+   * that does not split it, and the named parts (`ExecutionRecordPartsRead`).
+   */
+  parts: 'execution-record.parts',
   /** The original answer of one operation. */
   operation: 'execution-record.operation',
+  /** One preadmission record, by tenant and handoff or by tenant and entry (`PreadmissionRead`). */
+  preadmission: 'execution-record.preadmission',
+  /**
+   * The head row of one execution and its facts after a sequence, with their bodies, one page at
+   * a time (input: tenant, session, execution, after). See `worker/read-execution-facts.ts`.
+   */
+  executionFacts: 'execution-record.execution-facts',
 } as const
 
 // ---------------------------------------------------------------------------------------------
@@ -137,10 +148,52 @@ export function sessionCheckDigest(check: SessionCheck): string {
  * - `unsupported`: the facts are not a command, a check, an entries commit or a query.
  */
 export type SessionParticipation =
-  | Readonly<{ kind: 'participated'; result: unknown; recovered: boolean; digest: string }>
+  | Readonly<{
+      kind: 'participated'
+      result: unknown
+      recovered: boolean
+      digest: string
+      /** What a fresh batch tells the work cache (SPEC RT-04); absent on a recall. */
+      work?: SessionWorkReply
+    }>
   | Readonly<{ kind: 'stopped'; failure: SessionFailure }>
   | Readonly<{ kind: 'failed'; diagnostic: string }>
   | Readonly<{ kind: 'unsupported'; reason: string }>
+
+/**
+ * What a published Session batch tells the work cache of the main thread (C-TOPOLOGY §2.9): the
+ * version and stored text length of the new snapshot, the positions of the batch, whether it was
+ * reduced on a history index, and that index with the reads (`basis`, encoded) when they fit the
+ * bound of the reply.
+ */
+export type SessionWorkReply = Readonly<{
+  tail: string
+  published: string
+  bytes: number
+  first: string
+  last: string
+  indexed: boolean
+  basis?: JsonValue
+}>
+
+function workReplyOf(value: JsonValue | undefined): SessionWorkReply | undefined {
+  const work = recordOf(value)
+  if (work === null) return undefined
+  const { tail, published, bytes, first, last, indexed, basis } = work
+  const counts = [tail, published, first, last].every(
+    item => typeof item === 'string' && /^\d+$/.test(item),
+  )
+  if (!counts || typeof bytes !== 'number' || typeof indexed !== 'boolean') return undefined
+  return {
+    tail: tail as string,
+    published: published as string,
+    bytes,
+    first: first as string,
+    last: last as string,
+    indexed,
+    ...(basis === undefined ? {} : { basis }),
+  }
+}
 
 function isJsonRecord(
   value: JsonValue | undefined,
@@ -161,11 +214,13 @@ export function decodeSessionReply(reply: RecordedReply): SessionParticipation {
       const digest = response?.['digest']
       if (response === null || typeof digest !== 'string')
         return { kind: 'failed', diagnostic: 'a session reply without a digest' }
+      const work = workReplyOf(response['work'])
       return {
         kind: 'participated',
         result: decodeValue(response['result'] ?? null),
         recovered: response['recovered'] === true,
         digest,
+        ...(work === undefined ? {} : { work }),
       }
     }
     case 'conflict': {
@@ -196,12 +251,19 @@ export type ExecutionBoundaryRecord = Readonly<{
   ended: Readonly<{ sequence: string; source: DurableEvidence }> | null
 }>
 
-/** One event of an execution: its sequence, original source and Session consequence kinds. */
+/**
+ * One event of an execution: its sequence, original source and Session consequence kinds. A writer
+ * that names `consequences` or `control` also writes the body row of the fact (`er_fact_body`),
+ * which `execution-record.execution-facts` reads back: the JSON of the normalized consequences
+ * (null: not decided) and of the deferred control evidence (null: none). Both pass as given.
+ */
 export type ExecutionFactRecord = Readonly<{
   execution: string
   sequence: string
   source: DurableEvidence
   kinds: readonly string[]
+  consequences?: JsonValue
+  control?: JsonValue
 }>
 
 /** One input-taken batch of an execution, as its event wrote it. */
@@ -220,7 +282,15 @@ export type ExecutionAdmissionRecord = Readonly<{
   accepted: DurableEvidence
   grant: DurableEvidence
   attachment: string
+  /**
+   * The SE15 attempt the acceptance was granted under. Without it a Run with more than one SE15
+   * cannot prove the original attempt of this row (`grant` is the Agent's receipt, not an SE15).
+   */
+  attempt?: string
 }>
+
+/** One named part of the opaque state of a session's records; `state` null drops the part. */
+export type ExecutionRecordPart = Readonly<{ part: string; state: JsonValue | null }>
 
 /**
  * One write of the execution record provider. The participant does six things in the commit
@@ -229,8 +299,13 @@ export type ExecutionAdmissionRecord = Readonly<{
  * it replaces the opaque state of the session's records; it writes the index rows; and it adds one
  * to the publication count of the session, only when the count is `published`.
  *
+ * The state travels whole (`state`: it replaces the whole state and drops every part) or in parts
+ * (`parts`: each named part is replaced or, with a null state, dropped; the rest stay). With
+ * `replace` the parts are the whole state: the whole state and every part not named go first.
+ * A write with `parts` travels in parts; without, it travels whole (`state`, null when absent).
+ *
  * `revision` equal to `expected` is a write that establishes no new revision of the execution.
- * `state` and `answer` are opaque: the participant stores them and never decodes them.
+ * `state`, each part and `answer` are opaque: the participant stores them and never decodes them.
  */
 export type ExecutionRecordWrite = Readonly<{
   tenant: TenantId
@@ -242,25 +317,41 @@ export type ExecutionRecordWrite = Readonly<{
   operation: string
   digest: string
   answer: JsonValue
-  state: JsonValue
   boundaries: readonly ExecutionBoundaryRecord[]
   facts: readonly ExecutionFactRecord[]
   batches: readonly ExecutionBatchRecord[]
   admissions: readonly ExecutionAdmissionRecord[]
+  /** The whole state; ignored when `parts` is given (a write carries one form). */
+  state?: JsonValue
+  parts?: readonly ExecutionRecordPart[]
+  replace?: boolean
 }>
 
-/** The opaque members (`state`, `answer`, each `batch`) travel as they are; the rest is encoded. */
+/** The opaque members (`state`, each part, `answer`, each `batch`) travel as they are. */
 export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2 {
-  const { state, answer, batches, ...rest } = write
+  const { state, parts, replace, answer, batches, facts, ...rest } = write
   const encoded = encodeValue(rest) as Readonly<Record<string, JsonValue>>
+  const opaque: Readonly<Record<string, JsonValue>> =
+    parts === undefined
+      ? { state: state ?? null }
+      : {
+          parts: parts.map(({ part, state: body }) => ({ part, state: body })),
+          replace: replace ?? false,
+        }
   return {
     participant: EXECUTION_RECORD_PARTICIPANT,
     facts: {
       intent: 'publish',
       write: {
         ...encoded,
-        state,
+        ...opaque,
         answer,
+        // The fact bodies are JSON already; they pass as given, as the batches do.
+        facts: facts.map(({ consequences, control, ...index }) => ({
+          ...(encodeValue(index) as Readonly<Record<string, JsonValue>>),
+          ...(consequences === undefined ? {} : { consequences }),
+          ...(control === undefined ? {} : { control }),
+        })),
         batches: batches.map(({ batch, ...index }) => ({
           ...(encodeValue(index) as Readonly<Record<string, JsonValue>>),
           batch,
@@ -322,16 +413,50 @@ export function decodeExecutionRecordReply(reply: RecordedReply): ExecutionRecor
   }
 }
 
-/** The input of `execution-record.state` and the output it gives. */
-export type ExecutionRecordStateRead = Readonly<{ tenant: string; session: string }>
-export type ExecutionRecordState = Readonly<{ published: string; state: JsonValue | null }>
+/**
+ * The input of `execution-record.parts`: `after` the last part of the previous page (null: the first
+ * page), `parts` the names to read (absent or null: every part), `since` a publication count (absent
+ * or null: every part that is there; given: only the parts a later publication wrote or dropped).
+ */
+export type ExecutionRecordPartsRead = Readonly<{
+  tenant: string
+  session: string
+  after?: string | null
+  parts?: readonly string[] | null
+  since?: string | null
+}>
+/**
+ * One page of `execution-record.parts`: the publication count when the page was read, the whole
+ * state of a writer that does not split it (first page only; null otherwise or when there is
+ * none), the parts in ascending part order (a dropped part, read with `since`, has a null state),
+ * and the `after` of the next page (null: none).
+ */
+export type ExecutionRecordPartsPage = Readonly<{
+  published: string
+  state: JsonValue | null
+  parts: readonly Readonly<{ part: string; state: JsonValue }>[]
+  next: string | null
+}>
 
-export function decodeExecutionRecordState(output: JsonValue): ExecutionRecordState | null {
+export function decodeExecutionRecordParts(output: JsonValue): ExecutionRecordPartsPage | null {
   const value = recordOf(output)
   const published = value?.['published']
-  return value === null || typeof published !== 'string'
-    ? null
-    : { published, state: value['state'] ?? null }
+  const next = value?.['next'] ?? null
+  const parts = value?.['parts']
+  if (
+    value === null ||
+    typeof published !== 'string' ||
+    !(next === null || typeof next === 'string') ||
+    !Array.isArray(parts)
+  )
+    return null
+  const decoded: { part: string; state: JsonValue }[] = []
+  for (const item of parts as readonly JsonValue[]) {
+    const part = recordOf(item)
+    if (part === null || typeof part['part'] !== 'string' || !('state' in part)) return null
+    decoded.push({ part: part['part'], state: part['state'] ?? null })
+  }
+  return { published, state: value['state'] ?? null, parts: decoded, next }
 }
 
 /** The input of `execution-record.operation` and the output it gives (null: no original). */
@@ -348,6 +473,170 @@ export function decodeExecutionRecordOperation(
     ? 'malformed'
     : { digest, answer: value['answer'] ?? null }
 }
+
+// ---------------------------------------------------------------------------------------------
+// The preadmission records of the `execution-record` participant
+
+/**
+ * The intent of one handoff, as the provider saves it before it answers: the complete request, its
+ * origin, the stable identity of the original principal (never a credential), the qualification
+ * basis, the adopted implementation and the materials. Every member is opaque JSON here.
+ */
+export type PreadmissionIntent = Readonly<{
+  request: JsonValue
+  origin: JsonValue
+  principal: JsonValue
+  qualification: JsonValue
+  adoption: JsonValue
+  materials: JsonValue
+}>
+
+/**
+ * Phase one: save the intent of handoff `handoff` (H) under entry `entry` (Ki). A record of the same
+ * Ki is the answer as it is, whatever its H; a record of the same H answers when its intent is the
+ * same and conflicts otherwise. `session` and `execution` are null when there is no Run yet.
+ */
+export type PreadmissionIntentWrite = Readonly<{
+  phase: 'intent'
+  tenant: TenantId
+  handoff: string
+  entry: string | null
+  session: SessionId | null
+  execution: string | null
+  intent: PreadmissionIntent
+}>
+
+/** The fixed result of one handoff: `prepared` or `rejected`, with opaque members. */
+export type PreadmissionOutcome = Readonly<{ kind: 'prepared' | 'rejected' }> &
+  Readonly<{ [key: string]: JsonValue }>
+
+/** Phase two: fix the outcome of the saved intent of `handoff` once. */
+export type PreadmissionOutcomeWrite = Readonly<{
+  phase: 'outcome'
+  tenant: TenantId
+  handoff: string
+  outcome: PreadmissionOutcome
+}>
+
+/** The opaque intent and outcome travel as they are; the tenant is encoded. */
+export function preadmissionFacts(
+  write: PreadmissionIntentWrite | PreadmissionOutcomeWrite,
+): FactCommandV2 {
+  const { phase, tenant, ...rest } = write
+  return {
+    participant: EXECUTION_RECORD_PARTICIPANT,
+    facts: {
+      intent: 'preadmission',
+      phase,
+      write: { ...(rest as Readonly<Record<string, JsonValue>>), tenant: encodeValue(tenant) },
+    },
+  }
+}
+
+/** One saved preadmission record. The digests are the participant's digests of the canonical JSON. */
+export type PreadmissionRecord = Readonly<{
+  tenant: string
+  handoff: string
+  entry: string | null
+  session: string | null
+  execution: string | null
+  intent: JsonValue
+  intentDigest: string
+  outcome: JsonValue | null
+  outcomeDigest: string | null
+}>
+
+const textOrNull = (value: JsonValue | undefined): value is string | null =>
+  value === null || typeof value === 'string'
+
+export function decodePreadmissionRecord(
+  output: JsonValue,
+): PreadmissionRecord | null | 'malformed' {
+  if (output === null) return null
+  const value = recordOf(output)
+  if (value === null) return 'malformed'
+  const { tenant, handoff, entry, session, execution, intentDigest, outcomeDigest } = value
+  return typeof tenant === 'string' &&
+    typeof handoff === 'string' &&
+    typeof intentDigest === 'string' &&
+    textOrNull(entry) &&
+    textOrNull(session) &&
+    textOrNull(execution) &&
+    textOrNull(outcomeDigest) &&
+    value['intent'] !== undefined
+    ? {
+        tenant,
+        handoff,
+        entry,
+        session,
+        execution,
+        intent: value['intent'],
+        intentDigest,
+        outcome: value['outcome'] ?? null,
+        outcomeDigest,
+      }
+    : 'malformed'
+}
+
+/**
+ * The reply of a preadmission write, decoded.
+ *
+ * - `saved`: the record after the write. `created` is true when this write saved the intent or
+ *   fixed the outcome, false when the record already held it (a recall).
+ * - `conflict`: the same H holds another intent, or another fixed outcome; `record` is the held one.
+ * - `invalid`: an outcome without a saved intent.
+ */
+export type PreadmissionParticipation =
+  | Readonly<{ kind: 'saved'; created: boolean; record: PreadmissionRecord }>
+  | Readonly<{ kind: 'conflict'; record: PreadmissionRecord }>
+  | Readonly<{ kind: 'invalid'; reason: string }>
+  | Readonly<{ kind: 'failed'; diagnostic: string }>
+  | Readonly<{ kind: 'unsupported'; reason: string }>
+
+/** A `participated` preadmission reply: the saved record and whether this write saved it. */
+function decodeSaved(response: JsonValue | undefined): PreadmissionParticipation {
+  const value = recordOf(response)
+  const created = value?.['created']
+  const record = decodePreadmissionRecord(value?.['record'] ?? null)
+  return value?.['kind'] === 'saved' &&
+    typeof created === 'boolean' &&
+    record !== null &&
+    record !== 'malformed'
+    ? { kind: 'saved', created, record }
+    : { kind: 'failed', diagnostic: 'a preadmission reply without its record' }
+}
+
+/** A `conflict` preadmission reply: an outcome without an intent, or the held record. */
+function decodeRefusal(basis: JsonValue | undefined): PreadmissionParticipation {
+  const value = recordOf(basis)
+  const reason = value?.['reason']
+  if (value?.['kind'] === 'invalid' && typeof reason === 'string')
+    return { kind: 'invalid', reason }
+  const record = decodePreadmissionRecord(value?.['record'] ?? null)
+  return value?.['kind'] === 'preadmission' && record !== null && record !== 'malformed'
+    ? { kind: 'conflict', record }
+    : { kind: 'failed', diagnostic: 'a preadmission conflict without a basis' }
+}
+
+export function decodePreadmissionReply(reply: RecordedReply): PreadmissionParticipation {
+  switch (reply.kind) {
+    case 'participated':
+      return decodeSaved(reply.response)
+    case 'conflict':
+      return decodeRefusal(reply.basis)
+    case 'unsupported': {
+      const reason = recordOf(reply.basis)?.['reason']
+      return { kind: 'unsupported', reason: typeof reason === 'string' ? reason : 'unsupported' }
+    }
+    case 'failed':
+      return { kind: 'failed', diagnostic: `${reply.category}: ${reply.diagnostic}` }
+  }
+}
+
+/** The input of `execution-record.preadmission`: the tenant text and exactly one of H or Ki. */
+export type PreadmissionRead =
+  | Readonly<{ tenant: string; handoff: string }>
+  | Readonly<{ tenant: string; entry: string }>
 
 // ---------------------------------------------------------------------------------------------
 // The execution index
@@ -409,6 +698,21 @@ export type SessionWorkRead =
   | Readonly<{ kind: 'state'; snapshot: WorkSnapshot }>
   | Readonly<{ kind: 'absent' }>
   | Readonly<{ kind: 'behind' }>
+
+/**
+ * The `session.work` answer through the work cache of `storage` (SPEC RT-04), for a committer that
+ * holds the domain of the tenant: the version of the session is read first, and the snapshot is
+ * read whole only when no cached answer has that version. The snapshot it answers is deeply frozen.
+ */
+export { readCachedSessionWork }
+
+/**
+ * Replaces the index of the held `session.work` answer of one session after a publication of the
+ * Agent records committed with the count `published` (SPEC RT-04): for the Journal provider, which
+ * holds the domain of the tenant. It reads the index at the held tail and the new count, and
+ * registers nothing when the store is at another version. It never throws.
+ */
+export { registerSessionWorkIndex }
 
 export function decodeSessionWork(output: JsonValue): SessionWorkRead | null {
   const value = recordOf(output)

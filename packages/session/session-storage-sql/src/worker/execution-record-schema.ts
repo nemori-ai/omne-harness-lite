@@ -56,9 +56,93 @@ export const EXECUTION_RECORD_INDEX_TABLES: readonly string[] = [
   'er_fact_idx',
   'er_batch_idx',
   'er_admission_idx',
+  // Created by `execution-record/003-admission-attempt`, which the readers of these tables require.
+  'er_admission_attempt_idx',
 ]
 
 export const EXECUTION_RECORD_MIGRATION = Object.freeze({
   owner: 'execution-record',
   id: '001-execution-record',
+})
+
+// The preadmission records of the execution record provider (M-GENERATION SaveIntent, Commit and
+// Lookup): one record per handoff H, saved before the provider answers. `entry` (Ki) is unique per
+// tenant when present; SQLite and PostgreSQL both keep NULLs distinct in a unique index, so a record
+// without Ki takes no Ki slot. `session` and `execution` may be absent: a first invoke may have no
+// Run yet, and the table infers none. `intent` and `outcome` are opaque canonical JSON.
+export const PREADMISSION_SCHEMA: readonly string[] = [
+  `CREATE TABLE er_preadmission (
+    tenant TEXT NOT NULL, handoff TEXT NOT NULL, entry TEXT, session TEXT, execution TEXT,
+    intent TEXT NOT NULL, intent_digest TEXT NOT NULL, outcome TEXT, outcome_digest TEXT,
+    PRIMARY KEY (tenant, handoff)) STRICT`,
+  `CREATE UNIQUE INDEX er_preadmission_entry_idx ON er_preadmission (tenant, entry)`,
+]
+
+export const PREADMISSION_TABLES: readonly string[] = ['er_preadmission']
+
+export const PREADMISSION_MIGRATION = Object.freeze({
+  owner: 'execution-record',
+  id: '002-preadmission',
+})
+
+// The original attempt of one admission (the SE15 whose advance the acceptance was granted under),
+// in a table beside `er_admission_idx` with the same key. `grant_ref` keeps the Agent's own receipt
+// of the acceptance and does not name an attempt, so a Run with more than one SE15 cannot prove the
+// original one from the admission row. The sqlite-provider migration port does not let `ALTER TABLE
+// ADD COLUMN` through on a STRICT table (the check SQLite runs after it uses `pragma_quick_check`),
+// so the attempt is a table, as the operation evidence is. A legacy row, or one by a writer that
+// names no attempt, has no row here and the reader answers `unavailable` for it instead of guessing.
+export const ADMISSION_ATTEMPT_SCHEMA: readonly string[] = [
+  `CREATE TABLE IF NOT EXISTS er_admission_attempt_idx (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, input TEXT NOT NULL, ordinal INTEGER NOT NULL,
+    attempt TEXT NOT NULL,
+    PRIMARY KEY (tenant, session, input, ordinal)) STRICT`,
+]
+
+export const ADMISSION_ATTEMPT_TABLES: readonly string[] = ['er_admission_attempt_idx']
+
+export const ADMISSION_ATTEMPT_MIGRATION = Object.freeze({
+  owner: 'execution-record',
+  id: '003-admission-attempt',
+})
+
+// The Agent records of one session split into parts (session-adapters K-8): the provider names each
+// part and writes only the parts a publication changed, so a write does not grow with the number of
+// executions of the session. A part is opaque, as `er_state.state` is. `published` is the
+// publication count of the write that last wrote the part, so a reader that holds the parts of an
+// earlier count reads only the parts written after it. A dropped part stays as a row whose state is
+// NULL, for the same reader. `er_state` keeps the whole state of a writer that does not split it.
+export const STATE_PART_SCHEMA: readonly string[] = [
+  `CREATE TABLE IF NOT EXISTS er_state_part (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, part TEXT NOT NULL, state TEXT,
+    published INTEGER NOT NULL,
+    PRIMARY KEY (tenant, session, part)) STRICT`,
+]
+
+export const STATE_PART_TABLES: readonly string[] = ['er_state_part']
+
+export const STATE_PART_MIGRATION = Object.freeze({
+  owner: 'execution-record',
+  id: '004-state-parts',
+})
+
+// The body of each fact row (C-WORKCACHE design §5.2, path P): the normalized consequences and the
+// deferred control evidence the same publication wrote into its interpretation notes, in a table
+// beside `er_fact_idx` with the same key, so an interpreter reads the events after its progress
+// from append-only rows instead of the records of the whole execution. NULL `consequences` means
+// not decided; NULL `control` means not a deferred control fact. A fact row of a writer that
+// writes no body (or of a publication before this table) has no row here. A table, not columns,
+// for the reason `er_admission_attempt_idx` gives.
+export const FACT_BODY_SCHEMA: readonly string[] = [
+  `CREATE TABLE IF NOT EXISTS er_fact_body (
+    tenant TEXT NOT NULL, execution TEXT NOT NULL, sequence INTEGER NOT NULL, session TEXT NOT NULL,
+    consequences TEXT, control TEXT,
+    PRIMARY KEY (tenant, execution, sequence)) STRICT`,
+]
+
+export const FACT_BODY_TABLES: readonly string[] = ['er_fact_body']
+
+export const FACT_BODY_MIGRATION = Object.freeze({
+  owner: 'execution-record',
+  id: '005-fact-body',
 })

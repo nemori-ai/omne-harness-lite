@@ -14,6 +14,7 @@ Implemented:
 - The loader, the trusted-subtree visibility, and the readiness report.
 - The row snapshot `src/s0/aa-rows.json`, its generator, and its diff check.
 - The built-in tool release manifest `config/tool-release.json`, its generator `scripts/tool-release.mjs`, and its check. See [docs/rows/tool-release.md](docs/rows/tool-release.md).
+- The Model production wiring: the `model-records` and `model-host` rows, the application Model module `src/model/` and the real `modelHostAuthority`. See [docs/rows/model-release.md](docs/rows/model-release.md).
 - The shutdown coordinator and the process entry `dist/bin.js`.
 - The `./cordis` export, which holds the S0 stub plugin. Row closures add their real exports to it.
 - The `serve` subcommand, the row declaration `defineRow`, the entry object registry, and the checks before loading in the real mode. See [docs/real-mode.md](docs/real-mode.md).

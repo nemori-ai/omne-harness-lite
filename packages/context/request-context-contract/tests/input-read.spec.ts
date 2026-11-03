@@ -1,15 +1,17 @@
 // The stable read of the groups (RQ-13): each count and source read keeps its class, retries are
 // bounded, carried rows are reused only under the same key, and the judgment window is checked.
 import { describe, expect, it } from 'vitest'
-import type {
-  AdoptedRequestSource,
-  AssemblyResult,
-  CompactionContextResult,
-  SourceRead,
+import {
+  createAssemblyOperations,
+  type AdoptedRequestSource,
+  type AssemblyResult,
+  type CompactionContextResult,
+  type SourceRead,
 } from '@omne-harness/request-context-contract'
 import {
   createAssemblyFixture,
   createMemoryAdoptedSource,
+  createTestingPrincipalBinding,
   type AssemblyFixture,
 } from '@omne-harness/request-context-contract/testing'
 import { row, text, evidence } from './fixtures.js'
@@ -203,6 +205,41 @@ describe('carried rows are reused only under the same key', () => {
     const reads = f.history.readCount()
     await f.operations().planCompaction(f.call)
     expect(f.history.readCount()).toBeGreaterThan(reads)
+  })
+})
+
+describe('lent reuse never changes the original reads (CX-14)', () => {
+  const withReuse = (f: AssemblyFixture) =>
+    createAssemblyOperations({
+      target: f.target,
+      sources: f.sources,
+      principalBinding: createTestingPrincipalBinding<string>(),
+      policies: f.policies,
+      reuse: { load: () => null, stage: () => {} },
+    })
+  it('reuse without material reads every page, like a call without reuse', async () => {
+    const f = createAssemblyFixture({ rows: [row(0), row(1), row(2)] })
+    const before = f.history.readCount()
+    await f.operations().assemble(f.call)
+    const alone = f.history.readCount() - before
+    await withReuse(f).assemble(f.call)
+    expect(f.history.readCount() - before - alone).toBe(alone)
+  })
+  it('a carried candidate of the same key still reads no page when reuse is lent', async () => {
+    const f = createAssemblyFixture()
+    const first = candidate(await withReuse(f).assemble(f.call))
+    carry(f, first)
+    const reads = f.history.readCount()
+    await withReuse(f).assemble(f.call)
+    expect(f.history.readCount()).toBe(reads)
+  })
+  it('a group that keeps moving is still read exactly twice', async () => {
+    const f = createAssemblyFixture()
+    f.sources.churn('history', true)
+    expect(await withReuse(f).assemble(f.call)).toMatchObject({
+      diagnostic: 'unstable-input:history',
+    })
+    expect(f.sources.sourceReads('history')).toBe(2)
   })
 })
 

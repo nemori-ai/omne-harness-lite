@@ -6,5 +6,6 @@
 
 - [README.md](README.md)：验证资源的范围与运行方式
 - [fault-scenarios.md](../docs/fault-scenarios.md)：故障场景，组 A、B、C、F
+- [control-propagation/](control-propagation/README.md)：C3 控制传播、S5 重放与会话串行队列交错的有限模型
 - [models/](models/index.md)：形式模型（目前为空）
 - [proofs/](proofs/index.md)：论证与证明（目前为空）

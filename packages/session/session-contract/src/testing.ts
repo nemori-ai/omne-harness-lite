@@ -28,6 +28,11 @@ export {
 } from './testing-transactions.ts'
 export { sessionEntriesConformance } from './testing-entries.ts'
 export {
+  memorySessionLogFixture,
+  sessionLogConformance,
+  type SessionLogFixture,
+} from './testing-log.ts'
+export {
   memorySessionDelegatedTransactionsFixture,
   sessionDelegatedTransactionsConformance,
   type SessionDelegatedTransactionsFixture,

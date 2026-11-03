@@ -13,7 +13,7 @@
 应用要用 SQL 介质保存会话日志时，做下列事：
 
 1. 装入 sql-contract 的存储服务与提供者（例如 sqlite-provider），并实现租户事务域目录（`TenantDomainAccess`）。
-2. 调用 `sessionStorageMaterials()`，把参加者、迁移与读 handler 并入应用的材料目录。
+2. 调用 `sessionStorageMaterials({ readOutputLimitBytes })`，把参加者、迁移与读 handler 并入应用的材料目录。读口输出上限由应用决定，没有默认值，提供者的 `maxReadResultBytes` 要不小于它。
 3. 声明组合：参加者列表是 `SESSION_PARTICIPANT`（值 `session`）加执行记录提供者声明的参加者名，两者在同一个事务域（契约 [P-1](../../session-contract/SPEC.md#具名前提与明确缺项)）。P-1 不成立时组合被拒绝。拒绝由 `registerCombination` 报告，处置归应用。
 4. 准备游标签名能力与访问裁定。两者都没有默认值。
 5. 调用 `createSessionStorage({ storage, domains, accessCheck, cursorSigning, combination })`，其中 `combination` 是应用为该租户作用域登记的版本与清单摘要。把返回的端口交给 `sessionTransactions`。
@@ -26,7 +26,7 @@
 ```text
 存储 = sql-contract 的 SqlStorage（由提供者给出）
 目录 = TenantDomainAccess（由应用给出）
-材料 = sessionStorageMaterials()                  并入材料目录，经应用声明组合
+材料 = sessionStorageMaterials({…})                并入材料目录，经应用声明组合
 
 端口 = createSessionStorage({ storage: 存储, domains: 目录, accessCheck, cursorSigning, combination })
 会话服务 = session 工厂({ transactions: 端口, … })

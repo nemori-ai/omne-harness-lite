@@ -2,6 +2,8 @@ import type { AssemblyInput, AssemblyResult, PreparedInputKey } from './values.j
 import type { HistoryRow } from './ports.js'
 import type { OperationContext } from './operation-context.js'
 import { assembleInputs } from './assembly.js'
+import type { ReuseBasis } from './preparation.js'
+import type { AssemblyReuse } from './reuse.js'
 import { invalid } from './compaction-request.js'
 /** Re-assembles after a committed compaction; the third group must carry a full snapshot (RQ-06). */
 export async function resumeInputs<P>(
@@ -9,6 +11,7 @@ export async function resumeInputs<P>(
   key: PreparedInputKey,
   rows: readonly HistoryRow[],
   context: OperationContext<P>,
+  basis?: ReuseBasis & Readonly<{ reuse?: AssemblyReuse | undefined }>,
 ): Promise<AssemblyResult> {
   if (
     input.contextRead.read.kind !== 'success' ||
@@ -19,5 +22,5 @@ export async function resumeInputs<P>(
   if (transition === null) return invalid('missing-input', 'context.transition')
   if (transition.candidate !== input.identity.candidate || transition.epoch !== input.history.epoch)
     return invalid('plan-mismatch')
-  return assembleInputs(input, key, rows, context)
+  return assembleInputs(input, key, rows, context, basis)
 }

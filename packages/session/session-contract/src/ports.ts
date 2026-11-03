@@ -23,8 +23,10 @@ import type {
 import type {
   ClockSample,
   Control,
+  FreezeVerdict,
   IdleObservation,
   ProducedResult,
+  ResidentAdoption,
   RoutedInput,
   ScopeReleaseDisposition,
   WorkSnapshot,
@@ -34,6 +36,8 @@ import type {
   SessionEntriesObservation,
   SessionEntriesReceipt,
   SessionEntriesStart,
+  SessionLogCommitObservation,
+  SessionLogReceipt,
 } from './interpretation-values.ts'
 import type {
   OperationResolution,
@@ -198,8 +202,13 @@ export type GuardCommand = Readonly<{
 export interface SessionIdentityBridge<P> {
   prepare(input: SessionAccess<P>, command: SessionCommand): Reply<GuardCommand>
 }
-export interface SessionEvidenceBridge {
-  prepare(command: SessionCommand): Reply<readonly GuardCommand[]>
+/**
+ * The guard material of the commands that need evidence. `access` is the access of the original
+ * call. Session always passes it; a caller that predates it may omit it, and the bridge then
+ * authorizes nothing by its absence.
+ */
+export interface SessionEvidenceBridge<P = unknown> {
+  prepare(command: SessionCommand, access?: SessionAccess<P>): Reply<readonly GuardCommand[]>
 }
 export interface SessionClock {
   sample(): Reply<ClockSample>
@@ -231,9 +240,35 @@ export type CustodyEvidenceCommand = Extract<
   SessionCommand,
   { kind: 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption' }
 >
-/** The three narrow consumption ports of the evidence bridge (XC-ADOPTSRC). They prepare guard material only. */
-export interface SessionAdoptionSource {
-  prepare(command: AdoptionEvidenceCommand): Reply<readonly GuardCommand[]>
+/** One recorded resident of the session, as the adoption point reads it: the capability, its key and its stored shape. */
+export type SessionAdoptionRecorded = Readonly<{
+  capability: string
+  key: string
+  shape: JsonValue
+}>
+export type SessionAdoptionPlanInput = Readonly<{
+  recorded: readonly SessionAdoptionRecorded[]
+  capabilities: readonly string[]
+}>
+/** The adoption material of one planned start, and the freeze verdict when the plan proved the shape lost. */
+export type SessionAdoptionPlanAnswer = Readonly<{
+  material: ResidentAdoption
+  verdict: FreezeVerdict | null
+}>
+/**
+ * The three narrow consumption ports of the evidence bridge (XC-ADOPTSRC). They prepare guard
+ * material only. `plan` is the adoption point that Session calls before `startRun`; its failure
+ * is the plain `unavailable` of the frozen shape, not a `SessionFailure`.
+ */
+export interface SessionAdoptionSource<P = unknown> {
+  prepare(
+    command: AdoptionEvidenceCommand,
+    access?: SessionAccess<P>,
+  ): Reply<readonly GuardCommand[]>
+  plan?: (
+    access: SessionAccess<P>,
+    input: SessionAdoptionPlanInput,
+  ) => Promise<Outcome<SessionAdoptionPlanAnswer, Readonly<{ kind: 'unavailable' }>>>
 }
 export interface SessionProductionSource {
   prepare(command: ProductionEvidenceCommand): Reply<readonly GuardCommand[]>
@@ -272,6 +307,15 @@ export interface SessionTransactionPort<P> {
   commitEntries(
     input: Readonly<{ observation: SessionEntriesObservation; start: SessionEntriesStart }>,
   ): Reply<SessionEntriesReceipt>
+  /**
+   * The same-log event interpretation commit, the counterpart of `commitEntries` for the event
+   * channel. It is not a public face method and has no access check: the caller is the trusted
+   * interpreter, and the events are already committed producer facts. A provider that does not
+   * offer it omits it. A delegated view that has it answers `denied`.
+   */
+  commitLog?: (
+    input: Readonly<{ observation: SessionLogCommitObservation }>,
+  ) => Reply<SessionLogReceipt>
   readonly history: SessionHistory<P>
   pending(
     input: Readonly<{

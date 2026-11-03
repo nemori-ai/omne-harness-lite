@@ -21,6 +21,7 @@ import {
   type SourceGeneration,
   type SourceSettlement,
 } from '@omne-harness/request-context-contract'
+import { createGenerationCache, type GenerationCache } from './cache.js'
 
 type Generation<P> = {
   readonly ref: RegistrationRef
@@ -29,6 +30,8 @@ type Generation<P> = {
   readonly target: ContextTarget
   readonly owner: Adoption
   readonly sources: ContextSources<P>
+  /** Derived candidate material of this generation; dropped when the generation is retired. */
+  readonly cache: GenerationCache
   borrows: number
   /** Leases acquired through this generation and not yet given back. */
   leases: number
@@ -40,6 +43,17 @@ type Generation<P> = {
   receipt: ReturnType<ContextRegistration['withdraw']> | null
 }
 type Refusal = Extract<AssemblyFailure, { kind: 'invalid' | 'denied' | 'unavailable' }>
+
+/** The results that carry stable material worth keeping; failures keep nothing. */
+function keepsMaterial(result: unknown): boolean {
+  const kind = (result as { kind?: unknown } | null)?.kind
+  return (
+    kind === 'candidate-before-extension' ||
+    kind === 'candidate-fixable' ||
+    kind === 'needs-compaction' ||
+    kind === 'cannot-fit'
+  )
+}
 
 const UNREGISTERED = 'No source set is registered for this target'
 
@@ -117,6 +131,7 @@ export function createContextSourceRegistry<P>(
       target,
       owner,
       sources,
+      cache: createGenerationCache(),
       borrows: 0,
       leases: 0,
       leaked: false,
@@ -136,6 +151,7 @@ export function createContextSourceRegistry<P>(
   function retire(item: Generation<P>) {
     if (current.get(item.key) === item) current.delete(item.key)
     item.withdrawn = true
+    item.cache.clear()
     item.settle()
   }
   function handle(item: Generation<P>): ContextRegistration {
@@ -176,12 +192,14 @@ export function createContextSourceRegistry<P>(
         return { kind: 'unavailable', owner: 'source-registry', diagnostic: UNREGISTERED }
       item.borrows++
       try {
+        const transaction = item.cache.begin()
         const operations = createAssemblyOperations({
           target,
           sources: { ...item.sources, preparation: preparationOf(item) },
           principalBinding: options.principalBinding,
           policies: options.policies,
           generation: item.generation,
+          reuse: transaction.reuse,
         })
         const result = await run(operations, argument)
         // Publication: the generation is checked with no await before the result leaves.
@@ -191,6 +209,8 @@ export function createContextSourceRegistry<P>(
             owner: 'source-registry',
             diagnostic: 'The source set was withdrawn or replaced during the operation',
           }
+        // Still the same synchronous step: the staged material is published with its result.
+        if (keepsMaterial(result)) transaction.commit()
         return result
       } finally {
         item.borrows--

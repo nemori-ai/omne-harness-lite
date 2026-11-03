@@ -30,7 +30,7 @@ function amount(value: unknown): value is Amount {
       ((value.state === 'known' || value.state === 'provisional') && decimal(value.lexeme)))
   )
 }
-function account(value: unknown): value is Account {
+export function account(value: unknown): value is Account {
   return (
     object(value) &&
     object(value.subject) &&

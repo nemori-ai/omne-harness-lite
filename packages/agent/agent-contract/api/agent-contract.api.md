@@ -2417,6 +2417,9 @@ export interface AgentJournalReading<P> {
     load(input: Access<P> & Readonly<{
         execution: AgentExecutionId;
     }>): Reply<ExecutionSnapshot>;
+    readCancellationInstallation?(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+    }>): Reply<DurableEvidence>;
     inputs(input: Access<P> & Readonly<{
         execution: AgentExecutionId;
         watermark: DurableEvidence;
@@ -2994,6 +2997,7 @@ export type Material<B extends ContentBlock> = Readonly<{
 }>;
 export interface AgentMaterials<P, B extends ContentBlock> {
     preserve(input: Access<P> & Readonly<{
+        execution?: AgentExecutionId;
         identity: string;
         consumer: ConsumerRef;
         value: Material<B>;
