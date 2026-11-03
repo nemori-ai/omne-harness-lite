@@ -2,7 +2,8 @@
 // 本文件由线负责人单写（L1-06）：新增入口对象时加一条导入与一项清单元素。
 // 名字取定义包的键常量；受信与否由受信表（`src/s0/aa-rows.json`）决定，模块不自报。
 // `scopedRuntimeContextTrust` 与 `executionAuthorities` 共用一份按运行懒建的 Scope 来源（见 execution-wiring.ts）。
-// 两个系统主体模块经受信名 `principalIssuer` 的服务签发，必须排在 `principalIssuer` 之后。
+// 三个系统主体模块经受信名 `principalIssuer` 的服务签发，必须排在 `principalIssuer` 之后。
+// `toolReleaseRegistrant` 与 `toolContributionAuthority` 共用一份按运行读取的发行快照，登记者排在权威之前。
 import type { EntryObjectModule } from '../types.ts'
 import { agentClock } from './agent-clock.ts'
 import { agentHostPrincipal } from './agent-host-principal.ts'
@@ -21,6 +22,7 @@ import { sessionClock } from './session-clock.ts'
 import { sessionCustodySource, sessionProductionSource } from './session-evidence-sources.ts'
 import { sessionWorkPrincipals } from './session-work-principals.ts'
 import { storageHost } from './storage-host.ts'
+import { toolContributionAuthority, toolReleaseRegistrant } from './tool-release.ts'
 import { toolResidencyPrincipal } from './tool-residency-principal.ts'
 
 export const entryObjects: readonly EntryObjectModule[] = [
@@ -28,6 +30,8 @@ export const entryObjects: readonly EntryObjectModule[] = [
   principalIssuer,
   agentHostPrincipal,
   toolResidencyPrincipal,
+  toolReleaseRegistrant,
+  toolContributionAuthority,
   sessionPrincipals,
   sessionWorkPrincipals,
   requestContextTrust,

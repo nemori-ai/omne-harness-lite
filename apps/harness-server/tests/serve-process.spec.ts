@@ -1,5 +1,5 @@
 // @module-tag slow
-// 慢：每个用例启动 dist/bin.js 子进程，并装载 49 行发行树（19 个真实行、30 个替身行，真实 SQLite 存储）。
+// 慢：每个用例启动 dist/bin.js 子进程，并装载 48 行发行树（22 个真实行、26 个替身行，真实 SQLite 存储）。
 // `serve` 子命令的进程级验收（DP1-C1、C2、C3、C19）：起 `dist/bin.js serve`，`--stop-on-stdin-close` 发起计划停止，
 // 断言退出码与 stdout JSON 记录。先运行 `pnpm run build`。
 import { execFile, spawn } from 'node:child_process'
@@ -115,7 +115,7 @@ describe('serve process', () => {
       scope: 'serving',
       accepting: true,
       outcome: 'ready',
-      implementations: { real: 19, 'contract-double': 0, 's0-double': 29 },
+      implementations: { real: 22, 'contract-double': 0, 's0-double': 26 },
     })
     expect(of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
     expect(out.stderr).toContain('serve: stop requested: stdin closed')
