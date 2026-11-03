@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Cordis service definitions for schedule; initialized draft without business exports",
+  "description": "Cordis service definitions for schedule management and queries",
   "engines": {
     "node": ">=24"
   },
