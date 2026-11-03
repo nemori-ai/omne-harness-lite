@@ -47,3 +47,4 @@ export {
   type CalendarSourceResponseEvidence,
   type CalendarVacanzaArtifact,
 } from './sources/index.ts'
+export { createShippedCalendarSeedRegistry, shippedCalendarSeedRelease } from './seeds/index.ts'
