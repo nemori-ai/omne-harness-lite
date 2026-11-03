@@ -125,8 +125,8 @@ K-n 编号是 Session 组各成员共用的一套序列：本页用 K-1 至 K-5 
     - 不迁移旧数据：已有事实行没有正文，读者对它们回退到读分区（session-adapters 已知限制）。
     - 清单摘要：新迁移与新 handler 改变组合的 `manifestDigest`，按 R2-D90 并入 session-composite/2；当前值由 `combinationManifest` 加 `manifestDigest` 计算，归 Reduce 的组合声明。
     - 验证：`tests/execution-facts.spec.ts` 在同一个迁移过的库上核对：正文与事实同读、没有正文的事实答 `'absent'`、只读进度之后的事实且行数不随之前的事实增长、另一租户与另一会话读不到、畸形序号被拒。
-21. 历史索引的 Session 行在 Worker 模块里增量保留（C-WORKCACHE A3，R2-D90、R2-D103）。`src/worker/history-index.ts` 的 `sessionRows` 按会话保留五种行（`intake.routed`、`run.started`、`run.attempt-started`、`run.terminal`、`control.requested`）折出的索引，下次只读游标之后的行；游标处的行指纹不符就从第一行重建，游标之后有空洞就丢掉保留的索引并让本次调用失败。修订大于日志尾部的行是未提交事务的行，只折进本次调用的副本，从不保留。修订不大于尾部就当作已提交，这只在 `session` 参加者是 `grouping: 'singleton'` 时成立：每个写事务只有一个操作，参加者在推进尾部之前读索引。组提交里后一个操作会看到同组前一个操作推进的尾部，从而保留同组仍可能回滚的行。把 `session` 改成 `groupable` 之前，必须先重新设计这份保留。验证：`tests/history-index-incremental.spec.ts`（其中「rows of an open transaction folded over a kept index are folded into a copy」覆盖副本分支：保留索引之上读到未提交的第 2、3 行，回滚后另一事务提交不同的第 2 行与相同的第 3 行，得到 `in-1`、`in-X`、`in-3`；把副本改成直接用保留的索引时这条用例变红）。
-22. 具名差额「待 Reduce 重算（R2-D103）」：迁移 `execution-record/005-fact-body`（第 20 条）、A2（写 Worker 复用解析快照）、A3（第 21 条）与 C-TOPOLOGY 的替换都改变本成员材料的模块摘要，因而改变组合的 `manifestDigest`。`apps/harness-server/config/serve.distribution.json` 里的 `manifestDigest` 还是改动之前应有的值，本成员不改 apps，也不改 `serve.spec`；由 Reduce 在集成时统一重算。重算之前，按该配置装配的组合与本成员材料的摘要不一致。
+21. 历史索引的 Session 行在 Worker 模块里增量保留（[Worker 内的两处保留](#worker-retention)）。`src/worker/history-index.ts` 的 `sessionRows` 按会话保留五种行（`intake.routed`、`run.started`、`run.attempt-started`、`run.terminal`、`control.requested`）折出的索引，下次只读游标之后的行；游标处的行指纹不符就从第一行重建，游标之后有空洞就丢掉保留的索引并让本次调用失败。修订大于日志尾部的行是未提交事务的行，只折进本次调用的副本，从不保留。修订不大于尾部就当作已提交，这只在 `session` 参加者是 `grouping: 'singleton'` 时成立：每个写事务只有一个操作，参加者在推进尾部之前读索引。组提交里后一个操作会看到同组前一个操作推进的尾部，从而保留同组仍可能回滚的行。把 `session` 改成 `groupable` 之前，必须先重新设计这份保留。验证：`tests/history-index-incremental.spec.ts`（其中「rows of an open transaction folded over a kept index are folded into a copy」覆盖副本分支：保留索引之上读到未提交的第 2、3 行，回滚后另一事务提交不同的第 2 行与相同的第 3 行，得到 `in-1`、`in-X`、`in-3`；把副本改成直接用保留的索引时这条用例变红）。
+22. 具名差额「待 Reduce 重算」：迁移 `execution-record/005-fact-body`（第 20 条）、写 Worker 的解析快照与历史索引的 Session 行保留（[Worker 内的两处保留](#worker-retention)）、工作缓存的折叠与新增的 `session.work-index`、`session.work-reads` 两个 handler（[RT-04](#rt-04)）都改变本成员材料的模块摘要，因而改变组合的 `manifestDigest`。`apps/harness-server/config/serve.distribution.json` 里的 `manifestDigest` 还是改动之前应有的值，本成员不改 apps，也不改 `serve.spec`；由集成方统一重算。重算之前，按该配置装配的组合与本成员材料的摘要不一致。
 
 ### 两个「事务端口」
 
@@ -685,16 +685,16 @@ releasedScopes(principal, scope = system, after, limit):
 - 返回的快照是深冻结的同一对象：调用方写入会抛 `TypeError`，不会改变下一位读者所见。
 - 上界：按 LRU 淘汰，会话数上限 `WORK_CACHE_SESSIONS`（256）、快照文本字节上限 `WORK_CACHE_BYTES`（64 MiB），可经 `SessionStorageOptions.workCache` 覆盖，`0` 表示不缓存；单个快照超过字节上限时不登记。同一存储对象上第一个读者的上界生效。被淘汰的会话再读时整读一次。
 - 提交不读缓存：提交在参加者里按事务内的当前状态裁定，`expected` 与尾部在事务内核对，缓存不参与。其他进程的提交由下一次读的版本点查发现。
-- 本进程的提交折叠进缓存（C-TOPOLOGY §2.9）。提交回复把本次批次交给工作缓存：`session` 参加者在推进尾部的两条写路径（命令批次、同日志批次）的回复里带 `work`，含新版本 `(tail, published)`（`published` 在同一事务里点读 `er_root`）、快照正文长度、本批首末位置，以及本批归约所依据的历史读取的输入范围与焦点（`basis`）。`basis` 的 JSON 文本超过 `WORK_BASIS_BYTES`（16 KiB）时不带；entries 通道在没有索引与读数的快照上归约，只标 `indexed: false`。认回不带 `work`。端口只在回复新鲜且已提交（不是认回、不是 `recovered`）、缓存持有的版本正是 `(tail − 1, published)` 时折叠，依次：经 `session.history` 读本批条目（O(k)，核对位置连续、修订等于 `tail`）；经 `session.work-reads` 在读 Worker 里按「位置不超过本批首位减一、`published` 相等」复现参加者的历史索引与读数（Session 行写后不变，`er_` 行只随 `published` 变；该 handler 核对 `published` 与该位置行的修订，Worker 保留的索引已越过该位置时也答 `stale`）；在持有的快照上换入这份索引，用同一个 `reduce` 与这份读数归约；经 `session.work-index` 按与 `session.work` 相同的函数和上界（`workIndexOf`）算新快照的索引，该 handler 先核对存储的 `tail` 仍等于折叠的 `tail`，不等答 `stale`；发布计数小于所问也答 `stale`，大于所问时按当前计数算索引并在答复里给出该计数。快照内容只随 `tail` 变（C-TOPOLOGY §3.1 P-4），所以折叠期间插入的发布只改变索引：全部成立就以 `(tail, 答复的 published)` 登记。没有持有项、版本不衔接、`basis` 缺席、`reduce` 隔离、条目读不全或 `stale` 时都不登记，只计数，下一次读照旧点查加整读。折叠进行期间，点查到同一版本的读等折叠结束再取登记项。折叠从不改变提交的回答，也从不抛错。
+- 本进程的提交折叠进缓存。提交回复把本次批次交给工作缓存：`session` 参加者在推进尾部的两条写路径（命令批次、同日志批次）的回复里带 `work`，含新版本 `(tail, published)`（`published` 在同一事务里点读 `er_root`）、快照正文长度、本批首末位置，以及本批归约所依据的历史读取的输入范围与焦点（`basis`）。`basis` 的 JSON 文本超过 `WORK_BASIS_BYTES`（16 KiB）时不带；entries 通道在没有索引与读数的快照上归约，只标 `indexed: false`。认回不带 `work`。端口只在回复新鲜且已提交（不是认回、不是 `recovered`）、缓存持有的版本正是 `(tail − 1, published)` 时折叠，依次：经 `session.history` 读本批条目（O(k)，核对位置连续、修订等于 `tail`）；经 `session.work-reads` 在读 Worker 里按「位置不超过本批首位减一、`published` 相等」复现参加者的历史索引与读数（Session 行写后不变，`er_` 行只随 `published` 变；该 handler 核对 `published` 与该位置行的修订，Worker 保留的索引已越过该位置时也答 `stale`）；在持有的快照上换入这份索引，用同一个 `reduce` 与这份读数归约；经 `session.work-index` 按与 `session.work` 相同的函数和上界（`workIndexOf`）算新快照的索引，该 handler 先核对存储的 `tail` 仍等于折叠的 `tail`，不等答 `stale`；发布计数小于所问也答 `stale`，大于所问时按当前计数算索引并在答复里给出该计数。快照行只在推进 `tail` 的事务里替换（见上文「版本」），所以折叠期间插入的发布只改变索引：全部成立就以 `(tail, 答复的 published)` 登记。没有持有项、版本不衔接、`basis` 缺席、`reduce` 隔离、条目读不全或 `stale` 时都不登记，只计数，下一次读照旧点查加整读。折叠进行期间，点查到同一版本的读等折叠结束再取登记项。折叠从不改变提交的回答，也从不抛错。
 - 本进程的 Agent 发布只换索引：Journal 提供者在发布提交后调用 `registerSessionWorkIndex`，缓存持有该会话时，按持有的 `tail` 经 `session.work-index` 重算索引，换掉持有项的索引并以答复的版本登记（计数可能已越过这次发布，同上）；快照行只随 `tail` 变，所以快照本身沿用。`tail` 已变（`stale`）或没有持有项时不登记。
+- 本进程的 Journal 共同提交也折叠：Journal 提供者的一次发布里带 Session 参加（命令批次）时，Session 参加者的回复同样带 `work`。同一事务里 `execution-record` 参加者先运行（名字序，见已知限制第 11 条），把发布计数加一，Session 参加者随后点读到的就是加一后的计数。所以这条提交只在缓存持有的版本正是 `(tail − 1, published − 1)` 时折叠，复现读数与读新索引都用回复里的计数；其余步骤与端口提交相同。只取这次调用发出、已提交、不是认回、Session 回答不是 `recovered` 的回复；回滚的提交没有 `work`。Journal 提供者调用 `registerSessionWorkIndex` 时带上这份 `work` 就折叠，不带就只换索引。
 - 计数：`workFoldCounts()` 给出本进程的 `folded`、`indexed`、`skipped`、`quarantined`、`stale`，以及其中按越过的计数登记的 `republished`，供测量使用。
 - 回复会落盘：sqlite-provider 把参加者回复连同收据写进 `_sql_receipt`，单份回复超过 `maxResponseBytes`（初值 64 KiB）时提交回滚。所以 `basis` 有 16 KiB 的界，每次提交的收据至多多出这么多；`basis` 只是输入范围与焦点，通常几百字节。
-- 与拓扑设计的差异：设计 §2.9.1 第 3 步用持有快照自带的索引（待办输入范围）作 `reduce` 的前态。参加者实际用本次决定的范围算索引（`startRun` 只取首个待办输入，`commitLog` 另加观察的执行作焦点），两者不同时 `commitLog` 的归约会隔离。本实现按参加者的范围与焦点复现索引与读数，前态因此与参加者完全相同（变异「前态用持有快照自带的索引」使 `commitLog` 的折叠用例变红）。
-- 已知限制：整读仍是 O(|S|)，冷启动、淘汰、外部提交、`basis` 超界与折叠不成立时付一次。`session.work-index` 与 `session.work-reads` 的输入带全部 Run 的执行引用，长度随 Run 数增长。主线程的 `reduce` 对持有快照做顶层浅拷贝，代价未单独测。Journal 共同提交里 Session 参加者推进的尾部不折叠（那条提交不经端口），下一次读整读。
+- 已知限制：整读仍是 O(|S|)，冷启动、淘汰、外部提交、`basis` 超界与折叠不成立时付一次。`session.work-index` 与 `session.work-reads` 的输入带全部 Run 的执行引用，长度随 Run 数增长。主线程的 `reduce` 对持有快照做顶层浅拷贝，代价未单独测。
 
 <a id="rt-04-owner"></a>
 
-当前状态的拥有者与直接读者（C-WORKCACHE 拓扑，R2-D102）。工作缓存（下称 WorkHolder）是一个进程里 Session 当前状态 `session.work` 的唯一内存拥有者。它不是权威：权威仍在存储，每个答案都带一个在存储快照里读到的版本，资格由事务内的裁定决定。
+当前状态的拥有者与直接读者。工作缓存（下称 WorkHolder）是一个进程里 Session 当前状态 `session.work` 的唯一内存拥有者。它不是权威：权威仍在存储，每个答案都带一个在存储快照里读到的版本，资格由事务内的裁定决定。
 
 - 只有 WorkHolder 调用 `session.work` 与 `session.work-version` 两个 handler。其余读当前状态的调用方都经 WorkHolder：Session 核心的面操作经端口 `readWork`（`src/reads.ts`），session-adapters 的插件经核心面 `session.work.readWork`，不经核心的两个读者（会话归属读口 `src/bindings.ts`、session-adapters 的 Journal 提供者）经 `readCachedSessionWork`。`tests/direct-reads.spec.ts` 用 `git grep` 核对这条边界：全仓 `packages`、`apps` 的产品源码里以文本点名这两个 handler 的文件，只有定义它们的 `src/worker/read-work.ts` 与 `src/worker/read-work-version.ts`、登记材料的 `src/materials.ts`、声明常量的 `src/participants.ts` 与 `src/work-cache.ts`。
 - 保留直接读 Session log 存储的只有五类。它们读的不是当前状态，或者本身就是某份状态的拥有者：
@@ -705,9 +705,9 @@ releasedScopes(principal, scope = system, after, limit):
   5. 提交路径在写事务里的读：参加者读快照行、历史索引与操作记录，`queryOperation` 的认回读操作记录。CAS、`decide` 与认回必须读事务内的当前值，不读缓存。
 
   按主键的点查（`session.execution` 的路由、`execution-record.operation` 的认回）与会话大小无关，归各自的调用方。
-- 已知限制，波 3 处理：
-  - AD-07（session-adapters `message-handoff.ts`）取交接记录与权限时整读该 execution 的分区，O(|x|)。处置方向：随分区拆细（B-6）改为向 Journal 提供者查询，需要 session-cordis-contract 新增服务键。
-  - AD-04（session-adapters `history-source.ts`）为压缩窗口翻完全部历史，O(n)。处置方向：改为窗口函数（C-WORKCACHE design.md §12.4）。
+- 已知限制：
+  - AD-07（session-adapters `message-handoff.ts`）取交接记录与权限时整读该 execution 的分区，O(|x|)。处置方向：随分区拆细改为向 Journal 提供者查询，需要 session-cordis-contract 新增服务键。
+  - AD-04（session-adapters `history-source.ts`）为压缩窗口翻完全部历史，O(n)。处置方向：改为窗口函数。
 
 ### 符合性
 
