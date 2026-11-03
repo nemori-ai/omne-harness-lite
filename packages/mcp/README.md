@@ -1,6 +1,6 @@
 # MCP能力组
 
-状态：工程设计草案。本组有三个 workspace 成员。mcp-contract 已有实现（候选，W1，尚未技术接受）。mcp 与 mcp-host-local 仍是模板草稿，没有公开导出、实现或运行支持。mcp-cordis-contract 尚未建立。下文的成员、模型和决定都是候选，落位不授予技术接受。
+状态：工程设计草案。本组有三个 workspace 成员。mcp-contract 已有实现（候选，第一波，尚未取得技术接受）。mcp 与 mcp-host-local 仍是模板草稿，没有公开导出、实现或运行支持。mcp-cordis-contract 尚未建立。下文的成员、模型和决定都是候选，落位不授予技术接受。
 
 ## 责任与范围
 
@@ -14,7 +14,7 @@
 
 | 成员或文档目标 | 职责 | 允许依赖 | 状态 |
 | --- | --- | --- | --- |
-| [mcp-contract](mcp-contract/README.md) | 纯契约：值对象、类别端口、纯函数、端口与应用服务接口。三个入口：公开根 `.` 给调用方与实现方，导出值、结局、失败、五个服务接口、纯函数与类别端口；`./provider` 给端口的实现方，只导出五个需求端口、`McpTransport` 与 `McpTransportFactory` 的类型；`./testing` 给端口的实现方在测试里自测，导出五个需求端口的符合性套件、各自的内存替身，以及 `classifyOutcome` 与 `mergeListing` 的穷举用例。见[三个入口](mcp-contract/SPEC.md#entries)。传输契约测试与本地真实服务端夹具还不在本成员。不依赖 Cordis 与任何实现 | assets（类别端口）、operation-result、legal-identity、content-block、json-text | 已实现（候选），尚未技术接受 |
+| [mcp-contract](mcp-contract/README.md) | 纯契约：值对象、类别端口、纯函数、端口与应用服务接口。三个入口：公开根 `.` 给调用方与实现方，导出值、结局、失败、五个服务接口、纯函数与类别端口；`./provider` 给端口的实现方，只导出五个需求端口、`McpTransport` 与 `McpTransportFactory` 的类型；`./testing` 给端口的实现方在测试里自测，导出五个需求端口的符合性套件、各自的内存替身，以及 `classifyOutcome` 与 `mergeListing` 的穷举用例。见[三个入口](mcp-contract/SPEC.md#entries)。传输契约测试与本地真实服务端夹具还不在本成员。不依赖 Cordis 与任何实现 | assets（类别端口）、operation-result、legal-identity、content-block、json-text | 已实现（候选），尚未取得技术接受 |
 | [mcp](mcp/README.md) | 通用实现：`Connection`、`ActionCatalog` 两个聚合与五个应用服务，以及 `CatalogStore` 的内存实现。内存实现不耐久。不含 Cordis，不含官方 SDK | 只依赖 mcp-contract 及其公共值包 | 候选，workspace 模板草稿成员 |
 | mcp-cordis-contract | Cordis 服务定义与服务键，不含实现。建立后暂不进应用插件树 | mcp-contract、Cordis | 候选，尚非 workspace 成员 |
 | [mcp-host-local](mcp-host-local/README.md) | 本地宿主：stdio 与 Streamable HTTP 两种 `McpTransport` 实现与授权发现，使用官方 SDK | mcp、mcp-contract、mcp-cordis-contract、官方 `@modelcontextprotocol/client` 2.3.1。测试用的本地真实服务端另用官方 `@modelcontextprotocol/server` 2.3.1 | 候选，workspace 模板草稿成员 |

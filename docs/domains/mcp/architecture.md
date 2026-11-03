@@ -1,6 +1,6 @@
 # MCP领域交接设计
 
-状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)。本页只维护事实拥有者、端口的实现方和跨领域交接。`@omne-harness/mcp-contract` 已有实现（候选，尚未技术接受），其余成员尚未实现。成员分解、端口操作、对外接口和失败种类见[组工程设计](../../../packages/mcp/docs/architecture.md)，精确公开行为尚未分配正式成员。
+状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)。本页只维护事实拥有者、端口的实现方和跨领域交接。`@omne-harness/mcp-contract` 已有实现（候选，尚未取得技术接受），其余成员尚未实现。成员分解、端口操作、对外接口和失败种类见[组工程设计](../../../packages/mcp/docs/architecture.md)，精确公开行为尚未分配正式成员。
 
 用词沿统一语言：[MCP 连接](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-connection--mcp-连接--mcp-connection)、[MCP 动作清单](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog)、[MCP 已知动作](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action)、[凭据保管方](../../../.meta_harness/design/ubiquitous_language/terms/grounding-and-isolation.md#ul-credential-custodian--凭据保管方--credential-custodian)。接入点指 MCP 资产。
 
@@ -45,7 +45,7 @@ MCP 还声明需求端口 `CatalogStore`，保存自己的 MCP 动作清单。�
 | --- | --- | --- |
 | `EndpointInspection` | 资产与装配 | 按 assets [类别提供方](../../../packages/assets/assets/SPEC.md#category-provider)接入 MCP 类别。加载期就能判定接入点可能启动本机命令。声明三项固定设置，并在 MCP 动作清单已取得时声明逐动作权限项 `execute:<对端动作名>`。现行 `deriveDeclarations` 不接收动作清单，见下文剩余义务 |
 | `ActionDiscovery` | 调用方 | 读口：MCP 动作清单视图（取得状态、清单修订、采用依据、新鲜度、每个 MCP 已知动作的原样定义、定义的内容摘要与可用性）、刷新结论与对端视图。首次发现由调用方经 `refresh` 触发，之前视图答「未取得」。接入点未采用时答 `not-available-to-you` |
-| `ActionInvoker` | 调用方 | 调用口：按调用方给出的接入点引用、对端动作名、参数、预期的定义的内容摘要与关联键发出协议请求，交回「未发出」或调用结局；带回输入答复；取消在途调用。在途调用按（租户、主体、关联键）分开，取消只对同一租户与同一主体有效，不要求当前使用资格。接入点未采用时答 `not-available-to-you`。状态口：任务的查询、取结果与取消。调用的截止由调用方经 `signal` 给出 |
+| `ActionInvoker` | 调用方 | 调用口：按调用方给出的接入点引用、对端动作名、参数、预期的定义的内容摘要与关联键发出协议请求，交回「未发出」或调用结局；带回输入答复；取消在途调用。在途调用按（租户、主体、关联键）分开，取消只对同一租户与同一主体有效，不要求当前使用资格。接入点未采用时答 `not-available-to-you`。状态口：任务的查询、取结果、交回输入答复与取消。调用的截止由调用方经 `signal` 给出 |
 | `EndpointStatus` | 管理与查询读面 | 接入点、MCP 连接与 MCP 动作清单的状态，不含秘密值。对无权主体和未采用的接入点返回 `not-available-to-you`，与「不存在」不可区分。主体有使用资格、但接入点被设置挡下时，给出该原因 |
 
 MCP 不知道接收方是谁。MCP 交出可作稳定键的身份与定义的内容摘要。把动作接入调用方体系（名字、条目形状、准入与呈现）的那一层归集成方，不在 MCP 内。依据层：同上；领域[模块角色与事实归属](README.md#模块角色与事实归属)。

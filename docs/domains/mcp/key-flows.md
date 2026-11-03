@@ -12,8 +12,8 @@
 | --- | --- | --- |
 | 未发出 | 请求没有发出，没有对端效果。原因含定义已变、关联键重复与需要授权 | 无 |
 | `complete`、`toolError` | 对端的结果。`toolError` 是动作自己的失败。`complete` 带 outputSchema 的校验结论 | 无 |
-| `inputRequired` | 对端要求输入。交出 `inputRequests`（只有 elicitation）、`requestState` 与发出代际 | 调用方经 `continueWithInput` 带回答复时，带 `requestState` 再发原请求。这是协议的多轮请求，不是重发 |
-| `task` | 对端转为任务执行。交出 `taskId` 与发出代际 | 调用方经状态口查询、取结果或取消，不重新发起 |
+| `inputRequired` | 对端要求输入。`inputRequests`（不可信值，只有 elicitation）与 `requestState` 各自可选，至少有一项；另交出发出代际 | 调用方经 `continueWithInput` 带回答复时，带上 `requestState`（如有）再发原请求。这是协议的多轮请求，不是重发 |
+| `task` | 对端转为任务执行。交出 `taskId` 与发出代际 | 调用方经状态口查询、取结果、交回输入答复或取消，不重新发起 |
 | `protocolError` | 错误码与原因。不证明没有效果 | 无 |
 | `unknown` | 效果未知，带子因：断流、进程退出、本地放弃。`signal` 触发或 `cancel` 之后，子因是本地放弃 | 不重发，见 F-MC06 |
 

@@ -9,11 +9,12 @@
 1. `Connections.ensure` 经 `AdoptionView.endpoint` 按接入点引用取得已采用的接入点、采用修订、正文与配值。接入点不在其中（未采用）时，答 `not-available-to-you`，与无权、不存在不可区分。它原有的 MCP 连接在这之前关闭。`AdoptionView` 不可读时答 `unknown`。
 2. `EndpointInspection` 判定 `AdoptionView` 交来的正文。存在但非法的来源给出拒绝原因，不当作空来源。
 3. `Connections.ensure` 经 `UseEligibility.check` 核对本次使用资格。只有 `granted` 才继续。`refused` 的原因分两类：无使用资格（`not-eligible`），或有资格但被设置挡下（`local-command-not-enabled`、`disabled`）。被设置挡下时，也先关闭原有的 MCP 连接。两类原因怎样交给读面，见[工程设计的 MCP 声明的端口](architecture.md#mcp-声明的端口)。
-4. `Connections` 用 `peerAccountOf` 从认证方式与凭据配值得出对端账号。认证方式为 `none` 时，对端账号是 `anonymous`，凭据缺值不是失败。认证方式不是 `none` 时，需要新建 MCP 连接才经 `CredentialUse.acquire` 取得凭据句柄。凭据缺失或被拒时停止，不退回其他凭据。
-5. `Connections` 用租户、接入点持有、采用修订与对端账号组成 `ConnectionKey`，按它取得或建立 MCP 连接。采用修订变了，键就变，于是建立新的 MCP 连接。
-6. stdio 接入点：代际加一，再经 `ProcessLanding.start(access, launch, env)` 取得本机进程。`launch` 是正文里的启动声明，stdio 不读连接目标。`env` 是非秘密配值加凭据句柄，秘密值由 `ProcessLanding` 注入。落点或设施不成立时停止，不静默落到宿主。
-7. `McpTransport.discover` 判定对端时代并协商。成功后 MCP 连接进入 `ready`，不等 MCP 动作清单。Streamable HTTP 在这时代际加一。首次发现由调用方经 `ActionDiscovery.refresh` 触发，见 F-MC02。
-8. Streamable HTTP 上对端答需要授权时，MCP 读取受保护资源元数据，交出签发者与 scope，结局是 `authorization-required`。MCP 不发起授权流程。
+4. `Connections` 用 `peerAccountOf(认证方式, 凭据配值)` 得出对端账号。认证方式为 `none` 时，对端账号是 `anonymous`，凭据缺值不是失败。认证方式不是 `none` 而凭据配值缺失时停止，答 `credential-unavailable`（`missing`），不退回其他凭据。对端账号只由这个纯函数得出，不由 `CredentialUse` 答复，见 [K1](../mcp-contract/SPEC.md#keys)。
+5. `Connections` 用租户、接入点持有、采用修订与对端账号组成 `ConnectionKey`。这个键已有 MCP 连接时，复用它，不再取凭据。采用修订变了，键就变，于是建立新的 MCP 连接。
+6. 需要新建 MCP 连接、认证方式又不是 `none` 时，`Connections` 经 `CredentialUse.acquire` 按用途取得凭据句柄：stdio 用 `process-env`，Streamable HTTP 用 `http-authorization` 并带连接目标。本端口只交句柄。缺失、被拒或不可读时停止，不退回其他凭据。
+7. stdio 接入点：代际加一，再经 `ProcessLanding.start(access, launch, env)` 取得本机进程。`launch` 是正文里的启动声明，stdio 不读连接目标。`env` 是 `setting` 来源变量的非秘密配值，加上 `credential` 来源变量共用的进程凭据句柄。秘密值由 `ProcessLanding` 注入。落点或设施不成立时停止，不静默落到宿主。
+8. `McpTransport.discover` 判定对端时代并协商。成功后 MCP 连接进入 `ready`，不等 MCP 动作清单。Streamable HTTP 在这时代际加一。首次发现由调用方经 `ActionDiscovery.refresh` 触发，见 F-MC02。
+9. Streamable HTTP 上对端答需要授权时，MCP 读取受保护资源元数据，交出签发者与 scope，结局是 `authorization-required`。MCP 不发起授权流程。
 
 部分创建或取消后，依原准备身份查询及清理。资源关闭失败时保留下一处置者。首次失败不造合法清单。代际何时加一与状态转移见[工程设计](architecture.md#mcp-连接)。
 
@@ -28,16 +29,20 @@ flowchart TD
     Q -->|refused 被设置挡下| Y[关闭原有 MCP 连接 给出该原因]
     Q -->|refused 无使用资格| V[答 not-available-to-you]
     Q -->|unknown| N
-    Q -->|granted| M{认证方式}
-    M -->|none 对端账号 anonymous| K[组成 ConnectionKey 含采用修订]
-    M -->|static 或 oauth| D{CredentialUse.acquire}
-    D -->|缺失或被拒| U[不可连接 不发起动作]
-    D -->|句柄与对端账号| K
-    K --> S{传输种类}
-    S -->|stdio| L{代际加一 ProcessLanding.start}
+    Q -->|granted| P{peerAccountOf 认证方式 凭据配值}
+    P -->|凭据配值缺失| U[不可连接 不发起动作]
+    P -->|对端账号 none 时 anonymous| K[组成 ConnectionKey 含采用修订]
+    K --> W{这个键已有 MCP 连接}
+    W -->|有| O[复用 MCP 连接]
+    W -->|需要新建| M{认证方式}
+    M -->|none| S{传输种类}
+    M -->|static 或 oauth| D{CredentialUse.acquire 按用途}
+    D -->|缺失 被拒或不可读| U
+    D -->|只交句柄| S
+    S -->|stdio 带 process-env 句柄| L{代际加一 ProcessLanding.start}
     L -->|不成立| U
     L -->|进程| E[McpTransport.discover 判定时代并协商]
-    S -->|Streamable HTTP| E
+    S -->|Streamable HTTP 带 http-authorization 句柄| E
     E -->|成功| G[MCP 连接 ready 不等清单]
     E -->|对端答需要授权| Z[授权发现 结局 authorization-required]
     E -->|失败或未知| H[按原准备查询 释放或保留残留]
@@ -136,7 +141,13 @@ sequenceDiagram
 
 `continueWithInput` 由调用方带回 `endpointRef`、`actionName`、原参数、`requestState`、`inputResponses`、发出代际、`correlationKey` 与 `signal`，按上面同样的步骤核对与登记，再发原请求。`cancel(access, correlationKey)` 按（租户、主体、关联键）在在途表里定位请求号，不核采用，也不核当前使用资格，再按传输发出取消信号：Streamable HTTP 关闭该请求的响应流，stdio 发送 `notifications/cancelled`。之后原调用的结局是 `unknown`，子因是本地放弃。取消信号不证明对端已停止。依据层：官方规格 [Cancellation「Transport-Specific Cancellation」](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#transport-specific-cancellation)。
 
-任务用状态口的 `queryTask`、`taskResult` 与 `cancelTask`，由调用方带回 `taskId` 与发出代际。这些操作都带 `access`，执行前经 `AdoptionView` 核采用、经 `UseEligibility.check` 核资格。MCP 连接已换代时，处置按传输分开，规则见[工程设计的应用服务](architecture.md#应用服务)。
+任务用状态口的 `queryTask`、`taskResult`、`provideTaskInput` 与 `cancelTask`，由调用方带回 `taskId` 与发出代际。规则如下，见[工程设计的状态口](architecture.md#状态口)与[资格与换代](architecture.md#资格与换代)：
+
+- 四个操作都带 `access`，只对发起者开放。非发起者、重启之后和本次运行的任务表里没有的任务一律答 `unknown`。
+- `queryTask`、`taskResult` 与 `provideTaskInput` 先经 `AdoptionView` 核采用，再经 `UseEligibility.check` 核资格。`cancelTask` 是例外，不核采用，也不核当前使用资格。
+- 任务操作要发协议请求，需要 MCP 连接。复用现有连接时不核资格。要新建连接时，`UseEligibility` 必须答 `granted`，否则不建连接，答 `effect-unknown`（`no-connection`）。既没有现有连接、也没有可以重建连接的采用材料时，同样答 `effect-unknown`（`no-connection`）。`cancelTask` 不为取消启动新进程。
+- 任务处于 `input_required` 时，调用方从 `queryTask` 取得输入请求，再经 `provideTaskInput` 交回答复。
+- MCP 连接已换代时，处置按传输分开。
 
 ## 验证边界
 
