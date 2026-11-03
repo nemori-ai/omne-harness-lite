@@ -111,6 +111,11 @@ catalogs:
 
 packageExtensionsChecksum: sha256-3MGTjzmjlgnhjcqVqzjDdnL5Y1xWwi2kaTEc0nFiVqM=
 
+patchedDependencies:
+  rrule@2.8.1:
+    hash: 5568cd08bde38550aa34fc6e170d3d9551381935a845e2b8a1ec9a37d6298fd6
+    path: patches/rrule@2.8.1.patch
+
 importers:
 
   .:
@@ -1995,7 +2000,7 @@ importers:
         version: 5.10.3
       rrule:
         specifier: 2.8.1
-        version: 2.8.1
+        version: 2.8.1(patch_hash=5568cd08bde38550aa34fc6e170d3d9551381935a845e2b8a1ec9a37d6298fd6)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -8690,7 +8695,7 @@ snapshots:
     dependencies:
       luxon: 3.7.2
 
-  rrule@2.8.1:
+  rrule@2.8.1(patch_hash=5568cd08bde38550aa34fc6e170d3d9551381935a845e2b8a1ec9a37d6298fd6):
     dependencies:
       tslib: 2.8.1
 
