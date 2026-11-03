@@ -124,7 +124,7 @@ function createMaterialized(
     if (signal.aborted || config.network.closed) return refusedBeforeSend(held, { kind: 'stopped' })
     const secret = config.credential.read()
     if (secret === undefined) return refusedBeforeSend(held, { kind: 'credential-missing' })
-    const decoder = input.binding.createDecoder()
+    const decoder = input.binding.createDecoder({ request: input.request })
     const started = startExchange(
       config.network,
       {
