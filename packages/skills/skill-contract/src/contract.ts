@@ -12,10 +12,11 @@ import { isPackageDigest } from './digest.ts'
 import {
   fieldsOf,
   firstFinding,
-  onlyKeys,
   readScripts,
   readSettings,
-  type Findings,
+  unknownKeys,
+  type Finding,
+  type Read,
 } from './parse/shape.ts'
 import type { SettingDeclaration } from './values.ts'
 
@@ -52,7 +53,7 @@ export function skillBodyContract(): BodyContract {
       const decision = judge(body, context)
       if (!decision.ok) throw new TypeError(`skill body failed judgment: ${decision.rejected}`)
       return {
-        entries: extensionOf(body).settings.map(
+        entries: extensionOf(body).value.map(
           setting => `setting:${setting.category}:${setting.name}`,
         ),
       }
@@ -87,13 +88,11 @@ const DESCRIPTION_MAX = 1024
 
 /**
  * Reads the additive fields: `description`, `scripts`, `settings` and `package.digest`. Each one
- * may be absent. They follow the same shape rules as `.omne/skill.json`.
+ * may be absent. They follow the shape rules of `.omne/skill.json`, and script entries must be
+ * normalized already.
  */
-function extensionOf(body: unknown): {
-  findings: Findings
-  settings: readonly SettingDeclaration[]
-} {
-  const findings: Findings = []
+function extensionOf(body: unknown): Read<readonly SettingDeclaration[]> {
+  const findings: Finding[] = []
   const description = field(body, 'description')
   if (description !== undefined) {
     const text = description.kind === 'string' ? description.value : undefined
@@ -104,17 +103,18 @@ function extensionOf(body: unknown): {
         detail: 'description is not text of 1 to 1024 characters',
       })
   }
-  readScripts(field(body, 'scripts'), findings)
-  const settings = readSettings(field(body, 'settings'), findings)
+  const scripts = readScripts(field(body, 'scripts'), { normalized: true })
+  const settings = readSettings(field(body, 'settings'))
+  findings.push(...scripts.findings, ...settings.findings)
   const pack = field(body, 'package')
   if (pack !== undefined) {
     const fields = fieldsOf(pack)
-    if (fields !== undefined) onlyKeys(fields, ['digest'], 'package', findings)
+    findings.push(...unknownKeys(fields, ['digest'], 'package'))
     const digest = fields?.get('digest')
     if (digest?.kind !== 'string' || !isPackageDigest(digest.value))
       findings.push({ code: 'malformed', detail: 'package.digest is not a package digest' })
   }
-  return { findings, settings }
+  return { value: settings.value, findings }
 }
 
 function toolRefs(body: unknown): readonly { category: string; name: string }[] | undefined {

@@ -44,7 +44,11 @@ function verdict(declaration: unknown): string {
     '.omne/skill.json': JSON.stringify(declaration),
   })
   const result = parseSkillPackage({ snapshot: built.snapshot, control: built.control })
-  return 'ok' in result ? 'accepted' : result.failure.code
+  return 'ok' in result
+    ? 'accepted'
+    : result.failure.kind === 'rejected'
+      ? result.failure.code
+      : result.failure.kind
 }
 
 const script = { entry: 'run.sh', runKind: 'shell', facilities: [] }

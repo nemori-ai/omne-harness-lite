@@ -1,6 +1,6 @@
 ---
 name: script-outside
-description: A script entry points outside the package.
+description: A script entry is an absolute path, so it points outside the package.
 ---
 
 Body.

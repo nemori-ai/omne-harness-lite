@@ -28,8 +28,14 @@ function parse(rootName: string, files: PackageFiles, expectedName?: SkillName) 
   })
 }
 
-function codeOf(result: ReturnType<typeof parse>): InspectRejectionCode | 'accepted' {
-  return 'ok' in result ? 'accepted' : result.failure.code
+function codeOf(
+  result: ReturnType<typeof parse>,
+): InspectRejectionCode | 'version-changed' | 'accepted' {
+  return 'ok' in result
+    ? 'accepted'
+    : result.failure.kind === 'rejected'
+      ? result.failure.code
+      : result.failure.kind
 }
 
 /** A legal SKILL.md for the root `demo`, with optional extra frontmatter lines. */
@@ -476,17 +482,31 @@ describe('malformed .omne/skill.json', () => {
     )
   })
 
+  it.each([['an absolute entry', '/run.sh']])(
+    'rejects %s as outside the package',
+    (_case, entry) => {
+      const text = declaration({
+        formatVersion: 1,
+        scripts: [{ entry, runKind: 'shell', facilities: [] }],
+      })
+      expect(codeOf(parse('demo', { 'SKILL.md': demo(), '.omne/skill.json': text }))).toBe(
+        'outside-package',
+      )
+    },
+  )
+
   it.each([
-    ['an absolute entry', '/run.sh'],
-    ['an entry with a .. segment', 'a/../../run.sh'],
-  ])('rejects %s as outside the package', (_case, entry) => {
+    ['a .. segment that stays inside', 'scripts/../run.sh'],
+    ['a leading .. segment', '../run.sh'],
+    ['a .. segment that leaves the package', 'a/../../run.sh'],
+  ])('rejects an entry with %s as malformed, not as outside the package', (_case, entry) => {
     const text = declaration({
       formatVersion: 1,
       scripts: [{ entry, runKind: 'shell', facilities: [] }],
     })
-    expect(codeOf(parse('demo', { 'SKILL.md': demo(), '.omne/skill.json': text }))).toBe(
-      'outside-package',
-    )
+    expect(
+      codeOf(parse('demo', { 'SKILL.md': demo(), 'run.sh': 'echo', '.omne/skill.json': text })),
+    ).toBe('malformed')
   })
 
   it.each([
@@ -530,21 +550,37 @@ describe('inputs that break the precondition of the function', () => {
     const forged = { ...built.snapshot }
     expect(() => parseSkillPackage({ snapshot: forged, control: built.control })).toThrow(TypeError)
   })
+})
 
-  it('throws when control bytes are missing or do not match the snapshot', () => {
-    const built = buildPackage('demo', { 'SKILL.md': demo() })
-    expect(() => parseSkillPackage({ snapshot: built.snapshot, control: {} })).toThrow(TypeError)
-    expect(() =>
-      parseSkillPackage({
-        snapshot: built.snapshot,
-        control: { manifest: new TextEncoder().encode(demo(['license: MIT'])) },
-      }),
-    ).toThrow(TypeError)
-    expect(() =>
-      parseSkillPackage({
-        snapshot: built.snapshot,
-        control: { ...built.control, declaration: new TextEncoder().encode('{}') },
-      }),
-    ).toThrow(TypeError)
+describe('control bytes that do not belong to the snapshot', () => {
+  const built = buildPackage('demo', { 'SKILL.md': demo() })
+  const changed = { kind: 'version-changed' }
+
+  it('gives version-changed when the bytes have another digest than the entry', () => {
+    const manifest = new TextEncoder().encode(demo(['license: MIT']))
+    expect(parseSkillPackage({ snapshot: built.snapshot, control: { manifest } })).toEqual({
+      failure: changed,
+    })
+  })
+
+  it('gives version-changed when the bytes of a listed control file are missing', () => {
+    expect(parseSkillPackage({ snapshot: built.snapshot, control: {} })).toEqual({
+      failure: changed,
+    })
+  })
+
+  it('gives version-changed when bytes come for a control file that the snapshot does not list', () => {
+    const declaration = new TextEncoder().encode('{"formatVersion":1}')
+    expect(
+      parseSkillPackage({ snapshot: built.snapshot, control: { ...built.control, declaration } }),
+    ).toEqual({ failure: changed })
+  })
+
+  it('gives version-changed before manifest-missing', () => {
+    const empty = buildPackage('demo', { 'notes.txt': 'x' })
+    const manifest = new TextEncoder().encode(demo())
+    expect(parseSkillPackage({ snapshot: empty.snapshot, control: { manifest } })).toEqual({
+      failure: changed,
+    })
   })
 })

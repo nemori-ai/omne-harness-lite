@@ -3,7 +3,7 @@
 import type { JsonLimits } from '@omne-harness/assets'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { computeDigest } from '../digest.ts'
-import type { InspectRejection, InspectRejectionCode } from '../failures.ts'
+import type { InspectFailure, InspectRejectionCode } from '../failures.ts'
 import { DECLARATION_PATH, MANIFEST_PATH } from '../names.ts'
 import { assertSealed } from '../snapshot.ts'
 import type {
@@ -15,7 +15,10 @@ import type {
 } from '../values.ts'
 import { DECLARATION_LIMITS, EMPTY_DECLARATION, readDeclaration } from './declaration.ts'
 import { readManifest } from './manifest.ts'
-import { firstFinding, type Findings } from './shape.ts'
+import { firstFinding, type Finding } from './shape.ts'
+
+/** What a check gives instead of a definition: a rejection, or control bytes off the snapshot. */
+export type ParseFailure = Extract<InspectFailure, { kind: 'rejected' | 'version-changed' }>
 
 export type ParseInput = Readonly<{
   snapshot: SkillPackageSnapshot
@@ -26,7 +29,7 @@ export type ParseInput = Readonly<{
   declarationLimits?: JsonLimits
 }>
 
-function reject(code: InspectRejectionCode, detail?: string): Outcome<never, InspectRejection> {
+function reject(code: InspectRejectionCode, detail?: string): Outcome<never, ParseFailure> {
   return fail(
     Object.freeze(
       detail === undefined ? { kind: 'rejected', code } : { kind: 'rejected', code, detail },
@@ -35,61 +38,64 @@ function reject(code: InspectRejectionCode, detail?: string): Outcome<never, Ins
 }
 
 /**
- * The control bytes of `path`. They must be present exactly when the snapshot lists the path, and
- * their digest must be the digest of that entry: the caller checks the bytes before parsing.
+ * Whether the control bytes belong to the snapshot: present exactly when the snapshot lists the
+ * path, and with the digest of that entry.
  */
-function controlBytes(
-  entry: PackageEntry | undefined,
-  bytes: Bytes | undefined,
-  path: string,
-): Bytes | undefined {
-  if (entry === undefined && bytes === undefined) return undefined
-  if (entry === undefined || bytes === undefined)
-    throw new TypeError(`the control bytes of ${path} do not match the snapshot`)
-  if (computeDigest(bytes) !== entry.digest)
-    throw new TypeError(`the control bytes of ${path} do not have the digest of the snapshot entry`)
-  return bytes
+function belongs(entry: PackageEntry | undefined, bytes: Bytes | undefined): boolean {
+  if (entry === undefined || bytes === undefined) return entry === bytes
+  return computeDigest(bytes) === entry.digest
 }
 
 /**
  * The rejection order is: manifest-missing, name-mismatch, declaration-format-unsupported,
  * outside-package, tool-ref-invalid, setting-category-unknown, malformed. An unsupported
- * declaration format stops the other checks. It throws a TypeError when the snapshot was not made
- * by `sealSnapshot` or the control bytes do not match it.
+ * declaration format stops the other checks. Control bytes that do not belong to the snapshot give
+ * `version-changed`. It throws a TypeError when the snapshot was not made by `sealSnapshot`.
+ *
+ * The checks stay in one function on purpose: their order is the contract, and one reading of
+ * this body shows it.
  */
-export function parseSkillPackage(input: ParseInput): Outcome<SkillDefinition, InspectRejection> {
+export function parseSkillPackage(input: ParseInput): Outcome<SkillDefinition, ParseFailure> {
   const { snapshot, control } = input
   assertSealed(snapshot)
   const entry = (path: string) => snapshot.entries.find(item => item.path === path)
-  const manifestBytes = controlBytes(entry(MANIFEST_PATH), control.manifest, MANIFEST_PATH)
-  const declarationBytes = controlBytes(
-    entry(DECLARATION_PATH),
-    control.declaration,
-    DECLARATION_PATH,
+  const manifestEntry = entry(MANIFEST_PATH)
+  if (
+    !belongs(manifestEntry, control.manifest) ||
+    !belongs(entry(DECLARATION_PATH), control.declaration)
   )
-  if (manifestBytes === undefined) return reject('manifest-missing', 'the package has no SKILL.md')
-  const manifest = readManifest(manifestBytes)
+    return fail(Object.freeze({ kind: 'version-changed' }))
+  if (control.manifest === undefined)
+    return reject('manifest-missing', 'the package has no SKILL.md')
+  const manifest = readManifest(control.manifest)
   const name = manifest.kind === 'ok' ? manifest.manifest.name : manifest.name
-  if (name !== undefined && name !== snapshot.rootName)
-    return reject('name-mismatch', 'the name differs from the package root name')
-  if (name !== undefined && input.expectedName !== undefined && name !== input.expectedName)
-    return reject('name-mismatch', 'the name differs from the expected name')
-  const findings: Findings = []
+  const mismatch = nameMismatch(name, snapshot.rootName, input.expectedName)
+  if (mismatch !== undefined) return reject('name-mismatch', mismatch)
   let declaration = EMPTY_DECLARATION
-  if (declarationBytes !== undefined) {
+  let findings: readonly Finding[] = []
+  if (control.declaration !== undefined) {
     const paths = new Set<string>(snapshot.entries.map(item => item.path))
-    const read = readDeclaration(
-      declarationBytes,
-      input.declarationLimits ?? DECLARATION_LIMITS,
-      path => paths.has(path),
-      findings,
-    )
+    const limits = input.declarationLimits ?? DECLARATION_LIMITS
+    const read = readDeclaration(control.declaration, limits, path => paths.has(path))
     if (read.kind === 'unsupported')
       return reject('declaration-format-unsupported', 'formatVersion is not 1')
     declaration = read.declaration
+    findings = read.findings
   }
   const first = firstFinding(findings)
   if (first !== undefined) return reject(first.code, first.detail)
   if (manifest.kind === 'malformed') return reject('malformed', manifest.detail)
   return succeed(Object.freeze({ manifest: manifest.manifest, declaration, snapshot }))
+}
+
+/** Why the name breaks the name rule, or `undefined`. A name that could not be read is not compared. */
+function nameMismatch(
+  name: string | undefined,
+  rootName: string,
+  expected: SkillName | undefined,
+): string | undefined {
+  if (name === undefined) return undefined
+  if (name !== rootName) return 'the name differs from the package root name'
+  if (expected !== undefined && name !== expected) return 'the name differs from the expected name'
+  return undefined
 }

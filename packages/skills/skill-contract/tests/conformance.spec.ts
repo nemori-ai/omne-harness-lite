@@ -5,6 +5,7 @@
 import { AssertionError } from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 import type { SkillReadCheck, SkillResolution } from '@omne-harness/skill-contract/provider'
+import { isPackageDigest } from '@omne-harness/skill-contract'
 import {
   runConformanceCase,
   skillPackageSourceConformance,
@@ -26,6 +27,9 @@ import {
   type Principal,
   type Scope,
 } from './conformance-world.ts'
+import { granted } from './package-builder.ts'
+
+const otherDigest = granted(isPackageDigest, `sha256:${'f'.repeat(64)}`)
 
 const NO_DISCLOSURE =
   'answers a principal without the right the same for an existing and a missing identity'
@@ -116,6 +120,21 @@ describe('memory resolution beyond the suite', () => {
   it('resolves a basis of an earlier lawful version to that version', async () => {
     const answer = await memoryResolution().resolve(alice, scope, reviewCapability, {
       basis: earlierBasis,
+    })
+    expect(answer).toMatchObject({ kind: 'adopted', ref: { digest: earlierBasis.digest } })
+  })
+
+  it('checks a basis without the asset version by layer and does not compare the digest', async () => {
+    const { assetVersion: _dropped, ...basis } = earlierBasis
+    const answer = await memoryResolution().resolve(alice, scope, reviewCapability, {
+      basis: { ...basis, digest: otherDigest },
+    })
+    expect(answer).toMatchObject({ kind: 'adopted', ref: { layer: 'tenant' } })
+  })
+
+  it('does not compare the digest of a basis with an asset version either', async () => {
+    const answer = await memoryResolution().resolve(alice, scope, reviewCapability, {
+      basis: { ...earlierBasis, digest: otherDigest },
     })
     expect(answer).toMatchObject({ kind: 'adopted', ref: { digest: earlierBasis.digest } })
   })

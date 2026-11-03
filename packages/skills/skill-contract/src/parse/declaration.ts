@@ -5,11 +5,11 @@ import { isControlFile } from '../names.ts'
 import type { PackagePath, SkillDeclaration } from '../values.ts'
 import {
   fieldsOf,
-  onlyKeys,
   readDependencies,
   readScripts,
   readSettings,
-  type Findings,
+  unknownKeys,
+  type Finding,
 } from './shape.ts'
 
 /** The default declaration budget. A caller can give another one. */
@@ -30,51 +30,52 @@ export const EMPTY_DECLARATION: SkillDeclaration = Object.freeze({
 
 export type DeclarationRead =
   | Readonly<{ kind: 'unsupported' }>
-  | Readonly<{ kind: 'read'; declaration: SkillDeclaration }>
+  | Readonly<{ kind: 'read'; declaration: SkillDeclaration; findings: readonly Finding[] }>
 
 const FIELDS = ['formatVersion', 'dependencies', 'scripts', 'settings']
 
+function unread(detail: string): DeclarationRead {
+  return { kind: 'read', declaration: EMPTY_DECLARATION, findings: [{ code: 'malformed', detail }] }
+}
+
 /**
  * Reads the declaration. A format version other than the number written `1` stops every other
- * check. Other faults are added to `findings`; the declaration then holds the parts that passed.
+ * check. The declaration holds the parts that passed; the findings name the faults.
  */
 export function readDeclaration(
   bytes: Uint8Array,
   limits: JsonLimits,
   has: (path: PackagePath) => boolean,
-  findings: Findings,
 ): DeclarationRead {
   const read = readJsonBytes(bytes, limits)
-  if (read.kind !== 'ok') {
-    findings.push({
-      code: 'malformed',
-      detail: `.omne/skill.json is not strict JSON: ${read.kind}`,
-    })
-    return { kind: 'read', declaration: EMPTY_DECLARATION }
-  }
-  const root = read.value
-  if (root.kind !== 'object') {
-    findings.push({ code: 'malformed', detail: '.omne/skill.json is not an object' })
-    return { kind: 'read', declaration: EMPTY_DECLARATION }
-  }
-  const version = root.entries.find(entry => entry.key === 'formatVersion')?.value
+  if (read.kind !== 'ok') return unread(`.omne/skill.json is not strict JSON: ${read.kind}`)
+  const fields = fieldsOf(read.value)
+  if (fields === undefined) return unread('.omne/skill.json is not an object')
+  const version = fields.get('formatVersion')
   if (version === undefined || version.kind !== 'number' || version.lexeme !== '1')
     return { kind: 'unsupported' }
-  const fields = fieldsOf(root) ?? new Map()
-  onlyKeys(fields, FIELDS, '.omne/skill.json', findings)
-  const scripts = readScripts(fields.get('scripts'), findings)
-  for (const script of scripts)
-    if (isControlFile(script.entry) || !has(script.entry))
-      findings.push({
-        code: 'malformed',
-        detail: `script ${script.entry} is not a package resource`,
-      })
+  const scripts = readScripts(fields.get('scripts'), { normalized: false })
+  const dependencies = readDependencies(fields.get('dependencies'))
+  const settings = readSettings(fields.get('settings'))
+  const missing = scripts.value
+    .filter(script => isControlFile(script.entry) || !has(script.entry))
+    .map((script): Finding => ({
+      code: 'malformed',
+      detail: `script ${script.entry} is not a package resource`,
+    }))
   return {
     kind: 'read',
     declaration: Object.freeze({
-      dependencies: Object.freeze(readDependencies(fields.get('dependencies'), findings)),
-      scripts: Object.freeze(scripts),
-      settings: Object.freeze(readSettings(fields.get('settings'), findings)),
+      dependencies: Object.freeze(dependencies.value),
+      scripts: Object.freeze(scripts.value),
+      settings: Object.freeze(settings.value),
     }),
+    findings: [
+      ...unknownKeys(fields, FIELDS, '.omne/skill.json'),
+      ...scripts.findings,
+      ...missing,
+      ...dependencies.findings,
+      ...settings.findings,
+    ],
   }
 }

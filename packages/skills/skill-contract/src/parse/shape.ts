@@ -1,6 +1,7 @@
 // The shapes of dependency, script and setting declarations over a read JSON tree. Both
-// `.omne/skill.json` and the asset body use them, so one rule has one place. A rule that fails
-// adds its rejection code to the findings; reading goes on, so that the first code by order wins.
+// `.omne/skill.json` and the asset body use them, so one rule has one place. Each reader returns
+// what it read together with its findings; reading goes on after a finding, so that the caller
+// can give the first code by order.
 import { capabilityId, type CapabilityId, type JsonValue } from '@omne-harness/assets'
 import { INSPECT_REJECTIONS, type InspectRejectionCode } from '../failures.ts'
 import { toPackagePath } from '../names.ts'
@@ -12,7 +13,9 @@ import type {
 } from '../values.ts'
 
 export type Finding = Readonly<{ code: InspectRejectionCode; detail: string }>
-export type Findings = Finding[]
+
+/** What a reader read, and the findings on the way. */
+export type Read<T> = Readonly<{ value: T; findings: readonly Finding[] }>
 
 /** The finding whose code comes first in the rejection order. */
 export function firstFinding(findings: readonly Finding[]): Finding | undefined {
@@ -26,6 +29,8 @@ function rank(code: InspectRejectionCode): number {
   return INSPECT_REJECTIONS.indexOf(code)
 }
 
+const malformed = (detail: string): Finding => ({ code: 'malformed', detail })
+
 /** The fields of an object, or `undefined` when the value is not an object. */
 export function fieldsOf(value: JsonValue | undefined): ReadonlyMap<string, JsonValue> | undefined {
   if (value === undefined || value.kind !== 'object') return undefined
@@ -37,16 +42,15 @@ export function fieldsOf(value: JsonValue | undefined): ReadonlyMap<string, Json
   return fields
 }
 
-/** Adds a malformed finding when the object has a key outside `allowed`. */
-export function onlyKeys(
-  fields: ReadonlyMap<string, JsonValue>,
+/** A malformed finding for each key of the object outside `allowed`. */
+export function unknownKeys(
+  fields: ReadonlyMap<string, JsonValue> | undefined,
   allowed: readonly string[],
   at: string,
-  findings: Findings,
-): void {
-  for (const key of fields.keys())
-    if (!allowed.includes(key))
-      findings.push({ code: 'malformed', detail: `${at} has the unknown field ${key}` })
+): Finding[] {
+  return [...(fields?.keys() ?? [])]
+    .filter(key => !allowed.includes(key))
+    .map(key => malformed(`${at} has the unknown field ${key}`))
 }
 
 function itemsOf(value: JsonValue | undefined): readonly JsonValue[] | undefined {
@@ -69,141 +73,134 @@ function isSettingCategory(text: string): text is SettingCategory {
   return SETTING_CATEGORIES.some(category => category === text)
 }
 
-/** Reads a list; an absent part is the empty list. */
+/** Reads a list; an absent part is the empty list. Items that do not read are left out. */
 function listOf<T>(
   value: JsonValue | undefined,
   part: string,
-  findings: Findings,
-  read: (item: JsonValue, at: string) => T | undefined,
-): T[] {
-  if (value === undefined) return []
+  read: (item: JsonValue, at: string) => Read<T | undefined>,
+): Read<T[]> {
+  if (value === undefined) return { value: [], findings: [] }
   const items = itemsOf(value)
-  if (items === undefined) {
-    findings.push({ code: 'malformed', detail: `${part} is not a list` })
-    return []
-  }
+  if (items === undefined) return { value: [], findings: [malformed(`${part} is not a list`)] }
   const parsed: T[] = []
-  for (let index = 0; index < items.length; index += 1) {
-    const item = items[index]
-    const one = item === undefined ? undefined : read(item, `${part}[${index}]`)
-    if (one !== undefined) parsed.push(one)
-  }
-  return parsed
+  const findings: Finding[] = []
+  items.forEach((item, index) => {
+    const one = read(item, `${part}[${index}]`)
+    findings.push(...one.findings)
+    if (one.value !== undefined) parsed.push(one.value)
+  })
+  return { value: parsed, findings }
 }
 
-function noRepeats(keys: readonly string[], part: string, findings: Findings): void {
-  if (new Set(keys).size !== keys.length)
-    findings.push({ code: 'malformed', detail: `${part} repeats an item` })
+/** The list, with a malformed finding when two items share a key. */
+function noRepeats<T>(list: Read<T[]>, keyOf: (item: T) => string, part: string): Read<T[]> {
+  const keys = list.value.map(keyOf)
+  if (new Set(keys).size === keys.length) return list
+  return { value: list.value, findings: [...list.findings, malformed(`${part} repeats an item`)] }
 }
 
-export function readDependencies(value: JsonValue | undefined, findings: Findings): CapabilityId[] {
-  const dependencies = listOf(value, 'dependencies', findings, (item, at) => {
+export function readDependencies(value: JsonValue | undefined): Read<CapabilityId[]> {
+  const list = listOf<CapabilityId>(value, 'dependencies', (item, at) => {
     const fields = fieldsOf(item)
-    if (fields !== undefined) onlyKeys(fields, ['category', 'name'], at, findings)
+    const findings = unknownKeys(fields, ['category', 'name'], at)
     const category = textOf(fields?.get('category'))
     const name = textOf(fields?.get('name'))
-    if (category === undefined || name === undefined) {
-      findings.push({ code: 'malformed', detail: `${at} is not a tool reference object` })
-      return undefined
-    }
+    if (category === undefined || name === undefined)
+      return {
+        value: undefined,
+        findings: [...findings, malformed(`${at} is not a tool reference`)],
+      }
     const id = capabilityId(category, name)
     if (category !== 'tool' || !id.ok) {
-      findings.push({ code: 'tool-ref-invalid', detail: `${at} is not a tool identity` })
-      return undefined
+      const invalid: Finding = { code: 'tool-ref-invalid', detail: `${at} is not a tool identity` }
+      return { value: undefined, findings: [...findings, invalid] }
     }
-    return id.id
+    return { value: id.id, findings }
   })
-  noRepeats(
-    dependencies.map(id => id.name),
-    'dependencies',
-    findings,
-  )
-  return dependencies
+  return noRepeats(list, id => id.name, 'dependencies')
 }
 
-/** Where a script entry points: inside the package, outside it, or not a path at all. */
-function entryOf(raw: string, at: string, findings: Findings): PackagePath | undefined {
-  if (raw.startsWith('/') || raw.split('/').includes('..')) {
-    findings.push({ code: 'outside-package', detail: `${at}.entry points outside the package` })
-    return undefined
+/**
+ * The entry of a script. An absolute entry points outside the package. Any other entry that is not
+ * a package path, a `..` segment included, is malformed. With `normalized`, the entry must already
+ * be in the form that `toPackagePath` gives.
+ */
+function entryOf(raw: string, at: string, normalized: boolean): Read<PackagePath | undefined> {
+  if (raw.startsWith('/')) {
+    const outside: Finding = { code: 'outside-package', detail: `${at}.entry is absolute` }
+    return { value: undefined, findings: [outside] }
   }
   const path = toPackagePath(raw)
-  if ('ok' in path) return path.ok
-  findings.push({ code: 'malformed', detail: `${at}.entry is not a package path` })
-  return undefined
+  if (!('ok' in path) || (normalized && path.ok !== raw))
+    return { value: undefined, findings: [malformed(`${at}.entry is not a package path`)] }
+  return { value: path.ok, findings: [] }
 }
 
 function wordsOf(value: JsonValue | undefined): string[] | undefined {
   const items = itemsOf(value)
   if (items === undefined) return undefined
   const words: string[] = []
-  for (let index = 0; index < items.length; index += 1) {
-    const word = textOf(items[index])
+  for (const item of items) {
+    const word = textOf(item)
     if (word === undefined || !WORD.test(word)) return undefined
     words.push(word)
   }
   return new Set(words).size === words.length ? words : undefined
 }
 
-export function readScripts(value: JsonValue | undefined, findings: Findings): ScriptDeclaration[] {
-  const scripts = listOf(value, 'scripts', findings, (item, at) => {
+/**
+ * Reads script declarations. `normalized` asks for entries that are already normalized, as in an
+ * asset body; `.omne/skill.json` may write `./` and other `.` segments.
+ */
+export function readScripts(
+  value: JsonValue | undefined,
+  options: Readonly<{ normalized: boolean }>,
+): Read<ScriptDeclaration[]> {
+  const list = listOf<ScriptDeclaration>(value, 'scripts', (item, at) => {
     const fields = fieldsOf(item)
-    if (fields !== undefined)
-      onlyKeys(fields, ['entry', 'runKind', 'facilities', 'parameters'], at, findings)
+    const findings = unknownKeys(fields, ['entry', 'runKind', 'facilities', 'parameters'], at)
     const rawEntry = textOf(fields?.get('entry'))
     const runKind = textOf(fields?.get('runKind'))
     const facilities = wordsOf(fields?.get('facilities'))
-    const entry = rawEntry === undefined ? undefined : entryOf(rawEntry, at, findings)
+    const entry =
+      rawEntry === undefined
+        ? { value: undefined, findings: [] }
+        : entryOf(rawEntry, at, options.normalized)
+    findings.push(...entry.findings)
     if (
       fields === undefined ||
       rawEntry === undefined ||
       runKind === undefined ||
       !WORD.test(runKind) ||
       !facilities
-    ) {
-      findings.push({ code: 'malformed', detail: `${at} is not a script declaration` })
-      return undefined
-    }
-    if (entry === undefined) return undefined
+    )
+      return { value: undefined, findings: [...findings, malformed(`${at} is not a script`)] }
+    if (entry.value === undefined) return { value: undefined, findings }
     const parameters = fields.get('parameters')
-    return Object.freeze({
-      entry,
+    const script: ScriptDeclaration = Object.freeze({
+      entry: entry.value,
       runKind,
       facilities: Object.freeze(facilities),
       ...(parameters === undefined ? {} : { parameters }),
     })
+    return { value: script, findings }
   })
-  noRepeats(
-    scripts.map(script => script.entry),
-    'scripts',
-    findings,
-  )
-  return scripts
+  return noRepeats(list, script => script.entry, 'scripts')
 }
 
-export function readSettings(
-  value: JsonValue | undefined,
-  findings: Findings,
-): SettingDeclaration[] {
-  const settings = listOf(value, 'settings', findings, (item, at) => {
+export function readSettings(value: JsonValue | undefined): Read<SettingDeclaration[]> {
+  const list = listOf<SettingDeclaration>(value, 'settings', (item, at) => {
     const fields = fieldsOf(item)
-    if (fields !== undefined) onlyKeys(fields, ['name', 'category'], at, findings)
+    const findings = unknownKeys(fields, ['name', 'category'], at)
     const name = textOf(fields?.get('name'))
     const category = textOf(fields?.get('category'))
-    if (name === undefined || name === '' || category === undefined) {
-      findings.push({ code: 'malformed', detail: `${at} is not a setting declaration` })
-      return undefined
-    }
+    if (name === undefined || name === '' || category === undefined)
+      return { value: undefined, findings: [...findings, malformed(`${at} is not a setting`)] }
     if (!isSettingCategory(category)) {
-      findings.push({ code: 'setting-category-unknown', detail: `${at}.category is unknown` })
-      return undefined
+      const unknown: Finding = { code: 'setting-category-unknown', detail: `${at}.category` }
+      return { value: undefined, findings: [...findings, unknown] }
     }
-    return Object.freeze({ name, category })
+    return { value: Object.freeze({ name, category }), findings }
   })
-  noRepeats(
-    settings.map(setting => setting.name),
-    'settings',
-    findings,
-  )
-  return settings
+  return noRepeats(list, setting => setting.name, 'settings')
 }
