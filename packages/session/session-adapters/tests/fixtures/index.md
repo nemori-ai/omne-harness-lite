@@ -5,6 +5,7 @@
 ## 内容
 
 - [README.md](README.md)：固定输入的来源与约束
+- [agent-context-ready.ts](agent-context-ready.ts)：真实 agent-context 的一次 `ready` 准备（真实 Request Context 登记处与 Runtime Context 机制），供 AD-04 用它的 `ready.state` 与 `ready.coverage` 核对覆盖摘要
 - [adopted-request.ts](adopted-request.ts)：一次采用请求的取值：Request Context 形状的覆盖、固定请求记录、agent-context 为覆盖铸的证据摘要，以及模型调用引用（FIXED-FACTS F4、F5）
 - [common-journal.ts](common-journal.ts)：共用场景 `scene`，在内存提供者上建立会话日志与可配置的访问裁定，并导出 `ok`、操作身份与检查点等构造；`openInput` 与 `submitInput` 按消息准入构造 `open` 的原受理与运行时上下文，以及 `submit` 的 new-input 谱系
 - [progression.ts](progression.ts)：在 `scene` 上推进一个 Run 的步骤：交入（初始输入或一次 submit 的输入）、受理、承接、取消、冻结、开新 Run 与结束

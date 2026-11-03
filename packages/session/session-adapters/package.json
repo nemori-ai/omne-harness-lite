@@ -60,7 +60,9 @@
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
+    "@omne-harness/agent-context": "workspace:*",
     "@omne-harness/request-context": "workspace:*",
+    "@omne-harness/runtime-context": "workspace:*",
     "@omne-harness/sqlite-provider": "workspace:*"
   }
 }

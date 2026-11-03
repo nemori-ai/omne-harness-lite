@@ -647,6 +647,24 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
   ): Promise<SourceRead<AdoptedRequestFact | null>> {
     const admitted = await this.admitted(input.access, input.target)
     if (admitted.kind !== 'located') return admitted
+    const read = await this.savedOf(admitted)
+    switch (read.kind) {
+      case 'denied':
+        return DENIED
+      case 'unavailable':
+        return unavailable(`adopted request: ${read.diagnostic}`)
+      case 'value': {
+        if (read.value === null) return { kind: 'value', value: null }
+        const fact = this.factOf(admitted, read.value)
+        return fact.kind === 'other-scope' ? this.notYetFixed(input) : fact
+      }
+      default:
+        return this.defect('the adopted request read gave an answer of no known kind')
+    }
+  }
+
+  /** What `sessionAdoptedRequests` saved for the session of `located`, read per call. */
+  private async savedOf(located: Located): Promise<SessionAdoptedRequestRead> {
     let requests: SessionAdoptedRequests<unknown> | undefined
     try {
       requests = this.scope.get(sessionAdoptedRequestsKey)
@@ -655,40 +673,53 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     }
     if (requests === undefined)
       return unavailable('adopted-requests-absent: sessionAdoptedRequests is not provided')
-    let read: SessionAdoptedRequestRead
     try {
-      read = await requests.readAdoptedRequest({
-        access: admitted.access,
-        session: admitted.session.session,
+      return await requests.readAdoptedRequest({
+        access: located.access,
+        session: located.session.session,
       })
     } catch (cause) {
       return unavailable(`the adopted request read threw: ${describe(cause)}`)
     }
-    switch (read.kind) {
-      case 'denied':
-        return DENIED
-      case 'unavailable':
-        return unavailable(`adopted request: ${read.diagnostic}`)
-      case 'value':
-        return read.value === null
-          ? { kind: 'value', value: null }
-          : this.factOf(admitted, read.value)
-      default:
-        return this.defect('the adopted request read gave an answer of no known kind')
-    }
   }
 
-  /** The `AdoptedRequestFact` of one saved request for the target of `located`. */
+  /**
+   * The answer when the last M0 of the session fixed a request of another scope than the target.
+   * It is `null` only while the target is still the current scope of its session, read after the
+   * `a` part was read: a new scope that has not fixed a request yet. A target scope that was
+   * retired fixed a request that can no longer be read, and that is `unavailable`, never `null`
+   * (RQ-14: unknown or unavailable is not null).
+   */
+  private async notYetFixed(input: AdoptedRead<unknown>): Promise<SourceRead<null>> {
+    const admitted = await this.admitted(input.access, input.target)
+    if (admitted.kind !== 'located') return admitted
+    const work = this.shared.link.work
+    if (work === undefined)
+      return unavailable('the lower bound sub-plugin is not running: the current scope is unknown')
+    const head = { tenant: admitted.target.tenant, session: admitted.session.session }
+    const current = await this.currentScope(work, admitted.session, head, admitted.tenant)
+    if (!('scope' in current))
+      return current.kind === 'denied'
+        ? current
+        : unavailable(`the current scope is not readable: ${current.kind}`)
+    return current.scope.ref === admitted.target.scope.ref
+      ? { kind: 'value', value: null }
+      : unavailable('the target scope was retired: the request it fixed is not readable')
+  }
+
+  /**
+   * The `AdoptedRequestFact` of one saved request for the target of `located`, or `other-scope`
+   * when the saved request was fixed for another scope of the session.
+   */
   private factOf(
     located: Located,
     saved: SessionAdoptedRequest,
-  ): SourceRead<AdoptedRequestFact | null> {
+  ): SourceRead<AdoptedRequestFact> | Readonly<{ kind: 'other-scope' }> {
     const decoded = decodeFixedRequestRecord(saved.record)
     if ('failure' in decoded) return invalid('adopted', 'unsupported-format')
     const record = decoded.ok
     if (tenantText(record.target.tenant) !== located.tenant) return DENIED
-    // The last M0 fixed a request of another scope: the target scope has no fixed request yet.
-    if (record.target.scope.ref !== located.target.scope.ref) return { kind: 'value', value: null }
+    if (record.target.scope.ref !== located.target.scope.ref) return { kind: 'other-scope' }
     if (saved.coverage === null || coverageDigest(record.coverage) !== saved.coverage.digest)
       return invalid('adopted', 'source-evidence-conflict')
     const invocation = resolveModelInvocationRef(saved.reference, located.target.tenant)
