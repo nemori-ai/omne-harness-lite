@@ -121,7 +121,7 @@ export function createRuntimeExecutor(
           | null = null
         ctx.effect(() => async () => {
           lifetime.abort()
-          publication.close()
+          publication.close('stale-instance')
           if (entry.publication === publication) entry.publication = null
           if (receipt !== null) await dependencies.instances.withdraw(receipt)
         })
@@ -147,7 +147,7 @@ export function createRuntimeExecutor(
         }
         void connect()
           .catch(async () => {
-            publication.close()
+            publication.close('stale-instance')
             if (receipt !== null) await dependencies.instances.withdraw(receipt)
             if (lifetime.signal.aborted) return
             ctx
@@ -215,7 +215,7 @@ export function createRuntimeExecutor(
               !entry.retiring
             ) {
               entry.retiring = true
-              entry.publication?.close()
+              entry.publication?.close('closed')
               try {
                 await entry.fiber?.dispose()
               } catch {
@@ -270,7 +270,7 @@ export function createRuntimeExecutor(
       if (closing !== null) return closing
       abort.abort()
       clearInterval(timer)
-      for (const entry of calls.values()) entry.publication?.close()
+      for (const entry of calls.values()) entry.publication?.close('stale-instance')
       closing = Promise.all([
         installed.release(),
         delivery.close(),

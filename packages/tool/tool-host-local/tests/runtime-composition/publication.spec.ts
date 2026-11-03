@@ -45,6 +45,8 @@ it('directory replacement changes the stream without restarting the original aut
         finish = resolve
       }),
   )
+  let established: AsyncIterator<unknown> | undefined
+  let unread: AsyncIterator<unknown> | undefined
   try {
     const reference = accepted(await world.api.invoke(world.invocation('directory')))
     await expect
@@ -54,6 +56,14 @@ it('directory replacement changes the stream without restarting the original aut
       .not.toBeNull()
     const before = unbox(await world.api.instances.current(world.streamQuery(reference))).current
     if (before === null) throw new Error('Missing route')
+    const observation = {
+      access: world.streamQuery(reference).access,
+      ref: before.ref,
+      signal: new AbortController().signal,
+    }
+    established = world.api.observation.observe(observation)[Symbol.asyncIterator]()
+    unread = world.api.observation.observe(observation)[Symbol.asyncIterator]()
+    expect((await established.next()).value).toMatchObject({ kind: 'snapshot' })
     await world.directory.dispose()
     expect(await world.api.instances.current(world.streamQuery(reference))).toMatchObject({
       failure: { kind: 'unavailable' },
@@ -71,6 +81,17 @@ it('directory replacement changes the stream without restarting the original aut
       })
       .toBe(true)
     expect(world.launches()).toBe(1)
+    expect(world.signals.get('{"value":"directory"}')?.aborted).toBe(false)
+    expect(unbox(await world.api.queries.lookup(world.query(reference)))).toMatchObject({
+      kind: 'found',
+      state: { phase: 'running' },
+    })
+    expect(await established.next()).toEqual({
+      done: false,
+      value: { kind: 'ended', reason: 'producer-ended', value: { reason: 'stale-instance' } },
+    })
+    expect(await established.next()).toEqual({ done: true, value: undefined })
+    expect((await unread.next()).value).toEqual({ kind: 'ended', reason: 'stale-stream' })
     const stale = world.api.observation
       .observe({
         access: world.streamQuery(reference).access,
@@ -80,6 +101,92 @@ it('directory replacement changes the stream without restarting the original aut
       [Symbol.asyncIterator]()
     expect((await stale.next()).value).toMatchObject({ kind: 'ended', reason: 'stale-stream' })
   } finally {
+    await established?.return?.()
+    await unread?.return?.()
+    finish('cleanup')
+    await world.close()
+  }
+})
+
+it('a completed producer keeps its closed reason when its publication fiber is disposed', async () => {
+  let finish: (value: string) => void = () => {}
+  const world = await fixture(
+    () =>
+      new Promise(resolve => {
+        finish = resolve
+      }),
+  )
+  let observer: AsyncIterator<unknown> | undefined
+  try {
+    const reference = accepted(await world.api.invoke(world.invocation('producer-close')))
+    await expect
+      .poll(
+        async () => unbox(await world.api.instances.current(world.streamQuery(reference))).current,
+      )
+      .not.toBeNull()
+    const current = unbox(await world.api.instances.current(world.streamQuery(reference))).current
+    if (current === null) throw new Error('Missing route')
+    observer = world.api.observation
+      .observe({
+        access: world.streamQuery(reference).access,
+        ref: current.ref,
+        signal: new AbortController().signal,
+      })
+      [Symbol.asyncIterator]()
+    expect((await observer.next()).value).toMatchObject({ kind: 'snapshot' })
+    finish('completed')
+    expect((await world.settled(reference)).terminal).toEqual({ kind: 'completed' })
+    await expect.poll(() => world.plugins.diagnostics().executor?.knownCalls).toBe(0)
+    expect(await observer.next()).toEqual({
+      done: false,
+      value: { kind: 'ended', reason: 'producer-ended', value: { reason: 'closed' } },
+    })
+  } finally {
+    await observer?.return?.()
+    finish('cleanup')
+    await world.close()
+  }
+})
+
+it('revocation takes precedence over a held stale-instance end after directory replacement', async () => {
+  let finish: (value: string) => void = () => {}
+  const world = await fixture(
+    () =>
+      new Promise(resolve => {
+        finish = resolve
+      }),
+  )
+  let observer: AsyncIterator<unknown> | undefined
+  try {
+    const reference = accepted(await world.api.invoke(world.invocation('revoked-publication')))
+    await expect
+      .poll(
+        async () => unbox(await world.api.instances.current(world.streamQuery(reference))).current,
+      )
+      .not.toBeNull()
+    const current = unbox(await world.api.instances.current(world.streamQuery(reference))).current
+    if (current === null) throw new Error('Missing route')
+    observer = world.api.observation
+      .observe({
+        access: world.streamQuery(reference).access,
+        ref: current.ref,
+        signal: new AbortController().signal,
+      })
+      [Symbol.asyncIterator]()
+    expect((await observer.next()).value).toMatchObject({ kind: 'snapshot' })
+    await world.directory.dispose()
+    await world.root.plugin(world.plugins.instances)
+    await expect
+      .poll(async () => {
+        const selected = unbox(await world.api.instances.current(world.streamQuery(reference)))
+        return selected.current !== null && selected.current.ref !== current.ref
+      })
+      .toBe(true)
+    world.revoke()
+    expect((await observer.next()).value).toEqual({ kind: 'ended', reason: 'denied' })
+    expect(world.signals.get('{"value":"revoked-publication"}')?.aborted).toBe(false)
+  } finally {
+    await observer?.return?.()
     finish('cleanup')
     await world.close()
   }

@@ -85,6 +85,18 @@ export function createRuntimePublication(
     subscriber.wake()
   }
 
+  function close(reason: ToolStreamEnd['reason']): void {
+    if (closed) return
+    closed = true
+    closeReason = reason
+    for (const subscriber of subscriptions)
+      terminate(subscriber, {
+        kind: 'ended',
+        reason: 'producer-ended',
+        value: { reason },
+      })
+  }
+
   function expire(subscriber: Subscriber): void {
     subscriber.timer = null
     const first = subscriber.queue[0]
@@ -289,14 +301,7 @@ export function createRuntimePublication(
           return
         }
         if (canonicalDigest(record.call.execution) !== canonicalDigest(input.execution)) {
-          closed = true
-          closeReason = 'stale-instance'
-          for (const subscriber of subscriptions)
-            terminate(subscriber, {
-              kind: 'ended',
-              reason: 'producer-ended',
-              value: { reason: closeReason },
-            })
+          close('stale-instance')
           return
         }
         const process = read.records
@@ -368,14 +373,6 @@ export function createRuntimePublication(
       )
       return next
     },
-    close() {
-      closed = true
-      for (const subscriber of subscriptions)
-        terminate(subscriber, {
-          kind: 'ended',
-          reason: 'producer-ended',
-          value: { reason: closeReason },
-        })
-    },
+    close,
   }
 }
