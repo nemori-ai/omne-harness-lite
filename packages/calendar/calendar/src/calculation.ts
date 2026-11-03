@@ -61,7 +61,6 @@ function dayReader(snapshot: CalendarSnapshot) {
     const override = overrides.get(date)
     const weekday = Temporal.PlainDate.from(date).dayOfWeek
     const classification = override?.classification ?? snapshot.weeklyDefault[weekday - 1]
-    // Temporal guarantees dayOfWeek in 1..7; the complete tuple was checked at the boundary.
     if (classification === undefined) throw new RangeError('Invalid weekday in validated snapshot')
     return {
       classification,

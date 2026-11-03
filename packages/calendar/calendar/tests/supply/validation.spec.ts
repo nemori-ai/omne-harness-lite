@@ -50,7 +50,6 @@ beforeEach(() => {
       content: bytes('holidays_capture_20260821.ics'),
     }),
   )
-  // This empty feed is an explicit test-only observation, not a claim about real FR data.
   emptyFeed = {
     ...truth,
     sourceId: 'federal-register-eo-feed',

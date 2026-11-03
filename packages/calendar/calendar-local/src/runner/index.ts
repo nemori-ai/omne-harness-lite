@@ -164,7 +164,6 @@ export function createCalendarSupplyRunner(options: CalendarSupplyRunnerOptions)
         supplyStop,
         observerFailure,
       }
-      // Observer completion is part of the bounded drain, never an unbounded disposer wait.
       const notification = observe(report)
       const notificationState = await drain(notification, config.drainTimeoutMs)
       if (notificationState === 'retained')

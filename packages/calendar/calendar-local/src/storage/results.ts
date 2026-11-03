@@ -75,7 +75,6 @@ function rollbackResult(
         ? rejected('providerUnavailable')
         : rejected('operationKeyConflict')
   }
-  // An early stop without the Calendar binding cannot identify a queried fingerprint.
   return replayed
     ? { kind: 'unknown', operationRef: operationRef(query.address) }
     : rejected('providerUnavailable')

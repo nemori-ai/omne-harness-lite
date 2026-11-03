@@ -1,5 +1,4 @@
 // @module-tag slow
-// Runs a child process with macOS network denial and real SQLite.
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'

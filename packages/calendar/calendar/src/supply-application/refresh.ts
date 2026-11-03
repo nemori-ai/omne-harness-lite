@@ -45,9 +45,7 @@ export async function finishRun(
         completedAt: now,
         disposition: outcome.receipt.disposition,
       })
-    } catch {
-      /* The publication receipt remains authoritative; the prepared run remains pending. */
-    }
+    } catch {}
   }
   return outcome
 }

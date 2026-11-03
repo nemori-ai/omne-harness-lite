@@ -26,7 +26,6 @@ import type {
 import { createLocalTextResults } from '@omne-harness/tool-host-local'
 import { evidence, operationId, request, value } from './world.ts'
 
-/** A recorded-output read fixture. This does not simulate the Tool execution state machine. */
 export async function retainedReader(input: {
   access: CallAccess<string>
   result: ToolResultVersion

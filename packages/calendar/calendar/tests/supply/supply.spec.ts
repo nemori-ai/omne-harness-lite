@@ -42,7 +42,6 @@ describe('source facts are carried rather than inferred', () => {
   })
 })
 
-// These synthetic intervals test the coverage guard, not a production source.
 it('refuses to fill a gap between two truth intervals', () => {
   const parsed = computeUsFederalCalendar({ start: '2025-01-01', end: '2025-03-31', ...material })
   if (parsed.kind !== 'success') throw new Error('computed sample failed')

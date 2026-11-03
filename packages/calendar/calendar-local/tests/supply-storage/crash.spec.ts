@@ -1,5 +1,4 @@
 // @module-tag slow
-// Starts a Node process and kills it while the real SQLite transaction is running.
 import { fork, type ChildProcess } from 'node:child_process'
 import { existsSync, watch } from 'node:fs'
 import { once } from 'node:events'

@@ -38,7 +38,6 @@ it.each(['20260230', '20261301', '20260015', '20260100'])(
   },
 )
 
-// Mutations of captured inputs are fault injection, never authoritative data.
 describe('CN real source formats', () => {
   it('replays the captured lanceliao artifact with 142 sourced overrides', () => {
     const contribution = success(
@@ -133,7 +132,6 @@ describe('Japan source decoding and oracle seals', () => {
       }).kind,
     ).toBe('rejected')
   })
-  // Explicit rendered oracle mappings exercise seals without installing/running Python holidays.
   const oracle = {
     country: 'JP',
     library_version: '0.80',
