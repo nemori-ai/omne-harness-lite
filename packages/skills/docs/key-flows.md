@@ -25,6 +25,11 @@ sequenceDiagram
   participant S as PackageSource
   participant F as RequirementFacts
   C->>A: read(access, scope, target, { basis?, byteRange? })
+  opt 带材料依据
+    alt 依据的能力标识不等于目标能力标识
+      A-->>C: not-available-to-you（内部 bad-basis）
+    end
+  end
   A->>E: check(access, scope, 能力标识)
   E-->>A: granted，或 refused，或 unknown
   alt refused
@@ -32,41 +37,58 @@ sequenceDiagram
   else unknown
     A-->>C: unknown
   end
-  A->>V: resolve(access, scope, 能力标识)
-  V-->>A: adopted，或 known-unavailable，或 none，或 unknown
+  A->>V: resolve(access, scope, 能力标识, { basis? })
+  V-->>A: adopted(SkillRef)，或 known-unavailable，或 basis-not-lawful，或 none，或 unknown
   alt none
     A-->>C: not-available-to-you
   else known-unavailable
     A-->>C: unavailable-stand-in 及安全原因
+  else basis-not-lawful
+    A-->>C: basis-unavailable
   else unknown
     A-->>C: unknown
   end
-  A->>A: 有 basis 用 basis，否则用 resolve 交来的 SkillRef
-  A->>A: toPackagePath 校验目标
-  A->>S: open(locator, digest, 包内路径)
-  S-->>A: 字节，或 来源失败
-  A->>A: 逐段按条目内容摘要核验
+  A->>A: 所钉内容摘要：有 basis 取 basis，否则取 SkillRef。没有摘要时返回 unsupported
+  A->>A: toPackagePath 校验目标，不合法时返回 bad-path
+  A->>S: snapshot(SkillRef 的 locator)
+  S-->>A: 包快照，或 package-not-found，或 unavailable
+  alt 快照的内容摘要不等于所钉内容摘要
+    A-->>C: basis-unavailable
+  else 目标路径不在快照条目里
+    A-->>C: resource-missing
+  end
+  A->>S: open(locator, 所钉内容摘要, 包内路径)
+  S-->>A: 字节，或 entry-not-found、bytes-mismatch、outside-package、unavailable
+  A->>A: 算出字节的内容摘要，与快照中的条目内容摘要比较
+  alt 不符
+    A-->>C: version-changed，不交新内容
+  end
+  A->>A: 按请求的字节范围截取
   alt 目标是正文
     A->>F: present(access, scope, 必需工具名)
     F-->>A: 在场的名字，或 无法判定
-    alt 有必需工具缺席
+    alt 无法判定
+      A-->>C: unknown
+    else 有必需工具缺席
       A-->>C: undecided（等待 Q-SK08）
     end
   end
-  A-->>C: 内容、SkillRef、实际字节范围、总长与 complete
+  A-->>C: 内容、材料依据、实际字节范围、总长与 complete
 ```
 
-图中每个 `alt` 分支都在返回后结束本次操作。
+图中每个 `alt` 分支都在返回后结束本次操作。端口失败按[工程设计「端口」](architecture.md#端口)的映射表转换：`package-not-found` 带材料依据时为 `basis-unavailable`，不带时为 `source-unavailable`。`entry-not-found` 为 `resource-missing`。`bytes-mismatch` 为 `version-changed`。`outside-package` 照原样。`unavailable` 为 `source-unavailable`。
 
-1. 调用方可以不带材料依据，这时 `SkillAccess` 读当时的合法版本。调用方也可以带上此前结果给出的 `SkillRef` 作为材料依据，这时读取固定该版本。
-2. `SkillAccess` 每一步都现场核验，不用缓存代替。任一端口无法判定时返回 `unknown`。
-3. 先核验读取，再解析对应。对无权主体，「无权」与「身份不存在」都返回 `not-available-to-you`。
-4. 只有 `SkillResolution` 答 `known-unavailable` 时，才返回 `unavailable-stand-in`。替换件由 Skill 用 `resolve` 交来的最后合法 name、说明与原因组装。
-5. 所选材料没有内容摘要时返回 `unsupported`。字节与条目内容摘要对不上时返回 `version-changed`，不交新内容。所选材料的包快照取不到时返回 `basis-unavailable`。
-6. 只有来源正常交出正文后，才进入 Q-SK08 判断。第一波只核对必需工具名。资源读取不进入这一判断。
-7. 成功结果交出后归调用方。`SkillAccess` 不保留副本，不记「已加载」状态。
+1. 调用方可以不带材料依据，这时 `SkillAccess` 读当时的合法版本。调用方也可以带上此前结果给出的材料依据，这时读取固定该版本。材料依据只含能力标识、资产版本与内容摘要，不含包定位。
+2. 带材料依据时，`SkillAccess` 先核对依据的能力标识等于目标能力标识。不等时对外返回 `not-available-to-you`，不披露差异原因。
+3. `SkillAccess` 每一步都现场核验，不用缓存代替。任一端口无法判定时返回 `unknown`。
+4. 先核验读取，再解析对应。对无权主体，「无权」与「身份不存在」都返回 `not-available-to-you`。
+5. 只有 `SkillResolution` 答 `known-unavailable` 时，才返回 `unavailable-stand-in`。替换件由 Skill 用 `resolve` 交来的最后合法 name、说明与原因组装。
+6. 带材料依据时，`SkillResolution` 核对依据中的资产版本是否合法，并当场给出包定位。不合法时 `SkillAccess` 返回 `basis-unavailable`。
+7. 先取快照并比较包快照的内容摘要，再查条目，再读字节并按条目内容摘要核对。所以一次读取只对应一份包快照。
+8. 只有正文字节核对通过后，才进入 Q-SK08 判断。第一波只核对必需工具名。资源读取不进入这一判断。
+9. 成功结果交出后归调用方。`SkillAccess` 不保留副本，不记「已加载」状态，也不把 `SkillRef` 或包定位交给调用方。
 
-`list` 走同一条核验与解析路径，只返回所选材料的包快照条目，不进入 Q-SK08 判断。`describe` 只走核验与解析，再用 `resolve` 交来的声明投影求缺项。它不读包字节。
+`list` 走同一条核验与解析路径，再取快照并比较包快照的内容摘要。只有内容摘要相符后，`list` 才返回快照中的资源条目，不进入 Q-SK08 判断。`describe` 只走核验与解析，再用 `resolve` 交来的声明投影求缺项。它不读包字节。
 
 ## F-SK04 分类设置与秘密供给
 

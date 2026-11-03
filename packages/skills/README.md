@@ -21,7 +21,7 @@
 | 具名文档目标 | 状态 | 职责 | 允许的生产依赖 |
 | --- | --- | --- | --- |
 | `skill-access`（通用实现） | 尚非 workspace 成员 | 四个应用服务：`PackageInspection`、`SkillCatalog`、`SkillAccess`、`ScriptPreparation`。名字对应领域的「方法与资源取用」。不依赖 Session、Agent 与 Cordis | `@omne-harness/skill`，以及 `@omne-harness/skill` 允许的公共值成员 |
-| `skill-cordis-contract`（Cordis 契约） | 尚非 workspace 成员 | 服务键与抽象 Service。不含实现。暂不进应用插件树 | `@omne-harness/skill` 与 Cordis 发布包 |
+| `skill-cordis-contract`（Cordis 契约） | 尚非 workspace 成员 | 服务键与抽象 Service。不含实现。暂不进应用插件树 | `@omne-harness/skill` 与 Cordis 发布包 4.0.4，版本依据[技术基础](../../docs/architecture/technical-foundations.md#共同技术选择)「产品与工程运行时」 |
 | `skill-host-local`（本地宿主） | 尚非 workspace 成员 | 本机目录来源 `DirectorySource` 与本组的 Cordis 插件。内容存储来源等存储契约就绪后再加 | `skill-access`、`skill-cordis-contract`、`@omne-harness/skill` 与宿主依赖 |
 
 依赖方向照 Tool 能力组的先例：`skill-host-local` 指向 `skill-access`、`skill-cordis-contract` 与 `@omne-harness/skill`。`skill-access` 与 `skill-cordis-contract` 各自指向 `@omne-harness/skill`，彼此不依赖。依赖方向在建包时写入架构约束，本页不改约束文件。
