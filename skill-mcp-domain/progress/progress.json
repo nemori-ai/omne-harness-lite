@@ -1,6 +1,6 @@
 {
- "updatedAt": "2026-11-03T16:54:33Z",
- "head": "c247b873a",
+ "updatedAt": "2026-11-03T17:16:35Z",
+ "head": "c5a49fd46",
  "links": [
   {
    "text": "波段计划",
@@ -13,16 +13,16 @@
  ],
  "decisions": [
   {
-   "question": "W1 是否开工",
-   "status": "answered",
-   "answer": "开工"
+   "question": "W1 收波；W2 是否开工（预案 w2-skill、w2-skill-host、w2-mcp-core、w2-spike）",
+   "status": "open",
+   "answer": ""
   }
  ],
  "waves": [
   {
    "id": "W1",
    "title": "契约地基",
-   "state": "进行中",
+   "state": "已放行",
    "closures": [
     {
      "id": "w1-skill-contract",
@@ -59,18 +59,34 @@
     {
      "id": "w1-writeback-mcp",
      "line": "MCP",
-     "state": "进行中",
-     "round": 1,
-     "note": "波末写回：组页、领域页、README（写者在 Opus 用量上限重置后续跑）",
-     "links": []
+     "state": "已合入",
+     "round": 2,
+     "note": "PR #1113 → c5a49fd46。review-docs 2 阻断（key-flows 任务操作资格、F-MC01 对端账号来源）第 2 轮修完；check:docs/check:design PASS",
+     "links": [
+      {
+       "text": "PR",
+       "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1113"
+      },
+      {
+       "text": "c5a49fd46"
+      }
+     ]
     },
     {
      "id": "w1-writeback-skill",
      "line": "Skill",
-     "state": "进行中",
-     "round": 1,
-     "note": "波末写回：组页、领域页、README（同上）",
-     "links": []
+     "state": "已合入",
+     "round": 2,
+     "note": "PR #1112 → 5c99476aa。review-docs 1 阻断（key-flows 快照答复）第 2 轮修完；check:docs/check:design PASS",
+     "links": [
+      {
+       "text": "PR",
+       "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1112"
+      },
+      {
+       "text": "5c99476aa"
+      }
+     ]
     }
    ],
    "criteria": [
@@ -392,6 +408,14 @@
   {
    "at": "2026-11-03T16:54:33Z",
    "text": "w1-mcp-contract 合入父分支（c247b873a）；MC1–MC8 全部 met；实现架构页更新为 W1 两域讲解与评述；两个写回闭包派出；父分支头 admission/acceptance/loop:status 运行中"
+  },
+  {
+   "at": "2026-11-03T17:04:15Z",
+   "text": "两份写回交回并开 PR #1112、#1113；派只读 review-docs 五面评审；父分支头准入链运行中"
+  },
+  {
+   "at": "2026-11-03T17:16:35Z",
+   "text": "两份写回合入（5c99476aa、c5a49fd46）；父分支头准入：acceptance、loop:status 绿，admission 的 test 步 3 失败为基线既有（execution-environment-host-local，与两域无关）；W1 收波，handoff.md 五节完成"
   }
  ]
 }

@@ -57,6 +57,9 @@
 - 写者工具里没有 SendMessage，波中不能提问；改为写者自定并在交回列理由（范式 §3 已记）。
 - 变异沙箱会写出文件，读源码文本的测试在沙箱里失败；两边都改为先去注释与空语句再比对。
 - 记录分支首建时误用相对路径污染主检出（已 `reset --keep`，脚本改绝对路径）。
+- 写回时发现：Skill SPEC `#ports` 两句 `known-unavailable` 相遇未定；MCP 组页另有三处与 SPEC 不一致（S7 四态、D4、`actionName`）与 Q-MC06 未裁，写回清单漏列。都记入 `wave-queue.md`「W2 开波前检查项」。
+- 两份 `key-flows.md` 仍带调用方式（G1 残留），reduce 在写回 PR 里补删。
+- 根 `package.json` 没有 `format` 脚本（只有 `format:check`/`format:write`/`format:staged`），`scripts/format.sh` 不管 Markdown；写回的格式检查没有可执行工具，没有写成通过。
 
 ## 4. 给集成节点的提示
 
@@ -80,4 +83,22 @@
 
 ## 波末补记
 
-（写回闭包合入与准入结果在此追加。）
+### 准入（父分支头 c247b873a，2026-11-03 16:56–17:05 UTC，证据 `evidence/w1-admission/`）
+
+- `pnpm run admission`：退出 1。18 步里 build、typecheck、check:declarations、contract-check、python、lint:rules、lint:deps、lint:oxlint 通过；**test 失败**：86 成员 21508 例，2 成员未通过、失败 4 处。定向重跑后 `runtime-context-cordis-contract/tests/exports.spec.ts`（stack-trace）通过；`execution-environment-host-local` 三例（cordis-entry、host-domain、host-file-edges）仍失败。
+  - 归因：该成员自 F 起无改动（`git diff 21175c9f9..HEAD -- packages/execution packages/context` 为空）；在 F 的祖先 24e5ba838（主检出）上单跑该成员同样 3 失败 249 通过。判为**基线既有**，与两域无关；疑与容器以 root 运行有关（「host denies access」类断言在 root 下不成立），未深究。慢层因快层失败没有跑。
+- `pnpm run acceptance`：退出 0。
+- `pnpm run loop:status --strict --base 21175c9f9`：退出 0。四条硬线：依赖方向无环（组环按 GCX 例外）、验收锁无违规（新增 4 个 skill-contract 验收文件，提交者 Agent-Role: main）、受影响范围绿、传感器有数据。
+- 两域成员的变异读数见第 2 节与实现架构页评述。
+
+### 写回闭包
+
+| 闭包 | 轮次 | 合入 | 改动 |
+| --- | --- | --- | --- |
+| w1-writeback-skill | 2（+reduce 1 处领域页状态句） | PR #1112 → 5c99476aa | 组页、领域页、README、key-flows（第 2 轮） |
+| w1-writeback-mcp | 2（+reduce 2 处：两份 key-flows 去调用方式、状态句） | PR #1113 → c5a49fd46 | 组页、领域页、README、两份 key-flows |
+
+- 评审：review-docs 五面（`reviews/writeback-r1.md`）：落盘遗漏 3 阻断（全在写回清单漏列的 `key-flows.md`）、表达 5 建议、断链无、上下层无矛盾、图 2 处必要改动随阻断修。第 2 轮两写者各一提交修完阻断与建议；SPEC 差异表的改法（行号已偏移、「随后写回」已成过程状态）与两张建议图留 W2。
+- 写回后的父分支头 **c5a49fd46**：`check:docs`、`check:design` PASS（链接与登记，不表示语义正确）。
+- 写回中暴露并记入 `wave-queue.md`「W2 开波前检查项」：Skill SPEC `known-unavailable` 两句相遇未定；MCP SPEC S1 与 S2 对任务操作复用连接是否核资格的张力（M4-9 本意是复用不核，key-flows 暂按 S1 字面）；MCP 组页 S7 四态、D4、`actionName`、Q-MC06 未写回；`docs/domains/mcp/README.md:27` 调用时限句与组页矛盾（先前就有）。
+- 结果：**ready**。两域 W1 成果全部在父分支 `PanQiWei/skill-mcp`（c5a49fd46），未进任何轨道。

@@ -21,3 +21,7 @@
 - Skill `parse/manifest.ts:47–55` 边界夹具；MCP `brands.ts:50–52`、`endpoint.ts:117–153` 夹具。
 - MCP `listing.ts`↔`catalog.ts` 类型环下沉；Skill read-body 读取器克隆记清理候选。
 - 开波时把 `origin/integration/mainline` 合进父分支（范式 FI）。
+- Skill SPEC 张力：`#ports` 同时写「没有已知集合的实现不答 `known-unavailable`」与「资产版本不可表示时答 `known-unavailable`」，两者相遇时未定；W2 `w2-skill` 规格先裁。
+- MCP 组页三处与 SPEC 不一致未写回（写回清单漏列）：`EndpointStatus` 凭据视图（组页二态 vs S7 四态）、不合法内容项写法（D4）、参数名 `actionName` vs 类型 `action`；传输契约测试与真实服务端夹具归哪个成员（Q-MC06）未裁。W2 开波写回。
+- MCP SPEC S1 与 S2 张力：S1 要求除 `cancel`/`cancelTask`/`closeAll` 外每个操作先核采用再核资格；S2 写任务操作复用现有连接时不核资格。`queryTask`/`taskResult`/`provideTaskInput` 复用连接时是否跳过 S1 的资格核对未定；key-flows 暂按 S1 字面写。W2 `w2-mcp-core` 规格先裁（M4-9 的本意是复用不核）。
+- MCP 组页承接表 `method-and-resource-access.md` 行与 Skill 组页同名行的状态列仍写「未承接」：取得技术接受后才改。
