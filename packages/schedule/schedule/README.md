@@ -1,26 +1,23 @@
+# @omne-harness/schedule
+
 PACKAGE_TEMPLATE_DRAFT
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
+This workspace package is a private `0.0.0` draft. `src/index.ts` contains `export {}`. It exposes no business API or runtime service. The complete target design was confirmed on 2026-11-03. Design commitments do not establish implementation or verification.
 
-# schedule/schedule
+## Use and boundaries
 
-本目录只有设计文档，尚无实现、公开类型、配置或运行入口。支持状态未核实，目标公开形状待技术采用。整体产品与技术接受不能从目录推出。
+Read the [behavior contract](SPEC.md) and [public API design](docs/public-api-design.md). The API document describes target types, commands, queries, errors, trusted context, and ports. These definitions are not current exports. There is no runnable business example yet. Direct application calls use the same authorization and durable-operation rules as HTTP and tools.
 
-## 使用与消费边界
+The root target contains pure domain functions and application services. It does not require Cordis. Cordis bindings and independent tool adapters consume those services. The [group architecture](../docs/architecture.md) defines dependency direction.
 
-独立消费者先读 [SPEC](SPEC.md) 核对责任、资格及依赖；公开入口尚未成立，不能给出可运行调用示例。Cordis 集成沿项目已采用 IC 另核对定义、依赖、装配及撤除，不改变领域合同，也不自动保证耐久、取消或隔离。
+## Contract and internal design
 
-## 契约与内部设计
+[SPEC](SPEC.md) owns observable behavior and verification obligations. The [internal design](docs/internals.md) explains state, persistence, recovery, and lifecycle. [Key flows](docs/key-flows.md) show participants, failure branches, and responsibility transfer. The [group entry](../README.md) links related owners.
 
-[SPEC](SPEC.md)保存完整必要行为及验证义务。[内部设计](docs/internals.md)保存精确机制与[后续技术采用](docs/internals.md#后续技术采用)。组工程关系见[组入口](../README.md)。
+## Configuration, operation, and verification
 
-[成员精确关键流程](docs/key-flows.md)承接本成员的动作、提交和恢复分支；跨领域角色仍见所属领域入口。
+There is no implemented provider or business configuration in this package. Target configuration must preserve the contract. The existing public-entry test checks empty exports only. Future domain and contract tests, real-provider integration, independent consumer tests, and end-to-end assembly are required where the SPEC assigns them. They are unverified, rather than inapplicable. Node24, ICU, real storage faults, network supply, and tool assembly have no acceptance result from this documentation work.
 
-## 配置、运行与验证
+## Maintenance
 
-provider、公开形状、介质、部署条件和真实执行入口尚待采用。合法配置不能减弱业务不变式；验证沿 SPEC 的具名拥有者和反例落实。尚无实际执行或故障证据证明本候选已兑现。
-
-## 维护
-
-本成员维护行为、机制、必要验证和真实消费者，组维护工程协作。改变参数、版本、提交或恢复条件时核对原事实及相邻拥有者，未定部分只阻塞依赖路径。原未决 ID 保留在技术采用与产品第四章。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+Update the behavior, public design, flows, metadata, and both README files together. Implemented public definitions must become the single type source. Keep immutable historical facts, original operation identities, and explicit unknown outcomes. Source acceptance obligations remain in the [complete mapping](SPEC.md#来源与目标验收映射).

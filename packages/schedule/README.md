@@ -1,27 +1,27 @@
-# 日程与作业能力组
+# 日程与 Job能力组
 
-本组只建立文档目标，没有真实 workspace 成员、源码或运行实例。候选分解已有评审输入；技术采用、公开形状及实现支持尚未核实。正式目录不是接受依据。
+本组当前有一个真实 workspace 草稿成员 `@omne-harness/schedule`，版本 `0.0.0`、private；源码为 `export {}`，没有业务 API 或运行服务。2026-11-03 确认的完整目标设计约束后续实现，文档完成不表示运行能力交付。
 
 ## 责任与范围
 
-本组承接[日程与作业领域责任](../../docs/domains/schedules-and-jobs/README.md)中的具名能力。完整产品范围归[产品正文](../../.meta_harness/design/product/schedules-and-jobs/design.md)，具体行为归成员，外部协作仍由各原拥有者承担。
+本组落实[日程与 Job领域责任](../../docs/domains/schedules-and-jobs/README.md)。产品规则归[产品正文](../../.meta_harness/design/product/schedules-and-jobs/design.md)，本组拥有工程分解、依赖与组合验证导航，成员拥有必要行为及公开设计。
 
 ## 成员与依赖
 
-| 文档目标 | 责任及状态 |
+| 真实成员 | 工程责任与入口 |
 | --- | --- |
-| [schedule](schedule/README.md) | 原候选具名成员；只有文档，没有真实 workspace 包；[SPEC](schedule/SPEC.md)及[内部设计](schedule/docs/internals.md)尚待技术采用 |
+| [schedule](schedule/README.md) | [完整行为](schedule/SPEC.md)、[公开 API 设计](schedule/docs/public-api-design.md)、[内部机制](schedule/docs/internals.md)、[关键流程](schedule/docs/key-flows.md) |
 
-本组为单成员目标组，成员拆分或新增适配不得仅从目录推定。独立消费从成员行为及未来公开定义开始；Cordis 消费另核对已采用集成约定，不以 runtime 对象充当数据契约。
+组根不是包或统一服务，不新建占位 provider/tools 包。纯领域值和应用服务不依赖 Cordis；装配、执行和工具是分别可替换的适配责任。允许方向及外部接缝见[组架构](docs/architecture.md)。
 
 ## 关键协作
 
-成员承接本域行为，各相邻事实仍由原业务、资格、存储及实际执行拥有者维护。工程分解与外部依赖见[组架构](docs/architecture.md)。精确机制见[成员内部设计](schedule/docs/internals.md)。原调用、提交、恢复和撤除按原身份衔接，不能因通知或 disposer 声称业务完成。
+成员通过明确 ports 消费原事实拥有者，不直接读外域表。操作先可靠提交，再交接执行/通知及唤醒；unknown 查询原身份，外部效果不能由 disposer 撤销。Calendar 提供不可变知识与版本，Schedule 拥有日期组合与 Job 接受，执行拥有者报告真实原工作结果，通知拥有者报告耐久可取回和投递。
 
 ## 组合验证
 
-完整验证义务见[成员 SPEC](schedule/SPEC.md#持续验证义务)。本组只有单成员目标，没有独立组内多成员协议；与相邻能力的组合仍需真实协调者验证，目录、源 SHA 和图语法不能代替实际隔离、同提交、故障与恢复证据。实施、公开形状和可复跑验证入口尚未建立。
+必要场景归[成员 SPEC](schedule/SPEC.md#持续验证义务)，来源17组154条与N01–N25归[完整映射](schedule/SPEC.md#来源与目标验收映射)。单成员组没有额外组内跨成员事务；跨域版本、授权、SQL提交、执行、通知与工具装配由具名参与者共同取证。当前空导出测试不证明这些能力，未运行的真实介质/Node24/网络/生命周期验收均保持未验证。
 
 ## 维护
 
-组维护者负责工程分解、成员导航、允许依赖与组合验证。具名人员及 provider 采用尚待确认。成员维护者负责行为、内部机制与消费者；变更须同步产品条件、相关事实拥有者及登记。新建真实包仍须遵循[成员文档规范](../../docs/member-documentation.md)，不能把文档迁移当作实施授权。
+变更本域承诺同步 SPEC、唯一公开形状、内部机制、流程、双语入口和登记，再同步实际消费者。公开源码实现后替换设计形状的重复定义，保留行为 SPEC 和必要理由；不能把设计类型误报成已有导出。新增包按[成员文档规范](../../docs/member-documentation.md)与真实责任决定，不以图中框数决定包数。产品代码、依赖和具体提供者本轮不变。
