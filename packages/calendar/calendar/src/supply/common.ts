@@ -99,6 +99,21 @@ export function mergeDays(days: readonly SupplyDay[]): SupplyDay[] {
   }
   return [...merged.values()].sort((a, b) => a.date.localeCompare(b.date))
 }
+function validateSourceDays(
+  sourceDays: readonly SupplyDay[],
+  coverageIntervals: readonly SupplyInterval[],
+): SupplyDay[] {
+  for (const interval of coverageIntervals) {
+    isoDate.parse(interval.start)
+    isoDate.parse(interval.end)
+    if (interval.start > interval.end) throw new Error('inverted source coverage')
+  }
+  if (!coverageIntervals.length) throw new Error('source has no evidenced coverage')
+  const days = mergeDays(sourceDays)
+  if (days.some(day => !inCoverage(day.date, coverageIntervals) || !day.provenance.length))
+    throw new Error('day outside source coverage or missing provenance')
+  return days
+}
 export function sourceParser(
   sourceId: string,
   input: SourceParseInput,
@@ -124,15 +139,7 @@ export function sourceParser(
     const source = policy?.sources.find(item => item.sourceId === sourceId)
     if (!policy || !source) throw new Error(`undeclared source ${sourceId}`)
     const parsed = parse(material)
-    for (const interval of parsed.coverageIntervals) {
-      isoDate.parse(interval.start)
-      isoDate.parse(interval.end)
-      if (interval.start > interval.end) throw new Error('inverted source coverage')
-    }
-    if (!parsed.coverageIntervals.length) throw new Error('source has no evidenced coverage')
-    const days = mergeDays(parsed.days)
-    if (days.some(day => !inCoverage(day.date, parsed.coverageIntervals) || !day.provenance.length))
-      throw new Error('day outside source coverage or missing provenance')
+    const days = validateSourceDays(parsed.days, parsed.coverageIntervals)
     const contribution: SourceContribution = {
       sourceId,
       role: source.role,

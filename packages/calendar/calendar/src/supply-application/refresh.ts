@@ -10,6 +10,7 @@ import {
 } from '@omne-harness/calendar-contract'
 import type {
   CalendarDispositionCommand,
+  CalendarCandidate,
   CalendarOperationQuery,
   CalendarOperationObservation,
 } from '../persistence.ts'
@@ -122,6 +123,28 @@ async function acquireSources(
   }
   return { materials, findings }
 }
+async function readPublishedMaterials(
+  deps: CalendarSupplyDependencies,
+  sources: CalendarCandidate['sources'],
+): Promise<CalendarStoredMaterial[]> {
+  const stored: CalendarStoredMaterial[] = []
+  for (const source of sources) {
+    const material = await deps.materials.read({ reference: source.rawReference })
+    if (
+      material.kind !== 'ok' ||
+      !material.value ||
+      material.value.rawHash !== source.rawHash ||
+      material.value.material.sourceId !== source.sourceId ||
+      material.value.material.lineageRef !== source.lineageRef ||
+      material.value.material.acquiredAt !== source.acquiredAt ||
+      material.value.material.authorityRef !== source.authorityRef ||
+      material.value.material.knowledgeAsOf !== source.knowledgeAsOf
+    )
+      throw new Error('Current provenance unavailable or inconsistent')
+    stored.push(material.value)
+  }
+  return stored
+}
 export async function readCurrent(
   deps: CalendarSupplyDependencies,
   calendarId: CalendarRefreshInput['calendarId'],
@@ -142,22 +165,7 @@ export async function readCurrent(
   const sources = published.value.command.candidate.sources.filter(
     source => source.role === 'truth' || source.role === 'exceptionFeed',
   )
-  const stored: CalendarStoredMaterial[] = []
-  for (const source of sources) {
-    const material = await deps.materials.read({ reference: source.rawReference })
-    if (
-      material.kind !== 'ok' ||
-      !material.value ||
-      material.value.rawHash !== source.rawHash ||
-      material.value.material.sourceId !== source.sourceId ||
-      material.value.material.lineageRef !== source.lineageRef ||
-      material.value.material.acquiredAt !== source.acquiredAt ||
-      material.value.material.authorityRef !== source.authorityRef ||
-      material.value.material.knowledgeAsOf !== source.knowledgeAsOf
-    )
-      throw new Error('Current provenance unavailable or inconsistent')
-    stored.push(material.value)
-  }
+  const stored = await readPublishedMaterials(deps, sources)
   const parsed = parseMaterials(stored)
   if (parsed.findings.length) throw new Error('Current source provenance cannot be interpreted')
   return {
@@ -210,7 +218,18 @@ export async function refreshCalendar(
   if (existing.value) return commitPrepared(deps, context, existing.value, control, signal)
   if (signal?.aborted || control.stopped())
     return { kind: 'ok', value: { kind: 'cancelled', phase: 'beforeCommit' } }
-  const current = await readCurrent(deps, input.calendarId)
+  return prepareRefresh(deps, context, query, policy, guards, control, signal)
+}
+async function prepareRefresh(
+  deps: CalendarSupplyDependencies,
+  context: CalendarCallContext,
+  query: CalendarOperationQuery,
+  policy: CalendarSupplyPolicy,
+  guards: readonly string[],
+  control: RuntimeControl,
+  signal?: AbortSignal,
+): Promise<CalendarSupplyResult> {
+  const current = await readCurrent(deps, query.address.calendarId)
   const at = control.now()
   const acquired = await acquireSources(deps, policy, at, signal)
   if (signal?.aborted || control.stopped())

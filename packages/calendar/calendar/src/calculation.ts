@@ -213,8 +213,6 @@ export function selectNthWorkingDay(input: SelectNthWorkingDayInput): SelectNthW
   })
   if (result.kind !== 'ok') return result
   const date =
-    input.ordinal === 'last' || result.dates.length === input.ordinal
-      ? (result.dates.at(-1) ?? null)
-      : null
+    (input.ordinal === 'last' ? result.dates.at(-1) : result.dates[input.ordinal - 1]) ?? null
   return { kind: 'ok', date, basis: result.basis }
 }

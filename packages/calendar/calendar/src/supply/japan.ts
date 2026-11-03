@@ -1,7 +1,7 @@
 import { parse } from 'csv-parse/sync'
 import { z } from 'zod'
 import { date, decode, decodeJson, isoDate, sourceDay, sourceParser } from './common.ts'
-import type { SourceParseInput, SourceParseResult, SupplyDay } from './types.ts'
+import type { SourceParseInput, SourceParseResult, SupplyDay, SupplyMaterial } from './types.ts'
 
 const header = ['国民の祝日・休日月日', '国民の祝日・休日名称']
 const csvRows = z.array(z.tuple([z.string(), z.string().min(1)])).min(2)
@@ -44,6 +44,30 @@ const vacanzaMaterial = z.object({
   supported_end_year: z.number().int(),
   years: z.record(z.string(), z.record(isoDate, z.string().min(1))),
 })
+function vacanzaDays(
+  document: z.infer<typeof vacanzaMaterial>,
+  material: SupplyMaterial,
+): SupplyDay[] {
+  const days: SupplyDay[] = []
+  for (let year = document.window_start_year; year <= document.window_end_year; year++) {
+    const entries = document.years[String(year)]
+    if (!entries || !Object.keys(entries).length) throw new Error(`Vacanza year ${year} is empty`)
+    for (const [day, name] of Object.entries(entries)) {
+      if (date(day).year !== year) throw new Error(`date filed under wrong year ${day}`)
+      days.push(
+        sourceDay(
+          'vacanza-holidays-library',
+          material,
+          day,
+          'holiday',
+          `pypi:holidays==${document.library_version}`,
+          name,
+        ),
+      )
+    }
+  }
+  return days
+}
 export function parseVacanzaCalendar(input: SourceParseInput): SourceParseResult {
   const sourceId = 'vacanza-holidays-library'
   return sourceParser(sourceId, input, material => {
@@ -59,24 +83,7 @@ export function parseVacanzaCalendar(input: SourceParseInput): SourceParseResult
       throw new Error('Vacanza requested range is unsupported or beyond promulgation horizon')
     if (Object.keys(document.years).length !== end - start + 1)
       throw new Error('Vacanza years do not match the declared window')
-    const days: SupplyDay[] = []
-    for (let year = start; year <= end; year++) {
-      const entries = document.years[String(year)]
-      if (!entries || !Object.keys(entries).length) throw new Error(`Vacanza year ${year} is empty`)
-      for (const [day, name] of Object.entries(entries)) {
-        if (date(day).year !== year) throw new Error(`date filed under wrong year ${day}`)
-        days.push(
-          sourceDay(
-            sourceId,
-            material,
-            day,
-            'holiday',
-            `pypi:holidays==${document.library_version}`,
-            name,
-          ),
-        )
-      }
-    }
+    const days = vacanzaDays(document, material)
     return { days, coverageIntervals: [{ start: `${start}-01-01`, end: `${end}-12-31` }] }
   })
 }

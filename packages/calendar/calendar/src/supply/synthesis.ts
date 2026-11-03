@@ -1,17 +1,7 @@
 import { finding, inCoverage, mergeDays, normalizeCoverageIntervals } from './common.ts'
 import type { CalendarSupplyPolicy, SourceContribution, SupplySynthesisResult } from './types.ts'
 
-function validateContribution(
-  policy: CalendarSupplyPolicy,
-  contribution: SourceContribution,
-): void {
-  const source = policy.sources.find(item => item.sourceId === contribution.sourceId)
-  if (
-    !source ||
-    source.role !== contribution.role ||
-    !['truth', 'exceptionFeed'].includes(contribution.role)
-  )
-    throw new Error(`unknown or ineligible source/role ${contribution.sourceId}`)
+function validateDayProvenance(contribution: SourceContribution): void {
   if (
     contribution.days.some(day =>
       day.provenance.some(
@@ -23,6 +13,20 @@ function validateContribution(
     )
   )
     throw new Error('source day provenance does not match its material/source')
+}
+
+function validateContribution(
+  policy: CalendarSupplyPolicy,
+  contribution: SourceContribution,
+): void {
+  const source = policy.sources.find(item => item.sourceId === contribution.sourceId)
+  if (
+    !source ||
+    source.role !== contribution.role ||
+    !['truth', 'exceptionFeed'].includes(contribution.role)
+  )
+    throw new Error(`unknown or ineligible source/role ${contribution.sourceId}`)
+  validateDayProvenance(contribution)
   if (JSON.stringify(policy.weeklyDefault) !== JSON.stringify(contribution.weeklyDefault))
     throw new Error('source weekly default disagrees with policy')
   const coverage = normalizeCoverageIntervals(contribution.coverageIntervals)

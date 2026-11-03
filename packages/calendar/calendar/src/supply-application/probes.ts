@@ -5,6 +5,7 @@ import {
   calendarProbeObservationSchema,
   type CalendarCallContext,
   type CalendarProbeInput,
+  type CalendarProbeObservation,
   type CalendarSourceStanding,
   type CalendarQueryResult,
   type Instant,
@@ -33,6 +34,42 @@ function nextProbe(source: SupplySourcePolicy, policy: CalendarSupplyPolicy, at:
     )?.interval ?? source.probeCadence.defaultInterval
   const result = current.add(interval).toInstant().toString({ fractionalSecondDigits: 3 })
   return instantSchema.parse(result)
+}
+async function observeSource(
+  deps: CalendarSupplyDependencies,
+  sourceId: string,
+  previous: CalendarProbeObservation | null,
+  at: Instant,
+  signal?: AbortSignal,
+): Promise<CalendarProbeObservation> {
+  const adapter = deps.sourceAdapters.find(source => source.sourceId === sourceId)
+  let observation
+  try {
+    observation = adapter
+      ? calendarProbeObservationSchema.parse(
+          await adapter.probe({ previous, observedAt: at }, signal ? { signal } : undefined),
+        )
+      : {
+          sourceId: sourceId,
+          observedAt: at,
+          kind: 'failed' as const,
+          marker: null,
+          authorityCoverageEnd: null,
+          reason: 'Source adapter unavailable',
+        }
+    if (observation.sourceId !== sourceId || observation.observedAt !== at)
+      throw new Error('Probe source/time mismatch')
+  } catch (error) {
+    observation = {
+      sourceId: sourceId,
+      observedAt: at,
+      kind: 'failed' as const,
+      marker: null,
+      authorityCoverageEnd: null,
+      reason: String(error),
+    }
+  }
+  return observation
 }
 export async function probeSource(
   deps: CalendarSupplyDependencies,
@@ -74,33 +111,7 @@ export async function probeSource(
     return supplyError(context, 'provider_failure', 'Probe standing unavailable')
   const previous =
     health.value.sources.find(source => source.sourceId === input.sourceId)?.observation ?? null
-  const adapter = deps.sourceAdapters.find(source => source.sourceId === input.sourceId)
-  let observation
-  try {
-    observation = adapter
-      ? calendarProbeObservationSchema.parse(
-          await adapter.probe({ previous, observedAt: at }, signal ? { signal } : undefined),
-        )
-      : {
-          sourceId: input.sourceId,
-          observedAt: at,
-          kind: 'failed' as const,
-          marker: null,
-          authorityCoverageEnd: null,
-          reason: 'Source adapter unavailable',
-        }
-    if (observation.sourceId !== input.sourceId || observation.observedAt !== at)
-      throw new Error('Probe source/time mismatch')
-  } catch (error) {
-    observation = {
-      sourceId: input.sourceId,
-      observedAt: at,
-      kind: 'failed' as const,
-      marker: null,
-      authorityCoverageEnd: null,
-      reason: String(error),
-    }
-  }
+  const observation = await observeSource(deps, input.sourceId, previous, at, signal)
   const recorded = await deps.journal.recordProbe({
     ...query,
     policyVersion: input.policyVersion,
