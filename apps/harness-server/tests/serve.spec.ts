@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { stubPlugin } from '../src/cordis.ts'
 import { agentJournalCombination } from '../src/rows/agent-journal/config.ts'
 import { serveProfile } from '../src/profile.ts'
@@ -42,6 +42,21 @@ const seq = (run: ServeRun, action: string, row?: string) =>
 
 beforeEach(() => {
   storageEvents.length = 0
+})
+
+/**
+ * The release names the `execution-host` factory row, whose absolute paths only the operator layer
+ * gives (L1-12); without them the tree is rejected before loading. These cases read the tree and
+ * entry records, so they load the release with the test operator layer.
+ */
+async function releaseOperator(): Promise<unknown> {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
+  scratches.push(base)
+  return operatorLayer({ storageRoot: join(base, 'storage'), port: await freePort() })
+}
+const scratches: string[] = []
+afterEach(() => {
+  for (const base of scratches.splice(0)) rmSync(base, { recursive: true, force: true })
 })
 
 describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
@@ -130,7 +145,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
   })
 
   it('R1-1: only s0.assemblyLifecycle carries the s0. prefix', async () => {
-    const run = await serveOnce({ distribution: release })
+    const run = await serveOnce({ distribution: release, operator: await releaseOperator() })
     const profile = serveProfile()
     const names = new Set<string>()
     for (const manifest of profile.stubManifests.values()) {
@@ -146,7 +161,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
   })
 
   it('DP1-C11: placeholders are s0-double, the lifecycle is real, no value is printed', async () => {
-    const run = await serveOnce({ distribution: release })
+    const run = await serveOnce({ distribution: release, operator: await releaseOperator() })
     const entries = run.of('entry-object')
     expect(entries.find(r => r['name'] === 's0.assemblyLifecycle')).toEqual({
       kind: 'entry-object',

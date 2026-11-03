@@ -15,7 +15,9 @@ const tenant = fixtureTenant('a')
 const distribution: unknown = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
 )
-const allowlist = serveProfile().allowlist
+// `runServe` adds the `executionHost` factory binding to the allowlist (HOSTFILE-FACTORY-ROW); the
+// release now names it for `execution-host`, so reading the release tree needs the same entry.
+const allowlist = [...serveProfile().allowlist, 'executionHost']
 
 function configOf(operator: unknown): unknown {
   const row = loadTree(distribution, operator, allowlist).rows.find(r => r.id === 'authorization')
