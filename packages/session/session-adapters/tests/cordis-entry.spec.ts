@@ -13,6 +13,7 @@ it('cordis entry exports the production plugins that have landed', async () => {
     'contextStepCommit',
     'createSessionAgentDrivePlugin',
     'createSessionAgentJournalPlugin',
+    'createSessionConditionsPlugin',
     'createSessionContextHolder',
     'createSessionContextInputPlugin',
     'createSessionContextTranslation',
