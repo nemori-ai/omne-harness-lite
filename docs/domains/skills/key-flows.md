@@ -26,15 +26,11 @@ sequenceDiagram
   else 合法读取
     A->>S: 取得一致版本的指定目标
     S-->>A: 实际内容及来源 或明确缺失故障
-    alt 正文已正常取得 仅必需工具缺席
-      A-->>C: undecided 待 Q-SK08 裁定 不交正文也不交替换件
-    else 其余结果
-      A-->>C: 内联交出内容 字节范围 Skill 材料依据 或可辨失败
-    end
+    A-->>C: 内联交出内容 字节范围 Skill 材料依据 或可辨失败
   end
 ```
 
-图中 Q-SK08 分支在来源正常交出正文之后才判断，定案前返回 `undecided`，既不交正文，也不交替换件，不选默认回应。第一波只按必需工具依赖判定。脚本的设施需要随脚本声明交出，设施是否齐备不由 Skill 判定。资源读取不进入这一判断。规则见[组工程设计「Q-SK08 分支」](../../../packages/skills/docs/architecture.md#q-sk08-分支)。读取权失效时不取原受限正文；仅执行依赖不足不等于读取权失效。无争议的读取不执行脚本、不产生激活、不改变系统提示词。来源在读取中变化时重读或失败，不能拼包。内容随结果内联交出，交出后归调用方，Skill 不等待承接确认，也不做临时保管。截断、缺资源与实际字节范围显式。
+读取只受读取权、合法对应与材料一致性约束。依赖在不在场、脚本有没有所需的设施，不改变读取结果，由调用方判定，依据见[组工程设计的技术处置](../../../packages/skills/docs/architecture.md#q-sk08-依赖或设施不足时的正文读取)。读取权失效时不取原受限正文；依赖不足不等于读取权失效。无争议的读取不执行脚本、不产生激活、不改变系统提示词。来源在读取中变化时重读或失败，不能拼包。内容随结果内联交出，交出后归调用方，Skill 不等待承接确认，也不做临时保管。截断、缺资源与实际字节范围显式。
 
 ## 独立消费者的描述与读取
 
@@ -47,15 +43,12 @@ sequenceDiagram
   participant I as 身份与授权
   participant R as 资产求值
   participant S as Skill 包来源
-  participant F as 依赖事实
   P->>A: describe 访问上下文 作用域 能力标识
   A->>I: 该主体能否读这个能力标识
   I-->>A: 准许 或 拒绝 或 无法判定
   A->>R: 此刻合法对应哪一份
   R-->>A: 合法已知但不可用 或 SkillRef 与声明投影 或 确定没有 或 无法判定
-  A->>F: 必需工具名是否在场
-  F-->>A: 在场的名字 或 无法判定
-  A-->>P: 描述 Skill 材料依据 依赖 脚本与设置声明 缺项 不含正文 不含包定位 旧正文缺内容摘要时不带Skill 材料依据
+  A-->>P: 描述 Skill 材料依据 依赖 脚本与设置声明 不含正文 不含包定位 旧正文缺内容摘要时不带Skill 材料依据
   P->>A: read 访问上下文 作用域 目标 可选Skill 材料依据 字节范围与中止信号
   opt 带Skill 材料依据
     A->>A: 依据的能力标识须等于目标能力标识 否则返回 not-available-to-you
@@ -69,22 +62,10 @@ sequenceDiagram
   A->>S: 按包定位与内容摘要取条目字节
   S-->>A: 字节 或 来源失败
   A->>A: 按条目内容摘要核对字节 不符时 version-changed
-  alt 读正文且正文字节核对通过
-    A->>F: 必需工具名是否在场
-    F-->>A: 在场的名字 或 无法判定
-    alt 必需工具缺席
-      A-->>P: undecided 待 Q-SK08 裁定 不交正文也不交替换件
-    else 无法判定
-      A-->>P: unknown
-    else 必需工具齐备
-      A-->>P: 正文 Skill 材料依据 实际字节范围 complete
-    end
-  else 读资源 或 可辨失败
-    A-->>P: 资源内容 Skill 材料依据 实际字节范围 complete 或 可辨失败
-  end
+  A-->>P: 正文或资源内容 Skill 材料依据 实际字节范围 complete 或 可辨失败
 ```
 
-1. 集成方显式传入访问上下文与作用域，并实现 `SkillReadCheck`、`SkillResolution` 与 `RequirementFacts`。Skill 不要求调用方的运行体系或 Cordis。
+1. 集成方显式传入访问上下文与作用域，并实现 `SkillReadCheck` 与 `SkillResolution`。Skill 不要求调用方的运行体系或 Cordis。依赖在不在场、该 Skill 此刻能不能用，由集成方判定。Skill 只交依赖声明。
 2. 每次 `describe`、`read`、`list`、`export` 都现场核验。此前的成功和保存的Skill 材料依据不代替核验。
 3. 拒绝与「确定没有对应」都返回 `not-available-to-you`，对无权主体不披露身份是否存在。实现方先判合法已知但不可用，再判合法对应，所以替换件与是否带Skill 材料依据无关。独立路径的实现方没有已知集合时，通常不出现替换件。
 4. `read` 不带Skill 材料依据时，读当时的合法版本。集成方带上此前结果给出的Skill 材料依据时，`read` 按该依据交出旧材料，或返回 `basis-unavailable`，不改交新材料。Skill 材料依据含能力标识、来源层、资产版本与内容摘要，不含包定位。工作区来源的Skill 材料依据可以不带资产版本。依据的能力标识不等于目标时返回 `not-available-to-you`。身份合法对应、依据所指的版本对该主体不合法时返回 `basis-unavailable`。包定位总是由 `SkillResolution` 的实现方当场给出，所以调用方不能借Skill 材料依据指定包的位置。
@@ -126,7 +107,7 @@ sequenceDiagram
 
 命令一侧请求 Skill 当前合法正文。Skill 返回正文原字、Skill 材料依据与字节范围，并在描述中交出设置声明。Skill 不交设置值，也不按用途核验。匹配、展开、设置值的交付与消息受理归[Slash Command](../slash-commands/README.md)与消息接入。本流程不创建工具 read 日志来替代用户消息。
 
-本流程的正文取得沿 F-SK03。只有必需工具不足的正文读取结果待 Q-SK08，定案前返回 `undecided`。调用方不另定默认。
+本流程的正文取得沿 F-SK03。依赖在不在场不改变正文读取结果。
 
 ## F-SK07 合法新增、更新、选择、reload 与迟到候选
 
