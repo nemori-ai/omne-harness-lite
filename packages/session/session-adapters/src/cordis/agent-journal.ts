@@ -732,70 +732,104 @@ function bodyOf<T>(value: JsonValue | undefined): T | null {
   return value === undefined || value === 'absent' ? null : (decodeState(value) as T | null)
 }
 
+/** A read of the fact pages that ended without events: the execution is absent or unreadable. */
+type FactsStop = Exclude<FactsRead, Readonly<{ kind: 'read' }>>
+
+const factsUnread = (diagnostic: string): FactsStop => ({ kind: 'unavailable', diagnostic })
+
 /**
- * The events after `after` from the fact pages. The sequences must follow `after` without a gap:
- * an interpreter commits the events in order, so a missing row is `unavailable`, never skipped.
+ * One page of the facts, checked alone: it is readable and decodes. A missing execution is
+ * `absent` on the first page and `unavailable` after it, because it went away between pages.
  */
+function decodedFactsPage(output: JsonValue | null, head: FactsPage | null): FactsPage | FactsStop {
+  if (output === null) return factsUnread('the facts of the execution are not readable')
+  const page = factsPageOf(output)
+  if (page === 'absent')
+    return head === null
+      ? { kind: 'absent' }
+      : factsUnread('the execution went away while its facts were read')
+  return page ?? factsUnread('the facts of the execution do not decode')
+}
+
+/** Whether a later page shows another head than the first: the pages are not one snapshot. */
+const headMoved = (head: FactsPage | null, page: FactsPage): boolean =>
+  head !== null && (page.revision !== head.revision || page.emittedThrough !== head.emittedThrough)
+
+/** The events of one pass over the pages, and whether a fact among them has no body row. */
+type FactsFold = { readonly events: InterpretableEvent[]; bodiless: boolean }
+
+/**
+ * Appends the facts of `page` to `fold`. The sequences must follow `after` without a gap: an
+ * interpreter commits the events in order, so a missing row is `unavailable`, never skipped.
+ */
+function foldFactsPage(fold: FactsFold, page: FactsPage, after: string): FactsStop | null {
+  for (const fact of page.facts) {
+    const expected = String(BigInt(after) + BigInt(fold.events.length) + 1n)
+    if (fact['sequence'] !== expected)
+      return factsUnread(`the facts of the execution have a gap at sequence ${expected}`)
+    if (fact['consequences'] === 'absent' || fact['control'] === 'absent') fold.bodiless = true
+    fold.events.push({
+      sequence: expected,
+      source: fact['source'] as unknown as DurableEvidence,
+      consequences: bodyOf<readonly SessionLogConsequence[]>(fact['consequences']),
+      control: bodyOf<SessionControlEvidence>(fact['control']),
+    })
+  }
+  return null
+}
+
+/** The events of a pass whose last page `head` has been read: they must end at the head. */
+function factsAtHead(head: FactsPage, fold: FactsFold, after: string): FactsRead {
+  const through = String(BigInt(after) + BigInt(fold.events.length))
+  // The last page ends at the head: a missing last row or a cut page is not the end.
+  if (BigInt(through) < BigInt(head.emittedThrough))
+    return factsUnread(
+      `the facts of the execution end at sequence ${through}, before ${head.emittedThrough}`,
+    )
+  // A placeholder head (digest `unknown`) is no head: the Session side answers unavailable.
+  const receipt = head.receipt
+  return {
+    kind: 'read',
+    bodiless: fold.bodiless,
+    execution: {
+      revision: head.revision,
+      head: receipt === null || receipt.digest === 'unknown' ? null : receipt,
+      emittedThrough: head.emittedThrough,
+      events: fold.events,
+    },
+  }
+}
+
+/** One pass over the pages after `after`; `'moved'` when the head changed under it. */
+async function readFactsPass(
+  read: (after: string) => Promise<JsonValue | null>,
+  after: string,
+): Promise<FactsRead | 'moved'> {
+  const fold: FactsFold = { events: [], bodiless: false }
+  let head: FactsPage | null = null
+  let from = after
+  for (;;) {
+    const page = decodedFactsPage(await read(from), head)
+    if ('kind' in page) return page
+    if (headMoved(head, page)) return 'moved'
+    head = page
+    const stopped = foldFactsPage(fold, page, after)
+    if (stopped !== null) return stopped
+    if (page.next === null) return factsAtHead(page, fold, after)
+    from = page.next
+  }
+}
+
+/** The events after `after` from the fact pages, over up to `PART_READ_ATTEMPTS` passes. */
 async function readFacts(
   read: (after: string) => Promise<JsonValue | null>,
   after: string,
 ): Promise<FactsRead> {
-  const unread = (diagnostic: string): FactsRead => ({ kind: 'unavailable', diagnostic })
   for (let attempt = 0; attempt < PART_READ_ATTEMPTS; attempt += 1) {
-    let head: FactsPage | null = null
-    let from = after
-    let bodiless = false
-    const events: InterpretableEvent[] = []
-    for (;;) {
-      const output = await read(from)
-      if (output === null) return unread('the facts of the execution are not readable')
-      const page = factsPageOf(output)
-      if (page === 'absent')
-        return head === null
-          ? { kind: 'absent' }
-          : unread('the execution went away while its facts were read')
-      if (page === null) return unread('the facts of the execution do not decode')
-      const moved =
-        head !== null &&
-        (page.revision !== head.revision || page.emittedThrough !== head.emittedThrough)
-      if (moved) break
-      head = page
-      for (const fact of page.facts) {
-        const expected = String(BigInt(after) + BigInt(events.length) + 1n)
-        if (fact['sequence'] !== expected)
-          return unread(`the facts of the execution have a gap at sequence ${expected}`)
-        if (fact['consequences'] === 'absent' || fact['control'] === 'absent') bodiless = true
-        events.push({
-          sequence: expected,
-          source: fact['source'] as unknown as DurableEvidence,
-          consequences: bodyOf<readonly SessionLogConsequence[]>(fact['consequences']),
-          control: bodyOf<SessionControlEvidence>(fact['control']),
-        })
-      }
-      if (page.next === null) {
-        // The last page ends at the head: a missing last row or a cut page is not the end.
-        const through = String(BigInt(after) + BigInt(events.length))
-        if (BigInt(through) < BigInt(head.emittedThrough))
-          return unread(
-            `the facts of the execution end at sequence ${through}, before ${head.emittedThrough}`,
-          )
-        // A placeholder head (digest `unknown`) is no head: the Session side answers unavailable.
-        const receipt = head.receipt
-        return {
-          kind: 'read',
-          bodiless,
-          execution: {
-            revision: head.revision,
-            head: receipt === null || receipt.digest === 'unknown' ? null : receipt,
-            emittedThrough: head.emittedThrough,
-            events,
-          },
-        }
-      }
-      from = page.next
-    }
+    const pass = await readFactsPass(read, after)
+    if (pass !== 'moved') return pass
   }
-  return unread('the facts of the execution kept changing while they were read')
+  return factsUnread('the facts of the execution kept changing while they were read')
 }
 
 /**
