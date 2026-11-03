@@ -309,7 +309,8 @@ async function afterFold(
 ): Promise<WorkSnapshot | undefined> {
   const folding = cache.folds.get(flight)
   if (folding === undefined) return undefined
-  await folding
+  // A fold never rejects (see `settled`); a reader still reads whole if one did.
+  await folding.catch(() => undefined)
   const done = cache.get(key)
   return done !== undefined && sameVersion(done.version, version) ? done.snapshot : undefined
 }
@@ -587,6 +588,15 @@ async function folded(
  */
 export type FoldPublished = 'same' | 'next'
 
+/**
+ * The end of a fold or an index replacement that threw (a read answer of another shape, a decoding
+ * error): it registers nothing and is counted as stale. The promise readers wait for therefore
+ * never rejects, and a waiting reader reads whole as if no fold ran.
+ */
+function settled(): void {
+  counts.stale += 1
+}
+
 /** True when `before` is the version just below the fold: one tail lower, the count as `published` says. */
 const follows = (before: WorkVersion, fold: WorkFold, published: FoldPublished): boolean =>
   count(before.tail) + 1n === count(fold.tail) &&
@@ -619,15 +629,17 @@ export async function foldCommitted(
       counts.skipped += 1
       return
     }
-    const running = folded(reach, held.snapshot, fold).then(indexed => {
-      if (indexed === null) return
-      cache.set(key, {
-        version: indexed.version,
-        bytes: fold.bytes,
-        snapshot: frozen(indexed.snapshot),
+    const running = folded(reach, held.snapshot, fold)
+      .then(indexed => {
+        if (indexed === null) return
+        cache.set(key, {
+          version: indexed.version,
+          bytes: fold.bytes,
+          snapshot: frozen(indexed.snapshot),
+        })
+        counts.folded += 1
       })
-      counts.folded += 1
-    })
+      .catch(settled)
     cache.folds.set(flight, running)
     try {
       await running
@@ -661,18 +673,20 @@ export async function refreshWorkIndex(reach: WorkReach, published: string): Pro
       counts.skipped += 1
       return
     }
-    const running = withIndex(reach, version, unindexed(held.snapshot)).then(indexed => {
-      if (indexed === null) {
-        counts.stale += 1
-        return
-      }
-      cache.set(key, {
-        version: indexed.version,
-        bytes: held.bytes,
-        snapshot: frozen(indexed.snapshot),
+    const running = withIndex(reach, version, unindexed(held.snapshot))
+      .then(indexed => {
+        if (indexed === null) {
+          counts.stale += 1
+          return
+        }
+        cache.set(key, {
+          version: indexed.version,
+          bytes: held.bytes,
+          snapshot: frozen(indexed.snapshot),
+        })
+        counts.indexed += 1
       })
-      counts.indexed += 1
-    })
+      .catch(settled)
     cache.folds.set(flight, running)
     try {
       await running

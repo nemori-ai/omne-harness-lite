@@ -49,4 +49,24 @@ describe('only the work cache reads the Session current state from the store', (
       `${PACKAGE}/work-cache.ts`,
     ])
   })
+  it('the snapshot row is named only by its schema, the commit path and the listed readers', () => {
+    expect(filesNaming('\\bsl_state\\b')).toEqual([
+      // The table declarations of the materials and the migration.
+      `${PACKAGE}/materials.ts`,
+      // The commit path, inside the write transaction (RT-04, the fifth kind).
+      `${PACKAGE}/worker/check.ts`,
+      `${PACKAGE}/worker/entries.ts`,
+      `${PACKAGE}/worker/log.ts`,
+      `${PACKAGE}/worker/participant.ts`,
+      // The model selection read: a known direct reader of the row (RT-04).
+      `${PACKAGE}/worker/read-model-selection.ts`,
+      // A comment that says the version read does not read the row.
+      `${PACKAGE}/worker/read-work-version.ts`,
+      // The whole read of the work cache.
+      `${PACKAGE}/worker/read-work.ts`,
+      `${PACKAGE}/worker/schema.ts`,
+      // A manifest vector of the SQL contract that names the table as data.
+      'packages/storage/sql-contract/src/testing/manifest-vector.ts',
+    ])
+  })
 })
