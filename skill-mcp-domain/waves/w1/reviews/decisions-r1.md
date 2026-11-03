@@ -28,7 +28,7 @@
 | 2 | W2 需要「正文起点」与「资产正文读成声明投影」两个公开函数 | 接受，W2 以可加改动加进 skill-contract | 可加改动不破坏已合入的契约 |
 | 3 | `./testing` 运行时导入 vitest（devDependency） | 修复轮改为与 tool-contract、mcp-contract 一致的无框架形态：套件返回 `ConformanceCase[]`，用 `node:assert` | 仓库先例；消费者不必装 vitest；两个契约成员形态统一 |
 | 4 | `acceptance/` 四个文件未建 | reduce 以 main 角色在闭包分支上补建 | 验收锁只允许 main 或 qa 改 |
-| 5 | `export` 的总量上限未写 | SPEC 加一句「上限随 W3 的 export 实现封闭」 | export 在 W3 |
+| 5 | `export` 的总量上限未写 | 按 E8：本版本没有上限，写明；以后加上限是破坏性改动另裁（原「随 W3 封闭」作废） | export 在 W3 |
 | 6 | 组页第 492 行：`skillBodyContract` 扩展的技术接受与资产规格同步 | 记为外部剩余义务，不在本波 | 拥有者是资产规格 |
 | 7 | `package.json` 的 `description` 过时 | 修复轮改写 | 不是依赖字段 |
 | 8 | `sealSnapshot` 收文件字节而非条目 | 接受，健康评述记一笔代价：来源须整包读入内存才能交快照 | 算法只有一处 |
