@@ -143,7 +143,7 @@ const result = <A extends ScheduleToolArguments['action'], S extends z.ZodType>(
     kind: z.literal('result'),
     action: z.literal(action),
     result: value,
-    operation: write ? schedule.ScheduleOperationLocatorSchema.extract(['identity']) : z.null(),
+    operation: write ? schedule.ScheduleOperationLocatorSchema.options[1] : z.null(),
   })
 export const scheduleToolResultSchema = z.union([
   result('create', schedule.ScheduleManagementResultSchema, true),
