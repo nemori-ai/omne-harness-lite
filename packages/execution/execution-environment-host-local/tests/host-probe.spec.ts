@@ -91,7 +91,9 @@ function hostProvider(diagnostics: HostFilesDiagnostic[] = [], probeRetryMs?: nu
   const provider = createHostFilesProvider({
     domain: createHostFilesDomain(),
     diagnose: diagnostic => diagnostics.push(diagnostic),
-    ...(probeRetryMs === undefined ? {} : { command: { probeRetryMs }, terminal: { probeRetryMs } }),
+    ...(probeRetryMs === undefined
+      ? {}
+      : { command: { probeRetryMs }, terminal: { probeRetryMs } }),
   })
   providers.push(provider)
   return provider
