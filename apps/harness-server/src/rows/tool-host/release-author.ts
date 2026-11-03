@@ -1,7 +1,7 @@
 // 发行内置作者的来源与装载器输入（简报 B3-T2a 第 4、7、8 项，L-TOOL 事实清单 §1）。
 // - `source.resolve`：只从受信快照取 Shell、Files 的固定模块、配置与上下文，不按调用参数 import。
 // - `loaderFor`：`createLocalToolLoader`。`settings` 核固定发行设置采用并交运维者层的构造值；`schemas` 先核
-//   定义摘要与清单全等，再履行非空 environment 声明的义务（R2-D68 及补充）。
+//   定义摘要与清单全等，再履行非空 environment 声明的义务（R2-D68 及补充，R2-D79 改为契约自带的 Standard Schema）。
 // - `recordRejection`：本波没有耐久拒绝记录仓，返回被拒绝的 Promise，协调者转为 `unavailable`（具名缺件，波 3）。
 // 任何来源缺失、不一致或读不到都答失败，不默认放行。
 import type { Context } from '@deepseek-ai/cordis'
@@ -9,19 +9,10 @@ import {
   environmentNeedAdoption,
   environmentNeedSchema,
 } from '@omne-harness/execution-environment-contract'
-import { readJsonText, type JsonValue } from '@omne-harness/json-text'
-import { fail, succeed } from '@omne-harness/operation-result'
-import {
-  close,
-  createSchemaProvider,
-  defineSchema,
-  validate,
-  zodDefinition,
-  type SchemaProvider,
-  type SchemaRef,
-} from '@omne-harness/schema-provider'
+import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
-import type { DurableEvidence, Reply, ToolDefinition } from '@omne-harness/tool-contract'
+import type { DurableEvidence, ToolDefinition, ToolFailure } from '@omne-harness/tool-contract'
 import type {
   ToolAuthority,
   ToolLoader,
@@ -50,25 +41,13 @@ const CONSTRUCTION_LIMITS = {
   maxNumberLength: 32,
 }
 
-/** 本行一代的 Schema 提供者预算。schema-provider 不给默认量级，这里只装一个环境需要 schema。 */
-const SCHEMA_BUDGET = {
-  maxSnapshots: 1,
-  maxConstructDepth: 16,
-  maxConstructNodes: 256,
-  failureBackoffMs: 1000,
-  maxAttempts: 3,
-}
-
-/** `environmentNeedAdoption` 映射到的 schema（R2-D68 补充）：执行环境契约的 `environmentNeedSchema`。 */
-export const ENVIRONMENT_NEED_SCHEMA: SchemaRef<unknown> = defineSchema({
-  id: `${environmentNeedAdoption.owner}/${environmentNeedAdoption.name}/${environmentNeedAdoption.revision}`,
-  load: async () =>
-    zodDefinition({
-      revision: environmentNeedAdoption.revision,
-      schema: environmentNeedSchema,
-      numbers: 'exact-or-reject',
-    }),
-})
+/**
+ * `environmentNeedAdoption` 映射到的校验件（R2-D79）：执行环境契约自带的 Standard Schema
+ * `environmentNeedSchema` 的同步 `validate`。只取它的 `~standard.validate`，不经 schema-provider。
+ */
+export type EnvironmentNeedValidator = Readonly<{
+  '~standard': Readonly<{ validate(value: unknown): unknown }>
+}>
 
 const unavailable = (diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency: 'tool-host', diagnostic })
@@ -99,30 +78,50 @@ function constructionOf(
   return read.kind === 'ok' ? read.value : undefined
 }
 
-/** 履行非空 environment 声明的义务：已知采用经 schema-provider 校验，未知或不可用都失败。 */
-async function checkEnvironment(
-  provider: SchemaProvider,
-  schema: SchemaRef<unknown>,
+/**
+ * 履行非空 environment 声明的义务（R2-D79）。采用不是 `environmentNeedAdoption` 答 invalid；契约校验件报
+ * issues 答 invalid；校验件抛出、返回 Promise 或返回读不懂的结果答 unavailable。只有明确的 `{ value }` 才通过。
+ */
+export function checkEnvironmentNeed(
   definition: ToolDefinition,
-): Reply<void> {
+  validator: EnvironmentNeedValidator = environmentNeedSchema,
+): Outcome<void, ToolFailure> {
   const environment = definition.declarations.environment
   if (environment === null) return succeed(undefined)
   if (!sameAdoption(environment.adoption, environmentNeedAdoption))
     return invalid('environment', 'unknown environment declaration adoption')
-  const verdict = await validate(provider, schema, { kind: 'ok', value: environment.value })
-  switch (verdict.kind) {
-    case 'valid':
-      return succeed(undefined)
-    case 'invalid':
-      return invalid('environment', 'environment need declaration is invalid')
-    default:
-      return unavailable(`environment need schema is not usable (${verdict.kind})`)
+  let value: unknown
+  try {
+    value = JSON.parse(writeJsonText(environment.value))
+  } catch {
+    return invalid('environment', 'environment need declaration is not JSON')
   }
+  let result: unknown
+  try {
+    result = validator['~standard'].validate(value)
+  } catch {
+    return unavailable('environment need validator threw')
+  }
+  if (typeof result !== 'object' || result === null)
+    return unavailable('environment need validator gave no result')
+  if (result instanceof Promise || typeof Reflect.get(result, 'then') === 'function') {
+    // A Promise is outside the synchronous contract; settle it quietly and fail closed.
+    void Promise.resolve(result).catch(() => undefined)
+    return unavailable('environment need validator is not synchronous')
+  }
+  const issues: unknown = Reflect.get(result, 'issues')
+  if (issues !== undefined)
+    return Array.isArray(issues) && issues.length > 0
+      ? invalid('environment', 'environment need declaration is invalid')
+      : unavailable('environment need validator gave an unreadable result')
+  return 'value' in result
+    ? succeed(undefined)
+    : unavailable('environment need validator gave an unreadable result')
 }
 
 export type ReleaseAuthorOptions = Readonly<{
-  /** 只在测试里换：映射到 `environmentNeedAdoption` 的 schema。 */
-  environmentNeed?: SchemaRef<unknown>
+  /** 只在测试里换：映射到 `environmentNeedAdoption` 的校验件，默认是契约的 `environmentNeedSchema`。 */
+  environmentNeed?: EnvironmentNeedValidator
 }>
 
 /** tool-host 工厂的三个参数，绑定本行的上下文与运维者构造值。 */
@@ -131,15 +130,7 @@ export function releaseAuthorInput(
   operator: OperatorConstruction,
   options: ReleaseAuthorOptions = {},
 ): LocalToolHostPluginInput<unknown, unknown, B> {
-  const provider = createSchemaProvider(SCHEMA_BUDGET)
-  const schema = options.environmentNeed ?? ENVIRONMENT_NEED_SCHEMA
-  ctx.effect(
-    () => () => {
-      // Stop new admission; checks that already joined finish on their snapshot.
-      close(provider)
-    },
-    'tool-host.schemas',
-  )
+  const validator = options.environmentNeed ?? environmentNeedSchema
 
   // The verifier is the injected authority, read again on every call.
   const verifier: LocalToolContributionVerifier<unknown> = {
@@ -222,7 +213,7 @@ export function releaseAuthorInput(
         if (found === undefined) return unavailable('release snapshot or entry unavailable')
         if (canonicalDigest(loaded.definition) !== found.entry.definition)
           return invalid('definition', 'definition digest differs from the release')
-        return checkEnvironment(provider, schema, loaded.definition)
+        return checkEnvironmentNeed(loaded.definition, validator)
       },
     })
 

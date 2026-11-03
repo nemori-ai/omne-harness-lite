@@ -1,8 +1,7 @@
 // `tool-host` 行的发行内置来源（B3-T2a 第 2、4、7、8 项）：真实 Cordis 装 `tool-bindings` 与 `tool-host` 两行，
-// 经 `toolGenerations.ensureLoaded` 观察作者是否进入登记表。正控用一个测试给的环境需要 schema（见第一条用例）；
-// 生产映射的 schema 在现行 schema-provider 上不可用，对应用例断言它失败关闭（R2-D68 补充的冲突，交回 Reduce）。
+// 经 `toolGenerations.ensureLoaded` 观察作者是否进入登记表。environment 检查用执行环境契约自带的
+// `environmentNeedSchema`（R2-D79）；只有「校验件抛出 / 返回 Promise」两条反例注入别的校验件。
 import { afterEach, describe, expect, it } from 'vitest'
-import { defineSchema, zodDefinition, type SchemaRef } from '@omne-harness/schema-provider'
 import { fail } from '@omne-harness/operation-result'
 import {
   toolBindingsKey,
@@ -11,11 +10,16 @@ import {
 } from '@omne-harness/tool-cordis-contract/cordis'
 import type { ToolBindingRegistry, ToolAuthority } from '@omne-harness/tool-contract/provider'
 import { filesToolModule, shellToolModule } from '@omne-harness/tool-definitions'
-import { z } from 'zod'
 import { governanceOf } from '../../../src/entry/tool-release-manifest.ts'
 import { toolBindingsRow } from '../../../src/rows/tool-bindings/index.ts'
 import { createToolHostPlugin } from '../../../src/rows/tool-host/index.ts'
-import { releaseAuthorInput } from '../../../src/rows/tool-host/release-author.ts'
+import {
+  checkEnvironmentNeed,
+  releaseAuthorInput,
+  type EnvironmentNeedValidator,
+} from '../../../src/rows/tool-host/release-author.ts'
+import { deriveDefinition, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
+import type { ToolDefinition } from '@omne-harness/tool-contract'
 import { got } from '../../entry/support.ts'
 import { sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
 import { fixtureTenant, okOf } from '../../entry/support.ts'
@@ -29,23 +33,6 @@ import {
   tree,
   type ReleaseFixture,
 } from './support.ts'
-
-/** 测试给的 schema-provider 可用的环境需要 schema，与执行环境契约的 JSON Schema 同形。 */
-const TEST_ENVIRONMENT_NEED: SchemaRef<unknown> = defineSchema({
-  id: 'test/environment-need',
-  load: async () =>
-    zodDefinition({
-      revision: '1',
-      numbers: 'exact-or-reject',
-      schema: z.strictObject({
-        facilities: z.array(z.string().min(1)),
-        isolation: z.array(z.string().min(1)),
-        layers: z.array(
-          z.enum(['host_machine', 'stateless_sandbox', 'session_sandbox', 'tenant_sandbox']),
-        ),
-      }),
-    }),
-})
 
 const cleanups: (() => void | Promise<void>)[] = []
 afterEach(async () => {
@@ -62,7 +49,7 @@ async function host(
   options: Readonly<{
     fixture?: ReleaseFixture
     construction?: unknown
-    environmentNeed?: SchemaRef<unknown>
+    environmentNeed?: EnvironmentNeedValidator
   }> = {},
 ): Promise<Host> {
   const fixture = options.fixture ?? (await releaseFixture())
@@ -84,11 +71,8 @@ const names = (app: Host) =>
   okOf(app.registry.snapshot(SYSTEM), 'snapshot').map(row => row.key.asset.name)
 
 describe('tool-host: ensureLoaded of the release authors', () => {
-  it('loads Shell and Files once the snapshot, the operator values and every check agree', async () => {
-    const app = await host({
-      construction: TEST_CONSTRUCTION,
-      environmentNeed: TEST_ENVIRONMENT_NEED,
-    })
+  it('loads Shell and Files on the production path: the real environmentNeedSchema, snapshot and operator values', async () => {
+    const app = await host({ construction: TEST_CONSTRUCTION })
     for (const name of ['Shell', 'Files']) {
       const loaded = await app.generations.ensureLoaded({
         authority: authorityOf(app.manifest, name),
@@ -105,7 +89,6 @@ describe('tool-host: ensureLoaded of the release authors', () => {
     const app = await host({
       fixture: await releaseFixture(releaseFrom(tampered.root)),
       construction: TEST_CONSTRUCTION,
-      environmentNeed: TEST_ENVIRONMENT_NEED,
     })
     const loaded = await app.generations.ensureLoaded({
       authority: authorityOf(app.manifest, 'Shell'),
@@ -116,7 +99,7 @@ describe('tool-host: ensureLoaded of the release authors', () => {
   })
 
   it('answers unavailable and loads nothing without the operator construction', async () => {
-    const app = await host({ environmentNeed: TEST_ENVIRONMENT_NEED })
+    const app = await host()
     const loaded = await app.generations.ensureLoaded({
       authority: authorityOf(app.manifest, 'Files'),
       access: SYSTEM,
@@ -125,8 +108,21 @@ describe('tool-host: ensureLoaded of the release authors', () => {
     expect(names(app)).toEqual([])
   })
 
-  it('fails closed with the production environment-need mapping (schema-provider refuses it today)', async () => {
-    const app = await host({ construction: TEST_CONSTRUCTION })
+  const throwing: EnvironmentNeedValidator = {
+    '~standard': {
+      validate: () => {
+        throw new Error('validator failure')
+      },
+    },
+  }
+  const asynchronous: EnvironmentNeedValidator = {
+    '~standard': { validate: async (value: unknown) => ({ value }) },
+  }
+  it.each([
+    ['throws', throwing],
+    ['returns a Promise', asynchronous],
+  ])('fails closed and loads nothing when the environment validator %s', async (_, validator) => {
+    const app = await host({ construction: TEST_CONSTRUCTION, environmentNeed: validator })
     const loaded = await app.generations.ensureLoaded({
       authority: authorityOf(app.manifest, 'Shell'),
       access: SYSTEM,
@@ -136,10 +132,7 @@ describe('tool-host: ensureLoaded of the release authors', () => {
   })
 
   it('denies a tenant access: only the release registrant may register an official author', async () => {
-    const app = await host({
-      construction: TEST_CONSTRUCTION,
-      environmentNeed: TEST_ENVIRONMENT_NEED,
-    })
+    const app = await host({ construction: TEST_CONSTRUCTION })
     const tenant = fixtureTenant('a')
     const principal = okOf(sessionWorkIssuerOf(app.env)({ tenant, session: 'ses-1' }), 'issue')
     const loaded = await app.generations.ensureLoaded({
@@ -154,12 +147,10 @@ describe('tool-host: ensureLoaded of the release authors', () => {
 describe('tool-host: the release source and loader input', () => {
   async function input(construction: unknown = TEST_CONSTRUCTION) {
     const fixture = await releaseFixture()
-    const app = await host({ fixture, environmentNeed: TEST_ENVIRONMENT_NEED })
+    const app = await host({ fixture })
     return {
       app,
-      parts: releaseAuthorInput(app.root, construction as never, {
-        environmentNeed: TEST_ENVIRONMENT_NEED,
-      }),
+      parts: releaseAuthorInput(app.root, construction as never),
     }
   }
 
@@ -223,5 +214,58 @@ describe('tool-host: the release source and loader input', () => {
     const { app, parts } = await input()
     const resolved = okOf(await parts.source.resolve(authorityOf(app.manifest, 'Files')), 'resolve')
     expect(resolved.config.construction).toEqual(tree(TEST_CONSTRUCTION.Files))
+  })
+})
+
+describe('tool-host: the environment declaration against the real environmentNeedSchema', () => {
+  async function shellDefinition(): Promise<ToolDefinition> {
+    const fixture = await releaseFixture()
+    const created = okOf(shellToolModule.createAuthor(tree(TEST_CONSTRUCTION.Shell)), 'author')
+    return okOf(
+      judgeToolDefinition(
+        deriveDefinition(governanceOf(entryOf(fixture.manifest, 'Shell')), created.facts),
+      ),
+      'definition',
+    )
+  }
+  const withEnvironment = (definition: ToolDefinition, value: unknown): ToolDefinition => {
+    const environment = definition.declarations.environment
+    if (environment === null) throw new Error('fixture: Shell declares an environment')
+    return {
+      ...definition,
+      declarations: {
+        ...definition.declarations,
+        environment: { ...environment, value: tree(value) },
+      },
+    }
+  }
+
+  it('passes the declaration the author makes', async () => {
+    expect(checkEnvironmentNeed(await shellDefinition())).toEqual({ ok: undefined })
+  })
+
+  it('answers invalid when one field of the declaration is broken', async () => {
+    const definition = withEnvironment(await shellDefinition(), {
+      facilities: ['command', 'terminal'],
+      isolation: [],
+      layers: ['cloud'],
+    })
+    expect(checkEnvironmentNeed(definition)).toMatchObject({
+      failure: { kind: 'invalid', field: 'environment' },
+    })
+  })
+
+  it('answers invalid for an environment declaration under another adoption', async () => {
+    const definition = await shellDefinition()
+    const environment = definition.declarations.environment
+    if (environment === null) throw new Error('fixture: Shell declares an environment')
+    const other: ToolDefinition = {
+      ...definition,
+      declarations: {
+        ...definition.declarations,
+        environment: { ...environment, adoption: { ...environment.adoption, revision: '2' } },
+      },
+    }
+    expect(checkEnvironmentNeed(other)).toMatchObject({ failure: { kind: 'invalid' } })
   })
 })

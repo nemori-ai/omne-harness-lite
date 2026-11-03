@@ -74,8 +74,9 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
   `context.services` 是空对象，因为两个作者没有声明宿主服务。
 - `loaderFor` 用 `createLocalToolLoader`。`settings` 核对设置采用与清单全等，再交运维者层的构造值。
   `schemas` 先核 `loaded.definition` 的规范化摘要与清单全等，不等答 `invalid`。然后履行非空 environment
-  声明的义务：采用不是 `environmentNeedAdoption` 时答 `invalid`；是时把 `environmentNeedSchema` 交给
-  `@omne-harness/schema-provider` 校验，不通过答 `invalid`，不可用答 `unavailable`。
+  声明的义务（R2-D79）：采用不是 `environmentNeedAdoption` 时答 `invalid`；是时直接调用执行环境契约的
+  `environmentNeedSchema['~standard'].validate`，不经 schema-provider。结果有 issues 时答 `invalid`；校验件
+  抛出、返回 Promise 或返回读不懂的结果时答 `unavailable`。只有明确的 `{ value }` 才通过。
 - `recordRejection` 返回被拒绝的 Promise。协调者把它转成 `unavailable`，不伪造永久 `rejected`。
 
 ## `tool-bindings` 行
@@ -101,10 +102,6 @@ A 段的运行时三项：
 
 ## 具名缺件与已知限制
 
-- **环境需要 schema 不可用（R2-D68 补充与源码冲突，已交回 Reduce）**：`environmentNeedSchema` 不是 Zod
-  schema，现行 schema-provider 的 Zod 引擎编译它时失败，答 `refused` 或 `unavailable`。所以生产装配下
-  `Shell`、`Files` 的装载都失败关闭为 `unavailable`。执行环境契约的 JSON Schema 文档带 2020-12 的 `$schema`，
-  schema-provider 的 JSON Schema 引擎也编译失败。用例用一个测试给的同形 schema 证明其余链路。
 - **耐久拒绝记录，波 3**：本波没有拒绝记录仓。
 - **官方作者只能由登记者装载**：租户访问调 `ensureLoaded` 时 `admits` 答 `denied`。采用点的首装需要系统作用域
   或登记者路径，接线归后续 B 段与 `adoption-sources`。
@@ -116,8 +113,9 @@ A 段的运行时三项：
 
 - [来源权威与快照](../../tests/entry/tool-release.spec.ts)：每个字段的改动、非官方层、未知资产、快照不可用、
   登记者以外的主体、代次不符、产物翻转一个字节、手改清单、executor 漂移。
-- [tool-host](../../tests/rows/tool-host/release-host.spec.ts)：真实 Cordis 下首装两作者的正控、篡改产物、
-  缺运维者值、生产 schema 失败关闭、租户访问被拒、来源不按参数 import、定义与设置不符、拒绝记录。
+- [tool-host](../../tests/rows/tool-host/release-host.spec.ts)：真实 Cordis 下按生产路径（真实
+  `environmentNeedSchema`）首装两作者、篡改产物、缺运维者值、校验件抛出或返回 Promise 时失败关闭、租户访问被拒、
+  来源不按参数 import、定义与设置不符、拒绝记录，以及 environment 声明合法通过、改坏一个字段与未知采用答 `invalid`。
 - [tool-bindings](../../tests/rows/tool-bindings/release-bindings.spec.ts)：可用性各分支、启动权威代理、
   两个占位、一个 fiber 两个服务。
 - [清单脚本](../../tests/tool-release-script.spec.ts)：一致、产物不符、手改条目、只改格式、用法错误。

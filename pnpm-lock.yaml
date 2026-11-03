@@ -257,9 +257,6 @@ importers:
       '@omne-harness/runtime-context-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/context/runtime-context-cordis-contract
-      '@omne-harness/schema-provider':
-        specifier: workspace:*
-        version: link:../../packages/schema/schema-provider
       '@omne-harness/server-entry':
         specifier: workspace:*
         version: link:../../packages/access/server-entry
