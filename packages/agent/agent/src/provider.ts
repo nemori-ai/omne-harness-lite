@@ -40,6 +40,7 @@ import type {
   AgentRuntimeBinding,
 } from './construction.ts'
 import { canonical } from './canonical.ts'
+import { maxRunStepsOf } from './configuration.ts'
 import { createExecutionCoordinator } from './loop/coordinator.ts'
 import { agentEvidence } from './loop/identities.ts'
 import { advanceControl } from './control.ts'
@@ -160,7 +161,7 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   binding: AgentRuntimeBinding
   configuration: Pick<
     AgentConfiguration,
-    'reconciliationDelayMs' | 'toolConcurrency' | 'jointCommits'
+    'reconciliationDelayMs' | 'toolConcurrency' | 'jointCommits' | 'maxRunSteps'
   >
   guard: AccessGuard<P>
   dependencies: AgentDependencies<P, B>
@@ -359,6 +360,7 @@ export function createProvider<P, B extends ContentBlock>(
       grant: input.grant,
       idle: release,
       toolConcurrency: entry.configuration.toolConcurrency,
+      maxRunSteps: maxRunStepsOf(entry.configuration),
     })
     const opened = await measurer.segment(
       'accept',
@@ -492,6 +494,7 @@ export function createProvider<P, B extends ContentBlock>(
       initial: input.initial,
       grant: input.grant,
       idle: () => {},
+      maxRunSteps: maxRunStepsOf(entry.configuration),
     })
     const opened = await measurer.segment(
       'accept',

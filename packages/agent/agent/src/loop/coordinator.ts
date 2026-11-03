@@ -170,6 +170,13 @@ export type ExecutionEntry<P> = Readonly<{
   idle(): void
   toolConcurrency?: number
   /**
+   * The most steps this execution takes (R2-D221, the M2 fallback for the loop judgment of wave 3).
+   * When E4 or I8 would open the step after the last one, the execution fails with a `guard`
+   * candidate instead. Absent: no limit, which only a coordinator built directly by a test gets;
+   * the runtime always passes the configured or default value.
+   */
+  maxRunSteps?: number
+  /**
    * Receives the report of a cold read of the reply admission facts (D5 5.1, 治疗). Optional; the
    * runtime assembly gives none yet, so the report then goes nowhere.
    */
@@ -879,18 +886,52 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
    * superseded) is a contract outcome whose nodes come with #502 1.4 and stage 5, so it stops here
    * by name instead of reaching the table as a defect.
    */
-  function evaluate(node: 'E4' | 'I8', at: LoopFacts): Outcome<Step, Failure> {
+  async function evaluate(node: 'E4' | 'I8', at: LoopFacts): Promise<Outcome<Step, Failure>> {
     const evaluated = evaluator.next(at)
     if ('failure' in evaluated) return evaluated
     if (evaluated.ok.kind === 'stop')
       return fail(notYet(node, `a stop (${evaluated.ok.reason})`, '#502 1.4 and stage 5'))
-    decided = evaluated.ok
-    if (evaluated.ok.kind === 'wait') {
+    let next = evaluated.ok
+    if (next.kind === 'take-inputs') {
+      const limited = await stepLimit(at.checkpoint.step)
+      if (limited !== null && 'failure' in limited) return limited
+      if (limited !== null) next = limited.ok
+    }
+    decided = next
+    if (next.kind === 'wait') {
       recheckDependency = null
-      waits = evaluated.ok.waiting
+      waits = next.waiting
       waitingAt = node
     }
-    return step(evaluated.ok.kind, null)
+    return step(next.kind, null)
+  }
+
+  /**
+   * The step limit (R2-D221): after `limit` steps, the next step is not opened. Like pi-agent-core's
+   * `finishTurn` returning `end`, the check sits after a completed step and before the next Model
+   * request, and it never cuts a step short. Unlike a normal end, the execution does not complete:
+   * the candidate is a failure of kind `guard` at level 3, whose basis names the limit and the step
+   * count, so the end reason says that the limit stopped the work. Null: the step may open.
+   */
+  async function stepLimit(
+    of: StepId,
+  ): Promise<Outcome<Extract<Next, { kind: 'try-finish' }>, Failure> | null> {
+    const limit = entry.maxRunSteps
+    const taken = ordinalOf(of)
+    if (limit === undefined || taken < limit) return null
+    const instant = await ports.clock.now()
+    if ('failure' in instant) return instant
+    const basis = agentEvidence(`${execution}/${of}/max-run-steps`, { maxRunSteps: limit, taken })
+    const failure: FailureCandidate = {
+      kind: 'guard',
+      level: 3,
+      basis,
+      step: of,
+      at: instant.ok,
+      source: basis,
+    }
+    const cause = agentEvidence(`${execution}/${of}/guard`, failure)
+    return succeed({ kind: 'try-finish', conclusion: { kind: 'fail', cause }, failure })
   }
 
   // ------------------------------------------------------------------------------------------
@@ -1557,7 +1598,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const current = await readFacts(read.ok)
       if ('failure' in current) return current
       facts = current.ok
-      const evaluated = evaluate('I8', current.ok)
+      const evaluated = await evaluate('I8', current.ok)
       if ('failure' in evaluated) return evaluated
       // W0 saves the wait while retaining I8 as the continuation. It does not claim a wakeup.
       return evaluated.ok.on === 'wait'
