@@ -30,7 +30,7 @@ function sameCapability(left: CapabilityId, right: CapabilityId): boolean {
   return left.category === right.category && left.name === right.name
 }
 
-/** Step 3: the resolution answer, mapped as the group page "端口" table says. */
+/** Step 3: the resolution answer, mapped by the group page "端口" table. */
 function gatedOf(
   answer: Resolution,
   basis: SkillMaterialBasis | undefined,

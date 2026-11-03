@@ -16,4 +16,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 本包事实
 
-`index.ts` 只重新导出两个工厂与 `SkillPorts`。`access/` 的三段与 `mapping.ts` 不公开，测试直接导入它们。源码没有 `class`，没有 `any`，没有 `as const` 之外的 `as`；品牌只由契约的守卫授予。模块划分与依赖方向见 [docs/architecture.md](../docs/architecture.md)。
+`index.ts` 只重新导出两个工厂与 `SkillPorts`。`access/` 的三段与 `mapping.ts` 不公开，测试直接导入它们。源码不用类、不用类型断言（只用 `as const`）、不用 TypeScript 的顶层宽类型；品牌只由契约的守卫授予。模块划分与依赖方向见 [docs/architecture.md](../docs/architecture.md)。

@@ -1,5 +1,5 @@
 // Step 11: the byte range of one page, by the SPEC "读取的形状规则". A pure function over the
-// verified bytes. Text is strict UTF-8 (the snapshot says so), so a character boundary is any
+// verified bytes. Text is strict UTF-8 (the snapshot says so), so a character boundary is each
 // byte that is not a continuation byte (0b10xxxxxx), and a slice between boundaries decodes.
 import type { ByteRange, Bytes, PackageEntry, ReadContent } from '@omne-harness/skill-contract'
 
@@ -18,14 +18,14 @@ function continuationAt(region: Bytes, at: number): boolean {
   return ((region[at] ?? 0) & 0b1100_0000) === 0b1000_0000
 }
 
-/** The first character boundary at or after `index`; the total counts as a boundary. */
+/** The first character boundary at `index` or after it; the total counts like a boundary. */
 function boundaryAtOrAfter(region: Bytes, index: number): number {
   let at = index
   while (continuationAt(region, at)) at += 1
   return at
 }
 
-/** The last character boundary at or before `index`. `index` is not before a boundary, so the
+/** The last character boundary at `index` or before it. `index` is not before a boundary, so the
  * walk stops there at the latest. */
 function boundaryAtOrBefore(region: Bytes, index: number): number {
   let at = index
