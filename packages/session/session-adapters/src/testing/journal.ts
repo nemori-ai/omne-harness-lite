@@ -2334,6 +2334,7 @@ export function createJournal<P>(
       if (
         decision.kind !== 'prepared' ||
         !sameValue(caller.message, decision.message) ||
+        !sameValue(caller.source, outcome.record) ||
         !sameValue(caller.admission, decision.admission)
       )
         return fail(invalid('caller', 'the message commit does not match the outcome of the H'))
