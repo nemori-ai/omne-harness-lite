@@ -134,8 +134,8 @@
 | [UL-master-category](terms/capabilities-and-composition.md#ul-master-category--master-类目--master-category) | master 类目 | Master Category | master 主要干什么的，五类；**只出厂加**，**不是会话类型** |
 | [UL-asset-version](terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version) | 资产版本 | Asset Version | 一个资产某一次发布定下的那份内容，已发布即不可变；已有会话的常驻工具只在采用点跟随同形的新版 |
 | [UL-skill-package](terms/capabilities-and-composition.md#ul-skill-package--skill-包--skill-package) | Skill 包 | Skill Package | 技能一份完整内容的形式：以 `SKILL.md` 为根的目录树；**不是身份，不是插件，也不是代码成员包** |
-| [UL-package-snapshot](terms/capabilities-and-composition.md#ul-package-snapshot--包快照--package-snapshot) | 包快照 | Package Snapshot | Skill 包某一时刻全部条目的不可变清单及其内容摘要；**内容摘要是散列值，不是文字摘要** |
-| [UL-material-basis](terms/capabilities-and-composition.md#ul-material-basis--材料依据--material-basis) | 材料依据 | Material Basis | 调用方手里指明此前读到哪一份 Skill 材料的值：能力标识、来源层、资产版本（工作区来源可缺省）与包快照的内容摘要四项，凭能力标识、来源层与内容摘要确定同一份材料；**不含包的位置，不授予访问，不是采用依据** |
+| [UL-package-snapshot](terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot) | Skill 包快照 | Skill Package Snapshot | Skill 包某一时刻全部条目的不可变清单及其内容摘要；**内容摘要是散列值，不是文字摘要** |
+| [UL-material-basis](terms/capabilities-and-composition.md#ul-material-basis--skill-材料依据--skill-material-basis) | Skill 材料依据 | Skill Material Basis | 调用方手里指明此前读到哪一份 Skill 材料的值：能力标识、来源层、资产版本（工作区来源可缺省）与Skill 包快照的内容摘要四项，凭能力标识、来源层与内容摘要确定同一份材料；**不含包的位置，不授予访问，不是采用依据** |
 | [UL-asset-composition](terms/capabilities-and-composition.md#ul-asset-composition--资产组合--asset-composition) | 资产组合 | Asset Composition | 资产之间、资产与 agent 之间的同一种关系 |
 | [UL-agent-constitution](terms/capabilities-and-composition.md#ul-agent-constitution--agent-构成--agent-constitution) | agent 构成 | Agent Constitution | 装配清单里「它是什么」的那部分；旧名 ~~实例构成~~ |
 | [UL-action-space](terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space) | 动作空间 | Action Space | 会话已知能力的动作视图；身份单调保留，可用性与准入另判 |
@@ -280,7 +280,7 @@
 | [UL-deployment-parameter](terms/grounding-and-isolation.md#ul-deployment-parameter--部署参数--deployment-parameter) | 部署参数 | Deployment Parameter | 「按部署配置」那些值的统称，运维者给值、缺一不可、改了只影响此后；**不是范围化对象** |
 | [UL-subprocess-environment-allowlist](terms/grounding-and-isolation.md#ul-subprocess-environment-allowlist--子进程环境变量名单--subprocess-environment-allowlist) | 子进程环境变量名单 | Subprocess Environment Allowlist | 只从父进程复制名单内且存在的变量，不自动继承其余变量 |
 | [UL-credential-custodian](terms/grounding-and-isolation.md#ul-credential-custodian--凭据保管方--credential-custodian) | 凭据保管方 | Credential Custodian | 拿着凭据本体的那一方，**只按条件交出、不拿别的顶上**，落地只以密文；**只保管，不决定配哪一把**；本版只在据点 |
-| [UL-package-source](terms/grounding-and-isolation.md#ul-package-source--包来源--package-source) | 包来源 | Package Source | 按内容摘要交出 Skill 包字节的那一方；**不是资产来源，也不是来源层**，不判定用哪一份、谁能读 |
+| [UL-package-source](terms/grounding-and-isolation.md#ul-package-source--skill-包来源--skill-package-source) | Skill 包来源 | Skill Package Source | 按内容摘要交出 Skill 包字节的那一方；**不是资产来源，也不是来源层**，不判定用哪一份、谁能读 |
 
 ## [取用与可用性](terms/reach-and-availability.md)
 

@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | `@omne-harness/skill`（`packages/skills/skill`） | 已实现已接受的 `skill` 类别端口 `skillBodyContract`。依赖 `@omne-harness/assets`，不依赖 Tool。不提供发现、读取、导出或发布 | [成员入口](skill/README.md)与[规格](skill/SPEC.md) |
 
-作为纯契约成员，`@omne-harness/skill` 在组设计中还要承接值、纯函数、端口与服务接口。它的 `./testing` 入口导出符合性设施：`PackageSource`、`SkillAccess`、`SkillReadCheck` 与 `SkillResolution` 的符合性套件，以及内存来源。`SkillReadCheck` 与 `SkillResolution` 的套件核对：对无权主体，答复不随该身份是否存在而变。这些都是候选，尚未实现。它允许的生产依赖逐个列出：`@omne-harness/assets`、`@omne-harness/operation-result`、`@omne-harness/legal-identity`、`@omne-harness/content-block` 与 `@omne-harness/json-text`。
+作为纯契约成员，`@omne-harness/skill` 在组设计中还要承接值、纯函数、端口与服务接口。它的 `./testing` 入口导出符合性设施：`SkillPackageSource`、`SkillAccess`、`SkillReadCheck` 与 `SkillResolution` 的符合性套件，以及内存来源。`SkillReadCheck` 与 `SkillResolution` 的套件核对：对无权主体，答复不随该身份是否存在而变。这些都是候选，尚未实现。它允许的生产依赖逐个列出：`@omne-harness/assets`、`@omne-harness/operation-result`、`@omne-harness/legal-identity`、`@omne-harness/content-block` 与 `@omne-harness/json-text`。
 
 组设计另有三个具名文档目标。它们都尚非 workspace 成员：没有包、源码或运行实例。名字、职责与依赖都是候选决定，尚未取得技术接受。建包时随成员规格确定。分波只有三种：第一波、第一波之后、Cordis 服务键波，见[成员承接表](docs/architecture.md#完整行为候选的正式承接缺口)。
 
