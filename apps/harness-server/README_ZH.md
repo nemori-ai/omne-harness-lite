@@ -13,6 +13,7 @@ Harness Server 的应用装配。它经 Cordis 装载插件树，检查各行装
 - 两层插件树和边界 schema。
 - 装载器、受信子树的可见性和就绪报告。
 - 行快照 `src/s0/aa-rows.json`、它的生成脚本和差分检查。
+- 发行内置 Tool 清单 `config/tool-release.json`、生成脚本 `scripts/tool-release.mjs` 与它的核对。见 [docs/rows/tool-release.md](docs/rows/tool-release.md)。
 - 关闭协调器和进程入口 `dist/bin.js`。
 - `./cordis` 导出，含 S0 替身插件。各行闭包把真实导出加进去。
 - 真实模式的子命令 `serve`、行声明 `defineRow`、入口对象注册表与装载前检查。见 [docs/real-mode.md](docs/real-mode.md)。
@@ -21,7 +22,7 @@ SPEC.md 里的有序关闭规则（启动次序、停止状态后不再调用 `s
 
 S0 不接 HTTP，不创建租户，不打开业务状态根，不读真实秘密。S0 通过不表示租户可以创建或使用。
 
-`serve` 模式以正式服务键装载同一批行。示例配置里，存储、身份、授权、会话存储与提供者、Agent 采用、采用来源与服务端接入这些行是真实实现，其余行仍是替身。所以 `serve` 通过只检查装配，不检查完整的租户路径。
+`serve` 模式以正式服务键装载同一批行。示例配置里，存储、身份、授权、会话存储与提供者、Agent 采用、采用来源、Tool 绑定、Tool 宿主、常驻引用桥接与服务端接入这些行是真实实现，其余行仍是替身。所以 `serve` 通过只检查装配，不检查完整的租户路径。
 
 ## 使用
 
@@ -104,9 +105,10 @@ pnpm --filter @omne-harness/harness-server run build
 pnpm --filter @omne-harness/harness-server run test:fast
 pnpm --filter @omne-harness/harness-server run test:slow
 pnpm --filter @omne-harness/harness-server run check:aa-rows
+pnpm --filter @omne-harness/harness-server run check:tool-release
 ```
 
-`test:slow` 会启动 `dist/bin.js`，所以先运行 `build`。`check:aa-rows` 比较行快照与应用装配页。
+`test:slow` 会启动 `dist/bin.js`，所以先运行 `build`。`check:aa-rows` 比较行快照与应用装配页。`check:tool-release` 从已构建的 `@omne-harness/tool-definitions` 重算 Tool 发行清单，所以先构建该包。
 
 测试使用替身与夹具行，不使用真实 SQL 提供者、真实身份和真实存储。替身通过不证明耐久性或真实供应商行为。
 
@@ -122,6 +124,13 @@ pnpm --filter @omne-harness/harness-server run check:aa-rows
 ```sh
 cd apps/harness-server
 node scripts/aa-rows.mjs write --aa ../../docs/architecture/runtime/application-assembly.md --rows src/s0/aa-rows.json
+```
+
+`@omne-harness/tool-definitions` 或本应用版本变化时，先构建，再在同一次改动里重新生成 Tool 发行清单：
+
+```sh
+cd apps/harness-server
+node scripts/tool-release.mjs write
 ```
 
 然后手工更新 `src/s0/stubs.ts`，使它跟随变化的行。`tests/real-manifests-sync.spec.ts` 把每个真实行导出与这张表比较。装配页补丁落地时，在同一次改动里删掉 `KNOWN_GAPS` 的对应条目。

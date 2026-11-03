@@ -220,7 +220,7 @@
     },
     {
       "id": "tool-bindings",
-      "plugin": "stubPlugin",
+      "plugin": "toolBindingsRow",
       "config": {}
     },
     {
@@ -235,13 +235,15 @@
     },
     {
       "id": "tool-host",
-      "plugin": "stubPlugin",
+      "plugin": "toolHostRow",
       "config": {}
     },
     {
       "id": "tool-residency",
-      "plugin": "stubPlugin",
-      "config": {}
+      "plugin": "toolResidencyRow",
+      "config": {
+        "pageSize": 100
+      }
     },
     {
       "id": "tool-instances",

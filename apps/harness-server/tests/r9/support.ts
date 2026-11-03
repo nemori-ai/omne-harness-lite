@@ -101,6 +101,24 @@ export function operatorLayer(options: {
           updatedAt: '2026-11-02T00:00:00Z',
         },
       },
+      // tool-host 的构造值归运维者层，发行层不写默认值（B3-T2a 第 4 项）。这里是测试值：r9 与 serve 测试不执行
+      // Shell 或 Files（execution-* 行仍是替身），值只满足两个作者的构造字段。cwd 取本次的存储根，执行文件取当前 Node。
+      {
+        kind: 'replace',
+        id: 'tool-host',
+        config: {
+          construction: {
+            Shell: {
+              resultMaxBytes: 65536,
+              executable: process.execPath,
+              argsPrefix: [],
+              cwd: options.storageRoot,
+              env: {},
+            },
+            Files: { resultMaxBytes: 65536 },
+          },
+        },
+      },
       { kind: 'replace', id: 'server-entry', config: { listenPort: options.port } },
     ],
   }
