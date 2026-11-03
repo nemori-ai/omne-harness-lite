@@ -1,193 +1,240 @@
-# 日程与作业内部机制候选
+# 日程与 Job 内部设计
 
-本页保存尚待技术采用的设计，不表示实现、产品接受或阶段承诺。完整必要行为见[schedule/schedule SPEC](../SPEC.md)，产品范围见[产品正文](../../../../.meta_harness/design/product/schedules-and-jobs/design.md)。
+本页是完整目标设计，尚未实现。必要行为归 [SPEC](../SPEC.md)，唯一公开形状与端口归[公开 API 设计](public-api-design.md)。问题轴分为 Schedule 意图与管理、日期计算、Job 接受、实际执行、外部结果、调用入口；各轴拥有者分别负责其事实，Cordis 不定义领域。
 
 ## 必要身份与分别成立的状态
 
-Schedule 身份独立于创建会话，租户安排固定组织/账号归属；系统自用安排明确系统归属。操作发起者、预置来源、通知目标与所有者不混同。一次保存的定义可以区别，实际采用的能力/表示/运行代际也各有依据；它们不共用一个版本号。精确标识、编码和冲突表达为 Q-SJ02。
+ScheduleId 标识一份安排；sourceScheduleKey 保留 Python 源 job_id，不能当目标 JobId。JobId 标识一次已接受工作，PreparationId 标识耐久计算证明，ReceiptId/occurrenceKey 标识来源窗口判决，operationRef 标识可认回操作。sourceKey 保留原 civil 来源，多个 source 合并的有效时刻、rule revision、attemptId、executionRef、notificationIntentId、notificationId、resultSeriesId、resultEntryId 与 providerGeneration 各自独立。晚到结果只能入原身份，不能按最近 timestamp 猜对象。
 
-Job 可认回来源 Schedule、原定发生时刻/合并来源及本次接受关系，固定完整工作要求、策略、日期身份/版本/解释。记录实际受理、实际开始及结果，不以它们改写原定时刻。来源去重必须能辨认已经接受及明确已处理的候选，包括后来被日历移到不同有效日期的同一来源；不能只按当前时间戳猜相同工作。与已接受有效时刻碰撞的新来源另记跳过，不回填旧 Job。
+Schedule 管理轴为 draft/active/paused/stopped/exhausted/discarded/superseded。standing 为 ready/blocked/terminallyInvalidated，和 paused 可并存。Job 的 execution 与 notification body 是判别分支；stopRequested、executionOutcome、delivery、masterReturn、publication、archive 各自记录，不把一种成功投影成全部成功。unknown 不是 terminal evidence，不释放 replace 等待。
 
-| 维度 | 分别成立的事实 |
-| --- | --- |
-| Schedule 后续控制 | 允许新工作、暂停、手动结束或按合法时刻/漏过处置自然结束 |
-| 候选处置 | 仅预算、因依据/资格受阻、合法漏过、明确不补/排除/重叠/既有工作跳过、已接受 |
-| Job 主动作 | 已接受未开始、排队/等停止确认、装配受阻、实际执行/发送、已知结局或未知 |
-| 控制 | 取消请求、开始前取消已成立、原执行停止进展/确认、外部已发生及未知效果 |
-| 成果/目标 | 进度、候选最终成果、问题事实、目标检查及其实际依据 |
-| 通知 | 本次声明、实际所选事件、未触发不适用、交付义务、可靠承接、送达及未知 |
-| 整份工作 | 纯执行成功、纯通知成功、组合成功及不能成功的实际原因/未完责任 |
+```mermaid
+stateDiagram-v2
+    [*] --> draft
+    [*] --> active
+    draft --> draft : reviseDraft
+    draft --> active : promote严格未来
+    draft --> discarded : discard
+    active --> paused : pause
+    paused --> active : resume
+    active --> stopped : stop
+    paused --> stopped : stop
+    active --> exhausted : 合格时隙及漏过处置耗尽
+    active --> superseded : replace原子建立后继
+    paused --> superseded : replace原子建立后继
+```
 
-这些不是一个必然依次推进的单值枚举。主动作终结、Session 归档、仍有独立执行收尾和通知责任可同时成立。已确认取消的执行不能被迟到成果改成正常成功；迟到事实仍归原工作保存。公共状态形状未定不允许丢掉这些区别。
-
+终局 standing 另外禁止新接受，不能由 restore、重授或同名新对象复活。replace 保留双向 lineage；旧 Job 和全部 revision 不迁给后继。非重要文字 update 不改 identity 或管理状态；draft 可完整修订。promote 的当前人/agent、同意、quota、依赖和未来时刻复核与结果一起保存。
 
 ## 完整定义保存与日期组合
 
-create/update 先解析显式身份、工作及声明，校验适用类型和合法资格，再在定义拥有者的一致保存边界成立完整结果。创建成功启用，编辑保持原管理状态；不能内容已生效而时间未生效。并发编辑、pause/resume/stop 与 Job 接受形成可追溯顺序；旧读前提已经变化时重核或冲突，不能覆盖后来确认事实。预览只消费实际定义及依据，不要求额外先预览才能保存。
+## 5. 时间规则、算法与 Node 技术映射
 
-时间计算的组合顺序固定：生成基础候选；检查原日期的包含边界、首次启用及显式排除；执行已声明日期处理；检查结果日期同样的边界/排除；解释本地夏令时；合并同一有效时刻的未接受候选。平移不继续绕过已排除结果，所经过的日期缺覆盖即受阻。不存在的月日/位置或本地时刻跳过，重复本地时刻取第一次。日历只交出同版日期知识/有界计算，整体规则合法性、顺序、次数、来源与结果解释由 Schedule 协调保护。
+纯函数不得调用 `Date.now()`、读取数据库、取得当前用户设置或访问网络。调用方传入时间、不可变日历依据、版本和边界。Clock 提供 UTC instant 与单调耗时两个能力，不能以 wall-clock 计算租约已耗时。
 
-引用与展开同一实际定义的预览应等价，并携带实际日历/版本/解释。自然语言在保存前解释成支持的明确规则；计算不猜意图。不需要日历知识的保持原日规则可不绑定日历，其他真实依赖不得因属性名而免除。消费者日历设置切换不改 Schedule 已保存的日历身份；新版只参与尚未接受候选。查询失败、覆盖不足、无权和合法空结果可区分。Q-SJ03 落实精确时间形状、算法及日历组合映射。
+### 5.1 规则表达
 
+- `once`：唯一无 offset 的本地日期时间，保存时固定相对表达。创建时过去或 DST gap 拒绝。默认既有源 UTC 仅用于导入 explicit 记录，follow 创建必须解析用户环境，缺失则拒绝。
+- `cron`：标准五字段，分钟精度。拒绝秒字段、宏、随机散列和 provider 专有语法。DOM/DOW 同时受限时为 OR。星期 0/7 都是周日，规范化为 0。
+- `rrule`：正文只保存规则属性，DTSTART/COUNT/UNTIL 只能在独立字段出现。支持源可表达的 FREQ、INTERVAL、BYMONTH、BYMONTHDAY、BYYEARDAY、BYWEEKNO、BYDAY、BYSETPOS、BYHOUR、BYMINUTE、BYSECOND、WKST，以及目标日/周/月/自然季度/年编排。秒精度允许用于 rrule，最短间隔受产品资源策略限制，不能静默截成分钟。
+- 目标位置规则补充：某月/自然季度/年内第 N 或最后一个指定 weekday/工作日，workday 需真实日历。不能把周一到周五当法定工作日，也不能用多个 Schedule 代替同规则多值。
+- begin 包含，until 包含且晚于 begin，eligibleLimit 与 until 合取，excludeDates 最多 366 项，按规则时区排除整日。不存在月日/位置直接跳过。
+
+源 rrule 具体接受语法以源验证器和对照样例为准，Node parser 能解析不等于新增承诺。合法源规则全部属于复刻范围。若对照发现 Node 暂不支持，开发者必须补 adapter 或替换库，未补齐则该交付验收失败；不能以 `unsupported_rule` 声称完成。该错误仅用于本来就不在已接受规则集合内的输入。开发阶段须建立源 dateutil 与 Node 的固定输入 golden corpus。
+
+### 5.2 唯一计算顺序
+
+1. 在本地 civil time 上枚举基础候选，保留 sourceKey、原日期与 selector。
+2. 对原日期应用 begin/until、首次启用边界及 excludeDates。
+3. 执行明确 calendar predicate 和 adjust。保持原日、跳过、前移、后移均保留本地时刻。
+4. 对结果日期再次应用边界与排除。被排除就丢弃，不能继续平移找下一个日期。
+5. 以 IANA timezone 物化 instant。gap 跳过，fold 取第一个 instant。保存实际 offset 与 disposition。
+6. 同一 Schedule 的不同来源落在同一 instant 时合并，保留全部来源。eligibleLimit 在此时计一次：过滤、排除、DST gap、越界均不耗额，不在基础枚举时交给库扣 COUNT。
+7. 同已有已接受或已处理来源冲突则记录 skipped/duplicate，不回填旧 Job。根据预算及次数返回结果或明确受阻。
+
+calendar predicate 支持 workingDay / nonWorkingDay / holiday。nonWorkingDay 是所有非工作日，包含 holiday 与普通休息日；补班周末若标为工作日就不属于它。holiday 是其中有法定假日分类的子集。调整支持 skip / previousWorkingDay / nextWorkingDay。只有 predicate 未满足时才调整，源导入保留原声明。目标直接“保持原日”表示没有过滤/平移，不抹除 workday 位置规则的日历依赖。
+
+路径需要的任何日期缺覆盖，返回 `coverage_insufficient`，不能猜普通工作日。查询范围合法但没有结果返回完整的 empty；遇到搜索预算不能说“没有下一次”。
+
+### 5.3 有界性与版本
+
+每次 resolver 最多扫描 100,000 个基础候选或 400 个 civil 年，先达到者返回 `search_limit`，附 observedThrough 和 continuation diagnostic。该数值是当前目标资源上限，不是源产品承诺。交互预览不得自动循环直到成功；后台治理显式记录受阻。
+
+日期算术遵循[技术基础](../../../../docs/architecture/technical-foundations.md)已采用的 @js-temporal/polyfill 0.5.1。rrule 2.8.1 与 cron-parser 5.10.3 是社区候选，后者和旧探针 5.4.0 不能混称同一验证版本；rrule-temporal 2.2.8 可作对照，均未在本包安装或采用。库只枚举 civil，不让默认 COUNT、DST 或 strict 模式改产品语义。Temporal earlier/later 后 round-trip 本地字段，两者都不等为 gap，有效取较早 instant；记录 tzdb/ICU，升级跑完整 golden corpus。
+
+源材料的5个接缝探针在 Node26、tz2026a、ICU78.3，只涉及纽约 gap/fold/正常日、第一个周一与 cron DOM/DOW OR；本包没有重跑，也不能把它当Node24、完整源语法或运行能力证据。开发必须补固定源 dateutil 全语法对照，纽约、Lord Howe、Apia、调休、跨年、工作日位置、平移后排除和碰撞案例。预算数字为当前目标资源边界，变更走显式治理，不能静默多算或截断后报完整。
 
 ## 最终校验、受理与耐久责任
 
-日常调度仅预算下一次候选 t+1，预算可失效/重算，不预建未来等待 Job。到期或合法补跑时，接受协调者核对有效完整定义、后续控制、当前操作资格、时间/次数、最新必要日历依据、已有处置及重叠集合。
+Preparation 固定 definitionRevision、stateRevision、候选来源、计算时区、实际 calendarVersion/environmentRevision、DST、purpose、工作/提醒内容、admissionDeadline 与政策 hash。preparation 是耐久计算证明，不消费 Job 次数，不代表执行接受或通知发送。
 
-**同提交共写：**一个 Job 的固定要求/来源/日期依据、接受事实、实际次数、来源及碰撞处置和初始未完责任必须在对外确认接受时一致可恢复。因重叠跳过没有 Job，不扣次数；已接受等待/替换 Job 有身份并计数。每一业务状态转换保护其依赖事实，不能先报成功再异步补账。耐久范围在所声明单机介质/部署下涵盖普通进程、操作系统崩溃及断电，永久介质丢失沿项目数据责任，不称所有故障无损。
+同一 preparationKey 的重复请求返回旧证明。不同 fingerprint 不能覆写旧证明。新定义或环境生成新 preparation，旧 proof 被明确 rejected/stale，原始来源去重仍跨证明成立。
 
-**派生与守卫：**定义/日历最新校验到接受之间的变化不得产生过时 Job；暂停/手动结束/次数耗尽/已处理来源与接受竞争必须有确定结果。日历发布与本域接受是不同拥有者，不能因为顺序调用就声称同事务。精确版本守卫、并发顺序和原接受查询由 Q-SJ03/Q-SJ04 给出实际方案及证据，不指定全局锁、数据库事务、幂等键或跨网络事务。
+采用目标 canonicalization `calendar-schedule/v1`：RFC 8785 JSON Canonicalization Scheme 的确定键序与数值约束，UTF-8、UTC instant 统一 `Z`、civil 字段不改时区、禁止 NaN/undefined，SHA-256。源 Python 是排序紧凑 JSON v1，**不得把两者 fingerprint 当相同**。导入时同时保留 sourceFingerprint 与 targetFingerprint。精确规范和 golden 字节见[公开协议](public-api-design.md#共同编码与可信上下文)的共同字段与跨语言 golden 义务。
 
-**提交后反应：**接受后按固定要求承接执行或通知，持有未交出的责任；通知、读面或唤醒失败不撤销接受/计数或新建同来源工作。可靠交接前本域持责，接收方可靠承接后承担自己部分；本域保有整体 Job 关联和结算。提交回执丢失先查同一接受，未知不变成“未建”。未接受候选可重算，已接受 Job 及等待要求不受日历/定义更新回写。
+### 10.1 第一个单机提供者的事务边界
 
+采用目标 storage 组合提交：参与者在同一 SQLite Worker/connection 内执行具名命令。组合至少含：Schedule 状态/CAS、已处理 sourceKey、occurrence 唯一索引、receipt、Job及对应通知交接意图、次数、outbox、日历 publication generation guard、有效环境及权限 revocation generation guard。
+
+explicit pinned 只校验不可变版本及访问资格，不因current pointer变更而强行采用新版；latest解析才校验publicationGeneration，follow另校验environmentRevision。
+
+日历供应和接受共享的是同提交的 generation guard 公共参与契约，不是 Schedule 越权读取 calendar 私有表。每个拥有者注册自己的 participant。callback 不能跨 Worker 携带任意异步应用逻辑。计算和网络 I/O 在事务外完成，事务内只校验快照版本与提交决定；失配则退出并重算。
+
+若授权权威在远端，不能用本地缓存读后写冒充强撤权竞争保证。必须由其提供可 fence 的接受资格协议，并在同一保护边界承认它；否则该装配不满足目标 INV-SJ07，禁止放行依赖该保证的后台接受。这是具名接口建设依赖，不是把责任交给 Cordis。
+
+storage 原结果保持 `committed / rolled_back / unknown / identity_conflict / rejected_before_accept`。业务 unknown 返回可查询 operationRef，不能转换普通失败。查询 notCommitted 只有达到 storage 的完整否定证据时才允许同原键重试。回执及 Job 已提交但通知/唤醒失败，只恢复 outbox。
+
+
+## 实际存储能力与未闭合保证
+
+真实 sql-contract/sqlite-provider 已有实现，调用根为 registerCombination、commit、query、read，不能沿旧文档说存储缺失。领域只发具名、版本化命令，participant 在 Worker 同步执行；不得传 async transaction callback、SQL 或任意主线程闭包。一次 commit 只覆盖同一事务域，跨库不自动原子。各拥有者提供自己的材料/迁移和 guard participant；这些本域材料、guard 与 outbox 尚未实现。
+
+| 实际限制 | 对本设计的影响与闭合义务 |
+| --- | --- |
+| L-1 资格 check→commit 窗口 | 当前存储不提供强撤权排序。必须由权限拥有者提供与接受同边界的 fence/participant；缺失则依赖此保证的后台接受 blocked，不能仅加缓存核验后声称满足 INV-SJ07 |
+| L-2 真实可合并窗口未证实 | 不声明 G2 批写收益或吞吐；真实轨迹验证，不影响业务原子单元 |
+| L-3 写 Worker 无空闲关闭且 maxWorkers 有限 | 有限域容量可拒绝 domain_unavailable；不能无限开域或把它当无待办 |
+| L-4 跨进程写者排除不保证 | 首版限制一个有效进程写者；未来多实例须另建真实排除/围栏证据，当前 provider 不能授予跨进程唯一接受 |
+| L-5 单 SQL CPU/内存无硬限，卡死恢复无时间界 | 有界 handler/输入/查询并测实际负载；不承诺固定取消/恢复时限，不把结束观察当物理终止 |
+| L-6 慢语句下持续提交内存上界未探 | 验证真实队列/字节/背压；满载返回 capacity_exceeded，不丢已有责任 |
+| L-7 摘要核对/加载竞态 | 采用受信构建材料目录；摘要不是防攻击者安全域 |
+| L-8 WAL阈值非磁盘硬限 | 应用监控空间，磁盘故障保持 unknown/未完责任，不能承诺永不耗尽 |
+| L-9 authorizer默认时间函数可见性待实测 | participant/schema 禁止非确定时间输入；等待真实SQLite验证，不依赖未证实阻断 |
+| L-10 打开中未知scope Worker不列 residuals | incomplete 与租约仍成立；本域不把空 residuals 当全部收场，也不伪造scope |
+| L-11 FIFO query与writesPerControlTurn未实现 | 认回延迟受 admissionQueueLimit 而非该配置控制，不承诺控制插队；结果慢仍保留原 identity |
+
+限制唯一正文归 [sqlite-provider SPEC](../../../storage/sqlite-provider/SPEC.md#已知限制)，操作否定证据、read、取消和关闭归 [sql-contract SPEC](../../../storage/sql-contract/SPEC.md)。storage commit 的 committed/rolled_back/unknown/identity_conflict/rejected_before_accept 原样解释；unknown 不能改普通失败。notCommitted 需旧写代际排除、旧事务终止、恢复完成、权威读成功、未进队列五项证明。一般 read 的 not-found 不提供这些证明。
+
+Snapshot read 保证单次快照，跨页按 queryHash、observationRevision 与稳定 key，无法保持则 stale_cursor/changed/unavailable，不能拼混版。read 取消不打断运行 SQL；域外启动围栏不是 SQL 写代际。FULL/进程终止和真实断电验证分开，本轮没有执行 SQL-T01。
 
 ## 补跑、重叠及控制顺序
 
-恢复 T 先认回已有 Job、明确跳过/不补与未处理区间。合法漏过集合不含首次启用之前、原定截止之外、已有 Job 或已处理跳过。按最新依据及合并关系选最近最多 N，或按不补声明处置；同区间被排除的更早积压不能在下一循环分页补回。T 当刻的正常工作不占 N，与选中补跑合并后按原定时刻有序处理，各次重新守卫接受并应用重叠。精确合并/等时排序表示须保持这一含义，不按分页或墙钟抖动改变选择。
+周期 execution 的补跑只有 `none` 与 `latest N`，N 为正整数。设备恢复、日历恢复及积压扫描使用同一选择算法，入口或记录来源不改变选中集合。`ScheduleDefinition` 不含 `dueSelection`，不提供旧模式开关。
 
-截止限制原定发生时间，不能让截止后的合法迟到受理被误拒；自然结束等待漏过区间按声明处置完。手动 stop 一旦先成立则阻止所有新接受，包括旧积压；已接受 Job 不自动取消。等待 Job 恢复是原 Job 继续，不再计数、不占 N、不重新做日历接受。
+1. 在本轮扫描/恢复时固定 T 和待处理区间。候选须在首次启用之后、原定截止内，并且尚未接受或明确处理。按最新合法日期依据得到有效时刻。
+2. 对有效时刻严格早于 T 的候选，none 全部记不补；latest N 选择最近至多 N 个，更早部分明确记不补。选择及丢弃事实可恢复，后续 tick 不得把同一区间分页补光。
+3. T 当刻的正常候选不占 N。将其与选中的补跑按原定时刻升序处理，每项重新核验当前资格、重叠和剩余次数。被 overlap=skip 拒绝的项不从更早区间补位。
+4. 最旧 pending 仅是尚未处理的来源，不获得优先权。一次性 execution 沿 lapse/awaitRecovery，环境不相容恢复沿当前时刻重锚，reminder 沿提醒窗口，这些规则不套用周期补跑。已接受 Job 的等待与恢复继续原工作，不占 N、不重计次数。
 
-重叠按同日程全部实际前序判断。含执行看执行部分；纯通知看本次交付主动作；组合通知尾部留原 Job 持责但不单独挡新执行。跳过没有 Job且不再补；并行建立独立身份/会话，不承诺外部资源隔离；等待接受固定 Job后按原定顺序等前序主动作；替换接受新 Job并发出旧工作控制，所需原动作停止确认后才启动。
+例如 T 前有 08:00、09:00、10:00 三个未接受时刻，T 为10:30。none 不接受三者；latest 1 仅选择10:00；latest 2 选择09:00、10:00。保存了08:00 pending也不改变结果。若10:30本身是合法候选，它另按正常候选参与升序处理。
 
-取消/启动/主动作终结有可恢复顺序。开始前取消先成立就不得启动；启动先成立走原停止路径；主动作先终结保留结局。替换须通过原执行拥有者取得所需停止确认，Session 的归档业务取消完成、Run 终态显示或停止请求受理不能充当物理/动作停止证据；不要求把所有独立 runtime 变成统一销毁事务。确认缺失/失败则替换受阻，不偷跑。新替换 Job 被取消仍保留已发出的旧工作控制和外部效果。
+源基线的普通 due/设备恢复先发 pending 再取 tail，calendar recovery 才取最近 N。这是源设备恢复契约的真实差异。本次明确选择统一目标语义，不把差异说成源缺陷或声称行为等价。源导入只转换数据表示，不保留该运行时分支。
 
+计算预算耗尽时明确记录 `catchup_degraded` 及 skipped 区间，按 none 重锚，不能静默装作完整计算。源最新实现已有这项降级，不再使用旧基线“catch_up 未实现”的结论。
+
+
+重叠在最终接受判断同一 Schedule 的全部实际前序，skip 不建 Job，parallel 建独立执行关联，wait 先固定 Job 后等待，replace 先接纳再请求旧动作停止。只有原执行拥有者报告所需真实停止证据才启动替换，归档/Run终态/停止请求受理不足。新 Job 被取消不会撤销已发旧控制；notification 尾责不独占执行互斥锁，未知纯通知主动作仍阻挡所需顺序。
 
 ## 执行、成果及原工作接续
 
-租户 agent Job 由 Session 拥有者建立新专属会话及合法输入受理，不投旧会话。会话租户、AD 标识、执行类型/必需能力身份按已接受规则固定；实际版本及合法实现变化、Run/attempt、模型/工具调用继续原拥有者语义。Job 记录实际关联与采用，不维护第二套 Session log，不把原始消息、费用或执行账都强塞模型上下文。
+Work 是本域不可变执行意图，不是 Session 的消费模型。JobExecutor.inspect 把程序/agent 适配器的当前能力、权限与目标状态投影成 prerequisiteProof；start/query/requestStop 保留稳定 jobId/attemptId。program 必须无 Session/Agent 装载即可运行，注册程序版本和 JSON input 经 schema 校验，不接受自由脚本。
 
-装配须无条件满足当前 Job 工具绑定和目标检查要求，但不授管理 Schedule、遍历其他 Job 或跨租户权限。成果提交绑定原 Job，模型不能指定另一 Job；进度/问题/候选成果各有事实，提交不会隐式发送通知。完整启动资格及装配成立且实际执行承接后才确认开始，建 Session 或排队本身不足。最终目标判断对照固定要求及候选成果/依据，不能用一次 Run、工具返回或普通回复代替。不可用替换件沿原逻辑调用返回不可用，不虚构真实执行/目标成功。
+agent/new 只幂等建立一个会话；agent/existing 只向明确会话提交固定 instruction。适配器调用 Session 公开 intake/inbound，由 Session 决定消息类型和推进。existing 的排队、turn 和关联终态不能由 Job 核心推断，目标失效也不能回退 new。start unknown 先查原 execution，重试不再次建会话或投指令。源 handoff 映射 agent/new+exact profile+opaque returnTo，不成为第三种引擎。
 
-当前授权及依赖受阻保留真实事实；已经开始的调用、取消、迟到结果及资源收尾由原执行/保管者承接。Session 归档按用户 Q04 解除业务等待并传播取消，不等全物理停止；对 Job 记录控制、实际收场及未完保管，不能借撤销归档复活旧工作。Q05 成员失效不是毁灭、归档或冻结；空闲/自动归档配置与豁免归 Session，离线未知不推定空闲。Agent 产出按 Q09 归实际工作区/租户，不直接提交组织资产或替用户手动提升。
+实际执行承接和目标检查成立才记 started。CurrentJob/进度/问题/候选成果都绑定原 executionRef 与 Job，模型不能换目标。恢复先查取消、原终态、未完调用、消费位置及通知责任，不把新 attempt 当业务重跑。Session 归档的业务取消和原动作物理停止分别记录。原执行迟到结果保留，不被旧 providerGeneration 变成新动作。
 
-同一 Job 内部恢复先对账取消、主动作/Run终态、未完调用、结果消费位置及通知义务，续原会话/工作。不凭 attempt 或 runtime 重建新增 Job/Session，不自动业务重跑。目标无法完成按原等待/失败/停止机制结算，检查不授无限续跑或抹停止权。机械 Job 不创建 agent/模型会话，以功能实际结果判断；有意停止的服务不因定时备份被重启。
+## 14. 定时 subagent handoff 与 master 回传
+
+本节由外部Agent执行/结果回传适配器实现。源handoff映射为Work.agent：session.mode=new，agentProfileRef绑定同租户exact immutable Blueprint release，instruction保存工作要求，returnTo.targetRef保存originating master的opaque引用，并保留结果政策。Job核心不解析master或Blueprint领域对象。它不保存凭证快照，也不取得“以后永远可执行”的资格。
+
+仅此handoff profile 的每个执行 occurrence 接受后新建一次 child 工作，与源 master 有明确归属。handoff 默认 overlap=skip，无显式 parallel 时前序未终态就记录 skipped；源兼容 profile 不默认排队。master idle 不妨碍按已固定 target 直接派发，无需先叫醒 master 重选目标。重复 start 查询原 execution receipt，不能多建 child。child 执行终态与 raw report 先耐久保存，再形成独立 MasterReturnIntent。
+
+master 可运行则投递一份内部触发；busy 则保存有界待收结果。队列满返回 blocked 并由结果拥有者保留责任，禁止丢弃或无限内存积压。master dormant 可按其既有唤醒协议恢复；用户归档则 blocked；永久删除则 terminally blocked，不能改投新 master。
+
+master return 的幂等键为 jobId+resultVersion+masterRef。收到返回不代表用户 publication，也不代表 archive。原始 child report 不被 master 改写，master 产出的用户 artifact 独立引用来源。
+
+<a id="consent"></a>
+## 15. Agent 作者身份与分级同意
+
+Agent authoring 管理的是自己在当前合法 master/owner 范围内创建的安排意图。人工 owner 保有查看、修改、暂停、终止权。工具可发现与命令被授权是两个判断。
+
+读取、预览不要求写入同意。granular 模式的 Agent create 无需等待用户在场，应用服务直接落 draft，零未来接受；Agent 可自主 reviseDraft/discard 自己的 draft。owner 的 promote 就是逐条确认。对已生效安排的修改、取消、替换仍逐命令确认，覆盖规范 payload hash、动作、owner、target、purpose 及 originating context，批准不得移用于另一份内容。
+
+授权包含两轴：粒度 granular/blanket 与范围 session/standing。blanket+standing 跨会话和重启有效，无隐含过期；权威显式设置的到期仍遵守。Schedule 保存 grantRef/generation 和 adoptionKind。撤销 blanket 只阻塞依赖它的安排，独立仍有效的 granular grant 不失效。重授不自动恢复：owner 使用 reconfirmConsent(scheduleId,newConsentRef,expectedRevision) 逐条确认，原子更新 adoption、撤销阻塞锁和审计，再按当前其他依赖重算 standing。它不改变 paused，也不能复活终态。
+
+standing work 配额由既有资源/许可治理拥有，Schedule 使用 QuotaParticipant。计量为每 owner+author 的非终态未来意图，draft、active、paused、blocked 均占一份；不按 occurrence 数或 Job 数重复收费。create 原子保留一份，draft promote 不另收费，replace 同事务转移一份，discard/stop/exhausted/invalidated 释放，superseded 仅转移不双减。两并发 create 的 reservation/CAS 与 Schedule 命令同提交，超额返回 capacity_exceeded 且零部分写入。策略值来自拥有者，不在本设计编造数值。
+
+Agent 经已授权 official capability 间接形成未来工作的路径沿该 capability 自身授权，不额外套本作者工具确认门。两条路径仍在实际接受、执行和披露边界检查当前资格。
+
+同意检查属于应用服务及其 authority port。Tool 不能自己记“用户同意过”并跳过服务检查，也不能将整个多命令 tool 视为一个不可区分权限。
+
+<a id="results"></a>
+## 16. 结果发布与主题归档
+
+四项结果分别成立：execution、masterReturn、publication、archive。每项都有 state、operationRef、artifactRef 或真实失败。查询不得因执行成功把其余三项标为成功。
+
+ResultPolicy 将 audience、attention、archive 三轴分开。audience=masterInternal 时结果只回 master，默认无用户交付物、普通 feed 或通知；可显式 archive。audience=userDeliverable 时 master 先生成用户可理解的正式 artifact，再由 publication provider 接受。默认站内可见，不自行升级 push。raw child report 只作不可变来源。归档 provider 拥有主题分类、容器及存储语义，schedule 只传稳定目标引用，不把外域 taxonomy 搬入 Routine。
+
+重复工作持有稳定 resultSeriesId，每次 occurrence 的 resultEntryId 独立且不可覆盖前一期。series 查询按 scheduledAt、entryId 稳定排序，保留来源及 artifactVersion。两类 audience 都可归档，internal archive 不因此公开到普通结果中心。
+
+每项外部请求使用稳定 operationKey，超时先查询，支持 query 不代表外部 exactly-once。provider 无查询能力时记录 unknown 和人工处置入口，不盲目重发有副作用操作。发布已成功而归档失败，只续接归档。用户通知是 publication 后的独立反应，失败不重执行 Job。
 
 
 ## 通知交接与整份结算
 
-本域冻结工作类型及组合事件/内容/明确目标。纯通知到期交出给定内容，纯执行没有配置通知，组合所选集合非空。实际开始/成功/失败/取消各由本次主动作事实决定；未知不冒充失败，等待不冒充开始，开始前取消可以命中已选取消事件。每个 Job 的每个已选实际事件是一份逻辑通知，未选/未发生不适用，失败/取消内容不能伪造成功成果。
+## 11. 纯提醒与通知
 
-事件事实、应送内容/目标/来源及未交出责任须一致可恢复，不能事件已提交却无人保管提示。向通知可靠交接前本域持责；通知承接后保管交付，本域保持查询定位及整体义务映射。已可靠送达的明确目标持久可取回证据才满足该义务；在线、已读、尝试/受理和 agent 独立 send/submit 不能冒充。回执未知先查原通知，重试保持同意图，不重做执行或内容生成。
+Reminder purpose 与 execution 互斥。目标用 notification Job 承载一次已接受提醒工作，保持现行纯通知 Job 契约。它没有 Agent 执行 Session、Run、Dispatch，不执行能力、工具或模型，不占 execution budget；接受仍计一次 jobLimit。Job 保存固定要求、取消及整体结果，notification 拥有实际通知与各 route 的投递原事实，不制造空 agent 工作。
 
-纯执行成功由目标/机械完成成立，纯通知成功由送达成立；组合成功要求执行成功且全部实际触发义务送达，没有命中不制造通知。执行失败/取消与通知成功并存时整体不能成功；执行成功但仍待交付也不能成功。通知失败不倒写执行结局、不递归产生执行失败事件。执行终结或取消后保留此前通知及实际命中的取消通知；纯通知发送前取消阻止发送，已发送/未知不承诺撤回。公共聚合状态形状、关联分解和可靠交接机制为 Q-SJ05，约束不能推给通知拥有者。
+提醒内容 title 可空且最多 200 Unicode code points；body 为 1–16,384 UTF-8 字节，禁止 trim 或隐式规范化。源 reminder profile 为 fleet、无设备目标、无 execution payload、catchUp=none，源兼容映射显式选择 overlap=parallel，保留各期独立通知责任；它不替代目标原生通知工作的可配置 overlap。提醒接受后等待通知主动作完成，已有未知主动作按明确 overlap 处理，不假定 transport 已完成。目标原生纯通知若选择 wait/replace，仍遵守目标真实停止及等待约束。once reminder 不带 calendar overlay。
 
+政策 `reminder-window-v1`：首次通知接受允许半开窗口 `[W, deadline)`，`deadline=min(W+300s,nextEffectiveSlot)`；没有下一有效时隙时取 W+300s。nextEffectiveSlot 已经过规则边界、排除、日历处理、DST 与碰撞合并，不是下一基础 civil 候选。T 等于 deadline 即 missed。deadline 随 Preparation 冻结，admit 不另从当前定义猜测。超窗后保存 missed 判决，不补发。若窗口内已经耐久接受，传输可晚于窗口，不变为 missed，也不重建另一通知。长停机用有界 lapse span 保存已判错过的区间及规则/版本，不为每分钟无限造行。
+
+接受必须把 occurrence receipt、notification Job 与通知 intent 的可靠交接放进同一保护边界或明确的耐久 outbox。纯通知主动作以目标租户耐久可取回为成功依据，外部推送、已读、ack 独立。取消与该边界竞争，未阻止已成立通知时不得报撤回。notificationId 只能引用真实已接受的通知，pending intent 仅有 intentId。发送失败/重试不重新接受 occurrence。
+
+<a id="notification"></a>
+### 11.1 通知接缝
+
+通知拥有者提供 acceptIntent、queryIntent、readInbox、acknowledge 及合法投递能力。schedule 只提交获准 owner、内容、来源、语义去重键、attention/disclosure policy。通知接受、各 route attempt 的实际送达、用户确认分别记录；打开 inbox 不自动 acknowledge。信息型通知不自动 park Run。actionable 通知只引用已有 durable humanRequestRef，所有渠道共用这一份可回答请求，不创建副本，投递失败不回答或关闭它。
+
+通知拥有者读取当前 route policy：用户设置、紧急度、quiet hours、rate limit、dedup/coalescing 和当前 route 资格。Agent 不能在 payload 指定越权 recipient 绕过它。external/deep-link preview 默认安全摘要，完整内容回到认证门面重新鉴权。受保护披露前重核当前资格。外部推送失败不删除 inbox 耐久事实，也不默认触发 master Run。没有 external push provider 时仍可交付 inbox，但产品读面必须显示未配置外部送达，不能报外部已送达。
+
+<a id="notices"></a>
+### 11.2 Standing 转移通知
+
+ready→blocked、blocked→ready、任意非终局→terminal 各形成一个 transitionId。相同 blocker 重复 tick 不生成新业务通知。notice key 为 `(scheduleId, standingGeneration, transitionKind)`，内容含当前 lifecycle、原因、受影响未来与历史保留事实。
+
+通知失败不清除 blocker，不重做 standing 转移。恢复通知也不能说工作已补做。用户 paused 与 ready 并存时，文案说明依赖已恢复但用户仍暂停。过期 outbox 发出前校验是否已被更新状态替代，仍保留历史转移记录。
+
+
+完整执行与通知 DTO 归[公开 API](public-api-design.md#6-结果通知及事件)，组合已选事件及整体成功仍按 INV-SJ16/17。源 purpose.execution/reminder 与组合事件声明分别投影，不能因源字段缺少而删掉目标原有已选事件义务。notification body 的 pending/unknown+coordinationReason 不当 failed，cancel intent 只有 cancelledBeforeAcceptance 才结算 cancelled；acceptedAlready 保留真实 durableAvailable，其他状态继续原责任。
 
 ## 提供者、生命周期及验证
 
-定义/公开入口与 Cordis 集成按 IC-1–IC-19 分责：一个接缝定义、纯独立根入口、消费者不依赖选定后端，显式操作身份与领域授权不由 isolate/Context 可见性代替。必要依赖变化时按声明接续，在调用时解析可选依赖并真实报告缺席。配置校验、生效点、旧引用、监听失败及贡献撤除具名；事件派发不等于持久受理或送达，提交后监听失败仅留下诊断/反应责任。
+纯领域函数接受显式值，纯应用服务由 repository、authority/environment/calendar 公共 ports、JobExecutor、notification/result ports、Clock 构造，不需要 Cordis。Cordis 4.0.4 的 ./cordis 定义唯一服务与键，provider 继承并绑定同一纯应用服务，tools 只 inject 应用服务，不取 provider 或 Session/Agent。准确键和动作映射归[API设计](public-api-design.md#cordis-采用约束)。资源属于 provider 宿主，不挂 caller ctx。
 
-停止提供者先停新准入，再保管/排空/可靠移交在途，最后撤除自身注册、监听、计时器、句柄及使用权。部分初始化失败也收口已取得资源；两代交错清理不删他方或恢复整份旧状态。持久 Schedule、Job、历史、未处理区间、原控制及未知不随 fiber 消失；原方在承接前持续持责。独立执行的真实停止和外部效果不能被 disposer 逆转，清理残留如实报告。
+后台 next-due loop 读持久最早待办，以有上限 timer 等待，收到事件提前唤醒并周期反熵；醒后重读 wall clock 与当前守卫。耗时/lease 用 monotonic，不能跨进程比较单调值。大于2,147,483,647ms 的timer不能直接交Node延迟；不承诺timer精确到点。dispose 停新准入后对账/排空/可靠移交原责任，只清本实例贡献。旧 token 不能删新同名 tool，外部输出不被撤除逆转。
 
-定义拥有者验证规则及 INV-SJ01–INV-SJ24；接受协调者验证完整提交、来源/碰撞去重、次数及控制竞争；日历联合核对版本守卫；Session/执行/装配证明专属承接、当前绑定、目标检查及原调用恢复；通知与本域证明事件义务交接/整体结算；应用证明当前资格与如实读面；提供者证明停启、换代和真实资源。Q-SJ02–Q-SJ06 指向相应技术输入。自定义并发受理/认领/换代机制需要行为模型及实际故障/并发证据；若依赖新的可逆/交换/互不干扰性质省略控制，按手册另提供适用证明，不由图或本候选授予。第一版单机仍须真实耐久，未来分布式须用协议重新兑现。
-
+自定义接受/换代/控制协议须行为模型、切点故障/并发和真实介质证据。P0公共值、P1日期、P2日历供应、P3服务、P4耐久接受、P5执行、P6通知结果、P7工具与应用组合都是完整交付范围，不能以纯算法或空服务宣称完成。当前仅有空导出测试，本轮未运行产品验收或Node24。
 
 ## 后续技术采用
-
-下列事项是技术采用义务，不要求产品负责人选择数据库、协议或 provider。行为目标沿 [SPEC](../SPEC.md) 保持。
 
 <a id="q-sj02"></a>
 
 ### Q-SJ02 精确身份、公开形状与只读查询
 
-需要可靠认回完整安排、合并来源、已接受Job及原操作；命令名/时间戳不足以定义公共身份。 公开契约拥有者如何明确标识、版本/冲突、必要输入/结果/错误及查询定位而保留这些区别？
-
-Routine无独立ID。
-
-来源、有效时刻、Job/原操作/定义/运行代际/版本分别表达。
-
-查询按当前资格只读，固定当前Job不可由模型换目标。
-
-- 复用适用公开契约。给出精确采用与能承载全部必要关系的依据。
-- 细化本域公开契约。补完整形状、消费者迁移与行为映射，不以方法名代替语义。
-
-技术拥有者先核对实际既有契约与消费者，再细化未覆盖形状；不交负责人选API。
-
-限制公开接口及读面实施，不影响完整CAP选择。
-
-技术拥有者为Schedule/Job 公开定义及当前 Job 绑定、读面拥有者。
+[公开API设计](public-api-design.md)已给唯一目标；实现全部判别联合/schema/CAS/错误与纯工厂。预览和agenda有明确资源上限、只读与分页，不能用方法名替代必要行为。
 
 <a id="q-sj03"></a>
 
 ### Q-SJ03 时间算法与最新依据校验到接受
 
-预算后日历/定义更新，旧候选可能提前/失效；保存/接受不能按库默认或顺序调用保证正确。 日期/接受技术拥有者怎样给出输入表示、算法、明确版本守卫及其真实一致性证据？
-
-日期顺序、DST/边界、明确日历、合并/来源去重与实际Job次数已定。
-
-日常预算t+1，预览只读；日历仅提供有界计算，本域保护整份规则。
-
-校验至接受前提变化重核或冲突，不要求日历发布与Job强行同事务。
-
-- 复用合格日期与守卫机制。证明其完整覆盖业务语义和当前采用条件。
-- 细化缺失组合机制。补对应算法/行为模型与故障并发证据，不选新产品默认。
-
-用具体变更交错和日期反例核对；选库不能更改既定时间含义。
-
-限制日期提供者及接受组合实施；完整行为继续保留。
-
-技术拥有者为日程日期/接受协调者与日历公开计算/版本拥有者。
+落实 civil→原边界/排除→日历处理→结果复核→DST→碰撞→eligible→接纳守卫的单一路径。完整源语法golden、已采用Temporal及候选RRULE/cron接缝分别验证。未覆盖合法源规则即完整验收失败，不以unsupported_rule绕过。
 
 <a id="q-sj04"></a>
 
 ### Q-SJ04 耐久受理、补跑区间与控制竞争
 
-接受回执丢失、崩溃重启或多实例处理同来源，不能重复Job、次数或分页补光积压，也不能复活取消。 接受/控制拥有者用哪些实际受理、认领、耐久和区间处置协议兑现原工作与竞争顺序？
-
-Job/固定要求/来源/次数/处置/责任一致可恢复。
-
-固定T的最近N，已有等待续原Job；暂停/结束/取消/启动/完成确定判序。
-
-未知先查原工作，普通进程/OS崩溃及断电耐久按真实介质，永久损毁沿项目责任。
-
-- 复用完整持责机制。固定采用版本、真实介质及并发/崩溃前提。
-- 设计缺失协调协议。提供行为模型、切点故障/并发探针和实现映射后再实施。
-
-让技术拥有者保护业务单元及原身份，不由本稿擅定锁、表或幂等键。
-
-限制受理/控制/恢复实施，不把存储机制变成产品票。
-
-技术拥有者为Job 接受/控制协调者、调度及真实存储提供者。
+按上述真实存储差额落实participant、唯一索引、同提交Job/receipt/来源/次数/outbox、原操作query与固定T区间处置。强撤权与多进程排除尚有具名缺口，不伪称现有provider已提供。不得引入第二套dueSelection路径或额外队列状态取代本域接受。
 
 <a id="q-sj05"></a>
 
 ### Q-SJ05 执行、目标证据、停止与通知结算接入
 
-专属会话装配失败、目标未达、前序停止未确认或源成功而通知未送达时，整份Job必须仍能真实结算。 Job/Session/执行/通知技术拥有者如何明确当前绑定、目标依据、实际停止证据及事件/义务可靠交接和查询聚合？
-
-任意AD必需CurrentJob与目标检查，同SessionAD标识固定。
-
-替换取得原动作所需停止确认；Session归档业务取消不是物理停止证明。
-
-每个所选实际事件一次逻辑通知，目标租户持久取回才送达，主动作终结不清通知责任。
-
-组合结算归Job；通知重试不重业务，失败/取消不被送达洗成功。
-
-- 复用完整执行及通知契约。给出所需事实/证据和跨拥有者接续的精确映射。
-- 补齐未覆盖接入与证明。隔离通知对象/投递形状等未定范围，补目标/停止/组合故障场景。
-
-本域继续拥有整体结果；各方提供实际事实，不靠Run终态、归档或通知回执推断完成。
-
-限制实际执行/目标检查/通知组合落地，不退回全域行为待定。
-
-技术拥有者为Job 整体协调者、Session/执行/目标检查与正式通知拥有者。
+落实program、agent/new、agent/existing三路真实JobExecutor适配；执行/通知结果各用正确receipt入账，source成功而通知未交付不可整份成功。self-wake与ProgressMonitor、master返回、publication/archive由各自外部拥有者完成，不进入本域强依赖。
 
 <a id="q-sj06"></a>
 
 ### Q-SJ06 提供者、配置采用与生命周期符合性
 
-提供者替换、依赖失效或部分启动失败后，未完Job/控制/通知和共享资源仍有拥有者。 装配/提供者拥有者如何明确支持范围、合法配置生效点、旧引用和在途接续、资源配对及相称证据？
-
-承接前原方保管；停止准入不擦业务/历史，清理只撤自身贡献。
-
-配置值、工厂内容、默认启用/具体提供者未由本稿选定。
-
-IC独立入口/依赖/显式身份仍成立，Cordis不自动提供业务事务、耐久或可逆外部效果。
-
-- 采用现有完整提供者方案。证明其版本/配置与本契约要求匹配并提供真实组合证据。
-- 细化缺失方案及验证。补行为模型/资源故障测试，涉及新共享代数保证时履行适用证明门槛。
-
-具名技术/治理拥有者落实；不新增领域或外部provider调研，不请求用户选择实现机制。
-
-限制提供者与装配采用，保留不依赖它的完整产品/规格候选。
-
-技术拥有者为日程提供者、合法治理与装配拥有者。
+落实IC、独立根入口、装配与真实tools贡献、旧引用、配置生效点、依赖失效和清理残留。社区队列不是首版前置：本地采用现有SQL outbox/inbox方向；未来外接队列只转运已提交意图，enqueue/ack均不当接受或执行成功。新候选库无安装、无性能或Node24验证声明。
