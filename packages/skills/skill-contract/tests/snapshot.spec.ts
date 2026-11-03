@@ -117,6 +117,14 @@ describe('sealSnapshot', () => {
     expect(two.ok.entries).toEqual(one.ok.entries)
   })
 
+  it('sorts input given in descending order and gives the digest of the ascending input', () => {
+    const descending = seal('demo', { z: '3', y: '2', x: '1' })
+    const ascending = seal('demo', { x: '1', y: '2', z: '3' })
+    if (!('ok' in descending) || !('ok' in ascending)) throw new Error('must seal')
+    expect(descending.ok.entries.map(entry => entry.path)).toEqual(['x', 'y', 'z'])
+    expect(descending.ok.digest).toBe(ascending.ok.digest)
+  })
+
   it('gives a different digest when one byte, one path or one entry changes', () => {
     const base = seal('demo', { a: 'x', b: 'y' })
     const byte = seal('demo', { a: 'x', b: 'z' })

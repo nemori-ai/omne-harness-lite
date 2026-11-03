@@ -52,6 +52,8 @@ export function readDeclaration(
   const fields = fieldsOf(read.value)
   if (fields === undefined) return unread('.omne/skill.json is not an object')
   const version = fields.get('formatVersion')
+  // `version.kind !== 'number'` only narrows the type: another kind has no lexeme, so it fails the
+  // lexeme test anyway.
   if (version === undefined || version.kind !== 'number' || version.lexeme !== '1')
     return { kind: 'unsupported' }
   const scripts = readScripts(fields.get('scripts'), { normalized: false })

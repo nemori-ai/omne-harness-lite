@@ -2,6 +2,7 @@
 // The original body rules stay in contract.spec.ts, unchanged.
 import { describe, expect, it } from 'vitest'
 import { readBodyText, type JsonLimits, type JsonValue } from '@omne-harness/assets'
+import { writeJsonText } from '@omne-harness/json-text'
 import { skillBodyContract } from '@omne-harness/skill-contract'
 
 const limits: JsonLimits = {
@@ -99,6 +100,14 @@ describe('the extended skill body', () => {
     expect(() => port.references(judged)).toThrow(`failed judgment: ${rejected}`)
   })
 
+  it.each([
+    ['one character', 'd'],
+    ['1024 characters', 'd'.repeat(1024)],
+    ['1024 characters outside the basic plane', '😀'.repeat(1024)],
+  ])('accepts a description of %s', (_case, description) => {
+    expect(port.judge(body({ ...full, description }))).toEqual({ ok: true })
+  })
+
   it('gives the original reasons before the reasons of the extension', () => {
     const bad = { settings: [{ name: 'a', category: 'secret' }] }
     expect(port.judge(body({ ...bad, name: 'other' }), { capabilityName: 'review' })).toEqual({
@@ -123,6 +132,29 @@ describe('the extended skill body', () => {
       ok: false,
       rejected: 'setting-category-unknown',
     })
+  })
+})
+
+describe('the schema value of the port', () => {
+  it('names every body field and the four setting categories', () => {
+    const schema = JSON.parse(writeJsonText(skillBodyContract().schema))
+    expect(schema.kind).toBe('skill-body')
+    expect(Object.keys(schema.properties)).toEqual([
+      'name',
+      'description',
+      'tools',
+      'scripts',
+      'settings',
+      'package',
+    ])
+    expect(schema.properties.settings.category.split('|')).toEqual([
+      'preference',
+      'binding',
+      'placement-identity',
+      'governance',
+    ])
+    expect(schema.properties.tools).toEqual({ category: 'tool', name: 'string' })
+    expect(schema.properties.package).toEqual({ digest: 'string' })
   })
 })
 

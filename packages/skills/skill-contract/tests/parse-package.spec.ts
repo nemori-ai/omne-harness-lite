@@ -52,6 +52,16 @@ describe('fixture packages', () => {
 })
 
 describe('a legal package', () => {
+  it('accepts an expected name that equals the root name and the manifest name', () => {
+    const built = buildFixture('full-skill')
+    const result = parseSkillPackage({
+      snapshot: built.snapshot,
+      control: built.control,
+      expectedName: name('full-skill'),
+    })
+    expect(result).toHaveProperty('ok')
+  })
+
   it('reads the manifest, keeps unknown fields as they are, and reads the declaration', () => {
     const built = buildFixture('full-skill')
     const result = parseSkillPackage({ snapshot: built.snapshot, control: built.control })

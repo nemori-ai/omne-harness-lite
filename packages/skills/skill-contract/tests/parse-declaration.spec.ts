@@ -144,6 +144,9 @@ describe('malformed .omne/skill.json', () => {
     ['a format version 2', declaration({ formatVersion: 2 })],
     ['no format version', declaration({ scripts: [] })],
     ['a format version given as text', declaration({ formatVersion: '1' })],
+    ['a format version that is null', declaration({ formatVersion: null })],
+    ['a format version that is a boolean', declaration({ formatVersion: true })],
+    ['a format version that is a list', declaration({ formatVersion: [1] })],
     ['a format version written as 1.0', '{"formatVersion": 1.0}'],
   ])('rejects %s as an unsupported format', (_case, text) => {
     expect(codeOf(parse('demo', { 'SKILL.md': demo(), '.omne/skill.json': text }))).toBe(

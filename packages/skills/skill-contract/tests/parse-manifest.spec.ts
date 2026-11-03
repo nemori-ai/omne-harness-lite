@@ -55,6 +55,8 @@ describe('malformed SKILL.md', () => {
     ['a description that is not text', manifestText(['name: demo', 'description: 42'])],
     ['a license that is not text', demo(['license: [MIT]'])],
     ['an empty compatibility', demo(['compatibility: ""'])],
+    ['a compatibility that is not text', demo(['compatibility: 5'])],
+    ['metadata with a map value', demo(['metadata:', '  owner: {name: a}'])],
     ['a compatibility of 501 characters', demo([`compatibility: ${'c'.repeat(501)}`])],
     ['metadata that is not a map', demo(['metadata: [a]'])],
     ['a metadata value that is not text', demo(['metadata:', '  version: 1.0'])],
@@ -62,6 +64,61 @@ describe('malformed SKILL.md', () => {
     ['too many alias expansions', demo(aliasBomb())],
   ])('rejects %s', (_case, manifest) => {
     expect(codeOf(parse('demo', { 'SKILL.md': manifest }))).toBe('malformed')
+  })
+
+  it('keeps null, booleans and numbers of unknown fields without changing their type', () => {
+    const result = parse('demo', {
+      'SKILL.md': demo([
+        'x-null: ~',
+        'x-empty:',
+        'x-true: true',
+        'x-int: 7',
+        'x-float: 1.5',
+        'x-list: [1, "1", {k: null}]',
+        'x-flow: {k}',
+      ]),
+    })
+    if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
+    expect(result.ok.manifest.extra).toEqual({
+      'x-null': null,
+      'x-empty': null,
+      'x-true': true,
+      'x-int': 7,
+      'x-float': 1.5,
+      'x-list': [1, '1', { k: null }],
+      'x-flow': { k: null },
+    })
+  })
+
+  it('leaves out every optional field that the frontmatter does not give', () => {
+    const result = parse('demo', { 'SKILL.md': demo() })
+    if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
+    expect(result.ok.manifest).toStrictEqual({
+      name: 'demo',
+      description: 'A demo skill.',
+      extra: {},
+    })
+  })
+
+  it('keeps each optional field that the frontmatter gives', () => {
+    const result = parse('demo', {
+      'SKILL.md': demo([
+        'license: MIT',
+        'compatibility: Any shell.',
+        'metadata: {team: core}',
+        'allowed-tools: Read',
+      ]),
+    })
+    if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
+    expect(result.ok.manifest).toStrictEqual({
+      name: 'demo',
+      description: 'A demo skill.',
+      license: 'MIT',
+      compatibility: 'Any shell.',
+      metadata: { team: 'core' },
+      allowedTools: 'Read',
+      extra: {},
+    })
   })
 
   it('accepts the boundary lengths of description and compatibility', () => {

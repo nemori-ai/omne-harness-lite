@@ -95,6 +95,21 @@ describe('isPackagePath accepts only the normalized form that toPackagePath give
   })
 })
 
+describe('the control character boundaries of the text guards', () => {
+  it.each([
+    ['\u001f', false],
+    ['\u0020', true],
+    ['\u007e', true],
+    ['\u007f', false],
+    ['\u009f', false],
+    ['\u00a0', true],
+  ])('treats %j inside a text as allowed: %s', (character, allowed) => {
+    expect(isSafeReason(`a${character}b`)).toBe(allowed)
+    expect(isAssetVersion(`a${character}b`)).toBe(allowed)
+    expect(isPackagePath(`a${character}b`)).toBe(allowed)
+  })
+})
+
 describe('isSafeReason and isAssetVersion accept short printable text', () => {
   const guards = [
     ['isSafeReason', isSafeReason],
