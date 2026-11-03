@@ -1,25 +1,46 @@
 # MCP能力组
 
-状态：工程设计草案。只有组文档，没有真实 workspace 成员、源码或运行支持。逻辑职责分解与正式成员命名分别处理，落位不授予接受。
+状态：工程设计草案。本组只有组文档，没有 workspace 成员、源码或运行支持。下文的成员、模型和决定都是候选，落位不授予技术接受。
 
 ## 责任与范围
 
-本组承接MCP专有工程责任，领域边界沿[已接受领域责任](../../docs/domains/mcp/README.md)。产品规则、阶段及政策沿[产品第四章](../../.meta_harness/design/product/mcp/design.md#未决问题与待定事项)。许可、原消息、工具执行、环境资源和逻辑工作继续由相邻拥有者承担，不能因组合在本组中集中改写。
+本组承接 MCP 专有的工程责任：接入点正文、MCP 连接、MCP 动作清单的发现与采用、动作到工具条目的投影，以及按原调用发出协议请求。领域边界沿[已接受领域责任](../../docs/domains/mcp/README.md)，跨领域交接与端口的实现方见[领域交接设计](../../docs/domains/mcp/architecture.md)。产品规则、阶段及政策沿[产品第四章](../../.meta_harness/design/product/mcp/design.md#未决问题与待定事项)。
+
+资格、凭据保管、本机进程落点、原调用、等待、结果和恢复由相邻拥有者承担。本组不因组合在这里集中而改写它们。
 
 ## 成员与依赖
 
-正式成员尚未具名。既有逻辑职责及必要依赖见[工程设计](docs/architecture.md)。它们不是拟定包名、插件、服务键、进程或部署单元。定义拥有者维护自己的公开形状，消费者沿真实边界取得必要主体、当前资格、采用依据及原调用引用。
+本组当前没有 workspace 成员。下面四个是具名文档目标，都尚非 workspace 成员。模型、端口和服务见[工程设计](docs/architecture.md#模型)，依据见 [Q-MC02](docs/architecture.md#q-mc02-成员与公开身份操作形状的技术归属)。
 
-完整行为候选尚未分配、未采用。待承接范围为发现与采用、端点与连接、动作桥接与恢复，以及共同不变式与持续验证。具体承接义务见[工程缺口](docs/architecture.md#完整行为候选的正式承接缺口)。本组不创建成员或统一 SPEC。
+| 文档目标 | 职责 | 允许依赖 | 状态 |
+| --- | --- | --- | --- |
+| mcp-contract | 纯契约：值对象、类别端口、纯函数、端口与应用服务接口；测试入口导出 stdio 与 Streamable HTTP 共用的传输契约测试。不依赖 Cordis 与任何实现 | assets（类别端口）、operation-result、legal-identity、content-block、json-text | 候选，尚非 workspace 成员 |
+| mcp | 通用实现：`Connection`、`ActionCatalog` 两个聚合与五个应用服务。不含 Cordis，不含官方 SDK | 只依赖 mcp-contract 及其公共值包 | 候选，尚非 workspace 成员 |
+| mcp-cordis-contract | Cordis 服务定义与服务键，不含实现 | mcp-contract、Cordis | 候选，尚非 workspace 成员 |
+| mcp-host-local | 本地宿主：stdio 与 Streamable HTTP 两种 `McpTransport` 实现，使用官方 SDK | mcp、mcp-contract、mcp-cordis-contract、官方 MCP SDK（精确版本待核实） | 候选，尚非 workspace 成员 |
+
+依赖方向是 mcp-host-local → {mcp, mcp-cordis-contract} → mcp-contract。mcp 与 mcp-cordis-contract 互不依赖。这一方向沿 [Tool 组](../tool/README.md#包与依赖)的先例。
+
+预期的消费方式（候选，同沿 Tool 组先例）：其他领域只依赖 mcp-contract；独立程序再加 mcp；应用装配使用 mcp-host-local。凭据保管、本机进程落点、采用视图和使用资格由组外实现方经端口交给本组，本组成员不导入它们的实现。
+
+旧任务的完整行为候选仍未分配。每份候选由哪个成员承接，见[承接表](docs/architecture.md#完整行为候选的正式承接缺口)。本组不在组根建立统一 SPEC。
 
 ## 关键协作
 
-[组内流程](docs/key-flows.md)表达逻辑责任协作；[领域流程](../../docs/domains/mcp/key-flows.md)表达跨领域消息、执行和恢复交接。[工程设计](docs/architecture.md)维护采用、失败与生命周期理由，完整公开行为候选保持原源，不在组页复制。
+[组内流程](docs/key-flows.md)写组内的采用、发现与调用路径。[领域流程](../../docs/domains/mcp/key-flows.md)写跨领域的准入、控制、失联与独立消费交接。[工程设计](docs/architecture.md)维护模型、失败种类和技术处置。
 
 ## 组合验证
 
-组技术拥有者协调方法/定义、取用/协议适配及真实相邻消费者，按原 contracts 的全部 INV/V 验证授权、采用竞争、原内容/动作、未知、取消、耐久与结果接续。证据须绑定成员、提供者及消费者精确版本与故障前提。本轮未核实行为、攻击、资源或耐久，结构检查不代替真实组合验证。
+组合验证须覆盖：MCP 连接不跨租户与对端账号；清单采用的竞争与迟到；断流后效果未知且不重发；归档后迟到结果的归属；资源释放只报告实际确认的范围；断电后原调用关联仍可读取。
+
+- 两种传输共用一份传输契约测试，由 mcp-contract 导出，见 [Q-MC06](docs/architecture.md#q-mc06-持续验证与真实部署前提)。
+- 传输与连接用本地起的真实 MCP 服务端验证。替身通过不说成真实组合通过。
+- 证据须绑定成员、提供者及消费者的精确版本与故障前提。
+
+当前没有任何行为、攻击、资源或耐久证据。文档结构检查不代替真实组合验证。
 
 ## 维护
 
-具名组维护者尚待指定。成员边界与实际公开形状明确并取得技术采用后，维护者完整承接行为，同步本入口、局部登记、产品技术导航与真实消费者，不能以搬迁薄化条件或把候选升级为采用。包创建沿[成员文档规范](../../docs/member-documentation.md)及[开发入口](../../docs/development.md#创建和整改产品包)；未明确前只维护承接缺项。
+具名组维护者尚待指定。建立成员时，沿[成员文档规范](../../docs/member-documentation.md)及[开发入口](../../docs/development.md#创建和整改产品包)建包，写成员 SPEC，取得技术接受，再把该成员在本表中的状态改为实际状态，并同步[承接表](docs/architecture.md#完整行为候选的正式承接缺口)、产品技术导航与真实消费者。
+
+增加一种传输或协议修订时，加一个 `McpTransport` 实现，并让它通过同一份传输契约测试。增加成员须说明实际消费者、安装闭包差异和验证收益。不以搬迁薄化条件，也不把候选写成已采用。
