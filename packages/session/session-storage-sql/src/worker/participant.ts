@@ -32,7 +32,7 @@ import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../cod
 import { runChecks } from './check.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
 import { readHistory, type SessionHistory } from './history-index.ts'
-import { judgeLog, readCoveringSnapshot, type CoveringSnapshot, type LogBatch } from './log.ts'
+import { judgeLog, readCoveringText, type CoveringSnapshot, type LogBatch } from './log.ts'
 import { PROTOCOL } from './schema.ts'
 import { big, oneRow, rowsOf, text, type Row } from './support.ts'
 
@@ -41,6 +41,8 @@ const MAX_INITIALIZATION_RECEIPTS = 1000
 const MAX_VIEW_ROWS = 100_000
 /** The sessions whose parsed snapshot one write Worker keeps (C-WORKCACHE A2). */
 export const PARTICIPANT_SNAPSHOT_SESSIONS = 256
+/** The snapshot text, in UTF-16 code units, that one write Worker keeps over all sessions. */
+export const PARTICIPANT_SNAPSHOT_TEXT = 64 * 1024 * 1024
 
 /** Freezes a decoded snapshot and every object and array in it. */
 function deepFreeze<T>(value: T): T {
@@ -49,74 +51,88 @@ function deepFreeze<T>(value: T): T {
   return Object.freeze(value)
 }
 
-type ParsedEntry = Readonly<{ covered: bigint; snapshot: WorkSnapshot }>
+type ParsedEntry = Readonly<{ covered: bigint; text: string; snapshot: WorkSnapshot }>
 
 /**
- * The parsed `sl_state` snapshot of each session in this write Worker, so a commit whose journal
- * tail equals the revision a kept snapshot covers neither reads `sl_state` nor parses it again
- * (C-WORKCACHE A2). Read handlers run in read Workers and do not use it.
+ * The parsed `sl_state` snapshot of each session in this write Worker, so a commit that reads the
+ * same snapshot text as an earlier one does not parse it again (C-WORKCACHE A2). Read handlers run
+ * in read Workers and do not use it.
  *
- * - The key is the tenant and the session; the check is `covered == tail` against the journal row
- *   that this transaction read. `sl_state` and `sl_journal.tail` move in one transaction, so
- *   within one database an equal tail means the same row. The check does not tell databases apart:
- *   it relies on one database per module instance (one write Worker per transaction domain) and on
- *   every write of that database going through it.
+ * - Every commit still reads the `sl_state` row of its session and checks `covered == tail`. A
+ *   kept snapshot is reused only when the text of that row is equal to the text it was parsed from.
+ *   This deviates from design v2 §6.1, which reuses on `covered == tail` without reading the row
+ *   (R2-D96): the revision does not tell databases apart (one module instance can serve more than
+ *   one database, as the in-process test provider does), a rolled-back write can leave a revision
+ *   that a later commit writes again with other content, and in a group commit a later operation
+ *   sees the staged row of an earlier one. Equal text gives an equal parse in each of these cases,
+ *   so a hit never answers a snapshot that the row does not hold. The cost: one read of the row and
+ *   one O(|S|) string comparison per commit. What it saves is `JSON.parse` and `decodeValue`.
  * - Only the snapshot that a transaction read is kept, never the one that the commit computes: the
  *   participant does not see whether its transaction commits.
- * - Any other tail, below or above the kept revision, reads and parses the row again and replaces
- *   the entry; a row that does not cover the tail answers `behind` and drops the entry.
+ * - A row that does not cover the tail answers `behind` and drops the entry; a row that does not
+ *   parse throws and keeps nothing for the session.
  * - A kept snapshot is deep-frozen. A reader that writes into it throws a `TypeError`, so the
  *   commit fails and rolls back, and the next reader still gets the parsed row.
- * - Least recently used order, bounded by sessions. `sessions: 0` keeps none.
+ * - Least recently used order, bounded by sessions and by the total text. `sessions: 0` keeps none.
  */
 export class ParsedSnapshots {
   private readonly entries = new Map<string, ParsedEntry>()
   private readonly sessions: number
+  private readonly textLimit: number
+  private held = 0
 
-  constructor(sessions: number = PARTICIPANT_SNAPSHOT_SESSIONS) {
+  constructor(
+    sessions: number = PARTICIPANT_SNAPSHOT_SESSIONS,
+    textLimit: number = PARTICIPANT_SNAPSHOT_TEXT,
+  ) {
     this.sessions = sessions
+    this.textLimit = textLimit
   }
 
-  /** The snapshot that covers `tail`: the kept one when it covers the same revision. */
+  /** The snapshot that covers `tail`: the kept one when the row holds the same text. */
   readonly covering: CoveringSnapshot = (port, tenant, session, tail) => {
     const key = JSON.stringify([tenant, session])
     const kept = this.entries.get(key)
-    if (kept !== undefined) {
-      this.entries.delete(key)
-      if (kept.covered === tail) {
-        this.keep(key, kept)
-        return kept.snapshot
-      }
-    }
-    // A row that does not parse throws here and keeps nothing for the session.
-    const read = readCoveringSnapshot(port, tenant, session, tail)
+    if (kept !== undefined) this.forget(key, kept)
+    const read = readCoveringText(port, tenant, session, tail)
     if (read === 'behind') return read
-    const snapshot = deepFreeze(read)
-    this.keep(key, { covered: tail, snapshot })
+    if (kept !== undefined && kept.text === read) {
+      this.keep(key, { ...kept, covered: tail })
+      return kept.snapshot
+    }
+    const snapshot = deepFreeze(decodeValue(JSON.parse(read) as JsonValue) as WorkSnapshot)
+    this.keep(key, { covered: tail, text: read, snapshot })
     return snapshot
   }
 
-  /** The kept snapshot of a session and its revision, without changing the order (for tests). */
+  /** The kept entry of a session, without changing the order (for tests). */
   peek(tenant: string, session: string): ParsedEntry | undefined {
     return this.entries.get(JSON.stringify([tenant, session]))
   }
 
-  /** The number of kept sessions. */
-  get size(): number {
-    return this.entries.size
+  /** The number of kept sessions and their text length. */
+  get size(): Readonly<{ sessions: number; text: number }> {
+    return { sessions: this.entries.size, text: this.held }
   }
 
-  /** Drops every kept snapshot, for a host that opens another database in this module instance. */
+  /** Drops every kept snapshot. Correctness does not depend on it. */
   clear(): void {
     this.entries.clear()
+    this.held = 0
+  }
+
+  private forget(key: string, entry: ParsedEntry): void {
+    this.entries.delete(key)
+    this.held -= entry.text.length
   }
 
   private keep(key: string, entry: ParsedEntry): void {
-    if (this.sessions <= 0) return
+    if (this.sessions <= 0 || entry.text.length > this.textLimit) return
     this.entries.set(key, entry)
-    for (const oldest of this.entries.keys()) {
-      if (this.entries.size <= this.sessions) break
-      this.entries.delete(oldest)
+    this.held += entry.text.length
+    for (const [oldest, old] of this.entries) {
+      if (this.entries.size <= this.sessions && this.held <= this.textLimit) break
+      this.forget(oldest, old)
     }
   }
 }

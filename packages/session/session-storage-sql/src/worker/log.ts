@@ -148,18 +148,29 @@ export type CoveringSnapshot = (
   tail: bigint,
 ) => WorkSnapshot | 'behind'
 
-/**
- * Reads and parses the `sl_state` row each time. The participant passes its parsed-snapshot cache
- * instead (`ParsedSnapshots.covering`), which falls back to this read.
- */
-export const readCoveringSnapshot: CoveringSnapshot = (port, tenant, session, tail) => {
+/** The snapshot text of the `sl_state` row of the session when it covers `tail`, else `behind`. */
+export function readCoveringText(
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  tail: bigint,
+): string | 'behind' {
   const state = oneRow(
     port,
     'SELECT snapshot, covered FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
     [tenant, session],
   )
   if (state === undefined || big(state['covered']) !== tail) return 'behind'
-  return decodeValue(JSON.parse(text(state['snapshot'])) as JsonValue) as WorkSnapshot
+  return text(state['snapshot'])
+}
+
+/**
+ * Reads and parses the `sl_state` row each time. The participant passes its parsed-snapshot cache
+ * instead (`ParsedSnapshots.covering`), which reads the same row and parses only a new text.
+ */
+export const readCoveringSnapshot: CoveringSnapshot = (port, tenant, session, tail) => {
+  const read = readCoveringText(port, tenant, session, tail)
+  return read === 'behind' ? read : (decodeValue(JSON.parse(read) as JsonValue) as WorkSnapshot)
 }
 
 type Read = Readonly<{
