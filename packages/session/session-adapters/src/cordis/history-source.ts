@@ -76,6 +76,12 @@ const SCOPE_INDEX_ENTRIES = 4096
 const PAGE_BYTES = 65536
 /** A history read that has not ended after this many pages is not a complete read. */
 const MAX_PAGES = 10000
+/** The most sessions whose model view cursors one source fiber keeps; the oldest goes first. */
+const CURSOR_SESSIONS = 1024
+/** The most model view cursors kept per session; the one after the lowest row goes first. */
+const CURSORS_PER_SESSION = 16
+/** The most row sizes kept per session; the lowest rows go first. */
+const SIZES_PER_SESSION = 65536
 
 /** The session that one durable history head names. */
 export type SessionHistoryHead = Readonly<{ tenant: TenantId; session: SessionId }>
@@ -206,9 +212,9 @@ function sessionSeqOf(seq: HistorySequence): string {
   return String(BigInt(seq) + 1n)
 }
 
-/** The Session cursor of a history cursor: after the same row of the Session numbering. */
-function sessionAfterOf(cursor: HistoryCursor | null): string | null {
-  return cursor === null ? null : sessionSeqOf(cursor.after)
+/** The Session row number of a model view row: a canonical decimal from 1. */
+function sessionRowOf(seq: string): bigint | undefined {
+  return historySeqOf(seq) === undefined ? undefined : BigInt(seq)
 }
 
 /** `"0"` is the empty history; any other canonical decimal is the entry of its last row. */
@@ -273,6 +279,64 @@ function refusalOf(failure: SessionFailure, field: string): Refusal {
   }
 }
 
+// --- the cursors Session issued -------------------------------------------------------------------
+
+/** One model view page as the reader needs it: the rows after the cursor, and whether more follow. */
+type ViewRead =
+  | Readonly<{ kind: 'page'; rows: readonly ModelViewRow[]; more: boolean }>
+  | Readonly<{ kind: 'epoch-changed'; current: ModelViewBasis }>
+
+/**
+ * What one session's model view reads have learned under one epoch: the opaque cursor Session
+ * issued after a row, and the size of each row seen. A derivative of the reads, lost with the
+ * fiber; rows of an epoch never change, so neither does a kept cursor's position or a kept size.
+ */
+class CursorBook {
+  readonly key: string
+  readonly epoch: string
+  readonly tokens = new Map<bigint, string>()
+  private readonly sizes = new Map<bigint, number>()
+
+  constructor(key: string, epoch: string) {
+    this.key = key
+    this.epoch = epoch
+  }
+
+  /** The highest row at or before `after` with a kept cursor; 0 is the start, which needs none. */
+  start(after: bigint): bigint {
+    let best = 0n
+    for (const row of this.tokens.keys()) if (row <= after && row > best) best = row
+    return best
+  }
+
+  /** The bytes of the rows `from + 1` to `to`, or undefined when the size of one is not known. */
+  span(from: bigint, to: bigint): number | undefined {
+    let total = 0
+    for (let row = from + 1n; row <= to; row++) {
+      const size = this.sizes.get(row)
+      if (size === undefined) return undefined
+      total += size
+    }
+    return Math.max(1, total)
+  }
+
+  size(row: bigint, bytes: number): void {
+    this.sizes.set(row, bytes)
+    while (this.sizes.size > SIZES_PER_SESSION) dropLowest(this.sizes)
+  }
+
+  remember(row: bigint, token: string): void {
+    this.tokens.set(row, token)
+    while (this.tokens.size > CURSORS_PER_SESSION) dropLowest(this.tokens)
+  }
+}
+
+function dropLowest(map: Map<bigint, unknown>): void {
+  let lowest: bigint | undefined
+  for (const row of map.keys()) if (lowest === undefined || row < lowest) lowest = row
+  if (lowest !== undefined) map.delete(lowest)
+}
+
 // --- validation of the inputs of a part ----------------------------------------------------------
 
 type Checked = Readonly<{ kind: 'checked'; tenant: string; access: Access<unknown> }>
@@ -331,6 +395,8 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
   private readonly pending = new Set<Promise<SourceSettlement>>()
   private readonly revision: GroupToken
   private readonly parts: ContextHolderParts<unknown>
+  /** Per session, the model view cursors Session issued and the row sizes (`CursorBook`). */
+  private readonly cursors = new Map<string, CursorBook>()
 
   constructor(scope: Context, shared: Shared) {
     super(scope)
@@ -528,25 +594,20 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
         !sameEvidence(cursor.evidence, evidence))
     )
       return invalid('cursor', 'cursor-invalidated')
-    const basis = basisOf(evidence)
-    const answer = await this.call<ModelViewRead>(() =>
-      this.scope[sessionKey].history.readModelView({
-        ...located.session,
-        basis,
-        after: sessionAfterOf(cursor),
-        pageBytes: input.budgetBytes,
-      }),
+    const view = await this.viewAfter(
+      located,
+      basisOf(evidence),
+      cursor === null ? 0n : BigInt(sessionSeqOf(cursor.after)),
+      input.budgetBytes,
+      'cursor',
     )
-    if ('failure' in answer) return refusalOf(answer.failure, 'cursor')
-    const view = answer.ok
     if (view.kind === 'epoch-changed') {
       const current = evidenceOf(located.target, view.current)
       return current === undefined
         ? this.defect('the current model view basis is not a history evidence')
         : { kind: 'epoch-changed', current }
     }
-    if (view.basis.epoch !== basis.epoch || view.basis.upper !== basis.upper)
-      return this.defect('the model view page names another basis')
+    if (view.kind !== 'page') return view
     const rows: HistoryRow[] = []
     for (const row of view.rows) {
       const translated = rowOf(row)
@@ -554,10 +615,133 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
         return this.defect(`model view row ${row.seq} does not translate`)
       rows.push(translated)
     }
-    if (view.next === null) return { kind: 'page', page: { rows, next: null } }
-    const after = historySeqOf(view.next)
-    if (after === undefined) return this.defect('the model view cursor is not a history sequence')
-    return { kind: 'page', page: { rows, next: { evidence, after } } }
+    const last = rows.at(-1)
+    if (!view.more || last === undefined) return { kind: 'page', page: { rows, next: null } }
+    return { kind: 'page', page: { rows, next: { evidence, after: last.seq } } }
+  }
+
+  /**
+   * The model view rows after the Session row `after` under `basis`, at most `budget` bytes of them
+   * (at least one row), and whether more follow. Session cursors are opaque: this reader never
+   * decodes one. It keeps, per session and epoch, the cursor Session issued after each row it has
+   * seen and the size of each row (`CursorBook`), and starts each read at the kept cursor nearest
+   * before `after`, skipping the rows up to `after`. A page that reaches the upper bound carries no
+   * cursor, so after such a page the reader asks Session once more for the rows before the last
+   * one (`mint`): the next read, after the upper bound of this one, then starts one row before it.
+   * With no cursor near `after` (a cold start, another epoch, a cursor Session no longer accepts)
+   * the read starts at the beginning of the epoch and skips the rows it already has.
+   */
+  private async viewAfter(
+    located: Located,
+    basis: ModelViewBasis,
+    after: bigint,
+    budget: number,
+    field: string,
+    retried = false,
+  ): Promise<ViewRead | Refusal> {
+    const book = this.bookOf(located, basis.epoch)
+    let position = book.start(after)
+    for (let pages = 0; pages < MAX_PAGES; pages++) {
+      const token = position === 0n ? null : (book.tokens.get(position) ?? null)
+      const skipped = position === after ? 0 : book.span(position, after)
+      const pageBytes = budget + (skipped ?? PAGE_BYTES)
+      const answer = await this.call<ModelViewRead>(() =>
+        this.scope[sessionKey].history.readModelView({
+          ...located.session,
+          basis,
+          after: token,
+          pageBytes,
+        }),
+      )
+      if ('failure' in answer) {
+        // A kept cursor Session refuses (expired, or signed by a key it dropped): forget the book
+        // and read once more from the start, which needs no cursor.
+        if (token !== null && answer.failure.kind === 'invalid' && !retried) {
+          this.cursors.delete(book.key)
+          return this.viewAfter(located, basis, after, budget, field, true)
+        }
+        return refusalOf(answer.failure, field)
+      }
+      const view = answer.ok
+      if (view.kind === 'epoch-changed') return view
+      if (view.basis.epoch !== basis.epoch || view.basis.upper !== basis.upper)
+        return this.defect('the model view page names another basis')
+      for (const row of view.rows) {
+        const seq = sessionRowOf(row.seq)
+        if (seq === undefined || !Number.isSafeInteger(row.bytes) || row.bytes < 0)
+          return this.defect(`model view row ${row.seq} does not translate`)
+        book.size(seq, row.bytes)
+      }
+      const last = view.rows.at(-1)
+      if (view.next !== null) {
+        if (last === undefined) return this.defect('the model view cursor follows no row')
+        book.remember(BigInt(last.seq), view.next)
+      }
+      const kept = view.rows.filter(row => BigInt(row.seq) > after)
+      if (kept.length > 0) {
+        const taken: ModelViewRow[] = []
+        let bytes = 0
+        for (const row of kept) {
+          if (taken.length > 0 && bytes + row.bytes > budget) break
+          taken.push(row)
+          bytes += row.bytes
+        }
+        if (view.next === null && last?.seq === basis.upper)
+          await this.mint(located, basis, book, BigInt(basis.upper) - 1n)
+        return { kind: 'page', rows: taken, more: taken.length < kept.length || view.next !== null }
+      }
+      if (view.next === null || last === undefined) return { kind: 'page', rows: [], more: false }
+      position = BigInt(last.seq)
+    }
+    return unavailable('the model view read did not reach the cursor')
+  }
+
+  /**
+   * Asks Session for the cursor after the row `target` of `basis`: one page of exactly the rows
+   * between the nearest kept cursor and `target`, whose sizes the reader has seen. It only adds to
+   * the book; a refusal or a page of another shape leaves the book as it was, and the next read
+   * then starts further back.
+   */
+  private async mint(
+    located: Located,
+    basis: ModelViewBasis,
+    book: CursorBook,
+    target: bigint,
+  ): Promise<void> {
+    for (let pages = 0; pages < MAX_PAGES; pages++) {
+      const position = book.start(target)
+      if (position === target) return
+      const pageBytes = book.span(position, target)
+      if (pageBytes === undefined) return
+      const answer = await this.call<ModelViewRead>(() =>
+        this.scope[sessionKey].history.readModelView({
+          ...located.session,
+          basis,
+          after: position === 0n ? null : (book.tokens.get(position) ?? null),
+          pageBytes,
+        }),
+      )
+      if ('failure' in answer || answer.ok.kind !== 'page') return
+      const last = answer.ok.rows.at(-1)
+      const row = last === undefined ? undefined : sessionRowOf(last.seq)
+      if (answer.ok.next === null || row === undefined || row <= position || row > target) return
+      book.remember(row, answer.ok.next)
+    }
+  }
+
+  /** The cursor book of the session of `located` for `epoch`; another epoch starts a new one. */
+  private bookOf(located: Located, epoch: string): CursorBook {
+    const key = `${located.tenant}\u0000${located.session.session}`
+    let book = this.cursors.get(key)
+    this.cursors.delete(key)
+    if (book === undefined || book.epoch !== epoch) book = new CursorBook(key, epoch)
+    this.cursors.set(key, book)
+    while (this.cursors.size > CURSOR_SESSIONS) {
+      const oldest = this.cursors.keys().next().value
+      if (oldest === undefined) break
+      this.cursors.delete(oldest)
+    }
+    return book
   }
 
   private async resolve(
@@ -639,23 +823,20 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     | Refusal
   > {
     const basis = basisOf(evidence)
-    const after = evidence.upper.kind === 'empty' ? null : String(BigInt(basis.upper) - 1n)
-    const answer = await this.call<ModelViewRead>(() =>
-      this.scope[sessionKey].history.readModelView({
-        ...located.session,
-        basis,
-        after,
-        pageBytes: 1,
-      }),
+    const view = await this.viewAfter(
+      located,
+      basis,
+      evidence.upper.kind === 'empty' ? 0n : BigInt(basis.upper) - 1n,
+      1,
+      'evidence',
     )
-    if ('failure' in answer) return refusalOf(answer.failure, 'evidence')
-    const view = answer.ok
     if (view.kind === 'epoch-changed') {
       const current = evidenceOf(located.target, view.current)
       return current === undefined
         ? this.defect('the current model view basis is not a history evidence')
         : { kind: 'epoch-changed', current }
     }
+    if (view.kind !== 'page') return view
     if (evidence.upper.kind === 'empty') return { kind: 'row', entry: null }
     const row = view.rows[0]
     if (row === undefined || row.seq !== basis.upper)

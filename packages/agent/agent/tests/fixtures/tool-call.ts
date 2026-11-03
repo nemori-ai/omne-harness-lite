@@ -91,9 +91,12 @@ export function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolI
   )
 }
 
-export async function toolAssembly(configuration: Parameters<typeof controlAssembly>[2] = {}) {
+export async function toolAssembly(
+  configuration: Parameters<typeof controlAssembly>[2] = {},
+  journal: Parameters<typeof controlAssembly>[0] = {},
+) {
   return controlAssembly(
-    {},
+    journal,
     dependencies => ({
       ...dependencies,
       toolRequests: {
