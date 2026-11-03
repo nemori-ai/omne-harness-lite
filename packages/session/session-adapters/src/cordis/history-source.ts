@@ -647,23 +647,7 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
   ): Promise<SourceRead<AdoptedRequestFact | null>> {
     const admitted = await this.admitted(input.access, input.target)
     if (admitted.kind !== 'located') return admitted
-    let requests: SessionAdoptedRequests<unknown> | undefined
-    try {
-      requests = this.scope.get(sessionAdoptedRequestsKey)
-    } catch (cause) {
-      return unavailable(`the adopted request reads are not readable: ${describe(cause)}`)
-    }
-    if (requests === undefined)
-      return unavailable('adopted-requests-absent: sessionAdoptedRequests is not provided')
-    let read: SessionAdoptedRequestRead
-    try {
-      read = await requests.readAdoptedRequest({
-        access: admitted.access,
-        session: admitted.session.session,
-      })
-    } catch (cause) {
-      return unavailable(`the adopted request read threw: ${describe(cause)}`)
-    }
+    const read = await this.savedOf(admitted)
     switch (read.kind) {
       case 'denied':
         return DENIED
@@ -676,6 +660,26 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       }
       default:
         return this.defect('the adopted request read gave an answer of no known kind')
+    }
+  }
+
+  /** What `sessionAdoptedRequests` saved for the session of `located`, read per call. */
+  private async savedOf(located: Located): Promise<SessionAdoptedRequestRead> {
+    let requests: SessionAdoptedRequests<unknown> | undefined
+    try {
+      requests = this.scope.get(sessionAdoptedRequestsKey)
+    } catch (cause) {
+      return unavailable(`the adopted request reads are not readable: ${describe(cause)}`)
+    }
+    if (requests === undefined)
+      return unavailable('adopted-requests-absent: sessionAdoptedRequests is not provided')
+    try {
+      return await requests.readAdoptedRequest({
+        access: located.access,
+        session: located.session.session,
+      })
+    } catch (cause) {
+      return unavailable(`the adopted request read threw: ${describe(cause)}`)
     }
   }
 
