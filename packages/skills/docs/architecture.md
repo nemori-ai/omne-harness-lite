@@ -469,7 +469,7 @@ P1 各项来自独立消费者的需求。版本变化观察的首版范围是�
 第一波的验证候选：
 
 1. 值与纯函数的单元测试。
-2. `SkillPackageSource` 的符合性测试，所有来源共用。`SkillAccess` 的符合性套件 `skillAccessConformance()` 在 `./testing`，有 15 条用例（A1–A11、A12a、A12b、A13、A14），用两个夹具世界运行：一个世界里对应端口对无权主体隐藏身份，另一个世界里对应端口对所有主体作答。A1–A3 只在后一个世界里能看出读取判定被跳过，见成员规格[符合性套件](../skill-contract/SPEC.md#conformance)。`SkillReadCheck` 与 `SkillResolution` 的符合性测试，所有端口实现共用：对无权主体，答复不随该身份是否存在而变。`SkillResolution` 的答复次序：先 `known-unavailable`，再 `adopted`，只有身份 `adopted` 且依据版本不合法时才答 `basis-not-lawful`。
+2. `SkillPackageSource` 的符合性测试，所有来源共用。`SkillAccess` 的符合性套件 `skillAccessConformance()` 在 `./testing`，有 15 条用例（A1–A11、A12a、A12b、A13、A14），由 `@omne-harness/skill` 的测试在两个夹具世界运行：一个世界里对应端口对无权主体隐藏身份，另一个世界里对应端口对所有主体作答。A1–A3 只在后一个世界里能看出读取判定被跳过，见成员规格[符合性套件](../skill-contract/SPEC.md#conformance)。`SkillReadCheck` 与 `SkillResolution` 的符合性测试，所有端口实现共用：对无权主体，答复不随该身份是否存在而变。`SkillResolution` 的答复次序：先 `known-unavailable`，再 `adopted`，只有身份 `adopted` 且依据版本不合法时才答 `basis-not-lawful`。
 3. 真实临时目录上的 `DirectorySource` 测试：软链接、记下内容摘要后改文件（不带Skill 材料依据报 `adopted-material-changed`，带Skill 材料依据报 `basis-unavailable`）、取快照后改条目报 `version-changed`、目录被删时带Skill 材料依据报 `basis-unavailable`、不带Skill 材料依据报 `source-unavailable`、包外路径、进程重启后判定不变。
 4. 读取中来源变化：返回一致版本或失败，不出现混拼的成功。带Skill 材料依据读取时，源已变化则交出旧材料或报 `basis-unavailable`，不改交新材料。
 5. 撤权、跨租户与缓存命中：每次操作的当前核验仍然生效，不泄露内容，也不向无权主体披露身份是否存在。

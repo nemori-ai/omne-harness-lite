@@ -1,6 +1,6 @@
 # Skill能力组
 
-状态：本组有三个 workspace 成员。`@omne-harness/skill-contract` 提供已接受的 `skill` 类别端口。它在第一波实现了值、纯函数、包检查、端口与服务接口、端口的符合性套件，以及 `skill` 类别端口的可加扩展（保留字段与 `name-invalid`）。这些是候选，尚未取得技术接受。`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 在第二波有了实现（候选，尚未取得技术接受）：`@omne-harness/skill` 实现包检查与描述、读取、列出、导出，`@omne-harness/skill-host-local` 实现本机目录来源。组的分解、模型、端口与服务是工程设计草案，全部为候选决定，尚未取得技术接受。摘要与检索（`SkillCatalog`）和发布仍没有服务实现。脚本执行不归本组。
+状态：本组有三个 workspace 成员。`@omne-harness/skill-contract` 提供已接受的 `skill` 类别端口。它实现了值、纯函数、包检查、端口与服务接口、端口的符合性套件，以及 `skill` 类别端口的可加扩展（保留字段与 `name-invalid`）。这些是候选，尚未取得技术接受。`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 在第二波有了实现（候选，尚未取得技术接受）：`@omne-harness/skill` 实现包检查与描述、读取、列出、导出，`@omne-harness/skill-host-local` 实现本机目录来源。组的分解、模型、端口与服务是工程设计草案，全部为候选决定，尚未取得技术接受。摘要与检索（`SkillCatalog`）和发布仍没有服务实现。脚本执行不归本组。
 
 ## 责任与范围
 
@@ -14,7 +14,7 @@
 | --- | --- | --- | --- | --- |
 | `@omne-harness/skill-contract`（`packages/skills/skill-contract`，纯契约） | 已实现已接受的 `skill` 类别端口 `skillBodyContract`。其余已实现（候选），包括类别端口的扩展（保留字段与 `name-invalid`）。行为以成员规格为准。不依赖 Tool。服务只有接口，不提供发现、读取、导出或发布 | 值、纯函数、包检查、端口与服务接口、`skill` 类别端口，以及 `./testing` 符合性设施，见下文 | 见下文 | [成员入口](skill-contract/README.md)与[规格](skill-contract/SPEC.md) |
 | `@omne-harness/skill`（`packages/skills/skill`，通用实现） | 已实现（候选）。公开根交出工厂 `createPackageInspection`、`createSkillAccess` 与类型 `SkillPorts`。`SkillCatalog` 还没有实现。本成员还没有独立的示例文件，可运行的示例要以 `@omne-harness/skill-host-local` 作真实来源，见[成员示例说明](skill/examples/README.md) | 三个应用服务：`PackageInspection`、`SkillCatalog`、`SkillAccess`。名字对应领域的「方法与资源取用」。只依赖本组纯契约与公共值成员，不依赖 Cordis，也不依赖任何调用方的成员 | `@omne-harness/skill-contract`，以及 `@omne-harness/skill-contract` 允许的公共值成员 | [成员入口](skill/README.md)与[规格](skill/SPEC.md) |
-| `@omne-harness/skill-host-local`（`packages/skills/skill-host-local`，本地宿主） | 已实现目录来源部分（候选）。公开根交出工厂 `createDirectorySource` 与接缝类型 `DirectoryFs`、`EntryKind`、`Opened`。失败映射见[成员入口「Behavior」](skill-host-local/README.md#behavior)。Cordis 插件部分在 Cordis 服务键波补 `src/cordis.ts` | 两部分。目录来源部分：本机目录来源 `DirectorySource`，在第一波。Cordis 插件部分：本组的 Cordis 插件，在 Cordis 服务键波。内容存储来源等存储契约就绪后再加 | 目录来源部分：`@omne-harness/skill-contract` 与宿主依赖。Cordis 插件部分另加 `@omne-harness/skill` 与 `skill-cordis-contract` | [成员入口](skill-host-local/README.md)与[规格](skill-host-local/SPEC.md) |
+| `@omne-harness/skill-host-local`（`packages/skills/skill-host-local`，本地宿主） | 已实现目录来源部分（候选）。公开根交出工厂 `createDirectorySource` 与接缝类型 `DirectoryFs`、`EntryKind`、`Opened`。失败映射见[成员入口「Behavior」](skill-host-local/README.md#behavior)。Cordis 插件部分在 Cordis 服务键波补 `src/cordis.ts` | 两部分。目录来源部分：本机目录来源 `DirectorySource`。Cordis 插件部分：本组的 Cordis 插件，在 Cordis 服务键波。内容存储来源等存储契约就绪后再加 | 目录来源部分：`@omne-harness/skill-contract` 与宿主依赖。Cordis 插件部分另加 `@omne-harness/skill` 与 `skill-cordis-contract` | [成员入口](skill-host-local/README.md)与[规格](skill-host-local/SPEC.md) |
 
 `@omne-harness/skill-contract` 有三个入口，各入口的内容见成员规格[入口](skill-contract/SPEC.md#entries)：
 
