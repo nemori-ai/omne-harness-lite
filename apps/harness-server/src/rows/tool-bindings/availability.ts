@@ -2,15 +2,19 @@
 // - 主体与租户：经 `principalVerifier` 核验的 Session 工作主体，租户与调用一致；做不到答 unavailable。
 // - 定义：官方层，名字、规范化摘要都与受信快照的条目相等；不在快照里答 qualification denied。
 // - 消费者：只认发行清单确认的文本消费者材料，三项证据全等；陌生材料或缺来源答 unavailable。
-// - dependencies：environment 声明的 facility 逐项报告。A 段没有落点与设施的可用性来源，如实报 `false`。
+// - dependencies：environment 声明的 facility 逐项报告（R2-D79 第 3 条，B 段）。可用当且仅当执行环境注册表
+//   （`executionEnvironment`）与 Tool 环境适配（`toolEnvironments`）此刻都在场；任一不在报 `false`。这只说明
+//   设施的装配在场，不核具体宿主提供者的前提：前提不满足时由放置答 unavailable（已知限制）。
 // - input/output/attachments：按固定定义与确认的文本消费者能力判断。
 import type { Context } from '@deepseek-ai/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
+import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import { principalVerifierKey } from '@omne-harness/identity/cordis'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolConsumerProfile, ToolDefinition } from '@omne-harness/tool-contract'
+import { toolEnvironmentsKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { LocalToolAvailabilitySource } from '@omne-harness/tool-host-local'
 import { releaseOf } from '../../entry/tool-release.ts'
 import type { ToolReleaseManifest } from '../../entry/tool-release-manifest.ts'
@@ -94,7 +98,18 @@ function inRelease(release: Trusted, definition: ToolDefinition, layer: JudgeInp
 }
 
 /** 定义已在清单、消费者已确认时的五项事实。 */
-function allowedFacts(definition: ToolDefinition, confirmed: ToolReleaseManifest['consumer']) {
+/** 设施依赖的装配是否在场：执行环境注册表与 Tool 环境适配都提供着。 */
+function environmentInstalled(ctx: Context): boolean {
+  return (
+    ctx.get(executionEnvironmentKey) !== undefined && ctx.get(toolEnvironmentsKey) !== undefined
+  )
+}
+
+function allowedFacts(
+  definition: ToolDefinition,
+  confirmed: ToolReleaseManifest['consumer'],
+  installed: boolean,
+) {
   const facilities = declaredFacilities(definition)
   if (facilities === undefined) return unavailable('environment declaration is unreadable')
   const { declarations } = definition
@@ -102,8 +117,7 @@ function allowedFacts(definition: ToolDefinition, confirmed: ToolReleaseManifest
   const consumerWrites = new Set<string>(confirmed.output)
   return succeed({
     qualification: 'allowed' as const,
-    // No placement or facility availability source exists before segment B.
-    dependencies: facilities.map(name => ({ name: `facility:${name}`, available: false })),
+    dependencies: facilities.map(name => ({ name: `facility:${name}`, available: installed })),
     inputCompatible: declarations.inputModalities.every(m => consumerWrites.has(m)),
     outputCompatible: declarations.outputModalities.every(m => consumerReads.has(m)),
     attachmentsReadable: declarations.attachments.length === 0,
@@ -119,7 +133,7 @@ async function judgeRelease(ctx: Context, input: JudgeInput): ReturnType<Judge> 
   const confirmed = release.manifest.consumer
   if (!confirmedTextConsumer(input.consumer, confirmed))
     return unavailable('consumer material is not a confirmed text consumer')
-  return allowedFacts(input.definition, confirmed)
+  return allowedFacts(input.definition, confirmed, environmentInstalled(ctx))
 }
 
 export function createReleaseAvailability(ctx: Context): LocalToolAvailabilitySource<unknown> {
