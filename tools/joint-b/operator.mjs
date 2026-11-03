@@ -118,13 +118,15 @@ const RECORDS = {
 // agent-host 的运维者值（SC4，R2-D162）。`replace` 整行替换，所以发行层的 `jointCommits`、`coordination`
 // 要逐字重抄（漏 `message` 会被行 schema 在装载时拒绝）；其余是工厂数值与实例空闲时长，测试值。
 // `loopGuardPolicy` 还没有生产采用来源（具名缺件，归 L-RUN 波 3），这里是测试采用。
+// `reconciliationDelayMs`、`denialBackoffMs` 取 agent-host-local `docs/cordis.md` 示例的 1000：Agent 在 I1 等依赖时
+// 按这个间隔重查，取 0 会约每 9 ms 重跑一遍（R2-D209）。
 const AGENT_HOST = {
   jointCommits: ['message', 'context-transition', 'custody', 'processed'],
   coordination: 'coordinated',
   observerBufferBytes: 65_536,
-  reconciliationDelayMs: 0,
+  reconciliationDelayMs: 1000,
   reconciliationBatchLimit: 8,
-  denialBackoffMs: 0,
+  denialBackoffMs: 1000,
   toolConcurrency: 1,
   loopGuardPolicy: { ...ADOPTION, name: 'loop-guard' },
   instanceIdleMs: 60_000,
