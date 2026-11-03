@@ -121,11 +121,17 @@ export const calculationBasisSchema = z
   .readonly()
 export type CalculationBasis = z.infer<typeof calculationBasisSchema>
 
-export const calculationFailureSchema = z.discriminatedUnion('kind', [
+export const calculationFailureSchema = z.union([
   z.strictObject({ kind: z.literal('invalid'), message: z.string() }),
   z.strictObject({
     kind: z.literal('coverageInsufficient'),
     date: localDateSchema,
+    coverage: dateRangeSchema,
+  }),
+  z.strictObject({
+    kind: z.literal('coverageInsufficient'),
+    date: z.null(),
+    boundary: z.enum(['beforeMinimum', 'afterMaximum']),
     coverage: dateRangeSchema,
   }),
   z.strictObject({

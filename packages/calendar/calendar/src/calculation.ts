@@ -72,8 +72,21 @@ function dayReader(snapshot: CalendarSnapshot) {
     }
   }
 }
-function move(date: LocalDate, direction: number): LocalDate | CalculationFailure {
-  return dateFor(Temporal.PlainDate.from(date).add({ days: direction }).toString())
+function move(
+  snapshot: CalendarSnapshot,
+  date: LocalDate,
+  direction: number,
+): LocalDate | CalculationFailure {
+  const next = Temporal.PlainDate.from(date).add({ days: direction })
+  if (next.year < 0 || next.year > 9999) {
+    return {
+      kind: 'coverageInsufficient',
+      date: null,
+      boundary: next.year < 0 ? 'beforeMinimum' : 'afterMaximum',
+      coverage: { from: snapshot.coverageStart, to: snapshot.coverageEnd },
+    }
+  }
+  return dateFor(next.toString())
 }
 
 type ScanInput = {
@@ -91,8 +104,6 @@ function scan(input: ScanInput): ScanSuccess | CalculationFailure {
   let current = input.from
   let inspectedDays = 0
   while (true) {
-    if (inspectedDays >= input.budget)
-      return { kind: 'searchLimit', scanBudget: input.budget, inspectedDays }
     const missing = coverageFailure(input.snapshot, current)
     if (missing) return missing
     inspectedDays += 1
@@ -102,7 +113,9 @@ function scan(input: ScanInput): ScanSuccess | CalculationFailure {
       const to = input.direction === 1 ? current : input.from
       return { kind: 'ok', dates, basis: basisFor(input.snapshot, from, to) }
     }
-    const next = move(current, input.direction)
+    if (inspectedDays >= input.budget)
+      return { kind: 'searchLimit', scanBudget: input.budget, inspectedDays }
+    const next = move(input.snapshot, current, input.direction)
     if (typeof next !== 'string') return next
     current = next
   }
@@ -152,7 +165,7 @@ export function shiftWorkingDays(input: ShiftWorkingDaysInput): ShiftWorkingDays
   if (missing) return missing
   if (input.offset === 0) return { kind: 'ok', date, basis: basisFor(input.snapshot, date, date) }
   const direction = input.offset > 0 ? 1 : -1
-  const from = move(date, direction)
+  const from = move(input.snapshot, date, direction)
   if (typeof from !== 'string') return from
   const result = scan({
     snapshot: input.snapshot,
@@ -177,7 +190,7 @@ export function listWorkingDays(input: ListWorkingDaysInput): ListWorkingDaysRes
   if (typeof budget !== 'number') return budget
   const missing = coverageFailure(input.snapshot, after)
   if (missing) return missing
-  const from = move(after, 1)
+  const from = move(input.snapshot, after, 1)
   if (typeof from !== 'string') return from
   const result = scan({ snapshot: input.snapshot, from, direction: 1, budget, wanted: input.count })
   return result.kind === 'ok'

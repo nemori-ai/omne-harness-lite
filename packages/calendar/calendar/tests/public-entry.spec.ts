@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calendarSnapshotSchema } from '@omne-harness/calendar-contract'
+import { calendarSnapshotSchema, calculationFailureSchema } from '@omne-harness/calendar-contract'
 import {
   classifyDay,
   countWorkingDays,
@@ -42,6 +42,51 @@ const snapshot = calendarSnapshotSchema.parse({
   contentHash: 'a'.repeat(64),
   provenanceRefs: ['state-council-2024'],
   publicationGeneration: 1,
+})
+
+it('reports exhausted coverage beyond the four-digit date domain', () => {
+  for (const [date, offset, boundary] of [
+    ['0000-01-01', -1, 'beforeMinimum'],
+    ['9999-12-31', 1, 'afterMaximum'],
+  ] as const) {
+    const edge = calendarSnapshotSchema.parse({
+      ...snapshot,
+      coverageStart: date,
+      coverageEnd: date,
+      overrides: [],
+    })
+    const expected = {
+      kind: 'coverageInsufficient',
+      date: null,
+      boundary,
+      coverage: { from: date, to: date },
+    }
+    const result = shiftWorkingDays({ snapshot: edge, date, offset })
+    expect(result).toEqual(expected)
+    expect(calculationFailureSchema.safeParse(result).success).toBe(true)
+    expect(calculationFailureSchema.safeParse({ ...expected, boundary: undefined }).success).toBe(
+      false,
+    )
+    if (offset === 1) {
+      expect(listWorkingDays({ snapshot: edge, after: date, count: 1 })).toEqual(expected)
+    }
+  }
+  const end = calendarSnapshotSchema.parse({
+    ...snapshot,
+    coverageStart: '9999-12-30',
+    coverageEnd: '9999-12-31',
+    weeklyDefault: Array(7).fill('workingDay'),
+    overrides: [],
+  })
+  expect(shiftWorkingDays({ snapshot: end, date: '9999-12-30', offset: 2 })).toEqual({
+    kind: 'coverageInsufficient',
+    date: null,
+    boundary: 'afterMaximum',
+    coverage: { from: '9999-12-30', to: '9999-12-31' },
+  })
+  expect(shiftWorkingDays({ snapshot: end, date: '9999-12-30', offset: 2, scanBudget: 1 })).toEqual(
+    { kind: 'searchLimit', scanBudget: 1, inspectedDays: 1 },
+  )
 })
 
 describe('public snapshot calculations', () => {
