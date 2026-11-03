@@ -145,7 +145,7 @@ describe('tenant isolation in unload protection', () => {
   it('retains when tenant codec validation fails for a holder', async () => {
     const fixture = await assemble()
     try {
-      const { key } = unbox(await fixture.load())
+      unbox(await fixture.load())
       const row = fixture.rows()[0]
       if (row === undefined) throw new Error('missing original author')
 
@@ -194,7 +194,7 @@ describe('tenant isolation in unload protection', () => {
       authorities: [authorAuthority, officialReplacement, orgReplacement],
     })
     try {
-      const { key } = unbox(await fixture.load())
+      unbox(await fixture.load())
       const row = fixture.rows()[0]
       if (row === undefined) throw new Error('missing original author')
 
@@ -244,7 +244,7 @@ describe('tenant isolation in unload protection', () => {
       authorities: [authorAuthority, orgB],
     })
     try {
-      const { key } = unbox(await fixture.load())
+      unbox(await fixture.load())
       const row = fixture.rows()[0]
       if (row === undefined) throw new Error('missing original author')
 
@@ -289,7 +289,7 @@ describe('tenant isolation in unload protection', () => {
       authorities: [authorAuthority, tenantA2Authority],
     })
     try {
-      const { key } = unbox(await fixture.load())
+      unbox(await fixture.load())
       const row = fixture.rows()[0]
       if (row === undefined) throw new Error('missing original author')
 
@@ -340,7 +340,7 @@ describe('tenant isolation in unload protection', () => {
       authorities: [tenantAAuthority, tenantAReplacement],
     })
     try {
-      const { key } = unbox(await fixture.load(tenantAAuthority))
+      unbox(await fixture.load(tenantAAuthority))
       const row = fixture.rows()[0]
       if (row === undefined) throw new Error('missing original author')
 
@@ -390,7 +390,7 @@ describe('tenant isolation in unload protection', () => {
   it('retains when a holder exists but no replacement serves it', async () => {
     const fixture = await assemble()
     try {
-      const { key } = unbox(await fixture.load())
+      unbox(await fixture.load())
       const row = fixture.rows()[0]
       if (row === undefined) throw new Error('missing original author')
 
@@ -426,7 +426,7 @@ describe('tenant isolation in unload protection', () => {
       authorities: [authorAuthority, replacement],
     })
     try {
-      const { key } = unbox(await fixture.load())
+      unbox(await fixture.load())
       const row = fixture.rows()[0]
       if (row === undefined) throw new Error('missing original author')
 
@@ -471,7 +471,7 @@ describe('tenant isolation in unload protection', () => {
       authorities: [authorAuthority, replacement],
     })
     try {
-      const { key } = unbox(await fixture.load())
+      unbox(await fixture.load())
       const row = fixture.rows()[0]
       if (row === undefined) throw new Error('missing original author')
 
