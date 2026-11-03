@@ -1,50 +1,38 @@
 # @omne-harness/skill
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
-module 变体草稿。
+Skill 两个应用服务的通用实现：`createPackageInspection` 经来源检查一个包，`createSkillAccess` 经 `@omne-harness/skill-contract` 的三个需求端口描述、读取、列举与导出一份 Skill。
+
 ## 职责与状态
 
-<!-- documentation:placeholder -->
+本包实现契约的接口 `PackageInspection` 与 `SkillAccess`。它在调用之间不持有状态，没有缓存，也没有自己的来源：每次操作都现场核验读取权、对应与包字节。端口由集成方给出。`SkillCatalog` 尚不在本包（W3）。
 
-填写实际消费者、平台、职责和采用依据。区分已实现、未实现与未验证。
+状态：候选，没有技术接受。服务对 `skill-contract/testing` 的内存替身与 `SkillAccess` 符合性套件验证过。真实的读取判定、对应与来源都没有在这里验证。第一个真实来源是 `@omne-harness/skill-host-local`。
 
 ## 使用
 
-<!-- documentation:placeholder -->
-
-给出最小有效示例、依赖及初始化和释放责任。分别说明独立使用入口与 Cordis 集成入口。逐项核对公开 exports、源码值依赖、生成声明、运行启动和安装闭包。存在 ./cordis 不证明独立安装成立。
+最小示例见 [README.md「Usage」](README.md#usage)。两个工厂收普通对象，交普通对象，没有要启动或释放的东西。`read`、`list` 与 `export` 收 `AbortSignal`，`describe` 不收。`@omne-harness/skill-contract/testing` 的内存替身只能装进测试。
 
 ## 契约
 
-<!-- documentation:placeholder -->
-
-链接公开类型、必要校验及唯一行为正文。类型外行为由 SPEC.md 拥有，公开定义的导航在 docs/public-api.md。说明错误、生命周期与资源责任的拥有者，不复制签名或状态机。
+数据形状是 `@omne-harness/skill-contract` 的公开类型。两个服务的行为归契约：拒绝次序与控制文件规则归[契约 SPEC「检查 Skill 包」](../skill-contract/SPEC.md#parse)，读取的形状规则归[「读取的形状规则」](../skill-contract/SPEC.md#read-shape)，读取 11 步与端口映射归组页[「读取」](../docs/architecture.md#读取)与[「端口」](../docs/architecture.md#端口)。本包的 [SPEC.md](SPEC.md) 只拥有实现加上的部分：11 步怎样切成三段、映射在哪里、本包自己做的决定。公开定义的导航在 [docs/public-api.md](docs/public-api.md)。
 
 ## 设计
 
-<!-- documentation:placeholder -->
-
-概述内部模块和关键不变量的拥有者。完整设计写在 docs/architecture.md、docs/flows.md 与 docs/object-model.md。
+三段，每段是一个只依赖端口的函数：`gate`（第 1–3 步）、`pin`（第 5、7 步）、`verifiedBytes`（第 9、10 步）。`describe` 在 `gate` 后结束，`list` 在 `pin` 后结束，`read` 与 `export` 走完三段。一张表 `mapping.ts` 把来源答复变成服务失败。`range.ts` 是字节范围的纯函数。见 [docs/architecture.md](docs/architecture.md)。
 
 ## 配置与运行
 
-<!-- documentation:placeholder -->
-
-填写配置拥有者、默认行为、环境前提和显式依赖。说明调用者与包各自的运行责任。
+没有配置。每页上限 65536 字节由契约固定。本包需要 Node.js 24 或更新。`@omne-harness/skill-contract` 在进程里只加载一份：契约的快照凭证按模块实例计。
 
 ## 验证
 
-<!-- documentation:placeholder -->
-
-填写可复跑命令、性质、前提和未覆盖。提供有实际断言的测试。结构通过不表示业务行为已验证。
+在本目录运行 `pnpm run build`、`pnpm run typecheck` 与 `pnpm test`。测试把服务放在内存替身上运行，直接运行每一段，并在本实现上运行 `SkillAccess` 符合性套件。见 [tests/README.md](tests/README.md)。未覆盖：真实端口、对同一个包的并发写入、内容存储来源。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-说明公开契约、资源或依赖变化时必须同步的消费者和验证入口。信息不适用时写明理由，未知时登记具名缺口。
+契约改变一种失败、一步或一条形状规则时，改 `mapping.ts`、拥有那一步的那一段、测试与 [SPEC.md](SPEC.md)。三段之间不互相混入对方的步骤。组设计在 [../docs/architecture.md](../docs/architecture.md)。
 
 ## 目录结构与文档职责
 
