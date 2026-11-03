@@ -81,6 +81,8 @@ const none: WorkFoldCounts = {
  */
 function portOver(a: App) {
   const hooks = new Map<string, () => Promise<void> | void>()
+  /** Changes the next answer of a handler, once. */
+  const rewrites = new Map<string, (output: Record<string, unknown>) => Record<string, unknown>>()
   const storage: SqlStorage = {
     registerCombination: input => a.provider.storage.registerCombination(input),
     commit: request => a.provider.storage.commit(request),
@@ -91,11 +93,22 @@ function portOver(a: App) {
         hooks.delete(request.handler)
         await hook()
       }
-      return a.provider.storage.read(request, options)
+      const answer = await a.provider.storage.read(request, options)
+      const rewrite = rewrites.get(request.handler)
+      if (rewrite === undefined || answer.kind !== 'read') return answer
+      rewrites.delete(request.handler)
+      return { ...answer, output: rewrite(answer.output as Record<string, unknown>) as never }
     },
   } as SqlStorage
-  return { port: createSessionStorage<string>({ ...a.storageOptions, storage }), hooks }
+  return {
+    port: createSessionStorage<string>({ ...a.storageOptions, storage }),
+    hooks,
+    rewrites,
+  }
 }
+
+/** `a` with its port replaced, for the scene commands of the fixtures. */
+const portLike = (a: App, port: Port): App => ({ ...a, port })
 
 const readWork = async (port: Port, a: App): Promise<WorkSnapshot> =>
   ok<WorkSnapshot>(await port.readWork(a.access(TENANT_A)))
@@ -236,6 +249,63 @@ describe('T-F1: a folded snapshot is the answer of a whole read', () => {
     const commitLog = a.port.commitLog
     if (commitLog === undefined) throw new Error('the SQL port offers no commitLog')
     await folds(a, () => commitLog({ observation }))
+  })
+})
+
+describe('T-F1: a batch whose reduction reads the history reads', () => {
+  it('startRun on an input handed to an ended execution with an observed tail folds as a whole read', async () => {
+    const a = await app()
+    const agent = agentPublisher({
+      storage: a.provider.storage,
+      combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
+      domainOf: () => 'dom_0',
+    })
+    ok(await a.create(TENANT_A))
+    ok(await a.accept(TENANT_A, 'session-1', 'input-1'))
+    ok(await startRun(a, 'start-run-1'))
+    const run = activeRun(await readWork(a.port, a))
+    const first = eventOf(run, 1, [registrationOf(run.attempt, 'first')], 'log-first')
+    await agent.publish(agentEventOf(first))
+    const commitLog = a.port.commitLog
+    if (commitLog === undefined) throw new Error('the SQL port offers no commitLog')
+    ok(await commitLog({ observation: first }))
+    ok(await a.accept(TENANT_A, 'session-1', 'input-2'))
+    const second = (await readWork(a.port, a)).pending[0]
+    if (second === undefined) throw new Error('input-2 is not pending')
+    await agent.admit({
+      tenant: TENANT_A,
+      session: 'session-1',
+      execution: run.execution,
+      input: second,
+      operation: 'aop-submit-2',
+      accepted: evidence('agent/accepted/2'),
+      grant: evidence('agent/grant/2'),
+      attachment: 'attachment-1',
+    })
+    ok(
+      await a.port.commit({
+        access: a.access(TENANT_A),
+        command: {
+          kind: 'receive',
+          input: {
+            ...base,
+            operation: operationId('handover-2'),
+            fact: {
+              kind: 'input-handover',
+              execution: run.execution,
+              input: second,
+              result: { kind: 'accepted', receipt: evidence('agent/accepted/2') },
+            },
+          },
+        } as never,
+        guards: [],
+      }),
+    )
+    // Events 2 and 3 of the execution are observed only: the next Run needs that tail (prefixes).
+    for (const n of [2, 3])
+      await agent.publish(agentEventOf(eventOf(run, n, [], 'unused'), ['observed']))
+    ok(await cancelRun(a, run.run, 'cancel-1'))
+    await folds(a, () => startRun(a, 'start-run-2'))
   })
 })
 
@@ -450,6 +520,57 @@ describe('T-F3 (H2): a publication before the basis of the batch is read again',
     const from = a.provider.calls.length
     await readWork(port, a)
     expect(readsOf(a, WHOLE, from)).toBe(1)
+  })
+})
+
+describe('T-F3 (H2): the index of this Worker went past the position before the batch', () => {
+  it('the basis read is stale, nothing is registered, and the next read is whole', async () => {
+    const a = await app()
+    const { port, hooks } = portOver(a)
+    ok(await a.create(TENANT_A))
+    ok(await a.accept(TENANT_A, 'session-1', 'input-1'))
+    await readWork(port, a)
+    // An unbounded whole read in the same Worker moves its kept index past the batch.
+    hooks.set('session.work-reads', async () => {
+      await wholeRead(a)
+    })
+    const before = workFoldCounts()
+    ok(await startRun(portLike(a, port), 'start-run-1'))
+    expect(since(before)).toEqual({ ...none, stale: 1 })
+    const from = a.provider.calls.length
+    await readWork(port, a)
+    expect(readsOf(a, WHOLE, from)).toBe(1)
+  })
+})
+
+describe('T-F7: a fold that throws', () => {
+  it('a reader waiting for it reads whole and answers the new tail', async () => {
+    const a = await app()
+    const { port, hooks, rewrites } = portOver(a)
+    ok(await a.create(TENANT_A))
+    const held = await readWork(port, a)
+    const readers: Promise<WorkSnapshot>[] = []
+    hooks.set('session.history', async () => {
+      readers.push(readWork(port, a))
+      // The reader reads the new version while the fold waits for its batch.
+      await new Promise(resolve => setTimeout(resolve, 20))
+    })
+    // The batch read answers entries without their ids: the fold throws on them.
+    rewrites.set('session.history', output => ({
+      ...output,
+      entries: (output['entries'] as Record<string, unknown>[]).map(entry => {
+        const { id: _id, ...rest } = entry
+        return rest
+      }),
+    }))
+    const before = workFoldCounts()
+    const from = a.provider.calls.length
+    ok(await accept(a, port, 'input-1'))
+    expect(readers.length).toBe(1)
+    const answers = await Promise.all(readers)
+    expect(answers[0]?.revision).toBe(String(BigInt(held.revision) + 1n))
+    expect(readsOf(a, WHOLE, from)).toBe(1)
+    expect(since(before)).toEqual({ ...none, stale: 1 })
   })
 })
 
