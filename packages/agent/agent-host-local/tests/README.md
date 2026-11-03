@@ -35,3 +35,12 @@
 `openWorld({ stages: true })` 另以同一组替身提供六项局部依赖，并记录每次 Model admit 的答复，使 `createAgentRuntime` 真件的 Loop 能跑到 Model 请求。世界另记录 Journal 的每次 `load` 与 `recordControl` 及发起主体（`journalCalls`）。`control-entry.spec.ts` 用它们验证控制入口推进取消，以及守卫拒绝时一次都不推进；它不证明真实 Model、生产 Journal 或跨进程推进。`tool-requests-plugin.spec.ts` 也用它，并让 Tool 运行时替身受理 invoke，只证明来源经插件工厂进入 runtime 依赖，不证明真实 Tool 运行时或生产来源。
 
 `line-through/` 是一条真实 Cordis 4.0.4 根上的组合用例：真实 sqlite-provider、session-storage-sql、session-cordis、session-adapters 的生产插件（AD-14、`agentJournal` 插件）、Agent 宿主与 agent-context，加 Model 与 Tool 的替身。`world.ts` 是 CP3 的组合世界，`openLineWorld(options)` 的参数都可选，不传时装配与 CP3 一致。`w2-world.ts` 在其上加下列件：带取消安装的 Journal 插件、Tool 接收方与 Tool 替身、Tool 请求准备替身（R2-D36）、可选的 AD-04 前文来源、产品的 `measure` 观察者；`w2-measure.ts` 放每轮计数与测量事件记录器。Model、Tool、Runtime Context 交接、已采用请求事实与 Agent 的授权等是替身，各在构造处标注。世界装载真实的 AD-02（`createSessionJournalInterpretationPlugin`）、handoff 插件（`createSessionMessageHandoffPlugin`）、AD-05（`createSessionModelLogConsumptionPlugin`）与 AD-06（`createSessionToolLogConsumptionPlugin`）。取消意图路径是否经真实插件走通，以 `w2-control.spec.ts` 的现状为准，世界不替它造替身。`w2-handoff-restart.spec.ts` 启动子进程 `w2-handoff-child.ts`：它在给定的存储目录上打开同一组合世界，让 Agent 跑一轮并收集准入记录，然后等待被杀，由新进程按原身份读回准入记录。这些用例只证明本组合、替身与固定轮形下的行为，不证明真实 Model 与 Tool、跨线装配、`apps/harness-server` 的行接线或 E9 计时。
+
+CP3 判定只有 Session 参加的回滚时用 `line-through/cp3-rollbacks.ts` 的 `sessionOnlyRollbackExplained`（R2-D152）。可以接受的原因只有两种：一种是 `the input is not pending`；另一种是 `changed`，并且之后同一执行、同一 sequence 的 commitLog 已经提交，或者该执行的 `readThrough` 已经到达这个 sequence。第二种原因的依据是 session-contract SPEC「过期的同域根答 changed」，以及 session-adapters `tests/journal-interpretation.spec.ts` 中「AD-02: the execution head moves between the read and the commit」的两条用例。`line-through/cp3-rollbacks.spec.ts` 在快层用合成序列核对这个判定，其中包括负控。
+
+已知限制 KL-146（波 3）：AD-02 读到执行头之后、commitLog 落地之前，Agent 可能又写一次同一执行。这时只有 Session 参加的 commitLog 可能以 `unavailable` 回滚。AD-02 不重试 `unavailable`，这个事件要等下一次唤醒才继续解释。CP3 遇到这种回滚仍然判红。已看到两种签名：
+
+- `history.executions.<execution>: required original material is missing`：执行头已经是占位回执（digest `unknown`，session-storage-sql K-5），所以 `boundaryOf` 不给边界。在 f2ba09e89 上加扰动时出现。
+- `history.prefix.<execution>.committedConsequences: required original material is missing`：在 5946efe4d 上出现，不加扰动时 12 次中出现 1 次。
+
+复现脚本：`line-through/cp3-repro-loop.sh <次数> <标签>` 不加扰动地连跑 CP3，并打印每次失败的原因与签名。`line-through/cp3-repro-delay.sh <毫秒> <次数> <标签>` 只在构建产物里加一段调度延迟，把 AD-02 读执行头与 commitLog 之间的窗口拉宽，运行结束后还原该文件。日志写在 `tmp/cp3-repro/<标签>/`。升级条件：在批次 D、E 的准入、C1 联调或 SC4 端到端中，不加扰动时只要出现一次 KL-146 的回滚，就升级为波 2 必修。

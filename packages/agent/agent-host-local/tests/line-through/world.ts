@@ -334,8 +334,26 @@ function catalogOf(): { catalog: SqlMaterialCatalog; digest: string } {
   return { catalog, digest: manifestDigest(manifest.manifest) }
 }
 
-/** One storage commit as the storage saw it: the participants of its commands and its answer. */
-export type SeenCommit = Readonly<{ participants: readonly string[]; result: CommitResultV2 }>
+/**
+ * One storage commit as the storage saw it: the participants of its commands, its answer, and for a
+ * Session commitLog (`intent: log`) the execution and event sequence of its observation.
+ */
+export type SeenCommit = Readonly<{
+  participants: readonly string[]
+  result: CommitResultV2
+  log: Readonly<{ execution: string; sequence: string | null }> | null
+}>
+
+/** The execution and sequence of a Session commitLog command; null for any other command. */
+function logOf(command: Readonly<{ facts?: unknown }>): SeenCommit['log'] {
+  const facts = command.facts as Readonly<Record<string, unknown>> | undefined
+  if (facts?.['intent'] !== 'log') return null
+  const observation = facts['observation'] as Readonly<Record<string, unknown>> | null | undefined
+  const execution = observation?.['execution']
+  const sequence = observation?.['sequence']
+  if (typeof execution !== 'string') return null
+  return { execution, sequence: typeof sequence === 'string' ? sequence : null }
+}
 
 // --- Cordis helpers ------------------------------------------------------------------------------
 
@@ -593,7 +611,11 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     registerCombination: input => real.registerCombination(input),
     commit: async (request, commitOptions) => {
       const result = await real.commit(request, commitOptions)
-      commits.push({ participants: request.commands.map(item => item.participant), result })
+      commits.push({
+        participants: request.commands.map(item => item.participant),
+        result,
+        log: request.commands.map(logOf).find(item => item !== null) ?? null,
+      })
       return result
     },
     query: identity => real.query(identity),
