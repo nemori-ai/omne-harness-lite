@@ -5,6 +5,22 @@ export { isControlFile, toAssetVersion, toPackagePath, toSafeReason, toSkillName
 export { parseSkillPackage } from './parse/package.ts'
 export { projectAssetBody } from './project.ts'
 export type {
+  ByteRange,
+  CatalogEntry,
+  CatalogQuery,
+  ExportedEntry,
+  MaterialState,
+  PackageInspection,
+  ReadContent,
+  ReadResult,
+  ReadTarget,
+  ResourceListing,
+  SkillAccess,
+  SkillCatalog,
+  SkillDescription,
+  SkillExport,
+} from './services.ts'
+export type {
   DescribeFailure,
   ExportFailure,
   GateFailure,
