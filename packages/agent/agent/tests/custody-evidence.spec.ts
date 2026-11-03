@@ -1,8 +1,9 @@
 // The evidence adapter of the Agent consumer owner for a Model ACK (R2-D257). It confirms the
 // retained evidence of an ACK only from the record this owner's receiver committed for the same
 // delivery. Red when the adapter and the receiver disagree on where the record is (the derived
-// reception operation), when it confirms a record that differs in any part, or when a failed or
-// missing read becomes a confirmation.
+// reception operation), when it confirms a record that differs in any part, when it waits on
+// forged evidence instead of refusing it, or when a failed or missing read becomes a confirmation
+// or a refusal.
 import { describe, expect, it } from 'vitest'
 import {
   createAgentCustodyEvidence,
@@ -100,21 +101,35 @@ describe('the Agent custody evidence of a Model ACK', () => {
     })
   })
 
-  it('answers unavailable for a record that differs in its evidence, result, consumer or kind', async () => {
+  // R2-D260: evidence that differs from the committed record is forged (SPEC 伪证据拒绝), not a
+  // record to wait for. Red when it is answered `unavailable` again.
+  it('refuses evidence that differs from the committed record as handoff-invalid', async () => {
     const s = await setup()
     const saved = await s.push()
     const adapter = createAgentCustodyEvidence(s.records)
     const base = s.question(saved)
     const variants: AgentCustodyQuestion<string>[] = [
       { ...base, evidence: { kind: 'retained', custody: { ...saved, digest: 'f'.repeat(64) } } },
-      { ...base, result: ok(decodeResultVersion('mrver_another')) },
       { ...base, consumer: { ...base.consumer, purpose: 'another' } },
       { ...base, evidence: { kind: 'processed', completion: saved } },
     ]
     for (const variant of variants)
       expect(await adapter.verify(variant)).toMatchObject({
-        failure: { kind: 'unavailable', dependency: 'consumer-evidence' },
+        failure: { kind: 'handoff-invalid' },
       })
+  })
+
+  it('answers unavailable while no record is committed for the delivery the ACK names', async () => {
+    const s = await setup()
+    const saved = await s.push()
+    const adapter = createAgentCustodyEvidence(s.records)
+    // Another result version names another delivery, which this owner has not saved (yet).
+    expect(
+      await adapter.verify({
+        ...s.question(saved),
+        result: ok(decodeResultVersion('mrver_another')),
+      }),
+    ).toMatchObject({ failure: { kind: 'unavailable', dependency: 'consumer-evidence' } })
   })
 
   it('answers unavailable, never a confirmation, when the record cannot be read', async () => {

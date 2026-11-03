@@ -152,3 +152,24 @@ it('does not ask the adapter for an ACK the write refuses before the evidence', 
   expect(s.asked).toEqual([])
   expect(await s.state()).toEqual({ kind: 'producer' })
 })
+
+// R2-D260: the owner refuses evidence it did not save as forged. The refusal writes nothing: the
+// result, its custody and its share stay, and the same operation still acknowledges with the
+// owner's confirmation. Red when a refusal binds the operation or changes the custody.
+it('writes nothing on a refusal of forged evidence, and the same operation acknowledges later', async () => {
+  let forged = true
+  const s = await settledWith(input =>
+    Promise.resolve(
+      forged || input.evidence.kind !== 'retained'
+        ? { failure: { kind: 'handoff-invalid', reason: 'received-record-differs' } }
+        : { ok: input.evidence.custody },
+    ),
+  )
+  const before = unbox(await s.commands.loadRecovery(s.f.admit)).state
+  expect(await s.commands.handoff(s.ack)).toEqual({
+    failure: { kind: 'handoff-invalid', reason: 'received-record-differs' },
+  })
+  expect(unbox(await s.commands.loadRecovery(s.f.admit)).state).toEqual(before)
+  forged = false
+  expect(unbox(await s.commands.handoff(s.ack)).custody.kind).toBe('acknowledged')
+})

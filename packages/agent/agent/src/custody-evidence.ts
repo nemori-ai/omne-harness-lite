@@ -3,9 +3,12 @@
 // reads the durable received record that the result receiver committed for that very delivery,
 // through the read face of the same Journal records (`AgentReceivedRecords`), and confirms only an
 // exact match: the tenant, the delivery key (the call's invocation reference and result version),
-// the complete consumer and the saved evidence. A record that is absent, unknown, excluded or
-// different, and a read that fails, are `unavailable`: never a confirmation, and the Model keeps
-// the result and asks again with the same ACK operation.
+// the complete consumer and the saved evidence. Evidence this owner could never have saved is refused
+// as forged (model-contract SPEC "ACK": 伪证据拒绝) with `handoff-invalid`: a committed record that
+// differs from it in the delivery key, the consumer or the saved evidence, and evidence that is not
+// this owner's retained evidence for an Agent position. A record that is absent, unknown or
+// excluded, and a read that fails, are `unavailable` (R2-D260): never a confirmation; the Model
+// keeps the result and its share and asks again with the same ACK operation.
 import type {
   AgentExecutionId,
   AgentReceivedRecords,
@@ -39,17 +42,21 @@ export type AgentCustodyQuestion<P> = Readonly<{
 }>
 
 export interface AgentCustodyEvidence<P> {
-  /** The saved evidence when the durable record confirms it; `unavailable` otherwise. */
+  /**
+   * The saved evidence when the durable record confirms it; `handoff-invalid` for evidence this
+   * owner did not save; `unavailable` while the record cannot be found or read.
+   */
   verify(input: AgentCustodyQuestion<P>): Promise<Outcome<DurableEvidence, ModelFailure>>
 }
 
 const DEPENDENCY = 'consumer-evidence'
 const unavailable = (diagnostic: string) =>
   fail<ModelFailure>({ kind: 'unavailable', dependency: DEPENDENCY, diagnostic })
+const forged = (reason: string) => fail<ModelFailure>({ kind: 'handoff-invalid', reason })
 
 type ResultKey = Extract<ModelDeliveryKey, { kind: 'result' }>
 
-/** Where this owner saved the delivery the ACK names, or why it saved none it could confirm. */
+/** Where this owner saved the delivery the ACK names, or why the evidence is none of its own. */
 function located<P>(
   input: AgentCustodyQuestion<P>,
 ): Readonly<{ saved: DurableEvidence; execution: AgentExecutionId; key: ResultKey }> | string {
@@ -89,7 +96,7 @@ export function createAgentCustodyEvidence<P>(
   return Object.freeze({
     async verify(input: AgentCustodyQuestion<P>) {
       const found = located(input)
-      if (typeof found === 'string') return unavailable(found)
+      if (typeof found === 'string') return forged(found)
       const access = { principal: input.principal, tenant: input.tenant }
       let read
       try {
@@ -105,7 +112,7 @@ export function createAgentCustodyEvidence<P>(
       if (read.ok.kind !== 'committed') return unavailable(`received-record-${read.ok.kind}`)
       return sameRecord(read.ok.value, found.key, input.consumer, found.saved)
         ? succeed(structuredClone(found.saved))
-        : unavailable('received-record-differs')
+        : forged('received-record-differs')
     },
   })
 }
