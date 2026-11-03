@@ -230,6 +230,31 @@ export function operatorLayer(options: {
           },
         },
       },
+      // B1（R2-D136）：Context 侧与 Session 适配行的数值归运维者层，发行层不写。这里是测试值：
+      // 账目收件口的上限、agent-context 的采用身份与结果容量、AD-03/AD-04 的索引上界与页大小（成员初值）。
+      {
+        kind: 'replace',
+        id: 'request-context',
+        config: { limits: { maxTargets: 64, maxFactsPerTarget: 64, maxRevisionsPerDispatch: 16 } },
+      },
+      {
+        kind: 'replace',
+        id: 'agent-context',
+        config: {
+          owner: { ...MODEL_TEST_ADOPTION, name: 'agent-context' },
+          resultCapacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
+        },
+      },
+      {
+        kind: 'replace',
+        id: 'session-ad03',
+        config: { scopeIndexEntries: 4096, pageBytes: 65536 },
+      },
+      {
+        kind: 'replace',
+        id: 'session-ad04',
+        config: { scopeIndexEntries: 4096, pageBytes: 65536 },
+      },
       { kind: 'replace', id: 'server-entry', config: { listenPort: options.port } },
     ],
   }

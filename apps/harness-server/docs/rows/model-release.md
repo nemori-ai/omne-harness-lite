@@ -27,6 +27,8 @@
 
 只有两行都是真件时才核；缺项由各行自己的 schema 报。
 
+`compactionTriggerPercent` 对全部官方档案生效，`coding` 等单个定义不能另设。运维者层的推荐值是 `"80"`（R2-D124：出厂 coding agent 的压缩阈值 80%）；r9 与 serve 的测试运维层用这个值。发行层仍不写它。
+
 ## 两类主体与 ActorRef
 
 | 主体 | 形状 | 签发 | 核验 |

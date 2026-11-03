@@ -206,6 +206,31 @@ describe('the first create of a tenant over the release rows of the Session path
   )
 
   it(
+    '`create` of the coding definition (R2-D124) saves the release model selection and reads back',
+    { timeout: 90_000 },
+    async () => {
+      const base = makeBase()
+      live.push(() => base.release())
+      const tree = await start(base)
+      const creation = await releaseCreation('coding')
+      expect(creation.initialModelSelection?.name).toBe('openai/gpt-6.1-sol')
+      const created = await create(tree, creation, 'coding-first')
+      expect(created).toEqual({ ok: expect.anything() })
+      if (!('ok' in created)) throw new Error('unreachable')
+      expect(created.ok.state).toMatchObject({
+        session: sessionId('coding-first'),
+        lifecycle: 'dormant',
+      })
+      const codingAccess = { ...access, session: sessionId('coding-first') }
+      const read = await faces(tree, 'coordinator').work.readWork(codingAccess)
+      expect(read).toMatchObject({ ok: { lifecycle: 'dormant', tenant: TENANT_A } })
+      // `readModelSelection` is an intake or maintainer read (session `callers.ts`).
+      const selection = await faces(tree, 'intake').work.readModelSelection(codingAccess)
+      expect(selection).toMatchObject({ ok: { selection: { name: 'openai/gpt-6.1-sol' } } })
+    },
+  )
+
+  it(
     'a creation the mapping does not hold is invalid from the adoption source and creates nothing',
     { timeout: 60_000 },
     async () => {

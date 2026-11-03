@@ -48,10 +48,29 @@ const TABLE: Readonly<Record<string, Entry>> = {
     ],
     phase: 'business',
   },
-  'session-ad02': { injects: ['session'] },
-  'session-ad03': { injects: ['runtimeContext', 'session'] },
-  'session-ad04': { injects: ['session'] },
-  'session-ad05': { injects: ['session'] },
+  'session-ad02': {
+    injects: [
+      'sessionWorkPrincipals',
+      'session',
+      'sessionTransactions',
+      'storage',
+      'tenantDomainLookup',
+    ],
+  },
+  'session-ad03': {
+    provides: ['runtimeContextReaderEligibility', 'sessionReplayFacts', 'sessionScopeLookup'],
+    injects: ['sessionWorkPrincipals', 'runtimeContext', 'session'],
+  },
+  'session-ad04': { provides: ['contextHolderSources'], injects: ['session'] },
+  'session-ad05': {
+    injects: [
+      'sessionWorkPrincipals',
+      'session',
+      'agentJournal',
+      'agentMaterials',
+      'sessionTransactions',
+    ],
+  },
   'session-ad06': {
     injects: ['session', 'agentJournal', 'agentMaterials', 'sessionTransactions'],
   },
@@ -81,7 +100,13 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'session-handoff': {
     provides: ['agentMessageHandoff'],
-    injects: ['session', 'agentAccessCheck'],
+    injects: [
+      'sessionWorkPrincipals',
+      'session',
+      'agentAccessCheck',
+      'storage',
+      'tenantDomainLookup',
+    ],
   },
   'session-conditions': { provides: ['agentConditions'], injects: ['session'] },
   'agent-journal': {
@@ -176,7 +201,15 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'agent-context': {
     provides: ['agentRequests', 'agentModelContext'],
-    injects: ['requestContext', 'runtimeContext', 'modelRequestPreparation'],
+    injects: [
+      'requestContext',
+      'contextHolderSources',
+      'runtimeContextReaderEligibility',
+      'runtimeContext',
+      'modelRequestPreparation',
+      'modelPreparationResources',
+      'agentAdoptions',
+    ],
   },
   'agent-account-outlet': {
     provides: ['agentAccountOutlet'],

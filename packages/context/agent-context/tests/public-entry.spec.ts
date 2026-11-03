@@ -3,12 +3,16 @@ import { expect, it } from 'vitest'
 it('the root entry exports the factories and the first-wave sources, and no Cordis value', async () => {
   const root = (await import('@omne-harness/agent-context')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
+    'DEFINITION_SECTION_PREFIX',
     'absentAccountTarget',
+    'absentDefinitions',
     'absentStepResults',
     'createAgentAccountOutlet',
     'createAgentModelContext',
     'createAgentRequests',
     'createContextMaterials',
+    'definitionContributions',
+    'definitionSourceOf',
     'firstWaveTools',
   ])
 })

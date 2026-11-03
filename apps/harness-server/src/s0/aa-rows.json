@@ -81,6 +81,14 @@
       ]
     },
     {
+      "row": "session-ad02",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
       "row": "session-ad03",
       "names": [
         "sessionWorkPrincipals"
@@ -121,7 +129,8 @@
       "row": "session-handoff",
       "names": [
         "storage",
-        "tenantDomainLookup"
+        "tenantDomainLookup",
+        "sessionWorkPrincipals"
       ]
     },
     {

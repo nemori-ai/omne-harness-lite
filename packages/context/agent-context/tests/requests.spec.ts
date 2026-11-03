@@ -134,6 +134,139 @@ describe('the groups that Request Context reads', () => {
     })
   })
 
+  describe('the fourth group with a definition (R2-D124)', () => {
+    const definition = { owner: 'release', name: 'coding', revision: '1', digest: 'sha256:coding' }
+    const sections = [
+      { id: 'role', text: '# Role' },
+      { id: 'trust', text: '# Trust' },
+      { id: 'tools', text: '# Tools' },
+    ]
+    const systemText = (result: Awaited<ReturnType<typeof prepared>>) => {
+      const value = okOf(result)
+      if (value.kind !== 'assembled') throw new Error(value.kind)
+      const [block] = value.input.system
+      return block?.kind === 'text' ? block.text : ''
+    }
+
+    it('contributes the instructions as the first sections, in the order of the definition', async () => {
+      let prompt: unknown
+      let w: World | undefined
+      w = await createWorld({
+        definitions: async ({ definition: asked }) =>
+          asked.name === 'coding'
+            ? { kind: 'value', value: sections }
+            : { kind: 'unavailable', diagnostic: 'unknown' },
+        operations: real => ({
+          ...real,
+          assemble: async (call: AssemblyCall<string>) => {
+            prompt = await w?.registered[0]?.groups.prompt.readSource(call)
+            return real.assemble(call)
+          },
+        }),
+      })
+      const text = systemText(await prepared(w, { definition }))
+      expect(text.split('\n')).toEqual(['# Role', '# Trust', '# Tools'])
+      expect(prompt).toMatchObject({
+        kind: 'value',
+        value: {
+          promptContributions: {
+            contributions: sections.map(section => ({
+              kind: 'section',
+              name: `definition/${section.id}`,
+              scope: w?.f.target.scope,
+              source: definition,
+              template: section.text,
+              uses: [],
+            })),
+          },
+          assembleContext: { scope: w.f.target.scope, workspace: null, keys: {} },
+        },
+      })
+      expect(
+        (prompt as { value: { assembleContext: { definition: unknown } } }).value.assembleContext
+          .definition,
+      ).toEqual(expect.stringContaining('"name":"coding"'))
+    })
+
+    it('fails closed when the definition cannot be read: no candidate, and no empty prompt is sent', async () => {
+      let assembled = 0
+      const w = await createWorld({
+        definitions: async () => ({ kind: 'unavailable', diagnostic: 'definition-store-down' }),
+        operations: real => ({
+          ...real,
+          assemble: async (call: AssemblyCall<string>) => {
+            const result = await real.assemble(call)
+            if ('candidate' in result) assembled += 1
+            return result
+          },
+        }),
+      })
+      const refused = await prepared(w, { definition })
+      expect('failure' in refused && refused.failure).toMatchObject({
+        kind: 'unavailable',
+        diagnostic: expect.stringContaining('definition-store-down'),
+      })
+      expect(assembled).toBe(0)
+    })
+
+    it('fails closed when no definition source was given and a definition is named', async () => {
+      const w = await createWorld()
+      const refused = await prepared(w, { definition })
+      expect('failure' in refused && refused.failure).toMatchObject({
+        kind: 'unavailable',
+        diagnostic: expect.stringContaining('definition-source-absent'),
+      })
+    })
+
+    it('contributes nothing for a definition that carries no instructions, and keeps the definition key', async () => {
+      let prompt: unknown
+      let w: World | undefined
+      w = await createWorld({
+        definitions: async () => ({ kind: 'value', value: null }),
+        operations: real => ({
+          ...real,
+          assemble: async (call: AssemblyCall<string>) => {
+            prompt = await w?.registered[0]?.groups.prompt.readSource(call)
+            return real.assemble(call)
+          },
+        }),
+      })
+      expect(kindOf(await prepared(w, { definition }))).toBe('assembled')
+      expect(prompt).toMatchObject({
+        kind: 'value',
+        value: { promptContributions: null, assembleContext: { scope: w.f.target.scope } },
+      })
+      expect(
+        (prompt as { value: { assembleContext: { definition: unknown } } }).value.assembleContext
+          .definition,
+      ).toEqual(expect.stringContaining('"name":"coding"'))
+    })
+
+    it('a definition text that differs by one character gives another fourth-group token', async () => {
+      const tokens: string[] = []
+      let variant = sections
+      let w: World | undefined
+      w = await createWorld({
+        definitions: async () => ({ kind: 'value', value: variant }),
+        operations: real => ({
+          ...real,
+          assemble: async (call: AssemblyCall<string>) => {
+            const read = await w?.registered[0]?.groups.prompt.readCount(call)
+            if (read?.kind === 'value') tokens.push(read.value)
+            return real.assemble(call)
+          },
+        }),
+      })
+      okOf(await prepared(w, { definition }))
+      okOf(await prepared(w, { definition }))
+      variant = [{ id: 'role', text: '# Role!' }, ...sections.slice(1)]
+      okOf(await prepared(w, { definition }))
+      expect(tokens).toHaveLength(3)
+      expect(tokens[0]).toBe(tokens[1])
+      expect(tokens[2]).not.toBe(tokens[0])
+    })
+  })
+
   it('gives no tool when the conditions name no binding, and tools-source-absent otherwise', async () => {
     const w = await createWorld()
     expect(kindOf(await prepared(w))).toBe('assembled')

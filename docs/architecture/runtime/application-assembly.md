@@ -30,10 +30,10 @@
 | `authorization` | 应用成员的授权适配插件 | Session 身份桥使用的准入裁定；`agentAccessCheck`、`sessionAccessCheck`（含作用域释放恢复的三项系统请求：`scope-release-receive`、`scope-release-load` 与 `scope-release-query`）；`agentActionAdmission` | `tenantStanding`、`principalVerifier` | 无 | 无 |
 | `session-storage` | 应用成员的会话存储组合插件：在同一插件体内构造租户到事务域的目录与 `@omne-harness/session-storage-sql` 根入口的纯提供者，目录的存储构造能力只经闭包交给后者 | `sessionTransactions`；`sessionDelegatedTransactions`（会话委派事务，受信）；`tenantDomains`（只含部署枚举 `enumerate`）；`tenantDomainLookup`（已发布快照的只读查找，受信）；`sessionPrincipalBindings`（会话归属读口，受信） | `storage`、`sessionAccessCheck`、`assemblyLifecycle`、`principalVerifier`（部署枚举授权每次核验时重新取得，复用 AU-12 原能力） | `sessionCursorSigning` | 事务域推导规则；组合版本；登记表的文件位置（在存储根目录下）；介质（与 `storage` 行相同的 SQLite）；`pageBytes` 上限；`maxScanPerPage`；`maxRegistrationRetries`；快照重建方式。其余字段取 Session SQL 纯工厂配置的初值。见[租户到事务域的目录](#租户到事务域的目录) |
 | `session-provider` | `@omne-harness/session-cordis` 的插件 | `session`（四个面）；协调器与调度器，含推进触发调度器 S1 | `sessionAccessCheck`、`sessionDelegatedTransactions`（受信）、`sessionPrincipals`、`sessionWorkPrincipals`（受信）、`assemblyLifecycle` | `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionIdleInput`、`sessionAgentDrive`、`sessionScopeRelease`、`sessionClock`、`sessionNotifier`、`sessionTransactions`（只服务 `pending`、`references`、`releasedScopes` 三项目录读取） | `admission: 'none'`（本部署没有命令域与 hooks） |
-| `session-ad02` | AD-02 Agent 同日志解释 | 无 | `session`（`'coordinator'`）、`sessionTransactions`（`commitLog` 所在的端口，日志解释的写口，与 AD-05 同构） | Journal 提供者的 `output.read`、`output.events` 与 `load` | 每次读取事件数上限；超时与重试退避 |
-| `session-ad03` | AD-03 持有者与生产者，含回放与变化提醒两个子插件 | `sessionReplayFacts`；作用域到 `(tenant, session, generation)` 的查找（新服务键，键名与受信可见性由 L-RUN 事实清单定） | `runtimeContext`、`session`（`'coordinator'`、`'reader'`） | `sessionWorkPrincipals`（受信，取协调者主体） | 无 |
-| `session-ad04` | AD-04 历史源 | 无 | `session`（`'reader'`；下界子插件 `'coordinator'`）；RQ 来源登记服务 | `sessionWorkPrincipals`（受信，取协调者主体） | 无 |
-| `session-ad05` | AD-05 Model 日志消费适配，含 Tool 原生产者确认投影 | 无 | `session`（`'coordinator'`）；`sessionTransactions`（`commitEntries` 所在的端口） | 同一 Journal 提供者的 `received` 条目、材料与 `load().results`；`sessionWorkPrincipals`（受信，取协调者主体） | 超时与重试退避 |
+| `session-ad02` | AD-02 Agent 同日志解释（session-adapters 的 `createSessionJournalInterpretationPlugin`，B1 已接） | 无 | `session`（`'coordinator'`）、`sessionTransactions`（`commitLog` 所在的端口，日志解释的写口，与 AD-05 同构）；`storage`、`tenantDomainLookup`（受信，只读该 execution 的执行记录分区）；`sessionWorkPrincipals`（受信，取协调者主体） | 协调者主体来源（经受信 `sessionWorkPrincipals` 的 `forSession` 构造） | 无：插件不取配置 |
+| `session-ad03` | AD-03 持有者与生产者（session-adapters 的 `createSessionContextHolder`，B1 已接：持有者、回放与事实三个子插件来自同一次工厂调用） | `runtimeContextReaderEligibility`（K-RC，模型类读者资格）；`sessionReplayFacts`、`sessionScopeLookup`（事实子插件） | `runtimeContext`、`session`（`'coordinator'`、`'reader'`） | `sessionWorkPrincipals`（受信，取协调者主体）；提交翻译取发行采用定义的 Context 声明表 | `scopeIndexEntries`（索引上界）、`pageBytes`（历史读页大小），由运维者层给 |
+| `session-ad04` | AD-04 历史源（session-adapters 的 `createSessionHistorySource`，B1 已接） | `contextHolderSources`（K-RQ 持有者部件） | `session`（`'reader'`；下界子插件 `'coordinator'`） | 历史头解码 `historySessionOf`；协调者固定请求事实 `adopted` 在发行里没有来源，窄采用来源答不可用（具名缺件 B1-GAP-ADOPTED-REQUEST-SOURCE） | `scopeIndexEntries`、`pageBytes`，由运维者层给 |
+| `session-ad05` | AD-05 Model 日志消费适配（session-adapters 的 `createSessionModelLogConsumptionPlugin`，B1 已接） | 无 | `session`（`'coordinator'`）；`agentJournal`、`agentMaterials`（同一 Journal 提供者）；`sessionTransactions`（`commitEntries` 所在的端口）；`sessionWorkPrincipals`（受信，取协调者主体） | 协调者主体来源 | 无：插件不取配置 |
 | `session-ad06` | AD-06 Tool 日志消费适配 | 无 | `session`（`'coordinator'`）；同一 Journal 提供者的 entries、results 与材料视图（`agentJournal`、`agentMaterials`）；`sessionTransactions`（`commitEntries` 所在的端口，后果、进度与答案的同批提交只经它） | 无 | 超时与重试退避 |
 | `session-ad09` | AD-09 身份桥 | `sessionIdentity` | `principalVerifier` | 无 | 无 |
 | `session-ad10` | AD-10 证据桥 | `sessionEvidence` | 装配采用、生产来源与保管来源的服务（键见缺口表） | 无 | 无 |
@@ -41,7 +41,7 @@
 | `session-ad12` | AD-12 Context 输入 | `sessionContextInput` | `runtimeContext` | `sessionWorkPrincipals`（受信，取协调者主体） | 无 |
 | `session-ad14` | AD-14 `AgentDrivePort` | `sessionAgentDrive` | `agentInstances`、`agentInstanceProvision`、`agentExecutionRecovery`、`agentExecutionControl`、`session`（`'coordinator'`） | `sessionWorkPrincipals`（受信，取协调者主体） | 无 |
 | `session-ad15` | AD-15 作用域释放，含重新释放子插件 | `sessionScopeRelease` | `executionEnvironment`（`caller: 'maintainer'`）；子插件还需 `session`（`'maintainer'`） | 构造时交入恢复授权 | 超时、重试退避与重新释放页大小 |
-| `session-handoff` | session-adapters 的 J06 消息准入插件 | `agentMessageHandoff` | `session`（`'coordinator'`）、`agentAccessCheck`；`storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记） | 无 | 无。准入记录落 `execution-record` 参加者的新独立表，由会话日志提供者家族写，见[租户到事务域的目录](#租户到事务域的目录) |
+| `session-handoff` | session-adapters 的 J06 消息准入插件（`createSessionMessageHandoffPlugin`，B1 已接） | `agentMessageHandoff` | `session`（`'coordinator'`）、`agentAccessCheck`；`storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记）；`sessionWorkPrincipals`（受信，取协调者主体） | 协调者主体来源；调用者稳定身份文本；本提供者的采用身份 | `combinationVersion`、`manifestDigest`：与 `agent-journal` 行相同的会话日志组合。准入记录落 `execution-record` 参加者的 `er_preadmission` 表，见[租户到事务域的目录](#租户到事务域的目录) |
 | `session-conditions` | session-adapters 的 J06 当前条件插件。波 4 交付，波 2 保持发行配置里的替身 | `agentConditions` | `session`（`'coordinator'`）、`adoptionCoordinator`（读当前采用配置，`read`；服务键尚不存在，见缺口表） | 实际已采用配置、模型选择、Context 与 bindings 的原来源（见缺口表） | 无 |
 | `agent-journal` | session-adapters 的会话日志 Journal 提供者 | `agentJournal`；同一提供者兑现 `AgentJournalEntries` 与 `AgentMaterials`，并兑现 AD-01 Agent 同日志提交参加者（不另装 `session-ad01` 行） | `sessionAccessCheck`（派生的 Session 参加按 Session 操作裁定）；`storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记）；与 `session-storage` 共用会话日志提交状态 | 无 | 组合版本与清单摘要，取自会话存储组合的声明（提交请求要带它们） |
 | `agent-adoptions` | 应用成员的采用适配插件 | `agentAdoptions`；`definitionMappings`（受信，与 `agentAdoptions` 出自同一份解析表与内容身份） | 无 | 无 | [定义名映射](#桥接责任) |
@@ -68,8 +68,8 @@
 | `execution-files` | 同成员的 `filesFacilityPlugin` | `files` 设施声明，不另提供服务键 | `executionEnvironment`（`caller: 'provider'`） | 无 | 空配置 |
 | `execution-command` | 同成员 `./cordis` 的 `command` 设施声明插件（导出名以 Tool 实现交付为准） | `command` 设施声明，不另提供服务键 | `executionEnvironment`（`caller: 'provider'`） | 无 | 空配置 |
 | `execution-host` | 同成员的宿主提供者插件工厂（现名 `createHostFilesPlugin(domain)`，加入 `command` 后以交付的导出名为准）所产插件。这是工厂行，见具名偏离 [`HOSTFILE-FACTORY-ROW`](#hostfile-factory-row) | `host_machine` 的 `files` 与 `command` 提供者，不另提供服务键 | `executionEnvironment`（`caller: 'provider'`） | 无 | `drainBoundMs`；`filesRoot`（宿主文件根，不声称隔离）；`stateDirectory`；`listPageLimit`；三项搜索预算；`startBoundMs`、`graceMs`、`stopBoundMs`、`probeRetryMs`；`command` 的缓冲上限、单块上限与等待上界。字段的精确含义归 execution-environment-host-local 的 SPEC，代码里的数值只是初值；责任域是工厂参数，不进配置 |
-| `request-context` | `@omne-harness/request-context-cordis` 的插件 | `requestContext`、`contextAccountingInbox` | `requestContextTrust`（受信） | 按 [request-context-cordis 的 Cordis 页](../../../packages/context/request-context-cordis/docs/cordis.md)现取 | 压缩策略的选择 |
-| `agent-context` | Context 一侧的 Agent 适配集成包（[适配方案](../../../packages/context/request-context-contract/docs/context.md#适配方案)） | `agentRequests`、`agentModelContext` | `requestContext`、`runtimeContext`、`modelRequestPreparation` | 无 | 无 |
+| `request-context` | `@omne-harness/request-context-cordis` 的插件（B1 已接，行体以子 fiber 装 `RequestContextProvider`） | `requestContext`、`contextAccountingInbox` | `requestContextTrust`（受信） | 账目四个端口（来源授权、读取资格、窄采用来源、恢复授权）在发行里没有生产来源，由行以具名缺件答不可用，见 [B1 行页](../../../apps/harness-server/docs/rows/session-run-release.md) | `limits`（账目收件口上限，运维者层）；可选 `selection`（两个策略的选择，缺省为成员初值） |
+| `agent-context` | Context 一侧的 Agent 适配集成包（[适配方案](../../../packages/context/request-context-contract/docs/context.md#适配方案)，B1 已接） | `agentRequests`、`agentModelContext` | `requestContext`、`contextHolderSources`（K-RQ，`session-ad04`）、`runtimeContextReaderEligibility`（K-RC，`session-ad03`）、`runtimeContext`、`modelRequestPreparation`、`modelPreparationResources`（X-3，同一行提供）、`agentAdoptions`（读所采用定义的 `instructions` 作系统提示词首批段） | 无 | `owner`（采用身份）、`resultCapacity`（三项十进制文本）、可选 `materials`，由运维者层给 |
 | `agent-account-outlet` | Context 一侧的 Agent 集成提供者的账目出站插件，继承 `AgentAccountOutletService` | `agentAccountOutlet` | `requestContext`、`contextAccountingInbox`（两键由 `request-context` 行在同一 fiber 提供，见 [request-context-cordis 的 Cordis 页](../../../packages/context/request-context-cordis/docs/cordis.md#插件与服务)） | 无 | `sender`：出站插件作为每条账目事实的发送方给出的采用身份（`owner`、`name`、`revision`、`digest`，都是文本） |
 | `runtime-context` | `@omne-harness/runtime-context-cordis` 的插件 | `runtimeContext` | `runtimeContextTrust`（受信） | 无 | `retention`（初值 64）；`replayCapacity`（初值 10000）；`supplyBoundMs`（初值 30000）；`settleBoundMs`（初值 1000）；`readCacheEntries`（初值 256，0 表示不缓存）；`diagnostics`（诊断级别）。初值由装配给 |
 | `server-entry` | `@omne-harness/server-entry` 的插件 | 治理位置与会话位置的接入 | `session`（`caller: 'intake'` 与 `'reader'`）、`principalIssuer`（受信）、`definitionMappings`（受信）、`assemblyLifecycle` | `identityOperations`、`principalVerifier`、准入裁定 | `listenPort`（初值 8787）；`maxBodyBytes.small`（治理路径，初值 16384）；`maxBodyBytes.input`（会话路径，初值 1048576）；`heartbeatIntervalMs`（初值 15000）；`pageBytes` 上界；读历史的条目种类清单（默认 `message.user`、`message.assistant`）；[定义名映射](#桥接责任)的选择 |
@@ -121,6 +121,7 @@ flowchart LR
   agent-instances --> session-ad14
   request-context --> agent-context
   runtime-context --> agent-context
+  agent-adoptions --> agent-context
   agent-journal --> agent-host
   authorization --> agent-host
   agent-adoptions --> agent-host
@@ -204,13 +205,14 @@ flowchart LR
 | `identity` | `storage` |
 | `session-storage` | `storage`、`tenantDomainLookup`、`sessionPrincipalBindings`、`sessionDelegatedTransactions` |
 | `session-provider` | `sessionWorkPrincipals`、`sessionDelegatedTransactions` |
+| `session-ad02` | `storage`、`tenantDomainLookup`、`sessionWorkPrincipals` |
 | `session-ad03` | `sessionWorkPrincipals` |
 | `session-ad04` | `sessionWorkPrincipals` |
 | `session-ad05` | `sessionWorkPrincipals` |
 | `session-ad12` | `sessionWorkPrincipals` |
 | `session-ad14` | `sessionWorkPrincipals` |
 | `agent-journal` | `storage`、`tenantDomainLookup` |
-| `session-handoff` | `storage`、`tenantDomainLookup` |
+| `session-handoff` | `storage`、`tenantDomainLookup`、`sessionWorkPrincipals` |
 | `model-records` | `storage`、`tenantDomainLookup` |
 | `tool-records` | `storage`、`tenantDomainLookup` |
 | `agent-adoptions` | `definitionMappings` |
@@ -251,7 +253,7 @@ flowchart LR
 | 具名真实提供者：AD-03 的可信绑定与同步 current，AD-04 的完整历史与采用顺序，AD-15 的原获取与目录来源 | Session 实现与 M2 应用装配实现；认领前对应行不宣称可运行 |
 | `runtimeContextTrust` 的两个来源：作用域绑定（作用域文本是 Session 铸造的单向摘要，入口解码不了；作用域到会话的索引是 AD-03 持有者的派生物）与持有者事实（`session-ad03` 以服务键 `sessionReplayFacts` 提供，R2-D5）。作用域绑定的来源：波 2 由 L-RUN 在交 `session-ad03` 时给出，持有者以新服务键导出作用域到 `(tenant, session, generation)` 的查找，与 `sessionReplayFacts` 同形、同批（session-cordis-contract 可加改动）；入口的 `bindings` 用它解出会话，再经受信 `sessionPrincipalBindings` 核对归属，答 `bound{tenant}` 或 `unbound`，查找缺席仍答 `unavailable`（R2-D14）。`authority` 允许的主体类别由 L-RUN 作为设计点报批，批复前放行名单为空，即全部拒绝。交付前入口对象对两者都答 `unavailable`，带目标的 Runtime Context 操作一律 `unavailable`（cause `scope-binding`）；`current()` 由进程代次桥兑现，撤权、原工作失效与 Request Context 换代没有同步来源到达它（[#677](https://github.com/nemori-ai/omne-harness-lite/issues/677) 不闭合） | Session 实现（`session-ad03` 行，波 2）；#677 归资格与组合拥有者 |
 | `agent-adoptions` 行：采用适配 | 首条路径由应用成员按定义名映射提供；采用协调契约归 [#688](https://github.com/nemori-ai/omne-harness-lite/issues/688) |
-| `agent-context` 行：Context 一侧的 Agent 适配集成包 | 已登记在 Context 运行时实现卡 [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542) |
+| `agent-context`、`request-context`、`agent-account-outlet` 与 `session-ad02/03/04/05`、`session-handoff` 行：B1（R2-D136）已换真件；发行里没有生产来源的参数以具名缺件答不可用，见 [B1 行页](../../../apps/harness-server/docs/rows/session-run-release.md) | 缺件归 Reduce 批次 E 之后；`agent-host`、`agent-instances`、`session-ad14` 等 `session-conditions`（波 4）就位后换真件 |
 | `model-host`、`model-instances`、`model-converters`、`model-profiles` 行及 Model 局部阶段插件：运行、档案与宿主生产实现 | [#446](https://github.com/nemori-ai/omne-harness-lite/issues/446)（L-MODEL 线父卡；原 #795 的范围并入本波 attempt，#795 不复用）；按[Model 插件划分](../../../packages/model/model/docs/cordis.md#单机提供者的插件划分)保留目录与查询的故障隔离 |
 | Tool 门面、执行宿主、实例目录与执行环境适配的生产插件；`tool-records` 行的插件；`tool-bindings` 行的启动权威、执行作用域与收场（波 2 A 段答 `unavailable`，B 段接 Tool 运行时组）；`execution-command` 行与 `execution-host` 行的 `command` 提供者；`Shell()`、`Files()` 两个多命令工具的定义与 Catalog；terminal 设施与 Windows 执行环境后端 | M2 Tool 与执行环境实现拥有者（L-TOOL，波 2）；现有 [#791](https://github.com/nemori-ai/omne-harness-lite/issues/791) 只交契约核对与 `./testing`，不关闭宿主缺口 |
 | `toolInstanceHost` 的提供方式：`tool-executor` 静态 `inject` 它，由 `tool-executor` 自供还是另成一行未定；回答前 `tool-executor` 行不宣称可装 | M2 Tool 实现拥有者 |

@@ -160,6 +160,7 @@
 - `HandoffRequest` · `passages.d.ts`
 - `HandoffResolution` · `passages.d.ts`
 - `HandoffRetirement` · `journal.d.ts`
+- `INSTRUCTION_LIMITS` · `definition.d.ts`
 - `IdentityFailure` · `identity.d.ts`
 - `InputBatch` · `evaluation.d.ts`
 - `InputBatchId` · `identity.d.ts`
@@ -167,6 +168,7 @@
 - `InputHandoff` · `passages.d.ts`
 - `InputId` · `identity.d.ts`
 - `InputOrigin` · `passages.d.ts`
+- `InstructionSection` · `definition.d.ts`
 - `InvocationUnresolved` · `extensions.d.ts`
 - `InvokeRuntimeContext` · `passages.d.ts`
 - `JournalCapabilities` · `journal.d.ts`
@@ -403,11 +405,21 @@ export type AssetReference = {
 export type AttributeDeclaration = {
     readonly item: AttributeItem;
 };
+export type InstructionSection = {
+    readonly id: string;
+    readonly text: string;
+};
+export declare const INSTRUCTION_LIMITS: Readonly<{
+    maxSections: 32;
+    maxSectionBytes: 10000;
+    idPattern: RegExp;
+}>;
 export type AgentDefinition = {
     readonly category: 'AgentDefinition';
     readonly name: string;
     readonly references: readonly AssetReference[];
     readonly attributes: readonly AttributeDeclaration[];
+    readonly instructions?: readonly InstructionSection[];
 };
 export declare function attributeItem(text: string | undefined): AttributeItem | undefined;
 ```
@@ -2168,14 +2180,14 @@ export declare function judgeAuthority(value: unknown): Outcome<Authority, Struc
 ```ts
 export { agentBodyContract } from './body-contract.ts';
 export { obligationCategoryOf } from './finishing.ts';
-export { ATTRIBUTE_ITEMS } from './definition.ts';
+export { ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS } from './definition.ts';
 export { POSITIONS, POWERS } from './extensions.ts';
 export { judgeAgentDefinition } from './judge-definition.ts';
 export { judgeLoopExtensions } from './judge-extensions.ts';
 export { judgeHandoffPrepare, judgeInputOrigin } from './judge-handoff.ts';
 export { judgeExtensionOutput, POSITION_OUTPUTS } from './judge-output.ts';
 export type { ExtensionOutputJudgeInput, PositionOutputKey, PositionOutputs, } from './judge-output.ts';
-export type { AgentDefinition, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, } from './definition.ts';
+export type { AgentDefinition, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, InstructionSection, } from './definition.ts';
 export { AGENT_IDENTITY_MAX_LENGTH, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeReplyAdmissionPageCursor, decodeReplyAdmissionSequence, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
 export type * from './evaluation.ts';
 export type * from './execution.ts';
@@ -2451,6 +2463,11 @@ export interface AgentJournal<P> extends AgentJournalAttachment<P>, AgentJournal
 ```ts
 import { type AgentDefinition } from './definition.ts';
 import { type Judgment } from './judgment.ts';
+export declare function utf8Length(text: string): number;
+export declare function instructionsProblem(sections: readonly Readonly<{
+    id: string;
+    text: string;
+}>[]): string | undefined;
 export declare function judgeAgentDefinition(value: unknown): Promise<Judgment<AgentDefinition>>;
 ```
 
@@ -2518,6 +2535,7 @@ export type Judgment<T, Reason extends string = RefusalReason> = {
 } | {
     readonly kind: 'refused';
     readonly reason: Reason;
+    readonly detail?: string;
 };
 export type BatchJudgment<T> = {
     readonly kind: 'accepted';
@@ -2527,7 +2545,7 @@ export type BatchJudgment<T> = {
     readonly reason: RefusalReason;
     readonly index: number;
 };
-export declare function refused<T>(reason: RefusalReason): Judgment<T>;
+export declare function refused<T>(reason: RefusalReason, detail?: string): Judgment<T>;
 ```
 
 ## 声明文件 `passages.d.ts`
@@ -3297,6 +3315,7 @@ export interface RequestPreparation<P> {
         previous: Preparation | null;
         alterations: readonly DurableEvidence[];
         beforeModelCall: readonly PassageId[] | null;
+        definition?: Adoption;
     }>): Reply<Preparation>;
     derive(input: Access<P> & Readonly<{
         advance: Authority;

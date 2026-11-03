@@ -8,6 +8,7 @@ import {
   AgentAccountOutletService,
   ModelContextReaderService,
   RequestPreparationService,
+  agentAdoptionsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ModelPreparationResources, ResultCapacity } from '@omne-harness/model-contract'
 import { modelRequestPreparationKey } from '@omne-harness/model-cordis-contract/cordis'
@@ -28,7 +29,7 @@ import { createContextMaterials } from './materials.ts'
 import type { ContextMeasure } from './measure.ts'
 import { createAgentModelContext } from './model-context.ts'
 import { createAgentRequests, type AgentRequests } from './requests.ts'
-import { absentStepResults, firstWaveTools, unavailable } from './translate.ts'
+import { absentStepResults, definitionSourceOf, firstWaveTools, unavailable } from './translate.ts'
 
 /**
  * The key of the Model preparation resources (X-3). Its Cordis definition belongs to
@@ -160,6 +161,7 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
     [runtimeContextKey]: { consumer: 'model' },
     [modelRequestPreparationKey]: null,
     [MODEL_PREPARATION_RESOURCES]: null,
+    [agentAdoptionsKey]: null,
   }
   /** Checked before the constructor runs; a configuration that does not fit fails the load. */
   static readonly Config = standardSchema(decodeContextConfig)
@@ -198,6 +200,8 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
         resultCapacity: config.resultCapacity,
         tools: firstWaveTools,
         stepResults: absentStepResults,
+        // The definition sections of the fourth group come from the adoptions service of Agent.
+        definitions: definitionSourceOf(ctx.agentAdoptions),
         ...(measure === undefined ? {} : { measure }),
       })
       read = createAgentModelContext({

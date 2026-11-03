@@ -31,14 +31,19 @@ export type OutputRefusalReason =
   | 'rewrite_touches_immutable'
   | 'inject_source_mismatch'
 
+/**
+ * A refusal carries `kind` and `reason`; `detail` is a diagnostic text for people and logs that a
+ * judgment may add to say which member broke which rule. Callers decide on `reason` only; `detail`
+ * has no stable vocabulary.
+ */
 export type Judgment<T, Reason extends string = RefusalReason> =
   | { readonly kind: 'accepted'; readonly value: T }
-  | { readonly kind: 'refused'; readonly reason: Reason }
+  | { readonly kind: 'refused'; readonly reason: Reason; readonly detail?: string }
 
 export type BatchJudgment<T> =
   | { readonly kind: 'accepted'; readonly value: readonly T[] }
   | { readonly kind: 'refused'; readonly reason: RefusalReason; readonly index: number }
 
-export function refused<T>(reason: RefusalReason): Judgment<T> {
-  return { kind: 'refused', reason }
+export function refused<T>(reason: RefusalReason, detail?: string): Judgment<T> {
+  return detail === undefined ? { kind: 'refused', reason } : { kind: 'refused', reason, detail }
 }

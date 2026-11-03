@@ -14,8 +14,13 @@ export type { ContextMeasure, ContextMeasureEvent, ContextSegmentEvent } from '.
 export { createAgentModelContext, type AgentModelContextOptions } from './model-context.ts'
 export { createAgentRequests, type AgentRequests, type AgentRequestsOptions } from './requests.ts'
 export {
+  DEFINITION_SECTION_PREFIX,
+  absentDefinitions,
   absentStepResults,
+  definitionContributions,
+  definitionSourceOf,
   firstWaveTools,
+  type DefinitionSource,
   type StepResultSource,
   type ToolsSource,
 } from './translate.ts'

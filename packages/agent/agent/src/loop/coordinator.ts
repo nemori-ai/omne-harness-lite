@@ -2298,6 +2298,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       position: current.position,
       history: required(snapshot, 'snapshot').history,
       inputs: required(current.batch, 'input batch'),
+      // The definition this execution runs under: the preparation reads its `instructions` as the
+      // first sections of the system prompt (agent-context SPEC「请求准备的取法」, 组四; R2-D124).
+      definition: binding.definition,
       conditions,
       selection,
       context,

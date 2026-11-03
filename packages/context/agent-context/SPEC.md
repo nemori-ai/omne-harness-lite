@@ -135,7 +135,7 @@
 
 ### 请求准备
 
-<a id="requests"></a>`createAgentRequests(options)` 返回 `RequestPreparation` 加 `close()`。参数：材料库、K-RQ 部件、Request Context 的登记面与操作组（`register`、`assembly`）、Model 准备资源（X-3）、转换件结果读口、Model 请求准备、结果容量、第六组读口与步骤结果读口。
+<a id="requests"></a>`createAgentRequests(options)` 返回 `RequestPreparation` 加 `close()`。参数：材料库、K-RQ 部件、Request Context 的登记面与操作组（`register`、`assembly`）、Model 准备资源（X-3）、转换件结果读口、Model 请求准备、结果容量、第六组读口、步骤结果读口，以及可选的定义读口 `definitions`（缺省为 `absentDefinitions`）。
 
 <a id="requests-groups"></a>字段对应以 request-context-contract 的[字段对应](../request-context-contract/docs/context.md#字段对应)为准。本包在该表之外的取法：
 
@@ -146,13 +146,15 @@
 | 组二的历史依据   | `resolveHistory` 的结果                                                                                                                                                          |
 | 组二的新输入     | 批身份取 `inputs.id`，条目取 `inputs.ordered` 的原文，`saved` 取 `inputs.watermark`                                                                                              |
 | 组三             | `context.source` 指向的读取记录。`prepare` 的转换依据为 `null`                                                                                                                   |
-| 组四             | `promptContributions` 为 `null`，由登记面替换。`assembleContext` 的 `scope` 取目标作用域，`definition`、`workspace` 为 `null`，`keys` 为空（[ASSEMBLE-CONTEXT-NULL](#已知限制)） |
+| 组四             | `prepare` 没有 `definition` 时：`promptContributions` 为 `null`，`assembleContext` 的 `definition` 为 `null`。有 `definition`（实例绑定的定义采用）时：经定义读口读该采用的定义，`assembleContext.definition` 取采用的规范文本；定义带 `instructions` 时每段成为一个有序段，名字 `definition/<id>`，作用域为目标作用域，`source` 为该采用，`revision` 为段文本摘要，`order` 为 `0-definition-` 加三位序号（排在全部登记贡献之前），`uses` 为空，集合摘要取全部段的规范摘要；定义不带 `instructions` 时 `promptContributions` 为 `null`。读口没有给出值时，第四组读取就是该结果，Request Context 按来源不可用答失败，不产生候选，不发空提示词（R2-D124）。登记面的贡献接在这些段之后（[request-context-cordis-contract 性质 2](../request-context-cordis-contract/SPEC.md#结果与不变量)）。`scope` 取目标作用域，`workspace` 为 `null`，`keys` 为空（[ASSEMBLE-CONTEXT-NULL](#已知限制)） |
 | 组五的收件模型   | `route` 取 `selection.recipient.route`，`model` 取所选档案采用身份的规范文本。组三的 `recipient` 用同一文本，所以收件模型变了，Request Context 会判为不一致                      |
 | 组五的参数       | 每个参数是档案第一个供应方的显式采用，来源是所选档案。`replay` 为 `on`                                                                                                           |
 | 组六             | 第六组读口。当前的 `firstWaveTools`：条件的 `bindings` 为空时没有工具，否则 `unavailable(tools-source-absent)`。没有条件时（`resume`）也是后者                                   |
 | 组七的条件       | `evidence` 取 `conditions.source`，`revision` 取 `conditions` 的规范摘要                                                                                                         |
 | 组七的上一次准备 | 候选身份取 `previous.id`。`previous` 是 `needs-compaction` 时，进入的计划取它的计划证据指向的计划。计划已丢失时答 `unavailable(compaction-plan-lost)`                            |
 | 组七的改写依据   | 每份依据记为触及已有层（`existing-layers`）                                                                                                                                      |
+
+<a id="requests-definitions"></a>定义读口 `DefinitionSource`：输入 `Access` 与定义采用，回答 `SourceRead<InstructionSection[] | null>`。`null` 是「定义不带 `instructions`」，是值，不是失败。`absentDefinitions` 对任何定义答 `unavailable(definition-source-absent)`。`definitionSourceOf(agentAdoptions)` 是生产读口：经 `AgentAdoptions.resolve` 解析精确采用，取判定后定义的 `instructions`；`resolve` 答 `denied` 时读口答 `denied`，答 `invalid` 或 `unavailable` 时读口答 `unavailable`，诊断带原字段与原因（Request Context 的 `invalid` 词表只命名它自己的输入，不命名定义），`resolve` 抛出时答 `unavailable(definition-resolution-failed)`。读口不读资产库，不缓存。
 
 <a id="requests-prepare"></a>`prepare` 的结局：
 
@@ -204,12 +206,12 @@
 
 <a id="context-plugin"></a>`./cordis` 的 `AgentContextProvider` 继承 `RequestPreparationService`，提供 `agentRequests`。它在同一 fiber 里构造一个 `ModelContextReaderService` 子类，提供 `agentModelContext`。
 
-- `inject`：`requestContext`、`contextHolderSources`（K-RQ）、`runtimeContextReaderEligibility`（K-RC）、`runtimeContext`（对象形式 `{ consumer: 'model' }`）、`modelRequestPreparation`、`modelPreparationResources`（X-3）。任一缺席时插件停在 `PENDING`，两个键都不提供，不登记半套。
+- `inject`：`requestContext`、`contextHolderSources`（K-RQ）、`runtimeContextReaderEligibility`（K-RC）、`runtimeContext`（对象形式 `{ consumer: 'model' }`）、`modelRequestPreparation`、`modelPreparationResources`（X-3）、`agentAdoptions`（定义读口的来源）。任一缺席时插件停在 `PENDING`，两个键都不提供，不登记半套。
 - X-3 的 Cordis 定义归 model-cordis-contract，现在还没有。插件按键名 `modelPreparationResources`（导出常量 `MODEL_PREPARATION_RESOURCES`）`inject`，值按 model-contract 的 `ModelPreparationResources` 类型使用（[X3-KEY](#已知限制)）。
 - 配置：`owner`（采用身份）、`resultCapacity`（三项十进制文本）、可选的 `materials`（正安全整数，默认 256）。不合的配置使加载失败。
 - 构造时在本 fiber 上取一次 K-RQ 租借。交给持有者的结算函数是 `agentRequests` 的 `close()`。租借不可得时两个服务都答 `unavailable`，`owner` 为 `context-holder`，诊断是持有者的原因。
 - fiber 结束时，租借结束，持有者拉取结算，本包撤除全部登记。持有者在结算结束之后才关读口。材料库结束全部读者并清空。仍被持有的旧引用答 `unavailable(agent-context-closed)`。
-- 当前插件用 `firstWaveTools`、`absentStepResults` 与 request-context 的 `createAbsentConversionResults`。
+- 当前插件用 `firstWaveTools`、`absentStepResults`、request-context 的 `createAbsentConversionResults`，以及 `definitionSourceOf(ctx.agentAdoptions)` 作为定义读口。
 
 ## 所有权、失败与生命周期
 
@@ -276,7 +278,7 @@ IC-19 分类（「协议给」不论部署都由契约协议兑现，「装配�
 | ACCT-INIT             | 当前没有成员初始化账目投影。真实装配里出站得不到 `received`，接收方待办累积，恢复时从 `received` 条目重放。这与 IP-CX-11 证据栏「每轮 Model 结果接收时账目出站得 `received`」不同，本波不兑现      | 窗口占用块（CX-12）进入装配，或 Journal 重放进入范围。到时一起回答：谁证明空快照完整，系统恢复授权由谁持有，初始化放在出站插件、`request-context` 行还是作用域创建方                  |
 | ACCT-TARGET           | 出站不解析账目目标，答 `scope-unresolved`                                                                                                                                                          | 与 ACCT-INIT 同时。候选：K-RQ 加一个按调用身份解析目标的部件（加性）。备选是给 `AgentAccountHandoff` 加字段，那是改 agent-contract 的公开类型，需契约拥有者裁定                       |
 | ACCT-EVICT-ACTIVE     | 仍在使用的目标可能在两次操作之间被淘汰，之后 `usage` 返回 `uninitialized`，直到再次重建。出站不发起重建                                                                                            | 与 ACCT-INIT 同时，设计 `usage` 路径上的重建发起者。见 [request-context 的淘汰后果](../request-context/SPEC.md#cx-11-observable)                                                      |
-| ASSEMBLE-CONTEXT-NULL | 组四的定义采用与工作区选择交 `null`，`keys` 为空                                                                                                                                                   | 第一个读这两个键的提示词贡献或策略出现，或工具阶段（B-RUN）需要工作区选择。候选：定义采用取 `conditions.configuration`，需契约拥有者确认字段对应。工作区选择归 Execution 域，届时定键 |
+| ASSEMBLE-CONTEXT-NULL | 组四的工作区选择交 `null`，`keys` 为空。定义采用已经填入：Agent 运行时（`packages/agent/agent` 的 coordinator）在 `prepare` 调用里传 `definition: binding.definition`，本包按[组四的取法](#requests-groups)读定义段；`prepare` 的 `definition` 字段在契约里仍是可选 | 工具阶段（B-RUN）需要工作区选择时定键，归 Execution 域。收口时 `prepare` 的 `definition` 改为必填（R2-D18 的收口步骤） |
 | COMPACTION-PATH       | 压缩路径只在同一实例内走得通。`derive` 要读步骤结果，当前的 `absentStepResults` 总是答不可用。`resume` 的组六答 `tools-source-absent`。计划与计划进度只在材料库里，丢失后答 `compaction-plan-lost` | 压缩进入 M2 范围，与 #859 第 5 项同批。到时定步骤结果的读口（Model 结果读取）、`resume` 的工具来源，以及计划材料是否随 Agent 的 checkpoint 保存                                       |
 | STALE-ADVANCE-PORT    | 两个端口不核对 `advance`。旧挂接在被取代之后仍可能做完一次读取、组装与 Model 请求准备，结果记录不下来，浪费一次计算。保护点在 Journal 写入                                                         | 多宿主或分布式部署，或同进程接管频繁到浪费的计算可以测出                                                                                                                              |
 | REG-NO-EVICT          | 作用域结束后登记不清理                                                                                                                                                                             | E9 测得登记数随会话数增长到影响内存                                                                                                                                                   |

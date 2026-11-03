@@ -115,7 +115,7 @@ describe('serve process', () => {
       scope: 'serving',
       accepting: true,
       outcome: 'ready',
-      implementations: { real: 25, 'contract-double': 0, 's0-double': 23 },
+      implementations: { real: 33, 'contract-double': 0, 's0-double': 15 },
     })
     expect(of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
     expect(out.stderr).toContain('serve: stop requested: stdin closed')

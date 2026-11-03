@@ -149,6 +149,13 @@ export interface RequestPreparation<P> {
         previous: Preparation | null
         alterations: readonly DurableEvidence[]
         beforeModelCall: readonly PassageId[] | null
+        /**
+         * The exact adoption of the definition that the execution runs under (the `definition` of
+         * the instance binding). The preparation reads the `instructions` of that definition as the
+         * first sections of the system prompt; see SPEC "请求准备" of agent-context. Absent: the
+         * caller carries no definition and no definition sections are read.
+         */
+        definition?: Adoption
       }>,
   ): Reply<Preparation>
   derive(
