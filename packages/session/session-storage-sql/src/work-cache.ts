@@ -34,6 +34,11 @@ export type WorkCache = Readonly<{
   /** Keeps `entry` unless it is older than the entry it would replace; then applies the bounds. */
   set(key: string, entry: Entry): void
   delete(key: string): void
+  /**
+   * The whole reads in flight, by key and version: a read that finds one for the version it read
+   * waits for it instead of reading the snapshot again (single-flight).
+   */
+  readonly flights: Map<string, Promise<WorkRead>>
   readonly size: number
   readonly bytes: number
 }>
@@ -97,6 +102,7 @@ export function createWorkCache(bounds: WorkCacheBounds = {}): WorkCache {
       }
     },
     delete: drop,
+    flights: new Map(),
     get size() {
       return entries.size
     },
@@ -191,6 +197,7 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
   // version below it means the store went back, never a commit that came in between.
   const held = cache.get(key)
   const versionRead = await readOne(reach, WORK_VERSION_HANDLER)
+  let version: WorkVersion | null = null
   if ('output' in versionRead) {
     const current = versionRead.output
     if (current['kind'] === 'absent') {
@@ -202,7 +209,7 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
     // The snapshot row is replaced only in the transaction that moves the tail, and an entry is
     // kept only from a whole read that found it covering its tail: an equal tail is covered still.
     if (current['kind'] === 'version' && tail !== null && published !== null) {
-      const version = { tail, published }
+      version = { tail, published }
       if (held !== undefined) {
         const order = compare(version, held.version)
         if (order === 0) return { kind: 'state', snapshot: held.snapshot }
@@ -217,6 +224,19 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
     }
   }
   // No entry, another version, or a version read that failed or did not parse: read it whole.
+  // Concurrent readers of one key that read one version share that whole read; a reader whose
+  // version read failed reads alone.
+  if (version === null) return readWhole(reach, cache, key)
+  const flight = `${key}|${version.tail}|${version.published}`
+  const running = cache.flights.get(flight)
+  if (running !== undefined) return running
+  const started = readWhole(reach, cache, key).finally(() => cache.flights.delete(flight))
+  cache.flights.set(flight, started)
+  return started
+}
+
+/** One whole read: the answer replaces the entry of `key`, and a failure drops it. */
+async function readWhole(reach: WorkReach, cache: WorkCache, key: string): Promise<WorkRead> {
   const wholeRead = await readOne(reach, WORK_HANDLER)
   if (!('output' in wholeRead)) {
     cache.delete(key)

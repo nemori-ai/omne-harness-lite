@@ -215,6 +215,33 @@ describe('T-5: reads and commits of one process interleaved', () => {
   })
 })
 
+describe('single-flight: concurrent reads of one version share one whole read', () => {
+  it('three concurrent reads read the snapshot whole once and give the same answer', async () => {
+    const a = await app()
+    await a.create(TENANT_A)
+    const from = a.provider.calls.length
+    const answers = await Promise.all([1, 2, 3].map(() => a.port.readWork(a.access(TENANT_A))))
+    const [first, ...rest] = answers.map(okOf)
+    for (const other of rest) expect(other).toBe(first)
+    expect([readsOf(a, WHOLE, from), readsOf(a, VERSION, from)]).toEqual([1, 3])
+  })
+
+  it('a shared whole read that fails fails every waiter, and the next read reads whole again', async () => {
+    const a = await app()
+    await a.create(TENANT_A)
+    a.provider.failReads(WHOLE)
+    const from = a.provider.calls.length
+    const answers = await Promise.all([1, 2, 3].map(() => a.port.readWork(a.access(TENANT_A))))
+    for (const answer of answers)
+      expect('failure' in answer && answer.failure.kind).toBe('unavailable')
+    expect(readsOf(a, WHOLE, from)).toBe(1)
+    a.provider.failReads(null)
+    const again = a.provider.calls.length
+    okOf(await a.port.readWork(a.access(TENANT_A)))
+    expect(readsOf(a, WHOLE, again)).toBe(1)
+  })
+})
+
 describe('T-6: the bounds of the cache', () => {
   const read = async (a: App, session: string) => {
     const from = a.provider.calls.length
