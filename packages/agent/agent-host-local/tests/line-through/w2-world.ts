@@ -229,39 +229,6 @@ function plainJson(value: unknown): unknown {
   }
 }
 
-/** Wakes AD-06 for every `agent-published` event, one session at a time and in order. */
-function ad06Wake(
-  consume: (target: {
-    principal: unknown
-    tenant: TenantId
-    session: SessionId
-    execution: AgentExecutionId
-  }) => Promise<unknown>,
-  coordinator: (input: { tenant: TenantId; session: SessionId }) => Promise<unknown>,
-) {
-  const queues = new Map<string, Promise<void>>()
-  return {
-    name: 'w2-ad06-trigger',
-    apply(ctx: { on: (name: string, listener: (...args: never[]) => void) => unknown }) {
-      ctx.on('session-adapters/agent-published', (async (
-        tenant: TenantId,
-        session: SessionId,
-        execution: AgentExecutionId,
-      ) => {
-        const key = JSON.stringify([tenant, session])
-        const next = (queues.get(key) ?? Promise.resolve()).then(async () => {
-          const principal = await coordinator({ tenant, session })
-          await consume({ principal, tenant, session, execution })
-        })
-        queues.set(key, next)
-        void next.finally(() => {
-          if (queues.get(key) === next) queues.delete(key)
-        })
-      }) as never)
-    },
-  }
-}
-
 /** The full request of the fixed schema (R2-D36), shaped by the consumer the Agent names. */
 function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeRequest {
   const adoption = (name: string) => testAdoption(`w2-${name}`)
@@ -478,11 +445,12 @@ export async function openW2World(options: W2Options) {
       // Real (AD-05): the Model results the Agent received enter the session log, so the replies are
       // history rows of the next round.
       const ad05 = createSessionModelLogConsumptionPlugin<string>({ coordinator })
-      // Real (AD-06): the Tool results the Agent received enter the session log. The product plugin has
-      // no trigger of its own (AD-05 subscribes itself); the world wakes it with the same
-      // `agent-published` event, one session at a time, as AD-05 does.
-      const ad06 = createSessionToolLogConsumptionPlugin({ toolDeliveries: readToolDelivery })
-      const ad06Trigger = ad06Wake(ad06.consume, coordinator)
+      // Real (AD-06): the Tool results the Agent received enter the session log; the plugin wakes on
+      // `agent-published` as AD-05 does. The delivery reader is the world's (R2-D36).
+      const ad06 = createSessionToolLogConsumptionPlugin({
+        toolDeliveries: readToolDelivery,
+        coordinator,
+      })
       consumers.ad05 = ad05.consume as never
       consumers.ad06 = ad06.consume as never
       return [
@@ -490,7 +458,6 @@ export async function openW2World(options: W2Options) {
         [ad02.plugin],
         [ad05.plugin],
         [ad06.plugin],
-        [ad06Trigger],
         [handoff, combination],
         ...(options.plugins ?? []),
       ]

@@ -26,6 +26,7 @@
 // Why slow: real Workers, real files and the whole line on one root.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AgentEvent } from '@omne-harness/agent-contract'
+import type { Outcome } from '@omne-harness/operation-result'
 import {
   creation,
   operationId,
@@ -63,6 +64,37 @@ async function until(probe: () => boolean | Promise<boolean>, ms = 20_000): Prom
 
 const textOf = (message: { blocks: readonly unknown[] }): string =>
   message.blocks.map(block => (block as { kind: string; text?: string }).text ?? '').join('')
+
+/** The kinds of the session log entries, read as the reader caller class of the coordinator. */
+async function historyKinds(w: LineWorld): Promise<string[]> {
+  let reader: { history: { begin(input: unknown): Promise<unknown> } } | undefined
+  await w.mount({
+    name: 'cp3-history-reader',
+    inject: { session: { caller: 'reader' } },
+    apply: (inner: { session: typeof reader }) => {
+      reader = inner.session
+    },
+  })
+  const principal = ok(
+    await w.workPrincipals.forSession({
+      actor: 'coordinator',
+      tenant: intakeAccess.tenant,
+      session: intakeAccess.session,
+    }),
+  )
+  const page = ok(
+    (await reader?.history.begin({
+      principal,
+      tenant: intakeAccess.tenant,
+      session: intakeAccess.session,
+      kinds: [],
+      from: null,
+      direction: 'forward',
+      pageBytes: 1_000_000,
+    })) as Outcome<{ entries: readonly { kind: string }[] }, unknown>,
+  )
+  return page.entries.map(entry => entry.kind)
+}
 
 describe('CP3: from a Session input to the save of the Model result on the session log', () => {
   it('runs the whole line on one real Cordis root over the real sqlite-provider', async () => {
@@ -121,7 +153,42 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
     const pushed = await Promise.all(w.pushes)
     expect(pushed).toHaveLength(1)
     expect(pushed[0]).toMatchObject({ status: 'saved' })
-    expect(w.commits.every(seen => seen.result.kind === 'committed')).toBe(true)
+    // With the real AD-02 and handoff, optimistic concurrency is the contract: a commit may roll back
+    // as a conflict and its logical operation commits afterwards. Every rollback is all-conflict;
+    // an Agent records commit that lost the head commits again under the same operation; a Session
+    // commit that found its input no longer pending lost to the path that took it, so the log holds
+    // that one take.
+    const rolledBack = w.commits.flatMap((seen, position) =>
+      seen.result.kind === 'rolled_back' ? [{ seen, position, result: seen.result }] : [],
+    )
+    expect(rolledBack.length).toBeGreaterThan(0)
+    for (const { seen, position, result } of rolledBack) {
+      expect(result.responses.every(response => response.reply.kind === 'conflict')).toBe(true)
+      if (seen.participants.includes('execution-record')) {
+        const again = w.commits
+          .slice(position + 1)
+          .find(
+            later =>
+              later.result.kind === 'committed' &&
+              later.result.identity.operation === result.identity.operation,
+          )
+        expect(again).toBeDefined()
+      }
+    }
+    const sessionOnly = rolledBack.filter(
+      ({ seen }) => !seen.participants.includes('execution-record'),
+    )
+    if (sessionOnly.length > 0) {
+      for (const { result } of sessionOnly)
+        expect(JSON.stringify(result.responses)).toContain('the input is not pending')
+      const kinds = await historyKinds(w)
+      expect(kinds.filter(kind => kind === 'run.batch-taken')).toHaveLength(1)
+    }
+    expect(
+      w.commits.every(
+        seen => seen.result.kind === 'committed' || seen.result.kind === 'rolled_back',
+      ),
+    ).toBe(true)
 
     // The common root after the save: the Agent count and the Session root read the same number,
     // and a copy rebuilt from the durable records at that count holds the received entry next to
