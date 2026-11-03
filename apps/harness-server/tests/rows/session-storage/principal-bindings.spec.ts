@@ -84,6 +84,14 @@ describe('the binding suite of session-cordis-contract on the release row', () =
     })
 })
 
+describe('the trusted scope', () => {
+  test('the read port is provided only under its trusted name: the root does not resolve it', async () => {
+    const tree = await load()
+    expect(tree.service(sessionPrincipalBindingsKey) === undefined).toBe(true)
+    expect(bindings(tree) === undefined).toBe(false)
+  })
+})
+
 describe('an established session', () => {
   test('reads its own tenant, session and the source of its state, and nothing of its content', async () => {
     const tree = await load()
