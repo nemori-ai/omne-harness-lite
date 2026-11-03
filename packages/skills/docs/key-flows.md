@@ -11,11 +11,15 @@ sequenceDiagram
   participant C as 调用方
   participant I as PackageInspection
   participant S as SkillPackageSource
-  C->>I: inspect(locator, expectedName?)
+  C->>I: inspect(locator, { expectedName? })
   I->>S: snapshot(locator)
   S-->>I: Skill 包快照（含包根目录名），或 来源失败
   alt package-not-found 或 unavailable
     I-->>C: source-unavailable
+  else entry-unreadable（非常规文件，或无法解析、成环的链接）
+    I-->>C: 拒绝 malformed，检查到此结束
+  else outside-package（包内链接解析后落在包根之外）
+    I-->>C: 拒绝 outside-package，检查到此结束
   end
   loop 控制文件 SKILL.md 与 .omne/skill.json
     I->>S: open(locator, 快照的内容摘要, 包内路径)
@@ -27,7 +31,7 @@ sequenceDiagram
   else bytes-mismatch，或核对不符
     I-->>C: version-changed
   end
-  I->>I: 解析与校验，name 须等于包根目录名，带 expectedName 时也须等于它
+  I->>I: 解析与校验。头部能读出 name 时，name 须等于包根目录名，带 expectedName 时也须等于它
   alt 不合格
     I-->>C: 拒绝原因，按包格式规则的次序
   end
@@ -35,9 +39,9 @@ sequenceDiagram
 ```
 
 1. `inspect` 的结果集合封闭：`SkillDefinition`、一个拒绝原因、`source-unavailable` 或 `version-changed`。规则见[工程设计「检查与发现」](architecture.md#检查与发现)。
-2. name 与包根目录名不一致时，一律拒绝为 `name-mismatch`，不论带不带 `expectedName`。
+2. 头部能读出 name、且 name 与包根目录名不一致时，一律拒绝为 `name-mismatch`，不论带不带 `expectedName`。头部的 YAML 读不出 name 时，不判 `name-mismatch`，头部的问题判为 `malformed`。
 3. `inspect` 不交正文。正文只经 `SkillAccess.read` 取得，`read` 现场核验读取权。
-4. `open` 答 `outside-package` 时，`inspect` 拒绝为 `outside-package`。图中省略这一支。
+4. `snapshot` 或 `open` 答 `outside-package` 时，`inspect` 拒绝为 `outside-package`。`snapshot` 答 `entry-unreadable` 时，`inspect` 拒绝为 `malformed`。`snapshot` 答这两种时没有快照可判，检查以对应的原因结束，不按拒绝次序判其余原因。图中省略 `open` 的 `outside-package` 一支。
 
 ## F-SK02 分层发现与不可用解释
 
@@ -114,8 +118,12 @@ sequenceDiagram
   A->>A: 所钉内容摘要：有 basis 取 basis，否则取 SkillRef
   A->>A: toPackagePath 校验目标，不合法时返回 bad-path
   A->>S: snapshot(SkillRef 的 locator)
-  S-->>A: Skill 包快照，或 package-not-found，或 unavailable
-  alt 快照的内容摘要不等于所钉内容摘要，带Skill 材料依据
+  S-->>A: Skill 包快照，或 package-not-found、unavailable、entry-unreadable、outside-package
+  alt entry-unreadable（非常规文件，或无法解析、成环的链接）
+    A-->>C: source-unavailable
+  else outside-package（包内链接解析后落在包根之外）
+    A-->>C: outside-package
+  else 快照的内容摘要不等于所钉内容摘要，带Skill 材料依据
     A-->>C: basis-unavailable
   else 快照的内容摘要不等于所钉内容摘要，不带Skill 材料依据
     A-->>C: adopted-material-changed
@@ -124,6 +132,9 @@ sequenceDiagram
   end
   A->>S: open(locator, 所钉内容摘要, 包内路径)
   S-->>A: 字节，或 entry-not-found、bytes-mismatch、outside-package、unavailable
+  alt signal 已中止（每次调用端口之前与每次端口返回之后都检查，图中只画这一处）
+    A-->>C: aborted，不交部分内容
+  end
   A->>A: 算出字节的内容摘要，与快照中的条目内容摘要比较
   alt 不符
     A-->>C: version-changed，不交新内容
@@ -132,7 +143,7 @@ sequenceDiagram
   A-->>C: 内容、Skill 材料依据、包内路径、媒体类型、实际字节范围、总长与 complete
 ```
 
-图中每个 `alt` 分支都在返回后结束本次操作。端口失败按[工程设计「端口」](architecture.md#端口)的映射表转换：`package-not-found` 带Skill 材料依据时为 `basis-unavailable`，不带时为 `source-unavailable`。`entry-not-found` 为 `resource-missing`。`bytes-mismatch` 为 `version-changed`。`outside-package` 照原样。`unavailable` 为 `source-unavailable`。调用方经 `signal` 中止时，`read` 不再调用端口，也不交部分内容。
+图中每个 `alt` 分支都在返回后结束本次操作。端口失败按[工程设计「端口」](architecture.md#端口)的映射表转换：`package-not-found` 带Skill 材料依据时为 `basis-unavailable`，不带时为 `source-unavailable`。`entry-not-found` 为 `resource-missing`。`bytes-mismatch` 为 `version-changed`。`outside-package` 照原样。`unavailable` 为 `source-unavailable`。`snapshot` 的 `entry-unreadable` 为 `source-unavailable`。`read`、`list` 与 `export` 在每次调用端口之前与每次端口返回之后各检查一次 `signal`。调用方中止时，操作答 `aborted`，不再调用端口，也不交部分内容。
 
 1. 调用方可以不带Skill 材料依据，这时 `SkillAccess` 读当时的合法版本。调用方也可以带上此前结果给出的Skill 材料依据，这时读取固定该版本。Skill 材料依据含能力标识、来源层、资产版本与内容摘要，不含包定位。工作区来源的Skill 材料依据可以不带资产版本。
 2. 带Skill 材料依据时，`SkillAccess` 先核对依据的能力标识等于目标能力标识。不等时对外返回 `not-available-to-you`，不披露差异原因。
