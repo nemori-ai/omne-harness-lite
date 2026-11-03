@@ -85,7 +85,7 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 | --- | --- | --- |
 | 主体 | `principalVerifier` 核验，必须是这个租户的会话工作主体 | 核验器缺席答 `unavailable`；其余答 `denied` |
 | 定义与可用性 | `toolCatalog.inspect`；模型看到的名字按 request-context 的声明规则拆成工具名与命令；消费者是发行清单确认的文本消费者 | 目录缺席、不在发行清单、不是官方层、不可用都答 `unavailable`；`prepare` 时定义与 `describe` 不同答 `unavailable` |
-| `requesterScope` | 会话快照 `contextScopes` 的最新一条，未结束；会话以 `reader` 调用方类读 | 读不到、没有作用域、已结束都答 `unavailable` |
+| `requesterScope` | 会话快照 `contextScopes` 的最新一条，未结束；会话以 `coordinator` 调用方类读（Session 的 `readWork` 只接受 `coordinator` 与 `maintainer`；来源代 Agent 做 Tool 消费，属 `coordinator`） | 读不到、没有作用域、已结束都答 `unavailable` |
 | 作用域归属 | 入口对象 `executionScopeBinding` | 缺席或不明答 `unavailable`；未绑定或绑到别的租户答 `denied` |
 | 设置采用 | 发行清单里这个作者的固定设置采用 | 发行快照不可用答 `unavailable` |
 
@@ -107,6 +107,8 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 
 - [请求供给者](../../tests/entry/tool-requests.spec.ts)：完整请求经 Tool 公开判定通过；核验器、目录、作用域绑定、
   会话作用域、发行快照任一缺席或不符时答 `unavailable` 或 `denied`；跨租户被拒。
+- [请求供给者读会话](../../tests/entry/tool-requests-session.spec.ts)：在真实 `session-provider` 行与真实存储上，
+  供给者的会话读口以 `coordinator` 调用方类读到会话快照；`reader` 调用方类被 Session 拒绝（`denied readWork`）。
 - [进程内组合](../../tests/rows/tool-runtime/composition.spec.ts)：真实 SQLite、真实五行与执行四行、真实入口对象，
   Shell 执行一次、Files 写读各一次，读回原结果，三次结果都交到原消费者；外租户的同一调用被拒。用发行的会话归属读口和会话
   工作主体，Shell 与 Files 同样执行（G-OWNERSHIP，R2-D192）。替身见文件头。

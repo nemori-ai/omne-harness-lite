@@ -315,7 +315,7 @@ function recordingSession(snapshot: WorkSnapshot, callers: unknown[]) {
 }
 
 describe('the release composition releaseToolRequestsOf on a real Cordis root (R2-D189 N1)', () => {
-  it('reads the session as the reader caller and the scope binding under executionScopeBinding', async () => {
+  it('reads the session as the coordinator caller and the scope binding under executionScopeBinding', async () => {
     const { fixture, ports, principalA, snapshot } = await world()
     const callers: unknown[] = []
     await fixture.root.plugin(recordingSession(snapshot, callers))
@@ -330,6 +330,6 @@ describe('the release composition releaseToolRequestsOf on a real Cordis root (R
     expect(okOf(judgeToolInvokeRequest(request), 'judge')).toBeDefined()
     expect(request.requesterScope).toEqual(SCOPE)
     expect(callers.length).toBeGreaterThan(0)
-    expect(new Set(callers)).toEqual(new Set(['reader']))
+    expect(new Set(callers)).toEqual(new Set(['coordinator']))
   })
 })

@@ -775,7 +775,7 @@ describe('agentActionAdmission', () => {
       actionRules: rules,
     })
     for (const change of [
-      { original: { name: 'Shell' } },
+      { definition: { ...input.definition, name: 'Shell' } },
       { permissions: [{ need: 'permission' }] },
       { decision: {} },
     ]) {
