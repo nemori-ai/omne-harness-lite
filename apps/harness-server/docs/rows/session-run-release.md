@@ -13,7 +13,7 @@
 
 | 行 | 成员工厂 | 构造时交入的运行时对象 | 配置 |
 | --- | --- | --- | --- |
-| `request-context` | `RequestContextProvider`，行体以子 fiber 装载 | 账目四个端口（见下节的具名缺件） | `limits`（运维者层）；可选 `selection` |
+| `request-context` | `RequestContextProvider`，行体以子 fiber 装载 | 账目四个端口：来源核验与读取资格见下节「账目端口」，另两个是具名缺件 | `limits`（运维者层）；可选 `selection` |
 | `agent-context` | `createAgentContextPlugin(agentContextPluginInput)` | 组六的工具读口 `catalogToolLookup`（`rows/agent-context/tools.ts`）：逐次现取 `toolCatalog` 与发行确认的文本消费者材料，经 `toolCatalog.inspect` 读常驻绑定所指工具的完整定义，读不到时组六失败关闭（G-TOOLS6）。不带测量观察者，C1 采集时交入 | `owner`、`resultCapacity`、可选 `materials`（运维者层） |
 | `agent-account-outlet` | `AgentAccountOutletProvider` | 无 | `sender`：出站插件的采用身份（发行数据） |
 | `session-ad02` | `createSessionJournalInterpretationPlugin({ coordinator })` | 协调者主体来源 | 无 |
@@ -28,13 +28,30 @@
 
 协调者主体来源是 `src/rows/session-adapters/coordinator.ts`：行 inject 受信的 `sessionWorkPrincipals`，以 `forSession({ actor: 'coordinator', tenant, session })` 作答。它是运行时对象，不进配置。
 
+## 账目端口与持有者事实（SC2 已接）
+
+端口都在 `src/rows/request-context/accounting.ts`。它们是受信装配代码里的运行时对象，不进配置。
+
+| 端口 | 发行做法 | 答复 |
+| --- | --- | --- |
+| 来源核验 `sourceAuthority` | 发行固定的窄放行。先经 `principalVerifier` 服务核验主体（按调用现取，不 `inject`）：只接受代租户行事主体，且主体的租户等于访问的租户。系统主体答 `denied`，因为系统作用域不代表任何租户（[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。再核访问、目标与调用三个租户相同，最后核 `producer` 是 `model`，且 `sender` 的四个字段与 `ACCOUNT_OUTLET_SENDER` 全等。`ACCOUNT_OUTLET_SENDER` 等于发行配置里 `agent-account-outlet` 行的 `sender`，用例核对两者相等 | 全部满足时 `allowed`。其余一律 `denied`，原因写入行日志的 warn 级（契约的 `denied` 不带文字）。核验器不在场、不可用或抛出时答 `unavailable`，不改写成 `denied` |
+| 读取资格 `readEligibility` | 每次调用现取已登记的 `contextHolderSources`（`session-ad04` 行提供），短租借后转问它的 `eligibility` 部件，返回前结束租借。不 `inject`，所以行清单不变 | 只放行 `accounts` 操作，其他操作答 `denied`，原因写 debug 级日志。持有者的答复原样返回，`denied` 另写 warn 级日志。没有持有者、租借被拒或抛出时答 `unavailable`，吞掉的异常写 debug 级日志 |
+| 持有者事实 `replayFacts` | 入口对象 `runtimeContextTrust` 每次调用在自己的上下文上现取 `sessionReplayFacts`（`session-ad03` 行的事实子插件提供），不缓存旧引用 | 服务不在场、已停、读取或应答抛出时答 `unavailable`，吞掉的异常写 debug 级日志，不带异常消息。RC-09 结束恢复时，持有者事实列出的块没有被材料覆盖，答 `invalid`（`replay-incomplete`） |
+
+已知限制：
+
+- 来源核验不核「原账目、调用、发出与提交证据属于同一已提交的日志事实」，也不核调用方就是出站插件本身。出站插件转交的是 Agent 的访问身份，发行里没有这两项事实的来源。这是 B1-GAP-ACCOUNTING-SOURCE-AUTHORITY 收窄后的余项。现在出站插件没有目标解析器，每次交付在到达收件口之前答 `scope-unresolved`，所以这条放行在发行里还走不到。
+- 来源核验只比较 `target.tenant` 字段，不解析作用域 `target.scope` 的真实归属。账目只写进调用方租户自己的命名空间：账目投影按 `tenant\0scope` 作键，所以写错作用域的账目不会污染别的租户。
+- 读取资格借用的是持有者对目标所属会话的历史读取资格，不区分 `operation`。`session-ad04` 还没有解析到该作用域时答 `unavailable`。
+- 入口的作用域绑定仍答 `unavailable`（`src/entry/execution-wiring.ts` 的 `readOwnership` 缺席），所以在发行树里结束恢复的核对先停在绑定，读不到持有者事实。把 `readOwnership` 接到 `sessionScopeLookup` 不在 SC2 范围内，它会改变 Runtime Context 读者与 Execution 绑定的授权结果。
+- `sessionReplayFacts` 在 session-cordis-contract 里写为受信名，但应用装配页的受信子树没有列它，发行受信表也没有。所以入口从根上解出它，根上别的插件也能按名取得。受信表列入以后，入口改为经 `env.readTrusted` 读取（`readReplayFactsService`）。
+
 ## 具名缺件（发行里没有生产来源，答不可用，不默认放行）
 
 | 缺件 | 位置 | 后果 |
 | --- | --- | --- |
-| B1-GAP-ACCOUNTING-SOURCE-AUTHORITY、B1-GAP-ACCOUNTING-READ-ELIGIBILITY、B1-GAP-ACCOUNTING-RECOVERY-AUTHORITY | `src/rows/request-context/accounting.ts` | 账目收件口拒收、窗口占用不可用；系统提示词与候选组装不受影响 |
-| B1-GAP-ADOPTED-REQUEST-SOURCE | 同上，以及 `session-ad04` 的 `adopted` 缺席 | 协调者固定请求事实（CX-08）读不到，窄采用来源答不可用 |
-| B1-GAP-REPLAY-FACTS-LINK | `src/entry/runtime-context-trust.ts` 仍用 `absentReplayFacts` | RC-09 恢复会话取不到持有者事实；把事实子插件的 `replayFacts` 接给信任对象是入口模块的改动 |
+| B1-GAP-ADOPTED-REQUEST-SOURCE | `src/rows/request-context/accounting.ts`，以及 `session-ad04` 的 `adopted` 缺席 | 协调者固定请求事实（CX-08）读不到，窄采用来源答不可用；窗口占用 `usage` 在读取资格放行之后答不可用。Runtime Context 每轮整读，不做增量。SC2 不做：会话日志里没有固定请求的条目，补它要新设计 |
+| B1-GAP-ACCOUNTING-RECOVERY-AUTHORITY | `src/rows/request-context/accounting.ts` | 账目投影不能授权重建，收件口对每个目标答 `unavailable`（`uninitialized`）。SC2 不做，随波 3 的重启恢复 |
 | B1-GAP-TOOL-REQUESTS（Tool B 段） | `agent-host` 行已有构造输入 `toolRequestsOf`（SC4）；发行导出 `agentHostRow` 还没有交入它。生产组合由入口把运行时上下文 current、执行环境授权与绑定对象、catalog 组合成（R2-D36 第 3 点） | 不传时 Tool 动作准入答 `unavailable`（owner `agentToolRequests`），失败关闭 |
 
 ## 还是替身的行与原因
@@ -50,3 +67,5 @@
 ## 验证
 
 [serve 用例](../../tests/serve.spec.ts)证明发行树 37 真件、11 替身全部 `ACTIVE`，启动就绪、退出 0；退出 0 依赖 `agent-host` 的有序停止（AH-STOP）。[session-ad14 行用例](../../tests/rows/session-ad14/index.spec.ts)与 [agent-host 行用例](../../tests/rows/agent-host/index.spec.ts)证明三行在 `agentConditions` 缺席时停在 `PENDING`，以及 `jointCommits` 漏写 `message` 时装载失败。[session-conditions 行用例](../../tests/rows/session-conditions/default-modes.spec.ts)证明租户默认模式只在映射条目仍代表创建所记来源时交出。[coding-agent 用例](../../tests/assembly/coding-agent.spec.ts)证明定义段经真实采用面组装成系统提示词。端到端一轮等 Tool B 段。
+
+[账目端口用例](../../tests/rows/request-context/accounting.spec.ts)与[行用例](../../tests/rows/request-context/index.spec.ts)证明来源核验与读取资格的放行、拒绝与不可用；[持有者事实用例](../../tests/entry/runtime-context-replay-facts.spec.ts)证明入口按调用读取 `sessionReplayFacts`，缺席时答不可用。

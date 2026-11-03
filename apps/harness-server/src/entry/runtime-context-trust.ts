@@ -1,5 +1,8 @@
 // R2-D29 narrows readers to their Session work principal and refuses all producers.
 // Scope facts come from the shared application projection; absent production sources stay unavailable.
+// The holder facts (`replayFacts`) are read per call from `sessionReplayFacts`, which the facts
+// sub-plugin of row `session-ad03` provides (B1-GAP-REPLAY-FACTS-LINK closed, SC2); absent or
+// throwing, they answer unavailable.
 // R2-D25 current is only a caller-fiber generation bridge. It does not close #677.
 import type { Context } from '@deepseek-ai/cordis'
 import type {
@@ -25,7 +28,9 @@ import {
 import {
   createSessionRuntimeContextTrust,
   type SessionReplayFacts,
+  type StepCommittedBlocks,
 } from '@omne-harness/session-adapters'
+import { sessionReplayFactsKey } from '@omne-harness/session-cordis-contract/cordis'
 import type { EntryObjectModule } from '../types.ts'
 import { verifierOf } from './principals.ts'
 import type { SessionScopeOwnershipSource, SessionScopeSource } from './session-scope-source.ts'
@@ -144,13 +149,46 @@ export const unavailableScopeBindings: ScopeBindingSource = Object.freeze({
   lookup: () => Promise.resolve({ kind: 'unavailable' as const }),
 })
 
-/** 持有者事实：`session-ad03` 未交付，一律不可用。`diagnostic` 只给装配者看，不进任何答复。 */
-export const absentReplayFacts: SessionReplayFacts & Readonly<{ diagnostic: string }> =
-  Object.freeze({
+/** 按调用现取持有者事实的读口：返回此刻在场的 `sessionReplayFacts`，不在场是 `undefined`。 */
+export type ReplayFactsReader = () => SessionReplayFacts | undefined
+
+/**
+ * 发行读法：在入口自己的上下文上按名现取 `sessionReplayFacts`。该名在发行受信表里不是受信名（应用装配页
+ * 「受信子树」未列），所以从根解出 `session-ad03` 事实子插件提供的服务。受信表把它列为受信名时，改为经
+ * `env.readTrusted` 读取，见本行交回的接线事实。
+ */
+export function readReplayFactsService(scope: Context): SessionReplayFacts | undefined {
+  return scope.get(sessionReplayFactsKey)
+}
+
+const FACTS_UNAVAILABLE: StepCommittedBlocks = Object.freeze({ kind: 'unavailable' })
+
+/**
+ * 持有者事实的入口端口。每次调用现取一次读口：服务不在场（`session-ad03` 未装、事实子插件已停）、读取或
+ * 应答抛出，都答 `unavailable`，不答 `known`，也不缓存上一次的服务引用。`diagnostic` 只给装配者看，
+ * 不进任何答复。吞掉的异常交 `trace`（调试级日志），不带异常消息。
+ */
+export function entryReplayFacts(
+  read: ReplayFactsReader,
+  trace: (diagnostic: string) => void = () => {},
+): SessionReplayFacts & Readonly<{ diagnostic: string }> {
+  return Object.freeze({
     diagnostic:
-      'the assembly entry has no session replay facts; the AD-03 holder of row session-ad03 provides them (service key sessionReplayFacts in wave 2) and that row is not delivered',
-    stepCommittedBlocks: () => Promise.resolve({ kind: 'unavailable' as const }),
+      'no running facts sub-plugin of row session-ad03 provides sessionReplayFacts; the holder facts are unavailable',
+    async stepCommittedBlocks(
+      ...args: Parameters<SessionReplayFacts['stepCommittedBlocks']>
+    ): Promise<StepCommittedBlocks> {
+      try {
+        const facts = read()
+        if (facts === undefined) return FACTS_UNAVAILABLE
+        return await facts.stepCommittedBlocks(...args)
+      } catch {
+        trace('reading the session replay facts threw; answered unavailable')
+        return FACTS_UNAVAILABLE
+      }
+    },
   })
+}
 
 /** 一个读取方 fiber 的代次：`retired` 一旦为真就不再为假。 */
 type Generation = { retired: boolean }
@@ -158,6 +196,7 @@ type Generation = { retired: boolean }
 type TrustState = Readonly<{
   verifier: PrincipalVerifier
   scopes: SessionScopeSource | undefined
+  replayFacts: SessionReplayFacts
   currents: WeakMap<Context, () => boolean>
   /** 读取方上下文 → 绑定了该读取方代次的信任对象。 */
   byReader: WeakMap<Context, RuntimeContextTrust<unknown>>
@@ -175,7 +214,7 @@ function trustFor(state: TrustState, reader: Context): RuntimeContextTrust<unkno
     }),
     bindings: state.scopes?.bindings ?? unavailableScopeBindings,
     current: { capture: () => ({ current }) },
-    replayFacts: absentReplayFacts,
+    replayFacts: state.replayFacts,
   })
   state.byReader.set(reader, trust)
   return trust
@@ -183,9 +222,20 @@ function trustFor(state: TrustState, reader: Context): RuntimeContextTrust<unkno
 
 class EntryRuntimeContextTrust extends RuntimeContextTrustService<unknown> {
   readonly state: TrustState
-  constructor(ctx: Context, verifier: PrincipalVerifier, scopes?: SessionScopeSource) {
+  constructor(
+    ctx: Context,
+    verifier: PrincipalVerifier,
+    replayFacts: SessionReplayFacts,
+    scopes?: SessionScopeSource,
+  ) {
     super(ctx)
-    this.state = { verifier, scopes, currents: new WeakMap(), byReader: new WeakMap() }
+    this.state = {
+      verifier,
+      scopes,
+      replayFacts,
+      currents: new WeakMap(),
+      byReader: new WeakMap(),
+    }
   }
   /** 访问器，不是字段：`this.ctx` 是读取方的上下文，代次绑定到它的 fiber。 */
   get authority(): RuntimeContextTrust<unknown>['authority'] {
@@ -196,12 +246,24 @@ class EntryRuntimeContextTrust extends RuntimeContextTrustService<unknown> {
   }
 }
 
-export function createRuntimeContextTrustModule(scopes?: SessionScopeSource): EntryObjectModule {
+/**
+ * `readReplayFacts` 默认是发行读法 {@link readReplayFactsService}，读的是本入口对象自己的上下文；
+ * 用例可换成别的现取读口，缺席时同样答 `unavailable`。
+ */
+export function createRuntimeContextTrustModule(
+  scopes?: SessionScopeSource,
+  readReplayFacts: (scope: Context) => SessionReplayFacts | undefined = readReplayFactsService,
+): EntryObjectModule {
   return {
     name: runtimeContextTrustKey,
     implementation: 'real',
     install(scope, env) {
-      new EntryRuntimeContextTrust(scope, verifierOf(env), scopes)
+      const logger = scope.logger('runtimeContextTrust')
+      const replayFacts = entryReplayFacts(
+        () => readReplayFacts(scope),
+        diagnostic => logger.debug(diagnostic),
+      )
+      new EntryRuntimeContextTrust(scope, verifierOf(env), replayFacts, scopes)
     },
   }
 }

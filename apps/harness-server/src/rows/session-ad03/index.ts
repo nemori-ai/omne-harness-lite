@@ -5,9 +5,9 @@
 // principal comes from the trusted `sessionWorkPrincipals`; the commit translation is the one over
 // the definitions the release adopted, as row `session-ad12` uses.
 //
-// Named gap (B1-GAP-REPLAY-FACTS-LINK): the `runtimeContextTrust` entry object still carries
-// `absentReplayFacts`; linking it to the `replayFacts` of this bundle is a change of the entry
-// module, not of this row.
+// The `runtimeContextTrust` entry object reads `sessionReplayFacts` of the facts sub-plugin per call
+// (B1-GAP-REPLAY-FACTS-LINK closed by SC2 in `src/entry/runtime-context-trust.ts`); the `replayFacts`
+// value of this bundle is not handed out.
 //
 // Configuration (data only, from the operator layer): `scopeIndexEntries` and `pageBytes`.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
