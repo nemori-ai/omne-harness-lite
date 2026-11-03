@@ -250,7 +250,11 @@ function batchOf(
     id: String(first + BigInt(index)),
     revision,
   })) as HistoryEntry[]
-  const reduced = reduce(projected.prepared, { revision, entries } as never, projected.history.reads)
+  const reduced = reduce(
+    projected.prepared,
+    { revision, entries } as never,
+    projected.history.reads,
+  )
   // Every contradiction of the batch with the history: nothing is written.
   if (reduced.kind === 'quarantined')
     return { kind: 'stopped', failure: { kind: 'quarantined', diagnostic: reduced.diagnostic } }

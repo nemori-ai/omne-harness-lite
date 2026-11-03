@@ -147,11 +147,7 @@ type PendingReason = string
 const isControl = (command: SessionCommand): boolean =>
   command.kind === 'cancelRun' || command.kind === 'stopCall'
 
-const participated = (
-  result: unknown,
-  recovered: boolean,
-  work?: JsonValue,
-): ParticipantReply => ({
+const participated = (result: unknown, recovered: boolean, work?: JsonValue): ParticipantReply => ({
   kind: 'participated',
   response: { result: encodeValue(result), recovered, ...(work === undefined ? {} : { work }) },
 })
@@ -180,10 +176,11 @@ function workOf(
   }>,
 ): JsonValue {
   const { tenant, session, revision, stored, entries, basis } = input
-  const root = oneRow(port, 'SELECT published FROM er_root WHERE tenant = ? AND session = ? LIMIT 1', [
-    tenant,
-    session,
-  ])
+  const root = oneRow(
+    port,
+    'SELECT published FROM er_root WHERE tenant = ? AND session = ? LIMIT 1',
+    [tenant, session],
+  )
   const work = {
     tail: revision,
     published: root === undefined ? '0' : text(root['published']),
