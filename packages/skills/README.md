@@ -24,7 +24,7 @@
 | --- | --- | --- | --- |
 | `skill-cordis-contract`（Cordis 契约） | 尚非 workspace 成员 | 服务键与抽象 Service。不含实现。暂不进应用插件树。在 Cordis 服务键波 | `@omne-harness/skill-contract` 与 Cordis 发布包 4.0.4，版本依据[技术基础](../../docs/architecture/technical-foundations.md#共同技术选择)「产品与工程运行时」 |
 
-依赖方向照 Tool 能力组的先例：`@omne-harness/skill-host-local` 指向 `@omne-harness/skill`、`skill-cordis-contract` 与 `@omne-harness/skill-contract`。其中指向 `@omne-harness/skill` 与 `skill-cordis-contract` 的两条随 Cordis 插件部分在 Cordis 服务键波加入，图中用虚线。第一波的目录来源部分只指向 `@omne-harness/skill-contract`。`@omne-harness/skill` 与 `skill-cordis-contract` 各自指向 `@omne-harness/skill-contract`，彼此不依赖。依赖方向在建包时写入架构约束，本页不改约束文件。
+依赖方向照 Tool 能力组的先例：`@omne-harness/skill-host-local` 指向 `@omne-harness/skill`、`skill-cordis-contract` 与 `@omne-harness/skill-contract`。其中指向 `@omne-harness/skill` 与 `skill-cordis-contract` 的两条随 Cordis 插件部分在 Cordis 服务键波加入，图中用虚线。第一波的目录来源部分只指向 `@omne-harness/skill-contract`。`@omne-harness/skill` 与 `skill-cordis-contract` 各自指向 `@omne-harness/skill-contract`，彼此不依赖。成员间的依赖只由各成员 `package.json` 声明，`pnpm run lint:deps` 的通用规则检查成员与组之间不成环。本组没有在 `docs/architecture/constraints.json` 登记方向行。
 
 ```mermaid
 flowchart TD
