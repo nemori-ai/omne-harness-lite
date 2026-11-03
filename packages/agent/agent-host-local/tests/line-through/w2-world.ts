@@ -40,7 +40,7 @@ import {
   testCancellationPolicyInstallation,
 } from '@omne-harness/agent-contract/testing'
 import type { ContentBlock } from '@omne-harness/content-block'
-import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import { tenantEquals } from '@omne-harness/legal-identity'
 import {
   decodeDispatchId,
   decodeResultVersion,
@@ -48,7 +48,6 @@ import {
   type ResultPart,
 } from '@omne-harness/model-contract'
 import { historySessionOf } from '@omne-harness/session-adapters'
-import type { SessionId } from '@omne-harness/session-contract'
 import {
   createSessionAgentJournalPlugin,
   createSessionHistorySource,
