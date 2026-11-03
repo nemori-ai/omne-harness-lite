@@ -126,7 +126,10 @@ function inputText<P>(input: InvokeInput<P>): string {
 
 export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   binding: AgentRuntimeBinding
-  configuration: Pick<AgentConfiguration, 'reconciliationDelayMs' | 'toolConcurrency'>
+  configuration: Pick<
+    AgentConfiguration,
+    'reconciliationDelayMs' | 'toolConcurrency' | 'jointCommits'
+  >
   guard: AccessGuard<P>
   dependencies: AgentDependencies<P, B>
   measurer: AgentMeasurer
@@ -305,6 +308,7 @@ export function createProvider<P, B extends ContentBlock>(
     const coordinator = createExecutionCoordinator({
       ports: dependencies,
       binding,
+      jointCommits: entry.configuration.jointCommits,
       evaluator: resolved.ok.evaluator,
       access,
       execution,
@@ -438,6 +442,7 @@ export function createProvider<P, B extends ContentBlock>(
     const coordinator = createExecutionCoordinator({
       ports: dependencies,
       binding,
+      jointCommits: entry.configuration.jointCommits,
       evaluator: resolved.ok.evaluator,
       access: { principal: input.principal, tenant: input.tenant },
       execution: input.execution,

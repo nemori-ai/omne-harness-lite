@@ -313,3 +313,72 @@ describe('tool result round', () => {
     expect(toolMessages(await events(assembly))).toEqual([])
   })
 })
+
+/** One tool round, up to the second Model call, on an assembly with the given joint commits. */
+async function toolRound(
+  jointCommits: readonly ('message' | 'context-transition')[],
+  participants: readonly ('message' | 'context-transition')[],
+) {
+  const assembly = await toolAssembly({ jointCommits }, { participants })
+  acceptEach(assembly)
+  ok(await invoke(assembly))
+  await deliverToolSuggestion(assembly)
+  const [pending] = await associatedTools(assembly, 1)
+  if (pending === undefined) throw new Error('no associated Tool call')
+  ok(await pushToolResult(toolReceiver(assembly), toolDelivery(pending, { name: 'one' })))
+  await secondModelCall(assembly)
+  return assembly
+}
+
+/** The handoff records of one source kind, each with the Ja that published its history. */
+function published(read: ExecutionSnapshot, source: 'tool-result' | 'model-reply') {
+  return read.handoffs.flatMap(record =>
+    record.request.kind === 'execution' &&
+    record.request.source.kind === source &&
+    record.resolution?.kind === 'recorded' &&
+    record.history.kind === 'committed'
+      ? [{ outcome: record.resolution.outcome, operation: record.history.operation }]
+      : [],
+  )
+}
+
+// SPEC "真实历史的提交点": with the kind declared, T5 hands its message to the participant; without
+// it, the caller is none. The main reply is never a CallerCommit.
+describe('the caller commit of a source Ja', () => {
+  it('hands the tool message to the declared message participant in the same commit', async () => {
+    const assembly = await toolRound(['message'], ['message'])
+    const [tool] = published(await snapshot(assembly), 'tool-result')
+    if (tool === undefined) throw new Error('tool message not published')
+    const decision = tool.outcome.decision
+    if (decision.kind !== 'prepared') throw new Error('tool message not prepared')
+    expect(assembly.controls.journal.joint()).toEqual([
+      {
+        execution: input.execution,
+        operation: tool.operation,
+        caller: {
+          kind: 'message',
+          message: decision.message,
+          source: tool.outcome.record,
+          admission: decision.admission,
+        },
+      },
+    ])
+  })
+
+  it('commits the tool message with caller none when the assembly did not declare message', async () => {
+    // The Journal binding offers the participant, but the factory configuration does not use it.
+    const assembly = await toolRound([], ['message'])
+    expect(published(await snapshot(assembly), 'tool-result')).toHaveLength(1)
+    expect(assembly.controls.journal.joint()).toEqual([])
+  })
+
+  it('keeps the main reply at caller none when message is declared', async () => {
+    const assembly = await toolRound(['message'], ['message'])
+    await deliverModelReply(assembly, [textBlock('done', 'blk_done')], 'final')
+    await eventually(async () => (await snapshot(assembly)).state.kind === 'ended')
+    const replies = published(await snapshot(assembly), 'model-reply')
+    expect(replies).toHaveLength(2)
+    const operations = assembly.controls.journal.joint().map(fact => fact.operation)
+    for (const reply of replies) expect(operations).not.toContain(reply.operation)
+  })
+})
