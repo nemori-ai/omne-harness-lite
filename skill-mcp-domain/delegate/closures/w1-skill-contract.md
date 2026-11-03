@@ -101,3 +101,45 @@ developer，implementation_kind product，Claude Opus 5.5，effort high。理由
 - yaml 库不能检出重复键时停下交回。
 
 ## 追加记录
+
+### 第 2 轮（2026-11-03，reduce 追加；依据 waves/w1/reviews/decisions-r1.md）
+
+第 1 轮评审（正确性、设计与实践、SPEC 表达、交付边界）的裁定如下。全部照做；每条标了裁定编号，不重新裁定。差分变异与结构读数的处置见本节末尾「第 2 轮补充」（reduce 收到报告后追加）。基线不变（21175c9f9），在现有分支上继续提交。
+
+**A. 契约形状（合入前改，之后只做可加改动）**
+1. [G3] `PackageInspection` 接口移到 `./provider`。公开根不再带出 `PackageLocator`。
+2. [#9/C18] 符合性套件改为与 tool-contract、mcp-contract 一致的无框架形态：每个套件是函数 `skill<Port>Conformance(): ConformanceCase<F>[]`（`skillPackageSourceConformance`、`skillResolutionConformance`、`skillReadCheckConformance`），用例用 `node:assert/strict` 失败；每个用例收一份新的 fixture（工厂函数）；提供 `ConformanceCase`、`NotApplicable`、`runConformanceCase`、`isNotApplicable`（沿 `packages/tool/tool-contract/src/testing-case.ts` 的形状，本成员自己一份）。`./testing` 不再导入 vitest。删除 `tests/conformance-red.spec.ts` 的子进程与 `tests/fixtures/violations/`，变红证明改为进程内：对违约替身跑套件、收集失败用例名并断言恰好是无披露的两条。
+3. [设计 2] 品牌授予规则：只做检查的值公开 `isX(value: unknown): value is X`；会变换输入或失败原因多于一个时才公开 `toX → Outcome`。据此：`toSkillName`、`toSafeReason`、`toAssetVersion`、`toPackageDigest` 改为公开 `isSkillName`、`isSafeReason`、`isAssetVersion`、`isPackageDigest`（原 `toX` 删除）；`toPackagePath` 保留（它规范化 `.` 段），另公开 `isPackagePath`。
+4. [C19] `ReadVerdict` 改为判别联合 `{kind:'granted'} | {kind:'refused'} | {kind:'unknown'}`。
+5. [E10] `SourceFailure` 增加 `'entry-unreadable'`：来源在 `snapshot` 时遇到设备、管道、套接字、无法解析或成环的链接时答它。`inspect` 的映射是 `rejected: malformed`，`read`/`list`/`export` 的映射是 `source-unavailable`。写进 SPEC 的端口要求与映射表。
+6. [C21/设计 3] 「只能由构造器造出」统一写法：品牌类型 + 模块私有 WeakSet + 一个「登记并收窄」的私有守卫；去掉 `snapshot.ts:81-82` 走不到的分支与只为它存在的 `SnapshotFields`/`isSealed` 分叉；`entries` 冻结到集合层。伪造快照仍抛 TypeError。
+
+**B. 行为修正**
+7. [C1] `parseSkillPackage` 收到的控制字节与快照条目摘要不符时，返回 `{kind:'version-changed'}`，不抛。TypeError 只留给伪造快照（`assertSealed`）。
+8. [C2] 含 `..` 段的脚本入口（如 `scripts/../run.sh`）判 `malformed`，不判 `outside-package`。
+9. [E1] `SkillResolution` 端口不核对内容摘要：带资产版本核资产版本，不带核来源层；摘要由 Skill 在读取第 7 步核。套件里「改 digest 答 basis-not-lawful」的用例改为「资产版本不合法答 basis-not-lawful」；内存替身同步。
+10. [C5/E3] `SkillPackageSource.open` 的 `digest` 义务：按内容摘要存放的来源找不到该 digest 时答 `package-not-found`；不按内容摘要存放的来源可以忽略它，字节由 Skill 按条目摘要核。套件补一例：内存来源（按摘要存放）对外来 digest 答 `package-not-found`。
+11. [设计 5] `parse/shape.ts` 的 `findings` 出参改为每个读取函数返回 `{ value, findings }`，在 `parseSkillPackage` 合并。行为测试不变。
+
+**C. SPEC 与 schema**
+12. [E2] 字节范围：65536 是每页封顶也是缺省长度；`length` 超过封顶向内收到 65536；`start` ≥ 总长交空内容且 `complete: true`；负数或非整数是前提违反，抛 TypeError；零长度交空内容，`complete` 按 `start ≥ 总长` 判。本版本不可配置；README 删「可覆盖的策略值」。
+13. [E5] 写明 `isSafeReason` 只判词形；在 `SkillResolution` 的端口要求里写明 `known-unavailable.reason` 的披露义务归端口实现。
+14. [E6] 中止：每次端口调用前与返回前各检查一次 `signal`，任一次已中止即答 `aborted`，不交部分内容。
+15. [E7] 文本条目保留 BOM（`ignoreBOM: true`）。
+16. [E8] `export` 本版本没有上限，写明。
+17. [E9] 资产正文的 `scripts`/`settings` 适用同一套跨项规则：重复判 `malformed`，入口必须已规范化。
+18. [C3] 写明 `description`、`scripts`、`settings`、`package` 从此是 `skillBodyContract` 的保留字段。
+19. [C20/E4] 写明 WeakSet 登记是进程内凭证：不可序列化传输；同一成员被加载为两份实例时互不承认，装配方须保证单实例。
+20. [E11] 增加「与组页的差异」一节（每条附裁定编号与日期）和「组页行号 → 本规格条款」封闭表（参照 mcp-contract 的 SPEC）。
+21. [E13] 类型是形状的唯一来源：删去 SPEC 里逐项抄写的联合与对象字面量，只保留行为句与「何时出现」；封闭集合（拒绝原因、失败种类）保留为代码列表，并加一条测试钉住它与类型相等。
+22. [E14] 依据改引「负责人 2026-11-03 裁定」并把决定写全，不引任务 tmp，不出现波次名。
+23. [C4/E12] schema：`formatVersion` 用 `"type":"integer","const":1`，description 写明词形必须是 `1`；description 补列 `1.0`/`1e0`、只由 `.` 段组成的入口、孤立代理项三项解析器拒绝而 schema 不表达的差异；长度单位统一写「按码点计」；`sealSnapshot` 要求 `rootName` 非空且不含 `/`；L239/L240 之间补空行。
+24. [#7] `package.json` 的 `description` 改为「Pure Skill contract: values, failures, package inspection, ports, service interfaces, and conformance suites」。
+
+**D. 测试与骨架**
+25. [交付 1] 加 `tests/provider-types.spec-d.ts`，用 `expectTypeOf` 列出 `./provider` 的类型导出集合。
+26. [交付 2] `tests/public-entry.spec.ts` 的导入遍历改读 `src`（用 TypeScript 编译器 API 或同时匹配两种引号），不读 `dist`。
+27. [设计 7] `tests/parse-package.spec.ts` 按拒绝原因拆成几个文件。
+28. `acceptance/` 四个文件由 reduce 以 main 角色补建，写者不建。
+
+验收追加：A1–A8 照旧，且 A5 的变红证明改为进程内；新增 A9：`skillPackageSourceConformance` 对外来 digest 的用例存在且通过；A10：`provider-types.spec-d.ts` 存在且通过。收尾门禁照旧。按本节的 A、B、C、D 分别至少一个提交。

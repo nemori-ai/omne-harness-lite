@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-03T14:56:06Z",
+  "updatedAt": "2026-11-03T15:03:20Z",
   "head": "21175c9f9",
   "links": [
     {
@@ -27,9 +27,9 @@
         {
           "id": "w1-skill-contract",
           "line": "Skill",
-          "state": "待评审",
-          "round": 1,
-          "note": "7 个提交，284 条测试；硬线全过；4 个函数超 warn、2 处与 tool-contract 的克隆待交代",
+          "state": "修复中",
+          "round": 2,
+          "note": "Skill：第 2 轮 28 条（套件无框架化、品牌规则、PackageInspection 移 provider、version-changed、SPEC 封闭）",
           "links": [
             {
               "text": "PR",
@@ -43,9 +43,9 @@
         {
           "id": "w1-mcp-contract",
           "line": "MCP",
-          "state": "待评审",
-          "round": 1,
-          "note": "6 个提交，212 条测试；硬线全过；4 个函数超 warn 待交代",
+          "state": "修复中",
+          "round": 2,
+          "note": "MCP：第 2 轮 37 条（去 CallMode、补 tasks/update、凭据句柄分型、env 声明通路、config-invalid、任务限发起者、SPEC 封闭、README）",
           "links": [
             {
               "text": "PR",
@@ -196,6 +196,10 @@
     {
       "at": "2026-11-03T14:56:06Z",
       "text": "reduce 裁定草稿 decisions-r1.md：合入前改契约——去掉过时的 CallMode/mode-unsupported（2026-07-28 由服务端决定任务）、补 tasks/update、PackageInspection 移到 ./provider；两成员套件与品牌授予形态统一"
+    },
+    {
+      "at": "2026-11-03T15:03:20Z",
+      "text": "评审 4/6 回（+SPEC 表达：Skill 1 阻断、MCP 4 阻断）。第 2 轮追加记录已写进两份闭包规格；等结构读数与 MCP 变异（49%）回来补最后一节后派发"
     }
   ]
 }

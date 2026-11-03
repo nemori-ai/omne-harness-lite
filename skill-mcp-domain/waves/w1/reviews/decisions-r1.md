@@ -77,10 +77,43 @@
 | 3 | MCP 导入遍历只认单引号 `from './…'` | 修复轮改用 TypeScript 编译器 API 或同时匹配两种引号 |
 | 4 | MC8 把第 601 行列为必封闭项 | reduce 列错，见上表 MCP #10；plan.md 的 MC8 行改正 |
 
+## SPEC 表达面提出的（修复轮）
+
+| # | 候选 | 发现 | 裁定 |
+| --- | --- | --- | --- |
+| E1 | Skill | S-B1 `resolve` 是否核对摘要 | 按组页 L238：端口不核对摘要。带资产版本核版本，不带核来源层；摘要由 Skill 在读取第 7 步核。套件用例改为「资产版本不合法」才答 `basis-not-lawful`；SPEC L230/L249 统一 |
+| E2 | Skill | S-M1 字节范围 | 65536 是每页封顶，也是缺省长度；`length` 超过封顶向内收到 65536；`start` ≥ 总长交空内容、`complete: true`；负数或非整数是前提违反，抛 TypeError；零长度交空内容、`complete` 按 `start ≥ 总长` 判。本版本不可配置；README 删「可覆盖的策略值」 |
+| E3 | Skill | S-M2 `open` 的 `digest` | 同 C5 |
+| E4 | Skill | S-M3 模块实例 | 同 C20 |
+| E5 | Skill | S-M4 `SafeReason` | SPEC 写明 `toSafeReason`/`isSafeReason` 只判词形；披露义务写进 `SkillResolution` 的端口要求 |
+| E6 | Skill | S-M5 中止 | 每次端口调用前与返回前各检查一次 `signal`，任一次已中止即答 `aborted`，不交部分内容 |
+| E7 | Skill | S-M6 BOM | 保留 BOM（`ignoreBOM: true`），文本与范围对齐 |
+| E8 | Skill | S-M7 export 上限 | 本版本没有上限；写明。将来加上限是破坏性改动，到时另裁 |
+| E9 | Skill | S-M8 资产正文的跨项规则 | 适用同一套规则：重复判 `malformed`，入口必须已规范化 |
+| E10 | Skill | S-M9 非常规文件 | `SourceFailure` 增加 `'entry-unreadable'`，来源在 `snapshot` 时答；Skill 的 `inspect` 映射为 `malformed`，`read`/`list`/`export` 映射为 `source-unavailable`。波末写回组页端口表 |
+| E11 | Skill | S-M10 偏离登记 | SPEC 加「与组页的差异」一节（每条附裁定）与「组页行号→条款」封闭表，参照 MCP SPEC |
+| E12 | Skill | S-N1/N2/N5/N6 | 照改：schema description 补三项；长度单位统一按码点；`rootName` 非空且不含 `/`；格式 |
+| E13 | 两边 | S-N3/M-N6 类型重抄 | 类型是形状唯一来源；SPEC 只写每一项何时出现与行为句，删去逐项抄写的联合与对象字面量；封闭集合保留为代码列表并加一条测试钉住与类型相等 |
+| E14 | 两边 | S-N4/M-N4 依据指向 tmp | 改引「负责人 2026-11-03 裁定」并把决定写全；正文不出现波次名 |
+| E15 | MCP | M-B1 `process-env` 句柄 | 句柄按用途分型：`HttpCredentialHandle { authorize, reportRejection, release }`、`ProcessCredentialHandle { release }`（对 MCP 不透明的品牌对象）。兑现归 `CredentialUse` 与 `ProcessLanding` 两个实现方之间的约定（领域交接页已写），MCP 只传递不读取；替身的 WeakMap 旁路就是这条约定的内存版，SPEC 写明 |
+| E16 | MCP | M-B2 `env.source: setting` 声明通路 | 修订已定事项 5：`deriveDeclarations` 对每个 `source: setting` 的 env 项另产出 `setting:placement-identity:env.<NAME>`；`processEnv` 缺该名时「未发出」，`config-missing` 的 `item` 扩为 `'connect-timeout' \| 'target' \| \`env:${name}\``；多个 `credential` 项共用同一份凭据配值，各自注入什么归 E15 的约定；`auth:none` + `credential` 判 `malformed`（C8） |
+| E17 | MCP | M-B3 任务操作限发起者 | 本次运行内保存已发出任务表，键（租户、主体、持有、taskId）；`queryTask`、`taskResult`、`cancelTask` 三个都只对发起者可用，非发起者、重启后或表里没有的一律答 `unknown`，不随任务是否存在而变。已知限制：任务不跨重启 |
+| E18 | MCP | M-B4 非法配值 | `AdoptedEndpoint.settings` 每项改为 `{kind:'absent'} \| {kind:'invalid', text} \| {kind:'value', value}`；修订已定事项 10：`NotSentReason` 与 `Refusal` 增加 `config-invalid`（带 item）与 `config-missing`（带 item）。L47 封闭表改实 |
+| E19 | MCP | M-M2 授权发现取值 | `scopes` 取 `WWW-Authenticate` 的 `scope`，缺则取元数据 `scopes_supported`；`issuers` 取元数据 `authorization_servers`；`resourceMetadata` 改为可选，另带 `metadata: 'fetched' \| 'unavailable'`（修订已定事项 13） |
+| E20 | MCP | M-M3 `reportRejection` | 由传输实现在收到 401/403 且该请求曾用句柄授权时调用，先回报再报 `authorization-required` |
+| E21 | MCP | M-M4 S1 范围 | `closeAll` 列为例外；`list` 用 `endpoints` 加逐项资格判定，任一项 `unknown` 则整次 `unknown` |
+| E22 | MCP | M-M5 状态口与读口 | `TaskRef` 带 `connectBound?`；三个任务操作与 `current`/`peer`/`refresh` 的失败联合统一为 `Refusal`（含 `config-missing`/`config-invalid`）加连接类原因（`credential-unavailable`、`authorization-required`、`landing-unavailable`、`connection-unavailable`）；K1 `credential-missing` → `credential-unavailable(missing)` 写明 |
+| E23 | MCP | M-M6 `instructions` | 在完整 UTF-8 字符边界内截断；摘要对截断前全文算 SHA-256，格式同 `DefinitionDigest`，品牌 `InstructionsDigest` |
+| E24 | MCP | M-M7 失败码闭合 | 为 `not-connected`（本次运行无连接，`peer` 不连接）、`superseded`（写入时修订冲突）、`listing-incomplete`（页失败、重名、超上界）补条款；UE `unknown` 入表；按 E13 钉住 |
+| E25 | MCP | M-M8 设施名词法 | 与 Skill 对齐 `^[a-z][a-z0-9-]{0,31}$` |
+| E26 | MCP | M-M9 `NotApplicable` | 单列为「不适用」，既不是通过也不是失败；成员自己对内存替身的测试把它当失败（替身必须全覆盖） |
+| E27 | MCP | M-M10 残留进程 | `EndpointStatusView` 增加 `residual?: readonly {kind:'process', confirmed: StopScope}[]`；`lost` 带 `residual` |
+| E28 | MCP | M-M11 445 | 由 G2 封闭，删未封闭项 |
+| E29 | MCP | M-N1/N2/N3/N5/N7 | 照改：封闭表引用；C3 规范化写转义与编码；D2 base64 标准变体带填充；D5 从 0 计；`$id` 两边都带格式版本 `:1`；`stop()` 幂等、`observe` 抛出不影响调用、`refresh` 读取不可用答 `unknown` |
+| E30 | MCP | 明文 `http` | 只允许回环主机（`localhost`、`127.0.0.1`、`::1`）用 `http`，其余 `invalid`；写进 V3 |
+| E31 | MCP | 601 未封闭 | 接受（见 MCP #10） |
+
 ## 待评审面补充
 
-- 正确性面：是否有违反组页或规格的反例。
 - 结构读数面：超线函数的处置（拆分 / 保留并写理由）与两处克隆。
-- 设计与实践面：MCP #9 的裁定输入；两成员一致性。
 - 差分变异面：存活清单与处置。
-- SPEC 表达面：两份 SPEC 的遗漏与歧义。

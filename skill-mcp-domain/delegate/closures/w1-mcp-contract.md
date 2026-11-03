@@ -105,3 +105,54 @@ developer，implementation_kind product，Claude Opus 5.5，effort high。理由
 - 协议结果形状必须依赖 SDK 类型才能表达时停下交回。
 
 ## 追加记录
+
+### 第 2 轮（2026-11-03，reduce 追加；依据 waves/w1/reviews/decisions-r1.md）
+
+第 1 轮评审（正确性、设计与实践、SPEC 表达、交付边界）的裁定如下。全部照做；每条标了裁定编号，不重新裁定。差分变异与结构读数的处置见本节末尾「第 2 轮补充」（reduce 收到报告后追加）。基线不变（21175c9f9），在现有分支上继续提交。
+
+**A. 契约形状（合入前改，之后只做可加改动）**
+1. [G1] 删除 `CallMode`、`InvokeRequest.mode`、`ContinueRequest.mode`、`NotSentReason` 的 `mode-unsupported`、`ActionDefinition.taskSupport` 以及 C1/C2 里按 `taskSupport` 判方式的条款。2026-07-28 由服务端逐次决定是否建任务（SEP-2663：clients do not signal task preference on the request itself），`task` 结局只由对端应答决定。客户端是否声明 tasks 扩展能力归传输实现（W3），SPEC 写一句。
+2. [G2] 任务多轮输入：`McpTransport.getTask` 的答复带 `inputRequests?: Untrusted<JsonValue>`；新增 `McpTransport.updateTask(taskId, inputResponses: JsonValue)`，答 `'accepted' | 'already-terminal'` 或 `TransportFailure`；`TaskControl` 新增 `provideTaskInput(access, task: TaskRef, inputResponses)`。组页第 445 行由此封闭，SPEC 删未封闭项。
+3. [E15] 凭据句柄按用途分型：`HttpCredentialHandle { authorize(headers), reportRejection(), release() }` 与 `ProcessCredentialHandle { release() }`（带品牌、对 MCP 不透明）；`CredentialUse.acquire` 的答复按 `purpose` 返回对应类型。SPEC 写明：`process-env` 句柄的兑现归 `CredentialUse` 与 `ProcessLanding` 两个实现方之间的约定，MCP 只传递不读取；内存替身的 WeakMap 旁路就是这条约定的内存版。
+4. [E16] `deriveDeclarations` 对每个 `source: setting` 的 env 项另产出 `setting:placement-identity:env.<NAME>`。`processEnv` 缺该名时「未发出」，`config-missing` 的 `item` 扩为 `'connect-timeout' | 'target' | \`env:${string}\``。
+5. [E18] `AdoptedEndpoint.settings` 每项改为 `{kind:'absent'} | {kind:'invalid', text: string} | {kind:'value', value: <品牌>}`；`NotSentReason` 与 `Refusal` 增加 `{kind:'config-invalid', item}` 与 `{kind:'config-missing', item}`（`Refusal` 原来没有 `config-missing`）。
+6. [E22] `TaskRef` 带 `connectBound?: Millis`；`queryTask`/`taskResult`/`cancelTask`/`provideTaskInput` 与 `current`/`peer`/`refresh` 的失败联合统一为 `Refusal` 加连接类原因（`credential-unavailable`、`authorization-required`、`landing-unavailable`、`connection-unavailable`）。
+7. [E19] `AuthorizationDiscovery`：`resourceMetadata` 改为可选，另带 `metadata: 'fetched' | 'unavailable'`；SPEC 写明 `scopes` 取 `WWW-Authenticate` 的 `scope`、缺则取元数据 `scopes_supported`，`issuers` 取元数据 `authorization_servers`。
+8. [E23] `PeerIdentity.instructions` 的 `digest` 改为品牌 `InstructionsDigest`，格式同 `DefinitionDigest`，对截断前全文算；截断在完整 UTF-8 字符边界内。
+9. [E27] `EndpointStatusView` 增加 `residual?: readonly {kind:'process', confirmed: StopScope}[]`；`lost` 状态带同样的 `residual`。
+10. [C11] `completeListing` 收 `basedOn: CatalogRevision | 'absent'`（取得前经 `CatalogStore.read` 读到的修订）；`mergeListing(current, listing)` 只核清单自带的 `basedOn`，删去调用方另给的参数。
+11. [C14/C21] 伪造或复制的 `CompleteListing` 抛 TypeError；`MergeRefusal` 只剩 `'stale-revision'`。写法统一为品牌类型 + 模块私有 WeakSet + 登记并收窄的私有守卫；`actions` 冻结到集合层（C15）。
+12. [C12] S7 的 `lost` 原因拆出 `authorization-required`。
+13. [C18] 套件命名改为 `mcp<Port>Conformance()`（`mcpAdoptionViewConformance` 等）；补 `runConformanceCase`、`isNotApplicable`（沿 tool-contract 形状）。
+14. [C16] `./provider` 去掉与根重复的 `AuthorizationDiscovery`、`BlockedReason` 导出。
+15. [E30] `ConnectionTarget` 的词法：`http` 只允许回环主机（`localhost`、`127.0.0.1`、`::1`），其余 `invalid`。
+
+**B. 行为修正**
+16. [C7] `inputRequests` 存在时必须是对象，否则 `protocolError`/`result-malformed`。
+17. [C8] `auth:"none"` 的正文含 `source:"credential"` 的 env 项判 `malformed`；`transport:"stdio"` 配 `auth:"oauth"` 判 `malformed`（授权规范只用于 HTTP）。
+18. [C9] 省略 `content` 的结果答 `protocolError`/`result-malformed`。
+19. [C13] 内存 `UseEligibility` 替身：未授予的主体保持 `not-eligible`，`setUnreadable(..., false)` 不把它变成 `granted`。
+20. [E17] 本次运行内保存已发出任务表，键（租户、主体、持有、taskId）；四个任务操作只对发起者可用，非发起者、重启后或表里没有的一律答 `unknown`，不随任务是否存在而变。这是服务接口层的要求，写进 S2 与套件说明；实现在 W2/W3。
+21. [E25] 设施名词法与 Skill 对齐 `^[a-z][a-z0-9-]{0,31}$`。
+
+**C. SPEC 与 schema**
+22. [C10/E24 之 M-M1] V4 改为「下列对端内容用 `Untrusted` 包住：…；其余对端内容原样交出，同样不是身份或授权依据」，点名 `issuers`、`scopes`、`inputRequests`、定义里的 title/description/icons/_meta、`fault.message`/`data`。
+23. [E20] 写明 `reportRejection` 由传输实现在收到 401/403 且该请求曾用句柄授权时调用，先回报再报 `authorization-required`。
+24. [E21] S1 的例外加 `closeAll`；`list` 用 `endpoints` 加逐项资格判定，任一项 `unknown` 则整次 `unknown`。
+25. [E22] 写明 K1 `credential-missing` → `credential-unavailable(missing)`；缺凭据配值时 `current`/`peer` 答 `config-missing(credential)`。
+26. [E24] 为 `not-connected`（本次运行无连接，`peer` 不连接）、`superseded`（写入时 `CatalogStore` 答修订冲突）、`listing-incomplete`（页失败、重名、超上界）补条款；`UseEligibility` 的 `unknown` 入表。
+27. [E26] `NotApplicable` 单列为「不适用」，既不是通过也不是失败；本成员对内存替身的测试把它当失败。
+28. [C17] 写明八个只查非空的品牌是名义区分。
+29. [C20] 写明 WeakSet 登记是进程内凭证：不可序列化传输；双份加载互不承认。
+30. [E29] 封闭表：连接超时上界指向 S4、分页与动作上界指向 C1、「三项字段」改「四个字段」；C3 规范化写转义方式与输出编码（UTF-8，JSON 字符串按 RFC 8785 转义）；D2 写 base64 标准变体带填充；D5 位置从 0 计；E5 写明 `deriveDeclarations`/`references` 抛 `TypeError` 且文本带原因；O4 补出 `peer-error`；`stop()` 幂等；`observe` 抛出不影响调用；`refresh` 时 `CatalogStore` 读取不可用答 `unknown`。
+31. [E13] 类型是形状的唯一来源：删去 R2、R3、S7 与失败码总表里逐项抄写的联合，只留每一项何时出现；封闭集合保留为代码列表并加一条测试钉住与类型相等。
+32. [E14] 依据改引「负责人 2026-11-03 裁定」并把决定写全；L261 的「W2」改为「`@omne-harness/mcp` 的内存实现」。
+33. [E29] schema `$id` 带格式版本 `:1`。
+34. [#12] `package.json` 的 `files` 加 `schema`。
+
+**D. 文档与测试**
+35. [#13] README.md、README_ZH.md 写实（去掉草稿标记）；`docs/public-api.md`、`docs/architecture.md` 写实；`docs/flows.md`、`object-model.md`、`context.md` 各写一段真实说明；`docs/cordis.md` 写不适用的理由。按 `docs/member-documentation.md`。
+36. [交付 1] 加 `tests/provider-types.spec-d.ts`，用 `expectTypeOf` 列出 `./provider` 的类型导出集合。
+37. [交付 3] `tests/public-entry.spec.ts` 的导入遍历改用 TypeScript 编译器 API 或同时匹配两种引号。
+
+验收追加：A1–A8 照旧；新增 A9：`CallMode`/`mode-unsupported`/`taskSupport` 在 `src` 与 SPEC 中无命中；A10：`provider-types.spec-d.ts` 存在且通过；A11：README 无草稿标记，`pnpm package:template scan --member packages/mcp/mcp-contract --json` 的 findings 为空。收尾门禁照旧。按本节的 A、B、C、D 分别至少一个提交。
