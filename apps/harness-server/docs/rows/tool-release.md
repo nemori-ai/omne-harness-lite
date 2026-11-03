@@ -105,26 +105,31 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
   `unavailable`。
 - 定义不是官方层，或名字与规范化摘要不与清单条目相等，`qualification` 为 `denied`，三项兼容都为 false。
 - 消费者材料的三项证据必须与清单确认的文本消费者全等。陌生材料答 `unavailable`。
-- `dependencies` 逐项报告 environment 声明的 facility。A 段没有落点与设施的可用性来源，每项如实报 `false`。
+- `dependencies` 逐项报告 environment 声明的 facility。执行环境注册表（`executionEnvironment`）与 Tool 环境适配
+  （`toolEnvironments`）此刻都在场时报 `true`，任一不在报 `false`（R2-D79 第 3 条）。这只说明设施的装配在场，
+  不核宿主提供者的前提。前提不满足时，放置答 `unavailable`。
 - `inputCompatible`、`outputCompatible`、`attachmentsReadable` 按固定定义与确认的文本消费者能力判断。
 
-A 段的运行时三项：
+运行时三项（B 段）：
 
-- `authority` 是窄代理，每次调用现取当前 `toolStartAuthority`，只认契约服务定义的实例。`tool-records` 现在是
-  替身，所以它答 `unavailable`。
-- `scope` 抛出 `unavailable`，作者不会运行；`settle` 答 `unavailable`，不用测试常量冒充结果。
-- 三项都在 B 段改接 `createLocalToolRuntimePlugins` 的同一个 bundle。
+- `authority` 是窄代理，每次调用现取当前 `toolStartAuthority`，只认契约服务定义的实例。提供者是 `tool-records`
+  行装的 bundle records 插件，本行不建第二个启动协调器。
+- `scope`、`settle` 是 Tool 运行时组同一个 bundle 的 `authorExecution.scope` 与 `authorExecution.settle`。
+  每次调用读本次运行的 bundle。bundle 还没建好时，`scope` 抛出 `unavailable`，作者不会运行；`settle` 答
+  `unavailable`。bundle 与五行见 [Tool 运行时组](tool-runtime.md)。
+
+发行行 `toolHostRow` 装好后，按发行清单预装 Shell 与 Files：系统作用域调用 `ensureLoaded`，作者闭包的登记者是
+`toolReleaseRegistrant`（R2-D79 第 4 条）。租户的采用点只读已装的作者。预装不成功只在 Cordis 记录器
+`tool-host` 上记一条 warn，写明作者名与失败种类。Catalog 里没有这个作者，调用答不可用，不放行。
 
 ## 具名缺件与已知限制
 
 - **耐久拒绝记录，波 3**：本波没有拒绝记录仓。
 - **生产的消费者档案来源，波 3**：全仓没有生产的 `ToolConsumerProfile` 来源，「已确认的文本消费者」暂由发行
   清单声明。生产来源由 L-TOOL 在波 3 给出（R2-D79）。
-- **官方作者只能由登记者装载**：租户访问调 `ensureLoaded` 时 `admits` 答 `denied`。B 段的必做项：发行入口在
-  启动时用 `toolReleaseRegistrant` 预装 Shell 与 Files，`adoption-sources` 只读已装的作者，不用租户访问首装
-  官方作者（R2-D79）。
-- **可用性的 `dependencies` 在 A 段恒为 `false`**：A 段没有落点与设施的可用性来源。B 段的必做项：接上执行环境
-  行的真实可用性，否则 Shell、Files 不可用（R2-D79）。
+- **官方作者只能由登记者装载**：租户访问调 `ensureLoaded` 时 `admits` 答 `denied`。发行行在启动时预装两个作者，
+  `adoption-sources` 只读已装的作者（R2-D79）。
+- **设施依赖只核装配在场**：`dependencies` 不核宿主提供者的前提（例如 Linux 用户管理器、Windows 的 shell）。
 - **产物核对不覆盖依赖包**：只核 tool-definitions 自己的 `package.json` 与 `dist`，不核它依赖的包。
 - **核对与 import 之间有改写窗口**：快照先核产物摘要，再 import 模块。两步之间磁盘上的改写不在保护范围内。
 - **CRLF 的 `package.json` 让快照不可用**：检出把 tool-definitions 的 `package.json` 换成 CRLF 时，摘要与清单
@@ -138,7 +143,7 @@ A 段的运行时三项：
   `environmentNeedSchemaRef` 经 schema-provider）首装两作者、篡改产物、缺运维者值、schema 加载失败或 provider 已关闭时失败关闭、租户访问被拒、
   来源不按参数 import、定义与设置不符、拒绝记录，以及 environment 声明合法通过、改坏一个字段与未知采用答 `invalid`。
 - [tool-bindings](../../tests/rows/tool-bindings/release-bindings.spec.ts)：可用性各分支、启动权威代理、
-  两个占位、一个 fiber 两个服务。
+  bundle 未建时的 scope 与 settle、建好后交给 bundle、一个 fiber 两个服务。
 - [清单脚本](../../tests/tool-release-script.spec.ts)：一致、产物不符、手改条目、只改格式、用法错误。
 
-这些用例证明发行来源与登记链路，不证明作者执行、执行环境或完整 Tool 运行时。
+这些用例证明发行来源与登记链路。作者执行与 Tool 运行时的组合用例见 [Tool 运行时组](tool-runtime.md)。
