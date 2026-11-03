@@ -155,7 +155,7 @@ export const readSchema = z.discriminatedUnion('kind', [
   pageSchema.extend({ kind: z.literal('calendars') }),
   pageSchema.extend({ kind: z.literal('versions'), calendarId: calendarIdSchema }),
   pageSchema.extend({ kind: z.literal('candidates'), calendarId: calendarIdSchema }),
-  pageSchema.extend({ kind: z.literal('reactions') }),
+  pageSchema.extend({ kind: z.literal('reactions'), systemScopeRef: text }),
   z.strictObject({
     kind: z.literal('snapshot'),
     calendarId: calendarIdSchema,

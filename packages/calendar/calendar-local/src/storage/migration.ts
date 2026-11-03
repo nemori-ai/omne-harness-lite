@@ -18,11 +18,11 @@ export default {
     )
     port.execute('CREATE INDEX ca_candidates_calendar ON ca_candidates(calendar_id, sequence)', [])
     port.execute(
-      'CREATE TABLE ca_outbox (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, operation_ref TEXT NOT NULL, record TEXT NOT NULL, handoff_ref TEXT)',
+      'CREATE TABLE ca_outbox (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, operation_ref TEXT NOT NULL, system_scope_ref TEXT NOT NULL, record TEXT NOT NULL, handoff_ref TEXT)',
       [],
     )
     port.execute(
-      'CREATE INDEX ca_outbox_pending ON ca_outbox(sequence) WHERE handoff_ref IS NULL',
+      'CREATE INDEX ca_outbox_pending ON ca_outbox(system_scope_ref, sequence) WHERE handoff_ref IS NULL',
       [],
     )
   },

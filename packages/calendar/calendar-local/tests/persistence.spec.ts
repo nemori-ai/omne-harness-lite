@@ -68,7 +68,11 @@ it('retains immutable history and commits version, provenance, pointer, receipt 
       ],
     },
   })
-  const pending = await w.repository.listPendingReactions({ after: null, limit: 10 })
+  const pending = await w.repository.listPendingReactions({
+    systemScopeRef: 'public-calendar-supply',
+    after: null,
+    limit: 10,
+  })
   expect(pending).toMatchObject({
     kind: 'ok',
     value: { items: [{ versionId: 'v1' }, { versionId: 'v2' }] },
@@ -117,7 +121,13 @@ it('CAS admits one concurrent candidate and stable intent replay creates no extr
   expect(
     await w.repository.listVersions({ calendarId: a.address.calendarId, after: null, limit: 10 }),
   ).toMatchObject({ kind: 'ok', value: { items: [expect.anything()] } })
-  expect(await w.repository.listPendingReactions({ after: null, limit: 10 })).toMatchObject({
+  expect(
+    await w.repository.listPendingReactions({
+      systemScopeRef: 'public-calendar-supply',
+      after: null,
+      limit: 10,
+    }),
+  ).toMatchObject({
     kind: 'ok',
     value: { items: [expect.anything()] },
   })
@@ -169,7 +179,13 @@ it('same-content and retained dispositions preserve evidence without publishing'
       limit: 10,
     }),
   ).toMatchObject({ kind: 'ok', value: { items: [expect.anything()] } })
-  expect(await w.repository.listPendingReactions({ after: null, limit: 10 })).toMatchObject({
+  expect(
+    await w.repository.listPendingReactions({
+      systemScopeRef: 'public-calendar-supply',
+      after: null,
+      limit: 10,
+    }),
+  ).toMatchObject({
     kind: 'ok',
     value: { items: [expect.anything()] },
   })
@@ -315,7 +331,13 @@ it('rolls every Calendar write back when a later participant fails', async () =>
       limit: 10,
     }),
   ).toMatchObject({ kind: 'ok', value: { items: [] } })
-  expect(await w.repository.listPendingReactions({ after: null, limit: 10 })).toMatchObject({
+  expect(
+    await w.repository.listPendingReactions({
+      systemScopeRef: 'public-calendar-supply',
+      after: null,
+      limit: 10,
+    }),
+  ).toMatchObject({
     kind: 'ok',
     value: { items: [] },
   })
@@ -326,11 +348,21 @@ it('recovers pending reactions across reopen and only acknowledges the original 
   const published = await first.persistence.commitDisposition(command())
   if (published.kind !== 'recorded' || published.receipt.outboxId === null)
     throw new Error(JSON.stringify(published))
-  const pending = await first.repository.listPendingReactions({ after: null, limit: 1 })
+  const pending = await first.repository.listPendingReactions({
+    systemScopeRef: 'public-calendar-supply',
+    after: null,
+    limit: 1,
+  })
   await first.close()
   const w = await openWorld(first.root)
   worlds.push(w)
-  expect(await w.repository.listPendingReactions({ after: null, limit: 1 })).toEqual(pending)
+  expect(
+    await w.repository.listPendingReactions({
+      systemScopeRef: 'public-calendar-supply',
+      after: null,
+      limit: 1,
+    }),
+  ).toEqual(pending)
   await w.configure(false, true)
   const ack = {
     acknowledgementKey: 'ack-1',
@@ -349,7 +381,13 @@ it('recovers pending reactions across reopen and only acknowledges the original 
     kind: 'rejected',
     reason: 'invalid',
   })
-  expect(await w.repository.listPendingReactions({ after: null, limit: 1 })).toEqual({
+  expect(
+    await w.repository.listPendingReactions({
+      systemScopeRef: 'public-calendar-supply',
+      after: null,
+      limit: 1,
+    }),
+  ).toEqual({
     kind: 'ok',
     value: { items: [], nextCursor: null },
   })
@@ -385,7 +423,13 @@ it('preserves a denied acknowledgement while a newly authorized intent can finis
   const approved = { ...ack, acknowledgementKey: 'newly-approved-ack-intent' }
   expect(await w.persistence.acknowledgeReaction(approved)).toEqual({ kind: 'acknowledged' })
   expect(await w.persistence.acknowledgeReaction(approved)).toEqual({ kind: 'acknowledged' })
-  expect(await w.repository.listPendingReactions({ after: null, limit: 10 })).toEqual({
+  expect(
+    await w.repository.listPendingReactions({
+      systemScopeRef: 'public-calendar-supply',
+      after: null,
+      limit: 10,
+    }),
+  ).toEqual({
     kind: 'ok',
     value: { items: [], nextCursor: null },
   })
@@ -497,4 +541,43 @@ it('rejects an acknowledgement that cannot be canonicalized before any storage c
     }),
   ).toEqual({ kind: 'rejected', reason: 'invalid' })
   expect(commits).toBe(before)
+})
+
+it('reads only the requested supply scope before bounded reaction pagination', async () => {
+  const w = await world()
+  const foreign = command('foreign-v1')
+  expect(
+    await w.persistence.commitDisposition({
+      ...foreign,
+      address: { ...foreign.address, systemScopeRef: 'another-supply-scope' },
+    }),
+  ).toMatchObject({ kind: 'recorded' })
+  const own = command('own-v2', 1)
+  const ownResult = await w.persistence.commitDisposition(own)
+  expect(ownResult).toMatchObject({ kind: 'recorded' })
+  const ownPage = await w.repository.listPendingReactions({
+    systemScopeRef: 'public-calendar-supply',
+    after: null,
+    limit: 1,
+  })
+  expect(ownPage).toMatchObject({
+    kind: 'ok',
+    value: { items: [{ versionId: 'own-v2' }], nextCursor: null },
+  })
+  const otherPage = await w.repository.listPendingReactions({
+    systemScopeRef: 'another-supply-scope',
+    after: null,
+    limit: 1,
+  })
+  expect(otherPage).toMatchObject({
+    kind: 'ok',
+    value: { items: [{ versionId: 'foreign-v1' }], nextCursor: null },
+  })
+  expect(
+    await w.repository.listPendingReactions({
+      systemScopeRef: 'missing-scope',
+      after: null,
+      limit: 1,
+    }),
+  ).toEqual({ kind: 'ok', value: { items: [], nextCursor: null } })
 })

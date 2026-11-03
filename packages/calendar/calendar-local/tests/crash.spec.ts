@@ -78,7 +78,11 @@ it.each(['in-transaction', 'after-commit'])(
         after: null,
         limit: 10,
       })
-      const pending = await recovered.repository.listPendingReactions({ after: null, limit: 10 })
+      const pending = await recovered.repository.listPendingReactions({
+        systemScopeRef: 'public-calendar-supply',
+        after: null,
+        limit: 10,
+      })
       for (const result of [versions, candidates, pending]) {
         expect(result.kind).toBe('ok')
         if (result.kind === 'ok') expect(result.value.items).toHaveLength(generation)

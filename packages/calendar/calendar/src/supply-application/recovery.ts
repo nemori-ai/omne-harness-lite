@@ -49,7 +49,11 @@ export async function deliverReactions(
   if (authorityFailed(allowed)) return { kind: 'error', error: allowed }
   if (context.owner.kind !== 'system')
     return supplyError(context, 'forbidden', 'Supply requires system owner')
-  const records = await deps.repository.listPendingReactions({ after: null, limit: input.limit })
+  const records = await deps.repository.listPendingReactions({
+    systemScopeRef: context.owner.systemScopeRef,
+    after: null,
+    limit: input.limit,
+  })
   if (records.kind !== 'ok')
     return supplyError(context, 'provider_failure', 'Pending reactions unavailable')
   const results: {

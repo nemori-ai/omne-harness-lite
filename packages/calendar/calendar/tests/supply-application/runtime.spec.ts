@@ -392,3 +392,34 @@ describe('supply application against controlled ports', () => {
     ).toThrow('Duplicate')
   })
 })
+
+it('delivers this scope when other owners have earlier pending reactions', async () => {
+  const w = world()
+  published(await w.app().refresh(context, intent))
+  if (context.owner.kind !== 'system') throw new Error('Expected supply fixture owner')
+  const scope = context.owner.systemScopeRef
+  const own = await w.deps.repository.listPendingReactions({
+    systemScopeRef: scope,
+    after: null,
+    limit: 1,
+  })
+  if (own.kind !== 'ok' || !own.value.items[0]) throw new Error('Expected pending reaction')
+  const foreign = {
+    ...own.value.items[0],
+    id: 'foreign-reaction',
+    operationRef: 'foreign-operation',
+  }
+  w.deps.repository.listPendingReactions = async input => ({
+    kind: 'ok',
+    value: input.systemScopeRef === scope ? own.value : { items: [foreign], nextCursor: '1' },
+  })
+  w.flags.handoffFails = false
+  expect(
+    await w.app().deliverReactions(context, { limit: 1, acknowledgementKey: 'scoped-delivery' }),
+  ).toMatchObject({
+    kind: 'ok',
+    value: [{ id: own.value.items[0].id, outcome: { kind: 'acknowledged' } }],
+  })
+  expect(w.calls.ack).toBe(1)
+  expect(w.pending.size).toBe(0)
+})

@@ -63,8 +63,8 @@ function read(input: RepositoryRead, port: ReadPort): JsonValue {
     case 'reactions':
       return page(
         port,
-        'SELECT sequence, record FROM ca_outbox WHERE handoff_ref IS NULL AND sequence > ? ORDER BY sequence LIMIT ?',
-        [cursor(input.after), input.limit + 1],
+        'SELECT sequence, record FROM ca_outbox WHERE system_scope_ref = ? AND handoff_ref IS NULL AND sequence > ? ORDER BY sequence LIMIT ?',
+        [input.systemScopeRef, cursor(input.after), input.limit + 1],
         input.limit,
       )
   }

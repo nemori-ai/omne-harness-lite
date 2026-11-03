@@ -165,7 +165,7 @@ export interface CalendarRepository {
     input: CalendarPageRequest & { readonly calendarId: CalendarId },
   ): Promise<CalendarReadResult<CalendarPage<CalendarCandidateRecord>>>
   listPendingReactions(
-    input: CalendarPageRequest,
+    input: CalendarPageRequest & Readonly<{ systemScopeRef: string }>,
   ): Promise<CalendarReadResult<CalendarPage<CalendarPendingReaction>>>
 }
 

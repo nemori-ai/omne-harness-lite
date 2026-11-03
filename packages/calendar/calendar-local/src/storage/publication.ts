@@ -104,10 +104,9 @@ export function savePublication(
     calendarId: snapshot.calendarId,
     ...next,
   }
-  port.execute('INSERT INTO ca_outbox(id, operation_ref, record) VALUES (?, ?, ?)', [
-    outboxId,
-    receipt.operationRef,
-    canonical(reaction),
-  ])
+  port.execute(
+    'INSERT INTO ca_outbox(id, operation_ref, system_scope_ref, record) VALUES (?, ?, ?, ?)',
+    [outboxId, receipt.operationRef, command.address.systemScopeRef, canonical(reaction)],
+  )
   return { ...receipt, current: next, outboxId }
 }
