@@ -65,6 +65,32 @@ function constructionOf(
   return value === undefined ? undefined : constructionTree(value)
 }
 
+/** 同步调用契约校验件；抛出时为 undefined（调用方答 unavailable）。 */
+function runValidator(validator: EnvironmentNeedValidator, value: unknown): unknown {
+  try {
+    return validator['~standard'].validate(value)
+  } catch {
+    return undefined
+  }
+}
+
+/** 把校验件的结果读成判定。只有明确的 `{ value }` 通过；非空 issues 是 invalid；其余都不可用。 */
+function verdictOf(result: unknown): Outcome<void, ToolFailure> {
+  if (typeof result !== 'object' || result === null)
+    return unavailable('environment need validator threw or gave no result')
+  if (result instanceof Promise || typeof Reflect.get(result, 'then') === 'function') {
+    // A Promise is outside the synchronous contract; settle it quietly and fail closed.
+    void Promise.resolve(result).catch(() => undefined)
+    return unavailable('environment need validator is not synchronous')
+  }
+  const issues: unknown = Reflect.get(result, 'issues')
+  if (Array.isArray(issues) && issues.length > 0)
+    return invalid('environment', 'environment need declaration is invalid')
+  return issues === undefined && 'value' in result
+    ? succeed(undefined)
+    : unavailable('environment need validator gave an unreadable result')
+}
+
 /**
  * 履行非空 environment 声明的义务（R2-D79）。采用不是 `environmentNeedAdoption` 答 invalid；契约校验件报
  * issues 答 invalid；校验件抛出、返回 Promise 或返回读不懂的结果答 unavailable。只有明确的 `{ value }` 才通过。
@@ -83,27 +109,7 @@ export function checkEnvironmentNeed(
   } catch {
     return invalid('environment', 'environment need declaration is not JSON')
   }
-  let result: unknown
-  try {
-    result = validator['~standard'].validate(value)
-  } catch {
-    return unavailable('environment need validator threw')
-  }
-  if (typeof result !== 'object' || result === null)
-    return unavailable('environment need validator gave no result')
-  if (result instanceof Promise || typeof Reflect.get(result, 'then') === 'function') {
-    // A Promise is outside the synchronous contract; settle it quietly and fail closed.
-    void Promise.resolve(result).catch(() => undefined)
-    return unavailable('environment need validator is not synchronous')
-  }
-  const issues: unknown = Reflect.get(result, 'issues')
-  if (issues !== undefined)
-    return Array.isArray(issues) && issues.length > 0
-      ? invalid('environment', 'environment need declaration is invalid')
-      : unavailable('environment need validator gave an unreadable result')
-  return 'value' in result
-    ? succeed(undefined)
-    : unavailable('environment need validator gave an unreadable result')
+  return verdictOf(runValidator(validator, value))
 }
 
 export type ReleaseAuthorOptions = Readonly<{

@@ -78,10 +78,77 @@ function isOfficial(layer: unknown): boolean {
   )
 }
 
+type Trusted = Extract<ToolRelease, { kind: 'trusted' }>
+type Verify = ToolContributionAuthority<unknown>['verify']
+type Admits = ToolContributionAuthority<unknown>['admits']
+
+/** 清单里与来源资产同名的条目；名字读不到时为 undefined。 */
+function entryNamed(release: Trusted, asset: unknown) {
+  const name = typeof asset === 'object' && asset !== null ? Reflect.get(asset, 'name') : null
+  return release.manifest.entries.find(candidate => candidate.asset.name === name)
+}
+
+/** 来源与条目哪一项不全等；全等时为 null。 */
+function mismatchOf(
+  authority: ToolAuthority,
+  entry: Trusted['manifest']['entries'][number],
+  generation: string,
+): string | null {
+  if (!sameAdoption(Reflect.get(authority.asset, 'adoption'), entry.asset.adoption))
+    return 'asset adoption differs from the release'
+  if (!sameEvidence(authority.holding, entry.holding)) return 'holding differs from the release'
+  if (!sameEvidence(authority.publication, entry.publication))
+    return 'publication differs from the release'
+  if (authority.holding.revision !== generation || authority.publication.revision !== generation)
+    return 'release generation differs'
+  return null
+}
+
+/** `verify` 对受信快照的判定：官方层、资产在清单里、四项采用与两项证据全等。 */
+function verifyAgainst(release: Trusted, authority: ToolAuthority): ReturnType<Verify> {
+  if (!isOfficial(authority.layer)) return fail({ kind: 'denied' })
+  const entry = entryNamed(release, authority.asset)
+  if (entry === undefined) return fail({ kind: 'denied' })
+  const reason = mismatchOf(authority, entry, release.generation)
+  if (reason !== null) return fail({ kind: 'invalid', reason })
+  // The verified value is built from the snapshot, never from the caller's object.
+  const verified: ToolAuthority = Object.freeze({
+    layer: Object.freeze({ kind: 'official' as const }),
+    asset: entry.asset,
+    holding: entry.holding,
+    publication: entry.publication,
+  })
+  // Only this boundary mints the brand (tool-cordis-contract `VerifiedAuthority`).
+  return succeed(verified as VerifiedAuthority)
+}
+
+/** 访问就是本运行签发的登记者：同一主体对象，合法且相等的租户。 */
+function isRegistrant(access: Access<unknown>, bound: Bound): boolean {
+  return (
+    access.principal === bound.access.principal &&
+    tenantCodec.encode(access.tenant).ok &&
+    tenantEquals(access.tenant, bound.access.tenant)
+  )
+}
+
+/** `admits` 对受信快照的判定：官方层、登记者已安装、代次相同、访问就是登记者。 */
+function admitsAgainst(
+  release: Trusted,
+  bound: Bound | null,
+  access: Access<unknown>,
+  layer: unknown,
+): ReturnType<Admits> {
+  if (!isOfficial(layer)) return fail({ kind: 'denied' })
+  if (bound === null) return unavailable('the release registrant is not installed')
+  if (bound.generation !== release.generation || !isRegistrant(access, bound))
+    return fail({ kind: 'denied' })
+  return succeed(undefined)
+}
+
 /** 同步核验（G7）。`release` 是行读快照的唯一入口；类里不用 `#` 私有字段（经调用方代理时 `this` 不是实例本身）。 */
 export class ReleaseToolContributionAuthority extends ToolContributionAuthorityService<unknown> {
-  readonly verify: ToolContributionAuthority<unknown>['verify']
-  readonly admits: ToolContributionAuthority<unknown>['admits']
+  readonly verify: Verify
+  readonly admits: Admits
   readonly release: () => ToolRelease
 
   constructor(ctx: Context, snapshot: ToolReleaseSnapshot, registrant: () => Bound | null) {
@@ -96,54 +163,18 @@ export class ReleaseToolContributionAuthority extends ToolContributionAuthorityS
           })
         : Object.freeze({ kind: 'unavailable', diagnostic: snapshot.diagnostic })
     this.release = () => release
-
     this.verify = authority => {
       if (release.kind !== 'trusted') return unavailable('release snapshot unavailable')
       try {
-        if (!isOfficial(authority.layer)) return fail({ kind: 'denied' })
-        const asset: unknown = authority.asset
-        const name = typeof asset === 'object' && asset !== null ? Reflect.get(asset, 'name') : null
-        const entry = release.manifest.entries.find(candidate => candidate.asset.name === name)
-        if (entry === undefined) return fail({ kind: 'denied' })
-        if (!sameAdoption(Reflect.get(asset as object, 'adoption'), entry.asset.adoption))
-          return fail({ kind: 'invalid', reason: 'asset adoption differs from the release' })
-        if (!sameEvidence(authority.holding, entry.holding))
-          return fail({ kind: 'invalid', reason: 'holding differs from the release' })
-        if (!sameEvidence(authority.publication, entry.publication))
-          return fail({ kind: 'invalid', reason: 'publication differs from the release' })
-        if (
-          authority.holding.revision !== release.generation ||
-          authority.publication.revision !== release.generation
-        )
-          return fail({ kind: 'invalid', reason: 'release generation differs' })
-        // The verified value is built from the snapshot, never from the caller's object.
-        const verified: ToolAuthority = Object.freeze({
-          layer: Object.freeze({ kind: 'official' as const }),
-          asset: entry.asset,
-          holding: entry.holding,
-          publication: entry.publication,
-        })
-        // Only this boundary mints the brand (tool-cordis-contract `VerifiedAuthority`).
-        return succeed(verified as VerifiedAuthority)
+        return verifyAgainst(release, authority)
       } catch {
         return fail({ kind: 'invalid', reason: 'authority is unreadable' })
       }
     }
-
     this.admits = (access, layer) => {
       if (release.kind !== 'trusted') return unavailable('release snapshot unavailable')
       try {
-        if (!isOfficial(layer)) return fail({ kind: 'denied' })
-        const bound = registrant()
-        if (bound === null) return unavailable('the release registrant is not installed')
-        if (bound.generation !== release.generation) return fail({ kind: 'denied' })
-        if (
-          access.principal !== bound.access.principal ||
-          !tenantCodec.encode(access.tenant).ok ||
-          !tenantEquals(access.tenant, bound.access.tenant)
-        )
-          return fail({ kind: 'denied' })
-        return succeed(undefined)
+        return admitsAgainst(release, registrant(), access, layer)
       } catch {
         return fail({ kind: 'denied' })
       }
