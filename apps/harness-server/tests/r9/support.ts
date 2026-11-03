@@ -77,7 +77,14 @@ const MODEL_TEST_ADOPTION = {
  * `resultPageTargetBytes` and `readIdleMs`, `records.sendStage.preparation` equals `preparation`,
  * and `records.sendStage.profiles` equals `profiles` (the load-time cross-row checks).
  */
-export function modelRowsOperatorConfig(options: { storageRoot: string }) {
+/**
+ * The Model route when a test gives none: a loopback port that nothing listens on. A test that sends a
+ * Model call without the local gateway (`tests/fixtures/model-gateway.ts`) fails on this machine; it
+ * never reaches a real supplier (R2-D258).
+ */
+export const UNUSED_MODEL_ROUTE = 'https://127.0.0.1:9/api/v1/chat/completions'
+
+export function modelRowsOperatorConfig(options: { storageRoot: string; modelRoute?: string }) {
   const profiles = {
     retryPolicy: { owner: 'r9', name: 'retry', revision: '1', digest: '0'.repeat(64) },
     compactionTriggerPercent: '80',
@@ -153,7 +160,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string }) {
       preparation,
       network: { maxConnections: 4, idleConnectionTimeoutMs: 60_000 },
       routes: {
-        openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions', endMarker: '[DONE]' },
+        openrouter: { url: options.modelRoute ?? UNUSED_MODEL_ROUTE, endMarker: '[DONE]' },
       },
       transportLimits: {
         connectTimeoutMs: 5000,
@@ -273,6 +280,8 @@ export function operatorLayer(options: {
   storageRoot: string
   port: number
   shutdownDeadlineMs?: number
+  /** The `https:` URL of the Model route; the local gateway in tests that send a Model call. */
+  modelRoute?: string
 }): unknown {
   const deadline = options.shutdownDeadlineMs ?? SHUTDOWN_DEADLINE_MS
   const model = modelRowsOperatorConfig(options)
@@ -386,6 +395,8 @@ export function startServer(options: {
   operatorPath: string
   port: number
   startupTimeoutMs?: number
+  /** A PEM file the child trusts in addition (`NODE_EXTRA_CA_CERTS`): the local Model gateway. */
+  extraCaPath?: string
 }): Promise<ServerHandle> {
   const args = [
     serverBin,
@@ -403,7 +414,11 @@ export function startServer(options: {
     '--stop-on-stdin-close',
   ]
   const child = spawn(process.execPath, args, {
-    env: { ...process.env, NO_COLOR: '1' },
+    env: {
+      ...process.env,
+      NO_COLOR: '1',
+      ...(options.extraCaPath === undefined ? {} : { NODE_EXTRA_CA_CERTS: options.extraCaPath }),
+    },
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   let stdout = ''

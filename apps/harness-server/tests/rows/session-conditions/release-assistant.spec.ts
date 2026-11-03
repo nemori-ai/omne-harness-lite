@@ -24,6 +24,7 @@ import { defineRow } from '../../../src/row.ts'
 import { defaultModesOf } from '../../../src/rows/session-conditions/index.ts'
 import { runServe } from '../../../src/run.ts'
 import { bodyOf, freePort, newScratch, operatorLayer, runOmne } from '../../r9/support.ts'
+import { startModelGateway } from '../../fixtures/model-gateway.ts'
 import { connectable, until } from '../server-entry/support.ts'
 
 type Answer = Readonly<{ ok: true } | { ok: false; kind: string }>
@@ -94,9 +95,12 @@ async function firstConditionsRead(distribution: Distribution): Promise<Answer> 
   const home = join(dir.base, 'home')
   const controller = new AbortController()
   const answers: Answer[] = []
+  // The Model calls go to a local gateway, never to a real supplier (R2-D258).
+  const gateway = await startModelGateway()
+  gateway.trustInProcess()
   const finished = runServe({
     distribution,
-    operator: operatorLayer({ storageRoot: dir.storageRoot, port }),
+    operator: operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: gateway.url }),
     plugins: { ...cordis, sessionConditionsRow: observedConditionsRow(answers) },
     stateRoot: dir.stateRoot,
     stop: controller.signal,
@@ -128,6 +132,7 @@ async function firstConditionsRead(distribution: Distribution): Promise<Answer> 
   } finally {
     controller.abort('test: stop')
     await finished.catch(() => undefined)
+    await gateway.close()
     dir.remove()
   }
 }

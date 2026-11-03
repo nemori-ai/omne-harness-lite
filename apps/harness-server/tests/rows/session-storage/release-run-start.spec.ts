@@ -40,6 +40,7 @@ import {
   savedLoginProof,
   savedTenant,
 } from '../../r9/support.ts'
+import { startModelGateway } from '../../fixtures/model-gateway.ts'
 import { connectable, until } from '../server-entry/support.ts'
 
 const CREDENTIAL = 'carol-pw-RUNSTART-7c41'
@@ -145,9 +146,14 @@ describe('the release tree with the release session ownership read', () => {
       const records: S0Record[] = []
       const stderr: string[] = []
       const issued: Issued[] = []
+      // The Model calls go to a local gateway, never to a real supplier (R2-D258).
+      const gateway = await startModelGateway()
+      gateway.trustInProcess()
       const finished = runServe({
         distribution: release,
-        operator: withHistoryKinds(operatorLayer({ storageRoot: dir.storageRoot, port })),
+        operator: withHistoryKinds(
+          operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: gateway.url }),
+        ),
         plugins: { ...cordis },
         entryObjects: releaseEntryObjects.map(module =>
           module.name === sessionWorkPrincipalsKey ? observedWorkPrincipals(issued) : module,
@@ -221,6 +227,7 @@ describe('the release tree with the release session ownership read', () => {
       } finally {
         controller.abort('test: stop')
         await finished.catch(() => undefined)
+        await gateway.close()
         dir.remove()
       }
     },

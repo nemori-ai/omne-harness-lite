@@ -12,6 +12,7 @@ import {
   type SessionProviderArrival,
 } from '../../src/rows/session-provider/index.ts'
 import { runServe, type S0Record, type ServeResult } from '../../src/run.ts'
+import { startModelGateway } from '../fixtures/model-gateway.ts'
 import { connectable, until } from '../rows/server-entry/support.ts'
 import {
   bodyOf,
@@ -65,9 +66,12 @@ async function withTree<T>(
   const controller = new AbortController()
   const records: S0Record[] = []
   const stderr: string[] = []
+  // The Model calls go to a local gateway, never to a real supplier (R2-D258).
+  const gateway = await startModelGateway()
+  gateway.trustInProcess()
   const finished: Promise<Run> = runServe({
     distribution: release,
-    operator: operatorLayer({ storageRoot: dir.storageRoot, port }),
+    operator: operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: gateway.url }),
     plugins: {
       ...cordis,
       sessionProviderRow: createSessionProviderRow({ observe: arrival => arrivals.push(arrival) }),
@@ -116,6 +120,7 @@ async function withTree<T>(
   } finally {
     controller.abort('test: stop')
     await finished.catch(() => undefined)
+    await gateway.close()
     dir.remove()
   }
 }

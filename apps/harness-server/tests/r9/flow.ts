@@ -5,6 +5,7 @@
 // The checks hold the judgments, so the spec and the driver cannot drift apart.
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { startModelGateway, type ModelGateway } from '../fixtures/model-gateway.ts'
 import {
   bodyOf,
   cursorKeySpellings,
@@ -143,12 +144,19 @@ export async function runR9Flow(): Promise<FlowRecord> {
   const outputs: string[] = []
   const checks: Check[] = []
   let server: ServerHandle | undefined
+  let gateway: ModelGateway | undefined
   try {
     const port = await freePort()
+    // The Model calls go to a local gateway that refuses each with HTTP 400, never to a real
+    // supplier (R2-D258): the Run that the input starts ends the same way every time.
+    gateway = await startModelGateway()
+    const modelGateway = gateway
     const operatorPath = join(scratch.base, 'operator.json')
     writeOperator(
       operatorPath,
-      withRunEntries(operatorLayer({ storageRoot: scratch.storageRoot, port })),
+      withRunEntries(
+        operatorLayer({ storageRoot: scratch.storageRoot, port, modelRoute: modelGateway.url }),
+      ),
     )
     const homes = {
       alice: join(scratch.base, 'home-alice'),
@@ -184,6 +192,7 @@ export async function runR9Flow(): Promise<FlowRecord> {
         stateRoot: scratch.stateRoot,
         operatorPath,
         port,
+        extraCaPath: modelGateway.certPath,
       })
       const records = handle.records()
       runs.push({
@@ -410,6 +419,12 @@ export async function runR9Flow(): Promise<FlowRecord> {
         ended.ok,
         `no run.terminal after ${String(RUN_END_TIMEOUT_MS)} ms: status ${String(ended.status)}`,
       ),
+      check(
+        4,
+        'the Model call of that Run went to the local gateway, not to a real supplier',
+        modelGateway.requests() > 0,
+        `the local gateway saw ${String(modelGateway.requests())} requests`,
+      ),
     )
 
     const firstStop = await stop(server)
@@ -554,6 +569,7 @@ export async function runR9Flow(): Promise<FlowRecord> {
     return { startedAt, runs, steps, http, checks }
   } finally {
     await server?.kill()
+    await gateway?.close()
     scratch.remove()
   }
 }
