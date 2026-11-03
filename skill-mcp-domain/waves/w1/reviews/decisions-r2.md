@@ -96,3 +96,8 @@
 | M3-25 (A10) | README 带出 SPEC 没有的行为 | S3 写 RangeError 前提；README 引 SPEC |
 | M3-26 (N1–N14) | 见报告 | 全部照改。N2 统一为 `env.<NAME>`；N14 `createMcp` 对非法 `McpConfig` 抛 RangeError |
 | M3-27 (范围外 1) | 两份 SPEC 把 reduce 的裁定写成「负责人裁定」 | 两边改为「领域设计裁定（2026-11-03）」；不冒称负责人 |
+
+## 第 3 轮交回的写者自定事项（全部接受）
+
+- Skill（d4114ff6f）：`isBoundedText` 放 `names.ts`（避免 shape↔names 成环）；`name-invalid` 排在 `name-mismatch` 之后、工具引用之前；PS8/PR3/PR4 新例各用可选夹具字段，缺时 NotApplicable；内存来源对不指向包内文件的链接答 `entry-unreadable`；「SkillAccess 套件」依据栏不写波次名。
+- MCP（654e422fd）：`OperationFailure` 另含 `error-answer`（第 47 条漏列，写者补对）；照做 M3-3、M3-5；`resourceMetadataUrl` 的 well-known 回退为连接目标的 `/.well-known/oauth-protected-resource`；不合法的连接超时答 `config-invalid`，不退回 `connectBound`。

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-03T15:49:10Z",
+  "updatedAt": "2026-11-03T15:59:46Z",
   "head": "21175c9f9",
   "links": [
     {
@@ -27,32 +27,32 @@
         {
           "id": "w1-skill-contract",
           "line": "Skill",
-          "state": "修复中",
+          "state": "待合入",
           "round": 3,
-          "note": "Skill 第 3 轮：14 条小修（provider 类型导出钉住、出包链接通路、端口要求现行源、实际范围定义、judge 收紧 name 词法）",
+          "note": "Skill 第 3 轮交回 d4114ff6f（364 例，扫描 pass）；reduce 完整链排队中；无需再派复审",
           "links": [
             {
               "text": "PR",
               "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1110"
             },
             {
-              "text": "c3d693b48"
+              "text": "d4114ff6f"
             }
           ]
         },
         {
           "id": "w1-mcp-contract",
           "line": "MCP",
-          "state": "修复中",
+          "state": "待合入",
           "round": 3,
-          "note": "MCP 第 3 轮：22 条（TransportFailure 三分与 effect-unknown、inputRequests 统一 Untrusted、任务操作与协议映射、配值缺陷表、句柄寿命）",
+          "note": "MCP 第 3 轮交回 654e422fd（296 例，扫描 pass）；reduce 完整链运行中；B1 改法表达复审进行中",
           "links": [
             {
               "text": "PR",
               "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1111"
             },
             {
-              "text": "a48f6bc09"
+              "text": "654e422fd"
             }
           ]
         }
@@ -216,6 +216,10 @@
     {
       "at": "2026-11-03T15:49:10Z",
       "text": "第 2 轮增量复审四面收齐：代码面两边无阻断；SPEC 面 Skill 无阻断、MCP 1 阻断（非调用请求的失败落点）。第 3 轮派发（最后一轮），第 2 轮变异复跑已停，改在第 3 轮 head 一次跑完"
+    },
+    {
+      "at": "2026-11-03T15:59:46Z",
+      "text": "第 3 轮两边交回；reduce 在两 head 上跑完整链（门禁、读数、回路、变异），MCP 另派 B1 改法的最小表达复审"
     }
   ]
 }
