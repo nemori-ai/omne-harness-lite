@@ -1,4 +1,7 @@
 // Independent local host factories. This entry does not import Cordis.
+export { createLocalToolLoader, type LocalToolLoaderInput } from './author-loader.ts'
+export { createLocalToolBindings, type LocalToolBindingsInput } from './executor-binding.ts'
+export type { LocalAuthorExecution } from './live-author-execution.ts'
 export {
   createLocalStartCoordinator,
   START_COORDINATOR_DOMAIN_KEY,
@@ -39,6 +42,7 @@ export {
   type LocalToolBindingRegistryInput,
   type LocalToolContributionVerifier,
   type ToolBindingPin,
+  type ToolBindingSelection,
   type ToolListing,
   type ToolListingSource,
 } from './bindings.ts'
