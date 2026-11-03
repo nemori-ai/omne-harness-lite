@@ -189,6 +189,22 @@ test('重复完成、未闭合span、孤立终点、起止身份不同均不产�
   }
 })
 
+for (const [member, field, value, stage] of [
+  ['session', 'operation', 'readWork', 'sessionIO'],
+  ['context', 'operation', 'derive', 'projectionInterpretation'],
+  ['agent', 'pass', 'accept', 'agentProgression'],
+])
+  test(`${member}起止${field}不同，不投段或轮完成`, () => {
+    const source = input()
+    const end = source.memberEvents.find(x => x.event.segment === member && x.event.phase === 'end')
+    end.event[field] = value
+    const result = projectRound(source)
+    assert.ok(codes(result).includes('segment-identity-mismatch'))
+    assert.equal(result.events.filter(x => x.stage === stage).length, 0)
+    assert.equal(completions(result).length, 0)
+    assert.deepEqual(result.sources, source)
+  })
+
 test('跨钟/倒序不配对，失败段不投成成功stage', () => {
   for (const change of [
     { reading: reading(40, { generation: 'g2' }) },
