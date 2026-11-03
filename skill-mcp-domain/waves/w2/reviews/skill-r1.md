@@ -40,3 +40,10 @@
 - 契约 SPEC：允许写者删/改 439 行等三处过时句，并为 `bodyOffsetOf` 补一句条款（扩大写范围）。
 - 设计 S1–S3、S5–S11 进第 2 轮；S4（契约导出常量）进 W3 prep。
 - `describe` 带依据：`material.basis` 取依据的 digest 与资产版本。
+
+## 第 2 轮 L3 增量复审（implementation-reviewer，重放 P1–P7 + 新探针，head 327aa65bf）
+
+- 三处阻断、N1、X3、裁定 5、套件各项、契约 SPEC、S1–S3/S6–S8/S11 全部闭合（P1/P2 四端口 0 次；P4 答 `unsupported`；P5 答 `"b"`/`{3,1}`；P6 三列映射与组页一致）；两个夹具世界各 15 条全绿；`frontmatterOf` 删除在授权内（不在公开根、无引用、398 例原样）。
+- 非阻断：S10 还剩 33 处 `toEqual`；「隐藏世界看不出跳过读取判定」没写进套件文档；`r2-stages.txt`/`r2-mapping.txt` 是签名红（行为证据在 R3、R7）。
+- 待裁：请求长度短于一个字符时不前进（契约已写重读规则，符合）；对应端口答畸形值抛 `TypeError` 而读取判定一侧答 `unknown`（不对称，都不放行）。
+- reduce 处置：放行。`toEqual` → `toStrictEqual` 与两处文档句由 reduce 补（b123eec06）；不对称与前进保证记 W3 契约调整。

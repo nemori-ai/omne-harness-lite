@@ -29,3 +29,12 @@
 <li><strong><code>directory-source.ts</code></strong> 只把 <code>collect</code> 的结果交给契约的 <code>sealSnapshot</code>，把 <code>readEntry</code> 包成 <code>open</code>；<code>content-store</code> 定位答 <code>package-not-found</code>；<code>open</code> 忽略 <code>digest</code>（本来源不按内容存放，字节是否变了由 Skill 核对）。</li>
 </ul>
 <p>它通过契约 <code>./testing</code> 的 <code>skillPackageSourceConformance()</code>（PS7「按摘要找包」不适用）。权限类失败全部经注入的 <code>DirectoryFs</code> 制造，因为容器以 root 运行，<code>chmod</code> 造不出 EACCES。</p>
+
+<h3>W2 增量 2：<code>@omne-harness/skill</code>（父分支 0956ccf01）</h3>
+<p>通用实现落地：10 个源文件 596 行、11 个测试文件 195 例；契约可加了 475 行的 <code>skillAccessConformance()</code>（15 条，两个夹具世界各跑一遍）与 <code>bodyOffsetOf</code>。公开根只有两个工厂与 <code>SkillPorts</code>：</p>
+<ul>
+<li><strong><code>inspection.ts</code></strong>：<code>createPackageInspection(source)</code>——<code>snapshot</code> → 用 <code>open</code> 读两份控制文件 → 交给契约的 <code>parseSkillPackage</code>（它自己核对控制字节的摘要）。来源失败怎样变成服务失败只在 <code>mapping.ts</code> 一张表里，三列：<code>inspect</code>、<code>snapshot</code>、<code>open</code>——第 1 轮它只有两列，<code>pin.ts</code> 里悄悄做了第二次映射，评审抓住后改成了三列。</li>
+<li><strong><code>access/</code></strong> 把组页「读取」的 11 步写成四段函数，失败类型逐段收窄：<code>gate</code>（第 1–3 步：依据身份、读取权、对应；失败是 <code>DescribeFailure</code>）→ <code>materialOf</code>（第 5 步：钉住材料，带依据时就是依据本身）→ <code>pin</code>（第 7 步：取快照比摘要；<code>pin(ports, gated, material, moved, signal?)</code> 由调用方给「材料已变」的失败值，<code>export</code> 传 <code>basis-unavailable</code>，所以编译器证明它不会答 <code>adopted-material-changed</code>）→ <code>verifiedBytes</code>（第 9–10 步：按条目摘要核字节）。<code>describe</code> 在 <code>gate</code> 后结束，<code>list</code> 在 <code>pin</code> 后结束，<code>read</code>/<code>export</code> 走完。<code>checkpoint(signal)</code> 在四个端口调用的前后各查一次，已中止就答 <code>aborted</code>、不再调端口、不交部分内容。</li>
+<li><strong><code>access/range.ts</code></strong>：纯函数 <code>sliceRange</code>——页上限 65536、UTF-8 续字节判字符边界、保留 BOM、请求终点 = 请求起点 + 长度、正文范围相对 <code>bodyOffsetOf</code> 给出的闭合定界行之后。</li>
+</ul>
+<p>无披露的三条路径（依据不是本身份、读取判定 <code>refused</code>、对应答 <code>none</code>）返回同一个冻结对象；读取判定的答复不在 <code>granted/refused/unknown</code> 里时一律 <code>unknown</code>，不放行。<code>SkillCatalog</code> 仍是接口，W3。</p>

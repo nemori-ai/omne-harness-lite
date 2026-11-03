@@ -125,3 +125,12 @@ developer，implementation_kind product，Claude Fable 5.1（claude-fable-5-1）
 - 2026-11-03T22:00Z D10、D11：成员 SPEC 的 MC-1、2、4、8–13 补反例与变红（含 MC-2 指向生产入口）；README「给下一波」补 `ConnectionKey` 的算法入口（`readAccountOf`）、聚合状态转移只经连接表、`UnavailableMark`/`CatalogMark` 的取值与含义。
 - 2026-11-03T22:00Z 已定事项修正：6.5 改为「从取凭据开始计时，覆盖取凭据、进程启动、打开传输、协商；取页阶段另起同一上界」；11 改为「未采用或被挡下时关闭；`not-eligible`/`unknown` 不关闭」；6.4「不可用 → 不报」改为按 S5「答 `unknown`」。
 
+- 2026-11-03T22:40Z 第 2 轮 L3 增量复审（reviews/mcp-core-r1.md 末节）。第 3 轮由新写者接手，先读本规格全文、两轮追加记录、`tmp/closures/w2-mcp-core/report.md` 两节与评审原文。每条先写会红的用例（还原源码、重建 dist），红灯存 `red/r3-*.txt`，并在报告里逐条给出用例名与红灯路径。
+- 2026-11-03T22:40Z **阻断 R3-1（关闭单飞覆盖 lose）**：`lose` 与 `build` 开头的拆除与 `closeEntry` 共用同一个单飞（条目上的 `closing` promise）：先同步转聚合状态，再共用拆除 promise；拆除次序固定关传输 → 停进程 → 释放句柄。用例（deferred `{ close }` 步）：Na（`lose` 在途时 `release` 等拆除完成、trace 次序正确、随后 refresh 不抛）、Nb（`lose` 拆除途中同键 refresh 等待后正常建连）。
+- 2026-11-03T22:40Z **阻断 R3-2（迟到进程的停止范围）**：时限之后交来的进程：`await stop()`，范围不是 `tree-confirmed` 时并入 `entry.lingering` 并反映到 `status.inspect` 的 `residual`，`release`/`closeAll` 据此报告；用例：`stop: 'unconfirmed'` + 迟到落点 → 状态带 `residual`，`release` 报 `unconfirmed`。
+- 2026-11-03T22:40Z **S9 裁定**：准备失败且已取得进程（含迟到交来的）时，先 `stop()` 返回再释放进程凭据句柄；没有进程时立即释放。用例：D2 的 trace 应为 `['process.stop','credential.release']`。
+- 2026-11-03T22:40Z 三处 `void late.ok.*()`：改为捕获 reject（记日志或忽略），不留未处理拒绝；用例：迟到的 `release()` reject 不使进程崩溃。
+- 2026-11-03T22:40Z **裁定 2 修正**：`ensure` 重读采用时未采用答 `not-available-to-you`，不可读答 `unknown`；用例各一。
+- 2026-11-03T22:40Z 非阻断 1：`judge` 断言 `adoptedTokens.has(token)`（否则抛 `TypeError`）；`adoptedOnlyOf` 不再导出，`status.list` 改走 gate 内组合；用例：换掉 body 的令牌不能通过 `judge`，探针 Ne 不再复现。
+- 2026-11-03T22:40Z 非阻断 2：`red/r2-B4.txt`、`r2-N1.txt` 重做成行为红（修 `doubles/ports.ts` 的 `trace` 引用后在旧代码上再跑）；D9 的 `scripted-transport.ts` 失败种类表改为 `satisfies Record<TransportFailure['kind'], true>`；在重写后的 gate 上重做「admit 先问资格」变异并记入 `logs/mutation-r3.txt`。
+- 2026-11-03T22:40Z 观察项：同一租户同一持有下两个不同修订的令牌同时过重读时不得留下两个条目（`closeOthers` 在写入条目前再比一次当前修订）；补用例。

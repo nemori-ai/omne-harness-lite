@@ -1,3 +1,14 @@
+<h3>W2 增量 2：skill 合入（2026-11-03，父分支 0956ccf01）</h3>
+<p><strong>读数。</strong>10 源文件 596 行、195 例；契约 +34 例（398）。无 <code>as</code>/<code>any</code>/类。变更函数超 alert 的只在契约套件代码（<code>skillAccessConformance</code> CC 11，用例表，契约自己的测试不跑它所以覆盖 0%——这是套件代码的固有读数）。Stryker：skill 393 个变异体、被杀 377、存活 13（散在 gate/inspection/mapping 各 3）、测量有效，96.4%；契约 346、无覆盖 298 全在套件代码；W1 记下的 <code>manifest.ts:47–55</code> 边界已被字节扫描 <code>frontmatterBounds</code> 替换，存活只剩类型守卫与消息文本。</p>
+<p><strong>两轮评审改掉了什么。</strong>第 1 轮三面共 3 处阻断，全是真问题：L3 探针证明已中止的 signal 下 <code>gate</code> 仍调用读取判定与对应两个端口（契约要求每次端口调用前后都查）；读取次序把第 6 步（路径校验）放到了第 5 步（没有可读的包）之前，写者还在成员 SPEC 里自称「偏离」；映射在两处。第 2 轮修完并重放探针确认。顺带裁定了两处契约措辞歧义（「请求终点」取字面；<code>describe</code> 带依据时 basis 取依据本身）。</p>
+<p><strong>优雅在哪里。</strong>四段函数的失败类型逐段收窄是真的（<code>PinStageFailure = Exclude&lt;PinFailure, GateFailure&gt;</code>，类型测试钉住）；「材料已变」的失败值由调用方给，去掉了编译器不检查的重载；一张映射表三列；套件在「对应端口对所有人作答」的世界里能恰好让 A1–A3 变红，证明读取判定是唯一关口——而在「对应端口自己隐藏身份」的合规世界里它看不出来，这一点现在写进了套件文档，读者不会高估套件覆盖。</p>
+<p><strong>异味与处置。</strong></p>
+<ul>
+<li>与契约的重复常量（<code>MANIFEST_PATH</code>、<code>PAGE_LIMIT</code>、<code>sameCapability</code>）：契约没导出，W3 prep 导出后删成员那份。</li>
+<li>端口答畸形值的处置不对称：读取判定一侧答 <code>unknown</code>，对应端口一侧抛 <code>TypeError</code>（都不放行）。W3 契约写明一种。</li>
+<li><code>examples/</code> 还没有真实来源的示例——现在 <code>skill-host-local</code> 已合入，波末可以补一个「目录 → inspect → read」的脚本。</li>
+</ul>
+<hr>
 <h3>W2 增量 1：skill-host-local 合入（2026-11-03，父分支 478e56381）</h3>
 <p><strong>读数。</strong>4 源文件 341 行，10 测试文件 54 例（写者报 84，含类型用例与 it.each 展开）。无 <code>as</code>（两处 <code>as const satisfies</code>）、无 <code>any</code>、无类。变更函数超 warn 0。写者两轮共 48 + 33 个手工变异全部被杀；Stryker 280 个变异体：被杀 248、存活 21（集中在 <code>walk.ts:52</code> 的解码分支与 <code>:145</code> 的表查找）、5 个静态变异致「测量无效」。</p>
 <p><strong>两轮评审改掉了什么。</strong>第 1 轮三处阻断都是真缺陷：根是普通文件时 <code>open</code> 答成 <code>entry-not-found</code>（reduce 自修，<code>resolveRoot</code> 合并「是目录」核对）；非 UTF-8 文件名被有损解码后报成瞬时的 <code>unavailable</code>，登记方会无限重试；<code>readdir</code> 之后、<code>readFile</code> 之前条目被换成根外链接，根外字节进了快照（confused deputy，探针算出的摘要正是根外 <code>secret</code> 的 sha256）。第 2 轮把「按列出时的种类分叉」改成「每个条目同一条路」，接缝改为字节级并把全部分类收拢进 <code>walk.ts</code>，这是这个成员现在最值得看的地方：<strong>接缝只做 IO，判定只在一处</strong>。</p>

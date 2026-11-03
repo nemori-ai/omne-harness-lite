@@ -50,3 +50,20 @@
 - O3：同前裁定——调用方 `signal` 不进单飞建连，调用方中止只答 `kept(cancelled)`，不标记清单。
 - B1–B5、N1、D1–D7、D9（公开状态口断言）、D10、D11、释放次序进 trace 进第 2 轮；D8 写成偏离与退出条件。
 
+
+## 第 2 轮 L3 增量复审（implementation-reviewer，重放 9 + 新 7 个探针，head 9042882df）
+
+- 闭合：B1（A/A2 探针答 `kept(superseded)`，写入前无 await）、B2、B3（E1/E2）、B4 的两种 close/ensure 交错（C1/C2）、D1–D8、O1–O3、N1 行为。
+- **阻断 1**：关闭单飞不覆盖 `lose` 的拆除（`table.ts:568-579` 直接 `teardown`，`await` 之后才转状态；`build` 开头也先 `teardown`）。探针 Na：`lose` 在途时 `release` 先报 `released`，trace `process.stop` 先于 `transport.close`，随后 refresh 抛 `TypeError: lose is not a transition from closed`；Nb：第三次 refresh 抛 `attempt is not a transition from ready`。
+- **阻断 2**：迟到进程的 `stop()` 范围被丢弃（`table.ts:411-417` `void late.ok.stop()`）：探针 Nd 中 `stop` 答 `unconfirmed` 的迟到进程不进 `residual`，`release` 报 `no-process`，`closeAll` 为空（违反 S7、S8）。
+- 非阻断 1：品牌可绕过采用口铸出——`adoptedTokens` 只写不读，`adoptedOnlyOf` 导出且 `judge` 不核令牌来源；探针 Ne 换掉启动命令仍 `admitted` 并启动了 `not-the-adopted-command`（内部入口，W3 会直接用）。
+- 非阻断 2：交回与证据不符——`red/r2-B4.txt`、`r2-N1.txt` 的红是 `ReferenceError: trace is not defined`，不是行为红（B4 另有 `mutation-r2.txt:168` 行为红；N1 没有）；D9 的 `satisfies Record<…>` 没有做；「admit 先问资格」变异没在重写后的 gate 上重做。
+- 待裁：裁定 2 未采用时答 `unknown` 还是 `not-available-to-you`；S9 在迟到进程上两句冲突（句柄已立即释放，进程却带着它启动并在之后 `stop()`）。
+- 观察：三处 `void late.ok.*()` 的 reject 成为未处理拒绝；两个不同修订的令牌同时过重读可能留两个条目。
+
+## reduce 裁定（第 3 轮输入）
+
+- 裁定 2：重读采用时**未采用**答 `not-available-to-you`（S1 字面），**不可读**答 `unknown`。
+- S9 迟到进程：以「进程凭据句柄在 `stop()` 返回之后释放」为准——准备失败且**已取得进程**（含迟到交来的）时，先 `stop()` 再释放；只有没有进程时才立即释放。迟到回调要 `await stop()`，范围不是 `tree-confirmed` 时并入 `lingering` 并反映到状态；三处 `void late.ok.*()` 改为捕获 reject 并记为 `lost` 的 `residual` 或忽略（不留未处理拒绝）。
+- 非阻断 1 进第 3 轮：`judge` 断言 `adoptedTokens.has`，`adoptedOnlyOf` 不导出。
+- 第 3 轮按 `delegate` 第 7.5 条新开写者（顶档 claude-fable-5-1，effort 升至 xhigh：跨 await 的生命周期竞争属于 hardest 的 cross-module-lifecycle 类）；简报带原规格、追加记录、两轮报告。

@@ -1,6 +1,6 @@
 {
- "updatedAt": "2026-11-03T22:01:09Z",
- "head": "478e56381",
+ "updatedAt": "2026-11-03T22:32:52Z",
+ "head": "0956ccf01",
  "links": [
   {
    "text": "波段计划",
@@ -318,10 +318,18 @@
     {
      "id": "w2-skill",
      "line": "Skill",
-     "state": "修复中",
+     "state": "已合入",
      "round": 2,
-     "note": "第 1 轮三面收齐：3 阻断（读取次序第 5 步、gate 无中止检查点、映射两处）+ 4 裁定（答复不在集合答 unknown；请求终点字面；describe 带依据取依据 digest；合规夹具世界与计数钩子）+ 设计建议；续用原写者修第 2 轮",
-     "links": [],
+     "note": "第 2 轮增量复审无阻断（探针重放全部闭合）；reduce 补严格断言与套件文档句（b123eec06）；链全绿，Stryker skill 96.4%；开 PR 合入中",
+     "links": [
+      {
+       "text": "PR",
+       "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1115"
+      },
+      {
+       "text": "0956ccf01"
+      }
+     ],
      "started": "2026-11-03T17:50:19Z"
     },
     {
@@ -345,8 +353,8 @@
      "id": "w2-mcp-core",
      "line": "MCP",
      "state": "修复中",
-     "round": 2,
-     "note": "第 1 轮三面收齐：L3 探针实跑出 5 阻断（发布边界不紧挨写入、旧代际迟到页、取页无时限、close/ensure 竞争、时限不覆盖取凭据与启动）+ 设计 1 阻断（关口四份实现）；三项裁定（挡下粒度接入点级、旧修订令牌 ensure 答 unknown、调用方中止不标记清单）；续用原写者修第 2 轮",
+     "round": 3,
+     "note": "第 2 轮复审：原 5 阻断全闭合（探针重放），但新出 2 阻断（lose 的拆除不在关闭单飞里 → refresh 抛 TypeError 且先停进程后关传输；迟到进程的 stop 范围被丢）+ 品牌可绕过采用口铸出 + 两份红灯不实。第 3 轮按派发规则新开写者（fable@xhigh）",
      "links": [],
      "started": "2026-11-03T17:50:19Z"
     },
@@ -363,50 +371,82 @@
     {
      "id": "SK2-1",
      "text": "inspect 合法包与每种来源失败映射",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "skill-r1.md 两轮 + 增量复审"
+      }
+     ]
     },
     {
      "id": "SK2-2",
      "text": "读取 11 步每个分支有用例",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "skill-r1.md 两轮 + 增量复审"
+      }
+     ]
     },
     {
      "id": "SK2-3",
      "text": "无披露三路径同答",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "skill-r1.md 两轮 + 增量复审"
+      }
+     ]
     },
     {
      "id": "SK2-4",
      "text": "字节范围六条规则与正文起点",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "skill-r1.md 两轮 + 增量复审"
+      }
+     ]
     },
     {
      "id": "SK2-5",
      "text": "skillAccessConformance ≥13 条并能变红",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "skill-r1.md 两轮 + 增量复审"
+      }
+     ]
     },
     {
      "id": "SK2-6",
      "text": "aborted/export 不交部分内容",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "skill-r1.md 两轮 + 增量复审"
+      }
+     ]
     },
     {
      "id": "SK2-7",
      "text": "describe 不读字节",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "skill-r1.md 两轮 + 增量复审"
+      }
+     ]
     },
     {
      "id": "SK2-8",
      "text": "manifest.ts 边界夹具",
-     "state": "open",
-     "evidence": []
+     "state": "met",
+     "evidence": [
+      {
+       "text": "skill-r1.md 两轮 + 增量复审"
+      }
+     ]
     },
     {
      "id": "SK2-9",
@@ -661,6 +701,26 @@
   {
    "at": "2026-11-03T22:01:09Z",
    "text": "w2-skill 三面评审收齐（L3 探针 7 个），第 2 轮派出；w2-skill-host 合入 478e56381，实现架构页更新 W2 增量 1"
+  },
+  {
+   "at": "2026-11-03T22:18:18Z",
+   "text": "w2-mcp-core 第 2 轮交回；派 L3 增量复审重放探针，reduce 跑链"
+  },
+  {
+   "at": "2026-11-03T22:24:24Z",
+   "text": "w2-skill 第 2 轮交回；派 L3 增量复审，reduce 跑链。两条线都到第 2 轮复审"
+  },
+  {
+   "at": "2026-11-03T22:26:43Z",
+   "text": "w2-mcp-core 第 2 轮复审出 2 个新阻断（并发拆除、迟到进程范围），第 3 轮新写者 fable@xhigh 接手；S9 与裁定 2 修正"
+  },
+  {
+   "at": "2026-11-03T22:31:47Z",
+   "text": "w2-skill 第 2 轮增量复审放行，开 PR 合入"
+  },
+  {
+   "at": "2026-11-03T22:32:52Z",
+   "text": "w2-skill 合入 PR #1115 → 0956ccf01；Skill 线 W2 两闭包全部合入；实现架构页更新 W2 增量 2"
   }
  ]
 }

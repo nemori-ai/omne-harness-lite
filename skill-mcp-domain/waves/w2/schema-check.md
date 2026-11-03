@@ -56,3 +56,9 @@
 - `ActionDiscovery.refresh` 的请求加 `signal?: AbortSignal`（S5 的 `kept(cancelled)` 需要它；成员内已用 `McpDiscovery` 扩展形状绕过）。
 - 领域时间：`acquiredAt` 的时钟进 `McpConfig`（`now?: () => number`，默认本机时钟）或 `McpPorts`；成员内已用 `createMcpCore` 第三参 `{ now }` 绕过。
 - 契约 `json.ts` 的 `canonical`/`sameJson` 从公开根导出，成员删自己的 `internal/canonical.ts`；`testing-values.ts` 的样本构造器从 `./testing` 导出，成员删 `tests/doubles/values.ts`。
+
+## w2-skill 带回的契约可加调整（W3 prep 回写 skill-contract）
+
+- 导出 `MANIFEST_PATH`/`DECLARATION_PATH`、`PAGE_LIMIT`、`sameCapability`（成员 `skill` 删重复定义）。
+- 端口答复畸形值的处置统一：读取判定一侧答 `unknown`，对应端口一侧抛 `TypeError`；契约写明「端口答复不在封闭集合内时实现答 `unknown`」或两侧都抛。
+- 读取「请求长度短于一个字符时不前进」已有重读规则；是否另给前进保证由契约拥有者定。

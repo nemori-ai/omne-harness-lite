@@ -11,12 +11,423 @@
     ],
     "files": [
       {
+        "file": "src/access/bytes.ts",
+        "decls": [
+          {
+            "name": "ByteFailure",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "ReadFailure"
+            ]
+          },
+          {
+            "name": "verifiedBytes",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SkillPorts",
+              "P",
+              "S",
+              "Pinned",
+              "PackageEntry",
+              "AbortSignal",
+              "Promise",
+              "Outcome",
+              "Bytes",
+              "ByteFailure"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/operation-result",
+          "@omne-harness/skill-contract",
+          "../mapping.ts",
+          "../ports.ts",
+          "./checkpoint.ts",
+          "./pin.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "verifiedBytes",
+          "lines": 8
+        },
+        "lines": 41
+      },
+      {
+        "file": "src/access/checkpoint.ts",
+        "decls": [
+          {
+            "name": "checkpoint",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "AbortSignal"
+            ]
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "checkpoint",
+          "lines": 3
+        },
+        "lines": 5
+      },
+      {
+        "file": "src/access/gate.ts",
+        "decls": [
+          {
+            "name": "Gated",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillRef"
+                ]
+              },
+              {
+                "refs": [
+                  "DeclaredProjection"
+                ]
+              },
+              {
+                "refs": [
+                  "SourceLayer"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillMaterialBasis"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillRef",
+              "DeclaredProjection",
+              "SourceLayer",
+              "SkillMaterialBasis"
+            ]
+          },
+          {
+            "name": "Aborted",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "SkillFailure"
+            ]
+          },
+          {
+            "name": "gate",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SkillPorts",
+              "P",
+              "S",
+              "Access",
+              "CapabilityId",
+              "SkillMaterialBasis",
+              "AbortSignal",
+              "Promise",
+              "Outcome",
+              "Gated",
+              "DescribeFailure",
+              "Aborted"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/assets",
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "@omne-harness/skill-contract",
+          "@omne-harness/skill-contract/provider",
+          "../ports.ts",
+          "./checkpoint.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "gatedOf",
+          "lines": 28
+        },
+        "lines": 104
+      },
+      {
+        "file": "src/access/pin.ts",
+        "decls": [
+          {
+            "name": "PinStageFailure",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Exclude",
+              "PinFailure",
+              "GateFailure"
+            ]
+          },
+          {
+            "name": "Unsupported",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "PinStageFailure"
+            ]
+          },
+          {
+            "name": "ADOPTED_MATERIAL_CHANGED",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "BASIS_UNAVAILABLE",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "MovedFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "typeof ADOPTED_MATERIAL_CHANGED",
+              "typeof BASIS_UNAVAILABLE"
+            ],
+            "refs": []
+          },
+          {
+            "name": "SnapshotStageFailure",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Exclude",
+              "PinStageFailure",
+              "Unsupported"
+            ]
+          },
+          {
+            "name": "Pinned",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "PackageLocator"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillMaterialBasis"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "SkillPackageSnapshot"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "PackageLocator",
+              "SkillMaterialBasis",
+              "SkillPackageSnapshot"
+            ]
+          },
+          {
+            "name": "materialOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Gated",
+              "Outcome",
+              "SkillMaterialBasis",
+              "Unsupported"
+            ]
+          },
+          {
+            "name": "pin",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "MovedFailure",
+              "SkillPorts",
+              "P",
+              "S",
+              "Gated",
+              "SkillMaterialBasis",
+              "F",
+              "AbortSignal",
+              "Promise",
+              "Outcome",
+              "Pinned",
+              "SnapshotStageFailure"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/operation-result",
+          "@omne-harness/skill-contract",
+          "@omne-harness/skill-contract/provider",
+          "../mapping.ts",
+          "../ports.ts",
+          "./checkpoint.ts",
+          "./gate.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "materialOf",
+          "lines": 11
+        },
+        "lines": 69
+      },
+      {
+        "file": "src/access/range.ts",
+        "decls": [
+          {
+            "name": "PAGE_LIMIT",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "Sliced",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ReadContent"
+                ]
+              },
+              {
+                "refs": [
+                  "ByteRange"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ReadContent",
+              "ByteRange"
+            ]
+          },
+          {
+            "name": "assertByteRange",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ByteRange"
+            ]
+          },
+          {
+            "name": "sliceRange",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Bytes",
+              "PackageEntry",
+              "ByteRange",
+              "Sliced"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/skill-contract"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "sliceRange",
+          "lines": 20
+        },
+        "lines": 68
+      },
+      {
+        "file": "src/access/service.ts",
+        "decls": [
+          {
+            "name": "createSkillAccess",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SkillPorts",
+              "P",
+              "S",
+              "SkillAccess",
+              "ExportedEntry"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/operation-result",
+          "@omne-harness/skill-contract",
+          "../ports.ts",
+          "./bytes.ts",
+          "./gate.ts",
+          "./pin.ts",
+          "./range.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createSkillAccess",
+          "lines": 77
+        },
+        "lines": 145
+      },
+      {
         "file": "src/index.ts",
         "decls": [],
-        "imports": [],
+        "imports": [
+          "./access/service.ts",
+          "./inspection.ts",
+          "./ports.ts"
+        ],
         "reexports": [
           {
-            "names": []
+            "from": "./access/service.ts",
+            "names": [
+              "createSkillAccess"
+            ]
+          },
+          {
+            "from": "./inspection.ts",
+            "names": [
+              "createPackageInspection"
+            ]
+          },
+          {
+            "from": "./ports.ts",
+            "names": [
+              "SkillPorts"
+            ]
           }
         ],
         "asCount": 0,
@@ -25,24 +436,275 @@
           "name": "",
           "lines": 0
         },
-        "lines": 2
+        "lines": 5
+      },
+      {
+        "file": "src/inspection.ts",
+        "decls": [
+          {
+            "name": "createPackageInspection",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SkillPackageSource",
+              "PackageInspection",
+              "PackageLocator",
+              "Readonly",
+              "SkillName",
+              "Promise",
+              "Outcome",
+              "SkillDefinition",
+              "InspectFailure",
+              "Bytes"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/operation-result",
+          "@omne-harness/skill-contract",
+          "@omne-harness/skill-contract/provider",
+          "./mapping.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createPackageInspection",
+          "lines": 32
+        },
+        "lines": 51
+      },
+      {
+        "file": "src/mapping.ts",
+        "decls": [
+          {
+            "name": "SnapshotSourceFailure",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "SkillFailure"
+            ]
+          },
+          {
+            "name": "OpenSourceFailure",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "SkillFailure"
+            ]
+          },
+          {
+            "name": "sourceFailureTo",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SourceFailure",
+              "InspectFailure"
+            ]
+          },
+          {
+            "name": "sourceFailureTo",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SourceFailure",
+              "SnapshotSourceFailure"
+            ]
+          },
+          {
+            "name": "sourceFailureTo",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SourceFailure",
+              "OpenSourceFailure"
+            ]
+          },
+          {
+            "name": "sourceFailureTo",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SourceFailure",
+              "InspectFailure",
+              "SnapshotSourceFailure",
+              "OpenSourceFailure"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/skill-contract",
+          "@omne-harness/skill-contract/provider"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "sourceFailureTo",
+          "lines": 4
+        },
+        "lines": 96
+      },
+      {
+        "file": "src/ports.ts",
+        "decls": [
+          {
+            "name": "SkillPorts",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillReadCheck",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillResolution",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillPackageSource"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillReadCheck",
+              "P",
+              "S",
+              "SkillResolution",
+              "SkillPackageSource"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/skill-contract/provider"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 12
       }
     ],
-    "testFiles": 1,
-    "testCases": 1,
-    "draft": [
-      "README.md",
-      "README_ZH.md",
-      "src/index.ts"
-    ],
+    "testFiles": 13,
+    "testCases": 118,
+    "draft": [],
     "entries": [
       {
         "sub": ".",
-        "names": []
+        "names": [
+          {
+            "name": "createSkillAccess",
+            "kind": "function"
+          },
+          {
+            "name": "createPackageInspection",
+            "kind": "function"
+          },
+          {
+            "name": "SkillPorts",
+            "kind": "record"
+          }
+        ]
       }
     ],
-    "modEdges": [],
-    "pkgEdges": []
+    "modEdges": [
+      [
+        "src/access/bytes.ts",
+        "src/mapping.ts"
+      ],
+      [
+        "src/access/bytes.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/access/bytes.ts",
+        "src/access/checkpoint.ts"
+      ],
+      [
+        "src/access/bytes.ts",
+        "src/access/pin.ts"
+      ],
+      [
+        "src/access/gate.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/access/gate.ts",
+        "src/access/checkpoint.ts"
+      ],
+      [
+        "src/access/pin.ts",
+        "src/mapping.ts"
+      ],
+      [
+        "src/access/pin.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/access/pin.ts",
+        "src/access/checkpoint.ts"
+      ],
+      [
+        "src/access/pin.ts",
+        "src/access/gate.ts"
+      ],
+      [
+        "src/access/service.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/access/service.ts",
+        "src/access/bytes.ts"
+      ],
+      [
+        "src/access/service.ts",
+        "src/access/gate.ts"
+      ],
+      [
+        "src/access/service.ts",
+        "src/access/pin.ts"
+      ],
+      [
+        "src/access/service.ts",
+        "src/access/range.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/access/service.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/inspection.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/inspection.ts",
+        "src/mapping.ts"
+      ]
+    ],
+    "pkgEdges": [
+      "@omne-harness/operation-result",
+      "@omne-harness/skill-contract",
+      "@omne-harness/assets",
+      "@omne-harness/legal-identity"
+    ]
   },
   {
     "dir": "packages/skills/skill-contract",
@@ -290,6 +952,7 @@
           "./digest.ts",
           "./media.ts",
           "./names.ts",
+          "./parse/manifest.ts",
           "./parse/package.ts",
           "./project.ts",
           "./services.ts",
@@ -325,6 +988,12 @@
               "isSafeReason",
               "isSkillName",
               "toPackagePath"
+            ]
+          },
+          {
+            "from": "./parse/manifest.ts",
+            "names": [
+              "bodyOffsetOf"
             ]
           },
           {
@@ -408,7 +1077,7 @@
           "name": "",
           "lines": 0
         },
-        "lines": 64
+        "lines": 65
       },
       {
         "file": "src/media.ts",
@@ -603,10 +1272,12 @@
             ]
           },
           {
-            "name": "frontmatterOf",
+            "name": "bodyOffsetOf",
             "kind": "function",
             "fields": [],
-            "refs": []
+            "refs": [
+              "Uint8Array"
+            ]
           },
           {
             "name": "readManifest",
@@ -630,9 +1301,9 @@
         "anyCount": 0,
         "longest": {
           "name": "readManifest",
-          "lines": 16
+          "lines": 17
         },
-        "lines": 122
+        "lines": 148
       },
       {
         "file": "src/parse/package.ts",
@@ -1640,6 +2311,109 @@
         "lines": 85
       },
       {
+        "file": "src/testing-access.ts",
+        "decls": [
+          {
+            "name": "PortCalls",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "AccessFixture",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillAccess",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "PrincipalSample",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "PackagePath",
+                  "AbortSignal",
+                  "PortCalls"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillAccess",
+              "P",
+              "S",
+              "Readonly",
+              "PrincipalSample",
+              "CapabilityId",
+              "PackagePath",
+              "AbortSignal",
+              "PortCalls"
+            ]
+          },
+          {
+            "name": "skillAccessConformance",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConformanceCase",
+              "AccessFixture",
+              "P",
+              "S",
+              "ReadResult"
+            ]
+          }
+        ],
+        "imports": [
+          "node:assert/strict",
+          "@omne-harness/assets",
+          "@omne-harness/operation-result",
+          "./digest.ts",
+          "./failures.ts",
+          "./services.ts",
+          "./testing-case.ts",
+          "./testing-resolution.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "skillAccessConformance",
+          "lines": 332
+        },
+        "lines": 460
+      },
+      {
         "file": "src/testing-case.ts",
         "decls": [
           {
@@ -2183,6 +2957,7 @@
         "decls": [],
         "imports": [
           "./testing-case.ts",
+          "./testing-access.ts",
           "./testing-read-check.ts",
           "./testing-resolution.ts",
           "./testing-source.ts"
@@ -2196,6 +2971,13 @@
               "runConformanceCase",
               "CaseVerdict",
               "ConformanceCase"
+            ]
+          },
+          {
+            "from": "./testing-access.ts",
+            "names": [
+              "skillAccessConformance",
+              "AccessFixture"
             ]
           },
           {
@@ -2234,7 +3016,7 @@
           "name": "",
           "lines": 0
         },
-        "lines": 27
+        "lines": 28
       },
       {
         "file": "src/values.ts",
@@ -2757,8 +3539,8 @@
         "lines": 132
       }
     ],
-    "testFiles": 16,
-    "testCases": 108,
+    "testFiles": 17,
+    "testCases": 116,
     "draft": [],
     "entries": [
       {
@@ -2802,6 +3584,10 @@
           },
           {
             "name": "toPackagePath",
+            "kind": "function"
+          },
+          {
+            "name": "bodyOffsetOf",
             "kind": "function"
           },
           {
@@ -3083,6 +3869,14 @@
             "kind": "record"
           },
           {
+            "name": "skillAccessConformance",
+            "kind": "function"
+          },
+          {
+            "name": "AccessFixture",
+            "kind": "record"
+          },
+          {
             "name": "createMemoryReadCheck",
             "kind": "function"
           },
@@ -3181,6 +3975,10 @@
       [
         "src/index.ts",
         "src/names.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/parse/manifest.ts"
       ],
       [
         "src/index.ts",
@@ -3335,6 +4133,30 @@
         "src/values.ts"
       ],
       [
+        "src/testing-access.ts",
+        "src/digest.ts"
+      ],
+      [
+        "src/testing-access.ts",
+        "src/failures.ts"
+      ],
+      [
+        "src/testing-access.ts",
+        "src/services.ts"
+      ],
+      [
+        "src/testing-access.ts",
+        "src/testing-case.ts"
+      ],
+      [
+        "src/testing-access.ts",
+        "src/testing-resolution.ts"
+      ],
+      [
+        "src/testing-access.ts",
+        "src/values.ts"
+      ],
+      [
         "src/testing-read-check.ts",
         "src/ports.ts"
       ],
@@ -3397,6 +4219,10 @@
       [
         "src/testing.ts",
         "src/testing-case.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-access.ts"
       ],
       [
         "src/testing.ts",

@@ -34,7 +34,7 @@ details details{margin:6px 0}details details>summary{cursor:pointer;color:var(--
 .prose{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 18px 14px}.prose p,.prose li{max-width:74ch}.prose h3{display:block;margin-top:14px}
 </style>
 <div class="wrap">
-<header><span class="muted">由 <code>techdoc/gen.mjs</code> 从实际源码生成 · 父分支 <code>PanQiWei/skill-mcp</code> @ <code>478e56381</code> · 2026-11-03T21:57:58Z</span>
+<header><span class="muted">由 <code>techdoc/gen.mjs</code> 从实际源码生成 · 父分支 <code>PanQiWei/skill-mcp</code> @ <code>0956ccf01</code> · 2026-11-03T22:32:52Z</span>
 <h1>Skill 与 MCP 实现架构</h1>
 <p class="muted">图与读数只取自 <code>packages/skills/*</code> 与 <code>packages/mcp/*</code> 的 package.json、src、tests。设计正文不是本页的事实来源；讲解与评述由 reduce 读源码后手写，每个闭包合入后更新。</p></header>
 <nav class="tabs" aria-label="领域"><a href="#skill" data-tab="skill">Skill</a><a href="#mcp" data-tab="mcp">MCP</a></nav>
@@ -70,9 +70,18 @@ details details{margin:6px 0}details details>summary{cursor:pointer;color:var(--
 <li><strong><code>directory-source.ts</code></strong> 只把 <code>collect</code> 的结果交给契约的 <code>sealSnapshot</code>，把 <code>readEntry</code> 包成 <code>open</code>；<code>content-store</code> 定位答 <code>package-not-found</code>；<code>open</code> 忽略 <code>digest</code>（本来源不按内容存放，字节是否变了由 Skill 核对）。</li>
 </ul>
 <p>它通过契约 <code>./testing</code> 的 <code>skillPackageSourceConformance()</code>（PS7「按摘要找包」不适用）。权限类失败全部经注入的 <code>DirectoryFs</code> 制造，因为容器以 root 运行，<code>chmod</code> 造不出 EACCES。</p>
+
+<h3>W2 增量 2：<code>@omne-harness/skill</code>（父分支 0956ccf01）</h3>
+<p>通用实现落地：10 个源文件 596 行、11 个测试文件 195 例；契约可加了 475 行的 <code>skillAccessConformance()</code>（15 条，两个夹具世界各跑一遍）与 <code>bodyOffsetOf</code>。公开根只有两个工厂与 <code>SkillPorts</code>：</p>
+<ul>
+<li><strong><code>inspection.ts</code></strong>：<code>createPackageInspection(source)</code>——<code>snapshot</code> → 用 <code>open</code> 读两份控制文件 → 交给契约的 <code>parseSkillPackage</code>（它自己核对控制字节的摘要）。来源失败怎样变成服务失败只在 <code>mapping.ts</code> 一张表里，三列：<code>inspect</code>、<code>snapshot</code>、<code>open</code>——第 1 轮它只有两列，<code>pin.ts</code> 里悄悄做了第二次映射，评审抓住后改成了三列。</li>
+<li><strong><code>access/</code></strong> 把组页「读取」的 11 步写成四段函数，失败类型逐段收窄：<code>gate</code>（第 1–3 步：依据身份、读取权、对应；失败是 <code>DescribeFailure</code>）→ <code>materialOf</code>（第 5 步：钉住材料，带依据时就是依据本身）→ <code>pin</code>（第 7 步：取快照比摘要；<code>pin(ports, gated, material, moved, signal?)</code> 由调用方给「材料已变」的失败值，<code>export</code> 传 <code>basis-unavailable</code>，所以编译器证明它不会答 <code>adopted-material-changed</code>）→ <code>verifiedBytes</code>（第 9–10 步：按条目摘要核字节）。<code>describe</code> 在 <code>gate</code> 后结束，<code>list</code> 在 <code>pin</code> 后结束，<code>read</code>/<code>export</code> 走完。<code>checkpoint(signal)</code> 在四个端口调用的前后各查一次，已中止就答 <code>aborted</code>、不再调端口、不交部分内容。</li>
+<li><strong><code>access/range.ts</code></strong>：纯函数 <code>sliceRange</code>——页上限 65536、UTF-8 续字节判字符边界、保留 BOM、请求终点 = 请求起点 + 长度、正文范围相对 <code>bodyOffsetOf</code> 给出的闭合定界行之后。</li>
+</ul>
+<p>无披露的三条路径（依据不是本身份、读取判定 <code>refused</code>、对应答 <code>none</code>）返回同一个冻结对象；读取判定的答复不在 <code>granted/refused/unknown</code> 里时一律 <code>unknown</code>，不放行。<code>SkillCatalog</code> 仍是接口，W3。</p>
 </div></section>
 <section><h2>读数</h2><div class="tiles">
-<div class="tile"><span class="v">3</span><span class="l">成员</span><span class="n">草稿 1</span></div><div class="tile"><span class="v">27</span><span class="l">源文件</span></div><div class="tile"><span class="v">2519</span><span class="l">非空源码行</span></div><div class="tile"><span class="v">95</span><span class="l">入口导出</span></div><div class="tile"><span class="v">166</span><span class="l">测试用例</span></div><div class="tile"><span class="v">0</span><span class="l">as 断言</span><span class="n">不含 as const</span></div><div class="tile"><span class="v">0</span><span class="l">any</span></div>
+<div class="tile"><span class="v">3</span><span class="l">成员</span><span class="n">草稿 0</span></div><div class="tile"><span class="v">37</span><span class="l">源文件</span></div><div class="tile"><span class="v">3601</span><span class="l">非空源码行</span></div><div class="tile"><span class="v">101</span><span class="l">入口导出</span></div><div class="tile"><span class="v">291</span><span class="l">测试用例</span></div><div class="tile"><span class="v">0</span><span class="l">as 断言</span><span class="n">不含 as const</span></div><div class="tile"><span class="v">0</span><span class="l">any</span></div>
 </div></section>
 <section><h2>成员依赖</h2><p class="muted">粗框是本组成员，虚线框是组外依赖（来自 package.json 与 import）。</p><div class="diagram"><pre class="mmd">
 flowchart TD
@@ -98,19 +107,94 @@ flowchart TD
   classDef own stroke-width:2px
   classDef ext stroke-dasharray: 4 3
 </pre></div></section>
-<section><h2>各成员：入口、UML、模块与健康读数</h2><details class="member" open><summary><h3><code>@omne-harness/skill</code> <span class="pill draft">模板草稿</span></h3></summary>
-  <p class="muted">General Skill implementation: the PackageInspection, SkillCatalog, and SkillAccess application services · <code>packages/skills/skill</code> · 源文件 1 · 测试文件 1 · 用例 1</p>
-  <h4>入口与导出</h4><div class="tbl"><table><thead><tr><th>入口</th><th>导出（悬停看种类）</th></tr></thead><tbody><tr><td><code>.</code></td><td><span class="muted">无导出</span></td></tr></tbody></table></div>
-  <p class="muted">没有导出的接口、类、记录或判别联合。</p>
+<section><h2>各成员：入口、UML、模块与健康读数</h2><details class="member" open><summary><h3><code>@omne-harness/skill</code> <span class="pill real">有实现</span></h3></summary>
+  <p class="muted">General Skill implementation: the PackageInspection, SkillCatalog, and SkillAccess application services · <code>packages/skills/skill</code> · 源文件 10 · 测试文件 13 · 用例 118</p>
+  <h4>入口与导出</h4><div class="tbl"><table><thead><tr><th>入口</th><th>导出（悬停看种类）</th></tr></thead><tbody><tr><td><code>.</code></td><td><code title="function">createSkillAccess</code> <code title="function">createPackageInspection</code> <code title="record">SkillPorts</code></td></tr></tbody></table></div>
+  <h4>类型与类（UML 类图，每个源文件一张）</h4><details open><summary><code>src/access/gate.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class Gated {
+    &lt;&lt;value&gt;&gt;
+    +ref
+    +declared
+    +layer
+    +basis?
+  }
+</pre></div></details><details open><summary><code>src/access/pin.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class MovedFailure {
+    &lt;&lt;union&gt;&gt;
+    typeof ADOPTED_MATERIAL_CHANGED
+    typeof BASIS_UNAVAILABLE
+  }
+  class Pinned {
+    &lt;&lt;value&gt;&gt;
+    +locator
+    +basis
+    +byBasis
+    +snapshot
+  }
+</pre></div></details><details open><summary><code>src/access/range.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class Sliced {
+    &lt;&lt;value&gt;&gt;
+    +content
+    +range
+    +total
+    +complete
+  }
+</pre></div></details><details open><summary><code>src/ports.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class SkillPorts {
+    &lt;&lt;value&gt;&gt;
+    +readCheck
+    +resolution
+    +source
+  }
+</pre></div></details>
+  <h4>品牌、字面量集合与别名</h4><div class="tbl"><table><thead><tr><th>名字</th><th>种类</th><th>取值</th><th>文件</th></tr></thead><tbody><tr><td><code>ByteFailure</code></td><td>别名</td><td></td><td><code>src/access/bytes.ts</code></td></tr><tr><td><code>Aborted</code></td><td>别名</td><td></td><td><code>src/access/gate.ts</code></td></tr><tr><td><code>PinStageFailure</code></td><td>别名</td><td></td><td><code>src/access/pin.ts</code></td></tr><tr><td><code>Unsupported</code></td><td>别名</td><td></td><td><code>src/access/pin.ts</code></td></tr><tr><td><code>SnapshotStageFailure</code></td><td>别名</td><td></td><td><code>src/access/pin.ts</code></td></tr><tr><td><code>SnapshotSourceFailure</code></td><td>别名</td><td></td><td><code>src/mapping.ts</code></td></tr><tr><td><code>OpenSourceFailure</code></td><td>别名</td><td></td><td><code>src/mapping.ts</code></td></tr></tbody></table></div>
+  <h4>导出的函数与常量</h4><p><code title="src/access/bytes.ts">verifiedBytes</code> <code title="src/access/checkpoint.ts">checkpoint</code> <code title="src/access/gate.ts">gate</code> <code title="src/access/pin.ts">ADOPTED_MATERIAL_CHANGED</code> <code title="src/access/pin.ts">BASIS_UNAVAILABLE</code> <code title="src/access/pin.ts">materialOf</code> <code title="src/access/pin.ts">pin</code> <code title="src/access/range.ts">PAGE_LIMIT</code> <code title="src/access/range.ts">assertByteRange</code> <code title="src/access/range.ts">sliceRange</code> <code title="src/access/service.ts">createSkillAccess</code> <code title="src/inspection.ts">createPackageInspection</code> <code title="src/mapping.ts">sourceFailureTo</code> <code title="src/mapping.ts">sourceFailureTo</code> <code title="src/mapping.ts">sourceFailureTo</code> <code title="src/mapping.ts">sourceFailureTo</code></p>
+  <h4>模块依赖</h4><div class="diagram"><pre class="mmd">
+flowchart LR
+  src_access_bytes_ts["src/access/bytes.ts"]
+  src_access_checkpoint_ts["src/access/checkpoint.ts"]
+  src_access_gate_ts["src/access/gate.ts"]
+  src_access_pin_ts["src/access/pin.ts"]
+  src_access_range_ts["src/access/range.ts"]
+  src_access_service_ts["src/access/service.ts"]
+  src_index_ts["src/index.ts"]
+  src_inspection_ts["src/inspection.ts"]
+  src_mapping_ts["src/mapping.ts"]
+  src_ports_ts["src/ports.ts"]
+  src_access_bytes_ts --&gt; src_mapping_ts
+  src_access_bytes_ts --&gt; src_ports_ts
+  src_access_bytes_ts --&gt; src_access_checkpoint_ts
+  src_access_bytes_ts --&gt; src_access_pin_ts
+  src_access_gate_ts --&gt; src_ports_ts
+  src_access_gate_ts --&gt; src_access_checkpoint_ts
+  src_access_pin_ts --&gt; src_mapping_ts
+  src_access_pin_ts --&gt; src_ports_ts
+  src_access_pin_ts --&gt; src_access_checkpoint_ts
+  src_access_pin_ts --&gt; src_access_gate_ts
+  src_access_service_ts --&gt; src_ports_ts
+  src_access_service_ts --&gt; src_access_bytes_ts
+  src_access_service_ts --&gt; src_access_gate_ts
+  src_access_service_ts --&gt; src_access_pin_ts
+  src_access_service_ts --&gt; src_access_range_ts
+  src_index_ts --&gt; src_access_service_ts
+  src_index_ts --&gt; src_inspection_ts
+  src_index_ts --&gt; src_ports_ts
+  src_inspection_ts --&gt; src_mapping_ts
+</pre></div>
+  <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/access/bytes.ts</code></td><td class="num">41</td><td class="num">2</td><td class="num">8 <span class="muted">verifiedBytes</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/access/checkpoint.ts</code></td><td class="num">5</td><td class="num">1</td><td class="num">3 <span class="muted">checkpoint</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/access/gate.ts</code></td><td class="num">104</td><td class="num">3</td><td class="num">28 <span class="muted">gatedOf</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/access/pin.ts</code></td><td class="num">69</td><td class="num">9</td><td class="num">11 <span class="muted">materialOf</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/access/range.ts</code></td><td class="num">68</td><td class="num">4</td><td class="num">20 <span class="muted">sliceRange</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/access/service.ts</code></td><td class="num">145</td><td class="num">1</td><td class="num">77 <span class="muted">createSkillAccess</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/index.ts</code></td><td class="num">5</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/inspection.ts</code></td><td class="num">51</td><td class="num">1</td><td class="num">32 <span class="muted">createPackageInspection</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/mapping.ts</code></td><td class="num">96</td><td class="num">6</td><td class="num">4 <span class="muted">sourceFailureTo</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/ports.ts</code></td><td class="num">12</td><td class="num">1</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
   
-  
-  
-  <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/index.ts</code></td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
-  <p class="muted">草稿标记：<code>README.md</code> <code>README_ZH.md</code> <code>src/index.ts</code></p>
 </details>
 <details class="member" open><summary><h3><code>@omne-harness/skill-contract</code> <span class="pill real">有实现</span></h3></summary>
-  <p class="muted">Pure Skill contract: values, failures, package inspection, ports, service interfaces, and conformance suites · <code>packages/skills/skill-contract</code> · 源文件 22 · 测试文件 16 · 用例 108</p>
-  <h4>入口与导出</h4><div class="tbl"><table><thead><tr><th>入口</th><th>导出（悬停看种类）</th></tr></thead><tbody><tr><td><code>.</code></td><td><code title="function">skillBodyContract</code> <code title="function">computeDigest</code> <code title="function">isPackageDigest</code> <code title="function">inferMediaType</code> <code title="function">isAssetVersion</code> <code title="function">isControlFile</code> <code title="function">isPackagePath</code> <code title="function">isSafeReason</code> <code title="function">isSkillName</code> <code title="function">toPackagePath</code> <code title="function">parseSkillPackage</code> <code title="alias">ParseFailure</code> <code title="record">ParseInput</code> <code title="function">projectAssetBody</code> <code title="record">ByteRange</code> <code title="union">CatalogEntry</code> <code title="record">CatalogQuery</code> <code title="record">ExportedEntry</code> <code title="union">MaterialState</code> <code title="union">ReadContent</code> <code title="record">ReadResult</code> <code title="record">ReadTarget</code> <code title="record">ResourceListing</code> <code title="interface">SkillAccess</code> <code title="interface">SkillCatalog</code> <code title="record">SkillDescription</code> <code title="record">SkillExport</code> <code title="union">DescribeFailure</code> <code title="union">ExportFailure</code> <code title="alias">GateFailure</code> <code title="union">InspectFailure</code> <code title="alias">InspectRejectionCode</code> <code title="alias">ListFailure</code> <code title="union">PinFailure</code> <code title="union">ReadFailure</code> <code title="union">SkillFailure</code> <code title="alias">UnsupportedWhat</code> <code title="brand">AssetVersion</code> <code title="alias">Bytes</code> <code title="record">DeclaredProjection</code> <code title="brand">EntryDigest</code> <code title="union">ManifestValue</code> <code title="brand">MediaType</code> <code title="brand">PackageDigest</code> <code title="record">PackageEntry</code> <code title="brand">PackagePath</code> <code title="brand">SafeReason</code> <code title="record">ScriptDeclaration</code> <code title="record">ScriptIdentity</code> <code title="enum">SettingCategory</code> <code title="record">SettingDeclaration</code> <code title="record">SkillDeclaration</code> <code title="record">SkillDefinition</code> <code title="record">SkillManifest</code> <code title="record">SkillMaterialBasis</code> <code title="brand">SkillName</code> <code title="brand">SkillPackageSnapshot</code> <code title="enum">SourceLayer</code> <code title="record">StandIn</code></td></tr><tr><td><code>./provider</code></td><td><code title="alias">CatalogResolution</code> <code title="union">ReadVerdict</code> <code title="alias">Reply</code> <code title="union">Resolution</code> <code title="interface">SkillPackageSource</code> <code title="interface">SkillReadCheck</code> <code title="interface">SkillResolution</code> <code title="enum">SourceFailure</code> <code title="interface">PackageInspection</code> <code title="union">SnapshotDefect</code> <code title="?">sealSnapshot</code> <code title="union">PackageLocator</code> <code title="record">SkillRef</code></td></tr><tr><td><code>./testing</code></td><td><code title="function">isNotApplicable</code> <code title="class">NotApplicable</code> <code title="function">runConformanceCase</code> <code title="union">CaseVerdict</code> <code title="record">ConformanceCase</code> <code title="function">createMemoryReadCheck</code> <code title="function">skillReadCheckConformance</code> <code title="record">MemoryReadGrant</code> <code title="record">ReadCheckFixture</code> <code title="function">createMemoryResolution</code> <code title="function">skillResolutionConformance</code> <code title="record">MemoryMaterial</code> <code title="record">MemoryResolutionEntry</code> <code title="record">PrincipalSample</code> <code title="record">ResolutionFixture</code> <code title="function">createMemorySource</code> <code title="function">skillPackageSourceConformance</code> <code title="record">MemoryPackage</code> <code title="record">SourceFixture</code></td></tr></tbody></table></div>
+  <p class="muted">Pure Skill contract: values, failures, package inspection, ports, service interfaces, and conformance suites · <code>packages/skills/skill-contract</code> · 源文件 23 · 测试文件 17 · 用例 116</p>
+  <h4>入口与导出</h4><div class="tbl"><table><thead><tr><th>入口</th><th>导出（悬停看种类）</th></tr></thead><tbody><tr><td><code>.</code></td><td><code title="function">skillBodyContract</code> <code title="function">computeDigest</code> <code title="function">isPackageDigest</code> <code title="function">inferMediaType</code> <code title="function">isAssetVersion</code> <code title="function">isControlFile</code> <code title="function">isPackagePath</code> <code title="function">isSafeReason</code> <code title="function">isSkillName</code> <code title="function">toPackagePath</code> <code title="function">bodyOffsetOf</code> <code title="function">parseSkillPackage</code> <code title="alias">ParseFailure</code> <code title="record">ParseInput</code> <code title="function">projectAssetBody</code> <code title="record">ByteRange</code> <code title="union">CatalogEntry</code> <code title="record">CatalogQuery</code> <code title="record">ExportedEntry</code> <code title="union">MaterialState</code> <code title="union">ReadContent</code> <code title="record">ReadResult</code> <code title="record">ReadTarget</code> <code title="record">ResourceListing</code> <code title="interface">SkillAccess</code> <code title="interface">SkillCatalog</code> <code title="record">SkillDescription</code> <code title="record">SkillExport</code> <code title="union">DescribeFailure</code> <code title="union">ExportFailure</code> <code title="alias">GateFailure</code> <code title="union">InspectFailure</code> <code title="alias">InspectRejectionCode</code> <code title="alias">ListFailure</code> <code title="union">PinFailure</code> <code title="union">ReadFailure</code> <code title="union">SkillFailure</code> <code title="alias">UnsupportedWhat</code> <code title="brand">AssetVersion</code> <code title="alias">Bytes</code> <code title="record">DeclaredProjection</code> <code title="brand">EntryDigest</code> <code title="union">ManifestValue</code> <code title="brand">MediaType</code> <code title="brand">PackageDigest</code> <code title="record">PackageEntry</code> <code title="brand">PackagePath</code> <code title="brand">SafeReason</code> <code title="record">ScriptDeclaration</code> <code title="record">ScriptIdentity</code> <code title="enum">SettingCategory</code> <code title="record">SettingDeclaration</code> <code title="record">SkillDeclaration</code> <code title="record">SkillDefinition</code> <code title="record">SkillManifest</code> <code title="record">SkillMaterialBasis</code> <code title="brand">SkillName</code> <code title="brand">SkillPackageSnapshot</code> <code title="enum">SourceLayer</code> <code title="record">StandIn</code></td></tr><tr><td><code>./provider</code></td><td><code title="alias">CatalogResolution</code> <code title="union">ReadVerdict</code> <code title="alias">Reply</code> <code title="union">Resolution</code> <code title="interface">SkillPackageSource</code> <code title="interface">SkillReadCheck</code> <code title="interface">SkillResolution</code> <code title="enum">SourceFailure</code> <code title="interface">PackageInspection</code> <code title="union">SnapshotDefect</code> <code title="?">sealSnapshot</code> <code title="union">PackageLocator</code> <code title="record">SkillRef</code></td></tr><tr><td><code>./testing</code></td><td><code title="function">isNotApplicable</code> <code title="class">NotApplicable</code> <code title="function">runConformanceCase</code> <code title="union">CaseVerdict</code> <code title="record">ConformanceCase</code> <code title="function">skillAccessConformance</code> <code title="record">AccessFixture</code> <code title="function">createMemoryReadCheck</code> <code title="function">skillReadCheckConformance</code> <code title="record">MemoryReadGrant</code> <code title="record">ReadCheckFixture</code> <code title="function">createMemoryResolution</code> <code title="function">skillResolutionConformance</code> <code title="record">MemoryMaterial</code> <code title="record">MemoryResolutionEntry</code> <code title="record">PrincipalSample</code> <code title="record">ResolutionFixture</code> <code title="function">createMemorySource</code> <code title="function">skillPackageSourceConformance</code> <code title="record">MemoryPackage</code> <code title="record">SourceFixture</code></td></tr></tbody></table></div>
   <h4>类型与类（UML 类图，每个源文件一张）</h4><details open><summary><code>src/failures.ts</code></summary><div class="diagram"><pre class="mmd">
 classDiagram
   direction TB
@@ -378,6 +462,28 @@ classDiagram
     duplicate-path
     prefix-conflict
   }
+</pre></div></details><details open><summary><code>src/testing-access.ts</code></summary><div class="diagram"><pre class="mmd">
+classDiagram
+  direction TB
+  class PortCalls {
+    &lt;&lt;value&gt;&gt;
+    +check
+    +resolve
+    +snapshot
+    +open
+  }
+  class AccessFixture {
+    &lt;&lt;value&gt;&gt;
+    +access
+    +principals
+    +capability
+    +world
+  }
+  class SkillAccess
+  class PrincipalSample
+  AccessFixture --&gt; SkillAccess
+  AccessFixture --&gt; PrincipalSample
+  AccessFixture --&gt; PortCalls
 </pre></div></details><details open><summary><code>src/testing-case.ts</code></summary><div class="diagram"><pre class="mmd">
 classDiagram
   direction TB
@@ -589,7 +695,7 @@ classDiagram
   SkillRef --&gt; PackageLocator
 </pre></div></details>
   <h4>品牌、字面量集合与别名</h4><div class="tbl"><table><thead><tr><th>名字</th><th>种类</th><th>取值</th><th>文件</th></tr></thead><tbody><tr><td><code>UnsupportedWhat</code></td><td>别名</td><td></td><td><code>src/failures.ts</code></td></tr><tr><td><code>GateFailure</code></td><td>别名</td><td></td><td><code>src/failures.ts</code></td></tr><tr><td><code>ListFailure</code></td><td>别名</td><td></td><td><code>src/failures.ts</code></td></tr><tr><td><code>InspectRejectionCode</code></td><td>别名</td><td></td><td><code>src/failures.ts</code></td></tr><tr><td><code>InspectRejection</code></td><td>别名</td><td></td><td><code>src/failures.ts</code></td></tr><tr><td><code>ParseFailure</code></td><td>别名</td><td></td><td><code>src/parse/package.ts</code></td></tr><tr><td><code>Reply</code></td><td>别名</td><td></td><td><code>src/ports.ts</code></td></tr><tr><td><code>SourceFailure</code></td><td>字面量集合</td><td><code>package-not-found</code> <code>entry-not-found</code> <code>bytes-mismatch</code> <code>outside-package</code> <code>unavailable</code> <code>entry-unreadable</code></td><td><code>src/ports.ts</code></td></tr><tr><td><code>CatalogResolution</code></td><td>别名</td><td></td><td><code>src/ports.ts</code></td></tr><tr><td><code>Brand</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>SkillName</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>PackagePath</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>EntryDigest</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>PackageDigest</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>AssetVersion</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>SafeReason</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>MediaType</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>Bytes</code></td><td>别名</td><td></td><td><code>src/values.ts</code></td></tr><tr><td><code>SourceLayer</code></td><td>字面量集合</td><td><code>official</code> <code>organization</code> <code>tenant</code> <code>workspace</code></td><td><code>src/values.ts</code></td></tr><tr><td><code>SettingCategory</code></td><td>字面量集合</td><td><code>preference</code> <code>binding</code> <code>placement-identity</code> <code>governance</code></td><td><code>src/values.ts</code></td></tr><tr><td><code>SkillPackageSnapshot</code></td><td>品牌</td><td></td><td><code>src/values.ts</code></td></tr></tbody></table></div>
-  <h4>导出的函数与常量</h4><p><code title="src/contract.ts">skillBodyContract</code> <code title="src/digest.ts">isPackageDigest</code> <code title="src/digest.ts">computeDigest</code> <code title="src/digest.ts">digestOfSorted</code> <code title="src/failures.ts">INSPECT_REJECTIONS</code> <code title="src/media.ts">inferMediaType</code> <code title="src/media.ts">encodingOf</code> <code title="src/names.ts">isSkillName</code> <code title="src/names.ts">isPackagePath</code> <code title="src/names.ts">toPackagePath</code> <code title="src/names.ts">isBoundedText</code> <code title="src/names.ts">isSafeReason</code> <code title="src/names.ts">isAssetVersion</code> <code title="src/names.ts">MANIFEST_PATH</code> <code title="src/names.ts">DECLARATION_PATH</code> <code title="src/names.ts">isControlFile</code> <code title="src/parse/declaration.ts">DECLARATION_LIMITS</code> <code title="src/parse/declaration.ts">EMPTY_DECLARATION</code> <code title="src/parse/declaration.ts">readDeclaration</code> <code title="src/parse/manifest.ts">frontmatterOf</code> <code title="src/parse/manifest.ts">readManifest</code> <code title="src/parse/package.ts">parseSkillPackage</code> <code title="src/parse/shape.ts">firstFinding</code> <code title="src/parse/shape.ts">DESCRIPTION_MAX</code> <code title="src/parse/shape.ts">fieldsOf</code> <code title="src/parse/shape.ts">unknownKeys</code> <code title="src/parse/shape.ts">readDependencies</code> <code title="src/parse/shape.ts">readScripts</code> <code title="src/parse/shape.ts">readSettings</code> <code title="src/parse/yaml-value.ts">plainValue</code> <code title="src/parse/yaml-value.ts">textKey</code> <code title="src/project.ts">projectAssetBody</code> <code title="src/snapshot.ts">assertSealed</code> <code title="src/snapshot.ts">sealSnapshot</code> <code title="src/testing-case.ts">isNotApplicable</code> <code title="src/testing-case.ts">runConformanceCase</code> <code title="src/testing-case.ts">conformanceCase</code> <code title="src/testing-case.ts">handle</code> <code title="src/testing-read-check.ts">createMemoryReadCheck</code> <code title="src/testing-read-check.ts">READ_CHECK_NO_DISCLOSURE</code> <code title="src/testing-read-check.ts">skillReadCheckConformance</code> <code title="src/testing-resolution.ts">sameCapability</code> <code title="src/testing-resolution.ts">createMemoryResolution</code> <code title="src/testing-resolution.ts">RESOLUTION_NO_DISCLOSURE</code> <code title="src/testing-resolution.ts">skillResolutionConformance</code> <code title="src/testing-source.ts">createMemorySource</code> <code title="src/testing-source.ts">skillPackageSourceConformance</code></p>
+  <h4>导出的函数与常量</h4><p><code title="src/contract.ts">skillBodyContract</code> <code title="src/digest.ts">isPackageDigest</code> <code title="src/digest.ts">computeDigest</code> <code title="src/digest.ts">digestOfSorted</code> <code title="src/failures.ts">INSPECT_REJECTIONS</code> <code title="src/media.ts">inferMediaType</code> <code title="src/media.ts">encodingOf</code> <code title="src/names.ts">isSkillName</code> <code title="src/names.ts">isPackagePath</code> <code title="src/names.ts">toPackagePath</code> <code title="src/names.ts">isBoundedText</code> <code title="src/names.ts">isSafeReason</code> <code title="src/names.ts">isAssetVersion</code> <code title="src/names.ts">MANIFEST_PATH</code> <code title="src/names.ts">DECLARATION_PATH</code> <code title="src/names.ts">isControlFile</code> <code title="src/parse/declaration.ts">DECLARATION_LIMITS</code> <code title="src/parse/declaration.ts">EMPTY_DECLARATION</code> <code title="src/parse/declaration.ts">readDeclaration</code> <code title="src/parse/manifest.ts">bodyOffsetOf</code> <code title="src/parse/manifest.ts">readManifest</code> <code title="src/parse/package.ts">parseSkillPackage</code> <code title="src/parse/shape.ts">firstFinding</code> <code title="src/parse/shape.ts">DESCRIPTION_MAX</code> <code title="src/parse/shape.ts">fieldsOf</code> <code title="src/parse/shape.ts">unknownKeys</code> <code title="src/parse/shape.ts">readDependencies</code> <code title="src/parse/shape.ts">readScripts</code> <code title="src/parse/shape.ts">readSettings</code> <code title="src/parse/yaml-value.ts">plainValue</code> <code title="src/parse/yaml-value.ts">textKey</code> <code title="src/project.ts">projectAssetBody</code> <code title="src/snapshot.ts">assertSealed</code> <code title="src/snapshot.ts">sealSnapshot</code> <code title="src/testing-access.ts">skillAccessConformance</code> <code title="src/testing-case.ts">isNotApplicable</code> <code title="src/testing-case.ts">runConformanceCase</code> <code title="src/testing-case.ts">conformanceCase</code> <code title="src/testing-case.ts">handle</code> <code title="src/testing-read-check.ts">createMemoryReadCheck</code> <code title="src/testing-read-check.ts">READ_CHECK_NO_DISCLOSURE</code> <code title="src/testing-read-check.ts">skillReadCheckConformance</code> <code title="src/testing-resolution.ts">sameCapability</code> <code title="src/testing-resolution.ts">createMemoryResolution</code> <code title="src/testing-resolution.ts">RESOLUTION_NO_DISCLOSURE</code> <code title="src/testing-resolution.ts">skillResolutionConformance</code> <code title="src/testing-source.ts">createMemorySource</code> <code title="src/testing-source.ts">skillPackageSourceConformance</code></p>
   <h4>模块依赖</h4><div class="diagram"><pre class="mmd">
 flowchart LR
   src_contract_ts["src/contract.ts"]
@@ -608,6 +714,7 @@ flowchart LR
   src_provider_ts["src/provider.ts"]
   src_services_ts["src/services.ts"]
   src_snapshot_ts["src/snapshot.ts"]
+  src_testing_access_ts["src/testing-access.ts"]
   src_testing_case_ts["src/testing-case.ts"]
   src_testing_read_check_ts["src/testing-read-check.ts"]
   src_testing_resolution_ts["src/testing-resolution.ts"]
@@ -624,6 +731,7 @@ flowchart LR
   src_index_ts --&gt; src_digest_ts
   src_index_ts --&gt; src_media_ts
   src_index_ts --&gt; src_names_ts
+  src_index_ts --&gt; src_parse_manifest_ts
   src_index_ts --&gt; src_parse_package_ts
   src_index_ts --&gt; src_project_ts
   src_index_ts --&gt; src_services_ts
@@ -662,6 +770,12 @@ flowchart LR
   src_snapshot_ts --&gt; src_digest_ts
   src_snapshot_ts --&gt; src_media_ts
   src_snapshot_ts --&gt; src_values_ts
+  src_testing_access_ts --&gt; src_digest_ts
+  src_testing_access_ts --&gt; src_failures_ts
+  src_testing_access_ts --&gt; src_services_ts
+  src_testing_access_ts --&gt; src_testing_case_ts
+  src_testing_access_ts --&gt; src_testing_resolution_ts
+  src_testing_access_ts --&gt; src_values_ts
   src_testing_read_check_ts --&gt; src_ports_ts
   src_testing_read_check_ts --&gt; src_testing_case_ts
   src_testing_read_check_ts --&gt; src_testing_resolution_ts
@@ -678,11 +792,12 @@ flowchart LR
   src_testing_source_ts --&gt; src_testing_case_ts
   src_testing_source_ts --&gt; src_values_ts
   src_testing_ts --&gt; src_testing_case_ts
+  src_testing_ts --&gt; src_testing_access_ts
   src_testing_ts --&gt; src_testing_read_check_ts
   src_testing_ts --&gt; src_testing_resolution_ts
   src_testing_ts --&gt; src_testing_source_ts
 </pre></div>
-  <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/contract.ts</code></td><td class="num">147</td><td class="num">1</td><td class="num">28 <span class="muted">skillBodyContract</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/digest.ts</code></td><td class="num">35</td><td class="num">3</td><td class="num">8 <span class="muted">digestOfSorted</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/failures.ts</code></td><td class="num">64</td><td class="num">12</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/index.ts</code></td><td class="num">64</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/media.ts</code></td><td class="num">81</td><td class="num">2</td><td class="num">10 <span class="muted">encodingOf</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/names.ts</code></td><td class="num">65</td><td class="num">9</td><td class="num">9 <span class="muted">hasControl</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/declaration.ts</code></td><td class="num">77</td><td class="num">4</td><td class="num">35 <span class="muted">readDeclaration</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/manifest.ts</code></td><td class="num">122</td><td class="num">3</td><td class="num">16 <span class="muted">readManifest</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/package.ts</code></td><td class="num">95</td><td class="num">3</td><td class="num">32 <span class="muted">parseSkillPackage</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/shape.ts</code></td><td class="num">192</td><td class="num">9</td><td class="num">32 <span class="muted">readScripts</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/yaml-value.ts</code></td><td class="num">71</td><td class="num">2</td><td class="num">11 <span class="muted">convert</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/ports.ts</code></td><td class="num">86</td><td class="num">8</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/project.ts</code></td><td class="num">45</td><td class="num">1</td><td class="num">11 <span class="muted">projectAssetBody</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/provider.ts</code></td><td class="num">14</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/services.ts</code></td><td class="num">154</td><td class="num">14</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/snapshot.ts</code></td><td class="num">85</td><td class="num">3</td><td class="num">20 <span class="muted">sealSnapshot</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-case.ts</code></td><td class="num">57</td><td class="num">7</td><td class="num">9 <span class="muted">runConformanceCase</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-read-check.ts</code></td><td class="num">58</td><td class="num">5</td><td class="num">19 <span class="muted">skillReadCheckConformance</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-resolution.ts</code></td><td class="num">286</td><td class="num">8</td><td class="num">150 <span class="muted">skillResolutionConformance</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-source.ts</code></td><td class="num">219</td><td class="num">4</td><td class="num">84 <span class="muted">skillPackageSourceConformance</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing.ts</code></td><td class="num">27</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/values.ts</code></td><td class="num">132</td><td class="num">26</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
+  <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/contract.ts</code></td><td class="num">147</td><td class="num">1</td><td class="num">28 <span class="muted">skillBodyContract</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/digest.ts</code></td><td class="num">35</td><td class="num">3</td><td class="num">8 <span class="muted">digestOfSorted</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/failures.ts</code></td><td class="num">64</td><td class="num">12</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/index.ts</code></td><td class="num">65</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/media.ts</code></td><td class="num">81</td><td class="num">2</td><td class="num">10 <span class="muted">encodingOf</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/names.ts</code></td><td class="num">65</td><td class="num">9</td><td class="num">9 <span class="muted">hasControl</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/declaration.ts</code></td><td class="num">77</td><td class="num">4</td><td class="num">35 <span class="muted">readDeclaration</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/manifest.ts</code></td><td class="num">148</td><td class="num">3</td><td class="num">17 <span class="muted">readManifest</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/package.ts</code></td><td class="num">95</td><td class="num">3</td><td class="num">32 <span class="muted">parseSkillPackage</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/shape.ts</code></td><td class="num">192</td><td class="num">9</td><td class="num">32 <span class="muted">readScripts</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/parse/yaml-value.ts</code></td><td class="num">71</td><td class="num">2</td><td class="num">11 <span class="muted">convert</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/ports.ts</code></td><td class="num">86</td><td class="num">8</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/project.ts</code></td><td class="num">45</td><td class="num">1</td><td class="num">11 <span class="muted">projectAssetBody</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/provider.ts</code></td><td class="num">14</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/services.ts</code></td><td class="num">154</td><td class="num">14</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/snapshot.ts</code></td><td class="num">85</td><td class="num">3</td><td class="num">20 <span class="muted">sealSnapshot</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-access.ts</code></td><td class="num">460</td><td class="num">3</td><td class="num">332 <span class="muted">skillAccessConformance</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-case.ts</code></td><td class="num">57</td><td class="num">7</td><td class="num">9 <span class="muted">runConformanceCase</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-read-check.ts</code></td><td class="num">58</td><td class="num">5</td><td class="num">19 <span class="muted">skillReadCheckConformance</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-resolution.ts</code></td><td class="num">286</td><td class="num">8</td><td class="num">150 <span class="muted">skillResolutionConformance</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing-source.ts</code></td><td class="num">219</td><td class="num">4</td><td class="num">84 <span class="muted">skillPackageSourceConformance</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/testing.ts</code></td><td class="num">28</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/values.ts</code></td><td class="num">132</td><td class="num">26</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
   
 </details>
 <details class="member" open><summary><h3><code>@omne-harness/skill-host-local</code> <span class="pill real">有实现</span></h3></summary>
@@ -742,7 +857,18 @@ flowchart LR
   <h4>健康读数</h4><div class="tbl"><table><thead><tr><th>文件</th><th>非空行</th><th>导出声明</th><th>最长函数（行）</th><th><code>as</code></th><th><code>any</code></th></tr></thead><tbody><tr><td><code>src/directory-source.ts</code></td><td class="num">49</td><td class="num">1</td><td class="num">16 <span class="muted">createDirectorySource</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/fs.ts</code></td><td class="num">56</td><td class="num">4</td><td class="num">12 <span class="muted">openRegular</span></td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/index.ts</code></td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num ">0</td><td class="num ">0</td></tr><tr><td><code>src/walk.ts</code></td><td class="num">234</td><td class="num">5</td><td class="num">14 <span class="muted">visit</span></td><td class="num ">0</td><td class="num ">0</td></tr></tbody></table></div>
   
 </details></section>
-<section><h2>健康评述</h2><div class="prose"><h3>W2 增量 1：skill-host-local 合入（2026-11-03，父分支 478e56381）</h3>
+<section><h2>健康评述</h2><div class="prose"><h3>W2 增量 2：skill 合入（2026-11-03，父分支 0956ccf01）</h3>
+<p><strong>读数。</strong>10 源文件 596 行、195 例；契约 +34 例（398）。无 <code>as</code>/<code>any</code>/类。变更函数超 alert 的只在契约套件代码（<code>skillAccessConformance</code> CC 11，用例表，契约自己的测试不跑它所以覆盖 0%——这是套件代码的固有读数）。Stryker：skill 393 个变异体、被杀 377、存活 13（散在 gate/inspection/mapping 各 3）、测量有效，96.4%；契约 346、无覆盖 298 全在套件代码；W1 记下的 <code>manifest.ts:47–55</code> 边界已被字节扫描 <code>frontmatterBounds</code> 替换，存活只剩类型守卫与消息文本。</p>
+<p><strong>两轮评审改掉了什么。</strong>第 1 轮三面共 3 处阻断，全是真问题：L3 探针证明已中止的 signal 下 <code>gate</code> 仍调用读取判定与对应两个端口（契约要求每次端口调用前后都查）；读取次序把第 6 步（路径校验）放到了第 5 步（没有可读的包）之前，写者还在成员 SPEC 里自称「偏离」；映射在两处。第 2 轮修完并重放探针确认。顺带裁定了两处契约措辞歧义（「请求终点」取字面；<code>describe</code> 带依据时 basis 取依据本身）。</p>
+<p><strong>优雅在哪里。</strong>四段函数的失败类型逐段收窄是真的（<code>PinStageFailure = Exclude&lt;PinFailure, GateFailure&gt;</code>，类型测试钉住）；「材料已变」的失败值由调用方给，去掉了编译器不检查的重载；一张映射表三列；套件在「对应端口对所有人作答」的世界里能恰好让 A1–A3 变红，证明读取判定是唯一关口——而在「对应端口自己隐藏身份」的合规世界里它看不出来，这一点现在写进了套件文档，读者不会高估套件覆盖。</p>
+<p><strong>异味与处置。</strong></p>
+<ul>
+<li>与契约的重复常量（<code>MANIFEST_PATH</code>、<code>PAGE_LIMIT</code>、<code>sameCapability</code>）：契约没导出，W3 prep 导出后删成员那份。</li>
+<li>端口答畸形值的处置不对称：读取判定一侧答 <code>unknown</code>，对应端口一侧抛 <code>TypeError</code>（都不放行）。W3 契约写明一种。</li>
+<li><code>examples/</code> 还没有真实来源的示例——现在 <code>skill-host-local</code> 已合入，波末可以补一个「目录 → inspect → read」的脚本。</li>
+</ul>
+<hr>
+<h3>W2 增量 1：skill-host-local 合入（2026-11-03，父分支 478e56381）</h3>
 <p><strong>读数。</strong>4 源文件 341 行，10 测试文件 54 例（写者报 84，含类型用例与 it.each 展开）。无 <code>as</code>（两处 <code>as const satisfies</code>）、无 <code>any</code>、无类。变更函数超 warn 0。写者两轮共 48 + 33 个手工变异全部被杀；Stryker 280 个变异体：被杀 248、存活 21（集中在 <code>walk.ts:52</code> 的解码分支与 <code>:145</code> 的表查找）、5 个静态变异致「测量无效」。</p>
 <p><strong>两轮评审改掉了什么。</strong>第 1 轮三处阻断都是真缺陷：根是普通文件时 <code>open</code> 答成 <code>entry-not-found</code>（reduce 自修，<code>resolveRoot</code> 合并「是目录」核对）；非 UTF-8 文件名被有损解码后报成瞬时的 <code>unavailable</code>，登记方会无限重试；<code>readdir</code> 之后、<code>readFile</code> 之前条目被换成根外链接，根外字节进了快照（confused deputy，探针算出的摘要正是根外 <code>secret</code> 的 sha256）。第 2 轮把「按列出时的种类分叉」改成「每个条目同一条路」，接缝改为字节级并把全部分类收拢进 <code>walk.ts</code>，这是这个成员现在最值得看的地方：<strong>接缝只做 IO，判定只在一处</strong>。</p>
 <p><strong>异味与处置。</strong></p>
