@@ -59,28 +59,41 @@ sequenceDiagram
   R-->>A: SkillRef 与声明投影 或 确定没有 或 无法判定
   A->>F: 必需工具名是否在场
   F-->>A: 在场的名字 或 无法判定
-  A-->>P: 描述 SkillRef 与缺项 不含正文
+  A-->>P: 描述 材料依据与缺项 不含正文 不含包定位
   P->>A: read 访问上下文 作用域 目标 可选材料依据与字节范围
+  opt 带材料依据
+    A->>A: 依据的能力标识须等于目标能力标识 否则返回 not-available-to-you
+  end
   A->>I: 重新核验
-  A->>R: 重新确认对应
+  A->>R: 重新确认对应 带材料依据时核对依据中的版本是否合法
+  R-->>A: SkillRef 包定位由此当场给出 或 依据不合法 或 确定没有 或 无法判定
+  A->>S: 按包定位取当前快照
+  S-->>A: 包快照 或 来源失败
+  A->>A: 比较包快照的内容摘要 不符时 basis-unavailable
   A->>S: 按包定位与内容摘要取条目字节
   S-->>A: 字节 或 来源失败
-  opt 读正文且来源正常交出正文
+  A->>A: 按条目内容摘要核对字节 不符时 version-changed
+  alt 读正文且正文字节核对通过
     A->>F: 必需工具名是否在场
     F-->>A: 在场的名字 或 无法判定
-  end
-  alt 必需工具缺席
-    A-->>P: undecided 待 Q-SK08 裁定 不交正文也不交替换件
-  else 其余结果
-    A-->>P: 内容 实际字节范围 complete 或 可辨失败
+    alt 必需工具缺席
+      A-->>P: undecided 待 Q-SK08 裁定 不交正文也不交替换件
+    else 无法判定
+      A-->>P: unknown
+    else 必需工具齐备
+      A-->>P: 正文 材料依据 实际字节范围 complete
+      P->>P: 按自己的规则保存实际内容
+    end
+  else 读资源 或 可辨失败
+    A-->>P: 资源内容 材料依据 实际字节范围 complete 或 可辨失败
     P->>P: 按自己的规则保存实际内容
   end
 ```
 
 1. 集成方显式传入访问上下文与作用域，并实现 `SkillReadCheck`、`SkillResolution` 与 `RequirementFacts`。Skill 不要求 Session、Agent 或 Cordis。
-2. 每次 `describe`、`read`、`list` 都现场核验。此前的成功和保存的 `SkillRef` 不代替核验。
+2. 每次 `describe`、`read`、`list` 都现场核验。此前的成功和保存的材料依据不代替核验。
 3. 拒绝与「确定没有对应」都返回 `not-available-to-you`，对无权主体不披露身份是否存在。独立路径的实现方没有已知集合时，通常不出现替换件。
-4. `read` 不带材料依据时，读当时的合法版本。集成方带上此前结果给出的 `SkillRef` 作为材料依据时，`read` 按该依据交出旧材料，或返回 `basis-unavailable`，不改交新材料。
+4. `read` 不带材料依据时，读当时的合法版本。集成方带上此前结果给出的材料依据时，`read` 按该依据交出旧材料，或返回 `basis-unavailable`，不改交新材料。材料依据只含能力标识、资产版本与内容摘要，不含包定位。依据的能力标识不等于目标时返回 `not-available-to-you`。依据中的版本对该主体不合法时返回 `basis-unavailable`。包定位总是由 `SkillResolution` 的实现方当场给出，所以调用方不能借材料依据指定包的位置。
 5. 内容随成功结果交出，交出后归集成方。已记录的正文由集成方保管。Skill 不做临时保管。
 6. 撤权后的新读取被拒绝。集成方已经合法保存的内容按它自己的保留与披露规则处理。
 7. 集成方释放自己的路径，不卸载共享的 Skill，也不影响其他消费者。

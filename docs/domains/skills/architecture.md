@@ -26,9 +26,9 @@ Skill 作为需求方声明下列端口，用自己的词说明需要什么。�
 
 | 端口 | 回答的问题 | 实现方 | 交接与失败边界 |
 |---|---|---|---|
-| `PackageSource`（[包来源](../../../.meta_harness/design/ubiquitous_language/terms/grounding-and-isolation.md#ul-package-source--包来源--package-source)） | 按包定位与内容摘要交出 Skill 包的字节 | 本机目录：`skill-host-local` 的 `DirectorySource`，目录位置与参与条件由[工作区](../workspaces/README.md)给出。云端内容存储：存储能力组，存储契约尚不存在 | 只交字节，不判定用哪一份、谁能读。来源不可达与「没有候选」分开。字节核验不过时不交新内容。目录当前的内容摘要不等于请求的摘要时，旧材料已不在。内容摘要相同但条目在读取途中被改时，报版本已变 |
-| `SkillResolution` | 这个能力标识此刻对这个主体合法对应哪一份材料 | 会话路径：[装配与交接](../assembly-and-handoff/README.md)，按采用依据实现，掌握已知集合。独立路径：[资产与规则](../assets-and-rules/README.md)的求值 | Skill 不重做层级求值。答复分四种：对应的 `SkillRef` 与资产正文的声明投影、合法已知但此刻不可用（带原因与最后合法的 name、说明）、确定没有对应、此刻无法判定。没有已知集合的实现方不答「合法已知但不可用」，所以独立路径通常不出现替换件。会话路径要求采用依据记下 Skill 包快照的内容摘要，见[采用协调 KL-9](../assembly-and-handoff/adoption-coordination.md#5-已知限制与剩余) |
-| `SkillReadCheck` | 这个主体此刻能不能读这个能力标识 | [身份与授权](../identity-and-authorization/README.md)，结合资产的持有与选入 | 只按能力标识判定，不需要 `SkillRef`。答复是准许、拒绝或无法判定，且不得依赖该身份是否存在。每次操作现场核验，不缓存。撤权在下一次操作生效 |
+| `PackageSource`（[包来源](../../../.meta_harness/design/ubiquitous_language/terms/grounding-and-isolation.md#ul-package-source--包来源--package-source)） | 按包定位与内容摘要交出 Skill 包的字节 | 本机目录：`skill-host-local` 的 `DirectorySource`，目录位置与参与条件由[工作区](../workspaces/README.md)给出。云端内容存储：存储能力组，存储契约尚不存在 | 只交字节，不判定用哪一份、谁能读。来源不可达与「没有候选」分开。来源分开报告五种失败：按包定位找不到包、包里没有该条目、交出的字节与条目内容摘要不符、条目落在包根之外、来源此刻不可达。Skill 先取快照，比较包快照的内容摘要与所钉材料的内容摘要，不符时旧材料已不在。Skill 再读条目字节，按条目内容摘要核对，不符时报版本已变，不交新内容 |
+| `SkillResolution` | 这个能力标识此刻对这个主体合法对应哪一份材料 | 会话路径：[装配与交接](../assembly-and-handoff/README.md)，按采用依据实现，掌握已知集合。独立路径：[资产与规则](../assets-and-rules/README.md)的求值 | Skill 不重做层级求值。不带材料依据时，答复分四种：对应的 `SkillRef` 与资产正文的声明投影、合法已知但此刻不可用（带原因与最后合法的 name、说明）、确定没有对应、此刻无法判定。Skill 交来调用方的材料依据时，实现方核对其中的资产版本是不是该主体在此作用域可读的该能力的合法版本。是，就给出指向该版本的 `SkillRef`。否则多一种答复：依据不合法。包定位总是由实现方当场给出，不取自调用方。没有已知集合的实现方不答「合法已知但不可用」，所以独立路径通常不出现替换件。会话路径要求采用依据记下 Skill 包快照的内容摘要，见[采用协调 KL-9](../assembly-and-handoff/adoption-coordination.md#5-已知限制与剩余) |
+| `SkillReadCheck` | 这个主体此刻能不能读这个能力标识 | [身份与授权](../identity-and-authorization/README.md)，结合资产的持有与选入 | 只按能力标识判定，不需要 `SkillRef`。答复是准许、拒绝或无法判定。对无权主体，答复不得随该身份是否存在而变。每次操作现场核验，不缓存。撤权在下一次操作生效 |
 | `RequirementFacts` | 必需工具名此刻是否在场 | 会话路径：装配与运行方，随当下可用性求值。独立路径：集成方 | 只交名字是否在场，不交提供者对象。不回答脚本设施，脚本设施由第三波的 `ScriptPreparation` 核验。缺项不等于读取资格失效 |
 
 资产保存的 Skill 正文带包快照的内容摘要，包字节由包来源交出。正文形状见[组工程设计「资产正文与 Skill 包」](../../../packages/skills/docs/architecture.md#资产正文与-skill-包)。
@@ -39,7 +39,7 @@ Skill 作为需求方声明下列端口，用自己的词说明需要什么。�
 |---|---|---|
 | `PackageInspection` | 资产的候选校验、工作区扫描 | 一份解析后的定义，或可辨的拒绝原因 |
 | `SkillCatalog` | [Runtime Context](../runtime-context/README.md) 的常驻概览、`Skills()` 的检索 | 采用集合内的有序概览与检索结果 |
-| `SkillAccess` | `Skills()` 的读取、[Slash Command](../slash-commands/README.md) 的展开、独立程序 | 描述、内容与 `SkillRef`。内容交出后归消费方 |
+| `SkillAccess` | `Skills()` 的读取、[Slash Command](../slash-commands/README.md) 的展开、独立程序 | 描述、内容与材料依据。材料依据只含能力标识、资产版本与内容摘要，不含包定位，也不授予访问。内容交出后归消费方 |
 | `ScriptPreparation`（第三波） | [工具执行](../tool-execution/README.md) | 一份固定的执行请求。执行、结果与控制归工具 |
 
 `Skills()` 与命令展开属于领域入口所说的消费适配。它们的成员归属尚未分配，组页把它们列为后接工作。
@@ -49,8 +49,8 @@ Skill 作为需求方声明下列端口，用自己的词说明需要什么。�
 | 组合保证 | 承担者 | 参与方 | 失败归属 |
 |---|---|---|---|
 | 一次读取对应一份包快照，不拼版本 | Skill 的 `SkillAccess` | 包来源 | Skill 返回 `version-changed` 或 `basis-unavailable`，不交新内容 |
-| 每次操作核验当前资格 | Skill 的 `SkillAccess` 编排 | `SkillReadCheck`、`SkillResolution` 的实现方 | 实现方拥有答案。Skill 先问 `SkillReadCheck`，再问 `SkillResolution`。无法判定时 Skill 返回 `unknown` |
-| 读取内容的可靠承接 | 原工具调用、命令与入站消费者、Context | Skill 交出内容与 `SkillRef` | 承接方。Skill 不做临时保管 |
+| 每次操作核验当前资格 | Skill 的 `SkillAccess` 编排 | `SkillReadCheck`、`SkillResolution` 的实现方 | 实现方拥有答案。Skill 先问 `SkillReadCheck`，再问 `SkillResolution`。调用方带回的材料依据也交 `SkillResolution` 核对。无法判定时 Skill 返回 `unknown` |
+| 读取内容的可靠承接 | 原工具调用、命令与入站消费者、Context | Skill 交出内容与材料依据 | 承接方。Skill 不做临时保管 |
 | 脚本的发起、执行与结果 | 原工具调用 | Skill 的 `ScriptPreparation`、执行环境 | 工具与执行环境 |
 
 ## 承接缺口
