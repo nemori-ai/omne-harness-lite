@@ -43,6 +43,7 @@ import type { ToolDelivery } from '@omne-harness/tool-contract'
 import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import {
   createSessionToolLogConsumptionPlugin,
+  type SessionToolLogConsumptionInput,
   type ToolDeliveryReader,
 } from '../src/cordis/tool-log-consumption.ts'
 import { evidence, ok, operation, operationId, scene } from './fixtures/common-journal.ts'
@@ -238,6 +239,8 @@ type Options = Readonly<{
   mountOnly?: readonly (typeof ALL)[number][]
   reader?: ToolDeliveryReader | null
   config?: Readonly<{ timeoutMs?: number; retryBackoffMs?: number }>
+  /** The coordinator principal of the published-event trigger; without it the plugin has no trigger. */
+  coordinator?: SessionToolLogConsumptionInput['coordinator']
 }>
 
 /**
@@ -296,6 +299,7 @@ async function assembled(s: ToolScene, options: Options = {}) {
   for (const name of mountOnly) await mount(ctx, services[name])
   const consumption = createSessionToolLogConsumptionPlugin({
     toolDeliveries: options.reader === undefined ? reader : options.reader,
+    ...(options.coordinator === undefined ? {} : { coordinator: options.coordinator }),
   })
   const plugin = await mount(ctx, consumption.plugin, options.config ?? {})
   const target = {
@@ -942,6 +946,108 @@ describe('the configured timeout', () => {
     expect(validate({ timeoutMs: 5, retryBackoffMs: 0 })).toEqual({
       value: { timeoutMs: 5, retryBackoffMs: 0 },
     })
+  })
+})
+
+describe('AD-06 trigger: the event of the Journal plugin wakes the consumption', () => {
+  /** Lets the not-awaited dispatch of an event and the queued consumption finish. */
+  const settle = () => new Promise<void>(resolve => setTimeout(resolve, 50))
+  const coordinator = (s: ToolScene): SessionToolLogConsumptionInput['coordinator'] => {
+    return async () => succeed(s.access.principal as unknown)
+  }
+  /** What the Journal plugin sends after a successful write; the memory Journal does not. */
+  const published = (f: Awaited<ReturnType<typeof assembled>>, s: ToolScene) =>
+    f.ctx.parallel(
+      'session-adapters/agent-published',
+      s.access.tenant,
+      s.access.session,
+      s.execution,
+    )
+
+  it('a received write followed by the event is consumed once, with no call to consume', async () => {
+    const s = await toolScene('trigger')
+    const f = await assembled(s, { coordinator: coordinator(s) })
+    await receive(s, s.result, 'trigger')
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(1)
+    expect(await progressOf(s)).toMatchObject({ through: '1', execution: s.execution })
+    expect(entriesKinds(s)).toEqual([
+      'call.execution-fact',
+      'account.linked',
+      'entries.interpreted',
+    ])
+  })
+
+  it('the same event again commits nothing more', async () => {
+    const s = await toolScene('trigger-again')
+    const f = await assembled(s, { coordinator: coordinator(s) })
+    await receive(s, s.result, 'trigger-again')
+    await published(f, s)
+    await settle()
+    await published(f, s)
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(1)
+    expect(entriesKinds(s)).toHaveLength(3)
+  })
+
+  it('a stopped plugin does not consume after the event', async () => {
+    const s = await toolScene('trigger-stopped')
+    const f = await assembled(s, { coordinator: coordinator(s) })
+    await receive(s, s.result, 'trigger-stopped')
+    await f.plugin.dispose()
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(0)
+  })
+
+  it('an event whose work is under way when the plugin stops commits nothing', async () => {
+    const s = await toolScene('trigger-in-flight')
+    let release!: () => void
+    const held = new Promise<void>(resolve => {
+      release = resolve
+    })
+    let asked!: () => void
+    const wasAsked = new Promise<void>(resolve => {
+      asked = resolve
+    })
+    const f = await assembled(s, {
+      coordinator: async () => {
+        asked()
+        await held
+        return succeed(s.access.principal as unknown)
+      },
+    })
+    await receive(s, s.result, 'trigger-in-flight')
+    await published(f, s)
+    await wasAsked
+    await f.plugin.dispose()
+    release()
+    await settle()
+    expect(f.commits).toHaveLength(0)
+    expect(entriesKinds(s)).toEqual([])
+  })
+
+  it('a plugin given no coordinator has no trigger', async () => {
+    const s = await toolScene('trigger-none')
+    const f = await assembled(s)
+    await receive(s, s.result, 'trigger-none')
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(0)
+  })
+
+  it('a coordinator that refuses the principal commits nothing and reads no Agent record', async () => {
+    const s = await toolScene('trigger-refused')
+    const f = await assembled(s, {
+      coordinator: async () => fail({ kind: 'denied', action: 'coordinator-principal' }),
+    })
+    await receive(s, s.result, 'trigger-refused')
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(0)
+    expect(f.reads).toEqual({ work: 0, load: 0, material: 0 })
   })
 })
 
