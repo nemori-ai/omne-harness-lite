@@ -38,3 +38,10 @@
 - [fixtures/](fixtures/index.md)：测试固定输入
 - [journal-received.spec.ts](journal-received.spec.ts)：同源提供者执行 required 接收共同提交套件
 - [model-receiver.spec.ts](model-receiver.spec.ts)：资格、原交付校验、未知、容量、账目和重装配
+- [loop-tools.spec.ts](loop-tools.spec.ts)：Tool 动作分发先保存原请求与意图再交给 Tool；收到的结果作为工具消息准入并发出下一次 Model 请求；并发调用在各自的槽里运行并按动作顺序准入消息，`toolConcurrency` 满时等待空位；关联未知的调用保留意图并重发同一请求；整批被拒时每个动作各有拒绝消息；源 Ja 的调用方：声明了 `message` 时工具消息交给 message 参加者，没有声明时调用方为 none，主回复始终为 none。夹具 [fixtures/tool-call.ts](fixtures/tool-call.ts)
+- [loop-consumption-scope.spec.ts](loop-consumption-scope.spec.ts)：协调器铸造的消费标识带 execution：两个 execution 的同一步是两个消费，后一个 Run 的调用登记不与前一个冲突
+- [loop-admission-pages.spec.ts](loop-admission-pages.spec.ts)：回复准入读取（Agent SPEC「回复准入的已核实前缀」）的纯部分：选下界的规则、普通提交携带的位置，以及已核实前缀前移之前对每一页的核对，每个用例只破坏一页的一个条件
+- [loop-admission-read.spec.ts](loop-admission-read.spec.ts)：E2 对回复准入事实的读取：协调器选的下界、进程内前缀、普通提交携带的读位置、提交时缺依据的答复进入 W0、缺依据时对原出处重读一次，以及从已保存前缀恢复读取。内存 Journal 不耐久，这里不证明耐久提供者
+- [provider-control.spec.ts](provider-control.spec.ts)：执行控制与 Tool 调用控制的受理，夹具 [fixtures/control-assembly.ts](fixtures/control-assembly.ts)：取消之后保留在途结果且不发出其中的 Tool 建议；Model 准入之前取消；同一操作重试返回原回执；他租户在保存与传播之前被拒；未知受理保留原操作；Tool 控制只中断被点名的调用，未知答复先查询且从不重发，引用丢失时保持未决；取消与关联、意图提交的先后；中断之后已交付的内容与账目仍可读
+- [tool-receiver.spec.ts](tool-receiver.spec.ts)：Tool 结果接收器的符合性套件，以及：解除挂接与接收器重装配之后迟到的结果按原宿主状态接收；确定失败不在共同发布之前报告 saved；等待取消之后实际在途的工作保留并只保存一次；已保存键也重核当前资格；陌生引用在查询关联之前被拒；同一键仍在写入时的第二次推送为 unknown 且不再提交；账目修订各自保留，冲突内容被检出
+- [journal-tool-control.spec.ts](journal-tool-control.spec.ts)：内存 Journal 的控制与 Tool 操作：保留的调用故障，待决控制操作的保管，待决与已提交认回的共同前置核对（参加者支持、保管、观察资格），Tool 控制的关联（producer 种类先于文本比较、重复的规范身份、检查点移除之后认回），Tool 操作挂接的输入核对、冲突与阶段推进，以及被破坏的保留状态
