@@ -165,6 +165,12 @@ export type ModelQualification = Readonly<{
   ): () => void
   /** The entry records the binding `channel.prepare` returned, for `execution` and `current`. */
   recordHostBinding(binding: HostBinding): void
+  /**
+   * Forgets every host binding: the composition calls it when the channel closes (the attachment
+   * ends) and when the bound host retires. The table is bounded by the bindings of one channel of
+   * one host generation; stale ones (`current()` false) are also dropped on each record.
+   */
+  dropHostBindings(): void
   /** The synchronous authority the records core and the host channel ask. */
   authority: ModelCommandsAuthority<unknown>
   /** The synchronous send qualification of every registered send source. */
@@ -251,8 +257,13 @@ export function createModelQualification(
   }
 
   const recordHostBinding: ModelQualification['recordHostBinding'] = binding => {
+    for (const [key, bound] of bindings) if (!bound.current()) bindings.delete(key)
     const key = keyOf(binding.tenant, binding.call)
     if (key !== undefined) bindings.set(key, binding)
+  }
+
+  const dropHostBindings: ModelQualification['dropHostBindings'] = () => {
+    bindings.clear()
   }
 
   const authorize: ModelCommandsAuthority<unknown>['authorize'] = ({
@@ -323,6 +334,7 @@ export function createModelQualification(
     qualify,
     captureHost,
     recordHostBinding,
+    dropHostBindings,
     authority: Object.freeze({ authorize, execution }),
     sourceCurrent,
     qualifyObservation,

@@ -136,12 +136,13 @@ export function createModelRunComposition(): ModelRunComposition {
     if ('failure' in opened) return opened
     const current: Attached = { ...attachment, channel: opened.ok, sendChild: { fiber: undefined } }
     attached = current
-    ctx.effect(() => () => {
-      if (attached === current) {
-        attached = undefined
-        current.channel.close()
-      }
-    })
+    const end = () => {
+      if (attached !== current) return
+      attached = undefined
+      current.channel.close()
+      current.qualification.dropHostBindings()
+    }
+    ctx.effect(() => end)
     return succeed(
       Object.freeze({
         captureSendChild: fiber => {
@@ -151,11 +152,7 @@ export function createModelRunComposition(): ModelRunComposition {
           attached === current
             ? succeed(current.channel)
             : fail(unavailable('records-not-attached')),
-        detach: () => {
-          if (attached !== current) return
-          attached = undefined
-          current.channel.close()
-        },
+        detach: end,
       }),
     )
   }
@@ -168,6 +165,8 @@ export function createModelRunComposition(): ModelRunComposition {
     hostCurrent = current
     ctx.effect(() => () => {
       if (hostCurrent === current) hostCurrent = undefined
+      // Every binding recorded while this host was bound carries its `current`; none is live now.
+      attached?.qualification.dropHostBindings()
     })
     return Object.freeze({
       executionChannel,

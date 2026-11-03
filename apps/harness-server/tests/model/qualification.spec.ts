@@ -309,6 +309,44 @@ describe('the synchronous bridges: execution and current', () => {
     })
   })
 
+  it('the binding table is bounded: dropHostBindings forgets every binding, and a record drops the stale ones (defect: a table that only grows)', () => {
+    const s = scene()
+    const calls = Array.from({ length: 8 }, (_, i) =>
+      okOf(decodeModelCallId(`mcall_bounded${i}`), 'call'),
+    )
+    const record = (call: (typeof calls)[number], current: () => boolean) =>
+      s.qualification.recordHostBinding({
+        tenant: TENANT,
+        call,
+        instance: INSTANCE,
+        operation: OPERATION,
+        current,
+      })
+    const execution = (call: (typeof calls)[number]) =>
+      s.qualification.authority.execution({
+        tenant: TENANT,
+        call,
+        instance: INSTANCE,
+        generation: '1',
+      })
+    for (const call of calls) record(call, s.alive)
+    for (const call of calls) expect(execution(call)).toHaveProperty('ok')
+    s.qualification.dropHostBindings()
+    for (const call of calls)
+      expect(execution(call)).toEqual({ failure: { kind: 'denied', action: 'execution-channel' } })
+    // A retired host's bindings go on the next record, even without an explicit drop.
+    let live = true
+    const retiring = () => live
+    record(calls[0]!, retiring)
+    live = false
+    record(calls[1]!, s.alive)
+    live = true
+    expect(execution(calls[0]!)).toEqual({
+      failure: { kind: 'denied', action: 'execution-channel' },
+    })
+    expect(execution(calls[1]!)).toHaveProperty('ok')
+  })
+
   it('current authorizes a send only for the captured M of that tenant and call; the factory supplier has no tenant binding', () => {
     const s = scene()
     const principal = s.host()
