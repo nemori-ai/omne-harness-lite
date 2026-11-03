@@ -66,7 +66,7 @@ export function mcpUseEligibilityConformance<P>(): readonly ConformanceCase<
   ]
 }
 
-type Entry = Readonly<{ verdict: 'granted' | BlockedReason; unreadable: boolean }>
+type Entry = Readonly<{ verdict: 'granted' | 'not-eligible' | BlockedReason; unreadable: boolean }>
 
 export type MemoryUseEligibility<P> = UseEligibility<P> &
   Readonly<{
@@ -93,7 +93,7 @@ export function createMemoryUseEligibility<P>(
     ])
   const set = (access: Access<P>, endpoint: EndpointRef, change: Partial<Entry>) => {
     const key = keyOf(access, endpoint)
-    const previous = entries.get(key) ?? { verdict: 'granted', unreadable: false }
+    const previous = entries.get(key) ?? { verdict: 'not-eligible', unreadable: false }
     entries.set(key, { ...previous, ...change })
   }
   return {

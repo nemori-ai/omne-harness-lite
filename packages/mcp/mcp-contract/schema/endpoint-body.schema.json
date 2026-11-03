@@ -13,31 +13,117 @@
       "maxLength": 64,
       "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
     },
-    "transport": { "enum": ["stdio", "streamable-http"] },
-    "auth": { "enum": ["none", "static", "oauth"] },
-    "launch": { "$ref": "#/$defs/launch" }
+    "transport": {
+      "enum": ["stdio", "streamable-http"]
+    },
+    "auth": {
+      "enum": ["none", "static", "oauth"]
+    },
+    "launch": {
+      "$ref": "#/$defs/launch"
+    }
   },
-  "if": { "properties": { "transport": { "const": "stdio" } }, "required": ["transport"] },
-  "then": { "required": ["launch"] },
-  "else": { "not": { "required": ["launch"] } },
+  "allOf": [
+    {
+      "$comment": "stdio requires launch; Streamable HTTP forbids it.",
+      "if": {
+        "properties": {
+          "transport": {
+            "const": "stdio"
+          }
+        },
+        "required": ["transport"]
+      },
+      "then": {
+        "required": ["launch"]
+      },
+      "else": {
+        "not": {
+          "required": ["launch"]
+        }
+      }
+    },
+    {
+      "$comment": "stdio does not use OAuth.",
+      "if": {
+        "properties": {
+          "transport": {
+            "const": "stdio"
+          }
+        },
+        "required": ["transport"]
+      },
+      "then": {
+        "properties": {
+          "auth": {
+            "enum": ["none", "static"]
+          }
+        }
+      }
+    },
+    {
+      "$comment": "Without authentication no variable comes from a credential.",
+      "if": {
+        "properties": {
+          "auth": {
+            "const": "none"
+          }
+        },
+        "required": ["auth"]
+      },
+      "then": {
+        "properties": {
+          "launch": {
+            "properties": {
+              "env": {
+                "items": {
+                  "properties": {
+                    "source": {
+                      "const": "setting"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "launch": {
       "type": "object",
       "additionalProperties": false,
       "required": ["command"],
       "properties": {
-        "command": { "type": "string", "minLength": 1 },
-        "args": { "type": "array", "items": { "type": "string" } },
-        "cwd": { "type": "string", "minLength": 1 },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "minLength": 1
+        },
         "env": {
           "description": "Variable names are unique.",
           "type": "array",
-          "items": { "$ref": "#/$defs/environment" }
+          "items": {
+            "$ref": "#/$defs/environment"
+          }
         },
         "facilities": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,31}$"
+          }
         }
       }
     },
@@ -46,8 +132,13 @@
       "additionalProperties": false,
       "required": ["name", "source"],
       "properties": {
-        "name": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
-        "source": { "enum": ["setting", "credential"] }
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "source": {
+          "enum": ["setting", "credential"]
+        }
       }
     }
   }

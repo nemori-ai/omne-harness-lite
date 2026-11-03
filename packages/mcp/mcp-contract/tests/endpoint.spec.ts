@@ -136,6 +136,27 @@ describe('parseEndpointBody', () => {
       { ...stdio, launch: { ...stdio.launch, facilities: ['network', 'network'] } },
       'malformed',
     ],
+    [
+      'malformed: a facility name with an upper-case letter',
+      { ...stdio, launch: { ...stdio.launch, facilities: ['Network'] } },
+      'malformed',
+    ],
+    [
+      'malformed: a facility name that starts with a digit',
+      { ...stdio, launch: { ...stdio.launch, facilities: ['1net'] } },
+      'malformed',
+    ],
+    [
+      'malformed: a facility name of 33 characters',
+      { ...stdio, launch: { ...stdio.launch, facilities: [`n${'e'.repeat(32)}`] } },
+      'malformed',
+    ],
+    [
+      'malformed: a credential variable without authentication',
+      { ...stdio, name: 'search', auth: 'none' },
+      'malformed',
+    ],
+    ['malformed: stdio with OAuth', { ...stdio, name: 'search', auth: 'oauth' }, 'malformed'],
     ['name-mismatch', { ...http, name: 'other' }, 'name-mismatch'],
     ['transport-unknown', { ...http, transport: 'sse' }, 'transport-unknown'],
     ['auth-unknown', { ...http, auth: 'bearer' }, 'auth-unknown'],
@@ -156,6 +177,12 @@ describe('parseEndpointBody', () => {
     expect(parseEndpointBody(json({ ...http, transport: 'sse' }), 'other')).toEqual({
       failure: 'name-mismatch',
     })
+  })
+
+  it('accepts a facility name of 32 characters with hyphens', () => {
+    const facilities = [`n${'-'.repeat(30)}e`, 'gpu-2']
+    const definition = definitionOf({ ...stdio, launch: { ...stdio.launch, facilities } })
+    expect(definition.transport).toMatchObject({ launch: { facilities } })
   })
 
   it('checks the name only against a given capability name', () => {
@@ -276,7 +303,11 @@ describe('schema/endpoint-body.schema.json', () => {
       transport: { enum: string[] }
       auth: { enum: string[] }
     }
-    $defs: { environment: { properties: { source: { enum: string[] } } } }
+    allOf: { $comment: string }[]
+    $defs: {
+      environment: { properties: { source: { enum: string[] } } }
+      launch: { properties: { facilities: { items: { pattern: string } } } }
+    }
   }
 
   it('is the schema that the category port gives', () => {
@@ -296,11 +327,32 @@ describe('schema/endpoint-body.schema.json', () => {
     expect(file.properties.transport.enum).toEqual(['stdio', 'streamable-http'])
     expect(file.properties.auth.enum).toEqual(['none', 'static', 'oauth'])
     expect(file.$defs.environment.properties.source.enum).toEqual(['setting', 'credential'])
+    const settingOnly = { command: 'files-server', env: [{ name: 'MODE', source: 'setting' }] }
     for (const transport of file.properties.transport.enum)
       for (const auth of file.properties.auth.enum) {
-        const body = transport === 'stdio' ? { ...stdio, auth } : { ...http, transport, auth }
-        expect('ok' in parseEndpointBody(json(body))).toBe(true)
+        const body =
+          transport === 'stdio'
+            ? { ...stdio, launch: settingOnly, auth }
+            : { ...http, transport, auth }
+        const lawful = !(transport === 'stdio' && auth === 'oauth')
+        expect('ok' in parseEndpointBody(json(body))).toBe(lawful)
       }
+    expect(file.allOf.map(rule => rule.$comment)).toEqual([
+      'stdio requires launch; Streamable HTTP forbids it.',
+      'stdio does not use OAuth.',
+      'Without authentication no variable comes from a credential.',
+    ])
+  })
+
+  it('states the facility lexicon that the parser applies', () => {
+    const pattern = new RegExp(file.$defs.launch.properties.facilities.items.pattern, 'u')
+    for (const facility of ['network', 'gpu-2', 'a', 'Network', '1net', 'n'.repeat(33), ''])
+      expect(pattern.test(facility)).toBe(
+        'ok' in
+          parseEndpointBody(
+            json({ ...stdio, launch: { ...stdio.launch, facilities: [facility] } }),
+          ),
+      )
   })
 
   it('states the name lexicon that the parser applies', () => {

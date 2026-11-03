@@ -310,6 +310,19 @@ describe('the suites fail a port that breaks the contract', () => {
   })
 })
 
+describe('the memory UseEligibility double', () => {
+  it('keeps an ungranted principal not eligible after its unreadable flag is cleared', async () => {
+    const memory = createMemoryUseEligibility<Principal>({ principalKey })
+    memory.setUnreadable(bob, ref('files'), true)
+    expect(await memory.check(bob, ref('files'))).toEqual({ kind: 'unknown' })
+    memory.setUnreadable(bob, ref('files'), false)
+    expect(await memory.check(bob, ref('files'))).toEqual({
+      kind: 'refused',
+      reason: 'not-eligible',
+    })
+  })
+})
+
 describe('mergeListing over the exhaustive case table', () => {
   for (const sample of mergeListingCases)
     it(sample.name, () => {

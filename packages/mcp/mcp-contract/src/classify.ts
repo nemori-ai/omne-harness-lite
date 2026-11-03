@@ -21,10 +21,9 @@ function outputCheck(structured: JsonValue | undefined, context: ClassifyContext
   return context.checkOutput(structured, context.outputSchema)
 }
 
-/** `complete`, or `toolError` when `isError` is true. Omitted content reads as no content. */
+/** `complete`, or `toolError` when `isError` is true. The content list is required. */
 function completed(result: JsonObject, context: ClassifyContext): CallOutcome {
-  const contentValue = member(result, 'content')
-  const items = contentValue === undefined ? [] : itemsOf(contentValue)
+  const items = itemsOf(member(result, 'content'))
   const isError = member(result, 'isError')
   if (items === undefined) return MALFORMED
   if (isError !== undefined && isError.kind !== 'boolean') return MALFORMED
@@ -42,6 +41,7 @@ function inputRequired(result: JsonObject, issuedAt: Generation): CallOutcome {
   const stateValue = member(result, 'requestState')
   const requestState = textOf(stateValue)
   if (stateValue !== undefined && !isRequestState(requestState)) return MALFORMED
+  if (inputRequests !== undefined && !isObject(inputRequests)) return MALFORMED
   if (inputRequests === undefined && requestState === undefined) return MALFORMED
   return {
     kind: 'inputRequired',

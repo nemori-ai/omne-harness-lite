@@ -60,12 +60,6 @@ const completeCases: readonly ClassifyOutcomeCase[] = [
     expected: { kind: 'complete', content, output: { kind: 'no-schema' } },
   },
   {
-    name: 'complete: omitted content reads as no content',
-    answer: result({ resultType: 'complete' }),
-    issuedAt,
-    expected: { kind: 'complete', content: [], output: { kind: 'no-schema' } },
-  },
-  {
     name: 'complete: isError false is a complete result',
     answer: result({ resultType: 'complete', isError: false, content: text }),
     issuedAt,
@@ -207,6 +201,18 @@ const faultCases: readonly ClassifyOutcomeCase[] = [
   {
     name: 'protocolError: input required with neither input requests nor request state',
     answer: result({ resultType: 'input_required' }),
+    issuedAt,
+    expected: malformed,
+  },
+  {
+    name: 'protocolError: a complete result without content',
+    answer: result({ resultType: 'complete', structuredContent: { count: 1 } }),
+    issuedAt,
+    expected: malformed,
+  },
+  {
+    name: 'protocolError: input requests that are not an object',
+    answer: result({ resultType: 'input_required', inputRequests: 5, requestState: 's' }),
     issuedAt,
     expected: malformed,
   },

@@ -28,6 +28,7 @@ const BODY_MEMBERS = ['name', 'transport', 'auth', 'launch'] as const
 const LAUNCH_MEMBERS = ['command', 'args', 'cwd', 'env', 'facilities'] as const
 const ENVIRONMENT_MEMBERS = ['name', 'source'] as const
 const VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/u
+const FACILITY = /^[a-z][a-z0-9-]{0,31}$/u
 const TRANSPORTS = ['stdio', 'streamable-http'] as const
 const AUTH_KINDS: readonly AuthKind[] = ['none', 'static', 'oauth']
 
@@ -66,6 +67,9 @@ export function parseEndpointBody(
   if (capabilityName !== undefined && name !== capabilityName) return fail('name-mismatch')
   if (!isTransport(transport)) return fail('transport-unknown')
   if (!isAuthKind(auth)) return fail('auth-unknown')
+  if (transport === 'stdio' && auth === 'oauth') return fail('malformed')
+  if (auth === 'none' && launch?.env.some(binding => binding.source === 'credential') === true)
+    return fail('malformed')
   if (transport === 'streamable-http')
     return launch === undefined
       ? succeed({ name, transport: { kind: 'streamable-http' }, auth })
@@ -83,7 +87,11 @@ function launchOf(value: JsonValue): StdioLaunch | 'malformed' {
   const env = environmentOf(member(value, 'env'))
   const facilities = textsOf(member(value, 'facilities'))
   if (args === undefined || env === undefined || facilities === undefined) return 'malformed'
-  if (facilities.includes('') || new Set(facilities).size !== facilities.length) return 'malformed'
+  if (
+    !facilities.every(name => FACILITY.test(name)) ||
+    new Set(facilities).size !== facilities.length
+  )
+    return 'malformed'
   const cwdValue = member(value, 'cwd')
   if (cwdValue === undefined) return { command, args, env, facilities }
   const cwd = textOf(cwdValue)
