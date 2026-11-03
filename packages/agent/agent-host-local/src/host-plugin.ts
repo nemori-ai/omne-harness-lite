@@ -4,6 +4,10 @@
 // its body does not run; a wrong configuration fails the fiber before the body runs; a new provider
 // of any of them unloads the body and runs it again, and the registrations of the old instances end
 // with their contribution fibers.
+//
+// The plugin object also carries `quiesceAll`, the ordered stop of every host its bodies run now
+// (SPEC "有序停止"). It is not a Cordis service: only the assembly that holds the plugin object can
+// call it, so application members still have no way to stop an instance.
 import type { Context } from '@deepseek-ai/cordis'
 import { createAgentRuntime, type AgentDependencies, type AgentMeasure } from '@omne-harness/agent'
 import type { AgentInstanceId } from '@omne-harness/agent-contract'
@@ -25,11 +29,42 @@ import {
   type AgentLocalRoute,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
-import { definePlugin } from '@omne-harness/kernel-basis/cordis'
+import { definePlugin, type DefinedPlugin } from '@omne-harness/kernel-basis/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
 import { agentHostConfig, type AgentHostConfig } from './host-config.ts'
-import { createHost, type Host, type RuntimeFactory } from './host.ts'
+import {
+  createHost,
+  type AgentHostStopInput,
+  type AgentHostStopResult,
+  type AgentHostUnsettled,
+  type Host,
+  type RuntimeFactory,
+} from './host.ts'
+
+export type { AgentHostStopInput, AgentHostStopResult, AgentHostUnsettled }
+
+/** The `agent-host` plugin and its ordered stop. */
+export type AgentHostPlugin = DefinedPlugin<AgentHostConfig> &
+  Readonly<{
+    /**
+     * Closes admission and quiesces every instance of every host the plugin's bodies run now. It
+     * answers `settled` only when all of them drained before `signal` aborted; otherwise
+     * `incomplete` names each instance or build that did not end, and why. It never rejects. With
+     * no body running it answers `settled`: there is no instance to stop.
+     */
+    quiesceAll(input: AgentHostStopInput): Promise<AgentHostStopResult>
+  }>
+
+/** One answer for several hosts: settled only when every host settled. */
+function merged(answers: readonly AgentHostStopResult[]): AgentHostStopResult {
+  const instances = answers.flatMap(answer => (answer.kind === 'settled' ? [] : answer.instances))
+  if (instances.length === 0) return { kind: 'settled' }
+  const detail = answers
+    .flatMap(answer => (answer.kind === 'settled' ? [] : [answer.detail]))
+    .join('; ')
+  return { kind: 'incomplete', detail, instances }
+}
 
 class LocalInstanceHost extends AgentInstanceHostService<unknown> {
   readonly reserve: Host['instanceHost']['reserve']
@@ -95,8 +130,9 @@ class LocalInstanceProvision extends AgentInstanceProvisionService<unknown> {
  * The plugin over a given runtime factory. Production uses `createAgentRuntime`; a test may wrap
  * it, for example to stand in for a runtime duty that the factory does not keep yet.
  */
-export function createAgentHostPlugin(factory: RuntimeFactory) {
-  return definePlugin<AgentHostConfig>({
+export function createAgentHostPlugin(factory: RuntimeFactory): AgentHostPlugin {
+  const live = new Set<Host>()
+  const plugin = definePlugin<AgentHostConfig>({
     name: 'agent-host',
     Config: agentHostConfig,
     inject: [
@@ -135,7 +171,14 @@ export function createAgentHostPlugin(factory: RuntimeFactory) {
       ctx.on('agent-cordis-contract/instance-retired', (tenant, instance, generation, reason) =>
         host.retired(tenant, instance, generation, reason),
       )
-      ctx.effect(() => () => host.stop(), 'agent-host.stop')
+      live.add(host)
+      ctx.effect(
+        () => () => {
+          live.delete(host)
+          host.stop()
+        },
+        'agent-host.stop',
+      )
       new LocalInstanceHost(ctx, host.instanceHost)
       new LocalPublicationAuthority(ctx, host)
       new LocalExecutionRecovery(ctx, host)
@@ -143,10 +186,15 @@ export function createAgentHostPlugin(factory: RuntimeFactory) {
       new LocalInstanceProvision(ctx, host)
     },
   })
+  return Object.assign(plugin, {
+    async quiesceAll(input: AgentHostStopInput): Promise<AgentHostStopResult> {
+      return merged(await Promise.all([...live].map(host => host.quiesceAll(input))))
+    },
+  })
 }
 
 /** The `agent-host` plugin with the Agent factory. */
-export const agentHostPlugin = createAgentHostPlugin((dependencies, options) =>
+export const agentHostPlugin: AgentHostPlugin = createAgentHostPlugin((dependencies, options) =>
   createAgentRuntime(dependencies, options),
 )
 
@@ -173,7 +221,7 @@ export type AgentHostLocalPluginInput = Readonly<{
  * keys are those of `agentHostPlugin`; neither is a Cordis service or a configuration member. Use
  * the returned plugin as `ctx.plugin(plugin, config)` does with `agentHostPlugin`.
  */
-export function createAgentHostLocalPlugin(input: AgentHostLocalPluginInput = {}) {
+export function createAgentHostLocalPlugin(input: AgentHostLocalPluginInput = {}): AgentHostPlugin {
   const { measure, toolRequests } = input
   return createAgentHostPlugin((dependencies, options) =>
     createAgentRuntime(

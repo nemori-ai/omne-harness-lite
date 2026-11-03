@@ -54,7 +54,7 @@ import type { Admission, ModelRuntime } from '@omne-harness/model-contract'
 import { ModelRuntimeService } from '@omne-harness/model-cordis-contract/cordis'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AgentHostConfig } from '../src/host-config.ts'
-import { createAgentHostPlugin } from '../src/host-plugin.ts'
+import { createAgentHostPlugin, type AgentHostPlugin } from '../src/host-plugin.ts'
 import type { RuntimeFactory } from '../src/host.ts'
 
 export type Principal = string
@@ -228,7 +228,9 @@ export type World = Readonly<{
   /** The quiesce calls that reached a runtime under `withRuntimeDuties`. */
   quiesced: AgentInstanceId[]
   /** The next quiesce of `withRuntimeDuties` answers this; `drained` when unset. */
-  quiesceAnswers: ('drained' | 'unresolved')[]
+  quiesceAnswers: QuiesceScript[]
+  /** The plugin the world loaded, with its ordered stop. */
+  plugin: AgentHostPlugin
   /** The next check of `operation`, for `principal` when given, answers denied. */
   refuseNext(operation: string, principal?: Principal): void
   /** Moves the manual clock forward. */
@@ -238,12 +240,20 @@ export type World = Readonly<{
 
 export type JournalCall = Readonly<{ method: 'load' | 'recordControl'; principal: unknown }>
 
+/**
+ * What one quiesce of `withRuntimeDuties` does after its access check. `drained` withdraws through
+ * the handle and answers drained; `unresolved` answers unresolved and stays serving; `hang` never
+ * answers; `throw` rejects; `drained-kept` answers drained without withdrawing, so only the unload
+ * of the contribution fiber can end the registration (`contributor-removed`).
+ */
+export type QuiesceScript = 'drained' | 'unresolved' | 'hang' | 'throw' | 'drained-kept'
+
 export type WorldOptions = Readonly<{
   factory?: 'plain' | 'duties'
   omit?: Injected
   config?: unknown
   /** The plugin to load instead of the one over `factory`, for the factory-made plugin cases. */
-  plugin?: ReturnType<typeof createAgentHostPlugin>
+  plugin?: AgentHostPlugin
   /** The options of the test dependencies, such as the Journal's cancellation policy. */
   dependencies?: TestAgentDependenciesOptions<Principal>
   /**
@@ -303,10 +313,15 @@ function withRuntimeDuties(
             draining = false
             return fail({ kind: 'denied', action: 'quiesce' })
           }
-          if (world.quiesceAnswers.shift() === 'unresolved') {
+          const script = world.quiesceAnswers.shift() ?? 'drained'
+          if (script === 'unresolved') {
             draining = false
             return succeed({ kind: 'unresolved', remaining: [], evidence: input.reason })
           }
+          if (script === 'hang') return new Promise(() => {})
+          if (script === 'throw') throw new Error('the runtime broke during quiesce')
+          if (script === 'drained-kept')
+            return succeed({ kind: 'drained', remaining: [], evidence: input.reason })
           const withdrawn = await handle.withdraw(input)
           if ('failure' in withdrawn) return withdrawn
           return succeed({ kind: 'drained', remaining: [], evidence: input.reason })
@@ -391,14 +406,15 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
   if (options.omit !== 'agentHostPrincipal') root.provide('agentHostPrincipal', HOST_PRINCIPAL)
   const handles = new Map<AgentInstanceId, AgentRegistrationHandle<unknown>>()
   const quiesced: AgentInstanceId[] = []
-  const quiesceAnswers: ('drained' | 'unresolved')[] = []
+  const quiesceAnswers: QuiesceScript[] = []
   const factory: RuntimeFactory =
     options.factory === 'duties'
       ? withRuntimeDuties({ handles, quiesced, quiesceAnswers })
       : (deps, opts) => createAgentRuntime(deps, opts)
   const configured = 'config' in options
+  const plugin = options.plugin ?? createAgentHostPlugin(factory)
   const host = root.plugin(
-    options.plugin ?? createAgentHostPlugin(factory),
+    plugin,
     (configured ? options.config : hostConfig) as AgentHostConfig,
   )
   // A refused configuration rejects the fiber; the test that expects it awaits the fiber itself.
@@ -437,6 +453,7 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     handles,
     quiesced,
     quiesceAnswers,
+    plugin,
     refuseNext(operation, principal) {
       refusals.push({ operation, principal })
     },
