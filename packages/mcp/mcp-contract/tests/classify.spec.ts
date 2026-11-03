@@ -27,7 +27,7 @@ describe('classifyOutcome over the exhaustive case table', () => {
         checkOutput: check,
         ...(sample.outputSchema === undefined ? {} : { outputSchema: sample.outputSchema }),
       }
-      expect(classifyOutcome(sample.answer, context)).toEqual(sample.expected)
+      expect(classifyOutcome(sample.answer, context)).toStrictEqual(sample.expected)
     })
 
   it('covers all six outcome kinds', () => {

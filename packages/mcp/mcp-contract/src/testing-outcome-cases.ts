@@ -259,6 +259,12 @@ const faultCases: readonly ClassifyOutcomeCase[] = [
     expected: peerError(-32000, 'Server error'),
   },
   {
+    name: 'protocolError: an error that is not an object',
+    answer: error('boom'),
+    issuedAt,
+    expected: errorMalformed,
+  },
+  {
     name: 'protocolError: an error without a code',
     answer: error({ message: 'no code' }),
     issuedAt,

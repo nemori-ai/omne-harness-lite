@@ -8,7 +8,7 @@ import type {
   ProcessLanding,
   StopScope,
 } from './ports.ts'
-import { conformanceCase, handle, type ConformanceCase } from './testing-case.ts'
+import { NotApplicable, conformanceCase, handle, type ConformanceCase } from './testing-case.ts'
 import { memorySecretOf } from './testing-credentials.ts'
 import type { StdioLaunch } from './values.ts'
 
@@ -74,7 +74,9 @@ export function mcpProcessLandingConformance<P>(): readonly ConformanceCase<
       async fixture => {
         const secret = handle(fixture.secret, 'secret')
         const process = await started(fixture)
-        await process.stop()
+        // Standard error ends only when the process has stopped. Without a confirmed stop the
+        // case would wait without bound, so it does not read the stream.
+        if ((await process.stop()) === 'unconfirmed') throw new NotApplicable('confirmed stop')
         assert.ok(
           !(await textOf(process.stderr)).includes(secret),
           'standard error reveals a secret',

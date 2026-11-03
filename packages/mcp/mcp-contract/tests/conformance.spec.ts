@@ -22,6 +22,7 @@ import {
 import type {
   AdoptionView,
   CatalogStore,
+  ProcessLanding,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
 import {
@@ -194,7 +195,9 @@ function credentialFixture(): CredentialUseFixture<Principal> {
   }
 }
 
-function landingFixture(): ProcessLandingFixture<Principal> {
+function landingFixture(
+  wrap: (port: ProcessLanding<Principal>) => ProcessLanding<Principal> = port => port,
+): ProcessLandingFixture<Principal> {
   const credentials = createMemoryCredentialUse<Principal>()
   credentials.store({
     tenant: home,
@@ -207,7 +210,7 @@ function landingFixture(): ProcessLandingFixture<Principal> {
     refusedCommands: ['/not/here'],
   })
   return {
-    port: landing,
+    port: wrap(landing),
     access: alice,
     launch: {
       command: '/usr/bin/files-server',
@@ -264,7 +267,7 @@ describe('CredentialUse conformance on the memory double', () => {
 })
 
 describe('ProcessLanding conformance on the memory double', () => {
-  register(mcpProcessLandingConformance<Principal>(), landingFixture)
+  register(mcpProcessLandingConformance<Principal>(), () => landingFixture())
 })
 
 describe('CatalogStore conformance on the memory double', () => {
@@ -272,6 +275,33 @@ describe('CatalogStore conformance on the memory double', () => {
 })
 
 describe('the suites fail a port that breaks the contract', () => {
+  it('ProcessLanding: a second stop that confirms less than the first', async () => {
+    const forgetful = (port: ProcessLanding<Principal>): ProcessLanding<Principal> => ({
+      start: async (who, launch, env) => {
+        const started = await port.start(who, launch, env)
+        if ('failure' in started) return started
+        let stops = 0
+        const process = started.ok
+        return {
+          ok: {
+            stdin: process.stdin,
+            stdout: process.stdout,
+            stderr: process.stderr,
+            exited: process.exited,
+            stop: async () => {
+              stops += 1
+              const scope = await process.stop()
+              return stops > 1 ? 'unconfirmed' : scope
+            },
+          },
+        }
+      },
+    })
+    expect(
+      await failing(mcpProcessLandingConformance<Principal>(), () => landingFixture(forgetful)),
+    ).toEqual(['answers a repeated stop without a smaller range'])
+  })
+
   it('UseEligibility: an answer that differs for a missing endpoint discloses existence', async () => {
     const leaky = (port: UseEligibility<Principal>): UseEligibility<Principal> => ({
       check: async (who, endpoint) =>
@@ -326,6 +356,6 @@ describe('the memory UseEligibility double', () => {
 describe('mergeListing over the exhaustive case table', () => {
   for (const sample of mergeListingCases)
     it(sample.name, () => {
-      expect(mergeListing(sample.current, sample.listing)).toEqual(sample.expected)
+      expect(mergeListing(sample.current, sample.listing)).toStrictEqual(sample.expected)
     })
 })

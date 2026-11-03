@@ -11,13 +11,13 @@ function delivered(items: readonly unknown[]): readonly DeliveredContent[] {
 
 describe('toContentBlocks', () => {
   it('turns text into a text block', () => {
-    expect(delivered([{ type: 'text', text: 'hello' }])).toEqual([
+    expect(delivered([{ type: 'text', text: 'hello' }])).toStrictEqual([
       { kind: 'block', block: { kind: 'text', id: 'content-0', visibility: both, text: 'hello' } },
     ])
   })
 
   it('turns an image into an image block without changing its media type', () => {
-    expect(delivered([{ type: 'image', data: PNG, mimeType: 'image/x-odd' }])).toEqual([
+    expect(delivered([{ type: 'image', data: PNG, mimeType: 'image/x-odd' }])).toStrictEqual([
       {
         kind: 'block',
         block: {
@@ -32,7 +32,7 @@ describe('toContentBlocks', () => {
   })
 
   it('turns audio into a voice block', () => {
-    expect(delivered([{ type: 'audio', data: 'AAAA', mimeType: 'audio/wav' }])).toEqual([
+    expect(delivered([{ type: 'audio', data: 'AAAA', mimeType: 'audio/wav' }])).toStrictEqual([
       {
         kind: 'block',
         block: {
@@ -48,15 +48,20 @@ describe('toContentBlocks', () => {
 
   it('hands over a resource link with its protocol type, as written', () => {
     const link = { type: 'resource_link', uri: 'file:///a.txt', name: 'a.txt', size: 12 }
-    expect(delivered([link])).toEqual([
+    expect(delivered([link])).toStrictEqual([
       { kind: 'protocol', type: 'resource_link', item: json(link) },
     ])
+  })
+
+  it('accepts padded base64 of every length class', () => {
+    for (const data of ['', 'QQ==', 'QQQ=', 'QQQQ'])
+      expect(delivered([{ type: 'image', data, mimeType: 'image/png' }])[0]?.kind).toBe('block')
   })
 
   it('hands over an embedded text or binary resource with its protocol type, as written', () => {
     const text = { type: 'resource', resource: { uri: 'file:///a.txt', text: 'a' } }
     const blob = { type: 'resource', resource: { uri: 'file:///a.bin', blob: 'AAAA' } }
-    expect(delivered([text, blob])).toEqual([
+    expect(delivered([text, blob])).toStrictEqual([
       { kind: 'protocol', type: 'resource', item: json(text) },
       { kind: 'protocol', type: 'resource', item: json(blob) },
     ])
@@ -69,7 +74,7 @@ describe('toContentBlocks', () => {
         { type: 'text', text: 'a', annotations, _meta: { k: 'v' } },
         { type: 'resource_link', uri: 'file:///a', name: 'a', annotations },
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       {
         kind: 'block',
         block: { kind: 'text', id: 'content-0', visibility: both, text: 'a' },
@@ -120,6 +125,49 @@ describe('toContentBlocks', () => {
       { type: 'text', text: 'a', annotations: 1 },
       'annotations-invalid',
       'text',
+    ],
+    ['an item whose type is not text', { type: 5, text: 'a' }, 'type-missing', undefined],
+    [
+      'image data of length 3 with padding',
+      { type: 'image', data: 'Q==', mimeType: 'image/png' },
+      'data-invalid',
+      'image',
+    ],
+    [
+      'image data of length 3',
+      { type: 'image', data: 'QQ=', mimeType: 'image/png' },
+      'data-invalid',
+      'image',
+    ],
+    [
+      'image data of length 5',
+      { type: 'image', data: 'QQQQQ', mimeType: 'image/png' },
+      'data-invalid',
+      'image',
+    ],
+    [
+      'an image with an empty media type',
+      { type: 'image', data: 'QQ==', mimeType: '' },
+      'mime-type-invalid',
+      'image',
+    ],
+    [
+      'a resource link with an empty uri',
+      { type: 'resource_link', uri: '', name: 'a' },
+      'uri-invalid',
+      'resource_link',
+    ],
+    [
+      'a resource that is not an object',
+      { type: 'resource', resource: 'file:///a' },
+      'resource-invalid',
+      'resource',
+    ],
+    [
+      'a resource without a uri',
+      { type: 'resource', resource: { text: 'a' } },
+      'resource-invalid',
+      'resource',
     ],
   ]
 

@@ -54,6 +54,12 @@ describe('parseEndpointBody', () => {
     })
   })
 
+  for (const omitted of ['args', 'cwd', 'env', 'facilities'] as const)
+    it(`accepts a launch that omits ${omitted}`, () => {
+      const { [omitted]: _dropped, ...launch } = stdio.launch
+      expect('ok' in parseEndpointBody(json({ ...stdio, launch }))).toBe(true)
+    })
+
   it('reads omitted launch lists as empty and leaves an omitted cwd absent', () => {
     const definition = definitionOf({
       name: 'files',
@@ -117,6 +123,27 @@ describe('parseEndpointBody', () => {
       { ...stdio, launch: { ...stdio.launch, env: [{ name: '1TOKEN', source: 'setting' }] } },
       'malformed',
     ],
+    [
+      'malformed: an environment name with a hyphen',
+      { ...stdio, launch: { ...stdio.launch, env: [{ name: 'A-b', source: 'setting' }] } },
+      'malformed',
+    ],
+    [
+      'malformed: an environment item without a name',
+      { ...stdio, launch: { ...stdio.launch, env: [{ source: 'setting' }] } },
+      'malformed',
+    ],
+    [
+      'malformed: a launch that is not an object',
+      { ...stdio, launch: 'files-server' },
+      'malformed',
+    ],
+    [
+      'malformed: a launch with an unknown member',
+      { ...stdio, launch: { ...stdio.launch, shell: true } },
+      'malformed',
+    ],
+    ['malformed: a launch without a command', { ...stdio, launch: { args: [] } }, 'malformed'],
     [
       'malformed: an environment name repeats',
       {

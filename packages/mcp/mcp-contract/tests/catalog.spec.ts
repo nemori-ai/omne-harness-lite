@@ -4,6 +4,7 @@ import {
   actionPermissionItems,
   completeListing,
   digestDefinition,
+  isCatalogRevision,
   isGeneration,
   isProtocolVersion,
   markUnavailable,
@@ -108,6 +109,29 @@ describe('completeListing', () => {
     expect(completeListing({ ...read, pages })).toEqual({ failure: 'page-limit-exceeded' })
   })
 
+  it('refuses a listing with more pages than the bound even when the last page is final', () => {
+    const pages = [1, 2, 3, 4].map(index =>
+      page([tool(`a${index}`)], index === 4 ? {} : { nextCursor: `p${index}` }),
+    )
+    expect(completeListing({ ...read, pages })).toEqual({ failure: 'page-limit-exceeded' })
+  })
+
+  it('takes the shortest freshness hint in either page order', () => {
+    const complete = completeListing({
+      ...read,
+      pages: [page([], { nextCursor: 'p2', ttlMs: 5_000 }), page([], { ttlMs: 60_000 })],
+    })
+    expect('ok' in complete && complete.ok.freshness.ttlMs).toBe(5_000)
+  })
+
+  it('gives no freshness hint when no page gives one', () => {
+    const complete = completeListing({ ...read, pages: [page([tool('a')])] })
+    expect('ok' in complete && complete.ok.freshness).toStrictEqual({
+      acquiredAt: '2026-11-03T00:00:00Z',
+      changedNotified: false,
+    })
+  })
+
   it('refuses a listing with more actions than the bound', () => {
     const tools = ['a', 'b', 'c', 'd', 'e'].map(name => tool(name))
     expect(completeListing({ ...read, pages: [page(tools)] })).toEqual({
@@ -198,13 +222,24 @@ describe('digestDefinition', () => {
 
 describe('mergeListing', () => {
   it('turns the first complete listing into revision 1 with every action available', () => {
-    const record = merged(notAcquired, [tool('b'), tool('a')])
+    const record = merged(notAcquired, [tool('d'), tool('b'), tool('c'), tool('a')])
     expect(record.revision).toBe(1)
     expect(record.basis).toEqual(basis(1))
     expect(record.actions.map(action => [action.name, action.availability.kind])).toEqual([
       ['a', 'available'],
       ['b', 'available'],
+      ['c', 'available'],
+      ['d', 'available'],
     ])
+  })
+
+  it('sorts a long listing given in reverse order', () => {
+    const names = Array.from({ length: 100 }, (_, index) => `a${String(index).padStart(3, '0')}`)
+    const record = merged(
+      notAcquired,
+      [...names].reverse().map(name => tool(name)),
+    )
+    expect(record.actions.map(action => action.name)).toEqual(names)
   })
 
   it('records an empty listing as acquired with zero actions', () => {
@@ -293,7 +328,28 @@ describe('mergeListing', () => {
   })
 })
 
+describe('revision exhaustion', () => {
+  const max = Number.MAX_SAFE_INTEGER
+  if (!isCatalogRevision(max)) throw new Error('bad revision')
+  const atMax = { ...merged(notAcquired, [tool('a')]), revision: max }
+
+  it('throws RangeError instead of giving a revision past the safe range', () => {
+    expect(() => markUnavailable(atMax, 'connection-unavailable')).toThrow(RangeError)
+    expect(() => mergeListing(adopted(atMax), listing([tool('a')], 1, max))).toThrow(RangeError)
+  })
+})
+
 describe('markUnavailable', () => {
+  it('replaces an earlier connection reason with the new one', () => {
+    const first = merged(notAcquired, [tool('a'), tool('b')])
+    const lost = markUnavailable(first, 'connection-unavailable')
+    const marked = markUnavailable(lost, 'credential-unavailable')
+    expect(marked.actions.map(action => action.availability)).toEqual([
+      { kind: 'unavailable', reason: 'credential-unavailable' },
+      { kind: 'unavailable', reason: 'credential-unavailable' },
+    ])
+  })
+
   it('marks every action unavailable with the reason, keeps definitions, and raises the revision', () => {
     const first = merged(notAcquired, [tool('a'), tool('b')])
     const marked = markUnavailable(first, 'credential-unavailable')

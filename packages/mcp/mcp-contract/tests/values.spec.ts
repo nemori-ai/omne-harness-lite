@@ -24,6 +24,7 @@ describe('isConnectionTarget', () => {
     'http://localhost:3000/mcp',
     'http://[::1]:9000/mcp',
     'https://[::1]:9000/mcp?tenant=a',
+    'https://mcp.example.test/~tilde',
   ]
   const refused = [
     'HTTPS://mcp.example.test/',
@@ -37,6 +38,13 @@ describe('isConnectionTarget', () => {
     'https://mcp.example.test/#part',
     'https://user:secret@mcp.example.test/',
     'https://user@mcp.example.test/',
+    'https://:secret@mcp.example.test/',
+    'xhttps://mcp.example.test/',
+    ' https://mcp.example.test/x',
+    'https:///mcp.example.test',
+    'https://mcp.example.test/\u001f',
+    'https://mcp.example.test/\u007f',
+    'https://mcp.example.test/\u009f',
     'https://mcp.example.test/a b',
     ' https://mcp.example.test/',
     'https://mcp.example.test/\u0007',
@@ -92,6 +100,8 @@ describe('text brands', () => {
       expect(guard(`sha256:${'0a'.repeat(32)}`)).toBe(true)
       expect(guard(`sha256:${'0A'.repeat(32)}`)).toBe(false)
       expect(guard(`sha256:${'0a'.repeat(31)}`)).toBe(false)
+      expect(guard(`xsha256:${'0a'.repeat(32)}`)).toBe(false)
+      expect(guard(`sha256:${'0a'.repeat(32)}x`)).toBe(false)
       expect(guard('0a'.repeat(32))).toBe(false)
     })
 
