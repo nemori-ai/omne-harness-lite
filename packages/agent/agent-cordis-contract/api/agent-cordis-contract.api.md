@@ -31,6 +31,7 @@
 - `AgentPublicationAuthority` · `cordis.d.ts`
 - `AgentPublicationAuthorityService` · `cordis.d.ts`
 - `AgentReceivedCommitsService` · `cordis.d.ts`
+- `AgentReceivedRecordsService` · `cordis.d.ts`
 - `AgentRegistrationInput` · `index.d.ts`
 - `AgentWithdrawalInput` · `index.d.ts`
 - `CurrentConditionsService` · `cordis.d.ts`
@@ -66,6 +67,7 @@
 - `agentPublicationAuthorityKey` · `cordis.d.ts`
 - `agentReadsKey` · `cordis.d.ts`
 - `agentReceivedCommitsKey` · `cordis.d.ts`
+- `agentReceivedRecordsKey` · `cordis.d.ts`
 - `agentRequestsKey` · `cordis.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
@@ -84,7 +86,7 @@
 
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
-import { type ActionAdmission, type AgentAccessCheck, type AgentAccountOutlet, type AgentAdoptions, type AgentClock, type AgentDirectory, type AgentExecutionControl, type AgentExecutionRecovery, type AgentInstanceHost, type AgentInstanceId, type AgentJournal, type AgentJournalEntries, type AgentMaterials, type AgentReceivedCommits, type CurrentConditions, type DecisionCards, type ExtensionImplementations, type Failure, type MessageHandoff, type ModelContextReader, type ModelReceptionTargets, type ModelSelection, type RegisteredReads, type Registration, type RequestPreparation, type Reply } from '@omne-harness/agent-contract';
+import { type ActionAdmission, type AgentAccessCheck, type AgentAccountOutlet, type AgentAdoptions, type AgentClock, type AgentDirectory, type AgentExecutionControl, type AgentExecutionRecovery, type AgentInstanceHost, type AgentInstanceId, type AgentJournal, type AgentJournalEntries, type AgentMaterials, type AgentReceivedCommits, type AgentReceivedRecords, type CurrentConditions, type DecisionCards, type ExtensionImplementations, type Failure, type MessageHandoff, type ModelContextReader, type ModelReceptionTargets, type ModelSelection, type RegisteredReads, type Registration, type RequestPreparation, type Reply } from '@omne-harness/agent-contract';
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type Outcome } from '@omne-harness/operation-result';
@@ -245,6 +247,12 @@ export declare abstract class AgentReceivedCommitsService<P, B extends ContentBl
     abstract readonly query: AgentReceivedCommits<P, B>['query'];
 }
 export declare const agentReceivedCommitsKey = "agentReceivedCommits";
+export declare abstract class AgentReceivedRecordsService<P> extends Service implements AgentReceivedRecords<P> {
+    static readonly provide = "agentReceivedRecords";
+    constructor(ctx: Context);
+    abstract readonly query: AgentReceivedRecords<P>['query'];
+}
+export declare const agentReceivedRecordsKey = "agentReceivedRecords";
 export declare abstract class ModelReceptionTargetsService<P> extends Service implements ModelReceptionTargets<P> {
     static readonly provide = "agentModelReceptionTargets";
     constructor(ctx: Context);
@@ -321,6 +329,7 @@ declare module '@deepseek-ai/cordis' {
         agentJournalEntries: AgentJournalEntriesService<unknown>;
         agentAccountOutlet: AgentAccountOutletService<unknown>;
         agentReceivedCommits: AgentReceivedCommitsService<unknown, ContentBlock>;
+        agentReceivedRecords: AgentReceivedRecordsService<unknown>;
         agentModelReceptionTargets: ModelReceptionTargetsService<unknown>;
         agentExecutionControl: AgentExecutionControlService<unknown>;
         agentInstances: AgentInstancesService<unknown>;

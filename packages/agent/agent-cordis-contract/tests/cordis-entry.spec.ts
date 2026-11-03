@@ -38,6 +38,7 @@ const documentedPairs = {
   agentJournalEntriesKey: 'AgentJournalEntriesService',
   agentAccountOutletKey: 'AgentAccountOutletService',
   agentReceivedCommitsKey: 'AgentReceivedCommitsService',
+  agentReceivedRecordsKey: 'AgentReceivedRecordsService',
   agentModelReceptionTargetsKey: 'ModelReceptionTargetsService',
   agentExecutionControlKey: 'AgentExecutionControlService',
   agentInstancesKey: 'AgentInstancesService',
@@ -60,10 +61,10 @@ const serviceClasses = exported.filter(
 )
 
 describe('service keys', () => {
-  it('exports 24 unique keys, one per documented pair', () => {
+  it('exports 25 unique keys, one per documented pair', () => {
     const keys = keyConstants.map(([, value]) => value)
-    expect(keys).toHaveLength(24)
-    expect(new Set(keys).size).toBe(24)
+    expect(keys).toHaveLength(25)
+    expect(new Set(keys).size).toBe(25)
     expect(keyConstants.map(([name]) => name).sort()).toEqual(Object.keys(documentedPairs).sort())
   })
 
@@ -78,8 +79,8 @@ describe('service keys', () => {
   )
 
   it('has one service class per key, no more, and one plugin beside them', () => {
-    expect(serviceClasses).toHaveLength(24)
-    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(24)
+    expect(serviceClasses).toHaveLength(25)
+    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(25)
     for (const [name] of serviceClasses) expect(name).toMatch(/^[A-Z][A-Za-z]+Service$/u)
     expect(exported.map(([name]) => name).filter(name => !/(Service|Key)$/u.test(name))).toEqual([
       'agentInstancesPlugin',
@@ -112,6 +113,7 @@ describe('the key texts', () => {
       agentJournalEntriesKey: 'agentJournalEntries',
       agentAccountOutletKey: 'agentAccountOutlet',
       agentReceivedCommitsKey: 'agentReceivedCommits',
+      agentReceivedRecordsKey: 'agentReceivedRecords',
       agentModelReceptionTargetsKey: 'agentModelReceptionTargets',
       agentExecutionControlKey: 'agentExecutionControl',
       agentInstancesKey: 'agentInstances',
@@ -123,8 +125,8 @@ describe('the key texts', () => {
 describe('the documentation that the built declaration carries', () => {
   const declaration = readFileSync(memberPath('dist/cordis.d.ts'), 'utf8')
 
-  it('names its owner on each of the 24 service classes and claims no contract id', () => {
-    expect(declaration.match(/@owner packages\/agent\/agent-cordis-contract/gu)).toHaveLength(24)
+  it('names its owner on each of the 25 service classes and claims no contract id', () => {
+    expect(declaration.match(/@owner packages\/agent\/agent-cordis-contract/gu)).toHaveLength(25)
     expect(declaration).not.toContain('@contract')
   })
 
@@ -196,7 +198,7 @@ describe('under Cordis 4.0.4', () => {
   it('provides each definition, whichever it is, under its own key and under no other', async () => {
     // `AgentInstancesService` takes the publication authority and is loaded through its plugin.
     const definitions = serviceClasses.filter(([, type]) => type.provide !== agentInstancesKey)
-    expect(definitions).toHaveLength(23)
+    expect(definitions).toHaveLength(24)
     for (const [name, type] of definitions) {
       const root = new Context()
       const make = type as unknown as new (ctx: Context) => Service

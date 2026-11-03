@@ -121,7 +121,7 @@ E1/E2/I1 的等待、E4/R0 路由与 I0/I1 的用例已写入节点验收表（a
 `observe` 缺租户与租户非法的用例名带「待拥有者」：契约没有 `invalid` 的结束原因，用例只核对序列结束、没有状态、没有调用 `access.check`，不核对结束原因。
 
 `journal-support.ts` 构造测试共用的契约值。`loop-support.ts` 构造评估器测试的 `LoopFacts`，并给出采用了 `agentEvaluator`、编排了条件与模型选择、模型在闸门打开后以一段文本收场的装配。`factory-support.ts` 给出工厂测试的有效选项、记录每次依赖方法调用的代理与登记句柄替身。`module-graph.ts` 与 `packages/tool/tool/tests/module-graph.ts` 相同，遍历导入图。
-`journal-received.spec.ts` 对实际内存 Journal 的四个同源视图执行 required 共同提交套件。`model-receiver.spec.ts` 通过公开 Model pusher 的冻结交付验证原资格、dispatch 集合、未知认回、取消与容量、账目重试及 blocked 保留。`loop-main-call.spec.ts` 验证 Agent 不调用 Model 消费面、从 received 采用结果、恢复及撤权；生产者 ACK 从 pusher 的独立记录验证。
+`journal-received.spec.ts` 对实际内存 Journal 的四个同源视图执行 required 共同提交套件。`model-receiver.spec.ts` 通过公开 Model pusher 的冻结交付验证原资格、dispatch 集合、未知认回、取消与容量、账目重试及 blocked 保留。`loop-main-call.spec.ts` 验证 Agent 不调用 Model 消费面、从 received 采用结果、恢复及撤权；生产者 ACK 从 pusher 的独立记录验证。`custody-evidence.spec.ts` 验证本 owner 的 ACK 证据适配器：接收方提交的记录完全一致才确认，提交前、证据、结果版本、consumer 或种类不同、读失败都答 `unavailable`（R2-D257）。
 
 第 2 轮回归还核对：维护入口返回 `Reply<ModelReceiverReport>`，两租户同名 execution、同租户不同 execution、撤权与不存在均不泄漏；每次维护捕获原绑定工作集，等待期间新增绑定不进入报告或材料读取。未决目标或资格检查取消返回无内容 unavailable。真实出口未完时首推与重复推送已返回 saved，实际 outlet 任务仍由宿主持有，重装配不双发，旧驱动代不发后继。
 

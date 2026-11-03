@@ -1,5 +1,10 @@
 import { createHash } from 'node:crypto'
-import type { Access, AgentExecutionId, Reply } from '@omne-harness/agent-contract'
+import type {
+  Access,
+  AgentExecutionId,
+  AgentOperationId,
+  Reply,
+} from '@omne-harness/agent-contract'
 import { decodeAgentOperationId } from '@omne-harness/agent-contract'
 import {
   judgeModelDelivery,
@@ -79,6 +84,24 @@ function targetQuery<P>(access: Access<P>, delivery: ModelDelivery) {
 }
 const receptionKey = <P>(access: Access<P>, delivery: ModelDelivery) =>
   canonical([tenantKey(access), delivery.key])
+
+/**
+ * The operation under which this receiver commits the delivery that `key` names for the tenant of
+ * `access`. It is derived, so the owner's evidence adapter finds the same committed record from the
+ * delivery key alone (custody-evidence.ts).
+ */
+export function receptionOperation<P>(
+  access: Access<P>,
+  key: ModelDelivery['key'],
+): AgentOperationId {
+  const operation = decodeAgentOperationId(
+    `received-${createHash('sha256')
+      .update(canonical([tenantKey(access), key]))
+      .digest('hex')}`,
+  )
+  if ('failure' in operation) throw new Error('invalid derived reception operation')
+  return operation.ok
+}
 
 export function createAgentModelReceiver<P>(
   dependencies: ModelReceiverDependencies<P>,
@@ -294,16 +317,12 @@ export function createAgentModelReceiver<P>(
         sameTenant.reduce((sum, item) => sum + item.attachments, attachments) > capacity.attachments
       )
         return fail({ kind: 'backpressured', resource: 'attachments' })
-      const operation = decodeAgentOperationId(
-        `received-${createHash('sha256').update(key).digest('hex')}`,
-      )
-      if ('failure' in operation) throw new Error('invalid derived reception operation')
       reception = {
         access: input.access,
         target,
         binding: bindingKey(input.access, target),
         delivery,
-        operation: operation.ok,
+        operation: receptionOperation(input.access, delivery.key),
         bytes,
         attachments,
         commit: { kind: 'new' },

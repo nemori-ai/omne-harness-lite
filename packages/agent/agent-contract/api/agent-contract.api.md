@@ -63,6 +63,7 @@
 - `AgentOperationId` · `identity.d.ts`
 - `AgentReceivedCommits` · `receiving.d.ts`
 - `AgentReceivedProvider` · `receiving.d.ts`
+- `AgentReceivedRecords` · `receiving.d.ts`
 - `AgentRegistrationHandle` · `execution.d.ts`
 - `AgentRegistrationId` · `identity.d.ts`
 - `AgentRuntime` · `execution.d.ts`
@@ -3157,6 +3158,9 @@ export type ReceivedCommitQuery = ReceivedCommitResult | Readonly<{
 }>;
 export interface AgentReceivedCommits<P, B extends ContentBlock> {
     commit(input: ReceivedCommitInput<P, B>): Reply<ReceivedCommitResult>;
+    query(input: ExecutionMutation<P>): Reply<ReceivedCommitQuery>;
+}
+export interface AgentReceivedRecords<P> {
     query(input: ExecutionMutation<P>): Reply<ReceivedCommitQuery>;
 }
 export type ModelReceptionTarget = Readonly<{

@@ -23,6 +23,7 @@ import {
   type AgentJournalEntries,
   type AgentMaterials,
   type AgentReceivedCommits,
+  type AgentReceivedRecords,
   type DurableEvidence,
   type Material,
   type ModelReceptionTargets,
@@ -43,6 +44,7 @@ import {
   agentMaterialsKey,
   agentModelReceptionTargetsKey,
   agentReceivedCommitsKey,
+  agentReceivedRecordsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -260,6 +262,7 @@ async function assembled(
   const adopted = () => face<SessionAdoptedRequests<unknown>>(sessionAdoptedRequestsKey)
   const received = () => face<AgentReceivedCommits<string, ContentBlock>>(agentReceivedCommitsKey)
   const targets = () => face<ModelReceptionTargets<string>>(agentModelReceptionTargetsKey)
+  const records = () => face<AgentReceivedRecords<string>>(agentReceivedRecordsKey)
   return {
     ctx,
     plugin,
@@ -269,6 +272,7 @@ async function assembled(
     adopted,
     received,
     targets,
+    records,
     wiring: services.wiring,
   }
 }
@@ -732,6 +736,38 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
       'failure.kind',
       'denied',
     )
+  })
+
+  // R2-D257: the read face the Agent owner's evidence adapter confirms a Model ACK through. Red
+  // when the plugin does not provide it in its own fiber, when it answers something other than the
+  // committed record, or when a new instance on the same storage no longer finds the record.
+  it('agentReceivedRecords answers the committed record, also from a new instance on the same storage', async () => {
+    const s = await scene('recv-records')
+    const first = await assembled(s)
+    expect(first.plugin.store?.[agentReceivedRecordsKey]?.fiber === first.plugin).toBe(true)
+    const draft = await waitingOnModel(s, first.journal(), 'recv-records')
+    const input = {
+      ...s.access,
+      execution: s.execution,
+      operation: operation('receive-records'),
+      entry: draft,
+      material: factsMaterial('recv-records'),
+    }
+    const absent = { ...input, operation: operation('receive-never') }
+    expect(ok(await first.records().query(absent))).toEqual({ kind: 'unknown' })
+    const saved = ok(await first.received().commit(input))
+    if (saved.kind !== 'committed') throw new Error(`received ${saved.kind}`)
+    const revision = ok(
+      await first.journal().load({ ...s.access, execution: s.execution }),
+    ).revision
+    expect(ok(await first.records().query(input))).toEqual(saved)
+    // A read writes nothing.
+    expect(ok(await first.journal().load({ ...s.access, execution: s.execution })).revision).toBe(
+      revision,
+    )
+    await first.plugin.dispose()
+    const second = await assembled(s)
+    expect(ok(await second.records().query(input))).toEqual(saved)
   })
 
   it('answers the binding the committed PendingCall made, after the call left the checkpoint and in a new instance', async () => {
