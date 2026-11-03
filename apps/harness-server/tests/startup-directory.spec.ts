@@ -1,6 +1,6 @@
 // prepareStartupDirectory prepares the tenant directory only for the enabled real directory, and takes
 // the storage location from the real storage row, whatever else the row list holds before it.
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -13,7 +13,7 @@ afterEach(() => {
   for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 const scratch = () => {
-  const dir = mkdtempSync(join(tmpdir(), 'startup-directory-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'startup-directory-')))
   made.push(dir)
   return dir
 }
