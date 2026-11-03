@@ -1,4 +1,8 @@
-import { calendarIdSchema, calendarImportSeedResultSchema } from '@omne-harness/calendar-contract'
+import {
+  calendarIdSchema,
+  calendarImportSeedResultSchema,
+  calendarProbeResultSchema,
+} from '@omne-harness/calendar-contract'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createCalendarSupplyRunner, type CalendarRunnerEvent } from '../../src/runner/index.ts'
 import { application, context } from './fixture.ts'
@@ -398,3 +402,69 @@ it('bounds an observer that never settles and exposes its retained diagnostic', 
   expect(w.supply.initialize).not.toHaveBeenCalled()
   expect(vi.getTimerCount()).toBe(0)
 })
+
+it.each([1, 2])(
+  'retries initialization after %i source plans fail without repeating the seed',
+  async failedCount => {
+    vi.useFakeTimers()
+    const w = setup()
+    const planned = calendarProbeResultSchema.parse({
+      kind: 'ok',
+      value: {
+        sourceId: 'source',
+        observation: {
+          sourceId: 'source',
+          observedAt: '2026-11-03T00:00:00.000Z',
+          kind: 'failed',
+          marker: null,
+          authorityCoverageEnd: null,
+          reason: 'Network unavailable; retry is scheduled',
+        },
+        nextDue: '2026-11-04T00:00:00.000Z',
+        consecutiveFailures: 1,
+        lastSuccess: null,
+      },
+    })
+    const failed = calendarProbeResultSchema.parse({
+      kind: 'error',
+      error: {
+        code: 'provider_failure',
+        message: 'Probe journal unavailable',
+        requestId: context.requestId,
+        retryable: true,
+        details: {},
+      },
+    })
+    const inputs = ['first', 'second'].map(sourceId => ({
+      calendarId: calendarIdSchema.parse('us-federal-holidays'),
+      policyVersion: 'policy',
+      sourceId,
+      operationKey: `initialize-${sourceId}`,
+    }))
+    const partial = {
+      kind: 'ok',
+      value: inputs.map((input, index) => ({
+        input,
+        result: index < failedCount ? failed : planned,
+      })),
+    } as const
+    w.supply.initialize.mockResolvedValueOnce(partial).mockResolvedValue({
+      kind: 'ok',
+      value: inputs.map(input => ({ input, result: planned })),
+    })
+    const first = await w.runner.start()
+    expect(first.events).toContainEqual({ kind: 'result', phase: 'initialize', result: partial })
+    expect(w.supply.runDue).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(w.supply.initialize.mock.calls.map(call => call[1])).toEqual([
+      { operationKey: 'initialize-intent' },
+      { operationKey: 'initialize-intent' },
+    ])
+    expect(w.supply.importSeed).toHaveBeenCalledOnce()
+    expect(w.supply.runDue).toHaveBeenCalledOnce()
+    await w.runner.tick()
+    expect(w.supply.initialize).toHaveBeenCalledTimes(2)
+    expect(w.supply.runDue).toHaveBeenCalledTimes(2)
+    await w.runner.stop()
+  },
+)

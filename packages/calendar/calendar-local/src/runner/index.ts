@@ -67,7 +67,8 @@ export function createCalendarSupplyRunner(options: CalendarSupplyRunnerOptions)
         operationKey: config.initializationOperationKey,
       })
       await report({ kind: 'result', phase: 'initialize', result })
-      initialized = result.kind === 'ok'
+      initialized =
+        result.kind === 'ok' && result.value.every(source => source.result.kind === 'ok')
     } catch (error) {
       await report({ kind: 'failure', phase, message: String(error) })
     }
