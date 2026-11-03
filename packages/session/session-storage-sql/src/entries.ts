@@ -45,6 +45,7 @@ export async function commitEntries<P>(
   const settled = await commitFacts(
     context,
     domain.ok,
+    observation.session,
     { operation: observation.operation, digest: digestSessionEntries(observation) },
     facts,
   )

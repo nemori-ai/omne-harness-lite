@@ -22,5 +22,8 @@
 - [work-read-limit.spec.ts](work-read-limit.spec.ts)：Session 快照超过 20 MiB 时 `session.work` 明确答 `read_limit`，20 MiB 以内整份读回
 - [read-output-limit.spec.ts](read-output-limit.spec.ts)：Agent 记录的整份状态在 20 MiB 以内整份读回，输出超过 20 MiB 时答 `read_limit`
 - [work-cache.spec.ts](work-cache.spec.ts)：`readWork` 的工作缓存（RT-04）：版本点查、外部写入、Agent 发布、两租户、并发、上界、倒退、冻结与版本读的行数
+- [direct-reads.spec.ts](direct-reads.spec.ts)：只有工作缓存直接读 `session.work`（RT-04 拥有者边界，`git grep` 全仓产品源码）。
+- [work-fold.spec.ts](work-fold.spec.ts)：本进程提交折叠进工作缓存（RT-04，T-F1～T-F6）。
+- [work-fold-real.spec.ts](work-fold-real.spec.ts)：真实提供者上 `basis` 的界（T-F6，慢层）。
 - [same-domain-tenant.spec.ts](same-domain-tenant.spec.ts)：同一事务域里两个租户的直查隔离
 - [fixtures/](fixtures/index.md)：`node:sqlite` 与真实提供者的测试夹具

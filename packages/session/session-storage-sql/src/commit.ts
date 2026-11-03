@@ -29,7 +29,13 @@ import type {
 } from '@omne-harness/sql-contract'
 import { canonicalText, decodeValue, encodeValue } from './codec.ts'
 import { OWNER } from './cursor.ts'
-import { SESSION_PARTICIPANT, decodeSessionReply, sessionCommandFacts } from './participants.ts'
+import {
+  SESSION_PARTICIPANT,
+  decodeSessionReply,
+  sessionCommandFacts,
+  type SessionWorkReply,
+} from './participants.ts'
+import { foldCommitted } from './work-cache.ts'
 import {
   domainOf,
   failure,
@@ -92,11 +98,15 @@ function markRecovered(value: unknown): unknown {
 /** How a recalled result says it is a recall. */
 export type Recall = (value: unknown) => unknown
 
+/** Takes the work of a fresh committed reply (SPEC RT-04): never one of a recall. */
+type OnWork = (work: SessionWorkReply) => void
+
 function fromCommitted(
   receipt: ReceiptV2,
   expected: Expected,
   recall: boolean,
   mark: Recall = markRecovered,
+  onWork?: OnWork,
 ): Outcome<unknown, SessionFailure> {
   const entry = receipt.responses.find(item => item.participant === SESSION_PARTICIPANT)
   if (entry?.reply.kind !== 'participated')
@@ -105,7 +115,9 @@ function fromCommitted(
   if (answer.kind !== 'participated') return failure(unavailable('an undecodable session reply'))
   if (answer.digest !== expected.digest)
     return failure({ kind: 'conflict', operation: expected.operation })
-  return succeed(recall || answer.recovered ? mark(answer.result) : answer.result)
+  if (recall || answer.recovered) return succeed(mark(answer.result))
+  if (answer.work !== undefined) onWork?.(answer.work)
+  return succeed(answer.result)
 }
 
 function fromRolledBack(receipt: ReceiptV2): Outcome<never, SessionFailure> {
@@ -133,10 +145,11 @@ function fromResult(
   result: CommitResultV2,
   expected: Expected,
   mark: Recall,
+  onWork: OnWork,
 ): Outcome<unknown, SessionFailure> | 'next-attempt' {
   switch (result.kind) {
     case 'committed':
-      return fromCommitted(result, expected, false, mark)
+      return fromCommitted(result, expected, false, mark, onWork)
     case 'rolled_back':
       return fromRolledBack(result)
     case 'unknown':
@@ -153,14 +166,17 @@ function fromResult(
 }
 
 /**
- * Commits the participant facts of one operation in the tenant domain. The attempt generation is
- * chosen by the storage receipts: a generation is used only when every earlier one is a rolled
- * back receipt, so an older attempt can never take effect beside a newer one (SPEC W1). `mark`
- * says of a recalled result that it is a recall; the default fits a batch or control result.
+ * Commits the participant facts of one operation of `session` in the tenant domain. The attempt
+ * generation is chosen by the storage receipts: a generation is used only when every earlier one is
+ * a rolled back receipt, so an older attempt can never take effect beside a newer one (SPEC W1).
+ * `mark` says of a recalled result that it is a recall; the default fits a batch or control result.
+ * A fresh committed batch is folded into the work cache before the answer returns (SPEC RT-04); a
+ * fold that cannot be made registers nothing and never changes the answer.
  */
 export async function commitFacts<P>(
   context: Context<P>,
   domain: TenantDomainRef,
+  session: string,
   expected: Expected,
   command: FactCommandV2,
   mark: Recall = markRecovered,
@@ -177,11 +193,26 @@ export async function commitFacts<P>(
     if (found.kind === 'rolled_back') continue
     if (found.kind === 'committed') return fromCommitted(found, expected, true, mark)
     if (found.kind === 'unknown') return failure({ kind: 'commit-unknown', operation })
+    let work: SessionWorkReply | undefined
     const settled = fromResult(
       await storage.commit(requestOf(context, identity, command)),
       expected,
       mark,
+      fresh => {
+        work = fresh
+      },
     )
+    if (work !== undefined)
+      await foldCommitted(
+        {
+          storage,
+          domain: domain.domain,
+          tenant: domain.text,
+          session,
+          ...(context.options.workCache === undefined ? {} : { bounds: context.options.workCache }),
+        },
+        work,
+      )
     if (settled !== 'next-attempt') return settled
   }
   return failure(unavailable('every attempt generation of the operation was rolled back'))
@@ -227,6 +258,7 @@ export async function commit<P, K extends MutationName>(
   return commitFacts(
     context,
     domain.ok,
+    command.input.session,
     { operation: command.input.operation, digest: commandDigest(command) },
     facts,
   )

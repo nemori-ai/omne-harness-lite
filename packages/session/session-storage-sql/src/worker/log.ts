@@ -21,7 +21,12 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { decodeValue, plainOf } from '../codec.ts'
 import type { JournalRow } from './entries.ts'
-import { entryEvidence, readHistory } from './history-index.ts'
+import {
+  entryEvidence,
+  readHistory,
+  type HistoryFocus,
+  type SessionHistory,
+} from './history-index.ts'
 import { big, oneRow, rowsOf, text } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
@@ -38,6 +43,8 @@ export type LogBatch = Readonly<{
   snapshot: WorkSnapshot
   entries: readonly HistoryEntry[]
   answer: SessionLogReceipt
+  /** The input range and focus of the history read the observation was judged and reduced on. */
+  decision: Readonly<{ scope: SessionInputScope; focus: HistoryFocus }>
 }>
 
 /**
@@ -231,7 +238,8 @@ function batchOf(
   projected: Readonly<{
     prepared: WorkSnapshot
     entries: readonly HistoryEntry[]
-    reads: Parameters<typeof reduce>[2]
+    history: SessionHistory
+    focus: HistoryFocus
   }>,
 ): LogJudgment {
   const { tenant, journal } = start
@@ -248,7 +256,11 @@ function batchOf(
     id: String(first + BigInt(index)),
     revision,
   })) as HistoryEntry[]
-  const reduced = reduce(projected.prepared, { revision, entries } as never, projected.reads)
+  const reduced = reduce(
+    projected.prepared,
+    { revision, entries } as never,
+    projected.history.reads,
+  )
   // Every contradiction of the batch with the history: nothing is written.
   if (reduced.kind === 'quarantined')
     return { kind: 'stopped', failure: { kind: 'quarantined', diagnostic: reduced.diagnostic } }
@@ -276,6 +288,7 @@ function batchOf(
         interpreted: entryEvidence(tenant, session, progress),
         recovered: false,
       },
+      decision: { scope: projected.history.reads.scope, focus: projected.focus },
     },
   }
 }
@@ -301,6 +314,13 @@ export function judgeLog(
           recorded: true,
         }
       : { kind: 'stopped', failure: { kind: 'conflict', operation: observation.operation } }
+  const focus: HistoryFocus = {
+    executions: [observation.execution],
+    event:
+      observation.sequence === null
+        ? null
+        : { execution: observation.execution, sequence: observation.sequence },
+  }
   const history = readHistory(
     port,
     tenant,
@@ -308,13 +328,7 @@ export function judgeLog(
     previous,
     scopeOf(previous, observation),
     undefined,
-    {
-      executions: [observation.execution],
-      event:
-        observation.sequence === null
-          ? null
-          : { execution: observation.execution, sequence: observation.sequence },
-    },
+    focus,
   )
   if (history === 'too-many')
     return { kind: 'failed', diagnostic: 'the history index of the session exceeds the read bound' }
@@ -337,6 +351,7 @@ export function judgeLog(
   return batchOf(port, start, observation, digest, {
     prepared,
     entries: decision.entries as unknown as HistoryEntry[],
-    reads: history.reads,
+    history,
+    focus,
   })
 }

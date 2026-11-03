@@ -14,7 +14,9 @@ import type {
   WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { operationId, sessionId } from '@omne-harness/session-contract/testing'
+import type { SqlStorage } from '@omne-harness/sql-contract'
 import { encodeValue } from '../src/codec.ts'
+import { createSessionStorage } from '../src/index.ts'
 import { readHistory } from '../src/worker/history-index.ts'
 import { app, textOf, TENANT_A, type App } from './fixtures/app.ts'
 import { activeRun, cancelRun, startRun, workOf } from './fixtures/real-provider.ts'
@@ -85,6 +87,17 @@ async function readBoth(a: App) {
   return { kept, whole, work }
 }
 
+/** `a` with a port over a storage object of its own: a work cache of its own (SPEC RT-04). */
+function apart(a: App): App {
+  const storage: SqlStorage = {
+    registerCombination: input => a.provider.storage.registerCombination(input),
+    commit: request => a.provider.storage.commit(request),
+    query: identity => a.provider.storage.query(identity),
+    read: request => a.provider.storage.read(request),
+  } as SqlStorage
+  return { ...a, port: createSessionStorage<string>({ ...a.storageOptions, storage }) }
+}
+
 function claim(a: App, run: string, name: string) {
   return a.port.commit({
     access: a.access(TENANT_A),
@@ -153,7 +166,9 @@ describe('T-A3-1: the kept index answers as a whole read after every commit', ()
     expect(again.indexed()).toBe(0)
 
     const before = maxPosition(a)
-    ok(await cancelRun(a, activeRun(work).run, 'cancel-1'))
+    // Through a port with a cache of its own and no held snapshot, so the commit folds nothing
+    // into the work cache and reads no index (SPEC RT-04): the next read is the first after it.
+    ok(await cancelRun(apart(a), activeRun(work).run, 'cancel-1'))
     const [[written]] = a.provider.select(
       DOMAIN,
       `SELECT COUNT(*) AS n FROM sl_entry WHERE tenant = ? AND session = ? AND position > ?
@@ -351,6 +366,26 @@ describe('what is kept', () => {
       'open',
     ])
     expect(inputsOf(read(db, 'open'))).toEqual(['in-x', 'in-2'])
+  })
+
+  it('rows of an open transaction folded over a kept index are folded into a copy: the kept index does not take them', () => {
+    const { port: db } = migratedPort()
+    insert(db, 'clone', 1, 1, 'intake.routed', { input: 'in-1' })
+    tail(db, 'clone', 1)
+    expect(inputsOf(read(db, 'clone'))).toEqual(['in-1'])
+    // An open transaction past the kept cursor: rows 2 and 3 of revision 2, read over the kept index.
+    insert(db, 'clone', 2, 2, 'intake.routed', { input: 'in-2' })
+    insert(db, 'clone', 3, 2, 'intake.routed', { input: 'in-3' })
+    expect(inputsOf(read(db, 'clone'))).toEqual(['in-1', 'in-2', 'in-3'])
+    // It rolled back; another transaction committed a different row 2 and the same row 3.
+    db.execute('DELETE FROM sl_entry WHERE tenant = ? AND session = ? AND position > 1', [
+      't',
+      'clone',
+    ])
+    insert(db, 'clone', 2, 2, 'intake.routed', { input: 'in-X' })
+    insert(db, 'clone', 3, 2, 'intake.routed', { input: 'in-3' })
+    tail(db, 'clone', 2)
+    expect(inputsOf(read(db, 'clone'))).toEqual(['in-1', 'in-X', 'in-3'])
   })
 
   it('another log under the same tenant and session (another database of this module) is read whole', () => {

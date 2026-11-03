@@ -15,7 +15,7 @@ import type {
 import type { FactCommandV2, JsonValue, RecordedReply } from '@omne-harness/sql-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { canonicalText, decodeValue, encodeValue, sha256 } from './codec.ts'
-import { readCachedSessionWork } from './work-cache.ts'
+import { readCachedSessionWork, registerSessionWorkIndex } from './work-cache.ts'
 
 /** The participant that executes the Session commands and the read-only checks. */
 export const SESSION_PARTICIPANT = 'session'
@@ -148,10 +148,52 @@ export function sessionCheckDigest(check: SessionCheck): string {
  * - `unsupported`: the facts are not a command, a check, an entries commit or a query.
  */
 export type SessionParticipation =
-  | Readonly<{ kind: 'participated'; result: unknown; recovered: boolean; digest: string }>
+  | Readonly<{
+      kind: 'participated'
+      result: unknown
+      recovered: boolean
+      digest: string
+      /** What a fresh batch tells the work cache (SPEC RT-04); absent on a recall. */
+      work?: SessionWorkReply
+    }>
   | Readonly<{ kind: 'stopped'; failure: SessionFailure }>
   | Readonly<{ kind: 'failed'; diagnostic: string }>
   | Readonly<{ kind: 'unsupported'; reason: string }>
+
+/**
+ * What a published Session batch tells the work cache of the main thread (C-TOPOLOGY §2.9): the
+ * version and stored text length of the new snapshot, the positions of the batch, whether it was
+ * reduced on a history index, and that index with the reads (`basis`, encoded) when they fit the
+ * bound of the reply.
+ */
+export type SessionWorkReply = Readonly<{
+  tail: string
+  published: string
+  bytes: number
+  first: string
+  last: string
+  indexed: boolean
+  basis?: JsonValue
+}>
+
+function workReplyOf(value: JsonValue | undefined): SessionWorkReply | undefined {
+  const work = recordOf(value)
+  if (work === null) return undefined
+  const { tail, published, bytes, first, last, indexed, basis } = work
+  const counts = [tail, published, first, last].every(
+    item => typeof item === 'string' && /^\d+$/.test(item),
+  )
+  if (!counts || typeof bytes !== 'number' || typeof indexed !== 'boolean') return undefined
+  return {
+    tail: tail as string,
+    published: published as string,
+    bytes,
+    first: first as string,
+    last: last as string,
+    indexed,
+    ...(basis === undefined ? {} : { basis }),
+  }
+}
 
 function isJsonRecord(
   value: JsonValue | undefined,
@@ -172,11 +214,13 @@ export function decodeSessionReply(reply: RecordedReply): SessionParticipation {
       const digest = response?.['digest']
       if (response === null || typeof digest !== 'string')
         return { kind: 'failed', diagnostic: 'a session reply without a digest' }
+      const work = workReplyOf(response['work'])
       return {
         kind: 'participated',
         result: decodeValue(response['result'] ?? null),
         recovered: response['recovered'] === true,
         digest,
+        ...(work === undefined ? {} : { work }),
       }
     }
     case 'conflict': {
@@ -661,6 +705,14 @@ export type SessionWorkRead =
  * read whole only when no cached answer has that version. The snapshot it answers is deeply frozen.
  */
 export { readCachedSessionWork }
+
+/**
+ * Replaces the index of the held `session.work` answer of one session after a publication of the
+ * Agent records committed with the count `published` (SPEC RT-04): for the Journal provider, which
+ * holds the domain of the tenant. It reads the index at the held tail and the new count, and
+ * registers nothing when the store is at another version. It never throws.
+ */
+export { registerSessionWorkIndex }
 
 export function decodeSessionWork(output: JsonValue): SessionWorkRead | null {
   const value = recordOf(output)

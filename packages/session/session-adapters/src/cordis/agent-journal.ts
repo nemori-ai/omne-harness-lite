@@ -53,6 +53,7 @@ import {
   decodeSessionReply,
   executionRecordFacts,
   readCachedSessionWork,
+  registerSessionWorkIndex,
   sessionCheckFacts,
   sessionCommandFacts,
   type ExecutionAdmissionRecord,
@@ -1504,11 +1505,22 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       operation,
       commands: facts,
     })
-    return settle(
+    const settled = settle(
       { book, copy, notes, after, next, plan, written, scratch, answer },
       operation,
       outcome,
     )
+    // The publication moved the count of the Agent records: the work cache replaces the index of
+    // the Session snapshot it holds instead of reading the snapshot whole (session-storage-sql RT-04).
+    if (outcome.kind === 'committed' && !outcome.recalled && book.published !== null)
+      await registerSessionWorkIndex(
+        options.storage,
+        domain,
+        book.tenantText,
+        book.session,
+        book.published,
+      )
+    return settled
   }
 
   /** What one publication needs to turn a storage outcome into the call's answer. */

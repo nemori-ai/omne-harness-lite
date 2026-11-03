@@ -23,7 +23,12 @@ import {
   operationId,
   ordinaryInput,
 } from '@omne-harness/session-contract/testing'
-import { EXECUTION_RECORD_HANDLERS } from '@omne-harness/session-storage-sql/participants'
+import {
+  EXECUTION_RECORD_HANDLERS,
+  SESSION_PROTOCOL,
+  SESSION_WORK_HANDLER,
+  decodeSessionWork,
+} from '@omne-harness/session-storage-sql/participants'
 import { readExecutionInterpretation } from '../src/cordis/agent-journal.ts'
 import { evidence, ok, operation, submitInput } from './fixtures/common-journal.ts'
 import { handed, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
@@ -475,5 +480,31 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
       },
     )
     expect(read).toEqual({ kind: 'read', execution: null })
+  })
+})
+
+describe('a publication replaces the index of the held Session snapshot (session-storage-sql RT-04)', () => {
+  it('the next readWork reads no whole snapshot, and answers what a whole read gives', async () => {
+    const s = await scene('publish-index')
+    if (s.controls === null) throw new Error('the double storage is expected')
+    await started(s)
+    await work(s)
+    await committed(s, 'message', () => ({
+      events: [{ kind: 'message', message: assistantMessage('m'), source: evidence('message') }],
+    }))
+    const from = s.controls.reads.length
+    const held = await work(s)
+    expect(s.controls.reads.slice(from).filter(item => item === SESSION_WORK_HANDLER)).toEqual([])
+    const whole = await s.storage.read({
+      domain: s.domain,
+      handler: SESSION_WORK_HANDLER,
+      protocol: SESSION_PROTOCOL,
+      requestKey: 'publish-index-whole',
+      input: { tenant: s.domain.scope.tenant, session: s.access.session },
+    })
+    if (whole.kind !== 'read') throw new Error('the whole read failed')
+    const decoded = decodeSessionWork(whole.output)
+    expect(decoded?.kind).toBe('state')
+    expect(held).toEqual(decoded?.kind === 'state' ? decoded.snapshot : null)
   })
 })

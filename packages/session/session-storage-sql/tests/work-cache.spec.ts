@@ -193,7 +193,7 @@ describe('one cache per database, never across databases', () => {
 })
 
 describe('T-2: readWork after a commit', () => {
-  it('a commit of this port: the next read is whole and gives the new revision', async () => {
+  it('a commit of this port: the commit folds its batch, and the next read gives the new revision without a whole read', async () => {
     const a = await app()
     await a.create(TENANT_A)
     const before = okOf(await a.port.readWork(a.access(TENANT_A)))
@@ -202,7 +202,7 @@ describe('T-2: readWork after a commit', () => {
     const after = okOf(await a.port.readWork(a.access(TENANT_A)))
     expect(after.revision).not.toBe(before.revision)
     expect(after.pending.length).toBe(before.pending.length + 1)
-    expect(readsOf(a, WHOLE, from)).toBe(1)
+    expect(readsOf(a, WHOLE, from)).toBe(0)
   })
 
   it('a commit of another port instance on the same database: found by the version, read again', async () => {
@@ -485,7 +485,8 @@ describe('T-10: the version is not known', () => {
     const a = await app()
     await a.create(TENANT_A)
     okOf(await a.port.readWork(a.access(TENANT_A)))
-    expect(await a.accept(TENANT_A, 'session-1', 'i-1')).toHaveProperty('ok')
+    // Another port instance commits: this cache holds the older version and has nothing folded.
+    expect(await accept(a, otherInstance(a), 'i-1')).toHaveProperty('ok')
     a.provider.failReads(WHOLE)
     const failed = await a.port.readWork(a.access(TENANT_A))
     expect('failure' in failed && failed.failure.kind).toBe('unavailable')

@@ -45,6 +45,7 @@ export async function commitLog<P>(
   const settled = await commitFacts(
     context,
     domain.ok,
+    observation.session,
     { operation: observation.operation, digest: digestSessionLog(observation) },
     facts,
     recalled,
