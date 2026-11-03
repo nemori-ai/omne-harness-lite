@@ -79,6 +79,7 @@ type BoundRecord = LocalAdmission &
     evidenceAdoption: Adoption
     execution: ExecutionRef | null
   }>
+type AdmittedRecord = LocalAdmission & Readonly<{ kind: 'admitted' }>
 type InitialRecord = LocalAdmission &
   (Readonly<{ kind: 'admission-pending' }> | Readonly<{ kind: 'admitted' }> | BoundRecord)
 const failure = (diagnostic: string) => unavailable('model-initial-execution', diagnostic)
@@ -86,6 +87,15 @@ const denied = (): ModelFailure => ({ kind: 'denied', action: 'execution-channel
 const keyOf = (tenant: string, call: InitialTarget['call']) => JSON.stringify([tenant, call])
 const initialRunAccess = Object.freeze({})
 
+/** A recovery read of a call that the storage does not hold has no initial record either. */
+function recordMissing<T>(result: Outcome<T, ModelFailure>): Outcome<T, ModelFailure> {
+  return 'failure' in result &&
+    result.failure.kind === 'invalid' &&
+    result.failure.field === 'call' &&
+    result.failure.reason === 'not-found'
+    ? { failure: failure('initial-record-missing') }
+    : result
+}
 /** The call, operation and binding that one confirmed pass wrote or saw for the record's call. */
 type ConfirmedWrite = Readonly<{
   call: CallDocument
@@ -235,6 +245,43 @@ class InitialRun<P> implements ModelInitialRun<P> {
   #boundAccess(bound: BoundCommandAccess<P> | undefined): BoundCommandAccess<P> | null {
     return bound !== undefined && this.#gates.has(bound) ? bound : null
   }
+  /** A random operation and continuity record that no bound record of this run uses yet. */
+  #mintIdentity(
+    record: LocalAdmission,
+    instance: ModelInstanceId,
+    evidenceAdoption: Adoption,
+  ): Outcome<Readonly<{ operation: ModelOperationId; continuity: DurableEvidence }>, ModelFailure> {
+    try {
+      const decoded = decodeModelOperationId(`mop_${randomBytes(16).toString('hex')}`)
+      if ('failure' in decoded) return { failure: failure('identity-unavailable') }
+      const operation = decoded.ok
+      if ([...this.#records.values()].some(r => r.kind === 'bound' && r.operation === operation))
+        return { failure: failure('identity-unavailable') }
+      const continuity: DurableEvidence = {
+        owner: 'model',
+        record: `initial:${randomBytes(16).toString('hex')}`,
+        revision: '1',
+        digest: digest({
+          format: 'model-initial-v1',
+          tenant: record.tenant,
+          call: record.call,
+          admission: record.admission,
+          instance,
+          operation,
+          evidenceAdoption,
+        }),
+      }
+      if (
+        [...this.#records.values()].some(
+          r => r.kind === 'bound' && r.continuity.record === continuity.record,
+        )
+      )
+        return { failure: failure('identity-unavailable') }
+      return { ok: { operation, continuity } }
+    } catch {
+      return { failure: failure('identity-unavailable') }
+    }
+  }
   #createExecution(
     core: ModelCommandCore<P>,
     commands: (bound: BoundCommandAccess<P>) => ModelCommands<P>,
@@ -325,6 +372,71 @@ class InitialRun<P> implements ModelInitialRun<P> {
             return checkedActor(core.options.authority.execution(input))
           },
         }
+        /** This binding's prepared input again, while the record is still its own original execution. */
+        const rebound = (
+          record: BoundRecord,
+          access: CallAccess<P>,
+          call: CallDocument,
+        ): Outcome<ModelDriveInput<P>, ModelFailure> => {
+          if (
+            record.binding !== binding ||
+            (record.execution !== null && digest(record.execution) !== digest(call.execution))
+          )
+            return { failure: failure('successor-unavailable') }
+          return {
+            ok: {
+              ...access,
+              instance,
+              operation: record.operation,
+              continuity: structuredClone(record.continuity),
+            },
+          }
+        }
+        /** Binds an admitted call to this channel under a fresh operation and continuity. */
+        const bindFirst = (
+          key: string,
+          record: AdmittedRecord,
+          access: CallAccess<P>,
+          call: CallDocument,
+        ): Outcome<ModelDriveInput<P>, ModelFailure> => {
+          if (call.execution !== null || call.request === null)
+            return { failure: failure('successor-unavailable') }
+          if (calls >= this.#limits.maxCallsPerBinding) return { failure: failure('call-capacity') }
+          const minted = this.#mintIdentity(record, instance, call.owner.evidence)
+          if ('failure' in minted) return minted
+          const { operation, continuity } = minted.ok
+          this.#records.set(key, {
+            ...record,
+            kind: 'bound',
+            binding,
+            instance,
+            operation,
+            continuity,
+            evidenceAdoption: structuredClone(call.owner.evidence),
+            execution: null,
+          })
+          calls += 1
+          return {
+            ok: { ...access, instance, operation, continuity: structuredClone(continuity) },
+          }
+        }
+        /** The input of a recovery read: the bound one again, or a first binding of an admitted call. */
+        const recover = (
+          access: CallAccess<P>,
+          call: CallDocument,
+        ): Outcome<ModelDriveInput<P>, ModelFailure> => {
+          if (!live) return { failure: denied() }
+          const found = locate(access)
+          if ('failure' in found) return found
+          const { key, record } = found.ok
+          if (!record || record.kind === 'admission-pending')
+            return { failure: failure('initial-record-missing') }
+          if (record.admission !== call.admission)
+            return { failure: failure('successor-unavailable') }
+          return record.kind === 'bound'
+            ? rebound(record, access, call)
+            : bindFirst(key, record, access, call)
+        }
         this.#gates.add(gate)
         const channel: ModelInitialHostChannel<P> = {
           prepare: raw => {
@@ -332,93 +444,9 @@ class InitialRun<P> implements ModelInitialRun<P> {
             if (!live) return Promise.resolve({ failure: denied() })
             const auth = core.authorize(access, 'recovery', undefined, access.call)
             if ('failure' in auth) return Promise.resolve(auth)
-            return core.runRead(access, () => {
-              const result = core.read(access, 'recovery', call => {
-                if (!live) return { failure: denied() }
-                const found = locate(access)
-                if ('failure' in found) return found
-                const { key, record } = found.ok
-                if (!record || record.kind === 'admission-pending')
-                  return { failure: failure('initial-record-missing') }
-                if (record.admission !== call.admission)
-                  return { failure: failure('successor-unavailable') }
-                if (record.kind === 'bound') {
-                  if (
-                    record.binding !== binding ||
-                    (record.execution !== null &&
-                      digest(record.execution) !== digest(call.execution))
-                  )
-                    return { failure: failure('successor-unavailable') }
-                  return {
-                    ok: {
-                      ...access,
-                      instance,
-                      operation: record.operation,
-                      continuity: structuredClone(record.continuity),
-                    },
-                  }
-                }
-                if (call.execution !== null || call.request === null)
-                  return { failure: failure('successor-unavailable') }
-                if (calls >= this.#limits.maxCallsPerBinding)
-                  return { failure: failure('call-capacity') }
-                let operation: ModelOperationId
-                let continuity: DurableEvidence
-                try {
-                  const decoded = decodeModelOperationId(`mop_${randomBytes(16).toString('hex')}`)
-                  if ('failure' in decoded) return { failure: failure('identity-unavailable') }
-                  operation = decoded.ok
-                  if (
-                    [...this.#records.values()].some(
-                      r => r.kind === 'bound' && r.operation === operation,
-                    )
-                  )
-                    return { failure: failure('identity-unavailable') }
-                  continuity = {
-                    owner: 'model',
-                    record: `initial:${randomBytes(16).toString('hex')}`,
-                    revision: '1',
-                    digest: digest({
-                      format: 'model-initial-v1',
-                      tenant: record.tenant,
-                      call: record.call,
-                      admission: record.admission,
-                      instance,
-                      operation,
-                      evidenceAdoption: call.owner.evidence,
-                    }),
-                  }
-                  if (
-                    [...this.#records.values()].some(
-                      r => r.kind === 'bound' && r.continuity.record === continuity.record,
-                    )
-                  )
-                    return { failure: failure('identity-unavailable') }
-                } catch {
-                  return { failure: failure('identity-unavailable') }
-                }
-                this.#records.set(key, {
-                  ...record,
-                  kind: 'bound',
-                  binding,
-                  instance,
-                  operation,
-                  continuity,
-                  evidenceAdoption: structuredClone(call.owner.evidence),
-                  execution: null,
-                })
-                calls += 1
-                return {
-                  ok: { ...access, instance, operation, continuity: structuredClone(continuity) },
-                }
-              })
-              return 'failure' in result &&
-                result.failure.kind === 'invalid' &&
-                result.failure.field === 'call' &&
-                result.failure.reason === 'not-found'
-                ? { failure: failure('initial-record-missing') }
-                : result
-            })
+            return core.runRead(access, () =>
+              recordMissing(core.read(access, 'recovery', call => recover(access, call))),
+            )
           },
           qualifyExecution: gate.execution,
           commands: commands(gate),
