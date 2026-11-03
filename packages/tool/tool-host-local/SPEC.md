@@ -203,3 +203,8 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 [作者装载测试](tests/author-loading.spec.ts)验证装载及拒绝；[执行绑定测试](tests/author-binding.spec.ts)运行全部 23 条 N7 判据；[真实 Cordis 测试](tests/author-generations.spec.ts)验证 fiber 归属、失败撤除、排空与读取失败保留。外部来源、设置、schema 检查、启动 authority 和结果保管在这些测试中是测试提供者；不据此声明完整 runtime 装配已完成。
 
 [绑定回归测试](tests/author-binding-regressions.spec.ts)验证注册化身隔离、多命令的参数与操作选择，以及拒绝启动后的 pin 清理。跨 executor 同形回退的用例只证明安全拒绝与清理。
+
+
+## 具名偏离：热换代作者保留
+
+按 [R2-D63](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6591819035)，本批只保证首次装载，以及 Reader 仍在但读取失败时保留贡献。持有者存在时热撤 Reader、协调者换代不撤作者的完整配对留在波 3。当前服务撤除会由 Cordis 卸载作者，贡献随之丢失；不宣称冻结契约的热换代保留义务已经兑现。上游 tool-cordis-contract/docs/cordis.md 的完整目标保持不变，不能把本偏离当作对其改写。

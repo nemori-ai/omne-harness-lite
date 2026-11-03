@@ -28,7 +28,7 @@
 
 根入口另导出 `createLocalToolClock`（[G4](SPEC.md#宿主时钟g4)）、`createLocalToolBindingRegistry` 与 `createLocalToolCatalog`（[G7](SPEC.md#绑定登记表与换代协调者g7)）以及 `createAbsentToolPorts`（[D-07](SPEC.md#缺席端口d-07)）。时钟用单调读数与进程 epoch 计时，对另一个 epoch 的标记回复失败，不重新计满。登记表只经注入的来源核验放行贡献，未注入时 `register` 回复 `unavailable`。Catalog 只列出提问租户可访问的 live 贡献，不透露他租户是否登记过。缺席端口的每个方法回复具名 `unavailable`。限制：登记表只在进程内、不耐久；工作区层贡献对任何租户范围都不可见；生产的来源核验尚未提供。
 
-验证范围，均为单进程并带测试替身（文件内已标明）：`tests/clock-conformance.spec.ts` 与 `tests/bindings-conformance.spec.ts` 运行契约套件 `toolClockConformance` 与 `toolBindingRegistryConformance`，没有不适用用例。`tests/clock.spec.ts`、`tests/catalog.spec.ts`、`tests/absent-ports.spec.ts` 检查本包自己的规则。`tests/runtime-composition.spec.ts` 证明 `createToolRuntime` 接受这些部件。执行绑定套件 `toolExecutorBindingConformance` 没有运行：它检查执行适配器，本包不提供它。
+验证范围，均为单进程并带测试替身（文件内已标明）：`tests/clock-conformance.spec.ts` 与 `tests/bindings-conformance.spec.ts` 运行契约套件 `toolClockConformance` 与 `toolBindingRegistryConformance`，没有不适用用例。`tests/clock.spec.ts`、`tests/catalog.spec.ts`、`tests/absent-ports.spec.ts` 检查本包自己的规则。`tests/runtime-composition.spec.ts` 证明 `createToolRuntime` 接受这些部件。本包现在提供执行绑定适配器；其单元与真实 Cordis 用例不替代完整 runtime/提供者符合性结论。
 
 ## 账本守卫
 
@@ -90,7 +90,7 @@ pnpm --filter @omne-harness/tool-host-local run test
 
 ## 目录结构与文档职责
 
-固定目录按责任分开。目录存在不表示其中已有实现、Schema、模型、证明或验收能力。根入口已交付本地启动协调器。Cordis 插件仍是未来设计，当前没有可用的 `./cordis` 入口。骨架页保留占位标记，直到拥有者写入正文。
+固定目录按责任分开。目录存在不表示其中已有实现、Schema、模型、证明或验收能力。根入口已交付本地启动协调器。`./cordis` 已提供作者宿主与绑定插件，采用范围见 docs/cordis.md。骨架页保留占位标记，直到拥有者写入正文。
 
 ```text
 tool-host-local/

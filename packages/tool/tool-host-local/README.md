@@ -28,7 +28,7 @@ The root entry also exports `createLocalScheduledEnvironment` and `createLocalTo
 
 The root entry also exports `createLocalToolClock` ([G4](SPEC.md#宿主时钟g4)), `createLocalToolBindingRegistry` and `createLocalToolCatalog` ([G7](SPEC.md#绑定登记表与换代协调者g7)), and `createAbsentToolPorts` ([D-07](SPEC.md#缺席端口d-07)). The clock measures with a monotonic reading and a process epoch, and refuses a marker of another epoch instead of recounting. The registry admits a contribution only through an injected origin check; without one, `register` answers `unavailable`. The Catalog lists live contributions that the asking tenant may access and does not tell whether another tenant registered anything. The absent ports answer a named `unavailable` for every method. Limits: the registry is in-process and not durable, a workspace-layer contribution is visible to no tenant scope, and no production origin check exists yet.
 
-Verification, all in one process with test doubles named in the files: `tests/clock-conformance.spec.ts`, `tests/bindings-conformance.spec.ts` run the contract suites `toolClockConformance` and `toolBindingRegistryConformance` with no not-applicable case. `tests/clock.spec.ts`, `tests/catalog.spec.ts`, `tests/absent-ports.spec.ts` check the rules of this package. `tests/runtime-composition.spec.ts` shows that `createToolRuntime` accepts these parts. The executor-binding suite `toolExecutorBindingConformance` is not run: it checks an execution adapter, which this package does not provide.
+Verification, all in one process with test doubles named in the files: `tests/clock-conformance.spec.ts`, `tests/bindings-conformance.spec.ts` run the contract suites `toolClockConformance` and `toolBindingRegistryConformance` with no not-applicable case. `tests/clock.spec.ts`, `tests/catalog.spec.ts`, `tests/absent-ports.spec.ts` check the rules of this package. `tests/runtime-composition.spec.ts` shows that `createToolRuntime` accepts these parts. The package now provides an executor binding adapter. Its unit and real Cordis cases do not replace a complete runtime/provider conformance result.
 
 ## Ledger guards
 
@@ -90,7 +90,7 @@ A change to `ToolStartAuthority` or to P04 in the contract changes this coordina
 
 ## Directory structure and document responsibilities
 
-Each fixed directory has one responsibility. A directory that exists does not prove that it contains an implementation, a schema, a model, a proof, or an acceptance capability. The root entry delivers start coordination, environment scheduling and credential adapters. The Cordis plugin remains a future design, with no available `./cordis` entry. Skeleton pages keep a placeholder marker until the owner writes their content.
+Each fixed directory has one responsibility. A directory that exists does not prove that it contains an implementation, a schema, a model, a proof, or an acceptance capability. The root entry delivers start coordination, environment scheduling and credential adapters. The `./cordis` entry provides the author-host and binding plugins described in docs/cordis.md. Skeleton pages keep a placeholder marker until the owner writes their content.
 
 ```text
 tool-host-local/

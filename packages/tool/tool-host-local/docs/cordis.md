@@ -110,3 +110,8 @@ sequenceDiagram
 本包提供 `./author` 的作者贡献及纯换代工厂，以及 `./cordis` 的作者宿主与绑定插件。完整 runtime 组合另由装配提供。采用官方 `@deepseek-ai/cordis` 4.0.4，无自有 fork。真实 Context 用例核登记 uid、依赖撤除、重启、首次 LOADING 中的迟到装载及 draining pin；它们不证明真实存储、执行设施或应用接线已通过。
 
 Scope 与最终事实适配是 `createLocalToolBindings` 的构造依赖，返回不确定时保留原执行。来源、设置、schema、持有者读取和拒绝依据保存由受信装配提供。完整运行组合不能由作者入口测试推定。
+
+
+## 具名偏离：热换代作者保留
+
+按 [R2-D63](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6591819035)，本批只保证首次装载，以及 Reader 仍在但读取失败时保留贡献。持有者存在时热撤 Reader、协调者换代不撤作者的完整配对留在波 3。当前服务撤除会由 Cordis 卸载作者，贡献随之丢失；不宣称冻结契约的热换代保留义务已经兑现。上游 tool-cordis-contract/docs/cordis.md 的完整目标保持不变，不能把本偏离当作对其改写。
