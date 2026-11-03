@@ -882,13 +882,34 @@ importers:
       '@omne-harness/calendar-cordis-contract':
         specifier: workspace:*
         version: link:../calendar-cordis-contract
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/schema-provider':
+        specifier: workspace:*
+        version: link:../../schema/schema-provider
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
       '@omne-harness/tool-cordis-contract':
         specifier: workspace:*
         version: link:../../tool/tool-cordis-contract
+      '@omne-harness/tool-host-local':
+        specifier: workspace:*
+        version: link:../../tool/tool-host-local
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
+      '@omne-harness/tool':
+        specifier: workspace:*
+        version: link:../../tool/tool
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
