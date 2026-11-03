@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { CalendarJournalResult } from '@omne-harness/calendar'
 import type {
   CombinationRegistrationV2,
+  CommitResultV2,
   ReceiptV2,
   SqlStorage,
   SqlIdentity,
@@ -120,6 +121,23 @@ function validateWrite(
   }
   return null
 }
+function commitResult<T>(
+  result: CommitResultV2,
+  expected: ReturnType<typeof intent>,
+  schema: z.ZodType<T>,
+): CalendarJournalResult<T> {
+  switch (result.kind) {
+    case 'committed':
+    case 'rolled_back':
+      return receipt(result, expected, schema)
+    case 'identity_conflict':
+      return receipt(result.existing, expected, schema)
+    case 'unknown':
+      return { kind: 'unknown', reason: 'operationUnknown' }
+    case 'rejected_before_accept':
+      return { kind: 'unavailable', reason: result.reason }
+  }
+}
 export async function write<T>(
   options: AccessOptions,
   input: Write,
@@ -145,17 +163,7 @@ export async function write<T>(
         { participant: PARTICIPANT, facts: z.record(z.string(), z.json()).parse(input) },
       ],
     })
-    switch (result.kind) {
-      case 'committed':
-      case 'rolled_back':
-        return receipt(result, expected, schema)
-      case 'identity_conflict':
-        return receipt(result.existing, expected, schema)
-      case 'unknown':
-        return { kind: 'unknown', reason: 'operationUnknown' }
-      case 'rejected_before_accept':
-        return { kind: 'unavailable', reason: result.reason }
-    }
+    return commitResult(result, expected, schema)
   } catch {
     return { kind: 'unknown', reason: 'writeObservationLost' }
   }

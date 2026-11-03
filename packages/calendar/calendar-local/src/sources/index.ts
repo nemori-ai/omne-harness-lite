@@ -12,6 +12,7 @@ import {
   failureReason,
   sourceLimits,
   transportEvidence,
+  type SourceHttp,
 } from './http.ts'
 import {
   acquireCg,
@@ -58,6 +59,32 @@ function httpConfiguration(policy: SupplySourcePolicy) {
       return { allowedOrigins: [], timeoutMs: 30_000 }
   }
 }
+function acquireNetwork(
+  policy: SupplySourcePolicy,
+  options: CalendarSourceAdapterOptions,
+  http: SourceHttp,
+): Promise<SourcePayload> {
+  switch (policy.adapterKind) {
+    case 'lanceliao_holiday_api_json':
+      return acquireLanceliao(http, options)
+    case 'cao_syukujitsu_csv':
+      return acquireSingle(http, { url: transportString(policy, 'url'), kind: 'csv' })
+    case 'opm_holidays_ics':
+      return acquireSingle(http, {
+        url: transportString(policy, 'url'),
+        kind: 'ics',
+        userAgent: transportString(policy, 'userAgent'),
+      })
+    case 'cg_zhou_holiday_calendar_json':
+      return acquireCg(http, false)
+    case 'cg_zhou_index_json':
+      return acquireCg(http, true)
+    case 'federal_register_eo_api':
+      return acquireFederalRegister(http, options)
+    default:
+      throw new Error(`Unsupported shipped source adapter ${policy.adapterKind}`)
+  }
+}
 function createAdapter(
   policy: SupplySourcePolicy,
   options: CalendarSourceAdapterOptions,
@@ -102,33 +129,7 @@ function createAdapter(
       signal,
       ...httpConfiguration(policy),
     })
-    let payload: SourcePayload
-    switch (policy.adapterKind) {
-      case 'lanceliao_holiday_api_json':
-        payload = await acquireLanceliao(http, options)
-        break
-      case 'cao_syukujitsu_csv':
-        payload = await acquireSingle(http, { url: transportString(policy, 'url'), kind: 'csv' })
-        break
-      case 'opm_holidays_ics':
-        payload = await acquireSingle(http, {
-          url: transportString(policy, 'url'),
-          kind: 'ics',
-          userAgent: transportString(policy, 'userAgent'),
-        })
-        break
-      case 'cg_zhou_holiday_calendar_json':
-        payload = await acquireCg(http, false)
-        break
-      case 'cg_zhou_index_json':
-        payload = await acquireCg(http, true)
-        break
-      case 'federal_register_eo_api':
-        payload = await acquireFederalRegister(http, options)
-        break
-      default:
-        throw new Error(`Unsupported shipped source adapter ${policy.adapterKind}`)
-    }
+    const payload = await acquireNetwork(policy, options, http)
     signal.throwIfAborted()
     if (payload.content.byteLength > limits.maxBundleBytes)
       throw new Error('Encoded source bundle byte limit exceeded')

@@ -140,15 +140,12 @@ export function createSourceHttp(input: {
   const client = input.options.httpClient ?? fetch
   let total = 0
   const responses: AcquiredResponse[] = []
-  async function read(
+  async function request(
     url: string,
-    method: 'GET' | 'HEAD' = 'GET',
-    headers: Readonly<Record<string, string>> = {},
-  ): Promise<AcquiredResponse> {
-    const signal = AbortSignal.any([
-      input.signal,
-      AbortSignal.timeout(Math.min(limits.timeoutMs, input.timeoutMs)),
-    ])
+    method: 'GET' | 'HEAD',
+    headers: Readonly<Record<string, string>>,
+    signal: AbortSignal,
+  ) {
     let current = checkUrl(url, input.allowedOrigins)
     for (let redirects = 0; ; redirects++) {
       signal.throwIfAborted()
@@ -168,31 +165,43 @@ export function createSourceHttp(input: {
         current = checkUrl(canonical, input.allowedOrigins)
         continue
       }
-      if (response.status !== 200) {
-        await response.body?.cancel()
-        throw new Error(`Source answered HTTP ${response.status}`)
-      }
-      const content =
-        method === 'HEAD'
-          ? new Uint8Array()
-          : await readBody(
-              response,
-              Math.min(limits.maxBodyBytes, limits.maxBundleBytes - total),
-              signal,
-            )
-      if (method === 'HEAD') await response.body?.cancel()
-      total += content.byteLength
-      const evidence = {
-        url: actual,
-        status: response.status,
-        headers: headersEvidence(response.headers),
-        content,
-      }
-      const knowledge = await resolveKnowledge({ ...input, response: evidence, signal })
-      const acquired = { ...evidence, method, knowledge }
-      responses.push(acquired)
-      return acquired
+      return { response, actual }
     }
+  }
+  async function read(
+    url: string,
+    method: 'GET' | 'HEAD' = 'GET',
+    headers: Readonly<Record<string, string>> = {},
+  ): Promise<AcquiredResponse> {
+    const signal = AbortSignal.any([
+      input.signal,
+      AbortSignal.timeout(Math.min(limits.timeoutMs, input.timeoutMs)),
+    ])
+    const { response, actual } = await request(url, method, headers, signal)
+    if (response.status !== 200) {
+      await response.body?.cancel()
+      throw new Error(`Source answered HTTP ${response.status}`)
+    }
+    const content =
+      method === 'HEAD'
+        ? new Uint8Array()
+        : await readBody(
+            response,
+            Math.min(limits.maxBodyBytes, limits.maxBundleBytes - total),
+            signal,
+          )
+    if (method === 'HEAD') await response.body?.cancel()
+    total += content.byteLength
+    const evidence = {
+      url: actual,
+      status: response.status,
+      headers: headersEvidence(response.headers),
+      content,
+    }
+    const knowledge = await resolveKnowledge({ ...input, response: evidence, signal })
+    const acquired = { ...evidence, method, knowledge }
+    responses.push(acquired)
+    return acquired
   }
   return { read, responses, limits }
 }

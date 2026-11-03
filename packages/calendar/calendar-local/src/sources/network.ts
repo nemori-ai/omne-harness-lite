@@ -147,6 +147,27 @@ function verifyFrCompleteness(pages: readonly unknown[], required: boolean): voi
       throw new Error('Federal Register page count is incomplete or changed during pagination')
   }
 }
+async function collectFrBodies(
+  http: SourceHttp,
+  documents: readonly z.infer<typeof frDocument>[],
+  collected: { seen: Set<string>; bodies: Record<string, string>; hits: number },
+): Promise<void> {
+  for (const document of documents) {
+    if (collected.seen.has(document.document_number))
+      throw new Error('Duplicate Federal Register document')
+    collected.seen.add(document.document_number)
+    if (!/Clos(ing|ure) of Executive Departments/i.test(document.title)) continue
+    if (++collected.hits > http.limits.maxBodies)
+      throw new Error('Federal Register body count limit exceeded')
+    if (!document.raw_text_url || !document.executive_order_number)
+      throw new Error('Federal Register closing lacks body URL or executive order number')
+    const body = await http.read(document.raw_text_url)
+    const text = utf8(body.content)
+    if (!text.trim() || /^\s*</.test(text))
+      throw new Error('Federal Register raw text is empty or HTML')
+    collected.bodies[document.document_number] = text
+  }
+}
 export async function acquireFederalRegister(
   http: SourceHttp,
   options: CalendarSourceAdapterOptions,
@@ -156,7 +177,7 @@ export async function acquireFederalRegister(
   const pages: unknown[] = []
   const bodies: Record<string, string> = {}
   const seen = new Set<string>()
-  let hits = 0
+  const collected = { seen, bodies, hits: 0 }
   while (next) {
     if (pages.length >= http.limits.maxPages)
       throw new Error('Federal Register page limit exceeded')
@@ -174,20 +195,7 @@ export async function acquireFederalRegister(
     )
       throw new Error('Federal Register result is outside its declared publication scan')
     pages.push(raw)
-    for (const document of page.results) {
-      if (seen.has(document.document_number)) throw new Error('Duplicate Federal Register document')
-      seen.add(document.document_number)
-      if (!/Clos(ing|ure) of Executive Departments/i.test(document.title)) continue
-      if (++hits > http.limits.maxBodies)
-        throw new Error('Federal Register body count limit exceeded')
-      if (!document.raw_text_url || !document.executive_order_number)
-        throw new Error('Federal Register closing lacks body URL or executive order number')
-      const body = await http.read(document.raw_text_url)
-      const text = utf8(body.content)
-      if (!text.trim() || /^\s*</.test(text))
-        throw new Error('Federal Register raw text is empty or HTML')
-      bodies[document.document_number] = text
-    }
+    await collectFrBodies(http, page.results, collected)
     next = page.next_page_url ?? null
   }
   if (!seen.size) throw new Error('Federal Register aggregate list is empty')
@@ -207,6 +215,26 @@ export async function acquireFederalRegister(
     authorityCoverageEnd: null,
   }
 }
+function validateSingleResponse(
+  response: Awaited<ReturnType<SourceHttp['read']>>,
+  kind: 'json' | 'csv' | 'ics',
+  mediaType: string,
+): void {
+  if (kind === 'ics') {
+    const text = utf8(response.content).trim()
+    if (
+      mediaType !== 'text/calendar' ||
+      !text.startsWith('BEGIN:VCALENDAR') ||
+      !text.endsWith('END:VCALENDAR') ||
+      !text.includes('BEGIN:VEVENT')
+    )
+      throw new Error('OPM response is not a complete text/calendar document')
+  } else if (kind === 'json') {
+    z.record(z.string(), z.unknown()).parse(decodeJson(response.content))
+  } else if (mediaType !== 'text/csv' || response.content[0] === 60) {
+    throw new Error('Cabinet Office response is not CSV')
+  }
+}
 export async function acquireSingle(
   http: SourceHttp,
   input: { url: string; kind: 'json' | 'csv' | 'ics'; userAgent?: string },
@@ -217,20 +245,7 @@ export async function acquireSingle(
     input.userAgent ? { 'user-agent': input.userAgent } : {},
   )
   const mediaType = response.headers['content-type']?.split(';')[0]?.trim().toLowerCase() ?? ''
-  if (input.kind === 'ics') {
-    const text = utf8(response.content).trim()
-    if (
-      mediaType !== 'text/calendar' ||
-      !text.startsWith('BEGIN:VCALENDAR') ||
-      !text.endsWith('END:VCALENDAR') ||
-      !text.includes('BEGIN:VEVENT')
-    )
-      throw new Error('OPM response is not a complete text/calendar document')
-  } else if (input.kind === 'json') {
-    z.record(z.string(), z.unknown()).parse(decodeJson(response.content))
-  } else if (mediaType !== 'text/csv' || response.content[0] === 60) {
-    throw new Error('Cabinet Office response is not CSV')
-  }
+  validateSingleResponse(response, input.kind, mediaType)
   return {
     content: response.content,
     mediaType: input.kind === 'json' ? 'application/json' : mediaType,
