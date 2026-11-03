@@ -234,6 +234,26 @@ describe('T-6: the bounds of the cache', () => {
     for (let step = 0; step < 3; step += 1) expect(await read(a, 's-1')).toBe('whole')
   })
 
+  it('over the byte bound the least recently used session goes, and is read whole again', async () => {
+    const probe = await app()
+    await probe.create(TENANT_A, 's-1')
+    const one = (
+      probe.provider.select(
+        'dom_0',
+        'SELECT length(snapshot) AS n FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
+        [textOf(TENANT_A), 's-1'],
+      ).rows[0]?.[0] as bigint
+    ).valueOf()
+    // Room for one snapshot and a half: the second session pushes the first one out.
+    const a = await app({ workCache: { bytes: Math.floor(Number(one) * 1.5) } })
+    for (const session of ['s-1', 's-2']) await a.create(TENANT_A, session)
+    expect(await read(a, 's-1')).toBe('whole')
+    expect(await read(a, 's-1')).toBe('cached')
+    expect(await read(a, 's-2')).toBe('whole')
+    expect(await read(a, 's-2')).toBe('cached')
+    expect(await read(a, 's-1')).toBe('whole')
+  })
+
   it('a snapshot over the byte bound is not kept', async () => {
     const a = await app({ workCache: { bytes: 1 } })
     await a.create(TENANT_A, 's-1')
@@ -263,6 +283,23 @@ describe('T-7: a tail that moved backwards', () => {
     const from = a.provider.calls.length
     okOf(await a.port.readWork(a.access(TENANT_A)))
     expect(readsOf(a, WHOLE, from)).toBe(1)
+  })
+})
+
+describe('a snapshot row behind the tail', () => {
+  it('answers unavailable from the version read alone: no whole read, no cached answer', async () => {
+    const a = await app()
+    await a.create(TENANT_A)
+    okOf(await a.port.readWork(a.access(TENANT_A)))
+    a.provider.seed(
+      'dom_0',
+      'UPDATE sl_journal SET tail = tail + 1 WHERE tenant = ? AND session = ?',
+      [textOf(TENANT_A), 'session-1'],
+    )
+    const from = a.provider.calls.length
+    const behind = await a.port.readWork(a.access(TENANT_A))
+    expect('failure' in behind && behind.failure.kind).toBe('unavailable')
+    expect(readsOf(a, WHOLE, from)).toBe(0)
   })
 })
 
