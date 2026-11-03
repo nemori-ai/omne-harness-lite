@@ -58,12 +58,13 @@ export type AgentHostPlugin = DefinedPlugin<AgentHostConfig> &
 
 /** One answer for several hosts: settled only when every host settled. */
 function merged(answers: readonly AgentHostStopResult[]): AgentHostStopResult {
-  const instances = answers.flatMap(answer => (answer.kind === 'settled' ? [] : answer.instances))
-  if (instances.length === 0) return { kind: 'settled' }
-  const detail = answers
-    .flatMap(answer => (answer.kind === 'settled' ? [] : [answer.detail]))
-    .join('; ')
-  return { kind: 'incomplete', detail, instances }
+  const left = answers.flatMap(answer => (answer.kind === 'settled' ? [] : [answer]))
+  if (left.length === 0) return { kind: 'settled' }
+  return {
+    kind: 'incomplete',
+    detail: left.map(answer => answer.detail).join('; '),
+    instances: left.flatMap(answer => answer.instances),
+  }
 }
 
 class LocalInstanceHost extends AgentInstanceHostService<unknown> {
