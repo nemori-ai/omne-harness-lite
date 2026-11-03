@@ -589,7 +589,11 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
         // after it commits the Tool entries received since the saved progress, and nothing when
         // there are none. The event carries no principal, so the coordinator is asked for it.
         const { coordinator } = input
-        if (coordinator !== undefined)
+        if (coordinator === undefined)
+          logger.warn(
+            'AD-06 consumes nothing by itself: no coordinator principal is given, so the plugin does not subscribe and only `consume` reads (SPEC AD-06 trigger, known limit)',
+          )
+        else
           subscribePublished(
             ctx,
             () => stopped,
