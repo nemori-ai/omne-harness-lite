@@ -13,9 +13,16 @@ import {
   type CalendarCallContext,
 } from './queries.ts'
 
-const ref = z.string().min(1)
+const ref = z
+  .string()
+  .min(1)
+  .refine(value => value.isWellFormed(), 'Expected Unicode scalar values')
+const operationKey = ref.refine(
+  value => new TextEncoder().encode(value).byteLength <= 128,
+  'Operation key exceeds 128 UTF-8 bytes',
+)
 export const calendarRefreshInputSchema = z
-  .strictObject({ calendarId: calendarIdSchema, policyVersion: ref, operationKey: ref })
+  .strictObject({ calendarId: calendarIdSchema, policyVersion: ref, operationKey })
   .readonly()
 export type CalendarRefreshInput = z.infer<typeof calendarRefreshInputSchema>
 export const calendarProbeInputSchema = calendarRefreshInputSchema
@@ -24,7 +31,7 @@ export const calendarProbeInputSchema = calendarRefreshInputSchema
   .readonly()
 export type CalendarProbeInput = z.infer<typeof calendarProbeInputSchema>
 export const calendarImportSeedInputSchema = z
-  .strictObject({ packRef: ref, packHash: contentHashSchema, releaseRef: ref, operationKey: ref })
+  .strictObject({ packRef: ref, packHash: contentHashSchema, releaseRef: ref, operationKey })
   .readonly()
 export type CalendarImportSeedInput = z.infer<typeof calendarImportSeedInputSchema>
 export const calendarOperationAddressSchema = z
@@ -33,7 +40,7 @@ export const calendarOperationAddressSchema = z
     systemScopeRef: ref,
     operation: z.enum(['refresh', 'importSeed']),
     calendarId: calendarIdSchema,
-    operationKey: ref,
+    operationKey,
   })
   .readonly()
 export const calendarPublicationQuerySchema = z

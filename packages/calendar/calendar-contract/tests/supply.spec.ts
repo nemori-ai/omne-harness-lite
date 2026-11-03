@@ -14,6 +14,12 @@ describe('supply wire', () => {
     }
     expect(calendarRefreshInputSchema.parse(JSON.parse(JSON.stringify(input)))).toEqual(input)
     expect(calendarRefreshInputSchema.safeParse({ ...input, signal: {} }).success).toBe(false)
+    expect(
+      calendarRefreshInputSchema.safeParse({ ...input, operationKey: '界'.repeat(43) }).success,
+    ).toBe(false)
+    expect(calendarRefreshInputSchema.safeParse({ ...input, operationKey: '\ud800' }).success).toBe(
+      false,
+    )
     expect(calendarRefreshInputSchema.safeParse({ calendarId: input.calendarId }).success).toBe(
       false,
     )

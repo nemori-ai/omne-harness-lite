@@ -10,6 +10,7 @@ import type {
 } from '@omne-harness/calendar-contract'
 import type {
   CalendarDispositionCommand,
+  CalendarReactionAcknowledgement,
   CalendarOperationQuery,
   CalendarPendingReaction,
   CalendarPersistence,
@@ -87,6 +88,12 @@ export type CalendarJournalHealth = Readonly<{
   pendingRuns: readonly CalendarPreparedRun[]
 }>
 export interface CalendarSupplyJournal {
+  readAcknowledgement(
+    input: Readonly<{ id: string; acknowledgementKey: string }>,
+  ): Promise<CalendarJournalResult<CalendarReactionAcknowledgement | null>>
+  prepareAcknowledgement(
+    input: CalendarReactionAcknowledgement,
+  ): Promise<CalendarJournalResult<CalendarReactionAcknowledgement>>
   findRun(
     input: Readonly<{ systemScopeRef: string; operationRef: string }>,
   ): Promise<CalendarJournalResult<CalendarPreparedRun | null>>
