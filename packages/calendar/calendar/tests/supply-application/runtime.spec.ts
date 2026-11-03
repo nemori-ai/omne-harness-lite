@@ -293,6 +293,65 @@ describe('supply application against controlled ports', () => {
     )
     expect(target.calls.commit).toBe(1)
   })
+  it('imports through a strict material port without leaking application command fields', async () => {
+    const source = world()
+    published(await source.app().refresh(context, intent))
+    const pack = packFrom(source)
+    const target = world()
+    target.setSeed(pack)
+    const readSeed = target.deps.materials.readSeed
+    target.deps.materials.readSeed = async input => {
+      if (Object.keys(input).sort().join(',') !== 'packHash,packRef')
+        return { kind: 'unavailable', reason: 'Unexpected port fields' }
+      return readSeed(input)
+    }
+    const result = await target.app().importSeed(context, {
+      packRef: 'portable-pack',
+      packHash: supplyDigest(pack),
+      releaseRef: pack.releaseRef,
+      operationKey: 'strict-port',
+    })
+    expect(result).toMatchObject({
+      kind: 'ok',
+      value: {
+        results: [{ outcome: { kind: 'recorded', receipt: { disposition: 'published' } } }],
+      },
+    })
+  })
+  it('preserves source provenance when the installation assigns different custody addresses', async () => {
+    const source = world()
+    published(await source.app().refresh(context, intent))
+    const pack = packFrom(source)
+    const target = world()
+    target.setSeed(pack)
+    const preserve = target.deps.materials.preserve
+    target.deps.materials.preserve = async material => {
+      const result = await preserve(material)
+      if (result.kind !== 'ok') return result
+      const value = { ...result.value, reference: `another-scope:${result.value.reference}` }
+      target.raw.set(value.reference, value)
+      return { kind: 'ok', value }
+    }
+    const installedContext = calendarCallContextSchema.parse({
+      ...context,
+      owner: { kind: 'system', systemScopeRef: 'independent-installation' },
+    })
+    const result = await target.app().importSeed(installedContext, {
+      packRef: 'portable-pack',
+      packHash: supplyDigest(pack),
+      releaseRef: pack.releaseRef,
+      operationKey: 'portable-seed',
+    })
+    expect(result).toMatchObject({
+      kind: 'ok',
+      value: {
+        results: [{ outcome: { kind: 'recorded', receipt: { disposition: 'published' } } }],
+      },
+    })
+    expect(target.current()?.provenanceRefs).toEqual(source.current()?.provenanceRefs)
+    expect(target.current()?.contentHash).toBe(source.current()?.contentHash)
+    expect(target.calls.acquire).toBe(0)
+  })
   it('rejects release-year or known-authority coverage gaps even when an old version is readable', async () => {
     const w = world()
     published(await w.app().refresh(context, intent))

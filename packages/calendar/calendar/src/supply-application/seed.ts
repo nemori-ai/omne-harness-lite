@@ -433,7 +433,7 @@ export async function importSeeds(
     return supplyError(context, 'invalid_input', 'Invalid seed intent')
   const guards = await authorize(deps, context, 'importSeed', null)
   if (authorityFailed(guards)) return { kind: 'error', error: guards }
-  const read = await deps.materials.readSeed(input)
+  const read = await deps.materials.readSeed({ packRef: input.packRef, packHash: input.packHash })
   if (read.kind !== 'ok')
     return supplyError(context, 'provider_failure', 'Seed pack unavailable or hash mismatch')
   const pack = calendarSeedPackSchema.safeParse(read.value)

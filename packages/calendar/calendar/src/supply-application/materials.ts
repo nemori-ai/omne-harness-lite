@@ -26,8 +26,8 @@ import { finding } from '../supply/common.ts'
 
 const computedSchema = z.strictObject({ start: localDateSchema, end: localDateSchema })
 export function parseStoredMaterial(stored: CalendarStoredMaterial): SourceParseResult {
-  const { material, reference } = stored
-  const input = { ...material, reference }
+  const { material } = stored
+  const input = { ...material, reference: material.authorityRef }
   switch (material.sourceId) {
     case 'lanceliao-china-holiday-calender':
       return parseLanceliaoCalendar(input)
