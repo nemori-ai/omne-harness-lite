@@ -1,35 +1,34 @@
 # @omne-harness/calendar-cordis-contract
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 ## 职责与状态
 
-唯一 Service 定义、服务键与 Context 类型增补。服务方法消费纯契约，不引入业务实现或本地后端。 本包为 private 0.0.0 初始化草稿，公开入口仍为空，没有可运行的业务能力。
+本成员唯一声明 CalendarQueryService/calendarQueryKey 和 CalendarSupplyService/calendarSupplyKey，供 Cordis 本机装配。业务实现、配置和资源归 provider。根入口不导出运行服务，服务定义从 `./cordis` 消费。版本仍为 `0.0.0`、private，最终独立验收未完成，尚未父分支合回。真实跨域接线留待 M2 之后，Schedule/Job 留待 A2。
 
 ## 使用
 
-目标消费者和允许依赖见[组架构](../docs/architecture.md)。当前只能构建和检查骨架，不能创建服务或执行业务命令。未来使用者通过公开入口消费，不能导入本包私有源码。
+提供者继承公开 Service，消费者按 service key inject。查询与供应可分开装载。精确导出和 Context 类型增补见[公开索引](docs/public-api.md)，资源归属见[Cordis](docs/cordis.md)。
 
 ## 契约
 
-[SPEC](SPEC.md)记录本成员边界，[公开入口](docs/public-api.md)区分现有导出与后续定义。已有[业务行为](../calendar/SPEC.md)和[API 设计](../calendar/docs/public-api-design.md)继续作为实施输入，不因拆包复制类型定义。
+[SPEC](SPEC.md)拥有本成员必要行为，源码定义拥有公开形状。[Calendar 行为](../calendar/SPEC.md)继续约束业务含义。
 
 ## 设计
 
-[架构](docs/architecture.md)说明本成员责任。[Cordis](docs/cordis.md)说明绑定适用性。目录初始化不建立新领域、进程或分布式实现。
+[架构](docs/architecture.md)、[流程](docs/flows.md)和[对象模型](docs/object-model.md)解释本包机制。[Cordis](docs/cordis.md)说明装配责任。
 
 ## 配置与运行
 
-Node >=24，ESM。当前没有业务配置或启动入口。单机后端与未来远程实现必须遵守相同公共语义，不能以同进程调用替代可靠交接。
+采用 Cordis 4.0.4。定义包没有业务配置或启动流程，不创建数据库、网络或 timer。装配注入不授 calendar.read 或供应资格；调用仍提供可信上下文。
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/calendar-cordis-contract build`、`typecheck` 和 `test`。测试只检查草稿导出，不证明持久化、租户隔离、网络、生命周期或业务正确性。
+在工作区运行 `pnpm --filter @omne-harness/calendar-cordis-contract build`、`pnpm --filter @omne-harness/calendar-cordis-contract typecheck`、`pnpm --filter @omne-harness/calendar-cordis-contract test`。[测试入口](tests/README.md)说明现有资源和覆盖边界。本域证据不代表最终独立接受或真实跨域集成。
 
 ## 维护
 
-实现公共定义时同步消费者、必要行为与验证。保留草稿标记，直到公开行为及其验证实际完成。具体方法、schema、服务类和提供者均未实现。
+同步公开源码、必要行为、真实消费者和双语入口，保留 unknown 与提供者限制，不在正文复制第二套类型。
 
 ## 目录结构与文档职责
 

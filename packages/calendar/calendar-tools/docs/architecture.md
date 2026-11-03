@@ -1,7 +1,15 @@
 # 成员架构
 
-本成员承担独立工具适配。工具参数与结果投影、可信调用上下文及工具贡献生命周期。通过 Cordis inject 消费服务定义，不依赖本地后端，也不承担业务规则。
+## 模块与依赖
 
-成员关系与依赖方向归[组架构](../../docs/architecture.md)。当前 `src` 只有模板入口，尚无内部实现模块。公共服务协议和提供者构造依赖分别维护，不能把本机句柄、工厂回调或 SQL 参加者写入线上请求与回执。
+[protocol.ts](../src/protocol.ts)组合 Calendar 请求/结果 schema；[environment.ts](../src/environment.ts)从 CallAccess 取得可信 CalendarCallContext；[author.ts](../src/author.ts)声明工具、执行查询并编码完整结果；[cordis.ts](../src/cordis.ts)接入现行 Tool 贡献。依赖 Calendar 定义与 Tool 公开作者协议，不导入 calendar 实现或 calendar-local。
 
-初始化 manifest 登记已确定的组内依赖与基础契约。后续接入外域时只增加实际消费的公开契约，不预先依赖尚未建立的提供者。
+成员关系见[组架构](../../docs/architecture.md)，公共服务 DTO 与本机工厂配置分开。
+
+## 关键机制与理由
+
+模型参数只描述动作与查询，不能携带 tenant/actor/authContext。可信环境沿底层 prepare/inspectPreparation 取得上下文，release/inspectRelease 仍委托原环境。Tool 协议拥有贡献、调用、结果保管和 offload，Calendar 不建设第二套详情存储。
+
+## 验证与维护
+
+持续资源见[测试](../tests/README.md)。公开形状修改时同步真实消费者，行为修改回 [SPEC](../SPEC.md)。本域验证、独立接受和 M2 后真实跨域装配分别取证。

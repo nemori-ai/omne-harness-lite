@@ -1,35 +1,34 @@
 # @omne-harness/calendar-local
 
-PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 ## Responsibility and status
 
-Owns local persistence adapters, recovery scans, supply or execution adapters and Cordis providers. Domain rules use the generic implementation; cross-domain handoffs use public protocols. This private 0.0.0 package is an initialized draft. Public entries remain empty; no business service is runnable.
+This member provides SQL publication persistence, supply custody and journals, bounded source acquisition, shipped seed access, the supply runner and Cordis providers. It uses calendar for domain rules and sql-contract for storage. The package remains private at `0.0.0`. Final independent acceptance and the parent merge are pending. Real cross-domain assembly follows M2. Schedule and Job remain A2 work.
 
 ## Usage
 
-See the [group architecture](../docs/architecture.md) for consumers and dependency direction. Only skeleton build and checks are available. Consumers must use public entries rather than private source paths.
+Construct createCalendarSqlPersistence, createCalendarSqlSupplyStorage and createCalendarSourceAdapters from the root, then supply them to the application factories. Connect createShippedCalendarSeedRegistry and shippedCalendarSeedRelease explicitly for offline initialization. See [usage](docs/context.md).
 
 ## Contracts
 
-[SPEC](SPEC.md) states this member's boundary. [Public API](docs/public-api.md) distinguishes actual exports from planned definitions. Existing [business behavior](../calendar/SPEC.md) and [API design](../calendar/docs/public-api-design.md) remain implementation inputs without duplicating type definitions.
+[SPEC](SPEC.md) owns this member's behavior. Source definitions own public shapes. [Calendar behavior](../calendar/SPEC.md) remains the business contract.
 
 ## Design
 
-[Architecture](docs/architecture.md) assigns this member's responsibility. [Cordis](docs/cordis.md) describes binding applicability. Package creation establishes no new domain, process or distributed implementation.
+[Architecture](docs/architecture.md), [flows](docs/flows.md) and [objects](docs/object-model.md) explain this member. [Cordis](docs/cordis.md) states its assembly responsibility.
 
 ## Configuration and operation
 
-Node >=24 and ESM. There is no business configuration or startup entry. Local and future remote implementations must preserve the same public semantics.
+Use Node >=24 and ESM. Assembly selects the SQL provider and supplies legal scope and authority. Sources need bounded transport and trusted knowledge resolvers. The runner needs explicit context, seed, stable keys, phases, timing, limit and observer configuration. See [provider ownership](docs/cordis.md). seed=null supports existing databases but does not satisfy offline release obligations.
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/calendar-local build`, `typecheck` and `test`. Tests check draft exports only. They do not establish persistence, tenant isolation, network, lifecycle or business guarantees.
+Run `pnpm --filter @omne-harness/calendar-local build`, `pnpm --filter @omne-harness/calendar-local typecheck` and `pnpm --filter @omne-harness/calendar-local test` in the workspace. [Tests](tests/README.md) describes the resources and their limits. Local evidence does not establish final acceptance or real cross-domain integration.
 
 ## Maintenance
 
-Update consumers, necessary behavior and verification when implementing public definitions. Keep draft markers until implementation and verification are complete. Methods, schemas, service classes and providers remain unimplemented.
+Keep the public source, behavior, consumer documentation and both entry files consistent. Preserve unknown outcomes and provider limits. Do not copy public type definitions into prose.
 
 ## Directory structure and documentation roles
 

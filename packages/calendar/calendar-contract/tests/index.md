@@ -1,13 +1,9 @@
 # tests 索引
 
-<!-- documentation:placeholder -->
-
-本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
+持续资源和覆盖边界见 [README.md](README.md)。
 
 ## 内容
 
-<!-- documentation:placeholder -->
+公开入口、日期与计算 schema，以及 queries.spec.ts、supply.spec.ts 验证严格输入、分页、判别结果、上下文和供应协议。纯定义测试不启动数据库、网络、Cordis 或授权服务。
 
-- [README.md](README.md)：测试范围、真实依赖与替身
-- [public-entry.spec.ts](public-entry.spec.ts)：公开入口的测试
-- [fixtures/](fixtures/index.md)：测试固定输入
+从公开入口用例开始，再按所改行为读取专题用例和 [fixtures](fixtures/index.md)。独立验收归 [acceptance](../acceptance/index.md)，单次输出留任务 tmp。

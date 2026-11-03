@@ -1,124 +1,65 @@
 # Calendar 公开 API 设计
 
-本页是 2026-11-03 确认范围的公开形状设计，尚非源码导出。实际包仍 `export {}`。行为以 [SPEC](../SPEC.md) 为准，跨域值是消费投影，不是外域运行时对象。下列公共服务形状实施时由 calendar-contract 的公开类型与 Standard Schema 唯一拥有，派生传输和工具 schema；不能另写平行 DTO。Schedule 消费本页的 CalendarSelection 与不可变快照，不使 Calendar 依赖 Schedule。共同可信调用语义在此集中说明，不把它变成 Calendar 对身份领域的治理权。
+本页解释 Calendar A1 的公开行为与使用约束。公开值、请求、判别结果和运行时校验由 [calendar-contract 根入口](../../calendar-contract/src/index.ts)唯一拥有，定义索引见[契约公开 API](../../calendar-contract/docs/public-api.md)。本页不维护第二套 TypeScript 签名。行为归 [SPEC](../SPEC.md)，本机工厂依赖归 calendar，SQL 映射归 calendar-local。Schedule 消费公开值和不可变快照，不使 Calendar 依赖 Schedule。
 
-公共服务协议与本机工厂配置分开维护。可替换服务端口归 calendar-contract，工厂 Dependencies/Configuration 归 calendar，SQL 参加者与具体存储映射归 calendar-local。下文进程内依赖对象不属于 HTTP/远程请求或回执。根公共协议不携带 Context、数据库句柄、函数或运行时实例；取消观察的 signal 由客户端本地处理，不直接序列化。分布式交接与强保证的前提归[安装和部署边界](../../../../docs/package-organization.md#日历与日程的安装和部署边界)。
+公共服务 DTO 可序列化，不携带 Context、连接、函数或运行时实例。工厂配置、SQL 参加者和取消观察的 signal 不是 wire 请求。跨部署与强保证前提见[安装和部署边界](../../../../docs/package-organization.md#日历与日程的安装和部署边界)。A1 仍为 private `0.0.0` 研发交付，最终独立验收未完成，尚未父分支合回，也未进入 M2 后真实跨域联调。
 
 ## 1. 编码、版本与调用上下文
 
-协议 ID：`omne.calendar-schedule/1`。HTTP JSON 使用 camelCase。JSON 对象拒绝未声明字段；缺失与 null 不混同。日期 `YYYY-MM-DD`，civil datetime `YYYY-MM-DDTHH:mm:ss`，UTC instant `YYYY-MM-DDTHH:mm:ss.SSSZ`。v1 civil 不含 offset，精度秒；instant 精度毫秒。IANA timezone 必须在提供者固定 tzdb 内可解析。整数要求 safe integer；禁止 NaN/Infinity。UUID 字符串规范为小写。Unicode 文本保留原值。
+协议标识为 `omne.calendar-schedule/1`。Calendar 的编码、Owner、可信上下文与错误由 [queries.ts](../../calendar-contract/src/queries.ts)定义，日期、instant 和快照由 [calculation.ts](../../calendar-contract/src/calculation.ts)定义。严格对象拒绝未声明字段，缺失与 null 不混同。LocalDate 采用四位年份 `YYYY-MM-DD`，instant 使用毫秒精度 UTC 文本。UUID 规范、safe integer、文本与时区的具体校验以各公开 schema 为准，不能静默修剪或用默认值掩盖缺失。
 
-输出判别联合必须穷尽，consumer 不把未知 variant 当成功。新可选字段只在所有真实消费者同步更新后加入，沿目标 0.0.0–0.1.0 演进政策，不提前承诺永久历史 wire 兼容。
+可信 host adapter 构造 CalendarCallContext，应用仍检查当前资格。持有服务、知道 ID、可发现工具或曾经有权都不构成许可。Owner 显式区分 tenant 与 system，公共供应使用合法 systemScopeRef，不把它填进 tenantId。originatingSessionRef 只作可空追踪，不引入 Session/Agent 依赖。AbortSignal 只可作为本机观察选项，不进入 DTO、持久操作或 fingerprint。
 
-```ts
-type Ref = string // 具体 schema 分别验证 UUID / authority ref，不互相替代
-type Instant = string
-type Civil = string
-type LocalDate = string
-type OwnerRef = {kind: 'tenant'; tenantId: Ref; ownerId: Ref}
-  | {kind: 'system'; systemScopeRef: Ref}
-interface CallContext {
-  principalRef: Ref
-  owner: OwnerRef
-  actor: { kind: 'human' | 'agent' | 'system'; actorRef: Ref }
-  authContextRef: Ref
-  requestId: Ref
-  originatingSessionRef: Ref | null
-}
-interface CommandMeta {
-  operationKey: string // 1..128 UTF-8 bytes，由调用方产生并在重试保留
-  expectedRevision: number | null // create 为 null；已有对象命令必填
-  consentRef: Ref | null // 引用，不是授权结论
-}
-type CommandResult<T> =
-  | { kind: 'committed'; operationRef: Ref; value: T; replayed: boolean }
-  | { kind: 'noChange'; operationRef: Ref; value: T; replayed: boolean }
-  | { kind: 'unknown'; operationRef: Ref; retryAfterMs: number }
-  | { kind: 'rejected'; error: DomainError }
-type QueryResult<T> = { kind: 'ok'; value: T } | { kind: 'error'; error: DomainError }
-interface DomainError {
-  code: ErrorCode
-  message: string
-  retryable: boolean
-  requestId: Ref
-  details: Readonly<Record<string, string | number | boolean | null>>
-}
-```
-
-OwnerRef显式区分租户归属与合法系统归属。source owner导入tenant分支。系统工作不能伪造特殊tenant，通知接收方也不能反推源工作所有者。系统归属到storage的映射必须由其提供者采用合法系统命名空间；缺少此能力时该装配受阻，不能把systemScopeRef偷填tenantId。
-
-originatingSessionRef 只作可空来源追踪；非会话发起的程序Job传null，不影响创建或执行，不是强制Session依赖。
-
-`CallContext` 由可信 host adapter 构造，应用服务仍验证 authContextRef。持有 Service 或调用 JavaScript 方法不构成可信身份。系统维护使用明确 system principal 和任务范围，不伪造用户或特殊 tenant。`AbortSignal` 只能作为进程内调用选项，不能进入 DTO、哈希或持久命令。
-
-每个命令的 fingerprint 为 RFC 8785 JCS 的 UTF-8 bytes 后 SHA-256，小写 hex。参与哈希的是 `{protocol,operation,owner,aggregateRef,payload,expectedRevision,consentRef}`，不含 requestId、operationKey、运行时对象或 retry count。日期/UUID 先按上述 wire 规范校验，拒绝而不静默修剪。排序按 JCS，不按 localeCompare。跨语言 golden 至少覆盖中文、emoji、斜杠、负数、指数数值、null、空数组、键顺序。sourceFingerprint 单独保存，不能转当 targetFingerprint。
-
-同作用域同 operationKey 同 fingerprint 返回原回执，同 key 不同 fingerprint 返回 `operation_key_conflict`。幂等键作用域含 owner、operation、aggregateRef 和 protocol；create 的 aggregateRef 为 owner 下 create namespace。旧 proof/receipt 不因 label 修改重写。无默认 TTL 删除历史或去重事实。
+供应指纹对 `{protocol,operation,owner,aggregateRef,payload,expectedRevision,consentRef}` 的 RFC 8785 JCS UTF-8 字节作 SHA-256。CalendarSupply 的 expectedRevision 与 consentRef 固定为 null。requestId、operationKey、重试次数和运行对象不参与指纹。具体摘要入口归 [supply-application/encoding.ts](../src/supply-application/encoding.ts)。原操作按 owner、operation、aggregateRef、protocol 和 key 寻址，同 key 同指纹认回原结果，异指纹拒绝。sourceFingerprint 与 targetFingerprint 不互换。Calendar 不提供 Job 命令或通用 CommandMeta。
 
 ## 日历值与查询
 
-CalendarSelection 为 `{calendarId, version:{kind:'latest'}|{kind:'pinned',versionId}}`。CalendarSnapshot 是不可变值，含 calendarId、versionId、coverageStart/end、timezone、weeklyDefault、逐日 overrides、knowledgeAsOf、contentHash、provenanceRefs、publicationGeneration。版本查询不返回 Context、连接、缓存或其他 runtime 实例。日期外的元数据不能被当成覆盖证明。
+[queries.ts](../../calendar-contract/src/queries.ts)拥有 CalendarQueries、CalendarResolve、CalendarResolution 和分页定义。list 接受目录分页输入，成功值保留 items、nextCursor 和 observedAt。get 接受版本分页输入，versions 本身是分页值。消费者保留 cursor，不把一页当全部目录或完整历史。
 
-```ts
-interface CalendarQueries {
-  list(ctx: CallContext): Promise<QueryResult<readonly CalendarInfo[]>>
-  get(ctx: CallContext, input: {calendarId: string}): Promise<QueryResult<CalendarInfo>>
-  effective(ctx: CallContext): Promise<QueryResult<EffectiveCalendar>>
-  resolve(ctx: CallContext, input: CalendarResolve): Promise<QueryResult<CalendarResolution>>
-}
-type CalendarResolve = {
-  selection: {kind: 'effective'} | {kind: 'explicit'; calendarId: string}
-  version: {kind: 'latest'} | {kind: 'pinned'; versionId: Ref}
-  query: {kind: 'day'; date: LocalDate}
-    | {kind: 'count'; from: LocalDate; to: LocalDate}
-    | {kind: 'next'; after: LocalDate; count: number}
-}
-type CalendarResolution = {calendarId: string; versionId: Ref; coverageStart: LocalDate; coverageEnd: LocalDate;
-  result: {kind: 'day'; date: LocalDate; working: boolean; holiday: boolean; override: boolean}
-    | {kind: 'count'; from: LocalDate; to: LocalDate; count: number}
-    | {kind: 'next'; after: LocalDate; dates: readonly LocalDate[]}}
-```
+resolve 明确指定 selection、version、query。selection 区分 effective 与 explicit，version 区分 latest 与 pinned。query 有 day、count、shift、next、nth 五类，每类结果以 value 包装对应纯计算判别结果。next 的数量在公开 schema 内有界，根 API 不隐含默认数量或版本。transport 如补默认值，须显式投影到合法请求。
 
-CalendarInfo 含 calendarId、timezone、semanticBoundary、publishedVersionId 或 null、publicationGeneration、versions、supplyStanding 或 null。CalendarVersionInfo 含 versionId、coverageStart/end、knowledgeAsOf、synthesizedAt、contentHash、provenanceRefs、isPublished。EffectiveCalendar 含 owner、environmentRevision、activeTimezone、calendar。list 不需生效选择。有效环境读取为一个原子 revision，Calendar 只解析，不保存偏好。
-
-resolve 的 selection、version、query 必须明确。transport 可显式补 version=latest，根 API 不藏默认。next 默认 5、上限 366；count 为闭区间，不跨版本覆盖。未发布/未知 pin、缺有效环境、覆盖不足与合法 empty 分开返回，不回退 latest、UTC 或另一日历。
+list 不要求消费者已经设置日历。effective 读取同一个原子环境 revision 的 timezone/calendar，Calendar 不保存偏好。latest 一次捕获当前 versionId/generation，pinned 不回退新版。CalendarInfo 的 supplyStanding 当前为 null，表示未提供供应健康投影，不能当健康通过。缺环境、无版本、缺覆盖、合法 empty 和提供者故障各自保留。
 
 ## 纯计算根入口
 
-所有操作只读不可变 snapshot，返回判别结果，不访问 Clock、数据库、网络或 Cordis。普通业务失败返回 invalid、coverageInsufficient 或 searchLimit，合法 empty 是成功。
+[calendar 根入口](../src/index.ts)导出 classifyDay、countWorkingDays、shiftWorkingDays、listWorkingDays、selectNthWorkingDay。输入与结果 schema 归 [calculation.ts](../../calendar-contract/src/calculation.ts)。所有函数只读不可变 snapshot，不访问 Clock、数据库、网络或 Cordis。
 
-| 操作 | 输入与结果 |
+| 操作                | 必要行为                                                |
 | --- | --- |
-| classifyDay | snapshot + date，返回工作/非工作/假日日别、override、来源 |
-| countWorkingDays | snapshot + from/to，含两端 count 与 basis |
-| shiftWorkingDays | snapshot + date + signed integer，0 返回原日，其余从起始日外计数，返回遍历范围 |
-| listWorkingDays | snapshot + 严格 after + 正整数 count，返回 dates 与 basis |
-| selectNthWorkingDay | snapshot + periodStart/end + ordinal，返回 date 或完整 empty |
+| classifyDay         | 按逐日 override 或 weeklyDefault 返回全日日别和命中依据 |
+| countWorkingDays    | 统计包含两端的有序闭区间                                |
+| shiftWorkingDays    | 正负移位从起始日之外数，零值返回原日                    |
+| listWorkingDays     | 严格从 after 之后列出所需工作日                         |
+| selectNthWorkingDay | 在明确周期内选择第 N 或最后工作日，合法无位置返回 empty |
+
+非法输入返回 invalid，合法输入缺覆盖返回 coverageInsufficient，搜索预算先耗尽返回 searchLimit。合法推进越过四位日期域时，coverageInsufficient 的 date 为 null，boundary 指明 beforeMinimum 或 afterMaximum。普通缺覆盖仍给出缺失日期。计算依据保留实际版本、覆盖和遍历范围。
 
 ## 供应端口与应用服务
 
-CalendarSupply.probe(calendarId,sourceId,policyVersion,operationKey) 返回 unchanged/changed/failed 和 observation。refresh(calendarId,policyVersion,operationKey) 返回 published/noChange/withheld/rejected/unknown 和 evidenceRef。importSeed(packRef,packHash,releaseRef,operationKey) 返回逐历结果。queryPublication(operationRef) 返回原 OperationView。操作只允许 supply/provisioning principal，普通 Calendar tool 不暴露供应写权限。
+[supply.ts](../../calendar-contract/src/supply.ts)唯一拥有 CalendarSupply 及 probe、refresh、importSeed、queryPublication、health 的公开输入和结果。queryPublication 消费完整 address 与 expectedFingerprint，不接受孤立 operationRef。unknown 保持原身份查询，不能换 key 重新发布。普通查询工具不取得供应或发行资格。
 
-SourceAdapter.probe/acquire/parse 只返回带出处的观察/贡献。CalendarRepository 负责同 scope 的不可变快照读取、候选与发布 operation query；PublicationParticipant 保护 publicationGeneration、版本、出处、回执与 outbox 一致提交。Schedule 的 CalendarBasisGuardParticipant 仅验证公开版本守卫，不读取 Calendar 私有表。正式存储类型沿 [sql-contract](../../../storage/sql-contract/SPEC.md)，不能传异步 transaction callback。
+[供应应用端口](../src/supply-application/ports.ts)中的 CalendarSourceAdapter 实现 probe/acquire。纯 parser 在 [supply 模块](../src/supply/index.ts)，不在 adapter 上增加 parse 方法。repository 与 persistence 分别负责读取和提交；发布版本、出处、pointer/generation、receipt、outbox 一致提交。Schedule 的版本守卫仍是后续消费义务，不能读取 Calendar 私表代替公共契约。
 
 ## 错误与使用边界
 
-错误码包括 unauthenticated、not_found、forbidden、invalid_input、invalid_timezone、missing_environment、environment_incoherent、unknown_calendar_version、coverage_insufficient、revision_conflict、stale_basis、operation_key_conflict、authority_unavailable、search_limit、capacity_exceeded、provider_failure。跨范围不存在和无权读取统一 not_found；诊断不带其他租户存在性。unknown 是独立结果，不是普通 ErrorCode。可重试仅允许再观察或按原 operation 认回。
+精确错误码由公开 schema 拥有。跨范围不存在与无权读取统一 not_found，诊断不泄露其他租户对象。应用查询的 error 与 resolve 内的纯计算失败分别保留，消费者须穷尽 kind，不能把未知分支当成功。重试只允许再观察或按原操作认回。取消观察不回滚已提交事实。
 
-独立宿主直接调用纯计算或 CalendarQueries/CalendarSupply 工厂，不装载 Cordis。进程内工厂接入 CalendarRepository、EnvironmentReader、AuthorityReader、Clock、SourceAdapter；Clock 的 now 与 monotonic 分开。查询的 signal 只取消观察；发布 signal 不撤销已提交事实。工厂及端口是本设计义务，当前没有可运行示例。
+独立宿主可直接调用纯计算，或构造 createCalendarQueries 和 createCalendarSupplyApplication。构造依赖是本机端口，不是远程 DTO。纯计算、独立查询无需供应运行器或 Cordis。SQL 前提见[持久化与实际限制](internals.md#持久化与实际限制)。
 
 ## Cordis 与独立工具
 
-采用现行 Cordis 4.0.4 和 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)。calendar-contract 与 calendar 根入口不导入 Cordis；calendar-cordis-contract 的 `./cordis` 唯一声明 CalendarQueryService/calendarQueryKey=calendarQuery 与 CalendarSupplyService/calendarSupplyKey=calendarSupply。抽象 Service implements calendar-contract 接口，static readonly provide 与 key 同源，构造函数 super(ctx,key)，@owner 指向 calendar-cordis-contract；提供者继承而不重复 provide。服务方法把调用交给提供者宿主，资源不建在 caller ctx 上。
+采用 Cordis 4.0.4 与 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)。calendar-contract 和 calendar 不导入 Cordis。服务定义唯一归 [calendar-cordis-contract 的 ./cordis](../../calendar-cordis-contract/docs/cordis.md)，查询与供应键分别为 calendarQuery 和 calendarSupply。定义不授执行资格，提供者继承定义并保管资源，不能把资源建在 caller ctx 上。
 
-Calendar tool 是独立装配贡献，由 calendar-tools 承接，只依赖 calendar-contract 及 calendar-cordis-contract 的 `./cordis` 定义，inject: [calendarQueryKey]，经 ctx.calendarQuery 调用 list/get/effective/resolve，动作均 calendar.read。模型不能传 tenant、actor、authContext、SQL、供应配置或任意 callback。Tool adapter 构造可信上下文，保留 kind/依据/错误，超长输出给 detailRef 与 truncated=true。工具注册使用[现行 Tool 贡献协议](../../../tool/tool-cordis-contract/docs/cordis.md)，calendar-tools 已初始化为空入口，工具行为尚未实现。
+[calendar-tools](../../calendar-tools/docs/public-api.md)贡献 list/get/effective/resolve，唯一动作能力为 calendar.read。它消费 Calendar 定义及 Tool 公开作者协议，不依赖 calendar 实现或 calendar-local。插件 inject calendarQueryKey、toolBindingsKey、toolGenerationsKey。createCalendarToolEnvironment 从每次 CallAccess 解析可信上下文，模型不能自报 tenant、actor、authContext、SQL、种子或任意 callback。
 
-必需依赖变化先停止新准入并按原操作接续；可选依赖按调用现取，缺席真实返回 unavailable。dispose 只撤自己 token、listener、timer、句柄和使用权。其完成不证明发布、通知或后台动作已撤销。配置校验同步，网络检查归初始化；部分初始化失败仍释放已取得资源。详细路径见[流程](key-flows.md)。
+工具把完整判别结果、错误和依据交给 ToolOutputCustody/Offloader。Calendar 不自造 detailRef/truncated 字段或详情存储。超过 16 MiB 编码预算明确失败，不返回裁剪成功。分页保留 nextCursor，分页不等于任意裁剪。长结果的保管、offload 与按当前资格读回由 Tool 拥有者承担。
+
+依赖变化先停止新准入，未完调用按原身份排空或保管。dispose 只撤自己的 token、listener、timer、句柄和使用权。其完成不证明发布、网络效果或通知撤销。细节见[流程](key-flows.md)与[本地绑定](../../calendar-local/docs/cordis.md)。
 
 ## 应用工厂与供应数据约束
 
-目标工厂createCalendarApplication({repository,persistence,environment,authority,clock,sourceAdapters,policies})返回{queries,supply}。纯计算可直接从根入口调用，不需要工厂或运行器。查询只解析所需repository/读取资格/有效环境；缺供应网络不阻已知覆盖内回答。供应运行器、tools和Cordis是外部装配，可分别装卸。CalendarRepository和PublicationParticipant对照[内部设计](internals.md#持久化与实际限制)落在真实sql-contract，不公开任意SQL执行入口。
+createCalendarApplication 接受 repository、persistence、queries、supply，返回查询与供应应用。queries 和 supply 分别补充各自所需端口，真实构造类型由根入口导出的 `src/application.ts` 拥有。独立查询仍可使用 createCalendarQueries。供应运行器、Tool 和 Cordis 各自装配，缺供应网络不阻止已有覆盖内查询。
 
-CalendarSnapshot.weeklyDefault恰好7项，从周一到周日，每项为workingDay/holiday/nonWorkingDay；overrides按LocalDate唯一，每项给出实际分类、provenanceRefs及备注。coverageStart/end为包含边界，范围必须连续可解释；不可变version的contentHash为规范内容JCS/SHA-256，发布generation单调增加，观测时间不当知识截至。provenance含sourceId、role、lineageRef、权威原文引用、取得时刻和原材料hash；声明角色不伪造独立血统。source原材料与规范内容各自hash，不能混用。
+快照 weeklyDefault 恰好七项，按周一至周日解释。overrides 按 LocalDate 唯一。coverage 两端包含，范围连续可解释。contentHash 标识规范内容，原材料独立 hash。knowledgeAsOf 不取观测时间替代。provenanceRefs 是来源 authority 引用，本机 rawReference 由供应材料保管。发布版本精确关联原 candidate，不能用后来的 noChange 回执替代其材料。材料缺失、不匹配或资格不足明确失败。
 
-PublicationParticipant的publish命令携带calendarId、expectedGeneration、candidate/version引用、policyHash及authorityGuardRefs；原子保存不可变内容、provenance、pointer/generation、operation receipt和outbox。same-content返回noChange，异内容同version拒绝；generation变更返回revision_conflict/stale_basis后重新校验。withheld/rejected候选、源响应/差异和失败同样持久保留，不能被误列为publishedVersion。原operation身份按scope+domain+operation+protocol+key映射sql-contract五维，异payload返回operation_key_conflict。
+发布按 expectedGeneration 复核当前依据；相同内容 noChange，异内容同 version 拒绝。withheld/rejected 候选和失败证据持续保留，不列为已发布版本。提交后反应失败只恢复 outbox，不重铸版本。来源政策、种子与实际存储限制见[内部设计](internals.md)。

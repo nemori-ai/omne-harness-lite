@@ -1,17 +1,11 @@
 # 对象模型
 
-<!-- documentation:placeholder -->
-
-本文件描述本包内部对象的职责、身份、状态、关联、组合、继承与生命周期，配类图。它不强迫实现改成 class；纯函数或值包写实际模型与不适用项。
-
 ## 对象与关系
 
-<!-- documentation:placeholder -->
+CalendarQueryService 实现 CalendarQueries，CalendarSupplyService 实现 CalendarSupply。calendarQueryKey/calendarSupplyKey 与对应静态 provide 同源。Context 类型增补提供本机属性，不产生第二份业务身份。CalendarLocalQueryProvider/CalendarLocalSupplyProvider 继承这些定义，应用和资源仍归提供者宿主。
 
-待补：对象职责、身份、状态与关联，以及类图。
+精确类型与 schema 见[定义索引](public-api.md)，本页不复制类型声明。
 
 ## 生命周期
 
-<!-- documentation:placeholder -->
-
-待补：对象的创建、变化与销毁责任。
+定义包不创建存储、fetch、timer 或业务循环。provider 实例归装载它的宿主，调用者 Context 不成为提供者资源归属。依赖变更和释放沿 Cordis 与 IC 约定执行。

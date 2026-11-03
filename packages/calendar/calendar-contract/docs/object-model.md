@@ -1,17 +1,11 @@
 # 对象模型
 
-<!-- documentation:placeholder -->
-
-本文件描述本包内部对象的职责、身份、状态、关联、组合、继承与生命周期，配类图。它不强迫实现改成 class；纯函数或值包写实际模型与不适用项。
-
 ## 对象与关系
 
-<!-- documentation:placeholder -->
+CalendarSnapshot 绑定 calendarId、versionId、覆盖、周默认、逐日 override、knowledgeAsOf、contentHash 和来源 authority 引用。CalculationBasis 记录本次实际依据。版本选择区分 latest 与 pinned，CalendarResolve 的 selection 区分 effective 与 explicit。CalendarInfo 的 versions 和 list 都分页，supplyStanding=null 表示没有供应健康投影。供应回执关联完整原操作、发布引用与 generation，不成为执行资格。
 
-待补：对象职责、身份、状态与关联，以及类图。
+精确类型与 schema 见[定义索引](public-api.md)，本页不复制类型声明。
 
 ## 生命周期
 
-<!-- documentation:placeholder -->
-
-待补：对象的创建、变化与销毁责任。
+这些对象是可序列化值与服务类型，不拥有宿主资源。旧 snapshot 不随新发布变化。公开值不持有连接、Clock、Cordis Context 或调用者释放责任。

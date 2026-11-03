@@ -1,17 +1,11 @@
 # 使用与定位
 
-<!-- documentation:placeholder -->
-
-本文件说明消费侧怎样使用本包、具名上层消费者、典型调用关系，以及本包在系统与能力组中的位置。它覆盖独立消费与适用的 Harness 接入，引用系统架构与真实消费者，不成为新的架构源。
-
 ## 使用方式
 
-<!-- documentation:placeholder -->
-
-待补：最小有效示例、必要依赖、初始化与释放责任。
+独立应用直接消费 calendar-contract 的服务类型即可。本机 Cordis 消费者从 `@omne-harness/calendar-cordis-contract/cordis` 导入 calendarQueryKey，在插件 inject 中声明后调用 ctx.calendarQuery。调用参数仍是受校验的可信上下文与公开输入。供应使用独立键，不随查询注入自动获得。
 
 ## 消费者与定位
 
-<!-- documentation:placeholder -->
+calendar-local 提供两个本机 provider；calendar-tools 只注入查询定义，同时消费 Tool 的贡献依赖。定义测试核对服务键与继承关系。最终 harness、未来远程客户端与 Schedule 装配尚未接入。
 
-待补：具名上层消费者、典型调用关系与定位图。
+依赖方向归[组架构](../../docs/architecture.md)，完整行为归 [SPEC](../SPEC.md)。

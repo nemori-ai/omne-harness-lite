@@ -1,25 +1,27 @@
 # @omne-harness/calendar
 
-PACKAGE_TEMPLATE_DRAFT
+[中文](README_ZH.md)
 
-Public protocols belong to [calendar-contract](../calendar-contract/README.md), and Cordis definitions belong to [calendar-cordis-contract](../calendar-cordis-contract/README.md). This member retains framework-independent domain and application implementations and factory configuration. Local persistence and assembly belong to [calendar-local](../calendar-local/README.md); tools belong to [calendar-tools](../calendar-tools/README.md). All members remain initialized drafts.
+This member implements Calendar A1 without Cordis. It exports five pure date functions, source parsing and validation, query and supply applications, and the combined application factory. The package remains private at `0.0.0`. Final independent acceptance and the parent merge are pending. Schedule and Job remain A2 work. Real cross-domain assembly follows M2.
 
-This workspace package is a private `0.0.0` draft. `src/index.ts` contains `export {}`. It exposes no business API or runtime service. The complete target design was confirmed on 2026-11-03. Design commitments do not establish implementation or verification.
+Public protocols belong to [calendar-contract](../calendar-contract/README.md). Service definitions belong to [calendar-cordis-contract](../calendar-cordis-contract/README.md). SQL persistence, source acquisition, seeds and the runner belong to [calendar-local](../calendar-local/README.md). Tool contributions belong to [calendar-tools](../calendar-tools/README.md).
 
 ## Use and boundaries
 
-Read the [behavior contract](SPEC.md) and [public API design](docs/public-api-design.md). The API document describes target types, commands, queries, errors, trusted context, and ports. These definitions are not current exports. There is no runnable business example yet. Direct application calls use the same authorization and durable-operation rules as HTTP and tools.
+The [root entry](src/index.ts) exports classifyDay, countWorkingDays, shiftWorkingDays, listWorkingDays and selectNthWorkingDay. Each function reads a validated immutable snapshot and returns a discriminated result with its calculation basis. Pure calculation needs no network, database, clock or Cordis.
 
-The root target contains pure domain functions and application services. It does not require Cordis. Cordis bindings and independent tool adapters consume those services. The [group architecture](../docs/architecture.md) defines dependency direction.
+createCalendarQueries constructs independent queries. createCalendarSupplyApplication constructs supply. createCalendarApplication accepts repository, persistence, queries and supply dependency groups, and returns both applications. Exported source definitions own the exact configuration. See [public API notes](docs/public-api-design.md). Factory dependencies are local objects, not wire values.
 
 ## Contract and internal design
 
-[SPEC](SPEC.md) owns observable behavior and verification obligations. The [internal design](docs/internals.md) explains state, persistence, recovery, and lifecycle. [Key flows](docs/key-flows.md) show participants, failure branches, and responsibility transfer. The [group entry](../README.md) links related owners.
+[SPEC](SPEC.md) owns behavior and continuing verification obligations. [Internals](docs/internals.md) explains versions, supply, recovery and storage limits. [Key flows](docs/key-flows.md) describes failures and responsibility transfer. The [group entry](../README.md) links related owners.
 
 ## Configuration, operation, and verification
 
-There is no implemented provider or business configuration in this package. Target configuration must preserve the contract. The existing public-entry test checks empty exports only. Future domain and contract tests, real-provider integration, independent consumer tests, and end-to-end assembly are required where the SPEC assigns them. They are unverified, rather than inapplicable. Node24, ICU, real storage faults, network supply, and tool assembly have no acceptance result from this documentation work.
+Use Node >=24 and ESM. Pure calculation needs no configuration. Queries require trusted authority and environment ports. Supply requires a legal system scope, material custody and publication ports. Identity, settings, notification and Tool host integration remain external prerequisites. SQL L-1/L-4 limits and power-loss durability require provider evidence.
+
+Run `pnpm --filter @omne-harness/calendar build`, `pnpm --filter @omne-harness/calendar typecheck` and `pnpm --filter @omne-harness/calendar test` in the workspace. Continuing tests cover the public entry, queries, supply, supply application and workload. These commands do not establish final independent acceptance or real system integration.
 
 ## Maintenance
 
-Update the behavior, public design, flows, metadata, and both README files together. Implemented public definitions must become the single type source. Keep immutable historical facts, original operation identities, and explicit unknown outcomes. Source acceptance obligations remain in the [complete mapping](../../schedule/schedule/SPEC.md#来源与目标验收映射).
+Keep the contract, public source, flows and both entry files consistent. Source schemas own public shapes. Preserve immutable history, original operations and explicit unknown results. See the [complete obligation mapping](../../schedule/schedule/SPEC.md#来源与目标验收映射).

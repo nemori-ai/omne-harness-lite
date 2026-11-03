@@ -1,17 +1,11 @@
 # 使用与定位
 
-<!-- documentation:placeholder -->
-
-本文件说明消费侧怎样使用本包、具名上层消费者、典型调用关系，以及本包在系统与能力组中的位置。它覆盖独立消费与适用的 Harness 接入，引用系统架构与真实消费者，不成为新的架构源。
-
 ## 使用方式
 
-<!-- documentation:placeholder -->
-
-待补：最小有效示例、必要依赖、初始化与释放责任。
+独立消费者可从 `@omne-harness/calendar-contract` 导入 calendarSnapshotSchema，对输入执行 safeParse；成功后把 data 交给 calendar 的纯计算。服务消费者实现或注入 CalendarQueries/CalendarSupply，不需要 Cordis。类型导入不提供当前资格，可信上下文仍由宿主生成。
 
 ## 消费者与定位
 
-<!-- documentation:placeholder -->
+calendar 实现纯计算和应用，calendar-cordis-contract 用这些端口定义 Service，calendar-local 处理本机值，calendar-tools 校验参数和结果。持续用例从公开入口消费。本包不依赖 Schedule、Session 或 Agent；未来 HTTP/SDK 与 Schedule 的真实采用未交付。
 
-待补：具名上层消费者、典型调用关系与定位图。
+依赖方向归[组架构](../../docs/architecture.md)，完整行为归 [SPEC](../SPEC.md)。

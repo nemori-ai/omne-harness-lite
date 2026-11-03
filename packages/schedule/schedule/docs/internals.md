@@ -60,7 +60,7 @@ calendar predicate 支持 workingDay / nonWorkingDay / holiday。nonWorkingDay �
 
 每次 resolver 最多扫描 100,000 个基础候选或 400 个 civil 年，先达到者返回 `search_limit`，附 observedThrough 和 continuation diagnostic。该数值是当前目标资源上限，不是源产品承诺。交互预览不得自动循环直到成功；后台治理显式记录受阻。
 
-日期算术遵循[技术基础](../../../../docs/architecture/technical-foundations.md)已采用的 @js-temporal/polyfill 0.5.1。rrule 2.8.1 与 cron-parser 5.10.3 是社区候选，后者和旧探针 5.4.0 不能混称同一验证版本；rrule-temporal 2.2.8 可作对照，均未在本包安装或采用。库只枚举 civil，不让默认 COUNT、DST 或 strict 模式改产品语义。Temporal earlier/later 后 round-trip 本地字段，两者都不等为 gap，有效取较早 instant；记录 tzdb/ICU，升级跑完整 golden corpus。
+日期算术遵循[技术基础](../../../../docs/architecture/technical-foundations.md)已采用的 @js-temporal/polyfill 0.5.1。RRULE、cron、规范化及计时的选型、依赖状态和采用前置见[复用规划](../../docs/reuse-plan.md)。库只枚举 civil，不让默认 COUNT、DST 或 strict 模式改产品语义。Temporal earlier/later 后 round-trip 本地字段，两者都不等为 gap，有效取较早 instant；记录 tzdb/ICU，升级跑完整 golden corpus。
 
 源材料的5个接缝探针在 Node26、tz2026a、ICU78.3，只涉及纽约 gap/fold/正常日、第一个周一与 cron DOM/DOW OR；本包没有重跑，也不能把它当Node24、完整源语法或运行能力证据。开发必须补固定源 dateutil 全语法对照，纽约、Lord Howe、Apia、调休、跨年、工作日位置、平移后排除和碰撞案例。预算数字为当前目标资源边界，变更走显式治理，不能静默多算或截断后报完整。
 

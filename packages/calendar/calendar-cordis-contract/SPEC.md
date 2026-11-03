@@ -2,14 +2,16 @@
 
 ## 范围与依据
 
-本成员承担Cordis 服务定义。唯一 Service 定义、服务键与 Context 类型增补。服务方法消费纯契约，不引入业务实现或本地后端。 安装边界归[包组织](../../../docs/package-organization.md#日历与日程的安装和部署边界)，业务目标沿[现有 SPEC](../calendar/SPEC.md)。本文件只确定初始化责任，不把目标接口声明为已有实现。
+本成员唯一声明 CalendarQueryService/calendarQueryKey 和 CalendarSupplyService/calendarSupplyKey，供 Cordis 本机装配。业务实现、配置和资源归 provider。根入口不导出运行服务，服务定义从 `./cordis` 消费。业务行为归 [Calendar SPEC](../calendar/SPEC.md)，安装边界归[包组织](../../../docs/package-organization.md#日历与日程的安装和部署边界)。本成员仍为 private 0.0.0，最终独立验收与父合回未完成。
 
-## 必要约束
+## 结果与不变量
 
-公开服务消费不要求与 Session 或 Agent runtime 同机、同进程或同数据库。命令接受、业务完成、结果交付分别观察；超时和断连不能推断为未接受。原操作身份、查询、幂等及 unknown 的细化随契约实现交付。
+唯一服务键与 Service 定义在 `./cordis`。查询与供应分别实现 calendar-contract 端口，根协议保持无 Cordis。方法不通过 Context 注入身份，也不把本机资源写进 DTO。
 
-跨子系统不得以共享事务参加者、内存锁或对象引用作为公共协议前提。本地持久化可以在自己的事务域内使用参加者。涉及外部当前资格或版本的强保证必须由具名协议兑现；实现不支持时明确拒绝，不能用旧快照放行。
+## 所有权、失败与生命周期
 
-## 初始化状态与验证
+定义不授执行资格，不创建后台循环。provider 宿主拥有实例、配置与清理，调用者只消费服务。失败和 unknown 原样保留，退出不能撤销已经发生的外部效果或发布。
 
-当前根入口为空。绑定变体的 `./cordis` 也为空，没有 Service、后台循环或工具注册。构建、类型检查和导出测试只验证包骨架。业务符合性、故障恢复和真实装配尚未验证。
+## 组合与验证
+
+公开服务不要求 Session/Agent 同机、同进程或同库。外域当前资格、有效环境、通知和 Tool 宿主仍是具名前提，M2 前本域夹具不证明真实采用。SQL L-1/L-4 和介质耐久不因同进程消失。持续入口见[测试](tests/README.md)，独立验收不由作者绿测代替。
