@@ -59,6 +59,18 @@ function growing(value: Record<string, unknown>): VisibleBlock | null {
   }
 }
 
+/** The part kinds that never ride in a sealed visible block are the open and the tool-side ones. */
+function isSealable<T extends { kind: string }>(part: T): part is Extract<T, ModelBlock> {
+  switch (part.kind) {
+    case 'tool_call_incomplete':
+    case 'tool_call_unparsed':
+    case 'tool_result':
+      return false
+    default:
+      return true
+  }
+}
+
 function sealed(
   value: Record<string, unknown>,
   encoding: boolean,
@@ -69,14 +81,8 @@ function sealed(
   if (selected === null) return typeof value.block.kind === 'string' ? 'unknown' : null
   const block = judgePart(encoding ? selected : value.block)
   if ('rejected' in block) return null
-  switch (block.ok.kind) {
-    case 'tool_call_incomplete':
-    case 'tool_call_unparsed':
-    case 'tool_result':
-      return null
-    default:
-      return { kind: 'sealed', index: value.index, block: block.ok }
-  }
+  if (!isSealable(block.ok)) return null
+  return { kind: 'sealed', index: value.index, block: block.ok }
 }
 
 function visible(
