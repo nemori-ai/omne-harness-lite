@@ -20,8 +20,9 @@ import {
 } from '@omne-harness/request-context-cordis-contract/cordis'
 import { AGENT_CONTEXT_OWNER } from '../assembly/agent-context-owner.ts'
 import type { EntryObjectModule } from '../types.ts'
+import { sessionWorkOf } from '../rows/tool-runtime/session-work.ts'
 import { sessionScopesOf } from './execution-wiring.ts'
-import { ENTRY_COMPONENTS, SESSION_WORK_OWNER, verifierOf } from './principals.ts'
+import { ENTRY_COMPONENTS, verifierOf } from './principals.ts'
 import type { SessionScopeOwnershipSource } from './session-scope-source.ts'
 
 export type RegistrationAction = 'register' | 'replace'
@@ -71,19 +72,23 @@ export type RegistrationAuthorityOptions = Readonly<{
   scopeOwners?: SessionScopeOwnershipSource
 }>
 
-/** `ownSession` 放行格的会话核对：作用域所属的会话须是主体的工作，租户须是目标的租户。 */
+/**
+ * `ownSession` 放行格的会话核对：主体须是会话工作主体（`sessionWorkOf` 的严口径：签发组件是
+ * `sessionWorkPrincipals`，工作拥有者是 Session，租户是目标的租户），作用域所属的会话须是它的工作。
+ */
 async function ownSessionDecision(
   options: RegistrationAuthorityOptions,
-  principal: Extract<Principal, { kind: 'acting-for-tenant' }>,
+  principal: Principal,
   target: Parameters<SourceRegistrationAuthority<Principal>['check']>[0]['target'],
 ): Promise<SourceDecision> {
-  if (principal.work.owner !== SESSION_WORK_OWNER) return DENIED
+  const work = sessionWorkOf(principal, target.tenant)
+  if (work === undefined) return DENIED
   if (options.scopeOwners === undefined)
     return { kind: 'unavailable', diagnostic: 'the scope ownership source is not wired' }
   const owned = await options.scopeOwners.lookup(target.scope)
   switch (owned.kind) {
     case 'bound':
-      return tenantEquals(owned.tenant, target.tenant) && owned.session === principal.work.work
+      return tenantEquals(owned.tenant, target.tenant) && owned.session === work.session
         ? ALLOWED
         : DENIED
     case 'unbound':

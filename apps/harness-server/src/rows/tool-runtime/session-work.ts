@@ -8,7 +8,7 @@ import type { ActingForTenantPrincipal, PrincipalVerifier } from '@omne-harness/
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { SESSION_WORK_OWNER, classify } from '../authorization/principals.ts'
 
-/** 会话工作主体的签发组件（`entry/principals.ts` 的 `sessionWork`）。 */
+/** 会话工作主体的签发组件；签发一侧 `entry/principals.ts` 的 `ENTRY_COMPONENTS.sessionWork` 取的就是它。 */
 export const SESSION_WORK_COMPONENT = 'sessionWorkPrincipals'
 
 /**
