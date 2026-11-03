@@ -4,7 +4,10 @@
 import { isAlias, isMap, isScalar, isSeq, type Document } from 'yaml'
 import type { ManifestValue } from '../values.ts'
 
-/** The frontmatter budget: the same depth and item limits as the declaration budget. */
+/**
+ * The frontmatter budget, the same as the declaration budget: at most 16 nested mappings and
+ * sequences, the root mapping counted as the first, and at most 4096 nodes once aliases expand.
+ */
 const MAX_DEPTH = 16
 const MAX_NODES = 4096
 
@@ -12,7 +15,7 @@ type Budget = { nodes: number }
 
 /** Plain values, or `undefined` when the tree breaks a rule above. */
 export function plainValue(document: Document, node: unknown): ManifestValue | undefined {
-  return convert(document, node, 0, { nodes: 0 })
+  return convert(document, node, 1, { nodes: 0 })
 }
 
 function convert(
@@ -21,10 +24,11 @@ function convert(
   depth: number,
   budget: Budget,
 ): ManifestValue | undefined {
+  if (isAlias(node)) return convert(document, node.resolve(document), depth, budget)
   budget.nodes += 1
-  if (budget.nodes > MAX_NODES || depth > MAX_DEPTH) return undefined
-  if (isAlias(node)) return convert(document, node.resolve(document), depth + 1, budget)
+  if (budget.nodes > MAX_NODES) return undefined
   if (isScalar(node)) return scalar(node.value)
+  if (depth > MAX_DEPTH) return undefined
   if (isSeq(node)) {
     const items: ManifestValue[] = []
     for (const item of node.items) {

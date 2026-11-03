@@ -300,15 +300,36 @@ describe('malformed SKILL.md', () => {
   })
 })
 
-/** Ten levels that each double the one below: 2^10 nodes from a few lines. */
+/** Three levels of 20 aliases each: 8000 nodes from a few short lines, 4 levels deep. */
 function aliasBomb(): string[] {
-  const lines = ['x-l0: &l0 [a, a]']
-  for (let level = 1; level <= 10; level += 1)
-    lines.push(
-      `x-l${level}: &l${level} [*l${level - 1}, *l${level - 1}, *l${level - 1}, *l${level - 1}]`,
-    )
-  return lines
+  const twenty = (name: string) => `[${Array.from({ length: 20 }, () => `*${name}`).join(', ')}]`
+  return [
+    'x-l0: &l0 [a]',
+    `x-l1: &l1 ${twenty('l0')}`,
+    `x-l2: &l2 ${twenty('l1')}`,
+    `x-l3: ${twenty('l2')}`,
+  ]
 }
+
+/** A field value of `levels` nested sequences around one scalar. */
+function nested(levels: number): string {
+  return `x-deep: ${'['.repeat(levels)}a${']'.repeat(levels)}`
+}
+
+describe('frontmatter budget', () => {
+  it('accepts 16 nested levels, the root mapping counted, and rejects 17', () => {
+    expect(codeOf(parse('demo', { 'SKILL.md': demo([nested(15)]) }))).toBe('accepted')
+    expect(codeOf(parse('demo', { 'SKILL.md': demo([nested(16)]) }))).toBe('malformed')
+  })
+
+  it('accepts 4096 nodes and rejects 4097', () => {
+    // The root mapping, the scalars of name and description, the list and its items.
+    const list = (items: number) =>
+      `x-list: [${Array.from({ length: items }, () => '1').join(', ')}]`
+    expect(codeOf(parse('demo', { 'SKILL.md': demo([list(4096 - 4)]) }))).toBe('accepted')
+    expect(codeOf(parse('demo', { 'SKILL.md': demo([list(4096 - 3)]) }))).toBe('malformed')
+  })
+})
 
 describe('malformed .omne/skill.json', () => {
   it.each([
