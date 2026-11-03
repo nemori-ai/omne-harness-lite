@@ -17,6 +17,7 @@ import { writeFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
 import type { RoundCount } from './w2-measure.ts'
+import { intakeAccess } from './world.ts'
 
 const worlds: W2World[] = []
 afterEach(async () => {
@@ -107,6 +108,12 @@ async function runToLimit(shape: Shape, w: W2World) {
           // the errors it logged, and how the last Tool push stood (a pending one is `pending`).
           receivedFailures: w.receivedFailures.slice(-3),
           errors: w.errors.slice(-3),
+          warnings: w.warnings.slice(-5),
+          // The Session snapshot read once more, uncounted, after the round that did not end.
+          readWorkAfter: await w.probe
+            .readWork(intakeAccess)
+            .then(answer => ('failure' in answer ? answer.failure : 'ok'))
+            .catch((error: unknown) => ({ threw: String(error) })),
           lastToolPush: await Promise.race([
             w.toolPushes.at(-1)?.then(
               value => value,

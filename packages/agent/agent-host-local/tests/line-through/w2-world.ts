@@ -548,6 +548,14 @@ export async function openW2World(options: W2Options) {
     },
   })
 
+  // The warnings of the products' loggers (the world's `errors` keep the errors only).
+  const warnings: string[] = []
+  w.ctx.logger.exporter({
+    export: message => {
+      if (message.type === 'warn') warnings.push(message.args.map(String).join(' '))
+    },
+  })
+
   // Each saved result lets the clock release `RELEASES_PER_SAVE` of the reconciliation waits that the
   // Agent arms after it, each one by moving the clock to its instant. A wait for the idle reclaim is far
   // away and is never released. Unused releases do not carry into the next round. The number of
@@ -855,6 +863,7 @@ export async function openW2World(options: W2Options) {
       await w.close()
     },
     until,
+    warnings,
     consumers,
     releases: () => releases,
     roundCompletes: () => roundsComplete,
