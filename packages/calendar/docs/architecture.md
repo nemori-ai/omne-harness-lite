@@ -1,6 +1,27 @@
 # 日历能力组工程关系
 
-本组真实成员为 [calendar/calendar](../calendar/README.md)，仍是空导出 workspace 草稿。完整目标设计已确认，运行实现和验收未完成。本页解释成员与外部工程关系，不重复成员状态机或错误集合。
+本组包含 calendar-contract、calendar-cordis-contract、calendar、calendar-local、calendar-tools 五个成员，均为初始化草稿。完整目标设计已确认，运行实现和验收未完成。本页解释成员与外部工程关系，不重复成员状态机或错误集合。
+
+
+## 安装边界
+
+`calendar-contract` 拥有可替换服务协议与公共值。`calendar` 拥有无 Cordis 的领域算法和应用服务工厂。`calendar-cordis-contract` 唯一拥有绑定定义。`calendar-local` 承接本机存储、恢复和适配装配，`calendar-tools` 只消费契约与服务定义。
+
+```mermaid
+flowchart LR
+  Tools["calendar-tools"] --> Binding["calendar-cordis-contract"]
+  Binding --> Contract["calendar-contract"]
+  Tools --> Contract
+  Core["calendar"] --> Contract
+  Local["calendar-local"] --> Core
+  Local --> Binding
+  Local --> Contract
+  Local --> SQL["sql-contract"]
+```
+
+箭头表示允许的安装依赖，不表示当前已经实现运行调用。tools 不依赖 core 或 local，绑定定义不依赖实现。公共消费不能要求同机、同进程或共享数据库；未来远程客户端可实现同一服务定义，本次不建立远程提供者包。
+
+持久化参加者是 local 内部适配协议，不是服务间 wire 协议。跨域资格和发布版本的强保证仍须由对应拥有者协议兑现；当前快照不能代替动作发生时所需的有效性证明。具体限制见[部署边界](../../../docs/package-organization.md#日历与日程的安装和部署边界)。
 
 ## 本组工程分解与公开依赖
 

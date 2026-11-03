@@ -2,6 +2,8 @@
 
 PACKAGE_TEMPLATE_DRAFT
 
+Public protocols belong to [calendar-contract](../calendar-contract/README.md), and Cordis definitions belong to [calendar-cordis-contract](../calendar-cordis-contract/README.md). This member retains framework-independent domain and application implementations and factory configuration. Local persistence and assembly belong to [calendar-local](../calendar-local/README.md); tools belong to [calendar-tools](../calendar-tools/README.md). All members remain initialized drafts.
+
 This workspace package is a private `0.0.0` draft. `src/index.ts` contains `export {}`. It exposes no business API or runtime service. The complete target design was confirmed on 2026-11-03. Design commitments do not establish implementation or verification.
 
 ## Use and boundaries

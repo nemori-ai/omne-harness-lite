@@ -149,8 +149,18 @@ packages/
 │   ├── execution-environment/                  不含 Cordis 的登记表机制：提供者与设施表、匹配、获取状态机、租约视图与逐操作门、恢复编排
 │   ├── execution-environment-host-local/       Service 实现与宿主提供者：已有 files 设施的读取、查看、写入与关闭；command 与 terminal 提供者未实现
 │   └── image/                  图像字节的预算、打开、编码与关闭。技术设计已接受，已是 workspace 成员
-├── calendar/calendar/          日历版本依据与日期计算
-├── schedule/schedule/          日程、Job与整体结果
+├── calendar/
+│   ├── calendar-contract/       日历公共值与服务协议
+│   ├── calendar-cordis-contract/ 唯一 Cordis 服务定义
+│   ├── calendar/                无 Cordis 的日历领域与应用实现
+│   ├── calendar-local/          单机存储、供应及提供者装配
+│   └── calendar-tools/          独立日历工具贡献
+├── schedule/
+│   ├── schedule-contract/       日程、Job 公共值与服务协议
+│   ├── schedule-cordis-contract/ 唯一 Cordis 服务定义
+│   ├── schedule/                无 Cordis 的日程与 Job 实现
+│   ├── schedule-local/          单机持久化、执行适配与提供者装配
+│   └── schedule-tools/          独立日程与 Job 工具贡献
 ├── notification/notification/  通知及送达
 ├── slash-command/<成员>/       命令定义、识别与展开
 ├── skills/<成员>/              方法、资源、发现与读取
@@ -392,3 +402,17 @@ Agent 按纯契约、Cordis 定义、通用实现和具体装配分为四个 wor
 ## Session 的安装边界
 
 Session 按纯契约、Cordis 定义、通用实现、具体装配、邻域适配和存储介质分为六个 workspace 成员。session-adapters 另取 session-storage-sql 的公开子路径 `./participants`，只读参加者模块与迁移片段的词汇，用于在同一个事务域登记会话日志的组合。该子路径不导出提供者实现，依赖方向仍从邻域适配指向存储介质，不反向。运行入口与 Service 尚未实现，技术接受范围沿各自 SPEC。工厂的 Dependencies、Configuration 与构造入口归通用实现；可替换端口、出站端口接口与领域操作归纯契约。session-cordis 只装配长期 Session 服务，不引入 Session runtime、实例目录或固定数据库。session-adapters 承接与六个邻域相接的全部适配插件，是组内唯一导入邻域契约的成员，依赖纯契约、Cordis 定义与邻域契约。session-storage-sql 提供事务端口的 SQL 实现，依赖纯契约与存储契约，不承担治理判断。详细成员关系见 [Session 组](../packages/session/README.md)。
+
+## 日历与日程的安装和部署边界
+
+Calendar 与 Schedule/Job 分别按纯契约、Cordis 定义、通用实现、单机后端和工具贡献组织为五个 workspace 成员。十个成员均为 private 0.0.0 初始化草稿，公开入口为空。包划分建立安装依赖与维护边界，不表示业务已实现，也不要求每个包单独成为进程。
+
+公共服务可以部署在与 Session、Agent runtime 不同的机器或进程。`*-contract` 拥有公共数据和可替换服务端口，不包含 Cordis、SQL 后端、工厂配置或运行时对象。线上请求和回执可序列化，使用稳定身份、明确协议版本及授权语义。`calendar` 与 `schedule` 拥有纯领域算法、应用工厂及其内部构造依赖。`*-cordis-contract` 唯一拥有 Service、键和类型增补，不依赖通用实现。`*-tools` 经 inject 消费服务，不能依赖 core 或 `*-local`。服务定义本身不是网络协议。
+
+本次后端为 `calendar-local` 与 `schedule-local`。它们组合通用实现、sql-contract、具体来源或执行适配，提供无 Cordis 的构造入口及独立 `./cordis` 绑定。选定 SQL 介质由应用装配提供，业务包不绑定 SQLite 实现。schedule-local 的 Agent 执行适配可以消费 Session/Agent 的公开契约；纯契约和通用实现不能导入它们的服务或运行实现。Job 保持 Schedule 域内治理，不另建第二套 Job 调度或状态包。
+
+Calendar→Schedule、Job→Session 及通知/结果提供者交接，不得以共享内存、共享数据库或跨域事务参加者作为公共协议前提。命令接受与工作完成分别观察；断连、超时与取消观察不证明未接受。跨域交接保存原操作身份，以耐久意图、原操作查询及回执恢复，禁止未知时换身份重做。`-local` 可在自己的事务域内使用参加者，但这些对象不进入 wire 契约。
+
+既有设计中“最新依据与接受一致”“当前资格”和强撤权等保证保持有效。涉及远端权威时，必须由该权威提供可兑现的授权、保留或围栏协议，并声明能力与有效范围；单次读取后在本地提交不证明这些保证。相关协议及故障证据尚待实现，不在初始化阶段虚构分布式原子性。缺少必要能力时拒绝相关写入，不能降低为过期快照放行。
+
+未来远程客户端可以替换本地绑定的提供者，保持相同公共语义。本次不初始化没有真实消费者的 RPC、消息队列或远程提供者包。公共类型和 schema 随源码实现成为唯一形状源；保留必要行为契约与设计理由，不另建一份重复源码的全量 DDD 正文。具体成员与组合验证见[日历组](../packages/calendar/README.md)和[日程组](../packages/schedule/README.md)。

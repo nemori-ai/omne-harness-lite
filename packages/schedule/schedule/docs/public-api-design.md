@@ -1,6 +1,8 @@
 # Schedule 与 Job 公开 API 设计
 
-本页承接 2026-11-03 用户确认的终态，协议设计为 `omne.calendar-schedule/1`，尚非真实公开导出。当前源码仍为 `export {}`。行为归 [SPEC](../SPEC.md)，纯服务/参加者/生命周期归[内部设计](internals.md)。下列 TypeScript 是设计说明，实施时由本成员公开类型与 Standard Schema 唯一拥有，派生 Tool/HTTP/SDK，不手写多套字段。
+本页承接 2026-11-03 用户确认的终态，协议设计为 `omne.calendar-schedule/1`，尚非真实公开导出。当前源码仍为 `export {}`。行为归 [SPEC](../SPEC.md)，纯服务/参加者/生命周期归[内部设计](internals.md)。下列 TypeScript 是设计说明，实施时由 schedule-contract 的公开类型与 Standard Schema 唯一拥有，派生 Tool/HTTP/SDK，不手写多套字段。
+
+公共服务协议与本机工厂配置分开维护。可替换服务端口归 schedule-contract，工厂 Dependencies/Configuration 归 schedule，SQL 参加者与具体存储映射归 schedule-local。下文进程内依赖对象不属于 HTTP/远程请求或回执。根公共协议不携带 Context、数据库句柄、函数或运行时实例；取消观察的 signal 由客户端本地处理，不直接序列化。分布式交接与强保证的前提归[安装和部署边界](../../../../docs/package-organization.md#日历与日程的安装和部署边界)。
 
 ## 共同编码与可信上下文
 
@@ -428,12 +430,12 @@ Self-wake 只暴露 runtime 可信工具适配，v1 不提供让任意 HTTP 调�
 
 当前目标锁文件采用 `@deepseek-ai/cordis 4.0.4`。本设计消费现行IC，不推测新版本。服务 key 常量与 Service 定义同源，`static readonly inject` 引用这些常量。示意对应关系为 `ScheduleCommandsService.provide === scheduleCommandsKey`，不复制字符串注册第二个 Service。Provider 继承该 Service 并实现根 ScheduleCommands；tools 只依赖 binding。具体 TypeScript decorator、service constructor 与 package import 路径须取目标锁定版本的源码/官方文档，不由示意代码猜测。
 
-以下是 schedule 成员内 `./cordis` 的目标定义形状，使用现有 IC-2/3 的索引签名模式。它不引入具体提供者：
+以下是 schedule-cordis-contract 成员内 `./cordis` 的目标定义形状，使用现有 IC-2/3 的索引签名模式。它不引入具体提供者：
 
 ```ts
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { ScheduleCommands } from './index.js'
-/** @owner packages/schedule/schedule */
+import type { ScheduleCommands } from '@omne-harness/schedule-contract'
+/** @owner packages/schedule/schedule-cordis-contract */
 export abstract class ScheduleCommandsService extends Service implements ScheduleCommands {
   static readonly provide = 'scheduleCommands'
   constructor(ctx: Context) { super(ctx, ScheduleCommandsService.provide) }
@@ -447,7 +449,7 @@ declare module '@deepseek-ai/cordis' {
 }
 ```
 
-其他 seam 按同一形状分别拥有：JobExecutor→jobExecutor、ScheduleCommands→scheduleCommands、ScheduleQueries→scheduleQueries、JobCommands→jobCommands、JobControl→jobControl、CalendarSupply→calendarSupply、ScheduleSubscriptions→scheduleSubscriptions。SessionContinuation 归 Session 的实际成员。tools作者插件声明 `static readonly inject = [scheduleCommandsKey]` 或对应服务key的数组字面量，并通过 `ctx.scheduleCommands` 调用，不能自己new服务/取provider。
+其他 seam 按同一形状分别拥有：JobExecutor→jobExecutor、ScheduleCommands→scheduleCommands、ScheduleQueries→scheduleQueries、JobCommands→jobCommands、JobControl→jobControl、ScheduleSubscriptions→scheduleSubscriptions。CalendarSupply→calendarSupply 归 calendar-cordis-contract，SessionContinuation 归 Session 的实际成员。tools作者插件声明 `static readonly inject = [scheduleCommandsKey]` 或对应服务key的数组字面量，并通过 `ctx.scheduleCommands` 调用，不能自己new服务/取provider。
 
 Tool贡献的发布、装载与撤除沿[Tool Cordis已接受设计](../../../tool/tool-cordis-contract/docs/cordis.md)及tool-host-local，使用既有绑定与贡献权限协议，不能在本设计另造registerTool全局表。本组 tools 与执行适配尚未实现，P7须补真实装配验收，不能把有抽象Service当作工具已能运行。
 

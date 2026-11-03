@@ -2,6 +2,10 @@
 
 本页维护已确认的目标责任与消费关系，不表示实现或提供者已验证。范围归[领域入口](README.md)，产品规则归[产品正文](../../../.meta_harness/design/product/calendars/design.md)，精确行为归[calendar/calendar SPEC](../../../packages/calendar/calendar/SPEC.md)。
 
+## 独立部署与本地实现
+
+本域公共服务可以独立于 Session、Agent runtime 部署。公共请求、结果和身份采用可序列化协议，不依赖同进程对象或跨域共享事务。本次由 `-local` 后端提供单机装配；公开契约、实现、绑定和工具分别维护。具体安装依赖、强一致前提和未实现范围见[包组织](../../package-organization.md#日历与日程的安装和部署边界)。
+
 ## 事实与责任
 
 | 责任                 | 权威事实或计算                                               | 不据此取得的责任                     |

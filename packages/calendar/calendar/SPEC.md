@@ -2,6 +2,8 @@
 
 本文件拥有本成员的必要行为。完整复刻范围及 D3、D4、D5、D9、执行意图已由用户于 2026-11-03 确认，源修订为 `a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0`。行为约束后续实现，不表示实现已交付。当前真实 workspace 包为 `0.0.0` private，`src/index.ts` 仍为 `export {}`。产品规则见[产品正文](../../../.meta_harness/design/product/calendars/design.md)，公开形状设计见[公开 API 设计](docs/public-api-design.md)，机制见[内部设计](docs/internals.md)。公开形状尚非真实导出，存储及跨域适配须完成具名证据义务。
 
+公开值与服务端口的源码归 [calendar-contract](../calendar-contract/README.md)，工厂及内部依赖归本成员；本地持久化与绑定归 [calendar-local](../calendar-local/README.md)。本文件保留业务行为，提供者须履行而不复制另一套规则。跨进程与事务边界见[包组织](../../../docs/package-organization.md#日历与日程的安装和部署边界)。
+
 ## 责任、消费者与成立前提
 
 日历契约向独立程序、人、agent 适配和日程消费者承诺可指认的版本知识、覆盖、来源、真实健康及按明确依据计算日期。供应/版本拥有者维护原材料、候选、发布事实和未完维护责任；日期计算拥有者保护输入/输出含义；查询适配保留依据和错误；缓存只有加速权，没有发布、设置或业务决定权。

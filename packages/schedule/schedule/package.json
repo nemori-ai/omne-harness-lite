@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft schedule package; complete the accepted public contract before delivery",
+  "description": "Framework-independent schedule domain and application implementation; initialized draft",
   "engines": {
     "node": ">=24"
   },
@@ -24,7 +24,10 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/schedule-contract": "workspace:*",
+    "@omne-harness/calendar-contract": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

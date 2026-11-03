@@ -1,6 +1,8 @@
 # Calendar 公开 API 设计
 
-本页是 2026-11-03 确认范围的公开形状设计，尚非源码导出。实际包仍 `export {}`。行为以 [SPEC](../SPEC.md) 为准，跨域值是消费投影，不是外域运行时对象。下列形状实施时应成为本成员唯一公开类型与 Standard Schema，派生传输和工具 schema；不能另写平行 DTO。Schedule 消费本页的 CalendarSelection 与不可变快照，不使 Calendar 依赖 Schedule。共同可信调用语义在此集中说明，不把它变成 Calendar 对身份领域的治理权。
+本页是 2026-11-03 确认范围的公开形状设计，尚非源码导出。实际包仍 `export {}`。行为以 [SPEC](../SPEC.md) 为准，跨域值是消费投影，不是外域运行时对象。下列公共服务形状实施时由 calendar-contract 的公开类型与 Standard Schema 唯一拥有，派生传输和工具 schema；不能另写平行 DTO。Schedule 消费本页的 CalendarSelection 与不可变快照，不使 Calendar 依赖 Schedule。共同可信调用语义在此集中说明，不把它变成 Calendar 对身份领域的治理权。
+
+公共服务协议与本机工厂配置分开维护。可替换服务端口归 calendar-contract，工厂 Dependencies/Configuration 归 calendar，SQL 参加者与具体存储映射归 calendar-local。下文进程内依赖对象不属于 HTTP/远程请求或回执。根公共协议不携带 Context、数据库句柄、函数或运行时实例；取消观察的 signal 由客户端本地处理，不直接序列化。分布式交接与强保证的前提归[安装和部署边界](../../../../docs/package-organization.md#日历与日程的安装和部署边界)。
 
 ## 1. 编码、版本与调用上下文
 
@@ -107,9 +109,9 @@ SourceAdapter.probe/acquire/parse 只返回带出处的观察/贡献。CalendarR
 
 ## Cordis 与独立工具
 
-采用现行 Cordis 4.0.4 和 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)。根入口不导入 Cordis，未来 ./cordis 唯一声明 CalendarQueryService/calendarQueryKey=calendarQuery 与 CalendarSupplyService/calendarSupplyKey=calendarSupply。抽象 Service implements 根接口，static readonly provide 与 key 同源，构造函数 super(ctx,key)，@owner 指向本成员；提供者继承而不重复 provide。服务方法把调用交给提供者宿主，资源不建在 caller ctx 上。
+采用现行 Cordis 4.0.4 和 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)。calendar-contract 与 calendar 根入口不导入 Cordis；calendar-cordis-contract 的 `./cordis` 唯一声明 CalendarQueryService/calendarQueryKey=calendarQuery 与 CalendarSupplyService/calendarSupplyKey=calendarSupply。抽象 Service implements calendar-contract 接口，static readonly provide 与 key 同源，构造函数 super(ctx,key)，@owner 指向 calendar-cordis-contract；提供者继承而不重复 provide。服务方法把调用交给提供者宿主，资源不建在 caller ctx 上。
 
-Calendar tool 是独立装配贡献，只依赖应用契约及 ./cordis 定义，inject: [calendarQueryKey]，经 ctx.calendarQuery 调用 list/get/effective/resolve，动作均 calendar.read。模型不能传 tenant、actor、authContext、SQL、供应配置或任意 callback。Tool adapter 构造可信上下文，保留 kind/依据/错误，超长输出给 detailRef 与 truncated=true。工具注册使用[现行 Tool 贡献协议](../../../tool/tool-cordis-contract/docs/cordis.md)，本设计不声明已经存在 tools 包或运行入口。
+Calendar tool 是独立装配贡献，由 calendar-tools 承接，只依赖 calendar-contract 及 calendar-cordis-contract 的 `./cordis` 定义，inject: [calendarQueryKey]，经 ctx.calendarQuery 调用 list/get/effective/resolve，动作均 calendar.read。模型不能传 tenant、actor、authContext、SQL、供应配置或任意 callback。Tool adapter 构造可信上下文，保留 kind/依据/错误，超长输出给 detailRef 与 truncated=true。工具注册使用[现行 Tool 贡献协议](../../../tool/tool-cordis-contract/docs/cordis.md)，calendar-tools 已初始化为空入口，工具行为尚未实现。
 
 必需依赖变化先停止新准入并按原操作接续；可选依赖按调用现取，缺席真实返回 unavailable。dispose 只撤自己 token、listener、timer、句柄和使用权。其完成不证明发布、通知或后台动作已撤销。配置校验同步，网络检查归初始化；部分初始化失败仍释放已取得资源。详细路径见[流程](key-flows.md)。
 

@@ -2,6 +2,8 @@
 
 PACKAGE_TEMPLATE_DRAFT
 
+公开协议由 [calendar-contract](../calendar-contract/README.md) 承接，Cordis 定义由 [calendar-cordis-contract](../calendar-cordis-contract/README.md) 承接。本成员保留无 Cordis 的领域与应用实现及其工厂配置，单机持久化与装配归 [calendar-local](../calendar-local/README.md)，独立工具归 [calendar-tools](../calendar-tools/README.md)。所有成员当前仍是初始化草稿。
+
 本成员是真实 workspace 草稿，版本 `0.0.0`、private。`src/index.ts` 仍为 `export {}`，没有业务 API 或运行服务。2026-11-03 已确认完整目标设计；设计承诺不表示实现或运行验证完成。
 
 ## 使用与消费边界

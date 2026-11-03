@@ -1,6 +1,27 @@
 # 日程与 Job 能力组工程关系
 
-本组真实成员为 [schedule/schedule](../schedule/README.md)，仍是空导出 workspace 草稿。完整目标设计已确认，运行实现和验收未完成。本组根不是统一服务或统一SPEC，不因图中角色创建新包。
+本组包含 schedule-contract、schedule-cordis-contract、schedule、schedule-local、schedule-tools 五个成员，均为初始化草稿。完整目标设计已确认，运行实现和验收未完成。本组根不是统一服务或统一SPEC，不因图中角色创建新包。
+
+
+## 安装边界
+
+`schedule-contract` 拥有可替换服务协议与公共值。`schedule` 拥有无 Cordis 的领域算法和应用服务工厂。`schedule-cordis-contract` 唯一拥有绑定定义。`schedule-local` 承接本机存储、恢复和适配装配，`schedule-tools` 只消费契约与服务定义。
+
+```mermaid
+flowchart LR
+  Tools["schedule-tools"] --> Binding["schedule-cordis-contract"]
+  Binding --> Contract["schedule-contract"]
+  Tools --> Contract
+  Core["schedule"] --> Contract
+  Local["schedule-local"] --> Core
+  Local --> Binding
+  Local --> Contract
+  Local --> SQL["sql-contract"]
+```
+
+箭头表示允许的安装依赖，不表示当前已经实现运行调用。tools 不依赖 core 或 local，绑定定义不依赖实现。公共消费不能要求同机、同进程或共享数据库；未来远程客户端可实现同一服务定义，本次不建立远程提供者包。
+
+持久化参加者是 local 内部适配协议，不是服务间 wire 协议。跨域资格和发布版本的强保证仍须由对应拥有者协议兑现；当前快照不能代替动作发生时所需的有效性证明。具体限制见[部署边界](../../../docs/package-organization.md#日历与日程的安装和部署边界)。
 
 ## 成员分解与依赖
 
@@ -34,7 +55,7 @@ flowchart LR
 
 ## 本组工程分解与公开依赖
 
-纯函数→纯应用服务→持久与执行消费ports→Cordis装配→独立tools分别承担不同职责，不把规则散在入口。具体模块可在现有成员内实现，不增加第二套状态或后台runner。服务key、inject和动作映射唯一在[API设计](../schedule/docs/public-api-design.md#cordis-采用约束)。
+纯函数→纯应用服务→持久与执行消费ports→Cordis装配→独立tools分别承担不同职责，不把规则散在入口。纯规则在 schedule，存储和外部执行适配在 schedule-local，工具在 schedule-tools，不增加第二套状态或后台 runner。服务key、inject和动作映射唯一在[API设计](../schedule/docs/public-api-design.md#cordis-采用约束)。
 
 ## 机制与流程导航
 

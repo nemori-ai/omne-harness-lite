@@ -2,6 +2,8 @@
 
 本文件拥有本成员的必要行为。完整复刻范围及 D3、D4、D5、D9、执行意图已由用户于 2026-11-03 确认，源修订为 `a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0`。行为约束后续实现，不表示实现已交付。当前真实 workspace 包为 `0.0.0` private，`src/index.ts` 仍为 `export {}`。产品规则见[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)，公开形状设计见[公开 API 设计](docs/public-api-design.md)，机制见[内部设计](docs/internals.md)。公开形状尚非真实导出，存储及跨域适配须完成具名证据义务。
 
+公开值与服务端口的源码归 [schedule-contract](../schedule-contract/README.md)，工厂及内部依赖归本成员；本地持久化与绑定归 [schedule-local](../schedule-local/README.md)。本文件保留业务行为，提供者须履行而不复制另一套规则。跨进程与事务边界见[包组织](../../../docs/package-organization.md#日历与日程的安装和部署边界)。
+
 ## 责任、消费者与前提
 
 定义拥有者向人、agent、系统机械功能、装配及应用承诺完整 Schedule、明确时间与控制、可靠单次 Job 受理、原工作查询/接续及整体结算。Routine 仅是所含数据属性；日期知识、资产/授权及通知交付分别消费原拥有者公开契约。Job 核心只消费自有 JobExecutor 端口，不导入 Session/Agent 的类型或服务；Session/Run/消息/推进只由外部执行适配器解释。不能通过私有存储建立第二权威。独立能力入口不依赖 Cordis 或模型工具槽，具体集成遵守已接受 IC。

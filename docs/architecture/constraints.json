@@ -50,6 +50,16 @@
       "id": "admission",
       "label": "准入与人机决策",
       "source": "docs/domains/boundaries.md#责任地图"
+    },
+    {
+      "id": "calendar",
+      "label": "日历",
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "schedule",
+      "label": "日程与 Job",
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
     }
   ],
   "roles": [
@@ -412,6 +422,86 @@
       "domains": [],
       "status": "candidate",
       "source": "packages/access/server-entry/SPEC.md"
+    },
+    {
+      "id": "packages/calendar/calendar-contract",
+      "paths": ["packages/calendar/calendar-contract/src/**"],
+      "layer": "contract",
+      "domains": ["calendar"],
+      "status": "adopted",
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "packages/calendar/calendar-cordis-contract",
+      "paths": ["packages/calendar/calendar-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["calendar"],
+      "status": "candidate",
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "packages/calendar/calendar",
+      "paths": ["packages/calendar/calendar/src/**"],
+      "layer": "unknown",
+      "domains": ["calendar"],
+      "status": "candidate",
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "packages/calendar/calendar-local",
+      "paths": ["packages/calendar/calendar-local/src/**"],
+      "layer": "assembly",
+      "domains": ["calendar"],
+      "status": "adopted",
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "packages/calendar/calendar-tools",
+      "paths": ["packages/calendar/calendar-tools/src/**"],
+      "layer": "interaction",
+      "domains": ["calendar"],
+      "status": "adopted",
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "packages/schedule/schedule-contract",
+      "paths": ["packages/schedule/schedule-contract/src/**"],
+      "layer": "contract",
+      "domains": ["schedule"],
+      "status": "adopted",
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "packages/schedule/schedule-cordis-contract",
+      "paths": ["packages/schedule/schedule-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["schedule"],
+      "status": "candidate",
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "packages/schedule/schedule",
+      "paths": ["packages/schedule/schedule/src/**"],
+      "layer": "unknown",
+      "domains": ["schedule"],
+      "status": "candidate",
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "packages/schedule/schedule-local",
+      "paths": ["packages/schedule/schedule-local/src/**"],
+      "layer": "assembly",
+      "domains": ["schedule"],
+      "status": "adopted",
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "packages/schedule/schedule-tools",
+      "paths": ["packages/schedule/schedule-tools/src/**"],
+      "layer": "interaction",
+      "domains": ["schedule"],
+      "status": "adopted",
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
     }
   ],
   "rules": [
@@ -505,15 +595,75 @@
     },
     {
       "id": "DIR-ACCESS-MODEL",
-      "from": ["packages/access/public-contract", "packages/access/sdk", "packages/common/stream-arrival"],
+      "from": [
+        "packages/access/public-contract",
+        "packages/access/sdk",
+        "packages/common/stream-arrival"
+      ],
       "to": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
       "source": "docs/package-organization.md#依赖方向与cordis集成"
     },
     {
       "id": "DIR-ACCESS-TOOL",
-      "from": ["packages/access/public-contract", "packages/access/sdk", "packages/common/stream-arrival"],
+      "from": [
+        "packages/access/public-contract",
+        "packages/access/sdk",
+        "packages/common/stream-arrival"
+      ],
       "to": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
       "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-CALENDAR-PURE",
+      "from": ["packages/calendar/calendar-contract", "packages/calendar/calendar"],
+      "to": [
+        "packages/calendar/calendar-cordis-contract",
+        "packages/calendar/calendar-local",
+        "packages/calendar/calendar-tools"
+      ],
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "DIR-CALENDAR-DEFINITION",
+      "from": ["packages/calendar/calendar-cordis-contract"],
+      "to": [
+        "packages/calendar/calendar",
+        "packages/calendar/calendar-local",
+        "packages/calendar/calendar-tools"
+      ],
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "DIR-CALENDAR-TOOLS",
+      "from": ["packages/calendar/calendar-tools"],
+      "to": ["packages/calendar/calendar", "packages/calendar/calendar-local"],
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "DIR-SCHEDULE-PURE",
+      "from": ["packages/schedule/schedule-contract", "packages/schedule/schedule"],
+      "to": [
+        "packages/schedule/schedule-cordis-contract",
+        "packages/schedule/schedule-local",
+        "packages/schedule/schedule-tools"
+      ],
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "DIR-SCHEDULE-DEFINITION",
+      "from": ["packages/schedule/schedule-cordis-contract"],
+      "to": [
+        "packages/schedule/schedule",
+        "packages/schedule/schedule-local",
+        "packages/schedule/schedule-tools"
+      ],
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "DIR-SCHEDULE-TOOLS",
+      "from": ["packages/schedule/schedule-tools"],
+      "to": ["packages/schedule/schedule", "packages/schedule/schedule-local"],
+      "source": "docs/package-organization.md#日历与日程的安装和部署边界"
     }
   ],
   "groupCycleExceptions": [
