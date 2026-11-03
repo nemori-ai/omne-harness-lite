@@ -14,7 +14,7 @@ import type {
 } from '@omne-harness/session-contract'
 import type { FactCommandV2, JsonValue, RecordedReply } from '@omne-harness/sql-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
-import { canonicalText, decodeValue, encodeValue, sha256 } from './codec.ts'
+import { canonicalText, decodeValue, encodeValue, isCount, sha256 } from './codec.ts'
 import { readCachedSessionWork, registerSessionWorkIndex } from './work-cache.ts'
 
 /** The participant that executes the Session commands and the read-only checks. */
@@ -180,9 +180,7 @@ function workReplyOf(value: JsonValue | undefined): SessionWorkReply | undefined
   const work = recordOf(value)
   if (work === null) return undefined
   const { tail, published, bytes, first, last, indexed, basis } = work
-  const counts = [tail, published, first, last].every(
-    item => typeof item === 'string' && /^\d+$/.test(item),
-  )
+  const counts = [tail, published, first, last].every(isCount)
   if (!counts || typeof bytes !== 'number' || typeof indexed !== 'boolean') return undefined
   return {
     tail: tail as string,

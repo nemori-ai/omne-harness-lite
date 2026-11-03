@@ -34,7 +34,7 @@ import { judgeEntries, type EntriesBatch } from './entries.ts'
 import { NO_FOCUS, readHistory, type HistoryFocus, type SessionHistory } from './history-index.ts'
 import { judgeLog, readCoveringText, type CoveringSnapshot, type LogBatch } from './log.ts'
 import { PROTOCOL } from './schema.ts'
-import { big, oneRow, rowsOf, text, type Row } from './support.ts'
+import { big, oneRow, readVersion, rowsOf, text, type Row } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_INITIALIZATION_RECEIPTS = 1000
@@ -180,14 +180,10 @@ function workOf(
   }>,
 ): JsonValue {
   const { tenant, session, revision, stored, entries, decided } = input
-  const root = oneRow(
-    port,
-    'SELECT published FROM er_root WHERE tenant = ? AND session = ? LIMIT 1',
-    [tenant, session],
-  )
   const work = {
     tail: revision,
-    published: root === undefined ? '0' : text(root['published']),
+    // Read after this transaction moved the journal row to `revision`.
+    published: readVersion(port, { tenant, session })?.published ?? '0',
     bytes: stored.length,
     first: (entries[0] as HistoryEntry).id,
     last: (entries[entries.length - 1] as HistoryEntry).id,

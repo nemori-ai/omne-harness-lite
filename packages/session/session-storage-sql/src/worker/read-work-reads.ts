@@ -7,13 +7,9 @@
 // work cache then reads the snapshot whole.
 import type { SessionInputScope, WorkSnapshot } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
-import { decodeValue, encodeValue } from '../codec.ts'
+import { decodeValue, encodeValue, isCount } from '../codec.ts'
 import { BelowKept, readHistory, type HistoryFocus } from './history-index.ts'
-import { handler, oneRow, scopeOf, text } from './support.ts'
-
-const count = /^\d+$/
-const isCount = (value: JsonValue | undefined): value is string =>
-  typeof value === 'string' && count.test(value)
+import { handler, oneRow, readVersion, scopeOf, text } from './support.ts'
 
 type Request = Readonly<{
   revision: string
@@ -39,12 +35,8 @@ export default handler('session.work-reads', (input, port) => {
   const scope = scopeOf(input)
   if (scope === null) throw new Error('invalid input')
   const { revision, published, upto, inputs, focus, snapshot } = requestOf(input)
-  const root = oneRow(
-    port,
-    'SELECT published FROM er_root WHERE tenant = ? AND session = ? LIMIT 1',
-    [scope.tenant, scope.session],
-  )
-  if ((root === undefined ? '0' : text(root['published'])) !== published) return { kind: 'stale' }
+  // A name without a session has no row at `upto` either: it is stale whatever count it asks.
+  if (readVersion(port, scope)?.published !== published) return { kind: 'stale' }
   const last = oneRow(
     port,
     'SELECT revision FROM sl_entry WHERE tenant = ? AND session = ? AND position = ? LIMIT 1',

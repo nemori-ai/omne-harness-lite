@@ -11,35 +11,19 @@
 // asked, is `stale`, and the cache then reads the snapshot whole.
 import type { WorkSnapshot } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
-import { decodeValue, encodeValue } from '../codec.ts'
+import { decodeValue, encodeValue, isCount } from '../codec.ts'
 import { workIndexOf } from './history-index.ts'
-import { handler, oneRow, scopeOf, text } from './support.ts'
-
-const count = /^\d+$/
+import { handler, readVersion, scopeOf } from './support.ts'
 
 export default handler('session.work-index', (input, port) => {
   const scope = scopeOf(input)
   const { tail, published, snapshot } = input as Readonly<Record<string, JsonValue>>
-  if (
-    scope === null ||
-    typeof tail !== 'string' ||
-    !count.test(tail) ||
-    typeof published !== 'string' ||
-    !count.test(published) ||
-    snapshot === undefined
-  )
+  if (scope === null || !isCount(tail) || !isCount(published) || snapshot === undefined)
     throw new Error('invalid input')
-  const row = oneRow(
-    port,
-    `SELECT j.tail AS tail, r.published AS published
-       FROM sl_journal j
-       LEFT JOIN er_root r ON r.tenant = j.tenant AND r.session = j.session
-      WHERE j.tenant = ? AND j.session = ? LIMIT 1`,
-    [scope.tenant, scope.session],
-  )
-  if (row === undefined) return { kind: 'stale' }
-  const now = row['published'] === null ? '0' : text(row['published'])
-  if (text(row['tail']) !== tail || BigInt(now) < BigInt(published)) return { kind: 'stale' }
+  const version = readVersion(port, scope)
+  if (version === undefined) return { kind: 'stale' }
+  const now = version.published
+  if (version.tail !== tail || BigInt(now) < BigInt(published)) return { kind: 'stale' }
   const index = workIndexOf(
     port,
     scope.tenant,
