@@ -4,7 +4,7 @@
 
 ## Responsibility and status
 
-This member provides SQL publication persistence, supply custody and journals, bounded source acquisition, shipped seed access, the supply runner and Cordis providers. It uses calendar for domain rules and sql-contract for storage. The package remains private at `0.0.0`. Final independent acceptance and the parent merge are pending. Real cross-domain assembly follows M2. Schedule and Job remain A2 work.
+This member provides SQL publication persistence, supply custody and journals, bounded source acquisition, shipped seed access, the supply runner and Cordis providers. It uses calendar for domain rules and sql-contract for storage. The package remains private at `0.0.0`. Real cross-domain assembly follows M2. Schedule and Job remain A2 work.
 
 ## Usage
 

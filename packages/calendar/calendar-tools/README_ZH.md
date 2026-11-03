@@ -4,7 +4,7 @@
 
 ## 职责与状态
 
-本成员提供 Calendar A1 的独立 Tool 作者模块、参数/结果 schema、可信上下文环境适配和 Cordis 贡献插件。动作只有 list/get/effective/resolve，能力只有 calendar.read。它不实现 Calendar 规则、存储或 Tool runtime。版本仍为 `0.0.0`、private，最终独立验收未完成，尚未父分支合回。真实跨域接线留待 M2 之后，Schedule/Job 留待 A2。
+本成员提供 Calendar A1 的独立 Tool 作者模块、参数/结果 schema、可信上下文环境适配和 Cordis 贡献插件。动作只有 list/get/effective/resolve，能力只有 calendar.read。它不实现 Calendar 规则、存储或 Tool runtime。版本仍为 `0.0.0`、private。真实跨域接线留待 M2 之后，Schedule/Job 留待 A2。
 
 ## 使用
 

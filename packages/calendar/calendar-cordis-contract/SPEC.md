@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-本成员唯一声明 CalendarQueryService/calendarQueryKey 和 CalendarSupplyService/calendarSupplyKey，供 Cordis 本机装配。业务实现、配置和资源归 provider。根入口不导出运行服务，服务定义从 `./cordis` 消费。业务行为归 [Calendar SPEC](../calendar/SPEC.md)，安装边界归[包组织](../../../docs/package-organization.md#日历与日程的安装和部署边界)。本成员仍为 private 0.0.0，最终独立验收与父合回未完成。
+本成员唯一声明 CalendarQueryService/calendarQueryKey 和 CalendarSupplyService/calendarSupplyKey，供 Cordis 本机装配。业务实现、配置和资源归 provider。根入口不导出运行服务，服务定义从 `./cordis` 消费。业务行为归 [Calendar SPEC](../calendar/SPEC.md)，安装边界归[包组织](../../../docs/package-organization.md#日历与日程的安装和部署边界)。本成员仍为 private 0.0.0。
 
 ## 结果与不变量
 

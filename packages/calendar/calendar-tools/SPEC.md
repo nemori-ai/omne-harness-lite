@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-本成员提供 Calendar A1 的独立 Tool 作者模块、参数/结果 schema、可信上下文环境适配和 Cordis 贡献插件。动作只有 list/get/effective/resolve，能力只有 calendar.read。它不实现 Calendar 规则、存储或 Tool runtime。业务行为归 [Calendar SPEC](../calendar/SPEC.md)，安装边界归[包组织](../../../docs/package-organization.md#日历与日程的安装和部署边界)。本成员仍为 private 0.0.0，最终独立验收与父合回未完成。
+本成员提供 Calendar A1 的独立 Tool 作者模块、参数/结果 schema、可信上下文环境适配和 Cordis 贡献插件。动作只有 list/get/effective/resolve，能力只有 calendar.read。它不实现 Calendar 规则、存储或 Tool runtime。业务行为归 [Calendar SPEC](../calendar/SPEC.md)，安装边界归[包组织](../../../docs/package-organization.md#日历与日程的安装和部署边界)。本成员仍为 private 0.0.0。
 
 ## 结果与不变量
 

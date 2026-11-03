@@ -1,6 +1,6 @@
 # @omne-harness/calendar
 
-本成员提供无 Cordis 的 Calendar A1 实现，含五个纯日期函数、三历解析校验、查询与供应应用以及总工厂。版本仍为 `0.0.0`、private，最终独立验收未完成，尚未父分支合回。Schedule/Job 属于 A2，真实跨域装配属于 M2 之后。
+本成员提供无 Cordis 的 Calendar A1 实现，含五个纯日期函数、三历解析校验、查询与供应应用以及总工厂。版本仍为 `0.0.0`、private。Schedule/Job 属于 A2，真实跨域装配属于 M2 之后。
 
 公开协议由 [calendar-contract](../calendar-contract/README.md)拥有，服务定义由 [calendar-cordis-contract](../calendar-cordis-contract/README.md)拥有。SQL、来源获取、种子和运行器归 [calendar-local](../calendar-local/README.md)，工具贡献归 [calendar-tools](../calendar-tools/README.md)。
 
@@ -18,7 +18,7 @@ createCalendarQueries 接受本机 repository、authority、environment、clock 
 
 Node >=24，ESM。纯计算无需配置。查询需要可信资格与同 revision 的有效环境，供应需要合法系统 scope、材料保管和发布端口。外域权限、设置、通知与 Tool 宿主的真实采用尚未完成；夹具符合性不等于系统接入。SQL L-1/L-4、断电耐久和目标运行环境证据继续按提供者契约核对。
 
-在工作区使用 `pnpm --filter @omne-harness/calendar build`、`pnpm --filter @omne-harness/calendar typecheck`、`pnpm --filter @omne-harness/calendar test`。持续用例位于 `tests/public-entry.spec.ts`、`tests/queries/`、`tests/supply/`、`tests/supply-application/` 和 `tests/workload.spec.ts`。这些命令是复跑入口，本页不记录单次通过数量。最终独立验收未完成。
+在工作区使用 `pnpm --filter @omne-harness/calendar build`、`pnpm --filter @omne-harness/calendar typecheck`、`pnpm --filter @omne-harness/calendar test`。持续用例位于 `tests/public-entry.spec.ts`、`tests/queries/`、`tests/supply/`、`tests/supply-application/` 和 `tests/workload.spec.ts`。这些命令是复跑入口，本页不记录单次通过数量。单次独立验收结论记录在交付报告中。
 
 ## 维护
 

@@ -1,6 +1,6 @@
 # 日历能力组工程关系
 
-本组包含 calendar-contract、calendar-cordis-contract、calendar、calendar-local、calendar-tools 五个成员，提供 A1 本域实现。版本仍为 private 0.0.0，最终独立验收及父合回未完成，M2 后真实跨域接线尚未开展。本页解释成员与外部工程关系，不重复成员状态机或错误集合。
+本组包含 calendar-contract、calendar-cordis-contract、calendar、calendar-local、calendar-tools 五个成员，提供 A1 本域实现。版本仍为 private 0.0.0，M2 后真实跨域接线尚未开展。本页解释成员与外部工程关系，不重复成员状态机或错误集合。
 
 ## 安装边界
 

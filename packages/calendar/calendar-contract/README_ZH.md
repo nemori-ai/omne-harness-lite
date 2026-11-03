@@ -4,7 +4,7 @@
 
 ## 职责与状态
 
-本成员拥有 Calendar 的不可变日期值、查询与供应服务端口、请求/结果及 Standard Schema。根入口导出 calculation、queries、supply；不依赖 Cordis，不创建运行服务。版本仍为 `0.0.0`、private，最终独立验收未完成，尚未父分支合回。真实跨域接线留待 M2 之后，Schedule/Job 留待 A2。
+本成员拥有 Calendar 的不可变日期值、查询与供应服务端口、请求/结果及 Standard Schema。根入口导出 calculation、queries、supply；不依赖 Cordis，不创建运行服务。版本仍为 `0.0.0`、private。真实跨域接线留待 M2 之后，Schedule/Job 留待 A2。
 
 ## 使用
 

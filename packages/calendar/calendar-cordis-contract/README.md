@@ -4,7 +4,7 @@
 
 ## Responsibility and status
 
-This member defines CalendarQueryService/calendarQueryKey and CalendarSupplyService/calendarSupplyKey for Cordis assembly. Providers own implementation, configuration and resources. The root has no running service. Import service definitions from `./cordis`. The package remains private at `0.0.0`. Final independent acceptance and the parent merge are pending. Real cross-domain assembly follows M2. Schedule and Job remain A2 work.
+This member defines CalendarQueryService/calendarQueryKey and CalendarSupplyService/calendarSupplyKey for Cordis assembly. Providers own implementation, configuration and resources. The root has no running service. Import service definitions from `./cordis`. The package remains private at `0.0.0`. Real cross-domain assembly follows M2. Schedule and Job remain A2 work.
 
 ## Usage
 

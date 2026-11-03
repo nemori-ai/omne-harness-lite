@@ -2,7 +2,7 @@
 
 本页解释 Calendar A1 的公开行为与使用约束。公开值、请求、判别结果和运行时校验由 [calendar-contract 根入口](../../calendar-contract/src/index.ts)唯一拥有，定义索引见[契约公开 API](../../calendar-contract/docs/public-api.md)。本页不维护第二套 TypeScript 签名。行为归 [SPEC](../SPEC.md)，本机工厂依赖归 calendar，SQL 映射归 calendar-local。Schedule 消费公开值和不可变快照，不使 Calendar 依赖 Schedule。
 
-公共服务 DTO 可序列化，不携带 Context、连接、函数或运行时实例。工厂配置、SQL 参加者和取消观察的 signal 不是 wire 请求。跨部署与强保证前提见[安装和部署边界](../../../../docs/package-organization.md#日历与日程的安装和部署边界)。A1 仍为 private `0.0.0` 研发交付，最终独立验收未完成，尚未父分支合回，也未进入 M2 后真实跨域联调。
+公共服务 DTO 可序列化，不携带 Context、连接、函数或运行时实例。工厂配置、SQL 参加者和取消观察的 signal 不是 wire 请求。跨部署与强保证前提见[安装和部署边界](../../../../docs/package-organization.md#日历与日程的安装和部署边界)。A1 仍为 private `0.0.0` 研发交付，真实跨域联调留待 M2 之后。
 
 ## 1. 编码、版本与调用上下文
 

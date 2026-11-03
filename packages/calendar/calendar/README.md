@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-This member implements Calendar A1 without Cordis. It exports five pure date functions, source parsing and validation, query and supply applications, and the combined application factory. The package remains private at `0.0.0`. Final independent acceptance and the parent merge are pending. Schedule and Job remain A2 work. Real cross-domain assembly follows M2.
+This member implements Calendar A1 without Cordis. It exports five pure date functions, source parsing and validation, query and supply applications, and the combined application factory. The package remains private at `0.0.0`. Schedule and Job remain A2 work. Real cross-domain assembly follows M2.
 
 Public protocols belong to [calendar-contract](../calendar-contract/README.md). Service definitions belong to [calendar-cordis-contract](../calendar-cordis-contract/README.md). SQL persistence, source acquisition, seeds and the runner belong to [calendar-local](../calendar-local/README.md). Tool contributions belong to [calendar-tools](../calendar-tools/README.md).
 

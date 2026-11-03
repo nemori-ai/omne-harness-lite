@@ -4,7 +4,7 @@
 
 ## Responsibility and status
 
-This member owns immutable Calendar values, query and supply ports, requests, results and Standard Schema definitions. The root exports calculation, queries and supply. It has no Cordis dependency or running service. The package remains private at `0.0.0`. Final independent acceptance and the parent merge are pending. Real cross-domain assembly follows M2. Schedule and Job remain A2 work.
+This member owns immutable Calendar values, query and supply ports, requests, results and Standard Schema definitions. The root exports calculation, queries and supply. It has no Cordis dependency or running service. The package remains private at `0.0.0`. Real cross-domain assembly follows M2. Schedule and Job remain A2 work.
 
 ## Usage
 

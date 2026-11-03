@@ -1,6 +1,6 @@
 # calendar/calendar 长期行为契约
 
-本文件拥有本成员的必要行为。完整复刻范围及 D3、D4、D5、D9、执行意图已由用户于 2026-11-03 确认，源修订为 `a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0`。本域 A1 已有公开协议、计算、查询、供应及本地适配实现。版本仍为 `0.0.0` private，最终独立验收未完成，尚未父分支合回，不表示 M2 后跨域联调成功。产品规则见[产品正文](../../../.meta_harness/design/product/calendars/design.md)，公开形状设计见[公开 API 设计](docs/public-api-design.md)，机制见[内部设计](docs/internals.md)。公开形状以 calendar-contract 导出为唯一源，存储及跨域适配继续承担具名证据义务。
+本文件拥有本成员的必要行为。完整复刻范围及 D3、D4、D5、D9、执行意图已由用户于 2026-11-03 确认，源修订为 `a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0`。本域 A1 已有公开协议、计算、查询、供应及本地适配实现。版本仍为 `0.0.0` private，不表示 M2 后跨域联调成功。产品规则见[产品正文](../../../.meta_harness/design/product/calendars/design.md)，公开形状设计见[公开 API 设计](docs/public-api-design.md)，机制见[内部设计](docs/internals.md)。公开形状以 calendar-contract 导出为唯一源，存储及跨域适配继续承担具名证据义务。
 
 公开值与服务端口的源码归 [calendar-contract](../calendar-contract/README.md)，工厂及内部依赖归本成员；本地持久化与绑定归 [calendar-local](../calendar-local/README.md)。本文件保留业务行为，提供者须履行而不复制另一套规则。跨进程与事务边界见[包组织](../../../docs/package-organization.md#日历与日程的安装和部署边界)。
 

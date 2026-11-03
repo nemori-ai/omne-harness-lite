@@ -4,7 +4,7 @@
 
 ## Responsibility and status
 
-This member provides the Calendar Tool author module, argument and result schemas, trusted context environment and Cordis contribution plugin. Actions are list/get/effective/resolve. The only capability is calendar.read. It implements no Calendar rules, storage or Tool runtime. The package remains private at `0.0.0`. Final independent acceptance and the parent merge are pending. Real cross-domain assembly follows M2. Schedule and Job remain A2 work.
+This member provides the Calendar Tool author module, argument and result schemas, trusted context environment and Cordis contribution plugin. Actions are list/get/effective/resolve. The only capability is calendar.read. It implements no Calendar rules, storage or Tool runtime. The package remains private at `0.0.0`. Real cross-domain assembly follows M2. Schedule and Job remain A2 work.
 
 ## Usage
 
