@@ -3,8 +3,11 @@
 // function and bound as the whole work read (read-work.ts), in one read snapshot. The input carries the fields of the
 // snapshot that the index reads (`workIndexOf`): tenant text, session, revision, pending inputs, the
 // current Run and the executions of earlier Runs, each with its execution and read-through only.
-// The index is answered only when the store is still at the version the cache folded to: another
-// tail or publication count is `stale`, and the cache then reads the snapshot whole.
+// The index is answered only at the tail the cache folded to. The snapshot row moves only with the
+// tail (C-TOPOLOGY §3.1 P-4), so a publication count that moved on since does not change the
+// snapshot: the index is read at the current count, and the answer names that count, which the
+// cache registers. Another tail, or a count below the one asked, is `stale`, and the cache then
+// reads the snapshot whole.
 import type { WorkSnapshot } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue } from '../codec.ts'
@@ -35,7 +38,7 @@ export default handler('session.work-index', (input, port) => {
   )
   if (row === undefined) return { kind: 'stale' }
   const now = row['published'] === null ? '0' : text(row['published'])
-  if (text(row['tail']) !== tail || now !== published) return { kind: 'stale' }
+  if (text(row['tail']) !== tail || BigInt(now) < BigInt(published)) return { kind: 'stale' }
   const index = workIndexOf(
     port,
     scope.tenant,
@@ -44,5 +47,5 @@ export default handler('session.work-index', (input, port) => {
   )
   return index === 'too-many'
     ? { kind: 'too-many' }
-    : { kind: 'index', index: encodeValue(index.index) }
+    : { kind: 'index', published: now, index: encodeValue(index.index) }
 })
