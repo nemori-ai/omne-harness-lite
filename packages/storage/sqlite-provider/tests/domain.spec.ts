@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createSqliteStorage } from '../src/index.ts'
+import { buildReadMaterials } from './read-support.ts'
 import {
   DOMAIN,
   TENANT_A,
@@ -85,6 +86,45 @@ describe('construction (DO-1: only static material)', () => {
     })
     expect(result.kind).toBe('rejected')
     if (result.kind === 'rejected') expect(result.reason).toBe('material_invalid')
+  })
+
+  describe('read handler bound against maxReadResultBytes', () => {
+    const construct = async (
+      handlerBound: number,
+      maxReadResultBytes: number,
+    ): ReturnType<typeof createSqliteStorage> => {
+      const built = await buildReadMaterials(workspace, {
+        page: { maxOutputBytes: handlerBound },
+      })
+      return createSqliteStorage({
+        config: {
+          ...defaultConfig(workspace.storageRoot),
+          maxReadResultBytes,
+          globalReadResultBytes: Math.max(maxReadResultBytes, 4096),
+        },
+        materials: built.catalog,
+        closeLeases: leases,
+      })
+    }
+
+    it('rejects at construction and names the handler and both bounds', async () => {
+      const result = await construct(5000, 4096)
+      expect(result.kind).toBe('rejected')
+      if (result.kind !== 'rejected') return
+      expect(result.reason).toBe('material_invalid')
+      expect(result.problems).toHaveLength(1)
+      expect(result.problems[0]).toContain('page')
+      expect(result.problems[0]).toContain('5000')
+      expect(result.problems[0]).toContain('4096')
+    })
+
+    it('accepts a handler bound below the limit', async () => {
+      expect((await construct(4000, 4096)).kind).toBe('created')
+    })
+
+    it('accepts a handler bound exactly at the limit', async () => {
+      expect((await construct(4096, 4096)).kind).toBe('created')
+    })
   })
 
   it('rejects when a declared combination is not a valid manifest', async () => {
