@@ -23,9 +23,12 @@ export interface IdentifierSource {
   login(): LoginStateId
 }
 
+function randomBody(): string {
+  return [...randomBytes(26)].map(byte => ID_ALPHABET[byte % 32]).join('')
+}
+
 function emit<T>(codec: IdentityTextCodec<T>, prefix: string): T {
-  const body = [...randomBytes(26)].map(byte => ID_ALPHABET[byte % 32]).join('')
-  const parsed = codec.parse(`${prefix}${body}`)
+  const parsed = codec.parse(`${prefix}${randomBody()}`)
   if (!parsed.ok) throw new TypeError(`emitted ${prefix} text did not parse`)
   return parsed.value
 }
@@ -37,6 +40,11 @@ export function randomIdentifiers(): IdentifierSource {
     organization: () => emit(organizationCodec, 'org_'),
     login: () => emit(loginStateCodec, 'lgn_'),
   })
+}
+
+/** A new member invitation: opaque text (identity SPEC ID-18), 130 random bits after `inv_`. */
+export function newInvitationId(): string {
+  return `inv_${randomBody()}`
 }
 
 /** A 128-bit random operation key, in lowercase hex. */

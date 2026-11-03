@@ -8,35 +8,46 @@
 src/index.ts ──▶ provider.ts ──▶ materials.ts ──▶ worker/schema.ts
                  │                 │
                  │                 └─ 读模块文件字节，算摘要
-                 ├──▶ deadline.ts（截止时刻加法）
+                 ├──▶ governance.ts（治理端口）──▶ deadline.ts、identifiers.ts、result.ts、worker/schema.ts
+                 ├──▶ result.ts（basis-unavailable、读失败原因、IdentitySqlResultUnknown）
+                 ├──▶ deadline.ts（截止时刻加法与时长比较）
                  ├──▶ identifiers.ts（标识、操作键、凭证与摘要）
-                 └──▶ worker/schema.ts（事实与读输出的形状、表名、操作名）
-src/cordis.ts ──▶ provider.ts、materials.ts、config.ts、clock.ts
-src/worker/participant.ts、migration.ts、read-*.ts ──▶ worker/schema.ts、worker/support.ts
+                 └──▶ worker/schema.ts（事实与读输出的形状、表名、操作名、排序键）
+src/cordis.ts ──▶ provider.ts、materials.ts、config.ts
+src/worker/participant.ts、migration*.ts、read-*.ts ──▶ worker/schema.ts、worker/support.ts
 ```
 
 | 模块             | 持有什么                                                           | 允许依赖                                                                                        |
 | ---------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `provider.ts`    | 一个实例的停止标志与最晚时钟读数。三项操作、资格读口、全部结果映射 | identity、legal-identity、utc-instant、scrypt（类型）、sql-contract（类型）、本包其他主线程模块 |
+| `provider.ts`    | 一个实例的停止标志与最晚时钟读数。三项操作、资格读口与它们的结果映射。把同一实例的存储、时钟与停止标志交给治理端口 | identity、legal-identity、utc-instant、scrypt（类型）、sql-contract（类型）、本包其他主线程模块 |
+| `governance.ts`  | 治理端口：输入形状、新标识、邀请时长、预读、提交与读的结果映射。没有自己的状态 | identity、legal-identity、utc-instant、sql-contract（类型）、本包其他主线程模块 |
+| `result.ts`      | `basis-unavailable` 答复、读失败原因、`IdentitySqlResultUnknown`   | sql-contract（类型）、utc-instant（类型）                                                       |
 | `materials.ts`   | 参加者、迁移与读 handler 的描述，事务域与组合版本，各算一次        | sql-contract 的纯函数、`worker/schema.ts`                                                       |
-| `config.ts`      | 配置形状、校验与常量期限源                                         | utc-instant、`deadline.ts`                                                                      |
-| `clock.ts`       | 系统时钟                                                           | utc-instant                                                                                     |
-| `deadline.ts`    | 86400 秒天的加法与正数判断                                         | utc-instant                                                                                     |
+| `config.ts`      | 配置形状、校验、邀请时长初值与两个常量期限源                       | identity（类型）、utc-instant、`deadline.ts`                                                    |
+| `deadline.ts`    | 86400 秒天的加法、正数判断与时长比较                               | utc-instant                                                                                     |
 | `identifiers.ts` | 随机标识、操作键、请求键、登录凭证与 SHA-256                       | legal-identity、node:crypto                                                                     |
-| `cordis.ts`      | 插件体与两个服务子类                                               | kernel-basis、identity `./cordis`、sql-contract `./cordis`、scrypt                              |
-| `worker/*`       | 只执行 SQL。没有随机数、时间函数、跨调用状态                       | 只有 `worker/schema.ts` 与 `worker/support.ts`，包导入只有类型                                  |
+| `cordis.ts`      | 插件体与三个服务子类                                               | kernel-basis、identity `./cordis`、sql-contract `./cordis`、scrypt                              |
+| `worker/*`       | 执行 SQL 与同一事务里的记录核对。没有随机数、时间函数、跨调用状态  | 只有 `worker/schema.ts` 与 `worker/support.ts`，包导入只有类型                                  |
 
 Worker 模块由存储提供者在 Worker 线程里按 `file:` URL 加载，不经本包的根入口。它们只用可擦除的 TypeScript 语法，相对导入带 `.ts` 后缀，所以源码与 `dist` 两种布局都能加载。
 
 ## 关键机制与理由
 
-**全部计算在主线程，参加者只执行 SQL。** 参加者声明 `singleton`，提供者仍要求模块纯度。标识、摘要、时刻与 scrypt 材料都在提交前算好，放进 `facts`。参加者没有随机数与时间函数，所以满足 sqlite-provider §4.5 的模块层条件。代价：事实多几个字段。
+**计算在主线程，核对随写入。** 参加者声明 `singleton`，提供者仍要求模块纯度。标识、摘要、时刻、排序键与 scrypt 材料都在提交前算好，放进 `facts`。参加者没有随机数与时间函数，所以满足 sqlite-provider §4.5 的模块层条件。代价：事实多几个字段。
+
+**治理核对在提交里。** 治理写操作的三项核对（发起登录有效、行动者角色、预期状态）必须与写入同处一个事务，否则两位管理员可以都通过最后管理员核对。所以核对写在参加者里，在同一条命令里先核对、后写入。角色名由主线程从默认团队方案放进事实，参加者不认识任何角色。拒绝照常提交并在响应里给出结果，不用 `conflict` 回滚：一次接受或过期判定要在答 `no-change` 的同时写下终结。治理读的同类核对在读 handler 里，与读对象同一个快照。
+
+**排序键代替时间函数。** 参加者与读 handler 要比较时刻，但不能调用时间函数，编码时刻的文本也不能直接比较（`0.5` 与 `0.500` 相等而文本不同）。排序键是日历部分、一个点、去掉末尾零的小数部分，它的文本次序等于 `compareInstants` 的次序。主线程算本次读数的键，SQL 用 `substr`、`rtrim`、`iif` 算列的键，`tests/order-key.spec.ts` 核对两者一致。
+
+**组合版本跟着核对走。** 参加者的代码摘要只覆盖 `participant` 文件。治理命令的核对与写入全部写在这个文件里，改它们就登记新的组合版本。`support` 里只放共用的 SQL 片段。
+
+**预读只给计算用。** 发出邀请要被邀请者的租户文本，空闲刷新要签发时冻结的空闲时长，两者都要先读才能算。提供者先做一次快照读，再提交。参加者在提交里重新核对，预读的值不决定答复。
 
 **注册是一条命令五行。** 一次 `commit` 使用一个事务域、一条 `identity` 命令。任一行失败由提供者明确回滚（sql-contract §7.6）。参加者先查同标识，已存在时回复 `conflict`，列内唯一约束是第二道保护。这样并发注册同一标识至多一个成功，而且被拒绝的注册不占用标识。
 
-**提交结果的映射只在 `provider.ts` 一处。** `committed` 是成功，`rolled_back` 与 `rejected_before_accept` 是确定的未提交，`unknown` 先 `query` 认回，仍未知时拒绝 Promise。注册认回最多三次，签发认回一次。拒绝 Promise 表示结果未知，调用方按 ID-17 认回。
+**提交结果的映射各在一处。** 三项操作的映射在 `provider.ts`，治理的映射在 `governance.ts` 的 `write`。`committed` 是成功，`rolled_back` 与 `rejected_before_accept` 是确定的未提交，`unknown` 先 `query` 认回，仍未知时拒绝 Promise。注册与治理认回最多三次，签发认回一次。拒绝 Promise 表示结果未知，调用方按 ID-17 或 ID-18 认回。
 
-**读 handler 的输出在主线程再判断一次。** Worker 交回 JSON，`parseIssueBasis`、`parseLoginByProof`、`parseStanding` 把它解析成类型化的值。畸形输出答 `basis-unavailable` 或 `unavailable`，不答确定结果。
+**读 handler 的输出在主线程再判断一次。** Worker 交回 JSON，`parseIssueBasis`、`parseLoginByProof`、`parseStanding` 与 `governance.ts` 的解析函数把它解析成类型化的值。畸形输出答 `basis-unavailable` 或 `unavailable`，不答确定结果。名单的一项不能解析时，整份名单答 `basis-unavailable`。
 
 **假材料。** 插件体对随机秘密派生一次，只存在内存里。账号不存在时提供者仍对它调用 `verify`，再答 `uniform-auth-failure`。两种账号经过同一个 scrypt 名额与队列，所以 `queue_full` 出现的条件相同，`basis-unavailable` 不能枚举账号。
 
@@ -60,5 +71,10 @@ Worker 模块由存储提供者在 Worker 线程里按 `file:` URL 加载，不�
 | 停止后                       | `tests/stopped.spec.ts`              |
 | scrypt 映射与假材料          | `tests/scrypt-mapping.spec.ts`       |
 | 插件                         | `tests/cordis-entry.spec.ts`         |
+| 治理契约套件通过（AC-1）     | `tests/governance-contract.spec.ts`  |
+| 四项核对的负控               | `tests/governance-negative.spec.ts`  |
+| 最后管理员并发（AC-2）       | `tests/last-admin-concurrent.spec.ts` |
+| 撤销跨进程、从 001 升级      | `tests/governance-restart.spec.ts`   |
+| 名单上限、提交映射、排序键   | `tests/list-limit.spec.ts`、`tests/governance-mapping.spec.ts`、`tests/order-key.spec.ts` |
 
-设计变化时同步的消费者：改事实形状时同步参加者、`provider.ts` 与 SPEC IS-02、IS-04；改读输出时同步三个解析函数；改组合版本规则时同步 `materials.ts`、SPEC IS-01 与应用的登记；改停止语义时同步 `cordis.ts`、SPEC IS-07 与 `docs/cordis.md`。
+设计变化时同步的消费者：改事实形状时同步参加者、`provider.ts` 或 `governance.ts` 与 SPEC IS-02、IS-04、IS-10；改治理核对的写法时同步 `tests/fixtures/mutants.ts` 的锚点；改读输出时同步三个解析函数；改组合版本规则时同步 `materials.ts`、SPEC IS-01 与应用的登记；改停止语义时同步 `cordis.ts`、SPEC IS-07 与 `docs/cordis.md`。

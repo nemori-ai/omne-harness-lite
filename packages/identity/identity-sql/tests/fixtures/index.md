@@ -10,3 +10,7 @@
 - [provider.ts](provider.ts)：一个部署上的一个提供者
 - [faults.ts](faults.ts)：存储边界的故障注入
 - [restart-child.ts](restart-child.ts)：重启用例的子进程
+- [governance.ts](governance.ts)：治理契约套件的夹具
+- [mutants.ts](mutants.ts)：负控的 `dist` 副本
+- [governance-child.ts](governance-child.ts)：治理重启与升级用例的子进程
+- [identity-001/](identity-001/participant.ts)：001 构建参加者的冻结副本

@@ -1,11 +1,14 @@
 // One provider over one fresh SQLite deployment: the storage is opened, the identity combination
-// is registered, the scrypt module is opened with the test profile, and the provider is built.
-// `close` stops the provider, closes scrypt and closes the storage.
+// is registered, the scrypt module is opened with the test profile, and the provider is built with
+// a manual clock, adjustable login terms and adjustable invitation terms (one hour by default, one
+// day at most). `close` stops the provider, closes scrypt and closes the storage.
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import type { IdentityClock, LoginTermsSource } from '@omne-harness/identity'
 import {
+  adjustableInvitationTerms,
   adjustableLoginTerms,
   manualIdentityClock,
+  type AdjustableInvitationTerms,
   type AdjustableLoginTerms,
   type ManualIdentityClock,
 } from '@omne-harness/identity/testing'
@@ -53,6 +56,7 @@ export type OpenedProvider = Readonly<{
   scrypt: OpenedScrypt
   clock: ManualIdentityClock
   terms: AdjustableLoginTerms
+  invitationTerms: AdjustableInvitationTerms
   close(): Promise<void>
 }>
 
@@ -64,10 +68,15 @@ export async function openProvider(options: ProviderOptions = {}): Promise<Opene
   const scrypt = await openTestScrypt(undefined, options.compute)
   const clock = manualIdentityClock(instant(START))
   const terms = adjustableLoginTerms({ maxLifetime: duration(LONG), idlePeriod: duration(SHORT) })
+  const invitationTerms = adjustableInvitationTerms({
+    defaultDuration: duration(SHORT),
+    maxDuration: duration(LONG),
+  })
   const provider = createIdentitySql({
     storage: options.wrap === undefined ? storage.storage : options.wrap(storage.storage),
     clock: options.clock ?? clock.clock,
     terms: options.terms ?? terms.source,
+    invitationTerms: invitationTerms.source,
     scrypt: scrypt.module,
     decoyMaterial: scrypt.decoyMaterial,
     ...(options.identifiers === undefined ? {} : { identifiers: options.identifiers }),
@@ -78,6 +87,7 @@ export async function openProvider(options: ProviderOptions = {}): Promise<Opene
     scrypt,
     clock,
     terms,
+    invitationTerms,
     async close() {
       provider.stop()
       await scrypt.module.close()
