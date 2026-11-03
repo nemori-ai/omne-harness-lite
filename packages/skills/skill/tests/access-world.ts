@@ -35,6 +35,7 @@ import {
   createMemoryReadCheck,
   createMemoryResolution,
   createMemorySource,
+  type AccessFixture,
   type MemoryMaterial,
   type MemoryPackage,
 } from '@omne-harness/skill-contract/testing'
@@ -154,6 +155,9 @@ export const currentBasis: SkillMaterialBasis = {
 }
 
 const onlyAlice = (who: Access<Principal>) => who.principal === 'alice'
+/** The resolution of this world hides nothing: the read check is the one guard, so a service
+ * that skips step 2 shows in the tests. The resolution suite tests the resolution's own hiding. */
+const everyone = () => true
 
 export type Controls = Readonly<{
   /** The source now holds other content at the locator of `review`; the resolution still names the old digest. */
@@ -210,7 +214,7 @@ export function createWorld(): World {
   const resolution = createMemoryResolution<Principal, Scope>([
     {
       capability: review,
-      visible: onlyAlice,
+      visible: everyone,
       state: {
         kind: 'adopted',
         current: material(currentDigest, 'v2'),
@@ -219,7 +223,7 @@ export function createWorld(): World {
     },
     {
       capability: retired,
-      visible: onlyAlice,
+      visible: everyone,
       state: {
         kind: 'known-unavailable',
         name: granted(isSkillName, 'retired'),
@@ -229,7 +233,7 @@ export function createWorld(): World {
     },
     {
       capability: noPackage,
-      visible: onlyAlice,
+      visible: everyone,
       state: {
         kind: 'adopted',
         current: {
@@ -270,6 +274,28 @@ export function createWorld(): World {
         return aborter.signal
       },
       opens: () => opens,
+    },
+  }
+}
+
+/** A fresh fixture of the access suite over a fresh world. */
+export function accessFixture(): AccessFixture<Principal, Scope> &
+  Readonly<{ ports: SkillPorts<Principal, Scope> }> {
+  const { ports, access: service, controls } = createWorld()
+  return {
+    ports,
+    access: service,
+    principals: { reader: { access: alice, scope }, stranger: { access: mallory, scope } },
+    capability: { adopted: review, missing, checkedOnly, standIn: retired, noPackage },
+    world: {
+      replaceAdopted: controls.replaceAdopted,
+      changeEntry() {
+        const guide = path('docs/guide.md')
+        controls.tamper(guide)
+        return guide
+      },
+      breakOpen: controls.breakOpen,
+      abortAfterSnapshot: () => ({ signal: controls.abortAfterSnapshot(), opens: controls.opens }),
     },
   }
 }

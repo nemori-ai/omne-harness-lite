@@ -25,7 +25,7 @@
 | --- | --- | --- |
 | `@omne-harness/skill-contract` | 调用方；端口实现方另读 `./provider` | 值、守卫、失败、`SkillCatalog` 与 `SkillAccess` 的接口及结果值、纯函数、`skillBodyContract` |
 | `@omne-harness/skill-contract/provider` | 来源、资产登记与端口的实现方 | 三个需求端口及其答复类型、`PackageInspection` 接口、`SkillRef`、`PackageLocator`、`sealSnapshot`、`SnapshotDefect` |
-| `@omne-harness/skill-contract/testing` | 端口实现方的测试 | 三个端口的符合性套件、内存替身、`ConformanceCase`、`NotApplicable`、`runConformanceCase`、`isNotApplicable` |
+| `@omne-harness/skill-contract/testing` | 端口实现方的测试；`SkillAccess` 实现方的测试 | 三个端口的符合性套件、内存替身、`SkillAccess` 的符合性套件 `skillAccessConformance` 与它的夹具类型 `AccessFixture`、`ConformanceCase`、`NotApplicable`、`runConformanceCase`、`isNotApplicable` |
 
 - 公开根与 `./provider` 都不导入 `./testing`。三个入口都不导入测试框架。
 - 公开根不导出 `SkillRef`、`PackageLocator`、`PackageInspection` 与 `sealSnapshot`。调用方拿不到包定位。
@@ -457,6 +457,9 @@ prefix-conflict
 | `skillPackageSourceConformance` | `source`；`present`：来源持有、用例运行期间不变的包；`absent`：不对应任何包的定位；`addressing`：是否按内容摘要存放；`escaping`：可选，有一个链接解析后落在根外的包 | PS1–PS8 |
 | `skillResolutionConformance` | `resolution`；`permitted`、`refused` 两个主体与作用域；`adopted`：对 `permitted` 已采用的身份；`missing`：对谁都不存在的身份；`standIn`：可选，对 `permitted` 合法已知、此刻不可用的身份；`earlier`：可选，`adopted` 的一个早先合法版本的依据；`unlawfulLayer`：可选，`adopted` 对 `permitted` 不合法的来源层 | PR1–PR7 |
 | `skillReadCheckConformance` | `readCheck`；`permitted`、`refused`；`readable`：`permitted` 能读的身份；`missing` | PC1–PC3 |
+| `skillAccessConformance` | `access`；`principals`：`reader`（能读 `adopted`）与 `stranger`（对夹具里的身份都无权）；`capability`：`adopted`（对 `reader` 已采用、有可读的包）、`missing`、可选的 `checkedOnly`（读取判定准许、对应端口不认识）、`standIn`、`noPackage`（已采用、资产正文无 `package.digest`）；`world`：`replaceAdopted`、`changeEntry`、`breakOpen`、`abortAfterSnapshot`，每一项改变端口背后的世界，对之后的调用生效 | A1–A13 |
+
+`skillAccessConformance()` 核对 `SkillAccess` 的实现，不核对端口。夹具由实现方的工厂给出，套件自己不构造服务。用例按条款编号：A1–A3 无披露（无权主体对已采用与不存在的身份同答；另一身份的依据、对应端口不认识的身份，都与被拒绝的读取同答）；A4、A5 `basis-unavailable` 与 `adopted-material-changed` 的分野；A6 `version-changed` 不交内容；A7 `aborted` 不交内容、中止后不再调用端口；A8 `unsupported`；A9–A11 字节范围的页上限、字符边界与按实际范围分页；A12 `export` 交出全部条目或不交任何条目；A13 `describe` 不读字节。夹具没有 `checkedOnly` 时 A3 不适用，没有 `noPackage` 时 A8 不适用，`adopted` 的包没有含 ASCII 之外字符的文本资源时 A10 不适用。套件通过不证明真实端口的行为。
 
 无披露用例 PR5 与 PC3 的名字都是 `answers a principal without the right the same for an existing and a missing identity`。它们比较 `refused` 问已存在的身份与问 `missing` 的答复，两者必须完全相同。PR5 同时比较带依据的答复，并要求 `refused` 的当前合法集合不含 `adopted` 与 `standIn`。
 

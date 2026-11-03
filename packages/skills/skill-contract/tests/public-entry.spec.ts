@@ -28,7 +28,7 @@ it('exports the snapshot constructor on the provider entry only', async () => {
   expect(Object.keys(skill)).not.toContain('sealSnapshot')
 })
 
-it('exports the three port suites and their memory doubles on the testing entry', async () => {
+it('exports the four suites and the three memory doubles on the testing entry', async () => {
   const testing = await import('@omne-harness/skill-contract/testing')
   expect(Object.keys(testing).sort()).toEqual([
     'NotApplicable',
@@ -37,6 +37,7 @@ it('exports the three port suites and their memory doubles on the testing entry'
     'createMemorySource',
     'isNotApplicable',
     'runConformanceCase',
+    'skillAccessConformance',
     'skillPackageSourceConformance',
     'skillReadCheckConformance',
     'skillResolutionConformance',

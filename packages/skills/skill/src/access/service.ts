@@ -6,6 +6,7 @@ import {
   bodyOffsetOf,
   isControlFile,
   toPackagePath,
+  type ExportedEntry,
   type PackageDigest,
   type PackagePath,
   type ReadResult,
@@ -102,8 +103,31 @@ export function createSkillAccess<P, S>(ports: SkillPorts<P, S>): SkillAccess<P,
       })
     },
 
-    async export() {
-      throw new Error('export arrives with slice 04')
+    async export(access, scope, capability, basis, options) {
+      const gated = await gate(ports, access, scope, capability, basis)
+      if (!('ok' in gated)) return gated
+      const pinned = await pin(ports, gated.ok, options?.signal)
+      if (!('ok' in pinned)) return pinned
+      // Step 10 for every entry, the control files included. One failure ends the export: no
+      // partial package.
+      const entries: ExportedEntry[] = []
+      for (const { path } of pinned.ok.snapshot.entries) {
+        const verified = await verifiedBytes(ports, pinned.ok, path, options?.signal)
+        if (!('ok' in verified)) return verified
+        const { entry, bytes } = verified.ok
+        entries.push({
+          path: entry.path,
+          ...(entry.mediaType === undefined ? {} : { mediaType: entry.mediaType }),
+          size: entry.size,
+          digest: entry.digest,
+          bytes,
+        })
+      }
+      return succeed({
+        basis: basisOf(gated.ok.ref, pinned.ok.digest),
+        digest: pinned.ok.digest,
+        entries,
+      })
     },
   }
 }
