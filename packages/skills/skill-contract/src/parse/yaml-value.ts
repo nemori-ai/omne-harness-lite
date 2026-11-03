@@ -1,7 +1,7 @@
 // Turns the YAML node tree of a frontmatter into plain immutable values, without changing any
 // type. Every map key must be text, every scalar must be null, a boolean, a finite number or text,
 // and the whole tree, aliases expanded, stays inside a node budget.
-import { isAlias, isMap, isScalar, isSeq, type Document } from 'yaml'
+import { isAlias, isMap, isScalar, isSeq, type Document, type YAMLMap, type YAMLSeq } from 'yaml'
 import type { ManifestValue } from '../values.ts'
 
 /**
@@ -18,6 +18,7 @@ export function plainValue(document: Document, node: unknown): ManifestValue | u
   return convert(document, node, 1, { nodes: 0 })
 }
 
+/** Alias expansion, the budget, the depth, and the dispatch to the four kinds of node. */
 function convert(
   document: Document,
   node: unknown,
@@ -28,27 +29,42 @@ function convert(
   budget.nodes += 1
   if (budget.nodes > MAX_NODES) return undefined
   if (isScalar(node)) return scalar(node.value)
+  if (node === null) return null
   if (depth > MAX_DEPTH) return undefined
-  if (isSeq(node)) {
-    const items: ManifestValue[] = []
-    for (const item of node.items) {
-      const value = convert(document, item, depth + 1, budget)
-      if (value === undefined) return undefined
-      items.push(value)
-    }
-    return Object.freeze(items)
+  if (isSeq(node)) return sequence(document, node, depth, budget)
+  if (isMap(node)) return mapping(document, node, depth, budget)
+  return undefined
+}
+
+function sequence(
+  document: Document,
+  node: YAMLSeq,
+  depth: number,
+  budget: Budget,
+): ManifestValue | undefined {
+  const items: ManifestValue[] = []
+  for (const item of node.items) {
+    const value = convert(document, item, depth + 1, budget)
+    if (value === undefined) return undefined
+    items.push(value)
   }
-  if (isMap(node)) {
-    const fields: [string, ManifestValue][] = []
-    for (const pair of node.items) {
-      const key = textKey(pair.key)
-      const value = convert(document, pair.value, depth + 1, budget)
-      if (key === undefined || value === undefined) return undefined
-      fields.push([key, value])
-    }
-    return Object.freeze(Object.fromEntries(fields))
+  return Object.freeze(items)
+}
+
+function mapping(
+  document: Document,
+  node: YAMLMap,
+  depth: number,
+  budget: Budget,
+): ManifestValue | undefined {
+  const fields: [string, ManifestValue][] = []
+  for (const pair of node.items) {
+    const key = textKey(pair.key)
+    const value = convert(document, pair.value, depth + 1, budget)
+    if (key === undefined || value === undefined) return undefined
+    fields.push([key, value])
   }
-  return node === null ? null : undefined
+  return Object.freeze(Object.fromEntries(fields))
 }
 
 function scalar(value: unknown): ManifestValue | undefined {

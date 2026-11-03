@@ -31,6 +31,16 @@ function rank(code: InspectRejectionCode): number {
 
 const malformed = (detail: string): Finding => ({ code: 'malformed', detail })
 
+/** The longest description, in code points, of a manifest and of an asset body. */
+export const DESCRIPTION_MAX = 1024
+
+/** Text of 1 to `max` characters, counted in code points. */
+export function isBoundedText(value: unknown, max: number): value is string {
+  if (typeof value !== 'string') return false
+  const length = [...value].length
+  return length >= 1 && length <= max
+}
+
 /** The fields of an object, or `undefined` when the value is not an object. */
 export function fieldsOf(value: JsonValue | undefined): ReadonlyMap<string, JsonValue> | undefined {
   if (value === undefined || value.kind !== 'object') return undefined

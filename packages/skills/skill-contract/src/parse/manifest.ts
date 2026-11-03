@@ -2,7 +2,8 @@
 // line that is only `---`, and a YAML mapping whose keys are unique in the whole tree.
 import { isMap, parseDocument } from 'yaml'
 import { isSkillName } from '../names.ts'
-import type { ManifestValue, SkillManifest } from '../values.ts'
+import type { ManifestValue, SkillManifest, SkillName } from '../values.ts'
+import { DESCRIPTION_MAX, isBoundedText } from './shape.ts'
 import { plainValue } from './yaml-value.ts'
 
 /** What the manifest gives to the package rules. `name` is present when the YAML could be read. */
@@ -19,7 +20,6 @@ const YAML_OPTIONS = {
   strict: true,
   prettyErrors: false,
 } as const
-const DESCRIPTION_MAX = 1024
 const COMPATIBILITY_MAX = 500
 const INTERPRETED = new Set([
   'name',
@@ -46,7 +46,8 @@ function decode(bytes: Uint8Array): string | undefined {
 export function frontmatterOf(text: string): string | undefined {
   const open = text.startsWith('---\n') ? 4 : text.startsWith('---\r\n') ? 5 : -1
   if (open === -1) return undefined
-  for (let start = open; start <= text.length;) {
+  // The loop ends only by a return: a line without a line end is the last line.
+  for (let start = open; ;) {
     const newline = text.indexOf('\n', start)
     const end = newline === -1 ? text.length : newline
     const line = text.slice(start, newline !== -1 && text[end - 1] === '\r' ? end - 1 : end)
@@ -54,17 +55,12 @@ export function frontmatterOf(text: string): string | undefined {
     if (newline === -1) return undefined
     start = newline + 1
   }
-  return undefined
 }
 
 function malformed(detail: string, name?: unknown): ManifestRead {
   return typeof name === 'string'
     ? { kind: 'malformed', detail, name }
     : { kind: 'malformed', detail }
-}
-
-function characters(text: string): number {
-  return [...text].length
 }
 
 type FieldMap = Readonly<Record<string, ManifestValue>>
@@ -94,35 +90,46 @@ export function readManifest(bytes: Uint8Array): ManifestRead {
   return interpret(fields, rawName)
 }
 
+/** The checks of the interpreted fields, in order. It reads nothing that it did not check. */
 function interpret(fields: FieldMap, rawName: unknown): ManifestRead {
   const fail = (detail: string) => malformed(detail, rawName)
   if (!isSkillName(rawName)) return fail('name is not a Skill name')
-  const { description, license, compatibility, metadata } = fields
-  const allowedTools = fields['allowed-tools']
-  if (typeof description !== 'string') return fail('description is not text')
-  if (characters(description) < 1 || characters(description) > DESCRIPTION_MAX)
-    return fail('description length is out of range')
-  if (license !== undefined && typeof license !== 'string') return fail('license is not text')
-  if (compatibility !== undefined) {
-    if (typeof compatibility !== 'string') return fail('compatibility is not text')
-    const length = characters(compatibility)
-    if (length < 1 || length > COMPATIBILITY_MAX)
-      return fail('compatibility length is out of range')
-  }
-  if (metadata !== undefined && !isTextMap(metadata)) return fail('metadata is not a text map')
-  if (allowedTools !== undefined && typeof allowedTools !== 'string')
+  const description = fields['description']
+  if (!isBoundedText(description, DESCRIPTION_MAX))
+    return fail('description is not text of 1 to 1024 characters')
+  if (!isOptional(fields['license'], value => typeof value === 'string'))
+    return fail('license is not text')
+  if (!isOptional(fields['compatibility'], value => isBoundedText(value, COMPATIBILITY_MAX)))
+    return fail('compatibility is not text of 1 to 500 characters')
+  if (!isOptional(fields['metadata'], isTextMap)) return fail('metadata is not a text map')
+  if (!isOptional(fields['allowed-tools'], value => typeof value === 'string'))
     return fail('allowed-tools is not text')
+  return { kind: 'ok', manifest: manifestOf(rawName, description, fields) }
+}
+
+function isOptional(value: ManifestValue | undefined, check: (value: ManifestValue) => boolean) {
+  return value === undefined || check(value)
+}
+
+const textField = (fields: FieldMap, key: string): string | undefined => {
+  const value = fields[key]
+  return typeof value === 'string' ? value : undefined
+}
+
+/** Builds the manifest from fields that `interpret` checked. */
+function manifestOf(name: SkillName, description: string, fields: FieldMap): SkillManifest {
+  const license = textField(fields, 'license')
+  const compatibility = textField(fields, 'compatibility')
+  const allowedTools = textField(fields, 'allowed-tools')
+  const metadata = fields['metadata']
   const extra = Object.entries(fields).filter(([key]) => !INTERPRETED.has(key))
-  return {
-    kind: 'ok',
-    manifest: Object.freeze({
-      name: rawName,
-      description,
-      ...(license === undefined ? {} : { license }),
-      ...(compatibility === undefined ? {} : { compatibility }),
-      ...(metadata === undefined ? {} : { metadata }),
-      ...(allowedTools === undefined ? {} : { allowedTools }),
-      extra: Object.freeze(Object.fromEntries(extra)),
-    }),
-  }
+  return Object.freeze({
+    name,
+    description,
+    ...(license === undefined ? {} : { license }),
+    ...(compatibility === undefined ? {} : { compatibility }),
+    ...(isTextMap(metadata) ? { metadata } : {}),
+    ...(allowedTools === undefined ? {} : { allowedTools }),
+    extra: Object.freeze(Object.fromEntries(extra)),
+  })
 }

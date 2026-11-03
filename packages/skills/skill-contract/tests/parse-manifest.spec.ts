@@ -33,6 +33,7 @@ describe('malformed SKILL.md', () => {
     ['a byte order mark', `﻿${demo()}`],
     ['no frontmatter', '# Title\nname: demo\n'],
     ['no closing delimiter', '---\nname: demo\ndescription: d\n'],
+    ['no closing delimiter and no final line end', '---\nname: demo\ndescription: d'],
     ['an opening delimiter with a trailing space', '--- \nname: demo\ndescription: d\n---\n'],
     ['a closing delimiter with a trailing space', '---\nname: demo\ndescription: d\n--- \n'],
     ['an empty frontmatter', '---\n---\nBody.\n'],

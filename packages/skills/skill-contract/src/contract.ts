@@ -10,8 +10,10 @@ import {
 } from '@omne-harness/assets'
 import { isPackageDigest } from './digest.ts'
 import {
+  DESCRIPTION_MAX,
   fieldsOf,
   firstFinding,
+  isBoundedText,
   readScripts,
   readSettings,
   unknownKeys,
@@ -84,8 +86,6 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
   return first === undefined ? { ok: true } : refusal(first.code)
 }
 
-const DESCRIPTION_MAX = 1024
-
 /**
  * Reads the additive fields: `description`, `scripts`, `settings` and `package.digest`. Each one
  * may be absent. They follow the shape rules of `.omne/skill.json`, and script entries must be
@@ -94,15 +94,11 @@ const DESCRIPTION_MAX = 1024
 function extensionOf(body: unknown): Read<readonly SettingDeclaration[]> {
   const findings: Finding[] = []
   const description = field(body, 'description')
-  if (description !== undefined) {
-    const text = description.kind === 'string' ? description.value : undefined
-    const length = text === undefined ? 0 : [...text].length
-    if (length < 1 || length > DESCRIPTION_MAX)
-      findings.push({
-        code: 'malformed',
-        detail: 'description is not text of 1 to 1024 characters',
-      })
-  }
+  if (
+    description !== undefined &&
+    (description.kind !== 'string' || !isBoundedText(description.value, DESCRIPTION_MAX))
+  )
+    findings.push({ code: 'malformed', detail: 'description is not text of 1 to 1024 characters' })
   const scripts = readScripts(field(body, 'scripts'), { normalized: true })
   const settings = readSettings(field(body, 'settings'))
   findings.push(...scripts.findings, ...settings.findings)
