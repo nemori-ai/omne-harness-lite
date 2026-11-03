@@ -24,7 +24,12 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['storage', 'identityClock'],
   },
   authorization: {
-    provides: ['agentAccessCheck', 'sessionAccessCheck', 'agentActionAdmission'],
+    provides: [
+      'agentAccessCheck',
+      'sessionAccessCheck',
+      'agentActionAdmission',
+      'systemActionAuthorization',
+    ],
     injects: ['tenantStanding', 'principalVerifier', 'identityClock'],
   },
   'session-storage': {
@@ -35,7 +40,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'tenantDomainLookup',
       'sessionPrincipalBindings',
     ],
-    injects: ['storage', 'sessionAccessCheck', 'principalVerifier'],
+    injects: ['storage', 'sessionAccessCheck'],
     phase: 'composition',
   },
   'session-provider': {

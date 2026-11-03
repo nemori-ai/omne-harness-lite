@@ -3,7 +3,9 @@
 // over the policy tables of this directory, and it injects the verifier (an entry object), the
 // tenant standing source (the `identity` row) and `identityClock` (an entry object on the root).
 // The grant table is built into the release and the plugin hands it to the reference system action
-// authorization. It is not an `inject` and not a service key. The one operator setting,
+// authorization. The table is not an `inject` and not a service key. The row provides the decision
+// over it as the trusted key `systemActionAuthorization` (R2-D245): `session-storage` asks it before
+// it enumerates tenants, so the operator's tightening reaches that path too. The one operator setting,
 // `maintenanceGrants`, can only tighten a record of the table (revoke it, or give it an end time
 // judged by the injected `identityClock`), so no operator setting can give a system principal a
 // purpose (DP4-C13, R2-D204 item 2).
@@ -11,6 +13,7 @@ import type { Context, Plugin } from '@deepseek-ai/cordis'
 import {
   referenceAdmissionCheck,
   referenceSystemActionAuthorization,
+  type SystemActionAuthorization,
 } from '@omne-harness/authorization'
 import {
   ActionAdmissionService,
@@ -39,6 +42,10 @@ import {
 } from './adapters.ts'
 import { grantClockOf, tightenMaintenanceGrants } from './grant-tightening.ts'
 import { releaseMaintenanceGrants } from './grants.ts'
+import {
+  SystemActionAuthorizationService,
+  systemActionAuthorizationKey,
+} from './system-action-service.ts'
 import { authorizationConfig } from './action-rules.ts'
 
 // The services keep closures only: no `#` private field, because a method reached through a caller
@@ -64,6 +71,26 @@ class ActionAdmissionImpl extends ActionAdmissionService<unknown> {
   constructor(ctx: Context, delegate: ActionAdmission<unknown>) {
     super(ctx)
     this.admit = input => delegate.admit(input)
+  }
+}
+
+/**
+ * The system action decision over the tightened table. After the row stops, a reference that a
+ * consumer still holds answers `unavailable`, never a decision.
+ */
+class SystemActionAuthorizationImpl extends SystemActionAuthorizationService {
+  readonly check: SystemActionAuthorization['check']
+  constructor(ctx: Context, delegate: SystemActionAuthorization, active: () => boolean) {
+    super(ctx)
+    this.check = input =>
+      active()
+        ? delegate.check(input)
+        : Promise.resolve(
+            Object.freeze({
+              kind: 'unavailable' as const,
+              diagnostic: 'the authorization row has stopped',
+            }),
+          )
   }
 }
 
@@ -100,6 +127,7 @@ const plugin: Plugin.Object = {
       'authorization.active',
     )
     const ports = portsOf(ctx, grants)
+    new SystemActionAuthorizationImpl(ctx, ports.systemActions, () => active)
     new SessionAccessCheckImpl(ctx, createSessionAccessCheck(ports))
     new AgentAccessCheckImpl(ctx, createAgentAccessCheck(ports))
     new ActionAdmissionImpl(
@@ -121,7 +149,12 @@ export const authorization = defineRow({
   row: 'authorization',
   implementation: 'real',
   manifest: {
-    provides: [sessionAccessCheckKey, agentAccessCheckKey, agentActionAdmissionKey],
+    provides: [
+      sessionAccessCheckKey,
+      agentAccessCheckKey,
+      agentActionAdmissionKey,
+      systemActionAuthorizationKey,
+    ],
     injects: [tenantStandingKey, principalVerifierKey, identityClockKey],
     sameProviderGroup: null,
   },

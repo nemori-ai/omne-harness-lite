@@ -27,8 +27,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `storage` | 存储契约的 SQLite 提供者 | `storage`：按事务域登记的存储服务（只在[受信存储子树](#受信子树)内可见） | `storageHost`、`assemblyLifecycle` | 无 | 存储根目录；[SQLite 提供者配置](../../../packages/storage/sqlite-provider/SPEC.md#121-配置)要求的四项数值（`admissionQueueLimit`、`lockWaitMs`、`maxCommandsPerCommit`、`maxCommandBytes`）；组提交与关闭期限的数值，按 SQL 提供者的配置。读结果上限 `maxReadResultBytes` 取 20971520（20 MiB，R2-D81），`globalReadResultBytes` 随之取 134217728；提供者在构造期拒绝任何 `maxOutputBytes` 超过它的读 handler |
 | `identity` | `@omne-harness/identity-sql` 的 `./cordis` 插件 | `identityOperations`（注册激活、签发登录、识别登录）；`tenantStanding`（受信）；`identityGovernance`（ID-18 治理端口，受信）。三项出自同一个提供者实例、同一份 identity 记录，治理端口的撤销与切换对登录识别生效 | `storage`、`identityClock` | 无 | 登录期限与空闲期限；邀请默认时长 `invitationDefaultDuration` 与最长时长 `invitationMaxDuration`（发行层初值 7 天与 30 天，R2-D204 第 7 项）。迁移 `identity/002-governance` 与读 handler `identity.governance`（输出上限 1 MiB，不超过 `storage` 行的 `maxReadResultBytes`）随本行材料进入发行目录；已有的发行数据库在本行 `registerCombination` 时执行 002 |
-| `authorization` | 应用成员的授权适配插件 | Session 身份桥使用的准入裁定；`agentAccessCheck`、`sessionAccessCheck`（含作用域释放恢复的三项系统请求：`scope-release-receive`、`scope-release-load` 与 `scope-release-query`）；`agentActionAdmission` | `tenantStanding`（受信）、`principalVerifier`（受信）、`identityClock`（维护授予到期的判定时钟） | 无 | `actionRules`；`maintenanceGrants`：运维者对随版本内置的维护授予表只能收回某项（`revoked: true`）或设到期（`expiresAt`），不能新增；表外授予项、改用途、主体或范围的配置让本行启动失败（R2-D204 第 2 项）。发行层写空对象 |
-| `session-storage` | 应用成员的会话存储组合插件：在同一插件体内构造租户到事务域的目录与 `@omne-harness/session-storage-sql` 根入口的纯提供者，目录的存储构造能力只经闭包交给后者 | `sessionTransactions`；`sessionDelegatedTransactions`（会话委派事务，受信）；`tenantDomains`（只含部署枚举 `enumerate`）；`tenantDomainLookup`（已发布快照的只读查找，受信）；`sessionPrincipalBindings`（会话归属读口，受信） | `storage`、`sessionAccessCheck`、`assemblyLifecycle`、`principalVerifier`（受信；部署枚举授权每次核验时重新取得，复用 AU-12 原能力） | `sessionCursorSigning` | 事务域推导规则；组合版本；登记表的文件位置（在存储根目录下）；介质（与 `storage` 行相同的 SQLite）；`pageBytes` 上限；`maxScanPerPage`；`maxRegistrationRetries`；快照重建方式。其余字段取 Session SQL 纯工厂配置的初值。见[租户到事务域的目录](#租户到事务域的目录) |
+| `authorization` | 应用成员的授权适配插件 | Session 身份桥使用的准入裁定；`agentAccessCheck`、`sessionAccessCheck`（含作用域释放恢复的三项系统请求：`scope-release-receive`、`scope-release-load` 与 `scope-release-query`）；`agentActionAdmission`；`systemActionAuthorization`（系统动作授权，受信，见[系统动作授权](#system-action-authorization)） | `tenantStanding`（受信）、`principalVerifier`（受信）、`identityClock`（维护授予到期的判定时钟，每次判断到期时重新读取） | 无 | `actionRules`；`maintenanceGrants`：运维者对随版本内置的维护授予表只能收回某项（`revoked: true`）或设到期（`expiresAt`），不能新增；表外授予项、改用途、主体或范围的配置让本行启动失败（R2-D204 第 2 项）。收回与到期对本行的三个访问裁定和 `systemActionAuthorization` 同样生效。发行层写空对象 |
+| `session-storage` | 应用成员的会话存储组合插件：在同一插件体内构造租户到事务域的目录与 `@omne-harness/session-storage-sql` 根入口的纯提供者，目录的存储构造能力只经闭包交给后者 | `sessionTransactions`；`sessionDelegatedTransactions`（会话委派事务，受信）；`tenantDomains`（只含部署枚举 `enumerate`）；`tenantDomainLookup`（已发布快照的只读查找，受信）；`sessionPrincipalBindings`（会话归属读口，受信） | `storage`、`sessionAccessCheck`、`assemblyLifecycle` | `sessionCursorSigning`；`systemActionAuthorization`（受信；部署枚举每次调用都经它判断，缺席或答 `unavailable` 时枚举答 `unavailable`，不放行；本行不持有授予表，R2-D245） | 事务域推导规则；组合版本；登记表的文件位置（在存储根目录下）；介质（与 `storage` 行相同的 SQLite）；`pageBytes` 上限；`maxScanPerPage`；`maxRegistrationRetries`；快照重建方式。其余字段取 Session SQL 纯工厂配置的初值。见[租户到事务域的目录](#租户到事务域的目录) |
 | `session-provider` | `@omne-harness/session-cordis` 的插件 | `session`（四个面）；协调器与调度器，含推进触发调度器 S1 | `sessionAccessCheck`、`sessionDelegatedTransactions`（受信）、`sessionPrincipals`、`sessionWorkPrincipals`（受信）、`assemblyLifecycle` | `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionIdleInput`、`sessionAgentDrive`、`sessionScopeRelease`、`sessionClock`、`sessionNotifier`、`sessionTransactions`（只服务 `pending`、`references`、`releasedScopes` 三项目录读取） | `admission: 'none'`（本部署没有命令域与 hooks） |
 | `session-ad02` | AD-02 Agent 同日志解释（session-adapters 的 `createSessionJournalInterpretationPlugin`，B1 已接） | 无 | `session`（`'coordinator'`）、`sessionTransactions`（`commitLog` 所在的端口，日志解释的写口，与 AD-05 同构）；`storage`、`tenantDomainLookup`（受信，只读该 execution 的执行记录分区）；`sessionWorkPrincipals`（受信，取协调者主体） | 协调者主体来源（经受信 `sessionWorkPrincipals` 的 `forSession` 构造） | 无：插件不取配置 |
 | `session-ad03` | AD-03 持有者与生产者（session-adapters 的 `createSessionContextHolder`，B1 已接：持有者、回放与事实三个子插件来自同一次工厂调用） | `runtimeContextReaderEligibility`（K-RC，模型类读者资格）；`sessionReplayFacts`、`sessionScopeLookup`（事实子插件） | `runtimeContext`、`session`（`'reader'`，R2-D238） | `sessionWorkPrincipals`（受信，取协调者主体）；提交翻译取发行采用定义的 Context 声明表 | `scopeIndexEntries`（索引上界）、`pageBytes`（历史读页大小），由运维者层给 |
@@ -201,16 +201,23 @@ flowchart LR
 | 会话委派事务 | `sessionDelegatedTransactions` | `session-storage` 行 |
 | 会话回放事实 | `sessionReplayFacts`、`sessionScopeLookup` | `session-ad03` 行（事实子插件）；只由装配入口按调用读取，没有行 `inject`（session-cordis-contract [受信服务键](../../../packages/session/session-cordis-contract/docs/cordis.md#受信服务键)，R2-D163、R2-D168） |
 | Context 信任 | `runtimeContextTrust`、`requestContextTrust` | 装配入口 |
+| 系统动作授权 | `systemActionAuthorization` | `authorization` 行；只有 `session-storage` 行按调用读取（R2-D245） |
 | identity 读口 | `principalVerifier`、`tenantStanding`、`identityGovernance` | 核验器：装配入口；资格读口与治理端口：`identity` 行（R2-D203 P-9）。入口对象只经 `env.readTrusted` 读取；Tool 运行时组与 Tool 请求来源不在可见表里，由入口对象 `toolClock` 交给 Tool 共享状态的逐次读法读取 |
 
 `tenantDomainLookup` 是正式键，服务定义归 `@omne-harness/sql-contract` 的 `./cordis`。
+
+<a id="system-action-authorization"></a>`systemActionAuthorization` 是本应用自己定义的第一个服务键（R2-D247），服务定义在 `apps/harness-server/src/rows/authorization/system-action-service.ts`：
+
+- 拥有者是 `authorization` 行。它是唯一的提供者，按随版本内置的维护授予表及运维者的 `maintenanceGrants`（收回、到期）判断某个系统主体可不可以做某个系统动作（authorization SPEC AU-12）；到期每次判断时读 `identityClock`。系统动作的授予表只有这一份，`session-storage` 行不另建。
+- 不放进 `@omne-harness/authorization`：授予表是本应用的发行常量，提供者和唯一的消费者都是本应用的行，那个包也没有 Cordis 入口。
+- 本应用以外的成员需要这个键时，按 [IC-4](../cordis-integration-conventions.md#ic-4) 新开 `@omne-harness/authorization/cordis`，键名与形状不变，本应用改为引用它。
 
 | 行 id | 可见的受信名 |
 | --- | --- |
 | `storage` | `storage`、`storageHost` |
 | `identity` | `storage`、`tenantStanding`、`identityGovernance` |
-| `authorization` | `principalVerifier`、`tenantStanding` |
-| `session-storage` | `storage`、`tenantDomainLookup`、`sessionPrincipalBindings`、`sessionDelegatedTransactions`、`principalVerifier` |
+| `authorization` | `principalVerifier`、`tenantStanding`、`systemActionAuthorization` |
+| `session-storage` | `storage`、`tenantDomainLookup`、`sessionPrincipalBindings`、`sessionDelegatedTransactions`、`systemActionAuthorization` |
 | `session-provider` | `sessionWorkPrincipals`、`sessionDelegatedTransactions` |
 | `session-ad02` | `storage`、`tenantDomainLookup`、`sessionWorkPrincipals` |
 | `session-ad03` | `sessionWorkPrincipals`、`sessionReplayFacts`、`sessionScopeLookup` |

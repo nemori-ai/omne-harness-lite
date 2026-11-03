@@ -8,9 +8,11 @@
 // 读与被拒的 `create` 不登记。
 // 已知限制：换 `combinationVersion` 不会为已登记的租户补登记（登记表不记版本），换版本需要另有拥有者定补登记的时机。
 // 游标签名按调用现取 `sessionCursorSigning`（IC-9），不在 inject 里；入口对象缺席时五种读答 `unavailable`。
+// 部署枚举 `tenantDomains.enumerate` 每次调用都按调用现取受信键 `systemActionAuthorization`（`authorization` 行提供，
+// R2-D245），由它按发行授予表与运维者的收回、到期判断；本行不持有授予表。键缺席或答 `unavailable` 时枚举答
+// `unavailable`，不放行。
 import type { Context } from '@deepseek-ai/cordis'
-import { referenceSystemActionAuthorization } from '@omne-harness/authorization'
-import { principalVerifierKey } from '@omne-harness/identity/cordis'
+import type { SystemActionAuthorization } from '@omne-harness/authorization'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -55,7 +57,7 @@ import {
 } from '@omne-harness/sql-contract/cordis'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { storageCatalog } from '../storage/catalog.ts'
-import { releaseMaintenanceGrants } from '../authorization/grants.ts'
+import { systemActionAuthorizationKey } from '../authorization/system-action-service.ts'
 import { boundAccessCheck } from './bound.ts'
 import { SESSION_COMPOSITE_PARTICIPANTS, compositeManifestDigest } from './composite.ts'
 import { sessionStorageRowConfigSchema, type SessionStorageRowConfig } from './config.ts'
@@ -232,20 +234,23 @@ class DelegatedTransactionsImpl extends SessionDelegatedTransactionsService<unkn
   }
 }
 
+/** 按调用现取 `systemActionAuthorization`。缺席时答 `unavailable`，不放行。 */
+function lateBoundSystemActions(ctx: Context): SystemActionAuthorization {
+  return {
+    check: input =>
+      ctx.get(systemActionAuthorizationKey)?.check(input) ??
+      Promise.resolve({
+        kind: 'unavailable',
+        diagnostic: 'systemActionAuthorization is not provided',
+      }),
+  }
+}
+
 class TenantDomainsImpl extends TenantDomainsService<unknown> {
   readonly enumerate: TenantDomains<unknown>['enumerate']
   constructor(ctx: Context, directory: TenantDomainAccess) {
     super(ctx)
-    const authorization = referenceSystemActionAuthorization({
-      verifier: {
-        verify: principal =>
-          ctx.get(principalVerifierKey)?.verify(principal) ??
-          Promise.resolve({ kind: 'unavailable', diagnostic: 'principal verifier is unavailable' }),
-      },
-      grants: releaseMaintenanceGrants(),
-      clock: null,
-    })
-    this.enumerate = createTenantEnumeration(authorization, directory).enumerate
+    this.enumerate = createTenantEnumeration(lateBoundSystemActions(ctx), directory).enumerate
   }
 }
 
@@ -326,7 +331,7 @@ export const sessionStorageRow = defineRow({
       tenantDomainLookupKey,
       sessionPrincipalBindingsKey,
     ],
-    injects: [storageKey, sessionAccessCheckKey, principalVerifierKey],
+    injects: [storageKey, sessionAccessCheckKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'composition' },

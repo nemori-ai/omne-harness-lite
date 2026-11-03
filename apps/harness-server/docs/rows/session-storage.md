@@ -26,13 +26,13 @@
 
 ## 部署枚举
 
-本行必需注入 `principalVerifier`，每次核验时重新取得该服务。行内复用 `referenceSystemActionAuthorization`，并消费共享的 `releaseMaintenanceGrants`。请求固定为 tenant-domains/enumerate、系统资源 tenant-domains/registered-tenants、资源键 deployment 与 `noArguments()`。
+本行不持有授予表，也不自己核验主体。每次 `enumerate` 都按调用现取受信键 `systemActionAuthorization`（`authorization` 行提供），由它按发行授予表与运维者的收回、到期判断（R2-D245）。键缺席或答 `unavailable` 时枚举答 `unavailable`，不放行。不是系统主体的调用者在问授权之前就答 denied。请求固定为 tenant-domains/enumerate、系统资源 tenant-domains/registered-tenants、资源键 deployment 与 `noArguments()`。
 
 只有 AU-12 允许后才读取一次完整快照，revision 与 entries 来自同一次读取。拒绝答 denied，依赖或目录不可用答 unavailable，两者都不含 entries。异常消息不向调用者披露。主体的 component 文本只选择授予记录，不能代替身份签发和核验。新请求不缓存此前的允许结论。
 
 ## 验证入口
 
-`tests/rows/session-storage` 覆盖初始化、缺失、损坏、并发发布与授权枚举。`tests/rows/storage/restart-process.spec.ts` 用两个独立 Node 进程验证真实 SQLite 写入及重启后完整目录。该进程测试采用真实 identity 签发器与显式测试 grant，不证明发行授予表和扫描入口的完整组合。
+`tests/rows/session-storage` 覆盖初始化、缺失、损坏、并发发布与授权枚举。`system-action-enumeration.spec.ts` 把真实 `authorization` 行与本行装在一起，验证运维者收回与到期对枚举生效、授权不可用时不放行、根上同名冒充服务读不到。`tests/rows/storage/restart-process.spec.ts` 用两个独立 Node 进程验证真实 SQLite 写入及重启后完整目录。该进程测试采用真实 identity 签发器与显式测试 grant，不证明发行授予表和扫描入口的完整组合。
 
 ```sh
 pnpm --filter @omne-harness/harness-server exec vitest run tests/rows/storage tests/rows/session-storage --typecheck.enabled=false

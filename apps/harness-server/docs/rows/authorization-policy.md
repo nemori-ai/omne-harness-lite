@@ -9,15 +9,22 @@
 | 项    | 内容                                                                                                               |
 | ----- | ------------------------------------------------------------------------------------------------------------------ |
 | 行 id | `authorization`，`implementation` 为 `real`，没有关闭阶段                                                          |
-| 提供  | `sessionAccessCheck`、`agentAccessCheck`、`agentActionAdmission`                                                   |
-| 注入  | `principalVerifier`（入口对象）、`tenantStanding`（`identity` 行）。两项都是必需依赖，缺任一项时本行停在 `PENDING` |
+| 提供  | `sessionAccessCheck`、`agentAccessCheck`、`agentActionAdmission`；受信的 `systemActionAuthorization`（见[系统动作授权](#系统动作授权)） |
+| 注入  | `principalVerifier`（入口对象）、`tenantStanding`（`identity` 行）、`identityClock`（入口对象，判定授予的到期）。三项都是必需依赖，缺任一项时本行停在 `PENDING` |
 | 配置  | 可选的 `actionRules` 动作规则快照，可选的 `maintenanceGrants` 收紧项（见[运维者对授予表的收紧](#运维者对授予表的收紧)）。政策表和系统授予表随版本内置，运维者不能经配置给系统主体授予用途 |
 
-三个服务共用同一组依赖，所以放在同一个插件上，一起装载，一起撤除。服务对象只持有闭包。依赖在每次调用时重新读取。每次检查都读当前事实，不缓存任何 `allowed`。
+四个服务共用同一组依赖，所以放在同一个插件上，一起装载，一起撤除。服务对象只持有闭包。依赖在每次调用时重新读取。每次检查都读当前事实，不缓存任何 `allowed`。
 
 - `sessionAccessCheck` 实现 `SessionAccessCheck`。每次 Session 面的公开读写在实际执行处调用它一次。
 - `agentAccessCheck` 实现 `AgentAccessCheck`。每次 Agent 公开操作调用它一次。
 - `agentActionAdmission` 实现 `ActionAdmission`，见[动作准入](#动作准入)。
+- `systemActionAuthorization` 实现 `SystemActionAuthorization`，见[系统动作授权](#系统动作授权)。
+
+### 系统动作授权
+
+`systemActionAuthorization` 按授予表（含运维者的收回与到期）判断某个系统主体可不可以做某个系统动作，顺序是 AU-12 的固定顺序：核验器核主体、矩阵行、授予记录、参数。它用的读口与两个访问检查的系统格是同一份收紧后的表，所以收紧对两条路径同时生效。到期每次判断时读 `identityClock`，时钟答不出时答 `unavailable`。行停止后，消费者手里的旧引用答 `unavailable`。
+
+这个键是受信名，只有 `session-storage` 行可见，它在每次枚举租户前按调用现取（R2-D245）。服务定义在本应用的 `src/rows/authorization/system-action-service.ts`，拥有者是本行；为什么不放进 `@omne-harness/authorization`、什么时候迁进包，见装配页的[系统动作授权](../../../../docs/architecture/runtime/application-assembly.md#system-action-authorization)（R2-D247）。
 
 ## 一次访问检查怎样得出答复
 
@@ -101,9 +108,8 @@
 - 配置里出现表外的记录标识时，行启动失败，错误写出该标识和表内的全部标识。键只认记录标识，组件名文字（例如 `agent-host`）也算未知。
 - 值里出现 `purposes`、`component`、`principal`、`scope` 或其他成员，`revoked: false`，空对象，或不是 UTC 时刻的 `expiresAt`，配置都被拒绝，行不启动。
 - 空配置或不写 `maintenanceGrants` 时，行为与内置表完全相同。
-- 到期由注入的时钟判定，不读系统时间。行的构造函数 `createAuthorizationRow({ clock })` 接收 `IdentityClock`。时钟答不出时，该记录的动作答 `unavailable`，不放行。
-- 发行装配的 `authorization` 行目前没有安装时钟：清单没有注入 `identityClock`。所以配置了 `expiresAt` 时行启动失败，错误说明没有时钟。`revoked` 不需要时钟，现在可用。接入时钟要改装配页、`stubs.ts` 与可见性，归装配的单写者。
-- 配置只作用于本行的 Session 与 Agent 访问检查。`session-storage` 行的租户枚举读口另有一份授予表实例（`releaseMaintenanceGrants()`），不读本行配置。要让收紧对枚举租户用途生效，那一行要用同一个 `maintenanceGrants` 模式和同一个收紧函数 `tightenMaintenanceGrants`。这一点归装配的单写者。
+- 到期由注入的 `identityClock` 判定，每次判断时读取，不读系统时间。时钟答不出时，该记录的动作答 `unavailable`，不放行。
+- 配置作用于本行的 Session 与 Agent 访问检查，也作用于 `systemActionAuthorization`。`session-storage` 行的租户枚举每次经这个键判断，不另持授予表，所以收回或到期 `maintenance-grant/tenant-domain-scanner` 后枚举被拒（R2-D245）。
 - 收紧后记录的 `revision` 与 `generation` 保持内置值。收紧后的 `revoked` 和 `expiresAt` 进入裁定依据和证据摘要。
 - 撤权从下一次检查起生效。一次 `check` 答 `allowed` 之后、提交之前的收回不阻止这次提交（K-5）。
 
@@ -534,7 +540,7 @@
 
 普通台账动作和 `start` 要求非空 call、可信 Session 工作主体和本租户成员资格，映射到 `tool/<action>` 与 `tool/call`。`invalidate`、`read-raw`、`read-raw-content` 缺本波资格来源，一律答 `unavailable`；后者不以两次异步检查拼出双权限一致读取。
 
-入口 `issueTenantDomainScanner(env)` 经本运行受信签发器签出 `tenant-domain-scanner`，只把主体交给扫描者，不交签发器、不 provide 新键。部署枚举消费者用同一 `releaseMaintenanceGrants()` 与原 `principalVerifier`，不能用组件名文本或复制的主体代替真实签发身份。
+入口 `issueTenantDomainScanner(env)` 经本运行受信签发器签出 `tenant-domain-scanner`，只把主体交给扫描者，不交签发器、不 provide 新键。部署枚举经 `systemActionAuthorization` 由本行判断，用的是本行的核验器与收紧后的授予表，不能用组件名文本或复制的主体代替真实签发身份。
 
 ## 验证
 
@@ -544,6 +550,7 @@
 - `policy-golden.spec.ts`、`policy.spec.ts`、`policy.spec-d.ts`：表本身的逐格黄金表、审计和行完整性。
 - `grants.spec.ts`：授予表和读口。
 - `grant-tightening.spec.ts`：运维者收紧。模式的接受与拒绝，真实行上的收回、到期、表外标识、改用途和无时钟，每项都有对照用例。
+- `../session-storage/system-action-enumeration.spec.ts`：真实 `authorization` 行与真实 `session-storage` 行一起装载，收回与到期对租户枚举生效、本行不可用时枚举答 `unavailable`、根上同名冒充服务读不到，每项都有负控。
 - `tool-access.spec-d.ts`：同一个 qualify 对象满足两个 Tool 端口。`adapters.spec.ts` 还运行 Tool 五项符合性套件，包含失败依赖，以及动作规则、严格配置和撤除旧引用用例。
 - `../entry/tenant-domain-scanner.spec.ts`：真实入口签发与核验、精确枚举用途、伪造主体拒绝。
 

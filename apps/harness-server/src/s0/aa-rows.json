@@ -70,7 +70,8 @@
       "row": "authorization",
       "names": [
         "principalVerifier",
-        "tenantStanding"
+        "tenantStanding",
+        "systemActionAuthorization"
       ]
     },
     {
@@ -80,7 +81,7 @@
         "tenantDomainLookup",
         "sessionPrincipalBindings",
         "sessionDelegatedTransactions",
-        "principalVerifier"
+        "systemActionAuthorization"
       ]
     },
     {
