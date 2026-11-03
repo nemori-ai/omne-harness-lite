@@ -19,8 +19,13 @@ export {
   absentStepResults,
   definitionContributions,
   definitionSourceOf,
-  firstWaveTools,
   type DefinitionSource,
   type StepResultSource,
   type ToolsSource,
 } from './translate.ts'
+export {
+  absentToolLookup,
+  toolsSourceOf,
+  type ToolAvailabilityRead,
+  type ToolLookup,
+} from './tools.ts'
