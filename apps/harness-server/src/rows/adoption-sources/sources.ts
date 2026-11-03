@@ -14,7 +14,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
-import { SessionAdoptionSourceService } from '@omne-harness/session-cordis-contract/cordis'
+import {
+  SessionAdoptionSourceService,
+  sessionKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import {
   canonicalText,
   contentDigest,
@@ -36,6 +39,7 @@ import {
   type SessionAdoptionSource,
   type SessionCreation,
 } from '@omne-harness/session-contract'
+import { loginConfirmationOf, type SessionWorkReads } from './login-entry.ts'
 import { plannedResidents } from './residents.ts'
 
 const OWNER = '@omne-harness/harness-server'
@@ -270,6 +274,22 @@ function initializationGuardOf(
   ])
 }
 
+/**
+ * The Session work face, taken from the row context on every call as a `coordinator` (the class of
+ * the caller of `startRun`; the access check of the read is the Session's own). It is not an
+ * `inject`: Session injects this source through the evidence bridge, so a static `session` here
+ * would wait for itself. An absent face is `undefined`, and the start is then `unavailable`.
+ */
+function sessionWorkOf<P>(ctx: Context): SessionWorkReads<P> | undefined {
+  const work = ctx.intercept(sessionKey, { caller: 'coordinator' }).get(sessionKey, false)?.work
+  return work === undefined
+    ? undefined
+    : {
+        readWork: access => work.readWork(access as never),
+        readInput: input => work.readInput(input as never),
+      }
+}
+
 async function prepareFrom<P>(
   ctx: Context,
   mappings: DefinitionMappings,
@@ -291,7 +311,15 @@ async function prepareFrom<P>(
       if ('failure' in residents) return residents
       return initializationGuardOf(mappings, command, entry, residents.ok)
     }
-    case 'startRun':
+    case 'startRun': {
+      const entry = mappings.byCandidate(command.input.candidate)
+      if (entry === undefined)
+        return invalid('candidate', 'the candidate is not a definition adoption of this deployment')
+      const login = await loginConfirmationOf(sessionWorkOf<P>(ctx), command, access)
+      if ('failure' in login) return login
+      const mapping = materialOf(mappings, command.kind, entry)
+      return succeed(login.ok === null ? [mapping] : [mapping, login.ok])
+    }
     case 'reload': {
       const entry = mappings.byCandidate(command.input.candidate)
       if (entry === undefined)
