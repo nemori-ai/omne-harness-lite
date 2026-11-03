@@ -2409,6 +2409,9 @@ importers:
       '@omne-harness/runtime-context-contract':
         specifier: workspace:*
         version: link:../../context/runtime-context-contract
+      '@omne-harness/schema-provider':
+        specifier: workspace:*
+        version: link:../../schema/schema-provider
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
