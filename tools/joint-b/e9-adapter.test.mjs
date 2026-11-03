@@ -3,7 +3,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createRoundCollector } from '../e9/collector.mjs'
-import { countLogEntries, integerSetting, runOneRound, watchTerminals } from './e9-adapter.mjs'
+import {
+  countLogEntries,
+  integerSetting,
+  requireSourceHooks,
+  runOneRound,
+  watchTerminals,
+} from './e9-adapter.mjs'
 
 const SESSION = 'cp3-session'
 const access = { principal: 'p', tenant: 't', session: SESSION }
@@ -137,4 +143,11 @@ test('settings outside their range are refused, not replaced by the default', ()
   assert.equal(integerSetting({ OMNE_E9_ROUNDS: '20' }, 'OMNE_E9_ROUNDS', 200, 1, 200), 20)
   for (const raw of ['0', '201', '2.5', 'x'])
     assert.throws(() => integerSetting({ OMNE_E9_ROUNDS: raw }, 'OMNE_E9_ROUNDS', 200, 1, 200))
+})
+
+test('without the preloaded source hooks the adapter refuses to open and names the setting', () => {
+  const url = new URL('./e9-source-hooks.mjs', import.meta.url).href
+  assert.throws(() => requireSourceHooks({}, true), /NODE_OPTIONS=--import=/)
+  assert.throws(() => requireSourceHooks({ NODE_OPTIONS: `--import=${url}` }, false))
+  assert.doesNotThrow(() => requireSourceHooks({ NODE_OPTIONS: `--import=${url}` }, true))
 })

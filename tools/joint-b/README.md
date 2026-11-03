@@ -124,7 +124,11 @@ Runtime Context 交接是世界的替身。这次测量的结论只对这个组�
 ### 命令
 
 ```sh
-OMNE_TEST_SLOTS=1 OMNE_TEST_SLOT_DIR=<共同名额目录>   node tools/e9/cli.mjs run --root <检出绝对路径> --out <新归档目录>   --adapter <检出绝对路径>/tools/joint-b/e9-adapter.mjs --timeout-ms <总时限毫秒>
+ROOT=<检出绝对路径>
+HOOKS=$(node -p "require('url').pathToFileURL(process.argv[1]).href" "$ROOT/tools/joint-b/e9-source-hooks.mjs")
+NODE_OPTIONS="--import=$HOOKS" OMNE_TEST_SLOTS=1 OMNE_TEST_SLOT_DIR=<共同名额目录> \
+  node "$ROOT/tools/e9/cli.mjs" run --root "$ROOT" --out <新归档目录> \
+  --adapter "$ROOT/tools/joint-b/e9-adapter.mjs" --timeout-ms <总时限毫秒>
 ```
 
 | 环境变量           | 含义                                                              | 缺省   |
@@ -134,6 +138,9 @@ OMNE_TEST_SLOTS=1 OMNE_TEST_SLOT_DIR=<共同名额目录>   node tools/e9/cli.mj
 | `OMNE_E9_ROUND_MS` | 单轮等新终态的上限，毫秒                                          | 60000  |
 
 越界或不是整数的值使 `open()` 失败，不换成缺省值。
+
+`NODE_OPTIONS` 必须预加载 [e9-source-hooks.mjs](e9-source-hooks.mjs)，理由见下文「依赖的内部文件与失效表现」。
+没有预加载时 `open()` 立即失败，错误里写出要加的设置。
 
 ### 每轮做什么
 
@@ -179,8 +186,11 @@ OMNE_TEST_SLOTS=1 OMNE_TEST_SLOT_DIR=<共同名额目录>   node tools/e9/cli.mj
 
 导入失败、上述属性缺失时，`open()` 抛错，运行退出 `1`，`adapter-result.json` 记首个错误。换属性失效但没有报错时，
 例如世界改成在闭包里直接持有观察者，成员段就不会进入采集者：段记未测量，总判定是等件，不会是通过。
-世界的源码是 TypeScript。适配器在自己的进程里注册解析钩子，取包的 `source` 导出条件，并把 `.ts` 文件里写成
-`.js` 的相对导入回落到 `.ts`。这与 vitest 的解析对应，不写任何文件。
+世界的源码是 TypeScript，检出里不一定有 `dist`。`e9-source-hooks.mjs` 注册解析钩子：包导入取 `source` 导出条件，
+`.ts` 文件里写成 `.js` 的相对导入回落到 `.ts`。这与 vitest 的解析对应，不写任何文件。
+sqlite-provider 的读写 Worker 也要解析源码。Worker 不继承主线程注册的钩子，也不读改过的 `process.execArgv`，
+所以钩子只能经 `NODE_OPTIONS=--import=<file URL>` 预加载。漏了这一步时 Worker 起不来，存储注册答 `domain_unavailable`。
+适配器在 `open()` 开头先核对，不等到这一步。`NODE_OPTIONS` 也传给 E9 CLI 与名额脚本；钩子只改解析，对它们没有影响。
 
 ### 退出码与证据
 

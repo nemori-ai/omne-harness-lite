@@ -13,7 +13,6 @@
 // 环境变量：OMNE_E9_ROUNDS（计划轮数 1～200，缺省 200）、OMNE_E9_SHAPE（tool 或 plain，缺省 tool）、
 // OMNE_E9_ROUND_MS（单轮等终态的上限，缺省 60000）。
 import { randomUUID } from 'node:crypto'
-import { registerHooks } from 'node:module'
 import { createRoundCollector } from '../e9/collector.mjs'
 
 const MODEL_DELAY_MS = 100
@@ -57,33 +56,16 @@ export const workload = {
   toolDelayMs: TOOL_DELAY_MS,
 }
 
+const HOOKS_URL = new URL('./e9-source-hooks.mjs', import.meta.url).href
+const SOURCE_HOOKS_FLAG = Symbol.for('omne-harness.e9.source-hooks')
+
 /**
- * w2-world 的源码是 TypeScript，测试由 vitest 解析。这里在本进程注册两条解析规则，与 vitest 的做法对应：
- * 包的 `source` 导出条件（各包 exports 都有，指向 src），以及 .ts 文件里写成 `.js` 的相对导入回落到 `.ts`。
- * 只影响本适配器进程，不写任何文件。
+ * 解析钩子必须经 NODE_OPTIONS 预加载，sqlite-provider 的 Worker 才能解析源码（见 e9-source-hooks.mjs）。
+ * 没有预加载时立即失败并给出要加的设置，不等 Worker 在注册存储时才答 domain_unavailable。
  */
-function installSourceResolution() {
-  registerHooks({
-    resolve(specifier, context, nextResolve) {
-      const conditions = context.conditions.includes('source')
-        ? context.conditions
-        : ['source', ...context.conditions]
-      const next = { ...context, conditions }
-      try {
-        return nextResolve(specifier, next)
-      } catch (error) {
-        const fromTs = context.parentURL?.endsWith('.ts') ?? false
-        if (
-          error?.code === 'ERR_MODULE_NOT_FOUND' &&
-          fromTs &&
-          specifier.startsWith('.') &&
-          specifier.endsWith('.js')
-        )
-          return nextResolve(`${specifier.slice(0, -3)}.ts`, next)
-        throw error
-      }
-    },
-  })
+export function requireSourceHooks(env, loaded = globalThis[SOURCE_HOOKS_FLAG] === true) {
+  if (loaded && (env.NODE_OPTIONS ?? '').includes(HOOKS_URL)) return
+  throw new Error(`E9 line-through adapter needs NODE_OPTIONS=--import=${HOOKS_URL}`)
 }
 
 /**
@@ -273,7 +255,7 @@ function attachPreparation(w, measureModelPreparation, measurement) {
 export async function open({ out, abortSignal }) {
   const rounds = integerSetting(process.env, 'OMNE_E9_ROUNDS', 200, 1, 200)
   const roundMs = integerSetting(process.env, 'OMNE_E9_ROUND_MS', 60_000, 1, 3_600_000)
-  installSourceResolution()
+  requireSourceHooks(process.env)
   worldModule = await import(WORLD)
   const { intakeAccess, SESSION } = await import(LINE_WORLD)
   const { createMeasuredFixedDelayModel, measureModelPreparation } = await import(MODEL_DOUBLE)
