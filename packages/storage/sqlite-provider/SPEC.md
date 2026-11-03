@@ -298,7 +298,7 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
   - 写等待屏障的上界是 `lockWaitMs`。到期撤下，不发送，调用方得到 `unknown`（`barrier_wait_expired`）。等待期间观察者中止也撤下（sql-contract 规格 §7.1 第 3 条）。
   - 读等待屏障的时间计入 `readQueueTimeoutMs`（sql-contract 规格 §9.2 第 9 步）。到期或取消时，读从顺序中撤下，得到 `queue_timeout` 或 `cancelled`。
   - 撤下的条目不保留位置。它后面的条目按顺序前进。
-- 已进入的写在次序中的位置、它的预留与待决索引项，保持到 Worker 答复或退出。调用方对已发送的 `commit`、`query`、`registerCombination` 的观察上界是 2 × `lockWaitMs`，到期得到 `unknown`（`reply_wait_expired`）。取两倍的理由：Worker 自己对写锁最多等 `lockWaitMs`，它对锁等待的裁决要先于观察到期送达调用方；再留同样长的时间给 inbox 排队与执行。不另设配置字段。
+- 已进入的写在次序中的位置、它的预留与待决索引项，保持到 Worker 答复或退出。调用方对已发送的 `commit`、`query`、`registerCombination` 的观察上界是 2 × `lockWaitMs`，到期得到 `unknown`（`reply_wait_expired`）。两倍只是余量，不是保证：Worker 自己对写锁最多等 `lockWaitMs`，多出的一倍留给 inbox 排队与执行，所以在没有排队的常见情形下，Worker 对锁等待的裁决先于观察到期送达调用方；排队或执行更长时观察先到期，调用方得到 `unknown` 之后这个写仍可能提交成功，按 sql-contract 规格 §7.1 用原身份 `query` 认回。倍数从 `lockWaitMs` 推导，`lockWaitMs` 本身是可配置的策略，不另设配置字段（R2-D128 复核裁定）。实现是 `src/writer-client.ts` 的 `observeReply`，三个操作共用。
 - 屏障持有上界是 `readObservationMs`，从派发起算。屏障在读事务结束、读 Worker 退出被观察到，或持有上界到期时释放，以先到者为准。到期释放时该读已经不交付结果（`read_timeout`，或此前已 `cancelled`），所以之后的写不等它的 SQL 结束。取消只结束观察，不提前释放屏障，也不取消持有上界。
 - 提供者不终止卡住的 Worker（L-5）。一个不答复也不退出的写 Worker 让它持有的预留、待决索引项与次序位置一直保持；排在它后面的屏障按 `readQueueTimeoutMs` 得到 `queue_timeout`，再后面的写按 `lockWaitMs`（等屏障）或 2 × `lockWaitMs`（已发送）得到 `unknown`。调用方可见的等待仍然有界，域的吞吐在 Worker 退出前为零。
 

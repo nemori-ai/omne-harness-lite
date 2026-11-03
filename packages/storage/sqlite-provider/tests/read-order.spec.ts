@@ -12,6 +12,8 @@ import {
 import {
   DOMAIN,
   TENANT_A,
+  command,
+  commitRequest,
   identity,
   leases,
   makeWorkspace,
@@ -90,8 +92,9 @@ describe('domain-serial (C10)', () => {
 
 describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
   it('a commit makes progress while domain-serial reads keep arriving', async () => {
-    // Defect: a write waits while any barrier is queued (the old barrier). Three streams keep a
-    // barrier queued at all times, so the commit would wait until the streams end (about 2 s).
+    // Defect: a write waits while any barrier is queued (the old barrier). Six streams keep the
+    // read queue of the domain non-empty, so a barrier is queued at every release and the commit
+    // would wait until the streams drain (well over 2 s from its start).
     const { storage } = await readyProvider(workspace, built, {}, 1)
     await warmReaders(storage)
     const stopAt = Date.now() + 2000
@@ -101,12 +104,35 @@ describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
         if (result.kind !== 'read') throw new Error(`stream read is ${result.kind}`)
       }
     }
-    const streams = [stream(), stream(), stream()]
-    await delay(200)
+    const streams = Array.from({ length: 6 }, stream)
+    await delay(300)
     const start = Date.now()
     expect((await storage.commit(commitOf(built, 'during-stream'))).kind).toBe('committed')
-    expect(Date.now() - start).toBeLessThan(1000)
+    const elapsed = Date.now() - start
     await Promise.all(streams)
+    // Under the defect the commit lands only after the streams end: after `stopAt`, not before.
+    expect(elapsed).toBeLessThan(1000)
+    expect(start + elapsed).toBeLessThan(stopAt)
+  })
+
+  it('keeps the place of a sent write until the Worker answers, also after its caller stopped observing', async () => {
+    // Defect (reviewer probe G12): the place goes back when the reply observation expires. A
+    // domain-serial read sent after that would snapshot before the write commits: it would see no
+    // row and return long before the write ends.
+    const { storage } = await readyProvider(workspace, built, { lockWaitMs: 200 }, 0)
+    await warmReaders(storage)
+    const start = Date.now()
+    const writing = storage.commit(
+      commitRequest(built, {
+        identity: identity({ operationKey: 'spinning' }),
+        commands: [command('ledger', { mode: 'spin', ms: '1000', note: 'spinning' })],
+      }),
+    )
+    expect(await writing).toMatchObject({ kind: 'unknown', diagnostic: 'reply_wait_expired' })
+    const read = await storage.read(readRequest('serial'))
+    expect(read).toMatchObject({ kind: 'read', output: { a: '1', b: '1' } })
+    expect(Date.now() - start).toBeGreaterThanOrEqual(950)
+    expect((await storage.query(identity({ operationKey: 'spinning' }))).kind).toBe('committed')
   })
 
   it('withdraws a write that waited at the barrier longer than lockWaitMs: unknown, no place kept, not pending', async () => {
