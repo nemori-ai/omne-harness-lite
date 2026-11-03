@@ -43,4 +43,4 @@
 [caller 套件](../../tests/rows/tool-residency/caller.spec.ts)通过真实 Cordis Service 投影验证包装层保留逐键配置。
 
 这些用例证明内存事务与桥接的组合行为，不证明耐久 Session、生产发行接线或完整 M2 链路。
-生产发行的成对选择和入口、导出、文档索引登记由应用集成时同步。
+`./cordis` 导出本行，发行配置把它与 `tool-host` 成对装载，见[发行内置 Tool](tool-release.md)。
