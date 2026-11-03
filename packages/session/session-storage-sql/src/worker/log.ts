@@ -140,6 +140,28 @@ function withoutRows(
     : { kind: 'recovered', result: { ...covering, recovered: true }, digest, recorded: false }
 }
 
+/** The snapshot of the session that covers `tail`, or `behind` when `sl_state` does not cover it. */
+export type CoveringSnapshot = (
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  tail: bigint,
+) => WorkSnapshot | 'behind'
+
+/**
+ * Reads and parses the `sl_state` row each time. The participant passes its parsed-snapshot cache
+ * instead (`ParsedSnapshots.covering`), which falls back to this read.
+ */
+export const readCoveringSnapshot: CoveringSnapshot = (port, tenant, session, tail) => {
+  const state = oneRow(
+    port,
+    'SELECT snapshot, covered FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
+    [tenant, session],
+  )
+  if (state === undefined || big(state['covered']) !== tail) return 'behind'
+  return decodeValue(JSON.parse(text(state['snapshot'])) as JsonValue) as WorkSnapshot
+}
+
 type Read = Readonly<{
   tenant: string
   journal: JournalRow
@@ -151,6 +173,7 @@ type Read = Readonly<{
 function readStart(
   port: ParticipantPort,
   observation: SessionLogCommitObservation,
+  covering: CoveringSnapshot,
 ): Read | LogJudgment {
   const tenantText = tenantCodec.encode(observation.tenant)
   if (!tenantText.ok)
@@ -173,14 +196,9 @@ function readStart(
     seq: big(journalRow['commit_seq']) + 1n,
     epoch: text(journalRow['epoch']),
   }
-  const state = oneRow(
-    port,
-    'SELECT snapshot, covered FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
-    [tenant, session],
-  )
-  if (state === undefined || big(state['covered']) !== journal.tail)
+  const previous = covering(port, tenant, session, journal.tail)
+  if (previous === 'behind')
     return { kind: 'failed', diagnostic: 'sl_state does not cover the tail' }
-  const previous = decodeValue(JSON.parse(text(state['snapshot'])) as JsonValue) as WorkSnapshot
   const row = oneRow(
     port,
     'SELECT input_digest, form, result FROM sl_operation WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
@@ -254,10 +272,11 @@ function batchOf(
 export function judgeLog(
   facts: Readonly<Record<string, JsonValue>>,
   port: ParticipantPort,
+  covering: CoveringSnapshot = readCoveringSnapshot,
 ): LogJudgment {
   const observation = observationOf(facts)
   if (typeof observation === 'string') return { kind: 'unsupported', reason: observation }
-  const start = readStart(port, observation)
+  const start = readStart(port, observation, covering)
   if ('kind' in start) return start
   const { tenant, previous, held } = start
   const digest = digestSessionLog(observation)
