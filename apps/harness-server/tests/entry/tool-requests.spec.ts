@@ -2,6 +2,8 @@
 // 发行快照）每次现取；任一缺席或不符都答 unavailable 或 denied，跨租户被拒。供给的请求经 Tool 公开判定通过，
 // 且定义、consumer、参数都是准入动作的原样。
 import { describe, expect, it } from 'vitest'
+import type { PrincipalIssuer } from '@omne-harness/identity'
+import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import type { ScopeBindingSource } from '@omne-harness/runtime-context-contract'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -181,6 +183,23 @@ describe('the trusted Tool request source', () => {
     expect(await prepared(ports, structuredClone(principalA))).toMatchObject({
       failure: { kind: 'denied' },
     })
+  })
+
+  it('denies a verified principal that names a session but was issued for another component (N3)', async () => {
+    const { fixture, ports } = await world()
+    const issuer = fixture.env
+      .readTrusted(principalIssuerKey)
+      .get(principalIssuerKey) as PrincipalIssuer
+    const actor = okOf(issuer.issueSystem({ component: 'notSessionWork' }), 'actor')
+    const other = okOf(
+      issuer.issueActingForTenant({
+        actor,
+        tenant: TENANT_A,
+        work: { owner: 'session', work: 'ses-a' },
+      }),
+      'principal',
+    )
+    expect(await prepared(ports, other)).toMatchObject({ failure: { kind: 'denied' } })
   })
 
   it('answers unavailable without the catalog', async () => {

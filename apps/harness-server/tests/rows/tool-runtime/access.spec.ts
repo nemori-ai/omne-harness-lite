@@ -2,6 +2,8 @@
 // 来源资格只认本租户、经核验的会话工作主体，consumer 只认 Agent 的动作位置；核验器缺席答 unavailable，不放行。
 import { describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
+import type { PrincipalIssuer } from '@omne-harness/identity'
+import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import type { ConsumerRef } from '@omne-harness/tool-contract'
 import { sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
 import type { ToolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
@@ -53,6 +55,32 @@ describe('release Tool source authority', () => {
         consumer: AGENT_ACTION,
       }),
     ).toEqual({ kind: 'denied', reason: 'foreign-tenant' })
+  })
+
+  it('refuses a verified principal that names a session but was issued for another component (N3)', async () => {
+    const { fixture } = await world()
+    const issuer = fixture.env
+      .readTrusted(principalIssuerKey)
+      .get(principalIssuerKey) as PrincipalIssuer
+    const actor = okOf(issuer.issueSystem({ component: 'notSessionWork' }), 'actor')
+    const other = okOf(
+      issuer.issueActingForTenant({
+        actor,
+        tenant: TENANT_A,
+        work: { owner: 'session', work: 'ses-a' },
+      }),
+      'principal',
+    )
+    const identity = createReleaseToolIdentity(fixture.root, holder)
+    expect(
+      await identity.sourceAuthority.qualify({
+        principal: other,
+        tenant: TENANT_A,
+        consumer: AGENT_ACTION,
+      }),
+    ).toEqual({ kind: 'denied', reason: 'not-a-session-work-principal' })
+    expect(await identity.subjects.project(other)).toMatchObject({ failure: { kind: 'denied' } })
+    expect(await identity.sessionOf(other, TENANT_A)).toBeUndefined()
   })
 
   it('denies a consumer that is not the Agent action position', async () => {

@@ -4,8 +4,9 @@
 // `releaseToolRequestsOf` 就是这个形状，每次调用经 `ctx` 现取各来源。
 //
 // 每个字段的来源：
-// - 主体：经 `principalVerifier` 核验，必须是这个租户的会话工作主体（actor `sessionWorkPrincipals`，工作拥有者
-//   `session`）；它的工作文本就是会话 id。其余主体答 denied，核验器缺席答 unavailable。
+// - 主体：经 `principalVerifier` 核验，必须是这个租户的会话工作主体；判定只有一份，在
+//   `rows/tool-runtime/session-work.ts`，与 Tool 运行时的身份一侧同口径。它的工作文本就是会话 id。其余主体答
+//   denied，核验器缺席答 unavailable。
 // - 定义与可用性：`toolCatalog.inspect`。模型看到的名字按 request-context 的声明规则（`declare-tools.ts`：
 //   多命令工具是 `<工具>.<命令>`，单函数工具是工具名）拆成工具名与命令。消费者材料是发行清单确认的文本消费者。
 //   不在发行清单里、不是官方层、不是 `available` 的答 unavailable；prepare 时定义采用必须与 describe 给出的相同。
@@ -22,7 +23,7 @@ import { executionScopeBindingKey } from '@omne-harness/execution-environment-co
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { principalVerifierKey } from '@omne-harness/identity/cordis'
 import { writeJsonText } from '@omne-harness/json-text'
-import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeScopeRef,
@@ -44,8 +45,8 @@ import type {
   ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
-import { classify } from '../rows/authorization/principals.ts'
 import { RELEASE_REQUEST_CONTEXT, RELEASE_TOOL_SCOPE } from '../rows/tool-runtime/scope.ts'
+import { verifySessionWork } from '../rows/tool-runtime/session-work.ts'
 import { releaseOf, type ToolRelease } from './tool-release.ts'
 
 /** `createAgentHostRow({ toolRequestsOf })` 期望的来源形状（Agent `AgentDependencies['toolRequests']`）。 */
@@ -82,32 +83,22 @@ export function routeOf(declared: string): Readonly<{ name: string; command: str
     : { name: declared.slice(0, dot), command: declared.slice(dot + 1) }
 }
 
-/** 主体经核验是这个租户的会话工作主体时给出会话 id。 */
+/** 主体经核验是这个租户的会话工作主体时给出会话 id（判定只有 `session-work.ts` 一份）。 */
 async function sessionOf(
   ports: ToolRequestPorts,
   principal: unknown,
   tenant: TenantId,
 ): Promise<Outcome<SessionId, Failure>> {
-  const verifier = ports.verifier()
-  if (verifier === undefined) return unavailable('principal verifier absent')
-  let checked: Awaited<ReturnType<PrincipalVerifier['verify']>>
-  try {
-    checked = await verifier.verify(principal)
-  } catch {
-    return unavailable('principal verification threw')
+  const verdict = await verifySessionWork(ports.verifier(), principal, tenant)
+  switch (verdict.kind) {
+    case 'unavailable':
+      return unavailable(verdict.diagnostic)
+    case 'denied':
+      return denied('tool-request')
+    default:
+      // The work text of a session work principal is the session id that Session gave when it issued it.
+      return succeed(verdict.session as SessionId)
   }
-  if (checked.kind === 'unavailable') return unavailable('principal verifier unavailable')
-  if (checked.kind !== 'verified') return denied('tool-request')
-  const who = classify(checked.principal)
-  if (
-    who?.column !== 'work' ||
-    who.principal.actor.component !== 'sessionWorkPrincipals' ||
-    !tenantCodec.encode(tenant).ok ||
-    !tenantEquals(who.principal.tenant, tenant)
-  )
-    return denied('tool-request')
-  // The work text of a session work principal is the session id that Session gave when it issued it.
-  return succeed(who.principal.work.work as SessionId)
 }
 
 function consumerOf(release: Trusted): ToolConsumerProfile {
@@ -150,8 +141,8 @@ async function availabilityOf(
   return succeed({ ...availability, command })
 }
 
-/** 会话的当前 Context 作用域，且它经可信绑定属于这个租户。 */
-async function currentScope(
+/** 会话快照里当前（最后一个、未结束的）Context 作用域。 */
+async function sessionScope(
   ports: ToolRequestPorts,
   tenant: TenantId,
   principal: unknown,
@@ -172,23 +163,42 @@ async function currentScope(
   if (binding === undefined) return unavailable('the session has no context scope')
   if (binding.ended !== null) return unavailable('the context scope of the session has ended')
   const scope = decodeScopeRef({ ref: binding.scope })
-  if ('failure' in scope) return unavailable('the context scope is not a scope ref')
+  return 'failure' in scope ? unavailable('the context scope is not a scope ref') : scope
+}
+
+/** 作用域经可信绑定属于这个租户；绑定缺席或不明答 unavailable，未绑定或绑到别的租户答 denied。 */
+async function tenantScope(
+  ports: ToolRequestPorts,
+  tenant: TenantId,
+  scope: ScopeRef,
+): Promise<Outcome<ScopeRef, Failure>> {
   const bindings = ports.scopeBinding()
   if (bindings === undefined) return unavailable('execution scope binding absent')
   let bound: Awaited<ReturnType<ScopeBindingSource['lookup']>>
   try {
-    bound = await bindings.lookup(scope.ok)
+    bound = await bindings.lookup(scope)
   } catch {
     return unavailable('execution scope binding threw')
   }
   switch (bound.kind) {
     case 'bound':
-      return tenantEquals(bound.tenant, tenant) ? succeed(scope.ok) : denied('tool-request-scope')
+      return tenantEquals(bound.tenant, tenant) ? succeed(scope) : denied('tool-request-scope')
     case 'unbound':
       return denied('tool-request-scope')
     default:
       return unavailable(`execution scope binding answered ${bound.kind}`)
   }
+}
+
+/** 会话的当前 Context 作用域，且它经可信绑定属于这个租户。 */
+async function currentScope(
+  ports: ToolRequestPorts,
+  tenant: TenantId,
+  principal: unknown,
+  session: SessionId,
+): Promise<Outcome<ScopeRef, Failure>> {
+  const scope = await sessionScope(ports, tenant, principal, session)
+  return 'failure' in scope ? scope : tenantScope(ports, tenant, scope.ok)
 }
 
 export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolRequests {
