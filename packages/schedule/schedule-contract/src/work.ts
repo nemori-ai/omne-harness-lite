@@ -4,6 +4,7 @@ import {
   ScheduleInstructionSchema,
   ScheduleJsonValueSchema,
   ScheduleUuidSchema,
+  scheduleUtf8TextSchema,
 } from './values.ts'
 export const ScheduleTargetSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('owner') }),
@@ -83,8 +84,11 @@ export const ScheduleWorkSchema = z.discriminatedUnion('kind', [
     ),
 ])
 export const ScheduleReminderContentSchema = z.strictObject({
-  title: z.string().nullable(),
-  body: z.string(),
+  title: z
+    .string()
+    .refine(value => Array.from(value).length <= 200, 'Code point limit exceeded')
+    .nullable(),
+  body: scheduleUtf8TextSchema(16_384),
 })
 export const ScheduleExecutionNotificationSchema = z.strictObject({
   event: z.enum(['started', 'succeeded', 'failed', 'cancelled']),

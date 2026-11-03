@@ -12,6 +12,7 @@ import {
   ScheduleCallContextSchema,
   ScheduleCommandSchema,
   ScheduleCreateRequestSchema,
+  ScheduleReminderContentSchema,
 } from '@omne-harness/schedule-contract'
 
 const recurrence = { kind: 'once', localAt: '2026-11-04T10:00:00' }
@@ -153,6 +154,52 @@ describe('complete schedule definitions', () => {
         calendarOverlay: { predicate: 'holiday', adjust: 'skip' },
       }).success,
     ).toBe(false)
+  })
+})
+
+describe('reminder content boundaries', () => {
+  it.each([
+    { title: null, body: '', valid: false },
+    { title: '', body: ' ', valid: true },
+    { title: '😀'.repeat(200), body: 'a'.repeat(16_384), valid: true },
+    { title: '😀'.repeat(201), body: 'ok', valid: false },
+    { title: null, body: 'a'.repeat(16_385), valid: false },
+    { title: null, body: '😀'.repeat(4_096), valid: true },
+    { title: null, body: '😀'.repeat(4_097), valid: false },
+    { title: ' e\u0301 ', body: '\n e\u0301 \n', valid: true },
+  ])('validates content case %# through all consumers', ({ title, body, valid }) => {
+    const content = { title, body }
+    const parsed = ScheduleReminderContentSchema.safeParse(content)
+    expect(parsed.success).toBe(valid)
+    if (parsed.success) expect(parsed.data).toEqual(content)
+    expect(
+      ScheduleDefinitionSchema.safeParse({
+        ...definition,
+        purpose: {
+          kind: 'reminder',
+          content,
+          admissionPolicy: 'reminder-window-v1',
+          overlap: 'parallel',
+        },
+      }).success,
+    ).toBe(valid)
+    expect(
+      ScheduleDefinitionSchema.safeParse({
+        ...definition,
+        purpose: {
+          ...purpose,
+          notifications: [{ event: 'started', content, target: { kind: 'owner' } }],
+        },
+      }).success,
+    ).toBe(valid)
+    expect(
+      ScheduleCommandSchema.safeParse({
+        scheduleId: '00000000-0000-4000-8000-000000000001',
+        action: 'update',
+        patch: { kind: 'reminderContent', content, label: null },
+        meta: { operationKey: 'content', expectedRevision: 1, consentRef: null },
+      }).success,
+    ).toBe(valid)
   })
 })
 
