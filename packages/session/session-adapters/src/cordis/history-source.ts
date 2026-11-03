@@ -8,10 +8,7 @@
 //   no principal of its own.
 // - The lower bound sub-plugin `session-ad04-lower-bound` injects `session` with the `coordinator`
 //   caller class. It reads `readWork` with the access of the call: the open work that bounds the
-//   compaction window from below, the context scopes of the session, and the executions of the
-//   session for the transitional narrow adoption source.
-// - The adoption sub-plugin `session-ad04-adopted` injects `agentJournal` only, and calls no
-//   `session`. It loads the Journal of each execution for the transitional narrow adoption source.
+//   compaction window from below, and the context scopes of the session.
 //
 // A lease is an effect of the borrower fiber. The holder pulls the settlement when the lease ends,
 // by `release` or by that unload, and closes the lent reads only after every settlement it pulled
@@ -19,15 +16,10 @@
 //
 // The Session log is the authority. The plugins keep only derivatives: the scope-to-session index
 // (process lifetime, bounded) and the lease bookkeeping of one source fiber. Named gaps: the
-// decoding of a history head evidence to its session is handed in as `heads`. The fixed request
-// facts of the narrow adoption source are handed in as `adopted`. Without them the part is
-// transitional (R2-D216): it answers `null` while no execution of the session has fixed a main
-// request, and unavailable once one has, because the Journal keeps only digests of the fixed request
-// facts (NP-02). The design closure FIXED-FACTS supplies the full facts; then this logic goes.
-import { createHash } from 'node:crypto'
+// decoding of a history head evidence to its session is handed in as `heads`; the fixed request
+// facts of the narrow adoption source are handed in as `adopted`, and without them that part answers
+// unavailable after its access check (NP-02).
 import type { Context } from '@deepseek-ai/cordis'
-import { decodeAgentExecutionId, type AgentJournal } from '@omne-harness/agent-contract'
-import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { parseRecordEntryRef, type CompactionContext } from '@omne-harness/message'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -121,15 +113,12 @@ export type SessionHistorySourceInput = Readonly<{
   pageBytes?: number
 }>
 
-/**
- * The authority the narrow adoption source names while no fixed request facts are handed in: the
- * transitional source over the Agent Journal (R2-D216). FIXED-FACTS replaces it.
- */
-const TRANSITIONAL_ADOPTED: AdoptedRequestSource<unknown>['authority'] = {
+/** The authority the narrow adoption source names while no fixed request facts are handed in. */
+const ABSENT_ADOPTED: AdoptedRequestSource<unknown>['authority'] = {
   owner: '@omne-harness/session-adapters',
-  name: 'session-ad04/adopted-transitional',
+  name: 'session-ad04/adopted-absent',
   revision: '1',
-  digest: 'session-ad04:adopted-transitional/1',
+  digest: 'session-ad04:adopted-absent',
 }
 
 /** The `readWork` of the lower bound sub-plugin, as the source sub-plugin sees it. */
@@ -137,16 +126,11 @@ interface WorkReads {
   readWork(access: SessionAccess<unknown>): Promise<Outcome<WorkSnapshot, SessionFailure>>
 }
 
-/** The `load` of the adoption sub-plugin, as the source sub-plugin sees it. */
-interface JournalReads {
-  load: AgentJournal<unknown>['load']
-}
-
 type Shared = {
   readonly input: SessionHistorySourceInput
   /** tenant text and scope ref → the session; a derivative of `readWork`, kept across generations. */
   readonly index: Map<string, SessionHistoryHead>
-  readonly link: { work: WorkReads | undefined; journal: JournalReads | undefined }
+  readonly link: { work: WorkReads | undefined }
   /** One number per source fiber in this process; the eligibility revision carries it. */
   generations: number
   /** The reads state of the latest source fiber; `undefined` before the first one. */
@@ -463,8 +447,6 @@ function checkEvidence(evidence: unknown): Evidenced | Invalid {
 
 type Located = Omit<Targeted, 'kind'> &
   Readonly<{ kind: 'located'; session: SessionAccess<unknown> }>
-/** Transitional: no request of the scope is fixed; the token covers what the answer read. */
-type NotFixed = Readonly<{ kind: 'not-fixed'; token: GroupToken }>
 
 class SessionHolderSources extends ContextHolderSourcesService<unknown> {
   private readonly scope: Context
@@ -631,14 +613,11 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     const adoptedRead = async <T>(
       input: AdoptedRead<unknown>,
       read: (source: AdoptedRequestSource<unknown>) => Promise<SourceRead<T>>,
-      transitional: (fixed: NotFixed) => SourceRead<T>,
     ): Promise<SourceRead<T>> => {
       const admitted = await this.admitted(input.access, input.target)
       if (admitted.kind !== 'located') return admitted
-      if (handed === undefined) {
-        const state = await this.journalAdoption(admitted)
-        return state.kind === 'not-fixed' ? transitional(state) : state
-      }
+      if (handed === undefined)
+        return unavailable('adopted-facts-absent: no fixed request facts are handed in (NP-02)')
       try {
         return await read(handed)
       } catch (cause) {
@@ -646,80 +625,12 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       }
     }
     const adopted: AdoptedRequestSource<unknown> = {
-      authority: handed?.authority ?? TRANSITIONAL_ADOPTED,
-      readCount: input =>
-        adoptedRead(
-          input,
-          source => source.readCount(input),
-          state => ({ kind: 'value', value: state.token }),
-        ),
-      readSource: input =>
-        adoptedRead(
-          input,
-          source => source.readSource(input),
-          () => ({ kind: 'value', value: null }),
-        ),
+      authority: handed?.authority ?? ABSENT_ADOPTED,
+      readCount: input => adoptedRead(input, source => source.readCount(input)),
+      readSource: input => adoptedRead(input, source => source.readSource(input)),
     }
     const resolveHistory: HistoryEvidenceResolver<unknown> = input => this.resolve(input)
     return { history, adopted, eligibility, resolveHistory }
-  }
-
-  /**
-   * Transitional (R2-D216, until FIXED-FACTS): whether an execution of the session has fixed a
-   * main request. The Agent writes `adoptedContext` and the main Model call into its checkpoint in
-   * one commit (M0) and never clears `adoptedContext`, so a null `adoptedContext` and no main call
-   * in every execution of the session means that no request of the scope is fixed: the answer is
-   * `null`. Once one is fixed the Journal holds only digests of the facts (`coverage`, the commit
-   * order, the window and the forecast have no recorded value), so the answer is unavailable, never
-   * `null` and never a made-up fact. The token covers the executions and their Journal revisions,
-   * so the first fixing commit changes it.
-   */
-  private async journalAdoption(located: Located): Promise<NotFixed | Refusal> {
-    const { work, journal } = this.shared.link
-    if (work === undefined || journal === undefined)
-      return unavailable(
-        `adopted-facts-pending: the ${work === undefined ? 'lower bound' : 'adoption'} sub-plugin is not running`,
-      )
-    const snapshot = await this.call(() => work.readWork(located.session))
-    if ('failure' in snapshot) {
-      const refused = refusalOf(snapshot.failure, 'target')
-      return refused.kind === 'invalid' ? unavailable('the work read answered invalid') : refused
-    }
-    const names = new Set((snapshot.ok.executions ?? []).map(item => item.execution.execution))
-    if (snapshot.ok.run.kind === 'active') names.add(snapshot.ok.run.execution.execution)
-    const revisions: [string, string][] = []
-    for (const name of [...names].sort()) {
-      const execution = decodeAgentExecutionId(name)
-      if ('failure' in execution) return this.defect('an execution of the session is not an Agent identity')
-      if (this.state.closed) return unavailable('the reads closed')
-      let loaded: Awaited<ReturnType<JournalReads['load']>>
-      try {
-        loaded = await journal.load({
-          principal: located.access.principal,
-          tenant: located.access.tenant,
-          execution: execution.ok,
-        })
-      } catch (cause) {
-        return unavailable(`the Journal load threw: ${describe(cause)}`)
-      }
-      if ('failure' in loaded)
-        return loaded.failure.kind === 'denied'
-          ? DENIED
-          : unavailable(`the Journal load answered ${loaded.failure.kind}`)
-      const { checkpoint } = loaded.ok
-      const mainCall = checkpoint.calls.some(
-        call => call.kind === 'model' && call.purpose === 'main',
-      )
-      if (checkpoint.adoptedContext !== null || mainCall)
-        return unavailable(
-          'adopted-facts-unrecorded: a request of this scope is fixed, and the Journal keeps no full facts of it (NP-02, FIXED-FACTS)',
-        )
-      revisions.push([name, loaded.ok.revision])
-    }
-    const digest = createHash('sha256').update(JSON.stringify(revisions)).digest('hex')
-    const token = decodeGroupToken(`session-ad04/adopted/${digest}`)
-    if (!('ok' in token)) return this.defect('the adoption token is not a group token')
-    return { kind: 'not-fixed', token: token.ok }
   }
 
   private async read(
@@ -1131,17 +1042,15 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
 // --- the factory -----------------------------------------------------------------------------------
 
 /**
- * The AD-04 sub-plugins. Mount all three. The source and the lower bound sub-plugins stay `PENDING`
- * while `session` is absent, the adoption sub-plugin while `agentJournal` is absent. Without the
+ * The AD-04 sub-plugins. Mount both; each stays `PENDING` while `session` is absent. Without the
  * lower bound sub-plugin the source sub-plugin still provides `contextHolderSources`; its resolver
- * and its compaction window answer unavailable. Without the lower bound or the adoption sub-plugin,
- * and no `adopted` handed in, the narrow adoption source answers unavailable.
+ * and its compaction window answer unavailable.
  */
 export function createSessionHistorySource(input: SessionHistorySourceInput) {
   const shared: Shared = {
     input,
     index: new Map(),
-    link: { work: undefined, journal: undefined },
+    link: { work: undefined },
     generations: 0,
     latest: undefined,
   }
@@ -1166,25 +1075,6 @@ export function createSessionHistorySource(input: SessionHistorySourceInput) {
             if (shared.link.work === reads) shared.link.work = undefined
           },
           'session-ad04.lower-bound',
-        )
-      },
-    },
-    /**
-     * `session-ad04-adopted`: loads the Agent Journal for the transitional narrow adoption source
-     * (R2-D216, until FIXED-FACTS). It injects `agentJournal` only and calls no `session`.
-     */
-    adoption: {
-      name: 'session-ad04-adopted',
-      inject: { [agentJournalKey]: null },
-      apply(ctx: Context) {
-        const journal = ctx[agentJournalKey]
-        const reads: JournalReads = { load: value => journal.load(value) }
-        shared.link.journal = reads
-        ctx.effect(
-          () => () => {
-            if (shared.link.journal === reads) shared.link.journal = undefined
-          },
-          'session-ad04.adopted',
         )
       },
     },
