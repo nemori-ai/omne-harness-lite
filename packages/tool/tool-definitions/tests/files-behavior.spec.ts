@@ -18,7 +18,7 @@ it('fails the entire list when an older provider omits one entry name', async ()
             ...result.value,
             entries: result.value.entries.map((entry, index) => {
               const copy = { ...entry }
-              if (index === 1) delete copy.name
+              if (index === 1) Reflect.deleteProperty(copy, 'name')
               return copy
             }),
           },

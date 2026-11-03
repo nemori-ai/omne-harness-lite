@@ -1,5 +1,14 @@
 import type { FacilityResult, FileIdentity } from '@omne-harness/execution-environment-contract'
 
+/** Older providers may omit this observation; never infer it from an object token. */
+export function writeEffectOf(value: object): string {
+  if (!('writeEffect' in value)) return 'unreported'
+  const effect = value.writeEffect
+  return effect === 'created' || effect === 'in-place' || effect === 'replaced'
+    ? effect
+    : 'unreported'
+}
+
 const encoder = new TextEncoder()
 export function utf8Length(text: string): number {
   return encoder.encode(text).byteLength

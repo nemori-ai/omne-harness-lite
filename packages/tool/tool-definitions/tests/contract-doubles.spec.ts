@@ -70,7 +70,23 @@ it('consumes the existing memory files and scripted command through request-bind
     ),
   ).toContain('done')
   expect(new TextDecoder().decode(memory.peek('docs/note.txt'))).toBe('中文\r\nnew\r\n末')
-  expect(await run(files, 'list', { path: 'docs' }, environment)).toContain('note.txt')
+  const listed = await memory.facility.list({
+    ...request(),
+    path: 'docs',
+    named: memory.objectToken('docs') ?? null,
+  })
+  if (listed.kind !== 'done') throw new Error('memory directory listing failed')
+  expect(listed.value.entries).toHaveLength(1)
+  const named = listed.value.entries.every(
+    entry => 'name' in entry && typeof entry.name === 'string',
+  )
+  const listing = await run(files, 'list', { path: 'docs' }, environment)
+  if (named) expect(listing).toContain('note.txt')
+  else {
+    expect(listing).toMatch(/^unavailable/)
+    expect(listing).toContain('entry-name-unavailable')
+    expect(listing).not.toContain('note.txt')
+  }
   const scripted = createScriptedCommandFacility<string>(() => ({
     kind: 'started',
     output: [

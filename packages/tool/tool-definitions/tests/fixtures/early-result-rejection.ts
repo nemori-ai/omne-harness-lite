@@ -38,8 +38,10 @@ try {
       command: { start },
       terminal: { ...fixture.environment.terminal, execute: start },
     }
+    const author = value(createShellAuthor(fixture.config))
+    if (route === 'terminal') await run(author, 'create_session', {}, environment)
     const call = run(
-      value(createShellAuthor(fixture.config)),
+      author,
       'execute',
       {
         script: 'command',

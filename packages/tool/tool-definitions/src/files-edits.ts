@@ -5,7 +5,7 @@ import type {
 } from '@omne-harness/execution-environment-contract'
 import type { FilesAuthorEnvironment } from './environment.ts'
 import type { ExactEdit } from './protocol.ts'
-import { confirmation, diff, identityText } from './text.ts'
+import { confirmation, diff, identityText, writeEffectOf } from './text.ts'
 
 type Files = FilesAuthorEnvironment['files']
 type Read = FileIdentity & { readonly text: string }
@@ -120,7 +120,7 @@ export async function editFiles(
     mode: 'replace',
     expectedVersion: item.identity.version,
   })
-  return `${confirmation(result, value => `path=${JSON.stringify(item.path)} ${identityText(value)} write_effect=${value.writeEffect ?? 'unreported'}`)}\n${result.kind === 'done' ? 'applied diff' : 'planned diff (not confirmed)'}\n${plannedDiff}`
+  return `${confirmation(result, value => `path=${JSON.stringify(item.path)} ${identityText(value)} write_effect=${writeEffectOf(value)}`)}\n${result.kind === 'done' ? 'applied diff' : 'planned diff (not confirmed)'}\n${plannedDiff}`
 }
 function batchConfirmation(result: FacilityResult<FileBatchOutcome>): string {
   if (result.kind !== 'done') return confirmation(result, () => '')

@@ -10,7 +10,7 @@ import { filesCommands } from './commands.ts'
 import type { FilesAuthorEnvironment } from './environment.ts'
 import { editFiles } from './files-edits.ts'
 import { parseConstruction, type Arguments, type Field } from './protocol.ts'
-import { confirmation, identityText } from './text.ts'
+import { confirmation, identityText, writeEffectOf } from './text.ts'
 
 export const resultMaximumField: Field = {
   name: 'resultMaxBytes',
@@ -102,8 +102,7 @@ async function executeFiles(
           mode: args.text('mode') === 'create' ? 'create' : 'replace',
           ...expected(args),
         }),
-        value =>
-          `${header} ${identityText(value)} write_effect=${value.writeEffect ?? 'unreported'}`,
+        value => `${header} ${identityText(value)} write_effect=${writeEffectOf(value)}`,
       ),
     edit: () =>
       editFiles(
@@ -117,7 +116,7 @@ async function executeFiles(
       if (listed.kind !== 'done') return confirmation(listed, () => '')
       const entries: string[] = []
       for (const entry of listed.value.entries) {
-        const name = entry.name
+        const name = 'name' in entry ? entry.name : undefined
         if (
           typeof name !== 'string' ||
           name === '' ||
