@@ -19,7 +19,7 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 - 预约、发布与撤除。reserve 只预约实例身份并返回登记句柄，不登记目录，不授予推进资格。发布权威同步核验两件事：该操作是宿主为这个预约发起的 publish，调用 fiber 是该实例的贡献 fiber。撤除只接受目录为该实例分配的登记身份，调用 fiber 须是宿主自己的 fiber 或该实例的贡献 fiber。旧登记身份的撤除不撤除后继登记。
 - 空闲回收。实例报告 idle 后，宿主用 `agentClock` 计时 `instanceIdleMs`。到期回调不经 await，先读最近一次报告，再标记回收，然后调用 quiesce。只有 drained 才卸载贡献 fiber。unresolved 或失败时，实例保持 published，宿主记录 error 级诊断，下一次空闲到期再试。
 - 恢复入口与控制入口。每个操作先以 `agentAccessCheck` 核验本操作名，目标是原 execution，然后调用 Journal。两个入口不要求活体 runtime，也不要求执行句柄。它们保留 Journal 的答复，包括未知。目标挂接属于本宿主仍在运行的 runtime 时，detach 另核 takeover。
-- 控制的推进。Journal 受理控制之后，宿主读原 execution 的当前挂接。挂接属于本宿主仍在运行的 runtime 时，宿主用该 runtime 的依赖经 `@omne-harness/agent` 的 `advanceControl` 推进这项控制，与执行句柄的 control 相同：取消建立意图并撤销推进资格，Model 或 Tool 中断只作用于原调用。推进在答复之前完成。推进失败时返回该失败，调用方以同一 control operation 重试，已保存的阶段按派生 operation 认回，不重复写。没有挂接，或挂接不属于本宿主仍在运行的 runtime 时，控制只保存为 accepted，由恢复路径推进，宿主不另造推进。
+- 控制的推进。Journal 受理控制之后，宿主读原 execution 的当前挂接。挂接属于本宿主仍在运行的 runtime 时，宿主用该 runtime 的依赖经 `@omne-harness/agent` 的 `advanceControl` 推进这项控制，与执行句柄的 control 相同：取消建立意图并撤销推进资格，Model 或 Tool 中断只作用于原调用。推进在答复之前完成。推进失败时返回该失败，调用方以同一 control operation 重试，已保存的阶段按派生 operation 认回，不重复写。没有挂接，或挂接不属于本宿主仍在运行的 runtime 时，控制只保存为 accepted，由恢复路径推进，宿主不另造推进。已知限制：当前恢复路径（Agent 协调器的 R0）遇到未推进的 accepted 控制仍答 `#502 stage 5` 未实现，所以挂接属于别的进程或已退役实例时，这项控制停在 accepted，不建立意图。触发条件：跨进程宿主或恢复后取消进入验收。
 - 突然失去依赖。插件体卸载时，宿主停止计时，不再建立实例，也不调用 detach。挂接与在途责任保留在 Journal，宿主不声称外部效果已撤回。
 
 ### 测量事件

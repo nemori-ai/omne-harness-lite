@@ -143,8 +143,14 @@
 - `SessionCommand` · 包 `@omne-harness/session-contract`
 - `SessionContextInput` · 包 `@omne-harness/session-contract`
 - `SessionControlAnswer` · 包 `@omne-harness/session-contract`
+- `SessionControlDecisionInput` · 包 `@omne-harness/session-contract`
 - `SessionControlEntryReferences` · 包 `@omne-harness/session-contract`
+- `SessionControlEvidence` · 包 `@omne-harness/session-contract`
+- `SessionControlOrigin` · 包 `@omne-harness/session-contract`
 - `SessionControlReceipt` · 包 `@omne-harness/session-contract`
+- `SessionControlRecordEvidence` · 包 `@omne-harness/session-contract`
+- `SessionControlSettlement` · 包 `@omne-harness/session-contract`
+- `SessionControlStage` · 包 `@omne-harness/session-contract`
 - `SessionCreation` · 包 `@omne-harness/session-contract`
 - `SessionCursorSignResult` · `cursor-signing.d.ts`
 - `SessionCursorSignature` · `cursor-signing.d.ts`
@@ -164,6 +170,7 @@
 - `SessionExecutionPrefix` · 包 `@omne-harness/session-contract`
 - `SessionFaces` · 包 `@omne-harness/session-contract`
 - `SessionFactBoundary` · 包 `@omne-harness/session-contract`
+- `SessionFactKind` · 包 `@omne-harness/session-contract`
 - `SessionFailure` · 包 `@omne-harness/session-contract`
 - `SessionFrozen` · 包 `@omne-harness/session-contract`
 - `SessionHistory` · 包 `@omne-harness/session-contract`
@@ -209,6 +216,7 @@
 - `WorkspaceAttachment` · 包 `@omne-harness/session-contract`
 - `commandDigest` · 包 `@omne-harness/session-contract`
 - `decide` · 包 `@omne-harness/session-contract`
+- `decideControlConsequences` · 包 `@omne-harness/session-contract`
 - `deriveDriveOperation` · 包 `@omne-harness/session-contract`
 - `deriveIngressOperation` · 包 `@omne-harness/session-contract`
 - `deriveSessionOperation` · 包 `@omne-harness/session-contract`
@@ -216,6 +224,7 @@
 - `digestSessionLog` · 包 `@omne-harness/session-contract`
 - `executionReadThrough` · 包 `@omne-harness/session-contract`
 - `initializationRegistrationCommit` · 包 `@omne-harness/session-contract`
+- `isDeferredFact` · 包 `@omne-harness/session-contract`
 - `judgeAdvance` · 包 `@omne-harness/session-contract`
 - `judgeCompletion` · 包 `@omne-harness/session-contract`
 - `judgeIdle` · 包 `@omne-harness/session-contract`

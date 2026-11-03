@@ -360,7 +360,29 @@ describe('the history read continues from the cached rows', () => {
 })
 
 describe('cached material is used only for the call it belongs to', () => {
-  it('CX-14 ignores material of another principal, generation, position or purpose', async () => {
+  it('CX-14 continues the material of another position of the same principal and purpose', async () => {
+    const f = createAssemblyFixture({ rows: mixed() })
+    const slot = oneSlot()
+    const hot = operationsOf(f, slot.reuse)
+    growTo(f, 2)
+    candidateOf(await hot.assemble(f.call))
+    slot.commit()
+    const { counts } = counted(f)
+    growTo(f, 4)
+    const next = {
+      ...f.call,
+      position: 'position:other' as never,
+      candidate: 'candidate:2' as never,
+    }
+    const warm = candidateOf(await hot.assemble(next))
+    // Only the two new rows are read; the content is that of a call without reuse.
+    expect(counts.rows).toBe(2)
+    const cold = candidateOf(await operationsOf(f).assemble(next))
+    expect(warm.layers).toEqual(cold.layers)
+    expect(warm.preparation).toEqual(cold.preparation)
+  })
+
+  it('CX-14 ignores material of another principal, generation or purpose', async () => {
     const f = createAssemblyFixture({ rows: mixed() })
     const slot = oneSlot()
     const hot = operationsOf(f, slot.reuse)
@@ -373,13 +395,6 @@ describe('cached material is used only for the call it belongs to', () => {
     const foreign: readonly CachedAssemblyMaterial[] = [
       { ...material, key: { ...material.key, principal: 'principal_other' as never } },
       { ...material, key: { ...material.key, generation: 'generation_other' as never } },
-      {
-        ...material,
-        key: {
-          ...material.key,
-          identity: { ...material.key.identity, position: 'position:other' as never },
-        },
-      },
       {
         ...material,
         key: { ...material.key, identity: { ...material.key.identity, purpose: 'extension' } },
