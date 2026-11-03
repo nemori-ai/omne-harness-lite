@@ -2,9 +2,17 @@ import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
-import type { Reply } from './evaluation.ts'
+import type { PendingCall, Reply } from './evaluation.ts'
 import type { CommandReceipt, ExecutionMutation } from './execution.ts'
-import type { Access, Authority, ConsumerRef, ConsumptionId, DurableEvidence } from './identity.ts'
+import type {
+  Access,
+  AgentExecutionId,
+  AgentInstanceId,
+  Authority,
+  ConsumerRef,
+  ConsumptionId,
+  DurableEvidence,
+} from './identity.ts'
 import type { AgentJournal } from './journal.ts'
 import type { AgentMaterials, Material } from './passages.ts'
 
@@ -106,6 +114,45 @@ export type ReceivedCommitQuery = ReceivedCommitResult | Readonly<{ kind: 'unkno
 export interface AgentReceivedCommits<P, B extends ContentBlock> {
   commit(input: ReceivedCommitInput<P, B>): Reply<ReceivedCommitResult>
   query(input: ExecutionMutation<P>): Reply<ReceivedCommitQuery>
+}
+
+/**
+ * The original consumption binding of one Model call (J02 item 1): the execution and the instance
+ * that committed the PendingCall, and that PendingCall. The provider keeps it after the checkpoint
+ * dropped the call, the attachment ended or the instance went away.
+ */
+export type ModelReceptionTarget = Readonly<{
+  execution: AgentExecutionId
+  instance: AgentInstanceId
+  pending: Extract<PendingCall, { kind: 'model' }>
+}>
+
+/**
+ * The stable target query of the result receiver (J02 item 1), served by the provider that keeps
+ * the original consumption bindings. It answers from the bindings that committed PendingCalls
+ * established, never from the current attachment or from consumer text. `forExecution` gives every
+ * original Model binding of the execution. `resolve` gives the binding of one call reference and
+ * frozen consumer. Absent, of another tenant or not allowed: `denied`. A source that cannot be
+ * read: `unavailable`.
+ *
+ * `execution` is a route, not an identity: the receiver reads it from the consumer position that
+ * its own owner registered, and a provider that keeps its bindings per execution reads only the
+ * records of that execution. A binding of another execution answers as an absent one, and a
+ * provider that needs the route answers `denied` without it. The target always comes from the
+ * committed binding.
+ */
+export interface ModelReceptionTargets<P> {
+  forExecution(
+    input: Readonly<{ access: Access<P>; execution: AgentExecutionId }>,
+  ): Reply<readonly ModelReceptionTarget[]>
+  resolve(
+    input: Readonly<{
+      access: Access<P>
+      consumer: ConsumerRef
+      reference: M.ModelInvocationRef
+      execution?: AgentExecutionId
+    }>,
+  ): Reply<ModelReceptionTarget>
 }
 
 /** Views of one provider. A fixed non-null received port declares joint custody support. */

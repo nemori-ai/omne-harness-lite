@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto'
 import {
   decodeActionId,
   decodeActionBatchId,
+  decodeAgentExecutionId,
   decodeAgentOperationId,
   decodeConsumptionId,
   decodeStepId,
@@ -15,6 +16,7 @@ import {
   type ActionBatchId,
   type AgentExecutionId,
   type AgentOperationId,
+  type ConsumerRef,
   type ConsumptionId,
   type DurableEvidence,
   type ExecutionRevision,
@@ -50,6 +52,21 @@ function digest(text: string): string {
 }
 
 const STEP = /^step-(0|[1-9][0-9]*)$/u
+
+/**
+ * The execution that a consumer position of this coordinator names. The coordinator registers its
+ * Model consumer under `AGENT_OWNER` with `work` = `<execution>/<step>` (the main position of
+ * `coordinator.ts`); this reads it back. The result receiver uses it only as the route of its
+ * target query: the target it acts on is the committed binding the provider answers with. Null for
+ * a position of another owner or of another shape.
+ */
+export function positionExecution(consumer: ConsumerRef): AgentExecutionId | null {
+  if (consumer.owner !== AGENT_OWNER) return null
+  const at = consumer.work.lastIndexOf('/')
+  if (at <= 0 || !STEP.test(consumer.work.slice(at + 1))) return null
+  const execution = decodeAgentExecutionId(consumer.work.slice(0, at))
+  return 'ok' in execution ? execution.ok : null
+}
 
 export function stepOf(ordinal: number): StepId {
   const text = `step-${ordinal}`

@@ -520,7 +520,9 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       const requested = resolveModelInvocationRef(input.reference, input.access.tenant)
       if ('failure' in requested) return fail(denied())
       const found = callTargets.get(targetKey(input.access, requested.ok.call))
-      if (!found) return fail(denied())
+      // A route names the execution whose records are read; a binding of another one is absent.
+      if (!found || (input.execution !== undefined && input.execution !== found.execution))
+        return fail(denied())
       const permission = qualified({ ...input.access, execution: found.execution })
       return 'failure' in permission ? permission : succeed(structuredClone(found))
     },

@@ -11,6 +11,7 @@ import {
 } from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { canonical } from './canonical.ts'
+import { AGENT_OWNER, positionExecution } from './loop/identities.ts'
 import {
   modelDeliveryMaterial,
   modelReceivedDraft,
@@ -32,6 +33,12 @@ import {
 } from './receiving-state.ts'
 export { createModelReceiverState, ModelReceiverState } from './receiving-state.ts'
 export type { ModelReceptionDiagnostic, ModelReceiverReport } from './receiving-state.ts'
+/**
+ * The consumer owner under which this Agent registers every Model call it admits, and so the owner
+ * under which the host registers the receiver with the Model runtime (IC-13).
+ */
+export const AGENT_CONSUMER_OWNER: string = AGENT_OWNER
+
 export interface AgentModelReceiver<P> extends ModelResultReceiver<P> {
   recover(input: {
     access: Access<P>
@@ -163,10 +170,13 @@ export function createAgentModelReceiver<P>(
     if (stopped?.aborted) return fail({ kind: 'cancelled-before-accept' })
     let resolved
     try {
+      // The route is read from the position this Agent registered; the target is the binding.
+      const route = positionExecution(delivery.consumer)
       resolved = await dependencies.targets.resolve({
         access,
         reference: delivery.key.reference,
         consumer: delivery.consumer,
+        ...(route === null ? {} : { execution: route }),
       })
     } catch (error) {
       return failed('targets', error)

@@ -8,10 +8,12 @@ import type {
   AgentClock,
   AgentJournal,
   AgentJournalEntries,
+  AgentReceivedCommits,
   AgentInstanceHost,
   AgentInstanceId,
   AgentRegistrationId,
   Failure,
+  ModelReceptionTargets,
   Registration,
   Reply,
 } from '@omne-harness/agent-contract'
@@ -28,6 +30,8 @@ import {
   type AgentAccountOutletService,
   type AgentClockService,
   type AgentExecutionControlService,
+  type AgentReceivedCommitsService,
+  type ModelReceptionTargetsService,
   type AgentInstanceHostService,
   type AgentInstancesService,
   type AgentJournalEntriesService,
@@ -72,6 +76,21 @@ it('types the receiving services on the context with the operations of their por
   >()
   expectTypeOf<AgentExecutionControlService<string>['control']>().toEqualTypeOf<
     AgentExecutionControl<string>['control']
+  >()
+})
+
+it('types the two result receiver faces of the Journal provider with their ports', () => {
+  expectTypeOf(ctx.agentReceivedCommits).toEqualTypeOf<
+    AgentReceivedCommitsService<unknown, ContentBlock>
+  >()
+  expectTypeOf(ctx.agentModelReceptionTargets).toEqualTypeOf<
+    ModelReceptionTargetsService<unknown>
+  >()
+  expectTypeOf<AgentReceivedCommitsService<string, ContentBlock>['commit']>().toEqualTypeOf<
+    AgentReceivedCommits<string, ContentBlock>['commit']
+  >()
+  expectTypeOf<ModelReceptionTargetsService<string>['resolve']>().toEqualTypeOf<
+    ModelReceptionTargets<string>['resolve']
   >()
 })
 
