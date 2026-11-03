@@ -13,6 +13,7 @@ import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/iden
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
+import type { SessionId } from '@omne-harness/session-contract'
 import { canonicalDigest, type AccessVerdict, type ToolInvokeAuthority } from '@omne-harness/tool'
 import type {
   LocalToolControlSubject,
@@ -42,7 +43,7 @@ function identityPorts(ctx: Context) {
     verify: value => {
       const current = ctx.get(principalVerifierKey)
       return current === undefined
-        ? Promise.resolve({ kind: 'unavailable' as const })
+        ? Promise.resolve({ kind: 'unavailable' as const, diagnostic: 'principal verifier absent' })
         : current.verify(value)
     },
   }
@@ -152,7 +153,14 @@ export function createReleaseToolIdentity(
           diagnostic: 'the session work principal source is not installed',
         })
       try {
-        const issued = await work.forSession({ tenant: input.tenant, session: input.session })
+        // The session text comes from the original invocation source, which Session's own principal named.
+        const session = input.session as SessionId
+        // The Tool runtime continues the original call for the coordinator that started it.
+        const issued = await work.forSession({
+          actor: 'coordinator',
+          tenant: input.tenant,
+          session,
+        })
         if ('ok' in issued) return succeed<unknown>(issued.ok)
         return issued.failure.kind === 'denied'
           ? fail({ kind: 'denied', action: 'tool-session-work' })

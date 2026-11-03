@@ -88,7 +88,9 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     permitRequirements: releasePermitRequirements(root, identity),
     clock: holder.clock,
     configuration: config.configuration,
-    bindings: () => root.get(toolBindingsKey),
+    // The bindings row is built for any environment value; at run time the value it hands to the
+    // authors is the environment this bundle prepares, so the narrower type is the same object.
+    bindings: () => root.get(toolBindingsKey) as ReturnType<LocalToolRuntimeInput['bindings']>,
     catalog: () => root.get(toolCatalogKey),
     environment: environment.input,
     capacity: config.capacity,

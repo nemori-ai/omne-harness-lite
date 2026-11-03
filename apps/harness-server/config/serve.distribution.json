@@ -327,7 +327,7 @@
     },
     {
       "id": "tool-records",
-      "plugin": "stubPlugin",
+      "plugin": "toolRecordsRow",
       "config": {}
     },
     {
@@ -337,12 +337,12 @@
     },
     {
       "id": "tool-runtime",
-      "plugin": "stubPlugin",
+      "plugin": "toolRuntimeRow",
       "config": {}
     },
     {
       "id": "tool-executor",
-      "plugin": "stubPlugin",
+      "plugin": "toolExecutorRow",
       "config": {}
     },
     {
@@ -359,32 +359,32 @@
     },
     {
       "id": "tool-instances",
-      "plugin": "stubPlugin",
+      "plugin": "toolInstancesRow",
       "config": {}
     },
     {
       "id": "tool-environments",
-      "plugin": "stubPlugin",
+      "plugin": "toolEnvironmentsRow",
       "config": {}
     },
     {
       "id": "execution-environment",
-      "plugin": "stubPlugin",
+      "plugin": "executionEnvironmentRow",
       "config": {}
     },
     {
       "id": "execution-files",
-      "plugin": "stubPlugin",
+      "plugin": "executionFilesRow",
       "config": {}
     },
     {
       "id": "execution-command",
-      "plugin": "stubPlugin",
+      "plugin": "executionCommandRow",
       "config": {}
     },
     {
       "id": "execution-host",
-      "plugin": "stubPlugin",
+      "plugin": "executionHost",
       "config": {}
     },
     {

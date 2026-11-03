@@ -2,7 +2,8 @@
 // 六个插件分装到五行，每行一个 fiber，全部共用一份记录仓、账本、启动协调器和 driver：
 // - `tool-records`：records 插件，提供 `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`（同提供者
 //   组 `tool-start`）。本行在受信存储子树内建 SQL 记录仓、输出保管与守护提交，交给共享状态；整组的运维者配置也只在
-//   本行（bundle 建一次就要全部数值）。会话工作主体（受信，按调用现取）也由本行交给共享状态，供恢复时重签。
+//   本行（bundle 建一次就要全部数值）。会话工作主体（受信）不经本行：入口对象 `toolClock` 安装时把入口自己的
+//   受信读口交给共享状态（`entry/tool-runtime-objects.ts`），本行的可见集合不变。
 // - `tool-runtime`：门面插件，提供 `toolRuntime`。
 // - `tool-executor`：实例宿主与长期执行宿主。实例宿主提供 `toolInstanceHost`，执行宿主以子 fiber 静态 inject 它。
 // - `tool-instances`：实例目录，提供 `toolInstances`，inject `toolPublicationAuthority`。
@@ -12,9 +13,6 @@
 // 已知限制：bundle 每次运行只建一次，实例宿主与执行宿主不能在同一运行里重装（成员抛出，行 FAILED）。
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
-import type { Principal } from '@omne-harness/identity'
-import type { SessionWorkPrincipals } from '@omne-harness/session-contract'
-import { sessionWorkPrincipalsKey } from '@omne-harness/session-cordis-contract/cordis'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
@@ -39,7 +37,8 @@ import {
   closeEnvironmentSchemaProvider,
   createEnvironmentSchemaProvider,
 } from '../../entry/schema-domain.ts'
-import { defineRow } from '../../row.ts'
+import { defineRow, type RowHandle } from '../../row.ts'
+import { monotonicClock } from '../../shutdown.ts'
 import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { ensureToolRuntimeBundle } from './bundle.ts'
@@ -73,13 +72,10 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
     guarded: createSqlToolGuardedHostCommit(options),
   })
   const holder = toolRuntimeHolder(ctx)
-  const work = (): SessionWorkPrincipals<Principal> | undefined => ctx.get(sessionWorkPrincipalsKey)
   holder.sql = sql
-  holder.workPrincipals = work
   ctx.effect(
     () => () => {
       if (holder.sql === sql) holder.sql = null
-      if (holder.workPrincipals === work) holder.workPrincipals = () => undefined
     },
     'tool-records.sql',
   )
@@ -128,6 +124,40 @@ export const toolRuntimeRow = defineRow({
   },
 })
 
+/**
+ * 执行宿主行体（业务阶段）：实例宿主装在行 fiber，长期执行宿主装在子 fiber（它静态 inject 本行刚提供的
+ * `toolInstanceHost`）。业务停止时关闭 bundle：执行宿主退役、作者执行停止接新；期限内完成答 settled。
+ */
+async function executorBody(ctx: Context): Promise<RowHandle> {
+  const bundle = await awaitBundle(ctx)
+  await bundle.instanceHost.apply(ctx)
+  const child = ctx.plugin(bundle.executor)
+  await child
+  let closing: Promise<void> | undefined
+  return {
+    stop: async deadline => {
+      closing ??= bundle.close()
+      const timer = monotonicClock.after(deadline - monotonicClock.now())
+      const settled = await Promise.race([
+        closing.then(
+          () => 'settled' as const,
+          () => 'failed' as const,
+        ),
+        timer.promise.then(() => 'deadline' as const),
+      ])
+      timer.cancel()
+      switch (settled) {
+        case 'settled':
+          return { kind: 'settled' }
+        case 'failed':
+          return { kind: 'failed', detail: 'the tool runtime did not close cleanly' }
+        case 'deadline':
+          return { kind: 'incomplete', detail: 'the tool executor is still retiring' }
+      }
+    },
+  }
+}
+
 export const toolExecutorRow = defineRow({
   row: 'tool-executor',
   implementation: 'real',
@@ -136,17 +166,8 @@ export const toolExecutorRow = defineRow({
     injects: [toolCommandsKey, toolClockKey],
     sameProviderGroup: null,
   },
-  lifecycle: { kind: 'none' },
-  plugin: {
-    name: 'tool-executor',
-    inject: [toolCommandsKey, toolClockKey],
-    async apply(ctx: Context) {
-      const bundle = await awaitBundle(ctx)
-      await bundle.instanceHost.apply(ctx)
-      // The long-term executor statically injects the instance host this row just provided.
-      ctx.plugin(bundle.executor)
-    },
-  },
+  lifecycle: { kind: 'body', phase: 'business' },
+  body: executorBody,
 })
 
 export const toolInstancesRow = defineRow({
