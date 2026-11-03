@@ -63,7 +63,24 @@
         "anchor": "文档内容与登记"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "事实与责任"
+        },
+        {
+          "id": "section-2",
+          "anchor": "公开契约消费图"
+        },
+        {
+          "id": "section-3",
+          "anchor": "邻域交接"
+        },
+        {
+          "id": "section-4",
+          "anchor": "接口与替换边界"
+        }
+      ]
     },
     {
       "id": "placed-docs#domains#calendars#key-flows",
@@ -78,7 +95,24 @@
         "anchor": "文档内容与登记"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "f-ca01-供应校验与不可变发布"
+        },
+        {
+          "id": "section-2",
+          "anchor": "f-ca02-保存消费者选择并继续解析"
+        },
+        {
+          "id": "section-3",
+          "anchor": "f-ca03-查询计算与最终接受"
+        },
+        {
+          "id": "section-4",
+          "anchor": "f-ca05-健康观察与发布物把关"
+        }
+      ]
     }
   ]
 }
