@@ -18,6 +18,12 @@ import { canonicalJson, isStrictJson, jsonShape, utf8Length } from './json.ts'
 import type { CommitReply } from './worker/protocol.ts'
 import { observeReply, WorkerExited } from './writer-client.ts'
 
+/** The diagnostic of a write that was withdrawn while it waited for the barrier (SPEC 9.3). */
+const WITHDRAWN_DIAGNOSTIC = {
+  aborted: 'withdrawn_before_start',
+  expired: 'barrier_wait_expired',
+} as const
+
 type Judged =
   | Readonly<{ kind: 'rejected'; reason: CommitRejectReason }>
   | Readonly<{ kind: 'accepted'; identity: SqlIdentity; requestBytes: number; inputDigest: string }>
@@ -155,8 +161,7 @@ export function createCommit(core: Core): SqlStorage['commit'] {
           signal: withdraw.signal,
           timeoutMs: core.config.lockWaitMs,
         })
-        if (admission.kind === 'withdrawn')
-          return unknown(detached ? 'withdrawn_before_start' : 'barrier_wait_expired')
+        if (admission.kind === 'withdrawn') return unknown(WITHDRAWN_DIAGNOSTIC[admission.cause])
         // Nothing was sent while the barrier made this write wait: it is withdrawn (SPEC 13.3 step 2).
         if (core.lifecycle.closing) {
           admission.release()

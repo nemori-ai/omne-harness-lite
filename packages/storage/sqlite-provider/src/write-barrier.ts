@@ -19,9 +19,12 @@ export type BarrierWait = Readonly<{
   timeoutMs?: number
 }>
 
+export type WithdrawnCause = 'aborted' | 'expired'
+
 export type BarrierOutcome =
   /** `release` is the leave of a write or the release of a barrier. The second call does nothing. */
-  Readonly<{ kind: 'granted'; release(): void }> | Readonly<{ kind: 'withdrawn' }>
+  | Readonly<{ kind: 'granted'; release(): void }>
+  | Readonly<{ kind: 'withdrawn'; cause: WithdrawnCause }>
 
 export class WriteBarrier {
   /** Entries of a domain in arrival order: waiting and granted ones. Absent when empty. */
@@ -38,21 +41,23 @@ export class WriteBarrier {
   }
 
   private join(domain: string, kind: Entry['kind'], wait: BarrierWait): Promise<BarrierOutcome> {
-    if (wait.signal?.aborted === true) return Promise.resolve({ kind: 'withdrawn' })
+    if (wait.signal?.aborted === true)
+      return Promise.resolve({ kind: 'withdrawn', cause: 'aborted' })
     return new Promise(resolve => {
       const entry: Entry = { kind, grant: null }
       let timer: NodeJS.Timeout | null = null
       const stopWaiting = (): void => {
         if (timer !== null) clearTimeout(timer)
         timer = null
-        wait.signal?.removeEventListener('abort', withdraw)
+        wait.signal?.removeEventListener('abort', onAbort)
         entry.grant = null
       }
-      const withdraw = (): void => {
+      const withdraw = (cause: WithdrawnCause): void => {
         stopWaiting()
         this.remove(domain, entry)
-        resolve({ kind: 'withdrawn' })
+        resolve({ kind: 'withdrawn', cause })
       }
+      const onAbort = (): void => withdraw('aborted')
       entry.grant = () => {
         stopWaiting()
         let released = false
@@ -65,8 +70,9 @@ export class WriteBarrier {
           },
         })
       }
-      wait.signal?.addEventListener('abort', withdraw, { once: true })
-      if (wait.timeoutMs !== undefined) timer = setTimeout(withdraw, wait.timeoutMs)
+      wait.signal?.addEventListener('abort', onAbort, { once: true })
+      if (wait.timeoutMs !== undefined)
+        timer = setTimeout(() => withdraw('expired'), wait.timeoutMs)
       this.gate(domain).push(entry)
       this.advance(domain)
     })
