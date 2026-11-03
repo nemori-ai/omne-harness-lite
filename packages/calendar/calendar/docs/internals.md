@@ -40,6 +40,21 @@ US 分开解释 OPM 制品修订、固定法条版本和有界 Federal Register 
 
 发行闸按每历实际政策：任一 critical 不得发行；warning 必须显式声明；政策或状态 unknown 不能报通过。生产发布前必须补 runtime 真网、故障、重启、真实 SQLite 耐久和发行门禁证据。
 
+## 供应应用的内部职责
+
+[seed.ts](../src/supply-application/seed.ts)保管导入意图，先沿原操作身份接续，再保存材料、准备命令和提交。[seed-validation.ts](../src/supply-application/seed-validation.ts)核对材料、发行覆盖、历史版本身份及重叠区间，按拒绝、待裁、不回退、发布的顺序形成处置。校验模块读取既有事实，但不提交发布；编排模块不能跳过校验直接发布。
+
+[health.ts](../src/supply-application/health.ts)分别投影可查询覆盖和供应日志状态，因此旧版本可读与供应失败可以同时成立。[refresh.ts](../src/supply-application/refresh.ts)核对固定版本的原发布材料，再准备新的刷新意图。[recovery.ts](../src/supply-application/recovery.ts)逐项核对归属并交付反应，失败时保留原责任。
+
+```mermaid
+flowchart LR
+  intent["seed.ts：原操作接续"] --> preserve["保管并回读原材料"]
+  preserve --> inspect["seed-validation.ts：校验既有事实"]
+  inspect --> decision["拒绝 / 待裁 / 不回退 / 发布"]
+  decision --> prepare["seed.ts：准备原命令"]
+  prepare --> commit["refresh.ts：提交与原回执恢复"]
+```
+
 ## 初始化、停止与恢复
 
 初始化先核合法配置和离线种子，校验/保存完成后发布查询就绪；装配再发起 best-effort 网络刷新。种子失败不能注册一个假就绪服务。供应 timer 只用于唤醒，真实 due/probe 状态在存储，联网失败保留原快照及恢复责任。
