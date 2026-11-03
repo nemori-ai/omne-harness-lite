@@ -11,7 +11,6 @@ import {
   judgeStreamRef,
   readStreamRef,
   type StreamFrame,
-  type StreamRef,
 } from '@omne-harness/stream-arrival'
 import {
   encodeToolInvocationRef,

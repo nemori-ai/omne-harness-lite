@@ -101,7 +101,10 @@ export function createRuntimePublication(
     subscriber.timer = null
     const first = subscriber.queue[0]
     if (first === undefined || subscriber.end !== null) return
-    const remaining = input.residenceMs - (performance.now() - first.at)
+    const elapsed =
+      /* wall-clock: operation-timing -- Bound residence in this process-local observer queue. */ performance.now() -
+      first.at
+    const remaining = input.residenceMs - elapsed
     if (remaining <= 0) {
       terminate(subscriber, { kind: 'gap', after: subscriber.cursor, reason: 'buffer' })
       return
@@ -123,7 +126,11 @@ export function createRuntimePublication(
       terminate(subscriber, { kind: 'gap', after: subscriber.cursor, reason: 'buffer' })
       return
     }
-    subscriber.queue.push({ frame, bytes: size, at: performance.now() })
+    subscriber.queue.push({
+      frame,
+      bytes: size,
+      at: /* wall-clock: operation-timing -- Start the local queue residence limit; this is not a Tool event timestamp. */ performance.now(),
+    })
     subscriber.bytes += size
     if (subscriber.timer === null) expire(subscriber)
     subscriber.wake()
@@ -233,7 +240,12 @@ export function createRuntimePublication(
             if (request.signal.aborted) abort()
             if (!admitted) admit()
             const queued = subscriber.queue[0]
-            if (queued !== undefined && performance.now() - queued.at >= input.residenceMs)
+            if (
+              queued !== undefined &&
+              /* wall-clock: operation-timing -- Recheck local buffer residence before delivering a queued frame. */ performance.now() -
+                queued.at >=
+                input.residenceMs
+            )
               terminate(subscriber, { kind: 'gap', after: subscriber.cursor, reason: 'buffer' })
             if (subscriber.end !== null) return emit(subscriber.end)
             const next = subscriber.queue.shift()

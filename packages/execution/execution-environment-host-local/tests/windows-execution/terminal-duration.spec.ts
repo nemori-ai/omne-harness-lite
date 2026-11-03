@@ -45,7 +45,7 @@ it('uses native foreground elapsed time when Node cannot dispatch either control
       directory,
       terminalNativeSource.replace(
         anchor,
-        `while((frame=OmneTerminalShell.ReadBounded(reader,r.maxControlBytes))!=null){Emit(Json.DeserializeObject(frame));if(frame.Contains("\\\"t\\\":\\\"finished\\\""))File.WriteAllText(${literal},"flushed");}`,
+        `while((frame=OmneTerminalShell.ReadBounded(reader,r.maxControlBytes))!=null){Emit(Json.DeserializeObject(frame));if(frame.Contains("\\"t\\":\\"finished\\""))File.WriteAllText(${literal},"flushed");}`,
       ),
     )
     const mock = vi.spyOn(compiler, 'windowsTerminalExecutable').mockResolvedValue(executable)
