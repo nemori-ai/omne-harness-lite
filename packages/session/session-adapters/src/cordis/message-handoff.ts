@@ -76,6 +76,7 @@ import { commitJournal, type JournalCombination } from '../journal-commit.ts'
 import { canonical } from '../testing/canonical.ts'
 import { type SessionCoordinatorPrincipalFailure, sessionScopeEvidence } from './agent-drive.ts'
 import { readJournalState } from './agent-journal.ts'
+import { recordsPart } from './journal-parts.ts'
 import { decodeState, encodeState } from './journal-state.ts'
 
 const OWNER = 'session-adapters/message-handoff'
@@ -361,7 +362,8 @@ function createMessageHandoff<P>(
 
   /** Steps 2 and 3 of the execution branch: the P of the same session and the current advance. */
   async function internal(bound: Bound, prepare: Extract<HandoffPrepare, { kind: 'execution' }>) {
-    const records = await readJournalState(ports, bound)
+    // The execution's records and its authorities are in the part of the execution.
+    const records = await readJournalState(ports, bound, recordsPart(bound.execution))
     if (records.kind === 'unavailable') return fail(unavailable(records.diagnostic))
     const execution =
       records.state === null

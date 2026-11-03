@@ -20,11 +20,14 @@ afterEach(async () => {
 
 type Json = { [key: string]: unknown }
 
-/** The Agent state read of the session with the empty batch of the execution named `id`. */
+/**
+ * A page of the Agent records of the session with the empty batch of the execution named `id`. A
+ * part holds its execution as an `executions` entry `[order, key, value]`.
+ */
 function renamed(output: JsonValue, id: string): JsonValue {
-  const copy = structuredClone(output) as { state: { executions: { $map: unknown[][] } } }
-  for (const entry of copy.state.executions.$map) {
-    const execution = entry[1] as { events: { body: Json }[]; checkpoint: Json }
+  const copy = structuredClone(output) as { parts: { state: { executions?: unknown[][] } }[] }
+  for (const entry of copy.parts.flatMap(part => part.state.executions ?? [])) {
+    const execution = entry[2] as { events: { body: Json }[]; checkpoint: Json }
     for (const event of execution.events) {
       const batch = event.body['batch'] as { id: string; ordered: unknown[] } | undefined
       if (event.body['kind'] === 'input-taken' && batch?.ordered.length === 0) batch.id = id
@@ -101,7 +104,7 @@ describe('the range of an empty batch in a rebuilt Journal copy', () => {
     const s = await afterEmptyTake('taken-range-foreign')
     const bad = id(String(s.execution))
     s.rewriteReads.current = (request, answer) =>
-      request.handler === EXECUTION_RECORD_HANDLERS.state && answer.kind === 'read'
+      request.handler === EXECUTION_RECORD_HANDLERS.parts && answer.kind === 'read'
         ? { ...answer, output: renamed(answer.output, bad) }
         : answer
     await expect(load(s)).rejects.toThrow('original input batch range is unavailable')

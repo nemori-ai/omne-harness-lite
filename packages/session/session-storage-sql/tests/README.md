@@ -33,6 +33,7 @@
 - [log-conformance.spec.ts](log-conformance.spec.ts)：session-contract 的 `commitLog` 符合性套件 LC-01 至 LC-10，在 `node:sqlite` 夹具与真实 sqlite-provider（慢层）上各跑一次。
 - [history-index.spec.ts](history-index.spec.ts)：K-5 同根索引与 R2-D28 观察尾部前缀：索引字段与 `er_` 行一致、同一提交里发布并解释、占位回执、取消后的后继 `startRun` 正负例、前缀判定的穷举表、同一 Run 有两个 SE15 时按 attempt 行指回原 attempt（含真实提供者上写入并读回）、无行与指名别的 Run 的 attempt 不进索引、单 SE15 的无 attempt 行仍可证、20 轮与 200 轮的读取计数（慢层）、真实提供者上 `readWork` 带 `historyIndex`（慢层）。
 - [admission-attempt-migration.spec.ts](admission-attempt-migration.spec.ts)：迁移 `execution-record/003-admission-attempt` 依赖 001 并登记模块；在有旧行的库上建表，旧行没有 attempt 行，第二次运行不改表定义也不丢已有行，`verify` 在无表时失败。
+- [state-parts.spec.ts](state-parts.spec.ts)：迁移 `execution-record/004-state-parts` 依赖 001、表归 `execution-record`；分区写只替换或删除所列分区，`replace` 先删其余，整份写删除全部分区；六种畸形写入答「不支持」且不写任何行；同一提交里 Session 写失败时分区一起回滚；读口按行数与文本预算分页、超过预算的分区单独成页、只读所列分区、另一租户读不到、畸形输入被拒。
 - [preadmission.spec.ts](preadmission.spec.ts)：准入记录的两阶段写入、Ki 唯一、结果只固定一次、跨租户读不到，以及真实提供者上杀进程后按原 H 读回（慢层）。
 - [same-domain-tenant.spec.ts](same-domain-tenant.spec.ts)：同一事务域里租户 A 的行，以租户 B 读不到：准入记录按 H 与按 Ki 的点查（`findPreadmission`），以及 `commitLog` 对 `sl_journal` 的读（答 `denied`）。其他规格的夹具把每个租户放在各自的事务域里，语句丢了 `tenant = ?` 也读不到别家的行，所以这里在同一个库里写、再换租户读，并各带一个以租户 A 读的对照。
 - [fixtures/](fixtures/README.md)：测试夹具，见该目录。

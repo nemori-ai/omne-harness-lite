@@ -12,6 +12,7 @@
 // combination (real participants, migrations and read handlers).
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  decodeAgentExecutionId,
   decodeInputId,
   type AgentJournal,
   type DurableEvidence,
@@ -37,7 +38,15 @@ import {
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { EXECUTION_RECORD_HANDLERS } from '@omne-harness/session-storage-sql/participants'
 import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
-import { ok, operation, scene, submitInput } from './fixtures/common-journal.ts'
+import {
+  checkpoint,
+  instance,
+  ok,
+  openInput,
+  operation,
+  scene,
+  submitInput,
+} from './fixtures/common-journal.ts'
 import { cordisScene, handed, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 type CommitLog = NonNullable<SessionTransactionPort<string>['commitLog']>
@@ -63,11 +72,21 @@ async function interpreted(
   // `heads.unwritten` makes the Agent records read as if another execution's call had changed the
   // execution (SPEC K-5): the head receipt the boundary row names is then not the execution's own.
   const heads = { unwritten: false }
+  // The JSON size of every execution-record command committed and of every Agent records read.
+  const bytes = { written: [] as number[], read: [] as number[] }
   const base = s.storage
   s.storage = {
     ...base,
+    commit: request => {
+      for (const command of request.commands)
+        if (command.participant === 'execution-record')
+          bytes.written.push(JSON.stringify(command.facts).length)
+      return base.commit(request)
+    },
     read: async (request, readOptions) => {
       const result = await base.read(request, readOptions)
+      if (result.kind === 'read' && request.handler.startsWith('execution-record.'))
+        bytes.read.push(JSON.stringify(result.output).length)
       return heads.unwritten && result.kind === 'read' && request.handler === STATE_HANDLER
         ? { ...result, output: withoutHeads(result.output) }
         : result
@@ -90,15 +109,21 @@ async function interpreted(
   const mountPlugin = () => c.mount(interpretation.plugin)
   const fiber = options.plugin === 'later' ? null : await mountPlugin()
   const target = { tenant: s.access.tenant, session: s.access.session, execution: s.execution }
-  return { s, c, sent, script, interpretation, fiber, mountPlugin, target, heads }
+  return { s, c, sent, script, interpretation, fiber, mountPlugin, target, heads, bytes }
 }
 
-const STATE_HANDLER = EXECUTION_RECORD_HANDLERS.state
+const STATE_HANDLER = EXECUTION_RECORD_HANDLERS.parts
 
-/** The state read of the Agent records with every head receipt of the notes set to null. */
+/**
+ * A page of the Agent records with every head receipt of the notes set to null. A part holds the
+ * notes of its execution as `notes.heads` entries `[order, key, value]`.
+ */
 function withoutHeads(output: JsonValue): JsonValue {
-  const copy = structuredClone(output) as { state?: { notes?: { heads?: { $map: unknown[][] } } } }
-  for (const entry of copy.state?.notes?.heads?.$map ?? []) entry[1] = null
+  const copy = structuredClone(output) as {
+    parts?: { state: { 'notes.heads'?: unknown[][] } }[]
+  }
+  for (const part of copy.parts ?? [])
+    for (const entry of part.state['notes.heads'] ?? []) entry[2] = null
   return copy as JsonValue
 }
 
@@ -835,4 +860,141 @@ function startRun(s: SqlScene, name: string) {
     },
     guards: [guard('evidence-bridge', 'login-entry', { session: name, operation: name })],
   })
+}
+
+/**
+ * K-8: one session, Runs one after the other (cancel, accept the next input, startRun). The records
+ * of the earlier executions stay in the session; a publication of the current one writes only its
+ * own parts, AD-02 reads only the part of the execution it interprets, and a copy that another
+ * provider's write made stale reads only the parts written since. Two providers write each Run, as
+ * the Agent's Journal and the receiver's do. With the whole state in one row, the writes and the
+ * reads grew with every Run before (C-FIX-ROUNDS: past 1 MiB at round 4 of C-JOINT).
+ */
+describe('a session with earlier Runs: the bytes of one Run do not grow with the Runs before it', () => {
+  async function runs(count: number) {
+    const f = await interpreted('ad02-runs')
+    const journal = f.c.journal()
+    // A second provider of the same session over the same storage: its writes make the copy of the
+    // first one stale.
+    const other = f.s.view.journal
+    const perRun: { written: number; read: number }[] = []
+    const executions: SqlScene['execution'][] = []
+    let where: SqlScene = f.s
+    for (let k = 1; k <= count; k += 1) {
+      const mark = { written: f.bytes.written.length, read: f.bytes.read.length }
+      const opened = ok(await journal.open(k === 1 ? f.s.openInput : (where as SqlScene).openInput))
+      ok(await handed(where, String(where.initial.id), opened.receipt.evidence))
+      await take(where, journal)
+      await committed(where, other, `run-${k}-message`, [
+        { kind: 'message', message: assistantMessage(`run ${k}`), source: evidence(`run-${k}`) },
+      ])
+      const waits = [dependency(`run-${k}`)]
+      await committed(where, journal, `run-${k}-waiting`, [{ kind: 'waiting', waits }], waits)
+      await vi.waitFor(async () => expect(await readThroughOf2(f.s, where.execution)).toBe('3'), {
+        timeout: 5000,
+      })
+      perRun.push({
+        written: Math.max(...f.bytes.written.slice(mark.written)),
+        read: f.bytes.read.slice(mark.read).reduce((sum, size) => sum + size, 0),
+      })
+      executions.push(where.execution)
+      if (k === count) break
+      where = await nextRun(f.s, k + 1)
+    }
+    return { perRun, executions, journal, s: f.s }
+  }
+
+  it(
+    'the largest write and the Agent records read in Run 4 equal those of Run 2',
+    { timeout: 60_000 },
+    async () => {
+      const { perRun } = await runs(4)
+      // Every Run writes and reads the same shapes; the identities have the same lengths.
+      expect(perRun[3]!.written).toBeLessThanOrEqual(perRun[1]!.written + 64)
+      expect(perRun[3]!.read).toBeLessThanOrEqual(perRun[1]!.read + 1024)
+    },
+  )
+
+  it(
+    'a copy rebuilt from the parts loads every execution as the copy that wrote them',
+    { timeout: 60_000 },
+    async () => {
+      const { executions, journal, s } = await runs(3)
+      const fresh = s.fresh().journal
+      for (const execution of executions)
+        expect(await fresh.load({ ...s.access, execution })).toEqual(
+          await journal.load({ ...s.access, execution }),
+        )
+    },
+  )
+})
+
+/** The saved event progress of `execution`, whether its Run is active or ended. */
+async function readThroughOf2(s: SqlScene, execution: string): Promise<string | undefined> {
+  const snapshot = await work(s)
+  if (snapshot.run.kind === 'active' && snapshot.run.execution.execution === execution)
+    return snapshot.run.execution.readThrough
+  return readThroughOf(snapshot, execution)
+}
+
+/** Cancels the active Run, accepts input `n` and starts the next Run: the scene of its execution. */
+async function nextRun(s: SqlScene, n: number): Promise<SqlScene> {
+  const snapshot = await work(s)
+  if (snapshot.run.kind !== 'active') throw new Error('an active Run is expected')
+  ok(
+    await s.port.commit({
+      access: s.sessionAccess,
+      command: {
+        kind: 'control',
+        input: {
+          tenant: s.access.tenant,
+          session: s.access.session,
+          operation: operationId(`cancel-${n}`),
+          intent: { kind: 'cancel-run', run: snapshot.run.run, urgency: 'force' },
+        },
+      },
+      guards: [],
+    }),
+  )
+  const value = ordinaryInput(`input-${n}`)
+  ok(
+    await s.port.commit({
+      access: s.sessionAccess,
+      command: {
+        kind: 'accept',
+        input: {
+          tenant: s.access.tenant,
+          session: s.access.session,
+          operation: operationId(`accept-${n}`),
+          value,
+        },
+      },
+      guards: [guard('evidence-bridge', 'ordinary-intake', value)],
+    }),
+  )
+  const started = ok(await startRun(s, `start-${n}`))
+  const next = await work(s)
+  if (next.run.kind !== 'active') throw new Error('the next Run is not active')
+  const execution = ok(decodeAgentExecutionId(next.run.execution.execution))
+  const admitted = ok(await s.port.readInput({ ...s.access, input: next.run.first }))
+  const initial = {
+    id: ok(decodeInputId(admitted.input)),
+    content: admitted.message,
+    source: (started as { receipt: { source: DurableEvidence } }).receipt.source,
+    priority: 'ordinary' as const,
+  }
+  return {
+    ...s,
+    execution,
+    initial,
+    openInput: openInput({
+      access: s.access,
+      execution,
+      operation: operation(`open-${n}`),
+      instance: instance(),
+      grant: initial.source,
+      initial,
+      checkpoint: checkpoint(),
+    }),
+  }
 }

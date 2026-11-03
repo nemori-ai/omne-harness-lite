@@ -1,5 +1,6 @@
 // Value helpers of the memory Journal: the semantic key that recognizes "the same input", the brands
 // that the Journal mints, and a set that cannot change after construction.
+import { createHash } from 'node:crypto'
 import {
   decodeExecutionAttachmentId,
   decodeExecutionRevision,
@@ -16,14 +17,16 @@ import { canonical } from './canonical.ts'
 export const JOURNAL_OWNER = 'session-memory-journal'
 
 /**
- * The semantic key of one write: the method and the canonical text of the input without its Access
- * members `principal` and `tenant`.
+ * The semantic key of one write: the method and the SHA-256 of the canonical text of the input
+ * without its Access members `principal` and `tenant`. Two keys are equal exactly when the method
+ * and that text are (up to a hash collision). The key is kept with every operation record, so it
+ * holds the digest, not the text: the text of a commit carries its whole checkpoint.
  */
 export function semanticKey(method: string, input: object): string {
   const rest = Object.fromEntries(
     Object.entries(input).filter(([key]) => key !== 'principal' && key !== 'tenant'),
   )
-  return `${method}:${canonical(rest)}`
+  return `${method}:sha256:${createHash('sha256').update(canonical(rest)).digest('hex')}`
 }
 
 function minted<T>(decoded: Outcome<T, unknown>, text: string): T {

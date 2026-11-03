@@ -57,6 +57,7 @@ describe('the ./participants entry', () => {
       'SESSION_PROTOCOL',
       'SESSION_WORK_HANDLER',
       'decodeExecutionRecordOperation',
+      'decodeExecutionRecordParts',
       'decodeExecutionRecordReply',
       'decodeExecutionRecordState',
       'decodePreadmissionRecord',

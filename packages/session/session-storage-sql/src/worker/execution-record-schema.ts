@@ -105,3 +105,23 @@ export const ADMISSION_ATTEMPT_MIGRATION = Object.freeze({
   owner: 'execution-record',
   id: '003-admission-attempt',
 })
+
+// The Agent records of one session split into parts (session-adapters K-8): the provider names each
+// part and writes only the parts a publication changed, so a write does not grow with the number of
+// executions of the session. A part is opaque, as `er_state.state` is. `published` is the
+// publication count of the write that last wrote the part, so a reader that holds the parts of an
+// earlier count reads only the parts written after it. A dropped part stays as a row whose state is
+// NULL, for the same reader. `er_state` keeps the whole state of a writer that does not split it.
+export const STATE_PART_SCHEMA: readonly string[] = [
+  `CREATE TABLE IF NOT EXISTS er_state_part (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, part TEXT NOT NULL, state TEXT,
+    published INTEGER NOT NULL,
+    PRIMARY KEY (tenant, session, part)) STRICT`,
+]
+
+export const STATE_PART_TABLES: readonly string[] = ['er_state_part']
+
+export const STATE_PART_MIGRATION = Object.freeze({
+  owner: 'execution-record',
+  id: '004-state-parts',
+})
