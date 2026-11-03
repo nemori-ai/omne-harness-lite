@@ -56,6 +56,8 @@
 
 tmp 在容器回收后会丢失。每波末，reduce 把本波记录（`waves/` 下的文件、`delegate/flow.jsonl`、进展页数据、技术文档数据）提交到记录分支 `PanQiWei/skill-mcp-records` 并推送。这条分支只存过程记录，永远不合并。恢复时读记录分支与 Git 历史，不靠会话记忆。
 
+存档只用脚本：`bash /home/user/omne-harness-lite/.worktrees/skill-mcp/tmp/skill-mcp-domain/records-sync.sh "<提交说明>"`。脚本全用绝对路径，先核对记录工作树的分支再写入。不要手写 `git -C … worktree add` 一类的命令：2026-11-03 首次建记录分支时，相对路径让工作树建错了位置，随后的命令落到主检出，在本地 `integration/mainline` 上提交了一次（推送被拒，已用 `git reset --keep` 恢复）。
+
 ## 6. 质量门槛
 
 | 时点 | 必须有 |
