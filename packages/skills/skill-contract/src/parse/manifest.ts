@@ -39,22 +39,63 @@ function decode(bytes: Uint8Array): string | undefined {
   }
 }
 
+const DASH = 0x2d
+const CR = 0x0d
+const LF = 0x0a
+const encoder = new TextEncoder()
+
+/** One line of `bytes` from `start`: where its text ends, and where the next line starts. A line
+ * ends with LF or CRLF; `next` is `undefined` for the last line, which has no line end. */
+function lineAt(bytes: Uint8Array, start: number): Readonly<{ end: number; next?: number }> {
+  const newline = bytes.indexOf(LF, start)
+  if (newline === -1) return { end: bytes.length }
+  const end = newline > start && bytes[newline - 1] === CR ? newline - 1 : newline
+  return { end, next: newline + 1 }
+}
+
+/** Whether the line text `[start, end)` is exactly `---`. */
+function isDelimiter(bytes: Uint8Array, start: number, end: number): boolean {
+  return end - start === 3 && bytes.subarray(start, end).every(byte => byte === DASH)
+}
+
+type Frontmatter = Readonly<{ yamlStart: number; yamlEnd: number; bodyStart: number }>
+
+/**
+ * The byte bounds of the frontmatter: the opening `---` line, then the YAML up to the first line
+ * that is only `---`. The body starts after the line end of that closing line, or at the end of
+ * the bytes when the closing line is the last line. No legal frontmatter gives `undefined`.
+ */
+function frontmatterBounds(bytes: Uint8Array): Frontmatter | undefined {
+  const opening = lineAt(bytes, 0)
+  if (opening.next === undefined || !isDelimiter(bytes, 0, opening.end)) return undefined
+  // The loop ends only by a return: a line without a line end is the last line.
+  for (let start = opening.next; ;) {
+    const line = lineAt(bytes, start)
+    if (isDelimiter(bytes, start, line.end))
+      return { yamlStart: opening.next, yamlEnd: start, bodyStart: line.next ?? bytes.length }
+    if (line.next === undefined) return undefined
+    start = line.next
+  }
+}
+
+/**
+ * Where the body of a SKILL.md starts, in bytes: after the line end of the closing `---` line.
+ * `undefined` when the bytes have no legal frontmatter delimiters. It does not decode the bytes.
+ */
+export function bodyOffsetOf(bytes: Uint8Array): number | undefined {
+  return frontmatterBounds(bytes)?.bodyStart
+}
+
 /**
  * The YAML text between the opening `---` line and the first line that is only `---`. A line ends
  * with LF or CRLF; the closing line can also end the file.
  */
 export function frontmatterOf(text: string): string | undefined {
-  const open = text.startsWith('---\n') ? 4 : text.startsWith('---\r\n') ? 5 : -1
-  if (open === -1) return undefined
-  // The loop ends only by a return: a line without a line end is the last line.
-  for (let start = open; ;) {
-    const newline = text.indexOf('\n', start)
-    const end = newline === -1 ? text.length : newline
-    const line = text.slice(start, newline !== -1 && text[end - 1] === '\r' ? end - 1 : end)
-    if (line === '---') return text.slice(open, start)
-    if (newline === -1) return undefined
-    start = newline + 1
-  }
+  const bytes = encoder.encode(text)
+  const bounds = frontmatterBounds(bytes)
+  return bounds === undefined
+    ? undefined
+    : utf8.decode(bytes.subarray(bounds.yamlStart, bounds.yamlEnd))
 }
 
 function malformed(detail: string, name?: unknown): ManifestRead {
