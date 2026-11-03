@@ -71,6 +71,6 @@ CalendarRepository 从[真实 sql-contract](../../../storage/sql-contract/SPEC.m
 
 ## 社区库与验证范围
 
-CSV 解析候选 csv-parse 7.0.3，ICS 候选 ical.js 2.2.1，CP932 先探 Node24 full-ICU TextDecoder，必要时对照 iconv-lite 0.7.3，有限下载重试候选 p-retry 9.0.0。本页不引入这些依赖。许可、版本与 ESM/Node24 输入行为须在采用前固定。date-holidays 不能取代三历精确来源，且数据许可口径需另核。Temporal 已有上层采用，但 Node24/ICU/DST 与全部真实供应路径仍未在本包验收。
+各功能的社区首选、系统公共依赖、采用前验证和自有责任由[复用规划](../../docs/reuse-plan.md)统一维护。Temporal 沿上层技术基础采用，其他候选通过固定版本探针后再加入依赖。完整日历来源、覆盖和发布规则不由库默认行为决定。
 
 持续验证归 V-CA01–V-CA18；完整来源 AC 映射归 [Schedule SPEC](../../../schedule/schedule/SPEC.md#来源与目标验收映射)。独立 API、工具/HTTP映射、真实供应、SQLite故障、发行闸与生命周期分别取证。当前 public-entry 测试只说明空导出，不能成为日历能力通过证据。
