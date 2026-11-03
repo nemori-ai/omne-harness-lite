@@ -242,8 +242,8 @@ function world(
     limits?: ResultPushLimits
     ledger?: ResultPushLedger
     /**
-     * `unavailable`: the consumer owner's evidence adapter cannot be read, as the release's
-     * `handoff` evidence answers before it has a source (`apps/harness-server/src/model/evidence.ts`).
+     * `unavailable`: the consumer owner's evidence adapter cannot confirm, as the release's
+     * `handoff` evidence answers while the durable received record cannot be read (R2-D257).
      */
     custodyEvidence?: 'verified' | 'unavailable'
     /** The share of the whole assembly; the memory commands sum every tenant against it. */
@@ -300,7 +300,7 @@ function world(
                 failure: {
                   kind: 'unavailable',
                   dependency: 'consumer-evidence',
-                  diagnostic: 'handoff-source-not-wired',
+                  diagnostic: 'received-records-absent',
                 },
               }
             : given.evidence.kind === 'retained' &&

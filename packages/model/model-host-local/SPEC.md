@@ -179,7 +179,7 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 
 这是入口运行级组合保证，单个宿主 fiber 或 Cordis 的多个独立 effect 不自动保证跨 fiber 次序。异常依赖撤除与入口失效时的立即撤权仍由入口绑定拥有者承担。正文释放不撤 channel，以便原绑定继续处理晚账。`createConfiguredModelRuntimeLocalPlugin` 原样转发 channel、releaseExecution 和 observation 对象选项。
 
-本成员没有新增生产 ActorRef 映射、SQL 接管表或重启恢复。完整撤权、E7 与跨进程保证仍未闭合。真实签发来源缺失时保持 unavailable，AD-05 之前不 ACK。发行接线与跨装配行的相等约束归应用拥有者，成员支持不表示发行已经安装。验证入口为 [plugins-host.spec.ts](tests/plugins-host.spec.ts)、[send-stage.spec.ts](tests/send-stage.spec.ts)与[materialization-proof.spec.ts](tests/materialization-proof.spec.ts)。
+本成员没有新增生产 ActorRef 映射、SQL 接管表或重启恢复。完整撤权、E7 与跨进程保证仍未闭合。真实签发来源缺失时保持 unavailable。ACK 取决于冻结 owner 的证据适配器：适配器答 `unavailable` 时推送保留 saved 的结果与原 ACK operation，不释放份额，下一次唤醒以同一 operation 再交接；发行的 Agent owner 适配器按耐久接收记录核验，见[应用的 Model 行页](../../../apps/harness-server/docs/rows/model-release.md)。发行接线与跨装配行的相等约束归应用拥有者，成员支持不表示发行已经安装。验证入口为 [plugins-host.spec.ts](tests/plugins-host.spec.ts)、[send-stage.spec.ts](tests/send-stage.spec.ts)与[materialization-proof.spec.ts](tests/materialization-proof.spec.ts)。
 
 ### 运行门面与结果推送
 
