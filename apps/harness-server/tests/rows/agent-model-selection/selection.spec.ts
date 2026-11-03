@@ -335,6 +335,14 @@ describe('what the row depends on', () => {
     })
     expect(value.reads).toBe(0)
   })
+
+  test('the release trusted table shows the row the two names of the execution index (R2-D160)', () => {
+    // Without them the release tree answers every default selection `unavailable` while the row is ACTIVE.
+    expect(serveProfile().visibility.get('agent-model-selection' as RowId)).toEqual([
+      'storage',
+      'tenantDomainLookup',
+    ])
+  })
 })
 
 describe('what a failure may say', () => {

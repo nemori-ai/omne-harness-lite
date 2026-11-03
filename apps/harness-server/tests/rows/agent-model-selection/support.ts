@@ -410,15 +410,17 @@ function indexRows(script: IndexScript, trace: IndexTrace) {
 }
 
 /**
- * The trusted table of the release, plus the two names this row reads. The release table does not
- * list the row yet (wiring fact list of G-SELECT), so a test that runs the default binding adds it.
+ * The trusted table of the release. Since WIRE (R2-D160) it shows the row the two names it reads,
+ * `storage` and `tenantDomainLookup`; the release-table test of `selection.spec.ts` pins that.
  */
 export function visibilityWithIndex(): ReadonlyMap<RowId, readonly ServiceName[]> {
+  return serveProfile().visibility
+}
+
+/** The trusted table of the release without the row's entry: the row sees no trusted name. */
+export function visibilityWithoutIndex(): ReadonlyMap<RowId, readonly ServiceName[]> {
   const visibility = new Map(serveProfile().visibility)
-  visibility.set('agent-model-selection' as RowId, [
-    storageKey as ServiceName,
-    tenantDomainLookupKey as ServiceName,
-  ])
+  visibility.delete('agent-model-selection' as RowId)
   return visibility
 }
 
@@ -510,7 +512,7 @@ export async function withLiveRow<T>(
     plugins: plugins as never,
     stopAfterStartup: false,
     stop: stop.signal,
-    ...(options.visible === false ? {} : { visibility: visibilityWithIndex() }),
+    visibility: options.visible === false ? visibilityWithoutIndex() : visibilityWithIndex(),
   })
   try {
     const select = await Promise.race([
