@@ -499,8 +499,8 @@ UI 流程：查看列表/agenda → 选择/编辑意图 → 预览与同意 → 
 | N24 | draft不扫描且可自主修订/丢弃；promote从严格未来开始并重新核验；active文字原地更新，时间/引擎/目标变化原子replace，失败无半后继，lineage与旧Job保留 |
 | N25 | 单一规范DTO不含dueSelection；真实provider与tools组合全部验收，无双调度路径、占位成功或未声明回退；完整交付覆盖P0–P7而非仅纯算法 |
 
-| N26 | 人直接创建无来源会话，agent 直接创建必须有可信会话，调度器保留安排作者及来源；伪造来源拒绝。直接请求重试只建一份，无 Schedule、无时隙、无日程计数。缺少同意或准入能力零 Job，提交 unknown 按原键恢复，取消和结果沿同一 Job 生命周期。 |
-| N27 | 无 master 的 userDeliverable 经显式 provider 准备并发布，同一成果只发布一次；masterInternal 无 returnTo 拒绝。有来源会话但选 provider 不隐式回传。缺能力接受前拒绝，接受后能力失效受阻；准备或发布 unknown 只查原键，归档/通知失败不重执行。 |
+| N26 | 人直接创建无来源会话，agent 直接创建必须有可信会话，调度器保留安排作者及来源；伪造来源拒绝。直接请求重试只建一份，无 Schedule、无时隙、无日程计数。缺少同意或准入能力零 Job，提交 unknown 按原键恢复，只有 Job 创建及原操作查询权限也能完成查询，无需 Schedule 权限；另一主体/来源操作不可读。取消和结果沿同一 Job 生命周期。 |
+| N27 | 无 master 的 userDeliverable 经显式 provider 准备并发布，同一成果只发布一次；masterInternal 无 returnTo 拒绝。有来源会话但选 provider 不隐式回传。缺能力接受前拒绝，接受后能力失效受阻；准备或发布 unknown 在公开读值中保留不同 phase，只查对应原键；preparing 成功不算发布完成。归档/通知失败不重执行。 |
 
 下表为每个目标验收的实际执行承担者；上一表的完整判定不可因拆分而减弱。源154项和N01–N27同时纳入完整交付闸，真实适配/存储/tools未完成时不得以设计检查通过结案。
 

@@ -130,7 +130,7 @@ create(draft)保存零未来接受的意图，reviseDraft/discard保留审计；
 
 ## F-SJ10 创建来源、执行位置与成果去向
 
-来源、执行位置和成果去向分别声明。下图只展示接受后的 agent 成果路径，program 和纯通知仍沿各自已定义结果处理，不被强加 master。
+来源、执行位置和成果去向分别声明。下图分开 agent 成果政策与 program、纯通知结果路径。后两者不被强加 master。
 
 ```mermaid
 flowchart TD
@@ -139,8 +139,11 @@ flowchart TD
     S[调度器到期触发 保留日程作者] --> Scheduled[ScheduleAdmission 时隙准入]
     Direct --> J[同一Job模型 冻结来源与工作]
     Scheduled --> J
-    J --> Exec[按Work选择程序 新会话或已有会话]
-    Exec --> Result[原执行结果与候选成果]
+    J --> Kind{工作种类}
+    Kind -->|program| Program[原程序结果及声明的事件通知]
+    Kind -->|notification| Notice[原通知承接与真实交付结果]
+    Kind -->|agent| Exec[按Work选择新会话或已有会话]
+    Exec --> Result[原agent执行结果与候选成果]
     Result --> Policy{Agent结果政策}
     Policy -->|masterInternal| Return[明确master回传 可选内部归档]
     Policy -->|userDeliverable| Prepare{声明的成果形成者}
@@ -148,6 +151,7 @@ flowchart TD
     Prepare -->|指定provider| P[provider准备正式成果 无须master]
     M --> Publish[当前披露校验 幂等发布]
     P --> Publish
+    P -. 有显式returnTo时独立回传 .-> Return
     Publish --> Tail[归档与通知分别保管和结算]
 ```
 

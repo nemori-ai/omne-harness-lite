@@ -126,6 +126,7 @@ type DirectJobDefinition =
   | { kind: 'notification'; content: ReminderContent }
 interface JobCommands {
   create(ctx: CallContext, input: {definition: DirectJobDefinition; meta: CommandMeta}): Promise<CommandResult<JobView>>
+  queryOperation(ctx: CallContext, input: {operationRef: Ref}): Promise<QueryResult<OperationView>>
 }
 ```
 
@@ -136,6 +137,8 @@ origin 是应用服务根据可信 ctx 和已保存 Schedule 推导的只读值�
 直接入口不接受 recurrence、catchUp、overlap、scheduledAt、calendar binding 或 caller-supplied origin。该输入没有未来时间含义，不创建 Schedule。应用服务在一个受保护提交内校验当前授权、同意和资源准入，保存 Job、接受回执、来源与初始 outbox。缺少适用同意返回 consent_required，零 Job，不自动退化为 draft。直接接受不消耗 Schedule 的 eligibleLimit/jobLimit，也不占 standingWork 配额。执行预算及资源配额仍按其拥有者规则核验，不能借直接入口绕过。
 
 直接请求的幂等作用域为 owner+job.create+可信 principalRef+originatingSessionRef或null+operationKey。fingerprint 包含完整 definition 与 consentRef。requestRef 由首次持久准备分配并随原 operation 保存，重试不得重分配。同键异内容拒绝，同内容认回原 Job。参数要求 expectedRevision=null。业务拒绝不留下 Job，提交结果 unknown 时查原 operation，不换键重发。
+
+JobCommands.queryOperation 独立于 ScheduleCommands，按 operationRef 读取原 Job 命令的操作记录。入口要求 job.operation.read，核验当前 owner 与原 principal/来源会话范围，不能用另一会话或主体的 operationRef 越权查询。创建入口提供的授权能力组合必须同时包含原操作查询权，不能返回调用者无法查询的 unknown。此权只允许读取获准范围中的原操作，不授予新的创建或重试权。HTTP 的 GET /operations/{id} 按原记录的 operation 类型分派到 JobCommands 或 ScheduleCommands，各自核验权限。查不到合法归属时统一 not_found，不通过探测泄漏另一类操作。
 
 JobView 对直接来源固定 scheduleId=null、scheduledAt=null、frozenBasis=null、sources=[]。其 acceptedAt 是服务端接受时刻，不伪造成原定时刻。直接接受回执为 `{receiptId,kind:'direct',requestRef,decidedAt,jobId,operationRef}`。定时回执为第 2.4 节 ReceiptView 的既有字段并带 kind='scheduled'。JobView.receiptId 必须引用同一来源分支的接受回执。直接通知没有 reminder 截止窗口，接受后沿原 notification intent 完成交付或取消。非接受的直接请求只有命令错误或原操作状态，不伪造 scheduled receipt。
 
@@ -291,8 +294,17 @@ type Outcome =
   | {kind: 'succeeded'; operationRef: Ref; resultRef: Ref}
   | {kind: 'failed' | 'blocked'; operationRef: Ref; reasonCode: string}
   | {kind: 'unknown'; operationRef: Ref}
-interface ResultOutcomes { masterReturn: Outcome; publication: Outcome; archive: Outcome }
+type PublicationOutcome =
+  | {kind: 'notRequested'}
+  | (Exclude<Outcome, {kind: 'notRequested'}> & {
+      phase: 'preparing' | 'publishing'
+      artifact: {artifactRef: Ref; artifactVersion: Ref} | null
+      preparationReceiptRef: Ref | null
+    })
+interface ResultOutcomes { masterReturn: Outcome; publication: PublicationOutcome; archive: Outcome }
 ```
+
+PublicationOutcome.notRequested 无阶段。其余分支必须有 phase，unknown/failed/blocked 保留失败或未知发生的原阶段及 operationRef。preparing 尚无正式成果时 artifact 和 preparationReceiptRef 为 null，准备成功后两者必填。publishing 的全部分支都携带已确认的 artifact 与 preparationReceiptRef。preparing+succeeded 只表示成果已准备，只有 publishing+succeeded 才表示发布完成。ResultQueries 原样返回该联合，不压成普通 Outcome。查询准备未知时按冻结 PublicationPlan 找原 master 适配器或 provider，发布未知只查原发布操作。
 
 ResultPolicy 与 returnTo 联合校验。masterInternal 必须 returnTo 非 null、publication=none、attention=silent。userDeliverable 必须选择 publication.master 或 publication.provider，不能为 none。master 模式要求明确 returnTo，来源会话不自动补成返回目标。provider 模式可以有或没有 returnTo，但始终由指定 provider 形成用户成果；如有返回目标，masterReturn 仍独立执行，不等待它替代 provider 的整理。没有 returnTo 时 masterReturn=notRequested，不创建会话。
 
@@ -360,7 +372,7 @@ HTTP 为可选 transport adapter；业务 API 不依赖它。v1 base `/api/v1`�
 | GET /jobs/{id} | JobControl.get | 原事实组合 |
 | POST /jobs | JobCommands.create | 直接接受，来源由可信 ctx 推导 |
 | POST /jobs/{id}/cancel | JobControl.cancel | 请求停止不返回“已撤销效果” |
-| GET /operations/{id} | queryOperation | owner及动作范围核验 |
+| GET /operations/{id} | JobCommands.queryOperation 或 ScheduleCommands.queryOperation | 按原操作类型分派，核验 owner、主体及来源范围 |
 | GET /schedule-features | subscriptions.listFeatures | 含受影响不可控feature及原因 |
 | GET /schedule-subscriptions | subscriptions.list | 用户订阅 |
 | GET /result-series/{id}/entries | ResultQueries.listSeries | 按audience与owner鉴权 |
@@ -403,6 +415,7 @@ Self-wake 只暴露 runtime 可信工具适配，v1 不提供让任意 HTTP 调�
 | schedule | create/reviseDraft/update/pause/resume/stop/promote/discard/replace/reconfirmConsent | scheduleCommands | schedule.{action}，按作者同意规则检查适用授权；granular 且无适用 standing blanket 时，对已生效安排变更逐命令确认；草稿及 reconfirmConsent 沿各自规则 |
 | schedule | operation | scheduleCommands | queryOperation；schedule.operation.read |
 | job | create | jobCommands | JobCommands.create；job.create；agent 来源会话来自可信 ctx |
+| job | operation | jobCommands | JobCommands.queryOperation；job.operation.read；核验原操作归属 |
 | job | get/cancel | jobControl | job.read/job.cancel |
 | schedule_subscription | listFeatures/list/enable/updateParameters/pause/resume/cancel | scheduleSubscriptions | subscription.{action} |
 | session_wake | suspendUntil/retime/cancel/get | sessionContinuation | session.selfWake.{action}；Session来自ctx |
@@ -445,7 +458,7 @@ Tool贡献的发布、装载与撤除沿[Tool Cordis已接受设计](../../../to
 1. 将本设计类型在实际拥有者写成唯一 TypeScript/StandardSchema 定义，生成JSON schema及SDK，不能手写三套同义字段。
 2. 契约测试覆盖每个判别联合合法/非法分支、额外字段、null、长度字节及时间格式，验证tool/HTTP只作映射。
 3. 各跨域port由其拥有者签认其前提，尤其authority fence、JobExecutor query/stop及notification durable accept；Session suspend/claim仅由外部组合核对，不能变成Schedule的强制依赖。
-4. 将Source 154条与目标N01–N25分配给实际验收入口，未实现/无法验证必须保留。
+4. 将Source 154条与目标N01–N27分配给实际验收入口，未实现/无法验证必须保留。
 5. 按已确认的D1–D10同步正式产品、领域与成员正文。D9只保留统一CatchUp，D3明确身份/版本两轴，D4保留双次数，D5保留完整作者生命周期。该动作是落实已确认设计，不再重新征求同一选择。
 6. 一次性交付全部已定义用例与真实适配器。施工可以分批，但不得以空实现、兼容模式、隐式回退或未接入的port作为完成状态。
 

@@ -23,7 +23,7 @@
 
 ```mermaid
 flowchart TB
-  Independent["独立应用 / HTTP 接入"] --> Services["Schedule 命令与查询 / JobControl"]
+  Independent["独立应用 / HTTP 接入"] --> Services["Schedule 命令与查询 / JobCommands / JobControl"]
   Tools["独立 tools 作者插件"] --> Binding["应用服务的 Cordis 定义"]
   Binding --> Services
   Services --> Core["Schedule / Job 核心"]
