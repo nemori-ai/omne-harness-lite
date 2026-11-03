@@ -5,7 +5,7 @@
 // assembly page are present; with any one absent it stays PENDING and names that key. Its schema
 // is the member's plus the release rule that `jointCommits` lists `message` (R2-D93). The two
 // construction inputs reach every runtime the host builds: the measurement observer, and the Tool
-// request source, without which a Tool action is not admitted. The injects are the stand-ins of
+// request source, without which a Tool action is denied. The injects are the stand-ins of
 // `doubles.ts`; the real providers are other rows and the assembly entry. The handle's stop is the
 // member's ordered stop; its cases are in `stop.spec.ts`.
 import { afterEach, describe, expect, it } from 'vitest'
@@ -506,15 +506,21 @@ describe('the agent-host row: construction inputs reach the runtimes it builds',
   )
 
   it(
-    'without a Tool request source leaves the Tool action unadmitted and invokes no Tool',
+    'without a Tool request source denies the Tool action, invokes no Tool and goes on to the next Model request',
     { timeout: 60_000 },
     async () => {
       const { doubles, load } = await suggestTool(agentHostRow)
-      // The suggestion was taken: the batch holds the Tool action, still pending its admission.
-      await until(async () => ((await load()).checkpoint.batch?.actions.length ?? 0) > 0, 5_000)
+      // The source is part of the admission, so its absence is an unavailable admission: the whole
+      // batch is denied and the denial goes to the next request (agent-contract SPEC
+      // "整批判断屏障与动作准入" rule 2, TOOL-A0). The Run does not stop at A0: step 2 asks the Model.
+      await until(
+        async () =>
+          (await load()).checkpoint.calls.some(
+            call => call.kind === 'model' && call.action === 'step-2/main',
+          ),
+        5_000,
+      )
       await turns(100)
-      const actions = (await load()).checkpoint.batch?.actions ?? []
-      expect(actions.map(action => action.judgment.kind)).toEqual(['pending'])
       expect(doubles.controls.tools.invoke.calls).toHaveLength(0)
     },
   )
