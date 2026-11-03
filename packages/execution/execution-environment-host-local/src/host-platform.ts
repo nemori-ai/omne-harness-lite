@@ -88,10 +88,17 @@ export function createHostPlatform(input: {
   })
   return {
     async prerequisites(): Promise<readonly Prerequisite[]> {
+      // describe() must return the current state, which means waiting for the probe to settle so a
+      // recovered user manager is visible without needing a full generation restart.
+      const [commandReading, terminalReading, terminalMissing] = await Promise.all([
+        probe.ready(),
+        terminalProbe.ready(),
+        probeTerminalPrerequisites(),
+      ])
       return [
-        probe.facts(),
-        terminalProbe.facts(),
-        (await probeTerminalPrerequisites()).length === 0 ? 'satisfied' : 'unsatisfied',
+        commandReading.kind,
+        terminalReading.kind,
+        terminalMissing.length === 0 ? 'satisfied' : 'unsatisfied',
       ]
     },
     commands: (options: CommandInput) => createHostCommands({ ...options, prerequisites: probe }),
