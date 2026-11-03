@@ -1,6 +1,7 @@
 import { ScheduleManagementResultSchema } from '@omne-harness/schedule-contract'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
-import { resolve, join } from 'node:path'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { afterEach, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
@@ -43,9 +44,7 @@ function prepared(
   return progress.environment
 }
 it('rebuilds the original key and fingerprint from SQL after close/reopen, preserves unknown, and never sends an automatic retry', async () => {
-  const directory = await realpath(
-    await mkdtemp(resolve(import.meta.dirname, '../../../../tmp/schedule-a2-tools/sql-')),
-  )
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'schedule-tools-sql-')))
   dirs.push(directory)
   const file = join(directory, 'original.sqlite')
   const first = sqlHost(file)

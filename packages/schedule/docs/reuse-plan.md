@@ -1,6 +1,6 @@
 # 日程与 Job 实现的复用、依赖和工具边界
 
-本页把功能分配给社区实现、系统公共能力和本域实现。Schedule 的规则依赖已锁定为 rrule 2.8.1、cron-parser 5.10.3 和 Temporal 0.5.1。固定 Python 源的判别探针与纯计算公开根用例验证了下列适配方案。纯规则枚举和 DST 物化已实现；worker 隔离、日历条件流水线和端到端调度尚未交付。已有产品政策与验收以[行为契约](../schedule/SPEC.md)为准。Calendar A1 的实际采用见其[复用规划](../../calendar/docs/reuse-plan.md)。
+本页把功能分配给社区实现、系统公共能力和本域实现。Schedule 的规则依赖已锁定为 rrule 2.8.1、cron-parser 5.10.3 和 Temporal 0.5.1。固定 Python 源的判别探针与纯计算公开根用例验证了下列适配方案。纯规则枚举、DST 物化、worker 隔离和日历条件预测流水线已实现；实际 Job 扫描与执行调度仍属后续波段。已有产品政策与验收以[行为契约](../schedule/SPEC.md)为准。Calendar A1 的实际采用见其[复用规划](../../calendar/docs/reuse-plan.md)。
 
 ## 社区与标准库复用
 
@@ -10,7 +10,7 @@
 | RRULE 解析与候选枚举        | `rrule@2.8.1`，BSD-3-Clause，已锁定；不同时采用第二引擎       | `schedule` 内部薄适配                                                           | 对照固定 Python dateutil 输入，覆盖全部已接受语法、DTSTART、WKST、BYSETPOS 与边界；不同时长期维护两套生产引擎                              |
 | cron 解析与候选枚举         | `cron-parser@5.10.3`，MIT，已锁定                             | `schedule` 内部薄适配                                                           | 先按产品限制五字段及允许语法，再枚举；验证 DOM/DOW OR、周日 0/7 与窗口边界。库 strict 模式要求六字段并限制 DOM/DOW，不能直接作为产品验证器 |
 | 唤醒与取消等待              | Node `timers/promises`、`AbortSignal`；不额外安装 cron runner | `schedule-local` 扫描唤醒                                                       | 定时器只唤醒扫描，持久事实决定到期工作。长等待分段，唤醒后重读墙钟，区分单调耗时与业务时间                                                 |
-| 可终止规则计算 worker | `piscina@5.3.2`，MIT，已锁定并完成取消/队列/退出探针；本域适配待交付 | `schedule-local` 计算隔离 | 显式并发和队列上限；deadline 包含排队；取消中止计算，dispose 等待线程退出；不作为业务队列 |
+| 可终止规则计算 worker | `piscina@5.3.2`，MIT，已锁定，本域适配与取消、队列、实际线程退出验证已实现 | `schedule-local` 计算隔离 | 显式并发和队列上限；deadline 包含排队；取消中止计算，dispose 等待线程退出；不作为业务队列 |
 | JSON 规范化                 | `canonicalize@5.1.0`，Apache-2.0，与现有Calendar采用一致      | `schedule-contract` 的版本化指纹适配；Calendar 如有同义需要直接使用同一社区依赖 | 严格 JSON 前置、RFC8785 测试向量、Unicode、数字与整数形键、跨语言 golden；不为共享函数让 Calendar 反向依赖 Schedule                        |
 | SHA-256 与随机身份          | Node `crypto`                                                 | 实际摘要及操作身份拥有者                                                        | 对已规范化字节计算摘要；恢复复用原操作身份，不因重试生成新键                                                                               |
 | 测试时间与断言              | 仓库已有 Vitest                                               | 各成员 tests 与 acceptance                                                      | 墙钟、单调钟、等待分别控制；假时钟不代替进程重启与真实存储验证                                                                             |
@@ -39,7 +39,7 @@ Piscina 的线程管理和 AbortSignal 行为以锁定发布物为准，来源�
 
 | 能力                               | 复用入口和状态                                                                                                                                    | 本域工作及边界                                                                                                       |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 日历事实与计算                     | Calendar A1 提供公开值、查询与计算入口，形状由 calendar-contract 源码拥有；Schedule 实现与真实跨域采用未交付                                      | Schedule 消费版本、覆盖与计算结果，不复制三历供应或维护第二套日历表                                                  |
+| 日历事实与计算                     | Calendar A1 提供公开值、查询与计算入口，形状由 calendar-contract 源码拥有；Schedule 公开端口消费已实现，真实跨域装配留M2后验证                                      | Schedule 消费版本、覆盖与计算结果，不复制三历供应或维护第二套日历表                                                  |
 | 身份、时间、JSON、Schema、操作结果 | [Calendar 公共能力表](../../calendar/docs/reuse-plan.md#系统公共能力)列出的已有入口                                                               | 按 codec/Schema 协议使用，本域只定义自己的结构和业务约束                                                             |
 | 内容块、采用和耐久引用             | [content-block](../../common/content-block/README.md) 已实现；[exchange-refs](../../common/exchange-refs/SPEC.md) 为纯类型                        | 反馈和成果复用内容形状，引用不替代授权读取或真实耐久保管                                                             |
 | 本地持久化                         | [sql-contract](../../storage/sql-contract/SPEC.md) 与现有 [sqlite-provider](../../storage/sqlite-provider/SPEC.md)                                | local 实现本域迁移、唯一约束、参加者、outbox 和恢复查询；装配选择介质。保留 L-1/L-4 等限制，不自建通用队列或分布式锁 |
