@@ -38,6 +38,14 @@ export type RoundCount = Readonly<{
   maxCommitBytes: number
   storageReads: Readonly<Record<string, number>>
   storageReadRows: Readonly<Record<string, number>>
+  /**
+   * The size in bytes (JSON text) of the largest single read of each handler that carries records or
+   * the Session snapshot, and the bytes of all committed requests. They grow with the rounds by
+   * design of the Session snapshot and the Agent records, so they belong to the curve, not to the
+   * equality of the rounds of J6.
+   */
+  maxReadBytes: Readonly<Record<string, number>>
+  storageCommitBytes: number
   /** `commitLog` calls of AD-02 that Session accepted. */
   ad02Commits: number | null
   /** `commitLog` calls of AD-02 that Session refused (a conflict on the head: AD-02 reads again). */
@@ -63,6 +71,8 @@ type Open = {
   maxCommitBytes: number
   storageReads: Record<string, number>
   storageReadRows: Record<string, number>
+  maxReadBytes: Record<string, number>
+  storageCommitBytes: number
   ad02Commits: number | null
   ad02Refused: number
   modelReceives: number
@@ -73,6 +83,11 @@ type Open = {
 
 function bump(table: Record<string, number>, key: string, by = 1): void {
   table[key] = (table[key] ?? 0) + by
+}
+
+/** The handlers whose read size the curve of J6 follows: the Session snapshot and the Agent records. */
+function sizedHandler(handler: string): boolean {
+  return handler === 'session.work' || handler.startsWith('execution-record.')
 }
 
 /** The rows of a read output: the members that are arrays, summed. */
@@ -115,6 +130,8 @@ export function createRoundCounters() {
     maxCommitBytes: 0,
     storageReads: {},
     storageReadRows: {},
+    maxReadBytes: {},
+    storageCommitBytes: 0,
     ad02Commits: null,
     ad02Refused: 0,
     modelReceives: 0,
@@ -158,13 +175,15 @@ export function createRoundCounters() {
           return
         }
         current.storageCommitTotal += 1
+        current.storageCommitBytes += bytes
         for (const participant of new Set(participants)) bump(current.storageCommits, participant)
       })
     },
-    read(handler: string, rows: number): void {
+    read(handler: string, rows: number, bytes = 0): void {
       inRound(current => {
         bump(current.storageReads, handler)
         bump(current.storageReadRows, handler, rows)
+        current.maxReadBytes[handler] = Math.max(current.maxReadBytes[handler] ?? 0, bytes)
       })
     },
     receive(kind: 'model' | 'tool'): void {
@@ -253,7 +272,11 @@ export function countingStorage(storage: SqlStorage, counters: RoundCounters): S
       const result = await storage.read(request, options)
       if (result.kind !== 'read')
         counters.refusedReads.push({ handler: request.handler, answer: result })
-      counters.read(request.handler, rowsOf(result))
+      counters.read(
+        request.handler,
+        rowsOf(result),
+        sizedHandler(request.handler) ? JSON.stringify(result).length : 0,
+      )
       return result
     },
   }
