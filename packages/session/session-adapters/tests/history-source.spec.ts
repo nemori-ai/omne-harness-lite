@@ -6,11 +6,14 @@
 // Context history (escaped epoch, canonical sequences from 0 while the Session rows count from 1, a
 // cursor bound to its evidence, a fixed upper bound, epoch changes, no empty page for a failure); the compaction window is cut at the
 // fixed upper bound and needs the lower bound sub-plugin; the eligibility bridge and the narrow
-// adoption source check the access of every call; a tail page costs the same at N = 10 and N = 100
+// adoption source check the access of every call; without handed facts the narrow adoption source
+// is the transitional one over the Agent Journal (R2-D216): `null` while no request is fixed,
+// unavailable once one is; a tail page costs the same at N = 10 and N = 100
 // rows (SS-21); both sub-plugins stay absent without `session`, and the lent reads answer
 // unavailable once they have closed.
 //
 // Session is this member's memory session (`./testing`) behind a scripted Session service; the
+// Agent Journal is the same memory session's Journal behind a scripted `agentJournal` service; the
 // history head decoder is a scripted double, because its production provider is a named gap.
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -39,6 +42,7 @@ import type {
   SessionFaces,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
+import type { AgentCheckpoint, AgentJournal, ExecutionRevision } from '@omne-harness/agent-contract'
 import { evidence, memoryOtherAccess, operationId } from '@omne-harness/session-contract/testing'
 import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionHistorySource } from '../src/cordis/history-source.ts'
@@ -55,7 +59,15 @@ type Faults = {
   /** Rewrites every model view page Session answers, to a shape Session itself never gives. */
   page?: (page: Extract<ModelViewRead, { kind: 'page' }>) => ModelViewRead
 }
-type Mounted = 'session' | 'lowerBound' | 'source'
+type Mounted = 'session' | 'lowerBound' | 'source' | 'journal' | 'adoption'
+/** What the scripted `agentJournal` service answers instead of the memory Journal. */
+type JournalScript = {
+  answer?: 'denied' | 'unavailable' | 'throw'
+  /** Replaces members of the loaded checkpoint. */
+  checkpoint?: Partial<AgentCheckpoint>
+  /** Replaces the loaded Journal revision. */
+  revision?: string
+}
 
 const disposers: (() => Promise<unknown>)[] = []
 afterEach(async () => {
@@ -136,6 +148,30 @@ async function world(
     readonly reconciliation = {} as SessionFaces<unknown>['reconciliation']
   }
 
+  const journalScript: JournalScript = {}
+  const journalLoads: unknown[] = []
+  const load: AgentJournal<unknown>['load'] = async input => {
+    journalLoads.push(input.principal)
+    if (journalScript.answer === 'throw') throw new Error('scripted Journal fault')
+    if (journalScript.answer !== undefined)
+      return { failure: { kind: journalScript.answer, diagnostic: 'scripted' } as never }
+    const answer = await s.view.journal.load(input as never)
+    if (!('ok' in answer)) return answer
+    return {
+      ok: {
+        ...answer.ok,
+        checkpoint: { ...answer.ok.checkpoint, ...journalScript.checkpoint },
+        revision: (journalScript.revision as ExecutionRevision | undefined) ?? answer.ok.revision,
+      },
+    }
+  }
+  class Journal extends Service {
+    constructor(ctx: Context) {
+      super(ctx, 'agentJournal')
+    }
+    readonly load = load
+  }
+
   const loaded = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
   const head: DurableEvidence = loaded.history
   const ad04 = createSessionHistorySource({
@@ -155,8 +191,15 @@ async function world(
       logged.push({ name: message.name, type: message.type, text: String(message.args[0]) }),
   })
   const fibers = new Map<Mounted, Awaited<ReturnType<Context['plugin']>>>()
-  const plugins = { session: Session, lowerBound: ad04.lowerBound, source: ad04.source } as const
-  for (const name of options.mount ?? (['session', 'lowerBound', 'source'] as const)) {
+  const plugins = {
+    session: Session,
+    journal: Journal,
+    lowerBound: ad04.lowerBound,
+    adoption: ad04.adoption,
+    source: ad04.source,
+  } as const
+  for (const name of options.mount ??
+    (['session', 'journal', 'lowerBound', 'adoption', 'source'] as const)) {
     const fiber = await ctx.plugin(plugins[name])
     disposers.push(() => fiber.dispose())
     fibers.set(name, fiber)
@@ -239,6 +282,8 @@ async function world(
     qualification,
     head,
     access,
+    journalScript,
+    journalLoads,
     borrow,
     remind,
     modelViewRows,
@@ -759,15 +804,111 @@ describe('the read eligibility bridge and the narrow adoption source', () => {
     expect(handed.asked).toEqual(['readCount'])
   })
 
-  it('answers unavailable after the access check when no fixed request facts are handed in', async () => {
+})
+
+// --- the transitional narrow adoption source (R2-D216, until FIXED-FACTS) ---------------------------
+
+describe('the transitional narrow adoption source over the Agent Journal', () => {
+  const FIXED: DurableEvidence = {
+    owner: 'agent-context',
+    record: 'coverage',
+    revision: '1',
+    digest: 'sha256:fixed',
+  }
+  const unrecorded = {
+    kind: 'unavailable',
+    diagnostic: expect.stringContaining('adopted-facts-unrecorded'),
+  }
+
+  it('answers null with a token while no execution of the session has fixed a request', async () => {
     const w = await world()
     const { parts } = await w.borrow()
     const { target } = await resolved(w, parts)
-    const answer = await parts.adopted.readSource({ access: w.access, target })
-    expect(answer).toMatchObject({ kind: 'unavailable' })
-    expect(JSON.stringify(answer)).toContain('adopted-facts-absent')
+    expect(parts.adopted.authority.name).toBe('session-ad04/adopted-transitional')
+    const count = await parts.adopted.readCount({ access: w.access, target })
+    expect(count).toMatchObject({
+      kind: 'value',
+      value: expect.stringMatching(/^session-ad04\/adopted\//u),
+    })
+    expect(await parts.adopted.readSource({ access: w.access, target })).toEqual({
+      kind: 'value',
+      value: null,
+    })
+    // The Journal is loaded with the principal of the access, and readWork goes as coordinator.
+    expect(w.journalLoads.length).toBeGreaterThan(0)
+    expect(new Set(w.journalLoads)).toEqual(new Set([w.access.principal]))
+    expect(w.calls.filter(c => c.method === 'work.readWork').at(-1)?.caller).toEqual({
+      caller: 'coordinator',
+    })
+  })
+
+  it('answers unavailable, never null, once a request is fixed', async () => {
+    const w = await world()
+    const { parts } = await w.borrow()
+    const { target } = await resolved(w, parts)
+    w.journalScript.checkpoint = { adoptedContext: FIXED }
+    expect(await parts.adopted.readSource({ access: w.access, target })).toEqual(unrecorded)
+    expect(await parts.adopted.readCount({ access: w.access, target })).toEqual(unrecorded)
+  })
+
+  it('answers unavailable when a main Model call is pending although adoptedContext is null', async () => {
+    const w = await world()
+    const { parts } = await w.borrow()
+    const { target } = await resolved(w, parts)
+    const pending = { kind: 'model', purpose: 'main' } as unknown as AgentCheckpoint['calls'][number]
+    w.journalScript.checkpoint = { calls: [pending] }
+    expect(await parts.adopted.readSource({ access: w.access, target })).toEqual(unrecorded)
+  })
+
+  it('changes the token when the Journal of an execution moves on', async () => {
+    const w = await world()
+    const { parts } = await w.borrow()
+    const { target } = await resolved(w, parts)
+    const before = await parts.adopted.readCount({ access: w.access, target })
+    w.journalScript.revision = '999'
+    const after = await parts.adopted.readCount({ access: w.access, target })
+    expect(before.kind).toBe('value')
+    expect(after.kind).toBe('value')
+    expect(after).not.toEqual(before)
+  })
+
+  it('passes a Journal denial through and answers unavailable for any other Journal failure', async () => {
+    const w = await world()
+    const { parts } = await w.borrow()
+    const { target } = await resolved(w, parts)
+    w.journalScript.answer = 'denied'
+    expect(await parts.adopted.readSource({ access: w.access, target })).toEqual({ kind: 'denied' })
+    w.journalScript.answer = 'unavailable'
+    expect(await parts.adopted.readSource({ access: w.access, target })).toMatchObject({
+      kind: 'unavailable',
+    })
+    w.journalScript.answer = 'throw'
+    expect(await parts.adopted.readCount({ access: w.access, target })).toMatchObject({
+      kind: 'unavailable',
+      diagnostic: expect.stringContaining('threw'),
+    })
+  })
+
+  it('answers unavailable without the adoption sub-plugin, and denies before reading the Journal', async () => {
+    const w = await world({ mount: ['session', 'journal', 'lowerBound', 'source'] })
+    const { parts } = await w.borrow()
+    const { target } = await resolved(w, parts)
+    expect(await parts.adopted.readSource({ access: w.access, target })).toEqual({
+      kind: 'unavailable',
+      diagnostic: expect.stringContaining('adopted-facts-pending'),
+    })
     w.qualification.session = false
     expect(await parts.adopted.readSource({ access: w.access, target })).toEqual({ kind: 'denied' })
+    expect(w.journalLoads).toEqual([])
+  })
+
+  it('denies before reading the Journal when Session refuses the access', async () => {
+    const w = await world()
+    const { parts } = await w.borrow()
+    const { target } = await resolved(w, parts)
+    w.qualification.session = false
+    expect(await parts.adopted.readSource({ access: w.access, target })).toEqual({ kind: 'denied' })
+    expect(w.journalLoads).toEqual([])
   })
 })
 

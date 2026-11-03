@@ -403,7 +403,8 @@ CM-02 的来源完整性由本插件及其 Session 历史提供者负责：
 1. 历史源子插件 `session-ad04` 注入 `session: { caller: 'reader' }`，提供 `contextHolderSources`。每次 Session 调用都用本次部件调用的 Access，插件没有自己的主体。
    - 租借是借用方 fiber 的效应。`release` 或借用方卸载结束租借，持有者在这时拉取借用方交入的结算函数。持有者卸载时先拒绝新的租借（答 `unavailable`），等全部已拉取的结算结束，再关闭借出的读口。读口关闭之后，四个部件都答 `unavailable`，不再调用 Session。
    - 每个部件先核 Access 与目标：缺 Access 或租户为 `invalid`；目标租户不等于 Access 的租户时答 `denied`，不调用 Session。
-2. 下界子插件 `session-ad04-lower-bound` 注入 `session: { caller: 'coordinator' }`，以本次 Access 调用 `readWork`。历史源子插件经同一工厂的内部链接使用它，用于未结工作下界与会话的作用域绑定。它缺席时，历史依据解析与压缩窗口答 `unavailable`，`read`、读取资格与窄采用来源照常工作。
+2. 下界子插件 `session-ad04-lower-bound` 注入 `session: { caller: 'coordinator' }`，以本次 Access 调用 `readWork`。历史源子插件经同一工厂的内部链接使用它，用于未结工作下界与会话的作用域绑定。它缺席时，历史依据解析与压缩窗口答 `unavailable`，`read` 与读取资格照常工作；装配没有交入 `adopted` 时，窄采用来源也答 `unavailable`。
+3. 采用子插件 `session-ad04-adopted` 只注入 `agentJournal`，不调用 `session`。历史源子插件经同一工厂的内部链接用它的 `load` 读各执行的 Journal，供过渡的窄采用来源使用。它缺席且装配没有交入 `adopted` 时，窄采用来源答 `unavailable`（诊断 `adopted-facts-pending`）。
 
 四个部件：
 
@@ -413,20 +414,30 @@ CM-02 的来源完整性由本插件及其 Session 历史提供者负责：
 | `history.read` | 由索引找到目标作用域的会话。索引里没有时答 `unavailable`，不调用 Session。依据译为 `ModelViewBasis`，返回行的 seq 按上面的行号换算。续读用 Session 签发的游标，代价与界限见 K-18：源子插件按会话与 epoch 在进程内记住每个签发游标所在的行和见过的每行字节数，每次从 after 之前最近的已记游标开始读，跳过 after 及之前的行，交回的行不超过 `budgetBytes`（至少一行）。到达上界的页不带游标，所以这样一页之后再读一次上界前一行之前的行，取得上界前一行的游标；下一轮从那里开始，只多读一行。没有可用的游标时（冷启动的源子插件、另一个 epoch、Session 拒收记住的游标，或已记的游标被上限淘汰）从 epoch 开头读，跳过已有的行。一次读取内用本次读取里 Session 返回的 `next` 游标翻页前进，不靠游标表里还剩哪些记录，所以表满时从开头读也一定前进到 after，每页最多 200 行（存储的页限制），Session 调用数约等于行数除以 200；游标表满 16 个时丢掉行号最低的游标，刚签发的那个不丢；Session 拒收记住的游标时丢掉该会话的全部记录，再读一次。游标必须绑定同一依据，否则答 `invalid`。行的 `bytes` 转为十进制文本；没有行带 `sourceCall`，因为模型视图不带原 Model 调用。`epoch-changed` 带当前完整依据。Session 的失败不成为空页 |
 | `history.compactionContext` | 先读上界所在的行，再以 `reader` 前向读完整个会话日志，以 `coordinator` 读 `readWork`。窗口与未结工作下界用本成员 `./testing` 会话的同一个窗口函数（`compactionReads`，含 `openWork`）求得，然后截到上界所在的条目。`coverTo` 不在上界之内时答 `invalid`。最后再读一次上界所在的行，epoch 已变时答 `epoch-changed` |
 | `eligibility.check` | 由索引找到会话，以本次 Access 做一次 `readModelView` 读取。Session 允许时答 `allowed`，`denied` 原样交出，其余失败答 `unavailable`。`revision` 只随历史源子插件的代次变化 |
-| `adopted` | 先做与 `eligibility.check` 相同的核验。装配交入固定请求事实时转交给它；没有交入时答 `unavailable`（诊断 `adopted-facts-absent`），不答 `null` |
+| `adopted` | 先做与 `eligibility.check` 相同的核验。装配交入固定请求事实时转交给它。没有交入时用下面的过渡做法 |
+
+窄采用来源的过渡做法（R2-D216）：完整的固定请求事实由设计闭包 FIXED-FACTS 补齐，补齐后删掉这段逻辑。现在 Journal 只保存固定请求事实的摘要证据：Agent 在 M0 把 `adoptedContext` 与主调用写进检查点，`adoptedContext` 是 agent-context 铸造的覆盖证据，只带内容摘要。覆盖证据的结构、提交顺序、窗口与预测都没有已记的值，所以本插件不能给出 `AdoptedRequestFact`。过渡做法只回答「还没有固定请求」这一条已记事实：
+
+1. 以下界子插件的 `coordinator` 面读 `readWork`，取会话的全部执行（`executions` 与活跃 Run 的执行）。
+2. 以本次 Access 经 `agentJournal.load` 读每个执行的检查点。Agent 只在 M0 写 `adoptedContext`，以后不清除。
+3. 全部执行的 `adoptedContext` 为 null，检查点里也没有主用途的 Model 调用时，`readSource` 答 `null`（RQ-14 的 not-fixed），`readCount` 答一个令牌。令牌是各执行与其 Journal 修订的摘要，首次固定的提交会改变它。
+4. 只要有一个执行已有固定请求，`readCount` 与 `readSource` 都答 `unavailable`，诊断 `adopted-facts-unrecorded`。不答 `null`，不编造任何字段。
+5. Journal 答 `denied` 时原样交出；其余失败或抛出答 `unavailable`。下界或采用子插件不在时答 `unavailable`（诊断 `adopted-facts-pending`）。
+
+`authority` 是 `session-ad04/adopted-transitional`。过渡做法看整个会话，不只看目标作用域，所以它只会多答 `unavailable`，不会把已固定的作用域答成 `null`。
 
 epoch 的翻译：Session 的 epoch 文本可能含控制字符（本成员内存会话的 epoch 就含一个），`EpochId` 不接受它们。本插件把控制字符、空格、DEL 与 `%` 写成 `%xx`，反向时还原，所以翻译可逆。
 
 已知缺口：
 
 - 历史依据到会话的解码由装配交入（`heads`）。现在的 Journal 核心铸造的 `history` 依据只带会话命名空间与执行修订。解码的真实提供者没有交付。
-- 窄采用来源的固定请求事实由装配交入（`adopted`）。会话日志没有固定请求的条目，真实来源没有交付。这是 [NP-02](#np-02) 的一部分。
+- 窄采用来源的固定请求事实由装配交入（`adopted`）。会话日志没有固定请求的条目，真实来源没有交付。这是 [NP-02](#np-02) 的一部分。没有交入时用上面的过渡做法，它的已知限制是：同一会话里第一次固定之后的请求都答 `unavailable`，例如工具结果回来以后的那次请求，以及同一会话的第二轮对话。每次读取都按会话的执行数读 Journal，代价随执行数增长。
 - 作用域到会话的索引只由 `resolveHistory` 建立，在进程内保存，有上界。进程重启之后，同一作用域在下一次解析之前答 `unavailable`。
 - 压缩窗口每次前向读完整个会话日志，不按游标增量读取。它用的窗口函数在 `src/testing/`，与 K-10 同理。上一次合法压缩之后的窗口（`base` 为 `previous`）没有用例，因为内存会话的压缩提交要经 Agent 参加。
 - 前缀摘要缓存没有实现，每页都读 Session。
 - 历史源子插件以 `reader` 调用 Session，主体是本次 Access 转交来的会话协调者主体（[#978 答复](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6562982342) Q-3）。`forSession` 的 actor 只有 `coordinator` 与 `maintainer`，所以主体的 actor 不等于调用方类 `reader`。Session 的调用方类核对只比插件配置，不比 actor，所以放行不受影响。
 
-验证：[tests/history-source.spec.ts](tests/history-source.spec.ts) 在真实 Cordis 4.0.4 上运行。Session 是本成员 `./testing` 的内存会话，经脚本 Session 服务接入；历史依据解码是脚本替身。`contextHolderSourcesConformance` 的十一个用例通过。SS-21 用例里读者持有上一次读取的游标，对 N = 10 与 N = 100 行比较游标之后的 Session 调用数（两次）与读到的行数。内存会话按行号续读，看不出游标是否不透明，所以 [tests/history-source-cursor.spec.ts](tests/history-source-cursor.spec.ts) 用 session-storage-sql 的 Session 端口（node:sqlite 替身，运行发布的模块，游标经签名）验证：跨页读只交出 Session 签发的游标；连续三轮每轮新增两行，每轮读到的行数在 4 行与 40 行的历史上相同，不超过 5 行；冷启动的源子插件、被拒收的游标与另一个 epoch 都从开头读，答出的行正确；420 行的历史先记满 16 个以上高位游标，再从开头读，答出全部行，Session 调用数不超过行数除以 200 取整加 3（上限淘汰后的回退）。SS-21 用例把读到上界后的两次 Session 调用（一页续读、一次补取游标）写成具名常量，两档历史都断言等于它，并带一条从头读的负控（调用数随历史增长时同一断言变红）。变异：恢复上限淘汰的原次序（刚签发的游标可被丢）或换回上一版的 `history-source.ts` 时，游标表满的用例变红；每次都不记游标时读取量与 SS-21 用例变红；把行号当游标交出时跨页与多轮用例变红；游标记录不按 epoch 分开时 epoch 用例变红。没有对真实 sqlite-provider、真实 agent-context 或真实 Request Context 运行。
+验证：[tests/history-source.spec.ts](tests/history-source.spec.ts) 在真实 Cordis 4.0.4 上运行。Session 是本成员 `./testing` 的内存会话，经脚本 Session 服务接入；历史依据解码是脚本替身。`contextHolderSourcesConformance` 的十一个用例通过。过渡的窄采用来源经脚本 `agentJournal` 服务（转交内存会话自己的 Journal，可改检查点、修订与失败）验证：没有固定请求时答 `null` 与令牌，Journal 以本次主体读取，`readWork` 走 `coordinator`；`adoptedContext` 非空或有主调用时答 `adopted-facts-unrecorded`；Journal 修订变化时令牌变化；Journal 的拒绝原样交出，其余失败与抛出答 `unavailable`；采用子插件不在时答 `adopted-facts-pending`；Session 拒绝时不读 Journal。变异：去掉 `adoptedContext` 判断、去掉主调用判断、令牌不含修订时，各有一个用例变红。SS-21 用例里读者持有上一次读取的游标，对 N = 10 与 N = 100 行比较游标之后的 Session 调用数（两次）与读到的行数。内存会话按行号续读，看不出游标是否不透明，所以 [tests/history-source-cursor.spec.ts](tests/history-source-cursor.spec.ts) 用 session-storage-sql 的 Session 端口（node:sqlite 替身，运行发布的模块，游标经签名）验证：跨页读只交出 Session 签发的游标；连续三轮每轮新增两行，每轮读到的行数在 4 行与 40 行的历史上相同，不超过 5 行；冷启动的源子插件、被拒收的游标与另一个 epoch 都从开头读，答出的行正确；420 行的历史先记满 16 个以上高位游标，再从开头读，答出全部行，Session 调用数不超过行数除以 200 取整加 3（上限淘汰后的回退）。SS-21 用例把读到上界后的两次 Session 调用（一页续读、一次补取游标）写成具名常量，两档历史都断言等于它，并带一条从头读的负控（调用数随历史增长时同一断言变红）。变异：恢复上限淘汰的原次序（刚签发的游标可被丢）或换回上一版的 `history-source.ts` 时，游标表满的用例变红；每次都不记游标时读取量与 SS-21 用例变红；把行号当游标交出时跨页与多轮用例变红；游标记录不按 epoch 分开时 epoch 用例变红。没有对真实 sqlite-provider、真实 agent-context 或真实 Request Context 运行。
 
 <a id="ad-05"></a>
 

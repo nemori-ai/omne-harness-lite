@@ -32,7 +32,7 @@
 | `session-provider` | `@omne-harness/session-cordis` 的插件 | `session`（四个面）；协调器与调度器，含推进触发调度器 S1 | `sessionAccessCheck`、`sessionDelegatedTransactions`（受信）、`sessionPrincipals`、`sessionWorkPrincipals`（受信）、`assemblyLifecycle` | `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionIdleInput`、`sessionAgentDrive`、`sessionScopeRelease`、`sessionClock`、`sessionNotifier`、`sessionTransactions`（只服务 `pending`、`references`、`releasedScopes` 三项目录读取） | `admission: 'none'`（本部署没有命令域与 hooks） |
 | `session-ad02` | AD-02 Agent 同日志解释（session-adapters 的 `createSessionJournalInterpretationPlugin`，B1 已接） | 无 | `session`（`'coordinator'`）、`sessionTransactions`（`commitLog` 所在的端口，日志解释的写口，与 AD-05 同构）；`storage`、`tenantDomainLookup`（受信，只读该 execution 的执行记录分区）；`sessionWorkPrincipals`（受信，取协调者主体） | 协调者主体来源（经受信 `sessionWorkPrincipals` 的 `forSession` 构造） | 无：插件不取配置 |
 | `session-ad03` | AD-03 持有者与生产者（session-adapters 的 `createSessionContextHolder`，B1 已接：持有者、回放与事实三个子插件来自同一次工厂调用） | `runtimeContextReaderEligibility`（K-RC，模型类读者资格）；`sessionReplayFacts`、`sessionScopeLookup`（事实子插件） | `runtimeContext`、`session`（`'coordinator'`、`'reader'`） | `sessionWorkPrincipals`（受信，取协调者主体）；提交翻译取发行采用定义的 Context 声明表 | `scopeIndexEntries`（索引上界）、`pageBytes`（历史读页大小），由运维者层给 |
-| `session-ad04` | AD-04 历史源（session-adapters 的 `createSessionHistorySource`，B1 已接） | `contextHolderSources`（K-RQ 持有者部件） | `session`（`'reader'`；下界子插件 `'coordinator'`） | 历史头解码 `historySessionOf`；协调者固定请求事实 `adopted` 在发行里没有来源，窄采用来源答不可用（具名缺件 B1-GAP-ADOPTED-REQUEST-SOURCE） | `scopeIndexEntries`、`pageBytes`，由运维者层给 |
+| `session-ad04` | AD-04 历史源（session-adapters 的 `createSessionHistorySource`，B1 已接） | `contextHolderSources`（K-RQ 持有者部件） | `session`（`'reader'`；下界子插件 `'coordinator'`）；`agentJournal`（采用子插件，不调用 `session`） | 历史头解码 `historySessionOf`；协调者固定请求事实 `adopted` 在发行里没有来源（具名缺件 B1-GAP-ADOPTED-REQUEST-SOURCE）。窄采用来源用过渡做法（R2-D216，待 FIXED-FACTS）：会话里还没有固定请求时答 `null`，有了答不可用 | `scopeIndexEntries`、`pageBytes`，由运维者层给 |
 | `session-ad05` | AD-05 Model 日志消费适配（session-adapters 的 `createSessionModelLogConsumptionPlugin`，B1 已接） | 无 | `session`（`'coordinator'`）；`agentJournal`、`agentMaterials`（同一 Journal 提供者）；`sessionTransactions`（`commitEntries` 所在的端口）；`sessionWorkPrincipals`（受信，取协调者主体） | 协调者主体来源 | 无：插件不取配置 |
 | `session-ad06` | AD-06 Tool 日志消费适配 | 无 | `session`（`'coordinator'`）；同一 Journal 提供者的 entries、results 与材料视图（`agentJournal`、`agentMaterials`）；`sessionTransactions`（`commitEntries` 所在的端口，后果、进度与答案的同批提交只经它） | 无 | 超时与重试退避 |
 | `session-ad09` | AD-09 身份桥 | `sessionIdentity` | `principalVerifier` | 无 | 无 |
@@ -136,6 +136,7 @@ flowchart LR
   authorization --> agent-instances
   tool-runtime --> session-ad11
   agent-journal --> session-ad06
+  agent-journal --> session-ad04
   model-host --> session-ad11
   execution-environment --> session-ad15
   session-provider --> session-ad15

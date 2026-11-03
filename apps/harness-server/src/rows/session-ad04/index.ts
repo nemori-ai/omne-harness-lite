@@ -1,11 +1,13 @@
-// The `session-ad04` row (B1, R2-D136): the AD-04 history source of session-adapters, two plugins
+// The `session-ad04` row (B1, R2-D136): the AD-04 history source of session-adapters, three plugins
 // from one `createSessionHistorySource` call: the source, which provides the holder parts (K-RQ,
-// `contextHolderSources`) and calls `session` as `reader`; and the lower-bound sub-plugin, which
-// reads `readWork` as `coordinator`. The heads decoder is `historySessionOf` of session-adapters.
+// `contextHolderSources`) and calls `session` as `reader`; the lower-bound sub-plugin, which reads
+// `readWork` as `coordinator`; and the adoption sub-plugin, which loads `agentJournal` and calls no
+// `session` (R2-D216). The heads decoder is `historySessionOf` of session-adapters.
 //
 // Named gap (B1-GAP-ADOPTED-REQUEST-SOURCE): the fixed request facts of the coordinator (CX-08,
-// `adopted`) have no production source in the release; the narrow adoption source then answers
-// `unavailable` after its access check, as the member specifies for an absent `adopted`.
+// `adopted`) have no production source in the release. The narrow adoption source is the member's
+// transitional one (R2-D216, until FIXED-FACTS): `null` while no request of the session is fixed,
+// `unavailable` once one is.
 //
 // Configuration (data only, from the operator layer): `scopeIndexEntries` and `pageBytes`.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
@@ -47,6 +49,7 @@ const plugin: Plugin.Object = {
       pageBytes: config.pageBytes,
     })
     await ctx.plugin(bundle.lowerBound)
+    await ctx.plugin(bundle.adoption)
     await ctx.plugin(bundle.source)
   },
 }
