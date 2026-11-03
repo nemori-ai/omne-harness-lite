@@ -14,7 +14,7 @@
 // Why slow: real Workers, real files and the whole line on one root.
 import { afterEach, describe, expect, it } from 'vitest'
 import { EARLIER, intakeAccess, ok, strangerAccess } from './world.ts'
-import { historyReadGrowth, type RoundCount } from './w2-measure.ts'
+import { ad04RowsOf, historyReadGrowth, type RoundCount } from './w2-measure.ts'
 import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
 
 /** The rows a round adds to the session log: its input and its reply. */
@@ -90,6 +90,42 @@ describe('J1: three rounds of one conversation', () => {
       const { emitted, readThrough } = await w.progress(await w.execution())
       expect(readThrough).toBe(emitted)
     }
+    // The measured values go to the log before the assertions below (R2-D75: red stays red), with
+    // the identities of the rows behind them (R2-D78).
+    console.log(
+      'J1-AD04',
+      JSON.stringify(
+        w.counters.rounds.map(count => ({
+          round: count.round,
+          ad04ProjectedRows: count.ad04ProjectedRows,
+          ad04StableRecompute: count.ad04StableRecompute,
+          ad04ReadCalls: count.ad04ReadCalls,
+          ad04ReadRows: count.ad04ReadRows,
+        })),
+      ),
+      JSON.stringify(w.counters.ad04Rows, (_key, value: unknown) =>
+        typeof value === 'bigint' ? Number(value) : value,
+      ),
+    )
+    // S3 item 3 by identity (R2-D78): the AD-04 reads of rounds 2 and 3 read the rows the round added
+    // and the boundary row, never an earlier row. The boundary row is the row the cursor of the
+    // Request Context stands after (it reads only the tail after its cached rows). The page read
+    // starts at the boundary row, because the signed cursor of Session is usable only one row early.
+    // The mint read, which gets the cursor for the next round, reads the boundary row and the added
+    // rows up to the row before the upper bound again, because Session issues no cursor after the
+    // upper bound. So the rows read again are the boundary row and the added rows but the last.
+    // One comparison for both rounds, so that a failure shows every round that breaks it.
+    const rows = [2, 3].map(round => ({ round, ...ad04RowsOf(w.counters.ad04Rows, round) }))
+    expect(
+      rows.map(({ round, added, read, reread }) => ({ round, added: added.length, read, reread })),
+    ).toEqual(
+      rows.map(({ round, added, boundary }) => ({
+        round,
+        added: NEW_ROWS_PER_ROUND,
+        read: [boundary, ...added],
+        reread: [boundary, ...added.slice(0, -1)],
+      })),
+    )
 
     // The request of round n carries the inputs and the replies of the rounds before it.
     const sizes = w.assembled.map(messages => messages.length)
@@ -107,26 +143,11 @@ describe('J1: three rounds of one conversation', () => {
     expect(
       historyReadGrowth(w.counters.rounds, NEW_ROWS_PER_ROUND, AD04_ROWS_FOR, AD04_READS),
     ).toEqual([])
-    // The two assertions of the first form of the criterion, for the AD-04 read path alone (the probes
-    // left out): rounds 2 and 3 hand out only the rows the round before added, and nothing handed out
-    // before is handed out again. R2-D74: they stay as they were until Reduce rules on them.
-    // The measured values go to the log before the assertions below (R2-D75: red stays red).
-    console.log(
-      'J1-AD04',
-      JSON.stringify(
-        w.counters.rounds.map(count => ({
-          round: count.round,
-          ad04ProjectedRows: count.ad04ProjectedRows,
-          ad04StableRecompute: count.ad04StableRecompute,
-          ad04ReadCalls: count.ad04ReadCalls,
-          ad04ReadRows: count.ad04ReadRows,
-        })),
-      ),
-    )
-    for (const count of [two, three]) {
-      expect(count?.ad04ProjectedRows).toBe(2)
-      expect(count?.ad04StableRecompute).toBe(0)
-    }
+    // The rows the AD-04 read path hands out in rounds 2 and 3 (the probes left out) are the same in
+    // both rounds and are the rows its reads need for the rows the round added (R2-D78).
+    expect(two?.ad04ProjectedRows).toBe(three?.ad04ProjectedRows)
+    for (const count of [two, three])
+      expect(count?.ad04ProjectedRows).toBe(AD04_ROWS_FOR(NEW_ROWS_PER_ROUND))
     // The probes of the qualification check read one row each, and their number is that of round 1.
     expect(two?.probeReadCalls).toBe(w.counters.rounds[0]?.probeReadCalls)
     expect(three?.probeReadCalls).toBe(two?.probeReadCalls)
