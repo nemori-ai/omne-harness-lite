@@ -11,7 +11,7 @@ src/index.ts ──▶ provider.ts ──▶ materials.ts ──▶ worker/schem
                  ├──▶ deadline.ts（截止时刻加法）
                  ├──▶ identifiers.ts（标识、操作键、凭证与摘要）
                  └──▶ worker/schema.ts（事实与读输出的形状、表名、操作名）
-src/cordis.ts ──▶ provider.ts、materials.ts、config.ts、clock.ts
+src/cordis.ts ──▶ provider.ts、materials.ts、config.ts
 src/worker/participant.ts、migration.ts、read-*.ts ──▶ worker/schema.ts、worker/support.ts
 ```
 
@@ -20,7 +20,6 @@ src/worker/participant.ts、migration.ts、read-*.ts ──▶ worker/schema.ts�
 | `provider.ts`    | 一个实例的停止标志与最晚时钟读数。三项操作、资格读口、全部结果映射 | identity、legal-identity、utc-instant、scrypt（类型）、sql-contract（类型）、本包其他主线程模块 |
 | `materials.ts`   | 参加者、迁移与读 handler 的描述，事务域与组合版本，各算一次        | sql-contract 的纯函数、`worker/schema.ts`                                                       |
 | `config.ts`      | 配置形状、校验与常量期限源                                         | utc-instant、`deadline.ts`                                                                      |
-| `clock.ts`       | 系统时钟                                                           | utc-instant                                                                                     |
 | `deadline.ts`    | 86400 秒天的加法与正数判断                                         | utc-instant                                                                                     |
 | `identifiers.ts` | 随机标识、操作键、请求键、登录凭证与 SHA-256                       | legal-identity、node:crypto                                                                     |
 | `cordis.ts`      | 插件体与两个服务子类                                               | kernel-basis、identity `./cordis`、sql-contract `./cordis`、scrypt                              |
