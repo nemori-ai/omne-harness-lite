@@ -20,6 +20,7 @@ import {
   type DispatchId,
   type ModelCallId,
   type ModelFailure,
+  type ModelInvocationParts,
   type ModelStreamSnapshot,
   type OutputCursor,
   type Reply,
@@ -258,6 +259,21 @@ function advance(stream: StreamTarget, target: Target, delta: Delta): void {
     watcher.push({ kind: 'delta', from, cursor: target.cursor, value })
 }
 
+/** The call that a public stream reference names; `unresolved` when it names no call of the tenant. */
+function observedCall(
+  ref: StreamRef,
+  tenant: TenantId,
+): Outcome<ModelInvocationParts, 'denied' | 'stale-stream' | 'unresolved'> {
+  const judged = judgeStreamRef({ value: ref, tenant }, streamCodec)
+  if ('failure' in judged) {
+    if (['foreign-tenant', 'invalid-tenant'].includes(judged.failure.kind))
+      return { failure: 'denied' }
+    if (judged.failure.kind === 'invalid-envelope') return { failure: 'stale-stream' }
+    return { failure: 'unresolved' }
+  }
+  const parts = resolveModelInvocationRef(readStreamRef(judged.ok).call, tenant)
+  return 'failure' in parts ? { failure: 'unresolved' } : parts
+}
 /** The storage bridge alone calls confirm; public readers cannot register call facts. */
 export function createModelObservationSource<P>(
   input: Readonly<{
@@ -516,6 +532,39 @@ export function createModelObservationSource<P>(
             : { kind: 'before-dispatch' },
     }
   }
+  /** A reference that names no call of the tenant only tells whether the observer may observe the tenant. */
+  function unknownCall(access: Access<P>): { failure: StreamCheckFailure } {
+    try {
+      const auth = input.authority.authorize({
+        action: 'observe',
+        access,
+        resource: { kind: 'tenant' },
+      })
+      return { failure: 'failure' in auth ? readFailure(auth.failure) : 'stale-stream' }
+    } catch {
+      return { failure: 'unavailable' }
+    }
+  }
+  /** The live stream of the held record, while the reference and the publication still name it. */
+  function heldStream(
+    ref: StreamRef,
+    tenant: TenantId,
+    call: ModelCallId,
+  ): Outcome<StreamTarget, StreamCheckFailure> {
+    const entry = records.get(identity(tenant, call))
+    if (!entry) return { failure: 'cold' }
+    if (entry.unavailable) return { failure: 'unavailable' }
+    const target = entry.record.target
+    const published = publications.get(identity(tenant, call))
+    if (
+      !target ||
+      target.snapshot.ref !== ref ||
+      !published ||
+      !samePublication(target.publication, published)
+    )
+      return { failure: 'stale-stream' }
+    return entry.stream ? { ok: entry.stream } : { failure: 'unavailable' }
+  }
   const source: ModelObservationSource<P> = {
     openHost() {
       if (closed || activeHost)
@@ -525,48 +574,16 @@ export function createModelObservationSource<P>(
       function check(
         request: Parameters<ModelObservationHost<P>['observation']['observe']>[0],
       ): Outcome<StreamTarget, StreamCheckFailure> {
-        const judged = judgeStreamRef(
-          { value: request.ref, tenant: request.access.tenant },
-          streamCodec,
-        )
-        if (
-          'failure' in judged &&
-          ['foreign-tenant', 'invalid-tenant'].includes(judged.failure.kind)
-        )
-          return { failure: 'denied' }
-        if ('failure' in judged && judged.failure.kind === 'invalid-envelope')
-          return { failure: 'stale-stream' }
-        const envelope = 'ok' in judged ? readStreamRef(judged.ok) : null
-        const parts = envelope && resolveModelInvocationRef(envelope.call, request.access.tenant)
-        if (!parts || 'failure' in parts) {
-          try {
-            const auth = input.authority.authorize({
-              action: 'observe',
-              access: request.access,
-              resource: { kind: 'tenant' },
-            })
-            return { failure: 'failure' in auth ? readFailure(auth.failure) : 'stale-stream' }
-          } catch {
-            return { failure: 'unavailable' }
-          }
-        }
-        const failure = authorize(request.access, parts.ok.call, 'observe')
+        const resolved = observedCall(request.ref, request.access.tenant)
+        if ('failure' in resolved)
+          return resolved.failure === 'unresolved'
+            ? unknownCall(request.access)
+            : { failure: resolved.failure }
+        const failure = authorize(request.access, resolved.ok.call, 'observe')
         if (failure) return { failure: readFailure(failure) }
         if (closed) return { failure: 'source-closed' }
         if (hostClosed) return { failure: 'stale-stream' }
-        const entry = records.get(identity(request.access.tenant, parts.ok.call))
-        if (!entry) return { failure: 'cold' }
-        if (entry.unavailable) return { failure: 'unavailable' }
-        const target = entry.record.target
-        const published = publications.get(identity(request.access.tenant, parts.ok.call))
-        if (
-          !target ||
-          target.snapshot.ref !== request.ref ||
-          !published ||
-          !samePublication(target.publication, published)
-        )
-          return { failure: 'stale-stream' }
-        return entry.stream ? { ok: entry.stream } : { failure: 'unavailable' }
+        return heldStream(request.ref, request.access.tenant, resolved.ok.call)
       }
       const observation = createStreamObservation<P>({
         limits,
