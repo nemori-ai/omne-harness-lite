@@ -30,7 +30,7 @@ flowchart LR
 
 本域协调同提交的来源、次数、Job、receipt与交接责任。Calendar提供不可变知识与publication guard，环境/权限/Quota拥有者提供自己的当前守卫；不能跨私有表建立第二真相。JobExecutor提供真实承接/原执行/停止证据，通知提供真实intent接受/取消与耐久可取回，结果与归档各保留独立operation。
 
-真实sql-contract/sqlite-provider已有实现，[实际限制与差额](../schedule/docs/internals.md#实际存储能力与未闭合保证)说明哪些强保证尚不能直接取得。两方位于同一进程或Context不自动形成事务。源17组154AC与N01–N25归[SPEC完整映射](../schedule/SPEC.md#来源与目标验收映射)，P0–P7都属于完整交付门槛；图与字段检查不能代替真实provider、故障、并发和tools装配。
+真实sql-contract/sqlite-provider已有实现，[实际限制与差额](../schedule/docs/internals.md#实际存储能力与未闭合保证)说明哪些强保证尚不能直接取得。两方位于同一进程或Context不自动形成事务。源17组154AC与N01–N27归[SPEC完整映射](../schedule/SPEC.md#来源与目标验收映射)，P0–P7都属于完整交付门槛；图与字段检查不能代替真实provider、故障、并发和tools装配。
 
 ## 本组工程分解与公开依赖
 
