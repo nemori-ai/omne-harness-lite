@@ -61,7 +61,6 @@ export function retentionLimit(
 
 export type CompactionCandidate = Readonly<{
   selection: SelectedModel
-  representation: Adoption
   source: Adoption
 }>
 /** Measures one compaction candidate: empty system and tools, `auto`, its own lineage (RQ-05). */
@@ -76,7 +75,6 @@ export async function measureCompactionCandidate<P>(
     messages,
     tools: [],
     toolChoice: 'auto',
-    representation: candidate.representation,
     source: candidate.source,
   })
   const lineage = lineageFor(context.access, projected, messages, null)

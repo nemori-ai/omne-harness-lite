@@ -47,7 +47,6 @@ export async function planInputs<P>(
   const { policies } = context
   const candidate = {
     selection: input.selection,
-    representation: policies.representation.identity,
     source: policies.compaction.identity,
   }
   const measure = retentionMeasure(context, candidate, projected)

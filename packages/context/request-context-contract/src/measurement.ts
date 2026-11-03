@@ -92,7 +92,7 @@ function measureWithLease(
       }
     const plan = binding.rules.plan({ profile, supplier: binding.supplier, assembled })
     if ('failure' in plan)
-      return { kind: 'unavailable', owner: 'meter', diagnostic: canonical(plan.failure) }
+      return { kind: 'unavailable', owner: 'preparation', diagnostic: canonical(plan.failure) }
     const result = binding.meter.measure({
       profile: profile.adoption,
       supplier,
