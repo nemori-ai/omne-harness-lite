@@ -129,7 +129,7 @@ describe('T-A3-1: the kept index answers as a whole read after every commit', ()
     if (last === undefined) throw new Error('no answer')
     // The original execution of each control is the Run that was active when it was requested,
     // folded in an earlier call than the control row itself.
-    expect(last.reads.controls.map(item => item.execution)).toEqual([
+    expect((last.reads.controls ?? []).map(item => item.execution)).toEqual([
       first.execution,
       second.execution,
     ])
