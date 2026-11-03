@@ -3,15 +3,17 @@
 //
 // - Source authority: a narrow allow fixed by the release (SC2). It admits one sender only, the
 //   adoption that the `agent-account-outlet` row is configured with, and only for a verified
-//   principal whose tenant is the tenant of the access, the target and the call. Every other input
-//   is `denied`; the reason goes to the diagnostic hook, because the contract's `denied` carries no
-//   text. It does not check that the account and its evidence are one committed log fact, nor that
+//   acting-for-tenant principal whose tenant is the tenant of the access, the target and the call.
+//   A system principal is `denied`: the system scope stands for no tenant (IC-18). Every other
+//   input is `denied`; the reason goes to the diagnostic hook, because the contract's `denied`
+//   carries no text. The verifier is the `principalVerifier` service, read per call. It does not check that the account and its evidence are one committed log fact, nor that
 //   the caller is the outlet itself: the release has no source for either (residual of
 //   B1-GAP-ACCOUNTING-SOURCE-AUTHORITY, see `docs/rows/session-run-release.md`).
 // - Read eligibility: the `eligibility` part of the holder sources that are already registered
 //   (`contextHolderSources`, row `session-ad04`), read per call under a short lease. Only the
 //   `accounts` operation is admitted.
 // - Adopted source and recovery authority stay named gaps; they answer `unavailable`.
+import type { PrincipalVerification, PrincipalVerifier } from '@omne-harness/identity'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import type {
   AccountingOptions,
@@ -19,7 +21,6 @@ import type {
   Adoption,
   AdoptedRequestSource,
   ContextReadEligibility,
-  PrincipalBinding,
   RecoveryAuthority,
   SourceDecision,
 } from '@omne-harness/request-context-contract'
@@ -47,7 +48,9 @@ export const ACCOUNT_OUTLET_SENDER: Adoption = Object.freeze({
 
 /** Why a port answered `denied`. The text names no tenant, principal or account. */
 export const ACCOUNTING_DENIALS = Object.freeze({
-  principal: 'accounting source: the principal of the access is not verified for its tenant',
+  principal: 'accounting source: the principal of the access is not verified',
+  system:
+    'accounting source: the principal is not an acting-for-tenant principal of the access tenant',
   tenant: 'accounting source: the tenants of the access, the target and the call differ',
   sender: 'accounting source: the sender is not the configured agent-account-outlet adoption',
   operation: 'accounting read eligibility: only the accounts operation is admitted',
@@ -55,6 +58,9 @@ export const ACCOUNTING_DENIALS = Object.freeze({
 })
 
 export type AccountingDiagnose = (diagnostic: string) => void
+
+/** Swallowed failures and routine refusals: debug level, never part of an answer. */
+export type AccountingTrace = (diagnostic: string) => void
 
 const DENIED = Object.freeze({ kind: 'denied' as const })
 const ALLOWED: SourceDecision = Object.freeze({ kind: 'allowed' })
@@ -70,15 +76,17 @@ function sameAdoption(left: Adoption, right: Adoption): boolean {
 }
 
 export type OutletSourceAuthorityOptions = Readonly<{
-  /** The principal binding of the trusted `requestContextTrust`: it verifies the principal. */
-  principalBinding: PrincipalBinding<unknown>
+  /** Reads the principal verifier now; `undefined` when none is running. */
+  readVerifier: () => PrincipalVerifier | undefined
   sender: Adoption
   diagnose: AccountingDiagnose
+  trace: AccountingTrace
 }>
 
 /**
- * The narrow source authority. Order: the principal (an unavailable verifier stays unavailable,
- * never `denied`), then the three tenants, then producer and sender. The first that fails answers.
+ * The narrow source authority. Order: the principal (an absent, unavailable or throwing verifier
+ * stays unavailable, never `denied`; only an acting-for-tenant principal of the access tenant
+ * passes), then the three tenants, then producer and sender. The first that fails answers.
  */
 export function createOutletSourceAuthority(
   options: OutletSourceAuthorityOptions,
@@ -88,18 +96,24 @@ export function createOutletSourceAuthority(
     return DENIED
   }
   const check: AccountingSourceAuthority<unknown>['check'] = async ({ access, input }) => {
-    let key: Awaited<ReturnType<PrincipalBinding<unknown>['key']>>
+    let verification: PrincipalVerification
     try {
-      key = await options.principalBinding.key(access)
+      const verifier = options.readVerifier()
+      if (verifier === undefined)
+        return unavailable('accounting source: no principalVerifier is running')
+      verification = await verifier.verify(access.principal)
     } catch {
+      options.trace('accounting source: the principal verifier threw')
       return unavailable(
-        'accounting source: the principal binding threw; its message is not reported',
+        'accounting source: the principal verifier threw; its message is not reported',
       )
     }
-    if (key.kind === 'unavailable')
-      return unavailable(`accounting source: principal binding: ${key.diagnostic}`)
-    if (key.kind === 'unknown') return { kind: 'unknown' }
-    if (key.kind !== 'value') return deny(ACCOUNTING_DENIALS.principal)
+    if (verification.kind === 'unavailable')
+      return unavailable(`accounting source: principal verifier: ${verification.diagnostic}`)
+    if (verification.kind !== 'verified') return deny(ACCOUNTING_DENIALS.principal)
+    const principal = verification.principal
+    if (principal.kind !== 'acting-for-tenant' || !tenantEquals(principal.tenant, access.tenant))
+      return deny(ACCOUNTING_DENIALS.system)
     if (
       !tenantEquals(access.tenant, input.target.tenant) ||
       !tenantEquals(access.tenant, input.call.tenant)
@@ -116,6 +130,7 @@ export type HolderReadEligibilityOptions = Readonly<{
   /** Reads the registered holder sources now; `undefined` when no holder is running. */
   readHolder: () => ContextHolderSources<unknown> | undefined
   diagnose: AccountingDiagnose
+  trace: AccountingTrace
 }>
 
 const SETTLED = Object.freeze({ kind: 'settled' as const })
@@ -131,13 +146,14 @@ export function createHolderReadEligibility(
 ): ContextReadEligibility<unknown> {
   const check: ContextReadEligibility<unknown>['check'] = async input => {
     if (input.operation !== 'accounts') {
-      options.diagnose(ACCOUNTING_DENIALS.operation)
+      options.trace(ACCOUNTING_DENIALS.operation)
       return DENIED
     }
     let holder: ContextHolderSources<unknown> | undefined
     try {
       holder = options.readHolder()
     } catch {
+      options.trace('accounting read eligibility: reading the holder threw')
       holder = undefined
     }
     if (holder === undefined)
@@ -146,6 +162,7 @@ export function createHolderReadEligibility(
     try {
       leased = holder.lease({ settle: () => Promise.resolve(SETTLED) })
     } catch {
+      options.trace('accounting read eligibility: the holder lease threw')
       return unavailable('accounting read eligibility: the holder lease threw')
     }
     if (leased.kind !== 'leased')
@@ -155,6 +172,7 @@ export function createHolderReadEligibility(
       if (answer.kind === 'denied') options.diagnose(ACCOUNTING_DENIALS.eligibility)
       return answer
     } catch {
+      options.trace('accounting read eligibility: the holder eligibility threw')
       return unavailable('accounting read eligibility: the holder eligibility threw')
     } finally {
       leased.lease.release()
@@ -180,9 +198,10 @@ export const gapRecoveryAuthority: RecoveryAuthority<unknown> = Object.freeze({
 })
 
 export type ReleaseAccountingPorts = Readonly<{
-  principalBinding: PrincipalBinding<unknown>
+  readVerifier: OutletSourceAuthorityOptions['readVerifier']
   readHolder: HolderReadEligibilityOptions['readHolder']
   diagnose: AccountingDiagnose
+  trace: AccountingTrace
 }>
 
 /** The accounting options of the release: the two narrow ports, the two gaps and the limits. */
@@ -192,13 +211,15 @@ export function releaseAccounting(
 ): AccountingOptions<unknown> {
   return {
     sourceAuthority: createOutletSourceAuthority({
-      principalBinding: ports.principalBinding,
+      readVerifier: ports.readVerifier,
       sender: ACCOUNT_OUTLET_SENDER,
       diagnose: ports.diagnose,
+      trace: ports.trace,
     }),
     readEligibility: createHolderReadEligibility({
       readHolder: ports.readHolder,
       diagnose: ports.diagnose,
+      trace: ports.trace,
     }),
     adoptedSource: gapAdoptedSource,
     recoveryAuthority: gapRecoveryAuthority,

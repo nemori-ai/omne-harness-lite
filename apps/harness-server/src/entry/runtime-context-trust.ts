@@ -166,10 +166,11 @@ const FACTS_UNAVAILABLE: StepCommittedBlocks = Object.freeze({ kind: 'unavailabl
 /**
  * 持有者事实的入口端口。每次调用现取一次读口：服务不在场（`session-ad03` 未装、事实子插件已停）、读取或
  * 应答抛出，都答 `unavailable`，不答 `known`，也不缓存上一次的服务引用。`diagnostic` 只给装配者看，
- * 不进任何答复。
+ * 不进任何答复。吞掉的异常交 `trace`（调试级日志），不带异常消息。
  */
 export function entryReplayFacts(
   read: ReplayFactsReader,
+  trace: (diagnostic: string) => void = () => {},
 ): SessionReplayFacts & Readonly<{ diagnostic: string }> {
   return Object.freeze({
     diagnostic:
@@ -182,6 +183,7 @@ export function entryReplayFacts(
         if (facts === undefined) return FACTS_UNAVAILABLE
         return await facts.stepCommittedBlocks(...args)
       } catch {
+        trace('reading the session replay facts threw; answered unavailable')
         return FACTS_UNAVAILABLE
       }
     },
@@ -256,7 +258,11 @@ export function createRuntimeContextTrustModule(
     name: runtimeContextTrustKey,
     implementation: 'real',
     install(scope, env) {
-      const replayFacts = entryReplayFacts(() => readReplayFacts(scope))
+      const logger = scope.logger('runtimeContextTrust')
+      const replayFacts = entryReplayFacts(
+        () => readReplayFacts(scope),
+        diagnostic => logger.debug(diagnostic),
+      )
       new EntryRuntimeContextTrust(scope, verifierOf(env), replayFacts, scopes)
     },
   }

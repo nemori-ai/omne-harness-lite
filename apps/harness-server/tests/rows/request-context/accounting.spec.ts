@@ -1,10 +1,14 @@
 // The accounting ports of the `request-context` row (SC2): the narrow source authority, the read
-// eligibility over the registered holder sources, and the two gaps that stay. The principal binding
-// is the release one (`createPrincipalBinding` over a real in-process verifier); the inbox is the
-// real `createContextAccounting` of the member, so the order of its checks is the member's own.
+// eligibility over the registered holder sources, and the two gaps that stay. The verifier is a real
+// in-process principal authority; the inbox is the real `createContextAccounting` of the member, so
+// the order of its checks is the member's own.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { inProcessPrincipalAuthority, type Principal } from '@omne-harness/identity'
+import {
+  inProcessPrincipalAuthority,
+  type Principal,
+  type PrincipalVerifier,
+} from '@omne-harness/identity'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { decodeDispatchId, decodeModelCallId } from '@omne-harness/model-contract'
 import { createContextAccounting } from '@omne-harness/request-context'
@@ -17,7 +21,6 @@ import type {
 } from '@omne-harness/request-context-contract'
 import type { ContextHolderSources } from '@omne-harness/request-context-cordis-contract'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
-import { createPrincipalBinding } from '../../../src/entry/request-context-trust.ts'
 import {
   ACCOUNT_OUTLET_SENDER,
   ACCOUNTING_DENIALS,
@@ -67,7 +70,7 @@ function fact(
   }
 }
 
-/** A real verifier and the release principal binding over it, with one acting principal per tenant. */
+/** A real verifier, one acting principal per tenant, and system principals of the same authority. */
 function principals() {
   const authority = inProcessPrincipalAuthority()
   const actor = okOf(authority.issuer.issueSystem({ component: 'agent-host' }), 'actor')
@@ -80,22 +83,36 @@ function principals() {
       }),
       'acting',
     )
-  return { binding: createPrincipalBinding({ verifier: authority.verifier }), acting }
+  const system = (component: string): Principal =>
+    okOf(authority.issuer.issueSystem({ component }), 'system')
+  return { verifier: authority.verifier, acting, system }
 }
 
+const quiet = { diagnose: () => {}, trace: () => {} }
+
 function authorityUnderTest() {
-  const { binding, acting } = principals()
+  const { verifier, acting, system } = principals()
   const diagnostics: string[] = []
   const authority = createOutletSourceAuthority({
-    principalBinding: binding,
+    readVerifier: () => verifier,
     sender: ACCOUNT_OUTLET_SENDER,
     diagnose: text => diagnostics.push(text),
+    trace: () => {},
   })
-  return { authority, acting, diagnostics }
+  return { authority, acting, system, diagnostics }
+}
+
+function authorityOver(verifier: PrincipalVerifier | undefined, traces: string[] = []) {
+  return createOutletSourceAuthority({
+    readVerifier: () => verifier,
+    sender: ACCOUNT_OUTLET_SENDER,
+    diagnose: () => {},
+    trace: text => traces.push(text),
+  })
 }
 
 describe('the source authority: only the configured agent-account-outlet sender', () => {
-  it('allows the configured sender for a verified principal of the same tenant', async () => {
+  it('allows the configured sender for a verified acting principal of the same tenant', async () => {
     const { authority, acting, diagnostics } = authorityUnderTest()
     const access: Access<unknown> = { principal: acting(tenantA), tenant: tenantA }
     await expect(authority.check({ access, input: fact() })).resolves.toEqual({ kind: 'allowed' })
@@ -135,41 +152,72 @@ describe('the source authority: only the configured agent-account-outlet sender'
     expect(diagnostics).toEqual([ACCOUNTING_DENIALS.tenant])
   })
 
-  it('denies a principal of another tenant, and a forged or non-principal value', async () => {
+  it('denies a verified system principal of any component: the system scope stands for no tenant (IC-18)', async () => {
+    const { authority, system, diagnostics } = authorityUnderTest()
+    for (const component of ['any-root-component', 'agent-host']) {
+      const access: Access<unknown> = { principal: system(component), tenant: tenantB }
+      const input = fact({ target: tenantB, call: tenantB })
+      await expect(authority.check({ access, input })).resolves.toEqual({ kind: 'denied' })
+    }
+    expect(diagnostics).toEqual([ACCOUNTING_DENIALS.system, ACCOUNTING_DENIALS.system])
+  })
+
+  it('denies an acting principal of another tenant than the access, with an otherwise valid input', async () => {
     const { authority, acting, diagnostics } = authorityUnderTest()
-    const foreign: Access<unknown> = { principal: acting(tenantB), tenant: tenantA }
+    const access: Access<unknown> = { principal: acting(tenantB), tenant: tenantA }
+    await expect(authority.check({ access, input: fact() })).resolves.toEqual({ kind: 'denied' })
+    expect(diagnostics).toEqual([ACCOUNTING_DENIALS.system])
+  })
+
+  it('denies a forged copy of an acting principal and a value that is no principal', async () => {
+    const { authority, acting, diagnostics } = authorityUnderTest()
     const forged: Access<unknown> = {
       principal: JSON.parse(JSON.stringify(acting(tenantA))) as unknown,
       tenant: tenantA,
     }
     const text: Access<unknown> = { principal: 'agent-host', tenant: tenantA }
-    for (const access of [foreign, forged, text])
+    for (const access of [forged, text])
       await expect(authority.check({ access, input: fact() })).resolves.toEqual({
         kind: 'denied',
       })
-    expect(diagnostics).toEqual([
-      ACCOUNTING_DENIALS.principal,
-      ACCOUNTING_DENIALS.principal,
-      ACCOUNTING_DENIALS.principal,
-    ])
+    expect(diagnostics).toEqual([ACCOUNTING_DENIALS.principal, ACCOUNTING_DENIALS.principal])
   })
 
-  it('keeps an unavailable or throwing principal binding unavailable, never denied or allowed', async () => {
-    const down = createOutletSourceAuthority({
-      principalBinding: { key: async () => ({ kind: 'unavailable', diagnostic: 'verifier down' }) },
+  it('keeps an absent, unavailable or throwing verifier unavailable, never denied or allowed', async () => {
+    const { acting } = principals()
+    const access: Access<unknown> = { principal: acting(tenantA), tenant: tenantA }
+    const traces: string[] = []
+    const down: PrincipalVerifier = {
+      verify: async () => ({ kind: 'unavailable', diagnostic: 'verifier down' }),
+    }
+    const throwing: PrincipalVerifier = { verify: () => Promise.reject(new Error('secret')) }
+    const answers = [
+      await authorityOver(undefined).check({ access, input: fact() }),
+      await authorityOver(down).check({ access, input: fact() }),
+      await authorityOver(throwing, traces).check({ access, input: fact() }),
+    ]
+    expect(answers.map(answer => answer.kind)).toEqual([
+      'unavailable',
+      'unavailable',
+      'unavailable',
+    ])
+    expect(JSON.stringify(answers)).not.toContain('secret')
+    expect(traces).toEqual(['accounting source: the principal verifier threw'])
+  })
+
+  it('keeps a throwing verifier reader unavailable', async () => {
+    const { acting } = principals()
+    const authority = createOutletSourceAuthority({
+      readVerifier: () => {
+        throw new Error('secret')
+      },
       sender: ACCOUNT_OUTLET_SENDER,
-      diagnose: () => undefined,
+      ...quiet,
     })
-    const throwing = createOutletSourceAuthority({
-      principalBinding: { key: () => Promise.reject(new Error('secret')) },
-      sender: ACCOUNT_OUTLET_SENDER,
-      diagnose: () => undefined,
-    })
-    const access: Access<unknown> = { principal: 'p', tenant: tenantA }
-    const first = await down.check({ access, input: fact() })
-    const second = await throwing.check({ access, input: fact() })
-    expect([first.kind, second.kind]).toEqual(['unavailable', 'unavailable'])
-    expect(JSON.stringify(second)).not.toContain('secret')
+    const access: Access<unknown> = { principal: acting(tenantA), tenant: tenantA }
+    const answer = await authority.check({ access, input: fact() })
+    expect(answer.kind).toBe('unavailable')
+    expect(JSON.stringify(answer)).not.toContain('secret')
   })
 })
 
@@ -216,6 +264,7 @@ describe('the read eligibility: the eligibility part of the registered holder so
           probe,
         ),
       diagnose: text => diagnostics.push(text),
+      trace: () => {},
     })
     await expect(port.check(read)).resolves.toEqual(allowed)
     expect(seen).toEqual([read])
@@ -229,52 +278,101 @@ describe('the read eligibility: the eligibility part of the registered holder so
     const port = createHolderReadEligibility({
       readHolder: () => holderWith({ check: async () => ({ kind: 'denied' }) }, probe),
       diagnose: text => diagnostics.push(text),
+      trace: () => {},
     })
     await expect(port.check(read)).resolves.toEqual({ kind: 'denied' })
     expect(diagnostics).toEqual([ACCOUNTING_DENIALS.eligibility])
     expect(probe).toEqual({ leases: 1, releases: 1 })
   })
 
-  it('denies every operation other than accounts without asking the holder', async () => {
+  it('denies every operation other than accounts without asking the holder; the reason is a trace, not a warning', async () => {
     const probe: Probe = { leases: 0, releases: 0 }
+    const diagnostics: string[] = []
+    const traces: string[] = []
     const port = createHolderReadEligibility({
       readHolder: () => holderWith({ check: async () => allowed }, probe),
-      diagnose: () => undefined,
+      diagnose: text => diagnostics.push(text),
+      trace: text => traces.push(text),
     })
     for (const operation of ['history', 'conversions', 'assembly'] as const)
       await expect(port.check({ ...read, operation })).resolves.toEqual({ kind: 'denied' })
     expect(probe.leases).toBe(0)
+    expect(diagnostics).toEqual([])
+    expect(traces).toEqual([
+      ACCOUNTING_DENIALS.operation,
+      ACCOUNTING_DENIALS.operation,
+      ACCOUNTING_DENIALS.operation,
+    ])
   })
 
   it('is unavailable with no holder, a refused lease, or a throwing eligibility (the lease still ends)', async () => {
     const probe: Probe = { leases: 0, releases: 0 }
-    const none = createHolderReadEligibility({ readHolder: () => undefined, diagnose: () => {} })
+    const traces: string[] = []
+    const none = createHolderReadEligibility({ readHolder: () => undefined, ...quiet })
     const closing = createHolderReadEligibility({
       readHolder: () => ({ lease: () => ({ kind: 'unavailable', diagnostic: 'closing' }) }),
-      diagnose: () => {},
+      ...quiet,
     })
     const throwing = createHolderReadEligibility({
       readHolder: () => holderWith({ check: () => Promise.reject(new Error('x')) }, probe),
       diagnose: () => {},
+      trace: text => traces.push(text),
     })
     for (const port of [none, closing, throwing])
       expect((await port.check(read)).kind).toBe('unavailable')
     expect(probe).toEqual({ leases: 1, releases: 1 })
+    expect(traces).toEqual(['accounting read eligibility: the holder eligibility threw'])
+  })
+
+  it('is unavailable, with a trace, when reading the holder throws', async () => {
+    const traces: string[] = []
+    const port = createHolderReadEligibility({
+      readHolder: () => {
+        throw new Error('secret')
+      },
+      diagnose: () => {},
+      trace: text => traces.push(text),
+    })
+    await expect(port.check(read)).resolves.toEqual({
+      kind: 'unavailable',
+      diagnostic: 'accounting read eligibility: no contextHolderSources holder is running',
+    })
+    expect(traces).toEqual(['accounting read eligibility: reading the holder threw'])
+  })
+
+  it('is unavailable, with a trace, when the holder lease throws', async () => {
+    const traces: string[] = []
+    const port = createHolderReadEligibility({
+      readHolder: () => ({
+        lease: () => {
+          throw new Error('secret')
+        },
+      }),
+      diagnose: () => {},
+      trace: text => traces.push(text),
+    })
+    const answer = await port.check(read)
+    expect(answer).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'accounting read eligibility: the holder lease threw',
+    })
+    expect(JSON.stringify(answer)).not.toContain('secret')
+    expect(traces).toEqual(['accounting read eligibility: the holder lease threw'])
   })
 })
 
 describe('the release accounting options on the real inbox', () => {
   function inbox(eligibility: ContextReadEligibility<unknown>) {
-    const { binding, acting } = principals()
+    const { verifier, acting, system } = principals()
     const options = releaseAccounting(
       { maxTargets: 4, maxFactsPerTarget: 8, maxRevisionsPerDispatch: 4 },
       {
-        principalBinding: binding,
+        readVerifier: () => verifier,
         readHolder: () => holderWith(eligibility, { leases: 0, releases: 0 }),
-        diagnose: () => {},
+        ...quiet,
       },
     )
-    return { inbox: createContextAccounting(options).inbox, acting }
+    return { inbox: createContextAccounting(options).inbox, acting, system }
   }
 
   it('the configured sender passes the source authority and stops at the uninitialized projection', async () => {
@@ -293,6 +391,14 @@ describe('the release accounting options on the real inbox', () => {
     await expect(subject.receive({ access, input: fact({ sender }) })).resolves.toEqual({
       kind: 'denied',
     })
+  })
+
+  it('a system principal for tenant B with a B account and the configured sender is denied (review B1)', async () => {
+    const { inbox: subject, system } = inbox({ check: async () => allowed })
+    const access: Access<unknown> = { principal: system('any-root-component'), tenant: tenantB }
+    await expect(
+      subject.receive({ access, input: fact({ target: tenantB, call: tenantB }) }),
+    ).resolves.toEqual({ kind: 'denied' })
   })
 
   it('usage: a denied eligibility is denied; an allowed one reaches the adopted-source gap', async () => {

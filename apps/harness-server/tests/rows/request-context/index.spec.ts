@@ -2,8 +2,8 @@
 // The `request-context` row on a real Cordis with the release entry objects (SC2): the accounting
 // inbox it provides answers through the ports of `accounting.ts`. The read eligibility reads the
 // registered holder sources per call, so a holder that starts after the row is used, and no holder
-// is `unavailable`; a forged sender or an unverified principal is `denied` and the denial reaches
-// the row logger. The holder is a test stand-in of `contextHolderSources` (the real one is row
+// is `unavailable`; an unverified principal is `denied` even with the configured sender, and the
+// denial reaches the row logger. The holder is a test stand-in of `contextHolderSources` (the real one is row
 // `session-ad04`).
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context, Message } from '@deepseek-ai/cordis'
@@ -15,7 +15,10 @@ import {
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { principalIssuer, principalVerifier } from '../../../src/entry/principals.ts'
 import { requestContextTrust } from '../../../src/entry/request-context-trust.ts'
-import { ACCOUNTING_DENIALS } from '../../../src/rows/request-context/accounting.ts'
+import {
+  ACCOUNT_OUTLET_SENDER,
+  ACCOUNTING_DENIALS,
+} from '../../../src/rows/request-context/accounting.ts'
 import { requestContextRow } from '../../../src/rows/request-context/index.ts'
 import { fixtureTenant } from '../../entry/support.ts'
 import { declared, loadTree, makeBase, type LoadedTree } from '../session-fixtures/tree.ts'
@@ -99,7 +102,7 @@ describe('the request-context row: the accounting inbox through the release port
             kind: 'account',
             origin: {
               producer: 'model',
-              sender: { owner: 'x', name: 'y', revision: '1', digest: 'z' },
+              sender: ACCOUNT_OUTLET_SENDER,
               resultVersion: null,
             },
             target,

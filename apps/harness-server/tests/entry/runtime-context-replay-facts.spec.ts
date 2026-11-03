@@ -219,6 +219,21 @@ describe('entryReplayFacts', () => {
     expect(absent.diagnostic).toContain('sessionReplayFacts')
   })
 
+  it('traces a swallowed throw at debug level, without its message; an absent service is no trace', async () => {
+    const traces: string[] = []
+    const trace = (text: string) => traces.push(text)
+    await entryReplayFacts(() => undefined, trace).stepCommittedBlocks(scope, null)
+    expect(traces).toEqual([])
+    const throwing = entryReplayFacts(
+      () => ({ stepCommittedBlocks: () => Promise.reject(new Error('secret')) }),
+      trace,
+    )
+    await expect(throwing.stepCommittedBlocks(scope, null)).resolves.toEqual({
+      kind: 'unavailable',
+    })
+    expect(traces).toEqual(['reading the session replay facts threw; answered unavailable'])
+  })
+
   it('returns the answer of the facts present at the call', async () => {
     let current: SessionReplayFacts | undefined
     const port = entryReplayFacts(() => current)
