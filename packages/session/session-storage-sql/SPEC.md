@@ -666,7 +666,7 @@ releasedScopes(principal, scope = system, after, limit):
 
 当前状态的拥有者与直接读者（C-WORKCACHE 拓扑，R2-D102）。工作缓存（下称 WorkHolder）是一个进程里 Session 当前状态 `session.work` 的唯一内存拥有者。它不是权威：权威仍在存储，每个答案都带一个在存储快照里读到的版本，资格由事务内的裁定决定。
 
-- 只有 WorkHolder 调用 `session.work` 与 `session.work-version` 两个 handler。其余读当前状态的调用方都经 WorkHolder：Session 核心的面操作经端口 `readWork`（`src/reads.ts`），session-adapters 的插件经核心面 `session.work.readWork`，不经核心的两个读者（会话归属读口 `src/bindings.ts`、session-adapters 的 Journal 提供者）经 `readCachedSessionWork`。
+- 只有 WorkHolder 调用 `session.work` 与 `session.work-version` 两个 handler。其余读当前状态的调用方都经 WorkHolder：Session 核心的面操作经端口 `readWork`（`src/reads.ts`），session-adapters 的插件经核心面 `session.work.readWork`，不经核心的两个读者（会话归属读口 `src/bindings.ts`、session-adapters 的 Journal 提供者）经 `readCachedSessionWork`。`tests/direct-reads.spec.ts` 用 `git grep` 核对这条边界：全仓 `packages`、`apps` 的产品源码里以文本点名这两个 handler 的文件，只有定义它们的 `src/worker/read-work.ts` 与 `src/worker/read-work-version.ts`、登记材料的 `src/materials.ts`、声明常量的 `src/participants.ts` 与 `src/work-cache.ts`。
 - 保留直接读 Session log 存储的只有五类。它们读的不是当前状态，或者本身就是某份状态的拥有者：
   1. WorkHolder 自己：版本点查与整读。
   2. 按不可变坐标分页的读：`session.history` 按 `position` 分页（服务入口的历史读与核权、CP-01 第 6 步取本次提交的条目、AD-03 回放刚提交的批次），`session.model-view` 按 `(epoch, seq)` 读后缀。每页 O(页)，无状态，与会话长度无关。
