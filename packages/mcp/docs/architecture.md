@@ -267,12 +267,12 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 候选决定：MCP 连接换代后的在途操作按传输处理。
 
-| 操作 | Streamable HTTP 现代对端 | stdio |
-| --- | --- | --- |
-| `continueWithInput`、`queryTask` | 没有协议会话。`requestState` 与 `taskId` 不依赖 MCP 连接，可以在新代际上继续 | 旧进程的在途状态无法证明，返回 `unknown` |
-| `cancel` | 按原调用身份到请求号的在途表定位请求。代际已换时返回 `unknown` | 同左 |
+| 操作 | Streamable HTTP 现代对端 | Streamable HTTP 旧对端 | stdio |
+| --- | --- | --- | --- |
+| `continueWithInput`、`queryTask` | 没有协议会话。`requestState` 与 `taskId` 不依赖 MCP 连接，可以在新代际上继续 | 在途状态属于旧会话；会话换代后无法证明，返回 `unknown` | 旧进程的在途状态无法证明，返回 `unknown` |
+| `cancel` | 按原调用身份到请求号的在途表定位请求。代际已换时返回 `unknown` | 同左 | 同左 |
 
-为了判断「代际已换」，`inputRequired` 与 `task` 交给原调用的内容带上发出时的连接代际，原调用与 `requestState`、`taskId` 一起保存。Streamable HTTP 旧对端在会话换代后的处置，见 [Q-MC04](#q-mc04-原调用dummy可靠结果和恢复的组合协议) 的剩余义务。
+为了判断「代际已换」，`inputRequired` 与 `task` 交给原调用的内容带上发出时的连接代际，原调用与 `requestState`、`taskId` 一起保存。旧对端一列的依据与 stdio 相同：在途状态依附一个已经结束的会话或进程，无法证明时不当作仍然有效。
 
 ### 调用结果
 
@@ -401,7 +401,6 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 - MCP 动作接入 Tool 需要工具目录的「桥接来源」，并走新 RFC。理由见[领域交接设计](../../../docs/domains/mcp/architecture.md#与-tool-接入的两项差异)。拥有者：Tool 契约的维护者与 MCP 技术拥有者。
 - 原调用、结果与恢复的耐久协议，以及 dummy 记录形状。拥有者：Tool 与原工作拥有者。
-- Streamable HTTP 旧对端在会话换代后，`continueWithInput`、`queryTask` 与 `cancel` 的处置。本页只定了现代对端与 stdio，见[应用服务](#应用服务)。拥有者：mcp-contract 的 SPEC。
 - 原桥设计中名字、Schema 形状、编译上限、execution 方式的校验顺序，并入同一 RFC。拥有者：同上。
 
 ### Q-MC05 非动作桥接的客户端采用范围
