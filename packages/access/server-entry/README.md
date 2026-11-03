@@ -66,7 +66,7 @@ The two locations have fixed paths: `/governance-public/1` and `/session-public/
 | Dependency | Type | How this package uses it |
 | --- | --- | --- |
 | `identity` | identity's `IdentityOperations` | Registration and login issuance in the governance location. Login recognition in both locations and at each observation round |
-| `governance` | identity's `IdentityGovernance`, optional | The eighteen governed operations, and the report of a successful business access. It must work over the same records as `identity`. Without it the governed operations answer `basis-unavailable` and no access is reported |
+| `governance` | identity's `IdentityGovernance` | The eighteen governed operations, and the report of a successful business access. It must work over the same records as `identity`, so a revocation or a switch is what login recognition reads. An assembly that reads the provider per call answers `basis-unavailable` from the port while the provider is absent |
 | `issuer` | identity's `PrincipalIssuer` | Issues the system principal of this package (`component` is `server-entry`), and the acting principal of each session request |
 | `session` | `SessionIngressFaces`, the Session faces this package declares | The seven session operations and the read eligibility check when an observation opens. A real `SessionService` satisfies it structurally |
 | `resolveDefinition` | `DefinitionResolver` | `create-session` resolves a definition name into the fields the creation adopts. A returned `undefined` answers `invalid` |

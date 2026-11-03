@@ -56,8 +56,7 @@ export interface IdentitySteps {
 
 export type IdentityStepsInput = Readonly<{
   identity: IdentityOperations
-  /** Absent: the deployment has not wired the governance port; no report is made. */
-  governance: IdentityGovernance | undefined
+  governance: IdentityGovernance
   issuer: PrincipalIssuer
   diagnostics: DiagnosticSink | undefined
 }>
@@ -121,7 +120,6 @@ export function createIdentitySteps(input: IdentityStepsInput): IdentitySteps {
     },
 
     async reportBusinessAccess(caller) {
-      if (governance === undefined) return
       try {
         const report = await governance.reportBusinessAccess({ login: caller.login })
         if (report.kind === 'basis-unavailable')

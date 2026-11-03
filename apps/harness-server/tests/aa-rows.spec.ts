@@ -57,6 +57,17 @@ describe('AA row snapshot', () => {
     expect(result.stdout).toMatch(/\naa-rows: source ok trusted-names=\d+\n$/)
   })
 
+  test('systemActionAuthorization is trusted and only its provider and session-storage see it (R2-D245)', () => {
+    const snapshot = JSON.parse(readFileSync(FORMAL_ROWS, 'utf8')) as {
+      trusted: { row: string; names: string[] }[]
+    }
+    const seeing = snapshot.trusted
+      .filter(entry => entry.names.includes('systemActionAuthorization'))
+      .map(entry => entry.row)
+      .sort()
+    expect(seeing).toEqual(['authorization', 'session-storage'])
+  })
+
   test('R-P2 write then check agrees, and a second write keeps the bytes', () => {
     expect(run('check', fixture('base.md'), baseRows).status).toBe(0)
     const before = readFileSync(baseRows)

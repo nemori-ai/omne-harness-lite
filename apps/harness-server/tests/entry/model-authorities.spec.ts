@@ -12,7 +12,11 @@ import type {
   TenantStandingReading,
   TenantStandingSource,
 } from '@omne-harness/identity'
-import { TenantStandingSourceService, principalIssuerKey } from '@omne-harness/identity/cordis'
+import {
+  TenantStandingSourceService,
+  principalIssuerKey,
+  tenantStandingKey,
+} from '@omne-harness/identity/cordis'
 import {
   decodeModelCallId,
   decodeModelInstanceId,
@@ -150,7 +154,8 @@ function countIssues(issuer: PrincipalIssuer): IssueCounts {
 }
 
 async function installed(options: { withIssuer?: boolean; standing?: TenantStandingReading } = {}) {
-  const fixture = fixtureEnv([principalIssuerKey])
+  // `tenantStanding` is a trusted name (R2-D203 P-9): the provider stands in its trusted scope.
+  const fixture = fixtureEnv([principalIssuerKey, tenantStandingKey])
   await fixture.install(principalVerifier)
   let issues: IssueCounts = { system: 0, acting: 0 }
   if (options.withIssuer !== false) {
@@ -180,7 +185,7 @@ async function installed(options: { withIssuer?: boolean; standing?: TenantStand
   class Standing extends TenantStandingSourceService {
     readonly read: TenantStandingSource['read'] = () => Promise.resolve(script.standing)
   }
-  new Standing(fixture.root)
+  new Standing(fixture.scopeOf(tenantStandingKey))
   const host = got(fixture.root.get(modelHostAuthorityKey), 'modelHostAuthority')
   return {
     fixture,
@@ -442,6 +447,19 @@ describe('modelHostAuthority.resolve: read the acceptance, check the relation, i
       failure: { kind: 'unavailable', dependency: 'modelHostAuthority' },
     })
     expect(scene.script.prepares).toHaveLength(0)
+  })
+
+  it('reads the standing in its trusted scope: a root provider of the same name is not seen (P-9)', async () => {
+    const scene = await installed()
+    await attachedAndBound(scene)
+    class Impostor extends TenantStandingSourceService {
+      readonly read: TenantStandingSource['read'] = () =>
+        Promise.resolve({ kind: 'not-member', evidence: { record: 'impostor', revision: '0' } })
+    }
+    new Impostor(scene.fixture.root)
+    // The trusted provider answers member, so the call resolves; a root read would see `not-member`.
+    expect(await scene.host.resolve({ tenant: TENANT, call: CALL })).toHaveProperty('ok')
+    expect(scene.script.prepares).toHaveLength(1)
   })
 
   it('relation-denied-issues-nothing: every refusal of the relation leaves the issuer with zero acting-for-tenant issues (defect: M signed before the relation is checked)', async () => {

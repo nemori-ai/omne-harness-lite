@@ -50,6 +50,7 @@ describe('listening', () => {
       config: baseConfig({ listenAddress: '0.0.0.0' }),
       dependencies: {
         identity: identityDouble().operations,
+        governance: identityDouble().governance,
         issuer: inProcessPrincipalAuthority().issuer,
         session: createSessionDouble({ members: new Map() }).faces,
         resolveDefinition: () => undefined,
@@ -60,6 +61,7 @@ describe('listening', () => {
       config: baseConfig({ listenAddress: '::' }),
       dependencies: {
         identity: identityDouble().operations,
+        governance: identityDouble().governance,
         issuer: inProcessPrincipalAuthority().issuer,
         session: createSessionDouble({ members: new Map() }).faces,
         resolveDefinition: () => undefined,

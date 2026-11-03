@@ -64,7 +64,7 @@ function releasePermitRequirements(
 }
 
 function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeConfig) {
-  const identity = createReleaseToolIdentity(root, holder)
+  const identity = createReleaseToolIdentity(holder)
   const store = lateStore(holder)
   const environment = createReleaseEnvironment(holder, identity, {
     filesRoot: config.filesRoot,

@@ -98,7 +98,7 @@ export const storageHost: EntryObjectModule = {
 | 字段                | 含义                                                                                          |
 | ------------------- | --------------------------------------------------------------------------------------------- |
 | `stateRoot`         | `--state-root`                                                                                |
-| `readTrusted(name)` | 入口自己按名读取受信名的上下文                                                                |
+| `readTrusted(name)` | 入口自己按名读取受信名的上下文。入口对象模块读受信名只能用它，`check:aa-rows` 的规则 E1 拦截根上的读取 |
 | `once(key, create)` | 一次运行内共享。同一符号第二次以不同的 `create` 调用时抛出，`install` 失败，退出 3（DP1-C17） |
 
 `EntryEnv` 不进插件，也不交给任何行。主体权威的符号与工厂只在 `src/entry/principals.ts`（APP-5）。

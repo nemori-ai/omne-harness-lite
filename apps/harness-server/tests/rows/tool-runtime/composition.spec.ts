@@ -298,7 +298,8 @@ function requestSource(ctx: Context) {
     contextScopes: [{ generation: '1', scope: SCOPE_REF.ref, operation: 'op', ended: null }],
   } as unknown as WorkSnapshot
   return createReleaseToolRequests({
-    verifier: () => ctx.get('principalVerifier'),
+    // The production read: the trusted verifier that the entry object `toolClock` hands over.
+    verifier: () => toolRuntimeHolder(ctx).verifier(),
     catalog: () => ctx.get(toolCatalogKey),
     readWork: async () => succeed(snapshot),
     scopeBinding: () => ctx.get(executionScopeBindingKey),

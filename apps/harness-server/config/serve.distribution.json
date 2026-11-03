@@ -10,7 +10,9 @@
       "plugin": "identityRow",
       "config": {
         "maxLifetime": "PT2592000S",
-        "idlePeriod": "PT604800S"
+        "idlePeriod": "PT604800S",
+        "invitationDefaultDuration": "PT604800S",
+        "invitationMaxDuration": "PT2592000S"
       }
     },
     {
@@ -23,7 +25,8 @@
             { "id": "files", "effect": "allow", "tool": "Files" },
             { "id": "shell", "effect": "allow", "tool": "Shell" }
           ]
-        }
+        },
+        "maintenanceGrants": {}
       }
     },
     {

@@ -61,7 +61,17 @@
     {
       "row": "identity",
       "names": [
-        "storage"
+        "storage",
+        "tenantStanding",
+        "identityGovernance"
+      ]
+    },
+    {
+      "row": "authorization",
+      "names": [
+        "principalVerifier",
+        "tenantStanding",
+        "systemActionAuthorization"
       ]
     },
     {
@@ -70,7 +80,8 @@
         "storage",
         "tenantDomainLookup",
         "sessionPrincipalBindings",
-        "sessionDelegatedTransactions"
+        "sessionDelegatedTransactions",
+        "systemActionAuthorization"
       ]
     },
     {
@@ -106,6 +117,12 @@
       "row": "session-ad05",
       "names": [
         "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "session-ad09",
+      "names": [
+        "principalVerifier"
       ]
     },
     {
@@ -147,7 +164,9 @@
       "row": "model-records",
       "names": [
         "storage",
-        "tenantDomainLookup"
+        "tenantDomainLookup",
+        "principalVerifier",
+        "tenantStanding"
       ]
     },
     {
@@ -155,6 +174,12 @@
       "names": [
         "storage",
         "tenantDomainLookup"
+      ]
+    },
+    {
+      "row": "tool-bindings",
+      "names": [
+        "principalVerifier"
       ]
     },
     {
@@ -179,7 +204,8 @@
     {
       "row": "request-context",
       "names": [
-        "requestContextTrust"
+        "requestContextTrust",
+        "principalVerifier"
       ]
     },
     {
@@ -192,7 +218,8 @@
       "row": "server-entry",
       "names": [
         "principalIssuer",
-        "definitionMappings"
+        "definitionMappings",
+        "identityGovernance"
       ]
     }
   ]

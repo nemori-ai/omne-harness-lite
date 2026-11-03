@@ -19,6 +19,7 @@ export {
 } from './materials.ts'
 export type { IdentitySqlCombination, IdentitySqlMaterials } from './materials.ts'
 export {
+  constantInvitationTerms,
   constantLoginTerms,
   IDENTITY_SQL_DEFAULT_CONFIG,
   parseIdentitySqlConfig,

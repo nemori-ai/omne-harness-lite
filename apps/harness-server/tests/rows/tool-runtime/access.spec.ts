@@ -1,9 +1,8 @@
 // Tool 运行时组的来源资格（`sourceAuthority`）：组合用例里外租户先被准入核验拒绝，这里单独守第二道——
 // 来源资格只认本租户、经核验的会话工作主体，consumer 只认 Agent 的动作位置；核验器缺席答 unavailable，不放行。
 import { describe, expect, it } from 'vitest'
-import type { Context } from '@deepseek-ai/cordis'
-import type { PrincipalIssuer } from '@omne-harness/identity'
-import { principalIssuerKey } from '@omne-harness/identity/cordis'
+import type { PrincipalIssuer, PrincipalVerifier } from '@omne-harness/identity'
+import { principalIssuerKey, principalVerifierKey } from '@omne-harness/identity/cordis'
 import type { ConsumerRef } from '@omne-harness/tool-contract'
 import { sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
 import type { ToolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
@@ -19,14 +18,22 @@ const AGENT_ACTION = {
   position: 'p-1',
   purpose: 'action',
 } as unknown as ConsumerRef
-// The holder's session work source is not read by the source authority.
-const holder = { workPrincipals: () => undefined } as unknown as ToolRuntimeHolder
+/** The holder as the entry object `toolClock` fills it: here the verifier is the fixture's. The
+ * session work source and the standing are not read by the source authority. */
+function holderOf(verifier: () => PrincipalVerifier | undefined): ToolRuntimeHolder {
+  return {
+    workPrincipals: () => undefined,
+    verifier,
+    standing: () => undefined,
+  } as unknown as ToolRuntimeHolder
+}
 
 async function world() {
   const fixture = await releaseFixture()
   const issue = sessionWorkIssuerOf(fixture.env)
   return {
     fixture,
+    holder: holderOf(() => fixture.root.get(principalVerifierKey)),
     principalA: okOf(issue({ tenant: TENANT_A, session: 'ses-a' }), 'issue A'),
     principalB: okOf(issue({ tenant: TENANT_B, session: 'ses-b' }), 'issue B'),
   }
@@ -34,8 +41,8 @@ async function world() {
 
 describe('release Tool source authority', () => {
   it('allows a verified session work principal of the tenant for the Agent action consumer', async () => {
-    const { fixture, principalA } = await world()
-    const { sourceAuthority } = createReleaseToolIdentity(fixture.root, holder)
+    const { holder, principalA } = await world()
+    const { sourceAuthority } = createReleaseToolIdentity(holder)
     expect(
       await sourceAuthority.qualify({
         principal: principalA,
@@ -46,8 +53,8 @@ describe('release Tool source authority', () => {
   })
 
   it('denies a verified principal of another tenant', async () => {
-    const { fixture, principalB } = await world()
-    const { sourceAuthority } = createReleaseToolIdentity(fixture.root, holder)
+    const { holder, principalB } = await world()
+    const { sourceAuthority } = createReleaseToolIdentity(holder)
     expect(
       await sourceAuthority.qualify({
         principal: principalB,
@@ -58,7 +65,7 @@ describe('release Tool source authority', () => {
   })
 
   it('refuses a verified principal that names a session but was issued for another component (N3)', async () => {
-    const { fixture } = await world()
+    const { fixture, holder } = await world()
     const issuer = fixture.env
       .readTrusted(principalIssuerKey)
       .get(principalIssuerKey) as PrincipalIssuer
@@ -71,7 +78,7 @@ describe('release Tool source authority', () => {
       }),
       'principal',
     )
-    const identity = createReleaseToolIdentity(fixture.root, holder)
+    const identity = createReleaseToolIdentity(holder)
     expect(
       await identity.sourceAuthority.qualify({
         principal: other,
@@ -84,8 +91,8 @@ describe('release Tool source authority', () => {
   })
 
   it('denies a consumer that is not the Agent action position', async () => {
-    const { fixture, principalA } = await world()
-    const { sourceAuthority } = createReleaseToolIdentity(fixture.root, holder)
+    const { holder, principalA } = await world()
+    const { sourceAuthority } = createReleaseToolIdentity(holder)
     expect(
       await sourceAuthority.qualify({
         principal: principalA,
@@ -97,8 +104,7 @@ describe('release Tool source authority', () => {
 
   it('answers unavailable when the principal verifier is absent', async () => {
     const { principalA } = await world()
-    const empty = { get: () => undefined } as unknown as Context
-    const { sourceAuthority } = createReleaseToolIdentity(empty, holder)
+    const { sourceAuthority } = createReleaseToolIdentity(holderOf(() => undefined))
     expect(
       await sourceAuthority.qualify({
         principal: principalA,

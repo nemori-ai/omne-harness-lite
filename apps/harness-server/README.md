@@ -109,9 +109,19 @@ pnpm --filter @omne-harness/harness-server run check:aa-rows
 pnpm --filter @omne-harness/harness-server run check:tool-release
 ```
 
-`test:slow` starts `dist/bin.js`, so run `build` first. `check:aa-rows` compares the snapshot with the application assembly page. `check:tool-release` recomputes the tool release manifest from the built `@omne-harness/tool-definitions`, so build that package first.
+`test:slow` starts `dist/bin.js`, so run `build` first. `check:tool-release` recomputes the tool release manifest from the built `@omne-harness/tool-definitions`, so build that package first.
 
 The tests use doubles and fixture rows, not a real SQL provider, real identity, or real storage. Doubles do not show durability or real vendor behavior.
+
+`check:aa-rows` does three checks and exits with a nonzero code when one fails:
+
+- The snapshot `src/s0/aa-rows.json` equals the plugin tree and the trusted table of the application assembly page.
+- Rule E1, trusted reads. A name in the trusted table is read in one of two ways. An entry object module (`src/entry`) reads it through `env.readTrusted(name)`. A row source (`src/rows`) reads it only when the trusted table lists the name as visible for that row. An entry module that calls `get`, an index, `ctx.<name>` or an aliased import on a trusted name at the root fails. A row source that mentions a name its row cannot see fails.
+- Rule E2, issuer call sites. `issueActingForTenant(` and `issueSystem(` occur only in the files that `issuerCallSites` and `issuerDefinition` of `scripts/aa-trust-config.json` list.
+
+`pending` in `scripts/aa-trust-config.json` lists names that should become trusted but that the table does not list yet. The check scans them with the same rules and only reports the findings. A pending name that the table lists is enforced. The list is empty now.
+
+The scanner is lexical. It does not follow a trusted name that was assigned to another variable first.
 
 Not covered:
 

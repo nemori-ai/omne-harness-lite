@@ -1,5 +1,6 @@
-// `identity.login-by-proof`: the login row of one proof digest. The proof itself never reaches
-// the Worker (DP3-C10). Deadlines travel as encoded instants; the provider compares them.
+// `identity.login-by-proof`: the login row of one proof digest, and whether a revocation of it is
+// recorded. The proof itself never reaches the Worker (DP3-C10). Deadlines travel as encoded
+// instants; the provider compares them. `tenantText` is the login's current selection (SPEC IS-12).
 import {
   HANDLERS,
   isRecord,
@@ -7,7 +8,7 @@ import {
   type LoginByProofInput,
   type LoginByProofOutput,
 } from './schema.ts'
-import { handler, oneRow, text } from './support.ts'
+import { handler, isTrue, oneRow, text } from './support.ts'
 
 export default handler<LoginByProofInput, LoginByProofOutput>(
   HANDLERS.loginByProof,
@@ -18,8 +19,11 @@ export default handler<LoginByProofInput, LoginByProofOutput>(
   (input, port) => {
     const row = oneRow(
       port,
-      `SELECT login, account, tenant_text, issued_at, max_deadline, idle_deadline
-         FROM id_login WHERE proof_digest = ? LIMIT 1`,
+      `SELECT l.login AS login, l.account AS account, l.tenant_text AS tenant_text,
+          l.issued_at AS issued_at, l.max_deadline AS max_deadline,
+          l.idle_deadline AS idle_deadline,
+          EXISTS (SELECT 1 FROM id_login_revocation r WHERE r.login = l.login) AS revoked
+         FROM id_login l WHERE l.proof_digest = ? LIMIT 1`,
       [input.proofDigest],
     )
     return {
@@ -33,6 +37,7 @@ export default handler<LoginByProofInput, LoginByProofOutput>(
               issuedAt: text(row['issued_at']),
               maxDeadline: text(row['max_deadline']),
               idleDeadline: text(row['idle_deadline']),
+              revoked: isTrue(row['revoked']),
             },
     }
   },
