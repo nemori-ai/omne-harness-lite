@@ -5,18 +5,21 @@ export type TerminalFrame =
   | { readonly t: 'ready' | 'controlLost' | 'outputLost' | 'inputFault' }
   | { readonly t: 'opened'; readonly cwd: string }
   | { readonly t: 'started' | 'legFault'; readonly id: string }
-  | {
+  | ({
       readonly t: 'finished'
+      readonly v: 2
       readonly id: string
       readonly cwd: string
       readonly restored: boolean
-      readonly completed: boolean
-    }
+    } & (
+      | { readonly completed: true; readonly elapsedMs: number }
+      | { readonly completed: false; readonly elapsedMs: null }
+    ))
   | { readonly t: 'data'; readonly b: string }
   | { readonly t: 'stopped'; readonly status: 'confirmed' | 'unconfirmed' }
   | { readonly t: 'fault'; readonly stopped: boolean }
 
-function parse(text: string, maxChunkBytes: number): TerminalFrame | undefined {
+export function parseTerminalFrame(text: string, maxChunkBytes: number): TerminalFrame | undefined {
   const value: unknown = JSON.parse(text)
   if (typeof value !== 'object' || value === null || !('t' in value)) return undefined
   switch (value.t) {
@@ -37,22 +40,48 @@ function parse(text: string, maxChunkBytes: number): TerminalFrame | undefined {
         ? { t: value.t, id: value.id }
         : undefined
     case 'finished':
-      return 'id' in value &&
-        typeof value.id === 'string' &&
-        'cwd' in value &&
-        typeof value.cwd === 'string' &&
-        'restored' in value &&
-        typeof value.restored === 'boolean' &&
-        'completed' in value &&
-        typeof value.completed === 'boolean'
-        ? {
-            t: value.t,
-            id: value.id,
-            cwd: value.cwd,
-            restored: value.restored,
-            completed: value.completed,
-          }
-        : undefined
+      if (
+        !(
+          'v' in value &&
+          value.v === 2 &&
+          'id' in value &&
+          typeof value.id === 'string' &&
+          'cwd' in value &&
+          typeof value.cwd === 'string' &&
+          'restored' in value &&
+          typeof value.restored === 'boolean' &&
+          'completed' in value &&
+          typeof value.completed === 'boolean' &&
+          'elapsedMs' in value
+        )
+      )
+        return undefined
+      if (
+        value.completed &&
+        typeof value.elapsedMs === 'number' &&
+        Number.isSafeInteger(value.elapsedMs) &&
+        value.elapsedMs >= 0
+      )
+        return {
+          t: 'finished',
+          v: 2,
+          id: value.id,
+          cwd: value.cwd,
+          restored: value.restored,
+          completed: true,
+          elapsedMs: value.elapsedMs,
+        }
+      if (!value.completed && value.elapsedMs === null)
+        return {
+          t: 'finished',
+          v: 2,
+          id: value.id,
+          cwd: value.cwd,
+          restored: value.restored,
+          completed: false,
+          elapsedMs: null,
+        }
+      return undefined
     case 'data':
       return 's' in value &&
         value.s === 'terminal' &&
@@ -108,7 +137,7 @@ export function startTerminalBridge(
       const line = pending.slice(0, end)
       pending = pending.slice(end + 1)
       try {
-        const frame = parse(line, input.maxChunkBytes)
+        const frame = parseTerminalFrame(line, input.maxChunkBytes)
         if (frame === undefined) return fault()
         input.onFrame(frame)
       } catch {

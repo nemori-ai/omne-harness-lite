@@ -49,7 +49,7 @@ it('recognizes repeated foreground control facts without rerunning or invalidati
   const f = terminalFixture(directory)
   const marker = join(directory, 'executions')
   const anchor =
-    'writer.WriteLine(json.Serialize(new {t="finished",id=request.id,cwd=cwd,restored=restored,completed=completed}));'
+    'writer.WriteLine(json.Serialize(new {t="finished",v=2,id=request.id,cwd=cwd,restored=restored,completed=completed,elapsedMs=elapsedMs}));'
   try {
     expect(terminalNativeSource.split(anchor)).toHaveLength(2)
     const executable = await compileTerminalSource(

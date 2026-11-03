@@ -164,7 +164,7 @@ public static class OmneTerminalShell {
           OmneTerminalRequest request=json.Deserialize<OmneTerminalRequest>(line);if(request.c=="close")return;
           string savedCwd=runspace.SessionStateProxy.Path.CurrentLocation.ProviderPath;
           Dictionary<string,string> savedEnv=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
-          bool restored=true;bool completed=false;
+          bool restored=true;bool completed=false;long? elapsedMs=null;
           try {
             if(request.cwd!=null)runspace.SessionStateProxy.Path.SetLocation(request.cwd);
             if(request.env!=null){
@@ -173,6 +173,7 @@ public static class OmneTerminalShell {
             }
             using(PowerShell ps=PowerShell.Create()) {
               ps.Runspace=runspace;
+              OmneInvocationClock clock=new OmneInvocationClock();ps.InvocationStateChanged+=clock.Observe;
               ps.AddScript(request.script,false);
               ps.Commands.Commands[0].MergeMyResults(PipelineResultTypes.Error,PipelineResultTypes.Output);
               ps.AddCommand("Out-Default");
@@ -181,6 +182,7 @@ public static class OmneTerminalShell {
               writer.WriteLine(json.Serialize(new {t="started",id=request.id}));
               try {ps.EndInvoke(execution);}catch(RuntimeException error){Console.Error.WriteLine(error.Message);}
               completed=ps.InvocationStateInfo.State==PSInvocationState.Completed||ps.InvocationStateInfo.State==PSInvocationState.Failed;
+              if(completed)elapsedMs=clock.ElapsedMilliseconds;
             }
           }catch(Exception error){Console.Error.WriteLine(error.Message);writer.WriteLine(json.Serialize(new {t="legFault",id=request.id}));}
           finally {
@@ -189,9 +191,28 @@ public static class OmneTerminalShell {
           }
           string cwd;
           try {cwd=runspace.SessionStateProxy.Path.CurrentLocation.ProviderPath;if(String.IsNullOrEmpty(cwd)){cwd=savedCwd;restored=false;}}catch(Exception){cwd=savedCwd;restored=false;}
-          writer.WriteLine(json.Serialize(new {t="finished",id=request.id,cwd=cwd,restored=restored,completed=completed}));
+          writer.WriteLine(json.Serialize(new {t="finished",v=2,id=request.id,cwd=cwd,restored=restored,completed=completed,elapsedMs=elapsedMs}));
           if(!restored)return;
         }
+      }
+    }
+  }
+}
+
+sealed class OmneInvocationClock {
+  readonly object sync=new object();long? started,ended;
+  public void Observe(object sender,PSInvocationStateChangedEventArgs args) {
+    lock(sync) {
+      PSInvocationState state=args.InvocationStateInfo.State;
+      if(state==PSInvocationState.Running&&!started.HasValue)started=Stopwatch.GetTimestamp();
+      else if((state==PSInvocationState.Completed||state==PSInvocationState.Failed||state==PSInvocationState.Stopped)&&started.HasValue&&!ended.HasValue)ended=Stopwatch.GetTimestamp();
+    }
+  }
+  public long? ElapsedMilliseconds {
+    get {
+      lock(sync) {
+        if(!started.HasValue||!ended.HasValue||ended.Value<started.Value)return null;
+        return (long)Math.Floor((ended.Value-started.Value)*1000.0/Stopwatch.Frequency);
       }
     }
   }

@@ -135,23 +135,22 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
       String(number) === value
     )
   }
-  const finish = (completed: boolean) => {
+  const finish = (completion?: Extract<TerminalFrame, { t: 'finished' }>) => {
     const current = leg
     if (current === undefined || current.done) return
     current.done = true
-    current.foregroundCompleted = completed
+    current.foregroundCompleted = completion?.completed === true
     current.started.resolve(false)
     const output = current.window.seal()
     idle = current.next
     leg = undefined
-    const durationMs = Math.max(0, Math.round(now() - current.startedAt))
     current.outcome.resolve(
-      completed && !outputFailed
-        ? { kind: 'completed', exit: { kind: 'unknown' }, durationMs, output }
+      completion?.completed === true && !outputFailed
+        ? { kind: 'completed', exit: { kind: 'unknown' }, durationMs: completion.elapsedMs, output }
         : {
             kind: 'failed',
             reason: outputFailed ? 'unavailable' : 'effectUnknown',
-            observedDurationMs: durationMs,
+            observedDurationMs: Math.max(0, Math.round(now() - current.startedAt)),
             output,
           },
     )
@@ -163,7 +162,7 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
     ready.resolve(false)
     opened.resolve(false)
     stopReply.resolve('unconfirmed')
-    finish(false)
+    finish()
   }
   const frame = (value: TerminalFrame) => {
     switch (value.t) {
@@ -203,7 +202,7 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
         }
         cwd = value.cwd
         completedSequence = leg.sequence
-        finish(value.completed)
+        finish(value)
         state = value.restored && value.completed && !closed() && !outputFailed ? 'idle' : 'invalid'
         return
       case 'stopped':
@@ -239,7 +238,7 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
     stopping ??= (async (): Promise<StopStatus> => {
       const deadline = now() + settings.stopBoundMs
       const remaining = () => Math.max(0, deadline - now())
-      finish(false)
+      finish()
       if (bridge === undefined) nativeStopped = true
       if (!nativeStopped) {
         stopReply = deferred<StopStatus>()
