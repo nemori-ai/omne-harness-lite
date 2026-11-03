@@ -93,10 +93,6 @@ export async function openStorage(root: string, tenants: readonly TenantId[]) {
     combinationVersion: 'windows-tool-e2-v1',
     manifestDigest: manifestDigest(built.manifest),
   }
-  const config = configuration(
-    root,
-    Math.max(4_194_304, ...materials.readHandlers.map(item => item.maxOutputBytes)),
-  )
   const leases = new Set<object>()
   let accepting = true
   const created = await createSqliteStorage({
