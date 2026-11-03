@@ -578,28 +578,31 @@
 
 ### UL-material-basis · 材料依据 · Material Basis
 
-> **中**：调用方手里的一个值，指明它此前读到的一份具体 Skill 材料。这个值只含三项：
+> **中**：调用方手里的一个值，指明它此前读到的一份具体 Skill 材料。这个值只含四项：
 > 这个[技能](#ul-skill--技能--skill)的[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)、
+> 那份材料的[来源层](scope-and-resolution.md#ul-source-layer--来源层--source-layer)、
 > 一个[资产版本](#ul-asset-version--资产版本--asset-version)，以及那份材料的[包快照](#ul-package-snapshot--包快照--package-snapshot)的内容摘要。
+> 来源层为工作区时，资产版本可以缺省。其他三项总是存在。
 > 读取 Skill 材料的结果把它交给调用方。调用方在后续读取时带回它，要求读到同一份材料。
 > 它不含包的位置。它不授予访问：带着它的读取，仍按读取当时的条件核对读取权。
-> 三项都相同的两个材料依据，指同一份材料。
+> 能力标识、来源层与内容摘要都相同的两个材料依据，指同一份材料。
 >
 > **EN**: A value in the caller's hands that identifies one specific Skill material that the
-> caller read before. The value holds only three items: the skill's capability identifier, an
-> asset version, and the content digest of that material's package snapshot. A result that reads
-> Skill material gives it to the caller. The caller brings it back in a later read to ask for the
-> same material. It holds no package location. It grants no access: a read that carries it still
-> checks the right to read under the conditions at the time of that read. Two material bases with
-> the same three items identify the same material.
+> caller read before. The value holds only four items: the skill's capability identifier, the
+> source layer of that material, an asset version, and the content digest of that material's
+> package snapshot. When the source layer is the workspace, the asset version can be absent. The
+> other three items are always present. A result that reads Skill material gives it to the caller.
+> The caller brings it back in a later read to ask for the same material. It holds no package
+> location. It grants no access: a read that carries it still checks the right to read under the
+> conditions at the time of that read. Two material bases with the same capability identifier,
+> source layer and content digest identify the same material.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 1）只要求读取返回实际取得内容的来源、版本及范围，并要求「历史可见性不授予新的访问」。把版本写成能力标识、资产版本与内容摘要三项，并交给调用方带回，这一做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出材料依据，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 1）只要求读取返回实际取得内容的来源、版本及范围，并要求「历史可见性不授予新的访问」。把版本写成能力标识、来源层、资产版本与内容摘要四项，并交给调用方带回，这一做法来自 Skill 组的技术设计，那不是本词表的合法出处。工作区来源的资产版本可以缺省，这一点是负责人对 [C-74](../conflicts.md#c-74工作区目录技能的材料依据中的资产版本) 的裁定（2026-11-03）。出处缺口由产品负责人闭合：在 Skill 产品页写出材料依据，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
 - **⚠️ 别混 ①**：**不是[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)**。采用依据是一次执行在采用时实际取用了什么的记录，由系统保留。材料依据是一次读取交给调用方的值，由调用方保管与带回
-- **别混 ②**：**不是[包快照](#ul-package-snapshot--包快照--package-snapshot)本身**。包快照是全部条目的清单；材料依据只带它的内容摘要，另带能力标识与资产版本
+- **别混 ②**：**不是[包快照](#ul-package-snapshot--包快照--package-snapshot)本身**。包快照是全部条目的清单；材料依据只带它的内容摘要，另带能力标识、来源层与资产版本
 - **别混 ③**：**不是 Skill 包的位置**。位置不在材料依据里，调用方不能用它指定从哪里读取
 - **注意 ①**：「内容摘要」指散列值，不是文字摘要，见 [C-73](../conflicts.md#c-73摘要的两种意思)
-- **待裁决**：工作区目录中的技能没有发布（见[包快照](#ul-package-snapshot--包快照--package-snapshot)「别混 ①」），它的材料依据中的资产版本是什么，正文未述，见 [C-74](../conflicts.md#c-74工作区目录技能的材料依据中的资产版本)
 
 ## 构成关系
 
