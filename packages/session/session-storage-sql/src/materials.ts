@@ -79,14 +79,25 @@ const statePartMigrationRef = Object.freeze({
 })
 
 /**
- * The output limit of every read handler of this member: 20 MiB. A long session must not fail at 1 MiB:
- * the Session snapshot that `session.work` hands out whole grows with every round (session SPEC SN-1),
- * and an Agent part of the records can be as large as the command that wrote it. Source: qiwei.pan,
- * 2026-11-03 ("the limit goes up to 20 MiB"). The provider refuses a handler above its
- * `maxReadResultBytes`, and every read reserves this amount of `globalReadResultBytes`, so an assembly
- * sets both to at least this value (sqlite-provider SPEC 12.1).
+ * What the application decides when it builds the materials. There is no default: the limit is an
+ * assembly parameter, and the member holds no value of its own (SPEC K-1). A long session must not
+ * fail at a small limit, because the Session snapshot that `session.work` hands out whole grows with
+ * every round (session SPEC SN-1); the release picks the value. The provider refuses a handler
+ * above its `maxReadResultBytes`, and every read reserves this amount of `globalReadResultBytes`, so
+ * an assembly sets both to at least this value (sqlite-provider SPEC 12.1).
  */
-export const READ_OUTPUT_LIMIT_BYTES = 20 * 1024 * 1024
+export type SessionStorageMaterialsOptions = Readonly<{
+  /** The `maxOutputBytes` of every read handler of this member: a positive safe integer. */
+  readOutputLimitBytes: number
+}>
+
+/** Rejects a limit that is not a positive safe integer, so a wrong assembly fails where it builds. */
+function requireReadOutputLimit(options: SessionStorageMaterialsOptions | undefined): number {
+  const limit: unknown = options?.readOutputLimitBytes
+  if (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 1)
+    throw new TypeError('readOutputLimitBytes must be a positive safe integer')
+  return limit
+}
 
 type Handler = Readonly<{
   handler: string
@@ -171,8 +182,14 @@ export type SessionStorageMaterials = Readonly<{
   readHandlers: readonly ReadHandlerDescriptor[]
 }>
 
-/** Reads the module files once and returns the descriptors with their digests. */
-export function sessionStorageMaterials(): SessionStorageMaterials {
+/**
+ * Reads the module files once and returns the descriptors with their digests. The read output limit
+ * is required; a missing or invalid one throws before any file is read.
+ */
+export function sessionStorageMaterials(
+  options: SessionStorageMaterialsOptions,
+): SessionStorageMaterials {
+  const readOutputLimitBytes = requireReadOutputLimit(options)
   const participant = module('participant')
   const record = module('execution-record')
   const migration = module('migration')
@@ -268,7 +285,7 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
         ordering: 'snapshot',
         readTables: item.tables,
         requiresMigrations: item.migrations ?? [migrationRef],
-        maxOutputBytes: READ_OUTPUT_LIMIT_BYTES,
+        maxOutputBytes: readOutputLimitBytes,
         maxRowsRead: 2000,
       }
     }),

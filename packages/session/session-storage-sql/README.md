@@ -25,7 +25,7 @@ No package depends on this package now. The application assembly selects it late
 The root entry is the only entry:
 
 - `createSessionStorage(options)` returns a `SessionTransactionPort<P>`. `options` holds `storage` (`SqlStorage`), `domains` (`TenantDomainAccess`), `accessCheck`, `cursorSigning`, `combination` (`combinationVersion` and `manifestDigest`), and the optional `attemptLimit` (initial value 8), `cursorTtlMs` (initial value 15 minutes), and `now`.
-- `sessionStorageMaterials()` returns three static descriptions: the participant, the migration, and the read handlers. The application merges them into its own material catalog.
+- `sessionStorageMaterials({ readOutputLimitBytes })` returns three static descriptions: the participant, the migration, and the read handlers. The application merges them into its own material catalog. `readOutputLimitBytes` is required, has no default, and must be a positive safe integer; it becomes the `maxOutputBytes` of every read handler. The assembly keeps the provider's `maxReadResultBytes` at or above it (SPEC K-1); 20 MiB is the recommended value.
 - `SESSION_PARTICIPANT` is the participant name that a combination lists for the Session log. Its value is `session`.
 
 The application builds the session storage composite from these three items and gives the port to the `transactions` dependency of the [session](../session/README.md) factory. Each operation passes the tenant and the session explicitly. The package does not infer the tenant from a connection, a transaction domain, or the assembly tree, and it has no default permission. The assembly steps are in the [usage page](docs/context.md#使用方式). The part that the application owns is in the [assembly boundary](docs/cordis.md).

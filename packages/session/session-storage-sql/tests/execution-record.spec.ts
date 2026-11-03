@@ -39,6 +39,7 @@ import {
 } from '../src/participants.ts'
 import { canonicalText, decodeValue, sha256 } from '../src/codec.ts'
 import { sessionStorageMaterials } from '../src/materials.ts'
+import { FIXTURE_READ_OUTPUT_LIMIT_BYTES } from './fixtures/read-limit.ts'
 import { app, TENANT_A, TENANT_B, textOf, type App } from './fixtures/app.ts'
 
 const SESSION = sessionId('session-1')
@@ -206,7 +207,9 @@ async function cancel(a: App, work: WorkSnapshot) {
 }
 
 describe('the materials of the Session log combination', () => {
-  const materials = sessionStorageMaterials()
+  const materials = sessionStorageMaterials({
+    readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES,
+  })
   const catalog: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
     participants: materials.participants,

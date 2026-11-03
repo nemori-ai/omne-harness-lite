@@ -82,7 +82,7 @@ import { checkpoint, instance, ok, openInput, operation } from './common-journal
 const COMBINATION = 'c1'
 
 function catalogOf(): { catalog: SqlMaterialCatalog; digest: string } {
-  const materials = sessionStorageMaterials()
+  const materials = sessionStorageMaterials({ readOutputLimitBytes: 20971520 })
   const catalog: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
     participants: materials.participants,
@@ -135,7 +135,7 @@ export type DoubleControls = Readonly<{
 
 /** A node:sqlite storage that runs the modules the published materials name. */
 async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleControls }> {
-  const materials = sessionStorageMaterials()
+  const materials = sessionStorageMaterials({ readOutputLimitBytes: 20971520 })
   const participants = new Map<string, ParticipantModule>()
   for (const item of materials.participants)
     participants.set(
