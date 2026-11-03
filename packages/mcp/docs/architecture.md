@@ -383,7 +383,7 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 | 读口 | `ActionDiscovery` | `current(access, endpointRef)`、`refresh(access, endpointRef)`、`peer(access, endpointRef)` | 见下文读口。失败时保留原采用并给出原因，不伪装成空清单 |
 | 调用口 | `ActionInvoker` | `invoke`、`continueWithInput`、`cancel` | 见下文调用口。不自动重发。已发出但无应答时报 `unknown`。MCP 不保存原调用 |
 | 状态口 | `ActionInvoker` | `queryTask`、`taskResult`、`provideTaskInput`、`cancelTask` | 见下文状态口 |
-| 状态口 | `EndpointStatus` | `inspect(access, endpointRef)`、`list(access, scope)` | 读面暂不可用（`unknown`）与对无权主体的答复（`not-available-to-you`）分开。接入点未采用时，`inspect` 也答 `not-available-to-you`。有使用资格但被设置挡下时，给出该原因。凭据只给有无与归属。不重做连接或动作。`list` 只列出主体有使用资格的接入点 |
+| 状态口 | `EndpointStatus` | `inspect(access, endpointRef)`、`list(access, scope)` | 读面暂不可用（`unknown`）与对无权主体的答复（`not-available-to-you`）分开。接入点未采用时，`inspect` 也答 `not-available-to-you`。有使用资格但被设置挡下时，给出该原因。凭据只报告四态之一：不需要、缺失、不合法、存在（[S7](../mcp-contract/SPEC.md#services)），不给值。不重做连接或动作。`list` 只列出主体有使用资格的接入点 |
 | 状态口 | `Connections` | `release(access, endpointRef)`、`closeAll()`；组内另有 `ensure(access, endpointRef)` | 先用 `peerAccountOf` 得出对端账号，组成 `ConnectionKey` 取连接。需要新建连接时，再取凭据句柄，并经 `McpTransportFactory` 创建传输。连接不跨租户、不跨对端账号共用。连接时限独立于调用的截止。`release` 与 `closeAll` 只报告实际确认的范围。`closeAll` 只供持有本组实例的宿主在退出时调用 |
 
 #### 读口
@@ -408,13 +408,13 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 | 操作 | 参数 | 答复 |
 | --- | --- | --- |
-| `invoke` | `access`、`endpointRef`、`actionName`、`args`、定义的内容摘要、`correlationKey`、`signal`、可选的 `connectBound` | 「未发出」带原因，或 `CallOutcome` |
-| `continueWithInput` | `access`、`endpointRef`、`actionName`、`args`、`requestState`（如有）、`inputResponses`、发出代际、`correlationKey`、`signal`、可选的 `connectBound` | 同 `invoke` |
+| `invoke` | `access`、`endpointRef`、`action`、`args`、定义的内容摘要、`correlationKey`、`signal`、可选的 `connectBound` | 「未发出」带原因，或 `CallOutcome` |
+| `continueWithInput` | `access`、`endpointRef`、`action`、`args`、`requestState`（如有）、`inputResponses`、发出代际、`correlationKey`、`signal`、可选的 `connectBound` | 同 `invoke` |
 | `cancel` | `access`、`correlationKey` | 已发出取消信号；没有在途调用；`unknown` |
 
 参数的含义：
 
-- `endpointRef` 是接入点引用（接入点 name 与持有），`actionName` 是对端动作名。两者合起来定位一个 MCP 已知动作，也定位它所在的 MCP 动作清单。
+- `endpointRef` 是接入点引用（接入点 name 与持有），`action` 是对端动作名。两者合起来定位一个 MCP 已知动作，也定位它所在的 MCP 动作清单。
 - `args` 是调用参数。`continueWithInput` 带回原参数。
 - 定义的内容摘要是调用方预期的那份定义的内容摘要。
 - 发出代际是 `inputRequired` 结局交出的连接代际。
@@ -510,7 +510,7 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 `toContentBlocks` 的规则：
 
 1. 按对端次序逐项转换。文本转成文本块，图片转成图块，音频转成语音块。公共 `ContentBlock` 表达不了的协议内容（例如资源链接、内嵌资源），原样带协议类型交出，不改写成文本。
-2. 某一项不合法时，转成一个文本块，说明它的类型与原因。不替对端改写媒体类型，也不因一项不合法丢掉整份内容。
+2. 某一项不合法时，转成 `invalid` 项，带原因与一个说明文本块；原因的封闭集合与条件见 [D4](../mcp-contract/SPEC.md#content)。不替对端改写媒体类型，也不因一项不合法丢掉整份内容。
 
 结构化内容原样交出，不并入内容块。
 
@@ -659,7 +659,7 @@ stdio 传输在 `ProcessLanding` 交回的进程上讲协议，它自己不启�
 
 | 候选决定 | 依据层 |
 | --- | --- |
-| stdio 与 Streamable HTTP 共用一份传输契约测试，由 mcp-contract 的测试入口导出 | 本页 SOLID「L」；成员规格先例：[产品包组织](../../../docs/package-organization.md) 中 sql-contract 与 adoption-contract 的符合性套件 |
+| stdio 与 Streamable HTTP 共用一份传输契约测试：对脚本化对端的套件 `mcpTransportConformance` 由 mcp-contract 的测试入口导出（第三波）；起本地真实服务端的夹具与用它跑同一套件的测试在 mcp-host-local，因为只有它依赖官方 SDK | 本页 SOLID「L」；成员规格先例：[产品包组织](../../../docs/package-organization.md) 中 sql-contract 与 adoption-contract 的符合性套件 |
 | mcp-contract 的测试入口导出五个需求端口的符合性套件：`AdoptionView`、`UseEligibility`、`CredentialUse`、`ProcessLanding`、`CatalogStore`。套件检验本页写定的答复与失败，例如对无权主体不随接入点是否存在而变、句柄不交出秘密值、进程树停止只报告实际确认的范围、清单写入在修订不符时答修订冲突且不覆盖、「不存在」与空清单分开 | 同上；本页 [MCP 声明的端口](#mcp-声明的端口) |
 | mcp-contract 的测试入口导出 `classifyOutcome` 与 `mergeListing` 的穷举测试入口 | 本页纯函数 |
 | 传输与连接的验证用本地起的真实 MCP 服务端夹具。夹具覆盖现代对端与旧对端、断流、清单变化通知、需要输入与任务。替身通过不说成真实组合通过 | 工程：[验证说明](../../../docs/verification.md) |
