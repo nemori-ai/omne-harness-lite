@@ -35,3 +35,18 @@
 `openWorld({ stages: true })` 另以同一组替身提供六项局部依赖，并记录每次 Model admit 的答复，使 `createAgentRuntime` 真件的 Loop 能跑到 Model 请求。世界另记录 Journal 的每次 `load` 与 `recordControl` 及发起主体（`journalCalls`）。`control-entry.spec.ts` 用它们验证控制入口推进取消，以及守卫拒绝时一次都不推进；它不证明真实 Model、生产 Journal 或跨进程推进。`tool-requests-plugin.spec.ts` 也用它，并让 Tool 运行时替身受理 invoke，只证明来源经插件工厂进入 runtime 依赖，不证明真实 Tool 运行时或生产来源。
 
 `line-through/` 是一条真实 Cordis 4.0.4 根上的组合用例：真实 sqlite-provider、session-storage-sql、session-cordis、session-adapters 的生产插件（AD-14、`agentJournal` 插件）、Agent 宿主与 agent-context，加 Model 与 Tool 的替身。`world.ts` 是 CP3 的组合世界，`openLineWorld(options)` 的参数都可选，不传时装配与 CP3 一致。`w2-world.ts` 在其上加下列件：带取消安装的 Journal 插件、Tool 接收方与 Tool 替身、Tool 请求准备替身（R2-D36）、可选的 AD-04 前文来源、产品的 `measure` 观察者；`w2-measure.ts` 放每轮计数与测量事件记录器。Model、Tool、Runtime Context 交接、已采用请求事实与 Agent 的授权等是替身，各在构造处标注。世界装载真实的 AD-02（`createSessionJournalInterpretationPlugin`）、handoff 插件（`createSessionMessageHandoffPlugin`）、AD-05（`createSessionModelLogConsumptionPlugin`）与 AD-06（`createSessionToolLogConsumptionPlugin`）。取消意图路径是否经真实插件走通，以 `w2-control.spec.ts` 的现状为准，世界不替它造替身。`w2-handoff-restart.spec.ts` 启动子进程 `w2-handoff-child.ts`：它在给定的存储目录上打开同一组合世界，让 Agent 跑一轮并收集准入记录，然后等待被杀，由新进程按原身份读回准入记录。这些用例只证明本组合、替身与固定轮形下的行为，不证明真实 Model 与 Tool、跨线装配、`apps/harness-server` 的行接线或 E9 计时。
+
+### J6 的两种轮数
+
+`line-through/w2-counts.spec.ts` 有两种长度，由环境变量 `OMNE_J6_ROUNDS` 选择（R2-D141）。
+
+- 默认（准入慢层）：跑 20 轮，两种形状的用例合计约 52 秒（机器上有其他任务时测得）。只比较两个窗口，即第 15 至 20 轮对第 5 至 10 轮，口径是 `stable()`：剔除轮号、字节、重试和 `execution-record.parts` 调用数，其余逐项相等。每轮接收数与 parts 调用上界的断言照常。增长判定不运行，因为它要求第 11 至 200 轮。证据写进 `tmp/line-session-run/w2/C-JOINT/short/`，不覆盖测量证据。
+- 测量入口 `OMNE_J6_ROUNDS=200`：跑完整 200 轮，窗口是第 181 至 200 轮对第 11 至 30 轮，并对定时计数做增长判定（R2-D17、R2-D118）。证据写进 `tmp/line-session-run/w2/C-JOINT/`。其他取值会被拒绝。入口用环境变量而不用 `test:measure` 脚本，因为它不改 package.json，准入、独占名额和手工命令都用同一条命令行，且短轮与 200 轮跑的是同一份用例，不会各自走样。
+
+完整 200 轮在三个时点各跑一次，不进准入：C1 联调 B；每个波的波末；合入改动 Session 热路径（session-storage-sql 的提交、读取、工作缓存与历史索引，session-adapters 的 Journal 与证据读取）的 PR 之前和之后。命令在工作树根，用 Git Bash，独占运行名额：
+
+```sh
+OMNE_J6_ROUNDS=200 ./scripts/with-test-slot.sh pnpm --filter @omne-harness/agent-host-local exec vitest run --mode slow --typecheck.enabled=false tests/line-through/w2-counts.spec.ts
+```
+
+短轮版本的命令相同，只是不设 `OMNE_J6_ROUNDS`。增长判定的纯函数与它的负控在 `line-through/growth.spec.ts`，快层运行，不依赖轮数。

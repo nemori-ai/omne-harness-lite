@@ -4,9 +4,15 @@
 //
 // The shape of one round of the plain test is one input of a fixed size and one reply. The tool shape
 // adds one Tool call: two Model requests (before and after the Tool), one Tool invoke, one reply each.
-// Both must run the 200 rounds; a round that does not end stops the run, and the curve says where.
+// Both must run all the rounds; a round that does not end stops the run, and the curve says where.
 // The windows are the first ones again (R2-D81, the deviations of R2-D64 and R2-D67 withdrawn): rounds
 // 181 to 200 against rounds 11 to 30.
+//
+// Two lengths (R2-D141). The 200 rounds, with the growth judgement of the timed counts, run only at
+// the measurement entry `OMNE_J6_ROUNDS=200`; the admission slow tier runs 20 rounds and compares the
+// stable counts of rounds 15-20 with those of rounds 5-10, by the same `stable` rule and the same
+// receive and parts-bound assertions. The growth rule needs rounds 11 to 200, so the short run does not
+// judge it. When the 200 rounds run: the member `tests/README.md`, "J6 的两种轮数".
 //
 // The calls of `execution-record.parts` are a named deviation (R2-D85): they are bounded per round, not
 // equal, because a catch-up of the copy of the Agent records takes one page more when the text of its
@@ -18,7 +24,7 @@
 // Context and Agent, read with one clock (`performance.now()`); `round-complete` is the explicit event
 // of Session (R2-D17 P2). The counts, the curve and the limit are written before any assertion runs.
 // @module-tag slow
-// Why slow: up to 200 rounds of real Workers and real files.
+// Why slow: real Workers and real files; 20 rounds by default, 200 at the measurement entry.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
@@ -37,11 +43,39 @@ afterEach(async () => {
   for (const world of worlds.splice(0)) await world.close()
 })
 
-const OUT = new URL('../../../../../tmp/line-session-run/w2/C-JOINT/', import.meta.url)
-const MAX_ROUNDS = 200
-const WINDOW = 20
-/** The early window: rounds 11 to 30. The late one is the last `WINDOW` rounds, 181 to 200. */
-const EARLY_FROM = 10
+/**
+ * The measurement entry (R2-D141): `OMNE_J6_ROUNDS=200` runs the full 200 rounds with the growth
+ * judgement of the timed counts, and writes its evidence to `C-JOINT/`. Without it the admission
+ * slow tier runs the short version, which compares the stable counts of two windows only; its
+ * evidence goes to `C-JOINT/short/`, so it never overwrites a measurement. Any other value is
+ * refused: a run must not quietly be another length than the one asked for.
+ */
+const MEASURED = (() => {
+  const asked = process.env['OMNE_J6_ROUNDS']
+  if (asked === undefined || asked === '') return false
+  if (asked !== '200') throw new Error(`OMNE_J6_ROUNDS is 200 or unset, not ${asked}`)
+  return true
+})()
+const OUT = new URL(
+  MEASURED
+    ? '../../../../../tmp/line-session-run/w2/C-JOINT/'
+    : '../../../../../tmp/line-session-run/w2/C-JOINT/short/',
+  import.meta.url,
+)
+/** The windows: `WINDOW` rounds from round `EARLY_FROM + 1`, against the last `WINDOW` rounds. */
+const RUN = MEASURED
+  ? { rounds: 200, window: 20, earlyFrom: 10, timeout: 3_600_000 }
+  : { rounds: 20, window: 6, earlyFrom: 4, timeout: 300_000 }
+const MAX_ROUNDS = RUN.rounds
+const WINDOW = RUN.window
+/** The early window: rounds 11 to 30 when measured (5 to 10 in the short run). */
+const EARLY_FROM = RUN.earlyFrom
+/** The windows of the run, as the titles name them: the late one is the last `WINDOW` rounds. */
+const WINDOWS = `rounds ${String(MAX_ROUNDS - WINDOW + 1)}-${String(MAX_ROUNDS)} equal those of rounds ${String(EARLY_FROM + 1)}-${String(EARLY_FROM + WINDOW)}`
+const GROWTH_TITLE = MEASURED ? 'the timed counts do not grow with the rounds and ' : ''
+/** The rule of the timed counts needs rounds 11 to 200, so only the measured run judges growth. */
+const timedGrowthOf = (shape: Shape, completed: readonly RoundCount[]) =>
+  MEASURED ? timedGrowth(shape, completed) : { growing: [], controlMissed: [] }
 /**
  * The items every round must show alike: all but the number of the round, the retries, the bytes and
  * the number of `execution-record.parts` calls, which `partsOverBound` bounds instead (R2-D85).
@@ -304,8 +338,8 @@ async function runToLimit(shape: Shape, w: W2World) {
 
 describe('J6: fixed round counts', () => {
   it(
-    'J6 plain shape: 200 rounds, the timed counts do not grow with the rounds and the other counts of rounds 181-200 equal those of rounds 11-30',
-    { timeout: 3_600_000 },
+    `J6 plain shape: ${String(MAX_ROUNDS)} rounds, ${GROWTH_TITLE}the other counts of ${WINDOWS}`,
+    { timeout: RUN.timeout },
     async () => {
       const w = await openW2World({
         earlier: 'session',
@@ -321,9 +355,10 @@ describe('J6: fixed round counts', () => {
         expect(count).toMatchObject({ modelReceives: 1, toolReceives: 0 })
       // The parts calls stay within their named bound (R2-D85).
       expect(partsOverBound('plain', completed, w.counters.partsRounds)).toEqual([])
-      // The timed counts do not grow with the number of rounds, and the negative control does (R2-D118).
-      expect(timedGrowth('plain', completed)).toEqual({ growing: [], controlMissed: [] })
-      // The windows: no other item may differ between rounds 11-30 and 181-200.
+      // The timed counts do not grow with the number of rounds, and the negative control does (R2-D118);
+      // judged in the measured run only.
+      expect(timedGrowthOf('plain', completed)).toEqual({ growing: [], controlMissed: [] })
+      // The windows: no other item may differ between the early and the late rounds.
       const early = completed.slice(EARLY_FROM, EARLY_FROM + WINDOW).map(stable)
       const late = completed.slice(-WINDOW).map(stable)
       expect(late).toEqual(early)
@@ -331,8 +366,8 @@ describe('J6: fixed round counts', () => {
   )
 
   it(
-    'J6 tool shape: 200 rounds, two Model results and one Tool result each round, the timed counts do not grow with the rounds and the other counts of rounds 181-200 equal those of rounds 11-30',
-    { timeout: 3_600_000 },
+    `J6 tool shape: ${String(MAX_ROUNDS)} rounds, two Model results and one Tool result each round, ${GROWTH_TITLE}the other counts of ${WINDOWS}`,
+    { timeout: RUN.timeout },
     async () => {
       const w = await openW2World({
         earlier: 'session',
@@ -350,7 +385,7 @@ describe('J6: fixed round counts', () => {
           toolReceives: 1,
         })
       expect(partsOverBound('tool', completed, w.counters.partsRounds)).toEqual([])
-      expect(timedGrowth('tool', completed)).toEqual({ growing: [], controlMissed: [] })
+      expect(timedGrowthOf('tool', completed)).toEqual({ growing: [], controlMissed: [] })
       const early = completed.slice(EARLY_FROM, EARLY_FROM + WINDOW).map(stable)
       const late = completed.slice(-WINDOW).map(stable)
       expect(late).toEqual(early)
