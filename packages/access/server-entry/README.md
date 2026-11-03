@@ -13,13 +13,15 @@ This package owns the entry duties of both locations: the HTTP listener, request
 Implemented:
 
 - `createServerEntry({ config, dependencies })`, which returns `start()` and `stop()`.
-- The `register-and-activate` and `issue-login` operations of the governance location.
+- The `register-and-activate` and `issue-login` operations of the governance location. A succeeded `issue-login` carries the `loginId` of the new login.
+- The eighteen governed operations of the governance location: organizations, member invitations, memberships, the current tenant, and the logins of an account. They go to identity's governance port.
+- The report of a successful business access, and the end of an observation when its login is no longer valid.
 - The seven session operations and the two observation operations of the session location. An observation stream carries the confirmation, heartbeats, and the `ended` frame only.
 - The deterministic derivation of the session operation identity `SessionOperationId`.
 
 Not implemented at this stage:
 
-- The other 32 governance operations answer `stage-not-provided`.
+- The fourteen governance operations this deployment declares not provided answer `stage-not-provided`: `public-health`, `replace-credential`, `query-organization`, the eight affiliation operations, `judge-admission`, and the two authorization expression operations.
 - The `state`, `refreshing`, `snapshot`, `delta`, and `gap` observation frames. Reattachment and refresh wait for the joint work.
 - TLS, remote access, and the sticky routing of a multi-instance deployment.
 
@@ -47,7 +49,7 @@ const entry = createServerEntry({
     historyKinds: ['message.user', 'message.assistant'],
     observation: { perLogin: 4, perInstance: 1000, cancelRetentionMs: 60000 },
   },
-  dependencies: { identity, issuer, session, resolveDefinition, diagnostics },
+  dependencies: { identity, governance, issuer, session, resolveDefinition, diagnostics },
 })
 const { address, port } = await entry.start()
 await entry.stop()
@@ -63,7 +65,8 @@ The two locations have fixed paths: `/governance-public/1` and `/session-public/
 
 | Dependency | Type | How this package uses it |
 | --- | --- | --- |
-| `identity` | identity's `IdentityOperations` | Registration and login issuance in the governance location; login recognition in the session location |
+| `identity` | identity's `IdentityOperations` | Registration and login issuance in the governance location. Login recognition in both locations and at each observation round |
+| `governance` | identity's `IdentityGovernance`, optional | The eighteen governed operations, and the report of a successful business access. It must work over the same records as `identity`. Without it the governed operations answer `basis-unavailable` and no access is reported |
 | `issuer` | identity's `PrincipalIssuer` | Issues the system principal of this package (`component` is `server-entry`), and the acting principal of each session request |
 | `session` | `SessionIngressFaces`, the Session faces this package declares | The seven session operations and the read eligibility check when an observation opens. A real `SessionService` satisfies it structurally |
 | `resolveDefinition` | `DefinitionResolver` | `create-session` resolves a definition name into the fields the creation adopts. A returned `undefined` answers `invalid` |
@@ -77,8 +80,10 @@ The stable promises are:
 
 - The entry listens on `127.0.0.1` only and speaks plain HTTP/1.1. A wrong address fails the start and the entry does not rewrite it.
 - A status code comes from the `outcome` only. The same `outcome` always gets the same status code and the same response body shape.
-- A `denied` in the session location does not reveal whether the session exists. Every `denied` reason gives a byte-identical response except for `messageId`.
-- No login proof, credential, or issuer enters any output. The entry does not rewrite the `denied` and `basis-unavailable` results of identity and Session.
+- A `denied` in either location does not reveal its reason. Every `denied` reason gives a byte-identical response except for `messageId`. A `not-visible` is the same for an object that does not exist and one that belongs to another account.
+- No login proof, credential, or issuer enters any output. No diagnostic holds a login identifier or a `loginId`. The entry does not rewrite the `denied` and `basis-unavailable` results of identity and Session.
+- A declared not-provided operation answers `stage-not-provided` before any login recognition.
+- Only a `succeeded` session operation and an established observation report a business access. A failed report does not change the answer.
 - A `stop-call` on a `tool` target answers `unsupported`, whatever the session state and whether the `controlId` was used, and it writes no record.
 - An observation record lives in the memory of this instance only.
 
@@ -86,7 +91,7 @@ Implementation details are free to change: the module layout, the diagnostic cod
 
 ## Design
 
-The entry reads bytes into public messages, then hands the requests that pass the protocol checks to the public entries of identity and the faces of Session. It holds no login table and puts no storage object into a response.
+The entry reads bytes into public messages, then hands the requests that pass the protocol checks to the public entries of identity, its governance port, and the faces of Session. It holds no login table and puts no storage object into a response.
 
 Each location handler returns one of three answers to the HTTP layer: `json`, `no-answer`, or an observation stream. The status code of `json` comes from the `outcome` only. `no-answer` means this package has no trustworthy reply; the HTTP layer writes an empty-body 500 and closes the connection, and only a failure of this package uses it. The `outcome` to status code table is exhaustive, so a new `outcome` the public contract can encode fails the type check when the table has no row for it.
 
@@ -100,7 +105,7 @@ The public contract does not depend on this package, and neither does the SDK. T
 | --- | --- |
 | `listenAddress`, `listenPort` | The address must be `127.0.0.1`. A port of 0 asks the host to assign one |
 | `maxBodyBytes.small`, `maxBodyBytes.input` | The body limits of the governance and session paths. Each limit is also the `maxBytes` of that path's json-text read |
-| `heartbeatIntervalMs` | The SSE heartbeat interval |
+| `heartbeatIntervalMs` | The SSE heartbeat interval. At this stage it is also the length of one observation round, after which the entry checks the login of the observation again |
 | `jsonBudgets` | The other five json-text read budgets |
 | `maxPageBytes` | The upper bound of `pageBytes` in `read-history` |
 | `historyKinds` | The entry kinds `read-history` discloses |

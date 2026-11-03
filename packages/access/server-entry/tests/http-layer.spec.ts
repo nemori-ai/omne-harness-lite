@@ -49,7 +49,7 @@ describe('listening', () => {
     const other = createServerEntry({
       config: baseConfig({ listenAddress: '0.0.0.0' }),
       dependencies: {
-        identity: identityDouble(),
+        identity: identityDouble().operations,
         issuer: inProcessPrincipalAuthority().issuer,
         session: createSessionDouble({ members: new Map() }).faces,
         resolveDefinition: () => undefined,
@@ -59,7 +59,7 @@ describe('listening', () => {
     const wildcard = createServerEntry({
       config: baseConfig({ listenAddress: '::' }),
       dependencies: {
-        identity: identityDouble(),
+        identity: identityDouble().operations,
         issuer: inProcessPrincipalAuthority().issuer,
         session: createSessionDouble({ members: new Map() }).faces,
         resolveDefinition: () => undefined,

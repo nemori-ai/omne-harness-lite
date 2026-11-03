@@ -1,8 +1,9 @@
 // Session observation on SSE for this stage: the hand-written closed read and write of the three
 // observation messages (binding page「观察消息的手写读写」), the observation records of this
-// instance, cancel, replacement, connection close as cancel, and the heartbeat through the one
-// serial writer. This stage locates no Model target: after the confirmation the stream carries
-// heartbeats and the `ended` frame only (docs/internals.md「本阶段的观察范围」).
+// instance, cancel, replacement, connection close as cancel, the end of a login's observations when
+// the login is no longer valid, and the heartbeat through the one serial writer. This stage locates
+// no Model target: after the confirmation the stream carries heartbeats and the `ended` frame only
+// (docs/internals.md「本阶段的观察范围」).
 import {
   readJsonText,
   writeJsonText,
@@ -230,11 +231,17 @@ export function endedFrameText(
 
 // --- the observation records of this instance ------------------------------------------------
 
+/** The answer of one login check: still valid, no longer valid, or not judgeable now. */
+export type LoginCheck = 'valid' | 'denied' | 'unavailable'
+
 type Active = {
   readonly key: string
   readonly loginText: string
   readonly messageId: string
   readonly observationId: string
+  readonly checkLogin: () => Promise<LoginCheck>
+  /** The timer of the next login check, while one is armed. */
+  checkTimer: NodeJS.Timeout | undefined
   /** The stream, once the HTTP layer has opened it. A claim holds the slot before that. */
   stream: SseStream | undefined
   seq: number
@@ -256,10 +263,19 @@ export interface ObservationRegistry {
    * passed their Session read together cannot both be admitted over the bound.
    */
   claim(
-    input: Readonly<{ key: string; loginText: string; messageId: string; observationId: string }>,
+    input: Readonly<{
+      key: string
+      loginText: string
+      messageId: string
+      observationId: string
+      /** Checks the observation's login again; it runs once per round while the stream is open. */
+      checkLogin: () => Promise<LoginCheck>
+    }>,
   ): ObservationClaim | undefined
   /** Ends an active observation, or answers from the retained record. */
   cancel(key: string): CancelState
+  /** Ends every active observation of one login with `reason`. */
+  endLogin(loginText: string, reason: EndReason): void
   /**
    * Ends every active observation with `reason` and resolves when the streams attached so far
    * finished. A claim whose stream has not attached yet gets its frame at attach; the HTTP layer's
@@ -272,10 +288,15 @@ export function observationKey(loginText: string, session: string, observationId
   return `${loginText}\n${session}\n${observationId}`
 }
 
-export function createObservationRegistry(
-  limits: ServerEntryConfig['observation'],
-  diagnostics: DiagnosticSink | undefined,
-): ObservationRegistry {
+export type ObservationRegistryInput = Readonly<{
+  limits: ServerEntryConfig['observation']
+  /** The length of one round: the wait between two login checks of one observation. */
+  loginCheckIntervalMs: number
+  diagnostics: DiagnosticSink | undefined
+}>
+
+export function createObservationRegistry(input: ObservationRegistryInput): ObservationRegistry {
+  const { limits, loginCheckIntervalMs, diagnostics } = input
   const active = new Map<string, Active>()
   const perLogin = new Map<string, number>()
   const retained = new Map<string, NodeJS.Timeout>()
@@ -305,6 +326,10 @@ export function createObservationRegistry(
   /** Removes the observation from the active set and frees its slot. */
   const forget = (observation: Active, ended: NonNullable<Active['ended']>): void => {
     observation.ended = ended
+    if (observation.checkTimer !== undefined) {
+      clearTimeout(observation.checkTimer)
+      observation.checkTimer = undefined
+    }
     if (active.get(observation.key) === observation) active.delete(observation.key)
     count(observation.loginText, -1)
     retain(observation.key)
@@ -333,6 +358,32 @@ export function createObservationRegistry(
     if (observation.stream !== undefined) writeEnd(observation, observation.stream, reason)
   }
 
+  /**
+   * One round: the login check, then the next round. Checks of one observation are serial, and a
+   * result that arrives after the observation ended changes nothing.
+   */
+  const armLoginCheck = (observation: Active): void => {
+    const timer = setTimeout(() => {
+      observation.checkTimer = undefined
+      void checkLogin(observation)
+    }, loginCheckIntervalMs)
+    timer.unref()
+    observation.checkTimer = timer
+  }
+
+  const checkLogin = async (observation: Active): Promise<void> => {
+    if (observation.ended !== undefined) return
+    let result: LoginCheck
+    try {
+      result = await observation.checkLogin()
+    } catch {
+      result = 'unavailable'
+    }
+    if (observation.ended !== undefined) return
+    if (result === 'valid') armLoginCheck(observation)
+    else end(observation, result)
+  }
+
   const attach = (observation: Active, stream: SseStream): void => {
     if (observation.stream !== undefined)
       throw new TypeError('server-entry: observation attached twice')
@@ -347,6 +398,7 @@ export function createObservationRegistry(
       // The connection closed before an end: that is the cancel; no frame can be written.
       if (observation.ended === undefined) forget(observation, 'connection-closed')
     })
+    if (observation.ended === undefined) armLoginCheck(observation)
   }
 
   return {
@@ -354,7 +406,13 @@ export function createObservationRegistry(
       if (!hasCapacity(input.loginText, input.key)) return undefined
       const previous = active.get(input.key)
       if (previous !== undefined) end(previous, 'observer-replaced')
-      const observation: Active = { ...input, stream: undefined, seq: 0, ended: undefined }
+      const observation: Active = {
+        ...input,
+        checkTimer: undefined,
+        stream: undefined,
+        seq: 0,
+        ended: undefined,
+      }
       active.set(input.key, observation)
       count(input.loginText, 1)
       return { attach: stream => attach(observation, stream) }
@@ -366,6 +424,11 @@ export function createObservationRegistry(
         return 'ended'
       }
       return retained.has(key) ? 'ended' : 'not-found'
+    },
+    endLogin(loginText, reason) {
+      // `end` removes from `active`, so the list is taken first.
+      for (const observation of Array.from(active.values()))
+        if (observation.loginText === loginText) end(observation, reason)
     },
     async endAll(reason) {
       // `end` removes from `active`, so the list is taken first.
@@ -469,8 +532,19 @@ export async function handleObservation(
     loginText: caller.loginText,
     messageId,
     observationId,
+    // The login check of every round (public contract「来源与对外表示」: a refusal is
+    // `ended(denied)`, an unjudgeable login `ended(unavailable)`). Revocation, the idle deadline and
+    // the maximum deadline all show here as `denied`.
+    checkLogin: async () => {
+      const again = await context.steps.recognize(request.proof)
+      if (!isRefusal(again)) return again.loginText === caller.loginText ? 'valid' : 'denied'
+      return again.outcome === 'denied' ? 'denied' : 'unavailable'
+    },
   })
   if (claim === undefined) return refuse('basis-unavailable')
+  // The establishment succeeded: a successful business access of this login (identity ID-18). An
+  // end that arrives during this wait is written when the stream attaches.
+  await context.steps.reportBusinessAccess(caller)
   return sseAnswer(confirmationText(messageId, 'succeeded', observationId), 'succeeded', stream =>
     claim.attach(stream),
   )

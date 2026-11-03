@@ -4,9 +4,10 @@
 // is the empty status 500 and a closed connection.
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type {
+  ActingForTenantPrincipal,
+  IdentityGovernance,
   IdentityOperations,
   PrincipalIssuer,
-  ActingForTenantPrincipal,
 } from '@omne-harness/identity'
 import type { Answer, JsonAnswer } from './answers.ts'
 import {
@@ -30,6 +31,11 @@ export const SESSION_PATH = '/session-public/1'
 
 export type ServerEntryDependencies = Readonly<{
   identity: IdentityOperations
+  /**
+   * Identity's governance port over the same records as `identity`. Absent: the eighteen governed
+   * operations answer `basis-unavailable` after the login check, and no business access is reported.
+   */
+  governance?: IdentityGovernance
   issuer: PrincipalIssuer
   session: SessionIngressFaces<ActingForTenantPrincipal>
   resolveDefinition: DefinitionResolver
@@ -147,8 +153,18 @@ export function createServerEntry(input: {
   const config = checkConfig(input.config)
   const { dependencies } = input
   const diagnostics = dependencies.diagnostics
-  const steps = createIdentitySteps(dependencies.identity, dependencies.issuer, diagnostics)
-  const registry = createObservationRegistry(config.observation, diagnostics)
+  const steps = createIdentitySteps({
+    identity: dependencies.identity,
+    governance: dependencies.governance,
+    issuer: dependencies.issuer,
+    diagnostics,
+  })
+  const registry = createObservationRegistry({
+    limits: config.observation,
+    // This stage has no locate or refresh round: one round is one heartbeat interval (docs/internals.md).
+    loginCheckIntervalMs: config.heartbeatIntervalMs,
+    diagnostics,
+  })
   const locations: readonly Location[] = [
     {
       path: GOVERNANCE_PATH,
@@ -177,6 +193,9 @@ export function createServerEntry(input: {
     location.path === GOVERNANCE_PATH
       ? handleGovernance(bytes, {
           identity: dependencies.identity,
+          governance: dependencies.governance,
+          steps,
+          endObservationsOf: loginText => registry.endLogin(loginText, 'denied'),
           readLimits: readLimits(config, location.maxBytes),
           diagnostics,
         })
