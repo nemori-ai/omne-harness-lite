@@ -6,7 +6,11 @@
 // the complete consumer and the saved evidence. A record that is absent, unknown, excluded or
 // different, and a read that fails, are `unavailable`: never a confirmation, and the Model keeps
 // the result and asks again with the same ACK operation.
-import type { AgentReceivedRecords } from '@omne-harness/agent-contract'
+import type {
+  AgentExecutionId,
+  AgentReceivedRecords,
+  ReceivedCommitValue,
+} from '@omne-harness/agent-contract'
 import type {
   ConsumerRef,
   DurableEvidence,
@@ -43,44 +47,65 @@ const DEPENDENCY = 'consumer-evidence'
 const unavailable = (diagnostic: string) =>
   fail<ModelFailure>({ kind: 'unavailable', dependency: DEPENDENCY, diagnostic })
 
+type ResultKey = Extract<ModelDeliveryKey, { kind: 'result' }>
+
+/** Where this owner saved the delivery the ACK names, or why it saved none it could confirm. */
+function located<P>(
+  input: AgentCustodyQuestion<P>,
+): Readonly<{ saved: DurableEvidence; execution: AgentExecutionId; key: ResultKey }> | string {
+  // This owner retains a result until its consumption; it gives no completion evidence.
+  if (input.evidence.kind !== 'retained') return 'not-retained-evidence'
+  const saved = input.evidence.custody
+  if (input.consumer.owner !== AGENT_OWNER || saved.owner !== AGENT_OWNER)
+    return 'not-the-agent-consumer'
+  const execution = positionExecution(input.consumer)
+  if (execution === null) return 'no-execution-in-the-consumer-position'
+  return {
+    saved,
+    execution,
+    key: { kind: 'result', reference: input.reference, result: input.result },
+  }
+}
+
+/** Whether the committed record is the very delivery, consumer and saved evidence of the ACK. */
+function sameRecord(
+  value: ReceivedCommitValue,
+  key: ResultKey,
+  consumer: ConsumerRef,
+  saved: DurableEvidence,
+): boolean {
+  return (
+    value.entry.delivery.producer === 'model' &&
+    canonical(value.entry.delivery.key) === canonical(key) &&
+    canonical(value.entry.consumer) === canonical(consumer) &&
+    canonical(value.saved) === canonical(saved)
+  )
+}
+
 /** The adapter over the read face of the received records. */
 export function createAgentCustodyEvidence<P>(
   records: AgentReceivedRecords<P>,
 ): AgentCustodyEvidence<P> {
   return Object.freeze({
     async verify(input: AgentCustodyQuestion<P>) {
-      // This owner retains a result until its consumption; it gives no completion evidence.
-      if (input.evidence.kind !== 'retained') return unavailable('not-retained-evidence')
-      const saved = input.evidence.custody
-      if (input.consumer.owner !== AGENT_OWNER || saved.owner !== AGENT_OWNER)
-        return unavailable('not-the-agent-consumer')
-      const execution = positionExecution(input.consumer)
-      if (execution === null) return unavailable('no-execution-in-the-consumer-position')
-      const key: Extract<ModelDeliveryKey, { kind: 'result' }> = {
-        kind: 'result',
-        reference: input.reference,
-        result: input.result,
-      }
+      const found = located(input)
+      if (typeof found === 'string') return unavailable(found)
       const access = { principal: input.principal, tenant: input.tenant }
       let read
       try {
         read = await records.query({
           ...access,
-          execution,
-          operation: receptionOperation(access, key),
+          execution: found.execution,
+          operation: receptionOperation(access, found.key),
         })
       } catch (error) {
         return unavailable(`received-record-read-threw: ${String(error)}`)
       }
       if ('failure' in read) return unavailable(`received-record-${read.failure.kind}`)
       if (read.ok.kind !== 'committed') return unavailable(`received-record-${read.ok.kind}`)
-      const { entry, saved: recorded } = read.ok.value
-      const same =
-        entry.delivery.producer === 'model' &&
-        canonical(entry.delivery.key) === canonical(key) &&
-        canonical(entry.consumer) === canonical(input.consumer) &&
-        canonical(recorded) === canonical(saved)
-      return same ? succeed(structuredClone(saved)) : unavailable('received-record-differs')
+      return sameRecord(read.ok.value, found.key, input.consumer, found.saved)
+        ? succeed(structuredClone(found.saved))
+        : unavailable('received-record-differs')
     },
   })
 }
