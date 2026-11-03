@@ -46,7 +46,6 @@
     "@omne-harness/execution-environment-contract": "workspace:*",
     "@omne-harness/execution-environment-cordis-contract": "workspace:*",
     "@omne-harness/runtime-context-contract": "workspace:*",
-    "@omne-harness/tool-cordis-contract": "workspace:*",
-    "@omne-harness/schema-provider": "workspace:*"
+    "@omne-harness/tool-cordis-contract": "workspace:*"
   }
 }

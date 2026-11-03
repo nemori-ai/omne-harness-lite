@@ -127,14 +127,11 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     return events
   }
   const authority = createAuthority(fixedRoot, run)
-  const schemas = await createEnvironmentSchemaCheck()
+  const schemas = createEnvironmentSchemaCheck()
   const sql = await openStorage(resolve(evidenceDirectory, 'sql'), [
     authority.tenant,
     authority.foreignTenant,
-  ]).catch(error => {
-    schemas.close()
-    throw error
-  })
+  ])
   const root = new Context()
   const fiberFailures: unknown[] = []
   const fiberObservations: Promise<void>[] = []
@@ -813,7 +810,13 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
             throw new Error(`The declared text-only consumer received ${block.kind}`)
           return block
         })
-        const result = { ...first, value: { ...first.value, content: textContent }, next: null }
+        if (first.value.original.kind !== 'none')
+          throw new Error('This wave does not provide offloaded Tool results.')
+        const result = {
+          ...first,
+          value: { ...first.value, original: first.value.original, content: textContent },
+          next: null,
+        }
         const delivery = [...saved.values()].find(
           item =>
             item.kind === 'result' &&
@@ -869,7 +872,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
         await cleanupStep(failures, 'Tool runtime', () => bundle.close())
         authority.retire()
         await cleanupStep(failures, 'Cordis root', () => root.fiber.dispose())
-        await cleanupStep(failures, 'schema provider', () => schemas.close())
         const storage = await cleanupStep(failures, 'SQLite', () => sql.close())
         await cleanupStep(failures, 'evidence writes', () => events)
         const result = {
@@ -896,7 +898,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     const runtime = await cleanupStep(failures, 'setup Tool runtime', stopBundle)
     authority.retire()
     const cordis = await cleanupStep(failures, 'setup Cordis root', () => root.fiber.dispose())
-    const schema = await cleanupStep(failures, 'setup schema provider', () => schemas.close())
     const storage = await cleanupStep(failures, 'setup SQLite', () => sql.close())
     await cleanupStep(failures, 'setup failure evidence', () =>
       record('setup-failed', {
@@ -904,7 +905,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
         provider,
         runtime,
         cordis,
-        schema,
         storage,
       }),
     )
