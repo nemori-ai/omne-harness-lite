@@ -1,15 +1,14 @@
 # @omne-harness/schedule-local
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 ## 职责与状态
 
-本机持久化适配、恢复扫描、来源或执行适配及 Cordis 提供者。领域规则调用通用实现，跨域交接只消费公开协议。 本包为 private 0.0.0 初始化草稿，公开入口仍为空，没有可运行的业务能力。
+本包提供可终止规则worker与日程管理SQL后端，复用schedule纯领域决定。当前为private 0.0.0。Job执行、恢复扫描及Cordis绑定尚未实现。
 
 ## 使用
 
-目标消费者和允许依赖见[组架构](../docs/architecture.md)。当前只能构建和检查骨架，不能创建服务或执行业务命令。未来使用者通过公开入口消费，不能导入本包私有源码。
+目标消费者和允许依赖见[组架构](../docs/architecture.md)。先构建编译入口，再创建计算worker。SQL宿主先登记材料和具名守卫，再构造管理后端。消费者使用公开根入口，不导入私有源码。
 
 ## 契约
 
@@ -21,15 +20,15 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 配置与运行
 
-Node >=24，ESM。当前没有业务配置或启动入口。单机后端与未来远程实现必须遵守相同公共语义，不能以同进程调用替代可靠交接。
+Node >=24，ESM。宿主提供worker容量、SqlStorage、固定scope、组合身份与守卫适配，并负责存储关闭及等待worker.dispose。单机后端与未来远程实现必须遵守相同公共语义，不能以同进程调用替代可靠交接。
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/schedule-local build`、`typecheck` 和 `test`。测试只检查草稿导出，不证明持久化、租户隔离、网络、生命周期或业务正确性。
+运行 `pnpm --filter @omne-harness/schedule-local build`、`typecheck` 和 `test`。fast覆盖公开边界及真实SQLite；slow覆盖线程终止与进程崩溃。权威、同意、Calendar及额度使用符合性夹具，不代表生产跨域联调通过。
 
 ## 维护
 
-实现公共定义时同步消费者、必要行为与验证。保留草稿标记，直到公开行为及其验证实际完成。具体方法、schema、服务类和提供者均未实现。
+实现公共定义时同步消费者、必要行为与验证。区分已实现导出与后续能力。空的cordis入口不能称为已安装服务。
 
 ## 目录结构与文档职责
 

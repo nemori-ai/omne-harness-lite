@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Local service backend for schedule; initialized draft without business exports",
+  "description": "Local calculation workers and SQL management persistence for schedule",
   "engines": {
     "node": ">=24"
   },
