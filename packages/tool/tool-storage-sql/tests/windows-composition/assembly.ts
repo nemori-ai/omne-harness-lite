@@ -63,6 +63,7 @@ import {
 } from '@omne-harness/execution-environment-contract'
 import { createAuthority, witnessStore } from './authority.ts'
 import { createAuthors, type Environment } from './authors.ts'
+import { createNegativeFixtureProvider } from './negative-fixture.ts'
 import { openStorage } from './storage.ts'
 import { createEnvironmentSchemaCheck } from './schema.ts'
 import { evidence, failureDetails, until, value } from './helpers.ts'
@@ -209,6 +210,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       },
     })
     retireProvider = () => provider.retire()
+    const negative = createNegativeFixtureProvider(provider)
     const recoveryAccess = createRecoveryAccess()
     const acquisitions: AcquisitionEvidence[] = []
     const origins = new Map<string, { call: string; preparation: string }>()
@@ -504,7 +506,9 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       name: 'real-windows-provider',
       inject: { executionEnvironment: { caller: 'provider' as const } },
       apply(ctx: Context) {
-        return ctx.executionEnvironment.registerProvider(provider)
+        // The negative fixture forwards to this same provider; it only narrows the lease a real
+        // acquisition hands back, so every positive case keeps the real facilities.
+        return ctx.executionEnvironment.registerProvider(negative.provider)
       },
     })
     const prerequisites = await provider.describe()
@@ -852,6 +856,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       resources: () => [...resources.values()].map(row => structuredClone(row)),
       acquisitions: () => [...acquisitions],
       authorExecutions: authors.executions,
+      negativeFacilities: negative.control,
       record,
       async close() {
         const failures: Error[] = []

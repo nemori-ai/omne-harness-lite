@@ -36,9 +36,7 @@ export async function runParallelCloseScenario(assembly: WindowsAssembly): Promi
       rows: 30,
     })
 
-    const terminal1Line = session1.text
-      .split(/\r?\n/u)
-      .find(line => line.startsWith('terminal='))
+    const terminal1Line = session1.text.split(/\r?\n/u).find(line => line.startsWith('terminal='))
     assert.ok(terminal1Line, 'session1 must provide terminal reference')
     const terminal1: unknown = JSON.parse(terminal1Line.slice('terminal='.length))
     assert.ok(
@@ -59,9 +57,7 @@ export async function runParallelCloseScenario(assembly: WindowsAssembly): Promi
       rows: 30,
     })
 
-    const terminal2Line = session2.text
-      .split(/\r?\n/u)
-      .find(line => line.startsWith('terminal='))
+    const terminal2Line = session2.text.split(/\r?\n/u).find(line => line.startsWith('terminal='))
     assert.ok(terminal2Line, 'session2 must provide terminal reference')
     const terminal2: unknown = JSON.parse(terminal2Line.slice('terminal='.length))
     assert.ok(

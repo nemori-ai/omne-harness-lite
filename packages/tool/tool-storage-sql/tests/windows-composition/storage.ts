@@ -26,11 +26,18 @@ const maxCommandBytes = 4_194_304
  * SPEC:326). The read handler maxOutputBytes is 4 MiB (worker/schema.ts:37), and each read
  * reserves that full amount. globalReadResultBytes = 134217728 allows 32 concurrent 4 MiB reads.
  * The old 16 MiB (readBytes × 4) only allowed 4, causing queue_full on the 5th read.
+ *
+ * One test lowers it (see `openStorage`'s `globalReadResultBytes` option) so the budget is
+ * exhausted by a deterministic number of reads instead of a race with 32 concurrent calls.
  */
-const globalReadResultBytes = 134217728
+const DEFAULT_GLOBAL_READ_RESULT_BYTES = 134217728
 
 /** Same provider policy dimensions as sqlite-provider/tests/support.ts, over this test's real root. */
-function configuration(storageRoot: string, readBytes: number): SqliteStorageConfig {
+function configuration(
+  storageRoot: string,
+  readBytes: number,
+  globalReadResultBytes = DEFAULT_GLOBAL_READ_RESULT_BYTES,
+): SqliteStorageConfig {
   return {
     storageRoot,
     admissionQueueLimit: 64,
@@ -76,7 +83,11 @@ function configuration(storageRoot: string, readBytes: number): SqliteStorageCon
     closeDeadlineMs: 20_000,
   }
 }
-export async function openStorage(root: string, tenants: readonly TenantId[]) {
+export async function openStorage(
+  root: string,
+  tenants: readonly TenantId[],
+  options: Readonly<{ globalReadResultBytes?: number }> = {},
+) {
   await mkdir(root, { recursive: true })
   const materials = toolStorageMaterials()
   const catalog: SqlMaterialCatalog = {
@@ -99,6 +110,7 @@ export async function openStorage(root: string, tenants: readonly TenantId[]) {
     config: configuration(
       root,
       Math.max(4_194_304, ...materials.readHandlers.map(item => item.maxOutputBytes)),
+      options.globalReadResultBytes ?? DEFAULT_GLOBAL_READ_RESULT_BYTES,
     ),
     materials: catalog,
     closeLeases: {
@@ -148,6 +160,9 @@ export async function openStorage(root: string, tenants: readonly TenantId[]) {
     }
     const options = { storage: created.storage, domains, combination }
     return {
+      /** The raw storage, for the read-budget case that must not depend on the whole assembly. */
+      storage: created.storage,
+      domains,
       store: createSqlToolLedgerStore<ToolMessageContentBlock>(options),
       custody: createSqlToolOutputCustody<unknown>({
         ...options,

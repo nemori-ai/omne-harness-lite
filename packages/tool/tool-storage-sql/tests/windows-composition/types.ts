@@ -11,6 +11,7 @@ import type {
 } from '@omne-harness/tool-contract'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import type { ManagedResource } from '@omne-harness/execution-environment-contract'
+import type { NegativeFixtureControl } from './negative-fixture.ts'
 
 export type Invocation = Readonly<{
   reference: ToolInvocationRef
@@ -70,6 +71,11 @@ export interface WindowsAssembly {
   resources(): readonly ObservedResource[]
   acquisitions(): readonly AcquisitionEvidence[]
   authorExecutions(): Readonly<Record<string, number>>
+  /**
+   * Narrows the real provider's next acquisitions for the negative cases. `null` restores the real
+   * facilities; every positive case must run with `null` active.
+   */
+  readonly negativeFacilities: NegativeFixtureControl
   record(event: string, facts: unknown): Promise<void>
   close(): Promise<CleanupEvidence>
 }

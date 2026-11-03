@@ -1,107 +1,119 @@
-import assert from 'node:assert/strict'
+import { mkdir } from 'node:fs/promises'
+import { join } from 'node:path'
 import type { ScenarioResult, WindowsAssembly } from './types.ts'
 
 /**
- * R2-D115 failure closure: read queue full returns unavailable
+ * The failure closures of this wave that belong to the whole Windows assembly: a Shell author
+ * whose provider lacks the retention extension (R2-D77) and a `Files.list` over entries that omit
+ * their name (R2-D61). Both narrow the real provider's lease, so the real registry, Tool entry and
+ * author still decide the answer.
  *
- * When in-flight reserved bytes exceed globalReadResultBytes (134217728 = 128 MiB),
- * subsequent reads must return unavailable without starting.
- *
- * Current configuration (storage.ts:27-30):
- * - globalReadResultBytes = 134217728 (128 MiB)
- * - maxReadResultBytes = 4 MiB per read
- * - Therefore 32 concurrent 4 MiB reads can be in flight
- * - The 33rd read should receive unavailable
+ * R2-D115 (a read whose result does not fit the global budget answers `unavailable`) is NOT here:
+ * R2-D122/R2-D123 fix it at the storage layer, where a deterministic configuration exhausts the
+ * budget. A composition test cannot reach the read queue deterministically.
  */
-export async function runFailureClosureScenario(assembly: WindowsAssembly): Promise<ScenarioResult> {
+export async function runFailureClosureScenario(
+  assembly: WindowsAssembly,
+): Promise<ScenarioResult> {
   const checks: Record<string, boolean> = {}
 
-  // Test R2-D115: Read queue full
-  // Create a small test file
-  await assembly.invoke('Files', 'write', {
-    target: 'read-queue-test.txt',
-    writeMode: 'replace',
-    content: 'Test content for read queue saturation check',
-  })
-
-  // Start 32 concurrent reads (each reserves 4 MiB, total 128 MiB = globalReadResultBytes)
-  const inFlightReads = []
-  for (let i = 0; i < 32; i++) {
-    inFlightReads.push(
-      assembly.attempt('Files', 'read', {
-        target: 'read-queue-test.txt',
-        offset: null,
-        limit: null,
-      }),
-    )
-  }
-
-  // The 33rd read should be rejected with unavailable (exceeds global reservation)
-  const overLimitRead = await assembly.attempt('Files', 'read', {
-    target: 'read-queue-test.txt',
-    offset: null,
-    limit: null,
-  })
-
-  checks.readQueueFullRejectsWithUnavailable =
-    overLimitRead.outcome.kind === 'rejected' &&
-    overLimitRead.outcome.failure.kind === 'unavailable'
-
-  // Wait for the original 32 reads to complete
-  const completedReads = await Promise.all(inFlightReads)
-  const allInLimitReadsAccepted = completedReads.every(
-    read => read.outcome.kind === 'accepted' || read.outcome.kind === 'commit-unknown',
-  )
-  checks.inLimitReadsAccepted = allInLimitReadsAccepted
-
-  // Verify that after the in-flight reads complete, new reads can proceed
-  const subsequentRead = await assembly.invoke('Files', 'read', {
-    target: 'read-queue-test.txt',
-    offset: null,
-    limit: null,
-  })
-  const completed = await assembly.settle(subsequentRead)
-  checks.subsequentReadSucceeds = completed.state.terminal.kind === 'completed'
-
-  // Test R2-D77: Terminal retention extension
-  // Note: The current windows-composition fixture DOES provide the retention extension.
-  // A true negative test would require a provider without the extension.
-  // For now, we verify that WITH retention, terminal creation succeeds.
-  const terminal = await assembly.invoke('Shell', 'createTerminal', {
-    rows: 24,
+  // R2-D77: a provider without the `TerminalFacility.retention` extension must refuse session
+  // retention with `unavailable` and start nothing. The fixture removes only the extension from the
+  // real provider's lease, so the real registry, Tool entry and Shell author still decide.
+  const beforeRetention = assembly.negativeFacilities.counters()
+  const beforeRetentionResources = assembly.resources()
+  assembly.negativeFacilities.activate({ retention: true })
+  const withoutRetention = await assembly.invoke('Shell', 'create_session', {
     columns: 80,
-    workingDirectory: null,
+    rows: 24,
   })
-  const terminalCompleted = await assembly.settle(terminal)
-  checks.terminalCreationWithRetention = terminalCompleted.state.terminal.kind === 'completed'
+  const withoutRetentionCompleted = await assembly.settle(withoutRetention)
+  assembly.negativeFacilities.activate(null)
+  const afterRetention = assembly.negativeFacilities.counters()
+  const retainedTerminalRef = { id: 'missing-extension', generation: 'missing-extension' }
 
-  // Test R2-D61: Files.list with all names present
-  // Note: The current host-local provider always supplies names from real directory entries.
-  // A true negative test would require a provider that omits FileEntry.name.
-  // For now, we verify that WITH all names present, list succeeds.
-  await assembly.invoke('Files', 'write', {
-    target: 'list-test-file.txt',
-    writeMode: 'replace',
-    content: 'test',
-  })
+  checks.terminalRetentionAbsentRefusesUnavailable =
+    withoutRetentionCompleted.state.terminal.kind === 'completed' &&
+    /^rejected reason=unavailable session retention unavailable zero starts$/u.test(
+      withoutRetentionCompleted.text,
+    )
+  checks.terminalRetentionAbsentStartsNoTerminal =
+    afterRetention.terminalCreates === beforeRetention.terminalCreates &&
+    afterRetention.terminalExecutes === beforeRetention.terminalExecutes &&
+    afterRetention.commandStarts === beforeRetention.commandStarts &&
+    assembly.resources().length === beforeRetentionResources.length
 
-  const listResult = await assembly.invoke('Files', 'list', {
-    target: '',
-    recursive: false,
+  // The attach path (`execute`/`close_session` on a named terminal) refuses before the facility too.
+  assembly.negativeFacilities.activate({ retention: true })
+  const withoutAttachment = await assembly.invoke('Shell', 'execute', {
+    script: 'Write-Output "must not run"',
+    terminal: retainedTerminalRef,
   })
-  const listCompleted = await assembly.settle(listResult)
+  const withoutAttachmentCompleted = await assembly.settle(withoutAttachment)
+  assembly.negativeFacilities.activate(null)
+  const afterAttachment = assembly.negativeFacilities.counters()
+  checks.terminalAttachAbsentRefusesUnavailable =
+    /^rejected reason=unavailable session attachment unavailable zero starts$/u.test(
+      withoutAttachmentCompleted.text,
+    )
+  checks.terminalAttachAbsentStartsNothing =
+    afterAttachment.terminalCreates === beforeRetention.terminalCreates &&
+    afterAttachment.terminalExecutes === beforeRetention.terminalExecutes &&
+    afterAttachment.commandStarts === beforeRetention.commandStarts &&
+    assembly.resources().length === beforeRetentionResources.length
+
+  // Control: the same counters do move once a provider really starts something, so the zero above
+  // is evidence and not a counter that never works.
+  const control = await assembly.invoke('Shell', 'execute', {
+    script: 'Write-Output "counter control"',
+  })
+  await assembly.settle(control)
+  checks.negativeCountersObserveRealStarts =
+    assembly.negativeFacilities.counters().commandStarts > afterAttachment.commandStarts
+
+  // R2-D61: a Files.list whose entries omit `name` fails as a whole; it neither drops entries nor
+  // invents names. The fixture strips the name the real provider supplied.
+  const listRoot = join(assembly.workspace, 'entry-name-fixture')
+  await mkdir(listRoot, { recursive: true })
+  await assembly.settle(
+    await assembly.invoke('Files', 'write', {
+      path: join(listRoot, 'list-negative-fixture.txt'),
+      text: 'legacy writer without entry names',
+      mode: 'create',
+    }),
+  )
+  assembly.negativeFacilities.activate({ entryName: true })
+  const namelessList = await assembly.invoke('Files', 'list', { path: listRoot })
+  const namelessCompleted = await assembly.settle(namelessList)
+  assembly.negativeFacilities.activate(null)
+  checks.listFailsWholeOnMissingName =
+    namelessCompleted.state.terminal.kind === 'completed' &&
+    /^unavailable reason=entry-name-unavailable no entries returned$/u.test(namelessCompleted.text)
+  checks.listDoesNotInventOrDropNames =
+    !namelessCompleted.text.includes('list-negative-fixture.txt') &&
+    !namelessCompleted.text.includes('\tdirectory\t') &&
+    !namelessCompleted.text.includes('\tfile\t')
+
+  // Control: with the real names the same directory lists, so the failure above is the missing
+  // name and not an empty or unreadable directory.
+  const namedList = await assembly.invoke('Files', 'list', { path: listRoot })
+  const namedCompleted = await assembly.settle(namedList)
   checks.listSucceedsWithAllNames =
-    listCompleted.state.terminal.kind === 'completed' && listCompleted.text.includes('name=')
+    namedCompleted.state.terminal.kind === 'completed' &&
+    namedCompleted.text.includes('"list-negative-fixture.txt"')
 
   await assembly.record('failure-closure-checks', checks)
 
   return {
     checks,
     observations: {
-      overLimitRead,
-      inFlightReadsCount: completedReads.length,
-      terminalCreated: terminalCompleted.text.includes('token='),
-      listResult: listCompleted.text.split('\n').length,
+      retentionWithoutExtension: {
+        createSession: withoutRetentionCompleted.text,
+        execute: withoutAttachmentCompleted.text,
+        counters: { before: beforeRetention, after: afterRetention, attach: afterAttachment },
+      },
+      namelessList: namelessCompleted.text,
+      namedList: namedCompleted.text,
     },
   }
 }
