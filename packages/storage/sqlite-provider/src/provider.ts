@@ -33,6 +33,20 @@ export type CreateSqliteStorageResult =
       problems: readonly string[]
     }>
 
+/**
+ * A handler whose `maxOutputBytes` is above `maxReadResultBytes` can never be served (SPEC 12.1).
+ * Reporting it at construction fails a wrong pairing at start, not at the first read. The read
+ * itself still checks, as a backstop.
+ */
+function oversizedHandlers(catalog: SqlMaterialCatalog, maxReadResultBytes: number): string[] {
+  return catalog.readHandlers
+    .filter(handler => handler.maxOutputBytes > maxReadResultBytes)
+    .map(
+      handler =>
+        `readHandlers ${handler.handler}: maxOutputBytes ${String(handler.maxOutputBytes)} exceeds maxReadResultBytes ${String(maxReadResultBytes)}`,
+    )
+}
+
 export async function createSqliteStorage(
   input: SqliteStorageInput,
 ): Promise<CreateSqliteStorageResult> {
@@ -46,6 +60,9 @@ export async function createSqliteStorage(
   const checked = await checkMaterials(input.materials)
   if (checked.materialProblems.length > 0)
     return { kind: 'rejected', reason: 'material_invalid', problems: checked.materialProblems }
+  const oversized = oversizedHandlers(input.materials, judged.config.maxReadResultBytes)
+  if (oversized.length > 0)
+    return { kind: 'rejected', reason: 'material_invalid', problems: oversized }
   if (checked.declaredProblems.length > 0)
     return {
       kind: 'rejected',
