@@ -47,7 +47,6 @@ import {
   type DispatchId,
   type ResultPart,
 } from '@omne-harness/model-contract'
-import { judgePart } from '@omne-harness/message'
 import { historySessionOf } from '@omne-harness/session-adapters'
 import {
   createSessionAgentJournalPlugin,
@@ -114,29 +113,6 @@ const text = (id: string, body: string): ContentBlock =>
   ({ kind: 'text', id, visibility: { toHuman: true, toModel: true }, text: body }) as ContentBlock
 
 /** A reply block of the Model double: a text. */
-/**
- * The `reasoning_state` block of the Model double. The scripted result pusher of model-contract
- * refuses it as a sealed part (its whitelist is narrower than the contract's output blocks), so the
- * world seals a placeholder `thinking` block in its place and the receiver that the pusher pushes to
- * (`wrapModelReceiver`) swaps it for this block, after the public check of `judgePart`. The
- * receiver still saves the delivery by its own rules.
- */
-export function reasoningStateBlock(id: string, payload: string, pairs: readonly string[]) {
-  const block = {
-    kind: 'reasoning_state',
-    id,
-    visibility: { toHuman: false, toModel: true },
-    payload,
-    pairs,
-  }
-  const judged = judgePart(block)
-  if ('rejected' in judged) throw new Error(`reasoning_state: ${judged.rejected}`)
-  return block as unknown as ContentBlock
-}
-
-/** The block ids of the placeholders and the blocks they stand for. */
-const REASONING_PLACEHOLDER = 'ph_rs_'
-
 export const replyText = (id: string, body: string): ContentBlock => text(`blk_${id}`, body)
 
 /** A reply block of the Model double: a tool call suggestion with empty arguments. */
@@ -374,19 +350,6 @@ export async function openW2World(options: W2Options) {
   const earlier = options.earlier ?? 'double'
   const delay = options.defaultDelayMs ?? DEFAULT_DELAY_MS
   const replies: ModelReplyRecord[] = []
-  // The `reasoning_state` blocks that stand behind a sealed placeholder (see `reasoningStateBlock`).
-  const reasoningSubstitutes = new Map<string, ContentBlock>()
-  const withReasoningStates = <T extends { delivery: { kind: string } }>(input: T): T => {
-    const delivery = input.delivery as { kind: string; parts?: readonly unknown[] }
-    if (delivery.kind !== 'result' || delivery.parts === undefined) return input
-    const parts = delivery.parts.map(part => {
-      const sealed = part as { kind?: string; block?: { id?: string } }
-      const id = sealed.kind === 'sealed' ? sealed.block?.id : undefined
-      const stand = id === undefined ? undefined : reasoningSubstitutes.get(id)
-      return stand === undefined ? part : { ...sealed, block: stand }
-    })
-    return { ...input, delivery: { ...delivery, parts } }
-  }
   const toolRequests: ToolInvokeRequest[] = []
   // Double (R2-D36): the prepared request of the fixed schema.
   const toolRequestSource: NonNullable<Dependencies['toolRequests']> = {
@@ -528,7 +491,7 @@ export async function openW2World(options: W2Options) {
     wrapModelReceiver: receiver => ({
       ...receiver,
       push: async input => {
-        const answer = await receiver.push(withReasoningStates(input))
+        const answer = await receiver.push(input)
         if ('ok' in answer) counters.receive('model')
         return answer
       },
@@ -537,14 +500,6 @@ export async function openW2World(options: W2Options) {
       counters.modelRequest()
       modelCalls.push(String(admission.call))
       const step = options.model(admission)
-      const stateBlocks = new Map<string, ContentBlock>()
-      const sealedParts = step.parts.map((block, at) => {
-        if ((block as { kind: string }).kind !== 'reasoning_state') return block
-        const placeholder = `${REASONING_PLACEHOLDER}${admission.index}_${at}`
-        stateBlocks.set(placeholder, block as ContentBlock)
-        return text(placeholder, 'placeholder of a reasoning_state block')
-      })
-      for (const [id, block] of stateBlocks) reasoningSubstitutes.set(id, block)
       const definedDelay = step.delayMs ?? delay
       const { pusher, tenant, call, index } = admission
       const target = { tenant, call }
@@ -567,7 +522,7 @@ export async function openW2World(options: W2Options) {
           ...target,
           version: version.ok,
           termination: { kind: 'completed', reason: step.reason },
-          parts: sealedParts.map(block => ({ kind: 'sealed' as const, trims: [], block })) as never,
+          parts: step.parts.map(block => ({ kind: 'sealed' as const, trims: [], block })) as never,
           source: evidenceOf(`w2/model/${call}`),
           pageSize: 10,
           pageTargetBytes: 65536,

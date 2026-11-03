@@ -14,13 +14,7 @@
 // Why slow: real Workers, real files and the whole line on one root.
 import { afterEach, describe, expect, it } from 'vitest'
 import { EARLIER, intakeAccess, ok, strangerAccess } from './world.ts'
-import {
-  replyText,
-  toolCallBlock,
-  openW2World,
-  type W2World,
-  reasoningStateBlock,
-} from './w2-world.ts'
+import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
 
 const worlds: W2World[] = []
 afterEach(async () => {
@@ -62,18 +56,10 @@ describe('J1: three rounds of one conversation', () => {
   })
 
   it('J1 three rounds: the request grows and the history read returns only the new rows', async () => {
-    // The encrypted reasoning block of round 1 (`reasoning_state` of the message model), paired with
-    // its reply text.
-    const reasoning = reasoningStateBlock('blk_reasoning_state', 'opaque-state-of-round-1', [
-      'blk_r0',
-    ])
     const w = await openW2World({
       earlier: 'session',
       model: a => ({
-        parts:
-          a.index === 0
-            ? [reasoning, replyText('r0', 'answer 0')]
-            : [replyText(`r${a.index}`, `answer ${a.index}`)],
+        parts: [replyText(`r${a.index}`, `answer ${a.index}`)],
         reason: 'stop',
       }),
     })
@@ -94,12 +80,6 @@ describe('J1: three rounds of one conversation', () => {
     expect(sizes[2]).toBeGreaterThan(sizes[1] ?? 0)
     const second = w.assembled[1]?.map(textOf) ?? []
     expect(second).toEqual(expect.arrayContaining(['question 1', 'answer 0']))
-    // The reasoning block of round 1 is replayed in the request of round 2.
-    const replayed = (w.assembled[1] ?? [])
-      .flatMap(message => message.blocks as readonly { kind: string }[])
-      .map(block => block.kind)
-    expect(replayed).toContain('reasoning_state')
-
     // Rounds 2 and 3 read only what the round before added to the session log: its input and its
     // reply, whatever the length of round 1; nothing already read is read again.
     const [, two, three] = w.counters.rounds
@@ -109,6 +89,16 @@ describe('J1: three rounds of one conversation', () => {
       expect(count?.stableRecompute).toBe(0)
     }
   })
+})
+
+describe('J1 replay block', () => {
+  // R7 item 5, S3-3: the request of round 2 carries the reasoning_state block of round 1. R2-D70
+  // names this a deviation of wave 2: the delivery has no scope/format channel, and the Agent Loop
+  // answers `unsupported` to a result with a reasoning_state or thinking part
+  // (agent/src/loop/model-result.ts). L-MODEL adds the replay channel in wave 3. Not written as passing.
+  it.todo(
+    'J1 the request of round 2 replays the reasoning_state block of round 1 (R2-D70 named deviation, wave 3)',
+  )
 })
 
 describe('J2: a Tool result enters the next Model request', () => {
