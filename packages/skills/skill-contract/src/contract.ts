@@ -8,9 +8,32 @@ import {
   type JsonValue,
   type Judgment,
 } from '@omne-harness/assets'
+import { isPackageDigest } from './digest.ts'
+import { isBoundedText, isSkillName } from './names.ts'
+import {
+  DESCRIPTION_MAX,
+  fieldsOf,
+  firstFinding,
+  readScripts,
+  readSettings,
+  unknownKeys,
+  type Finding,
+  type Read,
+} from './parse/shape.ts'
+import type { SettingDeclaration } from './values.ts'
 
 const schemaRead = readBodyText(
-  '{"kind":"skill-body","properties":{"name":"string","tools":{"category":"tool","name":"string"}}}',
+  JSON.stringify({
+    kind: 'skill-body',
+    properties: {
+      name: 'string',
+      description: 'string',
+      tools: { category: 'tool', name: 'string' },
+      scripts: { entry: 'string', runKind: 'string', facilities: 'string[]', parameters: 'json' },
+      settings: { name: 'string', category: 'preference|binding|placement-identity|governance' },
+      package: { digest: 'string' },
+    },
+  }),
   {
     maxBytes: 1000,
     maxDepth: 8,
@@ -31,7 +54,11 @@ export function skillBodyContract(): BodyContract {
     deriveDeclarations(body, context) {
       const decision = judge(body, context)
       if (!decision.ok) throw new TypeError(`skill body failed judgment: ${decision.rejected}`)
-      return { entries: [] }
+      return {
+        entries: extensionOf(body).value.map(
+          setting => `setting:${setting.category}:${setting.name}`,
+        ),
+      }
     },
     references(body, context) {
       const decision = judge(body, context)
@@ -54,8 +81,37 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
   if (name === undefined || name === '') return refusal('incomplete-reference')
   if (context?.capabilityName !== undefined && name !== context.capabilityName)
     return refusal('name-mismatch')
+  if (!isSkillName(name)) return refusal('name-invalid')
   if (toolRefs(body) === undefined) return refusal('incomplete-reference')
-  return { ok: true }
+  const first = firstFinding(extensionOf(body).findings)
+  return first === undefined ? { ok: true } : refusal(first.code)
+}
+
+/**
+ * Reads the additive fields: `description`, `scripts`, `settings` and `package.digest`. Each one
+ * may be absent. They follow the shape rules of `.omne/skill.json`, and script entries must be
+ * normalized already.
+ */
+function extensionOf(body: unknown): Read<readonly SettingDeclaration[]> {
+  const findings: Finding[] = []
+  const description = field(body, 'description')
+  if (
+    description !== undefined &&
+    (description.kind !== 'string' || !isBoundedText(description.value, DESCRIPTION_MAX))
+  )
+    findings.push({ code: 'malformed', detail: 'description is not text of 1 to 1024 characters' })
+  const scripts = readScripts(field(body, 'scripts'), { normalized: true })
+  const settings = readSettings(field(body, 'settings'))
+  findings.push(...scripts.findings, ...settings.findings)
+  const pack = field(body, 'package')
+  if (pack !== undefined) {
+    const fields = fieldsOf(pack)
+    findings.push(...unknownKeys(fields, ['digest'], 'package'))
+    const digest = fields?.get('digest')
+    if (digest?.kind !== 'string' || !isPackageDigest(digest.value))
+      findings.push({ code: 'malformed', detail: 'package.digest is not a package digest' })
+  }
+  return { value: settings.value, findings }
 }
 
 function toolRefs(body: unknown): readonly { category: string; name: string }[] | undefined {

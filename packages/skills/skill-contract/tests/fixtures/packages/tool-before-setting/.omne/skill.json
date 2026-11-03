@@ -1,0 +1,5 @@
+{
+  "formatVersion": 1,
+  "dependencies": [{ "category": "mcp", "name": "files" }],
+  "settings": [{ "name": "token", "category": "secret" }]
+}

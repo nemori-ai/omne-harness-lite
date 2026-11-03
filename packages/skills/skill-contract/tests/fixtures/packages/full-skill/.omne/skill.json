@@ -1,0 +1,16 @@
+{
+  "formatVersion": 1,
+  "dependencies": [{ "category": "tool", "name": "read_file" }],
+  "scripts": [
+    {
+      "entry": "scripts/run.sh",
+      "runKind": "shell",
+      "facilities": ["network"],
+      "parameters": { "type": "object", "required": ["target"] }
+    }
+  ],
+  "settings": [
+    { "name": "api-endpoint", "category": "binding" },
+    { "name": "tone", "category": "preference" }
+  ]
+}
