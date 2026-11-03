@@ -2,7 +2,7 @@
 // worker/execute.ts. Steps 1 to 7 run before anything is reserved. Step 8 reserves, and from
 // then on the reservation and the pending index entry are returned once, when the result owner
 // has the Worker reply, never when the caller stops observing. The caller stops observing at the
-// close deadline, at an abort, or when a sent write has no reply within lockWaitMs.
+// close deadline, at an abort, or when a sent write has no reply within the reply observation.
 import {
   inputDigestV2,
   type CommitOptions,
@@ -162,11 +162,11 @@ export function createCommit(core: Core): SqlStorage['commit'] {
           admission.release()
           return unknown('withdrawn_before_start')
         }
-        // The caller observes the reply for lockWaitMs. What the write holds (reservation, pending
-        // entry, its place in the order) stays with the Worker until the reply or the exit.
+        // The caller observes the reply for a bounded time. What the write holds (reservation,
+        // pending entry, its place in the order) stays with the Worker until the reply or the exit.
         const observation = setTimeout(
           () => settle(unknown('reply_wait_expired')),
-          core.config.lockWaitMs,
+          core.replyObservationMs,
         )
         try {
           reply = await ready.client.request<CommitReply>({

@@ -347,7 +347,7 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 
 环境错误发生在 B 时：外层事务仍在，就执行 `ROLLBACK TO op_B`，停止本组，提交前缀，B 为 `unknown`；外层事务已经结束，就按 §7.7.2 的批级行处理。提供者不从异常类名推出业务拒绝，适配器也不把 `failed` 改写成 `conflict`。
 
-SQLite 提供者在下列情况下不能判定结果，`commit` 返回 `unknown`：锁等待超过 `lockWaitMs`；`COMMIT` 的结果不确定；回滚之后，明确回滚回执没有写入；`ROLLBACK` 因其他原因失败；等待 `domain-serial` 屏障超过 `lockWaitMs`（撤下，未发送）；已发送的写在 `lockWaitMs` 内没有答复（调用方停止观察，预留保持到 Worker 答复或退出）。后两项的机制归提供者规格 §9.3。
+SQLite 提供者在下列情况下不能判定结果，`commit` 返回 `unknown`：锁等待超过 `lockWaitMs`；`COMMIT` 的结果不确定；回滚之后，明确回滚回执没有写入；`ROLLBACK` 因其他原因失败；等待 `domain-serial` 屏障超过 `lockWaitMs`（撤下，未发送）；已发送的写在 2 × `lockWaitMs` 内没有答复（调用方停止观察，预留保持到 Worker 答复或退出）。后两项的机制归提供者规格 §9.3。
 
 #### §7.7 局部失败、批级失败与序位
 

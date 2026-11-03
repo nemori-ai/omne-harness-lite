@@ -29,7 +29,7 @@ export function createQuery(core: Core): SqlStorage['query'] {
     const valid = decoded.identity
     const grant = core.admission.reserveQuery(valid.transactionDomain)
     if (grant === null) return unknown('queue_full')
-    // The caller observes a sent query for lockWaitMs. The queue place goes back with the reply.
+    // The caller observes a sent query for a bounded time. The queue place goes back with the reply.
     let expire: () => void = () => undefined
     const expired = new Promise<QueryResultV2>(resolve => {
       expire = () => resolve(unknown('reply_wait_expired'))
@@ -43,7 +43,7 @@ export function createQuery(core: Core): SqlStorage['query'] {
           return unknown('domain_unavailable')
         const key = identityKey(valid)
         const pendingBefore = core.pending.has(key)
-        const observation = setTimeout(expire, core.config.lockWaitMs)
+        const observation = setTimeout(expire, core.replyObservationMs)
         let reply: QueryReply
         try {
           reply = await outcome.entry.client.request<QueryReply>({

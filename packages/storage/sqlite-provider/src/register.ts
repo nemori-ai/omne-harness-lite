@@ -81,8 +81,8 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
       key: { scope: spec.scope, transactionDomain, combinationVersion: spec.combinationVersion },
       diagnostic: core.diagnostic(text),
     })
-    // At the close deadline, or when a sent registration has no reply within lockWaitMs, the
-    // caller gets `unknown`. The reservation stays until the work ends.
+    // At the close deadline, or when a sent registration has no reply within the reply
+    // observation, the caller gets `unknown`. The reservation stays until the work ends.
     let expire: (diagnostic: string) => void = () => undefined
     const expired = new Promise<RegisterResultV2>(resolve => {
       expire = diagnostic => resolve(unknown(diagnostic))
@@ -111,7 +111,7 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
           resume()
           return unknown('withdrawn_before_start')
         }
-        const observation = setTimeout(() => expire('reply_wait_expired'), core.config.lockWaitMs)
+        const observation = setTimeout(() => expire('reply_wait_expired'), core.replyObservationMs)
         try {
           reply = await entry.client.request<RegisterReply>({
             kind: 'register',
