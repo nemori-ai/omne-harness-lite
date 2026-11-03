@@ -6,6 +6,10 @@
 // `model-request-preparation`), and the Agent adoptions, through which the preparation reads the
 // `instructions` of the adopted definition as the first sections of the system prompt (R2-D124).
 //
+// The sixth group (tools, G-TOOLS6): the row hands `catalogToolLookup` (`tools.ts`) to the plugin
+// factory. It reads `toolCatalog` and the release consumer again on every call, through the plugin
+// context, so the injects stay the seven above; a session without resident tools never reads them.
+//
 // Configuration (data only, from the operator layer): `owner` (the adoption identity that owns the
 // registrations and the evidence), `resultCapacity` (three decimal texts), optional `materials`.
 // No measurement observer is handed in here; the C1 collection wires it.
@@ -28,6 +32,10 @@ import {
   runtimeContextReaderEligibilityKey,
 } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
+import { catalogToolLookup } from './tools.ts'
+
+/** What the row hands to the plugin factory: the tool lookup of the sixth group, no observer. */
+export const agentContextPluginInput = Object.freeze({ toolLookup: catalogToolLookup })
 
 export const agentContextRow = defineRow({
   row: 'agent-context',
@@ -46,5 +54,5 @@ export const agentContextRow = defineRow({
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },
-  plugin: createAgentContextPlugin(),
+  plugin: createAgentContextPlugin(agentContextPluginInput),
 })
