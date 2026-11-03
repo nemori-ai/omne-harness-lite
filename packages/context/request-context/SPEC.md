@@ -56,6 +56,7 @@
 | --- | --- | --- |
 | FACT-CAP | 单目标事实数达上限时拒收，不淘汰。契约要求同修订的指纹在本代际内保留，逐事实淘汰会破坏它；整个目标淘汰等于结束该目标的代际 | 度量显示单会话事实数接近上限 |
 | ACCT-EVICT-ACTIVE | 仍在使用的目标可能在两次操作之间被淘汰，之后 `usage` 返回 `uninitialized`，直到再次重建 | 与账目投影的初始化同时，设计 `usage` 路径上的重建发起者 |
+| CACHE-SLOT-POSITION | 缓存槽按（主体、用途）分区，不再分消费位置（D9，#502）。[RQ-10](../request-context-contract/SPEC.md) 写的是「缓存键与 `PreparedInputKey` 相同」，而 `PreparedInputKey` 含消费位置。跨位置复用安全的前提是「组令牌相等即组值相等」在跨位置时也成立。生产的 agent-context 令牌是值摘要，所以目前成立 | 出现组值随位置变化、令牌却在不同位置之间共用的来源时；或 request-context-contract 拥有者在契约里写明令牌跨调用可比，或修改 RQ-10 措辞（R2-D74，波 3） |
 
 淘汰的内存占用不被测量，只验证行为等价（精简表示后现有 `actual`、`estimate`、`unmeasured`、`superseded`、冲突的结果不变）。这是覆盖边界。
 

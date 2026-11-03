@@ -196,6 +196,37 @@ const written = (s: SqlScene): string[] =>
     .map(row => String(row[0]))
     .filter(kind => kind.startsWith('message.') && kind !== 'message.user')
 
+type Tagged =
+  | { kind: 'null' }
+  | { kind: 'boolean' | 'string'; value: unknown }
+  | { kind: 'number'; lexeme: string }
+  | { kind: 'array'; items: Tagged[] }
+  | { kind: 'object'; entries: { key: string; value: Tagged }[] }
+/** The plain value of the tagged JSON tree in which an entry stores its payload. */
+function plainOf(tree: Tagged): unknown {
+  switch (tree.kind) {
+    case 'null':
+      return null
+    case 'boolean':
+    case 'string':
+      return tree.value
+    case 'number':
+      return Number(tree.lexeme)
+    case 'array':
+      return tree.items.map(plainOf)
+    case 'object':
+      return Object.fromEntries(tree.entries.map(item => [item.key, plainOf(item.value)]))
+  }
+}
+
+/** The recorded payload of the history row a Ja wrote, as the Session log stores it. */
+const writtenEntry = (s: SqlScene, kind: string): Record<string, unknown> => {
+  const rows = s.controls?.select(`SELECT entry FROM sl_entry WHERE kind = '${kind}'`).rows ?? []
+  expect(rows).toHaveLength(1)
+  const stored = JSON.parse(String(rows[0]?.[0])) as { payload: Tagged }
+  return plainOf(stored.payload) as Record<string, unknown>
+}
+
 describe('a Ja writes the real history of its source into the Session log', () => {
   for (const [source, role] of [
     ['model-reply', 'message.assistant'],
@@ -212,6 +243,17 @@ describe('a Ja writes the real history of its source into the Session log', () =
       expect(s.commits).toEqual([['execution-record', 'session']])
       expect(written(s)).toEqual([role])
       expect(Number(receipt.revision)).toBe(Number(before) + 1)
+    })
+
+    it(`the ${source} row carries the message, the original handoff record and the prepared admission`, async () => {
+      const { s, authority } = await opened(`history-${source}-pointers`)
+      const request = await prepared(s, authority, source)
+      ok(await s.view.journal.commit(await applied(s, authority, request, admitted(request))))
+      const entry = writtenEntry(s, role)
+      expect(entry.message).toEqual(request.candidate)
+      // The record of the handoff and the admission of the prepared result: not one for the other.
+      expect(entry.source).toEqual(proof('record/h'))
+      expect(entry.admission).toEqual(proof('admission/h'))
     })
 
     for (const [where, pattern] of [
@@ -238,6 +280,21 @@ describe('a Ja writes the real history of its source into the Session log', () =
         expect(written(s)).toEqual([role])
       })
   }
+
+  it('a message hand-over whose source is not the original handoff record is refused (Agent SPEC: message source)', async () => {
+    const { s, authority } = await opened('history-foreign-source')
+    const request = await prepared(s, authority, 'tool-result')
+    const ja = await applied(s, authority, request, admitted(request))
+    if (ja.caller.kind !== 'message') throw new Error('fixture: a tool result Ja carries message')
+    const foreign = { ...ja, caller: { ...ja.caller, source: proof('record/another') } } as Commit
+    const before = { rows: count(s, 'sl_entry'), agent: (await load(s)).revision }
+    const refused = await s.view.journal.commit(foreign)
+    expect(refused).toMatchObject({ failure: { kind: 'invalid', field: 'caller' } })
+    expect(count(s, 'sl_entry')).toBe(before.rows)
+    expect((await load(s)).revision).toBe(before.agent)
+    ok(await s.view.journal.commit(ja))
+    expect(written(s)).toEqual(['message.tool'])
+  })
 
   it('a rejected main reply writes no history row and asks no Session participation', async () => {
     const { s, authority } = await opened('history-rejected')

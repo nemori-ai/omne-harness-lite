@@ -524,6 +524,27 @@ describe('the history read translates the Session model view', () => {
       })
     })
 
+    it('a page that does not move past the cursor it was asked from is a defect, not thousands of reads', async () => {
+      const w = await world()
+      const { parts } = await w.borrow()
+      await w.remind(6)
+      const ev = await resolved(w, parts)
+      // Every page is the first row alone with the cursor of the start: the skip never advances.
+      w.faults.page = page => ({ ...page, rows: page.rows.slice(0, 1), next: '0' })
+      const calls = w.sessionCalls()
+      const answer = await parts.history.read({
+        access: w.access,
+        evidence: ev,
+        cursor: { evidence: ev, after: '4' as never },
+        budgetBytes: 1,
+      })
+      expect(answer).toMatchObject({
+        kind: 'unavailable',
+        diagnostic: 'translation defect: the model view page does not move on',
+      })
+      expect(w.sessionCalls() - calls).toBeLessThanOrEqual(3)
+    })
+
     it('a bound of 0 in the basis is the empty history, not a defect', async () => {
       const w = await world()
       const { parts } = await w.borrow()
@@ -752,11 +773,39 @@ describe('the read eligibility bridge and the narrow adoption source', () => {
 
 // --- SS-21 -----------------------------------------------------------------------------------------
 
+/**
+ * The Session calls of one read after a kept cursor (SS-21, R2-D72): one page from the cursor
+ * Session issued, and one more page that asks Session for the cursor before the new upper bound,
+ * because a page that reaches the upper bound carries no cursor (`mint`, K-18). The constant does
+ * not depend on the history: a read that grows with N is the defect this case guards.
+ */
+const CALLS_PER_TAIL_READ = 2
+
 describe('SS-21: a page after the cursor costs the same at N = 10 and N = 100 rows', () => {
   // The cursor is the one a reader holds from its previous read: the history had N - 2 rows, the
   // reader read them all, and two rows were added since. The Session cursors are opaque, so the
   // reader starts at the cursor it kept one row before the previous upper bound.
-  async function tail(rows: number) {
+  type Tail = Readonly<{ calls: number; rows: number; returned: readonly string[] }>
+  type TailRead = (
+    parts: ContextHolderParts<unknown>,
+    w: Awaited<ReturnType<typeof world>>,
+    ev: HistoryEvidence,
+    after: string,
+  ) => Promise<readonly string[]>
+
+  /** The read of the case: the rows after the cursor, with the cursor the reader kept. */
+  const afterCursor: TailRead = async (parts, w, ev, after) => {
+    const answer = await parts.history.read({
+      access: w.access,
+      evidence: ev,
+      cursor: { evidence: ev, after: after as never },
+      budgetBytes: 400,
+    })
+    if (answer.kind !== 'page') throw new Error(JSON.stringify(answer))
+    return answer.page.rows.map(row => row.seq)
+  }
+
+  async function tail(rows: number, read: TailRead = afterCursor): Promise<Tail> {
     const w = await world()
     const { parts } = await w.borrow()
     await w.remind(rows - 3)
@@ -766,31 +815,39 @@ describe('SS-21: a page after the cursor costs the same at N = 10 and N = 100 ro
     const calls = w.sessionCalls()
     const served = w.modelViewRows.length
     // The history rows are 0 to rows - 1: the cursor is before the last two.
-    const after = String(rows - 3) as never
-    const answer = await parts.history.read({
-      access: w.access,
-      evidence: ev,
-      cursor: { evidence: ev, after },
-      budgetBytes: 400,
-    })
-    if (answer.kind !== 'page') throw new Error(JSON.stringify(answer))
+    const returned = await read(parts, w, ev, String(rows - 3))
     return {
       calls: w.sessionCalls() - calls,
       rows: w.modelViewRows.slice(served).reduce((sum, count) => sum + count, 0),
-      returned: answer.page.rows.map(row => row.seq),
+      returned,
     }
+  }
+
+  /** What the case asserts of the two sizes: the same constant number of calls and rows. */
+  function expectFlat(small: Tail, large: Tail) {
+    expect(small.calls).toBe(CALLS_PER_TAIL_READ)
+    expect(large.calls).toBe(CALLS_PER_TAIL_READ)
+    expect(small.rows).toBe(large.rows)
   }
 
   it('reads the rows after the cursor and one row before it, then the cursor for the next read', async () => {
     const small = await tail(10)
     const large = await tail(100)
-    // One page from the kept cursor (the row before the cursor and the two new rows), one page
-    // that asks Session for the cursor before the new upper bound.
-    expect(small.calls).toBe(2)
-    expect(large.calls).toBe(2)
-    expect(small.rows).toBe(large.rows)
+    expectFlat(small, large)
     expect(small.returned).toEqual(['8', '9'])
     expect(large.returned).toEqual(['98', '99'])
+  })
+
+  it('negative control: a reader that reads the history from the start fails the same assertions', async () => {
+    // Every read starts at the beginning and skips the rows it has: the calls grow with N.
+    const fromStart: TailRead = async (parts, w, ev, after) => {
+      const seqs = await readAll(parts, w.access, ev)
+      return seqs.filter(seq => Number(seq) > Number(after))
+    }
+    const small = await tail(10, fromStart)
+    const large = await tail(100, fromStart)
+    expect(large.calls).toBeGreaterThan(small.calls)
+    expect(() => expectFlat(small, large)).toThrow()
   })
 
   it('negative control: reading the history from the start grows with N', async () => {

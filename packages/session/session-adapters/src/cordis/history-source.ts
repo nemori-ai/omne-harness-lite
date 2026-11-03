@@ -78,7 +78,11 @@ const PAGE_BYTES = 65536
 const MAX_PAGES = 10000
 /** The most sessions whose model view cursors one source fiber keeps; the oldest goes first. */
 const CURSOR_SESSIONS = 1024
-/** The most model view cursors kept per session; the one after the lowest row goes first. */
+/**
+ * The most model view cursors kept per session; the one after the lowest row goes first, except
+ * the one just issued. A read never depends on a kept cursor to move on: it carries the cursor of
+ * its own last page.
+ */
 const CURSORS_PER_SESSION = 16
 /** The most row sizes kept per session; the lowest rows go first. */
 const SIZES_PER_SESSION = 65536
@@ -263,6 +267,19 @@ function sameEvidence(left: HistoryEvidence, right: HistoryEvidence): boolean {
   )
 }
 
+/** Whether a history cursor is well formed and was issued under the same evidence. */
+function cursorFollows(cursor: HistoryCursor, evidence: HistoryEvidence): boolean {
+  return (
+    typeof cursor === 'object' &&
+    typeof cursor.after === 'string' &&
+    'ok' in decodeHistorySequence(cursor.after) &&
+    typeof cursor.evidence === 'object' &&
+    cursor.evidence !== null &&
+    checkEvidence(cursor.evidence).kind !== 'invalid' &&
+    sameEvidence(cursor.evidence, evidence)
+  )
+}
+
 /** A Session read refusal as the refusal of a part. Session reads have no unknown. */
 function refusalOf(failure: SessionFailure, field: string): Refusal {
   switch (failure.kind) {
@@ -302,11 +319,11 @@ class CursorBook {
     this.epoch = epoch
   }
 
-  /** The highest row at or before `after` with a kept cursor; 0 is the start, which needs none. */
-  start(after: bigint): bigint {
+  /** Where a read for the rows after `after` starts: the nearest kept cursor at or before it. */
+  reach(after: bigint): Reach {
     let best = 0n
     for (const row of this.tokens.keys()) if (row <= after && row > best) best = row
-    return best
+    return { position: best, token: best === 0n ? null : (this.tokens.get(best) ?? null) }
   }
 
   /** The bytes of the rows `from + 1` to `to`, or undefined when the size of one is not known. */
@@ -325,16 +342,42 @@ class CursorBook {
     while (this.sizes.size > SIZES_PER_SESSION) dropLowest(this.sizes)
   }
 
+  /** Keeps a cursor Session issued after `row`; the cursor just issued is never the one dropped. */
   remember(row: bigint, token: string): void {
     this.tokens.set(row, token)
-    while (this.tokens.size > CURSORS_PER_SESSION) dropLowest(this.tokens)
+    while (this.tokens.size > CURSORS_PER_SESSION) dropLowest(this.tokens, row)
   }
 }
 
-function dropLowest(map: Map<bigint, unknown>): void {
+/** Drops the lowest row of `map`, except `keep`. */
+function dropLowest(map: Map<bigint, unknown>, keep?: bigint): void {
   let lowest: bigint | undefined
-  for (const row of map.keys()) if (lowest === undefined || row < lowest) lowest = row
+  for (const row of map.keys())
+    if (row !== keep && (lowest === undefined || row < lowest)) lowest = row
   if (lowest !== undefined) map.delete(lowest)
+}
+
+/**
+ * Where a read of the model view stands: the Session row it has reached and the cursor Session
+ * issued after it (`null` at the start of the epoch, which needs none).
+ */
+type Reach = Readonly<{ position: bigint; token: string | null }>
+
+/** The bytes of the rows a read from `position` skips to reach `after`; the page limit if unknown. */
+function skippedBytes(book: CursorBook, position: bigint, after: bigint): number {
+  return position === after ? 0 : (book.span(position, after) ?? PAGE_BYTES)
+}
+
+/** The page of the rows of `kept` that fit `budget` (at least one), and whether more follow. */
+function pageWithin(kept: readonly ModelViewRow[], budget: number, next: boolean): ViewRead {
+  const taken: ModelViewRow[] = []
+  let bytes = 0
+  for (const row of kept) {
+    if (taken.length > 0 && bytes + row.bytes > budget) break
+    taken.push(row)
+    bytes += row.bytes
+  }
+  return { kind: 'page', rows: taken, more: taken.length < kept.length || next }
 }
 
 // --- validation of the inputs of a part ----------------------------------------------------------
@@ -583,16 +626,7 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     if (!Number.isSafeInteger(input.budgetBytes) || input.budgetBytes < 1)
       return invalid('budgetBytes', 'missing-input')
     const cursor: HistoryCursor | null = input.cursor
-    if (
-      cursor !== null &&
-      (typeof cursor !== 'object' ||
-        typeof cursor.after !== 'string' ||
-        !('ok' in decodeHistorySequence(cursor.after)) ||
-        typeof cursor.evidence !== 'object' ||
-        cursor.evidence === null ||
-        checkEvidence(cursor.evidence).kind === 'invalid' ||
-        !sameEvidence(cursor.evidence, evidence))
-    )
+    if (cursor !== null && !cursorFollows(cursor, evidence))
       return invalid('cursor', 'cursor-invalidated')
     const view = await this.viewAfter(
       located,
@@ -625,11 +659,13 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
    * (at least one row), and whether more follow. Session cursors are opaque: this reader never
    * decodes one. It keeps, per session and epoch, the cursor Session issued after each row it has
    * seen and the size of each row (`CursorBook`), and starts each read at the kept cursor nearest
-   * before `after`, skipping the rows up to `after`. A page that reaches the upper bound carries no
-   * cursor, so after such a page the reader asks Session once more for the rows before the last
-   * one (`mint`): the next read, after the upper bound of this one, then starts one row before it.
-   * With no cursor near `after` (a cold start, another epoch, a cursor Session no longer accepts)
-   * the read starts at the beginning of the epoch and skips the rows it already has.
+   * before `after`, skipping the rows up to `after`. Within one read it moves on with the cursor
+   * of its own last page, not with what the book still keeps, so a full book cannot send it back.
+   * A page that reaches the upper bound carries no cursor, so after such a page the reader asks
+   * Session once more for the rows before the last one (`mint`): the next read, after the upper
+   * bound of this one, then starts one row before it. With no cursor near `after` (a cold start,
+   * another epoch, a cursor Session no longer accepts) the read starts at the beginning of the
+   * epoch and skips the rows it already has.
    */
   private async viewAfter(
     located: Located,
@@ -640,23 +676,20 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     retried = false,
   ): Promise<ViewRead | Refusal> {
     const book = this.bookOf(located, basis.epoch)
-    let position = book.start(after)
+    let reach = book.reach(after)
     for (let pages = 0; pages < MAX_PAGES; pages++) {
-      const token = position === 0n ? null : (book.tokens.get(position) ?? null)
-      const skipped = position === after ? 0 : book.span(position, after)
-      const pageBytes = budget + (skipped ?? PAGE_BYTES)
       const answer = await this.call<ModelViewRead>(() =>
         this.scope[sessionKey].history.readModelView({
           ...located.session,
           basis,
-          after: token,
-          pageBytes,
+          after: reach.token,
+          pageBytes: budget + skippedBytes(book, reach.position, after),
         }),
       )
       if ('failure' in answer) {
-        // A kept cursor Session refuses (expired, or signed by a key it dropped): forget the book
-        // and read once more from the start, which needs no cursor.
-        if (token !== null && answer.failure.kind === 'invalid' && !retried) {
+        // A cursor Session refuses (expired, or signed by a key it dropped): forget the book and
+        // read once more from the start, which needs no cursor.
+        if (reach.token !== null && answer.failure.kind === 'invalid' && !retried) {
           this.cursors.delete(book.key)
           return this.viewAfter(located, basis, after, budget, field, true)
         }
@@ -664,36 +697,47 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       }
       const view = answer.ok
       if (view.kind === 'epoch-changed') return view
-      if (view.basis.epoch !== basis.epoch || view.basis.upper !== basis.upper)
-        return this.defect('the model view page names another basis')
-      for (const row of view.rows) {
-        const seq = sessionRowOf(row.seq)
-        if (seq === undefined || !Number.isSafeInteger(row.bytes) || row.bytes < 0)
-          return this.defect(`model view row ${row.seq} does not translate`)
-        book.size(seq, row.bytes)
-      }
+      const defect = this.learn(book, basis, view, reach.position)
+      if (defect !== undefined) return defect
       const last = view.rows.at(-1)
-      if (view.next !== null) {
-        if (last === undefined) return this.defect('the model view cursor follows no row')
-        book.remember(BigInt(last.seq), view.next)
-      }
       const kept = view.rows.filter(row => BigInt(row.seq) > after)
-      if (kept.length > 0) {
-        const taken: ModelViewRow[] = []
-        let bytes = 0
-        for (const row of kept) {
-          if (taken.length > 0 && bytes + row.bytes > budget) break
-          taken.push(row)
-          bytes += row.bytes
-        }
-        if (view.next === null && last?.seq === basis.upper)
+      if (last !== undefined && kept.length > 0) {
+        if (view.next === null && last.seq === basis.upper)
           await this.mint(located, basis, book, BigInt(basis.upper) - 1n)
-        return { kind: 'page', rows: taken, more: taken.length < kept.length || view.next !== null }
+        return pageWithin(kept, budget, view.next !== null)
       }
       if (view.next === null || last === undefined) return { kind: 'page', rows: [], more: false }
-      position = BigInt(last.seq)
+      reach = { position: BigInt(last.seq), token: view.next }
     }
     return unavailable('the model view read did not reach the cursor')
+  }
+
+  /**
+   * Takes what one page taught: the size of each row and the cursor after its last row. A page of
+   * another basis, a row that does not translate, a cursor that follows no row and a page that
+   * does not move past `position` are translation defects, never a success.
+   */
+  private learn(
+    book: CursorBook,
+    basis: ModelViewBasis,
+    view: Extract<ModelViewRead, { kind: 'page' }>,
+    position: bigint,
+  ): Unavailable | undefined {
+    if (view.basis.epoch !== basis.epoch || view.basis.upper !== basis.upper)
+      return this.defect('the model view page names another basis')
+    for (const row of view.rows) {
+      const seq = sessionRowOf(row.seq)
+      if (seq === undefined || !Number.isSafeInteger(row.bytes) || row.bytes < 0)
+        return this.defect(`model view row ${row.seq} does not translate`)
+      book.size(seq, row.bytes)
+    }
+    const last = view.rows.at(-1)
+    if (last === undefined) {
+      return view.next === null ? undefined : this.defect('the model view cursor follows no row')
+    }
+    if (BigInt(last.seq) <= position) return this.defect('the model view page does not move on')
+    if (view.next !== null) book.remember(BigInt(last.seq), view.next)
+    return undefined
   }
 
   /**
@@ -709,7 +753,7 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     target: bigint,
   ): Promise<void> {
     for (let pages = 0; pages < MAX_PAGES; pages++) {
-      const position = book.start(target)
+      const { position, token } = book.reach(target)
       if (position === target) return
       const pageBytes = book.span(position, target)
       if (pageBytes === undefined) return
@@ -717,7 +761,7 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
         this.scope[sessionKey].history.readModelView({
           ...located.session,
           basis,
-          after: position === 0n ? null : (book.tokens.get(position) ?? null),
+          after: token,
           pageBytes,
         }),
       )
@@ -744,25 +788,45 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     return book
   }
 
-  private async resolve(
-    input: Parameters<HistoryEvidenceResolver<unknown>>[0],
-  ): Promise<SourceRead<HistoryEvidence>> {
-    if (this.state.closed) return unavailable('the reads closed')
-    const checked = checkAccess(input.access)
-    if (checked.kind !== 'checked') return checked
-    const { evidence } = input
+  /** The session that a history evidence names, when the access of `tenant` may name it. */
+  private headOf(
+    evidence: unknown,
+    tenant: string,
+  ): Readonly<{ kind: 'head'; head: SessionHistoryHead; tenant: string }> | Refusal {
     if (typeof evidence !== 'object' || evidence === null)
       return invalid('evidence', 'missing-input')
     let head: SessionHistoryHead | null
     try {
-      head = this.shared.input.heads.sessionOf(evidence)
+      head = this.shared.input.heads.sessionOf(evidence as DurableEvidence)
     } catch (cause) {
       return unavailable(`the history head decoder threw: ${describe(cause)}`)
     }
     if (head === null) return invalid('evidence', 'source-evidence-conflict')
     const headTenant = tenantText(head.tenant)
     if (headTenant === undefined) return this.defect('the history head names no minted tenant')
-    if (headTenant !== checked.tenant) return DENIED
+    return headTenant === tenant ? { kind: 'head', head, tenant: headTenant } : DENIED
+  }
+
+  /** The scope refs of the context scope bindings of a session, oldest first. */
+  private scopesOf(bindings: readonly { scope: string }[]): ScopeRef[] | Unavailable {
+    const scopes: ScopeRef[] = []
+    for (const binding of bindings) {
+      const decoded = decodeScopeRef({ ref: binding.scope })
+      if (!('ok' in decoded)) return this.defect(`scope ${binding.scope} is not a scope ref`)
+      scopes.push(decoded.ok)
+    }
+    return scopes
+  }
+
+  private async resolve(
+    input: Parameters<HistoryEvidenceResolver<unknown>>[0],
+  ): Promise<SourceRead<HistoryEvidence>> {
+    if (this.state.closed) return unavailable('the reads closed')
+    const checked = checkAccess(input.access)
+    if (checked.kind !== 'checked') return checked
+    const named = this.headOf(input.evidence, checked.tenant)
+    if (named.kind !== 'head') return named
+    const { head, tenant: headTenant } = named
     const work = this.shared.link.work
     if (work === undefined) return unavailable('the lower bound sub-plugin is not running')
     const session: SessionAccess<unknown> = { ...checked.access, session: head.session }
@@ -772,12 +836,8 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     if (tenantText(work0.tenant) !== headTenant || work0.session !== head.session)
       return this.defect('readWork answered another session')
     const bindings = work0.contextScopes ?? []
-    const scopes: ScopeRef[] = []
-    for (const binding of bindings) {
-      const decoded = decodeScopeRef({ ref: binding.scope })
-      if (!('ok' in decoded)) return this.defect(`scope ${binding.scope} is not a scope ref`)
-      scopes.push(decoded.ok)
-    }
+    const scopes = this.scopesOf(bindings)
+    if (!Array.isArray(scopes)) return scopes
     const current = bindings.at(-1)
     const scope = scopes.at(-1)
     if (current === undefined || scope === undefined)

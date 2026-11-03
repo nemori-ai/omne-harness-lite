@@ -307,4 +307,32 @@ describe('AD-04 over the cursors session-storage-sql issues', () => {
     expect(read.seqs).toEqual(['6', '7'])
     expect(read.asked[0]?.after).toBeNull()
   })
+
+  it('a read from the start still advances when the cursor table is full of higher cursors', async () => {
+    // 420 rows are more than two store pages of 200. Eighteen rounds of one new row each leave the
+    // table full of cursors above the first page; the first page's own cursor is the lowest, and
+    // the cursor table keeps 16 of them.
+    const w = await world()
+    const parts = await w.borrow()
+    await w.remind(420, 'full')
+    let ev = await w.resolved(parts)
+    expect((await w.readAfter(parts, ev, null)).seqs).toEqual(seqsFrom(0, 420))
+    for (let round = 0; round < 18; round++) {
+      const previous = upperOf(ev)
+      await w.remind(1, `full-more${round}`)
+      ev = await w.resolved(parts)
+      await w.readAfter(parts, ev, cursorAfter(ev, previous))
+    }
+    const upper = Number(upperOf(ev))
+    const cold = await w.readAfter(parts, ev, null)
+    expect(cold.seqs).toEqual(seqsFrom(0, upper))
+    // One call for each page of 200 rows, and a call or two for the cursor of the next round.
+    expect(cold.asked.length).toBeLessThanOrEqual(Math.ceil((upper + 1) / 200) + 3)
+    // The cursors the cold read just got are the ones kept, not the lowest of them dropped at
+    // once: a read after the second page starts at the cursor Session issued there.
+    const tail = await w.readAfter(parts, ev, cursorAfter(ev, '399'))
+    expect(tail.seqs).toEqual(seqsFrom(400, upper))
+    expect(tail.asked[0]?.after).not.toBeNull()
+    expect(tail.asked.length).toBeLessThanOrEqual(2)
+  }, 60000)
 })

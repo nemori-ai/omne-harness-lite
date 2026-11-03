@@ -250,6 +250,12 @@ type Options = Readonly<{
 async function assembled(s: ToolScene, options: Options = {}) {
   const { wraps = {}, mountOnly = ALL } = options
   const ctx = new Context()
+  const logged: { type: string; text: string }[] = []
+  ctx.logger.exporter({
+    // Level 2 takes warn; the exporter default of 1 takes only error and success.
+    levels: { default: 2 },
+    export: message => logged.push({ type: message.type, text: String(message.args[0]) }),
+  })
   const callers: unknown[] = []
   const commits: Parameters<SessionTransactionPort<string>['commitEntries']>[0][] = []
   const reads = { work: 0, load: 0, material: 0 }
@@ -310,6 +316,7 @@ async function assembled(s: ToolScene, options: Options = {}) {
   }
   return {
     ctx,
+    logged,
     services,
     callers,
     commits,
@@ -1036,6 +1043,17 @@ describe('AD-06 trigger: the event of the Journal plugin wakes the consumption',
     await published(f, s)
     await settle()
     expect(f.commits).toHaveLength(0)
+  })
+
+  it('a plugin given no coordinator says once that it consumes nothing by itself', async () => {
+    const s = await toolScene('trigger-none-warn')
+    const f = await assembled(s)
+    const said = f.logged.filter(line => line.text.includes('AD-06 consumes nothing by itself'))
+    expect(said).toHaveLength(1)
+    expect(said[0]?.type).toBe('warn')
+    const other = await toolScene('trigger-some-warn')
+    const withCoordinator = await assembled(other, { coordinator: coordinator(other) })
+    expect(withCoordinator.logged.filter(line => line.text.includes('AD-06'))).toEqual([])
   })
 
   it('a coordinator that refuses the principal commits nothing and reads no Agent record', async () => {
