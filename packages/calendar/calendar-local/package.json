@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Local SQLite persistence for calendar publication and reaction handoff",
+  "description": "Local calendar SQL persistence, source acquisition, offline seeds and managed providers",
   "engines": {
     "node": ">=24"
   },
@@ -20,7 +20,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "data"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",

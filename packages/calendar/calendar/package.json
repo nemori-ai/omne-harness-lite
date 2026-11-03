@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Framework-independent calendar domain and application implementation; initialized draft",
+  "description": "Framework-independent calendar calculation, queries and supply application",
   "engines": {
     "node": ">=24"
   },

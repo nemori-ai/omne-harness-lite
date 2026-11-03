@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Independent calendar query tool with trusted call context and Cordis contribution",
+  "description": "Calendar query tool contribution through injected services",
   "engines": {
     "node": ">=24"
   },
