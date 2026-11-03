@@ -2158,6 +2158,9 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.1
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

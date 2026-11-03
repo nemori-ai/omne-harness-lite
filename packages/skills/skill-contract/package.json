@@ -28,7 +28,8 @@
     "@omne-harness/assets": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
-    "@omne-harness/operation-result": "workspace:*"
+    "@omne-harness/operation-result": "workspace:*",
+    "yaml": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
