@@ -1,16 +1,22 @@
 // 发行内置作者的来源与装载器输入（简报 B3-T2a 第 4、7、8 项，L-TOOL 事实清单 §1）。
 // - `source.resolve`：只从受信快照取 Shell、Files 的固定模块、配置与上下文，不按调用参数 import。
 // - `loaderFor`：`createLocalToolLoader`。`settings` 核固定发行设置采用并交运维者层的构造值；`schemas` 先核
-//   定义摘要与清单全等，再履行非空 environment 声明的义务（R2-D68 及补充，R2-D79 改为契约自带的 Standard Schema）。
+//   定义摘要与清单全等，再履行非空 environment 声明的义务（R2-D68 及补充，R2-D80 经执行域的 schema-provider）。
 // - `recordRejection`：本波没有耐久拒绝记录仓，返回被拒绝的 Promise，协调者转为 `unavailable`（具名缺件，波 3）。
 // 任何来源缺失、不一致或读不到都答失败，不默认放行。
 import type { Context } from '@deepseek-ai/cordis'
 import {
   environmentNeedAdoption,
-  environmentNeedSchema,
+  environmentNeedSchemaRef,
 } from '@omne-harness/execution-environment-contract'
-import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
+import { readJsonText, writeJsonText, type JsonRead, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import {
+  validate,
+  type SchemaProvider,
+  type SchemaRef,
+  type SchemaVerdict,
+} from '@omne-harness/schema-provider'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { DurableEvidence, ToolDefinition, ToolFailure } from '@omne-harness/tool-contract'
 import type {
@@ -24,6 +30,11 @@ import {
   type LocalToolContributionVerifier,
 } from '@omne-harness/tool-host-local'
 import type { LocalToolHostPluginInput } from '@omne-harness/tool-host-local/cordis'
+import {
+  closeEnvironmentSchemaProvider,
+  createEnvironmentSchemaProvider,
+  ENVIRONMENT_DECLARATION_LIMITS,
+} from '../../entry/schema-domain.ts'
 import { registrantOf, releaseOf } from '../../entry/tool-release.ts'
 import {
   constructionTree,
@@ -38,11 +49,12 @@ type B = ToolMessageContentBlock
 export type OperatorConstruction = Readonly<Partial<Record<string, unknown>>>
 
 /**
- * `environmentNeedAdoption` 映射到的校验件（R2-D79）：执行环境契约自带的 Standard Schema
- * `environmentNeedSchema` 的同步 `validate`。只取它的 `~standard.validate`，不经 schema-provider。
+ * `environmentNeedAdoption` 映射到的检查（R2-D80）：执行域的 schema-provider 实例，加执行环境契约公开的
+ * `environmentNeedSchemaRef`。provider 由 harness-server 入口给出，行不自建预算。
  */
-export type EnvironmentNeedValidator = Readonly<{
-  '~standard': Readonly<{ validate(value: unknown): unknown }>
+export type EnvironmentNeedCheck = Readonly<{
+  provider: SchemaProvider
+  schema: SchemaRef<unknown>
 }>
 
 const unavailable = (diagnostic: string) =>
@@ -65,57 +77,55 @@ function constructionOf(
   return value === undefined ? undefined : constructionTree(value)
 }
 
-/** 同步调用契约校验件；抛出时为 undefined（调用方答 unavailable）。 */
-function runValidator(validator: EnvironmentNeedValidator, value: unknown): unknown {
-  try {
-    return validator['~standard'].validate(value)
-  } catch {
-    return undefined
-  }
-}
-
-/** 把校验件的结果读成判定。只有明确的 `{ value }` 通过；非空 issues 是 invalid；其余都不可用。 */
-function verdictOf(result: unknown): Outcome<void, ToolFailure> {
-  if (typeof result !== 'object' || result === null)
-    return unavailable('environment need validator threw or gave no result')
-  if (result instanceof Promise || typeof Reflect.get(result, 'then') === 'function') {
-    // A Promise is outside the synchronous contract; settle it quietly and fail closed.
-    void Promise.resolve(result).catch(() => undefined)
-    return unavailable('environment need validator is not synchronous')
-  }
-  const issues: unknown = Reflect.get(result, 'issues')
-  if (Array.isArray(issues) && issues.length > 0)
-    return invalid('environment', 'environment need declaration is invalid')
-  return issues === undefined && 'value' in result
-    ? succeed(undefined)
-    : unavailable('environment need validator gave an unreadable result')
-}
-
 /**
- * 履行非空 environment 声明的义务（R2-D79）。采用不是 `environmentNeedAdoption` 答 invalid；契约校验件报
- * issues 答 invalid；校验件抛出、返回 Promise 或返回读不懂的结果答 unavailable。只有明确的 `{ value }` 才通过。
+ * 履行非空 environment 声明的义务（R2-D80）。采用不是 `environmentNeedAdoption` 答 invalid；值读不成 JSON
+ * 文本或超出读取上限答 invalid；schema-provider 答 `invalid` 对应 invalid；`refused`、`unavailable`、
+ * `cancelled` 或 provider 抛出都答 unavailable。只有 `valid` 才通过。
  */
-export function checkEnvironmentNeed(
+export async function checkEnvironmentNeed(
   definition: ToolDefinition,
-  validator: EnvironmentNeedValidator = environmentNeedSchema,
-): Outcome<void, ToolFailure> {
+  check: EnvironmentNeedCheck,
+): Promise<Outcome<void, ToolFailure>> {
   const environment = definition.declarations.environment
   if (environment === null) return succeed(undefined)
   if (!sameAdoption(environment.adoption, environmentNeedAdoption))
     return invalid('environment', 'unknown environment declaration adoption')
-  let value: unknown
+  let read: JsonRead
   try {
-    value = JSON.parse(writeJsonText(environment.value))
+    read = readJsonText(writeJsonText(environment.value), ENVIRONMENT_DECLARATION_LIMITS)
   } catch {
     return invalid('environment', 'environment need declaration is not JSON')
   }
-  return verdictOf(runValidator(validator, value))
+  if (read.kind !== 'ok') return invalid('environment', 'environment need declaration is not JSON')
+  let verdict: SchemaVerdict<unknown>
+  try {
+    verdict = await validate(check.provider, check.schema, read)
+  } catch {
+    return unavailable('environment need check threw')
+  }
+  switch (verdict.kind) {
+    case 'valid':
+      return succeed(undefined)
+    case 'invalid':
+      return invalid('environment', 'environment need declaration is invalid')
+    default:
+      return unavailable(`environment need check gave ${verdict.kind}`)
+  }
 }
 
 export type ReleaseAuthorOptions = Readonly<{
-  /** 只在测试里换：映射到 `environmentNeedAdoption` 的校验件，默认是契约的 `environmentNeedSchema`。 */
-  environmentNeed?: EnvironmentNeedValidator
+  /** 执行域的 schema-provider。生产路径由行在装载时按入口的预算建立，并在行撤除时关闭。 */
+  schemaProvider?: SchemaProvider
+  /** 只在测试里换：映射到 `environmentNeedAdoption` 的 schema，默认是契约的 `environmentNeedSchemaRef`。 */
+  environmentNeed?: SchemaRef<unknown>
 }>
+
+/** 行自建的 provider：预算来自入口，行 fiber 撤除时关闭，之后的检查答 `refused`，即不可用。 */
+function ownProvider(ctx: Context): SchemaProvider {
+  const provider = createEnvironmentSchemaProvider()
+  ctx.effect(() => () => closeEnvironmentSchemaProvider(provider), 'tool-host.schema-provider')
+  return provider
+}
 
 /** tool-host 工厂的三个参数，绑定本行的上下文与运维者构造值。 */
 export function releaseAuthorInput(
@@ -123,7 +133,10 @@ export function releaseAuthorInput(
   operator: OperatorConstruction,
   options: ReleaseAuthorOptions = {},
 ): LocalToolHostPluginInput<unknown, unknown, B> {
-  const validator = options.environmentNeed ?? environmentNeedSchema
+  const check: EnvironmentNeedCheck = {
+    provider: options.schemaProvider ?? ownProvider(ctx),
+    schema: options.environmentNeed ?? environmentNeedSchemaRef,
+  }
 
   // The verifier is the injected authority, read again on every call.
   const verifier: LocalToolContributionVerifier<unknown> = {
@@ -208,7 +221,7 @@ export function releaseAuthorInput(
           return invalid('executor', 'loaded executor differs from the release module')
         if (canonicalDigest(loaded.definition) !== found.entry.definition)
           return invalid('definition', 'definition digest differs from the release')
-        return checkEnvironmentNeed(loaded.definition, validator)
+        return checkEnvironmentNeed(loaded.definition, check)
       },
     })
 

@@ -118,6 +118,8 @@ export type {
 
 export { environmentNeedAdoption, environmentNeedSchema } from './need-declaration.ts'
 export type { EnvironmentNeedDeclaration } from './need-declaration.ts'
+export { environmentNeedSchemaRef } from './need-schema-ref.ts'
+export type { EnvironmentNeedProjection } from './need-schema-ref.ts'
 
 export { executionHostFactsBlock, executionPlacementBlock } from './blocks.ts'
 export type {

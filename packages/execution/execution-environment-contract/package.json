@@ -35,7 +35,8 @@
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/runtime-context-contract": "workspace:*",
     "@omne-harness/schema-provider": "workspace:*",
-    "@standard-schema/spec": "catalog:"
+    "@standard-schema/spec": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

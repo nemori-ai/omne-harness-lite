@@ -85,9 +85,13 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
   换回固定模块，不要求同一对象。`schemas` 另核 `loaded.executor` 与清单全等。
 - 内层 loader 用 `createLocalToolLoader`。`settings` 核对设置采用与清单全等，再交运维者层的构造值。
   `schemas` 先核 `loaded.definition` 的规范化摘要与清单全等，不等答 `invalid`。然后履行非空 environment
-  声明的义务（R2-D79）：采用不是 `environmentNeedAdoption` 时答 `invalid`；是时直接调用执行环境契约的
-  `environmentNeedSchema['~standard'].validate`，不经 schema-provider。结果有 issues 时答 `invalid`；校验件
-  抛出、返回 Promise 或返回读不懂的结果时答 `unavailable`。只有明确的 `{ value }` 才通过。
+  声明的义务（R2-D80，取代 R2-D79 的过渡做法）：采用不是 `environmentNeedAdoption` 时答 `invalid`；声明值写成
+  JSON 文本再按入口给的读取上限读回，读不回答 `invalid`；然后经公共模块 `@omne-harness/schema-provider` 的
+  `validate` 校验，schema 是执行环境契约公开的 `environmentNeedSchemaRef`。判定 `invalid` 对应 `invalid`；
+  `refused`、`unavailable`、`cancelled` 或 provider 抛出对应 `unavailable`。只有 `valid` 才通过。
+  provider 实例与预算由入口给出（`src/entry/schema-domain.ts`，预算各项的来源写在该文件头注释）；行装载时建
+  一个 provider，行 fiber 撤除时关闭，之后的检查答 `refused` 即不可用。`ReleaseAuthorOptions` 的
+  `schemaProvider` 与 `environmentNeed` 只在测试里换。生产路径只有这一条，没有直接调用 Standard Schema 的路径。
 - `recordRejection` 返回被拒绝的 Promise。协调者把它转成 `unavailable`，不伪造永久 `rejected`。
 
 ## `tool-bindings` 行
@@ -131,7 +135,7 @@ A 段的运行时三项：
 - [来源权威与快照](../../tests/entry/tool-release.spec.ts)：每个字段的改动、非官方层、未知资产、快照不可用、
   登记者以外的主体、代次不符、产物翻转一个字节、手改清单、executor 漂移。
 - [tool-host](../../tests/rows/tool-host/release-host.spec.ts)：真实 Cordis 下按生产路径（真实
-  `environmentNeedSchema`）首装两作者、篡改产物、缺运维者值、校验件抛出或返回 Promise 时失败关闭、租户访问被拒、
+  `environmentNeedSchemaRef` 经 schema-provider）首装两作者、篡改产物、缺运维者值、schema 加载失败或 provider 已关闭时失败关闭、租户访问被拒、
   来源不按参数 import、定义与设置不符、拒绝记录，以及 environment 声明合法通过、改坏一个字段与未知采用答 `invalid`。
 - [tool-bindings](../../tests/rows/tool-bindings/release-bindings.spec.ts)：可用性各分支、启动权威代理、
   两个占位、一个 fiber 两个服务。

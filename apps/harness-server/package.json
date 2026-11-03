@@ -66,6 +66,7 @@
     "@omne-harness/runtime-context-contract": "workspace:*",
     "@omne-harness/runtime-context-cordis": "workspace:*",
     "@omne-harness/runtime-context-cordis-contract": "workspace:*",
+    "@omne-harness/schema-provider": "workspace:*",
     "@omne-harness/server-entry": "workspace:*",
     "@omne-harness/session-adapters": "workspace:*",
     "@omne-harness/session-contract": "workspace:*",
