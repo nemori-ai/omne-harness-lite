@@ -74,15 +74,7 @@ function checkInput(input: ChatCompletionsBindingInput, adoption: Adoption): voi
     throw new RangeError(
       `record ${record.name}: usageTail.maxFrames must be a non-negative integer`,
     )
-  const { toolNames } = record.wire
-  if (typeof toolNames !== 'object' || toolNames === null)
-    throw new RangeError(`record ${record.name}: wire.toolNames must be an object`)
-  if (!TOOL_NAME_RULES.includes(toolNames.rule))
-    throw new RangeError(`record ${record.name}: wire.toolNames.rule is not an engine rule`)
-  if (!isPositiveInteger(toolNames.maxLength))
-    throw new RangeError(
-      `record ${record.name}: wire.toolNames.maxLength must be a positive integer`,
-    )
+  checkToolNames(record)
   for (const kind of PARAMETER_KINDS) {
     const fallback = defaultParameter(record.parameters, kind)
     if (fallback === null) continue
@@ -92,6 +84,19 @@ function checkInput(input: ChatCompletionsBindingInput, adoption: Adoption): voi
   }
   checkFields(record)
   checkLimits(input.limits)
+}
+
+/** The tool name rule of the record is an engine rule, and its length a positive integer. */
+function checkToolNames(record: ChatCompletionsRecord): void {
+  const { toolNames } = record.wire
+  if (typeof toolNames !== 'object' || toolNames === null)
+    throw new RangeError(`record ${record.name}: wire.toolNames must be an object`)
+  if (!TOOL_NAME_RULES.includes(toolNames.rule))
+    throw new RangeError(`record ${record.name}: wire.toolNames.rule is not an engine rule`)
+  if (!isPositiveInteger(toolNames.maxLength))
+    throw new RangeError(
+      `record ${record.name}: wire.toolNames.maxLength must be a positive integer`,
+    )
 }
 
 const JSON_LIMIT_NAMES = [
