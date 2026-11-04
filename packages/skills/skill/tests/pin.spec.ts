@@ -46,10 +46,14 @@ describe('step 5: the material to pin', () => {
     expect(okOf(materialOf(await gated(world)))).toStrictEqual(currentBasis)
   })
 
-  it('step-05-pins the basis itself with a basis', async () => {
+  it('step-05-pins the basis itself with a basis, not the asset version of the reference', async () => {
+    // A basis without an asset version names the material by its layer; the reference that the
+    // resolution gives carries the asset version v2. The pinned material is the basis as given.
     const world = createWorld()
-    const other = { ...currentBasis, digest: earlierBasis.digest }
-    expect(okOf(materialOf(await gated(world, other)))).toStrictEqual(other)
+    const { assetVersion: _dropped, ...byLayer } = currentBasis
+    const material = await gated(world, byLayer)
+    expect(material.ref.assetVersion).toBe('v2')
+    expect(okOf(materialOf(material))).toStrictEqual(byLayer)
   })
 })
 

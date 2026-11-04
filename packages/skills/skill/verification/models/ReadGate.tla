@@ -17,6 +17,11 @@
 (* answer, a rejection and a synchronous throw, which the implementation  *)
 (* parses into one case (contract SPEC "端口答复的统一处置").            *)
 (*                                                                         *)
+(* The resolution may answer with a reference to other material than the *)
+(* request (action ResolveMisdirected): the reference of the other        *)
+(* identity, or, with a basis, another material of the requested one.     *)
+(* Skill takes such an answer for no answer (S7).                          *)
+(*                                                                         *)
 (* Flaw selects a deliberate defect so that each property has a negative  *)
 (* configuration that must report a counterexample.                       *)
 (***************************************************************************)
@@ -25,7 +30,7 @@ EXTENDS Integers, Sequences, FiniteSets
 CONSTANTS
     Mode,         \* "single" | "twin" | "same"
     Flaw,         \* "none" | "refusedAsBasis" | "unknownAsEmpty" | "noEntryDigest"
-                  \*   | "noCheckAfterSnapshot" | "completionOrder"
+                  \*   | "noCheckAfterSnapshot" | "completionOrder" | "noRefCheck"
     FaultNames,   \* the port faults of the schedule, see FaultOf
     AbortPoints,  \* abort after this many port answers; Never: no abort
     ChangePoints, \* the source holds `later` from this many port answers on
@@ -42,13 +47,17 @@ Runs == {1, 2}
 How == {"refused-hides", "refused-shows", "deleted", "checked-only", "granted"}
 
 (* Two materials of one identity. Material 1 adds the entry "new"; "res" and
-   "new" have the same bytes in every material, "SKILL" differs. *)
+   "new" have the same bytes in every material of every identity, "SKILL"
+   differs between materials and between identities. So the snapshot digest
+   of a material names its identity too. *)
 EntrySeq(m) == IF m = 0 THEN <<"SKILL", "res">> ELSE <<"SKILL", "new", "res">>
 Entries(m) == {EntrySeq(m)[i] : i \in 1..Len(EntrySeq(m))}
-EntryDigest(m, p) == IF p = "SKILL" THEN m ELSE 0
+EntryDigest(i, m, p) == IF p = "SKILL" THEN <<i, m>> ELSE <<"-", 0>>
 
 NoBasis == [id |-> "none", mat |-> 0]
-NoOut == [kind |-> "-", mat |-> -1, content |-> {}, entries |-> <<>>]
+NoPin == [id |-> "-", mat |-> -1]
+(* `id` is the identity that a success names; content items are <<identity, material, entry>>. *)
+NoOut == [kind |-> "-", id |-> "-", mat |-> -1, content |-> {}, entries |-> <<>>]
 Out(k) == [NoOut EXCEPT !.kind = k]
 
 (***************************************************************************)
@@ -105,15 +114,17 @@ FaultOf(n) ==
       [] n = "open-undecided" -> [call |-> "open", arg |-> "undecided"]
       [] n = "open-notFound" -> [call |-> "open", arg |-> "notFound"]
       [] n = "open-entryNotFound" -> [call |-> "open", arg |-> "entryNotFound"]
+      [] n = "misdirect-identity" -> [call |-> "misdirect", arg |-> "identity"]
+      [] n = "misdirect-material" -> [call |-> "misdirect", arg |-> "material"]
 
 VARIABLES
     req, w, variant, fault, smode, abortAt, changeAt,     \* the shared schedule
     pc, out, calls, afterAbort, undecided,                \* per run
-    pinned, byBasis, todo, content,                       \* per run, access
+    pinned, byBasis, todo, content, at,                   \* per run, access
     pending, checked, verdict, order                      \* per run, catalog
 
 shared == <<req, w, variant, fault, smode, abortAt, changeAt>>
-local == <<pc, out, calls, afterAbort, undecided, pinned, byBasis, todo, content,
+local == <<pc, out, calls, afterAbort, undecided, pinned, byBasis, todo, content, at,
            pending, checked, verdict, order>>
 vars == <<shared, local>>
 
@@ -129,14 +140,38 @@ CheckAnswer(r, t) ==
     ELSE IF t = Hidden THEN (IF V(r) \in {"checked-only", "granted"} THEN "granted" ELSE "refused")
     ELSE IF w.grant THEN "granted" ELSE "refused"
 
+(* `id` and `mat` of an adopted answer are the identity and material that its
+   reference names. *)
 ResolveAnswer(r, t, b) ==
-    IF fault.call = "resolve" THEN [kind |-> "undecided", mat |-> 0, dig |-> FALSE]
-    ELSE IF ~Known(r, t) THEN [kind |-> "none", mat |-> 0, dig |-> FALSE]
-    ELSE IF w.st[t] = "standin" THEN [kind |-> "standin", mat |-> 0, dig |-> FALSE]
+    IF fault.call = "resolve" THEN [kind |-> "undecided", id |-> t, mat |-> 0, dig |-> FALSE]
+    ELSE IF ~Known(r, t) THEN [kind |-> "none", id |-> t, mat |-> 0, dig |-> FALSE]
+    ELSE IF w.st[t] = "standin" THEN [kind |-> "standin", id |-> t, mat |-> 0, dig |-> FALSE]
     ELSE IF b # NoBasis /\ b.mat \notin Lawful(t)
-        THEN [kind |-> "basisNotLawful", mat |-> 0, dig |-> FALSE]
-    ELSE [kind |-> "adopted", mat |-> IF b = NoBasis THEN w.cur[t] ELSE b.mat,
+        THEN [kind |-> "basisNotLawful", id |-> t, mat |-> 0, dig |-> FALSE]
+    ELSE [kind |-> "adopted", id |-> t, mat |-> IF b = NoBasis THEN w.cur[t] ELSE b.mat,
           dig |-> w.st[t] = "adopted"]
+
+OtherId(t) == IF t = Hidden THEN Other ELSE Hidden
+
+(* A reference to other material than the request, without PR1 and PR3:
+   "identity" names the current material of the other identity; "material",
+   with a basis, names the other material of the requested identity. Without
+   a basis "material" is the honest answer: the adopted material is the
+   resolution's own word. *)
+MisdirectedAnswer(r, t, b) ==
+    IF fault.arg = "identity"
+        THEN [kind |-> "adopted", id |-> OtherId(t), mat |-> w.cur[OtherId(t)], dig |-> TRUE]
+    ELSE LET honest == ResolveAnswer(r, t, b) IN
+        IF honest.kind = "adopted" /\ b # NoBasis THEN [honest EXCEPT !.mat = 1 - b.mat]
+        ELSE honest
+
+(* S7 at the boundary: an adopted answer about another identity, or with a
+   basis about another material, is no answer. *)
+Misnames(a, t, b) == a.kind = "adopted" /\ (a.id # t \/ (b # NoBasis /\ a.mat # b.mat))
+Parsed(a, t, b) ==
+    IF Flaw # "noRefCheck" /\ Misnames(a, t, b)
+        THEN [kind |-> "undecided", id |-> t, mat |-> 0, dig |-> FALSE]
+        ELSE a
 
 SrcNow(r, t) ==
     IF t = Hidden /\ V(r) = "deleted" THEN Gone
@@ -151,7 +186,8 @@ OpenAnswer(r, t, p) ==
     IF fault.call = "open" THEN [kind |-> fault.arg, mat |-> 0]
     ELSE LET now == SrcNow(r, t) IN
         IF now = Gone THEN [kind |-> "notFound", mat |-> 0]
-        ELSE IF smode = "digest" /\ now # pinned[r] THEN [kind |-> "notFound", mat |-> 0]
+        ELSE IF smode = "digest" /\ (now # pinned[r].mat \/ t # pinned[r].id)
+            THEN [kind |-> "notFound", mat |-> 0]
         ELSE IF p \notin Entries(now) THEN [kind |-> "entryNotFound", mat |-> 0]
         ELSE [kind |-> "ok", mat |-> now]
 
@@ -190,7 +226,7 @@ Start(r) ==
              ELSE IF AbortedAt(calls[r])
                 THEN Finish(r, Out("aborted"))
              ELSE pc' = [pc EXCEPT ![r] = "check"] /\ UNCHANGED out
-    /\ UNCHANGED <<shared, calls, afterAbort, undecided, pinned, byBasis, todo, content,
+    /\ UNCHANGED <<shared, calls, afterAbort, undecided, pinned, byBasis, todo, content, at,
                    pending, checked, verdict, order>>
 
 Check(r) ==
@@ -204,35 +240,49 @@ Check(r) ==
                                THEN "basis-unavailable" ELSE "not-available-to-you"))
        ELSE IF v = "undecided" THEN Finish(r, Out("unknown"))
        ELSE pc' = [pc EXCEPT ![r] = "resolve"] /\ UNCHANGED out
-    /\ UNCHANGED <<shared, pinned, byBasis, todo, content, pending, checked, verdict, order>>
+    /\ UNCHANGED <<shared, pinned, byBasis, todo, content, at, pending, checked, verdict, order>>
 
-Resolve(r) ==
-    LET a == ResolveAnswer(r, req.target, req.basis)
+(* Step 3 after the answer `given` of the resolution, parsed at the boundary.
+   The locator is the one of the identity that the reference names. *)
+Resolved(r, given) ==
+    LET a == Parsed(given, req.target, req.basis)
         mat == IF req.basis = NoBasis THEN a.mat ELSE req.basis.mat
+        pin == [id |-> IF req.basis = NoBasis THEN a.id ELSE req.target, mat |-> mat]
+        keep == UNCHANGED <<pinned, byBasis, at>>
     IN
     /\ pc[r] = "resolve"
     /\ Called(r)
     /\ Undecided(r, "resolve", a.kind)
-    /\ IF AbortedAt(calls[r] + 1) THEN Finish(r, Out("aborted")) /\ UNCHANGED <<pinned, byBasis>>
-       ELSE CASE a.kind = "undecided" -> Finish(r, Out("unknown")) /\ UNCHANGED <<pinned, byBasis>>
-              [] a.kind = "none" -> Finish(r, Out("not-available-to-you")) /\ UNCHANGED <<pinned, byBasis>>
-              [] a.kind = "standin" -> Finish(r, Out("unavailable-stand-in")) /\ UNCHANGED <<pinned, byBasis>>
-              [] a.kind = "basisNotLawful" -> Finish(r, Out("basis-unavailable")) /\ UNCHANGED <<pinned, byBasis>>
+    /\ IF AbortedAt(calls[r] + 1) THEN Finish(r, Out("aborted")) /\ keep
+       ELSE CASE a.kind = "undecided" -> Finish(r, Out("unknown")) /\ keep
+              [] a.kind = "none" -> Finish(r, Out("not-available-to-you")) /\ keep
+              [] a.kind = "standin" -> Finish(r, Out("unavailable-stand-in")) /\ keep
+              [] a.kind = "basisNotLawful" -> Finish(r, Out("basis-unavailable")) /\ keep
               [] req.op = "describe" ->
-                    Finish(r, [Out("ok") EXCEPT !.mat = IF a.dig THEN mat ELSE -1])
-                    /\ UNCHANGED <<pinned, byBasis>>
-              [] ~a.dig -> Finish(r, Out("unsupported")) /\ UNCHANGED <<pinned, byBasis>>
-              [] req.op = "read" /\ req.part = "bad" -> Finish(r, Out("bad-path")) /\ UNCHANGED <<pinned, byBasis>>
+                    Finish(r, [Out("ok") EXCEPT !.id = a.id, !.mat = IF a.dig THEN mat ELSE -1])
+                    /\ keep
+              [] ~a.dig -> Finish(r, Out("unsupported")) /\ keep
+              [] req.op = "read" /\ req.part = "bad" -> Finish(r, Out("bad-path")) /\ keep
               [] OTHER -> /\ pc' = [pc EXCEPT ![r] = "snapshot"]
-                          /\ pinned' = [pinned EXCEPT ![r] = mat]
+                          /\ pinned' = [pinned EXCEPT ![r] = pin]
                           /\ byBasis' = [byBasis EXCEPT ![r] = req.basis # NoBasis]
+                          /\ at' = [at EXCEPT ![r] = a.id]
                           /\ UNCHANGED out
     /\ UNCHANGED <<shared, todo, content, pending, checked, verdict, order>>
+
+Resolve(r) ==
+    /\ fault.call # "misdirect"
+    /\ Resolved(r, ResolveAnswer(r, req.target, req.basis))
+
+(* The resolution answers with a reference to other material than the request. *)
+ResolveMisdirected(r) ==
+    /\ fault.call = "misdirect"
+    /\ Resolved(r, MisdirectedAnswer(r, req.target, req.basis))
 
 PathOf(p) == IF p = "body" THEN "SKILL" ELSE p
 
 Snapshot(r) ==
-    LET s == SnapAnswer(r, req.target) IN
+    LET s == SnapAnswer(r, at[r]) IN
     /\ pc[r] = "snapshot"
     /\ IF AbortedAt(calls[r])
         THEN Finish(r, Out("aborted")) /\ UNCHANGED <<calls, afterAbort, undecided, todo>>
@@ -242,12 +292,12 @@ Snapshot(r) ==
         /\ IF Flaw # "noCheckAfterSnapshot" /\ AbortedAt(calls[r] + 1)
             THEN Finish(r, Out("aborted")) /\ UNCHANGED todo
            ELSE IF s.kind # "ok" THEN Finish(r, Out(SnapFailure(r, s.kind))) /\ UNCHANGED todo
-           ELSE IF s.mat # pinned[r]
+           ELSE IF s.mat # pinned[r].mat \/ at[r] # pinned[r].id
             THEN Finish(r, Out(IF byBasis[r] THEN "basis-unavailable" ELSE "adopted-material-changed"))
                  /\ UNCHANGED todo
            ELSE CASE req.op = "list" ->
-                        Finish(r, [Out("ok") EXCEPT !.mat = pinned[r],
-                                   !.content = {<<s.mat, p>> : p \in Entries(s.mat) \ {"SKILL"}}])
+                        Finish(r, [Out("ok") EXCEPT !.id = pinned[r].id, !.mat = pinned[r].mat,
+                                   !.content = {<<at[r], s.mat, p>> : p \in Entries(s.mat) \ {"SKILL"}}])
                         /\ UNCHANGED todo
                   [] req.op = "read" /\ PathOf(req.part) \notin Entries(s.mat) ->
                         Finish(r, Out("resource-missing")) /\ UNCHANGED todo
@@ -257,11 +307,11 @@ Snapshot(r) ==
                   [] OTHER ->
                         /\ todo' = [todo EXCEPT ![r] = EntrySeq(s.mat)]
                         /\ pc' = [pc EXCEPT ![r] = "open"] /\ UNCHANGED out
-    /\ UNCHANGED <<shared, pinned, byBasis, content, pending, checked, verdict, order>>
+    /\ UNCHANGED <<shared, pinned, byBasis, content, at, pending, checked, verdict, order>>
 
 Open(r) ==
     LET p == Head(todo[r])
-        a == OpenAnswer(r, req.target, p)
+        a == OpenAnswer(r, at[r], p)
     IN
     /\ pc[r] = "open"
     /\ IF AbortedAt(calls[r])
@@ -271,15 +321,17 @@ Open(r) ==
         /\ Undecided(r, "open", a.kind)
         /\ IF AbortedAt(calls[r] + 1) THEN Finish(r, Out("aborted")) /\ UNCHANGED <<todo, content>>
            ELSE IF a.kind # "ok" THEN Finish(r, Out(OpenFailure(r, a.kind))) /\ UNCHANGED <<todo, content>>
-           ELSE IF Flaw # "noEntryDigest" /\ EntryDigest(a.mat, p) # EntryDigest(pinned[r], p)
+           ELSE IF Flaw # "noEntryDigest"
+                   /\ EntryDigest(at[r], a.mat, p) # EntryDigest(pinned[r].id, pinned[r].mat, p)
             THEN Finish(r, Out("version-changed")) /\ UNCHANGED <<todo, content>>
-           ELSE LET got == content[r] \cup {<<a.mat, p>>} IN
+           ELSE LET got == content[r] \cup {<<at[r], a.mat, p>>} IN
                 /\ content' = [content EXCEPT ![r] = got]
                 /\ todo' = [todo EXCEPT ![r] = Tail(@)]
                 /\ IF Len(todo[r]) = 1
-                    THEN Finish(r, [Out("ok") EXCEPT !.mat = pinned[r], !.content = got])
+                    THEN Finish(r, [Out("ok") EXCEPT !.id = pinned[r].id, !.mat = pinned[r].mat,
+                                    !.content = got])
                     ELSE UNCHANGED <<pc, out>>
-    /\ UNCHANGED <<shared, pinned, byBasis, pending, checked, verdict, order>>
+    /\ UNCHANGED <<shared, pinned, byBasis, at, pending, checked, verdict, order>>
 
 (* SkillCatalog: the lawful set, then the read checks of the kept identities,
    which complete in any order. *)
@@ -294,7 +346,7 @@ LawfulSet(r) ==
              IF kept = {} THEN Finish(r, Out("ok")) /\ UNCHANGED pending
              ELSE /\ pending' = [pending EXCEPT ![r] = kept]
                   /\ pc' = [pc EXCEPT ![r] = "checks"] /\ UNCHANGED out
-    /\ UNCHANGED <<shared, pinned, byBasis, todo, content, checked, verdict, order>>
+    /\ UNCHANGED <<shared, pinned, byBasis, todo, content, at, checked, verdict, order>>
 
 EntryKind(t) == IF w.st[t] = "standin" THEN "stand-in" ELSE "adopted"
 
@@ -320,13 +372,14 @@ CompleteCheck(r, t) ==
                 ELSE Finish(r, [Out("ok") EXCEPT
                         !.entries = [i \in 1..Len(listed) |-> <<listed[i], EntryKind(listed[i])>>]])
         ELSE UNCHANGED <<pc, out>>
-    /\ UNCHANGED <<shared, pinned, byBasis, todo, content>>
+    /\ UNCHANGED <<shared, pinned, byBasis, todo, content, at>>
 
 Done == /\ \A r \in Runs : pc[r] = "done"
         /\ UNCHANGED vars
 
 Next ==
-    \/ \E r \in Runs : Start(r) \/ Check(r) \/ Resolve(r) \/ Snapshot(r) \/ Open(r) \/ LawfulSet(r)
+    \/ \E r \in Runs : Start(r) \/ Check(r) \/ Resolve(r) \/ ResolveMisdirected(r)
+                      \/ Snapshot(r) \/ Open(r) \/ LawfulSet(r)
     \/ \E r \in Runs, t \in Ids : CompleteCheck(r, t)
     \/ Done
 
@@ -343,10 +396,11 @@ Init ==
     /\ calls = [r \in Runs |-> 0]
     /\ afterAbort = [r \in Runs |-> 0]
     /\ undecided = [r \in Runs |-> ""]
-    /\ pinned = [r \in Runs |-> -1]
+    /\ pinned = [r \in Runs |-> NoPin]
     /\ byBasis = [r \in Runs |-> FALSE]
     /\ todo = [r \in Runs |-> <<>>]
     /\ content = [r \in Runs |-> {}]
+    /\ at = [r \in Runs |-> "-"]
     /\ pending = [r \in Runs |-> {}]
     /\ checked = [r \in Runs |-> {}]
     /\ verdict = [r \in Runs |-> [t \in Ids |-> "-"]]
@@ -366,6 +420,7 @@ TypeOK ==
     /\ \A r \in Runs : out[r].kind \in Kinds
     /\ calls \in [Runs -> 0..10]
     /\ afterAbort \in [Runs -> 0..10]
+    /\ at \in [Runs -> Ids \cup {"-"}]
 
 Finished(r) == pc[r] = "done" /\ (Mode = "single" => r = 1)
 Pinned == IF req.basis = NoBasis THEN w.cur[req.target] ELSE req.basis.mat
@@ -386,11 +441,19 @@ WholeUnknown ==
 NoMixedVersion ==
     \A r \in Runs : (Finished(r) /\ out[r].kind = "ok" /\ req.op \in {"read", "list", "export"}) =>
         /\ out[r].mat = Pinned
-        /\ \A c \in out[r].content : EntryDigest(c[1], c[2]) = EntryDigest(Pinned, c[2])
-        /\ req.op = "list" => \A c \in out[r].content : c[1] = Pinned
-        /\ req.op = "export" => {c[2] : c \in out[r].content} = Entries(Pinned)
+        /\ \A c \in out[r].content :
+                EntryDigest(c[1], c[2], c[3]) = EntryDigest(req.target, Pinned, c[3])
+        /\ req.op = "list" => \A c \in out[r].content : c[2] = Pinned
+        /\ req.op = "export" => {c[3] : c \in out[r].content} = Entries(Pinned)
 NoContentOnFailure ==
     \A r \in Runs : (Finished(r) /\ out[r].kind # "ok") => out[r].content = {} /\ out[r].entries = <<>>
+
+(* S7: a success of an access operation names the requested identity, and
+   every delivered piece is a piece of a material of that identity. *)
+OwnMaterialOnly ==
+    \A r \in Runs : (Finished(r) /\ out[r].kind = "ok" /\ req.op \in AccessOps) =>
+        /\ out[r].id = req.target
+        /\ \A c \in out[r].content : c[1] = req.target
 
 (* S6: no port call after the abort; an operation aborted before it answered
    gives `aborted` (or a failure that needed no port) and no content. *)

@@ -33,7 +33,8 @@ const NOT_AVAILABLE = Object.freeze({ kind: 'not-available-to-you' } as const)
 const UNKNOWN = Object.freeze({ kind: 'unknown' } as const)
 const ABORTED = Object.freeze({ kind: 'aborted' } as const)
 
-/** Step 3: the parsed resolution answer, mapped by the group page "端口" table. No answer is `unknown`. */
+/** Step 3: the parsed resolution answer, mapped by the group page "端口" table. No answer is
+ * `unknown`. The parse already checked that the answer names the requested material (S7). */
 function gatedOf(
   answer: Resolution | undefined,
   basis: SkillMaterialBasis | undefined,
@@ -90,7 +91,8 @@ export async function gate<P, S>(
   if (checkpoint(signal) === 'aborted') return fail(ABORTED)
   if (verdict?.kind === 'refused') return fail(NOT_AVAILABLE)
   if (verdict?.kind !== 'granted') return fail(UNKNOWN)
-  // Step 3: the resolution. The package locator comes only from its answer.
+  // Step 3: the resolution. The package locator comes only from its answer, and the parse lets
+  // through only an answer about the requested identity and basis.
   const answer = await answered(
     () =>
       ports.resolution.resolve(
@@ -99,7 +101,7 @@ export async function gate<P, S>(
         capability,
         basis === undefined ? undefined : { basis },
       ),
-    parseResolution,
+    parseResolution(basis === undefined ? { capability } : { capability, basis }),
   )
   if (checkpoint(signal) === 'aborted') return fail(ABORTED)
   return gatedOf(answer, basis)

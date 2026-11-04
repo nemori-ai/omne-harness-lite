@@ -3,13 +3,14 @@
  * Heavy CPU: each case enumerates a bounded space of worlds, schedules and requests and drives
  * the real services through every combination (about 10^5 operations per property).
  */
-// The bounded exploration of S1-S6 against the real services (`dist`). The spaces and their
+// The bounded exploration of S1-S7 against the real services (`dist`). The spaces and their
 // sizes are in tests/model/README.md; the theorems in verification/README.md. An empty violation
 // list is a bounded result for the enumerated space only, not a proof for every world.
 import { expect, it } from 'vitest'
 import { exploreAbort } from './abort.ts'
 import { exploreBasis } from './basis.ts'
 import { exploreDisclosure } from './disclosure.ts'
+import { exploreIdentity } from './identity.ts'
 import { exploreOrder } from './order.ts'
 import { exploreRange } from './range.ts'
 import { exploreWholeUnknown } from './whole-unknown.ts'
@@ -70,6 +71,16 @@ it(
   'S6: after an abort no port is called and nothing partial is given',
   async () => {
     const report = await exploreAbort()
+    expect(report.violations).toStrictEqual([])
+    expect(report.cases).toBeGreaterThan(1_000)
+  },
+  MINUTES,
+)
+
+it(
+  'S7: a success gives only the material of the requested identity, and a misdirected reference is unknown',
+  async () => {
+    const report = await exploreIdentity()
     expect(report.violations).toStrictEqual([])
     expect(report.cases).toBeGreaterThan(1_000)
   },

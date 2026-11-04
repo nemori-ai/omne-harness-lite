@@ -1,11 +1,13 @@
 // The three port suites run on the memory doubles of `./testing`, each case on a fresh fixture. A
 // not-applicable case counts as a failure here: the doubles must cover every case. The same
 // suites run in process on doubles that disclose whether an identity exists, and fail exactly on
-// the non-disclosure cases.
+// the non-disclosure cases; the resolution suite also runs on doubles whose reference names other
+// material, and fails exactly on the PR1 and PR3 cases that see it.
 import { AssertionError } from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 import type {
   PackageLocator,
+  Resolution,
   SkillReadCheck,
   SkillResolution,
 } from '@omne-harness/skill-contract/provider'
@@ -121,6 +123,55 @@ describe('the suites go red on a double that discloses whether an identity exist
   })
 })
 
+describe('the resolution suite goes red on a reference to other material', () => {
+  /** The memory resolution with `answer` in place of each `adopted` answer of `resolve`. */
+  function rewriting(
+    answer: (adopted: Extract<Resolution, { kind: 'adopted' }>) => Resolution,
+  ): SkillResolution<Principal, Scope> {
+    const real = memoryResolution()
+    return {
+      resolve: async (access, at, capability, options) => {
+        const given = await real.resolve(access, at, capability, options)
+        return given.kind === 'adopted' ? answer(given) : given
+      },
+      adopted: (access, at) => real.adopted(access, at),
+    }
+  }
+
+  it('fails PR1 and the two PR3 cases of the adopted material when the reference names another identity', async () => {
+    const misdirecting = rewriting(given => ({
+      ...given,
+      ref: { ...given.ref, capability: missingCapability },
+    }))
+    const cases = skillResolutionConformance<Principal, Scope>()
+    expect(await failing(cases, () => resolutionFixture(misdirecting))).toEqual([
+      'resolves an adopted identity to its material and declarations',
+      'resolves a basis of the adopted material to that material',
+      'gives back the digest of the basis without comparing it',
+    ])
+  })
+
+  it('fails only the PR3 digest case when the reference keeps the digest of its own material', async () => {
+    const real = memoryResolution()
+    const keeping: SkillResolution<Principal, Scope> = {
+      adopted: (access, at) => real.adopted(access, at),
+      resolve: async (access, at, capability, options) => {
+        const given = await real.resolve(access, at, capability, options)
+        if (given.kind !== 'adopted' || options?.basis === undefined) return given
+        const plain = await real.resolve(access, at, capability)
+        if (plain.kind !== 'adopted') return given
+        const own = plain.ref.digest
+        if (own === undefined || given.ref.assetVersion !== plain.ref.assetVersion) return given
+        return { ...given, ref: { ...given.ref, digest: own } }
+      },
+    }
+    const cases = skillResolutionConformance<Principal, Scope>()
+    expect(await failing(cases, () => resolutionFixture(keeping))).toEqual([
+      'gives back the digest of the basis without comparing it',
+    ])
+  })
+})
+
 describe('memory source links beyond the suite', () => {
   const locator: PackageLocator = { kind: 'directory', root: '/skills/linked' }
   const files = { 'SKILL.md': 'x', 'docs/a.md': 'target' }
@@ -163,11 +214,15 @@ describe('memory resolution beyond the suite', () => {
     expect(answer).toMatchObject({ kind: 'adopted', ref: { layer: 'tenant' } })
   })
 
-  it('does not compare the digest of a basis with an asset version either', async () => {
+  it('does not compare the digest of a basis with an asset version either, and gives it back', async () => {
     const answer = await memoryResolution().resolve(alice, scope, reviewCapability, {
       basis: { ...earlierBasis, digest: otherDigest },
     })
-    expect(answer).toMatchObject({ kind: 'adopted', ref: { digest: earlierBasis.digest } })
+    // PR3: the reference carries the digest of the basis, so Skill finds the move at the snapshot.
+    expect(answer).toMatchObject({
+      kind: 'adopted',
+      ref: { assetVersion: earlierBasis.assetVersion, digest: otherDigest },
+    })
   })
 
   it('does not accept a basis without the asset version when the layer differs', async () => {

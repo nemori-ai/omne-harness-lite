@@ -55,10 +55,12 @@ const OTHER_STATES: readonly IdentityState[] = [
   { kind: 'stand-in' },
 ]
 
-/** Faults shared by both runs. None is about `alpha`: the premise is that the ports answer the
- * observer the same for an existing and a missing identity (PC3, PR5). */
+/** Faults shared by both runs. None is an answer about `alpha`: the premise is that the ports
+ * answer the observer the same for an existing and a missing identity (PC3, PR5). The resolution
+ * may still answer `beta` with the reference of `alpha` (no PR1): that must not show `alpha`. */
 const FAULTS: readonly (FaultPoint | undefined)[] = [
   undefined,
+  { site: { port: 'resolve', name: 'beta' }, fault: 'misdirect', to: 'alpha' },
   { site: { port: 'check', name: 'beta' }, fault: 'unknown' },
   { site: { port: 'check', name: 'beta' }, fault: 'reject' },
   { site: { port: 'resolve', name: 'beta' }, fault: 'unknown' },

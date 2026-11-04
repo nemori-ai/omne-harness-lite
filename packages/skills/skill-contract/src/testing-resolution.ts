@@ -4,13 +4,14 @@ import type { CapabilityId } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
 import { sameCapability } from './capability.ts'
-import { digestOfSorted } from './digest.ts'
+import { digestOfSorted, isPackageDigest } from './digest.ts'
 import { isAssetVersion } from './names.ts'
 import type { CatalogResolution, Resolution, SkillResolution } from './ports.ts'
 import { conformanceCase, handle, type ConformanceCase } from './testing-case.ts'
 import type {
   AssetVersion,
   DeclaredProjection,
+  PackageDigest,
   SafeReason,
   SkillMaterialBasis,
   SkillName,
@@ -66,7 +67,14 @@ function answerOf<P, S>(
   if (basis === undefined || state.kind === 'known-unavailable') return currentAnswer(entry)
   const material = [state.current, ...(state.earlier ?? [])].find(item => names(item, basis))
   if (material === undefined) return { kind: 'basis-not-lawful' }
-  return { kind: 'adopted', ref: material.ref, declared: material.declared }
+  // The digest is not compared, so the reference carries the digest of the basis: Skill compares
+  // it with the snapshot. A material without a package keeps its reference without a digest.
+  const { ref } = material
+  return {
+    kind: 'adopted',
+    ref: ref.digest === undefined ? ref : { ...ref, digest: basis.digest },
+    declared: material.declared,
+  }
 }
 
 /**
@@ -142,6 +150,13 @@ function otherVersion(version: AssetVersion): AssetVersion {
   throw new Error('unreachable: two different texts cannot both equal one version')
 }
 
+/** A package digest that differs from `digest`. */
+function otherDigest(digest: PackageDigest): PackageDigest {
+  for (const text of [`sha256:${'0'.repeat(64)}`, `sha256:${'1'.repeat(64)}`])
+    if (isPackageDigest(text) && text !== digest) return text
+  throw new Error('unreachable: two different texts cannot both equal one digest')
+}
+
 function capabilityOf(answer: CatalogResolution): CapabilityId {
   return answer.kind === 'adopted' ? answer.ref.capability : answer.capability
 }
@@ -186,8 +201,18 @@ export function skillResolutionConformance<P, S>(): ConformanceCase<ResolutionFi
         basis: basisOf(ref),
       })
       if (answer.kind !== 'adopted') assert.fail(`expected adopted, got ${answer.kind}`)
+      assert.ok(sameCapability(answer.ref.capability, f.adopted), 'the ref names another identity')
       assert.equal(answer.ref.layer, ref.layer)
       assert.equal(answer.ref.assetVersion, ref.assetVersion)
+    }),
+    conformanceCase('PR3', 'gives back the digest of the basis without comparing it', async f => {
+      const ref = await adoptedRef(f)
+      const digest = otherDigest(handle(ref.digest, 'digest of the adopted material'))
+      const answer = await f.resolution.resolve(f.permitted.access, f.permitted.scope, f.adopted, {
+        basis: { ...basisOf(ref), digest },
+      })
+      if (answer.kind !== 'adopted') assert.fail(`expected adopted, got ${answer.kind}`)
+      assert.equal(answer.ref.digest, digest, 'the ref does not carry the digest of the basis')
     }),
     conformanceCase(
       'PR3',

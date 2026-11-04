@@ -5,6 +5,8 @@
 // frozen; a field that the SPEC does not list does not come back. The parsers are called
 // directly, without `answered`, so that a parser that throws shows as a throw here.
 import { describe, expect, it } from 'vitest'
+import { capabilityId, type CapabilityId } from '@omne-harness/assets'
+import { isAssetVersion, isPackageDigest } from '@omne-harness/skill-contract'
 import { parseLawfulSet, parseResolution, parseVerdict } from '../src/port-answer.ts'
 
 const DIGEST = `sha256:${'a'.repeat(64)}`
@@ -53,6 +55,22 @@ const STAND_IN = {
   description: 'Was disabled.',
   reason: 'Disabled by the organization.',
 }
+
+function identity(category: string, name: string): CapabilityId {
+  const id = capabilityId(category, name)
+  if (!id.ok) throw new Error(`${category}:${name}`)
+  return id.id
+}
+
+function granted<T>(guard: (value: unknown) => value is T, value: unknown): T {
+  if (!guard(value)) throw new Error(`${guard.name} refuses ${String(value)}`)
+  return value
+}
+
+/** The parse of a `resolve` answer to a request about `review`, the identity of `ADOPTED`. */
+const aboutReview = parseResolution({ capability: identity('skill', 'review') })
+/** The parse of a `resolve` answer to a request about `retired`, the identity of `STAND_IN`. */
+const aboutRetired = parseResolution({ capability: identity('skill', 'retired') })
 
 /** A marker for "this field is absent". */
 const MISSING = Symbol('missing')
@@ -125,7 +143,7 @@ describe('parseVerdict', () => {
 
 describe('parseResolution: the answers without a payload', () => {
   it.each(['basis-not-lawful', 'none', 'unknown'])('takes %s', kind => {
-    expect(parseResolution({ kind, extra: 1 })).toStrictEqual({ kind })
+    expect(aboutReview({ kind, extra: 1 })).toStrictEqual({ kind })
   })
 
   it.each<Case>([
@@ -133,13 +151,13 @@ describe('parseResolution: the answers without a payload', () => {
     ['a kind on the prototype only', Object.create({ kind: 'none' })],
     ...SHARED_NOT_AN_OBJECT.map(value => ['a value that is no plain object', value] as const),
   ])('gives no answer for %s', (_case, answer) => {
-    expect(parseResolution(answer)).toBeUndefined()
+    expect(aboutReview(answer)).toBeUndefined()
   })
 })
 
 describe('parseResolution: adopted', () => {
   it('takes a well-formed answer, built anew and frozen', () => {
-    const parsed = parseResolution(ADOPTED)
+    const parsed = aboutReview(ADOPTED)
     expect(parsed).toStrictEqual(ADOPTED)
     expect(parsed).not.toBe(ADOPTED)
     expect(deeplyFrozen(parsed)).toBe(true)
@@ -159,7 +177,7 @@ describe('parseResolution: adopted', () => {
     ['each setting category: governance', ['declared', 'settings', 0, 'category'], 'governance'],
   ])('takes %s', (_case, path, field) => {
     const answer = withField(ADOPTED, path, field)
-    expect(parseResolution(answer)).toStrictEqual(answer)
+    expect(aboutReview(answer)).toStrictEqual(answer)
   })
 
   it.each<Row>([
@@ -169,12 +187,12 @@ describe('parseResolution: adopted', () => {
     ['no script parameters', ['declared', 'scripts', 0, 'parameters'], MISSING],
   ])('takes an answer with %s and gives no such field back', (_case, path) => {
     const answer = withField(ADOPTED, path, MISSING)
-    expect(parseResolution(answer)).toStrictEqual(answer)
+    expect(aboutReview(answer)).toStrictEqual(answer)
   })
 
   it('takes an optional field with the value undefined like an absent one', () => {
     const answer = withField(ADOPTED, ['declared', 'description'], undefined)
-    expect(parseResolution(answer)).toStrictEqual(
+    expect(aboutReview(answer)).toStrictEqual(
       withField(ADOPTED, ['declared', 'description'], MISSING),
     )
   })
@@ -186,7 +204,7 @@ describe('parseResolution: adopted', () => {
       ref: { ...ADOPTED.ref, extra: 1, capability: { ...ADOPTED.ref.capability, extra: 1 } },
       declared: { ...ADOPTED.declared, extra: 1, scripts: [{ ...SCRIPT, extra: 1 }] },
     }
-    expect(parseResolution(answer)).toStrictEqual(ADOPTED)
+    expect(aboutReview(answer)).toStrictEqual(ADOPTED)
   })
 
   it.each<Row>([
@@ -251,30 +269,30 @@ describe('parseResolution: adopted', () => {
     ['a setting category that is no text', ['declared', 'settings', 0, 'category'], 5],
     ['a setting category outside the set', ['declared', 'settings', 0, 'category'], 'mood'],
   ])('gives no answer for %s', (_case, path, field) => {
-    expect(parseResolution(withField(ADOPTED, path, field))).toBeUndefined()
+    expect(aboutReview(withField(ADOPTED, path, field))).toBeUndefined()
   })
 
   it('does not take a ref or a declared projection from the prototype', () => {
     const { ref, declared } = ADOPTED
     expect(
-      parseResolution(Object.assign(Object.create({ ref }), { kind: 'adopted', declared })),
+      aboutReview(Object.assign(Object.create({ ref }), { kind: 'adopted', declared })),
     ).toBeUndefined()
     expect(
-      parseResolution(Object.assign(Object.create({ declared }), { kind: 'adopted', ref })),
+      aboutReview(Object.assign(Object.create({ declared }), { kind: 'adopted', ref })),
     ).toBeUndefined()
   })
 })
 
 describe('parseResolution: known-unavailable', () => {
   it('takes a well-formed answer, built anew and frozen', () => {
-    const parsed = parseResolution(STAND_IN)
+    const parsed = aboutRetired(STAND_IN)
     expect(parsed).toStrictEqual(STAND_IN)
     expect(deeplyFrozen(parsed)).toBe(true)
   })
 
   it('takes an answer without a description and gives no description back', () => {
     const answer = withField(STAND_IN, ['description'], MISSING)
-    expect(parseResolution(answer)).toStrictEqual(answer)
+    expect(aboutRetired(answer)).toStrictEqual(answer)
   })
 
   it.each<Row>([
@@ -291,14 +309,59 @@ describe('parseResolution: known-unavailable', () => {
     ['an empty reason', ['reason'], ''],
     ['a reason with a control character', ['reason'], 'Gone.\u0007'],
   ])('gives no answer for %s', (_case, path, field) => {
-    expect(parseResolution(withField(STAND_IN, path, field))).toBeUndefined()
+    expect(aboutRetired(withField(STAND_IN, path, field))).toBeUndefined()
+  })
+})
+
+describe('parseResolution: the answer names the requested material (S7)', () => {
+  const BASIS = {
+    capability: identity('skill', 'review'),
+    layer: 'tenant',
+    assetVersion: granted(isAssetVersion, 'v2'),
+    digest: granted(isPackageDigest, DIGEST),
+  } as const
+  const withBasis = parseResolution({ capability: identity('skill', 'review'), basis: BASIS })
+
+  it.each<Row>([
+    ['a ref of another name', ['ref', 'capability', 'name'], 'large'],
+    ['a ref of another category', ['ref', 'capability', 'category'], 'tool'],
+  ])('gives no answer for %s, with or without a basis', (_case, path, field) => {
+    expect(aboutReview(withField(ADOPTED, path, field))).toBeUndefined()
+    expect(withBasis(withField(ADOPTED, path, field))).toBeUndefined()
+  })
+
+  it('gives no answer for a stand-in of another identity', () => {
+    expect(aboutReview(STAND_IN)).toBeUndefined()
+  })
+
+  it.each<Row>([
+    ['another source layer', ['ref', 'layer'], 'workspace'],
+    ['another asset version', ['ref', 'assetVersion'], 'v1'],
+    ['no asset version', ['ref', 'assetVersion'], MISSING],
+    ['another digest', ['ref', 'digest'], `sha256:${'b'.repeat(64)}`],
+  ])('with a basis, gives no answer for %s', (_case, path, field) => {
+    const answer = withField(ADOPTED, path, field)
+    expect(aboutReview(answer)).toStrictEqual(answer)
+    expect(withBasis(answer)).toBeUndefined()
+  })
+
+  it('with a basis, takes the ref of its material, and a ref without a digest', () => {
+    expect(withBasis(ADOPTED)).toStrictEqual(ADOPTED)
+    const noDigest = withField(ADOPTED, ['ref', 'digest'], MISSING)
+    expect(withBasis(noDigest)).toStrictEqual(noDigest)
+  })
+
+  it('with a basis without an asset version, takes a ref with one', () => {
+    const { assetVersion: _dropped, ...unversioned } = BASIS
+    const about = parseResolution({ capability: identity('skill', 'review'), basis: unversioned })
+    expect(about(ADOPTED)).toStrictEqual(ADOPTED)
   })
 })
 
 describe('parseResolution: the JSON tree of script parameters', () => {
   /** The parameters that come back for a script with `parameters`, or `undefined` when none. */
   function parametersOf(parameters: unknown): unknown {
-    const parsed = parseResolution(
+    const parsed = aboutReview(
       withField(ADOPTED, ['declared', 'scripts', 0, 'parameters'], parameters),
     )
     return parsed?.kind === 'adopted' ? parsed.declared.scripts[0]?.parameters : undefined
@@ -373,7 +436,7 @@ describe('parseResolution: the JSON tree of script parameters', () => {
   ])('gives no answer for %s', (_case, parameters) => {
     expect(parametersOf(parameters)).toBeUndefined()
     expect(
-      parseResolution(withField(ADOPTED, ['declared', 'scripts', 0, 'parameters'], parameters)),
+      aboutReview(withField(ADOPTED, ['declared', 'scripts', 0, 'parameters'], parameters)),
     ).toBeUndefined()
   })
 
