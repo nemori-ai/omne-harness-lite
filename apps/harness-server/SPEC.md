@@ -10,6 +10,8 @@
 
 驻留桥、宿主文件工厂、租户目录、动作规则、Runtime/Execution 信任入口及采用规划器已有实现。精确行为与生产接线差额见真实模式的行说明。
 
+本机单用户档（子命令 `setup` 与 `serve` 的默认值）依据 R2-D345：用户用一条命令配置一次，宿主之后一直复用，Windows 与 Linux 用同一套流程。它已经实现，见[本机单用户档](#本机单用户档)。
+
 ## 范围
 
 S0 模式经真实 Cordis 4.0.4 装载标记替身，验证五件事：
@@ -26,21 +28,157 @@ S0 不接 HTTP，不创建租户，不打开业务状态根，不读真实秘密
 
 ## 入口与输入
 
-入口命令：
+入口命令是 `harness-server`，即 `node apps/harness-server/dist/bin.js`。`package.json` 的 `bin` 登记这个名字。它不是 `omne` 命令的一部分。
 
 ```text
-node apps/harness-server/dist/bin.js s0 --distribution <绝对 JSON 路径> [--operator <绝对 JSON 路径>] --readiness-timeout-ms <正整数> --shutdown-deadline-ms <正整数>
-node apps/harness-server/dist/bin.js serve --distribution <绝对 JSON 路径> [--operator <绝对 JSON 路径>] --readiness-timeout-ms <正整数> --shutdown-deadline-ms <正整数> --state-root <绝对目录> [--stop-on-stdin-close]
+harness-server s0 --distribution <绝对 JSON 路径> [--operator <绝对 JSON 路径>] --readiness-timeout-ms <正整数> --shutdown-deadline-ms <正整数>
+harness-server serve [--distribution <绝对 JSON 路径>] [--operator <绝对 JSON 路径>] [--readiness-timeout-ms <正整数>] [--shutdown-deadline-ms <正整数>] [--state-root <绝对目录>] [--stop-on-stdin-close]
+harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文件>] [--reconfigure] [--replace-credential]
 ```
 
-位置参数里有 `serve` 时，进程走真实模式。其他任何调用走 S0 的原解析路径：`parseArgs` 允许位置参数，子命令 `s0` 可在任意位置。这条路径的参数、输出、退出码与 stderr 文字与加入 `serve` 之前逐字节相同。`bin.ts` 只解析参数、调用 `runS0` 或 `runServe` 并设置退出码。它不是 `omne` 命令的一部分，也不注册全局二进制。
+位置参数里有 `serve` 时，进程走真实模式。没有 `serve` 而有 `setup` 时，进程走本机首次配置，见[本机单用户档](#本机单用户档)。其他任何调用走 S0 的原解析路径：`parseArgs` 允许位置参数，子命令 `s0` 可在任意位置。这条路径的参数、输出、退出码与 stderr 文字与加入 `serve` 之前逐字节相同。`bin.ts` 只解析参数、调用 `runS0`、`runServe` 或 `runSetup` 并设置退出码。
+
+`serve` 的参数都可以省略。省略的参数取下面的值：
+
+| 参数                     | 省略时                                                                     |
+| ------------------------ | -------------------------------------------------------------------------- |
+| `--distribution`         | 随应用发行的 `config/serve.distribution.json`                              |
+| `--operator`             | 本机单用户档的运维者层，由配置文件与发行层在启动时生成，见[本机单用户档](#本机单用户档) |
+| `--readiness-timeout-ms` | 30000                                                                      |
+| `--shutdown-deadline-ms` | 10000                                                                      |
+| `--state-root`           | 本机单用户档的状态目录                                                     |
+
+只有省略 `--operator` 或 `--state-root` 时，入口才读本机的配置与状态目录。两个都给出时，行为与加入默认值之前相同。
 
 `serve` 另有两个参数：
 
-- `--state-root <绝对目录>`：必填。入口对象需要的状态文件（例如游标签名密钥）放在这个目录下。入口只校验它是已存在的绝对目录。目录在运维者的用户目录下、靠目录继承的访问控制保护，是前提，不做程序校验（DP1-C19）。
+- `--state-root <绝对目录>`：入口对象需要的状态文件（例如游标签名密钥）放在这个目录下。给出时，入口只校验它是已存在的绝对目录。目录在运维者的用户目录下、靠目录继承的访问控制保护，是前提，不做程序校验（DP1-C19）。
 - `--stop-on-stdin-close`：可选。标准输入关闭时发起计划停止。SIGINT 与 SIGTERM（能投递的平台上）也发起计划停止。Windows 上别的进程不能向 Node 进程投递可处理的 SIGTERM，所以关闭标准输入是那里唯一的跨进程停止方式。
 
 配置是 UTF-8 JSON，解析为 `unknown`，在边界经同步 zod schema 严格校验。校验拒绝未知键、非法值、重复行 id、未知插件导出、未知运维目标和异步 schema。插件清单是显式 allowlist，不按输入字符串动态 import。
+
+## 本机单用户档
+
+本机单用户档是一个人在自己的宿主上运行服务的方式：自己的模型凭据、一个工作区、宿主上的 Shell。用户运行一次 `harness-server setup`，之后 `harness-server serve` 不带参数就能启动。Windows 与 Linux 用同一套命令。实现在 `src/local/`。
+
+### 位置
+
+配置目录与状态目录按下表取值。规则只依赖平台、环境变量和用户目录。
+
+| 条件                           | 配置目录                                       | 状态目录                                           |
+| ------------------------------ | ---------------------------------------------- | -------------------------------------------------- |
+| 设了 `OMNE_SERVER_HOME=<目录>` | `<目录>/config`                                | `<目录>/state`                                     |
+| Windows                        | `%LOCALAPPDATA%\omne\config`                   | `%LOCALAPPDATA%\omne\state`                        |
+| 其他平台（XDG）                | `$XDG_CONFIG_HOME/omne`，默认 `~/.config/omne` | `$XDG_STATE_HOME/omne`，默认 `~/.local/state/omne` |
+
+- `OMNE_SERVER_HOME` 必须是绝对路径。空值或相对路径时，`setup` 与 `serve` 都以退出码 2 拒绝。测试用它把整套位置放进临时目录。
+- `LOCALAPPDATA` 缺失或不是绝对路径时，取 `<用户目录>\AppData\Local`。XDG 变量是相对路径时被忽略，与 XDG 规则一致。
+
+配置目录里只有 `server.json`。状态目录里有下面这些：
+
+| 路径               | 内容                                            | 谁创建                       |
+| ------------------ | ----------------------------------------------- | ---------------------------- |
+| `model-vault.json` | 模型凭据保管库。宿主上唯一含秘密的文件          | `setup`                      |
+| `workspace/`       | 默认工作区                                      | `setup`                      |
+| `host-files/`      | 执行宿主的状态目录，也是 Shell 的临时目录       | `setup`，缺失时 `serve` 重建 |
+| `storage/`         | `storage` 行的存储根                            | `serve`                      |
+| 游标签名密钥       | 入口对象的状态文件（`--state-root` 即状态目录） | `serve`                      |
+
+### 配置文件
+
+`server.json` 是一个 JSON 对象，键不多也不少：`version`（值为 `1`）、`port`（1 至 65535 的整数）、`workspace`（绝对目录）、`shell`（Shell 可执行文件的绝对路径）、`shellEnvironment`（Shell 的环境变量，名字到值，见[Shell 的环境](#shell-的环境)）。文件里没有秘密，也没有运维者层的数值。数值留在代码里，所以新的发行版带来新的数值时，用户不需要再运行 `setup`。
+
+`omne` CLI 只读这个文件的 `port`，把 `http://127.0.0.1:<port>` 当作默认服务地址，见 CLI 的[服务地址](../cli/SPEC.md#服务地址)。文件的位置与形状归本页。
+
+### setup
+
+`setup` 按下面的次序执行。任一步失败即停止。
+
+1. 解析参数。参数不对时退出 2，标准错误写 `setup: <原因>` 和用法行。未知参数只报 `setup: unrecognized arguments`，不回显参数，因为参数可能就是密钥。`--help` 打印说明，退出 0，不读写宿主。
+2. 按[位置](#位置)取目录。
+3. 读已有的 `server.json`。文件不合格且没有 `--reconfigure` 时退出 2，文件不变。
+4. 算出要用的设置：已有设置（没有时取默认值），再叠加 `--port`、`--workspace`、`--shell`。`shellEnvironment` 在新建设置与 `--reconfigure` 时从 `setup` 自己的环境按白名单取，其余时候保持文件里的值。相对路径按当前目录解析。默认端口是 8787，与 CLI 的默认地址相同。默认工作区是 `<状态目录>/workspace`。默认 Shell 在 Windows 上是 `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`，其他平台是 `/bin/bash`。
+5. 已有的 `port`、`workspace`、`shell` 与要用的不同而没有 `--reconfigure` 时，退出 2，标准错误逐项列出旧值与新值，文件不变。已有设置不被静默覆盖。
+6. Shell 不是已存在的文件时，退出 2。
+7. 建配置目录、状态目录、`host-files/`，以及不存在的工作区。
+8. 存模型凭据。保管库不存在时，读凭据，经 model-host-local 的 `initVault` 新建保管库，凭据成为工厂秘密。保管库已存在而有 `--replace-credential` 时，读凭据，经 `replaceVaultSecret` 替换工厂秘密。保管库已存在而没有这个参数时，不读标准输入，保管库不变。
+9. 设置是新的或变了时，写 `server.json`：先写临时文件，再改名。
+
+第 8 步在第 9 步之前，所以 `server.json` 存在表示写它时保管库已经存在。
+
+凭据只从标准输入读。标准输入是终端时，标准错误写提示，关闭回显读一行。不是终端时，读到第一个换行或输入结束，去掉行尾。凭据去首尾空白后为空、含控制字符或读取失败时，退出 1，不写 `server.json`。凭据不经命令行参数或环境变量传入。凭据、它的哈希或前缀不出现在任何输出、配置文件或错误文字里。
+
+权限：
+
+- POSIX：配置目录、状态目录、`host-files/` 与新建的工作区设为 `0700`，`server.json` 设为 `0600`。已存在的工作区不改模式。保管库按 model-host-local 的权限护栏建立与替换：创建掩码 `077`，文件 `0600` 并读回。
+- Windows：不改访问控制列表。保护来自用户目录下继承的访问控制，前提与 model-host-local 的[保管库初始化命令](../../packages/model/model-host-local/SPEC.md#权限)相同。保管库必须位于用户目录之下。`OMNE_SERVER_HOME` 指向用户目录之外时，第 8 步失败，原因是 `path-outside-home`。
+
+成功时标准输出写一份给人看的总结，退出 0：
+
+```text
+harness-server setup: done.
+  settings     <配置目录>/server.json (created | updated | kept)
+  state        <状态目录>
+  credential   <状态目录>/model-vault.json (created | replaced | kept (run setup --replace-credential to change it))
+  workspace    <工作区>
+  shell        <Shell>
+  address      http://127.0.0.1:<port>
+Next:
+  harness-server serve
+  then, in another terminal: omne register --login-identifier <name>
+```
+
+| 退出码 | 含义                                                                                     |
+| ------ | ---------------------------------------------------------------------------------------- |
+| 0      | 完成，或 `--help`                                                                        |
+| 1      | 一步失败：凭据读不到或不合格、保管库写不成、目录或配置文件写不成                         |
+| 2      | 参数不对、位置变量不合格、已有设置不合格、设置不同而没有 `--reconfigure`、Shell 不存在 |
+
+凭据步骤失败时，标准错误写 `setup: model credential not stored: <原因>`。原因来自保管库操作的原因代码，不含凭据。
+
+### serve 怎样用这份配置
+
+省略 `--state-root` 时，状态目录必须存在。省略 `--operator` 时，入口读 `server.json`，确认保管库文件存在、工作区是目录，必要时重建 `host-files/`，再生成运维者层。
+
+- 状态目录、`server.json` 或保管库缺失时，标准错误写 `serve: not set up: <缺什么>` 和一行 ``Run `harness-server setup` first.``，退出 2。stdout 没有记录，不装载任何行。
+- `server.json` 不合格或工作区不是目录时，标准错误写原因、修正的命令和 `serve` 的用法行，退出 2。
+- 运维者层由配置生成，而且服务开始接收请求时，标准错误在 `startup-result` 之后多写一行 `serve: accepting on http://127.0.0.1:<port>`。
+
+### 运维者层的默认值
+
+`src/local/operator-defaults.ts` 的 `localOperatorLayer` 生成本档的运维者层。发行层不写数值默认值（R2-D6），所以本档的数值在这里。每一行都是 `replace`。配置从发行层该行的配置开始，再叠加本档的键。因此本档不重抄发行层拥有的值：`storage` 的 `maxJsonDepth`、`agent-host` 的 `jointCommits` 与 `coordination`。`session-storage`、`model-records`、`tool-records` 的 `combinationVersion` 取发行层 `session-handoff` 行的值。发行层没有这个值时，入口以退出码 2 拒绝。本档的键与发行层同一行的键不重叠。
+
+| 行                                                                              | 本档给出                                                                                                                                       |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage`                                                                       | 存储根 `<状态目录>/storage` 与提供者数值。`closeDeadlineMs` 是 D 减 1000，但不少于 D 的一半                                                    |
+| `session-storage`                                                               | 目录文件 `<存储根>/tenant-domains.json`，规则 `organization-account/1`                                                                         |
+| `model-credential`                                                              | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密                                                                                         |
+| `model-profiles`、`model-request-preparation`、`model-host`、`model-records`     | 档案、准备、宿主与记录仓的数值。路由是 OpenRouter                                                                                              |
+| `tool-host`                                                                     | Shell：可执行文件取配置，参数见下，`cwd` 是工作区，结果上限 32768 字节。Files：`cwd` 是工作区，结果上限 32768 字节                             |
+| `tool-records`、`execution-host`                                                | 文件根是工作区，宿主状态目录是 `host-files/`                                                                                                  |
+| `request-context`、`agent-context`、`agent-host`、`session-ad03`、`session-ad04` | 各自的上限与工厂数值                                                                                                                           |
+| `server-entry`                                                                  | 端口取配置。`historyKinds` 是 `message.user`、`message.assistant`、`message.tool`、`message.system_reminder`、`run.started`、`run.terminal` |
+
+Shell 的参数按可执行文件名定：`powershell` 或 `pwsh` 在 Windows 上取 `-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command`，在其他平台取 `-NoLogo -NoProfile -NonInteractive -Command`。其他可执行文件取 `-c`。Windows PowerShell 的默认执行策略不让运行本地脚本。`-ExecutionPolicy Bypass` 只作用于这一个 Shell 进程，不改宿主的策略。
+
+#### Shell 的环境
+
+Shell 进程不继承服务进程的环境。它的环境是 `server.json` 的 `shellEnvironment`，再加上临时目录：Windows 上 `TEMP` 与 `TMP`，其他平台 `TMPDIR`，都指向 `host-files/`。`shellEnvironment` 缺 `SystemRoot` 时（Windows）补 `C:\Windows`，缺 `PATH` 时（其他平台）补 `/usr/bin:/bin`。Windows 上 `WINDIR` 默认等于 `SystemRoot`。
+
+`setup` 按下面的白名单从自己的环境取 `shellEnvironment`。Windows 上按名字比较时不分大小写，例如 `Path` 记为 `PATH`。值为空的变量不取。
+
+| 平台     | 白名单                                                                                                                                       |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows  | `PATH`、`PATHEXT`、`SystemRoot`、`SystemDrive`、`WINDIR`、`ComSpec`、`USERPROFILE`、`APPDATA`、`LOCALAPPDATA`、`ProgramData`、`ProgramFiles`、`ProgramFiles(x86)` |
+| 其他平台 | `PATH`、`HOME`、`USER`、`LANG`、`LC_ALL`                                                                                                     |
+
+所以 Shell 里的 `PATH` 是运行 `setup` 时的 `PATH`，agent 能找到 `git`、`node`、`python` 这些工具。宿主上装了新工具、`PATH` 变了时，运行 `setup --reconfigure` 重新取。
+
+名字像秘密的变量不进 Shell 的环境：名字以 `TOKEN`、`KEY`、`SECRET`、`PASSWORD`、`PASSWD`、`CREDENTIAL`（可带复数 `S`）结尾，或以 `OPENROUTER_` 开头，不分大小写。白名单里没有这样的名字。有人手工把这样的名字写进 `shellEnvironment` 时，`serve` 认为配置不合格，以退出码 2 拒绝。生成运维者层时也再滤一次。
+
+用户可以改 `shellEnvironment` 来增减变量，也可以用 `--operator` 给出整份运维者层，在 `tool-host` 行写自己的 `construction.Shell.env`。
+
+数值来自联调 B 的运维者层与 coding agent 教程的运维者层。两者不同时取教程的值，因为教程在 WIRE 头 `1a34bcba6` 上用真实模型跑通了 15 次工具调用。`tools/joint-b/operator.mjs` 经构建产物消费同一份默认值，只换路径与测试工厂秘密。
 
 ## 插件树与运维层
 
@@ -160,14 +298,14 @@ S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前�
 | ------ | --------------------------------------------------------------------------------------------------------- |
 | 0      | 启动全部 ACTIVE 且关闭 settled。`serve` 还要求停止来自请求                                                |
 | 1      | 未预期的内部错误，stderr 写 `<子命令>: internal error: ...`                                               |
-| 2      | 配置、解析或装载前检查失败，也含用法错误：参数缺失、路径不是绝对路径、JSON 读不出、状态根不是已存在的目录 |
+| 2      | 配置、解析或装载前检查失败，也含用法错误：参数缺失、路径不是绝对路径、JSON 读不出、状态根不是已存在的目录。也含 `serve` 省略参数而本机没有完成 `setup` |
 | 3      | 至少一行 FAILED，或启动期 `start` 抛出，或（`serve`）目录准备失败、一个入口对象的 `install` 抛出           |
 | 4      | 仍有 PENDING 或未完成 LOADING                                                                             |
 | 5      | 启动码为 0 但关闭 incomplete                                                                              |
 
 启动码非零时取启动码。启动期 `start` 抛出时，`outcome` 为 `start-failed`，退出码为 3，见「有序关闭」节「启动与停止状态」第 3 条。`serve` 里一个入口对象的 `install` 抛出时，入口不装载任何行，stderr 写 `serve: entry-object <名>: install failed`，错误消息不写进 stdout，然后发起计划停止，退出 3。这时没有行登记过句柄，关闭报告把预期登记者记为 `not-registered`。
 
-用法错误时，stderr 写 `<子命令>: <原因>`，再写该子命令的用法行。`s0` 的用法行不变：`usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>`。`serve` 的用法行是：`usage: serve --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n> --state-root <abs dir> [--stop-on-stdin-close]`。位置参数里没有 `serve`，也不是恰好一个 `s0` 时（包括无参数），按 S0 路径处理，stderr 写 `s0: expected subcommand s0`，再写 `s0` 的用法行。位置参数里有 `serve` 但不是恰好一个 `serve` 时，stderr 写 `serve: expected subcommand serve`，再写 `serve` 的用法行。
+用法错误时，stderr 写 `<子命令>: <原因>`，再写该子命令的用法行。`s0` 的用法行不变：`usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>`。`serve` 的用法行是：`usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]`。`setup` 的用法与输出见[本机单用户档](#setup)。位置参数里没有 `serve`，也不是恰好一个 `s0` 时（包括无参数），按 S0 路径处理，stderr 写 `s0: expected subcommand s0`，再写 `s0` 的用法行。位置参数里有 `serve` 但不是恰好一个 `serve` 时，stderr 写 `serve: expected subcommand serve`，再写 `serve` 的用法行。
 
 ## 有序关闭
 
@@ -242,7 +380,12 @@ sequenceDiagram
 - `serve` 的停止触发只有 `--stop-on-stdin-close`、SIGINT 与 SIGTERM。Windows 上只有关闭标准输入能跨进程触发。
 - `--state-root` 的保护只是文档化的前提（DP1-C19）。
 - `serve` 下运维者只能插入 `stubPlugin`：真实导出绑定在它声明的行 id 上，运维者 `insert` 的行 id 必须是新 id（DP1-C9）。
-- 发行层单独不能装载 `serve`。发行文件没有 `execution-host` 与 `agent-host` 的工厂数值，也没有 `agent-host` 的 `loopGuardPolicy`，进程以 `invalid-config` 退出（R2-D229）。运维者层必须用 `replace` 给出这些值，并重抄发行层的 `jointCommits` 与 `coordination`。示例是 [tools/joint-b/operator.mjs](../../tools/joint-b/operator.mjs)，数值是测试值。`loopGuardPolicy` 还没有生产采用来源，这个缺口归 L-RUN 波 3。
+- 发行层单独不能装载 `serve`。发行文件没有 `execution-host` 与 `agent-host` 的工厂数值，也没有 `agent-host` 的 `loopGuardPolicy`，进程以 `invalid-config` 退出（R2-D229）。运维者层必须用 `replace` 给出这些值，并重抄发行层的 `jointCommits` 与 `coordination`。省略 `--operator` 时，[本机单用户档](#运维者层的默认值)生成这一层。`loopGuardPolicy` 还没有生产采用来源，本档用的是占位采用，这个缺口归 L-RUN 波 3。
+- 本机单用户档的数值没有测量依据，采用引用是摘要全零的占位。它们来自联调与教程的运维者层，那里是测试值。
+- 本机单用户档的 Shell 环境是 `setup` 当时的白名单值。`PATH` 之后变了，要运行 `setup --reconfigure` 才跟上。白名单以外的变量（例如代理设置）不进 Shell，需要时手工写进 `shellEnvironment`。
+- Windows 上 `setup` 不改也不读回访问控制列表，保护只靠用户目录的继承，前提见[权限](#setup)。
+- 保管库里的凭据是明文，保护靠文件权限。`setup` 不加密它。
+- `omne` CLI 为读默认地址重复了[位置](#位置)的规则，因为应用之间不互相导入。改位置规则时两处要同时改，CLI 的 `tests/local-server.spec.ts` 与本应用的 `tests/local/locations.spec.ts` 各自固定一份。
 - 成员插件在插件体内自登记的行要等正式 `assemblyLifecycle` 被接受后再定承载（N-r2-3）。现在带阶段的行只经 `defineRow` 的两种承载进入。
 - `storage` 句柄的结果受提供者自己的 `closeDeadlineMs` 约束。它大于 D 时，句柄在 D 答 `incomplete`，提供者仍在关闭。
 - 行清单的四跳同步靠人工：装配页到 `aa-rows.json` 由脚本再生，装配页到 `stubs.ts` 由线负责人手工同步，`stubs.ts` 到真实行声明由 `real-manifests-sync` 检查，等待装配页补丁的差额写在该测试的具名清单里。

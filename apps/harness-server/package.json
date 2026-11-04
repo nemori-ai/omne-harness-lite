@@ -3,9 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Harness server application assembly: S0 skeleton",
+  "description": "Harness server application assembly: S0 skeleton, the real serve mode and the local single-user setup",
   "engines": {
     "node": ">=24"
+  },
+  "bin": {
+    "harness-server": "./dist/bin.js"
   },
   "exports": {
     ".": {
@@ -20,7 +23,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "config"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",

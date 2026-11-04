@@ -262,8 +262,9 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 
 1. `--server` 的值。
 2. 环境变量 `OMNE_SERVER`。
-3. 登录状态文件里 `login` 记录的地址，仅会话命令使用。
-4. 默认值 `http://127.0.0.1:8787`。这是 CLI 自己的默认值。服务端的监听端口由装配配置给出，见[应用装配](../../docs/architecture/runtime/application-assembly.md)。两者不一致时，用户用 `--server` 或 `OMNE_SERVER` 给出地址。
+3. 登录状态文件里 `login` 记录的地址，仅会话命令与治理命令使用。
+4. 本机配置的地址，仅 `register` 与 `login` 使用。`harness-server setup` 在本机写的配置文件 `server.json` 给出端口时，地址是 `http://127.0.0.1:<port>`。文件的位置与形状归 harness-server 的[本机单用户档](../harness-server/SPEC.md#本机单用户档)：设了 `OMNE_SERVER_HOME` 时是 `<目录>/config/server.json`；Windows 上是 `%LOCALAPPDATA%\omne\config\server.json`；其他平台是 `$XDG_CONFIG_HOME/omne/server.json`，默认 `~/.config/omne/server.json`。CLI 只读其中的 `port`。文件不存在时取下一项。文件读不出、不是 JSON、没有 1 至 65535 的整数 `port`，或 `OMNE_SERVER_HOME` 不是绝对路径时，命令退出 `1`，标准错误写一行原因（例如 `omne: the local server settings <path> give no port\n`），不读凭据，不发请求。
+5. 默认值 `http://127.0.0.1:8787`。这是 CLI 自己的默认值，也是 `harness-server setup` 的默认端口。服务端的监听端口由装配配置给出，见[应用装配](../../docs/architecture/runtime/application-assembly.md)。两者不一致时，用户用 `--server` 或 `OMNE_SERVER` 给出地址。
 
 CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令按用法错误处理，消息为 `omne: --server must be a loopback http address\n`。哪些地址被拒绝是 SDK 的 M2 已知限制，见 SDK 的[已知限制](../../packages/access/sdk/SPEC.md#已知限制)。
 

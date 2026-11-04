@@ -27,13 +27,37 @@ The `serve` mode loads the same rows under formal service keys. In the sample di
 
 ## Usage
 
-Build first, then run the process entry. The `s0` and `serve` positionals select the mode:
+### Run the server on your own host
+
+One person who runs the server on own host uses the local single-user profile. Build, set up once, then run only `serve`. The commands are the same on Windows and Linux:
+
+```sh
+pnpm exec turbo run build --filter="@omne-harness/harness-server..." --filter="@omne-harness/cli..."
+node apps/harness-server/dist/bin.js setup            # asks for the model credential (OpenRouter API key), input is hidden
+node apps/harness-server/dist/bin.js serve            # Ctrl+C stops it
+```
+
+- `setup` puts the credential into the vault in the state directory. It writes the port, the workspace and the shell into the settings file. The settings file holds no secret. A pipe can also supply the credential, for example `printf '%s\n' "$KEY" | node apps/harness-server/dist/bin.js setup`.
+- Places: on Windows `%LOCALAPPDATA%\omne\config` and `%LOCALAPPDATA%\omne\state`. On Linux `~/.config/omne` and `~/.local/state/omne` (`XDG_CONFIG_HOME` and `XDG_STATE_HOME` apply). `OMNE_SERVER_HOME=<dir>` moves both to `<dir>/config` and `<dir>/state`.
+- Options: `--port <n>` (default 8787), `--workspace <dir>` (default `<state>/workspace`), `--shell <executable>` (default Windows PowerShell on Windows, `/bin/bash` elsewhere).
+- The environment of the Shell tool is the `PATH` that `setup` saw and a few allowlisted variables. It holds no variable whose name looks like a secret. On Windows, PowerShell starts with `-ExecutionPolicy Bypass`, so local scripts run. The allowlist is in [SPEC.md](SPEC.md#shell-的环境).
+- A second `setup` checks and does not overwrite. Add `--reconfigure` to change the settings. Add `--replace-credential` to change the credential.
+- `serve` without arguments reads this setup. On a host without `setup`, it tells you to run `setup` and exits with code 2.
+- The `omne` CLI uses the port of the settings file when there is no `--server` and no `OMNE_SERVER`.
+
+The full rules are in [SPEC.md](SPEC.md#本机单用户档).
+
+### Both modes and all arguments
+
+The `s0` and `serve` positionals select the mode:
 
 ```sh
 pnpm --filter @omne-harness/harness-server run build
 node apps/harness-server/dist/bin.js s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>
-node apps/harness-server/dist/bin.js serve --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n> --state-root <abs dir> [--stop-on-stdin-close]
+node apps/harness-server/dist/bin.js serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]
 ```
+
+For each argument that `serve` does not get, it takes the value of the local single-user profile. The distribution is the bundled `config/serve.distribution.json`. The timeouts are 30000 and 10000 ms. The operator layer and the state root come from the `setup` configuration.
 
 `s0` stops by itself after it writes the startup result. `serve` waits for a stop request: a closed stdin (with `--stop-on-stdin-close`), SIGINT, or SIGTERM. On Windows, a closed stdin is the only way another process can stop it.
 
@@ -41,10 +65,11 @@ A usage error prints `<subcommand>: <reason>` and then the usage line of that su
 
 ```text
 usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>
-usage: serve --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n> --state-root <abs dir> [--stop-on-stdin-close]
+usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]
+usage: setup [--port <n>] [--workspace <dir>] [--shell <executable>] [--reconfigure] [--replace-credential]
 ```
 
-With only the distribution file, `serve` cannot load. The distribution layer gives no factory values for `execution-host` and `agent-host`, and no `loopGuardPolicy` for `agent-host`. The process exits with `invalid-config` and does not serve (R2-D229). The operator layer must give these values with `replace` on the whole row. `replace` does not merge: for `agent-host`, copy `jointCommits` and `coordination` from the distribution layer exactly. See [tools/joint-b/operator.mjs](../../tools/joint-b/operator.mjs) for an example. Its numbers are test values with no measurement behind them. `loopGuardPolicy` has only a test adoption now and no production adoption source. The known limit is in [SPEC.md](SPEC.md#已知限制).
+With only the distribution file, `serve` cannot load. The distribution layer gives no factory values for `execution-host` and `agent-host`, and no `loopGuardPolicy` for `agent-host`. The process exits with `invalid-config` and does not serve (R2-D229). The operator layer must give these values. Without `--operator`, the local single-user profile makes this layer: it starts from the configuration of each release row and adds the numbers of `src/local/operator-defaults.ts`. If you write your own `--operator`, note that `replace` does not merge: for `agent-host`, copy `jointCommits` and `coordination` from the distribution layer exactly. The numbers of the profile have no measurement behind them, and `loopGuardPolicy` has only a placeholder adoption. The known limit is in [SPEC.md](SPEC.md#已知限制).
 
 Other programs can call `runS0` and import the record types:
 
@@ -88,14 +113,18 @@ The test inventory in [tests/README.md](tests/README.md) names each file and its
 
 | Input | Effect |
 | --- | --- |
-| `--distribution` | Absolute path of the release layer JSON. |
-| `--operator` | Optional absolute path of the operator layer JSON. |
-| `--readiness-timeout-ms` | Positive integer. Wait limit for readiness. |
-| `--shutdown-deadline-ms` | Positive integer. Shared shutdown deadline. |
-| `--state-root` | `serve` only. Existing absolute directory for the state files of the entry objects. Its protection is a premise: keep it under the user directory of the operator. |
+| `--distribution` | Absolute path of the release layer JSON. Without it, `serve` uses `config/serve.distribution.json`. |
+| `--operator` | Optional absolute path of the operator layer JSON. Without it, `serve` makes the layer of the local single-user profile. |
+| `--readiness-timeout-ms` | Positive integer. Wait limit for readiness. Without it, `serve` uses 30000. |
+| `--shutdown-deadline-ms` | Positive integer. Shared shutdown deadline. Without it, `serve` uses 10000. |
+| `--state-root` | `serve` only. Existing absolute directory for the state files of the entry objects. Without it, `serve` uses the state directory of the local profile. Its protection is a premise: keep it under the user directory of the operator. |
 | `--stop-on-stdin-close` | `serve` only. A closed stdin requests a planned stop. |
+| `OMNE_SERVER_HOME` | Environment variable. `setup` and `serve` use `<dir>/config` and `<dir>/state` instead of the platform directories. |
+| `LOCALAPPDATA`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME` | Environment variables. They set the platform directories. |
 
-Requirements: Node `>=24`, from `engines.node`. The runtime dependencies are in `package.json`. The process reads no environment variable and no real secret.
+The arguments and the behavior of `setup` are in [SPEC.md](SPEC.md#setup).
+
+Requirements: Node `>=24`, from `engines.node`. The runtime dependencies are in `package.json`. `s0`, and `serve` with all arguments, read no environment variable and no real secret. `setup` reads the model credential from standard input and writes it into the vault of the state directory. `serve` gets the model credential only from that vault.
 
 ## Verification
 

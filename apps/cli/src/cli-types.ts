@@ -1,5 +1,6 @@
 import type { GovernanceTransport } from '@omne-harness/sdk'
 import type { BuildIdentityResult } from './identity.ts'
+import type { LocalServerRead } from './local-server.ts'
 
 export interface CliOutput {
   readonly stdout: (text: string) => void
@@ -30,6 +31,8 @@ export interface CommandEnvironment {
   readonly environmentHome: string | undefined
   readonly homeDirectory: string | undefined
   readonly environmentServer: string | undefined
+  /** The address `harness-server setup` configured on this host. Read only when needed. */
+  readonly localServer?: () => LocalServerRead
   readonly services: CommandServices
 }
 
@@ -68,5 +71,6 @@ export interface CliRuntime {
   readonly environmentHome: string | undefined
   readonly homeDirectory: string | undefined
   readonly environmentServer: string | undefined
+  readonly localServer?: () => LocalServerRead
   readonly services: CommandServices
 }
