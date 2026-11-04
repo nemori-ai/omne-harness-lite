@@ -606,12 +606,23 @@ function interpretedOf(
 }
 
 /** The facts of one execution: a row with an unknown kind is not a boundary, so it fails the execution. */
+/**
+ * The event projection of one `er_fact` row (source, consequences, control and the batch of an
+ * input-taken event), or undefined when it does not parse.
+ */
+function projectionOf(row: Row): Readonly<Record<string, unknown>> | undefined {
+  const value = readable(row['event'])
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Readonly<Record<string, unknown>>)
+    : undefined
+}
+
 function factsOf(rows: readonly Row[]): SessionFactBoundary[] | null {
   const facts: SessionFactBoundary[] = []
   for (const row of rows) {
     const kinds = readable(row['kinds'])
     if (!Array.isArray(kinds) || !kinds.every(isConsequenceKind)) return null
-    const source = readable(row['source'])
+    const source = projectionOf(row)?.['source']
     // An unreadable source is a missing row: the range has a gap there.
     if (source === undefined) continue
     facts.push({ sequence: text(row['sequence']), source: source as DurableEvidence, kinds })
@@ -648,7 +659,7 @@ function focusedSequence(context: Context, execution: string): bigint {
 
 /**
  * The execution boundary of one execution, from its row in `er_execution` (a point lookup) and the
- * unread facts in `er_fact_idx`. Left out (null) when it has no SE13 in this session, its head
+ * unread events in `er_fact`. Left out (null) when it has no SE13 in this session, its head
  * receipt is a placeholder (digest `unknown`) or does not parse, its ended event does not parse,
  * a fact names an unknown kind, or the progress has no interpretation row.
  */
@@ -670,9 +681,9 @@ function boundaryOf(context: Context, execution: string): ExecutionHistoryBounda
   const readThrough = executionReadThrough(snapshot as WorkSnapshot, start.run, execution) ?? '0'
   const facts = factsOf(
     read(
-      `SELECT sequence, source, kinds FROM er_fact_idx
-        WHERE tenant = ? AND execution = ? AND session = ? AND (sequence > ? OR sequence = ?)
-        ORDER BY sequence LIMIT ?`,
+      `SELECT eseq AS sequence, event, kinds FROM er_fact
+        WHERE tenant = ? AND execution = ? AND session = ? AND (eseq > ? OR eseq = ?)
+        ORDER BY eseq LIMIT ?`,
       [
         scope.tenant,
         execution,
@@ -708,9 +719,9 @@ function boundaryOf(context: Context, execution: string): ExecutionHistoryBounda
 function batchesOf(context: Context, boundary: ExecutionHistoryBoundary): SessionBatchRecord[] {
   const { read, scope } = context
   return read(
-    `SELECT sequence, source, batch FROM er_batch_idx
-      WHERE tenant = ? AND execution = ? AND session = ? AND (sequence > ? OR sequence = ?)
-      ORDER BY sequence LIMIT ?`,
+    `SELECT eseq AS sequence, event FROM er_fact
+      WHERE tenant = ? AND execution = ? AND session = ? AND (eseq > ? OR eseq = ?)
+      ORDER BY eseq LIMIT ?`,
     [
       scope.tenant,
       boundary.execution,
@@ -719,8 +730,9 @@ function batchesOf(context: Context, boundary: ExecutionHistoryBoundary): Sessio
       focusedSequence(context, boundary.execution),
     ],
   ).flatMap(row => {
-    const source = readable(row['source'])
-    const batch = readable(row['batch']) as SessionBatchRecord['batch'] | undefined
+    const event = projectionOf(row)
+    const source = event?.['source']
+    const batch = event?.['batch'] as SessionBatchRecord['batch'] | undefined
     return source === undefined || !Array.isArray(batch?.ordered)
       ? []
       : [
