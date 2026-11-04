@@ -10,7 +10,10 @@
 //
 // The slot and the observed state never disagree: `observe` shows the state that `stateOf` derives
 // from the slot, and every slot change goes through `occupy`. A run that stopped keeps the slot
-// occupied, and the next invoke answers busy (S-14 of #558). The
+// occupied, and the next invoke answers busy (S-14 of #558). A run whose drive stopped on a
+// failure moves the slot to `failed` and is reported once through `failed` (SPEC「运行失败」,
+// R2-D282). Its responsibility is not handed over, so quiesce still counts it as remaining
+// (R2-D285): the ordered stop answers unresolved for it until D-31 ends such a run. The
 // registration handle only receives a projection: a report that throws is dropped, because `report`
 // returns void and the contract gives its failure no channel (待拥有者); the slot and `observe` stay
 // authoritative.
@@ -41,10 +44,11 @@ import type {
 } from './construction.ts'
 import { canonical } from './canonical.ts'
 import { maxRunStepsOf } from './configuration.ts'
-import { createExecutionCoordinator } from './loop/coordinator.ts'
+import { createExecutionCoordinator, type Halted } from './loop/coordinator.ts'
 import { agentEvidence } from './loop/identities.ts'
 import { advanceControl } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
+import type { AgentRunFailedReceiver } from './run-failure.ts'
 
 const OWNER = '@omne-harness/agent'
 
@@ -82,6 +86,15 @@ function endedReason(failure: Failure): Extract<AgentObservation, { kind: 'ended
   }
 }
 
+/** The text of a thrown value, without trusting it to have one. */
+function thrownText(error: unknown): string {
+  try {
+    return error instanceof Error ? error.message : String(error)
+  } catch {
+    return 'a thrown value that has no text'
+  }
+}
+
 /** Resolves when the signal aborts or `wake` is called, whichever comes first. */
 function woken(signal: AbortSignal, listeners: Set<() => void>): Promise<void> {
   if (signal.aborted) return Promise.resolve()
@@ -101,6 +114,9 @@ function woken(signal: AbortSignal, listeners: Set<() => void>): Promise<void> {
  * answered. When `open` answered commit-unknown, `unresolved` is the R0 item: the operation whose
  * `open` nobody knows yet, and the reservation stays until a retry of that operation finds it with
  * `query`. `running`: the Loop runs until E9 frees the slot. A run that stopped still holds it.
+ * `failed`: the drive stopped on a failure at `node`. The execution is not ended and holds the slot
+ * (the next invoke answers busy). No drive works on it, but its responsibility is not handed over,
+ * so a quiesce leaves it as remaining.
  */
 type Slot =
   | Readonly<{ kind: 'free' }>
@@ -113,6 +129,13 @@ type Slot =
       kind: 'running'
       execution: AgentExecutionId
       attachment: ExecutionAttachmentId
+    }>
+  | Readonly<{
+      kind: 'failed'
+      execution: AgentExecutionId
+      attachment: ExecutionAttachmentId
+      node: string | null
+      failure: Failure
     }>
 
 /** The last invoke that this runtime accepted, and the text of its input (SPEC 804). */
@@ -166,6 +189,8 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   guard: AccessGuard<P>
   dependencies: AgentDependencies<P, B>
   measurer: AgentMeasurer
+  /** The receiver of the report of a run that stopped on a failure; undefined: nobody is told. */
+  failed: AgentRunFailedReceiver | undefined
 }>
 
 export function createProvider<P, B extends ContentBlock>(
@@ -204,6 +229,8 @@ export function createProvider<P, B extends ContentBlock>(
       case 'reserved':
         return { kind: 'idle', instance }
       case 'running':
+      // A failed run is not ended: the execution still exists and holds the slot.
+      case 'failed':
         return {
           kind: 'occupied',
           instance,
@@ -322,6 +349,33 @@ export function createProvider<P, B extends ContentBlock>(
   let accepted: Accepted | null = null
 
   /**
+   * The drive of `execution` stopped on `failure` (SPEC「运行失败」). Only the run that still holds
+   * the slot moves it: a slot that E9 freed, or that another execution holds now, stays. The
+   * report goes out once, after the slot changed; a receiver that throws changes nothing.
+   */
+  function failRun(
+    execution: AgentExecutionId,
+    attachment: ExecutionAttachmentId,
+    node: string | null,
+    failure: Failure,
+  ): void {
+    if (slot.kind !== 'running' || slot.execution !== execution) return
+    occupy({ kind: 'failed', execution, attachment, node, failure })
+    try {
+      entry.failed?.({
+        kind: 'run-failed',
+        tenant: binding.tenant,
+        instance,
+        execution,
+        node,
+        failure,
+      })
+    } catch {
+      // The report observes the runtime and never decides an answer of it.
+    }
+  }
+
+  /**
    * U0 to E1 for an invoke that holds the reservation, then the Loop in the background. SPEC
    * "创建、登记与复用": invoke waits for the reliable acceptance only, not for the Loop. A failure
    * before E1 puts the slot `back`: free for a new invoke, the R0 item again for its retry, because
@@ -384,12 +438,13 @@ export function createProvider<P, B extends ContentBlock>(
     accepted = { operation, execution, input: inputText(input) }
     const attachment = opened.ok.executionAttachment
     occupy({ kind: 'running', execution, attachment })
-    // drive catches node failures and defects. A stopped run keeps its occupied slot.
-    const drive = async () => {
+    // The drive answers the failure it stopped on, or null for a stop without one (E9 freed the
+    // slot). A failed pass is not a stop yet: a commit-unknown keeps the drive waiting and running.
+    const drive = async (): Promise<Halted | null> => {
       const controller = new AbortController()
       try {
         for (;;) {
-          await measurer.segment(
+          const ran = await measurer.segment(
             'run',
             execution,
             () => coordinator.runExecution(),
@@ -399,15 +454,24 @@ export function createProvider<P, B extends ContentBlock>(
             reconciliationDelayMs: entry.configuration.reconciliationDelayMs,
             signal: controller.signal,
           })
-          if ('failure' in wake || wake.ok !== 'ready') return
+          if ('failure' in wake) return wake.failure
+          if (wake.ok !== 'ready') return 'failure' in ran ? ran.failure : null
         }
       } finally {
         controller.abort()
       }
     }
-    void drive().catch(() => {
-      // Node 24 ends the process on an unhandled rejection; discard it and keep the slot occupied.
-    })
+    const stopped = (halted: Halted | null) => {
+      if (halted !== null) failRun(execution, attachment, halted.node, halted.failure)
+    }
+    void drive().then(stopped, (error: unknown) =>
+      // Node 24 ends the process on an unhandled rejection; the throw becomes the failure instead.
+      failRun(execution, attachment, null, {
+        kind: 'unavailable',
+        owner: OWNER,
+        diagnostic: `the drive threw: ${thrownText(error)}`,
+      }),
+    )
     return succeed(handleOf(execution))
   }
 
@@ -598,7 +662,8 @@ export function createProvider<P, B extends ContentBlock>(
 
   /**
    * One drain step. An execution in the slot stays there: its detach and handover are #502 stage
-   * 5, so the answer is `unresolved` with that execution and never `drained`. A free slot withdraws
+   * 5, so the answer is `unresolved` with that execution and never `drained`. A `failed` slot is
+   * the same (R2-D285): no drive works on it, but nothing handed it over. A free slot withdraws
    * the registration, ends every observation and answers `drained` for good. The slot cannot be
    * taken while this step waits: the runtime is draining and refuses every new invoke.
    */
