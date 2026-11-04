@@ -173,6 +173,8 @@
 | 没有步提交的 `checkpointed` 块 | 恢复答就绪（开放），必需块缺项、可选块「无值」，之后的步提交写入值 | [replay-checkpoints.spec.ts](tests/replay-checkpoints.spec.ts) |
 | 诊断 | 旧代发布、超时与出口抛错的诊断不带块值；出口抛错时写入保留；诊断出口抛错不改结果 | [diagnostics.spec.ts](tests/diagnostics.spec.ts) |
 | `bind` 的调用方声明 | 访问核对之后才比较；不一致或未声明答 `callerMismatch` | [bind-caller.spec.ts](tests/bind-caller.spec.ts) |
+| 提交顺序（形式守卫） | 随机送达、重复、乱序、改写重试与崩溃下，每个 `applyCommit` 答复与模型一致：只按依据修订应用，只认完整输入，失败不进成功表 | [commit-order.spec.ts](tests/commit-order.spec.ts) |
+| 读取缓存与父链（形式守卫） | 缓存与不缓存的两个实例对同一序列给出相同读取；读者只见本租户的值，父链不跨租户 | [read-differential.spec.ts](tests/read-differential.spec.ts) |
 
 本成员不覆盖：持久化、跨进程一致性、断电耐久，以及与真实持有者、生产者的端到端组合。这些归持有者与装配的真实组合验证。
 
@@ -180,5 +182,5 @@
 
 - 替身与本成员是两份近似代码，各自演进。整套 conformance 仍是唯一的可执行判据。是否收敛由契约拥有者在 0.1.0 重新评估时决定。
 - `current()` 同步前提的真实来源不由本成员提供，缺口保留在 [#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)（契约[明确缺项](../runtime-context-contract/SPEC.md#明确缺项)）。
-- 自定义的恢复、代际替换与并发协议没有正式模型，相应机制路径保持未验证（[验证说明](../../../docs/verification.md)）。
+- 提交顺序与读取隔离有有限模型（[runtime-context-contract 的 formal-mapping.md](../runtime-context-contract/verification/formal-mapping.md)），并由上表两个形式守卫对照本成员。恢复会话、代际替换的其余路径与并发协议仍没有正式模型（[验证说明](../../../docs/verification.md)）。模型找到的缺陷（成功表无界、父级一跳不看恢复围栏）记在该页的运行记录里。
 - 一次恢复后供值被并发上限推迟时，读取答未知而不排队等待。M2 单机下同时恢复的作用域与块数有限，初值 16 足以覆盖首条路径；需要排队时再定等待策略。
