@@ -4,8 +4,7 @@
 // bound keeps the `failed()` wrap-up of `races.spec.ts` (N1).
 import { describe, expect, it } from 'vitest'
 import type { AdoptionView, UseEligibility } from '@omne-harness/mcp-contract/provider'
-import { admit } from '../src/internal/gate.ts'
-import { createConnectionTable } from '../src/internal/table.ts'
+import { only, picker, type Which } from './doubles/calls.ts'
 import { core } from './doubles/core.ts'
 import type { Principal } from './doubles/values.ts'
 import { alice, ref } from './doubles/values.ts'
@@ -24,15 +23,13 @@ const ADOPTION_DOWN: AdoptionView<Principal, string> = {
 
 const ELIGIBILITY_DOWN: UseEligibility<Principal> = { check: () => down('eligibility') }
 
-/** The adoption view whose `endpoint` answers `until` times, then rejects. */
-function adoptionDownAfter(w: World, until: number): AdoptionView<Principal, string> {
-  let count = 0
+/** The adoption view whose `endpoint` calls picked by `which` reject; the others answer. */
+function adoptionDownAt(w: World, which: Which): AdoptionView<Principal, string> {
+  const asked = picker(which)
   return {
     endpoints: (access, scope) => w.adoption.endpoints(access, scope),
-    endpoint(access, endpoint) {
-      count += 1
-      return count <= until ? w.adoption.endpoint(access, endpoint) : down('adoption')
-    },
+    endpoint: (access, endpoint) =>
+      asked.next() ? down('adoption') : w.adoption.endpoint(access, endpoint),
   }
 }
 
@@ -61,18 +58,21 @@ describe('a read port that rejects is read as unknown', () => {
     expect(w.transports.calls).toHaveLength(0)
   })
 
-  it('adoption rejecting at the re-read before a build: ensure answers unknown and builds nothing', async () => {
+  it('adoption rejecting at the re-read before a build: refresh answers unknown and builds nothing', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files)
-    const ports = { ...w.ports, adoption: adoptionDownAfter(w, 1) }
-    const table = createConnectionTable(ports, w.config)
-    const decision = await admit(ports, alice, files)
-    if (decision.kind !== 'admitted') throw new Error('not admitted')
-    expect(await table.ensure(decision.endpoint, alice)).toEqual({
-      failure: { stage: 'settings', reason: { kind: 'unknown' } },
+    // Call 1 is the gate of the refresh and answers; call 2, the re-read before the build, rejects.
+    const c = core({ ...w, ports: { ...w.ports, adoption: adoptionDownAt(w, only(2)) } })
+    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
+      failure: { kind: 'unknown' },
     })
+    // The gate passed: eligibility was asked, so the refusal is the re-read's.
+    expect(w.eligibility.calls()).toBe(1)
     expect(w.transports.calls).toHaveLength(0)
-    expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'none' })
+    expect(w.landing.processes()).toEqual([])
+    expect(await c.status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'none' } },
+    })
   })
 
   it('the store rejecting at the marking of a connection failure: the catalog is unavailable, refresh answers unknown', async () => {

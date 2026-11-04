@@ -2,26 +2,14 @@
 // work. That is a provider in breach of its contract (T5, PL1, CU1), which the table has to
 // absorb as SPEC decision 4 says. The inner double still records the call, so the trace and the
 // counts show what ran before the rejection.
-import type { Access } from '@omne-harness/legal-identity'
-import type { Outcome } from '@omne-harness/operation-result'
+import type { McpPorts, StopScope } from '@omne-harness/mcp-contract'
 import type {
-  CredentialBinding,
-  EndpointHolding,
-  McpPorts,
-  StopScope,
-} from '@omne-harness/mcp-contract'
-import type {
-  CredentialFailure,
-  CredentialPurpose,
   CredentialUse,
-  HttpCredentialHandle,
-  HttpPurpose,
   McpTransport,
   McpTransportFactory,
-  ProcessCredentialHandle,
   ProcessLanding,
-  ProcessPurpose,
 } from '@omne-harness/mcp-contract/provider'
+import { releasing, reshapedCredentials } from './handles.ts'
 import type { Principal } from './values.ts'
 import type { World } from './world.ts'
 
@@ -86,44 +74,13 @@ export function landingStoppingAs(
   }
 }
 
-type AnyHandle = ProcessCredentialHandle | HttpCredentialHandle
-
-function releaseRejects(handle: AnyHandle): AnyHandle {
-  return {
-    ...handle,
-    async release() {
+function credentialsWhoseReleaseRejects(port: CredentialUse<Principal>): CredentialUse<Principal> {
+  return reshapedCredentials(port, handle =>
+    releasing(handle, async () => {
       await handle.release()
       throw rejection('release')
-    },
-  }
-}
-
-function credentialsWhoseReleaseRejects(port: CredentialUse<Principal>): CredentialUse<Principal> {
-  function acquire(
-    access: Access<Principal>,
-    holding: EndpointHolding,
-    purpose: ProcessPurpose,
-    binding: CredentialBinding,
-  ): Promise<Outcome<ProcessCredentialHandle, CredentialFailure>>
-  function acquire(
-    access: Access<Principal>,
-    holding: EndpointHolding,
-    purpose: HttpPurpose,
-    binding: CredentialBinding,
-  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>>
-  async function acquire(
-    access: Access<Principal>,
-    holding: EndpointHolding,
-    purpose: CredentialPurpose,
-    binding: CredentialBinding,
-  ): Promise<Outcome<AnyHandle, CredentialFailure>> {
-    const answer =
-      purpose.kind === 'process-env'
-        ? await port.acquire(access, holding, purpose, binding)
-        : await port.acquire(access, holding, purpose, binding)
-    return 'failure' in answer ? answer : { ok: releaseRejects(answer.ok) }
-  }
-  return { acquire }
+    }),
+  )
 }
 
 /** The world's ports with the named steps rejecting; the other ports are the world's own. */

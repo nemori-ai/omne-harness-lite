@@ -7,6 +7,7 @@ import { connectionKeyOf } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
 import { admit } from '../src/internal/gate.ts'
 import { createConnectionTable } from '../src/internal/table.ts'
+import { between } from './doubles/calls.ts'
 import { core } from './doubles/core.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import {
@@ -530,20 +531,22 @@ describe('the adoption read again in the critical section is bounded (decision 2
   it('a re-read that never answers: connection-unavailable at the bound, and the next ensure of the holding answers within its own bound', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
-    // Call 1 is the gate; from call 2 on, the re-reads of the critical section never answer.
-    const silent = silentAdoption(w.ports.adoption, 2)
-    const ports = { ...w.ports, adoption: silent.port }
-    const table = createConnectionTable(ports, w.config)
-    const decision = await admit(ports, alice, files)
-    if (decision.kind !== 'admitted') throw new Error('not admitted')
-    const first = table.ensure(decision.endpoint, alice)
-    const second = table.ensure(decision.endpoint, alice)
-    const refused = { failure: { stage: 'settings', reason: { kind: 'connection-unavailable' } } }
-    expect(await first).toEqual(refused)
-    expect(await second).toEqual(refused)
-    expect(silent.calls()).toBe(3)
+    // Calls 1 and 2 are the gates of the two refreshes; calls 3 and 4, the re-reads of the
+    // critical section, never answer.
+    const silent = silentAdoption(w.ports.adoption, between(3, 4))
+    const c = core({ ...w, ports: { ...w.ports, adoption: silent.port } })
+    const [first, second] = await Promise.all([
+      c.discovery.refresh(alice, { ref: files }),
+      c.discovery.refresh(alice, { ref: files }),
+    ])
+    const refused = { failure: { kind: 'connection-unavailable' } }
+    expect(first).toEqual(refused)
+    expect(second).toEqual(refused)
+    expect(silent.calls()).toBe(4)
     expect(w.transports.calls).toHaveLength(0)
-    expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'none' })
+    expect(await c.status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'none' } },
+    })
   })
 })
 
