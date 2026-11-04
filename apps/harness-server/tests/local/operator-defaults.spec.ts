@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import { resolveLocations } from '../../src/local/locations.ts'
 import { captureShellEnvironment, isSecretName } from '../../src/local/settings.ts'
 import {
@@ -136,9 +137,11 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
   })
 
+  const toolHost = z.object({
+    construction: z.object({ Shell: z.object({ env: z.record(z.string(), z.string()) }) }),
+  })
   const shellEnv = (l: ReturnType<typeof localOperatorLayer>) =>
-    (configOf(l, 'tool-host')?.['construction'] as { Shell: { env: Record<string, string> } }).Shell
-      .env
+    toolHost.parse(configOf(l, 'tool-host')).construction.Shell.env
 
   it('gives the shell the saved allowlist, PATH included, and its own temp directory', () => {
     expect(shellEnv(layer)).toEqual({
