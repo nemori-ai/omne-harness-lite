@@ -83,6 +83,60 @@ export function stallingCredentials(
 }
 
 /**
+ * The landing whose processes picked by `which` (in the order they landed; the first is 1) wait
+ * on `gate` in `stop()` before they are stopped.
+ */
+export function stallingStops(
+  port: ProcessLanding<Principal>,
+  which: Which,
+): Readonly<{ port: ProcessLanding<Principal>; gate: Deferred<void> }> {
+  const gate = deferred<void>()
+  const landed = picker(which)
+  return {
+    gate,
+    port: {
+      async start(access, launch, env) {
+        const answer = await port.start(access, launch, env)
+        if ('failure' in answer) return answer
+        const stalls = landed.next()
+        const process = answer.ok
+        return {
+          ok: {
+            ...process,
+            async stop() {
+              if (stalls) await gate.promise
+              return process.stop()
+            },
+          },
+        }
+      },
+    },
+  }
+}
+
+/**
+ * The credential port whose handles picked by `which` (in the order they were acquired; the
+ * first is 1) wait on `gate` in `release()` before they are released.
+ */
+export function stallingReleases(
+  port: CredentialUse<Principal>,
+  which: Which,
+): Readonly<{ port: CredentialUse<Principal>; gate: Deferred<void> }> {
+  const gate = deferred<void>()
+  const acquired = picker(which)
+  return {
+    gate,
+    port: reshapedCredentials(port, handle => {
+      const stalls = acquired.next()
+      return releasing(handle, async () => {
+        if (stalls) await gate.promise
+        await handle.release()
+      })
+    }),
+  }
+}
+
+/**
  * The adoption view whose `endpoint` calls picked by `which` never answer: the port is not even
  * asked. `calls` counts them all. It is the re-read of the critical section that has to be
  * bounded, so the caller does not wait on this forever.

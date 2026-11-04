@@ -5,9 +5,9 @@
 import { describe, expect, it } from 'vitest'
 import { only } from './doubles/calls.ts'
 import { core, type Core } from './doubles/core.ts'
-import { deferred, settled } from './doubles/deferred.ts'
+import { settled, type Deferred } from './doubles/deferred.ts'
 import { faulty, landingStoppingAs, type Fault, type StopAnswer } from './doubles/faults.ts'
-import { stallingLanding } from './doubles/stalls.ts'
+import { stallingLanding, stallingReleases, stallingStops } from './doubles/stalls.ts'
 import { alice, millis, ref } from './doubles/values.ts'
 import { VALUE, adoptStdio, usualScript, world, type World } from './doubles/world.ts'
 
@@ -149,16 +149,17 @@ describe('every process is asked to stop, whichever stop rejects (decision 4)', 
 })
 
 describe('the entry stays while its teardown waits on a port (decision 20)', () => {
-  it('a landing that answers while the transport is still closing: the entry stays, a second release joins the first', async () => {
-    const closing = deferred<'closed'>()
-    const w = world({ script: [...usualScript(), { close: closing }] })
-    adoptStdio(w, files, {
-      ...WITH_CREDENTIAL,
-      settings: { connectTimeout: VALUE(millis(50)) },
-    })
-    // The first start outlives its bound; the rebuild's start lands at once.
-    const stalled = stallingLanding(w.landing, only(1))
-    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
+  // A resource leaves the entry only after its port answered. A late landing that answers in the
+  // meantime makes the table look at the entry again; it has to find the entry still holding.
+  const SHORT = { settings: { connectTimeout: VALUE(millis(50)) } }
+  const RELEASED = { ok: { kind: 'released', process: 'tree-confirmed' } }
+
+  /**
+   * The first start outlives its bound and stays a landing in flight; the rebuild lands at once.
+   * Then a release whose teardown waits on a port, the late landing answering meanwhile, and a
+   * second release asked while the first still waits.
+   */
+  async function releaseWhileALandingAnswers(c: Core, landing: Deferred<void>) {
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
       failure: { kind: 'connection-unavailable' },
     })
@@ -167,25 +168,53 @@ describe('the entry stays while its teardown waits on a port (decision 20)', () 
     })
     const first = c.connections.release(alice, files)
     await settled()
-    stalled.gate.resolve()
+    landing.resolve()
     await settled()
-    // The late process is stopped and its handle released; the transport has not answered yet.
-    expect(w.landing.processes()).toEqual([{ stops: 0 }, { stops: 1 }])
-    expect(w.credentials.handles()).toEqual([
-      { acquired: 1, released: 1 },
-      { acquired: 1, released: 0 },
-    ])
     const second = c.connections.release(alice, files)
     let answered = false
     void second.then(() => {
       answered = true
     })
     await settled()
-    expect(answered).toBe(false)
-    closing.resolve('closed')
-    const released = { ok: { kind: 'released', process: 'tree-confirmed' } }
-    expect(await first).toEqual(released)
-    expect(await second).toEqual(released)
+    return { first, second, answered: () => answered }
+  }
+
+  it('a landing that answers while the process is still stopping: the entry stays, a second release joins the first', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files, SHORT)
+    // The rebuild's process is the first one to land: its stop waits.
+    const stopping = stallingStops(w.landing, only(1))
+    const stalled = stallingLanding(stopping.port, only(1))
+    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
+    const { first, second, answered } = await releaseWhileALandingAnswers(c, stalled.gate)
+    expect(w.landing.processes()).toEqual([{ stops: 0 }, { stops: 1 }])
+    expect(answered()).toBe(false)
+    stopping.gate.resolve()
+    expect(await first).toEqual(RELEASED)
+    expect(await second).toEqual(RELEASED)
+    expect(await c.connections.release(alice, files)).toEqual({ ok: { kind: 'no-connection' } })
+  })
+
+  it('a landing that answers while the handle is still being released: the entry stays, a second release joins the first', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files, { ...WITH_CREDENTIAL, ...SHORT })
+    // Handle 1 goes with the late landing; handle 2 is the rebuild's, and its release waits.
+    const releasing = stallingReleases(w.credentials, only(2))
+    const stalled = stallingLanding(w.landing, only(1))
+    const c = core({
+      ...w,
+      ports: { ...w.ports, landing: stalled.port, credentials: releasing.port },
+    })
+    const { first, second, answered } = await releaseWhileALandingAnswers(c, stalled.gate)
+    expect(w.landing.processes()).toEqual([{ stops: 1 }, { stops: 1 }])
+    expect(w.credentials.handles()).toEqual([
+      { acquired: 1, released: 1 },
+      { acquired: 1, released: 0 },
+    ])
+    expect(answered()).toBe(false)
+    releasing.gate.resolve()
+    expect(await first).toEqual(RELEASED)
+    expect(await second).toEqual(RELEASED)
     expect(await c.connections.release(alice, files)).toEqual({ ok: { kind: 'no-connection' } })
     expect(w.credentials.handles()).toEqual([
       { acquired: 1, released: 1 },
