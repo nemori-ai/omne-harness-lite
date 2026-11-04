@@ -192,7 +192,7 @@ SDK 首批覆盖的其余能力、操作及订阅范围仍待明确。那些项�
 
 承接责任为客户端本地状态提供者与组合关闭拥有者。待办是取得双失败及成功清理的回归证据，并核验其他资源的真实关闭状态；目标沿有序退出与清理失败要求。
 
-[封存来源](../../packages.0.0.1.legacy/frontend/client-local-state-sqlite/README_ZH.md#关闭失败的现状偏离)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/frontend/client-local-state-sqlite/README_ZH.md#关闭失败的现状偏离)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 
 <a id="sdk-t01"></a>
 ### SDK-T01 客户端治理操作的公开契约承接
@@ -201,4 +201,4 @@ SDK 首批覆盖的其余能力、操作及订阅范围仍待明确。那些项�
 
 承接责任为SDK、治理公开操作及实际客户端消费者。待办是确认获准操作范围、入口与两端行为，验证依赖闭包、身份、故障及重连；未采用的传输和发布决定继续保持待定。
 
-[封存来源](../../packages.0.0.1.legacy/core/governance-client-operations/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/governance-client-operations/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。

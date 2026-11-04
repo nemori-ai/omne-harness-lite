@@ -147,9 +147,9 @@ Session 日志读面的引用定位见 Session 的[稳定调用引用的读取](
 
 - `apps/cli` 只支持 `--help` 与 `--version`。`apps/cli/src/state-directory.ts` 能解析 `$HOME/.omne`，但这两条操作不创建状态根。
 - `apps/harness-server` 的现有模式不打开业务状态根，见其[范围](../../../apps/harness-server/SPEC.md#范围)。
-- `apps.0.0.1.legacy/README.md` 仍列出 tenancy-host 与封存版 CLI，并注明旧 `local-harness` 基线已退役，原件在 Git 历史。它们不是已迁移到新树的服务。
-- `docs/development.md` 仍链接封存版 tenancy-host 与 CLI 的运行材料，这是现有的读者消费者。
-- `scripts/README.md` 写明两个脚本仍指向不存在的 `apps/tenancy-host/tools/*`。这是源码指针的事实，不能据此断定没有旧部署数据。
+- 封存应用树已从仓库删除。固定提交中的 [apps.0.0.1.legacy/README.md](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/README.md) 列出 tenancy-host 与封存版 CLI，并注明旧 `local-harness` 基线已退役，原件在 Git 历史。它们不是已迁移到新树的服务。
+- `docs/development.md` 仍链接固定提交中封存版 tenancy-host 与 CLI 的运行材料，这是现有的读者消费者。
+- `scripts/README.md` 写明 `package-tenancy-host.sh` 仍指向不存在的 `apps/tenancy-host/tools/package.ts`。这是源码指针的事实，不能据此断定没有旧部署数据。
 
 未查范围是：用户实际的状态根、旧的活进程、其他设备与用户目录、已发行制品和生产数据。这些保持未知。仓库里没有文件，不代表这些位置没有数据。
 
@@ -157,7 +157,7 @@ Session 日志读面的引用定位见 Session 的[稳定调用引用的读取](
 | --- | --- |
 | 切换 | 切换前，后继调查为每个已确认的根记录拥有者、实例与消费者、schema 版本、当前进程，以及保存与回退的责任。应用见到旧根而没有已接受方案时，按上文「状态根与归属」处理 |
 | 重建 | 需要重建时，先具名接受保留或迁移方案。持久格式与迁移规则归数据拥有者 |
-| 保留 | 新服务建成时，不删除封存版的运行说明，也不把其历史数据当作新 schema |
+| 保留 | 封存版的运行说明已从仓库删除，原件留在[固定提交](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy)。不把其历史数据当作新 schema |
 
 ## 仍需补齐的业务增量
 

@@ -391,7 +391,8 @@ describe('reasoning details and sealing', () => {
 })
 
 // The identity of streamed reasoning detail items. The cases follow the sealed late-signature
-// tests (packages.0.0.1.legacy, anthropic-stream-late-signature.spec.ts) with neutral names.
+// tests with neutral names. The sealed file is deleted from the repository. It stays at
+// https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/model/pi-ai-transport/tests/anthropic-stream-late-signature.spec.ts
 describe('reasoning detail identity', () => {
   /** A json-text tree as plain data; a number becomes a JavaScript number. */
   function data(value: JsonValue): unknown {

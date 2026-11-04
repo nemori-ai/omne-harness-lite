@@ -130,7 +130,7 @@ flowchart LR
 
 本节给阶段 1 至 7 的实施者一张逐文件的去向表。实施者按文件名查去向，不再自己判断是否读封存件。
 
-范围是封存目录 [`packages.0.0.1.legacy`](../../../packages.0.0.1.legacy/README.md) 中五个包的 `src/` 源码，共 53 个文件，版本是父分支提交 `453f7498`。五个包是 `core/agent-definition`、`core/loop-extension`、`core/agent-loop`、`core/loop-extension-runner` 与 `agent-loop/loop-extension-runner-local`。
+范围是封存目录 [`packages.0.0.1.legacy`](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/README.md) 中五个包的 `src/` 源码，共 53 个文件，版本是父分支提交 `453f7498`。五个包是 `core/agent-definition`、`core/loop-extension`、`core/agent-loop`、`core/loop-extension-runner` 与 `agent-loop/loop-extension-runner-local`。
 
 判据来自 [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) 与 [#504](https://github.com/nemori-ai/omne-harness-lite/issues/504) 的“目标与范围”，原文如下：
 
