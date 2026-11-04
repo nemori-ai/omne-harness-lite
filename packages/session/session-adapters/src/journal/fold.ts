@@ -1,0 +1,897 @@
+// The pure fold of the Agent fact family into the in-process view (R2-D292): `fold(view, batch)`
+// reads its two arguments and nothing else, so two folds of one fact sequence are one view, a cached
+// view plus the batches it missed equals the fold from the start, and a successor process folds the
+// same view the predecessor had. Every structure here is a projection; it can be dropped and rebuilt
+// from the rows. The memory stand-in and the production provider fold through this one function.
+import type {
+  ActionBatchId,
+  ActionId,
+  Adoption,
+  AgentConclusion,
+  AgentExecutionId,
+  AgentOperationId,
+  Authority,
+  ConsumerRef,
+  ConsumptionId,
+  ControlStage,
+  DurableEvidence,
+  ExecutionControl,
+  FinishCandidateContent,
+  HandoffReference,
+  InputBatch,
+  InputId,
+  ModelReplyAdmission,
+  PassageId,
+  PendingCall,
+  StepId,
+  Waiting,
+} from '@omne-harness/agent-contract'
+import type { ModelInvocationRef } from '@omne-harness/model-contract'
+import type { ToolInvocationRef, ToolOperationRef } from '@omne-harness/tool-contract'
+import { canonical } from '../testing/canonical.ts'
+import {
+  EVENT_OF,
+  digestOf,
+  type AttachmentBasis,
+  type Attempt,
+  type CursorMembers,
+  type FactBody,
+  type ParticipationKind,
+  type ProducerCall,
+  type PublishedBatch,
+  type Ref,
+  type ResultStage,
+} from './facts.ts'
+
+/** One attachment as the view keeps it: active until a detach or the next attach supersedes it. */
+export type AttachmentView = Readonly<{
+  authority: Authority
+  grant: DurableEvidence | null
+  basis: AttachmentBasis
+  status: 'active' | 'detached' | 'superseded'
+  handoff: DurableEvidence | null
+  pub: number
+}>
+
+export type InputView = Readonly<{
+  input: InputId
+  entry: AgentOperationId
+  content: Ref
+  source: DurableEvidence | null
+  priority: 'ordinary' | 'urgent'
+  watermark: DurableEvidence
+  pub: number
+  revision: number
+}>
+
+export type RequestView = Readonly<{
+  step: StepId
+  attempt: Attempt
+  reference: ModelInvocationRef
+  fixed: DurableEvidence
+  schema: Adoption
+  record: Ref
+  coverage: DurableEvidence | null
+  voided: DurableEvidence | null
+  pub: number
+}>
+
+/** One intended call and everything the ledger learned about it since. */
+export type IntentView = Readonly<{
+  action: ActionId
+  step: StepId
+  pending: PendingCall
+  authority: Authority
+  request: Ref | null
+  association: Readonly<{ reference: ToolInvocationRef; receipt: DurableEvidence }> | null
+  judgment: Readonly<{
+    judgment: 'pending' | 'waiting' | 'denied' | 'allowed'
+    evidence: DurableEvidence | null
+    passage: PassageId | null
+    request: Ref | null
+  }> | null
+  settlement: DurableEvidence | null
+  pub: number
+}>
+
+export type ResultView = Readonly<{
+  consumption: ConsumptionId
+  result: ProducerCall
+  received: Readonly<{
+    delivery: string
+    consumer: ConsumerRef
+    custody: Ref
+    saved: DurableEvidence
+    pub: number
+  }> | null
+  stages: Readonly<Partial<Record<ResultStage, DurableEvidence>>>
+  /** The pub of the last fact of this consumption. */
+  pub: number
+}>
+
+export type AdmissionView = Readonly<{
+  sequence: number
+  fact: ModelReplyAdmission
+  basis: DurableEvidence
+  publication: DurableEvidence
+  message: Ref | null
+  history: DurableEvidence | null
+  pub: number
+  revision: number
+}>
+
+export type HandoffView = Readonly<{
+  handoff: HandoffReference
+  prepared: Readonly<{ request: Ref; prepared: DurableEvidence; pub: number }> | null
+  resolved: Readonly<{
+    resolution: 'recorded' | 'excluded'
+    outcome: Ref
+    history: DurableEvidence | null
+    pub: number
+    revision: number
+  }> | null
+  retired: Readonly<{ reason: DurableEvidence; pub: number; revision: number }> | null
+  /** The Rh chain: each recorded attempt in order, with its predecessor. */
+  recorded: readonly Readonly<{
+    resolution: 'recorded' | 'excluded'
+    outcome: Ref
+    predecessor: AgentOperationId | null
+    op: AgentOperationId
+    pub: number
+  }>[]
+}>
+
+export type BatchView = Readonly<{
+  batch: ActionBatchId
+  step: StepId
+  source: ProducerCall
+  actions: readonly Readonly<{ action: ActionId; callId: string; arguments: Ref }>[]
+  pub: number
+}>
+
+export type PassageView = Readonly<{
+  passage: PassageId
+  subject: Ref
+  declared: DurableEvidence
+  progress: readonly Readonly<{ progress: Ref; round: string | null; pub: number }>[]
+  conclusion: Readonly<{ conclusion: Ref; evidence: DurableEvidence; pub: number }> | null
+  pub: number
+}>
+
+export type ControlView = Readonly<{
+  control: AgentOperationId
+  command: ExecutionControl
+  toolInvocation: ToolInvocationRef | null
+  toolOperation: ToolOperationRef | null
+  stages: Readonly<
+    Partial<
+      Record<ControlStage, Readonly<{ state: 'reached' | 'unresolved'; source: DurableEvidence }>>
+    >
+  >
+  rejected: readonly DurableEvidence[]
+  pub: number
+}>
+
+export type CandidateView = Readonly<{
+  candidate: AgentOperationId
+  content: FinishCandidateContent
+  checkpoint: Ref
+  route: DurableEvidence
+  supersedes: AgentOperationId | null
+  beforeTerminal: DurableEvidence | null
+  obligations: Readonly<{
+    items: readonly Readonly<{
+      index: number
+      category: string
+      item: Ref
+      disposition: Ref | null
+    }>[]
+    issued: Readonly<{ count: number; evidence: DurableEvidence; pub: number }> | null
+  }>
+  pub: number
+  revision: number
+}>
+
+export type FinishView = Readonly<{
+  candidates: readonly CandidateView[]
+  current: AgentOperationId | null
+  ended: Readonly<{
+    candidate: AgentOperationId | null
+    conclusion: AgentConclusion
+    disposition: DurableEvidence
+    pub: number
+    revision: number
+  }> | null
+}>
+
+/** One projected event: the fact that is the event, with its dense sequence in the execution. */
+export type EventView = Readonly<{
+  eseq: number
+  kind: string
+  pub: number
+  ord: number
+  revision: number
+  attachment: Authority | null
+  fact: FactBody
+}>
+
+/** The entry of the operation index: where the batch of an operation is and what it reached. */
+export type OperationEntry = Readonly<{
+  execution: AgentExecutionId
+  digest: string
+  pub: number
+  /** The revision the answer names: the batch's own, or the recognized batch's. */
+  revision: number
+  /** The recognized operation, for a recognition batch; null otherwise. */
+  target: AgentOperationId | null
+  kinds: readonly ParticipationKind[]
+}>
+
+export type ExecutionView = Readonly<{
+  execution: AgentExecutionId
+  revision: number
+  /** The last publication folded into this execution. */
+  head: number
+  /** The authority generation of the active attachment, or the last one. */
+  gen: string
+  opened: Readonly<{
+    definition: Adoption
+    schema: Adoption
+    instance: string
+    scope: DurableEvidence
+    original: Readonly<{ input: InputId; entry: AgentOperationId; handoff: HandoffReference }>
+    coordination: 'standalone' | 'coordinated'
+    pub: number
+  }> | null
+  attachments: readonly AttachmentView[]
+  cursor: Readonly<Partial<CursorMembers>>
+  /** The pub of the last cursor move of each member. */
+  cursorMoved: Readonly<Partial<Record<keyof CursorMembers, number>>>
+  inputs: readonly InputView[]
+  steps: readonly Readonly<{ step: StepId; batch: InputBatch; pub: number }>[]
+  requests: readonly RequestView[]
+  /** The latest request not voided: AD-04's adopted request; its order is its pub. */
+  adopted: RequestView | null
+  intents: ReadonlyMap<ActionId, IntentView>
+  results: ReadonlyMap<ConsumptionId, ResultView>
+  admissions: readonly AdmissionView[]
+  handoffs: ReadonlyMap<string, HandoffView>
+  batches: ReadonlyMap<ActionBatchId, BatchView>
+  passages: ReadonlyMap<PassageId, PassageView>
+  controls: ReadonlyMap<AgentOperationId, ControlView>
+  waits: Readonly<{ step: StepId; waits: readonly Waiting[]; pub: number }> | null
+  finish: FinishView
+  settlements: readonly Readonly<{
+    variant: string
+    record: Ref
+    evidence: DurableEvidence
+    op: AgentOperationId
+    pub: number
+  }>[]
+  observations: readonly Readonly<{
+    terminal: DurableEvidence
+    passage: PassageId
+    implementation: Adoption
+    observed: DurableEvidence
+    pub: number
+  }>[]
+  acknowledged: number
+  events: readonly EventView[]
+  /** The operations that wrote this execution, in pub order. */
+  ops: ReadonlyMap<AgentOperationId, OperationEntry>
+}>
+
+export type SessionJournalView = Readonly<{
+  /** The last publication folded: `er_root.published` when the view is current. */
+  head: number
+  executions: ReadonlyMap<AgentExecutionId, ExecutionView>
+  ops: ReadonlyMap<AgentOperationId, OperationEntry>
+}>
+
+export const emptySessionView = (): SessionJournalView => ({
+  head: 0,
+  executions: new Map(),
+  ops: new Map(),
+})
+
+export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
+  return {
+    execution,
+    revision: 0,
+    head: 0,
+    gen: '0',
+    opened: null,
+    attachments: [],
+    cursor: {},
+    cursorMoved: {},
+    inputs: [],
+    steps: [],
+    requests: [],
+    adopted: null,
+    intents: new Map(),
+    results: new Map(),
+    admissions: [],
+    handoffs: new Map(),
+    batches: new Map(),
+    passages: new Map(),
+    controls: new Map(),
+    waits: null,
+    finish: { candidates: [], current: null, ended: null },
+    settlements: [],
+    observations: [],
+    acknowledged: 0,
+    events: [],
+    ops: new Map(),
+  }
+}
+
+/** The key of a handoff reference in `handoffs`. */
+export const handoffKey = (reference: HandoffReference): string => canonical(reference)
+
+/** Whether a batch advances the revision: every batch but a pure recognition does. */
+export function advances(batch: PublishedBatch): boolean {
+  return batch.facts.some(fact => fact.kind !== 'op.recognized')
+}
+
+type Draft = {
+  -readonly [K in keyof ExecutionView]: ExecutionView[K]
+} & {
+  intents: Map<ActionId, IntentView>
+  results: Map<ConsumptionId, ResultView>
+  handoffs: Map<string, HandoffView>
+  batches: Map<ActionBatchId, BatchView>
+  passages: Map<PassageId, PassageView>
+  controls: Map<AgentOperationId, ControlView>
+  ops: Map<AgentOperationId, OperationEntry>
+  cursor: Partial<CursorMembers>
+  cursorMoved: Partial<Record<keyof CursorMembers, number>>
+}
+
+function draftOf(view: ExecutionView): Draft {
+  return {
+    ...view,
+    cursor: { ...view.cursor },
+    cursorMoved: { ...view.cursorMoved },
+    intents: new Map(view.intents),
+    results: new Map(view.results),
+    handoffs: new Map(view.handoffs),
+    batches: new Map(view.batches),
+    passages: new Map(view.passages),
+    controls: new Map(view.controls),
+    ops: new Map(view.ops),
+  }
+}
+
+function handoffOf(draft: Draft, reference: HandoffReference): HandoffView {
+  return (
+    draft.handoffs.get(handoffKey(reference)) ?? {
+      handoff: reference,
+      prepared: null,
+      resolved: null,
+      retired: null,
+      recorded: [],
+    }
+  )
+}
+
+function candidateAt(
+  draft: Draft,
+  candidate: AgentOperationId,
+  change: (view: CandidateView) => CandidateView,
+): void {
+  const index = draft.finish.candidates.findIndex(item => item.candidate === candidate)
+  if (index < 0) return
+  const candidates = [...draft.finish.candidates]
+  candidates[index] = change(candidates[index]!)
+  draft.finish = { ...draft.finish, candidates }
+}
+
+function active(draft: Draft): Authority | null {
+  const latest = draft.attachments.at(-1)
+  return latest?.status === 'active' ? latest.authority : null
+}
+
+/** Applies one fact to the draft at `pub`, `ord`, after the revision of the batch is known. */
+function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision: number): void {
+  switch (fact.kind) {
+    case 'exec.opened':
+      draft.opened = { ...fact, pub }
+      break
+    case 'exec.attached': {
+      const attachments = draft.attachments.map(item =>
+        item.status === 'active' ? { ...item, status: 'superseded' as const } : item,
+      )
+      attachments.push({
+        authority: fact.authority,
+        grant: fact.grant,
+        basis: fact.basis,
+        status: 'active',
+        handoff: null,
+        pub,
+      })
+      draft.attachments = attachments
+      draft.gen = fact.authority.generation
+      break
+    }
+    case 'exec.detached':
+      draft.attachments = draft.attachments.map(item =>
+        item.authority.executionAttachment === fact.attachment && item.status === 'active'
+          ? { ...item, status: 'detached' as const, handoff: fact.handoff }
+          : item,
+      )
+      break
+    case 'input.accepted':
+      if (!draft.inputs.some(item => item.input === fact.input))
+        draft.inputs = [
+          ...draft.inputs,
+          {
+            input: fact.input,
+            entry: fact.entry,
+            content: fact.content,
+            source: fact.source,
+            priority: fact.priority,
+            watermark: fact.watermark,
+            pub,
+            revision,
+          },
+        ]
+      break
+    case 'step.begun':
+      draft.steps = [...draft.steps, { step: fact.step, batch: fact.batch, pub }]
+      break
+    case 'request.adopted': {
+      const request: RequestView = {
+        step: fact.step,
+        attempt: fact.attempt,
+        reference: fact.reference,
+        fixed: fact.fixed,
+        schema: fact.schema,
+        record: fact.record,
+        coverage: fact.coverage,
+        voided: null,
+        pub,
+      }
+      draft.requests = [...draft.requests, request]
+      draft.adopted = request
+      break
+    }
+    case 'intent.voided': {
+      draft.requests = draft.requests.map(item =>
+        item.step === fact.step && item.attempt === fact.attempt
+          ? { ...item, voided: fact.basis }
+          : item,
+      )
+      draft.adopted = draft.requests.findLast(item => item.voided === null) ?? null
+      break
+    }
+    case 'call.intended':
+      if (!draft.intents.has(fact.action))
+        draft.intents.set(fact.action, {
+          action: fact.action,
+          step: fact.step,
+          pending: fact.pending,
+          authority: fact.authority,
+          request: fact.request,
+          association: null,
+          judgment: null,
+          settlement: null,
+          pub,
+        })
+      break
+    case 'call.associated': {
+      const intent = draft.intents.get(fact.action)
+      if (intent !== undefined && intent.association === null)
+        draft.intents.set(fact.action, {
+          ...intent,
+          association: { reference: fact.reference, receipt: fact.receipt },
+          pending:
+            intent.pending.kind === 'tool'
+              ? { ...intent.pending, association: 'associated', reference: fact.reference }
+              : intent.pending,
+        })
+      break
+    }
+    case 'result.received': {
+      const known = draft.results.get(fact.consumption)
+      draft.results.set(fact.consumption, {
+        consumption: fact.consumption,
+        result: fact.result,
+        received: known?.received ?? {
+          delivery: fact.delivery,
+          consumer: fact.consumer,
+          custody: fact.custody,
+          saved: fact.saved,
+          pub,
+        },
+        stages: known?.stages ?? {},
+        pub,
+      })
+      break
+    }
+    case 'result.handled': {
+      const known = draft.results.get(fact.consumption)
+      const stages: Partial<Record<ResultStage, DurableEvidence>> = { ...known?.stages }
+      if (stages[fact.stage] === undefined) stages[fact.stage] = fact.evidence
+      draft.results.set(fact.consumption, {
+        consumption: fact.consumption,
+        result: known?.result ?? fact.result,
+        received: known?.received ?? null,
+        stages,
+        pub,
+      })
+      break
+    }
+    case 'reply.judged':
+      if (!draft.admissions.some(item => item.sequence === fact.sequence))
+        draft.admissions = [
+          ...draft.admissions,
+          {
+            sequence: fact.sequence,
+            fact: fact.fact,
+            basis: fact.basis,
+            publication: fact.publication,
+            message: fact.message,
+            history: fact.history,
+            pub,
+            revision,
+          },
+        ]
+      break
+    case 'handoff.prepared': {
+      const handoff = handoffOf(draft, fact.handoff)
+      if (handoff.prepared === null)
+        draft.handoffs.set(handoffKey(fact.handoff), {
+          ...handoff,
+          prepared: { request: fact.request, prepared: fact.prepared, pub },
+        })
+      break
+    }
+    case 'handoff.resolved': {
+      const handoff = handoffOf(draft, fact.handoff)
+      if (handoff.resolved === null)
+        draft.handoffs.set(handoffKey(fact.handoff), {
+          ...handoff,
+          resolved: {
+            resolution: fact.resolution,
+            outcome: fact.outcome,
+            history: fact.history,
+            pub,
+            revision,
+          },
+        })
+      break
+    }
+    case 'handoff.retired': {
+      const handoff = handoffOf(draft, fact.handoff)
+      if (handoff.retired === null)
+        draft.handoffs.set(handoffKey(fact.handoff), {
+          ...handoff,
+          retired: { reason: fact.reason, pub, revision },
+        })
+      break
+    }
+    case 'handoff.recorded': {
+      const handoff = handoffOf(draft, fact.handoff)
+      const op = draft.ops.size === 0 ? null : [...draft.ops.keys()].at(-1)
+      draft.handoffs.set(handoffKey(fact.handoff), {
+        ...handoff,
+        recorded: [
+          ...handoff.recorded,
+          {
+            resolution: fact.resolution,
+            outcome: fact.outcome,
+            predecessor: fact.predecessor,
+            op: op as AgentOperationId,
+            pub,
+          },
+        ],
+      })
+      break
+    }
+    case 'batch.fixed':
+      if (!draft.batches.has(fact.batch))
+        draft.batches.set(fact.batch, {
+          batch: fact.batch,
+          step: fact.step,
+          source: fact.source,
+          actions: fact.actions,
+          pub,
+        })
+      break
+    case 'action.judged': {
+      const intent = draft.intents.get(fact.action)
+      if (intent !== undefined)
+        draft.intents.set(fact.action, {
+          ...intent,
+          judgment: {
+            judgment: fact.judgment,
+            evidence: fact.evidence,
+            passage: fact.passage,
+            request: fact.request,
+          },
+        })
+      break
+    }
+    case 'slot.settled': {
+      const intent = draft.intents.get(fact.action)
+      if (intent !== undefined && intent.settlement === null)
+        draft.intents.set(fact.action, { ...intent, settlement: fact.settlement })
+      break
+    }
+    case 'passage.declared':
+      if (!draft.passages.has(fact.passage))
+        draft.passages.set(fact.passage, {
+          passage: fact.passage,
+          subject: fact.subject,
+          declared: fact.declared,
+          progress: [],
+          conclusion: null,
+          pub,
+        })
+      break
+    case 'passage.progressed': {
+      const passage = draft.passages.get(fact.passage)
+      if (passage !== undefined)
+        draft.passages.set(fact.passage, {
+          ...passage,
+          progress: [...passage.progress, { progress: fact.progress, round: fact.round, pub }],
+        })
+      break
+    }
+    case 'passage.concluded': {
+      const passage = draft.passages.get(fact.passage)
+      if (passage !== undefined && passage.conclusion === null)
+        draft.passages.set(fact.passage, {
+          ...passage,
+          conclusion: { conclusion: fact.conclusion, evidence: fact.evidence, pub },
+        })
+      break
+    }
+    case 'control.stage': {
+      const known = draft.controls.get(fact.control)
+      const stages: {
+        -readonly [K in ControlStage]?: Readonly<{
+          state: 'reached' | 'unresolved'
+          source: DurableEvidence
+        }>
+      } = { ...known?.stages }
+      // A stage is a transition: unresolved may become reached; reached never changes.
+      const current = stages[fact.stage]
+      if (current === undefined || (current.state === 'unresolved' && fact.state === 'reached'))
+        stages[fact.stage] = { state: fact.state, source: fact.source }
+      draft.controls.set(fact.control, {
+        control: fact.control,
+        command: known?.command ?? fact.command,
+        toolInvocation: known?.toolInvocation ?? fact.toolInvocation,
+        toolOperation: known?.toolOperation ?? fact.toolOperation,
+        stages,
+        rejected: known?.rejected ?? [],
+        pub,
+      })
+      break
+    }
+    case 'control.rejected': {
+      const known = draft.controls.get(fact.control)
+      if (known !== undefined)
+        draft.controls.set(fact.control, {
+          ...known,
+          rejected: [...known.rejected, fact.audit],
+          pub,
+        })
+      break
+    }
+    case 'wait.entered':
+      draft.waits = { step: fact.step, waits: fact.waits, pub }
+      break
+    case 'finish.candidate':
+      if (!draft.finish.candidates.some(item => item.candidate === fact.candidate))
+        draft.finish = {
+          ...draft.finish,
+          candidates: [
+            ...draft.finish.candidates,
+            {
+              candidate: fact.candidate,
+              content: fact.content,
+              checkpoint: fact.checkpoint,
+              route: fact.route,
+              supersedes: fact.supersedes,
+              beforeTerminal: null,
+              obligations: { items: [], issued: null },
+              pub,
+              revision,
+            },
+          ],
+          current: fact.candidate,
+        }
+      break
+    case 'finish.proved': {
+      const candidate = draft.finish.candidates.find(
+        item => item.route.record === fact.route.record,
+      )
+      if (candidate !== undefined && candidate.beforeTerminal === null)
+        candidateAt(draft, candidate.candidate, item => ({
+          ...item,
+          beforeTerminal: fact.beforeTerminal,
+        }))
+      break
+    }
+    case 'finish.obligation':
+      candidateAt(draft, fact.candidate, item =>
+        item.obligations.items.some(existing => existing.index === fact.index)
+          ? item
+          : {
+              ...item,
+              obligations: {
+                ...item.obligations,
+                items: [
+                  ...item.obligations.items,
+                  {
+                    index: fact.index,
+                    category: fact.category,
+                    item: fact.item,
+                    disposition: null,
+                  },
+                ],
+              },
+            },
+      )
+      break
+    case 'finish.obligations':
+      candidateAt(draft, fact.candidate, item =>
+        item.obligations.issued === null
+          ? {
+              ...item,
+              obligations: {
+                ...item.obligations,
+                issued: { count: fact.count, evidence: fact.evidence, pub },
+              },
+            }
+          : item,
+      )
+      break
+    case 'finish.disposed':
+      candidateAt(draft, fact.candidate, item => ({
+        ...item,
+        obligations: {
+          ...item.obligations,
+          items: item.obligations.items.map(existing =>
+            existing.index === fact.index
+              ? { ...existing, disposition: fact.disposition }
+              : existing,
+          ),
+        },
+      }))
+      break
+    case 'finish.ended':
+      if (draft.finish.ended === null)
+        draft.finish = {
+          ...draft.finish,
+          ended: {
+            candidate: fact.candidate,
+            conclusion: fact.conclusion,
+            disposition: fact.disposition,
+            pub,
+            revision,
+          },
+        }
+      break
+    case 'settlement.recorded': {
+      const op = [...draft.ops.keys()].at(-1) ?? null
+      draft.settlements = [
+        ...draft.settlements,
+        {
+          variant: fact.variant,
+          record: fact.record,
+          evidence: fact.evidence,
+          op: op as AgentOperationId,
+          pub,
+        },
+      ]
+      break
+    }
+    case 'observation.recorded':
+      if (!draft.observations.some(item => item.passage === fact.passage))
+        draft.observations = [...draft.observations, { ...fact, pub }]
+      break
+    case 'ack.through':
+      if (fact.sequence > draft.acknowledged) draft.acknowledged = fact.sequence
+      break
+    case 'op.recognized':
+      break
+    case 'cursor.moved':
+      for (const [name, value] of Object.entries(fact.members) as [
+        keyof CursorMembers,
+        CursorMembers[keyof CursorMembers],
+      ][]) {
+        ;(draft.cursor as Record<string, unknown>)[name] = value
+        draft.cursorMoved[name] = pub
+      }
+      break
+    default: {
+      const _exhaustive: never = fact
+      return _exhaustive
+    }
+  }
+  const event = EVENT_OF[fact.kind]
+  if (event !== undefined)
+    draft.events = [
+      ...draft.events,
+      {
+        eseq: draft.events.length + 1,
+        kind: event,
+        pub,
+        ord,
+        revision,
+        attachment: active(draft),
+        fact,
+      },
+    ]
+}
+
+/**
+ * Folds one published batch into the session view: the execution's revision advances by one unless
+ * the batch is a pure recognition, every fact is applied in order, the operation index gains the
+ * batch's operation, and the head moves to the batch's pub. A batch already folded (`pub <= head`)
+ * or an operation already indexed leaves the view as it is: the log, not the caller, is the truth.
+ */
+export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJournalView {
+  if (batch.pub <= view.head) return view
+  const draft = draftOf(view.executions.get(batch.execution) ?? emptyExecutionView(batch.execution))
+  // The index is written before the facts, so the facts that name the batch's op can read it.
+  const moves = advances(batch)
+  const revision = moves ? draft.revision + 1 : draft.revision
+  const recognition = batch.facts.find(fact => fact.kind === 'op.recognized')
+  const target = recognition?.kind === 'op.recognized' ? recognition.target : null
+  const answered =
+    target === null
+      ? revision
+      : (draft.ops.get(target)?.revision ?? view.ops.get(target)?.revision ?? revision)
+  const entry: OperationEntry = {
+    execution: batch.execution,
+    digest: batch.envelope.digest,
+    pub: batch.pub,
+    revision: answered,
+    target,
+    kinds: batch.envelope.kinds,
+  }
+  if (!draft.ops.has(batch.envelope.op)) draft.ops.set(batch.envelope.op, entry)
+  draft.revision = revision
+  draft.head = batch.pub
+  for (const [index, fact] of batch.facts.entries())
+    apply(draft, fact, batch.pub, index + 1, revision)
+  const executions = new Map(view.executions)
+  executions.set(batch.execution, draft)
+  const ops = view.ops.has(batch.envelope.op)
+    ? view.ops
+    : new Map(view.ops).set(batch.envelope.op, entry)
+  return { head: batch.pub, executions, ops }
+}
+
+/** Folds the batches in order, from `view` or from the empty view. */
+export function foldAll(
+  batches: Iterable<PublishedBatch>,
+  view: SessionJournalView = emptySessionView(),
+): SessionJournalView {
+  let current = view
+  for (const batch of batches) current = fold(current, batch)
+  return current
+}
+
+function plain(value: unknown): unknown {
+  if (value instanceof Map)
+    return Object.fromEntries([...value].map(([key, item]) => [String(key), plain(item)]))
+  if (Array.isArray(value)) return value.map(plain)
+  if (value !== null && typeof value === 'object')
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, plain(item)]))
+  return value
+}
+
+/** The canonical digest of a view: equal digests mean equal views (F1, F3). */
+export function viewDigest(view: SessionJournalView): string {
+  return digestOf(plain(view))
+}
+
+/** The canonical text of a view, for a failing comparison to show. */
+export function viewText(view: SessionJournalView): string {
+  return canonical(plain(view))
+}
