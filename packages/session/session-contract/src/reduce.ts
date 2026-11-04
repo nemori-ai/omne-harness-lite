@@ -14,7 +14,7 @@ import { CallConflict } from './call-state.ts'
 // kind, a missing origin or a contradiction quarantines the session.
 import type { Adoption, DurableEvidence, InputId } from './identity.ts'
 import type { RecoveryTask, WorkSnapshot } from './values.ts'
-import { SESSION_INTERPRETER, decodeEntry, type SessionEntry } from './entries.ts'
+import { SESSION_INTERPRETER, decodeEntries, type SessionEntry } from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
 import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
 import { scopeBinding } from './decide-management.ts'
@@ -315,8 +315,10 @@ function reduceBatch(
     return quarantined(`batch ${batch.revision} holds an entry of another revision`)
   let draft: Draft | null = previous === null ? null : { ...previous }
   const decodedEntries: SessionEntry[] = []
-  for (const row of batch.entries) {
-    const decoded = decodeEntry(row)
+  for (const decoded of decodeEntries(
+    batch.entries,
+    previous?.initialization?.initialAdoption ?? null,
+  )) {
     if ('unknown' in decoded) return quarantined(`unknown entry kind ${decoded.unknown}`)
     if ('malformed' in decoded) return quarantined(decoded.malformed)
     decodedEntries.push(decoded.ok)

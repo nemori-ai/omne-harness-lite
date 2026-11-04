@@ -1,6 +1,6 @@
 # Session长期行为规格
 
-状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。源码支持范围：`@omne-harness/session-contract` 导出[公开接口页](docs/public-api.md)导航的类型，判定全部 23 种 `MutationName`、8 种现有 `ProducerFact`，提供九个纯领域服务及批次归约。`projectSessionLog` 接受由适配器按同日志公开读取形状归一的 Session 后果，形成第二次 Session 解释提交。completed 来自该提交。历史分页、模型视图、常驻引用与已释放作用域读取由 `./testing` 的非耐久事务替身提供。有效提供者端口均有一致性套件与替身。以下限制保留：before-admit 拦截的 SE12 路径随受理槽交付，见 [SE12 的适用范围](#se12-的适用范围)；Model ACK 确认仍停止于 [JC-Release](#jc-release)；新 scope 的业务初始化遵循 J18 与 AD-03，生产接线尚未交付。当前初始化纯核心实现[初始化来源与提交](#初始化来源与提交)的三类可加来源、严格守卫、同批事实、原结果索引与 revision 3 重建，保留 `requiredIdentities` 的原身份映射。可信来源接线与精确发布摘要见[初始化实现](docs/initialization.md)。生产采用源、真实加载及 Context 提交应用仍待对应提供者验证。失败初始化项保留任务，会话保持 initializing，直到全部必要项完成。`login-required` 由 `decide` 根据首条输入保存的 `origin` 产出，`judgeRunStart` 不产出它（R2-D198）。上述源码支持不证明真实存储耐久、真实外域提供者或完整运行组合。被替代的协议见[被替代的协议](#被替代的协议)。
+状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。源码支持范围：`@omne-harness/session-contract` 导出[公开接口页](docs/public-api.md)导航的类型，判定全部 23 种 `MutationName`、8 种现有 `ProducerFact`，提供九个纯领域服务及批次归约。`projectSessionLog` 接受由适配器按同日志公开读取形状归一的 Session 后果，形成第二次 Session 解释提交。completed 来自该提交。历史分页、模型视图、常驻引用与已释放作用域读取由 `./testing` 的非耐久事务替身提供。有效提供者端口均有一致性套件与替身。以下限制保留：before-admit 拦截的 SE12 路径随受理槽交付，见 [SE12 的适用范围](#se12-的适用范围)；Model ACK 确认仍停止于 [JC-Release](#jc-release)；新 scope 的业务初始化遵循 J18 与 AD-03，生产接线尚未交付。当前初始化纯核心实现[初始化来源与提交](#初始化来源与提交)的三类可加来源、严格守卫、同批事实、原结果索引与 revision 4 重建，保留 `requiredIdentities` 的原身份映射。可信来源接线与精确发布摘要见[初始化实现](docs/initialization.md)。生产采用源、真实加载及 Context 提交应用仍待对应提供者验证。失败初始化项保留任务，会话保持 initializing，直到全部必要项完成。`login-required` 由 `decide` 根据首条输入保存的 `origin` 产出，`judgeRunStart` 不产出它（R2-D198）。上述源码支持不证明真实存储耐久、真实外域提供者或完整运行组合。被替代的协议见[被替代的协议](#被替代的协议)。
 
 目标成员为`packages/session/session-contract`。本规格表达已具依据的必要行为；公开类型、领域服务、`decide`/`reduce` 与 `./testing` 的替身与一致性套件已按状态行所述范围在源码声明（[公开接口页](docs/public-api.md)），不定义存储提供者或认领协议。
 
@@ -843,13 +843,33 @@ SE07 保存原键、CommitRef、完整原材料、basedOn、revision、scope 与
 
 #### 初始化解释版本与重建
 
-初始化来源协议采用 `SESSION_INTERPRETER` 的新 Adoption：owner=`@omne-harness/session-contract`，name=`session-log`，revision=`3`，digest 对应该解释器的精确发布内容。条目 schema、该批适用的已登记解释配置及 WorkSnapshot.interpreter 必须一致。批次解释配置从整批条目 schema 与已登记解释器确定，不给 CommittedBatch 或公开调用增加必填参数。SE01 的编码额外保存 initializationProtocol=1、已核实 initialAdoption、完整归一化 plan 与原创建输入。是否省略公开 initialization 字段不决定历史协议版本，新 create 都产生同一新解释版本。
+初始化来源协议采用 `SESSION_INTERPRETER` 的新 Adoption：owner=`@omne-harness/session-contract`，name=`session-log`，revision=`4`，digest 对应该解释器的精确发布内容。revision 4 的条目内容与 revision 3 相同，只是重复的值只存一份，见[条目的存储形式](#条目的存储形式)。条目 schema、该批适用的已登记解释配置及 WorkSnapshot.interpreter 必须一致。批次解释配置从整批条目 schema 与已登记解释器确定，不给 CommittedBatch 或公开调用增加必填参数。SE01 的编码额外保存 initializationProtocol=1、已核实 initialAdoption、完整归一化 plan 与原创建输入。是否省略公开 initialization 字段不决定历史协议版本，新 create 都产生同一新解释版本。
 
 解释器先核精确 Adoption 与批次配置，再解码载荷并验证整批。该版本的第一批必须有 SE01 和与 initialAdoption 一致的初始 SE08，必要首次 SE36 同批；SE02 的 ready 必须有对应的已提交或同批成功事实。缺这些依据、错原绑定或矛盾事实是本版本的畸形历史，隔离会话并报告不可恢复，不发布部分状态。
 
-此前 session-log revision 2 使用 workspaceAttachment 键识别工作区载荷的规则保留其原适用范围。revision 2 的合法历史可能没有初始 SE08，不能按本节的新要求认定其畸形，也不能用 candidate 补造旧 SE08。新解释器本次支持范围为上述 revision 3；遇到其他精确解释采用，报告版本不兼容及原采用，按 SL12、SL14 停止治理投影并隔离受影响会话，保留原日志和处置责任。若版本元数据缺失或互相矛盾，报告缺解释依据，不猜版本。
+此前 session-log revision 2 使用 workspaceAttachment 键识别工作区载荷的规则保留其原适用范围。revision 2 的合法历史可能没有初始 SE08，不能按本节的新要求认定其畸形，也不能用 candidate 补造旧 SE08。新解释器本次支持范围为上述 revision 4；revision 3 的条目解码答 malformed，归约按不支持的解释采用隔离；遇到其他精确解释采用，报告版本不兼容及原采用，按 SL12、SL14 停止治理投影并隔离受影响会话，保留原日志和处置责任。若版本元数据缺失或互相矛盾，报告缺解释依据，不猜版本。
 
 本节不承诺旧存储字节迁移、回填或双解释器兼容。现行实验阶段政策不要求补兼容层。历史日志是否有效按其原适用承诺判断，当前解释器是否支持是另一项判断。旧公开有效调用的含义和字段保持，重新调用通过本节准入后按新版本提交，不要求调用方增加必填参数。不得把旧日志重放改成再次 create 或再次执行外部加载。
+
+#### 条目的存储形式
+
+revision 4 的条目载荷是存储形式（R2-D357）。日志已经保存过的值不再重复保存，在原位置放一个标记字符串。标记只出现在类型为对象的位置，所以不会与合法值混淆。读取时把标记换回所指的值，读者看到的值与完整形式逐字段相同，成员顺序不变。`HistoryEntry` 的形状不变。
+
+| 位置 | 标记 | 所指的值 | 何时使用 |
+| --- | --- | --- | --- |
+| SE19、SE32 与 `control.progress` 的 `fact.source` | `=origin.source` | 本条目的 `origin.source` | 两者四个字段与成员顺序都相同 |
+| 初始 SE08 的 `initialization.adoption` | `=session.created.initialAdoption` | 本会话 SE01 的 `initialAdoption` 去掉 `candidate` | 编码时它的每个成员与 SE01 的同一对象相同 |
+| SE01 的 `input` | `=session.created.command` | 本 SE01 的 `tenant`、`session`、`operation`、`creation` 组成的创建输入 | 两者的 json-text 树完全相同 |
+| SE01 `initialAdoption.newResidents[i].shape` | `=session.tool-resident-admitted` | 同批 SE36 中同一 capability 的 `resident.shape` | 总是使用；SE36 是首次 shape 的唯一完整持有者（R1、R4） |
+
+规则：
+
+- 引用只指向同一会话中只追加、不删除的条目。SE08 指向更早的 SE01。SE01 指向同批的 SE36；同批条目一起提交，一起可见。
+- SE01 的常驻工具与 SE36 按 capability 对上，`version` 与 `admitted`（资产证据及其 digest）必须相同。对不上、缺少 SE36、缺少 SE01 或标记未知，都是畸形历史：解码答 malformed，归约隔离会话，不猜值。
+- 建立证据 `batchEvidence` 对存储形式取摘要。初始化批次的一致性核对重新判定并比较存储形式。
+- 历史读取由 `expandHistoryEntries` 换回完整形式。只有含带常驻工具的 SE01 或初始 SE08 的页需要会话快照的 `initialization.initialAdoption`；其他页只用本条目的 origin。
+- 消息条目（SE10）的 `source` 不使用标记，公开历史读取按原样给出它。
+- 同一 capability 的第二条 SE36 仍按「resident admitted twice」隔离。新版本与首次 shape 的比较读快照中由 SE36 归约的 `residents`。
 
 重建只使用原 SE01、SE02 和关联 SE07、SE08、SE36，重建原计划、未完成项、已完成结果索引、注册修订与采用。检查点全部失效也不重新选默认、不重新求值或改换原协议；原证据、材料或解释器不可用时报告不可恢复或 unavailable，保留责任。Session 提交与 Context applyCommit 是不同事实，本节不证明真实 Context 首次 finishReplay、生产加载器、采用提供者、Model ACK、耐久或跨进程运行已经闭合。
 
@@ -1354,7 +1374,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 `decide` 与 `projectSessionLog` 对无法证明的必要材料返回既有 unavailable，owner 指向材料拥有者。过期的同域根返回既有 changed，并带回 snapshot.revision；它不把共同日志 position 转成 SessionRevision。提供者依据具体根差异重新准备。错租户或错会话返回 denied，格式和请求材料不一致返回带具体字段的 invalid；同身份异值返回 conflict。已证权威历史 gap 或互相矛盾返回 quarantined。它们均不生成部分后果。
 
-重放先依据每条 `HistoryEntry.schema`、整批已登记解释配置和 `WorkSnapshot.interpreter` 识别精确采用。本节新增证明义务随[初始化解释版本与重建](#初始化解释版本与重建)的 session-log revision 3 生效，使用同一精确 digest，不增加第二个协议版本字段。提供者从不可剥除的原提交封套取得 schema，调用方不能改写 schema 以降级验证。版本 3 的相关 SE14、SE18/SE22、SE38 和执行引用批次必须带有足够的 snapshot 原事实或读取证明；与本次批次无关的证明不要求携带。此前版本的合法历史不因没有新增 reads 成为畸形。若已登记并使用其原精确解释器，按原承诺重放；本候选仅支持上述精确采用时，其他采用是版本不支持，沿该节的版本不兼容诊断和隔离路径，不报告为“旧历史缺新增 reads”。这里不新增名为 unsupported 的 ReduceResult 分支。
+重放先依据每条 `HistoryEntry.schema`、整批已登记解释配置和 `WorkSnapshot.interpreter` 识别精确采用。本节新增证明义务随[初始化解释版本与重建](#初始化解释版本与重建)的 session-log revision 3 生效，revision 4 沿用，使用同一精确 digest，不增加第二个协议版本字段。提供者从不可剥除的原提交封套取得 schema，调用方不能改写 schema 以降级验证。版本 3 及之后的相关 SE14、SE18/SE22、SE38 和执行引用批次必须带有足够的 snapshot 原事实或读取证明；与本次批次无关的证明不要求携带。此前版本的合法历史不因没有新增 reads 成为畸形。若已登记并使用其原精确解释器，按原承诺重放；本候选仅支持上述精确采用时，其他采用是版本不支持，沿该节的版本不兼容诊断和隔离路径，不报告为“旧历史缺新增 reads”。这里不新增名为 unsupported 的 ReduceResult 分支。
 
 重放提供者先取得该版本和该批所需原材料。真实读源暂不可用时在服务边界返回 unavailable，不调用 reduce。已按新协议声明为完整而送入 reduce 的批次，若缺少该协议要求的依据、存在因果矛盾或相关未知类别，按 SL18 返回现有 quarantined 及具体字段诊断，不发布部分治理状态。`ReduceResult` 仍只有 reduced 与 quarantined；这一结果形状不把真实读取失败改成历史损坏。可恢复索引先按 SL14 重建。
 

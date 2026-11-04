@@ -212,10 +212,11 @@ function interpret(
     const origin = { owner: 'agent', via: SAME_LOG_ENTRIES_VIA, source: item.fact }
     item.interpretation.forEach((fact, index) => {
       if (fact.kind === 'observed') return
-      const decision = decideProducerFact(snapshot, {
-        kind: 'receive',
-        input: { tenant, session, operation, fact },
-      })
+      const decision = decideProducerFact(
+        snapshot,
+        { kind: 'receive', input: { tenant, session, operation, fact } },
+        origin,
+      )
       if (decision.kind === 'rejected') {
         const { failure } = decision
         throw new SessionValidationFailure(
@@ -226,7 +227,7 @@ function interpret(
       }
       if (decision.kind !== 'entries')
         invalidAt(`items[${at}].interpretation[${index}]`, 'not a producer fact')
-      out.push(...decision.entries.map(entry => ({ ...entry, origin })))
+      out.push(...decision.entries)
     })
   })
   if (out.length === 0)

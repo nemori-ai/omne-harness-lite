@@ -1,5 +1,5 @@
 import { requiredWorkEntries } from './work-entry-state.ts'
-import { decodeEntry } from './entries.ts'
+import { decodeEntries } from './entries.ts'
 import { validateFrontierBatch } from './frontier-state.ts'
 import { SessionValidationFailure } from './session-validation.ts'
 import { CallConflict } from './call-state.ts'
@@ -905,8 +905,10 @@ export function decide(
       command,
     )
     if (decision.kind === 'entries' && previous !== null && decision.entries.length > 0) {
-      const decoded = decision.entries.map(row => {
-        const value = decodeEntry(row)
+      const decoded = decodeEntries(
+        decision.entries,
+        previous.initialization?.initialAdoption ?? null,
+      ).map(value => {
         if (!('ok' in value)) throw new Error('invalid locally encoded entry')
         return value.ok
       })
