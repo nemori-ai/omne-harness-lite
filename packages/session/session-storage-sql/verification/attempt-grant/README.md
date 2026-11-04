@@ -2,7 +2,7 @@
 
 本目录检查 [AttemptGrant.tla](AttemptGrant.tla)：Authority 挂接时带的 grant（一次提交回执的 `source`）解析到发出它的那个 attempt。运行器不调用产品代码。
 
-正式行为来源是 R2-D348 与 R2-D349：attempt 是 Session 的事实；Agent 只保留 `exec.attached.grant`；Session 在提交时记下回执到 attempt 的对应（`sl_attempt_grant`，`src/worker/participant.ts` 的 `recordAttemptGrants`），读路径只查这份记录（`src/worker/history-index.ts` 的 `attemptOf`），不在读时推断。
+正式行为来源是 R2-D348 与 R2-D349：attempt 是 Session 的事实；Agent 只保留 `exec.attached.grant`；Session 在提交时记下回执到 attempt 的对应（`sl_attempt_grant`，`src/worker/participant.ts` 的 `recordAttemptGrants`），Authority 的 grant 只按这份记录解析（`session-adapters` 的 `attemptOfGrant` 用 `SessionAttemptRecord.grant` 查找），不在读时推断。历史索引对原受理行的 attempt 解析（`src/worker/history-index.ts` 的 `attemptOf`）不属于本模型，见下表。
 
 ## 资源
 
@@ -29,7 +29,7 @@
 | --- | --- |
 | `receipts[r]` 与位置 `r` | 一次提交的 `CommitReceipt.source`；`sl_attempt_grant.position` 是它在日志里的位置 |
 | `index` | `sl_attempt_grant (tenant, session, attempt, position, grant)`，由参加者随批写入 |
-| `Resolve(r)` | `history-index.ts` 的 `attemptOf`：只按记下的 grant 查；查不到答 unavailable，不回落 |
+| `Resolve(r)` | `session-adapters` 的 `attemptOfGrant`：只按记下的 grant 查；查不到不指名任何 attempt，不回落。`history-index.ts` 的 `attemptOf` 解析原受理行：先按行记下的 `attempt`，再按 `grantNames`，最后保留「该 Run 只有一个 SE15」的兜底。这个兜底不在模型内，模型只覆盖 grant 的解析 |
 | `StartAttempt` | `startRun` 与 `claim`：开始一个 attempt，它的 `started` 回执也是一张 grant |
 | `Commit` | 当前 attempt 下的任何 Agent 发布 |
 
