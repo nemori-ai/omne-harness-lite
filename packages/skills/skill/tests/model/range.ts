@@ -1,5 +1,5 @@
 // S4, the byte range of a page. Every text over a small alphabet of 1-, 2-, 3- and 4-byte
-// characters up to three characters long is put in a package four ways: as a text resource, as
+// characters up to three characters long is put in a package five ways: as a text resource, as
 // a binary resource (one 0xFF byte in front), and as the body of `SKILL.md` behind an LF and a
 // CRLF frontmatter, and as a `SKILL.md` without a frontmatter. Each is read through the real
 // `read` with every start and length up to two past the total, the page limit and one more, and
