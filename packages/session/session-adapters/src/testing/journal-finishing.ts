@@ -2,7 +2,10 @@
 // "终结责任清单" and "commitSettlement 的变体"): the candidate, route, obligation, judgment and custody
 // records of one execution, the FinishIntent and settlement projections `load` derives from them,
 // the obligations the Journal builds from its own records, and the five blocked categories in
-// their fixed order. Pure over the records it is given; the writes that change them live in
+// their fixed order. The records are a projection of the finishing facts (R2-D297): a candidate
+// from `finish.candidate` and its cursor block, a list from its `finish.obligation` items and the
+// `finish.obligations` close, a settlement record from its `settlement.recorded` block; the last
+// section maps a folded view back to the records. Pure over what it is given; the writes live in
 // journal.ts. The Agent memory Journal keeps its own records; the two are held to the same
 // conformance suite, not to shared code.
 import type {
@@ -41,10 +44,26 @@ import type {
   ResultResponsibility,
   TerminalParticipantFacts,
   ToolAssociationRecord,
+  CancellationJudgmentInput,
+  CommandReceipt,
+  InputBatch,
+  VoidedIntent,
+  JournalCommitState,
+  SettlementResult,
 } from '@omne-harness/agent-contract'
 import { obligationCategoryOf } from '@omne-harness/agent-contract'
 import { canonical } from './canonical.ts'
 import { JOURNAL_OWNER, journalEvidence, revisionOf } from './journal-values.ts'
+import {
+  blobOf,
+  blobsOf,
+  checkpointOf,
+  cursorOf,
+  type Blob,
+  type BlobStore,
+} from '../journal/decide.ts'
+import type { CursorMembers, FactOf, Ref } from '../journal/facts.ts'
+import type { CandidateView, ExecutionView, ObligationListView } from '../journal/fold.ts'
 
 /**
  * The finishing records of one execution. Every record is immutable once appended; the one
@@ -899,4 +918,470 @@ export function finishCheck(source: FinishCheckSource, candidate: FinishCandidat
     return blocked(first?.category ?? 'passages', judgment.evidence)
   }
   return { kind: 'clear' }
+}
+
+// ------------------------------------------------------------------------------------------
+// The finishing facts and their projection (R2-D297)
+
+/** A block the facts refer to. A missing one is a defect of the writer, never a value to invent. */
+function block<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>, what: string): T {
+  if (!blobs.has(ref.digest))
+    throw new TypeError(`the Journal holds no block for the ${what} a finishing fact refers to`)
+  return structuredClone(blobs.get(ref.digest)) as T
+}
+
+/** The reference of a block: its digest and the bytes of its canonical text. */
+function refOfBlob([digest, value]: Blob): Ref {
+  return { digest, size: Buffer.byteLength(canonical(value), 'utf8') }
+}
+
+/**
+ * The cursor block of a candidate: the cursor members of its checkpoint, and the two members the
+ * cursor keeps in other facts (R2-D292), the whole input batch and the voided intents, as they
+ * stood when the candidate was established. Small values and references only; the member blocks
+ * are the ones `cursor.moved` refers to.
+ */
+export type CandidateCursor = Readonly<{
+  members: CursorMembers
+  inputBatch: InputBatch | null
+  voided: readonly VoidedIntent[]
+}>
+
+/**
+ * The `finish.candidate` fact of a candidate and the blocks it refers to. The checkpoint enters as
+ * a cursor reference: the cursor block, whose members refer to the member blocks; the failure and
+ * the route enter as blocks.
+ */
+export function candidateFact(
+  candidate: FinishCandidate,
+  route: FinishRoute,
+  supersedes: AgentOperationId | null,
+  state: JournalCommitState,
+): Readonly<{ fact: FactOf<'finish.candidate'>; blobs: readonly Blob[] }> {
+  const held: CandidateCursor = {
+    members: cursorOf(candidate.checkpoint, state),
+    inputBatch: candidate.checkpoint.inputBatch,
+    voided: candidate.checkpoint.voided,
+  }
+  const cursor = blobOf(held)
+  const path = blobOf(route)
+  const failure = candidate.failure === null ? null : blobOf(candidate.failure)
+  return {
+    fact: {
+      kind: 'finish.candidate',
+      candidate: candidate.candidate,
+      claim: {
+        origin: candidate.origin,
+        conclusion: candidate.conclusion,
+        failure:
+          candidate.failure === null || failure === null
+            ? null
+            : { kind: candidate.failure.kind, detail: refOfBlob(failure) },
+        inputWatermark: candidate.inputWatermark,
+        conditions: candidate.conditions,
+      },
+      cursor: refOfBlob(cursor) as never,
+      route: route.record,
+      path: refOfBlob(path) as never,
+      supersedes,
+    },
+    blobs: [cursor, ...blobsOf(candidate.checkpoint), path, ...(failure === null ? [] : [failure])],
+  }
+}
+
+/** The candidate a folded `finish.candidate` names: its claim, its failure and its cursor checkpoint. */
+export function candidateOfView(view: CandidateView, blobs: BlobStore): FinishCandidate {
+  const { failure, ...claim } = view.claim
+  return {
+    candidate: view.candidate,
+    origin: claim.origin,
+    conclusion: claim.conclusion,
+    failure: failure === null ? null : block<FailureCandidate>(blobs, failure.detail, 'failure'),
+    inputWatermark: claim.inputWatermark,
+    checkpoint: checkpointOfCursor(block<CandidateCursor>(blobs, view.cursor, 'cursor'), blobs),
+    conditions: claim.conditions,
+  }
+}
+
+/**
+ * The checkpoint a candidate's cursor block names: the members from their blocks, the input batch
+ * and the voided intents as the block holds them. A member block the store lacks throws.
+ */
+function checkpointOfCursor(held: CandidateCursor, blobs: BlobStore): AgentCheckpoint {
+  const base = checkpointOf(
+    { cursor: { ...held.members, inputBatch: null }, steps: [], requests: [], intents: new Map() },
+    blobs,
+  )
+  return { ...base, inputBatch: held.inputBatch, voided: held.voided }
+}
+
+/** The route a folded `finish.candidate` was established on, with the proof `finish.proved` set. */
+export function routeOfView(view: CandidateView, blobs: BlobStore): FinishRoute {
+  const route = block<FinishRoute>(blobs, view.path, 'route')
+  return route.kind === 'author' && view.beforeTerminal !== null
+    ? { ...route, beforeTerminal: view.beforeTerminal }
+    : route
+}
+
+/**
+ * The facts of one issue of obligations: one `finish.obligation` per item with the item as a block,
+ * then the close with the list evidence and the coverage block. Each fact is constant in size
+ * whatever its item holds; nothing of an earlier list is written again.
+ */
+export function obligationFacts(
+  candidate: AgentOperationId,
+  list: number,
+  items: readonly FinishObligation[],
+  coverage: ResponsibilityCoverage,
+  evidence: DurableEvidence,
+): Readonly<{
+  facts: readonly (FactOf<'finish.obligation'> | FactOf<'finish.obligations'>)[]
+  blobs: readonly Blob[]
+}> {
+  const blobs: Blob[] = []
+  const ref = (value: unknown): Ref => {
+    const put = blobOf(value)
+    blobs.push(put)
+    return refOfBlob(put)
+  }
+  const facts: (FactOf<'finish.obligation'> | FactOf<'finish.obligations'>)[] = items.map(
+    (item, index) => ({
+      kind: 'finish.obligation',
+      candidate,
+      list,
+      index,
+      category: item.kind,
+      item: ref(item),
+    }),
+  )
+  facts.push({
+    kind: 'finish.obligations',
+    candidate,
+    list,
+    count: items.length,
+    evidence,
+    coverage: ref(coverage),
+  })
+  return { facts, blobs }
+}
+
+/**
+ * The issued list a folded obligation list names: the items in index order from their blocks, the
+ * coverage block, and the candidate content the list is bound to. A list whose items do not match
+ * its count is a defect of the writer.
+ */
+export function listOfView(
+  view: ObligationListView,
+  candidate: FinishCandidate,
+  checkpoint: DurableEvidence,
+  blobs: BlobStore,
+): FinishObligations {
+  const issued = view.issued
+  if (issued === null) throw new TypeError('the obligation list is not closed')
+  const items = [...view.items].sort((left, right) => left.index - right.index)
+  if (items.length !== issued.count || items.some((item, index) => item.index !== index))
+    throw new TypeError('the obligation list does not hold the items its close counts')
+  return {
+    operation: issued.op,
+    revision: revisionOf(issued.revision),
+    evidence: issued.evidence,
+    candidate: candidate.candidate,
+    conclusion: candidate.conclusion,
+    failure: candidate.failure,
+    inputWatermark: candidate.inputWatermark,
+    checkpoint,
+    conditions: candidate.conditions,
+    items: items.map(item => block<FinishObligation>(blobs, item.item, 'obligation')),
+    coverage: block<ResponsibilityCoverage>(blobs, issued.coverage, 'coverage'),
+  }
+}
+
+/** The number of lists already issued for `candidate`: the ordinal of the next list less one. */
+export function listsIssued(records: FinishingRecords, candidate: AgentOperationId): number {
+  return [...records.issued.values()].filter(list => list.candidate === candidate).length
+}
+
+/**
+ * The block of one settlement record: the variant's record without its receipt, which is derived
+ * from the batch; a judgment's input names its candidate by identity, so the block holds no copy
+ * of the candidate's checkpoint.
+ */
+export type SettlementBlock =
+  | Readonly<{
+      kind: 'migrate-cancellation'
+      migration: Omit<MigrationRecord, 'receipt'>
+      route: Extract<FinishRoute, { kind: 'cancellation' }>
+    }>
+  | Readonly<{
+      kind: 'judge-cancellation'
+      judgment: Omit<CancellationJudgmentRecord, 'receipt' | 'input'> &
+        Readonly<{
+          input: Omit<CancellationJudgmentInput, 'candidate'> &
+            Readonly<{ candidate: AgentOperationId }>
+        }>
+    }>
+  | Readonly<{
+      kind: 'record-card-reconciliation'
+      reconciliation: Omit<CardReconciliationRecord, 'receipt'>
+    }>
+  | Readonly<{
+      kind: 'record-legacy-return'
+      legacyReturn: Omit<LegacyInvocationReturn, 'receipt'>
+    }>
+  | Readonly<{
+      kind: 'record-tool-association'
+      association: Omit<ToolAssociationRecord, 'receipt'>
+    }>
+
+/** A settlement result that a `settlement.recorded` fact carries. */
+export type RecordedSettlement = Exclude<SettlementResult, { kind: 'establish-cancellation' }>
+
+/** The block of a settlement result: the result without the receipts it carries. */
+export function settlementBlock(result: RecordedSettlement): SettlementBlock {
+  switch (result.kind) {
+    case 'migrate-cancellation': {
+      const { receipt: _receipt, ...migration } = result.migration
+      return { kind: result.kind, migration, route: result.route }
+    }
+    case 'judge-cancellation': {
+      const { receipt: _receipt, input, ...judgment } = result.judgment
+      return {
+        kind: result.kind,
+        judgment: { ...judgment, input: { ...input, candidate: input.candidate.candidate } },
+      }
+    }
+    case 'record-card-reconciliation': {
+      const { receipt: _receipt, ...reconciliation } = result.reconciliation
+      return { kind: result.kind, reconciliation }
+    }
+    case 'record-legacy-return': {
+      const { receipt: _receipt, ...legacyReturn } = result.legacyReturn
+      return { kind: result.kind, legacyReturn }
+    }
+    case 'record-tool-association': {
+      const { receipt: _receipt, ...association } = result.association
+      return { kind: result.kind, association }
+    }
+    default: {
+      const _exhaustive: never = result
+      return _exhaustive
+    }
+  }
+}
+
+/**
+ * The settlement result a block names, with the receipt derived from its batch. A judgment input's
+ * candidate is the candidate record of the same execution; one the records lack is a defect.
+ */
+export function settlementOfBlock(
+  value: SettlementBlock,
+  receipt: CommandReceipt,
+  records: FinishingRecords,
+): RecordedSettlement {
+  switch (value.kind) {
+    case 'migrate-cancellation':
+      return {
+        kind: value.kind,
+        receipt,
+        migration: { ...value.migration, receipt },
+        route: value.route,
+      }
+    case 'judge-cancellation': {
+      const candidate = recorded(
+        candidateOf(records, value.judgment.input.candidate),
+        `the candidate ${value.judgment.input.candidate} of a judgment`,
+      )
+      return {
+        kind: value.kind,
+        receipt,
+        judgment: {
+          ...value.judgment,
+          receipt,
+          input: { ...value.judgment.input, candidate: structuredClone(candidate) },
+        },
+      }
+    }
+    case 'record-card-reconciliation':
+      return {
+        kind: value.kind,
+        receipt,
+        reconciliation: { ...value.reconciliation, receipt },
+      }
+    case 'record-legacy-return':
+      return { kind: value.kind, receipt, legacyReturn: { ...value.legacyReturn, receipt } }
+    case 'record-tool-association':
+      return { kind: value.kind, receipt, association: { ...value.association, receipt } }
+    default: {
+      const _exhaustive: never = value
+      return _exhaustive
+    }
+  }
+}
+
+/** The settlement result a `settlement.recorded` block names, read from the blocks. */
+export function settlementOfFact(
+  record: Ref,
+  receipt: CommandReceipt,
+  records: FinishingRecords,
+  blobs: BlobStore,
+): RecordedSettlement {
+  return settlementOfBlock(block<SettlementBlock>(blobs, record, 'settlement'), receipt, records)
+}
+
+/** Applies one recorded settlement result to the records, as its variant prescribes. */
+export function applySettlement(records: FinishingRecords, result: RecordedSettlement): void {
+  switch (result.kind) {
+    case 'migrate-cancellation':
+      records.migrations.push(result.migration)
+      records.routes.push(result.route)
+      records.route = result.route.record.record
+      records.currentJudgment = null
+      return
+    case 'judge-cancellation':
+      records.judgments.push(result.judgment)
+      records.currentJudgment = result.judgment.operation
+      return
+    case 'record-card-reconciliation':
+      records.cardReconciliations.push(result.reconciliation)
+      return
+    case 'record-legacy-return':
+      records.legacyReturns.push(result.legacyReturn)
+      return
+    case 'record-tool-association':
+      records.toolAssociations.push(result.association)
+      return
+    default: {
+      const _exhaustive: never = result
+      return _exhaustive
+    }
+  }
+}
+
+/**
+ * Applies one established candidate to the records: the supersession of the current candidate on
+ * its current route, the candidate, its route, and the pointers that a new candidate resets.
+ */
+export function applyCandidate(
+  records: FinishingRecords,
+  candidate: FinishCandidate,
+  route: FinishRoute,
+  supersession: CandidateSupersession | null,
+): void {
+  if (supersession !== null) records.supersessions.push(supersession)
+  records.candidates.push(candidate)
+  records.routes.push(route)
+  records.current = candidate.candidate
+  records.route = route.record.record
+  records.currentJudgment = null
+  records.obligations = null
+}
+
+/** The supersession a new candidate makes of the current one, on the current route. */
+export function supersessionOf(
+  records: FinishingRecords,
+  candidate: AgentOperationId,
+  route: FinishRoute,
+  revision: number,
+): CandidateSupersession | null {
+  const current = currentCandidate(records)
+  const prior = currentRoute(records)
+  if (current === undefined || prior === undefined) return null
+  return {
+    from: current.candidate,
+    to: candidate,
+    control: route.kind === 'cancellation' ? route.control : null,
+    revision: revisionOf(revision),
+    route: structuredClone(prior),
+  }
+}
+
+/** What the projection of a whole view needs besides the view and the blocks. */
+export type FinishingMint = Readonly<{
+  /** The receipt of the batch at `pub` that operation `op` appended at `revision`. */
+  receipt: (op: AgentOperationId, pub: number, revision: number) => CommandReceipt
+  /** The evidence an issued list names the candidate's checkpoint by. */
+  checkpoint: (candidate: AgentOperationId, revision: number) => DurableEvidence
+}>
+
+/**
+ * The finishing records of one execution as the projection of its folded view (R2-D297): the
+ * candidates, their routes and supersessions, the issued lists, the settlement records and the
+ * pointers, applied in publication order. The intent operation of each effect is the operation of
+ * the batch that intended the call. The view and the blocks are the whole input.
+ */
+export function finishingOf(
+  view: ExecutionView,
+  blobs: BlobStore,
+  mint: FinishingMint,
+): FinishingRecords {
+  const records = emptyFinishing()
+  const opOf = new Map<number, AgentOperationId>()
+  for (const [op, entry] of view.ops) if (entry.target === null) opOf.set(entry.pub, op)
+  type Step =
+    | Readonly<{ pub: number; kind: 'candidate'; view: CandidateView }>
+    | Readonly<{ pub: number; kind: 'list'; view: ObligationListView }>
+    | Readonly<{ pub: number; kind: 'settlement'; record: Ref }>
+  const steps: Step[] = [
+    ...view.finish.candidates.map(item => ({
+      pub: item.pub,
+      kind: 'candidate' as const,
+      view: item,
+    })),
+    ...[...view.finish.lists.values()].flatMap(item =>
+      item.issued === null ? [] : [{ pub: item.issued.pub, kind: 'list' as const, view: item }],
+    ),
+    ...view.settlements.map(item => ({
+      pub: item.pub,
+      kind: 'settlement' as const,
+      record: item.record,
+    })),
+  ].sort((left, right) => left.pub - right.pub)
+  for (const step of steps) {
+    switch (step.kind) {
+      case 'candidate': {
+        const candidate = candidateOfView(step.view, blobs)
+        const route = routeOfView(step.view, blobs)
+        const supersession =
+          step.view.supersedes === null
+            ? null
+            : supersessionOf(records, candidate.candidate, route, step.view.revision)
+        applyCandidate(records, candidate, route, supersession)
+        break
+      }
+      case 'list': {
+        const issued = step.view.issued!
+        const candidate = recorded(
+          candidateOf(records, step.view.candidate),
+          `the candidate ${step.view.candidate} of a list`,
+        )
+        const list = listOfView(
+          step.view,
+          candidate,
+          mint.checkpoint(candidate.candidate, issued.revision),
+          blobs,
+        )
+        records.issued.set(list.evidence.record, list)
+        records.obligations = list.evidence.record
+        break
+      }
+      case 'settlement': {
+        const op = recorded(opOf.get(step.pub), `the operation of the settlement at ${step.pub}`)
+        const revision = recorded(view.ops.get(op), `the index entry of ${op}`).revision
+        applySettlement(
+          records,
+          settlementOfFact(step.record, mint.receipt(op, step.pub, revision), records, blobs),
+        )
+        break
+      }
+      default: {
+        const _exhaustive: never = step
+        return _exhaustive
+      }
+    }
+  }
+  for (const intent of view.intents.values()) {
+    const op = opOf.get(intent.pub)
+    if (op !== undefined) records.effectOperations.set(intent.action, op)
+  }
+  return records
 }

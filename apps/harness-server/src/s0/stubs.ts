@@ -72,12 +72,19 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'sessionWorkPrincipals',
       'session',
       'agentJournal',
+      'agentJournalEntries',
       'agentMaterials',
       'sessionTransactions',
     ],
   },
   'session-ad06': {
-    injects: ['session', 'agentJournal', 'agentMaterials', 'sessionTransactions'],
+    injects: [
+      'session',
+      'agentJournal',
+      'agentJournalEntries',
+      'agentMaterials',
+      'sessionTransactions',
+    ],
   },
   'session-ad09': { provides: ['sessionIdentity'], injects: ['principalVerifier'] },
   'session-ad10': {

@@ -28,7 +28,7 @@ const shape = (value: AgentCheckpoint) =>
 
 /** The fact family the scene's Journal holds, checked against the reader records. */
 async function agree(s: Scene) {
-  const facts = s.view.controls.agentFacts()
+  const facts = s.view.controls.facts()
   // F3 on the real log: the held view is the fold of the batches from the start.
   expect(viewDigest(foldAll(facts.log))).toBe(viewDigest(facts.view))
   const loaded = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
@@ -91,7 +91,7 @@ describe('the commands of the memory Journal append their facts (R2-D308)', () =
     // The same operation again is answered from its record: no second batch.
     const again = await commit(s, 'same', {})
     expect(again).toEqual(same)
-    expect(s.view.controls.agentFacts().log).toHaveLength(3)
+    expect(s.view.controls.facts().log).toHaveLength(3)
   })
 })
 
