@@ -9,8 +9,6 @@ import {
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
   attempt,
-  defaultServer,
-  givenServer,
   loadLogin,
   localFailure,
   missingOption,
@@ -18,6 +16,7 @@ import {
   proofOf,
   refusedServer,
   resolveOwner,
+  serverOf,
   serverOption,
   stateDirectory,
   tenantOption,
@@ -49,11 +48,9 @@ async function runAccount(
   if (name === 'register' && environment.homeFlag !== undefined)
     return usageError(output, unrecognized(name))
   if (read.kind === 'missing') return usageError(output, missingOption(name, read.option))
-  const opened = openTransport(
-    environment,
-    givenServer(read.values, environment) ?? defaultServer,
-    'governance',
-  )
+  const server = serverOf(read.values, environment)
+  if (server.kind === 'invalid') return localFailure(output, server.message)
+  const opened = openTransport(environment, server.origin, 'governance')
   if (opened.kind === 'refused') return refusedServer(output)
 
   const credential = await environment.services.readCredential(output.stderr)

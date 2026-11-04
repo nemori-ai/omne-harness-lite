@@ -57,6 +57,7 @@
 - `loop-slot.spec.ts` 核对单执行槽：扩展拒绝在 `open` 之前释放槽；登记句柄的 `report` 抛出不影响 `invoke` 与回 idle；在 `invoke` 之前打开的观察先见 idle、再被唤醒见 occupied；E4 的 stop 与缺少转移行的结果都使运行停在 E4、未终结且仍占槽，后者走协调者的 `#defect` 路径；P1 再选择与第一次不一致时运行停在 P1（#502 1.2 的替代做法；P0/P1 与一致性重试尚未交付）。
 - `provider-quiesce.spec.ts` 核对停用（[SPEC](../SPEC.md#停用)）：空闲实例 drained、撤登记一次、观察以 retired 结束；draining 之后新的 invoke 与 resume 返回 unavailable，已受理的 invoke 重试仍取回原句柄；第一个 `await` 之前已 draining，核验拒绝解除 draining；占槽时 unresolved 并列出该 execution，运行照常结束、无控制记录，结束后重试 drained；撤登记失败、未到 withdrawn 或抛出都不报 drained；同一操作认回原结果，另一原因 conflict；停用进行中或之后的新 quiesce 认回原停用，只撤登记一次。登记句柄是替身。
 - `provider-run-failure.spec.ts` 核对运行失败（[SPEC](../SPEC.md#运行失败)）：Journal 替身对 I0 的每次提交答 unavailable，驱动停止后接收者恰好收到一次报告，内容是租户、实例、execution、节点 I0 与原失败；observe 仍为 occupied，execution 未终结，新 invoke 答 busy；quiesce 答 unresolved，remaining 为该 execution，不撤登记，重试答同样的剩余；接收者抛出不改变结果。另一用例让 M0 回执丢失一次，驱动经核对继续到 ended，接收者没有收到报告。
+- `run-ended-failed.spec.ts` 核对以失败终结（[SPEC](../SPEC.md#以失败终结)）：主调用以 connect-timeout 失败收场，终态结论原因的 record 带 `model-failed/upstream-unavailable/connect-timeout`，`endedFailed` 接收者恰好收到一次报告；诊断里的 `/` 被编码；正常完成而没有内容时原因仍是 `no-reply`；正常完成不报告；接收者抛出时执行照样终结。
 - `provider-access.spec.ts` 对四个面的每个公开操作核对：跨租户 `denied`，缺租户或租户非法 `invalid`（`observe` 以 `denied` 结束），都不调用 `access.check`。`access.check` 的 denied、unavailable、reject 与契约之外的回答都不放行。每次操作恰好调用一次，不缓存 allowed。
 
 测试通过不代替规格或验收。

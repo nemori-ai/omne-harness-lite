@@ -26,12 +26,12 @@ const parse = (stdout: string): Rec[] =>
     .filter(line => line.length > 0)
     .map(line => JSON.parse(line) as Rec)
 
-function runBin(args: readonly string[]): Promise<Outcome> {
+function runBin(args: readonly string[], env: NodeJS.ProcessEnv = {}): Promise<Outcome> {
   return new Promise(resolve => {
     execFile(
       process.execPath,
       [bin, ...args],
-      { env: { ...process.env, NO_COLOR: '1' }, timeout: 60_000 },
+      { env: { ...process.env, NO_COLOR: '1', ...env }, timeout: 60_000 },
       (error, stdout, stderr) => {
         const code = error === null ? 0 : typeof error.code === 'number' ? error.code : null
         resolve({ code, stdout, stderr, records: parse(stdout) })
@@ -156,8 +156,20 @@ describe('serve process', () => {
     }
   })
 
+  it('missing --state-root on a host without setup: exit 2, the setup hint, nothing on stdout', async () => {
+    // An empty server home stands for a host where `setup` never ran (and keeps a real setup out).
+    const home = join(scratch, 'no-setup-home')
+    const out = await runBin(['serve', ...common(scratch).slice(0, 6)], {
+      OMNE_SERVER_HOME: home,
+    })
+    expect(out.code).toBe(2)
+    expect(out.stdout).toBe('')
+    expect(out.stderr).toBe(
+      `serve: not set up: no state directory at ${join(home, 'state')}\nRun \`harness-server setup\` first.\n`,
+    )
+  })
+
   it.each([
-    ['missing --state-root', ['serve', ...common(scratch).slice(0, 6)]],
     ['relative --state-root', ['serve', ...common('state')]],
     ['--state-root that is not a directory', ['serve', ...common(join(scratch, 'none'))]],
   ])('%s: exit 2, nothing on stdout', async (_name, args) => {

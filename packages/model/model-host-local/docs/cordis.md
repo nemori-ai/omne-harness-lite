@@ -77,7 +77,7 @@ classDiagram
 
 ## 生命周期与清理
 
-插件配置是保管库路径、工厂秘密，以及可选的锁等待策略与诊断容量，都是可序列化数据。`path` 必须是非空字符串，`factorySecret` 必须是字符串（空字符串合法），`lock.waitMs`、`lock.backoffMs` 与 `diagnosticsCapacity` 是数字；配置不合格时插件加载失败。不新增 Cordis 事件。
+插件配置是保管库路径、工厂秘密，以及可选的锁等待策略与诊断容量，都是可序列化数据。`path` 必须是非空字符串。`factorySecret` 可以省略，给出时必须是字符串（空字符串合法）。省略时插件不新建保管库，路径上没有文件就答 `unavailable`。`lock.waitMs`、`lock.backoffMs` 与 `diagnosticsCapacity` 是数字；配置不合格时插件加载失败。不新增 Cordis 事件。
 
 路径上没有文件时，插件用配置里的工厂秘密新建保管库；已有文件时打开并使用文件里的工厂秘密。文件损坏时插件仍然注册 `modelCredential`，四个凭据方法均返回 `unavailable`，不改文件，撤除时没有可关闭的保管库。
 

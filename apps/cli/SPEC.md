@@ -230,7 +230,7 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 `，退出码非零。原因是下列之一：`page <k> was answered <outcome>`（第 k 页的 `outcome` 不是 `succeeded`）、`page <k> had no trusted answer`（没有可信答复）、`page <k> is not a history page`（成功的回复不是历史页）、`page <k> has no cursor but is not the last`（未读完却没有 `next`）、`page <k> did not advance the cursor`（`next` 与本页请求的 `cursor` 相同）、`more than 10000 pages`。
 - 退出码：读完为 `0`。停在某页的 `outcome` 时，按[命令结果与退出码](#命令结果与退出码)的映射：`denied` 等为 `3`，`basis-unavailable` 为 `4`；没有可信答复为 `5`，另写 `omne read-history: result uncertain
 `。成功的页不可读成历史页、缺游标或游标不前进为 `1`。标准输出写入失败为 `1`。
-- 人读输出（缺省）每个条目一段，首行为 `#<entryId> <kind>: <正文>`。消息条目的正文是各块的文本，块之间换行，续行缩进四个空格：`text` 块显示文本，`tool_call` 块显示 `[tool call <名> <callId>] <参数>`，`tool_result` 块显示 `[tool result <callId>]`，随后的文本块显示结果内容。`run.started` 显示 `Run <run> started (entry <entry>)`，`run.terminal` 显示 `Run <run> ended: <outcome>`。其余种类和块显示种类名与截断的载荷。参数与载荷最多显示 500 个字符，超出处写 `...`。人读输出不是 JSON 对象。
+- 人读输出（缺省）每个条目一段，首行为 `#<entryId> <kind>: <正文>`。消息条目的正文是各块的文本，块之间换行，续行缩进四个空格：`text` 块显示文本，`tool_call` 块显示 `[tool call <名> <callId>] <参数>`，`tool_result` 块显示 `[tool result <callId>]`，随后的文本块显示结果内容。`run.started` 显示 `Run <run> started (entry <entry>)`，`run.terminal` 显示 `Run <run> ended: <outcome>`；outcome 不是 completed 且条目的 `cause` 带 record 时，续行显示 `cause: <record>`，即 Agent 终结结论的原因记录，模型调用失败时形如 `<execution>/<step>/model-failed/<故障原因>/<诊断>`。其余种类和块显示种类名与截断的载荷。参数与载荷最多显示 500 个字符，超出处写 `...`。人读输出不是 JSON 对象。
 - `--json` 输出一个 JSON 对象加换行，键同[命令结果与退出码](#命令结果与退出码)。`body` 是 `{ entries, complete }`：`entries` 是各页的条目原样拼接（`entryId`、`revision`、`kind`、`payload`），`complete` 说明是否读完。停在某页时 `outcome` 是该页的 `outcome`，`result` 为 `uncertain` 时没有 `outcome`。`request` 有 `messageId`（首页）和 `tenant`。
 
 ### 治理命令
@@ -262,8 +262,9 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 
 1. `--server` 的值。
 2. 环境变量 `OMNE_SERVER`。
-3. 登录状态文件里 `login` 记录的地址，仅会话命令使用。
-4. 默认值 `http://127.0.0.1:8787`。这是 CLI 自己的默认值。服务端的监听端口由装配配置给出，见[应用装配](../../docs/architecture/runtime/application-assembly.md)。两者不一致时，用户用 `--server` 或 `OMNE_SERVER` 给出地址。
+3. 登录状态文件里 `login` 记录的地址，仅会话命令与治理命令使用。
+4. 本机配置的地址，仅 `register` 与 `login` 使用。`harness-server setup` 在本机写的配置文件 `server.json` 给出端口时，地址是 `http://127.0.0.1:<port>`。文件的位置与形状归 harness-server 的[本机单用户档](../harness-server/SPEC.md#本机单用户档)：设了 `OMNE_SERVER_HOME` 时是 `<目录>/config/server.json`；Windows 上是 `%LOCALAPPDATA%\omne\config\server.json`；其他平台是 `$XDG_CONFIG_HOME/omne/server.json`，默认 `~/.config/omne/server.json`。CLI 只读其中的 `port`。文件不存在时取下一项。文件读不出、不是 JSON、没有 1 至 65535 的整数 `port`，或 `OMNE_SERVER_HOME` 不是绝对路径时，命令退出 `1`，标准错误写一行原因（例如 `omne: the local server settings <path> give no port\n`），不读凭据，不发请求。
+5. 默认值 `http://127.0.0.1:8787`。这是 CLI 自己的默认值，也是 `harness-server setup` 的默认端口。服务端的监听端口由装配配置给出，见[应用装配](../../docs/architecture/runtime/application-assembly.md)。两者不一致时，用户用 `--server` 或 `OMNE_SERVER` 给出地址。
 
 CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令按用法错误处理，消息为 `omne: --server must be a loopback http address\n`。哪些地址被拒绝是 SDK 的 M2 已知限制，见 SDK 的[已知限制](../../packages/access/sdk/SPEC.md#已知限制)。
 

@@ -20,6 +20,7 @@ export interface InProcessOptions {
   readonly omneHome?: string
   readonly homeDirectory?: string
   readonly omneServer?: string
+  readonly localServer?: CliRuntime['localServer']
   readonly credential?: CredentialRead
   readonly failStdout?: boolean
 }
@@ -47,6 +48,7 @@ export async function runInProcess(
     environmentHome: options.omneHome,
     homeDirectory: options.homeDirectory ?? homedir(),
     environmentServer: options.omneServer,
+    ...(options.localServer === undefined ? {} : { localServer: options.localServer }),
     services,
   }
   const code = await run(

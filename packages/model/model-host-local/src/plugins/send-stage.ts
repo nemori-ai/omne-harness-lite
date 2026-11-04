@@ -34,7 +34,10 @@ import type { ModelMaterializationEvidenceReader } from '../materialization-proo
  * leases in the same call; this plugin does not use them.
  */
 export type ModelSendStagePluginOptions<P = unknown> = Readonly<
-  Omit<LocalModelConfig<P>, 'credentials' | 'commands' | 'maxRetainedAttempts'> & {
+  Omit<
+    LocalModelConfig<P>,
+    'credentials' | 'commands' | 'maxRetainedAttempts' | 'onConnectRetry'
+  > & {
     executionChannel?(): ReturnType<ModelInitialExecution<P>['openHost']>
     installMaterialization?(reader: ModelMaterializationEvidenceReader): () => void
   }
@@ -131,6 +134,11 @@ export function sendStagePluginOver<P>(
           execution: channel?.qualifyExecution ?? options.materialization.execution,
         },
         maxRetainedAttempts: settings.maxRetainedAttempts,
+        // A retry is a recovered fault that nothing else records: it goes to the logger of this life.
+        onConnectRetry: retry =>
+          ctx.logger.warn(
+            `model send: connect retry (call ${retry.call}, dispatch ${retry.dispatch}, retry ${retry.attempt}, delay ${retry.delayMs} ms, reason ${retry.reason})`,
+          ),
       })
       let withdrawMaterialization: (() => void) | undefined
       try {

@@ -58,6 +58,8 @@ export const modelRecordsAppConfig = z
       transportLimits: z.strictObject({
         connectTimeoutMs: count.nullable(),
         streamStallTimeoutMs: count.optional(),
+        /** Required: the retries before the request bytes left are an operator decision, never a default. */
+        connectRetry: z.strictObject({ backoffMs: z.array(count).max(8) }),
         maxErrorBodyBytes: count,
         maxEventBytes: count,
         json: jsonLimits,
