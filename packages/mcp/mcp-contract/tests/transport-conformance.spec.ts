@@ -216,7 +216,8 @@ describe('the suite on a transport that reads and writes the process pipes', () 
 
   /**
    * A process whose stdin and stdout are pipes to an in-memory peer. The peer reads one JSON-RPC
-   * message per line, records each request, and answers `server/discover` on stdout.
+   * message per line, records each request, and answers `server/discover` on stdout. At the end
+   * of stdin it ends stdout, as a stdio server that exits does.
    */
   function pipedProcess(log: PeerReceived[]): ProcessHandle {
     let answers: ReadableStreamDefaultController<Uint8Array> | undefined
@@ -239,6 +240,9 @@ describe('the suite on a transport that reads and writes the process pipes', () 
                 }),
               )
           }
+        },
+        close() {
+          answers?.close()
         },
       }),
       stdout: new ReadableStream<Uint8Array>({

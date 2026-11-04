@@ -401,7 +401,9 @@ function targetOf(peer: ScriptedPeer): string {
 
 /**
  * A process handle that hands every byte to and from the process unchanged and records when the
- * transport closes stdin, cancels stdout or stops the process.
+ * transport closes stdin, cancels stdout or stops the process. When the process ends its stdout
+ * by itself, for example at the end of stdin, the wrapped stdout stays open until the transport
+ * cancels it, so that the cancel is still observed.
  */
 function observedProcess(process: ProcessHandle, events: string[]): ProcessHandle {
   const writer = process.stdin.getWriter()
@@ -419,9 +421,8 @@ function observedProcess(process: ProcessHandle, events: string[]): ProcessHandl
     stdout: new ReadableStream<Uint8Array>({
       async pull(controller) {
         const next = await reader.read()
-        if (cancelled) return
-        if (next.done) controller.close()
-        else controller.enqueue(next.value)
+        if (cancelled || next.done) return
+        controller.enqueue(next.value)
       },
       async cancel(reason) {
         cancelled = true
@@ -906,11 +907,13 @@ const t3Cases = (): readonly Case[] => [
   ),
   conformanceCase(
     'T3',
-    'streamable-http: a 400 whose body is a JSON-RPC error of another code is a legacy peer (item 7)',
-    async fixture =>
-      withPeer(
+    'streamable-http: a 400 whose body is a JSON-RPC error of another code is a legacy peer; if initialize fails, that failure is reported (item 7)',
+    async fixture => {
+      // The body that a stateful 2025 server sends to a request without a session.
+      const notInitialized = badRequest(-32000, 'Bad Request: Server not initialized')
+      await withPeer(
         fixture,
-        { discover: badRequest(-32601, 'Method not found'), initialize: LEGACY },
+        { discover: notInitialized, initialize: LEGACY },
         { kind: 'streamable-http' },
         async (_peer, transport) => {
           assert.strictEqual(
@@ -918,7 +921,20 @@ const t3Cases = (): readonly Case[] => [
             OFFERED_LEGACY_VERSION,
           )
         },
-      ),
+      )
+      await withPeer(
+        fixture,
+        { discover: notInitialized, initialize: error(-32603, 'legacy broke') },
+        { kind: 'streamable-http' },
+        async (_peer, transport) => {
+          assert.deepStrictEqual(failure(await transport.discover(), 'discover'), {
+            kind: 'error-answer',
+            code: -32603,
+            message: 'legacy broke',
+          })
+        },
+      )
+    },
   ),
   conformanceCase(
     'T3',
