@@ -121,6 +121,20 @@ export function answer(mint: Mint, view: SessionJournalView, batch: PublishedBat
   return { kind: 'receipt', receipt }
 }
 
+/**
+ * What `query` concludes for an operation from the view alone (R2-D307): `committed` when its batch
+ * is indexed, `excluded` when an exclusion fact names it, otherwise `unknown`. An answer that wrote
+ * nothing leaves no batch, so a retry re-evaluates; nothing is inferred from a missing batch.
+ */
+export function operationState(
+  view: SessionJournalView,
+  operation: AgentOperationId,
+): 'committed' | 'excluded' | 'unknown' {
+  if (view.ops.has(operation)) return 'committed'
+  if (view.excluded.has(operation)) return 'excluded'
+  return 'unknown'
+}
+
 /** The batch of an operation, by the index, or null when the operation wrote none. */
 export function batchOf(
   view: SessionJournalView,

@@ -24,7 +24,7 @@ import {
   type StepId,
 } from '@omne-harness/agent-contract'
 import type { ModelInvocationRef } from '@omne-harness/model-contract'
-import type { ToolInvocationRef } from '@omne-harness/tool-contract'
+import type { ToolInvocationRef, ToolOperationId } from '@omne-harness/tool-contract'
 import {
   batchBytes,
   emptySessionView,
@@ -390,6 +390,20 @@ function roundBatches(builder: Builder, rng: Random): void {
         receipt: evidence(`${builder.execution}/tool-receipt/${builder.step}`),
       },
     ])
+    batch(builder, 'fence', [
+      {
+        kind: 'fence.started',
+        operation: `tool-op-${builder.execution}-${builder.step}` as ToolOperationId,
+        guard: {
+          owner: 'agent',
+          resource: `${builder.execution}/guard`,
+          revision: String(builder.step),
+          evidence: evidence(`${builder.execution}/guard/${builder.step}`),
+        },
+        fence: evidence(`${builder.execution}/fence/${builder.step}`),
+      },
+    ])
+    if (rng.chance(1, 3)) batch(builder, 'commit-unchanged', [])
     if (rng.chance(1, 4)) {
       const control = op(builder, 'control')
       batch(builder, 'control', [
@@ -508,6 +522,7 @@ function roundBatches(builder: Builder, rng: Random): void {
     builder.gen += 1
     builder.attachment += 1
     builder.authority = authorityOf(builder)
+    const stale = op(builder, 'stale')
     batch(builder, 'recover', [
       {
         kind: 'exec.attached',
@@ -516,8 +531,15 @@ function roundBatches(builder: Builder, rng: Random): void {
         basis: {
           kind: 'recovery',
           recovery: evidence(`${builder.execution}/recovery/${builder.gen}`),
-          takeover: null,
+          takeover: evidence(`${builder.execution}/takeover/${builder.gen}`),
         },
+      },
+      {
+        kind: 'op.excluded',
+        operation: stale,
+        reason: 'fence',
+        evidence: evidence(`${builder.execution}/fence-old/${builder.gen}`),
+        predecessor: null,
       },
     ])
   }

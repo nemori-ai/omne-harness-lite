@@ -5,6 +5,7 @@
 // tool calls (R2-D297).
 import { describe, expect, it } from 'vitest'
 import {
+  BATCH_OVERHEAD_BYTES,
   FACT_MAX_BYTES,
   answer,
   batchBytes,
@@ -21,6 +22,7 @@ import {
   foldAll,
   movedMembers,
   openCalls,
+  operationState,
   refOf,
   viewDigest,
   viewText,
@@ -206,6 +208,8 @@ describe('F4 answers derive from the batch: no stored copy, one batch per operat
             const entry = view.ops.get(batch.envelope.op)
             if (target === undefined || entry?.revision !== target.revision)
               return 'a recognition answers another revision than its target'
+          } else if (batch.facts.length === 0) {
+            if (after !== before) return 'an envelope-only batch advanced the revision'
           } else if (after !== before + 1) return `a batch advanced by ${after - before}`
         }
         return null
@@ -347,8 +351,167 @@ describe('P3 bounded commit: a batch carries this step alone', () => {
   })
 })
 
-describe('cursor.moved carries the changed top-level members only; no new fact, no batch', () => {
-  it('an unchanged checkpoint and state moves nothing and yields no batch', () => {
+describe('R2-D307: an unchanged commit appends the envelope alone', () => {
+  it('an envelope-only batch advances no revision, is indexed, and answers the revision at its time', () => {
+    forAll('envelope-only', {
+      runs: 40,
+      generate: rng => scene(rng),
+      check: ({ log }) => {
+        let view = emptySessionView()
+        const at = new Map<string, number>()
+        for (const batch of log) {
+          const before = view.executions.get(batch.execution)?.revision ?? 0
+          view = fold(view, batch)
+          if (batch.facts.length > 0) continue
+          const after = view.executions.get(batch.execution)!.revision
+          if (after !== before) return 'an envelope-only batch advanced the revision'
+          if (operationState(view, batch.envelope.op) !== 'committed') return 'not indexed'
+          const encoded = encodeBatch(scope, batch.pub, 0, batch)
+          if ('failure' in encoded || encoded.ok.rows.length !== 1) return 'not one row'
+          if (batchBytes(batch) > BATCH_OVERHEAD_BYTES) return 'not a small constant'
+          at.set(batch.envelope.op, before)
+        }
+        for (const batch of log)
+          if (batch.facts.length === 0) {
+            const derived = answer(mint, view, batch)
+            if (
+              derived.kind !== 'receipt' ||
+              Number(derived.receipt.revision) !== at.get(batch.envelope.op)
+            )
+              return 'the answer of an envelope-only batch moved with later batches'
+          }
+        return null
+      },
+    })
+  })
+
+  it('decide builds the envelope-only batch for a command without a new fact; dropping it would leave query unknown', () => {
+    const { log } = scene(random(43), { rounds: 1, executions: 1, finish: false })
+    const view = foldAll(log)
+    const execution = view.executions.get(log[0]!.execution)!
+    const envelope = {
+      op: 'exec-1/op/900/commit' as never,
+      digest: 'd',
+      rev: 0,
+      gen: '1',
+      kinds: [] as never[],
+    }
+    const built = batchOf(execution, envelope, [])
+    expect(built).toEqual({ execution: execution.execution, envelope, facts: [] })
+    const appended = fold(view, {
+      ...(built as { execution: never; envelope: never; facts: never }),
+      pub: log.length + 1,
+    })
+    expect(operationState(appended, envelope.op)).toBe('committed')
+    expect(appended.executions.get(execution.execution)!.revision).toBe(execution.revision)
+    // The negative control of the ruling: without the batch, the operation cannot be recognized.
+    expect(operationState(view, envelope.op)).toBe('unknown')
+  })
+})
+
+describe('R2-D307: exclusion is a fact of the log', () => {
+  it('an excluded operation answers excluded, its write is refused, and a committed operation cannot be excluded', () => {
+    forAll('excluded', {
+      runs: 40,
+      generate: rng => scene(rng),
+      check: ({ log }) => {
+        const view = foldAll(log)
+        for (const batch of log)
+          for (const fact of batch.facts) {
+            if (fact.kind !== 'op.excluded') continue
+            if (operationState(view, fact.operation) !== 'excluded') return 'exclusion not folded'
+            const execution = view.executions.get(batch.execution)!
+            const refused = batchOf(execution, { ...batch.envelope, op: fact.operation }, [])
+            if (!('kind' in refused) || refused.kind !== 'excluded')
+              return 'an excluded operation wrote again'
+          }
+        for (const batch of log) {
+          const execution = view.executions.get(batch.execution)!
+          const exclusion = fold(view, {
+            execution: batch.execution,
+            envelope: { ...batch.envelope, op: 'exec-1/op/901/fence' as never },
+            facts: [
+              {
+                kind: 'op.excluded',
+                operation: batch.envelope.op,
+                reason: 'fence',
+                evidence: evidence('late-fence'),
+                predecessor: null,
+              },
+            ],
+            pub: view.head + 1,
+          })
+          if (operationState(exclusion, batch.envelope.op) !== 'committed')
+            return 'a committed operation was excluded'
+          if (execution.excluded.has(batch.envelope.op)) return 'excluded leaked into the execution'
+          break
+        }
+        return null
+      },
+    })
+  })
+})
+
+describe('R2-D307: the Tool start fence is a fact and an entry event', () => {
+  it('fence.started folds into the fences, projects an entry event and survives the rows', () => {
+    const { log } = scene(random(47), { rounds: 3, executions: 1, finish: false })
+    const view = foldAll(log)
+    const execution = view.executions.get(log[0]!.execution)!
+    expect(execution.fences.length).toBeGreaterThan(0)
+    for (const fence of execution.fences) {
+      const event = execution.events.find(item => item.pub === fence.pub)
+      expect(event?.kind).toBe('entry')
+      expect(event?.fact.kind).toBe('fence.started')
+    }
+    const decoded = decodeRows(rowsOf(log))
+    expect('ok' in decoded && viewDigest(foldAll(decoded.ok))).toBe(viewDigest(view))
+    const batch = log.find(item => item.facts.some(fact => fact.kind === 'fence.started'))!
+    expect(answer(mint, view, batch).kind).toBe('receipt')
+  })
+})
+
+describe('R2-D307: an open batch carries the attachment that names its Authority', () => {
+  it('every exec.opened travels with an exec.attached, and the generation is set from it', () => {
+    forAll('open-attached', {
+      runs: 40,
+      generate: rng => scene(rng),
+      check: ({ log }) => {
+        let view = emptySessionView()
+        for (const batch of log) {
+          view = fold(view, batch)
+          const opened = batch.facts.find(fact => fact.kind === 'exec.opened')
+          if (opened === undefined) continue
+          const attached = batch.facts.find(fact => fact.kind === 'exec.attached')
+          if (attached?.kind !== 'exec.attached') return 'an open without its attachment'
+          const execution = view.executions.get(batch.execution)!
+          if (execution.gen !== attached.authority.generation) return 'generation not from the open'
+          if (answer(mint, view, batch).kind !== 'authority')
+            return 'open does not answer the Authority'
+        }
+        return null
+      },
+    })
+  })
+
+  it('negative control: decide refuses an open without its attachment', () => {
+    const { log } = scene(random(53), { rounds: 1, executions: 1, finish: false })
+    const open = log[0]!
+    const empty = emptyExecutionView(open.execution)
+    const withoutAttachment = open.facts.filter(fact => fact.kind !== 'exec.attached')
+    expect(batchOf(empty, open.envelope, withoutAttachment)).toEqual({
+      kind: 'incomplete',
+      reason: 'open-without-attachment',
+    })
+    expect(batchOf(empty, open.envelope, open.facts)).toEqual({
+      execution: open.execution,
+      envelope: open.envelope,
+      facts: open.facts,
+    })
+  })
+})
+
+describe('cursor.moved carries the changed top-level members only; no new fact, no fact row', () => {
+  it('an unchanged checkpoint and state moves nothing and yields an envelope-only batch', () => {
     const { log } = scene(random(41), { rounds: 1, executions: 1, finish: false })
     const view = foldAll(log)
     const execution = view.executions.get(log[0]!.execution)!
@@ -365,7 +528,11 @@ describe('cursor.moved carries the changed top-level members only; no new fact, 
       kind: 'advancing',
     })
     expect(again).toBeNull()
-    expect(batchOf(moved.executions.get(execution.execution)!, log[0]!.envelope, [])).toBeNull()
+    expect(batchOf(moved.executions.get(execution.execution)!, log[0]!.envelope, [])).toEqual({
+      execution: execution.execution,
+      envelope: log[0]!.envelope,
+      facts: [],
+    })
   })
 
   it('moving one member writes that member alone, as a reference when it carries content', () => {

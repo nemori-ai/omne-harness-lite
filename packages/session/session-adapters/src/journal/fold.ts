@@ -215,6 +215,15 @@ export type EventView = Readonly<{
   fact: FactBody
 }>
 
+/** One excluded operation (R2-D307): why, on what evidence, and at which publication. */
+export type ExclusionEntry = Readonly<{
+  execution: AgentExecutionId
+  reason: 'fence' | 'dropped' | 'handoff' | 'reception'
+  evidence: DurableEvidence
+  predecessor: AgentOperationId | null
+  pub: number
+}>
+
 /** The entry of the operation index: where the batch of an operation is and what it reached. */
 export type OperationEntry = Readonly<{
   execution: AgentExecutionId
@@ -276,9 +285,23 @@ export type ExecutionView = Readonly<{
     pub: number
   }>[]
   acknowledged: number
+  /** The Tool start fences recorded, in pub order. */
+  fences: readonly Readonly<{
+    operation: string
+    guard: Readonly<{
+      owner: string
+      resource: string
+      revision: string
+      evidence: DurableEvidence
+    }>
+    fence: DurableEvidence
+    pub: number
+  }>[]
   events: readonly EventView[]
   /** The operations that wrote this execution, in pub order. */
   ops: ReadonlyMap<AgentOperationId, OperationEntry>
+  /** The operations excluded in this execution. */
+  excluded: ReadonlyMap<AgentOperationId, ExclusionEntry>
 }>
 
 export type SessionJournalView = Readonly<{
@@ -286,12 +309,14 @@ export type SessionJournalView = Readonly<{
   head: number
   executions: ReadonlyMap<AgentExecutionId, ExecutionView>
   ops: ReadonlyMap<AgentOperationId, OperationEntry>
+  excluded: ReadonlyMap<AgentOperationId, ExclusionEntry>
 }>
 
 export const emptySessionView = (): SessionJournalView => ({
   head: 0,
   executions: new Map(),
   ops: new Map(),
+  excluded: new Map(),
 })
 
 export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
@@ -320,8 +345,10 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     settlements: [],
     observations: [],
     acknowledged: 0,
+    fences: [],
     events: [],
     ops: new Map(),
+    excluded: new Map(),
   }
 }
 
@@ -343,6 +370,7 @@ type Draft = {
   passages: Map<PassageId, PassageView>
   controls: Map<AgentOperationId, ControlView>
   ops: Map<AgentOperationId, OperationEntry>
+  excluded: Map<AgentOperationId, ExclusionEntry>
   cursor: Partial<CursorMembers>
   cursorMoved: Partial<Record<keyof CursorMembers, number>>
 }
@@ -359,6 +387,7 @@ function draftOf(view: ExecutionView): Draft {
     passages: new Map(view.passages),
     controls: new Map(view.controls),
     ops: new Map(view.ops),
+    excluded: new Map(view.excluded),
   }
 }
 
@@ -798,6 +827,24 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
       break
     case 'op.recognized':
       break
+    case 'op.excluded':
+      // A committed operation is never excluded; the first exclusion of an operation stands.
+      if (!draft.ops.has(fact.operation) && !draft.excluded.has(fact.operation))
+        draft.excluded.set(fact.operation, {
+          execution: draft.execution,
+          reason: fact.reason,
+          evidence: fact.evidence,
+          predecessor: fact.predecessor,
+          pub,
+        })
+      break
+    case 'fence.started':
+      if (!draft.fences.some(item => item.operation === fact.operation))
+        draft.fences = [
+          ...draft.fences,
+          { operation: fact.operation, guard: fact.guard, fence: fact.fence, pub },
+        ]
+      break
     case 'cursor.moved':
       for (const [name, value] of Object.entries(fact.members) as [
         keyof CursorMembers,
@@ -864,7 +911,10 @@ export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJo
   const ops = view.ops.has(batch.envelope.op)
     ? view.ops
     : new Map(view.ops).set(batch.envelope.op, entry)
-  return { head: batch.pub, executions, ops }
+  const excluded = new Map(view.excluded)
+  for (const [operation, exclusion] of draft.excluded)
+    if (!excluded.has(operation) && !ops.has(operation)) excluded.set(operation, exclusion)
+  return { head: batch.pub, executions, ops, excluded }
 }
 
 /** Folds the batches in order, from `view` or from the empty view. */

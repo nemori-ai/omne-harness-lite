@@ -37,6 +37,7 @@ import type { ProducedResult } from '@omne-harness/agent-contract'
 import type {
   ToolInvocationRef,
   ToolInvokeRequest,
+  ToolOperationId,
   ToolOperationRef,
 } from '@omne-harness/tool-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
@@ -350,6 +351,31 @@ export type FactBody =
     }>
   | Readonly<{ kind: 'ack.through'; sequence: number }>
   | Readonly<{ kind: 'op.recognized'; target: AgentOperationId }>
+  /**
+   * The permanent exclusion of an operation (R2-D307): the fence of a takeover over a write of the
+   * old generation, a write the storage dropped, a predecessor of a handoff custody chain, or the
+   * excluded conclusion of a reception. After it, a write of the operation is refused by decide;
+   * exclusion is a fact of the log, never inferred from a missing batch.
+   */
+  | Readonly<{
+      kind: 'op.excluded'
+      operation: AgentOperationId
+      reason: 'fence' | 'dropped' | 'handoff' | 'reception'
+      evidence: DurableEvidence
+      predecessor: AgentOperationId | null
+    }>
+  /** The Tool start fence took effect (R2-D307): the entry `AgentJournalEntries.record` writes. */
+  | Readonly<{
+      kind: 'fence.started'
+      operation: ToolOperationId
+      guard: Readonly<{
+        owner: string
+        resource: string
+        revision: string
+        evidence: DurableEvidence
+      }>
+      fence: DurableEvidence
+    }>
   | Readonly<{ kind: 'cursor.moved'; step: StepId; members: Partial<CursorMembers> }>
 
 export type FactKind = FactBody['kind']
@@ -391,6 +417,8 @@ export const FACT_KINDS: readonly FactKind[] = Object.freeze([
   'observation.recorded',
   'ack.through',
   'op.recognized',
+  'op.excluded',
+  'fence.started',
   'cursor.moved',
 ])
 
@@ -398,6 +426,7 @@ export const FACT_KINDS: readonly FactKind[] = Object.freeze([
 export const EVENT_OF: Readonly<Partial<Record<FactKind, string>>> = Object.freeze({
   'step.begun': 'input-taken',
   'result.received': 'entry',
+  'fence.started': 'entry',
   'result.handled': 'producer',
   'reply.judged': 'message',
   'control.stage': 'control',
@@ -568,6 +597,10 @@ export function factKey(fact: FactBody): string {
       return `ack/${fact.sequence}`
     case 'op.recognized':
       return `recognized/${fact.target}`
+    case 'op.excluded':
+      return `excluded/${fact.operation}`
+    case 'fence.started':
+      return `fence/${fact.operation}`
     case 'cursor.moved':
       return `cursor/${fact.step}/${digestOf(fact.members)}`
   }

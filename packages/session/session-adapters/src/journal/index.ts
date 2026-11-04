@@ -53,6 +53,7 @@ export type {
   CandidateView,
   ControlView,
   EventView,
+  ExclusionEntry,
   ExecutionView,
   FinishView,
   HandoffView,
@@ -69,6 +70,7 @@ export {
   answeredRevision,
   batchEvidence,
   batchOf as batchOfOperation,
+  operationState,
   receiptOf,
 } from './answer.ts'
 export type { Answer, Mint } from './answer.ts'

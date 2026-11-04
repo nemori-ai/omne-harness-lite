@@ -2,7 +2,11 @@
 // difference that `cursor.moved` carries, the rule that a command without a new fact appends no
 // batch, and the batch builder that refuses a repeated fact. The judgement of each command stays
 // with the command; this file only shapes what a judgement that passed writes.
-import type { AgentCheckpoint, JournalCommitState } from '@omne-harness/agent-contract'
+import type {
+  AgentCheckpoint,
+  AgentOperationId,
+  JournalCommitState,
+} from '@omne-harness/agent-contract'
 import { canonical } from '../testing/canonical.ts'
 import {
   factKey,
@@ -67,20 +71,32 @@ export function cursorMoved(
   return { kind: 'cursor.moved', step: checkpoint.step, members }
 }
 
-export type BatchRefusal = Readonly<{ kind: 'repeated'; key: string }>
+export type BatchRefusal =
+  | Readonly<{ kind: 'repeated'; key: string }>
+  /** The operation was excluded earlier; its write is refused, not revived (R2-D307). */
+  | Readonly<{ kind: 'excluded'; operation: AgentOperationId }>
+  /** An `exec.opened` must travel with the `exec.attached` that names the Authority (R2-D307). */
+  | Readonly<{ kind: 'incomplete'; reason: 'open-without-attachment' }>
 
 /**
- * Builds the batch of one command from the facts its judgement produced: a command with no fact
- * appends nothing (`null`, the no-new-fact rule of R2-D292 3.6); a fact whose key the view already
- * holds, or that repeats within the batch, is refused, because a fact is written once.
+ * Builds the batch of one command from the facts its judgement produced. A command with no new
+ * fact appends a batch of the envelope alone (R2-D307): it advances no revision, it is a small
+ * constant in bytes, and it is what a retry and `query` recognize the operation by. A fact whose
+ * key the view already holds, or that repeats within the batch, is refused, because a fact is
+ * written once; an excluded operation is refused; an open without its attachment is refused.
  */
 export function batchOf(
   view: ExecutionView,
   envelope: BatchEnvelope,
   facts: readonly FactBody[],
   known: (view: ExecutionView, key: string) => boolean = keyKnown,
-): Batch | BatchRefusal | null {
-  if (facts.length === 0) return null
+): Batch | BatchRefusal {
+  if (view.excluded.has(envelope.op)) return { kind: 'excluded', operation: envelope.op }
+  if (
+    facts.some(fact => fact.kind === 'exec.opened') &&
+    !facts.some(fact => fact.kind === 'exec.attached')
+  )
+    return { kind: 'incomplete', reason: 'open-without-attachment' }
   const keys = new Set<string>()
   for (const fact of facts) {
     const key = factKey(fact)
@@ -121,6 +137,10 @@ export function keyKnown(view: ExecutionView, key: string): boolean {
       return view.finish.ended !== null
     case 'ack':
       return view.acknowledged >= Number(name)
+    case 'excluded':
+      return view.excluded.has(name as never)
+    case 'fence':
+      return view.fences.some(item => item.operation === name)
     default:
       return false
   }
