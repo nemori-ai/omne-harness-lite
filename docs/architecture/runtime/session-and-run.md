@@ -11,6 +11,14 @@ Session 保存会话身份、历史和治理状态。Run 组织一次逻辑工�
 
 这一要求不把 Model、Tool 或其他能力的在途内容及外部效果变成会话事实。各生产者继续保管自己的内容并报告真实结果。会话日志保存会话接续所需的事实与稳定引用，见[必须进入日志的事实](#必须进入日志的事实)。
 
+<a id="h1-two-families"></a>会话日志由两个只追加族组成：Session 条目族与 Agent 事实族。两族共享同一个存储事务域与同一条提交序列。种类准入各归拥有者：Session 条目的种类由会话规定，Agent 事实的种类由 Agent 契约规定。Session 只解释 Agent 事实的事件投影，不解释其余 Agent 事实。已落盘的条目与事实不改写。更正以追加新事实表达。依据 R2-D292。
+
+<a id="h1-agent-fact-invariants"></a>Agent 事实族守住下面三条。依据 R2-D294。
+
+1. 每步提交有界。一次提交的字节不超过一个常数 c0 加本步新增事实的字节之和。每条事实有一个与内容无关的常数上界：事实只含标识、摘要、引用与小值，不随会话轮数、历史长度或消息与结果的大小增长。
+2. 不复制内容。Agent 事实族不含会话日志或生产者已有内容的字节。Agent 唯一持有的内容是保管块：生产者在 saved 之后释放的结果由保管块持有，结果进入历史后，历史消息与保管块是同一份字节。
+3. 量级是传感器指标，不是不变式。同样轮次下，Agent 事实族的字节不超过 W × 轮数 + J0。W 与 J0 由基线测得，作为传感器阈值。Agent 事实族对 Session 条目族的字节比值按工作负载报告，不作为不变式。
+
 ## 总前提
 
 本页各节都以下面五条为前提。
@@ -334,7 +342,7 @@ flowchart LR
 
 Tool 的 `tool-resident-admitted` 记录会话常驻工具首次装载的定义。缺了它就不能恢复上列的常驻工具 name 与参数形状，因此它满足准入。常驻工具当前记下的登记键可从 Run 的采用依据派生，不另写会话事实。常驻规则见 [Tool 契约](../../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5)。
 
-会话规格规定种类准入、效力、整批提交，以及一条事实能否改变推进资格或 Run 终态。调用者不能自填种类取得治理权。各领域只规定自己的事实。例如 `tool-resident-admitted` 的内容由 Tool 规定，它的种类准入由会话规定。日志的追加、分页和恢复只由会话规定。
+会话规格规定种类准入、效力、整批提交，以及一条事实能否改变推进资格或 Run 终态。调用者不能自填种类取得治理权。各领域只规定自己的事实。这些规则约束 Session 条目族。Agent 事实族的种类准入归 Agent 契约，Agent 事实不直接改变推进资格或 Run 终态，Session 按它们的事件投影派生治理事实，见[两个只追加族](#h1-two-families)。例如 `tool-resident-admitted` 的内容由 Tool 规定，它的种类准入由会话规定。日志的追加、分页和恢复只由会话规定。
 
 ```mermaid
 flowchart TD
@@ -391,7 +399,7 @@ flowchart TD
 | Runtime Context 注册决定 | Session 单独一次提交 | Runtime Context 只提供材料，不参加这次提交，在提交之后应用已确认的决定。 |
 | 自动归档 | Session | 空闲输入的参加者重新核对全部范围。 |
 
-会话日志承载 Agent Journal，Session 的事务端口与 Journal 提供者使用同一个存储事务域。这是上表成立的具名前提，由 Agent 与存储拥有者联合确认。没有共享事务域的装配被拒绝，见[联合前提与具名待决](#联合前提与具名待决)。
+会话日志承载 Agent Journal，Session 的事务端口与 Journal 提供者使用同一个存储事务域。两族的结构见[两个只追加族](#h1-two-families)。这是上表成立的具名前提，由 Agent 与存储拥有者联合确认。没有共享事务域的装配被拒绝，见[联合前提与具名待决](#联合前提与具名待决)。
 
 外部协调者与 Agent 共同受理输入和终结涉及三件事：输入绑定与 Agent 终结的共同提交、推进映射与重装配交接、日志与消费责任及恢复投影的集成。三件事的闭合位置见[SW-M01 技术兑现义务](../../../packages/session/session/docs/architecture/mechanisms.md#sw-m01-技术兑现义务)。共同提交表与参加者条款归[会话契约](../../../packages/session/session-contract/SPEC.md)，Agent 提交参加者插件归[适配成员](../../../packages/session/session-adapters/SPEC.md)，持续验证场景归[通用实现](../../../packages/session/session/SPEC.md)。
 
