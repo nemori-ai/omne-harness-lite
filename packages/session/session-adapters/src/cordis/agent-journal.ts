@@ -938,7 +938,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   const scopeOf = (book: Book<P>) => ({ tenant: book.tenantText, session: book.session })
-  const mintOf = (book: Book<P>) => ({ owner: OWNER, session: book.session })
+  // The mint of the batch evidence is the core's (its owner and the session namespace): what the
+  // provider derives from a stored batch is what the core answered when it wrote it.
+  const mintOf = (book: Book<P>) => ({
+    owner: JOURNAL_OWNER,
+    session: JSON.stringify([book.tenantText, book.session]),
+  })
 
   /**
    * The Session snapshot the `advances` check of this call reads, through the work cache of the

@@ -320,11 +320,12 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       : conflict(input)
   }
   /**
-   * Another operation for a saved delivery recognizes the operation that saved it (SPEC K-23,
-   * R2-D292 "原操作认回"): one `op.recognized` batch, no new revision, the original value as its
-   * answer, and the new operation an alias of the delivery in the reader records. The saving
-   * operation is in the folded view, which is the fold of the whole published log; one the view
-   * lacks is a defect of the fold, answered as unavailable.
+   * Another operation for a saved delivery recognizes the operation that saved it (R2-D292
+   * "原操作认回"): one `op.recognized` batch that recalls, so the receipt derived from it is the
+   * saving operation's own (JC-Release: one delivery, one receipt), warm or cold; no new revision;
+   * the original value as its answer; and the new operation an alias of the delivery in the reader
+   * records. The saving operation is in the folded view, which is the fold of the whole published
+   * log; one the view lacks is a defect of the fold, answered as unavailable.
    */
   const recognizing = <R>(input: ExecutionMutation<P>, kept: Kept, value: () => R): Attempt<R> => {
     if (!hooks.indexed(kept.receipt.operation))
@@ -334,14 +335,13 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       }
     return {
       kind: 'batch',
-      facts: [{ kind: 'op.recognized', target: kept.receipt.operation }],
+      facts: [{ kind: 'op.recognized', target: kept.receipt.operation, recalls: true }],
       blobs: [],
       kinds: [],
       derive: value,
       project: () => {
         hooks.state().aliases.set(operationKey(input), kept)
       },
-      recalls: kept.receipt,
     }
   }
   const sourceOf = (input: Input<P>) =>
@@ -621,10 +621,11 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
   }
   const materialPort: AgentMaterials<P, ContentBlock> = {
     /**
-     * A preserve is a write of the log like every other (session-adapters SPEC K-23): a new
-     * material appends a batch with no fact, whose block is the material, under an operation
-     * derived from the material's identity, so a retry recognizes it and a material kept already
-     * answers its source without a batch. The position of the publication is the batch's.
+     * A preserve is a write of the log like every other: a new material appends a batch of one
+     * `material.preserved` fact naming its source and the block that holds it (no revision), under
+     * an operation derived from the material's identity, so a retry recognizes it and a material
+     * kept already answers its source without a batch. The position of the publication is the
+     * batch's.
      */
     async preserve(input) {
       if (!tenantCodec.encode(input.tenant).ok) return fail(denied())
@@ -683,7 +684,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
             return answer(succeed(materialSourceOf(kept)))
         return {
           kind: 'batch',
-          facts: [],
+          facts: [{ kind: 'material.preserved', source, value: refOf(input.value) }],
           blobs: [blobOf(input.value)],
           kinds: [],
           derive: () => source,

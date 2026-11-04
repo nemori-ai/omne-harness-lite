@@ -61,7 +61,7 @@ P4 对应 R2-D294 的第 3 条。那一条是传感器指标，不是不变式�
 | `CommitReceive` | 结果接收方的接收共同提交：`result.received` 加保管块 | 一次存储事务 |
 | `CommitJudge` | 回复准入的 commit（Ja）：`reply.judged` 加同事务的历史消息 | 一次存储事务，Session 参加者同事务写条目 |
 | `Recognize` | 新操作认回已有事实：`op.recognized` 批，不推进 revision，`target` 指被认回的批 | 一次存储事务 |
-| `Preserve` | 材料 `preserve`：核心的批，信封加材料块，没有事实、不动游标、不推进 revision | 一次存储事务 |
+| `Preserve` | 材料 `preserve`：核心的批，一条 `material.preserved` 事实（不在模型的三类事实集合里）加材料块，不动游标、不推进 revision | 一次存储事务 |
 | `RetrySame`、`RetryConflict` | Agent SPEC「判定次序与失败映射」第 2 条：同语义输入认回原结果，异语义输入 `conflict` | 无写入 |
 | `Crash`、`Recover` | 进程重启；继任者冷启动折叠，再 `attach`，追加 `exec.attached` | `attach` 一次存储事务 |
 | `Refuse` | 存储在受理前拒绝（例如单命令上限），没有写入；驱动重发或把槽位改为 `failed` | 无写入 |

@@ -380,7 +380,15 @@ export type FactBody =
       observed: DurableEvidence
     }>
   | Readonly<{ kind: 'ack.through'; sequence: number }>
-  | Readonly<{ kind: 'op.recognized'; target: AgentOperationId }>
+  /**
+   * A new operation that recognizes the fact `target` established (R2-D292 "原操作认回"): no
+   * revision, the answer at the recognized batch's revision. With `recalls`, the answer is the
+   * recognized operation's own receipt (a new operation for a saved delivery recalls the delivery's
+   * receipt), the same whether read warm or derived from the stored batch.
+   */
+  | Readonly<{ kind: 'op.recognized'; target: AgentOperationId; recalls?: true }>
+  /** A material kept by `preserve`: its source evidence and the block that holds it. No revision. */
+  | Readonly<{ kind: 'material.preserved'; source: DurableEvidence; value: Ref }>
   /**
    * The permanent exclusion of an operation (R2-D307): the fence of a takeover over a write of the
    * old generation, a write the storage dropped, a predecessor of a handoff custody chain, or the
@@ -450,6 +458,7 @@ export const FACT_KINDS: readonly FactKind[] = Object.freeze([
   'op.excluded',
   'fence.started',
   'cursor.moved',
+  'material.preserved',
 ])
 
 /** The event kind a fact projects, or null for a fact that is no event. */
@@ -634,6 +643,8 @@ export function factKey(fact: FactBody): string {
       return `ack/${fact.sequence}`
     case 'op.recognized':
       return `recognized/${fact.target}`
+    case 'material.preserved':
+      return `material/${fact.source.record}`
     case 'op.excluded':
       return `excluded/${fact.operation}`
     case 'fence.started':

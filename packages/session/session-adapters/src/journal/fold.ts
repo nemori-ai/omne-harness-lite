@@ -321,6 +321,8 @@ export type ExecutionView = Readonly<{
     pub: number
   }>[]
   events: readonly EventView[]
+  /** The materials kept for this execution, by the canonical text of their source. */
+  materials: ReadonlyMap<string, Readonly<{ source: DurableEvidence; value: Ref; pub: number }>>
   /** The operations that wrote this execution, in pub order. */
   ops: ReadonlyMap<AgentOperationId, OperationEntry>
   /** The operations excluded in this execution. */
@@ -381,6 +383,7 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     acknowledged: 0,
     fences: [],
     events: [],
+    materials: new Map(),
     ops: new Map(),
     excluded: new Map(),
     reached: new Map(),
@@ -390,13 +393,17 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
 /** The key of a handoff reference in `handoffs`. */
 export const handoffKey = (reference: HandoffReference): string => canonical(reference)
 
+/** The facts that advance no revision: a recognition, and a material kept. */
+const NO_REVISION: ReadonlySet<string> = new Set(['op.recognized', 'material.preserved'])
+
 /**
- * Whether a batch advances the revision: a batch with a fact other than a recognition does, and
- * so does a batch that carries a Session participation, which is a joint commit of its own. A pure
- * recognition and the envelope alone of a command that changed nothing do not.
+ * Whether a batch advances the revision: a batch with a fact other than a recognition or a kept
+ * material does, and so does a batch that carries a Session participation, which is a joint commit
+ * of its own. A pure recognition, a material kept and the envelope alone of a command that changed
+ * nothing do not.
  */
 export function advances(batch: PublishedBatch): boolean {
-  return batch.envelope.kinds.length > 0 || batch.facts.some(fact => fact.kind !== 'op.recognized')
+  return batch.envelope.kinds.length > 0 || batch.facts.some(fact => !NO_REVISION.has(fact.kind))
 }
 
 type Draft = {
@@ -408,6 +415,7 @@ type Draft = {
   batches: Map<ActionBatchId, BatchView>
   passages: Map<PassageId, PassageView>
   controls: Map<AgentOperationId, ControlView>
+  materials: Map<string, Readonly<{ source: DurableEvidence; value: Ref; pub: number }>>
   ops: Map<AgentOperationId, OperationEntry>
   excluded: Map<AgentOperationId, ExclusionEntry>
   reached: Map<number, AgentOperationId>
@@ -426,6 +434,7 @@ function draftOf(view: ExecutionView): Draft {
     batches: new Map(view.batches),
     passages: new Map(view.passages),
     controls: new Map(view.controls),
+    materials: new Map(view.materials),
     ops: new Map(view.ops),
     excluded: new Map(view.excluded),
     reached: new Map(view.reached),
@@ -850,6 +859,12 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
       break
     case 'op.recognized':
       break
+    case 'material.preserved': {
+      const key = canonical(fact.source)
+      if (!draft.materials.has(key))
+        draft.materials.set(key, { source: fact.source, value: fact.value, pub })
+      break
+    }
     case 'op.excluded':
       // A committed operation is never excluded; the first exclusion of an operation stands.
       if (!draft.ops.has(fact.operation) && !draft.excluded.has(fact.operation))

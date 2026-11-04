@@ -529,11 +529,6 @@ export type Attempt<R> =
       project: (batch: PublishedBatch, view: ExecutionView) => void
       /** The state the receipt names: `applied` unless the command accepts (submit, control). */
       receiptState?: CommandReceipt['state']
-      /**
-       * The receipt the operation record keeps instead of the batch's own: a new operation for a
-       * saved delivery answers the delivery's original receipt (session-adapters SPEC K-23).
-       */
-      recalls?: CommandReceipt
     }>
   /**
    * Contradicting evidence: the audit is a fact of one batch with one new revision, and the
@@ -1899,12 +1894,7 @@ export function createJournal<P>(
           }
         }
         cell.touch()
-        state().operations.set(at, {
-          kind: 'committed',
-          key,
-          value: copy(value),
-          receipt: prepared.recalls ?? receipt,
-        })
+        state().operations.set(at, { kind: 'committed', key, value: copy(value), receipt })
         return { kind: 'wrote', value }
       }
       prepared.apply()
