@@ -75,11 +75,12 @@
 
 <!-- policy:grants -->
 
-| 持有者组件名             | 记录                                               | 用途                                                                          |
-| ------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `toolResidencyPrincipal` | `maintenance-grant/toolResidencyPrincipal`，修订 2 | `resident-references`                                                         |
-| `agent-host`             | `maintenance-grant/agent-host`，修订 2             | `agent-instance-publish`、`agent-instance-quiesce`、`agent-instance-withdraw` |
-| `tenant-domain-scanner`  | `maintenance-grant/tenant-domain-scanner`，修订 2  | `enumerate-tenants`                                                           |
+| 持有者组件名                   | 记录                                                     | 用途                                                                          |
+| ------------------------------ | -------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `toolResidencyPrincipal`       | `maintenance-grant/toolResidencyPrincipal`，修订 3       | `resident-references`                                                         |
+| `sessionPrincipals.maintainer` | `maintenance-grant/sessionPrincipals.maintainer`，修订 3 | `pending-sessions`                                                            |
+| `agent-host`                   | `maintenance-grant/agent-host`，修订 3                   | `agent-instance-publish`、`agent-instance-quiesce`、`agent-instance-withdraw` |
+| `tenant-domain-scanner`        | `maintenance-grant/tenant-domain-scanner`，修订 3        | `enumerate-tenants`                                                           |
 
 <!-- /policy:grants -->
 
@@ -117,12 +118,13 @@
 
 <!-- policy:projection -->
 
-| 持有者                   | 能通过的格                                         |
-| ------------------------ | -------------------------------------------------- |
-| `toolResidencyPrincipal` | Session `references`                               |
-| `agent-host`             | Agent `publish`、Agent `withdraw`、Agent `quiesce` |
-| `tenant-domain-scanner`  | 无 Session 或 Agent 格；只经部署枚举端口使用       |
-| 其他系统主体             | 无                                                 |
+| 持有者                         | 能通过的格                                         |
+| ------------------------------ | -------------------------------------------------- |
+| `toolResidencyPrincipal`       | Session `references`                               |
+| `sessionPrincipals.maintainer` | Session `pending`                                  |
+| `agent-host`                   | Agent `publish`、Agent `withdraw`、Agent `quiesce` |
+| `tenant-domain-scanner`        | 无 Session 或 Agent 格；只经部署枚举端口使用       |
+| 其他系统主体                   | 无                                                 |
 
 <!-- /policy:projection -->
 
@@ -508,7 +510,7 @@
 - K-9：`takeover` 对 W 恒放行。取代存活推进者的限制靠 attach 的条件提交。前提是 M2 单进程，每个会话只有一个驱动者。
 - K-10：维护授予是部署级的。一个持有者覆盖本部署的全部租户分区。跨分区限制交给 Session SQL 的目录查找。
 - K-11：授予表按组件名定位。前提是原始签发者只交给受信持有者。装配把签发者交给普通插件时，该插件能签发任何组件名的主体。
-- `tenant-domain-scanner` 只有枚举租户用途，没有 `pending-sessions`。作用域恢复维护主体没有记录。`pending`、`receive` 和 `releasedScopes` 的系统格仍答 `denied grant-missing`。
+- K-12：S3 恢复扫描用 `sessionPrincipals.maintainer` 读 `pending`，授予表给它 `pending-sessions`（R2-D204 第 2 条）。同一主体也用于作用域释放之后的 `receive(scope-release)`，但它没有 `scope-release-receive`，这一步答 `denied grant-missing`。`releasedScopes` 没有持有者，也答 `denied grant-missing`。
 
 ## 动作准入
 

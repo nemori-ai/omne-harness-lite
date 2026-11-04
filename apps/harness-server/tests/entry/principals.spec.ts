@@ -180,15 +180,15 @@ describe('system principals against the ten-row matrix with the release grant ta
       grants: releaseMaintenanceGrants(),
       clock: null,
     })
+    const maintainer = principals.maintainer
+    if (maintainer.kind !== 'system') throw new Error('the session maintainer is a system principal')
     const holders = {
       [TOOL_RESIDENCY_COMPONENT]: systemOf(issuer, TOOL_RESIDENCY_COMPONENT),
       [AGENT_HOST_COMPONENT]: systemOf(issuer, AGENT_HOST_COMPONENT),
+      // The installed `sessionPrincipals.maintainer`, not a fresh copy: S3 reads `pending` with it.
+      [ENTRY_COMPONENTS.sessionMaintainer]: maintainer,
     }
-    const outsiders: Principal[] = [
-      principals.coordinator,
-      principals.maintainer,
-      systemOf(issuer, 'restart-scanner'),
-    ]
+    const outsiders: Principal[] = [principals.coordinator, systemOf(issuer, 'restart-scanner')]
     expect(SYSTEM_ACTION_MATRIX).toHaveLength(10)
     for (const row of SYSTEM_ACTION_MATRIX) {
       const holder = holderOf.get(row.purpose)

@@ -43,7 +43,9 @@ import {
   AGENT_POLICY,
   DECISION_ITEMS,
   MAINTENANCE_GRANTS,
+  SESSION_MAINTAINER_COMPONENT,
   SESSION_POLICY,
+  TENANT_DOMAIN_SCANNER_COMPONENT,
   TOOL_RESIDENCY_COMPONENT,
   holderProjection,
   releaseMaintenanceGrants,
@@ -461,6 +463,39 @@ describe('sessionAccessCheck: system principals and the matrix', () => {
     expect(
       await w.session.check(references({ kind: 'system', component: TOOL_RESIDENCY_COMPONENT })),
     ).toEqual({ kind: 'denied' })
+  })
+
+  it('passes `pending` of any tenant for the session maintainer, the S3 recovery scanner, only', async () => {
+    const w = world()
+    const maintainer = w.system(SESSION_MAINTAINER_COMPONENT)
+    for (const tenant of [A, B]) {
+      const answer = await w.session.check(pending(maintainer, tenant))
+      expect(answer, 'the maintainer reads pending').toMatchObject({
+        kind: 'allowed',
+        evidence: { record: `maintenance-grant/${SESSION_MAINTAINER_COMPONENT}` },
+      })
+    }
+    for (const other of [
+      'sessionPrincipals.coordinator',
+      TENANT_DOMAIN_SCANNER_COMPONENT,
+      TOOL_RESIDENCY_COMPONENT,
+      AGENT_HOST_COMPONENT,
+    ])
+      expect(await w.session.check(pending(w.system(other))), other).toEqual({ kind: 'denied' })
+    expect(
+      await w.session.check(pending({ kind: 'system', component: SESSION_MAINTAINER_COMPONENT })),
+      'a copy of the maintainer shape',
+    ).toEqual({ kind: 'denied' })
+  })
+
+  it('gives the session maintainer no other system cell', async () => {
+    const w = world()
+    const maintainer = w.system(SESSION_MAINTAINER_COMPONENT)
+    expect(await w.session.check(references(maintainer))).toEqual({ kind: 'denied' })
+    expect(await w.session.check(releasedScopes(maintainer))).toEqual({ kind: 'denied' })
+    expect(await w.session.check(mutate(maintainer, 'receive', scopeReleaseFact))).toEqual({
+      kind: 'denied',
+    })
   })
 
   it('denies every login and work principal on the system requests, and reads nothing', async () => {
