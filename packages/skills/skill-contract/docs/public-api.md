@@ -27,6 +27,7 @@
 | `sealSnapshot`、`isSealedSnapshot`、`SnapshotDefect`（在 `./provider`） | [src/snapshot.ts](../src/snapshot.ts) | [快照](../SPEC.md#快照)、[端口答复的统一处置](../SPEC.md#port-answer-closed) |
 | `parseSkillPackage`、`ParseInput`、`ParseFailure` | [src/parse/package.ts](../src/parse/package.ts) | [检查 Skill 包](../SPEC.md#检查-skill-包) |
 | `projectAssetBody`、`skillBodyContract` | [src/project.ts](../src/project.ts)、[src/contract.ts](../src/contract.ts) | [`skill` 类别端口](../SPEC.md#skill-类别端口) |
+| 兼容提示：`CompatibilityHint` | [src/hints.ts](../src/hints.ts) | [兼容提示](../SPEC.md#compatibility-hints) |
 | 失败：`SkillFailure`、`GateFailure`、`DescribeFailure`、`PinFailure`、`ListFailure`、`ReadFailure`、`ExportFailure`、`UnsupportedWhat`、`InspectFailure`、`InspectRejectionCode` | [src/failures.ts](../src/failures.ts) | [拒绝次序](../SPEC.md#拒绝次序)、[读取的形状规则](../SPEC.md#读取的形状规则) |
 | `PackageInspection`（在 `./provider`，不在公开根） | [src/services.ts](../src/services.ts) | [入口](../SPEC.md#entries)、[检查 Skill 包](../SPEC.md#检查-skill-包) |
 | 服务接口与结果值：`SkillCatalog`、`SkillAccess`、`CatalogEntry`、`CatalogQuery`、`MaterialState`、`SkillDescription`、`ReadTarget`、`ByteRange`、`ReadContent`、`ReadResult`、`ResourceListing`、`ExportedEntry`、`SkillExport` | [src/services.ts](../src/services.ts) | [读取的形状规则](../SPEC.md#读取的形状规则)、[目录的匹配规则](../SPEC.md#catalog-search) |

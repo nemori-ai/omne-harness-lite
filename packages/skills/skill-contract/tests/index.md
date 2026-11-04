@@ -10,6 +10,7 @@
 - [values.spec.ts](values.spec.ts)：值与纯函数的边界
 - [parse-package.spec.ts](parse-package.spec.ts)：包样本、合法包、拒绝次序与控制字节
 - [parse-manifest.spec.ts](parse-manifest.spec.ts)：`SKILL.md` 的 `name-mismatch` 与格式错误
+- [parse-compat.spec.ts](parse-compat.spec.ts)：放宽的写法与兼容提示
 - [parse-declaration.spec.ts](parse-declaration.spec.ts)：`.omne/skill.json` 的各个拒绝原因
 - [snapshot.spec.ts](snapshot.spec.ts)：快照构造
 - [conformance.spec.ts](conformance.spec.ts)：端口套件、内存替身与进程内的变红证明
