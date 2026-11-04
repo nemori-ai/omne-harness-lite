@@ -1,0 +1,10 @@
+positive-run.cfg pass
+positive-global-wide.cfg pass
+negative-global-expected.cfg NoAbandonedClose
+bad-second-run.cfg OneOpenRun
+bad-two-advances.cfg OneAdvance
+bad-accept-stale.cfg StaleWriterRejected
+bad-retake.cfg TakeOnce
+bad-revive.cfg TerminalStable
+bad-post-terminal-attempt.cfg NoPostTerminalAttempt
+bad-silent-reconcile.cfg ReconcileNeedsConfirmation
