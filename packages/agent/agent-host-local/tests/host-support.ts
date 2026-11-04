@@ -32,8 +32,11 @@ import {
   type Access,
   type AgentAccountOutlet,
   type AgentClock,
+  type AgentExecutionId,
   type AgentInstanceId,
   type AgentJournal,
+  type AgentJournalEntries,
+  type AgentJournalEntry,
   type AgentRegistrationHandle,
   type AgentState,
   type Failure,
@@ -128,6 +131,25 @@ export function slotOf(
   variant: keyof typeof definitions = 'first',
 ): AgentInstanceSlotInput<Principal> {
   return { ...caller(name), scope, definition: definitions[variant] }
+}
+
+/**
+ * Every committed receiving entry of an execution in commit order, page by page through the
+ * entries port: the snapshot carries none (agent-contract SPEC "日志条目" 6). A failed read throws.
+ */
+export async function entriesOf<P>(
+  entries: AgentJournalEntries<P>,
+  input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
+): Promise<readonly AgentJournalEntry[]> {
+  const found: AgentJournalEntry[] = []
+  let after: string | null = null
+  for (;;) {
+    const page = await entries.read({ ...input, after, limit: 50 })
+    if ('failure' in page) throw new Error(`entries read failed: ${JSON.stringify(page.failure)}`)
+    found.push(...page.ok.items.map(item => item.entry))
+    if (page.ok.caughtUp) return found
+    after = page.ok.next
+  }
 }
 
 export function ok<T>(outcome: Outcome<T, unknown>): T {

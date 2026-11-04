@@ -18,6 +18,8 @@ import {
   type AgentAccountOutlet,
   type AgentClock,
   type AgentExecutionId,
+  type AgentJournalEntries,
+  type AgentJournalEntry,
   type ExecutionSnapshot,
   type RuntimeConditions,
   type SelectedModel,
@@ -43,6 +45,7 @@ import {
   slotOf,
   type Principal,
   type World,
+  entriesOf,
 } from './host-support.ts'
 
 const opened: World[] = []
@@ -250,10 +253,14 @@ async function settleReply(host: World, snapshot: ExecutionSnapshot, answer: Ans
   return { call, pusher, record: await pusher.settled({ ...caller('a'), call }) }
 }
 
-const receivedResults = (snapshot: ExecutionSnapshot) =>
-  (snapshot.entries ?? []).filter(
-    entry => entry.kind === 'received' && entry.delivery.key.kind === 'result',
-  )
+const entries = (
+  host: Readonly<{
+    controls: { journal: { provider: { entries: AgentJournalEntries<unknown> } } }
+  }>,
+) => entriesOf(host.controls.journal.provider.entries, { ...caller('a'), execution: EXECUTION })
+
+const receivedResults = (entries: readonly AgentJournalEntry[]) =>
+  entries.filter(entry => entry.kind === 'received' && entry.delivery.key.kind === 'result')
 
 describe('the Model result receiver of the host plugin', () => {
   // Red when the plugin body stops registering the receiver: the push then finds none and the
@@ -266,7 +273,7 @@ describe('the Model result receiver of the host plugin', () => {
     await until(async () => (await load()).state.kind === 'ended')
     const ended = await load()
     expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
-    expect(receivedResults(ended)).toHaveLength(1)
+    expect(receivedResults(await entries(host))).toHaveLength(1)
     expect(ended.checkpoint.calls.filter(call => call.kind === 'model')).toEqual([])
   })
 
@@ -280,7 +287,7 @@ describe('the Model result receiver of the host plugin', () => {
     const ended = await load()
     expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'fail' } })
     expect(ended.settlement.candidates.at(-1)?.failure).toMatchObject({ kind: 'no-reply', call })
-    expect(receivedResults(ended)).toHaveLength(1)
+    expect(receivedResults(await entries(host))).toHaveLength(1)
   })
 
   // Red when the ordered stop leaves the registration in place: a push during the shutdown would
@@ -291,7 +298,7 @@ describe('the Model result receiver of the host plugin', () => {
     expect(host.receivers.resolve(AGENT_CONSUMER_OWNER)).toBeNull()
     const { record } = await settleReply(host, await load())
     expect(record).toMatchObject({ status: 'failed', failure: { kind: 'no-receiver' } })
-    expect(receivedResults(await load())).toEqual([])
+    expect(receivedResults(await entries(host))).toEqual([])
   })
 
   // Red when the receiver state or the registration does not come back with the plugin body, or
@@ -311,7 +318,7 @@ describe('the Model result receiver of the host plugin', () => {
     expect(host.receivers.resolve(AGENT_CONSUMER_OWNER)).not.toBeNull()
     expect((await pusher.redeliver(record.key)).status).toBe('saved')
     expect((await pusher.redeliver(record.key)).status).toBe('saved')
-    expect(receivedResults(await load())).toHaveLength(1)
+    expect(receivedResults(await entries(host))).toHaveLength(1)
   })
 
   // Red when the host does not drive the maintenance: the account the outlet could not take stays

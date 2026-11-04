@@ -221,6 +221,7 @@ export abstract class AgentMaterialsService<P, B extends ContentBlock>
   }
   abstract readonly preserve: AgentMaterials<P, B>['preserve']
   abstract readonly read: AgentMaterials<P, B>['read']
+  abstract readonly describe: AgentMaterials<P, B>['describe']
 }
 export const agentMaterialsKey = AgentMaterialsService.provide
 
@@ -301,6 +302,8 @@ export abstract class AgentJournalEntriesService<P>
     super(ctx, AgentJournalEntriesService.provide)
   }
   abstract readonly record: AgentJournalEntries<P>['record']
+  abstract readonly read: AgentJournalEntries<P>['read']
+  abstract readonly receivedOf: AgentJournalEntries<P>['receivedOf']
 }
 export const agentJournalEntriesKey = AgentJournalEntriesService.provide
 

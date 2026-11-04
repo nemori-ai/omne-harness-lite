@@ -14,7 +14,13 @@ import {
   type ToolInvokeOutcome,
   type ToolState,
 } from '@omne-harness/tool-contract'
-import { evidence, execution, ok } from './journal-support.ts'
+import {
+  evidence,
+  execution,
+  ok,
+  loadWithEntries,
+  type LoadedWithEntries,
+} from './journal-support.ts'
 import { alice, eventually, invoke } from './loop-support.ts'
 import {
   associatedTools,
@@ -55,8 +61,8 @@ function acceptEach(assembly: Assembly) {
   })
 }
 
-async function snapshot(assembly: Assembly): Promise<ExecutionSnapshot> {
-  return ok(await assembly.dependencies.journal.load(input))
+async function snapshot(assembly: Assembly): Promise<LoadedWithEntries> {
+  return await loadWithEntries(assembly.dependencies, input)
 }
 
 async function events(assembly: Assembly): Promise<readonly AgentEventBody[]> {
