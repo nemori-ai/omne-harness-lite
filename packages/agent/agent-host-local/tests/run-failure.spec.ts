@@ -4,8 +4,9 @@
 // refuses a command over its size limit. Checked: the host writes exactly one warn record that names
 // tenant, instance, execution, node, failure kind and diagnostic. The ordered stop answers
 // `incomplete` for that instance (R2-D285): nothing handed the failed execution over, and its reason
-// names the execution, node and failure kind. The execution is not ended (D-31, wave 3). Nothing
-// here proves the session log Journal, a real Model or another process.
+// names the execution, node and failure kind. The execution is not ended: ending the Run as
+// failed and releasing its attachment when a node fails is not implemented yet, planned for wave 3
+// (R2-D285). Nothing here proves the session log Journal, a real Model or another process.
 import { agentEvaluator } from '@omne-harness/agent'
 import { testAdoption } from '@omne-harness/agent/testing'
 import {
@@ -145,7 +146,8 @@ describe('a run that stops on a node failure', () => {
     expect(record).toContain('node=I0')
     expect(record).toContain('failure=unavailable')
     expect(record).toContain('diagnostic=agentJournal: storage rejected the commit: command_limit')
-    // The execution is not ended: no terminal state in the Journal (D-31 is wave 3).
+    // The execution is not ended: no terminal state in the Journal. Ending the Run as failed when a
+    // node fails is not implemented yet, planned for wave 3 (R2-D285).
     const loaded = ok(
       await host.controls.journal.port.load({ ...caller('a'), execution: EXECUTION }),
     )

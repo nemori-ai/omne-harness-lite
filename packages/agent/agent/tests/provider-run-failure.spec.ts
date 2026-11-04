@@ -2,8 +2,9 @@
 // the answer of `runExecution`, `waitForWake` answered `stopped` and the drive ended silently: the
 // slot stayed `running` and nobody was told. Now the slot becomes `failed` and the factory caller's
 // receiver gets one named report. The execution is not ended and its responsibility is not handed
-// over (D-31 is wave 3): it keeps the slot, shows occupied, and a quiesce still answers it as
-// remaining (R2-D285), never drained.
+// over (ending the Run as failed and releasing its attachment when a node fails is not implemented
+// yet, planned for wave 3, R2-D285): it keeps the slot, shows occupied, and a quiesce still
+// answers it as remaining (R2-D285), never drained.
 import { describe, expect, it } from 'vitest'
 import type { AgentRunFailed } from '@omne-harness/agent'
 import type { AgentRegistrationHandle, Failure } from '@omne-harness/agent-contract'
