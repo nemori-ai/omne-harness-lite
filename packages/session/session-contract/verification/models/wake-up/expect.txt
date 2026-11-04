@@ -1,0 +1,6 @@
+positive.cfg pass
+positive-no-scan.cfg pass
+negative-scan-start-only.cfg GrantedInvoked
+negative-swallow.cfg NoSilentGiveUp
+negative-no-again.cfg InputsServed
+negative-lost-notice-no-scan.cfg InputsServed
