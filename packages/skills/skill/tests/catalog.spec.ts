@@ -89,7 +89,7 @@ describe('the suite goes red on a violating implementation', () => {
       'lists a granted identity and not a refused one',
       'filters to the identities of the request that are lawful and granted',
       'answers the same whether a refused identity is in the lawful set or does not exist',
-      'answers a filter naming a refused identity the same as one naming a missing identity',
+      'answers a filter naming a refused identity like one naming a missing identity',
     ])
   })
 

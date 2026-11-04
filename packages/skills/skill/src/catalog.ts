@@ -80,7 +80,7 @@ async function lawfulEntries<P, S>(
   return succeed(entries.sort(byText))
 }
 
-/** The entries that the read check grants, in the given order; `unknown` when any check is unknown. */
+/** The entries that the read check grants, in the given order; `unknown` when one check is unknown. */
 async function grantedOf<P, S>(
   ports: Pick<SkillPorts<P, S>, 'readCheck'>,
   access: Access<P>,

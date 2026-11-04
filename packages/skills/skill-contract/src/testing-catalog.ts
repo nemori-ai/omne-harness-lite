@@ -22,14 +22,14 @@ export type CatalogFixture<P, S> = Readonly<{
   reader: PrincipalSample<P, S>
   /** A principal whose lawful set is empty. */
   nobody: PrincipalSample<P, S>
-  /** An identity adopted for `reader` that `reader` may read, written as the entry the catalog
-   * must give for it. `dependencies` are the tools of its declaration projection. */
+  /** An identity adopted for `reader` that `reader` may read, written out in the entry the
+   * catalog must give for it. `dependencies` are the tools of its declaration projection. */
   granted: AdoptedEntry
   /** An identity in the lawful set of `reader` that the read check refuses to `reader`. */
   refused: CapabilityId
   /**
-   * An identity known lawfully by `reader`, not available now, that `reader` may read, written as
-   * the entry the catalog must give for it. Its name and description do not contain
+   * An identity known lawfully by `reader`, not available now, that `reader` may read, written
+   * out in the entry the catalog must give for it. Its name and description do not contain
    * `granted.name`, so that a search for `granted.name` does not reach it.
    */
   standIn: StandInEntry
@@ -102,7 +102,7 @@ function fullwidth(text: string): string {
 export const CATALOG_NO_DISCLOSURE_LISTING =
   'answers the same whether a refused identity is in the lawful set or does not exist'
 export const CATALOG_NO_DISCLOSURE_FILTER =
-  'answers a filter naming a refused identity the same as one naming a missing identity'
+  'answers a filter naming a refused identity like one naming a missing identity'
 
 export function skillCatalogConformance<P, S>(): ConformanceCase<CatalogFixture<P, S>>[] {
   return [

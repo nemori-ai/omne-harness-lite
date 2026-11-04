@@ -20,7 +20,7 @@ it('has the two non-disclosure cases under SC7', () => {
   const names = cases.filter(item => item.clause === 'SC7').map(item => item.name)
   expect(names).toEqual([
     'answers the same whether a refused identity is in the lawful set or does not exist',
-    'answers a filter naming a refused identity the same as one naming a missing identity',
+    'answers a filter naming a refused identity like one naming a missing identity',
   ])
 })
 
