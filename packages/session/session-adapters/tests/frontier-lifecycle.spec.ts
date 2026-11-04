@@ -210,35 +210,13 @@ for (const final of ['cancel', 'finish', 'archive', 'ended'] as const)
           session: s.access.session,
           operation: operationId('finish'),
           run: state.run.run,
-          expected: state.revision,
+          expected: state.run.revision,
           bounded: { kind: 'uninterpretable' as const, evidence: evidence('bounded') },
         },
       }
-      expect(
-        await s.backend.transactions.commit({ access: s.access, command, guards: [] }),
-      ).toMatchObject({
-        failure: { kind: 'changed' },
-      })
-      expect(
-        s.backend.controls
-          .entriesOf(s.access.tenant, s.access.session)
-          .some(row => row.kind === 'run.terminal' || row.kind === 'intake.released'),
-      ).toBe(false)
-      const current = ok(await s.backend.transactions.readWork(s.access))
-      ok(
-        await s.backend.transactions.commit({
-          access: s.access,
-          command: {
-            ...command,
-            input: {
-              ...command.input,
-              operation: operationId('finish-fresh'),
-              expected: current.revision,
-            },
-          },
-          guards: [],
-        }),
-      )
+      // The frozen prefixes move the snapshot revision, not the Run-layer revision that `expected`
+      // names (contract I-R2, R2-D343), so the final decision commits at once.
+      ok(await s.backend.transactions.commit({ access: s.access, command, guards: [] }))
     } else if (final === 'archive')
       ok(
         await s.backend.transactions.commit({

@@ -167,14 +167,18 @@ async function run(seed: number, length: number): Promise<string[]> {
             ...base,
             operation: op('finish'),
             run: target,
-            expected: s.revision,
+            expected: expectedRevision(s, 'finishRun'),
             bounded: { kind: 'uninterpretable', evidence: evidence('u') },
           },
         }
     } else if (active !== null && active.advance !== null) {
       // I-R2: an attempt that does not hold the advance is stale, whatever the revision.
       const stale = { ...active.advance, attempt: `stale-${String(step)}` as never }
-      const judged = judgeAdvance(s, { kind: 'attempt', advance: stale, expected: s.revision })
+      const judged = judgeAdvance(s, {
+        kind: 'attempt',
+        advance: stale,
+        expected: expectedRevision(s, 'release'),
+      })
       if (judged.kind !== 'stale-advance') violations.push(`I-R2 ${where}: ${judged.kind}`)
       reached.probe = (reached.probe ?? 0) + 1
     }
@@ -282,7 +286,7 @@ describe('the Run-layer expected of the advance commands (I-R2, PM-02, PM-05, R2
     kind: 'accept',
     input: { ...base, operation: operationId(`accept-${name}`), value: ordinaryInput(name) },
   })
-  const claim = (name: string, s: WorkSnapshot, expected?: string): SessionCommand => {
+  const claim = (name: string, s: WorkSnapshot, expected: string): SessionCommand => {
     if (s.run.kind !== 'active') throw new Error('no active Run')
     return {
       kind: 'claim',
@@ -292,7 +296,7 @@ describe('the Run-layer expected of the advance commands (I-R2, PM-02, PM-05, R2
         run: s.run.run,
         instance: { owner: 'agent', id: name },
         continuity: evidence(`continuity-${name}`),
-        ...(expected === undefined ? {} : { expected: expected as WorkSnapshot['revision'] }),
+        expected: expected as WorkSnapshot['revision'],
       },
     }
   }
@@ -379,12 +383,22 @@ describe('the Run-layer expected of the advance commands (I-R2, PM-02, PM-05, R2
     })
   })
 
-  it('a claim without expected is not compared: two claims both commit (compatibility, R2-D327)', () => {
+  it('a claim that sends the snapshot revision after an unrelated commit is refused (R2-D343)', () => {
     const { commit, s } = startedRun()
-    const first = commit(s, claim('r1', s))
-    if (first === null) throw new Error('first claim refused')
-    const second = commit(first, claim('r2', first))
-    if (second === null || second.run.kind !== 'active') throw new Error('second claim refused')
-    expect(second.run.ordinal).toBe('3')
+    const released = commit(s, release(s))
+    if (released === null) throw new Error('release')
+    // An accept moves the snapshot revision, not the Run-layer revision. A claim that names the
+    // snapshot revision of its read is not a Run-layer expected, so it does not hold.
+    const busy = commit(released, accept('input-2'))
+    if (busy === null || busy.run.kind !== 'active') throw new Error('accept')
+    expect(busy.revision).not.toBe(expectedRevision(busy, 'claim'))
+    expect(refusal(busy, claim('stale', busy, busy.revision))).toEqual({
+      kind: 'changed',
+      revision: expectedRevision(busy, 'claim'),
+    })
+    // The same claim with the Run-layer revision it read holds.
+    expect(commit(busy, claim('fresh', busy, expectedRevision(released, 'claim')))?.run.kind).toBe(
+      'active',
+    )
   })
 })

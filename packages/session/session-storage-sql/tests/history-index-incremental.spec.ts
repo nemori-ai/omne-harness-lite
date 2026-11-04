@@ -98,7 +98,7 @@ function apart(a: App): App {
   return { ...a, port: createSessionStorage<string>({ ...a.storageOptions, storage }) }
 }
 
-function claim(a: App, run: string, name: string) {
+function claim(a: App, read: ReturnType<typeof activeRun>, name: string) {
   return a.port.commit({
     access: a.access(TENANT_A),
     command: {
@@ -107,9 +107,10 @@ function claim(a: App, run: string, name: string) {
         tenant: TENANT_A,
         session: sessionId(SESSION),
         operation: operationId(name),
-        run,
+        run: read.run,
         instance: { owner: 'agent', id: 'instance-2' },
         continuity: { owner: 'test', record: 'continuity', revision: '1', digest: 'd' },
+        expected: read.revision,
       },
     } as never,
     guards: [],
@@ -130,7 +131,7 @@ describe('T-A3-1: the kept index answers as a whole read after every commit', ()
     await step(() => a.accept(TENANT_A, SESSION, 'input-1'))
     await step(() => startRun(a, 'start-run-1'))
     const first = activeRun(await workOf(a))
-    await step(() => claim(a, first.run, 'claim-1'))
+    await step(() => claim(a, first, 'claim-1'))
     await step(() => cancelRun(a, first.run, 'cancel-1'))
     await step(() => a.accept(TENANT_A, SESSION, 'input-2'))
     await step(() => startRun(a, 'start-run-2'))

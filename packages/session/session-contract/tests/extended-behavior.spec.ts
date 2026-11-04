@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { scene, open } from './scene.ts'
 import type { SessionCommand } from '@omne-harness/session-contract'
 import {
+  expectedRevision,
   projectSessionLog,
   type SessionLogConsequence,
   type ResidentKey,
@@ -27,13 +28,14 @@ describe('Session governance beyond the first path', () => {
           ...s.base,
           operation: operationId('release'),
           advance: first.advance,
-          expected: first.snapshot.revision,
+          expected: expectedRevision(first.snapshot, 'release'),
           handover: evidence('detach'),
         },
       }),
       'release',
     )
-    expect((await s.read()).run).toMatchObject({ kind: 'active', advance: null })
+    const released = await s.read()
+    expect(released.run).toMatchObject({ kind: 'active', advance: null })
     succeeded(
       await s.commit({
         kind: 'claim',
@@ -43,6 +45,7 @@ describe('Session governance beyond the first path', () => {
           run: first.run.run,
           instance: { owner: 'agent', id: 'recovery' },
           continuity: evidence('continuity'),
+          expected: expectedRevision(released, 'claim'),
         },
       }),
       'claim',
@@ -57,7 +60,7 @@ describe('Session governance beyond the first path', () => {
           ...s.base,
           operation: operationId('reload'),
           run: first.run.run,
-          expected: second.snapshot.revision,
+          expected: expectedRevision(second.snapshot, 'reload'),
           instance: { owner: 'agent', id: 'reload' },
           candidate: { ...first.run.adoption, revision: '2' },
           handover: evidence('handover'),
@@ -74,7 +77,7 @@ describe('Session governance beyond the first path', () => {
             ...s.base,
             operation: operationId('stale-release'),
             advance: first.advance,
-            expected: (await s.read()).revision,
+            expected: expectedRevision(await s.read(), 'release'),
             handover: evidence('old'),
           },
         }),
@@ -108,6 +111,7 @@ describe('Session governance beyond the first path', () => {
     const before = await s.active()
     succeeded(await s.commit({ ...freeze, input: { ...freeze.input, ...s.base } }), 'active freeze')
     await s.accept('second')
+    const frozen = await s.read()
     succeeded(
       await s.commit({
         kind: 'claim',
@@ -117,6 +121,7 @@ describe('Session governance beyond the first path', () => {
           run: before.run.run,
           instance: { owner: 'agent', id: 'recovery' },
           continuity: evidence('continuity'),
+          expected: expectedRevision(frozen, 'claim'),
         },
       }),
       'frozen claim',
@@ -128,7 +133,7 @@ describe('Session governance beyond the first path', () => {
           ...s.base,
           operation: operationId('finish'),
           run: before.run.run,
-          expected: (await s.read()).revision,
+          expected: expectedRevision(await s.read(), 'finishRun'),
           bounded: { kind: 'uninterpretable', evidence: evidence('bounded') },
         },
       }),

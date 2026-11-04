@@ -7,9 +7,10 @@
 (* One session, a finite set of inputs, at most MaxRuns Runs in sequence.  *)
 (* Every commit bumps `revision`; only Run-layer commits bump               *)
 (* `runRevision`. A command that carries `expected` compares it with the   *)
-(* revision named by ExpectedScope: "global" is the current contract and   *)
-(* implementation (judgeAdvance compares snapshot.revision), "run" is the  *)
-(* alternative in which unrelated commits do not move the compared value.  *)
+(* revision named by ExpectedScope: "global" is the contract before        *)
+(* R2-D327 (judgeAdvance compared snapshot.revision), "run" is the contract *)
+(* and implementation since R2-D327 and R2-D343: unrelated commits do not  *)
+(* move the compared value, and no other value holds.                      *)
 (*                                                                         *)
 (* `advances` is the set of attempt ordinals that hold the advance. The    *)
 (* design keeps it at most one element. Bug switches each break one        *)
@@ -18,7 +19,9 @@
 (* R2-D327 adopted "run" for ExpectedScope: positive-run is the design and *)
 (* negative-global-expected the negative control. A claim is two steps by  *)
 (* one of the Recoverers: it reads the Run layer, then commits with that   *)
-(* `expected`; "claim-no-expected" is a claim that sends none.              *)
+(* `expected`. Since R2-D343 `expected` of a claim is mandatory;           *)
+(* "claim-no-expected" is the negative control of a decision that leaves   *)
+(* the comparison out.                                                      *)
 (***************************************************************************)
 EXTENDS Integers, FiniteSets, TLC
 
@@ -163,7 +166,7 @@ Release(a) ==
    if any, superseded in the same batch. The execution record provider decides between the recovery
    and the takeover path; both end with exactly one attempt holding the advance (I-R2). With a stale
    `expected` the claim is refused (stale-advance or changed) and the recoverer may read again.
-   "claim-no-expected" commits without the comparison: a claim that sends no `expected`. *)
+   "claim-no-expected" commits without the comparison: a decision that does not compare `expected`. *)
 ClaimRead(r) ==
   /\ Active /\ claimExp[r] = -1
   /\ claimExp' = [claimExp EXCEPT ![r] = Compared]

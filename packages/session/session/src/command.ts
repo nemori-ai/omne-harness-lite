@@ -31,6 +31,7 @@ import { qualify, readSnapshot } from './qualify.ts'
 
 /** The commands that carry `expected` and so may meet `changed` at the commit (SPEC CP-01). */
 const OPTIMISTIC: ReadonlySet<MutationName> = new Set([
+  'claim',
   'reload',
   'release',
   'finishRun',
@@ -123,8 +124,6 @@ function preparesIdle(command: SessionCommand): command is IdleCommand {
 
 /** The `expected` the caller asserted, or undefined for a command that carries none. */
 function expectedOf(command: SessionCommand): WorkSnapshot['revision'] | undefined {
-  // `claim` may carry `expected` (contract PM-05, R2-D327); without it the claim stays as before.
-  if (command.kind === 'claim') return command.input.expected
   if (!OPTIMISTIC.has(command.kind) || !('expected' in command.input)) return undefined
   return command.input.expected
 }

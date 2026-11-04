@@ -603,13 +603,9 @@ function decideAttempt(
   if (command.kind === 'reload' && !expectedHolds(snapshot, 'reload', command.input.expected))
     return rejected({ kind: 'changed', revision: expectedRevision(snapshot, 'reload') })
   // Two recoverers that read the same Run layer: the first claim moves the Run-layer revision, so
-  // the second finds a successor (stale-advance), or a released advance (changed). A claim without
-  // `expected` keeps the earlier behaviour until its callers send one (SPEC PM-05, R2-D327).
-  if (
-    command.kind === 'claim' &&
-    command.input.expected !== undefined &&
-    !expectedHolds(snapshot, 'claim', command.input.expected)
-  )
+  // the second finds a successor (stale-advance), or a released advance (changed) (SPEC PM-05,
+  // R2-D343).
+  if (command.kind === 'claim' && !expectedHolds(snapshot, 'claim', command.input.expected))
     return rejected(
       snapshot.run.advance !== null
         ? { kind: 'stale-advance', current: snapshot.run.advance }

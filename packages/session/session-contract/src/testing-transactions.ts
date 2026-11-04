@@ -1713,7 +1713,7 @@ export function scene<P>(fixture: SessionTransactionsFixture<P>) {
         ...base,
         operation: fixture.operation(name),
         run: run.run,
-        expected: snapshot.revision,
+        expected: run.revision,
         bounded,
       },
     })
@@ -2266,7 +2266,7 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
               ...s.base,
               operation: fixture.operation('finish-again'),
               run: run.run,
-              expected: snapshot.revision,
+              expected: run.revision,
               bounded: { kind: 'uninterpretable', evidence: evidence('agent/uninterpretable') },
             },
           }),

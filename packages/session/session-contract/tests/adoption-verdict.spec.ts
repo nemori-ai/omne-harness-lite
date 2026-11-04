@@ -2,6 +2,7 @@
 // in their resident adoption are decided `frozen{verdict}` and produce no entry. The same command
 // without the verdict is decided, so the verdict is the only cause.
 import { describe, expect, it } from 'vitest'
+import { expectedRevision } from '@omne-harness/session-contract'
 import type {
   FreezeVerdict,
   ResidentAdoption,
@@ -86,7 +87,7 @@ describe('the freeze verdict of the adoption material', () => {
         ...s.base,
         operation: operationId('reload-verdict'),
         run: run.run,
-        expected: snapshot.revision,
+        expected: expectedRevision(snapshot, 'reload'),
         instance: { owner: 'agent', id: 'reload-verdict' },
         candidate: run.adoption,
         handover: evidence('handover'),

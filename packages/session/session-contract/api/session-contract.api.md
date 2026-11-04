@@ -1138,7 +1138,7 @@ export interface SessionWork<P> {
         run: RunId;
         instance: AgentInstanceRef;
         continuity: DurableEvidence;
-        expected?: SessionRevision;
+        expected: SessionRevision;
     }>): Reply<Readonly<{
         receipt: CommitReceipt;
         advance: AdvanceRef;
@@ -2606,8 +2606,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:dc5660dcbdcc2b1372a984afedce11c969b50c35f18567cff3debef7cd34279e";
-export declare const SESSION_RELEASE_DIGEST = "sha256:dc5660dcbdcc2b1372a984afedce11c969b50c35f18567cff3debef7cd34279e";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:5f025e3cfe6ae3e61d3e15d0c456f95edb1b91b0fd069bb084279a2f7f6595ce";
+export declare const SESSION_RELEASE_DIGEST = "sha256:5f025e3cfe6ae3e61d3e15d0c456f95edb1b91b0fd069bb084279a2f7f6595ce";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3269,7 +3269,7 @@ export type RunState = Readonly<{
     advance: AdvanceRef | null;
     ordinal: string;
     execution: ExecutionRef;
-    revision?: SessionRevision;
+    revision: SessionRevision;
 }> | Readonly<{
     kind: 'terminal';
     terminal: RunTerminal;

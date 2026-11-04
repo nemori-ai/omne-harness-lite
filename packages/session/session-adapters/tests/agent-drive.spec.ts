@@ -153,6 +153,8 @@ function activeRun(instance: AgentInstanceRef | null, adopted: Adoption = runAdo
       instance === null ? null : { run: 'run-1' as never, attempt: 'attempt-1' as never, instance },
     ordinal: '1',
     execution: { execution: EXECUTION, revision: null, evidence: null, readThrough: '0' },
+    // The fixture's Run layer: the face under test reads the Run, never this revision.
+    revision: '1' as WorkSnapshot['revision'],
   }
 }
 

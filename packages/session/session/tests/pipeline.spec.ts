@@ -79,7 +79,7 @@ async function releaseDirectly(h: Harness, started: StartedRun, name = 'release-
           session: h.access().session,
           operation: operationId(name),
           advance: started.advance,
-          expected: now.revision,
+          expected: expectedRevision(now, 'release'),
           handover: evidence('handover-concurrent'),
         },
       },

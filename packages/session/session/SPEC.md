@@ -40,7 +40,7 @@
 
 第 1 步分两部分：核权（`check` 与 `bind`）与认回（派生身份、经视图点查、`resolveOperation`）。核权每次面操作只做一次。本节与本文别处说「回到第 1 步」「从第 1 步开始」或「运行第 1 步」时，都只指认回部分。
 
-只有七种命令带 `expected`，做乐观并发核对：`reload`、`release`、`finishRun`、`recordIdle`、`bindExternalCall`、`completeExternalConsumption` 与 `commitDerived(context-reminder)`。对它们，调用方的 `expected` 在第 2 步与快照的 `revision` 比较，不等答 `changed` 不提交；相等时服务照调用方的原值提交，第 5 步的一致性由存储提供者保证：事务内的 `decide` 发现 `expected` 不等于尾部时得到 `changed`，服务把它交回调用方。尾部与 `expected` 一致时，事务内的 `decide` 与第 3 步读同一快照与同一参数。`decide` 是纯函数，所以两次结局相同。
+只有八种命令带 `expected`，做乐观并发核对：`claim`、`reload`、`release`、`finishRun`、`recordIdle`、`bindExternalCall`、`completeExternalConsumption` 与 `commitDerived(context-reminder)`。对它们，调用方的 `expected` 在第 2 步与快照比较（`claim`、`reload`、`release`、`finishRun` 与 Run 层修订比较，其余与快照的 `revision` 比较；契约[推进命令的 expected](../session-contract/SPEC.md#run-layer-expected)，R2-D343），不等答 `changed` 不提交；相等时服务照调用方的原值提交，第 5 步的一致性由存储提供者保证：事务内的 `decide` 发现 `expected` 不等于尾部时得到 `changed`，服务把它交回调用方。尾部与 `expected` 一致时，事务内的 `decide` 与第 3 步读同一快照与同一参数。`decide` 是纯函数，所以两次结局相同。
 
 其余命令不带 `expected`。事务内的 `decide` 以存储参加者读到的当前状态重新裁定，结局可能与第 3 步不同，以事务内的结局为准，不产生 `changed`。第 3 步只用来提前得到拒绝原因与决定收哪些材料，材料集合按命令种类固定，所以状态变化不会让收到的材料失配。
 
@@ -458,7 +458,7 @@
 
 | 编号 | 场景 | 必须观察的结果 | 条款 |
 | --- | --- | --- | --- |
-| VM-01 | 每个变更命令走完流水线六步；调用方持过期 `expected` 调带 `expected` 的七种命令之一；调用方持当前 `expected`，存储层在第 5 步答 `changed`；不带 `expected` 的命令在第 3 步之后状态被并发改变，或存储层对它答 `changed` | 过期 `expected` 在第 2 步答 `changed`，不提交，不换成新的 `revision` 重做；当前 `expected` 在第 5 步得到的 `changed` 原样交给调用方，不重做。不带 `expected` 的命令在状态被并发改变时不得到 `changed`，结局按事务内的当前状态裁定；存储层仍对它答 `changed` 时，重做从第 1 步的认回部分开始，不再调用 `check`，读权威快照，沿用同一操作身份，不得到 `conflict`；重做次数不超过 `command.retriesOnChanged`；超过后调用方收到 `changed`，没有提交 | [CP-01](#cp-01) |
+| VM-01 | 每个变更命令走完流水线六步；调用方持过期 `expected` 调带 `expected` 的八种命令之一；调用方持当前 `expected`，存储层在第 5 步答 `changed`；不带 `expected` 的命令在第 3 步之后状态被并发改变，或存储层对它答 `changed` | 过期 `expected` 在第 2 步答 `changed`，不提交，不换成新的 `revision` 重做；当前 `expected` 在第 5 步得到的 `changed` 原样交给调用方，不重做。不带 `expected` 的命令在状态被并发改变时不得到 `changed`，结局按事务内的当前状态裁定；存储层仍对它答 `changed` 时，重做从第 1 步的认回部分开始，不再调用 `check`，读权威快照，沿用同一操作身份，不得到 `conflict`；重做次数不超过 `command.retriesOnChanged`；超过后调用方收到 `changed`，没有提交 | [CP-01](#cp-01) |
 | VM-02 | 参加命令在提交方事务里运行；提交方回滚 | Session 一侧没有条目，`ExecutionRef` 不变；参加者四种响应与结局一一对应 | [CP-02](#cp-02) |
 | VM-03 | before-admit 槽拦截、放行与展开；同一原提交重复进入 | 拦截只写 SE12，不保管正文；展开内容与原命令同批；重复进入认回原回执 | [EX-1](#ex-1)、[C1](#c1) |
 | VM-04 | 每个协调器在每个失败分支上的动作 | 与各协调器表的「失败分支」一致；没有一个分支把未知改写为成功或失败 | [C1](#c1) 至 [C5](#c5) |

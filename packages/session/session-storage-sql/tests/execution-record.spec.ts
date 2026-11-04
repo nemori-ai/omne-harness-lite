@@ -500,6 +500,7 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
             run: work.run.run,
             instance: { owner: 'agent', id: 'instance-2' },
             continuity: evidence('continuity'),
+            expected: work.run.revision,
           },
         },
         guards: [],
