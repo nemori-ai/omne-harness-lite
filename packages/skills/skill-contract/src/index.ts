@@ -13,6 +13,7 @@ export {
   toPackagePath,
 } from './names.ts'
 export { PAGE_LIMIT } from './page-limit.ts'
+export { DECLARATION_LIMITS } from './parse/declaration.ts'
 export { bodyOffsetOf } from './parse/manifest.ts'
 export { parseSkillPackage, type ParseFailure, type ParseInput } from './parse/package.ts'
 export { isSkillDescription } from './parse/shape.ts'

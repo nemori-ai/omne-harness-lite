@@ -5,6 +5,7 @@
 // the port cannot change a value after it was parsed.
 import { capabilityId, type CapabilityId, type JsonValue } from '@omne-harness/assets'
 import {
+  DECLARATION_LIMITS,
   isAssetVersion,
   isPackageDigest,
   isPackagePath,
@@ -20,23 +21,20 @@ import {
 } from '@omne-harness/skill-contract'
 import type { PackageLocator, SkillRef } from '@omne-harness/skill-contract/provider'
 
-/** Whether `value` is an object with the field `key`. The field itself is still unknown. */
+/**
+ * Whether `value` is an object with its own field `key`. A field on the prototype does not count:
+ * a port answer is data, and data has its fields itself. The field itself is still unknown.
+ */
 export function has<K extends string>(
   value: unknown,
   key: K,
 ): value is Readonly<Record<K, unknown>> {
-  return typeof value === 'object' && value !== null && key in value
+  return typeof value === 'object' && value !== null && Object.hasOwn(value, key)
 }
 
-/** The field `key` of `value`, or `undefined` when `value` is no object or has no such field. */
+/** The own field `key` of `value`, or `undefined` when `value` is no object or has no such field. */
 export function fieldOf<K extends string>(value: unknown, key: K): unknown {
   return has(value, key) ? value[key] : undefined
-}
-
-/** The text `kind` of a port answer, or `undefined`. */
-export function kindOf(value: unknown): string | undefined {
-  const kind = fieldOf(value, 'kind')
-  return typeof kind === 'string' ? kind : undefined
 }
 
 /** A parser made from a guard. */
@@ -91,20 +89,18 @@ export function capabilityOf(value: unknown): CapabilityId | undefined {
 }
 
 function layerOf(value: unknown): SourceLayer | undefined {
-  if (typeof value !== 'string') return undefined
   switch (value) {
     case 'official':
     case 'organization':
     case 'tenant':
     case 'workspace':
       return value
-    default:
-      return undefined
   }
+  return undefined
 }
 
 function locatorOf(value: unknown): PackageLocator | undefined {
-  switch (kindOf(value)) {
+  switch (fieldOf(value, 'kind')) {
     case 'directory': {
       const root = text(fieldOf(value, 'root'))
       return root === undefined ? undefined : Object.freeze({ kind: 'directory', root })
@@ -113,9 +109,8 @@ function locatorOf(value: unknown): PackageLocator | undefined {
       const digest = fieldOf(value, 'digest')
       return isPackageDigest(digest) ? Object.freeze({ kind: 'content-store', digest }) : undefined
     }
-    default:
-      return undefined
   }
+  return undefined
 }
 
 function refOf(value: unknown): SkillRef | undefined {
@@ -135,37 +130,65 @@ function refOf(value: unknown): SkillRef | undefined {
   return Object.freeze({ capability, layer, ...assetVersion, locator, ...digest })
 }
 
-/** A JSON tree in the form that `@omne-harness/assets` reads: every node checked down to the leaves. */
-function isJsonValue(value: unknown): value is JsonValue {
-  switch (kindOf(value)) {
+/** The deepest nesting of containers in script parameters: the depth budget of a declaration. */
+const PARAMETERS_DEPTH = DECLARATION_LIMITS.maxDepth
+/** A JSON number by RFC 8259 section 6: the lexeme form that `@omne-harness/json-text` reads. */
+const JSON_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/
+const NULL_NODE: JsonValue = Object.freeze({ kind: 'null' })
+
+type JsonEntry = Extract<JsonValue, { kind: 'object' }>['entries'][number]
+
+/**
+ * A JSON tree in the form that `@omne-harness/assets` reads, built anew and frozen node by node.
+ * Each node keeps only the fields of its kind, and each object entry only `key` and `value`.
+ * `above` counts the containers above the node; a container below `PARAMETERS_DEPTH` others is
+ * too deep, so the walk never goes deeper than the budget and a cycle ends there too.
+ */
+function jsonTreeOf(value: unknown, above: number): JsonValue | undefined {
+  switch (fieldOf(value, 'kind')) {
     case 'null':
-      return true
-    case 'boolean':
-      return typeof fieldOf(value, 'value') === 'boolean'
-    case 'string':
-      return typeof fieldOf(value, 'value') === 'string'
-    case 'number':
-      return typeof fieldOf(value, 'lexeme') === 'string'
-    case 'array':
-      return listOf(fieldOf(value, 'items'), guarded(isJsonValue)) !== undefined
-    case 'object':
-      return (
-        listOf(fieldOf(value, 'entries'), entry =>
-          typeof fieldOf(entry, 'key') === 'string' && isJsonValue(fieldOf(entry, 'value'))
-            ? entry
-            : undefined,
-        ) !== undefined
-      )
-    default:
-      return false
+      return NULL_NODE
+    case 'boolean': {
+      const flag = fieldOf(value, 'value')
+      return typeof flag === 'boolean' ? Object.freeze({ kind: 'boolean', value: flag }) : undefined
+    }
+    case 'string': {
+      const content = text(fieldOf(value, 'value'))
+      return content === undefined ? undefined : Object.freeze({ kind: 'string', value: content })
+    }
+    case 'number': {
+      const lexeme = text(fieldOf(value, 'lexeme'))
+      return lexeme !== undefined && JSON_NUMBER.test(lexeme)
+        ? Object.freeze({ kind: 'number', lexeme })
+        : undefined
+    }
+    case 'array': {
+      if (above >= PARAMETERS_DEPTH) return undefined
+      const items = listOf(fieldOf(value, 'items'), item => jsonTreeOf(item, above + 1))
+      return items === undefined ? undefined : Object.freeze({ kind: 'array', items })
+    }
+    case 'object': {
+      if (above >= PARAMETERS_DEPTH) return undefined
+      const entries = listOf(fieldOf(value, 'entries'), entry => entryOf(entry, above + 1))
+      return entries === undefined ? undefined : Object.freeze({ kind: 'object', entries })
+    }
   }
+  return undefined
+}
+
+/** One entry of a JSON object; `above` counts the containers above its value. */
+function entryOf(value: unknown, above: number): JsonEntry | undefined {
+  const key = text(fieldOf(value, 'key'))
+  const tree = jsonTreeOf(fieldOf(value, 'value'), above)
+  if (key === undefined || tree === undefined) return undefined
+  return Object.freeze({ key, value: tree })
 }
 
 function scriptOf(value: unknown): ScriptDeclaration | undefined {
   const entry = fieldOf(value, 'entry')
   const runKind = text(fieldOf(value, 'runKind'))
   const facilities = listOf(fieldOf(value, 'facilities'), text)
-  const parameters = optional(value, 'parameters', guarded(isJsonValue))
+  const parameters = optional(value, 'parameters', tree => jsonTreeOf(tree, 0))
   if (
     !isPackagePath(entry) ||
     runKind === undefined ||
@@ -177,16 +200,14 @@ function scriptOf(value: unknown): ScriptDeclaration | undefined {
 }
 
 function settingCategoryOf(value: unknown): SettingCategory | undefined {
-  if (typeof value !== 'string') return undefined
   switch (value) {
     case 'preference':
     case 'binding':
     case 'placement-identity':
     case 'governance':
       return value
-    default:
-      return undefined
   }
+  return undefined
 }
 
 function settingOf(value: unknown): SettingDeclaration | undefined {

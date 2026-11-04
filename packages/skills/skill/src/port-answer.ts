@@ -10,7 +10,7 @@ import type {
   ReadVerdict,
   Resolution,
 } from '@omne-harness/skill-contract/provider'
-import { adoptedOf, fieldOf, has, kindOf, listOf, standInOf } from './answer-values.ts'
+import { adoptedOf, fieldOf, has, listOf, standInOf } from './answer-values.ts'
 
 /** The answer of a port call in the form that `parse` gives, or `undefined` when the port did not answer. */
 export async function answered<T>(
@@ -33,21 +33,20 @@ const UNKNOWN_RESOLUTION: Resolution = Object.freeze({ kind: 'unknown' })
 
 /** `SkillReadCheck.check`: one of the three verdicts. */
 export function parseVerdict(answer: unknown): ReadVerdict | undefined {
-  switch (kindOf(answer)) {
+  switch (fieldOf(answer, 'kind')) {
     case 'granted':
       return GRANTED
     case 'refused':
       return REFUSED
     case 'unknown':
       return UNDECIDED
-    default:
-      return undefined
   }
+  return undefined
 }
 
 /** `SkillResolution.resolve`: one of the five answers, each with its whole payload. */
 export function parseResolution(answer: unknown): Resolution | undefined {
-  switch (kindOf(answer)) {
+  switch (fieldOf(answer, 'kind')) {
     case 'adopted':
       return adoptedOf(answer)
     case 'known-unavailable':
@@ -58,21 +57,19 @@ export function parseResolution(answer: unknown): Resolution | undefined {
       return NONE
     case 'unknown':
       return UNKNOWN_RESOLUTION
-    default:
-      return undefined
   }
+  return undefined
 }
 
 /** One item of the lawful set: only the two answers that the set holds. */
 function parseLawfulItem(answer: unknown): CatalogResolution | undefined {
-  switch (kindOf(answer)) {
+  switch (fieldOf(answer, 'kind')) {
     case 'adopted':
       return adoptedOf(answer)
     case 'known-unavailable':
       return standInOf(answer)
-    default:
-      return undefined
   }
+  return undefined
 }
 
 /** `SkillResolution.adopted`: a list whose every item parses, or the failure `unknown`. One item
