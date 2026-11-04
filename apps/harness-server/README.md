@@ -41,7 +41,7 @@ node apps/harness-server/dist/bin.js serve            # Ctrl+C stops it
 - Places: on Windows `%LOCALAPPDATA%\omne\config` and `%LOCALAPPDATA%\omne\state`. On Linux `~/.config/omne` and `~/.local/state/omne` (`XDG_CONFIG_HOME` and `XDG_STATE_HOME` apply). `OMNE_SERVER_HOME=<dir>` moves both to `<dir>/config` and `<dir>/state`.
 - Options: `--port <n>` (default 8787), `--workspace <dir>` (default `<state>/workspace`), `--shell <executable>` (default Windows PowerShell on Windows, `/bin/bash` elsewhere).
 - The environment of the Shell tool is the `PATH` that `setup` saw and a few allowlisted variables. It holds no variable whose name looks like a secret. On Windows, PowerShell starts with `-ExecutionPolicy Bypass`, so local scripts run. The allowlist is in [SPEC.md](SPEC.md#shell-的环境).
-- A second `setup` checks and does not overwrite. Add `--reconfigure` to change the settings. Add `--replace-credential` to change the credential.
+- A second `setup` checks and does not overwrite. It opens the vault, so a vault that cannot be read is an error, not "kept". Add `--reconfigure` to change the settings. Add `--reset` to replace a settings file that is not valid with default values. Add `--replace-credential` to change the credential, or to build a new vault in place of one that cannot be read.
 - `serve` without arguments reads this setup. On a host without `setup`, it tells you to run `setup` and exits with code 2.
 - The `omne` CLI uses the port of the settings file when there is no `--server` and no `OMNE_SERVER`.
 
@@ -66,7 +66,7 @@ A usage error prints `<subcommand>: <reason>` and then the usage line of that su
 ```text
 usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>
 usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]
-usage: setup [--port <n>] [--workspace <dir>] [--shell <executable>] [--reconfigure] [--replace-credential]
+usage: setup [--port <n>] [--workspace <dir>] [--shell <executable>] [--reconfigure] [--reset] [--replace-credential]
 ```
 
 With only the distribution file, `serve` cannot load. The distribution layer gives no factory values for `execution-host` and `agent-host`, and no `loopGuardPolicy` for `agent-host`. The process exits with `invalid-config` and does not serve (R2-D229). The operator layer must give these values. Without `--operator`, the local single-user profile makes this layer: it starts from the configuration of each release row and adds the numbers of `src/local/operator-defaults.ts`. If you write your own `--operator`, note that `replace` does not merge: for `agent-host`, copy `jointCommits` and `coordination` from the distribution layer exactly. The numbers of the profile have no measurement behind them, and `loopGuardPolicy` has only a placeholder adoption. The known limit is in [SPEC.md](SPEC.md#已知限制).

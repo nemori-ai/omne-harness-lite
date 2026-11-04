@@ -5,7 +5,7 @@
 // 先构建 harness-server 与 cli。测试不访问网络：没有 Model 调用。
 import { randomBytes } from 'node:crypto'
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -187,5 +187,37 @@ describe('serve without setup', () => {
     expect(out.stderr).toBe(
       `serve: not set up: no settings at ${join(home, 'config', 'server.json')}\nRun \`harness-server setup\` first.\n`,
     )
+  })
+})
+
+describe('a vault that cannot be read', () => {
+  it('setup exits 1 and serve exits 2 before any row loads; --replace-credential rebuilds it', async () => {
+    const home = join(root, 'omne-corrupt')
+    const env = envFor(home)
+    expect(
+      (await run(serverBin, ['setup', '--port', String(await freePort())], env, `${sentinel()}\n`))
+        .code,
+    ).toBe(0)
+    const vault = join(home, 'state', 'model-vault.json')
+    writeFileSync(vault, '{not json')
+
+    const setup = await run(serverBin, ['setup'], env)
+    expect(setup.code).toBe(1)
+    expect(setup.stderr).toContain(`the model credential vault ${vault} cannot be read (corrupt)`)
+    expect(setup.stdout).toBe('')
+
+    const serve = await run(serverBin, ['serve'], env)
+    expect(serve.code).toBe(2)
+    expect(serve.stdout).toBe('')
+    expect(serve.stderr).toContain(
+      `serve: the model credential vault ${vault} cannot be read (corrupt)`,
+    )
+    expect(serve.stderr).toContain('harness-server setup --replace-credential')
+
+    // Negative control: the advised command repairs the host.
+    const key = sentinel()
+    const rebuilt = await run(serverBin, ['setup', '--replace-credential'], env, `${key}\n`)
+    expect(rebuilt.code, rebuilt.stderr).toBe(0)
+    expect(readFileSync(vault, 'utf8')).toContain(key)
   })
 })

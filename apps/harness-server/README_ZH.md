@@ -41,7 +41,7 @@ node apps/harness-server/dist/bin.js serve            # Ctrl+C 停止
 - 位置：Windows 上是 `%LOCALAPPDATA%\omne\config` 与 `%LOCALAPPDATA%\omne\state`。Linux 上是 `~/.config/omne` 与 `~/.local/state/omne`（遵守 `XDG_CONFIG_HOME`、`XDG_STATE_HOME`）。`OMNE_SERVER_HOME=<目录>` 把两者移到 `<目录>/config` 与 `<目录>/state`。
 - 可选参数：`--port <n>`（默认 8787）、`--workspace <目录>`（默认 `<状态目录>/workspace`）、`--shell <可执行文件>`（Windows 默认 Windows PowerShell，其他平台默认 `/bin/bash`）。
 - Shell 工具的环境是 `setup` 当时的 `PATH` 与少数白名单变量，不含名字像秘密的变量。Windows 上 PowerShell 以 `-ExecutionPolicy Bypass` 启动，能运行本地脚本。白名单见 [SPEC.md](SPEC.md#shell-的环境)。
-- 再次运行 `setup` 只检查，不覆盖。改设置要加 `--reconfigure`，换凭据要加 `--replace-credential`。
+- 再次运行 `setup` 只检查，不覆盖。它会打开保管库，读不出时报错，不报 kept。改设置要加 `--reconfigure`。设置文件不合格时，要用默认值替换它，加 `--reset`。换凭据，或者用新的保管库替换读不出的那份，加 `--replace-credential`。
 - `serve` 不带参数时读这份配置。没有运行过 `setup` 时，它提示先运行 `setup`，以退出码 2 退出。
 - `omne` CLI 不带 `--server` 且没有 `OMNE_SERVER` 时，连接配置文件里的端口。
 
@@ -66,7 +66,7 @@ node apps/harness-server/dist/bin.js serve [--distribution <绝对 JSON 路径>]
 ```text
 usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>
 usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]
-usage: setup [--port <n>] [--workspace <dir>] [--shell <executable>] [--reconfigure] [--replace-credential]
+usage: setup [--port <n>] [--workspace <dir>] [--shell <executable>] [--reconfigure] [--reset] [--replace-credential]
 ```
 
 只有发行层时，`serve` 不能装载。发行层不写 `execution-host` 与 `agent-host` 的工厂数值，也不写 `agent-host` 的 `loopGuardPolicy`。进程以 `invalid-config` 退出，不进入服务（R2-D229）。运维者层必须给出这些值。省略 `--operator` 时，本机单用户档生成这一层：它从发行层每行的配置开始，再加上 `src/local/operator-defaults.ts` 里的数值。自己写 `--operator` 时要注意，`replace` 不合并：`agent-host` 要把发行层的 `jointCommits` 与 `coordination` 逐字重抄。本档的数值没有测量依据，`loopGuardPolicy` 只有占位采用。已知限制见 [SPEC.md](SPEC.md#已知限制)。

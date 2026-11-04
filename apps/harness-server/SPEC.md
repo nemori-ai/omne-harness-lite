@@ -33,7 +33,7 @@ S0 不接 HTTP，不创建租户，不打开业务状态根，不读真实秘密
 ```text
 harness-server s0 --distribution <绝对 JSON 路径> [--operator <绝对 JSON 路径>] --readiness-timeout-ms <正整数> --shutdown-deadline-ms <正整数>
 harness-server serve [--distribution <绝对 JSON 路径>] [--operator <绝对 JSON 路径>] [--readiness-timeout-ms <正整数>] [--shutdown-deadline-ms <正整数>] [--state-root <绝对目录>] [--stop-on-stdin-close]
-harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文件>] [--reconfigure] [--replace-credential]
+harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文件>] [--reconfigure] [--reset] [--replace-credential]
 ```
 
 位置参数里有 `serve` 时，进程走真实模式。没有 `serve` 而有 `setup` 时，进程走本机首次配置，见[本机单用户档](#本机单用户档)。其他任何调用走 S0 的原解析路径：`parseArgs` 允许位置参数，子命令 `s0` 可在任意位置。这条路径的参数、输出、退出码与 stderr 文字与加入 `serve` 之前逐字节相同。`bin.ts` 只解析参数、调用 `runS0`、`runServe` 或 `runSetup` 并设置退出码。
@@ -96,12 +96,20 @@ harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文�
 
 1. 解析参数。参数不对时退出 2，标准错误写 `setup: <原因>` 和用法行。未知参数只报 `setup: unrecognized arguments`，不回显参数，因为参数可能就是密钥。`--help` 打印说明，退出 0，不读写宿主。
 2. 按[位置](#位置)取目录。
-3. 读已有的 `server.json`。文件不合格且没有 `--reconfigure` 时退出 2，文件不变。
-4. 算出要用的设置：已有设置（没有时取默认值），再叠加 `--port`、`--workspace`、`--shell`。`shellEnvironment` 在新建设置与 `--reconfigure` 时从 `setup` 自己的环境按白名单取，其余时候保持文件里的值。相对路径按当前目录解析。默认端口是 8787，与 CLI 的默认地址相同。默认工作区是 `<状态目录>/workspace`。默认 Shell 在 Windows 上是 `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`，其他平台是 `/bin/bash`。
+3. 读已有的 `server.json`。文件不合格时退出 2，标准错误写明哪一项不合格，文件不变。`--reconfigure` 也不替换不合格的文件。只有 `--reset` 丢弃已有的文件（合格与否都一样），从默认值重新开始，总结里这一行标 `reset`。
+4. 算出要用的设置：已有设置（没有或有 `--reset` 时取默认值），再叠加 `--port`、`--workspace`、`--shell`。`shellEnvironment` 在新建设置与 `--reconfigure` 时从 `setup` 自己的环境按白名单取，其余时候保持文件里的值。相对路径按当前目录解析。默认端口是 8787，与 CLI 的默认地址相同。默认工作区是 `<状态目录>/workspace`。默认 Shell 在 Windows 上是 `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`，其他平台是 `/bin/bash`。
 5. 已有的 `port`、`workspace`、`shell` 与要用的不同而没有 `--reconfigure` 时，退出 2，标准错误逐项列出旧值与新值，文件不变。已有设置不被静默覆盖。
 6. Shell 不是已存在的文件时，退出 2。
 7. 建配置目录、状态目录、`host-files/`，以及不存在的工作区。
-8. 存模型凭据。保管库不存在时，读凭据，经 model-host-local 的 `initVault` 新建保管库，凭据成为工厂秘密。保管库已存在而有 `--replace-credential` 时，读凭据，经 `replaceVaultSecret` 替换工厂秘密。保管库已存在而没有这个参数时，不读标准输入，保管库不变。
+8. 存模型凭据。保管库路径上的情形如下：
+   - 什么都没有：读凭据，经 model-host-local 的 `initVault` 新建保管库，凭据成为工厂秘密。
+   - 是目录或链接：退出 1，标准错误写明路径上不是保管库文件，要人先删除它。`setup` 从不删除目录或链接。
+   - 是文件：经 `inspectLocalCustodian` 在文件锁下打开它（顺带清理这份保管库的残留临时文件），不只看文件在不在。
+     - 没有 `--replace-credential`、文件可读：不读标准输入，保管库不变，总结标 `kept`。
+     - 没有 `--replace-credential`、文件读不出：退出 1，标准错误写 `setup: the model credential vault <路径> cannot be read (<原因>)` 与修正办法（加 `--replace-credential` 重跑）。原因是 `corrupt` 或 `io`。保管库不变。
+     - 有 `--replace-credential`、文件可读：读凭据，经 `replaceVaultSecret` 替换工厂秘密，总结标 `replaced`。
+     - 有 `--replace-credential`、文件读不出：重建。先读凭据并校验，再删除这个文件，再按新建的规则建保管库，总结标 `rebuilt: the old vault could not be read`。旧文件的内容不读。凭据不合格时旧文件留在原处。
+   - 文件锁等不到：退出 1。
 9. 设置是新的或变了时，写 `server.json`：先写临时文件，再改名。
 
 第 8 步在第 9 步之前，所以 `server.json` 存在表示写它时保管库已经存在。
@@ -117,9 +125,9 @@ harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文�
 
 ```text
 harness-server setup: done.
-  settings     <配置目录>/server.json (created | updated | kept)
+  settings     <配置目录>/server.json (created | updated | kept | reset)
   state        <状态目录>
-  credential   <状态目录>/model-vault.json (created | replaced | kept (run setup --replace-credential to change it))
+  credential   <状态目录>/model-vault.json (created | replaced | rebuilt: the old vault could not be read | kept (run setup --replace-credential to change it))
   workspace    <工作区>
   shell        <Shell>
   address      http://127.0.0.1:<port>
@@ -131,17 +139,18 @@ Next:
 | 退出码 | 含义                                                                                     |
 | ------ | ---------------------------------------------------------------------------------------- |
 | 0      | 完成，或 `--help`                                                                        |
-| 1      | 一步失败：凭据读不到或不合格、保管库写不成、目录或配置文件写不成                         |
-| 2      | 参数不对、位置变量不合格、已有设置不合格、设置不同而没有 `--reconfigure`、Shell 不存在 |
+| 1      | 一步失败：凭据读不到或不合格、保管库读不出或写不成、保管库路径上是目录或链接、目录或配置文件写不成 |
+| 2      | 参数不对、位置变量不合格、已有设置不合格而没有 `--reset`、设置不同而没有 `--reconfigure`、Shell 不存在 |
 
-凭据步骤失败时，标准错误写 `setup: model credential not stored: <原因>`。原因来自保管库操作的原因代码，不含凭据。
+凭据步骤失败时，标准错误写 `setup: model credential not stored: <原因>`。原因来自保管库操作的原因代码，不含凭据。例外是替换后收窄权限失败（`written-not-private`）：这时新凭据已经写进文件，旧凭据已不在，所以标准错误写 `setup: the new model credential was written to <路径>, but the file could not be made private to this user (mode 0600)`，再写一行 `Set the mode yourself (chmod 600 <路径>), then run setup again to check it.`，退出 1。
 
 ### serve 怎样用这份配置
 
-省略 `--state-root` 时，状态目录必须存在。省略 `--operator` 时，入口读 `server.json`，确认保管库文件存在、工作区是目录，必要时重建 `host-files/`，再生成运维者层。
+省略 `--state-root` 时，状态目录必须存在。省略 `--operator` 时，入口读 `server.json`，用 `openLocalCustodian` 实际打开保管库（不只看文件在不在），确认工作区是目录，必要时重建 `host-files/`，再生成运维者层。
 
 - 状态目录、`server.json` 或保管库缺失时，标准错误写 `serve: not set up: <缺什么>` 和一行 ``Run `harness-server setup` first.``，退出 2。stdout 没有记录，不装载任何行。
-- `server.json` 不合格或工作区不是目录时，标准错误写原因、修正的命令和 `serve` 的用法行，退出 2。
+- 保管库读不出（原因 `corrupt` 或 `io`）时，标准错误写 `serve: the model credential vault <路径> cannot be read (<原因>)` 与修正办法，退出 2，不装载任何行。路径上是文件时，办法是 `harness-server setup --replace-credential`；不是文件时，办法是删除它后运行 `harness-server setup`。
+- `server.json` 不合格时，标准错误写哪一项不合格，并建议先改文件，`harness-server setup --reset` 用默认值替换它。工作区不是目录时，写原因与修正的命令。两种情形都再写 `serve` 的用法行，退出 2。
 - 运维者层由配置生成，而且服务开始接收请求时，标准错误在 `startup-result` 之后多写一行 `serve: accepting on http://127.0.0.1:<port>`。
 
 ### 运维者层的默认值
@@ -384,7 +393,6 @@ sequenceDiagram
 - 本机单用户档的数值没有测量依据，采用引用是摘要全零的占位。它们来自联调与教程的运维者层，那里是测试值。
 - 本机单用户档的 Shell 环境是 `setup` 当时的白名单值。`PATH` 之后变了，要运行 `setup --reconfigure` 才跟上。白名单以外的变量（例如代理设置）不进 Shell，需要时手工写进 `shellEnvironment`。
 - Windows 上 `setup` 不改也不读回访问控制列表，保护只靠用户目录的继承，前提见[权限](#setup)。
-- 保管库里的凭据是明文，保护靠文件权限。`setup` 不加密它。
 - `omne` CLI 为读默认地址重复了[位置](#位置)的规则，因为应用之间不互相导入。改位置规则时两处要同时改，CLI 的 `tests/local-server.spec.ts` 与本应用的 `tests/local/locations.spec.ts` 各自固定一份。
 - 成员插件在插件体内自登记的行要等正式 `assemblyLifecycle` 被接受后再定承载（N-r2-3）。现在带阶段的行只经 `defineRow` 的两种承载进入。
 - `storage` 句柄的结果受提供者自己的 `closeDeadlineMs` 约束。它大于 D 时，句柄在 D 答 `incomplete`，提供者仍在关闭。

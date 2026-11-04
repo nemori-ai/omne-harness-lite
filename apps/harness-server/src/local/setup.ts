@@ -1,19 +1,20 @@
 // `harness-server setup`: the one command that prepares a host for the local single-user server.
 // It picks the standard places (`locations.ts`), puts the model credential into the vault of the
 // state directory, and writes the settings file. A second run keeps what is there: the settings
-// change only with `--reconfigure`, and the credential only with `--replace-credential`.
+// change only with `--reconfigure` (or `--reset` for a file that is not valid), and the credential
+// only with `--replace-credential`. A vault that cannot be read is a failure, never "kept".
 //
 // Order: arguments, places, existing settings, wanted settings, directories, credential, settings
 // file. The credential step comes before the settings file, so a settings file means that the
 // vault was there when it was written. Nothing that this command prints holds the credential.
-import { mkdirSync, statSync } from 'node:fs'
+import { lstatSync, mkdirSync, statSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import {
   defaultGuard,
   initVault,
+  inspectLocalCustodian,
   replaceVaultSecret,
   type PermissionGuard,
-  type VaultInitFailure,
   type VaultReplaceFailure,
 } from '@omne-harness/model-host-local/vault'
 import { pathsOf, resolveLocations, type ServerLocations } from './locations.ts'
@@ -27,7 +28,7 @@ import {
 } from './settings.ts'
 
 export const SETUP_USAGE =
-  'usage: setup [--port <n>] [--workspace <dir>] [--shell <executable>] [--reconfigure] [--replace-credential]'
+  'usage: setup [--port <n>] [--workspace <dir>] [--shell <executable>] [--reconfigure] [--reset] [--replace-credential]'
 
 const SETUP_HELP = `${SETUP_USAGE}
 
@@ -38,7 +39,10 @@ Prepares this host for the local single-user server. Run it once. Run it again t
   --shell <executable>    Shell of the Shell tool. Default: Windows PowerShell on Windows, /bin/bash elsewhere.
   --reconfigure           Write the settings again from these options and the current environment.
                           Without it, setup keeps them.
-  --replace-credential    Read a new model credential and replace the one in the vault.
+  --reset                 Write new settings from the default values and these options, in place of
+                          the old ones. Use it when the settings file is not valid.
+  --replace-credential    Read a new model credential and replace the one in the vault. A vault file
+                          that cannot be read is replaced by a new vault.
 
 The model credential comes from standard input: a hidden prompt on a terminal, else the first line.
 Places: OMNE_SERVER_HOME=<dir> moves config and state to <dir>/config and <dir>/state.
@@ -83,6 +87,7 @@ type Flags = Readonly<{
   workspace?: string
   shell?: string
   reconfigure: boolean
+  reset: boolean
   replaceCredential: boolean
   help: boolean
 }>
@@ -111,6 +116,7 @@ function parseFlags(argv: readonly string[]): Flags {
     ...(values.workspace === undefined ? {} : { workspace: values.workspace }),
     ...(values.shell === undefined ? {} : { shell: values.shell }),
     reconfigure: values.reconfigure === true,
+    reset: values.reset === true,
     replaceCredential: values['replace-credential'] === true,
     help: values.help === true,
   }
@@ -125,21 +131,30 @@ function parseSetupArgs(argv: readonly string[]) {
       workspace: { type: 'string' },
       shell: { type: 'string' },
       reconfigure: { type: 'boolean' },
+      reset: { type: 'boolean' },
       'replace-credential': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
     },
   })
 }
 
-type Existing = Readonly<{ kind: 'none' }> | Readonly<{ kind: 'kept'; settings: ServerSettings }>
+type Existing =
+  /** No settings to keep. `replaced` when a file was there and `--reset` replaces it. */
+  | Readonly<{ kind: 'none'; replaced: boolean }>
+  | Readonly<{ kind: 'kept'; settings: ServerSettings }>
 
-function existingSettings(locations: ServerLocations, reconfigure: boolean): Existing {
+/**
+ * The settings to start from. A file that is not valid is never replaced by default values in
+ * silence, not even with `--reconfigure`: only `--reset` replaces it.
+ */
+function existingSettings(locations: ServerLocations, reset: boolean): Existing {
   const read = readSettings(locations.settingsFile)
+  if (read.kind === 'missing') return { kind: 'none', replaced: false }
+  if (reset) return { kind: 'none', replaced: true }
   if (read.kind === 'read') return { kind: 'kept', settings: read.settings }
-  if (read.kind === 'missing' || reconfigure) return { kind: 'none' }
   throw new SetupRefused(
     `the settings at ${locations.settingsFile} are not valid: ${read.reason}\n` +
-      'Run setup again with --reconfigure to write new settings.',
+      'Edit the file to fix it, or run setup again with --reset to replace it with default values.',
     2,
   )
 }
@@ -232,53 +247,98 @@ function codeSuffix(error: unknown): string {
   return typeof code === 'string' ? ` (${code})` : ''
 }
 
-const VAULT_REASONS: Readonly<Record<VaultInitFailure | VaultReplaceFailure, string>> = {
-  'input-not-terminal': 'standard input is not a terminal',
-  'input-cancelled': 'the input was cancelled',
-  'input-failed': 'the credential could not be read from standard input',
-  'secret-empty': 'the credential is empty',
-  'secret-malformed': 'the credential holds a control character',
-  'path-invalid': 'the vault path is not valid',
-  'path-outside-home':
-    'the vault must lie below the user directory (move OMNE_SERVER_HOME below it)',
-  'path-check-failed': 'a parent of the vault path cannot be examined',
-  'path-occupied': 'something is already on the vault path',
-  'vault-unavailable': 'the vault cannot be read',
-  'lock-timeout': 'the vault is locked by another process',
-  'write-failed': 'the vault could not be written',
-  'write-unconfirmed': 'the vault does not hold the new credential after the write; check the file',
-  'permission-failed': 'the vault file could not be made private to this user',
-}
+const VAULT_REASONS: Readonly<Record<Exclude<VaultReplaceFailure, 'written-not-private'>, string>> =
+  {
+    'input-not-terminal': 'standard input is not a terminal',
+    'input-cancelled': 'the input was cancelled',
+    'input-failed': 'the credential could not be read from standard input',
+    'secret-empty': 'the credential is empty',
+    'secret-malformed': 'the credential holds a control character',
+    'path-invalid': 'the vault path is not valid',
+    'path-outside-home':
+      'the vault must lie below the user directory (move OMNE_SERVER_HOME below it)',
+    'path-check-failed': 'a parent of the vault path cannot be examined',
+    'path-occupied': 'something is already on the vault path',
+    'vault-unavailable': 'the vault cannot be read',
+    'lock-timeout': 'the vault is locked by another process',
+    'write-failed': 'the vault could not be written',
+    'write-unconfirmed':
+      'the vault does not hold the new credential after the write; check the file',
+    'permission-failed': 'the vault file could not be made private to this user',
+  }
 
-type CredentialStep = 'created' | 'replaced' | 'kept'
+type CredentialStep = 'created' | 'replaced' | 'rebuilt' | 'kept'
 
-function vaultExists(path: string): boolean {
+type PathKind = 'none' | 'file' | 'directory' | 'other'
+
+function pathKind(path: string): PathKind {
   try {
-    statSync(path)
-    return true
+    const entry = lstatSync(path)
+    if (entry.isFile()) return 'file'
+    return entry.isDirectory() ? 'directory' : 'other'
   } catch {
-    return false
+    return 'none'
   }
 }
 
+/** A vault path that holds something that is not a file: setup never removes it. */
+function notAFile(path: string): SetupRefused {
+  return new SetupRefused(
+    `the model credential vault path ${path} holds a directory or a link, not a vault file\n` +
+      'Remove it, then run setup again.',
+    1,
+  )
+}
+
+function storeFailure(path: string, reason: VaultReplaceFailure): SetupRefused {
+  if (reason === 'written-not-private')
+    return new SetupRefused(
+      `the new model credential was written to ${path}, but the file could not be made private to this user (mode 0600)\n` +
+        `Set the mode yourself (chmod 600 ${path}), then run setup again to check it.`,
+      1,
+    )
+  return new SetupRefused(`model credential not stored: ${VAULT_REASONS[reason]}`, 1)
+}
+
+/**
+ * The vault step. An existing vault is opened (under its lock), not only found: one that cannot be
+ * read stops setup with exit 1 and the way to fix it. With `--replace-credential` a vault file that
+ * cannot be read is replaced by a new vault. A directory or a link on the path is never removed.
+ */
 async function storeCredential(
   locations: ServerLocations,
   flags: Flags,
   deps: SetupDeps,
 ): Promise<CredentialStep> {
+  const path = locations.vaultFile
   const guard = deps.vaultGuard ?? defaultGuard()
-  const present = vaultExists(locations.vaultFile)
-  if (present && !flags.replaceCredential) return 'kept'
-  const result = present
-    ? await replaceVaultSecret(locations.vaultFile, { readSecret: deps.readSecret, guard })
-    : await initVault(locations.vaultFile, {
-        readSecret: deps.readSecret,
-        guard,
-        home: () => deps.home,
-      })
-  if (!result.ok)
-    throw new SetupRefused(`model credential not stored: ${VAULT_REASONS[result.reason]}`, 1)
-  return present ? 'replaced' : 'created'
+  const home = () => deps.home
+  const kind = pathKind(path)
+  if (kind === 'none') {
+    const built = await initVault(path, { readSecret: deps.readSecret, guard, home })
+    if (!built.ok) throw storeFailure(path, built.reason)
+    return 'created'
+  }
+  if (kind !== 'file') throw notAFile(path)
+  const inspected = inspectLocalCustodian({ path })
+  if (inspected.kind === 'unavailable' && inspected.cause === 'locked')
+    throw new SetupRefused(`model credential not checked: ${VAULT_REASONS['lock-timeout']}`, 1)
+  if (!flags.replaceCredential) {
+    if (inspected.kind === 'readable') return 'kept'
+    throw new SetupRefused(
+      `the model credential vault ${path} cannot be read (${inspected.cause})\n` +
+        'Run setup again with --replace-credential to build a new vault with a new credential.',
+      1,
+    )
+  }
+  const result = await replaceVaultSecret(path, {
+    readSecret: deps.readSecret,
+    guard,
+    home,
+    rebuildUnreadable: true,
+  })
+  if (!result.ok) throw storeFailure(path, result.reason)
+  return result.rebuilt ? 'rebuilt' : 'replaced'
 }
 
 function checkShell(settings: ServerSettings, deps: SetupDeps): void {
@@ -289,17 +349,21 @@ function checkShell(settings: ServerSettings, deps: SetupDeps): void {
     )
 }
 
+type SettingsStep = 'created' | 'updated' | 'kept' | 'reset'
+
 function summary(input: {
   locations: ServerLocations
   settings: ServerSettings
-  settingsStep: 'created' | 'updated' | 'kept'
+  settingsStep: SettingsStep
   credential: CredentialStep
 }): string {
   const { locations, settings } = input
   const credential =
     input.credential === 'kept'
       ? 'kept (run setup --replace-credential to change it)'
-      : input.credential
+      : input.credential === 'rebuilt'
+        ? 'rebuilt: the old vault could not be read'
+        : input.credential
   return [
     'harness-server setup: done.',
     `  settings     ${locations.settingsFile} (${input.settingsStep})`,
@@ -330,7 +394,7 @@ export async function runSetup(
     const located = resolveLocations({ platform: deps.platform, env: deps.env, home: deps.home })
     if (located.kind === 'refused') throw new SetupRefused(located.message, 2)
     const { locations } = located
-    const existing = existingSettings(locations, flags.reconfigure)
+    const existing = existingSettings(locations, flags.reset)
     const settings = wantedSettings(flags, existing, locations, deps)
     refuseSilentChange(existing, settings, flags, locations.settingsFile)
     checkShell(settings, deps)
@@ -355,7 +419,14 @@ export async function runSetup(
         )
       }
     }
-    const settingsStep = existing.kind === 'none' ? 'created' : changed ? 'updated' : 'kept'
+    const settingsStep: SettingsStep =
+      existing.kind === 'none'
+        ? existing.replaced
+          ? 'reset'
+          : 'created'
+        : changed
+          ? 'updated'
+          : 'kept'
     output.stdout(summary({ locations, settings, settingsStep, credential }))
     return 0
   } catch (error: unknown) {

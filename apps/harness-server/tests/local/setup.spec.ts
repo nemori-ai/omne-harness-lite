@@ -49,6 +49,8 @@ function host(modes: Modes = 'host') {
   writeFileSync(shell, '')
   // A POSIX guard over recorded operations: the creation mask, the mode set and the mode read back.
   const set = new Map<string, number>()
+  // When set, every mode reads back wide: the narrowing of the vault fails its read-back.
+  const readBack = { wide: false }
   const posixGuard: PermissionGuard = createPosixGuard({
     umask: mask => {
       guardCalls.push(`umask:${mask.toString(8)}`)
@@ -58,7 +60,7 @@ function host(modes: Modes = 'host') {
       guardCalls.push(`chmod:${mode.toString(8)}`)
       set.set(path, mode)
     },
-    modeOf: path => set.get(path) ?? 0o644,
+    modeOf: path => (readBack.wide ? 0o644 : (set.get(path) ?? 0o644)),
   })
   const deps = (readSecret: () => Promise<string>): SetupDeps => ({
     platform: process.platform,
@@ -95,6 +97,7 @@ function host(modes: Modes = 'host') {
     root,
     home,
     shell,
+    readBack,
     chmods,
     guardCalls,
     run,
@@ -260,20 +263,72 @@ describe('a second run', () => {
     expect(h.factorySecret()).toBe(first)
   })
 
-  it('refuses settings that are not valid, and --reconfigure writes new ones', async () => {
+  it('refuses settings that are not valid, names the item, and --reconfigure does not replace them', async () => {
+    const h = host()
+    await h.run(['--port', '8965'], async () => sentinel())
+    const broken = readFileSync(h.settingsFile, 'utf8').replace('"port": 8965', '"port": "x"')
+    writeFileSync(h.settingsFile, broken)
+    for (const argv of [[], ['--reconfigure']]) {
+      const refused = await h.run(argv, async () => sentinel())
+      expect(refused.code, argv.join(' ')).toBe(2)
+      expect(refused.stderr).toContain('are not valid: port:')
+      expect(refused.stderr).toContain('--reset')
+      expect(readFileSync(h.settingsFile, 'utf8')).toBe(broken)
+    }
+  })
+
+  it('negative control: --reset replaces settings that are not valid, and says so', async () => {
     const h = host()
     await h.run([], async () => sentinel())
-    const broken = '{"version":1,"port":"x"}'
-    rmSync(h.settingsFile)
-    mkdirSync(join(h.home, 'config'), { recursive: true })
-    writeFileSync(h.settingsFile, broken)
-    const refused = await h.run([], async () => sentinel())
-    expect(refused.code).toBe(2)
-    expect(refused.stderr).toContain('are not valid')
-    expect(readFileSync(h.settingsFile, 'utf8')).toBe(broken)
-    const fixed = await h.run(['--reconfigure'], async () => sentinel())
-    expect(fixed.code).toBe(0)
-    expect(h.settings()['port']).toBe(8787)
+    writeFileSync(h.settingsFile, '{"version":1,"port":"x"}')
+    const reset = await h.run(['--reset', '--port', '9001'], async () => sentinel())
+    expect(reset.code).toBe(0)
+    expect(h.settings()['port']).toBe(9001)
+    expect(reset.stdout).toContain(`settings     ${h.settingsFile} (reset)`)
+  })
+})
+
+describe('a vault that cannot be read', () => {
+  it('stops setup with exit 1 and the fix, instead of "kept"; the file stays', async () => {
+    const h = host()
+    await h.run([], async () => sentinel())
+    writeFileSync(h.vaultFile, '{not json')
+    const readSecret = vi.fn(async () => sentinel())
+    const out = await h.run([], readSecret)
+    expect(out.code).toBe(1)
+    expect(out.stdout).toBe('')
+    expect(out.stderr).toBe(
+      `setup: the model credential vault ${h.vaultFile} cannot be read (corrupt)\n` +
+        'Run setup again with --replace-credential to build a new vault with a new credential.\n',
+    )
+    expect(readSecret).not.toHaveBeenCalled()
+    expect(readFileSync(h.vaultFile, 'utf8')).toBe('{not json')
+  })
+
+  it('--replace-credential builds a new vault in place of the damaged file', async () => {
+    const h = host()
+    await h.run([], async () => sentinel())
+    writeFileSync(h.vaultFile, '{not json')
+    const key = sentinel()
+    const out = await h.run(['--replace-credential'], async () => key)
+    expect(out.code, out.stderr).toBe(0)
+    expect(out.stdout).toContain('(rebuilt: the old vault could not be read)')
+    expect(h.factorySecret()).toBe(key)
+    expect(out.stdout + out.stderr).not.toContain(key)
+  })
+
+  it('a directory on the vault path stops setup, with or without --replace-credential, and stays', async () => {
+    const h = host()
+    await h.run([], async () => sentinel())
+    rmSync(h.vaultFile)
+    mkdirSync(h.vaultFile)
+    writeFileSync(join(h.vaultFile, 'inside.txt'), 'keep')
+    for (const argv of [[], ['--replace-credential']]) {
+      const out = await h.run(argv, async () => sentinel())
+      expect(out.code, argv.join(' ')).toBe(1)
+      expect(out.stderr).toContain('holds a directory or a link, not a vault file')
+      expect(readFileSync(join(h.vaultFile, 'inside.txt'), 'utf8')).toBe('keep')
+    }
   })
 })
 
@@ -299,6 +354,21 @@ describe('POSIX modes (injected mode setter and POSIX vault guard, on any host)'
     h.guardCalls.length = 0
     expect((await h.run(['--replace-credential'], async () => sentinel())).code).toBe(0)
     expect(h.guardCalls).toEqual(['umask:77', 'umask:22', 'chmod:600'])
+  })
+
+  it('a replaced credential whose file stays wide is reported as written, not as "not stored"', async () => {
+    const h = host('posix')
+    await h.run([], async () => sentinel())
+    h.readBack.wide = true
+    const key = sentinel()
+    const out = await h.run(['--replace-credential'], async () => key)
+    expect(out.code).toBe(1)
+    expect(out.stderr).toBe(
+      `setup: the new model credential was written to ${h.vaultFile}, but the file could not be made private to this user (mode 0600)\n` +
+        `Set the mode yourself (chmod 600 ${h.vaultFile}), then run setup again to check it.\n`,
+    )
+    // The message tells the truth: the new key is in the vault.
+    expect(h.factorySecret()).toBe(key)
   })
 
   it('a workspace that already exists keeps its mode', async () => {
