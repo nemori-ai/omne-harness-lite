@@ -86,7 +86,7 @@
 | 2 登录识别 | 把 `loginProof` 交给 identity 的登录识别，得到账号、登录和当前租户。接入不改写 `denied` 与 `basis-unavailable`，也不另持登录表 |
 | 3 行事租户 | 只对 `create-session`：核对 `actingTenant` 等于该登录的当前选择，不等是 `denied`，响应不含实际选择 |
 | 4 目标租户与主体 | 目标租户的账号等于识别出的账号时，用签发者签发代租户行事主体，规则见[登录到 Access](../../../docs/architecture/runtime/runtime-contract-handoff.md#登录到-access)。账号不等是 `denied`。签发者未安装或签发失败是 `basis-unavailable` |
-| 5 部署范围 | 用 `definitionMappings` 解析 `definition`。定义名不在映射内，或 `pageBytes` 超出部署上界，是 `invalid` |
+| 5 部署范围 | 用 `definitionMappings` 解析 `definition`。定义名不在映射内，或 `pageBytes` 超出部署上界，是 `invalid`。`create-session` 的映射条目没有 `initialModelSelection` 时，是 `basis-unavailable`，不调用 Session，记诊断 `session.definition-incomplete` |
 | 6 Session 判断 | 按[操作到 Session 的映射](../../../docs/architecture/runtime/runtime-contract-handoff.md#操作到-session-的映射)调用 Session 的面。结果按公开契约的映射表对外表示 |
 
 补充规则如下。
@@ -94,6 +94,7 @@
 - `cancel-run` 和 `stop-call` 调用 Session 的 `cancelRun` 与 `stopCall`，调用方类是 `intake`。它们没有行事租户，第 3 步不适用。
 - `stop-call` 的 `producer.kind` 为 `tool` 时，接入在 Session 的访问裁定之后、会话存在核对之前答 `unsupported`。接入不写任何记录。该结果与会话是否存在、`controlId` 是否用过无关。
 - 接入从识别出的登录和请求标识派生 `SessionOperationId`，规则见[SessionOperationId 的派生规则](#sessionoperationid-的派生规则)。客户端不填它。
+- `initialModelSelection` 对公开创建是必需项：客户端不填它，公开操作也没有切换模型的入口。缺它的会话永远读不到当前模型选择，Run 无法启动。接入因此不创建这样的会话，缺口属于部署配置，不属于调用者的消息，所以答 `basis-unavailable`，不答 `invalid`。
 - `definitionMappings` 的选择是部署装配的配置。接入只读取已装配的映射，不自己选择。同一份映射数据交给 Agent 采用和 Session 采用来源。
 - 映射条目可带可选的 `residentCapabilities`，列出该定义的会话在 `create` 时纳入的常驻工具能力名，形状是 Session 采用点输入的 `capabilities`。接入不读这一项，也不在创建里声明常驻工具。常驻工具的材料由 Session 采用来源按这一项从部署的工具来源解出，解不出时创建失败。没有这一项的条目不纳入常驻工具。
 - 会话位置的 `denied` 不披露会话是否存在。接入对所有 `denied` 原因给出逐字节相同的响应，见[denied 的一致性](../public-contract/docs/http-binding.md#denied-的一致性)。

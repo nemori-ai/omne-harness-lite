@@ -232,6 +232,14 @@ async function createSession(
   // Step 5: the definition must be in the deployment mapping. A throwing mapping is the entry's own fault.
   const resolved = context.resolveDefinition(request.body.definition)
   if (resolved === undefined) return answer('invalid', {})
+  // A mapped definition without an initial model selection is a gap of the deployment, not of the
+  // caller's message. The session would stay unable to read its model selection and never start a
+  // run, so the entry refuses before Session is called. The wire outcome of Session `unavailable`.
+  const initialModelSelection = resolved.initialModelSelection
+  if (initialModelSelection === undefined) {
+    emit(context.diagnostics, { code: 'session.definition-incomplete', operation: request.operation })
+    return answer('basis-unavailable', {})
+  }
   const creation: SessionCreation = {
     definition: { name: request.body.definition, candidate: resolved.candidate },
     execution: resolved.execution,
@@ -242,9 +250,7 @@ async function createSession(
     modes: { kind: 'tenant-default', source: resolved.tenantDefaults },
     initial: null,
     entryContract: resolved.entryContract,
-    ...(resolved.initialModelSelection === undefined
-      ? {}
-      : { initialModelSelection: resolved.initialModelSelection }),
+    initialModelSelection,
   }
   const { target } = admitted
   const operation = createOperation(target.tenantText, request.body.createCallId)

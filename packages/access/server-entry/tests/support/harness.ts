@@ -39,6 +39,11 @@ export const decoder = new TextDecoder()
 
 export const DEFINITION = 'assistant'
 
+export const INITIAL_MODEL_SELECTION = {
+  name: 'fixture/model',
+  basis: { owner: 'fixture', record: 'model-selection', revision: '1', digest: 'sha256:selection' },
+} as const
+
 export function resolveDefinition(name: string): ResolvedDefinition | undefined {
   if (name !== DEFINITION) return undefined
   return {
@@ -52,6 +57,7 @@ export function resolveDefinition(name: string): ResolvedDefinition | undefined 
       revision: '1',
       digest: 'sha256:defaults',
     },
+    initialModelSelection: INITIAL_MODEL_SELECTION,
   }
 }
 

@@ -8,6 +8,7 @@ export type ServerEntryDiagnostic = Readonly<{
     | 'issuer.fault'
     | 'session.read-fault'
     | 'session.commit-fault'
+    | 'session.definition-incomplete'
     | 'encode.fault'
     | 'observation.ended'
     | 'observation.cleanup-failed'

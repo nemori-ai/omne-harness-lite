@@ -100,6 +100,13 @@ describe('the coding entry of the release mapping (R2-D124)', () => {
     )
   })
 
+  it('every mapped definition of the release carries an initial model selection (R2-D236)', () => {
+    // The server entry refuses a creation without it, so a missing one would make the definition unusable.
+    expect(config.mappings.length).toBeGreaterThan(0)
+    for (const mapping of config.mappings)
+      expect(mapping.initialModelSelection?.name, mapping.name).toBeTruthy()
+  })
+
   it('the prompt names no model vendor, only the two tools, and carries the guardrails and the state words', () => {
     for (const forbidden of ['Claude', 'Anthropic', 'OpenAI', 'GPT', 'Gemini', 'Codex'])
       expect(fullText, forbidden).not.toContain(forbidden)
