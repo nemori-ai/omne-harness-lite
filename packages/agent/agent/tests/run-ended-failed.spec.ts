@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import type { AgentRunEndedFailed } from '@omne-harness/agent'
 import {
   decodeResultVersion,
+  type ModelFault,
   type ResultPart,
   type Termination,
 } from '@omne-harness/model-contract'
@@ -67,18 +68,12 @@ async function ended(assembly: LoopAssembly) {
 describe('a run that ends with a failure keeps and reports its cause', () => {
   it('a Model call failed on connect-timeout: the conclusion names the fault, one report', async () => {
     const reports: AgentRunEndedFailed[] = []
-    const assembly = await endingWith(
-      {
-        kind: 'failed',
-        fault: {
-          cause: 'upstream-unavailable',
-          diagnostic: 'connect-timeout',
-          upstreamStatus: null,
-        },
-      },
-      [],
-      reports,
-    )
+    const fault: ModelFault = {
+      cause: 'upstream-unavailable',
+      diagnostic: 'connect-timeout',
+      upstreamStatus: null,
+    }
+    const assembly = await endingWith({ kind: 'failed', fault }, [], reports)
     ok(await invoke(assembly))
     const read = await ended(assembly)
     const record = `${execution()}/step-1/model-failed/upstream-unavailable/connect-timeout`
@@ -86,8 +81,13 @@ describe('a run that ends with a failure keeps and reports its cause', () => {
       kind: 'ended',
       conclusion: { kind: 'fail', cause: { owner: '@omne-harness/agent', record } },
     })
-    expect(read.settlement.candidate?.failure).toMatchObject({ kind: 'no-reply', step: 'step-1' })
+    const candidate = read.settlement.candidate?.failure
+    expect(candidate).toMatchObject({ kind: 'no-reply', step: 'step-1' })
+    // The structured fault is the settlement's fault, field for field.
+    if (candidate?.kind !== 'no-reply') throw new Error('no no-reply candidate')
+    expect(candidate.fault).toStrictEqual(fault)
     expect(reports).toHaveLength(1)
+    expect(reports[0]?.failure?.fault).toStrictEqual(fault)
     expect(reports[0]).toMatchObject({
       kind: 'run-ended-failed',
       tenant: alice.tenant,
@@ -125,7 +125,13 @@ describe('a run that ends with a failure keeps and reports its cause', () => {
       conclusion: { kind: 'fail', cause: { record } },
     })
     expect(reports).toHaveLength(1)
-    expect(reports[0]).toMatchObject({ cause: { record }, failure: { kind: 'no-reply' } })
+    expect(reports[0]).toMatchObject({
+      cause: { record },
+      failure: { kind: 'no-reply', fault: null },
+    })
+    const candidate = read.settlement.candidate?.failure
+    if (candidate?.kind !== 'no-reply') throw new Error('no no-reply candidate')
+    expect('fault' in candidate).toBe(false)
   })
 
   it('a run that completes is not reported', async () => {

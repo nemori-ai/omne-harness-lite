@@ -163,6 +163,7 @@ describe('a run that ends with a failure', () => {
     expect(record).toContain(`execution=${EXECUTION}`)
     expect(record).toContain('step=step-1')
     expect(record).toContain('failure=no-reply')
+    expect(record).toContain('fault=upstream-unavailable diagnostic=connect-timeout ')
     expect(record).toContain(
       `cause=${EXECUTION}/step-1/model-failed/upstream-unavailable/connect-timeout`,
     )
@@ -174,6 +175,7 @@ describe('a run that ends with a failure', () => {
     const { host } = await ending({ kind: 'completed', reason: 'stop' })
     const [record, ...more] = endedFailed(host)
     expect(more).toEqual([])
+    expect(record).toContain('fault=none diagnostic=none ')
     expect(record).toContain(`cause=${EXECUTION}/step-1/no-reply`)
   })
 })

@@ -48,7 +48,7 @@ Next 的种类对应 [Loop 完整算法](../../../agent/docs/architecture/loop-a
 - `cannot-fit` 带原因与 Context 的原结果。`context` 原样承载 Context 交出的结果：`Preparation`、`CompactionAdvance`，或否决前的 needs-compaction。Agent 不伪造 `Preparation`。压缩之前位置或压缩用途的调模型之前位置否决时带 `veto`。压缩转换消息被消息准入拒收时带 `rejection`，即拒收依据。已进入计划时带 `plan`。
 - `compaction-invalid` 带计划身份。derive 返回的进度与计划不符时带 `progress`，即期望值与返回值。压缩转换的共同提交判定转换非法时带 `transition`，即判定依据。
 - `request-rejected` 带 Model 请求准备的确定拒绝：`failure` 是 `prepare` 或 `resume` 返回的 invalid（field 为 request），`model` 是 Model 的原结果，`selection` 是选择依据。
-- `no-reply` 带没有有效回复的原调用。
+- `no-reply` 带没有有效回复的原调用。原调用被 Model 判为失败收场时另带可选的 `fault`，它与该调用 Settlement 的 `termination.fault` 完全相等；原调用正常完成却没有内容时没有这个字段。依据是 R2-D356。
 - `model-refused` 带 Model 在受理时确定拒绝的原调用：`call` 是原 ModelCallId，`failure` 是 `admit` 返回的原拒绝，种类为 denied、invalid、unsupported 或 capacity，`source` 是原调用的固定请求依据。行为见 SPEC 的“[作为 Model 调用方](../../SPEC.md#作为-model-调用方)”第 5 条，依据是 R2-D237。
 - `message-rejected` 的 `from` 为被拒收消息的来源，`evidence` 为拒收依据，两者指向 `ExecutionSnapshot.handoffs` 中同一个原 outcome。它只用于工具结果或被拒绝动作的拒绝消息被拒收，并由 H0 路由到 F1 提出失败候选的情形。压缩转换消息被拒收归 `cannot-fit`。
 - `extension-stop` 带输出 `stop` 且 `terminal` 为 `failed` 的扩展调用。

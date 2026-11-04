@@ -1566,6 +1566,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
             source: result.settlement.source,
             call,
             result: result.produced,
+            ...(result.settlement.termination.kind === 'failed'
+              ? { fault: result.settlement.termination.fault }
+              : {}),
           }
           decided = {
             kind: 'try-finish',

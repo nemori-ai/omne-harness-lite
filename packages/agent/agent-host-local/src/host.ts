@@ -315,16 +315,18 @@ function runFailedRecord(event: AgentRunFailed): string {
 }
 
 /**
- * The warn record of a run that ended with a `fail` conclusion (SPEC「以失败终结」). The cause is the
- * record of the conclusion cause as the Journal keeps it; for a failed Model call it reads
- * `<execution>/<step>/model-failed/<fault cause>/<diagnostic>`.
+ * The warn record of a run that ended with a `fail` conclusion (SPEC「以失败终结」). `fault` and
+ * `diagnostic` come from the structured Model fault of the candidate, `none` when it has none; `cause`
+ * is the record of the conclusion cause as the Journal keeps it, an identifier for people.
  */
 function runEndedFailedRecord(event: AgentRunEndedFailed): string {
   const tenant = tenantTextOf(event.tenant) ?? 'unknown'
+  const fault = event.failure?.fault ?? null
   return (
     `agent run ended with a failure: tenant=${tenant} instance=${event.instance} ` +
     `execution=${event.execution} step=${event.failure?.step ?? 'none'} ` +
-    `failure=${event.failure?.kind ?? 'unknown'} cause=${event.cause.record}`
+    `failure=${event.failure?.kind ?? 'unknown'} fault=${fault?.cause ?? 'none'} ` +
+    `diagnostic=${fault?.diagnostic ?? 'none'} cause=${event.cause.record}`
   )
 }
 

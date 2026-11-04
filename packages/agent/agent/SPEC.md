@@ -37,8 +37,8 @@ F4 从非空终态台账认回已登记观察，并把未登记项保留给长�
 
 <a id="以失败终结"></a>执行以 `fail` 结论终结时，结论原因写明为什么失败，宿主据此记一条日志。以前主调用以失败收场时，原因只留在 Model 的账目里，结论原因只写 `no-reply`，会话历史与服务日志都看不到真实原因。
 
-- **原因记录**：结论原因是 Agent 自记的证据，record 为 `<execution>/<step>/<原因>`。主调用首内容前没有有效回复时，失败候选的 kind 仍是 `no-reply`（SC-AG-153）。原调用被 Model 判为失败收场时，原因段是 `model-failed/<故障 cause>/<诊断>`，诊断取 `ModelFault.diagnostic` 的前 120 个字符并做 URI 编码，所以不增加段；诊断为空时写 `-`。原调用正常完成却没有内容时，原因段才是 `no-reply`。Session 的 `run.terminal` 条目把这个原因原样放在 `cause` 字段，CLI 的 `read-history` 显示它。
-- **报告**：F4 读到已提交的终态后，结论为 `fail` 时，runtime 调用一次 `createAgentRuntime` 第三个参数里的 `endedFailed` 接收者。事件是 `{ kind: 'run-ended-failed', tenant, instance, execution, cause, failure }`。`cause` 是终态里的结论原因；`failure` 是快照里终结候选的 kind 与 step，快照不再带候选时为 null。`complete` 与 `cancelled` 结论不报告。同一个驱动的协调者最多报告一次。接收者被同步调用，不得回调本 runtime；抛出不改变任何答复。没有接收者时执行照样终结。
+- **原因记录**：结论原因是 Agent 自记的证据，record 为 `<execution>/<step>/<原因>`。主调用首内容前没有有效回复时，失败候选的 kind 仍是 `no-reply`（SC-AG-153）。原调用被 Model 判为失败收场时，原因段是 `model-failed/<故障 cause>/<诊断>`，诊断取 `ModelFault.diagnostic` 的前 120 个字符并做 URI 编码，所以不增加段；诊断为空时写 `-`。原调用正常完成却没有内容时，原因段才是 `no-reply`。Session 的 `run.terminal` 条目把这个原因原样放在 `cause` 字段，CLI 的 `read-history` 显示它。record 是给人看的标识，程序不解析它：失败收场时 `no-reply` 候选另带结构化的 `fault`，与 Settlement 的 `termination.fault` 完全相等（R2-D356，形状见[公共 API](../agent-contract/docs/public-api/README.md)）。
+- **报告**：F4 读到已提交的终态后，结论为 `fail` 时，runtime 调用一次 `createAgentRuntime` 第三个参数里的 `endedFailed` 接收者。事件是 `{ kind: 'run-ended-failed', tenant, instance, execution, cause, failure }`。`cause` 是终态里的结论原因；`failure` 是快照里终结候选的 kind、step 与 `fault`（只有带 `fault` 的 `no-reply` 候选才不为 null），快照不再带候选时为 null。`complete` 与 `cancelled` 结论不报告。同一个驱动的协调者最多报告一次。接收者被同步调用，不得回调本 runtime；抛出不改变任何答复。没有接收者时执行照样终结。
 - **与运行失败的区别**：[运行失败](#运行失败)是驱动停在节点上、execution 没有终结；本节是 execution 已经终结。一次 Run 只会走其中一种。
 - **已知限制**：报告只在本进程 F4 时发出。进程重启后，恢复驱动重新经过 F4 时会再报告一次。
 

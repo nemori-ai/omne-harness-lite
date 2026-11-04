@@ -11,6 +11,7 @@ import type {
   StepId,
 } from '@omne-harness/agent-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
+import type { ModelFault } from '@omne-harness/model-contract'
 
 export type AgentRunFailed = Readonly<{
   kind: 'run-failed'
@@ -39,7 +40,12 @@ export type AgentRunEndedFailed = Readonly<{
   instance: AgentInstanceId
   execution: AgentExecutionId
   cause: DurableEvidence
-  failure: Readonly<{ kind: FailureCandidate['kind']; step: StepId | null }> | null
+  failure: Readonly<{
+    kind: FailureCandidate['kind']
+    step: StepId | null
+    /** The Model fault of a `no-reply` candidate whose call failed; null for every other candidate. */
+    fault: ModelFault | null
+  }> | null
 }>
 
 /** Receives each report synchronously, at most once per ended run. It must not call back into the runtime. */

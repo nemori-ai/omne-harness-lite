@@ -398,7 +398,14 @@ export function createProvider<P, B extends ContentBlock>(
         instance,
         execution,
         cause: state.conclusion.cause,
-        failure: candidate === null ? null : { kind: candidate.kind, step: candidate.step },
+        failure:
+          candidate === null
+            ? null
+            : {
+                kind: candidate.kind,
+                step: candidate.step,
+                fault: candidate.kind === 'no-reply' ? (candidate.fault ?? null) : null,
+              },
       })
     } catch {
       // The report observes the runtime and never decides an answer of it.
