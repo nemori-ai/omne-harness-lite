@@ -30,7 +30,11 @@ import {
   OPENAI_RECORDS,
   openAiTokenizerResources,
 } from '@omne-harness/pi-ai-openai'
-import { createPiSendResources, SendResourceDefect } from '@omne-harness/model-host-local'
+import {
+  createPiSendResources,
+  SendResourceDefect,
+  type PiSendResourcesConfig,
+} from '@omne-harness/model-host-local'
 // The observing factory reaches the module itself; its defect class is the module's own.
 import { SendResourceDefect as ModuleDefect, sendResourcesOver } from '../src/send-resources.ts'
 import { readRecordFixture } from './support/records.ts'
@@ -198,7 +202,10 @@ afterEach(async () => {
   network = undefined
 })
 
-function observed(faults: readonly (readonly [number, Faults])[] = []) {
+function observed(
+  faults: readonly (readonly [number, Faults])[] = [],
+  onConnectRetry?: PiSendResourcesConfig['onConnectRetry'],
+) {
   network = createNetworkResources({ maxConnections: 2, idleConnectionTimeoutMs: 1_000 })
   const factory = observingFactory()
   for (const [position, fault] of faults) factory.fail(position, fault)
@@ -209,11 +216,62 @@ function observed(faults: readonly (readonly [number, Faults])[] = []) {
       routes: ROUTES,
       limits: LIMITS,
       materialization: { maxRecords: 8, execution: () => ({ ok: DEMAND.initiator }) },
+      ...(onConnectRetry === undefined ? {} : { onConnectRetry }),
     },
     createTransport: factory.createTransport,
   })
   return { factory, resources }
 }
+
+describe('the report of a connect retry', () => {
+  const event = {
+    kind: 'connect-retry',
+    level: 'info',
+    attempt: 2,
+    delayMs: 1_000,
+    reason: 'connect-timeout',
+  } as const
+
+  it('names the call and the dispatch of the send that retries, for every resource', async () => {
+    const reports: unknown[] = []
+    const { factory, resources } = observed([], report => reports.push(report))
+    const otherDispatch = decodeDispatchId('mdisp_other-retry')
+    if (!('ok' in otherDispatch)) throw new Error('fixture dispatch id')
+    const other = { ...DEMAND, dispatch: otherDispatch.ok }
+    await acquired(resources)
+    await acquired(resources, other)
+    const [first, second] = factory.acquired()
+    first?.config.onConnectRetry?.(event)
+    second?.config.onConnectRetry?.(event)
+    expect(reports).toEqual([
+      {
+        call: DEMAND.call,
+        dispatch: DEMAND.dispatch,
+        attempt: 2,
+        delayMs: 1_000,
+        reason: 'connect-timeout',
+      },
+      {
+        call: other.call,
+        dispatch: other.dispatch,
+        attempt: 2,
+        delayMs: 1_000,
+        reason: 'connect-timeout',
+      },
+    ])
+    await resources.close()
+  })
+
+  it('is not given to the configuration probe, and without a report no transport has a hook', async () => {
+    const withReport = observed([], () => undefined)
+    expect(withReport.factory.transports[0]?.config.onConnectRetry).toBeUndefined()
+    await withReport.resources.close()
+    const without = observed()
+    await acquired(without.resources)
+    expect(without.factory.acquired()[0]?.config.onConnectRetry).toBeUndefined()
+    await without.resources.close()
+  })
+})
 
 describe('the credential slot', () => {
   it('holds the value only while start runs and is empty after it returns', async () => {

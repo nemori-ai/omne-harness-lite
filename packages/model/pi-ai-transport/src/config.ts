@@ -1,6 +1,7 @@
 // The construction configuration of the pi transport and its checks. Every limit and every route
 // comes from the caller; the package holds no default.
 import type { JsonLimits } from '@omne-harness/json-text'
+import type { ConnectRetryDiagnostic } from './diagnostics.ts'
 import type { PiFamilyContributions } from './family.ts'
 import { isPlainHttpsUrl } from './http.ts'
 import { isPositiveInteger, isTimerDuration, MAX_TIMER_MS } from './limits.ts'
@@ -59,6 +60,13 @@ export type PiTransportConfig = Readonly<{
   routes: Readonly<Record<string, PiRoute>>
   credential: PiCredentialSlot
   limits: PiTransportLimits
+  /**
+   * Called synchronously before each retry of a send of this transport (see `limits.connectRetry`),
+   * with the same event that the network's diagnostic observer gets. The network is shared, so its
+   * observer cannot tell which send retried; this one can, because the caller builds one transport
+   * per send. A throw is dropped and never reaches the send. Absent: nobody is told.
+   */
+  onConnectRetry?: (event: ConnectRetryDiagnostic) => void
 }>
 
 /** A route after its checks: the URL is parsed once. */
@@ -71,6 +79,7 @@ export type CheckedConfig = Readonly<{
   routes: ReadonlyMap<string, CheckedRoute>
   credential: PiCredentialSlot
   limits: PiTransportLimits
+  onConnectRetry?: ((event: ConnectRetryDiagnostic) => void) | undefined
 }>
 
 const JSON_LIMIT_NAMES = [
@@ -91,6 +100,8 @@ export function checkConfig(config: PiTransportConfig): CheckedConfig {
     throw new RangeError('families must have an acquire function')
   if (!isObject(config.credential) || typeof config.credential.read !== 'function')
     throw new RangeError('credential must have a read function')
+  if (config.onConnectRetry !== undefined && typeof config.onConnectRetry !== 'function')
+    throw new RangeError('onConnectRetry must be absent or a function')
   const network = networkInternalsOf(config.network)
   return {
     network,
@@ -98,6 +109,7 @@ export function checkConfig(config: PiTransportConfig): CheckedConfig {
     routes: checkRoutes(config.routes),
     credential: config.credential,
     limits: checkLimits(config.limits),
+    onConnectRetry: config.onConnectRetry,
   }
 }
 

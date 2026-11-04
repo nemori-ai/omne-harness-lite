@@ -93,6 +93,18 @@ export async function materialize(
   }
 }
 
+/** The observer of one transport hears of a retry; whatever it does never reaches the send. */
+function tell(
+  observer: CheckedConfig['onConnectRetry'],
+  event: Parameters<NonNullable<CheckedConfig['onConnectRetry']>>[0],
+): void {
+  try {
+    observer?.(Object.freeze({ ...event }))
+  } catch {
+    // The observer is the caller's: its failure changes nothing of the send.
+  }
+}
+
 function capacityUnavailable(diagnostic: 'cancelled' | 'network-closed'): TransportFailure {
   return { kind: 'unavailable', dependency: 'connection-capacity', diagnostic }
 }
@@ -151,7 +163,12 @@ function createMaterialized(
         ? started.exchange
         : retryBeforeRequestSent({
             capacity: config.network.capacity,
-            diagnostics: config.network.diagnostics,
+            diagnostics: {
+              emit: event => {
+                config.network.diagnostics.emit(event)
+                if (event.kind === 'connect-retry') tell(config.onConnectRetry, event)
+              },
+            },
             closed: () => config.network.closed,
             first: started.exchange,
             startAgain: (reservation, again) =>

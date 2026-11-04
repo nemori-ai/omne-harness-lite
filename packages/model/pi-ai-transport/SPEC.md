@@ -49,6 +49,7 @@
 - 路由的 `endMarker` 既不是字符串也不是 `null`；
 - `connectTimeoutMs` 既不是 `null` 也不是 1 到 2147483647 之间的整数；
 - `streamStallTimeoutMs` 存在，但不是 1 到 2147483647 之间的整数（`null`、0、负数与小数都被拒绝；消息指向 `limits.streamStallTimeoutMs`）；
+- `onConnectRetry` 存在，但不是函数；
 - `connectRetry` 存在，但不是对象，或其 `backoffMs` 不是列表，或列表多于 8 项，或某项不是 1 到 2147483647 之间的整数（空位也被拒绝；消息指向 `limits.connectRetry.backoffMs`）；
 - `maxErrorBodyBytes`、`maxEventBytes` 或 `json` 的任一限额不是正的安全整数；
 - `families` 或 `credential` 不是对象，或 `families.acquire`、`credential.read` 不是函数；
@@ -251,7 +252,8 @@
 - 退避可被取消。`signal` 中止、materialized 或 prepared 的 `close()`、外层 `close()`，在退避期间或等待名额期间立即结束重试，不发出新请求，流以 `interrupted`（`stop: 'confirmed'`）结束。退避的计时器随之清除。网络资源关闭时，退避期间的重试在退避结束后发现并结束（至多一个退避的时长），不发出新请求。
 - 所有重试都失败后，终止保持原来的形状：`failed`，`upstream-unavailable`，`diagnostic` 取最后一次尝试的 `connect-failed` 或 `connect-timeout`，状态码为 `null`。
 - 可见性：每次重试之前，诊断观察者收到一条 `connect-retry` 事件（`level` 为 `info`），带 `attempt`（从 1 起）、`delayMs` 与 `reason`（`connect-failed` 或 `connect-timeout`，即上一次尝试的失败原因）。事件只含计数与封闭词，不含 URL、头或体。每次尝试照常产生 `exchange-started` 与 `connect-failed` 事件，所以一次发送的尝试次数可由 `exchange-started` 数出。
-- 已知限制：`connect-retry` 只进诊断观察者，不进入调用记录。`ProviderDiagnostic` 属 model-contract，它的封闭词表尚没有对应成员；要让重试次数进入调用记录，须由 model-contract 与 model 增加该成员。
+- 传输级观察者：`PiTransportConfig.onConnectRetry`（可选函数）在每次重试之前同步收到同一个事件（冻结的副本）。网络资源由多个传输共享，网络的诊断观察者分不清是哪一次发送在重试；装配每次发送建一个传输，所以由它把调用标识补上。观察者抛出的异常被丢弃，不进入发送。`onConnectRetry` 存在但不是函数时，`createPiTransport` 抛出 `RangeError`。
+- 已知限制：`connect-retry` 只进两类观察者（网络的诊断观察者与传输级的 `onConnectRetry`），不进入调用记录。`ProviderDiagnostic` 属 model-contract，它的封闭词表尚没有对应成员；要让重试次数进入调用记录，须由 model-contract 与 model 增加该成员。
 
 ### 流停顿上界
 
@@ -774,7 +776,7 @@ hook 成功时，`end()` 按下列次序给出事实：
 | model-contract 符合性套件 transport 组的六条义务 | [conformance.spec.ts](tests/conformance.spec.ts) | 慢 |
 | 连接容量 | [capacity.spec.ts](tests/capacity.spec.ts) | 快 |
 | 请求发出之前的重试：对注入的交换（假计时器、真实容量）：退避次序与事件、用尽后保持最后一次的结果、请求可能已发出时不重试、2xx、`http-error`、`stalled`、`stopped` 与空列表不重试、退避期间不占名额、`stop()` 与取消在退避与等待名额期间立即结束且计时器清除、停止到达运行中的重试 | [retry.spec.ts](tests/retry.spec.ts) | 快 |
-| 请求发出之前的重试，对真实套接字：被拒绝的连接按退避重试并以原 fault 结束、缺省时只发一次、请求已到服务端后的断开不重试、取消与 materialized 的 `close()` 立即结束长退避 | [transport-retry.spec.ts](tests/transport-retry.spec.ts) | 慢 |
+| 请求发出之前的重试，对真实套接字：被拒绝的连接按退避重试并以原 fault 结束、传输级观察者在每次重试前收到事件且抛出不影响发送、缺省时只发一次、请求已到服务端后的断开不重试、取消与 materialized 的 `close()` 立即结束长退避 | [transport-retry.spec.ts](tests/transport-retry.spec.ts) | 慢 |
 | 诊断隔离 | [diagnostics.spec.ts](tests/diagnostics.spec.ts)；交换中的隔离见 [http.spec.ts](tests/http.spec.ts) | 快；慢 |
 | SSE 分帧 | [sse.spec.ts](tests/sse.spec.ts) | 快 |
 | 协议帧 | [frames.spec.ts](tests/frames.spec.ts) | 快 |

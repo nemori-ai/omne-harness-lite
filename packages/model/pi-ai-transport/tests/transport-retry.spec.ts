@@ -70,6 +70,34 @@ describe('retry of a send over real sockets', () => {
     }
   })
 
+  it('tells the observer of the transport before each retry, and a throwing observer changes nothing', async () => {
+    const { url } = await refusedUrl()
+    const told: unknown[] = []
+    const resources = network(certificate.cert)
+    const transport = transportOver(resources, {
+      url,
+      limits: limitsWith([20, 40]),
+      onConnectRetry: event => {
+        told.push(event)
+        throw new Error('the observer broke')
+      },
+    })
+    try {
+      const facts = await collect(
+        (await transport.materialize()).start(new AbortController().signal),
+      )
+      expect(facts).toEqual([CONNECT_FAILED])
+      expect(transport.sends()).toBe(3)
+      expect(told).toEqual([
+        { kind: 'connect-retry', level: 'info', attempt: 1, delayMs: 20, reason: 'connect-failed' },
+        { kind: 'connect-retry', level: 'info', attempt: 2, delayMs: 40, reason: 'connect-failed' },
+      ])
+    } finally {
+      await transport.close()
+      await resources.close()
+    }
+  })
+
   it('without connectRetry a refused connection is sent once', async () => {
     const { url } = await refusedUrl()
     const resources = network(certificate.cert)

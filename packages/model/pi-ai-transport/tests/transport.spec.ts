@@ -116,6 +116,13 @@ describe('constructing the transport', () => {
     expect(() => createPiTransport(configWith({ limits }))).toThrow(RangeError)
   })
 
+  it('refuses an onConnectRetry that is not a function', () => {
+    const onConnectRetry = 'not a function' as unknown as NonNullable<
+      PiTransportConfig['onConnectRetry']
+    >
+    expect(() => createPiTransport(configWith({ onConnectRetry }))).toThrow(RangeError)
+  })
+
   it('accepts the retry backoff list, an empty one, and no retry configuration', () => {
     for (const connectRetry of [{ backoffMs: [500, 1000] }, { backoffMs: [] }, undefined])
       expect(() =>

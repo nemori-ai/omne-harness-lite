@@ -114,3 +114,6 @@ function isThenable(value: unknown): value is PromiseLike<unknown> {
     typeof value.then === 'function'
   )
 }
+
+/** The event of one retry, as the observer of a transport (`onConnectRetry`) gets it. */
+export type ConnectRetryDiagnostic = Extract<TransportDiagnostic, { kind: 'connect-retry' }>

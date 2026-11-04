@@ -3,7 +3,12 @@
 // contributions are shared and injected; this module never closes the network.
 import type { SendResource, SendResources } from '@omne-harness/model'
 import { isDeepStrictEqual } from 'node:util'
-import type { ModelFailure, TransportFailure } from '@omne-harness/model-contract'
+import type {
+  DispatchId,
+  ModelCallId,
+  ModelFailure,
+  TransportFailure,
+} from '@omne-harness/model-contract'
 import type {
   MaterializedTransport,
   ModelTransport,
@@ -35,6 +40,20 @@ export type PiSendResourcesConfig = Readonly<{
   routes: Readonly<Record<string, PiRoute>>
   limits: PiTransportLimits
   materialization: PiMaterializationOptions
+  /**
+   * Told before each retry of a send whose request bytes had not left (`limits.connectRetry`), with
+   * the call and the dispatch that retries. A throw is dropped. Absent: nobody is told.
+   */
+  onConnectRetry?: (retry: ConnectRetryReport) => void
+}>
+
+/** One retry of one send: who retries, which retry it is, the wait before it and why. */
+export type ConnectRetryReport = Readonly<{
+  call: ModelCallId
+  dispatch: DispatchId
+  attempt: number
+  delayMs: number
+  reason: 'connect-failed' | 'connect-timeout'
 }>
 
 /** Production `SendResources` and the close of every resource that is still open. */
@@ -95,10 +114,12 @@ export function sendResourcesOver<P>(
   }>,
 ): PiSendResources<P> {
   const { config, createTransport } = input
+  // The report hook is the send resources' own: the transport gets one per send, below.
+  const { onConnectRetry, ...transportBase } = config
   const proofs = materializationRecords(config.materialization)
   // The probe checks the configuration once, here, so a bad route or limit fails the assembly
   // and not the first send. It is never used; its close is awaited by `close`.
-  const probe = createTransport({ ...config, credential: EMPTY_SLOT })
+  const probe = createTransport({ ...transportBase, credential: EMPTY_SLOT })
   const probeClosed: Promise<unknown> = probe.close().then(
     () => null,
     (error: unknown) => error ?? new Error('pi transport probe close failed'),
@@ -113,7 +134,22 @@ export function sendResourcesOver<P>(
     let released: Promise<void> | undefined
     let inactive = false
     let preparation: ReturnType<ModelTransport['prepare']> | undefined
-    const pi = createTransport({ ...config, credential: { read: () => secret } })
+    const pi = createTransport({
+      ...transportBase,
+      credential: { read: () => secret },
+      ...(onConnectRetry === undefined
+        ? {}
+        : {
+            onConnectRetry: event =>
+              onConnectRetry({
+                call: demand.call,
+                dispatch: demand.dispatch,
+                attempt: event.attempt,
+                delayMs: event.delayMs,
+                reason: event.reason,
+              }),
+          }),
+    })
     const transport: ModelTransport = {
       prepare(request, supplier, dispatch) {
         if (inactive) return Promise.resolve({ failure: SOURCE_UNAVAILABLE })
