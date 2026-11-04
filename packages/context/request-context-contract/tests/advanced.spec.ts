@@ -84,6 +84,39 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
       },
     ]).programmatic,
   ).toEqual([])
+  // A multi-command tool is one declaration (D-94): the command is an argument, never a name.
+  const files = {
+    ...definition,
+    name: 'Files',
+    description: 'Read and write files.',
+    kind: 'commands' as const,
+    encoding: 'wrapped' as const,
+    commands: ['read', 'write'].map(name => ({
+      name,
+      summary: `${name} a file.`,
+      parameters: { kind: 'declared' as const, value: definition.parameters },
+      returns: definition.returns,
+    })),
+  }
+  const declared = declareTools([
+    { ...available, availability: { ...available.availability, definition: files } },
+  ])
+  expect(declared.direct.map(item => item.name)).toEqual(['Files'])
+  expect(declared.programmatic).toEqual(declared.direct)
+  expect(declared.direct[0]?.description).toBe(
+    'Read and write files.\n\nCall with {"command": <name>, "params": {…fields}}. In signatures, ? marks an optional field and a|b lists the allowed values.\nread {} - read a file.\nwrite {} - write a file.',
+  )
+  expect(JSON.stringify(declared.direct[0]?.argumentsSchema)).toContain(
+    '{"key":"enum","value":{"kind":"array","items":[{"kind":"string","value":"read"},{"kind":"string","value":"write"}]}}',
+  )
+  expect(declared.routes).toEqual([
+    {
+      declared: 'Files',
+      tool: adoption,
+      binding: adoption,
+      selection: { kind: 'argument', encoding: 'wrapped', commands: ['read', 'write'] },
+    },
+  ])
 })
 it('projection preserves reasoning payload, rewrites at indices and removes dangling pairs', () => {
   const stateIdentity = judgeBlockIdentity({

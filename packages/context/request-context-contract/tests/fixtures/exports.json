@@ -66,6 +66,11 @@
               "pending": false
             },
             {
+              "name": "ToolCommandSelection",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "ToolRoute",
               "kind": "type",
               "pending": false
@@ -1266,10 +1271,7 @@
     {
       "module": "@omne-harness/runtime-context-contract",
       "interface": "ContextBlocks",
-      "members": [
-        "context.compaction-settings",
-        "context.window-usage"
-      ],
+      "members": ["context.compaction-settings", "context.window-usage"],
       "pending": false
     }
   ]
