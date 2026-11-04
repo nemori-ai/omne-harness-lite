@@ -12,3 +12,5 @@
 - [real-joint-child.ts](real-joint-child.ts)：共同提交杀进程用例的子进程
 - [app.ts](app.ts)：测试应用组合
 - [entries.ts](entries.ts)：每个公开入口的调用清单
+- [entry-text.ts](entry-text.ts)：`sl_entry.entry` 文本的测试入口，转到 `src/entry-codec.ts`
+- [session-scenario.ts](session-scenario.ts)：字节度量与速度对照用的固定会话

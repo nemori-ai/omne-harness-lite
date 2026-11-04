@@ -15,7 +15,7 @@ import type {
 } from '@omne-harness/session-contract'
 import { operationId, sessionId } from '@omne-harness/session-contract/testing'
 import type { SqlStorage } from '@omne-harness/sql-contract'
-import { encodeValue } from '../src/codec.ts'
+import { storedText } from './fixtures/entry-text.ts'
 import { createSessionStorage } from '../src/index.ts'
 import { readHistory } from '../src/worker/history-index.ts'
 import { app, textOf, TENANT_A, type App } from './fixtures/app.ts'
@@ -200,9 +200,7 @@ function tree(value: unknown): unknown {
 type Db = ReturnType<typeof migratedPort>['port']
 
 function entryText(position: number, revision: number, kind: string, data: object): string {
-  return JSON.stringify(
-    encodeValue({ id: String(position), revision: String(revision), kind, payload: tree(data) }),
-  )
+  return storedText({ id: String(position), revision: String(revision), kind, payload: tree(data) })
 }
 
 function insert(

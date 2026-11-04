@@ -657,9 +657,9 @@ describe('T-F7: a fold that throws', () => {
     // The batch read answers entries without their ids: the fold throws on them.
     rewrites.set('session.history', output => ({
       ...output,
-      entries: (output['entries'] as Record<string, unknown>[]).map(entry => {
-        const { id: _id, ...rest } = entry
-        return rest
+      entries: (output['entries'] as string[]).map(text => {
+        const { id: _id, ...rest } = JSON.parse(text) as Record<string, unknown>
+        return JSON.stringify(rest)
       }),
     }))
     const before = workFoldCounts(storage)
