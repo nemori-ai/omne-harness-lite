@@ -32,6 +32,14 @@ describe('matches', () => {
   it('matches only the name when there is no description', () => {
     expect(matches('review', 'review', undefined)).toBe(true)
     expect(matches('change', 'review', undefined)).toBe(false)
+    expect(matches('undefined', 'review', undefined)).toBe(false)
+  })
+
+  it('folds to lower case, not to upper case', () => {
+    // ß has no one-letter upper case: upper case folds it to SS, lower case keeps it.
+    expect(matches('ß', 'x', 'strasse')).toBe(false)
+    expect(matches('ss', 'x', 'straße')).toBe(false)
+    expect(matches('STRASSE', 'x', 'strasse')).toBe(true)
   })
 
   it('normalizes the name and the description too', () => {

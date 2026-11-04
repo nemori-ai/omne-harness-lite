@@ -7,9 +7,10 @@ function fold(text: string): string {
 }
 
 export function matches(query: string, name: string, description: string | undefined): boolean {
-  const words = fold(query)
-    .split(/\s+/u)
-    .filter(word => word !== '')
+  // Splitting on each white space character leaves empty words between, before and after the
+  // spaces. An empty word is a substring of every text, so it matches like no word at all, and a
+  // query of only white space matches everything.
+  const words = fold(query).split(/\s/u)
   const text = fold(description === undefined ? name : `${name}\n${description}`)
   return words.every(word => text.includes(word))
 }

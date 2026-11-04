@@ -340,6 +340,10 @@ describe('the resolution at adopted', () => {
 describe('the source', () => {
   const OUTSIDE: readonly Case[] = cases(
     ['a failure outside the set', { failure: 'exploded' }],
+    [
+      'a failure that is no text even when it reads as a member of the set',
+      { failure: { toString: () => 'outside-package' } },
+    ],
     ['an answer that is no outcome', 42],
   )
 

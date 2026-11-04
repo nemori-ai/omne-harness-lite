@@ -10,15 +10,17 @@
 import { AssertionError } from 'node:assert/strict'
 import { setImmediate } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
+import { capabilityId, type CapabilityId } from '@omne-harness/assets'
 import { succeed } from '@omne-harness/operation-result'
 import { createSkillCatalog } from '@omne-harness/skill'
-import type { SkillCatalog } from '@omne-harness/skill-contract'
+import { isSafeReason, isSkillName, type SkillCatalog } from '@omne-harness/skill-contract'
+import type { CatalogResolution } from '@omne-harness/skill-contract/provider'
 import {
   runConformanceCase,
   skillCatalogConformance,
   type CatalogFixture,
 } from '@omne-harness/skill-contract/testing'
-import { alice, scope, type Principal, type Scope } from './access-world.ts'
+import { alice, granted, reviewLocator, scope, type Principal, type Scope } from './access-world.ts'
 import {
   catalogFixture,
   createCatalogWorld,
@@ -96,6 +98,60 @@ describe('the suite goes red on a violating implementation', () => {
 
   it('passes every case on the real catalog, so the failures above come from the violations', async () => {
     expect(await failing(() => catalogFixture())).toStrictEqual([])
+  })
+})
+
+describe('the order and the shape of the entries', () => {
+  function identity(category: string, name: string): CapabilityId {
+    const id = capabilityId(category, name)
+    if (!id.ok) throw new Error(`${category}:${name}`)
+    return id.id
+  }
+
+  function adopted(category: string, name: string): CatalogResolution {
+    const capability = identity(category, name)
+    return {
+      kind: 'adopted',
+      ref: { capability, layer: 'tenant', locator: reviewLocator },
+      declared: { name: granted(isSkillName, name), tools: [], scripts: [], settings: [] },
+    }
+  }
+
+  const standIn: CatalogResolution = {
+    kind: 'known-unavailable',
+    capability: identity('skill', 'b'),
+    name: granted(isSkillName, 'b'),
+    reason: granted(isSafeReason, 'Gone.'),
+  }
+
+  /** A catalog over a lawful set of `answers` that the read check grants in full. */
+  function catalogOf(answers: readonly CatalogResolution[]): SkillCatalog<Principal, Scope> {
+    return createSkillCatalog<Principal, Scope>({
+      readCheck: { check: async () => ({ kind: 'granted' }) },
+      resolution: {
+        resolve: async () => ({ kind: 'none' }),
+        adopted: async () => succeed(answers),
+      },
+    })
+  }
+
+  const answers = [adopted('skill', 'c'), standIn, adopted('skill', 'a'), adopted('a-skill', 'z')]
+
+  const expected = [
+    { kind: 'adopted', capability: identity('a-skill', 'z'), name: 'z', dependencies: [] },
+    { kind: 'adopted', capability: identity('skill', 'a'), name: 'a', dependencies: [] },
+    { kind: 'stand-in', capability: identity('skill', 'b'), name: 'b', reason: 'Gone.' },
+    { kind: 'adopted', capability: identity('skill', 'c'), name: 'c', dependencies: [] },
+  ]
+
+  it('orders by category, then by name, and leaves out an absent description', async () => {
+    expect(await catalogOf(answers).summaries(alice, scope)).toStrictEqual({ ok: expected })
+  })
+
+  it('gives the same order for the lawful set in the reverse order', async () => {
+    expect(await catalogOf([...answers].reverse()).summaries(alice, scope)).toStrictEqual({
+      ok: expected,
+    })
   })
 })
 
