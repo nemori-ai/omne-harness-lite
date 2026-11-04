@@ -72,16 +72,16 @@ const MEMBERS = [
   member('apps/m2-contract-skeleton', ['@x/message']),
   member('packages/core/base'),
   member('packages/core/mid', ['@x/base']),
-  member('packages.0.0.1.legacy/core/stream-assembly'),
+  member('packages.archive.legacy/core/stream-assembly'),
   member('packages/infra/leaf'),
   member('packages/infra/plain'),
-  member('packages.0.0.1.legacy/infra/credential-custodian-local'),
+  member('packages.archive.legacy/infra/credential-custodian-local'),
   member('packages/infra/custodian-user', ['@x/credential-custodian-local']),
-  member('packages.0.0.1.legacy/model/model-profile-directory-local'),
-  member('packages.0.0.1.legacy/tools/tool-execution-local', [], {
+  member('packages.archive.legacy/model/model-profile-directory-local'),
+  member('packages.archive.legacy/tools/tool-execution-local', [], {
     acceptance: 'vitest run --config vitest.acceptance.config.ts',
   }),
-  member('packages.0.0.1.legacy/frontend/governance-client-operations-local'),
+  member('packages.archive.legacy/frontend/governance-client-operations-local'),
   member('packages/tenancy/governance-center-entry-node'),
   member('apps/top', ['@x/mid'], { acceptance: 'vitest run --dir acceptance' }),
   member('tools/core-verification'),
@@ -171,23 +171,17 @@ describe('影响面计划（真实规则）', () => {
     expect(text).toContain('成员测试：没有要跑的成员')
   })
 
-  it('叶子成员的源码：它自己，加上读全部产品源码的 product-checks；上游由 turbo 先构建，不进清单', () => {
+  it('叶子成员的源码：只选它自己；上游由 turbo 先构建，不进清单', () => {
     const result = plan(['packages/infra/leaf/src/a.ts'])
-    expect(result.test).toEqual(['packages/infra/leaf', 'tools/product-checks'])
+    expect(result.test).toEqual(['packages/infra/leaf'])
     expect(result.members).toEqual([
       { path: 'packages/infra/leaf', changed: ['packages/infra/leaf/src/a.ts'], reads: [] },
-      {
-        path: 'tools/product-checks',
-        changed: [],
-        reads: [{ path: 'packages/infra/leaf/src/a.ts', pattern: 'packages/**/*.ts' }],
-      },
     ])
     expect(result.build).toEqual([
       { path: 'packages/common/legal-identity', reason: 'resident' },
       { path: 'packages/agent/agent', reason: 'resident' },
       { path: 'packages/infra/leaf', reason: 'selected' },
       { path: 'tools/repo-toolchain', reason: 'resident' },
-      { path: 'tools/product-checks', reason: 'selected' },
     ])
     expect(result.acceptance).toEqual([])
     expect(result.python.run).toBe(false)
@@ -199,7 +193,6 @@ describe('影响面计划（真实规则）', () => {
       'packages/core/base',
       'packages/core/mid',
       'apps/top',
-      'tools/product-checks',
     ])
     const why = Object.fromEntries(result.members.map(entry => [entry.path, entry]))
     expect(why['packages/core/mid']?.downstream).toBe(true)
@@ -232,7 +225,7 @@ describe('影响面计划（真实规则）', () => {
   })
 
   it('退役成员的 README 不再触发读者或成员测试', () => {
-    const result = plan(['packages.0.0.1.legacy/infra/credential-custodian-local/README_ZH.md'])
+    const result = plan(['packages.archive.legacy/infra/credential-custodian-local/README_ZH.md'])
     expect(result.files[0]?.category).toBe('excluded')
     expect(result.mode).toBe('scoped')
     expect(result.test).toEqual([])
@@ -335,7 +328,7 @@ describe('影响面计划（真实规则）', () => {
     const leafOnly = plan(['packages/infra/leaf/src/a.ts'])
     expect(mixed.test).toEqual(leafOnly.test)
     expect(mixed.build).toEqual(leafOnly.build)
-    expect(mixed.files.map(file => file.category)).toEqual(['resident', 'reader'])
+    expect(mixed.files.map(file => file.category)).toEqual(['resident', 'member'])
   })
 
   it('空改动：按范围、什么成员都不选、不跑 pytest，理由写明没有改动', () => {
@@ -405,18 +398,18 @@ describe('影响面计划（真实规则）', () => {
     const result = plan(['examples/model-invocation-minimal-demo/src/bootstrap.ts'])
     expect(result.mode).toBe('scoped')
     expect(result.acceptance).toEqual([])
-    expect(result.test).toEqual(['tools/product-checks'])
+    expect(result.test).toEqual([])
     expect(result.build.some(entry => entry.path.startsWith('examples/'))).toBe(false)
   })
 
-  it('成员目录里的文件按最长前缀归属；被排除的 examples 的 TS 只带上 product-checks', () => {
+  it('成员目录里的文件按最长前缀归属；被排除的 examples 只需常驻检查', () => {
     expect(classify('packages/infra/leaf/package.json', MEMBERS, RULES)).toMatchObject({
       category: 'reader',
       owner: 'packages/infra/leaf',
     })
     const example = plan(['examples/demo/src/main.ts', 'examples/demo/README.md'])
-    expect(example.test).toEqual(['tools/product-checks'])
-    expect(example.files.map(file => file.category)).toEqual(['resident', 'reader'])
+    expect(example.test).toEqual([])
+    expect(example.files.map(file => file.category)).toEqual(['resident', 'resident'])
   })
 })
 
@@ -575,7 +568,6 @@ describe('锁文件按 importer 映射到成员（W2-C1）', () => {
     expect(both.mode).toBe('scoped')
     expect(both.test).toEqual([
       'packages/infra/leaf',
-      'tools/product-checks',
       'packages/c',
       'packages/d',
     ])
@@ -669,7 +661,6 @@ describe('按测量收窄的规则（#793）', () => {
       'packages/core/base',
       'packages/core/mid',
       'apps/top',
-      'tools/product-checks',
     ])
     expect(result.members.find(entry => entry.path === 'packages/core/mid')?.downstream).toBe(true)
     expect(describe_(result)).not.toContain('只改了文档、不选的成员')
@@ -681,7 +672,6 @@ describe('按测量收窄的规则（#793）', () => {
       'packages/core/base',
       'packages/core/mid',
       'apps/top',
-      'tools/product-checks',
     ])
     expect(result.members.find(entry => entry.path === 'packages/core/mid')).toEqual({
       path: 'packages/core/mid',
@@ -693,7 +683,7 @@ describe('按测量收窄的规则（#793）', () => {
 
   it('N2：文档改在一个成员、代码改在不相干的成员，只选代码这一侧', () => {
     const result = plan(['packages/core/base/README.md', 'packages/infra/leaf/src/a.ts'])
-    expect(result.test).toEqual(['packages/infra/leaf', 'tools/product-checks'])
+    expect(result.test).toEqual(['packages/infra/leaf'])
     expect(result.reason).toContain('只改了文档、不选的成员 1 个')
   })
 
@@ -706,7 +696,6 @@ describe('按测量收窄的规则（#793）', () => {
       'packages/agent/agent-cordis-contract',
       'packages/common/message',
       'apps/m2-contract-skeleton',
-      'tools/product-checks',
     ])
     const both = plan(['apps/m2-contract-skeleton/SPEC.md', 'packages/common/message/src/a.ts'])
     expect(both.members.find(entry => entry.path === 'apps/m2-contract-skeleton')).toEqual({
@@ -733,7 +722,6 @@ describe('按测量收窄的规则（#793）', () => {
       'packages/core/base',
       'packages/core/mid',
       'apps/top',
-      'tools/product-checks',
     ])
     expect(result.documentsOnly).toEqual([])
   })
@@ -835,7 +823,6 @@ describe('按测量收窄的规则（#793）', () => {
     expect(plan(['packages/core/mid/src/a.ts']).test).toEqual([
       'packages/core/mid',
       'apps/top',
-      'tools/product-checks',
     ])
   })
 })
