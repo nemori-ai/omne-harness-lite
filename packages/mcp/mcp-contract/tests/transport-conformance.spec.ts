@@ -1,6 +1,7 @@
 // The transport conformance suite on the scripted transport: every case passes on both material
 // kinds, and scripted transports that break a clause make the suite fail.
 import { AssertionError } from 'node:assert'
+import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   isConnectionTarget,
@@ -28,6 +29,10 @@ import {
   type ScriptedTransportOptions,
   type TransportFixture,
   type TransportKind,
+  TRANSPORT_TABLE,
+  cellsOf,
+  rowsOf,
+  transportCells,
 } from '@omne-harness/mcp-contract/testing'
 import { json } from './json.ts'
 
@@ -141,13 +146,48 @@ describe('the suite refuses a fixture that lists a legacy version', () => {
 })
 
 describe('the suite covers the transport clauses and the decided items', () => {
-  it('names T1 to T7, the deviation, and items 7 to 12 and 14', () => {
+  it('names T1 to T6, the table T8, the port failures T9, and items 7 to 9, 11, 12 and 14', () => {
     const cases = mcpTransportConformance()
     const clauses = new Set(cases.flatMap(conformance => conformance.clause.split(', ')))
-    for (const clause of ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', '偏离'])
+    for (const clause of ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T8', 'T9'])
       expect(clauses.has(clause), clause).toBe(true)
     const names = cases.map(conformance => conformance.name).join('\n')
-    for (const item of [7, 8, 9, 10, 11, 12, 14]) expect(names).toContain(`(item ${item})`)
+    for (const item of [7, 8, 9, 11, 12, 14]) expect(names).toContain(`(item ${item})`)
+  })
+})
+
+describe('the decision table is a total function and the suite covers it', () => {
+  it('matches every cell of the domain with exactly one row', () => {
+    const cells = transportCells()
+    expect(cells.length).toBeGreaterThan(0)
+    const wrong = cells.flatMap(cell => {
+      const rows = rowsOf(cell).map(row => row.id)
+      return rows.length === 1
+        ? []
+        : [`${cell.kind} ${cell.request} ${cell.answer}: ${rows.join(',')}`]
+    })
+    expect(wrong).toEqual([])
+  })
+
+  it('gives every row at least one cell and a unique id', () => {
+    const ids = TRANSPORT_TABLE.map(row => row.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(TRANSPORT_TABLE.filter(row => cellsOf(row).length === 0).map(row => row.id)).toEqual([])
+  })
+
+  it('has a case for every row', () => {
+    const names = mcpTransportConformance().map(conformance => conformance.name)
+    const uncovered = TRANSPORT_TABLE.filter(
+      row => !names.some(name => name.includes(`[${row.id}]`)),
+    ).map(row => row.id)
+    expect(uncovered).toEqual([])
+  })
+
+  it('writes every row into SPEC T8, and no other row id', () => {
+    const spec = readFileSync(new URL('../SPEC.md', import.meta.url), 'utf8')
+    const table = spec.slice(spec.indexOf('<a id="t8"></a>'), spec.indexOf('<a id="t8-end"></a>'))
+    const written = [...table.matchAll(/^\| ([A-Z]\d\d) /gmu)].map(match => match[1])
+    expect(written).toEqual(TRANSPORT_TABLE.map(row => row.id))
   })
 })
 
@@ -202,7 +242,7 @@ describe('the suite fails a transport that breaks the contract', () => {
 
   it('a transport that re-sends tools/call after a broken stream', async () => {
     expect(await failing(() => fixtureOf(['streamable-http', 'stdio'], resendingCalls))).toEqual([
-      'streamable-http: a call, tasks/update and tasks/cancel are not re-sent: no-answer (stream-broken) (item 10)',
+      '[C04] tools/call × stream-broken, http:2xx, http:500+plain → sent, answer stream-broken',
     ])
   })
 
@@ -210,11 +250,13 @@ describe('the suite fails a transport that breaks the contract', () => {
     expect(
       await failing(() => fixtureOf(['streamable-http', 'stdio'], forgettingRejections)),
     ).toEqual([
+      '[S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (authorization-required), reportRejection once',
       '401: not-sent authorization-required from WWW-Authenticate and the named metadata; reportRejection once (item 11)',
       '401 on listActions without resource_metadata: the well-known URL with the path is tried before the root; reportRejection once (item 11)',
       '401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header; reportRejection once (item 11)',
       '401 on discover: authorization-required with no legacy fallback; reportRejection once (item 11)',
       '403 insufficient_scope: authorization-required with the scope of the header; reportRejection once (item 11)',
+      'a credential handle whose authorize rejects or throws: not-sent (connection-unavailable), nothing reaches the peer',
     ])
   })
 })

@@ -170,6 +170,7 @@ export type AnswerMalformed = Readonly<{
     | 'error-missing'
     | 'error-shape'
     | 'tools-missing'
+    | 'cursor-invalid'
     | 'discover-shape'
 }>
 

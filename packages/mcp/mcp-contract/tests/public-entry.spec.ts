@@ -72,6 +72,10 @@ const PROVIDER_TYPES = [
 
 const TESTING = [
   'NotApplicable',
+  'TRANSPORT_TABLE',
+  'cellsOf',
+  'rowsOf',
+  'transportCells',
   'actionNameOf',
   'classifyOutcomeCases',
   'createMemoryAdoptionView',

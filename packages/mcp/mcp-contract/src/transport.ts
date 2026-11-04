@@ -17,13 +17,15 @@ import type { Outcome } from '@omne-harness/operation-result'
 
 /**
  * A transport failure, by its peer effect. `not-sent`: the request did not take effect at the
- * peer; a refused authorization (HTTP 401 or 403) is one of these. `no-answer`: the request left
- * and no answer came, so its effect is unknown. `error-answer`: the request left and the peer
+ * peer; a refused authorization (HTTP 401 or 403) and an ended legacy session are such.
+ * `no-answer`: the request left and no answer came, so its effect is unknown. `error-answer`: the request left and the peer
  * answered with a JSON-RPC error. `answer-malformed`: the request left and the answer is not in
  * the shape named for that request.
  */
 export type TransportFailure =
   | Readonly<{ kind: 'not-sent'; cause: 'connection-unavailable' }>
+  /** Streamable HTTP, legacy revision: the peer answered 404 to the session of the connection. */
+  | Readonly<{ kind: 'not-sent'; cause: 'session-ended' }>
   | Readonly<{
       kind: 'not-sent'
       cause: 'authorization-required'

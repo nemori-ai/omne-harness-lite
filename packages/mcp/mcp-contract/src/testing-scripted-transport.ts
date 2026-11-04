@@ -88,8 +88,11 @@ const CLIENT_CAPABILITIES: PlainJson = {
   elicitation: { form: {} },
   extensions: { [TASKS_EXTENSION]: {} },
 }
-/** The capabilities on a legacy revision: the tasks extension exists on modern revisions only. */
-const LEGACY_CAPABILITIES: PlainJson = { elicitation: { form: {} } }
+/**
+ * The capabilities on a legacy revision: none. A legacy capability makes the peer send requests
+ * to the client, and the client refuses them.
+ */
+const LEGACY_CAPABILITIES: PlainJson = {}
 /** The requests whose `Mcp-Name` header carries a parameter, and that parameter. */
 const MCP_NAME_SOURCES: Readonly<{ [method: string]: string }> = {
   'tools/call': 'name',
@@ -129,6 +132,8 @@ function plainOf(value: JsonValue): PlainJson {
 function isList(value: Replies): value is readonly PeerReply[] {
   return Array.isArray(value)
 }
+
+const SILENT: PeerReply = { kind: 'silent' }
 
 /** The peer: picks the scripted reply for each request, in order, and records what it saw. */
 class ScriptedPeer {
@@ -198,19 +203,28 @@ class ScriptedPeer {
     return this.script.wellKnown?.[new URL(url).pathname]
   }
 
-  peerRequests(): readonly Readonly<{ method: string; params?: PlainJson }>[] {
-    return this.script.peerRequests ?? []
+  /** The requests the peer sends at a point of the legacy path. */
+  peerRequests(at: 'initialize' | 'initialized'): readonly Readonly<{ method: string }>[] {
+    return (this.script.peerRequests ?? []).filter(request => (request.at ?? 'initialized') === at)
+  }
+
+  /** How the peer answers a notification of the client. */
+  notificationReply(method: string): PeerReply | undefined {
+    const replies = this.script.notifications
+    return replies === undefined ? undefined : this.pick(`notification:${method}`, replies, SILENT)
   }
 }
 
 /** What came back for one request, before the transport reads it. */
 type Wire =
-  | Readonly<{ kind: 'result'; result: JsonValue }>
+  | Readonly<{ kind: 'result'; result: JsonValue; session?: string }>
   | Readonly<{ kind: 'error'; error: JsonValue }>
   | Readonly<{ kind: 'no-answer'; cause: NoAnswerCause }>
   | Readonly<{ kind: 'not-sent'; failure: NotSent }>
   | Readonly<{ kind: 'legacy-signal' }>
   | Readonly<{ kind: 'probe-timeout' }>
+  /** An HTTP 5xx without a JSON-RPC answer: `no-answer` (`stream-broken`), never re-sent. */
+  | Readonly<{ kind: 'server-error' }>
 
 type Pending = {
   settle(wire: Wire): void
@@ -284,6 +298,8 @@ function interpret<T>(
     }
     case 'no-answer':
       return { failure: { kind: 'no-answer', cause: wire.cause } }
+    case 'server-error':
+      return { failure: { kind: 'no-answer', cause: 'stream-broken' } }
     case 'not-sent':
       return { failure: wire.failure }
     case 'legacy-signal':
@@ -470,20 +486,24 @@ function modernErrorOf(body: string | undefined): JsonValue | undefined {
 }
 
 /**
- * An HTTP answer to `server/discover` below 500, other than a refused authorization: a JSON-RPC
- * error of the modern revision in the body is the answer, anything else is a legacy signal. This
- * is `classifyHttpError` of the official TypeScript SDK 2.4.0 (`probeClassifier.ts`).
+ * An HTTP error status to `server/discover`, other than a refused authorization (T8 D04–D16):
+ * 5xx is final; below 500 a JSON-RPC error of the modern revision in the body is the answer, and
+ * anything else is a legacy signal. This is `classifyHttpError` of the official TypeScript SDK.
  */
-function probeAnswerOf(reply: Extract<PeerReply, { kind: 'http' }>): Wire | undefined {
-  if (reply.status >= 500) return undefined
+function probeAnswerOf(reply: Extract<PeerReply, { kind: 'http' }>): Wire {
+  if (reply.status >= 500) return { kind: 'server-error' }
   const error = modernErrorOf(reply.body)
   return error === undefined ? { kind: 'legacy-signal' } : { kind: 'error', error }
 }
 
-/** A 400 whose body is a JSON-RPC error: the error answer of the request. */
-function errorAnswerOf(reply: Extract<PeerReply, { kind: 'http' }>): Wire | undefined {
-  const error = reply.status === 400 ? jsonRpcErrorOf(reply.body) : undefined
-  return error === undefined ? undefined : { kind: 'error', error }
+/**
+ * An HTTP error status to any other request (T8): a JSON-RPC error in the body is the answer; a
+ * 5xx without one is a server error; a 4xx without one did not take effect.
+ */
+function errorAnswerOf(reply: Extract<PeerReply, { kind: 'http' }>): Wire {
+  const error = jsonRpcErrorOf(reply.body)
+  if (error !== undefined) return { kind: 'error', error }
+  return reply.status >= 500 ? { kind: 'server-error' } : { kind: 'not-sent', failure: notSent }
 }
 
 /** `data.supported` of a `-32022` error: a non-empty list of texts, or undefined. */
@@ -494,14 +514,20 @@ function supportedOf(data: JsonValue | undefined): readonly string[] | undefined
   return texts.length === items.length ? texts : undefined
 }
 
-/** The MCP request headers of a Streamable HTTP request (T3). */
-function headersOf(method: string, params: PlainRecord, version: string): PeerRequestHeaders {
+/** The MCP request headers of a Streamable HTTP request (T3), with the legacy session if any. */
+function headersOf(
+  method: string,
+  params: PlainRecord,
+  version: string,
+  session: string | undefined,
+): PeerRequestHeaders {
   const source = MCP_NAME_SOURCES[method]
   const name = source === undefined ? undefined : params[source]
   return {
     'mcp-protocol-version': version,
     'mcp-method': method,
     ...(typeof name === 'string' ? { 'mcp-name': name } : {}),
+    ...(session === undefined || method === 'initialize' ? {} : { 'mcp-session-id': session }),
   }
 }
 
@@ -516,9 +542,12 @@ class ScriptedTransport implements McpTransport {
   /** The ids of the requests that the credential handle authorized. */
   private readonly authorized = new Set<string>()
   private nextId = 0
+  private peerRequestCount = 0
   private version: string | undefined
   private closed = false
-  private dead: NoAnswerCause | undefined
+  private dead: NoAnswerCause | 'session-ended' | undefined
+  /** The `Mcp-Session-Id` of a legacy Streamable HTTP connection. */
+  private session: string | undefined
   private readonly peer: ScriptedPeer
   private readonly material: TransportMaterial
   private readonly options: ScriptedTransportOptions
@@ -564,6 +593,11 @@ class ScriptedTransport implements McpTransport {
     for (const entry of this.pending.values()) entry.settle({ kind: 'no-answer', cause })
   }
 
+  /** True when the connection speaks a legacy revision. */
+  private get legacy(): boolean {
+    return this.version !== undefined && !isModernProtocolVersion(this.version)
+  }
+
   private reserveId(): string {
     this.nextId += 1
     return `r${this.nextId}`
@@ -587,7 +621,7 @@ class ScriptedTransport implements McpTransport {
       method,
       params: { ...params, _meta: meta },
       ...(this.material.kind === 'streamable-http'
-        ? { headers: headersOf(method, params, version) }
+        ? { headers: headersOf(method, params, version, this.session) }
         : {}),
     }
     const deferred = new Deferred<Wire>()
@@ -639,9 +673,16 @@ class ScriptedTransport implements McpTransport {
     if (!this.pending.has(request.id)) return
     if (probeTimeoutMs !== undefined) entry.startProbe(probeTimeoutMs)
     switch (reply.kind) {
-      case 'result':
+      case 'result': {
         for (const notification of reply.notifications ?? []) this.notify(notification, entry)
-        return entry.settle({ kind: 'result', result: jsonOf(reply.result) })
+        const session =
+          this.material.kind === 'streamable-http' ? reply.headers?.['mcp-session-id'] : undefined
+        return entry.settle({
+          kind: 'result',
+          result: jsonOf(reply.result),
+          ...(session === undefined ? {} : { session }),
+        })
+      }
       case 'error':
         return entry.settle({ kind: 'error', error: jsonOf(reply.error) })
       case 'silent':
@@ -660,37 +701,49 @@ class ScriptedTransport implements McpTransport {
     }
   }
 
+  /**
+   * A notification of the peer during a request. The peer fills in the progress token of the
+   * request when the script names none. A progress notification whose token is the token of the
+   * call goes to `observe` with its `params` as written; any other notification is dropped.
+   */
   private notify(notification: PeerNotificationScript, entry: Pending): void {
-    const params = isPlainRecord(notification.params) ? notification.params : {}
+    const written = isPlainRecord(notification.params) ? notification.params : {}
+    const params =
+      written['progressToken'] === undefined
+        ? { ...written, progressToken: entry.progressToken }
+        : written
     const observe = entry.observe
     if (notification.method !== 'notifications/progress' || observe === undefined) return
+    if (params['progressToken'] !== entry.progressToken) return
     try {
-      observe({
-        kind: 'progress',
-        notification: { untrusted: jsonOf({ ...params, progressToken: entry.progressToken }) },
-      })
+      observe({ kind: 'progress', notification: { untrusted: jsonOf(params) } })
     } catch {
       // S6: an observer that throws does not change the outcome.
     }
   }
 
   /**
-   * An HTTP-level answer. A refused authorization is read by T4; another 403 is not sent. The rest
-   * is read by `probeAnswerOf` on `server/discover` and by `errorAnswerOf` elsewhere (T3).
+   * An HTTP-level answer (T8). A 2xx without a JSON-RPC answer is a broken answer stream. A refused
+   * authorization is read by T4; another 403 is not sent. A 404 to the legacy session ends it.
+   * The other error statuses are read by `probeAnswerOf` on `server/discover` and by
+   * `errorAnswerOf` elsewhere.
    */
   private async httpAnswer(
     request: Request,
     reply: Extract<PeerReply, { kind: 'http' }>,
   ): Promise<Wire> {
+    if (reply.status < 200 || (reply.status >= 300 && reply.status < 400))
+      throw new TypeError(`script: an http ${reply.status} reply is not supported`)
+    if (reply.status < 300) return { kind: 'no-answer', cause: 'stream-broken' }
     const challenge = challengeOf(new Headers(reply.headers ?? {}).get('www-authenticate'))
     if (refusesAuthorization(reply.status, challenge))
       return this.authorizationRequired(request, challenge)
     if (reply.status === 403) return { kind: 'not-sent', failure: notSent }
-    const wire = request.method === 'server/discover' ? probeAnswerOf(reply) : errorAnswerOf(reply)
-    if (wire !== undefined) return wire
-    throw new TypeError(
-      `script: an http ${reply.status} reply to ${request.method} is not supported`,
-    )
+    if (reply.status === 404 && request.headers?.['mcp-session-id'] !== undefined) {
+      this.dead = 'session-ended'
+      return { kind: 'not-sent', failure: { kind: 'not-sent', cause: 'session-ended' } }
+    }
+    return request.method === 'server/discover' ? probeAnswerOf(reply) : errorAnswerOf(reply)
   }
 
   /** T4: reports the rejection to the handle that authorized the request, then discovers. */
@@ -699,7 +752,10 @@ class ScriptedTransport implements McpTransport {
     challenge: ReadonlyMap<string, string>,
   ): Promise<Wire> {
     if (this.credential !== undefined && this.authorized.has(request.id))
-      await this.credential.reportRejection()
+      // A handle whose reportRejection rejects or throws is ignored (T9).
+      await Promise.resolve()
+        .then(() => this.credential?.reportRejection())
+        .catch(() => undefined)
     const discovery = await this.discoverAuthorization(challenge)
     return {
       kind: 'not-sent',
@@ -723,18 +779,18 @@ class ScriptedTransport implements McpTransport {
       named === undefined
         ? [new URL(`${METADATA_PATH}${path}`, origin).href, new URL(METADATA_PATH, origin).href]
         : [named]
-    let found: Readonly<{ url: string; metadata: PlainJson }> | undefined
+    let found: Readonly<{ url: string; metadata: PlainRecord }> | undefined
     for (const url of candidates) {
       const metadata = this.peer.wellKnown(url)
-      if (metadata !== undefined) {
+      // A document that is not a JSON object counts as not fetched (R4).
+      if (isPlainRecord(metadata)) {
         found = { url, metadata }
         break
       }
     }
     const scope = challenge.get('scope')
     const headerScopes = scope === undefined ? [] : scope.split(/\s+/u).filter(item => item !== '')
-    const metadata =
-      found === undefined || !isPlainRecord(found.metadata) ? undefined : found.metadata
+    const metadata = found?.metadata
     const fallbackUrl = candidates.at(-1) ?? new URL(METADATA_PATH, origin).href
     return {
       resourceMetadataUrl: found?.url ?? fallbackUrl,
@@ -750,8 +806,11 @@ class ScriptedTransport implements McpTransport {
     const credential = this.credential
     if (credential === undefined) return true
     const headers = new Headers()
-    const answer = await credential.authorize(headers)
-    if ('failure' in answer) return false
+    // A handle whose authorize rejects or throws leaves the request not sent (T9).
+    const answer = await Promise.resolve()
+      .then(() => credential.authorize(headers))
+      .catch(() => undefined)
+    if (answer === undefined || 'failure' in answer) return false
     this.authorized.add(id)
     return true
   }
@@ -777,12 +836,17 @@ class ScriptedTransport implements McpTransport {
     return sent.wire
   }
 
+  /** Sends a notification. Whatever the peer answers to it does not change any outcome (T8 N01). */
   private sendNotification(method: string, params: PlainRecord): void {
     this.peer.log.push({
       kind: 'notification',
       method,
       params: { ...params, _meta: this.envelope() },
     })
+    const reply = this.peer.notificationReply(method)
+    if (reply === undefined || this.material.kind !== 'stdio') return
+    if (reply.kind === 'stream-breaks') this.die('stream-broken')
+    if (reply.kind === 'process-exits') this.die('process-exited')
   }
 
   async discover(): Promise<Outcome<PeerIdentity, TransportFailure>> {
@@ -820,6 +884,7 @@ class ScriptedTransport implements McpTransport {
         return this.probeErrorOf(wire.error, retried)
       case 'no-answer':
       case 'not-sent':
+      case 'server-error':
         return { kind: 'final', failure: interpretFailure(wire) }
       case 'legacy-signal':
       case 'probe-timeout':
@@ -899,6 +964,21 @@ class ScriptedTransport implements McpTransport {
     }
   }
 
+  /**
+   * The requests of the peer, at one point of the legacy path: `ping` answers an empty result,
+   * every other request `-32601` (T3).
+   */
+  private answerPeerRequests(at: 'initialize' | 'initialized'): void {
+    for (const request of this.peer.peerRequests(at)) {
+      const id = `p${(this.peerRequestCount += 1)}`
+      this.peer.log.push(
+        request.method === 'ping'
+          ? { kind: 'response', id, result: {} }
+          : { kind: 'response', id, error: { code: -32601, message: 'Method not found' } },
+      )
+    }
+  }
+
   /** The legacy path: `initialize` with the highest legacy version, then `notifications/initialized`. */
   private async legacyPath(): Promise<Outcome<PeerIdentity, TransportFailure>> {
     const wire = await this.request(
@@ -910,6 +990,7 @@ class ScriptedTransport implements McpTransport {
       },
       OFFERED_LEGACY_VERSION,
     )
+    this.answerPeerRequests('initialize')
     const read = interpret(wire, (result): Outcome<PeerIdentity, TransportFailure> => {
       const version = isObject(result) ? textOf(member(result, 'protocolVersion')) : undefined
       const capabilities = isObject(result) ? member(result, 'capabilities') : undefined
@@ -931,13 +1012,9 @@ class ScriptedTransport implements McpTransport {
       }
     })
     if ('failure' in read) return read
+    if (wire.kind === 'result') this.session = wire.session
     this.sendNotification('notifications/initialized', {})
-    for (const [index] of this.peer.peerRequests().entries())
-      this.peer.log.push({
-        kind: 'response',
-        id: `p${index + 1}`,
-        error: { code: -32601, message: 'Method not found' },
-      })
+    this.answerPeerRequests('initialized')
     return read
   }
 
@@ -946,7 +1023,10 @@ class ScriptedTransport implements McpTransport {
     return interpret(wire, result => {
       const tools = isObject(result) ? itemsOf(member(result, 'tools')) : undefined
       if (!isObject(result) || tools === undefined) return { failure: malformed('tools-missing') }
-      const nextCursor = textOf(member(result, 'nextCursor'))
+      const cursor = member(result, 'nextCursor')
+      const nextCursor = textOf(cursor)
+      if (cursor !== undefined && nextCursor === undefined)
+        return { failure: malformed('cursor-invalid') }
       const ttl = member(result, 'ttlMs')
       const page = this.material.kind === 'streamable-http' ? withheldOf(tools) : { tools }
       return {
@@ -995,8 +1075,12 @@ class ScriptedTransport implements McpTransport {
     return { ok: { requestId: id, answer: sent.wire.then(answerOf) } }
   }
 
+  /**
+   * stdio, and Streamable HTTP on a legacy revision, send `notifications/cancelled`; Streamable
+   * HTTP on a modern revision ends the answer stream (T5).
+   */
   async cancelRequest(requestId: string): Promise<void> {
-    if (this.material.kind === 'stdio') {
+    if (this.material.kind === 'stdio' || this.legacy) {
       this.sendNotification('notifications/cancelled', { requestId })
       return
     }
@@ -1054,6 +1138,8 @@ function answerOf(wire: Wire): PeerAnswer {
       return { kind: 'error', error: wire.error }
     case 'no-answer':
       return { kind: 'no-answer', cause: wire.cause }
+    case 'server-error':
+      return { kind: 'no-answer', cause: 'stream-broken' }
     case 'not-sent':
     case 'legacy-signal':
     case 'probe-timeout':
@@ -1066,9 +1152,10 @@ function answerOf(wire: Wire): PeerAnswer {
 }
 
 function interpretFailure(
-  wire: Extract<Wire, { kind: 'no-answer' | 'not-sent' }>,
+  wire: Extract<Wire, { kind: 'no-answer' | 'not-sent' | 'server-error' }>,
 ): TransportFailure {
-  return wire.kind === 'no-answer' ? { kind: 'no-answer', cause: wire.cause } : wire.failure
+  if (wire.kind === 'not-sent') return wire.failure
+  return { kind: 'no-answer', cause: wire.kind === 'no-answer' ? wire.cause : 'stream-broken' }
 }
 
 /**

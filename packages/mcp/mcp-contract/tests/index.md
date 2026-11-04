@@ -11,6 +11,6 @@
 - [README.md](README.md)：测试范围、真实依赖与替身
 - [public-entry.spec.ts](public-entry.spec.ts)：公开入口的测试
 - [conformance.spec.ts](conformance.spec.ts)：五个端口套件在内存替身上的运行与违约替身
-- [transport-conformance.spec.ts](transport-conformance.spec.ts)：传输套件在脚本化传输上的运行、违约脚本传输，以及 T5 关闭次序用例在读写真管道的传输上的运行
+- [transport-conformance.spec.ts](transport-conformance.spec.ts)：传输套件在脚本化传输上的运行、违约脚本传输，T5 关闭次序用例在读写真管道的传输上的运行，以及决策表的结构检查（每个输入组合恰好一行、每行至少一个用例、SPEC 行号一致）
 - [additive-shapes.spec-d.ts](additive-shapes.spec-d.ts)：2026-07-28 回写的可加形状
 - [fixtures/](fixtures/index.md)：测试固定输入

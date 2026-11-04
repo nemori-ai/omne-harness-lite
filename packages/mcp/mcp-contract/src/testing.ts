@@ -69,6 +69,19 @@ export {
   type TransportKind,
 } from './testing-transport.ts'
 export {
+  TRANSPORT_TABLE,
+  cellsOf,
+  rowsOf,
+  transportCells,
+  type AnswerClass,
+  type ExpectedFailure,
+  type RequestClass,
+  type TableCell,
+  type TableConclusion,
+  type TableKind,
+  type TableRow,
+} from './testing-transport-table.ts'
+export {
   createScriptedTransportFactory,
   type ScriptedTransportFactory,
   type ScriptedTransportOptions,

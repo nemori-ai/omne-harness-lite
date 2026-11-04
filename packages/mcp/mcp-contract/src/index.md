@@ -14,4 +14,5 @@
 - [revisions.ts](revisions.ts)：旧一路接受的协议修订 `LEGACY_PROTOCOL_VERSIONS`（T3）
 - [testing.ts](testing.ts)：`./testing` 入口，套件、替身与样本构造器
 - [testing-transport.ts](testing-transport.ts)：传输符合性套件与夹具接口（`TransportFixture`、`PeerScript`）
+- [testing-transport-table.ts](testing-transport-table.ts)：传输决策表 T8 的数据形式与输入域
 - [testing-scripted-transport.ts](testing-scripted-transport.ts)：内存脚本化传输 `createScriptedTransportFactory`
