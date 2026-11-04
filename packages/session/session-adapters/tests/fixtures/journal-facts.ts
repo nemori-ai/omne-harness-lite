@@ -93,6 +93,8 @@ type Builder = {
   batches: Batch[]
   intends: Batch[]
   finish: { candidate: Batch; obligations: Batch; ended: Batch } | null
+  /** The obligations the steps appended, by id, for the close to list. */
+  obligations: string[]
 }
 
 function authorityOf(builder: Builder): Authority {
@@ -286,6 +288,8 @@ function roundBatches(builder: Builder, rng: Random): void {
       custody: blob({ role: 'assistant', content: 'z'.repeat(rng.int(20_000)) }),
       saved: evidence(`${builder.execution}/saved/${builder.step}`),
     },
+    // R2-D322: the step that settles a call appends the call's obligation in its current form.
+    obligation(builder, `call/${builder.step}`, 'call'),
   ])
   builder.admissions += 1
   const judge: FactBody[] = [
@@ -464,6 +468,7 @@ function roundBatches(builder: Builder, rng: Random): void {
         custody: blob({ role: 'tool', content: 'w'.repeat(rng.int(50_000)) }),
         saved: evidence(`${builder.execution}/tool-saved/${builder.step}`),
       },
+      obligation(builder, `tool-call/${builder.step}`, 'call'),
     ])
     batch(
       builder,
@@ -545,7 +550,18 @@ function roundBatches(builder: Builder, rng: Random): void {
   }
 }
 
-function finishBatches(builder: Builder, rng: Random): void {
+/** One obligation in its current form, a block of a size no fact could carry. */
+function obligation(builder: Builder, id: string, category: string): FactBody {
+  builder.obligations.push(id)
+  return {
+    kind: 'finish.obligation',
+    id: `${builder.execution}/${id}`,
+    category,
+    item: blob({ obligation: id, detail: 'd'.repeat(6000) }),
+  }
+}
+
+function finishBatches(builder: Builder): void {
   const step = stepOf(builder)
   const candidate = op(builder, 'candidate')
   const candidateBatch = batch(builder, 'candidate', [
@@ -566,27 +582,19 @@ function finishBatches(builder: Builder, rng: Random): void {
     },
     { kind: 'cursor.moved', step, members: { state: 'settling', position: 'F1' } },
   ])
-  // Each open tool call left about two obligations; each is one small fact with a reference.
-  const items: FactBody[] = []
-  const count = builder.action * 2
-  for (let index = 0; index < count; index += 1)
-    items.push({
-      kind: 'finish.obligation',
+  // The steps appended the obligations of their calls; the issue is the close alone, which lists
+  // them by reference through a block (R2-D322).
+  const obligations = batch(builder, 'obligations', [
+    {
+      kind: 'finish.obligations',
       candidate,
       list: 1,
-      index,
-      category: rng.pick(['result', 'control', 'handoff']),
-      item: blob({ obligation: index, detail: 'd'.repeat(6000) }),
-    })
-  items.push({
-    kind: 'finish.obligations',
-    candidate,
-    list: 1,
-    count,
-    evidence: evidence(`${builder.execution}/obligations/${candidate}`),
-    coverage: blob({ coverage: candidate }),
-  })
-  const obligations = batch(builder, 'obligations', items)
+      count: builder.obligations.length,
+      evidence: evidence(`${builder.execution}/obligations/${candidate}`),
+      coverage: blob({ coverage: candidate }),
+      listed: blob(builder.obligations),
+    },
+  ])
   const ended = batch(builder, 'ended', [
     {
       kind: 'finish.ended',
@@ -619,12 +627,13 @@ export function scene(rng: Random, options: SceneOptions = {}): Scene {
       batches: [],
       intends: [],
       finish: null,
+      obligations: [],
     }
     builder.authority = authorityOf(builder)
     openBatches(builder, rng)
     const rounds = options.rounds ?? 1 + rng.int(6)
     for (let round = 0; round < rounds; round += 1) roundBatches(builder, rng)
-    if (options.finish ?? rng.chance(1, 2)) finishBatches(builder, rng)
+    if (options.finish ?? rng.chance(1, 2)) finishBatches(builder)
     builders.push(builder)
   }
   const interleave = options.interleave ?? rng.chance(1, 2)

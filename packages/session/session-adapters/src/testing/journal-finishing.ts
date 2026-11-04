@@ -62,7 +62,7 @@ import {
   type Blob,
   type BlobStore,
 } from '../journal/decide.ts'
-import type { CursorMembers, FactOf, Ref } from '../journal/facts.ts'
+import type { CursorMembers, FactBody, FactOf, Ref } from '../journal/facts.ts'
 import type { CandidateView, ExecutionView, ObligationListView } from '../journal/fold.ts'
 
 /**
@@ -487,89 +487,7 @@ export function buildObligations(
       record,
     })
   }
-  for (const effect of source.effects) {
-    const result = source.results.find(item => item.consumption === effect.pending.consumption)
-    // A result saved as a `received` entry of the same consumption settles the call too: the
-    // entry is the result's custody when the receiver wrote it (Agent SPEC "终结责任清单" call row).
-    const received = source.entries.find(
-      entry => entry.kind === 'received' && entry.consumption === effect.pending.consumption,
-    )
-    // A later unknown return does not take an accepted association back to unknown; without an
-    // accepted one the last record counts.
-    const associations = source.finishing.toolAssociations.filter(
-      item => item.intent.action === effect.action,
-    )
-    const association =
-      associations.find(item => item.association.kind === 'accepted') ?? associations.at(-1)
-    // A final failure of the producer settles the call, and so does the Model's definite refusal
-    // of its admission (R2-D237, R2-D241: a refused admission leaves no send). It is read from every
-    // candidate, so a cancelled candidate that replaced that failure does not undo it.
-    const call = source.modelCallOf(effect)
-    const finalFailure =
-      call === null
-        ? undefined
-        : (source.finishing.candidates.find(
-            item =>
-              item.conclusion.kind === 'fail' &&
-              settlesCall(item.failure) &&
-              item.failure.call === call,
-          )?.failure ?? undefined)
-    // R2-D292: a Model intent the Model answered authoritatively not-accepted was never admitted
-    // or sent; its voided record settles the call on the basis of that answer.
-    const voided =
-      effect.pending.kind === 'model'
-        ? source.checkpoint.voided.find(item => item.reference === effect.pending.reference)
-        : undefined
-    const custodian =
-      association?.obligation.kind === 'call' ? association.obligation.custodian : null
-    const retain = (saved: ToolAssociationRecord): RecoveryContinuation => ({
-      kind: 'tool-association-retain',
-      request: ofParameters({
-        intent: saved.intent,
-        request: saved.request,
-        source: saved.source,
-        priorExcluded: saved.priorExcluded,
-      }),
-      ...BY_JOURNAL,
-      purpose: 'reconcile',
-    })
-    items.push({
-      kind: 'call',
-      key: effect.action,
-      source: effect.pending.fixed,
-      version: fixed(`call/${effect.action}`),
-      position: effect.pending.position,
-      disposition:
-        result !== undefined
-          ? settled(result.result.source)
-          : received?.kind === 'received'
-            ? settled(received.material)
-            : finalFailure !== undefined
-              ? settled(finalFailure.source)
-              : voided !== undefined
-                ? settled(voided.basis)
-                : association?.association.kind === 'accepted'
-                  ? held(association.source, retain(association), custodian ?? SESSION_CUSTODIAN)
-                  : association !== undefined
-                    ? callUnknown(effect.action, association.source, retain(association))
-                    : callUnknown(effect.action, effect.pending.fixed, {
-                        kind: 'producer-query',
-                        request: ofParameters({ pending: effect.pending }),
-                        ...BY_JOURNAL,
-                        purpose: 'query',
-                      }),
-      action: effect.action,
-      intent: recorded(
-        source.finishing.effectOperations.get(effect.action),
-        `the operation that saved the intent ${effect.action}`,
-      ),
-      pending: effect.pending,
-      started: null,
-      outcome: result?.result.source ?? null,
-      interruptions: source.interruptionsOf(effect),
-      custodian,
-    })
-  }
+  items.push(...callObligations(source))
   const supersession = source.finishing.supersessions.find(link => link.to === candidate.candidate)
   // A migrated candidate's passages belong to the author route it left (Agent SPEC "终结责任清单").
   const migration = source.finishing.migrations.find(item => item.candidate === candidate.candidate)
@@ -649,43 +567,7 @@ export function buildObligations(
       })
     }
   }
-  for (const responsibility of source.results) {
-    const key = canonical([
-      responsibility.result.producer,
-      responsibility.result.version,
-      responsibility.consumption,
-    ])
-    const origin = responsibility.result.source
-    const parameters = ofParameters({
-      result: responsibility.result,
-      consumption: responsibility.consumption,
-    })
-    items.push({
-      kind: 'result',
-      key,
-      source: origin,
-      version: fixed(`result/${responsibility.consumption}/${responsibility.result.version}`),
-      position: null,
-      disposition:
-        responsibility.completion !== null
-          ? settled(responsibility.completion)
-          : responsibility.custody !== null
-            ? held(responsibility.custody, {
-                kind: 'producer-release',
-                request: parameters,
-                ...BY_JOURNAL,
-                purpose: 'reconcile',
-              })
-            : pending('result-custody', {
-                kind: 'producer-receive',
-                request: parameters,
-                ...BY_JOURNAL,
-                purpose: 'reconcile',
-              }),
-      responsibility,
-      material: null,
-    })
-  }
+  items.push(...resultObligations(source))
   if (source.emitted > 0) {
     const retention = fixed('output')
     const emittedThrough = String(source.emitted)
@@ -754,6 +636,177 @@ export function buildObligations(
       handoffs: facet('handoffs'),
     },
   }
+}
+
+/** The part of an obligation source the call and result obligations read. */
+export type LedgerSource = Pick<
+  ObligationSource,
+  | 'id'
+  | 'execution'
+  | 'revision'
+  | 'results'
+  | 'entries'
+  | 'effects'
+  | 'interruptionsOf'
+  | 'modelCallOf'
+  | 'finishing'
+  | 'checkpoint'
+>
+
+/** The first item of each key, in a map. */
+function firstBy<T, K>(items: readonly T[], key: (item: T) => K): Map<K, T> {
+  const out = new Map<K, T>()
+  for (const item of items) if (!out.has(key(item))) out.set(key(item), item)
+  return out
+}
+
+/** The evidence fixed for one obligation `what` of the execution at the read revision. */
+function fixedOf(source: Pick<ObligationSource, 'execution' | 'revision'>) {
+  return (what: string): DurableEvidence =>
+    journalEvidence(`${source.execution}/obligation/${what}`, source.revision)
+}
+
+/**
+ * The call obligations of the execution, one per effect intent (Agent SPEC "终结责任清单" call
+ * row). They do not depend on the candidate beyond the failures of all its candidates, so the
+ * Journal keeps them current step by step (R2-D322).
+ */
+export function callObligations(source: LedgerSource): FinishObligation[] {
+  const fixed = fixedOf(source)
+  const items: FinishObligation[] = []
+  // Indexed once: the Journal reads the call obligations after every step (R2-D322).
+  const results = firstBy(source.results, item => item.consumption)
+  const entries = firstBy(
+    source.entries.filter(entry => entry.kind === 'received'),
+    entry => entry.consumption,
+  )
+  const associated = new Map<string, ToolAssociationRecord[]>()
+  for (const item of source.finishing.toolAssociations)
+    associated.set(item.intent.action, [...(associated.get(item.intent.action) ?? []), item])
+  for (const effect of source.effects) {
+    const result = results.get(effect.pending.consumption)
+    // A result saved as a `received` entry of the same consumption settles the call too: the
+    // entry is the result's custody when the receiver wrote it (Agent SPEC "终结责任清单" call row).
+    const received = entries.get(effect.pending.consumption)
+    // A later unknown return does not take an accepted association back to unknown; without an
+    // accepted one the last record counts.
+    const associations = associated.get(effect.action) ?? []
+    const association =
+      associations.find(item => item.association.kind === 'accepted') ?? associations.at(-1)
+    // A final failure of the producer settles the call, and so does the Model's definite refusal
+    // of its admission (R2-D237, R2-D241: a refused admission leaves no send). It is read from every
+    // candidate, so a cancelled candidate that replaced that failure does not undo it.
+    const call = source.modelCallOf(effect)
+    const finalFailure =
+      call === null
+        ? undefined
+        : (source.finishing.candidates.find(
+            item =>
+              item.conclusion.kind === 'fail' &&
+              settlesCall(item.failure) &&
+              item.failure.call === call,
+          )?.failure ?? undefined)
+    // R2-D292: a Model intent the Model answered authoritatively not-accepted was never admitted
+    // or sent; its voided record settles the call on the basis of that answer.
+    const voided =
+      effect.pending.kind === 'model'
+        ? source.checkpoint.voided.find(item => item.reference === effect.pending.reference)
+        : undefined
+    const custodian =
+      association?.obligation.kind === 'call' ? association.obligation.custodian : null
+    const retain = (saved: ToolAssociationRecord): RecoveryContinuation => ({
+      kind: 'tool-association-retain',
+      request: ofParameters({
+        intent: saved.intent,
+        request: saved.request,
+        source: saved.source,
+        priorExcluded: saved.priorExcluded,
+      }),
+      ...BY_JOURNAL,
+      purpose: 'reconcile',
+    })
+    items.push({
+      kind: 'call',
+      key: effect.action,
+      source: effect.pending.fixed,
+      version: fixed(`call/${effect.action}`),
+      position: effect.pending.position,
+      disposition:
+        result !== undefined
+          ? settled(result.result.source)
+          : received?.kind === 'received'
+            ? settled(received.material)
+            : finalFailure !== undefined
+              ? settled(finalFailure.source)
+              : voided !== undefined
+                ? settled(voided.basis)
+                : association?.association.kind === 'accepted'
+                  ? held(association.source, retain(association), custodian ?? SESSION_CUSTODIAN)
+                  : association !== undefined
+                    ? callUnknown(effect.action, association.source, retain(association))
+                    : callUnknown(effect.action, effect.pending.fixed, {
+                        kind: 'producer-query',
+                        request: ofParameters({ pending: effect.pending }),
+                        ...BY_JOURNAL,
+                        purpose: 'query',
+                      }),
+      action: effect.action,
+      intent: recorded(
+        source.finishing.effectOperations.get(effect.action),
+        `the operation that saved the intent ${effect.action}`,
+      ),
+      pending: effect.pending,
+      started: null,
+      outcome: result?.result.source ?? null,
+      interruptions: source.interruptionsOf(effect),
+      custodian,
+    })
+  }
+  return items
+}
+
+/** The result obligations of the execution, one per result responsibility. */
+export function resultObligations(source: LedgerSource): FinishObligation[] {
+  const fixed = fixedOf(source)
+  const items: FinishObligation[] = []
+  for (const responsibility of source.results) {
+    const key = canonical([
+      responsibility.result.producer,
+      responsibility.result.version,
+      responsibility.consumption,
+    ])
+    const origin = responsibility.result.source
+    const parameters = ofParameters({
+      result: responsibility.result,
+      consumption: responsibility.consumption,
+    })
+    items.push({
+      kind: 'result',
+      key,
+      source: origin,
+      version: fixed(`result/${responsibility.consumption}/${responsibility.result.version}`),
+      position: null,
+      disposition:
+        responsibility.completion !== null
+          ? settled(responsibility.completion)
+          : responsibility.custody !== null
+            ? held(responsibility.custody, {
+                kind: 'producer-release',
+                request: parameters,
+                ...BY_JOURNAL,
+                purpose: 'reconcile',
+              })
+            : pending('result-custody', {
+                kind: 'producer-receive',
+                request: parameters,
+                ...BY_JOURNAL,
+                purpose: 'reconcile',
+              }),
+      responsibility,
+      material: null,
+    })
+  }
+  return items
 }
 
 /** The evidence of the first presented card of a round, or null while nothing was presented. */
@@ -1023,52 +1076,183 @@ export function routeOfView(view: CandidateView, blobs: BlobStore): FinishRoute 
     : route
 }
 
+/** The id of one obligation: its kind and key, the same for every form the item takes. */
+export function obligationId(item: FinishObligation): string {
+  return canonical([item.kind, item.key])
+}
+
+/** The revision text a stored obligation holds in place of the revision it was read at. */
+const READ = '$read'
+
 /**
- * The facts of one issue of obligations: one `finish.obligation` per item with the item as a block,
- * then the close with the list evidence and the coverage block. Each fact is constant in size
- * whatever its item holds; nothing of an earlier list is written again.
+ * The read-revision-free form of an obligation (R2-D322): every evidence the builder fixed at the
+ * read revision (`<execution>/obligation/...`) holds `$read` instead of the revision. Two reads
+ * of an unchanged obligation at two revisions have one form, so the block is written once.
  */
-export function obligationFacts(
+export function storedObligation(
+  item: FinishObligation,
+  execution: string,
+  revision: number,
+): FinishObligation {
+  const prefix = `${execution}/obligation/`
+  const fixed = String(revision)
+  const walk = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(walk)
+    if (value === null || typeof value !== 'object') return value
+    const record = value as Record<string, unknown>
+    if (
+      record['owner'] === JOURNAL_OWNER &&
+      typeof record['record'] === 'string' &&
+      record['record'].startsWith(prefix) &&
+      record['revision'] === fixed &&
+      record['digest'] === `memory:${record['record']}@${fixed}` &&
+      Object.keys(record).length === 4
+    )
+      return { owner: JOURNAL_OWNER, record: record['record'], revision: READ, digest: READ }
+    return Object.fromEntries(Object.entries(record).map(([key, member]) => [key, walk(member)]))
+  }
+  return walk(item) as FinishObligation
+}
+
+/** The obligation a stored form names, read at `revision`: the inverse of `storedObligation`. */
+export function readObligation(stored: FinishObligation, revision: number): FinishObligation {
+  const walk = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(walk)
+    if (value === null || typeof value !== 'object') return value
+    const record = value as Record<string, unknown>
+    if (record['revision'] === READ && typeof record['record'] === 'string')
+      return journalEvidence(record['record'], revision)
+    return Object.fromEntries(Object.entries(record).map(([key, member]) => [key, walk(member)]))
+  }
+  return walk(stored) as FinishObligation
+}
+
+/** The current forms of the obligations of an execution, by id, as the fold keeps them. */
+export type ObligationLedger = ReadonlyMap<string, Readonly<{ category: string; item: Ref | null }>>
+
+/** The kinds the Journal keeps current step by step: their number follows the Model and Tool calls. */
+export const LEDGER_KINDS: ReadonlySet<string> = new Set(['call', 'result'])
+
+/** Facts that may change any call or result obligation: the step compares all of them. */
+const BROAD: ReadonlySet<string> = new Set([
+  'control.stage',
+  'control.rejected',
+  'finish.candidate',
+  'intent.voided',
+  'settlement.recorded',
+  'exec.attached',
+  'op.excluded',
+])
+
+/**
+ * Which call and result obligations a step may have changed, from its facts: the calls and
+ * consumptions its facts name, or all of them after a fact that reaches across calls. A miss only
+ * leaves the ledger behind; the issue compares every obligation and appends what still differs.
+ */
+export function touchedBy(facts: readonly FactBody[]): (item: FinishObligation) => boolean {
+  if (facts.some(fact => BROAD.has(fact.kind))) return () => true
+  const names = new Set<string>()
+  for (const fact of facts) {
+    if ('action' in fact && typeof fact.action === 'string') names.add(fact.action)
+    if ('consumption' in fact && typeof fact.consumption === 'string') names.add(fact.consumption)
+  }
+  return item =>
+    item.kind === 'call'
+      ? names.has(item.action) || names.has(item.pending.consumption)
+      : item.kind === 'result'
+        ? names.has(item.responsibility.consumption)
+        : true
+}
+
+/**
+ * The `finish.obligation` facts that bring the ledger to `items`: one per item whose stored form
+ * differs from its current form, and, when `complete` names the kinds `items` holds all of, one
+ * `item: null` per obligation of those kinds that left. At most `room` facts; the rest waits for a
+ * later step, and an issue appends what still differs.
+ */
+export function obligationChanges(
+  items: readonly FinishObligation[],
+  ledger: ObligationLedger,
+  execution: string,
+  revision: number,
+  complete: ReadonlySet<string> | null,
+  room: number = Number.POSITIVE_INFINITY,
+  /** The items worth comparing; the others are taken as unchanged (an issue compares them all). */
+  consider: (item: FinishObligation) => boolean = () => true,
+): Readonly<{
+  facts: readonly FactOf<'finish.obligation'>[]
+  blobs: readonly Blob[]
+  listed: readonly (readonly [id: string, digest: string])[]
+}> {
+  const facts: FactOf<'finish.obligation'>[] = []
+  const blobs: Blob[] = []
+  const listed: (readonly [string, string])[] = []
+  const present = new Set<string>()
+  for (const item of items) {
+    const id = obligationId(item)
+    present.add(id)
+    if (!consider(item) && ledger.get(id)?.item != null) continue
+    const stored = blobOf(storedObligation(item, execution, revision))
+    listed.push([id, stored[0]])
+    if (ledger.get(id)?.item?.digest === stored[0] || facts.length >= room) continue
+    facts.push({ kind: 'finish.obligation', id, category: item.kind, item: refOfBlob(stored) })
+    blobs.push(stored)
+  }
+  if (complete !== null)
+    for (const [id, known] of ledger)
+      if (
+        complete.has(known.category) &&
+        known.item !== null &&
+        !present.has(id) &&
+        facts.length < room
+      )
+        facts.push({ kind: 'finish.obligation', id, category: known.category, item: null })
+  return { facts, blobs, listed }
+}
+
+/**
+ * The facts of one issue of obligations (R2-D322): the obligations whose stored form is not the
+ * ledger's current one, then the close. The close names the items by id and block digest, in list
+ * order, through a block; it carries no item. An issue after the ledger kept up appends the close
+ * and the few obligations that changed since, whatever the number of calls.
+ */
+export function issueFacts(
   candidate: AgentOperationId,
   list: number,
   items: readonly FinishObligation[],
   coverage: ResponsibilityCoverage,
   evidence: DurableEvidence,
+  ledger: ObligationLedger,
+  execution: string,
+  revision: number,
 ): Readonly<{
   facts: readonly (FactOf<'finish.obligation'> | FactOf<'finish.obligations'>)[]
   blobs: readonly Blob[]
 }> {
-  const blobs: Blob[] = []
-  const ref = (value: unknown): Ref => {
-    const put = blobOf(value)
-    blobs.push(put)
-    return refOfBlob(put)
+  const changes = obligationChanges(items, ledger, execution, revision, null)
+  const listed = blobOf(changes.listed)
+  const covered = blobOf(coverage)
+  return {
+    facts: [
+      ...changes.facts,
+      {
+        kind: 'finish.obligations',
+        candidate,
+        list,
+        count: items.length,
+        evidence,
+        coverage: refOfBlob(covered),
+        listed: refOfBlob(listed),
+      },
+    ],
+    blobs: [...changes.blobs, listed, covered],
   }
-  const facts: (FactOf<'finish.obligation'> | FactOf<'finish.obligations'>)[] = items.map(
-    (item, index) => ({
-      kind: 'finish.obligation',
-      candidate,
-      list,
-      index,
-      category: item.kind,
-      item: ref(item),
-    }),
-  )
-  facts.push({
-    kind: 'finish.obligations',
-    candidate,
-    list,
-    count: items.length,
-    evidence,
-    coverage: ref(coverage),
-  })
-  return { facts, blobs }
 }
 
 /**
- * The issued list a folded obligation list names: the items in index order from their blocks, the
- * coverage block, and the candidate content the list is bound to. A list whose items do not match
- * its count is a defect of the writer.
+ * The issued list a folded close names: the items in list order from the blocks the close lists,
+ * read at the revision of its coverage, and the candidate content the list is bound to. A close
+ * whose listed items do not match its count is a defect of the writer.
  */
 export function listOfView(
   view: ObligationListView,
@@ -1077,10 +1261,11 @@ export function listOfView(
   blobs: BlobStore,
 ): FinishObligations {
   const issued = view.issued
-  if (issued === null) throw new TypeError('the obligation list is not closed')
-  const items = [...view.items].sort((left, right) => left.index - right.index)
-  if (items.length !== issued.count || items.some((item, index) => item.index !== index))
+  const listed = block<readonly (readonly [string, string])[]>(blobs, issued.listed, 'list')
+  if (listed.length !== issued.count)
     throw new TypeError('the obligation list does not hold the items its close counts')
+  const coverage = block<ResponsibilityCoverage>(blobs, issued.coverage, 'coverage')
+  const read = Number(coverage.readRevision)
   return {
     operation: issued.op,
     revision: revisionOf(issued.revision),
@@ -1091,8 +1276,10 @@ export function listOfView(
     inputWatermark: candidate.inputWatermark,
     checkpoint,
     conditions: candidate.conditions,
-    items: items.map(item => block<FinishObligation>(blobs, item.item, 'obligation')),
-    coverage: block<ResponsibilityCoverage>(blobs, issued.coverage, 'coverage'),
+    items: listed.map(([, digest]) =>
+      readObligation(block<FinishObligation>(blobs, { digest }, 'obligation'), read),
+    ),
+    coverage,
   }
 }
 

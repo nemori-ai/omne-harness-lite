@@ -119,6 +119,7 @@ import {
   emptyExecutionView,
   fold,
   receiptOf as batchReceiptOf,
+  BATCH_MAX_FACTS,
   refOf,
   type Answer,
   type Blob,
@@ -151,7 +152,12 @@ import {
   candidateOfView,
   listOfView,
   listsIssued,
-  obligationFacts,
+  issueFacts,
+  obligationChanges,
+  callObligations,
+  resultObligations,
+  LEDGER_KINDS,
+  touchedBy,
   routeOfView,
   settlementBlock,
   settlementOfFact,
@@ -2025,6 +2031,7 @@ export function createJournal<P>(
     for (const [digest, value] of prepared.blobs)
       if (!agent.blobs.has(digest)) agent.blobs.set(digest, copy(value))
     agent.log = [...agent.log, batch]
+    const prior = agent.view
     agent.view = fold(agent.view, batch)
     const folded = agent.view.executions.get(input.execution)
     if (folded === undefined || folded.revision !== rev)
@@ -2041,6 +2048,23 @@ export function createJournal<P>(
       'receipt' in derived ? ({ ...derived, receipt } as Answer) : derived,
     )
     prepared.project(batch, folded)
+    // R2-D322: the obligations the step changed join its own batch, read after its projection.
+    // They answer nothing and move no revision; the batch is folded again with them.
+    const owed = advanced
+      ? ledgerChanges(
+          input.tenant,
+          input.execution,
+          BATCH_MAX_FACTS - batch.facts.length,
+          batch.facts,
+        )
+      : null
+    if (owed !== null) {
+      const amended: PublishedBatch = { ...batch, facts: [...batch.facts, ...owed.facts] }
+      for (const [digest, value] of owed.blobs)
+        if (!agent.blobs.has(digest)) agent.blobs.set(digest, copy(value))
+      agent.log = [...agent.log.slice(0, -1), amended]
+      agent.view = fold(prior, amended)
+    }
     return succeed({ value, receipt, advanced })
   }
 
@@ -2397,6 +2421,53 @@ export function createJournal<P>(
   }
 
   /** The obligations of `candidate` from this Journal's own records at the current revision. */
+  /** The call and result obligations of `execution` as its reader records hold them now. */
+  function ledgerSource(execution: Execution) {
+    return {
+      id: execution.id,
+      execution: `${cell.namespace}/${execution.id}`,
+      revision: execution.revision,
+      checkpoint: execution.checkpoint,
+      results: execution.results,
+      entries: execution.entries,
+      effects: execution.effects,
+      interruptionsOf: (effect: EffectIntent) =>
+        interruptionsOf(effect, execution.controls, execution.tenant),
+      modelCallOf: (effect: EffectIntent) => {
+        if (effect.pending.kind !== 'model') return null
+        const parts = resolveModelInvocationRef(effect.pending.reference, execution.tenant)
+        return 'ok' in parts ? parts.ok.call : null
+      },
+      finishing: execution.finishing,
+    }
+  }
+
+  /**
+   * The `finish.obligation` facts a step owes the ledger (R2-D322): the call and result
+   * obligations whose form the step changed, read from the reader records after the step's
+   * projection, at most `room` of them. An execution the step did not leave in the reader owes none.
+   */
+  function ledgerChanges(
+    tenant: TenantId,
+    id: AgentExecutionId,
+    room: number,
+    facts: readonly FactBody[],
+  ) {
+    const execution = state().executions.get(executionKey(tenant, id))
+    if (execution === undefined || room <= 0) return null
+    const source = ledgerSource(execution)
+    const changes = obligationChanges(
+      [...callObligations(source), ...resultObligations(source)],
+      viewOf(id).finish.obligations,
+      source.execution,
+      execution.revision,
+      LEDGER_KINDS,
+      room,
+      touchedBy(facts),
+    )
+    return changes.facts.length === 0 ? null : changes
+  }
+
   function obligationsOf(
     execution: Execution,
     candidate: FinishCandidate,
@@ -4655,15 +4726,19 @@ export function createJournal<P>(
           const planned = plannedReceipt(execution, input.operation, key)
           const evidence = planned.evidence
           const built = obligationsOf(execution, candidate, input.operation)
-          // R2-D297: one `finish.obligation` per item, then the close; nothing of an earlier list
-          // is written again, a re-issue is a new list of the same candidate.
+          // R2-D322: the ledger kept the obligations current step by step; the issue appends the
+          // ones whose form still differs and the close that lists them all by reference. A
+          // re-issue is a new list of the same candidate and rewrites no unchanged obligation.
           const ordinal = listsIssued(finishing, candidate.candidate) + 1
-          const issued = obligationFacts(
+          const issued = issueFacts(
             candidate.candidate,
             ordinal,
             built.items,
             built.coverage,
             evidence,
+            viewOf(execution.id).finish.obligations,
+            `${cell.namespace}/${execution.id}`,
+            execution.revision,
           )
           // One new revision, no event, the checkpoint and the candidate as they were.
           return {
@@ -4685,6 +4760,9 @@ export function createJournal<P>(
                 candidateCheckpoint(execution.id, candidate.candidate, view.revision),
                 state().blobs,
               )
+              // The list read back from the facts is the list the builder issued, or a defect.
+              if (!sameValue(list.items, built.items) || !sameValue(list.coverage, built.coverage))
+                throw new TypeError('the issued list read back from its facts is another list')
               finishing.issued.set(list.evidence.record, list)
               finishing.obligations = list.evidence.record
               execution.revision = view.revision

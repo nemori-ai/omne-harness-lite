@@ -36,7 +36,12 @@ import {
   type SessionJournalView,
 } from '../src/journal/index.ts'
 import { testCancellationPolicyInstallation } from '@omne-harness/agent-contract/testing'
-import { currentObligations, finishingOf, settlementOf } from '../src/testing/journal-finishing.ts'
+import {
+  currentObligations,
+  finishingOf,
+  obligationId,
+  settlementOf,
+} from '../src/testing/journal-finishing.ts'
 import {
   JOURNAL_OWNER,
   journalEvidence as journalValueEvidence,
@@ -363,7 +368,7 @@ describe('P3 bounded commit: a batch carries this step alone', () => {
     expect(execution.intents.size).toBeGreaterThanOrEqual(3)
   })
 
-  it('the terminal batches are constant in the number of tool calls; obligations grow per item only (R2-D297)', () => {
+  it('the terminal batches are constant in the number of tool calls; the steps append the obligations (R2-D297, R2-D322)', () => {
     const small = scene(random(31), { rounds: 4, executions: 1, finish: true })
     const large = scene(random(31), { rounds: 16, executions: 1, finish: true })
     const smallFinish = small.finishes.get(small.executions[0]!)!
@@ -374,15 +379,15 @@ describe('P3 bounded commit: a batch carries this step alone', () => {
     expect(batchBytes(largeFinish.candidate)).toBeLessThanOrEqual(
       batchBytes(smallFinish.candidate) + slack,
     )
+    expect(batchBytes(largeFinish.obligations)).toBeLessThanOrEqual(
+      batchBytes(smallFinish.obligations) + slack,
+    )
+    // Each obligation is one small fact of the step that changed it; the item is a block.
     const perItem = 512
-    const smallItems = smallFinish.obligations.facts.length
-    const largeItems = largeFinish.obligations.facts.length
-    expect(largeItems).toBeGreaterThan(smallItems)
-    expect(
-      batchBytes(largeFinish.obligations) - batchBytes(smallFinish.obligations),
-    ).toBeLessThanOrEqual((largeItems - smallItems) * perItem)
-    for (const fact of largeFinish.obligations.facts)
-      expect(bytesOf(fact)).toBeLessThanOrEqual(perItem)
+    const items = (log: readonly PublishedBatch[]) =>
+      log.flatMap(batch => batch.facts.filter(fact => fact.kind === 'finish.obligation'))
+    expect(items(large.log).length).toBeGreaterThan(items(small.log).length)
+    for (const fact of items(large.log)) expect(bytesOf(fact)).toBeLessThanOrEqual(perItem)
     // The whole own part is linear in the rounds with a small coefficient.
     expect(bytesOfBatches(large.log)).toBeLessThanOrEqual(bytesOfBatches(small.log) * 5)
   })
@@ -655,11 +660,34 @@ function batchNamed(s: JournalScene, name: string): PublishedBatch {
   return found
 }
 
-/** prepareFinish and tryFinish of an ordinary completion after `calls` Tool calls. */
-async function finished(calls: number) {
+/**
+ * prepareFinish and tryFinish of an ordinary completion after `calls` Tool calls; with `reissue`,
+ * a second prepareFinish of the same candidate before the end.
+ */
+async function finished(calls: number, options: { reissue?: boolean } = {}) {
   const s = await withToolCalls(`finish-${calls}`, calls)
-  const ready = await prepareEnd(s)
+  let ready = await prepareEnd(s)
   if (ready.state.kind !== 'settling') throw new Error('settling expected')
+  let reissued: PublishedBatch | null = null
+  if (options.reissue === true) {
+    ok(
+      await s.view.journal.prepareFinish({
+        ...s.access,
+        execution: s.execution,
+        operation: journalOperation('end-prepare-again'),
+        authorization: {
+          kind: 'advancement',
+          authority: ready.executionAttachment ?? s.opened.authority,
+        },
+        expected: ready.revision,
+        candidate: ready.state.intent.candidate,
+      }),
+    )
+    reissued = batchNamed(s, 'end-prepare-again')
+    ready = await loadOf(s)
+    if (ready.state.kind !== 'settling') throw new Error('settling expected')
+  }
+  const items = ready.finishObligations?.items ?? []
   const ended = ok(
     await s.view.journal.tryFinish({
       ...s.access,
@@ -675,59 +703,64 @@ async function finished(calls: number) {
   )
   if (ended.kind !== 'ended') throw new Error(`ended expected, got ${JSON.stringify(ended)}`)
   return {
-    items: ready.finishObligations?.items ?? [],
+    items,
     prepared: batchNamed(s, 'end-prepare'),
+    reissued,
     ended: batchNamed(s, 'end'),
+    log: s.view.controls.facts().log,
   }
 }
 
-describe('R2-D297: the finishing batches of the Journal do not grow with the Tool calls', () => {
-  it('the end batch is the same size after 1 and after 6 Tool calls; the list grows by one small fact per item', async () => {
+describe('R2-D322: the issue of obligations does not grow with the Tool calls', () => {
+  it('after 150 Tool calls prepareFinish succeeds, its batch is the size it is after 1, and the end batch too', async () => {
     const small = await finished(1)
-    const large = await finished(6)
+    const large = await finished(150)
     // The end batch is one constant fact: only the digits of the coordinates may differ.
     expect(large.ended.facts.map(fact => fact.kind)).toEqual(['finish.ended'])
     expect(Math.abs(batchBytes(large.ended) - batchBytes(small.ended))).toBeLessThanOrEqual(8)
-    // The list is appended item by item: one `finish.obligation` per item and one close, each a
-    // reference, an evidence and small values, whatever an item holds.
-    const perItem = 1024
-    expect(large.items.length).toBeGreaterThan(small.items.length)
-    for (const run of [small, large]) {
-      const kinds = run.prepared.facts.map(fact => fact.kind)
-      expect(kinds.filter(kind => kind === 'finish.obligation')).toHaveLength(run.items.length)
-      expect(kinds.filter(kind => kind === 'finish.obligations')).toHaveLength(1)
-      for (const fact of run.prepared.facts) expect(bytesOf(fact)).toBeLessThanOrEqual(perItem)
-    }
-    expect(batchBytes(large.prepared) - batchBytes(small.prepared)).toBeLessThanOrEqual(
-      (large.items.length - small.items.length) * perItem,
+    // The issue is the close and the obligations whose form the steps did not already append:
+    // the same few after 1 and after 150 calls.
+    expect(large.items.length).toBeGreaterThan(150)
+    expect(large.prepared.facts.map(fact => fact.kind)).toEqual(
+      small.prepared.facts.map(fact => fact.kind),
     )
-    // An item is larger than its fact: the fact refers to the item, it does not carry it.
+    expect(Math.abs(batchBytes(large.prepared) - batchBytes(small.prepared))).toBeLessThanOrEqual(
+      16,
+    )
+    // Every obligation is one small fact in the log, smaller than the item it refers to.
+    const perItem = 1024
+    const facts = large.log.flatMap(batch =>
+      batch.facts.filter(fact => fact.kind === 'finish.obligation'),
+    )
+    expect(facts.length).toBeGreaterThanOrEqual(large.items.length - small.items.length)
+    for (const fact of facts) expect(bytesOf(fact)).toBeLessThanOrEqual(perItem)
     const biggest = Math.max(...large.items.map(item => bytesOf(item)))
-    const largestFact = Math.max(...large.prepared.facts.map(fact => bytesOf(fact)))
-    expect(largestFact).toBeLessThan(biggest)
+    expect(Math.max(...facts.map(fact => bytesOf(fact)))).toBeLessThan(biggest)
   })
 
-  it('negative control: a list written whole into one fact grows with the Tool calls and the codec refuses it', async () => {
-    const small = await finished(1)
-    const large = await finished(6)
-    const whole = (items: readonly unknown[]) => ({ kind: 'finish.obligations', items })
-    expect(bytesOf(whole(large.items))).toBeGreaterThan(bytesOf(whole(small.items)) + 512)
-    const many = Array.from({ length: 4 }, () => large.items).flat()
-    const encoded = encodeBatch(scope, 1, 0, {
-      execution: large.ended.execution,
-      envelope: large.ended.envelope,
-      facts: [whole(many) as unknown as FactBody],
-    })
-    // Refused either way: the items carry content (an accepted input's message) and exceed the bound.
-    expect('failure' in encoded && ['oversize', 'invalid'].includes(encoded.failure.kind)).toBe(
-      true,
-    )
-    const bodies = encodeBatch(scope, 1, 0, {
-      execution: large.ended.execution,
-      envelope: large.ended.envelope,
-      facts: [whole(many.map(item => ({ key: item.key, version: item.version }))) as never],
-    })
-    expect(bodies).toMatchObject({ failure: { kind: 'oversize' } })
+  it('a second issue for the same candidate appends the close alone: no unchanged obligation again', async () => {
+    const run = await finished(3, { reissue: true })
+    expect(run.reissued!.facts.map(fact => fact.kind)).toEqual(['finish.obligations'])
+  })
+
+  it('past the batch bound (300 calls) the issue still succeeds; written whole it would be refused', async () => {
+    const large = await finished(300)
+    expect(large.items.length + 1).toBeGreaterThan(BATCH_MAX_FACTS)
+    expect(large.prepared.facts.length).toBeLessThan(8)
+    const whole: FactBody[] = large.items.map(item => ({
+      kind: 'finish.obligation',
+      id: obligationId(item),
+      category: item.kind,
+      item: refOf(item),
+    }))
+    expect(whole.length + 1).toBeGreaterThan(BATCH_MAX_FACTS)
+    expect(
+      encodeBatch(scope, 1, 0, {
+        execution: large.ended.execution,
+        envelope: large.ended.envelope,
+        facts: whole,
+      }),
+    ).toMatchObject({ failure: { kind: 'too-many' } })
   })
 })
 

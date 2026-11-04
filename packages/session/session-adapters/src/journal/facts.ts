@@ -333,20 +333,24 @@ export type FactBody =
     }>
   | Readonly<{ kind: 'finish.proved'; route: DurableEvidence; beforeTerminal: DurableEvidence }>
   /**
-   * One issued obligation of a candidate (R2-D297): the item is a reference, so the fact stays
-   * small whatever the item holds; the list is folded from the items, never written whole. `list`
-   * is the ordinal of the issue for the candidate: a later prepareFinish issues a new list.
+   * The current form of one obligation of the execution (R2-D297, R2-D322), appended in the step
+   * that changed it: the item is a block in its read-revision-free form, so the fact is small
+   * whatever the item holds and an unchanged item is never written again. `item` null: the
+   * obligation left the execution. `id` is the kind and key of the item.
    */
   | Readonly<{
       kind: 'finish.obligation'
-      candidate: AgentOperationId
-      list: number
-      index: number
+      id: string
       /** The kind of the obligation item. */
       category: string
-      item: Ref
+      item: Ref | null
     }>
-  /** The close of one issue of obligations: how many items, the list evidence and its coverage. */
+  /**
+   * The close of one issue of obligations: how many items, the list evidence, the coverage block,
+   * and the block that lists the items by id and block digest, in list order. It refers to the
+   * obligation facts already appended; it carries no item. `list` is the ordinal of the issue for
+   * the candidate: a later prepareFinish issues a new list.
+   */
   | Readonly<{
       kind: 'finish.obligations'
       candidate: AgentOperationId
@@ -354,14 +358,7 @@ export type FactBody =
       count: number
       evidence: DurableEvidence
       coverage: Ref
-    }>
-  /** The disposition of one issued obligation; a state transition, not a rewrite of the list. */
-  | Readonly<{
-      kind: 'finish.disposed'
-      candidate: AgentOperationId
-      list: number
-      index: number
-      disposition: Ref
+      listed: Ref
     }>
   | Readonly<{
       kind: 'finish.ended'
@@ -445,7 +442,6 @@ export const FACT_KINDS: readonly FactKind[] = Object.freeze([
   'finish.proved',
   'finish.obligation',
   'finish.obligations',
-  'finish.disposed',
   'finish.ended',
   'settlement.recorded',
   'observation.recorded',
@@ -625,11 +621,9 @@ export function factKey(fact: FactBody): string {
     case 'finish.proved':
       return `proved/${fact.route.record}`
     case 'finish.obligation':
-      return `obligation/${fact.candidate}/${fact.list}/${fact.index}`
+      return `obligation/${fact.id}/${fact.item?.digest ?? 'gone'}`
     case 'finish.obligations':
       return `obligations/${fact.candidate}/${fact.list}`
-    case 'finish.disposed':
-      return `disposed/${fact.candidate}/${fact.list}/${fact.index}/${fact.disposition.digest}`
     case 'finish.ended':
       return 'ended'
     case 'settlement.recorded':
