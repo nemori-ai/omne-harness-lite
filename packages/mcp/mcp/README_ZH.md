@@ -81,7 +81,7 @@ SPEC MC-14 怎样兑现：
 
 ## 验证
 
-运行 `pnpm turbo run build typecheck test --filter=@omne-harness/mcp`。测试运行在契约的内存替身与脚本化传输工厂（`tests/doubles/`）上。它们穷举两个聚合，覆盖服务实际走的关口的六种答复、`ensure` 的每种配值缺陷与连接失败、`refresh` 的发布边界（并发与迟到结果用 deferred 排次序）、`tests/races.spec.ts` 的交错（旧代际迟到的页、关闭对建连、永不返回或抛出的端口、建连与取页期间的中止、永不答复的临界区重读）、状态视图、关闭次序、`close()`／`stop()`／`release()` reject 每种组合下的拆除与几个进程中一个 `stop()` reject 的拆除（`tests/teardown.spec.ts`，在 `tests/doubles/faults.ts` 的端口上）、遗忘的条件（`tests/entry.spec.ts`）、关停对另一条目的关闭与对途中建连（`tests/shutdown.spec.ts`）、reject 的读类端口（`tests/port-breach.spec.ts`），以及存储的符合性套件。下面每条性质都有具名变异让用例变红：连接键含对端账号、凭据句柄取一次释放一次、迟到的清单不发布、前一步 reject 时拆除的每一步仍执行、每个进程都被要求停止、持有在途落点的条目不被遗忘、`closeAll` 先释放在途落点的句柄、表关停时建连停下。SPEC.md 列出未覆盖项：没有真实传输、进程、对端与耐久存储。
+运行 `pnpm turbo run build typecheck test --filter=@omne-harness/mcp`。测试运行在契约的内存替身与脚本化传输工厂（`tests/doubles/`）上。它们穷举两个聚合，覆盖服务实际走的关口的六种答复、`ensure` 的每种配值缺陷与连接失败、`refresh` 的发布边界（并发与迟到结果用 deferred 排次序）、`tests/races.spec.ts` 的交错（旧代际迟到的页、关闭对建连、永不返回或抛出的端口、建连与取页期间的中止、永不答复的临界区重读）、状态视图、关闭次序、`close()`／`stop()`／`release()` reject 每种组合下的拆除与几个进程中一个 `stop()` reject 的拆除（`tests/teardown.spec.ts`，在 `tests/doubles/faults.ts` 的端口上）、遗忘的条件（`tests/entry.spec.ts`）、关停对另一条目的关闭与对途中建连（`tests/shutdown.spec.ts`）、reject 的读类端口（`tests/port-breach.spec.ts`），以及存储的符合性套件。下面每条性质都有具名变异让用例变红：连接键含对端账号、凭据句柄取一次释放一次、迟到的清单不发布、前一步 reject 时拆除的每一步仍执行、每个进程都被要求停止、持有在途落点的条目不被遗忘、`closeAll` 先释放在途落点的句柄、表关停时建连停下。SPEC.md 列出未覆盖项：没有真实传输、进程、对端与耐久存储。连接表生命周期的性质 P1–P8 另有用 TLC 检查的 TLA+ 模型与驱动真实连接表的有界穷举探索器（`tests/model/`），两者的范围、与代码的映射及已知反例见 [verification/README.md](verification/README.md)。
 
 ## 维护
 
