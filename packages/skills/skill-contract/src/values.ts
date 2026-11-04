@@ -1,6 +1,7 @@
 // The values of the Skill context. All of them are immutable. Skill has no stateful aggregate:
 // holding, selection and adoption belong to other owners.
 import type { CapabilityId, JsonValue } from '@omne-harness/assets'
+import type { CompatibilityHint } from './hints.ts'
 
 declare const brand: unique symbol
 
@@ -105,6 +106,8 @@ export type SkillDefinition = Readonly<{
   manifest: SkillManifest
   declaration: SkillDeclaration
   snapshot: SkillPackageSnapshot
+  /** What the package does beyond the native format and was accepted. Absent when nothing. */
+  compatibilityHints?: readonly CompatibilityHint[]
 }>
 
 /** The declaration projection of an asset body, as the resolution gives it back. */

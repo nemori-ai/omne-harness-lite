@@ -1,4 +1,5 @@
-// SKILL.md: name-mismatch and every malformed case of the frontmatter.
+// SKILL.md: name-mismatch and every malformed case of the frontmatter. What the format accepts
+// beyond the native rules, with a compatibility hint, is in parse-compat.spec.ts.
 import { describe, expect, it } from 'vitest'
 import { manifestText } from './package-builder.ts'
 import { codeOf, demo, name, parse } from './parse-support.ts'
@@ -38,28 +39,40 @@ describe('malformed SKILL.md', () => {
     ['a closing delimiter with a trailing space', '---\nname: demo\ndescription: d\n--- \n'],
     ['an empty frontmatter', '---\n---\nBody.\n'],
     ['a frontmatter that is a list', '---\n- demo\n---\n'],
-    ['a YAML syntax error', manifestText(['name: demo', 'description: [unclosed'])],
+    // YAML fails on the repeated key, and the line by line reading cannot tell which one counts.
     ['a duplicate top-level key', manifestText(['name: demo', 'description: a', 'description: b'])],
-    ['a duplicate key in metadata', demo(['metadata:', '  a: x', '  a: y'])],
-    ['a tag that YAML cannot resolve', demo(['x-tag: !custom value'])],
+    [
+      'a YAML error and a name that cannot be read',
+      manifestText(['name: "demo', 'description: a: b']),
+    ],
+    ['a YAML error and no name line', manifestText(['title: demo: x', 'description: d'])],
+    ['a YAML error and no description line', manifestText(['name: demo', 'about: a: b'])],
+    [
+      'a YAML error and a block description',
+      manifestText(['name: demo', 'x: a: b', 'description: |', '  Block text.']),
+    ],
+    [
+      'a YAML error and an unclosed quote',
+      manifestText(['name: demo', 'x: a: b', 'description: "open']),
+    ],
+    [
+      'a YAML error and text after a closing quote',
+      manifestText(['name: demo', 'x: a: b', "description: 'a' b"]),
+    ],
+    [
+      'a YAML error and an empty description',
+      manifestText(['name: demo', 'x: a: b', 'description:']),
+    ],
     ['a binary scalar', demo(['x-bin: !!binary aGVsbG8='])],
     ['a key that is not text', demo(['x-map:', '  1: one'])],
     ['an infinite number', demo(['x-num: .inf'])],
-    ['a second document', demo(['...', 'x-after: 1'])],
     ['a missing description', manifestText(['name: demo'])],
     ['an empty description', manifestText(['name: demo', 'description: ""'])],
-    [
-      'a description of 1025 characters',
-      manifestText(['name: demo', `description: ${'d'.repeat(1025)}`]),
-    ],
     ['a description that is not text', manifestText(['name: demo', 'description: 42'])],
     ['a license that is not text', demo(['license: [MIT]'])],
     ['an empty compatibility', demo(['compatibility: ""'])],
     ['a compatibility that is not text', demo(['compatibility: 5'])],
-    ['metadata with a map value', demo(['metadata:', '  owner: {name: a}'])],
     ['a compatibility of 501 characters', demo([`compatibility: ${'c'.repeat(501)}`])],
-    ['metadata that is not a map', demo(['metadata: [a]'])],
-    ['a metadata value that is not text', demo(['metadata:', '  version: 1.0'])],
     ['allowed-tools that is not text', demo(['allowed-tools: [Read]'])],
     ['too many alias expansions', demo(aliasBomb())],
   ])('rejects %s', (_case, manifest) => {

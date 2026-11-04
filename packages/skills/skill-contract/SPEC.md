@@ -13,6 +13,7 @@
 | 资产公开类型 `@omne-harness/assets` | `21175c9f9` | `BodyContract`、`CapabilityId`、`Declarations` |
 | [官方 Agent Skills 规格](https://agentskills.io/specification) | 2026-11-03 读取 | `SKILL.md` 的头部字段与目录结构 |
 | W3 Skill 线实施规格（reduce 裁定）、第 2 轮裁定 R1–R9 与第 3 轮裁定 S1–S3 | 2026-11-04 | 可加改动：公开根导出 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT`、`DECLARATION_LIMITS`、`sameCapability` 与 `isSkillDescription`；`./provider` 导出 `isSealedSnapshot`；[目录的匹配规则](#catalog-search)；[端口答复的统一处置](#port-answer-closed)；`open` 答 `entry-unreadable` 的映射；`skillCatalogConformance` |
+| W3 闭包 w3-skill-fix 的 reduce 裁定（卡 #1119 r1） | 2026-11-04 | 引用身份一致（GS-06，性质 S7）：统一处置核对表的 `resolve` 一行与 PR3 的内容摘要；`inspect` 的映射按调用点分格（GS-02）；中止活性的前提（GS-05）；生态兼容的放宽与兼容提示，name 与包根目录名不同的放宽除外（见[兼容提示](#compatibility-hints)） |
 
 各裁定的内容写在下文对应的条款里。裁定编号（例如 G3、C19）只是过程标签，决定的内容已经写全在本页。
 
@@ -77,6 +78,9 @@
 | `unsupported` 本版本只有 `no-readable-package` 一种：文本与字节都能表示，检查没有方言 | [读取的形状规则](#read-shape) | 领域设计裁定 S2-6（2026-11-03） |
 | `SkillCatalog` 先按 `capabilities` 过滤、按 `search` 的查询匹配，只对留下的身份调用读取判定。组页写的是对集合中的每个身份先核验。所以请求外或不匹配的身份的读取判定答 `unknown` 时，本页的答复不是 `unknown`。空的 `capabilities` 不调用任何端口，合法集合此刻无法判定时也答空列表 | [目录的匹配规则](#catalog-search) | W3 Skill 线实施规格已定事项 5、6；第 2 轮裁定 R2（2026-11-04） |
 | `open` 答 `entry-unreadable` 时，本页给出防御性映射。端口的要求只为 `snapshot` 定义这一种，组页也只写了 `snapshot` | [需求端口](#ports) | W3 Skill 线实施规格已定事项 9（2026-11-04） |
+| `resolve` 答 `adopted` 时，引用必须指向所请求的身份；带依据时，引用的来源层、资产版本（依据带资产版本时）与内容摘要必须等于依据的。`known-unavailable` 的能力标识必须是所请求的身份。不合即没有作答。组页只写了「包定位只取自 `SkillRef`」 | [端口答复的统一处置](#port-answer-closed) | w3-skill-fix 裁定 1（GS-06） |
+| 来源在快照阶段答 `bytes-mismatch` 时，检查也答 `source-unavailable`。组页的映射表让检查答 `version-changed`，检查不分调用点 | [需求端口](#ports) | w3-skill-fix 裁定 2（GS-02） |
+| 头部 YAML 读不出、但能逐行读出 name 与说明时接受；说明超过 1024 个字符时接受；`metadata` 不是文本映射时接受。三种都带兼容提示。组页的包格式规则拒绝这三种 | [`SKILL.md`](#manifest)、[兼容提示](#compatibility-hints) | w3-skill-fix 裁定 5（生态兼容） |
 
 ## 结果与不变量
 
@@ -94,7 +98,7 @@
 | `PackageDigest` | `isPackageDigest` | 逐字符合 `^sha256:[0-9a-f]{64}$`。`sealSnapshot` 经同一守卫得到快照的内容摘要 |
 | `SafeReason` | `isSafeReason` | 长 1 到 256 个字符（按码点计）。不含 C0 控制字符、DEL 与 C1 控制字符，不含孤立代理项 |
 | `AssetVersion` | `isAssetVersion` | 规则同 `SafeReason`。Skill 不解释资产版本 |
-| 说明（清单、资产正文与替换件的 `description`） | `isSkillDescription` | 长 1 到 1024 个字符（按码点计）。它只判长度，不判控制字符。它是守卫，不授予品牌：说明的类型是 `string` |
+| 说明（资产正文、端口答复中的声明投影与替换件的 `description`） | `isSkillDescription` | 长 1 到 1024 个字符（按码点计）。它只判长度，不判控制字符。它是守卫，不授予品牌：说明的类型是 `string`。清单的说明可以更长，见[`SKILL.md`](#manifest) |
 | `MediaType` | `inferMediaType` | 见[媒体类型](#media-type) |
 | 控制文件 | `isControlFile` | 包内路径逐字等于 `MANIFEST_PATH`（`SKILL.md`）或 `DECLARATION_PATH`（`.omne/skill.json`）。控制文件不是资源 |
 | `SkillPackageSnapshot` | `sealSnapshot` | 见[快照](#snapshot) |
@@ -176,7 +180,7 @@
 
 ### 检查 Skill 包
 
-`parseSkillPackage` 收一个快照、控制文件的字节、可选的期望名字与可选的声明预算。它答 `SkillDefinition`、一个拒绝原因，或 `version-changed`。
+`parseSkillPackage` 收一个快照、控制文件的字节、可选的期望名字与可选的声明预算。它答 `SkillDefinition`、一个拒绝原因，或 `version-changed`。接受的包超出原生格式时，`SkillDefinition` 带[兼容提示](#compatibility-hints)。
 
 - 拒绝带一个 `detail`。`detail` 是给包作者看的说明，不是契约字段。调用方不得据 `detail` 分支。
 - 拒绝的包不折成替换件，也不当作空包。
@@ -222,7 +226,9 @@ malformed
 7. `malformed`：其余格式错误；或者来源在快照阶段答 `entry-unreadable`（由调用方映射）。
 
 - 次序的例外：来源在快照阶段答 `entry-unreadable` 或 `outside-package` 时，检查没有快照可判，以对应的原因结束，不再按次序判其余原因。
-- 「头部能读出 name」指：头部的 YAML 解析没有错误与警告，内容是映射，且 `name` 的值是文本。否则不判 `name-mismatch`，头部的问题判为 `malformed`。
+- 「头部能读出 name」指下面两种情形之一。否则不判 `name-mismatch`，头部的问题判为 `malformed`。
+  - 头部的 YAML 解析没有错误与警告，内容是映射，且 `name` 的值是文本。
+  - YAML 解析有错误或警告，逐行读取（见[`SKILL.md`](#manifest)）读出了 `name`。
 - name 等于包根目录名、但不合 `SkillName` 的词法时，判为 `malformed`。
 - 同一个包违反几条规则时，`parseSkillPackage` 先读完全部可读的部分，再取次序最前的一条。
 
@@ -234,7 +240,13 @@ malformed
 - 第一行必须逐字为 `---`，以 LF 或 CRLF 结束。
 - 头部到第一个逐字为 `---` 的行结束。这一行以 LF 或 CRLF 结束，或者是文件的最后一行。行内有其他字符（包括结尾空格）的行不是定界行。找不到闭合行为 `malformed`。
 - 正文从闭合定界行的行终止符之后开始。闭合行是最后一行且没有行终止符时，正文为空。正文保留原字，Skill 不解释它。
-- 头部用 `yaml` 2.9.1 解析，采用 YAML 1.2 core schema，开启重复键检测，不展开合并键 `<<`。解析有错误或警告（例如无法解析的标签、第二个文档）时为 `malformed`。
+- 头部用 `yaml` 2.9.1 解析，采用 YAML 1.2 core schema，开启重复键检测，不展开合并键 `<<`。
+- 解析有错误或警告时（例如说明里没有引号的 `: `、无法解析的标签、第二个文档、值内部的重复键），检查改为逐行读取头部，只读 `name` 与 `description` 两个顶层字段：
+  - 字段行以 `name:` 或 `description:` 开头，没有缩进。同一个字段出现两次时，这个字段读不出。
+  - 值可以是普通标量：去掉 ` #` 之后的注释，后面有缩进的续行时，各行去掉首尾空白后以一个空格相连。
+  - 值也可以是单行的引号标量：双引号按 JSON 字符串读，单引号里的 `''` 读作 `'`。闭合引号之后只能有空白或注释。
+  - 块标量（`|`、`>`）与其他写法读不出。
+  - `name` 合 `SkillName` 的词法、`description` 是非空文本时，检查接受这个包，带兼容提示 `frontmatter-read-by-line`。清单只有这两个字段，`extra` 为空：其他字段不读。否则为 `malformed`。
 - 头部必须是映射。整个图中的映射键都必须是文本标量。标量只能是 null、布尔值、有限数或文本。`!!binary`、`.inf` 与 `.nan` 为 `malformed`。
 - 别名按所指节点展开。展开后的图最多 4096 个节点：映射、序列与标量各算一个，键不算。映射与序列最多嵌套 16 层，头部的根映射算第 1 层。超出为 `malformed`。
 - 重复键在整个图中都是 `malformed`，包括 Skill 原样保留、不解释的值内部。
@@ -243,10 +255,10 @@ malformed
   | 字段 | 规则 |
   | --- | --- |
   | `name` | 必需。文本，合 `SkillName` 的词法 |
-  | `description` | 必需。文本，长 1 到 1024 个字符（按码点计） |
+  | `description` | 必需。文本，至少 1 个字符。超过 1024 个字符（按码点计）时全文保留，带兼容提示 `description-over-limit` |
   | `license` | 可选。文本 |
   | `compatibility` | 可选。文本，长 1 到 500 个字符（按码点计） |
-  | `metadata` | 可选。键与值都是文本的映射 |
+  | `metadata` | 可选。键与值都是文本的映射。是映射但有不是文本的值时，只保留文本值；不是映射时不保留。这两种都带兼容提示 `metadata-not-text-map` |
   | `allowed-tools` | 可选。文本，原样保存。它只是元数据，不授予任何许可 |
 
 - 其余字段原样保存在 `SkillManifest.extra`，Skill 不解释它们。名为 `__proto__` 的字段也作为普通字段保存。
@@ -288,7 +300,39 @@ governance
 
 #### 方言与支持范围
 
-本版本只支持一种原生格式：按[官方 Agent Skills 规格](https://agentskills.io/specification)的 `SKILL.md`，加可选的、格式版本为 1 的 `.omne/skill.json`。本版本没有兼容方言，也不做格式转换。不符合原生格式的包按上文拒绝，不另报「方言不受支持」。增加方言时，本节增加一行支持范围与转换限制。
+本版本只支持一种原生格式：按[官方 Agent Skills 规格](https://agentskills.io/specification)的 `SKILL.md`，加可选的、格式版本为 1 的 `.omne/skill.json`。本版本没有兼容方言，也不做格式转换。主流宿主接受、而原生格式拒绝的几种写法，检查接受并带[兼容提示](#compatibility-hints)。其余不符合原生格式的包按上文拒绝，不另报「方言不受支持」。增加方言时，本节增加一行支持范围与转换限制。
+
+<a id="compatibility-hints"></a>
+
+#### 兼容提示
+
+社区的 Skill 与主流宿主接受一些原生格式拒绝的写法。检查也接受这些写法，并在 `SkillDefinition.compatibilityHints` 中逐项写明。兼容提示是结果中的数据，不是日志。
+
+- 没有这类写法的包没有 `compatibilityHints` 字段。有时，它是非空数组，按下面集合的次序排列，每种最多一次。
+- 调用方可以据兼容提示分支，例如向包作者显示提示。兼容提示不改变包的其余结果。
+
+兼容提示的集合：
+
+<a id="set-compatibility-hints"></a>
+
+```text
+frontmatter-read-by-line
+description-over-limit
+metadata-not-text-map
+```
+
+- `frontmatter-read-by-line`：头部 YAML 读不出，name 与说明是逐行读出的，见[`SKILL.md`](#manifest)。
+- `description-over-limit`：说明超过 1024 个字符，全文保留。
+- `metadata-not-text-map`：`metadata` 不是文本映射，只保留了文本值。
+
+真正读不了的包仍然拒绝：缺 `SKILL.md`（`manifest-missing`）；没有闭合的头部，或头部既不是 YAML 映射、逐行也读不出 name 或说明（`malformed`）；路径或链接落在包根之外（`outside-package`）。
+
+放宽没有让任何拒绝原因不再产生，[拒绝原因的集合](#set-inspect-rejections)不变。各原因在放宽后的情形：
+
+- `malformed` 不再因下列情形产生：说明超长；`metadata` 不是文本映射；头部 YAML 读不出、但逐行能读出 name 与说明。
+- `name-mismatch` 不变。name 与包根目录名不同时，本版本仍然拒绝。这一项放宽没有实施：它让 `@omne-harness/skill-host-local` 的目录示例用例变红，示例期望这种包被拒绝。放宽由负责人裁定之后实施。
+
+清单的说明超过 1024 个字符时，资产正文与声明投影仍按 `isSkillDescription` 限长。这样的包能通过检查，但它的投影不能经类别端口与对应端口原样流转。
 
 <a id="read-shape"></a>
 
@@ -314,6 +358,7 @@ governance
 - 读取内容是文本或字节。文本条目交出文本，二进制条目交出字节。Skill 不产出 `ContentBlock`，内容块的组装归接收方。
 - `complete` 为真，当且仅当实际范围的终点（起点加长度）不小于总长，也就是这一页之后没有剩余字节。部分结果不是失败。
 - `read`、`list` 与 `export` 在每次调用端口之前与每次端口返回之后各检查一次 `signal`。任一次发现已中止，操作答 `aborted`，不再调用端口，也不交部分内容。`describe` 不收 `signal`。
+- 中止的活性有一个前提：每次端口调用都会结束（返回或 reject）。端口收不到 `signal`，已经发出的端口调用由端口跑完，所以中止的响应时间受端口时间限制。端口不结束时，操作不答复。
 - `unsupported` 本版本只有 `no-readable-package` 一种：资产正文缺 `package.digest` 时的 `read`、`list` 与 `export`。
 - `export` 不分批：一次结果交出所钉快照的全部条目，或者一个失败，不交部分包。本版本的 `export` 没有总量上限。以后增加上限是破坏性改动，需要另行裁定。
 
@@ -417,6 +462,7 @@ no-readable-package
 - 没有已知集合的实现，对已不在当前集合里的身份不答 `known-unavailable`，这时不出现替换件。「资产版本不可表示」是例外（见下文）：这时身份仍在集合里、name 已知，任何实现都答 `known-unavailable`。
 - 带依据时，`resolve` 不比较内容摘要：内容摘要由 Skill 在读取时与当前快照比较。依据带资产版本时，`resolve` 核对该资产版本是不是这个主体在此作用域可读的、该能力的合法版本。依据不带资产版本时，`resolve` 核对该能力在依据的来源层对这个主体合法可读。
 - 身份对该主体合法对应时：依据合法就答 `adopted`，其中的内部引用（包定位与内容摘要）指向依据所指的材料，而不是当前采用的材料（PR3）；依据不合法就答 `basis-not-lawful`（PR4）。
+- 带依据答 `adopted` 时，引用的能力标识是所请求的身份，来源层等于依据的，依据带资产版本时资产版本也等于依据的。所指材料有包时，引用的内容摘要就是依据的内容摘要：端口不比较内容摘要，原样带回（PR3）。Skill 在边界上核对这些字段，不合就当作没有作答，见[端口答复的统一处置](#port-answer-closed)。
 - 资产版本不合 `AssetVersion` 的词法时，Skill 无法表示这份材料。这时端口答 `known-unavailable`，原因是「资产版本不可表示」。
 - `known-unavailable` 带的原因必须可以向该主体说明：它不含秘密，也不披露该主体无权知道的内容。这一义务归端口的实现，`isSafeReason` 只核对词形。
 - `adopted` 只交 `adopted` 与 `known-unavailable` 两种答复，每个身份一个（PR6）。集合为空时答空数组，不是失败。
@@ -439,7 +485,7 @@ no-readable-package
 | 端口调用 | 核对什么 |
 | --- | --- |
 | `SkillReadCheck.check` | 答复是对象，`kind` 是 `granted`、`refused`、`unknown` 之一 |
-| `SkillResolution.resolve` | 答复是对象，`kind` 是五种之一。`adopted` 带 `ref` 与 `declared`。`known-unavailable` 带 `capability`、`name`、`reason`，可带 `description`。`basis-not-lawful`、`none`、`unknown` 不再核对其他字段 |
+| `SkillResolution.resolve` | 答复是对象，`kind` 是五种之一。`adopted` 带 `ref` 与 `declared`。`known-unavailable` 带 `capability`、`name`、`reason`，可带 `description`。`basis-not-lawful`、`none`、`unknown` 不再核对其他字段。答复还要与请求一致，见下文「引用身份一致」 |
 | `SkillResolution.adopted` | 答复是 `Outcome`：`ok` 是数组且每一项都是 `adopted` 或 `known-unavailable`，并按上一行核对；或 `failure` 为 `unknown`。任一项不合，整个答复都不合 |
 | `SkillPackageSource.snapshot` | `ok` 是 `sealSnapshot` 造出的快照（按 `isSealedSnapshot`）；或 `failure` 是[来源失败的集合](#set-source-failures)的一员 |
 | `SkillPackageSource.open` | `ok` 是 `Uint8Array`；或 `failure` 是来源失败的集合的一员 |
@@ -450,6 +496,12 @@ no-readable-package
 - `ref`：能力标识；`layer` 是四个来源层之一；`locator` 是 `directory`（`root` 是文本）或 `content-store`（`digest` 合 `isPackageDigest`）；可带 `assetVersion`（合 `isAssetVersion`）与 `digest`（合 `isPackageDigest`）。
 - `declared`：`name` 合 `isSkillName`；可带 `description`（合 `isSkillDescription`）；`tools`、`scripts`、`settings` 都是数组。脚本的 `entry` 合 `isPackagePath`，`runKind` 是文本，`facilities` 是文本的数组，可带的 `parameters` 是 `JsonValue` 的 JSON 树：逐个节点核对并重新构造、冻结，每个节点只取它那一种的字段（`kind` 加 `value`、`lexeme`、`items` 或 `entries`），对象的条目只取 `key` 与 `value`；`number` 的 `lexeme` 合 RFC 8259 的数字词法；容器的嵌套不超过 `DECLARATION_LIMITS.maxDepth`（16）层，超出即不合，成环的树也因此不合。设置的 `name` 是文本，`category` 是四个设置类别之一。
 - `known-unavailable`：`name` 合 `isSkillName`，`reason` 合 `isSafeReason`，可带的 `description` 合 `isSkillDescription`。
+- 引用身份一致（性质 S7）：`resolve` 的答复必须是关于所请求的身份与依据的。
+  - `adopted` 的 `ref.capability` 与请求的身份按 `sameCapability` 相同。
+  - 带依据时，`ref.layer` 等于依据的来源层；依据带资产版本时，`ref.assetVersion` 等于它；`ref` 带内容摘要时，内容摘要等于依据的。`ref` 没有内容摘要表示没有可读的包，这时不比较内容摘要，操作答 `unsupported`，不读字节。
+  - `known-unavailable` 的 `capability` 与请求的身份相同。
+  - `adopted` 列出的每一项按它自己的能力标识（`ref.capability` 或 `capability`）成为一个条目，没有另外的身份可比，所以这一项核对对它自然成立。
+  - 不合的答复算端口没有作答，服务当作 `unknown`，不交出任何内容，也不调用来源。
 - 判别字段（`kind`，以及 `Outcome` 的 `ok` 与 `failure`）看答复对象自己有没有这个属性：原型链上的不算；`ok` 在场时只按 `ok` 核对，值为 `undefined` 也算在场。载荷字段同样只认自有属性；可缺省的载荷字段缺省与值为 `undefined` 同等。上面没有列出的字段不核对，服务也不交出它们。
 
 端口没有作答时，服务不抛出：`SkillReadCheck` 与 `SkillResolution` 当作 `unknown`；`SkillPackageSource` 按映射表的 `unavailable` 一行处置，`inspect`、`read`、`list` 与 `export` 都答 `source-unavailable`。代价：来源的缺陷（例如交出伪造的快照，违反 PS1）对调用方表现为「来源此刻不可用」，调用方从答复里分不出缺陷与暂时不可达。
@@ -489,7 +541,8 @@ prefix-conflict
 
 - `snapshot` 答 `entry-unreadable`：检查（`inspect`）映射为拒绝 `malformed`；`read`、`list` 与 `export` 映射为 `source-unavailable`。
 - `snapshot` 答 `outside-package`：检查映射为拒绝 `outside-package`；`read`、`list` 与 `export` 映射为 `outside-package`。
-- `open` 答 `entry-unreadable`：检查读控制文件时映射为拒绝 `malformed`，与快照阶段一样，检查以这个原因结束，不按拒绝次序判其余原因（检查不分调用点）；`read` 与 `export` 映射为 `source-unavailable`。`list` 不调用 `open`。
+- `open` 答 `entry-unreadable`：检查读控制文件时映射为拒绝 `malformed`，与快照阶段一样，检查以这个原因结束，不按拒绝次序判其余原因；`read` 与 `export` 映射为 `source-unavailable`。`list` 不调用 `open`。
+- 检查的映射按调用点分格。`snapshot` 答 `entry-not-found` 或 `bytes-mismatch` 时，检查答 `source-unavailable`：快照不对单个条目作答，这样作答的来源不守端口契约，与 `read`、`list`、`export` 的快照阶段同答。`open` 答 `bytes-mismatch` 时检查答 `version-changed`：快照列出的条目的字节变了。其余各行两个调用点同答。
 
 本页只为 `snapshot` 定义 `entry-unreadable`。`open` 答它不在端口的要求之内，上面的 `open` 一行是防御性的映射：来源这样作答时，服务仍有确定的答复。
 
@@ -508,7 +561,7 @@ prefix-conflict
 
 - 实现方为每个用例新建一份夹具，在自己的测试框架里逐个登记并运行 `run(fixture)`。`runConformanceCase` 运行一个用例并答结果。
 - 用例失败时抛出 `node:assert` 的 `AssertionError`。
-- 夹具缺少用例需要的东西时，用例抛出 `NotApplicable`。这不算通过，也不算失败，实现方要单独计数。来源不按内容摘要存放时，PS7 不适用。夹具没有 `escaping` 时，PS8 不适用。夹具没有 `earlier` 时，PR3 的早先版本一例不适用。所采用材料没有资产版本时，PR4 的资产版本一例不适用；夹具没有 `unlawfulLayer` 时，PR4 的来源层一例不适用。夹具没有 `standIn` 时，PR7 不适用。
+- 夹具缺少用例需要的东西时，用例抛出 `NotApplicable`。这不算通过，也不算失败，实现方要单独计数。来源不按内容摘要存放时，PS7 不适用。夹具没有 `escaping` 时，PS8 不适用。夹具没有 `earlier` 时，PR3 的早先版本一例不适用。所采用材料没有资产版本时，PR4 的资产版本一例不适用；所采用材料没有内容摘要时，PR3 的内容摘要一例不适用；夹具没有 `unlawfulLayer` 时，PR4 的来源层一例不适用。夹具没有 `standIn` 时，PR7 不适用。
 - 本成员对内存替身的测试把 `NotApplicable` 当作失败：替身必须覆盖全部用例。
 
 | 套件 | 夹具 | 用例 |
@@ -551,8 +604,9 @@ prefix-conflict
 | 本页的封闭集合与类型相等 | `tests/closed-sets.spec.ts` |
 | 值、守卫与纯函数的边界 | `tests/values.spec.ts` |
 | 检查 Skill 包与拒绝次序，每个拒绝原因一个包样本 | `tests/parse-*.spec.ts`、`tests/fixtures/packages/` |
+| 兼容提示：每种放宽一个用例并核对提示；真正读不了的包仍拒绝 | `tests/parse-compat.spec.ts`、`tests/parse-manifest.spec.ts` |
 | 快照构造；`isSealedSnapshot` 只认登记过的快照且不抛出 | `tests/snapshot.spec.ts` |
-| 端口套件、内存替身，以及套件对泄露身份的替身在进程内变红 | `tests/conformance.spec.ts` |
+| 端口套件、内存替身，以及套件对泄露身份的替身、引用指向别的身份的替身、不带回依据内容摘要的替身在进程内变红 | `tests/conformance.spec.ts` |
 | `skillCatalogConformance()` 的形状：至少 12 条，条款只有 SC2–SC7 且每个都在，SC7 恰好是两条无披露用例，用例名各不相同 | `tests/catalog-suite.spec.ts` |
 | `skill` 类别端口 | `tests/contract.spec.ts`、`tests/contract-extension.spec.ts` |
 | Schema 与解析一致 | `tests/declaration-schema.spec.ts` |

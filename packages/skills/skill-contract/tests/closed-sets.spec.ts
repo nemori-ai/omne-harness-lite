@@ -3,12 +3,14 @@
 import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 import type {
+  CompatibilityHint,
   InspectRejectionCode,
   SettingCategory,
   SkillFailure,
   UnsupportedWhat,
 } from '@omne-harness/skill-contract'
 import { INSPECT_REJECTIONS } from '../src/failures.ts'
+import { COMPATIBILITY_HINTS } from '../src/hints.ts'
 import type {
   ReadVerdict,
   SnapshotDefect,
@@ -45,6 +47,8 @@ const sourceFailures = [
 ] as const
 const verdicts = ['granted', 'refused', 'unknown'] as const
 const defects = ['invalid-root-name', 'duplicate-path', 'prefix-conflict'] as const
+// The order of the hints is the order in a result: read it from its module.
+const hints = COMPATIBILITY_HINTS
 
 const typed: readonly true[] = [
   true satisfies Same<(typeof rejections)[number], InspectRejectionCode>,
@@ -54,6 +58,7 @@ const typed: readonly true[] = [
   true satisfies Same<(typeof sourceFailures)[number], SourceFailure>,
   true satisfies Same<(typeof verdicts)[number], ReadVerdict['kind']>,
   true satisfies Same<(typeof defects)[number], SnapshotDefect['kind']>,
+  true satisfies Same<(typeof hints)[number], CompatibilityHint>,
 ]
 
 const spec = readFileSync(new URL('../SPEC.md', import.meta.url), 'utf8')
@@ -75,7 +80,8 @@ it.each([
   ['set-source-failures', sourceFailures],
   ['set-read-verdicts', verdicts],
   ['set-snapshot-defects', defects],
+  ['set-compatibility-hints', hints],
 ])('SPEC.md lists %s exactly as the type has it', (id, list) => {
-  expect(typed).toHaveLength(7)
+  expect(typed).toHaveLength(8)
   expect(listed(id)).toEqual([...list])
 })

@@ -4,6 +4,7 @@ import type { JsonLimits } from '@omne-harness/assets'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { computeDigest } from '../digest.ts'
 import type { InspectFailure, InspectRejectionCode } from '../failures.ts'
+import { orderedHints } from '../hints.ts'
 import { DECLARATION_PATH, MANIFEST_PATH } from '../names.ts'
 import { assertSealed } from '../snapshot.ts'
 import type {
@@ -85,7 +86,15 @@ export function parseSkillPackage(input: ParseInput): Outcome<SkillDefinition, P
   const first = firstFinding(findings)
   if (first !== undefined) return reject(first.code, first.detail)
   if (manifest.kind === 'malformed') return reject('malformed', manifest.detail)
-  return succeed(Object.freeze({ manifest: manifest.manifest, declaration, snapshot }))
+  const hints = orderedHints(manifest.hints)
+  return succeed(
+    Object.freeze({
+      manifest: manifest.manifest,
+      declaration,
+      snapshot,
+      ...(hints.length === 0 ? {} : { compatibilityHints: hints }),
+    }),
+  )
 }
 
 /** Why the name breaks the name rule, or `undefined`. A name that could not be read is not compared. */

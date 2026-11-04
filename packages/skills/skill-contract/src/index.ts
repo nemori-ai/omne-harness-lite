@@ -45,6 +45,7 @@ export type {
   SkillFailure,
   UnsupportedWhat,
 } from './failures.ts'
+export type { CompatibilityHint } from './hints.ts'
 export type {
   AssetVersion,
   Bytes,
