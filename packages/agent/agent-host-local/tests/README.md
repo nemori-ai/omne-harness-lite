@@ -43,7 +43,7 @@ CP3 判定只有 Session 参加的回滚时用 `line-through/cp3-rollbacks.ts` �
 - `history.executions.<execution>: required original material is missing`：执行头已经是占位回执（digest `unknown`，session-storage-sql K-5），所以 `boundaryOf` 不给边界。在 f2ba09e89 上加扰动时出现。
 - `history.prefix.<execution>.committedConsequences: required original material is missing`：在 5946efe4d 上出现，不加扰动时 12 次中出现 1 次。
 
-复现脚本：`line-through/cp3-repro-loop.sh <次数> <标签>` 不加扰动地连跑 CP3，并打印每次失败的原因与签名。`line-through/cp3-repro-delay.sh <毫秒> <次数> <标签>` 只在构建产物里加一段调度延迟，把 AD-02 读执行头与 commitLog 之间的窗口拉宽，运行结束后还原该文件。日志写在 `tmp/cp3-repro/<标签>/`。升级条件：在批次 D、E 的准入、C1 联调或 SC4 端到端中，不加扰动时只要出现一次 KL-146 的回滚，就升级为波 2 必修。
+一次性复现脚本 `cp3-repro-loop.sh`、`cp3-repro-delay.sh` 已从仓库删除，原件见[固定提交](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages/agent/agent-host-local/tests/line-through)。升级条件：在批次 D、E 的准入、C1 联调或 SC4 端到端中，不加扰动时只要出现一次 KL-146 的回滚，就升级为波 2 必修。
 
 ### J6 的两种轮数
 

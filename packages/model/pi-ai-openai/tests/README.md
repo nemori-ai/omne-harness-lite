@@ -33,7 +33,7 @@
 
 ### 迁入的封存测试
 
-封存件在 `packages.0.0.1.legacy/model/pi-ai-transport/tests/`。下表列出 OpenAI 相关的测试文件与去向。
+封存件在 [packages.0.0.1.legacy/model/pi-ai-transport/tests/](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/model/pi-ai-transport/tests)，已从仓库删除，链接指向固定提交。下表列出 OpenAI 相关的测试文件与去向。
 
 | 封存测试 | 去向 |
 | --- | --- |

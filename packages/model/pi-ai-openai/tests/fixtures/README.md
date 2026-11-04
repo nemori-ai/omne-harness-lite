@@ -33,7 +33,7 @@
 
 用例表在 [`../support/legacy-cases.ts`](../support/legacy-cases.ts)。每个用例写明来源测试的文件、行号与测试名，期望请求体与期望事实都在表中手写。`pnpm run fixtures` 把表写成本目录的文件。`fixtures.spec.ts` 先核对文件与表逐字相等，再用真实绑定编码与解码。期望事实不由引擎生成。
 
-来源是封存件 `packages.0.0.1.legacy/model/pi-ai-transport/tests/` 的内联 SSE 用例。封存的 `tests/fixtures/openai` 不含 SSE 帧。
+来源是封存件 [packages.0.0.1.legacy/model/pi-ai-transport/tests/](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/model/pi-ai-transport/tests) 的内联 SSE 用例（已从仓库删除，链接指向固定提交）。封存的 `tests/fixtures/openai` 不含 SSE 帧。
 
 ### 真实流
 

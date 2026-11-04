@@ -6,7 +6,7 @@
 
 ## 当前入口
 
-先确认任务针对封存的 0.0.1 实现，还是新树中的目标能力。封存实现从[封存包入口](../../packages.0.0.1.legacy/README.md)查找其公开说明；目标能力从[新树入口](../../packages/README.md)与[系统分层](../architecture/layers-and-dependencies.md)辨认。新树尚无可消费的实际产品成员。操作前核对公开入口、依赖和生命周期。目标架构和文档目录不表示当前产品已经支持该操作。
+先确认任务针对封存的 0.0.1 实现，还是新树中的目标能力。封存实现已从仓库删除，链接指向固定提交。封存实现从固定提交中的[封存包入口](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/README.md)查找其公开说明；目标能力从[新树入口](../../packages/README.md)与[系统分层](../architecture/layers-and-dependencies.md)辨认。新树尚无可消费的实际产品成员。操作前核对公开入口、依赖和生命周期。目标架构和文档目录不表示当前产品已经支持该操作。
 
 ## 后续承接
 

@@ -27,7 +27,6 @@
 - [line-through/](line-through/)：一条真实 Cordis 根上的线内组合用例与它的世界
   - `world.ts`、`cp3.spec.ts`：CP3，Session 输入到 Model 结果保存
   - `cp3-rollbacks.ts`、`cp3-rollbacks.spec.ts`：CP3 对只有 Session 参加的回滚的判定（R2-D152）与它的快层用例
-  - `cp3-repro-loop.sh`、`cp3-repro-delay.sh`：CP3 连跑与加宽 AD-02 窗口的复现脚本（KL-146）
   - `w2-world.ts`、`w2-measure.ts`：波 2 的组合世界，每轮计数与测量事件记录器
   - `w2-rounds.spec.ts`：J1 三轮对话与 J2 工具结果进入下一轮请求；J2 另有一条：Tool 请求来源答 unavailable 时动作被拒，拒绝消息进入下一次请求，Run 以 completed 结束；还有一条（R2-D268）：动作被拒以后，第二步的模型结果带 reasoning_state，Agent 被唤醒、读到结果，回复只含文本块，Run 以 completed 结束。Model 替身的 sealed 校验不支持 reasoning_state，所以这一块由 W2 世界的 `modelDelivery` 在送达真实接收方之前加入
   - `w2-control.spec.ts`：J3 取消 Run 与 J4 只中断一个调用

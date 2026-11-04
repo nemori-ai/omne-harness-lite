@@ -2,7 +2,7 @@
 
 本组放不携带业务事实的文本格式化函数。它不是 `common`。`common` 只在至少两个具名消费者确认同一纯表示后接纳成员。XML 渲染和终端文本排版目前没有这组消费者。
 
-封存实现留在 `packages.0.0.1.legacy/util`。新成员不把那个目录当作运行依赖。
+封存实现已从仓库删除，原件见固定提交中的 [packages.0.0.1.legacy/util](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/util)。新成员不把它当作运行依赖。
 
 ## 责任与范围
 

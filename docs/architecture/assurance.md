@@ -228,4 +228,4 @@ agent 从[任务地图](../context-map.md)取得必要上下文，再沿受影�
 
 承接责任为求值输入来源、求值组合及验证拥有者。待办是恢复可复跑输入，核对现行实现是否仍受影响，并取得与原观察对应的原因和关闭证据。
 
-[封存来源](../../packages.0.0.1.legacy/assets/evaluation-input-store/verification/README.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/assets/evaluation-input-store/verification/README.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。

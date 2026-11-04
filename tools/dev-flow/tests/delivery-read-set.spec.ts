@@ -252,7 +252,7 @@ describe('read conflict kinds', () => {
       '.cursor/turbo.json': '**/turbo.json',
       'tsconfig.base.json': 'tsconfig*.json',
       'packages/agent/agent-contract/package.json': 'packages/*/*/package.json',
-      'packages/agent/agent-contract/src/x.ts': 'packages/**/*.ts',
+      'packages/agent/agent-contract/src/x.ts': undefined,
       '.meta_harness/design/product/m1/README.md': '.meta_harness/design/product/*/README.md',
       '.meta_harness/agents/skills/review-code/canonical/SKILL.md': undefined,
       'docs/development.md': undefined,

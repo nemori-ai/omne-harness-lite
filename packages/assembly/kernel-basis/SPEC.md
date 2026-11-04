@@ -191,7 +191,7 @@ npm 上的 `@deepseek-ai/cordis@4.0.4` 没有 `gitHead`。对应的上游发布�
 
 已发布源码里 `_getState` 在 fiber 仍有 uid、没有 `_error`、epoch 不是 inactive 时返回 2。上表的 2 是这个返回值。
 
-配置校验和 effect 释放的新观察在本包测试里。basis 条目的探针也在本包 `tests/` 里，随本包测试运行。归档目录 `packages.0.0.1.legacy/core/kernel-basis` 只留两条不对应 basis 条目的旧探针。本规格不把旧包当成新的辅助层，也不从旧路径导入。
+配置校验和 effect 释放的新观察在本包测试里。basis 条目的探针也在本包 `tests/` 里，随本包测试运行。归档目录 [packages.0.0.1.legacy/core/kernel-basis](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/kernel-basis) 已从仓库删除，固定提交中只留两条不对应 basis 条目的旧探针。本规格不把旧包当成新的辅助层，也不从旧路径导入。
 
 ## 验收对照
 
