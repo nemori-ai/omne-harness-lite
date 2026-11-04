@@ -52,10 +52,13 @@ export type CatalogMark = 'marked' | 'revision-conflict' | 'unavailable' | 'not-
 
 export type ConnectionUnavailable = Extract<ConnectionFailure, { kind: 'connection-unavailable' }>
 
+export const CONNECTION_UNAVAILABLE: ConnectionUnavailable = { kind: 'connection-unavailable' }
+
 /**
- * Why `ensure` did not get to a build, with nothing marked: a setting defect, a missing
- * credential (S4, K1), the adoption read again (withdrawn, unreadable, another revision, or not
- * answered within the bound), or the table shut by `closeAll`.
+ * Why `ensure` answered with nothing marked: a setting defect, a missing credential (S4, K1), the
+ * adoption read again (withdrawn, unreadable, another revision, or not answered within the
+ * bound), a close or teardown in the way that did not end within the bound, or the table shut by
+ * `closeAll`, before the build or during it.
  */
 export type EnsureRefusal = SettingsFailure | AdoptionRefusal | ConnectionUnavailable
 

@@ -1,6 +1,6 @@
 // What a port hands over after the bound (invariant 5): nobody's result, so closed, stopped or
-// released on arrival, the rejection of the port included. A rejection on the way is dropped
-// (`afterwards`): this member has no log.
+// released on arrival. A port that rejects after the bound hands over nothing; a port called on
+// arrival absorbs its own breach as SPEC decision 4 says (`answerOf`).
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   CredentialFailure,
@@ -8,16 +8,16 @@ import type {
   ProcessHandle,
   TransportFailure,
 } from '@omne-harness/mcp-contract/provider'
-import { afterwards } from './abort.ts'
+import { afterwards, answerOf } from './abort.ts'
 import type { CredentialHandle, Entry, Landing } from './entry.ts'
-import { releaseLanding, stopRecorded } from './teardown.ts'
+import { releaseLanding, stopOne } from './teardown.ts'
 
 type LandingFailure = 'landing-invalid' | 'facility-missing' | 'unknown'
 
 /** A transport opened after the bound is closed on arrival. */
 export function closeLate(late: Promise<Outcome<McpTransport, TransportFailure>>): Promise<void> {
   return afterwards(late, async opened => {
-    if (opened.kind === 'answered' && 'ok' in opened.value) await opened.value.ok.close()
+    if (opened !== undefined && 'ok' in opened) await answerOf(opened.ok.close(), undefined)
   })
 }
 
@@ -26,7 +26,7 @@ export function releaseLate(
   late: Promise<Outcome<CredentialHandle, CredentialFailure>>,
 ): Promise<void> {
   return afterwards(late, async acquired => {
-    if (acquired.kind === 'answered' && 'ok' in acquired.value) await acquired.value.ok.release()
+    if (acquired !== undefined && 'ok' in acquired) await answerOf(acquired.ok.release(), undefined)
   })
 }
 
@@ -43,15 +43,8 @@ export function landLate(
   late: Promise<Outcome<ProcessHandle, LandingFailure>>,
 ): Promise<void> {
   return afterwards(late, async started => {
-    try {
-      if (started.kind === 'answered' && 'ok' in started.value)
-        await stopRecorded(entry, started.value.ok, { scope: 'no-process' })
-    } finally {
-      try {
-        await releaseLanding(landing)
-      } finally {
-        entry.landings = entry.landings.filter(pending => pending !== landing)
-      }
-    }
+    if (started !== undefined && 'ok' in started) await stopOne(entry, started.ok)
+    await releaseLanding(landing)
+    entry.landings = entry.landings.filter(pending => pending !== landing)
   })
 }

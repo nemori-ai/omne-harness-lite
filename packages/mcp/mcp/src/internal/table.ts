@@ -20,12 +20,12 @@ import {
   type McpPorts,
   type Millis,
   type ReleaseReport,
-  type StopScope,
 } from '@omne-harness/mcp-contract'
 import { answerOf, untilAborted } from './abort.ts'
 import { createBuilder } from './build.ts'
 import { Connection, type GenerationPolicy } from './connection.ts'
 import {
+  CONNECTION_UNAVAILABLE,
   ensuredOf,
   holdsNothing,
   isSettled,
@@ -58,7 +58,7 @@ export type {
 
 export type EnsureOptions = Readonly<{ connectBound?: Millis }>
 
-export type ClosedEndpoint = Readonly<{ ref: EndpointRef; process: StopScope | 'no-process' }>
+export type ClosedEndpoint = Readonly<{ ref: EndpointRef; process: Scope }>
 
 export interface ConnectionTable<P> {
   /** A usable connection for the admitted endpoint: reused, or built in the order of SPEC S4–S9. */
@@ -97,7 +97,6 @@ type Started = Readonly<{ outcome: Promise<Outcome<Ensured, EnsureFailure>> }>
 
 const UNKNOWN: EnsureRefusal = { kind: 'unknown' }
 const NOT_AVAILABLE: EnsureRefusal = { kind: 'not-available-to-you' }
-const CONNECTION_UNAVAILABLE: EnsureRefusal = { kind: 'connection-unavailable' }
 
 function policyOf(prepared: PreparedSettings): GenerationPolicy {
   return prepared.transport.kind === 'stdio' ? 'on-attempt' : 'on-negotiation'
@@ -122,9 +121,9 @@ export function createConnectionTable<P, S>(
   const lastGeneration = new Map<string, Generation>()
   // One `ensure` at a time per tenant and holding decides which revision's connection exists.
   const turns = createTurns()
-  const builder = createBuilder(ports, config, { afterLanding: forget })
   // Set by `closeAll`: from then on nothing connects (SPEC decision 5).
   let shut = false
+  const builder = createBuilder(ports, config, { afterLanding: forget, shut: () => shut })
 
   const entriesOf = (tenantText: string, holding: EndpointHolding): Entry[] =>
     [...entries.values()].filter(
@@ -240,6 +239,24 @@ export function createConnectionTable<P, S>(
     }
   }
 
+  /**
+   * What the critical section waits for before it decides: the close of a connection of the
+   * holding's other revisions (invariant 6), else the close or teardown in flight on the key.
+   */
+  function blockingOf(
+    tenantText: string,
+    holding: EndpointHolding,
+    keyText: string,
+    ofOtherRevision: (entry: Entry) => boolean,
+  ): Promise<Scope> | undefined {
+    const other = entriesOf(tenantText, holding).find(
+      entry => ofOtherRevision(entry) && !isSettled(entry),
+    )
+    if (other !== undefined) return closeEntry(other)
+    const existing = entries.get(keyText)
+    return existing?.closing ?? existing?.tearing
+  }
+
   async function begin(
     admitted: AdmittedEndpoint,
     access: Access<P>,
@@ -260,19 +277,15 @@ export function createConnectionTable<P, S>(
     const ofOtherRevision = (entry: Entry) => entry.adoptionRevision !== admitted.revision
     for (;;) {
       if (shut) return refused(CONNECTION_UNAVAILABLE)
-      const other = entriesOf(tenantText, holding).find(
-        entry => ofOtherRevision(entry) && !isSettled(entry),
-      )
-      if (other !== undefined) {
-        await closeEntry(other)
+      const blocking = blockingOf(tenantText, holding, keyText, ofOtherRevision)
+      if (blocking !== undefined) {
+        // At most to this call's bound (decision 22): a close or teardown that does not end
+        // within it goes on by itself, and this call answers.
+        const waited = await untilAborted(blocking, bound)
+        if (waited.kind === 'aborted') return refused(CONNECTION_UNAVAILABLE)
         continue
       }
       const existing = entries.get(keyText)
-      const inFlight = existing?.closing ?? existing?.tearing
-      if (inFlight !== undefined) {
-        await inFlight
-        continue
-      }
       if (existing?.pending !== undefined) return { outcome: existing.pending }
       if (existing !== undefined && isUsable(existing)) {
         const usable = ensuredOf(existing)
@@ -368,15 +381,19 @@ export function createConnectionTable<P, S>(
     return { kind: 'released', process: scope }
   }
 
-  /** The shutdown: every entry closed, the landings still in flight abandoned, nothing connects after. */
+  /**
+   * The shutdown: nothing connects after it; the handles of the landings in flight are released
+   * first, all at once (decision 6); then every entry is closed, all at once. It waits for every
+   * teardown to end.
+   */
   async function closeAll(): Promise<readonly ClosedEndpoint[]> {
     shut = true
-    const closed: ClosedEndpoint[] = []
-    for (const entry of Array.from(entries.values())) {
-      const process = await closeEntry(entry)
-      await abandonLandings(entry)
-      closed.push({ ref: entry.ref, process })
-    }
+    const all = [...entries.values()]
+    const abandoned = Promise.all(all.map(abandonLandings))
+    const closed = await Promise.all(
+      all.map(async entry => ({ ref: entry.ref, process: await closeEntry(entry) })),
+    )
+    await abandoned
     return closed
   }
 

@@ -2,7 +2,9 @@
 // which starts at the credential and covers the process start, the open and the negotiation;
 // and how a lost one is settled: requests refused, the entry torn down, the catalog marked. A
 // port that throws within the bound is torn down like a failure, then the error goes on to the
-// caller. The builder writes the entry's resources; the table decides when the entry exists.
+// caller. A build under way when the table shuts goes no further than the step it is in and is
+// wrapped up without a mark. The builder writes the entry's resources; the table decides when
+// the entry exists.
 import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -23,18 +25,19 @@ import type {
   TransportMaterial,
 } from '@omne-harness/mcp-contract/provider'
 import { answerOf, untilAborted } from './abort.ts'
-import type {
-  CatalogMark,
-  CredentialHandle,
-  Ensured,
-  EnsureFailure,
-  Entry,
-  Landing,
-  UnavailableMark,
+import {
+  CONNECTION_UNAVAILABLE,
+  type CatalogMark,
+  type CredentialHandle,
+  type Ensured,
+  type EnsureFailure,
+  type Entry,
+  type Landing,
+  type UnavailableMark,
 } from './entry.ts'
 import { closeLate, landLate, releaseLate } from './late.ts'
 import type { PreparedSettings } from './settings.ts'
-import { teardown } from './teardown.ts'
+import { releaseLanding, teardown } from './teardown.ts'
 
 export type Builder<P> = Readonly<{
   /** Builds the connection of `entry` from `prepared`, under the connection bound. */
@@ -50,9 +53,9 @@ export type Builder<P> = Readonly<{
 export type BuilderDependencies = Readonly<{
   /** A landing that was still pending after its bound has answered: the table looks again. */
   afterLanding(entry: Entry): void
+  /** True once `closeAll` began: a build goes no further than the step it is in (decision 5). */
+  shut(): boolean
 }>
-
-const CONNECTION_UNAVAILABLE: ConnectionFailure = { kind: 'connection-unavailable' }
 
 type Failed = Readonly<{
   reason: ConnectionFailure | EffectUnknown
@@ -144,6 +147,17 @@ export function createBuilder<P, S>(
     return fail({ stage: 'connect', reason: how.reason, catalog })
   }
 
+  /**
+   * The table shut while the build was under way (decision 5): wrapped up as a failed preparation
+   * (requests refused, the handle released, a started process stopped), but nothing is marked:
+   * the shutdown is a fact of this instance, not of the endpoint.
+   */
+  async function shutDown(entry: Entry): Promise<Outcome<never, EnsureFailure>> {
+    entry.connection.lose('preparation-failed')
+    await teardown(entry)
+    return fail({ stage: 'settings', reason: CONNECTION_UNAVAILABLE })
+  }
+
   async function acquireCredential(
     entry: Entry,
     access: Access<P>,
@@ -212,6 +226,8 @@ export function createBuilder<P, S>(
       entry.credential = undefined
       entry.landings = [...entry.landings, landing]
       void landLate(entry, landing, started.late).then(() => deps.afterLanding(entry))
+      // A landing that outlives its bound after the shutdown began keeps no handle (decision 6).
+      if (deps.shut()) void releaseLanding(landing)
       return fail(PREPARATION_FAILED)
     }
     if ('failure' in started.value)
@@ -237,8 +253,12 @@ export function createBuilder<P, S>(
       const credential = await acquireCredential(entry, access, prepared, bound)
       if ('failure' in credential) return await failed(entry, credential.failure)
       entry.credential = credential.ok
+      // The shutdown is checked after each step that may hand over a resource: after the
+      // credential (before the process starts) and after the process (before the transport opens).
+      if (deps.shut()) return await shutDown(entry)
       const material = await materialOf(entry, access, prepared, generation, bound)
       if ('failure' in material) return await failed(entry, material.failure)
+      if (deps.shut()) return await shutDown(entry)
       const opened = await untilAborted(ports.transports.open(material.ok, bound), bound)
       if (opened.kind === 'aborted') {
         void closeLate(opened.late)
