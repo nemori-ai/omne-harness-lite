@@ -72,7 +72,7 @@ pnpm --filter @omne-harness/public-contract typecheck
 ./scripts/with-test-slot.sh pnpm --filter @omne-harness/public-contract test
 ```
 
-测试消费公开导出。`protocol.spec.ts` 验证共同边界与两端演示。`correlation.spec.ts` 覆盖后缀语法、六项预算和深层输入。`operations.spec.ts` 与 `responses.spec.ts` 覆盖所有操作、封闭正文、终结、名单、秘密排除、部署声明不提供的应答，以及 `issue-login` 可选的 `loginId`。`public-consumption.spec-d.ts` 验证操作关联的类型。`identity-text.spec.ts` 覆盖每个身份文本函数的往返与非法文本、租户文本的严格规则，以及与消息编解码的一致。
+测试消费公开导出。`protocol.spec.ts` 验证共同边界与两端演示。`correlation.spec.ts` 覆盖后缀语法、六项预算和深层输入。`operations.spec.ts` 与 `responses.spec.ts` 覆盖所有操作、封闭正文、终结、名单、秘密排除、部署声明不提供的应答，以及 `issue-login` 可选的 `loginId`。`public-consumption.spec-d.ts` 验证操作关联的类型。`identity-text.spec.ts` 覆盖每个身份文本函数的往返与非法文本、租户文本的严格规则，以及与消息编解码的一致。`model-credential.spec.ts` 覆盖三个模型凭据操作：请求包络、封闭正文、结果集合，以及任何应答都不带秘密。
 
 `session-protocol.spec.ts` 用正反向量覆盖 `readSessionRequest` 负责的第 1 步规则。其中 `message` 只覆盖对象与 `role` 的检查，不含完整消息解码。它还覆盖两个位置上的跨版本拒绝。`session-responses.spec.ts` 覆盖每个会话操作的每个结果、封闭正文、历史页、`unmatched`、`unreadable` 与共同拒绝的重载。`session-consumption.spec-d.ts` 验证会话操作、正文与结果的类型。`session-control-protocol.spec.ts`、`session-control-responses.spec.ts` 与 `session-control-consumption.spec-d.ts` 覆盖 `cancel-run` 与 `stop-call` 的请求、结果集合、成功正文与类型，每条用例只违反一条规则。本成员不把 Session 结果映射为线上结果，也不派生操作身份，两者归服务端接入。
 

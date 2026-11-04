@@ -536,4 +536,4 @@ ResultPage.parts 包含完整 sealed 块或 partial 累计值及真实 trims。�
 
 `mixed-partial-result-readable` 经现有 startRun/settleCall 准备预先确定的混合结果，再从普通 consumption 遍历，比较完整值、顺序、终局与真实提醒。有必要钩子却丢项、丢 trim 或改变类型属于 fail；缺钩子才是不适用。scripted 的显式结果不证明传输到最终页的映射，该映射由 [Model 内存行为测试](../../model/tests/memory-partial.spec.ts) 实际驱动 preserve、settle 和 acquireRead 验证。独立安装的 independent-caller、result-consumer 只通过发布入口消费此协议，不引入生产运行证明。
 
-[reference.spec.ts](../tests/reference.spec.ts) 黑盒核对引用编解码、预算、反射拒绝和租户解析。真实入口与撤权由 [runtime-reference.spec.ts](../../model/tests/runtime-reference.spec.ts) 核对。替代提供者不证明生产后端或跨进程恢复。
+[reference.spec.ts](../tests/reference.spec.ts) 黑盒核对引用编解码、预算、反射拒绝和租户解析。[reference-cost.spec.ts](../tests/reference-cost.spec.ts) 是慢层测量：一次调用引用的解析与会话日志里生产者摘要的耗时，同时打印引用长度（R2-D353、R2-D357）；它只断言宽松上界。真实入口与撤权由 [runtime-reference.spec.ts](../../model/tests/runtime-reference.spec.ts) 核对。替代提供者不证明生产后端或跨进程恢复。
