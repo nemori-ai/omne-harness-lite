@@ -13,7 +13,9 @@
 - [cordis.ts](cordis.ts)：Cordis 绑定入口，导出 `agentHostPlugin`
 - [host-plugin.ts](host-plugin.ts)：`agent-host` 插件、inject 数组、五个服务面与插件对象的有序停止 `quiesceAll`
 - [testing.ts](testing.ts)：测试入口，`createAgentHostPluginOver(factory)` 在调用方给的 runtime 工厂上建插件
-- [reception.ts](reception.ts)：Model 结果接收方：按根保存的状态、登记到 Model runtime、有序停止时撤销、recover 与 retry 的维护驱动（R2-D237）
+- [reception.ts](reception.ts)：Model 结果接收方：按根保存的状态、登记到 Model runtime、有序停止时撤销（R2-D237）
+- [tool-reception.ts](tool-reception.ts)：Tool 结果接收方：子插件 `agent-host-tool-reception` 的组装与登记到 Tool runtime（R2-D273）
+- [reception-driver.ts](reception-driver.ts)：两个接收方共用的 recover 与 retry 维护驱动、退避与接收配置初值（R2-D250）
 - [host.ts](host.ts)：宿主状态：预约表、槽表、发布权威、空闲回收、有序停止、恢复与控制入口
 - [host-config.ts](host-config.ts)：插件配置的 Standard Schema
 - [stage-ports.ts](stage-ports.ts)：六项局部依赖的现取端口

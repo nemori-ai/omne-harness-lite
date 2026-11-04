@@ -165,6 +165,45 @@ export interface ModelReceptionTargets<P> {
   ): Reply<ModelReceptionTarget>
 }
 
+/**
+ * The original consumption binding of one associated Tool call (J02 item 1): the execution and the
+ * instance that committed the PendingCall, and that PendingCall. The provider keeps it after the
+ * checkpoint dropped the call, the attachment ended or the instance went away.
+ */
+export type ToolReceptionTarget = Readonly<{
+  execution: AgentExecutionId
+  instance: AgentInstanceId
+  pending: Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
+}>
+
+/**
+ * The stable target query of the Tool result receiver (J02 item 1), served by the provider that
+ * keeps the original consumption bindings. It answers from the bindings that committed associated
+ * Tool PendingCalls established, never from the current attachment or from consumer text. The
+ * provider checks current access before it reveals a binding or its absence. `resolve` gives the
+ * binding of one call reference and frozen consumer, or null when no original consumption exists
+ * (the Tool protocol answers `not-accepted` for it). `forExecution` gives every original Tool
+ * binding of the execution. Not allowed or of another tenant: `denied`. A source that cannot be
+ * read: `unavailable`.
+ *
+ * `execution` is a route, as for `ModelReceptionTargets`: the receiver reads it from the consumer
+ * position that its own owner registered. A binding of another execution answers `denied`, and a
+ * provider that needs the route answers `denied` without it.
+ */
+export interface ToolReceptionTargets<P> {
+  resolve(
+    input: Readonly<{
+      access: Access<P>
+      consumer: ConsumerRef
+      reference: T.ToolInvocationRef
+      execution?: AgentExecutionId
+    }>,
+  ): Reply<ToolReceptionTarget | null>
+  forExecution(
+    input: Readonly<{ access: Access<P>; execution: AgentExecutionId }>,
+  ): Reply<readonly ToolReceptionTarget[]>
+}
+
 /** Views of one provider. A fixed non-null received port declares joint custody support. */
 export type AgentReceivedProvider<P, B extends ContentBlock> = Readonly<{
   journal: AgentJournal<P>

@@ -26,6 +26,7 @@ import type {
   Failure,
   FinishResult,
   ModelReceptionTargets,
+  ToolReceptionTargets,
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -162,6 +163,8 @@ export type SessionLogJournalProvider<P> = AgentReceivedProvider<P, ContentBlock
    * after the checkpoint dropped the call or the attachment ended.
    */
   targets: ModelReceptionTargets<P>
+  /** The same bindings of the associated Tool calls (R2-D273). */
+  toolTargets: ToolReceptionTargets<P>
 }
 
 /**
@@ -248,6 +251,8 @@ const READS: ReadonlySet<string> = new Set([
   'received.query',
   'targets.forExecution',
   'targets.resolve',
+  'toolTargets.forExecution',
+  'toolTargets.resolve',
 ])
 const OWNER = 'session-log-journal'
 
@@ -1958,6 +1963,14 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         forExecution: input =>
           run(input.access, 'targets.forExecution', core => core.targets.forExecution(input)),
         resolve: input => run(input.access, 'targets.resolve', core => core.targets.resolve(input)),
+      },
+      toolTargets: {
+        forExecution: input =>
+          run(input.access, 'toolTargets.forExecution', core =>
+            core.toolTargets.forExecution(input),
+          ),
+        resolve: input =>
+          run(input.access, 'toolTargets.resolve', core => core.toolTargets.resolve(input)),
       },
     }
   }

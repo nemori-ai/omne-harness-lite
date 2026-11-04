@@ -13,13 +13,19 @@
 // Model runtime under the Agent consumer owner (`reception.ts`, IC-13, R2-D237). Its state is kept
 // per Cordis root, so a body that runs again hands the same state to its new receiver. The
 // registration ends with the fiber; the ordered stop removes it before it quiesces instances.
+//
+// The body also mounts the child plugin `agent-host-tool-reception` (`tool-reception.ts`, R2-D273):
+// it injects `toolRuntime` and `agentToolReceptionTargets`, so the host stays ready without the Tool
+// rows, and it registers the Tool result receiver the same way, with its own state per root.
 import type { Context } from '@deepseek-ai/cordis'
 import {
   createAgentRuntime,
   createModelReceiverState,
+  createToolReceiverState,
   type AgentDependencies,
   type AgentMeasure,
   type ModelReceiverState,
+  type ToolReceiverState,
 } from '@omne-harness/agent'
 import type { AgentInstanceId } from '@omne-harness/agent-contract'
 import {
@@ -58,6 +64,12 @@ import {
   type RuntimeFactory,
 } from './host.ts'
 import { RECEPTION_INITIAL, startReception, type Reception } from './reception.ts'
+import {
+  TOOL_RECEPTION_INJECT,
+  TOOL_RECEPTION_PLUGIN,
+  startToolReception,
+  type ToolReception,
+} from './tool-reception.ts'
 
 export type { AgentHostStopInput, AgentHostStopResult, AgentHostUnsettled }
 
@@ -151,14 +163,27 @@ class LocalInstanceProvision extends AgentInstanceProvisionService<unknown> {
 export function createAgentHostPlugin(factory: RuntimeFactory): AgentHostPlugin {
   const live = new Set<Host>()
   const receptions = new Map<Host, Reception>()
-  // The receiver state of the host, one per Cordis root: it outlives a body that runs again.
+  const toolReceptions = new Map<Host, ToolReception>()
+  // The hosts whose ordered stop began: a Tool reception child that runs later registers nothing.
+  const stopping = new WeakSet<Host>()
+  // The receiver states of the host, one per Cordis root: they outlive a body that runs again.
   const states = new WeakMap<object, ModelReceiverState<unknown>>()
+  const toolStates = new WeakMap<object, ToolReceiverState<unknown>>()
   const stateOf = (ctx: Context): ModelReceiverState<unknown> => {
     const root = ctx.root as object
     let state = states.get(root)
     if (state === undefined) {
       state = createModelReceiverState<unknown>()
       states.set(root, state)
+    }
+    return state
+  }
+  const toolStateOf = (ctx: Context): ToolReceiverState<unknown> => {
+    const root = ctx.root as object
+    let state = toolStates.get(root)
+    if (state === undefined) {
+      state = createToolReceiverState<unknown>()
+      toolStates.set(root, state)
     }
     return state
   }
@@ -207,28 +232,50 @@ export function createAgentHostPlugin(factory: RuntimeFactory): AgentHostPlugin 
         host.retired(tenant, instance, generation, reason),
       )
       live.add(host)
-      const reception = startReception({
-        ctx,
-        state: stateOf(ctx),
-        settings: config.reception ?? RECEPTION_INITIAL,
-        log: (level, message) => {
-          try {
-            ctx.logger('agent-host')[level](message)
-          } catch {
-            // The context has ended; there is nobody to tell.
-          }
-        },
-      })
+      const settings = config.reception ?? RECEPTION_INITIAL
+      const log = (level: 'error' | 'warn' | 'info', message: string) => {
+        try {
+          ctx.logger('agent-host')[level](message)
+        } catch {
+          // The context has ended; there is nobody to tell.
+        }
+      }
+      const reception = startReception({ ctx, state: stateOf(ctx), settings, log })
       receptions.set(host, reception)
       ctx.effect(
         () => () => {
           live.delete(host)
           receptions.delete(host)
           reception.stop()
+          toolReceptions.get(host)?.stop()
+          toolReceptions.delete(host)
           host.stop()
         },
         'agent-host.stop',
       )
+      ctx.plugin({
+        name: TOOL_RECEPTION_PLUGIN,
+        inject: [...TOOL_RECEPTION_INJECT],
+        apply(child: Context) {
+          // After an ordered stop the host takes no Tool result: the delivery stays owed.
+          if (!live.has(host) || stopping.has(host)) return
+          const tool = startToolReception({
+            parent: ctx,
+            child,
+            state: toolStateOf(ctx),
+            settings,
+            log,
+          })
+          toolReceptions.set(host, tool)
+          child.effect(
+            () => () => {
+              tool.stop()
+              if (toolReceptions.get(host) === tool) toolReceptions.delete(host)
+            },
+            'agent-host.tool-reception.stop',
+          )
+        },
+      })
       new LocalInstanceHost(ctx, host.instanceHost)
       new LocalPublicationAuthority(ctx, host)
       new LocalExecutionRecovery(ctx, host)
@@ -238,8 +285,10 @@ export function createAgentHostPlugin(factory: RuntimeFactory): AgentHostPlugin 
   })
   return Object.assign(plugin, {
     async quiesceAll(input: AgentHostStopInput): Promise<AgentHostStopResult> {
-      // The receiver goes first: from now on the Model keeps a delivery owed, not pushed here.
+      // The receivers go first: from now on Model and Tool keep a delivery owed, not pushed here.
+      for (const host of live) stopping.add(host)
       for (const reception of receptions.values()) reception.stop()
+      for (const reception of toolReceptions.values()) reception.stop()
       return merged(await Promise.all([...live].map(host => host.quiesceAll(input))))
     },
   })

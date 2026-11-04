@@ -125,6 +125,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'agentReceivedCommits',
       'agentReceivedRecords',
       'agentModelReceptionTargets',
+      'agentToolReceptionTargets',
       'sessionAdoptedRequests',
     ],
     injects: ['sessionAccessCheck', 'storage', 'tenantDomainLookup'],

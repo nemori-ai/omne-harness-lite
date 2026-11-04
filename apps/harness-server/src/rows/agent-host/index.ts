@@ -6,7 +6,10 @@
 // that the `agent-journal` row provides, `agentReceivedCommits` and `agentModelReceptionTargets`
 // (R2-D237). The plugin body builds the receiver from them and registers it with `modelRuntime`
 // under the Agent consumer owner; the registration ends with the row fiber, and the ordered stop
-// below removes it first.
+// below removes it first. The plugin body also mounts its Tool reception child (R2-D273): it injects
+// `toolRuntime` and `agentToolReceptionTargets` (the `agent-journal` row provides the latter) and
+// registers the Tool result receiver with the Tool runtime the same way. The child is not in the
+// row's injects: without the Tool rows it stays PENDING and the row is ready all the same.
 //
 // Construction inputs (runtime objects, never configuration, both optional):
 // - `toolRequestsOf`: builds the trusted Tool request source (R2-D36) from the row context, so the
@@ -17,8 +20,8 @@
 //   Absent: no event is built.
 //
 // Phase `business`, carried by the row body. The handle's stop calls the member's ordered stop,
-// `quiesceAll` of the plugin object (agent-host-local SPEC "有序停止"): the result receiver's
-// registration is removed, admission closes, every
+// `quiesceAll` of the plugin object (agent-host-local SPEC "有序停止"): the registrations of the
+// Model and the Tool result receiver are removed, admission closes, every
 // instance is quiesced, and only drained ones unload. The member's answer maps as it is: `settled`
 // to `settled`, `incomplete` to `incomplete` with the member's detail, which names each instance
 // that did not drain and why. The deadline is the one the shutdown coordinator hands to the stop,

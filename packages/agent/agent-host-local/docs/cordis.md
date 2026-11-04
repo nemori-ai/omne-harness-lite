@@ -22,6 +22,8 @@ Agent 实例 dispose、detach 或重建不清空接收状态。接收组件重�
 
 宿主插件在插件体内组装这个组件（R2-D237）。它从 inject 得到的 `agentJournal`、`agentJournalEntries`、`agentMaterials`、`agentReceivedCommits`、`agentModelReceptionTargets`、`agentAccessCheck`、`agentAccountOutlet` 与 `modelRuntime` 取得依赖，经 `modelRuntime.registerResultReceiver` 把接收方登记到 Agent 的 consumer owner（`AGENT_CONSUMER_OWNER`）下。登记是插件 fiber 的 effect，随 fiber 结束（IC-13）。接收状态按 Cordis 根保存一份，插件体重跑时交给新接收方。行为见 [SPEC 的结果接收](../SPEC.md#结果接收)。
 
+插件体还挂子插件 `agent-host-tool-reception`（R2-D273）。它静态 inject `toolRuntime` 与 `agentToolReceptionTargets`，用 `createLocalToolReceiver` 在同一 Journal 提供者的四个面与 `agentAccessCheck` 上组装 Tool 结果接收方，经 `toolRuntime.registerResultReceiver` 登记在同一 consumer owner 下。两键缺席时只有子插件停在 PENDING，宿主照常就绪。登记是子插件 fiber 的 effect；有序停止先撤这个登记。维护驱动与 Model 共用 `src/reception-driver.ts`。
+
 ### 静态依赖
 
 每个实际插件的inject使用定义键常量数组字面量。宿主插件的静态必需依赖是工厂依赖表中标为“必需”的十项：

@@ -9,6 +9,7 @@ import {
   agentJournalKey,
   agentMaterialsKey,
   agentModelReceptionTargetsKey,
+  agentToolReceptionTargetsKey,
   agentReceivedCommitsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { rowDeclarationOf } from '../../../src/row.ts'
@@ -53,6 +54,7 @@ describe('the agent-journal row: declaration', () => {
           'agentReceivedCommits',
           'agentReceivedRecords',
           'agentModelReceptionTargets',
+          'agentToolReceptionTargets',
           'sessionAdoptedRequests',
         ],
         injects: ['sessionAccessCheck', 'storage', 'tenantDomainLookup'],
@@ -84,6 +86,7 @@ describe('the agent-journal row: on the real storage rows', () => {
       agentMaterialsKey,
       agentReceivedCommitsKey,
       agentModelReceptionTargetsKey,
+      agentToolReceptionTargetsKey,
     ])
       expect(tree.service(key), key).toBeDefined()
   })

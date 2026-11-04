@@ -32,6 +32,7 @@ import {
   type MessageHandoff,
   type ModelContextReader,
   type ModelReceptionTargets,
+  type ToolReceptionTargets,
   type ModelSelection,
   type RegisteredReads,
   type Registration,
@@ -350,6 +351,22 @@ export abstract class ModelReceptionTargetsService<P>
   abstract readonly resolve: ModelReceptionTargets<P>['resolve']
 }
 export const agentModelReceptionTargetsKey = ModelReceptionTargetsService.provide
+
+// The stable target query of the Tool result receiver (agent-contract J02 item 1, R2-D273). The
+// provider that keeps the original consumption bindings, the provider of `agentJournal`, serves it.
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class ToolReceptionTargetsService<P>
+  extends Service
+  implements ToolReceptionTargets<P>
+{
+  static readonly provide = 'agentToolReceptionTargets'
+  constructor(ctx: Context) {
+    super(ctx, ToolReceptionTargetsService.provide)
+  }
+  abstract readonly forExecution: ToolReceptionTargets<P>['forExecution']
+  abstract readonly resolve: ToolReceptionTargets<P>['resolve']
+}
+export const agentToolReceptionTargetsKey = ToolReceptionTargetsService.provide
 
 // The account outlet of Agent. The adapter on the side of Request Context provides it.
 /** @owner packages/agent/agent-cordis-contract */
@@ -903,6 +920,7 @@ declare module '@deepseek-ai/cordis' {
     agentReceivedCommits: AgentReceivedCommitsService<unknown, ContentBlock>
     agentReceivedRecords: AgentReceivedRecordsService<unknown>
     agentModelReceptionTargets: ModelReceptionTargetsService<unknown>
+    agentToolReceptionTargets: ToolReceptionTargetsService<unknown>
     agentExecutionControl: AgentExecutionControlService<unknown>
     agentInstances: AgentInstancesService<unknown>
     agentInstanceProvision: AgentInstanceProvisionService<unknown>
