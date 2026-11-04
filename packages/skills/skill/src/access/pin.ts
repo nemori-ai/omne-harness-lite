@@ -10,7 +10,7 @@ import type {
   SkillMaterialBasis,
   SkillPackageSnapshot,
 } from '@omne-harness/skill-contract'
-import type { PackageLocator } from '@omne-harness/skill-contract/provider'
+import { isSealedSnapshot, type PackageLocator } from '@omne-harness/skill-contract/provider'
 import { sourceFailureTo } from '../mapping.ts'
 import type { SkillPorts } from '../ports.ts'
 import { sourceAnswer } from '../source-answer.ts'
@@ -69,7 +69,7 @@ export async function pin<P, S, F extends MovedFailure>(
   const byBasis = gated.basis !== undefined
   const { locator } = gated.ref
   if (checkpoint(signal) === 'aborted') return fail(ABORTED)
-  const taken = await sourceAnswer(() => ports.source.snapshot(locator))
+  const taken = await sourceAnswer(() => ports.source.snapshot(locator), isSealedSnapshot)
   if (checkpoint(signal) === 'aborted') return fail(ABORTED)
   if (!('ok' in taken)) return fail(sourceFailureTo('snapshot', taken.failure, byBasis))
   if (taken.ok.digest !== material.digest) return fail(moved)

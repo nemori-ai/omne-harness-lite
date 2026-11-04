@@ -13,6 +13,7 @@ import {
   isPackageDigest,
   isPackagePath,
   isSafeReason,
+  isSkillDescription,
   isSkillName,
   toPackagePath,
 } from '@omne-harness/skill-contract'
@@ -80,7 +81,14 @@ describe('toPackagePath keeps a normalized path inside the package', () => {
 
 describe('the guards refuse values that are not text', () => {
   it.each([undefined, null, 7, {}, ['a']])('refuses %j', value => {
-    for (const guard of [isSkillName, isPackagePath, isSafeReason, isAssetVersion, isPackageDigest])
+    for (const guard of [
+      isSkillName,
+      isPackagePath,
+      isSafeReason,
+      isAssetVersion,
+      isPackageDigest,
+      isSkillDescription,
+    ])
       expect(guard(value)).toBe(false)
   })
 })
@@ -107,6 +115,25 @@ describe('the control character boundaries of the text guards', () => {
     expect(isSafeReason(`a${character}b`)).toBe(allowed)
     expect(isAssetVersion(`a${character}b`)).toBe(allowed)
     expect(isPackagePath(`a${character}b`)).toBe(allowed)
+  })
+})
+
+describe('isSkillDescription accepts text of 1 to 1024 characters', () => {
+  it.each([
+    ['x', 'one character'],
+    ['x'.repeat(1024), '1024 characters'],
+    ['😀'.repeat(1024), '1024 characters outside the basic plane'],
+    ['two\nlines', 'a line feed: the description is not a short text'],
+  ])('accepts %j (%s)', text => {
+    expect(isSkillDescription(text)).toBe(true)
+  })
+
+  it.each([
+    ['', 'empty'],
+    ['x'.repeat(1025), '1025 characters'],
+    ['😀'.repeat(1025), '1025 characters outside the basic plane'],
+  ])('rejects %j (%s)', text => {
+    expect(isSkillDescription(text)).toBe(false)
   })
 })
 

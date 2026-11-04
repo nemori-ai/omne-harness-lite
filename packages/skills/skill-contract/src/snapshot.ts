@@ -29,9 +29,15 @@ function register(snapshot: SnapshotShape): asserts snapshot is SkillPackageSnap
   sealed.add(snapshot)
 }
 
+/** Whether `value` is a snapshot that `sealSnapshot` made in this process. It does not throw: a
+ * service takes a source answer through it, and a forged snapshot there is a fault of the source. */
+export function isSealedSnapshot(value: unknown): value is SkillPackageSnapshot {
+  return typeof value === 'object' && value !== null && sealed.has(value)
+}
+
 /** Throws when `snapshot` was not made by `sealSnapshot`: a forged snapshot is a caller bug. */
 export function assertSealed(snapshot: SkillPackageSnapshot): void {
-  if (!sealed.has(snapshot)) throw new TypeError('the snapshot was not made by sealSnapshot')
+  if (!isSealedSnapshot(snapshot)) throw new TypeError('the snapshot was not made by sealSnapshot')
 }
 
 /** UTF-16 code unit order. `<` and `<=` are equivalent here: the paths are already unique. */

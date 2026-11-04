@@ -11,13 +11,12 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { sameCapability, type CatalogEntry, type SkillCatalog } from '@omne-harness/skill-contract'
 import type { CatalogResolution } from '@omne-harness/skill-contract/provider'
 import { matches } from './match.ts'
-import { answered, kindOf } from './port-answer.ts'
+import { answered, parseLawfulSet, parseVerdict } from './port-answer.ts'
 import type { SkillPorts } from './ports.ts'
 
 type Listing = Outcome<readonly CatalogEntry[], 'unknown'>
 
 const UNKNOWN = Object.freeze({ failure: 'unknown' } as const)
-const LAWFUL_KINDS: ReadonlySet<string> = new Set(['adopted', 'known-unavailable'])
 
 /** The canonical text of a capability identity: the sort key of the entries. */
 function textOf(capability: CapabilityId): string {
@@ -30,37 +29,35 @@ function byText(left: CatalogEntry, right: CatalogEntry): number {
   return a < b ? -1 : a > b ? 1 : 0
 }
 
-/** The entry of one answer of the lawful set, by the group page "检查与发现". */
+/** The entry of one parsed answer of the lawful set, by the group page "检查与发现". */
 function entryOf(answer: CatalogResolution): CatalogEntry {
-  if (answer.kind === 'adopted') {
-    const { ref, declared } = answer
-    return {
-      kind: 'adopted',
-      capability: ref.capability,
-      name: declared.name,
-      ...(declared.description === undefined ? {} : { description: declared.description }),
-      dependencies: declared.tools,
+  switch (answer.kind) {
+    case 'adopted': {
+      const { ref, declared } = answer
+      return {
+        kind: 'adopted',
+        capability: ref.capability,
+        name: declared.name,
+        ...(declared.description === undefined ? {} : { description: declared.description }),
+        dependencies: declared.tools,
+      }
+    }
+    case 'known-unavailable': {
+      const { capability, name, description, reason } = answer
+      return {
+        kind: 'stand-in',
+        capability,
+        name,
+        ...(description === undefined ? {} : { description }),
+        reason,
+      }
+    }
+    default: {
+      // A kind that `CatalogResolution` gains and this switch lacks fails to compile here.
+      const exhaustive: never = answer
+      return exhaustive
     }
   }
-  const { capability, name, description, reason } = answer
-  return {
-    kind: 'stand-in',
-    capability,
-    name,
-    ...(description === undefined ? {} : { description }),
-    reason,
-  }
-}
-
-/** Whether `listed` is an outcome of the lawful set: an array of answers in the closed set, or a failure. */
-function isLawfulSet(
-  listed: Outcome<readonly CatalogResolution[], 'unknown'> | undefined,
-): listed is Outcome<readonly CatalogResolution[], 'unknown'> {
-  if (typeof listed !== 'object' || listed === null) return false
-  if (!('ok' in listed)) return 'failure' in listed
-  return (
-    Array.isArray(listed.ok) && listed.ok.every(answer => LAWFUL_KINDS.has(kindOf(answer) ?? ''))
-  )
 }
 
 /** The current lawful set written out in entries, one per identity, in canonical order; or `unknown`. */
@@ -69,8 +66,8 @@ async function lawfulEntries<P, S>(
   access: Access<P>,
   scope: S,
 ): Promise<Listing> {
-  const listed = await answered(() => ports.resolution.adopted(access, scope))
-  if (!isLawfulSet(listed) || !('ok' in listed)) return UNKNOWN
+  const listed = await answered(() => ports.resolution.adopted(access, scope), parseLawfulSet)
+  if (listed === undefined || !('ok' in listed)) return UNKNOWN
   const entries: CatalogEntry[] = []
   for (const answer of listed.ok) {
     const entry = entryOf(answer)
@@ -88,11 +85,16 @@ async function grantedOf<P, S>(
   entries: readonly CatalogEntry[],
 ): Promise<Listing> {
   const verdicts = await Promise.all(
-    entries.map(entry =>
-      answered(() => ports.readCheck.check(access, scope, entry.capability)).then(kindOf),
-    ),
+    entries.map(async entry => {
+      const verdict = await answered(
+        () => ports.readCheck.check(access, scope, entry.capability),
+        parseVerdict,
+      )
+      // No answer is `unknown`, like the verdict `unknown` itself.
+      return verdict?.kind ?? 'unknown'
+    }),
   )
-  if (!verdicts.every(kind => kind === 'granted' || kind === 'refused')) return UNKNOWN
+  if (verdicts.includes('unknown')) return UNKNOWN
   return succeed(entries.filter((_, index) => verdicts[index] === 'granted'))
 }
 
