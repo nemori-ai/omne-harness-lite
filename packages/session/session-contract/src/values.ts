@@ -104,11 +104,10 @@ export type RunState =
       execution: ExecutionRef
       /**
        * The Run-layer revision (SPEC I-R2, R2-D327): the revision of the last commit that started
-       * this Run or changed its advance or adoption. `reduce` always sets it. It is optional only
-       * while snapshots built by hand without it remain; such a snapshot is judged by its own
-       * revision (`expectedRevision`).
+       * this Run or changed its advance or adoption. `reduce` always sets it, and every snapshot
+       * with an active Run carries it (R2-D343).
        */
-      revision?: SessionRevision
+      revision: SessionRevision
     }>
   | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
 /** passage and position are the Agent's names, saved and echoed as given. The contract has no dependency on the Agent contract, so it does not narrow them. */

@@ -40,7 +40,7 @@
 
 第 1 步分两部分：核权（`check` 与 `bind`）与认回（派生身份、经视图点查、`resolveOperation`）。核权每次面操作只做一次。本节与本文别处说「回到第 1 步」「从第 1 步开始」或「运行第 1 步」时，都只指认回部分。
 
-只有七种命令带 `expected`，做乐观并发核对：`reload`、`release`、`finishRun`、`recordIdle`、`bindExternalCall`、`completeExternalConsumption` 与 `commitDerived(context-reminder)`。对它们，调用方的 `expected` 在第 2 步与快照的 `revision` 比较，不等答 `changed` 不提交；相等时服务照调用方的原值提交，第 5 步的一致性由存储提供者保证：事务内的 `decide` 发现 `expected` 不等于尾部时得到 `changed`，服务把它交回调用方。尾部与 `expected` 一致时，事务内的 `decide` 与第 3 步读同一快照与同一参数。`decide` 是纯函数，所以两次结局相同。
+只有八种命令带 `expected`，做乐观并发核对：`claim`、`reload`、`release`、`finishRun`、`recordIdle`、`bindExternalCall`、`completeExternalConsumption` 与 `commitDerived(context-reminder)`。对它们，调用方的 `expected` 在第 2 步与快照比较（`claim`、`reload`、`release`、`finishRun` 与 Run 层修订比较，其余与快照的 `revision` 比较；契约[推进命令的 expected](../session-contract/SPEC.md#run-layer-expected)，R2-D343），不等答 `changed` 不提交；相等时服务照调用方的原值提交，第 5 步的一致性由存储提供者保证：事务内的 `decide` 发现 `expected` 不等于尾部时得到 `changed`，服务把它交回调用方。尾部与 `expected` 一致时，事务内的 `decide` 与第 3 步读同一快照与同一参数。`decide` 是纯函数，所以两次结局相同。
 
 其余命令不带 `expected`。事务内的 `decide` 以存储参加者读到的当前状态重新裁定，结局可能与第 3 步不同，以事务内的结局为准，不产生 `changed`。第 3 步只用来提前得到拒绝原因与决定收哪些材料，材料集合按命令种类固定，所以状态变化不会让收到的材料失配。
 
@@ -80,7 +80,7 @@
 
 #### CP-03 读操作
 
-`readWork`、`loadRecovery`、`readInput`、`queryOperation`、`inspectIdle`、`pending`、`references`、`releasedScopes` 与四个历史读操作（`begin`、`next`、`since`、`readModelView`）只做核权与读取。单会话的读操作在面操作开头调用一次 `check`，读取经委派视图。`pending`、`references` 与 `releasedScopes` 不属于单会话的面操作，委派视图对它们答 `denied`：面操作不另行调用 `check`，直接调用公开 `SessionTransactionPort` 的同名方法，由端口在实际执行处调用一次 `check`。历史页的 `annotations` 由存储提供者的读路径随页给出（[SessionHistory](../session-contract/SPEC.md#sessionhistory)），本成员不另行拼接。它们不派生操作身份，不写条目，不发通知。`readWork` 与 `loadRecovery` 不走 CA-3 快照槽，经视图读权威快照；SQL 存储的端口在这次读里先点查版本，再决定从它的工作缓存回答还是整读（session-storage-sql [RT-04](../session-storage-sql/SPEC.md#rt-04)），所以回答仍是存储在当前版本上的权威快照。`queryOperation` 不走缓存。
+`readWork`、`loadRecovery`、`readInput`、`queryOperation`、`inspectIdle`、`pending`、`references`、`releasedScopes` 与四个历史读操作（`begin`、`next`、`since`、`readModelView`）只做核权与读取。单会话的读操作在面操作开头调用一次 `check`，读取经委派视图。`pending`、`references` 与 `releasedScopes` 不属于单会话的面操作，委派视图对它们答 `denied`：面操作不另行调用 `check`，直接调用公开 `SessionTransactionPort` 的同名方法，由端口在实际执行处调用一次 `check`。历史页的 `annotations` 由存储提供者的读路径随页给出（[SessionHistory](../session-contract/SPEC.md#sessionhistory)），本成员不另行拼接。存储视图按 session-log revision 4 的存储形式分页，本成员用 `expandHistoryEntries` 把 `begin`、`next`、`since` 页中 `entries` 与 `annotations` 的引用换回所指的值，读者看到完整形式的载荷（[条目的存储形式](../session-contract/SPEC.md#条目的存储形式)）。只有含带常驻工具的 SE01 或初始 SE08 的页需要会话的初始采用：该会话第一次遇到这样的页时，经同一视图读一次快照；SE01 写后不变，本成员按租户与会话保留该值，最多 256 个会话，之后的页不再读。保留值只在该页自己的核权之后使用。引用解不开时答 `unavailable`，`owner` 为 `session`。页的字节上限按存储形式计，展开后的页可以超过 `pageBytes`。它们不派生操作身份，不写条目，不发通知。`readWork` 与 `loadRecovery` 不走 CA-3 快照槽，经视图读权威快照；SQL 存储的端口在这次读里先点查版本，再决定从它的工作缓存回答还是整读（session-storage-sql [RT-04](../session-storage-sql/SPEC.md#rt-04)），所以回答仍是存储在当前版本上的权威快照。`queryOperation` 不走缓存。
 
 ### EX 受理流水线的拓展点编排
 
@@ -458,7 +458,7 @@
 
 | 编号 | 场景 | 必须观察的结果 | 条款 |
 | --- | --- | --- | --- |
-| VM-01 | 每个变更命令走完流水线六步；调用方持过期 `expected` 调带 `expected` 的七种命令之一；调用方持当前 `expected`，存储层在第 5 步答 `changed`；不带 `expected` 的命令在第 3 步之后状态被并发改变，或存储层对它答 `changed` | 过期 `expected` 在第 2 步答 `changed`，不提交，不换成新的 `revision` 重做；当前 `expected` 在第 5 步得到的 `changed` 原样交给调用方，不重做。不带 `expected` 的命令在状态被并发改变时不得到 `changed`，结局按事务内的当前状态裁定；存储层仍对它答 `changed` 时，重做从第 1 步的认回部分开始，不再调用 `check`，读权威快照，沿用同一操作身份，不得到 `conflict`；重做次数不超过 `command.retriesOnChanged`；超过后调用方收到 `changed`，没有提交 | [CP-01](#cp-01) |
+| VM-01 | 每个变更命令走完流水线六步；调用方持过期 `expected` 调带 `expected` 的八种命令之一；调用方持当前 `expected`，存储层在第 5 步答 `changed`；不带 `expected` 的命令在第 3 步之后状态被并发改变，或存储层对它答 `changed` | 过期 `expected` 在第 2 步答 `changed`，不提交，不换成新的 `revision` 重做；当前 `expected` 在第 5 步得到的 `changed` 原样交给调用方，不重做。不带 `expected` 的命令在状态被并发改变时不得到 `changed`，结局按事务内的当前状态裁定；存储层仍对它答 `changed` 时，重做从第 1 步的认回部分开始，不再调用 `check`，读权威快照，沿用同一操作身份，不得到 `conflict`；重做次数不超过 `command.retriesOnChanged`；超过后调用方收到 `changed`，没有提交 | [CP-01](#cp-01) |
 | VM-02 | 参加命令在提交方事务里运行；提交方回滚 | Session 一侧没有条目，`ExecutionRef` 不变；参加者四种响应与结局一一对应 | [CP-02](#cp-02) |
 | VM-03 | before-admit 槽拦截、放行与展开；同一原提交重复进入 | 拦截只写 SE12，不保管正文；展开内容与原命令同批；重复进入认回原回执 | [EX-1](#ex-1)、[C1](#c1) |
 | VM-04 | 每个协调器在每个失败分支上的动作 | 与各协调器表的「失败分支」一致；没有一个分支把未知改写为成功或失败 | [C1](#c1) 至 [C5](#c5) |

@@ -200,9 +200,10 @@ describe('18 testing dependency assembly', () => {
       ).value.content.length,
     ).toBeGreaterThan(0)
     const other = { principal: principalB, tenant: tenantB }
-    expect(await runtime.queries.lookup({ ...other, reference: admitted.reference })).toMatchObject(
-      { failure: { kind: 'denied', action: 'lookup' } },
-    )
+    // R2-D357: another tenant's partition has no such call; it is answered as never accepted.
+    expect(
+      ok(await runtime.queries.lookup({ ...other, reference: admitted.reference })),
+    ).toMatchObject({ kind: 'not-accepted' })
     const otherAdmitted = accepted(await runtime.invoke({ ...other, request: dummyRequest() }))
     expect(
       ok(await runtime.queries.lookup({ ...other, reference: otherAdmitted.reference })),

@@ -28,7 +28,7 @@ import {
   type CredentialResolution,
 } from '@omne-harness/model-contract/provider'
 import { isIntegerAtLeast, isRecord } from './fields.ts'
-import { loadState, storeState } from './records.ts'
+import { loadState, storeState, type LocalBinding, type LocalState } from './records.ts'
 
 /** Why a store file cannot be read: absent, not a valid snapshot, or a file-system error. */
 export type UnavailableCause = 'missing' | 'corrupt' | 'io'
@@ -52,6 +52,32 @@ export type CustodianOptions = Readonly<{
 }>
 
 export type CreateOptions = CustodianOptions & Readonly<{ factorySecret: string }>
+
+/**
+ * The result of a binding write. `written`: the new snapshot is published. `not-written`: the old
+ * snapshot is still the one on disk. `unconfirmed`: the new snapshot may be published, but the write
+ * could not confirm it; read the binding again before a retry. `denied`: the reference names a
+ * tenant that was never minted, or a credential id that another tenant holds, or the custodian is
+ * closed; nothing was written.
+ */
+export type BindingWrite =
+  | Readonly<{ kind: 'written' }>
+  | Readonly<{ kind: 'not-written' }>
+  | Readonly<{ kind: 'unconfirmed' }>
+  | Readonly<{ kind: 'denied' }>
+
+/** The result of an unbind: as `BindingWrite`, and `absent` when there was no binding to remove. */
+export type BindingRemoval = BindingWrite | Readonly<{ kind: 'absent' }>
+
+/**
+ * What the custody shows of one binding. It never shows the secret. `life` is the state of the
+ * binding, and `configuredAt` is the instant text of its last bind when the snapshot records it.
+ */
+export type BindingView =
+  | Readonly<{ kind: 'unbound' }>
+  | Readonly<{ kind: 'bound'; life: LocalBinding['life']; configuredAt?: string }>
+  | Readonly<{ kind: 'denied' }>
+  | Readonly<{ kind: 'unavailable' }>
 
 export type OpenResult =
   | Readonly<{ kind: 'open'; custodian: LocalCustodian }>
@@ -122,6 +148,17 @@ export type LocalCustodian = CredentialPort & {
   /** Replaces the factory secret. Bindings, their secrets and their lives stay as they are. */
   replaceFactorySecret(secret: string): void
   revoke(reference: CredentialReference): void
+  /**
+   * Binds the secret to the reference, or replaces the secret and the time of the existing binding.
+   * The binding is active afterwards. A store failure is a result, not a throw.
+   */
+  bind(
+    input: Readonly<{ reference: CredentialReference; secret: string; configuredAt: string }>,
+  ): BindingWrite
+  /** Removes the binding. Afterwards the tenant has no such binding, as if it never had one. */
+  unbind(input: Readonly<{ reference: CredentialReference }>): BindingRemoval
+  /** Shows the binding without its secret, read from disk now. */
+  describe(input: Readonly<{ reference: CredentialReference }>): BindingView
   markUnreadable(reference: CredentialReference): void
   close(): void
 }
@@ -182,7 +219,7 @@ export function createLocalCustodian(options: CreateOptions): LocalCustodian {
         cause: existing.error,
       })
     }
-    const state: CustodianState = {
+    const state: LocalState = {
       closed: false,
       factorySecret: options.factorySecret,
       bindings: [],
@@ -282,7 +319,7 @@ export function openLocalCustodian(options: CustodianOptions): OpenResult {
   return { kind: 'open', custodian: live(settings, refreshed.state) }
 }
 
-function live(settings: Settings, initial: CustodianState): LocalCustodian {
+function live(settings: Settings, initial: LocalState): LocalCustodian {
   const { path } = settings
   const holder = { state: initial }
   const notes: Diagnostic[] = []
@@ -292,7 +329,7 @@ function live(settings: Settings, initial: CustodianState): LocalCustodian {
   }
   // The gate denials come from the judgment and need no snapshot, so they are answered before
   // the disk is read; an unreadable store still denies what it would never have served.
-  const current = (): CustodianState | undefined => {
+  const current = (): LocalState | undefined => {
     const refreshed = refresh(path, holder.state)
     if (refreshed.kind === 'unavailable') {
       note({ stage: 'refresh', cause: refreshed.cause })
@@ -305,7 +342,7 @@ function live(settings: Settings, initial: CustodianState): LocalCustodian {
   // the judgment over it. An unreadable store answers `unavailable` after the gate passed.
   const judged = <R>(
     reference: Parameters<typeof judgeGate>[1],
-    judge: (state: CustodianState) => R,
+    judge: (state: LocalState) => R,
     face?: Parameters<typeof judgeGate>[2],
   ) => {
     const gate = judgeGate(holder.state, reference, face)
@@ -314,14 +351,18 @@ function live(settings: Settings, initial: CustodianState): LocalCustodian {
     return state ? judge(state) : ({ kind: 'unavailable' } as const)
   }
   const noteResolve = (
-    state: CustodianState,
+    state: LocalState,
     reference: Parameters<typeof sameCredentialHolder>[1],
     decision: CredentialResolution,
   ) => {
     const binding = state.bindings.find(item => sameCredentialHolder(item, reference))
-    note({ stage: 'resolve', outcome: decision.kind, tenantMatch: binding !== undefined })
-    return decision
+    const answer = withoutEmptyFactory(decision)
+    note({ stage: 'resolve', outcome: answer.kind, tenantMatch: binding !== undefined })
+    return answer
   }
+  // A management operation must never serve a reference whose id another tenant holds.
+  const heldElsewhere = (state: LocalState, reference: CredentialReference): boolean =>
+    state.bindings.some(item => item.id === reference.id && !sameCredentialHolder(item, reference))
   return {
     path,
     present: reference => judged(reference, state => judgePresence(state, reference)),
@@ -393,10 +434,79 @@ function live(settings: Settings, initial: CustodianState): LocalCustodian {
         ),
       }))
     },
+    bind({ reference, secret, configuredAt }) {
+      if (!isMinted(reference) || holder.state.closed) return { kind: 'denied' }
+      let refused = false
+      const written = tryMutate(settings, holder, refreshed => {
+        if (heldElsewhere(refreshed, reference)) {
+          refused = true
+          return undefined
+        }
+        const binding: LocalBinding = {
+          id: reference.id,
+          tenant: reference.tenant,
+          purpose: reference.purpose,
+          secret,
+          life: 'active',
+          configuredAt,
+        }
+        return {
+          ...refreshed,
+          bindings: [
+            ...refreshed.bindings.filter(item => !sameCredentialHolder(item, reference)),
+            binding,
+          ],
+        }
+      })
+      return refused ? { kind: 'denied' } : written
+    },
+    unbind({ reference }) {
+      if (!isMinted(reference) || holder.state.closed) return { kind: 'denied' }
+      let found: 'denied' | 'absent' | undefined
+      const written = tryMutate(settings, holder, refreshed => {
+        if (heldElsewhere(refreshed, reference)) found = 'denied'
+        else if (!refreshed.bindings.some(item => sameCredentialHolder(item, reference)))
+          found = 'absent'
+        if (found !== undefined) return undefined
+        return {
+          ...refreshed,
+          bindings: refreshed.bindings.filter(item => !sameCredentialHolder(item, reference)),
+        }
+      })
+      if (found !== undefined && written.kind === 'written') return { kind: found }
+      return written
+    },
+    describe({ reference }) {
+      if (!isMinted(reference) || holder.state.closed) return { kind: 'denied' }
+      const state = current()
+      if (state === undefined) return { kind: 'unavailable' }
+      if (heldElsewhere(state, reference)) return { kind: 'denied' }
+      const binding = state.bindings.find(item => sameCredentialHolder(item, reference))
+      if (binding === undefined) return { kind: 'unbound' }
+      return {
+        kind: 'bound',
+        life: binding.life,
+        ...(binding.configuredAt === undefined ? {} : { configuredAt: binding.configuredAt }),
+      }
+    },
     close() {
       holder.state = { ...holder.state, closed: true }
     },
   }
+}
+
+/**
+ * The deployment default applies only where the deployment really provides one. An empty factory
+ * secret is no credential: the custody answers `absent`, so no send starts with it.
+ */
+function withoutEmptyFactory(decision: CredentialResolution): CredentialResolution {
+  return decision.kind === 'value' && decision.scope === 'factory' && decision.value === ''
+    ? { kind: 'absent' }
+    : decision
+}
+
+function isMinted(reference: CredentialReference): boolean {
+  return tenantEquals(reference.tenant, reference.tenant)
 }
 
 // Equality with itself holds only for a minted tenant. A copied tenant matches no stored row, so a
@@ -409,41 +519,80 @@ function requireMintedTenant(reference: CredentialReference): void {
   }
 }
 
-function mutate(
+type Mutation =
+  | Readonly<{ kind: 'written' }>
+  | Readonly<{ kind: 'not-written'; error: Error }>
+  | Readonly<{ kind: 'unconfirmed'; error: Error }>
+
+/**
+ * One locked read, change and write. `change` answers `undefined` to write nothing; the result is
+ * then `written` and the snapshot on disk stays as it was. A failure before the new snapshot
+ * replaced the old one is `not-written`; a failure after that is `unconfirmed`.
+ */
+function attemptMutation(
   settings: Settings,
-  holder: { state: CustodianState },
-  change: (refreshed: CustodianState) => CustodianState,
-): void {
+  holder: { state: LocalState },
+  change: (refreshed: LocalState) => LocalState | undefined,
+): Mutation {
   const { path } = settings
-  const release = lockAndSweep(path, settings.lock)
+  let release: () => void
+  try {
+    release = lockAndSweep(path, settings.lock)
+  } catch (error: unknown) {
+    // The lock error keeps its own code (`ELOCKED` on a timeout) for the throwing operations.
+    if (error instanceof Error) return { kind: 'not-written', error }
+    const message = `credential store lock at ${path} was not taken`
+    return { kind: 'not-written', error: new Error(message, { cause: error }) }
+  }
   try {
     const refreshed = refresh(path, holder.state)
     if (refreshed.kind === 'unavailable') {
-      throw new Error(`credential store at ${path} is unavailable: ${refreshed.cause}`, {
-        cause: refreshed.error,
-      })
+      const message = `credential store at ${path} is unavailable: ${refreshed.cause}`
+      return { kind: 'not-written', error: new Error(message, { cause: refreshed.error }) }
     }
     const next = change(refreshed.state)
+    if (next === undefined) {
+      holder.state = refreshed.state
+      return { kind: 'written' }
+    }
     const result = atomicSave(path, next)
     if (!result.ok) {
       if (result.phase === 'published') {
-        throw new Error(
-          `credential store update at ${path} confirmation incomplete; verify state before retry`,
-          { cause: result.cause },
-        )
+        const message = `credential store update at ${path} confirmation incomplete; verify state before retry`
+        return { kind: 'unconfirmed', error: new Error(message, { cause: result.cause }) }
       }
-      throw new Error(`failed to update credential store at ${path}`, { cause: result.cause })
+      const message = `failed to update credential store at ${path}`
+      return { kind: 'not-written', error: new Error(message, { cause: result.cause }) }
     }
     holder.state = next
+    return { kind: 'written' }
   } finally {
     release()
   }
 }
 
+/** A binding write for the management results: the kind only, never the error behind it. */
+function tryMutate(
+  settings: Settings,
+  holder: { state: LocalState },
+  change: (refreshed: LocalState) => LocalState | undefined,
+): BindingWrite {
+  return { kind: attemptMutation(settings, holder, change).kind }
+}
+
+function mutate(
+  settings: Settings,
+  holder: { state: LocalState },
+  change: (refreshed: LocalState) => LocalState,
+): void {
+  const mutation = attemptMutation(settings, holder, change)
+  if (mutation.kind !== 'written') throw mutation.error
+}
+
 // The closed cause set is what the public results carry; the error behind it travels with the
 // result so that the management operations can throw it as their `cause`.
 type Refreshed =
-  | Readonly<{ kind: 'state'; state: CustodianState }>
+  | Readonly<{ kind: 'state'; state: LocalState }>
   | Readonly<{ kind: 'unavailable'; cause: UnavailableCause; error: unknown }>
 
 function refresh(path: string, current: Pick<CustodianState, 'closed'>): Refreshed {
@@ -473,7 +622,7 @@ function refresh(path: string, current: Pick<CustodianState, 'closed'>): Refresh
 
 function atomicSave(
   path: string,
-  state: CustodianState,
+  state: LocalState,
 ):
   | Readonly<{ ok: true }>
   | Readonly<{ ok: false; phase: 'temp-write' | 'published'; cause: unknown }> {

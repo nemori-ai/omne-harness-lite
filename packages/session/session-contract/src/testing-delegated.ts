@@ -296,7 +296,7 @@ export function sessionDelegatedTransactionsConformance<P>(): readonly Conforman
             bounded: { kind: 'uninterpretable', evidence: evidence('agent/uninterpretable') },
           },
         })
-        const stale = finish(String(BigInt(snapshot.revision) - 1n))
+        const stale = finish(String(BigInt(run.revision) - 1n))
         const view = fixture.delegated.bind(checkedCommand(fixture, stale))
         const asked = fixture.checks()
         expectKind(
@@ -310,7 +310,7 @@ export function sessionDelegatedTransactionsConformance<P>(): readonly Conforman
         succeeded(
           await view.commit({
             access: fixture.access,
-            command: finish(snapshot.revision),
+            command: finish(run.revision),
             guards: [],
           }),
           'retry with the fresh expected',

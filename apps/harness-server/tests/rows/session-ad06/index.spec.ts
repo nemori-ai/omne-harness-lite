@@ -1,12 +1,17 @@
 // @module-tag slow
 // The `session-ad06` row: the real Tool log consumption plugin of Session (AD-06). The row is ACTIVE
-// once `session`, the Journal views `agentJournal` and `agentMaterials`, and `sessionTransactions`
-// are present, and stays PENDING naming the missing keys otherwise. Its reads of `session` reach the
+// once `session`, the Journal views `agentJournal`, `agentJournalEntries` (the entry port, R2-D318)
+// and `agentMaterials`, and `sessionTransactions` are present, and stays PENDING naming the missing
+// keys otherwise. Its reads of `session` reach the
 // provider as the `coordinator` caller class although the row wrapper declares its injects as a plain
-// list. The four providers here are contract stand-ins of this test, not the real rows.
+// list. The five providers here are contract stand-ins of this test, not the real rows.
 import { Service, type Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
-import { agentJournalKey, agentMaterialsKey } from '@omne-harness/agent-cordis-contract/cordis'
+import {
+  agentJournalEntriesKey,
+  agentJournalKey,
+  agentMaterialsKey,
+} from '@omne-harness/agent-cordis-contract/cordis'
 import { succeed } from '@omne-harness/operation-result'
 import type { SessionFaces, WorkSnapshot } from '@omne-harness/session-contract'
 import { memoryAccess } from '@omne-harness/session-contract/testing'
@@ -62,6 +67,12 @@ class Journal extends Service {
   }
   readonly load = () => Promise.reject(new Error('not read in this test'))
 }
+class Entries extends Service {
+  constructor(ctx: Context) {
+    super(ctx, agentJournalEntriesKey)
+  }
+  readonly read = () => Promise.reject(new Error('not read in this test'))
+}
 class Materials extends Service {
   constructor(ctx: Context) {
     super(ctx, agentMaterialsKey)
@@ -91,6 +102,7 @@ async function start(options: { journalViews: boolean; callers?: unknown[] }): P
       ...(options.journalViews
         ? [
             standIn('journal-standin', agentJournalKey, Journal),
+            standIn('entries-standin', agentJournalEntriesKey, Entries),
             standIn('materials-standin', agentMaterialsKey, Materials),
           ]
         : []),
@@ -109,7 +121,13 @@ describe('the session-ad06 row: declaration', () => {
       implementation: 'real',
       manifest: {
         provides: [],
-        injects: ['session', 'agentJournal', 'agentMaterials', 'sessionTransactions'],
+        injects: [
+          'session',
+          'agentJournal',
+          'agentJournalEntries',
+          'agentMaterials',
+          'sessionTransactions',
+        ],
         phase: null,
         sameProviderGroup: null,
       },
@@ -120,7 +138,7 @@ describe('the session-ad06 row: declaration', () => {
 
 describe('the session-ad06 row: on real Cordis 4.0.4', () => {
   it(
-    'is ACTIVE with its four dependencies, and reads `session` as the coordinator',
+    'is ACTIVE with its five dependencies, and reads `session` as the coordinator',
     { timeout: 60_000 },
     async () => {
       const callers: unknown[] = []
@@ -144,13 +162,13 @@ describe('the session-ad06 row: on real Cordis 4.0.4', () => {
   )
 
   it(
-    'without the Journal views stays PENDING and names both keys',
+    'without the Journal views stays PENDING and names the three keys',
     { timeout: 60_000 },
     async () => {
       const tree = await start({ journalViews: false })
       expect(tree.state('session-ad06')).toMatchObject({
         state: 'PENDING',
-        missing: ['agentJournal', 'agentMaterials'],
+        missing: ['agentJournal', 'agentJournalEntries', 'agentMaterials'],
       })
       expect(
         await consumeSessionToolLog({

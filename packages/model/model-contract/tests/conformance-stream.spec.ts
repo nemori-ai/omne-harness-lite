@@ -246,8 +246,9 @@ function subject(fault: Fault = 'none'): Subject {
       },
     },
     controls: {
-      confirm: selection => references.confirmSelection({ reference, selection }),
-      withdrawTarget: () => references.withdrawTarget(reference),
+      confirm: selection =>
+        references.confirmSelection({ tenant: access.tenant, reference, selection }),
+      withdrawTarget: () => references.withdrawTarget({ tenant: access.tenant, reference }),
       publish: value => {
         source.publish({ tenant: access.tenant, snapshot: value })
       },
@@ -256,15 +257,16 @@ function subject(fault: Fault = 'none'): Subject {
       },
       retire: value => {
         retired = true
-        source.end({ ref: value, reason: 'stale-stream' })
+        source.end({ tenant: access.tenant, ref: value, reason: 'stale-stream' })
       },
-      closeSource: value => source.end({ ref: value, reason: 'source-closed' }),
+      closeSource: value =>
+        source.end({ tenant: access.tenant, ref: value, reason: 'source-closed' }),
       setAccess(who, decision) {
         references.setAccess(who, decision)
         if (
           fault !== 'queued-access' ||
           decision !== 'deny' ||
-          source.openObservations(original) === 0
+          source.openObservations(original, access.tenant) === 0
         )
           source.setAccess(who, decision)
       },

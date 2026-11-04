@@ -551,7 +551,7 @@ Journal.load 的 snapshot 固定一个 execution revision，包含当前 checkpo
 
 A2 材料成功、Journal 未知时保留材料并查原 Journal operation。checkpoint 更换不丢完整原请求。schema 是精确 Adoption，恢复经 judgeToolInvokeRequest 校验，具体 schema 与生产材料后端仍由后继 A2 方案提供。
 
-Tool control 接受先核当前资格，再认回原 control operation 或因异输入 conflict；只有新的 control operation 在当前租户下先按 kind 再按 call 匹配 associated pending，保存 toolInvocation 与初始 null 的 toolOperation。recordControl 的迟到引用以原记录校验 tenant、call、admission，不重新定位当前 checkpoint。recordControl 先核当前资格与附件租户，以规范身份认回原 recording operation 或判异输入 conflict，之后才核新 target、原引用与 stage。外租户先 denied；原 recording operation 新增畸形或非 Tool 附件先 conflict。新 recording operation 的畸形与非 Tool 附件分别映射 invalid(toolOperation)，保留引用损坏映射 unavailable 或 denied，精确 reason、owner、diagnostic 与次序见 SPEC。非 Tool 控制不能附引用。规则由 [SPEC](../../../agent-contract/SPEC.md#控制接受与迟到引用)拥有。
+Tool control 接受先核当前资格，再认回原 control operation 或因异输入 conflict；只有新的 control operation 在当前租户下先按 kind 再按 call 匹配 associated pending，保存 toolInvocation 与初始 null 的 toolOperation。recordControl 的迟到引用以原记录校验 tenant、call、admission，不重新定位当前 checkpoint。recordControl 先核当前资格，以规范身份认回原 recording operation 或判异输入 conflict，之后才核新 target、原引用与 stage。原 recording operation 新增畸形或非 Tool 附件先 conflict。新 recording operation 的畸形与非 Tool 附件分别映射 invalid(toolOperation)，保留引用损坏映射 unavailable，精确 reason、owner、diagnostic 与次序见 SPEC。非 Tool 控制不能附引用。规则由 [SPEC](../../../agent-contract/SPEC.md#控制接受与迟到引用)拥有。
 
 相同 recording operation 的输入增加引用冲突。后继的 recording operation 可以在阶段相同的情况下附引用，并原子推进 revision、保存它自己的回执。不重发阶段事件，不替换原阶段回执。引用冲突先于阶段认回。本例的 revision 要求不裁定其他写操作的全部机制，Q11/Q13 更广问题仍待后续处理。
 

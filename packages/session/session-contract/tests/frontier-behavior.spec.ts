@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  expectedRevision,
   decide,
   projectSessionLog,
   reduce,
@@ -506,7 +507,7 @@ describe('whole release batches and historical taken', () => {
         ...s.base,
         operation: operationId('reject-first'),
         run: first.run.run,
-        expected: snapshot.revision,
+        expected: expectedRevision(snapshot, 'finishRun'),
         bounded: {
           kind: 'admission-rejected' as const,
           input: first.run.first,

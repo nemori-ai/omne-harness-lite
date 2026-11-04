@@ -211,6 +211,8 @@ export type FactBody =
       consumer: ConsumerRef
       custody: Ref<AgentJournalEntry>
       saved: DurableEvidence
+      /** The material the delivery carried, kept under `custody.material`; null for a record without it. */
+      material: Ref | null
     }>
   | Readonly<{
       kind: 'result.handled'
@@ -218,6 +220,11 @@ export type FactBody =
       result: ProducerCall
       stage: ResultStage
       evidence: DurableEvidence
+      /**
+       * The step whose commit applied the result (the `producer` event of that commit); null for
+       * a stage a `recordResult` reaches, which is no event.
+       */
+      step: StepId | null
     }>
   | Readonly<{
       kind: 'reply.judged'
@@ -225,7 +232,9 @@ export type FactBody =
       fact: ModelReplyAdmission
       basis: DurableEvidence
       publication: DurableEvidence
+      /** The admitted reply as the step published it, and the source of that message event. */
       message: Ref<Message> | null
+      source: DurableEvidence | null
       history: DurableEvidence | null
     }>
   /**
@@ -255,6 +264,8 @@ export type FactBody =
       kind: 'handoff.retired'
       handoff: HandoffReference
       reason: DurableEvidence
+      /** The excluded resolution the retire fixes (a block of the HandoffResolution). */
+      excluded: Ref
     }>
   | Readonly<{
       kind: 'handoff.recorded'
@@ -262,6 +273,8 @@ export type FactBody =
       resolution: 'recorded' | 'excluded'
       outcome: Ref
       predecessor: AgentOperationId | null
+      /** The custody derivation the attempt carried (a block of the HandoffCustody), null at the root. */
+      custody: Ref | null
     }>
   | Readonly<{
       kind: 'batch.fixed'
@@ -306,6 +319,12 @@ export type FactBody =
       stage: ControlStage
       state: 'reached' | 'unresolved'
       source: DurableEvidence
+      /**
+       * The step whose commit reported the stage (the `control` event of that commit, always an
+       * event); null for a stage a `control` or `recordControl` records, an event unless the
+       * execution ended or the stage is the same fact already reached (`eventOf` in the fold).
+       */
+      step: StepId | null
     }>
   | Readonly<{
       kind: 'control.rejected'
@@ -313,6 +332,18 @@ export type FactBody =
       audit: DurableEvidence
     }>
   | Readonly<{ kind: 'wait.entered'; step: StepId; waits: readonly Waiting[] }>
+  /**
+   * The first binding of a pending call the execution holds at a commit or an open: the reference
+   * the producer answers to, the call as pending, and the instance that holds it. The receiving
+   * side routes a late delivery of the reference to the execution by it (R2-D273, K-23 end state:
+   * the bindings are facts, not a state the provider keeps beside them).
+   */
+  | Readonly<{
+      kind: 'target.bound'
+      reference: string
+      pending: Ref<PendingCall>
+      instance: AgentInstanceId
+    }>
   | Readonly<{
       kind: 'finish.candidate'
       candidate: AgentOperationId
@@ -380,7 +411,21 @@ export type FactBody =
       observed: DurableEvidence
     }>
   | Readonly<{ kind: 'ack.through'; sequence: number }>
-  | Readonly<{ kind: 'op.recognized'; target: AgentOperationId }>
+  /**
+   * A new operation that recognizes the fact `target` established (R2-D292 "原操作认回"): no
+   * revision, the answer at the recognized batch's revision. With `recalls`, the answer is the
+   * recognized operation's own receipt (a new operation for a saved delivery recalls the delivery's
+   * receipt), the same whether read warm or derived from the stored batch.
+   */
+  | Readonly<{ kind: 'op.recognized'; target: AgentOperationId; recalls?: true }>
+  /** A material kept by `preserve`: its source evidence and the block that holds it. No revision. */
+  | Readonly<{
+      kind: 'material.preserved'
+      source: DurableEvidence
+      value: Ref
+      /** The consumer the material was kept for: the execution of that consumer may read it. */
+      consumer: ConsumerRef
+    }>
   /**
    * The permanent exclusion of an operation (R2-D307): the fence of a takeover over a write of the
    * old generation, a write the storage dropped, a predecessor of a handoff custody chain, or the
@@ -390,7 +435,7 @@ export type FactBody =
   | Readonly<{
       kind: 'op.excluded'
       operation: AgentOperationId
-      reason: 'fence' | 'dropped' | 'handoff' | 'reception'
+      reason: ExclusionReason
       evidence: DurableEvidence
       predecessor: AgentOperationId | null
     }>
@@ -450,6 +495,8 @@ export const FACT_KINDS: readonly FactKind[] = Object.freeze([
   'op.excluded',
   'fence.started',
   'cursor.moved',
+  'material.preserved',
+  'target.bound',
 ])
 
 /** The event kind a fact projects, or null for a fact that is no event. */
@@ -464,6 +511,39 @@ export const EVENT_OF: Readonly<Partial<Record<FactKind, string>>> = Object.free
   'wait.entered': 'waiting',
   'finish.ended': 'ended',
 })
+
+/**
+ * Why an operation is excluded: a takeover fence, a held write the storage dropped, a handoff
+ * attempt its successor replaced, a reception, or a held write whose re-run answered without
+ * writing (`no-write`).
+ */
+export type ExclusionReason = 'fence' | 'dropped' | 'handoff' | 'reception' | 'no-write'
+
+/**
+ * The exclusions a later write of the same operation may still commit once: a held write the
+ * storage never ran, and a re-run that answered without writing. The fence of a takeover, the
+ * predecessor of a custody chain and a reception's exclusion refuse every later write of the
+ * operation (`batchOf`); a custody attempt is permanently excluded by `recordHandoff` itself.
+ */
+export const REVIVABLE_EXCLUSIONS: ReadonlySet<ExclusionReason> = new Set<ExclusionReason>([
+  'dropped',
+  'no-write',
+])
+
+/**
+ * The event kind one fact projects by what the fact alone says, or null: a fact of a kind that is
+ * no event, a `reply.judged` of a rejected reply (no message enters the history), a
+ * `result.handled` of a stage a record reached (no step applied it). A `control.stage` without a
+ * step depends on the view as well: `eventOf` in the fold decides it. The fold numbers the events
+ * by this rule, and the provider matches the events a write appended to the fold's events.
+ */
+export function eventKindOf(fact: FactBody): string | null {
+  const kind = EVENT_OF[fact.kind]
+  if (kind === undefined) return null
+  if (fact.kind === 'reply.judged' && (fact.message === null || fact.source === null)) return null
+  if (fact.kind === 'result.handled' && fact.step === null) return null
+  return kind
+}
 
 /** The participation kinds of one batch: the Session commands the same commit carries. */
 export type ParticipationKind = 'message' | 'context-transition' | 'custody' | 'processed'
@@ -571,9 +651,10 @@ export function factKey(fact: FactBody): string {
     case 'input.accepted':
       return `input/${fact.input}`
     case 'step.begun':
-      // A step may take more than one input batch (an empty take, then a new input): the batch
-      // is the key.
-      return `step/${fact.batch.id}`
+      // One per input-taken event: a step may take more than one batch (an empty take, then a
+      // new input), and consecutive steps may take the same empty batch (one identity names
+      // the empty range), so the step and the batch together are the key.
+      return `step/${fact.step}#${fact.batch.id}`
     case 'request.adopted':
       return `request/${fact.step}/${fact.attempt}`
     case 'intent.voided':
@@ -616,6 +697,8 @@ export function factKey(fact: FactBody): string {
       return `rejected/${fact.control}/${fact.audit.record}`
     case 'wait.entered':
       return `wait/${fact.step}/${digestOf(fact.waits)}`
+    case 'target.bound':
+      return `target/${fact.reference}/${fact.pending.digest}`
     case 'finish.candidate':
       return `candidate/${fact.candidate}`
     case 'finish.proved':
@@ -634,6 +717,8 @@ export function factKey(fact: FactBody): string {
       return `ack/${fact.sequence}`
     case 'op.recognized':
       return `recognized/${fact.target}`
+    case 'material.preserved':
+      return `material/${fact.source.record}`
     case 'op.excluded':
       return `excluded/${fact.operation}`
     case 'fence.started':

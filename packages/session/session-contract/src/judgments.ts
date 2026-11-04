@@ -186,26 +186,26 @@ const RUN_LAYER_EXPECTED: ReadonlySet<MutationName> = new Set([
  * advance commands `claim`, `reload`, `release` and `finishRun` name the Run-layer revision: the
  * revision of the last commit that started the active Run or changed its advance or adoption, so
  * an unrelated commit (an `accept`, a hand-over, an Agent fact) does not move it. Every other
- * command names the snapshot revision. Without an active Run, or on a snapshot without the
- * Run-layer field, it is the snapshot revision.
+ * command names the snapshot revision. Without an active Run there is no Run layer, so it is the
+ * snapshot revision.
  */
 export function expectedRevision(snapshot: WorkSnapshot, kind: MutationName): SessionRevision {
   if (!RUN_LAYER_EXPECTED.has(kind) || snapshot.run.kind !== 'active') return snapshot.revision
-  return snapshot.run.revision ?? snapshot.revision
+  return snapshot.run.revision
 }
 
 /**
- * Whether `expected` of a command of `kind` still holds. It holds when it equals the revision that
- * `expectedRevision` names, and also when it equals the snapshot revision: nothing was committed
- * since that read, so the Run layer did not change either. The second case keeps callers that still
- * send the snapshot revision working until they move to the Run-layer revision.
+ * Whether `expected` of a command of `kind` still holds: it equals the revision that
+ * `expectedRevision` names, and nothing else. An advance command that read the snapshot and sends
+ * the snapshot revision does not hold once an unrelated commit moved the snapshot but not the Run
+ * layer; accepting it would let a stale claimant pass beside a fresh one (SPEC I-R2, R2-D343).
  */
 export function expectedHolds(
   snapshot: WorkSnapshot,
   kind: MutationName,
   expected: SessionRevision,
 ): boolean {
-  return expected === expectedRevision(snapshot, kind) || expected === snapshot.revision
+  return expected === expectedRevision(snapshot, kind)
 }
 
 /**

@@ -27,7 +27,7 @@ Not verified: durability, concurrency across processes, recovery against a real 
 
 Four group members declare this dependency: session, session-cordis-contract, session-cordis, and session-adapters. `session` and `session-cordis` have empty production entries. `session-cordis-contract` uses the types in its service definitions, and session-adapters uses them in its testing implementation. Outside the group, m2-contract-skeleton consumes the contract and testing entries. The authorization tests now implement the public `SessionAccessCheck`; their [reference scope](docs/access-check.md#授权参考范围) does not prove production integration.
 
-Initialization now supports optional registration, workspace-load and execution-adoption sources, trusted initial adoption guards, atomic result facts and original-receipt recovery. The current interpreter supports its exact revision 3 adoption. See [initialization wiring and release digests](docs/initialization.md). Real adoption providers, loaders and Context replay remain outside this in-memory proof.
+Initialization now supports optional registration, workspace-load and execution-adoption sources, trusted initial adoption guards, atomic result facts and original-receipt recovery. The current interpreter supports its exact revision 4 adoption, which stores each repeated value of an entry once. See [initialization wiring and release digests](docs/initialization.md). Real adoption providers, loaders and Context replay remain outside this in-memory proof.
 
 The same-log pure layer validates original history, complete release batches, call registration, and control reference retention. Its explicit history fixture is non-durable. See [pure-layer support and provider obligations](docs/same-log-pure.md).
 

@@ -23,6 +23,7 @@ import {
   type Failure,
   type Outcome,
 } from '../host-paths.ts'
+import { windowsSegmentsBelow } from '../root-segments.ts'
 import { nativeSource } from './native-source.ts'
 import { nativeTree } from './native-tree.ts'
 import { nativeWrite } from './native-write.ts'
@@ -340,28 +341,6 @@ async function probeWindowsDirectory(
   }
 }
 
-/** Reject special namespaces, alternate streams, ambiguous names, and upward traversal before IO. */
-export function windowsSegments(root: string, path: string): readonly string[] | undefined {
-  if (!/^[a-z]:[\\/]/iu.test(path) || path.includes('\0')) return undefined
-  const split = (value: string) => value.replaceAll('/', '\\').split('\\').filter(Boolean)
-  const base = split(root),
-    parts = split(path)
-  if (
-    parts.some(
-      (part, index) =>
-        part === '..' ||
-        (index > 0 &&
-          (part.includes(':') ||
-            /[. ]$/u.test(part) ||
-            /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu.test(part))),
-    )
-  )
-    return undefined
-  if (base.some((part, index) => part.toLowerCase() !== parts[index]?.toLowerCase()))
-    return undefined
-  return parts.slice(base.length)
-}
-
 function snapshot<R extends FileRequest<unknown>>(request: R): R {
   return {
     ...request,
@@ -434,10 +413,18 @@ export function createWindowsFiles(
         root = next
       }
     }
-    const segments = windowsSegments(root, path)
+    const segments = await windowsSegmentsBelow(root, path)
     if (segments === undefined) return fail('notAuthorized')
     const expectedRoot = await rootToken(root)
     return expectedRoot.ok ? ok({ root, expectedRoot: expectedRoot.value, segments }) : expectedRoot
+  }
+  /** A root is configured and one of `paths` does not lie below it. */
+  const outsideRoot = async (paths: readonly string[]): Promise<boolean> => {
+    const root = options.root
+    if (root === undefined) return false
+    for (const path of paths)
+      if ((await windowsSegmentsBelow(root, path)) === undefined) return true
+    return false
   }
   const change = async (
     request: Parameters<FileSystemFacility<unknown>['remove']>[0],
@@ -454,12 +441,7 @@ export function createWindowsFiles(
       return reject(request.requestId, 'invalidInput')
     if (!request.named?.token || (target !== undefined && !target.named?.token))
       return reject(request.requestId, 'notAuthorized')
-    if (
-      options.root !== undefined &&
-      [request.path, ...(target === undefined ? [] : [target.path])].some(
-        path => windowsSegments(options.root ?? '', path) === undefined,
-      )
-    )
+    if (await outsideRoot([request.path, ...(target === undefined ? [] : [target.path])]))
       return reject(request.requestId, 'notAuthorized')
     const source = await endpoint(request.path, operation === 'mkdir' && request.recursive)
     if (!source.ok) return failed(request.requestId, source.failure, 'notFound')
@@ -491,7 +473,7 @@ export function createWindowsFiles(
       return reject(request.requestId, 'invalidInput')
     if (!request.named?.token) return reject(request.requestId, 'notAuthorized')
     const root = options.root ?? win32.dirname(request.path)
-    const segments = windowsSegments(root, request.path)
+    const segments = await windowsSegmentsBelow(root, request.path)
     if (segments === undefined) return reject(request.requestId, 'notAuthorized')
     const expectedRoot = await rootToken(root)
     if (!expectedRoot.ok)

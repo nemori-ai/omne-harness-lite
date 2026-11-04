@@ -181,6 +181,7 @@ export {
 } from './judgments.ts'
 export { decide, commandDigest } from './decide.ts'
 export { batchEvidence, reduce } from './reduce.ts'
+export { expandHistoryEntries } from './entries.ts'
 export {
   CONTEXT_SCOPE_KINDS,
   contextScopeOf,

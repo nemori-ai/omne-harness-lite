@@ -15,11 +15,8 @@ import type {
 import { createHostFileBatch, type HostFileDiagnostic } from './host-file-batch.ts'
 import { createWindowsBatch } from './windows-files/batch.ts'
 import { createHostFileTree, hostFilesLimits, type HostFilesLimits } from './host-file-tree.ts'
-import {
-  createWindowsFiles,
-  createWindowsRootIdentity,
-  windowsSegments,
-} from './windows-files/facility.ts'
+import { createWindowsFiles, createWindowsRootIdentity } from './windows-files/facility.ts'
+import { windowsSegmentsBelow } from './root-segments.ts'
 import {
   createCodes,
   createHostPathsCore,
@@ -723,7 +720,7 @@ export function createHostFilesEngine(
         if (paths.rooted) {
           const refusal =
             process.platform === 'win32' && options.root !== undefined
-              ? windowsSegments(options.root, path) === undefined
+              ? (await windowsSegmentsBelow(options.root, path)) === undefined
                 ? reject(requestId, 'notAuthorized')
                 : undefined
               : await gate(paths, requestId, [path])

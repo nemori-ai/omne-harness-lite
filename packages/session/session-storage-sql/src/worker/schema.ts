@@ -104,3 +104,25 @@ export const STATE_ITEM_MIGRATION = Object.freeze({
   owner: 'session',
   id: '004-state-items',
 })
+
+// The grant of an attempt (R2-D349): the source of the batch receipt of the commit that wrote the
+// SE15 row. The Session hands that receipt source to the Agent as the `grant` of the invoke or
+// resume of the attempt (`AgentDrivePort`); the Agent holds it opaque and gives it back, and the
+// Session resolves it to the attempt here. The receipt is a different evidence than the row's own
+// (`entryEvidence`: one row, its position, its digest; the receipt: the commit sequence and the
+// digest of the whole batch), so the relation is written in the commit that gives the grant out,
+// not inferred when it is read. Written in the same transaction as the `sl_entry` row; `position`
+// is the SE15 row's, so the history index reads the grants after its cursor as it reads the rows.
+export const ATTEMPT_GRANT_STATEMENTS: readonly string[] = [
+  `CREATE TABLE sl_attempt_grant (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, attempt TEXT NOT NULL, position INTEGER NOT NULL,
+    grant TEXT NOT NULL, PRIMARY KEY (tenant, session, attempt)) STRICT`,
+  `CREATE INDEX sl_attempt_grant_position_idx ON sl_attempt_grant (tenant, session, position)`,
+]
+
+export const ATTEMPT_GRANT_TABLES: readonly string[] = ['sl_attempt_grant']
+
+export const ATTEMPT_GRANT_MIGRATION = Object.freeze({
+  owner: 'session',
+  id: '005-attempt-grant',
+})

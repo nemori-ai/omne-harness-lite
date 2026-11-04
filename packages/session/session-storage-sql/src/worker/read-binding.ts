@@ -5,7 +5,7 @@
 // and no entry past the first batch, so its rows and bytes do not depend on the size of the session.
 import { batchEvidence } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
-import { decodeValue } from '../codec.ts'
+import { readEntryText } from '../entry-codec.ts'
 import { big, handler, oneRow, PAGE_ROWS, rowsOf, scopeOf, text } from './support.ts'
 
 /** The revision of the batch that creates a session: the first commit after the journal row is made. */
@@ -44,7 +44,7 @@ export default handler('session.binding', (input, port) => {
     'SELECT entry FROM sl_entry WHERE tenant = ? AND session = ? AND position <= ? ORDER BY position LIMIT ?',
     [scope.tenant, scope.session, last, last],
   )
-  const entries = rows.map(row => decodeValue(JSON.parse(text(row['entry'])) as JsonValue))
+  const entries = rows.map(row => readEntryText(text(row['entry'])))
   const source = batchEvidence(
     { revision: String(CREATING_REVISION), entries } as never,
     text(journal['session']),

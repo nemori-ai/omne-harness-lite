@@ -7,14 +7,15 @@
 //   保留终端的账本绑在同一 scope 上。
 // - `guard`：设施请求的主体经核验是本租户的会话工作主体、origin 是本运行铸的、请求里的每个路径都在文件根内：
 //   cwd，文件设施的 `path`、`move`/`copy` 的 `target.path`、`commitBatch` 的每个 `entries[].path`；带了这些字段
-//   却不是字符串路径的答 notAuthorized。命令内容不过滤：Shell 是发行授予的能力，授权规则在 `authorization` 行，
-//   本发行不声称沙盒。
+//   却不是字符串路径的答 notAuthorized。位置与对象两条都在根内才算（R2-D374、R2-D376），见 `placeAgainstRoot`。
+//   命令内容不过滤：Shell 是发行授予的能力，授权规则在 `authorization` 行，本发行不声称沙盒。
 // - origin 表与账本视图按调用存，调用结清时（记录仓提交了 `settled`，见 `holder.ts`）删掉；结清后同一 origin 的
 //   设施请求与命名一律不授权。
 // - `naming`：路径解析到文件根内的宿主对象，取宿主对象令牌；越出文件根答 denied。
 // - `facts`：落点必须是宿主机；系统、版本、架构取本进程所在主机，设施取落点的需求。
 // - `cleanup.settle`：冷获取的原清理不在本波（与 L-TOOL C06 同一做法），答 pending，责任保留。
-import { dirname, isAbsolute, relative, resolve } from 'node:path'
+import { lstat, realpath } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { release as osRelease } from 'node:os'
 import {
   originRef,
@@ -23,7 +24,10 @@ import {
   type IsolationClaim,
   type OriginRef,
 } from '@omne-harness/execution-environment-contract'
-import { hostObjectToken } from '@omne-harness/execution-environment-host-local'
+import {
+  hostObjectToken,
+  hostSegmentsBelowRoot,
+} from '@omne-harness/execution-environment-host-local'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { SchemaProvider } from '@omne-harness/schema-provider'
@@ -62,13 +66,76 @@ export type ReleaseEnvironmentOptions = Readonly<{
 const unavailable = (dependency: string, diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency, diagnostic })
 
-/** 路径在文件根之内（含文件根本身）。相对路径按文件根解析。 */
+/** 路径在文件根之内（含文件根本身），按文字判断。相对路径按文件根解析。 */
 export function withinRoot(root: string, path: string): boolean {
   const tail = relative(root, resolve(root, path))
   return (
     tail === '' ||
     (!isAbsolute(tail) && tail !== '..' && !tail.startsWith('..\\') && !tail.startsWith('../'))
   )
+}
+
+const missingCodes = new Set(['ENOENT', 'ENOTDIR'])
+
+function missing(error: unknown): boolean {
+  const code = typeof error === 'object' && error !== null ? Reflect.get(error, 'code') : undefined
+  return typeof code === 'string' && missingCodes.has(code)
+}
+
+/**
+ * 宿主路径的规范形式：最近的存在者取真实路径，再接上其下还不存在的段。真实路径由系统给出：Windows 上是长名，
+ * 联接与符号链接都解析到目标。`follow` 为假时，最后一段若是链接本身就不解析它，只解析它所在的目录，所以链接按它
+ * 所在的位置判断，链接的语义仍由设施决定。查不了（不是「不存在」的错误）时答 undefined。
+ */
+async function canonicalPath(path: string, follow: boolean): Promise<string | undefined> {
+  const rest: string[] = []
+  let current = path
+  if (!follow)
+    try {
+      if ((await lstat(current)).isSymbolicLink()) {
+        rest.unshift(basename(current))
+        current = dirname(current)
+      }
+    } catch (error) {
+      if (!missing(error)) return undefined
+    }
+  for (;;)
+    try {
+      return join(await realpath(current), ...rest)
+    } catch (error) {
+      const up = dirname(current)
+      if (!missing(error) || up === current) return undefined
+      rest.unshift(basename(current))
+      current = up
+    }
+}
+
+/**
+ * 路径相对文件根的位置：`root`（文件根本身）、`inside`、`outside`。相对路径按文件根解析。两条都满足才在根内
+ * （R2-D374、R2-D376）：
+ * - 位置：不跟随任何链接，路径按段落在根下（`hostSegmentsBelowRoot`，与 Windows 文件后端同一个判断）。Windows 上
+ *   根的某段写法不同（8.3 短名、大小写）时按目录项身份比较。`\\?\`、`\\.\`、UNC、别的盘符与 `..` 都不在根下。
+ *   经根外的联接指进根内的路径也不在根下：进程按路径的文字解析 `..`，会落到根外。
+ * - 对象：路径解析后的真实位置也在根的真实路径内，所以经根内的联接走出根的路径不在根内。`follow` 见
+ *   `canonicalPath`。归一失败按根外处理。
+ * 这是判断时的事实：判断之后链接仍可被改指，见行页的已知限制。
+ */
+export async function placeAgainstRoot(
+  root: string,
+  path: string,
+  follow: boolean,
+): Promise<'root' | 'inside' | 'outside'> {
+  const target = resolve(root, path)
+  const below = await hostSegmentsBelowRoot(root, target)
+  if (below === undefined) return 'outside'
+  if (below.length === 0) return 'root'
+  const [canonicalRoot, canonical] = await Promise.all([
+    canonicalPath(resolve(root), true),
+    canonicalPath(target, follow),
+  ])
+  if (canonicalRoot === undefined || canonical === undefined) return 'outside'
+  if (!withinRoot(canonicalRoot, canonical)) return 'outside'
+  return 'inside'
 }
 
 function textField(request: object, name: string): unknown {
@@ -95,12 +162,24 @@ function filePathValues(request: object): unknown[] {
   return values
 }
 
-/** 设施请求里的每个路径值（cwd 与文件设施的路径）都是文件根内的字符串路径。 */
-export function confinedToRoot(root: string, facility: FacilityKey, request: object): boolean {
+/**
+ * 设施请求里的每个路径值（cwd 与文件设施的路径）都是文件根内的字符串路径。cwd 是命令实际运行的目录，链接解析到
+ * 目标再判断；文件设施的路径不解析最后一段链接（见 `placeAgainstRoot`）。
+ */
+export async function confinedToRoot(
+  root: string,
+  facility: FacilityKey,
+  request: object,
+): Promise<boolean> {
   const cwd = textField(request, 'cwd')
-  const values: unknown[] = cwd === undefined ? [] : [cwd]
-  if (facility === 'files') values.push(...filePathValues(request))
-  return values.every(value => typeof value === 'string' && withinRoot(root, value))
+  const checks: Array<Readonly<{ value: unknown; follow: boolean }>> =
+    cwd === undefined ? [] : [{ value: cwd, follow: true }]
+  if (facility === 'files')
+    for (const value of filePathValues(request)) checks.push({ value, follow: false })
+  for (const { value, follow } of checks)
+    if (typeof value !== 'string' || (await placeAgainstRoot(root, value, follow)) === 'outside')
+      return false
+  return true
 }
 
 type NamingResult = Awaited<ReturnType<LocalToolRuntimeInput['environment']['naming']['name']>>
@@ -116,10 +195,11 @@ async function nearestToken(
     try {
       return succeed(await hostObjectToken(current))
     } catch {
-      if (role !== 'ancestor' || current === resolve(root))
+      if (role !== 'ancestor' || (await placeAgainstRoot(root, current, false)) === 'root')
         return unavailable('host-object-naming', 'the exact host object could not be named')
       current = dirname(current)
-      if (!withinRoot(root, current)) return fail({ kind: 'denied', action: 'name-host-object' })
+      if ((await placeAgainstRoot(root, current, false)) === 'outside')
+        return fail({ kind: 'denied', action: 'name-host-object' })
     }
   }
 }
@@ -203,7 +283,7 @@ export function createReleaseEnvironment(
       try {
         const session = await identity.sessionOf(request.access.principal, request.access.tenant)
         if (session === undefined || !origins.has(request.origin)) return 'notAuthorized'
-        return confinedToRoot(root, facility, request) ? 'authorized' : 'notAuthorized'
+        return (await confinedToRoot(root, facility, request)) ? 'authorized' : 'notAuthorized'
       } catch {
         return 'unavailable'
       }
@@ -213,7 +293,11 @@ export function createReleaseEnvironment(
   const naming: EnvironmentInput['naming'] = {
     async name(input) {
       const session = await identity.sessionOf(input.principal, input.tenant)
-      if (session === undefined || !origins.has(input.origin) || !withinRoot(root, input.path))
+      if (
+        session === undefined ||
+        !origins.has(input.origin) ||
+        (await placeAgainstRoot(root, input.path, false)) === 'outside'
+      )
         return fail({ kind: 'denied', action: 'name-host-object' })
       return nearestToken(root, resolve(root, input.path), input.role)
     },

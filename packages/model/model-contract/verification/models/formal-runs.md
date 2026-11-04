@@ -82,3 +82,19 @@
 
 - 两个守卫没有对 SQL Commands 运行。
 - N4 的可观察版本（同时变异 Commands 的清理前提）没有做。
+
+## SendBoundary
+
+工具与参数同上。运行时间 2026-11-04（北京时间）。`SendBoundary.tla` SHA-256 `52ae8278ba9d4979cf872244a8041a8c0c8ae5106d35bbbf055dd88dab7efb22`。常量：`MaxFaults` 为 2（`send-wide` 为 4）；`Resolutions` 为 value、absent、unreadable、denied，`known-send-unavailable-waits` 为 value、absent、unavailable。
+
+| 配置 | 期望 | 结论 | 生成 / 不同状态 | 深度或轨迹 | 判读 |
+| --- | --- | --- | --- | --- | --- |
+| `send` | 无反例 | 无反例 | 2,179 / 957 | 深度 12 | 正控：三条不变量与 `FinalDecided`、`FinalSettlesUnlessStolen` |
+| `send-wide` | 无反例 | 无反例 | 3,851 / 1,669 | 深度 16 | 正控，放大故障次数 |
+| `send-retry-new-op-window` | 无反例 | 无反例 | 3,265 / 1,407 | 深度 13 | 正控：只换 operation 时窗口守卫守住 `AtMostOneTerminal` |
+| `bad-send-rejection-unavailable` | `FinalDecided` | 时序性质违反 | 2,179 / 957 | 轨迹 10 | 命中 N1：接管后 not-sent 记录被拒，答 `unavailable`，driver 停在 `failed-unavail` |
+| `bad-send-release-overrides` | `FinalDecided` | 时序性质违反 | 2,383 / 1,065 | 轨迹 9 | 命中 |
+| `bad-send-read-failure-drops` | `FinalDecided` | 时序性质违反 | 2,215 / 981 | 轨迹 11 | 命中 N2：终止已写，读记录失败一次，driver 落成 `failed-unavail` |
+| `bad-send-retry-new-op` | `AtMostOneTerminal` | 同名违反 | 1,014 / 507 | 轨迹 6 | 命中 |
+| `bad-send-re-resolve` | `NoCredFailureAfterStart` | 同名违反 | 2,184 / 1,065 | 轨迹 8 | 命中：start 后记录丢失，解绑，重试重新解析得 absent，写了 credential 终止 |
+| `known-send-unavailable-waits` | `RefusalDecided` | 时序性质违反 | 1,377 / 700 | 轨迹 8 | 已知反例：凭据端口答 `unavailable` 的调用一直等，见 Model SPEC 出口表 |

@@ -9,9 +9,17 @@
 // `sessionWorkPrincipals`，证明发行读口签得出会话工作主体，调用真正执行。
 // 请求由生产的 Tool 请求供给者构造（`createReleaseToolRequests`），会话快照读口给出那个作用域。
 // 用例：Shell.execute 一次、Files.write 加 Files.read 各一次，读回原结果；外租户的同一调用被拒。
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { TenantStandingSourceService, tenantStandingKey } from '@omne-harness/identity/cordis'
@@ -554,6 +562,87 @@ describe('Tool segment B: the release rows in one process composition', () => {
         },
       )
       expect(value).toEqual({ witnessed: 0, origins: 0, ledgerViews: 0 })
+    },
+  )
+
+  // The files root here is the short-name spelling that `realpathSync` keeps for the temp directory, as
+  // in the reported `setup --workspace` (R2-D374). The calls name the workspace in its long spelling.
+  // A runtime skip, not `it.runIf`: the tier filter reads the cases statically.
+  it(
+    'Windows: a workspace configured by its 8.3 short name runs Shell and Files with its long name; outside stays refused (R2-D374, R2-D376)',
+    { timeout: 180_000 },
+    async context => {
+      if (process.platform !== 'win32')
+        context.skip('the case uses Windows short names and junctions')
+      const { storageRoot } = workspace()
+      const { rows, tools } = rowsOf(storageRoot)
+      const longRoot = realpathSync.native(tools.filesRoot)
+      if (longRoot.toLowerCase() === tools.filesRoot.toLowerCase())
+        context.skip('the temp directory has no 8.3 short spelling on this host')
+      const child = join(longRoot, 'tank-battle')
+      mkdirSync(child)
+      const outside = join(dirname(longRoot), 'outside')
+      mkdirSync(outside)
+      writeFileSync(join(outside, 'secret.txt'), 'OUTSIDE-BYTES')
+      // A junction outside the root that points into it: `..` from there is the outside directory.
+      const outsideToIn = join(outside, 'to-ws')
+      symlinkSync(child, outsideToIn, 'junction')
+      const policy = accessPolicyRow(allowAll)
+      const saved: ToolDelivery<ToolMessageContentBlock>[] = []
+      const { value } = await withLiveRows(
+        {
+          rows,
+          plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+          entryObjects: entryObjects(workPrincipalsOverStandIn),
+          probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
+        },
+        async ctx => {
+          const { runtime, principal } = await ready(ctx, saved)
+          const shell = (cwd: string, marker: string) =>
+            requestFor(
+              ctx,
+              principal,
+              'Shell.execute',
+              JSON.stringify({ script: `echo ${marker}`, cwd }),
+            )
+          const inside = await call(runtime, principal, await shell(child, 'alias-inside'))
+          const refused = await call(runtime, principal, await shell(outside, 'alias-outside'))
+          const throughLink = await call(
+            runtime,
+            principal,
+            await requestFor(
+              ctx,
+              principal,
+              'Shell.execute',
+              JSON.stringify({ script: 'Get-Content ../secret.txt', cwd: outsideToIn }),
+            ),
+          )
+          const write = await call(
+            runtime,
+            principal,
+            await requestFor(
+              ctx,
+              principal,
+              'Files.write',
+              JSON.stringify({
+                path: join(child, 'alias.txt'),
+                text: 'alias-files',
+                mode: 'create',
+              }),
+            ),
+          )
+          return { inside, refused, throughLink, write }
+        },
+      )
+      expect(value.inside.state.terminal).toMatchObject({ kind: 'completed' })
+      expect(value.inside.text).toContain('alias-inside')
+      expect(value.inside.text).not.toContain('notAuthorized')
+      expect(value.refused.text).toContain('notAuthorized')
+      expect(value.refused.text).not.toMatch(/^alias-outside/mu)
+      expect(value.throughLink.text).toContain('notAuthorized')
+      expect(value.throughLink.text).not.toContain('OUTSIDE-BYTES')
+      expect(value.write.text).toMatch(/^done request=/u)
+      expect(readFileSync(join(child, 'alias.txt'), 'utf8')).toBe('alias-files')
     },
   )
 

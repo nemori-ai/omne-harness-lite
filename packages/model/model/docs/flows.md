@@ -712,9 +712,14 @@ sequenceDiagram
   alt value
     Keep-->>Send: 仅本次的值
     Send->>Send: 发出并记下该值
-  else absent unreadable denied unavailable
+  else absent unreadable
     Keep-->>Call: 该种类
     Note over Send: 不发送
+    Send->>Call: 写失败终止，cause 为 credential
+    Note over Call: driver 以该失败结算调用
+  else denied unavailable
+    Keep-->>Call: 该种类
+    Note over Send: 不发送，不写终止
   end
 ```
 

@@ -108,7 +108,7 @@ harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文�
      - 没有 `--replace-credential`、文件可读：不读标准输入，保管库不变，总结标 `kept`。
      - 没有 `--replace-credential`、文件读不出：退出 1，标准错误写 `setup: the model credential vault <路径> cannot be read (<原因>)` 与修正办法（加 `--replace-credential` 重跑）。原因是 `corrupt` 或 `io`。保管库不变。
      - 有 `--replace-credential`、文件可读：读凭据，经 `replaceVaultSecret` 替换工厂秘密，总结标 `replaced`。
-     - 有 `--replace-credential`、文件读不出：重建。先读凭据并校验，再删除这个文件，再按新建的规则建保管库，总结标 `rebuilt: the old vault could not be read`。旧文件的内容不读。凭据不合格时旧文件留在原处。
+     - 有 `--replace-credential`、文件读不出：重建。先读凭据并校验，再删除这个文件，再按新建的规则建保管库，总结标 `rebuilt: the old vault could not be read`。旧文件的内容不读。凭据不合格时旧文件留在原处。重建后，旧保管库里各租户自己的模型凭据都不再存在，这些租户改用部署默认凭据，直到各自重新执行 `omne credential set`。总结里必须多写一行 `warning` 说明这一点（R2-D366）。这是运维者显式执行的例外；运行时遇到「绑定存在但读不出」时，调用仍以 credential 失败结束，不回落到默认。
    - 文件锁等不到：退出 1。
 9. 设置是新的或变了时，写 `server.json`：先写临时文件，再改名。
 
@@ -146,7 +146,7 @@ Next:
 
 ### serve 怎样用这份配置
 
-省略 `--state-root` 时，状态目录必须存在。省略 `--operator` 时，入口读 `server.json`，用 `openLocalCustodian` 实际打开保管库（不只看文件在不在），确认工作区是目录，必要时重建 `host-files/`，再生成运维者层。
+省略 `--state-root` 时，状态目录必须存在。省略 `--operator` 时，入口读 `server.json`，用 `openLocalCustodian` 实际打开保管库（不只看文件在不在），确认工作区是目录，必要时重建 `host-files/`，再生成运维者层。运维者层里的文件根与 Shell、Files 的 `cwd` 取工作区的真实路径（R2-D376）：工作区经链接或 8.3 短名给出时，用它指的那个目录。真实路径只在内存里用，`server.json` 不变。
 
 - 状态目录、`server.json` 或保管库缺失时，标准错误写 `serve: not set up: <缺什么>` 和一行 ``Run `harness-server setup` first.``，退出 2。stdout 没有记录，不装载任何行。
 - 保管库读不出（原因 `corrupt` 或 `io`）时，标准错误写 `serve: the model credential vault <路径> cannot be read (<原因>)` 与修正办法，退出 2，不装载任何行。路径上是文件时，办法是 `harness-server setup --replace-credential`；不是文件时，办法是删除它后运行 `harness-server setup`。

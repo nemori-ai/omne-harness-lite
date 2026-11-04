@@ -6,12 +6,12 @@ The `omne` command line client for the Harness Server. It prints help or the bui
 
 ## Responsibility and status
 
-This app owns the process entry `omne`, argument parsing, the 25 commands, the credential reader, the login state file, the build identity, and two public functions that resolve and create the state directory. The package organization page sets the boundary at [The access boundary of the minimal CLI](../../docs/package-organization.md#最小-cli-的接入边界). [SPEC.md](SPEC.md) owns the accepted behavior for help, version, usage errors, and the default state directory.
+This app owns the process entry `omne`, argument parsing, the 26 commands, the credential reader, the login state file, the build identity, and two public functions that resolve and create the state directory. The package organization page sets the boundary at [The access boundary of the minimal CLI](../../docs/package-organization.md#最小-cli-的接入边界). [SPEC.md](SPEC.md) owns the accepted behavior for help, version, usage errors, and the default state directory.
 
 Implemented:
 
 - `omne --help` and `omne --version`.
-- The 25 commands. Each command sends one public operation through the SDK and prints one JSON object. `read-history` reads all pages of a session history and prints text for a person, or one JSON object with `--json`. The 18 governance commands are named for their operations and act for the tenant that `login.json` holds. [SPEC.md](SPEC.md#治理命令) lists them.
+- The 25 commands. Each command sends one public operation through the SDK and prints one JSON object. `read-history` reads all pages of a session history and prints text for a person, or one JSON object with `--json`. The 18 governance commands are named for their operations and act for the tenant that `login.json` holds. [SPEC.md](SPEC.md#治理命令) lists them. `credential set|show|unset` sets, shows or unsets the model credential of that tenant. It reads the secret from standard input or a hidden prompt, and it never prints the secret. See [SPEC.md](SPEC.md#模型凭据命令).
 - `login.json` follows the governance results: `login` saves the `loginId` of the response, `switch-current-tenant` updates the tenant, and `revoke-login` deletes the file when it ends this login.
 - Credential entry without echo on a terminal, and from a pipe.
 - `login.json` in the state directory, written through a temporary file and a rename.
@@ -116,6 +116,7 @@ Each module has one job:
 - `src/catalog.ts` holds `defineCatalog`, the production catalog, and `renderHelp`. The production catalog lists the commands from `src/commands.ts`.
 - `src/argv.ts` holds `parseArgv`, a pure function over `string[]` and a catalog.
 - `src/command-support.ts` holds what the runners share: the transport, the usage-error messages, and `loadLogin`, which reads the login file and opens the transport.
+- `src/credential-command.ts` holds the three subcommands of `credential`. The secret enters only through `src/credential.ts` and goes only into the request.
 - `src/governance-commands.ts` holds the 18 governance commands. Each is a small table: which options it accepts, how it checks them without the login, how it builds the request with it, and which local change follows the response.
 - `src/commands.ts` holds the seven account and session commands and puts the governance commands after them. `register` and `login` share one runner. Four session commands share another. `read-history` has its own runner. Each session command is a small table: which options it accepts, how it checks them, and how it builds the request.
 - `src/history-command.ts` holds `read-history`: the page loop and the result object. `src/history-render.ts` renders one entry as text for a person.
@@ -169,6 +170,7 @@ The test task builds this app and its dependencies first, so the SDK `dist` is c
 The test kinds follow [package test responsibilities](../../docs/verification.md#包级测试责任与边界):
 
 - Command tests run in this process. `tests/governance-commands.spec.ts` covers the 18 governance commands: one machine-readable result case for each, the `stage-not-provided` answer, the usage errors, the `loginId` that `login` saves, the login file after `switch-current-tenant`, and the deletion by `revoke-login`. `tests/commands.spec.ts` drives the production catalog with the real SDK HTTP transport against a real HTTP server on `127.0.0.1` (`tests/support/fake-service.ts`). The server answers each operation in the wire form of the public contract. Cases cover each command, the exit-code table, usage errors, the state directory rules, the server precedence, and the no-echo rule.
+- `tests/credential-command.spec.ts` covers the three subcommands of `credential`: the request of each subcommand, the output and exit code of each result, the usage errors, and a secret that does not appear in standard output, standard error or the state directory. The secret is a sentinel value. The process test reads it from a pipe.
 - `tests/read-history.spec.ts` covers `read-history` against a test service that answers like the public contract: a first-page request has `direction` and `pageBytes`, a cursor request has neither, and a cursor request that has them gets `protocol-rejected`. Cases cover paging over three pages, the request shape of each page, the text rendering of text, tool calls, tool results and run start and end, `--json`, the exit code of each outcome, and the reasons for an incomplete read.
 - Process tests spawn `node dist/bin.js` from a temporary directory outside the repository. Each child gets a new environment with `PATH`, a temporary `HOME`, and optional `OMNE_HOME` and `OMNE_SERVER`. They are in the slow tier because every case starts a process.
 - Unit tests cover the credential reader and its line editor, the login state file, `parseArgv`, the catalog, and the state directory functions.

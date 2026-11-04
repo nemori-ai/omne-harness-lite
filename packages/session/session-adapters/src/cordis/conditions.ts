@@ -9,8 +9,9 @@
 //    `advance.execution`; the Session snapshot is read through the `session` face with the caller's
 //    own Access, so the Session execution boundary checks the access (this plugin does not inject
 //    `agentAccessCheck`, SPEC J06);
-// 2. the active Run must hold the execution, and the attempt that the Journal recorded for this
-//    Authority must be the Run's current attempt, as `message-handoff.ts` checks it;
+// 2. the active Run must hold the execution, and the attempt the Session issued the grant of this
+//    Authority's attachment for (R2-D348, R2-D349) must be the Run's current attempt, as
+//    `message-handoff.ts` checks it;
 // 3. the fields come from the facts: the Run adoption (`configuration`), the collaboration mode of
 //    the session (`progression`), the saved model selection (`model`), the open Runtime Context scope
 //    of the session (`context`) and the resident tools (`bindings`). `source` is a digest of the five,
@@ -49,6 +50,7 @@ import type { DomainRef, SqlStorage, TenantDomainLookup } from '@omne-harness/sq
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { canonical } from '../testing/canonical.ts'
 import { readExecutionRecords } from './agent-journal.ts'
+import { attemptOfAuthority } from './attempt-grant.ts'
 
 const OWNER = 'session-adapters/conditions'
 const LOGGER = 'session-adapters/conditions'
@@ -187,7 +189,12 @@ function createConditions<P>(given: SessionConditionsInput, ports: Ports<P>): Cu
     return indexed === null ? fail(denied) : succeed(indexed.session as SessionId)
   }
 
-  /** The current Run must hold the execution, and the Authority must be its current attempt. */
+  /**
+   * The current Run must hold the execution, and the Authority must be its current attempt: the
+   * attempt the Session issued the grant of the Authority's attachment for. An attachment the
+   * Agent did not record, or a grant the Session issued no attempt for, is stale; a snapshot
+   * without its attempt records cannot prove it.
+   */
   async function current(
     tenant: TenantId,
     session: SessionId,
@@ -207,8 +214,16 @@ function createConditions<P>(given: SessionConditionsInput, ports: Ports<P>): Cu
       execution: advance.execution,
     })
     if (records.kind === 'unavailable') return fail(unavailable(records.diagnostic))
-    const attempt = records.authorities.get(`${advance.execution}\0${canonical(advance)}`)?.attempt
-    return attempt !== undefined && attempt === run.advance.attempt ? succeed(run) : fail(stale)
+    if (work.historyIndex === undefined)
+      return fail(unavailable('the Session snapshot carries no attempt records'))
+    const attempt = attemptOfAuthority(
+      records.execution?.attachments ?? [],
+      work.historyIndex.attempts,
+      advance,
+    )
+    return attempt !== undefined && attempt.attempt === run.advance.attempt
+      ? succeed(run)
+      : fail(stale)
   }
 
   /** The collaboration mode the session holds now, with the evidence that declared it. */

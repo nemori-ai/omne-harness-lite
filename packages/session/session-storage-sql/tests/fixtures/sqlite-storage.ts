@@ -59,6 +59,7 @@ import readWorkReads from '../../src/worker/read-work-reads.ts'
 import readWorkVersion from '../../src/worker/read-work-version.ts'
 import readWork from '../../src/worker/read-work.ts'
 import stateItemMigration from '../../src/worker/state-item-migration.ts'
+import attemptGrantMigration from '../../src/worker/attempt-grant-migration.ts'
 import statePartMigration from '../../src/worker/state-part-migration.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
@@ -95,6 +96,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   indexMigration,
   evidenceMigration,
   stateItemMigration,
+  attemptGrantMigration,
   preadmissionMigration,
   admissionAttemptMigration,
   statePartMigration,

@@ -100,6 +100,35 @@ function openPort(config: PluginConfig): {
   return { port: opened.custodian, custodian: opened.custodian }
 }
 
+/** Receives the custodian of one plugin life, or `undefined` when the store could not be opened. */
+type Attach = (custodian: LocalCustodian | undefined) => () => void
+
+type PortMembers = Pick<CredentialPort, 'present' | 'resolve'> &
+  Required<Pick<CredentialPort, 'presentFor' | 'resolveFor'>>
+
+/**
+ * The shared body of the two plugin classes: opens the store, keeps the port in closures, and ends
+ * the custodian with the fiber. Both classes extend `ModelCredentialService` directly.
+ */
+function mount(ctx: Context, config: PluginConfig, attach: Attach | undefined): PortMembers {
+  // The port lives only in these closures. Cordis hands consumers a proxy of the instance, and
+  // `#private` fields fail through it, so a closure is the only place that stays out of reach.
+  const { port, custodian } = openPort(config)
+  const detach = attach?.(custodian)
+  if (custodian !== undefined || detach !== undefined)
+    ctx.fiber.effect(() => () => {
+      // The management handle lets go first, so no bind reaches a closed custodian.
+      detach?.()
+      custodian?.close()
+    })
+  return {
+    present: reference => port.present(reference),
+    resolve: (reference, face) => port.resolve(reference, face),
+    presentFor: input => port.presentFor?.(input) ?? { kind: 'unavailable' },
+    resolveFor: input => port.resolveFor?.(input) ?? { kind: 'unavailable' },
+  }
+}
+
 export class LocalCredentialPlugin extends ModelCredentialService {
   static readonly Config = configSchema
 
@@ -110,18 +139,69 @@ export class LocalCredentialPlugin extends ModelCredentialService {
 
   constructor(ctx: Context, config: PluginConfig) {
     super(ctx)
-    // The port lives only in these closures. Cordis hands consumers a proxy of the instance, and
-    // `#private` fields fail through it, so a closure is the only place that stays out of reach.
-    const { port, custodian } = openPort(config)
-    this.present = reference => port.present(reference)
-    this.resolve = (reference, face) => port.resolve(reference, face)
-    this.presentFor = input => port.presentFor?.(input) ?? { kind: 'unavailable' }
-    this.resolveFor = input => port.resolveFor?.(input) ?? { kind: 'unavailable' }
-    if (!custodian) return
-    ctx.fiber.effect(() => () => {
-      custodian.close()
-    })
+    const members = mount(ctx, config, undefined)
+    this.present = members.present
+    this.resolve = members.resolve
+    this.presentFor = members.presentFor
+    this.resolveFor = members.resolveFor
   }
+}
+
+/**
+ * The binding management of the live credential plugin, seen from outside the plugin tree: bind,
+ * unbind and describe of `LocalCustodian`. Before the plugin is loaded, after it is unloaded, and
+ * while its store could not be opened, a write answers `not-written` and a read `unavailable`.
+ * The handle checks no caller: the assembly that holds it decides who may use it.
+ */
+export type LocalCredentialCustody = Pick<LocalCustodian, 'bind' | 'unbind' | 'describe'>
+
+export type LocalCredentialPluginClass = {
+  new (ctx: Context, config: PluginConfig): ModelCredentialService
+  readonly Config: typeof configSchema
+}
+
+export type LocalCredentialPluginHandle = Readonly<{
+  /** The plugin class. It provides `modelCredential` exactly as `LocalCredentialPlugin` does. */
+  plugin: LocalCredentialPluginClass
+  custody: LocalCredentialCustody
+}>
+
+/**
+ * A credential plugin class whose binding management stays reachable to the assembly that created
+ * it. The service on `modelCredential` still has no management member.
+ */
+export function createLocalCredentialPlugin(): LocalCredentialPluginHandle {
+  const live: { custodian: LocalCustodian | undefined } = { custodian: undefined }
+  const attach: Attach = custodian => {
+    live.custodian = custodian
+    return () => {
+      // Only this life's custodian ends here: a successor that loaded first keeps its own.
+      if (live.custodian === custodian) live.custodian = undefined
+    }
+  }
+  class LocalCredentialManagedPlugin extends ModelCredentialService {
+    static readonly Config = configSchema
+
+    readonly present: CredentialPort['present']
+    readonly resolve: CredentialPort['resolve']
+    override readonly presentFor: NonNullable<CredentialPort['presentFor']>
+    override readonly resolveFor: NonNullable<CredentialPort['resolveFor']>
+
+    constructor(ctx: Context, config: PluginConfig) {
+      super(ctx)
+      const members = mount(ctx, config, attach)
+      this.present = members.present
+      this.resolve = members.resolve
+      this.presentFor = members.presentFor
+      this.resolveFor = members.resolveFor
+    }
+  }
+  const custody: LocalCredentialCustody = {
+    bind: input => live.custodian?.bind(input) ?? { kind: 'not-written' },
+    unbind: input => live.custodian?.unbind(input) ?? { kind: 'not-written' },
+    describe: input => live.custodian?.describe(input) ?? { kind: 'unavailable' },
+  }
+  return Object.freeze({ plugin: LocalCredentialManagedPlugin, custody: Object.freeze(custody) })
 }
 
 export { ModelInstancesLocalPlugin } from './plugins/instances.ts'

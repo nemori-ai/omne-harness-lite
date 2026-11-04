@@ -1,5 +1,5 @@
 import { requiredWorkEntries } from './work-entry-state.ts'
-import { decodeEntry } from './entries.ts'
+import { decodeEntries } from './entries.ts'
 import { validateFrontierBatch } from './frontier-state.ts'
 import { SessionValidationFailure } from './session-validation.ts'
 import { CallConflict } from './call-state.ts'
@@ -603,13 +603,9 @@ function decideAttempt(
   if (command.kind === 'reload' && !expectedHolds(snapshot, 'reload', command.input.expected))
     return rejected({ kind: 'changed', revision: expectedRevision(snapshot, 'reload') })
   // Two recoverers that read the same Run layer: the first claim moves the Run-layer revision, so
-  // the second finds a successor (stale-advance), or a released advance (changed). A claim without
-  // `expected` keeps the earlier behaviour until its callers send one (SPEC PM-05, R2-D327).
-  if (
-    command.kind === 'claim' &&
-    command.input.expected !== undefined &&
-    !expectedHolds(snapshot, 'claim', command.input.expected)
-  )
+  // the second finds a successor (stale-advance), or a released advance (changed) (SPEC PM-05,
+  // R2-D343).
+  if (command.kind === 'claim' && !expectedHolds(snapshot, 'claim', command.input.expected))
     return rejected(
       snapshot.run.advance !== null
         ? { kind: 'stale-advance', current: snapshot.run.advance }
@@ -905,8 +901,10 @@ export function decide(
       command,
     )
     if (decision.kind === 'entries' && previous !== null && decision.entries.length > 0) {
-      const decoded = decision.entries.map(row => {
-        const value = decodeEntry(row)
+      const decoded = decodeEntries(
+        decision.entries,
+        previous.initialization?.initialAdoption ?? null,
+      ).map(value => {
         if (!('ok' in value)) throw new Error('invalid locally encoded entry')
         return value.ok
       })

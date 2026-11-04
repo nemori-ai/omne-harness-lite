@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import { accountCodec, workspaceEquals } from '@omne-harness/legal-identity'
 import {
+  expectedRevision,
   decide,
   deriveDriveOperation,
   deriveSessionOperation,
@@ -608,18 +609,24 @@ describe('the pure judgments at their edges', () => {
     const active = started()
     if (active.run.kind !== 'active' || active.run.advance === null) throw new Error('no advance')
     const { advance } = active.run
-    expect(judgeAdvance(active, { kind: 'attempt', advance, expected: active.revision })).toEqual({
+    expect(
+      judgeAdvance(active, {
+        kind: 'attempt',
+        advance,
+        expected: expectedRevision(active, 'release'),
+      }),
+    ).toEqual({
       kind: 'ok',
     })
     expect(judgeAdvance(active, { kind: 'attempt', advance, expected: '0' as never })).toEqual({
       kind: 'changed',
-      revision: active.revision,
+      revision: expectedRevision(active, 'release'),
     })
     expect(
       judgeAdvance(active, {
         kind: 'attempt',
         advance: { ...advance, attempt: 'other' as never },
-        expected: active.revision,
+        expected: expectedRevision(active, 'release'),
       }),
     ).toEqual({ kind: 'stale-advance', current: advance })
     expect(
@@ -634,7 +641,7 @@ describe('the pure judgments at their edges', () => {
         ...base,
         operation: operationId('finish'),
         run: advance.run,
-        expected: active.revision,
+        expected: expectedRevision(active, 'finishRun'),
         bounded: { kind: 'uninterpretable', evidence: evidence('u') },
       },
     })
@@ -824,7 +831,7 @@ describe('the pure judgments at their edges', () => {
         ...base,
         operation: operationId('finish-before-exit'),
         run: advance.run,
-        expected: active.revision,
+        expected: expectedRevision(active, 'finishRun'),
         bounded: { kind: 'uninterpretable', evidence: evidence('u') },
       },
     })

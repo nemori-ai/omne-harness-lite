@@ -314,7 +314,7 @@ describe('16 delivery release (P08)', () => {
       if (unknown.kind !== 'commit-unknown')
         throw new Error(`expected commit-unknown: ${JSON.stringify(unknown)}`)
       const operation = readToolOperationRef(unknown.operation)
-      expect(operation).toMatchObject({ tenant: tenantA, call, admission })
+      expect(operation).toMatchObject({ call, admission })
       expect(operation.operation).not.toBe(admission)
       expect(assembly.store.commits).toBe(before + 1)
 

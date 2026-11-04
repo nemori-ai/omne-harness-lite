@@ -7,6 +7,7 @@
 // every small input.
 import { afterEach, describe, expect, it } from 'vitest'
 import type {
+  CommitReceipt,
   ExecutionHistoryBoundary,
   SessionFailure,
   SessionLogConsequence,
@@ -193,6 +194,7 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
             run: run.run,
             instance: { owner: 'agent', id: 'instance-2' },
             continuity: evidence('continuity'),
+            expected: run.revision,
           },
         },
         guards: [],
@@ -254,6 +256,57 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
     expect(index.inputs.map(item => item.input)).not.toContain('input-4')
     expect(index.inputs.find(item => item.input === 'input-3')?.members[0]?.attempt).toBe(second)
     expect(first).not.toBe(second)
+  })
+
+  it('a row without the attempt on a Run with two SE15 is proved by the grant of its attempt (R2-D349)', async () => {
+    const s = await created()
+    ok(await s.a.accept(TENANT_A, SESSION, 'input-1'))
+    const started = ok<{ receipt: CommitReceipt }>(await startRun(s.a, 'start-run-1'))
+    const run = activeRun(await workOf(s.a))
+    const claimed = ok<{ receipt: CommitReceipt }>(
+      await s.a.port.commit({
+        access: s.a.access(TENANT_A),
+        command: {
+          kind: 'claim',
+          input: {
+            tenant: TENANT_A,
+            session: sessionId(SESSION),
+            operation: operationId('claim-1'),
+            run: run.run,
+            instance: { owner: 'agent', id: 'instance-2' },
+            continuity: evidence('continuity'),
+            expected: run.revision,
+          },
+        },
+        guards: [],
+      }),
+    )
+    const later = activeRun(await workOf(s.a))
+    expect(later.attempt).not.toBe(run.attempt)
+    ok(await s.a.accept(TENANT_A, SESSION, 'input-2'))
+    ok(await s.a.accept(TENANT_A, SESSION, 'input-3'))
+    // The grants are the receipt sources the Session gave out, not the evidence of the SE15 rows.
+    const granted = (input: string, grant: CommitReceipt['source']) =>
+      s.agent.admit({
+        tenant: TENANT_A,
+        session: SESSION,
+        execution: run.execution,
+        input: input as never,
+        operation: `aop-submit-${input}`,
+        accepted: evidence(`agent/accepted/${input}`),
+        grant,
+        attachment: 'attachment-1',
+      })
+    await granted('input-2', started.receipt.source)
+    await granted('input-3', claimed.receipt.source)
+    const { index, reads } = indexOf(s.a, await workOf(s.a), run.execution)
+    const attemptOf = (input: string) =>
+      index.inputs.find(item => item.input === input)?.members.map(item => item.attempt)
+    expect(attemptOf('input-2')).toEqual([run.attempt])
+    expect(attemptOf('input-3')).toEqual([later.attempt])
+    const third = reads.admissions.find(page => page.input === ('input-3' as never))?.records[0]
+    expect(third).toMatchObject({ attempt: later.attempt, grant: claimed.receipt.source })
+    expect(third?.attemptStarted).not.toEqual(claimed.receipt.source)
   })
 
   it('one Run with one SE15 still proves a row that names no attempt', async () => {

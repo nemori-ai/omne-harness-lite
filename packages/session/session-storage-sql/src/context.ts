@@ -162,7 +162,13 @@ export async function readHandler(
     requestKey: randomUUID(),
     input,
   })
-  if (result.kind === 'read') return succeed(result.output as HandlerOutput)
+  if (result.kind === 'read') {
+    const output = result.output as HandlerOutput
+    // A stored row that does not read (support.ts `handler`).
+    return output['kind'] === 'malformed'
+      ? failure(unavailable(`read ${handler}: ${String(output['diagnostic'])}`))
+      : succeed(output)
+  }
   return failure(
     unavailable(`read ${handler}: ${result.kind === 'cancelled' ? 'cancelled' : result.reason}`),
   )

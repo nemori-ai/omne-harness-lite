@@ -70,7 +70,6 @@ function identity(producer: StreamProducer = 'model', owner = tenant, stream = '
         typeof tuple[2] !== 'string'
       )
         return { failure: { kind: 'malformed' } }
-      if (tuple[2] !== checked.value) return { failure: { kind: 'foreign-tenant' } }
       return { ok: JSON.stringify(tuple) }
     },
   }
@@ -290,14 +289,9 @@ describe('identity, qualification and publication checks', () => {
     },
   )
 
-  it('O05 denies a reference whose original call belongs to another tenant', async () => {
-    const f = setup()
-    const foreign = identity('model', foreignTenant)
-    expect(await frame(iterator(f.observer, foreign.ref, access))).toEqual(ended('denied'))
-    expect(f.resources()).toEqual(emptyResources)
-  })
-
-  it.each(['wrong-producer', 'unknown', 'retired'] as const)(
+  // A call of another tenant is not refused as such (R2-D370): the observer's tenant has no such
+  // publication, so it ends as an unknown one does.
+  it.each(['wrong-producer', 'unknown', 'another-tenant-call', 'retired'] as const)(
     'O05 exposes %s only after allow',
     async kind => {
       const f = setup()
@@ -307,7 +301,9 @@ describe('identity, qualification and publication checks', () => {
           ? identity('tool').ref
           : kind === 'unknown'
             ? identity('model', tenant, 'str_unknown').ref
-            : f.ref
+            : kind === 'another-tenant-call'
+              ? identity('model', foreignTenant).ref
+              : f.ref
       expect(await frame(iterator(f.observer, ref, access))).toEqual(ended('stale-stream'))
       expect(f.events().some(event => event.action === 'target-read')).toBe(true)
       expect(f.resources()).toEqual(emptyResources)

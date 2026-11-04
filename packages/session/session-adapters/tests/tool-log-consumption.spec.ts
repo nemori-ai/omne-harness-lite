@@ -26,10 +26,7 @@ import type {
   Material,
   ReceivedEntry,
 } from '@omne-harness/agent-contract'
-import {
-  sampleReceivedModelResult,
-  sampleReceivedToolAccount,
-} from '@omne-harness/agent-contract/testing'
+import { sampleReceivedModelResult } from '@omne-harness/agent-contract/testing'
 import {
   agentJournalEntriesKey,
   agentJournalKey,
@@ -908,34 +905,6 @@ describe('another tenant', () => {
     expect(f.reads.load).toBe(0)
   })
 
-  it('an entry whose call names another tenant is denied, not committed', async () => {
-    const s = await toolScene('foreign-call')
-    await receive(s, s.result, 'result')
-    const foreign = sampleReceivedToolAccount(memoryOtherAccess('x', 'y').tenant, s.name)
-    const f = await assembled(s, {
-      wraps: {
-        entries: async input => {
-          const read = await s.view.entries.read(input)
-          if ('failure' in read) return read
-          return succeed({
-            ...read.ok,
-            items: read.ok.items.map(({ sequence, entry }) => ({
-              sequence,
-              entry: entry.kind === 'received' ? { ...entry, delivery: foreign.delivery } : entry,
-            })),
-          })
-        },
-      },
-    })
-
-    expect(await f.consume()).toMatchObject({ failure: { kind: 'denied' } })
-    expect(f.commits).toHaveLength(0)
-  })
-})
-
-// --- configuration and Cordis --------------------------------------------------------------------
-
-describe('the configured timeout', () => {
   it('a load that does not answer in time is unavailable and commits nothing', async () => {
     const s = await toolScene('timeout')
     await receive(s, s.result, 'result')

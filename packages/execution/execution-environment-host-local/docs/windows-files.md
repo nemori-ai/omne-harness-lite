@@ -17,6 +17,10 @@
 
 引擎首次使用根时记录设备号和文件索引，之后的获取共用此身份。首次绑定失败可以重试。已绑定的根被替换时拒绝操作。
 
+请求路径的前几段要与配置的根相同，才算在根下。盘符与大小写不同的段按文字比较。写法不同的段（例如 8.3 短名与长名）在根自己的父目录下不跟随链接比较：两个名字是同一目录项（卷序号与文件索引相同）才算相同（R2-D374）。其他名字的联接即使指向根也不算。根以下的段不归一，仍由桥逐段打开。路径越出根、含 `..` 或形式不合格时返回 `notAuthorized`。这个判断由根入口的 `hostSegmentsBelowRoot` 提供，在后端前面判断路径的守卫用同一个（R2-D376）。
+
+配置的根本身是联接或符号链接时不受支持。后端用 `lstat` 记下根的身份，得到的是链接本身。实测这样的根上 `list` 与 `stat` 都返回 `notAuthorized`，没有测其余操作。根要用真实路径配置；发行在读配置时取工作区的真实路径。
+
 每个请求打开根，再通过 `NtCreateFile` 的 `RootDirectory` 逐段打开子项。桥保留全部祖先句柄，并拒绝中间重解析点和跨卷项。`FILE_OPEN_REPARSE_POINT` 使桥检查链接本身。内容操作在实际句柄上核点名对象及硬链接数，之后才读取。对象 token 使用卷序号和 64 位文件索引，与 `hostObjectToken` 的设备号、inode 表示一致。
 
 `list` 通过 `NtQueryDirectoryFile` 枚举已打开目录，条目名来自目录项。`search` 按字节序深度优先遍历，保留配置的条目、字节及单文件预算，不进入重解析目录。
@@ -39,7 +43,7 @@ Windows 不提供原位写。新建以 `NtCreateFile` 的 `FILE_CREATE` 实现�
 
 每项发布的异步目标复核结束后，批次再次检查所有者是否封闭。封闭时返回原批次的 `unknown/closed`，保留已确认发布范围，并清理未发布暂存文件。此检查阻止尚未启动的发布，不撤销已经开始的原生操作。
 
-真实 Windows 测试见[读取与围栏](../tests/windows-files/read.spec.ts)、[名字操作](../tests/windows-files/tree.spec.ts)、[新建与替换](../tests/windows-files/write.spec.ts)及[复制与批次恢复](../tests/windows-files/batch.spec.ts)。回执故障用例使用真实文件系统，只注入清单写入失败。这些测试不证明 Linux 行为、完整提供者组合或断电恢复。
+真实 Windows 测试见[根的不同写法](../tests/windows-files/path-alias.spec.ts)、[读取与围栏](../tests/windows-files/read.spec.ts)、[名字操作](../tests/windows-files/tree.spec.ts)、[新建与替换](../tests/windows-files/write.spec.ts)及[复制与批次恢复](../tests/windows-files/batch.spec.ts)。回执故障用例使用真实文件系统，只注入清单写入失败。这些测试不证明 Linux 行为、完整提供者组合或断电恢复。
 
 [边界回归](../tests/windows-files/review-regressions.spec.ts)覆盖空版本、缺失对象映射，以及发布前复核期间封闭的交错。交错测试只暂停真实 stat 的返回，不替换文件系统结果。
 

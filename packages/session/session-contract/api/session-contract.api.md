@@ -220,6 +220,7 @@
 - `digestSessionEntries` · `entries-interpretation.d.ts`
 - `digestSessionLog` · `log-interpretation.d.ts`
 - `executionReadThrough` · `log-interpretation.d.ts`
+- `expandHistoryEntries` · `entries.d.ts`
 - `expectedHolds` · `judgments.d.ts`
 - `expectedRevision` · `judgments.d.ts`
 - `initializationRegistrationCommit` · `initialization-plan.d.ts`
@@ -689,9 +690,10 @@ export declare function decideManagement(snapshot: WorkSnapshot, command: Sessio
 import type { SessionCommand } from './ports.ts';
 import type { WorkSnapshot } from './values.ts';
 import type { Decision } from './judgments.ts';
+import type { HistoryEntry } from './faces.ts';
 export declare function decideProducerFact(snapshot: WorkSnapshot, command: Extract<SessionCommand, {
     kind: 'receive';
-}>): Decision;
+}>, entryOrigin?: HistoryEntry['origin']): Decision;
 ```
 
 ## 声明文件 `decide-results.d.ts`
@@ -1009,7 +1011,11 @@ export type SessionEntry = Readonly<{
 export type SessionEntryKind = SessionEntry['kind'];
 export declare function toJsonValue(plain: unknown): JsonValue;
 export declare function fromJsonValue(tree: JsonValue): unknown;
-export declare function encodeEntry(entry: SessionEntry, origin: HistoryEntry['origin']): EncodedEntry;
+export type EntryReferences = Readonly<{
+    created?: InitialAdoption | null;
+    residents?: readonly ResidentTool[];
+}>;
+export declare function encodeEntry(entry: SessionEntry, origin: HistoryEntry['origin'], references?: EntryReferences): EncodedEntry;
 export type DecodedEntry = Readonly<{
     ok: SessionEntry;
 }> | Readonly<{
@@ -1017,7 +1023,16 @@ export type DecodedEntry = Readonly<{
 }> | Readonly<{
     malformed: string;
 }>;
-export declare function decodeEntry(entry: Pick<HistoryEntry, 'kind' | 'payload'>): DecodedEntry;
+export type StoredEntry = Pick<HistoryEntry, 'kind' | 'payload'> & Partial<Pick<HistoryEntry, 'schema' | 'origin'>>;
+export declare function decodeEntry(entry: StoredEntry, references?: EntryReferences): DecodedEntry;
+export declare function decodeEntries(rows: readonly StoredEntry[], created: InitialAdoption | null): DecodedEntry[];
+export declare function expandHistoryEntries(rows: readonly HistoryEntry[], created: InitialAdoption | null): Readonly<{
+    ok: readonly HistoryEntry[];
+}> | Readonly<{
+    missing: 'created';
+}> | Readonly<{
+    malformed: string;
+}>;
 ```
 
 ## 声明文件 `faces.d.ts`
@@ -1138,7 +1153,7 @@ export interface SessionWork<P> {
         run: RunId;
         instance: AgentInstanceRef;
         continuity: DurableEvidence;
-        expected?: SessionRevision;
+        expected: SessionRevision;
     }>): Reply<Readonly<{
         receipt: CommitReceipt;
         advance: AdvanceRef;
@@ -1535,6 +1550,7 @@ export type SessionAttemptRecord = Readonly<{
     execution: string;
     ordinal: string;
     started: DurableEvidence;
+    grant?: DurableEvidence;
 }>;
 export type SessionTakenRecord = SessionBatchRecord & Readonly<{
     commit: DurableEvidence;
@@ -1639,6 +1655,7 @@ export { sessionModesBlock } from './block.ts';
 export { expectedHolds, expectedRevision, judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
 export { decide, commandDigest } from './decide.ts';
 export { batchEvidence, reduce } from './reduce.ts';
+export { expandHistoryEntries } from './entries.ts';
 export { CONTEXT_SCOPE_KINDS, contextScopeOf, contextScopesOf, type SessionContextScope, } from './context-scopes.ts';
 export { projectSessionLog, type SessionLogObservation, type SessionLogConsequence, } from './projection.ts';
 export { projectSessionEntries, digestSessionEntries } from './entries-interpretation.ts';
@@ -2606,8 +2623,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:dc5660dcbdcc2b1372a984afedce11c969b50c35f18567cff3debef7cd34279e";
-export declare const SESSION_RELEASE_DIGEST = "sha256:dc5660dcbdcc2b1372a984afedce11c969b50c35f18567cff3debef7cd34279e";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:f62f8582c50e215cad383441b870afd4e153e2de57c1e1d0901da29cbefddf41";
+export declare const SESSION_RELEASE_DIGEST = "sha256:f62f8582c50e215cad383441b870afd4e153e2de57c1e1d0901da29cbefddf41";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3269,7 +3286,7 @@ export type RunState = Readonly<{
     advance: AdvanceRef | null;
     ordinal: string;
     execution: ExecutionRef;
-    revision?: SessionRevision;
+    revision: SessionRevision;
 }> | Readonly<{
     kind: 'terminal';
     terminal: RunTerminal;

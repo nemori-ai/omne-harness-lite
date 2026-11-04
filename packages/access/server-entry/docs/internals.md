@@ -12,18 +12,19 @@
 | --------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `IdentityOperations`、`PrincipalIssuer` | identity 的公开类型  | 注册激活、签发登录、识别登录；签发本成员的系统主体与代租户行事主体                                                                                                                                      |
 | `IdentityGovernance`                    | identity 的公开类型  | 18 个治理操作与成功业务访问的报告。可选，与 `IdentityOperations` 共用记录                                                                                                                               |
+| `ModelCredentialCustody`                | `src/model-credentials.ts` | 3 个模型凭据操作。可选；缺席时这 3 个操作答 `stage-not-provided`。端口拥有准入：本成员只交出登录的代租户行事主体与行事租户 |
 | `SessionIngressFaces`                   | `src/faces.ts`       | Session 四个面中本成员实际调用的子集：`management.create`、`work.accept`、`work.queryOperation`、`work.cancelRun`、`work.stopCall`、`history.begin`、`history.next`。真实 `SessionService` 按结构满足它 |
 | `DefinitionResolver`                    | `src/faces.ts`       | 定义名到 `SessionCreation` 采用字段的解析函数。映射数据归 `definition-mappings`，装配注入函数                                                                                                           |
 | `DiagnosticSink`                        | `src/diagnostics.ts` | 结构化诊断。事件只有 code、path 与 operation，没有正文、证明、凭据、主体或依赖的错误文本                                                                                                                |
 
-本成员不调用 authorization。会话操作的资格由 Session 面在访问裁定里判断（handoff「登录到 Access」第 3 点）。治理操作的资格由 identity 在提交时判断（identity ID-18）。
+本成员不调用 authorization。会话操作的资格由 Session 面在访问裁定里判断（handoff「登录到 Access」第 3 点）。治理操作的资格由 identity 在提交时判断（identity ID-18）。模型凭据操作的资格由 `modelCredentials` 端口判断。
 
 ## 模块
 
 | 文件                | 责任                                                                                                                                             |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `http.ts`           | `createServerEntry`：只绑 `127.0.0.1` 的监听、承载页第 1 到第 5 步、按路径读取请求体并计数、分派到两个位置、写出答复、`stop`                     |
-| `governance.ts`     | 治理位置：声明不提供的 14 个操作的常量；`register-and-activate` 与 `issue-login` 交 identity；18 个治理操作的第 4、6 步与到治理端口的映射       |
+| `governance.ts`     | 治理位置：声明不提供的 14 个操作的常量；`register-and-activate` 与 `issue-login` 交 identity；18 个治理操作的第 4、6 步与到治理端口的映射；3 个模型凭据操作的第 4、6 步、代租户行事主体与到 `modelCredentials` 的映射 |
 | `session.ts`        | 会话位置：读取分派、七个操作的判断次序第 2 到第 6 步、Session 结果到公开 `outcome` 的映射                                                        |
 | `identity-steps.ts` | 登录识别，账号关系核对，签发代租户行事主体，成功业务访问的报告。系统主体在首次需要时签发一次并保留                                               |
 | `derivation.ts`     | 会话标识、输入标识、三族操作身份与登录入口证据的派生                                                                                             |
@@ -86,6 +87,7 @@ Session 失败种类在该操作公开结果集之外时（例如 `login-require
 | `tests/http-layer.spec.ts`           | 监听地址、路径、方法、Host、Content-Type、请求体上限、空正文 500、stop                                                         |
 | `tests/governance.spec.ts`           | 注册激活、签发登录与 `loginId`、四个阶段操作、声明不提供的 14 个操作不识别登录、协议拒绝、identity 抛错                         |
 | `tests/governance-operations.spec.ts` | 18 个治理操作的结果映射与状态码、第 4 与第 6 步先于端口、`denied` 与 `not-visible` 逐字节相同、端口的两类拒绝、诊断无秘密      |
+| `tests/model-credentials.spec.ts`    | 3 个模型凭据操作的第 4、6 步、交给端口的主体与租户、跨租户 `denied` 逐字节相同且不披露对方绑定、端口各结果的映射、端口抛错、没有端口时 `stage-not-provided`、秘密不进响应与诊断 |
 | `tests/business-access.spec.ts`      | 只有会话位置的 `succeeded` 与建立成功的观察报告业务访问；报告失败不改答复；只刷新报告的那份登录                                |
 | `tests/observation-login.spec.ts`    | 撤销立刻结束该登录的观察、到期在下一轮结束、不可判定时 `ended(unavailable)`、其他登录的取消得到 `not-found` 且不调用 Session    |
 | `tests/session-operations.spec.ts`   | 七个操作、判断次序逐步、denied 逐字节相同、两类依赖抛错                                                                        |

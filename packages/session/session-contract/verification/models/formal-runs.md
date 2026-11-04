@@ -16,7 +16,7 @@
 | 判读 | 正控要求 `Model checking completed. No error has been found.`。负控要求日志点名预期性质；活性负控只声明一条性质并出现 `Temporal properties were violated` |
 | 运行时间 | 2026-11-04（北京时间）；R2-D327 修订后同日复跑，下表是复跑的结果 |
 
-输入摘要：`RunAdvance.tla` SHA-256 `059f0d22237af85d85eb897aa0bd02b26caf299e3858d86e47242d7f7c4e07c8`，`WakeUp.tla` SHA-256 `0e24eedc52d0d9085aea06cddbf79a274bc81d305a78eb1b759bb563951d8a55`（WakeUp 只改了注释）。
+输入摘要：`RunAdvance.tla` SHA-256 `b9a7675c1d1cef274165ac8e9bbe210ea1c1be496b7d743c094482da571d0036`（R2-D343 只改了注释，并整体复跑十二个配置，判定与下表相同；负控命中时的状态数随并行调度略有出入，正控不变），`WakeUp.tla` SHA-256 `0e24eedc52d0d9085aea06cddbf79a274bc81d305a78eb1b759bb563951d8a55`（WakeUp 只改了注释）。
 
 ## RunAdvance
 
@@ -35,7 +35,7 @@ R2-D327 采用 Run 层修订：`positive-run` 是设计正控，`negative-global
 | `bad-revive` | `TerminalStable` | 命中 | 212 / 145 | 6 | 负控 |
 | `bad-post-terminal-attempt` | `NoPostTerminalAttempt` | 命中 | 207 / 146 | 6 | 负控 |
 | `bad-silent-reconcile` | `ReconcileNeedsConfirmation` | 命中 | 197 / 136 | 6 | 负控 |
-| `bad-claim-no-expected` | `OneClaimPerRead` | 命中 | 461 / 362 | 9 | 与 `positive-claims` 只差 `Bug`：不带 `expected` 的 `claim` 让两个恢复者先后成立。这是兼容期内不带 `expected` 的调用方的形态，见 F4 |
+| `bad-claim-no-expected` | `OneClaimPerRead` | 命中 | 461 / 362 | 9 | 与 `positive-claims` 只差 `Bug`：决定不比较 `expected` 时，两个恢复者先后成立（负控，F4）。R2-D343 起 `claim` 的 `expected` 必填，类型上不再有不带它的调用方，所以这条负控对应源码变异 M4 |
 
 R2-D327 之前的首次运行（`claim` 为一步，没有 `Recoverers`）十个配置也全部按预期，`positive-run` 为 415,719 / 127,283。草稿的三处修订：`Naturals` 换成 `Integers`（草稿用了 `-1`）；`OneOpenRun` 改为「当前 Run 之前的每个 Run 都已终结」，原写法对 `second-run` 不敏感；`retake` 改为承接后输入仍留在待处理，原写法下这个开关不可达。第一次运行时两个正控报 `NoAbandonedClose`：收束期间的 `Release` 与 `Claim` 也推进 Run 层修订。收束由持有 advance 的 attempt 执行，所以模型让这两个动作在收束期间等待，并在 README 写明这是 S4 的前提。
 
@@ -81,7 +81,7 @@ F1 至 F5 按 R2-D327 处理，下表写处置。
 | F1 失败被吞 | session 成员 `advance.ts`：`check` 读快照失败、`openRun` 的非 `commit-unknown` 失败、`invoke` 的不可重试失败与重试用尽、`handOver` 的 `receive` 失败、`closeRefused` 读失败与重试超限，都直接返回，没有诊断 | 模型 `negative-swallow`；session SPEC 的 C2 失败分支写「停止并记诊断」 | 已修。每个停止的分支记 `SessionDiagnostic`，经工厂选项 `diagnose` 交给装配，见 session SPEC 的诊断出口。守卫 `wake-up.spec.ts` |
 | F2 已授予未发起的 Run 不再发起 | `startRun` 已提交、`invoke` 没有受理（崩溃，或重试用尽）后，扫描找到会话交给 S1，S1 的 `judgeRunStart` 答 `run-active` 就返回。没有路径再发 `invoke`，Run 永远 active | 模型 `negative-scan-start-only`；SPEC PA-06 第 2 项、PM-14 要求以同一出站身份重发 | 已修。S1 把这样的会话交 C2 重放：认回原 `startRun`，以同一出站身份 `invoke`。守卫 `wake-up.spec.ts`（内存与 SQL 提供者对） |
 | F3 `expected` 与整份快照修订比较 | `judgeAdvance` 用 `claim.expected !== snapshot.revision`，每个 accept 都推进修订。有界收束在繁忙会话里 `retriesOnChanged` 次后放弃 | 模型 `negative-global-expected` 与 `positive-run` 的对照 | 已修。推进命令的 `expected` 是 Run 层修订（契约 I-R2 后的「推进命令的 expected」）。守卫 `run-advance-invariants.spec.ts`、`wake-up.spec.ts`、`pipeline.spec.ts` |
-| F4 `claim` 的 `expected` 与文档不符 | SPEC I-R2 写 `claim` 核对 `expected`，PM-05 写 `claim` 可答 `changed`；但 `claim` 的签名没有 `expected`，`decideAttempt` 不比较修订 | 读 `faces.ts` 与 `decide.ts`；模型 `bad-claim-no-expected` | 先兼容：`claim` 增加可选 `expected`，带了就核对，第二个读到同一 Run 层的恢复者得 `stale-advance`；不带时不比较。调用方都在本包之外的 session-adapters、session-storage-sql 与 harness-server 测试中，收口由 Reduce 安排 |
+| F4 `claim` 的 `expected` 与文档不符 | SPEC I-R2 写 `claim` 核对 `expected`，PM-05 写 `claim` 可答 `changed`；但 `claim` 的签名没有 `expected`，`decideAttempt` 不比较修订 | 读 `faces.ts` 与 `decide.ts`；模型 `bad-claim-no-expected` | `claim` 增加 `expected`，核对它等于 Run 层修订，第二个读到同一 Run 层的恢复者得 `stale-advance`（R2-D327）。R2-D327 先让它可选、并让等于快照修订的 `expected` 也成立；R2-D343 收口为终态：`claim.expected` 与 `RunState.active.revision` 必填，`expectedHolds` 只与 Run 层修订比较 |
 | F5 文档过时 | session SPEC「实现现状」说 C3 不触发，但 `control.ts` 已实现 C3；周期扫描读 `inputs`、`unresolved`、`controls`，文档只写前两个 | 读 `control.ts`、`scan.ts` | 已同步 |
 
 ## 未覆盖

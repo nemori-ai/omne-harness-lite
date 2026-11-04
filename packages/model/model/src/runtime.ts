@@ -187,7 +187,7 @@ export function createModelRuntime<P>(
         },
         inspect: async ({ principal, tenant, reference }) => {
           const resolved = resolveModelInvocationRef(reference, tenant)
-          if ('failure' in resolved) return referenceFailure(resolved.failure, 'inspect')
+          if ('failure' in resolved) return referenceFailure(resolved.failure)
           return commands.recall({ principal, ...resolved.ok })
         },
         dispatches: ({ principal, tenant, call }) =>
@@ -208,7 +208,7 @@ export function createModelRuntime<P>(
       consumption: {
         beginRead: async ({ principal, tenant, reference, operation, result }) => {
           const resolved = resolveModelInvocationRef(reference, tenant)
-          if ('failure' in resolved) return referenceFailure(resolved.failure, 'beginRead')
+          if ('failure' in resolved) return referenceFailure(resolved.failure)
           return (
             reserved(operation) ??
             commands.acquireRead({
@@ -254,7 +254,7 @@ export function createModelRuntime<P>(
       instances: {
         connect: async ({ principal, tenant, reference }) => {
           const resolved = resolveModelInvocationRef(reference, tenant)
-          if ('failure' in resolved) return referenceFailure(resolved.failure, 'connect')
+          if ('failure' in resolved) return referenceFailure(resolved.failure)
           return instances.directory.connect({
             principal,
             tenant: resolved.ok.tenant,

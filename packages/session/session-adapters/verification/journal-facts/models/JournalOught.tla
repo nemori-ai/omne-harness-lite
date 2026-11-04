@@ -20,6 +20,13 @@
 (* cursor member, WFact per added fact. The session log's content bytes    *)
 (* are abstracted as logContent, growing by LogMin or LogBig per step.     *)
 (*                                                                         *)
+(* The writer keeps reader records of its own (the in-process reader view).  *)
+(* They are a projection of the fold: every fact the writer applies to its   *)
+(* records is a fact of the batch it appends, and a successor rebuilds the    *)
+(* records by projecting the fold (K-23 end state: nothing is stored beside  *)
+(* the facts). The events the records number are the event facts, by the     *)
+(* fold's rule.                                                               *)
+(*                                                                         *)
 (* Bug switches make one negative control each; all FALSE is the design.  *)
 (***************************************************************************)
 EXTENDS Naturals, Sequences, FiniteSets, TLC
@@ -38,7 +45,9 @@ CONSTANTS
   CacheOnlyWrite,    \* bug: the provider folds a judge into the view without appending
   UpsertCursor,      \* bug: the cursor of the last batch is rewritten in place
   RetryReexecutes,   \* bug: a same-input retry appends a second batch
-  DriverMarksFailed  \* FALSE: the driver leaves the slot running after a rejection
+  DriverMarksFailed, \* FALSE: the driver leaves the slot running after a rejection
+  EventWithoutFact   \* bug: the writer appends an event to its records for a command whose
+                     \*      batch carries no event fact (a preserve); the fold projects none
 
 ASSUME MaxSteps \in Nat /\ MaxSteps >= 1
 ASSUME LogMin \in Nat /\ LogMin >= 1 /\ LogBig >= LogMin
@@ -58,11 +67,12 @@ VARIABLES
   preserves,         \* material preserves made
   writerGen,         \* authority generation of the live writer
   lastCommittedView, \* the view right after the last successful commit
-  retryMismatch      \* TRUE once a same-input retry derived a different answer
+  retryMismatch,     \* TRUE once a same-input retry derived a different answer
+  records            \* the writer's reader records: the events it numbered and the facts it applied
 
 vars == <<log, view, head, step, phase, slot, lastCommit, answers, logContent,
           crashed, crashes, rejects, retries, corePub, preserves, writerGen,
-          lastCommittedView, retryMismatch>>
+          lastCommittedView, retryMismatch, records>>
 
 Phases == {"intend", "receive", "judge"}
 Kinds  == {"intend", "receive", "judge", "attach", "recognize", "preserve"}
@@ -71,7 +81,13 @@ NoRevision == {"recognize", "preserve"}
 EmptyFn == [x \in {} |-> 0]
 
 EmptyView == [rev |-> 0, cursor |-> [m \in Members |-> 0], intents |-> {},
-              results |-> {}, judged |-> {}, ops |-> EmptyFn, gen |-> 1]
+              results |-> {}, judged |-> {}, ops |-> EmptyFn, gen |-> 1, events |-> 0]
+
+(* The events a batch projects when applied to v: one per new fact of the three event kinds
+   (an intend is an input-taken event, a receive an entry, a judge a message). The rule of
+   which facts are events lives here, in the fold, and nowhere else. *)
+NewEvents(v, b) == Cardinality(b.intents \ v.intents) + Cardinality(b.results \ v.results)
+                   + Cardinality(b.judged \ v.judged)
 
 (* fold : (View, index, Batch) -> View. Pure, total, no clock, no I/O.  *)
 Apply(v, i, b) ==
@@ -81,7 +97,13 @@ Apply(v, i, b) ==
    results |-> v.results \cup b.results,
    judged  |-> v.judged \cup b.judged,
    ops     |-> IF b.op \in DOMAIN v.ops THEN v.ops ELSE v.ops @@ (b.op :> i),
-   gen     |-> IF b.kind = "attach" THEN b.gen ELSE v.gen]
+   gen     |-> IF b.kind = "attach" THEN b.gen ELSE v.gen,
+   events  |-> v.events + NewEvents(v, b)]
+
+(* The reader records a view projects: what a successor rebuilds from the fold alone. *)
+ProjectOf(v) == [events |-> v.events, intents |-> v.intents, results |-> v.results,
+                 judged |-> v.judged]
+EmptyRecords == [events |-> 0, intents |-> {}, results |-> {}, judged |-> {}]
 
 RECURSIVE FoldN(_, _)
 FoldN(s, n) == IF n = 0 THEN EmptyView ELSE Apply(FoldN(s, n - 1), n, s[n])
@@ -147,6 +169,12 @@ Accept(b0) ==
                 ELSE answers @@ (b.op :> [op |-> b.op, rev |-> view'.rev])
   /\ lastCommittedView' = view'
   /\ lastCommit' = "ok"
+  (* The writer applies its own batch to its records: the facts it appended, the events the
+     fold numbers for them. *)
+  /\ records' = [events  |-> records.events + NewEvents(view, b0),
+                 intents |-> records.intents \cup b0.intents,
+                 results |-> records.results \cup b0.results,
+                 judged  |-> records.judged \cup b0.judged]
   /\ UNCHANGED <<slot, rejects, retryMismatch, preserves>>
 
 (* The storage refused the batch before accepting it (command_limit, ...).
@@ -156,7 +184,7 @@ Refuse ==
   /\ rejects < MaxRejects
   /\ rejects' = rejects + 1
   /\ UNCHANGED <<log, view, head, answers, lastCommittedView, retryMismatch, corePub,
-                 preserves>>
+                 preserves, records>>
   /\ IF DriverMarksFailed
        THEN \/ (lastCommit' = "retry" /\ slot' = slot)
             \/ (lastCommit' = "rejected" /\ slot' = "failed")
@@ -205,7 +233,7 @@ Recognize ==
         /\ lastCommittedView' = view'
         /\ lastCommit' = "ok"
   /\ UNCHANGED <<step, phase, slot, logContent, crashed, crashes, rejects, retries,
-                 preserves, writerGen, retryMismatch>>
+                 preserves, writerGen, retryMismatch, records>>
 
 (* A material preserve: a batch with no fact and no cursor change, one publication. The
    design appends it as a batch of the core, so the core's next position follows. The bug
@@ -224,6 +252,9 @@ Preserve ==
         /\ answers' = answers @@ (b.op :> [op |-> b.op, rev |-> view'.rev])
         /\ lastCommittedView' = view'
         /\ lastCommit' = "ok"
+        (* The bug: the writer numbers an event for a command whose batch carries no event
+           fact, so its records hold one event the fold does not project. *)
+        /\ records' = [records EXCEPT !.events = @ + (IF EventWithoutFact THEN 1 ELSE 0)]
   /\ UNCHANGED <<step, phase, slot, logContent, crashed, crashes, rejects, retries,
                  writerGen, retryMismatch>>
 
@@ -245,7 +276,7 @@ RetrySame ==
             ELSE /\ retryMismatch' = (retryMismatch \/ (DeriveAt(log, view.ops[op]) /= answers[op]))
                  /\ UNCHANGED <<log, view, head, corePub, lastCommittedView>>
   /\ UNCHANGED <<step, phase, slot, lastCommit, answers, logContent, crashed, crashes,
-                 rejects, preserves, writerGen>>
+                 rejects, preserves, writerGen, records>>
 
 (* The same operation with a different semantic input: conflict, no write. *)
 RetryConflict ==
@@ -253,7 +284,7 @@ RetryConflict ==
   /\ \E op \in DOMAIN answers : retries' = retries + 1
   /\ UNCHANGED <<log, view, head, step, phase, slot, lastCommit, answers, logContent,
                  crashed, crashes, rejects, corePub, preserves, writerGen, lastCommittedView,
-                 retryMismatch>>
+                 retryMismatch, records>>
 
 Crash ==
   /\ ~crashed /\ crashes < MaxCrashes
@@ -261,9 +292,10 @@ Crash ==
   /\ view' = EmptyView /\ head' = 0
   /\ lastCommit' = "none"
   /\ UNCHANGED <<log, step, phase, slot, answers, logContent, rejects, retries, corePub,
-                 preserves, writerGen, lastCommittedView, retryMismatch>>
+                 preserves, writerGen, lastCommittedView, retryMismatch, records>>
 
-(* A successor process folds the log and takes over with a new authority. *)
+(* A successor process folds the log and takes over with a new authority. Its reader
+   records are the projection of the fold: nothing else was stored (K-23 end state). *)
 Recover ==
   /\ crashed
   /\ crashed' = FALSE
@@ -280,6 +312,7 @@ Recover ==
         /\ writerGen' = g
         /\ answers' = answers @@ (b.op :> [op |-> b.op, rev |-> view'.rev])
         /\ lastCommittedView' = view'
+        /\ records' = ProjectOf(view')
   /\ lastCommit' = "ok"
   /\ UNCHANGED <<step, phase, slot, logContent, crashes, rejects, retries, preserves,
                  retryMismatch>>
@@ -291,6 +324,7 @@ Init ==
   /\ crashed = FALSE /\ crashes = 0 /\ rejects = 0 /\ retries = 0
   /\ corePub = 1 /\ preserves = 0
   /\ writerGen = 1 /\ lastCommittedView = EmptyView /\ retryMismatch = FALSE
+  /\ records = EmptyRecords
 
 Next ==
   \/ CommitIntend \/ CommitReceive \/ CommitJudge
@@ -366,5 +400,11 @@ GenGuard ==
 
 (* Failure is not silent: a refused commit leaves the slot failed or a retry pending. *)
 RejectVisible == lastCommit = "rejected" => slot = "failed"
+
+(* P7 records are a projection: the writer's reader records equal the projection of the fold,
+   so a successor that projects the fold holds the writer's records, and no copy of them is
+   stored beside the facts (K-23 end state). The events the records number are the event facts
+   by the fold's rule. *)
+P7_RecordsProjected == ~crashed => records = ProjectOf(view)
 
 ====

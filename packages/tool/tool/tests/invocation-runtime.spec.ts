@@ -475,7 +475,7 @@ describe('ordinary invocation and saved references', () => {
 
   // The routing of `instances.current` and `observation.observe` is in stream-observation.spec.ts.
 
-  it('rechecks current principal and rejects foreign or forged tenants before reading a port', async () => {
+  it('rechecks current principal, rejects a forged tenant before reading a port and answers a foreign tenant as a missing call', async () => {
     const deniedActions: ToolLedgerAction[] = []
     const base = testAssembly()
     const secured = testAssembly({
@@ -486,15 +486,27 @@ describe('ordinary invocation and saved references', () => {
     const invoked = accepted(
       await runtime.invoke({ principal: principalA, tenant: tenantA, request: dummyRequest() }),
     )
+    // R2-D357 negative control: tenant B presents tenant A's reference. The text carries no
+    // tenant, so it locates in B's partition, which has no such call: the answer is byte for byte
+    // the answer of a runtime where no tenant ever invoked it.
+    const foreign = { principal: principalB, tenant: tenantB, reference: invoked.reference }
+    const empty = testAssembly({
+      guards: { ...guards({ deniedActions: [] }), sources: base.source.guard },
+      sourceIssuer: base.source.issuer,
+    })
+    const emptyRuntime = createToolRuntime(empty.dependencies, empty.configuration).runtime
+    const foreignAnswer = await runtime.queries.lookup(foreign)
+    const absentAnswer = await emptyRuntime.queries.lookup(foreign)
+    expect(foreignAnswer).toMatchObject({ ok: { kind: 'not-accepted' } })
+    expect(JSON.stringify(foreignAnswer)).toBe(JSON.stringify(absentAnswer))
     const before = secured.store.reads
-    for (const input of [
-      { principal: principalB, tenant: tenantB, reference: invoked.reference },
-      { principal: principalA, tenant: { ...tenantA } as never, reference: invoked.reference },
-    ]) {
-      expect(await runtime.queries.lookup(input)).toEqual({
-        failure: { kind: 'denied', action: 'lookup' },
-      })
-    }
+    expect(
+      await runtime.queries.lookup({
+        principal: principalA,
+        tenant: { ...tenantA } as never,
+        reference: invoked.reference,
+      }),
+    ).toEqual({ failure: { kind: 'denied', action: 'lookup' } })
     expect(secured.store.reads).toBe(before)
     deniedActions.push('lookup', 'read-result', 'release-delivery')
     expect(await runtime.queries.lookup(access(invoked.reference))).toEqual({

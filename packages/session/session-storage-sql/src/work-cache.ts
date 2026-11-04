@@ -22,6 +22,7 @@ import {
 } from '@omne-harness/session-contract'
 import type { DomainRef, JsonValue, SqlStorage } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue } from './codec.ts'
+import { readEntryTexts, StoredEntryMalformed } from './entry-codec.ts'
 import type { HistoryBasis, WorkIndexInput } from './worker/history-index.ts'
 import { PROTOCOL } from './worker/schema.ts'
 
@@ -240,9 +241,13 @@ async function readOne(
         unavailable: `read ${handler}: ${result.kind === 'cancelled' ? 'cancelled' : result.reason}`,
       }
     const output = result.output
-    return typeof output === 'object' && output !== null && !Array.isArray(output)
-      ? { output: output as Record }
-      : { unavailable: `read ${handler}: not a record` }
+    if (typeof output !== 'object' || output === null || Array.isArray(output))
+      return { unavailable: `read ${handler}: not a record` }
+    // A stored row that does not read (worker/support.ts `handler`).
+    const record = output as Record
+    return record['kind'] === 'malformed'
+      ? { unavailable: `read ${handler}: ${String(record['diagnostic'])}` }
+      : { output: record }
   } catch (error) {
     return {
       unavailable: `read ${handler} threw: ${error instanceof Error ? error.message : String(error)}`,
@@ -523,7 +528,14 @@ async function batchEntries(reach: WorkReach, fold: WorkFold): Promise<HistoryEn
   for (;;) {
     const read = await readOne(reach, HISTORY_HANDLER, input)
     if (!('output' in read) || read.output['kind'] !== 'page') return null
-    const page = decodeValue(read.output['entries'] as JsonValue) as HistoryEntry[]
+    let page: HistoryEntry[]
+    try {
+      page = readEntryTexts(read.output['entries'])
+    } catch (error) {
+      // A stored row that does not read: no batch, so the read is whole and answers it.
+      if (!(error instanceof StoredEntryMalformed)) throw error
+      return null
+    }
     for (const entry of page) {
       if (BigInt(entry.id) > last) break
       entries.push(entry)

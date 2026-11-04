@@ -14,7 +14,7 @@
 
 ### 兼容期资格凭据路径
 
-`LocalCustodian` 与 `LocalCredentialPlugin` 实现同步 `presentFor`、`resolveFor`。旧 `present`、`resolve` 保留原行为。新方法只从 `access.tenant` 取租户，复用合法租户、用途、绑定寿命与工厂选择的判定。同一凭据身份由其他租户持有且本租户没有对应绑定时，两个新方法都返回 `denied`；只有官方档案且该租户没有任何绑定时，解析才可返回工厂值。撤销或不可读的绑定不回退工厂。文件不可用返回 `unavailable`，句柄关闭后返回 `denied`。
+`LocalCustodian` 与 `LocalCredentialPlugin` 实现同步 `presentFor`、`resolveFor`。旧 `present`、`resolve` 保留原行为。新方法只从 `access.tenant` 取租户，复用合法租户、用途、绑定寿命与工厂选择的判定。同一凭据身份由其他租户持有且本租户没有对应绑定时，两个新方法都返回 `denied`；只有官方档案且该租户没有任何绑定时，解析才可返回工厂值。撤销或不可读的绑定不回退工厂。工厂秘密是空字符串时，部署没有提供默认凭据：解析在这个位置返回 `absent`，不返回空值。文件不可用返回 `unavailable`，句柄关闭后返回 `denied`。
 
 只有受信发送边界注入凭据服务，`access` 已在受理点 C 核验。提供者不核主体铸造来源，也不核 `official` 的来源，不读取 `SendFace`。新方法不增加管理能力，保管库与诊断仍只在插件闭包中。
 
@@ -22,7 +22,7 @@
 
 ### 保管库文件
 
-保管库文件包含工厂秘密和绑定列表。绑定寿命是 `active`、`revoked` 或 `unreadable`。
+保管库文件包含工厂秘密和绑定列表。绑定寿命是 `active`、`revoked` 或 `unreadable`。绑定可以带 `configuredAt`，它是最近一次 `bind` 的时刻文本。没有这个键的旧快照照常读出。这个键存在但不是字符串时，快照按损坏处理。
 
 - `createLocalCustodian({ path, factorySecret, lock?, diagnosticsCapacity? })`：路径上没有文件时新建保管库；已有可读文件时在锁内直接采用它（不覆盖，不用本次的工厂秘密）；文件存在但不可读时抛出异常，异常的 `cause` 是读不出的原因（文件系统错误、解析错误或形状错误）。先检查再创建都在同一把锁内完成，两个进程同时在空路径上启动不会互相抹掉绑定。
 - `openLocalCustodian({ path, lock?, diagnosticsCapacity? })` 打开已有保管库，返回 `{ kind: 'open', custodian }`。文件缺失返回 `{ kind: 'unavailable', cause: 'missing' }`；损坏、形状不对或同一持有者多行冲突返回 `cause: 'corrupt'`；其他文件系统错误返回 `cause: 'io'`。不新建、不修改文件。
@@ -45,6 +45,16 @@
 - `revoke` 把该持有者标成 `revoked`。
 - `markUnreadable` 只把 `active` 改成 `unreadable`。
 - 其他租户持有同一身份时，对它的 `put`、`rotate` 不替换也不改动本租户的行。
+
+### 绑定管理
+
+`bind`、`unbind` 与 `describe` 是给装配的绑定管理。它们与上一节的操作不同：存储失败是结果，不是异常。结果不带秘密，也不带异常文本。
+
+- `bind({ reference, secret, configuredAt })` 把该持有者写成 `active`，秘密与时刻都换成本次的值。结果是 `written`、`not-written`（旧快照仍在盘上）、`unconfirmed`（新快照可能已发布，重试前先读回）或 `denied`。
+- `unbind({ reference })` 删除该持有者的行。之后这个租户按从未绑定处理：`presentFor` 答不存在，工厂选择照常适用。没有这一行时结果是 `absent`，不写盘。其余结果同 `bind`。
+- `describe({ reference })` 每次从磁盘读，结果是 `unbound`、`bound`（带寿命与可选的 `configuredAt`）、`denied` 或 `unavailable`。
+- 租户未经铸造、保管已关闭，或同一凭据身份由其他租户持有时，三个操作都答 `denied`，不改文件。
+- 写入沿用同一把文件锁、唯一临时文件与重命名。锁等待超时、读不出与发布前失败都是 `not-written`。重命名之后的确认失败是 `unconfirmed`。
 
 文件锁不按时间过期，因此持锁进程活着时其他写者只能等待，等满 `lock.waitMs` 仍未取得锁时抛出 `ELOCKED`；`waitMs` 为 0 时第一次取不到锁就抛出。持锁进程崩溃后残留的 `${path}.lock` 须在所有写者停止后手工删除。
 
@@ -324,6 +334,7 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 - 路径上已有文件：打开并使用文件里的工厂秘密，不用本次配置里的值。
 - 文件损坏或读不出：插件仍然注册 `modelCredential`，`present` 和 `resolve` 返回 `unavailable`，不改文件；撤除时没有可关闭的保管库。打开失败的原因不经插件报告：服务面只有 `present` 与 `resolve`，诊断不转发（见[读取与刷新](#读取与刷新)），本包也没有采用别的观测通道；运维在同一路径上调用 `openLocalCustodian` 即得到 `missing`、`corrupt` 或 `io`。
 - 保管库只存在于构造时创建的闭包里，不是实例属性，经 `ctx.modelCredential` 取不到保管库及其管理操作。
+- `createLocalCredentialPlugin()` 返回 `{ plugin, custody }`。`plugin` 与 `LocalCredentialPlugin` 提供同样的 `modelCredential`。`custody` 是该插件当前存活的保管库的 `bind`、`unbind` 与 `describe`，留在建它的装配手里，不在服务上。插件未装载、已撤除或保管库打不开时，写操作答 `not-written`，`describe` 答 `unavailable`。`custody` 不核调用者资格，持有它的装配负责准入。
 - 插件撤除时关闭保管库。关闭挂在装载插件的 fiber 上，没有额外等待在途解析。
 
 插件不从 `ctx`、实例或谁装了它推断租户；租户、用途和发送资格是 `resolve` 的参数，由受信的发送边界提供。
@@ -358,6 +369,7 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 持续验证在 [tests](tests/index.md)。各测试覆盖的义务如下：
 
 - [credential.spec.ts](tests/credential.spec.ts)：五种结果、租户隔离、轮换与撤销、文件损坏、关闭、跨进程更新、文件锁、保存确认未知，以及发布路径关闭文件描述符。
+- [credential-management.spec.ts](tests/credential-management.spec.ts)：`bind` 后发送解析到租户秘密、再绑定替换秘密与时刻、绑定后不再给工厂值、他租户持有与未铸造租户得到 `denied`、读不出的文件不改字节、`unbind` 后按缺失处理、空工厂秘密答 `absent`、不可读绑定不回退工厂、旧快照与损坏的时刻，以及受管插件的 `custody` 只在插件存活时可写。每条都扫描可见结果里的秘密哨兵。
 - [custodian-options.spec.ts](tests/custodian-options.spec.ts)：建库采用已有文件、诊断容量、锁等待上限与超时的 `ELOCKED` 代码、非锁错误、三种不可用原因及其 `cause`、快照字段类型不对判为损坏，以及选项取值的拒绝。
 - [credential-service.spec.ts](tests/credential-service.spec.ts)：在真实 Cordis 4.0.4 下，服务实例只暴露 `present` 与 `resolve`。
 - [cordis-entry.spec.ts](tests/cordis-entry.spec.ts)：插件的发布、空路径建库并服务、撤除、损坏文件上撤除不报错、配置校验，以及损坏文件上的不可用服务。

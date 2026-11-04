@@ -19,9 +19,12 @@
 - [session-log-journal-real.spec.ts](session-log-journal-real.spec.ts)：生产 Journal 提供者在真实 sqlite-provider 上的首次共同发布、核对冲突回滚、清单摘要不符与解释提交（慢层）
 - [session-log-journal-replay.spec.ts](session-log-journal-replay.spec.ts)：AG-23 轨迹回放对生产 Journal 提供者，保留副本与每次重建两种
 - [session-log-journal-complexity.spec.ts](session-log-journal-complexity.spec.ts)：读进度标记之后一页的读次数不随 N 增长，从头读的负控随 N 增长
-- [journal-core-bridge.spec.ts](journal-core-bridge.spec.ts)：K-23 过渡桥跨提供者副本：超过一条事实上限的 checkpoint 变化整份溢出到块后，冷副本读到的 checkpoint 与写者相同；冷副本再动一个小成员，落后一次发布的写者读到新成员且溢出的成员完好；连续两次溢出都保留。负控：修复前冷副本读到溢出之前的位置（w2 J2 的停摆根因）
+- [journal-core-bridge.spec.ts](journal-core-bridge.spec.ts)：跨提供者副本的大 checkpoint 变化：超过一条事实上限的成员整份入块后，冷副本读到的 checkpoint 与写者相同；冷副本再动一个小成员，落后一次发布的写者读到新成员且大成员完好；连续两次都保留（原为 K-23 过渡桥用例，桥删后对事实族仍成立）
+- [journal-core-rows.spec.ts](journal-core-rows.spec.ts)：负控（K-23 终态）：一行前过渡桥的 `core.*` 事实让冷副本的 `load` 与进程外的 `readExecutionRecords` 都答 unavailable（「does not decode」），不读过它，不就地修复；同一会话没有这行时能加载
 - [journal-crash-scan.spec.ts](journal-crash-scan.spec.ts)：崩溃点扫描（R2-D294 不变量 5）：带两次 Tool 效果意图与一次 M0 的脚本，每个发布点各丢一次回复、换冷提供者重试同一操作并跑完剩余脚本，事实行与无故障运行逐行相同（没有二次发布效果、没有丢决定），`query` 认回；R2-D307 没有新事实的 commit 只落信封行、字节为小常数、冷提供者认回、不推进修订
 - [journal-position.spec.ts](journal-position.spec.ts)：位置的唯一来源（R2-D294 不变量 1）：六个种子各 40 步的混合写入（commit、新材料与重复材料的 `preserve`、冷提供者接管、丢回复后冷提供者重试同一操作），每步之后发布数等于改了记录的写入数、每批带它种类的事实、冷提供者的 `load` 与写者相同；200 步后批的字节不超过前 50 步的最大值加 64；负控：多出一次发布与丢掉事实的发布都被判据拒绝
+- [journal-records-parity.spec.ts](journal-records-parity.spec.ts)：读者记录从折叠视图与块的投影（`src/testing/journal-records.ts`）与写者记录逐字段比对：一个打开、移游标、等 Model 调用、记录其结果、保存材料、确认、交接的场景之后，`PROJECTED` 所列字段必须相同，其余字段打印为差距报告（K-23 过渡桥仍覆盖的部分）
+- [journal-recall.spec.ts](journal-recall.spec.ts)：带 `recalls` 的认回批：第二个操作的热 `query`、由存储批与会话折叠推导的回执、第一个操作的回执三者相同；负控：不带 `recalls` 的认回批推导的是认回操作自己的回执
 - [journal-head.spec.ts](journal-head.spec.ts)：材料 `preserve` 之后的下一次 commit 仍带核心的 `cursor.moved` 与核心信封（第二位置来源缺陷的直接反例）
 - [journal-adopted-request.spec.ts](journal-adopted-request.spec.ts)：`request.adopted` 事实（FIXED-FACTS F4）：主用途 M0 的请求与其余事实同一批，块写入失败两者都不可见；不变的发布不追加；跨 execution 的 `order` 递增且不是执行修订；冷启动与竞争输方读到的一致；200 轮里事实的字节数与每轮行数不变
 - [common-journal.spec.ts](common-journal.spec.ts)：共用会话日志上从原资格创建 Session 并打开 Agent；只观察的尾部扫描后可以终结，不单写游标；已记录条件的 `entry` 事件只观察，不产生 Session 后果
@@ -64,7 +67,8 @@
 - [journal-command-facts.spec.ts](journal-command-facts.spec.ts)：内存 Journal 的命令按事实路径写入（R2-D308）：每次写入落一批，日志从头折叠等于持有的视图，视图的修订与 checkpoint 等于读者记录；commit 回执是本批证据；没有新事实的 commit 只落信封，同一操作重试不再落批；负控：带 Session 参加的空批推进修订、一步取第二个输入批、同一消费的账目交付不与结果交付冲突
 - [journal-commit-work.spec.ts](journal-commit-work.spec.ts)：共同提交交给工作缓存的 Session `work` 只来自本次发出、已提交、非认回、非 `recovered` 的回复；回滚与没有 Session 参加的提交不给。
 - [message-handoff.spec.ts](message-handoff.spec.ts)：J06 消息准入提供者在真实 Cordis 与 node:sqlite 替身上：invoke 与 submit 分支经可信事实绑定请求，意图先于结果保存；同一 Ki 认回原 H 与结果且不写；execution 分支认回 Journal 的 P，被取代的推进答 `stale-advance`，已固定的结果先于推进判定认回；结果只固定一次；`lookup` 不写；伪造与他租户的作用域、没有 Run 的 execution 与被拒的资格都被拒且不写；他租户读不到记录
-- [conditions.spec.ts](conditions.spec.ts)：J06 当前条件提供者在真实 Cordis 与 node:sqlite 替身上：完整来源时各字段与已提交事实一致且同事实同 `source`；auto-drive 的默认与声明变化投影为 `continue`；默认模式不可解、无模型选择、未登记 execution、已停止提供者各自关闭；他租户 Access 读不到快照；被取代的 Authority 带 previous 仍答 `stale-advance`
+- [conditions.spec.ts](conditions.spec.ts)：J06 当前条件提供者在真实 Cordis 与 node:sqlite 替身上：完整来源时各字段与已提交事实一致且同事实同 `source`；auto-drive 的默认与声明变化投影为 `continue`；默认模式不可解、无模型选择、未登记 execution、已停止提供者各自关闭；他租户 Access 读不到快照；被取代的 Authority 带 previous 仍答 `stale-advance`；负控（R2-D348）：同一实例 claim 换代并重新挂接后，旧 attempt 的 Authority 答 `stale-advance`，新 Authority 可读
+- [attempt-grant.spec.ts](attempt-grant.spec.ts)：R2-D348/R2-D349 在 SQL 提供者与内存替身两边：同一 Run 第二个 attempt 有自己的 grant，两份 grant 各自解析到自己的 attempt，grant 不等于 SE15 行证据，不认识的 grant 与行证据都不指名 attempt；负控：同一实例换代后旧 attempt 的 Authority 提交答 `stale-advance`，新 Authority 提交成功；第二个 attempt 下提交的输入的受理行指名该 attempt
 - [message-handoff-real.spec.ts](message-handoff-real.spec.ts)：J06 在真实 sqlite-provider 上（慢层）：子进程（[fixtures/message-handoff-child.ts](fixtures/message-handoff-child.ts)）保存 invoke 准入的意图与结果后被 SIGKILL，新进程按原 Ki 读回完整记录，同一 prepare 认回原结果且不写
 - [agent-drive.spec.ts](agent-drive.spec.ts)：AD-14 在真实 Cordis 上：会话槽位引用的编码与解析（畸形文本都拒绝）；`invoke` 与 `resume` 以 `coordinator` 读活动 Run、核对槽位引用，只经 `acquire` 与 `resolve` 触到运行时；Agent 的每种答复按 SPEC 表映射；控制按 Session 持有的调用引用点名其调用，生产者不能解析时是已报告的 `unavailable`（别的租户是 `denied`），不是已受理或 `unsupported`；别的租户的主体、会话或句柄不被使用；依赖缺席时插件缺席，实例退役或插件重跑时丢弃句柄
 - [context-input.spec.ts](context-input.spec.ts)：AD-12 在真实 Cordis 上：`sessionContextInput` 只在 `runtimeContext` 在场时提供，停止时移除，换 Runtime Context 提供者后重跑；别的租户的命令或材料在询问任何人之前被拒；以协调者主体调用 `prepareRegistration`，从不调用 `applyCommit`，拒绝译为 `invalid`，其余非成功译为 `unavailable`；编码出的材料能从 Session 决定真正写下的条目还原为同一变更、步骤提交与作用域结束

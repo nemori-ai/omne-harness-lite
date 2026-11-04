@@ -184,7 +184,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     provides: ['modelRequestPreparation'],
     injects: ['modelCommands'],
   },
-  'model-credential': { provides: ['modelCredential'] },
+  'model-credential': { provides: ['modelCredential', 'modelCredentialCustody'] },
   'model-records': {
     provides: ['modelCommands', 'modelSendBoundary'],
     injects: ['storage', 'tenantDomainLookup', 'modelClock', 'principalVerifier', 'tenantStanding'],

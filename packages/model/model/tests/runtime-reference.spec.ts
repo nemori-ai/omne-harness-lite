@@ -97,17 +97,60 @@ it('distinguishes original-admission facts from call-only observation and readin
   }
 })
 
-it('rejects malformed and foreign locators directly at all three real entry boundaries', async () => {
+it('answers another tenant at all three real entry boundaries as for a call that never existed', async () => {
+  // R2-D357 negative control: tenant 6 presents tenant A's reference. The text carries no tenant
+  // and tenant 6's partition has no such call, so each entry answers byte for byte as a runtime in
+  // which no tenant ever admitted it.
+  const f = runtimeFixture()
+  const empty = runtimeFixture()
+  try {
+    const settlement = await settleRuntime(f, partialParts)
+    expect(
+      unbox(
+        encodeModelInvocationRef({
+          tenant: identity('6'),
+          call: f.admit.call,
+          admission: f.admit.operation,
+        }),
+      ),
+    ).toBe(f.reference)
+    const tenant = identity('6')
+    const probes = (g: typeof f) =>
+      [
+        g.provider.runtime.calls.inspect({
+          principal: f.principal,
+          tenant,
+          reference: f.reference,
+        }),
+        g.provider.runtime.instances.connect({
+          principal: f.principal,
+          tenant,
+          reference: f.reference,
+        }),
+        g.provider.runtime.consumption.beginRead({
+          principal: f.principal,
+          tenant,
+          reference: f.reference,
+          operation: op('foreign-read'),
+          result: settlement.version,
+        }),
+      ] as const
+    const foreign = await Promise.all(probes(f))
+    const absent = await Promise.all(probes(empty))
+    for (const [index, answer] of foreign.entries()) {
+      expect(answer).not.toHaveProperty('ok.kind', 'found')
+      expect(JSON.stringify(answer)).toBe(JSON.stringify(absent[index]))
+    }
+  } finally {
+    await empty.dispose()
+    await f.dispose()
+  }
+})
+
+it('rejects malformed locators directly at all three real entry boundaries', async () => {
   const f = runtimeFixture()
   try {
     const settlement = await settleRuntime(f, partialParts)
-    const foreign = unbox(
-      encodeModelInvocationRef({
-        tenant: identity('6'),
-        call: f.admit.call,
-        admission: f.admit.operation,
-      }),
-    )
     const recall = vi.spyOn(f.dependencies.commands, 'recall')
     const connect = vi.spyOn(f.dependencies.instances.directory, 'connect')
     const acquireRead = vi.spyOn(f.dependencies.commands, 'acquireRead')
@@ -142,7 +185,7 @@ it('rejects malformed and foreign locators directly at all three real entry boun
       expect(await probe('malformed' as ModelInvocationRef)).toEqual({
         failure: { kind: 'invalid', field: 'reference', reason: 'reference-syntax' },
       })
-      expect(await probe(foreign)).toEqual({ failure: { kind: 'denied', action } })
+      expect(action).toBeTypeOf('string')
     }
     expect(
       await f.provider.runtime.calls.inspect({

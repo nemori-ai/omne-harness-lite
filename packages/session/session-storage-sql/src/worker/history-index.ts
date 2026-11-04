@@ -43,6 +43,7 @@ import {
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { SqlCell, SqlValue } from '@omne-harness/sql-contract/worker'
 import { canonicalText, decodeValue, plainOf, sha256 } from '../codec.ts'
+import { readEntryText } from '../entry-codec.ts'
 import { logRoot } from './log-root.ts'
 import { big, oneRow, rowsOf, text, type Executor, type Row } from './support.ts'
 
@@ -116,6 +117,8 @@ type Planted = Readonly<{
   revision: string
   entry: HistoryEntry
   data: Record<string, unknown>
+  /** The grant of an SE15 row (`sl_attempt_grant`, R2-D349); absent for other rows or a legacy row. */
+  grant?: DurableEvidence
 }>
 type Start = Readonly<{ run: RunId; started: DurableEvidence }>
 type Scope = Readonly<{ tenant: string; session: string }>
@@ -201,13 +204,16 @@ export function entryEvidence(
 const rowEvidence = (scope: Scope, row: Planted): DurableEvidence =>
   entryEvidence(scope.tenant, scope.session, row.entry)
 
-function plant(row: Row): Planted {
-  const entry = decodeValue(JSON.parse(text(row['entry'])) as JsonValue) as HistoryEntry
+function plant(row: Row, grants?: ReadonlyMap<string, DurableEvidence>): Planted {
+  const id = text(row['position'])
+  const entry = readEntryText(text(row['entry']), `sl_entry ${id}`)
+  const grant = grants?.get(id)
   return {
-    id: text(row['position']),
+    id,
     revision: text(row['revision']),
     entry,
     data: (plainOf(entry.payload) ?? {}) as Record<string, unknown>,
+    ...(grant === undefined ? {} : { grant }),
   }
 }
 
@@ -217,6 +223,7 @@ type AttemptRow = Readonly<{
   attempt: unknown
   ordinal: string
   started: DurableEvidence
+  grant?: DurableEvidence
 }>
 
 /**
@@ -301,6 +308,7 @@ function resolved(index: SessionRowsIndex, row: AttemptRow): SessionAttemptRecor
         execution,
         ordinal: row.ordinal,
         started: row.started,
+        ...(row.grant === undefined ? {} : { grant: row.grant }),
       })
 }
 
@@ -389,6 +397,7 @@ function attemptRowOf(scope: Scope, row: Planted): AttemptRow {
     attempt: data['attempt'],
     ordinal: String(data['ordinal']),
     started: Object.freeze(rowEvidence(scope, row)),
+    ...(row.grant === undefined ? {} : { grant: Object.freeze(row.grant) }),
   })
 }
 
@@ -468,7 +477,7 @@ function sessionRows(read: Reader, port: Executor, scope: Scope, upto?: bigint):
     keep(key, base)
     return viewOf(base)
   }
-  const planted = after.rows.map(plant)
+  const planted = after.rows.map(row => plant(row, after.grants))
   const committed = after.top <= journalTail(port, scope)
   const index = base === undefined ? emptyIndex() : committed ? base : cloneIndex(base)
   try {
@@ -497,7 +506,11 @@ function sessionRowsThrough(
   const { base, after } = loadBase(read, port, scope, upto)
   if (after.added === 0n) return viewOf(base ?? emptyIndex())
   const index = base === undefined ? emptyIndex() : cloneIndex(base)
-  fold(index, scope, after.rows.map(plant))
+  fold(
+    index,
+    scope,
+    after.rows.map(row => plant(row, after.grants)),
+  )
   return viewOf(index)
 }
 
@@ -537,8 +550,40 @@ function provenBase(port: Executor, scope: Scope, key: string): SessionRowsIndex
   return undefined
 }
 
-/** The rows after `from`: those of the five kinds, and the count, last position and top revision of all. */
-type RowsAfter = Readonly<{ rows: readonly Row[]; added: bigint; last: bigint; top: bigint }>
+/**
+ * The rows after `from`: those of the five kinds with the grants of the SE15 rows among them
+ * (`sl_attempt_grant`, by position), and the count, last position and top revision of all.
+ */
+type RowsAfter = Readonly<{
+  rows: readonly Row[]
+  grants: ReadonlyMap<string, DurableEvidence>
+  added: bigint
+  last: bigint
+  top: bigint
+}>
+
+/** The grants written at the SE15 positions in `(from, upto]`, by position; a malformed row is left out. */
+function grantsAfter(
+  read: Reader,
+  scope: Scope,
+  from: bigint,
+  upto?: bigint,
+): ReadonlyMap<string, DurableEvidence> {
+  const bounded = upto === undefined ? '' : ' AND position <= ?'
+  const bounds = upto === undefined ? [from] : [from, upto]
+  const rows = read(
+    `SELECT position, grant FROM sl_attempt_grant
+      WHERE tenant = ? AND session = ? AND position > ?${bounded}
+      ORDER BY position LIMIT ?`,
+    [scope.tenant, scope.session, ...bounds],
+  )
+  const grants = new Map<string, DurableEvidence>()
+  for (const row of rows) {
+    const grant = evidenceOf(readable(row['grant']))
+    if (grant !== null) grants.set(text(row['position']), grant)
+  }
+  return grants
+}
 
 function rowsAfter(
   read: Reader,
@@ -562,9 +607,10 @@ function rowsAfter(
     [scope.tenant, scope.session, ...bounds],
   )
   const added = after === undefined ? 0n : big(after['n'])
+  const grants = rows.length === 0 ? new Map() : grantsAfter(read, scope, from, upto)
   return added === 0n
-    ? { rows, added, last: from, top: 0n }
-    : { rows, added, last: big(after?.['last']), top: big(after?.['top']) }
+    ? { rows, grants, added, last: from, top: 0n }
+    : { rows, grants, added, last: big(after?.['last']), top: big(after?.['top']) }
 }
 
 function journalTail(port: Executor, scope: Scope): bigint {
@@ -788,10 +834,10 @@ function closeOver(context: Context, inputs: readonly string[]): Closure {
 }
 
 /**
- * The attempt of one admission: the SE15 the row names (`attempt`), else the SE15 whose receipt is
- * the grant, else the only SE15 of the Run. A row that names an attempt is never matched any other
- * way: when that SE15 is not of the Run the admission is not provable. Attempts are never removed,
- * so a Run with one SE15 had that one when the admission was granted.
+ * The attempt of one admission: the SE15 the row names (`attempt`), else the SE15 the grant names,
+ * else the only SE15 of the Run. A row that names an attempt is never matched any other way: when
+ * that SE15 is not of the Run the admission is not provable. Attempts are never removed, so a Run
+ * with one SE15 had that one when the admission was granted.
  */
 function attemptOf(
   attemptsByRun: ReadonlyMap<unknown, readonly SessionAttemptRecord[]>,
@@ -801,11 +847,22 @@ function attemptOf(
 ): SessionAttemptRecord | null {
   const ofRun = attemptsByRun.get(run) ?? []
   if (recorded !== null) return ofRun.find(item => item.attempt === recorded) ?? null
-  const named =
-    grant === null
-      ? undefined
-      : ofRun.find(item => canonicalText(item.started) === canonicalText(grant))
+  const named = grant === null ? undefined : ofRun.find(item => grantNames(item, grant))
   return named ?? (ofRun.length === 1 ? (ofRun[0] ?? null) : null)
+}
+
+/**
+ * Whether `grant` names the attempt (R2-D349): it is the receipt source of the commit that wrote
+ * its SE15 (`sl_attempt_grant`), or the evidence of the SE15 row itself. The receipt is a different
+ * evidence than the row's (the commit sequence and the digest of the batch, against the position
+ * and the digest of one row), so the written relation is what resolves a grant the Agent holds.
+ */
+export function grantNames(attempt: SessionAttemptRecord, grant: DurableEvidence): boolean {
+  const text = canonicalText(grant)
+  return (
+    (attempt.grant !== undefined && canonicalText(attempt.grant) === text) ||
+    canonicalText(attempt.started) === text
+  )
 }
 
 /** The original admissions of one input, or null when one of them names no provable Run or attempt. */

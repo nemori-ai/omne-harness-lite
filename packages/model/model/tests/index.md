@@ -14,6 +14,7 @@
 - [原流交接、确认推进、刷新乱序与驱动锁](runtime-transitions.spec.ts)。
 - [quiesce 的受理闸门、认回与 pending/running 计数](runtime-quiesce.spec.ts)。
 - [取消对发送的停止请求](send-interruption.spec.ts)：只停被取消调用的发送，保留驱动信号，流结束后不再停止。
+- [凭据缺失的确定失败](send-credential-terminal.spec.ts)：租户凭据缺失或读不出时，真实 driver 以 `credential` 失败结算调用，上游 start 为 0。
 - [构造与五端口](runtime-testing.spec.ts)、[合法身份与受信测试适配](memory-fixture.ts)。
 
 [memory-partial.spec.ts](memory-partial.spec.ts) 从实际 preserve 驱动部分结果、真实 trim、目标页、临界容量的控制/终局/读/ACK/清理。

@@ -287,6 +287,7 @@ function roundBatches(builder: Builder, rng: Random): void {
       consumer: pending.position,
       custody: blob({ role: 'assistant', content: 'z'.repeat(rng.int(20_000)) }),
       saved: evidence(`${builder.execution}/saved/${builder.step}`),
+      material: null,
     },
     // R2-D322: the step that settles a call appends the call's obligation in its current form.
     obligation(builder, `call/${builder.step}`, 'call'),
@@ -307,6 +308,7 @@ function roundBatches(builder: Builder, rng: Random): void {
       basis: evidence(`${builder.execution}/prefix/${builder.admissions}`),
       publication: evidence(`${builder.execution}/publication/${builder.admissions}`),
       message: blob({ role: 'assistant', content: 'reply' }),
+      source: evidence(`${builder.execution}/message/${builder.step}`),
       history: evidence(`${builder.execution}/history/${builder.step}`),
     },
     {
@@ -321,6 +323,7 @@ function roundBatches(builder: Builder, rng: Random): void {
       },
       stage: 'processed',
       evidence: evidence(`${builder.execution}/processed/${builder.step}`),
+      step: stepOf(builder),
     },
   ]
   const tool = rng.chance(2, 3)
@@ -424,6 +427,7 @@ function roundBatches(builder: Builder, rng: Random): void {
           stage: 'accepted',
           state: 'reached',
           source: evidence(`${builder.execution}/control/${builder.step}`),
+          step: null,
         },
       ])
       batch(builder, 'record-control', [
@@ -437,6 +441,7 @@ function roundBatches(builder: Builder, rng: Random): void {
           },
           toolInvocation: `tool:${builder.execution}:${builder.step}` as ToolInvocationRef,
           toolOperation: null,
+          step: null,
           stage: 'producer-confirmed',
           state: rng.chance(1, 2) ? 'reached' : 'unresolved',
           source: evidence(`${builder.execution}/confirmed/${builder.step}`),
@@ -467,6 +472,7 @@ function roundBatches(builder: Builder, rng: Random): void {
         consumer: toolPending.position,
         custody: blob({ role: 'tool', content: 'w'.repeat(rng.int(50_000)) }),
         saved: evidence(`${builder.execution}/tool-saved/${builder.step}`),
+        material: null,
       },
       obligation(builder, `tool-call/${builder.step}`, 'call'),
     ])
@@ -486,6 +492,7 @@ function roundBatches(builder: Builder, rng: Random): void {
           },
           stage: 'processed',
           evidence: evidence(`${builder.execution}/tool-processed/${builder.step}`),
+          step: stepOf(builder),
         },
         {
           kind: 'slot.settled',

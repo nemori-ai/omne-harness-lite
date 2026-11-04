@@ -142,7 +142,8 @@ async function run(s: SqlScene, rng: Random, steps: number) {
       ok(await writer.journal.commit(input))
       expected.push({ name: `commit ${String(at)}`, expectKinds: ['cursor.moved'] })
     } else if (choice < 8) {
-      // A new material: one batch with no fact; the same material again: no batch.
+      // A new material: one batch with its `material.preserved` fact; the same material again:
+      // no batch.
       const fresh = choice !== 7 || materials === 0
       const name = fresh ? `m${String(materials)}` : `m${String(rng.int(materials))}`
       if (fresh) materials += 1
@@ -155,7 +156,7 @@ async function run(s: SqlScene, rng: Random, steps: number) {
           value: material(name),
         }),
       )
-      if (fresh) expected.push({ name: `preserve ${name}`, expectKinds: [] })
+      if (fresh) expected.push({ name: `preserve ${name}`, expectKinds: ['material.preserved'] })
       else expect(published(s)).toBe(before)
     } else if (choice === 8) {
       // A cold provider takes the session over: nothing is published by the takeover itself.

@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto'
 import { freezeValue } from './freeze.ts'
 import { canonical } from './canonical.ts'
-import { emptySessionSources, indexSession, type SessionSources } from './session-sources.ts'
+import {
+  emptySessionSources,
+  indexSession,
+  withAttemptRecords,
+  type SessionSources,
+} from './session-sources.ts'
 import type {
   Access,
   AgentJournal,
@@ -93,7 +98,6 @@ export type CommonRoot = Readonly<{
     modelSettlements: Map<string, readonly import('./model-settlement.ts').ModelSettlement[]>
     originalByOperation: Map<string, JournalOriginal>
     eventReceipts: Map<string, CommandReceipt>
-    authorities: Map<string, import('@omne-harness/session-contract').SessionAttemptRecord>
     ended: Map<
       string,
       Readonly<{
@@ -197,7 +201,6 @@ function cloneRoot(root: CommonRoot): CommonRoot {
       effectSteps: new Map(root.agent.effectSteps),
       modelSettlements: new Map(root.agent.modelSettlements),
       eventReceipts: new Map(root.agent.eventReceipts),
-      authorities: new Map(root.agent.authorities),
       admissions: new Map(root.agent.admissions),
       inputBatches: new Map(root.agent.inputBatches),
       batches: new Map(root.agent.batches),
@@ -244,7 +247,6 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
       effectSteps: new Map(),
       modelSettlements: new Map(),
       eventReceipts: new Map(),
-      authorities: new Map(),
       admissions: new Map(),
       inputBatches: new Map(),
       batches: new Map(),
@@ -442,6 +444,14 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
         session: value,
         sources: indexSession(draft.sources, value, namespace, draft.session),
       }
+      touch()
+    },
+    /** The Session's attempt records a provider read for this call (R2-D349), in place of the folded ones. */
+    adoptAttemptRecords(
+      records: readonly import('@omne-harness/session-contract').SessionAttemptRecord[],
+    ) {
+      if (!draft) throw new Error('Session attempt records adopted outside common root')
+      draft = { ...draft, sources: withAttemptRecords(draft.sources, records) }
       touch()
     },
     mutate<T>(action: () => T): T {

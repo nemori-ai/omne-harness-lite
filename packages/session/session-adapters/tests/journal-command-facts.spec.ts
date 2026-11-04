@@ -171,6 +171,7 @@ describe('the batch rules of the command migration, with their negative controls
       consumer: { owner: 'agent', work: 'w', position: 'p', purpose: 'main' } as never,
       custody: { digest: record, size: 1 },
       saved: evidence(`saved/${record}`),
+      material: null,
     })
     const view = fold(
       { head: 0, executions: new Map(), ops: new Map(), excluded: new Map() },

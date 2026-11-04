@@ -50,8 +50,13 @@ type Attempt = {
 }
 export type DeliveryFixture<P> = Readonly<{
   receiver: ModelResultReceiver<P>
+  /**
+   * The original call of `tenant` (by default the first configured tenant). The reference carries
+   * no tenant (R2-D357), so the fixture names it.
+   */
   establishOriginalCall(
     input: Readonly<{
+      tenant?: TenantId
       reference: ModelInvocationRef
       consumer: ConsumerRef
       dispatches: readonly DispatchId[]
@@ -219,6 +224,13 @@ export function createDeliveryFixture<P>(
     tenantState(tenant).used.inFlight--
     globalUsed.inFlight--
     event('inFlight.release')
+  }
+  /**
+   * Records are kept per tenant: a delivery key's reference carries no tenant (R2-D357). The
+   * control plane reads the records of the first configured tenant.
+   */
+  function recordKey(key: ModelDeliveryKey, tenant: TenantId = tenants[0]!.tenant): string {
+    return callIdentity(tenant, deliveryIdentity(key))
   }
   function barrierKey(key: ModelDeliveryKey, stage: DeliveryStage): string {
     return JSON.stringify([deliveryIdentity(key), stage])
@@ -437,7 +449,8 @@ export function createDeliveryFixture<P>(
       if (ownerFailure) return ownerFailure
       const key = deliveryIdentity(delivery.key)
       event('key.read', key)
-      let record = records.get(key)
+      const stored = recordKey(delivery.key, access.tenant)
+      let record = records.get(stored)
       if (record && !sameValue(record.delivery, delivery)) return fail({ kind: 'conflict' })
       if (record?.active) return await waitFor(record.active, record, signal)
       if (record) {
@@ -467,7 +480,7 @@ export function createDeliveryFixture<P>(
         const failure = reserve(access.tenant, cost)
         if (failure) return fail(failure)
         record = createRecord(delivery, copies)
-        records.set(key, record)
+        records.set(stored, record)
         event('record.create', key)
       }
       record.attempts++
@@ -487,11 +500,13 @@ export function createDeliveryFixture<P>(
   }
   return {
     receiver: { push },
-    establishOriginalCall(original) {
-      const owner = tenants
-        .map(item => resolveModelInvocationRef(original.reference, item.tenant))
-        .find(item => 'ok' in item)
-      if (!owner || 'failure' in owner) throw new TypeError('Invalid original invocation')
+    establishOriginalCall({ tenant: named, ...original }) {
+      const owner = resolveModelInvocationRef(
+        original.reference,
+        named ?? tenants[0]?.tenant ?? ({} as TenantId),
+      )
+      if ('failure' in owner) throw new TypeError('Invalid original invocation')
+      tenantState(owner.ok.tenant)
       if (new Set(original.dispatches).size !== original.dispatches.length)
         throw new TypeError('Duplicate original dispatch')
       const key = callIdentity(owner.ok.tenant, owner.ok.call)
@@ -530,7 +545,7 @@ export function createDeliveryFixture<P>(
       barrier.released.resolve(fact ? frozenCopy(fact) : null)
     },
     resolveUnknown(key, stage, actual) {
-      const record = records.get(deliveryIdentity(key))
+      const record = records.get(recordKey(key))
       if (
         !record ||
         record.active ||
@@ -551,7 +566,7 @@ export function createDeliveryFixture<P>(
       attachments.set(attachmentIdentity(location), content.slice())
     },
     readRecord(key) {
-      const record = records.get(deliveryIdentity(key))
+      const record = records.get(recordKey(key))
       if (!record) return null
       const {
         delivery,

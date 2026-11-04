@@ -83,6 +83,8 @@ classDiagram
 
 `LocalCredentialPlugin` 也实现 `presentFor` 与 `resolveFor`，仍通过闭包转发，不公开保管库。资格路径只核同步租户绑定与 `official` 工厂选择。受信发送边界负责在受理点 C 核验 `access`，提供者不核主体与档案事实的来源。新方法不读取 `SendFace`，旧方法保持原行为，见 [兼容期资格凭据路径](../SPEC.md#兼容期资格凭据路径)。
 
+<a id="绑定管理"></a>`createLocalCredentialPlugin()` 建一个受管插件类，并把它的绑定管理交给装配。插件类提供的 `modelCredential` 与 `LocalCredentialPlugin` 相同，服务上没有管理成员。`custody` 跟随当前存活的那一次装载：撤除时先放开 `custody`，再关闭保管库，所以撤除之后的写操作答 `not-written`，不会落到已关闭的保管库上。后装载的插件先装上时，前一次装载的撤除不放开后者。规则见 [SPEC 绑定管理](../SPEC.md#绑定管理)。
+
 fiber 撤除把本进程标成关闭，随后的四个凭据方法返回 `denied`，服务随插件撤除而不可用。没有另做在途等待；关闭不删除绑定，不改写文件，也不改写已经交给发送端的值。保管库文件上的外部副作用不因撤除而撤回。
 
 保管库不放在实例属性上：Cordis 把实例的代理交给消费者，`#private` 字段经代理失败，实例属性也可被任何能读 `ctx.modelCredential` 的插件取得。注入到的对象不是 `ModelCredentialService` 时，`deliverInjected` 的结果是 `{ sent: false }`。

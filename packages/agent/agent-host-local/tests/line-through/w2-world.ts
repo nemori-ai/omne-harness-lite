@@ -342,6 +342,11 @@ export type W2Options = Readonly<{
   root?: string
   /** Members of the storage configuration to change. */
   storageLimits?: LineWorldOptions['storageLimits']
+  /**
+   * The step limit of one execution (Agent `maxRunSteps`); absent, the Agent's default (50,
+   * R2-D221) ends a longer run as `failed` at its guard. A world that drives more steps names it.
+   */
+  maxRunSteps?: number
   /** What the Agent does after a reply; default finish when it evaluates complete. */
   progression?: 'evaluate-completion' | 'continue'
   /** Called with each `agentMessageHandoff.prepare` input of the Agent and its answer. */
@@ -464,7 +469,10 @@ export async function openW2World(options: W2Options) {
     ...(options.report === undefined ? {} : { journalReport: options.report }),
     handoff: 'external',
     // The manual clock is moved by `until`, far faster than real time: no instance idles out.
-    hostConfig: { instanceIdleMs: 2_000_000_000 },
+    hostConfig: {
+      instanceIdleMs: 2_000_000_000,
+      ...(options.maxRunSteps === undefined ? {} : { maxRunSteps: options.maxRunSteps }),
+    },
     ...(options.receiverRecords === undefined ? {} : { receiverRecords: options.receiverRecords }),
     ...(options.root === undefined ? {} : { root: options.root }),
     ...(options.progression === undefined ? {} : { progression: options.progression }),

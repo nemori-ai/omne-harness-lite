@@ -121,10 +121,17 @@ describe('what the plugin answers in the first wave (ACCT-INIT, ACCT-TARGET)', (
     })
   })
 
-  it('denies a call of another tenant before it says anything about the scope', async () => {
+  it('answers a call encoded for another tenant as the same call of the deliverer (R2-D357)', async () => {
     const { ctx } = await assembled()
     const outlet = ctx.get(agentAccountOutletKey)!
-    const handoff = sampleAccountHandoff(otherAccess.tenant, 'foreign')
-    expect(await outlet.deliver({ access, handoff })).toEqual({ kind: 'denied' })
+    const foreign = await outlet.deliver({
+      access,
+      handoff: sampleAccountHandoff(otherAccess.tenant, 'foreign'),
+    })
+    const own = await outlet.deliver({
+      access,
+      handoff: sampleAccountHandoff(access.tenant, 'foreign'),
+    })
+    expect(JSON.stringify(foreign)).toBe(JSON.stringify(own))
   })
 })

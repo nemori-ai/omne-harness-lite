@@ -25,8 +25,8 @@ export async function within<T>(operation: Promise<T>, label: string): Promise<T
 }
 
 export function assertInvocation(invocation: Invocation, completed: CompletedInvocation): void {
+  // A v2 reference carries no tenant (R2-D357); the tenant is the invocation's own Access.
   const expected = readToolInvocationRef(invocation.reference)
-  assert.deepEqual(expected.tenant, invocation.access.tenant, 'original tenant is retained')
   assert.deepEqual(completed.invocation, invocation, 'settle returns the original invocation')
   assert.equal(completed.state.call, expected.call, 'settled state belongs to the original call')
   assert.equal(completed.delivery.kind, 'result', 'consumer received a result payload')

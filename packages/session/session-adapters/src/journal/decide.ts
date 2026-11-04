@@ -9,6 +9,7 @@ import type {
 } from '@omne-harness/agent-contract'
 import { canonical } from '../testing/canonical.ts'
 import {
+  REVIVABLE_EXCLUSIONS,
   BATCH_MAX_FACTS,
   factKey,
   refOf,
@@ -184,7 +185,10 @@ export type BatchRefusal =
   | Readonly<{ kind: 'repeated'; key: string }>
   /** More facts than one batch may carry (`BATCH_MAX_FACTS`). */
   | Readonly<{ kind: 'too-many'; facts: number; limit: number }>
-  /** The operation was excluded earlier; its write is refused, not revived (R2-D307). */
+  /**
+   * The operation was excluded earlier by a fence, a custody chain or a reception; its write is
+   * refused, not revived (R2-D307). A dropped or no-write exclusion is revivable (`REVIVABLE_EXCLUSIONS`).
+   */
   | Readonly<{ kind: 'excluded'; operation: AgentOperationId }>
   /** An `exec.opened` must travel with the `exec.attached` that names the Authority (R2-D307). */
   | Readonly<{ kind: 'incomplete'; reason: 'open-without-attachment' }>
@@ -202,7 +206,9 @@ export function batchOf(
   facts: readonly FactBody[],
   known: (view: ExecutionView, key: string) => boolean = keyKnown,
 ): Batch | BatchRefusal {
-  if (view.excluded.has(envelope.op)) return { kind: 'excluded', operation: envelope.op }
+  const exclusion = view.excluded.get(envelope.op)
+  if (exclusion !== undefined && !REVIVABLE_EXCLUSIONS.has(exclusion.reason))
+    return { kind: 'excluded', operation: envelope.op }
   if (facts.length > BATCH_MAX_FACTS)
     return { kind: 'too-many', facts: facts.length, limit: BATCH_MAX_FACTS }
   if (
@@ -231,7 +237,7 @@ export function keyKnown(view: ExecutionView, key: string): boolean {
     case 'input':
       return view.inputs.some(item => item.input === name)
     case 'step':
-      return view.steps.some(item => item.batch.id === name)
+      return view.steps.some(item => `${item.step}#${item.batch.id}` === name)
     case 'call':
       return view.intents.has(name as never)
     case 'associated':

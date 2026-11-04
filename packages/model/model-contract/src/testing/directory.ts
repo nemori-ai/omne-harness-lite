@@ -9,7 +9,7 @@ import { handleFor } from './observation.ts'
 export function createDirectory<P>(core: Core<P>): ModelDirectory<P> {
   async function connect(original: ModelReferenceAccess<P>): Reply<LiveRoute<P>> {
     const resolved = resolveModelInvocationRef(original.reference, original.tenant)
-    if ('failure' in resolved) return referenceRejected(resolved.failure, 'connect')
+    if ('failure' in resolved) return referenceRejected(resolved.failure)
     const input = { principal: original.principal, ...resolved.ok }
     if (core.state.directoryDown)
       return fail({

@@ -170,8 +170,8 @@ classDiagram
 | 种类 | 含义 | 发送端 |
 | --- | --- | --- |
 | `value` | 当前资格允许 | 发出，并记下所用的值 |
-| `absent` | 没有这份凭据 | 不发送 |
-| `unreadable` | 引用在，值暂时读不出 | 不发送 |
+| `absent` | 没有这份凭据 | 不发送。本次调用以 `credential-missing` 失败结算 |
+| `unreadable` | 引用在，值暂时读不出 | 不发送。本次调用以 `credential-unreadable` 失败结算 |
 | `denied` | 跨租户、用途不符、无资格、已撤销或保管已关闭 | 不发送 |
 | `unavailable` | 保管或存储暂时不能判断 | 不发送。不得报成 `absent` |
 

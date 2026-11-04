@@ -1,7 +1,15 @@
 // What `serve` takes from the local setup when `--operator` or `--state-root` is absent. The host is
 // a temporary server home that `runSetup` prepares, so these cases read what setup really writes.
 import { randomBytes } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -91,6 +99,29 @@ describe('localServeInputs', () => {
       path: join(h.home, 'state', 'model-vault.json'),
     })
     expect(JSON.stringify(result)).not.toContain(key)
+  })
+
+  it('a workspace named through a link is served at its real path; the settings file keeps the link (R2-D376)', async () => {
+    const h = serverHome()
+    const real = join(h.root, 'real-ws')
+    mkdirSync(real)
+    const link = join(h.root, 'ws-link')
+    symlinkSync(real, link, 'junction')
+    await h.setup(['--workspace', link])
+    const result = localServeInputs(h.input())
+    if (result.kind !== 'ready') throw new Error(JSON.stringify(result))
+    const root = realpathSync.native(real)
+    const config = (id: string) => result.operator?.ops.find(op => op.id === id)?.config
+    expect(config('execution-host')).toMatchObject({ filesRoot: root })
+    expect(config('tool-records')).toMatchObject({ filesRoot: root })
+    expect(config('tool-host')).toMatchObject({
+      construction: { Shell: { cwd: root }, Files: { cwd: root } },
+    })
+    expect(result.settings?.workspace).toBe(link)
+    const written = JSON.parse(readFileSync(join(h.home, 'config', 'server.json'), 'utf8')) as {
+      workspace: string
+    }
+    expect(written.workspace).toBe(link)
   })
 
   it('a vault that is not JSON is refused with the fix, not served', async () => {

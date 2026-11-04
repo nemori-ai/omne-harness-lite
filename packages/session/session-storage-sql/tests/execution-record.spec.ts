@@ -37,7 +37,8 @@ import {
   type ExecutionRecordWrite,
   type SessionCheck,
 } from '../src/participants.ts'
-import { canonicalText, decodeValue, sha256 } from '../src/codec.ts'
+import { canonicalText, sha256 } from '../src/codec.ts'
+import { entryOfText } from './fixtures/entry-text.ts'
 import { sessionStorageMaterials } from '../src/materials.ts'
 import { FIXTURE_READ_OUTPUT_LIMIT_BYTES } from './fixtures/read-limit.ts'
 import { app, TENANT_A, TENANT_B, textOf, type App } from './fixtures/app.ts'
@@ -500,6 +501,7 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
             run: work.run.run,
             instance: { owner: 'agent', id: 'instance-2' },
             continuity: evidence('continuity'),
+            expected: work.run.revision,
           },
         },
         guards: [],
@@ -643,7 +645,7 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
       "SELECT position, revision, entry FROM sl_entry WHERE kind = 'run.started'",
     ).rows[0]
     if (row === undefined) throw new Error('no SE13 row')
-    const entry = decodeValue(JSON.parse(String(row[2])) as JsonValue)
+    const entry = entryOfText(String(row[2]))
     const se13: DurableEvidence = {
       owner: '@omne-harness/session-storage-sql',
       record: `${textOf(TENANT_A)}/${SESSION}/entry/${String(row[0])}`,

@@ -612,6 +612,8 @@ export function activeRun(work: WorkSnapshot) {
     run: work.run.run,
     execution: work.run.execution.execution,
     attempt: work.run.advance.attempt,
+    /** The Run-layer revision of this read: the `expected` of a claim made from it. */
+    revision: work.run.revision,
   }
 }
 

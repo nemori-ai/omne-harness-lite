@@ -250,11 +250,7 @@ export function createStreamFacade<P, B extends ContentBlock>(input: {
         )
         if ('failure' in judged) {
           const { kind } = judged.failure
-          return fail(
-            ended(
-              kind === 'invalid-tenant' || kind === 'foreign-tenant' ? 'denied' : 'stale-stream',
-            ),
-          )
+          return fail(ended(kind === 'invalid-tenant' ? 'denied' : 'stale-stream'))
         }
         const envelope = readStreamRef(judged.ok)
         const parts = resolveToolInvocationRef(envelope.call, access.tenant)

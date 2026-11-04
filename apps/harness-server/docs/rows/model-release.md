@@ -71,11 +71,37 @@
 
 资格表的宿主绑定项（`execution` 查的 `{instance, operation}`）有界：通道关闭（附着结束）与宿主 fiber 退役时整表清空，每次登记先丢掉 `current()` 已为假的项；上界是一个通道、一代宿主内不同调用的数量。宿主插件没有按调用结束的回调，所以一代宿主内同一调用的项保留到通道关闭。
 
+## 模型凭据
+
+租户可以经公开契约的[模型凭据](../../../../packages/access/public-contract/SPEC.md#模型凭据)操作自带、更换、解绑和查看自己的模型凭据。本节写本应用怎样兑现它。
+
+**键。** 本宿主按租户一份绑定。凭据身份是 `tenant-model-send:<组织>/<账号>`，由 `src/model/tenant-credential.ts` 的 `tenantCredentialId` 派生。发行内置的官方档案都发往 `openrouter`，所以一份绑定覆盖本宿主能发出的全部调用。按接收方区分的键要等新的接入契约（模型调用产品设计 MODEL-M04）。
+
+**管理。** `model-credential` 行以子 fiber 装 model-host-local 的受管凭据插件，自己提供受信名 `modelCredentialCustody`。每次调用先经 `src/rows/authorization/model-credential-access.ts` 准入：
+
+- 只有 `work.owner` 为 `identity-login`、代同一租户行事的登录主体可以管理。
+- 准入经 authorization 的参考准入核验（AU-11，`requires` 为空），核验器与租户存续按调用现取。
+- 会话工作主体、系统主体、伪造或复制的主体与他租户都答 `denied`。
+- 依据不可得答 `basis-unavailable`。
+
+通过后按派生的身份读写保管库，配置时刻取宿主系统时间。
+
+**解析。** `model-request-preparation` 行的供应商补全按调用现取 `modelCredential`，对该租户的身份调用 `presentFor`：
+
+- 绑定存在时给租户引用。绑定读不出时也给租户引用，发送在围栏内得到 `unreadable`，不退回工厂。
+- 没有绑定时给工厂引用。
+- `presentFor` 答 `denied` 或 `unavailable`，或凭据服务不在树里时，准备失败，不给工厂引用。
+
+`model-records` 行发送子插件自带的准备租约用同一个补全，读子 fiber 注入的 `modelCredential`。工厂秘密是空字符串时，保管库把工厂解析答成 `absent`。
+
+**缺凭据的结局。** 发送在围栏内得到 `absent` 或 `unreadable` 时，不向上游发字节。Model 的产品发送边界把本次调用终结为失败，`cause` 为 `credential`，`diagnostic` 为 `credential-missing` 或 `credential-unreadable`，`upstreamStatus` 为 null（[Model SPEC「产品发送边界」](../../../../packages/model/model/SPEC.md#产品发送边界)）。调用随即 settled，Agent 的这一轮以失败结束，不等待。租户之后再绑定，下一轮照常发送。
+
 ## 已知限制
 
+- **`revoked` 绑定在查看里显示为 `unreadable`**：公开操作不产生 `revoked`，只有保管库自己的 `revoke` 会写它。两者对发送都不可用。
 - **实时撤权（#677）**：M 的登记项只随宿主 fiber 退役失效；W 只在每次调用时重读 standing。撤权确认与下一次调用之间没有同步来源。
 - **直接经 `modelCommands` 服务的 W 调用没有受理点**，一律 `unavailable`（`principal-not-qualified`）。M2 树里这样的消费者只有 `model-request-preparation` 的世系读取，首次调用没有世系。
-- **`noTenantBinding` 等于 `demand.supplier.credential.kind === 'factory'`，所以成员的工厂围栏永不拒绝**：对工厂回退的全部防护依赖保管库的 `resolveFor`，它按 facts a.4 核对该租户是否持有任何绑定。M2 没有租户凭据设置来源，应用自己的供应商补全把工厂引用交给每个供应商。
+- **`noTenantBinding` 等于 `demand.supplier.credential.kind === 'factory'`，所以成员的工厂围栏永不拒绝**：对工厂回退的全部防护依赖保管库的 `resolveFor`，它按 facts a.4 核对该租户是否持有任何绑定。供应商补全只在 `presentFor` 答该租户没有绑定时给工厂引用，见[模型凭据](#模型凭据)。
 - **ActorRef 是租户级的 standing 记录**：同一租户的全部 W 与 M 共用一个 ActorRef，`resolve` 第 3 步对原发起者的核对退化为「同一租户」。M2 是个人租户，按 R2-D33 方案 A 接受；按主体区分的 ActorRef 由入口签发者在波 3 给出。
 - **W 的受理捕获以调用为期，不以入口为期**：一个 W 在宿主包装的命令调用进行中时，拿同一个 W 直接经 `modelCommands` 服务发起的调用也被放行（`authorize` 只查表里有没有这个对象的捕获）。调用结束后捕获释放，直接调用回到 `unavailable`。记录，不修。
 - **s0 树不变**：`config/s0.distribution.json` 与 s0 允许表没有改动，s0 只装 `stubPlugin`；真件只进 `serve.distribution.json`。

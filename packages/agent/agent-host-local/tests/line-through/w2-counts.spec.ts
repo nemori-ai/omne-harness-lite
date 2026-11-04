@@ -102,12 +102,21 @@ const stable = ({
  * with the work cache (session-storage-sql RT-04) a read is a fold, an index swap or a whole read by
  * timing, and AD-02 merges its triggers by timing (`ad02Commits`). These counts are not compared
  * round by round; they must not grow with the number of rounds (R2-D118).
+ *
+ * `session.history-root` is the Journal provider's point read of the publication count, one per
+ * Journal call (session-adapters SPEC "事实族存储", 同步): the position has one source, the store,
+ * and every call consults it. The calls of a round are the Agent's (a fixed number) plus those of
+ * the AD-05 and AD-06 consumers the publications wake, which read the execution again when it
+ * changed while its entries were read; how many such re-reads a round takes is the interleaving of
+ * the publications with the consumers, so the count is timed, like the Session reads those
+ * consumers make. It is bounded by the calls of a round, which do not grow with the rounds.
  */
 const TIMED_HANDLERS: readonly string[] = [
   'session.work',
   'session.work-index',
   'session.work-reads',
   'session.history',
+  'session.history-root',
 ]
 
 const untimed = (counts: Readonly<Record<string, number>>): Record<string, number> =>
