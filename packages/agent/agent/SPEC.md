@@ -18,7 +18,7 @@ F4 从非空终态台账认回已登记观察，并把未登记项保留给长�
 - **draining**：新的 invoke 与 resume 返回 unavailable，owner 为 `@omne-harness/agent`。受理未知的 R0 待查项的重试也返回 unavailable。同一操作、同一输入的 invoke 重试仍取回原句柄。
 - **执行槽空闲**：runtime 以停用的操作与原因调用登记句柄的 `withdraw`。答复为 withdrawn 或 null 时，quiesce 返回 drained，每个观察以 retired 结束。没有登记句柄时跳过撤登记。`withdraw` 失败、抛出或登记未到 withdrawn 时，quiesce 返回 unavailable，runtime 保持 draining，重试再次撤登记。
 - **执行槽被占用**（含 R0 待查项）：quiesce 返回 unresolved，remaining 为该 execution。本实现不 detach、不交接，也不取消该 execution 的 Model 与 Tool 调用。该 execution 照常推进。E9 释放执行槽后，重试或新的 quiesce 撤登记并返回 drained。
-- **执行槽为 failed**：见“[运行失败](#运行失败)”。没有驱动在推进这个 execution，本 runtime 里也没有它的在途操作。quiesce 不把它算作剩余，按执行槽空闲的规则撤登记并返回 drained。这一条偏离 agent-contract「交接与停用」的 drained 条件，见运行失败的已知限制。
+- **执行槽为 failed**：见“[运行失败](#运行失败)”。依据 R2-D285。没有驱动在推进这个 execution，但它的责任没有交接。quiesce 照样把它算作剩余，返回 unresolved，remaining 为该 execution，不撤登记。重试得到同样的剩余。
 - **操作身份**：drained 之后，同一操作、同一原因的重试认回原结果。同一操作配另一原因返回 conflict。其他操作的 quiesce 认回已受理的那一次，不开始第二次。
 - **依据**：结果的 evidence 由 `agentEvidence` 派生，只在进程内存中，不是耐久记录。
 - **阶段 5 仍未兑现**：在途 execution 的 detach 与交接、每个 execution 的交接依据，以及「被接管的执行不计入剩余」。
@@ -30,8 +30,8 @@ F4 从非空终态台账认回已登记观察，并把未登记项保留给长�
 - **何时算停止**：驱动停止，并且最后一次驱动通过带失败，或者 `waitForWake` 本身失败。只是一次通过失败不算停止。例如 commit-unknown 让驱动等待原操作，之后照常推进。驱动抛出也算停止，节点为空，失败是 owner 为 `@omne-harness/agent` 的 unavailable。
 - **执行槽**：仍由这个 execution 持有的 `running` 槽改为 `failed`，带停止的节点与失败。E9 已释放的槽、已由另一个 execution 持有的槽都不改。`failed` 只是内部状态。`observe` 仍显示 occupied，因为 execution 没有终结。新的 invoke 照常答 busy。同一操作、同一输入的 invoke 重试仍取回原句柄。
 - **报告**：执行槽改为 `failed` 之后，runtime 调用一次 `createAgentRuntime` 第三个参数里的 `failed` 接收者。事件是 `{ kind: 'run-failed', tenant, instance, execution, node, failure }`。`failure` 原样取自节点的答复，它的诊断文本只写身份与状态。接收者被同步调用，不得回调本 runtime。接收者抛出不改变任何答复，也不留痕。没有接收者时，执行槽照样改为 `failed`。
-- **停用**：quiesce 不把 `failed` 的 execution 算作剩余，见“[停用](#停用)”。
-- **已知限制**：execution 不终结。Journal 里没有 `ended`，会话历史里也没有 `run.terminal`。它的执行挂接仍是 active，本实现不 detach。以失败终结 Run 是 D-31，要改契约，并要 Session 参加，留在波 3。在此之前，quiesce 对 `failed` 的 execution 答 drained，但这个 execution 的责任没有交接，偏离 agent-contract「交接与停用」的 drained 条件。触发条件：D-31 落地，或恢复与接管（#502 阶段 5）进入验收。
+- **停用**：quiesce 把 `failed` 的 execution 算作剩余，答 unresolved，见“[停用](#停用)”。remaining 的契约形状只有 execution 身份，不带节点与失败。调用方要说明原因，就按 execution 对上这次报告。
+- **已知限制**：execution 不终结。Journal 里没有 `ended`，会话历史里也没有 `run.terminal`。它的执行挂接仍是 active，本实现不 detach。因为没有交接，quiesce 对它如实答 unresolved，有序停止对这个实例答 incomplete。以失败终结 Run 并解除挂接是 D-31，要改契约，并要 Session 参加，留在波 3。D-31 落地后，这类 execution 才能收口。
 
 ## 测量事件
 
@@ -56,7 +56,7 @@ F4 从非空终态台账认回已登记观察，并把未登记项保留给长�
 
 测量事件的测试在 `tests/measure.spec.ts`：受理与驱动两类通过的起止成对、观察者缺省与抛出时执行的结果不变。
 
-运行失败的测试在 `tests/provider-run-failure.spec.ts`：I0 的提交答 unavailable 时，接收者收到一次带租户、实例、execution、节点与失败的报告，observe 仍为 occupied，execution 未终结，新 invoke 答 busy；quiesce 答 drained 并撤登记一次；接收者抛出时照样 drained；M0 回执丢失后经核对继续并正常结束时不报告。只覆盖内存 Journal 与登记句柄替身。
+运行失败的测试在 `tests/provider-run-failure.spec.ts`：I0 的提交答 unavailable 时，接收者收到一次带租户、实例、execution、节点与失败的报告，observe 仍为 occupied，execution 未终结，新 invoke 答 busy；quiesce 答 unresolved，remaining 为该 execution，不撤登记，重试答同样的剩余；接收者抛出时执行槽照样保持，quiesce 照样 unresolved；M0 回执丢失后经核对继续并正常结束时不报告。只覆盖内存 Journal 与登记句柄替身。
 
 停用的测试在 `tests/provider-quiesce.spec.ts`：空闲实例 drained 并撤登记一次、draining 之后 invoke 与 resume 返回 unavailable、第一个 `await` 之前已 draining、核验拒绝解除 draining、占槽时 unresolved 且运行照常结束、撤登记失败不报 drained、同一操作认回、另一原因 conflict、停用进行中的新 quiesce 认回原停用。只覆盖内存 Journal 与登记句柄替身。
 

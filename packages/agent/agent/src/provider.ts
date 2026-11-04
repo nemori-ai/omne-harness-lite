@@ -12,7 +12,8 @@
 // from the slot, and every slot change goes through `occupy`. A run that stopped keeps the slot
 // occupied, and the next invoke answers busy (S-14 of #558). A run whose drive stopped on a
 // failure moves the slot to `failed` and is reported once through `failed` (SPEC「运行失败」,
-// R2-D282); nothing drives it any more, so quiesce does not count it as remaining. The
+// R2-D282). Its responsibility is not handed over, so quiesce still counts it as remaining
+// (R2-D285): the ordered stop answers unresolved for it until D-31 ends such a run. The
 // registration handle only receives a projection: a report that throws is dropped, because `report`
 // returns void and the contract gives its failure no channel (待拥有者); the slot and `observe` stay
 // authoritative.
@@ -114,7 +115,8 @@ function woken(signal: AbortSignal, listeners: Set<() => void>): Promise<void> {
  * `open` nobody knows yet, and the reservation stays until a retry of that operation finds it with
  * `query`. `running`: the Loop runs until E9 frees the slot. A run that stopped still holds it.
  * `failed`: the drive stopped on a failure at `node`. The execution is not ended and holds the slot
- * (the next invoke answers busy), but no drive works on it, so it is not left for a quiesce.
+ * (the next invoke answers busy). No drive works on it, but its responsibility is not handed over,
+ * so a quiesce leaves it as remaining.
  */
 type Slot =
   | Readonly<{ kind: 'free' }>
@@ -660,8 +662,8 @@ export function createProvider<P, B extends ContentBlock>(
 
   /**
    * One drain step. An execution in the slot stays there: its detach and handover are #502 stage
-   * 5, so the answer is `unresolved` with that execution and never `drained`. A `failed` slot does
-   * not count: no drive works on it, and no Journal operation of it is unknown. A free slot withdraws
+   * 5, so the answer is `unresolved` with that execution and never `drained`. A `failed` slot is
+   * the same (R2-D285): no drive works on it, but nothing handed it over. A free slot withdraws
    * the registration, ends every observation and answers `drained` for good. The slot cannot be
    * taken while this step waits: the runtime is draining and refuses every new invoke.
    */
@@ -669,9 +671,7 @@ export function createProvider<P, B extends ContentBlock>(
     held: Quiescing,
     access: Access<P>,
   ): Promise<Outcome<QuiesceResult, Failure>> {
-    // A failed run is not driven any more: nothing is left to hand over in this runtime.
-    if (slot.kind === 'reserved' || slot.kind === 'running')
-      return succeed(quiesceResult(held, 'unresolved', [slot.execution]))
+    if (slot.kind !== 'free') return succeed(quiesceResult(held, 'unresolved', [slot.execution]))
     const withdrawn = await withdrawRegistration(held, access)
     if ('failure' in withdrawn) return withdrawn
     const drained = quiesceResult(held, 'drained', [])

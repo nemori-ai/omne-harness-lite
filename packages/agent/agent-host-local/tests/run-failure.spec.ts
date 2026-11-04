@@ -2,9 +2,10 @@
 // production factory `createAgentRuntime` (SPEC「运行失败」, R2-D282). The Journal double refuses
 // every commit of the I0 node with `unavailable`, as the session log Journal does when the storage
 // refuses a command over its size limit. Checked: the host writes exactly one warn record that names
-// tenant, instance, execution, node, failure kind and diagnostic; the ordered stop is `settled`,
-// because the failed execution holds no drive the quiesce must wait for. The execution is not ended
-// (D-31, wave 3). Nothing here proves the session log Journal, a real Model or another process.
+// tenant, instance, execution, node, failure kind and diagnostic. The ordered stop answers
+// `incomplete` for that instance (R2-D285): nothing handed the failed execution over, and its reason
+// names the execution, node and failure kind. The execution is not ended (D-31, wave 3). Nothing
+// here proves the session log Journal, a real Model or another process.
 import { agentEvaluator } from '@omne-harness/agent'
 import { testAdoption } from '@omne-harness/agent/testing'
 import {
@@ -151,11 +152,20 @@ describe('a run that stops on a node failure', () => {
     expect(loaded.state.kind).not.toBe('ended')
   })
 
-  it('lets the ordered stop settle: the failed execution is not left unresolved', async () => {
-    const { host } = await failing()
+  it('answers the ordered stop incomplete and names the failed execution, node and failure', async () => {
+    const { host, instance } = await failing()
     await until(() => runFailed(host).length > 0)
-    expect(await host.plugin.quiesceAll({ signal: new AbortController().signal })).toEqual({
-      kind: 'settled',
+    const answer = await host.plugin.quiesceAll({ signal: new AbortController().signal })
+    const reason =
+      `quiesce left 1 execution(s) unresolved: ${EXECUTION} ` +
+      '(run stopped: node=I0 failure=unavailable)'
+    expect(answer).toEqual({
+      kind: 'incomplete',
+      detail: `${instance}: ${reason}`,
+      instances: [{ instance, reason }],
     })
+    expect(host.errors).toContain(`ordered stop left 1 unsettled: ${instance}: ${reason}`)
+    // The stop does not report the run a second time.
+    expect(runFailed(host)).toHaveLength(1)
   })
 })

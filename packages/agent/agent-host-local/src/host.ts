@@ -24,7 +24,9 @@
 //   active attachment of the execution; otherwise it stays accepted for the recovery path.
 // - A run that stopped on a failure: the runtime reports it once through the factory's `failed`
 //   receiver, and the host writes one warn record that names tenant, instance, execution, node,
-//   failure kind and diagnostic (SPEC「运行失败」, R2-D282). The host decides nothing from it.
+//   failure kind and diagnostic (SPEC「运行失败」, R2-D282). The host decides nothing from it. It
+//   keeps node and failure kind by execution, so a quiesce that leaves the execution unresolved
+//   names why in its record (R2-D285).
 // The runtime's own duties (quiesce drains, detaches and withdraws through the handle) belong to
 // the factory. The host never takes the end of a fiber for a detach or for a stopped execution.
 import { randomUUID } from 'node:crypto'
@@ -191,6 +193,8 @@ type InstanceRecord = {
   status: Status
   /** The quiesce in flight (reclaim or ordered stop); it resolves after a drained instance retired. */
   quiescing: Promise<Quiesced> | null
+  /** The runs of this instance that stopped on a failure: execution to `node=… failure=…`. */
+  readonly failedRuns: Map<string, string>
 }
 
 type Quiesced = Outcome<QuiesceResult, Failure>
@@ -260,12 +264,20 @@ function stopReason(instance: AgentInstanceId): DurableEvidence {
   return { owner: OWNER, record: 'ordered-stop', revision: '1', digest: `instance:${instance}` }
 }
 
-/** Why a quiesce answer is not `drained`, or undefined when it is. */
-function notDrained(result: Quiesced): string | undefined {
-  if ('ok' in result)
-    return result.ok.kind === 'drained'
-      ? undefined
-      : `quiesce left ${result.ok.remaining.length} execution(s) unresolved`
+/**
+ * Why a quiesce answer is not `drained`, or undefined when it is. An unresolved answer names each
+ * remaining execution, with the node and failure kind of a run that stopped on a failure.
+ */
+function notDrained(result: Quiesced, failedRuns: ReadonlyMap<string, string>): string | undefined {
+  if ('ok' in result) {
+    if (result.ok.kind === 'drained') return undefined
+    const named = result.ok.remaining.map(execution => {
+      const failed = failedRuns.get(execution)
+      return failed === undefined ? execution : `${execution} (run stopped: ${failed})`
+    })
+    const left = `quiesce left ${named.length} execution(s) unresolved`
+    return named.length === 0 ? left : `${left}: ${named.join(', ')}`
+  }
   const { failure } = result
   return failure.kind === 'unavailable'
     ? `quiesce failed with unavailable (${failure.owner}: ${failure.diagnostic})`
@@ -510,7 +522,7 @@ export function createHost(input: HostInput): Host {
         (error: unknown) => fail(unavailable(OWNER, `quiesce rejected: ${describe(error)}`)),
       )
       .then(async (result): Promise<Quiesced> => {
-        if (notDrained(result) === undefined) await retire(entry)
+        if (notDrained(result, entry.failedRuns) === undefined) await retire(entry)
         else if (entry.status === 'reclaiming') {
           entry.status = 'published'
           if (restore && !closing && !stopped) {
@@ -541,7 +553,7 @@ export function createHost(input: HostInput): Host {
       return
     }
     void settled.then(result => {
-      const why = notDrained(result)
+      const why = notDrained(result, entry.failedRuns)
       if (why === undefined)
         record('info', `${entry.instance} reclaimed after ${config.instanceIdleMs} ms idle`)
       else
@@ -635,6 +647,7 @@ export function createHost(input: HostInput): Host {
       slot: null,
       status: 'reserved',
       quiescing: null,
+      failedRuns: new Map(),
     }
     records.set(key, entry)
     return succeed(entry)
@@ -836,7 +849,15 @@ export function createHost(input: HostInput): Host {
           },
           configuration: factoryConfiguration(config),
         },
-        { failed: event => record('warn', runFailedRecord(event)) },
+        {
+          failed: event => {
+            entry.failedRuns.set(
+              event.execution,
+              `node=${event.node ?? 'none'} failure=${event.failure.kind}`,
+            )
+            record('warn', runFailedRecord(event))
+          },
+        },
       )
       if ('failure' in created) {
         await cancel(entry)
@@ -1019,11 +1040,14 @@ export function createHost(input: HostInput): Host {
 
   /** The reason an instance did not end, or undefined when its quiesce drained in time. */
   async function judged(
+    entry: InstanceRecord,
     pending: Promise<Quiesced>,
     reached: Promise<'deadline'>,
   ): Promise<string | undefined> {
     const answer = await Promise.race([pending, reached])
-    return answer === 'deadline' ? 'quiesce gave no answer before the deadline' : notDrained(answer)
+    return answer === 'deadline'
+      ? 'quiesce gave no answer before the deadline'
+      : notDrained(answer, entry.failedRuns)
   }
 
   async function quiesceAll({ signal }: AgentHostStopInput): Promise<AgentHostStopResult> {
@@ -1048,7 +1072,7 @@ export function createHost(input: HostInput): Host {
           if (reason !== undefined) unsettled.push({ instance: entry.instance, reason })
         }
         if (entry.quiescing !== null) {
-          waits.push(judged(entry.quiescing, reached).then(note))
+          waits.push(judged(entry, entry.quiescing, reached).then(note))
           continue
         }
         if (entry.status !== 'published') continue
@@ -1060,7 +1084,7 @@ export function createHost(input: HostInput): Host {
         }
         const pending = quiesceNow(entry, provider, stopReason(entry.instance), false)
         if (pending === undefined) note('no quiesce operation could be made')
-        else waits.push(judged(pending, reached).then(note))
+        else waits.push(judged(entry, pending, reached).then(note))
       }
       await Promise.all(waits)
     } catch (error) {

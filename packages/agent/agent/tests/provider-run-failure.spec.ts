@@ -1,8 +1,9 @@
 // A run whose drive stops on a failure (SPEC「运行失败」, R2-D282). Before this, the drive dropped
 // the answer of `runExecution`, `waitForWake` answered `stopped` and the drive ended silently: the
-// slot stayed `running`, nobody was told, and every quiesce answered `unresolved` for good. Now the
-// slot becomes `failed`, the factory caller's receiver gets one named report, and a quiesce drains.
-// The execution is not ended (D-31 is wave 3): it keeps the slot and shows occupied.
+// slot stayed `running` and nobody was told. Now the slot becomes `failed` and the factory caller's
+// receiver gets one named report. The execution is not ended and its responsibility is not handed
+// over (D-31 is wave 3): it keeps the slot, shows occupied, and a quiesce still answers it as
+// remaining (R2-D285), never drained.
 import { describe, expect, it } from 'vitest'
 import type { AgentRunFailed } from '@omne-harness/agent'
 import type { AgentRegistrationHandle, Failure } from '@omne-harness/agent-contract'
@@ -110,27 +111,37 @@ describe('a run that stops on a node failure', () => {
     expect(reports).toHaveLength(1)
   })
 
-  it('lets a quiesce drain: the failed execution is not left as remaining', async () => {
+  it('a quiesce answers unresolved with the failed execution and withdraws nothing', async () => {
     let reported = 0
     const { assembly, host } = await failingAtI0(() => (reported += 1))
-    ok(await invoke(assembly))
+    const handle = ok(await invoke(assembly))
     await stoppedAt(assembly, 'E4')
     await eventually(async () => reported === 1)
-    const drained = ok(await quiesceOf(assembly))
-    expect(drained).toMatchObject({ kind: 'drained', remaining: [] })
-    expect(host.withdrawals).toEqual([operation('quiesce-1')])
+    const answer = ok(await quiesceOf(assembly))
+    expect(answer).toMatchObject({ kind: 'unresolved', remaining: [handle.execution] })
+    expect(host.withdrawals).toEqual([])
+    // The retry answers the same remainder: nothing hands the failed execution over.
+    expect(ok(await quiesceOf(assembly))).toMatchObject({
+      kind: 'unresolved',
+      remaining: [handle.execution],
+    })
+    expect(reported).toBe(1)
   })
 
-  it('a receiver that throws changes nothing: the slot is failed and a quiesce drains', async () => {
+  it('a receiver that throws changes nothing: the execution stays in the slot as remaining', async () => {
     let calls = 0
     const { assembly } = await failingAtI0(() => {
       calls += 1
       throw new Error('the log is gone')
     })
-    ok(await invoke(assembly))
+    const handle = ok(await invoke(assembly))
     await stoppedAt(assembly, 'E4')
     await eventually(async () => calls === 1)
-    expect(ok(await quiesceOf(assembly)).kind).toBe('drained')
+    expect(await shown(assembly)).toMatchObject({ kind: 'occupied', execution: handle.execution })
+    expect(ok(await quiesceOf(assembly))).toMatchObject({
+      kind: 'unresolved',
+      remaining: [handle.execution],
+    })
   })
 })
 
