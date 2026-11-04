@@ -285,6 +285,13 @@ export type MemoryAgentJournal<P> = Readonly<{
   referencedSources(
     input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
   ): readonly DurableEvidence[]
+  /**
+   * Every handoff record of the execution at its current revision, open or closed. The snapshot of
+   * `load` lists the open ones only; a test that checks a closed record reads it here.
+   */
+  handoffRecords(
+    input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
+  ): readonly ExecutionHandoff[]
   /** Changes one saved Tool control's invocation, or restores its first saved bytes with null. */
   setRetainedToolInvocationFault(
     input: Readonly<{
@@ -812,6 +819,14 @@ function undetermined(record: HandoffRecord): boolean {
  * open, so its size does not grow with the steps the execution took. A closed item stays in the
  * Journal; it only leaves the snapshot.
  */
+/**
+ * Whether the execution is settling or ended: it takes no further step, and the finish obligations
+ * and the settlement may refer to any of its items, so the snapshot keeps them all.
+ */
+function finishing(execution: Execution): boolean {
+  return execution.state.kind === 'settling' || execution.state.kind === 'ended'
+}
+
 function openResult(result: ResultResponsibility): boolean {
   return result.completion === null || result.release.kind === 'pending'
 }
@@ -826,19 +841,29 @@ function openEffect(checkpoint: AgentCheckpoint, effect: EffectIntent): boolean 
 
 /**
  * A handoff record with a pending history or an unsettled custody chain, or one that is still
- * referred to: the current H, a slot of the current batch, an H of the current step, or any H once
- * the execution is settling or ended (the finish obligations may refer to it).
+ * referred to: the current H, a slot of the current batch, an H of the current step, or the H of an
+ * input that is not taken yet or is in the current input batch.
  */
 function openHandoff(execution: Execution, record: ExecutionHandoff): boolean {
   if (record.history.kind === 'pending') return true
   if (record.custody !== null && record.custody.committed === null) return true
-  if (execution.state.kind === 'settling' || execution.state.kind === 'ended') return true
+  if (finishing(execution)) return true
   const { checkpoint } = execution
   const same = (reference: HandoffReference | null) =>
     reference !== null && canonical(reference) === canonical(record.handoff)
   if (same(checkpoint.currentHandoff)) return true
   if (checkpoint.batch?.slots.some(slot => same(slot.handoff)) ?? false) return true
+  if (record.handoff.kind === 'input') return openInput(execution, record.handoff.input)
   return record.request.kind === 'execution' && record.request.position.step === checkpoint.step
+}
+
+/** An accepted input that no batch took yet, or one of the current input batch. */
+function openInput(execution: Execution, input: InputId): boolean {
+  const index = execution.inputs.findIndex(accepted => accepted.id === input)
+  if (index < 0) return true
+  const taken = execution.checkpoint.inputBatch
+  const from = taken === null ? 0 : (execution.batches.get(taken)?.from ?? 0)
+  return index >= from
 }
 
 function handoffsOf(
@@ -1389,8 +1414,10 @@ export function createMemoryAgentJournal<P>(
         executionAttachment: activeAttachment(execution)?.authority ?? null,
         unresolved,
         controls: execution.controls,
-        results: execution.results.filter(openResult),
-        effects: execution.effects.filter(effect => openEffect(execution.checkpoint, effect)),
+        results: execution.results.filter(result => finishing(execution) || openResult(result)),
+        effects: execution.effects.filter(
+          effect => finishing(execution) || openEffect(execution.checkpoint, effect),
+        ),
         terminalObservations: execution.observations,
         handoffs: handoffsOf(execution, handoff => custodyOf(execution, handoff)).filter(record =>
           openHandoff(execution, record),
@@ -3852,6 +3879,11 @@ export function createMemoryAgentJournal<P>(
       for (const control of execution.controls)
         for (const stage of Object.values(control.stages)) sources.push(stage.source)
       return copy(sources)
+    },
+    handoffRecords(input) {
+      const execution = executions.get(executionKey(input.tenant, input.execution))
+      if (execution === undefined || !tenantEquals(execution.tenant, input.tenant)) return []
+      return handoffsOf(execution, handoff => custodyOf(execution, handoff))
     },
     setRetainedToolInvocationFault(input) {
       if (!retainedToolInvocationFaults) return { kind: 'rejected', reason: 'disabled' }

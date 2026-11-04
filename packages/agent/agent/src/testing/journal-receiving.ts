@@ -30,15 +30,10 @@ import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ModelReceptionTarget, ModelReceptionTargets } from '../receiving-types.ts'
 import type { ToolReceptionTarget } from '../tool-receiving-types.ts'
-import {
-  describeMaterial,
-  entryPage,
-  materialDigest,
-  receivedEntriesOf,
-} from '@omne-harness/agent-contract/testing'
 import { canonical } from '../canonical.ts'
 import { jsonTree } from '../receiving-values.ts'
 import type { Attempt, JournalWrite, MemoryExecution, OperationRecord } from './journal.ts'
+import { describeMaterial, entryPage, materialDigest, receivedEntriesOf } from './journal-reads.ts'
 import { journalEvidence, semanticKey } from './journal-values.ts'
 
 type Input<P> = ReceivedCommitInput<P, ContentBlock>

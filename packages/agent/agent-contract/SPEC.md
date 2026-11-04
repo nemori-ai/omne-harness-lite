@@ -1123,7 +1123,8 @@ load 返回原控制命令、当前完成意图、effect intent、逐结果的�
 
 - `results`：尚无 completion，或释放仍为 pending 的结果责任。
 - `effects`：调用仍在 checkpoint 的 `calls` 中，或动作仍在 checkpoint 当前批次中的 effect intent。
-- `handoffs`：历史仍为 pending、保管链尚未提交，或仍被引用的 H。引用指当前 checkpoint 的 `currentHandoff`、当前批次的槽位、当前 step 的主回复，以及已发行的终结责任清单。早先 step 已处置且无引用的 H 离开快照。
+- `handoffs`：历史仍为 pending、保管链尚未提交，或仍被引用的 H。引用指当前 checkpoint 的 `currentHandoff`、当前批次的槽位、当前 step 的主回复，以及已发行的终结责任清单。输入 H 在其输入尚未被取用，或属于当前输入批时，也是开放项。早先 step 已处置且无引用的 H 离开快照。
+- execution 处于 settling 或 ended 时，它不再推进 step。终结责任清单与结算可以引用它的任一项，所以快照保留上面三类的全部项。
 - 接收面条目不在快照中，见“[日志条目](#日志条目)”第 6 条。
 
 读方不得把快照中缺席的已关闭项当作从未发生。需要已关闭项时，读方经对应的分页读取或点读取得。

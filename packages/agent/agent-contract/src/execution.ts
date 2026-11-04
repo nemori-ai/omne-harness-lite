@@ -72,8 +72,10 @@ export type ExecutionSnapshot = Readonly<{
   /**
    * The open handoff records at this revision: a pending history, an unsettled custody chain, or a
    * record still referred to (the current H, a slot of the current batch, the main reply of the
-   * current step, or the issued finish obligations). A settled record of an earlier step that
-   * nothing refers to leaves the snapshot.
+   * current step, or the issued finish obligations), and the H of an input that no batch took yet
+   * or that is in the current input batch. A settled record of an earlier step that nothing refers
+   * to leaves the snapshot. A settling or ended execution keeps all its results, effects and
+   * handoffs here: it takes no further step, and its settlement may refer to any of them.
    */
   handoffs: readonly ExecutionHandoff[]
   /** The issued finish obligations of the current candidate; null until prepareFinish issued them (SPEC "终结责任清单"). */
