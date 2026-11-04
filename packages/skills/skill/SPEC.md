@@ -124,3 +124,20 @@
 | 三类端口的判别值与载荷：集合外的答复、残缺的载荷、reject、同步抛出、读取时抛出，答复都按契约统一处置，不抛出 | `tests/port-answers.spec.ts` | 来源调用还原为直接查表、reject 原样上抛（W3-M4）；解析移出 `try`（W3-M17、W3-M17b）；列表跳过不合的项（W3-M18）；`open` 的 `ok` 接受文本（W3-M19）；`isSealedSnapshot` 不查登记（W3-M20）；JSON 节点不核对（W3-M21）；说明上限放宽一个字符（W3-M22b）；没有作答的核验当作 `refused`（W3-M25） |
 
 M 编号是交付时的手工变异记录（W2 在 `tmp/closures/w2-skill/mutations/`，W3 在 `tmp/closures/w3-skill-catalog/mutations/`），不随本文件维护。未覆盖：真实的读取判定、对应与来源；对同一个包的并发写入；内容存储来源；大集合下目录的性能。替身通过不证明真实端口的行为。
+
+<a id="properties"></a>
+
+## 性质与证据
+
+下面六条性质是本包读取与目录的关键安全性质。完整的定理（参与者、前提、结论）、证据与状态由[性质账本](verification/README.md#ledger)维护，本节只给每条的结论与证据状态。共同前提：每次端口调用都会结束；两个判定端口对无权主体守 PC3、PR5；对应端口守 PR1、PR3。
+
+| 性质 | 结论 | TLA+ 模型 | 探索器 |
+| --- | --- | --- | --- |
+| S1 无披露 | 对没有读取权的主体，身份存在且被拒、读取判定准许而对应端口不认识、身份被删除三种世界，六个操作的答复深度相等；依据指向另一身份时与被拒读取同答 | 有限范围通过 | 有限范围通过 |
+| S2 整次 unknown | 第一个没有作答的端口答复决定整次答复：判定端口为 `unknown`，来源为 `source-unavailable`；之后不再调用端口，不抛出；目录对留下的身份同样整次 `unknown` | 有限范围通过 | 有限范围通过 |
+| S3 不拼版本 | 成功的 `read`、`list`、`export` 只交所钉材料的字节，结果的依据等于所钉材料；来源途中变化时答失败，失败不带内容 | 有限范围通过 | 有限范围通过 |
+| S4 范围正确 | 实际范围的两端在字符边界上，长度不超过 `PAGE_LIMIT`，`complete` 当且仅当终点不小于总长，正文从 `bodyOffsetOf` 起算；非法范围在端口之前抛 `TypeError` | 模型未覆盖 | 有限范围通过 |
+| S5 次序无关 | 目录的答复不随读取判定的完成次序变化 | 有限范围通过 | 有限范围通过 |
+| S6 中止不交部分 | `signal` 在第 `k` 个端口答复时中止，操作恰好调用 `k` 次端口并答 `aborted`；中止的 `signal` 上从不调用端口 | 有限范围通过 | 有限范围通过 |
+
+模型是 [verification/models/ReadGate.tla](verification/models/ReadGate.tla)，在 TLC 2.19 上检查，配置与状态数见 [verification/models/README.md](verification/models/README.md)。探索器在 [tests/model/](tests/model/README.md)，驱动 `dist` 中的真实服务，端口是内存替身加故障包装。两者都是有限范围的结果，不是无条件证明。真实端口与本包的组合没有验证。

@@ -28,7 +28,7 @@ Skill 三个应用服务的通用实现：`createPackageInspection` 经来源检
 
 ## 验证
 
-在本目录运行 `pnpm run build`、`pnpm run typecheck` 与 `pnpm test`。测试把服务放在内存替身上运行，直接运行每一段，并在本实现上运行 `SkillAccess` 与 `SkillCatalog` 符合性套件，后者还对两个违约目录核对恰好预期的用例变红。见 [tests/README.md](tests/README.md)。未覆盖：真实端口、对同一个包的并发写入、内容存储来源。
+在本目录运行 `pnpm run build`、`pnpm run typecheck` 与 `pnpm test`。测试把服务放在内存替身上运行，直接运行每一段，并在本实现上运行 `SkillAccess` 与 `SkillCatalog` 符合性套件，后者还对两个违约目录核对恰好预期的用例变红。见 [tests/README.md](tests/README.md)。安全性质 S1–S6 在 [verification/README.md](verification/README.md) 写成定理，由 TLA+ 模型经 TLC 检查，并由 [tests/model/](tests/model/README.md) 对真实服务的有界穷举探索核对。未覆盖：真实端口、对同一个包的并发写入、内容存储来源。
 
 ## 维护
 

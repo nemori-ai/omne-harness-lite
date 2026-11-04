@@ -53,7 +53,7 @@ There is no configuration. The page limit of 65536 bytes is fixed by the contrac
 
 ## Verification
 
-Run `pnpm run build`, `pnpm run typecheck` and `pnpm test` in this directory. The tests run the services over the memory doubles, run each stage directly, and run the `SkillAccess` and `SkillCatalog` conformance suites on this implementation, the latter also on two violating catalogs that must fail exactly the expected cases. See [tests/README.md](tests/README.md). Not covered: real ports, concurrent writes to a package, a content-store source.
+Run `pnpm run build`, `pnpm run typecheck` and `pnpm test` in this directory. The tests run the services over the memory doubles, run each stage directly, and run the `SkillAccess` and `SkillCatalog` conformance suites on this implementation, the latter also on two violating catalogs that must fail exactly the expected cases. See [tests/README.md](tests/README.md). The safety properties S1–S6 are stated as theorems in [verification/README.md](verification/README.md), checked by a TLA+ model with TLC and by a bounded exhaustive exploration of the real services in [tests/model/](tests/model/README.md). Not covered: real ports, concurrent writes to a package, a content-store source.
 
 ## Maintenance
 
