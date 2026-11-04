@@ -44,6 +44,8 @@ usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-
 usage: serve --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n> --state-root <abs dir> [--stop-on-stdin-close]
 ```
 
+With only the distribution file, `serve` cannot load. The distribution layer gives no factory values for `execution-host` and `agent-host`, and no `loopGuardPolicy` for `agent-host`. The process exits with `invalid-config` and does not serve (R2-D229). The operator layer must give these values with `replace` on the whole row. `replace` does not merge: for `agent-host`, copy `jointCommits` and `coordination` from the distribution layer exactly. See [tools/joint-b/operator.mjs](../../tools/joint-b/operator.mjs) for an example. Its numbers are test values with no measurement behind them. `loopGuardPolicy` has only a test adoption now and no production adoption source. The known limit is in [SPEC.md](SPEC.md#已知限制).
+
 Other programs can call `runS0` and import the record types:
 
 ```ts
