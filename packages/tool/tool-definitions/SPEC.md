@@ -20,6 +20,21 @@ patch 先读取全部目标并针对原文计算所有范围。重复或重叠�
 
 list 使用 FileEntry.name，不解析对象令牌。任一条目缺少有效名称时，整个列表返回 unavailable，不补造名称、不静默丢条目、不交出部分列表。read、list 与 find 保留版本和分页事实。write 和 edit 转交设施返回的 writeEffect，区分创建、原位修改与替换为新对象；未报告时明确标为 unreported，不猜测效果。find 显式区分 name 与 content。info 返回 stat 确认的类型、大小与时间，并读取至多 min(4096,resultMaxBytes) 字节作为二进制样本。样本观察不证明整份文件是文本。版本变化时不把样本归到旧 stat。
 
+### 文件路径解析
+
+本节按 R2-D290 定。执行环境的 `FileRequest` 没有工作目录字段，所以由 Files 作者解析相对路径。
+
+- Files 的构造值可带 `cwd`，即工作区根。它与 Shell 的 `cwd` 同源，由运维者层给出。`cwd` 必须是绝对路径，否则构造失败。
+- 路径风格取 `cwd` 自己的写法：盘符或 UNC 开头按 Windows，`/` 开头按 POSIX。不取运行作者的进程平台。
+- 有 `cwd` 时，相对路径在调用设施之前解析成绝对路径。`.` 就是 `cwd`。适用的路径有 `path`、`move` 与 `copy` 的 `target`、`patch` 每一项的 `path`。末尾的分隔符保留。
+- 绝对路径不变。Windows 风格下带盘符的相对路径（如 `C:a`）也不变。
+- 解析只换字符串，不授予访问。解析后越出工作区的路径照常交给设施，由宿主的守卫与设施按现有规则答复，例如 `notAuthorized`。作者不另加放行，也不另加拒绝。
+- 结果文本的头部保留模型给的路径。解析改变了路径时，另带 `resolved_path`。
+- 没有 `cwd` 时，相对路径原样交给设施。设施以 `invalidInput` 拒绝时，结果文本末尾加一行说明：需要绝对路径。
+- 工具说明与参数说明写明：相对路径按工作区根解析。
+
+限制：声称 `filesystem-root` 的落点要求相对授予根的路径，绝对路径答 `invalidInput`。这种落点上不配置 `cwd`，相对路径原样交给落点。
+
 ### Shell 路由与控制
 
 没有 terminal 参数时，execute 调用 command.start，使用显式配置的可执行文件、参数前缀、初始 cwd 与 env。create_session 声明 Session 保留；带 terminal 的 execute 与 close_session 先由本次获取 attach，再调用对应设施。缺保留或附着能力时明确 unsupported，不创建替代终端，也不回退为一次性执行。terminal 的持续状态归提供者，作者不保存会话表。单次 cwd 与 env 覆盖只转发到本次调用。

@@ -20,7 +20,7 @@ One command table supplies declarations, validation and help. Files preflights e
 
 ## Configuration and operation
 
-resultMaxBytes is required. Shell also requires executable, argsPrefix, cwd and env. The caller supplies current authorization and placement facts. Authors never read host defaults.
+resultMaxBytes is required. Shell also requires executable, argsPrefix, cwd and env. Files accepts an optional absolute cwd: relative paths resolve against it before the facility call (R2-D290). The caller supplies current authorization and placement facts. Authors never read host defaults.
 
 ## Verification
 

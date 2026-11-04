@@ -35,7 +35,11 @@ export const toolHostConfig = z
             env: z.record(z.string(), z.string()),
           })
           .optional(),
-        Files: z.strictObject({ resultMaxBytes: positive }).optional(),
+        // `cwd` is the workspace root that relative Files paths resolve against (R2-D290). Optional:
+        // without it, relative paths are refused and Files says that an absolute path is needed.
+        Files: z
+          .strictObject({ resultMaxBytes: positive, cwd: z.string().min(1).optional() })
+          .optional(),
       })
       .optional(),
   })

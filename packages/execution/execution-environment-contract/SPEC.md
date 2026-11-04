@@ -154,7 +154,7 @@
 - 路径是绝对路径时，结果是 `rejected`，原因 `invalidInput`。
 - 路径越出授予根，或提供者确认不了使用对象仍在授予根内时，结果是 `rejected`，原因 `notAuthorized`（[INV-EE09](#inv-ee09-资源和秘密以最小必要条件提供)）。
 
-理由：调用方只需要相对路径。把根的路径交给调用方，会诱导按路径前缀放行，而 INV-EE09 要求在使用时点核对对象。绝对路径为 `invalidInput`、越出授予根为 `notAuthorized` 这两个拒绝原因是新定的协议细节，未经技术接受。宿主机落点按什么确定授予根（例如按工作区）未定，见[明确缺项](#明确缺项)。
+理由：调用方只需要相对路径。把根的路径交给调用方，会诱导按路径前缀放行，而 INV-EE09 要求在使用时点核对对象。绝对路径为 `invalidInput`、越出授予根为 `notAuthorized` 这两个拒绝原因是新定的协议细节，未经技术接受。宿主机落点按什么确定授予根（例如按工作区）未定，见[明确缺项](#明确缺项)。相对工作目录的路径由 Files 工具按工作目录解析（R2-D290），见 [Files 的文件路径解析](../../tool/tool-definitions/SPEC.md#文件路径解析)。本契约不变。
 
 命令设施：`start` 的 `done` 表示进程实际已启动，结果带进程身份。提供者接纳了请求，但进程映像没有启动时，结果是 `rejected`，原因 `unavailable`，不是 `done`。启动与否不可确认时，结果是 `unknown`。`CommandOutcome` 的 `failed` 只用于已启动的进程之后失联或效果未知，与启动失败分开。依据：「最小调用事实」进程一行的「实际启动的进程身份，或启动失败」与它的调用例。
 
@@ -510,7 +510,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 - 技术后续设计与来源缺项 Q-EE02 至 Q-EE06 归 [docs/architecture.md](docs/architecture.md)。Q-EE04 的托管数据写者、数据键、备份与迁移和数据寿命保持排除，不进入任何配额清理方案。
 - 沙箱提供者与受限执行域不在本成员；隔离断言集合为它们留位。
-- 宿主机落点按什么确定授予根，以及授予根限制的实现，现在没有拥有者。host-local 现在不声明 `filesystem-root`。上层的相对路径起点缺省是工作目录，而 `FileRequest` 不带工作目录，声称 `filesystem-root` 的落点上相对路径从授予根起算。工具怎样把相对工作目录的路径换成相对授予根的路径，也没有拥有者。
+- 宿主机落点按什么确定授予根，以及授予根限制的实现，现在没有拥有者。host-local 现在不声明 `filesystem-root`。上层的相对路径起点缺省是工作目录，而 `FileRequest` 不带工作目录，声称 `filesystem-root` 的落点上相对路径从授予根起算。相对工作目录的路径由 Files 工具按工作目录解析（R2-D290）：有工作目录时解析成绝对路径再调用设施，见 [Files 的文件路径解析](../../tool/tool-definitions/SPEC.md#文件路径解析)。在声称 `filesystem-root` 的落点上，怎样把相对工作目录的路径换成相对授予根的路径，仍没有拥有者。
 - 真实的命令与终端提供者归 [#323](https://github.com/nemori-ai/omne-harness-lite/issues/323)：以获取与对象代际为索引，阻止同租户、同作用域的其他获取列出、执行、关闭或停止原对象；停止需要真实进程或伪终端以及平台证据。文件设施的真实证据不证明命令与终端的隔离。
 - 当前没有成员发布这两条块。host-local 的 Service 实现现在不登记 Runtime Context 的生产者。
 - 块生产者的读取面没有定义：生产者读什么、按哪个租户维度读、由什么事件使当前值失效。它在生产者插件接受之前定义，拥有者是登记表成员 [execution-environment](../execution-environment/SPEC.md) 与 [execution-environment-host-local](../execution-environment-host-local/SPEC.md)；回调的形状由 [Runtime Context 契约](../../context/runtime-context-contract/SPEC.md)给出。

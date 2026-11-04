@@ -18,7 +18,7 @@ const ZERO = `sha256:${'0'.repeat(64)}`
 const PROBES = [
   {
     Shell: { resultMaxBytes: 1, executable: 'probe', argsPrefix: [], cwd: 'probe', env: {} },
-    Files: { resultMaxBytes: 1 },
+    Files: { resultMaxBytes: 1, cwd: '/probe' },
   },
   {
     Shell: {
@@ -28,7 +28,7 @@ const PROBES = [
       cwd: 'elsewhere',
       env: { A: 'b' },
     },
-    Files: { resultMaxBytes: 65536 },
+    Files: { resultMaxBytes: 65536, cwd: 'C:\\elsewhere' },
   },
 ]
 

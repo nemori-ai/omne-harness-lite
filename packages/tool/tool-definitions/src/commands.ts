@@ -4,7 +4,8 @@ const path: Field = {
   name: 'path',
   kind: 'string',
   required: true,
-  description: 'Path in the currently authorized execution placement.',
+  description:
+    'Absolute path, or a path relative to the workspace root, such as "." or "sub/file.txt".',
 }
 const old: Field = {
   name: 'old_text',
@@ -121,7 +122,7 @@ export const filesCommands: readonly Command[] = [
         kind: 'edits',
         required: true,
         description:
-          'Nonempty list of {path,old_text,new_text}. Match against original files. Duplicate or overlapping ranges are rejected.',
+          'Nonempty list of {path,old_text,new_text}. Paths are absolute or relative to the workspace root. Match against original files. Duplicate or overlapping ranges are rejected.',
       },
     ],
   },
@@ -159,7 +160,8 @@ export const filesCommands: readonly Command[] = [
         name: 'target',
         kind: 'string',
         required: true,
-        description: 'Destination path. The host names its authorized parent.',
+        description:
+          'Destination path, absolute or relative to the workspace root. The host names its authorized parent.',
       } satisfies Field,
       {
         name: 'replace',
