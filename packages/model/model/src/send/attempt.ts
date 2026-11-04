@@ -134,6 +134,25 @@ export function createAttemptRunner<P>(
     attempts.delete(id)
     return refused(failure)
   }
+  /**
+   * Ends a final refusal. A release failure keeps the attempt and its capacity held, as `stop`
+   * does, but the answer stays the definite one: a retryable unavailable would leave the caller
+   * waiting on a call that cannot be sent.
+   */
+  async function stopFinal(
+    id: string,
+    attempt: SendAttempt<P>,
+    failure: ModelFailure,
+  ): Promise<SendResult> {
+    try {
+      await attempt.lifetime.close()
+    } catch {
+      attempt.stage = { kind: 'unknown', diagnostic: 'resource-release-failed' }
+      return refused(failure)
+    }
+    attempts.delete(id)
+    return refused(failure)
+  }
   /** The secret of the selected credential, only through the qualified path and its own scope. */
   function resolveCredential(
     attempt: SendAttempt<P>,
@@ -358,6 +377,27 @@ export function createAttemptRunner<P>(
     attempt.stage = recording
     return recording
   }
+  /** A refusal whose not-sent record was definitely rejected: nothing was committed or sent. */
+  async function rejectedRefusal(
+    id: string,
+    attempt: SendAttempt<P>,
+    decision: Extract<SendStart, { kind: 'refused' }>,
+    rejection: ModelFailure,
+  ): Promise<Completion> {
+    // A final refusal must not come back as a retryable unavailable: the write rejection is the
+    // definite answer of the record owner.
+    if (decision.fault !== undefined)
+      return { kind: 'complete', result: stopFinal(id, attempt, rejection) }
+    try {
+      await attempt.lifetime.close()
+    } catch {
+      return {
+        kind: 'complete',
+        result: refused(unavailable('model-send', 'resource-release-failed')),
+      }
+    }
+    return { kind: 'complete', result: refused(decision.failure) }
+  }
   async function recordStarted(
     id: string,
     attempt: SendAttempt<P>,
@@ -365,20 +405,10 @@ export function createAttemptRunner<P>(
   ): Promise<Completion> {
     const { result: decision, write: original } = entry
     const recorded = await write(attempt, original)
-    if (recorded.kind !== 'confirmed') {
-      if (decision.kind === 'refused' && recorded.kind === 'rejected') {
-        try {
-          await attempt.lifetime.close()
-        } catch {
-          return {
-            kind: 'complete',
-            result: refused(unavailable('model-send', 'resource-release-failed')),
-          }
-        }
-        return { kind: 'complete', result: refused(decision.failure) }
-      }
+    if (recorded.kind === 'rejected' && decision.kind === 'refused')
+      return rejectedRefusal(id, attempt, decision, recorded.failure)
+    if (recorded.kind !== 'confirmed')
       return { kind: 'complete', result: unknown(attempt, 'send-record-unconfirmed') }
-    }
     if (decision.kind === 'refused' && decision.fault !== undefined) {
       attempt.stage = terminalStage(attempt, recorded.value, decision.failure, decision.fault)
       return recordTerminal(id, attempt, attempt.stage)
@@ -444,7 +474,10 @@ export function createAttemptRunner<P>(
     const written = await write(attempt, entry.write)
     if (written.kind === 'unconfirmed')
       return { kind: 'complete', result: unknown(attempt, 'credential-terminal-unconfirmed') }
-    return { kind: 'complete', result: stop(id, attempt, entry.failure) }
+    // A definite rejection (stale instance, conflict, denied) is returned as it is, so the caller
+    // does not wait on the credential's retryable unavailable.
+    const failure = written.kind === 'rejected' ? written.failure : entry.failure
+    return { kind: 'complete', result: stopFinal(id, attempt, failure) }
   }
   async function failed(id: string, attempt: SendAttempt<P>): Promise<Completion> {
     // A coordinator exception can occur after calling start. Never retry that stage.
@@ -459,8 +492,6 @@ export function createAttemptRunner<P>(
     }
     if (attempt.stage.kind === 'record')
       return { kind: 'complete', result: unknown(attempt, 'send-record-unconfirmed') }
-    if (attempt.stage.kind === 'terminal')
-      return { kind: 'complete', result: unknown(attempt, 'credential-terminal-unconfirmed') }
     return {
       kind: 'complete',
       result: stop(id, attempt, unavailable('model-send', 'transport-prepare-failed')),
