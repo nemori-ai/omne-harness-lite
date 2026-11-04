@@ -8,6 +8,7 @@ import type {
   EligibilityId,
   EligibilityMaterial,
   CommitInput,
+  CommitRef,
   ApplyCommitResult,
   PrepareRegistrationResult,
   IssueEligibilityResult,
@@ -76,6 +77,14 @@ export function ownChange(change: RegistrationChange): RegistrationChange | unde
   }
 }
 
+/** The predecessor of an ordinary commit; omitted reads as `null` (RC-02 提交链, R2-D319). */
+function ownAfter(after: unknown): { after: CommitRef | null } | undefined {
+  if (after === undefined || after === null) return { after: null }
+  if (typeof after !== 'object' || !('commit' in after) || typeof after.commit !== 'string')
+    return undefined
+  return { after: { commit: after.commit } }
+}
+
 /** Captures a commit input into owned data before the first await (RC-01 输入快照). */
 export function ownCommit(input: CommitInput): CommitInput | undefined {
   const end = input.scopeEnded === true ? { scopeEnded: true as const } : {}
@@ -91,10 +100,12 @@ export function ownCommit(input: CommitInput): CommitInput | undefined {
         }
       : undefined
   }
+  const after = ownAfter(input.after)
+  if (!after) return undefined
   if (input.kind === 'registration') {
     const change = ownChange(input.change)
     return change
-      ? { kind: 'registration', commit: { commit: input.commit.commit }, change, ...end }
+      ? { kind: 'registration', commit: { commit: input.commit.commit }, ...after, change, ...end }
       : undefined
   }
   const scope = ownScope(input.stepCommit.scope)
@@ -104,6 +115,7 @@ export function ownCommit(input: CommitInput): CommitInput | undefined {
   return {
     kind: 'step',
     commit: { commit: input.commit.commit },
+    ...after,
     tenant: input.tenant,
     executionEnded: input.executionEnded === true,
     stepCommit: {
@@ -251,11 +263,11 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
     const { scope, tenant } = commitTarget(input)
     const gate = await holderGate(world, principal, { kind: 'commit', input }, scope, tenant)
     if (isGateFailure(gate)) return gate
-    const key = scope.ref + '\0' + input.commit.commit
-    const seen = world.commits.get(key)
     let s = world.state(scope)
     if (s && !tenantEquals(s.tenant, tenant))
       return { kind: 'invalid', reason: 'tenant-mismatch', current: s.revision }
+    // Only the commit at the head is kept (R2-D319). A released commit is answered by its `after`.
+    const seen = s?.successes.get(input.commit.commit)
     if (seen) {
       if (!gate.current()) return { kind: 'refused', reason: 'unauthorized' }
       return isDeepStrictEqual(seen.input, input)
@@ -266,10 +278,13 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
       if (!gate.current()) return { kind: 'refused', reason: 'unauthorized' }
       s ??= world.newScope(scope, tenant)
       if (!s.ended) endScope(s, input.commit)
-      return remember(key, input, s)
+      return remember(input, s)
     }
     if (!s || s.fence !== 'open') return { kind: 'refused', reason: 'replay-incomplete' }
     if (s.ended) return { kind: 'refused', reason: 'scope-ended' }
+    // The order comes from the holder log: the predecessor must be the head (R2-D319).
+    if ((input.after?.commit ?? null) !== (s.head?.commit ?? null))
+      return { kind: 'invalid', reason: 'out-of-order', current: s.revision }
     const target = s
     const prepared =
       input.kind === 'registration'
@@ -282,19 +297,22 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
     prepared.apply()
     target.commitsVersion++
     if (input.scopeEnded === true) endScope(target, input.commit)
-    const result = remember(key, input, target)
+    const result = remember(input, target)
     if (input.kind === 'registration' && input.change.kind !== 'remove')
       await supplier.afterRegistration(target, input.change.key)
     return result
   }
 
-  function remember(key: string, input: CommitInput, s: ScopeState): ApplyCommitResult {
+  /** The applied commit becomes the head and the only success entry; the one before is released. */
+  function remember(input: CommitInput, s: ScopeState): ApplyCommitResult {
     const result: ApplyCommitResult = {
       kind: 'applied',
       registrationRevision: s.revision,
       viewRevision: s.view,
     }
-    world.commits.set(key, { input, digest: digest(input), result })
+    s.head = { commit: input.commit.commit }
+    s.successes.clear() // release: no earlier commit of the scope can be retried any more
+    s.successes.set(input.commit.commit, { input, digest: digest(input), result })
     return result
   }
 

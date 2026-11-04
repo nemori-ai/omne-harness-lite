@@ -291,6 +291,8 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 
    普通资格按当前授权、可信绑定与所需注册签发，不等恢复供值完成。恢复仅标记 needsSupply，第一次合法普通读取核读者与逐块权限后触发原生产者供值。生产者仍核本次普通供值授权；必要初值由合法生产者或步提交建立。恢复授权不能充当普通读取或供值身份。必要注册、可信来源或资格缺口阻止依赖它们的读取或动作；首个模型请求所需输入未齐时继续暂停。失败保留待刷新状态与原初始化责任，不用零值或默认值补齐。
 
+   持有者按日志顺序逐条送出同一作用域的普通提交，并在每笔输入里填 `after`：同一作用域上一条上下文记录的提交身份，第一条为 `null`（Runtime Context RC-02 提交链，R2-D319）。会话日志记录的上下文输入不含 `after`，日志格式不变；`after` 只在送出时由日志顺序推出。
+
    普通 applyCommit 的成功去重绑定原完整输入；当前资格通过后，同值认回，不回退修订，异值为 commit-conflict。out-of-order、invalid、refused、unavailable 和 unknown 不占成功表。恢复包不写入普通增量去重表，不重放 reducer updates 或原业务效果。相同 begin 输入在仍为最新会话时认回原 ReplayRef，已完成也不重关围栏；已完成 finish 的同包重试认回，异包为 replay-conflict。旧引用的拒绝不关闭后继 ready。恢复期间 staging 不对普通读者披露，只有最终核 current、绑定、epoch、end 与 appliedCommits 版本后才原子安装。ReplayRef 是本实例引用，不能耐久复用或当权限。
 
    `RuntimeContextAuthority` 与 `ScopeBindingSource` 必须从真实作用域绑定、日志检查点和结束记录取依据。其 `current()` 同步核验需要与资格写者和最终动作共用有效序列化边界。首批 authorization 的异步准入不提供这个保证。真实跨进程接线尚未交付，不把本规格当作已实现证明。

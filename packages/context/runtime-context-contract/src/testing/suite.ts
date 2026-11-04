@@ -50,6 +50,7 @@ export async function addScope<P>(s: Setup<P>, ref: string, required = false): P
   const added = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: ref },
+    after: null,
     change: {
       kind: 'add',
       creating: true,

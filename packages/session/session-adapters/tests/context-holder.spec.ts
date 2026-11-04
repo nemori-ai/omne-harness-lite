@@ -25,7 +25,6 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   decodeScopeRef,
-  type CommitInput,
   type ContextBlockKey,
   type FinishReplayAction,
   type NeedBinding,
@@ -67,6 +66,7 @@ import {
   createSessionContextHolder,
   type SessionContextTranslation,
 } from '../src/cordis/context-holder.ts'
+import type { RecordedCommit } from '../src/cordis/context-holder.ts'
 import { createSessionRuntimeContextTrust } from '../src/runtime-context-trust.ts'
 
 // --- values --------------------------------------------------------------------------------------
@@ -181,7 +181,7 @@ function add(
   basedOn: number,
   persistence: 'checkpointed' | 'untracked',
   bindings: readonly NeedBinding[] = [modelNeed(key)],
-): CommitInput {
+): RecordedCommit {
   return {
     kind: 'registration',
     commit: { commit },
@@ -199,14 +199,14 @@ function add(
     },
   }
 }
-function remove(at: Target, commit: string, key: ContextBlockKey, basedOn: number): CommitInput {
+function remove(at: Target, commit: string, key: ContextBlockKey, basedOn: number): RecordedCommit {
   return {
     kind: 'registration',
     commit: { commit },
     change: { kind: 'remove', scope: at.scope, tenant: at.tenant, key, basedOn, creating: false },
   }
 }
-function step(at: Target, commit: string, key: ContextBlockKey, value: number): CommitInput {
+function step(at: Target, commit: string, key: ContextBlockKey, value: number): RecordedCommit {
   return {
     kind: 'step',
     commit: { commit },
@@ -226,7 +226,7 @@ function step(at: Target, commit: string, key: ContextBlockKey, value: number): 
     },
   }
 }
-function end(at: Target, commit: string): CommitInput {
+function end(at: Target, commit: string): RecordedCommit {
   return { kind: 'scope', commit: { commit }, scope: at.scope, tenant: at.tenant, scopeEnded: true }
 }
 
@@ -246,9 +246,9 @@ const FACTS_HISTORY = 'session-ad03-facts-history'
 const HOLDER = 'session-ad03'
 /** What a scripted entry records; a function gets the session the holder reads it for. */
 type Scripted =
-  | CommitInput
+  | RecordedCommit
   | null
-  | ((session: Readonly<{ tenant: TenantId }>) => CommitInput | null)
+  | ((session: Readonly<{ tenant: TenantId }>) => RecordedCommit | null)
 
 const sessionKey = (access: { tenant: TenantId; session: SessionId }) =>
   JSON.stringify([textOf(access.tenant), access.session])
@@ -743,10 +743,27 @@ describe('the replay sub-plugin is the only caller of applyCommit', () => {
     f.append(A, REGISTRATION, later)
     await f.committed(A, [REGISTRATION])
     expect(f.methods()).toEqual(['beginReplay', 'finishReplay', 'applyCommit'])
-    expect(lastInput(f, 'applyCommit')).toEqual(later)
+    // The input names the scope's record before it in the log (RC-02 提交链, R2-D319).
+    expect(lastInput(f, 'applyCommit')).toEqual({ ...later, after: { commit: 's3' } })
     // A notice that repeats does not apply the same commit again.
     await f.committed(A, [REGISTRATION])
     expect(f.methods().filter(method => method === 'applyCommit')).toHaveLength(1)
+  })
+
+  it('chains each later record after the record before it, a step after a registration too', async () => {
+    const f = await assembled()
+    seedA(f)
+    await f.committed(A, [REGISTRATION, STEP])
+    const later = add(atA, 'r4', 'test.later', 3, 'checkpointed')
+    const next = step(atA, 's4', NOTES, 4)
+    f.append(A, REGISTRATION, later)
+    f.append(A, STEP, next)
+    await f.committed(A, [REGISTRATION, STEP])
+    const applied = f.rcCalls.filter(call => call.method === 'applyCommit').map(call => call.input)
+    expect(applied).toEqual([
+      { ...later, after: { commit: 's3' } },
+      { ...next, after: { commit: 'r4' } },
+    ])
   })
 
   it('ignores a notice whose kinds hold no context record', async () => {

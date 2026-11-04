@@ -54,6 +54,7 @@ async function opened(
   const applied = await service.applyCommit('holder', {
     kind: 'registration',
     commit: { commit: `${target.ref}:add` },
+    after: null,
     change: {
       kind: 'add',
       creating: true,

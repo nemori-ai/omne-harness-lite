@@ -123,6 +123,7 @@ export async function setup<P>(
   const commit = await subject.applyCommit(principal, {
     kind: 'registration',
     commit: { commit: 'registration' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,

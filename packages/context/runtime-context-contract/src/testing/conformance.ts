@@ -176,6 +176,7 @@ async function registrationReplay<P>(fixture: RuntimeContextFixture<P>) {
   const r = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'registration' },
+    after: null,
     change: initialRegistration(s.scope, s.tenant),
   })
   assert.equal(r.kind, 'applied')
@@ -186,6 +187,7 @@ async function registrationOrder<P>(fixture: RuntimeContextFixture<P>) {
   const r = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'later' },
+    after: null,
     change: initialRegistration(s.scope, s.tenant),
   })
   assert.ok(r.kind === 'invalid')
@@ -197,6 +199,7 @@ async function registrationConflict<P>(fixture: RuntimeContextFixture<P>) {
   const r = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'registration' },
+    after: null,
     change: { ...initialRegistration(s.scope, s.tenant), parameters: 'different' },
   })
   assert.ok(r.kind === 'invalid')

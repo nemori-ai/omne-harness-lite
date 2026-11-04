@@ -74,13 +74,19 @@ function holderActions(principal: unknown, tenant: TenantId): readonly HolderAct
     { kind: 'prepare', change: change(tenant) },
     {
       kind: 'commit',
-      input: { kind: 'registration', commit: { commit: 'c-1' }, change: change(tenant) },
+      input: {
+        kind: 'registration',
+        commit: { commit: 'c-1' },
+        after: null,
+        change: change(tenant),
+      },
     },
     {
       kind: 'commit',
       input: {
         kind: 'step',
         commit: { commit: 'c-2' },
+        after: { commit: 'c-1' },
         tenant,
         stepCommit: { scope, step: { step: 's-1' }, committed: [], pending: [] },
         executionEnded: false,
