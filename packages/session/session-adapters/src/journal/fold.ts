@@ -16,7 +16,6 @@ import type {
   ControlStage,
   DurableEvidence,
   ExecutionControl,
-  FinishCandidateContent,
   HandoffReference,
   InputBatch,
   InputId,
@@ -36,6 +35,7 @@ import {
   type Attempt,
   type CursorMembers,
   type FactBody,
+  type FactOf,
   type ParticipationKind,
   type ProducerCall,
   type PublishedBatch,
@@ -56,7 +56,7 @@ export type AttachmentView = Readonly<{
 export type InputView = Readonly<{
   input: InputId
   entry: AgentOperationId
-  content: Ref
+  message: Ref
   source: DurableEvidence | null
   priority: 'ordinary' | 'urgent'
   watermark: DurableEvidence
@@ -174,7 +174,7 @@ export type ControlView = Readonly<{
 
 export type CandidateView = Readonly<{
   candidate: AgentOperationId
-  content: FinishCandidateContent
+  claim: FactOf<'finish.candidate'>['claim']
   checkpoint: Ref
   route: DurableEvidence
   supersedes: AgentOperationId | null
@@ -427,7 +427,7 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
           {
             input: fact.input,
             entry: fact.entry,
-            content: fact.content,
+            message: fact.message,
             source: fact.source,
             priority: fact.priority,
             watermark: fact.watermark,
@@ -691,7 +691,7 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
             ...draft.finish.candidates,
             {
               candidate: fact.candidate,
-              content: fact.content,
+              claim: fact.claim,
               checkpoint: fact.checkpoint,
               route: fact.route,
               supersedes: fact.supersedes,

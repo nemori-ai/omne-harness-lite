@@ -67,19 +67,25 @@ export type ContentType =
   | AgentJournalEntry
 
 type IsRef<T> = T extends Readonly<{ digest: string; size: number }> ? true : false
-type HasContent<T> = T extends ContentType
-  ? true
-  : IsRef<T> extends true
-    ? false
-    : T extends readonly (infer E)[]
-      ? HasContent<E>
-      : T extends (...args: never) => unknown
-        ? true
-        : T extends object
-          ? true extends { [K in keyof T]-?: HasContent<T[K]> }[keyof T]
-            ? true
+/**
+ * Whether a content type occurs anywhere in `T`, to a depth of eight members. A fact body is at
+ * most four members deep, so the bound only keeps a recursive type (a JSON value) from looping.
+ */
+type HasContent<T, Depth extends readonly unknown[] = []> = Depth['length'] extends 8
+  ? false
+  : T extends ContentType
+    ? true
+    : IsRef<T> extends true
+      ? false
+      : T extends readonly (infer E)[]
+        ? HasContent<E, [...Depth, 0]>
+        : T extends (...args: never) => unknown
+          ? true
+          : T extends object
+            ? true extends { [K in keyof T]-?: HasContent<T[K], [...Depth, 0]> }[keyof T]
+              ? true
+              : false
             : false
-          : false
 /**
  * `T` when no part of it is a content type, `never` otherwise. The codec and the batch builders
  * take their facts through it, so a fact that carries a message or a request fails to type-check.
@@ -156,7 +162,7 @@ export type FactBody =
       kind: 'input.accepted'
       input: InputId
       entry: AgentOperationId
-      content: Ref<Message>
+      message: Ref<Message>
       source: DurableEvidence | null
       priority: 'ordinary' | 'urgent'
       watermark: DurableEvidence
@@ -290,7 +296,9 @@ export type FactBody =
   | Readonly<{
       kind: 'finish.candidate'
       candidate: AgentOperationId
-      content: FinishCandidateContent
+      /** The candidate content with its failure as a reference: a failure names a produced result. */
+      claim: Omit<FinishCandidateContent, 'failure'> &
+        Readonly<{ failure: Readonly<{ kind: string; detail: Ref }> | null }>
       checkpoint: Ref
       route: DurableEvidence
       supersedes: AgentOperationId | null

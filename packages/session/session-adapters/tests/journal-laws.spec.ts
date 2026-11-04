@@ -1,0 +1,362 @@
+// The fold laws of the Agent fact family (R2-D292 F1 to F5, the formal properties P1, P3, P5, P6)
+// over generated fact logs: any kinds, any order, one or two executions interleaved. Each law has
+// a negative control: a broken fold, an oversize fact, a content member, a repeated operation, a
+// commit without a new fact. The terminal batches are checked to stay constant in the number of
+// tool calls (R2-D297).
+import { describe, expect, it } from 'vitest'
+import {
+  FACT_MAX_BYTES,
+  answer,
+  batchBytes,
+  batchOf,
+  bytesOf,
+  cursorMoved,
+  cursorOf,
+  decodeRows,
+  emptySessionView,
+  encodeBatch,
+  factKey,
+  fold,
+  foldAll,
+  movedMembers,
+  refOf,
+  viewDigest,
+  viewText,
+  type FactBody,
+  type FactRow,
+  type PublishedBatch,
+  type SessionJournalView,
+} from '../src/journal/index.ts'
+import { checkpoint as sampleCheckpoint } from './fixtures/common-journal.ts'
+import { bytesOfBatches, evidence, scene } from './fixtures/journal-facts.ts'
+import { forAll, random } from './fixtures/property.ts'
+
+const mint = { owner: 'laws', session: 'session-1' }
+const scope = { tenant: 'tenant-1', session: 'session-1' }
+
+/** The rows of a whole log, encoded batch by batch with the dense event sequence of each execution. */
+function rowsOf(log: readonly PublishedBatch[]): FactRow[] {
+  const rows: FactRow[] = []
+  const eseq = new Map<string, number>()
+  for (const batch of log) {
+    const encoded = encodeBatch(scope, batch.pub, eseq.get(batch.execution) ?? 0, batch)
+    if ('failure' in encoded) throw new Error(JSON.stringify(encoded.failure))
+    rows.push(...encoded.ok.rows)
+    eseq.set(batch.execution, encoded.ok.eseqNext)
+  }
+  return rows
+}
+
+describe('F1 determinism: one fact sequence folds to one view', () => {
+  it('two folds of the same log have the same digest, whatever the kinds and the order', () => {
+    forAll('F1', {
+      runs: 60,
+      generate: rng => scene(rng),
+      check: ({ log }) => {
+        const first = foldAll(log)
+        const second = foldAll(log)
+        if (viewDigest(first) !== viewDigest(second)) return 'two folds differ'
+        if (first.head !== log.length) return `head ${first.head} is not ${log.length}`
+        return null
+      },
+    })
+  })
+
+  it('a fold through the stored rows is the fold of the batches (encode then decode)', () => {
+    forAll('rows', {
+      runs: 40,
+      generate: rng => scene(rng),
+      check: ({ log }) => {
+        const decoded = decodeRows(rowsOf(log))
+        if ('failure' in decoded) return `rows do not decode: ${JSON.stringify(decoded.failure)}`
+        const direct = foldAll(log)
+        const through = foldAll(decoded.ok)
+        if (viewDigest(direct) !== viewDigest(through)) return 'the rows fold to another view'
+        // The event sequence of the rows is the one the fold assigns.
+        const rows = rowsOf(log)
+        for (const execution of direct.executions.values())
+          for (const event of execution.events) {
+            const row = rows.find(
+              item =>
+                item.execution === execution.execution &&
+                item.pub === event.pub &&
+                item.ord === event.ord,
+            )
+            if (row?.eseq !== event.eseq) return `eseq ${event.eseq} is not in the row`
+          }
+        return null
+      },
+    })
+  })
+})
+
+describe('F2 prefix closure: the view at pub p depends on the facts at pub <= p only', () => {
+  it('replacing every batch after p leaves the fold of the prefix unchanged', () => {
+    forAll('F2', {
+      runs: 40,
+      generate: rng => ({ scene: scene(rng), cut: rng.int(40) }),
+      check: ({ scene: { log }, cut }) => {
+        const p = Math.min(cut, log.length)
+        const prefix = log.slice(0, p)
+        const altered = [
+          ...prefix,
+          ...log.slice(p).map(batch => ({
+            ...batch,
+            facts: [{ kind: 'ack.through', sequence: 999 } satisfies FactBody],
+          })),
+        ]
+        const fromPrefix = foldAll(prefix)
+        const fromAlteredThenCut = foldAll(altered.slice(0, p))
+        if (viewDigest(fromPrefix) !== viewDigest(fromAlteredThenCut))
+          return 'prefix depends on later facts'
+        // And the folded prefix of the full log is reached by folding the prefix alone.
+        let step: SessionJournalView = emptySessionView()
+        for (const batch of prefix) step = fold(step, batch)
+        if (viewDigest(step) !== viewDigest(fromPrefix)) return 'stepwise prefix differs'
+        return null
+      },
+    })
+  })
+})
+
+describe('F3 incremental equals whole: a cached view plus the missed batches is the fold from the start', () => {
+  const law =
+    (foldFrom: (view: SessionJournalView, batch: PublishedBatch) => SessionJournalView) =>
+    ({ scene: { log }, cut }: { scene: ReturnType<typeof scene>; cut: number }) => {
+      const k = Math.min(cut, log.length)
+      let cached = emptySessionView()
+      for (const batch of log.slice(0, k)) cached = foldFrom(cached, batch)
+      let incremental = cached
+      for (const batch of log.slice(k)) incremental = foldFrom(incremental, batch)
+      let whole = emptySessionView()
+      for (const batch of log) whole = foldFrom(whole, batch)
+      return viewDigest(incremental) === viewDigest(whole)
+        ? null
+        : `incremental differs at k=${k}:\n${viewText(incremental).slice(0, 400)}\n${viewText(whole).slice(0, 400)}`
+    }
+
+  it('holds for the fold, for every split point', () => {
+    forAll('F3', {
+      runs: 60,
+      generate: rng => ({ scene: scene(rng), cut: rng.int(40) }),
+      check: law(fold),
+    })
+  })
+
+  it('negative control: a fold that reads anything but its arguments breaks the law', () => {
+    // The broken fold counts the batches it has seen in a closure: the view then depends on the
+    // process, not on the log, and the cached-plus-missed fold differs from the whole fold.
+    let seen = 0
+    const broken = (view: SessionJournalView, batch: PublishedBatch): SessionJournalView => {
+      seen += 1
+      const folded = fold(view, batch)
+      return { ...folded, head: folded.head + (seen % 2) }
+    }
+    const rng = random(7)
+    const value = { scene: scene(rng, { rounds: 3, executions: 1 }), cut: 2 }
+    expect(law(broken)(value)).not.toBeNull()
+  })
+
+  it('folding a batch already folded (pub <= head) is the identity', () => {
+    const { log } = scene(random(11), { rounds: 2 })
+    const view = foldAll(log)
+    expect(viewDigest(fold(view, log[0]!))).toBe(viewDigest(view))
+    expect(viewDigest(fold(view, log.at(-1)!))).toBe(viewDigest(view))
+  })
+})
+
+describe('F4 answers derive from the batch: no stored copy, one batch per operation', () => {
+  it('the answer of a batch is the same before and after any later batch is folded', () => {
+    forAll('F4', {
+      runs: 40,
+      generate: rng => scene(rng),
+      check: ({ log }) => {
+        let view = emptySessionView()
+        const first = new Map<string, string>()
+        for (const batch of log) {
+          view = fold(view, batch)
+          first.set(batch.envelope.op, JSON.stringify(answer(mint, view, batch)))
+        }
+        for (const batch of log) {
+          const again = JSON.stringify(answer(mint, view, batch))
+          if (again !== first.get(batch.envelope.op))
+            return `the answer of ${batch.envelope.op} changed`
+        }
+        return null
+      },
+    })
+  })
+
+  it('a recognition advances no revision and answers with the revision of the batch it recognizes', () => {
+    forAll('recognize', {
+      runs: 40,
+      generate: rng => scene(rng),
+      check: ({ log }) => {
+        let view = emptySessionView()
+        for (const batch of log) {
+          const before = view.executions.get(batch.execution)?.revision ?? 0
+          view = fold(view, batch)
+          const after = view.executions.get(batch.execution)!.revision
+          const recognition = batch.facts.find(fact => fact.kind === 'op.recognized')
+          if (recognition?.kind === 'op.recognized') {
+            if (after !== before) return 'a recognition advanced the revision'
+            const target = view.ops.get(recognition.target)
+            const entry = view.ops.get(batch.envelope.op)
+            if (target === undefined || entry?.revision !== target.revision)
+              return 'a recognition answers another revision than its target'
+          } else if (after !== before + 1) return `a batch advanced by ${after - before}`
+        }
+        return null
+      },
+    })
+  })
+
+  it('one batch per operation: a second batch of an operation already indexed changes nothing but the head (P6)', () => {
+    const { log } = scene(random(3), { rounds: 2, executions: 1 })
+    const view = foldAll(log)
+    const repeated: PublishedBatch = { ...log[2]!, pub: log.length + 1 }
+    const after = fold(view, repeated)
+    expect(after.ops.get(repeated.envelope.op)).toEqual(view.ops.get(repeated.envelope.op))
+    expect(after.ops.get(repeated.envelope.op)!.pub).toBe(log[2]!.pub)
+  })
+
+  it('negative control: a retry that re-executes appends a second batch; decide refuses the repeated keys', () => {
+    const { log } = scene(random(5), { rounds: 1, executions: 1, finish: false })
+    const view = foldAll(log)
+    const execution = view.executions.get(log[0]!.execution)!
+    const intend = log.find(batch => batch.facts.some(fact => fact.kind === 'step.begun'))!
+    const refused = batchOf(execution, intend.envelope, intend.facts)
+    expect(refused).toEqual({ kind: 'repeated', key: factKey(intend.facts[0]!) })
+  })
+})
+
+describe('F5 no copy: a fact holds references, never the content of another owner', () => {
+  it('every generated fact is under FACT_MAX_BYTES and free of content members', () => {
+    forAll('F5', {
+      runs: 40,
+      generate: rng => scene(rng),
+      check: ({ log }) => {
+        for (const batch of log)
+          for (const fact of batch.facts) {
+            if (bytesOf(fact) > FACT_MAX_BYTES) return `${fact.kind} is ${bytesOf(fact)} bytes`
+            const encoded = encodeBatch(scope, batch.pub, 0, batch)
+            if ('failure' in encoded) return JSON.stringify(encoded.failure)
+          }
+        return null
+      },
+    })
+  })
+
+  it('an oversize fact is refused as oversize, and the batch is not encoded (P3 run-time guard)', () => {
+    const { log } = scene(random(9), { rounds: 1, executions: 1 })
+    const batch = log[0]!
+    const big: FactBody = {
+      kind: 'passage.declared',
+      passage: 'p' as never,
+      subject: { digest: 'x'.repeat(FACT_MAX_BYTES), size: 1 },
+      declared: evidence('big'),
+    }
+    const encoded = encodeBatch(scope, batch.pub, 0, { ...batch, facts: [...batch.facts, big] })
+    expect(encoded).toMatchObject({
+      failure: { kind: 'oversize', factKind: 'passage.declared', ord: batch.facts.length + 1 },
+    })
+  })
+
+  it('a fact that carries a content member (role, content, messages, system) is refused as invalid', () => {
+    const { log } = scene(random(9), { rounds: 1, executions: 1 })
+    const batch = log[0]!
+    const leaked = {
+      kind: 'passage.declared',
+      passage: 'p',
+      subject: { role: 'assistant', content: 'leaked' },
+      declared: evidence('leak'),
+    } as unknown as FactBody
+    const encoded = encodeBatch(scope, batch.pub, 0, { ...batch, facts: [leaked] })
+    expect(encoded).toEqual({
+      failure: { kind: 'invalid', field: 'facts[0].subject.role', reason: 'content' },
+    })
+  })
+})
+
+describe('P3 bounded commit: a batch carries this step alone', () => {
+  it('no fact key repeats across a log (every fact is written once)', () => {
+    forAll('P3-keys', {
+      runs: 40,
+      generate: rng => scene(rng),
+      check: ({ log }) => {
+        const seen = new Set<string>()
+        for (const batch of log)
+          for (const fact of batch.facts) {
+            const key = `${batch.execution}/${factKey(fact)}`
+            if (seen.has(key)) return `${key} repeats`
+            seen.add(key)
+          }
+        return null
+      },
+    })
+  })
+
+  it('the intend batch of the 20th round is no larger than the 2nd round plus a constant', () => {
+    const { rounds, executions } = scene(random(21), { rounds: 20, executions: 1, finish: false })
+    const intends = rounds.get(executions[0]!)!
+    expect(batchBytes(intends[19]!)).toBeLessThanOrEqual(batchBytes(intends[1]!) + 64)
+  })
+
+  it('the terminal batches are constant in the number of tool calls; obligations grow per item only (R2-D297)', () => {
+    const small = scene(random(31), { rounds: 4, executions: 1, finish: true })
+    const large = scene(random(31), { rounds: 16, executions: 1, finish: true })
+    const smallFinish = small.finishes.get(small.executions[0]!)!
+    const largeFinish = large.finishes.get(large.executions[0]!)!
+    // Only the digits of the identities differ between 4 and 16 rounds.
+    const slack = 16
+    expect(batchBytes(largeFinish.ended)).toBeLessThanOrEqual(batchBytes(smallFinish.ended) + slack)
+    expect(batchBytes(largeFinish.candidate)).toBeLessThanOrEqual(
+      batchBytes(smallFinish.candidate) + slack,
+    )
+    const perItem = 512
+    const smallItems = smallFinish.obligations.facts.length
+    const largeItems = largeFinish.obligations.facts.length
+    expect(largeItems).toBeGreaterThan(smallItems)
+    expect(
+      batchBytes(largeFinish.obligations) - batchBytes(smallFinish.obligations),
+    ).toBeLessThanOrEqual((largeItems - smallItems) * perItem)
+    for (const fact of largeFinish.obligations.facts)
+      expect(bytesOf(fact)).toBeLessThanOrEqual(perItem)
+    // The whole own part is linear in the rounds with a small coefficient.
+    expect(bytesOfBatches(large.log)).toBeLessThanOrEqual(bytesOfBatches(small.log) * 5)
+  })
+})
+
+describe('cursor.moved carries the changed top-level members only; no new fact, no batch', () => {
+  it('an unchanged checkpoint and state moves nothing and yields no batch', () => {
+    const { log } = scene(random(41), { rounds: 1, executions: 1, finish: false })
+    const view = foldAll(log)
+    const execution = view.executions.get(log[0]!.execution)!
+    const checkpoint = sampleCheckpoint()
+    const first = cursorMoved(execution, checkpoint, { kind: 'advancing' })
+    expect(first).not.toBeNull()
+    const moved = fold(view, {
+      execution: execution.execution,
+      envelope: { op: 'exec-1/op/999/commit' as never, digest: 'd', rev: 0, gen: '1', kinds: [] },
+      facts: [first!],
+      pub: log.length + 1,
+    })
+    const again = cursorMoved(moved.executions.get(execution.execution)!, checkpoint, {
+      kind: 'advancing',
+    })
+    expect(again).toBeNull()
+    expect(batchOf(moved.executions.get(execution.execution)!, log[0]!.envelope, [])).toBeNull()
+  })
+
+  it('moving one member writes that member alone, as a reference when it carries content', () => {
+    const before = cursorOf(sampleCheckpoint(), { kind: 'advancing' })
+    const after = cursorOf(
+      { ...sampleCheckpoint(), position: 'M0', calls: [{ kind: 'model' } as never] },
+      { kind: 'advancing' },
+    )
+    const moved = movedMembers(before, after)
+    expect(Object.keys(moved).sort()).toEqual(['calls', 'position'])
+    expect(moved.calls).toEqual(refOf([{ kind: 'model' }]))
+    expect(bytesOf(moved)).toBeLessThan(256)
+  })
+})
