@@ -7,7 +7,7 @@ import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import { createShellAuthor, type ShellAuthorEnvironment } from '@omne-harness/tool-definitions'
 import type { ProcessHandle } from '@omne-harness/execution-environment-contract'
 import { shellFixture } from './fixtures/shell.ts'
-import { callText, run, value } from './run-author.ts'
+import { run, value } from './run-author.ts'
 
 it(
   'observes early result rejection in a Node subprocess while public Shell execution drains output',
@@ -63,7 +63,7 @@ it('stops only the interrupted handle and preserves unconfirmed while another in
   if (registration?.kind !== 'commands') throw new Error('commands')
   const operation = registration.operations.find(([name]) => name === 'execute')?.[1]
   if (operation === undefined) throw new Error('execute')
-  const text = callText('execute', { script: 'interrupt' })
+  const text = JSON.stringify({ script: 'interrupt' })
   const args = value(
     operation.author.parameters.parse({ original: text, effective: text, complete: true }),
   )

@@ -9,13 +9,12 @@ import {
   describeCommandCallRejection,
   selectCommandText,
   type CommandCallEncoding,
-  type ToolArguments,
   type ToolDefinition,
 } from '@omne-harness/tool-contract'
-import { succeed } from '@omne-harness/operation-result'
-import { readToolRegistration } from '@omne-harness/tool-contract/binding'
+import { readToolOperation, readToolRegistration } from '@omne-harness/tool-contract/binding'
 import {
   COMMAND_CALL_ENCODINGS,
+  commandArguments,
   commandExample,
   commandSignature,
   decodeCommandCall,
@@ -25,7 +24,6 @@ import {
   judgeToolDefinition,
 } from '@omne-harness/tool-contract/provider'
 import {
-  adoption,
   commandsDefinition,
   declaration,
   ordinaryAuthor,
@@ -153,37 +151,7 @@ describe('command call encodings', () => {
       }
     })
 
-    it(`${encoding}: each command codec reads only a call of its own command`, () => {
-      const seen: string[] = []
-      const echo = {
-        adoption: adoption('echo'),
-        parse: (args: ToolArguments) => {
-          seen.push(args.effective)
-          return succeed(json('{}'))
-        },
-      }
-      const operation = () => {
-        const defined = defineToolOperation({
-          parameters: { kind: 'declared', value: parameters() },
-          returns: ordinaryReturns,
-          author: { ...ordinaryAuthor(), parameters: echo },
-        })
-        if ('failure' in defined) throw new Error(defined.failure.reason)
-        return defined.ok
-      }
-      const implemented = defineCommandTool({
-        implementation: declaration(),
-        encoding,
-        commands: {
-          read: { summary: 'Read.', operation: operation() },
-          list: { summary: 'List.', operation: operation() },
-        },
-      })
-      if ('failure' in implemented) throw new Error(implemented.failure.reason)
-      const slot = readToolRegistration(implemented.ok)
-      if (slot?.kind !== 'commands') throw new Error('commands')
-      const codec = (name: string) =>
-        slot.operations.find(([command]) => command === name)![1].author.parameters
+    it(`${encoding}: the codec arguments are the parameters of the admitted command`, () => {
       const call = writeJsonText(
         encodeCommandCall(encoding, { command: 'read', params: json('{"path":"a.txt"}') as never }),
       )
@@ -192,21 +160,39 @@ describe('command call encodings', () => {
         effective,
         complete,
       })
-
-      expect(codec('read').parse(args(call))).toHaveProperty('ok')
-      expect(seen).toEqual(['{"path":"a.txt"}'])
-      expect(codec('list').parse(args(call))).toEqual({
-        failure: { kind: 'invalid', reason: 'the call names "read" but "list" was admitted' },
+      expect(commandArguments(definition, 'read', args(call))).toEqual({
+        ok: { ...args(call), effective: '{"path":"a.txt"}' },
       })
-      expect(codec('read').parse(args('{"command":"nope"}'))).toEqual({
+      expect(commandArguments(definition, 'shell', args(call))).toEqual({
+        failure: { kind: 'invalid', reason: 'the call names "read" but "shell" was admitted' },
+      })
+      expect(commandArguments(definition, 'read', args('{"command":"nope"}'))).toEqual({
         failure: { kind: 'invalid', reason: 'there is no command "nope"' },
       })
-      // An incomplete block reaches the author codec unchanged, which answers incomplete.
-      seen.length = 0
-      codec('read').parse(args('{"command":"re', false))
-      expect(seen).toEqual(['{"command":"re'])
-      // The adoption stays the author's: the cut changes no persisted codec identity.
-      expect(codec('read').adoption).toEqual(echo.adoption)
+      // An incomplete block goes to the codec unchanged, which answers incomplete.
+      const partial = args('{"command":"re', false)
+      expect(commandArguments(definition, 'read', partial)).toEqual({ ok: partial })
+    })
+
+    it(`${encoding}: registration keeps the author codec, so registering an operation again changes nothing`, () => {
+      const operation = defineToolOperation({
+        parameters: { kind: 'declared', value: parameters() },
+        returns: ordinaryReturns,
+        author: ordinaryAuthor(),
+      })
+      if ('failure' in operation) throw new Error(operation.failure.reason)
+      const register = (read: typeof operation.ok) =>
+        defineCommandTool({
+          implementation: declaration(),
+          encoding,
+          commands: { read: { summary: 'Read.', operation: read } },
+        })
+      const first = register(operation.ok)
+      if ('failure' in first) throw new Error(first.failure.reason)
+      const slot = readToolRegistration(first.ok)
+      if (slot?.kind !== 'commands') throw new Error('commands')
+      const author = slot.operations[0]![1].author
+      expect(author).toBe(readToolOperation(operation.ok)?.author)
     })
   }
 

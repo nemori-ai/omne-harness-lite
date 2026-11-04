@@ -9,8 +9,7 @@ import {
   type JsonValue,
 } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { ParameterCodec } from './authoring.ts'
-import type { ToolCommandDeclaration, ToolDefinition } from './definitions.ts'
+import type { ToolArguments, ToolCommandDeclaration, ToolDefinition } from './definitions.ts'
 
 /**
  * The encodings of one call. `wrapped` is `{"command": <name>, "params": {…}}` and `params` may be
@@ -126,33 +125,32 @@ export function decodeCommandCallText(
 }
 
 /**
- * The parameter codec of one command of a multi-command tool. The arguments text is the whole call:
- * it must name this command, and only its parameter object reaches the author's codec. An
- * incomplete block goes to the author's codec as it is, which answers `incomplete`.
+ * The arguments a command's codec parses (D-94). A function tool keeps its arguments. For a
+ * multi-command tool the arguments text is the whole call: it must name the admitted command, and
+ * the parameter object is cut out of it. An incomplete block stays as it is, so the codec answers
+ * `incomplete`. A rejection is `invalid` with its fixed reason, which the model reads.
  */
-export function commandParameterCodec<A>(
-  encoding: CommandCallEncoding,
-  commands: readonly string[],
-  command: string,
-  codec: ParameterCodec<A>,
-): ParameterCodec<A> {
-  return {
-    adoption: codec.adoption,
-    parse(args) {
-      if (!args.complete) return codec.parse(args)
-      const call = decodeCommandCallText(encoding, commands, args.effective)
-      if ('failure' in call) return fail({ kind: 'invalid', reason: rejectionText(call.failure) })
-      if (call.ok.command !== command) {
-        const mismatch: CommandCallRejection = {
-          kind: 'command-mismatch',
-          command: call.ok.command,
-          admitted: command,
-        }
-        return fail({ kind: 'invalid', reason: rejectionText(mismatch) })
-      }
-      return codec.parse({ ...args, effective: writeJsonText(call.ok.params) })
-    },
+export function commandArguments(
+  definition: ToolDefinition,
+  admitted: string | null,
+  args: ToolArguments,
+): Outcome<ToolArguments, Readonly<{ kind: 'invalid'; reason: string }>> {
+  if (definition.kind === 'function' || !args.complete) return succeed(args)
+  const call = decodeCommandCallText(
+    definition.encoding,
+    definition.commands.map(command => command.name),
+    args.effective,
+  )
+  if ('failure' in call) return fail({ kind: 'invalid', reason: rejectionText(call.failure) })
+  if (call.ok.command !== admitted) {
+    const mismatch: CommandCallRejection = {
+      kind: 'command-mismatch',
+      command: call.ok.command,
+      admitted,
+    }
+    return fail({ kind: 'invalid', reason: rejectionText(mismatch) })
   }
+  return succeed({ ...args, effective: writeJsonText(call.ok.params) })
 }
 
 function member(value: JsonValue | undefined, key: string): JsonValue | undefined {

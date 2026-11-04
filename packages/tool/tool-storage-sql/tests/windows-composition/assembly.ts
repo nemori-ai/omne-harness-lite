@@ -704,9 +704,10 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       const request: ToolInvokeRequest = {
         availability: availability.ok,
         command,
+        // A multi-command tool takes the whole call; its command codec cuts out the parameters.
         arguments: {
-          original: JSON.stringify(args),
-          effective: JSON.stringify(args),
+          original: JSON.stringify(command === null ? args : { command, params: args }),
+          effective: JSON.stringify(command === null ? args : { command, params: args }),
           complete: true,
         },
         settings: authors.settings[tool],

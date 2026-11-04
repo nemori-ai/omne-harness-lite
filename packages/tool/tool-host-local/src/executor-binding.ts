@@ -7,13 +7,14 @@ import type {
   ToolCatalog,
   ToolStartRecord,
 } from '@omne-harness/tool-contract'
-import type {
-  CallAccess,
-  ToolBindings,
-  ToolExecutionFact,
-  ToolExecutionScope,
-  ToolExecutorBinding,
-  ToolStartAuthority,
+import {
+  commandArguments,
+  type CallAccess,
+  type ToolBindings,
+  type ToolExecutionFact,
+  type ToolExecutionScope,
+  type ToolExecutorBinding,
+  type ToolStartAuthority,
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration, type ToolOperationSlot } from '@omne-harness/tool-contract/binding'
 import type { LocalToolBindingRegistry, ToolBindingSelection } from './bindings.ts'
@@ -81,7 +82,16 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     let outcome: Parameters<typeof dependencies.settle>[0]['outcome']
     let scope: ToolExecutionScope | undefined
     try {
-      const argumentsValue = operation.author.parameters.parse(input.request.arguments)
+      // The arguments of a multi-command tool are the whole call; its command codec parses the
+      // parameters only (D-94). A call that names no admitted command fails with the reason.
+      const { request } = input
+      const cut = commandArguments(
+        request.availability.definition,
+        request.command,
+        request.arguments,
+      )
+      if ('failure' in cut) throw new Error(cut.failure.reason)
+      const argumentsValue = operation.author.parameters.parse(cut.ok)
       if ('failure' in argumentsValue) throw new Error(argumentsValue.failure.reason)
       parsed = argumentsValue.ok
       scope = dependencies.scope({ ...input, execution })

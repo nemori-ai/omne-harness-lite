@@ -150,7 +150,7 @@ export async function runFilesScenario(assembly: WindowsAssembly): Promise<Scena
     invocations.push(invocation)
     await assembly.record('files.invoked', { command, args, invocation })
     assert.equal(invocation.request.command, command)
-    assert.deepEqual(JSON.parse(invocation.request.arguments.effective), args)
+    assert.deepEqual(JSON.parse(invocation.request.arguments.effective), { command, params: args })
     const completed = await boundedWait(assembly.settle(invocation))
     await assembly.record('files.completed', completed)
     const text = verifyCompletion(invocation, completed)

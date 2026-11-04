@@ -10,6 +10,7 @@ import {
   type ProcessBlock,
 } from '@omne-harness/tool-contract'
 import {
+  commandArguments,
   defaultResultPolicy,
   describedAdoption,
   renderToolResult,
@@ -226,7 +227,13 @@ export function createRuntimeAuthorExecution(
         if (call.outcome.kind === 'failed') projected = failed(call.outcome.reason, 'executor')
         else {
           const decoded = author.codec.decode(bytes)
-          const argumentsValue = author.parameters.parse(call.request.arguments)
+          const { request } = call
+          const cut = commandArguments(
+            request.availability.definition,
+            request.command,
+            request.arguments,
+          )
+          const argumentsValue = 'failure' in cut ? cut : author.parameters.parse(cut.ok)
           if ('failure' in decoded || 'failure' in argumentsValue) {
             projected = failed(
               'The original output or argument codec cannot reconstruct the saved return.',

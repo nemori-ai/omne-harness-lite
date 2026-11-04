@@ -208,6 +208,7 @@ export type {
 
 export {
   COMMAND_CALL_ENCODINGS,
+  commandArguments,
   commandExample,
   commandSignature,
   decodeCommandCall,
