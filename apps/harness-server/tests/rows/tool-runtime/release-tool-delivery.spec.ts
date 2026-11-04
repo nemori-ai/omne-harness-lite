@@ -1,6 +1,6 @@
 // @module-tag slow
 // 慢：本进程装发行树（真实 SQLite），每条命令起一个 `omne` 子进程，模型走本进程的本地网关。先构建 `apps/cli`。
-// 发行树上一次工具调用的结果交回 Agent（R2-D272 第二十层）：模型先答一个 `Shell.info` 调用，再答文字。工具执行完，
+// 发行树上一次工具调用的结果交回 Agent（R2-D272 第二十层）：模型先答一个调用 Shell 的 info 命令，再答文字。工具执行完，
 // Tool 宿主按受理时冻结的 consumer owner（`@omne-harness/agent`）找结果接收方推送，接收方把结果写进会话日志，Agent
 // 从 T0 醒来，结果进历史，模型给出最终回复，Run 以 completed 结束，停服退出码 0。
 import { readFileSync } from 'node:fs'
@@ -36,7 +36,7 @@ const serving = (body: string) => ({
   provider: 'OpenAI',
 })
 
-/** First request: one call of the release `Shell.info`. Every later request: the final text. */
+/** First request: one call of the release Shell, naming its `info` command. Every later request: the final text. */
 const toolThenText: GatewayScript = ({ index, body }) => ({
   status: 200,
   contentType: 'text/event-stream',
@@ -53,7 +53,7 @@ const toolThenText: GatewayScript = ({ index, body }) => ({
                       index: 0,
                       id: 'call_deliver',
                       type: 'function',
-                      function: { name: 'Shell_info', arguments: '{}' },
+                      function: { name: 'Shell', arguments: '{"command":"info","params":{}}' },
                     },
                   ],
                 },
@@ -123,7 +123,7 @@ const blocksOf = (entry: Entry | undefined): readonly Record<string, unknown>[] 
 
 describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => {
   it(
-    'Shell.info runs, its result and the final reply enter the history, the Run completes and the stop settles',
+    'Shell info runs, its result and the final reply enter the history, the Run completes and the stop settles',
     { timeout: 240_000 },
     async () => {
       const dir = newScratch('tool-delivery-')
@@ -188,7 +188,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
           'run.terminal',
         ])
         expect(gateway.requests()).toBe(2)
-        expect(blocksOf(entries[2])).toMatchObject([{ kind: 'tool_call', name: 'Shell.info' }])
+        expect(blocksOf(entries[2])).toMatchObject([{ kind: 'tool_call', name: 'Shell' }])
         expect(blocksOf(entries[3])[0]).toMatchObject({
           kind: 'tool_result',
           callId: 'call_deliver',
