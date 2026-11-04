@@ -83,7 +83,7 @@ export { classifyOutcome, type ClassifyContext } from './classify.ts'
 export { canonical, sameJson } from './json.ts'
 export { toContentBlocks } from './content.ts'
 export { boundInstructions } from './instructions.ts'
-export { LEGACY_PROTOCOL_VERSIONS } from './revisions.ts'
+export { FIRST_MODERN_PROTOCOL_VERSION, LEGACY_PROTOCOL_VERSIONS } from './revisions.ts'
 export { catalogKeyOf, connectionKeyOf, peerAccountOf } from './keys.ts'
 export type {
   AuthorizationDiscovery,

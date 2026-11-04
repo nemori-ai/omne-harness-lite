@@ -8,7 +8,7 @@ import { isTaskId, type TaskId } from './brands.ts'
 import { boundInstructions } from './instructions.ts'
 import type { AnswerMalformed } from './outcomes.ts'
 import type { HttpCredentialHandle, ProcessHandle } from './ports.ts'
-import { LEGACY_PROTOCOL_VERSIONS } from './revisions.ts'
+import { LEGACY_PROTOCOL_VERSIONS, isModernProtocolVersion } from './revisions.ts'
 import { NotApplicable, conformanceCase, type ConformanceCase } from './testing-case.ts'
 import { actionNameOf, jsonOf } from './testing-values.ts'
 import type {
@@ -142,8 +142,8 @@ export type ScriptSource = PeerScript | ((target: string) => PeerScript)
 
 /**
  * The fixture of the transport suite. `kinds` lists the material kinds it can open; a case that
- * needs another kind is not applicable. `protocolVersions` lists the versions the transport
- * speaks, highest first. `peer` prepares a peer that answers as the script says; it throws
+ * needs another kind is not applicable. `protocolVersions` lists the modern versions the transport
+ * speaks on `server/discover`, highest first; the legacy versions are `LEGACY_PROTOCOL_VERSIONS`. `peer` prepares a peer that answers as the script says; it throws
  * `NotApplicable` for a script it cannot realize, for example one with `peerRequests`.
  */
 export type TransportFixture = Readonly<{
@@ -187,14 +187,15 @@ function error(code: number, message: string, data?: PlainJson): PeerReply {
   return { kind: 'error', error: data === undefined ? { code, message } : { code, message, data } }
 }
 
+/** An HTTP answer of `status` whose body is a JSON-RPC error. */
+function httpError(status: number, code: number, message: string, data?: PlainJson): PeerReply {
+  const answer = data === undefined ? { code, message } : { code, message, data }
+  return { kind: 'http', status, body: JSON.stringify({ jsonrpc: '2.0', id: null, error: answer }) }
+}
+
 /** An HTTP 400 answer whose body is a JSON-RPC error. */
 function badRequest(code: number, message: string, data?: PlainJson): PeerReply {
-  const body = {
-    jsonrpc: '2.0',
-    id: null,
-    error: data === undefined ? { code, message } : { code, message, data },
-  }
-  return { kind: 'http', status: 400, body: JSON.stringify(body) }
+  return httpError(400, code, message, data)
 }
 
 const SILENT: PeerReply = { kind: 'silent' }
@@ -245,6 +246,10 @@ async function withPeer<T>(
   const kind = needs.kind ?? fixture.kinds[0]
   assert.ok(kind !== undefined, 'the fixture names no material kind')
   if (!fixture.kinds.includes(kind)) throw new NotApplicable(`${kind} material`)
+  assert.ok(
+    fixture.protocolVersions.every(isModernProtocolVersion),
+    'the fixture lists a legacy version; legacy versions are LEGACY_PROTOCOL_VERSIONS',
+  )
   const peer = await fixture.peer(withModernDiscover(fixture, script), {
     ...needs,
     kind,
@@ -300,6 +305,25 @@ function versionOf(entry: Request): PlainJson | undefined {
   return at(entry.params, '_meta', PROTOCOL_VERSION_KEY)
 }
 
+/** Each request and notification from `start` on, with the `_meta` version it carries. */
+function versionsFrom(
+  received: readonly PeerReceived[],
+  start: number,
+): readonly (readonly [string, PlainJson | undefined])[] {
+  return received
+    .slice(start)
+    .flatMap(entry =>
+      entry.kind === 'request' || entry.kind === 'notification'
+        ? [[entry.method, at(entry.params, '_meta', PROTOCOL_VERSION_KEY)] as const]
+        : [],
+    )
+}
+
+/** The index of the last request of `method`. */
+function lastIndexOf(received: readonly PeerReceived[], method: string): number {
+  return received.findLastIndex(entry => entry.kind === 'request' && entry.method === method)
+}
+
 /** The `Mcp-Name` that a request carries on Streamable HTTP: the tool name or the task id. */
 function mcpNameOf(entry: Request): PlainJson | undefined {
   if (entry.method === 'tools/call') return at(entry.params, 'name')
@@ -326,10 +350,18 @@ function assertEnvelopes(peer: ScriptedPeer, received: readonly PeerReceived[]):
     assert.ok(isRecord(meta[CLIENT_INFO_KEY]), `${entry.method}: no clientInfo`)
     const capabilities = meta[CLIENT_CAPABILITIES_KEY]
     assert.ok(isRecord(capabilities), `${entry.method}: no clientCapabilities`)
-    assert.ok(
-      isRecord(at(capabilities, 'extensions', TASKS_EXTENSION)),
-      `${entry.method}: tasks not declared`,
-    )
+    const version = meta[PROTOCOL_VERSION_KEY]
+    if (typeof version === 'string' && isModernProtocolVersion(version))
+      assert.ok(
+        isRecord(at(capabilities, 'extensions', TASKS_EXTENSION)),
+        `${entry.method}: tasks not declared`,
+      )
+    else
+      assert.strictEqual(
+        at(capabilities, 'extensions', TASKS_EXTENSION),
+        undefined,
+        `${entry.method}: the tasks extension is declared on a legacy revision`,
+      )
     assert.ok(
       isRecord(at(capabilities, 'elicitation', 'form')),
       `${entry.method}: elicitation.form not declared`,
@@ -499,6 +531,31 @@ const t1Cases = (): readonly Case[] => [
             code: -32603,
             message: 'listing broke',
             data: jsonOf({ retry: false }),
+          })
+        },
+      ),
+  ),
+  conformanceCase(
+    'T1',
+    'streamable-http: a 400 whose body is a JSON-RPC error is the error answer of listActions and of a sent call',
+    async fixture =>
+      withPeer(
+        fixture,
+        {
+          listing: { '': badRequest(-32602, 'Unknown cursor') },
+          calls: { echo: badRequest(-32602, 'bad arguments', { field: 'city' }) },
+        },
+        { kind: 'streamable-http' },
+        async (_peer, transport) => {
+          assert.deepStrictEqual(failure(await transport.listActions(), 'listActions'), {
+            kind: 'error-answer',
+            code: -32602,
+            message: 'Unknown cursor',
+          })
+          const sent = ok(await transport.call(echo, never), 'call')
+          assert.deepStrictEqual(await sent.answer, {
+            kind: 'error',
+            error: jsonOf({ code: -32602, message: 'bad arguments', data: { field: 'city' } }),
           })
         },
       ),
@@ -845,26 +902,61 @@ const t3Cases = (): readonly Case[] => [
   ),
   conformanceCase(
     'T3, T7',
-    'legacy: an initialize answer with a version outside LEGACY_PROTOCOL_VERSIONS is discover-shape',
-    async fixture =>
-      withPeer(
+    'legacy: an initialize answer with a version outside LEGACY_PROTOCOL_VERSIONS is discover-shape: before the list, between its members, or modern',
+    async fixture => {
+      const modernVersion = fixture.protocolVersions[0]
+      assert.ok(modernVersion !== undefined)
+      for (const version of ['2024-01-01', '2025-01-01', modernVersion])
+        await withPeer(
+          fixture,
+          {
+            discover: METHOD_NOT_FOUND,
+            initialize: result({ protocolVersion: version, capabilities: {} }),
+          },
+          {},
+          async (peer, transport) => {
+            assert.deepStrictEqual(
+              failure(await transport.discover(), 'discover'),
+              malformed('discover-shape'),
+              `initialize answered ${version}`,
+            )
+            assert.deepStrictEqual(
+              notifications(await peer.received(), 'notifications/initialized'),
+              [],
+            )
+          },
+        )
+    },
+  ),
+  conformanceCase(
+    'T3',
+    'streamable-http: on the legacy path each request carries the negotiated version in _meta and in MCP-Protocol-Version (item 7)',
+    async fixture => {
+      const negotiated = LEGACY_PROTOCOL_VERSIONS[1]
+      await withPeer(
         fixture,
         {
           discover: METHOD_NOT_FOUND,
-          initialize: result({ protocolVersion: '2024-01-01', capabilities: {} }),
+          initialize: result({ protocolVersion: negotiated, capabilities: {} }),
+          calls: { echo: result(DONE) },
+          listing: { '': result({ tools: [] }) },
         },
-        {},
+        { kind: 'streamable-http' },
         async (peer, transport) => {
-          assert.deepStrictEqual(
-            failure(await transport.discover(), 'discover'),
-            malformed('discover-shape'),
-          )
-          assert.deepStrictEqual(
-            notifications(await peer.received(), 'notifications/initialized'),
-            [],
-          )
+          ok(await transport.discover(), 'discover')
+          ok(await transport.listActions(), 'listActions')
+          await ok(await transport.call(echo, never), 'call').answer
+          const received = await peer.received()
+          assertEnvelopes(peer, received)
+          const headers = received
+            .slice(lastIndexOf(received, 'initialize') + 1)
+            .flatMap(entry =>
+              entry.kind === 'request' ? [entry.headers?.['mcp-protocol-version']] : [],
+            )
+          assert.deepStrictEqual(headers, [negotiated, negotiated])
         },
-      ),
+      )
+    },
   ),
   conformanceCase(
     'T3',
@@ -904,6 +996,41 @@ const t3Cases = (): readonly Case[] => [
           )
         },
       ),
+  ),
+  conformanceCase(
+    'T3',
+    'streamable-http: a 404 or 405 answer to discover is a legacy peer unless its body is a JSON-RPC error of the modern revision (item 7)',
+    async fixture => {
+      for (const status of [404, 405])
+        await withPeer(
+          fixture,
+          { discover: { kind: 'http', status, body: 'Not Found' }, initialize: LEGACY },
+          { kind: 'streamable-http' },
+          async (_peer, transport) => {
+            assert.strictEqual(
+              ok(await transport.discover(), 'discover').protocolVersion,
+              OFFERED_LEGACY_VERSION,
+              `HTTP ${status}`,
+            )
+          },
+        )
+      await withPeer(
+        fixture,
+        {
+          discover: httpError(405, -32021, 'Missing required client capability'),
+          initialize: LEGACY,
+        },
+        { kind: 'streamable-http' },
+        async (peer, transport) => {
+          assert.deepStrictEqual(failure(await transport.discover(), 'discover'), {
+            kind: 'error-answer',
+            code: -32021,
+            message: 'Missing required client capability',
+          })
+          assert.deepStrictEqual(requests(await peer.received(), 'initialize'), [])
+        },
+      )
+    },
   ),
   conformanceCase(
     'T3',
@@ -1014,28 +1141,38 @@ const t3Cases = (): readonly Case[] => [
       ),
   ),
   conformanceCase(
-    'T3, T7',
-    'no protocol version in common is discover-shape, with no legacy fallback',
-    async fixture =>
-      withPeer(
+    'T3',
+    'a discover result with no version in common is a legacy peer: discover falls back to initialize, whose failure is reported (item 7)',
+    async fixture => {
+      const unknown = result({ supportedVersions: ['2099-01-01'], capabilities: {} })
+      await withPeer(
         fixture,
-        {
-          discover: result({ supportedVersions: ['1999-01-01'], capabilities: {} }),
-          initialize: LEGACY,
-        },
+        { discover: unknown, initialize: LEGACY },
         {},
-        async (peer, transport) => {
-          assert.deepStrictEqual(
-            failure(await transport.discover(), 'discover'),
-            malformed('discover-shape'),
+        async (_peer, transport) => {
+          assert.strictEqual(
+            ok(await transport.discover(), 'discover').protocolVersion,
+            OFFERED_LEGACY_VERSION,
           )
-          assert.deepStrictEqual(requests(await peer.received(), 'initialize'), [])
         },
-      ),
+      )
+      await withPeer(
+        fixture,
+        { discover: unknown, initialize: error(-32603, 'legacy broke') },
+        {},
+        async (_peer, transport) => {
+          assert.deepStrictEqual(failure(await transport.discover(), 'discover'), {
+            kind: 'error-answer',
+            code: -32603,
+            message: 'legacy broke',
+          })
+        },
+      )
+    },
   ),
   conformanceCase(
     'T3',
-    '-32022 with supported versions: one retry with the highest version in common, kept after (item 7)',
+    '-32022 with supported versions: one retry with the highest version in common, kept by every later request (item 7)',
     async fixture => {
       const lowest = fixture.protocolVersions.at(-1)
       assert.ok(lowest !== undefined)
@@ -1048,30 +1185,64 @@ const t3Cases = (): readonly Case[] => [
           ],
           initialize: LEGACY,
           listing: { '': result({ tools: [] }) },
+          calls: { echo: result(DONE) },
+          tasks: { t1: { get: result({ status: 'working' }) } },
         },
         {},
         async (peer, transport) => {
           assert.strictEqual(ok(await transport.discover(), 'discover').protocolVersion, lowest)
           ok(await transport.listActions(), 'listActions')
+          await ok(await transport.call(echo, never), 'call').answer
+          ok(await transport.getTask(taskId('t1')), 'getTask')
           const received = await peer.received()
-          const sent = requests(received, 'server/discover')
-          assert.strictEqual(sent.length, 2)
-          assert.strictEqual(sent[1] === undefined ? undefined : versionOf(sent[1]), lowest)
-          const [listing] = requests(received, 'tools/list')
-          assert.strictEqual(listing === undefined ? undefined : versionOf(listing), lowest)
+          assert.strictEqual(requests(received, 'server/discover').length, 2)
           assert.deepStrictEqual(requests(received, 'initialize'), [])
+          assert.deepStrictEqual(versionsFrom(received, lastIndexOf(received, 'server/discover')), [
+            ['server/discover', lowest],
+            ['tools/list', lowest],
+            ['tools/call', lowest],
+            ['tasks/get', lowest],
+          ])
+          assertEnvelopes(peer, received)
+        },
+      )
+    },
+  ),
+  conformanceCase(
+    'T3, T5',
+    'stdio: after a -32022 retry the cancel notification carries the negotiated version (item 7)',
+    async fixture => {
+      const lowest = fixture.protocolVersions.at(-1)
+      assert.ok(lowest !== undefined)
+      await withPeer(
+        fixture,
+        {
+          discover: [
+            error(-32022, 'unsupported', { supported: [lowest] }),
+            result({ supportedVersions: [lowest], capabilities: {} }),
+          ],
+          calls: { echo: SILENT },
+        },
+        { kind: 'stdio' },
+        async (peer, transport) => {
+          ok(await transport.discover(), 'discover')
+          const sent = ok(await transport.call(echo, never), 'call')
+          await transport.cancelRequest(sent.requestId)
+          const [cancelled] = notifications(await peer.received(), 'notifications/cancelled')
+          assert.ok(cancelled !== undefined, 'notifications/cancelled was not sent')
+          assert.strictEqual(at(cancelled.params, '_meta', PROTOCOL_VERSION_KEY), lowest)
         },
       )
     },
   ),
   conformanceCase(
     'T3, T7',
-    '-32022 without a version in common is discover-shape (item 7)',
+    '-32022 whose supported lists modern versions but none in common is discover-shape (item 7)',
     async fixture =>
       withPeer(
         fixture,
         {
-          discover: error(-32022, 'unsupported', { supported: ['2000-01-01'] }),
+          discover: error(-32022, 'unsupported', { supported: ['2099-01-01'] }),
           initialize: LEGACY,
         },
         {},
@@ -1085,6 +1256,37 @@ const t3Cases = (): readonly Case[] => [
           assert.deepStrictEqual(requests(received, 'initialize'), [])
         },
       ),
+  ),
+  conformanceCase(
+    'T3',
+    '-32022 without data.supported, or with legacy versions only, is a legacy peer; a failing initialize is reported (item 7)',
+    async fixture => {
+      for (const data of [undefined, { supported: [LEGACY_PROTOCOL_VERSIONS[1]] }])
+        await withPeer(
+          fixture,
+          { discover: error(-32022, 'unsupported', data), initialize: LEGACY },
+          {},
+          async (peer, transport) => {
+            assert.strictEqual(
+              ok(await transport.discover(), 'discover').protocolVersion,
+              OFFERED_LEGACY_VERSION,
+            )
+            assert.strictEqual(requests(await peer.received(), 'server/discover').length, 1)
+          },
+        )
+      await withPeer(
+        fixture,
+        { discover: error(-32022, 'unsupported'), initialize: error(-32603, 'legacy broke') },
+        {},
+        async (_peer, transport) => {
+          assert.deepStrictEqual(failure(await transport.discover(), 'discover'), {
+            kind: 'error-answer',
+            code: -32603,
+            message: 'legacy broke',
+          })
+        },
+      )
+    },
   ),
   conformanceCase(
     'T3',
@@ -1909,6 +2111,7 @@ const t7Cases = (): readonly Case[] => {
                   task({ status: 'failed' }),
                   task({ status: 'failed' }),
                   task({ status: 'failed', error: 'not an object' }),
+                  task({ status: 'failed', error: 'not an object' }),
                 ],
               },
             },
@@ -1919,6 +2122,9 @@ const t7Cases = (): readonly Case[] => {
               failure: malformed('error-missing'),
             })
             assert.deepStrictEqual(await transport.getTaskResult(taskId('t1')), {
+              failure: malformed('error-missing'),
+            })
+            assert.deepStrictEqual(await transport.getTask(taskId('t1')), {
               failure: malformed('error-missing'),
             })
             assert.deepStrictEqual(await transport.getTaskResult(taskId('t1')), {

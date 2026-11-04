@@ -69,18 +69,22 @@ function materialOf(needs: PeerNeeds): TransportMaterial {
 
 type Wrap = (factory: McpTransportFactory) => McpTransportFactory
 
+/**
+ * Two modern versions, so that a `-32022` retry negotiates a version other than the highest. The
+ * first is a future revision that only the scripted transport speaks.
+ */
+const MODERN_VERSIONS = ['2027-01-01', '2026-07-28']
+
 function fixtureOf(
   kinds: readonly TransportKind[],
   wrap: Wrap = factory => factory,
 ): TransportFixture {
   return {
     kinds,
-    protocolVersions: ['2026-07-28', '2025-11-25'],
+    protocolVersions: MODERN_VERSIONS,
     async peer(source: ScriptSource, needs: PeerNeeds): Promise<ScriptedPeer> {
       const script = typeof source === 'function' ? source(target) : source
-      const factory = createScriptedTransportFactory(script, {
-        protocolVersions: ['2026-07-28', '2025-11-25'],
-      })
+      const factory = createScriptedTransportFactory(script, { protocolVersions: MODERN_VERSIONS })
       return {
         factory: wrap(factory),
         material: materialOf(needs),
@@ -462,6 +466,12 @@ describe('the scripted transport factory', () => {
     release()
     expect(await listing).toEqual({ ok: { tools: [] } })
     await transport.close()
+  })
+
+  it('refuses a legacy version among the versions it speaks on server/discover', () => {
+    expect(() =>
+      createScriptedTransportFactory({}, { protocolVersions: ['2026-07-28', '2025-11-25'] }),
+    ).toThrow(RangeError)
   })
 
   it('refuses to open on an aborted signal', async () => {

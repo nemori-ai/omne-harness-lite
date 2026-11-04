@@ -76,6 +76,11 @@ W3 的 reduce 在 2026-11-04 对照 2026-07-28 修订核对本页，作出下列
     - `tasks/get` 答 `failed` 而没有错误对象时，答 `answer-malformed`（`error-missing`）。见 T7。
     - 旧一路的协议版本必须在 `LEGACY_PROTOCOL_VERSIONS` 里。见 T3。
     - 任务提示 `pollIntervalMs` 与 `ttlMs` 只收非负安全整数。见 O2。
+19. 第 3 轮的裁定（reduce，2026-11-04）。探测与回退和官方 TypeScript SDK 2.4.0 客户端一致，除非与「结局如实分类」「不代调用方重发」冲突：
+    - 旧连接上每个请求与通知的 `_meta.clientCapabilities` 不声明任务扩展，与 `initialize.params.capabilities` 相同。见 T3。
+    - `-32022` 不带 `data.supported`，或 `supported` 里没有现代版本时，对端是旧对端，回退到旧一路。见 T3。
+    - 夹具的 `protocolVersions` 只列现代修订；旧修订由 `LEGACY_PROTOCOL_VERSIONS` 决定。见[组合与验证](#composition)。
+    - Streamable HTTP 上 `server/discover` 收到 401、403 以外且低于 500 的状态（含 404、405）时，按 SDK 的 `classifyHttpError` 读。见 T3。
 
 <a id="entries"></a>
 
@@ -83,7 +88,7 @@ W3 的 reduce 在 2026-11-04 对照 2026-07-28 修订核对本页，作出下列
 
 | 入口         | 给谁                   | 内容                                                                                                                                                                                                                                                                                                                                                          |
 | ------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.`          | 调用方与实现方         | 值、品牌守卫、结局、失败、五个服务接口与结果值、纯函数、`mcpEndpointBodyContract()`、`isActionArgs`、`canonical`、`sameJson`、`McpClock`、`LEGACY_PROTOCOL_VERSIONS`                                                                                                                                                                                          |
+| `.`          | 调用方与实现方         | 值、品牌守卫、结局、失败、五个服务接口与结果值、纯函数、`mcpEndpointBodyContract()`、`isActionArgs`、`canonical`、`sameJson`、`McpClock`、`LEGACY_PROTOCOL_VERSIONS`、`FIRST_MODERN_PROTOCOL_VERSION`                                                                                                                                                         |
 | `./provider` | 端口的实现方           | 五个需求端口、`McpTransport`、`McpTransportFactory` 及其答复类型。只有类型，不重复根入口已导出的类型                                                                                                                                                                                                                                                          |
 | `./testing`  | 端口的实现方，用于自测 | 五个需求端口与传输的符合性套件、各自的内存替身（传输的是 `createScriptedTransportFactory`）、`classifyOutcomeCases`、`mergeListingCases`、样本构造器（`jsonOf`、`jsonTextOf`、`generationOf`、`revisionOf`、`actionNameOf`、`protocolVersionOf`、`requestStateOf`、`taskIdOf`），以及 `runConformanceCase`、`isNotApplicable`、`NotApplicable`、`CaseVerdict` |
 
@@ -423,15 +428,20 @@ W3 的 reduce 在 2026-11-04 对照 2026-07-28 修订核对本页，作出下列
 - **T1** 传输失败按对端效果分四种：`not-sent`，请求没有对端效果；`no-answer`，请求已离开而没有应答，效果未知；`error-answer`，请求已离开，对端答 JSON-RPC 错误，带错误码、消息与 `data`（如有）；`answer-malformed`，请求已离开，应答读不懂，见 T7。`call` 的失败只会是 `not-sent`；调用已发出后，没有应答经 `answer` 交出 `no-answer`，JSON-RPC 错误经 `answer` 交出 `error`。
 - **T2** 对 `call`，传输交出对端的原样应答，不分类，分类由 `classifyOutcome` 完成。对非调用请求（`discover`、`listActions` 与任务操作），传输把应答解释到 T3、T6、T7 点名的形状为止。`listActions` 交出的页：`tools` 是对端的 `tools` 列表，`nextCursor` 与 `ttlMs` 原样（如有）。Streamable HTTP 上，`x-mcp-header` 声明不合法的工具（SEP-2243：声明只能出现在经 `properties` 链可静态到达的属性上，值是非空的 RFC 9110 token，属性类型是 `string`、`integer`、`boolean` 或 `number`，名字不区分大小写地唯一）由传输在交页前从 `tools` 剔除，并列在 `withheld`，每项带工具名（不可信值）与原因 `header-invalid`。stdio 上不核 `x-mcp-header`，页原样交出。C1 不变：交出的页里一项非法，整份仍拒绝。服务在本波不读 `withheld`。
 - **T3** `discover` 的规则：
-  - 每个请求与通知的 `params._meta` 带 `io.modelcontextprotocol/protocolVersion`、`io.modelcontextprotocol/clientCapabilities` 与 `io.modelcontextprotocol/clientInfo`。`clientCapabilities` 固定声明任务扩展 `extensions["io.modelcontextprotocol/tasks"]` 与 `elicitation.form`；不声明 `elicitation.url`、`sampling`、`roots`。不设 `io.modelcontextprotocol/logLevel`，不发 `logging/setLevel`，不发 `subscriptions/listen`。
+  - 每个请求与通知的 `params._meta` 带 `io.modelcontextprotocol/protocolVersion`、`io.modelcontextprotocol/clientCapabilities` 与 `io.modelcontextprotocol/clientInfo`。`clientCapabilities` 声明 `elicitation.form`；不声明 `elicitation.url`、`sampling`、`roots`。`_meta` 的版本是现代修订时，`clientCapabilities` 另声明任务扩展 `extensions["io.modelcontextprotocol/tasks"]`；是旧修订时不声明，与旧一路 `initialize.params.capabilities` 相同。现代修订是日期不早于 `FIRST_MODERN_PROTOCOL_VERSION`（`2026-07-28`）的修订，与 SDK 2.4.0 的 `isModernProtocolVersion` 相同。不设 `io.modelcontextprotocol/logLevel`，不发 `logging/setLevel`，不发 `subscriptions/listen`。
   - `_meta` 的协议版本：`server/discover` 带它这一次要的版本。`initialize` 带它提出的旧版本。协商之后，每个请求与通知带协商出的版本，现代一路与旧一路相同。
   - Streamable HTTP 上每个请求带 MCP 请求头：`MCP-Protocol-Version` 等于该请求 `_meta` 的协议版本；`Mcp-Method` 是方法名；`Mcp-Name` 只在 `tools/call`（工具名）与 `tasks/get`、`tasks/update`、`tasks/cancel`（`params.taskId`，SEP-2663「Streamable HTTP: Routing Headers」）上带，其余请求不带。通知不要求带这些头。stdio 上没有请求头。
-  - 现代一路：发 `server/discover`，`_meta` 的版本是传输会说的最高版本。应答是对象，带 `supportedVersions`（文本列表）与 `capabilities`（对象）时读懂：协议版本取双方共有的最高版本，没有共有版本答 `answer-malformed`（`discover-shape`），不走旧一路。`serverInfo` 取 `_meta["io.modelcontextprotocol/serverInfo"]`（如有，不可信值）。`instructions` 按打开材料里的 `instructionsByteLimit` 经 `boundInstructions` 处理，见 S3，带本连接的代际。
-  - `-32022`（版本不支持）属于现代修订：带 `data.supported` 时，选双方共有的最高版本重试一次；没有共有版本答 `answer-malformed`（`discover-shape`）。重试后再答 `-32022` 时以 `error-answer` 原样交出。`-32021`、`-32020` 也属于现代修订，原样 `error-answer`，即使 `initialize` 本可成功也不走旧一路。这三个码都不触发旧一路。官方 TypeScript SDK 2.4.0 的探测分类（`@modelcontextprotocol/client` 的 `probeClassifier.ts`）把 `-32020`、`-32021` 当作旧对端；本组不回退，因为对端已按现代修订作答。
+  - 现代一路：发 `server/discover`，`_meta` 的版本是传输会说的最高版本。应答是对象，带 `supportedVersions`（文本列表）与 `capabilities`（对象）时读懂：协议版本取双方共有的最高版本。没有共有版本时，对端按旧对端处理，回退到旧一路，与 SDK 2.4.0 `probeClassifier.ts` 的 `classifyResult` 相同。`serverInfo` 取 `_meta["io.modelcontextprotocol/serverInfo"]`（如有，不可信值）。`instructions` 按打开材料里的 `instructionsByteLimit` 经 `boundInstructions` 处理，见 S3，带本连接的代际。
+  - `-32022`（版本不支持）按 SDK 2.4.0 `probeClassifier.ts` 的 `classifyRpcError` 读：
+    - `data.supported` 缺失、不是非空的文本列表，或其中没有现代版本：对端是旧对端，回退到旧一路。
+    - `data.supported` 有现代版本，且有双方共有的版本：选共有的最高版本重试一次。重试后再答 `-32022` 时以 `error-answer` 原样交出。
+    - `data.supported` 有现代版本，但没有双方共有的版本：答 `answer-malformed`（`discover-shape`），不走旧一路。
+  - `-32021`、`-32020` 属于现代修订，原样 `error-answer`，即使 `initialize` 本可成功也不走旧一路。这是本组与 SDK 2.4.0 探测唯一不同的地方：SDK 把这两个码当作旧对端；本组不回退，因为对端已按现代修订作答，回退会掩盖本组声明的缺项。
   - 旧对端探测：stdio 上 `server/discover` 答任何不属于现代修订的 JSON-RPC 错误，或在探测时限内没有应答，回退到旧一路。探测时限只在传输等待现代一路的应答时计时，应答先到时计时结束。应答是 JSON-RPC 结果但读不懂时同样回退。
-  - Streamable HTTP 上的 400：正文是 JSON-RPC 错误响应（对象，`error` 是对象）时，它是该请求的 JSON-RPC 错误应答。对 `server/discover`，只有码属于现代修订（`-32020`、`-32021`、`-32022`）的错误按现代一路处理（`-32022` 照样重试）；其余 400 都判为旧对端，回退到旧一路。对照：官方 TypeScript SDK 2.4.0 同样读 400 的正文。`StreamableHTTPClientTransport` 把现代请求的 400 JSON-RPC 错误正文当作应答，它另要求正文的 `id` 与请求相同，本组不核 `id`。`probeClassifier.ts` 的 `classifyHttpError` 把探测的 400 正文按 JSON-RPC 错误分类，读不出时判旧对端。
+  - Streamable HTTP 上的 400：正文是 JSON-RPC 错误响应（对象，`error` 是对象）时，它是该请求的 JSON-RPC 错误应答。
+  - Streamable HTTP 上 `server/discover` 收到 401、403 以外且低于 500 的状态（含 400、404、405）：正文是码属于现代修订（`-32020`、`-32021`、`-32022`）的 JSON-RPC 错误时，按现代一路处理（`-32022` 按上一条读）；其余都判为旧对端，回退到旧一路。这是 SDK 2.4.0 `probeClassifier.ts` 的 `classifyHttpError`。500 以上的状态不在本条。对照：官方 TypeScript SDK 2.4.0 同样读 400 的正文。`StreamableHTTPClientTransport` 把现代请求的 400 JSON-RPC 错误正文当作应答，它另要求正文的 `id` 与请求相同，本组不核 `id`。`probeClassifier.ts` 的 `classifyHttpError` 把探测的 400 正文按 JSON-RPC 错误分类，读不出时判旧对端。
   - 旧一路发 `initialize`：`protocolVersion` 是 `LEGACY_PROTOCOL_VERSIONS` 的第一项；`capabilities` 只声明 `elicitation.form`，不声明 `elicitation.url`、`sampling`、`roots`，也不声明任务扩展（它只属于现代修订）；带 `clientInfo`。协议版本、能力、`serverInfo` 与 `instructions` 取自 `initialize` 的结果。结果的 `protocolVersion` 不在 `LEGACY_PROTOCOL_VERSIONS` 里时答 `answer-malformed`（`discover-shape`），不发 `notifications/initialized`。`LEGACY_PROTOCOL_VERSIONS` 是官方 TypeScript SDK 2.4.0 的 `SUPPORTED_PROTOCOL_VERSIONS`（`@modelcontextprotocol/core` 的 `src/constants.ts`）。读懂之后发 `notifications/initialized`。
-  - `discover` 只在两条路都失败时答失败。报哪一条路的失败：现代一路答了 `-32601`（方法不存在）、在探测时限内没有应答，或在 Streamable HTTP 上答了判为旧对端的 400 时，报旧一路的失败，因为这些都说明对端不说现代修订；其余情形报现代一路的 `error-answer` 或 `answer-malformed`。所以 S5、S7 的「`discover` 失败 → `lost`（`discover-failed`）」只在两条路都失败时成立。
+  - `discover` 只在两条路都失败时答失败。报哪一条路的失败：现代一路答了 `-32601`（方法不存在）、在探测时限内没有应答、答了没有共有版本的结果或判为旧对端的 `-32022`，或在 Streamable HTTP 上答了判为旧对端的状态时，报旧一路的失败，因为这些都说明对端不说现代修订；其余情形报现代一路的 `error-answer` 或 `answer-malformed`。所以 S5、S7 的「`discover` 失败 → `lost`（`discover-failed`）」只在两条路都失败时成立。
   - 旧修订下，对端在 `notifications/initialized` 之后发来的请求一律以 JSON-RPC 错误拒绝。
   - `call` 的 `_meta` 另带 `progressToken`，每请求唯一。对端的进度通知按它归到这次调用，经 `observe` 交出（S6）。
 - **T4** 对端对一个请求答 HTTP 401，或答 403 且 `WWW-Authenticate` 带 `error="insufficient_scope"` 时，请求没有对端效果，失败是 `not-sent`、`authorization-required`，带授权发现（R4）。这个请求曾用凭据句柄授权时，传输先调用该句柄的 `reportRejection()` 恰好一次，再报这个失败。其余 403（例如 `Origin` 不被接受）答 `not-sent`、`connection-unavailable`，不调用 `reportRejection()`。
@@ -454,7 +464,7 @@ W3 的 reduce 在 2026-11-04 对照 2026-07-28 修订核对本页，作出下列
   - `error-missing`：`status` 是 `failed` 而没有错误对象（缺 `error`，或 `error` 不是对象）。`getTask` 与 `getTaskResult` 都这样答。传输不编造错误。
   - `error-shape`：错误对象不是对象，缺整数错误码（词形按 O4）或缺消息。错误码不是整数词形的 JSON-RPC 错误不以 `error-answer` 交出。
   - `tools-missing`：`tools/list` 的应答没有 `tools` 列表。
-  - `discover-shape`：`server/discover` 的应答不是 T3 要求的形状，例如缺 `supportedVersions` 或 `capabilities`，或者没有双方共有的协议版本。旧一路 `initialize` 的结果读不懂，或它的 `protocolVersion` 不在 `LEGACY_PROTOCOL_VERSIONS` 里，也是 `discover-shape`。
+  - `discover-shape`：`server/discover` 的应答不是 T3 要求的形状，例如缺 `supportedVersions` 或 `capabilities`；或者 `-32022` 列出了现代版本而没有双方共有的版本。旧一路 `initialize` 的结果读不懂，或它的 `protocolVersion` 不在 `LEGACY_PROTOCOL_VERSIONS` 里，也是 `discover-shape`。
 
 <a id="protocol-deviations"></a>
 
@@ -517,7 +527,7 @@ W3 的 reduce 在 2026-11-04 对照 2026-07-28 修订核对本页，作出下列
 | AV、UE、CU、PL、CS | `tests/conformance.spec.ts` 让五个套件跑内存替身，并用违约替身证明套件会变红                                                                                                                                                  | 同上                                                                      |
 | T1–T7              | `mcpTransportConformance()`：每个用例按脚本描述对端在 JSON-RPC 层怎样答，经契约的传输工厂打开传输再驱动。`tests/transport-conformance.spec.ts` 让 `createScriptedTransportFactory` 跑全部用例，并用违约脚本传输证明套件会变红 | 同上                                                                      |
 
-端口的实现方这样使用套件：从 `./testing` 取 `mcp<端口>Conformance()`，为每个用例新建一份夹具，用 `runConformanceCase` 在自己的测试框架里逐个运行。传输的夹具是 `TransportFixture`：它声明能打开的材料种类与传输会说的协议版本，并为每个用例按 `PeerScript` 给出一个脚本化对端、到达它的传输工厂与打开材料。脚本只描述对端在 JSON-RPC 层怎样答，不描述 SDK。用例也可以给出一个函数，夹具知道 Streamable HTTP 材料的目标之后调用它写出脚本：T4 的元数据地址与元数据的 `resource` 取自这个目标。对端记录的 `received()` 是异步的：夹具等客户端在调用之前发出的一切都记下之后才答复，例如中止的应答流与客户端对对端请求的答复。T5 关闭次序用例把材料的进程句柄换成一个观察包装：读写原样转给原进程，只另记关闭 stdin、取消 stdout 与停止进程；原进程自己结束 stdout 时，包装仍让 stdout 等到传输取消它。真实服务端夹具归 `@omne-harness/mcp-host-local`。结论有三种：
+端口的实现方这样使用套件：从 `./testing` 取 `mcp<端口>Conformance()`，为每个用例新建一份夹具，用 `runConformanceCase` 在自己的测试框架里逐个运行。传输的夹具是 `TransportFixture`：它声明能打开的材料种类与传输在 `server/discover` 上会说的现代协议版本（`protocolVersions` 只列现代修订；旧修订由 `LEGACY_PROTOCOL_VERSIONS` 决定，列了旧修订时用例失败），并为每个用例按 `PeerScript` 给出一个脚本化对端、到达它的传输工厂与打开材料。脚本只描述对端在 JSON-RPC 层怎样答，不描述 SDK。用例也可以给出一个函数，夹具知道 Streamable HTTP 材料的目标之后调用它写出脚本：T4 的元数据地址与元数据的 `resource` 取自这个目标。对端记录的 `received()` 是异步的：夹具等客户端在调用之前发出的一切都记下之后才答复，例如中止的应答流与客户端对对端请求的答复。T5 关闭次序用例把材料的进程句柄换成一个观察包装：读写原样转给原进程，只另记关闭 stdin、取消 stdout 与停止进程；原进程自己结束 stdout 时，包装仍让 stdout 等到传输取消它。真实服务端夹具归 `@omne-harness/mcp-host-local`。结论有三种：
 
 - 通过。
 - 失败：用例抛出 `node:assert` 的 `AssertionError` 或其他错误，`runConformanceCase` 把它抛给调用方。

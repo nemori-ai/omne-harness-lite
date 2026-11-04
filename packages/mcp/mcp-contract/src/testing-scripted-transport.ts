@@ -17,7 +17,11 @@ import type {
   TaskStatus,
 } from './outcomes.ts'
 import type { HttpCredentialHandle } from './ports.ts'
-import { LEGACY_PROTOCOL_VERSIONS, isLegacyProtocolVersion } from './revisions.ts'
+import {
+  LEGACY_PROTOCOL_VERSIONS,
+  isLegacyProtocolVersion,
+  isModernProtocolVersion,
+} from './revisions.ts'
 import {
   CLIENT_CAPABILITIES_KEY,
   CLIENT_INFO_KEY,
@@ -47,7 +51,11 @@ import type {
 import type { PeerIdentity, Untrusted } from './values.ts'
 
 export type ScriptedTransportOptions = Readonly<{
-  /** The versions the transport speaks, highest first. Default: `['2026-07-28']`. */
+  /**
+   * The modern versions the transport speaks on `server/discover`, highest first. A legacy version
+   * here is a `RangeError`: the legacy path offers `LEGACY_PROTOCOL_VERSIONS`. Default:
+   * `['2026-07-28']`.
+   */
   protocolVersions?: readonly string[]
   clientInfo?: Readonly<{ name: string; version: string }>
   /** How long a stdio `server/discover` waits before the peer counts as legacy. Default: 0. */
@@ -80,7 +88,7 @@ const CLIENT_CAPABILITIES: PlainJson = {
   elicitation: { form: {} },
   extensions: { [TASKS_EXTENSION]: {} },
 }
-/** The capabilities of a legacy `initialize`: the tasks extension exists on modern revisions only. */
+/** The capabilities on a legacy revision: the tasks extension exists on modern revisions only. */
 const LEGACY_CAPABILITIES: PlainJson = { elicitation: { form: {} } }
 /** The requests whose `Mcp-Name` header carries a parameter, and that parameter. */
 const MCP_NAME_SOURCES: Readonly<{ [method: string]: string }> = {
@@ -211,6 +219,17 @@ type Pending = {
   observe?: (notification: PeerNotification) => void
   progressToken: string
 }
+
+/**
+ * What the modern path makes of one answer to `server/discover`. `fallback` tries the legacy path
+ * and reports this failure if that fails too; `legacy-peer` tries it and reports its failure.
+ */
+type Probe =
+  | Readonly<{ kind: 'identity'; identity: PeerIdentity }>
+  | Readonly<{ kind: 'retry'; version: string }>
+  | Readonly<{ kind: 'final'; failure: TransportFailure }>
+  | Readonly<{ kind: 'fallback'; failure: TransportFailure }>
+  | Readonly<{ kind: 'legacy-peer' }>
 
 /** How one request is sent: the observer of a call, the `_meta` version, the probe time. */
 type Dispatch = Readonly<{
@@ -438,6 +457,43 @@ function jsonRpcErrorOf(body: string | undefined): JsonValue | undefined {
   return isPlainRecord(error) ? jsonOf(error) : undefined
 }
 
+/** HTTP 401, or 403 with `error="insufficient_scope"` (T4). */
+function refusesAuthorization(status: number, challenge: ReadonlyMap<string, string>): boolean {
+  return status === 401 || (status === 403 && challenge.get('error') === 'insufficient_scope')
+}
+
+/** The JSON-RPC error of a modern-revision code in an HTTP body, or undefined. */
+function modernErrorOf(body: string | undefined): JsonValue | undefined {
+  const error = jsonRpcErrorOf(body)
+  const code = error === undefined ? undefined : errorOf(error)?.code
+  return code !== undefined && MODERN_ERROR_CODES.includes(code) ? error : undefined
+}
+
+/**
+ * An HTTP answer to `server/discover` below 500, other than a refused authorization: a JSON-RPC
+ * error of the modern revision in the body is the answer, anything else is a legacy signal. This
+ * is `classifyHttpError` of the official TypeScript SDK 2.4.0 (`probeClassifier.ts`).
+ */
+function probeAnswerOf(reply: Extract<PeerReply, { kind: 'http' }>): Wire | undefined {
+  if (reply.status >= 500) return undefined
+  const error = modernErrorOf(reply.body)
+  return error === undefined ? { kind: 'legacy-signal' } : { kind: 'error', error }
+}
+
+/** A 400 whose body is a JSON-RPC error: the error answer of the request. */
+function errorAnswerOf(reply: Extract<PeerReply, { kind: 'http' }>): Wire | undefined {
+  const error = reply.status === 400 ? jsonRpcErrorOf(reply.body) : undefined
+  return error === undefined ? undefined : { kind: 'error', error }
+}
+
+/** `data.supported` of a `-32022` error: a non-empty list of texts, or undefined. */
+function supportedOf(data: JsonValue | undefined): readonly string[] | undefined {
+  const items = isObject(data) ? itemsOf(member(data, 'supported')) : undefined
+  if (items === undefined || items.length === 0) return undefined
+  const texts = items.flatMap(item => (item.kind === 'string' ? [item.value] : []))
+  return texts.length === items.length ? texts : undefined
+}
+
 /** The MCP request headers of a Streamable HTTP request (T3). */
 function headersOf(method: string, params: PlainRecord, version: string): PeerRequestHeaders {
   const source = MCP_NAME_SOURCES[method]
@@ -487,10 +543,13 @@ class ScriptedTransport implements McpTransport {
     return highest
   }
 
+  /** The `_meta` envelope. The capabilities follow the version: no tasks extension on a legacy one. */
   private envelope(version = this.version ?? this.highest): PlainRecord {
     return {
       [PROTOCOL_VERSION_KEY]: version,
-      [CLIENT_CAPABILITIES_KEY]: CLIENT_CAPABILITIES,
+      [CLIENT_CAPABILITIES_KEY]: isModernProtocolVersion(version)
+        ? CLIENT_CAPABILITIES
+        : LEGACY_CAPABILITIES,
       [CLIENT_INFO_KEY]: this.options.clientInfo ?? { name: 'scripted-transport', version: '0' },
     }
   }
@@ -616,42 +675,36 @@ class ScriptedTransport implements McpTransport {
   }
 
   /**
-   * An HTTP-level answer: 401 and 403 are read by T4. A 400 whose body is a JSON-RPC error is the
-   * error answer of the request, except that on `server/discover` only an error of the modern
-   * revision is; any other 400 to `server/discover` is a legacy signal (T3).
+   * An HTTP-level answer. A refused authorization is read by T4; another 403 is not sent. The rest
+   * is read by `probeAnswerOf` on `server/discover` and by `errorAnswerOf` elsewhere (T3).
    */
   private async httpAnswer(
     request: Request,
     reply: Extract<PeerReply, { kind: 'http' }>,
   ): Promise<Wire> {
-    const headers = new Headers(reply.headers ?? {})
-    const challenge = challengeOf(headers.get('www-authenticate'))
-    const insufficientScope =
-      reply.status === 403 && challenge.get('error') === 'insufficient_scope'
-    if (reply.status === 401 || insufficientScope) {
-      if (this.credential !== undefined && this.authorized.has(request.id))
-        await this.credential.reportRejection()
-      const discovery = await this.discoverAuthorization(challenge)
-      return {
-        kind: 'not-sent',
-        failure: { kind: 'not-sent', cause: 'authorization-required', discovery },
-      }
-    }
+    const challenge = challengeOf(new Headers(reply.headers ?? {}).get('www-authenticate'))
+    if (refusesAuthorization(reply.status, challenge))
+      return this.authorizationRequired(request, challenge)
     if (reply.status === 403) return { kind: 'not-sent', failure: notSent }
-    if (reply.status === 400) {
-      const error = jsonRpcErrorOf(reply.body)
-      const discover = request.method === 'server/discover'
-      const code = error === undefined ? undefined : errorOf(error)?.code
-      if (
-        error !== undefined &&
-        (!discover || (code !== undefined && MODERN_ERROR_CODES.includes(code)))
-      )
-        return { kind: 'error', error }
-      if (discover) return { kind: 'legacy-signal' }
-    }
+    const wire = request.method === 'server/discover' ? probeAnswerOf(reply) : errorAnswerOf(reply)
+    if (wire !== undefined) return wire
     throw new TypeError(
       `script: an http ${reply.status} reply to ${request.method} is not supported`,
     )
+  }
+
+  /** T4: reports the rejection to the handle that authorized the request, then discovers. */
+  private async authorizationRequired(
+    request: Request,
+    challenge: ReadonlyMap<string, string>,
+  ): Promise<Wire> {
+    if (this.credential !== undefined && this.authorized.has(request.id))
+      await this.credential.reportRejection()
+    const discovery = await this.discoverAuthorization(challenge)
+    return {
+      kind: 'not-sent',
+      failure: { kind: 'not-sent', cause: 'authorization-required', discovery },
+    }
   }
 
   private get credential(): HttpCredentialHandle | undefined {
@@ -734,76 +787,72 @@ class ScriptedTransport implements McpTransport {
 
   async discover(): Promise<Outcome<PeerIdentity, TransportFailure>> {
     const modern = await this.modernPath()
-    if ('ok' in modern) return modern
-    if (modern.failure.kind === 'final') return { failure: modern.failure.failure }
+    if (modern.kind === 'identity') return { ok: modern.identity }
+    if (modern.kind === 'final') return { failure: modern.failure }
     const legacy = await this.legacyPath()
-    if ('ok' in legacy) return legacy
-    return { failure: modern.failure.kind === 'fallback' ? modern.failure.failure : legacy.failure }
+    if ('ok' in legacy || modern.kind === 'legacy-peer') return legacy
+    return { failure: modern.failure }
+  }
+
+  /** The modern path: `server/discover`, once more after a `-32022` that names a version in common. */
+  private async modernPath(): Promise<Exclude<Probe, Readonly<{ kind: 'retry' }>>> {
+    let version = this.highest
+    let retried = false
+    for (;;) {
+      const probe = this.probeOf(await this.request('server/discover', {}, version), retried)
+      if (probe.kind !== 'retry') return probe
+      retried = true
+      version = probe.version
+    }
+  }
+
+  /** What one answer to `server/discover` means (T3). */
+  private probeOf(wire: Wire, retried: boolean): Probe {
+    switch (wire.kind) {
+      case 'result': {
+        const read = this.readDiscover(wire.result)
+        if ('ok' in read) return { kind: 'identity', identity: read.ok }
+        // A result without a version in common is a legacy peer, as in the SDK's classifyResult.
+        if (read.failure === 'no-common-version') return { kind: 'legacy-peer' }
+        return { kind: 'fallback', failure: malformed('discover-shape') }
+      }
+      case 'error':
+        return this.probeErrorOf(wire.error, retried)
+      case 'no-answer':
+      case 'not-sent':
+        return { kind: 'final', failure: interpretFailure(wire) }
+      case 'legacy-signal':
+      case 'probe-timeout':
+        return { kind: 'legacy-peer' }
+      default: {
+        const exhaustive: never = wire
+        return exhaustive
+      }
+    }
+  }
+
+  /** A JSON-RPC error on `server/discover`: the modern codes are final, `-32601` is a legacy peer. */
+  private probeErrorOf(error: JsonValue, retried: boolean): Probe {
+    const answer = errorOf(error)
+    if (answer === undefined) return { kind: 'fallback', failure: malformed('error-shape') }
+    if (answer.code === -32022 && !retried) return this.versionRetryOf(answer.data)
+    if (MODERN_ERROR_CODES.includes(answer.code)) return { kind: 'final', failure: answer }
+    if (answer.code === METHOD_NOT_FOUND) return { kind: 'legacy-peer' }
+    return { kind: 'fallback', failure: answer }
   }
 
   /**
-   * The modern path, once with a retry on `-32022`. `fallback` carries the failure to report if
-   * the legacy path fails too. `legacy-peer` says the peer does not speak the modern revision, so
-   * a failure of the legacy path is the one to report.
+   * The first `-32022`, as the SDK's classifyRpcError reads it: without a list of supported
+   * versions, or with no modern version in it, the peer is a legacy peer; with modern versions but
+   * none in common there is nothing to retry.
    */
-  private async modernPath(): Promise<
-    Outcome<
-      PeerIdentity,
-      | Readonly<{ kind: 'final'; failure: TransportFailure }>
-      | Readonly<{ kind: 'fallback'; failure: TransportFailure }>
-      | Readonly<{ kind: 'legacy-peer' }>
-    >
-  > {
-    let retried = false
-    let version = this.highest
-    for (;;) {
-      const wire = await this.request('server/discover', {}, version)
-      switch (wire.kind) {
-        case 'result': {
-          const read = this.readDiscover(wire.result)
-          if ('ok' in read) return read
-          return {
-            failure: {
-              kind: read.failure === 'no-common-version' ? 'final' : 'fallback',
-              failure: malformed('discover-shape'),
-            },
-          }
-        }
-        case 'error': {
-          const answer = errorOf(wire.error)
-          if (answer === undefined)
-            return { failure: { kind: 'fallback', failure: malformed('error-shape') } }
-          if (answer.code === -32022 && !retried) {
-            const supported = isObject(answer.data)
-              ? itemsOf(member(answer.data, 'supported'))
-              : undefined
-            const offered = (supported ?? []).flatMap(item =>
-              item.kind === 'string' ? [item.value] : [],
-            )
-            const common = this.commonVersion(offered)
-            if (common === undefined)
-              return { failure: { kind: 'final', failure: malformed('discover-shape') } }
-            retried = true
-            version = common
-            continue
-          }
-          if (MODERN_ERROR_CODES.includes(answer.code))
-            return { failure: { kind: 'final', failure: answer } }
-          if (answer.code === METHOD_NOT_FOUND) return { failure: { kind: 'legacy-peer' } }
-          return { failure: { kind: 'fallback', failure: answer } }
-        }
-        case 'no-answer':
-        case 'not-sent':
-          return { failure: { kind: 'final', failure: interpretFailure(wire) } }
-        case 'legacy-signal':
-        case 'probe-timeout':
-          return { failure: { kind: 'legacy-peer' } }
-        default: {
-          const exhaustive: never = wire
-          return exhaustive
-        }
-      }
-    }
+  private versionRetryOf(data: JsonValue | undefined): Probe {
+    const modern = (supportedOf(data) ?? []).filter(isModernProtocolVersion)
+    if (modern.length === 0) return { kind: 'legacy-peer' }
+    const common = this.commonVersion(modern)
+    return common === undefined
+      ? { kind: 'final', failure: malformed('discover-shape') }
+      : { kind: 'retry', version: common }
   }
 
   private commonVersion(offered: readonly string[]): string | undefined {
@@ -1032,6 +1081,10 @@ export function createScriptedTransportFactory(
   options: ScriptedTransportOptions = {},
 ): ScriptedTransportFactory {
   const versions = options.protocolVersions ?? ['2026-07-28']
+  if (versions.length === 0 || !versions.every(isModernProtocolVersion))
+    throw new RangeError(
+      'protocolVersions lists the modern versions only; the legacy ones are LEGACY_PROTOCOL_VERSIONS',
+    )
   const peer = new ScriptedPeer(script, versions)
   return {
     received: () => [...peer.log],
