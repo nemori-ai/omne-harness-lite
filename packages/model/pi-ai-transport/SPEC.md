@@ -502,7 +502,7 @@ plan 不返回诊断。
 <a id="工具名"></a>
 工具名：工具名是 Tool 领域给出的身份，日志、历史与工具声明都保存这个名字。网关只接受字符为 `[A-Za-z0-9_-]`、长度有上限的函数名（OpenRouter 对带点的名字返回 400）。这项编码约束属于请求表示，由记录的 `wire.toolNames` 固定：`rule` 是映射规则，`maxLength` 是供应商的最大长度。规则名与长度在记录摘要内，所以改规则就改变采用，也改变 `<记录名>#representation`。
 
-- `underscore/1`：每个不在 `[A-Za-z0-9_-]` 中的码点写成 `_`，其他字符不变。本来就合格的名字原样写出，例如 `vendor.lookup` 写成 `vendor_lookup`，`lookup__exact` 不变。
+- `underscore/1`：每个不在 `[A-Za-z0-9_-]` 中的码点写成 `_`，其他字符不变。本来就合格的名字原样写出，例如 `Files.read` 写成 `Files_read`，`lookup__exact` 不变。
 - 一次请求的名字表：先按顺序取工具声明的名字，再按消息顺序取历史中模型可见的 `tool_call` 与 `tool_call_unparsed` 的名字。同一名字只取一次。投影第一步建这张表，表的失败先于消息的失败返回：
   - 网关名为空或长于 `maxLength`：`unsupported`，`field` 为 `/tools/<k>/name` 或 `/messages/<i>/blocks/<j>`；
   - 两个不同的名字得到同一网关名（例如 `a.b` 与 `a_b`）：在后出现的那一项返回 `unsupported`，路径同上。
