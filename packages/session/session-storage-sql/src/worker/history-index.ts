@@ -659,11 +659,15 @@ function focusedSequence(context: Context, execution: string): bigint {
 
 /**
  * The execution boundary of one execution, from its row in `er_execution` (a point lookup) and the
- * unread events in `er_fact`. Left out (null) when it has no SE13 in this session, its head
- * receipt is a placeholder (digest `unknown`) or does not parse, its ended event does not parse,
- * a fact names an unknown kind, or the progress has no interpretation row.
+ * unread events in `er_fact`, with the batches of the same event rows. Left out (null) when it has
+ * no SE13 in this session, its head receipt is a placeholder (digest `unknown`) or does not parse,
+ * its ended event does not parse, a fact names an unknown kind, or the progress has no
+ * interpretation row.
  */
-function boundaryOf(context: Context, execution: string): ExecutionHistoryBoundary | null {
+function boundaryOf(
+  context: Context,
+  execution: string,
+): Readonly<{ boundary: ExecutionHistoryBoundary; batches: SessionBatchRecord[] }> | null {
   const { read, scope, snapshot } = context
   const start = context.starts.get(execution)
   if (start === undefined) return null
@@ -679,57 +683,48 @@ function boundaryOf(context: Context, execution: string): ExecutionHistoryBounda
   if (ended === 'malformed') return null
   // It reads only the Run and the executions of the snapshot, which `WorkIndexInput` carries.
   const readThrough = executionReadThrough(snapshot as WorkSnapshot, start.run, execution) ?? '0'
-  const facts = factsOf(
-    read(
-      `SELECT eseq AS sequence, event, kinds FROM er_fact
-        WHERE tenant = ? AND execution = ? AND session = ? AND (eseq > ? OR eseq = ?)
-        ORDER BY eseq LIMIT ?`,
-      [
-        scope.tenant,
-        execution,
-        scope.session,
-        BigInt(readThrough),
-        focusedSequence(context, execution),
-      ],
-    ),
+  const events = read(
+    `SELECT eseq AS sequence, event, kinds FROM er_fact
+      WHERE tenant = ? AND execution = ? AND session = ? AND (eseq > ? OR eseq = ?)
+      ORDER BY eseq LIMIT ?`,
+    [
+      scope.tenant,
+      execution,
+      scope.session,
+      BigInt(readThrough),
+      focusedSequence(context, execution),
+    ],
   )
+  const facts = factsOf(events)
   if (facts === null) return null
   const interpreted =
     readThrough === '0' ? null : interpretedOf(read, scope, start.run, context.upto)
   if (readThrough !== '0' && interpreted === null) return null
   return {
-    run: start.run,
-    execution,
-    started: start.started,
-    revision: text(row['revision']),
-    executionEvidence: receipt,
-    emittedThrough: text(row['emitted_through']),
-    readThrough,
-    interpreted,
-    ended,
-    facts,
+    boundary: {
+      run: start.run,
+      execution,
+      started: start.started,
+      revision: text(row['revision']),
+      executionEvidence: receipt,
+      emittedThrough: text(row['emitted_through']),
+      readThrough,
+      interpreted,
+      ended,
+      facts,
+    },
+    batches: batchesOf(events, start.run, execution),
   }
 }
 
 /**
- * The batches of one execution that are not interpreted yet, and the batch of the focused event.
- * An interpreted batch is not listed: its taken effect is not indexed in this wave (`taken` stays
- * empty), and a listed batch without its taken effect reads as a contradiction.
+ * The batches among the unread events of one execution and the focused event: the input-taken
+ * events, whose projection carries the batch. An interpreted batch is not listed: its taken effect
+ * is not indexed in this wave (`taken` stays empty), and a listed batch without its taken effect
+ * reads as a contradiction.
  */
-function batchesOf(context: Context, boundary: ExecutionHistoryBoundary): SessionBatchRecord[] {
-  const { read, scope } = context
-  return read(
-    `SELECT eseq AS sequence, event FROM er_fact
-      WHERE tenant = ? AND execution = ? AND session = ? AND (eseq > ? OR eseq = ?)
-      ORDER BY eseq LIMIT ?`,
-    [
-      scope.tenant,
-      boundary.execution,
-      scope.session,
-      BigInt(boundary.readThrough),
-      focusedSequence(context, boundary.execution),
-    ],
-  ).flatMap(row => {
+function batchesOf(events: readonly Row[], run: RunId, execution: string): SessionBatchRecord[] {
+  return events.flatMap(row => {
     const event = projectionOf(row)
     const source = event?.['source']
     const batch = event?.['batch'] as SessionBatchRecord['batch'] | undefined
@@ -737,8 +732,8 @@ function batchesOf(context: Context, boundary: ExecutionHistoryBoundary): Sessio
       ? []
       : [
           {
-            run: boundary.run,
-            execution: boundary.execution,
+            run,
+            execution,
             sequence: text(row['sequence']),
             source: source as DurableEvidence,
             batch,
@@ -782,10 +777,10 @@ function closeOver(context: Context, inputs: readonly string[]): Closure {
     }
     const execution = pendingExecutions.shift()
     if (execution === undefined || closure.executions.has(execution)) continue
-    const boundary = boundaryOf(context, execution)
-    closure.executions.set(execution, boundary)
-    if (boundary === null) continue
-    const batches = batchesOf(context, boundary)
+    const found = boundaryOf(context, execution)
+    closure.executions.set(execution, found?.boundary ?? null)
+    if (found === null) continue
+    const { batches } = found
     closure.batches.push(...batches)
     for (const batch of batches) pendingInputs.push(...batch.batch.ordered)
   }

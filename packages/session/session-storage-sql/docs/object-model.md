@@ -43,27 +43,24 @@ head 的实际表集由 [src/worker/schema.ts](../src/worker/schema.ts) 定义�
 | `sl_released_scope_idx` | `tenant`、`session`、`scope`、`data`                                                      | `(tenant, session, scope)`                    | `data` 是已释放作用域的 JSON                                                                                                                                                                                                                                                                                        |
 | `sl_execution_idx`      | `tenant`、`execution`、`session`、`run`、`position`                                       | `(tenant, execution)`                         | 执行索引：SE13 的 execution 对应的会话、Run 与 SE13 条目的位置。与 SE13 同一事务写入，已有的行不覆盖。读 handler `session.execution` 按 `(tenant, execution)` 点查，见 [SPEC 的执行索引](../SPEC.md#执行索引)                                                                                                       |
 
-没有 `sl_batch`、`sl_blob`、`sl_ref_idx` 与 `sl_rebuild`。
+没有 `sl_batch`、`sl_ref_idx` 与 `sl_rebuild`。`sl_blob` 由 `execution-record` 拥有，见下一节。
 
 ### 执行记录参加者的表
 
-`execution-record` 参加者的表由 [src/worker/execution-record-schema.ts](../src/worker/execution-record-schema.ts) 定义，迁移是 `execution-record/001-execution-record` 至 `005-fact-body`：001 建 `er_root`、`er_state`、`er_operation`、`er_execution`、`er_fact_idx`、`er_batch_idx` 与 `er_admission_idx`，002 建 `er_preadmission`，003 建 `er_admission_attempt_idx`，004 建 `er_state_part`，005 建 `er_fact_body`。十一张表都是 `STRICT` 表，主键都以 `tenant` 开头。`state`、`answer`、`batch` 是提供者编码的不透明 JSON，本成员不解码。行为见 [SPEC 的 `execution-record` 参加者](../SPEC.md#参加者模块与材料)。
+`execution-record` 参加者的表由 [src/worker/execution-record-schema.ts](../src/worker/execution-record-schema.ts) 定义，迁移是 `execution-record/001-execution-record` 至 `006-fact-blob`。001 建 `er_root`、`er_state`、`er_operation`、`er_execution`、`er_fact_idx`、`er_batch_idx` 与 `er_admission_idx`。002 建 `er_preadmission`。003 建 `er_admission_attempt_idx`。004 建 `er_state_part`。005 建 `er_fact_body`。006 删除 `er_state`、`er_state_part`、`er_fact_idx`、`er_fact_body` 与 `er_batch_idx`，重建不带 `answer` 列的 `er_operation`，再建 `er_fact` 与 `sl_blob`。迁移之后有八张表，都是 `STRICT` 表，主键都以 `tenant` 开头。事实的 `body` 与事件投影里的 `consequences`、`control`、`batch` 是提供者编码的不透明 JSON，本成员不解码。行为见 [SPEC 的 `execution-record` 参加者](../SPEC.md#参加者模块与材料)与[已知限制](../SPEC.md#已知限制)第 18 条。
 
 | 表                 | 列                                                                                                       | 主键                                | 说明                                                                                                                              |
 | ------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `er_root`          | `tenant`、`session`、`published`                                                                         | `(tenant, session)`                 | 该会话 Agent 发布的次数。共同根的一项                                                                                             |
-| `er_state`         | `tenant`、`session`、`state`                                                                             | `(tenant, session)`                 | 该会话 Agent 记录的整份不透明状态。整份写入整行替换；分区写入不写它，带 `replace` 时删除它                                                                                   |
-| `er_state_part`    | `tenant`、`session`、`part`、`state`（可空）、`published`                                                | `(tenant, session, part)`           | 该会话 Agent 记录的一个分区，不透明。`published` 是最后写它的发布计数；`state` 为空的行是已删除分区的标记。分区写入只替换或删除所列分区；整份写入把该会话全部分区标为已删除（SPEC 第 18 条） |
-| `er_operation`     | `tenant`、`operation`、`session`、`execution`、`digest`、`answer`、`published`                           | `(tenant, operation)`               | 原操作答案与语义摘要。`operation` 是提供者的操作键                                                                                |
+| `er_root`          | `tenant`、`session`、`published`                                                                         | `(tenant, session)`                 | 该会话 Agent 发布的次数，也是最后一批的发布序号。共同根的一项                                                                     |
+| `er_fact`          | `tenant`、`session`、`pub`、`ord`、`execution`、`kind`、`eseq`（可空）、`op`（可空）、`kinds`、`event`（可空）、`body` | `(tenant, session, pub, ord)`，WITHOUT ROWID | Agent 事实族，只追加。`ord` 为 0 的行是批信封，只有它带 `op`。`eseq` 与 `event` 只在事件行上有值。唯一索引 `er_fact_event (tenant, execution, eseq)` 与 `er_fact_operation (tenant, op) WHERE ord = 0`，二级索引 `er_fact_execution (tenant, execution, pub, ord)` |
+| `sl_blob`          | `tenant`、`digest`、`media`、`size`、`payload`                                                           | `(tenant, digest)`，WITHOUT ROWID   | 内容块。`digest` 是 `payload` 的 `sha256:` 摘要，`size` 是它的 UTF-8 字节数。同租户同摘要只有一行                                |
+| `er_operation`     | `tenant`、`operation`、`session`、`execution`、`digest`、`published`                                     | `(tenant, operation)`               | 操作键：语义摘要与原批的发布序号。不存答复。`operation` 是提供者的操作键                                                          |
 | `er_execution`     | `tenant`、`execution`、`session`、`revision`、`receipt`、`emitted_through`、`ended`                      | `(tenant, execution)`               | 执行边界：head 修订号、原提交回执证据、已发出的事件数与结束事件。二级索引 `er_execution_session_idx (tenant, session, execution)` |
-| `er_fact_idx`      | `tenant`、`execution`、`sequence`、`session`、`source`、`kinds`                                          | `(tenant, execution, sequence)`     | 事实边界：事件序号、原来源与 Session 后果种类                                                                                     |
-| `er_batch_idx`     | `tenant`、`execution`、`sequence`、`session`、`source`、`batch`                                          | `(tenant, execution, sequence)`     | input-taken 事件的完整批次                                                                                                        |
 | `er_admission_idx` | `tenant`、`session`、`input`、`ordinal`、`execution`、`operation`、`accepted`、`grant_ref`、`attachment` | `(tenant, session, input, ordinal)` | 原受理目录：一个输入的全部原受理，按受理顺序                                                                                      |
 | `er_admission_attempt_idx` | `tenant`、`session`、`input`、`ordinal`、`attempt` | `(tenant, session, input, ordinal)` | 原受理的 SE15 attempt，与 `er_admission_idx` 同键；写入方未写时没有行，旧行也没有 |
 | `er_preadmission` | `tenant`、`handoff`、`entry`（可空）、`session`（可空）、`execution`（可空）、`intent`、`intent_digest`、`outcome`（可空）、`outcome_digest`（可空） | `(tenant, handoff)` | 消息准入记录，每个 handoff H 一行，先存意图再存结果；`intent` 与 `outcome` 是不透明的规范 JSON。`entry` 是 Agent 外部入口索引 Ki，存在时在租户内唯一（唯一索引 `er_preadmission_entry_idx`）。首次 invoke 可以还没有 Run，所以 `session` 与 `execution` 可空 |
-| `er_fact_body` | `tenant`、`execution`、`sequence`、`session`、`consequences`（可空）、`control`（可空） | `(tenant, execution, sequence)` | 事实行的正文，与 `er_fact_idx` 同键：已归一的后果与延后控制事实的证据。`consequences` 为空表示未判定，`control` 为空表示不是延后控制事实。写入方不写正文时没有行 |
 
-`session` 参加者在 `readTables` 里声明 `er_root`、`er_execution`、`er_fact_idx`、`er_batch_idx`、`er_admission_idx` 与 `er_admission_attempt_idx`，不读 `er_state` 与 `er_operation`。
+`session` 参加者在 `readTables` 里声明 `er_root`、`er_execution`、`er_fact`、`er_admission_idx` 与 `er_admission_attempt_idx`，不读 `er_operation` 与 `sl_blob`。
 
 ### 权威表（设计目标）
 
@@ -139,7 +136,7 @@ head 的实际表集由 [src/worker/schema.ts](../src/worker/schema.ts) 定义�
 
 `snapshot` 里的 `ExecutionRef.readThrough` 就是解释进度，没有单独的进度表（[W5](../SPEC.md#w5)）。
 
-**`sl_blob`** 每段外置载荷一行。
+**`sl_blob`** 每段外置载荷一行。下表是设计目标。实现的列见上一节：`payload` 是文本，`media` 是媒体类型。
 
 | 列                 | 类型    | 含义     |
 | ------------------ | ------- | -------- |

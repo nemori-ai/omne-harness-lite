@@ -77,8 +77,9 @@ export function sessionHead(port: Executor, scope: Scope): SessionHead {
 }
 
 /**
- * The rows grouped into batches, in publication order. `full` says the read hit its row bound:
- * the last batch may then be cut, so it is left for the next page. A page stops before the batch
+ * The rows grouped into batches, in publication order. `full` says the read hit its row bound (it
+ * read one row past `FACT_PAGE_ROWS`): the last batch may then be cut, so it is left for the next
+ * page; a batch holds at most half the bound, so whole batches remain. A page stops before the batch
  * that takes it past `FACT_PAGE_TEXT`, but always holds the first batch. `more` says a next page
  * follows.
  */

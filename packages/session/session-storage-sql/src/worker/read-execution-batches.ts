@@ -43,7 +43,7 @@ export default handler('execution-record.facts', (input, port) => {
       ORDER BY pub, ord LIMIT ${String(FACT_PAGE_ROWS + 1)}`,
     [scope.tenant, scope.session, from, ...(execution === null ? [] : [execution])],
   )
-  const { batches, more } = batchesOf(rows.slice(0, FACT_PAGE_ROWS), rows.length > FACT_PAGE_ROWS)
+  const { batches, more } = batchesOf(rows, rows.length > FACT_PAGE_ROWS)
   if (execution === null) {
     const reached = batches.at(-1)?.published ?? after
     const whole = wholeBatches(batches) && contiguous(batches, from)
