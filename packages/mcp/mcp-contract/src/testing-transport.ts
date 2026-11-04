@@ -282,7 +282,7 @@ function versionOf(entry: Extract<PeerReceived, { kind: 'request' }>): PlainJson
 }
 
 /** A credential handle that counts rejections and authorizes with a fixed header. */
-export function countingCredential(): HttpCredentialHandle & Readonly<{ rejections(): number }> {
+function countingCredential(): HttpCredentialHandle & Readonly<{ rejections(): number }> {
   let rejections = 0
   return {
     purpose: 'http-authorization',

@@ -53,7 +53,6 @@ export {
 export { classifyOutcomeCases, type ClassifyOutcomeCase } from './testing-outcome-cases.ts'
 export { mergeListingCases, type MergeListingCase } from './testing-listing-cases.ts'
 export {
-  countingCredential,
   mcpTransportConformance,
   type PeerNeeds,
   type PeerNotificationScript,
