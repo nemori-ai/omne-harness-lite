@@ -1852,8 +1852,11 @@ export function createJournal<P>(
         const { value, receipt } = appended.ok
         const captured = cell.committed(input, method, receipt)
         if (captured) return { kind: 'answered', value: fail(captured) }
-        const participation = cell.participate(input, method, receipt, decision)
-        if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
+        // tryFinish asked the participant before preparing its batch (see the port).
+        if (method !== 'tryFinish') {
+          const participation = cell.participate(input, method, receipt, decision)
+          if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
+        }
         cell.touch()
         state().operations.set(at, { kind: 'committed', key, value: copy(value), receipt })
         return { kind: 'wrote', value }
@@ -4347,42 +4350,60 @@ export function createJournal<P>(
           if (check.kind === 'changed') return changed
           if (check.kind === 'blocked') return answer(succeed(copy(check.value)))
           if (check.kind === 'unknown') return answer(fail(damaged(check.diagnostic)))
-          const revision = execution.revision + 1
-          const evidence = nextEvidence(execution, 'finish', revision)
-          const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+          // The terminal disposition is the receipt evidence of the batch that ends.
+          const receipt = plannedReceipt(execution, input.operation, key)
           // The Session participant is read-only, so it is asked before the write: its conflict is
           // FinishResult.changed, not a failure (Agent SPEC "条件终结", PA-02).
           const participation = cell.participate(input, 'tryFinish', receipt, null)
           if (participation !== undefined) {
             return participation.kind === 'changed' ? changed : answer(fail(participation))
           }
-          const conclusion = copy(candidate.conclusion)
-          const observations: TerminalObservation[] = execution.checkpoint.passages
-            .filter(passage => passage.position === 'after_terminal')
-            .map(passage => ({
-              terminal: evidence,
-              passage: passage.id,
-              implementation: copy(passage.implementation),
-              observed: null,
-            }))
+          // R2-D297: the end is one constant fact; the pending observations and the retained
+          // handoffs are what it implies for the passages and the handoffs, not facts of their own.
           return {
-            kind: 'write',
-            value: { kind: 'ended', receipt },
-            receipt,
-            apply: () => {
-              execution.state = { kind: 'ended', conclusion, disposition: evidence }
-              execution.observations = observations
+            kind: 'batch',
+            facts: [
+              {
+                kind: 'finish.ended',
+                candidate: candidate.candidate,
+                conclusion: candidate.conclusion,
+                disposition: receipt.evidence,
+              },
+            ],
+            blobs: [],
+            kinds: [],
+            derive: derived => {
+              if (derived.kind !== 'ended') throw new TypeError('a tryFinish answers its end')
+              return { kind: 'ended', receipt: plannedOf(derived, receipt) }
+            },
+            project: (_batch, view) => {
+              const ended = view.finish.ended
+              if (ended === null) throw new TypeError('the end did not fold')
+              const disposition = ended.disposition
+              execution.state = {
+                kind: 'ended',
+                conclusion: copy(ended.conclusion),
+                disposition,
+              }
+              execution.observations = execution.checkpoint.passages
+                .filter(passage => passage.position === 'after_terminal')
+                .map(passage => ({
+                  terminal: disposition,
+                  passage: passage.id,
+                  implementation: copy(passage.implementation),
+                  observed: null,
+                }))
               // A prepared message that no Ja published is retained by the terminal disposition
               // (Agent SPEC "准入结果保管"); nothing publishes it after the end.
               for (const record of execution.handoffs) {
                 if (record.history.kind === 'pending')
-                  record.history = { kind: 'retained', disposition: evidence }
+                  record.history = { kind: 'retained', disposition }
               }
-              execution.revision = revision
+              execution.revision = view.revision
               appendEvents(
                 execution,
-                [{ kind: 'ended', conclusion, disposition: evidence }],
-                evidence,
+                [{ kind: 'ended', conclusion: copy(ended.conclusion), disposition }],
+                disposition,
               )
             },
           }
