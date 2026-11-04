@@ -49,12 +49,23 @@ function plainOf(tree: Tagged): unknown {
   }
 }
 
-/** The recorded payload of the history row a Ja wrote, as the Session log stores it. */
-const writtenEntry = (s: SqlScene, kind: string): Record<string, unknown> => {
-  const rows = s.controls?.select(`SELECT entry FROM sl_entry WHERE kind = '${kind}'`).rows ?? []
-  expect(rows).toHaveLength(1)
-  const stored = JSON.parse(String(rows[0]?.[0])) as { payload: Tagged }
-  return plainOf(stored.payload) as Record<string, unknown>
+/**
+ * The payload of the history row a Ja wrote, read through the public history read of the Session
+ * storage (not from the stored row text, whose encoding is the storage's own).
+ */
+const writtenEntry = async (s: SqlScene, kind: string): Promise<Record<string, unknown>> => {
+  const page = ok(
+    await s.port.history.begin({
+      ...s.sessionAccess,
+      kinds: [kind],
+      from: null,
+      direction: 'forward',
+      pageBytes: 1 << 20,
+    }),
+  )
+  expect(page.exhausted).toBe(true)
+  expect(page.entries).toHaveLength(1)
+  return plainOf(page.entries[0]?.payload as Tagged) as Record<string, unknown>
 }
 
 describe('a Ja writes the real history of its source into the Session log', () => {
@@ -79,7 +90,7 @@ describe('a Ja writes the real history of its source into the Session log', () =
       const { s, authority } = await opened(`history-${source}-pointers`)
       const request = await prepared(s, authority, source)
       ok(await s.view.journal.commit(await applied(s, authority, request, admitted(request))))
-      const entry = writtenEntry(s, role)
+      const entry = await writtenEntry(s, role)
       expect(entry.message).toEqual(request.candidate)
       // The record of the handoff and the admission of the prepared result: not one for the other.
       expect(entry.source).toEqual(proof('record/h'))
