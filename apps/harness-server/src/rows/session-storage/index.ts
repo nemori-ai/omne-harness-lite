@@ -5,7 +5,8 @@
 // 登记规则：session-storage-sql 在每次读与提交都 `resolve` 租户的域（XP-6），而目录的 `resolve` 只查快照；
 // 只有访问裁定放行的 `create` 让本行登记该租户。公开端口在 `create` 提交前登记；委派视图绑定到一次放行的 `create`
 // 时，视图解析该租户的域就登记（Session 核心先经视图 `queryOperation` 再提交，登记必须在第一次读之前）。
-// 读与被拒的 `create` 不登记。
+// 读与被拒的 `create` 不登记，所以目录没有的租户没有会话：委派视图对它的会话读与提交答 `denied`（同「会话不存在」），不答
+// session-storage-sql 的 `unavailable`（`unregisteredTenantIsAbsent`）。
 // 已知限制：换 `combinationVersion` 不会为已登记的租户补登记（登记表不记版本），换版本需要另有拥有者定补登记的时机。
 // 游标签名按调用现取 `sessionCursorSigning`（IC-9），不在 inject 里；入口对象缺席时五种读答 `unavailable`。
 // 部署枚举 `tenantDomains.enumerate` 每次调用都按调用现取受信键 `systemActionAuthorization`（`authorization` 行提供，
@@ -183,6 +184,51 @@ const DENIED_IN_VIEW = [
   'releasedScopes',
 ] as const
 
+/** 绑定所指名的租户文本；绑定不指名单一租户或文本不合法时给 `null`。 */
+function boundTenantText<P>(request: SessionAccessRequest<P>): string | null {
+  if (request.target.kind !== 'session' || !('tenant' in request.access)) return null
+  const text = tenantCodec.encode(request.access.tenant)
+  return text.ok ? text.value : null
+}
+
+/**
+ * 目录里没有的租户没有会话：登记只由放行的 `create` 触发，读与被拒的 `create` 不登记（见文件头）。对外这与「会话不存在」
+ * 是同一个结局，即 `denied`（public-contract「会话判断次序」第 6 步：主体没有资格与会话不存在不能区分）。
+ * session-storage-sql 对目录缺项答 `unavailable`（它把缺项当作装配故障），经公开契约成为 `basis-unavailable`，
+ * 调用者就能凭它区分「租户从未建过会话」与「租户有会话」，也会被引去无意义的重试。本包装只在视图里、访问裁定已放行
+ * 之后生效：裁定的 `denied` 与 `unavailable` 仍在它之前。绑定是 `create` 时租户由 `registeringAccess` 登记，不包装。
+ */
+function unregisteredTenantIsAbsent<P>(
+  view: SessionTransactionPort<P>,
+  directory: TenantDirectory,
+  tenantText: string | null,
+): SessionTransactionPort<P> {
+  if (tenantText === null) return view
+  const absent = (action: string) =>
+    Promise.resolve(fail<SessionFailure>({ kind: 'denied', action }))
+  const guard =
+    <A extends unknown[], R>(action: string, call: (...args: A) => Promise<R>) =>
+    (...args: A): Promise<R> =>
+      directory.holds(tenantText) ? call(...args) : (absent(action) as Promise<R>)
+  const commit = async (input: CommitInput<P>): Promise<Outcome<unknown, SessionFailure>> =>
+    directory.holds(tenantText) ? view.commit(input) : absent('commit')
+  return {
+    ...view,
+    commit: commit as SessionTransactionPort<P>['commit'],
+    readWork: guard('readWork', view.readWork),
+    readInput: guard('readInput', view.readInput),
+    queryOperation: guard('queryOperation', view.queryOperation),
+    queryControlOperation: guard('queryControlOperation', view.queryControlOperation),
+    readModelSelection: guard('readModelSelection', view.readModelSelection),
+    history: {
+      begin: guard('history.begin', view.history.begin),
+      next: guard('history.next', view.history.next),
+      since: guard('history.since', view.history.since),
+      readModelView: guard('history.readModelView', view.history.readModelView),
+    },
+  }
+}
+
 function delegatedView<P>(
   base: SessionStorageOptions<P>,
   directory: TenantDirectory,
@@ -196,7 +242,7 @@ function delegatedView<P>(
   })
   const denied = (action: (typeof DENIED_IN_VIEW)[number]) => () =>
     Promise.resolve(fail<SessionFailure>({ kind: 'denied', action }))
-  return {
+  const bound: SessionTransactionPort<P> = {
     ...view,
     commitEntries: denied('commitEntries'),
     commitLog: denied('commitLog'),
@@ -204,6 +250,9 @@ function delegatedView<P>(
     references: denied('references'),
     releasedScopes: denied('releasedScopes'),
   }
+  return creating === null
+    ? unregisteredTenantIsAbsent(bound, directory, boundTenantText(checked.request))
+    : bound
 }
 
 class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
