@@ -17,6 +17,8 @@ import type {
   ExecutionState,
   HandoffOutcome,
   HandoffResolution,
+  PendingCall,
+  ReceivedEntry,
   ResultResponsibility,
   TerminalObservation,
 } from '@omne-harness/agent-contract'
@@ -30,6 +32,7 @@ import {
   type Mint,
   type OperationEntry,
   type PublishedBatch,
+  type SessionJournalView,
 } from '../journal/index.ts'
 import {
   operationText,
@@ -41,7 +44,15 @@ import {
   type OperationRecord,
 } from './journal.ts'
 import { finishingOf, settlementOfFact } from './journal-finishing.ts'
+import {
+  bindTarget,
+  emptyReceivingState,
+  type Kept,
+  type ReceivingState,
+} from './journal-receiving.ts'
 import { journalEvidence, revisionOf, semanticKey } from './journal-values.ts'
+import { captureHuman } from './human.ts'
+import type { CommonRoot } from './root.ts'
 
 /** Every field of the reader record, in the order the bridge serializes them. */
 export const EXECUTION_FIELDS = [
@@ -204,6 +215,12 @@ function blob<T>(blobs: BlobStore, ref: unknown): T {
 }
 
 /** The state of the execution as the reader records keep it (the settling intent apart). */
+/**
+ * The committed state: the latest of the facts that set it. The end stands; a detach with its
+ * handoff suspends; a candidate established (settling), an attach (reconciling, after the first)
+ * and the `state` member of the cursor (what a commit committed, with the waits of a waiting state
+ * from the wait entered then) each at their pub, the latest wins.
+ */
 function stateOf(view: ExecutionView): MemoryExecution['state'] {
   const ended = view.finish.ended
   if (ended !== null)
@@ -211,15 +228,30 @@ function stateOf(view: ExecutionView): MemoryExecution['state'] {
   const last = view.attachments.at(-1)
   if (last?.status === 'detached' && last.handoff !== null)
     return { kind: 'suspended', handoff: last.handoff }
-  if (view.finish.current !== null) return { kind: 'settling' }
-  // A wait entered after the last attachment, and no cursor move after it, is the state.
-  const waits = view.waits
-  const moved = Math.max(0, ...Object.values(view.cursorMoved))
-  if (waits !== null && waits.pub > (last?.pub ?? 0) && waits.pub >= moved)
-    return { kind: 'waiting', waits: waits.waits }
-  if (last !== undefined && last.pub > moved && view.attachments.length > 1)
-    return { kind: 'reconciling' }
-  return { kind: 'advancing' }
+  const candidate = view.finish.candidates.find(item => item.candidate === view.finish.current)
+  const settled = candidate === undefined ? 0 : candidate.pub
+  const moved = view.cursorMoved.state ?? 0
+  const attached = last !== undefined && view.attachments.length > 1 ? last.pub : 0
+  const latest = Math.max(settled, moved, attached)
+  if (latest === 0) return { kind: 'advancing' }
+  if (latest === attached) return { kind: 'reconciling' }
+  if (latest === settled && settled > moved) return { kind: 'settling' }
+  switch (view.cursor.state) {
+    case 'waiting':
+      return view.waits === null
+        ? { kind: 'advancing' }
+        : { kind: 'waiting', waits: view.waits.waits }
+    case 'settling':
+      return { kind: 'settling' }
+    case 'reconciling':
+      return { kind: 'reconciling' }
+    case 'suspended':
+      return last?.handoff === null || last === undefined
+        ? { kind: 'advancing' }
+        : { kind: 'suspended', handoff: last.handoff }
+    default:
+      return { kind: 'advancing' }
+  }
 }
 
 /**
@@ -254,13 +286,15 @@ export function projectExecution(
     retainedFrom: 1,
     acknowledged: view.acknowledged,
     acknowledgedAt: view.acknowledgedAt,
+    // The writer's record carries a Tool reference only when the control has one: the fact
+    // stores null for none, and a null reference is not a reference (`toolInvocationOf`).
     controls: [...view.controls.values()].map(
       item =>
         ({
           operation: item.control,
           command: item.command,
-          toolInvocation: item.toolInvocation,
-          toolOperation: item.toolOperation,
+          ...(item.toolInvocation === null ? {} : { toolInvocation: item.toolInvocation }),
+          ...(item.toolOperation === null ? {} : { toolOperation: item.toolOperation }),
           stages: item.stages,
         }) as unknown as ControlRecord,
     ),
@@ -333,8 +367,11 @@ export function projectExecution(
   }
   try {
     projected.checkpoint = checkpointOf(view, context.blobs)
-  } catch {
+  } catch (error) {
     // An execution whose cursor was never moved whole (no checkpoint yet): the field stays absent.
+    // Any other failure is a defect of the records, not a missing checkpoint.
+    if (!(error instanceof TypeError && error.message.startsWith('the folded cursor has no member')))
+      throw error
   }
   const revisionAt = (pub: number): number | undefined => byPub.get(pub)?.[1].revision
   const opAt = (pub: number): AgentOperationId | undefined => byPub.get(pub)?.[0]
@@ -626,7 +663,14 @@ export function projectOperations(
     })
   for (const [op, entry] of view.excluded)
     if (!out.has(keyOf(op)))
-      out.set(keyOf(op), { kind: 'excluded', key: '', evidence: entry.evidence })
+      out.set(keyOf(op), {
+        kind: 'excluded',
+        key: '',
+        execution: view.execution,
+        operation: op,
+        reason: entry.reason,
+        evidence: entry.evidence,
+      })
   return out
 }
 
@@ -667,3 +711,245 @@ export function fieldTexts(
 }
 
 export type { ExecutionState }
+
+// ---------------------------------------------------------------------------------------------
+// The records beside the executions (K-23 end state): the original fragments of the events, the
+// receiving state, and the whole root of a session, derived from the fold and the blocks the
+// same way at a cold start of the provider and in the parity measurement.
+
+/** The original fragments of the events the normalization reads, and the event index. */
+export type EventFragments = Pick<
+  CommonRoot['agent'],
+  'eventReceipts' | 'pendingEvents' | 'callOrigins' | 'human' | 'indexedEvents'
+>
+
+export const emptyFragments = (): EventFragments => ({
+  eventReceipts: new Map(),
+  pendingEvents: new Map(),
+  callOrigins: new Map(),
+  human: new Map(),
+  indexedEvents: new Map(),
+})
+
+/** The Pending calls one event names: the producer waits of a waiting event, the origin of a producer event. */
+function pendingsOf(
+  origins: EventFragments['callOrigins'],
+  execution: MemoryExecution,
+  event: AgentEvent,
+): PendingCall[] {
+  if (event.body.kind === 'waiting')
+    return event.body.waits.flatMap(wait => (wait.kind === 'producer' ? [wait.pending] : []))
+  if (event.body.kind === 'producer') {
+    const origin = origins.get(`${execution.id}\0${event.body.consumption}`)
+    const pending = origin?.association?.pending ?? origin?.pending
+    return pending === undefined ? [] : [pending]
+  }
+  return []
+}
+
+/** Keeps the first call event of a consumption, and the event that associates a Tool intent with its call. */
+function originOf(
+  origins: EventFragments['callOrigins'],
+  execution: MemoryExecution,
+  event: AgentEvent,
+  value: PendingCall,
+): void {
+  const key = `${execution.id}\0${value.consumption}`
+  const prior = origins.get(key)
+  if (prior === undefined) {
+    origins.set(key, { first: event.sequence, pending: value, association: null })
+    return
+  }
+  if (
+    prior.pending.kind === 'tool' &&
+    prior.pending.association === 'intent' &&
+    value.kind === 'tool' &&
+    value.association === 'associated' &&
+    prior.association === null
+  )
+    origins.set(key, {
+      ...prior,
+      association: { sequence: event.sequence, pending: value, source: event.cause },
+    })
+}
+
+/**
+ * The original fragments of the events of one execution: the receipt of the batch that appended
+ * each event, the Pending calls it names, the first call event of each consumption with its Tool
+ * association, and the human material of a human wait, read from the passages of the checkpoint
+ * as it stands (the writer read them when the event was appended; a passage no longer held leaves
+ * its fragment out, as a fragment that cannot be read is left out at the write). `indexedEvents`
+ * is the count of the events held.
+ */
+export function projectFragments(
+  execution: MemoryExecution,
+  view: ExecutionView,
+  context: ProjectionContext,
+): EventFragments {
+  const out = emptyFragments()
+  const byPub = opsByPub(view)
+  const pubOfSequence = new Map(view.events.map(event => [String(event.eseq), event.pub]))
+  out.indexedEvents.set(execution.id, execution.events.length)
+  for (const event of execution.events) {
+    const key = `${execution.id}\0${event.sequence}`
+    const pub = pubOfSequence.get(event.sequence)
+    const receipt = pub === undefined ? undefined : receiptAt(view, byPub, context.mint, pub)
+    if (receipt === undefined) continue
+    out.eventReceipts.set(key, receipt)
+    const pending = pendingsOf(out.callOrigins, execution, event)
+    out.pendingEvents.set(key, pending)
+    for (const value of pending) originOf(out.callOrigins, execution, event, value)
+    if (event.body.kind === 'waiting' && event.body.waits.some(wait => wait.kind === 'human')) {
+      try {
+        out.human.set(key, captureHuman(event, execution.checkpoint, receipt))
+      } catch {
+        // A human wait whose passage the checkpoint no longer holds: its fragment is left out.
+      }
+    }
+  }
+  return out
+}
+
+/** One projected execution with the view it was projected from. */
+export type ProjectedExecution = Readonly<{ view: ExecutionView; execution: MemoryExecution }>
+
+/**
+ * The receiving state of a session from the facts of its executions, applied in publication
+ * order as the writes applied them: the bindings of the pending calls (`target.bound`), the
+ * saved deliveries with their aliases and materials (`result.received`, with `saved` only for a
+ * delivery the receiver committed, as the writer keeps it), the aliases of the operations that
+ * recalled a delivery (`op.recognized` with `recalls`), and the materials kept (`material.preserved`,
+ * under the execution of their consumer as bound then). The test-only bindings (`bind`) and the
+ * losses are not facts.
+ */
+export function projectReceiving(
+  executions: readonly ProjectedExecution[],
+  context: ProjectionContext,
+): ReceivingState {
+  const state = emptyReceivingState()
+  const text = tenantCodec.encode(context.tenant)
+  const tenantText = text.ok ? text.value : ''
+  type Item = Readonly<{ pub: number; ord: number; apply(): void }>
+  const items: Item[] = []
+  for (const { view, execution } of executions) {
+    const byPub = opsByPub(view)
+    const keyOf = (op: AgentOperationId) => operationText(tenantText, execution.id, op)
+    for (const binding of view.bindings)
+      items.push({
+        pub: binding.pub,
+        ord: 2,
+        apply: () =>
+          bindTarget(state, execution, binding.instance, blob(context.blobs, binding.pending)),
+      })
+    for (const result of view.results.values()) {
+      const received = result.received
+      if (received === null) continue
+      const found = byPub.get(received.pub)
+      const receipt = receiptAt(view, byPub, context.mint, received.pub)
+      if (found === undefined || receipt === undefined) continue
+      const [op, entry] = found
+      const value = blob<ReceivedEntry>(context.blobs, received.custody)
+      const kept: Kept = {
+        entry: value,
+        receipt,
+        saved: methodOf(entry.digest) === 'received' ? received.saved : null,
+      }
+      const delivery = canonical([
+        tenantText,
+        execution.id,
+        value.delivery.producer,
+        value.delivery.key,
+      ])
+      items.push({
+        pub: received.pub,
+        ord: 1,
+        apply: () => {
+          state.deliveries.set(delivery, kept)
+          state.aliases.set(keyOf(op), kept)
+          if (received.material !== null)
+            state.materials.set(canonical(value.material), {
+              tenant: tenantText,
+              execution: execution.id,
+              value: blob(context.blobs, received.material),
+            })
+        },
+      })
+    }
+    for (const [op, entry] of view.ops) {
+      if (entry.target === null || !entry.recalls) continue
+      const target = entry.target
+      items.push({
+        pub: entry.pub,
+        ord: 3,
+        apply: () => {
+          const kept = state.aliases.get(keyOf(target))
+          if (kept !== undefined) state.aliases.set(keyOf(op), kept)
+        },
+      })
+    }
+    for (const material of view.materials.values())
+      items.push({
+        pub: material.pub,
+        ord: 1,
+        apply: () => {
+          const key = canonical(material.source)
+          if (state.materials.has(key)) return
+          state.materials.set(key, {
+            tenant: tenantText,
+            execution:
+              state.consumerExecutions.get(canonical([tenantText, material.consumer])) ?? null,
+            value: blob(context.blobs, material.value),
+          })
+        },
+      })
+  }
+  items.sort((left, right) => left.pub - right.pub || left.ord - right.ord)
+  for (const item of items) item.apply()
+  return state
+}
+
+/** The records of a session projected from its fold: what a provider restores at a cold start. */
+export type ProjectedRecords = Readonly<{
+  executions: ReadonlyMap<string, MemoryExecution>
+  operations: ReadonlyMap<string, OperationRecord>
+  fragments: EventFragments
+  receiving: ReceivingState
+}>
+
+const FRAGMENT_NAMES = [
+  'eventReceipts',
+  'pendingEvents',
+  'callOrigins',
+  'human',
+  'indexedEvents',
+] as const
+
+/**
+ * Every record of the session from its fold and blocks: the executions (by the key the root keeps
+ * them under, `[tenant, execution]`), the operation records, the event fragments and the receiving
+ * state. A view of an execution never opened projects no record.
+ */
+export function projectRecords(
+  view: SessionJournalView,
+  context: ProjectionContext,
+): ProjectedRecords {
+  const text = tenantCodec.encode(context.tenant)
+  const tenantText = text.ok ? text.value : ''
+  const executions = new Map<string, MemoryExecution>()
+  const operations = new Map<string, OperationRecord>()
+  const fragments = emptyFragments()
+  const projected: ProjectedExecution[] = []
+  for (const own of view.executions.values()) {
+    if (own.opened === null) continue
+    const execution = projectExecution(own, context) as MemoryExecution
+    executions.set(JSON.stringify([tenantText, execution.id]), execution)
+    for (const [key, record] of projectOperations(own, context, execution))
+      operations.set(key, record)
+    const part = projectFragments(execution, own, context)
+    for (const name of FRAGMENT_NAMES)
+      for (const [key, value] of part[name])
+        (fragments[name] as Map<string, unknown>).set(key, value)
+    projected.push({ view: own, execution })
+  }
+  return { executions, operations, fragments, receiving: projectReceiving(projected, context) }
+}

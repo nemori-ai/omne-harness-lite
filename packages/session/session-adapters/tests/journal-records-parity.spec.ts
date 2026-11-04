@@ -14,7 +14,9 @@ import {
   fieldTexts,
   fieldsDiff,
   projectExecution,
+  projectFragments,
   projectOperations,
+  projectReceiving,
   type ExecutionField,
 } from '../src/testing/journal-records.ts'
 import { canonical } from '../src/testing/canonical.ts'
@@ -90,13 +92,29 @@ describe('the reader records projected from the fold', () => {
       position: result.consumer,
       fixed: evidence('request'),
     }
-    const waits = [{ kind: 'producer' as const, pending }]
+    // A second Model call of the same step: the receiver commits its delivery with the material.
+    const second = sampleReceivedModelResult(s.access.tenant, 'records-parity-2')
+    if (second.delivery.producer !== 'model') throw new Error('fixture: a Model entry')
+    const pending2: Extract<PendingCall, { kind: 'model' }> = {
+      ...pending,
+      action: ok(decodeActionId('action-2')),
+      reference: second.delivery.key.reference,
+      consumption: second.consumption,
+      position: second.consumer,
+    }
+    const waits = [
+      { kind: 'producer' as const, pending },
+      { kind: 'producer' as const, pending: pending2 },
+    ]
     const waiting = ok(await journal.load({ ...s.access, execution: s.execution }))
     await commit('wait', {
-      checkpoint: { ...waiting.checkpoint, calls: [pending] },
+      checkpoint: { ...waiting.checkpoint, calls: [pending, pending2] },
       state: { kind: 'waiting', waits },
       events: [{ kind: 'waiting', waits }],
-      effects: [{ action: pending.action, pending, authority }],
+      effects: [
+        { action: pending.action, pending, authority },
+        { action: pending2.action, pending: pending2, authority },
+      ],
     })
     ok(
       await s.view.entries.record({
@@ -105,6 +123,31 @@ describe('the reader records projected from the fold', () => {
         operation: operation('received'),
         authority: null,
         entry: result,
+      }),
+    )
+    const { material: _material, ...draft } = second
+    const committed = ok(
+      await s.view.received.commit({
+        ...s.access,
+        execution: s.execution,
+        operation: operation('received-2'),
+        entry: draft,
+        material: {
+          kind: 'facts',
+          schema: { owner: 'suite', name: 'payload', revision: '1', digest: 'fixture' },
+          value: { kind: 'string', value: 'delivered' },
+        },
+      }),
+    )
+    if (committed.kind !== 'committed') throw new Error(`received ${committed.kind}`)
+    // Another operation recalls the saved delivery: an alias of it in the receiving state.
+    ok(
+      await s.view.entries.record({
+        ...s.access,
+        execution: s.execution,
+        operation: operation('received-2-again'),
+        authority: null,
+        entry: committed.value.entry,
       }),
     )
     ok(
@@ -192,5 +235,52 @@ describe('the reader records projected from the fold', () => {
     for (const field of PROJECTED) expect(diff.equal, `${field}\n${report}`).toContain(field)
     expect(opsDiff, report).toEqual([])
     expect(projectedOps.length).toBe(writtenOps.length)
+
+    // The event fragments and the receiving state: every map the writer keeps, against the
+    // projection's, as sorted canonical entries.
+    const execution = projected as Parameters<typeof projectFragments>[0]
+    const fragments = projectFragments(execution, folded, context)
+    const receiving = projectReceiving([{ view: folded, execution }], context)
+    const entriesOf = (map: ReadonlyMap<string, unknown>) =>
+      [...map.entries()].map(([key, value]) => `${key}=${canonical(value)}`).sort()
+    const compare = (
+      name: string,
+      written: ReadonlyMap<string, unknown>,
+      value: ReadonlyMap<string, unknown>,
+    ) => {
+      const expected = entriesOf(written)
+      const actual = entriesOf(value)
+      return canonical(expected) === canonical(actual)
+        ? `${name}: equal (${String(expected.length)})`
+        : `${name}: DIFFER\n    writer:    ${canonical(expected).slice(0, 600)}\n    projected: ${canonical(actual).slice(0, 600)}`
+    }
+    const writtenFragments = s.view.controls.fragments()
+    const writtenReceiving = s.view.controls.receiving()
+    const lines = [
+      ...(['eventReceipts', 'pendingEvents', 'callOrigins', 'human', 'indexedEvents'] as const).map(
+        name => compare(name, writtenFragments[name], fragments[name]),
+      ),
+      ...(
+        [
+          'materials',
+          'deliveries',
+          'aliases',
+          'consumerExecutions',
+          'pendingBindings',
+          'targets',
+          'callTargets',
+          'executionTargets',
+          'toolTargets',
+        ] as const
+      ).map(name => compare(name, writtenReceiving[name], receiving[name])),
+    ]
+    console.log(`fragments and receiving parity\n${lines.join('\n')}`)
+    expect(lines.filter(line => line.includes('DIFFER'))).toEqual([])
+    // The scenario exercises what it compares: a delivery with its material, an alias and a binding.
+    expect(writtenReceiving.deliveries.size).toBeGreaterThanOrEqual(2)
+    expect(writtenReceiving.materials.size).toBeGreaterThanOrEqual(2)
+    expect(writtenReceiving.aliases.size).toBeGreaterThan(writtenReceiving.deliveries.size)
+    expect(writtenReceiving.targets.size).toBe(2)
+    expect(writtenFragments.callOrigins.size).toBe(2)
   })
 })

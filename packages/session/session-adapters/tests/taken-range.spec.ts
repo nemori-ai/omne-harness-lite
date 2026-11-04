@@ -22,23 +22,26 @@ type Json = { [key: string]: unknown }
 
 /**
  * A page of the facts of the session with the empty batch of the execution named `id`: the
- * `core.item` fact of the input-taken event and the `core.cursor` fact of the checkpoint member.
+ * `step.begun` fact of the input-taken event and the `cursor.moved` fact of the checkpoint member.
  */
 function renamed(output: JsonValue, id: string): JsonValue {
   const copy = structuredClone(output) as {
     batches: { facts: { kind: string; body: Json }[] }[]
   }
   for (const fact of copy.batches.flatMap(batch => batch.facts)) {
-    if (fact.kind === 'core.item' && fact.body['list'] === 'events') {
-      const event = fact.body['value'] as { body: Json }
-      const batch = event.body['batch'] as { id: string; ordered: unknown[] } | undefined
-      if (event.body['kind'] === 'input-taken' && batch?.ordered.length === 0) batch.id = id
+    // A family row holds its fact as text; the rewrite decodes it and writes it back the same way.
+    const text = typeof fact.body === 'string'
+    const body = (text ? JSON.parse(fact.body as unknown as string) : fact.body) as Json
+    if (fact.kind === 'step.begun') {
+      const batch = body['batch'] as { id: string; ordered: unknown[] } | undefined
+      if (batch?.ordered.length === 0) batch.id = id
     }
-    if (fact.kind === 'core.cursor') {
-      const members = fact.body['members'] as Json
-      const taken = members['inputBatch'] as Json | null | undefined
-      if (taken !== null && taken !== undefined) members['inputBatch'] = { ...taken, id }
+    if (fact.kind === 'cursor.moved') {
+      // The cursor member names the batch by its identity.
+      const members = body['members'] as Json
+      if (typeof members['inputBatch'] === 'string') members['inputBatch'] = id
     }
+    fact.body = (text ? JSON.stringify(body) : body) as Json
   }
   return copy as unknown as JsonValue
 }

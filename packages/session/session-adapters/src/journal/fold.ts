@@ -6,6 +6,7 @@
 import type {
   ActionBatchId,
   ActionId,
+  AgentInstanceId,
   Adoption,
   AgentConclusion,
   AgentExecutionId,
@@ -29,7 +30,8 @@ import type { ModelInvocationRef } from '@omne-harness/model-contract'
 import type { ToolInvocationRef, ToolOperationRef } from '@omne-harness/tool-contract'
 import { canonical } from '../testing/canonical.ts'
 import {
-  EVENT_OF,
+  eventKindOf,
+  type ExclusionReason,
   digestOf,
   type AttachmentBasis,
   type Attempt,
@@ -104,6 +106,7 @@ export type ResultView = Readonly<{
     consumer: ConsumerRef
     custody: Ref
     saved: DurableEvidence
+    material: Ref | null
     pub: number
   }> | null
   stages: Readonly<Partial<Record<ResultStage, DurableEvidence>>>
@@ -247,10 +250,18 @@ export type EventView = Readonly<{
   fact: FactBody
 }>
 
+/** One binding of a pending call: the reference, the call, the holding instance and its pub. */
+export type BindingView = Readonly<{
+  reference: string
+  pending: Ref<PendingCall>
+  instance: AgentInstanceId
+  pub: number
+}>
+
 /** One excluded operation (R2-D307): why, on what evidence, and at which publication. */
 export type ExclusionEntry = Readonly<{
   execution: AgentExecutionId
-  reason: 'fence' | 'dropped' | 'handoff' | 'reception'
+  reason: ExclusionReason
   evidence: DurableEvidence
   predecessor: AgentOperationId | null
   pub: number
@@ -342,8 +353,13 @@ export type ExecutionView = Readonly<{
     pub: number
   }>[]
   events: readonly EventView[]
+  /** The bindings of the pending calls the execution held, in pub order (`target.bound`). */
+  bindings: readonly BindingView[]
   /** The materials kept for this execution, by the canonical text of their source. */
-  materials: ReadonlyMap<string, Readonly<{ source: DurableEvidence; value: Ref; pub: number }>>
+  materials: ReadonlyMap<
+    string,
+    Readonly<{ source: DurableEvidence; value: Ref; consumer: ConsumerRef; pub: number }>
+  >
   /** The operations that wrote this execution, in pub order. */
   ops: ReadonlyMap<AgentOperationId, OperationEntry>
   /** The operations excluded in this execution. */
@@ -407,6 +423,7 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     acknowledgedAt: 0,
     fences: [],
     events: [],
+    bindings: [],
     materials: new Map(),
     ops: new Map(),
     excluded: new Map(),
@@ -419,13 +436,17 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
 export const handoffKey = (reference: HandoffReference): string => canonical(reference)
 
 /** The facts that advance no revision: a recognition, and a material kept. */
-const NO_REVISION: ReadonlySet<string> = new Set(['op.recognized', 'material.preserved'])
+const NO_REVISION: ReadonlySet<string> = new Set([
+  'op.recognized',
+  'material.preserved',
+  'op.excluded',
+])
 
 /**
- * Whether a batch advances the revision: a batch with a fact other than a recognition or a kept
- * material does, and so does a batch that carries a Session participation, which is a joint commit
- * of its own. A pure recognition, a material kept and the envelope alone of a command that changed
- * nothing do not.
+ * Whether a batch advances the revision: a batch with a fact other than a recognition, a kept
+ * material or an exclusion does, and so does a batch that carries a Session participation, which
+ * is a joint commit of its own. A pure recognition, a material kept, the exclusions a batch carries
+ * along and the envelope alone of a command that changed nothing do not.
  */
 export function advances(batch: PublishedBatch): boolean {
   return batch.envelope.kinds.length > 0 || batch.facts.some(fact => !NO_REVISION.has(fact.kind))
@@ -440,7 +461,10 @@ type Draft = {
   batches: Map<ActionBatchId, BatchView>
   passages: Map<PassageId, PassageView>
   controls: Map<AgentOperationId, ControlView>
-  materials: Map<string, Readonly<{ source: DurableEvidence; value: Ref; pub: number }>>
+  materials: Map<
+    string,
+    Readonly<{ source: DurableEvidence; value: Ref; consumer: ConsumerRef; pub: number }>
+  >
   ops: Map<AgentOperationId, OperationEntry>
   excluded: Map<AgentOperationId, ExclusionEntry>
   rejections: Map<AgentOperationId, RejectionEntry>
@@ -498,7 +522,26 @@ function active(draft: Draft): Authority | null {
 }
 
 /** Applies one fact to the draft at `pub`, `ord`, after the revision of the batch is known. */
+/**
+ * The event kind `fact` projects when applied to `draft`, or null (SPEC "事实族与折叠核", the event
+ * rule): what the fact alone says (`eventKindOf`), and for a `control.stage` a record wrote, no
+ * event after the execution ended, and none for the same stage fact already reached (the writer
+ * recognizes it and appends no event).
+ */
+function eventOf(draft: Draft, fact: FactBody): string | null {
+  const kind = eventKindOf(fact)
+  if (kind === null || fact.kind !== 'control.stage' || fact.step !== null) return kind
+  if (draft.finish.ended !== null) return null
+  const current = draft.controls.get(fact.control)?.stages[fact.stage]
+  const same =
+    current !== undefined &&
+    current.state === fact.state &&
+    canonical(current.source) === canonical(fact.source)
+  return same ? null : kind
+}
+
 function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision: number): void {
+  const event = eventOf(draft, fact)
   switch (fact.kind) {
     case 'exec.opened':
       draft.opened = { ...fact, pub }
@@ -613,6 +656,7 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
           consumer: fact.consumer,
           custody: fact.custody,
           saved: fact.saved,
+          material: fact.material,
           pub,
         },
         stages: known?.stages ?? {},
@@ -803,6 +847,12 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
     case 'wait.entered':
       draft.waits = { step: fact.step, waits: fact.waits, pub }
       break
+    case 'target.bound':
+      draft.bindings = [
+        ...draft.bindings,
+        { reference: fact.reference, pending: fact.pending, instance: fact.instance, pub },
+      ]
+      break
     case 'finish.candidate':
       if (!draft.finish.candidates.some(item => item.candidate === fact.candidate))
         draft.finish = {
@@ -903,7 +953,12 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
     case 'material.preserved': {
       const key = canonical(fact.source)
       if (!draft.materials.has(key))
-        draft.materials.set(key, { source: fact.source, value: fact.value, pub })
+        draft.materials.set(key, {
+          source: fact.source,
+          value: fact.value,
+          consumer: fact.consumer,
+          pub,
+        })
       break
     }
     case 'op.excluded':
@@ -938,8 +993,7 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
       return _exhaustive
     }
   }
-  const event = EVENT_OF[fact.kind]
-  if (event !== undefined)
+  if (event !== null)
     draft.events = [
       ...draft.events,
       {

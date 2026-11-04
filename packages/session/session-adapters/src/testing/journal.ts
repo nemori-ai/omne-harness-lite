@@ -70,6 +70,7 @@ import type {
   SettlementResult,
   ObligationDisposition,
   RecoveryContinuation,
+  StepId,
   TerminalParticipantFact,
   ToolAssociationRecord,
 } from '@omne-harness/agent-contract'
@@ -123,6 +124,7 @@ import {
   refOf,
   type Answer,
   type Blob,
+  type ExclusionReason,
   type ExecutionView,
   type FactBody,
   type ParticipationKind,
@@ -428,6 +430,22 @@ function takenRange(
     : undefined
 }
 
+/** The schema the Journal stamps on every event unless the options name one. */
+export const DEFAULT_EVENT_SCHEMA: Adoption = Object.freeze({
+  owner: JOURNAL_OWNER,
+  name: 'agent-event',
+  revision: '1',
+  digest: 'memory:agent-event',
+})
+
+/** The reply admission rule of the Journal unless the options name one. */
+export const DEFAULT_REPLY_ADMISSION_RULE: Adoption = Object.freeze({
+  owner: JOURNAL_OWNER,
+  name: 'reply-admission-projection',
+  revision: '1',
+  digest: 'memory:reply-admission-projection',
+})
+
 export type MemoryExecution = {
   id: AgentExecutionId
   tenant: TenantId
@@ -492,7 +510,19 @@ type Committed = Readonly<{
   value: unknown
   receipt: CommandReceipt
 }>
-type Excluded = Readonly<{ kind: 'excluded'; key: string; evidence: DurableEvidence }>
+/**
+ * An excluded operation. The record names its execution, operation and reason so that the next
+ * batch of the execution carries the exclusion as an `op.excluded` fact when the view does not
+ * hold it yet (a held write the storage dropped, a re-run that answered without writing).
+ */
+type Excluded = Readonly<{
+  kind: 'excluded'
+  key: string
+  execution: AgentExecutionId
+  operation: AgentOperationId
+  reason: ExclusionReason
+  evidence: DurableEvidence
+}>
 /** The persistent rejection of a recordControl (Agent SPEC "查询的四种结论与持久拒绝"). */
 type Rejected = Readonly<{
   kind: 'rejected'
@@ -1493,18 +1523,8 @@ export function createJournal<P>(
   const retainedToolInvocationBaselines = new Map<string, ToolInvocationRef>()
   const participants = frozenSet(options.participants ?? [])
   const readLimit = options.readLimit ?? 100
-  const eventSchema: Adoption = options.eventSchema ?? {
-    owner: JOURNAL_OWNER,
-    name: 'agent-event',
-    revision: '1',
-    digest: 'memory:agent-event',
-  }
-  let admissionRule: Adoption = options.replyAdmissionRule ?? {
-    owner: JOURNAL_OWNER,
-    name: 'reply-admission-projection',
-    revision: '1',
-    digest: 'memory:reply-admission-projection',
-  }
+  const eventSchema: Adoption = options.eventSchema ?? DEFAULT_EVENT_SCHEMA
+  let admissionRule: Adoption = options.replyAdmissionRule ?? DEFAULT_REPLY_ADMISSION_RULE
   const state = () => cell.state().agent
   const caches = new WeakMap<
     Execution,
@@ -1835,13 +1855,16 @@ export function createJournal<P>(
       if (rejected !== undefined) return answered(fail(rejected))
       return answered(pending.key === key ? commitUnknown : fail(conflict(input.operation)))
     }
-    const exclude = (reason: string) => {
+    const exclude = (reason: 'dropped' | 'no-write') => {
       const fixed = state().operations.get(at)?.kind
       if (fixed === 'committed' || fixed === 'rejected') return
       cell.touch()
       state().operations.set(at, {
         kind: 'excluded',
         key,
+        execution: input.execution,
+        operation: input.operation,
+        reason,
         evidence: journalEvidence(
           `${cell.namespace}/${input.execution}/excluded/${input.operation}/${reason}`,
           0,
@@ -1994,7 +2017,10 @@ export function createJournal<P>(
         : (before.attachments.findLast(item => item.status === 'active')?.authority.generation ??
           before.gen)
     const envelope = { op: input.operation, digest: key, rev: 0, gen, kinds: prepared.kinds }
-    const built = buildBatch(before, envelope, prepared.facts)
+    // The exclusions this process holds in memory and the view does not: facts of this batch, so
+    // a copy rebuilt from the records holds them too. They move no revision.
+    const facts = [...unpublishedExclusions(input, before, prepared.facts), ...prepared.facts]
+    const built = buildBatch(before, envelope, facts)
     if ('kind' in built) {
       if (built.kind === 'incomplete') return fail(invalid('facts', built.reason))
       return fail(conflict(input.operation))
@@ -2057,6 +2083,7 @@ export function createJournal<P>(
     stage: ControlStage,
     state: 'reached' | 'unresolved',
     source: DurableEvidence,
+    step: StepId | null = null,
   ): FactBody {
     return {
       kind: 'control.stage',
@@ -2067,6 +2094,7 @@ export function createJournal<P>(
       stage,
       state,
       source,
+      step,
     }
   }
 
@@ -2199,6 +2227,40 @@ export function createJournal<P>(
     )
   }
 
+  /**
+   * The `op.excluded` facts of the exclusions recorded in memory for `input.execution` that the
+   * view does not hold, and `facts` do not carry: a held write the storage dropped, a re-run that
+   * answered without writing, a fence whose fact was not written with it.
+   */
+  function unpublishedExclusions(
+    input: Pick<ExecutionMutation<P>, 'tenant' | 'execution'>,
+    before: ExecutionView,
+    facts: readonly FactBody[],
+  ): FactBody[] {
+    const carried = new Set(
+      facts.flatMap(fact => (fact.kind === 'op.excluded' ? [fact.operation] : [])),
+    )
+    const out: FactBody[] = []
+    for (const [at, record] of state().operations) {
+      if (record.kind !== 'excluded' || record.execution !== input.execution) continue
+      if (at !== operationKey(input.tenant, input.execution, record.operation)) continue
+      if (
+        carried.has(record.operation) ||
+        before.excluded.has(record.operation) ||
+        before.ops.has(record.operation)
+      )
+        continue
+      out.push({
+        kind: 'op.excluded',
+        operation: record.operation,
+        reason: record.reason,
+        evidence: copy(record.evidence),
+        predecessor: null,
+      })
+    }
+    return out
+  }
+
   /** The `op.excluded` facts of a takeover: every write of this execution still pending. */
   function fencedOperations(execution: Execution): FactBody[] {
     const out: FactBody[] = []
@@ -2243,6 +2305,9 @@ export function createJournal<P>(
       state().operations.set(key, {
         kind: 'excluded',
         key: record.key,
+        execution: execution.id,
+        operation: record.operation,
+        reason: 'fence',
         evidence: journalEvidence(
           `${cell.namespace}/${execution.id}/excluded/${record.operation}/fenced`,
           0,
@@ -3496,6 +3561,10 @@ export function createJournal<P>(
         // The initial checkpoint comes from the caller, not from the invoke entry (R2-D292).
         const checkpoint = input.checkpoint
         const outcome = acceptance.outcome
+        const bound = receiving.newBindings(
+          { id: input.execution, tenant: input.tenant, checkpoint, effects: [] },
+          runtime.instance,
+        )
         const facts: FactBody[] = [
           {
             kind: 'exec.opened',
@@ -3534,8 +3603,14 @@ export function createJournal<P>(
             step: checkpoint.step,
             members: cursorMembersOf(checkpoint, { kind: 'advancing' }),
           },
+          ...bound.facts,
         ]
-        const blobs: Blob[] = [blobOf(initial.content), blobOf(outcome), ...blobsOf(checkpoint)]
+        const blobs: Blob[] = [
+          blobOf(initial.content),
+          blobOf(outcome),
+          ...blobsOf(checkpoint),
+          ...bound.blobs,
+        ]
         return {
           kind: 'batch',
           facts,
@@ -3587,7 +3662,7 @@ export function createJournal<P>(
               serial: batch.pub,
             }
             state().executions.set(executionKey(input.tenant, input.execution), execution)
-            receiving.remember(execution, runtime.instance)
+            receiving.applyBindings(execution, bound)
           },
         }
       })
@@ -3928,13 +4003,15 @@ export function createJournal<P>(
             })
           // A reply admission projects its message (`reply.judged`); any other message is
           // referred to by its own fact.
-          if (body.kind === 'message' && admission === null)
+          if (body.kind === 'message' && admission === null) {
+            blobs.push(blobOf(body.message))
             facts.push({
               kind: 'message.published',
               step: input.checkpoint.step,
               message: refOf(body.message),
               source: copy(body.source),
             })
+          }
           // The Agent applied a produced result: the processed stage of its consumption.
           if (body.kind === 'producer')
             facts.push({
@@ -3943,11 +4020,20 @@ export function createJournal<P>(
               result: producerCallOf(body.result),
               stage: 'processed',
               evidence,
+              step: input.checkpoint.step,
             })
           if (body.kind === 'control') {
             const record = execution.controls.find(item => item.operation === body.operation)
             if (record !== undefined)
-              facts.push(controlStageOf(record, body.stage, body.state, copy(body.source)))
+              facts.push(
+                controlStageOf(
+                  record,
+                  body.stage,
+                  body.state,
+                  copy(body.source),
+                  input.checkpoint.step,
+                ),
+              )
           }
         }
         for (const effect of input.effects)
@@ -4058,6 +4144,15 @@ export function createJournal<P>(
           blobs.push(...blobsOf(input.checkpoint))
           facts.push(moved)
         }
+        // The bindings this commit establishes: the pending calls of the checkpoint it commits
+        // and of the effects it already holds (its new effects bind at the next commit, as the
+        // writer always remembered them), under the committing instance.
+        const bound = receiving.newBindings(
+          { ...execution, checkpoint: input.checkpoint, effects: execution.effects },
+          input.authority.instance,
+        )
+        facts.push(...bound.facts)
+        blobs.push(...bound.blobs)
         return {
           kind: 'batch',
           facts,
@@ -4077,7 +4172,7 @@ export function createJournal<P>(
             )
               throw new TypeError('the folded facts name another checkpoint than the commit')
             execution.checkpoint = checkpoint
-            receiving.remember(execution, input.authority.instance)
+            receiving.applyBindings(execution, bound)
             execution.state = copy(input.state)
             for (const effect of input.effects) {
               if (!execution.effects.some(existing => existing.action === effect.action)) {
@@ -4395,6 +4490,7 @@ export function createJournal<P>(
           result: call,
           stage,
           evidence: copy(basis),
+          step: null,
         })
         const facts: FactBody[] = []
         if (known === undefined) facts.push(handled('recorded', evidence))
@@ -5234,6 +5330,9 @@ export function createJournal<P>(
             state().operations.set(key, {
               kind: 'excluded',
               key: record.key,
+              execution,
+              operation,
+              reason: 'dropped',
               evidence: journalEvidence(
                 `${cell.namespace}/${execution}/excluded/${operation}/dropped`,
                 0,

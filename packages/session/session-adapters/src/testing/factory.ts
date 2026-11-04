@@ -1038,6 +1038,19 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         records: () => cell.current().agent.executions as ReadonlyMap<string, MemoryExecution>,
         /** The operation records of this session as the core keeps them. Read only. */
         operations: () => cell.current().agent.operations as ReadonlyMap<string, OperationRecord>,
+        /** The original fragments of the events (receipts, pendings, call origins, human) and the event index. Read only. */
+        fragments: () => {
+          const agent = cell.current().agent
+          return {
+            eventReceipts: agent.eventReceipts as ReadonlyMap<string, CommandReceipt>,
+            pendingEvents: agent.pendingEvents,
+            callOrigins: agent.callOrigins,
+            human: agent.human,
+            indexedEvents: agent.indexedEvents as ReadonlyMap<string, number>,
+          }
+        },
+        /** The receiving state of this session as the core keeps it. Read only. */
+        receiving: () => cell.current().receiving,
       },
       durability: 'none' as const,
     }

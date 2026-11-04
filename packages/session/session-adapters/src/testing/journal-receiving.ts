@@ -1,6 +1,7 @@
 import { pendingCalls } from './pending.ts'
 import { createHash } from 'node:crypto'
 import type {
+  PendingCall,
   Access,
   AgentExecutionId,
   AgentOperationId,
@@ -40,7 +41,7 @@ import { canonical } from './canonical.ts'
 import { jsonTree } from './material-value.ts'
 import type { Attempt, JournalWrite, MemoryExecution, OperationRecord } from './journal.ts'
 import { journalEvidence, semanticKey } from './journal-values.ts'
-import { blobOf, refOf, type FactBody, type ProducerCall } from '../journal/index.ts'
+import { type Blob, blobOf, refOf, type FactBody, type ProducerCall } from '../journal/index.ts'
 
 type Input<P> = ReceivedCommitInput<P, ContentBlock>
 export type Kept = { entry: ReceivedEntry; receipt: CommandReceipt; saved: DurableEvidence | null }
@@ -155,8 +156,15 @@ function receivedCall(entry: ReceivedEntry): ProducerCall {
   }
 }
 
-/** The `result.received` fact of a saved entry: identities, the custody reference and saved. */
-function receivedFact(entry: ReceivedEntry, saved: DurableEvidence): FactBody {
+/**
+ * The `result.received` fact of a saved entry: identities, the custody reference, saved, and the
+ * material the delivery carried (a reference to its block; null for a record without it).
+ */
+function receivedFact(
+  entry: ReceivedEntry,
+  saved: DurableEvidence,
+  material: Material<ContentBlock> | null,
+): FactBody {
   return {
     kind: 'result.received',
     consumption: entry.consumption,
@@ -165,6 +173,7 @@ function receivedFact(entry: ReceivedEntry, saved: DurableEvidence): FactBody {
     consumer: structuredClone(entry.consumer),
     custody: refOf(entry),
     saved: structuredClone(saved),
+    material: material === null ? null : refOf(material),
   }
 }
 
@@ -444,8 +453,8 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           const value = { receipt, entry, saved }
           return {
             kind: 'batch',
-            facts: [receivedFact(entry, saved)],
-            blobs: [blobOf(entry)],
+            facts: [receivedFact(entry, saved, input.material)],
+            blobs: [blobOf(entry), blobOf(input.material)],
             kinds: [],
             derive: derived => {
               if (derived.kind !== 'received' || canonical(derived.receipt) !== canonical(receipt))
@@ -545,7 +554,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         const entry = input.entry
         const fact: FactBody =
           entry.kind === 'received'
-            ? receivedFact(entry, evidence)
+            ? receivedFact(entry, evidence, null)
             : {
                 kind: 'fence.started',
                 operation: entry.operation,
@@ -684,7 +693,14 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
             return answer(succeed(materialSourceOf(kept)))
         return {
           kind: 'batch',
-          facts: [{ kind: 'material.preserved', source, value: refOf(input.value) }],
+          facts: [
+            {
+              kind: 'material.preserved',
+              source,
+              value: refOf(input.value),
+              consumer: structuredClone(input.consumer),
+            },
+          ],
           blobs: [blobOf(input.value)],
           kinds: [],
           derive: () => source,
@@ -771,6 +787,9 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         hooks.operations().set(operationKey(input), {
           kind: 'excluded',
           key: textOf(input),
+          execution: input.execution,
+          operation: input.operation,
+          reason: 'reception',
           evidence: structuredClone(evidence),
         })
         hooks.touch()
@@ -855,21 +874,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       return succeed(structuredClone(found))
     },
   }
-  /** Keeps the first binding of an associated Tool call: its execution, instance and PendingCall. */
-  function rememberTool(
-    execution: MemoryExecution,
-    instance: AgentInstanceId,
-    pending: Extract<import('@omne-harness/agent-contract').PendingCall, { kind: 'tool' }>,
-  ): void {
-    if (pending.association !== 'associated') return
-    const key = targetKey({ tenant: execution.tenant }, pending.reference)
-    if (!hooks.state().toolTargets.has(key))
-      hooks.state().toolTargets.set(key, {
-        execution: execution.id,
-        instance,
-        pending: structuredClone(pending),
-      })
-  }
   return {
     ports: { entries, materials: materialPort, received },
     queryQualification(input: ExecutionMutation<P>): Failure | undefined {
@@ -885,57 +889,111 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     controls,
     targets: targetPort,
     toolTargets: toolTargetPort,
-    remember(execution: MemoryExecution, instance: AgentInstanceId) {
-      for (const pending of pendingCalls(execution)) {
+    /**
+     * The bindings an open or a commit establishes, as facts of its batch: one `target.bound` per
+     * pending call the execution holds (a Tool intent not yet associated apart) that no earlier
+     * batch bound for this execution. Computed before the batch from the checkpoint and effects
+     * the write commits; `applyBindings` projects the same facts into the receiving state, and a
+     * cold start folds them from the family (`bindOf` in `journal-records.ts`).
+     */
+    newBindings(
+      execution: Pick<MemoryExecution, 'id' | 'tenant' | 'checkpoint' | 'effects'>,
+      instance: AgentInstanceId,
+    ): NewBindings {
+      const facts: FactBody[] = []
+      const blobs: Blob[] = []
+      const pendings: PendingCall[] = []
+      const seen = new Set<string>()
+      for (const pending of pendingCalls(execution as MemoryExecution)) {
         if (pending.kind === 'tool' && pending.association === 'intent') continue
-        const bindingKey = targetKey(execution, pending.reference),
-          prior = hooks.state().pendingBindings.get(bindingKey) ?? []
+        const bindingKey = targetKey(execution, pending.reference)
+        const text = canonical(pending)
+        const prior = hooks.state().pendingBindings.get(bindingKey) ?? []
         if (
-          !prior.some(
-            item =>
-              item.execution === execution.id && canonical(item.pending) === canonical(pending),
-          )
+          seen.has(`${bindingKey}\0${text}`) ||
+          prior.some(item => item.execution === execution.id && canonical(item.pending) === text)
         )
-          hooks
-            .state()
-            .pendingBindings.set(bindingKey, [
-              ...prior,
-              { execution: execution.id, pending: structuredClone(pending) },
-            ])
-        hooks
-          .state()
-          .consumerExecutions.set(
-            canonical([tenantText(execution.tenant), pending.position]),
-            execution.id,
-          )
-        if (pending.kind === 'tool') rememberTool(execution, instance, pending)
-        if (pending.kind !== 'model') continue
-        const key = targetKey({ tenant: execution.tenant }, pending.reference)
-        if (!hooks.state().targets.has(key)) {
-          const target = { execution: execution.id, instance, pending: structuredClone(pending) }
-          hooks.state().targets.set(key, target)
-          const reference = resolveModelInvocationRef(pending.reference, execution.tenant)
-          if ('ok' in reference) {
-            const callKey = targetKey(execution, reference.ok.call)
-            if (!hooks.state().callTargets.has(callKey)) {
-              hooks.state().callTargets.set(callKey, target)
-              const at = executionText({
-                tenant: execution.tenant,
-                principal: null,
-                execution: execution.id,
-              })
-              const originals = hooks.state().executionTargets.get(at) ?? []
-              hooks.state().executionTargets.set(at, [...originals, target])
-            }
-          }
-        }
-        hooks
-          .state()
-          .consumerExecutions.set(
-            canonical([tenantText(execution.tenant), pending.position]),
-            execution.id,
-          )
+          continue
+        seen.add(`${bindingKey}\0${text}`)
+        const value = structuredClone(pending)
+        pendings.push(value)
+        blobs.push(blobOf(value))
+        facts.push({
+          kind: 'target.bound',
+          reference: pending.reference,
+          pending: refOf(value),
+          instance,
+        })
       }
+      return { instance, facts, blobs, pendings }
     },
+    /** Projects the bindings of a batch of `execution` into the receiving state. */
+    applyBindings(execution: Pick<MemoryExecution, 'id' | 'tenant'>, bound: NewBindings) {
+      for (const pending of bound.pendings)
+        bindTarget(hooks.state(), execution, bound.instance, pending)
+    },
+  }
+}
+
+/** The bindings an open or a commit establishes: the facts of its batch, their blocks, the values. */
+export type NewBindings = Readonly<{
+  instance: AgentInstanceId
+  facts: readonly FactBody[]
+  blobs: readonly Blob[]
+  pendings: readonly PendingCall[]
+}>
+
+/**
+ * One binding applied to a receiving state (the writer's at a commit, the projection's at a cold
+ * start, the same way): the pending list of the reference, the consumer position of the call, the
+ * first Tool binding of an associated call, and the first Model target of the reference with its
+ * call key and the execution's list.
+ */
+export function bindTarget(
+  state: ReceivingState,
+  execution: Pick<MemoryExecution, 'id' | 'tenant'>,
+  instance: AgentInstanceId,
+  pending: import('@omne-harness/agent-contract').PendingCall,
+): void {
+  // A Tool intent not yet associated has no reference to bind.
+  if (pending.kind === 'tool' && pending.association !== 'associated') return
+  const tenant = tenantText(execution.tenant)
+  const keyOf = (reference: string) => canonical([tenant, reference])
+  const bindingKey = keyOf(pending.reference)
+  const prior = state.pendingBindings.get(bindingKey) ?? []
+  if (
+    !prior.some(
+      item => item.execution === execution.id && canonical(item.pending) === canonical(pending),
+    )
+  )
+    state.pendingBindings.set(bindingKey, [
+      ...prior,
+      { execution: execution.id, pending: structuredClone(pending) },
+    ])
+  state.consumerExecutions.set(canonical([tenant, pending.position]), execution.id)
+  if (pending.kind === 'tool') {
+    const key = keyOf(pending.reference)
+    if (!state.toolTargets.has(key))
+      state.toolTargets.set(key, {
+        execution: execution.id,
+        instance,
+        pending: structuredClone(pending),
+      })
+    return
+  }
+  if (pending.kind !== 'model') return
+  const key = keyOf(pending.reference)
+  if (state.targets.has(key)) return
+  const target = { execution: execution.id, instance, pending: structuredClone(pending) }
+  state.targets.set(key, target)
+  const reference = resolveModelInvocationRef(pending.reference, execution.tenant)
+  if ('ok' in reference) {
+    const callKey = keyOf(reference.ok.call)
+    if (!state.callTargets.has(callKey)) {
+      state.callTargets.set(callKey, target)
+      const at = canonical([tenant, execution.id])
+      const originals = state.executionTargets.get(at) ?? []
+      state.executionTargets.set(at, [...originals, target])
+    }
   }
 }
