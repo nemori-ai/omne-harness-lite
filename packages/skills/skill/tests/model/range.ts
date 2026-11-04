@@ -1,7 +1,8 @@
 // S4, the byte range of a page. Every text over a small alphabet of 1-, 2-, 3- and 4-byte
 // characters up to three characters long is put in a package five ways: as a text resource, as
 // a binary resource (one 0xFF byte in front), and as the body of `SKILL.md` behind an LF and a
-// CRLF frontmatter, and as a `SKILL.md` without a frontmatter. Each is read through the real
+// CRLF frontmatter, and as a `SKILL.md` without a frontmatter, whose body is not known: every
+// read of it answers `source-unavailable` alone (GS-04). Each is read through the real
 // `read` with every start and length up to two past the total, the page limit and one more, and
 // no range. One more package holds a region longer than a page with characters across the page
 // limit. The expected page comes from the rules of the contract SPEC "读取的形状规则": the actual
@@ -87,7 +88,15 @@ function serviceOf(files: Files) {
   return { access, calls: () => calls, entries: sealed.entries }
 }
 
-type Region = Readonly<{ part: 'body' | string; bytes: Uint8Array; text: boolean }>
+/** `headerless`: a body without a legal frontmatter, which no range may read. */
+type Region = Readonly<{
+  part: 'body' | string
+  bytes: Uint8Array
+  text: boolean
+  headerless?: boolean
+}>
+
+const SOURCE_UNAVAILABLE = { failure: { kind: 'source-unavailable' } }
 
 function isBoundary(region: Region, at: number): boolean {
   return !region.text || at >= region.bytes.length || ((region.bytes[at] ?? 0) & 0xc0) !== 0x80
@@ -170,6 +179,15 @@ async function readAll(
         )
       } catch (error) {
         ledger.break({ world: where, request: 'read', detail: `threw ${String(error)}` })
+        continue
+      }
+      if (region.headerless === true) {
+        if (!isDeepStrictEqual(outcome, SOURCE_UNAVAILABLE))
+          ledger.break({
+            world: where,
+            request: 'read',
+            detail: `a body without a frontmatter answered ${JSON.stringify(outcome)}`,
+          })
         continue
       }
       if (!('ok' in outcome)) {
@@ -266,7 +284,7 @@ export async function exploreRange(): Promise<Report> {
       await readAll(
         ledger,
         { 'SKILL.md': text },
-        [{ part: 'body', bytes, text: true }],
+        [{ part: 'body', bytes, text: true, headerless: true }],
         smallRanges,
       )
   }

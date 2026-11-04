@@ -32,6 +32,7 @@ import { assertByteRange, sliceRange } from './range.ts'
 
 const BAD_PATH = Object.freeze({ kind: 'bad-path' } as const)
 const RESOURCE_MISSING = Object.freeze({ kind: 'resource-missing' } as const)
+const SOURCE_UNAVAILABLE = Object.freeze({ kind: 'source-unavailable' } as const)
 
 /** Step 4: the description. It reads no bytes. */
 function descriptionOf(gated: Gated): SkillDescription {
@@ -103,8 +104,10 @@ export function createSkillAccess<P, S>(ports: SkillPorts<P, S>): SkillAccess<P,
       const bytes = await verifiedBytes(ports, pinned.ok, entry, signal)
       if (!('ok' in bytes)) return bytes
       // Step 11: the body starts after the closing delimiter. Bytes without a legal frontmatter
-      // have no header to leave out, so the whole entry is the body.
-      const bodyOffset = part.ok.kind === 'body' ? (bodyOffsetOf(bytes.ok) ?? 0) : 0
+      // are no package that passed `inspect`, so where their body starts is not known: they are
+      // not given as a body (GS-04).
+      const bodyOffset = part.ok.kind === 'body' ? bodyOffsetOf(bytes.ok) : 0
+      if (bodyOffset === undefined) return fail(SOURCE_UNAVAILABLE)
       return succeed({
         basis: pinned.ok.basis,
         part: part.ok,
