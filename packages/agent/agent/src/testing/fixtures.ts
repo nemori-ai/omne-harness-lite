@@ -449,6 +449,7 @@ export type ScriptedMaterials<P> = Readonly<{
   port: AgentMaterials<P, ContentBlock>
   preserve: ScriptOf<AgentMaterials<P, ContentBlock>['preserve']>
   read: ScriptOf<AgentMaterials<P, ContentBlock>['read']>
+  describe: ScriptOf<AgentMaterials<P, ContentBlock>['describe']>
 }>
 
 export function createScriptedMaterials<P>(): ScriptedMaterials<P> {
@@ -460,10 +461,15 @@ export function createScriptedMaterials<P>(): ScriptedMaterials<P> {
     In<AgentMaterials<P, ContentBlock>['read']>,
     Out<AgentMaterials<P, ContentBlock>['read']>
   >(unavailable('agentMaterials'))
+  const describe = scriptedMethod<
+    In<AgentMaterials<P, ContentBlock>['describe']>,
+    Out<AgentMaterials<P, ContentBlock>['describe']>
+  >(unavailable('agentMaterials'))
   return {
-    port: { preserve: preserve.call, read: read.call },
+    port: { preserve: preserve.call, read: read.call, describe: describe.call },
     preserve: preserve.script,
     read: read.script,
+    describe: describe.script,
   }
 }
 

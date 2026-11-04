@@ -1205,6 +1205,14 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
         sessionAccessCheck: sessionChecks as never,
         combination,
       }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId }).journal,
+    /** The entries port of a new session-log Journal over the same storage. */
+    freshEntries: () =>
+      createSessionLogJournal<unknown>({
+        storage,
+        tenantDomainLookup: lookup,
+        sessionAccessCheck: sessionChecks as never,
+        combination,
+      }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId }).entries,
     published,
     pushes,
     admits,

@@ -21,6 +21,7 @@
 | 正式技术提案与规范写回 | [RFC入口](../rfcs/README.md) |
 | 输入、范围、责任、交接、停止与完成 | [共享工作约定](workflow.md) |
 | 可信、可解释、质量、性能与交付量的依据 | [质量与证据](quality.md) |
+| Journal 写入量的测量读数、守卫与阈值 | [性能基线](perf-baseline.md) |
 | 技能名称、固定来源、采用与加载 | [技能引用](skills.md) |
 | TypeScript 方法与未定政策 | [技能采用及差异](skills.md#项目差异与负责边界) |
 | 公开入口、包与依赖 | [源码布局](../workspace.md#使用与维护)及[创建入口](../development.md#创建和整改产品包) |

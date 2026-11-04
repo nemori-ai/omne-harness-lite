@@ -143,12 +143,19 @@ function at(commits: readonly Recorded[], node: string, step: string): AgentChec
   return found.checkpoint
 }
 
-/** The `adoptedRequest` the main M0 of a checkpoint's own commit must have written. */
+/**
+ * The `adoptedRequest` the main M0 of a checkpoint's own commit must have written. The ready
+ * preparation is not saved (R2-D292), so its schema and state come from the scripted preparation.
+ */
 function expectedOf(checkpoint: AgentCheckpoint) {
   const [call] = checkpoint.calls
-  const ready = checkpoint.requestPreparation
-  if (call?.kind !== 'model' || ready?.kind !== 'ready') throw new Error('not an M0 checkpoint')
-  return { reference: call.reference, fixed: call.fixed, schema: ready.schema, record: ready.state }
+  if (call?.kind !== 'model') throw new Error('not an M0 checkpoint')
+  return {
+    reference: call.reference,
+    fixed: call.fixed,
+    schema: expect.objectContaining({ name: 'preparation-state' }),
+    record: stateOf(call.action),
+  }
 }
 
 describe('FIXED-FACTS F2: the main M0 records the adopted request', () => {
@@ -213,9 +220,9 @@ describe('FIXED-FACTS F2: the main M0 records the adopted request', () => {
       commits.some(c => c.node === 'M0' && c.checkpoint.step === 'step-2'),
     )
 
-    // The next I1 replaces requestPreparation and the next P1 prepares again; neither touches it.
+    // The next I1 and P1 prepare again in memory (R2-D292); neither touches it.
     const i1 = at(commits, 'I1', 'step-2')
-    expect(i1.requestPreparation?.kind).toBe('assembled')
+    expect(i1.requestPreparation).toBeNull()
     expect(i1.adoptedRequest).toEqual(adopted)
     expect(at(commits, 'P1', 'step-2').adoptedRequest).toEqual(adopted)
 
@@ -248,7 +255,7 @@ describe('FIXED-FACTS F2: the main M0 records the adopted request', () => {
     const first = at(commits, 'M0', 'step-1')
     expect(first.adoptedRequest).toEqual(expectedOf(first))
     const second = at(commits, 'M0', 'step-2')
-    expect(second.requestPreparation).toMatchObject({ kind: 'ready', purpose: 'compaction' })
+    expect(second.requestPreparation).toBeNull()
     expect(second.calls.map(call => call.kind)).toEqual(['model'])
     // That M0 neither writes its own request nor clears the main one.
     expect(second.adoptedRequest).toEqual(first.adoptedRequest)

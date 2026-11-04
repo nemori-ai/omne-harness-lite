@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
-import { evidence, execution, modelCall, ok, operation, otherTenant } from './journal-support.ts'
+import {
+  evidence,
+  execution,
+  modelCall,
+  ok,
+  operation,
+  otherTenant,
+  loadWithEntries,
+} from './journal-support.ts'
 import { alice, eventually, invoke, loopAssembly } from './loop-support.ts'
 import { testCancellationPolicyInstallation } from '@omne-harness/agent-contract/testing'
 import { controlAssembly } from './fixtures/control-assembly.ts'
@@ -34,13 +42,13 @@ describe('execution control acceptance', () => {
     const handle = ok(await invoke(assembly))
     const input = { ...alice, execution: handle.execution }
     await eventually(async () => {
-      const snapshot = ok(await assembly.dependencies.journal.load(input))
+      const snapshot = await loadWithEntries(assembly.dependencies, input)
       return (
         snapshot.state.kind === 'waiting' &&
         snapshot.checkpoint.calls.some(call => call.kind === 'model')
       )
     })
-    const before = ok(await assembly.dependencies.journal.load(input))
+    const before = await loadWithEntries(assembly.dependencies, input)
     expect(
       await handle.control.control({
         ...input,
@@ -50,16 +58,16 @@ describe('execution control acceptance', () => {
     ).toHaveProperty('ok')
     await eventually(
       async () =>
-        ok(await assembly.dependencies.journal.load(input)).settlement.judgments.length > 0,
+        (await loadWithEntries(assembly.dependencies, input)).settlement.judgments.length > 0,
     )
-    const pending = ok(await assembly.dependencies.journal.load(input))
+    const pending = await loadWithEntries(assembly.dependencies, input)
     expect(pending.state.kind).not.toBe('ended')
     expect(pending.settlement.judgments.at(-1)?.decision.kind).toBe('unknown')
     await deliverToolSuggestion(assembly)
     await eventually(
-      async () => ok(await assembly.dependencies.journal.load(input)).state.kind === 'ended',
+      async () => (await loadWithEntries(assembly.dependencies, input)).state.kind === 'ended',
     )
-    const ended = ok(await assembly.dependencies.journal.load(input))
+    const ended = await loadWithEntries(assembly.dependencies, input)
     expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'cancelled' } })
     expect(ended.effects).toEqual(before.effects)
     expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
@@ -85,9 +93,9 @@ describe('execution control acceptance', () => {
     }
     expect(await handle.control.control(input)).toHaveProperty('ok')
     await eventually(
-      async () => ok(await assembly.dependencies.journal.load(input)).state.kind === 'ended',
+      async () => (await loadWithEntries(assembly.dependencies, input)).state.kind === 'ended',
     )
-    const snapshot = ok(await assembly.dependencies.journal.load(input))
+    const snapshot = await loadWithEntries(assembly.dependencies, input)
     expect(snapshot.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'cancelled' } })
     expect(snapshot.effects).toEqual([])
     expect(snapshot.settlement.route).toMatchObject({
@@ -205,7 +213,7 @@ describe('execution control acceptance', () => {
     const first = await handle.control.control(input)
     expect(first).toHaveProperty('ok')
     expect(await handle.control.control(input)).toEqual(first)
-    const snapshot = ok(await assembly.dependencies.journal.load(input))
+    const snapshot = await loadWithEntries(assembly.dependencies, input)
     expect(snapshot.controls.filter(control => control.operation === input.operation)).toHaveLength(
       1,
     )
@@ -234,9 +242,10 @@ describe('execution control acceptance', () => {
         command: { kind: 'cancel', reason: evidence('foreign') },
       }),
     ).toMatchObject({ failure: { kind: 'denied' } })
-    const snapshot = ok(
-      await assembly.dependencies.journal.load({ ...alice, execution: handle.execution }),
-    )
+    const snapshot = await loadWithEntries(assembly.dependencies, {
+      ...alice,
+      execution: handle.execution,
+    })
     expect(snapshot.controls).toEqual([])
   })
 
@@ -254,7 +263,7 @@ describe('execution control acceptance', () => {
       failure: { kind: 'commit-unknown', operation: input.operation },
     })
     expect(await handle.control.control(input)).toHaveProperty('ok')
-    const snapshot = ok(await assembly.dependencies.journal.load(input))
+    const snapshot = await loadWithEntries(assembly.dependencies, input)
     expect(snapshot.controls.filter(control => control.operation === input.operation)).toHaveLength(
       1,
     )
@@ -277,14 +286,16 @@ describe('execution control acceptance', () => {
     const assembly = await loopAssembly([execution()])
     const handle = ok(await invoke(assembly))
     await eventually(async () => {
-      const snapshot = ok(
-        await assembly.dependencies.journal.load({ ...alice, execution: handle.execution }),
-      )
+      const snapshot = await loadWithEntries(assembly.dependencies, {
+        ...alice,
+        execution: handle.execution,
+      })
       return snapshot.checkpoint.calls.some(call => call.kind === 'model')
     })
-    const snapshot = ok(
-      await assembly.dependencies.journal.load({ ...alice, execution: handle.execution }),
-    )
+    const snapshot = await loadWithEntries(assembly.dependencies, {
+      ...alice,
+      execution: handle.execution,
+    })
     const pending = snapshot.checkpoint.calls.find(call => call.kind === 'model')
     if (pending?.kind !== 'model') throw new Error('the model call was not saved')
     const target = ok(resolveModelInvocationRef(pending.reference, alice.tenant))
@@ -306,7 +317,7 @@ describe('execution control acceptance', () => {
         command: { ...input.command, call: modelCall('unrelated') },
       }),
     ).toMatchObject({ failure: { kind: 'invalid', field: 'command.call' } })
-    const after = ok(await assembly.dependencies.journal.load(input))
+    const after = await loadWithEntries(assembly.dependencies, input)
     expect(after.controls.map(control => control.command)).toEqual([input.command])
     expect(after.executionAttachment).toEqual(snapshot.executionAttachment)
     await eventually(async () => {
@@ -325,7 +336,7 @@ describe('execution control acceptance', () => {
       kind: 'found',
       state: { phase: 'accepted', control: { kind: 'requested', upstream: 'unknown' } },
     })
-    const controlled = ok(await assembly.dependencies.journal.load(input)).controls[0]
+    const controlled = (await loadWithEntries(assembly.dependencies, input)).controls[0]
     expect(controlled?.stages['physically-stopped']).toBeUndefined()
     expect(controlled?.stages['qualification-revoked']).toBeUndefined()
   })
@@ -404,7 +415,7 @@ describe('tool call control', () => {
       acceptedStop(toolOperation(first, 'stop-a'), 'stop-a'),
     )
     const input = { ...alice, execution: handle.execution }
-    const before = ok(await assembly.dependencies.journal.load(input))
+    const before = await loadWithEntries(assembly.dependencies, input)
     const { call } = ok(resolveToolInvocationRef(first.reference, alice.tenant))
     expect(
       await handle.control.control({
@@ -416,7 +427,7 @@ describe('tool call control', () => {
     expect(assembly.controls.tools.commands.control.calls).toEqual([
       expect.objectContaining({ reference: first.reference, intent: { kind: 'stop' } }),
     ])
-    const controlled = ok(await assembly.dependencies.journal.load(input))
+    const controlled = await loadWithEntries(assembly.dependencies, input)
     const record = controlled.controls.find(item => item.operation === operation('interrupt-a'))
     expect(record).toMatchObject({
       toolInvocation: first.reference,
@@ -449,11 +460,11 @@ describe('tool call control', () => {
     )
     // Both slots are kept and the same run sends its next model request.
     await eventually(async () =>
-      ok(await assembly.dependencies.journal.load(input)).checkpoint.calls.some(
+      (await loadWithEntries(assembly.dependencies, input)).checkpoint.calls.some(
         pending => pending.kind === 'model' && pending.action.startsWith('step-2/'),
       ),
     )
-    const after = ok(await assembly.dependencies.journal.load(input))
+    const after = await loadWithEntries(assembly.dependencies, input)
     const kept = after.entries?.find(
       entry =>
         entry.kind === 'received' &&
@@ -487,7 +498,7 @@ describe('tool call control', () => {
       command: { kind: 'interrupt-tool' as const, call, reason: evidence('interrupt-unknown') },
     }
     ok(await handle.control.control(input))
-    const unknown = ok(await assembly.dependencies.journal.load(input)).controls.find(
+    const unknown = (await loadWithEntries(assembly.dependencies, input)).controls.find(
       item => item.operation === input.operation,
     )
     expect(unknown).toMatchObject({
@@ -500,7 +511,7 @@ describe('tool call control', () => {
     expect(assembly.controls.tools.queries.queryOperation.calls).toEqual([
       expect.objectContaining({ operation: toolOperation(first, 'stop-unknown') }),
     ])
-    const known = ok(await assembly.dependencies.journal.load(input)).controls.find(
+    const known = (await loadWithEntries(assembly.dependencies, input)).controls.find(
       item => item.operation === input.operation,
     )
     expect(known?.stages['producer-confirmed']?.state).toBe('reached')
@@ -583,9 +594,9 @@ describe('tool call control', () => {
         ),
       )
     await eventually(
-      async () => ok(await assembly.dependencies.journal.load(input)).state.kind === 'ended',
+      async () => (await loadWithEntries(assembly.dependencies, input)).state.kind === 'ended',
     )
-    const ended = ok(await assembly.dependencies.journal.load(input))
+    const ended = await loadWithEntries(assembly.dependencies, input)
     expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'cancelled' } })
     // No new Tool action and no next model request after the cancellation.
     expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
@@ -652,10 +663,10 @@ describe('tool call control', () => {
       ),
     )
     await eventually(async () => ok(await journal.load(input)).state.kind === 'ended')
-    const ended = ok(await journal.load(input))
+    const ended = await loadWithEntries(assembly.dependencies, input)
     expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'cancelled' } })
     expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
-    const kept = ended.entries?.find(
+    const kept = ended.entries.find(
       entry =>
         entry.kind === 'received' &&
         entry.delivery.producer === 'tool' &&
@@ -716,7 +727,7 @@ describe('tool call control', () => {
       command: { kind: 'interrupt-tool' as const, call, reason: evidence('interrupt-refused') },
     }
     ok(await handle.control.control(input))
-    const record = ok(await assembly.dependencies.journal.load(input)).controls.find(
+    const record = (await loadWithEntries(assembly.dependencies, input)).controls.find(
       item => item.operation === input.operation,
     )
     const confirmation = record?.stages['producer-confirmed']
@@ -783,7 +794,7 @@ describe('content and account read back after control', () => {
   ) {
     let pending: PendingCall | undefined
     await eventually(async () => {
-      pending = ok(await assembly.dependencies.journal.load(input)).checkpoint.calls.find(
+      pending = (await loadWithEntries(assembly.dependencies, input)).checkpoint.calls.find(
         call => call.kind === 'model',
       )
       if (pending?.kind !== 'model') return false
@@ -808,7 +819,7 @@ describe('content and account read back after control', () => {
       execution: ReturnType<typeof execution>
     },
   ) {
-    const snapshot = ok(await assembly.dependencies.journal.load(input))
+    const snapshot = await loadWithEntries(assembly.dependencies, input)
     const received = snapshot.entries?.find(
       entry =>
         entry.kind === 'received' &&
@@ -844,7 +855,7 @@ describe('content and account read back after control', () => {
       '17',
     )
     await eventually(async () =>
-      (ok(await assembly.dependencies.journal.load(input)).entries ?? []).some(
+      ((await loadWithEntries(assembly.dependencies, input)).entries ?? []).some(
         entry => entry.kind === 'received' && entry.delivery.producer === 'model',
       ),
     )
@@ -856,7 +867,7 @@ describe('content and account read back after control', () => {
         account: expect.objectContaining({ usage: [expect.objectContaining({ lexeme: '17' })] }),
       }),
     ])
-    const controlled = ok(await assembly.dependencies.journal.load(input)).controls.find(
+    const controlled = (await loadWithEntries(assembly.dependencies, input)).controls.find(
       item => item.operation === operation('interrupt-delivered'),
     )
     // The interrupt did not end the execution or revoke its advance.
@@ -893,7 +904,7 @@ describe('content and account read back after control', () => {
     )
     ok(await pushToolResult(toolReceiver(assembly), toolDelivery(held, { name: 'held' })))
     await eventually(
-      async () => ok(await assembly.dependencies.journal.load(input)).state.kind === 'ended',
+      async () => (await loadWithEntries(assembly.dependencies, input)).state.kind === 'ended',
     )
     const after = await receivedModel(assembly, input)
     expect(after.snapshot.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'cancelled' } })

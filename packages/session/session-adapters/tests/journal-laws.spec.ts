@@ -12,7 +12,9 @@ import {
   answer,
   batchBytes,
   batchOf,
+  blobsOf,
   bytesOf,
+  checkpointOf,
   cursorMoved,
   cursorOf,
   decodeRows,
@@ -827,8 +829,62 @@ describe('R2-D297: the finishing records are the projection of the folded facts'
     // whose content members are references again.
     const candidate = execution.finish.candidates[0]!
     expect(candidate).not.toHaveProperty('checkpoint')
-    const cursor = blobs.get(candidate.cursor.digest) as Record<string, unknown>
-    expect(cursor['calls']).toEqual(refOf(snapshot.checkpoint.calls))
-    expect(cursor['passages']).toEqual(refOf(snapshot.checkpoint.passages))
+    const cursor = blobs.get(candidate.cursor.digest) as { members: Record<string, unknown> }
+    expect(cursor.members['calls']).toEqual(refOf(snapshot.checkpoint.calls))
+    expect(cursor.members['passages']).toEqual(refOf(snapshot.checkpoint.passages))
+  })
+})
+
+describe('the checkpoint of a folded view takes the input batch and the voided intents from their facts', () => {
+  /** A one-execution scene whose round voided its first Model request (R2-D292). */
+  function voidedScene() {
+    for (let seed = 1; seed < 200; seed += 1) {
+      const { log } = scene(random(seed), { rounds: 1, executions: 1, finish: false })
+      if (log.some(batch => batch.facts.some(fact => fact.kind === 'intent.voided')))
+        return foldAll(log).executions.get(log[0]!.execution)!
+    }
+    throw new Error('no seed below 200 voids a request')
+  }
+
+  it('reads inputBatch from step.begun and voided from intent.voided with its call.intended', () => {
+    const execution = voidedScene()
+    const begun = execution.steps.at(-1)!
+    const request = execution.requests.find(item => item.voided !== null)!
+    const intent = [...execution.intents.values()].find(
+      item => item.pending.kind === 'model' && item.pending.reference === request.reference,
+    )!
+    const checkpoint = {
+      ...sampleCheckpoint(),
+      step: begun.step,
+      inputBatch: begun.batch,
+      voided: [
+        {
+          step: request.step,
+          action: intent.action,
+          reference: request.reference,
+          basis: request.voided!,
+        },
+      ],
+    }
+    const cursor = cursorOf(checkpoint, { kind: 'advancing' })
+    expect(cursor.inputBatch).toBe(begun.batch.id)
+    expect(JSON.stringify(cursor)).not.toContain('voided')
+    const blobs = new Map(blobsOf(checkpoint))
+    expect(checkpointOf({ ...execution, cursor }, blobs)).toEqual({
+      ...checkpoint,
+      adoptedRequest: null,
+    })
+  })
+
+  it('negative control: a batch without its step.begun, or a voided request without its intent, throws', () => {
+    const execution = voidedScene()
+    const begun = execution.steps.at(-1)!
+    const checkpoint = { ...sampleCheckpoint(), step: begun.step, inputBatch: begun.batch }
+    const cursor = cursorOf(checkpoint, { kind: 'advancing' })
+    const blobs = new Map(blobsOf(checkpoint))
+    expect(() => checkpointOf({ ...execution, cursor, steps: [] }, blobs)).toThrow(/step\.begun/)
+    expect(() => checkpointOf({ ...execution, cursor, intents: new Map() }, blobs)).toThrow(
+      /call\.intended/,
+    )
   })
 })

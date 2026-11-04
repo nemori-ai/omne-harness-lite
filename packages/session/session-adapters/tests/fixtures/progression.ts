@@ -91,7 +91,7 @@ export async function take(
       operation: operation(name),
       authority: s.opened.authority,
       expected: loaded.revision,
-      checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+      checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
       state: waits.length ? { kind: 'waiting', waits } : { kind: 'advancing' },
       events: [
         { kind: 'input-taken', batch: page.batch },

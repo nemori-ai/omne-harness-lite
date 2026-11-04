@@ -248,6 +248,9 @@ const READS: ReadonlySet<string> = new Set([
   'query',
   'output.read',
   'materials.read',
+  'materials.describe',
+  'entries.read',
+  'entries.receivedOf',
   'received.query',
   'targets.forExecution',
   'targets.resolve',
@@ -1948,10 +1951,15 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       journal,
       entries: {
         record: input => run(input, 'record', core => core.provider.entries.record(input)),
+        read: input => run(input, 'entries.read', core => core.provider.entries.read(input)),
+        receivedOf: input =>
+          run(input, 'entries.receivedOf', core => core.provider.entries.receivedOf(input)),
       },
       materials: {
         preserve: input => run(input, 'preserve', core => core.provider.materials.preserve(input)),
         read: input => run(input, 'materials.read', core => core.provider.materials.read(input)),
+        describe: input =>
+          run(input, 'materials.describe', core => core.provider.materials.describe(input)),
       },
       received: {
         commit: input => run(input, 'received', core => core.provider.received.commit(input)),

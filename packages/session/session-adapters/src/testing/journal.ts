@@ -2119,7 +2119,7 @@ export function createJournal<P>(
 
   function inputBoundary(execution: Execution): Range {
     const taken = execution.checkpoint.inputBatch
-    const range = taken === null ? undefined : cache(execution).batches.get(taken)
+    const range = taken === null ? undefined : cache(execution).batches.get(taken.id)
     if (taken !== null && range === undefined)
       throw new Error('original input batch range is unavailable')
     const from = range?.to ?? 0
@@ -2791,7 +2791,7 @@ export function createJournal<P>(
         return {
           kind: 'batch',
           facts,
-          blobs: [...establishedFact.blobs, ...blobsOf(execution.checkpoint)],
+          blobs: establishedFact.blobs,
           kinds: [],
           derive: derived => {
             const read = folded()
@@ -3297,7 +3297,8 @@ export function createJournal<P>(
           generation: '1',
           source: attachmentEvidence(input.execution, 'attach', 1, 1),
         }
-        const checkpoint = entry.checkpoint
+        // The initial checkpoint comes from the caller, not from the invoke entry (R2-D292).
+        const checkpoint = input.checkpoint
         const outcome = acceptance.outcome
         const facts: FactBody[] = [
           {
@@ -3354,7 +3355,7 @@ export function createJournal<P>(
               tenant: input.tenant,
               revision: view.revision,
               state: { kind: 'advancing' },
-              checkpoint: checkpointOf(view.cursor, state().blobs),
+              checkpoint: checkpointOf(view, state().blobs),
               attachments: [{ authority, status: 'active', handoff: null, handoffRevision: 0 }],
               inputs: [copy(initial)],
               inputRevisions: new Map([[initial.id, view.revision]]),

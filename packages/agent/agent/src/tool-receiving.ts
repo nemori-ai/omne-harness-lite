@@ -416,14 +416,20 @@ export function createAgentToolReceiver<P>(
     input: Maintenance<P>,
     targets: readonly ToolReceptionTarget[],
   ): Promise<Maintained | null> {
-    const snapshot = await dependencies.provider.journal.load({
-      ...input.access,
-      execution: input.execution,
-    })
-    if ('failure' in snapshot)
-      return snapshot.failure.kind === 'denied' ? receiveDenied() : maintenanceFailure('journal')
-    if (!snapshot.ok.entries) return maintenanceFailure('journal-entries')
-    for (const entry of snapshot.ok.entries) {
+    // The received entries of each original consumption, from the entries port of the same
+    // provider (agent-contract SPEC "日志条目" 6); the snapshot carries none.
+    const entries: AgentJournalEntry[] = []
+    for (const consumption of new Set(targets.map(target => target.pending.consumption))) {
+      const read = await dependencies.provider.entries.receivedOf({
+        ...input.access,
+        execution: input.execution,
+        consumption,
+      })
+      if ('failure' in read)
+        return read.failure.kind === 'denied' ? receiveDenied() : maintenanceFailure('journal')
+      entries.push(...read.ok)
+    }
+    for (const entry of entries) {
       if (input.signal.aborted) return maintenanceFailure('maintenance-cancelled')
       const stopped = await replayEntry(input, targets, entry)
       if (stopped) return stopped

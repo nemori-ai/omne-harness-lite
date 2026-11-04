@@ -52,7 +52,7 @@ async function take(
       operation: operation('take'),
       authority,
       expected: loaded.revision,
-      checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+      checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
       state: { kind: 'advancing' },
       events: [{ kind: 'input-taken', batch: page.batch }],
       effects: [],
@@ -355,6 +355,7 @@ describe('unknown, tenancy and registration', () => {
     const { s } = await opened('preserve-unknown')
     const preserve = {
       ...s.access,
+      execution: s.execution,
       identity: 'material-1',
       consumer: { owner: 'session', work: 'work', position: 'at', purpose: 'action' },
       value: {

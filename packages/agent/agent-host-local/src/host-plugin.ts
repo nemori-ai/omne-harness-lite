@@ -215,6 +215,7 @@ export function createAgentHostPlugin(factory: RuntimeFactory): AgentHostPlugin 
         factory,
         statics: {
           journal: ctx.agentJournal,
+          entries: ctx.agentJournalEntries,
           access: ctx.agentAccessCheck,
           models: ctx.modelRuntime,
           adoptions: ctx.agentAdoptions,

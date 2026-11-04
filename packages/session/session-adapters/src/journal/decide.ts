@@ -28,7 +28,8 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
   return {
     position: checkpoint.position,
     step: checkpoint.step,
-    inputBatch: checkpoint.inputBatch,
+    // The batch itself is the `step.begun` of its step; the cursor names it (R2-D292).
+    inputBatch: checkpoint.inputBatch === null ? null : checkpoint.inputBatch.id,
     guard: checkpoint.guard === null ? null : refOf(checkpoint.guard),
     priorConditions: checkpoint.priorConditions,
     currentHandoff: checkpoint.currentHandoff,
@@ -83,18 +84,45 @@ function held<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>, what: stri
 }
 
 /**
- * The checkpoint a complete folded cursor names: the inverse of `cursorOf`, reading the referred
- * members from the blocks. A member the cursor lacks, or a block the store does not hold, is a
- * defect of the writer that folded it, not a value to invent: it throws.
+ * The checkpoint a complete folded view names: the inverse of `cursorOf`, reading the referred
+ * members from the blocks. Two members are not in the cursor because facts of their own hold them
+ * (R2-D292): `inputBatch` is the batch of the `step.begun` the cursor names, and `voided` lists the
+ * `intent.voided` requests in adoption order, each with the action of its `call.intended`. A member
+ * the cursor lacks, a block the store does not hold, a batch no `step.begun` holds, or a voided
+ * request without its intended call is a defect of the writer that folded it, not a value to
+ * invent: it throws.
  */
 export function checkpointOf(
-  cursor: Readonly<Partial<CursorMembers>>,
+  view: Pick<ExecutionView, 'cursor' | 'steps' | 'requests' | 'intents'>,
   blobs: BlobStore,
 ): AgentCheckpoint {
+  const { cursor } = view
   const need = <K extends keyof CursorMembers>(name: K): CursorMembers[K] => {
     if (!(name in cursor)) throw new TypeError(`the folded cursor has no member ${name}`)
     return cursor[name] as CursorMembers[K]
   }
+  const taken = need('inputBatch')
+  const inputBatch =
+    taken === null ? null : (view.steps.find(item => item.batch.id === taken)?.batch ?? null)
+  if (taken !== null && inputBatch === null)
+    throw new TypeError(`the Journal holds no step.begun for the input batch ${taken}`)
+  const voided = view.requests
+    .filter(request => request.voided !== null)
+    .map(request => {
+      const intent = [...view.intents.values()].find(
+        item => item.pending.kind === 'model' && item.pending.reference === request.reference,
+      )
+      if (intent === undefined)
+        throw new TypeError(
+          `the Journal holds no call.intended for the voided request ${request.reference}`,
+        )
+      return {
+        step: request.step,
+        action: intent.action,
+        reference: request.reference,
+        basis: request.voided!,
+      }
+    })
   const checkpoint: AgentCheckpoint = {
     schema: need('schema'),
     definition: need('definition'),
@@ -103,7 +131,7 @@ export function checkpointOf(
     calls: held(blobs, need('calls'), 'calls'),
     passages: held(blobs, need('passages'), 'passages'),
     batch: need('batch') === null ? null : held(blobs, need('batch')!, 'batch'),
-    inputBatch: need('inputBatch') as AgentCheckpoint['inputBatch'],
+    inputBatch: structuredClone(inputBatch),
     requestPreparation:
       need('requestPreparation') === null
         ? null
@@ -120,6 +148,7 @@ export function checkpointOf(
         ? { kind: 'unverified' as const }
         : { kind: 'verified' as const, prefix: held(blobs, read.prefix, 'replyAdmissionRead') }
     })(),
+    voided: structuredClone(voided),
   }
   const adopted = need('adoptedRequest')
   return adopted === null

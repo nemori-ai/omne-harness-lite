@@ -44,7 +44,11 @@ it('receives a Tool account using the actual committed Pending binding without t
     ok(await s.view.materials.read({ ...s.access, source: committed.value.entry.material })),
   ).toEqual(material)
   const snapshot = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
-  expect(snapshot.entries).toEqual([committed.value.entry])
+  expect(
+    ok(
+      await s.view.entries.read({ ...s.access, execution: s.execution, after: null, limit: 10 }),
+    ).items.map(item => item.entry),
+  ).toEqual([committed.value.entry])
   expect(snapshot.results).toEqual([])
   const root = s.view.controls.root()
   expect(ok(await s.view.received.query(request))).toMatchObject({

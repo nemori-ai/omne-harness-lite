@@ -80,7 +80,7 @@ it('Session final publication wins before a paused business taken and the old gr
     operation: operation('paused-taken'),
     authority: s.opened.authority,
     expected: loaded.revision,
-    checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+    checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
     state: { kind: 'advancing' as const },
     events: [{ kind: 'input-taken' as const, batch: page.batch }],
     effects: [],

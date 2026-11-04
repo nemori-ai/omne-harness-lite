@@ -34,14 +34,18 @@ it('keeps the independent Tool receiver and its saved result across host reassem
   const rebuilt = createLocalToolReceiver(fixture.dependencies, state)
   if ('failure' in rebuilt) throw new Error('Tool receiver unavailable')
   expect(await rebuilt.ok.push(input)).toEqual(saved)
-  const loaded = await fixture.journal.port.load({
+  const loaded = await fixture.dependencies.provider.entries.read({
     ...fixture.access,
     execution: fixture.execution,
+    after: null,
+    limit: 10,
   })
-  expect(loaded).toHaveProperty('ok.entries', [
+  expect(loaded).toHaveProperty('ok.items', [
     expect.objectContaining({
-      kind: 'received',
-      delivery: expect.objectContaining({ producer: 'tool' }),
+      entry: expect.objectContaining({
+        kind: 'received',
+        delivery: expect.objectContaining({ producer: 'tool' }),
+      }),
     }),
   ])
 })
@@ -67,13 +71,15 @@ it('assembles the real host receiver, saves through the common provider and retr
   })
   expect(saved).toHaveProperty('ok')
   await Promise.all(state.tasks)
-  const loaded = await fixture.journal.port.load({
+  const loaded = await fixture.dependencies.provider.entries.read({
     ...fixture.access,
     execution: fixture.execution,
+    after: null,
+    limit: 10,
   })
   if ('failure' in loaded) throw new Error('saved execution unreadable')
-  expect(loaded.ok.entries).toHaveLength(1)
-  const entry = loaded.ok.entries?.[0]
+  expect(loaded.ok.items).toHaveLength(1)
+  const entry = loaded.ok.items[0]?.entry
   if (!entry || entry.kind !== 'received') throw new Error('received entry required')
   expect(
     await fixture.dependencies.provider.materials.read({

@@ -21,6 +21,7 @@ import {
   operation,
   otherTenant,
   type Principal,
+  loadWithEntries,
 } from './journal-support.ts'
 import {
   alice,
@@ -111,14 +112,19 @@ async function turns(): Promise<void> {
 }
 
 async function journalState(assembly: LoopAssembly) {
-  return ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() })).state
+  return (
+    await loadWithEntries(assembly.controls.journal.provider, { ...alice, execution: execution() })
+  ).state
 }
 
 /** Opens the Model gate and returns when the received entry of the main call is in the Journal. */
 async function settleModel(assembly: LoopAssembly): Promise<void> {
   assembly.release.open()
   await eventually(async () => {
-    const read = ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+    const read = await loadWithEntries(assembly.controls.journal.provider, {
+      ...alice,
+      execution: execution(),
+    })
     return read.entries?.some(entry => entry.kind === 'received') === true
   })
 }

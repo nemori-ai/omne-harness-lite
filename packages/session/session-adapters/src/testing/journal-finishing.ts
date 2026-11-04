@@ -46,14 +46,23 @@ import type {
   ToolAssociationRecord,
   CancellationJudgmentInput,
   CommandReceipt,
+  InputBatch,
+  VoidedIntent,
   JournalCommitState,
   SettlementResult,
 } from '@omne-harness/agent-contract'
 import { obligationCategoryOf } from '@omne-harness/agent-contract'
 import { canonical } from './canonical.ts'
 import { JOURNAL_OWNER, journalEvidence, revisionOf } from './journal-values.ts'
-import { blobOf, checkpointOf, cursorOf, type Blob, type BlobStore } from '../journal/decide.ts'
-import type { FactOf, Ref } from '../journal/facts.ts'
+import {
+  blobOf,
+  blobsOf,
+  checkpointOf,
+  cursorOf,
+  type Blob,
+  type BlobStore,
+} from '../journal/decide.ts'
+import type { CursorMembers, FactOf, Ref } from '../journal/facts.ts'
 import type { CandidateView, ExecutionView, ObligationListView } from '../journal/fold.ts'
 
 /**
@@ -505,6 +514,12 @@ export function buildObligations(
               settlesCall(item.failure) &&
               item.failure.call === call,
           )?.failure ?? undefined)
+    // R2-D292: a Model intent the Model answered authoritatively not-accepted was never admitted
+    // or sent; its voided record settles the call on the basis of that answer.
+    const voided =
+      effect.pending.kind === 'model'
+        ? source.checkpoint.voided.find(item => item.reference === effect.pending.reference)
+        : undefined
     const custodian =
       association?.obligation.kind === 'call' ? association.obligation.custodian : null
     const retain = (saved: ToolAssociationRecord): RecoveryContinuation => ({
@@ -531,16 +546,18 @@ export function buildObligations(
             ? settled(received.material)
             : finalFailure !== undefined
               ? settled(finalFailure.source)
-              : association?.association.kind === 'accepted'
-                ? held(association.source, retain(association), custodian ?? SESSION_CUSTODIAN)
-                : association !== undefined
-                  ? callUnknown(effect.action, association.source, retain(association))
-                  : callUnknown(effect.action, effect.pending.fixed, {
-                      kind: 'producer-query',
-                      request: ofParameters({ pending: effect.pending }),
-                      ...BY_JOURNAL,
-                      purpose: 'query',
-                    }),
+              : voided !== undefined
+                ? settled(voided.basis)
+                : association?.association.kind === 'accepted'
+                  ? held(association.source, retain(association), custodian ?? SESSION_CUSTODIAN)
+                  : association !== undefined
+                    ? callUnknown(effect.action, association.source, retain(association))
+                    : callUnknown(effect.action, effect.pending.fixed, {
+                        kind: 'producer-query',
+                        request: ofParameters({ pending: effect.pending }),
+                        ...BY_JOURNAL,
+                        purpose: 'query',
+                      }),
       action: effect.action,
       intent: recorded(
         source.finishing.effectOperations.get(effect.action),
@@ -919,9 +936,21 @@ function refOfBlob([digest, value]: Blob): Ref {
 }
 
 /**
+ * The cursor block of a candidate: the cursor members of its checkpoint, and the two members the
+ * cursor keeps in other facts (R2-D292), the whole input batch and the voided intents, as they
+ * stood when the candidate was established. Small values and references only; the member blocks
+ * are the ones `cursor.moved` refers to.
+ */
+export type CandidateCursor = Readonly<{
+  members: CursorMembers
+  inputBatch: InputBatch | null
+  voided: readonly VoidedIntent[]
+}>
+
+/**
  * The `finish.candidate` fact of a candidate and the blocks it refers to. The checkpoint enters as
- * a cursor reference: the block of the cursor members, which refer to the member blocks; the
- * failure and the route enter as blocks.
+ * a cursor reference: the cursor block, whose members refer to the member blocks; the failure and
+ * the route enter as blocks.
  */
 export function candidateFact(
   candidate: FinishCandidate,
@@ -929,7 +958,12 @@ export function candidateFact(
   supersedes: AgentOperationId | null,
   state: JournalCommitState,
 ): Readonly<{ fact: FactOf<'finish.candidate'>; blobs: readonly Blob[] }> {
-  const cursor = blobOf(cursorOf(candidate.checkpoint, state))
+  const held: CandidateCursor = {
+    members: cursorOf(candidate.checkpoint, state),
+    inputBatch: candidate.checkpoint.inputBatch,
+    voided: candidate.checkpoint.voided,
+  }
+  const cursor = blobOf(held)
   const path = blobOf(route)
   const failure = candidate.failure === null ? null : blobOf(candidate.failure)
   return {
@@ -951,7 +985,7 @@ export function candidateFact(
       path: refOfBlob(path) as never,
       supersedes,
     },
-    blobs: [cursor, path, ...(failure === null ? [] : [failure])],
+    blobs: [cursor, ...blobsOf(candidate.checkpoint), path, ...(failure === null ? [] : [failure])],
   }
 }
 
@@ -964,9 +998,21 @@ export function candidateOfView(view: CandidateView, blobs: BlobStore): FinishCa
     conclusion: claim.conclusion,
     failure: failure === null ? null : block<FailureCandidate>(blobs, failure.detail, 'failure'),
     inputWatermark: claim.inputWatermark,
-    checkpoint: checkpointOf(block(blobs, view.cursor, 'cursor'), blobs),
+    checkpoint: checkpointOfCursor(block<CandidateCursor>(blobs, view.cursor, 'cursor'), blobs),
     conditions: claim.conditions,
   }
+}
+
+/**
+ * The checkpoint a candidate's cursor block names: the members from their blocks, the input batch
+ * and the voided intents as the block holds them. A member block the store lacks throws.
+ */
+function checkpointOfCursor(held: CandidateCursor, blobs: BlobStore): AgentCheckpoint {
+  const base = checkpointOf(
+    { cursor: { ...held.members, inputBatch: null }, steps: [], requests: [], intents: new Map() },
+    blobs,
+  )
+  return { ...base, inputBatch: held.inputBatch, voided: held.voided }
 }
 
 /** The route a folded `finish.candidate` was established on, with the proof `finish.proved` set. */

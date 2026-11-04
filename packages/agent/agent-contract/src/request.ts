@@ -104,6 +104,13 @@ export type Preparation = Readonly<{
       }>
     | Readonly<{ kind: 'cannot-fit'; reason: 'fixed' | 'after-compaction'; diagnostic: string }>
   )
+/**
+ * The preparations a checkpoint keeps (SPEC "请求准备与压缩", R2-D292): `needs-compaction` and
+ * `cannot-fit` change what the Loop does next and cannot be computed again for free. `assembled`
+ * and `ready` live only in the memory of the coordinator; after a restart the request is prepared
+ * again from the input batch, so the checkpoint holds no request content.
+ */
+export type SavedPreparation = Extract<Preparation, { kind: 'needs-compaction' | 'cannot-fit' }>
 export type CompactionAdvance =
   | Readonly<{
       kind: 'continue'
@@ -117,11 +124,14 @@ export type CompactionAdvance =
       reason: 'after-compaction'
       diagnostic: string
     }>
+/**
+ * The compaction plan of the current step. It keeps no step request: the request of the current
+ * step is derived again with the same action and progress and a null result (R2-D292).
+ */
 export type CompactionState = Readonly<{
   action: ActionId
   progress: CompactionProgress
   initiated: string
-  stepRequest: Extract<Preparation, { kind: 'ready' }> | null
   ended: 'committed' | 'failed' | null
 }>
 export type FinalRequest = Readonly<{

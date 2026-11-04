@@ -12,7 +12,14 @@ import type { Failure } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ModelFailure } from '@omne-harness/model-contract'
 import { fail } from '@omne-harness/operation-result'
-import { execution, failure, ok, type Principal } from './journal-support.ts'
+import {
+  execution,
+  failure,
+  ok,
+  type Principal,
+  loadWithEntries,
+  entriesOf,
+} from './journal-support.ts'
 import { alice, eventually, invoke, loopAssembly, stoppedAt } from './loop-support.ts'
 
 type Dependencies = AgentDependencies<Principal, ContentBlock>
@@ -220,7 +227,7 @@ const CASES: readonly Case[] = [
           const loaded = await d.journal.load(input)
           return 'ok' in loaded &&
             loaded.ok.checkpoint.position === 'M6' &&
-            loaded.ok.entries?.length
+            (await entriesOf(d.entries, input)).length > 0
             ? fail(PORT_FAILURE)
             : loaded
         },
@@ -300,7 +307,10 @@ describe('a port failure on the normal path stops the run at its node (#502 1.2 
     // The wait of an unavailable F3 is in memory: several check times pass, each retries
     // tryFinish, and none of them writes a revision.
     const read = async () =>
-      ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+      await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      })
     const stopped = await read()
     for (let check = 0; check < 3; check += 1) {
       await eventually(async () => assembly.controls.clock.pending().length > 0)

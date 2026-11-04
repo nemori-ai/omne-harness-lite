@@ -51,7 +51,7 @@ M1 只等 Journal 中的匹配结果，M3/I3 从同一提供者的完整材料�
 
 唯一的聚合是 execution。Agent 经 Journal 写入的事实都属于某一个 execution，由同一个 Journal 提供者保存。Journal 写入的位置分四类。
 
-1. checkpoint 的分面：`AgentCheckpoint` 的 `schema`、`definition`、`step`、`position`、`calls`、`passages`、`batch`、`inputBatch`、`requestPreparation`、`compaction`、`adoptedContext`、`adoptedRequest`、`guard`、`completedPassages` 与 `priorConditions`。槽位 `slots` 属于 `batch`。持久帧就是这些既有分面，见接口增量表的 [D1](loop-algorithm.md#接口增量)。
+1. checkpoint 的分面：`AgentCheckpoint` 的 `schema`、`definition`、`step`、`position`、`calls`、`passages`、`batch`、`inputBatch`、`requestPreparation`、`compaction`、`adoptedContext`、`adoptedRequest`、`guard`、`completedPassages`、`priorConditions`、`currentHandoff`、`replyAdmissionRead` 与 `voided`。`inputBatch` 是完整输入批，`requestPreparation` 只取 needs-compaction 与 cannot-fit（R2-D292）。槽位 `slots` 属于 `batch`。持久帧就是这些既有分面，见接口增量表的 [D1](loop-algorithm.md#接口增量)。
 2. checkpoint 之外的快照字段：`ExecutionSnapshot` 的 `state`、`inputWatermark`、`history`、`replyAdmissions`、`executionAttachment`、`unresolved`、`controls`、`results`、`entries`、`effects`、`terminalObservations` 与 `output`。
 3. 事件：Journal 在提交中为事件分配序号，规则见 SPEC 的[事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号)。
 4. 快照之外、按身份读取的记录：
@@ -98,15 +98,15 @@ revision 在保留期内单调递增，不复用。每次建立新 execution 事
 | E3 | `passages`（执行开始之后），`position` 前移 | `commit`。有扩展调用时随 X 协议提交，没有时在 E3 结束时单独提交 | 条件提交 | 无 | 节点表 E3 |
 | E9 | `state` 为 suspended 并带交接依据，`executionAttachment` 撤销。被取代时不写。暂停的责任释放阶段不在节点表的“写什么”中，见 AGENT-M04 | `detach` | 挂接 | 无 | SPEC 的[交接与停用](../../../agent-contract/SPEC.md#交接与停用) |
 | I0 | `inputBatch`、`step`，事件 input-taken | `commit`。批次先经 `inputs` 读取 | 条件提交 | 无 | SPEC 的[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线) |
-| I1 | `requestPreparation` | `commit` | 条件提交 | 无 | 节点表 I1 |
+| I1 | `priorConditions`；`requestPreparation` 只写 needs-compaction 与 cannot-fit（R2-D292） | `commit` | 条件提交 | 无 | 节点表 I1 |
 | P0 | `passages`（调模型之前，用途 main） | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 P0 |
-| P1 | `requestPreparation`（ready，或第二入口的 needs-compaction） | `commit` | 条件提交 | 无 | 节点表 P1 |
+| P1 | 只移动位置；第二入口的 needs-compaction 写入 `requestPreparation`（R2-D292） | `commit` | 条件提交 | 无 | 节点表 P1 |
 | I2 | `calls`（用途 main 的 PendingCall） | `commit`，与 M0 的主请求记录为同一次 | 条件提交 | 无 | 节点表 I2 与 M0 |
 | I3 | ModelReplyAdmission（`JournalCommit.replyAdmission`，投影到 `replyAdmissions`）与接续。拒收退避在进程内计时，恢复后重新计足，依据 [#558 的阶段 1 决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802) | `commit`，经 Q2，一次提交 | 条件提交 | 不是 `CallerCommit` 种类，见[提交参加者](#提交参加者) | 本页的[主回复准入事实与否决投影](#主回复准入事实与否决投影) |
 | I4 | `batch`（ActionBatch 与各 Action 的原参数与身份） | `commit` | 条件提交 | 无 | 节点表 I4 |
 | I8 | `position`。新 step 开始时 `compaction` 清空 | `commit` | 条件提交 | 无 | 节点表 I8 |
 | C0 | `passages`（压缩之前） | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 C0 |
-| C1 | `compaction`（初值、进度、`stepRequest`、已发起步数 `initiated`），`calls`（用途 compaction），`effects` | `commit`。新进度与下一步效果意图为同一次 | 条件提交 | 无 | SPEC 的[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩) |
+| C1 | `compaction`（初值、进度、已发起步数 `initiated`；步骤请求不保存，由 derive 重算，R2-D292），`calls`（用途 compaction），`effects` | `commit`。新进度与下一步效果意图为同一次 | 条件提交 | 无 | SPEC 的[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩) |
 | C3 | 转换消息、范围转换、新 epoch 与接续，committed 的转换依据，事件 message | `commit` 带 `handoff.resolve`，经 Q2，即 Ja。提供者声明了 context-transition 时 `caller` 为 context-transition。未声明时 `caller` 为 none，Journal 的固定历史组合在同一事务兑现同样的核心历史义务 | 条件提交 | 声明时为 Context 参加者；未声明时为工厂前固定的历史组合 | SPEC 的[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7 条，[消息准入](../../../agent-contract/SPEC.md#消息准入) |
 | C4 | `passages`（压缩之后），`compaction.ended` 为 committed | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 C4 |
 | A0 | 每条链的 `passages`，`batch.actions` 中的 ActionJudgment | `commit`，随 X 协议 | 条件提交 | 无 | SPEC 的[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 1、2 条 |
@@ -122,7 +122,7 @@ revision 在保留期内单调递增，不复用。每次建立新 execution 事
 | T2 | 每个槽位的 `passages`（each），`batch.slots` 的 `each` 与改写后的 `candidate` | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 T2 |
 | T4 | `passages`（batch），`batch.batchPass` | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 T4 |
 | T5 | 候选消息，`batch.slots` 的 `handoff` 记 H 的引用，事件 message | `commit` 带 `handoff.resolve`，经 Q2，即 Ja。提供者声明了 message 时 `caller` 为 message。未声明时 `caller` 为 none，Journal 的固定历史组合在同一事务兑现同样的核心历史义务 | 条件提交 | 声明时为 message 的参加者；未声明时为工厂前固定的历史组合 | SPEC 的[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 5 条，[消息准入](../../../agent-contract/SPEC.md#消息准入) |
-| M0 | 主请求：最终请求记录，`adoptedContext`，`adoptedRequest`，`effects`。与 I2 的 `calls` 为同一次。ready 的 `requestPreparation` 保存最终请求，`PendingCall.fixed` 引用它，这次提交即构成最终请求记录，`JournalCommit` 不另设字段 | `commit` | 条件提交 | 无 | SPEC 的[调模型之前的复核与最终请求](../../../agent-contract/SPEC.md#调模型之前的复核与最终请求)第 4 条 |
+| M0 | 主请求：最终请求记录，`adoptedContext`，`adoptedRequest`，`effects`。与 I2 的 `calls` 为同一次。`PendingCall.fixed` 与 `adoptedRequest` 引用内存中 ready 的固定依据，这次提交即构成最终请求记录，checkpoint 不保存 ready（R2-D292），`JournalCommit` 不另设字段 | `commit` | 条件提交 | 无 | SPEC 的[调模型之前的复核与最终请求](../../../agent-contract/SPEC.md#调模型之前的复核与最终请求)第 4 条 |
 | M0 | 压缩步骤：`passages`（调模型之前，用途 compaction） | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 M0 |
 | M1 | 中断阶段事实（`controls`），事件 control | `recordControl` | 按原操作幂等的记录 | 无 | SPEC 的[六个阶段](../../../agent-contract/SPEC.md#六个阶段) |
 | M1 | 无 | 无写入。读取 Journal received，不投影 Model stream | 无 | 无 | SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收) |
@@ -496,7 +496,7 @@ W0 是一次执行之内唯一的等待节点。进入 W0 时，Agent 先记录�
 | 卡片答复与处理 | 扩展调用停在 requested、asked、resolved 或 applied | Passage 的 `progress` 与 `operations`。CardRound 的状态 | 按上文[扩展经过与精确采用接续](#扩展经过与精确采用接续)的表取第一条匹配行。方言不能携带回放绑定的实现，结果未知时 `replay` 返回 `replayInconsistent`，按报错处置，不再运行 | 用新版本解释原判断。重问卡片。重跑已记录的操作。对不能携带回放绑定的实现再运行一次 | E4 按 `passages` 直接回 X2、X4 或 X5。applied 回原扩展节点的后继 | SC-AG-176，另见 SC-AG-100 至 SC-AG-103、SC-AG-110 |
 | 卡片答复与处理 | 人已答复、尚未 processed | 卡片端口按原 round 读到唯一有效答复。该轮为 answered | 以 `replay` 携带全部轮次的答复调用原精确采用。整批屏障保持 | 把 answered 当作全部处理完成。发出已获准的动作 | X4 转 X2 | SC-AG-177，另见 SC-AG-101 |
 | 卡片答复与处理 | 卡片已呈现、回执丢失 | present 的幂等身份是 passage 加 round 加完整请求身份集合 | lookup 认回原呈现。unknown 时不重出卡 | 再次 present | X4 | SC-AG-45 |
-| 压缩中断 | 压缩步骤之间崩溃，或步骤结果已保管而进度未提交 | checkpoint 的 `compaction`：进度、`stepRequest` 与自持的已发起步数。步骤的 PendingCall | C1 以已保存的进度与最后一步的保管结果再次调用 `derive`。认回同一步不重复计数 | 重新花费模型调用生成另一份摘要。从零开始 | E4 回 C1，或经 M1 回 C1 | SC-AG-178，另见 SC-AG-74 |
+| 压缩中断 | 压缩步骤之间崩溃，或步骤结果已保管而进度未提交 | checkpoint 的 `compaction`：进度与自持的已发起步数。步骤请求以同一 action、当前进度与为 null 的结果再调用 `derive` 重算。步骤的 PendingCall | C1 以已保存的进度与最后一步的保管结果再次调用 `derive`。认回同一步不重复计数 | 重新花费模型调用生成另一份摘要。从零开始 | E4 回 C1，或经 M1 回 C1 | SC-AG-178，另见 SC-AG-74 |
 | 压缩中断 | 转换已派生、共同提交回执丢失 | context-transition 的操作身份。Context 参加者的事实 | R0 查原操作。committed 则 C4 经过后 I1 调用 `resume`。unknown 等待 | 仅凭摘要存在判断压缩记录与接续已提交。用未提交的派生冒充已压缩。用另一条消息配原 commitment | C3 转 R0，再 C4 | SC-AG-179，另见 SC-AG-46 |
 | 终态与接管 | tryFinish 已成、回执丢失 | 原终结的操作身份。ended 与末事件共同提交 | query 原终结。load 读终态。F4、O0 继续 | 重开执行。重复终态。重跑终态前的效果 | F3 转 R0，再 F4 | SC-AG-180 |
 | 终态与接管 | 旧实例被取代后迟到 | stale-advance。superseded 的挂接 | 旧挂接拒绝业务写与发出。合格保管者仍可以记录真实结果与费用 | 因旧资格无效丢弃真实结果 | E1 转 E9。O0 保管 | SC-AG-181、SC-AG-189 |

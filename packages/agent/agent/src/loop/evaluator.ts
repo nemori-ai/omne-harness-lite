@@ -36,8 +36,8 @@ import type { LoopNode } from './nodes.ts'
 export const agentCheckpointSchema: Adoption = Object.freeze({
   owner: '@omne-harness/agent',
   name: 'agent-checkpoint',
-  revision: '2',
-  digest: 'agent:agent-checkpoint/2',
+  revision: '3',
+  digest: 'agent:agent-checkpoint/3',
 })
 
 /** The position of a new checkpoint: every new logical execution passes E3 once (node table E3). */
@@ -72,6 +72,7 @@ function initial(
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },
+    voided: [],
   })
 }
 
@@ -130,7 +131,10 @@ function toolRound(batch: AgentCheckpoint['batch']): 'none' | 'round' | 'open' {
 
 /** The producer waits of I8, or null when a ready result needs its later consumption nodes. */
 function producerWaits(facts: LoopFacts): Waiting[] | null {
-  const waiting: Waiting[] = facts.checkpoint.calls.map(pending => ({ kind: 'producer', pending }))
+  const waiting: Waiting[] = facts.checkpoint.calls.map(pending => ({
+    kind: 'producer',
+    pending,
+  }))
   for (const producer of facts.producers) {
     // Ready results need their later consumption nodes, never an idle producer wait.
     if (
@@ -225,6 +229,7 @@ const CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = [
   'priorConditions',
   'currentHandoff',
   'replyAdmissionRead',
+  'voided',
 ]
 
 /**
@@ -327,6 +332,15 @@ function decode(value: Continuation): Outcome<AgentCheckpoint, Failure> {
   if ('failure' in step) return refused('checkpoint.step', step.failure.reason)
   const read = readPositionOf(tree['replyAdmissionRead'])
   if ('failure' in read) return read
+  // R2-D292: a checkpoint keeps no assembled or ready preparation; one that holds it is not ours.
+  const preparation = tree['requestPreparation']
+  if (
+    preparation !== null &&
+    (!isRecord(preparation) ||
+      (preparation['kind'] !== 'needs-compaction' && preparation['kind'] !== 'cannot-fit'))
+  )
+    return refused('checkpoint.requestPreparation', 'not a saved preparation')
+  if (!Array.isArray(tree['voided'])) return refused('checkpoint.voided', 'type')
   // The members were checked one by one above; the other facets keep the shape encode wrote.
   return succeed({ ...(tree as AgentCheckpoint), step: step.ok, replyAdmissionRead: read.ok })
 }

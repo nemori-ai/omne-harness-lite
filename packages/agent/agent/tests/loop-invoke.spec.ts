@@ -22,6 +22,7 @@ import {
   operation,
   otherTenant,
   type Principal,
+  loadWithEntries,
 } from './journal-support.ts'
 import {
   REPLY_TEXT,
@@ -74,9 +75,10 @@ describe('C2 one input, one reply, ended', () => {
     const assembly = await loopAssembly([execution()])
     const handle = ok(await invoke(assembly))
     expect(handle.execution).toBe(execution())
-    const loaded = ok(
-      await assembly.dependencies.journal.load({ ...alice, execution: execution() }),
-    )
+    const loaded = await loadWithEntries(assembly.dependencies, {
+      ...alice,
+      execution: execution(),
+    })
     expect(loaded.state.kind).not.toBe('ended')
     assembly.release.open()
     await eventsOf(handle)
@@ -110,9 +112,10 @@ describe('C2 one input, one reply, ended', () => {
     assembly.release.open()
     const states = await statesUntil(assembly, state => state.kind === 'idle')
     expect(states.at(-1)).toEqual({ kind: 'idle', instance: assembly.provider.runtime.instance })
-    const loaded = ok(
-      await assembly.dependencies.journal.load({ ...alice, execution: execution() }),
-    )
+    const loaded = await loadWithEntries(assembly.dependencies, {
+      ...alice,
+      execution: execution(),
+    })
     expect(loaded.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
     expect(loaded.results).toEqual([])
     expect(loaded.entries?.filter(entry => entry.kind === 'received')).toHaveLength(1)
@@ -378,9 +381,10 @@ describe('the reply and the identities the coordinator mints', () => {
     expect(replyCandidate(assembly.controls.handoff.prepare.calls[1])?.id).toMatch(
       /^msg_[0-9a-f]{40}_1_reply$/u,
     )
-    const loaded = ok(
-      await assembly.dependencies.journal.load({ ...alice, execution: execution() }),
-    )
+    const loaded = await loadWithEntries(assembly.dependencies, {
+      ...alice,
+      execution: execution(),
+    })
     expect(loaded.checkpoint.step).toBe('step-1')
   })
 })

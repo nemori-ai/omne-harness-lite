@@ -39,7 +39,7 @@ async function take(s: SqlScene, authority: JournalCommit<string>['authority']) 
       operation: operation('take'),
       authority,
       expected: loaded.revision,
-      checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+      checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
       state: { kind: 'advancing' },
       events: [{ kind: 'input-taken', batch: page.batch }],
       effects: [],

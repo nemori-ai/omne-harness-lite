@@ -461,8 +461,15 @@ describe('a fold that the cache does not keep', () => {
       'SELECT snapshot FROM sl_state WHERE tenant = ? AND session = ?',
       [textOf(TENANT_A), 'session-1'],
     ).rows as unknown as [[string]]
+    const chunks = a.provider.select(
+      'dom_0',
+      'SELECT value FROM sl_state_item WHERE tenant = ? AND session = ?',
+      [textOf(TENANT_A), 'session-1'],
+    ).rows as unknown as [string][]
+    // The stored size is the head text and the chunk texts (R2-D292).
+    const bytes = chunks.reduce((sum, [value]) => sum + value.length, stored.length)
     // The bound holds the snapshot read now, and not the larger one of the next commit.
-    const { port, storage } = portOver(a, { bytes: stored.length })
+    const { port, storage } = portOver(a, { bytes })
     await readWork(port, a)
     const before = workFoldCounts(storage)
     ok(await accept(a, port, 'input-1'))
