@@ -363,9 +363,12 @@ describe('T-6: the bounds of the cache', () => {
   it('over the byte bound the least recently used session goes, and is read whole again', async () => {
     const probe = await app()
     await probe.create(TENANT_A, 's-1')
+    // The stored size of one snapshot: its head row and its chunk rows (R2-D292).
     const one = probe.provider.select(
       'dom_0',
-      'SELECT length(snapshot) AS n FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
+      `SELECT length(s.snapshot) + coalesce((SELECT sum(length(i.value)) FROM sl_state_item i
+          WHERE i.tenant = s.tenant AND i.session = s.session), 0) AS n
+         FROM sl_state s WHERE s.tenant = ? AND s.session = ? LIMIT 1`,
       [textOf(TENANT_A), 's-1'],
     ).rows[0]?.[0]
     if (one === undefined || one === null) throw new Error('the snapshot row is missing')

@@ -87,3 +87,20 @@ export const OPERATION_EVIDENCE_MIGRATION = Object.freeze({
   owner: 'session',
   id: '003-operation-evidence',
 })
+
+// The chunk rows of the collections of a snapshot (SPEC W1, 快照的存储形态, R2-D292): the head
+// stays in `sl_state`, and each run of consecutive items of one collection is one row here, so a
+// commit writes only the chunks it changed. Derived in the same commit as `sl_state`, never read
+// without its head row.
+export const STATE_ITEM_STATEMENTS: readonly string[] = [
+  `CREATE TABLE sl_state_item (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, path TEXT NOT NULL, seq INTEGER NOT NULL,
+    value TEXT NOT NULL, PRIMARY KEY (tenant, session, path, seq)) STRICT, WITHOUT ROWID`,
+]
+
+export const STATE_ITEM_TABLES: readonly string[] = ['sl_state_item']
+
+export const STATE_ITEM_MIGRATION = Object.freeze({
+  owner: 'session',
+  id: '004-state-items',
+})

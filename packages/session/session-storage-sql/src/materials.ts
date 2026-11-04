@@ -1,6 +1,6 @@
 // The static materials of the Session storage: two participants (`session` and `execution-record`),
-// their eight migrations (three of `session`: the log, the execution index and the operation
-// evidence table; five of `execution-record`: its records, the preadmission records, the
+// their nine migrations (four of `session`: the log, the execution index, the operation
+// evidence table and the snapshot chunks; five of `execution-record`: its records, the preadmission records, the
 // original attempt of an admission, the state parts and the fact bodies) and their
 // read handlers, as the SQL storage contract describes them
 // (sql-contract SPEC 4). The `session` participant reads the same-root index tables of
@@ -42,6 +42,8 @@ import {
   OPERATION_EVIDENCE_TABLES,
   PROTOCOL,
   SESSION_TABLES,
+  STATE_ITEM_MIGRATION,
+  STATE_ITEM_TABLES,
 } from './worker/schema.ts'
 
 const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
@@ -62,6 +64,10 @@ const indexMigrationRef = Object.freeze({
 const evidenceMigrationRef = Object.freeze({
   owner: OPERATION_EVIDENCE_MIGRATION.owner,
   id: OPERATION_EVIDENCE_MIGRATION.id,
+})
+const stateItemMigrationRef = Object.freeze({
+  owner: STATE_ITEM_MIGRATION.owner,
+  id: STATE_ITEM_MIGRATION.id,
 })
 const recordMigrationRef = Object.freeze({
   owner: EXECUTION_RECORD_MIGRATION.owner,
@@ -113,16 +119,39 @@ type Handler = Readonly<{
   protocol?: string
   /** The migrations whose tables the handler reads; the Session migration by default. */
   migrations?: readonly Readonly<{ owner: string; id: string }>[]
+  /** The rows one read may read; `MAX_ROWS_READ` by default. */
+  maxRowsRead?: number
 }>
+
+/** The rows one read of a handler may read, unless the handler names its own bound. */
+const MAX_ROWS_READ = 2000
+/**
+ * The rows one `session.work` read may read: at most 1000 index rows, and the snapshot rows. A
+ * snapshot of 20 MiB (the recommended output limit) is about 1300 full chunks of 16 KiB and a few
+ * small ones, so the row bound does not stop a snapshot that the byte bound lets through (R2-D292).
+ */
+const WORK_ROWS_READ = 4000
 
 export const HANDLERS: readonly Handler[] = [
   {
     handler: 'session.work',
     file: 'read-work',
     // The snapshot with the history index of its pending inputs (history-index.ts).
-    tables: ['sl_journal', 'sl_state', 'sl_entry', ...EXECUTION_RECORD_INDEX_TABLES],
+    tables: [
+      'sl_journal',
+      'sl_state',
+      ...STATE_ITEM_TABLES,
+      'sl_entry',
+      ...EXECUTION_RECORD_INDEX_TABLES,
+    ],
     // It reads `er_admission_attempt_idx`, which the third migration of `execution-record` creates.
-    migrations: [migrationRef, recordMigrationRef, admissionAttemptMigrationRef],
+    migrations: [
+      migrationRef,
+      stateItemMigrationRef,
+      recordMigrationRef,
+      admissionAttemptMigrationRef,
+    ],
+    maxRowsRead: WORK_ROWS_READ,
   },
   {
     // The version check of the work cache (SPEC RT-04): two point reads, no snapshot row.
@@ -158,7 +187,8 @@ export const HANDLERS: readonly Handler[] = [
   {
     handler: 'session.model-selection',
     file: 'read-model-selection',
-    tables: ['sl_journal', 'sl_state', 'sl_entry', 'sl_operation'],
+    tables: ['sl_journal', 'sl_state', ...STATE_ITEM_TABLES, 'sl_entry', 'sl_operation'],
+    migrations: [migrationRef, stateItemMigrationRef],
   },
   {
     handler: 'session.history',
@@ -240,6 +270,7 @@ export function sessionStorageMaterials(
   const recordMigration = module('execution-record-migration')
   const indexMigration = module('execution-index-migration')
   const evidenceMigration = module('operation-evidence-migration')
+  const stateItemMigration = module('state-item-migration')
   const preadmissionMigration = module('preadmission-migration')
   const admissionAttemptMigration = module('admission-attempt-migration')
   const statePartMigration = module('state-part-migration')
@@ -269,7 +300,12 @@ export function sessionStorageMaterials(
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: [...SESSION_TABLES, ...EXECUTION_INDEX_TABLES, ...OPERATION_EVIDENCE_TABLES],
+        ownedTables: [
+          ...SESSION_TABLES,
+          ...EXECUTION_INDEX_TABLES,
+          ...OPERATION_EVIDENCE_TABLES,
+          ...STATE_ITEM_TABLES,
+        ],
         readTables: EXECUTION_RECORD_INDEX_TABLES,
         requiresFacts: [],
         providesFacts: [],
@@ -301,6 +337,12 @@ export function sessionStorageMaterials(
         moduleUrl: evidenceMigration.moduleUrl,
         checksum: evidenceMigration.digest,
         requires: [indexMigrationRef],
+      },
+      {
+        ...stateItemMigrationRef,
+        moduleUrl: stateItemMigration.moduleUrl,
+        checksum: stateItemMigration.digest,
+        requires: [evidenceMigrationRef],
       },
       {
         ...preadmissionMigrationRef,
@@ -338,7 +380,7 @@ export function sessionStorageMaterials(
         readTables: item.tables,
         requiresMigrations: item.migrations ?? [migrationRef],
         maxOutputBytes: readOutputLimitBytes,
-        maxRowsRead: 2000,
+        maxRowsRead: item.maxRowsRead ?? MAX_ROWS_READ,
       }
     }),
   }

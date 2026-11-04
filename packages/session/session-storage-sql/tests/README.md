@@ -47,7 +47,8 @@
 - [preadmission.spec.ts](preadmission.spec.ts)：准入记录的两阶段写入、Ki 唯一、结果只固定一次、跨租户读不到，以及真实提供者上杀进程后按原 H 读回（慢层）。
 - [same-domain-tenant.spec.ts](same-domain-tenant.spec.ts)：同一事务域里租户 A 的行，以租户 B 读不到：准入记录按 H 与按 Ki 的点查（`findPreadmission`），以及 `commitLog` 对 `sl_journal` 的读（答 `denied`）。其他规格的夹具把每个租户放在各自的事务域里，语句丢了 `tenant = ?` 也读不到别家的行，所以这里在同一个库里写、再换租户读，并各带一个以租户 A 读的对照。
 - [history-index-incremental.spec.ts](history-index-incremental.spec.ts)：历史索引的 Session 行在 Worker 内增量保留（SPEC「Worker 内的两处保留」）：保留的索引与整读的答案相等，没有新行的读不读五种行，游标之后有空洞时本次调用失败、下一次重建，未提交事务的行不保留，会话数与行数有上界。
-- [participant-snapshot-cache.spec.ts](participant-snapshot-cache.spec.ts)：参加者的解析快照（SPEC「Worker 内的两处保留」）：同一快照只解析一次，按行文本核对，失败的提交保留它读到的快照，保留的快照深冻结，会话数与文本总长有上界。
+- [participant-snapshot-cache.spec.ts](participant-snapshot-cache.spec.ts)：参加者的解析快照（SPEC「Worker 内的两处保留」）：同一快照只解析一次，按头文本核对；提交写出的快照被保留，下一次提交不读分块；失败的提交留下的保留项与存储的头不等，下一次提交重读分块；保留的快照深冻结，会话数与文本总长有上界。
+- [state-rows.spec.ts](state-rows.spec.ts)：快照的存储形态（SPEC「快照的存储形态」，R2-D292）：固定种子的随机追加、改动、移出与移动后读回相等；追加只写头与尾部分块；大对象成员单独成行，不变时不重写；没有布局的快照整写并删除旧分块；真实参加者跑 200 步，每次提交写入的快照文本不随步数增长。负控：去掉按布局比较、去掉文本相等的保留、去掉成员行，各自对应的用例变红。
 - [execution-facts.spec.ts](execution-facts.spec.ts)：事实体与 `execution-record.execution-facts`（第 20 条）：正文随事实写入，只读序号之后的事实，分页，租户隔离，畸形序号被拒。
 - [fixtures/](fixtures/README.md)：测试夹具，见该目录。
 
