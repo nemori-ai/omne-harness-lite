@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createHostFilesEngine, hostObjectToken } from '../../src/host-files.ts'
-import { windowsSegmentsBelow } from '../../src/windows-files/facility.ts'
+import { windowsSegmentsBelow } from '../../src/root-segments.ts'
 import { request } from './fixture.ts'
 
 function shortNameOf(path: string): string {
@@ -76,6 +76,20 @@ describe('the root of the Windows files backend in another spelling', () => {
       expect(await windowsSegmentsBelow(root, `${root}\\..\\outside\\tank.txt`)).toBeUndefined()
       expect(await windowsSegmentsBelow(root, base)).toBeUndefined()
     }
+  })
+
+  it('refuses device, UNC and other-drive spellings of a path inside the root', async () => {
+    const back = String.fromCharCode(92)
+    const [drive = '', ...rest] = long.file.split(back)
+    const tail = rest.join(back)
+    const other = drive.toUpperCase().startsWith('Z') ? 'Y:' : 'Z:'
+    for (const spelling of [
+      `${back}${back}?${back}${long.file}`,
+      `${back}${back}.${back}${long.file}`,
+      `${back}${back}localhost${back}${drive.slice(0, 1)}$${back}${tail}`,
+      `${other}${back}${tail}`,
+    ])
+      expect(await windowsSegmentsBelow(long.root, spelling)).toBeUndefined()
   })
 
   it('refuses a junction of another name beside the root, even when it points at the root', async () => {
