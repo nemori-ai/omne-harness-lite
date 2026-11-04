@@ -50,6 +50,8 @@ export type AttachmentView = Readonly<{
   basis: AttachmentBasis
   status: 'active' | 'detached' | 'superseded'
   handoff: DurableEvidence | null
+  /** The revision the detach that set `handoff` reached; 0 while attached. */
+  handoffRevision: number
   pub: number
 }>
 
@@ -308,6 +310,8 @@ export type ExecutionView = Readonly<{
     pub: number
   }>[]
   acknowledged: number
+  /** The revision at which the acknowledged prefix last advanced. */
+  acknowledgedAt: number
   /** The Tool start fences recorded, in pub order. */
   fences: readonly Readonly<{
     operation: string
@@ -381,6 +385,7 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     settlements: [],
     observations: [],
     acknowledged: 0,
+    acknowledgedAt: 0,
     fences: [],
     events: [],
     materials: new Map(),
@@ -486,6 +491,7 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
         basis: fact.basis,
         status: 'active',
         handoff: null,
+        handoffRevision: 0,
         pub,
       })
       draft.attachments = attachments
@@ -495,7 +501,12 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
     case 'exec.detached':
       draft.attachments = draft.attachments.map(item =>
         item.authority.executionAttachment === fact.attachment && item.status === 'active'
-          ? { ...item, status: 'detached' as const, handoff: fact.handoff }
+          ? {
+              ...item,
+              status: 'detached' as const,
+              handoff: fact.handoff,
+              handoffRevision: revision,
+            }
           : item,
       )
       break
@@ -855,7 +866,10 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
         draft.observations = [...draft.observations, { ...fact, pub }]
       break
     case 'ack.through':
-      if (fact.sequence > draft.acknowledged) draft.acknowledged = fact.sequence
+      if (fact.sequence > draft.acknowledged) {
+        draft.acknowledged = fact.sequence
+        draft.acknowledgedAt = revision
+      }
       break
     case 'op.recognized':
       break

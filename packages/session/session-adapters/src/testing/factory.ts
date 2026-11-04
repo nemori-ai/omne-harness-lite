@@ -59,6 +59,7 @@ import {
   type JointDecision,
   type JournalWrite,
   type MemoryAgentJournalOptions,
+  type MemoryExecution,
 } from './journal.ts'
 import { commitAccessMatches, createSessionTransactions, qualifyAccess } from './session.ts'
 import {
@@ -1042,6 +1043,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             namespace: cell.namespace,
           }
         },
+        /** The reader records of this session as the core keeps them: the executions by key. Read only. */
+        records: () => cell.current().agent.executions as ReadonlyMap<string, MemoryExecution>,
       },
       durability: 'none' as const,
     }
