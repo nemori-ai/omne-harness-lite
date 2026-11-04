@@ -10,3 +10,7 @@
 
 - [README.md](README.md)：源码目录的职责
 - [index.ts](index.ts)：根入口与公开定义
+- [provider.ts](provider.ts)：`./provider` 入口，端口与传输的类型
+- [testing.ts](testing.ts)：`./testing` 入口，套件、替身与样本构造器
+- [testing-transport.ts](testing-transport.ts)：传输符合性套件与夹具接口（`TransportFixture`、`PeerScript`）
+- [testing-scripted-transport.ts](testing-scripted-transport.ts)：内存脚本化传输 `createScriptedTransportFactory`

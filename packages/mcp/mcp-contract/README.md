@@ -10,15 +10,15 @@ This package states what MCP gives and what MCP needs, in MCP's own words. It do
 
 Status: candidate contract, without technical acceptance. The behavior is in [SPEC.md](SPEC.md). The group design is in [the group engineering design](../docs/architecture.md).
 
-| Part                                                                                            | State                                                                    |
-| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Values, brand guards, keys                                                                      | Implemented and tested                                                   |
-| Endpoint body parser, category port `mcp`, schema                                               | Implemented and tested                                                   |
-| Catalog functions `completeListing`, `mergeListing`, `markUnavailable`, `actionPermissionItems` | Implemented and tested                                                   |
-| `classifyOutcome`, `toContentBlocks`, `boundInstructions`                                       | Implemented and tested                                                   |
-| Five service interfaces                                                                         | Interfaces only. `@omne-harness/mcp` implements them                     |
-| Five requirement ports and the transport port                                                   | Interfaces only. Conformance suites and in-memory doubles in `./testing` |
-| Real peers, credentials, process landings, durable storage                                      | Not verified here                                                        |
+| Part                                                                                            | State                                                                                                                                                                                     |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Values, brand guards, keys                                                                      | Implemented and tested                                                                                                                                                                    |
+| Endpoint body parser, category port `mcp`, schema                                               | Implemented and tested                                                                                                                                                                    |
+| Catalog functions `completeListing`, `mergeListing`, `markUnavailable`, `actionPermissionItems` | Implemented and tested                                                                                                                                                                    |
+| `classifyOutcome`, `toContentBlocks`, `boundInstructions`                                       | Implemented and tested                                                                                                                                                                    |
+| Five service interfaces                                                                         | Interfaces only. `@omne-harness/mcp` implements them                                                                                                                                      |
+| Five requirement ports and the transport port                                                   | Interfaces only. Conformance suites and in-memory doubles in `./testing`; the transport suite `mcpTransportConformance()` runs on the scripted transport `createScriptedTransportFactory` |
+| Real peers, credentials, process landings, durable storage                                      | Not verified here                                                                                                                                                                         |
 
 ## Usage
 
@@ -62,7 +62,7 @@ Which failures each function returns, and the preconditions whose violation thro
 
 ## Design
 
-Modules: `brands`, `values`, `endpoint`, `listing`, `catalog`, `classify`, `content`, `instructions`, `keys`, `outcomes`, `ports`, `transport`, `services`, and the `testing-*` modules of the `./testing` entry. See [docs/architecture.md](docs/architecture.md), [docs/flows.md](docs/flows.md) and [docs/object-model.md](docs/object-model.md).
+Modules: `brands`, `values`, `args`, `json`, `endpoint`, `listing`, `catalog`, `classify`, `content`, `instructions`, `keys`, `outcomes`, `ports`, `transport`, `services`, and the `testing-*` modules of the `./testing` entry. `testing-transport` holds the transport suite and its fixture types (`TransportFixture`, `PeerScript`); `testing-scripted-transport` holds the in-memory scripted transport that passes it. See [docs/architecture.md](docs/architecture.md), [docs/flows.md](docs/flows.md) and [docs/object-model.md](docs/object-model.md).
 
 ## Configuration and operation
 
@@ -70,7 +70,7 @@ The package has no configuration. `McpConfig` is the configuration type of the s
 
 ## Verification
 
-Run `pnpm turbo run build typecheck test --filter=@omne-harness/mcp-contract`. The tests import the built package. They cover every rejection reason of the body, the catalog properties with a seeded random walk, an exhaustive outcome table, every content type, the five suites on the in-memory doubles, and doubles that break the contract and make the suites fail. Type tests pin each closed set and the `./provider` type exports. SPEC.md lists what the tests do not cover.
+Run `pnpm turbo run build typecheck test --filter=@omne-harness/mcp-contract`. The tests import the built package. They cover every rejection reason of the body, the catalog properties with a seeded random walk, an exhaustive outcome table, every content type, the five suites on the in-memory doubles, the transport suite on the scripted transport with both material kinds, and doubles and scripted transports that break the contract and make the suites fail. Type tests pin each closed set and the `./provider` type exports. SPEC.md lists what the tests do not cover.
 
 ## Maintenance
 

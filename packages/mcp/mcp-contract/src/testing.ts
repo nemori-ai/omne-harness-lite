@@ -52,3 +52,23 @@ export {
 } from './testing-values.ts'
 export { classifyOutcomeCases, type ClassifyOutcomeCase } from './testing-outcome-cases.ts'
 export { mergeListingCases, type MergeListingCase } from './testing-listing-cases.ts'
+export {
+  countingCredential,
+  mcpTransportConformance,
+  type PeerNeeds,
+  type PeerNotificationScript,
+  type PeerReceived,
+  type PeerReply,
+  type PeerScript,
+  type PlainJson,
+  type Replies,
+  type ScriptedPeer,
+  type TaskScript,
+  type TransportFixture,
+  type TransportKind,
+} from './testing-transport.ts'
+export {
+  createScriptedTransportFactory,
+  type ScriptedTransportFactory,
+  type ScriptedTransportOptions,
+} from './testing-scripted-transport.ts'
