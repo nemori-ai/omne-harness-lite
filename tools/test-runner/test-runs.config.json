@@ -191,7 +191,6 @@
       "scripts/model-probe.mjs",
       "scripts/package-cli.sh",
       "scripts/package-tenancy-host.sh",
-      "scripts/build-tenancy-image.sh",
       "packages/**/*.md",
       "apps/**/*.md",
       "tools/*.md",
