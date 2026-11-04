@@ -14,9 +14,8 @@ describe('the rows of the former core bridge', () => {
     const target = { ...s.access, execution: s.execution }
     ok(await s.view.journal.open(s.openInput))
     ok(await s.fresh().journal.load(target))
-    const before = s.controls?.select(
-      "SELECT COUNT(*) AS n FROM er_fact WHERE kind LIKE 'core.%'",
-    ).rows[0]?.[0]
+    const before = s.controls?.select("SELECT COUNT(*) AS n FROM er_fact WHERE kind LIKE 'core.%'")
+      .rows[0]?.[0]
     expect(Number(before)).toBe(0)
 
     // One fact of the open batch becomes a bridge row, as an older writer would have left it.
