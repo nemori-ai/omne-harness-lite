@@ -11,6 +11,7 @@
 | [组工程设计](../docs/architecture.md)       | `b0f2ec7fb` | 「端口」中的 `DirectorySource` 段与映射表                                                                                                                                                                     |
 | [Skill 契约规格](../skill-contract/SPEC.md) | `b0f2ec7fb` | [需求端口](../skill-contract/SPEC.md#ports)、[快照](../skill-contract/SPEC.md#snapshot)、[来源失败的集合](../skill-contract/SPEC.md#set-source-failures)、[符合性套件](../skill-contract/SPEC.md#conformance) |
 | W2 领域设计裁定                             | 2026-11-03  | 工厂与文件系统接缝的形状；定位的种类；失败映射；快照的条目集合；取快照后改文件时 `open` 交出新字节；无类、无类型断言                                                                                          |
+| W3 Skill 线实施规格已定事项 12 与第 2 轮裁定 R6 | 2026-11-04 | 真实目录示例 `examples/directory-journey.ts` 与它的测试；示例不是产品装配 |
 
 各裁定的内容写在下文对应的条款里。
 
@@ -114,7 +115,7 @@
 | 不带 `code` 的错误原样抛出                                                                 | 把它收束成一个 code：对应用例变红                                                              | `tests/permissions.spec.ts`                                                                        |
 | 读管道不等待写者                                                                           | 去掉 `O_NONBLOCK`：`open` 读管道一例超时                                                       | `tests/open.spec.ts`                                                                               |
 | 失败类型封闭在六种来源失败；入口的运行时导出                                               | 类型或导出改变时类型用例失败                                                                   | `tests/types.spec-d.ts`、`tests/public-entry.spec.ts`                                              |
-| 真实目录示例 `examples/directory-journey.ts`：两个合法包与一个非法包，`inspect` 两过一拒；`summaries` 只列被授予的；`search` 按说明找到它；`read` 正文第一页与 `SKILL.md` 正文一致。读取判定与对应是 `skill-contract/testing` 的替身，示例不是产品装配 | 示例把拒绝的包当作空包，或读取不带 `describe` 钉下的依据：对应断言变红 | `tests/examples.spec.ts` |
+| 真实目录示例 `examples/directory-journey.ts`：两个合法包与一个非法包，`inspect` 两过一拒；`summaries` 只列读取判定准许的那一个合法包，被检查拒绝的包不出现；`search` 按说明找到它；`read` 在 `describe` 钉下的材料上读正文第一页，与 `SKILL.md` 正文一致；`describe` 与 `read` 之间包被改动时 `read` 答 `basis-unavailable`。读取判定与对应端口由测试经 `standIns` 交给示例，是 `skill-contract/testing` 的内存替身；示例自己不造替身，也不是产品装配 | 示例不记下检查的拒绝，把被拒的包当作空目录跳过：「inspects two legal packages…」变红（W3-M16）；读取不带 `describe` 钉下的依据：「answers basis-unavailable when the package changes between describe and read」变红（W3-M15） | `tests/examples.spec.ts` |
 
 未覆盖：
 

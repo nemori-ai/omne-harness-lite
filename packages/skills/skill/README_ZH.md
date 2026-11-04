@@ -12,7 +12,7 @@ Skill 三个应用服务的通用实现：`createPackageInspection` 经来源检
 
 ## 使用
 
-最小示例见 [README.md「Usage」](README.md#usage)。三个工厂收普通对象，交普通对象，没有要启动或释放的东西。`read`、`list` 与 `export` 收 `AbortSignal`，`describe` 与目录不收。端口 reject 或答复不在封闭集合内时服务不抛出：读取判定与对应端口算 `unknown`，来源算 `unavailable`。`@omne-harness/skill-contract/testing` 的内存替身只能装进测试。
+最小示例见 [README.md「Usage」](README.md#usage)。三个工厂收普通对象，交普通对象，没有要启动或释放的东西。`read`、`list` 与 `export` 收 `AbortSignal`，`describe` 与目录不收。每个端口答复在边界上解析一次，判别值与载荷都核对。端口 reject、抛出或答复解析不了时服务不抛出：读取判定与对应端口算 `unknown`，来源算 `unavailable`。`@omne-harness/skill-contract/testing` 的内存替身只能装进测试。
 
 ## 契约
 
@@ -20,7 +20,7 @@ Skill 三个应用服务的通用实现：`createPackageInspection` 经来源检
 
 ## 设计
 
-三段，每段是一个只依赖端口的函数：`gate`（第 1–3 步）、`pin`（第 5、7 步）、`verifiedBytes`（第 9、10 步）。`describe` 在 `gate` 后结束，`list` 在 `pin` 后结束，`read` 与 `export` 走完三段。一张表 `mapping.ts` 把来源答复变成服务失败；`source-answer.ts` 与 `port-answer.ts` 把每个端口答复收在封闭集合内。`catalog.ts` 是目录：合法集合、每个身份一条、过滤或纯匹配函数 `match.ts`，再对留下的身份做读取判定。`range.ts` 是字节范围的纯函数。见 [docs/architecture.md](docs/architecture.md)。
+三段，每段是一个只依赖端口的函数：`gate`（第 1–3 步）、`pin`（第 5、7 步）、`verifiedBytes`（第 9、10 步）。`describe` 在 `gate` 后结束，`list` 在 `pin` 后结束，`read` 与 `export` 走完三段。一张表 `mapping.ts` 把来源答复变成服务失败；`port-answer.ts`、`answer-values.ts` 与 `source-answer.ts` 解析每个端口答复（含载荷），交出重新构造的值。`catalog.ts` 是目录：合法集合、每个身份一条、过滤或纯匹配函数 `match.ts`，再对留下的身份做读取判定。`range.ts` 是字节范围的纯函数。见 [docs/architecture.md](docs/architecture.md)。
 
 ## 配置与运行
 

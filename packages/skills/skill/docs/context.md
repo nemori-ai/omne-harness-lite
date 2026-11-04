@@ -3,8 +3,9 @@
 ## 使用方式
 
 - 装配方实现或选用三个端口（`SkillReadCheck`、`SkillResolution`、`SkillPackageSource`），用 `createSkillAccess({ readCheck, resolution, source })` 造服务，交给调用方。调用方每次显式给出访问上下文与作用域。
+- 装配方用 `createSkillCatalog({ readCheck, resolution })` 造目录。目录不收来源。
 - 来源或资产登记一侧用 `createPackageInspection(source)` 检查一个包，得到 `SkillDefinition` 或第一个拒绝原因。
-- 两个工厂没有初始化与释放责任。端口的生命周期归集成方。
+- 三个工厂没有初始化与释放责任。端口的生命周期归集成方。
 
 最小示例见 [README.md「Usage」](../README.md#usage)。
 
@@ -14,7 +15,7 @@
 
 ```text
 调用方（会话、Agent、MCP 入口……）
-        │ SkillAccess / PackageInspection（契约接口）
+        │ SkillAccess / SkillCatalog / PackageInspection（契约接口）
         ▼
 @omne-harness/skill ──端口──► SkillReadCheck、SkillResolution（集成方实现）
         │                       SkillPackageSource（@omne-harness/skill-host-local 等）

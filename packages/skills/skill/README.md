@@ -37,7 +37,7 @@ if ('ok' in described && described.ok.material.kind === 'pinned') {
 }
 ```
 
-The factories take plain objects and give plain objects. There is nothing to start or to dispose. `read`, `list` and `export` take an `AbortSignal`; `describe` and the catalog do not. A port that rejects or answers outside its closed set never throws through a service: the read check and the resolution count as `unknown`, the source as `unavailable`. The memory doubles of `@omne-harness/skill-contract/testing` are for tests only.
+The factories take plain objects and give plain objects. There is nothing to start or to dispose. `read`, `list` and `export` take an `AbortSignal`; `describe` and the catalog do not. The services parse every port answer once at the boundary: the discriminant and the payload. A port can reject, throw, or give an answer that does not parse. Then no service throws. The read check and the resolution count as `unknown`, and the source counts as `unavailable`. The memory doubles of `@omne-harness/skill-contract/testing` are for tests only.
 
 ## Contracts
 
@@ -45,7 +45,7 @@ The data shapes are the public types of `@omne-harness/skill-contract`. The beha
 
 ## Design
 
-Three stages, each a function over the ports: `gate` (steps 1 to 3), `pin` (steps 5 and 7), `verifiedBytes` (steps 9 and 10). `describe` ends after `gate`, `list` after `pin`, `read` and `export` go through all three. One table, `mapping.ts`, turns a source answer into a service failure; `source-answer.ts` and `port-answer.ts` keep every port answer inside its closed set. `catalog.ts` is the catalog: the lawful set, one entry per identity, the filter or the pure matcher `match.ts`, then the read check on what is left. `range.ts` is the pure byte range function. See [docs/architecture.md](docs/architecture.md).
+Three stages, each a function over the ports: `gate` (steps 1 to 3), `pin` (steps 5 and 7), `verifiedBytes` (steps 9 and 10). `describe` ends after `gate`, `list` after `pin`, `read` and `export` go through all three. One table, `mapping.ts`, turns a source answer into a service failure. The modules `port-answer.ts`, `answer-values.ts` and `source-answer.ts` parse every port answer with its payload and give new values. `catalog.ts` is the catalog: the lawful set, one entry per identity, the filter or the pure matcher `match.ts`, then the read check on what is left. `range.ts` is the pure byte range function. See [docs/architecture.md](docs/architecture.md).
 
 ## Configuration and operation
 

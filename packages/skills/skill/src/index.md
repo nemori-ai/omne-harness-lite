@@ -7,8 +7,9 @@
 - [README.md](README.md)：源码目录的职责
 - [index.ts](index.ts)：根入口，三个工厂与 `SkillPorts`
 - [ports.ts](ports.ts)：`SkillPorts`
-- [port-answer.ts](port-answer.ts)：取端口答复，reject 当作没有答复；读答复的 `kind`
-- [source-answer.ts](source-answer.ts)：来源答复收在封闭集合内，集合外当作 `unavailable`
+- [port-answer.ts](port-answer.ts)：`answered` 在同一个 `try` 里调用端口并解析答复；读取判定与对应端口的三个解析函数
+- [answer-values.ts](answer-values.ts)：端口答复里的载荷字段的解析，交出重新构造的值
+- [source-answer.ts](source-answer.ts)：来源答复的解析，`ok` 与 `failure` 都核对，不合当作 `unavailable`
 - [mapping.ts](mapping.ts)：来源答复到服务失败的唯一一张表，表的键就是来源失败的集合
 - [inspection.ts](inspection.ts)：`createPackageInspection`
 - [catalog.ts](catalog.ts)：`createSkillCatalog`

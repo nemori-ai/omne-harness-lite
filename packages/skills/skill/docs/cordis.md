@@ -4,4 +4,4 @@
 
 ## 适用性
 
-Cordis 不适用于本包。两个工厂是纯函数，收端口对象，交服务对象；没有服务键、插件、事件或需要撤除的资源。把服务装进 Cordis 的责任归 Skill 的 Cordis 契约与 `@omne-harness/skill-host-local` 的插件部分，见[组入口](../../README.md#成员与依赖)。以后需要绑定时，改用绑定变体的规则另行设计。
+Cordis 不适用于本包。三个工厂是纯函数，收端口对象，交服务对象；没有服务键、插件、事件或需要撤除的资源。把服务装进 Cordis 的责任归 Skill 的 Cordis 契约与 `@omne-harness/skill-host-local` 的插件部分，见[组入口](../../README.md#成员与依赖)。以后需要绑定时，改用绑定变体的规则另行设计。

@@ -26,7 +26,7 @@ if ('ok' in snapshot)
   }
 ```
 
-The example [examples/inspect-directory.ts](examples/inspect-directory.ts) takes a snapshot of [examples/sample-skill/](examples/sample-skill/), reads the two control files, and gives them to `parseSkillPackage`. The example [examples/directory-journey.ts](examples/directory-journey.ts) inspects every package of a directory, then lists, searches and reads through `@omne-harness/skill` over read check and resolution stand-ins; it runs as the test `tests/examples.spec.ts` and is not a product assembly. A test can give its own file system seam: `createDirectorySource({ fs })`. The member has no Cordis entry and needs Node.js 24 or later.
+The example [examples/inspect-directory.ts](examples/inspect-directory.ts) takes a snapshot of [examples/sample-skill/](examples/sample-skill/), reads the two control files, and gives them to `parseSkillPackage`. The example [examples/directory-journey.ts](examples/directory-journey.ts) inspects every package of a directory, then lists, searches, describes and reads through `@omne-harness/skill`. The caller gives it the read check and the resolution, and the test gives the memory doubles of `@omne-harness/skill-contract/testing`. It runs as the test `tests/examples.spec.ts` and is not a product assembly. A test can give its own file system seam: `createDirectorySource({ fs })`. The member has no Cordis entry and needs Node.js 24 or later.
 
 ## Behavior
 
