@@ -1,5 +1,7 @@
 import {
   closeSync,
+  readdirSync,
+  statSync,
   fsyncSync,
   mkdirSync,
   openSync,
@@ -8,7 +10,7 @@ import {
   unlinkSync,
   writeSync,
 } from 'node:fs'
-import { dirname } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { lockSync } from 'proper-lockfile'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import {
@@ -171,7 +173,7 @@ export function createLocalCustodian(options: CreateOptions): LocalCustodian {
   const settings = settle(options)
   const { path } = settings
   mkdirSync(dirname(path), { recursive: true })
-  const release = acquireLockSync(path, settings.lock)
+  const release = lockAndSweep(path, settings.lock)
   try {
     const existing = refresh(path, { closed: false })
     if (existing.kind === 'state') return live(settings, existing.state)
@@ -199,6 +201,78 @@ export function createLocalCustodian(options: CreateOptions): LocalCustodian {
   } finally {
     release()
   }
+}
+
+/** Whether a vault file can be read, or why not. `locked` means the lock wait ran out. */
+export type VaultInspection =
+  | Readonly<{ kind: 'readable' }>
+  | Readonly<{ kind: 'unavailable'; cause: UnavailableCause | 'locked' }>
+
+/**
+ * Checks that the file at `path` is a readable vault. It takes the file lock, removes the temporary
+ * files that a crashed publish of this vault left behind, and reads the file. It never creates or
+ * changes the vault itself. The path must already hold something: a missing path answers `missing`
+ * without a lock.
+ */
+export function inspectLocalCustodian(options: CustodianOptions): VaultInspection {
+  const settings = settle(options)
+  const { path } = settings
+  try {
+    statSync(path)
+  } catch (error: unknown) {
+    return { kind: 'unavailable', cause: errorCode(error) === 'ENOENT' ? 'missing' : 'io' }
+  }
+  let release: () => void
+  try {
+    release = lockAndSweep(path, settings.lock)
+  } catch (error: unknown) {
+    return { kind: 'unavailable', cause: errorCode(error) === 'ELOCKED' ? 'locked' : 'io' }
+  }
+  try {
+    const refreshed = refresh(path, { closed: false })
+    return refreshed.kind === 'state'
+      ? { kind: 'readable' }
+      : { kind: 'unavailable', cause: refreshed.cause }
+  } finally {
+    release()
+  }
+}
+
+/** The name `atomicSave` gives a temporary file of the vault at `path`: `<name>.<pid>.<ms>.<n>.tmp`. */
+function isOwnTemporary(path: string, name: string): boolean {
+  const prefix = `${basename(path)}.`
+  return name.startsWith(prefix) && /^\d+\.\d+\.\d+\.tmp$/.test(name.slice(prefix.length))
+}
+
+/**
+ * Removes the temporary files of this vault that a publish left behind when its process ended
+ * between the write and the rename. Such a file can hold the whole snapshot. The caller holds the
+ * file lock, so no live writer is in the middle of its own temporary file. Only names of the
+ * `atomicSave` pattern for this vault are removed. A failure to list or remove is ignored.
+ */
+function sweepTemporaries(path: string): void {
+  const directory = dirname(path)
+  let names: string[]
+  try {
+    names = readdirSync(directory)
+  } catch {
+    return
+  }
+  for (const name of names) {
+    if (!isOwnTemporary(path, name)) continue
+    try {
+      unlinkSync(join(directory, name))
+    } catch {
+      // Best-effort: the next holder of the lock tries again.
+    }
+  }
+}
+
+/** Takes the file lock, then removes leftover temporary files of this vault. */
+function lockAndSweep(path: string, lock: Required<LockOptions>): () => void {
+  const release = acquireLockSync(path, lock)
+  sweepTemporaries(path)
+  return release
 }
 
 export function openLocalCustodian(options: CustodianOptions): OpenResult {
@@ -341,7 +415,7 @@ function mutate(
   change: (refreshed: CustodianState) => CustodianState,
 ): void {
   const { path } = settings
-  const release = acquireLockSync(path, settings.lock)
+  const release = lockAndSweep(path, settings.lock)
   try {
     const refreshed = refresh(path, holder.state)
     if (refreshed.kind === 'unavailable') {

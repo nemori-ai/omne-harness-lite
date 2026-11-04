@@ -18,6 +18,7 @@ export {
   type VaultReplaceFailure,
   type VaultReplaceResult,
 } from './vault-init.ts'
+export { inspectLocalCustodian, type UnavailableCause, type VaultInspection } from './store.ts'
 export {
   readSecretFromTerminal,
   type ReadSecretOptions,
