@@ -39,15 +39,18 @@ export function stallingEligibility(
   }
 }
 
-/** The landing whose `start` waits on `gate` before it starts the process. */
+/** The landing whose `start` waits on `gate` before it starts the process; `calls` counts the asks. */
 export function stallingLanding(
   port: ProcessLanding<Principal>,
-): Readonly<{ port: ProcessLanding<Principal>; gate: Deferred<void> }> {
+): Readonly<{ port: ProcessLanding<Principal>; gate: Deferred<void>; calls: () => number }> {
   const gate = deferred<void>()
+  let count = 0
   return {
     gate,
+    calls: () => count,
     port: {
       async start(access, launch, env) {
+        count += 1
         await gate.promise
         return port.start(access, launch, env)
       },
@@ -102,6 +105,28 @@ export function stallingCredentials(
     return { ok: counted(shape(answer.ok)) }
   }
   return { gate, releases: () => releases, port: { acquire } }
+}
+
+/**
+ * The adoption view whose `endpoint` calls from the `from`-th on never answer: the port is not
+ * even asked. `calls` counts them. It is the re-read of the critical section that has to be
+ * bounded, so the caller does not wait on this forever.
+ */
+export function silentAdoption(
+  port: AdoptionView<Principal, string>,
+  from: number,
+): Readonly<{ port: AdoptionView<Principal, string>; calls: () => number }> {
+  let count = 0
+  return {
+    calls: () => count,
+    port: {
+      endpoints: (access, scope) => port.endpoints(access, scope),
+      endpoint(access, ref) {
+        count += 1
+        return count < from ? port.endpoint(access, ref) : new Promise(() => undefined)
+      },
+    },
+  }
 }
 
 /**

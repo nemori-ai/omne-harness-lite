@@ -10,6 +10,7 @@ import { createConnectionTable } from '../src/internal/table.ts'
 import { core } from './doubles/core.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import {
+  silentAdoption,
   stallingAdoption,
   stallingCredentials,
   stallingEligibility,
@@ -476,6 +477,27 @@ describe('a process that lands after the bound (R3-2, S9)', () => {
     expect(w.landing.processes()).toEqual([])
   })
 
+  it('a landing that rejects after the bound: no process, the handle released, the entry forgotten', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files, {
+      auth: 'static',
+      env: [{ name: 'TOKEN', source: 'credential' }],
+      settings: { connectTimeout: VALUE(millis(50)) },
+    })
+    const stalled = stallingLanding({ start: () => Promise.reject(new Error('landing bug')) })
+    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
+    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
+      failure: { kind: 'connection-unavailable' },
+    })
+    expect(await c.connections.release(alice, files)).toEqual({
+      ok: { kind: 'released', process: 'unconfirmed' },
+    })
+    stalled.gate.resolve()
+    await settled()
+    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
+    expect(await c.connections.release(alice, files)).toEqual({ ok: { kind: 'no-connection' } })
+  })
+
   it('a credential handle that arrives after the bound is released; a release that rejects is dropped, not unhandled', async () => {
     const w = world({ script: usualScript() })
     adoptHttp(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
@@ -501,6 +523,27 @@ describe('a process that lands after the bound (R3-2, S9)', () => {
     } finally {
       process.off('unhandledRejection', onUnhandled)
     }
+  })
+})
+
+describe('the adoption read again in the critical section is bounded (decision 22)', () => {
+  it('a re-read that never answers: connection-unavailable at the bound, and the next ensure of the holding answers within its own bound', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    // Call 1 is the gate; from call 2 on, the re-reads of the critical section never answer.
+    const silent = silentAdoption(w.ports.adoption, 2)
+    const ports = { ...w.ports, adoption: silent.port }
+    const table = createConnectionTable(ports, w.config)
+    const decision = await admit(ports, alice, files)
+    if (decision.kind !== 'admitted') throw new Error('not admitted')
+    const first = table.ensure(decision.endpoint, alice)
+    const second = table.ensure(decision.endpoint, alice)
+    const refused = { failure: { stage: 'settings', reason: { kind: 'connection-unavailable' } } }
+    expect(await first).toEqual(refused)
+    expect(await second).toEqual(refused)
+    expect(silent.calls()).toBe(3)
+    expect(w.transports.calls).toHaveLength(0)
+    expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'none' })
   })
 })
 
