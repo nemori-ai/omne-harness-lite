@@ -1029,6 +1029,11 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         faultWrite: cell.fault,
         quarantine: cell.quarantine,
         root: () => cell.current().position,
+        /** The Agent fact family of the published root: the log, its fold and the blocks. */
+        agentFacts: () => {
+          const agent = cell.current().agent
+          return { log: agent.log, view: agent.view, blobs: agent.blobs }
+        },
       },
       durability: 'none' as const,
     }
