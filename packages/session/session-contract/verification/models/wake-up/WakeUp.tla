@@ -13,8 +13,11 @@
 (* after MaxTries. A crash loses everything in memory.                      *)
 (*                                                                          *)
 (* PA-06 item 2: a granted Run whose invoke was not accepted is invoked    *)
-(* again under the same identity. Bug "scan-start-only" is the current      *)
-(* implementation: S1 answers run-active and returns.                       *)
+(* again under the same identity. Since R2-D327 the implementation is     *)
+(* Bug "none": S1 hands a granted Run to C2 again, and C2 names every       *)
+(* give-up. "scan-start-only" (S1 answers run-active and returns) and       *)
+(* "swallow" (a silent give-up) are the implementation before R2-D327,      *)
+(* kept as negative controls.                                               *)
 (***************************************************************************)
 EXTENDS Naturals
 

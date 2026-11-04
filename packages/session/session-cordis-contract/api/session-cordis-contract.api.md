@@ -231,6 +231,8 @@
 - `digestSessionEntries` · 包 `@omne-harness/session-contract`
 - `digestSessionLog` · 包 `@omne-harness/session-contract`
 - `executionReadThrough` · 包 `@omne-harness/session-contract`
+- `expectedHolds` · 包 `@omne-harness/session-contract`
+- `expectedRevision` · 包 `@omne-harness/session-contract`
 - `initializationRegistrationCommit` · 包 `@omne-harness/session-contract`
 - `isDeferredFact` · 包 `@omne-harness/session-contract`
 - `judgeAdvance` · 包 `@omne-harness/session-contract`

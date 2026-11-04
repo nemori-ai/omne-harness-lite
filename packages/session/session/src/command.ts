@@ -5,6 +5,8 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decide,
+  expectedHolds,
+  expectedRevision,
   mutationAccessRequest,
   type CommitReceipt,
   type GuardCommand,
@@ -121,6 +123,8 @@ function preparesIdle(command: SessionCommand): command is IdleCommand {
 
 /** The `expected` the caller asserted, or undefined for a command that carries none. */
 function expectedOf(command: SessionCommand): WorkSnapshot['revision'] | undefined {
+  // `claim` may carry `expected` (contract PM-05, R2-D327); without it the claim stays as before.
+  if (command.kind === 'claim') return command.input.expected
   if (!OPTIMISTIC.has(command.kind) || !('expected' in command.input)) return undefined
   return command.input.expected
 }
@@ -284,8 +288,10 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     const refusal = refusalOf(snapshot.ok, command)
     if (refusal !== null) return fail(refusal)
     const expected = expectedOf(command)
-    return expected !== undefined && expected !== snapshot.ok.revision
-      ? fail({ kind: 'changed', revision: snapshot.ok.revision })
+    // The advance commands compare the Run-layer revision, the others the snapshot revision
+    // (contract I-R2, R2-D327).
+    return expected !== undefined && !expectedHolds(snapshot.ok, command.kind, expected)
+      ? fail({ kind: 'changed', revision: expectedRevision(snapshot.ok, command.kind) })
       : null
   }
 

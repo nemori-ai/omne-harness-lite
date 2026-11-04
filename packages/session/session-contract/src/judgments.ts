@@ -30,7 +30,7 @@ import type {
   WorkSnapshot,
 } from './values.ts'
 import type { CommitReceipt, EntryClass, HistoryEntry, SessionFailure } from './faces.ts'
-import type { GuardCommand, SessionCommand } from './ports.ts'
+import type { GuardCommand, MutationName, SessionCommand } from './ports.ts'
 import type { ConsumptionId, DurableEvidence } from './identity.ts'
 import type { SessionHistoryReads } from './history-values.ts'
 import type { SessionCallWait } from './call-values.ts'
@@ -173,11 +173,47 @@ function terminalOf(snapshot: WorkSnapshot): RunTerminal | null {
   return snapshot.run.kind === 'terminal' ? snapshot.run.terminal : null
 }
 
+/** The commands whose `expected` names the Run-layer revision (SPEC I-R2, R2-D327). */
+const RUN_LAYER_EXPECTED: ReadonlySet<MutationName> = new Set([
+  'claim',
+  'reload',
+  'release',
+  'finishRun',
+])
+
+/**
+ * The revision that `expected` of a command of `kind` is compared with (SPEC I-R2, R2-D327). The
+ * advance commands `claim`, `reload`, `release` and `finishRun` name the Run-layer revision: the
+ * revision of the last commit that started the active Run or changed its advance or adoption, so
+ * an unrelated commit (an `accept`, a hand-over, an Agent fact) does not move it. Every other
+ * command names the snapshot revision. Without an active Run, or on a snapshot without the
+ * Run-layer field, it is the snapshot revision.
+ */
+export function expectedRevision(snapshot: WorkSnapshot, kind: MutationName): SessionRevision {
+  if (!RUN_LAYER_EXPECTED.has(kind) || snapshot.run.kind !== 'active') return snapshot.revision
+  return snapshot.run.revision ?? snapshot.revision
+}
+
+/**
+ * Whether `expected` of a command of `kind` still holds. It holds when it equals the revision that
+ * `expectedRevision` names, and also when it equals the snapshot revision: nothing was committed
+ * since that read, so the Run layer did not change either. The second case keeps callers that still
+ * send the snapshot revision working until they move to the Run-layer revision.
+ */
+export function expectedHolds(
+  snapshot: WorkSnapshot,
+  kind: MutationName,
+  expected: SessionRevision,
+): boolean {
+  return expected === expectedRevision(snapshot, kind) || expected === snapshot.revision
+}
+
 /**
  * The advance judgment (ST08–ST11, ST20): the attempt claim compares run, attempt and `expected`,
  * not the instance (PM-01); the bounded claim compares run and `expected`; the participation
- * claim compares the execution. An archived session, a terminal Run and a stale attempt are
- * refused before the revision is compared, so a late writer learns the state that replaced it.
+ * claim compares the execution. `expected` is the Run-layer revision (`expectedHolds`). An
+ * archived session, a terminal Run and a stale attempt are refused before the revision is
+ * compared, so a late writer learns the state that replaced it.
  */
 export function judgeAdvance(snapshot: WorkSnapshot, claim: AdvanceClaim): AdvanceJudgment {
   if (snapshot.lifecycle === 'archived') return { kind: 'archived' }
@@ -190,14 +226,14 @@ export function judgeAdvance(snapshot: WorkSnapshot, claim: AdvanceClaim): Advan
       if (claim.advance.run !== run.run) return { kind: 'stale-advance', current: run.advance }
       if (run.advance === null || run.advance.attempt !== claim.advance.attempt)
         return { kind: 'stale-advance', current: run.advance }
-      if (claim.expected !== snapshot.revision)
-        return { kind: 'changed', revision: snapshot.revision }
+      if (!expectedHolds(snapshot, 'release', claim.expected))
+        return { kind: 'changed', revision: expectedRevision(snapshot, 'release') }
       return { kind: 'ok' }
     }
     case 'bounded': {
       if (claim.run !== run.run) return { kind: 'stale-advance', current: run.advance }
-      if (claim.expected !== snapshot.revision)
-        return { kind: 'changed', revision: snapshot.revision }
+      if (!expectedHolds(snapshot, 'finishRun', claim.expected))
+        return { kind: 'changed', revision: expectedRevision(snapshot, 'finishRun') }
       return { kind: 'ok' }
     }
     case 'participation': {
