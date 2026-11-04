@@ -443,7 +443,11 @@ describe('R2-D307: exclusion is a fact of the log', () => {
           })
           if (operationState(exclusion, batch.envelope.op) !== 'committed')
             return 'a committed operation was excluded'
-          if (execution.excluded.has(batch.envelope.op)) return 'excluded leaked into the execution'
+          if (
+            exclusion.excluded.has(batch.envelope.op) ||
+            exclusion.executions.get(execution.execution)!.excluded.has(batch.envelope.op)
+          )
+            return 'the exclusion of a committed operation was folded'
           break
         }
         return null
