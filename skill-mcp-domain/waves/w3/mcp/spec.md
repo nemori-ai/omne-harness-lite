@@ -25,7 +25,7 @@ W2 之后 MCP 能连接、发现并整份发布清单，但不能调用：没有
 
 首轮事实（reduce 2026-11-04 探针，`anthropics/skills` @ ca45fc4，20 个包）：18 个通过；2 个被拒——`claude-api` 的说明 1077 字符超过规范上限 1024；`template` 的 name `template-skill` 与目录名不同。两条都是规范写了、主流宿主不强制的规则。
 
-MCP 侧的调整见[波包「生态兼容」](../wave-pack.md#生态兼容负责人-2026-11-04-要求优先于本页其余条目)。本页冲突处：已定事项 16 的 `inputSchema` 加严撤回；已定事项 36 的「只用 Transport 层」改为「优先复用 SDK，按硬承诺例外自写」；已定事项 40 的「SSE 旧传输不做」撤回；判据 MC3-12 加兼容矩阵。B 段闭包规格按此写。参考服务端已是测试依赖（978624857）：`server-everything`、`server-filesystem` 2.1.0 与 Python `mcp-server-fetch`（uv 组 `mcp-fixtures`）；SDK 钉在 2.4.0，W2 探路结论（2.3.1）由 `w3-mcp-host` 的测试在 2.4.0 上重新确认。SDK 另有 `./ext/skills` 子入口（经 MCP 分发 Skill），本波不用，记作 M2 之后的跨域议题。
+MCP 侧的调整见[波包「生态兼容」](../wave-pack.md#生态兼容负责人-2026-11-04-要求优先于本页其余条目)。本页冲突处：已定事项 16 的 `inputSchema` 加严撤回；已定事项 36 的「只用 Transport 层」改为「优先复用 SDK，按硬承诺例外自写」；已定事项 40 的「SSE 旧传输不做」撤回；判据 MC3-12 加兼容矩阵。B 段闭包规格按此写。参考服务端已是测试依赖（978624857）：`server-everything`、`server-filesystem` 2.1.0 与 Python `mcp-server-fetch`（uv 组 `mcp-fixtures`）；SDK 钉在 2.4.0，W2 探路结论（2.3.1）由 `w3-mcp-host` 的测试在 2.4.0 上重新确认。旧的 HTTP+SSE 传输不新增材料种类：它是 `streamable-http` 材料内的回退（与 SDK 的做法相同：对同一 URL 先走 Streamable HTTP，按规范的旧传输信号回退到 SSE），由 `w3-mcp-host` 实现，契约只在 T3 加一句「Streamable HTTP 传输对只会旧 SSE 传输的对端回退」（B 段由 `w3-mcp-host` 的规格授权写这一句）。SDK 另有 `./ext/skills` 子入口（经 MCP 分发 Skill），本波不用，记作 M2 之后的跨域议题。
 
 ## 依据与已定事项
 
@@ -100,7 +100,7 @@ MCP 侧的调整见[波包「生态兼容」](../wave-pack.md#生态兼容负责
 
 35. 公开根导出一个工厂 `createLocalTransportFactory(options)`，按 `material.kind` 分派到 stdio 与 Streamable HTTP。`options`：`clientInfo`（name、version，必填）、`probeTimeoutMs`（stdio 旧对端探测时限，正整数，必填，不设缺省）、可选 `fetch`（测试注入，缺省全局 `fetch`）。不合法时抛 `RangeError`。
 36. 只用 SDK 的 `Transport` 层（W2 结论）。stdio：自写 `StreamTransport`，跑在 `ProcessHandle` 的 `stdin`/`stdout` 上，按行切帧，不用 SDK 的 `ReadBuffer`（它静默丢非 JSON 行）。stdout 出现一行非 JSON：视为流损坏，传输关闭，在途请求答 `no-answer`（`stream-broken`）。进程退出（`exited` 解决）：在途请求答 `no-answer`（`process-exited`）。stderr 只读出丢弃，不进日志（S6 与遮盖责任归落点）。HTTP：`StreamableHTTPClientTransport` 加 `fetch` 钩子，在钩子里调用 `credential.authorize(headers)`、读 `WWW-Authenticate`、需要时调用 `reportRejection()`；不传 `authProvider`。`Client` 高层 API 只在测试里做对照客户端。
-37. JSON-RPC 由本成员自己发：请求号按传输自增文本；每请求 `_meta`（已定事项 7）；HTTP 头 `MCP-Protocol-Version`、`Mcp-Method`、`Mcp-Name`（工具名，仅 `tools/call`）；`x-mcp-header` 规则（已定事项 8）；取消（已定事项 9）；重发（已定事项 10）；授权发现（已定事项 11）；任务操作按 T6 与已定事项 12；`-32022` 续接（已定事项 7）；`instructions` 经 `boundInstructions`（S3）。
+37. JSON-RPC 由本成员自己发：请求号按传输自增文本；每请求 `_meta`（已定事项 7）；HTTP 头 `MCP-Protocol-Version`、`Mcp-Method`、`Mcp-Name`（`tools/call` 为工具名；`tasks/get`、`tasks/update`、`tasks/cancel` 为任务号，依 SEP-2663；其余请求不带——2026-11-04 契约评审后更正）；`x-mcp-header` 规则（已定事项 8）；取消（已定事项 9）；重发（已定事项 10）；授权发现（已定事项 11）；任务操作按 T6 与已定事项 12；`-32022` 续接（已定事项 7）；`instructions` 经 `boundInstructions`（S3）。
 38. 真实服务端夹具在 `tests/fixtures/`：用 `@modelcontextprotocol/server` 2.3.1，现代 stdio 用 `serveStdio`，HTTP 用 SDK 的 HTTP 处理器起本机端口；`tasks/*` 自写处理器（SDK 没有任务运行时），形状按 SEP-2663 原文核实并在成员 SPEC 写明出处；多页清单自写处理器（`McpServer` 不分页）；旧对端模式用 SDK 的 2025 修订服务端。夹具实现 `mcpTransportConformance()` 的夹具接口，两种传输各跑一遍。用例结论原样记：通过、失败、不适用分开计数；不适用要写理由。
 39. 进程来源：测试用 `node:child_process` 起夹具服务端并包成 `ProcessHandle`（测试内的落点替身，不是产品落点）；`stop()` 以进程组结束并按实际确认答范围。
 40. 不实现：OAuth 授权流程（只做发现）、`elicitation.url`、`sampling`、`roots`、`list_changed` 订阅、SSE 旧传输（HTTP+SSE 2024-11-05）。

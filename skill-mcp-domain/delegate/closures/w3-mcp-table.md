@@ -91,3 +91,13 @@ developer，implementation_kind product，Claude Fable 5.1（claude-fable-5-1）
 - 同一用例连试三种做法仍红。
 
 ## 追加记录
+- 2026-11-04T10:20Z **第 2 轮输入**（评审 `waves/w3/reviews/mcp-table-r1.md`：设计面阻断 B1–B3 与建议 F1–F6；L3 阻断 B1、N1、N2、待裁 S1、S2）。reduce 裁定，逐条先写会因预期原因变红的用例，证明变红前先还原源码并重建 dist：
+  - **T1 每个进程都被要求停止**（两面 B1；写者裁定 4 撤回）：违约只在端口调用处吸收——`close()` reject 当作已关闭、`stop()` reject 当作 `unconfirmed`、`release()` reject 当作已释放——每步函数本身不 reject；循环问完每个进程。删掉 `teardown()` 的 `.then(confirmed, confirmed)`：本包的编程错误照常抛出，不被吞掉。`Stopped` 累加器与 `landLate` 的哑参随之去掉。加多进程用例（一个 reject、一个 root-only 在 lingering）在 `release` 与 `closeAll` 两条路径上证明每个进程都被问到；变异「去掉 stop 的吸收」与「循环在 reject 处中止」各让它变红。「每步都执行」的变异改为针对新形状（去掉某一步的吸收 → 后续步不执行 → 用例变红）。
+  - **T2 `closeAll` 立即释放**（设计 B2）：置已关停之后，先对全部条目同步发起在途落点句柄的释放，再并发关闭各条目（`Promise.all`）。用例：两个条目，第一个的 `close()` 挂起，第二个的在途落点句柄在 `closeAll` 发起后同一轮事件循环内已释放。
+  - **T3 建连途中关停**（L3 N1）：`build` 在取凭据之后、落点启动之前、打开传输之前各核一次已关停，命中则按准备失败收场（句柄释放、已起进程停止），答 `connection-unavailable`。探针 d2 的场景写成用例。
+  - **T4 拆除端口挂起**（设计 B3、L3 S1）：临界区里等待其他修订关闭、同键关闭或拆除时，用该次 `ensure` 剩余的连接时限包住；超时答 `connection-unavailable`，拆除继续由条目自己收口。`closeAll` 等待全部拆除结束，端口挂起时它也挂起——写进「已知限制」（宿主应以自己的期限包住 `closeAll`）。用例：旧修订 `transport.close()` 挂起，换修订后两个 `ensure` 在时限内答复。
+  - **T5 视图不一致**（L3 S2、设计 F6-1）：状态视图不新增落点在途的报告（`Residual` 归契约，本波不改）；「已知限制」写明：落点在途时 `release`/`closeAll` 报 `unconfirmed` 而 `inspect` 报 `none`（`release` 与 `closeAll` 都如此）；落点永不答复又没有 `closeAll` 时句柄一直持有到关停。
+  - **T6 结构建议照做**：F1-1 注释改成事实；F1-2 两次搬移做成 `entry.ts` 的具名操作（如 `handOverToLanding`、`adoptLingering`）；F1-3 JSDoc 归位；F1-4 `readAgain` 复用 `gate.ts` 的 `adopted()`；F2-1 加纯函数 `forgettable(entry)`（`closed ∧ holdsNothing`），`forget` 只调它，`entry.spec` 补 `closed` 用例；F2-2 写明「字段在端口答复之后清空」并加「拆除途中落点答复，条目不被删除」用例；F4-1 去掉 `Late<T>`（回调收 `T | undefined`）；F4-2 复用 `Scope`、合并两个 `CONNECTION_UNAVAILABLE`；F5-1 能经 `refresh`/`status` 观察的用例改走公开面；F5-2 替身去重（抽共用的句柄包装与「前 N 次正常」辅助）。
+  - **T7 SPEC**（设计 F6-2、F6-3）：MC-14 只写承诺（每步都执行；每个进程都被要求停止；端口 reject 的处置；拆除不因端口 reject 而 reject；删除条件「已关闭且五项都不持有」），模块与函数名移到 README「设计」与 `src/index.md`；所有权节删掉与 MC-14 重复的一条；五项资源只写一处。
+  - **T8 写范围扩大**：成员 `docs/`（`architecture.md`、`object-model.md`、`flows.md`）按写者第 1 轮列出的过时句子同步。
+  换写者：原写者用 Fable，Fable 用量已达上限，改派 claude-opus-5-5@xhigh（hardest：cross-module-lifecycle，策略最低 xhigh；降一档模型记一次降级，以 L3 增量复审补足）。轮次记 2。返工原因：评审发现、规格（T3、T4 是规格缺口）。

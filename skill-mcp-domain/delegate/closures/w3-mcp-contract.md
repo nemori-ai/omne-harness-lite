@@ -99,3 +99,21 @@ developer，implementation_kind product，Claude Fable 5.1（claude-fable-5-1）
 
 ## 追加记录
 - 2026-11-04T06:20Z 负责人提出生态兼容要求（社区 Skill、各厂商 MCP 服务必须能用）。reduce 撤回已定事项 16 的「`inputSchema` 必须 `type: "object"`，不符整份拒绝」：不比协议与官方 SDK 更严；C1 的容错方式在 B 段重定。已用 SendMessage 通知写者。
+- 2026-11-04T10:45Z **第 2 轮输入**（评审 `waves/w3/reviews/mcp-contract-r1.md`）。reduce 裁定，逐条先写会因预期原因变红的用例（违约传输），证明变红前先还原源码并重建 dist：
+  - **C1 夹具能被真实传输实现**（阻断 1 与风险）：`observedProcess` 包住原始流（写入转给原 writer、读取从原 reader 转出），只额外记下 close 与 cancel；`received()` 改为异步（或加 `settle()`），给真实夹具在中止后落账的时间；T4 的 `resource_metadata` 与元数据 URL 从夹具给出的目标派生，不写死 `https://peer.test`，并允许 RFC 9728 的 `resource` 与目标一致；旧对端「拒绝对端请求」用例改成对端在 `notifications/initialized` 之后发请求。用一个最小的「读写真管道」的传输证明 T5 关闭次序用例现在可过。
+  - **C2 授权回报**（阻断 2）：每条 401 用例断言 `reportRejection` 恰好一次；补 `listActions` 与 `discover` 的 401 回报用例；补「403 带非 `insufficient_scope` 的 Bearer 质询（如 `invalid_token`）→ `connection-unavailable` 且不回报」。
+  - **C3 回退规则**（阻断 3）：三条 `-32022` 用例断言没有发出 `initialize`；补「discover 答 `-32021`、`initialize` 本可成功，仍答 `error-answer`」。
+  - **C4 信封**（阻断 4）：T6 的 update/cancel 与 T5 的 stdio 取消通知都用 `assertEnvelopes` 核全部三键与固定能力。
+  - **C5** 旧一路 instructions 超限用例。**C6** 探测计时只在等待现代应答时计（`pace` 之后起算），应答先到即清除计时器；stdio + `pace` 用例。**C7** `tasks/get` 答 `failed` 而没有 `error` 对象时答 `answer-malformed`，`what` 新增 `error-missing`（封闭集合可加，同步集合测试与 SPEC T7）；不编造错误。**C8** 用例数改正。**C9** 任务提示只收非负安全整数，其余按「类型不对」省略。
+  - **裁定（待裁 1–6）**：(1) 依 SEP-2663，`tasks/get`、`tasks/update`、`tasks/cancel` 在 Streamable HTTP 上 `Mcp-Name` 为 `params.taskId`；`tools/call` 为工具名；其余请求不带。`PeerReceived` 对 HTTP 请求记下 `MCP-Protocol-Version`、`Mcp-Method`、`Mcp-Name`（可选字段），套件核对；线规格已定事项 37 随之更正。(2) 协商之后每个请求 `_meta` 的协议版本取协商出的版本，现代与旧两路相同。(3) 旧一路 `initialize.params.capabilities` 按同一声明规则：只声明 `elicitation.form`，不声明 `elicitation.url`、`sampling`、`roots`；任务扩展只在现代修订声明。(4) HTTP 上 400：正文是 JSON-RPC 错误且码属于现代修订（`-32020`/`-32021`/`-32022`）时按现代一路处理（`-32022` 重试），其余 400 判为旧对端；以 SDK 2.4.0 客户端的同一判断为对照，SPEC 写出处。(5) 同 C7。(6) 旧一路 `initialize` 应答的协议版本须在契约列出的支持修订内（列表按 SDK 2.4.0 `SUPPORTED_PROTOCOL_VERSIONS` 核对后写死在契约常量里，SPEC 写出处），否则答 `answer-malformed`（`discover-shape`）。
+  写者：原写者（Fable）续做；Fable 仍受限时改派 claude-opus-5-5@high，记一次降级。轮次记 2。返工原因：评审发现、规格（待裁 1–6 是规格缺口）。
+- 2026-11-04T10:50Z Fable 仍受限，第 2 轮改派 claude-opus-5-5@high（记一次降级，以 L3 增量复审补足）；工作树干净，head 1cbee8026。
+- 2026-11-04T11:05Z **第 3 轮输入**（增量评审见 `waves/w3/reviews/mcp-contract-r1.md`「第 2 轮」；评审探针 `/tmp/claude-0/-home-user-omne-harness-lite/f1070bb8-fa26-55f8-8bda-04c4ceeaeb27/scratchpad/review-w3-mcp-contract-r2/`）。同一写者续做，范围小。生态兼容优先：探测与回退与官方 SDK 2.4.0 客户端一致，除非与「结局如实分类」「不代调用方重发」冲突。
+  - **D1 套件补洞**（建议 1–5）：`-32022` 重试之后对 `call`、`getTask` 与 stdio 取消通知核协商版本；加显式 `streamable-http` 材料的旧一路头用例（不依赖材料次序）；补 `call` 与 `listActions` 收到 400 JSON-RPC 正文的用例；`getTask` 收「`error` 不是对象」答 `error-missing`；旧版本列表加「区间内但不在列表」与「现代版本」两个值。每条用评审者对应的违约变体（N2、N2b、N2c、N1d、N4c、N4d、N5c、N6b、N6c）证明变红。
+  - **D2 待裁 1**：旧连接上每个请求的 `_meta.clientCapabilities` 不声明任务扩展，与 `initialize.params.capabilities` 一致（裁定 3 的字面；写者裁定 5 撤回）。
+  - **D3 待裁 2**：与 SDK 2.4.0 一致——`-32022` 不带 `data.supported`，或 `supported` 里没有现代版本时，若旧一路可用则回退旧一路；旧一路也失败时按已定的「报旧一路的失败」。SPEC T3 写明，并列出与 SDK 仍然不同的地方（只剩 `-32020`/`-32021`）。
+  - **D4 待裁 3**：夹具的 `protocolVersions` 只列现代修订；旧修订由契约的 `LEGACY_PROTOCOL_VERSIONS` 决定。SPEC 夹具段写明；`tests/transport-conformance.spec.ts` 的夹具改为只列现代版本，涉及旧版本的用例改用旧一路表达。
+  - **D5 待裁 4**：HTTP 上 `server/discover` 收到 401/403 以外、低于 500 的状态（含 404、405）时，与 SDK 2.4.0 `classifyHttpError` 一致：正文是现代修订的 JSON-RPC 错误则按现代一路处理，否则判为旧对端。SPEC T3 写明出处；用例覆盖 404 与 405。
+  - **D6** 报告补交代 `modernPath` CC 19、`httpAnswer` CC 14（测试替身代码；能拆就拆，不能拆写理由）。
+  轮次记 3。返工原因：评审发现、规格（D2–D5 是与 SDK 对齐的生态兼容裁定）。之后 reduce 派一次设计与 SPEC 表达评审（第 1 轮推迟的那一面）。
+- 2026-11-04T11:05Z+ 第 3 轮交回（head c407fab9d）：D1–D6 做完，M53–M103 共 51 条变异全部变红；套件 72 例。写者自定 1（无共有版本时也按 SDK `classifyResult` 回退旧一路）、2（`FIRST_MODERN_PROTOCOL_VERSION`）、3（测试夹具用虚构的 `2027-01-01`）reduce 认可；4（HTTP 5xx 无条款）转 B 段 `w3-mcp-host` 规格裁定，由该闭包授权写契约 T1 一句。
