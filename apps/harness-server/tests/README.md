@@ -15,6 +15,7 @@
 | `stubs-sync.spec.ts`  | fast | 替身清单与行快照同步，受信名在行的可见集合内                                     |
 | `shutdown.spec.ts`    | fast | 有序关闭的阶段次序、截止时间、幂等、报告闩锁、登记准入（N-7）、运行期换代（N-3） |
 | `s0-process.spec.ts`  | slow | 启动 `dist/bin.js`，断言退出码与 JSON 输出，输入在 `tests/fixtures/process/`     |
+| `e2e-identity/`       | slow | 租户身份 AC-9 端到端（K10）：真实 `serve` 进程两次与 `omne` CLI 走完步骤 1 至 13 |
 
 真实模式（`serve`）的用例、行用例与 R9 贯通用例（`tests/r9/`）列在 [real-mode.md](../docs/real-mode.md#真实模式的测试)。
 
