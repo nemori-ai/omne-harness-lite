@@ -184,6 +184,7 @@ export type JournalWrite =
   | 'recordTerminalObservation'
   | 'received'
   | 'record'
+  | 'preserve'
 
 export type JournalRead = 'load' | 'inputs' | 'readReplyAdmissions' | 'query' | 'read'
 
@@ -528,9 +529,12 @@ export type Attempt<R> =
       project: (batch: PublishedBatch, view: ExecutionView) => void
       /** The state the receipt names: `applied` unless the command accepts (submit, control). */
       receiptState?: CommandReceipt['state']
+      /**
+       * The receipt the operation record keeps instead of the batch's own: a new operation for a
+       * saved delivery answers the delivery's original receipt (session-adapters SPEC K-23).
+       */
+      recalls?: CommandReceipt
     }>
-  /** A new operation that recognizes an existing fact: only its index is saved, at the fact's revision. */
-  | Readonly<{ kind: 'recognize'; value: R; receipt: CommandReceipt }>
   /**
    * Contradicting evidence: the audit is a fact of one batch with one new revision, and the
    * conflict is fixed under the operation.
@@ -1561,6 +1565,7 @@ export function createJournal<P>(
    * migrate-cancellation, the custody variants need reconcile; every other call its own method.
    */
   function qualificationsOf(action: string, input: object): readonly string[] {
+    if (action === 'preserve') return ['materials.preserve']
     if (action !== 'commitSettlement' || !('kind' in input)) return [action]
     switch (input.kind) {
       case 'establish-cancellation':
@@ -1604,26 +1609,6 @@ export function createJournal<P>(
     }
     if (record?.kind !== 'committed') return undefined
     return record.key === key ? succeed(copy(record.value) as R) : fail(conflict(input.operation))
-  }
-
-  /** The receipt of a new operation that recognizes a fact established at `revision`. */
-  function recognition(
-    execution: Execution,
-    operation: AgentOperationId,
-    revision: number,
-    state: CommandReceipt['state'],
-  ): CommandReceipt {
-    return receiptOf(
-      execution,
-      operation,
-      revision,
-      nextEvidence(execution, 'recognized', revision),
-      state,
-    )
-  }
-
-  function recognize<R>(value: R, receipt: CommandReceipt): Attempt<R> {
-    return { kind: 'recognize', value, receipt }
   }
 
   /**
@@ -1914,18 +1899,21 @@ export function createJournal<P>(
           }
         }
         cell.touch()
-        state().operations.set(at, { kind: 'committed', key, value: copy(value), receipt })
+        state().operations.set(at, {
+          kind: 'committed',
+          key,
+          value: copy(value),
+          receipt: prepared.recalls ?? receipt,
+        })
         return { kind: 'wrote', value }
       }
-      if (prepared.kind === 'write') {
-        prepared.apply()
-        const captured = cell.committed(input, method, prepared.receipt)
-        if (captured) return { kind: 'answered', value: fail(captured) }
-        // tryFinish asked the participant before preparing its write (see the port).
-        if (method !== 'tryFinish') {
-          const participation = cell.participate(input, method, prepared.receipt, decision)
-          if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
-        }
+      prepared.apply()
+      const captured = cell.committed(input, method, prepared.receipt)
+      if (captured) return { kind: 'answered', value: fail(captured) }
+      // tryFinish asked the participant before preparing its write (see the port).
+      if (method !== 'tryFinish') {
+        const participation = cell.participate(input, method, prepared.receipt, decision)
+        if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
       }
       cell.touch()
       state().operations.set(at, {
@@ -2020,7 +2008,10 @@ export function createJournal<P>(
       return fail(conflict(input.operation))
     }
     const agent = state()
-    const pub = agent.log.length + 1
+    // The position of the batch is the next one after the folded view: the view is the fold of the
+    // published log (the provider brings it to the publication count), so the position has one
+    // source. The log of this process holds only the batches appended since the view was set.
+    const pub = agent.view.head + 1
     // The revision the batch reaches. Until every command appends facts, the reader projection
     // is where the commands not yet migrated advance the revision; the batch continues from it.
     const current =
@@ -2088,24 +2079,28 @@ export function createJournal<P>(
   }
 
   /**
-   * The batch of a new operation that recognizes the fact `target` established at `revision`: one
-   * `op.recognized`, no new revision. The answer is derived from the batch, whose revision is the
-   * recognized batch's; the revision the reader records name is checked against it, so a
-   * recognition never answers another revision than the fact it recognizes.
+   * The batch of a new operation that recognizes the fact `target` established at `revision`
+   * (R2-D292 "原操作认回"): one `op.recognized`, no new revision, and `value` as its answer. The
+   * answer is derived from the batch, whose revision is the recognized batch's; the revision the
+   * reader records name is checked against it, so a recognition never answers another revision
+   * than the fact it recognizes. The view is the fold of the whole published log (K-23), so the
+   * target is in it; a target the view lacks is a defect of the fold, answered as unavailable,
+   * never a fact recognized from the reader records alone.
    */
-  function recognitionBatch(
-    execution: Execution,
-    operation: AgentOperationId,
+  function recognitionOf<R>(
     target: AgentOperationId | undefined,
     revision: number,
-    receiptState: CommandReceipt['state'],
-  ): Attempt<CommandReceipt> {
-    // A fact the log of this process does not hold (a copy rebuilt from the durable records,
-    // until the provider keeps the log) is recognized by the reader records, as before the facts.
-    if (target === undefined || !state().view.ops.has(target)) {
-      const receipt = recognition(execution, operation, revision, receiptState)
-      return recognize(receipt, receipt)
-    }
+    value: (receipt: CommandReceipt) => R,
+    receiptState: CommandReceipt['state'] = 'applied',
+  ): Attempt<R> {
+    if (target === undefined || !state().view.ops.has(target))
+      return answer(
+        fail({
+          kind: 'unavailable',
+          owner: JOURNAL_OWNER,
+          diagnostic: `the fact recognized at revision ${String(revision)} is not in the folded view`,
+        }),
+      )
     return {
       kind: 'batch',
       facts: [{ kind: 'op.recognized', target }],
@@ -2115,11 +2110,20 @@ export function createJournal<P>(
         const receipt = receiptIn(derived)
         if (receipt.revision !== revisionOf(revision))
           throw new TypeError('a recognition answered another revision than the recognized fact')
-        return receipt
+        return value(receipt)
       },
       project: () => {},
       receiptState,
     }
+  }
+
+  /** The recognition that answers its own receipt: the common case. */
+  function recognitionBatch(
+    target: AgentOperationId | undefined,
+    revision: number,
+    receiptState: CommandReceipt['state'],
+  ): Attempt<CommandReceipt> {
+    return recognitionOf(target, revision, receipt => receipt, receiptState)
   }
 
   /**
@@ -2127,9 +2131,7 @@ export function createJournal<P>(
    * it: one batch advances an execution to each revision, so the revision names the batch.
    */
   function reachedBy(execution: AgentExecutionId, revision: number): AgentOperationId | undefined {
-    return state().log.findLast(
-      batch => batch.execution === execution && batch.envelope.rev === revision && advances(batch),
-    )?.envelope.op
+    return state().view.executions.get(execution)?.reached.get(revision)
   }
 
   /** The receipt an answer carries: every command but a detach answers one. */
@@ -2150,7 +2152,7 @@ export function createJournal<P>(
     key: string,
     revision: number,
   ): DurableEvidence {
-    const coordinates = { execution, pub: state().log.length + 1, envelope: { digest: key } }
+    const coordinates = { execution, pub: state().view.head + 1, envelope: { digest: key } }
     return cell.issueEvidence(batchEvidence(mint, coordinates as PublishedBatch, revision))
   }
 
@@ -2177,7 +2179,7 @@ export function createJournal<P>(
     operation: AgentOperationId,
     key: string,
   ): CommandReceipt {
-    const pub = state().log.length + 1
+    const pub = state().view.head + 1
     const revision = execution.revision + 1
     const coordinates = { execution: execution.id, pub, envelope: { digest: key } }
     const evidence = cell.issueEvidence(
@@ -3675,9 +3677,11 @@ export function createJournal<P>(
         if (target.status === 'superseded') return answer(fail({ kind: 'stale-advance' }))
         // A detached target only recognizes the existing handoff at the revision it was established.
         if (target.handoff !== null) {
-          return recognize(
-            copy(target.handoff),
-            recognition(execution, input.operation, target.handoffRevision, 'applied'),
+          const handoff = target.handoff
+          return recognitionOf(
+            reachedBy(execution.id, target.handoffRevision),
+            target.handoffRevision,
+            () => copy(handoff),
           )
         }
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
@@ -3898,7 +3902,7 @@ export function createJournal<P>(
             fixed: copy(adopted.fixed),
             schema: copy(adopted.schema),
             record: refOf(adopted.record),
-            coverage: null,
+            coverage: input.checkpoint.adoptedContext,
           })
         }
         // Each newly voided intent closes the adopted request it names (R2-D292); `voided` is
@@ -4167,7 +4171,7 @@ export function createJournal<P>(
             throw new Error('session Journal defect: an accepted input has no revision')
           // A recognition appends `op.recognized` of the accepting operation: it advances no
           // revision and answers with the revision of the batch it recognizes.
-          return recognitionBatch(execution, input.operation, entry.operation, at, 'accepted')
+          return recognitionBatch(entry.operation, at, 'accepted')
         }
         // A new input under an identity the execution already accepted is another entry for the
         // same InputId: it conflicts, it does not recognize (Agent SPEC "输入内容与水位线").
@@ -4279,8 +4283,6 @@ export function createJournal<P>(
         // A `through` within the acknowledged prefix recognizes that prefix and never moves it back.
         if (through <= execution.acknowledged)
           return recognitionBatch(
-            execution,
-            input.operation,
             reachedBy(execution.id, execution.acknowledgedAt),
             execution.acknowledgedAt,
             'applied',
@@ -4373,13 +4375,7 @@ export function createJournal<P>(
           semanticKey('responsibility', known) === semanticKey('responsibility', responsibility)
         ) {
           const at = execution.resultRevisions.get(resultKey) ?? execution.revision
-          return recognitionBatch(
-            execution,
-            input.operation,
-            reachedBy(execution.id, at),
-            at,
-            'applied',
-          )
+          return recognitionBatch(reachedBy(execution.id, at), at, 'applied')
         }
         // Each stage the responsibility newly reaches is one `result.handled`; a responsibility
         // recorded before any transfer is its `recorded` stage.
@@ -4484,13 +4480,7 @@ export function createJournal<P>(
             const first = execution.stageReceipts.get(stageKey)
             if (first !== undefined) {
               const at = Number(first.revision)
-              return recognitionBatch(
-                execution,
-                input.operation,
-                reachedBy(execution.id, at),
-                at,
-                'applied',
-              )
+              return recognitionBatch(reachedBy(execution.id, at), at, 'applied')
             }
           }
           const ended = execution.state.kind === 'ended'
@@ -4958,30 +4948,8 @@ export function createJournal<P>(
           // The same value is recognized by the new operation at the revision of the registration:
           // an `op.recognized` batch, which advances no revision and answers the registration's.
           const first = execution.observed.get(input.passage)
-          if (first !== undefined) {
-            if (viewOf(execution.id).ops.has(first.operation))
-              return {
-                kind: 'batch',
-                facts: [{ kind: 'op.recognized', target: first.operation }],
-                blobs: [],
-                kinds: [],
-                derive: derived => {
-                  if (derived.kind !== 'receipt')
-                    throw new TypeError('a recognition answers its receipt')
-                  return derived.receipt
-                },
-                project: () => {},
-              }
-            // The registration was written before this process folded it (a provider that rebuilt
-            // its copy from the reader records): the reader keeps its revision until JO-4.
-            const receipt = recognition(
-              execution,
-              input.operation,
-              Number(first.revision),
-              'applied',
-            )
-            return recognize(receipt, receipt)
-          }
+          if (first !== undefined)
+            return recognitionBatch(first.operation, Number(first.revision), 'applied')
         }
         const planned = plannedReceipt(execution, input.operation, key)
         const observed = input.observed
@@ -5177,6 +5145,7 @@ export function createJournal<P>(
     touch: () => cell.touch(),
     namespace: cell.namespace,
     operationKey,
+    indexed: operation => state().view.ops.has(operation),
     write,
     holds,
     receiptOf,

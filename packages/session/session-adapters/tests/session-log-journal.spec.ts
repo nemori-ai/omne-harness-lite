@@ -16,7 +16,10 @@ import {
 } from '@omne-harness/session-contract/testing'
 import type { SessionEntriesObservation, WorkSnapshot } from '@omne-harness/session-contract'
 import type { CommitRejectReason, SqlStorage } from '@omne-harness/sql-contract'
-import { createSessionLogJournal } from '../src/cordis/agent-journal.ts'
+import {
+  createSessionLogJournal,
+  type JournalPublicationReport,
+} from '../src/cordis/agent-journal.ts'
 import { ok, operation } from './fixtures/common-journal.ts'
 import { sqlScene, type SqlScene, type SqlSceneOptions } from './fixtures/sql-scene.ts'
 
@@ -497,5 +500,117 @@ describe('unknown, tenancy and registration', () => {
       failure: { kind: 'unavailable' },
     })
     expect(s.commits.length).toBe(commits)
+  })
+})
+
+/**
+ * A provider over the scene's records with a `report` observer. `commit` answers in place of the
+ * storage when given; `sent` gets the bytes of each `execution-record` command the storage was given.
+ */
+function reporting(
+  s: SqlScene,
+  reports: JournalPublicationReport[],
+  sent: number[],
+  commit?: SqlStorage['commit'],
+) {
+  const storage: SqlStorage = {
+    registerCombination: input => s.storage.registerCombination(input),
+    query: identity => s.storage.query(identity),
+    read: (request, options) => s.storage.read(request, options),
+    commit: (request, options) => {
+      for (const command of request.commands)
+        if (command.participant === 'execution-record')
+          sent.push(Buffer.byteLength(JSON.stringify(command), 'utf8'))
+      return commit === undefined ? s.storage.commit(request, options) : commit(request, options)
+    },
+  }
+  return createSessionLogJournal<string>({
+    storage,
+    tenantDomainLookup: { lookup: () => Promise.resolve({ kind: 'ready', domain: s.domain }) },
+    sessionAccessCheck: {
+      check: request =>
+        Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) }),
+    },
+    combination: s.combination,
+    report: report => reports.push(report),
+  }).forSession(s.access).journal
+}
+
+/** A storage answer that refuses the commit before accepting it, with `reason`. */
+const refusing =
+  (reason: CommitRejectReason): SqlStorage['commit'] =>
+  request =>
+    Promise.resolve({
+      kind: 'rejected_before_accept',
+      identity: request.identity,
+      reason,
+      diagnostic: null,
+    } as never)
+
+describe('the publication report (SPEC 发布观测)', () => {
+  it('reports each publication once, with the bytes of the commands the storage was given', async () => {
+    const { s, open } = await opened('report-committed')
+    const reports: JournalPublicationReport[] = []
+    const sent: number[] = []
+    const request = await messageRequest(s, open.authority)
+    ok(await reporting(s, reports, sent).commit(request))
+    expect(reports).toHaveLength(1)
+    expect(reports[0]).toMatchObject({
+      session: s.access.session,
+      method: 'commit',
+      operation: request.operation,
+      outcome: 'committed',
+      diagnostic: null,
+      recordBytes: sent[0],
+    })
+    // The commit also carries the Session participation: every command counts in `bytes`.
+    expect(reports[0]!.bytes).toBeGreaterThan(reports[0]!.recordBytes)
+    // A read publishes nothing, so it reports nothing.
+    ok(await reporting(s, reports, sent).load({ ...s.access, execution: s.execution }))
+    expect(reports).toHaveLength(1)
+  })
+
+  it('a refused publication and an unknown one each report once, with the diagnostic of the answer', async () => {
+    const { s, open } = await opened('report-refused')
+    const request = await messageRequest(s, open.authority)
+    const reports: JournalPublicationReport[] = []
+    const sent: number[] = []
+    const refused = await reporting(s, reports, sent, refusing('command_limit')).commit(request)
+    expect(refused).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(reports).toEqual([
+      expect.objectContaining({
+        outcome: 'unavailable',
+        diagnostic: expect.stringContaining('command_limit'),
+        recordBytes: sent[0],
+        operation: request.operation,
+        execution: s.execution,
+      }),
+    ])
+    const unknown = await reporting(s, reports, sent, refusing('writer_not_current')).commit(
+      request,
+    )
+    expect(unknown).toEqual({ failure: { kind: 'commit-unknown', operation: request.operation } })
+    expect(reports.slice(1)).toEqual([
+      expect.objectContaining({ outcome: 'commit-unknown', diagnostic: expect.any(String) }),
+    ])
+  })
+
+  it('a report that throws leaves the answer of the call as it is', async () => {
+    const { s, open } = await opened('report-throws')
+    const request = await messageRequest(s, open.authority)
+    const journal = createSessionLogJournal<string>({
+      storage: s.storage,
+      tenantDomainLookup: { lookup: () => Promise.resolve({ kind: 'ready', domain: s.domain }) },
+      sessionAccessCheck: {
+        check: input =>
+          Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${input.operation}`) }),
+      },
+      combination: s.combination,
+      report: () => {
+        throw new Error('the observer failed')
+      },
+    }).forSession(s.access).journal
+    const receipt = ok(await journal.commit(request))
+    expect(Number(receipt.revision)).toBe(Number((await load(s)).revision))
   })
 })

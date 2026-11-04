@@ -1,13 +1,12 @@
-// The `a` part of the production session-log Journal (FIXED-FACTS F4, SPEC K-8 分区存储): the
-// publication of a main-purpose M0 (a checkpoint whose `adoptedRequest` is new) writes the request
-// it recorded, its adoption order, its execution and the coverage evidence of the same checkpoint
-// into the `a` part of the session, in the same storage commit as the Agent records. What is
-// checked, on the node:sqlite double that runs the published modules: a failure after the `x:`
-// part leaves neither; a publication that does not change an `adoptedRequest` does not write `a`;
-// the order goes up by one across executions and is not an execution revision; a cold provider
-// reads what the warm one wrote, and the loser of a publication race reads the same after it read
-// the records again; over 200 rounds the bytes of `a` do not grow and each round writes the same
-// number of part rows.
+// The adopted request of a session in the fact family (FIXED-FACTS F4, R2-D292): the publication
+// of a main-purpose M0 (a checkpoint whose `adoptedRequest` is new) appends one `request.adopted`
+// fact that names the request record by its content block, in the same batch as the other facts of
+// the commit. What is checked, on the node:sqlite double that runs the published modules: a
+// failure at the block write leaves neither the fact nor the block; a publication that does not
+// change an `adoptedRequest` appends no such fact; the order goes up by one across executions and
+// is not an execution revision; a cold provider reads what the warm one wrote, and the loser of a
+// publication race reads the same after it read the batches it missed; over 200 rounds the bytes
+// of the fact do not grow and each round appends the same number of rows.
 import { describe, expect, it } from 'vitest'
 import type { AgentCheckpoint, AgentJournal } from '@omne-harness/agent-contract'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
@@ -15,7 +14,6 @@ import type { ContextTarget } from '@omne-harness/request-context-contract'
 import { evidence } from '@omne-harness/session-contract/testing'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import { createSessionLogJournal } from '../src/cordis/agent-journal.ts'
-import { ADOPTED_PART, recordsPart } from '../src/cordis/journal-parts.ts'
 import { m0Checkpoint } from './fixtures/adopted-request.ts'
 import { ok, operation } from './fixtures/common-journal.ts'
 import { nextRun, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
@@ -23,7 +21,7 @@ import { nextRun, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 type Journal = AgentJournal<string>
 type Authority = Parameters<Journal['commit']>[0]['authority']
 
-const scope = ok(decodeScopeRef({ ref: 'scope:adopted-part' }))
+const scope = ok(decodeScopeRef({ ref: 'scope:adopted-request' }))
 const targetOf = (s: SqlScene): ContextTarget => ({ tenant: s.access.tenant, scope })
 
 async function opened(name: string) {
@@ -73,17 +71,14 @@ function m0(s: SqlScene, journal: Journal, authority: Authority, tag: string) {
   }))
 }
 
-type PartRow = Readonly<{ state: string | null; published: bigint }>
+type AdoptedRow = Readonly<{ pub: bigint; body: string }>
 
-/** The stored row of one part of the scene's session, or undefined. */
-function partRow(s: SqlScene, part: string): PartRow | undefined {
+/** The `request.adopted` rows of the scene's session, in publication order. */
+function adoptedRows(s: SqlScene): AdoptedRow[] {
   const rows = s.controls?.select(
-    `SELECT state, published FROM er_state_part WHERE session = '${s.access.session}' AND part = '${part}'`,
+    `SELECT pub, body FROM er_fact WHERE session = '${s.access.session}' AND kind = 'request.adopted' ORDER BY pub`,
   ).rows
-  const row = rows?.[0]
-  return row === undefined
-    ? undefined
-    : { state: row[0] as string | null, published: row[1] as bigint }
+  return (rows ?? []).map(row => ({ pub: row[0] as bigint, body: row[1] as string }))
 }
 
 /** The publication count of the scene's session. */
@@ -94,50 +89,57 @@ function published(s: SqlScene): bigint {
   return (row?.[0] as bigint | undefined) ?? 0n
 }
 
-/** The number of part rows the last publication of the scene's session wrote. */
-function partsWritten(s: SqlScene): number {
+/** The number of rows the last publication of the scene's session appended. */
+function rowsWritten(s: SqlScene): number {
   const count = published(s)
   const rows = s.controls?.select(
-    `SELECT COUNT(*) FROM er_state_part WHERE session = '${s.access.session}' AND published = ${count}`,
+    `SELECT COUNT(*) FROM er_fact WHERE session = '${s.access.session}' AND pub = ${count}`,
   ).rows
   return Number(rows?.[0]?.[0] ?? -1)
 }
 
-/** The `a` part as the provider reads it back. */
+/** Whether the tenant holds the block a fact names by `digest` (the row names it with its prefix). */
+function blobHeld(s: SqlScene, digest: string): boolean {
+  const rows = s.controls?.select(
+    `SELECT digest FROM sl_blob WHERE digest = 'sha256:${digest}'`,
+  ).rows
+  return (rows?.length ?? 0) > 0
+}
+
+/** The adopted request as the provider reads it back. */
 async function adoptedOf(s: SqlScene, journals = s.journals) {
   const read = await journals.readAdopted({ tenant: s.access.tenant, session: s.access.session })
   if (read.kind !== 'value') throw new Error(`not read: ${read.diagnostic}`)
   return read.value
 }
 
-describe('a main-purpose M0 writes the a part in the same commit as the Agent records', () => {
-  it('a failure after the x: part was written leaves neither the x: part nor a, and the same M0 then writes both', async () => {
+describe('a main-purpose M0 appends the request.adopted fact in the same batch as its records', () => {
+  it('a failure at the block write leaves neither the fact nor the block, and the same M0 then writes both', async () => {
     const { s, authority } = await opened('adopted-joint')
-    const before = { x: partRow(s, recordsPart(s.execution)), a: partRow(s, ADOPTED_PART) }
-    expect(before.a).toBeUndefined()
+    expect(adoptedRows(s)).toEqual([])
     let fired = false
-    let xWritten = false
-    s.controls?.failWriteWhen((sql, params) => {
-      if (!/INTO er_state_part/.test(sql)) return false
-      if (params[2] === recordsPart(s.execution)) xWritten = true
-      if (params[2] !== ADOPTED_PART) return false
+    let factsWritten = false
+    s.controls?.failWriteWhen(sql => {
+      if (/INSERT INTO er_fact/.test(sql)) factsWritten = true
+      if (!/INTO sl_blob/.test(sql)) return false
       fired = true
       return true
     })
     const failed = await m0(s, s.view.journal, authority, '1')
     expect(failed).toHaveProperty('failure')
-    // The injected failure hit the a write after the x: write of the same transaction.
+    // The injected failure hit the block write after the fact rows of the same transaction.
     expect(fired).toBe(true)
-    expect(xWritten).toBe(true)
-    expect(partRow(s, recordsPart(s.execution))).toEqual(before.x)
-    expect(partRow(s, ADOPTED_PART)).toBeUndefined()
+    expect(factsWritten).toBe(true)
+    expect(adoptedRows(s)).toEqual([])
     expect(await adoptedOf(s)).toBeNull()
     expect(await adoptedOf(s, createSessionLogJournal(sceneOptions(s)))).toBeNull()
 
     ok(await m0(s, s.view.journal, authority, '1'))
-    const a = partRow(s, ADOPTED_PART)
-    expect(a?.published).toBe(published(s))
-    expect(partRow(s, recordsPart(s.execution))?.published).toBe(published(s))
+    const rows = adoptedRows(s)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.pub).toBe(published(s))
+    const fact = JSON.parse(rows[0]!.body) as { record: { digest: string } }
+    expect(blobHeld(s, fact.record.digest)).toBe(true)
     const { adoptedRequest, adoptedContext } = m0Checkpoint(targetOf(s), '1')
     expect(await adoptedOf(s)).toEqual({
       order: '1',
@@ -150,18 +152,18 @@ describe('a main-purpose M0 writes the a part in the same commit as the Agent re
     })
   })
 
-  it('a publication that leaves the adoptedRequest as it was writes no a part', async () => {
+  it('a publication that leaves the adoptedRequest as it was appends no request.adopted fact', async () => {
     const { s, authority } = await opened('adopted-unchanged')
     ok(await commit(s, s.view.journal, authority, 'plain-1'))
-    expect(partRow(s, ADOPTED_PART)).toBeUndefined()
+    expect(adoptedRows(s)).toEqual([])
     ok(await m0(s, s.view.journal, authority, '1'))
-    const written = partRow(s, ADOPTED_PART)
+    const written = adoptedRows(s)
     const count = published(s)
     // Two later publications of the same execution keep the request of the checkpoint as it is.
     ok(await commit(s, s.view.journal, authority, 'plain-2'))
     ok(await commit(s, s.view.journal, authority, 'plain-3', c => ({ ...c, position: 'E4' })))
     expect(published(s)).toBe(count + 2n)
-    expect(partRow(s, ADOPTED_PART)).toEqual(written)
+    expect(adoptedRows(s)).toEqual(written)
     expect((await adoptedOf(s))?.order).toBe('1')
   })
 })
@@ -210,21 +212,21 @@ function sceneOptions(s: SqlScene, storage: SqlStorage = s.storage) {
   }
 }
 
-describe('a provider that did not write the a part reads it as the writer does', () => {
-  it('a cold provider reads the a part of the warm one, and its next M0 takes the next order', async () => {
+describe('a provider that did not write the request reads it as the writer does', () => {
+  it('a cold provider reads the request of the warm one, and its next M0 takes the next order', async () => {
     const { s, authority } = await opened('adopted-cold')
     ok(await m0(s, s.view.journal, authority, '1'))
     const warm = await adoptedOf(s)
     const cold = createSessionLogJournal<string>(sceneOptions(s))
     expect(await adoptedOf(s, cold)).toEqual(warm)
-    // The cold provider rebuilds its copy from the parts, the a part with them.
+    // The cold provider folds its view from the facts, the adopted request with them.
     const coldView = cold.forSession(s.access)
     ok(await m0(s, coldView.journal, authority, '2'))
     expect((await adoptedOf(s, cold))?.order).toBe('2')
     expect(await adoptedOf(s)).toEqual(await adoptedOf(s, cold))
   })
 
-  it('the loser of a publication race (K-20) reads the a part of the winner after it reads again', async () => {
+  it('the loser of a publication race (K-20) reads the request of the winner after it reads the batches it missed', async () => {
     const { s, authority } = await opened('adopted-race')
     const winner = s.view.journal
     // The loser prepared its M0 on a copy; the winner commits another M0 just before the loser's
@@ -255,16 +257,16 @@ describe('a provider that did not write the a part reads it as the writer does',
     expect(won?.order).toBe('1')
     expect(won?.reference).toBe(m0Checkpoint(targetOf(s), 'w').adoptedRequest.reference)
     expect(await adoptedOf(s, losing)).toEqual(won)
-    // The loser's next M0, on the records it read again, takes the next order; both read it.
+    // The loser's next M0, on the batches it read again, takes the next order; both read it.
     ok(await m0(s, loser, authority, 'l2'))
     expect((await adoptedOf(s, losing))?.order).toBe('2')
     expect(await adoptedOf(s)).toEqual(await adoptedOf(s, losing))
   })
 })
 
-describe('the a part does not grow with the rounds of a session', () => {
+describe('the request.adopted fact does not grow with the rounds of a session', () => {
   it(
-    '200 rounds: the bytes of a and the part rows each round writes stay the same',
+    '200 rounds: the bytes of the fact and the rows each round appends stay the same',
     { timeout: 240_000 },
     async () => {
       const { s, authority } = await opened('adopted-rounds')
@@ -272,14 +274,14 @@ describe('the a part does not grow with the rounds of a session', () => {
       const rows: number[] = []
       for (let round = 1; round <= 200; round += 1) {
         ok(await m0(s, s.view.journal, authority, `r${String(round).padStart(3, '0')}`))
-        sizes.push(partRow(s, ADOPTED_PART)?.state?.length ?? -1)
-        rows.push(partsWritten(s))
+        sizes.push(adoptedRows(s).at(-1)?.body.length ?? -1)
+        rows.push(rowsWritten(s))
       }
-      // Every round names its request by a tag of the same length; only the order text grows, from
-      // one digit to three.
+      // Every round names its request by a tag of the same length; the fact names the record by
+      // its digest, so its bytes do not depend on the round.
       expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(2)
       expect(sizes.at(-1)! - sizes[19]!).toBeLessThanOrEqual(1)
-      expect(new Set(rows)).toEqual(new Set([rows[0]]))
+      expect(new Set(rows.slice(1))).toEqual(new Set([rows[1]]))
       expect((await adoptedOf(s))?.order).toBe('200')
     },
   )

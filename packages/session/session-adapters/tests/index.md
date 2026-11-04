@@ -9,7 +9,7 @@
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：Cordis 绑定入口没有导出的断言
 - [session-conformance.spec.ts](session-conformance.spec.ts)：用 session-contract 的事务契约测试件检查内存提供者，并检出有缺陷的参加钩子（JC-06）
 - [entries-conformance.spec.ts](entries-conformance.spec.ts)：用 agent-contract 的 entries 与 received 契约测试件检查内存提供者
-- [session-log-journal.spec.ts](session-log-journal.spec.ts)：生产 Journal 提供者在 node:sqlite 替身上的首次共同发布、解释提交、只读核对冲突、P6、丢答复认回、受理前拒绝、被丢弃与未定的写入、无操作身份的写入、竞争、跨租户与未登记租户
+- [session-log-journal.spec.ts](session-log-journal.spec.ts)：生产 Journal 提供者在 node:sqlite 替身上的首次共同发布、解释提交、只读核对冲突、P6、丢答复认回、受理前拒绝、被丢弃与未定的写入、无操作身份的写入、竞争、跨租户与未登记租户；发布观测 `report`：每次发布报一次命令字节与结果，拒绝与未定带诊断，`report` 抛错不改答复
 - [agent-journal-provider.spec.ts](agent-journal-provider.spec.ts)：`agentJournal` 插件在真实 Cordis 上的装载、停止与按 execution 路由；agent-contract 的核心 Journal 套件经插件与直接用 `forSession` 各运行一遍，唯一的提供者缺口按断言固定；真实 sqlite-provider 上的路由（慢层）
 - [drive-source-basis.spec.ts](drive-source-basis.spec.ts)：AD-14 在真实 Cordis 上交的 `AcceptedInput` 原样到达会话日志 Journal 的只读核对：invoke 以 SE13 回执、submit 以 SE11 回执成立；输入的 origin 或另一输入的回执被拒，不写记录
 - [session-log-journal-finish.spec.ts](session-log-journal-finish.spec.ts)：生产 Journal 提供者上的普通完成：AD-02 尚未解释 `input-taken` 时，Session 的 PA-02 核对答冲突，`tryFinish` 答 `FinishResult.changed` 且两侧都不写；AD-02 提交 `run.batch-taken` 之后，同一 `tryFinish` 以 complete 结束，历史里有 `message.assistant`
@@ -19,9 +19,11 @@
 - [session-log-journal-real.spec.ts](session-log-journal-real.spec.ts)：生产 Journal 提供者在真实 sqlite-provider 上的首次共同发布、核对冲突回滚、清单摘要不符与解释提交（慢层）
 - [session-log-journal-replay.spec.ts](session-log-journal-replay.spec.ts)：AG-23 轨迹回放对生产 Journal 提供者，保留副本与每次重建两种
 - [session-log-journal-complexity.spec.ts](session-log-journal-complexity.spec.ts)：读进度标记之后一页的读次数不随 N 增长，从头读的负控随 N 增长
-- [journal-adopted-part.spec.ts](journal-adopted-part.spec.ts)：分区 `a`（FIXED-FACTS F4）：主用途 M0 的请求与 Agent 记录同一次提交，`x:` 写入后注入失败两者都不可见；不变的发布不写 `a`；跨 execution 的 `order` 递增且不是执行修订；冷启动与竞争输方读到的一致；200 轮里 `a` 的字节数不增长
-- [journal-parts-read.spec.ts](journal-parts-read.spec.ts)：提供者分页读 Agent 记录：一页放不下的会话由全部页重建；各页发布计数不一致时从首页重读，每次都不一致读满 3 次后答 unavailable；首页带整份状态时答 unavailable（夹具把每页改成最多一个分区）
-- [journal-parts.spec.ts](journal-parts.spec.ts)：K-8 分区存储：记录按 execution 归入分区，一次发布只写变了的分区与写入方分区，删除与清空分区，删除后重写的顺序在重建副本里不变，畸形分区不重建；分区 `a` 只为新的 `adoptedRequest` 计划，随重建与合并读出
+- [journal-core-bridge.spec.ts](journal-core-bridge.spec.ts)：K-23 过渡桥跨提供者副本：超过一条事实上限的 checkpoint 变化整份溢出到块后，冷副本读到的 checkpoint 与写者相同；冷副本再动一个小成员，落后一次发布的写者读到新成员且溢出的成员完好；连续两次溢出都保留。负控：修复前冷副本读到溢出之前的位置（w2 J2 的停摆根因）
+- [journal-crash-scan.spec.ts](journal-crash-scan.spec.ts)：崩溃点扫描（R2-D294 不变量 5）：带两次 Tool 效果意图与一次 M0 的脚本，每个发布点各丢一次回复、换冷提供者重试同一操作并跑完剩余脚本，事实行与无故障运行逐行相同（没有二次发布效果、没有丢决定），`query` 认回；R2-D307 没有新事实的 commit 只落信封行、字节为小常数、冷提供者认回。不推进修订一项等核心把 `commit` 写成事实（K-23）后启用
+- [journal-position.spec.ts](journal-position.spec.ts)：位置的唯一来源（R2-D294 不变量 1）：六个种子各 40 步的混合写入（commit、新材料与重复材料的 `preserve`、冷提供者接管、丢回复后冷提供者重试同一操作），每步之后发布数等于改了记录的写入数、每批带它种类的事实、冷提供者的 `load` 与写者相同；200 步后批的字节不超过前 50 步的最大值加 64；负控：多出一次发布与丢掉事实的发布都被判据拒绝
+- [journal-head.spec.ts](journal-head.spec.ts)：材料 `preserve` 之后的下一次 commit 仍带核心的 `cursor.moved` 与核心信封（第二位置来源缺陷的直接反例）
+- [journal-adopted-request.spec.ts](journal-adopted-request.spec.ts)：`request.adopted` 事实（FIXED-FACTS F4）：主用途 M0 的请求与其余事实同一批，块写入失败两者都不可见；不变的发布不追加；跨 execution 的 `order` 递增且不是执行修订；冷启动与竞争输方读到的一致；200 轮里事实的字节数与每轮行数不变
 - [common-journal.spec.ts](common-journal.spec.ts)：共用会话日志上从原资格创建 Session 并打开 Agent；只观察的尾部扫描后可以终结，不单写游标；已记录条件的 `entry` 事件只观察，不产生 Session 后果
 - [journal-ports.spec.ts](journal-ports.spec.ts)：detach 与 attach 围住旧 Authority 并保留原操作答案；答复准入按原决定分页，输出确认不确认 Model；commit 拒绝由 Journal 分配的 `entry` 与 `ended` 事件正文；context 转换与原 Agent 答案共同发布、共同恢复；终态后观察者沿原 passage
 - [call-normalization.spec.ts](call-normalization.spec.ts)：多个生产者按原用途登记，事件序号不随后来的 head 变化；producer 事件沿原效果并绑定发起的 attempt；未关联的 Tool intent 在后来的事件给出实际调用时保留原身份
@@ -58,7 +60,7 @@
 - [history-source.spec.ts](history-source.spec.ts)：AD-04 在真实 Cordis 4.0.4 上：`contextHolderSourcesConformance`；历史读、压缩窗口、读取资格；窄采用来源读脚本化的 `sessionAdoptedRequests`，逐项拼出 `AdoptedRequestFact`，核对租户、作用域与覆盖摘要，`unavailable` 不变成 `null`；RQ-14 组合用真实 `createContextAccounting`
 - [history-session.spec.ts](history-session.spec.ts)：`historySessionOf` 从 Journal 核心铸的 history 证据解出租户文本与会话；别的 owner 铸的证据、不是「命名空间、execution、`/history`」的记录、命名空间不是两个文本的数组都解为 null
 - [journal-interpretation.spec.ts](journal-interpretation.spec.ts)：AD-02 生产插件在真实 Cordis 4.0.4 与 node:sqlite 替身上：一次 Agent 写入之后不经测试调用就解释，进度到达后读历史的 Session 命令通过；丢答复以同一操作认回；同一事件触发两次只提交一次；读到提交之间头行被改动时重读一次；没有输入的步骤、停止的插件、缺 `sessionTransactions`、另一租户的事件与拒绝的视图都不提交；取消之后带非 `observed` 尾部的 Run；每轮的 `commitLog` 次数不随此前的轮数增长；Session 取消的延后控制事实
-- [journal-kinds.spec.ts](journal-kinds.spec.ts)：生产 Journal 在发布点写的事实行种类等于其归一后果的种类，Session 纯层在同一提交里接受这些后果；控制事件带延后标记与 Agent 证据；开 Run 的反向输入目录行指名原 attempt；AD-02 从事实行读进度之后的事件，没有正文时回退到读分区；Agent 发布换掉持有的 Session 快照的索引（session-storage-sql RT-04）。发布提交后工作缓存只换索引，共同提交带 Session 参加时折叠其批次，两种情形下一次读都不整读、答案与整读相等（session-storage-sql RT-04）。
+- [journal-kinds.spec.ts](journal-kinds.spec.ts)：生产 Journal 在发布点写的事实行种类等于其归一后果的种类，Session 纯层在同一提交里接受这些后果；控制事件带延后标记与 Agent 证据；开 Run 的反向输入目录行指名原 attempt；AD-02 经 `execution-record.events` 只读进度之后的事件，不读批；Agent 发布换掉持有的 Session 快照的索引（session-storage-sql RT-04）。发布提交后工作缓存只换索引，共同提交带 Session 参加时折叠其批次，两种情形下一次读都不整读、答案与整读相等（session-storage-sql RT-04）。
 - [journal-command-facts.spec.ts](journal-command-facts.spec.ts)：内存 Journal 的命令按事实路径写入（R2-D308）：每次写入落一批，日志从头折叠等于持有的视图，视图的修订与 checkpoint 等于读者记录；commit 回执是本批证据；没有新事实的 commit 只落信封，同一操作重试不再落批；负控：带 Session 参加的空批推进修订、一步取第二个输入批、同一消费的账目交付不与结果交付冲突
 - [journal-commit-work.spec.ts](journal-commit-work.spec.ts)：共同提交交给工作缓存的 Session `work` 只来自本次发出、已提交、非认回、非 `recovered` 的回复；回滚与没有 Session 参加的提交不给。
 - [message-handoff.spec.ts](message-handoff.spec.ts)：J06 消息准入提供者在真实 Cordis 与 node:sqlite 替身上：invoke 与 submit 分支经可信事实绑定请求，意图先于结果保存；同一 Ki 认回原 H 与结果且不写；execution 分支认回 Journal 的 P，被取代的推进答 `stale-advance`，已固定的结果先于推进判定认回；结果只固定一次；`lookup` 不写；伪造与他租户的作用域、没有 Run 的 execution 与被拒的资格都被拒且不写；他租户读不到记录

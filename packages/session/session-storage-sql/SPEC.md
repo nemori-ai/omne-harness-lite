@@ -744,8 +744,8 @@ releasedScopes(principal, scope = system, after, limit):
 - 保留直接读 Session log 存储的有五类，另有一处已知限制（`session.model-selection`，见本条末尾）。它们读的不是当前状态，或者本身就是某份状态的拥有者：
   1. WorkHolder 自己：版本点查、整读，以及折叠用的 `session.history` 批读、`session.work-reads` 与 `session.work-index`。
   2. 按不可变坐标分页的读：`session.history` 按 `position` 分页（服务入口的历史读与核权、CP-01 第 6 步取本次提交的条目、AD-03 回放刚提交的批次），`session.model-view` 按 `(epoch, seq)` 读后缀。每页 O(页)，无状态，与会话长度无关。
-  3. Journal 提供者的 `sync`：它是 Agent 执行记录的内存拥有者（每个会话一份副本），按 `session.history-root` 点查与 `execution-record.parts` 的 `published` 增量同步；AD-05、AD-06 经它的 `load` 读，不直接读存储。
-  4. AD-02 的事实后缀读：`execution-record.execution-facts` 只读 `sequence > readThrough` 的只追加行，O(k)（[已知限制](#已知限制)第 20 条）。
+  3. Journal 提供者的 `sync`：它是 Agent 执行记录的内存拥有者（每个会话一份副本），按 `session.history-root` 点查，再经 `execution-record.facts` 只读 `pub > head` 的批增量折叠；AD-05、AD-06 经它的条目面读，不直接读存储。
+  4. AD-02 的事件后缀读：`execution-record.events` 只读 `eseq > readThrough` 的只追加行，O(k)。
   5. 提交路径在写事务里的读：参加者读快照行、历史索引与操作记录，`queryOperation` 的认回读操作记录。CAS、`decide` 与认回必须读事务内的当前值，不读缓存。
 
   按主键的点查（`session.execution` 的路由、`execution-record.operation` 的认回）与会话大小无关，归各自的调用方。

@@ -241,6 +241,30 @@ describe('F4 answers derive from the batch: no stored copy, one batch per operat
     })
   })
 
+  it('the revision index names the batch that reached each revision, so a recognition needs no scan of the log', () => {
+    forAll('reached', {
+      runs: 40,
+      generate: rng => scene(rng),
+      check: ({ log }) => {
+        let view = emptySessionView()
+        for (const batch of log) {
+          const before = view.executions.get(batch.execution)
+          view = fold(view, batch)
+          const after = view.executions.get(batch.execution)!
+          if (after.revision !== (before?.revision ?? 0)) {
+            if (after.reached.get(after.revision) !== batch.envelope.op)
+              return `revision ${String(after.revision)} is not indexed to its batch`
+          } else if (after.reached.size !== (before?.reached.size ?? 0))
+            return 'a batch that advanced nothing changed the index'
+          // One entry per revision reached: the index is the size of the revision, never more.
+          if (after.reached.size !== after.revision)
+            return `the index holds ${String(after.reached.size)} entries at revision ${String(after.revision)}`
+        }
+        return null
+      },
+    })
+  })
+
   it('one batch per operation: a second batch of an operation already indexed changes nothing but the head (P6)', () => {
     const { log } = scene(random(3), { rounds: 2, executions: 1 })
     const view = foldAll(log)

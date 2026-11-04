@@ -80,10 +80,8 @@ async function interpreted(
       if (result.kind === 'read' && request.handler.startsWith('execution-record.'))
         bytes.read.push(JSON.stringify(result.output).length)
       if (!heads.unwritten || result.kind !== 'read') return result
-      if (request.handler === STATE_HANDLER)
-        return { ...result, output: withoutHeads(result.output) }
       // The head row as another execution's call leaves it: its receipt is the placeholder.
-      if (request.handler === FACTS_HANDLER)
+      if (request.handler === EVENTS_HANDLER)
         return { ...result, output: withPlaceholderHead(result.output) }
       return result
     },
@@ -108,21 +106,8 @@ async function interpreted(
   return { s, c, sent, script, interpretation, fiber, mountPlugin, target, heads, bytes }
 }
 
-const STATE_HANDLER = EXECUTION_RECORD_HANDLERS.parts
-const FACTS_HANDLER = EXECUTION_RECORD_HANDLERS.executionFacts
-
-/**
- * A page of the Agent records with every head receipt of the notes set to null. A part holds the
- * notes of its execution as `notes.heads` entries `[order, key, value]`.
- */
-function withoutHeads(output: JsonValue): JsonValue {
-  const copy = structuredClone(output) as {
-    parts?: { state: { 'notes.heads'?: unknown[][] } }[]
-  }
-  for (const part of copy.parts ?? [])
-    for (const entry of part.state['notes.heads'] ?? []) entry[2] = null
-  return copy as JsonValue
-}
+const BATCHES_HANDLER = EXECUTION_RECORD_HANDLERS.facts
+const EVENTS_HANDLER = EXECUTION_RECORD_HANDLERS.events
 
 function withPlaceholderHead(output: JsonValue): JsonValue {
   const copy = structuredClone(output) as { receipt?: { digest: string } | null }
@@ -130,9 +115,9 @@ function withPlaceholderHead(output: JsonValue): JsonValue {
   return copy as JsonValue
 }
 
-/** How many times the Agent records or the facts of an execution were read from the storage. */
+/** How many times the batches of the session or the events of an execution were read. */
 const stateReads = (s: SqlScene) =>
-  s.controls?.reads.filter(handler => handler === STATE_HANDLER || handler === FACTS_HANDLER)
+  s.controls?.reads.filter(handler => handler === BATCHES_HANDLER || handler === EVENTS_HANDLER)
     .length ?? 0
 
 const work = async (s: SqlScene): Promise<WorkSnapshot> =>
@@ -955,7 +940,7 @@ describe('a session with earlier Runs: the bytes of one Run do not grow with the
   )
 
   it(
-    'a copy rebuilt from the parts loads every execution as the copy that wrote them',
+    'a copy rebuilt from the facts loads every execution as the copy that wrote them',
     { timeout: 60_000 },
     async () => {
       const { executions, journal, s } = await runs(3)

@@ -118,6 +118,8 @@ export type ExecutionRoutedJournalOptions<P> = Readonly<{
   published?: (tenant: TenantId, session: SessionId, execution: AgentExecutionId) => void
   /** Receives a programming error the Journal read past; see `SessionLogJournalOptions.fault`. */
   fault?: SessionLogJournalOptions<P>['fault']
+  /** Receives each publication and its outcome; see `SessionLogJournalOptions.report`. */
+  report?: SessionLogJournalOptions<P>['report']
 }>
 
 type Journal<P> = AgentJournal<P>
@@ -148,6 +150,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     combination: options.combination,
     ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
     ...(options.fault === undefined ? {} : { fault: options.fault }),
+    ...(options.report === undefined ? {} : { report: options.report }),
   })
   const limit = options.routeCacheEntries ?? ROUTE_CACHE_ENTRIES
   const routes = new Map<string, Route<P>>()
@@ -639,14 +642,26 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
   readonly query: AgentJournal<unknown>['query']
   readonly output: AgentJournal<unknown>['output']
 
-  /** `cancellation` is the trusted installation of R2-D35; only the plugin factory hands it in. */
+  /**
+   * `cancellation` is the trusted installation of R2-D35 and `report` the publication observer;
+   * only the plugin factory hands them in. Without `report`, a publication that the storage refused
+   * or whose outcome is unknown is logged at warn level with its bytes, and every other one at debug
+   * level.
+   */
   constructor(
     ctx: Context,
     config: AgentJournalProviderConfig,
     cancellation?: SessionLogJournalOptions<unknown>['cancellation'],
+    report?: SessionLogJournalOptions<unknown>['report'],
   ) {
     super(ctx)
     const logger = ctx.logger(LOGGER)
+    const logged: NonNullable<SessionLogJournalOptions<unknown>['report']> = item => {
+      const line = `publication ${item.method} of ${item.execution} (operation ${String(item.operation)}): ${item.outcome}, ${String(item.recordBytes)} bytes of Agent records, ${String(item.bytes)} in all`
+      if (item.outcome === 'unavailable' || item.outcome === 'commit-unknown')
+        logger.warn(`${line}: ${String(item.diagnostic)}`)
+      else logger.debug(line)
+    }
     const routed = createExecutionRoutedJournal<unknown>({
       published: (tenant, session, execution) => {
         try {
@@ -659,6 +674,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
         }
       },
       fault: diagnostic => logger.error(diagnostic),
+      report: report ?? logged,
       storage: ctx.storage,
       tenantDomainLookup: ctx.tenantDomainLookup,
       sessionAccessCheck: ctx.sessionAccessCheck,
@@ -712,6 +728,11 @@ export type SessionAgentJournalPluginInput = Readonly<{
    * Absent: the cancellation variants answer `unavailable`, as with the plain provider.
    */
   cancellation?: SessionLogJournalOptions<unknown>['cancellation']
+  /**
+   * The observer of each publication and its outcome (`SessionLogJournalOptions.report`). Absent:
+   * the provider logs them itself, a refused or unknown one at warn level.
+   */
+  report?: SessionLogJournalOptions<unknown>['report']
 }>
 
 /**
@@ -724,10 +745,10 @@ export type SessionAgentJournalPluginInput = Readonly<{
 export function createSessionAgentJournalPlugin(
   input: SessionAgentJournalPluginInput = {},
 ): typeof SessionLogAgentJournalProvider {
-  const { cancellation } = input
+  const { cancellation, report } = input
   return class SessionLogAgentJournalPlugin extends SessionLogAgentJournalProvider {
     constructor(ctx: Context, config: AgentJournalProviderConfig) {
-      super(ctx, config, cancellation)
+      super(ctx, config, cancellation, report)
     }
   }
 }

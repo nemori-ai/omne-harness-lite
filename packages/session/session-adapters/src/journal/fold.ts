@@ -325,6 +325,11 @@ export type ExecutionView = Readonly<{
   ops: ReadonlyMap<AgentOperationId, OperationEntry>
   /** The operations excluded in this execution. */
   excluded: ReadonlyMap<AgentOperationId, ExclusionEntry>
+  /**
+   * The operation whose batch advanced the execution to each revision: one batch advances to each
+   * revision, so a recognition finds the batch it recognizes by the revision, without a scan.
+   */
+  reached: ReadonlyMap<number, AgentOperationId>
 }>
 
 export type SessionJournalView = Readonly<{
@@ -378,6 +383,7 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     events: [],
     ops: new Map(),
     excluded: new Map(),
+    reached: new Map(),
   }
 }
 
@@ -404,6 +410,7 @@ type Draft = {
   controls: Map<AgentOperationId, ControlView>
   ops: Map<AgentOperationId, OperationEntry>
   excluded: Map<AgentOperationId, ExclusionEntry>
+  reached: Map<number, AgentOperationId>
   cursor: Partial<CursorMembers>
   cursorMoved: Partial<Record<keyof CursorMembers, number>>
 }
@@ -421,6 +428,7 @@ function draftOf(view: ExecutionView): Draft {
     controls: new Map(view.controls),
     ops: new Map(view.ops),
     excluded: new Map(view.excluded),
+    reached: new Map(view.reached),
   }
 }
 
@@ -921,6 +929,7 @@ export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJo
     kinds: batch.envelope.kinds,
   }
   if (!draft.ops.has(batch.envelope.op)) draft.ops.set(batch.envelope.op, entry)
+  if (moves && !draft.reached.has(revision)) draft.reached.set(revision, batch.envelope.op)
   draft.revision = revision
   draft.head = batch.pub
   for (const [index, fact] of batch.facts.entries())

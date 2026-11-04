@@ -142,6 +142,7 @@ import {
   createSessionLogJournal,
   createSessionMessageHandoffPlugin,
   SessionLogAgentJournalProvider,
+  type JournalPublicationReport,
 } from '@omne-harness/session-adapters/cordis'
 import type {
   GuardCommand,
@@ -200,7 +201,7 @@ import {
   SESSION_HISTORY_ROOT_HANDLER,
   SESSION_LOG_PARTICIPANTS,
   SESSION_PROTOCOL,
-  decodeExecutionRecordParts,
+  decodeExecutionRecordOpen,
   decodeSessionHistoryRoot,
 } from '@omne-harness/session-storage-sql/participants'
 import {
@@ -512,6 +513,8 @@ export type LineWorldOptions = Readonly<{
   wrapProvider?: <T extends object>(provider: T) => T
   /** Wraps the Model receiver the pusher resolves, for example to count what it saves. */
   wrapModelReceiver?: (receiver: AgentModelReceiver<unknown>) => AgentModelReceiver<unknown>
+  /** Receives each publication of the session-log Journal the receivers write through. */
+  journalReport?: (report: JournalPublicationReport) => void
 }>
 
 /** The CP3 behaviour: the call starts and settles with one text. */
@@ -747,6 +750,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     tenantDomainLookup: lookup,
     sessionAccessCheck: sessionChecks as never,
     combination,
+    ...(options.journalReport === undefined ? {} : { report: options.journalReport }),
   }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId })
 
   // A read-only copy of the session-log Journal over the uncounted storage, for the doubles and the test.
@@ -1164,13 +1168,14 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       if (result.kind !== 'read') throw new Error(`${handler}: ${result.kind}`)
       return result.output
     }
-    const agent = decodeExecutionRecordParts(
-      await read(EXECUTION_RECORD_HANDLERS.parts, EXECUTION_RECORD_PROTOCOL),
+    const agent = decodeExecutionRecordOpen(
+      await read(EXECUTION_RECORD_HANDLERS.openExecutions, EXECUTION_RECORD_PROTOCOL),
     )
     const root = decodeSessionHistoryRoot(
       await read(SESSION_HISTORY_ROOT_HANDLER, SESSION_PROTOCOL),
     )
-    if (agent === null || root === null) throw new Error('the common root is not readable')
+    if (agent === null || agent.kind !== 'open' || root === null)
+      throw new Error('the common root is not readable')
     return { agent: agent.published, session: root.published }
   }
 

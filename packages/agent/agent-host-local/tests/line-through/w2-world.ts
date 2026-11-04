@@ -56,6 +56,7 @@ import {
   createSessionMessageHandoffPlugin,
   createSessionModelLogConsumptionPlugin,
   createSessionToolLogConsumptionPlugin,
+  type JournalPublicationReport,
 } from '@omne-harness/session-adapters/cordis'
 import { createSessionProviderPlugin } from '@omne-harness/session-cordis/cordis'
 import { createAgentContextPlugin } from '@omne-harness/agent-context/cordis'
@@ -311,6 +312,20 @@ function associatedOf(snapshot: ExecutionSnapshot): AssociatedTool[] {
 
 // --- the options and the world -----------------------------------------------------------------------
 
+/**
+ * The text of a value with its members in name order at every depth: a consumer position read back
+ * from the Journal (a content block, canonical JSON) and the one the Tool request carries name the
+ * same position with their members in different orders.
+ */
+function stable(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, member]) => member !== undefined)
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+  return `{${entries.map(([key, member]) => `${JSON.stringify(key)}:${stable(member)}`).join(',')}}`
+}
+
 export type W2Options = Readonly<{
   model: ModelScript
   /**
@@ -340,6 +355,13 @@ export type W2Options = Readonly<{
   plugins?: readonly PluginMount[]
   /** Faces of the Tool request source double to replace, for a scenario where the source refuses. */
   toolRequests?: Partial<NonNullable<Dependencies['toolRequests']>>
+  /**
+   * Receives each publication of the Agent records, of the Agent's Journal and of the one the
+   * receivers write through (session-adapters `SessionLogJournalOptions.report`).
+   */
+  report?: (report: JournalPublicationReport) => void
+  /** Wraps the shared storage after the world's counting wrapper, for example to measure commits. */
+  wrapStorage?: NonNullable<LineWorldOptions['wrapStorage']>
 }>
 
 /**
@@ -424,7 +446,10 @@ export async function openW2World(options: W2Options) {
     ad06?: (target: never) => Promise<unknown>
   } = {}
   const w = await openLineWorld({
-    wrapStorage: storage => countingStorage(storage, counters),
+    wrapStorage: storage => {
+      const counted = countingStorage(storage, counters)
+      return options.wrapStorage === undefined ? counted : options.wrapStorage(counted)
+    },
     journalPlugin: combination => [
       createSessionAgentJournalPlugin({
         // Real plugin; the installation is the test installation of agent-contract/testing.
@@ -432,9 +457,11 @@ export async function openW2World(options: W2Options) {
           installation: testCancellationPolicyInstallation,
           policy: createTestCancellationPolicy(),
         },
+        ...(options.report === undefined ? {} : { report: options.report }),
       }),
       combination,
     ],
+    ...(options.report === undefined ? {} : { journalReport: options.report }),
     handoff: 'external',
     // The manual clock is moved by `until`, far faster than real time: no instance idles out.
     hostConfig: { instanceIdleMs: 2_000_000_000 },
@@ -652,7 +679,7 @@ export async function openW2World(options: W2Options) {
           const target = found.ok.find(
             item =>
               item.pending.reference === input.reference &&
-              JSON.stringify(item.pending.position) === JSON.stringify(input.consumer),
+              stable(item.pending.position) === stable(input.consumer),
           )
           return { ok: target ?? null }
         },
