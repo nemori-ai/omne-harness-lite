@@ -643,11 +643,8 @@ export function scene(rng: Random, options: SceneOptions = {}): Scene {
   for (const [index, value] of ordered.entries()) {
     const draft = { ...value, pub: index + 1 }
     view = fold(view, draft)
-    const target = value.facts.find(fact => fact.kind === 'op.recognized')
-    const rev =
-      target?.kind === 'op.recognized'
-        ? view.ops.get(target.target)!.revision
-        : view.executions.get(value.execution)!.revision
+    // A recognition repeats the revision before it; its answer takes the recognized batch's.
+    const rev = view.executions.get(value.execution)!.revision
     log.push({ ...draft, envelope: { ...draft.envelope, rev } })
   }
   const byOp = new Map(log.map(item => [item.envelope.op, item]))

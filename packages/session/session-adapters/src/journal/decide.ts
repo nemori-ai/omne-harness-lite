@@ -9,6 +9,7 @@ import type {
 } from '@omne-harness/agent-contract'
 import { canonical } from '../testing/canonical.ts'
 import {
+  BATCH_MAX_FACTS,
   factKey,
   refOf,
   type Batch,
@@ -43,8 +44,87 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
     completedPassages: checkpoint.completedPassages,
     batch: checkpoint.batch === null ? null : refOf(checkpoint.batch),
     calls: refOf(checkpoint.calls),
+    schema: checkpoint.schema,
+    definition: checkpoint.definition,
+    adoptedRequest:
+      checkpoint.adoptedRequest === null || checkpoint.adoptedRequest === undefined
+        ? null
+        : refOf(checkpoint.adoptedRequest),
     state: state.kind,
   }
+}
+
+/** A content-addressed store of the values the facts refer to: the custody blocks. */
+export type BlobStore = ReadonlyMap<string, unknown>
+
+/** One block to put with a batch: its digest and the value. */
+export type Blob = readonly [digest: string, value: unknown]
+
+export const blobOf = (value: unknown): Blob => [refOf(value).digest, value]
+
+/** The blocks a checkpoint's cursor refers to: every member that enters a fact as a reference. */
+export function blobsOf(checkpoint: AgentCheckpoint): Blob[] {
+  const out: Blob[] = [blobOf(checkpoint.passages), blobOf(checkpoint.calls)]
+  if (checkpoint.guard !== null) out.push(blobOf(checkpoint.guard))
+  if (checkpoint.replyAdmissionRead.kind === 'verified')
+    out.push(blobOf(checkpoint.replyAdmissionRead.prefix))
+  if (checkpoint.compaction !== null) out.push(blobOf(checkpoint.compaction))
+  if (checkpoint.requestPreparation !== null) out.push(blobOf(checkpoint.requestPreparation))
+  if (checkpoint.batch !== null) out.push(blobOf(checkpoint.batch))
+  if (checkpoint.adoptedRequest !== null && checkpoint.adoptedRequest !== undefined)
+    out.push(blobOf(checkpoint.adoptedRequest))
+  return out
+}
+
+function held<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>, what: string): T {
+  if (!blobs.has(ref.digest))
+    throw new TypeError(`the Journal holds no block for the ${what} the cursor refers to`)
+  return structuredClone(blobs.get(ref.digest)) as T
+}
+
+/**
+ * The checkpoint a complete folded cursor names: the inverse of `cursorOf`, reading the referred
+ * members from the blocks. A member the cursor lacks, or a block the store does not hold, is a
+ * defect of the writer that folded it, not a value to invent: it throws.
+ */
+export function checkpointOf(
+  cursor: Readonly<Partial<CursorMembers>>,
+  blobs: BlobStore,
+): AgentCheckpoint {
+  const need = <K extends keyof CursorMembers>(name: K): CursorMembers[K] => {
+    if (!(name in cursor)) throw new TypeError(`the folded cursor has no member ${name}`)
+    return cursor[name] as CursorMembers[K]
+  }
+  const checkpoint: AgentCheckpoint = {
+    schema: need('schema'),
+    definition: need('definition'),
+    step: need('step'),
+    position: need('position'),
+    calls: held(blobs, need('calls'), 'calls'),
+    passages: held(blobs, need('passages'), 'passages'),
+    batch: need('batch') === null ? null : held(blobs, need('batch')!, 'batch'),
+    inputBatch: need('inputBatch') as AgentCheckpoint['inputBatch'],
+    requestPreparation:
+      need('requestPreparation') === null
+        ? null
+        : held(blobs, need('requestPreparation')!, 'requestPreparation'),
+    compaction: need('compaction') === null ? null : held(blobs, need('compaction')!, 'compaction'),
+    adoptedContext: need('adoptedContext'),
+    guard: need('guard') === null ? null : held(blobs, need('guard')!, 'guard'),
+    completedPassages: need('completedPassages'),
+    priorConditions: need('priorConditions'),
+    currentHandoff: need('currentHandoff'),
+    replyAdmissionRead: (() => {
+      const read = need('replyAdmissionRead')
+      return read.kind === 'unverified'
+        ? { kind: 'unverified' as const }
+        : { kind: 'verified' as const, prefix: held(blobs, read.prefix, 'replyAdmissionRead') }
+    })(),
+  }
+  const adopted = need('adoptedRequest')
+  return adopted === null
+    ? { ...checkpoint, adoptedRequest: null }
+    : { ...checkpoint, adoptedRequest: held(blobs, adopted, 'adoptedRequest') }
 }
 
 /** The members of `after` whose canonical text differs from the folded cursor `before`. */
@@ -73,6 +153,8 @@ export function cursorMoved(
 
 export type BatchRefusal =
   | Readonly<{ kind: 'repeated'; key: string }>
+  /** More facts than one batch may carry (`BATCH_MAX_FACTS`). */
+  | Readonly<{ kind: 'too-many'; facts: number; limit: number }>
   /** The operation was excluded earlier; its write is refused, not revived (R2-D307). */
   | Readonly<{ kind: 'excluded'; operation: AgentOperationId }>
   /** An `exec.opened` must travel with the `exec.attached` that names the Authority (R2-D307). */
@@ -92,6 +174,8 @@ export function batchOf(
   known: (view: ExecutionView, key: string) => boolean = keyKnown,
 ): Batch | BatchRefusal {
   if (view.excluded.has(envelope.op)) return { kind: 'excluded', operation: envelope.op }
+  if (facts.length > BATCH_MAX_FACTS)
+    return { kind: 'too-many', facts: facts.length, limit: BATCH_MAX_FACTS }
   if (
     facts.some(fact => fact.kind === 'exec.opened') &&
     !facts.some(fact => fact.kind === 'exec.attached')

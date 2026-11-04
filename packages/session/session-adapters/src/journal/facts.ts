@@ -48,6 +48,8 @@ import { canonical } from '../testing/canonical.ts'
 export const FACT_MAX_BYTES = 4096
 /** The constant part of one batch besides its facts: the envelope row. */
 export const BATCH_OVERHEAD_BYTES = 512
+/** The most facts one batch may carry (session-storage-sql `EXECUTION_BATCH_MAX_FACTS`). */
+export const BATCH_MAX_FACTS = 256
 
 declare const refTag: unique symbol
 /**
@@ -126,6 +128,9 @@ export type CursorMembers = Readonly<{
   completedPassages: readonly PassageId[]
   batch: Ref | null
   calls: Ref
+  schema: Adoption
+  definition: Adoption
+  adoptedRequest: Ref | null
   /** The committed `JournalCommitState`; the waits of a waiting state are in `wait.entered`. */
   state: 'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'
 }>
@@ -482,6 +487,7 @@ export type FactRow = Readonly<{
 export type FactFailure =
   | Readonly<{ kind: 'invalid'; field: string; reason: string }>
   | Readonly<{ kind: 'oversize'; ord: number; factKind: FactKind; bytes: number }>
+  | Readonly<{ kind: 'too-many'; facts: number; limit: number }>
 
 /** The bytes of the canonical UTF-8 text of a value. */
 export function bytesOf(value: unknown): number {
@@ -624,6 +630,8 @@ export function encodeBatch(
   eseqFrom: number,
   batch: Batch,
 ): Outcome<Readonly<{ rows: readonly FactRow[]; eseqNext: number }>, FactFailure> {
+  if (batch.facts.length > BATCH_MAX_FACTS)
+    return fail({ kind: 'too-many', facts: batch.facts.length, limit: BATCH_MAX_FACTS })
   const kinds = batch.envelope.kinds.join(',')
   const base = { tenant: scope.tenant, session: scope.session, pub, execution: batch.execution }
   const rows: FactRow[] = [

@@ -885,8 +885,14 @@ export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJo
   if (batch.pub <= view.head) return view
   const draft = draftOf(view.executions.get(batch.execution) ?? emptyExecutionView(batch.execution))
   // The index is written before the facts, so the facts that name the batch's op can read it.
+  // The envelope names the revision the batch reaches, computed by the writer under `expected`;
+  // a writer that left it at 0 lets the fold compute it: one more unless the batch is a recognition.
   const moves = advances(batch)
-  const revision = moves ? draft.revision + 1 : draft.revision
+  const revision = moves
+    ? batch.envelope.rev >= 1
+      ? batch.envelope.rev
+      : draft.revision + 1
+    : draft.revision
   const recognition = batch.facts.find(fact => fact.kind === 'op.recognized')
   const target = recognition?.kind === 'op.recognized' ? recognition.target : null
   const answered =

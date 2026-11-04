@@ -5,6 +5,7 @@
 // tool calls (R2-D297).
 import { describe, expect, it } from 'vitest'
 import {
+  BATCH_MAX_FACTS,
   BATCH_OVERHEAD_BYTES,
   FACT_MAX_BYTES,
   answer,
@@ -265,6 +266,24 @@ describe('F5 no copy: a fact holds references, never the content of another owne
     const encoded = encodeBatch(scope, batch.pub, 0, { ...batch, facts: [...batch.facts, big] })
     expect(encoded).toMatchObject({
       failure: { kind: 'oversize', factKind: 'passage.declared', ord: batch.facts.length + 1 },
+    })
+  })
+
+  it('a batch with more than BATCH_MAX_FACTS facts is refused by encode and by decide', () => {
+    const { log } = scene(random(9), { rounds: 1, executions: 1 })
+    const batch = log[0]!
+    const many: FactBody[] = Array.from({ length: BATCH_MAX_FACTS + 1 }, (_, index) => ({
+      kind: 'ack.through',
+      sequence: index + 1,
+    }))
+    expect(encodeBatch(scope, batch.pub, 0, { ...batch, facts: many })).toEqual({
+      failure: { kind: 'too-many', facts: BATCH_MAX_FACTS + 1, limit: BATCH_MAX_FACTS },
+    })
+    const view = foldAll(log)
+    expect(batchOf(view.executions.get(batch.execution)!, batch.envelope, many)).toEqual({
+      kind: 'too-many',
+      facts: BATCH_MAX_FACTS + 1,
+      limit: BATCH_MAX_FACTS,
     })
   })
 

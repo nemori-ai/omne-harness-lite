@@ -107,6 +107,24 @@ import {
   JOURNAL_OWNER,
 } from './journal-values.ts'
 import {
+  advances,
+  answer as answerOf,
+  batchOf as buildBatch,
+  blobOf,
+  blobsOf,
+  checkpointOf,
+  cursorOf as cursorMembersOf,
+  emptyExecutionView,
+  fold,
+  receiptOf as batchReceiptOf,
+  type Answer,
+  type Blob,
+  type ExecutionView,
+  type FactBody,
+  type ParticipationKind,
+  type PublishedBatch,
+} from '../journal/index.ts'
+import {
   beforeTerminalOpen,
   buildObligations,
   candidateOf,
@@ -472,6 +490,19 @@ export type Attempt<R> =
   | Readonly<{ kind: 'answer'; value: Outcome<R, Failure> }>
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'write'; value: R; receipt: CommandReceipt; apply: () => void }>
+  /**
+   * A command of the fact family (SPEC "事实族与折叠核"): the facts its judgement produced, the
+   * blocks they refer to, the participation kinds of the batch, the answer derived from the
+   * appended batch, and the projection of the batch onto the reader view of the execution.
+   */
+  | Readonly<{
+      kind: 'batch'
+      facts: readonly FactBody[]
+      blobs: readonly Blob[]
+      kinds: readonly ParticipationKind[]
+      derive: (answer: Answer) => R
+      project: (batch: PublishedBatch, view: ExecutionView) => void
+    }>
   /** A new operation that recognizes an existing fact: only its index is saved, at the fact's revision. */
   | Readonly<{ kind: 'recognize'; value: R; receipt: CommandReceipt }>
   /** Contradicting evidence: the audit is saved with one new revision and the conflict is fixed. */
@@ -1811,6 +1842,18 @@ export function createJournal<P>(
         })
         return { kind: 'rejected', failure: prepared.failure }
       }
+      if (prepared.kind === 'batch') {
+        const appended = append(input, key, prepared)
+        if ('failure' in appended) return { kind: 'answered', value: appended }
+        const { value, receipt } = appended.ok
+        const captured = cell.committed(input, method, receipt)
+        if (captured) return { kind: 'answered', value: fail(captured) }
+        const participation = cell.participate(input, method, receipt, decision)
+        if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
+        cell.touch()
+        state().operations.set(at, { kind: 'committed', key, value: copy(value), receipt })
+        return { kind: 'wrote', value }
+      }
       if (prepared.kind === 'write') {
         prepared.apply()
         const captured = cell.committed(input, method, prepared.receipt)
@@ -1878,6 +1921,96 @@ export function createJournal<P>(
         return _exhaustive
       }
     }
+  }
+
+  /** Where the batch evidence of this Journal is minted from: the owner and the session namespace. */
+  const mint = { owner: JOURNAL_OWNER, session: cell.namespace }
+
+  /** The fact-level view of an execution, before anything was appended for it. */
+  function viewOf(execution: AgentExecutionId): ExecutionView {
+    return state().view.executions.get(execution) ?? emptyExecutionView(execution)
+  }
+
+  /**
+   * Appends the batch of one command (SPEC "事实族与折叠核"): the envelope names the operation, the
+   * semantic key as its digest, the revision the batch reaches and the generation that writes it;
+   * the blocks are put by digest; the batch is folded into the session view; the answer and the
+   * receipt are derived from the appended batch; the projection updates the reader view. A refused
+   * batch (a repeated fact, an excluded operation, an open without its attachment) writes nothing.
+   */
+  function append<R>(
+    input: ExecutionMutation<P>,
+    key: string,
+    prepared: Extract<Attempt<R>, { kind: 'batch' }>,
+  ): Outcome<Readonly<{ value: R; receipt: CommandReceipt }>, Failure> {
+    const before = viewOf(input.execution)
+    const attached = prepared.facts.find(fact => fact.kind === 'exec.attached')
+    const gen =
+      attached?.kind === 'exec.attached'
+        ? attached.authority.generation
+        : (before.attachments.findLast(item => item.status === 'active')?.authority.generation ??
+          before.gen)
+    const envelope = { op: input.operation, digest: key, rev: 0, gen, kinds: prepared.kinds }
+    const built = buildBatch(before, envelope, prepared.facts)
+    if ('kind' in built) {
+      if (built.kind === 'incomplete') return fail(invalid('facts', built.reason))
+      return fail(conflict(input.operation))
+    }
+    const agent = state()
+    const pub = agent.log.length + 1
+    // The revision the batch reaches. Until every command appends facts, the reader projection
+    // is where the commands not yet migrated advance the revision; the batch continues from it.
+    const current =
+      agent.executions.get(executionKey(input.tenant, input.execution))?.revision ?? before.revision
+    const rev = advances({ ...built, pub }) ? current + 1 : current
+    const batch: PublishedBatch = { ...built, envelope: { ...envelope, rev }, pub }
+    for (const [digest, value] of prepared.blobs)
+      if (!agent.blobs.has(digest)) agent.blobs.set(digest, copy(value))
+    agent.log = [...agent.log, batch]
+    agent.view = fold(agent.view, batch)
+    const folded = agent.view.executions.get(input.execution)
+    if (folded === undefined || folded.revision !== rev)
+      throw new TypeError('the fold did not reach the revision the envelope names')
+    const derived = answerOf(mint, agent.view, batch)
+    const minted = batchReceiptOf(mint, agent.view, batch)
+    // A planned evidence (the testing controls' `planEvidence`) names this write's receipt.
+    const receipt = { ...minted, evidence: cell.issueEvidence(minted.evidence) }
+    const value = prepared.derive(
+      'receipt' in derived ? ({ ...derived, receipt } as Answer) : derived,
+    )
+    prepared.project(batch, folded)
+    return succeed({ value, receipt })
+  }
+
+  /** The evidence of an attachment or a detach: from stable elements, never from a counter. */
+  function attachmentEvidence(
+    execution: AgentExecutionId,
+    what: 'attach' | 'handoff',
+    ordinal: number,
+    revision: number,
+  ): DurableEvidence {
+    return cell.issueEvidence(
+      journalEvidence(`${cell.namespace}/${execution}/${what}/${ordinal}`, revision),
+    )
+  }
+
+  /** The `op.excluded` facts of a takeover: every write of this execution still pending. */
+  function fencedOperations(execution: Execution): FactBody[] {
+    const out: FactBody[] = []
+    for (const record of state().operations.values()) {
+      if (!pendingOf(record, execution) || record.key.startsWith('received:')) continue
+      out.push({
+        kind: 'op.excluded',
+        operation: record.operation,
+        reason: 'fence',
+        evidence: journalEvidence(
+          `${cell.namespace}/${execution.id}/excluded/${record.operation}/fenced`,
+          0,
+        ),
+        predecessor: null,
+      })
+    }
+    return out
   }
 
   function readFault(method: JournalRead): Outcome<never, Failure> | undefined {
@@ -3057,61 +3190,97 @@ export function createJournal<P>(
         // The Session source (SE13) is co-checked by the participant in the same write; a null
         // source cannot pass it (PA-01 item 1).
         if (initial.source === null) return answer(fail(denied('open')))
-        const execution: Execution = {
-          id: input.execution,
-          tenant: input.tenant,
-          revision: 1,
-          state: { kind: 'advancing' },
-          checkpoint: copy(entry.checkpoint),
-          attachments: [],
-          inputs: [copy(initial)],
-          inputRevisions: new Map([[initial.id, 1]]),
-          events: [],
-          retainedFrom: 1,
-          acknowledged: 0,
-          acknowledgedAt: 0,
-          controls: [],
-          results: [],
-          resultRevisions: new Map(),
-          effects: [],
-          observations: [],
-          stageReceipts: new Map(),
-          observed: new Map(),
-          admissions: [],
-          admissionLedger: originLedger(
-            admissionScope(input.tenant, input.execution),
-            admissionRule,
-            1,
-          ),
-          entries: [],
-          handoffs: [],
-          custodyAttempts: new Map(),
-          finishing: emptyFinishing(),
-          serial: 0,
-        }
-        const evidence = nextEvidence(execution, 'open', 1)
         const authority: Authority = {
           execution: input.execution,
           executionAttachment: attachmentIdOf(input.execution, 1),
           instance: runtime.instance,
           generation: '1',
-          source: evidence,
+          source: attachmentEvidence(input.execution, 'attach', 1, 1),
         }
-        // The external H is published by this acceptance (Agent SPEC "消息准入": the real history
-        // of an external input is the original open or submit).
-        execution.handoffs.push(inputHandoff(acceptance, input.operation, 1))
-        execution.attachments.push({
-          authority,
-          status: 'active',
-          handoff: null,
-          handoffRevision: 0,
-        })
-        const receipt = receiptOf(execution, input.operation, 1, evidence, 'applied')
+        const checkpoint = entry.checkpoint
+        const outcome = acceptance.outcome
+        const facts: FactBody[] = [
+          {
+            kind: 'exec.opened',
+            definition: checkpoint.definition,
+            schema: checkpoint.schema,
+            instance: runtime.instance,
+            scope: runtime.scope,
+            original: {
+              input: initial.id,
+              entry: acceptance.handoff.entry,
+              handoff: acceptance.handoff,
+            },
+            coordination: 'coordinated',
+          },
+          { kind: 'exec.attached', authority, grant: runtime.grant, basis: { kind: 'open' } },
+          {
+            kind: 'input.accepted',
+            input: initial.id,
+            entry: acceptance.handoff.entry,
+            message: blobOf(initial.content) as unknown as never,
+            source: initial.source,
+            priority: initial.priority,
+            watermark: outcome.record,
+          },
+          // The external H is published by this acceptance (Agent SPEC "消息准入": the real
+          // history of an external input is the original open or submit).
+          {
+            kind: 'handoff.resolved',
+            handoff: acceptance.handoff,
+            resolution: 'recorded',
+            outcome: blobOf(outcome) as unknown as never,
+            history: outcome.record,
+          },
+          {
+            kind: 'cursor.moved',
+            step: checkpoint.step,
+            members: cursorMembersOf(checkpoint, { kind: 'advancing' }),
+          },
+        ]
+        const blobs: Blob[] = [blobOf(initial.content), blobOf(outcome), ...blobsOf(checkpoint)]
         return {
-          kind: 'write',
-          value: { receipt, authority },
-          receipt,
-          apply: () => {
+          kind: 'batch',
+          facts,
+          blobs,
+          kinds: [],
+          derive: derived => {
+            if (derived.kind !== 'authority') throw new TypeError('an open answers its Authority')
+            return { receipt: derived.receipt, authority: derived.authority }
+          },
+          project: (batch, view) => {
+            const execution: Execution = {
+              id: input.execution,
+              tenant: input.tenant,
+              revision: view.revision,
+              state: { kind: 'advancing' },
+              checkpoint: checkpointOf(view.cursor, state().blobs),
+              attachments: [{ authority, status: 'active', handoff: null, handoffRevision: 0 }],
+              inputs: [copy(initial)],
+              inputRevisions: new Map([[initial.id, view.revision]]),
+              events: [],
+              retainedFrom: 1,
+              acknowledged: 0,
+              acknowledgedAt: 0,
+              controls: [],
+              results: [],
+              resultRevisions: new Map(),
+              effects: [],
+              observations: [],
+              stageReceipts: new Map(),
+              observed: new Map(),
+              admissions: [],
+              admissionLedger: originLedger(
+                admissionScope(input.tenant, input.execution),
+                admissionRule,
+                view.revision,
+              ),
+              entries: [],
+              handoffs: [inputHandoff(acceptance, input.operation, view.revision)],
+              custodyAttempts: new Map(),
+              finishing: emptyFinishing(),
+              serial: batch.pub,
+            }
             state().executions.set(executionKey(input.tenant, input.execution), execution)
             receiving.remember(execution, runtime.instance)
           },
@@ -3139,20 +3308,39 @@ export function createJournal<P>(
         }
         const revision = execution.revision + 1
         const ordinal = execution.attachments.length + 1
-        const evidence = nextEvidence(execution, 'attach', revision)
         const authority: Authority = {
           execution: execution.id,
           executionAttachment: attachmentIdOf(execution.id, ordinal),
           instance: input.instance,
           generation: String(ordinal),
-          source: evidence,
+          source: attachmentEvidence(execution.id, 'attach', ordinal, revision),
         }
-        const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+        // A takeover fences every write of the old generation still pending (R2-D307): each is an
+        // `op.excluded` fact of this batch, and the reader projection marks its record excluded.
+        const fenced = fencedOperations(execution)
         return {
-          kind: 'write',
-          value: { receipt, authority },
-          receipt,
-          apply: () => {
+          kind: 'batch',
+          facts: [
+            {
+              kind: 'exec.attached',
+              authority,
+              grant: input.grant,
+              basis: { kind: 'recovery', recovery: input.recovery, takeover: input.takeover },
+            },
+            ...fenced,
+            {
+              kind: 'cursor.moved',
+              step: execution.checkpoint.step,
+              members: { state: 'reconciling' },
+            },
+          ],
+          blobs: [],
+          kinds: [],
+          derive: derived => {
+            if (derived.kind !== 'authority') throw new TypeError('an attach answers its Authority')
+            return { receipt: derived.receipt, authority: derived.authority }
+          },
+          project: (_batch, view) => {
             fence(execution)
             if (old !== undefined) old.status = 'superseded'
             execution.attachments.push({
@@ -3162,7 +3350,7 @@ export function createJournal<P>(
               handoffRevision: 0,
             })
             execution.state = { kind: 'reconciling' }
-            execution.revision = revision
+            execution.revision = view.revision
           },
         }
       })
@@ -3192,18 +3380,34 @@ export function createJournal<P>(
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         if (!holds(execution, input.authority)) return answer(fail({ kind: 'stale-advance' }))
         const revision = execution.revision + 1
-        const handoff = nextEvidence(execution, 'handoff', revision)
-        const receipt = receiptOf(execution, input.operation, revision, handoff, 'applied')
+        const ordinal = execution.attachments.indexOf(target) + 1
+        const handoff = attachmentEvidence(execution.id, 'handoff', ordinal, revision)
         return {
-          kind: 'write',
-          value: handoff,
-          receipt,
-          apply: () => {
+          kind: 'batch',
+          facts: [
+            {
+              kind: 'exec.detached',
+              attachment: target.authority.executionAttachment,
+              handoff,
+            },
+            {
+              kind: 'cursor.moved',
+              step: execution.checkpoint.step,
+              members: { state: 'suspended' },
+            },
+          ],
+          blobs: [],
+          kinds: [],
+          derive: derived => {
+            if (derived.kind !== 'detached') throw new TypeError('a detach answers its handoff')
+            return derived.handoff
+          },
+          project: (_batch, view) => {
             target.status = 'detached'
             target.handoff = handoff
-            target.handoffRevision = revision
+            target.handoffRevision = view.revision
             execution.state = { kind: 'suspended', handoff }
-            execution.revision = revision
+            execution.revision = view.revision
           },
         }
       })

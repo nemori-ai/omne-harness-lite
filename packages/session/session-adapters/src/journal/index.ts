@@ -1,6 +1,7 @@
 // The fact family of the Agent Journal: the facts, the batch and row shapes, the pure fold, the
 // answer derivation and the generic part of decide. See SPEC "事实族与折叠核".
 export {
+  BATCH_MAX_FACTS,
   BATCH_OVERHEAD_BYTES,
   EVENT_OF,
   FACT_KINDS,
@@ -74,5 +75,14 @@ export {
   receiptOf,
 } from './answer.ts'
 export type { Answer, Mint } from './answer.ts'
-export { batchOf, cursorMoved, cursorOf, keyKnown, movedMembers } from './decide.ts'
-export type { BatchRefusal } from './decide.ts'
+export {
+  batchOf,
+  blobOf,
+  blobsOf,
+  checkpointOf,
+  cursorMoved,
+  cursorOf,
+  keyKnown,
+  movedMembers,
+} from './decide.ts'
+export type { BatchRefusal, Blob, BlobStore } from './decide.ts'
