@@ -2,7 +2,8 @@
 // over generated fact logs: any kinds, any order, one or two executions interleaved. Each law has
 // a negative control: a broken fold, an oversize fact, a content member, a repeated operation, a
 // commit without a new fact. The terminal batches are checked to stay constant in the number of
-// tool calls (R2-D297).
+// tool calls (R2-D297), in the generated logs and in the batches the memory Journal appends, and
+// the finishing records are checked to be the projection of the folded facts.
 import { describe, expect, it } from 'vitest'
 import {
   BATCH_MAX_FACTS,
@@ -32,7 +33,22 @@ import {
   type PublishedBatch,
   type SessionJournalView,
 } from '../src/journal/index.ts'
-import { checkpoint as sampleCheckpoint } from './fixtures/common-journal.ts'
+import { testCancellationPolicyInstallation } from '@omne-harness/agent-contract/testing'
+import { currentObligations, finishingOf, settlementOf } from '../src/testing/journal-finishing.ts'
+import {
+  JOURNAL_OWNER,
+  journalEvidence as journalValueEvidence,
+  revisionOf,
+} from '../src/testing/journal-values.ts'
+import {
+  checkpoint as sampleCheckpoint,
+  evidence as journalEvidence,
+  ok,
+  operation as journalOperation,
+  scene as journalScene,
+} from './fixtures/common-journal.ts'
+import { handed, prepareEnd, take } from './fixtures/progression.ts'
+import { toolCall } from './fixtures/tool-call.ts'
 import { bytesOfBatches, evidence, scene } from './fixtures/journal-facts.ts'
 import { forAll, random } from './fixtures/property.ts'
 
@@ -568,5 +584,251 @@ describe('cursor.moved carries the changed top-level members only; no new fact, 
     expect(Object.keys(moved).sort()).toEqual(['calls', 'position'])
     expect(moved.calls).toEqual(refOf([{ kind: 'model' }]))
     expect(bytesOf(moved)).toBeLessThan(256)
+  })
+})
+
+// ------------------------------------------------------------------------------------------
+// The finishing commands of the memory Journal as appended batches (R2-D297)
+
+type JournalScene = Awaited<ReturnType<typeof journalScene>>
+
+const loadOf = async (s: JournalScene) =>
+  ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
+
+/** A started execution that intended `calls` Tool calls and saved each result as a received entry. */
+async function withToolCalls(name: string, calls: number) {
+  const s = await journalScene(name)
+  ok(await handed(s))
+  await take(s)
+  for (let index = 0; index < calls; index += 1) {
+    const tool = toolCall(s.access.tenant, `call-${index}`)
+    const loaded = await loadOf(s)
+    ok(
+      await s.view.journal.commit({
+        ...s.access,
+        execution: s.execution,
+        operation: journalOperation(`intent-${index}`),
+        authority: loaded.executionAttachment ?? s.opened.authority,
+        expected: loaded.revision,
+        checkpoint: { ...loaded.checkpoint, batch: tool.batch },
+        state: { kind: 'advancing' },
+        events: [],
+        effects: [
+          {
+            action: tool.pending.action,
+            pending: tool.pending,
+            authority: loaded.executionAttachment ?? s.opened.authority,
+          },
+        ],
+        caller: { kind: 'none' },
+        replyAdmission: null,
+        handoff: null,
+        finish: null,
+      }),
+    )
+    const { material: _material, ...entry } = tool.entry
+    ok(
+      await s.view.received.commit({
+        ...s.access,
+        execution: s.execution,
+        operation: journalOperation(`receive-${index}`),
+        entry,
+        material: {
+          kind: 'facts' as const,
+          schema: loaded.checkpoint.schema,
+          value: { kind: 'string' as const, value: `complete Tool account ${index}` },
+        },
+      }),
+    )
+  }
+  return s
+}
+
+/** The batch the operation `name` appended to the log of the scene's session. */
+function batchNamed(s: JournalScene, name: string): PublishedBatch {
+  const found = s.view.controls
+    .facts()
+    .log.find(batch => batch.envelope.op === journalOperation(name))
+  if (found === undefined) throw new Error(`no batch of ${name}`)
+  return found
+}
+
+/** prepareFinish and tryFinish of an ordinary completion after `calls` Tool calls. */
+async function finished(calls: number) {
+  const s = await withToolCalls(`finish-${calls}`, calls)
+  const ready = await prepareEnd(s)
+  if (ready.state.kind !== 'settling') throw new Error('settling expected')
+  const ended = ok(
+    await s.view.journal.tryFinish({
+      ...s.access,
+      execution: s.execution,
+      operation: journalOperation('end'),
+      expected: ready.revision,
+      authorization: {
+        kind: 'advancement',
+        authority: ready.executionAttachment ?? s.opened.authority,
+      },
+      intent: ready.state.intent,
+    }),
+  )
+  if (ended.kind !== 'ended') throw new Error(`ended expected, got ${JSON.stringify(ended)}`)
+  return {
+    items: ready.finishObligations?.items ?? [],
+    prepared: batchNamed(s, 'end-prepare'),
+    ended: batchNamed(s, 'end'),
+  }
+}
+
+describe('R2-D297: the finishing batches of the Journal do not grow with the Tool calls', () => {
+  it('the end batch is the same size after 1 and after 6 Tool calls; the list grows by one small fact per item', async () => {
+    const small = await finished(1)
+    const large = await finished(6)
+    // The end batch is one constant fact: only the digits of the coordinates may differ.
+    expect(large.ended.facts.map(fact => fact.kind)).toEqual(['finish.ended'])
+    expect(Math.abs(batchBytes(large.ended) - batchBytes(small.ended))).toBeLessThanOrEqual(8)
+    // The list is appended item by item: one `finish.obligation` per item and one close, each a
+    // reference, an evidence and small values, whatever an item holds.
+    const perItem = 1024
+    expect(large.items.length).toBeGreaterThan(small.items.length)
+    for (const run of [small, large]) {
+      const kinds = run.prepared.facts.map(fact => fact.kind)
+      expect(kinds.filter(kind => kind === 'finish.obligation')).toHaveLength(run.items.length)
+      expect(kinds.filter(kind => kind === 'finish.obligations')).toHaveLength(1)
+      for (const fact of run.prepared.facts) expect(bytesOf(fact)).toBeLessThanOrEqual(perItem)
+    }
+    expect(batchBytes(large.prepared) - batchBytes(small.prepared)).toBeLessThanOrEqual(
+      (large.items.length - small.items.length) * perItem,
+    )
+    // An item is larger than its fact: the fact refers to the item, it does not carry it.
+    const biggest = Math.max(...large.items.map(item => bytesOf(item)))
+    const largestFact = Math.max(...large.prepared.facts.map(fact => bytesOf(fact)))
+    expect(largestFact).toBeLessThan(biggest)
+  })
+
+  it('negative control: a list written whole into one fact grows with the Tool calls and the codec refuses it', async () => {
+    const small = await finished(1)
+    const large = await finished(6)
+    const whole = (items: readonly unknown[]) => ({ kind: 'finish.obligations', items })
+    expect(bytesOf(whole(large.items))).toBeGreaterThan(bytesOf(whole(small.items)) + 512)
+    const many = Array.from({ length: 4 }, () => large.items).flat()
+    const encoded = encodeBatch(scope, 1, 0, {
+      execution: large.ended.execution,
+      envelope: large.ended.envelope,
+      facts: [whole(many) as unknown as FactBody],
+    })
+    // Refused either way: the items carry content (an accepted input's message) and exceed the bound.
+    expect('failure' in encoded && ['oversize', 'invalid'].includes(encoded.failure.kind)).toBe(
+      true,
+    )
+    const bodies = encodeBatch(scope, 1, 0, {
+      execution: large.ended.execution,
+      envelope: large.ended.envelope,
+      facts: [whole(many.map(item => ({ key: item.key, version: item.version }))) as never],
+    })
+    expect(bodies).toMatchObject({ failure: { kind: 'oversize' } })
+  })
+})
+
+describe('R2-D297: the finishing records are the projection of the folded facts', () => {
+  it('a cancellation route rebuilt from the view and the blocks is the settlement and the list that load answers', async () => {
+    const s = await journalScene('projection')
+    ok(await handed(s))
+    await take(s)
+    const control = journalOperation('cancel-1')
+    ok(
+      await s.view.journal.control({
+        ...s.access,
+        execution: s.execution,
+        operation: control,
+        command: { kind: 'cancel', reason: journalEvidence('cancel') },
+      }),
+    )
+    ok(
+      await s.view.journal.recordControl({
+        ...s.access,
+        execution: s.execution,
+        operation: journalOperation('intent-cancel'),
+        target: control,
+        stage: 'intent-established',
+        state: 'reached',
+        source: journalEvidence('intent'),
+      }),
+    )
+    const common = async (name: string) => {
+      const snapshot = await loadOf(s)
+      const record = snapshot.controls.find(item => item.operation === control)!
+      return {
+        ...s.access,
+        execution: s.execution,
+        operation: journalOperation(name),
+        authorization: {
+          kind: 'cancel' as const,
+          control,
+          source: record.stages.accepted.source,
+        },
+        expected: snapshot.revision,
+        installation: testCancellationPolicyInstallation.record,
+      }
+    }
+    ok(
+      await s.view.journal.commitSettlement({
+        ...(await common('establish')),
+        kind: 'establish-cancellation',
+        predecessor: null,
+      }),
+    )
+    const established = await loadOf(s)
+    const route = established.settlement.route!
+    ok(
+      await s.view.journal.commitSettlement({
+        ...(await common('judge')),
+        kind: 'judge-cancellation',
+        candidate: route.candidate,
+        route: route.record,
+      }),
+    )
+    const before = await common('prepare')
+    ok(
+      await s.view.journal.prepareFinish({
+        ...s.access,
+        execution: s.execution,
+        operation: journalOperation('prepare'),
+        authorization: before.authorization,
+        expected: before.expected,
+        candidate: route.candidate,
+      }),
+    )
+    const snapshot = await loadOf(s)
+    const { view, blobs, namespace } = s.view.controls.facts()
+    const execution = view.executions.get(s.execution)!
+    const projected = finishingOf(execution, blobs, {
+      receipt: (op, pub, revision) => ({
+        operation: op,
+        execution: s.execution,
+        revision: revisionOf(revision),
+        evidence: {
+          owner: JOURNAL_OWNER,
+          record: `${namespace}/${s.execution}/pub/${pub}`,
+          revision: String(revision),
+          digest: execution.ops.get(op)!.digest,
+        },
+        state: 'applied',
+      }),
+      checkpoint: (candidate, revision) =>
+        journalValueEvidence(
+          `${namespace}/${s.execution}/candidate/${candidate}/checkpoint`,
+          revision,
+        ),
+    })
+    expect(snapshot.settlement.judgments).toHaveLength(1)
+    expect(settlementOf(projected)).toEqual(snapshot.settlement)
+    expect(currentObligations(projected)).toEqual(snapshot.finishObligations)
+    // The candidate holds a cursor reference, not the checkpoint: the block is the cursor members,
+    // whose content members are references again.
+    const candidate = execution.finish.candidates[0]!
+    expect(candidate).not.toHaveProperty('checkpoint')
+    const cursor = blobs.get(candidate.cursor.digest) as Record<string, unknown>
+    expect(cursor['calls']).toEqual(refOf(snapshot.checkpoint.calls))
+    expect(cursor['passages']).toEqual(refOf(snapshot.checkpoint.passages))
   })
 })

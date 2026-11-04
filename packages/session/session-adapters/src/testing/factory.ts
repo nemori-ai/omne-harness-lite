@@ -1029,6 +1029,19 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         faultWrite: cell.fault,
         quarantine: cell.quarantine,
         root: () => cell.current().position,
+        /**
+         * The Agent fact family of this session as published (R2-D292): the appended batches, their
+         * fold, the blocks, and the namespace the batch evidence is minted under. Read only.
+         */
+        facts: () => {
+          const agent = cell.current().agent
+          return {
+            log: agent.log,
+            view: agent.view,
+            blobs: agent.blobs as ReadonlyMap<string, unknown>,
+            namespace: cell.namespace,
+          }
+        },
       },
       durability: 'none' as const,
     }
