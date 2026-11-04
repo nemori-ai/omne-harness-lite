@@ -189,11 +189,7 @@ describe('影响面计划（真实规则）', () => {
 
   it('底层成员的源码：turbo 选出的下游进来，并说出是因为依赖', () => {
     const result = plan(['packages/core/base/src/a.ts'])
-    expect(result.test).toEqual([
-      'packages/core/base',
-      'packages/core/mid',
-      'apps/top',
-    ])
+    expect(result.test).toEqual(['packages/core/base', 'packages/core/mid', 'apps/top'])
     const why = Object.fromEntries(result.members.map(entry => [entry.path, entry]))
     expect(why['packages/core/mid']?.downstream).toBe(true)
     expect(why['apps/top']?.downstream).toBe(true)
@@ -566,11 +562,7 @@ describe('锁文件按 importer 映射到成员（W2-C1）', () => {
   it('锁文件与别的成员的代码一起改：两边的成员都进来；映射成员自己也改了代码时不算依赖方', () => {
     const both = planLock(['pnpm-lock.yaml', 'packages/infra/leaf/src/x.ts'], ONE_MEMBER_DEPENDENCY)
     expect(both.mode).toBe('scoped')
-    expect(both.test).toEqual([
-      'packages/infra/leaf',
-      'packages/c',
-      'packages/d',
-    ])
+    expect(both.test).toEqual(['packages/infra/leaf', 'packages/c', 'packages/d'])
     const same = planLock(['pnpm-lock.yaml', 'packages/c/src/x.ts'], ONE_MEMBER_DEPENDENCY)
     expect(same.members.find(entry => entry.path === 'packages/c')).toEqual({
       path: 'packages/c',
@@ -657,22 +649,14 @@ describe('按测量收窄的规则（#793）', () => {
 
   it('N2：同一成员既改文档又改代码，照旧选中它与它的下游', () => {
     const result = plan(['packages/core/base/SPEC.md', 'packages/core/base/src/a.ts'])
-    expect(result.test).toEqual([
-      'packages/core/base',
-      'packages/core/mid',
-      'apps/top',
-    ])
+    expect(result.test).toEqual(['packages/core/base', 'packages/core/mid', 'apps/top'])
     expect(result.members.find(entry => entry.path === 'packages/core/mid')?.downstream).toBe(true)
     expect(describe_(result)).not.toContain('只改了文档、不选的成员')
   })
 
   it('N2：只改了文档的成员同时是代码改动成员的下游，照旧作为下游选中', () => {
     const result = plan(['packages/core/base/src/a.ts', 'packages/core/mid/README.md'])
-    expect(result.test).toEqual([
-      'packages/core/base',
-      'packages/core/mid',
-      'apps/top',
-    ])
+    expect(result.test).toEqual(['packages/core/base', 'packages/core/mid', 'apps/top'])
     expect(result.members.find(entry => entry.path === 'packages/core/mid')).toEqual({
       path: 'packages/core/mid',
       changed: [],
@@ -718,11 +702,7 @@ describe('按测量收窄的规则（#793）', () => {
   it('N2：同一成员既改文档又改代码时没有只改了文档的成员，不要依赖图，照旧选中它与下游', () => {
     const paths = ['packages/core/base/SPEC.md', 'packages/core/base/src/a.ts']
     const result = planCheck(paths, MEMBERS, RULES, turboLike(paths, MEMBERS))
-    expect(result.test).toEqual([
-      'packages/core/base',
-      'packages/core/mid',
-      'apps/top',
-    ])
+    expect(result.test).toEqual(['packages/core/base', 'packages/core/mid', 'apps/top'])
     expect(result.documentsOnly).toEqual([])
   })
 
@@ -820,10 +800,7 @@ describe('按测量收窄的规则（#793）', () => {
 
   it('新顶层文件仍判全量；改代码仍选中成员与下游', () => {
     expect(plan(['m793-new.txt']).mode).toBe('full')
-    expect(plan(['packages/core/mid/src/a.ts']).test).toEqual([
-      'packages/core/mid',
-      'apps/top',
-    ])
+    expect(plan(['packages/core/mid/src/a.ts']).test).toEqual(['packages/core/mid', 'apps/top'])
   })
 })
 
