@@ -1071,4 +1071,3 @@ it('does not claim H06 when readable received material names another original ca
   expect(kindAt(observed, 'H06')).not.toBe('connected')
   expect(evidenceAt(observed, 'H06')).toContain('agent:no reply of the journal Model call')
 })
-
