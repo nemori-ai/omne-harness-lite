@@ -237,7 +237,10 @@ async function createSession(
   // run, so the entry refuses before Session is called. The wire outcome of Session `unavailable`.
   const initialModelSelection = resolved.initialModelSelection
   if (initialModelSelection === undefined) {
-    emit(context.diagnostics, { code: 'session.definition-incomplete', operation: request.operation })
+    emit(context.diagnostics, {
+      code: 'session.definition-incomplete',
+      operation: request.operation,
+    })
     return answer('basis-unavailable', {})
   }
   const creation: SessionCreation = {

@@ -332,7 +332,12 @@ const ENTRY: DefinitionMappingEntry = {
   modes: { permission: 'never', environment: adoption('env'), collaboration: 'co-work' },
   initialModelSelection: {
     name: 'fixture/model',
-    basis: { owner: 'fixture', record: 'model-selection', revision: '1', digest: 'sha256:selection' },
+    basis: {
+      owner: 'fixture',
+      record: 'model-selection',
+      revision: '1',
+      digest: 'sha256:selection',
+    },
   },
 }
 
