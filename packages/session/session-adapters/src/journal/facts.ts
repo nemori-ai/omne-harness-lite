@@ -225,7 +225,9 @@ export type FactBody =
       fact: ModelReplyAdmission
       basis: DurableEvidence
       publication: DurableEvidence
+      /** The admitted reply as the step published it, and the source of that message event. */
       message: Ref<Message> | null
+      source: DurableEvidence | null
       history: DurableEvidence | null
     }>
   /**
@@ -255,6 +257,8 @@ export type FactBody =
       kind: 'handoff.retired'
       handoff: HandoffReference
       reason: DurableEvidence
+      /** The excluded resolution the retire fixes (a block of the HandoffResolution). */
+      excluded: Ref
     }>
   | Readonly<{
       kind: 'handoff.recorded'
@@ -262,6 +266,8 @@ export type FactBody =
       resolution: 'recorded' | 'excluded'
       outcome: Ref
       predecessor: AgentOperationId | null
+      /** The custody derivation the attempt carried (a block of the HandoffCustody), null at the root. */
+      custody: Ref | null
     }>
   | Readonly<{
       kind: 'batch.fixed'

@@ -117,6 +117,7 @@ export type AdmissionView = Readonly<{
   basis: DurableEvidence
   publication: DurableEvidence
   message: Ref | null
+  source: DurableEvidence | null
   history: DurableEvidence | null
   pub: number
   revision: number
@@ -132,12 +133,18 @@ export type HandoffView = Readonly<{
     pub: number
     revision: number
   }> | null
-  retired: Readonly<{ reason: DurableEvidence; pub: number; revision: number }> | null
+  retired: Readonly<{
+    reason: DurableEvidence
+    excluded: Ref
+    pub: number
+    revision: number
+  }> | null
   /** The Rh chain: each recorded attempt in order, with its predecessor. */
   recorded: readonly Readonly<{
     resolution: 'recorded' | 'excluded'
     outcome: Ref
     predecessor: AgentOperationId | null
+    custody: Ref | null
     op: AgentOperationId
     pub: number
   }>[]
@@ -621,6 +628,7 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
             basis: fact.basis,
             publication: fact.publication,
             message: fact.message,
+            source: fact.source,
             history: fact.history,
             pub,
             revision,
@@ -659,7 +667,7 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
       if (handoff.retired === null)
         draft.handoffs.set(handoffKey(fact.handoff), {
           ...handoff,
-          retired: { reason: fact.reason, pub, revision },
+          retired: { reason: fact.reason, excluded: fact.excluded, pub, revision },
         })
       break
     }
@@ -674,6 +682,7 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
             resolution: fact.resolution,
             outcome: fact.outcome,
             predecessor: fact.predecessor,
+            custody: fact.custody,
             op: op as AgentOperationId,
             pub,
           },

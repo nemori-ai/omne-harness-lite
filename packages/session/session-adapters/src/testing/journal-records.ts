@@ -7,11 +7,16 @@
 // bridge; the bridge is removed once every field is.
 import type {
   AcceptedInput,
+  Adoption,
+  AgentEvent,
+  AgentEventBody,
   AgentOperationId,
   CommandReceipt,
   ControlRecord,
   DurableEvidence,
   ExecutionState,
+  HandoffOutcome,
+  HandoffResolution,
   ResultResponsibility,
   TerminalObservation,
 } from '@omne-harness/agent-contract'
@@ -26,8 +31,15 @@ import {
   type OperationEntry,
   type PublishedBatch,
 } from '../journal/index.ts'
-import type { AdmissionRecord, MemoryExecution } from './journal.ts'
-import { revisionOf } from './journal-values.ts'
+import type {
+  AdmissionLedger,
+  AdmissionProjection,
+  AdmissionRecord,
+  HandoffRecord,
+  MemoryExecution,
+} from './journal.ts'
+import { finishingOf } from './journal-finishing.ts'
+import { journalEvidence, revisionOf, semanticKey } from './journal-values.ts'
 
 /** Every field of the reader record, in the order the bridge serializes them. */
 export const EXECUTION_FIELDS = [
@@ -66,7 +78,13 @@ export type ProjectionContext = Readonly<{
   tenant: TenantId
   blobs: BlobStore
   mint: Mint
+  /** The schema the Journal stamps on every event (its `eventSchema` option). */
+  eventSchema: Adoption
+  /** The reply admission rule of the Journal (its `replyAdmissionRule` option). */
+  admissionRule: Adoption
 }>
+
+type CustodyAttempt = MemoryExecution['custodyAttempts'] extends Map<unknown, infer V> ? V : never
 
 /** The operation entries of the execution by the publication of their batch (recognitions apart). */
 function opsByPub(view: ExecutionView): Map<number, [AgentOperationId, OperationEntry]> {
@@ -108,6 +126,69 @@ function pubOf(evidence: DurableEvidence): number | null {
  * The value a reference names. A `blobOf` pair (`[digest, value]`, which the core's `open` still
  * writes for the accepted message, K-23) carries its value; a reference is looked up by digest.
  */
+/** The reader's ProducedResult of a fact's ProducerCall. */
+function producedOf(
+  result: Readonly<{
+    producer: 'model' | 'tool'
+    call: string
+    version: string
+    delivery: string | null
+    source: DurableEvidence
+  }>,
+): ResultResponsibility['result'] {
+  return {
+    producer: { kind: result.producer, call: result.call } as never,
+    version: result.version,
+    delivery: result.delivery,
+    source: result.source,
+  }
+}
+
+/** The event body a fact projects (the reader's AgentEventBody), or null for a fact that is none. */
+function bodyOf(
+  fact: ExecutionView['events'][number]['fact'],
+  blobs: BlobStore,
+): AgentEventBody | null {
+  switch (fact.kind) {
+    case 'step.begun':
+      return { kind: 'input-taken', batch: fact.batch }
+    case 'result.received':
+      return { kind: 'entry', entry: blob(blobs, fact.custody) }
+    case 'fence.started':
+      return {
+        kind: 'entry',
+        entry: {
+          kind: 'start-fence',
+          operation: fact.operation as never,
+          guard: fact.guard,
+          fence: fact.fence,
+        },
+      }
+    case 'result.handled':
+      return { kind: 'producer', result: producedOf(fact.result), consumption: fact.consumption }
+    case 'reply.judged':
+      return fact.message === null || fact.source === null
+        ? null
+        : { kind: 'message', message: blob(blobs, fact.message), source: fact.source }
+    case 'message.published':
+      return { kind: 'message', message: blob(blobs, fact.message), source: fact.source }
+    case 'control.stage':
+      return {
+        kind: 'control',
+        operation: fact.control,
+        stage: fact.stage,
+        state: fact.state,
+        source: fact.source,
+      }
+    case 'wait.entered':
+      return { kind: 'waiting', waits: fact.waits }
+    case 'finish.ended':
+      return { kind: 'ended', conclusion: fact.conclusion, disposition: fact.disposition }
+    default:
+      return null
+  }
+}
+
 function blob<T>(blobs: BlobStore, ref: unknown): T {
   if (Array.isArray(ref) && ref.length === 2 && typeof ref[0] === 'string') {
     const kept = blobs.get(ref[0])
@@ -252,6 +333,163 @@ export function projectExecution(
   } catch {
     // An execution whose cursor was never moved whole (no checkpoint yet): the field stays absent.
   }
+  const revisionAt = (pub: number): number | undefined => byPub.get(pub)?.[1].revision
+  const opAt = (pub: number): AgentOperationId | undefined => byPub.get(pub)?.[0]
+  // Events: the AgentEvent of each event fact, caused by the receipt evidence of its batch (the
+  // end by its disposition).
+  projected.events = view.events.flatMap((event): AgentEvent[] => {
+    const body = bodyOf(event.fact, context.blobs)
+    const found = receipt(event.pub)
+    if (body === null || found === undefined) return []
+    return [
+      {
+        execution: view.execution,
+        sequence: String(event.eseq),
+        executionAttachment: (event.attachment?.executionAttachment ?? '') as never,
+        schema: context.eventSchema,
+        cause: event.fact.kind === 'finish.ended' ? event.fact.disposition : found.evidence,
+        body,
+      },
+    ]
+  })
+  // The finishing records, projected from the folded facts with the batch mint.
+  projected.finishing = finishingOf(view, context.blobs, {
+    receipt: (op, pub, revision) => ({
+      operation: op,
+      execution: view.execution,
+      revision: revisionOf(revision),
+      evidence: batchEvidence(
+        context.mint,
+        {
+          execution: view.execution,
+          pub,
+          envelope: { digest: view.ops.get(op)?.digest ?? '' },
+        } as PublishedBatch,
+        revision,
+      ),
+      state: 'applied',
+    }),
+    checkpoint: (candidate, revision) =>
+      journalEvidence(
+        `${context.mint.session}/${view.execution}/candidate/${candidate}/checkpoint`,
+        revision,
+      ),
+  })
+  // The revision each result responsibility last reached: the batch of its latest stage.
+  projected.resultRevisions = new Map(
+    [...view.results.values()].flatMap(item => {
+      const pubs = Object.values(item.stages).flatMap(stage =>
+        stage === undefined ? [] : [pubOf(stage) ?? 0],
+      )
+      const revision = pubs.length === 0 ? undefined : revisionAt(Math.max(...pubs))
+      if (revision === undefined) return []
+      const key = semanticKey('responsibility', [
+        { kind: item.result.producer, call: item.result.call },
+        item.result.version,
+        item.consumption,
+      ])
+      return [[key, revision] as [string, number]]
+    }),
+  )
+  // The reply admission ledger: the origin the open minted, and the projection folded from it.
+  const parts = [...(JSON.parse(context.mint.session) as string[]), view.execution]
+  const originRevision = view.opened === null ? 1 : (revisionAt(view.opened.pub) ?? 1)
+  const origin = journalEvidence(
+    `${JSON.stringify(parts)}/reply-admission-prefix/0`,
+    originRevision,
+  )
+  let projection: AdmissionProjection = {
+    rule: context.admissionRule,
+    consecutive: 0,
+    total: 0,
+    last: null,
+    sequence: 0,
+    basis: origin,
+  }
+  for (const item of view.admissions)
+    projection =
+      item.fact.decision === 'rejected'
+        ? {
+            ...projection,
+            consecutive: projection.consecutive + 1,
+            total: projection.total + 1,
+            sequence: projection.sequence + 1,
+            basis: item.basis,
+          }
+        : {
+            ...projection,
+            consecutive: 0,
+            last: item.fact.source,
+            sequence: projection.sequence + 1,
+            basis: item.basis,
+          }
+  const ledger: AdmissionLedger = { origin, retainedFrom: 1, rangesFrom: 0, projection }
+  projected.admissionLedger = ledger
+  // Handoffs: each H as the reader records keep it.
+  const ended = view.finish.ended
+  projected.handoffs = [...view.handoffs.values()].flatMap((item): HandoffRecord[] => {
+    const outcome =
+      item.resolved === null ? null : blob<HandoffOutcome>(context.blobs, item.resolved.outcome)
+    const excluded =
+      item.retired === null
+        ? null
+        : blob<Extract<HandoffResolution, { kind: 'excluded' }>>(
+            context.blobs,
+            item.retired.excluded,
+          )
+    const request =
+      item.prepared !== null
+        ? blob<HandoffRecord['request']>(context.blobs, item.prepared.request)
+        : (outcome?.request ?? excluded?.request)
+    if (request === undefined) return []
+    const resolution: HandoffRecord['resolution'] =
+      outcome !== null ? { kind: 'recorded', outcome } : excluded
+    const history: HandoffRecord['history'] =
+      item.retired !== null
+        ? { kind: 'not-applicable' }
+        : item.resolved !== null && (item.prepared === null || item.resolved.history !== null)
+          ? {
+              kind: 'committed',
+              operation: opAt(item.resolved.pub) as AgentOperationId,
+              revision: revisionOf(item.resolved.revision),
+            }
+          : ended !== null
+            ? { kind: 'retained', disposition: ended.disposition }
+            : { kind: 'pending' }
+    return [
+      {
+        handoff: item.handoff,
+        request,
+        prepared: item.prepared?.prepared ?? null,
+        resolution,
+        history,
+        retirement:
+          item.retired === null
+            ? null
+            : {
+                operation: opAt(item.retired.pub) as AgentOperationId,
+                revision: revisionOf(item.retired.revision),
+                reason: item.retired.reason,
+              },
+      },
+    ]
+  })
+  // The Rh custody attempts, by operation: the original and the custody the attempt carried.
+  projected.custodyAttempts = new Map(
+    [...view.handoffs.values()].flatMap(item =>
+      item.recorded.map((attempt): [AgentOperationId, CustodyAttempt] => [
+        attempt.op,
+        {
+          handoff: item.handoff,
+          original: blob(context.blobs, attempt.outcome),
+          custody: attempt.custody === null ? null : blob(context.blobs, attempt.custody),
+        },
+      ]),
+    ),
+  )
+  // The evidence serial starts at the open's publication and is advanced only by the legacy
+  // seeding controls of the tests.
+  projected.serial = view.opened === null ? 0 : view.opened.pub
   return projected
 }
 

@@ -40,6 +40,13 @@ const PROJECTED: readonly ExecutionField[] = [
   'observed',
   'admissions',
   'entries',
+  'events',
+  'finishing',
+  'resultRevisions',
+  'admissionLedger',
+  'handoffs',
+  'custodyAttempts',
+  'serial',
 ]
 
 describe('the reader records projected from the fold', () => {
@@ -139,6 +146,18 @@ describe('the reader records projected from the fold', () => {
       tenant: s.access.tenant,
       blobs,
       mint: { owner: JOURNAL_OWNER, session: namespace },
+      eventSchema: {
+        owner: JOURNAL_OWNER,
+        name: 'agent-event',
+        revision: '1',
+        digest: 'memory:agent-event',
+      },
+      admissionRule: {
+        owner: JOURNAL_OWNER,
+        name: 'reply-admission-projection',
+        revision: '1',
+        digest: 'memory:reply-admission-projection',
+      },
     })
     const diff = fieldsDiff(written, projected)
     const report = [

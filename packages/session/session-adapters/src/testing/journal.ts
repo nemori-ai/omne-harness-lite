@@ -3513,7 +3513,7 @@ export function createJournal<P>(
             kind: 'input.accepted',
             input: initial.id,
             entry: acceptance.handoff.entry,
-            message: blobOf(initial.content) as unknown as never,
+            message: refOf(initial.content),
             source: initial.source,
             priority: initial.priority,
             watermark: outcome.record,
@@ -3524,7 +3524,7 @@ export function createJournal<P>(
             kind: 'handoff.resolved',
             handoff: acceptance.handoff,
             resolution: 'recorded',
-            outcome: blobOf(outcome) as unknown as never,
+            outcome: refOf(outcome),
             history: outcome.record,
           },
           {
@@ -3957,13 +3957,18 @@ export function createJournal<P>(
           // `admit` mints the basis of the new prefix; only a test that removes it leaves null.
           if (admitted.record.basis === null)
             throw new TypeError('a new reply admission has no prefix basis')
+          // The admitted reply is the message event of this commit: the fact refers to it, so the
+          // event is projected from the fact and its block (K-23 item 四).
+          const reply = input.events.find(body => body.kind === 'message')
+          if (reply?.kind === 'message') blobs.push(blobOf(reply.message))
           facts.push({
             kind: 'reply.judged',
             sequence: execution.admissionLedger.projection.sequence + 1,
             fact: copy(admitted.record.fact),
             basis: admitted.record.basis,
             publication: evidence,
-            message: null,
+            message: reply?.kind === 'message' ? refOf(reply.message) : null,
+            source: reply?.kind === 'message' ? copy(reply.source) : null,
             history: input.handoff?.kind === 'resolve' ? copy(input.handoff.outcome.record) : null,
           })
         }
@@ -3986,10 +3991,12 @@ export function createJournal<P>(
             history: handoff.outcome.decision.kind === 'prepared' ? evidence : null,
           })
         } else if (handoff?.kind === 'retire' && handoff.excluded.request.kind === 'execution') {
+          blobs.push(blobOf(handoff.excluded))
           facts.push({
             kind: 'handoff.retired',
             handoff: copy(handoff.excluded.request.reference),
             reason: copy(handoff.reason),
+            excluded: refOf(handoff.excluded),
           })
         }
         // The author route of a new candidate is named by the candidate, never by a counter.
@@ -4632,11 +4639,13 @@ export function createJournal<P>(
           resolution: input.original.kind,
           outcome: refOf(input.original),
           predecessor: custody === null ? null : custody.predecessor.operation,
+          custody: custody === null ? null : refOf(custody),
         })
         return {
           kind: 'batch',
           facts,
-          blobs: [blobOf(input.original)],
+          blobs:
+            custody === null ? [blobOf(input.original)] : [blobOf(input.original), blobOf(custody)],
           kinds: [],
           derive: receiptIn,
           project: (_batch, view) => {

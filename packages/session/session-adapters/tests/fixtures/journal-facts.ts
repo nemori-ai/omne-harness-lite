@@ -307,6 +307,7 @@ function roundBatches(builder: Builder, rng: Random): void {
       basis: evidence(`${builder.execution}/prefix/${builder.admissions}`),
       publication: evidence(`${builder.execution}/publication/${builder.admissions}`),
       message: blob({ role: 'assistant', content: 'reply' }),
+      source: evidence(`${builder.execution}/message/${builder.step}`),
       history: evidence(`${builder.execution}/history/${builder.step}`),
     },
     {
