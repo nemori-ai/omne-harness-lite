@@ -42,9 +42,10 @@ function isDirectory(path: string): boolean {
 /**
  * The real path of the workspace, the root that the Files and Shell rows get (R2-D376). A workspace
  * named through a link or by its 8.3 short name is served at the directory that it names. It is
- * taken once, here; the settings file keeps what `setup` wrote.
+ * taken once, here; the settings file keeps what `setup` wrote. Undefined when it is not a directory.
  */
 function realWorkspace(path: string): string | undefined {
+  if (!isDirectory(path)) return undefined
   try {
     return realpathSync.native(path)
   } catch {
@@ -104,7 +105,7 @@ export function localServeInputs(input: LocalServeInput): LocalServe {
   const { settings } = read
   const vault = vaultProblem(locations.vaultFile)
   if (vault !== undefined) return vault
-  const workspace = isDirectory(settings.workspace) ? realWorkspace(settings.workspace) : undefined
+  const workspace = realWorkspace(settings.workspace)
   if (workspace === undefined)
     return {
       kind: 'refused',
