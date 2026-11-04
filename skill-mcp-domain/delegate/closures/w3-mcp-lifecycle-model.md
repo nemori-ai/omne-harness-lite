@@ -101,3 +101,4 @@ developer，implementation_kind verification（加载 verification-facility）�
 - 同一用例连试三种做法仍红。
 
 ## 追加记录
+- 2026-11-04T11:15Z 负责人授权安装形式工具链：/opt/tlaplus/tla2tools.jar（v1.7.4，sha256 936a2620…，TLC 2.19）、/opt/alloy/alloy-6.2.0.jar（sha256 6b8c1cb5…），`pnpm run check:formal-tools` 通过；包装脚本 /usr/local/bin/{tlc,tla2sany,alloy}，环境变量在 /etc/profile.d/tlaplus.sh（非登录 shell 先 `. /etc/profile.d/tlaplus.sh`）。模型必须实际用 TLC 检查，记录工具版本、配置、探索范围（状态数、深度）与结论；不再记「已声明但未执行」。

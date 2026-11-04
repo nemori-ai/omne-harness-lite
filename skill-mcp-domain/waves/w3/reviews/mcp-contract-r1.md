@@ -22,3 +22,11 @@
 
 - reduce 复跑：16/16（459 + 254），四项 lint 与格式退出 0；结构性改动 `grep` 核实。
 - 增量 L3（opus@high，探针在 scratchpad/review-w3-mcp-contract-r2/）：无阻断。C1–C6、C8、C9 与待裁 1、3 关闭；C7、待裁 2、4、6 部分关闭。第 1 轮全部违约传输（B1–B8 各变体）现在都变红。真管道 stdio 传输 47 过、0 败、20 不适用（全是 HTTP 用例），夹具接口可由真实传输实现（对端须是读脚本的子进程，SDK 服务端做不出的脚本答 `NotApplicable`）。建议：协商版本只在部分方法上核（N2 三变体 0 失败）；旧一路 HTTP 头依赖材料次序（N1d）；非 discover 请求的 400 无用例（N4c/N4d）；`getTask` 收「`error` 不是对象」不核（N5c）；旧版本列表只测低于范围的值（N6b/N6c）；`modernPath` CC 19、`httpAnswer` CC 14 未交代。待裁：旧连接 `_meta` 声明任务扩展与裁定 3 字面冲突；与 SDK 2.4.0 的另两处探测差异（`-32022` 无 `supported`、只列旧版本）；夹具 `protocolVersions` 能否含旧版本；HTTP 上 discover 的 404/405。
+
+## 第 3 轮（head c407fab9d）：SPEC 表达评审（design-reviewer opus@xhigh）
+
+reduce 复跑 16/16、四项 lint 与格式退出 0；51 条变异全部变红。表达评审阻断 B1–B8：T3 总则「两条路都失败才答失败」比已定事项宽、与例外冲突；HTTP 上 JSON-RPC 层的回退规则缺；T 节缺端口 reject 条款；observe 交出什么没写；`error-missing` 与 `error-shape` 重叠；旧一路 `initialize` 读懂的定义缺；非 discover 的 HTTP 状态与旧会话终止无规则（S7 `session-ended` 无法产生）；`nextCursor` 写坏时可能把不完整清单当完整发布。非阻断 N1–N19；组页冲突 G1–G8（波末写回）；待裁 P1–P5。
+
+## reduce 处置（2026-11-04T11:30Z）：结构性重写，不再补条款
+
+根因：T3、T5、T7 经三轮逐条加例外而成，不是一个全函数。处置：把传输的读法重写成定义在封闭输入域上的全决策表，套件用例由表的行生成；见闭包规格追加记录 11:30Z。P1：SDK 越过了已接受的 RFC-0001 r4，reduce 已钉回 2.3.1（28ca6aaf8）；契约引用改为 2.3.1。

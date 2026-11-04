@@ -35,3 +35,7 @@
 参考服务端是仓库的测试依赖（978624857，负责人 2026-11-04 决定）：npm 两个在 `mcp-host-local` 的 devDependencies，Python 一个在根 `pyproject.toml` 的非默认组 `mcp-fixtures`（`uv sync --group mcp-fixtures`）。SDK 同时从 2.3.1 钉到 2.4.0（参考服务端的依赖要求）；W2 探路结论在 2.3.1 上得出，`w3-mcp-host` 在 2.4.0 上用测试重新确认。
 
 出口判据（`w3-mcp-e2e`）：我们的 `createMcp` + 本地传输在上表每个可达目标上完成「发现 → 列工具 → 调用一个只读工具」，结论与对照客户端一致；新旧两种修订都覆盖。
+
+## 2026-11-04 更正：SDK 钉回 2.3.1
+
+978624857 把 SDK 提到 2.4.0，越过了已接受的 RFC-0001 r4（client 与 server 各 2.3.1，node 适配 2.1.1）。28ca6aaf8 改回 2.3.1，参考服务端的传递依赖用 workspace overrides 钉住（node 2.1.1、server-legacy 2.3.1）。官方 SDK 2.3.1 客户端重跑六个目标：server-everything 22、server-filesystem 14、mcp-server-fetch 1（都是 2026-07-28），DeepWiki 3、Context7 2（2026-07-28），Microsoft Learn 3（2025-06-18）。结论不变。
