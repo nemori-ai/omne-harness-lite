@@ -163,7 +163,14 @@ describe('isSealedSnapshot', () => {
     expect(isSealedSnapshot(Object.freeze({ ...sealed.ok }))).toBe(false)
   })
 
-  it.each([undefined, null, 'snapshot', 7, [], {}])('refuses %j without throwing', value => {
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['a text', 'snapshot'],
+    ['a number', 7],
+    ['a list', []],
+    ['an empty object', {}],
+  ])('refuses %s without throwing', (_case, value) => {
     expect(isSealedSnapshot(value)).toBe(false)
   })
 })
