@@ -18,7 +18,7 @@
 - [ensure.spec.ts](ensure.spec.ts)：连接表的复用、重建、单飞、配值缺陷、连接失败、句柄释放、连接时限与键
 - [entry.spec.ts](entry.spec.ts)：`holdsNothing` 五种资源各一例；删除条件 `forgettable`（已关闭且什么也不持有）
 - [teardown.spec.ts](teardown.spec.ts)：拆除在 `close()`／`stop()`／`release()` reject 每种组合下每步都执行；某个 `stop()` reject 时其余进程仍被要求停止；拆除等端口时条目不被删除；落点在途时的 `release`／`closeAll`、关停后不建连、关停时立即释放句柄
-- [shutdown.spec.ts](shutdown.spec.ts)：`closeAll` 先释放在途落点的句柄，不等别的条目关闭；建连途中关停，不再起进程、不再打开传输
+- [shutdown.spec.ts](shutdown.spec.ts)：`closeAll` 先释放在途落点的句柄，不等别的条目关闭；建连途中关停，不再起进程、不再打开传输，也不标记清单
 - [turns.spec.ts](turns.spec.ts)：每个持有一次只跑一个的轮次
 - [port-breach.spec.ts](port-breach.spec.ts)：读类端口（采用、资格、存储）reject 当作 `unknown`／`unavailable`
 - [refresh.spec.ts](refresh.spec.ts)：读口与发布边界，含并发与迟到结果

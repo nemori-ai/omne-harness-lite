@@ -17,6 +17,11 @@ const WITH_CREDENTIAL = {
   env: [{ name: 'TOKEN', source: 'credential' }],
 } as const
 const REFUSED = { failure: { kind: 'connection-unavailable' } }
+const ANONYMOUS_KEY = {
+  tenant: alice.tenant,
+  account: { kind: 'anonymous' as const },
+  holding: files.holding,
+}
 
 function opens(w: World): number {
   return w.transports.calls.filter(call => call.kind === 'open').length
@@ -105,5 +110,31 @@ describe('a build under way when the table shuts goes no further (decision 5)', 
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(opens(w)).toBe(0)
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
+  })
+})
+
+describe('a build cut off by the shutdown marks nothing', () => {
+  it('the catalog keeps its revision: the shutdown is a fact of this instance, not of the endpoint', async () => {
+    const w = world({ script: [...usualScript(), ...usualScript()] })
+    adoptStdio(w, files)
+    // The first start lands at once; the start of the rebuild waits until the table is shut.
+    const stalled = stallingLanding(w.landing, only(2))
+    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+    const published = await w.store.read(ANONYMOUS_KEY)
+    expect(await c.connections.release(alice, files)).toEqual({
+      ok: { kind: 'released', process: 'tree-confirmed' },
+    })
+    const refreshed = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    expect(stalled.calls()).toBe(2)
+    const all = c.connections.closeAll()
+    await settled()
+    stalled.gate.resolve()
+    expect(await refreshed).toEqual(REFUSED)
+    expect(await all).toEqual([{ ref: files, process: 'no-process' }])
+    expect(await w.store.read(ANONYMOUS_KEY)).toEqual(published)
   })
 })
