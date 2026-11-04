@@ -1,0 +1,271 @@
+// The build of one connection (SPEC S4 step 4, MC-5) under the connection bound of invariant 5,
+// which starts at the credential and covers the process start, the open and the negotiation;
+// and how a lost one is settled: requests refused, the entry torn down, the catalog marked. A
+// port that throws within the bound is torn down like a failure, then the error goes on to the
+// caller. The builder writes the entry's resources; the table decides when the entry exists.
+import type { Access } from '@omne-harness/legal-identity'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import {
+  markUnavailable,
+  type CatalogKey,
+  type ConnectionFailure,
+  type EffectUnknown,
+  type Generation,
+  type LostReason,
+  type McpConfig,
+  type McpPorts,
+  type NoAnswerCause,
+} from '@omne-harness/mcp-contract'
+import type {
+  CredentialFailure,
+  ProcessEnvironment,
+  TransportFailure,
+  TransportMaterial,
+} from '@omne-harness/mcp-contract/provider'
+import { afterwards, untilAborted } from './abort.ts'
+import type {
+  CatalogMark,
+  CredentialHandle,
+  Ensured,
+  EnsureFailure,
+  Entry,
+  UnavailableMark,
+} from './entry.ts'
+import { closeLate, releaseLate, stopLate } from './late.ts'
+import type { PreparedSettings } from './settings.ts'
+import { teardown } from './teardown.ts'
+
+export type Builder<P> = Readonly<{
+  /** Builds the connection of `entry` from `prepared`, under the connection bound. */
+  build(
+    entry: Entry,
+    access: Access<P>,
+    prepared: PreparedSettings,
+  ): Promise<Outcome<Ensured, EnsureFailure>>
+  /** The connection is lost: requests refused, the entry torn down, the catalog marked. */
+  markLost(entry: Entry, reason: LostReason, mark: UnavailableMark): Promise<CatalogMark>
+}>
+
+export type BuilderDependencies = Readonly<{
+  /** A landing that was still pending after its bound has answered: the table looks again. */
+  afterLanding(entry: Entry): void
+}>
+
+const CONNECTION_UNAVAILABLE: ConnectionFailure = { kind: 'connection-unavailable' }
+
+type Failed = Readonly<{
+  reason: ConnectionFailure | EffectUnknown
+  lost: LostReason
+  mark: UnavailableMark
+}>
+
+const PREPARATION_FAILED: Failed = {
+  reason: CONNECTION_UNAVAILABLE,
+  lost: 'preparation-failed',
+  mark: 'connection-unavailable',
+}
+
+function lostOfNoAnswer(cause: NoAnswerCause): LostReason {
+  switch (cause) {
+    case 'stream-broken':
+      return 'stream-broken'
+    case 'process-exited':
+      return 'process-exited'
+    case 'abandoned':
+      return 'preparation-failed'
+    default: {
+      const exhaustive: never = cause
+      return exhaustive
+    }
+  }
+}
+
+/** How a failure of `open` or `discover` is reported (SPEC R6, S5, S7). */
+function failedOf(failure: TransportFailure): Failed {
+  switch (failure.kind) {
+    case 'not-sent':
+      return failure.cause === 'authorization-required'
+        ? {
+            reason: { kind: 'authorization-required', discovery: failure.discovery },
+            lost: 'authorization-required',
+            mark: 'authorization-required',
+          }
+        : PREPARATION_FAILED
+    case 'no-answer':
+      return {
+        reason: { kind: 'effect-unknown', cause: failure.cause },
+        lost: lostOfNoAnswer(failure.cause),
+        mark: 'connection-unavailable',
+      }
+    case 'error-answer':
+    case 'answer-malformed':
+      return { ...PREPARATION_FAILED, lost: 'discover-failed' }
+    default: {
+      const exhaustive: never = failure
+      return exhaustive
+    }
+  }
+}
+
+export function createBuilder<P, S>(
+  ports: McpPorts<P, S>,
+  config: McpConfig<P>,
+  deps: BuilderDependencies,
+): Builder<P> {
+  async function markCatalog(key: CatalogKey, reason: UnavailableMark): Promise<CatalogMark> {
+    const read = await ports.store.read(key)
+    if ('failure' in read) return 'unavailable'
+    if (read.ok === 'absent') return 'not-acquired'
+    const written = await ports.store.write(key, markUnavailable(read.ok, reason), read.ok.revision)
+    if ('failure' in written)
+      return written.failure === 'unavailable' ? 'unavailable' : 'revision-conflict'
+    return 'marked'
+  }
+
+  async function markLost(
+    entry: Entry,
+    reason: LostReason,
+    mark: UnavailableMark,
+  ): Promise<CatalogMark> {
+    // Requests are refused at once; the teardown is the entry's one teardown.
+    entry.connection.lose(reason)
+    await teardown(entry)
+    return markCatalog(entry.catalogKey, mark)
+  }
+
+  /** A preparation failed: refuse requests, close what was taken (S9 handle included), mark, report. */
+  async function failed(entry: Entry, how: Failed): Promise<Outcome<never, EnsureFailure>> {
+    const catalog = await markLost(entry, how.lost, how.mark)
+    return fail({ stage: 'connect', reason: how.reason, catalog })
+  }
+
+  async function acquireCredential(
+    entry: Entry,
+    access: Access<P>,
+    prepared: PreparedSettings,
+    bound: AbortSignal,
+  ): Promise<Outcome<CredentialHandle | undefined, Failed>> {
+    const { credential, transport } = prepared
+    if (credential.auth === 'none') return succeed(undefined)
+    const holding = entry.ref.holding
+    const asked: Promise<Outcome<CredentialHandle, CredentialFailure>> =
+      transport.kind === 'stdio'
+        ? ports.credentials.acquire(access, holding, { kind: 'process-env' }, credential.binding)
+        : ports.credentials.acquire(
+            access,
+            holding,
+            { kind: 'http-authorization', target: transport.target },
+            credential.binding,
+          )
+    const acquired = await untilAborted(asked, bound)
+    if (acquired.kind === 'aborted') {
+      releaseLate(acquired.late)
+      return fail(PREPARATION_FAILED)
+    }
+    if ('failure' in acquired.value)
+      return fail({
+        reason: { kind: 'credential-unavailable', cause: acquired.value.failure },
+        lost: 'preparation-failed',
+        mark: 'credential-unavailable',
+      })
+    return succeed(acquired.value.ok)
+  }
+
+  async function materialOf(
+    entry: Entry,
+    access: Access<P>,
+    prepared: PreparedSettings,
+    generation: Generation,
+    bound: AbortSignal,
+  ): Promise<Outcome<TransportMaterial, Failed>> {
+    const { transport } = prepared
+    const { instructionsByteLimit } = config
+    const credential = entry.credential
+    if (transport.kind === 'streamable-http') {
+      const { target } = transport
+      return succeed(
+        credential?.purpose === 'http-authorization'
+          ? { kind: 'streamable-http', target, credential, generation, instructionsByteLimit }
+          : { kind: 'streamable-http', target, generation, instructionsByteLimit },
+      )
+    }
+    const env: ProcessEnvironment = {
+      values: transport.values,
+      credentials:
+        credential?.purpose === 'process-env'
+          ? transport.credentialVariables.map(name => ({ name, handle: credential }))
+          : [],
+    }
+    const started = await untilAborted(ports.landing.start(access, transport.launch, env), bound)
+    if (started.kind === 'aborted') {
+      // The process may still land, with the handle in its environment: the handle goes with it
+      // and is released after its `stop()` returned (S9); without a process, on the answer.
+      entry.credential = undefined
+      entry.landings += 1
+      afterwards(started.late, async late => {
+        try {
+          if ('ok' in late) await stopLate(entry, late.ok)
+        } finally {
+          entry.landings -= 1
+          deps.afterLanding(entry)
+          await credential?.release()
+        }
+      })
+      return fail(PREPARATION_FAILED)
+    }
+    if ('failure' in started.value)
+      return fail({
+        reason: { kind: 'landing-unavailable' },
+        lost: 'preparation-failed',
+        mark: 'landing-unavailable',
+      })
+    entry.process = started.value.ok
+    return succeed({ kind: 'stdio', process: started.value.ok, generation, instructionsByteLimit })
+  }
+
+  async function build(
+    entry: Entry,
+    access: Access<P>,
+    prepared: PreparedSettings,
+  ): Promise<Outcome<Ensured, EnsureFailure>> {
+    // What the key's earlier connection left is stopped again before the new attempt.
+    await teardown(entry)
+    const generation = entry.connection.attempt()
+    const bound = AbortSignal.timeout(prepared.bound)
+    try {
+      const credential = await acquireCredential(entry, access, prepared, bound)
+      if ('failure' in credential) return await failed(entry, credential.failure)
+      entry.credential = credential.ok
+      const material = await materialOf(entry, access, prepared, generation, bound)
+      if ('failure' in material) return await failed(entry, material.failure)
+      const opened = await untilAborted(ports.transports.open(material.ok, bound), bound)
+      if (opened.kind === 'aborted') {
+        closeLate(opened.late)
+        return await failed(entry, PREPARATION_FAILED)
+      }
+      if ('failure' in opened.value) return await failed(entry, failedOf(opened.value.failure))
+      const transport = opened.value.ok
+      entry.transport = transport
+      const discovered = await untilAborted(transport.discover(), bound)
+      if (discovered.kind === 'aborted') return await failed(entry, PREPARATION_FAILED)
+      if ('failure' in discovered.value)
+        return await failed(entry, failedOf(discovered.value.failure))
+      entry.connection.ready(discovered.value.ok)
+      return succeed({
+        transport,
+        generation: entry.connection.generation,
+        connection: entry.view,
+        peer: discovered.value.ok,
+        catalogKey: entry.catalogKey,
+        adoptionRevision: entry.adoptionRevision,
+        bound: entry.bound,
+      })
+    } catch (error: unknown) {
+      if (entry.connection.state.kind === 'preparing') entry.connection.lose('preparation-failed')
+      await teardown(entry)
+      throw error
+    }
+  }
+
+  return { build, markLost }
+}
