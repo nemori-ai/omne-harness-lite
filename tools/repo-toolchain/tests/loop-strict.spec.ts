@@ -520,7 +520,21 @@ describe('严格模式', { timeout: 60_000 }, () => {
 })
 
 describe('Loop historical acceptance audit', { timeout: 60_000 }, () => {
-  it('retains original findings and the decision in JSON and Markdown, while rejecting later changes', () => {
+  // The audit reads the real history of this repository. With `newEdges` on, the first run makes
+  // dependency-cruiser build the graph of the whole base commit (about 34 of 40 seconds on the
+  // host), which took the case to the edge of its limit. That sensor does not decide the acceptance
+  // lock. The case therefore runs the loop in process with only `newEdges` off, as the case on
+  // switched-off sensors above does. The audit and the acceptance-lock hard line do not change.
+  const status = (root: string, home: string, base: string, out: string) => {
+    const config = readLoopConfig()
+    return runLoopStatus(
+      { root, base, out, strict: false, snapshot: false },
+      { OMNE_METRICS_HOME: home },
+      { ...config, sensors: { ...config.sensors, newEdges: { enabled: false } } },
+    )
+  }
+
+  it('retains original findings and the decision in JSON and Markdown, while rejecting later changes', async () => {
     const root = temporaryDirectory('loop-history-')
     const source = fileURLToPath(new URL('../../../', import.meta.url))
     const parent = 'e7aab8ec73002713d2ef6486401816850c984fb1'
@@ -533,12 +547,12 @@ describe('Loop historical acceptance audit', { timeout: 60_000 }, () => {
     git(root, 'checkout', '--quiet', '--detach', approvedCommit)
     const home = temporaryDirectory('loop-history-home-')
     const out = temporaryDirectory('loop-history-out-')
-    const approved = run(root, home, '--base', parent, '--out', out)
-    expect(approved.status, approved.stdout + approved.stderr).toBe(0)
-    const status = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
-    expect(status.hardLines.acceptanceLock).toEqual({ status: 'judged', violations: [] })
-    expect(status.auditRanges).toHaveLength(1)
-    expect(status.auditRanges[0].acceptance).toMatchObject({
+    const approved = await status(root, home, parent, out)
+    expect(approved.code, approved.lines.join('\n')).toBe(0)
+    const judged = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
+    expect(judged.hardLines.acceptanceLock).toEqual({ status: 'judged', violations: [] })
+    expect(judged.auditRanges).toHaveLength(1)
+    expect(judged.auditRanges[0].acceptance).toMatchObject({
       commits: [expect.objectContaining({ sha: approvedCommit, allowed: false })],
       violations: [expect.stringContaining('Agent-Role: developer')],
       approvedExceptions: [
@@ -552,12 +566,12 @@ describe('Loop historical acceptance audit', { timeout: 60_000 }, () => {
     expect(markdown).toContain('验收锁 无未解决违规')
     expect(markdown).not.toContain('没有不该改验收的角色动过它')
     write(root, path, 'new acceptance contract\n')
-    const dirty = run(root, home, '--base', parent, '--out', out)
-    expect(dirty.status, dirty.stderr).toBe(1)
-    expect(dirty.stdout).toContain('未提交的验收改动')
+    const dirty = await status(root, home, parent, out)
+    expect(dirty.code).toBe(1)
+    expect(dirty.lines.join('\n')).toContain('未提交的验收改动')
     commit(root, 'future acceptance edit\n\nAgent-Role: developer')
-    const future = run(root, home, '--base', parent, '--out', out)
-    expect(future.status, future.stderr).toBe(1)
+    const future = await status(root, home, parent, out)
+    expect(future.code).toBe(1)
     const unresolved = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
     expect(unresolved.hardLines.acceptanceLock.violations).toHaveLength(1)
     expect(unresolved.auditRanges[0].acceptance.violations).toHaveLength(2)
