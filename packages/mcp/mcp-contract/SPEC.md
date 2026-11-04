@@ -51,7 +51,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 ### 2026-07-28 核对后的裁定
 
-本页在 2026-11-04 对照 2026-07-28 修订作出下列可加决定。每条只加字段、导出或条款，不改已有签名的必填性，不删导出。每条只指向条款，条款是唯一的规则。
+本页在 2026-11-04 对照 2026-07-28 修订作出下列可加决定。每条只加字段、导出或条款，不删导出，不把可选改为必填。只有一处改了已有签名的必填性：第 15 条把 `CallRequest.continuation.inputResponses` 从必填放宽为可选；这是放宽，已有调用方照常成立。每条只指向条款，条款是唯一的规则。
 
 1. `ActionDiscovery.refresh` 的请求带 `signal?`，只属于这一次刷新。见 S5。
 2. `McpClock` 与 `McpPorts.clock?`：清单的 `acquiredAt` 取自它。见 S3。
@@ -264,7 +264,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
   - `definition-changed`：调用方预期的定义摘要与当前摘要不同。
   - `action-unavailable`：已知动作不可用，或不在清单里。
 
-  `args` 必须是 JSON 对象，`isActionArgs` 判定。`invoke` 与 `continueWithInput` 收到非对象 `args` 时抛出 `TypeError`：这是调用方缺陷（前提违反），不是「未发出」的原因，不进入 `NotSentReason`。
+  `args` 必须是 JSON 对象，`isActionArgs` 判定。`invoke` 与 `continueWithInput` 收到非对象 `args` 时，返回的 Promise 以 `TypeError` reject，方法不同步抛出：这是调用方缺陷（前提违反），不是「未发出」的原因，不进入 `NotSentReason`。
 
 - **R3** `UnavailableReason` 写进已知动作的可用性：`no-longer-offered` 由 `mergeListing` 给出；`connection-unavailable`、`authorization-required`、`credential-unavailable`、`landing-unavailable` 由 `markUnavailable` 按连接条件给出。
 - **R4** 授权发现有四个字段：
@@ -329,18 +329,18 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 - **S5** `refresh` 答下列之一：
   - `published`：清单已整份发布，带新的修订。
   - `kept`，原因是 `superseded`：`CatalogStore` 写入时答修订冲突，`mergeListing` 答 `stale-revision`，或产出清单的那一代连接在发布前已不是当前连接。原采用不变。
-  - `kept`，原因是 `cancelled`：本次刷新已被取消。请求的 `signal` 只属于这一次刷新。实现在等待建连、取每一页与发布边界各自核对它；它已触发时答 `cancelled`，不发布。原采用不变。
+  - `kept`，原因是 `cancelled`：本次刷新已被取消。请求的 `signal` 只属于这一次刷新。实现在等待建连、取每一页与发布边界各自核对它；它已触发时答 `cancelled`，不发布。原采用不变。`signal` 触发只结束本次刷新对建连的等待，不中止同一连接键上共享的建连：那次建连照常完成或失败，结果留给其他等待者。
   - `kept`，原因是 `listing-incomplete`：`completeListing` 答了缺陷，带这个缺陷。某页的传输答 `no-answer`、`error-answer` 或 `answer-malformed` 时，这一页算失败，缺陷是 `page-failed`，连接转为 `degraded`（`list-failed`）。原采用不变。
   - 失败：某页或 `discover` 的传输答 `not-sent`（`authorization-required` 或 `connection-unavailable`）时，答对应的 `ConnectionFailure`，连接按 S7 转为 `lost`，并用对应原因调用 `markUnavailable`。写入这份记录时 `CatalogStore` 答修订冲突，`refresh` 答 `kept`（`superseded`）；答不可用时答 `unknown`。`discover` 答 `no-answer` 时答 `effect-unknown`；答 `error-answer` 或 `answer-malformed` 时答 `connection-unavailable`，连接转为 `lost`（`discover-failed`）。发布边界核对当前授权失败时，答对应的 `Refusal`，不发布。`CatalogStore` 读取或写入不可用时答 `unknown`，不报告新修订。
 - **S6** 进度与日志通知经调用方给出的观察函数交出，标为不可信，不代替结局。观察函数抛出不影响调用的结局。本组不把通知写进自己的日志：对端日志不经过 `ProcessLanding`，MCP 无法按值遮盖其中的秘密。
 - **S7** `EndpointStatusView` 的连接状态：
   - `none`：本次运行没有这个接入点的连接。`preparing`：正在准备。`ready`：`discover` 已成立。2026-07-28 没有握手与会话：「协商」只指旧对端的 `initialize`，「会话」只对旧对端成立。
-  - `degraded`：最近一次非调用请求暂时失败，原因 `discover-failed`（`server/discover`）或 `list-failed`（`tools/list`）。
-  - `lost`：连接不再成立，原因如下：`preparation-failed`，准备失败且不属于其他几种；`discover-failed`，`server/discover` 已发出而应答是 JSON-RPC 错误或读不懂；`close-unconfirmed`，`release`、`closeAll` 或自动关闭时进程的 `stop()` 答 `root-only` 或 `unconfirmed`；`authorization-required`，对端答需要授权；`process-exited`，stdio 进程退出；`stream-broken`，管道或流断开；`negotiation-invalid`，已记录的 `discover` 或旧对端 `initialize` 的结果不再成立；`session-ended`，传输对旧对端会话上的请求答 `not-sent`（`session-ended`）（T8 S07）。
+  - `degraded`：最近一次非调用请求暂时失败，原因 `discover-failed`（`discover`，含旧一路的 `initialize`）或 `list-failed`（`tools/list`）。
+  - `lost`：连接不再成立，原因如下：`preparation-failed`，准备失败且不属于其他几种；`discover-failed`，`discover` 已发出而最终报出的失败是 `error-answer` 或 `answer-malformed`，按 T8 它可能来自现代一路的 `server/discover`，也可能来自走旧一路后的 `initialize`；`close-unconfirmed`，`release`、`closeAll` 或自动关闭时进程的 `stop()` 答 `root-only` 或 `unconfirmed`；`authorization-required`，对端答需要授权；`process-exited`，stdio 进程退出；`stream-broken`，管道或流断开；`negotiation-invalid`，已记录的 `discover` 或旧对端 `initialize` 的结果不再成立；`session-ended`，传输对旧对端会话上的请求答 `not-sent`（`session-ended`）（T8 S07）。
 
   「确认停止」指 `stop()` 答 `tree-confirmed`。准备失败或关闭后留下的进程与它确认的停止范围只记在 `lost` 状态的 `residual` 上，视图原样反映状态。关闭时确认停止，状态回到 `none`；否则状态是 `lost`（`close-unconfirmed`）并带 `residual`。重建成功或之后确认停止时，`residual` 清除。凭据在视图里报告为：`not-required`，`auth` 是 `none`；`absent`，配值缺失；`invalid`，配值被守卫拒绝；`present`，配值存在。视图不报告凭据值。
 
-- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。落点在途（进程尚未交来）时，报告该连接的进程范围为 `unconfirmed`，不报 `no-process`。`closeAll` 之后本实例不再建立连接：要连接的操作答 `connection-unavailable`，`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
+- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。落点在途（进程尚未交来）时，报告该连接的进程范围为 `unconfirmed`，不报 `no-process`。`closeAll` 之后本实例不再建立连接：`refresh` 答 `connection-unavailable`；`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」；四个任务操作答 `effect-unknown`（`no-connection`），与 S2「要新建连接而不能」相同，因为它们的失败没有「未发出」。任务操作先按 S2 判发起者：不是发起者或表里没有时答 `unknown`，然后才判 `closeAll`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
 - **S9** 凭据句柄的取得与释放：每条连接按凭据配值调用一次 `CredentialUse.acquire`，所有 `credential` 来源变量共用这一个进程凭据句柄。进程凭据句柄在进程的 `stop()` 返回之后释放，不论它答哪种范围；准备失败时立即释放。HTTP 凭据句柄随连接关闭释放。关停例外：`closeAll` 时落点仍在途的连接，进程凭据句柄立即释放。之后迟到的进程照样停止一次，句柄不再释放第二次。
 
 ## 所有权、失败与生命周期
@@ -620,7 +620,7 @@ T3 与 T8 引用的 SDK 行为，按仓库采用的 `@modelcontextprotocol/clien
 | AV、UE、CU、PL、CS | `tests/conformance.spec.ts` 让五个套件跑内存替身，并用违约替身证明套件会变红                                                                                                                                                                                                                                                                                                  | 同上                                                                      |
 | T1–T9              | `mcpTransportConformance()`：T8 的每一行生成一个用例（用例名带行号），用例跑这一行在夹具材料上的每个输入组合；T1–T6 与 T9 的组成、时序与端口失败另有手写用例。`tests/transport-conformance.spec.ts` 让 `createScriptedTransportFactory` 跑全部用例，用违约传输证明套件会变红，并核对：输入域的每个组合恰好落在一行；每行至少一个用例；本页 T8 的行号与 `TRANSPORT_TABLE` 一致 | 同上                                                                      |
 
-端口的实现方这样使用套件：从 `./testing` 取 `mcp<端口>Conformance()`，为每个用例新建一份夹具，用 `runConformanceCase` 在自己的测试框架里逐个运行。传输的夹具是 `TransportFixture`：它声明能打开的材料种类与传输在 `server/discover` 上会说的现代协议版本（`protocolVersions` 只列现代修订；旧修订由 `LEGACY_PROTOCOL_VERSIONS` 决定，列了旧修订时用例失败），并为每个用例按 `PeerScript` 给出一个脚本化对端、到达它的传输工厂与打开材料。脚本只描述对端在 JSON-RPC 层怎样答，不描述 SDK。用例也可以给出一个函数，夹具知道 Streamable HTTP 材料的目标之后调用它写出脚本：T4 的元数据地址与元数据的 `resource` 取自这个目标。对端记录的 `received()` 是异步的：夹具等客户端在调用之前发出的一切都记下之后才答复，例如中止的应答流与客户端对对端请求的答复。T5 关闭次序用例把材料的进程句柄换成一个观察包装：读写原样转给原进程，只另记关闭 stdin、取消 stdout 与停止进程；原进程自己结束 stdout 时，包装仍让 stdout 等到传输取消它。T8 生成的用例跑该行在夹具材料上的每个输入组合（两种材料共 989 个），每个组合跑每个样本应答，结论是「走旧一路」的组合另跑一次旧一路失败的情形；真实夹具每跑一次就要准备一个对端。真实服务端夹具归 `@omne-harness/mcp-host-local`。结论有三种：
+端口的实现方这样使用套件：从 `./testing` 取 `mcp<端口>Conformance()`，为每个用例新建一份夹具，用 `runConformanceCase` 在自己的测试框架里逐个运行。传输的夹具是 `TransportFixture`：它声明能打开的材料种类与传输在 `server/discover` 上会说的现代协议版本。`protocolVersions` 只列现代修订，从高到低排列：套件取第一项为最高版本，取最后一项为最低版本；旧修订由 `LEGACY_PROTOCOL_VERSIONS` 决定，列了旧修订时用例失败。夹具为每个用例按 `PeerScript` 给出一个脚本化对端、到达它的传输工厂与打开材料。脚本只描述对端在 JSON-RPC 层怎样答，不描述 SDK。用例也可以给出一个函数，夹具知道 Streamable HTTP 材料的目标之后调用它写出脚本：T4 的元数据地址与元数据的 `resource` 取自这个目标。对端记录的 `received()` 是异步的：夹具等客户端在调用之前发出的一切都记下之后才答复，例如中止的应答流与客户端对对端请求的答复。T5 关闭次序用例把材料的进程句柄换成一个观察包装：读写原样转给原进程，只另记关闭 stdin、取消 stdout 与停止进程；原进程自己结束 stdout 时，包装仍让 stdout 等到传输取消它。T8 生成的用例跑该行在夹具材料上的每个输入组合（两种材料共 989 个），每个组合跑每个样本应答，结论是「走旧一路」的组合另跑一次旧一路失败的情形；真实夹具每跑一次就要准备一个对端。真实服务端夹具归 `@omne-harness/mcp-host-local`。结论有三种：
 
 - 通过。
 - 失败：用例抛出 `node:assert` 的 `AssertionError` 或其他错误，`runConformanceCase` 把它抛给调用方。
@@ -629,7 +629,10 @@ T3 与 T8 引用的 SDK 行为，按仓库采用的 `@modelcontextprotocol/clien
 未覆盖：
 
 - 服务条款 S1–S9 没有实现，本成员不能验证它们。它们由服务实现的测试验证。
-- 传输条款 T1–T9 由 `mcpTransportConformance()` 覆盖，本成员只在脚本化传输上运行它。真实服务端夹具、真实 stdio 进程与真实 Streamable HTTP 在 `@omne-harness/mcp-host-local`。T9 里服务的处置由服务实现的测试验证。
+- 传输条款的覆盖，本成员只在脚本化传输上运行套件。真实服务端夹具、真实 stdio 进程与真实 Streamable HTTP 在 `@omne-harness/mcp-host-local`：
+  - T8 的每一行由生成的用例覆盖，用例跑这一行在夹具材料上的每个输入组合。T1 的四种失败与 T7 的 `what` 都经 T8 的行核对。
+  - 表外条款有手写用例的部分：T2 的页（`nextCursor`、`ttlMs`、`withheld`、stdio 不核 `x-mcp-header`）；T3 的 `_meta`、请求头、会话头、协商版本、旧一路 `initialize` 的内容、两条路的 `instructions` 截断、对端请求、`progressToken` 与 `observe`；T4 与 R4 的授权发现；T5 的三种取消、关闭次序、发出后的 `signal`、关闭时在途的调用、关闭后的请求、授权中被关闭的调用；T6 的任务报告、任务答复、提示与请求参数；T9 中凭据句柄的两种失败。
+  - 表外条款没有用例的部分：T3 的探测时限取自传输配置、时限到了以后迟到的应答丢弃；T5 的 `signal` 在调用前已触发时答 `not-sent`；T9 中服务对传输方法失败的处置，它由服务实现的测试验证。
 - 真实对端、真实凭据、真实进程落点、耐久存储的行为都没有证据。替身通过不等于真实组合通过。
 
 <a id="open-items"></a>
