@@ -14,6 +14,7 @@ import { createAdvance, type Advance } from './advance.ts'
 import { ADVANCE_KINDS, createCommandHandler } from './command.ts'
 import { createControlPropagation, type ControlPropagation } from './control.ts'
 import { checkStartConditions, type SessionDependencies } from './dependencies.ts'
+import type { SessionDiagnose } from './diagnostics.ts'
 import { createFaces } from './faces.ts'
 import { Lifecycle } from './lifecycle.ts'
 import { createSessionMeasurer, type SessionMeasure } from './measure.ts'
@@ -29,6 +30,11 @@ export type { MaintenanceHandle } from './scan.ts'
 export type SessionInstanceOptions = Readonly<{
   /** The observer of the measurement events (SPEC「测量事件」). Absent means no event is built. */
   measure?: SessionMeasure
+  /**
+   * The observer of the named diagnostics (`SessionDiagnostic`): every coordinator step that stops
+   * on a failure reports one. Absent, the instance keeps them only in memory.
+   */
+  diagnose?: SessionDiagnose
 }>
 
 export type SessionInstance<P> = Readonly<{
@@ -77,7 +83,7 @@ export function createSessionInstance<P>(
 ): SessionInstance<P> {
   checkStartConditions(dependencies)
   const { policy } = checkSessionConfiguration(configuration)
-  const lifecycle = new Lifecycle()
+  const lifecycle = new Lifecycle(options.diagnose)
   const measurer = createSessionMeasurer(options.measure)
   const reads = createReads(dependencies, lifecycle, measurer)
   // Bound below; the handler only calls it after a commit, never during construction.

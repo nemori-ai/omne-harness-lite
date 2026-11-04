@@ -377,9 +377,12 @@
 - 工厂 `createSessionInstance`。构造前核对四项启动条件与 `SchedulingPolicy` 的每个字段。任一不合，工厂抛出错误并指出依赖名或字段路径，不调用任何依赖。
 - [CP-01](#cp-01) 的六步，含 `changed` 重做与 `command.retriesOnChanged` 上限，以及 [cp-access](#cp-access) 的一次核权与委派视图。
 - [CP-03](#cp-03) 的读路径。调用方类按契约的四面操作表核对，不在其中返回 `denied`，不调用 `check`。
-- [S1](#s1)，以及 [C2](#c2) 的开 Run 顺序：`judgeRunStart`、`startRun`、`invoke`、`receive(input-handover)`。`invoke` 答 `invalid` 时提交有界收束的 `finishRun`。`startRun` 带回冻结判定时提交 `freeze`。`startRun`、`claim`、`reload` 的 `instance` 按 XC-AGINST 第 2.1 节的会话槽引用规则计算。
+- [S1](#s1)，以及 [C2](#c2) 的开 Run 顺序：`judgeRunStart`、`startRun`、`invoke`、`receive(input-handover)`。`invoke` 答 `invalid` 时提交有界收束的 `finishRun`，它的 `expected` 是 Run 层修订，无关提交不使它答 `changed`（契约[推进命令的 expected](../session-contract/SPEC.md#run-layer-expected)，R2-D327）。`startRun` 带回冻结判定时提交 `freeze`。`startRun`、`claim`、`reload` 的 `instance` 按 XC-AGINST 第 2.1 节的会话槽引用规则计算。
+- 已授予而未受理的 Run（契约 [PA-06](../session-contract/SPEC.md#pa-06) 第 2 项、[PM-14](../session-contract/SPEC.md#pm-14) 第 2 行，R2-D327）：S1 读到 Run 为 active、`advance` 非空、首条输入仍待处理而没有 SE35 时，不调用 `judgeRunStart`，把会话交 C2 重放。C2 在会话串行队列里重读快照，以该 Run 的 OP-00 身份（首条输入与前继 Run）认回原 `startRun`，取得原回执，再以同一出站身份 `invoke`。触发来自提交通知、本地唤醒或 S3 按 `inputs` 找到的会话，所以重试序列用尽、进程崩溃或 Agent 端口缺席之后，Run 不会永远停在 active 而没有执行。`advance` 已转到后来的 attempt 时，重放需要那个 attempt 的授予依据，属于 C5 的接管，本成员记 `attempt-replaced` 诊断后停止。
+- C2 与 S1 的失败分支都记具名诊断（R2-D327）：`invoke` 的不可重试失败、重试序列用尽（`retries-exhausted`）、Agent 端口缺席（`agent-absent`）、退避等待不成立（`clock-refused`）、读快照失败，`receive`、`finishRun`、`freeze`、`startRun` 的失败（`commit-unknown` 交 S4，不算停止），以及 S1 读快照失败。`invoke` 答 `denied` 时按 C2 行重读快照：本 attempt 已被取代则停止，不记诊断；仍持有推进资格则记 `denied`。`startRun` 答 `run-active`、`frozen` 时按 C2 行无害结束，不记诊断。诊断带会话、租户、Run、步骤、原因与失败原文，不带正文，见[诊断出口](#诊断出口)。
 - [S4](#s4)：按同一操作身份查询，结局已知后交回原发起者，以同一身份重做。
-- [S3](#s3)：启动扫描读原因的并集，周期扫描读 `inputs` 与 `unresolved`。有待处理输入的会话交 S1，每个未知操作交 S4。
+- [S3](#s3)：启动扫描读原因的并集，周期扫描读 `inputs`、`unresolved` 与 `controls`。有待处理输入的会话交 S1，每个未知操作交 S4，有 `propagating` 控制的会话交 C3。
+- [C3](#c3) 与 [S5](#s5) 的控制重放：控制提交、通知中的控制条目与扫描唤醒 C3，按 `controlReplay.intervalMs` 与 `controlReplay.maxReplays` 经 `AgentDrivePort.control` 送达原执行（`control.ts`）。
 - 停止顺序：先不接受新的触发，再等在途工作结束。停止期间不发出出站调用。
 
 ### 实现选择
@@ -399,11 +402,28 @@
 | [CP-02](#cp-02) 参加分支 | 四个面上的参加命令走 CP-01 | 执行记录提供者接入同日志提交（C19） |
 | [EX-1](#ex-1) 非空槽列表 | 普通输入的 `accept` 返回 `unavailable`，`owner` 为 `sessionAdmission`。槽可能展开提交内容，而委派视图绑定已核验的原命令，展开后的命令没有获准的提交路径 | 命令域与 hooks 定义槽的公开入口，并且委派入口的规则覆盖展开后的命令 |
 | EX-2、C1 单列的协调器 | `accept` 直接走 CP-01，本地唤醒 S1 代替推进条件触发 | 受理槽进入本波以后的范围 |
-| C2 的续入、同日志解释（[RD](#rd-同日志解释)）、恢复与接管、换代 | 不交入后续输入，不解释 Agent 事实。`invoke` 答 `denied` 时停止，不区分来源 | RD 依赖 `commitEntries` 的范围检查（C11）与 Journal 提供者（C19） |
-| [C3](#c3)、[C4](#c4)、[C5](#c5)，[S2](#s2)、[S5](#s5)、[S6](#s6)、[S7](#s7) | 不触发。`changed` 通知不唤醒任何调度器 | 各自的协调对象进入实现 |
-| S3 的其余六个原因、每会话退避、部署租户枚举 | 周期扫描只读 `inputs` 与 `unresolved`。租户由调用方逐个交入 `maintain` | 对应协调器进入实现。租户枚举归 session-cordis |
+| C2 的续入、同日志解释（[RD](#rd-同日志解释)）、恢复与接管、换代 | 不交入后续输入，不解释 Agent 事实。已授予未受理的 Run 只在当前 `advance` 仍是 `startRun` 授予的 attempt 时重放 `invoke`；被 `claim` 或 `reload` 换过 attempt 的 Run 记诊断后等 C5 | RD 依赖 `commitEntries` 的范围检查（C11）与 Journal 提供者（C19） |
+| [C4](#c4)、[C5](#c5)，[S2](#s2)、[S6](#s6)、[S7](#s7) | 不触发。`changed` 通知不唤醒任何调度器 | 各自的协调对象进入实现 |
+| S3 的其余五个原因、每会话退避、部署租户枚举 | 周期扫描读 `inputs`、`unresolved` 与 `controls`。没有每会话退避：已授予未受理的 Run 在 Agent 一直不可用时，每个扫描周期重放一轮 `advance.retryDelaysMs`，每轮用尽记一条 `retries-exhausted` 诊断。租户由调用方逐个交入 `maintain` | 对应协调器进入实现。租户枚举归 session-cordis |
 | [CA](#ca-缓存) 三层缓存 | 没有缓存。第 2 步总经视图读权威快照 | 实测显示权威读成为瓶颈 |
-| 诊断出口 | `SessionDependencies` 没有诊断端口。通知失败、`forSession` 失败、S4 超过上限时只停止，不报告维护者。C3/S5 的 `maxReplays` 超限后控制停在 `propagating`，没有端口可以报告。后台工作抛出的缺陷留在实例内存里 | 公开接口页增加诊断端口 |
+| 诊断出口的其余部分 | S1 与 C2 的失败已记具名诊断（[诊断出口](#诊断出口)）。通知失败、S4 超过上限、S3 读 `pending` 失败时仍只停止，不报告维护者。C3/S5 的 `maxReplays` 超限后控制停在 `propagating`，不记诊断 | 这些协调器按同一出口补齐 |
+
+### 诊断出口
+
+<a id="诊断出口"></a>依据 R2-D327：协调器的一步因失败停止时，记一条具名诊断，不静默返回。诊断留在实例内存（与后台缺陷同一个有界列表，最多 64 条），并同步交给工厂的可选第三个参数 `createSessionInstance(依赖, 配置, { diagnose })`。缺省时只留在内存。形状是 `SessionDiagnostic`，源码在 [diagnostics.ts](src/diagnostics.ts)：
+
+| 字段 | 含义 |
+| --- | --- |
+| `owner` | 停止的协调器或调度器：`S1`、`C2` |
+| `step` | 停止的步骤：`read`、`startRun`、`replay`、`invoke`、`receive`、`finishRun`、`freeze` |
+| `tenant`、`session` | 会话 |
+| `run` | 该步服务的 Run；Run 尚未确定时为 `null` |
+| `reason` | 端口答复的失败种类，或本成员的原因：`retries-exhausted`、`agent-absent`、`clock-refused`、`attempt-replaced` |
+| `detail` | 失败答复的 JSON 文本，或本成员的简短说明。不带输入、消息或结果正文 |
+
+- 观察者被同步调用。它抛出不改变任何行为，也不留痕。观察者不得回调本实例。
+- 实例关闭后不记诊断：停止顺序里中断的等待与读取不是失败。
+- 诊断不是耐久审计。重启后它们不再存在；工作本身由会话日志与 S3 找回。
 
 ### 测量事件
 
