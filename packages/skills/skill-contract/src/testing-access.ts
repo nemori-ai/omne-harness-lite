@@ -9,13 +9,11 @@ import type { CapabilityId } from '@omne-harness/assets'
 import type { Outcome } from '@omne-harness/operation-result'
 import { computeDigest } from './digest.ts'
 import type { ReadFailure } from './failures.ts'
+import { PAGE_LIMIT } from './page-limit.ts'
 import type { ReadResult, ReadTarget, SkillAccess } from './services.ts'
 import { conformanceCase, handle, type ConformanceCase } from './testing-case.ts'
 import type { PrincipalSample } from './testing-resolution.ts'
 import type { PackagePath, SkillMaterialBasis } from './values.ts'
-
-/** The most bytes of one page, as the SPEC fixes it. */
-const PAGE_LIMIT = 65_536
 
 /** How many times each port was called since the fixture was made. */
 export type PortCalls = Readonly<{ check: number; resolve: number; snapshot: number; open: number }>

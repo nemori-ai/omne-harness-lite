@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import type { CapabilityId } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
+import { sameCapability } from './capability.ts'
 import { digestOfSorted } from './digest.ts'
 import { isAssetVersion } from './names.ts'
 import type { CatalogResolution, Resolution, SkillResolution } from './ports.ts'
@@ -37,10 +38,6 @@ export type MemoryResolutionEntry<P, S> = Readonly<{
         reason: SafeReason
       }>
 }>
-
-export function sameCapability(left: CapabilityId, right: CapabilityId): boolean {
-  return left.category === right.category && left.name === right.name
-}
 
 /**
  * Whether `basis` names `material`. With an asset version the version decides; without one the

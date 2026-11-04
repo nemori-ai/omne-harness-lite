@@ -2253,6 +2253,12 @@ importers:
         specifier: workspace:*
         version: link:../skill-contract
     devDependencies:
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
       '@omne-harness/skill':
         specifier: workspace:*
         version: link:../skill

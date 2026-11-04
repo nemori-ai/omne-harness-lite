@@ -6,6 +6,7 @@ export {
   type ConformanceCase,
 } from './testing-case.ts'
 export { skillAccessConformance, type AccessFixture } from './testing-access.ts'
+export { skillCatalogConformance, type CatalogFixture } from './testing-catalog.ts'
 export {
   createMemoryReadCheck,
   skillReadCheckConformance,

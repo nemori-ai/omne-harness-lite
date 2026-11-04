@@ -3,10 +3,13 @@
 // byte that is not a continuation byte (0b10xxxxxx), and a slice between boundaries decodes.
 // The requested end is the requested start plus the requested length; the actual end is the
 // last character boundary at or before it, and not before the actual start.
-import type { ByteRange, Bytes, PackageEntry, ReadContent } from '@omne-harness/skill-contract'
-
-/** The most bytes of one page. Not configurable in this version. */
-export const PAGE_LIMIT = 65_536
+import {
+  PAGE_LIMIT,
+  type ByteRange,
+  type Bytes,
+  type PackageEntry,
+  type ReadContent,
+} from '@omne-harness/skill-contract'
 
 export type Sliced = Readonly<{
   content: ReadContent

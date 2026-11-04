@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { readBodyText, type JsonValue } from '@omne-harness/assets'
+import { capabilityId, readBodyText, type JsonValue } from '@omne-harness/assets'
 import { writeJsonText } from '@omne-harness/json-text'
 import {
   computeDigest,
@@ -13,7 +13,9 @@ import {
   isPackageDigest,
   isPackagePath,
   isSafeReason,
+  isSkillDescription,
   isSkillName,
+  sameCapability,
   toPackagePath,
 } from '@omne-harness/skill-contract'
 import { buildFixture, path } from './package-builder.ts'
@@ -80,7 +82,14 @@ describe('toPackagePath keeps a normalized path inside the package', () => {
 
 describe('the guards refuse values that are not text', () => {
   it.each([undefined, null, 7, {}, ['a']])('refuses %j', value => {
-    for (const guard of [isSkillName, isPackagePath, isSafeReason, isAssetVersion, isPackageDigest])
+    for (const guard of [
+      isSkillName,
+      isPackagePath,
+      isSafeReason,
+      isAssetVersion,
+      isPackageDigest,
+      isSkillDescription,
+    ])
       expect(guard(value)).toBe(false)
   })
 })
@@ -107,6 +116,25 @@ describe('the control character boundaries of the text guards', () => {
     expect(isSafeReason(`a${character}b`)).toBe(allowed)
     expect(isAssetVersion(`a${character}b`)).toBe(allowed)
     expect(isPackagePath(`a${character}b`)).toBe(allowed)
+  })
+})
+
+describe('isSkillDescription accepts text of 1 to 1024 characters', () => {
+  it.each([
+    ['x', 'one character'],
+    ['x'.repeat(1024), '1024 characters'],
+    ['😀'.repeat(1024), '1024 characters outside the basic plane'],
+    ['two\nlines', 'a line feed: the description is not a short text'],
+  ])('accepts %j (%s)', text => {
+    expect(isSkillDescription(text)).toBe(true)
+  })
+
+  it.each([
+    ['', 'empty'],
+    ['x'.repeat(1025), '1025 characters'],
+    ['😀'.repeat(1025), '1025 characters outside the basic plane'],
+  ])('rejects %j (%s)', text => {
+    expect(isSkillDescription(text)).toBe(false)
   })
 })
 
@@ -221,6 +249,26 @@ describe('inferMediaType', () => {
     expect(inferMediaType(path('a/b.unknown'), new Uint8Array([0, 1, 2]))).toBeUndefined()
     expect(inferMediaType(path('a/short'), new Uint8Array([0x89, 0x50]))).toBeUndefined()
     expect(inferMediaType(path('.hidden'), head('x'))).toBeUndefined()
+  })
+})
+
+describe('sameCapability', () => {
+  function identity(category: string, name: string) {
+    const id = capabilityId(category, name)
+    if (!id.ok) throw new Error(`${category}:${name}`)
+    return id.id
+  }
+
+  it('takes two identities with the same category and name for one, whatever the objects', () => {
+    expect(sameCapability(identity('skill', 'review'), identity('skill', 'review'))).toBe(true)
+  })
+
+  it.each([
+    ['the same name in another category', identity('tool', 'review')],
+    ['another name in the same category', identity('skill', 'reviews')],
+  ])('tells apart %s', (_case, other) => {
+    expect(sameCapability(identity('skill', 'review'), other)).toBe(false)
+    expect(sameCapability(other, identity('skill', 'review'))).toBe(false)
   })
 })
 
